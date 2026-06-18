@@ -3754,12 +3754,13 @@ sys_renameat2(struct thread *td, struct renameat2_args *uap)
 #ifdef MAC
 static int
 kern_renameat_mac(struct thread *td, int oldfd, const char *old, int newfd,
-    const char *new, enum uio_seg pathseg, struct nameidata *fromnd)
+    const char *new, enum uio_seg pathseg, struct nameidata *fromnd, int op,
+    int ndflags)
 {
 	int error;
 
-	NDINIT_ATRIGHTS(fromnd, DELETE, LOCKPARENT | LOCKLEAF | AUDITVNODE1,
-	    pathseg, old, oldfd, &cap_renameat_source_rights);
+	NDINIT_ATRIGHTS(fromnd, op, LOCKPARENT | LOCKLEAF | AUDITVNODE1 |
+	    ndflags, pathseg, old, oldfd, &cap_renameat_source_rights);
 	if ((error = namei(fromnd)) != 0)
 		return (error);
 	error = mac_vnode_check_rename_from(td->td_ucred, fromnd->ni_dvp,
@@ -3784,23 +3785,35 @@ kern_renameat(struct thread *td, int oldfd, const char *old, int newfd,
 	struct vnode *tvp, *fvp, *tdvp;
 	struct nameidata fromnd, tond;
 	uint64_t tondflags;
-	int error;
+	int error, fndflags, op;
 	short irflag;
+	bool exchange;
 
-	if ((flags & ~(AT_RENAME_NOREPLACE)) != 0)
+	if ((flags & ~(AT_RENAME_NOREPLACE | AT_RENAME_EXCHANGE)) != 0)
 		return (EINVAL);
+	if ((flags & (AT_RENAME_NOREPLACE | AT_RENAME_EXCHANGE)) ==
+	    (AT_RENAME_NOREPLACE | AT_RENAME_EXCHANGE))
+		return (EINVAL);
+	if ((flags & AT_RENAME_EXCHANGE) != 0) {
+		op = RENAME;
+		exchange = true;
+	} else {
+		op = DELETE;
+		exchange = false;
+	}
+	fndflags = 0;
 again:
 	tmp = mp = NULL;
 	bwillwrite();
 #ifdef MAC
 	if (mac_vnode_check_rename_from_enabled()) {
 		error = kern_renameat_mac(td, oldfd, old, newfd, new, pathseg,
-		    &fromnd);
+		    &fromnd, op, fndflags);
 		if (error != 0)
 			return (error);
 	} else {
 #endif
-	NDINIT_ATRIGHTS(&fromnd, DELETE, WANTPARENT | AUDITVNODE1,
+	NDINIT_ATRIGHTS(&fromnd, op, WANTPARENT | AUDITVNODE1 | fndflags,
 	    pathseg, old, oldfd, &cap_renameat_source_rights);
 	if ((error = namei(&fromnd)) != 0)
 		return (error);
@@ -3808,6 +3821,11 @@ again:
 	}
 #endif
 	fvp = fromnd.ni_vp;
+	if (exchange && fvp == NULL) {
+		NDFREE_PNBUF(&fromnd);
+		vrele(fromnd.ni_dvp);
+		return (ENOENT);
+	}
 	tondflags = LOCKPARENT | LOCKLEAF | NOCACHE | AUDITVNODE2;
 	if (fromnd.ni_vp->v_type == VDIR)
 		tondflags |= WILLBEDIR;
@@ -3845,6 +3863,29 @@ again:
 		 */
 		error = EEXIST;
 		goto out;
+	}
+	if (exchange) {
+		if (tvp == NULL) {
+			error = ENOENT;
+			goto out;
+		}
+		if (tvp->v_type == VDIR && fndflags == 0) {
+			fndflags = WILLBEDIR;
+again2:
+			NDFREE_PNBUF(&fromnd);
+			vrele(fromnd.ni_dvp);
+			vrele(fvp);
+			NDFREE_PNBUF(&tond);
+			VOP_VPUT_PAIR(tdvp, &tvp, true);
+			error = sig_intr();
+			if (error != 0)
+				goto out1;
+			goto again;
+		}
+		if (tvp->v_type != VDIR && fndflags != 0) {
+			fndflags = 0;
+			goto again2;
+		}
 	}
 	error = vn_start_write(fvp, &mp, V_NOWAIT);
 	if (error != 0) {
@@ -3888,12 +3929,15 @@ again1:
 		goto out;
 	}
 	if (tvp != NULL) {
-		if (fvp->v_type == VDIR && tvp->v_type != VDIR) {
-			error = ENOTDIR;
-			goto out;
-		} else if (fvp->v_type != VDIR && tvp->v_type == VDIR) {
-			error = EISDIR;
-			goto out;
+		if (!exchange) {
+			if (fvp->v_type == VDIR && tvp->v_type != VDIR) {
+				error = ENOTDIR;
+				goto out;
+			} else if (fvp->v_type != VDIR &&
+			    tvp->v_type == VDIR) {
+				error = EISDIR;
+				goto out;
+			}
 		}
 #ifdef CAPABILITIES
 		if (newfd != AT_FDCWD && (tond.ni_resflags & NIRES_ABS) == 0) {
