@@ -569,6 +569,8 @@ linux_to_bsd_so_sockopt(int opt)
 		return (SO_PROTOCOL);
 	case LINUX_SO_DOMAIN:
 		return (SO_DOMAIN);
+	case LINUX_SO_PASSRIGHTS:
+		return (SO_PASSRIGHTS);
 	}
 	return (-1);
 }

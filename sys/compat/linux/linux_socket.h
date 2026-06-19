@@ -195,6 +195,7 @@ int linux_accept(struct thread *td, struct linux_accept_args *args);
 #define	LINUX_SO_PROTOCOL	38
 #define	LINUX_SO_DOMAIN		39
 #define	LINUX_SO_PEERGROUPS	59
+#define	LINUX_SO_PASSRIGHTS	83
 
 /* Socket-level control message types */
 
