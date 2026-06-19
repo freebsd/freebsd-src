@@ -209,12 +209,26 @@ localcreds(int sockfd)
 }
 
 static ssize_t
+recvfd_payload_cmsg(int sockfd, void *buf, size_t buflen, struct msghdr *msghdr,
+    int recvmsg_flags)
+{
+	struct iovec iovec;
+
+	iovec.iov_base = buf;
+	iovec.iov_len = buflen;
+
+	msghdr->msg_iov = &iovec;
+	msghdr->msg_iovlen = 1;
+
+	return (recvmsg(sockfd, msghdr, recvmsg_flags));
+}
+
+static ssize_t
 recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen,
     size_t cmsgsz, int recvmsg_flags)
 {
 	struct cmsghdr *cmsghdr;
 	struct msghdr msghdr;
-	struct iovec iovec;
 	char *message;
 	ssize_t len;
 	bool foundcreds;
@@ -226,13 +240,7 @@ recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen,
 	msghdr.msg_control = message;
 	msghdr.msg_controllen = cmsgsz;
 
-	iovec.iov_base = buf;
-	iovec.iov_len = buflen;
-
-	msghdr.msg_iov = &iovec;
-	msghdr.msg_iovlen = 1;
-
-	len = recvmsg(sockfd, &msghdr, recvmsg_flags);
+	len = recvfd_payload_cmsg(sockfd, buf, buflen, &msghdr, recvmsg_flags);
 	ATF_REQUIRE_MSG(len != -1, "recvmsg failed: %s", strerror(errno));
 
 	cmsghdr = CMSG_FIRSTHDR(&msghdr);
