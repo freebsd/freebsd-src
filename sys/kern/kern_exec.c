@@ -1035,7 +1035,7 @@ interpret:
 	/* Set values passed into the program in registers. */
 	(*p->p_sysent->sv_setregs)(td, imgp, stack_base);
 
-	VOP_MMAPPED(imgp->vp);
+	VOP_UPDATE_ATIME(imgp->vp, NULL);
 
 	SDT_PROBE1(proc, , , exec__success, args->fname);
 
