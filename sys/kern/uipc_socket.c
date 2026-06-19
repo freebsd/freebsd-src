@@ -1805,7 +1805,7 @@ so_unsplice(struct socket *so, bool timeout)
 {
 	struct socket *so2;
 	struct so_splice *sp;
-	bool drain, so2rele;
+	bool drain;
 
 	/*
 	 * First unset SB_SPLICED and hide the splice structure so that
@@ -1850,7 +1850,6 @@ so_unsplice(struct socket *so, bool timeout)
 		KASSERT(so2->so_splice_back == sp,
 		    ("%s: so_splice_back != sp", __func__));
 		so2->so_snd.sb_flags &= ~SB_SPLICED;
-		so2rele = so2->so_splice_back != NULL;
 		so2->so_splice_back = NULL;
 		SOCK_SENDBUF_UNLOCK(so2);
 		SOCK_UNLOCK(so2);
@@ -1896,8 +1895,7 @@ so_unsplice(struct socket *so, bool timeout)
 	sorele(so);
 	if (so2 != NULL) {
 		sowwakeup(so2);
-		if (so2rele)
-			sorele(so2);
+		sorele(so2);
 	}
 	CURVNET_RESTORE();
 	so_splice_free(sp);
