@@ -45,9 +45,42 @@ ATF_TC_BODY(dbm_nextkey_test, tc)
 	dbm_close(db);
 }
 
+ATF_TC(dbm_nextkey_cursor_test);
+ATF_TC_HEAD(dbm_nextkey_cursor_test, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Check that dbm_nextkey acts as if R_FIRST was passed if the cursor is not set");
+}
+
+ATF_TC_BODY(dbm_nextkey_cursor_test, tc)
+{
+	DBM *db;
+	datum key, data;
+
+	data.dptr = "bar";
+	data.dsize = strlen("bar");
+	key.dptr = "foo";
+	key.dsize = strlen("foo");
+
+	db = dbm_open(path, O_RDWR | O_CREAT, 0755);
+	ATF_CHECK(db != NULL);
+	ATF_REQUIRE(atf_utils_file_exists(dbname));
+	ATF_REQUIRE(dbm_store(db, key, data, DBM_INSERT) != -1);
+	dbm_close(db);
+
+	db = dbm_open(path, O_RDWR | O_CREAT, 0755);
+	ATF_CHECK(db != NULL);
+	ATF_REQUIRE(atf_utils_file_exists(dbname));
+	key = dbm_nextkey(db);
+	ATF_REQUIRE(key.dptr != NULL);
+
+	dbm_close(db);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, dbm_nextkey_test);
+	ATF_TP_ADD_TC(tp, dbm_nextkey_cursor_test);
 
 	return (atf_no_error());
 }
