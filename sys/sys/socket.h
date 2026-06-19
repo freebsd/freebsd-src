@@ -147,6 +147,7 @@ typedef	__uintptr_t	uintptr_t;
 #define	SO_NO_DDP	0x00008000	/* int; disable direct data placement */
 #define	SO_REUSEPORT_LB	0x00010000	/* int; reuse with load balancing */
 #define	SO_RERROR	0x00020000	/* int; keep track of receive errors */
+#define	SO_PASSRIGHTS	0x00040000	/* int; unix(4) accepts SCM_RIGHTS */
 
 /*
  * Additional options, not kept in so_options.
