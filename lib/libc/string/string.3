@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 2, 2023
+.Dd June 21, 2026
 .Dt STRING 3
 .Os
 .Sh NAME
@@ -136,20 +136,26 @@ for size limitations.
 The
 .Fn strcat ,
 .Fn strncat ,
-.Fn strchr ,
-.Fn strrchr ,
 .Fn strcmp ,
 .Fn strncmp ,
 .Fn strcpy ,
 .Fn strncpy ,
 .Fn strerror ,
 .Fn strlen ,
-.Fn strpbrk ,
 .Fn strspn ,
 .Fn strcspn ,
-.Fn strstr ,
 and
 .Fn strtok
 functions
 conform to
 .St -isoC .
+.Pp
+The
+.Fn strchr ,
+.Fn strrchr ,
+.Fn strpbrk ,
+and
+.Fn strstr
+functions conform to
+.St -isoC-2023 ,
+where they are specified as qualifier-preserving functions.

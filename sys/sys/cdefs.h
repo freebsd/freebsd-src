@@ -228,6 +228,27 @@
 #endif
 
 /*
+ * __qualsel() is the building block for C23 qualifier-preserving macros
+ * as proposed in N3020: it selects cexpr when the pointer expression p
+ * references a const-qualified object, and expr otherwise.
+ *
+ * The conditional operator's composite-type rule collapses every
+ * pointer-to-const-object type onto the single "const void *"" association,
+ * so callers passing any such pointer are matched even though _Generic()
+ * otherwise compares types exactly.
+ *
+ * The (__uintptr_t) round-trip only suppresses -Wcast-qual on the throwaway
+ * second operand.
+ */
+#if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) || \
+    __has_extension(c_generic_selections)
+#define	__qualsel(p, cexpr, expr)					\
+	_Generic(1 ? (p) : (void *)(__uintptr_t)(p),			\
+	    const void *: (cexpr),					\
+	    default: (expr))
+#endif
+
+/*
  * C99 Static array indices in function parameter declarations.  Syntax such as:
  * void bar(int myArray[static 10]);
  * is allowed in C99 but not in C++.  Define __min_size appropriately so

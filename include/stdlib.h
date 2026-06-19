@@ -414,4 +414,16 @@ errno_t	 qsort_s(void *, rsize_t, rsize_t,
 __END_DECLS
 __NULLABILITY_PRAGMA_POP
 
+#if defined(__qualsel) && !defined(__cplusplus) && \
+    defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+#define	bsearch(key, base, nmemb, size, compar)		__qualsel((base),    \
+	(const void *)(bsearch)((key), (base), (nmemb), (size), (compar)),   \
+	(bsearch)((key), (base), (nmemb), (size), (compar)))
+#ifdef __BLOCKS__
+#define	bsearch_b(key, base, nmemb, size, compar)	__qualsel((base),    \
+	(const void *)(bsearch_b)((key), (base), (nmemb), (size), (compar)), \
+	(bsearch_b)((key), (base), (nmemb), (size), (compar)))
+#endif
+#endif
+
 #endif /* !_STDLIB_H_ */

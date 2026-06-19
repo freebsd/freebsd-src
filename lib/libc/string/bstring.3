@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 5, 2023
+.Dd June 21, 2026
 .Dt BSTRING 3
 .Os
 .Sh NAME
@@ -88,7 +88,6 @@ See the specific manual pages for more information.
 .Xr memset 3
 .Sh STANDARDS
 The functions
-.Fn memchr ,
 .Fn memcmp ,
 .Fn memcpy ,
 .Fn memmove ,
@@ -96,6 +95,12 @@ and
 .Fn memset
 conform to
 .St -isoC .
+.Pp
+The
+.Fn memchr
+function conforms to
+.St -isoC-2023 ,
+where it is specified as a qualifier-preserving function.
 .Sh HISTORY
 The functions
 .Fn bzero
