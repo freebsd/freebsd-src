@@ -3911,6 +3911,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 		case SO_NO_DDP:
 		case SO_NO_OFFLOAD:
 		case SO_RERROR:
+stdopt:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 			    sizeof optval);
 			if (error)
@@ -3922,6 +3923,14 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 				so->so_options &= ~sopt->sopt_name;
 			SOCK_UNLOCK(so);
 			break;
+
+		case SO_PASSRIGHTS:
+			if (so->so_proto->pr_domain->dom_family != AF_LOCAL) {
+				error = EOPNOTSUPP;
+				goto bad;
+			}
+
+			goto stdopt;
 
 		case SO_SETFIB:
 			error = so->so_proto->pr_ctloutput(so, sopt);
@@ -4162,10 +4171,19 @@ sogetopt(struct socket *so, struct sockopt *sopt)
 		case SO_NO_DDP:
 		case SO_NO_OFFLOAD:
 		case SO_RERROR:
+stdopt:
 			optval = so->so_options & sopt->sopt_name;
 integer:
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
+
+		case SO_PASSRIGHTS:
+			if (so->so_proto->pr_domain->dom_family != AF_LOCAL) {
+				error = EOPNOTSUPP;
+				goto bad;
+			}
+
+			goto stdopt;
 
 		case SO_FIB:
 			SOCK_LOCK(so);
