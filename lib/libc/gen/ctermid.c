@@ -59,7 +59,7 @@ __ssp_real(ctermid)(char *buf)
 		(void)sysctlbyname("kern.devname", buf + LEN_PATH_DEV,
 		    &dlen, &sb.st_rdev, sizeof(sb.st_rdev));
 	errno = sverrno;
-	return (s);
+	return (buf);
 }
 
 char *
