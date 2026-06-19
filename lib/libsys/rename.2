@@ -143,6 +143,12 @@ and
 .Fa to
 exists, the request fails with the error
 .Er EEXIST .
+.It Dv AT_RENAME_EXCHANGE
+Atomically exchange the files pointed to by the
+.Fa from
+and
+.Fa to
+names.
 .El
 .Sh RETURN VALUES
 .Rv -std rename
