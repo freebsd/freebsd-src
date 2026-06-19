@@ -1104,8 +1104,8 @@ tmpfs_rename(struct vop_rename_args *v)
 		}
 	}
 
-	if ((fnode->tn_flags & (NOUNLINK | IMMUTABLE | APPEND))
-	    || (fdnode->tn_flags & (APPEND | IMMUTABLE))) {
+	if ((fnode->tn_flags & (NOUNLINK | IMMUTABLE | APPEND)) != 0 ||
+	    (fdnode->tn_flags & (APPEND | IMMUTABLE)) != 0) {
 		error = EPERM;
 		goto out_locked;
 	}
