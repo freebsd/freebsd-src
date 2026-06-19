@@ -678,7 +678,8 @@ interpret:
 	 * Special interpreter operation, cleanup and loop up to try to
 	 * activate the interpreter.
 	 */
-	if (imgp->interpreted) {
+	if (imgp->interpreted != 0 &&
+	    imgp->interpreted != IMGACT_INTERP_IGNORE) {
 		exec_unmap_first_page(imgp);
 		/*
 		 * The text reference needs to be removed for scripts.
