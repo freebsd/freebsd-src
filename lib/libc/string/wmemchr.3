@@ -154,21 +154,57 @@ counterpart, such as
 .Xr strspn 3 ,
 .Xr strstr 3
 .Sh STANDARDS
-These functions conform to
-.St -isoC-99 ,
-with the exception of
+Functions
+.Fn wmemcmp ,
+.Fn wmemcpy ,
+.Fn wmemmove ,
+.Fn wmemset ,
+.Fn wcscat ,
+.Fn wcscmp ,
+.Fn wcscpy ,
+.Fn wcscspn ,
+.Fn wcslen ,
+.Fn wcsncat ,
+.Fn wcsncmp ,
+.Fn wcsncpy ,
+and
+.Fn wcsspn
+conform to
+.St -isoC-99 .
+.Pp
+Functions
+.Fn wmemchr ,
+.Fn wcschr ,
+.Fn wcspbrk ,
+.Fn wcsrchr ,
+and
+.Fn wcsstr
+conform to
+.St -isoC-2023 ,
+where they are specified as qualifier-preserving functions.
+.Pp
+Functions
 .Fn wcpcpy ,
 .Fn wcpncpy ,
 .Fn wcscasecmp ,
 .Fn wcsdup ,
 .Fn wcsncasecmp ,
 and
-.Fn wcsnlen ,
-which conform to
-.St -p1003.1-2008 ;
+.Fn wcsnlen
+conform to
+.St -p1003.1-2008 ,
+and functions
+.Fn wcslcat
 and
-.Fn wcslcat ,
 .Fn wcslcpy ,
-and
-.Fn wmempcpy ,
-which are extensions.
+first introduced by
+.Ox ,
+conform to
+.St -p1003.1-2024 .
+.Pp
+Function
+.Fn wmempcpy
+is a
+.Tn GNU
+extensions.
+
