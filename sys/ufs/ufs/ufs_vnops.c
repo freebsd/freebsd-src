@@ -111,7 +111,7 @@ static vop_ioctl_t	ufs_ioctl;
 static vop_link_t	ufs_link;
 static int ufs_makeinode(int mode, struct vnode *, struct vnode **,
     struct componentname *, const char *);
-static vop_mmapped_t	ufs_mmapped;
+static vop_update_atime_t ufs_update_atime;
 static vop_mkdir_t	ufs_mkdir;
 static vop_mknod_t	ufs_mknod;
 static vop_open_t	ufs_open;
@@ -143,7 +143,7 @@ static struct odirtemplate omastertemplate = {
 };
 
 static void
-ufs_itimes_locked(struct vnode *vp)
+ufs_itimes_locked(struct vnode *vp, struct timespec *tsa)
 {
 	struct inode *ip;
 	struct timespec ts;
@@ -166,8 +166,13 @@ ufs_itimes_locked(struct vnode *vp)
 		UFS_INODE_SET_FLAG(ip, IN_LAZYACCESS);
 	vfs_timestamp(&ts);
 	if ((ip->i_flag & IN_ACCESS) != 0) {
-		DIP_SET(ip, i_atime, ts.tv_sec);
-		DIP_SET(ip, i_atimensec, ts.tv_nsec);
+		if (tsa != NULL) {
+			DIP_SET(ip, i_atime, tsa->tv_sec);
+			DIP_SET(ip, i_atimensec, tsa->tv_nsec);
+		} else {
+			DIP_SET(ip, i_atime, ts.tv_sec);
+			DIP_SET(ip, i_atimensec, ts.tv_nsec);
+		}
 	}
 	if ((ip->i_flag & IN_UPDATE) != 0) {
 		DIP_SET(ip, i_mtime, ts.tv_sec);
@@ -184,7 +189,7 @@ out:
 }
 
 void
-ufs_itimes(struct vnode *vp)
+ufs_itimes(struct vnode *vp, struct timespec *tsa)
 {
 	struct inode *ip;
 
@@ -193,7 +198,7 @@ ufs_itimes(struct vnode *vp)
 		return;
 
 	VI_LOCK(vp);
-	ufs_itimes_locked(vp);
+	ufs_itimes_locked(vp, tsa);
 	VI_UNLOCK(vp);
 }
 
@@ -356,7 +361,7 @@ ufs_close(
 {
 	struct vnode *vp = ap->a_vp;
 
-	ufs_itimes(vp);
+	ufs_itimes(vp, NULL);
 	return (0);
 }
 
@@ -523,7 +528,7 @@ ufs_stat(struct vop_stat_args *ap)
 		return (error);
 
 	VI_LOCK(vp);
-	ufs_itimes_locked(vp);
+	ufs_itimes_locked(vp, NULL);
 	if (I_IS_UFS1(ip)) {
 		sb->st_atim.tv_sec = ip->i_din1->di_atime;
 		sb->st_atim.tv_nsec = ip->i_din1->di_atimensec;
@@ -584,7 +589,7 @@ ufs_getattr(
 	struct vattr *vap = ap->a_vap;
 
 	VI_LOCK(vp);
-	ufs_itimes_locked(vp);
+	ufs_itimes_locked(vp, NULL);
 	if (I_IS_UFS1(ip)) {
 		vap->va_atime.tv_sec = ip->i_din1->di_atime;
 		vap->va_atime.tv_nsec = ip->i_din1->di_atimensec;
@@ -829,9 +834,10 @@ out:
 #endif /* UFS_ACL */
 
 static int
-ufs_mmapped(
-	struct vop_mmapped_args /* {
+ufs_update_atime(
+	struct vop_update_atime_args /* {
 		struct vnode *a_vp;
+		struct timespec *a_ts;
 	} */ *ap)
 {
 	struct vnode *vp;
@@ -842,8 +848,16 @@ ufs_mmapped(
 	ip = VTOI(vp);
 	mp = vp->v_mount;
 
-	if ((mp->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
-		UFS_INODE_SET_FLAG_SHARED(ip, IN_ACCESS);
+	if ((mp->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0) {
+		VI_LOCK(vp);
+		if ((ip->i_flag & IN_ACCESS) == 0) {
+			ip->i_flag |= IN_ACCESS;
+			vlazy(vp);
+		}
+		if (ap->a_ts != NULL)
+			ufs_itimes_locked(vp, ap->a_ts);
+		VI_UNLOCK(vp);
+	}
 	/*
 	 * XXXKIB No UFS_UPDATE(ap->a_vp, 0) there.
 	 */
@@ -3006,7 +3020,7 @@ struct vop_vector ufs_vnodeops = {
 	.vop_ioctl =		ufs_ioctl,
 	.vop_link =		ufs_link,
 	.vop_lookup =		vfs_cache_lookup,
-	.vop_mmapped =		ufs_mmapped,
+	.vop_update_atime =	ufs_update_atime,
 	.vop_mkdir =		ufs_mkdir,
 	.vop_mknod =		ufs_mknod,
 	.vop_need_inactive =	ufs_need_inactive,

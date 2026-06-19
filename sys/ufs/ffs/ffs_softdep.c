@@ -6896,7 +6896,7 @@ softdep_journal_freeblocks(
 	 * from reaching the disk while we are eliminating those that
 	 * have been truncated.  This is a partially inlined ffs_update().
 	 */
-	ufs_itimes(vp);
+	ufs_itimes(vp, NULL);
 	ip->i_flag &= ~(IN_LAZYACCESS | IN_LAZYMOD | IN_MODIFIED);
 	dbn = fsbtodb(fs, ino_to_fsba(fs, ip->i_number));
 	error = ffs_breadz(ump, ump->um_devvp, dbn, dbn, (int)fs->fs_bsize,

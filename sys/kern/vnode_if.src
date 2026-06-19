@@ -214,8 +214,9 @@ vop_setattr {
 
 %% mmapped	vp	L L L
 
-vop_mmapped {
+vop_update_atime {
 	IN struct vnode *vp;
+	IN struct timespec *ts;
 };
 
 

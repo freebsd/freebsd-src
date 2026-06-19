@@ -1391,7 +1391,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	*objp = obj;
 	*flagsp = flags;
 
-	VOP_MMAPPED(vp);
+	VOP_UPDATE_ATIME(vp, NULL);
 
 done:
 	if (error != 0 && *writecounted) {
