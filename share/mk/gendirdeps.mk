@@ -1,8 +1,8 @@
-# $Id: gendirdeps.mk,v 1.54 2025/08/12 21:36:43 sjg Exp $
+# $Id: gendirdeps.mk,v 1.56 2026/06/19 18:57:57 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
-# Copyright (c) 2011-2025, Simon J. Gerraty
+# Copyright (c) 2011-2026, Simon J. Gerraty
 # Copyright (c) 2010-2018, Juniper Networks, Inc.
 # All rights reserved.
 #
@@ -86,6 +86,12 @@ _debug.gendirdeps = 0
 .MAKE.MODE = compat
 
 all:
+
+.if ${_debug.gendirdeps}
+.if ${DEBUG_GENDIRDEPS:M-d*}
+.MAKEFLAGS: ${DEBUG_GENDIRDEPS:M-d*}
+.endif
+.endif
 
 _CURDIR ?= ${.CURDIR}
 _OBJDIR ?= ${.OBJDIR}
@@ -331,7 +337,7 @@ DIRDEPS += \
 
 # what modifiers do we allow in GENDIRDEPS_FILTER
 GENDIRDEPS_FILTER_MASK += @CMNS
-DIRDEPS := ${DIRDEPS:${GENDIRDEPS_FILTER:UNno:M[${GENDIRDEPS_FILTER_MASK:O:u:ts}]*:ts:}:C,//+,/,g:O:u}
+DIRDEPS := ${DIRDEPS:${GENDIRDEPS_FILTER:UNno:M[${GENDIRDEPS_FILTER_MASK:O:u:ts}]*:ts:}:C,//+,/,g:S,/$,,:C,/(\.[^.]+)$,\1,:O:u}
 
 .if ${_debug.gendirdeps}
 .info ${RELDIR}: M2D_OBJROOTS=${M2D_OBJROOTS}
@@ -353,7 +359,7 @@ src_dirdep_list = \
 SRC_DIRDEPS = \
 	${src_dirdep_list:N${RELDIR}:N${RELDIR}/*:C,(/h)/.*,,}
 
-SRC_DIRDEPS := ${SRC_DIRDEPS:${GENDIRDEPS_SRC_FILTER:UN/*:ts:}:C,//+,/,g:O:u}
+SRC_DIRDEPS := ${SRC_DIRDEPS:${GENDIRDEPS_SRC_FILTER:UN/*:ts:}:C,//+,/,g:S,/$,,:C,/(\.[^.]+)$,\1,:O:u}
 
 # if you want to capture SRC_DIRDEPS in .MAKE.DEPENDFILE put
 # SRC_DIRDEPS_FILE = ${_DEPENDFILE}
