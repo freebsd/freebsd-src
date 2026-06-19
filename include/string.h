@@ -205,4 +205,32 @@ errno_t memset_s(void *, rsize_t, int, rsize_t);
 #endif /* __EXT1_VISIBLE */
 __END_DECLS
 
+#if defined(__qualsel) && !defined(__cplusplus) && \
+    defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+#define	memchr(b, c, n)		__qualsel((b),				\
+	(const void *)(memchr)((b), (c), (n)), (memchr)((b), (c), (n)))
+#define	strchr(s, c)		__qualsel((s),				\
+	(const char *)(strchr)((s), (c)), (strchr)((s), (c)))
+#define	strpbrk(s, charset)	__qualsel((s),				\
+	(const char *)(strpbrk)((s), (charset)), (strpbrk)((s), (charset)))
+#define	strrchr(s, c)		__qualsel((s),				\
+	(const char *)(strrchr)((s), (c)), (strrchr)((s), (c)))
+#define	strstr(s, find)		__qualsel((s),				\
+	(const char *)(strstr)((s), (find)), (strstr)((s), (find)))
+#if __BSD_VISIBLE
+#define	memmem(b, blen, pat, plen)	__qualsel((b),			\
+	(const void *)(memmem)((b), (blen), (pat), (plen)),		\
+	(memmem)((b), (blen), (pat), (plen)))
+#define	memrchr(b, c, n)	__qualsel((b),				\
+	(const void *)(memrchr)((b), (c), (n)), (memrchr)((b), (c), (n)))
+#define	strcasestr(s, find)	__qualsel((s),				\
+	(const char *)(strcasestr)((s), (find)), (strcasestr)((s), (find)))
+#define	strchrnul(s, c)		__qualsel((s),				\
+	(const char *)(strchrnul)((s), (c)), (strchrnul)((s), (c)))
+#define	strnstr(s, find, slen)	__qualsel((s),				\
+	(const char *)(strnstr)((s), (find), (slen)),			\
+	(strnstr)((s), (find), (slen)))
+#endif /* __BSD_VISIBLE */
+#endif
+
 #endif /* _STRING_H_ */

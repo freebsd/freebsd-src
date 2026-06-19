@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 11, 2001
+.Dd June 21, 2026
 .Dt STRSTR 3
 .Os
 .Sh NAME
@@ -147,9 +147,22 @@ ptr = strnstr(largestring, smallstring, 4);
 .Sh STANDARDS
 The
 .Fn strstr
-function
-conforms to
-.St -isoC .
+function conforms to
+.St -isoC-2023 ,
+where it is specified as a qualifier-preserving function.
+.Pp
+The
+.Fn strcasestr
+function is a
+.Tn GNU
+extension, and the
+.Fn strnstr
+function is a
+.Bx
+extension.
+Like the qualifier-preserving functions in
+.St -isoC-2023 ,
+.Fx implements them as qualifier-preserving as well.
 .Sh HISTORY
 The
 .Fn strnstr
