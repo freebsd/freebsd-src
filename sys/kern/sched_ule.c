@@ -236,7 +236,7 @@ static int __read_mostly sched_slice = 10;	/* reset during boot. */
 static int __read_mostly sched_slice_min = 1;	/* reset during boot. */
 #ifdef PREEMPTION
 #ifdef FULL_PREEMPTION
-static int __read_mostly preempt_thresh = PRI_MAX_IDLE;
+static int __read_mostly preempt_thresh = PRI_MAX_IDLE + 1;
 #else
 static int __read_mostly preempt_thresh = PRI_MIN_KERN;
 #endif
@@ -473,7 +473,7 @@ sched_shouldpreempt(int pri, int cpri, int remote)
 	/*
 	 * Preempt if we exceed the threshold.
 	 */
-	if (pri <= preempt_thresh)
+	if (pri < preempt_thresh)
 		return (1);
 	/*
 	 * If we're interactive or better and there is non-interactive
