@@ -66,7 +66,7 @@ hid_test_quirk_t *hid_test_quirk_p = &hid_test_quirk_w;
 #define	MAXUSAGE 64
 #define	MAXPUSH 4
 #define	MAXID 16
-#define	MAXLOCCNT 2048
+#define	MAXLOCCNT 4096
 
 struct hid_pos_data {
 	uint32_t rid;
