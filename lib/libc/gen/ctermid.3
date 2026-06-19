@@ -25,11 +25,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 1, 2011
+.Dd June 2, 2026
 .Dt CTERMID 3
 .Os
 .Sh NAME
-.Nm ctermid
+.Nm ctermid ,
+.Nm ctermid_r
 .Nd generate terminal pathname
 .Sh LIBRARY
 .Lb libc
@@ -78,14 +79,18 @@ If no suitable lookup of the controlling terminal name can be performed,
 this implementation returns
 .Ql /dev/tty .
 .Sh RETURN VALUES
-Upon successful completion, a
-.Pf non- Dv NULL
-pointer is returned.
-Otherwise, a
-.Dv NULL
-pointer is returned and the global variable
-.Va errno
-is set to indicate the error.
+The
+.Fn ctermid
+function returns
+.Fa buf
+if it is
+.Pf non- Dv NULL ,
+otherwise it returns the address of a static buffer.
+The
+.Fn ctermid_r
+function always returns
+.Fa buf ,
+even if it is the NULL pointer.
 .Sh ERRORS
 The current implementation detects no error conditions.
 .Sh SEE ALSO
