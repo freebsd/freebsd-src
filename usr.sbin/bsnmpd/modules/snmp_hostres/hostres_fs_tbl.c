@@ -205,6 +205,7 @@ fs_entry_create(const char *name)
 		free(entry);
 		return (NULL);
 	}
+	entry->remoteMountPoint = NULL;
 
 	entry->index = map->hrIndex;
 	map->entry = entry;
@@ -351,6 +352,9 @@ fs_tbl_process_statfs_entry(const struct statfs *fs_p, int32_t storage_idx)
 	if ((entry = fs_find_by_name(fs_p->f_mntonname)) != NULL ||
 	    (entry = fs_entry_create(fs_p->f_mntonname)) != NULL) {
 		entry->flags |= HR_FS_FOUND;
+
+		free(entry->remoteMountPoint);
+		entry->remoteMountPoint = NULL;
 
 		if (!(fs_p->f_flags & MNT_LOCAL)) {
 			/* this is a remote mount */
