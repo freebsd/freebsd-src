@@ -1,0 +1,308 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright 2026 The FreeBSD Foundation
+.\"
+.\" This documentation was written by Konstantin Belousov <kib@FreeBSD.org>
+.\" under sponsorship from the FreeBSD Foundation.
+.\"
+.Dd June 19, 2026
+.Dt NTSYNC 4
+.Os
+.Sh NAME
+.Nm ntsync
+.Nd NT-like synchronization operations device driver
+.Sh SYNOPSIS
+.In dev/ntsync/ntsync.h
+.Sh DESCRIPTION
+The
+.Nm
+device driver provides synchronization primitives that mimic the operations
+provided by the Windows NT kernel.
+The userspace interface is copied from the identically named driver written
+for the Linux kernel, with the goal of helping Wine implement Win32 API.
+.Pp
+The driver provides the
+.Pa /dev/ntsync
+special device node that handles
+.Xr ioctl 2
+requests of several groups:
+.Bl -tag -width "wait operations:"
+.It object creation:
+among them semaphores, mutexes, and events
+.It wait operations:
+waiting for the set of objects to become signaled, either all
+or any objects in the set can be waited for
+.El
+.Pp
+An
+.Xr open 2
+of the
+.Pa /dev/ntsync
+device returns the file descriptor which represents the synchronization
+domain.
+Each object created by the
+.Xr ioctl 2
+on the ntsync file descriptor belongs to it's domain.
+Wait requests must not mix the objects belonging to other domains.
+.Pp
+The synchronization objects are represented by file descriptors, each
+implementing type-specific set of ioctl requests.
+.Sh SEMAPHORES
+The semaphores operations usually take the
+.Bd -literal
+struct ntsync_sem_args {
+	uint32_t count;
+	uint32_t max;
+}
+.Ed
+as an argument.
+The semaphore requests are:
+.Bl -tag -width "NTSYNC_IOC_SEM_RELEASE"
+.It Dv NTSYNC_IOC_CREATE_SEM
+Creates the semaphore and returns the semaphore file descriptor.
+Must be issued on the
+.Pa /dev/ntsync
+file descriptor.
+.Pp
+Takes the
+.Va struct ntsync_sem_args
+argument, where
+.Dv count
+is the initial semaphore count, and
+.Dv max
+is the maximum allowed count.
+.It Dv NTSYNC_IOC_SEM_RELEASE
+Releases the semaphore.
+Takes the single
+.Va uint32_t
+value which is used to decrement the semaphore count.
+If the semaphore count reaches zero, the semaphore becomes signaled.
+.It Dv NTSYNC_IOC_SEM_READ
+Returns the current state of the semaphore in the
+.Va struct ntsync_sem_args .
+.El
+.Sh MUTEXES
+The mutexes operations usually take the
+.Bd -literal
+struct ntsync_mutex_args {
+	uint32_t owner;
+	uint32_t count;
+}
+.Ed
+as the argument.
+.Pp
+The mutex requests are:
+.Bl -tag -width "NTSYNC_IOC_CREATE_MUTEX"
+.It Dv NTSYNC_IOC_CREATE_MUTEX
+Creates the mutex and returns the mutex file descriptor.
+Must be issued on the
+.Pa /dev/ntsync
+file descriptor.
+.Pp
+Takes the
+.Va struct ntsync_mutex_args
+as the argument.
+The
+.Dv owner
+is an abstract 32bit number that identifies the current mutex owner.
+If
+.Dv owner
+is zero, the mutex is unowned, and
+.Dv count
+must be zero.
+If
+.Dv count
+is non-zero, indicating the owned mutex, a non-zero
+.Dv owner
+must be provided.
+.It Dv NTSYNC_IOC_MUTEX_UNLOCK
+Unlocks the mutex.
+Takes the
+.Va struct ntsync_mutex_args
+argument.
+.Pp
+The mutex must be owned by the argument's
+.Dv owner .
+Successful unlock decrements mutex' counter, and makes the mutex
+signaled and unowned if the counter reaches zero.
+.Pp
+The counter value before unlock is returned in the
+.Dv count
+member of the argument structure.
+.It Dv NTSYNC_IOC_MUTEX_KILL
+Abandon the mutex.
+Takes a single 32bit integer as the argument, indicating the current
+mutex owner.
+.Pp
+The specified owner must be equal to the current mutex owner.
+Then, the pending waiters are woken up, and get the
+.Ev EOWNERDEAD
+result.
+The mutex owner and counter are set to zero.
+.Pp
+The abandoned state is cleared by next successful wait on the mutex.
+.It Dv NTSYNC_IOC_MUTEX_READ
+Returns the current state of the mutex.
+Takes the
+.Va struct ntsync_mutex_args
+argument where the state is returned.
+For abandoned mutexes, the
+.Ev EOWNERDEAD
+error is returned in addition to the state.
+.El
+.Sh EVENTS
+The events operations usually take the
+.Bd -literal
+struct ntsync_event_args {
+	uint32_t manual;
+	uint32_t signaled;
+}
+.Ed
+.Pp
+The events requests are:
+.Bl -tag -width "NTSYNC_IOC_CREATE_EVENT"
+.It Dv NTSYNC_IOC_CREATE_EVENT
+Creates the event and returns the event file descriptor.
+Must be issued on the
+.Pa /dev/ntsync
+file descriptor.
+Takes the
+.Va struct ntsync_event_args
+argument.
+.Pp
+Events can be of two types: manual and automatic.
+Manual events needs to be reset by the request after being set.
+Automatic events are reset by the system after a wait is satisfied.
+.It Dv NTSYNC_IOC_EVENT_SET
+Set (arm) the event.
+Takes a 32bit integer argument where the state of the event before
+the operation is returned.
+.It Dv NTSYNC_IOC_EVENT_RESET
+Reset (dis-arms) the event.
+Takes a 32bit integer argument where the state of the event before
+the operation is returned.
+.It Dv NTSYNC_IOC_EVENT_PULSE
+Atomically sets and then resets the event.
+Takes a 32bit integer argument where the state of the event before
+the operation is returned.
+.It Dv NTSYNC_IOC_EVENT_READ
+Returns the current state of the event.
+Takes the
+.Va struct ntsync_event_args
+argument where the current event state is returned.
+.El
+.Sh WAIT OPERATIONS
+Wait operations take the
+.Bd -literal
+struct ntsync_wait_args {
+	uint64_t timeout;
+	uint64_t objs;
+	uint32_t count;
+	uint32_t index;
+	uint32_t flags;
+	uint32_t owner;
+	uint32_t alert;
+	uint32_t pad;
+}
+.Ed
+as the argument.
+.Pp
+The signaled state of the objects which cause the wait to
+become satisfied are consumed by the operation,
+e.g. the semaphore is acquired by incrementing its counter,
+the mutex is locked,
+and the manual event becomes not signaled.
+.Pp
+The
+.Dv timeout
+is in the nanoseconds.
+If
+.Dv timeout
+is zero, the wait request only returns when either the wait
+condition is satisfied, or a signal is queued.
+Otherwise, if the wait is not satisfied after the specified time,
+it is aborted anyway and the
+.Er ETIMEDOUT
+error is returned.
+.Pp
+The
+.Dv objs
+member points to the array of the synchronization object's file
+descriptors.
+Its size if passed in the
+.Dv count
+member.
+It might be as large as
+.Dv NTSYNC_MAX_WAIT_COUNT ,
+which is 64.
+.Pp
+The
+.Dv alert
+if non-zero specifies the event file descriptor,
+signaling of which finishes the wait regardless the state of
+other objects in the
+.Dv objs
+array.
+.Pp
+On non-error return from the wait requests, the
+.Dv index
+member contains the index of the signaled object that caused
+the wait request to be satisfied.
+If the object at the index is a semaphore, the
+.Dv owner
+member reports the owner of the signaled semaphore.
+If the
+.Dv alert
+event was signaled to abort the wait,
+.Dv index
+is set to
+.Dv count .
+.Pp
+The possible values for the
+.Va flags
+parameter are
+.Bl -tag -width "NTSYNC_WAIT_REALTIME"
+.It Dv NTSYNC_WAIT_REALTIME
+The specified timeout is for
+.Dv CLOCK_REALTIME
+absolute value, otherwise it is for
+.Dv CLOCK_MONOTONIC ,
+see
+.Xr clock_gettime 2 .
+.El
+.Pp
+The wait requests are:
+.Bl -tag -width "NTSYNC_IOC_WAIT_ANY"
+.It Dv NTSYNC_IOC_WAIT_ANY
+Wait for any of the objects to become signaled.
+.It Dv NTSYNC_IOC_WAIT_ALL
+Wait for all of the objects to become signaled.
+This means that the wait is satisfied only when all objects
+can be consumed together, which is done atomically.
+.Pp
+No duplicate objects are allowed in the
+.Dv objs
+array.
+The
+.Dv alert
+object is not allowed to be listed in the
+.Dv objs
+array.
+.El
+.Sh SEE ALSO
+Refer to the file
+.Pa Documentation/userspace-api/ntsync.rst
+in the Linux kernel sources for the Linux API reference,
+that was used for the implementation of the
+.Fx
+driver.
+.Sh HISTORY
+The
+.Nm
+driver and manual page first appeared in
+.Fx 15.2 .
+.Sh AUTHORS
+.An -nosplit
+The driver and the manual page were written by
+.An Konstantin Belousov Aq Mt kib@FreeBSD.org .
