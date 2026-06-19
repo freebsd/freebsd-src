@@ -435,6 +435,7 @@ MAN=	aac.4 \
 	${_ntb_hw_intel.4} \
 	${_ntb_hw_plx.4} \
 	${_ntb_transport.4} \
+	ntsync.4 \
 	${_nda.4} \
 	${_if_ntb.4} \
 	null.4 \
