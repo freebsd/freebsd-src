@@ -1,3 +1,7 @@
+1.9.2	2026-06-10
+	* Fix to set VERSION_INFO to create .so.3 instead of .so.11 which will
+	  be reserved for a future 1.10.0 release
+
 1.9.1	2026-06-10
 	* Bugfix: Insufficient verification that responses belong to a
 	  query (CVE-2026-10846). Thanks Pablo Ruiz from 'codecome.ai'
