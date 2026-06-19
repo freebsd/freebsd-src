@@ -126,7 +126,6 @@ ENTRY_END
 
 */
 
-struct sockaddr_storage;
 #include "config.h"
 #include <ldns/ldns.h>
 #include "ldns-testpkts.h"
@@ -181,6 +180,8 @@ static void usage(void)
 	printf("  -f	forks given number extra instances, default none.\n");
 	printf("  -v	more verbose, prints queries, answers and matching.\n");
 	printf("  -6	listen on IP6 any address, instead of IP4 any address.\n");
+	printf("  -l	listen on the specified address.\n");
+	printf("  -a	alternative address to answer from with MATCH change_address (-l MUST be provided too).\n");
 	printf("The program answers queries with canned replies from the datafile.\n");
 	exit(EXIT_FAILURE);
 }
@@ -217,45 +218,85 @@ void verbose(int ATTR_UNUSED(lvl), const char* msg, ...)
 	va_end(args);
 }
 
-static int bind_port(int sock, int port, int fam)
-{
-    struct sockaddr_in addr;
-#if defined(AF_INET6) && defined(HAVE_GETADDRINFO)
-    if(fam == AF_INET6) {
-    	struct sockaddr_in6 addr6;
-	memset(&addr6, 0, sizeof(addr6));
-	addr6.sin6_family = AF_INET6;
-    	addr6.sin6_port = (in_port_t)htons((uint16_t)port);
-#  if HAVE_DECL_IN6ADDR_ANY
-	addr6.sin6_addr = in6addr_any;
-#  else
-	memset(&addr6.sin6_addr, 0, sizeof(addr6.sin6_addr));
-#  endif
-    	return bind(sock, (struct sockaddr *)&addr6, (socklen_t) sizeof(addr6));
-    }
-#endif
+typedef union {
+	struct sockaddr_storage ss;
+	struct sockaddr         sa;
+	struct sockaddr_in      s4;
+	struct sockaddr_in6     s6;
+} addr_type;
 
-#ifndef S_SPLINT_S
-    addr.sin_family = AF_INET;
-#endif
-    addr.sin_port = (in_port_t)htons((uint16_t)port);
-    addr.sin_addr.s_addr = INADDR_ANY;
-    return bind(sock, (struct sockaddr *)&addr, (socklen_t) sizeof(addr));
+static int bind_addr_port(int sock, addr_type* addr, int port)
+{
+	switch(addr->ss.ss_family) {
+	case AF_INET:
+		addr->s4.sin_port = (in_port_t)htons((uint16_t)port);
+		break;
+	case AF_INET6:
+		addr->s6.sin6_port = (in_port_t)htons((uint16_t)port);
+		break;
+	default:
+		break;
+	}
+	return bind( sock, &addr->sa
+	           , (socklen_t)( addr->ss.ss_family == AF_INET
+	                        ? sizeof(struct sockaddr_in)
+	                        : addr->ss.ss_family == AF_INET6
+	                        ? sizeof(struct sockaddr_in6)
+	                        : 0));
 }
 
+/** shared by the service, main and send_udp routines (forked and threaded) */
+static int alt_addr_udp_sock;
 struct handle_udp_userdata {
 	int udp_sock;
 	struct sockaddr_storage addr_him;
 	socklen_t hislen;
 };
+
 static void
-send_udp(uint8_t* buf, size_t len, void* data)
+send_udp(uint8_t* buf, size_t len, void* data, bool change_port, bool change_addr)
 {
 	struct handle_udp_userdata *userdata = (struct handle_udp_userdata*)data;
 	/* udp send reply */
 	ssize_t nb;
-	nb = sendto(userdata->udp_sock, (void*)buf, len, 0, 
-		(struct sockaddr*)&userdata->addr_him, userdata->hislen);
+	if(!change_port && !change_addr)
+		nb = sendto(userdata->udp_sock, (void*)buf, len, 0,
+			(struct sockaddr*)&userdata->addr_him, userdata->hislen);
+	else if(change_port) {
+		int fam = ((struct sockaddr*)&userdata->addr_him)->sa_family;
+		int alt_udp_sock = socket(fam, SOCK_DGRAM, 0);
+		bool random_port_success = false;
+		addr_type any_addr;
+
+		memset(&any_addr.ss, 0, sizeof(any_addr.ss));
+		any_addr.ss.ss_family = fam;
+
+		while (!random_port_success) {
+			int port = (random() % 64510) + 1025;
+			log_msg("trying to bind to port %d\n", port);
+			random_port_success = true;
+			if (bind_addr_port(alt_udp_sock, &any_addr, port)) {
+#ifdef EADDRINUSE
+				if (errno != EADDRINUSE) {
+#elif defined(USE_WINSOCK)
+				if (WSAGetLastError() != WSAEADDRINUSE) {
+#else
+				if (1) {
+#endif
+					perror("bind()");
+					exit(-1);
+				} else {
+					random_port_success = false;
+				}
+			}
+		}
+		nb = sendto(alt_udp_sock, (void*)buf, len, 0,
+			(struct sockaddr*)&userdata->addr_him, userdata->hislen);
+		close(alt_udp_sock);
+	} else {
+		nb = sendto(alt_addr_udp_sock, (void*)buf, len, 0,
+			(struct sockaddr*)&userdata->addr_him, userdata->hislen);
+	}
 	if(nb == -1)
 		log_msg("sendto(): %s\n", strerror(errno));
 	else if((size_t)nb != len)
@@ -326,10 +367,12 @@ struct handle_tcp_userdata {
 	int s;
 };
 static void
-send_tcp(uint8_t* buf, size_t len, void* data)
+send_tcp(uint8_t* buf, size_t len, void* data, bool change_port, bool change_addr)
 {
 	struct handle_tcp_userdata *userdata = (struct handle_tcp_userdata*)data;
 	uint16_t tcplen;
+	(void)change_port; /* change_port is not applicable to TCP */
+	(void)change_addr; /* change_addr is not applicable to TCP */
 	/* tcp send reply */
 	tcplen = htons(len);
 	write_n_bytes(userdata->s, (uint8_t*)&tcplen, sizeof(tcplen));
@@ -500,25 +543,64 @@ main(int argc, char **argv)
 	/* network */
 	int fam = AF_INET;
 	bool random_port_success;
+	bool have_addr = false;
+	bool have_alt_addr = false;
+	addr_type addr;
+	addr_type alt_addr;
 
 #ifdef USE_WINSOCK
 	WSADATA wsa_data;
 #endif
-	
+	memset(&addr, 0, sizeof(addr));
+	addr.s4.sin_family = AF_INET;
+	addr.s4.sin_addr.s_addr = INADDR_ANY;
+	memset(&alt_addr, 0, sizeof(alt_addr));
+	alt_addr_udp_sock = -1;
+
 	/* parse arguments */
 	srandom(time(NULL) ^ getpid());
 	logfile = stdout;
 	prog_name = argv[0];
 	log_msg("%s: start\n", prog_name);
-	while((c = getopt(argc, argv, "6f:p:rv")) != -1) {
+	while((c = getopt(argc, argv, "6a:f:l:p:rv")) != -1) {
 		switch(c) {
 		case '6':
 #ifdef AF_INET6
 			fam = AF_INET6;
+			addr.s6.sin6_family = AF_INET;
+# if HAVE_DECL_IN6ADDR_ANY
+			addr.s6.sin6_addr = in6addr_any;
+# endif
 #else
 			log_msg("cannot -6: no IP6 available\n");
 			exit(1);
 #endif
+			break;
+		case 'a':
+			if(inet_pton(AF_INET, optarg, (void*)&alt_addr.s4.sin_addr) == 1) {
+				alt_addr.s4.sin_family = AF_INET;
+				have_alt_addr = true;
+				break; /* correct alternative ipv4 address */
+			} else if(inet_pton(AF_INET6, optarg, (void*)&alt_addr.s6.sin6_addr) == 1) {
+				alt_addr.s6.sin6_family = AF_INET6;
+				have_alt_addr = true;
+				break; /* correct alternative ipv6 address */
+			}
+			log_msg("error: cannot parse alternative address\n");
+			exit(1);
+			break;
+		case 'l':
+			if(inet_pton(AF_INET, optarg, (void*)&addr.s4.sin_addr) == 1) {
+				addr.s4.sin_family = AF_INET;
+				have_addr = true;
+				break; /* correct ipv4 address */
+			} else if(inet_pton(AF_INET6, optarg, (void*)&addr.s6.sin6_addr) == 1) {
+				addr.s6.sin6_family = AF_INET6;
+				have_addr = true;
+				break; /* correct ipv6 address */
+			}
+			log_msg("error: cannot parse address\n");
+			exit(1);
 			break;
 		case 'r':
                 	port = 0;
@@ -547,6 +629,13 @@ main(int argc, char **argv)
 
 	if(argc == 0 || argc > 1)
 		usage();
+
+	if(have_alt_addr && !have_addr)
+		error("Alternative address MUST be configured next to an address specified with -l\n");
+
+	if(have_alt_addr &&  have_addr
+	&& addr.ss.ss_family != alt_addr.ss.ss_family)
+		error("A specified and alternative address MUST be of same IP family\n");
 	
 	datafile = argv[0];
 	log_msg("Reading datafile %s\n", datafile);
@@ -566,6 +655,9 @@ main(int argc, char **argv)
 	if((tcp_sock = socket(fam, SOCK_STREAM, 0)) < 0) {
 		error("tcp socket(): %s\n", strerror(errno));
 	}
+	if(have_alt_addr && (alt_addr_udp_sock = socket(fam, SOCK_DGRAM, 0)) < 0) {
+		error("alt_addr_udp socket(): %s\n", strerror(errno));
+	}
 	c = 1;
 	if(setsockopt(tcp_sock, SOL_SOCKET, SO_REUSEADDR, (void*)&c, (socklen_t) sizeof(int)) < 0) {
 		error("setsockopt(SO_REUSEADDR): %s\n", strerror(errno));
@@ -573,14 +665,17 @@ main(int argc, char **argv)
 
 	/* bind ip4 */
 	if (port > 0) {
-		if (bind_port(udp_sock, port, fam)) {
+		if (bind_addr_port(udp_sock, &addr, port)) {
 			error("cannot bind(): %s\n", strerror(errno));
 		}
-		if (bind_port(tcp_sock, port, fam)) {
+		if (bind_addr_port(tcp_sock, &addr, port)) {
 			error("cannot bind(): %s\n", strerror(errno));
 		}
 		if (listen(tcp_sock, CONN_BACKLOG) < 0) {
 			error("listen(): %s\n", strerror(errno));
+		}
+		if(have_alt_addr && bind_addr_port(alt_addr_udp_sock, &alt_addr, port)) {
+			error("cannot bind(): %s\n", strerror(errno));
 		}
 	} else {
 		random_port_success = false;
@@ -588,7 +683,7 @@ main(int argc, char **argv)
 			port = (random() % 64510) + 1025;
 			log_msg("trying to bind to port %d\n", port);
 			random_port_success = true;
-			if (bind_port(udp_sock, port, fam)) {
+			if (bind_addr_port(udp_sock, &addr, port)) {
 #ifdef EADDRINUSE
 				if (errno != EADDRINUSE) {
 #elif defined(USE_WINSOCK)
@@ -603,7 +698,7 @@ main(int argc, char **argv)
 				}
 			}
 			if (random_port_success) {
-				if (bind_port(tcp_sock, port, fam)) {
+				if (bind_addr_port(tcp_sock, &addr, port)) {
 #ifdef EADDRINUSE
 					if (errno != EADDRINUSE) {
 #elif defined(USE_WINSOCK)
@@ -622,12 +717,28 @@ main(int argc, char **argv)
 				if (listen(tcp_sock, CONN_BACKLOG) < 0) {
 					error("listen(): %s\n", strerror(errno));
 				}
+				if (have_alt_addr && bind_addr_port(alt_addr_udp_sock, &alt_addr, port)) {
+#ifdef EADDRINUSE
+					if (errno != EADDRINUSE) {
+#elif defined(USE_WINSOCK)
+					if (WSAGetLastError()!=WSAEADDRINUSE){
+#else
+					if (1) {
+#endif
+						perror("bind()");
+						return -1;
+					} else {
+						random_port_success = false;
+					}
+				}
 			}
-		
 		}
 	}
 	log_msg("Listening on port %d\n", port);
-
+	if(alt_addr.ss.ss_family == AF_INET)
+		alt_addr.s4.sin_port = (in_port_t)htons((uint16_t)port);
+	else if(alt_addr.ss.ss_family == AF_INET6)
+		alt_addr.s6.sin6_port = (in_port_t)htons((uint16_t)port);
 	/* forky! */
 	if(forknum > 0)
 		forkit(forknum);

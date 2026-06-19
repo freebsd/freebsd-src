@@ -47,6 +47,16 @@ times to increase verbosity level.
 Bind to IP6 address instead of IP4. Use together with -p. 
 
 .TP
+\fB-l\fR \fIIP address\fR
+Bind to the specified IPv4 or IPv6 address.
+
+.TP
+\fB-a\fR \fIIP address\fR
+IPv4 or IPv6 address to answer from withthe ADJUST change_address directory
+(see below). This can only be used in combination with the \fB-l\fR option
+with an address of the same family.
+
+.TP
 \fBdatafile\fR
 The data file is read on start up. It contains queries and the packets 
 that should be sent in answer to those queries. The data file format is
@@ -92,9 +102,18 @@ REPLY ...
 
 ADJUST copy_id  ; 'copy_id' copies the ID from the query to the answer.
 
-; 'sleep=10' sleeps for 10 seconds before giving the answer (TCP is open)
+ADJUST change_id ; answer with a different ID than the query had
 
-ADJUST [sleep=<num>]    ; sleep before giving any reply
+ADJUST change_port ; answer from a different port than the query was
+                   ; sent to. UDP only (silently ignored on TCP)
+
+ADJUST change_address ; answer from a different address than the query
+                      ; was sent to. UDP only (silently ignored on TCP)
+
+ADJUST [sleep=<num>] ; sleep before giving any reply
+                     ; 'sleep=10' sleeps for 10 seconds before giving
+                     ; the answer (TCP is open)
+
 ADJUST [packet_sleep=<num>]  ; sleep before this packet in sequence
 
 SECTION QUESTION

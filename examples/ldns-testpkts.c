@@ -223,6 +223,12 @@ static void adjustline(char* line, struct entry* e,
 			return;
 		if(str_keyword(&parse, "copy_id")) {
 			e->copy_id = true;
+		} else if(str_keyword(&parse, "change_id")) {
+			e->change_id = true;
+		} else if(str_keyword(&parse, "change_port")) {
+			e->change_port = true;
+		} else if(str_keyword(&parse, "change_address")) {
+			e->change_addr = true;
 		} else if(str_keyword(&parse, "copy_query")) {
 			e->copy_query = true;
 		} else if(str_keyword(&parse, "sleep=")) {
@@ -259,6 +265,9 @@ static struct entry* new_entry(void)
 	e->match_udp_size = 0;
 	e->reply_list = NULL;
 	e->copy_id = false;
+	e->change_id = false;
+	e->change_port = false;
+	e->change_addr = false;
 	e->copy_query = false;
 	e->sleeptime = 0;
 	e->next = NULL;
@@ -839,6 +848,8 @@ adjust_packet(struct entry* match, ldns_pkt* answer_pkt, ldns_pkt* query_pkt)
 	/* copy & adjust packet */
 	if(match->copy_id)
 		ldns_pkt_set_id(answer_pkt, ldns_pkt_id(query_pkt));
+	if(match->change_id)
+		ldns_pkt_set_id(answer_pkt, 65535 - ldns_pkt_id(query_pkt));
 	if(match->copy_query) {
 		ldns_rr_list* list = ldns_pkt_get_section_clone(query_pkt,
 			LDNS_SECTION_QUESTION);
@@ -861,7 +872,8 @@ adjust_packet(struct entry* match, ldns_pkt* answer_pkt, ldns_pkt* query_pkt)
  */
 void
 handle_query(uint8_t* inbuf, ssize_t inlen, struct entry* entries, int* count,
-	enum transport_type transport, void (*sendfunc)(uint8_t*, size_t, void*),
+	enum transport_type transport,
+	void (*sendfunc)(uint8_t*, size_t, void*, bool, bool),
 	void* userdata, FILE* verbose_out)
 {
 	ldns_status status;
@@ -932,6 +944,10 @@ handle_query(uint8_t* inbuf, ssize_t inlen, struct entry* entries, int* count,
 					ldns_write_uint16(outbuf, 
 						ldns_pkt_id(query_pkt));
 				}
+				if(entry->change_id) {
+					ldns_write_uint16(outbuf,
+						65535 - ldns_pkt_id(query_pkt));
+				}
 			}
 		} else {
 			answer_pkt = ldns_pkt_clone(p->reply);
@@ -959,7 +975,7 @@ handle_query(uint8_t* inbuf, ssize_t inlen, struct entry* entries, int* count,
 			verbose(3, "wakeup for next packet "
 				"(slept %d secs)\n", p->packet_sleep);
 		}
-		sendfunc(outbuf, answer_size, userdata);
+		sendfunc(outbuf, answer_size, userdata, entry->change_port, entry->change_addr);
 		LDNS_FREE(outbuf);
 		outbuf = NULL;
 		answer_size = 0;

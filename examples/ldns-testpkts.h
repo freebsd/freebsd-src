@@ -199,6 +199,12 @@ struct entry {
 	/** how to adjust the reply packet */
 	/** copy over the ID from the query into the answer */
 	bool copy_id; 
+	/** answer with a different ID than the query had */
+	bool change_id;
+	/** answer from a different port than the query was sent to */
+	bool change_port;
+	/** answer from a different address than the query was sent to */
+	bool change_addr;
 	/** copy the query nametypeclass from query into the answer */
 	bool copy_query;
 	/** in seconds */
@@ -270,7 +276,7 @@ void adjust_packet(struct entry* match, ldns_pkt* answer_pkt,
  */
 void handle_query(uint8_t* inbuf, ssize_t inlen, struct entry* entries, 
 	int* count, enum transport_type transport, 
-	void (*sendfunc)(uint8_t*, size_t, void*), void* userdata,
+	void (*sendfunc)(uint8_t*, size_t, void*, bool, bool), void* userdata,
 	FILE* verbose_out);
 
 #endif /* LDNS_TESTPKTS_H */
