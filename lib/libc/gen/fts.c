@@ -210,7 +210,8 @@ __fts_open(FTS *sp, char * const *argv, int rootfd)
 	 * that we can get back here; this could be avoided for some paths,
 	 * but almost certainly not worth the effort.  Slashes, symbolic links,
 	 * and ".." are all fairly nasty problems.  Note, if we can't get the
-	 * descriptor we run anyway, just more slowly.
+	 * descriptor we run anyway, just more slowly.  We use _openat rather
+	 * than _dup because rootfd may be AT_FDCWD, not a real descriptor.
 	 */
 	if (!ISSET(FTS_NOCHDIR) &&
 	    (sp->fts_rfd = _openat(rootfd, ".", O_RDONLY |
@@ -358,7 +359,7 @@ fts_close(FTS *sp)
 			free(freep);
 		}
 		if (p->fts_dirfd >= 0)
-                        (void)_close(p->fts_dirfd);
+			(void)_close(p->fts_dirfd);
 		free(p);
 	}
 
@@ -442,8 +443,8 @@ fts_read(FTS *sp)
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE)) {
 		p->fts_info = fts_stat(sp, p, 1, -1);
 		if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
-			if ((p->fts_symfd = _openat(p->fts_dirfd >= 0 ?
-                            p->fts_dirfd : AT_FDCWD, ".",
+			if ((p->fts_symfd = p->fts_dirfd >= 0 ?
+                            _dup(p->fts_dirfd) : _openat(AT_FDCWD, ".",
                             O_RDONLY | O_CLOEXEC, 0)) < 0) {
 				p->fts_errno = errno;
 				p->fts_info = FTS_ERR;
@@ -536,8 +537,8 @@ next:	tmp = p;
 			p->fts_info = fts_stat(sp, p, 1, -1);
 			if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
 				if ((p->fts_symfd =
-                                    _openat(p->fts_dirfd >= 0 ?
-                                    p->fts_dirfd : AT_FDCWD, ".",
+                                    p->fts_dirfd >= 0 ?
+                                    _dup(p->fts_dirfd) : _openat(AT_FDCWD, ".",
                                     O_RDONLY | O_CLOEXEC, 0)) < 0) {
 					p->fts_errno = errno;
 					p->fts_info = FTS_ERR;
@@ -565,7 +566,7 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
 		 */
 		free(tmp);
 		if (p->fts_dirfd >= 0)
-                        (void)_close(p->fts_dirfd);
+			(void)_close(p->fts_dirfd);
 		free(p);
 		errno = 0;
 		return (sp->fts_cur = NULL);
@@ -679,8 +680,8 @@ fts_children(FTS *sp, int instr)
 	    ISSET(FTS_NOCHDIR))
 		return (sp->fts_child = fts_build(sp, instr));
 
-	if ((fd = _openat(sp->fts_cur->fts_dirfd >= 0 ?
-            sp->fts_cur->fts_dirfd : AT_FDCWD, ".",
+	if ((fd = sp->fts_cur->fts_dirfd >= 0 ?
+            _dup(sp->fts_cur->fts_dirfd) : _openat(AT_FDCWD, ".",
             O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (NULL);
 	sp->fts_child = fts_build(sp, instr);
@@ -1216,11 +1217,11 @@ fts_lfree(FTSENT *head)
 
 	/* Free a linked list of structures. */
 	while ((p = head)) {
-                head = head->fts_link;
-                if (p->fts_dirfd >= 0)
-                        (void)_close(p->fts_dirfd);
-                free(p);
-        }
+		head = head->fts_link;
+		if (p->fts_dirfd >= 0)
+			(void)_close(p->fts_dirfd);
+		free(p);
+	}
 }
 
 /*
@@ -1336,7 +1337,9 @@ fts_ufslinks(FTS *sp, const FTSENT *ent)
 	 * avoidance.
 	 */
 	if (priv->ftsp_dev != ent->fts_dev) {
-		if (statfs(ent->fts_path, &priv->ftsp_statfs) != -1) {
+		if ((ent->fts_dirfd >= 0 ?
+                    _fstatfs(ent->fts_dirfd, &priv->ftsp_statfs) :
+                    statfs(ent->fts_path, &priv->ftsp_statfs)) != -1) {
 			priv->ftsp_dev = ent->fts_dev;
 			priv->ftsp_linksreliable = 0;
 			for (cpp = ufslike_filesystems; *cpp; cpp++) {
