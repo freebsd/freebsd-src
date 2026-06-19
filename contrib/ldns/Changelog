@@ -1,3 +1,7 @@
+1.9.1	2026-06-10
+	* Bugfix: Insufficient verification that responses belong to a
+	  query (CVE-2026-10846). Thanks Pablo Ruiz from 'codecome.ai'
+
 1.9.0	2025-12-04
 	* PR #246: Make ldns_calc_keytag() available for CDNSKEY RR
 	  Thanks tgreenx and pnax

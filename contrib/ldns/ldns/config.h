@@ -378,7 +378,7 @@
 #define PACKAGE_NAME "ldns"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "ldns 1.9.0"
+#define PACKAGE_STRING "ldns 1.9.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "libdns"
@@ -387,7 +387,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.9.0"
+#define PACKAGE_VERSION "1.9.1"
 
 /* Define this to enable RR type AMTRELAY. */
 #define RRTYPE_AMTRELAY /**/
