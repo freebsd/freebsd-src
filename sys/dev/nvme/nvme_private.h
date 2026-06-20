@@ -591,4 +591,10 @@ void	nvme_ctrlr_poll(struct nvme_controller *ctrlr);
 int	nvme_ctrlr_suspend(struct nvme_controller *ctrlr);
 int	nvme_ctrlr_resume(struct nvme_controller *ctrlr);
 
+static inline bool
+nvme_is_storage_device_default(device_t dev)
+{
+	return (true);
+}
+
 #endif /* __NVME_PRIVATE_H__ */
