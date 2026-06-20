@@ -42,8 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/param.h>
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_dl.h>
-#include <net/if_media.h>
 #include <net/if_var.h>
 #include <net/iflib.h>
 #include <netinet/in.h>
@@ -107,10 +105,7 @@ aq_ring_rx_init(struct aq_hw *hw, struct aq_ring *ring)
 
 	rdm_rx_desc_len_set(hw, ring->rx_size / 8U, ring->index);
 
-	device_printf(ring->dev->dev,
-	    "ring %d: __PAGESIZE=%d MCLBYTES=%d hw->max_frame_size=%d\n",
-	    ring->index, PAGE_SIZE, MCLBYTES, ring->rx_max_frame_size);
-	rdm_rx_desc_data_buff_size_set(hw, ring->rx_max_frame_size / 1024U,
+	rdm_rx_desc_data_buff_size_set(hw, ring->rx_buf_size / 1024U,
 	    ring->index);
 
 	rdm_rx_desc_head_buff_size_set(hw, 0U, ring->index);
@@ -143,7 +138,7 @@ aq_ring_tx_init(struct aq_hw *hw, struct aq_ring *ring)
 {
 	int err;
 	uint32_t dma_desc_addr_lsw = (uint32_t)ring->tx_descs_phys & 0xffffffff;
-	uint32_t dma_desc_addr_msw = (uint64_t)(ring->tx_descs_phys >> 32);
+	uint32_t dma_desc_addr_msw = (uint32_t)(ring->tx_descs_phys >> 32);
 
 	AQ_DBG_ENTERA("[%d]", ring->index);
 
@@ -236,8 +231,8 @@ aq_ring_rx_stop(struct aq_hw *hw, struct aq_ring *ring)
 static void
 aq_ring_rx_refill(void* arg, if_rxd_update_t iru)
 {
-	aq_dev_t *aq_dev = arg;
-	aq_rx_desc_t *rx_desc;
+	struct aq_dev *aq_dev = arg;
+	volatile struct aq_rx_desc *rx_desc;
 	struct aq_ring *ring;
 	qidx_t i, pidx;
 
@@ -248,7 +243,7 @@ aq_ring_rx_refill(void* arg, if_rxd_update_t iru)
 	pidx = iru->iru_pidx;
 
 	for (i = 0; i < iru->iru_count; i++) {
-		rx_desc = (aq_rx_desc_t *) &ring->rx_descs[pidx];
+		rx_desc = (volatile struct aq_rx_desc *) &ring->rx_descs[pidx];
 		rx_desc->read.buf_addr = htole64(iru->iru_paddrs[i]);
 		rx_desc->read.hdr_addr = 0;
 
@@ -261,7 +256,7 @@ aq_ring_rx_refill(void* arg, if_rxd_update_t iru)
 static void
 aq_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused, qidx_t pidx)
 {
-	aq_dev_t *aq_dev = arg;
+	struct aq_dev *aq_dev = arg;
 	struct aq_ring *ring = aq_dev->rx_rings[rxqid];
 
 	AQ_DBG_ENTERA("[%d] tail=%u", ring->index, pidx);
@@ -272,9 +267,9 @@ aq_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused, qidx_t pidx)
 static int
 aq_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 {
-	aq_dev_t *aq_dev = arg;
+	struct aq_dev *aq_dev = arg;
 	struct aq_ring *ring = aq_dev->rx_rings[rxqid];
-	aq_rx_desc_t *rx_desc = (aq_rx_desc_t *) ring->rx_descs;
+	volatile struct aq_rx_desc *rx_desc = (volatile struct aq_rx_desc *) ring->rx_descs;
 	int cnt, i, iter;
 
 	AQ_DBG_ENTERA("[%d] head=%u, budget %d", ring->index, idx, budget);
@@ -286,17 +281,10 @@ aq_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 		if (!rx_desc[i].wb.dd)
 			break;
 
-		if (rx_desc[i].wb.eop) {
-			iter++;
-			i = aq_next(i, ring->rx_size - 1);
-
+		if (rx_desc[i].wb.eop)
 			cnt++;
-		} else {
-			/* Jumbo frame spans descriptors; advance. */
-			iter++;
-			i = aq_next(i, ring->rx_size - 1);
-			continue;
-		}
+		iter++;
+		i = aq_next(i, ring->rx_size - 1);
 	}
 
 	AQ_DBG_EXIT(cnt);
@@ -304,7 +292,7 @@ aq_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 }
 
 static void
-aq_rx_set_cso_flags(aq_rx_desc_t *rx_desc,  if_rxd_info_t ri)
+aq_rx_set_cso_flags(volatile struct aq_rx_desc *rx_desc,  if_rxd_info_t ri)
 {
 	if ((rx_desc->wb.pkt_type & 0x3) == 0) { // IPv4
 		if (rx_desc->wb.rx_cntl & BIT(0)) { // IPv4 csum checked
@@ -337,9 +325,9 @@ static uint8_t bsd_rss_type[16] = {
 static int
 aq_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 {
-	aq_dev_t *aq_dev = arg;
+	struct aq_dev *aq_dev = arg;
 	struct aq_ring *ring = aq_dev->rx_rings[ri->iri_qsidx];
-	aq_rx_desc_t *rx_desc;
+	volatile struct aq_rx_desc *rx_desc;
 	if_t ifp;
 	int cidx, rc = 0, i;
 	size_t len, total_len;
@@ -350,28 +338,26 @@ aq_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	i = 0;
 
 	do {
-		if (i >= aq_dev->sctx->isc_rx_nsegments) {
-			counter_u64_add(ring->stats.rx_err, 1);
-			rc = (EBADMSG);
-			goto exit;
-		}
+		if (i >= aq_dev->sctx->isc_rx_nsegments)
+			goto rx_err;
 
-		rx_desc = (aq_rx_desc_t *) &ring->rx_descs[cidx];
+		rx_desc = (volatile struct aq_rx_desc *) &ring->rx_descs[cidx];
 
 		trace_aq_rx_descr(ring->index, cidx,
 		    (volatile uint64_t *)rx_desc);
 
-		if ((rx_desc->wb.rx_stat & BIT(0)) != 0) {
-			counter_u64_add(ring->stats.rx_err, 1);
-			rc = (EBADMSG);
-			goto exit;
-		}
+		if ((rx_desc->wb.rx_stat & BIT(0)) != 0)
+			goto rx_err;
 
 		if (!rx_desc->wb.eop) {
-			len = ring->rx_max_frame_size;
+			len = ring->rx_buf_size;
 		} else {
 			total_len = le32toh(rx_desc->wb.pkt_len);
-			len = total_len - (size_t)i * ring->rx_max_frame_size;
+			if (total_len < (size_t)i * ring->rx_buf_size)
+				goto rx_err;
+			len = total_len - (size_t)i * ring->rx_buf_size;
+			if (len > (size_t)ring->rx_buf_size)
+				goto rx_err;
 		}
 		ri->iri_frags[i].irf_flid = 0;
 		ri->iri_frags[i].irf_idx = cidx;
@@ -399,7 +385,11 @@ aq_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 	counter_u64_add(ring->stats.rx_bytes, total_len);
 	counter_u64_add(ring->stats.rx_pkts, 1);
+	goto exit;
 
+rx_err:
+	counter_u64_add(ring->stats.rx_err, 1);
+	rc = EBADMSG;
 exit:
 	AQ_DBG_EXIT(rc);
 	return (rc);
@@ -410,7 +400,7 @@ exit:
 /*****************************************************************************/
 
 static void
-aq_setup_offloads(aq_dev_t *aq_dev, if_pkt_info_t pi, aq_tx_desc_t *txd,
+aq_setup_offloads(struct aq_dev *aq_dev, if_pkt_info_t pi, volatile struct aq_tx_desc *txd,
     uint32_t tx_cmd)
 {
 	AQ_DBG_ENTER();
@@ -425,8 +415,8 @@ aq_setup_offloads(aq_dev_t *aq_dev, if_pkt_info_t pi, aq_tx_desc_t *txd,
 }
 
 static int
-aq_ring_tso_setup(aq_dev_t *aq_dev, if_pkt_info_t pi, uint32_t *hdrlen,
-    aq_txc_desc_t *txc)
+aq_ring_tso_setup(struct aq_dev *aq_dev, if_pkt_info_t pi, uint32_t *hdrlen,
+    volatile union aq_txc_desc *txc)
 {
 	uint32_t tx_cmd = 0;
 
@@ -471,10 +461,10 @@ aq_ring_tso_setup(aq_dev_t *aq_dev, if_pkt_info_t pi, uint32_t *hdrlen,
 static int
 aq_isc_txd_encap(void *arg, if_pkt_info_t pi)
 {
-	aq_dev_t *aq_dev = arg;
+	struct aq_dev *aq_dev = arg;
 	struct aq_ring *ring;
-	aq_txc_desc_t *txc;
-	aq_tx_desc_t *txd = NULL;
+	volatile union aq_txc_desc *txc;
+	volatile struct aq_tx_desc *txd = NULL;
 	bus_dma_segment_t *segs;
 	qidx_t pidx;
 	uint32_t hdrlen=0, pay_len;
@@ -486,7 +476,7 @@ aq_isc_txd_encap(void *arg, if_pkt_info_t pi)
 
 	segs = pi->ipi_segs;
 	pidx = pi->ipi_pidx;
-	txc = (aq_txc_desc_t *)&ring->tx_descs[pidx];
+	txc = (volatile union aq_txc_desc *)&ring->tx_descs[pidx];
 	AQ_DBG_PRINT("txc at 0x%p, txd at 0x%p len %d", txc, txd, pi->ipi_len);
 
 	pay_len = pi->ipi_len;
@@ -506,7 +496,7 @@ aq_isc_txd_encap(void *arg, if_pkt_info_t pi)
 		txd = &ring->tx_descs[pidx];
 		txd->flags = 0U;
 	} else {
-		txd = (aq_tx_desc_t *)txc;
+		txd = (volatile struct aq_tx_desc *)txc;
 	}
 	AQ_DBG_PRINT("txc at 0x%p, txd at 0x%p", txc, txd);
 
@@ -563,7 +553,7 @@ aq_isc_txd_encap(void *arg, if_pkt_info_t pi)
 static void
 aq_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx)
 {
-	aq_dev_t *aq_dev = arg;
+	struct aq_dev *aq_dev = arg;
 	struct aq_ring *ring = aq_dev->tx_rings[txqid];
 	AQ_DBG_ENTERA("[%d] tail=%d", ring->index, pidx);
 
@@ -582,7 +572,7 @@ aq_avail_desc(int a, int b, int size)
 static int
 aq_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 {
-	aq_dev_t *aq_dev = arg;
+	struct aq_dev *aq_dev = arg;
 	struct aq_ring *ring = aq_dev->tx_rings[txqid];
 	uint32_t head;
 	int avail;

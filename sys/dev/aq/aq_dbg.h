@@ -88,15 +88,15 @@ Debug levels:
 #define AQ_DBG_DUMP_DESC(desc)
 #endif
 
-typedef enum aq_debug_level
+enum aq_debug_level
 {
 	lvl_error = LOG_ERR,
 	lvl_warn = LOG_WARNING,
 	lvl_trace = LOG_NOTICE,
 	lvl_detail = LOG_INFO,
-} aq_debug_level;
+};
 
-typedef enum aq_debug_category
+enum aq_debug_category
 {
 	dbg_init    = 1,
 	dbg_config  = 1 << 1,
@@ -104,12 +104,12 @@ typedef enum aq_debug_category
 	dbg_rx      = 1 << 3,
 	dbg_intr    = 1 << 4,
 	dbg_fw      = 1 << 5,
-} aq_debug_category;
+};
 
 
 #define __FILENAME__ (__builtin_strrchr(__FILE__, '/') ? __builtin_strrchr(__FILE__, '/') + 1 : __FILE__)
 
-extern const aq_debug_level dbg_level_;
+extern const enum aq_debug_level dbg_level_;
 extern const uint32_t dbg_categories_;
 
 #define log_base_(_lvl, _fmt, args...) printf( "atlantic: " _fmt "\n", ##args)
@@ -120,7 +120,6 @@ extern const uint32_t dbg_categories_;
 #define trace_base_(_lvl, _cat, _fmt, ...) do {} while (0)
 #endif // AQ_CFG_DEBUG_LVL > 0
 
-#define aq_log_error(_fmt, args...)    log_base_(lvl_error, "[!] " _fmt, ##args)
 #define aq_log_warn(_fmt, args...)     log_base_(lvl_warn, "/!\\ " _fmt, ##args)
 #define aq_log(_fmt, args...)          log_base_(lvl_trace, _fmt, ##args)
 #define aq_log_detail(_fmt, args...)   log_base_(lvl_detail, _fmt, ##args)
