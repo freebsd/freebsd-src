@@ -85,14 +85,10 @@ const uint32_t RBL_STATUS_HOST_BOOT = 0xf1a7;
 const uint32_t SCRATCHPAD_FW_LOADER_STATUS = (0x40 / sizeof(uint32_t));
 
 
-extern const struct aq_firmware_ops aq_fw1x_ops;
-extern const struct aq_firmware_ops aq_fw2x_ops;
-
-
-int mac_soft_reset_(struct aq_hw* hw, enum aq_fw_bootloader_mode* mode);
-int mac_soft_reset_flb_(struct aq_hw* hw);
-int mac_soft_reset_rbl_(struct aq_hw* hw, enum aq_fw_bootloader_mode* mode);
-int wait_init_mac_firmware_(struct aq_hw* hw);
+static int mac_soft_reset(struct aq_hw* hw, enum aq_fw_bootloader_mode* mode);
+static int mac_soft_reset_flb(struct aq_hw* hw);
+static int mac_soft_reset_rbl(struct aq_hw* hw, enum aq_fw_bootloader_mode* mode);
+static int wait_init_mac_firmware(struct aq_hw* hw);
 
 
 int
@@ -124,14 +120,14 @@ aq_fw_reset(struct aq_hw* hw)
 	 * 2) Driver may skip reset sequence and save time.
 	 */
 	if (hw->fast_start_enabled && !ver) {
-		int err = wait_init_mac_firmware_(hw);
+		int err = wait_init_mac_firmware(hw);
 		/* Skip reset as it just completed */
 		if (!err)
 			return (0);
 	}
 
 	enum aq_fw_bootloader_mode mode = boot_mode_unknown;
-	int err = mac_soft_reset_(hw, &mode);
+	int err = mac_soft_reset(hw, &mode);
 	if (err != 0) {
 		device_printf(hw->dev, "MAC reset failed: %d\n", err);
 		return (err);
@@ -141,12 +137,12 @@ aq_fw_reset(struct aq_hw* hw)
 	case boot_mode_flb:
 		aq_log("FLB> F/W successfully loaded from flash.");
 		hw->flash_present = true;
-		return wait_init_mac_firmware_(hw);
+		return wait_init_mac_firmware(hw);
 
 	case boot_mode_rbl_flash:
 		aq_log("RBL> F/W loaded from flash. Host Bootload disabled.");
 		hw->flash_present = true;
-		return wait_init_mac_firmware_(hw);
+		return wait_init_mac_firmware(hw);
 
 	case boot_mode_unknown:
 		device_printf(hw->dev, "F/W bootload error: unknown bootloader type\n");
@@ -196,21 +192,21 @@ aq_fw_ops_init(struct aq_hw* hw)
 }
 
 
-int
-mac_soft_reset_(struct aq_hw* hw, enum aq_fw_bootloader_mode* mode /*= nullptr*/)
+static int
+mac_soft_reset(struct aq_hw* hw, enum aq_fw_bootloader_mode* mode /*= nullptr*/)
 {
 	if (hw->rbl_enabled) {
-		return mac_soft_reset_rbl_(hw, mode);
+		return mac_soft_reset_rbl(hw, mode);
 	} else {
 		if (mode)
 			*mode = boot_mode_flb;
 
-		return mac_soft_reset_flb_(hw);
+		return mac_soft_reset_flb(hw);
 	}
 }
 
-int
-mac_soft_reset_flb_(struct aq_hw* hw)
+static int
+mac_soft_reset_flb(struct aq_hw* hw)
 {
 	int k;
 
@@ -296,8 +292,8 @@ mac_soft_reset_flb_(struct aq_hw* hw)
 	return (0);
 }
 
-int
-mac_soft_reset_rbl_(struct aq_hw* hw, enum aq_fw_bootloader_mode* mode)
+static int
+mac_soft_reset_rbl(struct aq_hw* hw, enum aq_fw_bootloader_mode* mode)
 {
 	trace(dbg_init, "RBL> MAC reset STARTED!");
 
@@ -349,8 +345,8 @@ mac_soft_reset_rbl_(struct aq_hw* hw, enum aq_fw_bootloader_mode* mode)
 	return (0);
 }
 
-int
-wait_init_mac_firmware_(struct aq_hw* hw)
+static int
+wait_init_mac_firmware(struct aq_hw* hw)
 {
 	for (int i = 0; i < MAC_FW_START_TIMEOUT_MS; ++i) {
 		if ((hw->fw_version.raw = AQ_READ_REG(hw, 0x18)) != 0)

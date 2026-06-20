@@ -70,6 +70,8 @@ struct aq_firmware_ops
 	int (*led_control)(struct aq_hw* hw, uint32_t mode);
 };
 
+extern const struct aq_firmware_ops aq_fw1x_ops;
+extern const struct aq_firmware_ops aq_fw2x_ops;
 
 int aq_fw_reset(struct aq_hw* hw);
 int aq_fw_ops_init(struct aq_hw* hw);
