@@ -37,6 +37,7 @@
 
 #include <sys/types.h>
 #include <sys/cdefs.h>
+#include <sys/bus.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <machine/bus.h>
@@ -78,10 +79,6 @@ extern uint32_t aq_hw_read_reg(struct aq_hw *hw, uint32_t reg);
 
 /* Statistics  */
 struct aq_hw_stats {
-	uint64_t crcerrs;
-};
-
-struct aq_hw_stats_s {
 	uint32_t uprc;
 	uint32_t mprc;
 	uint32_t bprc;
@@ -100,7 +97,7 @@ struct aq_hw_stats_s {
 	uint32_t prc;
 	uint32_t dpc;
 	uint32_t cprc;
-} __attribute__((__packed__));
+} __packed;
 
 union ip_addr {
 	struct {
@@ -110,16 +107,16 @@ union ip_addr {
 		uint8_t padding[12];
 		uint8_t addr[4];
 	} v4;
-} __attribute__((__packed__));
+} __packed;
 
 struct aq_hw_fw_mbox {
 	uint32_t version;
 	uint32_t transaction_id;
 	int error;
-	struct aq_hw_stats_s stats;
-} __attribute__((__packed__));
+	struct aq_hw_stats stats;
+} __packed;
 
-typedef struct aq_hw_fw_version {
+struct aq_hw_fw_version {
 	union {
 		struct {
 			uint16_t build_number;
@@ -128,7 +125,7 @@ typedef struct aq_hw_fw_version {
 		};
 		uint32_t raw;
 	};
-} aq_hw_fw_version;
+};
 
 enum aq_hw_irq_type {
 	aq_irq_invalid = 0,
@@ -144,6 +141,7 @@ struct aq_hw_fc_info {
 
 struct aq_hw {
 	void *aq_dev;
+	device_t dev;
 	bus_space_tag_t hw_tag;
 	bus_space_handle_t hw_handle;
 	uint32_t regs_size;
@@ -165,7 +163,7 @@ struct aq_hw {
 	int itr;
 
 	/* Firmware-related stuff. */
-	aq_hw_fw_version fw_version;
+	struct aq_hw_fw_version fw_version;
 	const struct aq_firmware_ops* fw_ops;
 	bool rbl_enabled;
 	bool fast_start_enabled;
@@ -182,8 +180,6 @@ struct aq_hw {
 
 	uint32_t tx_rings_count;
 };
-
-#define aq_hw_s aq_hw
 
 #define AQ_HW_MAC      0U
 #define AQ_HW_MAC_MIN  1U
@@ -320,7 +316,7 @@ enum hw_atl_rx_ctrl_registers_l3l4 {
 #define HW_ATL_GET_REG_LOCATION_FL3L4(location) \
 	((location) - AQ_RX_FIRST_LOC_FL3L4)
 
-enum aq_hw_fw_mpi_state_e {
+enum aq_hw_fw_mpi_state {
 	MPI_DEINIT = 0,
 	MPI_RESET = 1,
 	MPI_INIT = 2,
@@ -355,24 +351,24 @@ int aq_hw_get_fw_version(struct aq_hw *hw, uint32_t *fw_version);
 
 int aq_hw_deinit(struct aq_hw *hw);
 
-int aq_hw_ver_match(const aq_hw_fw_version* ver_expected,
-    const aq_hw_fw_version* ver_actual);
+int aq_hw_ver_match(const struct aq_hw_fw_version* ver_expected,
+    const struct aq_hw_fw_version* ver_actual);
 
-void aq_hw_set_promisc(struct aq_hw_s *self, bool l2_promisc, bool vlan_promisc,
+void aq_hw_set_promisc(struct aq_hw *hw, bool l2_promisc, bool vlan_promisc,
     bool mc_promisc);
 
 int aq_hw_set_power(struct aq_hw *hw, unsigned int power_state);
 
 int aq_hw_err_from_flags(struct aq_hw *hw);
 
-int hw_atl_b0_hw_vlan_promisc_set(struct aq_hw_s *self, bool promisc);
+int hw_atl_b0_hw_vlan_promisc_set(struct aq_hw *hw, bool promisc);
 
-int hw_atl_b0_hw_vlan_set(struct aq_hw_s *self,
+int hw_atl_b0_hw_vlan_set(struct aq_hw *hw,
     struct aq_rx_filter_vlan *aq_vlans);
 
-int aq_hw_rss_hash_set(struct aq_hw_s *self, uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE]);
-int aq_hw_rss_hash_get(struct aq_hw_s *self, uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE]);
-int aq_hw_rss_set(struct aq_hw_s *self, uint8_t rss_table[HW_ATL_RSS_INDIRECTION_TABLE_MAX]);
-int aq_hw_udp_rss_enable(struct aq_hw_s *self, bool enable);
+int aq_hw_rss_hash_set(struct aq_hw *hw, uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE]);
+int aq_hw_rss_hash_get(struct aq_hw *hw, uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE]);
+int aq_hw_rss_set(struct aq_hw *hw, uint8_t rss_table[HW_ATL_RSS_INDIRECTION_TABLE_MAX]);
+int aq_hw_udp_rss_enable(struct aq_hw *hw, bool enable);
 
 #endif // _AQ_HW_H_

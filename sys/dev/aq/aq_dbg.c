@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "aq_dbg.h"
 
 
-const aq_debug_level dbg_level_ = lvl_detail;
+const enum aq_debug_level dbg_level_ = lvl_detail;
 const uint32_t dbg_categories_ = dbg_init | dbg_config | dbg_fw;
 
 

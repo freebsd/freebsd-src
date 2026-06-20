@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include "aq_dbg.h"
 
-typedef enum {
+enum fw2x_caps_lo {
 	CAPS_LO_10BASET_HD = 0x00,
 	CAPS_LO_10BASET_FD,
 	CAPS_LO_100BASETX_HD,
@@ -64,9 +64,9 @@ typedef enum {
 	CAPS_LO_2P5GBASET_FD,
 	CAPS_LO_5GBASET_FD,
 	CAPS_LO_10GBASET_FD,
-} fw2x_caps_lo;
+};
 
-typedef enum {
+enum fw2x_caps_hi {
 	CAPS_HI_RESERVED1 = 0x00,
 	CAPS_HI_10BASET_EEE,
 	CAPS_HI_RESERVED2,
@@ -99,19 +99,19 @@ typedef enum {
 	CAPS_HI_WOL_TIMER,
 	CAPS_HI_STATISTICS,
 	CAPS_HI_TRANSACTION_ID,
-} fw2x_caps_hi;
+};
 
-typedef enum aq_fw2x_rate
+enum aq_fw2x_rate
 {
 	FW2X_RATE_100M = 0x20,
 	FW2X_RATE_1G = 0x100,
 	FW2X_RATE_2G5 = 0x200,
 	FW2X_RATE_5G = 0x400,
 	FW2X_RATE_10G = 0x800,
-} aq_fw2x_rate;
+};
 
 
-typedef struct fw2x_msm_statistics
+struct fw2x_msm_statistics
 {
 	uint32_t uprc;
 	uint32_t mprc;
@@ -129,36 +129,36 @@ typedef struct fw2x_msm_statistics
 	uint32_t ubtc;
 	uint32_t ptc;
 	uint32_t prc;
-} fw2x_msm_statistics;
+};
 
-typedef struct fw2x_phy_cable_diag_data
+struct fw2x_phy_cable_diag_data
 {
 	uint32_t lane_data[4];
-} fw2x_phy_cable_diag_data;
+};
 
-typedef struct fw2x_capabilities {
+struct fw2x_capabilities {
 	uint32_t caps_lo;
 	uint32_t caps_hi;
-} fw2x_capabilities;
+};
 
-typedef struct fw2x_mailbox // struct fwHostInterface
+struct fw2x_mailbox // struct fwHostInterface
 {
 	uint32_t version;
 	uint32_t transaction_id;
 	int32_t error;
-	fw2x_msm_statistics msm; // msmStatistics_t msm;
+	struct fw2x_msm_statistics msm; // msmStatistics_t msm;
 	uint16_t phy_h_bit;
 	uint16_t phy_fault_code;
 	int16_t phy_temperature;
 	uint8_t cable_len;
 	uint8_t reserved1;
-	fw2x_phy_cable_diag_data diag_data;
+	struct fw2x_phy_cable_diag_data diag_data;
 	uint32_t reserved[8];
 
-	fw2x_capabilities caps;
+	struct fw2x_capabilities caps;
 
 	/* ... */
-} fw2x_mailbox;
+};
 
 
 // EEE caps
@@ -195,13 +195,13 @@ typedef struct fw2x_mailbox // struct fwHostInterface
 // Firmware v2-3.x specific functions.
 int fw2x_reset(struct aq_hw* hw);
 
-int fw2x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e mode,
-    aq_fw_link_speed_t speed);
-int fw2x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e* mode,
-    aq_fw_link_speed_t* speed, aq_fw_link_fc_t* fc);
+int fw2x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state mode,
+    enum aq_fw_link_speed speed);
+int fw2x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state* mode,
+    enum aq_fw_link_speed* speed, enum aq_fw_link_fc* fc);
 
 int fw2x_get_mac_addr(struct aq_hw* hw, uint8_t* mac);
-int fw2x_get_stats(struct aq_hw* hw, struct aq_hw_stats_s* stats);
+int fw2x_get_stats(struct aq_hw* hw, struct aq_hw_stats* stats);
 
 
 static uint64_t
@@ -242,10 +242,10 @@ set_mpi_ctrl_(struct aq_hw* hw, uint64_t value)
 int
 fw2x_reset(struct aq_hw* hw)
 {
-	fw2x_capabilities caps = {0};
+	struct fw2x_capabilities caps = {0};
 	AQ_DBG_ENTER();
 	int err = aq_hw_fw_downld_dwords(hw,
-	    hw->mbox_addr + offsetof(fw2x_mailbox, caps),
+	    hw->mbox_addr + offsetof(struct fw2x_mailbox, caps),
 	    (uint32_t*)&caps, sizeof caps/sizeof(uint32_t));
 	if (err == 0) {
 		hw->fw_caps = caps.caps_lo | ((uint64_t)caps.caps_hi << 32);
@@ -262,7 +262,7 @@ fw2x_reset(struct aq_hw* hw)
 }
 
 
-static aq_fw2x_rate
+static enum aq_fw2x_rate
 link_speed_mask_to_fw2x_(uint32_t speed)
 {
 	uint32_t rate = 0;
@@ -284,13 +284,13 @@ link_speed_mask_to_fw2x_(uint32_t speed)
 		rate |= FW2X_RATE_100M;
 
 	AQ_DBG_EXIT(rate);
-	return ((aq_fw2x_rate)rate);
+	return ((enum aq_fw2x_rate)rate);
 }
 
 
 int
-fw2x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e mode,
-    aq_fw_link_speed_t speed)
+fw2x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state mode,
+    enum aq_fw_link_speed speed)
 {
 	uint64_t mpi_ctrl = get_mpi_ctrl_(hw);
 
@@ -326,8 +326,8 @@ fw2x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e mode,
 }
 
 int
-fw2x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e* mode,
-    aq_fw_link_speed_t* link_speed, aq_fw_link_fc_t* fc)
+fw2x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state* mode,
+    enum aq_fw_link_speed* link_speed, enum aq_fw_link_fc* fc)
 {
 	uint64_t mpi_state = get_mpi_state_(hw);
 	uint32_t rates = mpi_state & FW2X_RATE_MASK;
@@ -342,7 +342,7 @@ fw2x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e* mode,
 		*mode = MPI_DEINIT;
 	}
 
-	aq_fw_link_speed_t speed = aq_fw_none;
+	enum aq_fw_link_speed speed = aq_fw_none;
 
 	if (rates & FW2X_RATE_10G)
 		speed = aq_fw_10G;
@@ -382,7 +382,7 @@ fw2x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 	}
 
 	err = aq_hw_fw_downld_dwords(hw, efuse_shadow_addr + (40 * 4), mac_addr,
-	    ARRAY_SIZE(mac_addr));
+	    nitems(mac_addr));
 	if (err != 0) {
 		mac_addr[0] = 0;
 		mac_addr[1] = 0;
@@ -400,8 +400,8 @@ fw2x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 }
 
 static inline void
-fw2x_stats_to_fw_stats_(struct aq_hw_stats_s* dst,
-    const fw2x_msm_statistics* src)
+fw2x_stats_to_fw_stats_(struct aq_hw_stats* dst,
+    const struct fw2x_msm_statistics* src)
 {
 	dst->uprc = src->uprc;
 	dst->mprc = src->mprc;
@@ -454,7 +454,7 @@ toggle_mpi_ctrl_and_wait_(struct aq_hw* hw, uint64_t mask, uint32_t timeout_ms,
 //			AQ_DBG_EXIT(true);
 			return (true);
 		}
-		msec_delay(timeout_ms);
+		DELAY((timeout_ms) * 1000);
 	}
 
 	trace_detail(dbg_fw,
@@ -466,10 +466,10 @@ toggle_mpi_ctrl_and_wait_(struct aq_hw* hw, uint64_t mask, uint32_t timeout_ms,
 
 
 int
-fw2x_get_stats(struct aq_hw* hw, struct aq_hw_stats_s* stats)
+fw2x_get_stats(struct aq_hw* hw, struct aq_hw_stats* stats)
 {
 	int err = 0;
-	fw2x_msm_statistics fw2x_stats = {0};
+	struct fw2x_msm_statistics fw2x_stats = {0};
 
 //    AQ_DBG_ENTER();
 
@@ -486,7 +486,7 @@ fw2x_get_stats(struct aq_hw* hw, struct aq_hw_stats_s* stats)
 	}
 
 	err = aq_hw_fw_downld_dwords(hw,
-	    hw->mbox_addr + offsetof(fw2x_mailbox, msm),
+	    hw->mbox_addr + offsetof(struct fw2x_mailbox, msm),
 	    (uint32_t*)&fw2x_stats, sizeof fw2x_stats/sizeof(uint32_t));
 
 	fw2x_stats_to_fw_stats_(stats, &fw2x_stats);
@@ -506,7 +506,7 @@ fw2x_led_control(struct aq_hw* hw, uint32_t onoff)
 
 	AQ_DBG_ENTER();
 
-	aq_hw_fw_version ver_expected = { .raw = FW2X_FW_MIN_VER_LED};
+	struct aq_hw_fw_version ver_expected = { .raw = FW2X_FW_MIN_VER_LED};
 	if (aq_hw_ver_match(&ver_expected, &hw->fw_version))
 		AQ_WRITE_REG(hw, FW2X_MPI_LED_ADDR,
 		    (onoff) ? ((FW2X_LED_BLINK) | (FW2X_LED_BLINK << 2) | (FW2X_LED_BLINK << 4)):
@@ -516,7 +516,7 @@ fw2x_led_control(struct aq_hw* hw, uint32_t onoff)
 	return (err);
 }
 
-struct aq_firmware_ops aq_fw2x_ops =
+const struct aq_firmware_ops aq_fw2x_ops =
 {
 	.reset = fw2x_reset,
 

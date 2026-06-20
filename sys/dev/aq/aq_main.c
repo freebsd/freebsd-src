@@ -42,15 +42,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bitstring.h>
 #include <sys/bus.h>
-#include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
-#include <sys/priv.h>
 #include <sys/rman.h>
 #include <sys/sbuf.h>
 #include <sys/socket.h>
-#include <sys/sockio.h>
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
@@ -75,12 +72,6 @@ __FBSDID("$FreeBSD$");
 #include "aq_hw_llh.h"
 #include "aq_ring.h"
 #include "aq_dbg.h"
-
-
-#define	AQ_XXX_UNIMPLEMENTED_FUNCTION	do {				\
-	printf("atlantic: unimplemented function: %s@%s:%d\n", __func__, 	\
-	    __FILE__, __LINE__);					\
-} while (0)
 
 MALLOC_DEFINE(M_AQ, "aq", "Aquantia");
 
@@ -210,13 +201,9 @@ static driver_t aq_driver = {
 	"aq", aq_methods, sizeof(struct aq_dev),
 };
 
-#if __FreeBSD_version >= 1400058
 DRIVER_MODULE(atlantic, pci, aq_driver, 0, 0);
-#else
-static devclass_t aq_devclass;
-DRIVER_MODULE(atlantic, pci, aq_driver, aq_devclass, 0, 0);
-#endif
 
+MODULE_VERSION(atlantic, 1);
 MODULE_DEPEND(atlantic, pci, 1, 1, 1);
 MODULE_DEPEND(atlantic, ether, 1, 1, 1);
 MODULE_DEPEND(atlantic, iflib, 1, 1, 1);
@@ -276,10 +263,8 @@ static struct if_shared_ctx aq_sctx_init = {
 	.isc_q_align = PAGE_SIZE,
 	.isc_tx_maxsize = HW_ATL_B0_TSO_SIZE,
 	.isc_tx_maxsegsize = HW_ATL_B0_MTU_JUMBO,
-#if __FreeBSD__ >= 12
 	.isc_tso_maxsize = HW_ATL_B0_TSO_SIZE,
 	.isc_tso_maxsegsize = HW_ATL_B0_MTU_JUMBO,
-#endif
 	.isc_rx_maxsize = HW_ATL_B0_MTU_JUMBO,
 	.isc_rx_nsegments = 16,
 	.isc_rx_maxsegsize = PAGE_SIZE,
@@ -297,8 +282,8 @@ static struct if_shared_ctx aq_sctx_init = {
 	.isc_ntxd_min = {HW_ATL_B0_MIN_TXD},
 	.isc_nrxd_max = {HW_ATL_B0_MAX_RXD},
 	.isc_ntxd_max = {HW_ATL_B0_MAX_TXD},
-	.isc_nrxd_default = {PAGE_SIZE / sizeof(aq_txc_desc_t) * 4},
-	.isc_ntxd_default = {PAGE_SIZE / sizeof(aq_txc_desc_t) * 4},
+	.isc_nrxd_default = {PAGE_SIZE / sizeof(volatile union aq_txc_desc) * 4},
+	.isc_ntxd_default = {PAGE_SIZE / sizeof(volatile union aq_txc_desc) * 4},
 };
 
 /*
@@ -355,6 +340,7 @@ aq_if_attach_pre(if_ctx_t ctx)
 	softc->mmio_size = rman_get_size(softc->mmio_res);
 	softc->hw.hw_tag = softc->mmio_tag;
 	softc->hw.hw_handle = softc->mmio_handle;
+	softc->hw.dev = softc->dev;
 	hw = &softc->hw;
 	hw->link_rate = aq_fw_speed_auto;
 	hw->itr = -1;
@@ -365,44 +351,32 @@ aq_if_attach_pre(if_ctx_t ctx)
 	/* Look up ops and caps. */
 	rc = aq_hw_mpi_create(hw);
 	if (rc != 0) {
-		AQ_DBG_ERROR(" %s: aq_hw_mpi_create fail err=%d", __func__, rc);
+		device_printf(softc->dev,
+		    "%s: aq_hw_mpi_create failed, err=%d\n", __func__, rc);
 		goto fail;
 	}
 
-	if (hw->fast_start_enabled) {
-		if (hw->fw_ops && hw->fw_ops->reset)
-			hw->fw_ops->reset(hw);
-	} else
+	if (hw->fast_start_enabled)
+		hw->fw_ops->reset(hw);
+	else
 		aq_hw_reset(&softc->hw);
 	aq_hw_capabilities(softc);
 
 	rc = aq_hw_get_mac_permanent(hw, hw->mac_addr);
 	if (rc != 0) {
-		AQ_DBG_ERROR("Unable to get mac addr from hw");
+		device_printf(softc->dev, "unable to get MAC address from HW\n");
 		goto fail;
 	}
 
 	softc->admin_ticks = 0;
 
 	iflib_set_mac(ctx, hw->mac_addr);
-#if __FreeBSD__ < 13
-	/* since FreeBSD13 deadlock due to calling iflib_led_func() under CTX_LOCK() */
-	iflib_led_create(ctx);
-#endif
 	scctx->isc_tx_csum_flags = CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_TSO;
-#if __FreeBSD__ >= 12
 	scctx->isc_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_HWCSUM |
 	    IFCAP_TSO | IFCAP_LRO | IFCAP_JUMBO_MTU | IFCAP_VLAN_HWFILTER |
 	    IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
 	scctx->isc_capenable = scctx->isc_capabilities;
-#else
-	if_t ifp;
-	ifp = iflib_get_ifp(ctx);
-	if_setcapenable(ifp,  IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_HWCSUM |
-	    IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_VLAN_HWFILTER | IFCAP_VLAN_MTU |
-	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
-#endif
-	scctx->isc_tx_nsegments = 31,
+	scctx->isc_tx_nsegments = 31;
 	scctx->isc_tx_tso_segments_max = 31;
 	scctx->isc_tx_tso_size_max =
 	    HW_ATL_B0_TSO_SIZE - sizeof(struct ether_vlan_header);
@@ -412,8 +386,8 @@ aq_if_attach_pre(if_ctx_t ctx)
 	    ETHER_VLAN_ENCAP_LEN;
 	scctx->isc_txrx = &aq_txrx;
 
-	scctx->isc_txqsizes[0] = sizeof(aq_tx_desc_t) * scctx->isc_ntxd[0];
-	scctx->isc_rxqsizes[0] = sizeof(aq_rx_desc_t) * scctx->isc_nrxd[0];
+	scctx->isc_txqsizes[0] = sizeof(volatile struct aq_tx_desc) * scctx->isc_ntxd[0];
+	scctx->isc_rxqsizes[0] = sizeof(volatile struct aq_rx_desc) * scctx->isc_nrxd[0];
 
 	scctx->isc_ntxqsets_max = HW_ATL_B0_RINGS_MAX;
 	scctx->isc_nrxqsets_max = HW_ATL_RSS_INDIRECTION_QUEUES_MAX;
@@ -476,7 +450,7 @@ aq_if_attach_post(if_ctx_t ctx)
 	/* RSS */
 	arc4rand(softc->rss_key, HW_ATL_RSS_HASHKEY_SIZE, 0);
 	uint32_t rss_qs = MIN(softc->rx_rings_count, HW_ATL_RSS_INDIRECTION_QUEUES_MAX);
-	for (int i = ARRAY_SIZE(softc->rss_table); i--;){
+	for (int i = nitems(softc->rss_table); i--;){
 		softc->rss_table[i] = i % rss_qs;
 	}
 exit:
@@ -600,7 +574,7 @@ aq_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 			device_printf(softc->dev, "atlantic: tx_ring malloc fail\n");
 			goto fail;
 		}
-		ring->tx_descs = (aq_tx_desc_t*)vaddrs[i];
+		ring->tx_descs = (volatile struct aq_tx_desc*)vaddrs[i];
 		ring->tx_size = softc->scctx->isc_ntxd[0];
 		ring->tx_descs_phys = paddrs[i];
 		ring->tx_head = ring->tx_tail = 0;
@@ -647,22 +621,11 @@ aq_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 			goto fail;
 		}
 
-		ring->rx_descs = (aq_rx_desc_t*)vaddrs[i];
+		ring->rx_descs = (volatile struct aq_rx_desc*)vaddrs[i];
 		ring->rx_descs_phys = paddrs[i];
 		ring->rx_size = softc->scctx->isc_nrxd[0];
 		ring->index = i;
 		ring->dev = softc;
-
-		switch (MCLBYTES) {
-			case    (4 * 1024):
-			case    (8 * 1024):
-			case    (16 * 1024):
-				ring->rx_max_frame_size = MCLBYTES;
-				break;
-			default:
-				ring->rx_max_frame_size = 2048;
-				break;
-		}
 
 		softc->rx_rings_count++;
 
@@ -755,7 +718,7 @@ aq_if_init(if_ctx_t ctx)
 	}
 	for (i = 0; i < softc->rx_rings_count; i++) {
 		struct aq_ring *ring = softc->rx_rings[i];
-		ring->rx_max_frame_size = iflib_get_rx_mbuf_sz(ctx);
+		ring->rx_buf_size = iflib_get_rx_mbuf_sz(ctx);
 		err = aq_ring_rx_init(&softc->hw, ring);
 		if (err) {
 			device_printf(softc->dev,
@@ -829,7 +792,6 @@ aq_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 	}
 }
 
-#if __FreeBSD_version >= 1300054
 static u_int
 aq_mc_filter_apply(void *arg, struct sockaddr_dl *dl, u_int count)
 {
@@ -846,26 +808,6 @@ aq_mc_filter_apply(void *arg, struct sockaddr_dl *dl, u_int count)
 	aq_log_detail("set %d mc address %6D", count + 1, mac_addr, ":");
 	return (1);
 }
-#else
-static int
-aq_mc_filter_apply(void *arg, struct ifmultiaddr *ifma, int count)
-{
-	struct aq_dev *softc = arg;
-	struct aq_hw *hw = &softc->hw;
-	uint8_t *mac_addr = NULL;
-
-	if (ifma->ifma_addr->sa_family != AF_LINK)
-		return (0);
-	if (count == AQ_HW_MAC_MAX)
-		return (0);
-
-	mac_addr = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
-	aq_hw_mac_addr_set(hw, mac_addr, count + 1);
-
-	aq_log_detail("set %d mc address %6D", count + 1, mac_addr, ":");
-	return (1);
-}
-#endif
 
 static bool
 aq_is_mc_promisc_required(struct aq_dev *softc)
@@ -880,21 +822,13 @@ aq_if_multi_set(if_ctx_t ctx)
 	if_t ifp = iflib_get_ifp(ctx);
 	struct aq_hw  *hw = &softc->hw;
 	AQ_DBG_ENTER();
-#if __FreeBSD_version >= 1300054
 	softc->mcnt = if_llmaddr_count(iflib_get_ifp(ctx));
-#else
-	softc->mcnt = if_multiaddr_count(iflib_get_ifp(ctx), AQ_HW_MAC_MAX);
-#endif
 	if (softc->mcnt >= AQ_HW_MAC_MAX) {
 		aq_hw_set_promisc(hw, !!(if_getflags(ifp) & IFF_PROMISC),
 		    aq_is_vlan_promisc_required(softc),
 		    !!(if_getflags(ifp) & IFF_ALLMULTI) || aq_is_mc_promisc_required(softc));
 	} else {
-#if __FreeBSD_version >= 1300054
 		if_foreach_llmaddr(iflib_get_ifp(ctx), &aq_mc_filter_apply, softc);
-#else
-		if_multi_apply(iflib_get_ifp(ctx), aq_mc_filter_apply, softc);
-#endif
 	}
 	AQ_DBG_EXIT(0);
 }
@@ -1192,7 +1126,7 @@ aq_if_led_func(if_ctx_t ctx, int onoff)
 	struct aq_hw  *hw = &softc->hw;
 
 	AQ_DBG_ENTERA("%d", onoff);
-	if (hw->fw_ops && hw->fw_ops->led_control)
+	if (hw->fw_ops->led_control)
 		hw->fw_ops->led_control(hw, onoff);
 
 	AQ_DBG_EXIT(0);
@@ -1366,7 +1300,7 @@ aq_add_stats_sysctls(struct aq_dev *softc)
 	struct sysctl_ctx_list  *ctx = device_get_sysctl_ctx(dev);
 	struct sysctl_oid       *tree = device_get_sysctl_tree(dev);
 	struct sysctl_oid_list  *child = SYSCTL_CHILDREN(tree);
-	struct aq_stats_s *stats = &softc->curr_stats;
+	struct aq_stats *stats = &softc->curr_stats;
 	struct sysctl_oid       *stat_node, *queue_node;
 	struct sysctl_oid_list  *stat_list, *queue_list;
 

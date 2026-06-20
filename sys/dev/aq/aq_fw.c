@@ -48,18 +48,17 @@ __FBSDID("$FreeBSD$");
 #include "aq_hw_llh_internal.h"
 
 #include "aq_fw.h"
-#include "aq_common.h"
 
 #include "aq_dbg.h"
 
 
-typedef enum aq_fw_bootloader_mode
+enum aq_fw_bootloader_mode
 {
 	boot_mode_unknown = 0,
 	boot_mode_flb,
 	boot_mode_rbl_flash,
 	boot_mode_rbl_host_bootload,
-} aq_fw_bootloader_mode;
+};
 
 #define AQ_CFG_HOST_BOOT_DISABLE 0
 
@@ -86,13 +85,13 @@ const uint32_t RBL_STATUS_HOST_BOOT = 0xf1a7;
 const uint32_t SCRATCHPAD_FW_LOADER_STATUS = (0x40 / sizeof(uint32_t));
 
 
-extern struct aq_firmware_ops aq_fw1x_ops;
-extern struct aq_firmware_ops aq_fw2x_ops;
+extern const struct aq_firmware_ops aq_fw1x_ops;
+extern const struct aq_firmware_ops aq_fw2x_ops;
 
 
-int mac_soft_reset_(struct aq_hw* hw, aq_fw_bootloader_mode* mode);
+int mac_soft_reset_(struct aq_hw* hw, enum aq_fw_bootloader_mode* mode);
 int mac_soft_reset_flb_(struct aq_hw* hw);
-int mac_soft_reset_rbl_(struct aq_hw* hw, aq_fw_bootloader_mode* mode);
+int mac_soft_reset_rbl_(struct aq_hw* hw, enum aq_fw_bootloader_mode* mode);
 int wait_init_mac_firmware_(struct aq_hw* hw);
 
 
@@ -111,7 +110,7 @@ aq_fw_reset(struct aq_hw* hw)
 	}
 
 	if (k == 1000) {
-		aq_log_error("Neither RBL nor FLB started");
+		device_printf(hw->dev, "Neither RBL nor FLB started\n");
 		return (EBUSY);
 	}
 
@@ -131,10 +130,10 @@ aq_fw_reset(struct aq_hw* hw)
 			return (0);
 	}
 
-	aq_fw_bootloader_mode mode = boot_mode_unknown;
+	enum aq_fw_bootloader_mode mode = boot_mode_unknown;
 	int err = mac_soft_reset_(hw, &mode);
 	if (err != 0) {
-		aq_log_error("MAC reset failed: %d", err);
+		device_printf(hw->dev, "MAC reset failed: %d\n", err);
 		return (err);
 	}
 
@@ -150,12 +149,12 @@ aq_fw_reset(struct aq_hw* hw)
 		return wait_init_mac_firmware_(hw);
 
 	case boot_mode_unknown:
-		aq_log_error("F/W bootload error: unknown bootloader type");
+		device_printf(hw->dev, "F/W bootload error: unknown bootloader type\n");
 		return (ENOTSUP);
 
 	case boot_mode_rbl_host_bootload:
 #if AQ_CFG_HOST_BOOT_DISABLE
-		aq_log_error("RBL> Host Bootload mode: this driver does not support Host Boot");
+		device_printf(hw->dev, "RBL> Host Bootload mode: this driver does not support Host Boot\n");
 		return (ENOTSUP);
 #else
 		trace(dbg_init, "RBL> Host Bootload mode");
@@ -166,7 +165,7 @@ aq_fw_reset(struct aq_hw* hw)
 	/*
 	 * #todo: Host Boot
 	 */
-	aq_log_error("RBL> F/W Host Bootload not implemented");
+	device_printf(hw->dev, "RBL> F/W Host Bootload not implemented\n");
 
 	return (ENOTSUP);
 }
@@ -191,14 +190,14 @@ aq_fw_ops_init(struct aq_hw* hw)
 		return (0);
 	}
 
-	aq_log_error("aq_fw_ops_init(): invalid F/W version %#x",
+	device_printf(hw->dev, "aq_fw_ops_init(): invalid F/W version %#x\n",
 	    hw->fw_version.raw);
 	return (ENOTSUP);
 }
 
 
 int
-mac_soft_reset_(struct aq_hw* hw, aq_fw_bootloader_mode* mode /*= nullptr*/)
+mac_soft_reset_(struct aq_hw* hw, enum aq_fw_bootloader_mode* mode /*= nullptr*/)
 {
 	if (hw->rbl_enabled) {
 		return mac_soft_reset_rbl_(hw, mode);
@@ -218,7 +217,7 @@ mac_soft_reset_flb_(struct aq_hw* hw)
 	reg_global_ctl2_set(hw, 0x40e1);
 	// Let Felicity hardware complete SMBUS transaction before Global
 	// software reset.
-	msec_delay(50);
+	DELAY((50) * 1000);
 
 	/*
 	 * If SPI burst transaction was interrupted(before running the script),
@@ -228,7 +227,7 @@ mac_soft_reset_flb_(struct aq_hw* hw)
 	reg_glb_nvr_provisioning2_set(hw, 0xa0);
 	reg_glb_nvr_interface1_set(hw, 0x9f);
 	reg_glb_nvr_interface1_set(hw, 0x809f);
-	msec_delay(50);
+	DELAY((50) * 1000);
 
 	reg_glb_standard_ctl1_set(hw, (reg_glb_standard_ctl1_get(hw) & ~glb_reg_res_dis_msk) | glb_soft_res_msk);
 
@@ -242,7 +241,7 @@ mac_soft_reset_flb_(struct aq_hw* hw)
 	 * For the case SPI burst transaction was interrupted (by MCP reset
 	 * above), wait until it is completed by hardware.
 	 */
-	msec_delay(50); // Sleep for 10 ms.
+	DELAY(50 * 1000);
 
 	/* MAC Kickstart */
 	if (!hw->fast_start_enabled) {
@@ -254,7 +253,7 @@ mac_soft_reset_flb_(struct aq_hw* hw)
 			flb_status = reg_glb_daisy_chain_status1_get(hw) & 0x10;
 			if (flb_status != 0)
 				break;
-			msec_delay(10); // Sleep for 10 ms.
+			DELAY(10 * 1000);
 		}
 
 		if (flb_status == 0) {
@@ -268,7 +267,7 @@ mac_soft_reset_flb_(struct aq_hw* hw)
 		reg_global_ctl2_set(hw, 0x80e0);
 		// Let Felicity hardware complete SMBUS transaction before
 		// Global software reset.
-		msec_delay(50);
+		DELAY((50) * 1000);
 	}
 	reg_glb_cpu_sem_set(hw, 1, 0);
 
@@ -285,7 +284,7 @@ mac_soft_reset_flb_(struct aq_hw* hw)
 		restart_completed = reg_glb_fw_image_id1_get(hw) != 0;
 		if (restart_completed)
 			break;
-		msec_delay(10);
+		DELAY((10) * 1000);
 	}
 
 	if (!restart_completed) {
@@ -298,7 +297,7 @@ mac_soft_reset_flb_(struct aq_hw* hw)
 }
 
 int
-mac_soft_reset_rbl_(struct aq_hw* hw, aq_fw_bootloader_mode* mode)
+mac_soft_reset_rbl_(struct aq_hw* hw, enum aq_fw_bootloader_mode* mode)
 {
 	trace(dbg_init, "RBL> MAC reset STARTED!");
 
@@ -322,11 +321,11 @@ mac_soft_reset_rbl_(struct aq_hw* hw, aq_fw_bootloader_mode* mode)
 	// Wait for RBL to finish boot process.
 	uint16_t rbl_status = 0;
 	for (int k = 0; k < RBL_TIMEOUT_MS; ++k) {
-		rbl_status = LOWORD(reg_glb_cpu_no_reset_scratchpad_get(hw, NO_RESET_SCRATCHPAD_RBL_STATUS));
+		rbl_status = ((uint16_t)(reg_glb_cpu_no_reset_scratchpad_get(hw, NO_RESET_SCRATCHPAD_RBL_STATUS)));
 		if (rbl_status != 0 && rbl_status != 0xDEAD)
 			break;
 
-		msec_delay(1);
+		DELAY((1) * 1000);
 	}
 
 	if (rbl_status == 0 || rbl_status == 0xDEAD) {
@@ -357,7 +356,7 @@ wait_init_mac_firmware_(struct aq_hw* hw)
 		if ((hw->fw_version.raw = AQ_READ_REG(hw, 0x18)) != 0)
 			return (0);
 
-		msec_delay(1);
+		DELAY((1) * 1000);
 	}
 
 	trace_error(dbg_init,
