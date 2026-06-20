@@ -75,8 +75,9 @@ main(int argc, char **argv)
 	bool table_set = false;
 	bool uuid_set = false;
 	struct option longopts[] = {
-		{ "uuid",  required_argument, NULL, 'u' },
+		{ "guid",  required_argument, NULL, 'g' },
 		{ "table", required_argument, NULL, 't' },
+		{ "uuid",  required_argument, NULL, 'u' },
 		{ NULL,    0,                 NULL,  0  }
 	};
 
