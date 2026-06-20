@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_AQ, "aq", "Aquantia");
 
-char aq_driver_version[] = AQ_VER;
+static const char aq_driver_version[] = AQ_VER;
 
 #define AQUANTIA_VENDOR_ID 0x1D6A
 
