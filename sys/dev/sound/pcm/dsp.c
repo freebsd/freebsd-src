@@ -542,7 +542,7 @@ dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *ch,
 	int j, left, right, center, mute;
 
 	d = priv->sc;
-	if (!PCM_REGISTERED(d) || !(pcm_getflags(d->dev) & SD_F_VPC))
+	if (!PCM_REGISTERED(d))
 		return (-1);
 
 	PCM_UNLOCKASSERT(d);
