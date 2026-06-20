@@ -81,16 +81,16 @@ aq_hw_fw_downld_dwords(struct aq_hw *hw, uint32_t a, uint32_t *p, uint32_t cnt)
 	int err = 0;
 
 //    AQ_DBG_ENTER();
-	AQ_HW_WAIT_FOR(reg_glb_cpu_sem_get(hw, AQ_HW_FW_SM_RAM) == 1U, 1U,
+	err = AQ_HW_WAIT_FOR(reg_glb_cpu_sem_get(hw, AQ_HW_FW_SM_RAM) == 1U, 1U,
 	     10000U);
 
-	if (err < 0) {
+	if (err != 0) {
 		bool is_locked;
 
 		reg_glb_cpu_sem_set(hw, 1U, AQ_HW_FW_SM_RAM);
 		is_locked = reg_glb_cpu_sem_get(hw, AQ_HW_FW_SM_RAM);
 		if (!is_locked) {
-			err = -ETIME;
+			err = ETIMEDOUT;
 			goto err_exit;
 		}
 	}
@@ -101,10 +101,10 @@ aq_hw_fw_downld_dwords(struct aq_hw *hw, uint32_t a, uint32_t *p, uint32_t cnt)
 		mif_mcp_up_mailbox_execute_operation_set(hw, 1);
 
 		if (IS_CHIP_FEATURE(hw, REVISION_B1))
-			AQ_HW_WAIT_FOR(a != mif_mcp_up_mailbox_addr_get(hw),
+			err = AQ_HW_WAIT_FOR(a != mif_mcp_up_mailbox_addr_get(hw),
 			    1U, 1000U);
 		else
-			AQ_HW_WAIT_FOR(!mif_mcp_up_mailbox_busy_get(hw), 1,
+			err = AQ_HW_WAIT_FOR(!mif_mcp_up_mailbox_busy_get(hw), 1,
 			     1000U);
 
 		*(p++) = mif_mcp_up_mailbox_data_get(hw);
@@ -142,16 +142,16 @@ aq_hw_init_ucp(struct aq_hw *hw)
 	hw->fw_version.raw = 0;
 
 	err = aq_fw_reset(hw);
-	if (err != EOK) {
+	if (err != 0) {
 		aq_log_error("aq_hw_init_ucp(): F/W reset failed, err %d", err);
 		return (err);
 	}
 
 	aq_hw_chip_features_init(hw, &hw->chip_features);
 	err = aq_fw_ops_init(hw);
-	if (err < 0) {
+	if (err != 0) {
 		aq_log_error("could not initialize F/W ops, err %d", err);
-		return (-1);
+		return (err);
 	}
 
 	if (hw->fw_version.major_version == 1) {
@@ -169,7 +169,7 @@ aq_hw_init_ucp(struct aq_hw *hw)
 	}
 
 	/* check 10 times by 1ms */
-	AQ_HW_WAIT_FOR((hw->mbox_addr = AQ_READ_REG(hw, 0x360)) != 0, 400U, 20);
+	err = AQ_HW_WAIT_FOR((hw->mbox_addr = AQ_READ_REG(hw, 0x360)) != 0, 400U, 20);
 
 	aq_hw_fw_version ver_expected = { .raw = AQ_CFG_FW_MIN_VER_EXPECTED };
 	if (!aq_hw_ver_match(&ver_expected, &hw->fw_version))
@@ -187,7 +187,7 @@ aq_hw_mpi_create(struct aq_hw *hw)
 
 	AQ_DBG_ENTER();
 	err = aq_hw_init_ucp(hw);
-	if (err < 0)
+	if (err != 0)
 		goto err_exit;
 
 err_exit:
@@ -204,11 +204,11 @@ aq_hw_mpi_read_stats(struct aq_hw *hw, struct aq_hw_fw_mbox *pmbox)
 	if (hw->fw_ops && hw->fw_ops->get_stats) {
 		err = hw->fw_ops->get_stats(hw, &pmbox->stats);
 	} else {
-		err = -ENOTSUP;
+		err = ENOTSUP;
 		aq_log_error("get_stats() not supported by F/W");
 	}
 
-	if (err == EOK) {
+	if (err == 0) {
 		pmbox->stats.dpc = reg_rx_dma_stat_counter7get(hw);
 		pmbox->stats.cprc = stats_rx_lro_coalesced_pkt_count0_get(hw);
 	}
@@ -220,7 +220,7 @@ aq_hw_mpi_read_stats(struct aq_hw *hw, struct aq_hw_fw_mbox *pmbox)
 static int
 aq_hw_mpi_set(struct aq_hw *hw, enum aq_hw_fw_mpi_state_e state, uint32_t speed)
 {
-	int err = -ENOTSUP;
+	int err = ENOTSUP;
 	AQ_DBG_ENTERA("speed %d", speed);
 
 	if (hw->fw_ops && hw->fw_ops->set_mode) {
@@ -242,7 +242,7 @@ aq_hw_set_link_speed(struct aq_hw *hw, uint32_t speed)
 int
 aq_hw_get_link_state(struct aq_hw *hw, uint32_t *link_speed, struct aq_hw_fc_info *fc_neg)
 {
-	int err = EOK;
+	int err = 0;
 
  //   AQ_DBG_ENTER();
 
@@ -254,11 +254,11 @@ aq_hw_get_link_state(struct aq_hw *hw, uint32_t *link_speed, struct aq_hw_fc_inf
 		err = hw->fw_ops->get_mode(hw, &mode, &speed, &fc);
 	} else {
 		aq_log_error("get_mode() not supported by F/W");
-		AQ_DBG_EXIT(-ENOTSUP);
-		return (-ENOTSUP);
+		AQ_DBG_EXIT(ENOTSUP);
+		return (ENOTSUP);
 	}
 
-	if (err < 0) {
+	if (err != 0) {
 		aq_log_error("get_mode() failed, err %d", err);
 		AQ_DBG_EXIT(err);
 		return (err);
@@ -298,7 +298,7 @@ aq_hw_get_link_state(struct aq_hw *hw, uint32_t *link_speed, struct aq_hw_fc_inf
 int
 aq_hw_get_mac_permanent(struct aq_hw *hw,  uint8_t *mac)
 {
-	int err = -ENOTSUP;
+	int err = ENOTSUP;
 	AQ_DBG_ENTER();
 
 	if (hw->fw_ops && hw->fw_ops->get_mac_addr)
@@ -330,7 +330,7 @@ aq_hw_get_mac_permanent(struct aq_hw *hw,  uint8_t *mac)
 		h >>= 8;
 		mac[0] = (uint8_t)(0xFFU & h);
 
-		err = EOK;
+		err = 0;
 	}
 
 	AQ_DBG_EXIT(err);
@@ -366,15 +366,15 @@ aq_hw_reset(struct aq_hw *hw)
 	AQ_DBG_ENTER();
 
 	err = aq_fw_reset(hw);
-	if (err < 0)
+	if (err != 0)
 		goto err_exit;
 
 	itr_irq_reg_res_dis_set(hw, 0);
 	itr_res_irq_set(hw, 1);
 
 	/* check 10 times by 1ms */
-	AQ_HW_WAIT_FOR(itr_res_irq_get(hw) == 0, 1000, 10);
-	if (err < 0) {
+	err = AQ_HW_WAIT_FOR(itr_res_irq_get(hw) == 0, 1000, 10);
+	if (err != 0) {
 		printf("atlantic: IRQ reset failed: %d", err);
 		goto err_exit;
 	}
@@ -456,21 +456,14 @@ aq_hw_offload_set(struct aq_hw *hw)
 	/* TX checksums offloads*/
 	tpo_ipv4header_crc_offload_en_set(hw, 1);
 	tpo_tcp_udp_crc_offload_en_set(hw, 1);
-	if (err < 0)
-		goto err_exit;
 
 	/* RX checksums offloads*/
 	rpo_ipv4header_crc_offload_en_set(hw, 1);
 	rpo_tcp_udp_crc_offload_en_set(hw, 1);
-	if (err < 0)
-		goto err_exit;
 
 	/* LSO offloads*/
 	tdm_large_send_offload_en_set(hw, 0xFFFFFFFFU);
-	if (err < 0)
-		goto err_exit;
 
-/* LRO offloads */
 	{
 		uint32_t i = 0;
 		uint32_t val = (8U < HW_ATL_B0_LRO_RXD_MAX) ? 0x3U :
@@ -505,7 +498,6 @@ aq_hw_offload_set(struct aq_hw *hw)
 
 	err = aq_hw_err_from_flags(hw);
 
-err_exit:
 	AQ_DBG_EXIT(err);
 	return (err);
 }
@@ -606,7 +598,7 @@ aq_hw_mac_addr_set(struct aq_hw *hw, uint8_t *mac_addr, uint8_t index)
 
 	AQ_DBG_ENTER();
 	if (!mac_addr) {
-		err = -EINVAL;
+		err = EINVAL;
 		goto err_exit;
 	}
 	h = (mac_addr[0] << 8) | (mac_addr[1]);
@@ -654,7 +646,7 @@ aq_hw_init(struct aq_hw *hw, uint8_t *mac_addr, uint8_t adm_irq, bool msix)
 	aq_hw_qos_set(hw);
 
 	err = aq_hw_err_from_flags(hw);
-	if (err < 0)
+	if (err != 0)
 		goto err_exit;
 
 	/* Interrupts */
@@ -835,9 +827,9 @@ aq_hw_rss_hash_set(struct aq_hw_s *self,
 		rpf_rss_key_wr_data_set(self, key_data);
 		rpf_rss_key_addr_set(self, addr);
 		rpf_rss_key_wr_en_set(self, 1U);
-		AQ_HW_WAIT_FOR(rpf_rss_key_wr_en_get(self) == 0,
+		err = AQ_HW_WAIT_FOR(rpf_rss_key_wr_en_get(self) == 0,
 			       1000U, 10U);
-		if (err < 0)
+		if (err != 0)
 			goto err_exit;
 	}
 
@@ -899,9 +891,9 @@ aq_hw_rss_set(struct aq_hw_s *self,
 		rpf_rss_redir_tbl_wr_data_set(self, bitary[i]);
 		rpf_rss_redir_tbl_addr_set(self, i);
 		rpf_rss_redir_wr_en_set(self, 1U);
-		AQ_HW_WAIT_FOR(rpf_rss_redir_wr_en_get(self) == 0,
+		err = AQ_HW_WAIT_FOR(rpf_rss_redir_wr_en_get(self) == 0,
 			       1000U, 10U);
-		if (err < 0)
+		if (err != 0)
 			goto err_exit;
 	}
 

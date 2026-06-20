@@ -186,7 +186,7 @@ fw1x_reset(struct aq_hw* hal)
 			 * Compare transaction ID to initial value.
 			 * If it's different means f/w is alive. We're done.
 			 */
-			return (EOK);
+			return (0);
 		}
 
 		/*
@@ -197,7 +197,7 @@ fw1x_reset(struct aq_hw* hal)
 	}
 
 	trace_error(dbg_init, "F/W 1.x reset finalize timeout");
-	return (-EBUSY);
+	return (EBUSY);
 }
 
 int
@@ -213,7 +213,7 @@ fw1x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e mode,
 
 	AQ_WRITE_REG(hw, FW1X_MPI_CONTROL_ADR, state.val);
 
-	return (EOK);
+	return (0);
 }
 
 int
@@ -250,15 +250,15 @@ fw1x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e* mode,
 
 	*fc = aq_fw_fc_none;
 
-	AQ_DBG_EXIT(EOK);
-	return (EOK);
+	AQ_DBG_EXIT(0);
+	return (0);
 }
 
 
 int
 fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 {
-	int err = -EFAULT;
+	int err = EFAULT;
 	uint32_t mac_addr[2];
 
 	AQ_DBG_ENTER();
@@ -266,13 +266,13 @@ fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 	uint32_t efuse_shadow_addr = AQ_READ_REG(hw, 0x374);
 	if (efuse_shadow_addr == 0) {
 		trace_error(dbg_init, "couldn't read eFUSE Shadow Address");
-		AQ_DBG_EXIT(-EFAULT);
-		return (-EFAULT);
+		AQ_DBG_EXIT(EFAULT);
+		return (EFAULT);
 	}
 
 	err = aq_hw_fw_downld_dwords(hw, efuse_shadow_addr + (40 * 4),
 	    mac_addr, ARRAY_SIZE(mac_addr));
-	if (err < 0) {
+	if (err != 0) {
 		mac_addr[0] = 0;
 		mac_addr[1] = 0;
 		AQ_DBG_EXIT(err);
@@ -287,8 +287,8 @@ fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 	trace(dbg_init, "fw1x> eFUSE MAC addr -> %02x-%02x-%02x-%02x-%02x-%02x",
 	    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-	AQ_DBG_EXIT(EOK);
-	return (EOK);
+	AQ_DBG_EXIT(0);
+	return (0);
 }
 
 int
@@ -300,7 +300,7 @@ fw1x_get_stats(struct aq_hw* hw, struct aq_hw_stats_s* stats)
 	err = aq_hw_fw_downld_dwords(hw, hw->mbox_addr,
 	    (uint32_t*)(void*)&hw->mbox, sizeof hw->mbox / sizeof(uint32_t));
 
-	if (err >= 0) {
+	if (err == 0) {
 		if (stats != &hw->mbox.stats)
 			memcpy(stats, &hw->mbox.stats, sizeof *stats);
 
