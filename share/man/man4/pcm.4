@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 17, 2026
+.Dd June 20, 2026
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -212,26 +212,6 @@ application, without touching the master
 .Nm
 volume.
 This is sometimes referred to as Volume Per Channel (VPC).
-The VPC feature is enabled by default.
-.Ss Loader Tunables
-The following loader tunables are used to set driver configuration at the
-.Xr loader 8
-prompt before booting the kernel, or they can be stored in
-.Pa /boot/loader.conf
-in order to automatically set them before booting the kernel.
-It is also possible to use
-.Xr kenv 1
-to change these tunables before loading the
-.Nm
-driver.
-The following tunables can not be changed during runtime using
-.Xr sysctl 8 .
-.Bl -tag -width indent
-.It Va hint.pcm.%d.vpc
-Set to 1 or 0 to explicitly enable (1) or disable (0) the VPC feature.
-This tunable is undefined by default.
-VPC is however enabled by default.
-.El
 .Ss Runtime Configuration
 There are a number of
 .Xr sysctl 8

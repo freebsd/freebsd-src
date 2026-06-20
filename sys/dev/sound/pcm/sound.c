@@ -356,10 +356,6 @@ pcm_init(device_t dev, void *devinfo)
 
 	i = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-	    "vpc", &i) != 0 || i != 0)
-		d->flags |= SD_F_VPC;
-
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "bitperfect", &i) == 0 && i != 0)
 		d->flags |= SD_F_BITPERFECT;
 
