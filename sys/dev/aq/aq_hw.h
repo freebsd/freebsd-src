@@ -37,14 +37,21 @@
 
 #include <sys/types.h>
 #include <sys/cdefs.h>
+#include <machine/atomic.h>
 #include <machine/cpufunc.h>
+#include <machine/bus.h>
 #include <sys/endian.h>
 #include <net/ethernet.h>
 #include "aq_common.h"
 
-#define AQ_WRITE_REG(hw, reg, value) writel(((hw)->hw_addr + (reg)), htole32(value))
+#define AQ_WRITE_REG(hw, reg, value) \
+	bus_space_write_4((hw)->hw_tag, (hw)->hw_handle, (reg), htole32(value))
 
-#define AQ_READ_REG(hw, reg) le32toh(readl((hw)->hw_addr + reg))
+#define AQ_HW_FLAG_ERR_UNPLUG	0x1UL
+
+struct aq_hw;
+extern uint32_t aq_hw_read_reg(struct aq_hw *hw, uint32_t reg);
+#define AQ_READ_REG(hw, reg) aq_hw_read_reg((hw), (reg))
 
 
 #define AQ_WRITE_REG_BIT(hw, reg, msk, shift, value) do { \
@@ -137,7 +144,8 @@ struct aq_hw_fc_info {
 
 struct aq_hw {
 	void *aq_dev;
-	uint8_t *hw_addr;
+	bus_space_tag_t hw_tag;
+	bus_space_handle_t hw_handle;
 	uint32_t regs_size;
 
 	uint8_t mac_addr[ETHER_ADDR_LEN];
@@ -169,6 +177,8 @@ struct aq_hw {
 
 	uint32_t mbox_addr;
 	struct aq_hw_fw_mbox mbox;
+
+	u_long flags;
 
 	uint32_t tx_rings_count;
 };

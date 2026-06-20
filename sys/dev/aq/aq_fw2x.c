@@ -207,8 +207,15 @@ int fw2x_get_stats(struct aq_hw* hw, struct aq_hw_stats_s* stats);
 static uint64_t
 read64_(struct aq_hw* hw, uint32_t addr)
 {
-	uint64_t lo = AQ_READ_REG(hw, addr);
-	uint64_t hi = AQ_READ_REG(hw, addr + 4);
+	uint64_t lo, hi, hi2;
+
+	hi = AQ_READ_REG(hw, addr + 4);
+	do {
+		hi2 = hi;
+		lo = AQ_READ_REG(hw, addr);
+		hi = AQ_READ_REG(hw, addr + 4);
+	} while (hi != hi2);
+
 	return (lo | (hi << 32));
 }
 

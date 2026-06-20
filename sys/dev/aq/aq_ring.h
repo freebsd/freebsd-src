@@ -35,6 +35,8 @@
 #ifndef _AQ_RING_H_
 #define _AQ_RING_H_
 
+#include <sys/counter.h>
+
 #include "aq_hw.h"
 
 #define REFILL_THRESHOLD 128
@@ -130,16 +132,13 @@ typedef volatile union {
 } __attribute__((__packed__)) aq_txc_desc_t;
 
 struct aq_ring_stats {
-	uint64_t rx_pkts;
-	uint64_t rx_bytes;
-	uint64_t jumbo_pkts;
-	uint64_t rx_err;
-	uint64_t irq;
+	counter_u64_t rx_pkts;
+	counter_u64_t rx_bytes;
+	counter_u64_t rx_err;
+	counter_u64_t irq;
 
-	uint64_t tx_pkts;
-	uint64_t tx_bytes;
-	uint64_t tx_drops;
-	uint64_t tx_queue_full;
+	counter_u64_t tx_pkts;
+	counter_u64_t tx_bytes;
 };
 
 struct aq_dev;
