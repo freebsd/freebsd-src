@@ -109,16 +109,12 @@ enum aq_debug_category
 
 #define __FILENAME__ (__builtin_strrchr(__FILE__, '/') ? __builtin_strrchr(__FILE__, '/') + 1 : __FILE__)
 
-extern const enum aq_debug_level dbg_level_;
-extern const uint32_t dbg_categories_;
+extern int dbg_level_;
+extern uint32_t dbg_categories_;
 
 #define log_base_(_lvl, _fmt, args...) printf( "atlantic: " _fmt "\n", ##args)
 
-#if AQ_CFG_DEBUG_LVL > 0
-#define trace_base_(_lvl, _cat, _fmt, args...) do { if (dbg_level_ >= _lvl && (_cat & dbg_categories_)) { printf( "atlantic: " _fmt " @%s,%d\n", ##args, __FILENAME__, __LINE__); }} while (0)
-#else
-#define trace_base_(_lvl, _cat, _fmt, ...) do {} while (0)
-#endif // AQ_CFG_DEBUG_LVL > 0
+#define trace_base_(_lvl, _cat, _fmt, args...) do { if (dbg_level_ >= (_lvl) && ((_cat) & dbg_categories_)) { printf( "atlantic: " _fmt " @%s,%d\n", ##args, __FILENAME__, __LINE__); }} while (0)
 
 #define aq_log_warn(_fmt, args...)     log_base_(lvl_warn, "/!\\ " _fmt, ##args)
 #define aq_log(_fmt, args...)          log_base_(lvl_trace, _fmt, ##args)

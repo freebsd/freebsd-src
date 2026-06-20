@@ -1311,6 +1311,14 @@ aq_add_stats_sysctls(struct aq_dev *softc)
 	    CTLTYPE_STRING | CTLFLAG_RD, softc, 0,
 	    aq_sysctl_print_rss_config, "A", "Prints RSS Configuration");
 
+	/* Runtime trace controls (global) */
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "debug",
+	    CTLFLAG_RW, &dbg_level_, 0,
+	    "Trace verbosity: 0=off, 3=err, 4=+warn, 5=+trace, 6=+detail");
+	SYSCTL_ADD_U32(ctx, child, OID_AUTO, "debug_categories",
+	    CTLFLAG_RW, &dbg_categories_, 0,
+	    "Trace category mask: init=1 config=2 tx=4 rx=8 intr=16 fw=32");
+
 	/* Driver Statistics */
 	for (int i = 0; i < softc->tx_rings_count; i++) {
 		struct aq_ring *ring = softc->tx_rings[i];
