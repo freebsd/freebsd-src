@@ -169,6 +169,8 @@ struct aq_hw {
 
 	uint32_t mbox_addr;
 	struct aq_hw_fw_mbox mbox;
+
+	uint32_t tx_rings_count;
 };
 
 #define aq_hw_s aq_hw
@@ -185,6 +187,8 @@ struct aq_hw {
 #define HW_ATL_B0_MTU_JUMBO  16352U
 #define HW_ATL_B0_TSO_SIZE (160*1024)
 #define HW_ATL_B0_RINGS_MAX 32U
+#define HW_ATL_B0_TCS_MAX 4U	/* 4-TC mode */
+#define HW_ATL_B0_RINGS_PER_TC (HW_ATL_B0_RINGS_MAX / HW_ATL_B0_TCS_MAX)
 #define HW_ATL_B0_LRO_RXD_MAX 16U
 
 #define AQ_HW_FW_SM_RAM        0x2U
@@ -207,6 +211,9 @@ struct aq_hw {
 
 #define AQ_HW_TXBUF_MAX  160U
 #define AQ_HW_RXBUF_MAX  320U
+
+/* pct% of a kb-KB packet buffer, in 32-byte threshold units */
+#define AQ_BUF_THRESHOLD(kb, pct) ((kb) * (1024U / 32U) * (pct) / 100U)
 
 #define L2_FILTER_ACTION_DISCARD (0x0)
 #define L2_FILTER_ACTION_HOST    (0x1)
