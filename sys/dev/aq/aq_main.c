@@ -182,6 +182,7 @@ static void aq_add_stats_sysctls(struct aq_dev *softc);
 static void	aq_if_enable_intr(if_ctx_t ctx);
 static void	aq_if_disable_intr(if_ctx_t ctx);
 static int	aq_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid);
+static int	aq_if_tx_queue_intr_enable(if_ctx_t ctx, uint16_t txqid);
 static int	aq_if_msix_intr_assign(if_ctx_t ctx, int msix);
 
 /* VLAN support */
@@ -253,7 +254,7 @@ static device_method_t aq_if_methods[] = {
 	DEVMETHOD(ifdi_intr_enable, aq_if_enable_intr),
 	DEVMETHOD(ifdi_intr_disable, aq_if_disable_intr),
 	DEVMETHOD(ifdi_rx_queue_intr_enable, aq_if_rx_queue_intr_enable),
-	DEVMETHOD(ifdi_tx_queue_intr_enable, aq_if_rx_queue_intr_enable),
+	DEVMETHOD(ifdi_tx_queue_intr_enable, aq_if_tx_queue_intr_enable),
 	DEVMETHOD(ifdi_msix_intr_assign, aq_if_msix_intr_assign),
 
 	/* VLAN support */
@@ -411,7 +412,7 @@ aq_if_attach_pre(if_ctx_t ctx)
 	scctx->isc_rxqsizes[0] = sizeof(aq_rx_desc_t) * scctx->isc_nrxd[0];
 
 	scctx->isc_ntxqsets_max = HW_ATL_B0_RINGS_MAX;
-	scctx->isc_nrxqsets_max = HW_ATL_B0_RINGS_MAX;
+	scctx->isc_nrxqsets_max = HW_ATL_RSS_INDIRECTION_QUEUES_MAX;
 
 	/* iflib will map and release this bar */
 	scctx->isc_msix_bar = pci_msix_table_bar(softc->dev);
@@ -666,6 +667,8 @@ aq_if_init(if_ctx_t ctx)
 	AQ_DBG_ENTER();
 	softc = iflib_get_softc(ctx);
 	hw = &softc->hw;
+
+	hw->tx_rings_count = softc->tx_rings_count;
 
 	err = aq_hw_init(&softc->hw, softc->hw.mac_addr, softc->msix,
 	    softc->scctx->isc_intr == IFLIB_INTR_MSIX);
@@ -966,6 +969,20 @@ aq_if_rx_queue_intr_enable(if_ctx_t ctx, uint16_t rxqid)
 }
 
 static int
+aq_if_tx_queue_intr_enable(if_ctx_t ctx, uint16_t txqid)
+{
+	struct aq_dev *softc = iflib_get_softc(ctx);
+	struct aq_hw  *hw = &softc->hw;
+
+	AQ_DBG_ENTER();
+
+	itr_irq_msk_setlsw_set(hw, BIT(softc->tx_rings[txqid]->msix));
+
+	AQ_DBG_EXIT(0);
+	return (0);
+}
+
+static int
 aq_if_msix_intr_assign(if_ctx_t ctx, int msix)
 {
 	struct aq_dev *softc;
@@ -979,7 +996,7 @@ aq_if_msix_intr_assign(if_ctx_t ctx, int msix)
 	for (i = 0; i < softc->rx_rings_count; i++, vector++) {
 		snprintf(irq_name, sizeof(irq_name), "rxq%d", i);
 		rc = iflib_irq_alloc_generic(ctx, &softc->rx_rings[i]->irq,
-		    vector + 1, IFLIB_INTR_RX, aq_isr_rx, softc->rx_rings[i],
+		    vector + 1, IFLIB_INTR_RXTX, aq_isr_rx, softc->rx_rings[i],
 			softc->rx_rings[i]->index, irq_name);
 		device_printf(softc->dev, "Assign IRQ %u to rx ring %u\n",
 					  vector, softc->rx_rings[i]->index);
@@ -995,12 +1012,13 @@ aq_if_msix_intr_assign(if_ctx_t ctx, int msix)
 
 	rx_vectors = vector;
 
-	for (i = 0; i < softc->tx_rings_count; i++, vector++) {
+	for (i = 0; i < softc->tx_rings_count; i++) {
 		snprintf(irq_name, sizeof(irq_name), "txq%d", i);
-		iflib_softirq_alloc_generic(ctx, &softc->rx_rings[i]->irq,
-		    IFLIB_INTR_TX, softc->tx_rings[i], i, irq_name);
-
-		softc->tx_rings[i]->msix = (vector % softc->rx_rings_count);
+		softc->tx_rings[i]->msix = (i % softc->rx_rings_count);
+		iflib_softirq_alloc_generic(ctx,
+		    &softc->rx_rings[softc->tx_rings[i]->msix]->irq,
+		    IFLIB_INTR_TX, softc->tx_rings[i],
+		    softc->tx_rings[i]->index, irq_name);
 		device_printf(softc->dev, "Assign IRQ %u to tx ring %u\n",
 		    softc->tx_rings[i]->msix, softc->tx_rings[i]->index);
 	}
@@ -1013,7 +1031,7 @@ aq_if_msix_intr_assign(if_ctx_t ctx, int msix)
 	if (rc) {
 		device_printf(iflib_get_dev(ctx),
 		    "Failed to register admin handler");
-		i = softc->rx_rings_count;
+		i = softc->rx_rings_count - 1;
 		goto fail;
 	}
 	AQ_DBG_EXIT(0);

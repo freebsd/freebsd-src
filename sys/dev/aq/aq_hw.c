@@ -394,6 +394,7 @@ aq_hw_qos_set(struct aq_hw *hw)
 {
 	uint32_t tc = 0U;
 	uint32_t buff_size = 0U;
+	uint32_t n_tcs;
 	unsigned int i_priority = 0U;
 	int err = 0;
 
@@ -409,19 +410,23 @@ aq_hw_qos_set(struct aq_hw *hw)
 	tps_tx_pkt_shed_desc_tc_arb_mode_set(hw, 0U);
 	tps_tx_pkt_shed_data_arb_mode_set(hw, 0U);
 
-	tps_tx_pkt_shed_tc_data_max_credit_set(hw, 0xFFF, 0U);
-	tps_tx_pkt_shed_tc_data_weight_set(hw, 0x64, 0U);
-	tps_tx_pkt_shed_desc_tc_max_credit_set(hw, 0x50, 0U);
-	tps_tx_pkt_shed_desc_tc_weight_set(hw, 0x1E, 0U);
+	/* One TC per active 8-ring group; share the buffer across them. */
+	n_tcs = howmany(hw->tx_rings_count, HW_ATL_B0_RINGS_PER_TC);
+	n_tcs = MIN(MAX(n_tcs, 1U), HW_ATL_B0_TCS_MAX);
+	buff_size = AQ_HW_TXBUF_MAX / n_tcs;
 
-	/* Tx buf size */
-	buff_size = AQ_HW_TXBUF_MAX;
+	for (tc = 0; tc < n_tcs; tc++) {
+		tps_tx_pkt_shed_tc_data_max_credit_set(hw, 0xFFF, tc);
+		tps_tx_pkt_shed_tc_data_weight_set(hw, 0x64, tc);
+		tps_tx_pkt_shed_desc_tc_max_credit_set(hw, 0x50, tc);
+		tps_tx_pkt_shed_desc_tc_weight_set(hw, 0x1E, tc);
 
-	tpb_tx_pkt_buff_size_per_tc_set(hw, buff_size, tc);
-	tpb_tx_buff_hi_threshold_per_tc_set(hw,
-	    (buff_size * (1024 / 32U) * 66U) / 100U, tc);
-	tpb_tx_buff_lo_threshold_per_tc_set(hw,
-	    (buff_size * (1024 / 32U) * 50U) / 100U, tc);
+		tpb_tx_pkt_buff_size_per_tc_set(hw, buff_size, tc);
+		tpb_tx_buff_hi_threshold_per_tc_set(hw,
+		    AQ_BUF_THRESHOLD(buff_size, 66U), tc);
+		tpb_tx_buff_lo_threshold_per_tc_set(hw,
+		    AQ_BUF_THRESHOLD(buff_size, 50U), tc);
+	}
 
 	/* QoS Rx buf size per TC */
 	tc = 0;
@@ -429,13 +434,13 @@ aq_hw_qos_set(struct aq_hw *hw)
 
 	rpb_rx_pkt_buff_size_per_tc_set(hw, buff_size, tc);
 	rpb_rx_buff_hi_threshold_per_tc_set(hw,
-	    (buff_size * (1024U / 32U) * 66U) / 100U, tc);
+	    AQ_BUF_THRESHOLD(buff_size, 66U), tc);
 	rpb_rx_buff_lo_threshold_per_tc_set(hw,
-	    (buff_size * (1024U / 32U) * 50U) / 100U, tc);
+	    AQ_BUF_THRESHOLD(buff_size, 50U), tc);
 
 	/* QoS 802.1p priority -> TC mapping */
 	for (i_priority = 8U; i_priority--;)
-	rpf_rpb_user_priority_tc_map_set(hw, i_priority, 0U);
+		rpf_rpb_user_priority_tc_map_set(hw, i_priority, 0U);
 
 	err = aq_hw_err_from_flags(hw);
 	AQ_DBG_EXIT(err);

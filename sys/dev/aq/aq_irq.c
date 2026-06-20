@@ -179,7 +179,7 @@ aq_linkstat_isr(void *arg)
 	struct aq_hw          *hw = &aq_dev->hw;
 
 	/* clear interrupt status */
-	itr_irq_status_clearlsw_set(hw, aq_dev->msix);
+	itr_irq_status_clearlsw_set(hw, BIT(aq_dev->msix));
 
 	iflib_admin_intr_deferred(aq_dev->ctx);
 
