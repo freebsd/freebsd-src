@@ -392,8 +392,8 @@ aq_if_attach_pre(if_ctx_t ctx)
 	scctx->isc_tx_csum_flags = CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_TSO;
 #if __FreeBSD__ >= 12
 	scctx->isc_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_HWCSUM |
-	    IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_VLAN_HWFILTER | IFCAP_VLAN_MTU |
-	    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
+	    IFCAP_TSO | IFCAP_LRO | IFCAP_JUMBO_MTU | IFCAP_VLAN_HWFILTER |
+	    IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
 	scctx->isc_capenable = scctx->isc_capabilities;
 #else
 	if_t ifp;
@@ -408,6 +408,8 @@ aq_if_attach_pre(if_ctx_t ctx)
 	    HW_ATL_B0_TSO_SIZE - sizeof(struct ether_vlan_header);
 	scctx->isc_tx_tso_segsize_max = HW_ATL_B0_MTU_JUMBO;
 	scctx->isc_min_frame_size = 52;
+	scctx->isc_max_frame_size = ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN +
+	    ETHER_VLAN_ENCAP_LEN;
 	scctx->isc_txrx = &aq_txrx;
 
 	scctx->isc_txqsizes[0] = sizeof(aq_tx_desc_t) * scctx->isc_ntxd[0];
@@ -512,21 +514,18 @@ aq_if_detach(if_ctx_t ctx)
 static int
 aq_if_shutdown(if_ctx_t ctx)
 {
-
-	AQ_DBG_ENTER();
-
-	AQ_XXX_UNIMPLEMENTED_FUNCTION;
-
-	AQ_DBG_EXIT(0);
-	return (0);
+	return (aq_if_suspend(ctx));
 }
 
 static int
 aq_if_suspend(if_ctx_t ctx)
 {
+	struct aq_dev *softc = iflib_get_softc(ctx);
+
 	AQ_DBG_ENTER();
 
-	AQ_XXX_UNIMPLEMENTED_FUNCTION;
+	aq_if_stop(ctx);
+	aq_hw_deinit(&softc->hw);
 
 	AQ_DBG_EXIT(0);
 	return (0);
@@ -535,12 +534,13 @@ aq_if_suspend(if_ctx_t ctx)
 static int
 aq_if_resume(if_ctx_t ctx)
 {
+	struct aq_dev *softc = iflib_get_softc(ctx);
+	int err;
+
 	AQ_DBG_ENTER();
-
-	AQ_XXX_UNIMPLEMENTED_FUNCTION;
-
-	AQ_DBG_EXIT(0);
-	return (0);
+	err = aq_hw_mpi_create(&softc->hw);
+	AQ_DBG_EXIT(err);
+	return (err);
 }
 
 _Static_assert(sizeof(struct aq_ring_stats) % sizeof(counter_u64_t) == 0,
@@ -755,6 +755,7 @@ aq_if_init(if_ctx_t ctx)
 	}
 	for (i = 0; i < softc->rx_rings_count; i++) {
 		struct aq_ring *ring = softc->rx_rings[i];
+		ring->rx_max_frame_size = iflib_get_rx_mbuf_sz(ctx);
 		err = aq_ring_rx_init(&softc->hw, ring);
 		if (err) {
 			device_printf(softc->dev,
@@ -901,11 +902,21 @@ aq_if_multi_set(if_ctx_t ctx)
 static int
 aq_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 {
-	int err = 0;
-	AQ_DBG_ENTER();
+	if_softc_ctx_t scctx = iflib_get_softc_ctx(ctx);
+	uint32_t max_frame;
 
-	AQ_DBG_EXIT(err);
-	return (err);
+	AQ_DBG_ENTERA("mtu %u", mtu);
+
+	max_frame = mtu + ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN;
+	if (max_frame > HW_ATL_B0_MTU_JUMBO) {
+		AQ_DBG_EXIT(EINVAL);
+		return (EINVAL);
+	}
+
+	scctx->isc_max_frame_size = max_frame;
+
+	AQ_DBG_EXIT(0);
+	return (0);
 }
 
 static void
