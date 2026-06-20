@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 13, 2022
+.Dd June 22, 2026
 .Dt ACPI_IBM 4
 .Os
 .Sh NAME
@@ -141,6 +141,8 @@ Volume Down
 Mute
 .It Li 0x18
 Access IBM Button
+.It Li 0x1b
+Mic Mute Button
 .El
 .Ss Xr led 4 Interface
 The
@@ -230,6 +232,8 @@ Volume Down
 Mute
 .It Li 8388608
 Access IBM Button
+.It Li 67108864
+Mic Mute
 .El
 .It Va dev.acpi_ibm.0.hotkey
 (read-only)

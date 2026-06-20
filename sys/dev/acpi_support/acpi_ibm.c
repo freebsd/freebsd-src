@@ -79,7 +79,7 @@ ACPI_MODULE_NAME("IBM")
 #define ACPI_IBM_METHOD_FANSTATUS	12
 #define ACPI_IBM_METHOD_THERMAL		13
 #define ACPI_IBM_METHOD_HANDLEREVENTS	14
-#define ACPI_IBM_METHOD_MIC_LED		15
+#define ACPI_IBM_METHOD_MICMUTE_LED	15
 #define ACPI_IBM_METHOD_PRIVACYGUARD	16
 
 /* Hotkeys/Buttons */
@@ -153,6 +153,7 @@ ACPI_MODULE_NAME("IBM")
 #define IBM_EVENT_VOLUME_DOWN		0x16
 #define IBM_EVENT_MUTE			0x17
 #define IBM_EVENT_ACCESS_IBM_BUTTON	0x18
+#define IBM_EVENT_MICMUTE		0x1b
 
 /* Device-specific register flags */
 #define IBM_FLAG_PRIVACYGUARD_DEVICE_PRESENT	0x10000
@@ -189,8 +190,8 @@ struct acpi_ibm_softc {
 	int		led_state;
 
 	/* Mic led handle */
-	ACPI_HANDLE	mic_led_handle;
-	int		mic_led_state;
+	ACPI_HANDLE	micmute_led_handle;
+	int		micmute_led_state;
 
 	int		wlan_bt_flags;
 	int		thermal_updt_supported;
@@ -281,7 +282,7 @@ static struct {
 	},
 	{
 		.name		= "mic_led",
-		.method		= ACPI_IBM_METHOD_MIC_LED,
+		.method		= ACPI_IBM_METHOD_MICMUTE_LED,
 		.description	= "Mic mute led",
 	},
 	{
@@ -419,7 +420,7 @@ ibm_led_task(struct acpi_ibm_softc *sc, int pending __unused)
 }
 
 static int
-acpi_ibm_mic_led_set(struct acpi_ibm_softc *sc, int arg)
+acpi_ibm_micmute_led_set(struct acpi_ibm_softc *sc, int arg)
 {
 	ACPI_OBJECT_LIST input;
 	ACPI_OBJECT params[1];
@@ -428,10 +429,10 @@ acpi_ibm_mic_led_set(struct acpi_ibm_softc *sc, int arg)
 	if (arg < 0 || arg > 1)
 		return (EINVAL);
 
-	if (sc->mic_led_handle) {
+	if (sc->micmute_led_handle) {
 		params[0].Type = ACPI_TYPE_INTEGER;
 		params[0].Integer.Value = 0;
-		/* mic led: 0 off, 2 on */
+		/* mic mute led: 0 off, 2 on */
 		if (arg == 1)
 			params[0].Integer.Value = 2;
 
@@ -440,7 +441,7 @@ acpi_ibm_mic_led_set(struct acpi_ibm_softc *sc, int arg)
 
 		status = AcpiEvaluateObject(sc->handle, "MMTS", &input, NULL);
 		if (ACPI_SUCCESS(status))
-			sc->mic_led_state = arg;
+			sc->micmute_led_state = arg;
 		return (status);
 	}
 
@@ -503,6 +504,7 @@ acpi_ibm_attach(device_t dev)
 	evdev_support_event(sc->evdev, EV_KEY);
 	evdev_support_key(sc->evdev, KEY_BRIGHTNESSUP);
 	evdev_support_key(sc->evdev, KEY_BRIGHTNESSDOWN);
+	evdev_support_key(sc->evdev, KEY_MICMUTE);
 
 	if (evdev_register(sc->evdev) != 0)
 		return (ENXIO);
@@ -681,7 +683,7 @@ acpi_ibm_resume(device_t dev)
 	ACPI_SERIAL_END(ibm);
 
 	/* The mic led does not turn back on when sysctl_set is called in the above loop */
-	acpi_ibm_mic_led_set(sc, sc->mic_led_state);
+	acpi_ibm_micmute_led_set(sc, sc->micmute_led_state);
 
 	return (0);
 }
@@ -872,9 +874,9 @@ acpi_ibm_sysctl_get(struct acpi_ibm_softc *sc, int method)
 			val = -1;
 		break;
 
-	case ACPI_IBM_METHOD_MIC_LED:
-		if (sc->mic_led_handle)
-			return sc->mic_led_state;
+	case ACPI_IBM_METHOD_MICMUTE_LED:
+		if (sc->micmute_led_handle)
+			return sc->micmute_led_state;
 		else
 			val = -1;
 		break;
@@ -926,8 +928,8 @@ acpi_ibm_sysctl_set(struct acpi_ibm_softc *sc, int method, int arg)
 		return acpi_ibm_mute_set(sc, arg);
 		break;
 
-	case ACPI_IBM_METHOD_MIC_LED:
-		return acpi_ibm_mic_led_set(sc, arg);
+	case ACPI_IBM_METHOD_MICMUTE_LED:
+		return acpi_ibm_micmute_led_set(sc, arg);
 		break;
 
 	case ACPI_IBM_METHOD_THINKLIGHT:
@@ -1001,14 +1003,14 @@ acpi_ibm_sysctl_init(struct acpi_ibm_softc *sc, int method)
 		/* EC is required here, which was already checked before */
 		return (TRUE);
 
-	case ACPI_IBM_METHOD_MIC_LED:
-		if (ACPI_SUCCESS(AcpiGetHandle(sc->handle, "MMTS", &sc->mic_led_handle)))
-		{
+	case ACPI_IBM_METHOD_MICMUTE_LED:
+		if (ACPI_SUCCESS(AcpiGetHandle(sc->handle, "MMTS",
+		    &sc->micmute_led_handle))) {
 			/* Turn off mic led by default */
-			acpi_ibm_mic_led_set(sc, 0);
+			acpi_ibm_micmute_led_set(sc, 0);
 			return (TRUE);
 		} else
-			sc->mic_led_handle = NULL;
+			sc->micmute_led_handle = NULL;
 		return (FALSE);
 
 	case ACPI_IBM_METHOD_THINKLIGHT:
@@ -1508,7 +1510,7 @@ acpi_ibm_eventhandler(struct acpi_ibm_softc *sc, int arg)
 static void
 acpi_ibm_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 {
-	int		event, arg, type;
+	int		event, arg, type, key;
 	device_t	dev = context;
 	struct acpi_ibm_softc *sc = device_get_softc(dev);
 
@@ -1535,16 +1537,26 @@ acpi_ibm_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 			if (sc->handler_events & (1 << (arg - 1)))
 				acpi_ibm_eventhandler(sc, (arg & 0xff));
 #ifdef EVDEV_SUPPORT
-			else if ((arg & 0xff) == IBM_EVENT_BRIGHTNESS_UP ||
-			    (arg & 0xff) == IBM_EVENT_BRIGHTNESS_DOWN) {
-				uint16_t key;
+			else {
+				key = -1;
 
-				key = arg == IBM_EVENT_BRIGHTNESS_UP ?
-				    KEY_BRIGHTNESSUP : KEY_BRIGHTNESSDOWN;
-				evdev_push_key(sc->evdev, key, 1);
-				evdev_sync(sc->evdev);
-				evdev_push_key(sc->evdev, key, 0);
-				evdev_sync(sc->evdev);
+				switch (arg & 0xff) {
+				case IBM_EVENT_BRIGHTNESS_UP:
+					key = KEY_BRIGHTNESSUP;
+					break;
+				case IBM_EVENT_BRIGHTNESS_DOWN:
+					key = KEY_BRIGHTNESSDOWN;
+					break;
+				case IBM_EVENT_MICMUTE:
+					key = KEY_MICMUTE;
+					break;
+				}
+				if (key >= 0) {
+					evdev_push_key(sc->evdev, key, 1);
+					evdev_sync(sc->evdev);
+					evdev_push_key(sc->evdev, key, 0);
+					evdev_sync(sc->evdev);
+				}
 			}
 #endif
 
