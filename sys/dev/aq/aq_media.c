@@ -203,7 +203,7 @@ aq_initmedia(aq_dev_t *aq_dev)
 	// ifconfig eth0 none
 	ifmedia_add(aq_dev->media, IFM_ETHER | IFM_NONE, 0, NULL);
 
-	// ifconfig eth0 auto
+	ifmedia_add(aq_dev->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	aq_add_media_types(aq_dev, IFM_AUTO);
 
 	if (AQ_HW_SUPPORT_SPEED(aq_dev, AQ_LINK_100M))

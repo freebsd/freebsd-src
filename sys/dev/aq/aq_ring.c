@@ -292,16 +292,10 @@ aq_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 
 			cnt++;
 		} else {
-			/* LRO/Jumbo: wait for whole packet be in the ring */
-			if (rx_desc[i].wb.rsc_cnt) {
-				i = rx_desc[i].wb.next_desp;
-				iter++;
-				continue;
-			} else {
-				iter++;
-				i = aq_next(i, ring->rx_size - 1);
-				continue;
-			}
+			/* Jumbo frame spans descriptors; advance. */
+			iter++;
+			i = aq_next(i, ring->rx_size - 1);
+			continue;
 		}
 	}
 
@@ -356,13 +350,19 @@ aq_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	i = 0;
 
 	do {
+		if (i >= aq_dev->sctx->isc_rx_nsegments) {
+			counter_u64_add(ring->stats.rx_err, 1);
+			rc = (EBADMSG);
+			goto exit;
+		}
+
 		rx_desc = (aq_rx_desc_t *) &ring->rx_descs[cidx];
 
 		trace_aq_rx_descr(ring->index, cidx,
 		    (volatile uint64_t *)rx_desc);
 
 		if ((rx_desc->wb.rx_stat & BIT(0)) != 0) {
-			ring->stats.rx_err++;
+			counter_u64_add(ring->stats.rx_err, 1);
 			rc = (EBADMSG);
 			goto exit;
 		}
@@ -397,8 +397,8 @@ aq_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	ri->iri_len = total_len;
 	ri->iri_nfrags = i;
 
-	ring->stats.rx_bytes += total_len;
-	ring->stats.rx_pkts++;
+	counter_u64_add(ring->stats.rx_bytes, total_len);
+	counter_u64_add(ring->stats.rx_pkts, 1);
 
 exit:
 	AQ_DBG_EXIT(rc);
@@ -551,8 +551,8 @@ aq_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	trace_aq_tx_descr(ring->index, pidx, (volatile void*)txd);
 	ring->tx_tail = pidx;
 
-	ring->stats.tx_pkts++;
-	ring->stats.tx_bytes += pay_len;
+	counter_u64_add(ring->stats.tx_pkts, 1);
+	counter_u64_add(ring->stats.tx_bytes, pay_len);
 
 	pi->ipi_new_pidx = pidx;
 
@@ -591,6 +591,11 @@ aq_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 	avail = 0;
 	head = tdm_tx_desc_head_ptr_get(&aq_dev->hw, ring->index);
 	AQ_DBG_PRINT("swhead %d hwhead %d", ring->tx_head, head);
+
+	if (head >= ring->tx_size) {
+		/* Malformed HW head; report no completions. */
+		goto done;
+	}
 
 	if (ring->tx_head == head) {
 		avail = 0; // ring->tx_size;

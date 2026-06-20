@@ -353,7 +353,8 @@ aq_if_attach_pre(if_ctx_t ctx)
 	softc->mmio_tag = rman_get_bustag(softc->mmio_res);
 	softc->mmio_handle = rman_get_bushandle(softc->mmio_res);
 	softc->mmio_size = rman_get_size(softc->mmio_res);
-	softc->hw.hw_addr = (uint8_t*) softc->mmio_handle;
+	softc->hw.hw_tag = softc->mmio_tag;
+	softc->hw.hw_handle = softc->mmio_handle;
 	hw = &softc->hw;
 	hw->link_rate = aq_fw_speed_auto;
 	hw->itr = -1;
@@ -542,6 +543,42 @@ aq_if_resume(if_ctx_t ctx)
 	return (0);
 }
 
+_Static_assert(sizeof(struct aq_ring_stats) % sizeof(counter_u64_t) == 0,
+    "aq_ring_stats must contain only counter_u64_t fields");
+
+static int
+aq_ring_stats_alloc(struct aq_ring *ring)
+{
+	counter_u64_t *c = (counter_u64_t *)&ring->stats;
+	int i, n = sizeof(ring->stats) / sizeof(counter_u64_t);
+
+	for (i = 0; i < n; i++) {
+		c[i] = counter_u64_alloc(M_NOWAIT);
+		if (c[i] == NULL) {
+			while (i-- > 0) {
+				counter_u64_free(c[i]);
+				c[i] = NULL;
+			}
+			return (ENOMEM);
+		}
+	}
+	return (0);
+}
+
+static void
+aq_ring_stats_free(struct aq_ring *ring)
+{
+	counter_u64_t *c = (counter_u64_t *)&ring->stats;
+	int i, n = sizeof(ring->stats) / sizeof(counter_u64_t);
+
+	for (i = 0; i < n; i++) {
+		if (c[i] != NULL) {
+			counter_u64_free(c[i]);
+			c[i] = NULL;
+		}
+	}
+}
+
 /* Soft queue setup and teardown */
 static int
 aq_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
@@ -571,6 +608,13 @@ aq_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 		ring->dev = softc;
 
 		softc->tx_rings_count++;
+
+		rc = aq_ring_stats_alloc(ring);
+		if (rc != 0) {
+			device_printf(softc->dev,
+			    "atlantic: tx_ring stats alloc fail\n");
+			goto fail;
+		}
 	}
 
 	AQ_DBG_EXIT(rc);
@@ -621,6 +665,13 @@ aq_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 		}
 
 		softc->rx_rings_count++;
+
+		rc = aq_ring_stats_alloc(ring);
+		if (rc != 0) {
+			device_printf(softc->dev,
+			    "atlantic: rx_ring stats alloc fail\n");
+			goto fail;
+		}
 	}
 
 	AQ_DBG_EXIT(rc);
@@ -643,6 +694,7 @@ aq_if_queues_free(if_ctx_t ctx)
 
 	for (i = 0; i < softc->tx_rings_count; i++) {
 		if (softc->tx_rings[i]) {
+			aq_ring_stats_free(softc->tx_rings[i]);
 			free(softc->tx_rings[i], M_AQ);
 			softc->tx_rings[i] = NULL;
 		}
@@ -650,6 +702,7 @@ aq_if_queues_free(if_ctx_t ctx)
 	softc->tx_rings_count = 0;
 	for (i = 0; i < softc->rx_rings_count; i++) {
 		if (softc->rx_rings[i]){
+			aq_ring_stats_free(softc->rx_rings[i]);
 			free(softc->rx_rings[i], M_AQ);
 			softc->rx_rings[i] = NULL;
 		}
@@ -672,6 +725,8 @@ aq_if_init(if_ctx_t ctx)
 	AQ_DBG_ENTER();
 	softc = iflib_get_softc(ctx);
 	hw = &softc->hw;
+
+	atomic_store_rel_long(&hw->flags, 0);
 
 	hw->tx_rings_count = softc->tx_rings_count;
 
@@ -1080,7 +1135,7 @@ aq_update_vlan_filters(struct aq_dev *softc)
 			aq_vlans[i].location = i;
 			aq_vlans[i].queue = 0xFF;
 			aq_vlans[i].vlan_id = vlan_tag;
-			bit_pos = vlan_tag;
+			bit_pos = vlan_tag + 1;
 		} else {
 			aq_vlans[i].enable = false;
 		}
@@ -1319,14 +1374,10 @@ aq_add_stats_sysctls(struct aq_dev *softc)
 		    CTLFLAG_RD, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_pkts",
+		SYSCTL_ADD_COUNTER_U64(ctx, queue_list, OID_AUTO, "tx_pkts",
 		    CTLFLAG_RD, &(ring->stats.tx_pkts), "TX Packets");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_bytes",
+		SYSCTL_ADD_COUNTER_U64(ctx, queue_list, OID_AUTO, "tx_bytes",
 		    CTLFLAG_RD, &(ring->stats.tx_bytes), "TX Octets");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_drops",
-		    CTLFLAG_RD, &(ring->stats.tx_drops), "TX Drops");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_queue_full",
-		    CTLFLAG_RD, &(ring->stats.tx_queue_full), "TX Queue Full");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "tx_head",
 		    CTLTYPE_UINT | CTLFLAG_RD, ring, 0,
 		    aq_sysctl_print_tx_head, "IU", "ring head pointer");
@@ -1342,15 +1393,13 @@ aq_add_stats_sysctls(struct aq_dev *softc)
 		    CTLFLAG_RD, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_pkts",
+		SYSCTL_ADD_COUNTER_U64(ctx, queue_list, OID_AUTO, "rx_pkts",
 		    CTLFLAG_RD, &(ring->stats.rx_pkts), "RX Packets");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
+		SYSCTL_ADD_COUNTER_U64(ctx, queue_list, OID_AUTO, "rx_bytes",
 		    CTLFLAG_RD, &(ring->stats.rx_bytes), "TX Octets");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "jumbo_pkts",
-		    CTLFLAG_RD, &(ring->stats.jumbo_pkts), "Jumbo Packets");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_err",
+		SYSCTL_ADD_COUNTER_U64(ctx, queue_list, OID_AUTO, "rx_err",
 		    CTLFLAG_RD, &(ring->stats.rx_err), "RX Errors");
-		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "irq",
+		SYSCTL_ADD_COUNTER_U64(ctx, queue_list, OID_AUTO, "irq",
 		    CTLFLAG_RD, &(ring->stats.irq), "RX interrupts");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rx_head",
 		    CTLTYPE_UINT | CTLFLAG_RD, ring, 0,

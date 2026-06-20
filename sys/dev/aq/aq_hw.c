@@ -51,7 +51,22 @@
 int
 aq_hw_err_from_flags(struct aq_hw *hw)
 {
+	if (atomic_load_acq_long(&hw->flags) & AQ_HW_FLAG_ERR_UNPLUG)
+		return (ENXIO);
 	return (0);
+}
+
+inline uint32_t
+aq_hw_read_reg(struct aq_hw *hw, uint32_t reg)
+{
+	uint32_t val = le32toh(bus_space_read_4(hw->hw_tag, hw->hw_handle, reg));
+
+	if (__predict_false(val == 0xFFFFFFFFU) &&
+	    le32toh(bus_space_read_4(hw->hw_tag, hw->hw_handle, 0x10)) ==
+	    0xFFFFFFFFU)
+		atomic_set_rel_long(&hw->flags, AQ_HW_FLAG_ERR_UNPLUG);
+
+	return (val);
 }
 
 static void
@@ -123,14 +138,11 @@ aq_hw_ver_match(const aq_hw_fw_version* ver_expected,
 {
 	AQ_DBG_ENTER();
 
-	if (ver_actual->major_version >= ver_expected->major_version)
-		return (true);
-	if (ver_actual->minor_version >= ver_expected->minor_version)
-		return (true);
-	if (ver_actual->build_number >= ver_expected->build_number)
-		return (true);
-
-	return (false);
+	if (ver_actual->major_version != ver_expected->major_version)
+		return (ver_actual->major_version > ver_expected->major_version);
+	if (ver_actual->minor_version != ver_expected->minor_version)
+		return (ver_actual->minor_version > ver_expected->minor_version);
+	return (ver_actual->build_number >= ver_expected->build_number);
 }
 
 static int
@@ -660,7 +672,7 @@ aq_hw_init(struct aq_hw *hw, uint8_t *mac_addr, uint8_t adm_irq, bool msix)
 
 	reg_gen_irq_map_set(hw, 0x80 | adm_irq, 3);
 
-	aq_hw_offload_set(hw);
+	err = aq_hw_offload_set(hw);
 
 err_exit:
 	AQ_DBG_EXIT(err);

@@ -163,9 +163,9 @@ aq_isr_rx(void *arg)
 	struct aq_dev   *aq_dev = ring->dev;
 	struct aq_hw    *hw = &aq_dev->hw;
 
-	/* clear interrupt status */
 	itr_irq_status_clearlsw_set(hw, BIT(ring->msix));
-	ring->stats.irq++;
+	AQ_HW_FLUSH();
+	counter_u64_add(ring->stats.irq, 1);
 	return (FILTER_SCHEDULE_THREAD);
 }
 
@@ -178,8 +178,8 @@ aq_linkstat_isr(void *arg)
 	aq_dev_t              *aq_dev = arg;
 	struct aq_hw          *hw = &aq_dev->hw;
 
-	/* clear interrupt status */
 	itr_irq_status_clearlsw_set(hw, BIT(aq_dev->msix));
+	AQ_HW_FLUSH();
 
 	iflib_admin_intr_deferred(aq_dev->ctx);
 
