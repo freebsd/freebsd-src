@@ -240,7 +240,7 @@ fw2x_reset(struct aq_hw* hw)
 	int err = aq_hw_fw_downld_dwords(hw,
 	    hw->mbox_addr + offsetof(fw2x_mailbox, caps),
 	    (uint32_t*)&caps, sizeof caps/sizeof(uint32_t));
-	if (err == EOK) {
+	if (err == 0) {
 		hw->fw_caps = caps.caps_lo | ((uint64_t)caps.caps_hi << 32);
 		trace(dbg_init,
 		     "fw2x> F/W capabilities mask = %llx",
@@ -250,8 +250,8 @@ fw2x_reset(struct aq_hw* hw)
 		     "fw2x> can't get F/W capabilities mask, error %d", err);
 	}
 
-	AQ_DBG_EXIT(EOK);
-	return (EOK);
+	AQ_DBG_EXIT(err);
+	return (err);
 }
 
 
@@ -310,12 +310,12 @@ fw2x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e mode,
 
 	default:
 		trace_error(dbg_init, "fw2x> unknown MPI state %d", mode);
-		return (-EINVAL);
+		return (EINVAL);
 	}
 
 	set_mpi_ctrl_(hw, mpi_ctrl);
-	AQ_DBG_EXIT(EOK);
-	return (EOK);
+	AQ_DBG_EXIT(0);
+	return (0);
 }
 
 int
@@ -355,14 +355,14 @@ fw2x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e* mode,
 	    (32 + CAPS_HI_PAUSE);
 
 //    AQ_DBG_EXIT(0);
-	return (EOK);
+	return (0);
 }
 
 
 int
 fw2x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 {
-	int err = -EFAULT;
+	int err = EFAULT;
 	uint32_t mac_addr[2];
 
 	AQ_DBG_ENTER();
@@ -370,13 +370,13 @@ fw2x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 	uint32_t efuse_shadow_addr = AQ_READ_REG(hw, 0x364);
 	if (efuse_shadow_addr == 0) {
 		trace_error(dbg_init, "couldn't read eFUSE Shadow Address");
-		AQ_DBG_EXIT(-EFAULT);
-		return (-EFAULT);
+		AQ_DBG_EXIT(EFAULT);
+		return (EFAULT);
 	}
 
 	err = aq_hw_fw_downld_dwords(hw, efuse_shadow_addr + (40 * 4), mac_addr,
 	    ARRAY_SIZE(mac_addr));
-	if (err < 0) {
+	if (err != 0) {
 		mac_addr[0] = 0;
 		mac_addr[1] = 0;
 		AQ_DBG_EXIT(err);
@@ -388,8 +388,8 @@ fw2x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 
 	memcpy(mac, (uint8_t*)mac_addr, ETHER_ADDR_LEN);
 
-	AQ_DBG_EXIT(EOK);
-	return (EOK);
+	AQ_DBG_EXIT(0);
+	return (0);
 }
 
 static inline void
@@ -468,14 +468,14 @@ fw2x_get_stats(struct aq_hw* hw, struct aq_hw_stats_s* stats)
 
 	if ((hw->fw_caps & FW2X_CAP_STATISTICS) == 0) {
 		trace_warn(dbg_fw, "fw2x> statistics not supported by F/W");
-		return (-ENOTSUP);
+		return (ENOTSUP);
 	}
 
 	// Tell F/W to update the statistics.
 	if (!toggle_mpi_ctrl_and_wait_(hw, FW2X_CAP_STATISTICS, 1, 25)) {
 		trace_error(dbg_fw, "fw2x> statistics update timeout");
-		AQ_DBG_EXIT(-ETIME);
-		return (-ETIME);
+		AQ_DBG_EXIT(ETIMEDOUT);
+		return (ETIMEDOUT);
 	}
 
 	err = aq_hw_fw_downld_dwords(hw,
@@ -484,7 +484,7 @@ fw2x_get_stats(struct aq_hw* hw, struct aq_hw_stats_s* stats)
 
 	fw2x_stats_to_fw_stats_(stats, &fw2x_stats);
 
-	if (err != EOK)
+	if (err != 0)
 		trace_error(dbg_fw,
 		    "fw2x> download statistics data FAILED, error %d", err);
 

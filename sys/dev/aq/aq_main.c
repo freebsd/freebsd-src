@@ -363,7 +363,7 @@ aq_if_attach_pre(if_ctx_t ctx)
 
 	/* Look up ops and caps. */
 	rc = aq_hw_mpi_create(hw);
-	if (rc < 0) {
+	if (rc != 0) {
 		AQ_DBG_ERROR(" %s: aq_hw_mpi_create fail err=%d", __func__, rc);
 		goto fail;
 	}
@@ -375,10 +375,11 @@ aq_if_attach_pre(if_ctx_t ctx)
 		aq_hw_reset(&softc->hw);
 	aq_hw_capabilities(softc);
 
-	if (aq_hw_get_mac_permanent(hw, hw->mac_addr) < 0) {
+	rc = aq_hw_get_mac_permanent(hw, hw->mac_addr);
+	if (rc != 0) {
 		AQ_DBG_ERROR("Unable to get mac addr from hw");
 		goto fail;
-	};
+	}
 
 	softc->admin_ticks = 0;
 
@@ -417,7 +418,11 @@ aq_if_attach_pre(if_ctx_t ctx)
 	/* iflib will map and release this bar */
 	scctx->isc_msix_bar = pci_msix_table_bar(softc->dev);
 
-	softc->vlan_tags  = bit_alloc(4096, M_AQ, M_NOWAIT);
+	softc->vlan_tags = bit_alloc(4096, M_AQ, M_NOWAIT);
+	if (softc->vlan_tags == NULL) {
+		rc = ENOMEM;
+		goto fail;
+	}
 
 	AQ_DBG_EXIT(rc);
 	return (rc);
@@ -428,7 +433,7 @@ fail:
 		    softc->mmio_rid, softc->mmio_res);
 
 	AQ_DBG_EXIT(rc);
-	return (ENXIO);
+	return (rc);
 }
 
 
@@ -672,7 +677,7 @@ aq_if_init(if_ctx_t ctx)
 
 	err = aq_hw_init(&softc->hw, softc->hw.mac_addr, softc->msix,
 	    softc->scctx->isc_intr == IFLIB_INTR_MSIX);
-	if (err != EOK) {
+	if (err != 0) {
 		device_printf(softc->dev, "atlantic: aq_hw_init: %d", err);
 	}
 
@@ -688,7 +693,7 @@ aq_if_init(if_ctx_t ctx)
 			    "atlantic: aq_ring_tx_init: %d", err);
 		}
 		err = aq_ring_tx_start(hw, ring);
-		if (err != EOK) {
+		if (err != 0) {
 			device_printf(softc->dev,
 			    "atlantic: aq_ring_tx_start: %d", err);
 		}
@@ -701,7 +706,7 @@ aq_if_init(if_ctx_t ctx)
 			    "atlantic: aq_ring_rx_init: %d", err);
 		}
 		err = aq_ring_rx_start(hw, ring);
-		if (err != EOK) {
+		if (err != 0) {
 			device_printf(softc->dev,
 			    "atlantic: aq_ring_rx_start: %d", err);
 		}
