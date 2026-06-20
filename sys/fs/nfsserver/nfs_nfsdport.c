@@ -47,6 +47,7 @@
 #include <sys/callout.h>
 #include <sys/filio.h>
 #include <sys/hash.h>
+#include <sys/netexport.h>
 #include <sys/osd.h>
 #include <sys/sysctl.h>
 #include <nlm/nlm_prot.h>
@@ -114,6 +115,8 @@ VNET_DEFINE_STATIC(bool, nfsrv_mntinited) = false;
 static int nfssvc_srvcall(struct thread *, struct nfssvc_args *,
     struct ucred *);
 static void nfsvno_updateds(struct vnode *, struct ucred *, struct thread *);
+static void nfsvno_pnfsreplenish(void *);
+static int nfsvno_pnfsusenumfile(struct nameidata *, struct vattr *);
 
 int nfsrv_enable_crossmntpt = 1;
 static int nfs_commit_blks;
@@ -197,6 +200,19 @@ VNET_DECLARE(int, nfsd_enable_stringtouid);
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, enable_stringtouid,
     CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(nfsd_enable_stringtouid),
     0, "Enable nfsd to accept numeric owner_names");
+/*
+ * vfs.nfsd.pnfsswitchforw and vfs.nfsd.pnfsnumfilemiss are writable so that
+ * statistics can be reset.
+ */
+static uint64_t nfsrv_pnfsswitchforw = 0;
+SYSCTL_U64(_vfs_nfsd, OID_AUTO, pnfsswitchforw, CTLFLAG_RW,
+    &nfsrv_pnfsswitchforw, 0, "Number of times replenish switches to forward");
+static uint64_t nfsrv_pnfsnumfilemiss = 0;
+SYSCTL_U64(_vfs_nfsd, OID_AUTO, pnfsnumfilemiss, CTLFLAG_RW,
+    &nfsrv_pnfsnumfilemiss, 0, "Number of numfile misses");
+static u_int nfsrv_pnfsforwcnt = 5;
+SYSCTL_UINT(_vfs_nfsd, OID_AUTO, pnfsreplenishforwcnt, CTLFLAG_RW,
+    &nfsrv_pnfsforwcnt, 0, "Forward replenish cnt before switch to back");
 static int nfsrv_pnfsgetdsattr = 1;
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, pnfsgetdsattr, CTLFLAG_RW,
     &nfsrv_pnfsgetdsattr, 0, "When set getattr gets DS attributes via RPC");
@@ -230,6 +246,34 @@ sysctl_dsdirsize(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_vfs_nfsd, OID_AUTO, dsdirsize,
     CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(nfsrv_dsdirsize),
     sysctl_dsdirsize, "IU", "Number of dsN subdirs on the DS servers");
+
+/*
+ * nfsrv_pnfsmaxnumfiles can only be decreased when the nfsd is not
+ * running.  It can be increased when the nfsd is running, but the
+ * additional numfiles should have been precreated in .pnfshide/numfiles
+ * for all file systems before it is increased.
+ */
+static u_int nfsrv_pnfsmaxnumfiles = 1000;
+static int
+sysctl_pnfsmaxnumfiles(SYSCTL_HANDLER_ARGS)
+{
+	int error, new_maxnumfiles;
+
+	new_maxnumfiles = nfsrv_pnfsmaxnumfiles;
+	error = sysctl_handle_int(oidp, &new_maxnumfiles, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (new_maxnumfiles < nfsrv_pnfsmaxnumfiles && newnfs_numnfsd != 0)
+		return (EBUSY);
+	if (new_maxnumfiles > 10000 || new_maxnumfiles < 100)
+		return (EINVAL);
+	nfsrv_pnfsmaxnumfiles = new_maxnumfiles;
+	return (0);
+}
+SYSCTL_PROC(_vfs_nfsd, OID_AUTO, pnfsmaxnumfiles,
+    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RW, 0,
+    sizeof(nfsrv_pnfsmaxnumfiles), sysctl_pnfsmaxnumfiles,
+    "IU", "Maximum number of entries in .pnfshide/numfiles");
 
 /*
  * nfs_srvmaxio can only be increased and only when the nfsd threads are
@@ -1285,20 +1329,32 @@ nfsvno_createsub(struct nfsrv_descript *nd, struct nameidata *ndp,
 	error = nd->nd_repstat;
 	if (!error && ndp->ni_vp == NULL) {
 		if (nvap->na_type == VREG || nvap->na_type == VSOCK) {
-			error = VOP_CREATE(ndp->ni_dvp,
-			    &ndp->ni_vp, &ndp->ni_cnd, &nvap->na_vattr);
-			/* For a pNFS server, create the data file on a DS. */
-			if (error == 0 && nvap->na_type == VREG) {
+			error = ENOENT;
+			if (nvap->na_type == VREG &&
+			    !TAILQ_EMPTY(&nfsrv_devidhead))
+				error = nfsvno_pnfsusenumfile(ndp,
+				    &nvap->na_vattr);
+			if (error == ENOENT) {
+				error = VOP_CREATE(ndp->ni_dvp,
+				    &ndp->ni_vp, &ndp->ni_cnd, &nvap->na_vattr);
 				/*
-				 * Create a data file on a DS for a pNFS server.
-				 * This function just returns if not
-				 * running a pNFS DS or the creation fails.
+				 * For a pNFS server, create the data file
+				 * on a DS.
 				 */
-				nfsrv_pnfscreate(ndp->ni_vp, &nvap->na_vattr,
-				    nd->nd_cred, p);
+				if (error == 0 && nvap->na_type == VREG) {
+					/*
+					 * Create a data file on a DS for a
+					 * pNFS server.
+					 * This function just returns if not
+					 * running a pNFS DS or the creation
+					 * fails.
+					 */
+					nfsrv_pnfscreate(ndp->ni_vp,
+					    &nvap->na_vattr, nd->nd_cred, p);
+				}
+				VOP_VPUT_PAIR(ndp->ni_dvp, error == 0 ?
+				    &ndp->ni_vp : NULL, false);
 			}
-			VOP_VPUT_PAIR(ndp->ni_dvp, error == 0 ? &ndp->ni_vp :
-			    NULL, false);
 			nfsvno_relpathbuf(ndp);
 			if (!error) {
 				if (*exclusive_flagp) {
@@ -2031,6 +2087,486 @@ nfsvno_statfs(struct vnode *vp, struct statfs *sf)
 }
 
 /*
+ * Replenish the numfiles in .pnfshide/numfiles directory.
+ * These files are used for the pNFS server when an Open/Create needs a
+ * new regular file.  By creating them here asynchronously, we can avoid
+ * the delay of doing do for Open/Create, since creation requires RPCs to
+ * the DSs be done.
+ * (A) - When the sleep times out, work backwards creating
+ *       one new numfile for each cycle.
+ *       (Use a timeout of 10msec for now.)
+ * (B) - When the sleep returns 0, this indicates that a
+ *       nfsd thread didn't find a numfiles.  For this case
+ *       be more agressive and create numfiles going forward.
+ *       (Use a timeout of 1msec for now.)
+ * Runs as a kernel process.
+ */
+static char pnfshide_name[] = ".pnfshide";
+static char numfiles_name[] = "numfiles";
+
+static void
+nfsvno_pnfsreplenish(void *arg)
+{
+	struct componentname cn;
+	struct vattr va;
+	char name[11];
+	struct timespec ts;
+	struct mount *mp = (struct mount *)arg, *temp_mp;
+	struct ucred *cred;
+	struct vnode *numfiledvp, *vp;
+	struct netexport *nep;
+	uint64_t prevcnt;
+	time_t prevsec;
+	u_int cnt, last_back, next_back, next_forw, prevrate[4];
+	int averate, error, i, timo;
+	bool back, use_same_num;
+
+	cred = curthread->td_ucred;
+	if (cred->cr_uid != 0)
+		printf("nfsvno_pnfsreplenish: not root\n");
+
+	/*
+	 * Do a lookup for ".pnfshide" in the root dir
+	 * of the file system.
+	 */
+	cn.cn_nameiop = LOOKUP;
+	cn.cn_lkflags = LK_SHARED;
+	cn.cn_flags = ISLASTCN | NOFOLLOW | LOCKLEAF | NOCROSSMOUNT;
+	cn.cn_cred = cred;
+	cn.cn_nameptr = pnfshide_name;
+	cn.cn_namelen = sizeof(pnfshide_name) - 1;
+	vp = NULL;
+	numfiledvp = NULL;
+	error = vn_lock(mp->mnt_rootvnode, LK_SHARED);
+	if (error == 0) {
+		error = VOP_LOOKUP(mp->mnt_rootvnode, &vp, &cn);
+		VOP_UNLOCK(mp->mnt_rootvnode);
+	}
+
+	/*
+	 * Do a lookup for "numfiles" in the ".pnfshide" dir
+	 * of the file system.
+	 */
+	if (error == 0) {
+		cn.cn_nameiop = LOOKUP;
+		cn.cn_lkflags = LK_SHARED;
+		cn.cn_flags = ISLASTCN | NOFOLLOW | LOCKLEAF | NOCROSSMOUNT;
+		cn.cn_cred = cred;
+		cn.cn_nameptr = numfiles_name;
+		cn.cn_namelen = sizeof(numfiles_name) - 1;
+		error = VOP_LOOKUP(vp, &numfiledvp, &cn);
+		vput(vp);
+		if (error == 0)
+			VOP_UNLOCK(numfiledvp);
+	}
+	lockmgr(&mp->mnt_explock, LK_SHARED, NULL);
+	nep = mp->mnt_export;
+	if (nep != NULL)
+		(void)vfs_netexport_acquire(nep);
+	lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
+
+	/*
+	 * The states for ne_pnfsnumfile are as follows:
+	 * NULL - Initial state for normal operation.
+	 * PNFSD_START - Transition state when the
+	 *    replenisher kernel process is starting up.
+	 * non-NULL valid pointer - Points to the directory vnode for the
+	 *    "numfiles" directory.
+	 * PNFSD_STOP - Transition state when the
+	 *    replenisher kernel process is shutting down.
+	 * PNFSD_STOPPED - Replenisher kernel process has stopped and
+	 *    vrele()'d the "numfiles" directory vnode.
+	 */
+	if (error != 0 || nep == NULL) {
+		if (error == 0)
+			error = ENOENT;
+		goto out;
+	}
+	MNTEXP_LOCK(nep);
+	KASSERT(nep->ne_pnfsnumfile == PNFSD_START |
+	    nep->ne_pnfsnumfile == PNFSD_STOP,
+	    ("nfsvno_pnfsreplenish: ne_pnfsnumfile not PNFSD_START/STOP"));
+	if (nep->ne_pnfsnumfile == PNFSD_START) {
+		nep->ne_pnfsnumfile = numfiledvp;
+		wakeup(&nep->ne_pnfsnumfile);
+	}
+	MNTEXP_UNLOCK(nep);
+
+	VATTR_NULL(&va);
+	va.va_mode = 0644;
+	va.va_type = VREG;
+	timo = hz / 1000;
+	if (timo == 0)
+		timo = 1;
+	cnt = 5;
+	back = false;
+	use_same_num = false;
+	prevcnt = 0;
+	for (i = 0; i < 4; i++)
+		prevrate[i] = 1;
+	prevsec = 0;
+	averate = 100;
+	last_back = next_back = next_forw = UINT_MAX;
+
+	/* Loop around sleeping and then doing (A) or (B) */
+	for (;;) {
+		/* Sample replenish rate once/sec. */
+		getnanouptime(&ts);
+		if (ts.tv_sec != prevsec) {
+			/* Calculate a moving ave. of creates/sec. */
+			prevsec = ts.tv_sec;
+			for (i = 0; i < 3; i++)
+				prevrate[i + 1] = prevrate[i];
+			prevrate[0] = atomic_load_int(&nep->ne_pnfsnumcnt) -
+			    prevcnt;
+			if (prevrate[0] < 1)
+				prevrate[0] = 1;
+			prevcnt = atomic_load_int(&nep->ne_pnfsnumcnt);
+			averate = prevrate[0] * 4 / 10 + prevrate[1] * 3 / 10 +
+			    prevrate[2] * 2 / 10 + prevrate[3] / 10;
+			if (averate < 1)
+				averate = 1;
+			averate *= 2;
+		}
+
+		if (cnt == 0) {
+			error = tsleep(&mp->mnt_export, PVFS, "pnfsrpl", timo);
+			if (error == ETIMEDOUT || error == EAGAIN) {
+				if (!back)
+					next_back = last_back;
+				back = true;
+				timo = hz / averate;
+				if (timo == 0)
+					timo = 1;
+			} else {
+				if (back) {
+					next_forw = UINT_MAX;
+					last_back = next_back;
+				}
+				back = false;
+				cnt = nfsrv_pnfsforwcnt;
+				timo = hz / 1000;
+				if (timo == 0)
+					timo = 1;
+				nfsrv_pnfsswitchforw++;
+			}
+		}
+
+		/* Check for exports having gone away. */
+		if (mp->mnt_export == NULL)
+			break;
+		/* And check for replenisher being stopped. */
+		MNTEXP_LOCK(nep);
+		if (nep->ne_pnfsnumfile != PNFSD_START &&
+		    nep->ne_pnfsnumfile != PNFSD_STOP) {
+			KASSERT(numfiledvp == nep->ne_pnfsnumfile,
+			    ("nfsvno_pnfsreplenish: numfiledvp changed"));
+			MNTEXP_UNLOCK(nep);
+		} else {
+			MNTEXP_UNLOCK(nep);
+			break;
+		}
+
+		if (back) {
+			/* This is (A) in this function's comment above. */
+			error = vn_start_write(numfiledvp, &temp_mp, V_NOWAIT);
+			if (error == 0)
+				error = vn_lock(numfiledvp, LK_EXCLUSIVE |
+				    LK_NOWAIT);
+			if (error != 0 && temp_mp != NULL)
+				vn_finished_write(temp_mp);
+			if (error == EBUSY || error == EWOULDBLOCK)
+				continue;
+			if (error != 0)
+				break;
+			if (next_back == UINT_MAX) {
+				if (nep->ne_pnfsnextfile == 0)
+					next_back = nfsrv_pnfsmaxnumfiles - 1;
+				else
+					next_back = nep->ne_pnfsnextfile - 1;
+			} else if (!use_same_num) {
+				if (next_back == 0)
+					next_back = nfsrv_pnfsmaxnumfiles - 1;
+				else
+					next_back--;
+			}
+			snprintf(name, sizeof(name), "%d", next_back);
+		} else {
+			/* This is (B) in this function's comment, above. */
+			vn_start_write(numfiledvp, &temp_mp, V_WAIT);
+			error = vn_lock(numfiledvp, LK_EXCLUSIVE);
+			if (error != 0 && temp_mp != NULL)
+				vn_finished_write(temp_mp);
+			if (error != 0)
+				break;
+			if (next_forw == UINT_MAX)
+				next_forw = nep->ne_pnfsnextfile;
+			else if (!use_same_num)
+				next_forw = (next_forw + 1) %
+				    nfsrv_pnfsmaxnumfiles;
+			snprintf(name, sizeof(name), "%d", next_forw);
+		}
+		use_same_num = false;
+
+		/* Do a lookup for the file. */
+		cn.cn_nameiop = CREATE;
+		cn.cn_lkflags = LK_EXCLUSIVE;
+		cn.cn_flags = ISLASTCN | NOFOLLOW | LOCKLEAF | LOCKPARENT |
+		    NOCROSSMOUNT | MAKEENTRY;
+		cn.cn_cred = cred;
+		cn.cn_nameptr = name;
+		cn.cn_namelen = strlen(name);
+		vref(numfiledvp);
+		error = VOP_LOOKUP(numfiledvp, &vp, &cn);
+		if (error == 0) {
+			VOP_VPUT_PAIR(numfiledvp, &vp, true);
+			if (temp_mp != NULL)
+				vn_finished_write(temp_mp);
+			if (back) {
+				last_back = next_back = UINT_MAX;
+				timo = hz / 10;
+				if (timo == 0)
+					timo = 1;
+			} else {
+				timo = hz / 100;
+				if (timo == 0)
+					timo = 1;
+			}
+			cnt = 0;
+			continue;
+		} else if (error != ENOENT && error != EJUSTRETURN) {
+			VOP_VPUT_PAIR(numfiledvp, NULL, true);
+			if (temp_mp != NULL)
+				vn_finished_write(temp_mp);
+			if (error == ERELOOKUP) {
+				use_same_num = true;
+				continue;
+			}
+			printf("nfsvno_pnfsreplenish: lookup failed %d\n",
+			    error);
+			break;
+		}
+
+		/* Create the numfile and its DS file(s). */
+		error = VOP_CREATE(numfiledvp, &vp, &cn, &va);
+		if (error == 0) {
+			/*
+			 * Create a data file on a DS for a pNFS
+			 * server. This function just returns if
+			 * not running a pNFS DS or the creation
+			 * fails.
+			 */
+			nfsrv_pnfscreate(vp, &va, cred, curthread);
+		} else
+			printf("nfsvno_pnfsreplenish: vop_create failed %d\n",
+			    error);
+		VOP_VPUT_PAIR(numfiledvp, error == 0 ? &vp : NULL, true);
+		if (temp_mp != NULL)
+			vn_finished_write(temp_mp);
+		cnt = cnt > 0 ? cnt - 1 : 0;
+	}
+out:
+	if (numfiledvp != NULL)
+		vrele(numfiledvp);
+	if (nep != NULL) {
+		MNTEXP_LOCK(nep);
+		nep->ne_pnfsnumfile = PNFSD_STOPPED;
+		wakeup(&mp->mnt_explock);
+		MNTEXP_UNLOCK(nep);
+		vfs_netexport_release(nep);
+	} else
+		wakeup(&mp->mnt_explock);
+	kproc_exit(0);
+}
+
+/*
+ * Do a lookup of a file in the .numfiles directory.
+ * If successful, use VOP_SETATTR() to set the uid/gid/mode and
+ * then VOP_LINK()/VOP_REMOVE() the num file.
+ * Return ENOENT to indicate that nfsvno_open() should fall back to
+ * doing VOP_CREATE(), other errors for failure.
+ * XXX This code probably is not correct for a stacked file
+ * system, but should never be used for that case.
+ */
+static int
+nfsvno_pnfsusenumfile(struct nameidata *ndp, struct vattr *vap)
+{
+	struct componentname cn;
+	struct vattr va;
+	char name[11];
+	gid_t gid;
+	struct ucred *cred, *savcred;
+	struct vnode *numfiledvp;
+	struct mount *mp;
+	struct netexport *nep;
+	u_int nextf;
+	int error;
+
+	cred = newnfs_getcred();
+	/*
+	 * Not sure if this is necessary.  If all VOP calls use
+	 * cn_cred, it is not.
+	 */
+	savcred = curthread->td_ucred;
+	curthread->td_ucred = cred;
+
+	/*
+	 * If the replenish kernel process is not yet running,
+	 * start it up now.
+	 */
+	numfiledvp = NULL;
+	ndp->ni_vp = NULL;
+	mp = ndp->ni_dvp->v_mount;
+	lockmgr(&mp->mnt_explock, LK_SHARED, NULL);
+	nep = mp->mnt_export;
+	if (nep == NULL) {
+		error = ENOENT;
+		lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
+		goto out;
+	}
+	(void)vfs_netexport_acquire(nep);
+	lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
+	MNTEXP_LOCK(nep);
+	if (nep->ne_pnfsnumfile == NULL) {
+		/* Mark kernel process startup in-progress. */
+		nep->ne_pnfsnumfile = PNFSD_START;
+		MNTEXP_UNLOCK(nep);
+
+		/* Create the replenish kernel process. */
+		error = kproc_create(nfsvno_pnfsreplenish, mp, NULL, RFHIGHPID,
+		    0, "pnfsreplenish");
+		if (error != 0) {
+			printf("nfsvno_pnfsusenumfile: replenish won't start"
+			    " %d\n", error);
+			error = ENOENT;
+			goto out;
+		}
+
+		/* And wait for it to set up ne_pnfsnumfile. */
+		MNTEXP_LOCK(nep);
+		(void)msleep(&nep->ne_pnfsnumfile, MNTEXP_MTX(nep), PVFS,
+		    "pnfsnumf", hz);
+	}
+
+	if (nep->ne_pnfsnumfile == NULL ||
+	    nep->ne_pnfsnumfile == PNFSD_START ||
+	    nep->ne_pnfsnumfile == PNFSD_STOP) {
+		MNTEXP_UNLOCK(nep);
+		error = ENOENT;
+		goto out;
+	} else {
+		numfiledvp = nep->ne_pnfsnumfile;
+		MNTEXP_UNLOCK(nep);
+		/*
+		 * Check to ensure the new file is not in ".pnfshide/numfiles".
+		 */
+		if (numfiledvp == ndp->ni_dvp) {
+			error = ENOENT;
+			numfiledvp = NULL;
+			goto out;
+		}
+	}
+
+	error = vn_lock(numfiledvp, LK_EXCLUSIVE);
+	if (error != 0) {
+		error = ENOENT;
+		numfiledvp = NULL;
+		goto out;
+	}
+	vref(numfiledvp);
+
+	/* Get the next filenum. */
+	nextf = nep->ne_pnfsnextfile;
+	snprintf(name, sizeof(name), "%d", nextf);
+
+	/* Now, look up the numbered file. */
+	cn.cn_nameiop = DELETE;
+	cn.cn_lkflags = LK_EXCLUSIVE;
+	cn.cn_flags = ISLASTCN | NOFOLLOW | LOCKLEAF | LOCKPARENT |
+	    NOCROSSMOUNT;
+	cn.cn_cred = cred;
+	cn.cn_nameptr = name;
+	cn.cn_namelen = strlen(name);
+	error = VOP_LOOKUP(numfiledvp, &ndp->ni_vp, &cn);
+	if (error != 0) {
+		nfsrv_pnfsnumfilemiss++;
+		VOP_UNLOCK(numfiledvp);
+		ndp->ni_vp = NULL;
+		if (error == ENOENT || error == EJUSTRETURN)
+			wakeup(&mp->mnt_export);
+		else
+			VOP_VPUT_PAIR(ndp->ni_dvp, NULL, true);
+		goto out;
+	}
+
+	/*
+	 * Set the new file's attributes to what VOP_CREATE() would
+	 * have set them to.
+	 */
+	gid = GID_NOGROUP;
+	if (vap->va_gid == VNOVAL &&
+	    VOP_GETATTR(ndp->ni_dvp, &va, cred) == 0)
+		gid = va.va_gid;
+	VATTR_NULL(&va);
+	va.va_gid = gid;
+	va.va_uid = ndp->ni_cnd.cn_cred->cr_uid;
+	va.va_mode = vap->va_mode;
+	error = VOP_SETATTR(ndp->ni_vp, &va, cred);
+	if (error != 0) {
+		VOP_UNLOCK(numfiledvp);
+		VOP_VPUT_PAIR(ndp->ni_dvp, &ndp->ni_vp, true);
+		ndp->ni_vp = NULL;
+		printf("nfsvno_pnfsusenumfile: setattr failed %d\n",
+		    error);
+		if (error == ENOENT)
+			error = ENXIO;
+		goto out;
+	}
+
+	/*
+	 * Link the numbered file to the name VOP_CREATE() would have
+	 * created in the correct directory and then VOP_REMOVE() the
+	 * numbered file.
+	 * Use VOP_LINK()/VOP_REMOVE() so that the numbered file
+	 * directory can remain locked.
+	 */
+	error = VOP_LINK(ndp->ni_dvp, ndp->ni_vp, &ndp->ni_cnd);
+	/* Remove the file in .numfiles. */
+	if (error == 0) {
+		nep->ne_pnfsnextfile = (nextf + 1) %
+		    nfsrv_pnfsmaxnumfiles;
+		error = VOP_REMOVE(numfiledvp, ndp->ni_vp, &cn);
+		if (error != 0) {
+			/* Shut down the numfiles stuff. */
+			MNTEXP_LOCK(nep);
+			nep->ne_pnfsnumfile = PNFSD_STOP;
+			MNTEXP_UNLOCK(nep);
+			printf("nfsvno_pnfsusenumfile: remove failed "
+			    "%d %s\n", error, name);
+		}
+	}
+	VOP_UNLOCK(numfiledvp);
+	if (error != 0) {
+		VOP_VPUT_PAIR(ndp->ni_dvp, &ndp->ni_vp, true);
+		ndp->ni_vp = NULL;
+	} else {
+		atomic_add_int(&nep->ne_pnfsnumcnt, 1);
+		VOP_VPUT_PAIR(ndp->ni_dvp, &ndp->ni_vp, false);
+	}
+	if (error == ENOENT)
+		error = ENXIO;
+
+out:
+	if (numfiledvp != NULL)
+		vrele(numfiledvp);
+	if (nep != NULL)
+		vfs_netexport_release(nep);
+	curthread->td_ucred = savcred;		/* Reset the thread's cred. */
+	NFSFREECRED(cred);
+	return (error);
+}
+
+/*
  * Do the vnode op stuff for Open. Similar to nfsvno_createsub(), but
  * must handle nfsrv_opencheck() calls after any other access checks.
  */
@@ -2048,6 +2584,7 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 	struct thread *p = curthread;
 	uint32_t oldrepstat;
 	u_long savflags;
+	int error;
 
 	if (ndp->ni_vp == NULL) {
 		/*
@@ -2062,30 +2599,50 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
 	}
 	if (!nd->nd_repstat) {
 		if (ndp->ni_vp == NULL) {
-			/*
-			 * Most file systems ignore va_flags for
-			 * VOP_CREATE(), however setting va_flags
-			 * for VOP_CREATE() causes problems for ZFS.
-			 * So disable them and let nfsrv_fixattr()
-			 * do them, as required.
-			 */
-			savflags = nvap->na_flags;
-			nvap->na_flags = VNOVAL;
-			nd->nd_repstat = VOP_CREATE(ndp->ni_dvp,
-			    &ndp->ni_vp, &ndp->ni_cnd, &nvap->na_vattr);
-			/* For a pNFS server, create the data file on a DS. */
-			if (nd->nd_repstat == 0) {
-				/*
-				 * Create a data file on a DS for a pNFS server.
-				 * This function just returns if not
-				 * running a pNFS DS or the creation fails.
-				 */
-				nfsrv_pnfscreate(ndp->ni_vp, &nvap->na_vattr,
-				    cred, p);
+			struct sockaddr_in *sin;
+			struct sockaddr_in6 *sin6;
+			bool try_pnfs;
+
+			sin = (struct sockaddr_in *)nd->nd_nam;
+			sin6 = (struct sockaddr_in6 *)nd->nd_nam;
+			error = ENOENT;
+			try_pnfs = !TAILQ_EMPTY(&nfsrv_devidhead);
+
+			if (try_pnfs && !(sin->sin_family == AF_INET &&
+			    IN_LOOPBACK(ntohl(sin->sin_addr.s_addr))) &&
+			    !(sin6->sin6_family == AF_INET6 &&
+			    IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr))) {
+				error = nfsvno_pnfsusenumfile(ndp,
+				    &nvap->na_vattr);
+				if (error != ENOENT)
+					nd->nd_repstat = error;
 			}
-			nvap->na_flags = savflags;
-			VOP_VPUT_PAIR(ndp->ni_dvp, nd->nd_repstat == 0 ?
-			    &ndp->ni_vp : NULL, false);
+			if (error == ENOENT) {
+				/*
+				 * Most file systems ignore va_flags for
+				 * VOP_CREATE(), however setting va_flags
+				 * for VOP_CREATE() causes problems for ZFS.
+				 * So disable them and let nfsrv_fixattr()
+				 * do them, as required.
+				 */
+				savflags = nvap->na_flags;
+				nvap->na_flags = VNOVAL;
+				nd->nd_repstat = VOP_CREATE(ndp->ni_dvp,
+				    &ndp->ni_vp, &ndp->ni_cnd, &nvap->na_vattr);
+				if (try_pnfs && nd->nd_repstat == 0) {
+					/*
+					 * Create a data file on a DS for a pNFS
+					 * server. This function just returns if
+					 * not running a pNFS DS or the creation
+					 * fails.
+					 */
+					nfsrv_pnfscreate(ndp->ni_vp,
+					    &nvap->na_vattr, cred, p);
+				}
+				VOP_VPUT_PAIR(ndp->ni_dvp, nd->nd_repstat == 0 ?
+				    &ndp->ni_vp : NULL, false);
+				nvap->na_flags = savflags;
+			}
 			nfsvno_relpathbuf(ndp);
 			if (!nd->nd_repstat) {
 				if (*exclusive_flagp != NFSV4_EXCLUSIVE_NONE) {
