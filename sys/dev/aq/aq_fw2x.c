@@ -422,69 +422,19 @@ fw2x_stats_to_fw_stats_(struct aq_hw_stats* dst,
 }
 
 
-static bool
-toggle_mpi_ctrl_and_wait_(struct aq_hw* hw, uint64_t mask, uint32_t timeout_ms,
-    uint32_t try_count)
-{
-	uint64_t ctrl = get_mpi_ctrl_(hw);
-	uint64_t state = get_mpi_state_(hw);
-
- //   AQ_DBG_ENTER();
-	// First, check that control and state values are consistent
-	if ((ctrl & mask) != (state & mask)) {
-		trace_warn(dbg_fw,
-		    "fw2x> MPI control (%#llx) and state (%#llx) are not consistent for mask %#llx!",
-		    (unsigned long long)ctrl, (unsigned long long)state,
-		    (unsigned long long)mask);
-		AQ_DBG_EXIT(false);
-		return (false);
-	}
-
-	// Invert bits (toggle) in control register
-	ctrl ^= mask;
-	set_mpi_ctrl_(hw, ctrl);
-
-	// Clear all bits except masked
-	ctrl &= mask;
-
-	// Wait for FW reflecting change in state register
-	while (try_count-- != 0) {
-		if ((get_mpi_state_(hw) & mask) == ctrl)
-		{
-//			AQ_DBG_EXIT(true);
-			return (true);
-		}
-		DELAY((timeout_ms) * 1000);
-	}
-
-	trace_detail(dbg_fw,
-	    "f/w2x> timeout while waiting for response in state register for bit %#llx!",
-	    (unsigned long long)mask);
- //   AQ_DBG_EXIT(false);
-	return (false);
-}
-
-
 int
 fw2x_get_stats(struct aq_hw* hw, struct aq_hw_stats* stats)
 {
-	int err = 0;
 	struct fw2x_msm_statistics fw2x_stats = {0};
-
-//    AQ_DBG_ENTER();
+	uint64_t mpi_ctrl;
+	int err;
 
 	if ((hw->fw_caps & FW2X_CAP_STATISTICS) == 0) {
 		trace_warn(dbg_fw, "fw2x> statistics not supported by F/W");
 		return (ENOTSUP);
 	}
 
-	// Tell F/W to update the statistics.
-	if (!toggle_mpi_ctrl_and_wait_(hw, FW2X_CAP_STATISTICS, 1, 25)) {
-		trace_error(dbg_fw, "fw2x> statistics update timeout");
-		AQ_DBG_EXIT(ETIMEDOUT);
-		return (ETIMEDOUT);
-	}
-
+	/* Kick-and-read: take the F/W's previous snapshot, request the next. */
 	err = aq_hw_fw_downld_dwords(hw,
 	    hw->mbox_addr + offsetof(struct fw2x_mailbox, msm),
 	    (uint32_t*)&fw2x_stats, sizeof fw2x_stats/sizeof(uint32_t));
@@ -495,7 +445,10 @@ fw2x_get_stats(struct aq_hw* hw, struct aq_hw_stats* stats)
 		trace_error(dbg_fw,
 		    "fw2x> download statistics data FAILED, error %d", err);
 
-//    AQ_DBG_EXIT(err);
+	mpi_ctrl = get_mpi_ctrl_(hw);
+	mpi_ctrl ^= FW2X_CAP_STATISTICS;
+	set_mpi_ctrl_(hw, mpi_ctrl);
+
 	return (err);
 }
 
