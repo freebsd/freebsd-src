@@ -3213,7 +3213,7 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 {
 	uint32_t missed_tx = 0, new_missed_tx = 0;
 	device_t pdev = adapter->pdev;
-	struct bintime curtime, time;
+	sbintime_t curtime;
 	struct ena_tx_buffer *tx_buf;
 	int time_since_last_cleanup;
 	int missing_tx_comp_to;
@@ -3222,17 +3222,18 @@ check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 	enum ena_regs_reset_reason_types reset_reason = ENA_REGS_RESET_MISS_TX_CMPL;
 	bool cleanup_scheduled, cleanup_running;
 
-	getbinuptime(&curtime);
+	curtime = getsbinuptime();
 
 	for (i = 0; i < tx_ring->ring_size; i++) {
+		sbintime_t ts;
+
 		tx_buf = &tx_ring->tx_buffer_info[i];
 
-		if (bintime_isset(&tx_buf->timestamp) == 0)
+		ts = atomic_load_64(&tx_buf->timestamp);
+		if (ts == 0)
 			continue;
 
-		time = curtime;
-		bintime_sub(&time, &tx_buf->timestamp);
-		time_offset = bttosbt(time);
+		time_offset = curtime - ts;
 
 		if (unlikely(!atomic_load_8(&tx_ring->first_interrupt) &&
 		    time_offset > 2 * adapter->missing_tx_timeout)) {

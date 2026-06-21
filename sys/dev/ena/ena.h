@@ -263,7 +263,7 @@ struct ena_tx_buffer {
 	bus_dmamap_t dmamap;
 
 	/* Used to detect missing tx packets */
-	struct bintime timestamp;
+	sbintime_t timestamp;
 	bool print_once;
 
 #ifdef DEV_NETMAP
