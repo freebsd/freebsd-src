@@ -6798,7 +6798,7 @@ nfsrv_writedsrpc(fhandle_t *fhp, off_t off, int len, struct ucred *cred,
     int stripecnt, uint64_t stripesiz, struct mbuf **mpp, char *cp,
     int *failposp)
 {
-	struct nfsrvwritedsdorpc *drpc, *tdrpc;
+	struct nfsrvwritedsdorpc *drpc, *tdrpc = NULL;	/* Shut up gcc. */
 	struct nfsvattr na;
 	struct mbuf *m;
 	fhandle_t *tfhp;
