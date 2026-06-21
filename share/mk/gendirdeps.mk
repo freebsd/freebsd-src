@@ -1,4 +1,4 @@
-# $Id: gendirdeps.mk,v 1.56 2026/06/19 18:57:57 sjg Exp $
+# $Id: gendirdeps.mk,v 1.57 2026/06/21 19:04:57 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -163,10 +163,12 @@ META2DEPS := ${META2DEPS}
 
 .if ${_debug.gendirdeps} && ${DEBUG_GENDIRDEPS:Mmeta2d*} != ""
 _time = time
+_set_x = set -x;
 _sh_x = sh -x
 _py_d = -ddd
 .else
 _time =
+_set_x =
 _sh_x =
 _py_d =
 .endif
@@ -244,7 +246,11 @@ x != echo; for m in $$_meta_files; do echo $$m; done > meta.list
 _meta_files_arg:= ${_meta_files}
 .endif
 
-dir_list != cd ${_OBJDIR} && \
+.if ${_debug.gendirdeps}
+.info ${RELDIR}: _meta_files_arg='${_meta_files_arg}'
+.endif
+
+dir_list != cd ${_OBJDIR} && ${_set_x} \
 	${META2DEPS_CMD} MACHINE=${MACHINE} \
 	SRCTOP=${SRCTOP} RELDIR=${RELDIR} CURDIR=${_CURDIR} \
 	${META2DEPS_ARGS} \
@@ -256,6 +262,9 @@ dir_list != cd ${_OBJDIR} && \
 .warning Skipping ${_DEPENDFILE:S,${SRCTOP}/,,}
 # we are not going to update anything
 .else
+.if ${_debug.gendirdeps}
+.info ${RELDIR}: raw_dir_list='${dir_list}'
+.endif
 dpadd_dir_list=
 .if !empty(DPADD)
 _nonlibs := ${DPADD:T:Nlib*:N*include}
@@ -276,7 +285,6 @@ ddeps != cat ${ddep_list:O:u} | ${META2DEPS_FILTER} ${_skip_gendirdeps} \
 	sed ${GENDIRDEPS_SEDCMDS}
 
 .if ${_debug.gendirdeps}
-.info ${RELDIR}: raw_dir_list='${dir_list}'
 .info ${RELDIR}: ddeps='${ddeps}'
 .endif
 dir_list += ${ddeps}
