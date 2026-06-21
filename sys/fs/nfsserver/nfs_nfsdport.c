@@ -3137,6 +3137,7 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	long pathval;
 	bool has_caseinsensitive, has_hiddensystem, has_namedattr, xattrsupp;
 
+	NFSZERO_ATTRBIT(&savbits);			/* Shut up gcc. */
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		goto out;
@@ -5303,7 +5304,7 @@ static void
 nfsrv_pnfscreate(struct vnode *vp, struct vattr *vap, struct ucred *cred,
     NFSPROC_T *p)
 {
-	struct nfsrvdscreate *dsc, *tdsc;
+	struct nfsrvdscreate *dsc, *tdsc = NULL;	/* Shut up gcc. */
 	struct nfsdevice *ds, *tds, *fds;
 	struct mount *mp;
 	struct pnfsdsfile *pf, *tpf;
@@ -5677,7 +5678,7 @@ nfsrv_pnfsremove(struct vnode **dvpp, int dsfilecnt, char *fname,
     fhandle_t *fhp, NFSPROC_T *p)
 {
 	struct ucred *tcred;
-	struct nfsrvdsremove *dsrm, *tdsrm;
+	struct nfsrvdsremove *dsrm, *tdsrm = NULL;	/* Shut up gcc. */
 	struct nfsdevice *ds;
 	struct nfsmount *nmp;
 	struct vnode **tdvpp;
@@ -6057,10 +6058,10 @@ nfsrv_dsgetsockmnt(struct vnode *vp, int lktype, char *buf, int *buflenp,
     char **devid, char *fnamep, struct vnode **nvpp, struct nfsmount **newnmpp,
     struct nfsmount *curnmp, int *ippos, int *dsdirp)
 {
-	struct vnode *dvp, *nvp = NULL, **tdvpp;
+	struct vnode *dvp, *nvp = NULL, **tdvpp = NULL;	/* Shut up gcc. */
 	struct mount *mp;
 	struct nfsmount *nmp, *newnmp;
-	fhandle_t *tfhp;
+	fhandle_t *tfhp = NULL;				/* Shut up gcc. */
 	struct sockaddr *sad;
 	struct sockaddr_in *sin;
 	struct nfsdevice *ds, *tds, *fndds;
@@ -7375,7 +7376,7 @@ nfsrv_setattrdsrpc(fhandle_t *fhp, struct vnode *vp, struct ucred *cred,
     NFSPROC_T *p, struct nfsmount **nmp, int mirrorcnt, int stripecnt,
     struct nfsvattr *nap, int *failposp)
 {
-	struct nfsrvsetattrdsdorpc *drpc, *tdrpc;
+	struct nfsrvsetattrdsdorpc *drpc, *tdrpc = NULL;  /* Shut up gcc. */
 	fhandle_t *tfhp;
 	struct nfsmount **tnmp;
 	struct nfsvattr na;
@@ -7642,7 +7643,7 @@ nfsrv_getattrdsrpc(fhandle_t *fhp, struct vnode *vp, struct ucred *cred,
     NFSPROC_T *p, struct nfsmount **nmp, int stripecnt, struct nfsvattr *nap,
     int *failposp)
 {
-	struct nfsrvgetattrdsdorpc *drpc, *tdrpc;
+	struct nfsrvgetattrdsdorpc *drpc, *tdrpc = NULL;    /* Shut up gcc. */
 	fhandle_t *tfhp;
 	struct nfsmount **tnmp;
 	int error, i, ret, timo;
