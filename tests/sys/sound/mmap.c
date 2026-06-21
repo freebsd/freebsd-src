@@ -120,7 +120,7 @@ ATF_TC_BODY(mmap_reject_prot_exec, tc)
 
 	len = 8;
 
-	buf = mmap(NULL, len, PROT_READ | PROT_EXEC | PROT_EXEC, MAP_SHARED,
+	buf = mmap(NULL, len, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_SHARED,
 	    fd, 0);
 	ATF_REQUIRE_MSG(buf == MAP_FAILED, FMT_ERR("mmap"));
 
