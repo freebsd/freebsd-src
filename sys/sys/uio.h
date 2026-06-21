@@ -98,6 +98,7 @@ int	uiomove_fromphys(struct vm_page *ma[], vm_offset_t offset, int n,
 	    struct uio *uio);
 int	uiomove_nofault(void *cp, int n, struct uio *uio);
 int	uiomove_object(struct vm_object *obj, off_t obj_size, struct uio *uio);
+int	uiomove_step(void *cp, void *base, size_t cnt, struct uio *uio);
 
 #else /* !_KERNEL */
 

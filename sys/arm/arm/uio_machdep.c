@@ -91,36 +91,10 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		cnt = min(cnt, PAGE_SIZE - page_offset);
 		sf = sf_buf_alloc(ma[offset >> PAGE_SHIFT], 0);
 		cp = (char*)sf_buf_kva(sf) + page_offset;
-		switch (uio->uio_segflg) {
-		case UIO_USERSPACE:
-			maybe_yield();
-			switch (uio->uio_rw) {
-			case UIO_READ:
-				error = copyout(cp, iov->iov_base, cnt);
-				break;
-			case UIO_WRITE:
-				error = copyin(iov->iov_base, cp, cnt);
-				break;
-			}
-			if (error) {
-				sf_buf_free(sf);
-				goto out;
-			}
-			break;
-		case UIO_SYSSPACE:
-			switch (uio->uio_rw) {
-			case UIO_READ:
-				bcopy(cp, iov->iov_base, cnt);
-				break;
-			case UIO_WRITE:
-				bcopy(iov->iov_base, cp, cnt);
-				break;
-			}
-			break;
-		case UIO_NOCOPY:
-			break;
-		}
+		error = uiomove_step(cp, iov->iov_base, cnt, uio);
 		sf_buf_free(sf);
+		if (error != 0)
+			break;
 		iov->iov_base = (char *)iov->iov_base + cnt;
 		iov->iov_len -= cnt;
 		uio->uio_resid -= cnt;
@@ -128,7 +102,6 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		offset += cnt;
 		n -= cnt;
 	}
-out:
 	if (save == 0)
 		td->td_pflags &= ~TDP_DEADLKTREAT;
 	return (error);
