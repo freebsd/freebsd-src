@@ -87,7 +87,7 @@
 
 static int	pflogoutput(struct ifnet *, struct mbuf *,
 		    const struct sockaddr *, struct route *);
-static void	pflogattach(int);
+static void	pflogattach(void);
 static int	pflogifs_resize(size_t);
 static int	pflogioctl(struct ifnet *, u_long, caddr_t);
 static void	pflogstart(struct ifnet *);
@@ -106,7 +106,7 @@ VNET_DEFINE(struct ifnet **, pflogifs);	/* for fast access */
 #define	V_pflogifs		VNET(pflogifs)
 
 static void
-pflogattach(int npflog __unused)
+pflogattach(void)
 {
 	struct if_clone_addreq req = {
 		.create_f = pflog_clone_create,
@@ -316,7 +316,7 @@ static void
 vnet_pflog_init(const void *unused __unused)
 {
 
-	pflogattach(1);
+	pflogattach();
 }
 VNET_SYSINIT(vnet_pflog_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY,
     vnet_pflog_init, NULL);
