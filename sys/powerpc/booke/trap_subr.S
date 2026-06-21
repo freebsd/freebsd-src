@@ -613,8 +613,8 @@ INTERRUPT(int_fixed_interval_timer)
  * Watchdog interrupt
  ****************************************************************************/
 INTERRUPT(int_watchdog)
-	STANDARD_PROLOG(SPR_SPRG1, PC_TEMPSAVE, SPR_SRR0, SPR_SRR1)
-	FRAME_SETUP(SPR_SPRG1, PC_TEMPSAVE, EXC_WDOG)
+	STANDARD_CRIT_PROLOG(SPR_SPRG1, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
+	FRAME_SETUP(SPR_SPRG1, PC_BOOKE_CRITSAVE, EXC_WDOG)
 	b	trap_common
 
 
