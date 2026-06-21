@@ -241,7 +241,7 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 	size_t cnt;
 	int error, newflags, save;
 
-	save = error = 0;
+	error = 0;
 
 	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
 	    ("uiomove: mode"));
@@ -264,6 +264,7 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 		save = curthread_pflags_set(newflags);
 	} else {
 		KASSERT(nofault == 0, ("uiomove: nofault"));
+		save = 0;
 	}
 
 	while (n > 0 && uio->uio_resid) {
@@ -291,8 +292,7 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 		n -= cnt;
 	}
 out:
-	if (save)
-		curthread_pflags_restore(save);
+	curthread_pflags_restore(save);
 	return (error);
 }
 

@@ -58,14 +58,13 @@
 int
 uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 {
-	struct thread *td = curthread;
 	struct iovec *iov;
 	void *cp;
 	vm_offset_t page_offset;
 	vm_page_t m;
 	size_t cnt;
 	int error = 0;
-	int save = 0;
+	int save;
 	struct sf_buf *sf;
 
 	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
@@ -75,8 +74,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 	KASSERT(uio->uio_resid >= 0,
 	    ("%s: uio %p resid underflow", __func__, uio));
 
-	save = td->td_pflags & TDP_DEADLKTREAT;
-	td->td_pflags |= TDP_DEADLKTREAT;
+	save = curthread_pflags_set(TDP_DEADLKTREAT);
 	while (n > 0 && uio->uio_resid) {
 		KASSERT(uio->uio_iovcnt > 0,
 		    ("%s: uio %p iovcnt underflow", __func__, uio));
@@ -108,7 +106,6 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		offset += cnt;
 		n -= cnt;
 	}
-	if (save == 0)
-		td->td_pflags &= ~TDP_DEADLKTREAT;
+	curthread_pflags_restore(save);
 	return (error);
 }
