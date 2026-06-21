@@ -2571,7 +2571,7 @@ COMMON ITEMS:
 	<reboot in single user>				[3]
 	etcupdate -p					[5]
 	make installworld
-	etcupdate -B					[4]
+	etcupdate					[4]
 	make delete-old					[6]
 	<reboot>
 
@@ -2609,7 +2609,7 @@ COMMON ITEMS:
 	<reboot in single user>				[3]
 	etcupdate -p					[5]
 	make installworld
-	etcupdate -B					[4]
+	etcupdate					[4]
 	make delete-old					[6]
 	<reboot>
 
