@@ -26,7 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_capsicum.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_ktrace.h"
@@ -45,6 +44,7 @@
 #include <sys/imgact.h>
 #include <sys/imgact_elf.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
