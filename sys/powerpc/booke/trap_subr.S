@@ -712,7 +712,7 @@ search_kernel_pmap:
 
 	/* Force kernel tid, set TID to 0 in MAS1. */
 	li	%r21, 0
-	rlwimi	%r28, %r21, 0, 8, 15	/* clear TID bits */
+	rlwimi	%r28, %r21, 0, 2, 15	/* clear TID bits */
 
 tlb_miss_handle:
 	/* This may result in nested tlb miss. */
