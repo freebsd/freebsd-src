@@ -276,7 +276,7 @@ ena_tx_cleanup(struct ena_ring *tx_ring)
 		mbuf = tx_info->mbuf;
 
 		tx_info->mbuf = NULL;
-		bintime_clear(&tx_info->timestamp);
+		atomic_store_64(&tx_info->timestamp, 0);
 
 		bus_dmamap_sync(adapter->tx_buf_tag, tx_info->dmamap,
 		    BUS_DMASYNC_POSTWRITE);
@@ -1059,7 +1059,7 @@ ena_xmit_mbuf(struct ena_ring *tx_ring, struct mbuf **mbuf)
 	counter_exit();
 
 	tx_info->tx_descs = nb_hw_desc;
-	getbinuptime(&tx_info->timestamp);
+	atomic_store_64(&tx_info->timestamp, getsbinuptime());
 	tx_info->print_once = true;
 
 	tx_ring->next_to_use = ENA_TX_RING_IDX_NEXT(next_to_use,
