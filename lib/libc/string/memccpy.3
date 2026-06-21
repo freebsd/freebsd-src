@@ -25,12 +25,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 5, 2023
+.Dd June 21, 2026
 .Dt MEMCCPY 3
 .Os
 .Sh NAME
 .Nm memccpy
-.Nd copy string until character found
+.Nd copy bytes until character found
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -46,19 +46,19 @@
 The
 .Fn memccpy
 function
-copies bytes from string
+copies bytes from object
 .Fa src
-to string
+to object
 .Fa dst .
 If the character
 .Fa c
 (as converted to an
 .Vt "unsigned char" )
-occurs in the string
+occurs in the object
 .Fa src ,
 the copy stops and a pointer to the byte after the copy of
 .Fa c
-in the string
+in the object
 .Fa dst
 is returned.
 Otherwise,

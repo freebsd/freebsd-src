@@ -24,12 +24,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 29, 2023
+.Dd June 21, 2026
 .Dt MEMMEM 3
 .Os
 .Sh NAME
 .Nm memmem
-.Nd "locate a byte substring in a byte string"
+.Nd "locate a byte subsequence in a byte sequence"
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -43,9 +43,9 @@
 The
 .Fn memmem
 function
-locates the first occurrence of the byte string
+locates the first occurrence of the byte sequence
 .Fa little
-in the byte string
+in the byte sequence
 .Fa big .
 .Sh RETURN VALUES
 If

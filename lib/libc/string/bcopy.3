@@ -28,12 +28,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 24, 2015
+.Dd June 21, 2026
 .Dt BCOPY 3
 .Os
 .Sh NAME
 .Nm bcopy
-.Nd copy byte string
+.Nd copy bytes in memory
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -46,11 +46,11 @@ The
 function
 copies
 .Fa len
-bytes from string
+bytes from object
 .Fa src
-to string
+to object
 .Fa dst .
-The two strings may overlap.
+The two objects may overlap.
 If
 .Fa len
 is zero, no bytes are copied.
