@@ -167,6 +167,11 @@ main(int argc, char **argv)
 
 	gssd_load_mech();
 
+	if ((xprt = svc_nl_create("kgss")) == NULL)
+		errx(1, "Can't create transport for local gssd socket");
+	if (!svc_reg(xprt, GSSD, GSSDVERS, gssd_1, NULL))
+		errx(1, "Can't register service for local gssd socket");
+
 	if (!debug_level) {
 		if (daemon(0, 0) != 0)
 			err(1, "Can't daemonize");
@@ -176,23 +181,6 @@ main(int argc, char **argv)
 	}
 	signal(SIGTERM, gssd_terminate);
 	signal(SIGPIPE, gssd_terminate);
-
-	if ((xprt = svc_nl_create("kgss")) == NULL) {
-		if (debug_level == 0) {
-			syslog(LOG_ERR,
-			    "Can't create transport for local gssd socket");
-			exit(1);
-		}
-		err(1, "Can't create transport for local gssd socket");
-	}
-	if (!svc_reg(xprt, GSSD, GSSDVERS, gssd_1, NULL)) {
-		if (debug_level == 0) {
-			syslog(LOG_ERR,
-			    "Can't register service for local gssd socket");
-			exit(1);
-		}
-		err(1, "Can't register service for local gssd socket");
-	}
 
 	LIST_INIT(&gss_resources);
 	gss_next_id = 1;
