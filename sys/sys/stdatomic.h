@@ -86,7 +86,7 @@
  * 7.17.2 Initialization.
  */
 
-#if __ISO_C_VISIBLE < 2023 || defined(__cplusplus)
+#if __BSD_VISIBLE || __ISO_C_VISIBLE < 2023 || defined(__cplusplus)
 #if defined(__CLANG_ATOMICS)
 #define	ATOMIC_VAR_INIT(value)		(value)
 #else
