@@ -40,16 +40,16 @@
 .Lb libc
 .Sh SYNOPSIS
 .In string.h
-.Ft char *
-.Fn strstr "const char *big" "const char *little"
-.Ft char *
-.Fn strcasestr "const char *big" "const char *little"
-.Ft char *
-.Fn strnstr "const char *big" "const char *little" "size_t len"
+.Ft "QChar *"
+.Fn strstr "QChar *big" "const char *little"
+.Ft "QChar *"
+.Fn strcasestr "QChar *big" "const char *little"
+.Ft "QChar *"
+.Fn strnstr "QChar *big" "const char *little" "size_t len"
 .In string.h
 .In xlocale.h
-.Ft char *
-.Fn strcasestr_l "const char *big" "const char *little" "locale_t loc"
+.Ft "QChar *"
+.Fn strcasestr_l "QChar *big" "const char *little" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn strstr
