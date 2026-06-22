@@ -103,7 +103,6 @@ device		sec
 device  	spibus
 device  	spigen
 device		tsec
-device  	dpaa
 device		tuntap
 device		uart
 options 	USB_DEBUG	# enable debug msgs
