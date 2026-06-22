@@ -323,7 +323,11 @@ _citrus_VIQR_wcrtomb_priv(_VIQREncodingInfo * __restrict ei,
 	int ch = 0;
 
 	switch (psenc->chlen) {
-	case 0: case 1:
+	case 0:
+		break;
+	case 1:
+		if (n-- < 1)
+			goto e2big;
 		break;
 	default:
 		return (EINVAL);
