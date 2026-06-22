@@ -2985,7 +2985,7 @@ lkpi_sta_assoc_to_run(struct ieee80211vap *vap, enum ieee80211_state nstate, int
 	IMPROVE("ponder some of this moved to ic_newassoc, scan_assoc_success, "
 	    "and to lesser extend ieee80211_notify_node_join");
 
-	/* Finish assoc. (even if this is auth_to_run!) */
+	/* Finish assoc. */
 	/* Update sta_state (AUTH to ASSOC) and set aid. */
 	KASSERT(lsta->state == IEEE80211_STA_AUTH, ("%s: lsta %p state not "
 	    "AUTH: %#x\n", __func__, lsta, lsta->state));
@@ -5908,7 +5908,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 			info->flags |= IEEE80211_TX_CTL_AMPDU;
 	}
 
-	/* XXX-BZ info->control.rates */
+	/* XXX-BZ info->control.rates for non-HW rate control and injected packets. */
 #ifdef __notyet__
 #ifdef LKPI_80211_HT
 	info->control.rts_cts_rate_idx=
@@ -8508,6 +8508,7 @@ lkpi_wiphy_band_annotate(struct wiphy *wiphy)
 			continue;
 		}
 
+		/* Band bitrates are times 10; e.g., 55 is 5.5Mbit/s. */
 		for (i = 0; i < supband->n_bitrates; i++) {
 			switch (band) {
 			case NL80211_BAND_2GHZ:
