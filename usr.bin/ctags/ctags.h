@@ -72,7 +72,6 @@ extern long	lineftell;		/* ftell after getc( inf ) == '\n' */
 extern int	lineno;			/* line number of current line */
 extern int	dflag;			/* -d: non-macro defines */
 extern int	tflag;			/* -t: create tags for typedefs */
-extern int	vflag;			/* -v: vgrind style index output */
 extern int	wflag;			/* -w: suppress warnings */
 extern int	xflag;			/* -x: cxref style output */
 extern bool	_wht[], _etk[], _itk[], _btk[], _gd[];

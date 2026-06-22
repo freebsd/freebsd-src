@@ -46,7 +46,6 @@ PRINTERDEVICE?=	ascii
 
 BIB?=		bib
 GREMLIN?=	grn
-GRIND?=		vgrind -f
 INDXBIB?=	indxbib
 PIC?=		pic
 REFER?=		refer

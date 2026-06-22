@@ -362,7 +362,6 @@ DIRDEPS+= \
 	usr.bin/usbhidctl \
 	usr.bin/users \
 	usr.bin/vacation \
-	usr.bin/vgrind \
 	usr.bin/vi \
 	usr.bin/vi/catalog \
 	usr.bin/vis \
