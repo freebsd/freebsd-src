@@ -280,10 +280,10 @@ ptbl_alloc(pmap_t pmap, unsigned int pdir_idx, bool nosleep)
 	}
 
 	/* Map allocated pages into kernel_pmap. */
-	mmu_booke_qenter((vm_offset_t)ptbl, mtbl, PTBL_PAGES);
+	mmu_booke_qenter(ptbl, mtbl, PTBL_PAGES);
 
 	/* Zero whole ptbl. */
-	bzero((caddr_t)ptbl, PTBL_PAGES * PAGE_SIZE);
+	bzero(ptbl, PTBL_PAGES * PAGE_SIZE);
 
 	/* Add pbuf to the pmap ptbl bufs list. */
 	TAILQ_INSERT_TAIL(&pmap->pm_ptbl_list, pbuf, link);
