@@ -210,7 +210,8 @@ again:
 			object1 = NULL;
 			object->handle = handle;
 			object->un_pager.devp.ops = ops;
-			TAILQ_INIT(&object->un_pager.devp.devp_pglist);
+			if (object->type == OBJT_DEVICE)
+				vm_object_set_flag(object, OBJ_PG_DTOR);
 			TAILQ_INSERT_TAIL(&dev_pager_object_list, object,
 			    pager_object_list);
 			mtx_unlock(&dev_pager_mtx);
@@ -282,15 +283,12 @@ dev_pager_free_page(vm_object_t object, vm_page_t m)
 	KASSERT((object->type == OBJT_DEVICE &&
 	    (m->oflags & VPO_UNMANAGED) != 0),
 	    ("Managed device or page obj %p m %p", object, m));
-	TAILQ_REMOVE(&object->un_pager.devp.devp_pglist, m, plinks.q);
 	vm_page_putfake(m);
 }
 
 static void
 dev_pager_dealloc(vm_object_t object)
 {
-	vm_page_t m;
-
 	VM_OBJECT_WUNLOCK(object);
 	object->un_pager.devp.ops->cdev_pg_dtor(object->un_pager.devp.handle);
 
@@ -300,15 +298,21 @@ dev_pager_dealloc(vm_object_t object)
 	VM_OBJECT_WLOCK(object);
 
 	if (object->type == OBJT_DEVICE) {
-		/*
-		 * Free up our fake pages.
-		 */
-		while ((m = TAILQ_FIRST(&object->un_pager.devp.devp_pglist))
-		    != NULL) {
-			if (vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL) == 0)
-				continue;
+		vm_page_t m, mtmp;
 
-			dev_pager_free_page(object, m);
+restart:
+		TAILQ_FOREACH_SAFE(m, &object->memq, listq, mtmp) {
+			if (!vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL))
+				goto restart;
+			if (vm_page_remove(m)) {
+				/*
+				 * We could end up with invalid pages installed
+				 * by the generic page fault handler.  Typically
+				 * these are replaced by the device pager.
+				 */
+				vm_page_free(m);
+			} else if ((m->flags & PG_FICTITIOUS) != 0)
+				dev_pager_free_page(object, m);
 		}
 	}
 	object->handle = NULL;
@@ -337,10 +341,6 @@ dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int *rbehind,
 		    (object->type == OBJT_MGTDEVICE &&
 		     (ma[0]->oflags & VPO_UNMANAGED) == 0),
 		    ("Wrong page type %p %p", ma[0], object));
-		if (object->type == OBJT_DEVICE) {
-			TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist,
-			    ma[0], plinks.q);
-		}
 		if (rbehind)
 			*rbehind = 0;
 		if (rahead)
