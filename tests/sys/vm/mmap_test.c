@@ -363,6 +363,35 @@ ATF_TC_BODY(mmap__maxprot_shm, tc)
 	ATF_REQUIRE(close(fd) == 0);
 }
 
+/* A regression test for a bug in the device pager. */
+ATF_TC_WITHOUT_HEAD(mmap__device_reinsert);
+ATF_TC_BODY(mmap__device_reinsert, tc)
+{
+	void *p;
+	int fd;
+
+	fd = open("/dev/devstat", O_RDONLY);
+	ATF_REQUIRE(fd >= 0);
+
+	p = mmap(NULL, getpagesize(), PROT_READ, MAP_SHARED, fd, 0);
+	ATF_REQUIRE(p != MAP_FAILED);
+
+	/*
+	 * Use mlock() to trigger a fault, since msync() will not actually
+	 * remove the page from the process page tables.
+	 */
+	ATF_REQUIRE(mlock(p, getpagesize()) == 0);
+	ATF_REQUIRE(munlock(p, getpagesize()) == 0);
+	ATF_REQUIRE(msync(p, getpagesize(), MS_INVALIDATE) == 0);
+	ATF_REQUIRE(mlock(p, getpagesize()) == 0);
+	ATF_REQUIRE(munlock(p, getpagesize()) == 0);
+	ATF_REQUIRE(msync(p, getpagesize(), MS_INVALIDATE) == 0);
+	ATF_REQUIRE(mlock(p, getpagesize()) == 0);
+	ATF_REQUIRE(munlock(p, getpagesize()) == 0);
+
+	ATF_REQUIRE(munmap(p, getpagesize()) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, mmap__map_at_zero);
@@ -372,6 +401,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, mmap__write_only);
 	ATF_TP_ADD_TC(tp, mmap__maxprot_basic);
 	ATF_TP_ADD_TC(tp, mmap__maxprot_shm);
+	ATF_TP_ADD_TC(tp, mmap__device_reinsert);
 
 	return (atf_no_error());
 }
