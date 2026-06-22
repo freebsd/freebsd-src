@@ -4,6 +4,10 @@ PACKAGE=	tests
 TESTSDIR=	${TESTSBASE}/sys/netinet/libalias
 BINDIR=		${TESTSDIR}
 
+PLAIN_TESTS_C+=	smedia
+
+LIBADD.smedia+=	sbuf
+
 ATF_TESTS_C+=	1_instance	\
 		2_natout	\
 		3_natin		\
