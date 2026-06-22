@@ -180,13 +180,6 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		ah->ar_hrd = htons(ARPHRD_IEEE1394);
 		if (unicast)
 			*destfw = *(struct fw_hwaddr *) ar_tha(ah);
-
-		/*
-		 * The standard arp code leaves a hole for the target
-		 * hardware address which we need to close up.
-		 */
-		bcopy(ar_tpa(ah), ar_tha(ah), ah->ar_pln);
-		m_adj(m, -ah->ar_hln);
 		break;
 	}
 #endif
