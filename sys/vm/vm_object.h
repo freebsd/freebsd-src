@@ -134,7 +134,7 @@ struct vm_object {
 		 *	devp_pglist - list of allocated pages
 		 */
 		struct {
-			TAILQ_HEAD(, vm_page) devp_pglist;
+			void *spare[2];
 			const struct cdev_pager_ops *ops;
 			void *handle;
 		} devp;
