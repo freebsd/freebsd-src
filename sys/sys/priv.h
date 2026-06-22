@@ -141,6 +141,7 @@
  */
 #define	PRIV_KENV_SET		120	/* Set kernel env. variables. */
 #define	PRIV_KENV_UNSET		121	/* Unset kernel env. variables. */
+#define	PRIV_KENV_READ		122	/* Get/dump kernel env. variables. */
 
 /*
  * Loadable kernel module privileges.

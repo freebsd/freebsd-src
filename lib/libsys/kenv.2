@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.Dd June 20, 2021
+.Dd June 22, 2026
 .Dt KENV 2
 .Os
 .Sh NAME
@@ -161,6 +161,11 @@ The kernel is configured to destroy these environments by default.
 .It Bq Er EPERM
 A user other than the superuser attempted to set or unset a kernel
 environment variable.
+.It Bq Er EPERM
+A user other than the superuser attempted to get a variable from or dump the
+kernel environment, and the
+.Va security.bsd.unprivileged_kenv_read
+sysctl is set to 0.
 .It Bq Er EFAULT
 A bad address was encountered while attempting to copy in user arguments
 or copy out value(s).
