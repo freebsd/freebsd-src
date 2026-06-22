@@ -657,6 +657,9 @@ lkpi_sync_chanctx_cw_from_rx_bw(struct ieee80211_hw *hw,
 		return;
 
 	old_bw = lkpi_cw_to_rx_bw(chanctx_conf->def.width);
+	TRACE_RATES("old_bw %d sta->deflink.bandwidth %d hw->conf.chandef.width %d",
+	    old_bw, sta->deflink.bandwidth, lkpi_cw_to_rx_bw(hw->conf.chandef.width));
+
 	if (old_bw == sta->deflink.bandwidth)
 		return;
 
@@ -668,6 +671,11 @@ lkpi_sync_chanctx_cw_from_rx_bw(struct ieee80211_hw *hw,
 	chanctx_conf->min_def = chanctx_conf->def;
 
 	vif->bss_conf.chanreq.oper.width = chanctx_conf->def.width;
+
+	TRACE_RATES("chanctx_conf %p def.width %d sta->deflink.bandwidth %d "
+	    "ht_supported %d vht_supported %d",
+	    chanctx_conf, chanctx_conf->def.width, sta->deflink.bandwidth,
+	    sta->deflink.ht_cap.ht_supported, sta->deflink.vht_cap.vht_supported);
 
 	changed = IEEE80211_CHANCTX_CHANGE_MIN_WIDTH;
 	changed |= IEEE80211_CHANCTX_CHANGE_WIDTH;
@@ -688,6 +696,7 @@ lkpi_sta_sync_ht_from_ni(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if ((ni->ni_flags & IEEE80211_NODE_HT) == 0) {
 		sta->deflink.ht_cap.ht_supported = false;
+		TRACE_RATES("HT ht_supported %d", sta->deflink.ht_cap.ht_supported);
 		return;
 	}
 
@@ -722,7 +731,7 @@ lkpi_sta_sync_ht_from_ni(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	sta_ht_cap = &sta->deflink.ht_cap;
 	rx_nss = 0;
 	for (i = 0; i < 4; i++) {
-		TRACEOK("HT rx_mask[%d] sta %#04x & hw %#04x", i,
+		TRACE_RATES("HT rx_mask[%d] sta %#04x & hw %#04x", i,
 		    sta_ht_cap->mcs.rx_mask[i], ht_cap->mcs.rx_mask[i]);
 		sta_ht_cap->mcs.rx_mask[i] =
 			sta_ht_cap->mcs.rx_mask[i] & ht_cap->mcs.rx_mask[i];
@@ -732,10 +741,11 @@ lkpi_sta_sync_ht_from_ni(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			rx_nss++;
 	}
 	if (rx_nss > 0) {
-		TRACEOK("HT rx_nss = max(%d, %d)", rx_nss, sta->deflink.rx_nss);
+		TRACE_RATES("HT rx_nss = max(%d, %d)", rx_nss, sta->deflink.rx_nss);
 		sta->deflink.rx_nss = MAX(rx_nss, sta->deflink.rx_nss);
 	} else {
 		sta->deflink.ht_cap.ht_supported = false;
+		TRACE_RATES("HT ht_supported %d", sta->deflink.ht_cap.ht_supported);
 		return;
 	}
 
@@ -757,6 +767,7 @@ lkpi_sta_sync_ht_from_ni(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		sta->deflink.agg.max_tid_amsdu_len[j] = ;
 	}
 #endif
+	TRACE_RATES("HT ht_supported %d", sta->deflink.ht_cap.ht_supported);
 }
 #endif
 
@@ -775,6 +786,7 @@ lkpi_sta_sync_vht_from_ni(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if ((ni->ni_flags & IEEE80211_NODE_VHT) == 0 ||
 	    !IEEE80211_IS_CHAN_VHT_5GHZ(ni->ni_chan)) {
 		sta->deflink.vht_cap.vht_supported = false;
+		TRACE_RATES("VHT vht_supported %d", sta->deflink.vht_cap.vht_supported);
 		return;
 	}
 
@@ -856,16 +868,17 @@ skip_bw:
 		}
 		tx_map |= (sta << (2 * i));
 	}
-	TRACEOK("VHT rx_mcs_map %#010x->%#010x, tx_mcs_map %#010x->%#010x, rx_nss = %d",
+	TRACE_RATES("VHT rx_mcs_map %#010x->%#010x, tx_mcs_map %#010x->%#010x, rx_nss = %d",
 	    sta_vht_cap->vht_mcs.rx_mcs_map, rx_map,
 	    sta_vht_cap->vht_mcs.tx_mcs_map, tx_map, rx_nss);
 	sta_vht_cap->vht_mcs.rx_mcs_map = rx_map;
 	sta_vht_cap->vht_mcs.tx_mcs_map = tx_map;
 	if (rx_nss > 0) {
-		TRACEOK("VHT rx_nss = max(%d, %d)", rx_nss, sta->deflink.rx_nss);
+		TRACE_RATES("VHT rx_nss = max(%d, %d)", rx_nss, sta->deflink.rx_nss);
 		sta->deflink.rx_nss = MAX(rx_nss, sta->deflink.rx_nss);
 	} else {
 		sta->deflink.vht_cap.vht_supported = false;
+		TRACE_RATES("VHT vht_supported %d", sta->deflink.vht_cap.vht_supported);
 		return;
 	}
 
@@ -881,6 +894,8 @@ skip_bw:
 		sta->deflink.agg.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_VHT_3895;
 		break;
 	}
+
+	TRACE_RATES("VHT vht_supported %d", sta->deflink.vht_cap.vht_supported);
 }
 #endif
 
@@ -921,6 +936,11 @@ lkpi_sta_sync_from_ni(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		lkpi_sync_chanctx_cw_from_rx_bw(hw, vif, sta);
 
 	bss_changed |= lkpi_sta_supp_rates(hw, vif, ni, &rc_changed);
+
+	TRACE_RATES("updchnctx %d rc_change %#010x bss_changed %#010jx "
+	    "bandwidth %d rx_nss %u",
+	    updchnctx, rc_changed, (uintmax_t)bss_changed,
+	    sta->deflink.bandwidth, sta->deflink.rx_nss);
 
 	if (rc_changed != 0)
 		lkpi_80211_mo_link_sta_rc_update(hw, vif, &sta->deflink, rc_changed);
@@ -6086,6 +6106,7 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 	if ((m->m_flags & M_EAPOL) != 0) {
 		info->control.flags |= IEEE80211_TX_CTRL_PORT_CTRL_PROTO;
 		info->flags |= IEEE80211_TX_CTL_USE_MINRATE;	/* mt76 */
+		TRACE_RATES("M_EAPOL -> TX_CTL_USE_MINRATE");
 	}
 	info->control.vif = vif;
 
@@ -8746,6 +8767,10 @@ lkpi_wiphy_band_annotate(struct wiphy *wiphy)
 				}
 				break;
 			}
+			TRACE_RATES("band %d bitrate[%d/%u] %u flags %#010x",
+			    band, i, supband->n_bitrates,
+			    supband->bitrates[i].bitrate,
+			    supband->bitrates[i].flags);
 		}
 	}
 }
