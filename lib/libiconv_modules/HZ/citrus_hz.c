@@ -262,6 +262,8 @@ _citrus_HZ_mbrtowc_priv(_HZEncodingInfo * __restrict ei,
 				tail = psenc->chlen = 0;
 				continue;
 			}
+			if (graphic == NULL)
+				break;
 		} else if (ch & 0x80) {
 			if (graphic != GR(psenc->inuse))
 				break;
