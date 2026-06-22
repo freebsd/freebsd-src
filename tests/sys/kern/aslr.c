@@ -11,6 +11,7 @@
 #include <sys/user.h>
 #include <sys/wait.h>
 
+#include <fcntl.h>
 #include <libutil.h>
 #include <pwd.h>
 #include <signal.h>
@@ -19,6 +20,7 @@
 #include <unistd.h>
 
 #include <atf-c.h>
+#include "freebsd_test_suite/macros.h"
 
 /*
  * Spawn an unprivileged child with ASLR force-disabled, which then execs
@@ -27,19 +29,22 @@
 static pid_t
 spawn_ping(const atf_tc_t *tc)
 {
+	char line[64];
 	const char *user;
 	struct passwd *passwd;
 	pid_t child;
-	int arg, error;
+	int arg, error, io[2];
 
 	user = atf_tc_get_config_var(tc, "unprivileged_user");
 	passwd = getpwnam(user);
 	ATF_REQUIRE(passwd != NULL);
 
+	ATF_REQUIRE(pipe2(io, O_CLOEXEC) == 0);
 	child = fork();
 	ATF_REQUIRE(child >= 0);
 	if (child == 0) {
-		if (seteuid(passwd->pw_uid) != 0)
+		if (dup2(io[1], STDOUT_FILENO) != STDOUT_FILENO ||
+		    seteuid(passwd->pw_uid) != 0)
 			_exit(1);
 
 		arg = PROC_ASLR_FORCE_DISABLE;
@@ -47,10 +52,12 @@ spawn_ping(const atf_tc_t *tc)
 		if (error != 0)
 			_exit(2);
 
-		execl("/sbin/ping", "ping", "127.0.0.1", NULL);
+		execl("/sbin/ping", "ping", "-q", "127.0.0.1", NULL);
 		_exit(127);
 	}
-	usleep(500000); /* XXX-MJ */
+	ATF_REQUIRE(close(io[1]) == 0);
+	ATF_REQUIRE(read(io[0], line, sizeof(line)) > 0);
+	ATF_REQUIRE(close(io[0]) == 0);
 
 	return (child);
 }
@@ -98,6 +105,7 @@ ATF_TC_BODY(aslr_setuid, tc)
 	pid_t child, pid;
 	int arg, error, st;
 
+	ATF_REQUIRE_FEATURE("inet");
 	if (!atf_tc_has_config_var(tc, "unprivileged_user"))
 		atf_tc_skip("unprivileged_user not set");
 
