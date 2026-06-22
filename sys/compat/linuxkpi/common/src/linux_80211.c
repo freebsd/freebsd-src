@@ -908,12 +908,20 @@ lkpi_sta_sync_from_ni(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 {
 	enum ieee80211_bss_changed bss_changed;
 	enum ieee80211_rate_control_changed_flags rc_changed;
+	enum ieee80211_sta_rx_bandwidth bandwidth;
+	uint8_t rx_nss;
 
 	if (updchnctx)
 		lockdep_assert_wiphy(hw->wiphy);
 
 	bss_changed = 0;
 	rc_changed = 0;
+
+	bandwidth = sta->deflink.bandwidth;
+	rx_nss = sta->deflink.rx_nss;
+
+	TRACE_RATES("updchnctx %d bandwidth %d rx_nss %u",
+	    updchnctx, bandwidth, rx_nss);
 
 	/*
 	 * Ensure rx_nss is at least 1 as otherwise drivers run into
@@ -939,6 +947,11 @@ lkpi_sta_sync_from_ni(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		lkpi_sync_chanctx_cw_from_rx_bw(hw, vif, sta);
 
 	bss_changed |= lkpi_sta_supp_rates(hw, vif, ni, &rc_changed);
+
+	if (sta->deflink.bandwidth != bandwidth)
+		rc_changed |= IEEE80211_RC_BW_CHANGED;
+	if (sta->deflink.rx_nss != rx_nss)
+		rc_changed |= IEEE80211_RC_NSS_CHANGED;
 
 	TRACE_RATES("updchnctx %d rc_change %#010x bss_changed %#010jx "
 	    "bandwidth %d rx_nss %u",
