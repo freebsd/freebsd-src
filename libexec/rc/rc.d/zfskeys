@@ -20,6 +20,7 @@ required_modules="zfs"
 : ${zfskeys_datasets:=''}
 : ${zfskeys_timeout:=10}
 : ${zfskeys_unload_force:='NO'}
+: ${zfskeys_prompt_enable:='NO'}
 
 encode_args()
 {
@@ -45,13 +46,14 @@ unlock_fs()
     local kl="$2"
     local k="${kl##file://}"
 
-    if [ "$kl" == "prompt" ]
-    then
-        echo "Key prompt for $fs."
-        if zfs load-key -L "$kl" "$fs" < /dev/tty > /dev/tty 2>/dev/tty ; then
-	    echo "Key loaded for $fs."
-        else
-	    echo "Key failed to load for $fs."
+    if [ "$kl" == "prompt" ]; then
+        if checkyesno zfskeys_prompt_enable ; then
+            echo "Key prompt for $fs."
+            if zfs load-key -L "$kl" "$fs" < /dev/tty > /dev/tty 2>/dev/tty ; then
+                echo "Key loaded for $fs."
+            else
+                echo "Key failed to load for $fs."
+            fi
         fi
     elif [ "$k" ] && [ -f "$k" ] && [ -s "$k" ] && [ -r "$k" ]; then
         if [ "$(zfs get -Ho value keystatus "$fs")" = 'available' ]; then
