@@ -68,6 +68,7 @@ typedef struct {
 	u_short		*outlen;	/* length of above */
 	u_short		maxlen;		/* maximum length of above */
 	int		cont;		/* continuation of above */
+	bool		error;		/* parsing error occurred */
 } ISO_RRIP_ANALYZE;
 
 struct iso_directory_record;
