@@ -92,6 +92,7 @@ PROGS+=		coredump_phnum_helper
 PROGS+=		pdeathsig_helper
 PROGS+=		sendfile_helper
 
+CFLAGS.aslr+=				-I${SRCTOP}/tests
 LIBADD.aslr+=				util
 LIBADD.copy_file_range+=		md
 LIBADD.jail_lookup_root+=		jail util
