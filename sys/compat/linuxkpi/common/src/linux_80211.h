@@ -220,6 +220,7 @@ struct lkpi_vif {
 
 	struct mtx		mtx;
 	struct wireless_dev	wdev;
+	struct cfg80211_bitrate_mask	br_mask;
 
 	/* Other local stuff. */
 	int			(*iv_newstate)(struct ieee80211vap *,

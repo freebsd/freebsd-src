@@ -4081,6 +4081,7 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	struct ieee80211_vif *vif;
 	struct ieee80211_tx_queue_params txqp;
 	enum ieee80211_bss_changed bss_changed;
+	enum nl80211_band band;
 	struct sysctl_oid *node;
 	size_t len;
 	int error, i;
@@ -4103,8 +4104,50 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	refcount_init(&lvif->nt_unlocked, 0);
 	lvif->lvif_bss_synched = false;
 	vap = LVIF_TO_VAP(lvif);
-
 	vif = LVIF_TO_VIF(lvif);
+
+	/*
+	 * Setup legacy br_mask here.  We will call (*set_bitrate_mask)
+	 * elsewhere to announce it to the driver but it is a static
+	 * setup.
+	 * Also setup basic_rates with just the mandatory rates for the
+	 * current band (if avail).
+	 */
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		struct ieee80211_supported_band *supband;
+		uint32_t rate_mandatory;;
+
+		supband = hw->wiphy->bands[band];
+		if (supband == NULL || supband->n_bitrates == 0)
+			continue;
+
+		/* Per-band legacy br_mask. */
+		lvif->br_mask.control[band].legacy = (1 << supband->n_bitrates) - 1;
+
+		/* basic_rates for the current band. */
+		if (hw->conf.chandef.chan == NULL ||
+		    hw->conf.chandef.chan->band != band)
+			continue;
+
+		switch (band) {
+		case NL80211_BAND_2GHZ:
+			/* We have to assume 11g support here. */
+			rate_mandatory = IEEE80211_RATE_MANDATORY_G |
+			    IEEE80211_RATE_MANDATORY_B;
+			break;
+		case NL80211_BAND_5GHZ:
+			rate_mandatory = IEEE80211_RATE_MANDATORY_A;
+			break;
+		default:
+			continue;
+		}
+
+		for (i = 0; i < supband->n_bitrates; i++) {
+			if ((supband->bitrates[i].flags & rate_mandatory) != 0)
+				vif->bss_conf.basic_rates |= BIT(i);
+		}
+	}
+
 	memcpy(vif->addr, mac, IEEE80211_ADDR_LEN);
 	vif->p2p = false;
 	vif->probe_req_reg = false;
