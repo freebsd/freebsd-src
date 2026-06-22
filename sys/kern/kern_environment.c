@@ -49,6 +49,7 @@
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 
@@ -90,6 +91,11 @@ bool	dynamic_kenv;
 
 #define KENV_CHECK	if (!dynamic_kenv) \
 			    panic("%s: called before SI_SUB_KMEM", __func__)
+
+static int unprivileged_kenv_read = 1;
+SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_kenv_read, CTLFLAG_RW,
+    &unprivileged_kenv_read, 1,
+    "Unprivileged processes can read the kernel environment");
 
 static int
 kenv_dump(struct thread *td, char **envp, int what, char *value, int len)
@@ -155,6 +161,33 @@ kenv_dump(struct thread *td, char **envp, int what, char *value, int len)
 	return (error);
 }
 
+static int
+kenv_read_allowed(struct thread *td, int which)
+{
+	int error;
+
+	if (!unprivileged_kenv_read) {
+		error = priv_check(td, PRIV_KENV_READ);
+		if (error)
+			return (error);
+	}
+
+	switch (which) {
+	case KENV_DUMP:
+	case KENV_DUMP_LOADER:
+	case KENV_DUMP_STATIC:
+#ifdef MAC
+		error = mac_kenv_check_dump(td->td_ucred);
+#endif
+		break;
+	default:
+		error = 0;
+		break;
+	}
+
+	return (error);
+}
+
 int
 sys_kenv(struct thread *td, struct kenv_args *uap)
 {
@@ -168,19 +201,15 @@ sys_kenv(struct thread *td, struct kenv_args *uap)
 
 	switch (uap->what) {
 	case KENV_DUMP:
-#ifdef MAC
-		error = mac_kenv_check_dump(td->td_ucred);
+		error = kenv_read_allowed(td, uap->what);
 		if (error)
 			return (error);
-#endif
 		return (kenv_dump(td, kenvp, uap->what, uap->value, uap->len));
 	case KENV_DUMP_LOADER:
 	case KENV_DUMP_STATIC:
-#ifdef MAC
-		error = mac_kenv_check_dump(td->td_ucred);
+		error = kenv_read_allowed(td, uap->what);
 		if (error)
 			return (error);
-#endif
 #ifdef PRESERVE_EARLY_KENV
 		return (kenv_dump(td,
 		    uap->what == KENV_DUMP_LOADER ? (char **)md_envp :
@@ -196,6 +225,11 @@ sys_kenv(struct thread *td, struct kenv_args *uap)
 
 	case KENV_UNSET:
 		error = priv_check(td, PRIV_KENV_UNSET);
+		if (error)
+			return (error);
+		break;
+	case KENV_GET:
+		error = kenv_read_allowed(td, uap->what);
 		if (error)
 			return (error);
 		break;
