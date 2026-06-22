@@ -645,6 +645,7 @@ static void
 lkpi_sync_chanctx_cw_from_rx_bw(struct ieee80211_hw *hw,
     struct ieee80211_vif *vif, struct ieee80211_sta *sta)
 {
+	struct lkpi_hw *lhw;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	enum ieee80211_sta_rx_bandwidth old_bw;
 	uint32_t changed;
@@ -660,7 +661,9 @@ lkpi_sync_chanctx_cw_from_rx_bw(struct ieee80211_hw *hw,
 	TRACE_RATES("old_bw %d sta->deflink.bandwidth %d hw->conf.chandef.width %d",
 	    old_bw, sta->deflink.bandwidth, lkpi_cw_to_rx_bw(hw->conf.chandef.width));
 
-	if (old_bw == sta->deflink.bandwidth)
+	lhw = HW_TO_LHW(hw);
+	if (old_bw == sta->deflink.bandwidth &&
+	    (!lhw->emulate_chanctx || old_bw == lkpi_cw_to_rx_bw(hw->conf.chandef.width)))
 		return;
 
 	chanctx_conf->def.width = lkpi_rx_bw_to_cw(sta->deflink.bandwidth);
