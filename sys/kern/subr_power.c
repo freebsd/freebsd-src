@@ -191,7 +191,7 @@ power_pm_deferred_fn(void *arg, int pending)
 
 int
 power_pm_register(u_int pm_type, power_pm_fn_t pm_fn, void *pm_arg,
-    bool pm_supported[static POWER_STYPE_COUNT])
+    const bool pm_supported[static POWER_STYPE_COUNT])
 {
 	int	error;
 

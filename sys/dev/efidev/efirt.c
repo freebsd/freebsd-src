@@ -29,7 +29,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
 #include "opt_acpi.h"
 
 #include <sys/param.h>
@@ -184,7 +183,6 @@ efi_init(void)
 	TUNABLE_INT_FETCH("efi.rt.disabled", &rt_disabled);
 	if (rt_disabled == 1)
 		return (0);
-	mtx_init(&efi_lock, "efi", NULL, MTX_DEF);
 
 	if (efi_systbl_phys == 0) {
 		if (bootverbose)
@@ -234,6 +232,8 @@ efi_init(void)
 		return (ENXIO);
 	}
 
+	rtdm = efi_phys_to_kva((uintptr_t)efi_runtime);
+
 #if defined(__aarch64__) || defined(__amd64__)
 	/*
 	 * Some UEFI implementations have multiple implementations of the
@@ -243,7 +243,6 @@ efi_init(void)
 	 * with an old loader.efi, check if the RS->GetTime function is within
 	 * the EFI map, and fail to attach if not.
 	 */
-	rtdm = efi_phys_to_kva((uintptr_t)efi_runtime);
 	if (rtdm == NULL || !efi_is_in_map(map, ndesc, efihdr->descriptor_size,
 	    (vm_offset_t)rtdm->rt_gettime)) {
 		if (bootverbose)
@@ -255,6 +254,12 @@ efi_init(void)
 	}
 #endif
 
+	if (bootverbose) {
+		printf("EFI runtime driver, fw spec %d.%d.%d\n",
+		    rtdm->rt_hdr.th_rev >> 16,
+		    (rtdm->rt_hdr.th_rev >> 4) & 0xf,
+		    rtdm->rt_hdr.th_rev & 0xf);
+	}
 	/*
 	 * We use SHUTDOWN_PRI_LAST - 1 to trigger after IPMI, but before ACPI.
 	 */
@@ -278,8 +283,6 @@ efi_uninit(void)
 	efi_systbl = NULL;
 	efi_cfgtbl = NULL;
 	efi_runtime = NULL;
-
-	mtx_destroy(&efi_lock);
 }
 
 static int
@@ -851,13 +854,19 @@ const struct efi_ops *active_efi_ops = &efi_ops;
 static int
 efirt_modevents(module_t m, int event, void *arg __unused)
 {
+	int error;
 
 	switch (event) {
 	case MOD_LOAD:
-		return (efi_init());
+		mtx_init(&efi_lock, "efi", NULL, MTX_DEF);
+		error = efi_init();
+		if (error != 0)
+			mtx_destroy(&efi_lock);
+		return (error);
 
 	case MOD_UNLOAD:
 		efi_uninit();
+		mtx_destroy(&efi_lock);
 		return (0);
 
 	case MOD_SHUTDOWN:

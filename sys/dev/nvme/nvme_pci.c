@@ -38,11 +38,15 @@
 
 #include "nvme_private.h"
 
+#include "nvme_if.h"
+
 static int    nvme_pci_probe(device_t);
 static int    nvme_pci_attach(device_t);
 static int    nvme_pci_detach(device_t);
 static int    nvme_pci_suspend(device_t);
 static int    nvme_pci_resume(device_t);
+static bool   nvme_pci_is_storage_device(device_t);
+
 
 static int nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr);
 
@@ -54,6 +58,7 @@ static device_method_t nvme_pci_methods[] = {
 	DEVMETHOD(device_suspend,   nvme_pci_suspend),
 	DEVMETHOD(device_resume,    nvme_pci_resume),
 	DEVMETHOD(device_shutdown,  nvme_shutdown),
+	DEVMETHOD(nvme_is_storage_device, nvme_pci_is_storage_device),
 	DEVMETHOD_END
 };
 
@@ -93,6 +98,9 @@ static struct _pcsid
 	{ 0xa822144d,		0, 0, "Samsung PM1725a", QUIRK_DELAY_B4_CHK_RDY },
 	{ 0x07f015ad,		0, 0, "VMware NVMe Controller" },
 	{ 0x2003106b,		0, 0, "Apple S3X NVMe Controller" },
+	{ 0x2005106b,		0, 0, "Apple ANS2 NVMe Controller (T2)",
+	    QUIRK_APPLE_IDENTIFY_CNS_BROKEN | QUIRK_APPLE_SHARED_CID_SPACE |
+	    QUIRK_APPLE_NO_ASYNC_EVENT | QUIRK_APPLE_SINGLE_VECTOR },
 	{ 0x00000000,		0, 0, NULL  }
 };
 
@@ -130,6 +138,9 @@ nvme_pci_probe (device_t device)
 	}
 	if (ep->devid)
 		ctrlr->quirks = ep->quirks;
+
+	if (ctrlr->quirks & QUIRK_APPLE_IDENTIFY_CNS_BROKEN)
+		ctrlr->max_identify_cns = NVME_APPLE_ANS2_MAX_CNS;
 
 	if (ep->desc) {
 		device_set_desc(device, ep->desc);
@@ -323,6 +334,15 @@ nvme_ctrlr_setup_interrupts(struct nvme_controller *ctrlr)
 	if (force_intx)
 		return (nvme_ctrlr_setup_shared(ctrlr, 0));
 
+	if (ctrlr->quirks & QUIRK_APPLE_SINGLE_VECTOR) {
+		int n = 1;
+		if (pci_alloc_msi(dev, &n) == 0) {
+			ctrlr->msi_count = n;
+			return (nvme_ctrlr_setup_shared(ctrlr, 1));
+		}
+		return (nvme_ctrlr_setup_shared(ctrlr, 0));
+	}
+
 	if (pci_msix_count(dev) == 0)
 		goto msi;
 
@@ -405,4 +425,14 @@ nvme_pci_resume(device_t dev)
 
 	ctrlr = DEVICE2SOFTC(dev);
 	return (nvme_ctrlr_resume(ctrlr));
+}
+
+static bool
+nvme_pci_is_storage_device(device_t dev)
+{
+	/*
+	 * NVMHCI 1.0 interfaces are the only devices that
+	 * have namespaces with LBA ranges.
+	 */
+	return (pci_get_progif(dev) == PCIP_STORAGE_NVM_ENTERPRISE_NVMHCI_1_0);
 }

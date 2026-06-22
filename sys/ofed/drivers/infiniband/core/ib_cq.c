@@ -39,42 +39,73 @@
 
 #include <rdma/ib_verbs.h>
 
-#define	IB_CQ_POLL_MAX	16
-/* maximum number of completions per poll loop */
-#define	IB_CQ_POLL_BUDGET 65536
-#define	IB_CQ_POLL_FLAGS (IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS)
+/* # of WCs to poll for with a single call to ib_poll_cq */
+#define IB_POLL_BATCH			16
 
-static void
-ib_cq_poll_work(struct work_struct *work)
+/* # of WCs to iterate over before yielding */
+#define IB_POLL_BUDGET_WORKQUEUE	65536
+
+#define IB_POLL_FLAGS \
+	(IB_CQ_NEXT_COMP | IB_CQ_REPORT_MISSED_EVENTS)
+
+static int __ib_process_cq(struct ib_cq *cq, int budget)
 {
-	struct ib_wc ib_wc[IB_CQ_POLL_MAX];
-	struct ib_cq *cq = container_of(work, struct ib_cq, work);
-	int total = 0;
-	int i;
-	int n;
+	int i, n, completed = 0;
 
-	while (1) {
-		n = ib_poll_cq(cq, IB_CQ_POLL_MAX, ib_wc);
+	while ((n = ib_poll_cq(cq, IB_POLL_BATCH, cq->wc)) > 0) {
 		for (i = 0; i < n; i++) {
-			struct ib_wc *wc = ib_wc + i;
+			struct ib_wc *wc = &cq->wc[i];
 
-			if (wc->wr_cqe != NULL)
+			if (wc->wr_cqe)
 				wc->wr_cqe->done(cq, wc);
+			else
+				WARN_ON_ONCE(wc->status == IB_WC_SUCCESS);
 		}
 
-		if (n != IB_CQ_POLL_MAX) {
-			if (ib_req_notify_cq(cq, IB_CQ_POLL_FLAGS) > 0)
-				break;
-			else
-				return;
-		}
-		total += n;
-		if (total >= IB_CQ_POLL_BUDGET)
+		completed += n;
+
+		if (n != IB_POLL_BATCH ||
+		    (budget != -1 && completed >= budget))
 			break;
 	}
 
-	/* give other work structs a chance */
-	queue_work(ib_comp_wq, &cq->work);
+	return completed;
+}
+
+/**
+ * ib_process_direct_cq - process a CQ in caller context
+ * @cq:		CQ to process
+ * @budget:	number of CQEs to poll for
+ *
+ * This function is used to process all outstanding CQ entries on a
+ * %IB_POLL_DIRECT CQ.  It does not offload CQ processing to a different
+ * context and does not ask for completion interrupts from the HCA.
+ *
+ * Note: for compatibility reasons -1 can be passed in %budget for unlimited
+ * polling.  Do not use this feature in new code, it will be removed soon.
+ */
+int ib_process_cq_direct(struct ib_cq *cq, int budget)
+{
+	WARN_ON_ONCE(cq->poll_ctx != IB_POLL_DIRECT);
+
+	return __ib_process_cq(cq, budget);
+}
+EXPORT_SYMBOL(ib_process_cq_direct);
+
+static void ib_cq_completion_direct(struct ib_cq *cq, void *private)
+{
+	WARN_ONCE(1, "got unsolicited completion for CQ 0x%p\n", cq);
+}
+
+static void ib_cq_poll_work(struct work_struct *work)
+{
+	struct ib_cq *cq = container_of(work, struct ib_cq, work);
+	int completed;
+
+	completed = __ib_process_cq(cq, IB_POLL_BUDGET_WORKQUEUE);
+	if (completed >= IB_POLL_BUDGET_WORKQUEUE ||
+	    ib_req_notify_cq(cq, IB_POLL_FLAGS) > 0)
+		queue_work(ib_comp_wq, &cq->work);
 }
 
 static void
@@ -94,7 +125,7 @@ __ib_alloc_cq_user(struct ib_device *dev, void *private,
 		.comp_vector = comp_vector,
 	};
 	struct ib_cq *cq;
-	int ret;
+	int ret = -ENOMEM;
 
 	/*
 	 * Check for invalid parameters early on to avoid
@@ -118,13 +149,17 @@ __ib_alloc_cq_user(struct ib_device *dev, void *private,
 	cq->poll_ctx = poll_ctx;
 	atomic_set(&cq->usecnt, 0);
 
-	ret = dev->create_cq(cq, &cq_attr, NULL);
-	if (ret)
+	cq->wc = kmalloc_array(IB_POLL_BATCH, sizeof(*cq->wc), GFP_KERNEL);
+	if (!cq->wc)
 		goto out_free_cq;
 
-	switch (poll_ctx) {
+	ret = dev->create_cq(cq, &cq_attr, NULL);
+	if (ret)
+		goto out_free_wc;
+
+	switch (cq->poll_ctx) {
 	case IB_POLL_DIRECT:
-		cq->comp_handler = NULL;	/* no hardware completions */
+		cq->comp_handler = ib_cq_completion_direct;
 		break;
 	case IB_POLL_SOFTIRQ:
 	case IB_POLL_WORKQUEUE:
@@ -137,6 +172,8 @@ __ib_alloc_cq_user(struct ib_device *dev, void *private,
 	}
 	return (cq);
 
+out_free_wc:
+	kfree(cq->wc);
 out_free_cq:
 	kfree(cq);
 	return (ERR_PTR(ret));
@@ -161,6 +198,7 @@ ib_free_cq_user(struct ib_cq *cq, struct ib_udata *udata)
 		break;
 	}
 
+	kfree(cq->wc);
 	cq->device->destroy_cq(cq, udata);
 	kfree(cq);
 }

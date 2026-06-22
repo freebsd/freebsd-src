@@ -248,6 +248,18 @@ LIBUSB20_MAKE_STRUCT(LIBUSB20_ENDPOINT_DESC);
 
 LIBUSB20_MAKE_STRUCT(LIBUSB20_INTERFACE_DESC);
 
+#define	LIBUSB20_INTERFACE_ASSOCIATION_DESC(m,n) \
+  m(n, UINT8_T,  bLength, ) \
+  m(n, UINT8_T,  bDescriptorType, ) \
+  m(n, UINT8_T,  bFirstInterface, ) \
+  m(n, UINT8_T,  bInterfaceCount, ) \
+  m(n, UINT8_T,  bFunctionClass, ) \
+  m(n, UINT8_T,  bFunctionSubClass, ) \
+  m(n, UINT8_T,  bFunctionProtocol, ) \
+  m(n, UINT8_T,  iFunction, ) \
+
+LIBUSB20_MAKE_STRUCT(LIBUSB20_INTERFACE_ASSOCIATION_DESC);
+
 #define	LIBUSB20_CONFIG_DESC(m,n) \
   m(n, UINT8_T,  bLength, ) \
   m(n, UINT8_T,  bDescriptorType, ) \
@@ -367,6 +379,10 @@ enum libusb20_descriptor_type {
 
 	/** Endpoint descriptor. See LIBUSB20_ENDPOINT_DESC. */
 	LIBUSB20_DT_ENDPOINT = 0x05,
+
+	/** Interface Association descriptor. See
+	   LIBUSB20_INTERFACE_ASSOCIATION_DESC. */
+	LIBUSB20_DT_INTERFACE_ASSOCIATION = 0x0b,
 
 	/** HID descriptor */
 	LIBUSB20_DT_HID = 0x21,
@@ -583,11 +599,18 @@ struct libusb20_interface {
 	uint8_t	num_endpoints;
 } __aligned(sizeof(void *));
 
+struct libusb20_iad_desc {
+	struct LIBUSB20_INTERFACE_ASSOCIATION_DESC_DECODED desc;
+	struct libusb20_me_struct extra;
+} __aligned(sizeof(void *));
+
 struct libusb20_config {
 	struct LIBUSB20_CONFIG_DESC_DECODED desc;
 	struct libusb20_me_struct extra;
 	struct libusb20_interface *interface;
 	uint8_t	num_interface;
+	struct libusb20_iad_desc *iad_desc;
+	int niad;
 } __aligned(sizeof(void *));
 
 uint8_t	libusb20_me_get_1(const struct libusb20_me_struct *ie, uint16_t offset);

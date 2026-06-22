@@ -208,13 +208,40 @@ localcreds(int sockfd)
 	return (val != 0);
 }
 
+static bool
+passrights(int sockfd)
+{
+	socklen_t sz;
+	int rc, val;
+
+	sz = sizeof(val);
+	rc = getsockopt(sockfd, SOL_SOCKET, SO_PASSRIGHTS, &val, &sz);
+	ATF_REQUIRE_MSG(rc != -1, "getsockopt(SO_PASSRIGHTS) failed: %s",
+	    strerror(errno));
+	return (val != 0);
+}
+
+static ssize_t
+recvfd_payload_cmsg(int sockfd, void *buf, size_t buflen, struct msghdr *msghdr,
+    int recvmsg_flags)
+{
+	struct iovec iovec;
+
+	iovec.iov_base = buf;
+	iovec.iov_len = buflen;
+
+	msghdr->msg_iov = &iovec;
+	msghdr->msg_iovlen = 1;
+
+	return (recvmsg(sockfd, msghdr, recvmsg_flags));
+}
+
 static ssize_t
 recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen,
     size_t cmsgsz, int recvmsg_flags)
 {
 	struct cmsghdr *cmsghdr;
 	struct msghdr msghdr;
-	struct iovec iovec;
 	char *message;
 	ssize_t len;
 	bool foundcreds;
@@ -226,13 +253,7 @@ recvfd_payload(int sockfd, int *recv_fd, void *buf, size_t buflen,
 	msghdr.msg_control = message;
 	msghdr.msg_controllen = cmsgsz;
 
-	iovec.iov_base = buf;
-	iovec.iov_len = buflen;
-
-	msghdr.msg_iov = &iovec;
-	msghdr.msg_iovlen = 1;
-
-	len = recvmsg(sockfd, &msghdr, recvmsg_flags);
+	len = recvfd_payload_cmsg(sockfd, buf, buflen, &msghdr, recvmsg_flags);
 	ATF_REQUIRE_MSG(len != -1, "recvmsg failed: %s", strerror(errno));
 
 	cmsghdr = CMSG_FIRSTHDR(&msghdr);
@@ -570,6 +591,140 @@ ATF_TC_BODY(send_overflow, tc)
 	close(putfd);
 	ATF_REQUIRE(nfiles == openfiles());
 	closesocketpair(fd);
+}
+
+ATF_TC_WITHOUT_HEAD(send_rejected);
+ATF_TC_BODY(send_rejected, tc)
+{
+	ssize_t len;
+	int fd[2], optval, putfd, rc;
+	char ch;
+
+	domainsocketpair(fd);
+	ATF_REQUIRE_MSG(passrights(fd[0]),
+	    "socketpair socket not initialized with SO_PASSRIGHTS");
+	ATF_REQUIRE_MSG(passrights(fd[1]),
+	    "socketpair socket not initialized with SO_PASSRIGHTS");
+
+	tempfile(&putfd);
+
+	/* Toggle SO_PASSRIGHTS off on the receiver side. */
+	optval = 0;
+	rc = setsockopt(fd[1], SOL_SOCKET, SO_PASSRIGHTS, &optval,
+	    sizeof(optval));
+	ATF_REQUIRE_MSG(rc != -1, "setsockopt(SO_PASSRIGHTS) failed: %s",
+	    strerror(errno));
+	/* Confirm that the sender-side didn't reflect that... */
+	ATF_REQUIRE_MSG(passrights(fd[0]),
+	    "setsockopt(SO_PASSRIGHTS) switched the sender");
+	/* ... and that the receiver-side did. */
+	ATF_REQUIRE_MSG(!passrights(fd[1]),
+	    "setsockopt(SO_PASSRIGHTS) did not switch the receiver");
+
+	ch = 0;
+	len = sendfd_payload(fd[0], putfd, &ch, sizeof(ch));
+	ATF_REQUIRE_MSG(len == -1,
+	    "sending SCM_RIGHTS with SO_PASSRIGHTS disabled on peer did not fail");
+	ATF_REQUIRE_MSG(errno == EPERM,
+	    "bad SCM_RIGHTS failure: %s", strerror(errno));
+	closesocketpair(fd);
+}
+
+ATF_TC_WITHOUT_HEAD(send_rejected_late);
+ATF_TC_BODY(send_rejected_late, tc)
+{
+	struct cmsghdr *cmsghdr;
+	struct msghdr msghdr;
+	ssize_t len;
+	char cmsgbuf[CMSG_SPACE(sizeof(int))];
+	int fd[2], nfds, optval, putfd, rc;
+	char ch;
+#define	MAGIC_VAL	42
+
+	domainsocketpair(fd);
+	tempfile(&putfd);
+
+	nfds = getnfds();
+
+	ch = MAGIC_VAL;
+	len = sendfd_payload(fd[0], putfd, &ch, sizeof(ch));
+	ATF_REQUIRE_MSG(len == sizeof(ch),
+	    "valid send of SCM_RIGHTS failed: %s", strerror(errno));
+
+	/*
+	 * Toggle SO_PASSRIGHTS off on the receiver side.  The subsequent recv
+	 * should actually succeed, we just won't have an fd installed.
+	 */
+	optval = 0;
+	rc = setsockopt(fd[1], SOL_SOCKET, SO_PASSRIGHTS, &optval,
+	    sizeof(optval));
+	ATF_REQUIRE_MSG(rc != -1, "setsockopt(SO_PASSRIGHTS) failed: %s",
+	    strerror(errno));
+
+	bzero(&msghdr, sizeof(msghdr));
+	msghdr.msg_control = &cmsgbuf[0];
+	msghdr.msg_controllen = sizeof(cmsgbuf);
+
+	ch = 0;
+	len = recvfd_payload_cmsg(fd[1], &ch, sizeof(ch), &msghdr, 0);
+	/* We want to confirm that we still received the sent byte... */
+	ATF_REQUIRE_MSG(len == sizeof(ch), "recvmsg should have returned data");
+	ATF_REQUIRE_MSG(ch == MAGIC_VAL, "recvmsg returned garbage? %d", ch);
+
+	/* ... and make sure we did not receive any descriptors! */
+	cmsghdr = CMSG_FIRSTHDR(&msghdr);
+	ATF_REQUIRE_MSG(cmsghdr == NULL || cmsghdr->cmsg_type != SCM_RIGHTS,
+	    "recvmsg unexpectedly received a descriptor");
+	ATF_REQUIRE(getnfds() == nfds);
+	closesocketpair(fd);
+}
+
+ATF_TC_WITHOUT_HEAD(send_rejected_noinherit);
+ATF_TC_BODY(send_rejected_noinherit, tc)
+{
+	struct sockaddr_un sun;
+	int clsock, connsock, ls, optval, rc;
+
+	ls = socket(AF_UNIX, SOCK_STREAM, 0);
+	ATF_REQUIRE(ls != -1);
+
+	optval = 0;
+	rc = setsockopt(ls, SOL_SOCKET, SO_PASSRIGHTS, &optval,
+	    sizeof(optval));
+	ATF_REQUIRE_MSG(rc != -1, "setsockopt(SO_PASSRIGHTS) failed: %s",
+	    strerror(errno));
+
+	memset(&sun, 0, sizeof(sun));
+	sun.sun_len = sizeof(sun);
+	sun.sun_family = AF_UNIX;
+	snprintf(sun.sun_path, sizeof(sun.sun_path), "listen.sock");
+	rc = bind(ls, (struct sockaddr *)&sun, sizeof(sun));
+	ATF_REQUIRE_MSG(rc == 0, "bind failed: %s", strerror(errno));
+	rc = listen(ls, 0);
+	ATF_REQUIRE_MSG(rc == 0, "listen failed: %s", strerror(errno));
+
+	ATF_REQUIRE_MSG(!passrights(ls),
+	    "listening socket lost its SO_PASSRIGHTS setting");
+
+	connsock = socket(AF_UNIX, SOCK_STREAM, 0);
+	ATF_REQUIRE_MSG(connsock != -1, "connect failed: %s", strerror(errno));
+
+	rc = connect(connsock, (const struct sockaddr *)&sun,
+	    sizeof(sun));
+	ATF_REQUIRE_MSG(rc == 0, "connect failed: %s", strerror(errno));
+
+	/*
+	 * Finally, accept(4) and confirm that the new socket has
+	 * SO_PASSRIGHTS set.
+	 */
+	clsock = accept(ls, NULL, NULL);
+	ATF_REQUIRE_MSG(clsock >= 0, "accept failed: %s", strerror(errno));
+
+	ATF_REQUIRE_MSG(passrights(clsock),
+	    "inherited socket should enable SO_PASSRIGHTS");
+	close(clsock);
+	close(connsock);
+	close(ls);
 }
 
 /*
@@ -1228,6 +1383,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, send_and_shutdown);
 	ATF_TP_ADD_TC(tp, send_a_lot);
 	ATF_TP_ADD_TC(tp, send_overflow);
+	ATF_TP_ADD_TC(tp, send_rejected);
+	ATF_TP_ADD_TC(tp, send_rejected_late);
+	ATF_TP_ADD_TC(tp, send_rejected_noinherit);
 	ATF_TP_ADD_TC(tp, peek);
 	ATF_TP_ADD_TC(tp, two_files);
 	ATF_TP_ADD_TC(tp, bundle);

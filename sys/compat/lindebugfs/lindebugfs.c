@@ -191,8 +191,8 @@ debugfs_fill(PFS_FILL_ARGS)
 
 	if (rc < 0) {
 #ifdef INVARIANTS
-		printf("%s:%d read/write failed with %zd\n", __func__, __LINE__,
-		    rc);
+		printf("%s:%d %s failed with %zd\n", __func__, __LINE__,
+		    (uio->uio_rw == UIO_READ) ? "read" : "write", rc);
 #endif
 		return (-rc);
 	}

@@ -227,8 +227,12 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(wakeup_gdt, uint16_t, pcb->pcb_gdt.rd_limit);
 		WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t, pcb->pcb_gdt.rd_base);
 
-		/* Call ACPICA to enter the desired sleep state */
-		if (state == ACPI_STATE_S4 && acpi_should_do_s4bios(sc))
+		/*
+		 * Call ACPICA to enter the desired sleep state.  Currently,
+		 * reaching this code with 'state' being ACPI_STATE_S4 implies
+		 * a S4BIOS request.
+		 */
+		if (state == ACPI_STATE_S4)
 			status = AcpiEnterSleepStateS4bios();
 		else
 			status = AcpiEnterSleepState(state);

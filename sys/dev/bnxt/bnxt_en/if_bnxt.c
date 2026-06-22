@@ -71,6 +71,9 @@
 #include "bnxt_mgmt.h"
 #include "bnxt_ulp.h"
 #include "bnxt_auxbus_compat.h"
+#include "bnxt_log.h"
+#include "bnxt_log_data.h"
+#include "bnxt_coredump.h"
 
 /*
  * PCI Device ID Table
@@ -267,6 +270,7 @@ static void bnxt_queue_fw_reset_work(struct bnxt_softc *bp, unsigned long delay)
 void bnxt_queue_sp_work(struct bnxt_softc *bp);
 
 void bnxt_fw_reset(struct bnxt_softc *bp);
+static int bnxt_crash_dump_init(struct bnxt_softc *softc);
 /*
  * Device Interface Declaration
  */
@@ -1099,9 +1103,10 @@ static int bnxt_alloc_ctx_mem_blk(struct bnxt_softc *softc,
 	return bnxt_alloc_ring(softc, rmem);
 }
 
-static int bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
-				  struct bnxt_ctx_pg_info *ctx_pg, u32 mem_size,
-				  u8 depth, struct bnxt_ctx_mem_type *ctxm)
+int
+bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
+    struct bnxt_ctx_pg_info *ctx_pg, uint32_t mem_size, uint8_t depth,
+    struct bnxt_ctx_mem_type *ctxm)
 {
 	struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
 	int rc;
@@ -1159,8 +1164,8 @@ static int bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
 	return rc;
 }
 
-static void bnxt_free_ctx_pg_tbls(struct bnxt_softc *softc,
-				  struct bnxt_ctx_pg_info *ctx_pg)
+void bnxt_free_ctx_pg_tbls(struct bnxt_softc *softc,
+			   struct bnxt_ctx_pg_info *ctx_pg)
 {
 	struct bnxt_ring_mem_info *rmem = &ctx_pg->ring_mem;
 
@@ -1243,6 +1248,64 @@ static void bnxt_free_ctx_mem(struct bnxt_softc *softc)
 	softc->ctx_mem = NULL;
 }
 
+const u16 bnxt_bstore_to_trace[] = {
+	[BNXT_CTX_SRT_TRACE] =
+	    HWRM_DBG_LOG_BUFFER_FLUSH_INPUT_TYPE_SRT_TRACE,
+	[BNXT_CTX_SRT2_TRACE] =
+	    HWRM_DBG_LOG_BUFFER_FLUSH_INPUT_TYPE_SRT2_TRACE,
+	[BNXT_CTX_CRT_TRACE] =
+	    HWRM_DBG_LOG_BUFFER_FLUSH_INPUT_TYPE_CRT_TRACE,
+	[BNXT_CTX_CRT2_TRACE] =
+	    HWRM_DBG_LOG_BUFFER_FLUSH_INPUT_TYPE_CRT2_TRACE,
+	[BNXT_CTX_RIGP0_TRACE] =
+	    HWRM_DBG_LOG_BUFFER_FLUSH_INPUT_TYPE_RIGP0_TRACE,
+	[BNXT_CTX_L2_HWRM_TRACE] =
+	    HWRM_DBG_LOG_BUFFER_FLUSH_INPUT_TYPE_L2_HWRM_TRACE,
+	[BNXT_CTX_ROCE_HWRM_TRACE] =
+	    HWRM_DBG_LOG_BUFFER_FLUSH_INPUT_TYPE_ROCE_HWRM_TRACE,
+};
+
+static void
+bnxt_bs_trace_init(struct bnxt_softc *bp, struct bnxt_ctx_mem_type *ctxm)
+{
+	uint32_t mem_size, pages, rem_bytes, magic_byte_offset;
+	struct bnxt_ctx_pg_info *ctx_pg = ctxm->pg_info;
+	struct bnxt_ring_mem_info *rmem, *rmem_pg_tbl;
+	uint32_t last_pg, n = 1, size = sizeof(uint8_t);
+	struct bnxt_bs_trace_info *bs_trace;
+	uint16_t trace_type;
+
+	mem_size = ctxm->max_entries * ctxm->entry_size;
+	rem_bytes = mem_size % BNXT_PAGE_SIZE;
+	pages = DIV_ROUND_UP(mem_size, BNXT_PAGE_SIZE);
+
+	last_pg = (pages - 1) & (MAX_CTX_PAGES - 1);
+	magic_byte_offset = ((rem_bytes ? rem_bytes : BNXT_PAGE_SIZE) - size);
+
+	if (ctxm->instance_bmap) {
+		if (ctxm->instance_bmap > 1)
+			return;
+		n = bitcount32(ctxm->instance_bmap);
+	}
+
+	rmem = &ctx_pg[n - 1].ring_mem;
+	trace_type = bnxt_bstore_to_trace[ctxm->type];
+	bs_trace = &bp->bs_trace[trace_type];
+	bs_trace->ctx_type = ctxm->type;
+	bs_trace->trace_type = trace_type;
+	if (pages > MAX_CTX_PAGES) {
+		int last_pg_directory = rmem->nr_pages - 1;
+
+		rmem_pg_tbl =
+		    &ctx_pg[n - 1].ctx_pg_tbl[last_pg_directory]->ring_mem;
+		bs_trace->magic_byte = rmem_pg_tbl->pg_arr[last_pg].idi_vaddr;
+	} else {
+		bs_trace->magic_byte = rmem->pg_arr[last_pg].idi_vaddr;
+	}
+	bs_trace->magic_byte += magic_byte_offset;
+	*bs_trace->magic_byte = BNXT_TRACE_BUF_MAGIC_BYTE;
+}
+
 static int
 bnxt_backing_store_cfg_v2(struct bnxt_softc *softc, u32 ena)
 {
@@ -1264,7 +1327,7 @@ bnxt_backing_store_cfg_v2(struct bnxt_softc *softc, u32 ena)
 				continue;
 			}
 			/* ckp TODO: this is trace buffer related stuff, so keeping it diabled now. needs revisit */
-			//bnxt_bs_trace_init(bp, ctxm, type - BNXT_CTX_SRT_TRACE);
+			bnxt_bs_trace_init(softc, ctxm);
 			last_type = type;
 		}
 	}
@@ -2181,6 +2244,8 @@ static int bnxt_open(struct bnxt_softc *bp)
 	if (rc)
 		return rc;
 
+	bnxt_hwrm_dbg_qcaps(bp);
+
 	/* Register the driver with the FW */
 	rc = bnxt_drv_rgtr(bp);
 	if (rc)
@@ -2198,7 +2263,7 @@ static int bnxt_open(struct bnxt_softc *bp)
 
 	if (BNXT_CHIP_P5_PLUS(bp))
 		bnxt_hwrm_reserve_rings(bp);
-	
+
 	/* Get the current configuration of this function */
 	rc = bnxt_hwrm_func_qcfg(bp);
 	if (rc) {
@@ -2328,6 +2393,7 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		bnxt_ulp_start(bp, 0);
 		clear_bit(BNXT_STATE_FW_ACTIVATE, &bp->state);
 		set_bit(BNXT_STATE_OPEN, &bp->state);
+		bnxt_crash_dump_init(bp);
 #ifdef PCI_IOV
 		bnxt_reenable_sriov(bp);
 #endif
@@ -2446,6 +2512,37 @@ bnxt_hwrm_reserve_rings(struct bnxt_softc *softc)
 		return bnxt_hwrm_reserve_vf_rings(softc);
 }
 
+static void
+bnxt_log_live_data(void *d)
+{
+	struct bnxt_softc *bp = d;
+
+	bnxt_log_ring_states(bp);
+}
+
+/* DDR Crash Dump Setup */
+static int
+bnxt_crash_dump_init(struct bnxt_softc *softc)
+{
+	int rc;
+
+	rc = bnxt_alloc_crash_dump_mem(softc);
+	if (rc) {
+		device_printf(softc->dev,
+		    "crash dump mem alloc failure rc: %d\n", rc);
+		return (rc);
+	}
+
+	rc = bnxt_hwrm_crash_dump_mem_cfg(softc);
+	if (rc) {
+		bnxt_free_crash_dump_mem(softc);
+		device_printf(softc->dev,
+		    "hwrm crash dump mem failure rc: %d\n", rc);
+	}
+
+	return (rc);
+}
+
 /* Device setup and teardown */
 static int
 bnxt_attach_pre(if_ctx_t ctx)
@@ -2495,6 +2592,11 @@ bnxt_attach_pre(if_ctx_t ctx)
 		goto pci_attach_fail;
 	}
 
+	mtx_init(&softc->log_lock, "BNXT LOG Lock", NULL, MTX_DEF);
+	TAILQ_INIT(&softc->loggers_list);
+	bnxt_register_logger(softc, BNXT_LOGGER_L2, BNXT_L2_MAX_LOG_BUFFERS,
+			     bnxt_log_live_data, BNXT_L2_MAX_LIVE_LOG_SIZE);
+
 	/* HWRM setup/init */
 	BNXT_HWRM_LOCK_INIT(softc, device_get_nameunit(softc->dev));
 	rc = bnxt_alloc_hwrm_dma_mem(softc);
@@ -2527,7 +2629,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 		if (rc)
 			goto hwrm_short_cmd_alloc_fail;
 	}
-	
+
 	/* Now perform a function reset */
 	rc = bnxt_hwrm_func_reset(softc);
 
@@ -2632,6 +2734,8 @@ bnxt_attach_pre(if_ctx_t ctx)
 			goto failed;
 		}
 	}
+
+	bnxt_hwrm_dbg_qcaps(softc);
 
 	/*
 	 * Register the driver with the FW
@@ -2820,6 +2924,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 
 	return (rc);
 
+
 failed:
 	bnxt_free_sysctl_ctx(softc);
 init_sysctl_failed:
@@ -2879,6 +2984,11 @@ bnxt_attach_post(if_ctx_t ctx)
 	if (BNXT_PF(softc) && BNXT_CHIP_P5_PLUS(softc))
 		bnxt_sriov_attach(softc);
 
+	rc = bnxt_crash_dump_init(softc);
+	if (rc)
+		device_printf(softc->dev,
+		    "crash dump init failure rc: %d\n", rc);
+
 failed:
 	return rc;
 }
@@ -2900,6 +3010,7 @@ bnxt_detach(if_ctx_t ctx)
 	bnxt_wol_config(ctx);
 	bnxt_do_disable_intr(&softc->def_cp_ring);
 	bnxt_free_sysctl_ctx(softc);
+	bnxt_free_crash_dump_mem(softc);
 	bnxt_hwrm_func_reset(softc);
 	bnxt_free_ctx_mem(softc);
 	bnxt_clear_ids(softc);
@@ -2930,6 +3041,9 @@ bnxt_detach(if_ctx_t ctx)
 	bnxt_free_hwrm_dma_mem(softc);
 	bnxt_free_hwrm_short_cmd_req(softc);
 	BNXT_HWRM_LOCK_DESTROY(softc);
+
+	bnxt_unregister_logger(softc, BNXT_LOGGER_L2);
+	mtx_destroy(&softc->log_lock);
 
 	if (!bnxt_num_pfs && bnxt_pf_wq)
 		destroy_workqueue(bnxt_pf_wq);

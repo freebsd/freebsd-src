@@ -224,21 +224,25 @@ static MALLOC_DEFINE(M_SYNCACHE, "syncache", "TCP syncache");
 #define	SCH_UNLOCK(sch)		mtx_unlock(&(sch)->sch_mtx)
 #define	SCH_LOCK_ASSERT(sch)	mtx_assert(&(sch)->sch_mtx, MA_OWNED)
 
+static void
+syncache_release(struct syncache *sc)
+{
+	if (sc->sc_ipopts != NULL)
+		(void)m_free(sc->sc_ipopts);
+	if (sc->sc_cred != NULL)
+		crfree(sc->sc_cred);
+#ifdef MAC
+	mac_syncache_destroy(&sc->sc_label);
+#endif
+}
+
 /*
  * Requires the syncache entry to be already removed from the bucket list.
  */
 static void
 syncache_free(struct syncache *sc)
 {
-
-	if (sc->sc_ipopts)
-		(void)m_free(sc->sc_ipopts);
-	if (sc->sc_cred)
-		crfree(sc->sc_cred);
-#ifdef MAC
-	mac_syncache_destroy(&sc->sc_label);
-#endif
-
+	syncache_release(sc);
 	uma_zfree(V_tcp_syncache.zone, sc);
 }
 
@@ -1427,6 +1431,7 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 */
 	KASSERT(SOLISTENING(so), ("%s: %p not listening", __func__, so));
 	tp = sototcpcb(so);
+	bzero(&scs, sizeof(scs));
 	cred = V_tcp_syncache.see_other ? NULL : crhold(so->so_cred);
 
 #ifdef INET6
@@ -1551,14 +1556,15 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		if (tfo_cookie_valid)
 			INP_RUNLOCK(inp);
 		TCPSTAT_INC(tcps_sc_dupsyn);
-		if (ipopts) {
+		if (ipopts != NULL) {
 			/*
 			 * If we were remembering a previous source route,
 			 * forget it and use the new one we've been given.
 			 */
-			if (sc->sc_ipopts)
+			if (sc->sc_ipopts != NULL)
 				(void)m_free(sc->sc_ipopts);
 			sc->sc_ipopts = ipopts;
+			ipopts = NULL;
 		}
 		/*
 		 * Update timestamp if present.
@@ -1575,14 +1581,6 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			sc->sc_flags &= ~SCF_ECN_MASK;
 			sc->sc_flags |= tcp_ecn_syncache_add(tcp_get_flags(th), iptos);
 		}
-#ifdef MAC
-		/*
-		 * Since we have already unconditionally allocated label
-		 * storage, free it up.  The syncache entry will already
-		 * have an initialized label we can use.
-		 */
-		mac_syncache_destroy(&maclabel);
-#endif
 		TCP_PROBE5(receive, NULL, NULL, m, NULL, th);
 		/* Retransmit SYN|ACK and reset retransmit count. */
 		if ((s = tcp_log_addrs(&sc->sc_inc, th, NULL, NULL))) {
@@ -1613,10 +1611,9 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 * Skip allocating a syncache entry if we are just going to discard
 	 * it later.
 	 */
-	if (!locked || tfo_cookie_valid) {
-		bzero(&scs, sizeof(scs));
+	if (!locked || tfo_cookie_valid)
 		sc = &scs;
-	} else {
+	else {
 		sc = uma_zalloc(V_tcp_syncache.zone, M_NOWAIT | M_ZERO);
 		if (sc == NULL) {
 			/*
@@ -1633,10 +1630,9 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			}
 			sc = uma_zalloc(V_tcp_syncache.zone, M_NOWAIT | M_ZERO);
 			if (sc == NULL) {
-				if (V_tcp_syncookies) {
-					bzero(&scs, sizeof(scs));
+				if (V_tcp_syncookies)
 					sc = &scs;
-				} else {
+				else {
 					KASSERT(locked,
 					    ("%s: bucket unexpectedly unlocked",
 					    __func__));
@@ -1656,23 +1652,13 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	 */
 #ifdef MAC
 	sc->sc_label = maclabel;
+	maclabel = NULL;
 #endif
-	/*
-	 * sc_cred is only used in syncache_pcblist() to list TCP endpoints in
-	 * TCPS_SYN_RECEIVED state when V_tcp_syncache.see_other is false.
-	 * Therefore, store the credentials only when needed:
-	 * - sc is allocated from the zone and not using the on stack instance.
-	 * - the sysctl variable net.inet.tcp.syncache.see_other is false.
-	 * The reference count is decremented when a zone allocated sc is
-	 * freed in syncache_free().
-	 */
-	if (sc != &scs && !V_tcp_syncache.see_other) {
-		sc->sc_cred = cred;
-		cred = NULL;
-	} else
-		sc->sc_cred = NULL;
-	sc->sc_port = port;
+	sc->sc_cred = cred;
+	cred = NULL;
 	sc->sc_ipopts = ipopts;
+	ipopts = NULL;
+	sc->sc_port = port;
 	bcopy(inc, &sc->sc_inc, sizeof(struct in_conninfo));
 	sc->sc_ip_tos = ip_tos;
 	sc->sc_ip_ttl = ip_ttl;
@@ -1819,13 +1805,13 @@ donenoprobe:
 tfo_expanded:
 	if (cred != NULL)
 		crfree(cred);
-	if (sc == NULL || sc == &scs) {
 #ifdef MAC
+	if (maclabel != NULL)
 		mac_syncache_destroy(&maclabel);
 #endif
-		if (ipopts)
-			(void)m_free(ipopts);
-	}
+	if (ipopts != NULL)
+		(void)m_free(ipopts);
+	syncache_release(&scs);
 	return (rv);
 }
 

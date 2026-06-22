@@ -94,7 +94,7 @@
 static int __elfN(check_header)(const Elf_Ehdr *hdr);
 static const Elf_Brandinfo *__elfN(get_brandinfo)(struct image_params *imgp,
     const Elf_Phdr *phdr, const char *interp, int32_t *osrel, uint32_t *fctl0);
-static int __elfN(load_file)(struct thread *td, const char *file, u_long *addr,
+static int __elfN(load_interp_file)(struct thread *td, const char *file, u_long *addr,
     u_long *entry);
 static int __elfN(load_section)(const struct image_params *imgp,
     vm_ooffset_t offset, caddr_t vmaddr, size_t memsz, size_t filsz,
@@ -785,7 +785,7 @@ __elfN(load_sections)(const struct image_params *imgp, const Elf_Ehdr *hdr,
  * the entry point for the loaded file.
  */
 static int
-__elfN(load_file)(struct thread *td, const char *file, u_long *addr,
+__elfN(load_interp_file)(struct thread *td, const char *file, u_long *addr,
     u_long *entry)
 {
 	struct {
@@ -823,7 +823,8 @@ __elfN(load_file)(struct thread *td, const char *file, u_long *addr,
 	imgp->td = td;
 	imgp->proc = td->td_proc;
 	imgp->attr = attr;
-
+	imgp->interpreted = IMGACT_INTERP_IGNORE; /* ignored by do_execve */
+	
 	NDINIT(nd, LOOKUP, ISOPEN | FOLLOW | LOCKSHARED | LOCKLEAF,
 	    UIO_SYSSPACE, file);
 	if ((error = namei(nd)) != 0) {
@@ -1092,13 +1093,13 @@ __elfN(load_interp)(struct image_params *imgp, const Elf_Brandinfo *brand_info,
 	if (brand_info->interp_newpath != NULL &&
 	    (brand_info->interp_path == NULL ||
 	    strcmp(interp, brand_info->interp_path) == 0)) {
-		error = __elfN(load_file)(imgp->td,
+		error = __elfN(load_interp_file)(imgp->td,
 		    brand_info->interp_newpath, addr, entry);
 		if (error == 0)
 			return (0);
 	}
 
-	error = __elfN(load_file)(imgp->td, interp, addr, entry);
+	error = __elfN(load_interp_file)(imgp->td, interp, addr, entry);
 	if (error == 0)
 		return (0);
 

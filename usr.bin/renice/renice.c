@@ -97,7 +97,6 @@ main(int argc, char *argv[])
 			if ((pwd = getpwnam(*argv)) != NULL)
 				who = pwd->pw_uid;
 			else if (getnum("uid", *argv, &who)) {
-				warnx("invalid uid: %s", *argv);
 				errs++;
 				continue;
 			} else if (who < 0) {
@@ -107,7 +106,6 @@ main(int argc, char *argv[])
 			}
 		} else {
 			if (getnum("pid", *argv, &who)) {
-				warnx("invalid pid: %s", *argv);
 				errs++;
 				continue;
 			}
@@ -128,27 +126,11 @@ static int
 donice(int which, int who, int prio, bool incr)
 {
 	int oldprio;
-	const char *who_type;
-
-	switch (which) {
-	case PRIO_PROCESS:
-		who_type = "process";
-		break;
-	case PRIO_PGRP:
-		who_type = "process group";
-		break;
-	case PRIO_USER:
-		who_type = "user";
-		break;
-	default:
-		who_type = "unknown";
-		break;
-	}
 
 	errno = 0;
 	oldprio = getpriority(which, who);
 	if (oldprio == -1 && errno) {
-		warnx("%s %d: getpriority failed", who_type, who);
+		warn("%d: getpriority", who);
 		return (1);
 	}
 	if (incr)
@@ -158,16 +140,11 @@ donice(int which, int who, int prio, bool incr)
 	if (prio < PRIO_MIN)
 		prio = PRIO_MIN;
 	if (setpriority(which, who, prio) < 0) {
-		if (errno == EPERM) {
-			warnx("Permission denied: cannot set priority for %s %d",
-			    who_type, who);
-			return (1);
-		}
-		warnx("%s %d: setpriority failed", who_type, who);
+		warn("%d: setpriority", who);
 		return (1);
 	}
-	fprintf(stderr, "%s %d: old priority %d, new priority %d\n", who_type,
-	    who, oldprio, prio);
+	fprintf(stderr, "%d: old priority %d, new priority %d\n", who,
+	    oldprio, prio);
 	return (0);
 }
 

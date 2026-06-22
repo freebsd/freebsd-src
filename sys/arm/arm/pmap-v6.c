@@ -2194,7 +2194,7 @@ pte1_copy_nosync(pt1_entry_t *spte1p, pt1_entry_t *dpte1p, vm_offset_t sva,
 
 	idx = pte1_index(sva);
 	count = (pte1_index(eva) - idx + 1) * sizeof(pt1_entry_t);
-	bcopy(spte1p + idx, dpte1p + idx, count);
+	memcpy(dpte1p + idx, spte1p + idx, count);
 }
 
 static __inline void
@@ -2205,7 +2205,7 @@ pt2tab_copy_nosync(pt2_entry_t *spte2p, pt2_entry_t *dpte2p, vm_offset_t sva,
 
 	idx = pt2tab_index(sva);
 	count = (pt2tab_index(eva) - idx + 1) * sizeof(pt2_entry_t);
-	bcopy(spte2p + idx, dpte2p + idx, count);
+	memcpy(dpte2p + idx, spte2p + idx, count);
 }
 
 /*
@@ -5926,7 +5926,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 /*
  *	pmap_copy_page copies the specified (machine independent)
  *	page by mapping the page into virtual memory and using
- *	bcopy to copy the page, one machine dependent page at a
+ *	memcpy to copy the page, one machine dependent page at a
  *	time.
  */
 void
@@ -5948,7 +5948,7 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	    PTE2_AP_KR | PTE2_NM, vm_page_pte2_attr(src)));
 	pte2_store(cmap2_pte2p, PTE2_KERN_NG(VM_PAGE_TO_PHYS(dst),
 	    PTE2_AP_KRW, vm_page_pte2_attr(dst)));
-	bcopy(pc->pc_cmap1_addr, pc->pc_cmap2_addr, PAGE_SIZE);
+	memcpy(pc->pc_cmap2_addr, pc->pc_cmap1_addr, PAGE_SIZE);
 	pte2_clear(cmap1_pte2p);
 	tlb_flush((vm_offset_t)pc->pc_cmap1_addr);
 	pte2_clear(cmap2_pte2p);
@@ -5994,7 +5994,7 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 		tlb_flush_local((vm_offset_t)pc->pc_cmap2_addr);
 		a_cp = pc->pc_cmap1_addr + a_pg_offset;
 		b_cp = pc->pc_cmap2_addr + b_pg_offset;
-		bcopy(a_cp, b_cp, cnt);
+		memcpy(b_cp, a_cp, cnt);
 		a_offset += cnt;
 		b_offset += cnt;
 		xfersize -= cnt;

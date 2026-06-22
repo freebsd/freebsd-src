@@ -747,7 +747,7 @@ struct ieee80211_sta {
 	int		max_amsdu_subframes;
 	int		mfp, smps_mode, tdls, tdls_initiator;
 	struct ieee80211_txq			*txq[IEEE80211_NUM_TIDS + 1];	/* iwlwifi: 8 and adds +1 to tid_data, net80211::IEEE80211_TID_SIZE */
-	struct ieee80211_sta_rates		*rates;	/* some rcu thing? */
+	struct ieee80211_sta_rates		*rates;	/* some rcu thing? */			/* mt7615, and? */
 	uint8_t					addr[ETH_ALEN];
 	uint16_t				aid;
 	bool					wme;

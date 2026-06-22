@@ -190,7 +190,6 @@ sys_rpctls_syscall(struct thread *td, struct rpctls_syscall_args *uap)
 		CURVNET_RESTORE();
 		return (error);
 	}
-	soref(ups.so);
 	if (ups.server) {
 		/*
 		 * Once this file descriptor is associated
@@ -277,6 +276,7 @@ rpctls_connect(CLIENT *newclient, char *certname, struct socket *so,
 	if (stat != RPC_SUCCESS)
 		return (RPC_SYSTEMERROR);
 
+	soref(so);
 	mtx_lock(&rpctls_lock);
 	RB_INSERT(upsock_t, &upcall_sockets, &ups);
 	mtx_unlock(&rpctls_lock);
@@ -294,8 +294,15 @@ rpctls_connect(CLIENT *newclient, char *certname, struct socket *so,
 	stat = rpctlscd_connect_2(&arg, &res, rpctls_connect_handle);
 	if (stat == RPC_SUCCESS)
 		*reterr = res.reterr;
-	else
+	else {
 		rpctls_rpc_failed(&ups, so);
+
+		/*
+		 * The socket was closed, make sure the krpc code doesn't close
+		 * it a second time.
+		 */
+		CLNT_CONTROL(newclient, CLSET_TLS, &(int){RPCTLS_INHANDSHAKE});
+	}
 
 	/* Unblock reception. */
 	CLNT_CONTROL(newclient, CLSET_BLOCKRCV, &(int){0});
@@ -388,6 +395,7 @@ rpctls_server(SVCXPRT *xprt, uint32_t *flags, uid_t *uid, int *ngrps,
 	uint32_t *gidv;
 	int i;
 
+	soref(xprt->xp_socket);
 	mtx_lock(&rpctls_lock);
 	RB_INSERT(upsock_t, &upcall_sockets, &ups);
 	mtx_unlock(&rpctls_lock);
@@ -407,8 +415,17 @@ rpctls_server(SVCXPRT *xprt, uint32_t *flags, uid_t *uid, int *ngrps,
 			for (i = 0; i < *ngrps; i++)
 				*gidp++ = *gidv++;
 		}
-	} else
+	} else {
 		rpctls_rpc_failed(&ups, xprt->xp_socket);
+
+		/*
+		 * The socket was closed, make sure the krpc code doesn't close
+		 * it a second time.
+		 */
+		sx_xlock(&ups.xp->xp_lock);
+		ups.xp->xp_tls = RPCTLS_FLAGS_HANDSHFAIL;
+		sx_xunlock(&ups.xp->xp_lock);
+	}
 
 	mem_free(res.gid.gid_val, 0);
 

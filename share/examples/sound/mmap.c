@@ -26,113 +26,17 @@
  */
 
 /*
- * This program demonstrates low-latency audio pass-through using mmap.
- * Opens input and output audio devices using memory-mapped I/O,
- * synchronizes them in a sync group for simultaneous start,
- * then continuously copies audio data from input to output.
+ * This program demonstrates low-latency audio pass-through using mmap
+ * and kqueue.  It opens input and output audio devices using memory-
+ * mapped I/O, synchronizes them in a sync group for simultaneous start,
+ * then continuously copies audio data from input to output.  Buffer
+ * positions are obtained from kqueue's ext[0] (replacing GETIPTR/
+ * GETOPTR ioctls) and error counters from ext[1] (replacing GETERROR).
  */
 
-#include <time.h>
+#include <sys/event.h>
 
 #include "oss.h"
-
-/*
- * Get current time in nanoseconds using monotonic clock.
- * Monotonic clock is not affected by system time changes.
- */
-static int64_t
-gettime_ns(void)
-{
-	struct timespec ts;
-
-	if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0)
-		err(1, "clock_gettime failed");
-	return ((int64_t)ts.tv_sec * 1000000000LL + ts.tv_nsec);
-}
-
-/*
- * Sleep until the specified absolute time (in nanoseconds).
- * Uses TIMER_ABSTIME for precise timing synchronization.
- */
-static void
-sleep_until_ns(int64_t target_ns)
-{
-	struct timespec ts;
-
-	ts.tv_sec = target_ns / 1000000000LL;
-	ts.tv_nsec = target_ns % 1000000000LL;
-	if (clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, NULL) != 0)
-		err(1, "clock_nanosleep failed");
-}
-
-/*
- * Calculate the number of frames to process per iteration.
- * Higher sample rates require larger steps to maintain efficiency.
- */
-static unsigned
-frame_stepping(unsigned sample_rate)
-{
-	return (16U * (1U + (sample_rate / 50000U)));
-}
-
-/*
- * Update the mmap pointer and calculate progress.
- * Returns the absolute progress in bytes.
- *
- * fd: file descriptor for the audio device
- * request: ioctl request (SNDCTL_DSP_GETIPTR or SNDCTL_DSP_GETOPTR)
- * map_pointer: current pointer position in the ring buffer
- * map_progress: absolute progress in bytes
- * buffer_bytes: total size of the ring buffer
- * frag_size: size of each fragment
- * frame_size: size of one audio frame in bytes
- */
-static int64_t
-update_map_progress(int fd, unsigned long request, int *map_pointer,
-    int64_t *map_progress, int buffer_bytes, int frag_size, int frame_size)
-{
-	count_info info = {};
-	unsigned delta, max_bytes, cycles;
-	int fragments;
-
-	if (ioctl(fd, request, &info) < 0)
-		err(1, "Failed to get mmap pointer");
-	if (info.ptr < 0 || info.ptr >= buffer_bytes)
-		errx(1, "Pointer out of bounds: %d", info.ptr);
-	if ((info.ptr % frame_size) != 0)
-		errx(1, "Pointer %d not aligned to frame size %d", info.ptr,
-		    frame_size);
-	if (info.blocks < 0)
-		errx(1, "Invalid block count %d", info.blocks);
-
-	/*
-	 * Calculate delta: how many bytes have been processed since last check.
-	 * Handle ring buffer wraparound using modulo arithmetic.
-	 */
-	delta = (info.ptr + buffer_bytes - *map_pointer) % buffer_bytes;
-
-	/*
-	 * Adjust delta based on reported blocks available.
-	 * This accounts for cases where the pointer has wrapped multiple times.
-	 */
-	max_bytes = (info.blocks + 1) * frag_size - 1;
-	if (max_bytes >= delta) {
-		cycles = max_bytes - delta;
-		cycles -= cycles % buffer_bytes;
-		delta += cycles;
-	}
-
-	/* Verify fragment count matches expected value */
-	fragments = delta / frag_size;
-	if (info.blocks < fragments || info.blocks > fragments + 1)
-		warnx("Pointer block mismatch: ptr=%d blocks=%d delta=%u",
-		    info.ptr, info.blocks, delta);
-
-	/* Update pointer and progress tracking */
-	*map_pointer = info.ptr;
-	*map_progress += delta;
-	return (*map_progress);
-}
 
 /*
  * Copy data between ring buffers, handling wraparound.
@@ -169,8 +73,6 @@ main(int argc, char *argv[])
 	int ch, bytes;
 	int frag_size, frame_size, verbose = 0;
 	int map_pointer = 0;
-	unsigned step_frames;
-	int64_t frame_ns, start_ns, next_wakeup_ns;
 	int64_t read_progress = 0, write_progress = 0;
 	oss_syncgroup sync_group = { 0, 0, { 0 } };
 	struct config config_in = {
@@ -187,6 +89,8 @@ main(int argc, char *argv[])
 		.sample_rate = 48000,
 		.mmap = 1,
 	};
+	struct kevent ev;
+	int kq;
 
 	while ((ch = getopt(argc, argv, "v")) != -1) {
 		switch (ch) {
@@ -228,10 +132,6 @@ main(int argc, char *argv[])
 		errx(1,
 		    "Input and output configurations have different fragment sizes");
 
-	/* Calculate timing parameters */
-	step_frames = frame_stepping(config_in.sample_rate);
-	frame_ns = 1000000000LL / config_in.sample_rate;
-
 	/* Clear output buffer to prevent noise on startup */
 	memset(config_out.buf, 0, bytes);
 
@@ -245,25 +145,51 @@ main(int argc, char *argv[])
 	if (ioctl(config_in.fd, SNDCTL_DSP_SYNCSTART, &sync_group.id) < 0)
 		err(1, "Starting sync group failed");
 
-	/* Initialize timing and progress tracking */
-	start_ns = gettime_ns();
-	read_progress = update_map_progress(config_in.fd, SNDCTL_DSP_GETIPTR,
-	    &map_pointer, &read_progress, bytes, frag_size, frame_size);
-	write_progress = read_progress;
-	next_wakeup_ns = start_ns;
+	/* Create kqueue and register input device for read events */
+	kq = kqueue();
+	if (kq < 0)
+		err(1, "kqueue failed");
+	EV_SET(&ev, config_in.fd, EVFILT_READ, EV_ADD, 0, 0, NULL);
+	if (kevent(kq, &ev, 1, NULL, 0, NULL) < 0)
+		err(1, "kevent register failed");
 
 	/*
 	 * Main processing loop:
-	 * 1. Sleep until next scheduled wakeup
-	 * 2. Check how much new audio data is available
-	 * 3. Copy available data from input to output buffer
-	 * 4. Schedule next wakeup
+	 * Block on kevent() until input data is available.
+	 * ext[0] holds the current DMA pointer (GETIPTR/GETOPTR equivalent).
+	 * ext[1] holds the xrun count for the channel (GETERROR equivalent).
 	 */
 	for (;;) {
-		sleep_until_ns(next_wakeup_ns);
-		read_progress = update_map_progress(config_in.fd,
-		    SNDCTL_DSP_GETIPTR, &map_pointer, &read_progress, bytes,
-		    frag_size, frame_size);
+		int n;
+		int ptr;
+		unsigned delta;
+
+		n = kevent(kq, NULL, 0, &ev, 1, NULL);
+		if (n < 0)
+			err(1, "kevent failed");
+		if (n == 0)
+			continue;
+
+		ptr = (int)ev.ext[0];
+		if (ptr < 0 || ptr >= bytes)
+			errx(1, "Pointer out of bounds: %d", ptr);
+		if ((ptr % frame_size) != 0)
+			errx(1, "Pointer %d not aligned to frame size %d", ptr,
+			    frame_size);
+
+		/*
+		 * Calculate delta: how many bytes have been processed since
+		 * last check. Handle ring buffer wraparound.
+		 */
+		delta = (ptr + bytes - map_pointer) % bytes;
+
+		/* Update pointer and progress tracking */
+		map_pointer = ptr;
+		read_progress += delta;
+
+		/* Report xruns if any */
+		if (ev.ext[1] != 0 && verbose)
+			warnx("xruns: %llu", (unsigned long long)ev.ext[1]);
 
 		/* Copy new audio data if available */
 		if (read_progress > write_progress) {
@@ -277,13 +203,9 @@ main(int argc, char *argv[])
 				printf("copied %d bytes at %d (abs %lld)\n",
 				    length, offset, (long long)write_progress);
 		}
-
-		/* Schedule next wakeup based on frame timing */
-		next_wakeup_ns += (int64_t)step_frames * frame_ns;
-		if (next_wakeup_ns < gettime_ns())
-			next_wakeup_ns = gettime_ns();
 	}
 
+	close(kq);
 	if (munmap(config_in.buf, bytes) != 0)
 		err(1, "Memory unmap failed");
 	config_in.buf = NULL;

@@ -65,6 +65,7 @@
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/iec13213.h>
 #include <dev/firewire/if_fwipvar.h>
+#include <dev/firewire/fw_net.h>
 
 /*
  * We really need a mechanism for allocating regions in the FIFO
@@ -206,7 +207,6 @@ fwip_stop(struct fwip_softc *fwip)
 	struct firewire_comm *fc;
 	struct fw_xferq *xferq;
 	if_t ifp = fwip->fw_softc.fwip_ifp;
-	struct fw_xfer *xfer, *next;
 	int i;
 
 	fc = fwip->fd.fc;
@@ -226,17 +226,8 @@ fwip_stop(struct fwip_softc *fwip)
 		free(xferq->bulkxfer, M_FWIP);
 
 		fw_bindremove(fc, &fwip->fwb);
-		for (xfer = STAILQ_FIRST(&fwip->fwb.xferlist); xfer != NULL;
-					xfer = next) {
-			next = STAILQ_NEXT(xfer, link);
-			fw_xfer_free(xfer);
-		}
-
-		for (xfer = STAILQ_FIRST(&fwip->xferlist); xfer != NULL;
-					xfer = next) {
-			next = STAILQ_NEXT(xfer, link);
-			fw_xfer_free(xfer);
-		}
+		FW_NET_FREE_XFERLIST(&fwip->fwb.xferlist);
+		FW_NET_FREE_XFERLIST(&fwip->xferlist);
 		STAILQ_INIT(&fwip->xferlist);
 
 		xferq->bulkxfer =  NULL;
@@ -311,13 +302,7 @@ fwip_init(void *arg)
 		STAILQ_INIT(&xferq->stfree);
 		STAILQ_INIT(&xferq->stdma);
 		xferq->stproc = NULL;
-		for (i = 0; i < xferq->bnchunk; i++) {
-			m = m_getcl(M_WAITOK, MT_DATA, M_PKTHDR);
-			xferq->bulkxfer[i].mbuf = m;
-			m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
-			STAILQ_INSERT_TAIL(&xferq->stfree,
-					&xferq->bulkxfer[i], link);
-		}
+		fw_net_init_iso_chunks(xferq);
 
 		fwip->fwb.start = INET_FIFO;
 		fwip->fwb.end = INET_FIFO + 16384; /* S3200 packet size */
@@ -341,13 +326,10 @@ fwip_init(void *arg)
 
 		STAILQ_INIT(&fwip->xferlist);
 		for (i = 0; i < TX_MAX_QUEUE; i++) {
-			xfer = fw_xfer_alloc(M_FWIP);
+			xfer = fw_net_alloc_txfer(fwip->fd.fc, tx_speed,
+			    fwip, fwip_output_callback, M_FWIP);
 			if (xfer == NULL)
 				break;
-			xfer->send.spd = tx_speed;
-			xfer->fc = fwip->fd.fc;
-			xfer->sc = (caddr_t)fwip;
-			xfer->hand = fwip_output_callback;
 			STAILQ_INSERT_TAIL(&fwip->xferlist, xfer, link);
 		}
 	} else
@@ -394,26 +376,11 @@ fwip_ioctl(if_t ifp, u_long cmd, caddr_t data)
 #ifdef DEVICE_POLLING
 	    {
 		struct ifreq *ifr = (struct ifreq *) data;
-		struct firewire_comm *fc = fwip->fd.fc;
 
-		if (ifr->ifr_reqcap & IFCAP_POLLING &&
-		    !(if_getcapenable(ifp) & IFCAP_POLLING)) {
-			error = ether_poll_register(fwip_poll, ifp);
-			if (error)
-				return (error);
-			/* Disable interrupts */
-			fc->set_intr(fc, 0);
-			if_setcapenablebit(ifp, IFCAP_POLLING, 0);
+		error = fw_net_poll_ioctl(ifp, ifr,
+		    fwip->fd.fc, fwip_poll);
+		if (error >= 0)
 			return (error);
-		}
-		if (!(ifr->ifr_reqcap & IFCAP_POLLING) &&
-		    if_getcapenable(ifp) & IFCAP_POLLING) {
-			error = ether_poll_deregister(ifp);
-			/* Enable interrupts. */
-			fc->set_intr(fc, 1);
-			if_setcapenablebit(ifp, 0, IFCAP_POLLING);
-			return (error);
-		}
 	    }
 #endif /* DEVICE_POLLING */
 		break;
@@ -495,17 +462,10 @@ fwip_start(if_t ifp)
 	FWIPDEBUG(ifp, "starting\n");
 
 	if (fwip->dma_ch < 0) {
-		struct mbuf	*m = NULL;
-
 		FWIPDEBUG(ifp, "not ready\n");
 
 		s = splimp();
-		do {
-			m = if_dequeue(ifp);
-			if (m != NULL)
-				m_freem(m);
-			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-		} while (m != NULL);
+		fw_net_drain_sendq(ifp);
 		splx(s);
 
 		return;

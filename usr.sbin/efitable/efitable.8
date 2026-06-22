@@ -32,7 +32,7 @@
 .Nd dump UEFI tables
 .Sh SYNOPSIS
 .Nm
-.Op Fl u Ar uuid | Fl t Ar name
+.Op Fl g Ar guid | Fl t Ar name
 .Op Fl -libxo
 .Sh DESCRIPTION
 This program prints data from
@@ -49,6 +49,8 @@ in a selection of different human and machine readable formats.
 See
 .Xr xo_options 7
 for details on command line arguments.
+.It Fl g Ar guid | Fl -guid Ar guid
+Specify the GUID of the table to print.
 .It Fl t Ar name | Fl -table Ar name
 Specify the name of the table to print.
 Currently supported tables:
@@ -61,8 +63,6 @@ EFI Memory Attributes Table
 .It Cm prop
 EFI Properties Table
 .El
-.It Fl u Ar uuid | Fl -uuid Ar uuid
-Specify the UUID of the table to print.
 .El
 .Sh HISTORY
 The

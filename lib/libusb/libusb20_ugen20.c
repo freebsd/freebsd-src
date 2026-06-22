@@ -82,6 +82,7 @@ static libusb20_get_power_usage_t ugen20_get_power_usage;
 static libusb20_get_stats_t ugen20_get_stats;
 static libusb20_kernel_driver_active_t ugen20_kernel_driver_active;
 static libusb20_detach_kernel_driver_t ugen20_detach_kernel_driver;
+static libusb20_attach_kernel_driver_t ugen20_attach_kernel_driver;
 static libusb20_do_request_sync_t ugen20_do_request_sync;
 static libusb20_process_t ugen20_process;
 
@@ -714,6 +715,17 @@ ugen20_detach_kernel_driver(struct libusb20_device *pdev,
 		return (LIBUSB20_ERROR_OTHER);
 	}
 	return (0);			/* kernel driver is detached */
+}
+
+static int
+ugen20_attach_kernel_driver(struct libusb20_device *pdev, uint8_t iface_index)
+{
+	int temp = iface_index;
+
+	if (ioctl(pdev->file_ctrl, IOUSB(USB_IFACE_DRIVER_ATTACH), &temp)) {
+		return (LIBUSB20_ERROR_OTHER);
+	}
+	return (0);			/* kernel driver is attached */
 }
 
 static int

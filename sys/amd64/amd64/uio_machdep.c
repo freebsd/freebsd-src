@@ -96,38 +96,14 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 			    &ma[offset >> PAGE_SHIFT], &vaddr, 1, true);
 			cp = (char *)vaddr + page_offset;
 		}
-		switch (uio->uio_segflg) {
-		case UIO_USERSPACE:
-			maybe_yield();
-			switch (uio->uio_rw) {
-			case UIO_READ:
-				error = copyout(cp, iov->iov_base, cnt);
-				break;
-			case UIO_WRITE:
-				error = copyin(iov->iov_base, cp, cnt);
-				break;
-			}
-			if (error)
-				goto out;
-			break;
-		case UIO_SYSSPACE:
-			switch (uio->uio_rw) {
-			case UIO_READ:
-				bcopy(cp, iov->iov_base, cnt);
-				break;
-			case UIO_WRITE:
-				bcopy(iov->iov_base, cp, cnt);
-				break;
-			}
-			break;
-		case UIO_NOCOPY:
-			break;
-		}
+		error = uiomove_step(cp, iov->iov_base, cnt, uio);
 		if (__predict_false(mapped)) {
 			pmap_unmap_io_transient(&ma[offset >> PAGE_SHIFT],
 			    &vaddr, 1, true);
 			mapped = false;
 		}
+		if (error != 0)
+			break;
 		iov->iov_base = (char *)iov->iov_base + cnt;
 		iov->iov_len -= cnt;
 		uio->uio_resid -= cnt;
@@ -135,10 +111,6 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		offset += cnt;
 		n -= cnt;
 	}
-out:
-	if (__predict_false(mapped))
-		pmap_unmap_io_transient(&ma[offset >> PAGE_SHIFT], &vaddr, 1,
-		    true);
 	if (save == 0)
 		td->td_pflags &= ~TDP_DEADLKTREAT;
 	return (error);

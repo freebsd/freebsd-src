@@ -57,6 +57,10 @@ struct acpi_softc {
     enum power_stype	acpi_stype;
     int			acpi_sleep_disabled;
 
+    /* Supported sleep states and types. */
+    bool		acpi_supported_stypes[POWER_STYPE_COUNT];
+    bool		acpi_supported_sstates[ACPI_S_STATE_COUNT];
+
     struct sysctl_ctx_list acpi_sysctl_ctx;
     struct sysctl_oid	*acpi_sysctl_tree;
     enum power_stype	acpi_power_button_stype;
@@ -64,7 +68,6 @@ struct acpi_softc {
     enum power_stype	acpi_lid_switch_stype;
 
     int			acpi_standby_sx;
-    bool		acpi_s4bios;
     bool		acpi_s4bios_supported;
 
     int			acpi_sleep_delay;
@@ -511,13 +514,6 @@ acpi_d_state_to_str(int state)
 	return ("unknown D-state");
     MPASS(state >= ACPI_STATE_D0 && state <= ACPI_D_STATES_MAX);
     return (strs[state]);
-}
-
-static __inline bool
-acpi_should_do_s4bios(struct acpi_softc *sc)
-{
-    MPASS(!sc->acpi_s4bios || sc->acpi_s4bios_supported);
-    return (sc->acpi_s4bios);
 }
 
 char		*acpi_name(ACPI_HANDLE handle);

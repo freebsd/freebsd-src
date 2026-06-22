@@ -829,9 +829,33 @@ struct bnxt_ctx_mem_type {
 #define BNXT_CTX_L2_MAX (BNXT_CTX_FTQM + 1)
 
 #define BNXT_CTX_V2_MAX (HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_ROCE_HWRM_TRACE + 1)
-#define BNXT_CTX_SRT_TRACE		HWRM_FUNC_BACKING_STORE_QCFG_V2_OUTPUT_TYPE_SRT_TRACE
-#define BNXT_CTX_ROCE_HWRM_TRACE	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_ROCE_HWRM_TRACE
+
+#define BNXT_CTX_SRT_TRACE	\
+	HWRM_FUNC_BACKING_STORE_QCFG_V2_OUTPUT_TYPE_SRT_TRACE
+
+#define BNXT_CTX_SRT2_TRACE	\
+	HWRM_FUNC_BACKING_STORE_QCFG_V2_OUTPUT_TYPE_SRT2_TRACE
+
+#define BNXT_CTX_CRT_TRACE	\
+	HWRM_FUNC_BACKING_STORE_QCFG_V2_OUTPUT_TYPE_CRT_TRACE
+
+#define BNXT_CTX_CRT2_TRACE	\
+	HWRM_FUNC_BACKING_STORE_QCFG_V2_OUTPUT_TYPE_CRT2_TRACE
+
+#define BNXT_CTX_RIGP0_TRACE	\
+	HWRM_FUNC_BACKING_STORE_QCFG_V2_OUTPUT_TYPE_RIGP0_TRACE
+
+#define BNXT_CTX_L2_HWRM_TRACE	\
+	HWRM_FUNC_BACKING_STORE_QCFG_V2_OUTPUT_TYPE_L2_HWRM_TRACE
+
+#define BNXT_CTX_ROCE_HWRM_TRACE \
+	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_ROCE_HWRM_TRACE
+
 #define BNXT_CTX_INV	((u16)-1)
+
+#define BNXT_CTX_TRACE_BUF_COUNT	\
+	(BNXT_CTX_ROCE_HWRM_TRACE - BNXT_CTX_SRT_TRACE + 1)
+
 
 struct bnxt_ctx_mem_info {
 	u8	tqm_fp_rings_count;
@@ -1045,6 +1069,17 @@ struct bnxt_fw_health {
 #define DB_RING_IDX(ring, idx, bit)    (((idx) & (ring)->db_ring_mask) | \
                                        ((bit) << (24)))
 
+struct bnxt_bs_trace_info {
+        u8 *magic_byte;
+#define BNXT_TRACE_BUF_MAGIC_BYTE ((uint8_t)0xBC)
+        u32 last_offset;
+        u8 wrapped:1;
+        u16 ctx_type;
+        u16 trace_type;
+};
+
+struct bnxt_logger;
+
 struct bnxt_softc {
 	device_t	dev;
 	if_ctx_t	ctx;
@@ -1094,6 +1129,18 @@ struct bnxt_softc {
 
 	uint16_t		hwrm_cmd_seq;
 	uint32_t		hwrm_cmd_timeo;	/* milliseconds */
+
+	/* DDR Crash Dump Support */
+	struct bnxt_ctx_pg_info *fw_crash_mem;
+	uint32_t fw_crash_len;
+	uint32_t fw_dbg_cap;
+	#define BNXT_FW_DBG_CAP_CRASHDUMP_SOC		0x00000001
+	#define BNXT_FW_DBG_CAP_CRASHDUMP_HOST		0x00000002
+	uint16_t dump_flag;
+	#define BNXT_DUMP_LIVE                    0
+	#define BNXT_DUMP_CRASH                   1
+	#define BNXT_DUMP_DRIVER                  2
+	#define BNXT_DUMP_LIVE_WITH_CTX_L1_CACHE  3
 	struct iflib_dma_info	hwrm_cmd_resp;
 	struct iflib_dma_info	hwrm_short_cmd_req_addr;
 	/* Interrupt info for HWRM */
@@ -1185,6 +1232,7 @@ struct bnxt_softc {
 	struct sysctl_oid	*dcb_oid;
 
 	struct bnxt_ver_info	*ver_info;
+	struct hwrm_ver_get_output      ver_resp;
 	struct bnxt_nvram_info	*nvm_info;
 	bool wol;
 	bool is_dev_init;
@@ -1344,6 +1392,14 @@ struct bnxt_softc {
 
 	struct bnxt_fw_health	*fw_health;
 	char			board_partno[64];
+	TAILQ_HEAD(, bnxt_logger) loggers_list;
+	void                    *debug_buf;
+	struct mtx              log_lock; /* logging ops lock */
+	struct callout		time_sync_callout;
+	struct bnxt_bs_trace_info bs_trace[BNXT_CTX_TRACE_BUF_COUNT];
+
+#define MAX_NUM_DMA_INDICATIONS 10
+	struct iflib_dma_info	mgmt_dma_data[MAX_NUM_DMA_INDICATIONS];
 };
 
 struct bnxt_filter_info {
@@ -1399,5 +1455,10 @@ int bnxt_dcb_ieee_listapp(struct bnxt_softc *softc, struct bnxt_dcb_app *app,
     size_t nitems, int *num_inputs);
 void bnxt_set_flags_by_devid(struct bnxt_softc *softc);
 int bnxt_hwrm_reserve_rings(struct bnxt_softc *softc);
-
+void bnxt_free_ctx_pg_tbls(struct bnxt_softc *softc,
+				struct bnxt_ctx_pg_info *ctx_pg);
+int bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
+			    struct bnxt_ctx_pg_info *ctx_pg,
+			    uint32_t mem_size, uint8_t depth,
+			    struct bnxt_ctx_mem_type *ctxm);
 #endif /* _BNXT_H */

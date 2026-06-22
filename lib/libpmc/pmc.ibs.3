@@ -89,7 +89,7 @@ AMD IBS supports the following capabilities.
 .It PMC_CAP_SYSTEM Ta Yes
 .It PMC_CAP_TAGGING Ta \&No
 .It PMC_CAP_THRESHOLD Ta \&No
-.It PMC_CAP_USER Ta \&No
+.It PMC_CAP_USER Ta Yes (Zen 6)
 .It PMC_CAP_WRITE Ta \&No
 .El
 .Pp
@@ -97,25 +97,91 @@ By default AMD IBS enables the edge, interrupt, system and precise flags.
 .Ss Event Qualifiers
 Event specifiers for AMD IBS can have the following optional
 qualifiers:
-.Bl -tag -width "ldlat=value"
+.Bl -tag -width "fetchlat=value"
+.It Li usr
+Valid for both
+.Ar ibs-fetch
+and
+.Ar ibs-op
+events.
+Configure the counter to only sample user-mode events.
+Requires Zen 6 IBS extensions
+.Pq CPUID Fn Fn8000_0001B
+.Va EAX[IbsAddrBit63Filtering] ,
+and is rejected when the CPU does not advertise support.
+.It Li os
+Valid for both
+.Ar ibs-fetch
+and
+.Ar ibs-op
+events.
+Configure the counter to only sample kernel-mode events.
+Requires Zen 6 IBS extensions
+.Pq CPUID Fn Fn8000_0001B
+.Va EAX[IbsAddrBit63Filtering] ,
+and is rejected when the CPU does not advertise support.
+.It Li fetchlat= Ns Ar value
+Valid only for
+.Ar ibs-fetch
+events.
+Configure the counter to only sample fetches whose latency is greater than or
+equal to
+.Ar value
+core clock cycles.
+The valid range is 128 to 1920 in steps of 128.
+Requires Zen 6 IBS extensions
+.Pq CPUID Fn Fn8000_0001B
+.Va EAX[IbsFetchLatencyFiltering] ,
+and is rejected when the CPU does not advertise support.
 .It Li l3miss
+Valid for both
+.Ar ibs-fetch
+and
+.Ar ibs-op
+events.
 Configure IBS to only sample if an l3miss occurred.
 .It Li ldlat= Ns Ar value
+Valid only for
+.Ar ibs-op
+events.
 Configure the counter to only sample events with load latencies above
 .Ar ldlat .
 IBS only supports filtering latencies that are a multiple of 128 and between
 128 and 2048.
-Load latency filtering can only be used with ibs-op events and imply the
-l3miss qualifier.
+On pre-Zen 6 hardware this qualifier implies the
+.Li l3miss
+qualifier; on Zen 6 and later, latency-only filtering without
+.Li l3miss
+is permitted.
 .It Li opcount
+Valid only for
+.Ar ibs-op
+events.
 Count ops rather than cycles.
 .It Li randomize
+Valid only for
+.Ar ibs-fetch
+events.
 Randomize the sampling rate.
+.It Li streamstore
+Valid only for
+.Ar ibs-op
+events.
+Configure the counter to only sample streaming
+.Pq non-temporal
+store operations.
+Requires Zen 6 IBS extensions
+.Pq CPUID Fn Fn8000_0001B
+.Va EAX[IbsStrmStAndRmtSocket] ,
+and is rejected when the CPU does not advertise support.
 .El
 .Ss AMD IBS Events Specifiers
 The IBS event class provides only two event specifiers:
 .Bl -tag -width indent
 .It Li ibs-fetch Xo
+.Op ,usr
+.Op ,os
+.Op ,fetchlat= Ns Ar value
 .Op ,l3miss
 .Op ,randomize
 .Xc
@@ -124,9 +190,12 @@ The
 .Ar randomize
 qualifier randomly sets the bottom four bits of the sample rate.
 .It Li ibs-op Xo
+.Op ,usr
+.Op ,os
 .Op ,l3miss
 .Op ,ldlat= Ns Ar ldlat
 .Op ,opcount
+.Op ,streamstore
 .Xc
 Collect performance samples during instruction execution.
 The

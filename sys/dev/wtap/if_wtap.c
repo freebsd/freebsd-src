@@ -230,6 +230,43 @@ wtap_beacon_config(struct wtap_softc *sc, struct ieee80211vap *vap)
 }
 
 static void
+wtap_rx_tap(struct wtap_softc *sc, uint64_t tsf)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	const struct ieee80211_rate_table *rt = ic->ic_rt;
+	struct wtap_rx_radiotap_header *rh = &sc->sc_rx_th;
+
+	rh->wr_tsf = tsf;
+	rh->wr_flags = 0;
+	if (rt->rateCount) {
+		/* choose the fastest rate */
+		rh->wr_rate = IEEE80211_RV(rt->info[rt->rateCount - 1].dot11Rate);
+	}
+	rh->wr_chan_flags = IEEE80211_CHAN_2GHZ;
+	rh->wr_chan_freq = ic->ic_curchan->ic_freq;
+	rh->wr_chan_ieee = ic->ic_curchan->ic_ieee;
+	rh->wr_chan_maxpow = 0;
+}
+
+static void
+wtap_tx_tap(struct wtap_softc *sc)
+{
+	struct ieee80211com *ic = &sc->sc_ic;
+	const struct ieee80211_rate_table *rt = ic->ic_rt;
+	struct wtap_tx_radiotap_header *th = &sc->sc_tx_th;
+
+	th->wt_flags = 0;
+	if (rt->rateCount) {
+		/* choose the fastest rate */
+		th->wt_rate = IEEE80211_RV(rt->info[rt->rateCount - 1].dot11Rate);
+	}
+	th->wt_chan_flags = IEEE80211_CHAN_2GHZ;
+	th->wt_chan_freq = ic->ic_curchan->ic_freq;
+	th->wt_chan_ieee = ic->ic_curchan->ic_ieee;
+	th->wt_chan_maxpow = 0;
+}
+
+static void
 wtap_beacon_intrp(void *arg)
 {
 	struct wtap_vap *avp = arg;
@@ -261,8 +298,10 @@ wtap_beacon_intrp(void *arg)
 	wh = mtod(m, struct ieee80211_frame *);
 	memcpy(&wh[1], &tsf, sizeof(tsf));
 
-	if (ieee80211_radiotap_active_vap(vap))
-	    ieee80211_radiotap_tx(vap, m);
+	if (ieee80211_radiotap_active_vap(vap)) {
+		wtap_tx_tap(sc);
+		ieee80211_radiotap_tx(vap, m);
+	}
 
 #if 0
 	medium_transmit(avp->av_md, avp->id, m);
@@ -297,6 +336,7 @@ wtap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		switch (vap->iv_opmode) {
 		case IEEE80211_M_IBSS:
 		case IEEE80211_M_MBSS:
+		case IEEE80211_M_HOSTAP:
 			/*
 			 * Stop any previous beacon callout. This may be
 			 * necessary, for example, when an ibss merge
@@ -458,6 +498,8 @@ static int
 wtap_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	const struct ieee80211_bpf_params *params)
 {
+	struct ieee80211com *ic = ni->ni_ic;
+	struct wtap_softc *sc = ic->ic_softc;
 #if 0
 	DWTAP_PRINTF("%s, %p\n", __func__, m);
 #endif
@@ -465,6 +507,7 @@ wtap_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct wtap_vap 	*avp = WTAP_VAP(vap);
 
 	if (ieee80211_radiotap_active_vap(vap)) {
+		wtap_tx_tap(sc);
 		ieee80211_radiotap_tx(vap, m);
 	}
 	if (m->m_flags & M_TXCB)
@@ -528,6 +571,10 @@ wtap_rx_proc(void *arg, int npending)
 #if 0
 		ieee80211_dump_pkt(ic, mtod(m, caddr_t), 0,0,0);
 #endif
+		if (ieee80211_radiotap_active(ic)) {
+			uint64_t tsf = wtap_hal_get_tsf(sc->hal);
+			wtap_rx_tap(sc, tsf);
+		}
 
 		/*
 		 * Use arbitrary but sane values, and do the correct conversion
@@ -599,13 +646,22 @@ wtap_transmit(struct ieee80211com *ic, struct mbuf *m)
 	struct ieee80211_node *ni =
 	    (struct ieee80211_node *) m->m_pkthdr.rcvif;
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct wtap_softc *sc = ic->ic_softc;
 	struct wtap_vap *avp = WTAP_VAP(vap);
+	struct ieee80211_key *k;
+	struct ieee80211_frame *wh;
 
-	if(ni == NULL){
-		printf("m->m_pkthdr.rcvif is NULL we can't radiotap_tx\n");
-	}else{
-		if (ieee80211_radiotap_active_vap(vap))
-			ieee80211_radiotap_tx(vap, m);
+	wh = mtod(m, struct ieee80211_frame *);
+
+	if (IEEE80211_IS_PROTECTED(wh)) {
+		k = ieee80211_crypto_encap(ni, m);
+		if (k == NULL)
+			return (ENOBUFS);
+	}
+
+	if (ieee80211_radiotap_active_vap(vap)) {
+		wtap_tx_tap(sc);
+		ieee80211_radiotap_tx(vap, m);
 	}
 	if (m->m_flags & M_TXCB)
 		ieee80211_process_callback(ni, m, 0);
@@ -656,7 +712,20 @@ wtap_attach(struct wtap_softc *sc, const uint8_t *macaddr)
 	ic->ic_name = sc->name;
 	ic->ic_phytype = IEEE80211_T_DS;
 	ic->ic_opmode = IEEE80211_M_MBSS;
-	ic->ic_caps = IEEE80211_C_MBSS | IEEE80211_C_IBSS;
+	ic->ic_caps =
+		  IEEE80211_C_MBSS		/* mesh point link mode */
+		| IEEE80211_C_IBSS		/* ibss, nee adhoc, mode */
+		| IEEE80211_C_STA		/* station mode */
+		| IEEE80211_C_HOSTAP		/* hostap mode */
+		| IEEE80211_C_WPA		/* capable of WPA1+WPA2 */
+		| IEEE80211_C_MONITOR		/* Enable monitor mode */
+		;
+
+	ic->ic_cryptocaps =
+		  IEEE80211_CRYPTO_WEP
+		| IEEE80211_CRYPTO_AES_CCM
+		| IEEE80211_CRYPTO_TKIP
+		| IEEE80211_CRYPTO_TKIPMIC;
 
 	ic->ic_max_keyix = 128; /* A value read from Atheros ATH_KEYMAX */
 

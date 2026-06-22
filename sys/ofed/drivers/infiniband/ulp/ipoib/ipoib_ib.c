@@ -59,21 +59,24 @@ struct ipoib_ah *ipoib_create_ah(struct ipoib_dev_priv *priv,
 				 struct ib_pd *pd, struct ib_ah_attr *attr)
 {
 	struct ipoib_ah *ah;
+	struct ib_ah *vah;
 
 	ah = kmalloc(sizeof *ah, GFP_KERNEL);
 	if (!ah)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	ah->priv      = priv;
 	ah->last_send = 0;
 	kref_init(&ah->ref);
 
-	ah->ah = ib_create_ah(pd, attr, RDMA_CREATE_AH_SLEEPABLE);
-	if (IS_ERR(ah->ah)) {
+	vah = ib_create_ah(pd, attr, RDMA_CREATE_AH_SLEEPABLE);
+	if (IS_ERR(vah)) {
 		kfree(ah);
-		ah = NULL;
-	} else
+		ah = (struct ipoib_ah *)vah;
+	} else {
+		ah->ah = vah;
 		ipoib_dbg(priv, "Created ah %p\n", ah->ah);
+	}
 
 	return ah;
 }

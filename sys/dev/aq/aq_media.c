@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_var.h>
-#include <net/if_dl.h>
 #include <net/iflib.h>
 
 #include "aq_device.h"
@@ -54,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #define	AQ_HW_SUPPORT_SPEED(softc, s) ((softc)->link_speeds & s)
 
 void
-aq_mediastatus_update(aq_dev_t *aq_dev, uint32_t link_speed,
+aq_mediastatus_update(struct aq_dev *aq_dev, uint32_t link_speed,
 const struct aq_hw_fc_info *fc_neg)
 {
 	struct aq_hw *hw = &aq_dev->hw;
@@ -94,7 +93,7 @@ const struct aq_hw_fc_info *fc_neg)
 void
 aq_mediastatus(if_t ifp, struct ifmediareq *ifmr)
 {
-	aq_dev_t *aq_dev = iflib_get_softc(if_getsoftc(ifp));
+	struct aq_dev *aq_dev = iflib_get_softc(if_getsoftc(ifp));
 
 	ifmr->ifm_active = IFM_ETHER;
 	ifmr->ifm_status = IFM_AVALID;
@@ -108,7 +107,7 @@ aq_mediastatus(if_t ifp, struct ifmediareq *ifmr)
 int
 aq_mediachange(if_t ifp)
 {
-	aq_dev_t          *aq_dev = iflib_get_softc(if_getsoftc(ifp));
+	struct aq_dev          *aq_dev = iflib_get_softc(if_getsoftc(ifp));
 	struct aq_hw      *hw = &aq_dev->hw;
 	int                old_media_rate = if_getbaudrate(ifp);
 	int                old_link_speed = hw->link_rate;
@@ -163,7 +162,7 @@ aq_mediachange(if_t ifp)
 	break;
 
 	default:            // should never happen
-		aq_log_error("unknown media: 0x%X", user_media);
+		device_printf(hw->dev, "unknown media: 0x%X\n", user_media);
 		return (0);
 	}
 	hw->fc.fc_rx = (ifm->ifm_media & IFM_ETH_RXPAUSE) ? 1 : 0;
@@ -184,7 +183,7 @@ aq_mediachange(if_t ifp)
 }
 
 static void
-aq_add_media_types(aq_dev_t *aq_dev, int media_link_speed)
+aq_add_media_types(struct aq_dev *aq_dev, int media_link_speed)
 {
 	ifmedia_add(aq_dev->media, IFM_ETHER | media_link_speed | IFM_FDX, 0,
 	    NULL);
@@ -196,14 +195,14 @@ aq_add_media_types(aq_dev_t *aq_dev, int media_link_speed)
 	    IFM_ETH_TXPAUSE, 0, NULL);
 }
 void
-aq_initmedia(aq_dev_t *aq_dev)
+aq_initmedia(struct aq_dev *aq_dev)
 {
 	AQ_DBG_ENTER();
 
 	// ifconfig eth0 none
 	ifmedia_add(aq_dev->media, IFM_ETHER | IFM_NONE, 0, NULL);
 
-	// ifconfig eth0 auto
+	ifmedia_add(aq_dev->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	aq_add_media_types(aq_dev, IFM_AUTO);
 
 	if (AQ_HW_SUPPORT_SPEED(aq_dev, AQ_LINK_100M))

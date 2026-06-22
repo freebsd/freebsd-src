@@ -444,25 +444,25 @@ VNET_DECLARE(uint32_t, in_loopback_mask);
 #define	IP_RETOPTS		8    /* ip_opts; set/get IP options */
 #define	IP_MULTICAST_IF		9    /* struct in_addr *or* struct ip_mreqn;
 				      * set/get IP multicast i/f  */
-#define	IP_MULTICAST_TTL	10   /* u_char; set/get IP multicast ttl */
-#define	IP_MULTICAST_LOOP	11   /* u_char; set/get IP multicast loopback */
+#define	IP_MULTICAST_TTL	10   /* u_char,u_int; set/get IP multicast ttl */
+#define	IP_MULTICAST_LOOP	11   /* u_char,u_int; set/get IP multicast loopback */
 #define	IP_ADD_MEMBERSHIP	12   /* ip_mreq; add an IP group membership */
 #define	IP_DROP_MEMBERSHIP	13   /* ip_mreq; drop an IP group membership */
-#define	IP_MULTICAST_VIF	14   /* set/get IP mcast virt. iface */
-#define	IP_RSVP_ON		15   /* enable RSVP in kernel */
-#define	IP_RSVP_OFF		16   /* disable RSVP in kernel */
-#define	IP_RSVP_VIF_ON		17   /* set RSVP per-vif socket */
-#define	IP_RSVP_VIF_OFF		18   /* unset RSVP per-vif socket */
+#define	IP_MULTICAST_VIF	14   /* int; set/get IP mcast virt. iface */
+#define	IP_RSVP_ON		15   /* int; enable RSVP in kernel */
+#define	IP_RSVP_OFF		16   /* int; disable RSVP in kernel */
+#define	IP_RSVP_VIF_ON		17   /* int; set RSVP per-vif socket */
+#define	IP_RSVP_VIF_OFF		18   /* int; unset RSVP per-vif socket */
 #define	IP_PORTRANGE		19   /* int; range to choose for unspec port */
 #define	IP_RECVIF		20   /* bool; receive reception if w/dgram */
 /* for IPSEC */
 #define	IP_IPSEC_POLICY		21   /* int; set/get security policy */
 				     /* unused; was IP_FAITH */
-#define	IP_ONESBCAST		23   /* bool: send all-ones broadcast */
-#define	IP_BINDANY		24   /* bool: allow bind to any address */
+#define	IP_ONESBCAST		23   /* bool; send all-ones broadcast */
+#define	IP_BINDANY		24   /* bool; allow bind to any address */
 				     /* unused; was IP_BIND_MULTI */
 				     /* unused; was IP_RSS_LISTEN_BUCKET */
-#define	IP_ORIGDSTADDR		27   /* bool: receive IP dst addr/port w/dgram */
+#define	IP_ORIGDSTADDR		27   /* bool; receive IP dst addr/port w/dgram */
 #define	IP_RECVORIGDSTADDR      IP_ORIGDSTADDR
 
 /*
@@ -497,18 +497,18 @@ VNET_DECLARE(uint32_t, in_loopback_mask);
 #define	IP_DUMMYNET_GET		64   /* get entire dummynet pipes */
 
 #define	IP_RECVTTL		65   /* bool; receive IP TTL w/dgram */
-#define	IP_MINTTL		66   /* minimum TTL for packet or drop */
-#define	IP_DONTFRAG		67   /* don't fragment packet */
+#define	IP_MINTTL		66   /* int; minimum TTL for packet or drop */
+#define	IP_DONTFRAG		67   /* int; don't fragment packet */
 #define	IP_RECVTOS		68   /* bool; receive IP TOS w/dgram */
 
 /* IPv4 Source Filter Multicast API [RFC3678] */
-#define	IP_ADD_SOURCE_MEMBERSHIP	70   /* join a source-specific group */
-#define	IP_DROP_SOURCE_MEMBERSHIP	71   /* drop a single source */
-#define	IP_BLOCK_SOURCE			72   /* block a source */
-#define	IP_UNBLOCK_SOURCE		73   /* unblock a source */
+#define	IP_ADD_SOURCE_MEMBERSHIP	70   /* ip_mreq_source; join a source-specific group */
+#define	IP_DROP_SOURCE_MEMBERSHIP	71   /* ip_mreq_source; drop a single source */
+#define	IP_BLOCK_SOURCE			72   /* ip_mreq_source; block a source */
+#define	IP_UNBLOCK_SOURCE		73   /* ip_mreq_source; unblock a source */
 
 /* The following option is private; do not use it from user applications. */
-#define	IP_MSFILTER			74   /* set/get filter list */
+#define	IP_MSFILTER			74   /* __msfilterreq; set/get filter list */
 
 /* The following option deals with the 802.1Q Ethernet Priority Code Point */
 #define	IP_VLAN_PCP		75   /* int; set/get PCP used for packet, */
@@ -523,9 +523,9 @@ VNET_DECLARE(uint32_t, in_loopback_mask);
 #define	MCAST_UNBLOCK_SOURCE		85   /* unblock a source */
 
 /* Flow and RSS definitions */
-#define	IP_FLOWID		90   /* get flow id for the given socket/inp */
-#define	IP_FLOWTYPE		91   /* get flow type (M_HASHTYPE) */
-#define	IP_RSSBUCKETID		92   /* get RSS flowid -> bucket mapping */
+#define	IP_FLOWID		90   /* int; get flow id for the given socket/inp */
+#define	IP_FLOWTYPE		91   /* int; get flow type (M_HASHTYPE) */
+#define	IP_RSSBUCKETID		92   /* int; get RSS flowid -> bucket mapping */
 #define	IP_RECVFLOWID		93   /* bool; receive IP flowid/flowtype w/ datagram */
 #define	IP_RECVRSSBUCKETID	94   /* bool; receive IP RSS bucket id w/ datagram */
 

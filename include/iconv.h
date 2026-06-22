@@ -37,9 +37,7 @@
 
 #include <wchar.h>
 
-#include <sys/types.h>
-
-#ifdef __cplusplus
+#if __STDC_VERSION__ >= 202311L || defined(__cplusplus)
 typedef	bool	__iconv_bool;
 #elif __STDC_VERSION__ >= 199901L
 typedef	_Bool	__iconv_bool;

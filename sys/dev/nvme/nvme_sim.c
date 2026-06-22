@@ -96,6 +96,15 @@ nvme_sim_nvmeio(struct cam_sim *sim, union ccb *ccb)
 	struct nvme_controller *ctrlr;
 
 	ctrlr = sim2ctrlr(sim);
+
+	if (ctrlr->max_identify_cns != 0 &&
+	    nvmeio->cmd.opc == NVME_OPC_IDENTIFY &&
+	    (le32toh(nvmeio->cmd.cdw10) & 0xff) > ctrlr->max_identify_cns) {
+		nvmeio->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		return;
+	}
+
 	payload = nvmeio->data_ptr;
 	size = nvmeio->dxfer_len;
 	/* SG LIST ??? */
@@ -313,6 +322,9 @@ static int
 nvme_sim_probe(device_t dev)
 {
 	if (nvme_use_nvd)
+		return (ENXIO);
+
+	if (!NVME_IS_STORAGE_DEVICE(device_get_parent(dev)))
 		return (ENXIO);
 
 	device_set_desc(dev, "nvme cam");

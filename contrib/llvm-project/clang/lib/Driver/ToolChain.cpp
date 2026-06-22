@@ -193,6 +193,10 @@ bool ToolChain::useRelaxRelocations() const {
 }
 
 bool ToolChain::defaultToIEEELongDouble() const {
+  if (getTriple().isOSFreeBSD() &&
+      getTriple().getArch() == llvm::Triple::ppc64le &&
+      getTriple().getOSMajorVersion() >= 16)
+    return true;
   return PPC_LINUX_DEFAULT_IEEELONGDOUBLE && getTriple().isOSLinux();
 }
 

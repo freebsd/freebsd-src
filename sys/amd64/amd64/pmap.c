@@ -8317,7 +8317,7 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 		mapped = pmap_map_io_transient(pages, vaddr, 2, false);
 		a_cp = (char *)vaddr[0] + a_pg_offset;
 		b_cp = (char *)vaddr[1] + b_pg_offset;
-		bcopy(a_cp, b_cp, cnt);
+		memcpy(b_cp, a_cp, cnt);
 		if (__predict_false(mapped))
 			pmap_unmap_io_transient(pages, vaddr, 2, false);
 		a_offset += cnt;

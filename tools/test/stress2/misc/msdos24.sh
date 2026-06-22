@@ -14,8 +14,16 @@ randomfilename () {
 	count=$(jot -r 1 10 3)
 	for r in $(jot -r $count 7 0); do
 		r=$(( r + 0 ))
-		emoji="\0360\0237\0230\020$r"
-		c=$(echo -e $emoji)
+		case $(jot -r 1 3 1) in
+		1)
+			emoji="\0360\0237\0230\020$r"
+			c=$(echo -e $emoji)
+			;;
+		*)
+			food="\0360\0237\0245\022$r"
+			c=$(echo -e $food)
+			;;
+		esac
 		if [ $r -gt 0 ]; then
 			for i in $(jot $r); do
 				name="$name$i"

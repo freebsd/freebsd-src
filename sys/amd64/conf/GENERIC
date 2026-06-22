@@ -27,7 +27,7 @@ options 	SCHED_ULE		# ULE scheduler
 options 	SCHED_4BSD		# Original 4.xBSD scheduler
 options 	NUMA			# Non-Uniform Memory Architecture support
 options 	PREEMPTION		# Enable kernel thread preemption
-options 	EXTERR_STRINGS
+options 	EXTERR_STRINGS		# Retain exterror(9) strings in the kernel
 options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
@@ -343,7 +343,9 @@ device		uhci			# UHCI PCI->USB interface
 device		ohci			# OHCI PCI->USB interface
 device		ehci			# EHCI PCI->USB interface (USB 2.0)
 device		xhci			# XHCI PCI->USB interface (USB 3.0)
-device		thunderbolt		# Thunderbolt PCI->USB interface (USB 4.0)
+# Disabled for now since thunderbolt(4) breaks suspend/resume in some instances
+# and the overall implementation isn't fully fleshed out yet.
+#device		thunderbolt		# Thunderbolt PCI->USB interface (USB 4.0)
 device		usb			# USB Bus (required)
 device		usbhid			# USB HID Transport
 device		hkbd			# HID Keyboard

@@ -66,6 +66,10 @@
 #include <sys/vnode.h>
 #include <vm/uma.h>
 
+#include <netinet/in.h>
+#include <net/radix.h>
+#include <sys/netexport.h>
+
 #include <geom/geom.h>
 
 #include <security/audit/audit.h>
@@ -77,6 +81,7 @@ static int	vfs_domount(struct thread *td, const char *fstype, char *fspath,
 		    uint64_t fsflags, bool only_export, bool jail_export,
 		    struct vfsoptlist **optlist);
 static void	free_mntarg(struct mntarg *ma);
+static void	pnfsd_waitreplenish(struct mount *mp);
 
 static int	usermount = 0;
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
@@ -765,7 +770,7 @@ vfs_mount_destroy(struct mount *mp)
 	}
 	if (mp->mnt_export != NULL) {
 		vfs_free_addrlist(mp->mnt_export);
-		free(mp->mnt_export, M_MOUNT);
+		vfs_netexport_release(mp->mnt_export);
 	}
 	vfsconf_lock();
 	mp->mnt_vfc->vfc_refcount--;
@@ -2386,6 +2391,10 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 	mp->mnt_flag &= ~MNT_ASYNC;
 	mp->mnt_kern_flag &= ~MNTK_ASYNC;
 	MNT_IUNLOCK(mp);
+
+	/* Wait for any replenish kernel process to terminate. */
+	pnfsd_waitreplenish(mp);
+
 	vfs_deallocate_syncvnode(mp);
 	error = VFS_UNMOUNT(mp, flags);
 	vn_finished_write(mp);
@@ -3239,4 +3248,29 @@ resume_all_fs(void)
 		vfs_unbusy(mp);
 	}
 	mtx_unlock(&mountlist_mtx);
+}
+
+static void
+pnfsd_waitreplenish(struct mount *mp)
+{
+	struct netexport *nep;
+
+	lockmgr(&mp->mnt_explock, LK_SHARED, NULL);
+	nep = mp->mnt_export;
+	if (nep != NULL) {
+		refcount_acquire(&nep->ne_ref);
+		lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
+		MNTEXP_LOCK(nep);
+		if (nep->ne_pnfsnumfile != NULL &&
+		    nep->ne_pnfsnumfile != PNFSD_STOPPED) {
+			nep->ne_pnfsnumfile = PNFSD_STOP;
+			wakeup(&mp->mnt_export);
+			while (nep->ne_pnfsnumfile != PNFSD_STOPPED)
+				(void)msleep(&mp->mnt_explock, MNTEXP_MTX(nep),
+				    PVFS, "pnfsw", hz);
+		}
+		MNTEXP_UNLOCK(nep);
+		vfs_netexport_release(nep);
+	} else
+		lockmgr(&mp->mnt_explock, LK_RELEASE, NULL);
 }

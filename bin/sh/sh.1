@@ -41,7 +41,7 @@
 .\" the referee document.  The original Standard can be obtained online at
 .\"     http://www.opengroup.org/unix/online.html.
 .\"
-.Dd February 17, 2026
+.Dd June 16, 2026
 .Dt SH 1
 .Os
 .Sh NAME
@@ -487,7 +487,7 @@ Vertical tab
 Literal backslash
 .It \e\&'
 Literal single-quote
-.It \e\&"
+.It \e\(dq
 Literal double-quote
 .It \e Ns Ar nnn
 The byte whose octal value is
@@ -529,7 +529,7 @@ It remains literal unless it precedes the following characters,
 which it serves to quote:
 .Pp
 .Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
-.It Li $ Ta Li ` Ta Li \&" Ta Li \e Ta Li \en
+.It Li $ Ta Li ` Ta Li \(dq Ta Li \e Ta Li \en
 .El
 .It Backslash
 A backslash preserves the literal meaning of the following
@@ -1164,16 +1164,20 @@ is normally a list
 enclosed between
 .Ql {
 and
-.Ql } .
+.Ql }
+or
+.Ql \&(
+and
+.Ql \&) .
+In the latter case, the function will be executed in a subshell when
+invoked.
 .Pp
 Variables may be declared to be local to a function by
 using the
 .Ic local
-command.
-This should appear as the first statement of a function,
-and the syntax is:
+command:
 .Pp
-.D1 Ic local Oo Ar variable ... Oc Op Fl
+.D1 Ic local Oo Ar variable Ns Oo = Ns value Oc ... Oc Op Fl
 .Pp
 The
 .Ic local
@@ -1185,7 +1189,10 @@ When a variable is made local, it inherits the initial
 value and exported and readonly flags from the variable
 with the same name in the surrounding scope, if there is
 one.
-Otherwise, the variable is initially unset.
+Otherwise, the variable is initially unset unless assigned a value in
+the
+.Ic local
+statement.
 The shell
 uses dynamic scoping, so that if the variable
 .Va x
@@ -2637,7 +2644,7 @@ by means of specifying their job IDs as arguments.
 See
 .Sx Job Control
 for a list of job ID forms.
-.It Ic local Oo Ar variable ... Oc Op Fl
+.It Ic local Oo Ar variable Ns Oo = Ns value Oc ... Oc Op Fl
 See the
 .Sx Functions
 subsection.

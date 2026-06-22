@@ -74,6 +74,7 @@
 #define	D80211_TRACEX_DUMP	(D80211_TRACE_TX_DUMP|D80211_TRACE_RX_DUMP)
 #define	D80211_TRACE_STA	0x00010000
 #define	D80211_TRACE_HW_CRYPTO	0x00020000
+#define	D80211_TRACE_RATES	0x00040000
 #define	D80211_TRACE_MO		0x00100000
 #define	D80211_TRACE_MODE	0x0f000000
 #define	D80211_TRACE_MODE_HT	0x01000000
@@ -90,9 +91,15 @@
     if (linuxkpi_debug_80211 & D80211_SCAN_BEACON)			\
 	printf("%s:%d: %s SCAN " fmt "\n",				\
 	    __func__, __LINE__, ic->ic_name, ##__VA_ARGS__)
+#define	TRACE_RATES(fmt, ...)						\
+    if (linuxkpi_debug_80211 & D80211_TRACE_RATES)			\
+	printf("%s:%d: LKPI80211 RATES " fmt "\n",			\
+	    __func__, __LINE__, ##__VA_ARGS__);
+
 #else
 #define	TRACE_SCAN(...)		do {} while (0)
 #define	TRACE_SCAN_BEACON(...)	do {} while (0)
+#define	TRACE_RATES(...)	do {} while(0)
 #endif
 
 #define	IMPROVE_TXQ(...)						\
@@ -213,6 +220,7 @@ struct lkpi_vif {
 
 	struct mtx		mtx;
 	struct wireless_dev	wdev;
+	struct cfg80211_bitrate_mask	br_mask;
 
 	/* Other local stuff. */
 	int			(*iv_newstate)(struct ieee80211vap *,

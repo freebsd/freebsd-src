@@ -1326,6 +1326,9 @@ dev/bnxt/bnxt_en/bnxt_sriov.c		optional bnxt iflib pci compile-with "${BNXT_C}"
 dev/bnxt/bnxt_en/bnxt_sysctl.c		optional bnxt iflib pci compile-with "${BNXT_C}"
 dev/bnxt/bnxt_en/bnxt_txrx.c		optional bnxt iflib pci compile-with "${BNXT_C}"
 dev/bnxt/bnxt_en/bnxt_ulp.c		optional bnxt iflib pci compile-with "${BNXT_C}"
+dev/bnxt/bnxt_en/bnxt_log.c		optional bnxt iflib pci compile-with "${BNXT_C}"
+dev/bnxt/bnxt_en/bnxt_log_data.c	optional bnxt iflib pci compile-with "${BNXT_C}"
+dev/bnxt/bnxt_en/bnxt_coredump.c	optional bnxt iflib pci compile-with "${BNXT_C}"
 dev/bnxt/bnxt_en/if_bnxt.c		optional bnxt iflib pci compile-with "${BNXT_C}"
 dev/bwi/bwimac.c		optional bwi
 dev/bwi/bwiphy.c		optional bwi
@@ -3494,6 +3497,7 @@ dev/usb/template/usb_template_cdceem.c	optional usb_template
 # USB video drivers
 #
 dev/usb/video/udl.c			optional udl
+dev/usb/video/uvideo.c			optional uvideo
 #
 # USB END
 #

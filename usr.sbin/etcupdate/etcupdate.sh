@@ -200,6 +200,7 @@ build_tree()
 
 	log "Building tree at $1 with $make"
 
+	exec 4>&2
 	exec >&3 2>&1
 
 	mkdir -p $1/usr/obj
@@ -216,7 +217,16 @@ build_tree()
 	else
 		(
 			cd $SRCDIR || exit 1
-			if ! [ -n "$nobuild" ]; then
+			if [ -n "$nobuild" ]; then
+				# Check for prior build
+				objdir=$($make -V .OBJDIR)
+				if ! [ -f "${objdir}/${BUILD_SENTINEL}" ]; then
+					cat <<EOF >&4
+Build sentinel not found in object directory, did you forget to make
+buildworld or pass -b to etcupdate?
+EOF
+				fi
+			else
 				export MAKEOBJDIRPREFIX=$destdir/usr/obj
 				if [ -n "$($make -V.ALLTARGETS:Mbuildetc)" ]; then
 					$make buildetc || exit 1
@@ -1899,6 +1909,9 @@ EDITOR=${EDITOR:-/usr/bin/vi}
 
 # Files that need to be updated before installworld.
 PREWORLD_FILES="etc/master.passwd etc/group"
+
+# A file we know the build produces in the object directory.
+BUILD_SENTINEL=etc/termcap/termcap.small
 
 # Handle command-specific argument processing such as complaining
 # about unsupported options.  Since the configuration file is always

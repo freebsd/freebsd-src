@@ -562,6 +562,7 @@ UART_ACPI_CLASS_AND_DEVICE(acpi_compat_data);
 static struct ofw_compat_data compat_data[] = {
 	{"ns16550",	(uintptr_t)&uart_ns8250_class},
 	{"ns16550a",	(uintptr_t)&uart_ns8250_class},
+	{"intel,xscale-uart",	(uintptr_t)&uart_ns8250_class},
 	{NULL,		(uintptr_t)NULL},
 };
 UART_FDT_CLASS_AND_DEVICE(compat_data);
@@ -647,6 +648,12 @@ ns8250_bus_attach(struct uart_softc *sc)
 
 	/* Get IER RX interrupt bits */
 	ivar = IER_EMSC | IER_ERLS | IER_ERXRDY;
+#ifdef FDT
+	/* Intel XScale models won't work without IER_RXTMOUT set. */
+	if (ofw_bus_is_compatible(sc->sc_dev, "intel,xscale-uart"))
+		ivar |= IER_RXTMOUT;
+#endif
+
 	resource_int_value("uart", device_get_unit(sc->sc_dev), "ier_rxbits",
 	    &ivar);
 	ns8250->ier_rxbits = (uint8_t)(ivar & 0xff);

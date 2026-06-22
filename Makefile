@@ -85,7 +85,7 @@
 #  5.  `reboot'        (in single user mode: boot -s from the loader prompt).
 #  6.  `etcupdate -p'
 #  7.  `make installworld'
-#  8.  `etcupdate -B'
+#  8.  `etcupdate'
 #  9.  `make delete-old'
 # 10.  `reboot'
 # 11.  `make delete-old-libs' (in case no 3rd party program uses them anymore)

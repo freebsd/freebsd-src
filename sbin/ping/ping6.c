@@ -238,7 +238,7 @@ static struct iovec smsgiov;
 static char *scmsg = 0;
 
 static cap_channel_t *capdns_setup(void);
-static void	 fill(char *, char *);
+static void	 fill(char *, size_t, char *);
 static int	 get_hoplim(struct msghdr *);
 static int	 get_pathmtu(struct msghdr *);
 static struct in6_pktinfo *get_rcvpktinfo(struct msghdr *);
@@ -273,7 +273,8 @@ ping6(int argc, char *argv[])
 	struct sockaddr_in6 from, *sin6;
 	struct addrinfo hints, *res;
 	struct sigaction si_sa;
-	int cc, i;
+	int cc;
+	size_t i;
 	int almost_done, ch, hold, packlen, preload, optval, error;
 	int nig_oldmcprefix = -1;
 	u_char *datap;
@@ -483,7 +484,8 @@ ping6(int argc, char *argv[])
 			break;
 		case 'p':		/* fill buffer with user pattern */
 			options |= F_PINGFILLED;
-			fill((char *)datap, optarg);
+			fill((char *)datap,
+			    sizeof(outpack) - (datap - outpack), optarg);
 				break;
 		case 'q':
 			options |= F_QUIET;
@@ -762,7 +764,7 @@ ping6(int argc, char *argv[])
 	if (!(packet = (u_char *)malloc((u_int)packlen)))
 		err(1, "Unable to allocate packet");
 	if (!(options & F_PINGFILLED))
-		for (i = ICMP6ECHOLEN; i < packlen; ++i)
+		for (i = (size_t)(datap - outpack); i < sizeof(outpack); ++i)
 			*datap++ = i;
 
 	ident = getpid() & 0xFFFF;
@@ -2631,7 +2633,7 @@ pr_retip(struct ip6_hdr *ip6, u_char *end)
 }
 
 static void
-fill(char *bp, char *patp)
+fill(char *bp, size_t bplen, char *patp)
 {
 	int ii, jj, kk;
 	int pat[16];
@@ -2646,13 +2648,11 @@ fill(char *bp, char *patp)
 	    &pat[7], &pat[8], &pat[9], &pat[10], &pat[11], &pat[12],
 	    &pat[13], &pat[14], &pat[15]);
 
-/* xxx */
-	if (ii > 0)
-		for (kk = 0;
-		    (size_t)kk <= MAXDATALEN - 8 + sizeof(struct tv32) + ii;
-		    kk += ii)
+	if (ii > 0) {
+		for (kk = 0; (size_t)kk + ii <= bplen; kk += ii)
 			for (jj = 0; jj < ii; ++jj)
 				bp[jj + kk] = pat[jj];
+	}
 	if (!(options & F_QUIET)) {
 		(void)printf("PATTERN: 0x");
 		for (jj = 0; jj < ii; ++jj)

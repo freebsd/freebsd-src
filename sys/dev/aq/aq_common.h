@@ -38,32 +38,15 @@
 #include <sys/types.h>
 
 
-#define ETIME ETIMEDOUT
-#define EOK 0
-
 #define BIT(nr) (1UL << (nr))
 
-#define usec_delay(x) DELAY(x)
+#define AQ_HW_WAIT_FOR(_B_, _US_, _N_) ({ \
+	unsigned int _i; \
+	for (_i = (_N_); !(_B_) && _i; --_i) \
+		DELAY(_US_); \
+	(_i == 0) ? ETIMEDOUT : 0; \
+})
 
-#ifndef msec_delay
-#define msec_delay(x) DELAY(x*1000)
-#define msec_delay_irq(x) DELAY(x*1000)
-#endif
-
-#define AQ_HW_WAIT_FOR(_B_, _US_, _N_) \
-do { \
-        unsigned int i; \
-	for (i = _N_; (!(_B_)) && i; --i) { \
-		usec_delay(_US_); \
-	} \
-	if (!i) { \
-		err = -1; \
-	} \
-} while (0)
-
-
-#define LOWORD(a) ((uint16_t)(a))
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 #define AQ_VER        "0.0.5"
 

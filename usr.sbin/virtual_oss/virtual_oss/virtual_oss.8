@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"
-.Dd May 7, 2026
+.Dd May 21, 2026
 .Dt VIRTUAL_OSS 8
 .Os
 .Sh NAME
@@ -162,8 +162,6 @@ This option should be specified before the -d and -l options.
 Create an OSS device by given name.
 .It Fl l Ar name
 Create a loopback OSS device by given name.
-Users have to be part of the audio group to access this device.
-This is a security measure to avoid unintended snooping by unprivileged users.
 .It Fl L Ar name
 Create a loopback OSS device which acts as a master device.
 This option is used in conjunction with -f /dev/null .
@@ -328,8 +326,8 @@ virtual_oss -S -b 16 -C 2 -c 2 -r 48000 -s 4ms \\
 	-f /dev/sndio/default -d dsp
 .Ed
 .Sh NOTES
-All character devices are created using the 0666 mode which gives
-everyone in the system access.
+Users have to be part of the audio group to access any device node created by
+.Nm .
 .Sh SEE ALSO
 .Xr cuse 3 ,
 .Xr sound 4 ,

@@ -714,8 +714,8 @@ feeder_chain(struct pcm_channel *c)
 			cdesc.dummy = 1;
 
 		if ((softfmt & AFMT_CONVERTIBLE) &&
-		    (((d->flags & SD_F_VPC) && !(c->flags & CHN_F_HAS_VCHAN)) ||
-		    (!(d->flags & SD_F_VPC) && (d->flags & SD_F_SOFTPCMVOL) &&
+		    (!(c->flags & CHN_F_HAS_VCHAN) ||
+		    ((d->flags & SD_F_SOFTPCMVOL) &&
 		    !(c->flags & CHN_F_VIRTUAL))))
 			cdesc.use_volume = 1;
 

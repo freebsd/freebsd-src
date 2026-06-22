@@ -505,6 +505,12 @@ nhgrp_alloc(uint32_t fibnum, int family, struct weightened_nhop *wn, int num_nho
 			*perror = ENOMEM;
 			return (NULL);
 		}
+		if (V_fib_hash_outbound == 0) {
+			/* Enable local outbound connections hashing. */
+			if (bootverbose)
+				printf("FIB: enabled flowid calculation for locally-originated packets\n");
+			V_fib_hash_outbound = 1;
+		}
 	}
 
 	/* Sort nexthops & check there are no duplicates */

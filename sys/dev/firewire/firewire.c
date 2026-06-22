@@ -748,6 +748,8 @@ fw_busreset(struct firewire_comm *fc, uint32_t new_status)
 	 */
 #define FW_MAX_GENERATION 0xF
 	newrom = malloc(CROMSIZE, M_FW, M_NOWAIT | M_ZERO);
+	if (newrom == NULL)
+		goto out;
 	src = &fc->crom_src_buf->src;
 	crom_load(src, newrom, CROMSIZE);
 	if (bcmp(newrom, fc->config_rom, CROMSIZE) != 0) {
@@ -763,6 +765,7 @@ fw_busreset(struct firewire_comm *fc, uint32_t new_status)
 		bcopy(newrom, fc->config_rom, CROMSIZE);
 	}
 	free(newrom, M_FW);
+out:;
 }
 
 /* Call once after reboot */

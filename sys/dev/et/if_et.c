@@ -2699,7 +2699,7 @@ et_suspend(device_t dev)
 	ET_LOCK(sc);
 	if ((if_getdrvflags(sc->ifp) & IFF_DRV_RUNNING) != 0)
 		et_stop(sc);
-	/* Diable all clocks and put PHY into COMA. */
+	/* Disable all clocks and put PHY into COMA. */
 	pmcfg = CSR_READ_4(sc, ET_PM);
 	pmcfg &= ~(EM_PM_GIGEPHY_ENB | ET_PM_SYSCLK_GATE | ET_PM_TXCLK_GATE |
 	    ET_PM_RXCLK_GATE);

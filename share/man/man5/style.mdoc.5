@@ -1,9 +1,9 @@
 .\"
-.\" Copyright (c) 2018-2025 Mateusz Piotrowski <0mp@FreeBSD.org>
+.\" Copyright (c) 2018-2026 Mateusz Piotrowski <0mp@FreeBSD.org>
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd February 16, 2025
+.Dd June 13, 2026
 .Dt STYLE.MDOC 5
 .Os
 .Sh NAME
@@ -13,6 +13,13 @@
 This file specifies the preferred style for manual pages in the
 .Fx
 source tree.
+.Ss NAME Section
+.Bl -dash -width ""
+.It
+Do not quote the document description provided to the
+.Sy \&.Nd
+macro.
+.El
 .Ss Code Examples
 .Bl -dash -width ""
 .It

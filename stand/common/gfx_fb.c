@@ -817,6 +817,27 @@ gfxfb_blt_video_to_video(uint32_t SourceX, uint32_t SourceY,
 }
 
 static void
+gfx_shadow_mark_dirty(uint32_t x, uint32_t y, uint32_t w, uint32_t h)
+{
+	if (gfx_state.tg_dirty) {
+		if (x < gfx_state.tg_dirty_x1)
+			gfx_state.tg_dirty_x1 = x;
+		if (y < gfx_state.tg_dirty_y1)
+			gfx_state.tg_dirty_y1 = y;
+		if (x + w > gfx_state.tg_dirty_x2)
+			gfx_state.tg_dirty_x2 = x + w;
+		if (y + h > gfx_state.tg_dirty_y2)
+			gfx_state.tg_dirty_y2 = y + h;
+	} else {
+		gfx_state.tg_dirty = true;
+		gfx_state.tg_dirty_x1 = x;
+		gfx_state.tg_dirty_y1 = y;
+		gfx_state.tg_dirty_x2 = x + w;
+		gfx_state.tg_dirty_y2 = y + h;
+	}
+}
+
+static void
 gfxfb_shadow_fill(uint32_t *BltBuffer,
     uint32_t DestinationX, uint32_t DestinationY,
     uint32_t Width, uint32_t Height)
@@ -846,6 +867,63 @@ gfxfb_shadow_fill(uint32_t *BltBuffer,
 			gfx_state.tg_shadow_fb[off + x] = *BltBuffer;
 		}
 	}
+
+	gfx_shadow_mark_dirty(DestinationX, DestinationY, Width, Height);
+}
+
+/*
+ * Write a pixel buffer into the shadow framebuffer.
+ */
+static void
+gfxfb_shadow_buf_write(void *BltBuffer, uint32_t SourceX, uint32_t SourceY,
+    uint32_t DestinationX, uint32_t DestinationY,
+    uint32_t Width, uint32_t Height, uint32_t Delta)
+{
+	uint32_t fbW = gfx_state.tg_fb.fb_width;
+	uint32_t sy, dy;
+
+	if (Delta == 0)
+		Delta = Width * sizeof(*gfx_state.tg_shadow_fb);
+
+	for (sy = SourceY, dy = DestinationY; sy < SourceY + Height; sy++, dy++) {
+		uint32_t *src = (uint32_t *)((uint8_t *)BltBuffer + sy * Delta) +
+		    SourceX;
+		uint32_t *dst = gfx_state.tg_shadow_fb + dy * fbW + DestinationX;
+
+		bcopy(src, dst, Width * sizeof(*gfx_state.tg_shadow_fb));
+	}
+
+	gfx_shadow_mark_dirty(DestinationX, DestinationY, Width, Height);
+}
+
+/*
+ * Copy a region within the shadow framebuffer.
+ */
+static void
+gfxfb_shadow_vid_to_vid(uint32_t SourceX, uint32_t SourceY,
+    uint32_t DestinationX, uint32_t DestinationY,
+    uint32_t Width, uint32_t Height)
+{
+	uint32_t fbW = gfx_state.tg_fb.fb_width;
+	uint32_t h = Height;
+	int step = 1;
+	uint32_t sy = SourceY, dy = DestinationY;
+
+	if (dy * fbW + DestinationX > sy * fbW + SourceX) {
+		sy += Height - 1;
+		dy += Height - 1;
+		step = -1;
+	}
+
+	while (Height-- > 0) {
+		bcopy(gfx_state.tg_shadow_fb + sy * fbW + SourceX,
+		    gfx_state.tg_shadow_fb + dy * fbW + DestinationX,
+		    Width * sizeof(*gfx_state.tg_shadow_fb));
+		sy += step;
+		dy += step;
+	}
+
+	gfx_shadow_mark_dirty(DestinationX, DestinationY, Width, h);
 }
 
 int
@@ -855,6 +933,49 @@ gfxfb_blt(void *BltBuffer, GFXFB_BLT_OPERATION BltOperation,
     uint32_t Width, uint32_t Height, uint32_t Delta)
 {
 	int rv;
+
+	/*
+	 * When a shadow framebuffer is present, redirect write operations into
+	 * it regardless of the underlying display backend (EFI GOP or direct
+	 * framebuffer).  The real video is updated in bulk by gfx_fb_flush()
+	 * once a logical output operation is complete.
+	 *
+	 * Reads (VideoToBltBuffer) are intentionally NOT redirected to shadow:
+	 * the shadow only contains pixels that have been explicitly written
+	 * through it, so unwritten regions (e.g. firmware content already on
+	 * screen at boot) would return stale or uninitialised data.  Instead,
+	 * flush any pending shadow writes to video first so the
+	 * backend-specific read below always sees the current framebuffer
+	 * contents.
+	 */
+	if (gfx_state.tg_shadow_fb != NULL &&
+	    BltOperation == GfxFbBltVideoToBltBuffer)
+		gfx_fb_flush();
+
+	if (gfx_state.tg_shadow_fb != NULL &&
+	    BltOperation != GfxFbBltVideoToBltBuffer) {
+		switch (BltOperation) {
+		case GfxFbBltVideoFill:
+			gfxfb_shadow_fill(BltBuffer, DestinationX, DestinationY,
+			    Width, Height);
+			break;
+
+		case GfxFbBltBufferToVideo:
+			gfxfb_shadow_buf_write(BltBuffer, SourceX, SourceY,
+			    DestinationX, DestinationY, Width, Height, Delta);
+			break;
+
+		case GfxFbBltVideoToVideo:
+			gfxfb_shadow_vid_to_vid(SourceX, SourceY,
+			    DestinationX, DestinationY, Width, Height);
+			break;
+
+		default:
+			return (EINVAL);
+		}
+		return (0);
+	}
+
 #if defined(EFI)
 	EFI_STATUS status;
 	EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
@@ -874,8 +995,6 @@ gfxfb_blt(void *BltBuffer, GFXFB_BLT_OPERATION BltOperation,
 		tpl = BS->RaiseTPL(TPL_NOTIFY);
 		switch (BltOperation) {
 		case GfxFbBltVideoFill:
-			gfxfb_shadow_fill(BltBuffer, DestinationX,
-			    DestinationY, Width, Height);
 			status = gop->Blt(gop, BltBuffer, EfiBltVideoFill,
 			    SourceX, SourceY, DestinationX, DestinationY,
 			    Width, Height, Delta);
@@ -927,8 +1046,6 @@ gfxfb_blt(void *BltBuffer, GFXFB_BLT_OPERATION BltOperation,
 
 	switch (BltOperation) {
 	case GfxFbBltVideoFill:
-		gfxfb_shadow_fill(BltBuffer, DestinationX, DestinationY,
-		    Width, Height);
 		rv = gfxfb_blt_fill(BltBuffer, DestinationX, DestinationY,
 		    Width, Height);
 		break;
@@ -953,6 +1070,57 @@ gfxfb_blt(void *BltBuffer, GFXFB_BLT_OPERATION BltOperation,
 		break;
 	}
 	return (rv);
+}
+
+/*
+ * Flush the dirty region of the shadow framebuffer to the real framebuffer.
+ * Must be called after each logical output operation when shadow fb is in use.
+ */
+void
+gfx_fb_flush(void)
+{
+	uint32_t x, y, w, h, pitch;
+
+	if (gfx_state.tg_shadow_fb == NULL || !gfx_state.tg_dirty ||
+	    gfx_state.tg_fb_type == FB_TEXT)
+		return;
+
+	x = gfx_state.tg_dirty_x1;
+	y = gfx_state.tg_dirty_y1;
+	pitch = gfx_state.tg_fb.fb_width;
+
+	if (x >= pitch || y >= gfx_state.tg_fb.fb_height)
+		goto done;
+
+	w = gfx_state.tg_dirty_x2 - x;
+	h = gfx_state.tg_dirty_y2 - y;
+
+	if (x + w > pitch)
+		w = pitch - x;
+	if (y + h > gfx_state.tg_fb.fb_height)
+		h = gfx_state.tg_fb.fb_height - y;
+
+#if defined(EFI)
+	if (gfx_state.tg_fb_type == FB_GOP && !ignore_gop_blt &&
+	    boot_services_active) {
+		EFI_GRAPHICS_OUTPUT_PROTOCOL *gop = gfx_state.tg_private;
+		EFI_TPL tpl;
+
+		assert(gop != NULL);
+		tpl = BS->RaiseTPL(TPL_NOTIFY);
+		(void) gop->Blt(gop,
+		    (EFI_GRAPHICS_OUTPUT_BLT_PIXEL *)gfx_state.tg_shadow_fb,
+		    EfiBltBufferToVideo, x, y, x, y, w, h,
+		    pitch * sizeof(*gfx_state.tg_shadow_fb));
+		BS->RestoreTPL(tpl);
+		goto done;
+	}
+#endif
+	(void) gfxfb_blt_buffer_to_video(gfx_state.tg_shadow_fb,
+	    x, y, x, y, w, h, pitch * sizeof(*gfx_state.tg_shadow_fb));
+
+done:
+	gfx_state.tg_dirty = false;
 }
 
 void
@@ -1057,6 +1225,8 @@ gfx_fb_putchar(void *arg, const teken_pos_t *p, teken_char_t c,
 		c = teken_get_cursor(&state->tg_teken);
 		gfx_fb_cursor_draw(state, c, true);
 	}
+
+	gfx_fb_flush();
 }
 
 void
@@ -1096,6 +1266,7 @@ gfx_fb_fill(void *arg, const teken_rect_t *r, teken_char_t c,
 		gfx_fb_cursor_draw(state, c, true);
 	}
 
+	gfx_fb_flush();
 	TSEXIT();
 }
 
@@ -1132,6 +1303,7 @@ gfx_fb_cursor(void *arg, const teken_pos_t *p)
 	if (state->tg_cursor_visible) {
 		gfx_fb_cursor_draw(state, &state->tg_cursor, false);
 		gfx_fb_cursor_draw(state, p, true);
+		gfx_fb_flush();
 	}
 }
 
@@ -1158,6 +1330,7 @@ gfx_fb_param(void *arg, int cmd, unsigned int value)
 			state->tg_cursor_visible = true;
 		else
 			state->tg_cursor_visible = false;
+		gfx_fb_flush();
 		break;
 	default:
 		/* Not yet implemented */
@@ -1205,7 +1378,7 @@ gfx_fb_copy_area(teken_gfx_t *state, const teken_rect_t *s,
 	width *= (s->tr_end.tp_col - s->tr_begin.tp_col + 1);
 
 	/*
-	 * With no shadow fb, use video to video copy.
+	 * With no shadow fb, use video to video copy directly.
 	 */
 	if (state->tg_shadow_fb == NULL) {
 		(void) gfxfb_blt(NULL, GfxFbBltVideoToVideo,
@@ -1218,13 +1391,18 @@ gfx_fb_copy_area(teken_gfx_t *state, const teken_rect_t *s,
 	}
 
 	/*
-	 * With shadow fb, we need to copy data on both shadow and video,
-	 * to preserve the consistency. We only read data from shadow fb.
+	 * With shadow fb, copy within shadow only.  Every region that could
+	 * be the source of a copy was previously drawn through the shadow, so
+	 * reading from it here is always valid.  Mark the destination dirty so
+	 * gfx_fb_flush() will push it to the real framebuffer.
 	 */
-
 	step = 1;
 	pitch = state->tg_fb.fb_width;
 	bytes = width * sizeof (*state->tg_shadow_fb);
+
+	uint32_t dst_x = dx + state->tg_origin.tp_col;
+	uint32_t dst_y = dy + state->tg_origin.tp_row;
+	uint32_t dst_h = height;
 
 	/*
 	 * To handle overlapping areas, set up reverse copy here.
@@ -1240,13 +1418,11 @@ gfx_fb_copy_area(teken_gfx_t *state, const teken_rect_t *s,
 		uint32_t *destination = &state->tg_shadow_fb[dy * pitch + dx];
 
 		bcopy(source, destination, bytes);
-		(void) gfxfb_blt(destination, GfxFbBltBufferToVideo,
-		    0, 0, dx + state->tg_origin.tp_col,
-		    dy + state->tg_origin.tp_row, width, 1, 0);
-
 		sy += step;
 		dy += step;
 	}
+
+	gfx_shadow_mark_dirty(dst_x, dst_y, width, dst_h);
 }
 
 static void
@@ -1345,6 +1521,8 @@ gfx_fb_copy(void *arg, const teken_rect_t *r, const teken_pos_t *p)
 		c = teken_get_cursor(&state->tg_teken);
 		gfx_fb_cursor_draw(state, c, true);
 	}
+
+	gfx_fb_flush();
 }
 
 /*
@@ -1434,23 +1612,22 @@ gfx_fb_cons_display(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
 	size_t size;
 
 	/*
-	 * If we do have shadow fb, we will use shadow to render data,
-	 * and copy shadow to video.
+	 * If we do have shadow fb, render into it only.  The caller is
+	 * responsible for flushing the dirty region to the real framebuffer
+	 * via gfx_fb_flush() once a logical output operation is complete.
 	 */
 	if (gfx_state.tg_shadow_fb != NULL) {
 		uint32_t pitch = gfx_state.tg_fb.fb_width;
+		uint32_t sy = y - gfx_state.tg_origin.tp_row;
+		uint32_t sx = x - gfx_state.tg_origin.tp_col;
 
-		/* Copy rectangle line by line. */
 		p = data;
-		for (uint32_t sy = 0; sy < height; sy++) {
+		for (uint32_t row = 0; row < height; row++) {
 			buf = (void *)(gfx_state.tg_shadow_fb +
-			    (y - gfx_state.tg_origin.tp_row) * pitch +
-			    x - gfx_state.tg_origin.tp_col);
-			bitmap_cpy(buf, &p[sy * width], width);
-			(void) gfxfb_blt(buf, GfxFbBltBufferToVideo,
-			    0, 0, x, y, width, 1, 0);
-			y++;
+			    (sy + row) * pitch + sx);
+			bitmap_cpy(buf, &p[row * width], width);
 		}
+		gfx_shadow_mark_dirty(x, y, width, height);
 		return;
 	}
 
@@ -1566,6 +1743,7 @@ gfx_fb_drawrect(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2,
 		gfxfb_blt(&c, GfxFbBltVideoFill, 0, 0, x1, y1, 1, y2 - y1, 0);
 		gfxfb_blt(&c, GfxFbBltVideoFill, 0, 0, x2, y1, 1, y2 - y1, 0);
 	}
+	gfx_fb_flush();
 }
 
 void
@@ -1618,6 +1796,7 @@ gfx_fb_line(uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t wd)
 			y0 += sy;
 		}
 	}
+	gfx_fb_flush();
 }
 
 /*
@@ -1690,6 +1869,7 @@ gfx_fb_bezier(uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t x2,
 		} while (dy < dx); /* gradient negates -> algorithm fails */
 	}
 	gfx_fb_line(x0, y0, x2, y2, width);
+	gfx_fb_flush();
 }
 
 /*
@@ -2042,6 +2222,7 @@ gfx_fb_putimage(png_t *png, uint32_t ux1, uint32_t uy1, uint32_t ux2,
 
 	gfx_fb_cons_display(ux1, uy1, fwidth, fheight, data);
 	free(data);
+	gfx_fb_flush();
 	return (0);
 }
 

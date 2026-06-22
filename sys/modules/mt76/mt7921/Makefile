@@ -8,7 +8,7 @@ MT7921_PCI=		1
 MT7921_SDIO=		0
 MT7921_USB=		0
 
-MT7921_DEBUGFS=		0
+MT7921_DEBUGFS=		1
 
 # Common stuff.
 SRCS+=	init.c main.c mac.c mcu.c

@@ -35,12 +35,14 @@
 #ifndef _AQ_RING_H_
 #define _AQ_RING_H_
 
+#include <sys/counter.h>
+
 #include "aq_hw.h"
 
 #define REFILL_THRESHOLD 128
 
 
-typedef volatile struct {
+struct aq_rx_wb {
 	uint32_t rss_type:4;
 	uint32_t pkt_type:8;
 	uint32_t rdm_err:1;
@@ -57,9 +59,9 @@ typedef volatile struct {
 	uint16_t pkt_len;
 	uint16_t next_desp;
 	uint16_t vlan;
-} __attribute__((__packed__)) aq_rx_wb_t;
+} __packed;
 
-typedef volatile struct {
+struct aq_rx_desc {
 	union {
 		/* HW RX descriptor */
 		struct __packed {
@@ -68,12 +70,12 @@ typedef volatile struct {
 		} read;
 
 		/* HW RX descriptor writeback */
-		aq_rx_wb_t wb;
+		struct aq_rx_wb wb;
 	};
-} __attribute__((__packed__)) aq_rx_desc_t;
+} __packed;
 
 /* Hardware tx descriptor */
-typedef volatile struct {
+struct aq_tx_desc {
 	uint64_t buf_addr;
 
 	union {
@@ -88,10 +90,10 @@ typedef volatile struct {
 			uint32_t ct_idx:1;
 			uint32_t ct_en:1;
 			uint32_t pay_len:18;
-		} __attribute__((__packed__));
+		} __packed;
 		uint64_t flags;
 	};
-} __attribute__((__packed__)) aq_tx_desc_t;
+} __packed;
 
 enum aq_tx_desc_type {
 	tx_desc_type_desc = 1,
@@ -108,7 +110,7 @@ enum aq_tx_desc_cmd {
 };
 
 /* Hardware tx context descriptor */
-typedef volatile union {
+union aq_txc_desc {
 	struct __packed {
 		uint64_t flags1;
 		uint64_t flags2;
@@ -127,19 +129,16 @@ typedef volatile union {
 		uint32_t l4_len:8;
 		uint32_t mss_len:16;
 	};
-} __attribute__((__packed__)) aq_txc_desc_t;
+} __packed;
 
 struct aq_ring_stats {
-	uint64_t rx_pkts;
-	uint64_t rx_bytes;
-	uint64_t jumbo_pkts;
-	uint64_t rx_err;
-	uint64_t irq;
+	counter_u64_t rx_pkts;
+	counter_u64_t rx_bytes;
+	counter_u64_t rx_err;
+	counter_u64_t irq;
 
-	uint64_t tx_pkts;
-	uint64_t tx_bytes;
-	uint64_t tx_drops;
-	uint64_t tx_queue_full;
+	counter_u64_t tx_pkts;
+	counter_u64_t tx_bytes;
 };
 
 struct aq_dev;
@@ -152,16 +151,16 @@ struct aq_ring {
 	int msix;
 /* RX */
 	qidx_t rx_size;
-	int rx_max_frame_size;
+	int rx_buf_size;
 	void *rx_desc_area_ptr;
-	aq_rx_desc_t *rx_descs;
+	volatile struct aq_rx_desc *rx_descs;
 	uint64_t rx_descs_phys;
 
 /* TX */
 	int tx_head, tx_tail;
 	qidx_t tx_size;
 	void *tx_desc_area_ptr;
-	aq_tx_desc_t *tx_descs;
+	volatile struct aq_tx_desc *tx_descs;
 	uint64_t tx_descs_phys;
 
 	struct aq_ring_stats stats;

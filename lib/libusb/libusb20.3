@@ -62,6 +62,8 @@ USB access library (libusb -lusb)
 .Ft uint32_t
 .Fn libusb20_tr_get_max_total_length "struct libusb20_transfer *xfer"
 .Ft uint8_t
+.Fn libusb20_tr_get_flags "struct libusb20_transfer *xfer"
+.Ft uint8_t
 .Fn libusb20_tr_get_status "struct libusb20_transfer *xfer"
 .Ft uint8_t
 .Fn libusb20_tr_pending "struct libusb20_transfer *xfer"
@@ -125,6 +127,8 @@ USB access library (libusb -lusb)
 .Fn libusb20_dev_close "struct libusb20_device *pdev"
 .Ft int
 .Fn libusb20_dev_detach_kernel_driver "struct libusb20_device *pdev" "uint8_t iface_index"
+.Ft int
+.Fn libusb20_dev_attach_kernel_driver "struct libusb20_device *pdev" "uint8_t iface_index"
 .Ft int
 .Fn libusb20_dev_set_config_index "struct libusb20_device *pdev" "uint8_t configIndex"
 .Ft int
@@ -354,6 +358,15 @@ length of the SETUP packet, 8 bytes, which is part of frame zero.
 The returned value of this function is always aligned to the maximum
 packet size, wMaxPacketSize, of the endpoint which the USB transfer is
 bound to.
+.
+.Pp
+.
+.Fn libusb20_tr_get_flags
+will return the transfer flags of an USB transfer.
+.
+Flag values are defined by a set of LIBUSB20_TRANSFER_XXX enums and can
+be set using
+.Fn libusb20_tr_set_flags .
 .
 .Pp
 .
@@ -616,6 +629,15 @@ returned.
 .
 .Fn libusb20_dev_detach_kernel_driver
 will try to detach the kernel driver for the USB interface given by
+.Fa iface_index .
+.
+This function returns zero on success else a LIBUSB20_ERROR value is
+returned.
+.
+.Pp
+.
+.Fn libusb20_dev_attach_kernel_driver
+will try to attach the kernel driver for the USB interface given by
 .Fa iface_index .
 .
 This function returns zero on success else a LIBUSB20_ERROR value is

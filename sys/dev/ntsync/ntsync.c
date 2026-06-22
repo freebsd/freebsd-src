@@ -215,7 +215,7 @@ ntsync_wait_locked(struct ntsync_wait_state *state, struct thread *td)
 		if (state->ready)
 			break;
 		error = msleep_sbt(state, &state->owner->lock,
-		    PCATCH, "ntsync", state->sb, 0,
+		    PCATCH, "ntsync", state->sb, state->prec,
 		    C_ABSOLUTE /* | C_HARDCLOCK XXXKIB */);
 
 		/*
@@ -297,6 +297,7 @@ ntsync_create_obj(struct ntsync_obj *obj, struct fileops *fops,
 	finit(fp, FREAD | FWRITE, DTYPE_NTSYNC, obj, fops);
 	error = finstall(td, fp, &fd, 0, NULL);
 	if (error != 0) {
+		finit(fp, FREAD | FWRITE, DTYPE_NONE, NULL, &badfileops);
 		NTSYNC_PRIV_LOCK(priv);
 		MPASS(priv->objs_cnt > 0);
 		priv->objs_cnt--;
@@ -1195,7 +1196,6 @@ ntsync_wait_state_get(struct ntsync_wait_args *nwa, u_long cmd,
 {
 	struct ntsync_wait_state *state;
 	struct ntsync_obj *obj;
-	struct bintime btb;
 	int error, i, j;
 
 	if (nwa->count > NTSYNC_MAX_WAIT_COUNT)
@@ -1211,7 +1211,7 @@ ntsync_wait_state_get(struct ntsync_wait_args *nwa, u_long cmd,
 	error = copyin((void *)(uintptr_t)nwa->objs, &state->fds[0],
 	    nwa->count * sizeof(state->fds[0]));
 	if (error != 0)
-		return (error);
+		goto error_ret;
 
 	i = 0;
 	if (nwa->alert != 0) {
@@ -1270,14 +1270,23 @@ ntsync_wait_state_get(struct ntsync_wait_args *nwa, u_long cmd,
 		}
 	}
 
+	state->prec = 0;
 	if (nwa->timeout == UINT64_MAX) {
 		state->sb = 0;
 	} else {
 		state->sb = nstosbt(nwa->timeout);
 		if ((nwa->flags & NTSYNC_WAIT_REALTIME) != 0) {
-			getboottimebin(&btb);
-			state->sb += bttosbt(btb);
+			struct bintime btb;
+
+			bintime(&btb);
+			state->sb -= bttosbt(btb);
+		} else {
+			struct timespec ts;
+
+			nanouptime(&ts);
+			state->sb -= tstosbt(ts);
 		}
+		state->sb += sbinuptime();
 	}
 
 	*statep = state;
@@ -1288,6 +1297,8 @@ error_out:
 		fdrop(state->fps[j], td);
 	if (state->fp_alert != NULL)
 		fdrop(state->fp_alert, td);
+error_ret:
+	free(state, M_NTSYNC);
 	return (error);
 }
 

@@ -279,6 +279,10 @@ static ssize_t rate_show(struct ib_port *p, struct port_attribute *unused,
 		speed = " NDR";
 		rate = 1000;
 		break;
+	case IB_SPEED_XDR:
+		speed = " XDR";
+		rate = 2000;
+		break;
 	case IB_SPEED_SDR:
 	default:		/* default to SDR for invalid rates */
 		speed = " SDR";

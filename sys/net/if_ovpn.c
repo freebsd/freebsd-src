@@ -2517,6 +2517,7 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 
 	m = m_unshare(m, M_NOWAIT);
 	if (m == NULL) {
+		OVPN_RUNLOCK(sc);
 		OVPN_COUNTER_ADD(sc, nomem_data_pkts_in, 1);
 		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 		return (true);

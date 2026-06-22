@@ -1023,3 +1023,21 @@ usb_detach_kernel_driver_np(usb_dev_handle * dev, int interface)
 
 	return (0);
 }
+
+int
+usb_attach_kernel_driver_np(usb_dev_handle *dev, int interface)
+{
+	struct libusb20_device *pdev;
+	int err;
+
+	pdev = (void *)dev;
+
+	if (pdev == NULL)
+		return (-1);
+
+	err = libusb20_dev_attach_kernel_driver(pdev, interface);
+	if (err != 0)
+		return (-1);
+
+	return (0);
+}

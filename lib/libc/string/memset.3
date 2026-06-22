@@ -29,12 +29,12 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 24, 2024
+.Dd June 21, 2026
 .Dt MEMSET 3
 .Os
 .Sh NAME
 .Nm memset
-.Nd write a byte to byte string
+.Nd set bytes in memory
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -56,7 +56,7 @@ bytes of value
 .Fa c
 (converted to an
 .Vt "unsigned char" )
-to the string
+to the object
 .Fa dest .
 Undefined behaviour from
 .Fn memset ,

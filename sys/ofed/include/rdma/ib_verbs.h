@@ -488,7 +488,8 @@ enum ib_port_speed {
 	IB_SPEED_FDR	= 16,
 	IB_SPEED_EDR	= 32,
 	IB_SPEED_HDR	= 64,
-	IB_SPEED_NDR	= 128
+	IB_SPEED_NDR	= 128,
+	IB_SPEED_XDR	= 256,
 };
 
 /**
@@ -609,7 +610,7 @@ struct ib_port_attr {
 	u8			subnet_timeout;
 	u8			init_type_reply;
 	u8			active_width;
-	u8			active_speed;
+	u16			active_speed;
 	u8                      phys_state;
 	bool			grh_required;
 };
@@ -1471,6 +1472,7 @@ struct ib_cq {
 	void                   *cq_context;
 	int               	cqe;
 	atomic_t          	usecnt; /* count number of work queues */
+	struct ib_wc		*wc;
 	enum ib_poll_context	poll_ctx;
 	struct work_struct	work;
 };
@@ -2022,11 +2024,11 @@ struct ib_dma_mapping_ops {
 	int		(*map_sg_attrs)(struct ib_device *dev,
 					struct scatterlist *sg, int nents,
 					enum dma_data_direction direction,
-					struct dma_attrs *attrs);
+					unsigned long attrs);
 	void		(*unmap_sg_attrs)(struct ib_device *dev,
 					  struct scatterlist *sg, int nents,
 					  enum dma_data_direction direction,
-					  struct dma_attrs *attrs);
+					  unsigned long attrs);
 	void		(*sync_single_for_cpu)(struct ib_device *dev,
 					       u64 dma_handle,
 					       size_t size,
@@ -3353,6 +3355,8 @@ static inline void ib_free_cq(struct ib_cq *cq)
 	ib_free_cq_user(cq, NULL);
 }
 
+int ib_process_cq_direct(struct ib_cq *cq, int budget);
+
 /**
  * ib_create_cq - Creates a CQ on the specified device.
  * @device: The device on which to create the CQ.
@@ -3536,19 +3540,19 @@ static inline void ib_dma_unmap_single(struct ib_device *dev,
 static inline u64 ib_dma_map_single_attrs(struct ib_device *dev,
 					  void *cpu_addr, size_t size,
 					  enum dma_data_direction direction,
-					  struct dma_attrs *dma_attrs)
+					  unsigned long dma_attrs)
 {
 	return dma_map_single_attrs(dev->dma_device, cpu_addr, size,
-				    direction, dma_attrs->flags);
+				    direction, dma_attrs);
 }
 
 static inline void ib_dma_unmap_single_attrs(struct ib_device *dev,
 					     u64 addr, size_t size,
 					     enum dma_data_direction direction,
-					     struct dma_attrs *dma_attrs)
+					     unsigned long dma_attrs)
 {
 	return dma_unmap_single_attrs(dev->dma_device, addr, size,
-				      direction, dma_attrs->flags);
+				      direction, dma_attrs);
 }
 
 /**
@@ -3623,27 +3627,27 @@ static inline void ib_dma_unmap_sg(struct ib_device *dev,
 static inline int ib_dma_map_sg_attrs(struct ib_device *dev,
 				      struct scatterlist *sg, int nents,
 				      enum dma_data_direction direction,
-				      struct dma_attrs *dma_attrs)
+				      unsigned long dma_attrs)
 {
 	if (dev->dma_ops)
 		return dev->dma_ops->map_sg_attrs(dev, sg, nents, direction,
 						  dma_attrs);
 	else
 		return dma_map_sg_attrs(dev->dma_device, sg, nents, direction,
-					dma_attrs->flags);
+					dma_attrs);
 }
 
 static inline void ib_dma_unmap_sg_attrs(struct ib_device *dev,
 					 struct scatterlist *sg, int nents,
 					 enum dma_data_direction direction,
-					 struct dma_attrs *dma_attrs)
+					 unsigned long dma_attrs)
 {
 	if (dev->dma_ops)
 		return dev->dma_ops->unmap_sg_attrs(dev, sg, nents, direction,
 						  dma_attrs);
 	else
 		dma_unmap_sg_attrs(dev->dma_device, sg, nents, direction,
-				   dma_attrs->flags);
+				   dma_attrs);
 }
 /**
  * ib_sg_dma_address - Return the DMA address from a scatter/gather entry

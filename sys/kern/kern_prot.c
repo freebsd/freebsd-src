@@ -54,6 +54,7 @@
 #include <sys/systm.h>
 #include <sys/abi_compat.h>
 #include <sys/acct.h>
+#include <sys/imgact.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/libkern.h>
@@ -1021,6 +1022,8 @@ sys_seteuid(struct thread *td, struct seteuid_args *uap)
 	newcred = crget();
 	euip = uifind(euid);
 	PROC_LOCK(p);
+	execve_block_pass(td);
+
 	/*
 	 * Copy credentials so other references do not see our changes.
 	 */
@@ -1075,6 +1078,7 @@ sys_setgid(struct thread *td, struct setgid_args *uap)
 	AUDIT_ARG_GID(gid);
 	newcred = crget();
 	PROC_LOCK(p);
+	execve_block_pass(td);
 	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
@@ -1173,6 +1177,7 @@ sys_setegid(struct thread *td, struct setegid_args *uap)
 	AUDIT_ARG_EGID(egid);
 	newcred = crget();
 	PROC_LOCK(p);
+	execve_block_pass(td);
 	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
@@ -1304,6 +1309,7 @@ kern_setgroups(struct thread *td, int *ngrpp, gid_t *groups)
 	newcred = crget();
 	crextend(newcred, ngrp);
 	PROC_LOCK(p);
+	execve_block_pass(td);
 	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
@@ -1360,6 +1366,7 @@ sys_setreuid(struct thread *td, struct setreuid_args *uap)
 	euip = uifind(euid);
 	ruip = uifind(ruid);
 	PROC_LOCK(p);
+	execve_block_pass(td);
 	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
@@ -1439,6 +1446,7 @@ sys_setregid(struct thread *td, struct setregid_args *uap)
 	AUDIT_ARG_RGID(rgid);
 	newcred = crget();
 	PROC_LOCK(p);
+	execve_block_pass(td);
 	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
@@ -1509,6 +1517,7 @@ sys_setresuid(struct thread *td, struct setresuid_args *uap)
 	euip = uifind(euid);
 	ruip = uifind(ruid);
 	PROC_LOCK(p);
+	execve_block_pass(td);
 	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
@@ -1600,6 +1609,7 @@ sys_setresgid(struct thread *td, struct setresgid_args *uap)
 	AUDIT_ARG_SGID(sgid);
 	newcred = crget();
 	PROC_LOCK(p);
+	execve_block_pass(td);
 	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
@@ -2360,11 +2370,11 @@ p_candebug(struct thread *td, struct proc *p)
 	}
 
 	/*
-	 * Can't trace a process that's currently exec'ing.
-	 *
-	 * XXX: Note, this is not a security policy decision, it's a
-	 * basic correctness/functionality decision.  Therefore, this check
-	 * should be moved to the caller's of p_candebug().
+	 * Can't trace a process that's currently exec'ing.  Otherwise
+	 * the process vmspace might change, and the target might be
+	 * loading a setugid image.  The execve_block(9) and
+	 * proc_vmspace_ref(9) allow to get the stable credentials and
+	 * vmspace reference.
 	 */
 	if ((p->p_flag & P_INEXEC) != 0)
 		return (EBUSY);

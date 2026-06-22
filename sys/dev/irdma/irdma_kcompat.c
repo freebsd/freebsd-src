@@ -1634,7 +1634,7 @@ irdma_query_port(struct ib_device *ibdev, u8 port,
 		props->state = IB_PORT_DOWN;
 		props->phys_state = IB_PORT_PHYS_STATE_DISABLED;
 	}
-	ib_get_eth_speed(ibdev, port, (u16 *)& props->active_speed, &props->active_width);
+	ib_get_eth_speed(ibdev, port, &props->active_speed, &props->active_width);
 
 	if (rdma_protocol_roce(ibdev, 1)) {
 		props->gid_tbl_len = 32;

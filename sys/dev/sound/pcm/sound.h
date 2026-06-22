@@ -104,7 +104,7 @@ struct snd_mixer;
 #define SD_F_MPSAFE		0x00000010
 #define SD_F_REGISTERED		0x00000020
 #define SD_F_BITPERFECT		0x00000040
-#define SD_F_VPC		0x00000080	/* volume-per-channel */
+/* unused			0x00000080 */
 /* unused			0x00000100 */
 #define SD_F_EQ_ENABLED		0x00000200	/* EQ enabled */
 /* unused			0x00000400 */
@@ -120,7 +120,7 @@ struct snd_mixer;
 				"\005MPSAFE"				\
 				"\006REGISTERED"			\
 				"\007BITPERFECT"			\
-				"\010VPC"				\
+				/* "\010 */				\
 				/* "\011 */				\
 				"\012EQ_ENABLED"			\
 				/* "\013 */				\

@@ -37,14 +37,22 @@
 
 #include <sys/types.h>
 #include <sys/cdefs.h>
+#include <sys/bus.h>
+#include <machine/atomic.h>
 #include <machine/cpufunc.h>
+#include <machine/bus.h>
 #include <sys/endian.h>
 #include <net/ethernet.h>
 #include "aq_common.h"
 
-#define AQ_WRITE_REG(hw, reg, value) writel(((hw)->hw_addr + (reg)), htole32(value))
+#define AQ_WRITE_REG(hw, reg, value) \
+	bus_space_write_4((hw)->hw_tag, (hw)->hw_handle, (reg), htole32(value))
 
-#define AQ_READ_REG(hw, reg) le32toh(readl((hw)->hw_addr + reg))
+#define AQ_HW_FLAG_ERR_UNPLUG	0x1UL
+
+struct aq_hw;
+extern uint32_t aq_hw_read_reg(struct aq_hw *hw, uint32_t reg);
+#define AQ_READ_REG(hw, reg) aq_hw_read_reg((hw), (reg))
 
 
 #define AQ_WRITE_REG_BIT(hw, reg, msk, shift, value) do { \
@@ -71,10 +79,6 @@
 
 /* Statistics  */
 struct aq_hw_stats {
-	uint64_t crcerrs;
-};
-
-struct aq_hw_stats_s {
 	uint32_t uprc;
 	uint32_t mprc;
 	uint32_t bprc;
@@ -93,7 +97,7 @@ struct aq_hw_stats_s {
 	uint32_t prc;
 	uint32_t dpc;
 	uint32_t cprc;
-} __attribute__((__packed__));
+} __packed;
 
 union ip_addr {
 	struct {
@@ -103,16 +107,16 @@ union ip_addr {
 		uint8_t padding[12];
 		uint8_t addr[4];
 	} v4;
-} __attribute__((__packed__));
+} __packed;
 
 struct aq_hw_fw_mbox {
 	uint32_t version;
 	uint32_t transaction_id;
 	int error;
-	struct aq_hw_stats_s stats;
-} __attribute__((__packed__));
+	struct aq_hw_stats stats;
+} __packed;
 
-typedef struct aq_hw_fw_version {
+struct aq_hw_fw_version {
 	union {
 		struct {
 			uint16_t build_number;
@@ -121,7 +125,7 @@ typedef struct aq_hw_fw_version {
 		};
 		uint32_t raw;
 	};
-} aq_hw_fw_version;
+};
 
 enum aq_hw_irq_type {
 	aq_irq_invalid = 0,
@@ -137,7 +141,9 @@ struct aq_hw_fc_info {
 
 struct aq_hw {
 	void *aq_dev;
-	uint8_t *hw_addr;
+	device_t dev;
+	bus_space_tag_t hw_tag;
+	bus_space_handle_t hw_handle;
 	uint32_t regs_size;
 
 	uint8_t mac_addr[ETHER_ADDR_LEN];
@@ -157,7 +163,7 @@ struct aq_hw {
 	int itr;
 
 	/* Firmware-related stuff. */
-	aq_hw_fw_version fw_version;
+	struct aq_hw_fw_version fw_version;
 	const struct aq_firmware_ops* fw_ops;
 	bool rbl_enabled;
 	bool fast_start_enabled;
@@ -169,9 +175,11 @@ struct aq_hw {
 
 	uint32_t mbox_addr;
 	struct aq_hw_fw_mbox mbox;
-};
 
-#define aq_hw_s aq_hw
+	u_long flags;
+
+	uint32_t tx_rings_count;
+};
 
 #define AQ_HW_MAC      0U
 #define AQ_HW_MAC_MIN  1U
@@ -185,6 +193,8 @@ struct aq_hw {
 #define HW_ATL_B0_MTU_JUMBO  16352U
 #define HW_ATL_B0_TSO_SIZE (160*1024)
 #define HW_ATL_B0_RINGS_MAX 32U
+#define HW_ATL_B0_TCS_MAX 4U	/* 4-TC mode */
+#define HW_ATL_B0_RINGS_PER_TC (HW_ATL_B0_RINGS_MAX / HW_ATL_B0_TCS_MAX)
 #define HW_ATL_B0_LRO_RXD_MAX 16U
 
 #define AQ_HW_FW_SM_RAM        0x2U
@@ -197,6 +207,8 @@ struct aq_hw {
 
 #define HW_ATL_RSS_INDIRECTION_TABLE_MAX  64U
 #define HW_ATL_RSS_HASHKEY_SIZE           40U
+#define HW_ATL_RSS_INDIRECTION_QUEUES_MAX 8U
+#define HW_ATL_RSS_INDIRECTION_ENTRY_BITS 3U
 
 /* PCI core control register */
 #define AQ_HW_PCI_REG_CONTROL_6_ADR 0x1014U
@@ -205,6 +217,9 @@ struct aq_hw {
 
 #define AQ_HW_TXBUF_MAX  160U
 #define AQ_HW_RXBUF_MAX  320U
+
+/* pct% of a kb-KB packet buffer, in 32-byte threshold units */
+#define AQ_BUF_THRESHOLD(kb, pct) ((kb) * (1024U / 32U) * (pct) / 100U)
 
 #define L2_FILTER_ACTION_DISCARD (0x0)
 #define L2_FILTER_ACTION_HOST    (0x1)
@@ -301,7 +316,7 @@ enum hw_atl_rx_ctrl_registers_l3l4 {
 #define HW_ATL_GET_REG_LOCATION_FL3L4(location) \
 	((location) - AQ_RX_FIRST_LOC_FL3L4)
 
-enum aq_hw_fw_mpi_state_e {
+enum aq_hw_fw_mpi_state {
 	MPI_DEINIT = 0,
 	MPI_RESET = 1,
 	MPI_INIT = 2,
@@ -336,24 +351,24 @@ int aq_hw_get_fw_version(struct aq_hw *hw, uint32_t *fw_version);
 
 int aq_hw_deinit(struct aq_hw *hw);
 
-int aq_hw_ver_match(const aq_hw_fw_version* ver_expected,
-    const aq_hw_fw_version* ver_actual);
+int aq_hw_ver_match(const struct aq_hw_fw_version* ver_expected,
+    const struct aq_hw_fw_version* ver_actual);
 
-void aq_hw_set_promisc(struct aq_hw_s *self, bool l2_promisc, bool vlan_promisc,
+void aq_hw_set_promisc(struct aq_hw *hw, bool l2_promisc, bool vlan_promisc,
     bool mc_promisc);
 
 int aq_hw_set_power(struct aq_hw *hw, unsigned int power_state);
 
 int aq_hw_err_from_flags(struct aq_hw *hw);
 
-int hw_atl_b0_hw_vlan_promisc_set(struct aq_hw_s *self, bool promisc);
+int hw_atl_b0_hw_vlan_promisc_set(struct aq_hw *hw, bool promisc);
 
-int hw_atl_b0_hw_vlan_set(struct aq_hw_s *self,
+int hw_atl_b0_hw_vlan_set(struct aq_hw *hw,
     struct aq_rx_filter_vlan *aq_vlans);
 
-int aq_hw_rss_hash_set(struct aq_hw_s *self, uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE]);
-int aq_hw_rss_hash_get(struct aq_hw_s *self, uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE]);
-int aq_hw_rss_set(struct aq_hw_s *self, uint8_t rss_table[HW_ATL_RSS_INDIRECTION_TABLE_MAX]);
-int aq_hw_udp_rss_enable(struct aq_hw_s *self, bool enable);
+int aq_hw_rss_hash_set(struct aq_hw *hw, uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE]);
+int aq_hw_rss_hash_get(struct aq_hw *hw, uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE]);
+int aq_hw_rss_set(struct aq_hw *hw, uint8_t rss_table[HW_ATL_RSS_INDIRECTION_TABLE_MAX]);
+int aq_hw_udp_rss_enable(struct aq_hw *hw, bool enable);
 
 #endif // _AQ_HW_H_

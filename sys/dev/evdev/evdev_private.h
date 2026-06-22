@@ -114,6 +114,7 @@ struct evdev_dev
 	uid_t			ev_cdev_uid;
 	gid_t			ev_cdev_gid;
 	int			ev_cdev_mode;
+	dev_t			ev_devnum;
 	int			ev_unit;
 	enum evdev_lock_type	ev_lock_type;
 	struct mtx *		ev_state_lock;	/* State lock */

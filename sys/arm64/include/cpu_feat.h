@@ -62,7 +62,12 @@ typedef enum {
 	 */
 	FEAT_DEFAULT_ENABLE,
 
-	/* We could add FEAT_ALWAYS_ENABLE if a need was found. */
+	/*
+	 * Always enabled. Used when there is no way for the kernel to
+	 * work without the feature, e.g. configuring the interrupt
+	 * controller.
+	 */
+	FEAT_ALWAYS_ENABLE,
 } cpu_feat_en;
 
 #define	CPU_FEAT_STAGE_MASK	0x00000001

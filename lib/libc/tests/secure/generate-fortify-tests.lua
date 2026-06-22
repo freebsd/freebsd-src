@@ -411,6 +411,7 @@ local all_tests = {
 				"__buf",
 				"__len",
 			},
+			init = stdio_init,
 		},
 		{
 			func = "readv",
@@ -435,6 +436,7 @@ local all_tests = {
 				"__len",
 				"0",
 			},
+			init = stdio_init,
 		},
 		{
 			func = "preadv",

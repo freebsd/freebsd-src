@@ -3160,10 +3160,8 @@ do_jail_attach(struct thread *td, struct prison *pr, int drflags)
 
 	/* Let modules do whatever they need to prepare for attaching. */
 	error = osd_jail_call(pr, PR_METHOD_ATTACH, td);
-	if (error) {
-		prison_deref(pr, drflags);
-		return (error);
-	}
+	if (error)
+		goto e_revert_osd;
 	sx_unlock(&allprison_lock);
 	drflags &= ~(PD_LIST_SLOCKED | PD_LIST_XLOCKED);
 
@@ -3236,8 +3234,10 @@ do_jail_attach(struct thread *td, struct prison *pr, int drflags)
 	VOP_UNLOCK(pr->pr_root);
  e_revert_osd:
 	/* Tell modules this thread is still in its old jail after all. */
-	sx_slock(&allprison_lock);
-	drflags |= PD_LIST_SLOCKED;
+	if (!(drflags & (PD_LIST_SLOCKED | PD_LIST_XLOCKED))) {
+		sx_slock(&allprison_lock);
+		drflags |= PD_LIST_SLOCKED;
+	}
 	(void)osd_jail_call(td->td_ucred->cr_prison, PR_METHOD_ATTACH, td);
 	prison_deref(pr, drflags);
 	return (error);

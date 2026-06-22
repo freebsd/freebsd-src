@@ -63,8 +63,8 @@ struct sockaddr_un {
 
 /* Socket options. */
 #define	LOCAL_PEERCRED		1	/* retrieve peer credentials */
-#define	LOCAL_CREDS		2	/* pass credentials to receiver */
-#define	LOCAL_CREDS_PERSISTENT	3	/* pass credentials to receiver */
+#define	LOCAL_CREDS		2	/* int; pass credentials to receiver */
+#define	LOCAL_CREDS_PERSISTENT	3	/* int; pass credentials to receiver */
 
 /* Start of reserved space for third-party socket options. */
 #define	LOCAL_VENDOR		SO_VENDOR

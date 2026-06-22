@@ -27,8 +27,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _STDATOMIC_H_
-#define	_STDATOMIC_H_
+#ifndef __STDC_VERSION_STDATOMIC_H__
+#define __STDC_VERSION_STDATOMIC_H__	202311L
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
@@ -86,18 +86,28 @@
  * 7.17.2 Initialization.
  */
 
+#if __BSD_VISIBLE || __ISO_C_VISIBLE < 2023 || defined(__cplusplus)
 #if defined(__CLANG_ATOMICS)
 #define	ATOMIC_VAR_INIT(value)		(value)
-#define	atomic_init(obj, value)		__c11_atomic_init(obj, value)
 #else
 #define	ATOMIC_VAR_INIT(value)		{ .__val = (value) }
+#endif
+#endif
+
+#if defined(__CLANG_ATOMICS)
+#define	atomic_init(obj, value)		__c11_atomic_init(obj, value)
+#elif defined(__GNUC_ATOMICS)
+#define	atomic_init(obj, value)		atomic_store_explicit(obj,	\
+	    value, __ATOMIC_RELAXED)
+#else
 #define	atomic_init(obj, value)		((void)((obj)->__val = (value)))
 #endif
 
 /*
- * Clang and recent GCC both provide predefined macros for the memory
- * orderings.  If we are using a compiler that doesn't define them, use the
- * clang values - these will be ignored in the fallback path.
+ * 7.17.3 Order and consistency.
+ *
+ * The memory_order_* constants that denote the barrier behaviour of the
+ * atomic operations.
  */
 
 #ifndef __ATOMIC_RELAXED
@@ -119,13 +129,6 @@
 #define __ATOMIC_SEQ_CST		5
 #endif
 
-/*
- * 7.17.3 Order and consistency.
- *
- * The memory_order_* constants that denote the barrier behaviour of the
- * atomic operations.
- */
-
 typedef enum {
 	memory_order_relaxed = __ATOMIC_RELAXED,
 	memory_order_consume = __ATOMIC_CONSUME,
@@ -134,6 +137,8 @@ typedef enum {
 	memory_order_acq_rel = __ATOMIC_ACQ_REL,
 	memory_order_seq_cst = __ATOMIC_SEQ_CST
 } memory_order;
+
+#define	kill_dependency(y)		(y)
 
 /*
  * 7.17.4 Fences.
@@ -240,6 +245,12 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
  */
 
 #if defined(__CLANG_ATOMICS)
+#define	atomic_store_explicit(object, desired, order)			\
+	__c11_atomic_store(object, desired, order)
+#define	atomic_load_explicit(object, order)				\
+	__c11_atomic_load(object, order)
+#define	atomic_exchange_explicit(object, desired, order)		\
+	__c11_atomic_exchange(object, desired, order)
 #define	atomic_compare_exchange_strong_explicit(object, expected,	\
     desired, success, failure)						\
 	__c11_atomic_compare_exchange_strong(object, expected, desired,	\
@@ -248,23 +259,25 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
     desired, success, failure)						\
 	__c11_atomic_compare_exchange_weak(object, expected, desired,	\
 	    success, failure)
-#define	atomic_exchange_explicit(object, desired, order)		\
-	__c11_atomic_exchange(object, desired, order)
 #define	atomic_fetch_add_explicit(object, operand, order)		\
 	__c11_atomic_fetch_add(object, operand, order)
-#define	atomic_fetch_and_explicit(object, operand, order)		\
-	__c11_atomic_fetch_and(object, operand, order)
-#define	atomic_fetch_or_explicit(object, operand, order)		\
-	__c11_atomic_fetch_or(object, operand, order)
 #define	atomic_fetch_sub_explicit(object, operand, order)		\
 	__c11_atomic_fetch_sub(object, operand, order)
+#define	atomic_fetch_or_explicit(object, operand, order)		\
+	__c11_atomic_fetch_or(object, operand, order)
 #define	atomic_fetch_xor_explicit(object, operand, order)		\
 	__c11_atomic_fetch_xor(object, operand, order)
-#define	atomic_load_explicit(object, order)				\
-	__c11_atomic_load(object, order)
-#define	atomic_store_explicit(object, desired, order)			\
-	__c11_atomic_store(object, desired, order)
+#define	atomic_fetch_and_explicit(object, operand, order)		\
+	__c11_atomic_fetch_and(object, operand, order)
 #elif defined(__GNUC_ATOMICS)
+#define	__atomic_apply_stride(object, operand)				\
+	(((__typeof__(*(object)))0) + (operand))
+#define	atomic_store_explicit(object, desired, order)			\
+	__atomic_store_n(object, desired, order)
+#define	atomic_load_explicit(object, order)				\
+	__atomic_load_n(object, order)
+#define	atomic_exchange_explicit(object, desired, order)		\
+	__atomic_exchange_n(object, desired, order)
 #define	atomic_compare_exchange_strong_explicit(object, expected,	\
     desired, success, failure)						\
 	__atomic_compare_exchange_n(object, expected,			\
@@ -273,37 +286,25 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
     desired, success, failure)						\
 	__atomic_compare_exchange_n(object, expected,			\
 	    desired, 1, success, failure)
-#define	atomic_exchange_explicit(object, desired, order)		\
-	__atomic_exchange_n(object, desired, order)
 #define	atomic_fetch_add_explicit(object, operand, order)		\
-	__atomic_fetch_add(object, operand, order)
-#define	atomic_fetch_and_explicit(object, operand, order)		\
-	__atomic_fetch_and(object, operand, order)
+	__atomic_fetch_add(object,					\
+	    __atomic_apply_stride(object, operand), order)
+#define	atomic_fetch_sub_explicit(object, operand, order)		\
+	__atomic_fetch_sub(object,					\
+	    __atomic_apply_stride(object, operand), order)
 #define	atomic_fetch_or_explicit(object, operand, order)		\
 	__atomic_fetch_or(object, operand, order)
-#define	atomic_fetch_sub_explicit(object, operand, order)		\
-	__atomic_fetch_sub(object, operand, order)
 #define	atomic_fetch_xor_explicit(object, operand, order)		\
 	__atomic_fetch_xor(object, operand, order)
-#define	atomic_load_explicit(object, order)				\
-	__atomic_load_n(object, order)
-#define	atomic_store_explicit(object, desired, order)			\
-	__atomic_store_n(object, desired, order)
+#define	atomic_fetch_and_explicit(object, operand, order)		\
+	__atomic_fetch_and(object, operand, order)
 #else
 #define	__atomic_apply_stride(object, operand) \
 	(((__typeof__((object)->__val))0) + (operand))
-#define	atomic_compare_exchange_strong_explicit(object, expected,	\
-    desired, success, failure)	__extension__ ({			\
-	__typeof__(expected) __ep = (expected);				\
-	__typeof__(*__ep) __e = *__ep;					\
-	(void)(success); (void)(failure);				\
-	(_Bool)((*__ep = __sync_val_compare_and_swap(&(object)->__val,	\
-	    __e, desired)) == __e);					\
-})
-#define	atomic_compare_exchange_weak_explicit(object, expected,		\
-    desired, success, failure)						\
-	atomic_compare_exchange_strong_explicit(object, expected,	\
-		desired, success, failure)
+#define	atomic_store_explicit(object, desired, order)			\
+	((void)atomic_exchange_explicit(object, desired, order))
+#define	atomic_load_explicit(object, order)				\
+	((void)(order), __sync_fetch_and_add(&(object)->__val, 0))
 #if __has_builtin(__sync_swap)
 /* Clang provides a full-barrier atomic exchange - use it if available. */
 #define	atomic_exchange_explicit(object, desired, order)		\
@@ -322,23 +323,31 @@ __extension__ ({							\
 	__sync_synchronize();						\
 	__sync_lock_test_and_set(&(__o)->__val, __d);			\
 })
+#define	atomic_compare_exchange_strong_explicit(object, expected,	\
+    desired, success, failure)	__extension__ ({			\
+	__typeof__(expected) __ep = (expected);				\
+	__typeof__(*__ep) __e = *__ep;					\
+	(void)(success); (void)(failure);				\
+	(_Bool)((*__ep = __sync_val_compare_and_swap(&(object)->__val,	\
+	    __e, desired)) == __e);					\
+})
+#define	atomic_compare_exchange_weak_explicit(object, expected,		\
+    desired, success, failure)						\
+	atomic_compare_exchange_strong_explicit(object, expected,	\
+		desired, success, failure)
 #endif
 #define	atomic_fetch_add_explicit(object, operand, order)		\
 	((void)(order), __sync_fetch_and_add(&(object)->__val,		\
 	    __atomic_apply_stride(object, operand)))
-#define	atomic_fetch_and_explicit(object, operand, order)		\
-	((void)(order), __sync_fetch_and_and(&(object)->__val, operand))
-#define	atomic_fetch_or_explicit(object, operand, order)		\
-	((void)(order), __sync_fetch_and_or(&(object)->__val, operand))
 #define	atomic_fetch_sub_explicit(object, operand, order)		\
 	((void)(order), __sync_fetch_and_sub(&(object)->__val,		\
 	    __atomic_apply_stride(object, operand)))
+#define	atomic_fetch_or_explicit(object, operand, order)		\
+	((void)(order), __sync_fetch_and_or(&(object)->__val, operand))
 #define	atomic_fetch_xor_explicit(object, operand, order)		\
 	((void)(order), __sync_fetch_and_xor(&(object)->__val, operand))
-#define	atomic_load_explicit(object, order)				\
-	((void)(order), __sync_fetch_and_add(&(object)->__val, 0))
-#define	atomic_store_explicit(object, desired, order)			\
-	((void)atomic_exchange_explicit(object, desired, order))
+#define	atomic_fetch_and_explicit(object, operand, order)		\
+	((void)(order), __sync_fetch_and_and(&(object)->__val, operand))
 #endif
 
 /*
@@ -349,47 +358,55 @@ __extension__ ({							\
  */
 
 #ifndef _KERNEL
+#define	atomic_store(object, desired)					\
+	atomic_store_explicit(object, desired, memory_order_seq_cst)
+#define	atomic_load(object)						\
+	atomic_load_explicit(object, memory_order_seq_cst)
+#define	atomic_exchange(object, desired)				\
+	atomic_exchange_explicit(object, desired, memory_order_seq_cst)
 #define	atomic_compare_exchange_strong(object, expected, desired)	\
 	atomic_compare_exchange_strong_explicit(object, expected,	\
 	    desired, memory_order_seq_cst, memory_order_seq_cst)
 #define	atomic_compare_exchange_weak(object, expected, desired)		\
 	atomic_compare_exchange_weak_explicit(object, expected,		\
 	    desired, memory_order_seq_cst, memory_order_seq_cst)
-#define	atomic_exchange(object, desired)				\
-	atomic_exchange_explicit(object, desired, memory_order_seq_cst)
 #define	atomic_fetch_add(object, operand)				\
 	atomic_fetch_add_explicit(object, operand, memory_order_seq_cst)
-#define	atomic_fetch_and(object, operand)				\
-	atomic_fetch_and_explicit(object, operand, memory_order_seq_cst)
-#define	atomic_fetch_or(object, operand)				\
-	atomic_fetch_or_explicit(object, operand, memory_order_seq_cst)
 #define	atomic_fetch_sub(object, operand)				\
 	atomic_fetch_sub_explicit(object, operand, memory_order_seq_cst)
+#define	atomic_fetch_or(object, operand)				\
+	atomic_fetch_or_explicit(object, operand, memory_order_seq_cst)
 #define	atomic_fetch_xor(object, operand)				\
 	atomic_fetch_xor_explicit(object, operand, memory_order_seq_cst)
-#define	atomic_load(object)						\
-	atomic_load_explicit(object, memory_order_seq_cst)
-#define	atomic_store(object, desired)					\
-	atomic_store_explicit(object, desired, memory_order_seq_cst)
+#define	atomic_fetch_and(object, operand)				\
+	atomic_fetch_and_explicit(object, operand, memory_order_seq_cst)
 #endif /* !_KERNEL */
 
 /*
  * 7.17.8 Atomic flag type and operations.
- *
- * XXX: Assume atomic_bool can be used as an atomic_flag. Is there some
- * kind of compiler built-in type we could use?
  */
 
 typedef struct {
+#if ATOMIC_BOOL_LOCK_FREE == 2
 	atomic_bool	__flag;
+#elif ATOMIC_CHAR_LOCK_FREE == 2
+	atomic_uchar	__flag;
+#else
+#error "atomic_flag is required to be lock-free"
+#endif
 } atomic_flag;
+#if __ISO_C_VISIBLE < 2023
 #define	ATOMIC_FLAG_INIT		{ ATOMIC_VAR_INIT(0) }
+#else
+#define	ATOMIC_FLAG_INIT		{ 0 }
+#endif
 
 static __inline _Bool
 atomic_flag_test_and_set_explicit(volatile atomic_flag *__object,
     memory_order __order)
 {
-	return (atomic_exchange_explicit(&__object->__flag, 1, __order));
+
+	return (atomic_exchange_explicit(&__object->__flag, 1, __order) != 0);
 }
 
 static __inline void
@@ -421,4 +438,4 @@ atomic_flag_clear(volatile atomic_flag *__object)
 #undef __bool_locally_defined
 #endif
 
-#endif /* !_STDATOMIC_H_ */
+#endif /* !__STDC_VERSION_STDATOMIC_H__ */

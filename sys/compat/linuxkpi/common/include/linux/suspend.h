@@ -27,10 +27,16 @@ extern suspend_state_t pm_suspend_target_state;
 #define	PM_RESTORE_PREPARE	0x0005
 #define	PM_POST_RESTORE		0x0006
 
-static inline int
+static inline bool
 pm_suspend_via_firmware(void)
 {
-	return (0);
+	return (false);
+}
+
+static inline bool
+pm_resume_via_firmware(void)
+{
+	return (false);
 }
 
 static inline int

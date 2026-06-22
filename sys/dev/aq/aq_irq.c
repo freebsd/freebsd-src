@@ -42,8 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_dl.h>
-#include <net/if_media.h>
 #include <net/if_var.h>
 #include <net/iflib.h>
 
@@ -55,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "aq_hw_llh.h"
 
 int
-aq_update_hw_stats(aq_dev_t *aq_dev)
+aq_update_hw_stats(struct aq_dev *aq_dev)
 {
 	struct aq_hw *hw = &aq_dev->hw;
 	struct aq_hw_fw_mbox mbox;
@@ -105,7 +103,7 @@ aq_update_hw_stats(aq_dev_t *aq_dev)
 void
 aq_if_update_admin_status(if_ctx_t ctx)
 {
-	aq_dev_t *aq_dev = iflib_get_softc(ctx);
+	struct aq_dev *aq_dev = iflib_get_softc(ctx);
 	struct aq_hw *hw = &aq_dev->hw;
 	uint32_t link_speed;
 
@@ -119,15 +117,6 @@ aq_if_update_admin_status(if_ctx_t ctx)
 
 		aq_dev->linkup = 1;
 
-#if __FreeBSD__ >= 12
-		/* Disable TSO if link speed < 1G */
-		if (link_speed < 1000 && (iflib_get_softc_ctx(ctx)->isc_capabilities & (IFCAP_TSO4 | IFCAP_TSO6))) {
-		    iflib_get_softc_ctx(ctx)->isc_capabilities &= ~(IFCAP_TSO4 | IFCAP_TSO6);
-		    device_printf(aq_dev->dev, "atlantic: TSO disabled for link speed < 1G");
-		}else{
-		    iflib_get_softc_ctx(ctx)->isc_capabilities |= (IFCAP_TSO4 | IFCAP_TSO6);
-		}
-#endif
 		/* turn on/off RX Pause in RPB */
 		rpb_rx_xoff_en_per_tc_set(hw, fc_neg.fc_rx, 0);
 
@@ -163,9 +152,9 @@ aq_isr_rx(void *arg)
 	struct aq_dev   *aq_dev = ring->dev;
 	struct aq_hw    *hw = &aq_dev->hw;
 
-	/* clear interrupt status */
 	itr_irq_status_clearlsw_set(hw, BIT(ring->msix));
-	ring->stats.irq++;
+	AQ_HW_FLUSH();
+	counter_u64_add(ring->stats.irq, 1);
 	return (FILTER_SCHEDULE_THREAD);
 }
 
@@ -175,11 +164,11 @@ aq_isr_rx(void *arg)
 int
 aq_linkstat_isr(void *arg)
 {
-	aq_dev_t              *aq_dev = arg;
+	struct aq_dev              *aq_dev = arg;
 	struct aq_hw          *hw = &aq_dev->hw;
 
-	/* clear interrupt status */
-	itr_irq_status_clearlsw_set(hw, aq_dev->msix);
+	itr_irq_status_clearlsw_set(hw, BIT(aq_dev->msix));
+	AQ_HW_FLUSH();
 
 	iflib_admin_intr_deferred(aq_dev->ctx);
 

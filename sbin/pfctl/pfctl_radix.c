@@ -194,7 +194,14 @@ int
 pfr_get_astats(struct pfr_table *tbl, struct pfr_astats *addr, int *size,
     int flags)
 {
-	return (pfctl_get_astats(pfh, tbl, addr, size, flags));
+	int ret;
+
+	ret = pfctl_get_astats(pfh, tbl, addr, size, flags);
+	if (ret) {
+		errno = ret;
+		return (-1);
+	}
+	return (0);
 }
 
 int

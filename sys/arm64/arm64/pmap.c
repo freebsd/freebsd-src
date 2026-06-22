@@ -6988,7 +6988,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 /*
  *	pmap_copy_page copies the specified (machine independent)
  *	page by mapping the page into virtual memory and using
- *	bcopy to copy the page, one machine dependent page at a
+ *	memcpy to copy the page, one machine dependent page at a
  *	time.
  */
 void
@@ -7043,7 +7043,7 @@ pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset, vm_page_t mb[],
 		} else {
 			b_cp = (char *)PHYS_TO_DMAP(p_b) + b_pg_offset;
 		}
-		bcopy(a_cp, b_cp, cnt);
+		memcpy(b_cp, a_cp, cnt);
 		a_offset += cnt;
 		b_offset += cnt;
 		xfersize -= cnt;

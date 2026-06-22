@@ -546,7 +546,7 @@ qlnxr_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 }
 
 static inline void
-get_link_speed_and_width(int speed, uint8_t *ib_speed, uint8_t *ib_width)
+get_link_speed_and_width(int speed, uint16_t *ib_speed, uint8_t *ib_width)
 {
 	switch (speed) {
 	case 1000:

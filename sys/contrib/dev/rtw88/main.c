@@ -112,7 +112,7 @@ static struct ieee80211_channel rtw_channeltable_5g[] = {
 	RTW88_DEF_CHAN_5G(5805, 161),
 	RTW88_DEF_CHAN_5G_NO_HT40MINUS(5825, 165),
 };
-#elif deifned(__linux__)
+#elif defined(__linux__)
 static struct ieee80211_channel rtw_channeltable_2g[] = {
 	{.center_freq = 2412, .hw_value = 1,},
 	{.center_freq = 2417, .hw_value = 2,},

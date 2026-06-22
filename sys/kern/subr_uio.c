@@ -200,6 +200,40 @@ uiomove_nofault(void *cp, int n, struct uio *uio)
 	return (uiomove_faultflag(cp, n, uio, 1));
 }
 
+int
+uiomove_step(void *cp, void *base, size_t len, struct uio *uio)
+{
+	int error = 0;
+
+	switch (uio->uio_segflg) {
+	case UIO_USERSPACE:
+		maybe_yield();
+		switch (uio->uio_rw) {
+		case UIO_READ:
+			error = copyout(cp, base, len);
+			break;
+		case UIO_WRITE:
+			error = copyin(base, cp, len);
+			break;
+		}
+		break;
+	case UIO_SYSSPACE:
+		switch (uio->uio_rw) {
+		case UIO_READ:
+			memcpy(base, cp, len);
+			break;
+		case UIO_WRITE:
+			memcpy(cp, base, len);
+			break;
+		}
+		break;
+	case UIO_NOCOPY:
+		break;
+	}
+
+	return (error);
+}
+
 static int
 uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 {
@@ -246,34 +280,9 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 		if (cnt > n)
 			cnt = n;
 
-		switch (uio->uio_segflg) {
-		case UIO_USERSPACE:
-			maybe_yield();
-			switch (uio->uio_rw) {
-			case UIO_READ:
-				error = copyout(cp, iov->iov_base, cnt);
-				break;
-			case UIO_WRITE:
-				error = copyin(iov->iov_base, cp, cnt);
-				break;
-			}
-			if (error)
-				goto out;
-			break;
-
-		case UIO_SYSSPACE:
-			switch (uio->uio_rw) {
-			case UIO_READ:
-				bcopy(cp, iov->iov_base, cnt);
-				break;
-			case UIO_WRITE:
-				bcopy(iov->iov_base, cp, cnt);
-				break;
-			}
-			break;
-		case UIO_NOCOPY:
-			break;
-		}
+		error = uiomove_step(cp, iov->iov_base, cnt, uio);
+		if (error != 0)
+			goto out;
 		iov->iov_base = (char *)iov->iov_base + cnt;
 		iov->iov_len -= cnt;
 		uio->uio_resid -= cnt;

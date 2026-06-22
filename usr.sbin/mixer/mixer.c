@@ -430,18 +430,9 @@ mod_mute(struct mix_dev *d, void *p)
 	val = p;
 	if (strncmp(val, "off", strlen(val)) == 0) {
 		opt = MIX_UNMUTE;
-	} else if (strncmp(val, "0", strlen(val)) == 0) {
-		warnx("%s: deprecated: use \"off\" instead", val);
-		opt = MIX_UNMUTE;
 	} else if (strncmp(val, "on", strlen(val)) == 0) {
 		opt = MIX_MUTE;
-	} else if (strncmp(val, "1", strlen(val)) == 0) {
-		warnx("%s: deprecated: use \"on\" instead", val);
-		opt = MIX_MUTE;
 	} else if (strncmp(val, "toggle", strlen(val)) == 0) {
-		opt = MIX_TOGGLEMUTE;
-	} else if (strncmp(val, "^", strlen(val)) == 0) {
-		warnx("%s: deprecated: use \"toggle\" instead", val);
 		opt = MIX_TOGGLEMUTE;
 	} else {
 		warnx("%s: no such modifier", val);
@@ -472,23 +463,11 @@ mod_recsrc(struct mix_dev *d, void *p)
 	val = p;
 	if (strncmp(val, "add", strlen(val)) == 0) {
 		opt = MIX_ADDRECSRC;
-	} else if (strncmp(val, "+", strlen(val)) == 0) {
-		warnx("%s: deprecated: use \"add\" instead", val);
-		opt = MIX_ADDRECSRC;
 	} else if (strncmp(val, "remove", strlen(val)) == 0) {
-		opt = MIX_REMOVERECSRC;
-	} else if (strncmp(val, "-", strlen(val)) == 0) {
-		warnx("%s: deprecated: use \"remove\" instead", val);
 		opt = MIX_REMOVERECSRC;
 	} else if (strncmp(val, "set", strlen(val)) == 0) {
 		opt = MIX_SETRECSRC;
-	} else if (strncmp(val, "=", strlen(val)) == 0) {
-		warnx("%s: deprecated: use \"set\" instead", val);
-		opt = MIX_SETRECSRC;
 	} else if (strncmp(val, "toggle", strlen(val)) == 0) {
-		opt = MIX_TOGGLERECSRC;
-	} else if (strncmp(val, "^", strlen(val)) == 0) {
-		warnx("%s: deprecated: use \"toggle\" instead", val);
 		opt = MIX_TOGGLERECSRC;
 	} else {
 		warnx("%s: no such modifier", val);

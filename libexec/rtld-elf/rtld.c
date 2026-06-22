@@ -3159,7 +3159,8 @@ objlist_call_fini(Objlist *list, Obj_Entry *root, RtldLockState *lockstate)
 				for (index = elm->obj->fini_array_num - 1;
 				    index >= 0; index--) {
 					if (fini_addr[index] != 0 &&
-					    fini_addr[index] != 1) {
+					    fini_addr[index] != 1 &&
+					    fini_addr[index] != (Elf_Addr)-1) {
 				dbg("calling fini function for %s at %p",
 						    elm->obj->path,
 						    (void *)fini_addr[index]);
@@ -3265,7 +3266,8 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
 			for (index = 0; index < elm->obj->init_array_num;
 			    index++) {
 				if (init_addr[index] != 0 &&
-				    init_addr[index] != 1) {
+				    init_addr[index] != 1 &&
+				    init_addr[index] != (Elf_Addr)-1) {
 				dbg("calling init function for %s at %p",
 					    elm->obj->path,
 					    (void *)init_addr[index]);
@@ -6537,27 +6539,52 @@ parse_args(char *argv[], int argc, bool *use_pathp, int *fdp,
 static int
 parse_integer(const char *str)
 {
-	static const int RADIX = 10; /* XXXJA: possibly support hex? */
+	int radix;
 	const char *orig;
-	int n;
+	int n, val;
 	char c;
 
+	if (str[0] == '0') {
+		if (str[1] == 'x') {
+			str += 2;
+			radix = 16;
+		} else if (str[1] == 'b') {
+			str += 2;
+			radix = 2;
+		} else {
+			str += 1;
+			radix = 8;
+		}
+	} else {
+		radix = 10;
+	}
 	orig = str;
 	n = 0;
 	for (c = *str; c != '\0'; c = *++str) {
-		if (c < '0' || c > '9')
+		if (c >= '0' && c <= '9')
+			val = c - '0';
+		else if (c >= 'a' && c <= 'f')
+			val = c - 'a' + 10;
+		else if (c >= 'A' && c <= 'F')
+			val = c - 'A' + 10;
+		else
+			return (-1);
+		if (val >= radix)
 			return (-1);
 
-		if (n > INT_MAX / RADIX)
+		if (n > INT_MAX / radix)
 			return (-1);
-		n *= RADIX;
-		if (n > INT_MAX - (c - '0'))
+		n *= radix;
+		if (n > INT_MAX - val)
 			return (-1);
-		n += c - '0';
+		n += val;
 	}
 
-	/* Make sure we actually parsed something. */
-	if (str == orig)
+	/*
+	 * Make sure we actually parsed something.
+	 * Allow for lone '0'.
+	 */
+	if (str == orig && radix != 8)
 		return (-1);
 	return (n);
 }

@@ -64,6 +64,11 @@ enum libusb_class_code {
 	LIBUSB_CLASS_CONTENT_SECURITY = 13,
 	LIBUSB_CLASS_VIDEO = 14,
 	LIBUSB_CLASS_PERSONAL_HEALTHCARE = 15,
+	LIBUSB_CLASS_AUDIO_VIDEO = 16,
+	LIBUSB_CLASS_BILLBOARD = 17,
+	LIBUSB_CLASS_TYPE_C_BRIDGE = 18,
+	LIBUSB_CLASS_BULK_DISPLAY_PROTOCOL = 19,
+	LIBUSB_CLASS_MCTP = 20,
 	LIBUSB_CLASS_DIAGNOSTIC_DEVICE = 0xdc,
 	LIBUSB_CLASS_WIRELESS = 0xe0,
 	LIBUSB_CLASS_MISCELLANEOUS = 0xef,
@@ -77,6 +82,7 @@ enum libusb_descriptor_type {
 	LIBUSB_DT_STRING = 0x03,
 	LIBUSB_DT_INTERFACE = 0x04,
 	LIBUSB_DT_ENDPOINT = 0x05,
+	LIBUSB_DT_INTERFACE_ASSOCIATION = 0x0b,
 	LIBUSB_DT_HID = 0x21,
 	LIBUSB_DT_REPORT = 0x22,
 	LIBUSB_DT_PHYSICAL = 0x23,
@@ -101,6 +107,7 @@ enum libusb_device_capability_type {
 #define	LIBUSB_DT_HUB_NONVAR_SIZE	7
 #define	LIBUSB_DT_SS_ENDPOINT_COMPANION_SIZE	6
 #define	LIBUSB_DT_BOS_SIZE		5
+#define	LIBUSB_DT_INTERFACE_ASSOCIATION_SIZE		8
 #define	LIBUSB_USB_2_0_EXTENSION_DEVICE_CAPABILITY_SIZE	7
 #define	LIBUSB_SS_USB_DEVICE_CAPABILITY_SIZE	10
 
@@ -209,8 +216,8 @@ enum libusb_capability {
 	LIBUSB_CAP_HAS_HID_ACCESS,
 
 	/*
-	 * Supports detaching of the default USB driver with
-	 * libusb_detach_kernel_driver().
+	 * Supports detaching and attaching of the default USB driver with
+	 * libusb_detach_kernel_driver() and libusb_attach_kernel_driver().
 	 */
 	LIBUSB_CAP_SUPPORTS_DETACH_KERNEL_DRIVER,
 };
@@ -257,6 +264,7 @@ enum libusb_transfer_flags {
 	LIBUSB_TRANSFER_SHORT_NOT_OK = 1 << 0,
 	LIBUSB_TRANSFER_FREE_BUFFER = 1 << 1,
 	LIBUSB_TRANSFER_FREE_TRANSFER = 1 << 2,
+	LIBUSB_TRANSFER_ADD_ZERO_PACKET = 1 << 3,
 };
 
 enum libusb_log_level {
@@ -284,7 +292,8 @@ enum libusb_option {
 	LIBUSB_OPTION_USE_USBDK = 1,
 	LIBUSB_OPTION_NO_DEVICE_DISCOVERY = 2,
 	LIBUSB_OPTION_WEAK_AUTHORITY = 2,
-	LIBUSB_OPTION_MAX = 3,
+	LIBUSB_OPTION_LOG_CB = 3,
+	LIBUSB_OPTION_MAX = 4,
 };
 
 /* libusb structures */
@@ -317,6 +326,8 @@ struct libusb_init_option {
 };
 
 typedef struct libusb_context libusb_context;
+typedef void (*libusb_log_cb)(libusb_context *ctx, enum libusb_log_level,
+    const char *str);
 typedef struct libusb_device libusb_device;
 typedef struct libusb_device_handle libusb_device_handle;
 typedef struct libusb_pollfd libusb_pollfd;
@@ -361,6 +372,22 @@ typedef struct libusb_ss_endpoint_companion_descriptor {
 	uint8_t bmAttributes;
 	uint16_t wBytesPerInterval;
 }	libusb_ss_endpoint_companion_descriptor __aligned(sizeof(void *));
+
+typedef struct libusb_interface_association_descriptor {
+	uint8_t bLength;
+	uint8_t bDescriptorType;
+	uint8_t bFirstInterface;
+	uint8_t bInterfaceCount;
+	uint8_t bFunctionClass;
+	uint8_t bFunctionSubClass;
+	uint8_t bFunctionProtocol;
+	uint8_t iFunction;
+} libusb_interface_association_descriptor __aligned(sizeof(void *));
+
+typedef struct libusb_interface_association_descriptor_array {
+	const struct libusb_interface_association_descriptor *iad;
+	int length;
+} libusb_interface_association_descriptor_array;
 
 typedef struct libusb_interface_descriptor {
 	uint8_t	bLength;
@@ -522,7 +549,9 @@ uint8_t	libusb_get_device_address(libusb_device * dev);
 enum libusb_speed libusb_get_device_speed(libusb_device * dev);
 int	libusb_clear_halt(libusb_device_handle *devh, uint8_t endpoint);
 int	libusb_get_max_packet_size(libusb_device * dev, uint8_t endpoint);
-int	libusb_get_max_iso_packet_size(libusb_device * dev, uint8_t endpoint);
+int	libusb_get_max_iso_packet_size(libusb_device *dev, uint8_t endpoint);
+int	libusb_get_max_alt_packet_size(libusb_device *dev, int interface_number,
+    int alternate_setting, unsigned char endpoint);
 libusb_device *libusb_ref_device(libusb_device * dev);
 void	libusb_unref_device(libusb_device * dev);
 int	libusb_wrap_sys_device(libusb_context *ctx, intptr_t sys_dev, libusb_device_handle **dev_handle);
@@ -574,6 +603,9 @@ int	libusb_get_container_id_descriptor(struct libusb_context *ctx, struct libusb
 void	libusb_free_container_id_descriptor(struct libusb_container_id_descriptor *container_id);
 int	libusb_get_platform_descriptor(libusb_context *ctx, struct libusb_bos_dev_capability_descriptor *dev_cap, struct libusb_platform_descriptor **platform_descriptor);
 void	libusb_free_platform_descriptor(struct libusb_platform_descriptor *platform_descriptor);
+int	libusb_get_interface_association_descriptors(libusb_device *dev, uint8_t config_index, struct libusb_interface_association_descriptor_array **iad_arr);
+int	libusb_get_active_interface_association_descriptors(libusb_device *dev, struct libusb_interface_association_descriptor_array **iad_arr);
+void	libusb_free_interface_association_descriptors(struct libusb_interface_association_descriptor_array *iad_arr);
 
 /* Asynchronous device I/O */
 
@@ -642,6 +674,7 @@ int	libusb_alloc_streams(libusb_device_handle *dev, uint32_t num_streams, unsign
 int	libusb_free_streams(libusb_device_handle *dev, unsigned char *endpoints, int num_endpoints);
 void	libusb_transfer_set_stream_id(struct libusb_transfer *transfer, uint32_t stream_id);
 uint32_t libusb_transfer_get_stream_id(struct libusb_transfer *transfer);
+int	libusb_set_option(libusb_context *ctx, enum libusb_option option, ...);
 
 #if 0
 {					/* indent fix */

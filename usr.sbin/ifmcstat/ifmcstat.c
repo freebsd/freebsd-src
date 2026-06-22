@@ -127,7 +127,7 @@ usage()
 	exit(EX_USAGE);
 }
 
-static const char *options = "i:f:vM:N:";
+static const char *options = "i:f:v";
 
 int
 main(int argc, char **argv)

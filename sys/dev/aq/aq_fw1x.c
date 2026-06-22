@@ -49,14 +49,14 @@ __FBSDID("$FreeBSD$");
 #define FW1X_MPI_STATE_ADR      0x36C
 
 
-typedef enum fw1x_mode {
+enum fw1x_mode {
 	FW1X_MPI_DEINIT = 0,
 	FW1X_MPI_RESERVED = 1,
 	FW1X_MPI_INIT = 2,
 	FW1X_MPI_POWER = 4,
-} fw1x_mode;
+};
 
-typedef enum aq_fw1x_rate {
+enum aq_fw1x_rate {
 	FW1X_RATE_10G   = 1 << 0,
 	FW1X_RATE_5G    = 1 << 1,
 	FW1X_RATE_5GSR  = 1 << 2,
@@ -64,9 +64,9 @@ typedef enum aq_fw1x_rate {
 	FW1X_RATE_1G    = 1 << 4,
 	FW1X_RATE_100M  = 1 << 5,
 	FW1X_RATE_INVALID = 1 << 6,
-} aq_fw1x_rate;
+};
 
-typedef union fw1x_state_reg {
+union fw1x_state_reg {
 	uint32_t val;
 	struct {
 		uint8_t mode;
@@ -77,20 +77,20 @@ typedef union fw1x_state_reg {
 		        uint8_t reserved3 : 2;
 		        uint8_t downshift : 4;
 	};
-} fw1x_state_reg;
+};
 
-int fw1x_reset(struct aq_hw* hw);
+static int fw1x_reset(struct aq_hw* hw);
 
-int fw1x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e mode,
-    aq_fw_link_speed_t speed);
-int fw1x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e* mode,
-    aq_fw_link_speed_t* speed, aq_fw_link_fc_t* fc);
-int fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac_addr);
-int fw1x_get_stats(struct aq_hw* hw, struct aq_hw_stats_s* stats);
+static int fw1x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state mode,
+    enum aq_fw_link_speed speed);
+static int fw1x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state* mode,
+    enum aq_fw_link_speed* speed, enum aq_fw_link_fc* fc);
+static int fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac_addr);
+static int fw1x_get_stats(struct aq_hw* hw, struct aq_hw_stats* stats);
 
 
-static fw1x_mode
-mpi_mode_to_fw1x_(enum aq_hw_fw_mpi_state_e mode)
+static enum fw1x_mode
+mpi_mode_to_fw1x(enum aq_hw_fw_mpi_state mode)
 {
 	switch (mode) {
 	case MPI_DEINIT:
@@ -113,8 +113,8 @@ mpi_mode_to_fw1x_(enum aq_hw_fw_mpi_state_e mode)
 	return (FW1X_MPI_RESERVED);
 }
 
-static aq_fw1x_rate
-link_speed_mask_to_fw1x_(uint32_t /*aq_fw_link_speed*/ speed)
+static enum aq_fw1x_rate
+link_speed_mask_to_fw1x(uint32_t /*aq_fw_link_speed*/ speed)
 {
 	uint32_t rate = 0;
 	if (speed & aq_fw_10G)
@@ -134,11 +134,11 @@ link_speed_mask_to_fw1x_(uint32_t /*aq_fw_link_speed*/ speed)
 	if (speed & aq_fw_100M)
 		rate |= FW1X_RATE_100M;
 
-	return ((aq_fw1x_rate)rate);
+	return ((enum aq_fw1x_rate)rate);
 }
 
-static aq_fw_link_speed_t
-fw1x_rate_to_link_speed_(aq_fw1x_rate rate)
+static enum aq_fw_link_speed
+fw1x_rate_to_link_speed(enum aq_fw1x_rate rate)
 {
 	switch (rate) {
 	case FW1X_RATE_10G:
@@ -163,8 +163,8 @@ fw1x_rate_to_link_speed_(aq_fw1x_rate rate)
 	return (aq_fw_none);
 }
 
-int
-fw1x_reset(struct aq_hw* hal)
+static int
+fw1x_reset(struct aq_hw* hw)
 {
 	uint32_t tid0 = ~0u; /*< Initial value of MBOX transactionId. */
 	struct aq_hw_fw_mbox mbox;
@@ -173,7 +173,7 @@ fw1x_reset(struct aq_hw* hal)
 	for (int i = 0; i < retryCount; ++i) {
 		// Read the beginning of Statistics structure to capture the
 		// Transaction ID.
-		aq_hw_fw_downld_dwords(hal, hal->mbox_addr, (uint32_t*)&mbox,
+		aq_hw_fw_downld_dwords(hw, hw->mbox_addr, (uint32_t*)&mbox,
 		    (uint32_t)((char*)&mbox.stats - (char*)&mbox) / sizeof(uint32_t));
 
 		// Successfully read the stats.
@@ -186,46 +186,46 @@ fw1x_reset(struct aq_hw* hal)
 			 * Compare transaction ID to initial value.
 			 * If it's different means f/w is alive. We're done.
 			 */
-			return (EOK);
+			return (0);
 		}
 
 		/*
 		 * Transaction ID value haven't changed since last time.
 		 * Try reading the stats again.
 		 */
-		usec_delay(10);
+		DELAY(10);
 	}
 
 	trace_error(dbg_init, "F/W 1.x reset finalize timeout");
-	return (-EBUSY);
+	return (EBUSY);
 }
 
-int
-fw1x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e mode,
-    aq_fw_link_speed_t speed)
+static int
+fw1x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state mode,
+    enum aq_fw_link_speed speed)
 {
 	union fw1x_state_reg state = {0};
-	state.mode = mpi_mode_to_fw1x_(mode);
-	state.speed = link_speed_mask_to_fw1x_(speed);
+	state.mode = mpi_mode_to_fw1x(mode);
+	state.speed = link_speed_mask_to_fw1x(speed);
 
 	trace(dbg_init, "fw1x> set mode %d, rate mask = %#x; raw = %#x",
 	     state.mode, state.speed, state.val);
 
 	AQ_WRITE_REG(hw, FW1X_MPI_CONTROL_ADR, state.val);
 
-	return (EOK);
+	return (0);
 }
 
-int
-fw1x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e* mode,
-    aq_fw_link_speed_t* speed, aq_fw_link_fc_t* fc)
+static int
+fw1x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state* mode,
+    enum aq_fw_link_speed* speed, enum aq_fw_link_fc* fc)
 {
 	union fw1x_state_reg state = { .val = AQ_READ_REG(hw, AQ_HW_MPI_STATE_ADR) };
 
 	trace(dbg_init, "fw1x> get_mode(): 0x36c -> %x, 0x368 -> %x",
 	    state.val, AQ_READ_REG(hw, AQ_HW_MPI_CONTROL_ADR));
 
-	enum aq_hw_fw_mpi_state_e md = MPI_DEINIT;
+	enum aq_hw_fw_mpi_state md = MPI_DEINIT;
 
 	switch (state.mode) {
 	case FW1X_MPI_DEINIT:
@@ -246,19 +246,19 @@ fw1x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state_e* mode,
 		*mode = md;
 
 	if (speed)
-		*speed = fw1x_rate_to_link_speed_(state.speed);
+		*speed = fw1x_rate_to_link_speed(state.speed);
 
 	*fc = aq_fw_fc_none;
 
-	AQ_DBG_EXIT(EOK);
-	return (EOK);
+	AQ_DBG_EXIT(0);
+	return (0);
 }
 
 
-int
+static int
 fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 {
-	int err = -EFAULT;
+	int err = EFAULT;
 	uint32_t mac_addr[2];
 
 	AQ_DBG_ENTER();
@@ -266,13 +266,13 @@ fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 	uint32_t efuse_shadow_addr = AQ_READ_REG(hw, 0x374);
 	if (efuse_shadow_addr == 0) {
 		trace_error(dbg_init, "couldn't read eFUSE Shadow Address");
-		AQ_DBG_EXIT(-EFAULT);
-		return (-EFAULT);
+		AQ_DBG_EXIT(EFAULT);
+		return (EFAULT);
 	}
 
 	err = aq_hw_fw_downld_dwords(hw, efuse_shadow_addr + (40 * 4),
-	    mac_addr, ARRAY_SIZE(mac_addr));
-	if (err < 0) {
+	    mac_addr, nitems(mac_addr));
+	if (err != 0) {
 		mac_addr[0] = 0;
 		mac_addr[1] = 0;
 		AQ_DBG_EXIT(err);
@@ -287,12 +287,12 @@ fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 	trace(dbg_init, "fw1x> eFUSE MAC addr -> %02x-%02x-%02x-%02x-%02x-%02x",
 	    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-	AQ_DBG_EXIT(EOK);
-	return (EOK);
+	AQ_DBG_EXIT(0);
+	return (0);
 }
 
-int
-fw1x_get_stats(struct aq_hw* hw, struct aq_hw_stats_s* stats)
+static int
+fw1x_get_stats(struct aq_hw* hw, struct aq_hw_stats* stats)
 {
 	int err = 0;
 
@@ -300,7 +300,7 @@ fw1x_get_stats(struct aq_hw* hw, struct aq_hw_stats_s* stats)
 	err = aq_hw_fw_downld_dwords(hw, hw->mbox_addr,
 	    (uint32_t*)(void*)&hw->mbox, sizeof hw->mbox / sizeof(uint32_t));
 
-	if (err >= 0) {
+	if (err == 0) {
 		if (stats != &hw->mbox.stats)
 			memcpy(stats, &hw->mbox.stats, sizeof *stats);
 
@@ -311,7 +311,7 @@ fw1x_get_stats(struct aq_hw* hw, struct aq_hw_stats_s* stats)
 	return (err);
 }
 
-struct aq_firmware_ops aq_fw1x_ops =
+const struct aq_firmware_ops aq_fw1x_ops =
 {
 	.reset = fw1x_reset,
 

@@ -1164,7 +1164,8 @@ udp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	 * We will need network epoch in either case, to safely lookup into
 	 * pcb hash.
 	 */
-	use_cached_route = sin == NULL || (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0);
+	use_cached_route = sin == NULL ||
+	    (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0);
 	if (use_cached_route || (flags & PRUS_IPV6) != 0)
 		INP_WLOCK(inp);
 	else

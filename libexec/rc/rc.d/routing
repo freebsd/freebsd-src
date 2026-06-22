@@ -190,7 +190,13 @@ static_inet()
 			if [ $_skip = 0 ]; then
 				route_args=`get_if_var ${i%:*} route_IF`
 				if [ -n "$route_args" ]; then
-					${ROUTE_CMD} ${_action} ${route_args}
+					# Loopback routes may already be added by the kernel; ignore EEXIST.
+					if [ "${i%:*}" = "_loopback" ]; then
+						${ROUTE_CMD} ${_action} ${route_args} 2>&1 >/dev/null |
+						    sed -e '/route: message indicates error: File exists/d' >&2
+					else
+						${ROUTE_CMD} ${_action} ${route_args}
+					fi
 				else
 					warn "route_${i%:*} not found."
 				fi
@@ -267,8 +273,15 @@ static_inet6()
 			if [ $_skip = 0 ]; then
 				ipv6_route_args=`get_if_var ${i%:*} ipv6_route_IF`
 				if [ -n "$ipv6_route_args" ]; then
-					${ROUTE_CMD} ${_action} \
-						-inet6 ${ipv6_route_args}
+					# Loopback routes may already be added by the kernel; ignore EEXIST.
+					if [ "${i%:*}" = "_loopback" ]; then
+						${ROUTE_CMD} ${_action} -inet6 \
+						    ${ipv6_route_args} 2>&1 >/dev/null |
+						    sed -e '/route: message indicates error: File exists/d' >&2
+					else
+						${ROUTE_CMD} ${_action} \
+						    -inet6 ${ipv6_route_args}
+					fi
 				else
 					warn "route_${i%:*} not found"
 				fi

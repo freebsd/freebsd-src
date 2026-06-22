@@ -214,6 +214,7 @@ uint32_t libusb20_tr_get_actual_length(struct libusb20_transfer *xfer);
 uint32_t libusb20_tr_get_max_frames(struct libusb20_transfer *xfer);
 uint32_t libusb20_tr_get_max_packet_length(struct libusb20_transfer *xfer);
 uint32_t libusb20_tr_get_max_total_length(struct libusb20_transfer *xfer);
+uint8_t	libusb20_tr_get_flags(struct libusb20_transfer *xfer);
 uint8_t	libusb20_tr_get_status(struct libusb20_transfer *xfer);
 uint8_t	libusb20_tr_pending(struct libusb20_transfer *xfer);
 void	libusb20_tr_callback_wrapper(struct libusb20_transfer *xfer);
@@ -246,6 +247,8 @@ const char *libusb20_dev_get_backend_name(struct libusb20_device *pdev);
 const char *libusb20_dev_get_desc(struct libusb20_device *pdev);
 int	libusb20_dev_close(struct libusb20_device *pdev);
 int	libusb20_dev_detach_kernel_driver(struct libusb20_device *pdev, uint8_t iface_index);
+int	libusb20_dev_attach_kernel_driver(struct libusb20_device *pdev,
+    uint8_t iface_index);
 int	libusb20_dev_set_config_index(struct libusb20_device *pdev, uint8_t configIndex);
 int	libusb20_dev_get_debug(struct libusb20_device *pdev);
 int	libusb20_dev_get_fd(struct libusb20_device *pdev);

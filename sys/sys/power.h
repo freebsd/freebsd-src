@@ -107,7 +107,7 @@ extern const char	*power_stype_to_name(enum power_stype _stype);
 typedef int (*power_pm_fn_t)(u_long _cmd, void* _arg, enum power_stype _stype);
 extern int	 power_pm_register(u_int _pm_type, power_pm_fn_t _pm_fn,
 			void *_pm_arg,
-			bool _pm_supported[static POWER_STYPE_COUNT]);
+			const bool _pm_supported[static POWER_STYPE_COUNT]);
 extern u_int	 power_pm_get_type(void);
 extern int	 power_pm_suspend(enum power_transition _trans);
 

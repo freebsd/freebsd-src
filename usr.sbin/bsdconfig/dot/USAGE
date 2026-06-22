@@ -1,4 +1,4 @@
-# Copyright (c) 2012-2013 Devin Teske
+# Copyright (c) 2012-2026 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -44,29 +44,10 @@ EXAMPLES:
 
 	View the above-rendered SVG file using your favorite X11-based viewer:
 
-		gimmage bsdconfig.svg
-
-			NOTE: Requires `graphics/gimmage' from ports/packages.
-
-		or
-
 		gthumb bsdconfig.svg
 
 			NOTE: Image is scaled to fit window on launch.
 			NOTE: Requires `graphics/gthumb' from ports/packages.
-
-		or
-
-		gqview bsdconfig.svg
-
-			NOTE: Requires `graphics/gqview' from ports/packages.
-
-		or
-
-		gx bsdconfig.svg
-
-			NOTE: Image is scaled to fit window on launch.
-			NOTE: Requires `graphics/gx' from ports/packages.
 
 		or
 
@@ -98,16 +79,10 @@ EXAMPLES:
 
 	View the above-rendered PostScript poster using X11:
 
-		gsview bsdconfig.ps
-
-			NOTE: Requires `print/gsview' from ports/packages.
-
-		or
-
-		convert bsdconfig.ps bsdconfig.pdf
+		gm convert bsdconfig.ps bsdconfig.pdf
 		xpdf bsdconfig.pdf
 
-			NOTE: Requires both `graphics/ImageMagick' and
+			NOTE: Requires both `graphics/GraphicsMagick' and
 			      `graphics/xdpf' from ports/packages.
 
 			NOTE: The converted PDF file is not suitable for

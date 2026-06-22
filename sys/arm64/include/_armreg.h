@@ -52,6 +52,34 @@
 #define	WRITE_SPECIALREG(reg, _val)					\
 	__asm __volatile("msr	" __STRING(reg) ", %0" : : "r"((uint64_t)_val))
 
+
+#define	__SYS_ALT_NAME(op1, crn, crm, op2)				\
+    "#" #op1 ", C" #crn ", C" #crm ", #" #op2
+#define	_SYS_ALT_NAME(op1, crn, crm, op2)				\
+    __SYS_ALT_NAME(op1, crn, crm, op2)
+#define	SYS_ALT_NAME(insn)						\
+    _SYS_ALT_NAME(insn##_op1, insn##_CRn, insn##_CRm, insn##_op2)
+
+#define	SYS(insn) do {							\
+	_Static_assert(insn##_op0 == 1, "Invalid SYS instruction");	\
+	__asm __volatile("sys	" SYS_ALT_NAME(insn));			\
+} while (0)
+
+#define	SYS_ARG(insn, _val) do {					\
+	_Static_assert(insn##_op0 == 1, "Invalid SYS instruction");	\
+	__asm __volatile("sys	" SYS_ALT_NAME(insn) ", %0"		\
+	    : : "r"((uint64_t)_val));					\
+} while (0)
+
+#define	SYSL(insn)							\
+({									\
+	uint64_t _val;							\
+	_Static_assert(insn##_op0 == 1, "Invalid SYS instruction");	\
+	__asm __volatile("sysl	%0, " SYS_ALT_NAME(insn)		\
+	    : "=&r"(_val));						\
+	_val;								\
+})
+
 #define	UL(x)	UINT64_C(x)
 
 #endif /* !_MACHINE__ARMREG_H_ */

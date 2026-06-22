@@ -27,6 +27,22 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20260620:
+	On powerpc64le, long double is now IEEE 754 binary128 (quad
+	precision, 113-bit mantissa) instead of 64-bit double.  This is an
+	ABI-incompatible change with no symbol versioning: all C and C++
+	code that passes, returns, or stores long double (or long double
+	complex) -- including printf/scanf "%Lf", strtold, and the libm
+	*l() routines -- must be rebuilt against the new world.  Mixing old
+	and new objects that exchange long double values will silently
+	corrupt data.  Rebuild all installed ports and any out-of-tree
+	software after upgrading.  Big-endian powerpc and powerpc64 are
+	unaffected and keep 64-bit long double.
+
+20260521:
+	Audio devices are now created with GID 43 / audio. You will need to add
+	users who need access to audio devices to this group.
+
 20260512:
 	"bsdinstall script" will now do a pkgbase installation by default.  To
 	revert to the legacy distset installation, set "DISTRIBUTIONS" in
@@ -2555,7 +2571,7 @@ COMMON ITEMS:
 	<reboot in single user>				[3]
 	etcupdate -p					[5]
 	make installworld
-	etcupdate -B					[4]
+	etcupdate					[4]
 	make delete-old					[6]
 	<reboot>
 
@@ -2593,7 +2609,7 @@ COMMON ITEMS:
 	<reboot in single user>				[3]
 	etcupdate -p					[5]
 	make installworld
-	etcupdate -B					[4]
+	etcupdate					[4]
 	make delete-old					[6]
 	<reboot>
 

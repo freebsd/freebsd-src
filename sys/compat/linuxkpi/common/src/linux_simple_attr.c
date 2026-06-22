@@ -163,15 +163,12 @@ simple_attr_write_common(struct file *filp, const char __user *ubuf,
 	if (*ppos != 0 || write_size < 1)
 		return (-EINVAL);
 
-	buf = malloc(write_size, M_LSATTR, M_WAITOK);
+	buf = malloc(write_size + 1, M_LSATTR, M_WAITOK);
 	if (copy_from_user(buf, ubuf, write_size) != 0) {
 		free(buf, M_LSATTR);
 		return (-EFAULT);
 	}
-	if (strnlen(buf, write_size) == write_size) {
-		free(buf, M_LSATTR);
-		return (-EINVAL);
-	}
+	buf[write_size] = '\0';
 
 	mutex_lock(&sattr->mutex);
 

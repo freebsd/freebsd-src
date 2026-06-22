@@ -53,7 +53,7 @@ enum aq_media_type {
 #define	AQ_LINK_ALL	(AQ_LINK_100M | AQ_LINK_1G | AQ_LINK_2G5 | AQ_LINK_5G | \
 					 AQ_LINK_10G )
 
-struct aq_stats_s {
+struct aq_stats {
 	uint64_t prc;
 	uint64_t uprc;
 	uint64_t mprc;
@@ -77,7 +77,7 @@ struct aq_stats_s {
 	uint64_t bbtc;
 };
 
-enum aq_dev_state_e {
+enum aq_dev_state {
 	AQ_DEV_STATE_UNLOAD,
 	AQ_DEV_STATE_PCI_STOP,
 	AQ_DEV_STATE_DOWN,
@@ -126,8 +126,8 @@ struct aq_dev {
 	bool              linkup;
 	int               media_active;
 
-	struct aq_hw_stats_s  last_stats;
-	struct aq_stats_s     curr_stats;
+	struct aq_hw_stats  last_stats;
+	struct aq_stats     curr_stats;
 
 	bitstr_t               *vlan_tags;
 	int                     mcnt;
@@ -136,13 +136,11 @@ struct aq_dev {
 	uint8_t			rss_table[HW_ATL_RSS_INDIRECTION_TABLE_MAX];
 };
 
-typedef struct aq_dev aq_dev_t;
-
-int aq_update_hw_stats(aq_dev_t *aq_dev);
-void aq_initmedia(aq_dev_t *aq_dev);
+int aq_update_hw_stats(struct aq_dev *aq_dev);
+void aq_initmedia(struct aq_dev *aq_dev);
 int aq_linkstat_isr(void *arg);
 int aq_isr_rx(void *arg);
-void aq_mediastatus_update(aq_dev_t *aq_dev, uint32_t link_speed, const struct aq_hw_fc_info *fc_neg);
+void aq_mediastatus_update(struct aq_dev *aq_dev, uint32_t link_speed, const struct aq_hw_fc_info *fc_neg);
 void aq_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr);
 int aq_mediachange(struct ifnet *ifp);
 void aq_if_update_admin_status(if_ctx_t ctx);

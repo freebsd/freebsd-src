@@ -92,6 +92,7 @@ typedef void (libusb20_dummy_void_t)(void);
 
 /* USB device specific */
 typedef int (libusb20_detach_kernel_driver_t)(struct libusb20_device *pdev, uint8_t iface_index);
+typedef int (libusb20_attach_kernel_driver_t)(struct libusb20_device *pdev, uint8_t iface_index);
 typedef int (libusb20_do_request_sync_t)(struct libusb20_device *pdev, struct LIBUSB20_CONTROL_SETUP_DECODED *setup, void *data, uint16_t *pactlen, uint32_t timeout, uint8_t flags);
 typedef int (libusb20_get_config_desc_full_t)(struct libusb20_device *pdev, uint8_t **ppbuf, uint16_t *plen, uint8_t index);
 typedef int (libusb20_get_config_index_t)(struct libusb20_device *pdev, uint8_t *pindex);
@@ -116,6 +117,7 @@ typedef void (libusb20_tr_cancel_async_t)(struct libusb20_transfer *xfer);
 
 #define	LIBUSB20_DEVICE(m,n) \
   m(n, detach_kernel_driver) \
+  m(n, attach_kernel_driver) \
   m(n, do_request_sync) \
   m(n, get_config_desc_full) \
   m(n, get_config_index) \

@@ -37,6 +37,7 @@
 #include <poll.h>
 #include <pthread.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -207,6 +208,10 @@ libusb_init_context(libusb_context **context,
 	ctx->devd_pipe = -1;
 
 	debug = getenv("LIBUSB_DEBUG");
+	ctx->log_cb = NULL;
+	ctx->no_discovery = false;
+	ctx->debug = LIBUSB_LOG_LEVEL_NONE;
+
 	if (debug != NULL) {
 		/*
 		 * If LIBUSB_DEBUG is set, we'll honor that first and
@@ -226,23 +231,28 @@ libusb_init_context(libusb_context **context,
 			 */
 			ctx->debug = 0;
 		}
-	} else {
-		/*
-		 * If the LIBUSB_OPTION_LOG_LEVEL is set, honor that.
-		 */
-		for (int i = 0; i != num_options; i++) {
-			if (option[i].option != LIBUSB_OPTION_LOG_LEVEL)
-				continue;
-
-			ctx->debug = (int)option[i].value.ival;
-			if ((int64_t)ctx->debug == option[i].value.ival) {
-				ctx->debug_fixed = 1;
-			} else {
-				free(ctx);
-				return (LIBUSB_ERROR_INVALID_PARAM);
-			}
-		}
 	}
+
+	/*
+	 * Set the default from default context then override by options
+	 */
+	if (usbi_default_context) {
+		CTX_LOCK(usbi_default_context);
+		if (usbi_default_context->no_discovery)
+			libusb_set_option(ctx,
+			    LIBUSB_OPTION_NO_DEVICE_DISCOVERY);
+		/* libusb_set_option will check if debug is fixed by the
+		   environment variable. If it is fixed, the override will not
+		   take effect */
+		libusb_set_option(ctx, LIBUSB_OPTION_LOG_LEVEL,
+		    usbi_default_context->debug);
+		libusb_set_option(ctx, LIBUSB_OPTION_LOG_CB,
+		    usbi_default_context->log_cb);
+		CTX_UNLOCK(usbi_default_context);
+	}
+
+	for (int i = 0; i < num_options; i++)
+		libusb_set_option(ctx, option[i].option, option[i].value);
 
 	TAILQ_INIT(&ctx->pollfds);
 	TAILQ_INIT(&ctx->tr_done);
@@ -526,26 +536,17 @@ libusb_get_device_speed(libusb_device *dev)
 	return (LIBUSB_SPEED_UNKNOWN);
 }
 
-int
-libusb_get_max_packet_size(libusb_device *dev, uint8_t endpoint)
+static const libusb_endpoint_descriptor *
+libusb_get_endpoint_from_config(libusb_config_descriptor *pdconf,
+    uint8_t endpoint)
 {
-	struct libusb_config_descriptor *pdconf;
 	struct libusb_interface *pinf;
 	struct libusb_interface_descriptor *pdinf;
-	struct libusb_endpoint_descriptor *pdend;
+	const struct libusb_endpoint_descriptor *pdend;
 	int i;
 	int j;
 	int k;
-	int ret;
 
-	if (dev == NULL)
-		return (LIBUSB_ERROR_NO_DEVICE);
-
-	ret = libusb_get_active_config_descriptor(dev, &pdconf);
-	if (ret < 0)
-		return (ret);
-
-	ret = LIBUSB_ERROR_NOT_FOUND;
 	for (i = 0; i < pdconf->bNumInterfaces; i++) {
 		pinf = &pdconf->interface[i];
 		for (j = 0; j < pinf->num_altsetting; j++) {
@@ -553,39 +554,151 @@ libusb_get_max_packet_size(libusb_device *dev, uint8_t endpoint)
 			for (k = 0; k < pdinf->bNumEndpoints; k++) {
 				pdend = &pdinf->endpoint[k];
 				if (pdend->bEndpointAddress == endpoint) {
-					ret = pdend->wMaxPacketSize;
-					goto out;
+					return (pdend);
 				}
 			}
 		}
 	}
 
-out:
+	return (NULL);
+}
+
+int
+libusb_get_max_packet_size(libusb_device *dev, uint8_t endpoint)
+{
+	struct libusb_config_descriptor *pdconf;
+	const struct libusb_endpoint_descriptor *pdend;
+	int ret;
+
+	if (dev == NULL)
+		return (LIBUSB_ERROR_OTHER);
+
+	ret = libusb_get_active_config_descriptor(dev, &pdconf);
+	if (ret < 0)
+		return (ret);
+
+	ret = LIBUSB_ERROR_NOT_FOUND;
+	if ((pdend = libusb_get_endpoint_from_config(pdconf, endpoint)) != NULL)
+		ret = pdend->wMaxPacketSize;
+
 	libusb_free_config_descriptor(pdconf);
+	return (ret);
+}
+
+static int
+libusb_calculate_ep_size(libusb_device *dev,
+    const libusb_endpoint_descriptor *ep)
+{
+	struct libusb_ss_endpoint_companion_descriptor *ss_ep;
+	int multiplier;
+	int speed;
+	int ret = LIBUSB_ERROR_NOT_SUPPORTED;
+	enum libusb_endpoint_transfer_type type;
+
+	speed = libusb_get_device_speed(dev);
+	if (speed >= LIBUSB_SPEED_SUPER) {
+		ret = libusb_get_ss_endpoint_companion_descriptor(dev->ctx, ep,
+		    &ss_ep);
+		if (ret == LIBUSB_SUCCESS) {
+			ret = ss_ep->wBytesPerInterval;
+			libusb_free_ss_endpoint_companion_descriptor(ss_ep);
+		}
+	}
+
+	/*
+	 * reference:
+	 * https://www.keil.com/pack/doc/mw/usb/html/_u_s_b__endpoint__descriptor.html
+	 */
+	if (ret < 0) {
+		ret = ep->wMaxPacketSize;
+		switch (speed) {
+		case LIBUSB_SPEED_LOW:
+		case LIBUSB_SPEED_FULL:
+			break;
+		default:
+			type = ep->bmAttributes & 0x3;
+			if (type == LIBUSB_ENDPOINT_TRANSFER_TYPE_ISOCHRONOUS ||
+			    type == LIBUSB_ENDPOINT_TRANSFER_TYPE_INTERRUPT) {
+				multiplier = (1 + ((ret >> 11) & 3));
+				if (multiplier > 3)
+					multiplier = 3;
+				ret = (ret & 0x7FF) * multiplier;
+			}
+			break;
+		}
+	}
+
 	return (ret);
 }
 
 int
 libusb_get_max_iso_packet_size(libusb_device *dev, uint8_t endpoint)
 {
-	int multiplier;
+	struct libusb_config_descriptor *pdconf;
+	const struct libusb_endpoint_descriptor *pdend;
 	int ret;
 
-	ret = libusb_get_max_packet_size(dev, endpoint);
+	if (dev == NULL)
+		return (LIBUSB_ERROR_OTHER);
 
-	switch (libusb20_dev_get_speed(dev->os_priv)) {
-	case LIBUSB20_SPEED_LOW:
-	case LIBUSB20_SPEED_FULL:
-		break;
-	default:
-		if (ret > -1) {
-			multiplier = (1 + ((ret >> 11) & 3));
-			if (multiplier > 3)
-				multiplier = 3;
-			ret = (ret & 0x7FF) * multiplier;
-		}
-		break;
+	ret = libusb_get_active_config_descriptor(dev, &pdconf);
+	if (ret < 0)
+		return (LIBUSB_ERROR_OTHER);
+
+	pdend = libusb_get_endpoint_from_config(pdconf, endpoint);
+	if (pdend == NULL) {
+		libusb_free_config_descriptor(pdconf);
+		return (LIBUSB_ERROR_NOT_FOUND);
 	}
+
+	ret = libusb_calculate_ep_size(dev, pdend);
+	libusb_free_config_descriptor(pdconf);
+	return (ret);
+}
+
+int
+libusb_get_max_alt_packet_size(libusb_device *dev, int interface_number,
+    int alternate_setting, unsigned char endpoint)
+{
+	struct libusb_config_descriptor *pdconf;
+	struct libusb_interface *pinf;
+	struct libusb_interface_descriptor *pdinf;
+	const struct libusb_endpoint_descriptor *pdend = NULL;
+	const struct libusb_endpoint_descriptor *pdend_tmp;
+	int ret, i;
+
+	if (dev == NULL)
+		return (LIBUSB_ERROR_OTHER);
+
+	ret = libusb_get_active_config_descriptor(dev, &pdconf);
+	if (ret < 0)
+		return (LIBUSB_ERROR_OTHER);
+
+	if (pdconf->bNumInterfaces <= interface_number) {
+		libusb_free_config_descriptor(pdconf);
+		return (LIBUSB_ERROR_NOT_FOUND);
+	}
+	pinf = &pdconf->interface[interface_number];
+
+	if (pinf->num_altsetting <= alternate_setting) {
+		libusb_free_config_descriptor(pdconf);
+		return (LIBUSB_ERROR_NOT_FOUND);
+	}
+	pdinf = &pinf->altsetting[alternate_setting];
+
+	for (i = 0; i < pdinf->bNumEndpoints; ++i) {
+		pdend_tmp = &pdinf->endpoint[i];
+		if (pdend_tmp->bEndpointAddress == endpoint) {
+			pdend = pdend_tmp;
+			break;
+		}
+	}
+	if (pdend != NULL)
+		ret = libusb_calculate_ep_size(dev, pdend);
+	else
+		ret = LIBUSB_ERROR_NOT_FOUND;
+	libusb_free_config_descriptor(pdconf);
+
 	return (ret);
 }
 
@@ -1052,10 +1165,14 @@ libusb_detach_kernel_driver(struct libusb20_device *pdev, int interface)
 int
 libusb_attach_kernel_driver(struct libusb20_device *pdev, int interface)
 {
+	int err;
+
 	if (pdev == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
-	/* stub - currently not supported by libusb20 */
-	return (0);
+
+	err = libusb20_dev_attach_kernel_driver(pdev, interface);
+
+	return (err ? LIBUSB_ERROR_OTHER : 0);
 }
 
 int
@@ -1302,6 +1419,7 @@ libusb10_bulk_intr_proxy(struct libusb20_transfer *pxfer)
 	uint32_t actlen;
 	uint8_t status;
 	uint8_t flags;
+	uint8_t tr_flags;
 
 	status = libusb20_tr_get_status(pxfer);
 	sxfer = libusb20_tr_get_priv_sc1(pxfer);
@@ -1353,6 +1471,20 @@ libusb10_bulk_intr_proxy(struct libusb20_transfer *pxfer)
 		sxfer->last_len = max_bulk;
 		sxfer->curr_data += max_bulk;
 		sxfer->rem_len -= max_bulk;
+
+		/*
+		 * When a zero length packet (ZLP) is requested, ask the
+		 * kernel to terminate the last frame of the transfer with
+		 * a short packet. This appends a ZLP when the data length
+		 * is an exact multiple of the maximum packet size.
+		 */
+		tr_flags = libusb20_tr_get_flags(pxfer);
+		if (sxfer->rem_len == 0 &&
+		    (flags & LIBUSB_TRANSFER_ADD_ZERO_PACKET))
+			tr_flags |= LIBUSB20_TRANSFER_FORCE_SHORT;
+		else
+			tr_flags &= ~LIBUSB20_TRANSFER_FORCE_SHORT;
+		libusb20_tr_set_flags(pxfer, tr_flags);
 
 		libusb20_tr_submit(pxfer);
 
@@ -1593,7 +1725,7 @@ libusb_submit_transfer(struct libusb_transfer *uxfer)
 	struct libusb_super_transfer *sxfer;
 	struct libusb_device *dev;
 	uint8_t endpoint;
-	int err;
+	int err, mps;
 
 	if (uxfer == NULL)
 		return (LIBUSB_ERROR_INVALID_PARAM);
@@ -1614,6 +1746,18 @@ libusb_submit_transfer(struct libusb_transfer *uxfer)
 
 	pxfer0 = libusb10_get_transfer(uxfer->dev_handle, endpoint, 0);
 	pxfer1 = libusb10_get_transfer(uxfer->dev_handle, endpoint, 1);
+	mps = libusb_get_max_packet_size(dev, endpoint);
+
+	/*
+	 * The ADD_ZERO_PACKET flag only has an effect on host-to-device
+	 * (OUT) transfers whose length is an exact multiple of the maximum
+	 * packet size. Clear it otherwise so the kernel is not asked to
+	 * terminate the transfer with a short packet, see
+	 * libusb10_bulk_intr_proxy().
+	 */
+	if ((uxfer->flags & LIBUSB_TRANSFER_ADD_ZERO_PACKET) &&
+	    ((endpoint & LIBUSB_ENDPOINT_IN) || uxfer->length % mps != 0))
+		uxfer->flags &= ~LIBUSB_TRANSFER_ADD_ZERO_PACKET;
 
 	if (pxfer0 == NULL || pxfer1 == NULL) {
 		err = LIBUSB_ERROR_OTHER;
@@ -1893,7 +2037,11 @@ libusb_log_va_args(struct libusb_context *ctx, enum libusb_log_level level,
 
 	snprintf(new_fmt, sizeof(new_fmt), "%s: %s\n", log_prefix[level], fmt);
 	vsnprintf(buffer, sizeof(buffer), new_fmt, args);
-	fputs(buffer, stdout);
+
+	if (ctx->log_cb != NULL)
+		ctx->log_cb(ctx, level, buffer);
+	else
+		fputs(buffer, stdout);
 
 	va_end(args);
 }
@@ -1942,4 +2090,73 @@ libusb_wrap_sys_device(libusb_context *ctx, intptr_t sys_dev,
     libusb_device_handle **dev_handle)
 {
 	return (LIBUSB_ERROR_NOT_SUPPORTED);
+}
+
+int
+libusb_set_option(libusb_context *ctx, enum libusb_option option, ...)
+{
+	int err = LIBUSB_SUCCESS;
+	enum libusb_log_level level;
+	va_list args;
+	libusb_log_cb callback;
+
+	ctx = GET_CONTEXT(ctx);
+	va_start(args, option);
+
+	switch (option) {
+	case LIBUSB_OPTION_LOG_LEVEL:
+		level = va_arg(args, enum libusb_log_level);
+		if (level < LIBUSB_LOG_LEVEL_NONE ||
+		    level > LIBUSB_LOG_LEVEL_DEBUG) {
+			err = LIBUSB_ERROR_INVALID_PARAM;
+			goto end;
+		}
+		break;
+	case LIBUSB_OPTION_LOG_CB:
+		callback = va_arg(args, libusb_log_cb);
+		break;
+	}
+
+	if (option >= LIBUSB_OPTION_MAX) {
+		err = LIBUSB_ERROR_INVALID_PARAM;
+		goto end;
+	}
+
+	/*
+	 * When it is default context, the context will be accessed by multiple
+	 * instances of libusb_context that will later be taken as the default
+	 * value when new instances are created.
+	 */
+	if (ctx == usbi_default_context)
+		CTX_LOCK(ctx);
+
+	switch (option) {
+	case LIBUSB_OPTION_LOG_LEVEL:
+		if (ctx->debug_fixed)
+			break;
+		ctx->debug = level;
+		break;
+	case LIBUSB_OPTION_LOG_CB:
+		ctx->log_cb = callback;
+		break;
+	case LIBUSB_OPTION_NO_DEVICE_DISCOVERY:
+		ctx->no_discovery = true;
+		break;
+		/*
+		 * We don't handle USBDK as it is a windows
+		 * backend specified SDK
+		 */
+	case LIBUSB_OPTION_USE_USBDK:
+		break;
+	default:
+		err = LIBUSB_ERROR_INVALID_PARAM;
+		break;
+	}
+
+	if (ctx == usbi_default_context)
+		CTX_UNLOCK(ctx);
+
+end:
+	va_end(args);
+	return (err);
 }

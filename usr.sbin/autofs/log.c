@@ -41,8 +41,6 @@
 #include "common.h"
 
 static int log_level = 0;
-static char *peer_name = NULL;
-static char *peer_addr = NULL;
 
 #define	MSGBUF_LEN	1024
 
@@ -52,34 +50,6 @@ log_init(int level)
 
 	log_level = level;
 	openlog(getprogname(), LOG_NDELAY | LOG_PID, LOG_DAEMON);
-}
-
-void
-log_set_peer_name(const char *name)
-{
-
-	/*
-	 * XXX: Turn it into assertion?
-	 */
-	if (peer_name != NULL)
-		log_errx(1, "%s called twice", __func__);
-	if (peer_addr == NULL)
-		log_errx(1, "%s called before log_set_peer_addr", __func__);
-
-	peer_name = checked_strdup(name);
-}
-
-void
-log_set_peer_addr(const char *addr)
-{
-
-	/*
-	 * XXX: Turn it into assertion?
-	 */
-	if (peer_addr != NULL)
-		log_errx(1, "%s called twice", __func__);
-
-	peer_addr = checked_strdup(addr);
 }
 
 static void
@@ -105,40 +75,14 @@ log_common(int priority, int log_errno, const char *fmt, va_list ap)
 	}
 
 	if (log_errno == -1) {
-		if (peer_name != NULL) {
-			fprintf(stderr, "%s: %s (%s): %s\n", getprogname(),
-			    peer_addr, peer_name, msgbuf_strvised);
-			syslog(priority, "%s (%s): %s",
-			    peer_addr, peer_name, msgbuf_strvised);
-		} else if (peer_addr != NULL) {
-			fprintf(stderr, "%s: %s: %s\n", getprogname(),
-			    peer_addr, msgbuf_strvised);
-			syslog(priority, "%s: %s",
-			    peer_addr, msgbuf_strvised);
-		} else {
-			fprintf(stderr, "%s: %s\n", getprogname(), msgbuf_strvised);
-			syslog(priority, "%s", msgbuf_strvised);
-		}
-
+		fprintf(stderr, "%s: %s\n", getprogname(), msgbuf_strvised);
+		syslog(priority, "%s", msgbuf_strvised);
 	} else {
 		errstr = strerror(log_errno);
 
-		if (peer_name != NULL) {
-			fprintf(stderr, "%s: %s (%s): %s: %s\n", getprogname(),
-			    peer_addr, peer_name, msgbuf_strvised, errstr);
-			syslog(priority, "%s (%s): %s: %s",
-			    peer_addr, peer_name, msgbuf_strvised, errstr);
-		} else if (peer_addr != NULL) {
-			fprintf(stderr, "%s: %s: %s: %s\n", getprogname(),
-			    peer_addr, msgbuf_strvised, errstr);
-			syslog(priority, "%s: %s: %s",
-			    peer_addr, msgbuf_strvised, errstr);
-		} else {
-			fprintf(stderr, "%s: %s: %s\n", getprogname(),
-			    msgbuf_strvised, errstr);
-			syslog(priority, "%s: %s",
-			    msgbuf_strvised, errstr);
-		}
+		fprintf(stderr, "%s: %s: %s\n",
+		    getprogname(), msgbuf_strvised, errstr);
+		syslog(priority, "%s: %s", msgbuf_strvised, errstr);
 	}
 }
 

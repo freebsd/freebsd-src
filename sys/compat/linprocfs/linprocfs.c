@@ -1311,19 +1311,13 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 	struct vattr vat;
 	bool private;
 
-	PROC_LOCK(p);
-	error = p_candebug(td, p);
-	PROC_UNLOCK(p);
-	if (error)
-		return (error);
-
 	if (uio->uio_rw != UIO_READ)
 		return (EOPNOTSUPP);
 
-	error = 0;
-	vm = vmspace_acquire_ref(p);
-	if (vm == NULL)
-		return (ESRCH);
+	error = proc_vmspace_ref(td, p, PRVM_BLOCK_EXEC | PRVM_CHECK_DEBUG,
+	    &vm);
+	if (error != 0)
+		return (error);
 
 	if (SV_CURPROC_FLAG(SV_LP64))
 		l_map_str = l64_map_str;
@@ -1421,7 +1415,7 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 		}
 	}
 	vm_map_unlock_read(map);
-	vmspace_free(vm);
+	proc_vmspace_unref(td, p, PRVM_CHECK_DEBUG | PRVM_BLOCK_EXEC, vm);
 
 	return (error);
 }

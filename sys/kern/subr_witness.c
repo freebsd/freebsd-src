@@ -264,7 +264,7 @@ struct witness_lock_order_data {
  * (struct witness_lock_order_data).
  */
 struct witness_lock_order_hash {
-	struct witness_lock_order_data	*wloh_array[WITNESS_LO_HASH_SIZE];
+	struct witness_lock_order_data	**wloh_array;
 	u_int	wloh_size;
 	u_int	wloh_count;
 };
@@ -404,17 +404,34 @@ SYSCTL_INT(_debug_witness, OID_AUTO, trace, CTLFLAG_RWTUN, &witness_trace, 0, ""
 #endif /* DDB || KDB */
 
 #ifdef WITNESS_SKIPSPIN
-int	witness_skipspin = 1;
+static bool witness_skipspin = true;
 #else
-int	witness_skipspin = 0;
+static bool witness_skipspin = false;
 #endif
-SYSCTL_INT(_debug_witness, OID_AUTO, skipspin, CTLFLAG_RDTUN, &witness_skipspin, 0, "");
+SYSCTL_BOOL(_debug_witness, OID_AUTO, skipspin,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &witness_skipspin, 0,
+    "Skip all witness checks on spin locks");
+TUNABLE_BOOL("debug.witness.skipspin", &witness_skipspin);
 
 int badstack_sbuf_size;
 
-int witness_count = WITNESS_COUNT;
-SYSCTL_INT(_debug_witness, OID_AUTO, witness_count, CTLFLAG_RDTUN,
-    &witness_count, 0, "");
+static u_long witness_count = WITNESS_COUNT;
+SYSCTL_ULONG(_debug_witness, OID_AUTO, witness_count,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &witness_count, 0,
+    "Maximum count of lock type entries");
+TUNABLE_ULONG("debug.witness.witness_count", &witness_count);
+
+static u_long witness_lo_data_count = WITNESS_LO_DATA_COUNT;
+SYSCTL_ULONG(_debug_witness, OID_AUTO, lock_order_data_count,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &witness_lo_data_count, 0,
+    "Maximum count of lock order data (stacks) to track");
+TUNABLE_ULONG("debug.witness.lock_order_data_count", &witness_lo_data_count);
+
+static u_long witness_lo_hash_size = WITNESS_LO_HASH_SIZE;
+SYSCTL_ULONG(_debug_witness, OID_AUTO, lock_order_hash_size,
+    CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &witness_lo_hash_size, 0,
+    "Hash table size for lock order data");
+TUNABLE_ULONG("debug.witness.lock_order_hash_size", &witness_lo_hash_size);
 
 /*
  * Output channel for witness messages.  By default we print to the console.
@@ -474,7 +491,7 @@ static struct lock_list_entry w_locklistdata[LOCK_CHILDCOUNT];
 static struct witness_hash w_hash;	/* The witness hash table. */
 
 /* The lock order data hash */
-static struct witness_lock_order_data w_lodata[WITNESS_LO_DATA_COUNT];
+static struct witness_lock_order_data *w_lodata;
 static struct witness_lock_order_data *w_lofree = NULL;
 static struct witness_lock_order_hash w_lohash;
 static int w_max_used_index = 0;
@@ -783,6 +800,9 @@ witness_startup_count(void)
 	sz += sizeof(*w_rmatrix) * (witness_count + 1);
 	sz += sizeof(*w_rmatrix[0]) * (witness_count + 1) *
 	    (witness_count + 1);
+	sz += sizeof(void *);
+	sz += sizeof(w_lodata[0]) * witness_lo_data_count;
+	sz += sizeof(w_lohash.wloh_array[0]) * witness_lo_hash_size;
 
 	return (sz);
 }
@@ -790,7 +810,8 @@ witness_startup_count(void)
 /*
  * The WITNESS-enabled diagnostic code.  Note that the witness code does
  * assume that the early boot is single-threaded at least until after this
- * routine is completed.
+ * routine is completed.  This routine runs during SI_SUB_VM.  Any read-only
+ * tunables need to have been initialized by now.
  */
 void
 witness_startup(void *mem)
@@ -812,6 +833,16 @@ witness_startup(void *mem)
 		w_rmatrix[i] = (void *)p;
 		p += sizeof(*w_rmatrix[i]) * (witness_count + 1);
 	}
+
+	/* Fix up alignment */
+	p = roundup2(p, sizeof(void *));
+
+	w_lodata = (void *)p;
+	p += sizeof(w_lodata[0]) * witness_lo_data_count;
+
+	w_lohash.wloh_array = (void *)p;
+	p += sizeof(w_lohash.wloh_array[0]) * witness_lo_hash_size;
+
 	badstack_sbuf_size = witness_count * 256;
 
 	/*
@@ -3294,14 +3325,14 @@ witness_init_hash_tables(void)
 
 	/* Initialize the lock order data hash. */
 	w_lofree = NULL;
-	for (i = 0; i < WITNESS_LO_DATA_COUNT; i++) {
+	for (i = 0; i < witness_lo_data_count; i++) {
 		memset(&w_lodata[i], 0, sizeof(w_lodata[i]));
 		w_lodata[i].wlod_next = w_lofree;
 		w_lofree = &w_lodata[i];
 	}
-	w_lohash.wloh_size = WITNESS_LO_HASH_SIZE;
+	w_lohash.wloh_size = witness_lo_hash_size;
 	w_lohash.wloh_count = 0;
-	for (i = 0; i < WITNESS_LO_HASH_SIZE; i++)
+	for (i = 0; i < w_lohash.wloh_size; i++)
 		w_lohash.wloh_array[i] = NULL;
 }
 
@@ -3408,13 +3439,13 @@ witness_lock_order_add(struct witness *parent, struct witness *child)
 	    & WITNESS_LOCK_ORDER_KNOWN)
 		return (1);
 
-	hash = witness_hash_djb2((const char *)&key,
-	    sizeof(key)) % w_lohash.wloh_size;
 	w_rmatrix[parent->w_index][child->w_index] |= WITNESS_LOCK_ORDER_KNOWN;
 	data = w_lofree;
 	if (data == NULL)
 		return (0);
 	w_lofree = data->wlod_next;
+	hash = witness_hash_djb2((const char *)&key,
+	    sizeof(key)) % w_lohash.wloh_size;
 	data->wlod_next = w_lohash.wloh_array[hash];
 	data->wlod_key = key;
 	w_lohash.wloh_array[hash] = data;

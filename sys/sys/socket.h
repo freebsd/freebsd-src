@@ -125,55 +125,56 @@ typedef	__uintptr_t	uintptr_t;
 /*
  * Option flags per-socket.
  */
-#define	SO_DEBUG	0x00000001	/* turn on debugging info recording */
-#define	SO_ACCEPTCONN	0x00000002	/* socket has had listen() */
-#define	SO_REUSEADDR	0x00000004	/* allow local address reuse */
-#define	SO_KEEPALIVE	0x00000008	/* keep connections alive */
-#define	SO_DONTROUTE	0x00000010	/* just use interface addresses */
-#define	SO_BROADCAST	0x00000020	/* permit sending of broadcast msgs */
+#define	SO_DEBUG	0x00000001	/* int; turn on debugging info recording */
+#define	SO_ACCEPTCONN	0x00000002	/* int; socket has had listen() */
+#define	SO_REUSEADDR	0x00000004	/* int; allow local address reuse */
+#define	SO_KEEPALIVE	0x00000008	/* int; keep connections alive */
+#define	SO_DONTROUTE	0x00000010	/* int; just use interface addresses */
+#define	SO_BROADCAST	0x00000020	/* int; permit sending of broadcast msgs */
 #if __BSD_VISIBLE
-#define	SO_USELOOPBACK	0x00000040	/* bypass hardware when possible */
+#define	SO_USELOOPBACK	0x00000040	/* int; bypass hardware when possible */
 #endif
-#define	SO_LINGER	0x00000080	/* linger on close if data present */
-#define	SO_OOBINLINE	0x00000100	/* leave received OOB data in line */
+#define	SO_LINGER	0x00000080	/* struct linger; linger on close if data present */
+#define	SO_OOBINLINE	0x00000100	/* int; leave received OOB data in line */
 #if __BSD_VISIBLE
-#define	SO_REUSEPORT	0x00000200	/* allow local address & port reuse */
-#define	SO_TIMESTAMP	0x00000400	/* timestamp received dgram traffic */
-#define	SO_NOSIGPIPE	0x00000800	/* no SIGPIPE from EPIPE */
-#define	SO_ACCEPTFILTER	0x00001000	/* there is an accept filter */
-#define	SO_BINTIME	0x00002000	/* timestamp received dgram traffic */
+#define	SO_REUSEPORT	0x00000200	/* int; allow local address & port reuse */
+#define	SO_TIMESTAMP	0x00000400	/* int; timestamp received dgram traffic */
+#define	SO_NOSIGPIPE	0x00000800	/* int; no SIGPIPE from EPIPE */
+#define	SO_ACCEPTFILTER	0x00001000	/* struct accept_filter_arg; accept filter */
+#define	SO_BINTIME	0x00002000	/* int; timestamp received dgram traffic */
 #endif
-#define	SO_NO_OFFLOAD	0x00004000	/* socket cannot be offloaded */
-#define	SO_NO_DDP	0x00008000	/* disable direct data placement */
-#define	SO_REUSEPORT_LB	0x00010000	/* reuse with load balancing */
-#define	SO_RERROR	0x00020000	/* keep track of receive errors */
+#define	SO_NO_OFFLOAD	0x00004000	/* int; socket cannot be offloaded */
+#define	SO_NO_DDP	0x00008000	/* int; disable direct data placement */
+#define	SO_REUSEPORT_LB	0x00010000	/* int; reuse with load balancing */
+#define	SO_RERROR	0x00020000	/* int; keep track of receive errors */
+#define	SO_PASSRIGHTS	0x00040000	/* int; unix(4) accepts SCM_RIGHTS */
 
 /*
  * Additional options, not kept in so_options.
  */
-#define	SO_SNDBUF	0x1001		/* send buffer size */
-#define	SO_RCVBUF	0x1002		/* receive buffer size */
-#define	SO_SNDLOWAT	0x1003		/* send low-water mark */
-#define	SO_RCVLOWAT	0x1004		/* receive low-water mark */
-#define	SO_SNDTIMEO	0x1005		/* send timeout */
-#define	SO_RCVTIMEO	0x1006		/* receive timeout */
-#define	SO_ERROR	0x1007		/* get error status and clear */
-#define	SO_TYPE		0x1008		/* get socket type */
+#define	SO_SNDBUF	0x1001		/* int; send buffer size */
+#define	SO_RCVBUF	0x1002		/* int; receive buffer size */
+#define	SO_SNDLOWAT	0x1003		/* int; send low-water mark */
+#define	SO_RCVLOWAT	0x1004		/* int; receive low-water mark */
+#define	SO_SNDTIMEO	0x1005		/* struct timeval; send timeout */
+#define	SO_RCVTIMEO	0x1006		/* struct timeval; receive timeout */
+#define	SO_ERROR	0x1007		/* int; get error status and clear */
+#define	SO_TYPE		0x1008		/* int; get socket type */
 #if __BSD_VISIBLE
 #define	SO_LABEL	0x1009		/* socket's MAC label */
 #define	SO_PEERLABEL	0x1010		/* socket's peer's MAC label */
-#define	SO_LISTENQLIMIT	0x1011		/* socket's backlog limit */
-#define	SO_LISTENQLEN	0x1012		/* socket's complete queue length */
-#define	SO_LISTENINCQLEN	0x1013	/* socket's incomplete queue length */
-#define	SO_FIB		0x1014		/* get or set socket FIB */
+#define	SO_LISTENQLIMIT	0x1011		/* int; socket's backlog limit */
+#define	SO_LISTENQLEN	0x1012		/* int; socket's complete queue length */
+#define	SO_LISTENINCQLEN	0x1013	/* int; socket's incomplete queue length */
+#define	SO_FIB		0x1014		/* int; get or set socket FIB */
 #define	SO_SETFIB	SO_FIB		/* backward compat alias */
-#define	SO_USER_COOKIE	0x1015		/* user cookie (dummynet etc.) */
-#define	SO_PROTOCOL	0x1016		/* get socket protocol (Linux name) */
+#define	SO_USER_COOKIE	0x1015		/* uint32_t; user cookie (dummynet etc.) */
+#define	SO_PROTOCOL	0x1016		/* int; get socket protocol (Linux name) */
 #define	SO_PROTOTYPE	SO_PROTOCOL	/* alias for SO_PROTOCOL (SunOS name) */
-#define	SO_TS_CLOCK	0x1017		/* clock type used for SO_TIMESTAMP */
-#define	SO_MAX_PACING_RATE	0x1018	/* socket's max TX pacing rate (Linux name) */
-#define	SO_DOMAIN	0x1019		/* get socket domain */
-#define	SO_SPLICE	0x1023		/* splice data to other socket */
+#define	SO_TS_CLOCK	0x1017		/* int; clock type used for SO_TIMESTAMP */
+#define	SO_MAX_PACING_RATE	0x1018	/* uint32_t; socket's max TX pacing rate (Linux name) */
+#define	SO_DOMAIN	0x1019		/* int; get socket domain */
+#define	SO_SPLICE	0x1023		/* struct splice; splice data to other socket */
 #endif
 
 #if __BSD_VISIBLE

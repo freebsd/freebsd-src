@@ -77,7 +77,7 @@
 
 
 # RCSid:
-#	$Id: meta2deps.sh,v 1.26 2025/12/08 17:34:02 sjg Exp $
+#	$Id: meta2deps.sh,v 1.27 2026/05/22 00:33:26 sjg Exp $
 
 # SPDX-License-Identifier: BSD-2-Clause
 #
@@ -160,6 +160,10 @@ _excludes_f() {
 error() {
     echo "ERROR: $@" >&2
     exit 1
+}
+
+warning() {
+    echo "WARNING: $@" >&2
 }
 
 meta2deps() {
@@ -273,8 +277,15 @@ meta2deps() {
 	    ;;
 	\#*) ;;			# ok
 	[LM],) error "missing path2 in: '$op $pid $path'";;
-	[LMX],*" "*) error "wrong number of words in: '$op $pid $path $path2'";;
+	[LMX],*" "*)
+	    warning "wrong number of words in: '$op $pid $path $path2'"
+	    continue
+	    ;;
 	*,|[LMX],*) ;;		# ok
+	[CELMRW],*)
+	    warning "wrong number of words in: '$op $pid $path $path2'"
+	    continue
+	    ;;
 	*) error "wrong number of words in: '$op $pid $path $path2'";;
 	esac
 	# we track cwd and ldir (of interest) per pid

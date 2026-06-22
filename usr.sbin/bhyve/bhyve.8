@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 15, 2026
+.Dd June 5, 2026
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -80,7 +80,7 @@
 .Sm on
 .Oc
 .Op Fl o Ar var Ns Cm = Ns Ar value
-.Op Fl p Ar vcpu Ns Cm \&: Ns Ar hostcpu
+.Oo Fl p Ar vcpuN Ns Oo - Ns Ar vcpuM Oc Ns Cm \&: Ns Ar hostcpuN Ns Oo - Ns Ar hostcpuM Oc Oc
 .Op Fl r Ar file
 .Sm off
 .Oo Fl s\~
@@ -356,19 +356,21 @@ for configuration options.
 .It Fl P
 Force the guest virtual CPU to exit when a PAUSE instruction is detected.
 This option applies only to the amd64 platform.
-.It Fl p Ar vcpu Ns Cm \& : Ns Ar hostcpu
-Pin guest's virtual CPU
-.Em vcpu
+.It Fl p Ar vcpuN Ns Oo - Ns Ar vcpuM Oc Ns Cm \&: Ns Ar hostcpuN Ns Op - Ns Ar hostcpuM
+Pin the guest's virtual CPUs starting from
+.Em vcpuN
 to
-.Em hostcpu .
+.Em vcpuM
+to the host CPUs starting from
+.Em hostcpuN
+to
+.Em hostcpuM .
 Host CPUs and guest virtual CPUs are numbered starting from 0.
-A
-.Fl p
-option is required for every guest vCPU to be pinned.
-To map a 4 vCPU guest to host CPUs 12-15:
-.Bd -literal
--p 0:12 -p 1:13 -p 2:14 -p 3:15
-.Ed
+The
+.Em vcpuM
+and
+.Em hostcpuM
+arguments may be omitted.
 .It Fl r Ar file
 Resume a guest from a snapshot.
 The guest memory contents are restored from
@@ -1402,6 +1404,16 @@ bhyve -c 2 -w -H \\
   -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \\
   -n id=0,size=4G,cpus=0-1,domain_policy=prefer:0 \\
    numavm
+.Ed
+To run a virtual machine with a single vCPU pinned to host CPU 12:
+.Bd -literal -offset indent
+bhyve -c 1 -s 0,hostbridge -s 1,lpc -s 2,virtio-blk,/my/image \\
+  -l com1,stdio -H -P -m 1G -p 0:12 vm1
+.Ed
+To run a virtual machine with 4 vCPUs pinned to host CPUs 12-15:
+.Bd -literal -offset indent
+bhyve -c 4 -s 0,hostbridge -s 1,lpc -s 2,virtio-blk,/my/image \\
+  -l com1,stdio -H -P -m 1G -p 0-3:12-15 vm1
 .Ed
 .Sh SEE ALSO
 .Xr bhyve 4 ,

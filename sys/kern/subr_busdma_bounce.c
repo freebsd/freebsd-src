@@ -283,11 +283,11 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 			break;
 #ifdef dmat_domain
 		bpage->vaddr = contigmalloc_domainset(PAGE_SIZE,
-		    M_BOUNCE, DOMAINSET_PREF(bz->domain), M_NOWAIT,
-		    0ul, bz->lowaddr, PAGE_SIZE, 0);
+		    M_BOUNCE, DOMAINSET_PREF(bz->domain),
+		    M_NOWAIT | M_UNPROTECTED, 0ul, bz->lowaddr, PAGE_SIZE, 0);
 #else
 		bpage->vaddr = contigmalloc(PAGE_SIZE, M_BOUNCE,
-		    M_NOWAIT, 0ul, bz->lowaddr, PAGE_SIZE, 0);
+		    M_NOWAIT | M_UNPROTECTED, 0ul, bz->lowaddr, PAGE_SIZE, 0);
 #endif
 		if (bpage->vaddr == NULL) {
 			free(bpage, M_BUSDMA);

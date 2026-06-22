@@ -87,6 +87,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
+#include <sys/limits.h>
 #include <sys/linker.h>
 #include <sys/msgbuf.h>
 #include <sys/lock.h>
@@ -204,8 +205,10 @@ extern int elf32_nxstack;
 /* TLB and TID handling */
 /**************************************************************************/
 
-/* Translation ID busy table */
-static volatile pmap_t tidbusy[MAXCPU][TID_MAX + 1];
+/* Translation ID busy table (dynamically allocated) */
+static __inline void tid_set_busy(int cpu, int tid, pmap_t pmap);
+static volatile pmap_t *tidbusy;
+uint32_t tid_max;
 
 /*
  * TLB0 capabilities (entry, way numbers etc.). These can vary between e500
@@ -637,6 +640,7 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 	vm_size_t kstack0_sz;
 	vm_paddr_t kstack0_phys;
 	vm_offset_t kstack0;
+	uint32_t tid_bits;
 	void *dpcpu;
 
 	debugf("mmu_booke_bootstrap: entered\n");
@@ -661,12 +665,29 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 	tlb0_get_tlbconf();
 
 	/*
+	 * Calculate the max TID from the hardware.  Allow overriding with a
+	 * tunable.  The tunable should be a power of 2.
+	 */
+	tid_bits = ((mfspr(SPR_MMUCFG) & MMUCFG_PIDSIZE_M) >> MMUCFG_PIDSIZE_S);
+	TUNABLE_INT_FETCH("machdep.tid_max", &tid_max);
+	if (tid_max <= 0)
+		tid_max = INT_MAX;
+	else
+		tid_max = 1 << ilog2(tid_max);
+	tid_max = min((1 << tid_bits), tid_max) - 1;
+
+	/*
 	 * Align kernel start and end address (kernel image).
 	 * Note that kernel end does not necessarily relate to kernsize.
 	 * kernsize is the size of the kernel that is actually mapped.
 	 */
 	data_start = round_page(kernelend);
 	data_end = data_start;
+
+	tidbusy = (void *)data_end;
+	printf("tidbusy at %p\n", tidbusy);
+	printf("tidmax = %d\n", tid_max);
+	data_end += round_page(sizeof(pmap_t) * MAXCPU * (tid_max + 1));
 
 	/* Allocate the dynamic per-cpu area. */
 	dpcpu = (void *)data_end;
@@ -913,7 +934,7 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 		kernel_pmap->pm_tid[i] = TID_KERNEL;
 		
 		/* Initialize each CPU's tidbusy entry 0 with kernel_pmap */
-		tidbusy[i][TID_KERNEL] = kernel_pmap;
+		tid_set_busy(i, TID_KERNEL, kernel_pmap);
 	}
 
 	/* Mark kernel_pmap active on all CPUs */
@@ -2460,6 +2481,22 @@ mmu_booke_page_array_startup(long pages)
 /* TID handling */
 /**************************************************************************/
 
+static __inline void
+tid_set_busy(int cpu, int tid, pmap_t pmap)
+{
+	tidbusy[cpu * (tid_max + 1) + tid] = pmap;
+	if (pmap == NULL)
+		pmap->pm_tid[cpu] = TID_NONE;
+	else
+		pmap->pm_tid[cpu] = tid;
+}
+
+static __inline pmap_t
+tid_get_busy(int cpu, int tid)
+{
+	return (tidbusy[cpu * (tid_max + 1) + tid]);
+}
+
 /*
  * Allocate a TID. If necessary, steal one from someone else.
  * The new TID is flushed from the TLB before returning.
@@ -2477,21 +2514,22 @@ tid_alloc(pmap_t pmap)
 	thiscpu = PCPU_GET(cpuid);
 
 	tid = PCPU_GET(booke.tid_next);
-	if (tid > TID_MAX)
+	/* tid_max is always a power-of-2-minus-1, so check for overflow. */
+	if ((tid & ~tid_max) != 0)
 		tid = TID_MIN;
 	PCPU_SET(booke.tid_next, tid + 1);
 
 	/* If we are stealing TID then clear the relevant pmap's field */
-	if (tidbusy[thiscpu][tid] != NULL) {
+	if (tid_get_busy(thiscpu, tid) != NULL) {
 		CTR2(KTR_PMAP, "%s: warning: stealing tid %d", __func__, tid);
 		
-		tidbusy[thiscpu][tid]->pm_tid[thiscpu] = TID_NONE;
+		tid_set_busy(thiscpu, tid, NULL);
 
 		/* Flush all entries from TLB0 matching this TID. */
 		tid_flush(tid);
 	}
 
-	tidbusy[thiscpu][tid] = pmap;
+	tid_set_busy(thiscpu, tid, pmap);
 	pmap->pm_tid[thiscpu] = tid;
 	__asm __volatile("msync; isync");
 

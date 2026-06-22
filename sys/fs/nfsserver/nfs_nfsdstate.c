@@ -1829,7 +1829,7 @@ nfsrv_lockctrl(vnode_t vp, struct nfsstate **new_stpp,
 	int specialid = 0;
 	struct nfslockfile *lfp;
 	struct nfslock *other_lop = NULL;
-	struct nfsstate *stp, *lckstp = NULL;
+	struct nfsstate *stp = NULL, *lckstp = NULL;	/* Shut up gcc. */
 	struct nfsclient *clp = NULL;
 	u_int32_t bits;
 	int error = 0, haslock = 0, ret, reterr;

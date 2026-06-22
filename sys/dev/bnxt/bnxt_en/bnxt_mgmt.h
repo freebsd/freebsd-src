@@ -40,13 +40,17 @@
 #define	DRIVER_NAME				"if_bnxt"
 
 
-#define	IOW_BNXT_MGMT_OPCODE_GET_DEV_INFO	_IOW(0, 0, 0)
-#define	IOW_BNXT_MGMT_OPCODE_PASSTHROUGH_HWRM	_IOW(0, 1, 0)
-#define	IOW_BNXT_MGMT_OPCODE_DCB_OPS		_IOW(0, 2, 0)
+#define	IOW_BNXT_MGMT_OPCODE_GET_DEV_INFO	_IOC(IOC_IN, 0, 0, 0)
+#define	IOW_BNXT_MGMT_OPCODE_PASSTHROUGH_HWRM	_IOC(IOC_IN, 0, 1, 0)
+#define	IOW_BNXT_MGMT_OPCODE_DCB_OPS		_IOC(IOC_IN, 0, 2, 0)
+#define	IOW_BNXT_MGMT_OPCODE_DRV_DUMP		_IOC(IOC_IN, 0, 3, 0)
+#define	IOW_BNXT_MGMT_OPCODE_CRASH_DUMP		_IOC(IOC_IN, 0, 4, 0)
 
 #define	IO_BNXT_MGMT_OPCODE_GET_DEV_INFO	_IO(0, 0)
 #define	IO_BNXT_MGMT_OPCODE_PASSTHROUGH_HWRM	_IO(0, 1)
 #define	IO_BNXT_MGMT_OPCODE_DCB_OPS		_IO(0, 2)
+#define	IO_BNXT_MGMT_OPCODE_DRV_DUMP		_IO(0, 3)
+#define	IO_BNXT_MGMT_OPCODE_CRASH_DUMP		_IO(0, 4)
 
 #define BNXT_MGMT_MAX_HWRM_REQ_LENGTH		HWRM_MAX_REQ_LEN
 #define BNXT_MGMT_MAX_HWRM_RESP_LENGTH		(512)
@@ -79,7 +83,7 @@ struct bnxt_pci_info {
 } __packed;
 
 struct bnxt_dev_info {
-        struct bnxt_nic_info nic_info; 
+        struct bnxt_nic_info nic_info;
         struct bnxt_pci_info pci_info;
 } __packed;
 
@@ -152,3 +156,57 @@ struct bnxt_mgmt_dcb {
 		struct bnxt_mgmt_app_tlv app_tlv;
 	} req;
 } __attribute__ ((__packed__));
+
+struct bnxt_mgmt_drv_dump {
+	struct bnxt_mgmt_req_hdr hdr;
+#define BNXT_MGMT_GET_DRV_DUMP_SIZE	0x1
+#define BNXT_MGMT_GET_DRV_DUMP		0x2
+#define BNXT_MGMT_DRV_DUMP_MAX	BNXT_MGMT_GET_DRV_DUMP
+	uint32_t op;
+	void *buf;
+	uint32_t buf_size;
+} __attribute__ ((__packed__));
+
+struct bnxt_mgmt_crash_dump {
+	struct bnxt_mgmt_req_hdr hdr;
+#define BNXT_MGMT_SET_DUMP_FLAG		0x1
+#define BNXT_MGMT_GET_DUMP_FLAG		0x2
+#define BNXT_MGMT_GET_DUMP_DATA		0x3
+#define BNXT_MGMT_CRASH_DUMP_MAX	BNXT_MGMT_GET_DUMP_DATA
+	uint32_t op;
+	union {
+		struct {
+			uint32_t dump_flag;
+		} set_flag;
+		struct {
+			uint32_t dump_flag;
+			uint32_t dump_len;
+			uint32_t version;
+		} get_flag;
+		struct {
+			uint32_t dump_flag;
+			uint32_t dump_len;
+			void *dump_buffer;
+			size_t buffer_size;
+		} get_data;
+	} req;
+} __attribute__ ((__packed__));
+
+struct bnxt_driver_segment_record {
+	uint32_t max_entries;
+	uint32_t entry_size;
+	uint32_t offset;
+	uint8_t wrapped:1;
+	uint8_t reserved[3];
+};
+
+#define DRV_COREDUMP_COMP_ID            0xD
+#define DRV_SRT_TRACE_SEG_ID            1
+#define DRV_SRT2_TRACE_SEG_ID           2
+#define DRV_CRT_TRACE_SEG_ID            3
+#define DRV_CRT2_TRACE_SEG_ID           4
+#define DRV_RIGP0_TRACE_SEG_ID          5
+#define DRV_LOG_HWRM_L2_TRACE_SEG_ID    6
+#define DRV_LOG_HWRM_ROCE_TRACE_SEG_ID  7
+
+void bnxt_get_ctx_coredump(struct bnxt_softc *, void *);

@@ -45,6 +45,7 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
@@ -1145,6 +1146,27 @@ asmc_key_dump(device_t dev, int number)
 	uint8_t maxlen;
 	int i, error = 1, try = 0;
 
+	if (sc->sc_is_mmio) {
+		uint8_t len = 0;
+		char mmio_type[ASMC_TYPELEN + 1] = { 0 };
+		if (asmc_key_dump_by_index(dev, number, key, mmio_type, &len))
+			return (1);
+		memset(v, 0, sizeof(v));
+		len = MIN(len, sizeof(v));
+		asmc_key_read(dev, key, v, len);
+		struct sbuf sb;
+		char buf[128];
+		sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
+		sbuf_printf(&sb, "key %d: %s, type %s (len %d), data",
+		    number, key, mmio_type, len);
+		for (i = 0; i < len; i++)
+			sbuf_printf(&sb, " %02x", v[i]);
+		sbuf_finish(&sb);
+		device_printf(dev, "%s\n", sbuf_data(&sb));
+		sbuf_delete(&sb);
+		return (0);
+	}
+
 	mtx_lock_spin(&sc->sc_mtx);
 
 	index[0] = (number >> 24) & 0xff;
@@ -1205,19 +1227,23 @@ out:
 	maxlen = type[0];
 	type[0] = ' ';
 	type[5] = '\0';
-	if (maxlen > sizeof(v))
-		maxlen = sizeof(v);
+	maxlen = MIN(maxlen, sizeof(v));
 
 	memset(v, 0, sizeof(v));
 	error = asmc_key_read(dev, key, v, maxlen);
 	if (error)
 		return (error);
 
-	device_printf(dev, "key %d: %s, type%s (len %d), data",
+	struct sbuf sb;
+	char buf[128];
+	sbuf_new(&sb, buf, sizeof(buf), SBUF_FIXEDLEN);
+	sbuf_printf(&sb, "key %d: %s, type%s (len %d), data",
 	    number, key, type, maxlen);
 	for (i = 0; i < maxlen; i++)
-		printf(" %02x", v[i]);
-	printf("\n");
+		sbuf_printf(&sb, " %02x", v[i]);
+	sbuf_finish(&sb);
+	device_printf(dev, "%s\n", sbuf_data(&sb));
+	sbuf_delete(&sb);
 
 	return (0);
 }
