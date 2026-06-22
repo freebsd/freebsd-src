@@ -84,9 +84,11 @@
 #define IBS_FETCH_CTL_L3MISS		(1ULL << 61) /* L3 Cache Miss */
 #define IBS_FETCH_CTL_OPCACHEMISS	(1ULL << 60) /* Op Cache Miss */
 #define IBS_FETCH_CTL_L3MISSONLY	(1ULL << 59) /* L3 Miss Filtering */
+#define IBS_FETCH_CTL_L2MISS		(1ULL << 58)
 #define IBS_FETCH_CTL_RANDOMIZE		(1ULL << 57) /* Randomized Tagging */
+#define IBS_FETCH_CTL_L2TLBMISS		(1ULL << 56)
 #define IBS_FETCH_CTL_L1TLBMISS		(1ULL << 55) /* L1 TLB Miss */
-// Page size 54:53
+#define IBS_FETCH_CTL_TO_PGSZ(_d)	(((_d) >> 53) & 0x3)
 #define IBS_FETCH_CTL_PHYSADDRVALID	(1ULL << 52) /* PHYSADDR Valid */
 #define IBS_FETCH_CTL_ICMISS		(1ULL << 51) /* Inst. Cache Miss */
 #define IBS_FETCH_CTL_COMPLETE		(1ULL << 50) /* Complete */
@@ -146,9 +148,33 @@
 #define IBS_OP_DATA_BRANCHMISPREDICTED	(1ULL << 36) /* Branch Mispredicted */
 #define IBS_OP_DATA_BRANCHTAKEN		(1ULL << 35) /* Branch Taken */
 #define IBS_OP_DATA_RETURN		(1ULL << 34) /* Return */
+#define IBS_OP_DATA_TO_TAGTORET(_d) (((_d) >> 16) & 0xffff)
+#define IBS_OP_DATA_TO_COMPTORET(_d) ((_d) & 0xffff)
 
+/*
+ * Datasrc reserves 5 bits but only uses 4 up to Zen 5.
+ * From PPR for AMD Family 1Ah Model 70h A0
+ */
 #define IBS_OP_DATA2			0xC0011036 /* IBS Op Data 2 */
+#define IBS_OP_DATA2_HITO		(1 << 5)
+#define IBS_OP_DATA2_DATASRC(_d)	(((_d) & 0x7) | (((_d) >> 3) & 0x8))
+
+#define IBS_DATASRC_LOCALCCX		0x1
+#define IBS_DATASRC_NEARFARCACHE_NEAR	0x2
+#define IBS_DATASRC_DRAMIO_NEAR		0x3
+#define IBS_DATASRC_NEARFARCACHE_FAR	0x5
+#define IBS_DATASRC_LONGLAT_NEARFAR	0x6
+#define IBS_DATASRC_DRAMIO_FAR		0x7
+#define IBS_DATASRC_EXT_NEARFAR		0x8
+#define IBS_DATASRC_PEER_NEARFAR	0xC
+
+/*
+ * Memwidth reserves 4 bits but only uses 3 up to Zen 5.
+ * From PPR for AMD Family 1Ah Model 70h A0
+ */
 #define IBS_OP_DATA3			0xC0011037 /* IBS Op Data 3 */
+#define IBS_OP_DATA3_PREFETCH		(1ULL << 21)
+#define IBS_OP_DATA3_L2MISS		(1ULL << 20)
 #define IBS_OP_DATA3_DCPHYADDRVALID	(1ULL << 18) /* DC Physical Address */
 #define IBS_OP_DATA3_DCLINADDRVALID	(1ULL << 17) /* DC Linear Address */
 #define IBS_OP_DATA3_LOCKEDOP		(1ULL << 15) /* DC Locked Op */
@@ -162,6 +188,12 @@
 #define IBS_OP_DATA3_STORE		(1ULL << 1)  /* Store */
 #define IBS_OP_DATA3_LOAD		(1ULL << 0)  /* Load */
 #define IBS_OP_DATA3_TO_DCLAT(_c)	((_c >> 32) & 0x0000FFFF)
+#define IBS_OP_DATA3_MEMWIDTH(_d)	(((_d) >> 22) & 0x7)
+#define IBS_OP_DATA3_PGSZ(_d)		(((_d) >> 4) & 0x3)
+#define IBS_OP_DATA3_TO_TLBREFILLLAT(_c) (((_c) >> 48) & 0x0000ffff)
+#define IBS_OP_DATA3_TO_OPENMEMREQS(_c)	(((_c) >> 26) & 0x003f)
+
+#define IBSOPDATA2_VALIDMASK		(IBS_OP_DATA3_LOAD | IBS_OP_DATA3_DCMISS | IBS_OP_DATA3_L2MISS)
 
 #define IBS_OP_DC_LINADDR		0xC0011038 /* IBS DC Linear Address */
 #define IBS_OP_DC_PHYSADDR		0xC0011039 /* IBS DC Physical Address */
