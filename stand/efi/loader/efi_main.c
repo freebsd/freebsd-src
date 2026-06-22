@@ -105,10 +105,10 @@ efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 
 	setheap((void *)(uintptr_t)heap, (void *)(uintptr_t)(heap + heapsize));
 
+	/* Use efi_exit() from here on... */
+
 	/* Start tslog now that we have a heap.*/
 	tslog_init();
-
-	/* Use efi_exit() from here on... */
 
 	status = OpenProtocolByHandle(IH, &image_protocol, (void**)&img);
 	if (status != EFI_SUCCESS)
