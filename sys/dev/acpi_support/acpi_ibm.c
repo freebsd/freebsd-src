@@ -282,7 +282,7 @@ static struct {
 	{
 		.name		= "mic_led",
 		.method		= ACPI_IBM_METHOD_MIC_LED,
-		.description	= "Mic led",
+		.description	= "Mic mute led",
 	},
 	{
 		.name		= "privacyguard",
