@@ -177,12 +177,22 @@ cd9660_deftstamp(struct iso_directory_record *isodir, struct iso_node *inop,
 
 		if (ftype != ISO_FTYPE_HIGH_SIERRA
 		    && isonum_711(ap->version) == 1) {
-			if (!cd9660_tstamp_conv17(ap->ftime,&inop->inode.iso_atime))
-				cd9660_tstamp_conv17(ap->ctime,&inop->inode.iso_atime);
-			if (!cd9660_tstamp_conv17(ap->ctime,&inop->inode.iso_ctime))
-				inop->inode.iso_ctime = inop->inode.iso_atime;
-			if (!cd9660_tstamp_conv17(ap->mtime,&inop->inode.iso_mtime))
-				inop->inode.iso_mtime = inop->inode.iso_ctime;
+			/*
+			 * The extended attributes include create
+			 * (ctime), modify (mtime), expiration
+			 * (xtime), and effective (ftime) timstamps.
+			 * Only the first two are meaningful for struct
+			 * stat.
+			 */
+			struct timespec birthtime;
+
+			if (!cd9660_tstamp_conv17(ap->ctime, &birthtime))
+				memset(&birthtime, 0, sizeof(birthtime));
+			if (!cd9660_tstamp_conv17(ap->mtime,
+			    &inop->inode.iso_mtime))
+				inop->inode.iso_mtime = birthtime;
+			inop->inode.iso_ctime = inop->inode.iso_mtime;
+			inop->inode.iso_atime = inop->inode.iso_mtime;
 		} else
 			ap = NULL;
 	}
