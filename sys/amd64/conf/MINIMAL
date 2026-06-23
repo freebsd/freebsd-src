@@ -89,6 +89,18 @@ device		acpi
 options 	IOMMU
 device		pci
 
+# ATA controllers
+device		ahci			# AHCI-compatible SATA controllers
+
+# ATA/SCSI peripherals
+device		scbus			# SCSI bus (required for ATA/SCSI)
+device		da			# Direct Access (disks)
+device		cd			# CD
+device		pass			# Passthrough device (direct ATA/SCSI access)
+
+# NVM Express (NVMe) support
+device		nvme			# base NVMe driver
+
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc			# AT keyboard controller
 device		atkbd			# AT keyboard
@@ -129,8 +141,8 @@ device		virtio			# Generic VirtIO bus (required)
 device		virtio_pci		# VirtIO PCI device
 device		vtnet			# VirtIO Ethernet device
 device		virtio_blk		# VirtIO Block device
-device		virtio_balloon		# VirtIO Memory Balloon device
 device		virtio_scsi		# VirtIO SCSI device
+device		virtio_balloon		# VirtIO Memory Balloon device
 
 # Linux KVM paravirtualization support
 device		kvm_clock		# KVM paravirtual clock driver
@@ -147,15 +159,3 @@ device		xentimer		# Xen x86 PV timer device
 options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		evdev			# input event device support
 device		uinput			# install /dev/uinput cdev
-
-# NVM Express (NVMe) support
-device		nvme			# base NVMe driver
-
-# ATA controllers
-device		ahci			# AHCI-compatible SATA controllers
-
-# CAM
-device		scbus			# SCSI bus (required for ATA/SCSI)
-device		da			# Direct Access (disks)
-device		cd			# CD
-device		pass			# Passthrough device (direct ATA/SCSI access)
