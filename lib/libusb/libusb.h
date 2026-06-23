@@ -296,6 +296,11 @@ enum libusb_option {
 	LIBUSB_OPTION_MAX = 4,
 };
 
+enum libusb_log_cb_mode {
+	LIBUSB_LOG_CB_GLOBAL = (1 << 0),
+	LIBUSB_LOG_CB_CONTEXT = (1 << 1),
+};
+
 /* libusb structures */
 
 struct libusb_context;
@@ -675,6 +680,7 @@ int	libusb_free_streams(libusb_device_handle *dev, unsigned char *endpoints, int
 void	libusb_transfer_set_stream_id(struct libusb_transfer *transfer, uint32_t stream_id);
 uint32_t libusb_transfer_get_stream_id(struct libusb_transfer *transfer);
 int	libusb_set_option(libusb_context *ctx, enum libusb_option option, ...);
+void	libusb_set_log_cb(libusb_context *ctx, libusb_log_cb cb, int mode);
 
 #if 0
 {					/* indent fix */
