@@ -102,6 +102,8 @@ TEST_F(PreInit, unmount_before_init)
 	})));
 	expect_destroy(0);
 
+	m_mock->start_service();
+
 	ASSERT_EQ(0, pthread_create(&th1, NULL, unmount1, NULL));
 	nap();	/* Wait for th1 to block in unmount() */
 	sem_post(&sem0);
@@ -146,6 +148,8 @@ TEST_F(PreInit, signal_during_unmount_before_init)
 		out.body.init.time_gran = m_time_gran;
 		sem_wait(&sem0);
 	})));
+
+	m_mock->start_service();
 
 	if ((child = ::fork()) == 0) {
 		/*
@@ -218,6 +222,8 @@ TEST_P(PreInitP, getattr_before_init)
 		out.body.attr.attr.nlink = nlink;
 		out.body.attr.attr_valid = UINT64_MAX;
 	})));
+
+	m_mock->start_service();
 
 	EXPECT_EQ(0, stat("mountpoint", &sb));
 	EXPECT_EQ(nlink, sb.st_nlink);
