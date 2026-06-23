@@ -132,7 +132,7 @@ typedef struct {
 typedef struct {
 	escape_t	*inuse;
 	int		 chlen;
-	char		 ch[ROWCOL_MAX];
+	char		 ch[4 + ROWCOL_MAX];
 } _HZState;
 
 #define _CEI_TO_EI(_cei_)		(&(_cei_)->ei)
