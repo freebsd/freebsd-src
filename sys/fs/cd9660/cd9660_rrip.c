@@ -376,14 +376,20 @@ cd9660_rrip_tstamp(ISO_RRIP_TSTAMP *p, size_t len, ISO_RRIP_ANALYZE *ana)
 	/* Check a format of time stamp (7bytes/17bytes) */
 	if (!(*p->flags & ISO_SUSP_TSTAMP_FORM17)) {
 		if (*p->flags & ISO_SUSP_TSTAMP_CREAT) {
+			cd9660_tstamp_conv7(ptime,
+			    &ana->inop->inode.iso_birthtime, ISO_FTYPE_RRIP);
 			ptime += 7;
+		} else {
+			memset(&ana->inop->inode.iso_birthtime, 0,
+			    sizeof(struct timespec));
 		}
 		if (*p->flags & ISO_SUSP_TSTAMP_MODIFY) {
 			cd9660_tstamp_conv7(ptime, &ana->inop->inode.iso_mtime,
 			    ISO_FTYPE_RRIP);
 			ptime += 7;
 		} else {
-			memset(&ana->inop->inode.iso_mtime, 0, sizeof(struct timespec));
+			ana->inop->inode.iso_mtime =
+			    ana->inop->inode.iso_birthtime;
 		}
 		if (*p->flags & ISO_SUSP_TSTAMP_ACCESS) {
 			cd9660_tstamp_conv7(ptime, &ana->inop->inode.iso_atime,
@@ -400,13 +406,19 @@ cd9660_rrip_tstamp(ISO_RRIP_TSTAMP *p, size_t len, ISO_RRIP_ANALYZE *ana)
 		}
 	} else {
 		if (*p->flags & ISO_SUSP_TSTAMP_CREAT) {
+			cd9660_tstamp_conv17(ptime,
+			    &ana->inop->inode.iso_birthtime);
 			ptime += 17;
+		} else {
+			memset(&ana->inop->inode.iso_birthtime, 0,
+			    sizeof(struct timespec));
 		}
 		if (*p->flags & ISO_SUSP_TSTAMP_MODIFY) {
 			cd9660_tstamp_conv17(ptime, &ana->inop->inode.iso_mtime);
 			ptime += 17;
 		} else {
-			memset(&ana->inop->inode.iso_mtime, 0, sizeof(struct timespec));
+			ana->inop->inode.iso_mtime =
+			    ana->inop->inode.iso_birthtime;
 		}
 		if (*p->flags & ISO_SUSP_TSTAMP_ACCESS) {
 			cd9660_tstamp_conv17(ptime, &ana->inop->inode.iso_atime);

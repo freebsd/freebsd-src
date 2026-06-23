@@ -47,6 +47,7 @@ typedef	struct	{
 	struct timespec	iso_atime;	/* time of last access */
 	struct timespec	iso_mtime;	/* time of last modification */
 	struct timespec	iso_ctime;	/* time file changed */
+	struct timespec	iso_birthtime;	/* time file created */
 	u_short		iso_mode;	/* files access mode and type */
 	uid_t		iso_uid;	/* owner user id */
 	gid_t		iso_gid;	/* owner group id */
