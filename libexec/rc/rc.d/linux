@@ -31,14 +31,14 @@ linux_start()
 
 	case `sysctl -n hw.machine_arch` in
 	aarch64)
-		load_kld -e 'linux64elf' linux64
+		load_kld -m linux64elf linux64
 		;;
 	amd64)
-		load_kld -e 'linuxelf' linux
-		load_kld -e 'linux64elf' linux64
+		load_kld -m linuxelf linux
+		load_kld -m linux64elf linux64
 		;;
 	i386)
-		load_kld -e 'linuxelf' linux
+		load_kld -m linuxelf linux
 		;;
 	esac
 
