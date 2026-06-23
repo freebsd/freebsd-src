@@ -5130,7 +5130,7 @@ bnxt_report_link(struct bnxt_softc *softc)
 		}
 
 		iflib_link_state_change(softc->ctx, LINK_STATE_UP,
-		    IF_Gbps(100));
+		    bnxt_get_baudrate(&softc->link_info));
 		device_printf(softc->dev, "Link is UP %s %s, %s - %d Mbps \n", duplex, signal_mode,
 		    flow_ctrl, (link_info->link_speed * 100));
 	} else {
