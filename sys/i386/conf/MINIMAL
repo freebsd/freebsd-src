@@ -90,9 +90,9 @@ include "std.debug"
 options 	GZIO			# gzip (dumps)
 options 	ZSTDIO			# zstd (dumps, tarfs, uzip, zfs)
 
-# Make an SMP-capable kernel by default
+# To make an SMP kernel, the next two lines are needed
 options 	SMP			# Symmetric MultiProcessor Kernel
-device		apic
+device		apic			# I/O APIC
 
 # CPU frequency control
 device		cpufreq
@@ -101,6 +101,18 @@ device		cpufreq
 device		acpi
 device		smbios
 device		pci
+
+# ATA controllers
+device		ahci			# AHCI-compatible SATA controllers
+
+# ATA/SCSI peripherals
+device		scbus			# SCSI bus (required for ATA/SCSI)
+device		da			# Direct Access (disks)
+device		cd			# CD
+device		pass			# Passthrough device (direct ATA/SCSI access)
+
+# NVM Express (NVMe) support
+device		nvme			# base NVMe driver
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc			# AT keyboard controller
@@ -141,15 +153,15 @@ device		virtio			# Generic VirtIO bus (required)
 device		virtio_pci		# VirtIO PCI device
 device		vtnet			# VirtIO Ethernet device
 device		virtio_blk		# VirtIO Block device
-device		virtio_balloon		# VirtIO Memory Balloon device
 device		virtio_scsi		# VirtIO SCSI device
+device		virtio_balloon		# VirtIO Memory Balloon device
 
 # Linux KVM paravirtualization support
 device		kvm_clock		# KVM paravirtual clock driver
 
 # Xen HVM Guest Optimizations
-# NOTE: XENHVM depends on xenpci and xentimer.
-# They must be added or removed together.
+# NOTE: XENHVM and xenpci interdepend.  They must be added or removed
+# together.  xentimer depends on XENHVM and isn't required.
 options 	XENHVM			# Xen HVM kernel infrastructure
 device		xenpci			# Xen HVM Hypervisor services driver
 device		xentimer		# Xen x86 PV timer device
@@ -158,15 +170,3 @@ device		xentimer		# Xen x86 PV timer device
 options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		evdev			# input event device support
 device		uinput			# install /dev/uinput cdev
-
-# NVM Express (NVMe) support
-device		nvme			# base NVMe driver
-
-# ATA controllers
-device		ahci			# AHCI-compatible SATA controllers
-
-# CAM
-device		scbus			# SCSI bus (required for ATA/SCSI)
-device		da			# Direct Access (disks)
-device		cd			# CD
-device		pass			# Passthrough device (direct ATA/SCSI access)
