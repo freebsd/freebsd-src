@@ -158,12 +158,16 @@ static int nfsrpc_fillsa(struct nfsmount *, struct sockaddr_in *,
     struct sockaddr_in6 *, sa_family_t, int, int, struct nfsclds **,
     NFSPROC_T *);
 static void nfscl_initsessionslots(struct nfsclsession *);
+static struct nfscldevinfo **nfscl_getdevlist(struct nfsclclient *,
+    struct nfsclflayout *, int);
+static void nfscl_reldevlist(struct nfscldevinfo **, struct nfsclflayout *,
+    int);
 static int nfscl_doflayoutio(vnode_t, struct uio *, int *, int *, int *,
     nfsv4stateid_t *, int, struct nfscldevinfo *, struct nfscllayout *,
     struct nfsclflayout *, uint64_t, uint64_t, int, struct ucred *,
     NFSPROC_T *);
 static int nfscl_dofflayoutio(vnode_t, struct uio *, int *, int *, int *,
-    nfsv4stateid_t *, int, struct nfscldevinfo *, struct nfscllayout *,
+    nfsv4stateid_t *, int, struct nfscldevinfo **, struct nfscllayout *,
     struct nfsclflayout *, uint64_t, uint64_t, int, int, struct mbuf *,
     struct nfsclwritedsdorpc *, struct ucred *, NFSPROC_T *);
 static int nfsrpc_readds(vnode_t, struct uio *, nfsv4stateid_t *, int *,
@@ -6552,7 +6556,7 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfscllayout *layp;
-	struct nfscldevinfo *dip;
+	struct nfscldevinfo *dip, **dpp;
 	struct nfsclflayout *rflp;
 	struct mbuf *m, *m2;
 	struct nfsclwritedsdorpc *drpc, *tdrpc;
@@ -6683,34 +6687,37 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 					m = NULL;
 				}
 				if ((layp->nfsly_flags & NFSLY_FLEXFILE) != 0) {
-					dev = rflp->nfsfl_ffm[i].dev;
-					dip = nfscl_getdevinfo(nmp->nm_clp, dev,
-					    rflp->nfsfl_ffm[i].devp);
+					dpp = nfscl_getdevlist(nmp->nm_clp,
+					    rflp, i);
+					if (dpp != NULL) {
+						error = nfscl_dofflayoutio(vp,
+						    uiop, iomode, must_commit,
+						    &eof, &stateid, rwaccess,
+						    dpp, layp, rflp, off, xfer,
+						    i, docommit, m2, tdrpc,
+						    newcred, p);
+						nfscl_reldevlist(dpp, rflp, i);
+					} else {
+						if (m2 != NULL)
+							m_freem(m2);
+						error = EIO;
+					}
 				} else {
 					dev = rflp->nfsfl_dev;
 					dip = nfscl_getdevinfo(nmp->nm_clp, dev,
 					    rflp->nfsfl_devp);
-				}
-				if (dip != NULL) {
-					if ((rflp->nfsfl_flags & NFSFL_FLEXFILE)
-					    != 0)
-						error = nfscl_dofflayoutio(vp,
-						    uiop, iomode, must_commit,
-						    &eof, &stateid, rwaccess,
-						    dip, layp, rflp, off, xfer,
-						    i, docommit, m2, tdrpc,
-						    newcred, p);
-					else
+					if (dip != NULL) {
 						error = nfscl_doflayoutio(vp,
 						    uiop, iomode, must_commit,
 						    &eof, &stateid, rwaccess,
 						    dip, layp, rflp, off, xfer,
 						    docommit, newcred, p);
-					nfscl_reldevinfo(dip);
-				} else {
-					if (m2 != NULL)
-						m_freem(m2);
-					error = EIO;
+						nfscl_reldevinfo(dip);
+					} else {
+						if (m2 != NULL)
+							m_freem(m2);
+						error = EIO;
+					}
 				}
 				tdrpc++;
 			}
@@ -6792,6 +6799,52 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	nfscl_rellayout(layp, 0);
 	nfscl_relref(nmp);
 	return (error);
+}
+
+/*
+ * Get the list of device structures for a mirror for a flex file layout.
+ * (If any stripe entry is missing, return NULL, since the mirror cannot
+ *  be used.)
+ */
+static struct nfscldevinfo **
+nfscl_getdevlist(struct nfsclclient *clp, struct nfsclflayout *flp, int mirror)
+{
+	struct nfscldevinfo **dpp, **tdpp;
+	struct nfsffs *sp;
+	int i, j;
+
+	dpp = tdpp = malloc(sizeof(*dpp) * flp->nfsfl_ffm[mirror].stripecnt,
+	    M_TEMP, M_WAITOK);
+	sp = flp->nfsfl_ffm[mirror].stripep;
+	for (i = 0; i < flp->nfsfl_ffm[mirror].stripecnt; i++, sp++, tdpp++) {
+		*tdpp = nfscl_getdevinfo(clp, sp->dev, sp->devp);
+		if (*tdpp == NULL) {
+			tdpp = dpp;
+			for (j = 0; j < i; j++, tdpp++)
+				nfscl_reldevinfo(*tdpp);
+			free(dpp, M_TEMP);
+			return (NULL);
+		}
+	}
+	return (dpp);
+}
+
+/*
+ * Release a device list for a flex file mirror.
+ */
+static void
+nfscl_reldevlist(struct nfscldevinfo **dpp, struct nfsclflayout *flp,
+    int mirror)
+{
+	struct nfscldevinfo **tdpp;
+	int i;
+
+	tdpp = dpp;
+	for (i = 0; i < flp->nfsfl_ffm[mirror].stripecnt; i++, tdpp++) {
+		KASSERT(*tdpp != NULL, ("nfscl_reldevlist: NULL devinfo"));
+		nfscl_reldevinfo(*tdpp);
+	}
+	free(dpp, M_TEMP);
 }
 
 /*
@@ -6944,16 +6997,18 @@ nfscl_doflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
  */
 static int
 nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
-    int *eofp, nfsv4stateid_t *stateidp, int rwflag, struct nfscldevinfo *dp,
+    int *eofp, nfsv4stateid_t *stateidp, int rwflag, struct nfscldevinfo **dpp,
     struct nfscllayout *lyp, struct nfsclflayout *flp, uint64_t off,
     uint64_t len, int mirror, int docommit, struct mbuf *mp,
     struct nfsclwritedsdorpc *drpc, struct ucred *cred, NFSPROC_T *p)
 {
-	uint64_t xfer;
-	int error;
+	uint64_t xfer, transfer;
+	int error, stripe_pos;
 	struct nfsnode *np;
 	struct nfsfh *fhp;
 	struct nfsclds **dspp;
+	struct nfscldevinfo *dp;
+	struct nfsffs *sp;
 	struct ucred *tcred;
 	struct mbuf *m, *m2;
 	uint32_t copylen;
@@ -6964,15 +7019,37 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	    (uintmax_t)len);
 	/* Loop around, doing I/O for each stripe unit. */
 	while (len > 0 && error == 0) {
+		if (flp->nfsfl_stripeunit > 0 &&
+		    flp->nfsfl_ffm[mirror].stripecnt > 1) {
+			stripe_pos = (off / flp->nfsfl_stripeunit) %
+			    flp->nfsfl_ffm[mirror].stripecnt;
+			transfer = flp->nfsfl_stripeunit -
+			    (off % flp->nfsfl_stripeunit);
+			transfer = (len < transfer) ? len : transfer;
+		} else {
+			/* Only one stripe. */
+			if (flp->nfsfl_ffm[mirror].stripecnt != 1) {
+				printf("nfscl_dofflayoutio: stripecnt=%d\n",
+				    flp->nfsfl_ffm[mirror].stripecnt);
+				error = EIO;
+				break;
+			}
+			stripe_pos = 0;
+			transfer = len;
+		}
+		dp = dpp[stripe_pos];
 		dspp = nfsfldi_addr(dp, 0);
-		fhp = flp->nfsfl_ffm[mirror].fh[dp->nfsdi_versindex];
-		stateidp = &flp->nfsfl_ffm[mirror].st;
-		NFSCL_DEBUG(4, "mirror=%d vind=%d fhlen=%d st.seqid=0x%x\n",
-		    mirror, dp->nfsdi_versindex, fhp->nfh_len, stateidp->seqid);
+		sp = flp->nfsfl_ffm[mirror].stripep;
+		sp += stripe_pos;
+		fhp = sp->fh[dp->nfsdi_versindex];
+		stateidp = &sp->st;
+		NFSCL_DEBUG(4, "mirror=%d stripe=%d vind=%d fhlen=%d "
+		    "st.seqid=0x%x\n", mirror, stripe_pos,
+		    dp->nfsdi_versindex, fhp->nfh_len, stateidp->seqid);
 		if ((dp->nfsdi_flags & NFSDI_TIGHTCOUPLED) == 0) {
 			tcred = NFSNEWCRED(cred);
-			tcred->cr_uid = flp->nfsfl_ffm[mirror].user;
-			tcred->cr_gid = flp->nfsfl_ffm[mirror].group;
+			tcred->cr_uid = sp->user;
+			tcred->cr_gid = sp->group;
 			tcred->cr_ngroups = 0;
 		} else
 			tcred = cred;
@@ -6980,7 +7057,7 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			copylen = dp->nfsdi_rsize;
 		else {
 			copylen = dp->nfsdi_wsize;
-			if (len > copylen && mp != NULL) {
+			if (transfer > copylen && mp != NULL) {
 				/*
 				 * When a mirrored configuration needs to do
 				 * multiple writes to each mirror, all writes
@@ -7000,10 +7077,10 @@ nfscl_dofflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		NFSLOCKNODE(np);
 		np->n_flag |= NDSCOMMIT;
 		NFSUNLOCKNODE(np);
-		if (len > copylen && docommit == 0)
+		if (transfer > copylen && docommit == 0)
 			xfer = copylen;
 		else
-			xfer = len;
+			xfer = transfer;
 		if (docommit != 0) {
 			if (error == 0) {
 				/*
@@ -7990,6 +8067,7 @@ nfsrv_parselayoutget(struct nfsmount *nmp, struct nfsrv_descript *nd,
 {
 	uint32_t *tl;
 	struct nfsclflayout *flp, *prevflp, *tflp;
+	struct nfsffs *sp;
 	int cnt, error, fhcnt, gotiomode, i, iomode, j, k, l, laytype, nfhlen;
 	int m, mirrorcnt;
 	uint64_t retlen, off;
@@ -8104,7 +8182,7 @@ nfsrv_parselayoutget(struct nfsmount *nmp, struct nfsrv_descript *nd,
 			flp->nfsfl_flags = NFSFL_FLEXFILE;
 			flp->nfsfl_mirrorcnt = mirrorcnt;
 			for (j = 0; j < mirrorcnt; j++)
-				flp->nfsfl_ffm[j].devp = NULL;
+				flp->nfsfl_ffm[j].stripep = NULL;
 			flp->nfsfl_off = off;
 			if (flp->nfsfl_off + retlen < flp->nfsfl_off)
 				flp->nfsfl_end = UINT64_MAX - flp->nfsfl_off;
@@ -8119,43 +8197,45 @@ nfsrv_parselayoutget(struct nfsmount *nmp, struct nfsrv_descript *nd,
 			for (j = 0; j < mirrorcnt; j++) {
 				NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 				k = fxdr_unsigned(int, *tl);
-				if (k < 1 || k > 128) {
+				if (k < 1 || k > NFSDEV_MAXSTRIPE ||
+				    (k != 1 && flp->nfsfl_stripeunit == 0)) {
 					error = NFSERR_BADXDR;
 					goto nfsmout;
 				}
-				NFSCL_DEBUG(4, "servercnt=%d\n", k);
-				for (l = 0; l < k; l++) {
+				NFSCL_DEBUG(4, "stripecnt=%d\n", k);
+				flp->nfsfl_ffm[j].stripecnt = k;
+				if (k > 1)
+					flp->nfsfl_ffm[j].stripep = sp =
+					    malloc(k * sizeof(*sp),
+					    M_NFSFLAYOUT, M_WAITOK);
+				else
+					flp->nfsfl_ffm[j].stripep = sp =
+					    &flp->nfsfl_ffm[j].nonstriped;
+				for (l = 0; l < k; l++, sp++) {
+					sp->devp = NULL;
+					sp->fhcnt = 0;
+					for (m = 0; m < NFSDEV_MAXVERS; m++)
+						sp->fh[m] = NULL;
+				}
+				sp = flp->nfsfl_ffm[j].stripep;
+				for (l = 0; l < k; l++, sp++) {
 					NFSM_DISSECT(tl, uint32_t *,
 					    NFSX_V4DEVICEID + NFSX_STATEID +
 					    2 * NFSX_UNSIGNED);
-					if (l == 0) {
-						/* Just use the first server. */
-						NFSBCOPY(tl,
-						    flp->nfsfl_ffm[j].dev,
-						    NFSX_V4DEVICEID);
-						tl += (NFSX_V4DEVICEID /
-						    NFSX_UNSIGNED);
-						tl++;
-						flp->nfsfl_ffm[j].st.seqid =
-						    *tl++;
-						flp->nfsfl_ffm[j].st.other[0] =
-						    *tl++;
-						flp->nfsfl_ffm[j].st.other[1] =
-						    *tl++;
-						flp->nfsfl_ffm[j].st.other[2] =
-						    *tl++;
-						NFSCL_DEBUG(4, "st.seqid=%u "
-						 "st.o0=0x%x st.o1=0x%x "
-						 "st.o2=0x%x\n",
-						 flp->nfsfl_ffm[j].st.seqid,
-						 flp->nfsfl_ffm[j].st.other[0],
-						 flp->nfsfl_ffm[j].st.other[1],
-						 flp->nfsfl_ffm[j].st.other[2]);
-					} else
-						tl += ((NFSX_V4DEVICEID +
-						    NFSX_STATEID +
-						    NFSX_UNSIGNED) /
-						    NFSX_UNSIGNED);
+					NFSBCOPY(tl, sp->dev, NFSX_V4DEVICEID);
+					tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
+					tl++;
+					sp->st.seqid = *tl++;
+					sp->st.other[0] = *tl++;
+					sp->st.other[1] = *tl++;
+					sp->st.other[2] = *tl++;
+					NFSCL_DEBUG(4, "st.seqid=%u "
+					 "st.o0=0x%x st.o1=0x%x "
+					 "st.o2=0x%x\n",
+					 sp->st.seqid,
+					 sp->st.other[0],
+					 sp->st.other[1],
+					 sp->st.other[2]);
 					fhcnt = fxdr_unsigned(int, *tl);
 					NFSCL_DEBUG(4, "fhcnt=%d\n", fhcnt);
 					if (fhcnt < 1 ||
@@ -8177,22 +8257,15 @@ nfsrv_parselayoutget(struct nfsmount *nmp, struct nfsrv_descript *nd,
 						}
 						NFSM_DISSECT(cp, uint8_t *,
 						    NFSM_RNDUP(nfhlen));
-						if (l == 0) {
-							flp->nfsfl_ffm[j].fhcnt 
-							    = fhcnt;
-							nfhp = malloc(
-							    sizeof(*nfhp) +
-							    nfhlen - 1, M_NFSFH,
-							    M_WAITOK);
-							flp->nfsfl_ffm[j].fh[m]
-							    = nfhp;
-							nfhp->nfh_len = nfhlen;
-							NFSBCOPY(cp,
-							    nfhp->nfh_fh,
-							    nfhlen);
-							NFSCL_DEBUG(4,
-							    "got fh\n");
-						}
+						nfhp = malloc(sizeof(*nfhp) +
+						    nfhlen - 1, M_NFSFH,
+						    M_WAITOK);
+						sp->fh[m] = nfhp;
+						sp->fhcnt++;
+						nfhp->nfh_len = nfhlen;
+						NFSBCOPY(cp, nfhp->nfh_fh,
+						    nfhlen);
+						NFSCL_DEBUG(4, "got fh\n");
 					}
 					/* Now, get the ffsd_user/ffds_group. */
 					error = nfsrv_parseug(nd, 0, &user,
@@ -8208,13 +8281,10 @@ nfsrv_parselayoutget(struct nfsmount *nmp, struct nfsrv_descript *nd,
 						goto nfsmout;
 					NFSCL_DEBUG(4, "user=%d group=%d\n",
 					    user, grp);
-					if (l == 0) {
-						flp->nfsfl_ffm[j].user = user;
-						flp->nfsfl_ffm[j].group = grp;
-						NFSCL_DEBUG(4,
-						    "usr=%d grp=%d\n", user,
-						    grp);
-					}
+					sp->user = user;
+					sp->group = grp;
+					NFSCL_DEBUG(4, "usr=%d grp=%d\n", user,
+					    grp);
 				}
 			}
 			NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED);
@@ -8905,8 +8975,8 @@ nfsrpc_layoutgetres(struct nfsmount *nmp, vnode_t vp, uint8_t *newfhp,
 {
 	struct nfsclflayout *tflp;
 	struct nfscldevinfo *dip;
-	uint8_t *dev;
-	int i, mirrorcnt;
+	struct nfsffs *sp;
+	int i, j;
 
 	if (laystat == NFSERR_UNKNLAYOUTTYPE) {
 		NFSLOCKMNT(nmp);
@@ -8923,27 +8993,54 @@ nfsrpc_layoutgetres(struct nfsmount *nmp, vnode_t vp, uint8_t *newfhp,
 	if (laystat == 0) {
 		NFSCL_DEBUG(4, "nfsrpc_layoutgetres at FOREACH\n");
 		LIST_FOREACH(tflp, flhp, nfsfl_list) {
-			if (layouttype == NFSLAYOUT_FLEXFILE)
-				mirrorcnt = tflp->nfsfl_mirrorcnt;
-			else
-				mirrorcnt = 1;
-			for (i = 0; i < mirrorcnt; i++) {
-				laystat = nfscl_adddevinfo(nmp, NULL, i, tflp);
+			if (layouttype == NFSLAYOUT_FLEXFILE) {
+				for (i = 0; i < tflp->nfsfl_mirrorcnt; i++) {
+					sp = tflp->nfsfl_ffm[i].stripep;
+					for (j = 0; sp != NULL && j <
+					    tflp->nfsfl_ffm[i].stripecnt; j++,
+					    sp++) {
+						laystat = nfscl_adddevinfo(nmp,
+						    NULL, i, j, tflp);
+						NFSCL_DEBUG(4, "aft adddev=%d"
+						    "\n", laystat);
+						if (laystat != 0) {
+							laystat =
+							  nfsrpc_getdeviceinfo(
+							  nmp, sp->dev,
+							  layouttype, notifybit,
+							  &dip, cred, p);
+							NFSCL_DEBUG(4,
+							  "aft nfsrpc_gdi=%d\n",
+							  laystat);
+							if (laystat != 0)
+								goto out;
+							laystat =
+							    nfscl_adddevinfo(
+							    nmp, dip, i, j,
+							    tflp);
+							if (laystat != 0)
+								printf("nfsrpc"
+								    "_layoutget"
+								    "resout"
+								    ": cannot "
+								    "add\n");
+						}
+					}
+				}
+			} else {
+				laystat = nfscl_adddevinfo(nmp, NULL, 0, 0,
+				    tflp);
 				NFSCL_DEBUG(4, "aft adddev=%d\n", laystat);
 				if (laystat != 0) {
-					if (layouttype == NFSLAYOUT_FLEXFILE)
-						dev = tflp->nfsfl_ffm[i].dev;
-					else
-						dev = tflp->nfsfl_dev;
-					laystat = nfsrpc_getdeviceinfo(nmp, dev,
-					    layouttype, notifybit, &dip, cred,
-					    p);
+					laystat = nfsrpc_getdeviceinfo(nmp,
+					    tflp->nfsfl_dev, layouttype,
+					    notifybit, &dip, cred, p);
 					NFSCL_DEBUG(4, "aft nfsrpc_gdi=%d\n",
 					    laystat);
 					if (laystat != 0)
 						goto out;
-					laystat = nfscl_adddevinfo(nmp, dip, i,
-					    tflp);
+					laystat = nfscl_adddevinfo(nmp, dip, 0,
+					    0, tflp);
 					if (laystat != 0)
 						printf("nfsrpc_layoutgetresout"
 						    ": cannot add\n");

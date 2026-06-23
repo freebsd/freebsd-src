@@ -281,15 +281,21 @@ struct nfscllayout {
 /*
  * Flex file layout mirror specific stuff for nfsclflayout.
  */
-struct nfsffm {
+struct nfsffs {
 	nfsv4stateid_t		st;
 	struct nfscldevinfo	*devp;
+	struct nfsfh		*fh[NFSDEV_MAXVERS];
 	char			dev[NFSX_V4DEVICEID];
 	uint32_t		eff;
 	uid_t			user;
 	gid_t			group;
-	struct nfsfh		*fh[NFSDEV_MAXVERS];
 	uint16_t		fhcnt;
+};
+
+struct nfsffm {
+	struct nfsffs		nonstriped;
+	struct nfsffs		*stripep;
+	uint16_t		stripecnt;
 };
 
 /*

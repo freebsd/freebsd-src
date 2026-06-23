@@ -5667,11 +5667,12 @@ nfscl_mergeflayouts(struct nfsclflayouthead *fhlp,
  * This function consumes the structure pointed at by dip, if not NULL.
  */
 int
-nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip, int ind,
-    struct nfsclflayout *flp)
+nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip, int mirror,
+    int stripe, struct nfsclflayout *flp)
 {
 	struct nfsclclient *clp;
 	struct nfscldevinfo *tdip;
+	struct nfsffs *sp;
 	uint8_t *dev;
 
 	NFSLOCKCLSTATE();
@@ -5684,15 +5685,18 @@ nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip, int ind,
 	}
 	if ((flp->nfsfl_flags & NFSFL_FILE) != 0)
 		dev = flp->nfsfl_dev;
-	else
-		dev = flp->nfsfl_ffm[ind].dev;
+	else {
+		sp = flp->nfsfl_ffm[mirror].stripep;
+		sp += stripe;
+		dev = sp->dev;
+	}
 	tdip = nfscl_finddevinfo(clp, dev);
 	if (tdip != NULL) {
 		tdip->nfsdi_layoutrefs++;
 		if ((flp->nfsfl_flags & NFSFL_FILE) != 0)
 			flp->nfsfl_devp = tdip;
 		else
-			flp->nfsfl_ffm[ind].devp = tdip;
+			sp->devp = tdip;
 		nfscl_reldevinfo_locked(tdip);
 		NFSUNLOCKCLSTATE();
 		if (dip != NULL)
@@ -5705,7 +5709,7 @@ nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip, int ind,
 		if ((flp->nfsfl_flags & NFSFL_FILE) != 0)
 			flp->nfsfl_devp = dip;
 		else
-			flp->nfsfl_ffm[ind].devp = dip;
+			sp->devp = dip;
 	}
 	NFSUNLOCKCLSTATE();
 	if (dip == NULL)
@@ -5745,7 +5749,8 @@ nfscl_freelayout(struct nfscllayout *layp)
 void
 nfscl_freeflayout(struct nfsclflayout *flp)
 {
-	int i, j;
+	struct nfsffs *sp;
+	int i, j, k;
 
 	if ((flp->nfsfl_flags & NFSFL_FILE) != 0) {
 		for (i = 0; i < flp->nfsfl_fhcnt; i++)
@@ -5753,13 +5758,20 @@ nfscl_freeflayout(struct nfsclflayout *flp)
 		if (flp->nfsfl_devp != NULL)
 			flp->nfsfl_devp->nfsdi_layoutrefs--;
 	}
-	if ((flp->nfsfl_flags & NFSFL_FLEXFILE) != 0)
+	if ((flp->nfsfl_flags & NFSFL_FLEXFILE) != 0) {
 		for (i = 0; i < flp->nfsfl_mirrorcnt; i++) {
-			for (j = 0; j < flp->nfsfl_ffm[i].fhcnt; j++)
-				free(flp->nfsfl_ffm[i].fh[j], M_NFSFH);
-			if (flp->nfsfl_ffm[i].devp != NULL)	
-				flp->nfsfl_ffm[i].devp->nfsdi_layoutrefs--;	
+			sp = flp->nfsfl_ffm[i].stripep;
+			for (j = 0; j < flp->nfsfl_ffm[i].stripecnt &&
+			    sp != NULL; j++, sp++) {
+				for (k = 0; k < sp->fhcnt; k++)
+					free(sp->fh[k], M_NFSFH);
+				if (sp->devp != NULL)
+					sp->devp->nfsdi_layoutrefs--;
+			}
+			if (flp->nfsfl_ffm[i].stripecnt > 1)
+				free(flp->nfsfl_ffm[i].stripep, M_NFSFLAYOUT);
 		}
+	}
 	free(flp, M_NFSFLAYOUT);
 }
 
