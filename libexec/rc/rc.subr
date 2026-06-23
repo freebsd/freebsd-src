@@ -2413,37 +2413,38 @@ mount_md()
 
 # Code common to scripts that need to load a kernel module
 # if it isn't in the kernel yet. Syntax:
-#   load_kld [-e regex] [-m module] file
+#   load_kld [-e regex | -m module] file
 # where -e or -m chooses the way to check if the module
 # is already loaded:
-#   regex is egrep'd in the output from `kldstat -v',
-#   module is passed to `kldstat -m'.
-# The default way is as though `-m file' were specified.
+#   -e greps the output from `kldstat -v',
+#   -m uses `kldstat -m module'.
+# The default way is as though `-m file` was specified.
 load_kld()
 {
-	local _loaded _mod _opt _re
+	local _loaded _mod _opt _re _x
 
+	_x=0
 	while getopts "e:m:" _opt; do
 		case "$_opt" in
 		e) _re="$OPTARG" ;;
 		m) _mod="$OPTARG" ;;
-		*) err 3 'USAGE: load_kld [-e regex] [-m module] file' ;;
+		*) _x=999 ;;
 		esac
+		_x=$((_x + 1))
 	done
 	shift $(($OPTIND - 1))
-	if [ $# -ne 1 ]; then
-		err 3 'USAGE: load_kld [-e regex] [-m module] file'
+	if [ $# -ne 1 ] || [ $_x -gt 1 ]; then
+		err 3 'USAGE: load_kld [-e regex | -m module] file'
 	fi
-	_mod=${_mod:-$1}
 	_loaded=false
 	if [ -n "$_re" ]; then
 		if kldstat -v | egrep -q -e "$_re"; then
 			_loaded=true
 		fi
-	else
-		if kldstat -q -m "$_mod"; then
-			_loaded=true
-		fi
+	elif kldstat -q -m "${_mod:-$1}"; then
+		_loaded=true
+	elif kldstat -q -n "$1"; then
+		_loaded=true
 	fi
 	if ! $_loaded; then
 		if ! kldload "$1"; then
