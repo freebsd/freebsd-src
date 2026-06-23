@@ -1071,6 +1071,8 @@ void MockFS::write_response(const mockfs_buf_out &out) {
 	if (out.expected_errno) {
 		ASSERT_EQ(-1, r);
 		ASSERT_EQ(out.expected_errno, errno) << strerror(errno);
+	} else if (m_quit && errno == EBADF) {
+		/* Daemon is in the process of shutting down */
 	} else {
 		if (r <= 0 && errno == EINVAL) {
 			printf("Failed to write response.  unique=%" PRIu64
