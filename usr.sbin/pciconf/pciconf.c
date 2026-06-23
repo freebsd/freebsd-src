@@ -1290,20 +1290,13 @@ getsel(const char *str)
 }
 
 static void
-readone(int fd, struct pcisel *sel, long reg, int width)
-{
-
-	printf("%0*x", width*2, read_config(fd, sel, reg, width));
-}
-
-static void
 readit(const char *name, const char *reg, int width)
 {
 	long rstart;
 	long rend;
 	long r;
 	char *end;
-	int i;
+	int i, items_per_line;
 	int fd;
 	struct pcisel sel;
 
@@ -1312,18 +1305,22 @@ readit(const char *name, const char *reg, int width)
 		err(1, "%s", _PATH_DEVPCI);
 
 	rend = rstart = strtol(reg, &end, 0);
-	if (end && *end == ':') {
+	if (*end == ':') {
 		end++;
-		rend = strtol(end, (char **) 0, 0);
+		rend = strtol(end, NULL, 0);
 	}
 	sel = getsel(name);
+	items_per_line = 16 / width;
 	for (i = 1, r = rstart; r <= rend; i++, r += width) {
-		readone(fd, &sel, r, width);
-		if (i && !(i % 8))
+		printf("%0*x", width * 2, read_config(fd, &sel, r, width));
+
+		/* Use a double space in the middle when outputting bytes. */
+		if (width == 1 && i % 16 == 8)
 			putchar(' ');
-		putchar(i % (16/width) ? ' ' : '\n');
+
+		putchar(i % items_per_line == 0 ? '\n' : ' ');
 	}
-	if (i % (16/width) != 1)
+	if (i % items_per_line != 1)
 		putchar('\n');
 	close(fd);
 }
@@ -1335,9 +1332,9 @@ writeit(const char *name, const char *reg, const char *data, int width)
 	struct pci_io pi;
 
 	pi.pi_sel = getsel(name);
-	pi.pi_reg = strtoul(reg, (char **)0, 0); /* XXX error check */
+	pi.pi_reg = strtoul(reg, NULL, 0); /* XXX error check */
 	pi.pi_width = width;
-	pi.pi_data = strtoul(data, (char **)0, 0); /* XXX error check */
+	pi.pi_data = strtoul(data, NULL, 0); /* XXX error check */
 
 	fd = open(_PATH_DEVPCI, O_RDWR, 0);
 	if (fd < 0)
