@@ -81,7 +81,7 @@ static void libusb10_submit_transfer_sub(struct libusb20_device *, uint8_t);
 static const struct libusb_version libusb_version = {
 	.major = 1,
 	.minor = 0,
-	.micro = 0,
+	.micro = 27,
 	.nano = 2016,
 	.rc = "",
 	.describe = "https://www.freebsd.org"
