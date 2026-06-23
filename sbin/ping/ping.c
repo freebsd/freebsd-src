@@ -829,7 +829,6 @@ ping(int argc, char *const *argv)
 			    sweepmin, sweepmax);
 		else
 			(void)printf(": %d data bytes\n", datalen);
-
 	} else {
 		if (sweepmax)
 			(void)printf("PING %s: (%d ... %d) data bytes\n",
@@ -837,6 +836,7 @@ ping(int argc, char *const *argv)
 		else
 			(void)printf("PING %s: %d data bytes\n", hostname, datalen);
 	}
+	(void)fflush(stdout);
 
 	/*
 	 * Use sigaction() instead of signal() to get unambiguous semantics,

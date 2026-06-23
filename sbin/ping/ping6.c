@@ -1114,6 +1114,7 @@ ping6(int argc, char *argv[])
 	    (unsigned long)(pingerlen() - 8));
 	printf("%s --> ", pr_addr((struct sockaddr *)&src, sizeof(src)));
 	printf("%s\n", pr_addr((struct sockaddr *)&dst, sizeof(dst)));
+	fflush(stdout);
 
 	if (preload == 0)
 		pinger();
