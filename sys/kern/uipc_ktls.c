@@ -77,6 +77,13 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pagequeue.h>
 
+typedef enum {
+	KTLS_MBUF_CRYPTO_ST_MIXED = 0,
+	KTLS_MBUF_CRYPTO_ST_ENCRYPTED = 1,
+	KTLS_MBUF_CRYPTO_ST_DECRYPTED = -1,
+	KTLS_MBUF_CRYPTO_ST_SHAREDMBUF = -2,
+} ktls_mbuf_crypto_st_t;
+
 struct ktls_wq {
 	struct mtx	mtx;
 	STAILQ_HEAD(, mbuf) m_head;
@@ -2393,26 +2400,21 @@ tls13_find_record_type(struct ktls_session *tls, struct mbuf *m, int tls_len,
 }
 
 /*
- * Check if a mbuf chain is fully decrypted at the given offset and
- * length. Returns KTLS_MBUF_CRYPTO_ST_DECRYPTED if all data is
- * decrypted. KTLS_MBUF_CRYPTO_ST_MIXED if there is a mix of encrypted
- * and decrypted data. KTLS_MBUF_CRYPTO_ST_ENCRYPTED if all data is
- * encrypted. KTLS_MBUF_CRYPTO_ST_SHAREDMBUF if any mbuf points at
+ * Check if a mbuf chain is fully decrypted.  Returns
+ * KTLS_MBUF_CRYPTO_ST_DECRYPTED if all data is decrypted.
+ * KTLS_MBUF_CRYPTO_ST_MIXED if there is a mix of encrypted and
+ * decrypted data.  KTLS_MBUF_CRYPTO_ST_ENCRYPTED if all data is
+ * encrypted.  KTLS_MBUF_CRYPTO_ST_SHAREDMBUF if any mbuf points at
  * shared data that must not be modified in place (non-anonymous
  * M_EXTPG or sendfile M_EXT buffers).
  */
-ktls_mbuf_crypto_st_t
-ktls_mbuf_crypto_state(struct mbuf *mb, int offset, int len)
+static ktls_mbuf_crypto_st_t
+ktls_mbuf_crypto_state(struct mbuf *mb)
 {
-	int m_flags_ored = 0;
-	int m_flags_anded = -1;
+	bool seen_decrypted, seen_encrypted;
 
-	for (; mb != NULL; mb = mb->m_next) {
-		if (offset < mb->m_len)
-			break;
-		offset -= mb->m_len;
-	}
-	offset += len;
+	seen_decrypted = false;
+	seen_encrypted = false;
 
 	for (; mb != NULL; mb = mb->m_next) {
 		if ((mb->m_flags & M_EXTPG) != 0 &&
@@ -2422,19 +2424,16 @@ ktls_mbuf_crypto_state(struct mbuf *mb, int offset, int len)
 		    mb->m_ext.ext_type == EXT_SFBUF)
 			return (KTLS_MBUF_CRYPTO_ST_SHAREDMBUF);
 
-		m_flags_ored |= mb->m_flags;
-		m_flags_anded &= mb->m_flags;
-
-		if (offset <= mb->m_len)
-			break;
-		offset -= mb->m_len;
+		if (mb->m_flags & M_DECRYPTED)
+			seen_decrypted = true;
+		else
+			seen_encrypted = true;
 	}
-	MPASS(mb != NULL || offset == 0);
 
-	if ((m_flags_ored ^ m_flags_anded) & M_DECRYPTED)
+	if (seen_decrypted && seen_encrypted)
 		return (KTLS_MBUF_CRYPTO_ST_MIXED);
 	else
-		return ((m_flags_ored & M_DECRYPTED) ?
+		return (seen_decrypted ?
 		    KTLS_MBUF_CRYPTO_ST_DECRYPTED :
 		    KTLS_MBUF_CRYPTO_ST_ENCRYPTED);
 }
@@ -2578,7 +2577,7 @@ ktls_decrypt(struct socket *so)
 		SOCKBUF_UNLOCK(sb);
 
 		/* get crypto state for this TLS record */
-		state = ktls_mbuf_crypto_state(data, 0, tls_len);
+		state = ktls_mbuf_crypto_state(data);
 
 		switch (state) {
 		case KTLS_MBUF_CRYPTO_ST_MIXED:
