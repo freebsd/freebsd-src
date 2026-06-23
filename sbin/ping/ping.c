@@ -829,7 +829,6 @@ ping(int argc, char *const *argv)
 			    sweepmin, sweepmax);
 		else
 			(void)printf(": %d data bytes\n", datalen);
-
 	} else {
 		if (sweepmax)
 			(void)printf("PING %s: (%d ... %d) data bytes\n",
@@ -837,6 +836,7 @@ ping(int argc, char *const *argv)
 		else
 			(void)printf("PING %s: %d data bytes\n", hostname, datalen);
 	}
+	(void)fflush(stdout);
 
 	/*
 	 * Use sigaction() instead of signal() to get unambiguous semantics,
@@ -982,8 +982,10 @@ ping(int argc, char *const *argv)
 			(void)clock_gettime(CLOCK_MONOTONIC, &last);
 			if (ntransmitted - nreceived - 1 > nmissedmax) {
 				nmissedmax = ntransmitted - nreceived - 1;
-				if (options & F_MISSED)
-					(void)write(STDOUT_FILENO, &BBELL, 1);
+				if (options & F_MISSED) {
+					(void)putc(BBELL, stdout);
+					(void)fflush(stdout);
+				}
 			}
 		}
 	}
@@ -1077,8 +1079,10 @@ pinger(void)
 	}
 	ntransmitted++;
 	sntransmitted++;
-	if (!(options & F_QUIET) && options & F_DOT)
-		(void)write(STDOUT_FILENO, &DOT[DOTidx++ % DOTlen], 1);
+	if (!(options & F_QUIET) && options & F_DOT) {
+		(void)putc(DOT[DOTidx++ % DOTlen], stdout);
+		(void)fflush(stdout);
+	}
 }
 
 /*
@@ -1200,9 +1204,10 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 			return;
 		}
 
-		if (options & F_DOT)
-			(void)write(STDOUT_FILENO, &BSPACE, 1);
-		else {
+		if (options & F_DOT) {
+			(void)putc(BSPACE, stdout);
+			(void)fflush(stdout);
+		} else {
 			(void)printf("%zd bytes from %s: icmp_seq=%u", cc,
 			    pr_addr(from->sin_addr), seq);
 			(void)printf(" ttl=%d", ip.ip_ttl);
@@ -1210,8 +1215,10 @@ pr_pack(char *buf, ssize_t cc, struct sockaddr_in *from, struct timespec *tv)
 				(void)printf(" time=%.3f ms", triptime);
 			if (dupflag)
 				(void)printf(" (DUP!)");
-			if (options & F_AUDIBLE)
-				(void)write(STDOUT_FILENO, &BBELL, 1);
+			if (options & F_AUDIBLE) {
+				(void)putc(BBELL, stdout);
+				(void)fflush(stdout);
+			}
 			if (options & F_MASK) {
 				/* Just prentend this cast isn't ugly */
 				(void)printf(" mask=%s",
