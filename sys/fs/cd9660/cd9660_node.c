@@ -184,13 +184,14 @@ cd9660_deftstamp(struct iso_directory_record *isodir, struct iso_node *inop,
 			 * Only the first two are meaningful for struct
 			 * stat.
 			 */
-			struct timespec birthtime;
-
-			if (!cd9660_tstamp_conv17(ap->ctime, &birthtime))
-				memset(&birthtime, 0, sizeof(birthtime));
+			if (!cd9660_tstamp_conv17(ap->ctime,
+			    &inop->inode.iso_birthtime))
+				memset(&inop->inode.iso_birthtime, 0,
+				    sizeof(inop->inode.iso_birthtime));
 			if (!cd9660_tstamp_conv17(ap->mtime,
 			    &inop->inode.iso_mtime))
-				inop->inode.iso_mtime = birthtime;
+				inop->inode.iso_mtime =
+				    inop->inode.iso_birthtime;
 			inop->inode.iso_ctime = inop->inode.iso_mtime;
 			inop->inode.iso_atime = inop->inode.iso_mtime;
 		} else
@@ -200,6 +201,7 @@ cd9660_deftstamp(struct iso_directory_record *isodir, struct iso_node *inop,
 		cd9660_tstamp_conv7(isodir->date,&inop->inode.iso_ctime,ftype);
 		inop->inode.iso_atime = inop->inode.iso_ctime;
 		inop->inode.iso_mtime = inop->inode.iso_ctime;
+		inop->inode.iso_birthtime = inop->inode.iso_ctime;
 	}
 	if (bp2)
 		brelse(bp2);
