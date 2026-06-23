@@ -388,6 +388,9 @@ class MockFS {
 	/* Process FUSE requests endlessly */
 	void loop();
 
+	/* Begin processing requests from the kernel */
+	void start_service();
+
 	/*
 	 * Send an asynchronous notification to invalidate a directory entry.
 	 * Similar to libfuse's fuse_lowlevel_notify_inval_entry

@@ -550,9 +550,8 @@ MockFS::MockFS(int max_read, int max_readahead, bool allow_other,
 	if (0 != sigaction(SIGUSR1, &sa, NULL))
 		throw(std::system_error(errno, std::system_category(),
 			"Couldn't handle SIGUSR1"));
-	if (pthread_create(&m_daemon_id, NULL, service, (void*)this))
-		throw(std::system_error(errno, std::system_category(),
-			"Couldn't Couldn't start fuse thread"));
+	if (!no_auto_init)
+		start_service();
 }
 
 MockFS::~MockFS() {
@@ -1016,6 +1015,12 @@ void MockFS::read_request(mockfs_buf_in &in, ssize_t &res) {
 	 * the size of the header.
 	 */
 	ASSERT_TRUE(res == static_cast<ssize_t>(in.header.len) || m_quit);
+}
+
+void MockFS::start_service() {
+	if (pthread_create(&m_daemon_id, NULL, service, (void*)this))
+		throw(std::system_error(errno, std::system_category(),
+			"Couldn't Couldn't start fuse thread"));
 }
 
 void MockFS::write_response(const mockfs_buf_out &out) {
