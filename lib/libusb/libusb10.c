@@ -2115,6 +2115,8 @@ libusb_set_option(libusb_context *ctx, enum libusb_option option, ...)
 	case LIBUSB_OPTION_LOG_CB:
 		callback = va_arg(args, libusb_log_cb);
 		break;
+	default:
+		break;
 	}
 
 	if (option >= LIBUSB_OPTION_MAX) {
