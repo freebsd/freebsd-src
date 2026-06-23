@@ -32,7 +32,6 @@
 #include <linux/types.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#include <linux/dma-attrs.h>
 #include <linux/scatterlist.h>
 #include <linux/mm.h>
 #include <linux/page.h>
@@ -47,6 +46,17 @@
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
+
+#define	DMA_ATTR_WRITE_BARRIER		(1 << 0)
+#define	DMA_ATTR_WEAK_ORDERING		(1 << 1)
+#define	DMA_ATTR_WRITE_COMBINE		(1 << 2)
+#define	DMA_ATTR_NON_CONSISTENT		(1 << 3)
+#define	DMA_ATTR_NO_KERNEL_MAPPING	(1 << 4)
+#define	DMA_ATTR_SKIP_CPU_SYNC		(1 << 5)
+#define	DMA_ATTR_FORCE_CONTIGUOUS	(1 << 6)
+#define	DMA_ATTR_ALLOC_SINGLE_PAGES	(1 << 7)
+#define	DMA_ATTR_NO_WARN		(1 << 8)
+#define	DMA_ATTR_PRIVILEGED		(1 << 9)
 
 enum dma_data_direction {
 	DMA_BIDIRECTIONAL = 0,
