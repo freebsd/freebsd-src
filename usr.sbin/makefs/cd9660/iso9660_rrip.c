@@ -740,24 +740,29 @@ cd9660node_rrip_nm(struct ISO_SUSP_ATTRIBUTES *p, cd9660node *file_node)
 int
 cd9660node_rrip_tf(struct ISO_SUSP_ATTRIBUTES *p, fsnode *_node)
 {
-	p->attr.rr_entry.TF.flags[0] = TF_MODIFY | TF_ACCESS | TF_ATTRIBUTES;
+	p->attr.rr_entry.TF.flags[0] = TF_CREATION | TF_MODIFY | TF_ACCESS |
+	    TF_ATTRIBUTES;
 	p->attr.rr_entry.TF.h.length[0] = 5;
 	p->attr.rr_entry.TF.h.version[0] = 1;
 
 	/*
-	 * Need to add creation time, backup time,
+	 * Need to add backup time,
 	 * expiration time, and effective time.
 	 */
 
 	cd9660_time_915(p->attr.rr_entry.TF.timestamp,
-		_node->inode->st.st_mtime);
+		_node->inode->st.st_birthtime);
 	p->attr.rr_entry.TF.h.length[0] += 7;
 
 	cd9660_time_915(p->attr.rr_entry.TF.timestamp + 7,
-		_node->inode->st.st_atime);
+		_node->inode->st.st_mtime);
 	p->attr.rr_entry.TF.h.length[0] += 7;
 
 	cd9660_time_915(p->attr.rr_entry.TF.timestamp + 14,
+		_node->inode->st.st_atime);
+	p->attr.rr_entry.TF.h.length[0] += 7;
+
+	cd9660_time_915(p->attr.rr_entry.TF.timestamp + 21,
 		_node->inode->st.st_ctime);
 	p->attr.rr_entry.TF.h.length[0] += 7;
 	return 1;
