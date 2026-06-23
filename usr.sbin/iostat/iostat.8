@@ -246,9 +246,14 @@ specified by the user.
 Pause
 .Ar wait
 seconds between each display.
+If a repeat count
+.Pq Fl c
+is not specified and a wait interval is specified,
+the default repeat count is infinity.
 If
 .Fl w
-is not specified, the default interval is 1 second.
+is not specified and a repeat count is specified,
+the default interval is 1 second.
 .Pp
 The
 .Nm
