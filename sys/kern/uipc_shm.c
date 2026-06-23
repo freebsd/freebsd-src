@@ -786,7 +786,7 @@ shm_dotruncate_largepage(struct shmfd *shmfd, off_t length, void *rl_cookie)
 	vm_pindex_t oldobjsz __unused;
 	int aflags, error, i, psind, try;
 
-	KASSERT(length >= 0, ("shm_dotruncate: length < 0"));
+	KASSERT(length >= 0, ("shm_dotruncate_largepage: length < 0"));
 	object = shmfd->shm_object;
 	VM_OBJECT_ASSERT_WLOCKED(object);
 	rangelock_cookie_assert(rl_cookie, RA_WLOCKED);
@@ -1334,15 +1334,13 @@ kern_shm_open2(struct thread *td, const char *userpath, int flags, mode_t mode,
 			if (error == 0 &&
 			    (flags & (O_ACCMODE | O_TRUNC)) ==
 			    (O_RDWR | O_TRUNC)) {
-				VM_OBJECT_WLOCK(shmfd->shm_object);
 #ifdef MAC
 				error = mac_posixshm_check_truncate(
-					td->td_ucred, fp->f_cred, shmfd);
+				    td->td_ucred, fp->f_cred, shmfd);
 				if (error == 0)
 #endif
-					error = shm_dotruncate_locked(shmfd, 0,
+					error = shm_dotruncate_cookie(shmfd, 0,
 					    rl_cookie);
-				VM_OBJECT_WUNLOCK(shmfd->shm_object);
 			}
 			if (error == 0) {
 				/*
