@@ -36,6 +36,8 @@
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/proc.h>
+#include <sys/lock.h>
 
 #define	synchronize_irq(irq)	_intr_drain((irq))
 
@@ -48,5 +50,23 @@
  * See commit f6d50b7af554e21c380486d6f41c8537b265c777 in drm-kmod.
  */
 #define	synchronize_hardirq(irq) _intr_drain((irq))
+
+/*
+ * irqs_disabled - returns true if the caller should not sleep
+ *
+ * This was originally implemented in drm-kmod in commit 530462939f6.
+ */
+static inline bool
+irqs_disabled(void)
+{
+    return (curthread->td_critnest != 0 || curthread->td_intr_nesting_level != 0);
+}
+
+/*
+ * local_irq_disable / local_irq_enable - disable/enable hardware interrupts
+ * on the current CPU.
+ */
+#define	local_irq_disable()	preempt_disable()
+#define	local_irq_enable()	preempt_enable()
 
 #endif	/* _LINUXKPI_LINUX_HARDIRQ_H_ */
