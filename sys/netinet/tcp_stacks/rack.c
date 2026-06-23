@@ -24211,6 +24211,7 @@ process_opt:
 		INP_WUNLOCK(inp);
 		return (ENOPROTOOPT);
 	}
+	rack = (struct tcp_rack *)tp->t_fb_ptr;
 	if (rack->defer_options && (rack->gp_ready == 0) &&
 	    (sopt->sopt_name != TCP_DEFER_OPTIONS) &&
 	    (sopt->sopt_name != TCP_HYBRID_PACING) &&
