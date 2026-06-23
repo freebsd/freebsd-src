@@ -2148,6 +2148,43 @@ ATF_TC_BODY(largepage_reopen, tc)
 	    "close failed; errno=%d", errno);
 }
 
+ATF_TC_WITHOUT_HEAD(largepage_truncate);
+ATF_TC_BODY(largepage_truncate, tc)
+{
+	size_t ps[MAXPAGESIZES];
+	int fd, psind;
+
+	(void)pagesizes(ps, true);
+	psind = 1;
+
+	gen_test_path();
+	fd = shm_create_largepage(test_path, O_CREAT | O_RDWR, psind,
+	    SHM_LARGEPAGE_ALLOC_DEFAULT, 0600);
+	if (fd < 0 && errno == ENOTTY)
+		atf_tc_skip("no large page support");
+	ATF_REQUIRE_MSG(fd >= 0, "shm_create_largepage failed; error=%d", errno);
+
+	ATF_REQUIRE_MSG(ftruncate(fd, ps[psind]) == 0,
+	    "ftruncate failed; error=%d", errno);
+
+	ATF_REQUIRE_MSG(close(fd) == 0, "close failed; error=%d", errno);
+
+	fd = shm_open(test_path, O_RDWR | O_TRUNC, 0);
+	ATF_REQUIRE_MSG(fd == -1, "shm_open(O_TRUNC) should have failed");
+	ATF_REQUIRE_ERRNO(ENOTSUP, fd == -1);
+
+	fd = shm_open(test_path, O_RDWR, 0);
+	ATF_REQUIRE_MSG(fd >= 0, "shm_open failed; error=%d", errno);
+
+	ATF_REQUIRE_MSG(ftruncate(fd, ps[psind]) == 0,
+	    "ftruncate to same size failed; error=%d", errno);
+
+	ATF_REQUIRE_MSG(shm_unlink(test_path) == 0,
+	    "shm_unlink failed; errno=%d", errno);
+	ATF_REQUIRE_MSG(close(fd) == 0,
+	    "close failed; errno=%d", errno);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, remap_object);
@@ -2199,6 +2236,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, largepage_pkru);
 #endif
 	ATF_TP_ADD_TC(tp, largepage_reopen);
+	ATF_TP_ADD_TC(tp, largepage_truncate);
 
 	return (atf_no_error());
 }
