@@ -1020,7 +1020,7 @@ void MockFS::read_request(mockfs_buf_in &in, ssize_t &res) {
 void MockFS::start_service() {
 	if (pthread_create(&m_daemon_id, NULL, service, (void*)this))
 		throw(std::system_error(errno, std::system_category(),
-			"Couldn't Couldn't start fuse thread"));
+			"Couldn't start fuse thread"));
 }
 
 void MockFS::write_response(const mockfs_buf_out &out) {
