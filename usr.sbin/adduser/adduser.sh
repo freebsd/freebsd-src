@@ -574,7 +574,7 @@ get_groups() {
 
 	if [ -z "$configflag" ]; then
 		[ -z "$fflag" ] && echo -n "Login group is $_group. Invite $username"
-		[ -z "$fflag" ] && echo -n " into other groups? [$ugroups]: "
+		[ -z "$fflag" ] && echo -n " into other (space separated) groups? [$ugroups]: "
 	else
 		[ -z "$fflag" ] && echo -n "Enter additional groups [$ugroups]: "
 	fi
@@ -1018,7 +1018,7 @@ for _i in $* ; do
 done
 if [ -n "$readconfig" ] && [ -r "${ADDUSERCONF}" ]; then
 	. "${ADDUSERCONF}"
-fi 
+fi
 
 # Process command-line options
 #
