@@ -39,6 +39,7 @@
 #include <linux/spinlock.h>
 
 #include <rdma/ib_verbs.h>
+#include <rdma/opa_addr.h>
 
 #include <net/if_vlan_var.h>
 

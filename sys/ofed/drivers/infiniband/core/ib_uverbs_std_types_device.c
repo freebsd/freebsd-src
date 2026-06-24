@@ -7,6 +7,7 @@
 #include "rdma_core.h"
 #include "uverbs.h"
 #include <rdma/uverbs_ioctl.h>
+#include <rdma/opa_addr.h>
 
 /*
  * This ioctl method allows calling any defined write or write_ex
@@ -145,8 +146,14 @@ void copy_port_attr_to_resp(struct ib_port_attr *attr,
 	if (attr->grh_required)
 		resp->flags |= IB_UVERBS_QPF_GRH_REQUIRED;
 
-	resp->lid = (u16)attr->lid;
-	resp->sm_lid = (u16)attr->sm_lid;
+	if (rdma_cap_opa_ah(ib_dev, port_num)) {
+		resp->lid = OPA_TO_IB_UCAST_LID(attr->lid);
+		resp->sm_lid = OPA_TO_IB_UCAST_LID(attr->sm_lid);
+	} else {
+		resp->lid = ib_lid_cpu16(attr->lid);
+		resp->sm_lid = ib_lid_cpu16(attr->sm_lid);
+	}
+
 	resp->lmc = attr->lmc;
 	resp->max_vl_num = attr->max_vl_num;
 	resp->sm_sl = attr->sm_sl;

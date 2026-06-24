@@ -618,8 +618,8 @@ struct ib_port_attr {
 	u32			bad_pkey_cntr;
 	u32			qkey_viol_cntr;
 	u16			pkey_tbl_len;
-	u16			lid;
-	u16			sm_lid;
+	u32			sm_lid;
+	u32			lid;
 	u8			lmc;
 	u8			max_vl_num;
 	u8			sm_sl;
@@ -853,6 +853,7 @@ struct roce_ah_attr {
 struct opa_ah_attr {
 	u32			dlid;
 	u8			src_path_bits;
+	bool			make_grd;
 };
 
 struct rdma_ah_attr {
@@ -943,7 +944,7 @@ struct ib_wc {
 	u32			src_qp;
 	int			wc_flags;
 	u16			pkey_index;
-	u16			slid;
+	u32			slid;
 	u8			sl;
 	u8			dlid_path_bits;
 	u8			port_num;	/* valid only for DR SMPs on switches */
@@ -2595,8 +2596,8 @@ static inline int ib_destroy_usecnt(atomic_t *usecnt,
 bool ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 			enum ib_qp_type type, enum ib_qp_attr_mask mask);
 
-int ib_register_event_handler  (struct ib_event_handler *event_handler);
-int ib_unregister_event_handler(struct ib_event_handler *event_handler);
+void ib_register_event_handler(struct ib_event_handler *event_handler);
+void ib_unregister_event_handler(struct ib_event_handler *event_handler);
 void ib_dispatch_event(struct ib_event *event);
 
 int ib_query_port(struct ib_device *device,
@@ -3997,6 +3998,20 @@ static inline u8 rdma_ah_get_path_bits(const struct rdma_ah_attr *attr)
 	return 0;
 }
 
+static inline void rdma_ah_set_make_grd(struct rdma_ah_attr *attr,
+					bool make_grd)
+{
+	if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
+		attr->opa.make_grd = make_grd;
+}
+
+static inline bool rdma_ah_get_make_grd(const struct rdma_ah_attr *attr)
+{
+	if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
+		return attr->opa.make_grd;
+	return false;
+}
+
 static inline void rdma_ah_set_port_num(struct rdma_ah_attr *attr, u8 port_num)
 {
 	attr->port_num = port_num;
@@ -4094,5 +4109,31 @@ static inline enum rdma_ah_attr_type rdma_ah_find_type(struct ib_device *dev,
 		return RDMA_AH_ATTR_TYPE_OPA;
 	else
 		return RDMA_AH_ATTR_TYPE_IB;
+}
+
+/**
+ * ib_lid_cpu16 - Return lid in 16bit CPU encoding.
+ *     In the current implementation the only way to get
+ *     get the 32bit lid is from other sources for OPA.
+ *     For IB, lids will always be 16bits so cast the
+ *     value accordingly.
+ *
+ * @lid: A 32bit LID
+ */
+static inline u16 ib_lid_cpu16(u32 lid)
+{
+	WARN_ON_ONCE(lid & 0xFFFF0000);
+	return (u16)lid;
+}
+
+/**
+ * ib_lid_be16 - Return lid in 16bit BE encoding.
+ *
+ * @lid: A 32bit LID
+ */
+static inline __be16 ib_lid_be16(u32 lid)
+{
+	WARN_ON_ONCE(lid & 0xFFFF0000);
+	return cpu_to_be16((u16)lid);
 }
 #endif /* IB_VERBS_H */

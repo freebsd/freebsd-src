@@ -1028,21 +1028,12 @@ ipoib_add_port(const char *format, struct ib_device *hca, u8 port)
 
 	INIT_IB_EVENT_HANDLER(&priv->event_handler,
 			      priv->ca, ipoib_event);
-	result = ib_register_event_handler(&priv->event_handler);
-	if (result < 0) {
-		printk(KERN_WARNING "%s: ib_register_event_handler failed for "
-		       "port %d (ret = %d)\n",
-		       hca->name, port, result);
-		goto event_failed;
-	}
+	ib_register_event_handler(&priv->event_handler);
 	if_printf(priv->dev, "Attached to %s port %d\n", hca->name, port);
 
 	priv->gone = 0;	/* ready */
 
 	return priv->dev;
-
-event_failed:
-	ipoib_dev_cleanup(priv);
 
 device_init_failed:
 	ipoib_ifdetach(priv);
