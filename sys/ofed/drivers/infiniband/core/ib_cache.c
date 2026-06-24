@@ -38,6 +38,7 @@
 #include <sys/cdefs.h>
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/etherdevice.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/netdevice.h>
@@ -1297,6 +1298,37 @@ if_t rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr)
 	read_unlock_irqrestore(&table->rwlock, flags);
 	return ndev;
 }
+EXPORT_SYMBOL(rdma_read_gid_attr_ndev_rcu);
+
+/**
+ * rdma_read_gid_l2_fields - Read the vlan ID and source MAC address
+ *			     of a GID entry.
+ *
+ * @attr:	GID attribute pointer whose L2 fields to be read
+ * @vlan_id:	Pointer to vlan id to fill up if the GID entry has
+ *		vlan id. It is optional.
+ * @smac:	Pointer to smac to fill up for a GID entry. It is optional.
+ *
+ * rdma_read_gid_l2_fields() returns 0 on success and returns vlan id
+ * (if gid entry has vlan) and source MAC, or returns error.
+ */
+int rdma_read_gid_l2_fields(const struct ib_gid_attr *attr,
+			    u16 *vlan_id, u8 *smac)
+{
+	if_t ndev;
+
+	ndev = attr->ndev;
+	if (!ndev)
+		return -EINVAL;
+
+	if (smac)
+		ether_addr_copy(smac, if_getlladdr(ndev));
+	if (vlan_id) {
+		*vlan_id = rdma_vlan_dev_vlan_id(ndev);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(rdma_read_gid_l2_fields);
 
 static int config_non_roce_gid_cache(struct ib_device *device,
 				     u8 port, int gid_tbl_len)

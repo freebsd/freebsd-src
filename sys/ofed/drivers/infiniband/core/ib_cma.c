@@ -1537,6 +1537,7 @@ static if_t
 roce_get_net_dev_by_cm_event(const struct ib_cm_event *ib_event)
 {
 	const struct ib_gid_attr *sgid_attr = NULL;
+	if_t ndev;
 
 	if (ib_event->event == IB_CM_REQ_RECEIVED)
 		sgid_attr = ib_event->param.req_rcvd.ppath_sgid_attr;
@@ -1545,8 +1546,15 @@ roce_get_net_dev_by_cm_event(const struct ib_cm_event *ib_event)
 
 	if (!sgid_attr)
 		return NULL;
-	dev_hold(sgid_attr->ndev);
-	return sgid_attr->ndev;
+
+	rcu_read_lock();
+	ndev = rdma_read_gid_attr_ndev_rcu(sgid_attr);
+	if (IS_ERR(ndev))
+		ndev = NULL;
+	else
+		dev_hold(ndev);
+	rcu_read_unlock();
+	return ndev;
 }
 
 static if_t cma_get_net_dev(const struct ib_cm_event *ib_event,
@@ -3095,6 +3103,7 @@ static int cma_resolve_loopback(struct rdma_id_private *id_priv)
 	rdma_addr_get_sgid(&id_priv->id.route.addr.dev_addr, &gid);
 	rdma_addr_set_dgid(&id_priv->id.route.addr.dev_addr, &gid);
 
+	atomic_inc(&id_priv->refcount);
 	cma_init_resolve_addr_work(work, id_priv);
 	queue_work(cma_wq, &work->work);
 	return 0;
@@ -3121,6 +3130,7 @@ static int cma_resolve_ib_addr(struct rdma_id_private *id_priv)
 	rdma_addr_set_dgid(&id_priv->id.route.addr.dev_addr, (union ib_gid *)
 		&(((struct sockaddr_ib *) &id_priv->id.route.addr.dst_addr)->sib_addr));
 
+	atomic_inc(&id_priv->refcount);
 	cma_init_resolve_addr_work(work, id_priv);
 	queue_work(cma_wq, &work->work);
 	return 0;

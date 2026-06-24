@@ -1780,8 +1780,10 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 
 		if (is_eth) {
 			gid_attr = attr->ah_attr.grh.sgid_attr;
-			vlan = rdma_vlan_dev_vlan_id(gid_attr->ndev);
-			memcpy(smac, if_getlladdr(gid_attr->ndev), ETH_ALEN);
+			err = rdma_read_gid_l2_fields(gid_attr, &vlan,
+						      &smac[0]);
+			if (err)
+				goto out;
 		}
 
 		if (mlx4_set_path(dev, attr, attr_mask, qp, &context->pri_path,

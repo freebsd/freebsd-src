@@ -517,8 +517,10 @@ int bnxt_re_add_gid(const struct ib_gid_attr *attr, void **context)
 	struct bnxt_re_gid_ctx *ctx, **ctx_tbl;
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(attr->device, ibdev);
 	struct bnxt_qplib_sgid_tbl *sgid_tbl = &rdev->qplib_res.sgid_tbl;
-	if ((attr->ndev) && is_vlan_dev(attr->ndev))
-		vlan_id = vlan_dev_vlan_id(attr->ndev);
+
+	rc = rdma_read_gid_l2_fields(attr, &vlan_id, NULL);
+	if (rc)
+		return rc;
 
 	rc = bnxt_qplib_add_sgid(sgid_tbl, &attr->gid,
 				 rdev->dev_addr,
@@ -936,13 +938,11 @@ static int bnxt_re_get_ah_info(struct bnxt_re_dev *rdev,
 	ah_info->sgid = gattr->gid;
 
 	/* Get vlan tag */
-	if (gattr->ndev) {
-		if (is_vlan_dev(gattr->ndev))
-			ah_info->vlan_tag = vlan_dev_vlan_id(gattr->ndev);
-	}
+	rc = rdma_read_gid_l2_fields(gattr, &ah_info->vlan_tag, NULL);
+	if (rc)
+		return rc;
 
 	/* Get network header type for this GID */
-
 	ib_ntype = rdma_gid_attr_network_type(gattr);
 	ntype = _to_bnxt_re_nw_type(ib_ntype);
 	ah_info->nw_type = ntype;
@@ -2649,8 +2649,11 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 		sgid_attr = grh->sgid_attr;
 		gid_ptr = &sgid_attr->gid;
 		if (sgid_attr->ndev) {
-			memcpy(qp->qplib_qp.smac, rdev->dev_addr,
-			       ETH_ALEN);
+			rc = rdma_read_gid_l2_fields(sgid_attr, NULL,
+						     &qp->qplib_qp.smac[0]);
+			if (rc)
+				return rc;
+
 			nw_type = rdma_gid_attr_network_type(sgid_attr);
 			dev_dbg(rdev_to_dev(rdev),
 				 "Connection using the nw_type %d\n", nw_type);

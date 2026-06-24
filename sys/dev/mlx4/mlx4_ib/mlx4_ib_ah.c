@@ -95,9 +95,11 @@ static int create_iboe_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr)
 	memcpy(ah->av.eth.mac, ah_attr->roce.dmac, ETH_ALEN);
 	eth_zero_addr(ah->av.eth.s_mac);
 	gid_attr = ah_attr->grh.sgid_attr;
-	vlan_tag = rdma_vlan_dev_vlan_id(gid_attr->ndev);
-	memcpy(ah->av.eth.s_mac, if_getlladdr(gid_attr->ndev), ETH_ALEN);
-
+	ret = rdma_read_gid_l2_fields(gid_attr, &vlan_tag,
+				      &ah->av.eth.s_mac[0]);
+	if (ret)
+		return ret;
+	
 	if (vlan_tag < 0x1000)
 		vlan_tag |= (rdma_ah_get_sl(ah_attr) & 7) << 13;
 	ah->av.eth.port_pd = cpu_to_be32(to_mpd(pd)->pdn |
