@@ -77,8 +77,7 @@ irdma_get_dev_fw_str(struct ib_device *dev,
 }
 
 int
-irdma_add_gid(const union ib_gid *gid,
-	      const struct ib_gid_attr *attr,
+irdma_add_gid(const struct ib_gid_attr *attr,
 	      void **context)
 {
 	return 0;
@@ -528,8 +527,8 @@ irdma_create_sleepable_ah(struct ib_ah *ib_ah,
 	struct irdma_pd *pd = to_iwpd(ib_ah->pd);
 	struct irdma_ah *ah = container_of(ib_ah, struct irdma_ah, ibah);
 	struct irdma_device *iwdev = to_iwdev(ib_ah->pd->device);
-	union ib_gid sgid;
-	struct ib_gid_attr sgid_attr;
+	const union ib_gid *sgid;
+	const struct ib_gid_attr *sgid_attr;
 	struct irdma_pci_f *rf = iwdev->rf;
 	struct irdma_sc_ah *sc_ah;
 	u32 ah_id = 0;
@@ -556,24 +555,12 @@ irdma_create_sleepable_ah(struct ib_ah *ib_ah,
 	irdma_sc_init_ah(&rf->sc_dev, sc_ah);
 	ah->sgid_index = attr->grh.sgid_index;
 	memcpy(&ah->dgid, &attr->grh.dgid, sizeof(ah->dgid));
-	rcu_read_lock();
-	err = ib_get_cached_gid(&iwdev->ibdev, attr->port_num,
-				attr->grh.sgid_index, &sgid, &sgid_attr);
-	rcu_read_unlock();
-	if (err) {
-		irdma_debug(&iwdev->rf->sc_dev, IRDMA_DEBUG_VERBS,
-			    "GID lookup at idx=%d with port=%d failed\n",
-			    attr->grh.sgid_index, attr->port_num);
-		err = -EINVAL;
-		goto err_gid_l2;
-	}
-	rdma_gid2ip((struct sockaddr *)&sgid_addr, &sgid);
+	sgid_attr = attr->grh.sgid_attr;
+	sgid = &sgid_attr->gid;
+	rdma_gid2ip((struct sockaddr *)&sgid_addr, sgid);
 	rdma_gid2ip((struct sockaddr *)&dgid_addr, &attr->grh.dgid);
 	ah->av.attrs = *attr;
-	ah->av.net_type = ib_gid_to_network_type(sgid_attr.gid_type, &sgid);
-
-	if (sgid_attr.ndev)
-		dev_put(sgid_attr.ndev);
+	ah->av.net_type = rdma_gid_attr_network_type(sgid_attr);
 
 	ah_info = &sc_ah->ah_info;
 	ah_info->ah_idx = ah_id;
@@ -588,10 +575,10 @@ irdma_create_sleepable_ah(struct ib_ah *ib_ah,
 
 	ether_addr_copy(dmac, attr->roce.dmac);
 
-	irdma_fill_ah_info(if_getvnet(iwdev->netdev), ah_info, &sgid_attr, &sgid_addr, &dgid_addr,
+	irdma_fill_ah_info(if_getvnet(iwdev->netdev), ah_info, sgid_attr, &sgid_addr, &dgid_addr,
 			   dmac, ah->av.net_type);
 
-	err = irdma_create_ah_vlan_tag(iwdev, pd, ah_info, &sgid_attr, dmac);
+	err = irdma_create_ah_vlan_tag(iwdev, pd, ah_info, sgid_attr, dmac);
 	if (err)
 		goto err_gid_l2;
 
@@ -1393,27 +1380,19 @@ int
 kc_irdma_set_roce_cm_info(struct irdma_qp *iwqp, struct ib_qp_attr *attr,
 			  u16 *vlan_id)
 {
-	int ret;
-	union ib_gid sgid;
-	struct ib_gid_attr sgid_attr;
+	const struct ib_gid_attr *sgid_attr;
 	struct irdma_av *av = &iwqp->roce_ah.av;
 	const struct ib_global_route *grh = rdma_ah_read_grh(&attr->ah_attr);
 
-	ret = ib_get_cached_gid(iwqp->ibqp.device,
-				rdma_ah_get_port_num(&attr->ah_attr),
-				grh->sgid_index, &sgid,
-				&sgid_attr);
-	if (ret)
-		return ret;
+	sgid_attr = grh->sgid_attr;
 
-	if (sgid_attr.ndev) {
-		*vlan_id = rdma_vlan_dev_vlan_id(sgid_attr.ndev);
-		ether_addr_copy(iwqp->ctx_info.roce_info->mac_addr, if_getlladdr(sgid_attr.ndev));
+	if (sgid_attr->ndev) {
+		*vlan_id = rdma_vlan_dev_vlan_id(sgid_attr->ndev);
+		ether_addr_copy(iwqp->ctx_info.roce_info->mac_addr, if_getlladdr(sgid_attr->ndev));
 	}
 
-	av->net_type = ib_gid_to_network_type(sgid_attr.gid_type, &sgid);
-	rdma_gid2ip((struct sockaddr *)&av->sgid_addr, &sgid);
-	dev_put(sgid_attr.ndev);
+	av->net_type = rdma_gid_attr_network_type(sgid_attr);
+	rdma_gid2ip((struct sockaddr *)&av->sgid_addr, &sgid_attr->gid);
 	iwqp->sc_qp.user_pri = iwqp->ctx_info.user_pri;
 
 	return 0;

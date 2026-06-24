@@ -39,6 +39,7 @@
 
 #include <linux/delay.h>
 #include <linux/completion.h>
+#include <rdma/ib_cache.h>
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
 static int mcast_debug_level = 1;
@@ -484,8 +485,8 @@ void ipoib_mcast_join_task(struct work_struct *work)
 		return;
 	}
 
-	if (ib_query_gid(priv->ca, priv->port, 0, &priv->local_gid, NULL))
-		ipoib_warn(priv, "ib_query_gid() failed\n");
+	if (rdma_query_gid(priv->ca, priv->port, 0, &priv->local_gid))
+		ipoib_warn(priv, "rdma_query_gid() failed\n");
 	else
 		memcpy(if_getlladdr(dev) + 4, priv->local_gid.raw, sizeof (union ib_gid));
 

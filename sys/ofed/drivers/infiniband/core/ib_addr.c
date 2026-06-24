@@ -73,7 +73,7 @@ static DEFINE_SPINLOCK(lock);
 static LIST_HEAD(req_list);
 static struct workqueue_struct *addr_wq;
 
-int rdma_addr_size(struct sockaddr *addr)
+int rdma_addr_size(const struct sockaddr *addr)
 {
 	switch (addr->sa_family) {
 	case AF_INET:
@@ -716,7 +716,7 @@ static void process_one_req(struct work_struct *_work)
 	spin_unlock_bh(&lock);
 }
 
-int rdma_resolve_ip(struct sockaddr *src_addr, struct sockaddr *dst_addr,
+int rdma_resolve_ip(struct sockaddr *src_addr, const struct sockaddr *dst_addr,
 		    struct rdma_dev_addr *addr, int timeout_ms,
 		    void (*callback)(int status, struct sockaddr *src_addr,
 				     struct rdma_dev_addr *addr, void *context),

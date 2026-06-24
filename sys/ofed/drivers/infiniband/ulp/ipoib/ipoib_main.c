@@ -531,8 +531,10 @@ path_rec_completion(int status, struct sa_path_rec *pathrec, void *path_ptr)
 		struct rdma_ah_attr av;
 
 		if (!ib_init_ah_attr_from_path(priv->ca, priv->port,
-					       pathrec, &av))
+					       pathrec, &av, NULL)) {
 			ah = ipoib_create_ah(priv, priv->pd, &av);
+			rdma_destroy_ah_attr(&av);
+		}
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -1012,9 +1014,9 @@ ipoib_add_port(const char *format, struct ib_device *hca, u8 port)
 	priv->broadcastaddr[8] = priv->pkey >> 8;
 	priv->broadcastaddr[9] = priv->pkey & 0xff;
 
-	result = ib_query_gid(hca, port, 0, &priv->local_gid, NULL);
+	result = rdma_query_gid(hca, port, 0, &priv->local_gid);
 	if (result) {
-		printk(KERN_WARNING "%s: ib_query_gid port %d failed (ret = %d)\n",
+		printk(KERN_WARNING "%s: rdma_query_gid port %d failed (ret = %d)\n",
 		       hca->name, port, result);
 		goto device_init_failed;
 	}

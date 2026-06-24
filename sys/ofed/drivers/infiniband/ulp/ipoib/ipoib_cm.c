@@ -80,7 +80,7 @@ static struct ib_send_wr ipoib_cm_rx_drain_wr = {
 };
 
 static int ipoib_cm_tx_handler(struct ib_cm_id *cm_id,
-			       struct ib_cm_event *event);
+			       const struct ib_cm_event *event);
 
 static void ipoib_cm_dma_unmap_rx(struct ipoib_dev_priv *priv, struct ipoib_cm_rx_buf *rx_req)
 {
@@ -91,7 +91,6 @@ static void ipoib_cm_dma_unmap_rx(struct ipoib_dev_priv *priv, struct ipoib_cm_r
 
 static int ipoib_cm_post_receive_srq(struct ipoib_dev_priv *priv, int id)
 {
-	const struct ib_recv_wr *bad_wr;
 	struct ipoib_rx_buf *rx_req;
 	struct mbuf *m;
 	int ret;
@@ -106,7 +105,7 @@ static int ipoib_cm_post_receive_srq(struct ipoib_dev_priv *priv, int id)
 	priv->cm.rx_wr.num_sge = i;
 	priv->cm.rx_wr.wr_id = id | IPOIB_OP_CM | IPOIB_OP_RECV;
 
-	ret = ib_post_srq_recv(priv->cm.srq, &priv->cm.rx_wr, &bad_wr);
+	ret = ib_post_srq_recv(priv->cm.srq, &priv->cm.rx_wr, NULL);
 	if (unlikely(ret)) {
 		ipoib_warn(priv, "post srq failed for buf %d (%d)\n", id, ret);
 		ipoib_dma_unmap_rx(priv, rx_req);
@@ -123,7 +122,6 @@ static int ipoib_cm_post_receive_nonsrq(struct ipoib_dev_priv *priv,
 					struct ib_sge *sge, int id)
 {
 	struct ipoib_rx_buf *rx_req;
-	const struct ib_recv_wr *bad_wr;
 	struct mbuf *m;
 	int ret;
 	int i;
@@ -137,7 +135,7 @@ static int ipoib_cm_post_receive_nonsrq(struct ipoib_dev_priv *priv,
 	wr->num_sge = i;
 	wr->wr_id = id | IPOIB_OP_CM | IPOIB_OP_RECV;
 
-	ret = ib_post_recv(rx->qp, wr, &bad_wr);
+	ret = ib_post_recv(rx->qp, wr, NULL);
 	if (unlikely(ret)) {
 		ipoib_warn(priv, "post recv failed for buf %d (%d)\n", id, ret);
 		ipoib_dma_unmap_rx(priv, rx_req);
@@ -171,7 +169,6 @@ static void ipoib_cm_free_rx_ring(struct ipoib_dev_priv *priv,
 
 static void ipoib_cm_start_rx_drain(struct ipoib_dev_priv *priv)
 {
-	const struct ib_send_wr *bad_wr;
 	struct ipoib_cm_rx *p;
 
 	/* We only reserved 1 extra slot in CQ for drain WRs, so
@@ -185,7 +182,7 @@ static void ipoib_cm_start_rx_drain(struct ipoib_dev_priv *priv)
 	 * error" WC will be immediately generated for each WR we post.
 	 */
 	p = list_entry(priv->cm.rx_flush_list.next, typeof(*p), list);
-	if (ib_post_send(p->qp, &ipoib_cm_rx_drain_wr, &bad_wr))
+	if (ib_post_send(p->qp, &ipoib_cm_rx_drain_wr, NULL))
 		ipoib_warn(priv, "failed to post drain wr\n");
 
 	list_splice_init(&priv->cm.rx_flush_list, &priv->cm.rx_drain_list);
@@ -367,7 +364,8 @@ err_free:
 }
 
 static int ipoib_cm_send_rep(struct ipoib_dev_priv *priv, struct ib_cm_id *cm_id,
-			     struct ib_qp *qp, struct ib_cm_req_event_param *req,
+			     struct ib_qp *qp,
+			     const struct ib_cm_req_event_param *req,
 			     unsigned psn)
 {
 	struct ipoib_cm_data data = {};
@@ -386,7 +384,8 @@ static int ipoib_cm_send_rep(struct ipoib_dev_priv *priv, struct ib_cm_id *cm_id
 	return ib_send_cm_rep(cm_id, &rep);
 }
 
-static int ipoib_cm_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
+static int ipoib_cm_req_handler(struct ib_cm_id *cm_id,
+				const struct ib_cm_event *event)
 {
 	struct ipoib_dev_priv *priv = cm_id->context;
 	struct ipoib_cm_rx *p;
@@ -447,7 +446,7 @@ err_qp:
 }
 
 static int ipoib_cm_rx_handler(struct ib_cm_id *cm_id,
-			       struct ib_cm_event *event)
+			       const struct ib_cm_event *event)
 {
 	struct ipoib_cm_rx *p;
 	struct ipoib_dev_priv *priv;
@@ -595,7 +594,6 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 			    struct ipoib_cm_tx_buf *tx_req,
 			    unsigned int wr_id)
 {
-	const struct ib_send_wr *bad_wr;
 	struct mbuf *mb = tx_req->mb;
 	u64 *mapping = tx_req->mapping;
 	struct mbuf *m;
@@ -609,7 +607,7 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 	priv->tx_wr.wr.wr_id = wr_id | IPOIB_OP_CM;
 	priv->tx_wr.wr.opcode = IB_WR_SEND;
 
-	return ib_post_send(tx->qp, &priv->tx_wr.wr, &bad_wr);
+	return ib_post_send(tx->qp, &priv->tx_wr.wr, NULL);
 }
 
 void ipoib_cm_send(struct ipoib_dev_priv *priv, struct mbuf *mb, struct ipoib_cm_tx *tx)
@@ -839,7 +837,8 @@ void ipoib_cm_dev_stop(struct ipoib_dev_priv *priv)
 	cancel_delayed_work_sync(&priv->cm.stale_task);
 }
 
-static int ipoib_cm_rep_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
+static int ipoib_cm_rep_handler(struct ib_cm_id *cm_id,
+				const struct ib_cm_event *event)
 {
 	struct ipoib_cm_tx *p = cm_id->context;
 	struct ipoib_dev_priv *priv = p->priv;
@@ -1105,7 +1104,7 @@ timeout:
 }
 
 static int ipoib_cm_tx_handler(struct ib_cm_id *cm_id,
-			       struct ib_cm_event *event)
+			       const struct ib_cm_event *event)
 {
 	struct ipoib_cm_tx *tx = cm_id->context;
 	struct ipoib_dev_priv *priv = tx->priv;

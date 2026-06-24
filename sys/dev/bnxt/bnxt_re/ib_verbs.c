@@ -509,8 +509,7 @@ int bnxt_re_del_gid(const struct ib_gid_attr *attr, void **context)
 	return rc;
 }
 
-int bnxt_re_add_gid(const union ib_gid *gid,
-		    const struct ib_gid_attr *attr, void **context)
+int bnxt_re_add_gid(const struct ib_gid_attr *attr, void **context)
 {
 	int rc;
 	u32 tbl_idx = 0;
@@ -521,11 +520,12 @@ int bnxt_re_add_gid(const union ib_gid *gid,
 	if ((attr->ndev) && is_vlan_dev(attr->ndev))
 		vlan_id = vlan_dev_vlan_id(attr->ndev);
 
-	rc = bnxt_qplib_add_sgid(sgid_tbl, gid,
+	rc = bnxt_qplib_add_sgid(sgid_tbl, &attr->gid,
 				 rdev->dev_addr,
 				 vlan_id, true, &tbl_idx);
 	if (rc == -EALREADY) {
-		dev_dbg(rdev_to_dev(rdev), "GID %pI6 is already present\n", gid);
+		dev_dbg(rdev_to_dev(rdev), "GID %pI6 is already present\n",
+		        &attr->gid);
 		ctx_tbl = sgid_tbl->ctx;
 		if (!ctx_tbl[tbl_idx]) {
 			ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
@@ -921,53 +921,29 @@ static u8 _to_bnxt_re_nw_type(enum rdma_network_type ntype)
 	return nw_type;
 }
 
-static inline int
-bnxt_re_get_cached_gid(struct ib_device *dev, u8 port_num, int index,
-		       union ib_gid *sgid, struct ib_gid_attr **sgid_attr,
-		       const struct ib_global_route *grh, struct ib_ah *ah)
-{
-	int ret = 0;
-
-	ret = ib_get_cached_gid(dev, port_num, index, sgid, *sgid_attr);
-	return ret;
-}
-
-static inline enum rdma_network_type
-bnxt_re_gid_to_network_type(struct ib_gid_attr *sgid_attr,
-			    union ib_gid *sgid)
-{
-	return ib_gid_to_network_type(sgid_attr->gid_type, sgid);
-}
-
 static int bnxt_re_get_ah_info(struct bnxt_re_dev *rdev,
 			       struct rdma_ah_attr *ah_attr,
 			       struct bnxt_re_ah_info *ah_info)
 {
-	struct ib_gid_attr *gattr;
+	const struct ib_gid_attr *gattr;
 	enum rdma_network_type ib_ntype;
 	u8 ntype;
-	union ib_gid *gid;
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
 	int rc = 0;
 
-	gid = &ah_info->sgid;
-	gattr = &ah_info->sgid_attr;
-
-	rc = bnxt_re_get_cached_gid(&rdev->ibdev, 1, grh->sgid_index,
-				    gid, &gattr, grh, NULL);
-	if (rc)
-		return rc;
+	gattr = grh->sgid_attr;
+	ah_info->sgid_attr = *gattr;
+	ah_info->sgid = gattr->gid;
 
 	/* Get vlan tag */
 	if (gattr->ndev) {
 		if (is_vlan_dev(gattr->ndev))
 			ah_info->vlan_tag = vlan_dev_vlan_id(gattr->ndev);
-		if_rele(gattr->ndev);
 	}
 
 	/* Get network header type for this GID */
 
-	ib_ntype = bnxt_re_gid_to_network_type(gattr, gid);
+	ib_ntype = rdma_gid_attr_network_type(gattr);
 	ntype = _to_bnxt_re_nw_type(ib_ntype);
 	ah_info->nw_type = ntype;
 
@@ -2584,11 +2560,10 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 	struct bnxt_qplib_ppp *ppp = NULL;
 	struct bnxt_re_dev *rdev;
 	struct bnxt_re_qp *qp;
-	struct ib_gid_attr *sgid_attr;
-	struct ib_gid_attr gid_attr;
-	union ib_gid sgid, *gid_ptr = NULL;
+	const struct ib_gid_attr *sgid_attr;
+	const union ib_gid *gid_ptr = NULL;
 	u8 nw_type;
-	int rc, entries, status;
+	int rc, entries;
 	bool is_copy_to_udata = false;
 	bool is_qpmtu_high = false;
 
@@ -2671,18 +2646,12 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 		qp->qplib_qp.ah.traffic_class = grh->traffic_class;
 		qp->qplib_qp.ah.sl = rdma_ah_get_sl(&qp_attr->ah_attr);
 		ether_addr_copy(qp->qplib_qp.ah.dmac, ROCE_DMAC(&qp_attr->ah_attr));
-		sgid_attr = &gid_attr;
-		status = bnxt_re_get_cached_gid(&rdev->ibdev, 1,
-						grh->sgid_index,
-						&sgid, &sgid_attr,
-						grh, NULL);
-		if (!status)
-			if_rele(sgid_attr->ndev);
-		gid_ptr = &sgid;
+		sgid_attr = grh->sgid_attr;
+		gid_ptr = &sgid_attr->gid;
 		if (sgid_attr->ndev) {
 			memcpy(qp->qplib_qp.smac, rdev->dev_addr,
 			       ETH_ALEN);
-			nw_type = bnxt_re_gid_to_network_type(sgid_attr, &sgid);
+			nw_type = rdma_gid_attr_network_type(sgid_attr);
 			dev_dbg(rdev_to_dev(rdev),
 				 "Connection using the nw_type %d\n", nw_type);
 			switch (nw_type) {

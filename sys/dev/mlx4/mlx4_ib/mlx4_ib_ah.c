@@ -79,14 +79,13 @@ static int create_iboe_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr)
 {
 	struct ib_pd *pd = ib_ah->pd;
 	struct mlx4_ib_dev *ibdev = to_mdev(ib_ah->device);
+	const struct ib_gid_attr *gid_attr;
 	struct mlx4_ib_ah *ah = to_mah(ib_ah);
 	struct mlx4_dev *dev = ibdev->dev;
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
 	int is_mcast = 0;
 	struct in6_addr in6;
 	u16 vlan_tag = 0xffff;
-	union ib_gid sgid;
-	struct ib_gid_attr gid_attr;
 	int ret;
 
 	memcpy(&in6, grh->dgid.raw, sizeof(in6));
@@ -94,22 +93,16 @@ static int create_iboe_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr)
 		is_mcast = 1;
 
 	memcpy(ah->av.eth.mac, ah_attr->roce.dmac, ETH_ALEN);
-	ret = ib_get_cached_gid(pd->device, rdma_ah_get_port_num(ah_attr),
-				grh->sgid_index, &sgid, &gid_attr);
-	if (ret)
-		return ret;
 	eth_zero_addr(ah->av.eth.s_mac);
-	if (gid_attr.ndev) {
-		vlan_tag = rdma_vlan_dev_vlan_id(gid_attr.ndev);
-		memcpy(ah->av.eth.s_mac, if_getlladdr(gid_attr.ndev), ETH_ALEN);
-		if_rele(gid_attr.ndev);
-	}
+	gid_attr = ah_attr->grh.sgid_attr;
+	vlan_tag = rdma_vlan_dev_vlan_id(gid_attr->ndev);
+	memcpy(ah->av.eth.s_mac, if_getlladdr(gid_attr->ndev), ETH_ALEN);
+
 	if (vlan_tag < 0x1000)
 		vlan_tag |= (rdma_ah_get_sl(ah_attr) & 7) << 13;
 	ah->av.eth.port_pd = cpu_to_be32(to_mpd(pd)->pdn |
 	    (rdma_ah_get_port_num(ah_attr) << 24));
-	ret = mlx4_ib_gid_index_to_real_index(ibdev,
-	    rdma_ah_get_port_num(ah_attr), grh->sgid_index);
+	ret = mlx4_ib_gid_index_to_real_index(ibdev, gid_attr);
 	if (ret < 0)
 		return ret;
 	ah->av.eth.gid_index = ret;

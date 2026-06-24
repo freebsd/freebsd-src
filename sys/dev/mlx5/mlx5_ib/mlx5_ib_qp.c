@@ -2350,14 +2350,12 @@ static int mlx5_set_path(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (ah->type == RDMA_AH_ATTR_TYPE_ROCE) {
 		if (!(ah_flags & IB_AH_GRH))
 			return -EINVAL;
-		err = mlx5_get_roce_gid_type(dev, port, grh->sgid_index,
-					     &gid_type);
-		if (err)
-			return err;
+
 		memcpy(path->rmac, ah->roce.dmac, sizeof(ah->roce.dmac));
-		path->udp_sport = mlx5_get_roce_udp_sport(dev, port,
-							  grh->sgid_index);
+		path->udp_sport =
+			mlx5_get_roce_udp_sport(dev, ah->grh.sgid_attr);
 		path->dci_cfi_prio_sl = (sl & 0x7) << 4;
+		gid_type = ah->grh.sgid_attr->gid_type;
 		if (gid_type == IB_GID_TYPE_ROCE_UDP_ENCAP)
 			path->ecn_dscp = (grh->traffic_class >> 2) & 0x3f;
 	} else {

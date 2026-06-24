@@ -1050,10 +1050,8 @@ int mlx5_ib_get_vf_stats(struct ib_device *device, int vf,
 int mlx5_ib_set_vf_guid(struct ib_device *device, int vf, u8 port,
 			u64 guid, int type);
 
-__be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev, u8 port_num,
-			       int index);
-int mlx5_get_roce_gid_type(struct mlx5_ib_dev *dev, u8 port_num,
-			   int index, enum ib_gid_type *gid_type);
+__be16 mlx5_get_roce_udp_sport(struct mlx5_ib_dev *dev,
+			       const struct ib_gid_attr *attr);
 
 /* GSI QP helper functions */
 struct ib_qp *mlx5_ib_gsi_create_qp(struct ib_pd *pd,

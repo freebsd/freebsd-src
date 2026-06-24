@@ -49,9 +49,7 @@ static void create_ib_ah(struct mlx5_ib_dev *dev,
 		memcpy(ah->av.rmac, ah_attr->roce.dmac,
 		       sizeof(ah_attr->roce.dmac));
 		ah->av.udp_sport =
-			mlx5_get_roce_udp_sport(dev,
-			    rdma_ah_get_port_num(ah_attr),
-			    rdma_ah_read_grh(ah_attr)->sgid_index);
+			mlx5_get_roce_udp_sport(dev, ah_attr->grh.sgid_attr);
 		ah->av.stat_rate_sl |= (rdma_ah_get_sl(ah_attr) & 0x7) << 1;
 	} else {
 		ah->av.rlid = cpu_to_be16(rdma_ah_get_dlid(ah_attr));

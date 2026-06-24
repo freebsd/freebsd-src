@@ -150,7 +150,6 @@ error:
 static int ipoib_ib_post_receive(struct ipoib_dev_priv *priv, int id)
 {
 	struct ipoib_rx_buf *rx_req;
-	const struct ib_recv_wr *bad_wr;
 	struct mbuf *m;
 	int ret;
 	int i;
@@ -163,7 +162,7 @@ static int ipoib_ib_post_receive(struct ipoib_dev_priv *priv, int id)
 	priv->rx_wr.num_sge = i;
 	priv->rx_wr.wr_id = id | IPOIB_OP_RECV;
 
-	ret = ib_post_recv(priv->qp, &priv->rx_wr, &bad_wr);
+	ret = ib_post_recv(priv->qp, &priv->rx_wr, NULL);
 	if (unlikely(ret)) {
 		ipoib_warn(priv, "receive failed for buf %d (%d)\n", id, ret);
 		ipoib_dma_unmap_rx(priv, &priv->rx_ring[id]);
@@ -453,7 +452,6 @@ post_send(struct ipoib_dev_priv *priv, unsigned int wr_id,
     struct ib_ah *address, u32 qpn, struct ipoib_tx_buf *tx_req, void *head,
     int hlen)
 {
-	const struct ib_send_wr *bad_wr;
 	struct mbuf *mb = tx_req->mb;
 	u64 *mapping = tx_req->mapping;
 	struct mbuf *m;
@@ -476,7 +474,7 @@ post_send(struct ipoib_dev_priv *priv, unsigned int wr_id,
 	} else
 		priv->tx_wr.wr.opcode	= IB_WR_SEND;
 
-	return ib_post_send(priv->qp, &priv->tx_wr.wr, &bad_wr);
+	return ib_post_send(priv->qp, &priv->tx_wr.wr, NULL);
 }
 
 void

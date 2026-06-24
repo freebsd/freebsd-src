@@ -487,7 +487,7 @@ qlnxr_gsi_build_header(struct qlnxr_dev *dev,
 	bool has_vlan = false, has_grh_ipv6 = true;
 	struct rdma_ah_attr *ah_attr = &get_qlnxr_ah((ud_wr(swr)->ah))->attr;
 	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
-	union ib_gid sgid;
+	const struct ib_gid_attr *sgid_attr = grh->sgid_attr;
 	int send_size = 0;
 	u16 vlan_id = 0;
 	u16 ether_type;
@@ -505,10 +505,6 @@ qlnxr_gsi_build_header(struct qlnxr_dev *dev,
 	has_vlan = qlnxr_get_vlan_id_gsi(ah_attr, &vlan_id);
 	ether_type = ETH_P_ROCE;
 	*roce_mode = ROCE_V1;
-	if (grh->sgid_index < QLNXR_MAX_SGID)
-		sgid = dev->sgid_tbl[grh->sgid_index];
-	else
-		sgid = dev->sgid_tbl[0];
 
 	rc = ib_ud_header_init(send_size, false /* LRH */, true /* ETH */,
 			has_vlan, has_grh_ipv6, ip_ver, has_udp,
@@ -550,7 +546,7 @@ qlnxr_gsi_build_header(struct qlnxr_dev *dev,
 		udh->grh.flow_label = grh->flow_label;
 		udh->grh.hop_limit = grh->hop_limit;
 		udh->grh.destination_gid = grh->dgid;
-		memcpy(&udh->grh.source_gid.raw, &sgid.raw,
+		memcpy(&udh->grh.source_gid.raw, sgid_attr->gid.raw,
 		       sizeof(udh->grh.source_gid.raw));
 		QL_DPRINT12(dev->ha, "header: tc: %x, flow_label : %x, "
 			"hop_limit: %x \n", udh->grh.traffic_class,
@@ -574,7 +570,7 @@ qlnxr_gsi_build_header(struct qlnxr_dev *dev,
                 udh->ip4.frag_off = htons(IP_DF);
                 udh->ip4.ttl = grh->hop_limit;
 
-                ipv4_addr = qedr_get_ipv4_from_gid(sgid.raw);
+		ipv4_addr = qedr_get_ipv4_from_gid(sgid_attr->gid.raw);
                 udh->ip4.saddr = ipv4_addr;
                 ipv4_addr = qedr_get_ipv4_from_gid(grh->dgid.raw);
                 udh->ip4.daddr = ipv4_addr;

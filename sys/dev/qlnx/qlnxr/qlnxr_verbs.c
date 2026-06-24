@@ -5499,7 +5499,7 @@ qlnxr_create_ah(struct ib_ah *ibah,
 
 	QL_DPRINT12(ha, "in create_ah\n");
 
-	ah->attr = *attr;	
+	rdma_copy_ah_attr(&ah->attr, attr);
 
 	return (0);
 }
@@ -5507,6 +5507,9 @@ qlnxr_create_ah(struct ib_ah *ibah,
 void
 qlnxr_destroy_ah(struct ib_ah *ibah, u32 flags)
 {
+	struct qlnxr_ah *ah = get_qlnxr_ah(ibah);
+
+	rdma_destroy_ah_attr(&ah->attr);
 }
 
 int

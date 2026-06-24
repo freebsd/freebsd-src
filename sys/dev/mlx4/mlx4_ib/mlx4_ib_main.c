@@ -252,9 +252,7 @@ static int mlx4_ib_update_gids(struct gid_entry *gids,
 	return mlx4_ib_update_gids_v1(gids, ibdev, port_num);
 }
 
-static int mlx4_ib_add_gid(const union ib_gid *gid,
-			   const struct ib_gid_attr *attr,
-			   void **context)
+static int mlx4_ib_add_gid(const struct ib_gid_attr *attr, void **context)
 {
 	struct mlx4_ib_dev *ibdev = to_mdev(attr->device);
 	struct mlx4_ib_iboe *iboe = &ibdev->iboe;
@@ -277,7 +275,8 @@ static int mlx4_ib_add_gid(const union ib_gid *gid,
 	port_gid_table = &iboe->gids[attr->port_num - 1];
 	spin_lock_bh(&iboe->lock);
 	for (i = 0; i < MLX4_MAX_PORT_GIDS; ++i) {
-		if (!memcmp(&port_gid_table->gids[i].gid, gid, sizeof(*gid)) &&
+		if (!memcmp(&port_gid_table->gids[i].gid,
+			    &attr->gid, sizeof(attr->gid)) &&
 		    (port_gid_table->gids[i].gid_type == attr->gid_type))  {
 			found = i;
 			break;
@@ -295,7 +294,8 @@ static int mlx4_ib_add_gid(const union ib_gid *gid,
 				ret = -ENOMEM;
 			} else {
 				*context = port_gid_table->gids[free].ctx;
-				memcpy(&port_gid_table->gids[free].gid, gid, sizeof(*gid));
+				memcpy(&port_gid_table->gids[free].gid,
+				       &attr->gid, sizeof(attr->gid));
 				port_gid_table->gids[free].gid_type = attr->gid_type;
 				port_gid_table->gids[free].ctx->real_index = free;
 				port_gid_table->gids[free].ctx->refcount = 1;
@@ -386,17 +386,15 @@ static int mlx4_ib_del_gid(const struct ib_gid_attr *attr, void **context)
 }
 
 int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
-				    u8 port_num, int index)
+				    const struct ib_gid_attr *attr)
 {
 	struct mlx4_ib_iboe *iboe = &ibdev->iboe;
 	struct gid_cache_context *ctx = NULL;
-	union ib_gid gid;
 	struct mlx4_port_gid_table   *port_gid_table;
 	int real_index = -EINVAL;
 	int i;
-	int ret;
 	unsigned long flags;
-	struct ib_gid_attr attr;
+	u8 port_num = attr->port_num;
 
 	if (port_num > MLX4_MAX_PORTS)
 		return -EINVAL;
@@ -405,21 +403,15 @@ int mlx4_ib_gid_index_to_real_index(struct mlx4_ib_dev *ibdev,
 		port_num = 1;
 
 	if (!rdma_cap_roce_gid_table(&ibdev->ib_dev, port_num))
-		return index;
-
-	ret = ib_get_cached_gid(&ibdev->ib_dev, port_num, index, &gid, &attr);
-	if (ret)
-		return ret;
-
-	if (attr.ndev)
-		if_rele(attr.ndev);
+		return attr->index;
 
 	spin_lock_irqsave(&iboe->lock, flags);
 	port_gid_table = &iboe->gids[port_num - 1];
 
 	for (i = 0; i < MLX4_MAX_PORT_GIDS; ++i)
-		if (!memcmp(&port_gid_table->gids[i].gid, &gid, sizeof(gid)) &&
-		    attr.gid_type == port_gid_table->gids[i].gid_type) {
+		if (!memcmp(&port_gid_table->gids[i].gid,
+			    &attr->gid, sizeof(attr->gid)) &&
+		    attr->gid_type == port_gid_table->gids[i].gid_type) {
 			ctx = port_gid_table->gids[i].ctx;
 			break;
 		}

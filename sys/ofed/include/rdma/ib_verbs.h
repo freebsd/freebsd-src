@@ -105,6 +105,7 @@ enum ib_gid_type {
 struct ib_gid_attr {
 	if_t ndev;
 	struct ib_device	*device;
+	union ib_gid		gid;
 	enum ib_gid_type	gid_type;
 	u16			index;
 	u8			port_num;
@@ -159,13 +160,13 @@ static inline enum ib_gid_type ib_network_to_gid_type(enum rdma_network_type net
 	return IB_GID_TYPE_IB;
 }
 
-static inline enum rdma_network_type ib_gid_to_network_type(enum ib_gid_type gid_type,
-							    union ib_gid *gid)
+static inline enum rdma_network_type
+rdma_gid_attr_network_type(const struct ib_gid_attr *attr)
 {
-	if (gid_type == IB_GID_TYPE_IB)
+	if (attr->gid_type == IB_GID_TYPE_IB)
 		return RDMA_NETWORK_IB;
 
-	if (ipv6_addr_v4mapped((struct in6_addr *)gid))
+	if (ipv6_addr_v4mapped((const struct in6_addr *)&attr->gid))
 		return RDMA_NETWORK_IPV4;
 	else
 		return RDMA_NETWORK_IPV6;
@@ -709,6 +710,7 @@ struct ib_event_handler {
 	} while (0)
 
 struct ib_global_route {
+	const struct ib_gid_attr *sgid_attr;
 	union ib_gid	dgid;
 	u32		flow_label;
 	u8		sgid_index;
@@ -1498,6 +1500,7 @@ struct ib_ah {
 	struct ib_device	*device;
 	struct ib_pd		*pd;
 	struct ib_uobject	*uobject;
+	const struct ib_gid_attr *sgid_attr;
 	enum rdma_ah_attr_type	type;
 };
 
@@ -1643,6 +1646,9 @@ struct ib_qp {
 	struct ib_uqp_object   *uobject;
 	void                  (*event_handler)(struct ib_event *, void *);
 	void		       *qp_context;
+	/* sgid_attrs associated with the AV's */
+	const struct ib_gid_attr *av_sgid_attr;
+	const struct ib_gid_attr *alt_path_sgid_attr;
 	u32			qp_num;
 	u32			max_write_sge;
 	u32			max_read_sge;
@@ -2204,8 +2210,7 @@ struct ib_device {
 	 * concurrently for different ports. This function is only called when
 	 * roce_gid_table is used.
 	 */
-	int		           (*add_gid)(const union ib_gid *gid,
-					      const struct ib_gid_attr *attr,
+	int		           (*add_gid)(const struct ib_gid_attr *attr,
 					      void **context);
 	/* When calling del_gid, the HW vendor's driver should delete the
 	 * gid of device @device at gid index gid_index of port port_num
@@ -2937,10 +2942,6 @@ static inline bool rdma_cap_read_inv(struct ib_device *dev, u32 port_num)
 	return rdma_protocol_iwarp(dev, port_num);
 }
 
-int ib_query_gid(struct ib_device *device,
-		 u8 port_num, int index, union ib_gid *gid,
-		 struct ib_gid_attr *attr);
-
 int ib_set_vf_link_state(struct ib_device *device, int vf, u8 port,
 			 int state);
 int ib_get_vf_config(struct ib_device *device, int vf, u8 port,
@@ -3064,6 +3065,13 @@ int ib_get_rdma_header_version(const union rdma_network_hdr *hdr);
  *   ignored unless the work completion indicates that the GRH is valid.
  * @ah_attr: Returned attributes that can be used when creating an address
  *   handle for replying to the message.
+ * When ib_init_ah_attr_from_wc() returns success,
+ * (a) for IB link layer it optionally contains a reference to SGID attribute
+ * when GRH is present for IB link layer.
+ * (b) for RoCE link layer it contains a reference to SGID attribute.
+ * User must invoke rdma_cleanup_ah_attr_gid_attr() to release reference to SGID
+ * attributes which are initialized using ib_init_ah_attr_from_wc().
+ *
  */
 int ib_init_ah_attr_from_wc(struct ib_device *device, u8 port_num,
 			    const struct ib_wc *wc, const struct ib_grh *grh,
@@ -3197,7 +3205,9 @@ static inline int ib_post_srq_recv(struct ib_srq *srq,
 				   const struct ib_recv_wr *recv_wr,
 				   const struct ib_recv_wr **bad_recv_wr)
 {
-	return srq->device->post_srq_recv(srq, recv_wr, bad_recv_wr);
+	const struct ib_recv_wr *dummy;
+
+	return srq->device->post_srq_recv(srq, recv_wr, bad_recv_wr ? : &dummy);
 }
 
 /**
@@ -3310,7 +3320,9 @@ static inline int ib_post_send(struct ib_qp *qp,
 			       const struct ib_send_wr *send_wr,
 			       const struct ib_send_wr **bad_send_wr)
 {
-	return qp->device->post_send(qp, send_wr, bad_send_wr);
+	const struct ib_send_wr *dummy;
+
+	return qp->device->post_send(qp, send_wr, bad_send_wr ? : &dummy);
 }
 
 /**
@@ -3325,7 +3337,9 @@ static inline int ib_post_recv(struct ib_qp *qp,
 			       const struct ib_recv_wr *recv_wr,
 			       const struct ib_recv_wr **bad_recv_wr)
 {
-	return qp->device->post_recv(qp, recv_wr, bad_recv_wr);
+	const struct ib_recv_wr *dummy;
+
+	return qp->device->post_recv(qp, recv_wr, bad_recv_wr ? : &dummy);
 }
 
 struct ib_cq *__ib_alloc_cq_user(struct ib_device *dev, void *private,
@@ -4094,7 +4108,18 @@ static inline void rdma_ah_set_grh(struct rdma_ah_attr *attr,
 	grh->sgid_index = sgid_index;
 	grh->hop_limit = hop_limit;
 	grh->traffic_class = traffic_class;
+	grh->sgid_attr = NULL;
 }
+
+void rdma_destroy_ah_attr(struct rdma_ah_attr *ah_attr);
+void rdma_move_grh_sgid_attr(struct rdma_ah_attr *attr, union ib_gid *dgid,
+			     u32 flow_label, u8 hop_limit, u8 traffic_class,
+			     const struct ib_gid_attr *sgid_attr);
+void rdma_copy_ah_attr(struct rdma_ah_attr *dest,
+		       const struct rdma_ah_attr *src);
+void rdma_replace_ah_attr(struct rdma_ah_attr *old,
+			  const struct rdma_ah_attr *new);
+void rdma_move_ah_attr(struct rdma_ah_attr *dest, struct rdma_ah_attr *src);
 
 /**
  * rdma_ah_find_type - Return address handle type.
