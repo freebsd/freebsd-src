@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include <linux/atomic.h>
 #include <linux/compiler.h>
 #include <adf_accel_devices.h>
@@ -140,7 +140,7 @@ get_accel_mask(struct adf_accel_dev *accel_dev)
 	return (~(fusectl0 | softstrappull0)) & ADF_C4XXX_ACCELERATORS_MASK;
 }
 
-static u32
+static u64
 get_ae_mask(struct adf_accel_dev *accel_dev)
 {
 	device_t pdev = accel_dev->accel_pci_dev.pci_dev;
@@ -166,7 +166,7 @@ get_num_accels(struct adf_hw_device_data *self)
 static u32
 get_num_aes(struct adf_hw_device_data *self)
 {
-	return self ? hweight32(self->ae_mask) : 0;
+	return self ? hweight64(self->ae_mask) : 0;
 }
 
 static u32
@@ -637,7 +637,7 @@ adf_enable_error_correction(struct adf_accel_dev *accel_dev)
 	struct adf_bar *misc_bar = &GET_BARS(accel_dev)[ADF_C4XXX_PMISC_BAR];
 	struct resource *csr = misc_bar->virt_addr;
 	unsigned int val, i = 0;
-	unsigned long ae_mask;
+	u64 ae_mask;
 	unsigned long accel_mask;
 
 	ae_mask = hw_device->ae_mask;
@@ -1251,7 +1251,7 @@ c4xxx_init_aram_config(struct adf_accel_dev *accel_dev)
 		 * inform firmware which ME is egress
 		 */
 		aram_info->inline_direction_egress_mask =
-		    accel_dev->au_info->inline_egress_msk;
+		    (u32)accel_dev->au_info->inline_egress_msk;
 
 		/* User profile is valid, we can now add it
 		 * in the ARAM partition table
@@ -1259,13 +1259,13 @@ c4xxx_init_aram_config(struct adf_accel_dev *accel_dev)
 		aram_info->inline_congest_mngt_profile = profile;
 	}
 	/* Initialise DC ME mask, "1" = ME is used for DC operations */
-	aram_info->dc_ae_mask = accel_dev->au_info->dc_ae_msk;
+	aram_info->dc_ae_mask = (u32)accel_dev->au_info->dc_ae_msk;
 
 	/* Initialise CY ME mask, "1" = ME is used for CY operations
 	 * Since asym service can also be enabled on inline AEs, here
 	 * we use the sym ae mask for configuring the cy_ae_msk
 	 */
-	aram_info->cy_ae_mask = accel_dev->au_info->sym_ae_msk;
+	aram_info->cy_ae_mask = (u32)accel_dev->au_info->sym_ae_msk;
 
 	/* Configure number of long words in the ARAM */
 	aram_info->num_aram_lw_entries = ADF_C4XXX_NUM_ARAM_ENTRIES;
@@ -1736,8 +1736,9 @@ adf_set_inline_ae_mask(struct adf_accel_dev *accel_dev)
 	struct adf_accel_unit_info *au_info = accel_dev->au_info;
 	struct adf_accel_unit *accel_unit = accel_dev->au_info->au;
 	u32 num_ingress_ae = 0;
-	u32 ingress_msk = 0;
-	u32 i, j, ae_mask;
+	u64 ingress_msk = 0;
+	u32 i, j;
+	u64 ae_mask;
 
 	if (adf_get_inline_config(accel_dev, &num_ingress_ae))
 		return EFAULT;
@@ -1751,11 +1752,11 @@ adf_set_inline_ae_mask(struct adf_accel_dev *accel_dev)
 			au_info->asym_ae_msk |= accel_unit[i].ae_mask;
 			ae_mask = accel_unit[i].ae_mask;
 			while (num_ingress_ae && ae_mask) {
-				if (ae_mask & 1) {
-					ingress_msk |= BIT(j);
+				if (ae_mask & 1ULL) {
+					ingress_msk |= BIT_ULL(j);
 					num_ingress_ae--;
 				}
-				ae_mask = ae_mask >> 1;
+				ae_mask = ae_mask >> 1ULL;
 				j++;
 			}
 			au_info->inline_ingress_msk |= ingress_msk;
@@ -2071,11 +2072,11 @@ get_objs_num(struct adf_accel_dev *accel_dev)
 	return (max_srv_id + 1);
 }
 
-static uint32_t
+static uint64_t
 get_obj_cfg_ae_mask(struct adf_accel_dev *accel_dev,
 		    enum adf_accel_unit_services service)
 {
-	u32 ae_mask = 0;
+	u64 ae_mask = 0;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	u32 num_au = hw_data->get_num_accel_units(hw_data);
 	struct adf_accel_unit *accel_unit = accel_dev->au_info->au;

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
@@ -67,14 +67,6 @@ static int adf_sysctl_read_mmp_versions(SYSCTL_HANDLER_ARGS)
 
 	if (!accel_dev)
 		return -EINVAL;
-
-	if (adf_dev_started(accel_dev))
-		snprintf(mmp_version,
-			 ADF_CFG_MAX_VAL_LEN_IN_BYTES,
-			 "%d.%d.%d",
-			 accel_dev->fw_versions.mmp_version_major,
-			 accel_dev->fw_versions.mmp_version_minor,
-			 accel_dev->fw_versions.mmp_version_patch);
 
 	if (adf_dev_started(accel_dev))
 		snprintf(mmp_version,

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -40,7 +40,7 @@ static int qat_cnvnr_ctrs_dbg_read(SYSCTL_HANDLER_ARGS)
 	struct adf_hw_device_data *hw_device;
 	struct icp_qat_fw_init_admin_req request;
 	struct icp_qat_fw_init_admin_resp response;
-	unsigned long dc_ae_msk = 0;
+	u64 dc_ae_msk = 0;
 	u8 num_aes = 0, ae = 0, error_type = 0, bytes_written = 0;
 	s16 latest_error = 0;
 	char report[MAX_REPORT_SIZE];
@@ -95,7 +95,7 @@ static int qat_cnvnr_ctrs_dbg_read(SYSCTL_HANDLER_ARGS)
 	num_aes = hw_device->get_num_aes(hw_device);
 	explicit_bzero(&request, sizeof(struct icp_qat_fw_init_admin_req));
 	for (ae = 0; ae < num_aes; ae++) {
-		if (accel_dev->au_info && !test_bit(ae, &dc_ae_msk))
+		if (accel_dev->au_info && !(BIT_ULL(ae) & dc_ae_msk))
 			continue;
 		explicit_bzero(&response,
 			       sizeof(struct icp_qat_fw_init_admin_resp));

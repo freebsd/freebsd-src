@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 
 /**
  *****************************************************************************
@@ -134,6 +134,11 @@ Lac_GetCyNumInstancesByType(
 		if (CPA_ACC_SVC_TYPE_CRYPTO_ASYM == accelerationServiceType ||
 		    CPA_ACC_SVC_TYPE_CRYPTO == accelerationServiceType) {
 			list_temp = base_addr->asym_services;
+			if ((NULL == list_temp) &&
+			    (CPA_ACC_SVC_TYPE_CRYPTO !=
+			     accelerationServiceType)) {
+				list_temp = base_addr->crypto_services;
+			}
 			while (NULL != list_temp) {
 				instanceHandle = SalList_getObject(list_temp);
 				status = cpaCyInstanceGetInfo2(instanceHandle,
@@ -149,6 +154,11 @@ Lac_GetCyNumInstancesByType(
 		if (CPA_ACC_SVC_TYPE_CRYPTO_SYM == accelerationServiceType ||
 		    CPA_ACC_SVC_TYPE_CRYPTO == accelerationServiceType) {
 			list_temp = base_addr->sym_services;
+			if ((NULL == list_temp) &&
+			    (CPA_ACC_SVC_TYPE_CRYPTO !=
+			     accelerationServiceType)) {
+				list_temp = base_addr->crypto_services;
+			}
 			while (NULL != list_temp) {
 				instanceHandle = SalList_getObject(list_temp);
 				status = cpaCyInstanceGetInfo2(instanceHandle,
@@ -292,6 +302,11 @@ Lac_GetCyInstancesByType(
 		if (CPA_ACC_SVC_TYPE_CRYPTO_ASYM == accelerationServiceType ||
 		    CPA_ACC_SVC_TYPE_CRYPTO == accelerationServiceType) {
 			list_temp = base_addr->asym_services;
+			if ((NULL == list_temp) &&
+			    (CPA_ACC_SVC_TYPE_CRYPTO !=
+			     accelerationServiceType)) {
+				list_temp = base_addr->crypto_services;
+			}
 			while (NULL != list_temp) {
 				if (index > (numInstances - 1))
 					break;
@@ -312,6 +327,11 @@ Lac_GetCyInstancesByType(
 		if (CPA_ACC_SVC_TYPE_CRYPTO_SYM == accelerationServiceType ||
 		    CPA_ACC_SVC_TYPE_CRYPTO == accelerationServiceType) {
 			list_temp = base_addr->sym_services;
+			if ((NULL == list_temp) &&
+			    (CPA_ACC_SVC_TYPE_CRYPTO !=
+			     accelerationServiceType)) {
+				list_temp = base_addr->crypto_services;
+			}
 			while (NULL != list_temp) {
 				if (index > (numInstances - 1))
 					break;

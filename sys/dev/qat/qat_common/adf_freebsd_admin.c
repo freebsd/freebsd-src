@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
@@ -204,10 +204,10 @@ int
 adf_send_admin(struct adf_accel_dev *accel_dev,
 	       struct icp_qat_fw_init_admin_req *req,
 	       struct icp_qat_fw_init_admin_resp *resp,
-	       u32 ae_mask)
+	       u64 ae_mask)
 {
 	int i;
-	unsigned int mask;
+	u64 mask;
 
 	for (i = 0, mask = ae_mask; mask; i++, mask >>= 1) {
 		if (!(mask & 1))
@@ -226,7 +226,7 @@ adf_init_me(struct adf_accel_dev *accel_dev)
 	struct icp_qat_fw_init_admin_req req;
 	struct icp_qat_fw_init_admin_resp resp;
 	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
-	u32 ae_mask = hw_device->ae_mask;
+	u64 ae_mask = hw_device->ae_mask;
 
 	explicit_bzero(&req, sizeof(req));
 	explicit_bzero(&resp, sizeof(resp));
@@ -250,7 +250,7 @@ adf_set_heartbeat_timer(struct adf_accel_dev *accel_dev)
 	struct icp_qat_fw_init_admin_req req;
 	struct icp_qat_fw_init_admin_resp resp;
 	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
-	u32 ae_mask = hw_device->ae_mask;
+	u64 ae_mask = hw_device->ae_mask;
 	u32 heartbeat_ticks;
 
 	explicit_bzero(&req, sizeof(req));
@@ -271,7 +271,7 @@ adf_get_dc_capabilities(struct adf_accel_dev *accel_dev, u32 *capabilities)
 {
 	struct icp_qat_fw_init_admin_req req;
 	struct icp_qat_fw_init_admin_resp resp;
-	u32 ae_mask = 1;
+	u64 ae_mask = 1;
 
 	explicit_bzero(&req, sizeof(req));
 	req.cmd_id = ICP_QAT_FW_COMP_CAPABILITY_GET;
@@ -290,7 +290,7 @@ adf_set_fw_constants(struct adf_accel_dev *accel_dev)
 	struct icp_qat_fw_init_admin_req req;
 	struct icp_qat_fw_init_admin_resp resp;
 	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
-	u32 ae_mask = hw_device->admin_ae_mask;
+	u64 ae_mask = hw_device->admin_ae_mask;
 
 	explicit_bzero(&req, sizeof(req));
 	req.cmd_id = ICP_QAT_FW_CONSTANTS_CFG;
@@ -306,13 +306,13 @@ adf_set_fw_constants(struct adf_accel_dev *accel_dev)
 
 static int
 adf_get_fw_status(struct adf_accel_dev *accel_dev,
-		  u8 *major,
-		  u8 *minor,
-		  u8 *patch)
+		  u16 *major,
+		  u16 *minor,
+		  u32 *patch)
 {
 	struct icp_qat_fw_init_admin_req req;
 	struct icp_qat_fw_init_admin_resp resp;
-	u32 ae_mask = 1;
+	u64 ae_mask = 1;
 
 	explicit_bzero(&req, sizeof(req));
 	req.cmd_id = ICP_QAT_FW_STATUS_GET;
@@ -332,7 +332,7 @@ adf_get_fw_timestamp(struct adf_accel_dev *accel_dev, u64 *timestamp)
 {
 	struct icp_qat_fw_init_admin_req req;
 	struct icp_qat_fw_init_admin_resp rsp;
-	unsigned int ae_mask = 1;
+	u64 ae_mask = 1;
 
 	if (!accel_dev || !timestamp)
 		return EFAULT;
@@ -354,20 +354,19 @@ adf_get_fw_pke_stats(struct adf_accel_dev *accel_dev,
 {
 	struct icp_qat_fw_init_admin_req req = { 0 };
 	struct icp_qat_fw_init_admin_resp resp = { 0 };
-	unsigned long sym_ae_msk = 0;
-	u8 sym_ae_msk_size = 0;
+	u64 sym_ae_msk = 0;
+	u64 mask;
 	u8 i = 0;
 
 	if (!suc_count || !unsuc_count)
 		return EFAULT;
 
 	sym_ae_msk = accel_dev->au_info->sym_ae_msk;
-	sym_ae_msk_size =
-	    sizeof(accel_dev->au_info->sym_ae_msk) * BITS_PER_BYTE;
 
 	req.cmd_id = ICP_QAT_FW_PKE_REPLAY_STATS_GET;
-	for_each_set_bit(i, &sym_ae_msk, sym_ae_msk_size)
-	{
+	for (i = 0, mask = sym_ae_msk; mask; i++, mask >>= 1) {
+		if (!(mask & 1ULL))
+			continue;
 		memset(&resp, 0, sizeof(struct icp_qat_fw_init_admin_resp));
 		if (adf_put_admin_msg_sync(accel_dev, i, &req, &resp) ||
 		    resp.status) {

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include "adf_accel_devices.h"
 #include "adf_heartbeat.h"
 #include "adf_common_drv.h"
@@ -31,7 +31,7 @@ adf_hb_irq_bh_handler(struct work_struct *work)
 	    container_of(work, struct adf_hb_timer_data, hb_int_timer_work);
 	struct adf_accel_dev *accel_dev = hb_timer_data->accel_dev;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	u32 ae_mask = hw_data->ae_mask;
+	u64 ae_mask = hw_data->ae_mask;
 
 	if (!accel_dev->int_timer || !accel_dev->int_timer->enabled)
 		goto end;
@@ -57,7 +57,8 @@ end:
 static void
 timer_handler(struct timer_list *tl)
 {
-	struct adf_int_timer *int_timer = timer_container_of(int_timer, tl, timer);
+	struct adf_int_timer *int_timer =
+	    timer_container_of(int_timer, tl, timer);
 	struct adf_accel_dev *accel_dev = int_timer->accel_dev;
 	struct adf_hb_timer_data *hb_timer_data = NULL;
 	u64 timeout_val = adf_get_next_timeout(int_timer->timeout_val);

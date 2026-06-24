@@ -1,11 +1,11 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2023 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #ifndef ADF_UIO_H
 #define ADF_UIO_H
 #include "adf_accel_devices.h"
 
 struct qat_uio_bundle_dev {
-	u8 hardware_bundle_number;
+	u16 hardware_bundle_number;
 	struct adf_uio_control_bundle *bundle;
 	struct adf_uio_control_accel *accel;
 };

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 /**
  *****************************************************************************
  * @file dev_info.c
@@ -34,25 +34,10 @@ cpaGetDeviceInfo(Cpa16U device, CpaDeviceInfo *deviceInfo)
 {
 	CpaStatus status = CPA_STATUS_SUCCESS;
 	icp_accel_dev_t *pDevice = NULL;
-	Cpa16U numDevicesAvail = 0;
 	Cpa32U capabilitiesMask = 0;
 	Cpa32U enabledServices = 0;
 
 	LAC_CHECK_NULL_PARAM(deviceInfo);
-	status = icp_amgr_getNumInstances(&numDevicesAvail);
-	/* Check if the application is not attempting to access a
-	 * device that does not exist.
-	 */
-	if (0 == numDevicesAvail) {
-		QAT_UTILS_LOG("Failed to retrieve number of devices!\n");
-		return CPA_STATUS_FAIL;
-	}
-	if (device >= numDevicesAvail) {
-		QAT_UTILS_LOG(
-		    "Invalid device access! Number of devices available: %d.\n",
-		    numDevicesAvail);
-		return CPA_STATUS_FAIL;
-	}
 
 	/* Clear the entire capability structure before initialising it */
 	memset(deviceInfo, 0x00, sizeof(CpaDeviceInfo));
@@ -62,7 +47,7 @@ cpaGetDeviceInfo(Cpa16U device, CpaDeviceInfo *deviceInfo)
 	pDevice = icp_adf_getAccelDevByAccelId(device);
 	if (NULL == pDevice) {
 		QAT_UTILS_LOG("Failed to retrieve device.\n");
-		return status;
+		return CPA_STATUS_FAIL;
 	}
 
 	/* Device of interest is found, retrieve the information for it */

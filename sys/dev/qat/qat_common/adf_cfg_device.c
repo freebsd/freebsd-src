@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include "adf_cfg_instance.h"
 #include "adf_cfg_section.h"
 #include "adf_cfg_device.h"
@@ -373,7 +373,7 @@ adf_cfg_gen_dispatch_arbiter(struct adf_accel_dev *accel_dev,
 	u16 ena_srv_mask = GET_HW_DATA(accel_dev)->ring_to_svc_map;
 
 	for (engine = 0; engine < total_engines; engine++) {
-		if (!(GET_HW_DATA(accel_dev)->ae_mask & (1 << engine)))
+		if (!(GET_HW_DATA(accel_dev)->ae_mask & (1ULL << engine)))
 			continue;
 		bits = 0;
 		/* ability_map is used to indicate the threads ability */
@@ -1015,7 +1015,8 @@ adf_cfg_static_conf(struct adf_accel_dev *accel_dev)
 	ret |= adf_cfg_section_add(accel_dev, ADF_GENERAL_SEC);
 	snprintf(key, ADF_CFG_MAX_KEY_LEN_IN_BYTES, ADF_SERVICES_ENABLED);
 
-	if (strcmp(ADF_CFG_SYM_ASYM, accel_dev->cfg->cfg_services) == 0) {
+	if (strcmp(ADF_CFG_SYM_ASYM, accel_dev->cfg->cfg_services) == 0 &&
+	    !(IS_QAT_GEN4(pci_get_device(GET_DEV(accel_dev))))) {
 		strncpy(value, ADF_CFG_CY, ADF_CFG_MAX_VAL_LEN_IN_BYTES);
 	} else {
 		strncpy(value,
