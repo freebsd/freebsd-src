@@ -323,6 +323,7 @@ static void
 shm_largepage_phys_ctor(vm_object_t object, vm_prot_t prot,
     vm_ooffset_t foff, struct ucred *cred)
 {
+	object->flags |= OBJ_PG_DTOR;
 }
 
 static void
@@ -330,11 +331,24 @@ shm_largepage_phys_dtor(vm_object_t object)
 {
 	int psind;
 
+	VM_OBJECT_ASSERT_WLOCKED(object);
+
 	psind = object->un_pager.phys.data_val;
 	if (psind != 0) {
+		vm_page_t m, mtmp;
+		bool removed __diagused;
+
+restart:
+		TAILQ_FOREACH_SAFE(m, &object->memq, listq, mtmp) {
+			if (!vm_page_busy_acquire(m, VM_ALLOC_WAITFAIL)) {
+				goto restart;
+			}
+			removed = vm_page_remove(m);
+			KASSERT(!removed, ("%s: page %p not wired", __func__, m));
+			vm_page_unwire(m, PQ_NONE);
+		}
 		atomic_subtract_long(&count_largepages[psind],
 		    object->size / (pagesizes[psind] / PAGE_SIZE));
-		vm_wire_sub(object->size);
 	} else {
 		KASSERT(object->size == 0,
 		    ("largepage phys obj %p not initialized bit size %#jx > 0",
@@ -856,7 +870,7 @@ shm_dotruncate_largepage(struct shmfd *shmfd, off_t length, void *rl_cookie)
 	if ((shmfd->shm_seals & F_SEAL_GROW) != 0)
 		return (EPERM);
 
-	aflags = VM_ALLOC_NORMAL | VM_ALLOC_ZERO;
+	aflags = VM_ALLOC_NORMAL | VM_ALLOC_ZERO | VM_ALLOC_WIRED;
 	if (shmfd->shm_lp_alloc_policy == SHM_LARGEPAGE_ALLOC_NOWAIT)
 		aflags |= VM_ALLOC_WAITFAIL;
 	try = 0;
@@ -903,7 +917,6 @@ shm_dotruncate_largepage(struct shmfd *shmfd, off_t length, void *rl_cookie)
 		object->size += OFF_TO_IDX(pagesizes[psind]);
 		shmfd->shm_size += pagesizes[psind];
 		atomic_add_long(&count_largepages[psind], 1);
-		vm_wire_add(atop(pagesizes[psind]));
 	}
 	return (0);
 }

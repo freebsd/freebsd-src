@@ -4077,6 +4077,9 @@ vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 {
 	u_int old;
 
+	KASSERT(nqueue < PQ_COUNT,
+	    ("vm_page_unwire: invalid queue %u request for page %p",
+	    nqueue, m));
 	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("%s: page %p is unmanaged", __func__, m));
 
@@ -4135,17 +4138,15 @@ vm_page_unwire_managed(vm_page_t m, uint8_t nqueue, bool noreuse)
 void
 vm_page_unwire(vm_page_t m, uint8_t nqueue)
 {
-
-	KASSERT(nqueue < PQ_COUNT,
-	    ("vm_page_unwire: invalid queue %u request for page %p",
-	    nqueue, m));
+        KASSERT(nqueue < PQ_COUNT || nqueue == PQ_NONE,
+            ("%s: invalid queue %u request for page %p", __func__, nqueue, m));
 
 	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		if (vm_page_unwire_noq(m) && m->ref_count == 0)
 			vm_page_free(m);
-		return;
+	} else {
+		vm_page_unwire_managed(m, nqueue, false);
 	}
-	vm_page_unwire_managed(m, nqueue, false);
 }
 
 /*
@@ -4319,13 +4320,15 @@ vm_page_release_toq(vm_page_t m, uint8_t nqueue, const bool noreuse)
 void
 vm_page_release(vm_page_t m, int flags)
 {
-	vm_object_t object;
-
-	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
-	    ("vm_page_release: page %p is unmanaged", m));
+	if ((m->oflags & VPO_UNMANAGED) != 0) {
+		vm_page_unwire(m, PQ_NONE);
+		return;
+	}
 
 	if ((flags & VPR_TRYFREE) != 0) {
 		for (;;) {
+			vm_object_t object;
+
 			object = atomic_load_ptr(&m->object);
 			if (object == NULL)
 				break;
