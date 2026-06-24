@@ -1,0 +1,9 @@
+Name: multiline-folding
+Description: test fixture
+Version: 1.0.0
+
+Cflags: -foo\
+-bar
+
+Libs: -qux\
+      -baz

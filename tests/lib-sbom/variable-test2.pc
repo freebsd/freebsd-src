@@ -1,0 +1,7 @@
+Name: variable-test2
+Description: Variable test 2
+URL: https://github.com/pkgconf/pkgconf/releases/
+Version: 2.0
+License: ${license_variable_test}
+Source: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+Requires: variable-test1

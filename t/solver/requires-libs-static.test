@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: baz
+WantedFlags: libs static
+ExpectedStdout: -L/test/lib -lbaz -L/test/lib -lzee -lfoo

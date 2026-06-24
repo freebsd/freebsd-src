@@ -1,0 +1,4 @@
+Name: isystem-sysroot-prefixed
+Description: -isystem path already begins with the configured sysroot; sysroot must not be injected a second time (regression test for off-by-one in should_inject_sysroot_child)
+Version: 1
+Cflags: -isystem /s/usr/include

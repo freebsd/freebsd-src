@@ -59,7 +59,7 @@ run_or_die ()
    OPTIONS="$@"
    
    # print a message
-   echo -n "*info* running $COMMAND"
+   printf "*info* running %s" "$COMMAND"
    if test -n "$OPTIONS" ; then
       echo " ($OPTIONS)"
    else
@@ -80,8 +80,8 @@ parse_options "$@"
 
 cd $TOP_DIR
 
+run_or_die $LIBTOOLIZE --install
 run_or_die $ACLOCAL
 run_or_die $AUTOHEADER
 run_or_die $AUTOCONF
-run_or_die $LIBTOOLIZE --install
 run_or_die $AUTOMAKE --add-missing

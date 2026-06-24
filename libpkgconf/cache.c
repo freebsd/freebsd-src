@@ -2,6 +2,8 @@
  * cache.c
  * package object cache
  *
+ * SPDX-License-Identifier: pkgconf
+ *
  * Copyright (c) 2013 pkgconf authors (see AUTHORS).
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -127,18 +129,31 @@ pkgconf_cache_add(pkgconf_client_t *client, pkgconf_pkg_t *pkg)
 
 	pkgconf_pkg_ref(client, pkg);
 
-	PKGCONF_TRACE(client, "added @%p to cache", pkg);
+	pkgconf_pkg_t **new_table;
 
 	/* mark package as cached */
 	pkg->flags |= PKGCONF_PKG_PROPF_CACHED;
 
 	++client->cache_count;
-	client->cache_table = pkgconf_reallocarray(client->cache_table,
+	new_table = pkgconf_reallocarray(client->cache_table,
 		client->cache_count, sizeof (void *));
+
+	/* if we are out of memory, roll back adding to cache and bail */
+	if (new_table == NULL)
+	{
+		--client->cache_count;
+		pkg->flags &= ~PKGCONF_PKG_PROPF_CACHED;
+		pkgconf_pkg_unref(client, pkg);
+		return;
+	}
+
+	client->cache_table = new_table;
 	client->cache_table[client->cache_count - 1] = pkg;
 
 	qsort(client->cache_table, client->cache_count,
 		sizeof(void *), cache_member_sort_cmp);
+
+	PKGCONF_TRACE(client, "added @%p to cache", pkg);
 }
 
 /*
@@ -193,8 +208,11 @@ pkgconf_cache_remove(pkgconf_client_t *client, pkgconf_pkg_t *pkg)
 	client->cache_count--;
 	if (client->cache_count > 0)
 	{
-		client->cache_table = pkgconf_reallocarray(client->cache_table,
+		pkgconf_pkg_t **new_table = pkgconf_reallocarray(client->cache_table,
 			client->cache_count, sizeof(void *));
+
+		if (new_table != NULL)
+			client->cache_table = new_table;
 	}
 	else
 	{

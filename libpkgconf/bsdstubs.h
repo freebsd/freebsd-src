@@ -2,6 +2,8 @@
  * bsdstubs.h
  * Header for stub BSD function prototypes if unavailable on a specific platform.
  *
+ * SPDX-License-Identifier: pkgconf
+ *
  * Copyright (c) 2012 William Pitcock <nenolod@dereferenced.org>.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,6 +17,8 @@
 
 #ifndef LIBPKGCONF_BSDSTUBS_H
 #define LIBPKGCONF_BSDSTUBS_H
+
+#include <stddef.h>
 
 #include <libpkgconf/libpkgconf-api.h>
 

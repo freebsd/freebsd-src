@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: cflags
+Query: idirafter-ordering
+ExpectedStdout: -I/opt/bad/include1 -idirafter /opt/bad/include4 -I/opt/bad/include2 -I/opt/bad/include3

@@ -1,0 +1,544 @@
+{
+    "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+    "@graph": [
+        {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Agent:default",
+            "name": "Default"
+        },
+        {
+            "type": "CreationInfo",
+            "@id": "_:creationinfo_1",
+            "created": "test",
+            "createdBy": [
+                "distfiles.ariadne.space:pkgconf:Agent:default"
+            ],
+            "specVersion": "3.0.1"
+        },
+        {
+            "type": "simplelicensing_LicenseExpression",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:BSD-2-Clause",
+            "simplelicensing_licenseExpression": "BSD-2-Clause"
+        },
+        {
+            "type": "simplelicensing_LicenseExpression",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:BSD-1-Clause",
+            "simplelicensing_licenseExpression": "BSD-1-Clause"
+        },
+        {
+            "type": "simplelicensing_LicenseExpression",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:BSD-4-Clause",
+            "simplelicensing_licenseExpression": "BSD-4-Clause"
+        },
+        {
+            "type": "simplelicensing_LicenseExpression",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:MIT",
+            "simplelicensing_licenseExpression": "MIT"
+        },
+        {
+            "type": "simplelicensing_LicenseExpression",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:Apache-2.0",
+            "simplelicensing_licenseExpression": "Apache-2.0"
+        },
+        {
+            "type": "software_Sbom",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:software_Sbom:meta_package",
+            "software_sbomType": [
+                "build"
+            ],
+            "rootElement": [
+                "distfiles.ariadne.space:pkgconf:Package:meta_package"
+            ],
+            "element": [
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test1",
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test2",
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test3",
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test4",
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test5",
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test6",
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:hasDeclaredLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:hasConcludedLicense"
+            ]
+        },
+        {
+            "type": "software_Sbom",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:software_Sbom:test1",
+            "software_sbomType": [
+                "build"
+            ],
+            "rootElement": [
+                "distfiles.ariadne.space:pkgconf:Package:test1"
+            ],
+            "element": [
+                "distfiles.ariadne.space:pkgconf:Relationship:test1:hasDeclaredLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test1:hasConcludedLicense"
+            ]
+        },
+        {
+            "type": "software_Sbom",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:software_Sbom:test2",
+            "software_sbomType": [
+                "build"
+            ],
+            "rootElement": [
+                "distfiles.ariadne.space:pkgconf:Package:test2"
+            ],
+            "element": [
+                "distfiles.ariadne.space:pkgconf:Relationship:test2:dependsOn:test3",
+                "distfiles.ariadne.space:pkgconf:Relationship:test2:hasDeclaredLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test2:hasConcludedLicense"
+            ]
+        },
+        {
+            "type": "software_Sbom",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:software_Sbom:test3",
+            "software_sbomType": [
+                "build"
+            ],
+            "rootElement": [
+                "distfiles.ariadne.space:pkgconf:Package:test3"
+            ],
+            "element": [
+                "distfiles.ariadne.space:pkgconf:Relationship:test3:hasDeclaredLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test3:hasConcludedLicense"
+            ]
+        },
+        {
+            "type": "software_Sbom",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:software_Sbom:test4",
+            "software_sbomType": [
+                "build"
+            ],
+            "rootElement": [
+                "distfiles.ariadne.space:pkgconf:Package:test4"
+            ],
+            "element": [
+                "distfiles.ariadne.space:pkgconf:Relationship:test4:dependsOn:test5",
+                "distfiles.ariadne.space:pkgconf:Relationship:test4:dependsOn:test6",
+                "distfiles.ariadne.space:pkgconf:Relationship:test4:hasDeclaredLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test4:hasConcludedLicense"
+            ]
+        },
+        {
+            "type": "software_Sbom",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:software_Sbom:test5",
+            "software_sbomType": [
+                "build"
+            ],
+            "rootElement": [
+                "distfiles.ariadne.space:pkgconf:Package:test5"
+            ],
+            "element": [
+                "distfiles.ariadne.space:pkgconf:Relationship:test5:hasDeclaredLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test5:hasConcludedLicense"
+            ]
+        },
+        {
+            "type": "software_Sbom",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:software_Sbom:test6",
+            "software_sbomType": [
+                "build"
+            ],
+            "rootElement": [
+                "distfiles.ariadne.space:pkgconf:Package:test6"
+            ],
+            "element": [
+                "distfiles.ariadne.space:pkgconf:Relationship:test6:hasDeclaredLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test6:hasConcludedLicense"
+            ]
+        },
+        {
+            "type": "software_Package",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Package:meta_package",
+            "name": "meta_package",
+            "originatedBy": [
+                "distfiles.ariadne.space:pkgconf:Agent:default"
+            ],
+            "software_copyrightText": "NOASSERTION",
+            "software_homePage": "https://github.com/pkgconf/pkgconf",
+            "software_downloadLocation": "https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz",
+            "software_packageVersion": "1.0.0"
+        },
+        {
+            "type": "software_Package",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Package:test1",
+            "name": "test1",
+            "originatedBy": [
+                "distfiles.ariadne.space:pkgconf:Agent:default"
+            ],
+            "software_copyrightText": "Test1 copyright text",
+            "software_homePage": "",
+            "software_downloadLocation": "",
+            "software_packageVersion": "1.0.0"
+        },
+        {
+            "type": "software_Package",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Package:test2",
+            "name": "test2",
+            "originatedBy": [
+                "distfiles.ariadne.space:pkgconf:Agent:default"
+            ],
+            "software_copyrightText": "NOASSERTION",
+            "software_homePage": "https://github.com/pkgconf/pkgconf/",
+            "software_downloadLocation": "https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz",
+            "software_packageVersion": "2.0.0"
+        },
+        {
+            "type": "software_Package",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Package:test3",
+            "name": "test3",
+            "originatedBy": [
+                "distfiles.ariadne.space:pkgconf:Agent:default"
+            ],
+            "software_copyrightText": "Test3 copyright text",
+            "software_homePage": "https://github.com/pkgconf/pkgconf/",
+            "software_downloadLocation": "https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz",
+            "software_packageVersion": "3.0.0"
+        },
+        {
+            "type": "software_Package",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Package:test4",
+            "name": "test4",
+            "originatedBy": [
+                "distfiles.ariadne.space:pkgconf:Agent:default"
+            ],
+            "software_copyrightText": "NOASSERTION",
+            "software_homePage": "https://github.com/pkgconf/pkgconf/",
+            "software_downloadLocation": "https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz",
+            "software_packageVersion": "4.0.0"
+        },
+        {
+            "type": "software_Package",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Package:test5",
+            "name": "test5",
+            "originatedBy": [
+                "distfiles.ariadne.space:pkgconf:Agent:default"
+            ],
+            "software_copyrightText": "NOASSERTION",
+            "software_homePage": "https://github.com/pkgconf/pkgconf/",
+            "software_downloadLocation": "https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz",
+            "software_packageVersion": "5.0.0"
+        },
+        {
+            "type": "software_Package",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Package:test6",
+            "name": "test6",
+            "originatedBy": [
+                "distfiles.ariadne.space:pkgconf:Agent:default"
+            ],
+            "software_copyrightText": "NOASSERTION",
+            "software_homePage": "https://github.com/pkgconf/pkgconf/releases/",
+            "software_downloadLocation": "https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz",
+            "software_packageVersion": "6.0.0"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:meta_package:hasDeclaredLicense",
+            "from": "distfiles.ariadne.space:pkgconf:Package:meta_package",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:BSD-2-Clause"
+            ],
+            "relationshipType": "hasDeclaredLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:meta_package:hasConcludedLicense",
+            "from": "distfiles.ariadne.space:pkgconf:Package:meta_package",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:BSD-2-Clause"
+            ],
+            "relationshipType": "hasConcludedLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test1",
+            "from": "distfiles.ariadne.space:pkgconf:Package:meta_package",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:Package:test1"
+            ],
+            "relationshipType": "dependsOn"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test2",
+            "from": "distfiles.ariadne.space:pkgconf:Package:meta_package",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:Package:test2"
+            ],
+            "relationshipType": "dependsOn"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test3",
+            "from": "distfiles.ariadne.space:pkgconf:Package:meta_package",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:Package:test3"
+            ],
+            "relationshipType": "dependsOn"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test4",
+            "from": "distfiles.ariadne.space:pkgconf:Package:meta_package",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:Package:test4"
+            ],
+            "relationshipType": "dependsOn"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test5",
+            "from": "distfiles.ariadne.space:pkgconf:Package:meta_package",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:Package:test5"
+            ],
+            "relationshipType": "dependsOn"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test6",
+            "from": "distfiles.ariadne.space:pkgconf:Package:meta_package",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:Package:test6"
+            ],
+            "relationshipType": "dependsOn"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:test1:hasDeclaredLicense",
+            "from": "distfiles.ariadne.space:pkgconf:Package:test1",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:BSD-1-Clause"
+            ],
+            "relationshipType": "hasDeclaredLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:test1:hasConcludedLicense",
+            "from": "distfiles.ariadne.space:pkgconf:Package:test1",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:BSD-1-Clause"
+            ],
+            "relationshipType": "hasConcludedLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:test2:hasDeclaredLicense",
+            "from": "distfiles.ariadne.space:pkgconf:Package:test2",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:BSD-2-Clause"
+            ],
+            "relationshipType": "hasDeclaredLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:test2:hasConcludedLicense",
+            "from": "distfiles.ariadne.space:pkgconf:Package:test2",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:BSD-2-Clause"
+            ],
+            "relationshipType": "hasConcludedLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:test2:dependsOn:test3",
+            "from": "distfiles.ariadne.space:pkgconf:Package:test2",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:Package:test3"
+            ],
+            "relationshipType": "dependsOn"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:test3:hasDeclaredLicense",
+            "from": "distfiles.ariadne.space:pkgconf:Package:test3",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:BSD-4-Clause"
+            ],
+            "relationshipType": "hasDeclaredLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:test3:hasConcludedLicense",
+            "from": "distfiles.ariadne.space:pkgconf:Package:test3",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:BSD-4-Clause"
+            ],
+            "relationshipType": "hasConcludedLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:test4:hasDeclaredLicense",
+            "from": "distfiles.ariadne.space:pkgconf:Package:test4",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:MIT"
+            ],
+            "relationshipType": "hasDeclaredLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:test4:hasConcludedLicense",
+            "from": "distfiles.ariadne.space:pkgconf:Package:test4",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:MIT"
+            ],
+            "relationshipType": "hasConcludedLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:test4:dependsOn:test5",
+            "from": "distfiles.ariadne.space:pkgconf:Package:test4",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:Package:test5"
+            ],
+            "relationshipType": "dependsOn"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:test4:dependsOn:test6",
+            "from": "distfiles.ariadne.space:pkgconf:Package:test4",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:Package:test6"
+            ],
+            "relationshipType": "dependsOn"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:test5:hasDeclaredLicense",
+            "from": "distfiles.ariadne.space:pkgconf:Package:test5",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:MIT"
+            ],
+            "relationshipType": "hasDeclaredLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:test5:hasConcludedLicense",
+            "from": "distfiles.ariadne.space:pkgconf:Package:test5",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:MIT"
+            ],
+            "relationshipType": "hasConcludedLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:test6:hasDeclaredLicense",
+            "from": "distfiles.ariadne.space:pkgconf:Package:test6",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:Apache-2.0"
+            ],
+            "relationshipType": "hasDeclaredLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:Relationship:test6:hasConcludedLicense",
+            "from": "distfiles.ariadne.space:pkgconf:Package:test6",
+            "to": [
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:Apache-2.0"
+            ],
+            "relationshipType": "hasConcludedLicense"
+        },
+        {
+            "type": "SpdxDocument",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "distfiles.ariadne.space:pkgconf:spdxDocument:1",
+            "rootElement": [
+                "distfiles.ariadne.space:pkgconf:software_Sbom:meta_package",
+                "distfiles.ariadne.space:pkgconf:software_Sbom:test1",
+                "distfiles.ariadne.space:pkgconf:software_Sbom:test2",
+                "distfiles.ariadne.space:pkgconf:software_Sbom:test3",
+                "distfiles.ariadne.space:pkgconf:software_Sbom:test4",
+                "distfiles.ariadne.space:pkgconf:software_Sbom:test5",
+                "distfiles.ariadne.space:pkgconf:software_Sbom:test6"
+            ],
+            "element": [
+                "distfiles.ariadne.space:pkgconf:Agent:default",
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:BSD-2-Clause",
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:BSD-1-Clause",
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:BSD-4-Clause",
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:MIT",
+                "distfiles.ariadne.space:pkgconf:simplelicensing_LicenseExpression:Apache-2.0",
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test1",
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test2",
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test3",
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test4",
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test5",
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:dependsOn:test6",
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:hasDeclaredLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:meta_package:hasConcludedLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test1:hasDeclaredLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test1:hasConcludedLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test2:dependsOn:test3",
+                "distfiles.ariadne.space:pkgconf:Relationship:test2:hasDeclaredLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test2:hasConcludedLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test3:hasDeclaredLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test3:hasConcludedLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test4:dependsOn:test5",
+                "distfiles.ariadne.space:pkgconf:Relationship:test4:dependsOn:test6",
+                "distfiles.ariadne.space:pkgconf:Relationship:test4:hasDeclaredLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test4:hasConcludedLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test5:hasDeclaredLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test5:hasConcludedLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test6:hasDeclaredLicense",
+                "distfiles.ariadne.space:pkgconf:Relationship:test6:hasConcludedLicense",
+                "distfiles.ariadne.space:pkgconf:software_Sbom:meta_package",
+                "distfiles.ariadne.space:pkgconf:Package:meta_package",
+                "distfiles.ariadne.space:pkgconf:software_Sbom:test1",
+                "distfiles.ariadne.space:pkgconf:Package:test1",
+                "distfiles.ariadne.space:pkgconf:software_Sbom:test2",
+                "distfiles.ariadne.space:pkgconf:Package:test2",
+                "distfiles.ariadne.space:pkgconf:software_Sbom:test3",
+                "distfiles.ariadne.space:pkgconf:Package:test3",
+                "distfiles.ariadne.space:pkgconf:software_Sbom:test4",
+                "distfiles.ariadne.space:pkgconf:Package:test4",
+                "distfiles.ariadne.space:pkgconf:software_Sbom:test5",
+                "distfiles.ariadne.space:pkgconf:Package:test5",
+                "distfiles.ariadne.space:pkgconf:software_Sbom:test6",
+                "distfiles.ariadne.space:pkgconf:Package:test6"
+            ]
+        }
+    ]
+}

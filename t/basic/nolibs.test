@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+Query: nolib
+WantedFlags: libs
+ExpectedStdout: 
+ExpectedExitCode: 0

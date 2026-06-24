@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: cflags
+Query: fragment-escaping-2
+ExpectedStdout: -IC:\\D\ E

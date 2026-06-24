@@ -1,6 +1,147 @@
 Changes from previous version of pkgconf
 ========================================
 
+Changes from 2.5.1 to 3.0.0:
+----------------------------
+
+* DEPRECATION: The autotools build system will be dropped after the 3.0 release.
+  Building pkgconf with muon is recommended for early bootstrap and meson in later
+  stages of bootstrap.
+  Alternatively users can use pkgconf-lite for early bootstrap.
+  Continuous integration now exercises both the muon and pkgconf-lite builds.
+  See https://github.com/pkgconf/pkgconf/issues/481 for rationale and discussion.
+
+* SPDX Software Bill of Materials (SBOM) generation:
+  - New spdxtool(1) utility which generates SPDX Lite 3.0.1 SBOM files.  Initial
+    implementation by Tuukka Pasanen, sponsored by The FreeBSD Foundation, and
+    substantially improved since, with major contributions by Elizabeth Ashford
+    and additional patches by Joshua Watt and Pierre Pronchery.
+  - bomtool and spdxtool now support a --output option, which writes the
+    generated SBOM to a file instead of standard output, and --define-variable,
+    as the pkgconf CLI does.  The --define-variable support is by Tuukka Pasanen.
+  - bomtool: improved SPDX conformance.  Mandatory PackageCopyrightText and
+    PackageLicenseConcluded fields are emitted as NOASSERTION when unavailable,
+    a Created timestamp is included, invalid PackageVerificationCode output was
+    removed, the package identifier charset was corrected,
+    PackageDownloadLocation is derived from the Source tag, and SPDX 2.3 package
+    names are used.  Patches by Stéphane Rochoy and Tuukka Pasanen.
+
+* New test and I/O framework.
+  - kyua is no longer required to run tests.
+  - Declarative configuration for integration tests, C unit tests for functional tests.
+  - Tests now run on Windows.
+  - .pc and personality files are now opened in binary mode, and the line reader
+    was reworked to correctly handle CRLF line endings and to avoid getc/ungetc
+    for better performance.  Binary-mode handling by moi15moi.
+  Major contributions by Elizabeth Ashford.
+
+* New pc(5) features:
+  - Source tag: a URI which describes where a given package may be downloaded.
+  - License.file tag: a path to a license file that is on disk.
+  - Requires.shared tag: like Requires.private, except a list of dependencies only used
+    when building in shared mode.
+  - Cflags.shared tag: like Cflags.private, except a list of CFLAGS only used when building
+    in shared mode.
+  - Libs.shared tag: like Libs.private, except a list of LIBS only used when building
+    in shared mode.
+  - Link.ABI tag: a comma-separated list of tags describing the application binary
+    interfaces a consumer must link a package against, such as c++ or fortran.
+    Tags are case-insensitive and normalized to lowercase, and may be queried
+    with --link-abi.
+  The Source and License.file tags are by Tuukka Pasanen; additional patches by
+  Elizabeth Ashford.
+
+* Windows support has been significantly improved.
+  - pkgconf can now be built and tested with Visual Studio and clang-cl.
+  - Windows on ARM builds are supported, and MSI installers are produced for
+    x86, x64 and arm64 using MSVC.
+  - The console code page is set to UTF-8 and non-ASCII entries in
+    PKG_CONFIG_PATH are now handled correctly.
+  The clang-cl support, MSI installers and UTF-8 console handling are by
+  moi15moi.
+
+* Portability:
+  - pkgconf is now built and tested in continuous integration on NetBSD,
+    FreeBSD, OpenBSD, Haiku, OmniOS, macOS and Cygwin in addition to Linux and
+    Windows.
+  - pkgconf now falls back to readlink(2) on systems which lack readlinkat(2).
+  - A fallback is provided for platforms without nl_langinfo_l, and xlocale.h is
+    included where needed to build on macOS.
+  The expanded platform CI and the nl_langinfo_l/xlocale.h fallbacks are by
+  moi15moi.
+
+* Security hardening:
+  - Variable substitution is now guarded against denial-of-service inputs,
+    including billion-laughs style expansion and excessively complex bytecode
+    programs.
+  - LLVM libFuzzer targets were added for the pc(5) parser and the solver, and
+    the numerous out-of-memory and crash paths they surfaced were hardened.
+  - Dropped use of strlcpy, strlcat and other silently truncating string
+    functions.
+
+* CLI changes:
+  - New --newlines option, which separates emitted fragments with newlines
+    instead of spaces.
+  - New --print-digraph-query-nodes option, which annotates the --digraph
+    output with the nodes that were part of the original query.
+  - --list-all and --list-package-names now include synthesized virtual
+    packages provided via the Provides tag.
+  - Variables can now be overridden using PKG_CONFIG_MODULENAME_VARIABLENAME
+    environment variables.  This was formally specified but never implemented
+    in pkgconf.
+  - PKG_CONFIG_LOG is now appended to rather than overwritten.
+  - --dump-personality output is now consistent with the
+    pkgconf-personality(5) format and additionally reports WantDefaultPure and
+    WantDefaultStatic.
+
+* pkg.m4 changes:
+  - PKG_WITH_MODULES now properly quotes its action arguments (serial 16).
+    Patch by Antonin Décimo.
+  - The macros no longer direct users to the freedesktop pkg-config project.
+
+* Correctness fixes:
+  - The built-in pkg-config and pkgconf packages are now constructed from the
+    configured personality instead of being hardcoded, so their reported data
+    reflects the active personality.  They are also exposed as proper versioned
+    virtual packages.
+  - ${pc_sysrootdir} now defaults to an empty string instead of '/'.
+  - Variable substitution was reimplemented using a bytecode engine, which
+    tracks whether special variables such as ${pc_sysrootdir} have already been
+    applied so that they are not substituted more than once.
+  - The solver now re-checks the final solution for conflicts before returning
+    success, and tracks the origin of conflict rules.
+  - Requires.internal is now treated as a weaker form of Requires.private: its
+    dependency nodes need not be satisfied when link libraries are not
+    requested.
+  - pkgconf now warns about .pc files that duplicate a dependency-list field,
+    whose behavior is inconsistent across pkg-config implementations.
+  - Version comparison was reworked to use a structured algorithm modeled on
+    apk-tools.
+  - Newline folding behavior when parsing multi-line fields has been adjusted.
+  - Bare variable expansions inside fragment lists are now re-parsed so that any
+    flags they expand to are tokenized correctly.
+  - ${pc_sysrootdir} is now only injected when it matches a complete path
+    boundary, and obviously bogus sysroot_dir definitions are ignored, fixing
+    incorrect sysroot injection.
+  - Arguments are now combined when a flag is expected to carry a separate
+    value, such as -I dir or -framework name.
+  - SPDX license expressions in the License field are now properly parsed and
+    validated.  Patches by Tuukka Pasanen.
+
+* The libpkgconf API and ABI were substantially reworked, breaking ABI
+  compatibility.  The libpkgconf soversion is now 8.
+  - An abstract pkgconf_buffer_t type is now used throughout libpkgconf in place
+    of fixed-size stack buffers, removing a class of truncation bugs.
+  - A new pkgconf_output API abstracts all output, allowing the output stream to
+    be set per-client and redirected (pkgconf_client_set_output,
+    pkgconf_output_file_fmt and friends).
+  - The pkgconf_tuple_parse API has been removed; variables are now evaluated
+    via pkgconf_variable_eval (backed by the new bytecode engine).
+  - The fragment rendering API was reworked around pkgconf_buffer_t, and the old
+    pkgconf_fragment_render API has been removed.
+  - The package copyright field was migrated to a bufferset.
+  - Environment variable lookups can now be mocked via pkgconf_client_getenv.
+
 Changes from 2.5.0 to 2.5.1:
 ----------------------------
 

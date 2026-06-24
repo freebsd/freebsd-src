@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: libs-shared-test
+WantedFlags: libs
+ExpectedStdout: libfoo-shared.so

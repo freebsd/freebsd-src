@@ -1,0 +1,5 @@
+Tool: spdxtool
+ToolArgs: --creation-time=test meta_package
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+ExpectedStdoutFile: ../../tests/lib-sbom-files/meta_package.json
+ExpectedExitCode: 0

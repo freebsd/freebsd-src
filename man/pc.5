@@ -7,7 +7,7 @@
 .\" This software is provided 'as is' and without any warranty, express or
 .\" implied.  In no event shall the authors be liable for any damages arising
 .\" from the use of this software.
-.Dd December 15, 2017
+.Dd June 23, 2026
 .Dt PC 5
 .Os
 .Sh NAME
@@ -74,6 +74,29 @@ ver-op       = "<" / "<=" / "=" / "!=" / ">=" / ">"
 The property will be set to a list of fragments parsed from the text.
 The input text must be in a format that is suitable for passing to a POSIX
 shell without any shell expansions after variable substitution has been done.
+.Pp
+The text is tokenised using POSIX shell word-splitting rules: unquoted
+whitespace separates fragments, single and double quotes group text, and a
+backslash escapes the following character.
+A quote that is not itself escaped is consumed as a quoting delimiter and does
+not appear in the resulting fragment.
+To include a shell metacharacter \(em such as a quote, whitespace, a bracket,
+a brace, or a glob character \(em literally in a fragment, escape it with a
+backslash so that it survives tokenisation.
+.Pp
+For example, to make the toolchain receive the argument
+.Bd -literal -offset indent
+\-sFUNCS=["fnA","fnB"]
+.Ed
+escape the double quotes so they are not consumed as quoting:
+.Bd -literal -offset indent
+Libs: \-sFUNCS=[\e"fnA\e",\e"fnB\e"]
+.Ed
+.Pp
+On output, such metacharacters are re-escaped so that the original fragment is
+recovered when the consumer tokenises the output using the same shell
+word-splitting rules; see the note on output escaping in
+.Xr pkgconf 1 .
 .\"
 .El
 .Ss PROPERTY KEYWORDS
@@ -97,11 +120,14 @@ Required compiler flags.
 These flags are always used, regardless of whether static compilation is requested.
 (optional; fragment list)
 .It Cflags.private
-Required compiler flags for static compilation.
-(optional; fragment list; pkgconf extension)
+Required compiler flags for static compilation only.
+(optional; fragment list; pkgconf extension; introduced in pkgconf 0.9.3)
+.It Cflags.shared
+Required compiler flags for shared compilation only.
+(optional; fragment list; pkgconf extension; introduced in pkgconf 3.0.0)
 .It Copyright
 A copyright attestation statement.
-(optional; literal; pkgconf extension)
+(optional; literal; pkgconf extension; introduced in pkgconf 1.9.3)
 .It Libs
 Required linking flags for this package.
 Libraries this package depends on for linking against it, which are not
@@ -113,24 +139,94 @@ statically.
 Libraries this package depends on for linking against it statically, which are
 not described as dependencies should be specified here.
 (optional; fragment list)
+.It Libs.shared
+Required linking flags for this package that are only required for dynamic
+linking.
+Libraries this package depends on for linking against it dynamically, which are
+not described as dependencies should be specified here.
+(optional; fragment list; pkgconf extension; introduced in pkgconf 3.0.0)
+.It Link.ABI
+A comma-separated list of tags describing the application binary interfaces a
+consumer must link this package against, such as
+.Sy c++
+or
+.Sy fortran .
+Tags are case-insensitive and are normalized to lowercase.
+This allows a build system to select the appropriate linker driver and runtime
+when a package, or one of its dependencies, is implemented in a language whose
+ABI differs from C.
+The tag set is unioned across the dependency closure in the same manner as
+.Sy Libs :
+a package's own tags and those of its public
+.Sy Requires
+always apply, while
+.Sy Requires.private
+tags apply only when private dependencies are linked.
+Unlike a runtime library load, ABI compatibility of the exposed interface
+applies equally to shared and static linking.
+A package with no
+.Sy Link.ABI
+property is treated as
+.Sy c .
+(optional; pkgconf extension; introduced in pkgconf 3.0.0)
 .It License
 The asserted SPDX license tag that should be applied to the given package.
-(optional; literal; pkgconf extension)
+One should try to determine the correct SPDX license tag for package
+from the SPDX License list. If a standard license name isn't available, use the
+LicenseRef-tag. For complex licensing details, utilize
+SPDX expression notation.
+It’s possible to assign multiple license tags in pc-file, which are
+then merged together with an 'AND' when rendering output.
+(optional; literal; pkgconf extension; introduced in pkgconf 1.9.0)
+.It License.file
+An absolute filesystem path to the installed file containing the full license
+text for this package.
+The path must refer to the license file as installed on the system, so that
+it corresponds to the exact version and configuration described by this
+.Sy .pc
+file; pkgconf variable references such as
+.Sy ${prefix}
+or
+.Sy ${datadir} ,
+which expand to absolute paths, may be used.
+Relative paths are not supported.
+This must not be a URL: use
+.Sy Source
+to reference an upstream location.
+(optional; literal; pkgconf extension; introduced in pkgconf 3.0.0)
 .It Maintainer
 The preferred contact for the maintainer.  This should be in the format of a
 name followed by an e-mail address or website.
-(optional; literal; pkgconf extension)
+(optional; literal; pkgconf extension; introduced in pkgconf 1.9.3)
+.It Source
+The asserted SPDX downloadLocation tag that should be applied to the given package.
+Source should be URI contain tarball with exact version or Repository that contains
+tag with version same as mentioned in version tag. It can be also be URI with hash
+that is exact release point of the source.
+(optional; literal; pkgconf extension; introduced in pkgconf 3.0.0)
 .It Requires
 Required dependencies that must be met for the package to be usable.
 All dependencies must be satisfied or the pkg-config implementation must not use
 the package.
 (optional; dependency list)
+.It Requires.internal
+Required dependencies that must be met for the package to be usable for
+static linking.
+The main differences verses Requires.private are that CFLAGS will not be
+included and the solver will not consider the dependency when solving for
+CFLAGS only.
+(optional; dependency list; pkgconf extension; introduced in pkgconf 1.5.0)
 .It Requires.private
 Required dependencies that must be met for the package to be usable for header
 inclusion and static linking.
 All dependencies must be satisfied or the pkg-config implementation must not use
 the package for header inclusion and static linking.
 (optional; dependency list)
+.It Requires.shared
+Required dependencies that are only traversed when not in static mode. This allows
+a package to express dependencies that are only relevant when it is used as a
+shared library.
+(optional; dependency list; pkgconf extension; introduced in pkgconf 3.0.0)
 .It Conflicts
 Dependencies that must not be met for the package to be usable.
 If any package in the proposed dependency solution match any dependency in the
@@ -140,7 +236,7 @@ Conflicts list, the package being considered is not usable.
 Dependencies that may be provided by an alternate package.
 If a package cannot be found, the entire package collection is scanned for
 providers which can match the requested dependency.
-(optional; dependency list; pkgconf extension)
+(optional; dependency list; pkgconf extension; introduced in pkgconf 1.1.0)
 .El
 .Ss EXTENSIONS
 Features that have been marked as a pkgconf extension are only guaranteed to work
@@ -151,6 +247,16 @@ Accordingly, it is suggested that
 .Nm .pc
 files which absolutely depend on these extensions declare a requirement on the
 pkgconf virtual.
+.Pp
+In addition it should be noted that the pkgconf virtual is versioned, and thus
+files which absolutely depend on these extensions can declare a requirement on
+the specific pkgconf version which introduced the extension.
+.Pp
+As an example:
+.Bd -literal
+Requires: pkgconf >= 3.0.0
+Libs.shared: ...
+.Ed
 .Sh EXAMPLES
 An example .pc file:
 .Bd -literal

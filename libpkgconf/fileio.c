@@ -2,6 +2,8 @@
  * fileio.c
  * File reading utilities
  *
+ * SPDX-License-Identifier: pkgconf
+ *
  * Copyright (c) 2012, 2025 pkgconf authors (see AUTHORS).
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -16,98 +18,104 @@
 #include <libpkgconf/stdinc.h>
 #include <libpkgconf/libpkgconf.h>
 
+#define push_or_return_fail(buf, c) \
+	do { if (!pkgconf_buffer_push_byte((buf), (char) (c))) return false; } while (0)
+
+#define trim_or_return_fail(buf) \
+	do { if (!pkgconf_buffer_trim_byte((buf))) return false; } while (0)
+
 bool
 pkgconf_fgetline(pkgconf_buffer_t *buffer, FILE *stream)
 {
 	bool quoted = false;
-	int c = '\0', c2;
+	bool got_data = false;
+	char in[PKGCONF_ITEM_SIZE];
+	long unread = 0;
 
-	while ((c = getc(stream)) != EOF)
+	while (fgets(in, sizeof in, stream) != NULL)
 	{
-		if (c == '\\' && !quoted)
-		{
-			quoted = true;
-			continue;
-		}
-		else if (c == '#')
-		{
-			if (!quoted) {
-				/* Skip the rest of the line */
-				do {
-					c = getc(stream);
-				} while (c != '\n' && c != EOF);
-				pkgconf_buffer_push_byte(buffer, c);
-				break;
-			}
-			else
-				pkgconf_buffer_push_byte(buffer, c);
+		char *p = in;
 
-			quoted = false;
-			continue;
-		}
-		else if (c == '\n')
+		got_data = true;
+
+		while (*p != '\0')
 		{
-			if (quoted)
+			unsigned char c = (unsigned char) *p++;
+
+			if (c == '\\' && !quoted)
 			{
-				/* Trim spaces */
-				do {
-					c2 = getc(stream);
-				} while (c2 == '\t' || c2 == ' ');
-
-				ungetc(c2, stream);
-
-				quoted = false;
+				quoted = true;
 				continue;
 			}
-			else
-			{
-				pkgconf_buffer_push_byte(buffer, c);
-			}
-
-			break;
-		}
-		else if (c == '\r')
-		{
-			pkgconf_buffer_push_byte(buffer, '\n');
-
-			if ((c2 = getc(stream)) == '\n')
+			else if (c == '\n')
 			{
 				if (quoted)
 				{
 					quoted = false;
 					continue;
 				}
+				else
+					push_or_return_fail(buffer, (char) c);
 
-				break;
+				goto done;
 			}
-
-			ungetc(c2, stream);
-
-			if (quoted)
+			else if (c == '\r')
 			{
-				quoted = false;
-				continue;
-			}
+				if (*p == '\n')
+				{
+					p++;
+				}
+				else if (*p == '\0')
+				{
+					/*
+					 * The matching '\n' may not have been read into `in`
+					 * yet if '\r' landed exactly on the fgets() buffer
+					 * boundary. Peek the real stream so a split CRLF
+					 * isn't misparsed as two lines.
+					 */
+					int next = getc(stream);
 
-			break;
-		}
-		else
-		{
-			if (quoted) {
-				pkgconf_buffer_push_byte(buffer, '\\');
-				quoted = false;
-			}
-			pkgconf_buffer_push_byte(buffer, c);
-		}
+					if (next != '\n' && next != EOF && ungetc(next, stream) == EOF)
+						return false;
+				}
 
+				if (quoted)
+				{
+					quoted = false;
+					continue;
+				}
+
+				push_or_return_fail(buffer, '\n');
+				/* unlike '\n', a lone '\r' doesn't bound the fgets() call above */
+				unread = (long) strlen(p);
+				goto done;
+			}
+			else
+			{
+				if (quoted)
+				{
+					push_or_return_fail(buffer, '\\');
+					quoted = false;
+				}
+
+				push_or_return_fail(buffer, (char) c);
+			}
+		}
 	}
+
+done:
+	if (unread > 0 && fseek(stream, -unread, SEEK_CUR) != 0)
+		return false;
 
 	/* Remove newline character. */
 	if (pkgconf_buffer_lastc(buffer) == '\n')
-		pkgconf_buffer_trim_byte(buffer);
+		trim_or_return_fail(buffer);
 
 	if (pkgconf_buffer_lastc(buffer) == '\r')
-		pkgconf_buffer_trim_byte(buffer);
+		trim_or_return_fail(buffer);
 
-	return !(c == EOF || ferror(stream));
+	if (!got_data)
+		return false;
+
+	return !ferror(stream);
 }

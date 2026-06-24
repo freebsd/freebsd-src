@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: missing-require
+WantedFlags: cflags
+ExpectedExitCode: 1

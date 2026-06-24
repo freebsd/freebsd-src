@@ -1,10 +1,4 @@
 option(
-  'tests',
-  type: 'feature',
-  description: 'Build tests which depends upon the kyua framework',
-)
-
-option(
   'with-system-libdir',
   type: 'string',
   value: '',
@@ -16,4 +10,17 @@ option(
   type: 'string',
   value: '',
   description: 'Specify the system include directory (default {prefix}/{includedir})'
+)
+
+option(
+  'fuzzing',
+  type: 'boolean',
+  value: false,
+  description: 'Build libFuzzer targets'
+)
+
+option('analyzer',
+  type : 'boolean',
+  value : false,
+  description : 'enable GCC static analysis (-fanalyzer) on project targets'
 )

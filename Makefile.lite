@@ -12,26 +12,47 @@
 # all features, notably it does not include cross-compile support and MSVC
 # support.  It does not include the libpkgconf library.
 
-SRCS = \
+LIBPKGCONF_SRCS = \
 	libpkgconf/argvsplit.c		\
 	libpkgconf/audit.c		\
 	libpkgconf/bsdstubs.c		\
+	libpkgconf/buffer.c		\
+	libpkgconf/bufferset.c		\
+	libpkgconf/bytecode.c		\
 	libpkgconf/cache.c		\
 	libpkgconf/client.c		\
 	libpkgconf/dependency.c		\
 	libpkgconf/fileio.c		\
 	libpkgconf/fragment.c		\
+	libpkgconf/license.c		\
+	libpkgconf/output.c		\
 	libpkgconf/parser.c		\
 	libpkgconf/path.c		\
 	libpkgconf/personality.c	\
 	libpkgconf/pkg.c		\
 	libpkgconf/queue.c		\
 	libpkgconf/tuple.c		\
+	libpkgconf/variable.c		\
+	libpkgconf/version.c		\
+
+CLI_CORE_SRCS = \
 	cli/getopt_long.c		\
+	cli/core.c
+
+CLI_MAIN_SRCS = \
 	cli/main.c
-OBJS = ${SRCS:.c=.o}
-CFLAGS = ${STATIC} -DPKGCONF_LITE -I. -Ilibpkgconf -Icli -DSYSTEM_LIBDIR=\"${SYSTEM_LIBDIR}\" -DSYSTEM_INCLUDEDIR=\"${SYSTEM_INCLUDEDIR}\" -DPKG_DEFAULT_PATH=\"${PKG_DEFAULT_PATH}\"
-STATIC =
+
+PKGCONF_SRCS = ${LIBPKGCONF_SRCS} ${CLI_CORE_SRCS} ${CLI_MAIN_SRCS}
+PKGCONF_OBJS = ${PKGCONF_SRCS:.c=.o}
+
+TEST_RUNNER_MAIN_SRCS = \
+	tests/test-runner.c
+
+TEST_RUNNER_SRCS = ${LIBPKGCONF_SRCS} ${CLI_CORE_SRCS} ${TEST_RUNNER_MAIN_SRCS}
+TEST_RUNNER_OBJS = ${TEST_RUNNER_SRCS:.c=.o}
+
+CFLAGS += -Wno-unused-variable -Wno-unused-parameter
+CPPFLAGS = -D_DEFAULT_SOURCE -DPKGCONF_LITE -I. -Ilibpkgconf -Icli -DSYSTEM_LIBDIR=\"${SYSTEM_LIBDIR}\" -DSYSTEM_INCLUDEDIR=\"${SYSTEM_INCLUDEDIR}\" -DPKG_DEFAULT_PATH=\"${PKG_DEFAULT_PATH}\"
 STRIP = strip
 
 all: pkgconf-lite
@@ -41,37 +62,62 @@ libpkgconf/config.h:
 	@echo '#define PACKAGE_BUGREPORT "https://git.dereferenced.org/pkgconf/pkgconf/issues"' >> $@
 	@echo '#define PACKAGE_VERSION "2.5.1"' >> $@
 	@echo '#define PACKAGE PACKAGE_NAME " " PACKAGE_VERSION' >> $@
-	@echo '#define HAVE_STRLCPY' >> $@
-	@echo '#define HAVE_STRLCAT' >> $@
-	@echo '#define HAVE_STRNDUP' >> $@
 
-pkgconf-lite: preflight libpkgconf/config.h ${OBJS}
-	${CC} ${STATIC} -o $@ ${OBJS}
+pkgconf-lite: preflight libpkgconf/config.h ${PKGCONF_OBJS}
+	${CC} ${CFLAGS} ${STATIC} -o $@ ${PKGCONF_OBJS}
 	${STRIP} $@
+
+test-runner-lite: preflight libpkgconf/config.h ${TEST_RUNNER_OBJS}
+	${CC} ${CFLAGS} ${STATIC} -o $@ ${TEST_RUNNER_OBJS}
+	${STRIP} $@
+
+check: test-runner-lite
+	./test-runner-lite --test-fixtures ./tests ./t/basic
+	./test-runner-lite --test-fixtures ./tests ./t/link-abi
+	./test-runner-lite --test-fixtures ./tests ./t/ordering
+	./test-runner-lite --test-fixtures ./tests ./t/parser
+	./test-runner-lite --test-fixtures ./tests ./t/personality
+	./test-runner-lite --test-fixtures ./tests ./t/sbom
+	./test-runner-lite --test-fixtures ./tests ./t/solver
+	./test-runner-lite --test-fixtures ./tests ./t/sysroot
+	./test-runner-lite --test-fixtures ./tests ./t/tuple
 
 clean:
 	rm -f libpkgconf/config.h
-	rm -f ${OBJS}
+	rm -f ${PKGCONF_OBJS}
 	rm -f pkgconf-lite
+	rm -f test-runner-lite
 
 preflight: preflight-system-libdir preflight-system-includedir preflight-pkg-default-path
 
 preflight-system-libdir:
-	@if test -z "${SYSTEM_LIBDIR}"; then		\
-		echo "SYSTEM_LIBDIR not set.";		\
-		exit 1;					\
+	@if test -z "${SYSTEM_LIBDIR}"; then							\
+		echo "SYSTEM_LIBDIR is not set.";						\
+		echo "  Set it to the compiler's default library directory (e.g. /usr/lib).";	\
+		echo "  pkgconf strips this path from --libs output so a package does not emit";	\
+		echo "  a redundant -L for a directory already on the linker's search path.";	\
+		echo "  Example: make -f Makefile.lite SYSTEM_LIBDIR=/usr/lib ...";		\
+		exit 1;										\
 	fi
 
 preflight-system-includedir:
-	@if test -z "${SYSTEM_INCLUDEDIR}"; then	\
-		echo "SYSTEM_INCLUDEDIR not set.";	\
-		exit 1;					\
+	@if test -z "${SYSTEM_INCLUDEDIR}"; then						\
+		echo "SYSTEM_INCLUDEDIR is not set.";						\
+		echo "  Set it to the compiler's default include directory (e.g. /usr/include).";	\
+		echo "  pkgconf strips this path from --cflags output so a package does not emit";	\
+		echo "  a redundant -I for a directory already on the compiler's search path.";	\
+		echo "  Example: make -f Makefile.lite SYSTEM_INCLUDEDIR=/usr/include ...";	\
+		exit 1;										\
 	fi
 
 preflight-pkg-default-path:
-	@if test -z "${PKG_DEFAULT_PATH}"; then		\
-		echo "PKG_DEFAULT_PATH not set.";	\
-		exit 1;					\
+	@if test -z "${PKG_DEFAULT_PATH}"; then							\
+		echo "PKG_DEFAULT_PATH is not set.";						\
+		echo "  Set it to the colon-separated (semicolon on Windows) list of directories where this";	\
+		echo "  system installs .pc files; it is the default search path pkgconf uses when";	\
+		echo "  PKG_CONFIG_PATH is unset.  Without it pkgconf cannot locate any package.";	\
+		echo "  Example: make -f Makefile.lite PKG_DEFAULT_PATH=/usr/lib/pkgconfig:/usr/share/pkgconfig ...";	\
+		exit 1;										\
 	fi
 
 .PHONY: preflight preflight-system-libdir preflight-system-includedir preflight-pkg-default-path clean

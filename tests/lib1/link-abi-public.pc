@@ -1,0 +1,5 @@
+Name: link-abi-public
+Description: a library that publicly exposes a C++ dependency
+Version: 1.0.0
+Requires: link-abi-cxx
+Libs: -lpublic

@@ -1,0 +1,10 @@
+prefix=/test/local
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: libs-shared-test
+Description: A testing pkg-config file for Cflags.shared
+Version: 1.2.3
+Libs.private: libfoo-static.a
+Libs.shared: libfoo-shared.so

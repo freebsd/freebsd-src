@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: libs
+Query: static-archive-libs
+ExpectedStdout: /libfoo.a -pthread

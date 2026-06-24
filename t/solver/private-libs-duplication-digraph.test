@@ -1,0 +1,10 @@
+SkipPlatforms: lite
+PackageSearchPath: lib1
+WantedFlags: static libs-only-libname digraph print-digraph-query-nodes
+Query: private-libs-duplication
+ExpectedStdout: "user:request" -> "private-libs-duplication"
+ExpectedStdout: "private-libs-duplication" -> "bar"
+ExpectedStdout: "private-libs-duplication" -> "baz"
+ExpectedStdout: "bar" -> "foo"
+ExpectedStdout: "baz" -> "foo"
+MatchStdout: partial
