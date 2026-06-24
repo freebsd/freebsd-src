@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2018 Intel Corporation
  * Copyright (c) 2026 The FreeBSD Foundation
+ *
  * Portions of this software were developed by ShengYi Hung
  * <aokblast@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
