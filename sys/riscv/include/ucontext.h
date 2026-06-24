@@ -64,11 +64,11 @@ struct riscv_reg_context {
 
 struct vector_context {
 	struct riscv_reg_context ctx;
-	uint64_t	vs_vstart;
-	uint64_t	vs_vl;
-	uint64_t	vs_vtype;
-	uint64_t	vs_vcsr;
-	uint64_t	reserved[3];
+	__uint64_t	vs_vstart;
+	__uint64_t	vs_vl;
+	__uint64_t	vs_vtype;
+	__uint64_t	vs_vcsr;
+	__uint64_t	reserved[3];
 };
 
 struct __mcontext {
