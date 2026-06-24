@@ -1,7 +1,9 @@
 PACKAGE=	pkgconf
 
+# from contrib/pkgconf/meson.build:246
 PROG=		pkgconf
 SRCS=		main.c
+SRCS+=		core.c
 SRCS+=		getopt_long.c
 SRCS+=		renderer-msvc.c
 

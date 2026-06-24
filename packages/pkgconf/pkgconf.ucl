@@ -25,8 +25,8 @@ development libraries.  It is a superset of the functionality provided by
 pkg-config from freedesktop.org, but does not provide bug-compatibility with
 the original pkg-config.
 
-Also provided is bomtool(1), a program which generates a textual SPDX 2.0
-software bill of materials (SBOM) for a given set of pkg-config modules.  The
-output of this tool can then be translated into other SBOM formats as
-necessary.
+Also provided are bomtool(1) and spdxtool(1), programs which generate a software
+bill of materials (SBOM) for a given set of pkg-config modules, in the SPDX
+version 2.2 and 3.0.1 file formats, respectively.  The output of these tools can
+then be translated into other SBOM formats as necessary.
 EOD

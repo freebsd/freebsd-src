@@ -7,10 +7,35 @@ MAN=		pkg.m4.7
 MANNODEV=	pc.5
 MANNODEV+=	pkgconf-personality.5
 
-SRCS=		audit.c buffer.c cache.c client.c pkg.c bsdstubs.c fragment.c
-SRCS+=		argvsplit.c fileio.c tuple.c dependency.c queue.c
-SRCS+=		path.c personality.c parser.c
-INCS=		bsdstubs.h iter.h libpkgconf-api.h libpkgconf.h stdinc.h
+# from contrib/pkgconf/meson.build:171
+SRCS=		argvsplit.c
+SRCS+=		audit.c
+SRCS+=		buffer.c
+SRCS+=		bufferset.c
+SRCS+=		bytecode.c
+SRCS+=		bsdstubs.c
+SRCS+=		cache.c
+SRCS+=		client.c
+SRCS+=		dependency.c
+SRCS+=		fileio.c
+SRCS+=		fragment.c
+SRCS+=		license.c
+SRCS+=		output.c
+SRCS+=		parser.c
+SRCS+=		path.c
+SRCS+=		personality.c
+SRCS+=		pkg.c
+SRCS+=		queue.c
+SRCS+=		tuple.c
+SRCS+=		variable.c
+SRCS+=		version.c
+
+# from contrib/pkgconf/libpkgconf/meson.build:6
+INCS=		libpkgconf.h
+INCS+=		stdinc.h
+INCS+=		iter.h
+INCS+=		bsdstubs.h
+INCS+=		libpkgconf-api.h
 
 WARNS?=		3
 
