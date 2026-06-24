@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2026 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -210,6 +210,17 @@ ENTRY(cpu_throw)
 	call	_C_LABEL(pmap_activate_sw)
 	mv	a0, s0
 
+	/* Is VS enabled for new thread? */
+	ld	t0, TD_FRAME(a0)
+	ld	t1, (TF_SSTATUS)(t0)
+	li	t2, SSTATUS_VS_MASK
+	and	t3, t1, t2
+	beqz	t3, 1f		/* No, skip. */
+
+	call	_C_LABEL(vector_state_restore)
+	mv	a0, s0
+
+1:
 	/* Store the new curthread */
 	sd	a0, PC_CURTHREAD(tp)
 	/* And the new pcb */
@@ -304,6 +315,33 @@ ENTRY(cpu_switch)
 	__fpe_state_save x13
 1:
 
+	/*
+	 * Is VS enabled and is it in dirty state
+	 * for the old thread?
+	 */
+	ld	t0, TD_FRAME(a0)
+	ld	t1, (TF_SSTATUS)(t0)
+	li	t2, SSTATUS_VS_MASK
+	and	t3, t1, t2
+	li	t2, SSTATUS_VS_DIRTY
+	bne	t3, t2, 1f		/* No, skip. */
+
+	/* Yes, mark VS clean and save registers. */
+	li	t2, ~SSTATUS_VS_MASK
+	and	t3, t1, t2
+	li	t2, SSTATUS_VS_CLEAN
+	or	t3, t3, t2
+	sd	t3, (TF_SSTATUS)(t0)
+
+	mv	s0, a0
+	mv	s1, a1
+	mv	s2, a2
+	call	_C_LABEL(vector_state_store)
+	mv	a0, s0
+	mv	a1, s1
+	mv	a2, s2
+1:
+
 	/* Activate the new thread's pmap */
 	mv	s0, a0
 	mv	s1, a1
@@ -321,6 +359,20 @@ ENTRY(cpu_switch)
 	ld	t0, TD_LOCK(a1)
 	beq	t0, s2, 1b
 #endif
+
+	/* Is VS enabled for new thread? */
+	ld	t0, TD_FRAME(a1)
+	ld	t1, (TF_SSTATUS)(t0)
+	li	t2, SSTATUS_VS_MASK
+	and	t3, t1, t2
+	beqz	t3, 1f		/* No, skip. */
+
+	/* Restore vector registers. */
+	mv	a0, a1
+	call	_C_LABEL(vector_state_restore)
+	mv	a1, s1
+1:
+
 	/*
 	 * Restore the saved context.
 	 */
@@ -453,5 +505,6 @@ ENTRY(savectx)
 	sd	s11, (PCB_S + 11 * 8)(a0)
 
 	__fpe_state_save a0
+	call	_C_LABEL(vector_state_store_savectx)
 	ret
 END(savectx)

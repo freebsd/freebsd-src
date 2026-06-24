@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2014 Andrew Turner
- * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2026 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -299,6 +299,7 @@ init_proc0(void *kstack)
 	thread0.td_kstack_pages = KSTACK_PAGES;
 	thread0.td_pcb = &pcb0;
 	thread0.td_pcb->pcb_fpflags = 0;
+	thread0.td_pcb->pcb_vsflags = 0;
 	thread0.td_frame = &proc0_tf;
 	pcpup->pc_curpcb = thread0.td_pcb;
 }

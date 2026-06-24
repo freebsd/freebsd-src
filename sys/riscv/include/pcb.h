@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2016 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2026 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -51,6 +51,14 @@ struct pcb {
 #define	PCB_FP_STARTED	0x1
 #define	PCB_FP_USERMASK	0x1
 	vm_offset_t	pcb_onfault;	/* Copyinout fault handler */
+	/* Vector state. */
+	uint64_t	pcb_vsflags;
+#define	PCB_VS_STARTED	0x1
+	uint64_t	pcb_vstart;
+	uint64_t	pcb_vl;
+	uint64_t	pcb_vtype;
+	uint64_t	pcb_vcsr;
+	void		*pcb_vsaved;	/* Vector registers area. */
 };
 
 #ifdef _KERNEL

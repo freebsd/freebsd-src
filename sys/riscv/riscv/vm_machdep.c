@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2026 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -53,6 +53,7 @@
 #include <machine/pcb.h>
 #include <machine/frame.h>
 #include <machine/sbi.h>
+#include <machine/vector.h>
 
 #if __riscv_xlen == 64
 #define	TP_OFFSET	16	/* sizeof(struct tcb) */
@@ -99,6 +100,14 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 		critical_exit();
 	}
 
+	/* Ensure the Vector state is saved before copying the pcb. */
+	if ((td1->td_pcb->pcb_vsflags & PCB_VS_STARTED) != 0) {
+		MPASS(td1 == curthread);
+		critical_enter();
+		vector_state_store(td1);
+		critical_exit();
+	}
+
 	pcb2 = td2->td_pcb;
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
@@ -119,6 +128,9 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	td2->td_pcb->pcb_s[1] = (uintptr_t)td2;
 	td2->td_pcb->pcb_ra = (uintptr_t)fork_trampoline;
 	td2->td_pcb->pcb_sp = (uintptr_t)td2->td_frame;
+
+	if ((td1->td_pcb->pcb_vsflags & PCB_VS_STARTED) != 0)
+		vector_copy_thread(td1, td2);
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;

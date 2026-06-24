@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2026 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -54,13 +54,31 @@ struct fpregs {
 	int		pad;
 };
 
+struct riscv_reg_context {
+	__uint32_t	ctx_id;
+	__uint32_t	ctx_size;
+};
+
+#define	RISCV_CTX_MAGIC_END	0
+#define	RISCV_CTX_MAGIC_VS	0x53465457
+
+struct vector_context {
+	struct riscv_reg_context ctx;
+	uint64_t	vs_vstart;
+	uint64_t	vs_vl;
+	uint64_t	vs_vtype;
+	uint64_t	vs_vcsr;
+	uint64_t	reserved[3];
+};
+
 struct __mcontext {
 	struct gpregs	mc_gpregs;
 	struct fpregs	mc_fpregs;
 	int		mc_flags;
 #define	_MC_FP_VALID	0x1		/* Set when mc_fpregs has valid data */
 	int		mc_pad;
-	__uint64_t	mc_spare[8];	/* Space for expansion */
+	__uint64_t	mc_ptr;		/* Address of ctx headers and data */
+	__uint64_t	mc_spare[7];	/* Space for expansion */
 };
 
 typedef struct __mcontext mcontext_t;

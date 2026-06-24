@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2014 Andrew Turner
- * Copyright (c) 2015-2017 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2026 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -62,6 +62,8 @@
 #include <machine/riscvreg.h>
 #include <machine/sbi.h>
 #include <machine/trap.h>
+#include <machine/vector.h>
+#include <machine/md_var.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -70,6 +72,10 @@
 
 static void get_fpcontext(struct thread *td, mcontext_t *mcp);
 static void set_fpcontext(struct thread *td, mcontext_t *mcp);
+
+#define	CTX_SIZE_VS(buf_size)					\
+    roundup2(sizeof(struct vector_context) + (buf_size),	\
+    _Alignof(struct vector_context))
 
 _Static_assert(sizeof(mcontext_t) == 864, "mcontext_t size incorrect");
 _Static_assert(sizeof(ucontext_t) == 936, "ucontext_t size incorrect");
@@ -227,10 +233,55 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
 	return (0);
 }
 
+static int
+restore_vector_state(struct pcb *pcb, struct riscv_reg_context *ctx,
+    vm_offset_t addr)
+{
+	struct vector_context vs_ctx;
+	size_t buf_size;
+	int error;
+
+	/* Ensure vector engine present. */
+	if (!has_vector)
+		return (EINVAL);
+
+	/* Ensure vector state is initialized. */
+	if (pcb->pcb_vsaved == NULL)
+		return (EINVAL);
+
+	buf_size = vector_get_size();
+	if (ctx->ctx_size != CTX_SIZE_VS(buf_size))
+		return (EINVAL);
+
+	/* Copy the vector registers. */
+	error = copyin((const void *)addr, &vs_ctx, sizeof(vs_ctx));
+	if (error != 0)
+		return (error);
+
+	/* Copy the vector data. */
+	if (copyin((void *)(addr + sizeof(vs_ctx)), pcb->pcb_vsaved,
+	    buf_size) != 0)
+		return (EINVAL);
+
+	/* Restore pcb registers. */
+	pcb->pcb_vstart = vs_ctx.vs_vstart;
+	pcb->pcb_vl = vs_ctx.vs_vl;
+	pcb->pcb_vtype = vs_ctx.vs_vtype;
+	pcb->pcb_vcsr = vs_ctx.vs_vcsr;
+	pcb->pcb_vsflags |= PCB_VS_STARTED;
+
+	return (0);
+}
+
 int
 set_mcontext(struct thread *td, mcontext_t *mcp)
 {
 	struct trapframe *tf;
+	struct riscv_reg_context ctx;
+	struct pcb *pcb;
+	vm_offset_t addr;
+	int error, seen_types;
+	bool done;
 
 	tf = td->td_frame;
 
@@ -256,7 +307,47 @@ set_mcontext(struct thread *td, mcontext_t *mcp)
 	tf->tf_gp = mcp->mc_gpregs.gp_gp;
 	tf->tf_sepc = mcp->mc_gpregs.gp_sepc;
 	tf->tf_sstatus = mcp->mc_gpregs.gp_sstatus;
+
 	set_fpcontext(td, mcp);
+
+	if (mcp->mc_ptr == 0)
+		return (0);
+
+	/* Read any register contexts we find */
+	addr = mcp->mc_ptr;
+	pcb = td->td_pcb;
+
+#define	CTX_TYPE_VS	(1 << 0)
+
+	seen_types = 0;
+	done = false;
+	do {
+		if (!__is_aligned(addr, _Alignof(struct riscv_reg_context)))
+			return (EINVAL);
+
+		error = copyin((const void *)addr, &ctx, sizeof(ctx));
+		if (error != 0)
+			return (error);
+
+		switch (ctx.ctx_id) {
+		case RISCV_CTX_MAGIC_VS:
+			if ((seen_types & CTX_TYPE_VS) != 0)
+				return (EINVAL);
+			seen_types |= CTX_TYPE_VS;
+			error = restore_vector_state(pcb, &ctx, addr);
+			if (error)
+				return (EINVAL);
+			break;
+		case RISCV_CTX_MAGIC_END:
+			done = true;
+			break;
+		default:
+			return (EINVAL);
+		}
+		addr += ctx.ctx_size;
+	} while (!done);
+
+#undef	CTX_TYPE_VS
 
 	return (0);
 }
@@ -333,6 +424,71 @@ sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 	return (EJUSTRETURN);
 }
 
+static bool
+sendsig_ctx_end(struct thread *td, vm_offset_t *addrp)
+{
+	struct riscv_reg_context end_ctx;
+	vm_offset_t ctx_addr;
+
+	*addrp -= sizeof(end_ctx);
+	ctx_addr = *addrp;
+
+	memset(&end_ctx, 0, sizeof(end_ctx));
+	end_ctx.ctx_id = RISCV_CTX_MAGIC_END;
+	end_ctx.ctx_size = sizeof(end_ctx);
+
+	if (copyout(&end_ctx, (void *)ctx_addr, sizeof(end_ctx)) != 0)
+		return (false);
+	return (true);
+}
+
+static bool
+sendsig_ctx_vector(struct thread *td, vm_offset_t *addrp)
+{
+	struct vector_context vs_ctx;
+	struct pcb *pcb;
+	size_t buf_size, ctx_size;
+	vm_offset_t vs_ctx_addr;
+
+	pcb = td->td_pcb;
+	/* Do nothing if vector hasn't started */
+	if (pcb->pcb_vsaved == NULL)
+		return (true);
+
+	MPASS(pcb->pcb_vsaved != NULL);
+
+	buf_size = vector_get_size();
+	ctx_size = CTX_SIZE_VS(buf_size);
+
+	/* Address for the full context. */
+	*addrp -= ctx_size;
+	vs_ctx_addr = *addrp;
+
+	memset(&vs_ctx, 0, sizeof(vs_ctx));
+	vs_ctx.ctx.ctx_id = RISCV_CTX_MAGIC_VS;
+	vs_ctx.ctx.ctx_size = ctx_size;
+	vs_ctx.vs_vstart = pcb->pcb_vstart;
+	vs_ctx.vs_vl = pcb->pcb_vl;
+	vs_ctx.vs_vtype = pcb->pcb_vtype;
+	vs_ctx.vs_vcsr = pcb->pcb_vcsr;
+
+	/* Copy out the header and data */
+	if (copyout(&vs_ctx, (void *)vs_ctx_addr, sizeof(vs_ctx)) != 0)
+		return (false);
+	if (copyout(pcb->pcb_vsaved, (void *)(vs_ctx_addr + sizeof(vs_ctx)),
+	    buf_size) != 0)
+		return (false);
+
+	return (true);
+}
+
+typedef bool(*ctx_func)(struct thread *, vm_offset_t *);
+static const ctx_func ctx_funcs[] = {
+	sendsig_ctx_end,	/* Must go first. */
+	sendsig_ctx_vector,
+	NULL,
+};
+
 void
 sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
@@ -342,8 +498,10 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	struct sigacts *psp;
 	struct thread *td;
 	struct proc *p;
+	vm_offset_t addr;
 	int onstack;
 	int sig;
+	int i;
 
 	td = curthread;
 	p = td->td_proc;
@@ -362,15 +520,11 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !onstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct sigframe *)((uintptr_t)td->td_sigstk.ss_sp +
+		addr = ((uintptr_t)td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size);
 	} else {
-		fp = (struct sigframe *)td->td_frame->tf_sp;
+		addr = td->td_frame->tf_sp;
 	}
-
-	/* Make room, keeping the stack aligned */
-	fp--;
-	fp = STACKALIGN(fp);
 
 	/* Fill in the frame to copy out */
 	bzero(&frame, sizeof(frame));
@@ -382,6 +536,25 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	    (onstack ? SS_ONSTACK : 0) : SS_DISABLE;
 	mtx_unlock(&psp->ps_mtx);
 	PROC_UNLOCK(td->td_proc);
+
+	for (i = 0; ctx_funcs[i] != NULL; i++) {
+		if (!ctx_funcs[i](td, &addr)) {
+			CTR4(KTR_SIG,
+			    "sendsig: frame sigexit td=%p fp=%#lx func[%d]=%p",
+			    td, addr, i, ctx_funcs[i]);
+			PROC_LOCK(p);
+			sigexit(td, SIGILL);
+			/* NOTREACHED */
+		}
+	}
+
+	/* Point at the first context */
+	frame.sf_uc.uc_mcontext.mc_ptr = addr;
+
+	/* Make room, keeping the stack aligned */
+	fp = (struct sigframe *)addr;
+	fp--;
+	fp = (struct sigframe *)STACKALIGN(fp);
 
 	/* Copy the sigframe out to the user's stack. */
 	if (copyout(&frame, fp, sizeof(*fp)) != 0) {

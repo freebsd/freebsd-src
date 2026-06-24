@@ -97,6 +97,7 @@ riscv/riscv/trap.c		standard
 riscv/riscv/timer.c		standard
 riscv/riscv/uio_machdep.c	standard
 riscv/riscv/unwind.c		optional	ddb | kdtrace_hooks | stack
+riscv/riscv/vector.c		standard
 riscv/riscv/vm_machdep.c	standard
 riscv/vmm/vmm.c					optional	vmm
 riscv/vmm/vmm_aplic.c				optional	vmm

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2024 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2026 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -64,6 +64,12 @@
 #define	SSTATUS_SPIE_SHIFT		5
 #define	SSTATUS_SPP			(1 << 8)
 #define	SSTATUS_SPP_SHIFT		8
+#define	SSTATUS_VS_SHIFT		9
+#define	SSTATUS_VS_OFF			(0x0 << SSTATUS_VS_SHIFT)
+#define	SSTATUS_VS_INITIAL		(0x1 << SSTATUS_VS_SHIFT)
+#define	SSTATUS_VS_CLEAN		(0x2 << SSTATUS_VS_SHIFT)
+#define	SSTATUS_VS_DIRTY		(0x3 << SSTATUS_VS_SHIFT)
+#define	SSTATUS_VS_MASK			(0x3 << SSTATUS_VS_SHIFT)
 #define	SSTATUS_FS_SHIFT		13
 #define	SSTATUS_FS_OFF			(0x0 << SSTATUS_FS_SHIFT)
 #define	SSTATUS_FS_INITIAL		(0x1 << SSTATUS_FS_SHIFT)
