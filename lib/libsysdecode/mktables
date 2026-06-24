@@ -171,6 +171,7 @@ fi
 gen_table "shmflags"  "SHM_[A-Z_]+[[:space:]]+0x[0-9]+"                    "sys/mman.h"         "SHM_ANON"
 gen_table "itimerwhich"     "ITIMER_[A-Z]+[[:space:]]+[0-9]+"              "sys/time.h"
 gen_table "pfnl_cmd"        "PFNL_CMD_[A-Z_]+[[:space:]]+[0-9]+"           "netpfil/pf/pf_nl.h"
+gen_table "nlm_flag"        "NLM_F_[A-Z]+[[:space:]]+0x[0-9]+"             "netlink/netlink.h"
 
 # Generate a .depend file for our output file
 if [ -n "$output_file" ]; then

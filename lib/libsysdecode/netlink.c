@@ -73,8 +73,11 @@ sysdecode_netlink(FILE *fp, const void *buf, size_t len)
 		}
 
 		fprintf(fp, ",flags=");
-		/* TODO: decode flags symbolically using sysdecode_mask. */
-		fprintf(fp, "0x%x", nl->nlmsg_flags);
+		const char *nlm_f = sysdecode_nlm_flag(nl->nlmsg_flags);
+		if (nlm_f != NULL)
+			fprintf(fp, "%s", nlm_f);
+		else
+			fprintf(fp, "0x%x", nl->nlmsg_flags);
 
 		fprintf(fp, ",seq=%u,pid=%u", nl->nlmsg_seq, nl->nlmsg_pid);
 
