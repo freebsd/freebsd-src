@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #ifndef ADF_ACCEL_DEVICES_H_
 #define ADF_ACCEL_DEVICES_H_
 
@@ -199,11 +199,11 @@ struct adf_accel_unit {
 } __packed;
 
 struct adf_accel_unit_info {
-	u32 inline_ingress_msk;
-	u32 inline_egress_msk;
-	u32 sym_ae_msk;
-	u32 asym_ae_msk;
-	u32 dc_ae_msk;
+	u64 inline_ingress_msk;
+	u64 inline_egress_msk;
+	u64 sym_ae_msk;
+	u64 asym_ae_msk;
+	u64 dc_ae_msk;
 	u8 num_cy_au;
 	u8 num_dc_au;
 	u8 num_asym_au;
@@ -287,7 +287,10 @@ struct adf_hw_csr_ops {
 	void (*write_csr_int_flag)(struct resource *csr_base_addr,
 				   u32 bank,
 				   u32 value);
-	void (*write_csr_int_srcsel)(struct resource *csr_base_addr, u32 bank);
+	void (*write_csr_int_srcsel)(struct resource *csr_base_addr,
+				     u32 bank,
+				     u32 idx,
+				     u32 value);
 	void (*write_csr_int_col_en)(struct resource *csr_base_addr,
 				     u32 bank,
 				     u32 value);
@@ -342,7 +345,7 @@ struct adf_hw_csr_info {
 struct adf_hw_device_data {
 	struct adf_hw_device_class *dev_class;
 	uint32_t (*get_accel_mask)(struct adf_accel_dev *accel_dev);
-	uint32_t (*get_ae_mask)(struct adf_accel_dev *accel_dev);
+	uint64_t (*get_ae_mask)(struct adf_accel_dev *accel_dev);
 	uint32_t (*get_sram_bar_id)(struct adf_hw_device_data *self);
 	uint32_t (*get_misc_bar_id)(struct adf_hw_device_data *self);
 	uint32_t (*get_etr_bar_id)(struct adf_hw_device_data *self);
@@ -402,7 +405,7 @@ struct adf_hw_device_data {
 	void (*reset_hw_units)(struct adf_accel_dev *accel_dev);
 	int (*measure_clock)(struct adf_accel_dev *accel_dev);
 	void (*restore_device)(struct adf_accel_dev *accel_dev);
-	uint32_t (*get_obj_cfg_ae_mask)(struct adf_accel_dev *accel_dev,
+	uint64_t (*get_obj_cfg_ae_mask)(struct adf_accel_dev *accel_dev,
 					enum adf_accel_unit_services services);
 	enum adf_accel_unit_services (
 	    *get_service_type)(struct adf_accel_dev *accel_dev, s32 obj_num);
@@ -440,14 +443,14 @@ struct adf_hw_device_data {
 	uint32_t instance_id;
 	uint16_t accel_mask;
 	u32 aerucm_mask;
-	u32 ae_mask;
-	u32 admin_ae_mask;
+	u64 ae_mask;
+	u64 admin_ae_mask;
 	u32 service_mask;
 	u32 service_to_load_mask;
 	u32 heartbeat_ctr_num;
 	uint16_t tx_rings_mask;
 	uint8_t tx_rx_gap;
-	uint8_t num_banks;
+	uint16_t num_banks;
 	u8 num_rings_per_bank;
 	uint8_t num_accel;
 	uint8_t num_logical_accel;
@@ -614,6 +617,7 @@ struct adf_admin_comms {
 	bus_dmamap_t hb_map;
 	char *virt_addr;
 	char *virt_hb_addr;
+	uint32_t mailbox_offset;
 	struct resource *mailbox_addr;
 	struct sx lock;
 	struct bus_dmamem dma_mem;
@@ -637,9 +641,9 @@ struct adf_accel_vf_info {
 };
 
 struct adf_fw_versions {
-	u8 fw_version_major;
-	u8 fw_version_minor;
-	u8 fw_version_patch;
+	u16 fw_version_major;
+	u16 fw_version_minor;
+	u32 fw_version_patch;
 	u8 mmp_version_major;
 	u8 mmp_version_minor;
 	u8 mmp_version_patch;

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #ifndef QAT_UIO_CONTROL_H
 #define QAT_UIO_CONTROL_H
 #include <sys/condvar.h>
@@ -11,7 +11,7 @@ struct adf_uio_instance_rings {
 };
 
 struct adf_uio_control_bundle {
-	uint8_t hardware_bundle_number;
+	uint16_t hardware_bundle_number;
 	bool used;
 	struct list_head list;
 	struct mutex list_lock; /* protects list struct */

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
@@ -210,7 +210,7 @@ adf_attach(device_t dev)
 	accel_pci_dev->sku = hw_data->get_sku(hw_data);
 	/* If the device has no acceleration engines then ignore it. */
 	if (!hw_data->accel_mask || !hw_data->ae_mask ||
-	    (~hw_data->ae_mask & 0x01)) {
+	    (~hw_data->ae_mask & 0x01ULL)) {
 		device_printf(dev, "No acceleration units found\n");
 		ret = ENXIO;
 		goto out_err;

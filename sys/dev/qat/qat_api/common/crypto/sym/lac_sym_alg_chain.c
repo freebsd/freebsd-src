@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 
 /**
  ***************************************************************************
@@ -1567,7 +1567,6 @@ LacAlgChain_Perform(const CpaInstanceHandle instanceHandle,
 	CpaCySymCipherAlgorithm cipher;
 	CpaCySymHashAlgorithm hash;
 	Cpa8U paddingLen = 0;
-	Cpa8U blockLen = 0;
 	CpaBoolean digestIsAppended = CPA_FALSE;
 	Cpa32U aadLenInBytes = 0;
 	Cpa64U srcPktSize = 0;
@@ -2000,13 +1999,17 @@ LacAlgChain_Perform(const CpaInstanceHandle instanceHandle,
 			if ((SPC == pSessionDesc->singlePassState) &&
 			    CPA_STATUS_SUCCESS == status) {
 				Cpa64U aadBufferPhysAddr = 0;
-
-				/* For CHACHA and AES-GCM there is an AAD buffer
-				 * if aadLenInBytes is nonzero In case of
-				 * AES-GMAC, AAD buffer passed in the src
+				/* Pad the AAD buffer to a blocklen multiple and
+				 * get the physical address of the buffer. For
+				 * CHACHA and AES-GCM there is an AAD buffer if
+				 * aadLenInBytes is nonzero. For CCM there is
+				 * always an AAD buffer, even if aadLenInBytes
+				 * is zero, as the first 16 bytes are needed for
+				 * B0. In case of AES-GMAC, no AAD buffer is
+				 * needed as the AAD is passed in the src
 				 * buffer.
 				 */
-				if ((0 != aadLenInBytes &&
+				if ((0 < aadLenInBytes &&
 				     CPA_CY_SYM_HASH_AES_GMAC != hash) ||
 				    isSpCcm) {
 					LAC_CHECK_NULL_PARAM(
@@ -2014,19 +2017,23 @@ LacAlgChain_Perform(const CpaInstanceHandle instanceHandle,
 					Cpa32U aadDataLen =
 					    pSessionDesc->aadLenInBytes;
 
-					/* In case of AES_CCM, B0 block size and
-					 * 2 bytes of AAD len encoding need to
-					 * be added to total AAD data len */
-					if (isSpCcm)
+					/* In case of AES_CCM, start padding
+					 * after B0 block size plus 2 bytes of
+					 * AAD len encoding plus AAD data len.
+					 * Padding is only needed for aadLen >
+					 * 0.
+					 */
+					if (isSpCcm && 0 < aadLenInBytes)
 						aadDataLen +=
 						    LAC_CIPHER_CCM_AAD_OFFSET;
 
-					blockLen =
-					    LacSymQat_CipherBlockSizeBytesGet(
-						cipher);
-					if ((aadDataLen % blockLen) != 0) {
-						paddingLen = blockLen -
-						    (aadDataLen % blockLen);
+					if (aadDataLen %
+						LAC_SYM_CIPHER_AAD_PADLEN !=
+					    0) {
+						paddingLen =
+						    LAC_SYM_CIPHER_AAD_PADLEN -
+						    (aadDataLen %
+						     LAC_SYM_CIPHER_AAD_PADLEN);
 						memset(
 						    &pOpData
 							 ->pAdditionalAuthData

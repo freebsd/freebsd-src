@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #ifndef ADF_GEN4_HW_CSR_DATA_H_
 #define ADF_GEN4_HW_CSR_DATA_H_
 
 #include "adf_accel_devices.h"
 
 /* Transport access */
+#define ADF_RINGS_PER_INT_SRCSEL 2
+#define ADF_RING_CSR_NEXT_INT_SRCSEL 0x4
 #define ADF_BANK_INT_SRC_SEL_MASK 0x44UL
 #define ADF_RING_CSR_RING_CONFIG 0x1000
 #define ADF_RING_CSR_RING_LBASE 0x1040
@@ -117,11 +119,13 @@ read_base_gen4(struct resource *csr_base_addr, u32 bank, u32 ring)
 		   ADF_RING_CSR_ADDR_OFFSET + ADF_RING_BUNDLE_SIZE * (bank) +  \
 		       ADF_RING_CSR_INT_FLAG,                                  \
 		   (value))
-#define WRITE_CSR_INT_SRCSEL(csr_base_addr, bank)                              \
+#define WRITE_CSR_INT_SRCSEL(csr_base_addr, bank, idx, value)                  \
 	ADF_CSR_WR((csr_base_addr),                                            \
-		   ADF_RING_CSR_ADDR_OFFSET + ADF_RING_BUNDLE_SIZE * (bank) +  \
-		       ADF_RING_CSR_INT_SRCSEL,                                \
-		   ADF_BANK_INT_SRC_SEL_MASK)
+		   ADF_RING_CSR_ADDR_OFFSET +                                  \
+		       (ADF_RING_BUNDLE_SIZE * (bank)) +                       \
+		       (ADF_RING_CSR_INT_SRCSEL +                              \
+			((idx)*ADF_RING_CSR_NEXT_INT_SRCSEL)),                 \
+		   (value))
 #define WRITE_CSR_INT_COL_EN(csr_base_addr, bank, value)                       \
 	ADF_CSR_WR((csr_base_addr),                                            \
 		   ADF_RING_CSR_ADDR_OFFSET + ADF_RING_BUNDLE_SIZE * (bank) +  \
