@@ -183,6 +183,16 @@ static inline struct ib_qp *_ib_create_qp(struct ib_device *dev,
 	return qp;
 }
 
+struct rdma_dev_addr;
+int rdma_resolve_ip_route(struct sockaddr *src_addr,
+			  const struct sockaddr *dst_addr,
+			  struct rdma_dev_addr *addr);
+
+int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
+				 const union ib_gid *dgid,
+				 u8 *dmac, if_t ndev,
+				 int *hoplimit);
+
 struct rdma_umap_priv {
 	struct vm_area_struct *vma;
 	struct list_head list;

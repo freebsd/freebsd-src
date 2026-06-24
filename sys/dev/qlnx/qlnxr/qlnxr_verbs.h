@@ -34,11 +34,6 @@ extern int qlnxr_iw_query_gid(struct ib_device *,
 			int index,
 			union ib_gid *gid);
 
-extern int qlnxr_query_gid(struct ib_device *,
-			u8 port,
-			int index,
-			union ib_gid *gid);
-
 extern int qlnxr_create_srq(struct ib_srq *ibsrq,
 			struct ib_srq_init_attr *,
 			struct ib_udata *);

@@ -1787,8 +1787,6 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 
 			status = ib_get_cached_gid(ibqp->device, port_num,
 						   index, &gid, &gid_attr);
-			if (!status && !memcmp(&gid, &zgid, sizeof(gid)))
-				status = -ENOENT;
 			if (!status && gid_attr.ndev) {
 				vlan = rdma_vlan_dev_vlan_id(gid_attr.ndev);
 				memcpy(smac, if_getlladdr(gid_attr.ndev), ETH_ALEN);

@@ -197,7 +197,6 @@ qlnxr_register_device(qlnxr_dev_t *dev)
                 ibdev->query_gid = qlnxr_iw_query_gid;
         } else {
                 ibdev->node_type = RDMA_NODE_IB_CA;
-                ibdev->query_gid = qlnxr_query_gid;
                 ibdev->uverbs_cmd_mask |=
 			(1ull << IB_USER_VERBS_CMD_CREATE_SRQ) |
 			(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ) |

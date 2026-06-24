@@ -77,10 +77,7 @@ irdma_get_dev_fw_str(struct ib_device *dev,
 }
 
 int
-irdma_add_gid(struct ib_device *device,
-	      u8 port_num,
-	      unsigned int index,
-	      const union ib_gid *gid,
+irdma_add_gid(const union ib_gid *gid,
 	      const struct ib_gid_attr *attr,
 	      void **context)
 {
@@ -88,9 +85,7 @@ irdma_add_gid(struct ib_device *device,
 }
 
 int
-irdma_del_gid(struct ib_device *device,
-	      u8 port_num,
-	      unsigned int index,
+irdma_del_gid(const struct ib_gid_attr *attr,
 	      void **context)
 {
 	return 0;
@@ -1514,28 +1509,6 @@ void
 ib_unregister_device_put(struct ib_device *device)
 {
 	ib_unregister_device(device);
-}
-
-/**
- * irdma_query_gid_roce - Query port GID for Roce
- * @ibdev: device pointer from stack
- * @port: port number
- * @index: Entry index
- * @gid: Global ID
- */
-int
-irdma_query_gid_roce(struct ib_device *ibdev, u8 port, int index,
-		     union ib_gid *gid)
-{
-	int ret;
-
-	ret = ib_get_cached_gid(ibdev, port, index, gid, NULL);
-	if (ret == -EAGAIN) {
-		memcpy(gid, &zgid, sizeof(*gid));
-		return 0;
-	}
-
-	return ret;
 }
 
 /**

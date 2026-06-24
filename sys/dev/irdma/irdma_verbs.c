@@ -3328,7 +3328,6 @@ irdma_set_device_roce_ops(struct ib_device *ibdev)
 	dev_ops->get_port_immutable = irdma_roce_port_immutable;
 	dev_ops->modify_qp = irdma_modify_qp_roce;
 	dev_ops->query_ah = irdma_query_ah;
-	dev_ops->query_gid = irdma_query_gid_roce;
 	dev_ops->query_pkey = irdma_query_pkey;
 	ibdev->add_gid = irdma_add_gid;
 	ibdev->del_gid = irdma_del_gid;

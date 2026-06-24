@@ -2179,7 +2179,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->modify_port		= bnxt_re_modify_port;
 	ibdev->get_port_immutable	= bnxt_re_get_port_immutable;
 	ibdev->query_pkey		= bnxt_re_query_pkey;
-	ibdev->query_gid		= bnxt_re_query_gid;
 	ibdev->get_netdev		= bnxt_re_get_netdev;
 	ibdev->add_gid			= bnxt_re_add_gid;
 	ibdev->del_gid			= bnxt_re_del_gid;

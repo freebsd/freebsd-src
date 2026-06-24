@@ -443,12 +443,11 @@ int bnxt_re_query_gid(struct ib_device *ibdev, u8 port_num,
 	return rc;
 }
 
-int bnxt_re_del_gid(struct ib_device *ibdev, u8 port_num,
-		    unsigned int index, void **context)
+int bnxt_re_del_gid(const struct ib_gid_attr *attr, void **context)
 {
 	int rc = 0;
 	struct bnxt_re_gid_ctx *ctx, **ctx_tbl;
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
+	struct bnxt_re_dev *rdev = to_bnxt_re_dev(attr->device, ibdev);
 	struct bnxt_qplib_sgid_tbl *sgid_tbl = &rdev->qplib_res.sgid_tbl;
 	struct bnxt_qplib_gid *gid_to_del;
 	u16 vlan_id = 0xFFFF;
@@ -482,14 +481,14 @@ int bnxt_re_del_gid(struct ib_device *ibdev, u8 port_num,
 			dev_dbg(rdev_to_dev(rdev),
 				"Trying to delete GID0 while QP1 is alive\n");
 			if (!ctx->refcnt) {
-				rdev->gid_map[index] = -1;
+				rdev->gid_map[attr->index] = -1;
 				ctx_tbl = sgid_tbl->ctx;
 				ctx_tbl[ctx->idx] = NULL;
 				kfree(ctx);
 			}
 			return 0;
 		}
-		rdev->gid_map[index] = -1;
+		rdev->gid_map[attr->index] = -1;
 		if (!ctx->refcnt) {
 			rc = bnxt_qplib_del_sgid(sgid_tbl, gid_to_del,
 						 vlan_id, true);
@@ -510,15 +509,14 @@ int bnxt_re_del_gid(struct ib_device *ibdev, u8 port_num,
 	return rc;
 }
 
-int bnxt_re_add_gid(struct ib_device *ibdev, u8 port_num,
-		    unsigned int index, const union ib_gid *gid,
+int bnxt_re_add_gid(const union ib_gid *gid,
 		    const struct ib_gid_attr *attr, void **context)
 {
 	int rc;
 	u32 tbl_idx = 0;
 	u16 vlan_id = 0xFFFF;
 	struct bnxt_re_gid_ctx *ctx, **ctx_tbl;
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
+	struct bnxt_re_dev *rdev = to_bnxt_re_dev(attr->device, ibdev);
 	struct bnxt_qplib_sgid_tbl *sgid_tbl = &rdev->qplib_res.sgid_tbl;
 	if ((attr->ndev) && is_vlan_dev(attr->ndev))
 		vlan_id = vlan_dev_vlan_id(attr->ndev);
@@ -540,8 +538,8 @@ int bnxt_re_add_gid(struct ib_device *ibdev, u8 port_num,
 			ctx_tbl[tbl_idx]->refcnt++;
 		}
 		*context = ctx_tbl[tbl_idx];
-		/* tbl_idx is the HW table index and index is the stack index */
-		rdev->gid_map[index] = tbl_idx;
+		/* tbl_idx is the HW table index and attr->index is the stack index */
+		rdev->gid_map[attr->index] = tbl_idx;
 		return 0;
 	} else if (rc < 0) {
 		dev_err(rdev_to_dev(rdev), "Add GID failed rc = 0x%x\n", rc);
@@ -556,8 +554,8 @@ int bnxt_re_add_gid(struct ib_device *ibdev, u8 port_num,
 		ctx->idx = tbl_idx;
 		ctx->refcnt = 1;
 		ctx_tbl[tbl_idx] = ctx;
-		/* tbl_idx is the HW table index and index is the stack index */
-		rdev->gid_map[index] = tbl_idx;
+		/* tbl_idx is the HW table index and attr->index is the stack index */
+		rdev->gid_map[attr->index] = tbl_idx;
 		*context = ctx;
 	}
 	return rc;

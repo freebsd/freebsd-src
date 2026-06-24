@@ -119,44 +119,6 @@ qlnxr_iw_query_gid(struct ib_device *ibdev, u8 port, int index,
 }
 
 int
-qlnxr_query_gid(struct ib_device *ibdev, u8 port, int index,
-	union ib_gid *sgid)
-{
-	struct qlnxr_dev	*dev;
-	qlnx_host_t		*ha;
-
-	dev = get_qlnxr_dev(ibdev);
-	ha = dev->ha;
-	QL_DPRINT12(ha, "enter index: %d\n", index);
-#if 0
-	int ret = 0;
-	/* @@@: if DEFINE_ROCE_GID_TABLE to be used here */
-	//if (!rdma_cap_roce_gid_table(ibdev, port)) {
-	if (!(rdma_protocol_roce(ibdev, port) &&
-		ibdev->add_gid && ibdev->del_gid)) {
-		QL_DPRINT11(ha, "acquire gid failed\n");
-		return -ENODEV;
-	}
-
-	ret = ib_get_cached_gid(ibdev, port, index, sgid, NULL);
-	if (ret == -EAGAIN) {
-		memcpy(sgid, &zgid, sizeof(*sgid));
-		return 0;
-	}
-#endif
-	if ((index >= QLNXR_MAX_SGID) || (index < 0)) {
-		QL_DPRINT12(ha, "invalid gid index %d\n", index);
-		memset(sgid, 0, sizeof(*sgid));
-		return -EINVAL;
-	}
-	memcpy(sgid, &dev->sgid_tbl[index], sizeof(*sgid));
-
-	QL_DPRINT12(ha, "exit : %p\n", sgid);
-
-	return 0;
-}
-
-int
 qlnxr_create_srq(struct ib_srq *ibsrq,
 		 struct ib_srq_init_attr *init_attr,
 		 struct ib_udata *udata)
