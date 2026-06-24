@@ -1412,15 +1412,7 @@ int ib_modify_qp(struct ib_qp *qp,
 		 struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask)
 {
-	if (qp_attr_mask & IB_QP_AV) {
-		int ret;
-
-		ret = ib_resolve_eth_dmac(qp->device, &qp_attr->ah_attr);
-		if (ret)
-			return ret;
-	}
-
-	return qp->device->modify_qp(qp->real_qp, qp_attr, qp_attr_mask, NULL);
+	return _ib_modify_qp(qp->real_qp, qp_attr, qp_attr_mask, NULL);
 }
 EXPORT_SYMBOL(ib_modify_qp);
 
