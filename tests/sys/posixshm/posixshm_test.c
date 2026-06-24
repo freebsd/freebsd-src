@@ -34,6 +34,7 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
@@ -2151,6 +2152,93 @@ ATF_TC_BODY(largepage_reopen, tc)
 	    "close failed; errno=%d", errno);
 }
 
+static unsigned char
+largepage_sendfile_expected(size_t off)
+{
+
+	return ((unsigned char)(off * 131 + (off >> 8)));
+}
+
+ATF_TC_WITHOUT_HEAD(largepage_sendfile);
+ATF_TC_BODY(largepage_sendfile, tc)
+{
+	static const int flags[] = { 0, SF_NOCACHE };
+	char *addr;
+	off_t sbytes;
+	size_t ps[MAXPAGESIZES];
+	int error, fd, pscnt, sd[2], status;
+	pid_t child;
+
+	pscnt = pagesizes(ps);
+
+	for (int i = 1; i < pscnt; i++) {
+		for (int fi = 0; fi < (int)nitems(flags); fi++) {
+			fd = shm_open_large(i, SHM_LARGEPAGE_ALLOC_DEFAULT,
+			    ps[i]);
+			addr = mmap(NULL, ps[i], PROT_READ | PROT_WRITE,
+			    MAP_SHARED, fd, 0);
+			ATF_REQUIRE_MSG(addr != MAP_FAILED,
+			    "mmap(%zu bytes) failed; error=%d", ps[i], errno);
+
+			/* Fill with a verifiable pattern. */
+			for (size_t j = 0; j < ps[i]; j++)
+				addr[j] = largepage_sendfile_expected(j);
+
+			ATF_REQUIRE(socketpair(PF_LOCAL, SOCK_STREAM, 0,
+			    sd) == 0);
+
+			child = fork();
+			ATF_REQUIRE_MSG(child != -1,
+			    "fork() failed; error=%d", errno);
+			if (child == 0) {
+				char buf[BUFSIZ];
+				ssize_t len;
+				size_t off, resid;
+
+				(void)close(sd[0]);
+				off = 0;
+				for (resid = ps[i]; resid > 0; resid -= len) {
+					len = read(sd[1], buf, sizeof(buf));
+					if (len <= 0)
+						_exit(1);
+					for (ssize_t k = 0; k < len; k++) {
+						if ((unsigned char)buf[k] !=
+						    largepage_sendfile_expected(
+						    off + k))
+							_exit(2);
+					}
+					off += len;
+				}
+				_exit(0);
+			}
+			ATF_REQUIRE(close(sd[1]) == 0);
+
+			sbytes = 0;
+			error = sendfile(fd, sd[0], 0, ps[i], NULL, &sbytes,
+			    flags[fi]);
+			ATF_REQUIRE_MSG(error == 0,
+			    "sendfile() failed; error=%d flags=%#x",
+			    errno, flags[fi]);
+			ATF_REQUIRE_MSG(sbytes == (off_t)ps[i],
+			    "sendfile() short; sbytes=%jd expected=%zu flags=%#x",
+			    (intmax_t)sbytes, ps[i], flags[fi]);
+
+			ATF_REQUIRE(close(sd[0]) == 0);
+
+			ATF_REQUIRE_MSG(waitpid(child, &status, 0) == child,
+			    "waitpid() failed; error=%d", errno);
+			ATF_REQUIRE_MSG(WIFEXITED(status),
+			    "child killed by signal %d", WTERMSIG(status));
+			ATF_REQUIRE_MSG(WEXITSTATUS(status) == 0,
+			    "child exited with status %d (flags=%#x)",
+			    WEXITSTATUS(status), flags[fi]);
+
+			ATF_REQUIRE(munmap(addr, ps[i]) == 0);
+			ATF_REQUIRE(close(fd) == 0);
+		}
+	}
+}
+
 ATF_TC_WITHOUT_HEAD(largepage_truncate);
 ATF_TC_BODY(largepage_truncate, tc)
 {
@@ -2239,6 +2327,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, largepage_pkru);
 #endif
 	ATF_TP_ADD_TC(tp, largepage_reopen);
+	ATF_TP_ADD_TC(tp, largepage_sendfile);
 	ATF_TP_ADD_TC(tp, largepage_truncate);
 
 	return (atf_no_error());
