@@ -128,6 +128,16 @@ const char *ib_cache_gid_type_str(enum ib_gid_type gid_type)
 }
 EXPORT_SYMBOL(ib_cache_gid_type_str);
 
+/** rdma_is_zero_gid - Check if given GID is zero or not.
+ * @gid:	GID to check
+ * Returns true if given GID is zero, returns false otherwise.
+ */
+bool rdma_is_zero_gid(const union ib_gid *gid)
+{
+	return !memcmp(gid, &zgid, sizeof(*gid));
+}
+EXPORT_SYMBOL(rdma_is_zero_gid);
+
 int ib_cache_gid_parse_type_str(const char *buf)
 {
 	unsigned int i;
@@ -151,6 +161,11 @@ int ib_cache_gid_parse_type_str(const char *buf)
 	return err;
 }
 EXPORT_SYMBOL(ib_cache_gid_parse_type_str);
+
+static struct ib_gid_table *rdma_gid_table(struct ib_device *device, u8 port)
+{
+	return device->cache.ports[port - rdma_start_port(device)].gid;
+}
 
 static void del_roce_gid(struct ib_device *device, u8 port_num,
 			 struct ib_gid_table *table, int ix)
@@ -234,7 +249,7 @@ static int add_modify_gid(struct ib_gid_table *table,
 		 * So ignore such behavior for IB link layer and don't
 		 * fail the call, but don't add such entry to GID cache.
 		 */
-		if (!memcmp(gid, &zgid, sizeof(*gid)))
+		if (rdma_is_zero_gid(gid))
 			return 0;
 	}
  
@@ -267,7 +282,7 @@ static void del_gid(struct ib_device *ib_dev, u8 port,
 
 	if (rdma_protocol_roce(ib_dev, port))
 		del_roce_gid(ib_dev, port, table, ix);
-	memcpy(&table->data_vec[ix].gid, &zgid, sizeof(zgid));
+	memset(&table->data_vec[ix].gid, 0, sizeof(table->data_vec[ix].gid));
 	memset(&table->data_vec[ix].attr, 0, sizeof(table->data_vec[ix].attr));
 	table->data_vec[ix].context = NULL;
 }
@@ -380,10 +395,10 @@ static int __ib_cache_gid_add(struct ib_device *ib_dev, u8 port,
 	 * IB spec version 1.3 section 4.1.1 point (6) and
 	 * section 12.7.10 and section 12.7.20
 	 */
-	if (!memcmp(gid, &zgid, sizeof(*gid)))
+	if (rdma_is_zero_gid(gid))
 		return -EINVAL;
 
-	table = ib_dev->cache.ports[port - rdma_start_port(ib_dev)].gid;
+	table = rdma_gid_table(ib_dev, port);
 
 	mutex_lock(&table->lock);
 
@@ -433,7 +448,7 @@ _ib_cache_gid_del(struct ib_device *ib_dev, u8 port,
 	int ret = 0;
 	int ix;
 
-	table = ib_dev->cache.ports[port - rdma_start_port(ib_dev)].gid;
+	table = rdma_gid_table(ib_dev, port);
 
 	mutex_lock(&table->lock);
 
@@ -472,7 +487,7 @@ int ib_cache_gid_del_all_netdev_gids(struct ib_device *ib_dev, u8 port,
 	int ix;
 	bool deleted = false;
 
-	table = ib_dev->cache.ports[port - rdma_start_port(ib_dev)].gid;
+	table = rdma_gid_table(ib_dev, port);
 
 	mutex_lock(&table->lock);
 
@@ -496,7 +511,7 @@ static int __ib_cache_gid_get(struct ib_device *ib_dev, u8 port, int index,
 {
 	struct ib_gid_table *table;
 
-	table = ib_dev->cache.ports[port - rdma_start_port(ib_dev)].gid;
+	table = rdma_gid_table(ib_dev, port);
 
 	if (index < 0 || index >= table->sz)
 		return -EINVAL;
@@ -594,7 +609,7 @@ int ib_find_cached_gid_by_port(struct ib_device *ib_dev,
 	if (!rdma_is_port_valid(ib_dev, port))
 		return -ENOENT;
 
-	table = ib_dev->cache.ports[port - rdma_start_port(ib_dev)].gid;
+	table = rdma_gid_table(ib_dev, port);
 
 	if (ndev)
 		mask |= GID_ATTR_FIND_MASK_NETDEV;
@@ -653,7 +668,7 @@ static int ib_cache_gid_find_by_filter(struct ib_device *ib_dev,
 	if (!rdma_protocol_roce(ib_dev, port))
 		return -EPROTONOSUPPORT;
 
-	table = ib_dev->cache.ports[port - rdma_start_port(ib_dev)].gid;
+	table = rdma_gid_table(ib_dev, port);
 
 	read_lock_irqsave(&table->rwlock, flags);
 	for (i = 0; i < table->sz; i++) {
@@ -730,8 +745,7 @@ static void cleanup_gid_table_port(struct ib_device *ib_dev, u8 port,
 
 	mutex_lock(&table->lock);
 	for (i = 0; i < table->sz; ++i) {
-		if (memcmp(&table->data_vec[i].gid, &zgid,
-			   sizeof(table->data_vec[i].gid))) {
+		if (!rdma_is_zero_gid(&table->data_vec[i].gid)) {
 			del_gid(ib_dev, port, table, i);
 			deleted = true;
 		}
@@ -753,7 +767,7 @@ void ib_cache_gid_set_default_gid(struct ib_device *ib_dev, u8 port,
 	unsigned int gid_type;
 	unsigned long mask;
 
-	table = ib_dev->cache.ports[port - rdma_start_port(ib_dev)].gid;
+	table = rdma_gid_table(ib_dev, port);
 
 	mask = GID_ATTR_FIND_MASK_GID_TYPE |
 	       GID_ATTR_FIND_MASK_DEFAULT |
@@ -907,7 +921,7 @@ int ib_get_cached_gid(struct ib_device *device,
 	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
-	table = device->cache.ports[port_num - rdma_start_port(device)].gid;
+	table = rdma_gid_table(device, port_num);
 	read_lock_irqsave(&table->rwlock, flags);
 	res = __ib_cache_gid_get(device, port_num, index, gid, gid_attr);
 	read_unlock_irqrestore(&table->rwlock, flags);
@@ -1106,7 +1120,7 @@ static int config_non_roce_gid_cache(struct ib_device *device,
 
 	gid_attr.device = device;
 	gid_attr.port_num = port;
-	table = device->cache.ports[port - rdma_start_port(device)].gid;
+	table = rdma_gid_table(device, port);
 
 	mutex_lock(&table->lock);
 	for (i = 0; i < gid_tbl_len; ++i) {
@@ -1138,7 +1152,7 @@ static void ib_cache_update(struct ib_device *device,
 	if (!rdma_is_port_valid(device, port))
 		return;
 
-	table = device->cache.ports[port - rdma_start_port(device)].gid;
+	table = rdma_gid_table(device, port);
 
 	tprops = kmalloc(sizeof *tprops, GFP_KERNEL);
 	if (!tprops)

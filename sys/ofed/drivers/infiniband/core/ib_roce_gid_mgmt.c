@@ -280,7 +280,7 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 		dev_put(ndev);
 
 		/* don't delete empty entries */
-		if (memcmp(&gid, &zgid, sizeof(zgid)) == 0)
+		if (rdma_is_zero_gid(&gid))
 			continue;
 
 		/* zero default */
