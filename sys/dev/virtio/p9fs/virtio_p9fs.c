@@ -86,13 +86,6 @@ static struct virtio_feature_desc virtio_9p_feature_desc[] = {
 
 VIRTIO_SIMPLE_PNPINFO(virtio_p9fs, VIRTIO_ID_9P, "VirtIO 9P Transport");
 
-/* We don't currently allow canceling of virtio requests */
-static int
-vt9p_cancel(void *handle, struct p9_req_t *req)
-{
-	return (1);
-}
-
 SYSCTL_NODE(_vfs, OID_AUTO, 9p, CTLFLAG_RW, 0, "9P File System Protocol");
 
 /*
@@ -443,7 +436,6 @@ static struct p9_trans_module vt9p_trans = {
 	.create = vt9p_create,
 	.close = vt9p_close,
 	.request = vt9p_request,
-	.cancel = vt9p_cancel,
 };
 
 static device_method_t vt9p_mthds[] = {
