@@ -613,7 +613,7 @@ struct bnxt_re_resolve_dmac_work{
 	struct work_struct      work;
 	struct list_head	list;
 	struct bnxt_re_dev 	*rdev;
-	struct ib_ah_attr	*ah_attr;
+	struct rdma_ah_attr	*ah_attr;
 	struct bnxt_re_ah_info *ah_info;
 	atomic_t		status_wait;
 };

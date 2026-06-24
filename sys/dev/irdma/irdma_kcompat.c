@@ -527,7 +527,7 @@ irdma_create_ah_wait(struct irdma_pci_f *rf,
 
 static int
 irdma_create_sleepable_ah(struct ib_ah *ib_ah,
-			  struct ib_ah_attr *attr, u32 flags,
+			  struct rdma_ah_attr *attr, u32 flags,
 			  struct ib_udata *udata)
 {
 	struct irdma_pd *pd = to_iwpd(ib_ah->pd);
@@ -591,7 +591,7 @@ irdma_create_sleepable_ah(struct ib_ah *ib_ah,
 		ah_info->tc_tos = attr->grh.traffic_class;
 	}
 
-	ether_addr_copy(dmac, attr->dmac);
+	ether_addr_copy(dmac, attr->roce.dmac);
 
 	irdma_fill_ah_info(if_getvnet(iwdev->netdev), ah_info, &sgid_attr, &sgid_addr, &dgid_addr,
 			   dmac, ah->av.net_type);
@@ -639,21 +639,21 @@ err_gid_l2:
  */
 int
 irdma_create_ah(struct ib_ah *ib_ah,
-		struct ib_ah_attr *attr, u32 flags,
+		struct rdma_ah_attr *attr, u32 flags,
 		struct ib_udata *udata)
 {
 	return irdma_create_sleepable_ah(ib_ah, attr, flags, udata);
 }
 
 void
-irdma_ether_copy(u8 *dmac, struct ib_ah_attr *attr)
+irdma_ether_copy(u8 *dmac, struct rdma_ah_attr *attr)
 {
-	ether_addr_copy(dmac, attr->dmac);
+	ether_addr_copy(dmac, attr->roce.dmac);
 }
 
 int
 irdma_create_ah_stub(struct ib_ah *ib_ah,
-		     struct ib_ah_attr *attr, u32 flags,
+		     struct rdma_ah_attr *attr, u32 flags,
 		     struct ib_udata *udata)
 {
 	return -ENOSYS;
@@ -1402,9 +1402,11 @@ kc_irdma_set_roce_cm_info(struct irdma_qp *iwqp, struct ib_qp_attr *attr,
 	union ib_gid sgid;
 	struct ib_gid_attr sgid_attr;
 	struct irdma_av *av = &iwqp->roce_ah.av;
+	const struct ib_global_route *grh = rdma_ah_read_grh(&attr->ah_attr);
 
-	ret = ib_get_cached_gid(iwqp->ibqp.device, attr->ah_attr.port_num,
-				attr->ah_attr.grh.sgid_index, &sgid,
+	ret = ib_get_cached_gid(iwqp->ibqp.device,
+				rdma_ah_get_port_num(&attr->ah_attr),
+				grh->sgid_index, &sgid,
 				&sgid_attr);
 	if (ret)
 		return ret;

@@ -575,6 +575,7 @@ static inline struct rdma_hw_stats *rdma_alloc_hw_stats_struct(
 /* Address format                       0x000FF000 */
 #define RDMA_CORE_CAP_AF_IB             0x00001000
 #define RDMA_CORE_CAP_ETH_AH            0x00002000
+#define RDMA_CORE_CAP_OPA_AH            0x00004000
 
 /* Protocol                             0xFFF00000 */
 #define RDMA_CORE_CAP_PROT_IB           0x00100000
@@ -834,15 +835,38 @@ struct ib_mr_status {
  */
 __attribute_const__ enum ib_rate mult_to_ib_rate(int mult);
 
+enum rdma_ah_attr_type {
+	RDMA_AH_ATTR_TYPE_IB,
+	RDMA_AH_ATTR_TYPE_ROCE,
+	RDMA_AH_ATTR_TYPE_OPA,
+};
+
 struct ib_ah_attr {
-	struct ib_global_route	grh;
 	u16			dlid;
-	u8			sl;
 	u8			src_path_bits;
-	u8			static_rate;
-	u8			ah_flags;
-	u8			port_num;
+};
+
+struct roce_ah_attr {
 	u8			dmac[ETH_ALEN];
+};
+
+struct opa_ah_attr {
+	u32			dlid;
+	u8			src_path_bits;
+};
+
+struct rdma_ah_attr {
+	struct ib_global_route	grh;
+	u8			sl;
+	u8			static_rate;
+	u8			port_num;
+	u8			ah_flags;
+	enum rdma_ah_attr_type type;
+	union {
+		struct ib_ah_attr ib;
+		struct roce_ah_attr roce;
+		struct opa_ah_attr opa;
+	};
 };
 
 enum ib_wc_status {
@@ -1180,8 +1204,8 @@ struct ib_qp_attr {
 	u32			dest_qp_num;
 	int			qp_access_flags;
 	struct ib_qp_cap	cap;
-	struct ib_ah_attr	ah_attr;
-	struct ib_ah_attr	alt_ah_attr;
+	struct rdma_ah_attr	ah_attr;
+	struct rdma_ah_attr	alt_ah_attr;
 	u16			pkey_index;
 	u16			alt_pkey_index;
 	u8			en_sqd_async_notify;
@@ -1469,6 +1493,7 @@ struct ib_ah {
 	struct ib_device	*device;
 	struct ib_pd		*pd;
 	struct ib_uobject	*uobject;
+	enum rdma_ah_attr_type	type;
 };
 
 typedef void (*ib_comp_handler)(struct ib_cq *cq, void *cq_context);
@@ -2203,12 +2228,12 @@ struct ib_device {
 	int                        (*alloc_pd)(struct ib_pd *pd,
 					       struct ib_udata *udata);
 	void                       (*dealloc_pd)(struct ib_pd *pd, struct ib_udata *udata);
-	int 			   (*create_ah)(struct ib_ah *ah, struct ib_ah_attr *ah_attr,
+	int 			   (*create_ah)(struct ib_ah *ah, struct rdma_ah_attr *ah_attr,
 						u32 flags, struct ib_udata *udata);
 	int                        (*modify_ah)(struct ib_ah *ah,
-						struct ib_ah_attr *ah_attr);
+						struct rdma_ah_attr *ah_attr);
 	int                        (*query_ah)(struct ib_ah *ah,
-					       struct ib_ah_attr *ah_attr);
+					       struct rdma_ah_attr *ah_attr);
 	void                       (*destroy_ah)(struct ib_ah *ah, u32 flags);
 	int 			   (*create_srq)(struct ib_srq *srq,
 						 struct ib_srq_init_attr *srq_init_attr,
@@ -2845,6 +2870,21 @@ static inline bool rdma_cap_eth_ah(const struct ib_device *device, u8 port_num)
 }
 
 /**
+ * rdma_cap_opa_ah - Check if the port of device supports
+ * OPA Address handles
+ * @device: Device to check
+ * @port_num: Port number to check
+ *
+ * Return: true if we are running on an OPA device which supports
+ * the extended OPA addressing.
+ */
+static inline bool rdma_cap_opa_ah(struct ib_device *device, u8 port_num)
+{
+	return (device->port_immutable[port_num].core_cap_flags &
+		RDMA_CORE_CAP_OPA_AH) == RDMA_CORE_CAP_OPA_AH;
+}
+
+/**
  * rdma_max_mad_size - Return the max MAD size required by this RDMA Port.
  *
  * @device: Device
@@ -2966,7 +3006,7 @@ enum rdma_create_ah_flags {
 };
 
 /**
- * ib_create_ah - Creates an address handle for the given address vector.
+ * rdma_create_ah - Creates an address handle for the given address vector.
  * @pd: The protection domain associated with the address handle.
  * @ah_attr: The attributes of the address vector.
  * @flags: Create address handle flags (see enum rdma_create_ah_flags).
@@ -2974,11 +3014,11 @@ enum rdma_create_ah_flags {
  * The address handle is used to reference a local or global destination
  * in all UD QP post sends.
  */
-struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
-			   u32 flags);
+struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
+			     u32 flags);
 
 /**
- * ib_create_user_ah - Creates an address handle for the given address vector.
+ * rdma_create_user_ah - Creates an address handle for the given address vector.
  * It resolves destination mac address for ah attribute of RoCE type.
  * @pd: The protection domain associated with the address handle.
  * @ah_attr: The attributes of the address vector.
@@ -2989,9 +3029,9 @@ struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
  * The address handle is used to reference a local or global destination
  * in all UD QP post sends.
  */
-struct ib_ah *ib_create_user_ah(struct ib_pd *pd,
-				struct ib_ah_attr *ah_attr,
-				struct ib_udata *udata);
+struct ib_ah *rdma_create_user_ah(struct ib_pd *pd,
+				  struct rdma_ah_attr *ah_attr,
+				  struct ib_udata *udata);
 
 /**
  * ib_get_gids_from_rdma_hdr - Get sgid and dgid from GRH or IPv4 header
@@ -3024,7 +3064,7 @@ int ib_get_rdma_header_version(const union rdma_network_hdr *hdr);
  */
 int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		       const struct ib_wc *wc, const struct ib_grh *grh,
-		       struct ib_ah_attr *ah_attr);
+		       struct rdma_ah_attr *ah_attr);
 
 /**
  * ib_create_ah_from_wc - Creates an address handle associated with the
@@ -3042,22 +3082,22 @@ struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, const struct ib_wc *wc,
 				   const struct ib_grh *grh, u8 port_num);
 
 /**
- * ib_modify_ah - Modifies the address vector associated with an address
+ * rdma_modify_ah - Modifies the address vector associated with an address
  *   handle.
  * @ah: The address handle to modify.
  * @ah_attr: The new address vector attributes to associate with the
  *   address handle.
  */
-int ib_modify_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr);
+int rdma_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 
 /**
- * ib_query_ah - Queries the address vector associated with an address
+ * rdma_query_ah - Queries the address vector associated with an address
  *   handle.
  * @ah: The address handle to query.
  * @ah_attr: The address vector attributes associated with the address
  *   handle.
  */
-int ib_query_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr);
+int rdma_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 
 enum rdma_destroy_ah_flags {
 	/* In a sleepable context */
@@ -3065,12 +3105,12 @@ enum rdma_destroy_ah_flags {
 };
 
 /**
- * ib_destroy_ah_user - Destroys an address handle.
+ * rdma_destroy_ah_user - Destroys an address handle.
  * @ah: The address handle to destroy.
  * @flags: Destroy address handle flags (see enum rdma_destroy_ah_flags).
  * @udata: Valid user data or NULL for kernel objects
  */
-int ib_destroy_ah_user(struct ib_ah *ah, u32 flags, struct ib_udata *udata);
+int rdma_destroy_ah_user(struct ib_ah *ah, u32 flags, struct ib_udata *udata);
 
 /**
  * rdma_destroy_ah - Destroys an kernel address handle.
@@ -3079,9 +3119,9 @@ int ib_destroy_ah_user(struct ib_ah *ah, u32 flags, struct ib_udata *udata);
  *
  * NOTE: for user ah use ib_destroy_ah_user with valid udata!
  */
-static inline int ib_destroy_ah(struct ib_ah *ah, u32 flags)
+static inline int rdma_destroy_ah(struct ib_ah *ah, u32 flags)
 {
-	return ib_destroy_ah_user(ah, flags, NULL);
+	return rdma_destroy_ah_user(ah, flags, NULL);
 }
 
 /**
@@ -3903,5 +3943,156 @@ struct ib_ucontext *ib_uverbs_get_ucontext_file(struct ib_uverbs_file *ufile);
 int uverbs_destroy_def_handler(struct uverbs_attr_bundle *attrs);
 
 int ib_resolve_eth_dmac(struct ib_device *device,
-			struct ib_ah_attr *ah_attr);
+			struct rdma_ah_attr *ah_attr);
+
+static inline u8 *rdma_ah_retrieve_dmac(struct rdma_ah_attr *attr)
+{
+	if (attr->type == RDMA_AH_ATTR_TYPE_ROCE)
+		return attr->roce.dmac;
+	return NULL;
+}
+
+static inline void rdma_ah_set_dlid(struct rdma_ah_attr *attr, u32 dlid)
+{
+	if (attr->type == RDMA_AH_ATTR_TYPE_IB)
+		attr->ib.dlid = (u16)dlid;
+	else if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
+		attr->opa.dlid = dlid;
+}
+
+static inline u32 rdma_ah_get_dlid(const struct rdma_ah_attr *attr)
+{
+	if (attr->type == RDMA_AH_ATTR_TYPE_IB)
+		return attr->ib.dlid;
+	else if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
+		return attr->opa.dlid;
+	return 0;
+}
+
+static inline void rdma_ah_set_sl(struct rdma_ah_attr *attr, u8 sl)
+{
+	attr->sl = sl;
+}
+
+static inline u8 rdma_ah_get_sl(const struct rdma_ah_attr *attr)
+{
+	return attr->sl;
+}
+
+static inline void rdma_ah_set_path_bits(struct rdma_ah_attr *attr,
+					 u8 src_path_bits)
+{
+	if (attr->type == RDMA_AH_ATTR_TYPE_IB)
+		attr->ib.src_path_bits = src_path_bits;
+	else if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
+		attr->opa.src_path_bits = src_path_bits;
+}
+
+static inline u8 rdma_ah_get_path_bits(const struct rdma_ah_attr *attr)
+{
+	if (attr->type == RDMA_AH_ATTR_TYPE_IB)
+		return attr->ib.src_path_bits;
+	else if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
+		return attr->opa.src_path_bits;
+	return 0;
+}
+
+static inline void rdma_ah_set_port_num(struct rdma_ah_attr *attr, u8 port_num)
+{
+	attr->port_num = port_num;
+}
+
+static inline u8 rdma_ah_get_port_num(const struct rdma_ah_attr *attr)
+{
+	return attr->port_num;
+}
+
+static inline void rdma_ah_set_static_rate(struct rdma_ah_attr *attr,
+					   u8 static_rate)
+{
+	attr->static_rate = static_rate;
+}
+
+static inline u8 rdma_ah_get_static_rate(const struct rdma_ah_attr *attr)
+{
+	return attr->static_rate;
+}
+
+static inline void rdma_ah_set_ah_flags(struct rdma_ah_attr *attr,
+					enum ib_ah_flags flag)
+{
+	attr->ah_flags = flag;
+}
+
+static inline enum ib_ah_flags
+		rdma_ah_get_ah_flags(const struct rdma_ah_attr *attr)
+{
+	return attr->ah_flags;
+}
+
+static inline const struct ib_global_route
+		*rdma_ah_read_grh(const struct rdma_ah_attr *attr)
+{
+	return &attr->grh;
+}
+
+/*To retrieve and modify the grh */
+static inline struct ib_global_route
+		*rdma_ah_retrieve_grh(struct rdma_ah_attr *attr)
+{
+	return &attr->grh;
+}
+
+static inline void rdma_ah_set_dgid_raw(struct rdma_ah_attr *attr, void *dgid)
+{
+	struct ib_global_route *grh = rdma_ah_retrieve_grh(attr);
+
+	memcpy(grh->dgid.raw, dgid, sizeof(grh->dgid));
+}
+
+static inline void rdma_ah_set_subnet_prefix(struct rdma_ah_attr *attr,
+					     __be64 prefix)
+{
+	struct ib_global_route *grh = rdma_ah_retrieve_grh(attr);
+
+	grh->dgid.global.subnet_prefix = prefix;
+}
+
+static inline void rdma_ah_set_interface_id(struct rdma_ah_attr *attr,
+					    __be64 if_id)
+{
+	struct ib_global_route *grh = rdma_ah_retrieve_grh(attr);
+
+	grh->dgid.global.interface_id = if_id;
+}
+
+static inline void rdma_ah_set_grh(struct rdma_ah_attr *attr,
+				   union ib_gid *dgid, u32 flow_label,
+				   u8 sgid_index, u8 hop_limit,
+				   u8 traffic_class)
+{
+	struct ib_global_route *grh = rdma_ah_retrieve_grh(attr);
+
+	attr->ah_flags = IB_AH_GRH;
+	if (dgid)
+		grh->dgid = *dgid;
+	grh->flow_label = flow_label;
+	grh->sgid_index = sgid_index;
+	grh->hop_limit = hop_limit;
+	grh->traffic_class = traffic_class;
+}
+
+/*Get AH type */
+static inline enum rdma_ah_attr_type rdma_ah_find_type(struct ib_device *dev,
+						       u32 port_num)
+{
+	if ((rdma_protocol_roce(dev, port_num)) ||
+	    (rdma_protocol_iwarp(dev, port_num)))
+		return RDMA_AH_ATTR_TYPE_ROCE;
+	else if ((rdma_protocol_ib(dev, port_num)) &&
+		 (rdma_cap_opa_ah(dev, port_num)))
+		return RDMA_AH_ATTR_TYPE_OPA;
+	else
+		return RDMA_AH_ATTR_TYPE_IB;
+}
 #endif /* IB_VERBS_H */

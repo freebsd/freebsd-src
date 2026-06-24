@@ -469,9 +469,9 @@ ipoib_mark_paths_invalid(struct ipoib_dev_priv *priv)
 	spin_lock_irq(&priv->lock);
 
 	list_for_each_entry_safe(path, tp, &priv->path_list, list) {
-		ipoib_dbg(priv, "mark path LID 0x%04x GID %16D invalid\n",
-			be16_to_cpu(path->pathrec.dlid),
-			path->pathrec.dgid.raw, ":");
+		ipoib_dbg(priv, "mark path LID 0x%08x GID %16D invalid\n",
+			  be32_to_cpu(sa_path_get_dlid(&path->pathrec)),
+			  path->pathrec.dgid.raw, ":");
 		path->valid =  0;
 	}
 
@@ -505,7 +505,7 @@ ipoib_flush_paths(struct ipoib_dev_priv *priv)
 }
 
 static void
-path_rec_completion(int status, struct ib_sa_path_rec *pathrec, void *path_ptr)
+path_rec_completion(int status, struct sa_path_rec *pathrec, void *path_ptr)
 {
 	struct ipoib_path *path = path_ptr;
 	struct ipoib_dev_priv *priv = path->priv;
@@ -519,7 +519,8 @@ path_rec_completion(int status, struct ib_sa_path_rec *pathrec, void *path_ptr)
 
 	if (!status)
 		ipoib_dbg(priv, "PathRec LID 0x%04x for GID %16D\n",
-			  be16_to_cpu(pathrec->dlid), pathrec->dgid.raw, ":");
+			  be32_to_cpu(sa_path_get_dlid(pathrec)),
+			  pathrec->dgid.raw, ":");
 	else
 		ipoib_dbg(priv, "PathRec status %d for GID %16D\n",
 			  status, path->pathrec.dgid.raw, ":");
@@ -527,7 +528,7 @@ path_rec_completion(int status, struct ib_sa_path_rec *pathrec, void *path_ptr)
 	bzero(&mbqueue, sizeof(mbqueue));
 
 	if (!status) {
-		struct ib_ah_attr av;
+		struct rdma_ah_attr av;
 
 		if (!ib_init_ah_from_path(priv->ca, priv->port, pathrec, &av))
 			ah = ipoib_create_ah(priv, priv->pd, &av);
@@ -542,7 +543,8 @@ path_rec_completion(int status, struct ib_sa_path_rec *pathrec, void *path_ptr)
 		path->ah = ah;
 
 		ipoib_dbg(priv, "created address handle %p for LID 0x%04x, SL %d\n",
-			  ah, be16_to_cpu(pathrec->dlid), pathrec->sl);
+			  ah, be32_to_cpu(sa_path_get_dlid(pathrec)),
+			  pathrec->sl);
 
 		for (;;) {
 			_IF_DEQUEUE(&path->queue, mb);
@@ -599,6 +601,10 @@ path_rec_create(struct ipoib_dev_priv *priv, uint8_t *hwaddr)
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
 	memcpy(&path->hwaddr, hwaddr, INFINIBAND_ALEN);
 #endif
+	if (rdma_cap_opa_ah(priv->ca, priv->port))
+		path->pathrec.rec_type = SA_PATH_REC_TYPE_OPA;
+	else
+		path->pathrec.rec_type = SA_PATH_REC_TYPE_IB;
 	memcpy(path->pathrec.dgid.raw, &hwaddr[4], sizeof (union ib_gid));
 	path->pathrec.sgid	    = priv->local_gid;
 	path->pathrec.pkey	    = cpu_to_be16(priv->pkey);
@@ -614,7 +620,7 @@ path_rec_start(struct ipoib_dev_priv *priv, struct ipoib_path *path)
 	if_t dev = priv->dev;
 
 	ib_sa_comp_mask comp_mask = IB_SA_PATH_REC_MTU_SELECTOR | IB_SA_PATH_REC_MTU;
-	struct ib_sa_path_rec p_rec;
+	struct sa_path_rec p_rec;
 
 	p_rec = path->pathrec;
 	p_rec.mtu_selector = IB_SA_GT;

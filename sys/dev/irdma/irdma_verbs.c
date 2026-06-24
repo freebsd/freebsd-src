@@ -879,15 +879,18 @@ irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	ctx_info->roce_info->pd_id = iwpd->sc_pd.pd_id;
 
 	if (attr_mask & IB_QP_AV) {
+		const struct ib_global_route *grh =
+		    rdma_ah_read_grh(&attr->ah_attr);
 		struct irdma_av *av = &iwqp->roce_ah.av;
 		u16 vlan_id = VLAN_N_VID;
 		u32 local_ip[4] = {};
 
 		memset(&iwqp->roce_ah, 0, sizeof(iwqp->roce_ah));
-		if (attr->ah_attr.ah_flags & IB_AH_GRH) {
-			udp_info->ttl = attr->ah_attr.grh.hop_limit;
-			udp_info->flow_label = attr->ah_attr.grh.flow_label;
-			udp_info->tos = attr->ah_attr.grh.traffic_class;
+		if (rdma_ah_get_ah_flags(&attr->ah_attr) & IB_AH_GRH) {
+
+			udp_info->ttl = grh->hop_limit;
+			udp_info->flow_label = grh->flow_label;
+			udp_info->tos = grh->traffic_class;
 
 			udp_info->src_port = kc_rdma_get_udp_sport(udp_info->flow_label,
 								   ibqp->qp_num,
@@ -920,7 +923,7 @@ irdma_modify_qp_roce(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		}
 
 		av->attrs = attr->ah_attr;
-		rdma_gid2ip((struct sockaddr *)&av->dgid_addr, &attr->ah_attr.grh.dgid);
+		rdma_gid2ip((struct sockaddr *)&av->dgid_addr, &grh->dgid);
 		if (av->net_type == RDMA_NETWORK_IPV6) {
 			__be32 *daddr =
 			av->dgid_addr.saddr_in6.sin6_addr.__u6_addr.__u6_addr32;
@@ -3232,20 +3235,18 @@ irdma_detach_mcast(struct ib_qp *ibqp, union ib_gid *ibgid, u16 lid)
  * @ah_attr: address handle attributes
  */
 static int
-irdma_query_ah(struct ib_ah *ibah, struct ib_ah_attr *ah_attr)
+irdma_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 {
 	struct irdma_ah *ah = to_iwah(ibah);
 
 	memset(ah_attr, 0, sizeof(*ah_attr));
-	if (ah->av.attrs.ah_flags & IB_AH_GRH) {
-		ah_attr->ah_flags = IB_AH_GRH;
-		ah_attr->grh.flow_label = ah->sc_ah.ah_info.flow_label;
-		ah_attr->grh.traffic_class = ah->sc_ah.ah_info.tc_tos;
-		ah_attr->grh.hop_limit = ah->sc_ah.ah_info.hop_ttl;
-		ah_attr->grh.sgid_index = ah->sgid_index;
-		ah_attr->grh.sgid_index = ah->sgid_index;
-		memcpy(&ah_attr->grh.dgid, &ah->dgid,
-		       sizeof(ah_attr->grh.dgid));
+	ah_attr->type = ibah->type;
+	if (rdma_ah_get_ah_flags(&ah->av.attrs) & IB_AH_GRH) {
+		rdma_ah_set_grh(ah_attr, &ah->dgid,
+				ah->sc_ah.ah_info.flow_label,
+				ah->sgid_index,
+				ah->sc_ah.ah_info.hop_ttl,
+				ah->sc_ah.ah_info.tc_tos);
 	}
 
 	return 0;

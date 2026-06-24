@@ -211,16 +211,16 @@ static int ipoib_path_seq_show(struct seq_file *file, void *iter_ptr)
 	seq_printf(file,
 		   "GID: %s\n"
 		   "  complete: %6s\n",
-		   gid_buf, path.pathrec.dlid ? "yes" : "no");
+		   gid_buf, sa_path_get_dlid(&path.pathrec) ? "yes" : "no");
 
-	if (path.pathrec.dlid) {
+	if (sa_path_get_dlid(&path.pathrec)) {
 		rate = ib_rate_to_mult(path.pathrec.rate) * 25;
 
 		seq_printf(file,
 			   "  DLID:     0x%04x\n"
 			   "  SL: %12d\n"
 			   "  rate: %*d%s Gb/sec\n",
-			   be16_to_cpu(path.pathrec.dlid),
+			   be32_to_cpu(sa_path_get_dlid(&path.pathrec)),
 			   path.pathrec.sl,
 			   10 - ((rate % 10) ? 2 : 0),
 			   rate / 10, rate % 10 ? ".5" : "");

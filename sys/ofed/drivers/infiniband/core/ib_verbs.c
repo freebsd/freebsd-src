@@ -352,8 +352,8 @@ EXPORT_SYMBOL(ib_dealloc_pd_user);
 
 /* Address handles */
 
-static struct ib_ah *_ib_create_ah(struct ib_pd *pd,
-				     struct ib_ah_attr *ah_attr,
+static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
+				     struct rdma_ah_attr *ah_attr,
 				     u32 flags,
 				     struct ib_udata *udata)
 {
@@ -374,6 +374,7 @@ static struct ib_ah *_ib_create_ah(struct ib_pd *pd,
 
 	ah->device = device;
 	ah->pd = pd;
+	ah->type = ah_attr->type;
 
 	ret = device->create_ah(ah, ah_attr, flags, udata);
 	if (ret) {
@@ -396,19 +397,19 @@ static struct ib_ah *_ib_create_ah(struct ib_pd *pd,
  * The address handle is used to reference a local or global destination
  * in all UD QP post sends.
  */
-struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr,
-			   u32 flags)
+struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
+			     u32 flags)
 {
 	struct ib_ah *ah;
 
-	ah = _ib_create_ah(pd, ah_attr, flags, NULL);
+	ah = _rdma_create_ah(pd, ah_attr, flags, NULL);
 
 	return ah;
 }
-EXPORT_SYMBOL(ib_create_ah);
+EXPORT_SYMBOL(rdma_create_ah);
 
 /**
- * ib_create_user_ah - Creates an address handle for the
+ * rdma_create_user_ah - Creates an address handle for the
  * given address vector.
  * It resolves destination mac address for ah attribute of RoCE type.
  * @pd: The protection domain associated with the address handle.
@@ -421,9 +422,9 @@ EXPORT_SYMBOL(ib_create_ah);
  * The address handle is used to reference a local or global destination
  * in all UD QP post sends.
  */
-struct ib_ah *ib_create_user_ah(struct ib_pd *pd,
-				struct ib_ah_attr *ah_attr,
-				struct ib_udata *udata)
+struct ib_ah *rdma_create_user_ah(struct ib_pd *pd,
+				  struct rdma_ah_attr *ah_attr,
+				  struct ib_udata *udata)
 {
 	int err;
 
@@ -433,7 +434,7 @@ struct ib_ah *ib_create_user_ah(struct ib_pd *pd,
 			return ERR_PTR(err);
 	}
 
-	return _ib_create_ah(pd, ah_attr, RDMA_CREATE_AH_SLEEPABLE, udata);
+	return _rdma_create_ah(pd, ah_attr, RDMA_CREATE_AH_SLEEPABLE, udata);
 }
 EXPORT_SYMBOL(ib_create_user_ah);
 
@@ -573,7 +574,7 @@ EXPORT_SYMBOL(ib_get_gids_from_rdma_hdr);
 
 int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		       const struct ib_wc *wc, const struct ib_grh *grh,
-		       struct ib_ah_attr *ah_attr)
+		       struct rdma_ah_attr *ah_attr)
 {
 	u32 flow_class;
 	u16 gid_index = 0;
@@ -585,6 +586,7 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 	union ib_gid sgid;
 
 	memset(ah_attr, 0, sizeof *ah_attr);
+	ah_attr->type = rdma_ah_find_type(device, port_num);
 	if (rdma_cap_eth_ah(device, port_num)) {
 		if (wc->wc_flags & IB_WC_WITH_NETWORK_HDR_TYPE)
 			net_type = wc->network_hdr_type;
@@ -617,23 +619,21 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		if (dgid_attr.ndev == NULL)
 			return -ENODEV;
 
-		ret = rdma_addr_find_l2_eth_by_grh(&dgid, &sgid, ah_attr->dmac,
-		    dgid_attr.ndev, &hoplimit);
+		ret = rdma_addr_find_l2_eth_by_grh(&dgid, &sgid,
+                                                   ah_attr->roce.dmac,
+                                                   dgid_attr.ndev, &hoplimit);
 
 		dev_put(dgid_attr.ndev);
 		if (ret)
 			return ret;
 	}
 
-	ah_attr->dlid = wc->slid;
-	ah_attr->sl = wc->sl;
-	ah_attr->src_path_bits = wc->dlid_path_bits;
-	ah_attr->port_num = port_num;
+	rdma_ah_set_dlid(ah_attr, wc->slid);
+	rdma_ah_set_sl(ah_attr, wc->sl);
+	rdma_ah_set_path_bits(ah_attr, wc->dlid_path_bits);
+	rdma_ah_set_port_num(ah_attr, port_num);
 
 	if (wc->wc_flags & IB_WC_GRH) {
-		ah_attr->ah_flags = IB_AH_GRH;
-		ah_attr->grh.dgid = sgid;
-
 		if (!rdma_cap_eth_ah(device, port_num)) {
 			if (dgid.global.interface_id != cpu_to_be64(IB_SA_WELL_KNOWN_GUID)) {
 				ret = ib_find_cached_gid_by_port(device, &dgid,
@@ -645,11 +645,12 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 			}
 		}
 
-		ah_attr->grh.sgid_index = (u8) gid_index;
 		flow_class = be32_to_cpu(grh->version_tclass_flow);
-		ah_attr->grh.flow_label = flow_class & 0xFFFFF;
-		ah_attr->grh.hop_limit = hoplimit;
-		ah_attr->grh.traffic_class = (flow_class >> 20) & 0xFF;
+		rdma_ah_set_grh(ah_attr, &sgid,
+				flow_class & 0xFFFFF,
+				(u8)gid_index, hoplimit,
+				(flow_class >> 20) & 0xFF);
+
 	}
 	return 0;
 }
@@ -658,34 +659,37 @@ EXPORT_SYMBOL(ib_init_ah_from_wc);
 struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, const struct ib_wc *wc,
 				   const struct ib_grh *grh, u8 port_num)
 {
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 	int ret;
 
 	ret = ib_init_ah_from_wc(pd->device, port_num, wc, grh, &ah_attr);
 	if (ret)
 		return ERR_PTR(ret);
 
-	return ib_create_ah(pd, &ah_attr, RDMA_CREATE_AH_SLEEPABLE);
+	return rdma_create_ah(pd, &ah_attr, RDMA_CREATE_AH_SLEEPABLE);
 }
 EXPORT_SYMBOL(ib_create_ah_from_wc);
 
-int ib_modify_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr)
+int rdma_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr)
 {
+	if (ah->type != ah_attr->type)
+		return -EINVAL;
+
 	return ah->device->modify_ah ?
 		ah->device->modify_ah(ah, ah_attr) :
 		-ENOSYS;
 }
-EXPORT_SYMBOL(ib_modify_ah);
+EXPORT_SYMBOL(rdma_modify_ah);
 
-int ib_query_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr)
+int rdma_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr)
 {
 	return ah->device->query_ah ?
 		ah->device->query_ah(ah, ah_attr) :
 		-ENOSYS;
 }
-EXPORT_SYMBOL(ib_query_ah);
+EXPORT_SYMBOL(rdma_query_ah);
 
-int ib_destroy_ah_user(struct ib_ah *ah, u32 flags, struct ib_udata *udata)
+int rdma_destroy_ah_user(struct ib_ah *ah, u32 flags, struct ib_udata *udata)
 {
 	struct ib_pd *pd;
 
@@ -698,7 +702,7 @@ int ib_destroy_ah_user(struct ib_ah *ah, u32 flags, struct ib_udata *udata)
 	kfree(ah);
 	return 0;
 }
-EXPORT_SYMBOL(ib_destroy_ah_user);
+EXPORT_SYMBOL(rdma_destroy_ah_user);
 
 /* Shared receive queues */
 
@@ -1273,49 +1277,50 @@ bool ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 EXPORT_SYMBOL(ib_modify_qp_is_ok);
 
 int ib_resolve_eth_dmac(struct ib_device *device,
-			struct ib_ah_attr *ah_attr)
+			struct rdma_ah_attr *ah_attr)
 {
 	struct ib_gid_attr sgid_attr;
 	union ib_gid sgid;
 	int hop_limit;
 	int ret;
+	struct ib_global_route *grh;
 
-	if (ah_attr->port_num < rdma_start_port(device) ||
-	    ah_attr->port_num > rdma_end_port(device))
+ 	if (!rdma_is_port_valid(device, rdma_ah_get_port_num(ah_attr)))
 		return -EINVAL;
 
-	if (!rdma_cap_eth_ah(device, ah_attr->port_num))
+	if (ah_attr->type != RDMA_AH_ATTR_TYPE_ROCE)
 		return 0;
+
+	grh = rdma_ah_retrieve_grh(ah_attr);
 
 	if (rdma_is_multicast_addr((struct in6_addr *)ah_attr->grh.dgid.raw)) {
 		if (ipv6_addr_v4mapped((struct in6_addr *)ah_attr->grh.dgid.raw)) {
 			__be32 addr = 0;
 
 			memcpy(&addr, ah_attr->grh.dgid.raw + 12, 4);
-			ip_eth_mc_map(addr, (char *)ah_attr->dmac);
+			ip_eth_mc_map(addr, (char *)ah_attr->roce.dmac);
 		} else {
 			ipv6_eth_mc_map((struct in6_addr *)ah_attr->grh.dgid.raw,
-					(char *)ah_attr->dmac);
+					(char *)ah_attr->roce.dmac);
 		}
 		return 0;
 	}
 
 	ret = ib_query_gid(device,
-			   ah_attr->port_num,
-			   ah_attr->grh.sgid_index,
+			   rdma_ah_get_port_num(ah_attr),
+			   grh->sgid_index,
 			   &sgid, &sgid_attr);
 	if (ret != 0)
 		return (ret);
 	if (!sgid_attr.ndev)
 		return -ENXIO;
 
-	ret = rdma_addr_find_l2_eth_by_grh(&sgid,
-					   &ah_attr->grh.dgid,
-					   ah_attr->dmac,
+	ret = rdma_addr_find_l2_eth_by_grh(&sgid, &grh->dgid,
+					   ah_attr->roce.dmac,
 					   sgid_attr.ndev, &hop_limit);
 	dev_put(sgid_attr.ndev);
 
-	ah_attr->grh.hop_limit = hop_limit;
+	grh->hop_limit = hop_limit;
 	return ret;
 }
 EXPORT_SYMBOL(ib_resolve_eth_dmac);
@@ -2138,6 +2143,7 @@ static void ib_drain_qp_done(struct ib_cq *cq, struct ib_wc *wc)
  */
 static void __ib_drain_sq(struct ib_qp *qp)
 {
+	struct ib_cq *cq = qp->send_cq;
 	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
 	struct ib_drain_cqe sdrain;
 	const struct ib_send_wr *bad_swr;
@@ -2148,12 +2154,6 @@ static void __ib_drain_sq(struct ib_qp *qp)
 		},
 	};
 	int ret;
-
-	if (qp->send_cq->poll_ctx == IB_POLL_DIRECT) {
-		WARN_ONCE(qp->send_cq->poll_ctx == IB_POLL_DIRECT,
-			  "IB_POLL_DIRECT poll_ctx not supported for drain\n");
-		return;
-	}
 
 	sdrain.cqe.done = ib_drain_qp_done;
 	init_completion(&sdrain.done);
@@ -2170,7 +2170,11 @@ static void __ib_drain_sq(struct ib_qp *qp)
 		return;
 	}
 
-	wait_for_completion(&sdrain.done);
+	if (cq->poll_ctx == IB_POLL_DIRECT)
+		while (wait_for_completion_timeout(&sdrain.done, HZ / 10) <= 0)
+			ib_process_cq_direct(cq, -1);
+	else
+		wait_for_completion(&sdrain.done);
 }
 
 /*
@@ -2178,17 +2182,12 @@ static void __ib_drain_sq(struct ib_qp *qp)
  */
 static void __ib_drain_rq(struct ib_qp *qp)
 {
+	struct ib_cq *cq = qp->recv_cq;
 	struct ib_qp_attr attr = { .qp_state = IB_QPS_ERR };
 	struct ib_drain_cqe rdrain;
 	struct ib_recv_wr rwr = {};
 	const struct ib_recv_wr *bad_rwr;
 	int ret;
-
-	if (qp->recv_cq->poll_ctx == IB_POLL_DIRECT) {
-		WARN_ONCE(qp->recv_cq->poll_ctx == IB_POLL_DIRECT,
-			  "IB_POLL_DIRECT poll_ctx not supported for drain\n");
-		return;
-	}
 
 	rwr.wr_cqe = &rdrain.cqe;
 	rdrain.cqe.done = ib_drain_qp_done;
@@ -2206,7 +2205,11 @@ static void __ib_drain_rq(struct ib_qp *qp)
 		return;
 	}
 
-	wait_for_completion(&rdrain.done);
+	if (cq->poll_ctx == IB_POLL_DIRECT)
+		while (wait_for_completion_timeout(&rdrain.done, HZ / 10) <= 0)
+			ib_process_cq_direct(cq, -1);
+	else
+		wait_for_completion(&rdrain.done);
 }
 
 /**
@@ -2223,8 +2226,7 @@ static void __ib_drain_rq(struct ib_qp *qp)
  * ensure there is room in the CQ and SQ for the drain work request and
  * completion.
  *
- * allocate the CQ using ib_alloc_cq() and the CQ poll context cannot be
- * IB_POLL_DIRECT.
+ * allocate the CQ using ib_alloc_cq().
  *
  * ensure that there are no other contexts that are posting WRs concurrently.
  * Otherwise the drain is not guaranteed.
@@ -2252,8 +2254,7 @@ EXPORT_SYMBOL(ib_drain_sq);
  * ensure there is room in the CQ and RQ for the drain work request and
  * completion.
  *
- * allocate the CQ using ib_alloc_cq() and the CQ poll context cannot be
- * IB_POLL_DIRECT.
+ * allocate the CQ using ib_alloc_cq().
  *
  * ensure that there are no other contexts that are posting WRs concurrently.
  * Otherwise the drain is not guaranteed.
@@ -2277,8 +2278,7 @@ EXPORT_SYMBOL(ib_drain_rq);
  * ensure there is room in the CQ(s), SQ, and RQ for drain work requests
  * and completions.
  *
- * allocate the CQs using ib_alloc_cq() and the CQ poll context cannot be
- * IB_POLL_DIRECT.
+ * allocate the CQs using ib_alloc_cq().
  *
  * ensure that there are no other contexts that are posting WRs concurrently.
  * Otherwise the drain is not guaranteed.

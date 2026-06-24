@@ -137,12 +137,12 @@ struct ib_qp *irdma_create_qp(struct ib_pd *ibpd,
 			      struct ib_qp_init_attr *init_attr,
 			      struct ib_udata *udata);
 int irdma_create_ah(struct ib_ah *ib_ah,
-		    struct ib_ah_attr *attr, u32 flags,
+		    struct rdma_ah_attr *attr, u32 flags,
 		    struct ib_udata *udata);
 int irdma_create_ah_stub(struct ib_ah *ib_ah,
-			 struct ib_ah_attr *attr, u32 flags,
+			 struct rdma_ah_attr *attr, u32 flags,
 			 struct ib_udata *udata);
-void irdma_ether_copy(u8 *dmac, struct ib_ah_attr *attr);
+void irdma_ether_copy(u8 *dmac, struct rdma_ah_attr *attr);
 void irdma_destroy_ah(struct ib_ah *ibah, u32 flags);
 void irdma_destroy_ah_stub(struct ib_ah *ibah, u32 flags);
 int irdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);

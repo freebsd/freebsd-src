@@ -179,7 +179,7 @@ struct irdma_dev_ctx {
 #define mdelay(x) DELAY((x) * 1000)
 
 #define rt_tos2priority(tos) (tos >> 5)
-#define ah_attr_to_dmac(attr) ((attr).dmac)
+#define ah_attr_to_dmac(attr) ((attr).roce.dmac)
 #define irdma_del_timer_compat(tt) del_timer((tt))
 #define IRDMA_TAILQ_FOREACH CK_STAILQ_FOREACH
 #define IRDMA_TAILQ_FOREACH_SAFE CK_STAILQ_FOREACH_SAFE

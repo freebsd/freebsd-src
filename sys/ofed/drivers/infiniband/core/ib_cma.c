@@ -962,7 +962,8 @@ static int cma_modify_qp_rtr(struct rdma_id_private *id_priv,
 		goto out;
 
 	ret = ib_query_gid(id_priv->id.device, id_priv->id.port_num,
-			   qp_attr.ah_attr.grh.sgid_index, &sgid, NULL);
+			   rdma_ah_read_grh(&qp_attr.ah_attr)->sgid_index,
+			   &sgid, NULL);
 	if (ret)
 		goto out;
 
@@ -1179,7 +1180,7 @@ static inline int cma_any_port(struct sockaddr *addr)
 static void cma_save_ib_info(struct sockaddr *src_addr,
 			     struct sockaddr *dst_addr,
 			     struct rdma_cm_id *listen_id,
-			     struct ib_sa_path_rec *path)
+			     struct sa_path_rec *path)
 {
 	struct sockaddr_ib *listen_ib, *ib;
 
@@ -1410,7 +1411,7 @@ static int cma_save_req_info(const struct ib_cm_event *ib_event,
 		memcpy(&req->local_gid, &req_param->primary_path->sgid,
 		       sizeof(req->local_gid));
 		req->has_gid	= true;
-		req->service_id	= req_param->primary_path->service_id;
+		req->service_id = req_param->primary_path->service_id;
 		req->pkey	= be16_to_cpu(req_param->primary_path->pkey);
 		if (req->pkey != req_param->bth_pkey)
 			pr_warn_ratelimited("RDMA CMA: got different BTH P_Key (0x%x) and primary path P_Key (0x%x)\n"
@@ -2113,8 +2114,9 @@ static struct rdma_id_private *cma_new_conn_id(struct rdma_cm_id *listen_id,
 	struct rdma_cm_id *id;
 	struct rdma_route *rt;
 	const sa_family_t ss_family = listen_id->route.addr.src_addr.ss_family;
+	struct sa_path_rec *path = ib_event->param.req_rcvd.primary_path;
 	const __be64 service_id =
-		      ib_event->param.req_rcvd.primary_path->service_id;
+		ib_event->param.req_rcvd.primary_path->service_id;
 	struct vnet *vnet = listen_id->route.addr.dev_addr.net;
 	int ret;
 
@@ -2137,7 +2139,7 @@ static struct rdma_id_private *cma_new_conn_id(struct rdma_cm_id *listen_id,
 	if (!rt->path_rec)
 		goto err;
 
-	rt->path_rec[0] = *ib_event->param.req_rcvd.primary_path;
+	rt->path_rec[0] = *path;
 	if (rt->num_paths == 2)
 		rt->path_rec[1] = *ib_event->param.req_rcvd.alternate_path;
 
@@ -2618,7 +2620,7 @@ int rdma_set_ack_timeout(struct rdma_cm_id *id, u8 timeout)
 }
 EXPORT_SYMBOL(rdma_set_ack_timeout);
 
-static void cma_query_handler(int status, struct ib_sa_path_rec *path_rec,
+static void cma_query_handler(int status, struct sa_path_rec *path_rec,
 			      void *context)
 {
 	struct cma_work *work = context;
@@ -2643,18 +2645,24 @@ static int cma_query_ib_route(struct rdma_id_private *id_priv, int timeout_ms,
 			      struct cma_work *work)
 {
 	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
-	struct ib_sa_path_rec path_rec;
+	struct sa_path_rec path_rec;
 	ib_sa_comp_mask comp_mask;
 	struct sockaddr_in6 *sin6;
 	struct sockaddr_ib *sib;
 
 	memset(&path_rec, 0, sizeof path_rec);
+
+	if (rdma_cap_opa_ah(id_priv->id.device, id_priv->id.port_num))
+		path_rec.rec_type = SA_PATH_REC_TYPE_OPA;
+	else
+		path_rec.rec_type = SA_PATH_REC_TYPE_IB;
 	rdma_addr_get_sgid(dev_addr, &path_rec.sgid);
 	rdma_addr_get_dgid(dev_addr, &path_rec.dgid);
 	path_rec.pkey = cpu_to_be16(ib_addr_get_pkey(dev_addr));
 	path_rec.numb_path = 1;
 	path_rec.reversible = 1;
-	path_rec.service_id = rdma_get_service_id(&id_priv->id, cma_dst_addr(id_priv));
+	path_rec.service_id = rdma_get_service_id(&id_priv->id,
+						  cma_dst_addr(id_priv));
 
 	comp_mask = IB_SA_PATH_REC_DGID | IB_SA_PATH_REC_SGID |
 		    IB_SA_PATH_REC_PKEY | IB_SA_PATH_REC_NUMB_PATH |
@@ -2744,7 +2752,7 @@ err1:
 }
 
 int rdma_set_ib_paths(struct rdma_cm_id *id,
-		      struct ib_sa_path_rec *path_rec, int num_paths)
+		      struct sa_path_rec *path_rec, int num_paths)
 {
 	struct rdma_id_private *id_priv;
 	int ret;
@@ -2814,6 +2822,7 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 	struct cma_work *work;
 	int ret;
 	if_t ndev = NULL;
+	enum ib_gid_type gid_type = IB_GID_TYPE_IB;
 	u8 default_roce_tos = id_priv->cma_dev->default_roce_tos[id_priv->id.port_num -
 					rdma_start_port(id_priv->cma_dev->device)];
 	u8 tos = id_priv->tos_set ? id_priv->tos : default_roce_tos;
@@ -2844,21 +2853,22 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 			goto err2;
 		}
 
-		route->path_rec->net = if_getvnet(ndev);
-		route->path_rec->ifindex = if_getindex(ndev);
 		supported_gids = roce_gid_type_mask_support(id_priv->id.device,
 							    id_priv->id.port_num);
-		route->path_rec->gid_type =
-			cma_route_gid_type(addr->dev_addr.network,
-					   supported_gids,
-					   id_priv->gid_type);
+		gid_type = cma_route_gid_type(addr->dev_addr.network,
+					      supported_gids,
+					      id_priv->gid_type);
+		route->path_rec->rec_type =
+			sa_conv_gid_to_pathrec_type(gid_type);
+		sa_path_set_ndev(route->path_rec, if_getvnet(ndev));
+		sa_path_set_ifindex(route->path_rec, if_getindex(ndev));
 	}
 	if (!ndev) {
 		ret = -ENODEV;
 		goto err2;
 	}
 
-	memcpy(route->path_rec->dmac, addr->dev_addr.dst_dev_addr, ETH_ALEN);
+	sa_path_set_dmac(route->path_rec, addr->dev_addr.dst_dev_addr);
 
 	rdma_ip2gid((struct sockaddr *)&id_priv->id.route.addr.src_addr,
 		    &route->path_rec->sgid);
@@ -2866,8 +2876,10 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 		    &route->path_rec->dgid);
 
 	/* Use the hint from IP Stack to select GID Type */
-	if (route->path_rec->gid_type < ib_network_to_gid_type(addr->dev_addr.network))
-		route->path_rec->gid_type = ib_network_to_gid_type(addr->dev_addr.network);
+	if (gid_type < ib_network_to_gid_type(addr->dev_addr.network))
+		gid_type = ib_network_to_gid_type(addr->dev_addr.network);
+	route->path_rec->rec_type = sa_conv_gid_to_pathrec_type(gid_type);
+
 	if (((struct sockaddr *)&id_priv->id.route.addr.dst_addr)->sa_family != AF_IB)
 		/* TODO: get the hoplimit from the inet/inet6 device */
 		route->path_rec->hop_limit = addr->dev_addr.hoplimit;
@@ -4263,63 +4275,10 @@ static void cma_set_mgid(struct rdma_id_private *id_priv,
 	}
 }
 
-static void cma_query_sa_classport_info_cb(int status,
-					   struct ib_class_port_info *rec,
-					   void *context)
-{
-	struct class_port_info_context *cb_ctx = context;
-
-	WARN_ON(!context);
-
-	if (status || !rec) {
-		pr_debug("RDMA CM: %s port %u failed query ClassPortInfo status: %d\n",
-			 cb_ctx->device->name, cb_ctx->port_num, status);
-		goto out;
-	}
-
-	memcpy(cb_ctx->class_port_info, rec, sizeof(struct ib_class_port_info));
-
-out:
-	complete(&cb_ctx->done);
-}
-
-static int cma_query_sa_classport_info(struct ib_device *device, u8 port_num,
-				       struct ib_class_port_info *class_port_info)
-{
-	struct class_port_info_context *cb_ctx;
-	int ret;
-
-	cb_ctx = kmalloc(sizeof(*cb_ctx), GFP_KERNEL);
-	if (!cb_ctx)
-		return -ENOMEM;
-
-	cb_ctx->device = device;
-	cb_ctx->class_port_info = class_port_info;
-	cb_ctx->port_num = port_num;
-	init_completion(&cb_ctx->done);
-
-	ret = ib_sa_classport_info_rec_query(&sa_client, device, port_num,
-					     CMA_QUERY_CLASSPORT_INFO_TIMEOUT,
-					     GFP_KERNEL, cma_query_sa_classport_info_cb,
-					     cb_ctx, &cb_ctx->sa_query);
-	if (ret < 0) {
-		pr_err("RDMA CM: %s port %u failed to send ClassPortInfo query, ret: %d\n",
-		       device->name, port_num, ret);
-		goto out;
-	}
-
-	wait_for_completion(&cb_ctx->done);
-
-out:
-	kfree(cb_ctx);
-	return ret;
-}
-
 static int cma_join_ib_multicast(struct rdma_id_private *id_priv,
 				 struct cma_multicast *mc)
 {
 	struct ib_sa_mcmember_rec rec;
-	struct ib_class_port_info class_port_info;
 	struct rdma_dev_addr *dev_addr = &id_priv->id.route.addr.dev_addr;
 	ib_sa_comp_mask comp_mask;
 	int ret;
@@ -4340,21 +4299,14 @@ static int cma_join_ib_multicast(struct rdma_id_private *id_priv,
 	rec.pkey = cpu_to_be16(ib_addr_get_pkey(dev_addr));
 	rec.join_state = mc->join_state;
 
-	if (rec.join_state == BIT(SENDONLY_FULLMEMBER_JOIN)) {
-		ret = cma_query_sa_classport_info(id_priv->id.device,
-						  id_priv->id.port_num,
-						  &class_port_info);
-
-		if (ret)
-			return ret;
-
-		if (!(ib_get_cpi_capmask2(&class_port_info) &
-		      IB_SA_CAP_MASK2_SENDONLY_FULL_MEM_SUPPORT)) {
-			pr_warn("RDMA CM: %s port %u Unable to multicast join\n"
-				"RDMA CM: SM doesn't support Send Only Full Member option\n",
-				id_priv->id.device->name, id_priv->id.port_num);
-			return -EOPNOTSUPP;
-		}
+	if ((rec.join_state == BIT(SENDONLY_FULLMEMBER_JOIN)) &&
+	    (!ib_sa_sendonly_fullmem_support(&sa_client,
+					     id_priv->id.device,
+					     id_priv->id.port_num))) {
+		pr_warn("RDMA CM: %s port %u Unable to multicast join\n"
+			"RDMA CM: SM doesn't support Send Only Full Member option\n",
+			id_priv->id.device->name, id_priv->id.port_num);
+		return -EOPNOTSUPP;
 	}
 
 	comp_mask = IB_SA_MCMEMBER_REC_MGID | IB_SA_MCMEMBER_REC_PORT_GID |

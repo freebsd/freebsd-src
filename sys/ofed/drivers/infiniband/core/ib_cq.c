@@ -52,7 +52,13 @@ static int __ib_process_cq(struct ib_cq *cq, int budget)
 {
 	int i, n, completed = 0;
 
-	while ((n = ib_poll_cq(cq, IB_POLL_BATCH, cq->wc)) > 0) {
+	/*
+	 * budget might be (-1) if the caller does not
+	 * want to bound this call, thus we need unsigned
+	 * minimum here.
+	 */
+	while ((n = ib_poll_cq(cq, min_t(u32, IB_POLL_BATCH,
+			budget - completed), cq->wc)) > 0) {
 		for (i = 0; i < n; i++) {
 			struct ib_wc *wc = &cq->wc[i];
 
@@ -81,8 +87,8 @@ static int __ib_process_cq(struct ib_cq *cq, int budget)
  * %IB_POLL_DIRECT CQ.  It does not offload CQ processing to a different
  * context and does not ask for completion interrupts from the HCA.
  *
- * Note: for compatibility reasons -1 can be passed in %budget for unlimited
- * polling.  Do not use this feature in new code, it will be removed soon.
+ * Note: do not pass -1 as %budget unless it is guaranteed that the number
+ * of completions that will be processed is small.
  */
 int ib_process_cq_direct(struct ib_cq *cq, int budget)
 {

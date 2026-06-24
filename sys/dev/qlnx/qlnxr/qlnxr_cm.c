@@ -460,10 +460,10 @@ qlnxr_destroy_gsi_qp(struct qlnxr_dev *dev)
 }
 
 static inline bool
-qlnxr_get_vlan_id_gsi(struct ib_ah_attr *ah_attr, u16 *vlan_id)
+qlnxr_get_vlan_id_gsi(struct rdma_ah_attr *ah_attr, u16 *vlan_id)
 {
 	u16 tmp_vlan_id;
-	union ib_gid *dgid = &ah_attr->grh.dgid;
+	const union ib_gid *dgid = &rdma_ah_read_grh(ah_attr)->dgid;
 
 	tmp_vlan_id = (dgid->raw[11] << 8) | dgid->raw[12];
 	if (tmp_vlan_id < 0x1000) {
@@ -485,8 +485,8 @@ qlnxr_gsi_build_header(struct qlnxr_dev *dev,
 		int *roce_mode)
 {
 	bool has_vlan = false, has_grh_ipv6 = true;
-	struct ib_ah_attr *ah_attr = &get_qlnxr_ah((ud_wr(swr)->ah))->attr;
-	struct ib_global_route *grh = &ah_attr->grh;
+	struct rdma_ah_attr *ah_attr = &get_qlnxr_ah((ud_wr(swr)->ah))->attr;
+	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
 	union ib_gid sgid;
 	int send_size = 0;
 	u16 vlan_id = 0;
@@ -520,7 +520,7 @@ qlnxr_gsi_build_header(struct qlnxr_dev *dev,
 	}
 
 	/* ENET + VLAN headers*/
-	memcpy(udh->eth.dmac_h, ah_attr->dmac, ETH_ALEN);
+	memcpy(udh->eth.dmac_h, ah_attr->roce.dmac, ETH_ALEN);
 	memcpy(udh->eth.smac_h, dev->ha->primary_mac, ETH_ALEN);
 	if (has_vlan) {
 		udh->eth.type = htons(ETH_P_8021Q);

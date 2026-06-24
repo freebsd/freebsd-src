@@ -56,7 +56,7 @@ MODULE_PARM_DESC(data_debug_level,
 static DEFINE_MUTEX(pkey_mutex);
 
 struct ipoib_ah *ipoib_create_ah(struct ipoib_dev_priv *priv,
-				 struct ib_pd *pd, struct ib_ah_attr *attr)
+				 struct ib_pd *pd, struct rdma_ah_attr *attr)
 {
 	struct ipoib_ah *ah;
 	struct ib_ah *vah;
@@ -69,7 +69,7 @@ struct ipoib_ah *ipoib_create_ah(struct ipoib_dev_priv *priv,
 	ah->last_send = 0;
 	kref_init(&ah->ref);
 
-	vah = ib_create_ah(pd, attr, RDMA_CREATE_AH_SLEEPABLE);
+	vah = rdma_create_ah(pd, attr, RDMA_CREATE_AH_SLEEPABLE);
 	if (IS_ERR(vah)) {
 		kfree(ah);
 		ah = (struct ipoib_ah *)vah;
@@ -573,7 +573,7 @@ static void __ipoib_reap_ah(struct ipoib_dev_priv *priv)
 	list_for_each_entry_safe(ah, tah, &priv->dead_ahs, list)
 		if ((int) priv->tx_tail - (int) ah->last_send >= 0) {
 			list_del(&ah->list);
-			ib_destroy_ah(ah->ah, 0);
+			rdma_destroy_ah(ah->ah, 0);
 			kfree(ah);
 		}
 

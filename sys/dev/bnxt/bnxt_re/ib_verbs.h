@@ -104,7 +104,7 @@ struct bnxt_re_dev;
 #define RDMA_NETWORK_IPV4	1
 #define RDMA_NETWORK_IPV6	2
 
-#define ROCE_DMAC(x) (x)->dmac
+#define ROCE_DMAC(x) (x)->roce.dmac
 
 #define dma_rmb()       rmb()
 
@@ -307,11 +307,11 @@ enum rdma_link_layer bnxt_re_get_link_layer(struct ib_device *ibdev,
 int bnxt_re_alloc_pd(struct ib_pd *pd_in, struct ib_udata *udata);
 void bnxt_re_dealloc_pd(struct ib_pd *ib_pd, struct ib_udata *udata);
 
-int bnxt_re_create_ah(struct ib_ah *ah_in, struct ib_ah_attr *attr,
+int bnxt_re_create_ah(struct ib_ah *ah_in, struct rdma_ah_attr *attr,
 		      u32 flags, struct ib_udata *udata);
 
-int bnxt_re_modify_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr);
-int bnxt_re_query_ah(struct ib_ah *ah, struct ib_ah_attr *ah_attr);
+int bnxt_re_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
+int bnxt_re_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 
 void bnxt_re_destroy_ah(struct ib_ah *ib_ah, u32 flags);
 int bnxt_re_create_srq(struct ib_srq *srq_in,
@@ -380,7 +380,7 @@ void bnxt_re_handle_cqn(struct bnxt_qplib_cq *cq);
 static inline int
 bnxt_re_get_cached_gid(struct ib_device *dev, u8 port_num, int index,
 		       union ib_gid *sgid, struct ib_gid_attr **sgid_attr,
-		       struct ib_global_route *grh, struct ib_ah *ah);
+		       const struct ib_global_route *grh, struct ib_ah *ah);
 static inline enum rdma_network_type
 bnxt_re_gid_to_network_type(struct ib_gid_attr *sgid_attr,
 			    union ib_gid *sgid);

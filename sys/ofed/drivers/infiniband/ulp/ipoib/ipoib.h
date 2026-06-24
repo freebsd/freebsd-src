@@ -417,7 +417,7 @@ struct ipoib_path {
 	struct ipoib_cm_tx   *cm;
 #endif
 	struct ipoib_ah      *ah;
-	struct ib_sa_path_rec pathrec;
+	struct sa_path_rec pathrec;
 	struct ifqueue	      queue;
 
 	int		      query_id;
@@ -440,7 +440,7 @@ void ipoib_ib_completion(struct ib_cq *cq, void *dev_ptr);
 void ipoib_send_comp_handler(struct ib_cq *cq, void *dev_ptr);
 
 struct ipoib_ah *ipoib_create_ah(struct ipoib_dev_priv *,
-				 struct ib_pd *pd, struct ib_ah_attr *attr);
+				 struct ib_pd *pd, struct rdma_ah_attr *attr);
 void ipoib_free_ah(struct kref *kref);
 static inline void ipoib_put_ah(struct ipoib_ah *ah)
 {

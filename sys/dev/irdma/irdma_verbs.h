@@ -76,7 +76,7 @@ union irdma_sockaddr {
 
 struct irdma_av {
 	u8 macaddr[16];
-	struct ib_ah_attr attrs;
+	struct rdma_ah_attr attrs;
 	union irdma_sockaddr sgid_addr;
 	union irdma_sockaddr dgid_addr;
 	u8 net_type;

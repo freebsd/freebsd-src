@@ -938,7 +938,7 @@ static struct ib_qp *ipoib_cm_create_tx_qp(struct ipoib_dev_priv *priv,
 static int ipoib_cm_send_req(struct ipoib_dev_priv *priv,
 			     struct ib_cm_id *id, struct ib_qp *qp,
 			     u32 qpn,
-			     struct ib_sa_path_rec *pathrec)
+			     struct sa_path_rec *pathrec)
 {
 	struct ipoib_cm_data data = {};
 	struct ib_cm_req_param req = {};
@@ -998,7 +998,7 @@ static int ipoib_cm_modify_tx_init(struct ipoib_dev_priv *priv,
 }
 
 static int ipoib_cm_tx_init(struct ipoib_cm_tx *p, u32 qpn,
-			    struct ib_sa_path_rec *pathrec)
+			    struct sa_path_rec *pathrec)
 {
 	struct ipoib_dev_priv *priv = p->priv;
 	int ret;
@@ -1196,7 +1196,7 @@ static void ipoib_cm_tx_start(struct work_struct *work)
 	unsigned long flags;
 	int ret;
 
-	struct ib_sa_path_rec pathrec;
+	struct sa_path_rec pathrec;
 	u32 qpn;
 
 	ipoib_dbg(priv, "cm start task\n");

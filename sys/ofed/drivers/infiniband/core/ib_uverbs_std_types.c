@@ -41,9 +41,9 @@ static int uverbs_free_ah(struct ib_uobject *uobject,
 			  enum rdma_remove_reason why,
 			  struct uverbs_attr_bundle *attrs)
 {
-	return ib_destroy_ah_user((struct ib_ah *)uobject->object,
-				  RDMA_DESTROY_AH_SLEEPABLE,
-				  &attrs->driver_udata);
+	return rdma_destroy_ah_user((struct ib_ah *)uobject->object,
+				    RDMA_DESTROY_AH_SLEEPABLE,
+				    &attrs->driver_udata);
 }
 
 static int uverbs_free_flow(struct ib_uobject *uobject,

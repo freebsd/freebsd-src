@@ -57,7 +57,7 @@ static int c4iw_modify_port(struct ib_device *ibdev,
 }
 
 static int c4iw_ah_create(struct ib_ah *ah,
-			  struct ib_ah_attr *ah_attr, u32 flags,
+			  struct rdma_ah_attr *ah_attr, u32 flags,
 			  struct ib_udata *udata)
 {
 	return -ENOSYS;
