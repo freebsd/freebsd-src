@@ -303,6 +303,15 @@ fd_set_blocking(int fd)
 	ATF_REQUIRE(fcntl(fd, F_SETFL, flags) != -1);
 }
 
+static void
+tcp_nodelay(int fd)
+{
+	int nodelay = 1;
+
+	ATF_REQUIRE(setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &nodelay,
+	    sizeof(nodelay)) == 0);
+}
+
 static bool
 cbc_crypt(const EVP_CIPHER *cipher, const char *key, const char *iv,
     const char *input, char *output, size_t size, int enc)
@@ -1920,6 +1929,55 @@ test_ktls_receive_bad_size(const atf_tc_t *tc, struct tls_enable *en,
 	close_sockets_ignore_errors(sockets);
 }
 
+static void
+test_ktls_receive_split_record(const atf_tc_t *tc, struct tls_enable *en,
+    uint64_t seqno, size_t len, size_t first_len)
+{
+	char *plaintext, *received, *outbuf;
+	size_t outbuf_cap, outbuf_len;
+	ssize_t rv;
+	int sockets[2];
+
+	ATF_REQUIRE(len <= TLS_MAX_MSG_SIZE_V10_2);
+
+	plaintext = alloc_buffer(len);
+	received = malloc(len);
+	outbuf_cap = tls_header_len(en) + len + tls_trailer_len(en);
+	outbuf = malloc(outbuf_cap);
+
+	ATF_REQUIRE_MSG(open_sockets(tc, sockets), "failed to create sockets");
+
+	ATF_REQUIRE(setsockopt(sockets[0], IPPROTO_TCP, TCP_RXTLS_ENABLE, en,
+	    sizeof(*en)) == 0);
+	check_tls_mode(tc, sockets[0], TCP_RXTLS_MODE);
+
+	fd_set_blocking(sockets[0]);
+	fd_set_blocking(sockets[1]);
+
+	outbuf_len = encrypt_tls_record(tc, en, TLS_RLTYPE_APP, seqno,
+	    plaintext, len, outbuf, outbuf_cap, 0);
+	ATF_REQUIRE(first_len < outbuf_len);
+
+	tcp_nodelay(sockets[1]);
+	rv = write(sockets[1], outbuf, first_len);
+	ATF_REQUIRE_INTEQ((ssize_t)(first_len), rv);
+
+	rv = write(sockets[1], outbuf + first_len, outbuf_len - first_len);
+	ATF_REQUIRE_INTEQ((ssize_t)(outbuf_len - first_len), rv);
+
+	rv = ktls_receive_tls_record(en, sockets[0], TLS_RLTYPE_APP, received,
+	    len);
+	ATF_REQUIRE_INTEQ((ssize_t)len, rv);
+
+	ATF_REQUIRE(memcmp(plaintext, received, len) == 0);
+
+	free(outbuf);
+	free(received);
+	free(plaintext);
+
+	close_sockets(sockets);
+}
+
 #define	TLS_10_TESTS(M)							\
 	M(aes128_cbc_1_0_sha1, CRYPTO_AES_CBC, 128 / 8,			\
 	    CRYPTO_SHA1_HMAC, TLS_MINOR_VER_ZERO)			\
@@ -2360,6 +2418,26 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_##name, tc)			\
 	    auth_alg, minor, name)					\
 	ATF_TP_ADD_TC(tp, ktls_receive_##cipher_name##_##name);
 
+#define GEN_RECEIVE_SPLIT_RECORD_TEST(cipher_name, cipher_alg,		\
+	    key_size, auth_alg, minor, name, len, first_len)		\
+ATF_TC_WITHOUT_HEAD(ktls_receive_##cipher_name##_split_##name);		\
+ATF_TC_BODY(ktls_receive_##cipher_name##_split_##name, tc)		\
+{									\
+	struct tls_enable en;						\
+	uint64_t seqno;							\
+									\
+	ATF_REQUIRE_KTLS();						\
+	seqno = random();						\
+	build_tls_enable(tc, cipher_alg, key_size, auth_alg, minor,	\
+	    seqno, &en);						\
+	test_ktls_receive_split_record(tc, &en, seqno, len, first_len);	\
+	free_tls_enable(&en);						\
+}
+
+#define ADD_RECEIVE_SPLIT_RECORD_TEST(cipher_name, cipher_alg,		\
+	    key_size, auth_alg, minor, name)				\
+	ATF_TP_ADD_TC(tp, ktls_receive_##cipher_name##_split_##name);
+
 #define GEN_RECEIVE_TESTS(cipher_name, cipher_alg, key_size, auth_alg,	\
 	    minor)							\
 	GEN_RECEIVE_APP_DATA_TEST(cipher_name, cipher_alg, key_size,	\
@@ -2381,7 +2459,22 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_##name, tc)			\
 	    tls_minimum_record_payload(&en) - 1)			\
 	GEN_RECEIVE_BAD_SIZE_TEST(cipher_name, cipher_alg, key_size,	\
 	    auth_alg, minor, oversized_record,				\
-	    TLS_MAX_MSG_SIZE_V10_2 * 2)
+	    TLS_MAX_MSG_SIZE_V10_2 * 2)					\
+	GEN_RECEIVE_SPLIT_RECORD_TEST(cipher_name, cipher_alg,		\
+	    key_size, auth_alg, minor, header, 64,			\
+	    sizeof(struct tls_record_layer));				\
+	GEN_RECEIVE_SPLIT_RECORD_TEST(cipher_name, cipher_alg,		\
+	    key_size, auth_alg, minor, full_header, 64,			\
+	    tls_header_len(&en));					\
+	GEN_RECEIVE_SPLIT_RECORD_TEST(cipher_name, cipher_alg,		\
+	    key_size, auth_alg, minor, half, 64,			\
+	    tls_header_len(&en) + 32);					\
+	GEN_RECEIVE_SPLIT_RECORD_TEST(cipher_name, cipher_alg,		\
+	    key_size, auth_alg, minor, trailer_start, 64,		\
+	    tls_header_len(&en) + 64);					\
+	GEN_RECEIVE_SPLIT_RECORD_TEST(cipher_name, cipher_alg,		\
+	    key_size, auth_alg, minor, trailer_middle, 64,		\
+	    tls_header_len(&en) + 64 + tls_trailer_len(&en) / 2);
 
 #define ADD_RECEIVE_TESTS(cipher_name, cipher_alg, key_size, auth_alg,	\
 	    minor)							\
@@ -2402,7 +2495,17 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_##name, tc)			\
 	ADD_RECEIVE_BAD_SIZE_TEST(cipher_name, cipher_alg, key_size,	\
 	    auth_alg, minor, small_record)				\
 	ADD_RECEIVE_BAD_SIZE_TEST(cipher_name, cipher_alg, key_size,	\
-	    auth_alg, minor, oversized_record)
+	    auth_alg, minor, oversized_record)				\
+	ADD_RECEIVE_SPLIT_RECORD_TEST(cipher_name, cipher_alg,		\
+	    key_size, auth_alg, minor, header)				\
+	ADD_RECEIVE_SPLIT_RECORD_TEST(cipher_name, cipher_alg,		\
+	    key_size, auth_alg, minor, full_header)			\
+	ADD_RECEIVE_SPLIT_RECORD_TEST(cipher_name, cipher_alg,		\
+	    key_size, auth_alg, minor, half)				\
+	ADD_RECEIVE_SPLIT_RECORD_TEST(cipher_name, cipher_alg,		\
+	    key_size, auth_alg, minor, trailer_start)			\
+	ADD_RECEIVE_SPLIT_RECORD_TEST(cipher_name, cipher_alg,		\
+	    key_size, auth_alg, minor, trailer_middle)			\
 
 /*
  * For each supported cipher suite, run several receive tests:
@@ -2425,6 +2528,9 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_##name, tc)			\
  *   size
  *
  * - a test with an oversized TLS record
+ *
+ * - tests of a single record whose data is split across two writes,
+ *   with each test using a different split point
  */
 AES_CBC_NONZERO_TESTS(GEN_RECEIVE_TESTS);
 AES_GCM_TESTS(GEN_RECEIVE_TESTS);
