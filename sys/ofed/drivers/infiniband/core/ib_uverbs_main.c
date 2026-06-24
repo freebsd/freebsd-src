@@ -566,7 +566,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	ssize_t ret;
 
 	if (!ib_safe_file_access(filp)) {
-		pr_warn_once("uverbs_write: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
+		pr_err_once("uverbs_write: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
 			    current->pid, current->comm);
 		return -EACCES;
 	}

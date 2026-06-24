@@ -351,16 +351,7 @@ c4iw_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr *props)
 
 	memset(props, 0, sizeof(struct ib_port_attr));
 	props->max_mtu = IB_MTU_4096;
-	if (if_getmtu(ifp) >= 4096)
-		props->active_mtu = IB_MTU_4096;
-	else if (if_getmtu(ifp) >= 2048)
-		props->active_mtu = IB_MTU_2048;
-	else if (if_getmtu(ifp) >= 1024)
-		props->active_mtu = IB_MTU_1024;
-	else if (if_getmtu(ifp) >= 512)
-		props->active_mtu = IB_MTU_512;
-	else
-		props->active_mtu = IB_MTU_256;
+	props->active_mtu = ib_mtu_int_to_enum(if_getmtu(ifp));
 	props->state = pi->link_cfg.link_ok ? IB_PORT_ACTIVE : IB_PORT_DOWN;
 	props->port_cap_flags =
 	    IB_PORT_CM_SUP |

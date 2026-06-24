@@ -479,6 +479,23 @@ static int find_slave_port_pkey_ix(struct mlx4_ib_dev *dev, int slave,
 	return -EINVAL;
 }
 
+static int get_gids_from_l3_hdr(struct ib_grh *grh, union ib_gid *sgid,
+				union ib_gid *dgid)
+{
+	int version = ib_get_rdma_header_version((const union rdma_network_hdr *)grh);
+	enum rdma_network_type net_type;
+
+	if (version == 4)
+		net_type = RDMA_NETWORK_IPV4;
+	else if (version == 6)
+		net_type = RDMA_NETWORK_IPV6;
+	else
+		return -EINVAL;
+
+	return ib_get_gids_from_rdma_hdr((union rdma_network_hdr *)grh, net_type,
+					 sgid, dgid);
+}
+
 int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 			  enum ib_qp_type dest_qpt, struct ib_wc *wc,
 			  struct ib_grh *grh, struct ib_mad *mad)
@@ -537,7 +554,10 @@ int mlx4_ib_send_to_slave(struct mlx4_ib_dev *dev, int slave, u8 port,
 	memset(&attr, 0, sizeof attr);
 	attr.port_num = port;
 	if (is_eth) {
-		memcpy(&attr.grh.dgid.raw[0], &grh->dgid.raw[0], 16);
+		union ib_gid sgid;
+
+		if (get_gids_from_l3_hdr(grh, &sgid, &attr.grh.dgid))
+			return -EINVAL;
 		attr.ah_flags = IB_AH_GRH;
 	}
 	ah = ib_create_ah(tun_ctx->pd, &attr, 0);

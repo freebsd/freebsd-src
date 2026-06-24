@@ -1772,21 +1772,6 @@ irdma_get_link_layer(struct ib_device *ibdev,
 	return IB_LINK_LAYER_ETHERNET;
 }
 
-inline enum ib_mtu
-ib_mtu_int_to_enum(int mtu)
-{
-	if (mtu >= 4096)
-		return IB_MTU_4096;
-	else if (mtu >= 2048)
-		return IB_MTU_2048;
-	else if (mtu >= 1024)
-		return IB_MTU_1024;
-	else if (mtu >= 512)
-		return IB_MTU_512;
-	else
-		return IB_MTU_256;
-}
-
 inline void
 kc_set_roce_uverbs_cmd_mask(struct irdma_device *iwdev)
 {

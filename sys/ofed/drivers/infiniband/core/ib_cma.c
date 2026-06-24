@@ -127,6 +127,35 @@ const char *__attribute_const__ rdma_reject_msg(struct rdma_cm_id *id,
 }
 EXPORT_SYMBOL(rdma_reject_msg);
 
+bool rdma_is_consumer_reject(struct rdma_cm_id *id, int reason)
+{
+	if (rdma_ib_or_roce(id->device, id->port_num))
+		return reason == IB_CM_REJ_CONSUMER_DEFINED;
+
+	if (rdma_protocol_iwarp(id->device, id->port_num))
+		return reason == -ECONNREFUSED;
+
+	WARN_ON_ONCE(1);
+	return false;
+}
+EXPORT_SYMBOL(rdma_is_consumer_reject);
+
+const void *rdma_consumer_reject_data(struct rdma_cm_id *id,
+				      struct rdma_cm_event *ev, u8 *data_len)
+{
+	const void *p;
+
+	if (rdma_is_consumer_reject(id, ev->status)) {
+		*data_len = ev->param.conn.private_data_len;
+		p = ev->param.conn.private_data;
+	} else {
+		*data_len = 0;
+		p = NULL;
+	}
+	return p;
+}
+EXPORT_SYMBOL(rdma_consumer_reject_data);
+
 static int cma_check_linklocal(struct rdma_dev_addr *, struct sockaddr *);
 static void cma_add_one(struct ib_device *device);
 static void cma_remove_one(struct ib_device *device, void *client_data);

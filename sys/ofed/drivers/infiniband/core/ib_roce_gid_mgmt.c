@@ -168,11 +168,8 @@ roce_gid_update_addr_ifa4_cb(void *arg, struct ifaddr *ifa, u_int count)
 	struct ipx_entry *entry;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-	if (entry == NULL) {
-		pr_warn("roce_gid_update_addr_callback: "
-		    "couldn't allocate entry for IPv4 update\n");
+	if (entry == NULL)
 		return (0);
-	}
 	entry->ipx_addr.v4 = *((struct sockaddr_in *)ifa->ifa_addr);
 	entry->ndev = ifa->ifa_ifp;
 	STAILQ_INSERT_TAIL(ipx_head, entry, entry);
@@ -189,11 +186,8 @@ roce_gid_update_addr_ifa6_cb(void *arg, struct ifaddr *ifa, u_int count)
 	struct ipx_entry *entry;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-	if (entry == NULL) {
-		pr_warn("roce_gid_update_addr_callback: "
-		    "couldn't allocate entry for IPv6 update\n");
+	if (entry == NULL)
 		return (0);
-	}
 	entry->ipx_addr.v6 = *((struct sockaddr_in6 *)ifa->ifa_addr);
 	entry->ndev = ifa->ifa_ifp;
 
@@ -345,10 +339,8 @@ retry:
 	}
 
 	work = kmalloc(sizeof(*work), GFP_ATOMIC);
-	if (!work) {
-		pr_warn("roce_gid_mgmt: Couldn't allocate work for addr_event\n");
+	if (!work)
 		return;
-	}
 
 	INIT_WORK(&work->work, roce_gid_queue_scan_event_handler);
 	dev_hold(ndev);
@@ -375,10 +367,8 @@ roce_gid_delete_all_event(if_t ndev)
 	struct roce_netdev_event_work *work;
 
 	work = kmalloc(sizeof(*work), GFP_ATOMIC);
-	if (!work) {
-		pr_warn("roce_gid_mgmt: Couldn't allocate work for addr_event\n");
+	if (!work)
 		return;
-	}
 
 	INIT_WORK(&work->work, roce_gid_delete_all_event_handler);
 	dev_hold(ndev);
