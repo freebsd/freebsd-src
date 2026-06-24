@@ -254,6 +254,10 @@ out:
 	return (ret);
 }
 
+/*
+ * Multiplying by 17 here allows to send [0;15] to the full [0;255] range (so
+ * 255 is reported when EPB is set to 15, instead of 240).
+ */
 #define EPB_TO_EPP(x) ((x) * 17)
 #define EPP_TO_EPB(x) ((x) >> 4)
 
