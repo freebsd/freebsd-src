@@ -1088,7 +1088,9 @@ enum ib_qp_create_flags {
  */
 
 struct ib_qp_init_attr {
+	/* Consumer's event_handler callback must not block */
 	void                  (*event_handler)(struct ib_event *, void *);
+
 	void		       *qp_context;
 	struct ib_cq	       *send_cq;
 	struct ib_cq	       *recv_cq;
@@ -1440,6 +1442,13 @@ struct ib_ucontext {
 	bool closing;
 
 	bool cleanup_retryable;
+
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	void (*invalidate_range)(struct ib_umem_odp *umem_odp,
+				 unsigned long start, unsigned long end);
+	struct mutex per_mm_list_lock;
+	struct list_head per_mm_list;
+#endif
 
 	struct ib_rdmacg_object	cg_obj;
 	/*
@@ -2135,10 +2144,11 @@ struct ib_device {
 	struct list_head              event_handler_list;
 	spinlock_t                    event_handler_lock;
 
-	spinlock_t                    client_data_lock;
+	rwlock_t			client_data_lock;
 	struct list_head              core_list;
 	/* Access to the client_data_list is protected by the client_data_lock
-	 * spinlock and the lists_rwsem read-write semaphore */
+	 * rwlock and the lists_rwsem read-write semaphore
+	 */
 	struct list_head              client_data_list;
 
 	struct ib_cache               cache;
@@ -2409,6 +2419,9 @@ struct ib_device {
 
 	struct module               *owner;
 	struct device                dev;
+	/* First group for device attributes, NULL terminated array */
+	const struct attribute_group	*groups[2];
+
 	struct kobject               *ports_parent;
 	struct list_head             port_list;
 

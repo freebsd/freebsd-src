@@ -190,8 +190,16 @@ int rdma_resolve_ip_route(struct sockaddr *src_addr,
 
 int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 				 const union ib_gid *dgid,
-				 u8 *dmac, if_t ndev,
+				 u8 *dmac, const struct ib_gid_attr *sgid_attr,
 				 int *hoplimit);
+void rdma_copy_src_l2_addr(struct rdma_dev_addr *dev_addr,
+                           const if_t dev);
+
+struct sa_path_rec;
+int roce_resolve_route_from_path(struct sa_path_rec *rec,
+				 const struct ib_gid_attr *attr);
+
+if_t rdma_read_gid_attr_ndev_rcu(const struct ib_gid_attr *attr);
 
 struct rdma_umap_priv {
 	struct vm_area_struct *vma;
