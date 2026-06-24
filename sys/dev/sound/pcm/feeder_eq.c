@@ -447,7 +447,7 @@ sysctl_dev_pcm_eq(SYSCTL_HANDLER_ARGS)
 
 	PCM_LOCK(d);
 	PCM_WAIT(d);
-	if (d->flags & SD_F_EQ_ENABLED)
+	if (d->flags & SD_F_EQ)
 		val = 1;
 	else
 		val = 0;
@@ -466,9 +466,9 @@ sysctl_dev_pcm_eq(SYSCTL_HANDLER_ARGS)
 		PCM_LOCK(d);
 
 		if (val == 1)
-			d->flags |= SD_F_EQ_ENABLED;
+			d->flags |= SD_F_EQ;
 		else
-			d->flags &= ~SD_F_EQ_ENABLED;
+			d->flags &= ~SD_F_EQ;
 
 		PCM_RELEASE(d);
 		PCM_UNLOCK(d);
