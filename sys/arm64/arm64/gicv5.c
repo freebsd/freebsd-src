@@ -918,7 +918,12 @@ gicv5_intr(void *arg)
 				KASSERT(LPI_IPI_IDX(irq) < LPI_IPI_LIMIT,
 				    ("%s: Invalid IPI LPI %u", __func__, irq));
 				ipi = LPI_TO_IPI(irq);
+#ifdef SMP
 				intr_ipi_dispatch(ipi);
+#else
+				device_printf(sc->gic_dev,
+				    "IPI LPI %u on UP system detected\n", ipi);
+#endif
 				gicv5_eoi_intr(GICv5_LPI, irq);
 			} else {
 				intr_child_irq_handler(sc->gic_pic, irq);

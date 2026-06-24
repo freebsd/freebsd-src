@@ -278,7 +278,9 @@ gicv5_fdt_attach(device_t dev)
 
 	/* Register xref */
 	OF_device_register_xref(xref, dev);
+#ifdef SMP
 	intr_ipi_pic_register(dev, 0);
+#endif
 
 	error = intr_pic_claim_root(dev, xref, gicv5_intr, sc, INTR_ROOT_IRQ);
 	if (error != 0)
