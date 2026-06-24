@@ -1400,26 +1400,32 @@ gfx_fb_copy_area(teken_gfx_t *state, const teken_rect_t *s,
 	pitch = state->tg_fb.fb_width;
 	bytes = width * sizeof (*state->tg_shadow_fb);
 
-	uint32_t dst_x = dx + state->tg_origin.tp_col;
-	uint32_t dst_y = dy + state->tg_origin.tp_row;
+	uint32_t ssx = sx + state->tg_origin.tp_col;
+	uint32_t ssy = sy + state->tg_origin.tp_row;
+	uint32_t dsx = dx + state->tg_origin.tp_col;
+	uint32_t dsy = dy + state->tg_origin.tp_row;
+	uint32_t dst_x = dsx;
+	uint32_t dst_y = dsy;
 	uint32_t dst_h = height;
 
 	/*
 	 * To handle overlapping areas, set up reverse copy here.
+	 * The origin offset cancels out in the comparison so the
+	 * terminal-relative form is equivalent.
 	 */
 	if (dy * pitch + dx > sy * pitch + sx) {
-		sy += height;
-		dy += height;
+		ssy += height;
+		dsy += height;
 		step = -step;
 	}
 
 	while (height-- > 0) {
-		uint32_t *source = &state->tg_shadow_fb[sy * pitch + sx];
-		uint32_t *destination = &state->tg_shadow_fb[dy * pitch + dx];
+		uint32_t *source = &state->tg_shadow_fb[ssy * pitch + ssx];
+		uint32_t *destination = &state->tg_shadow_fb[dsy * pitch + dsx];
 
 		bcopy(source, destination, bytes);
-		sy += step;
-		dy += step;
+		ssy += step;
+		dsy += step;
 	}
 
 	gfx_shadow_mark_dirty(dst_x, dst_y, width, dst_h);
@@ -1618,13 +1624,11 @@ gfx_fb_cons_display(uint32_t x, uint32_t y, uint32_t width, uint32_t height,
 	 */
 	if (gfx_state.tg_shadow_fb != NULL) {
 		uint32_t pitch = gfx_state.tg_fb.fb_width;
-		uint32_t sy = y - gfx_state.tg_origin.tp_row;
-		uint32_t sx = x - gfx_state.tg_origin.tp_col;
 
 		p = data;
 		for (uint32_t row = 0; row < height; row++) {
 			buf = (void *)(gfx_state.tg_shadow_fb +
-			    (sy + row) * pitch + sx);
+			    (y + row) * pitch + x);
 			bitmap_cpy(buf, &p[row * width], width);
 		}
 		gfx_shadow_mark_dirty(x, y, width, height);
