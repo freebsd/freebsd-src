@@ -1379,6 +1379,27 @@ ATF_TC_BODY(largepage_config, tc)
 	ATF_REQUIRE(close(fd) == 0);
 }
 
+ATF_TC_WITHOUT_HEAD(largepage_fspacectl);
+ATF_TC_BODY(largepage_fspacectl, tc)
+{
+	struct spacectl_range range;
+	size_t ps[MAXPAGESIZES];
+	int fd, pscnt;
+
+	pscnt = pagesizes(ps);
+
+	for (int i = 1; i < pscnt; i++) {
+		fd = shm_open_large(i, SHM_LARGEPAGE_ALLOC_DEFAULT, ps[i]);
+
+		range.r_offset = 0;
+		range.r_len = ps[i];
+		ATF_REQUIRE_ERRNO(ENOTSUP,
+		    fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == -1);
+
+		ATF_REQUIRE(close(fd) == 0);
+	}
+}
+
 ATF_TC_WITHOUT_HEAD(largepage_mmap);
 ATF_TC_BODY(largepage_mmap, tc)
 {
@@ -2167,6 +2188,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, mmap_prot);
 	ATF_TP_ADD_TC(tp, largepage_basic);
 	ATF_TP_ADD_TC(tp, largepage_config);
+	ATF_TP_ADD_TC(tp, largepage_fspacectl);
 	ATF_TP_ADD_TC(tp, largepage_mmap);
 	ATF_TP_ADD_TC(tp, largepage_munmap);
 	ATF_TP_ADD_TC(tp, largepage_madvise);

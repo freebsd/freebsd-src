@@ -2090,10 +2090,13 @@ shm_fspacectl(struct file *fp, int cmd, off_t *offset, off_t *length, int flags,
 	    ("shm_fspacectl: non-zero flags"));
 	KASSERT(*offset >= 0 && *length > 0 && *length <= OFF_MAX - *offset,
 	    ("shm_fspacectl: offset/length overflow or underflow"));
-	error = EINVAL;
+
 	shmfd = fp->f_data;
 	off = *offset;
 	len = *length;
+
+	if (shm_largepage(shmfd))
+		return (ENOTSUP);
 
 	rl_cookie = shm_rangelock_wlock(shmfd, off, off + len);
 	switch (cmd) {
