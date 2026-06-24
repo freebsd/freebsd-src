@@ -1510,7 +1510,7 @@ acpi_ibm_eventhandler(struct acpi_ibm_softc *sc, int arg)
 static void
 acpi_ibm_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 {
-	int		event, arg, type, key;
+	int		event, arg, type;
 	device_t	dev = context;
 	struct acpi_ibm_softc *sc = device_get_softc(dev);
 
@@ -1538,7 +1538,7 @@ acpi_ibm_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 				acpi_ibm_eventhandler(sc, (arg & 0xff));
 #ifdef EVDEV_SUPPORT
 			else {
-				key = -1;
+				int key = -1;
 
 				switch (arg & 0xff) {
 				case IBM_EVENT_BRIGHTNESS_UP:
