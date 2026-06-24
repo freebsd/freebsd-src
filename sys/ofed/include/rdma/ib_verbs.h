@@ -4223,4 +4223,21 @@ static inline u32 rdma_calc_flow_label(u32 lqpn, u32 rqpn)
 
 	return (u32)(v & IB_GRH_FLOWLABEL_MASK);
 }
+
+/**
+ * rdma_get_udp_sport - Calculate and set UDP source port based on the flow
+ *                      label. If flow label is not defined in GRH then
+ *                      calculate it based on lqpn/rqpn.
+ *
+ * @fl:                 flow label from GRH
+ * @lqpn:               local qp number
+ * @rqpn:               remote qp number
+ */
+static inline u16 rdma_get_udp_sport(u32 fl, u32 lqpn, u32 rqpn)
+{
+	if (!fl)
+		fl = rdma_calc_flow_label(lqpn, rqpn);
+
+	return rdma_flow_label_to_udp_sport(fl);
+}
 #endif /* IB_VERBS_H */
