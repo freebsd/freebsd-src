@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
 #include "adf_cfg_common.h"
@@ -125,7 +125,7 @@ adf_init_arb_c4xxx(struct adf_accel_dev *accel_dev)
 	struct resource *csr = accel_dev->transport->banks[0].csr_addr;
 	struct adf_accel_unit_info *au_info = accel_dev->au_info;
 	u32 i;
-	unsigned long ae_mask;
+	u64 ae_mask;
 	u32 partitions_mask = 0;
 
 	/* invoke common adf_init_arb */
@@ -145,15 +145,15 @@ adf_init_arb_c4xxx(struct adf_accel_dev *accel_dev)
 	 */
 	for_each_set_bit(i, &ae_mask, ADF_C4XXX_MAX_ACCELENGINES)
 	{
-		if (BIT(i) & au_info->sym_ae_msk)
+		if (BIT_ULL(i) & au_info->sym_ae_msk)
 			adf_enable_sym_threads(accel_dev,
 					       i,
 					       ADF_C4XXX_PART_SYM);
-		if (BIT(i) & au_info->asym_ae_msk)
+		if (BIT_ULL(i) & au_info->asym_ae_msk)
 			adf_enable_asym_threads(accel_dev,
 						i,
 						ADF_C4XXX_PART_ASYM);
-		if (BIT(i) & au_info->dc_ae_msk)
+		if (BIT_ULL(i) & au_info->dc_ae_msk)
 			adf_enable_dc_threads(accel_dev, i, ADF_C4XXX_PART_DC);
 	}
 
@@ -169,7 +169,7 @@ adf_exit_arb_c4xxx(struct adf_accel_dev *accel_dev)
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
 	struct resource *csr;
 	u32 i;
-	unsigned long ae_mask;
+	u64 ae_mask;
 
 	if (!accel_dev->transport)
 		return;

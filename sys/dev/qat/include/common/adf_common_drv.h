@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #ifndef ADF_DRV_H
 #define ADF_DRV_H
 
@@ -145,7 +145,7 @@ struct icp_qat_fw_init_admin_resp;
 int adf_send_admin(struct adf_accel_dev *accel_dev,
 		   struct icp_qat_fw_init_admin_req *req,
 		   struct icp_qat_fw_init_admin_resp *resp,
-		   u32 ae_mask);
+		   u64 ae_mask);
 int adf_config_device(struct adf_accel_dev *accel_dev);
 
 int adf_init_admin_comms(struct adf_accel_dev *accel_dev);

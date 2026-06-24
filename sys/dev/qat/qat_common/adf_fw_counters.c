@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -35,7 +35,7 @@ adf_get_fw_counters(struct adf_accel_dev *accel_dev)
 {
 	struct icp_qat_fw_init_admin_req req;
 	struct icp_qat_fw_init_admin_resp resp;
-	unsigned long ae_mask;
+	u64 ae_mask;
 	int i;
 	int ret = 0;
 	char aeidstr[16] = { 0 };

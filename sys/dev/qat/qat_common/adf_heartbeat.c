@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include <sys/types.h>
 #include <linux/random.h>
 #include "qat_freebsd.h"
@@ -114,7 +114,7 @@ adf_get_heartbeat_status(struct adf_accel_dev *accel_dev)
 	int ret = 0;
 	size_t ae, thr;
 	u16 *count_s;
-	unsigned long ae_mask = 0;
+	u64 ae_mask = 0;
 
 	/*
 	 * Memory layout of Heartbeat

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include <adf_accel_devices.h>
 #include <adf_cfg.h>
 #include <adf_common_drv.h>
@@ -56,17 +56,17 @@ struct adf_enabled_services {
 	u16 rng_to_svc_msk;
 };
 
-static struct adf_enabled_services adf_4xxxiov_svcs[] =
-    { { "dc", ADF_4XXXIOV_DC },
-      { "sym", ADF_4XXXIOV_SYM },
-      { "asym", ADF_4XXXIOV_ASYM },
-      { "dc;asym", ADF_4XXXIOV_ASYM_DC },
-      { "asym;dc", ADF_4XXXIOV_ASYM_DC },
-      { "sym;dc", ADF_4XXXIOV_SYM_DC },
-      { "dc;sym", ADF_4XXXIOV_SYM_DC },
-      { "asym;sym", ADF_4XXXIOV_ASYM_SYM },
-      { "sym;asym", ADF_4XXXIOV_ASYM_SYM },
-      { "cy", ADF_4XXXIOV_ASYM_SYM } };
+static struct adf_enabled_services adf_4xxxiov_svcs[] = {
+	{ "dc", ADF_4XXXIOV_DC },
+	{ "sym", ADF_4XXXIOV_SYM },
+	{ "asym", ADF_4XXXIOV_ASYM },
+	{ "dc;asym", ADF_4XXXIOV_ASYM_DC },
+	{ "asym;dc", ADF_4XXXIOV_ASYM_DC },
+	{ "sym;dc", ADF_4XXXIOV_SYM_DC },
+	{ "dc;sym", ADF_4XXXIOV_SYM_DC },
+	{ "asym;sym", ADF_4XXXIOV_ASYM_SYM },
+	{ "sym;asym", ADF_4XXXIOV_ASYM_SYM }
+};
 
 static u32
 get_accel_mask(struct adf_accel_dev *accel_dev)
@@ -74,7 +74,7 @@ get_accel_mask(struct adf_accel_dev *accel_dev)
 	return ADF_4XXXIOV_ACCELERATORS_MASK;
 }
 
-static u32
+static u64
 get_ae_mask(struct adf_accel_dev *accel_dev)
 {
 	return ADF_4XXXIOV_ACCELENGINES_MASK;

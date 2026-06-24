@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: BSD-3-Clause  */
-/* Copyright(c) 2021 Intel Corporation */
+/* SPDX-License-Identifier: BSD-3-Clause */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #ifndef ADF_GEN2_HW_DATA_H_
 #define ADF_GEN2_HW_DATA_H_
 
@@ -7,8 +7,10 @@
 #include "adf_cfg_common.h"
 
 /* Transport access */
+#define ADF_RINGS_PER_INT_SRCSEL 8
+#define ADF_RING_CSR_NEXT_INT_SRCSEL 0x4
 #define ADF_BANK_INT_SRC_SEL_MASK_0 0x4444444CUL
-#define ADF_BANK_INT_SRC_SEL_MASK_X 0x44444444UL
+#define ADF_BANK_INT_SRC_SEL_MASK 0x44444444UL
 #define ADF_RING_CSR_RING_CONFIG 0x000
 #define ADF_RING_CSR_RING_LBASE 0x040
 #define ADF_RING_CSR_RING_UBASE 0x080
@@ -97,17 +99,12 @@ read_base(struct resource *csr_base_addr, u32 bank, u32 ring)
 	ADF_CSR_WR(csr_base_addr,                                              \
 		   (ADF_RING_BUNDLE_SIZE * (bank)) + ADF_RING_CSR_INT_FLAG,    \
 		   value)
-#define WRITE_CSR_INT_SRCSEL(csr_base_addr, bank)                              \
-	do {                                                                   \
-		ADF_CSR_WR(csr_base_addr,                                      \
-			   (ADF_RING_BUNDLE_SIZE * (bank)) +                   \
-			       ADF_RING_CSR_INT_SRCSEL,                        \
-			   ADF_BANK_INT_SRC_SEL_MASK_0);                       \
-		ADF_CSR_WR(csr_base_addr,                                      \
-			   (ADF_RING_BUNDLE_SIZE * (bank)) +                   \
-			       ADF_RING_CSR_INT_SRCSEL_2,                      \
-			   ADF_BANK_INT_SRC_SEL_MASK_X);                       \
-	} while (0)
+#define WRITE_CSR_INT_SRCSEL(csr_base_addr, bank, idx, value)                  \
+	ADF_CSR_WR(csr_base_addr,                                              \
+		   (ADF_RING_BUNDLE_SIZE * (bank)) +                           \
+		       (ADF_RING_CSR_INT_SRCSEL +                              \
+			((idx)*ADF_RING_CSR_NEXT_INT_SRCSEL)),                 \
+		   (value))
 #define WRITE_CSR_INT_COL_EN(csr_base_addr, bank, value)                       \
 	ADF_CSR_WR(csr_base_addr,                                              \
 		   (ADF_RING_BUNDLE_SIZE * (bank)) + ADF_RING_CSR_INT_COL_EN,  \

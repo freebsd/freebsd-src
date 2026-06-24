@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include "adf_accel_devices.h"
 #include "adf_gen4vf_hw_csr_data.h"
 
@@ -76,9 +76,12 @@ write_csr_int_flag(struct resource *csr_base_addr, u32 bank, u32 value)
 }
 
 static void
-write_csr_int_srcsel(struct resource *csr_base_addr, u32 bank)
+write_csr_int_srcsel(struct resource *csr_base_addr,
+		     u32 bank,
+		     u32 idx,
+		     u32 value)
 {
-	WRITE_CSR_INT_SRCSEL_GEN4VF(csr_base_addr, bank);
+	WRITE_CSR_INT_SRCSEL_GEN4VF(csr_base_addr, bank, idx, value);
 }
 
 static void

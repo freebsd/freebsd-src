@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include <adf_accel_devices.h>
 #include <adf_common_drv.h>
 #include <adf_cfg.h>
@@ -40,7 +40,7 @@ get_accel_mask(struct adf_accel_dev *accel_dev)
 	    ADF_C62X_ACCELERATORS_MASK;
 }
 
-static u32
+static u64
 get_ae_mask(struct adf_accel_dev *accel_dev)
 {
 	device_t pdev = accel_dev->accel_pci_dev.pci_dev;
@@ -90,7 +90,7 @@ get_num_aes(struct adf_hw_device_data *self)
 		return 0;
 
 	for (i = 0; i < ADF_C62X_MAX_ACCELENGINES; i++) {
-		if (self->ae_mask & (1 << i))
+		if (self->ae_mask & (1ULL << i))
 			ctr++;
 	}
 	return ctr;
@@ -136,7 +136,7 @@ adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev,
 
 	for (i = 0; i < ADF_C62X_MAX_ACCELENGINES; i++) {
 		thrd_to_arb_map_gen[i] = 0;
-		if (hw_device->ae_mask & (1 << i))
+		if (hw_device->ae_mask & (1ULL << i))
 			thrd_to_arb_map_gen[i] = thrd_to_arb_map[i];
 	}
 	adf_cfg_gen_dispatch_arbiter(accel_dev,
@@ -184,12 +184,12 @@ adf_enable_error_correction(struct adf_accel_dev *accel_dev)
 	struct adf_bar *misc_bar = &GET_BARS(accel_dev)[ADF_C62X_PMISC_BAR];
 	struct resource *csr = misc_bar->virt_addr;
 	unsigned int val, i;
-	unsigned int mask;
+	u64 mask;
 
 	/* Enable Accel Engine error detection & correction */
 	mask = hw_device->ae_mask;
 	for (i = 0; mask; i++, mask >>= 1) {
-		if (!(mask & 1))
+		if (!(mask & 1ULL))
 			continue;
 		val = ADF_CSR_RD(csr, ADF_C62X_AE_CTX_ENABLES(i));
 		val |= ADF_C62X_ENABLE_AE_ECC_ERR;
@@ -200,9 +200,9 @@ adf_enable_error_correction(struct adf_accel_dev *accel_dev)
 	}
 
 	/* Enable shared memory error detection & correction */
-	mask = hw_device->accel_mask;
+	mask = (u64)hw_device->accel_mask;
 	for (i = 0; mask; i++, mask >>= 1) {
-		if (!(mask & 1))
+		if (!(mask & 1ULL))
 			continue;
 		val = ADF_CSR_RD(csr, ADF_C62X_UERRSSMSH(i));
 		val |= ADF_C62X_ERRSSMSH_EN;
@@ -325,7 +325,7 @@ get_objs_num(struct adf_accel_dev *accel_dev)
 	return 1;
 }
 
-static uint32_t
+static uint64_t
 get_obj_cfg_ae_mask(struct adf_accel_dev *accel_dev,
 		    enum adf_accel_unit_services services)
 {

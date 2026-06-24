@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include "adf_cfg.h"
 #include "cpa.h"
 #include "icp_accel_devices.h"
@@ -49,6 +49,7 @@ create_adf_dev_structure(struct adf_accel_dev *accel_dev)
 	adf->accelCapabilitiesMask = hw_data->accel_capabilities_mask;
 	adf->sku = hw_data->get_sku(hw_data);
 	adf->accel_dev = accel_dev;
+	adf->pciDevId = pci_get_device(accel_to_pci_dev(adf->accel_dev));
 	accel_dev->lac_dev = adf;
 
 	return adf;
