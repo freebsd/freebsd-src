@@ -344,7 +344,7 @@ static void terminate_with_diagnostics() {
 		if (throw_ti)
 		{
 			std::exception *e =
-				static_cast<std::exception*>(e_ti->cast_to(static_cast<void*>(ex+1), throw_ti));
+				static_cast<std::exception*>(throw_ti->cast_to(static_cast<void*>(ex+1), e_ti));
 			if (e)
 			{
 				fprintf(stderr, " '%s'", e->what());
