@@ -459,6 +459,41 @@ rule_number_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "create_destroy" "cleanup"
+create_destroy_head()
+{
+	atf_set descr 'Test adding/remove pflog interfaces'
+	atf_set require.user root
+}
+
+create_destroy_body()
+{
+	pflog_init
+
+	# Make sure pflog15 doesn't exist
+	atf_check -s exit:1 -e ignore timeout 3 \
+	    tcpdump -i pflog15
+
+	# Create more devices
+	sysctl net.pflog.if_count=16
+
+	# It does now
+	atf_check -s exit:124 -o ignore -e ignore timeout 3 \
+	    tcpdump -i pflog15
+
+	# Back down to the default 8 devices:
+	sysctl net.pflog.if_count=8
+
+	# And pflog15 no longer exists
+	atf_check -s exit:1 -e ignore timeout 3 \
+	    tcpdump -i pflog15
+}
+
+create_destroy_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "malformed"
@@ -469,4 +504,5 @@ atf_init_test_cases()
 	atf_add_test_case "unspecified_v6"
 	atf_add_test_case "rdr_action"
 	atf_add_test_case "rule_number"
+	atf_add_test_case "create_destroy"
 }

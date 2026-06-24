@@ -49,11 +49,11 @@
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
 
 #include <net/bpf.h>
 #include <net/if.h>
 #include <net/if_var.h>
-#include <net/if_clone.h>
 #include <net/if_pflog.h>
 #include <net/if_private.h>
 #include <net/if_types.h>
@@ -85,159 +85,110 @@
 #define DPRINTF(x)
 #endif
 
-static int	pflogoutput(struct ifnet *, struct mbuf *,
-		    const struct sockaddr *, struct route *);
 static void	pflogattach(void);
-static int	pflogifs_resize(size_t);
-static int	pflogioctl(struct ifnet *, u_long, caddr_t);
-static void	pflogstart(struct ifnet *);
-static int	pflog_clone_create(struct if_clone *, char *, size_t,
-		    struct ifc_data *, struct ifnet **);
-static int	pflog_clone_destroy(struct if_clone *, struct ifnet *, uint32_t);
+static int	pflog_create(int);
+static void	pflog_destroy(int);
+static int	sysctl_pflog_if_count(SYSCTL_HANDLER_ARGS);
+static bool	bpf_pflog_chkdir(void *, const struct mbuf *, int);
 
 static const char pflogname[] = "pflog";
 
-VNET_DEFINE_STATIC(struct if_clone *, pflog_cloner);
-#define	V_pflog_cloner		VNET(pflog_cloner)
+static const struct bif_methods bpf_pflog_methods = {
+	.bif_chkdir = bpf_pflog_chkdir,
+};
 
-VNET_DEFINE_STATIC(int, npflogifs) = 0;
+struct pflog_dev {
+	struct bpf_if	*pflog_bpf;
+	char		 pflog_name[IFNAMSIZ];
+};
+VNET_DEFINE_STATIC(uint8_t, npflogifs) = 8;
 #define	V_npflogifs		VNET(npflogifs)
-VNET_DEFINE(struct ifnet **, pflogifs);	/* for fast access */
+VNET_DEFINE(struct pflog_dev, pflogifs[256]);	/* for fast access */
 #define	V_pflogifs		VNET(pflogifs)
+
+SYSCTL_NODE(_net, OID_AUTO, pflog, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "PFLOG");
+SYSCTL_PROC(_net_pflog, OID_AUTO, if_count,
+    CTLTYPE_U8 | CTLFLAG_RW | CTLFLAG_VNET,
+    0, 0, sysctl_pflog_if_count, "CU",
+    "Number of pflog(4) interfaces");
+static struct sx pflog_dev_lock;
+SX_SYSINIT(pflog_dev_lock, &pflog_dev_lock, "pflog(4) device lock");
 
 static void
 pflogattach(void)
 {
-	struct if_clone_addreq req = {
-		.create_f = pflog_clone_create,
-		.destroy_f = pflog_clone_destroy,
-		.flags = IFC_F_AUTOUNIT,
-	};
-	V_pflog_cloner = ifc_attach_cloner(pflogname, &req);
-	struct ifc_data ifd = { .unit = 0 };
-	ifc_create_ifp(pflogname, &ifd, NULL);
+	int ret __diagused;
+
+	sx_xlock(&pflog_dev_lock);
+	for (int i = 0; i < V_npflogifs; i++) {
+		ret = pflog_create(i);
+		MPASS(ret == 0);
+	}
+	sx_xunlock(&pflog_dev_lock);
 }
 
 static int
-pflogifs_resize(size_t n)
+pflog_create(int unit)
 {
-	struct ifnet **p;
-	int i;
+	sx_assert(&pflog_dev_lock, SX_XLOCKED);
 
-	if (n > SIZE_MAX / sizeof(struct ifnet *))
+	if (unit < 0)
 		return (EINVAL);
-	if (n == 0)
-		p = NULL;
-	else if ((p = malloc(n * sizeof(struct ifnet *), M_DEVBUF,
-	    M_NOWAIT | M_ZERO)) == NULL)
-		return (ENOMEM);
-	for (i = 0; i < n; i++) {
-		if (i < V_npflogifs)
-			p[i] = V_pflogifs[i];
-		else
-			p[i] = NULL;
-	}
-
-	if (V_pflogifs)
-		free(V_pflogifs, M_DEVBUF);
-	V_pflogifs = p;
-	V_npflogifs = n;
-
-	return (0);
-}
-
-static int
-pflog_clone_create(struct if_clone *ifc, char *name, size_t maxlen,
-    struct ifc_data *ifd, struct ifnet **ifpp)
-{
-	struct ifnet *ifp;
-
-	ifp = if_alloc(IFT_PFLOG);
-	if_initname(ifp, pflogname, ifd->unit);
-	ifp->if_mtu = PFLOGMTU;
-	ifp->if_ioctl = pflogioctl;
-	ifp->if_output = pflogoutput;
-	ifp->if_start = pflogstart;
-	ifp->if_snd.ifq_maxlen = ifqmaxlen;
-	ifp->if_hdrlen = PFLOG_HDRLEN;
-	if_attach(ifp);
-
-	bpfattach(ifp, DLT_PFLOG, PFLOG_HDRLEN);
-
-	if (ifd->unit + 1 > V_npflogifs &&
-	    pflogifs_resize(ifd->unit + 1) != 0) {
-		pflog_clone_destroy(ifc, ifp, IFC_F_FORCE);
-		return (ENOMEM);
-	}
-	V_pflogifs[ifd->unit] = ifp;
-	*ifpp = ifp;
-
-	return (0);
-}
-
-static int
-pflog_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
-{
-	int i;
-
-	if (ifp->if_dunit == 0 && (flags & IFC_F_FORCE) == 0)
+	if (unit > PFLOG_MAX_DEVS)
 		return (EINVAL);
 
-	for (i = 0; i < V_npflogifs; i++)
-		if (V_pflogifs[i] == ifp)
-			V_pflogifs[i] = NULL;
+	if (V_pflogifs[unit].pflog_bpf != NULL)
+		return (EEXIST);
 
-	bpfdetach(ifp);
-	if_detach(ifp);
-	if_free(ifp);
+	snprintf(V_pflogifs[unit].pflog_name, IFNAMSIZ, "pflog%d", unit);
+
+	V_pflogifs[unit].pflog_bpf = bpf_attach(V_pflogifs[unit].pflog_name,
+	    DLT_PFLOG, PFLOG_HDRLEN, &bpf_pflog_methods, NULL);
 
 	return (0);
 }
 
-/*
- * Start output on the pflog interface.
- */
 static void
-pflogstart(struct ifnet *ifp)
+pflog_destroy(int unit)
 {
-	struct mbuf *m;
+	sx_assert(&pflog_dev_lock, SX_XLOCKED);
 
-	for (;;) {
-		IF_LOCK(&ifp->if_snd);
-		_IF_DEQUEUE(&ifp->if_snd, m);
-		IF_UNLOCK(&ifp->if_snd);
-
-		if (m == NULL)
-			return;
-		else
-			m_freem(m);
-	}
+	bpf_detach(V_pflogifs[unit].pflog_bpf);
+	V_pflogifs[unit].pflog_bpf = NULL;
 }
 
 static int
-pflogoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
-	struct route *rt)
+sysctl_pflog_if_count(SYSCTL_HANDLER_ARGS)
 {
-	m_freem(m);
-	return (0);
-}
+	uint8_t n = V_npflogifs;
+	int error;
 
-/* ARGSUSED */
-static int
-pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
-{
-	switch (cmd) {
-	case SIOCSIFFLAGS:
-		if (ifp->if_flags & IFF_UP)
-			ifp->if_drv_flags |= IFF_DRV_RUNNING;
-		else
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-		break;
-	default:
-		return (ENOTTY);
+	error = sysctl_handle_8(oidp, &n, 0, req);
+
+	if (n != V_npflogifs) {
+		sx_xlock(&pflog_dev_lock);
+		if (n > V_npflogifs) {
+			for (int i = V_npflogifs; i < n; i++) {
+				pflog_create(i);
+			}
+		} else {
+			for (int i = V_npflogifs - 1; i >= n; i--) {
+				pflog_destroy(i);
+			}
+		}
+		V_npflogifs = n;
+		sx_xunlock(&pflog_dev_lock);
 	}
 
-	return (0);
+	return (error);
+}
+
+static bool
+bpf_pflog_chkdir(void *arg __unused, const struct mbuf *m, int dir)
+{
+	return ((dir == BPF_D_IN && m_rcvif(m) == NULL) ||
+	    (dir == BPF_D_OUT && m_rcvif(m) != NULL));
 }
 
 static int
@@ -246,8 +197,10 @@ pflog_packet(uint8_t action, u_int8_t reason,
     struct pf_kruleset *ruleset, struct pf_pdesc *pd, int lookupsafe,
     struct pf_krule *trigger)
 {
-	struct ifnet *ifn;
+	struct bpf_if *ifn;
 	struct pfloghdr hdr;
+
+	NET_EPOCH_ASSERT();
 
 	if (rm == NULL || pd == NULL)
 		return (1);
@@ -257,8 +210,8 @@ pflog_packet(uint8_t action, u_int8_t reason,
 	if (trigger->logif > V_npflogifs)
 		return (0);
 
-	ifn = V_pflogifs[trigger->logif];
-	if (ifn == NULL || !bpf_peers_present(ifn->if_bpf))
+	ifn = V_pflogifs[trigger->logif].pflog_bpf;
+	if (ifn == NULL)
 		return (0);
 
 	bzero(&hdr, sizeof(hdr));
@@ -305,9 +258,7 @@ pflog_packet(uint8_t action, u_int8_t reason,
 	}
 #endif /* INET */
 
-	if_inc_counter(ifn, IFCOUNTER_OPACKETS, 1);
-	if_inc_counter(ifn, IFCOUNTER_OBYTES, pd->m->m_pkthdr.len);
-	bpf_mtap2(ifn->if_bpf, &hdr, PFLOG_HDRLEN, pd->m);
+	bpf_mtap2(ifn, &hdr, PFLOG_HDRLEN, pd->m);
 
 	return (0);
 }
@@ -324,9 +275,12 @@ VNET_SYSINIT(vnet_pflog_init, SI_SUB_PROTO_FIREWALL, SI_ORDER_ANY,
 static void
 vnet_pflog_uninit(const void *unused __unused)
 {
-
-	ifc_detach_cloner(V_pflog_cloner);
+	sx_xlock(&pflog_dev_lock);
+	for (int i = 0; i < V_npflogifs; i++)
+		pflog_destroy(i);
+	sx_xunlock(&pflog_dev_lock);
 }
+
 /*
  * Detach after pf is gone; otherwise we might touch pflog memory
  * from within pf after freeing pflog.

@@ -33,7 +33,7 @@ from atf_python.sys.net.tools import ToolsHelper
 from atf_python.sys.net.vnet import VnetTestTemplate
 
 class TestNAT64(VnetTestTemplate):
-    REQUIRED_MODULES = [ "pf", "pflog" ]
+    REQUIRED_MODULES = [ "pf", "pflog", "pfsync" ]
     TOPOLOGY = {
         "vnet1": {"ifaces": ["if1"]},
         "vnet2": {"ifaces": ["if1", "if2"]},
@@ -101,7 +101,7 @@ class TestNAT64(VnetTestTemplate):
             "pass in on %s inet6 af-to inet from 192.0.2.1" % ifname,
         ])
 
-        vnet.pipe.send(socket.if_nametoindex("pflog0"))
+        vnet.pipe.send(socket.if_nametoindex("pfsync0"))
 
     @pytest.mark.require_user("root")
     @pytest.mark.require_progs(["scapy"])
