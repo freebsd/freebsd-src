@@ -411,14 +411,14 @@ qlnxr_create_gsi_qp(struct qlnxr_dev *dev,
 	qp->rq.max_wr = attrs->cap.max_recv_wr;
 	qp->sq.max_wr = attrs->cap.max_send_wr;
 
-	qp->rqe_wr_id = kzalloc(qp->rq.max_wr * sizeof(*qp->rqe_wr_id),
+	qp->rqe_wr_id = kcalloc(qp->rq.max_wr, sizeof(*qp->rqe_wr_id),
 				GFP_KERNEL);
 	if (!qp->rqe_wr_id) {
 		QL_DPRINT11(dev->ha, "(!qp->rqe_wr_id)\n");
 		goto err;
 	}
 
-	qp->wqe_wr_id = kzalloc(qp->sq.max_wr * sizeof(*qp->wqe_wr_id),
+	qp->wqe_wr_id = kcalloc(qp->sq.max_wr, sizeof(*qp->wqe_wr_id),
 				GFP_KERNEL);
 	if (!qp->wqe_wr_id) {
 		QL_DPRINT11(dev->ha, "(!qp->wqe_wr_id)\n");

@@ -308,7 +308,8 @@ static int ipoib_cm_nonsrq_init_rx(struct ipoib_dev_priv *priv,
 	int ret;
 	int i;
 
-	rx->rx_ring = vzalloc(ipoib_recvq_size * sizeof *rx->rx_ring);
+	rx->rx_ring = vzalloc(array_size(ipoib_recvq_size,
+					 sizeof(*rx->rx_ring)));
 	if (!rx->rx_ring)
 		return -ENOMEM;
 
@@ -1003,7 +1004,7 @@ static int ipoib_cm_tx_init(struct ipoib_cm_tx *p, u32 qpn,
 	struct ipoib_dev_priv *priv = p->priv;
 	int ret;
 
-	p->tx_ring = vzalloc(ipoib_sendq_size * sizeof *p->tx_ring);
+	p->tx_ring = vzalloc(array_size(ipoib_sendq_size, sizeof(*p->tx_ring)));
 	if (!p->tx_ring) {
 		ret = -ENOMEM;
 		goto err_tx;
@@ -1361,7 +1362,8 @@ static void ipoib_cm_create_srq(struct ipoib_dev_priv *priv, int max_sge)
 		return;
 	}
 
-	priv->cm.srq_ring = vzalloc(ipoib_recvq_size * sizeof *priv->cm.srq_ring);
+	priv->cm.srq_ring = vzalloc(array_size(ipoib_recvq_size,
+					       sizeof(*priv->cm.srq_ring)));
 	if (!priv->cm.srq_ring) {
 		ib_destroy_srq(priv->cm.srq);
 		priv->cm.srq = NULL;

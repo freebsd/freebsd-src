@@ -2930,8 +2930,8 @@ qlnxr_create_kernel_qp(struct qlnxr_dev *dev,
 	qp->sq.max_wr = min_t(u32, attrs->cap.max_send_wr * dev->wq_multiplier,
 			      qattr->max_wqe);
 
-	qp->wqe_wr_id = kzalloc(qp->sq.max_wr * sizeof(*qp->wqe_wr_id),
-			GFP_KERNEL);
+	qp->wqe_wr_id = kcalloc(qp->sq.max_wr, sizeof(*qp->wqe_wr_id),
+				GFP_KERNEL);
 	if (!qp->wqe_wr_id) {
 		QL_DPRINT11(ha, "failed SQ shadow memory allocation\n");
 		return -ENOMEM;
@@ -2949,7 +2949,7 @@ qlnxr_create_kernel_qp(struct qlnxr_dev *dev,
 
 	/* Allocate driver internal RQ array */
 	if (!qp->srq) {
-		qp->rqe_wr_id = kzalloc(qp->rq.max_wr * sizeof(*qp->rqe_wr_id),
+		qp->rqe_wr_id = kcalloc(qp->rq.max_wr, sizeof(*qp->rqe_wr_id),
 					GFP_KERNEL);
 		if (!qp->rqe_wr_id) {
 			QL_DPRINT11(ha, "failed RQ shadow memory allocation\n");
