@@ -150,6 +150,13 @@ Specifying a
 device descriptor prefixed by
 .Pa /dev/sndio/
 is also magic, and will use a sndio backend rather than an OSS device.
+Specifying path prefixed by
+.Pa /dev/bluetooth/
+is also magic, and will use Bluetooth audio backend rather than an OSS device.
+Suffix after
+.Pa /dev/bluetooth/
+is Bluetooth device address or alias as configured in
+.Xr bluetooth.hosts 5 .
 .It Fl O Ar devname
 Set playback DSP device only which acts as a master device.
 This option is used in conjunction with
@@ -160,8 +167,22 @@ Set recording DSP device only.
 Specifying
 .Pa /dev/null
 is magic and means no recording device.
+Specifying path prefixed by
+.Pa /dev/bluetooth/
+is also magic, and will use Bluetooth audio backend rather than an OSS device.
+Suffix after
+.Pa /dev/bluetooth/
+is Bluetooth device address or alias as configured in
+.Xr bluetooth.hosts 5 .
 .It Fl f Ar devname
-Set both playback and recording DSP device
+Set both playback and recording DSP device.
+Specifying path prefixed by
+.Pa /dev/bluetooth/
+is magic, and will use Bluetooth audio backend rather than an OSS device.
+Suffix after
+.Pa /dev/bluetooth/
+is Bluetooth device address or alias as configured in
+.Xr bluetooth.hosts 5 .
 .It Fl w Ar name
 Create a WAV file format compatible companion device by given name.
 This option should be specified before the -d and -l options.
