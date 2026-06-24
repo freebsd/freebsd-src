@@ -725,10 +725,8 @@ feeder_chain(struct pcm_channel *c)
 
 		/* Soft EQ only applicable for PLAY. */
 		if (cdesc.dummy == 0 &&
-		    c->direction == PCMDIR_PLAY && (d->flags & SD_F_EQ_ENABLED) &&
-		    (((d->flags & SD_F_EQ_PC) &&
-		    !(c->flags & CHN_F_HAS_VCHAN)) ||
-		    (!(d->flags & SD_F_EQ_PC) && !(c->flags & CHN_F_VIRTUAL))))
+		    c->direction == PCMDIR_PLAY &&
+		    (d->flags & SD_F_EQ_ENABLED) && !(c->flags & CHN_F_VIRTUAL))
 			cdesc.use_eq = 1;
 
 		if (FEEDFORMAT_NE_REQUIRED(&cdesc)) {
