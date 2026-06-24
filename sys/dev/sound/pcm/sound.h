@@ -106,7 +106,7 @@ struct snd_mixer;
 #define SD_F_BITPERFECT		0x00000040
 /* unused			0x00000080 */
 /* unused			0x00000100 */
-#define SD_F_EQ_ENABLED		0x00000200	/* EQ enabled */
+#define SD_F_EQ			0x00000200	/* EQ enabled */
 /* unused			0x00000400 */
 /* unused			0x00000800 */
 #define SD_F_PVCHANS		0x00001000	/* Playback vchans enabled */
@@ -122,7 +122,7 @@ struct snd_mixer;
 				"\007BITPERFECT"			\
 				/* "\010 */				\
 				/* "\011 */				\
-				"\012EQ_ENABLED"			\
+				"\012EQ"				\
 				/* "\013 */				\
 				/* "\014 */				\
 				"\015PVCHANS"				\
