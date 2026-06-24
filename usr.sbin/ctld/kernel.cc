@@ -441,19 +441,13 @@ retry_port:
 	return (true);
 }
 
-void
-add_iscsi_port(struct kports &kports, struct conf *conf,
-    const struct cctl_port &port, std::string &name)
+static void
+add_iscsi_port(struct conf *conf, const struct cctl_port &port,
+    std::string &name)
 {
 	if (port.cfiscsi_target.empty()) {
 		log_debugx("CTL iSCSI port %u \"%s\" is not managed by ctld; "
 		    "ignoring", port.port_id, name.c_str());
-		if (!kports.has_port(name)) {
-			if (!kports.add_port(name, port.port_id)) {
-				log_warnx("kports::add_port failed");
-				return;
-			}
-		}
 		return;
 	}
 	if (port.cfiscsi_state != 1) {
@@ -493,7 +487,7 @@ add_iscsi_port(struct kports &kports, struct conf *conf,
 	}
 }
 
-void
+static void
 add_nvmf_port(struct conf *conf, const struct cctl_port &port,
     std::string &name)
 {
@@ -532,6 +526,22 @@ add_nvmf_port(struct conf *conf, const struct cctl_port &port,
 	}
 }
 
+static void
+add_kernel_port(struct kports &kports, const struct cctl_port &port,
+    std::string &name)
+{
+	log_debugx("CTL kernel port %u \"%s\"", port.port_id, name.c_str());
+	if (kports.has_port(name)) {
+		log_warnx("Ignoring duplicate kernel port \"%s\"",
+		    name.c_str());
+		return;
+	}
+
+	if (!kports.add_port(name, port.port_id)) {
+		log_warnx("kports::add_port failed");
+	}
+}
+
 conf_up
 conf_new_from_kernel(struct kports &kports)
 {
@@ -559,12 +569,11 @@ conf_new_from_kernel(struct kports &kports)
 		}
 
 		if (port.port_frontend == "iscsi") {
-			add_iscsi_port(kports, conf.get(), port, name);
+			add_iscsi_port(conf.get(), port, name);
 		} else if (port.port_frontend == "nvmf") {
 			add_nvmf_port(conf.get(), port, name);
 		} else {
-			/* XXX: Treat all unknown ports as iSCSI? */
-			add_iscsi_port(kports, conf.get(), port, name);
+			add_kernel_port(kports, port, name);
 		}
 	}
 
