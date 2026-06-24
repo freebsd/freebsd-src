@@ -511,8 +511,7 @@ static bool find_gid_index(const union ib_gid *gid,
 			   void *context)
 {
 	u16 vlan_diff;
-	struct find_gid_index_context *ctx =
-		(struct find_gid_index_context *)context;
+	struct find_gid_index_context *ctx = context;
 
 	if (ctx->gid_type != gid_attr->gid_type)
 		return false;
@@ -575,8 +574,53 @@ int ib_get_gids_from_rdma_hdr(const union rdma_network_hdr *hdr,
 }
 EXPORT_SYMBOL(ib_get_gids_from_rdma_hdr);
 
+/* Resolve destination mac address and hop limit for unicast destination
+ * GID entry, considering the source GID entry as well.
+ * ah_attribute must have have valid port_num, sgid_index.
+ */
+static int ib_resolve_unicast_gid_dmac(struct ib_device *device,
+				       struct rdma_ah_attr *ah_attr)
+{
+	struct ib_gid_attr sgid_attr;
+	struct ib_global_route *grh;
+	int hop_limit = 0xff;
+	union ib_gid sgid;
+	int ret;
+
+	grh = rdma_ah_retrieve_grh(ah_attr);
+
+	ret = ib_query_gid(device,
+			   rdma_ah_get_port_num(ah_attr),
+			   grh->sgid_index,
+			   &sgid, &sgid_attr);
+	if (ret || !sgid_attr.ndev) {
+		if (!ret)
+			ret = -ENXIO;
+		return ret;
+	}
+
+	/* If destination is link local and source GID is RoCEv1,
+	 * IP stack is not used.
+	 */
+	if (rdma_link_local_addr((struct in6_addr *)grh->dgid.raw) &&
+	    sgid_attr.gid_type == IB_GID_TYPE_ROCE) {
+		rdma_get_ll_mac((struct in6_addr *)grh->dgid.raw,
+				ah_attr->roce.dmac);
+		goto done;
+	}
+
+	ret = rdma_addr_find_l2_eth_by_grh(&sgid, &grh->dgid,
+					   ah_attr->roce.dmac,
+					   sgid_attr.ndev, &hop_limit);
+done:
+	dev_put(sgid_attr.ndev);
+
+	grh->hop_limit = hop_limit;
+	return ret;
+}
+
 /*
- * This function creates ah from the incoming packet.
+ * This function initializes address handle attributes from the incoming packet.
  * Incoming packet has dgid of the receiver node on which this code is
  * getting executed and, sgid contains the GID of the sender.
  *
@@ -584,13 +628,10 @@ EXPORT_SYMBOL(ib_get_gids_from_rdma_hdr);
  * as sgid and, sgid is used as dgid because sgid contains destinations
  * GID whom to respond to.
  *
- * This is why when calling rdma_addr_find_l2_eth_by_grh() function, the
- * position of arguments dgid and sgid do not match the order of the
- * parameters.
  */
-int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
-		       const struct ib_wc *wc, const struct ib_grh *grh,
-		       struct rdma_ah_attr *ah_attr)
+int ib_init_ah_attr_from_wc(struct ib_device *device, u8 port_num,
+			    const struct ib_wc *wc, const struct ib_grh *grh,
+			    struct rdma_ah_attr *ah_attr)
 {
 	u32 flow_class;
 	u16 gid_index = 0;
@@ -615,42 +656,33 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 	if (ret)
 		return ret;
 
+	rdma_ah_set_sl(ah_attr, wc->sl);
+	rdma_ah_set_port_num(ah_attr, port_num);
+
 	if (rdma_protocol_roce(device, port_num)) {
-		struct ib_gid_attr dgid_attr;
 		const u16 vlan_id = (wc->wc_flags & IB_WC_WITH_VLAN) ?
 				wc->vlan_id : 0xffff;
 
 		if (!(wc->wc_flags & IB_WC_GRH))
 			return -EPROTOTYPE;
 
-		ret = get_sgid_index_from_eth(device, port_num, vlan_id,
-					      &dgid, gid_type, &gid_index);
+		ret = get_sgid_index_from_eth(device, port_num,
+                                              vlan_id, &dgid,
+                                              gid_type, &gid_index);
 		if (ret)
 			return ret;
 
-		ret = ib_get_cached_gid(device, port_num, gid_index, &dgid, &dgid_attr);
-		if (ret)
-			return ret;
+		flow_class = be32_to_cpu(grh->version_tclass_flow);
+		rdma_ah_set_grh(ah_attr, &sgid,
+				flow_class & 0xFFFFF,
+				(u8)gid_index, hoplimit,
+				(flow_class >> 20) & 0xFF);
+		return ib_resolve_unicast_gid_dmac(device, ah_attr);
+	} else {
+		rdma_ah_set_dlid(ah_attr, wc->slid);
+		rdma_ah_set_path_bits(ah_attr, wc->dlid_path_bits);
 
-		if (dgid_attr.ndev == NULL)
-			return -ENODEV;
-
-		ret = rdma_addr_find_l2_eth_by_grh(&dgid, &sgid,
-                                                   ah_attr->roce.dmac,
-                                                   dgid_attr.ndev, &hoplimit);
-
-		dev_put(dgid_attr.ndev);
-		if (ret)
-			return ret;
-	}
-
-	rdma_ah_set_dlid(ah_attr, wc->slid);
-	rdma_ah_set_sl(ah_attr, wc->sl);
-	rdma_ah_set_path_bits(ah_attr, wc->dlid_path_bits);
-	rdma_ah_set_port_num(ah_attr, port_num);
-
-	if (wc->wc_flags & IB_WC_GRH) {
-		if (!rdma_cap_eth_ah(device, port_num)) {
+                if (wc->wc_flags & IB_WC_GRH) {
 			if (dgid.global.interface_id != cpu_to_be64(IB_SA_WELL_KNOWN_GUID)) {
 				ret = ib_find_cached_gid_by_port(device, &dgid,
 								 IB_GID_TYPE_IB,
@@ -659,18 +691,17 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 				if (ret)
 					return ret;
 			}
+
+			flow_class = be32_to_cpu(grh->version_tclass_flow);
+			rdma_ah_set_grh(ah_attr, &sgid,
+					flow_class & 0xFFFFF,
+					(u8)gid_index, hoplimit,
+					(flow_class >> 20) & 0xFF);
 		}
-
-		flow_class = be32_to_cpu(grh->version_tclass_flow);
-		rdma_ah_set_grh(ah_attr, &sgid,
-				flow_class & 0xFFFFF,
-				(u8)gid_index, hoplimit,
-				(flow_class >> 20) & 0xFF);
-
+		return 0;
 	}
-	return 0;
 }
-EXPORT_SYMBOL(ib_init_ah_from_wc);
+EXPORT_SYMBOL(ib_init_ah_attr_from_wc);
 
 struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, const struct ib_wc *wc,
 				   const struct ib_grh *grh, u8 port_num)
@@ -678,7 +709,7 @@ struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, const struct ib_wc *wc,
 	struct rdma_ah_attr ah_attr;
 	int ret;
 
-	ret = ib_init_ah_from_wc(pd->device, port_num, wc, grh, &ah_attr);
+	ret = ib_init_ah_attr_from_wc(pd->device, port_num, wc, grh, &ah_attr);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -693,7 +724,7 @@ int rdma_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr)
 
 	return ah->device->modify_ah ?
 		ah->device->modify_ah(ah, ah_attr) :
-		-ENOSYS;
+		-EOPNOTSUPP;
 }
 EXPORT_SYMBOL(rdma_modify_ah);
 
@@ -701,7 +732,7 @@ int rdma_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr)
 {
 	return ah->device->query_ah ?
 		ah->device->query_ah(ah, ah_attr) :
-		-ENOSYS;
+		-EOPNOTSUPP;
 }
 EXPORT_SYMBOL(rdma_query_ah);
 
@@ -772,7 +803,7 @@ int ib_modify_srq(struct ib_srq *srq,
 {
 	return srq->device->modify_srq ?
 		srq->device->modify_srq(srq, srq_attr, srq_attr_mask, NULL) :
-		-ENOSYS;
+		-EOPNOTSUPP;
 }
 EXPORT_SYMBOL(ib_modify_srq);
 
@@ -780,7 +811,7 @@ int ib_query_srq(struct ib_srq *srq,
 		 struct ib_srq_attr *srq_attr)
 {
 	return srq->device->query_srq ?
-		srq->device->query_srq(srq, srq_attr) : -ENOSYS;
+		srq->device->query_srq(srq, srq_attr) : -EOPNOTSUPP;
 }
 EXPORT_SYMBOL(ib_query_srq);
 
@@ -1295,17 +1326,11 @@ EXPORT_SYMBOL(ib_modify_qp_is_ok);
 static int ib_resolve_eth_dmac(struct ib_device *device,
 			       struct rdma_ah_attr *ah_attr)
 {
-	struct ib_gid_attr sgid_attr;
-	union ib_gid sgid;
-	int hop_limit;
-	int ret;
+	int           ret = 0;
 	struct ib_global_route *grh;
 
  	if (!rdma_is_port_valid(device, rdma_ah_get_port_num(ah_attr)))
 		return -EINVAL;
-
-	if (ah_attr->type != RDMA_AH_ATTR_TYPE_ROCE)
-		return 0;
 
 	grh = rdma_ah_retrieve_grh(ah_attr);
 
@@ -1319,24 +1344,9 @@ static int ib_resolve_eth_dmac(struct ib_device *device,
 			ipv6_eth_mc_map((struct in6_addr *)ah_attr->grh.dgid.raw,
 					(char *)ah_attr->roce.dmac);
 		}
-		return 0;
+	} else {
+		ret = ib_resolve_unicast_gid_dmac(device, ah_attr);
 	}
-
-	ret = ib_query_gid(device,
-			   rdma_ah_get_port_num(ah_attr),
-			   grh->sgid_index,
-			   &sgid, &sgid_attr);
-	if (ret != 0)
-		return (ret);
-	if (!sgid_attr.ndev)
-		return -ENXIO;
-
-	ret = rdma_addr_find_l2_eth_by_grh(&sgid, &grh->dgid,
-					   ah_attr->roce.dmac,
-					   sgid_attr.ndev, &hop_limit);
-	dev_put(sgid_attr.ndev);
-
-	grh->hop_limit = hop_limit;
 	return ret;
 }
 
@@ -1379,7 +1389,7 @@ static int _ib_modify_qp(struct ib_qp *qp, struct ib_qp_attr *attr,
 	 * users have to provide already resolved rdma_ah_attr's
 	 */
 	if (udata && (attr_mask & IB_QP_AV) &&
-	    rdma_protocol_roce(qp->device, port) &&
+	    attr->ah_attr.type == RDMA_AH_ATTR_TYPE_ROCE &&
 	    is_qp_type_connected(qp)) {
 		ret = ib_resolve_eth_dmac(qp->device, &attr->ah_attr);
 		if (ret)
@@ -1445,7 +1455,7 @@ int ib_query_qp(struct ib_qp *qp,
 {
 	return qp->device->query_qp ?
 		qp->device->query_qp(qp->real_qp, qp_attr, qp_attr_mask, qp_init_attr) :
-		-ENOSYS;
+		-EOPNOTSUPP;
 }
 EXPORT_SYMBOL(ib_query_qp);
 
@@ -1571,7 +1581,7 @@ EXPORT_SYMBOL(__ib_create_cq);
 int rdma_set_cq_moderation(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 {
 	return cq->device->modify_cq ?
-		cq->device->modify_cq(cq, cq_count, cq_period) : -ENOSYS;
+		cq->device->modify_cq(cq, cq_count, cq_period) : -EOPNOTSUPP;
 }
 EXPORT_SYMBOL(rdma_set_cq_moderation);
 
@@ -1589,7 +1599,7 @@ EXPORT_SYMBOL(ib_destroy_cq_user);
 int ib_resize_cq(struct ib_cq *cq, int cqe)
 {
 	return cq->device->resize_cq ?
-		cq->device->resize_cq(cq, cqe, NULL) : -ENOSYS;
+		cq->device->resize_cq(cq, cqe, NULL) : -EOPNOTSUPP;
 }
 EXPORT_SYMBOL(ib_resize_cq);
 
@@ -1669,7 +1679,7 @@ struct ib_fmr *ib_alloc_fmr(struct ib_pd *pd,
 	struct ib_fmr *fmr;
 
 	if (!pd->device->alloc_fmr)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	fmr = pd->device->alloc_fmr(pd, mr_access_flags, fmr_attr);
 	if (!IS_ERR(fmr)) {
@@ -1753,7 +1763,7 @@ int ib_attach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 	int ret;
 
 	if (!qp->device->attach_mcast)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	if (!rdma_is_multicast_addr((struct in6_addr *)gid->raw) ||
 	    qp->qp_type != IB_QPT_UD || !is_valid_mcast_lid(qp, lid))
@@ -1771,7 +1781,7 @@ int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 	int ret;
 
 	if (!qp->device->detach_mcast)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	if (!rdma_is_multicast_addr((struct in6_addr *)gid->raw) ||
 	    qp->qp_type != IB_QPT_UD || !is_valid_mcast_lid(qp, lid))
@@ -1844,7 +1854,7 @@ struct ib_wq *ib_create_wq(struct ib_pd *pd,
 	struct ib_wq *wq;
 
 	if (!pd->device->create_wq)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	wq = pd->device->create_wq(pd, wq_attr, NULL);
 	if (!IS_ERR(wq)) {
@@ -1898,7 +1908,7 @@ int ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 	int err;
 
 	if (!wq->device->modify_wq)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	err = wq->device->modify_wq(wq, wq_attr, wq_attr_mask, NULL);
 	return err;
@@ -1923,7 +1933,7 @@ struct ib_rwq_ind_table *ib_create_rwq_ind_table(struct ib_device *device,
 	u32 table_size;
 
 	if (!device->create_rwq_ind_table)
-		return ERR_PTR(-ENOSYS);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	table_size = (1 << init_attr->log_ind_tbl_size);
 	rwq_ind_table = device->create_rwq_ind_table(device,
@@ -1971,7 +1981,7 @@ int ib_check_mr_status(struct ib_mr *mr, u32 check_mask,
 		       struct ib_mr_status *mr_status)
 {
 	return mr->device->check_mr_status ?
-		mr->device->check_mr_status(mr, check_mask, mr_status) : -ENOSYS;
+		mr->device->check_mr_status(mr, check_mask, mr_status) : -EOPNOTSUPP;
 }
 EXPORT_SYMBOL(ib_check_mr_status);
 
@@ -1979,7 +1989,7 @@ int ib_set_vf_link_state(struct ib_device *device, int vf, u8 port,
 			 int state)
 {
 	if (!device->set_vf_link_state)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	return device->set_vf_link_state(device, vf, port, state);
 }
@@ -1989,7 +1999,7 @@ int ib_get_vf_config(struct ib_device *device, int vf, u8 port,
 		     struct ifla_vf_info *info)
 {
 	if (!device->get_vf_config)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	return device->get_vf_config(device, vf, port, info);
 }
@@ -1999,7 +2009,7 @@ int ib_get_vf_stats(struct ib_device *device, int vf, u8 port,
 		    struct ifla_vf_stats *stats)
 {
 	if (!device->get_vf_stats)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	return device->get_vf_stats(device, vf, port, stats);
 }
@@ -2009,7 +2019,7 @@ int ib_set_vf_guid(struct ib_device *device, int vf, u8 port, u64 guid,
 		   int type)
 {
 	if (!device->set_vf_guid)
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	return device->set_vf_guid(device, vf, port, guid, type);
 }
@@ -2044,7 +2054,7 @@ int ib_map_mr_sg(struct ib_mr *mr, struct scatterlist *sg, int sg_nents,
 		 unsigned int *sg_offset, unsigned int page_size)
 {
 	if (unlikely(!mr->device->map_mr_sg))
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	mr->page_size = page_size;
 
@@ -2170,14 +2180,14 @@ static void __ib_drain_sq(struct ib_qp *qp)
 	};
 	int ret;
 
-	sdrain.cqe.done = ib_drain_qp_done;
-	init_completion(&sdrain.done);
-
 	ret = ib_modify_qp(qp, &attr, IB_QP_STATE);
 	if (ret) {
 		WARN_ONCE(ret, "failed to drain send queue: %d\n", ret);
 		return;
 	}
+
+	sdrain.cqe.done = ib_drain_qp_done;
+	init_completion(&sdrain.done);
 
 	ret = ib_post_send(qp, &swr.wr, &bad_swr);
 	if (ret) {
@@ -2204,15 +2214,15 @@ static void __ib_drain_rq(struct ib_qp *qp)
 	const struct ib_recv_wr *bad_rwr;
 	int ret;
 
-	rwr.wr_cqe = &rdrain.cqe;
-	rdrain.cqe.done = ib_drain_qp_done;
-	init_completion(&rdrain.done);
-
 	ret = ib_modify_qp(qp, &attr, IB_QP_STATE);
 	if (ret) {
 		WARN_ONCE(ret, "failed to drain recv queue: %d\n", ret);
 		return;
 	}
+
+	rwr.wr_cqe = &rdrain.cqe;
+	rdrain.cqe.done = ib_drain_qp_done;
+	init_completion(&rdrain.done);
 
 	ret = ib_post_recv(qp, &rwr, &bad_rwr);
 	if (ret) {

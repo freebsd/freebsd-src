@@ -150,7 +150,7 @@ int rdma_addr_size_kss(struct sockaddr_storage *addr);
 
 int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
 				 const union ib_gid *dgid,
-				 u8 *smac, if_t dev,
+				 u8 *dmac, if_t ndev,
 				 int *hoplimit);
 
 static inline u16 ib_addr_get_pkey(struct rdma_dev_addr *dev_addr)
@@ -227,40 +227,15 @@ static inline void rdma_gid2ip(struct sockaddr *out, const union ib_gid *gid)
 	}
 }
 
-static u_int
-_iboe_addr_get_sgid_ia_cb(void *arg, struct ifaddr *ifa, u_int count __unused)
-{
-	ipv6_addr_set_v4mapped(((struct sockaddr_in *)
-			       ifa->ifa_addr)->sin_addr.s_addr,
-			       (struct in6_addr *)arg);
-	return (0);
-}
-
-static inline void iboe_addr_get_sgid(struct rdma_dev_addr *dev_addr,
-				      union ib_gid *gid)
-{
-	if_t dev;
-
-#ifdef VIMAGE
-	if (dev_addr->net == NULL)
-		return;
-#endif
-	dev = dev_get_by_index(dev_addr->net, dev_addr->bound_dev_if);
-	if (dev) {
-		if_foreach_addr_type(dev, AF_INET,
-				     _iboe_addr_get_sgid_ia_cb, gid);
-		dev_put(dev);
-	}
-}
-
+/*
+ * rdma_get/set_sgid/dgid() APIs are applicable to IB, and iWarp.
+ * They are not applicable to RoCE.
+ * RoCE GIDs are derived from the IP addresses.
+ */
 static inline void rdma_addr_get_sgid(struct rdma_dev_addr *dev_addr, union ib_gid *gid)
 {
-	if (dev_addr->transport == RDMA_TRANSPORT_IB &&
-	    dev_addr->dev_type != ARPHRD_INFINIBAND)
-		iboe_addr_get_sgid(dev_addr, gid);
-	else
-		memcpy(gid, dev_addr->src_dev_addr +
-		       rdma_addr_gid_offset(dev_addr), sizeof *gid);
+	memcpy(gid, dev_addr->src_dev_addr + rdma_addr_gid_offset(dev_addr),
+	       sizeof(*gid));
 }
 
 static inline void rdma_addr_set_sgid(struct rdma_dev_addr *dev_addr, union ib_gid *gid)

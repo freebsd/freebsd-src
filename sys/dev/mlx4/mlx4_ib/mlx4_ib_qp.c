@@ -1416,6 +1416,8 @@ static int _mlx4_set_path(struct mlx4_ib_dev *dev, const struct rdma_ah_attr *ah
 								      port,
 								      grh->sgid_index);
 
+		if (real_sgid_index < 0)
+			return real_sgid_index;
 		if (real_sgid_index >= dev->dev->caps.gid_table_len[port]) {
 			pr_err("sgid_index (%u) too large. max is %d\n",
 			       real_sgid_index, dev->dev->caps.gid_table_len[port] - 1);

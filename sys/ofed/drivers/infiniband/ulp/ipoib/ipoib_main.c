@@ -530,7 +530,8 @@ path_rec_completion(int status, struct sa_path_rec *pathrec, void *path_ptr)
 	if (!status) {
 		struct rdma_ah_attr av;
 
-		if (!ib_init_ah_from_path(priv->ca, priv->port, pathrec, &av))
+		if (!ib_init_ah_attr_from_path(priv->ca, priv->port,
+					       pathrec, &av))
 			ah = ipoib_create_ah(priv, priv->pd, &av);
 	}
 
