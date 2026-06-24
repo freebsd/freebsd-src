@@ -3714,7 +3714,7 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
 	if (!cq)
 		return -EINVAL;
 
-	ret = ib_modify_cq(cq, cmd.attr.cq_count, cmd.attr.cq_period);
+	ret = rdma_set_cq_moderation(cq, cmd.attr.cq_count, cmd.attr.cq_period);
 
 	rdma_lookup_put_uobject(&cq->uobject->uevent.uobject,
 				UVERBS_LOOKUP_READ);

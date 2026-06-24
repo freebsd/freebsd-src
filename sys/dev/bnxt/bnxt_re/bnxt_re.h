@@ -558,8 +558,6 @@ struct bnxt_re_dev {
 	struct dentry                   *pdev_debug_dir;
 	struct dentry                   *pdev_qpinfo_dir;
 	struct bnxt_re_debug_entries	*dbg_ent;
-	struct workqueue_struct		*resolve_wq;
-	struct list_head		mac_wq_list;
 	struct workqueue_struct		*dcb_wq;
 	struct workqueue_struct		*aer_wq;
 	u32				event_bitmap[3];
@@ -606,16 +604,6 @@ struct bnxt_re_dev {
 	atomic_t dbq_intr_running;
 	u32 num_msix_requested;
 	unsigned char	*dev_addr; /* For netdev->dev_addr */
-};
-
-#define BNXT_RE_RESOLVE_RETRY_COUNT_US	5000000 /* 5 sec */
-struct bnxt_re_resolve_dmac_work{
-	struct work_struct      work;
-	struct list_head	list;
-	struct bnxt_re_dev 	*rdev;
-	struct rdma_ah_attr	*ah_attr;
-	struct bnxt_re_ah_info *ah_info;
-	atomic_t		status_wait;
 };
 
 static inline u8 bnxt_re_get_prio(u8 prio_map)
@@ -727,8 +715,6 @@ int bnxt_re_schedule_work(struct bnxt_re_dev *rdev, unsigned long event,
 void bnxt_re_get_link_speed(struct bnxt_re_dev *rdev);
 int _bnxt_re_ib_init(struct bnxt_re_dev *rdev);
 int _bnxt_re_ib_init2(struct bnxt_re_dev *rdev);
-void bnxt_re_init_resolve_wq(struct bnxt_re_dev *rdev);
-void bnxt_re_uninit_resolve_wq(struct bnxt_re_dev *rdev);
 
 /* The rdev ref_count is to protect immature removal of the device */
 static inline void bnxt_re_hold(struct bnxt_re_dev *rdev)

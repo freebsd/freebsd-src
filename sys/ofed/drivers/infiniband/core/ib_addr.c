@@ -139,8 +139,9 @@ rdma_copy_addr_sub(u8 *dst, const u8 *src, unsigned min, unsigned max)
 	memset(dst + min, 0, max - min);
 }
 
-int rdma_copy_addr(struct rdma_dev_addr *dev_addr, if_t dev,
-		     const unsigned char *dst_dev_addr)
+void rdma_copy_addr(struct rdma_dev_addr *dev_addr,
+		    const if_t dev,
+		    const unsigned char *dst_dev_addr)
 {
 	int dev_type = if_gettype(dev);
 
@@ -151,7 +152,7 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, if_t dev,
 		memset(dev_addr->broadcast, 0, MAX_ADDR_LEN);
 		memset(dev_addr->dst_dev_addr, 0, MAX_ADDR_LEN);
 		dev_addr->bound_dev_if = if_getindex(dev);
-		return (0);
+		return;
 	} else if (dev_type == IFT_INFINIBAND)
 		dev_addr->dev_type = ARPHRD_INFINIBAND;
 	else if (dev_type == IFT_ETHER || dev_type == IFT_L2VLAN)
@@ -167,7 +168,6 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, if_t dev,
 				   if_getaddrlen(dev), MAX_ADDR_LEN);
 	}
 	dev_addr->bound_dev_if = if_getindex(dev);
-	return 0;
 }
 EXPORT_SYMBOL(rdma_copy_addr);
 
@@ -175,7 +175,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
 		      struct rdma_dev_addr *dev_addr)
 {
 	if_t dev;
-	int ret;
+	int ret = 0;
 
 	if (dev_addr->bound_dev_if) {
 		dev = dev_get_by_index(dev_addr->net, dev_addr->bound_dev_if);
@@ -202,7 +202,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
 		if (if_getflags(dev) & IFF_LOOPBACK)
 			ret = -EINVAL;
 		else
-			ret = rdma_copy_addr(dev_addr, dev, NULL);
+			rdma_copy_addr(dev_addr, dev, NULL);
 		dev_put(dev);
 	} else {
 		ret = -ENODEV;
@@ -655,10 +655,14 @@ static int addr_resolve_neigh(if_t dev,
 	}
 
 	/* If the device doesn't do ARP internally */
-	if (!(if_getflags(dev) & IFF_NOARP))
-		return rdma_copy_addr(addr, dev, edst);
+	if (!(if_getflags(dev) & IFF_NOARP)) {
+		rdma_copy_addr(addr, dev, edst);
+                return 0;
+        }
 
-	return rdma_copy_addr(addr, dev, NULL);
+	rdma_copy_addr(addr, dev, NULL);
+
+	return 0;
 }
 
 static int addr_resolve(struct sockaddr *src_in,

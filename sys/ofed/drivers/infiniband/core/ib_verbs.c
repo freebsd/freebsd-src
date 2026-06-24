@@ -58,6 +58,9 @@
 
 #include "core_priv.h"
 
+static int ib_resolve_eth_dmac(struct ib_device *device,
+			       struct rdma_ah_attr *ah_attr);
+
 static const char * const ib_events[] = {
 	[IB_EVENT_CQ_ERR]		= "CQ error",
 	[IB_EVENT_QP_FATAL]		= "QP fatal error",
@@ -1289,8 +1292,8 @@ bool ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 }
 EXPORT_SYMBOL(ib_modify_qp_is_ok);
 
-int ib_resolve_eth_dmac(struct ib_device *device,
-			struct rdma_ah_attr *ah_attr)
+static int ib_resolve_eth_dmac(struct ib_device *device,
+			       struct rdma_ah_attr *ah_attr)
 {
 	struct ib_gid_attr sgid_attr;
 	union ib_gid sgid;
@@ -1336,7 +1339,6 @@ int ib_resolve_eth_dmac(struct ib_device *device,
 	grh->hop_limit = hop_limit;
 	return ret;
 }
-EXPORT_SYMBOL(ib_resolve_eth_dmac);
 
 static bool is_qp_type_connected(const struct ib_qp *qp)
 {
@@ -1566,12 +1568,12 @@ struct ib_cq *__ib_create_cq(struct ib_device *device,
 }
 EXPORT_SYMBOL(__ib_create_cq);
 
-int ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
+int rdma_set_cq_moderation(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 {
 	return cq->device->modify_cq ?
 		cq->device->modify_cq(cq, cq_count, cq_period) : -ENOSYS;
 }
-EXPORT_SYMBOL(ib_modify_cq);
+EXPORT_SYMBOL(rdma_set_cq_moderation);
 
 int ib_destroy_cq_user(struct ib_cq *cq, struct ib_udata *udata)
 {

@@ -87,8 +87,9 @@ static int ipoib_set_coalesce(if_t dev,
 			coal->rx_coalesce_usecs = 0xffff;
 	}
 
-	ret = ib_modify_cq(priv->recv_cq, coal->rx_max_coalesced_frames,
-			   coal->rx_coalesce_usecs);
+	ret = rdma_set_cq_moderation(priv->recv_cq,
+				     coal->rx_max_coalesced_frames,
+				     coal->rx_coalesce_usecs);
 	if (ret && ret != -ENOSYS) {
 		ipoib_warn(priv, "failed modifying CQ (%d)\n", ret);
 		return ret;

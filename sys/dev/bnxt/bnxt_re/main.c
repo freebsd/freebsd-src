@@ -137,26 +137,6 @@ void bnxt_re_set_dma_device(struct ib_device *ibdev, struct bnxt_re_dev *rdev)
 	ibdev->dma_device = &rdev->en_dev->pdev->dev;
 }
 
-void bnxt_re_init_resolve_wq(struct bnxt_re_dev *rdev)
-{
-	rdev->resolve_wq = create_singlethread_workqueue("bnxt_re_resolve_wq");
-	 INIT_LIST_HEAD(&rdev->mac_wq_list);
-}
-
-void bnxt_re_uninit_resolve_wq(struct bnxt_re_dev *rdev)
-{
-	struct bnxt_re_resolve_dmac_work *tmp_work = NULL, *tmp_st;
-	if (!rdev->resolve_wq)
-		return;
-	flush_workqueue(rdev->resolve_wq);
-	list_for_each_entry_safe(tmp_work, tmp_st, &rdev->mac_wq_list, list) {
-			list_del(&tmp_work->list);
-			kfree(tmp_work);
-	}
-	destroy_workqueue(rdev->resolve_wq);
-	rdev->resolve_wq = NULL;
-}
-
 u32 readl_fbsd(struct bnxt_softc *bp, u32 reg_off, u8 bar_idx)
 {
 
@@ -3534,7 +3514,6 @@ static void bnxt_re_dev_uninit(struct bnxt_re_dev *rdev, u8 op_type)
 		mutex_unlock(&bnxt_re_dev_lock);
 	}
 
-	bnxt_re_uninit_resolve_wq(rdev);
 	bnxt_re_uninit_dcb_wq(rdev);
 	bnxt_re_uninit_aer_wq(rdev);
 
@@ -3804,7 +3783,6 @@ static int bnxt_re_dev_init(struct bnxt_re_dev *rdev, u8 op_type)
 
 	bnxt_re_init_dcb_wq(rdev);
 	bnxt_re_init_aer_wq(rdev);
-	bnxt_re_init_resolve_wq(rdev);
 	mutex_lock(&bnxt_re_dev_lock);
 	list_add_tail_rcu(&rdev->list, &bnxt_re_dev_list);
 	/* Added to the list, not in progress anymore */

@@ -49,23 +49,6 @@ static inline void bnxt_re_peer_mem_release(struct ib_umem *umem)
 	ib_umem_release(umem);
 }
 
-void bnxt_re_resolve_dmac_task(struct work_struct *work)
-{
-	int rc = -1;
-	struct bnxt_re_dev *rdev;
-	struct rdma_ah_attr	*ah_attr;
-	struct bnxt_re_resolve_dmac_work *dmac_work =
-			container_of(work, struct bnxt_re_resolve_dmac_work, work);
-
-	rdev = dmac_work->rdev;
-	ah_attr = dmac_work->ah_attr;
-	rc = ib_resolve_eth_dmac(&rdev->ibdev, ah_attr);
-	if (rc)
-		dev_err(rdev_to_dev(dmac_work->rdev),
-			"Failed to resolve dest mac rc = %d\n", rc);
-	atomic_set(&dmac_work->status_wait, rc << 8);
-}
-
 static int __from_ib_access_flags(int iflags)
 {
 	int qflags = 0;
@@ -999,52 +982,6 @@ static u8 _get_sgid_index(struct bnxt_re_dev *rdev, u8 gindx)
 	return gindx;
 }
 
-static int bnxt_re_init_dmac(struct bnxt_re_dev *rdev, struct rdma_ah_attr *ah_attr,
-			     struct bnxt_re_ah_info *ah_info, bool is_user,
-			     struct bnxt_re_ah *ah)
-{
-	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
-	int rc = 0;
-	u8 *dmac;
-
-	if (is_user && !rdma_is_multicast_addr((struct in6_addr *)
-						grh->dgid.raw) &&
-	    !rdma_link_local_addr((struct in6_addr *)grh->dgid.raw)) {
-
-		u32 retry_count = BNXT_RE_RESOLVE_RETRY_COUNT_US;
-		struct bnxt_re_resolve_dmac_work *resolve_dmac_work;
-
-
-		resolve_dmac_work = kzalloc(sizeof(*resolve_dmac_work), GFP_ATOMIC);
-
-		resolve_dmac_work->rdev = rdev;
-		resolve_dmac_work->ah_attr = ah_attr;
-		resolve_dmac_work->ah_info = ah_info;
-
-		atomic_set(&resolve_dmac_work->status_wait, 1);
-		INIT_WORK(&resolve_dmac_work->work, bnxt_re_resolve_dmac_task);
-		queue_work(rdev->resolve_wq, &resolve_dmac_work->work);
-
-		do {
-			rc = atomic_read(&resolve_dmac_work->status_wait) & 0xFF;
-			if (!rc)
-				break;
-			udelay(1);
-		} while (--retry_count);
-		if (atomic_read(&resolve_dmac_work->status_wait)) {
-			INIT_LIST_HEAD(&resolve_dmac_work->list);
-			list_add_tail(&resolve_dmac_work->list,
-					&rdev->mac_wq_list);
-			return -EFAULT;
-		}
-		kfree(resolve_dmac_work);
-	}
-	dmac = ROCE_DMAC(ah_attr);
-	if (dmac)
-		memcpy(ah->qplib_ah.dmac, dmac, ETH_ALEN);
-	return rc;
-}
-
 int bnxt_re_create_ah(struct ib_ah *ah_in, struct rdma_ah_attr *attr,
 		      u32 flags, struct ib_udata *udata)
 {
@@ -1057,7 +994,6 @@ int bnxt_re_create_ah(struct ib_ah *ah_in, struct rdma_ah_attr *attr,
 	const struct ib_global_route *grh = rdma_ah_read_grh(attr);
 	struct bnxt_re_ah_info ah_info;
 	u32 max_ah_count;
-	bool is_user;
 	int rc;
 	bool block = true;
 	struct rdma_ah_attr *ah_attr = attr;
@@ -1068,7 +1004,6 @@ int bnxt_re_create_ah(struct ib_ah *ah_in, struct rdma_ah_attr *attr,
 
 	ah->rdev = rdev;
 	ah->qplib_ah.pd = &pd->qplib_pd;
-	is_user = ib_pd->uobject ? true : false;
 
 	/* Supply the configuration for the HW */
 	memcpy(ah->qplib_ah.dgid.data, grh->dgid.raw,
@@ -1088,10 +1023,7 @@ int bnxt_re_create_ah(struct ib_ah *ah_in, struct rdma_ah_attr *attr,
 	if (rc)
 		goto fail;
 	ah->qplib_ah.nw_type = ah_info.nw_type;
-
-	rc = bnxt_re_init_dmac(rdev, ah_attr, &ah_info, is_user, ah);
-	if (rc)
-		goto fail;
+	memcpy(ah->qplib_ah.dmac, ROCE_DMAC(ah_attr), ETH_ALEN);
 
 	rc = bnxt_qplib_create_ah(&rdev->qplib_res, &ah->qplib_ah, block);
 	if (rc) {

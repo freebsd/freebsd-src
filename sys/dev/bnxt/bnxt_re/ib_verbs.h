@@ -398,7 +398,6 @@ struct ib_umem *ib_umem_get_flags_compat(struct bnxt_re_dev *rdev,
 					 size_t size, int access, int dmasync);
 static inline size_t ib_umem_num_pages_compat(struct ib_umem *umem);
 static inline void bnxt_re_peer_mem_release(struct ib_umem *umem);
-void bnxt_re_resolve_dmac_task(struct work_struct *work);
 
 static inline enum ib_qp_type  __from_hw_to_ib_qp_type(u8 type)
 {
