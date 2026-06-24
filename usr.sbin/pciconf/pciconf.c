@@ -91,6 +91,10 @@ static void writeit(const char *, const char *, const char *, int);
 static void chkattached(const char *);
 static void dump_bar(const char *name, const char *reg, const char *bar_start,
     const char *bar_count, int width, int verbose);
+static void read_bar(const char *name, const char *bar, const char *start_end,
+    int width);
+static void write_bar(const char *name, const char *bar, const char *offset_str,
+    const char *value_str, int width);
 
 static int exitstatus = 0;
 
@@ -104,7 +108,9 @@ usage(void)
 		"       pciconf -a device\n"
 		"       pciconf -r [-b | -h] device addr[:addr2]\n"
 		"       pciconf -w [-b | -h] device addr value\n"
-		"       pciconf -D [-b | -h | -x] device bar [start [count]]"
+		"       pciconf -D [-b | -h | -x] device bar [start [count]]\n"
+		"       pciconf -R [-b | -h | -x] device bar start[:end]\n"
+		"       pciconf -W [-b | -h | -x] device bar offset value"
 		"\n");
 	exit(1);
 }
@@ -113,14 +119,15 @@ int
 main(int argc, char **argv)
 {
 	int c, width;
-	enum { NONE, LIST, TREE, READ, WRITE, ATTACHED, DUMPBAR } mode;
+	enum { NONE, LIST, TREE, READ, WRITE, ATTACHED, DUMPBAR, READBAR,
+	    WRITEBAR } mode;
 	int compact, bars, bridge, caps, errors, verbose, vpd;
 
 	mode = NONE;
 	compact = bars = bridge = caps = errors = verbose = vpd = 0;
 	width = 4;
 
-	while ((c = getopt(argc, argv, "aBbcDehlrtwVvx")) != -1) {
+	while ((c = getopt(argc, argv, "aBbcDehlRrtWwVvx")) != -1) {
 		switch(c) {
 		case 'a':
 			mode = ATTACHED;
@@ -157,6 +164,10 @@ main(int argc, char **argv)
 			mode = LIST;
 			break;
 
+		case 'R':
+			mode = READBAR;
+			break;
+
 		case 'r':
 			mode = READ;
 			break;
@@ -164,6 +175,11 @@ main(int argc, char **argv)
 		case 't':
 			mode = TREE;
 			break;
+
+		case 'W':
+			mode = WRITEBAR;
+			break;
+
 		case 'w':
 			mode = WRITE;
 			break;
@@ -220,6 +236,18 @@ main(int argc, char **argv)
 		    optind + 2 < argc ? argv[optind + 2] : NULL, 
 		    optind + 3 < argc ? argv[optind + 3] : NULL, 
 		    width, verbose);
+		break;
+	case READBAR:
+		if (optind + 3 != argc)
+			usage();
+		read_bar(argv[optind], argv[optind + 1], argv[optind + 2],
+		    width);
+		break;
+	case WRITEBAR:
+		if (optind + 4 != argc)
+			usage();
+		write_bar(argv[optind], argv[optind + 1], argv[optind + 2],
+		    argv[optind + 3], width);
 		break;
 	default:
 		usage();
@@ -1366,6 +1394,36 @@ chkattached(const char *name)
 }
 
 static void
+map_bar(const char *name, const char *reg, int flags, struct pci_bar_mmap *pbm)
+{
+	int fd;
+	char *el;
+
+	memset(pbm, 0, sizeof(struct pci_bar_mmap));
+	pbm->pbm_sel = getsel(name);
+	pbm->pbm_reg = strtoul(reg, &el, 0);
+	if (*reg == '\0' || *el != '\0')
+		errx(1, "Invalid bar specification %s", reg);
+	pbm->pbm_memattr = VM_MEMATTR_DEVICE;
+	pbm->pbm_flags = flags;
+
+	fd = open(_PATH_DEVPCI, O_RDWR, 0);
+	if (fd < 0)
+		err(1, "%s", _PATH_DEVPCI);
+
+	if (ioctl(fd, PCIOCBARMMAP, pbm) < 0)
+		err(1, "ioctl(PCIOCBARMMAP)");
+
+	close(fd);
+}
+
+static void
+unmap_bar(struct pci_bar_mmap *pbm)
+{
+	munmap(pbm->pbm_map_base, pbm->pbm_map_length);
+}
+
+static void
 dump_bar(const char *name, const char *reg, const char *bar_start,
     const char *bar_count, int width, int verbose)
 {
@@ -1376,7 +1434,6 @@ dump_bar(const char *name, const char *reg, const char *bar_start,
 	uint64_t *dx, a, start, count;
 	char *el;
 	size_t res;
-	int fd;
 
 	start = 0;
 	if (bar_start != NULL) {
@@ -1393,19 +1450,7 @@ dump_bar(const char *name, const char *reg, const char *bar_start,
 			    bar_count);
 	}
 
-	pbm.pbm_sel = getsel(name);
-	pbm.pbm_reg = strtoul(reg, &el, 0);
-	if (*reg == '\0' || *el != '\0')
-		errx(1, "Invalid bar specification %s", reg);
-	pbm.pbm_flags = 0;
-	pbm.pbm_memattr = VM_MEMATTR_DEVICE;
-
-	fd = open(_PATH_DEVPCI, O_RDWR, 0);
-	if (fd < 0)
-		err(1, "%s", _PATH_DEVPCI);
-
-	if (ioctl(fd, PCIOCBARMMAP, &pbm) < 0)
-		err(1, "ioctl(PCIOCBARMMAP)");
+	map_bar(name, reg, 0, &pbm);
 
 	if (count == 0)
 		count = pbm.pbm_bar_length / width;
@@ -1475,6 +1520,103 @@ dump_bar(const char *name, const char *reg, const char *bar_start,
 		errx(1, "invalid access width");
 	}
 
-	munmap((void *)pbm.pbm_map_base, pbm.pbm_map_length);
-	close(fd);
+	unmap_bar(&pbm);
+}
+
+union tunion {
+	uint8_t one;
+	uint16_t two;
+	uint32_t four;
+	uint64_t eight;
+	uint8_t bytes[8];
+};
+
+static void
+read_bar(const char *name, const char *bar, const char *start_end, int width)
+{
+	struct pci_bar_mmap pbm;
+	long rstart, rend, r;
+	char *end;
+	int items_per_line, i;
+
+	rend = rstart = strtol(start_end, &end, 0);
+	if (*end == ':') {
+		end++;
+		rend = strtol(end, NULL, 0);
+	}
+
+	map_bar(name, bar, 0, &pbm);
+
+	items_per_line = 16 / width;
+	for (i = 1, r = rstart; r <= rend; i++, r += width) {
+		uintptr_t addr;
+		union tunion t;
+		int j;
+
+		addr = (uintptr_t)pbm.pbm_map_base + pbm.pbm_bar_off + r;
+		switch (width) {
+		case 1:
+			t.one = *((uint8_t *)addr);
+			break;
+		case 2:
+			t.two = *((uint16_t *)addr);
+			break;
+		case 4:
+			t.four = *((uint32_t *)addr);
+			break;
+		case 8:
+			t.eight = *((uint64_t *)addr);
+			break;
+		default:
+			errx(1, "invalid read width");
+		}
+		for (j = 0; j < width; j++) {
+			printf("%02x", t.bytes[j]);
+		}
+		/* Use a double space in the middle when outputting bytes. */
+		if (width == 1 && (i % 16) == 8)
+			putchar(' ');
+		putchar(i % items_per_line == 0 ? '\n' : ' ');
+	}
+	if (i % items_per_line != 1)
+		putchar('\n');
+
+	unmap_bar(&pbm);
+}
+
+static void
+write_bar(const char *name, const char *bar, const char *offset_str,
+    const char *value_str, int width)
+{
+	struct pci_bar_mmap pbm;
+	uint64_t offset, value;
+	uintptr_t addr;
+	char *el;
+
+	offset = strtoul(offset_str, &el, 0);
+	if (*el != '\0')
+		errx(1, "Invalid bar offset specification %s", offset_str);
+	value = strtoul(value_str, (char **)0, 0); /* XXX error check */
+
+	map_bar(name, bar, PCIIO_BAR_MMAP_RW, &pbm);
+
+	addr = (uintptr_t)pbm.pbm_map_base + pbm.pbm_bar_off + offset;
+	switch (width) {
+	case 1:
+		*((uint8_t *)addr) = value;
+		break;
+	case 2:
+		*((uint16_t *)addr) = value;
+		break;
+	case 4:
+		*((uint32_t *)addr) = value;
+		break;
+	case 8:
+		*((uint64_t *)addr) = value;
+		break;
+	default:
+		errx(1, "invalid write width");
+	}
+
+	unmap_bar(&pbm);
 }
