@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"
-.Dd May 21, 2026
+.Dd June 24, 2026
 .Dt VIRTUAL_OSS 8
 .Os
 .Sh NAME
@@ -142,17 +142,24 @@ The sixth argument gives the amplitude, default is zero or no gain.
 Set control device name.
 .It Fl P Ar devname
 Set playback DSP device only.
-Specifying /dev/null is magic and means no playback device.
+Specifying
+.Pa /dev/null
+is magic and means no playback device.
 Specifying a
 .Xr sndio 7
-device descriptor prefixed by "/dev/sndio/" is also magic, and will use a sndio
-backend rather than an OSS device.
+device descriptor prefixed by
+.Pa /dev/sndio/
+is also magic, and will use a sndio backend rather than an OSS device.
 .It Fl O Ar devname
 Set playback DSP device only which acts as a master device.
-This option is used in conjunction with -R /dev/null .
+This option is used in conjunction with
+.Fl R
+.Pa /dev/null .
 .It Fl R Ar devname
 Set recording DSP device only.
-Specifying /dev/null is magic and means no recording device.
+Specifying
+.Pa /dev/null
+is magic and means no recording device.
 .It Fl f Ar devname
 Set both playback and recording DSP device
 .It Fl w Ar name
@@ -164,7 +171,9 @@ Create an OSS device by given name.
 Create a loopback OSS device by given name.
 .It Fl L Ar name
 Create a loopback OSS device which acts as a master device.
-This option is used in conjunction with -f /dev/null .
+This option is used in conjunction with
+.Fl f
+.Pa /dev/null .
 .It Fl F Ar size
 Set receive filter size in number of samples or <milliseconds>ms for the next
 device to be created.
