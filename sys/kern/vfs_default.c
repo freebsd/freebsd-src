@@ -81,7 +81,6 @@ static int vop_stdfdatasync(struct vop_fdatasync_args *ap);
 static int vop_stdgetpages_async(struct vop_getpages_async_args *ap);
 static int vop_stdread_pgcache(struct vop_read_pgcache_args *ap);
 static int vop_stdstat(struct vop_stat_args *ap);
-static int vop_stdvput_pair(struct vop_vput_pair_args *ap);
 static int vop_stdgetlowvnode(struct vop_getlowvnode_args *ap);
 
 /*
@@ -1623,16 +1622,35 @@ vop_stdread_pgcache(struct vop_read_pgcache_args *ap __unused)
 	return (EJUSTRETURN);
 }
 
-static int
+/*
+ * vput(dvp).  If unlock_vp is true, vput(vp).  Both dvp and vp must
+ * be locked.  This is VOP because some filesystems might need to do
+ * additional actions on dvp when unlocked, and need to be aware of
+ * any other locked vnodes.  Also as the consequence, vp might become
+ * doomed even if unlock_vp is false.
+ *
+ * Special case: dvp == vp.  If unlock_vp is true, vunref(vp);
+ * vput(vp), else vunref(vp).  In other words, the VOP assumes that
+ * there are two references on the vnode on entry, and releases only
+ * one of them in case of !unlock_vp.
+ */
+int
 vop_stdvput_pair(struct vop_vput_pair_args *ap)
 {
 	struct vnode *dvp, *vp, **vpp;
 
 	dvp = ap->a_dvp;
 	vpp = ap->a_vpp;
-	vput(dvp);
-	if (vpp != NULL && ap->a_unlock_vp && (vp = *vpp) != NULL)
-		vput(vp);
+	vp = vpp != NULL ? *vpp : NULL;
+	if (dvp != vp) {
+		vput(dvp);
+		if (vp != NULL && ap->a_unlock_vp)
+			vput(vp);
+	} else {
+		vunref(vp);
+		if (ap->a_unlock_vp)
+			vput(vp);
+	}
 	return (0);
 }
 
