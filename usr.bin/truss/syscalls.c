@@ -1569,39 +1569,40 @@ user_ptr32_to_psaddr(int32_t user_pointer)
 	return ((psaddr_t)(uintptr_t)user_pointer);
 }
 
+/*
+ * Check whether a file descriptor belongs to an AF_NETLINK socket
+ * for the current traced process.
+ */
+static bool
+is_netlink(struct trussinfo *trussinfo, int num_fd)
+{
+	struct procinfo *p = trussinfo->curthread->proc;
+	struct fd_domain *f;
+
+	LIST_FOREACH(f, &p->fdlist, entries) {
+		if (f->fd == num_fd && f->domain == AF_NETLINK)
+			return (true);
+	}
+	return (false);
+}
+
 #define NETLINK_MAX_DECODE 4096
 
 /*
- * Reads the first IOV and attempts to print it as Netlink using libsysdecode.
- * Returns true if successful, false if fallback to standard print is needed.
+ * Copy a potential Netlink message buffer from the traced process
+ * and attempt to decode and print it.
  */
 static bool
-print_netlink(FILE *fp, struct trussinfo *trussinfo, struct msghdr *msg)
+print_netlink(FILE *fp, struct trussinfo *trussinfo, void *msg, size_t len)
 {
-	struct sockaddr_storage ss;
-	struct iovec iov;
-	struct ptrace_io_desc piod;
 	char *buf;
 	pid_t pid = trussinfo->curthread->proc->pid;
 	bool success = false;
 
-	/* Only decode AF_NETLINK sockets. */
-	if (msg->msg_name == NULL || msg->msg_namelen < offsetof(struct sockaddr, sa_data)
-		|| msg->msg_iovlen == 0 || msg->msg_iov == NULL)
+	if (msg == NULL || len == 0)
 		return (false);
 
-	if (get_struct(pid, (uintptr_t)msg->msg_name, &ss,
-	    MIN(sizeof(ss), msg->msg_namelen)) == -1)
-		return (false);
-
-	if (ss.ss_family != AF_NETLINK)
-		return (false);
-
-	if (get_struct(pid, (uintptr_t)msg->msg_iov, &iov, sizeof(iov)) == -1)
-		return (false);
-
-	/* Cap read size to avoid unbounded allocations. */
-	size_t read_len = MIN(iov.iov_len, NETLINK_MAX_DECODE);
+	size_t read_len = MIN(len, NETLINK_MAX_DECODE);
 	if (read_len == 0)
 		return (false);
 
@@ -1609,18 +1610,11 @@ print_netlink(FILE *fp, struct trussinfo *trussinfo, struct msghdr *msg)
 	if (buf == NULL)
 		return (false);
 
-	/* Snapshot User Memory using PTRACE. */
-	piod.piod_op = PIOD_READ_D;
-	piod.piod_offs = iov.iov_base;
-	piod.piod_addr = buf;
-	piod.piod_len = read_len;
-
-	if (ptrace(PT_IO, pid, (caddr_t)&piod, 0) == -1) {
+	if (get_struct(pid, (uintptr_t)msg, buf, read_len) == -1) {
 		free(buf);
 		return (false);
 	}
 
-	/* Delegate Decoding to libsysdecode. */
 	if (sysdecode_netlink(fp, buf, read_len)) {
 		success = true;
 	}
@@ -1637,7 +1631,7 @@ print_netlink(FILE *fp, struct trussinfo *trussinfo, struct msghdr *msg)
  */
 char *
 print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
-    struct trussinfo *trussinfo)
+    struct trussinfo *trussinfo, struct syscall_decode *decode)
 {
 	FILE *fp;
 	char *tmp;
@@ -1695,6 +1689,13 @@ print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
 		break;
 	}
 	case BinString: {
+		if ((strcmp(decode->name, "sendto") == 0 ||
+		    strcmp(decode->name, "recvfrom") == 0) &&
+		    is_netlink(trussinfo, (int)args[0]))
+			if (print_netlink(fp, trussinfo,
+			    (void *)args[sc->offset],
+			    (size_t)args[sc->offset + 1]))
+				break;
 		/*
 		 * Binary block of data that might have printable characters.
 		 * XXX If type|OUT, assume that the length is the syscall's
@@ -2758,6 +2759,7 @@ print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
 	}
 	case Msghdr: {
 		struct msghdr msghdr;
+		struct iovec iov;
 
 		if (get_struct(pid, args[sc->offset],
 		    &msghdr, sizeof(struct msghdr)) == -1) {
@@ -2768,9 +2770,13 @@ print_arg(struct syscall_arg *sc, syscallarg_t *args, syscallarg_t *retval,
 		print_sockaddr(fp, trussinfo, (uintptr_t)msghdr.msg_name, msghdr.msg_namelen);
 		fprintf(fp, ",%d,", msghdr.msg_namelen);
 		/* Attempt Netlink decode; fallback to standard iovec if it fails. */
-		if (!print_netlink(fp, trussinfo, &msghdr)) {
+		if ((!is_netlink(trussinfo, (int)args[0])) ||
+		    (get_struct(pid, (uintptr_t)msghdr.msg_iov,
+		    &iov, sizeof(iov)) == -1) ||
+		    (!print_netlink(fp, trussinfo, (void *)iov.iov_base,
+		    (size_t)iov.iov_len))) {
 			print_iovec(fp, trussinfo, (uintptr_t)msghdr.msg_iov,
-			    msghdr.msg_iovlen);
+				msghdr.msg_iovlen);
 		}
 		fprintf(fp, ",%d,", msghdr.msg_iovlen);
 		print_cmsgs(fp, pid, sc->type & OUT, &msghdr);
