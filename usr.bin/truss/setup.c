@@ -340,6 +340,7 @@ new_proc(struct trussinfo *info, pid_t pid, lwpid_t lwpid)
 	np->pid = pid;
 	np->abi = find_abi(pid);
 	LIST_INIT(&np->threadlist);
+	LIST_INIT(&np->fdlist);
 	LIST_INSERT_HEAD(&info->proclist, np, entries);
 
 	if (lwpid != 0)
@@ -352,10 +353,16 @@ static void
 free_proc(struct procinfo *p)
 {
 	struct threadinfo *t, *t2;
+	struct fd_domain *f, *f2;
 
 	LIST_FOREACH_SAFE(t, &p->threadlist, entries, t2) {
 		free(t);
 	}
+
+	LIST_FOREACH_SAFE(f, &p->fdlist, entries, f2) {
+		free(f);
+	}
+
 	LIST_REMOVE(p, entries);
 	free(p);
 }
@@ -492,7 +499,7 @@ enter_syscall(struct trussinfo *info, struct threadinfo *t,
 #endif
 		if (!(sc->decode.args[i].type & OUT)) {
 			t->cs.s_args[i] = print_arg(&sc->decode.args[i],
-			    t->cs.args, NULL, info);
+			    t->cs.args, NULL, info, &sc->decode);
 		}
 	}
 #if DEBUG
@@ -562,9 +569,38 @@ exit_syscall(struct trussinfo *info, struct ptrace_lwpinfo *pl)
 				    (long)t->cs.args[sc->decode.args[i].offset]);
 			} else {
 				temp = print_arg(&sc->decode.args[i],
-				    t->cs.args, psr.sr_retval, info);
+				    t->cs.args, psr.sr_retval, info,
+				    &sc->decode);
 			}
 			t->cs.s_args[i] = temp;
+		}
+	}
+
+	/*
+	 * Track successfully created sockets so later syscalls using the
+	 * returned file descriptor can be identified by socket domain.
+	 */
+	if (strcmp(sc->name, "socket") == 0 &&
+	    psr.sr_error == 0) {
+
+		struct fd_domain *f = calloc(1, sizeof(*f));
+
+		f->fd = (int)psr.sr_retval[0];
+		f->domain = (int)t->cs.args[0];
+
+		LIST_INSERT_HEAD(&p->fdlist, f, entries);
+	}
+
+	if (strcmp(sc->name, "close") == 0 &&
+	    psr.sr_error == 0) {
+
+		struct fd_domain *f, *f2;
+
+		LIST_FOREACH_SAFE(f, &p->fdlist, entries, f2) {
+			if (f->fd == (int)t->cs.args[0]) {
+				LIST_REMOVE(f, entries);
+				free(f);
+			}
 		}
 	}
 

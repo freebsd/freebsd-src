@@ -229,7 +229,7 @@ struct syscall {
 
 struct syscall *get_syscall(struct threadinfo *, u_int, u_int);
 char *print_arg(struct syscall_arg *, syscallarg_t *, syscallarg_t *,
-    struct trussinfo *);
+    struct trussinfo *, struct syscall_decode *);
 
 /*
  * Linux Socket defines
