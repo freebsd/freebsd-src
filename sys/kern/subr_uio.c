@@ -264,7 +264,7 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 		save = curthread_pflags_set(newflags);
 	} else {
 		KASSERT(nofault == 0, ("uiomove: nofault"));
-		save = 0;
+		save = ~0;
 	}
 
 	while (n > 0 && uio->uio_resid) {
