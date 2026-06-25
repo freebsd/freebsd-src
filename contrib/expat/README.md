@@ -11,7 +11,7 @@
 > at the top of the `Changes` file.
 
 
-# Expat, Release 2.8.1
+# Expat, Release 2.8.2
 
 This is Expat, a C99 library for parsing
 [XML 1.0 Fourth Edition](https://www.w3.org/TR/2006/REC-xml-20060816/), started by
@@ -285,9 +285,6 @@ EXPAT_ENABLE_INSTALL:BOOL=ON
 
 // Use /MT flag (static CRT) when compiling in MSVC
 EXPAT_MSVC_STATIC_CRT:BOOL=OFF
-
-// Build fuzzers via OSS-Fuzz for the expat library
-EXPAT_OSSFUZZ_BUILD:BOOL=OFF
 
 // Build a shared expat library
 EXPAT_SHARED_LIBS:BOOL=ON
