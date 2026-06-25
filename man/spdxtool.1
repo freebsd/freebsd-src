@@ -48,6 +48,9 @@ in /Core/Agent-class. Default is 'Default'
 Set create-property time in /Core/CreationInfo-class.
 SPDX documentation recomends using ISO 8601-formated time which is: YYYY-MM-DDThh:mm:ssZ.
 Default is document creation time.
+This takes precedence over the
+.Ev SOURCE_DATE_EPOCH
+environment variable.
 .It Fl -creation-id
 Set creation ID in /Core/CreationInfoc-class.
 As ID in creation info mainly have special format and it's
@@ -103,6 +106,12 @@ files which are loaded before any other pkg-config files.
 These packages are given highest priority over any other
 .Xr pc 5
 files that would otherwise provide a given package.
+.It Ev SOURCE_DATE_EPOCH
+If set, and the
+.Fl -creation-time
+option is not given, the creation time in /Core/CreationInfo-class is derived
+from this UNIX timestamp instead of the current time, allowing for reproducible
+SBOM generation.
 .El
 .Sh EXIT STATUS
 .Ex -std

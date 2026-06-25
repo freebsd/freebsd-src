@@ -29,10 +29,12 @@
 #define PKG_HELP			(((uint64_t) 1) << 3)
 #define PKG_OUTPUT			(((uint64_t) 1) << 4)
 #define PKG_DEFINE_VARIABLE	(((uint64_t) 1) << 5)
+#define PKG_CREATION_TIME	(((uint64_t) 1) << 6)
 
 static const char *spdx_version = "SPDX-2.2";
 static const char *bom_license = "CC0-1.0";
 static const char *document_ref = "SPDXRef-DOCUMENT";
+static const char *creation_time = NULL;
 
 static pkgconf_client_t pkg_client;
 static uint64_t want_flags;
@@ -148,13 +150,26 @@ write_sbom_header(pkgconf_client_t *client, pkgconf_pkg_t *world)
 
 	free(docname);
 
-	OUTPUT_OR_RET_FALSE(client, sbom_out, "DocumentNamespace: https://spdx.org/spdxdocs/bomtool-%s\n", PACKAGE_VERSION);
-	OUTPUT_OR_RET_FALSE(client, sbom_out, "Creator: Tool: bomtool %s\n", PACKAGE_VERSION);
+	OUTPUT_OR_RET_FALSE(client, sbom_out, "DocumentNamespace: https://spdx.org/spdxdocs/bomtool\n");
+	OUTPUT_OR_RET_FALSE(client, sbom_out, "Creator: Tool: bomtool\n");
 
-	t = time(NULL);
-	tm = gmtime(&t);
-	strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", tm);
-	OUTPUT_OR_RET_FALSE(client, sbom_out, "Created: %s\n", buf);
+	if (creation_time != NULL)
+	{
+		OUTPUT_OR_RET_FALSE(client, sbom_out, "Created: %s\n", creation_time);
+	}
+	else
+	{
+		const char *source_date_epoch = getenv("SOURCE_DATE_EPOCH");
+
+		if (source_date_epoch != NULL && *source_date_epoch != '\0')
+			t = (time_t) strtoll(source_date_epoch, NULL, 10);
+		else
+			t = time(NULL);
+
+		tm = gmtime(&t);
+		strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", tm);
+		OUTPUT_OR_RET_FALSE(client, sbom_out, "Created: %s\n", buf);
+	}
 
 	OUTPUT_OR_RET_FALSE(client, sbom_out, "\n\n");
 
@@ -338,8 +353,7 @@ static int
 about(void)
 {
 	printf("bomtool (%s %s)\n", PACKAGE_NAME, PACKAGE_VERSION);
-	printf("Copyright (c) 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021\n");
-	printf("    pkgconf authors (see AUTHORS in documentation directory).\n\n");
+	printf("Copyright (c) 2011-2026 pkgconf authors (see AUTHORS in documentation directory)\n\n");
 	printf("Permission to use, copy, modify, and/or distribute this software for any\n");
 	printf("purpose with or without fee is hereby granted, provided that the above\n");
 	printf("copyright notice and this permission notice appear in all copies.\n\n");
@@ -362,6 +376,7 @@ usage(void)
 	printf("  --version                         print bomtool version to stdout\n");
 	printf("  --output FILE                     output SBOM text to FILE\n");
 	printf("  --define-variable=varname=value   define variable 'varname' as 'value'\n");
+	printf("  --creation-time                   Use string as creation time (Should be in ISO8601 format) [default: current time]\n");
 
 	return EXIT_SUCCESS;
 }
@@ -388,6 +403,7 @@ main(int argc, char *argv[])
 		{ "help", no_argument, &want_flags, PKG_HELP, },
 		{ "output", required_argument, NULL, PKG_OUTPUT, },
 		{ "define-variable", required_argument, NULL, PKG_DEFINE_VARIABLE, },
+		{ "creation-time", required_argument, NULL, PKG_CREATION_TIME, },
 		{ NULL, 0, NULL, 0 }
 	};
 
@@ -406,6 +422,9 @@ main(int argc, char *argv[])
 			break;
 		case PKG_DEFINE_VARIABLE:
 			pkgconf_tuple_define_global(&pkg_client, pkg_optarg);
+			break;
+		case PKG_CREATION_TIME:
+			creation_time = pkg_optarg;
 			break;
 		case '?':
 		case ':':

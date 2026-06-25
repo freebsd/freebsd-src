@@ -1,0 +1,6 @@
+Tool: bomtool
+ToolArgs: test3
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+ExpectedStdout: PackageName: test3@3.0.0
+MatchStdout: Partial
+ExpectedExitCode: 0

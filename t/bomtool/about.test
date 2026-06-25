@@ -1,0 +1,5 @@
+Tool: bomtool
+ToolArgs: --about
+ExpectedStdout: bomtool (pkgconf
+MatchStdout: Partial
+ExpectedExitCode: 0

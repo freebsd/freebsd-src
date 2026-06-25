@@ -6,3 +6,15 @@ coverage:
     patch:
       default:
         informational: true
+parsers:
+  cobertura:
+    partials_as_hits: true
+ignore:
+  # we are not going to write tests for getopt_long().
+  - "cli/getopt_long.c"
+
+  # these are portability stubs and not expected to be notable in coverage testing
+  - "libpkgconf/bsdstubs.c"
+
+  # the test runner itself should not count as part of coverage testing
+  - "tests/test-runner.c"

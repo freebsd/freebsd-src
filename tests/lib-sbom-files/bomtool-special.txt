@@ -1,0 +1,24 @@
+SPDXVersion: SPDX-2.2
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentName: SBOM-SPDX-specialC401.0.0
+DocumentNamespace: https://spdx.org/spdxdocs/bomtool
+Creator: Tool: bomtool
+Created: test
+
+
+##### Package: special@1.0.0
+
+PackageName: special@1.0.0
+SPDXID: SPDXRef-Package-specialC401.0.0
+PackageVersion: 1.0.0
+PackageDownloadLocation: NOASSERTION
+PackageHomePage: https://example.com/special
+PackageLicenseDeclared: MIT
+PackageLicenseConcluded: NOASSERTION
+PackageCopyrightText: <text>Quote " backslash \ and	tab</text>
+PackageSummary: <text>Package with special characters</text>
+PackageDownloadLocation: NOASSERTION
+
+
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-specialC401.0.0

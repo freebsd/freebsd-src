@@ -528,6 +528,13 @@ pkgconf_path_find_basename(const char *path)
  *
  *    Adds paths to a directory list discovered from a given registry key.
  *
+ *    .. warning::
+ *       The Windows registry search path mechanism is deprecated and will be
+ *       removed in pkgconf 3.1.  Use ``PKG_CONFIG_PATH`` or configure search
+ *       paths explicitly instead.  Avoid using this function directly in new
+ *       code.
+ *
+ *    :param pkgconf_client_t* client: pkgconf client
  *    :param HKEY hKey: The registry key to enumerate.
  *    :param pkgconf_list_t* dir_list: The directory list to append enumerated paths to.
  *    :param bool filter: Whether duplicate paths should be filtered.
@@ -535,7 +542,7 @@ pkgconf_path_find_basename(const char *path)
  *    :rtype: size_t
  */
 size_t
-pkgconf_path_build_from_registry(void *hKey, pkgconf_list_t *dir_list, bool filter)
+pkgconf_path_build_from_registry(pkgconf_client_t *client, void *hKey, pkgconf_list_t *dir_list, bool filter)
 {
 	HKEY key;
 	int i = 0;
@@ -546,6 +553,10 @@ pkgconf_path_build_from_registry(void *hKey, pkgconf_list_t *dir_list, bool filt
 	if (RegOpenKeyEx(hKey, PKG_CONFIG_REG_KEY,
 				0, KEY_READ, &key) != ERROR_SUCCESS)
 		return 0;
+
+	pkgconf_warn(client,
+		"WARNING: support for reading PKG_CONFIG_PATH from the Windows registry "
+		"is deprecated and will be removed in pkgconf 3.1\n");
 
 	while (RegEnumValue(key, i++, buf, &bufsize, NULL, NULL, NULL, NULL)
 			== ERROR_SUCCESS)

@@ -1,0 +1,24 @@
+SPDXVersion: SPDX-2.2
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentName: SBOM-SPDX-test3C403.0.0
+DocumentNamespace: https://spdx.org/spdxdocs/bomtool
+Creator: Tool: bomtool
+Created: test
+
+
+##### Package: test3@3.0.0
+
+PackageName: test3@3.0.0
+SPDXID: SPDXRef-Package-test3C403.0.0
+PackageVersion: 3.0.0
+PackageDownloadLocation: NOASSERTION
+PackageHomePage: https://github.com/pkgconf/pkgconf/
+PackageLicenseDeclared: BSD-4-Clause
+PackageLicenseConcluded: NOASSERTION
+PackageCopyrightText: <text>Test3 copyright text</text>
+PackageSummary: <text>Test package 3</text>
+PackageDownloadLocation: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+
+
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-test3C403.0.0

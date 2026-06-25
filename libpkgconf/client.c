@@ -70,8 +70,12 @@ pkgconf_client_dir_list_build(pkgconf_client_t *client, const pkgconf_cross_pers
 		const pkgconf_list_t *prepend_list = &personality->dir_list;
 
 #ifdef _WIN32
-		(void) pkgconf_path_build_from_registry(HKEY_CURRENT_USER, &client->dir_list, true);
-		(void) pkgconf_path_build_from_registry(HKEY_LOCAL_MACHINE, &client->dir_list, true);
+		/*
+		 * NOTE: setting the pkgconf path from the registry is deprecated
+		 * and will be removed in pkgconf 3.1.
+		 */
+		(void) pkgconf_path_build_from_registry(client, HKEY_CURRENT_USER, &client->dir_list, true);
+		(void) pkgconf_path_build_from_registry(client, HKEY_LOCAL_MACHINE, &client->dir_list, true);
 #endif
 
 		if (pkgconf_client_getenv(client, "PKG_CONFIG_LIBDIR") != NULL)

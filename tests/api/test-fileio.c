@@ -196,7 +196,7 @@ test_fgetline_crlf_split_across_fgets_buffer(void)
 
 	TEST_ASSERT_NONNULL(content);
 	memset(content, 'a', prefix_len);
-	strcpy(content + prefix_len, "\r\nworld\n");
+	memcpy(content + prefix_len, "\r\nworld\n", strlen("\r\nworld\n") + 1);
 
 	f = fmemstream(content);
 	free(content);

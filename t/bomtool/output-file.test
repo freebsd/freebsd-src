@@ -1,0 +1,5 @@
+Tool: bomtool
+ToolArgs: --creation-time=test --output /dev/null test3
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+ExpectedExitCode: 0
+SkipPlatforms: windows

@@ -20,6 +20,9 @@
 #include <libpkgconf/stdinc.h>
 #include <tests/win-shim.h>
 #include <sys/types.h>
+#ifndef _WIN32
+#	include <sys/wait.h>
+#endif
 #include <cli/core.h>
 #include <cli/getopt_long.h>
 #include <limits.h>
@@ -895,6 +898,12 @@ run_tool(const pkgconf_test_case_t *testcase, pkgconf_buffer_t *o_stdout, pkgcon
 
 	FILE *pipe = popen(pkgconf_buffer_str(&cmdbuf), "r");
 	pkgconf_buffer_finalize(&cmdbuf);
+
+	PKGCONF_FOREACH_LIST_ENTRY(testcase->env_vars.head, iter)
+	{
+		pkgconf_test_environ_t *env = iter->data;
+		unsetenv(env->key);
+	}
 
 	if (pipe == NULL)
 	{

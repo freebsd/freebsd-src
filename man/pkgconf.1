@@ -73,7 +73,6 @@ These options are, ordered by descending priority:
 .Bl -enum
 .It
 No-module options:
-.Fl -relocate ,
 .Fl -dump-personality ,
 .Fl -about ,
 .Fl -version ,
@@ -521,10 +520,6 @@ This is mainly intended for use with the
 flag and has no effect if
 .Fl -shared
 is also specified.
-.It Fl -relocate Ns = Ns Ar path
-Relocates a path using the pkgconf_path_relocate API.
-This is mainly used by the testsuite to provide a guaranteed interface
-to the system's path relocation backend.
 .It Fl -shared
 Compute a simple dependency graph that is only suitable for shared linking.
 This option overrides

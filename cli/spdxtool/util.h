@@ -102,9 +102,6 @@ spdxtool_util_get_spdx_version(pkgconf_client_t *client);
 void
 spdxtool_util_set_spdx_license(pkgconf_client_t *client, const char *spdx_license);
 
-const char *
-spdxtool_util_get_spdx_license(pkgconf_client_t *client);
-
 char *
 spdxtool_util_get_spdx_id_int(pkgconf_client_t *client, const char *part);
 

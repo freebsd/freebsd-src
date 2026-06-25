@@ -11,14 +11,26 @@ Changes from 2.5.1 to 3.0.0:
   Continuous integration now exercises both the muon and pkgconf-lite builds.
   See https://github.com/pkgconf/pkgconf/issues/481 for rationale and discussion.
 
+* DEPRECATION: Support for setting `PKG_CONFIG_PATH` from the Windows registry
+  is slated for removal in 3.1.  It is recommended `PKG_CONFIG_PATH` be set from
+  the environment on Windows.
+  See https://github.com/pkgconf/pkgconf/issues/546 for rationale and discussion.
+
 * SPDX Software Bill of Materials (SBOM) generation:
   - New spdxtool(1) utility which generates SPDX Lite 3.0.1 SBOM files.  Initial
     implementation by Tuukka Pasanen, sponsored by The FreeBSD Foundation, and
     substantially improved since, with major contributions by Elizabeth Ashford
     and additional patches by Joshua Watt and Pierre Pronchery.
-  - bomtool and spdxtool now support a --output option, which writes the
-    generated SBOM to a file instead of standard output, and --define-variable,
-    as the pkgconf CLI does.  The --define-variable support is by Tuukka Pasanen.
+  - bomtool now supports a --output option, which writes the generated SBOM to
+    a file instead of standard output, and --define-variable, as the pkgconf CLI
+    does.  The --define-variable support is by Tuukka Pasanen.
+  - bomtool now supports a --creation-time option, like spdxtool, which sets the
+    SBOM creation timestamp (in ISO 8601 format) instead of using the current
+    time, and no longer embeds the pkgconf version in its output.  Both changes
+    allow for reproducible SBOM generation.
+  - bomtool now honors the SOURCE_DATE_EPOCH environment variable, deriving the
+    SBOM creation timestamp from it when --creation-time is not given, for
+    reproducible builds.
   - bomtool: improved SPDX conformance.  Mandatory PackageCopyrightText and
     PackageLicenseConcluded fields are emitted as NOASSERTION when unavailable,
     a Created timestamp is included, invalid PackageVerificationCode output was
@@ -93,6 +105,8 @@ Changes from 2.5.1 to 3.0.0:
   - --dump-personality output is now consistent with the
     pkgconf-personality(5) format and additionally reports WantDefaultPure and
     WantDefaultStatic.
+  - The vestigial --relocate=path option, which existed only for the old test
+    suite, has been removed.
 
 * pkg.m4 changes:
   - PKG_WITH_MODULES now properly quotes its action arguments (serial 16).

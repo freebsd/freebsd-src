@@ -1,5 +1,5 @@
 project('pkgconf', 'c',
-  version : '2.9.90',
+  version : '2.9.91',
   license : 'ISC',
   default_options : [
     'c_std=c99',
@@ -296,11 +296,28 @@ foreach t : api_tests
   test('api-' + t, exe)
 endforeach
 
+# Unit test for spdxtool's JSON serializer.  Unlike the api_tests above it must
+# also compile the spdxtool sources it exercises (everything but main.c).
+test_api_serialize_exe = executable('test-api-serialize',
+  'tests/api/test-serialize.c',
+  'cli/spdxtool/core.c',
+  'cli/spdxtool/software.c',
+  'cli/spdxtool/serialize.c',
+  'cli/spdxtool/simplelicensing.c',
+  'cli/spdxtool/util.c',
+  windows_manifest,
+  link_with : libpkgconf,
+  c_args : build_static,
+  include_directories : [include_directories('.'), include_directories('tests/api'), include_directories('cli/spdxtool')],
+  install : false)
+test('api-serialize', test_api_serialize_exe)
+
 fixtures_dir = join_paths(meson.current_source_dir(), 'tests')
 tool_dir = meson.current_build_dir()
 
 test_suites = [
   'basic',
+  'cli',
   'link-abi',
   'ordering',
   'parser',
@@ -309,6 +326,7 @@ test_suites = [
   'sbom',
   'sysroot',
   'tuple',
+  'bomtool',
   'spdxtool',
   'symlink'
 ]
@@ -316,7 +334,7 @@ test_suites = [
 foreach t : test_suites
   test(t, test_runner_exe,
     args : ['--test-fixtures', fixtures_dir, '--tool-dir', tool_dir, join_paths(meson.current_source_dir(), 't', t)],
-    depends : [spdxtool_exe])
+    depends : [pkgconf_exe, spdxtool_exe, bomtool_exe])
 endforeach
 
 install_man('man/bomtool.1')

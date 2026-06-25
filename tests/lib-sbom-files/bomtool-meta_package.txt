@@ -1,0 +1,137 @@
+SPDXVersion: SPDX-2.2
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentName: SBOM-SPDX-metaC5fpackageC401.0.0
+DocumentNamespace: https://spdx.org/spdxdocs/bomtool
+Creator: Tool: bomtool
+Created: test
+
+
+##### Package: meta_package@1.0.0
+
+PackageName: meta_package@1.0.0
+SPDXID: SPDXRef-Package-metaC5fpackageC401.0.0
+PackageVersion: 1.0.0
+PackageDownloadLocation: NOASSERTION
+PackageHomePage: https://github.com/pkgconf/pkgconf
+PackageLicenseDeclared: BSD-2-Clause
+PackageLicenseConcluded: NOASSERTION
+PackageCopyrightText: NOASSERTION
+PackageSummary: <text>Meta package to test  SBOM creation</text>
+PackageDownloadLocation: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+
+
+##### Package: test1@1.0.0
+
+PackageName: test1@1.0.0
+SPDXID: SPDXRef-Package-test1C401.0.0
+PackageVersion: 1.0.0
+PackageDownloadLocation: NOASSERTION
+PackageLicenseDeclared: BSD-1-Clause
+PackageLicenseConcluded: NOASSERTION
+PackageCopyrightText: <text>Test1 copyright text</text>
+PackageSummary: <text>Test package 1</text>
+PackageDownloadLocation: NOASSERTION
+
+
+##### Package: test2@2.0.0
+
+PackageName: test2@2.0.0
+SPDXID: SPDXRef-Package-test2C402.0.0
+PackageVersion: 2.0.0
+PackageDownloadLocation: NOASSERTION
+PackageHomePage: https://github.com/pkgconf/pkgconf/
+PackageLicenseDeclared: BSD-2-Clause
+PackageLicenseConcluded: NOASSERTION
+PackageCopyrightText: NOASSERTION
+PackageSummary: <text>Test package 2</text>
+PackageDownloadLocation: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+
+
+##### Package: test3@3.0.0
+
+PackageName: test3@3.0.0
+SPDXID: SPDXRef-Package-test3C403.0.0
+PackageVersion: 3.0.0
+PackageDownloadLocation: NOASSERTION
+PackageHomePage: https://github.com/pkgconf/pkgconf/
+PackageLicenseDeclared: BSD-4-Clause
+PackageLicenseConcluded: NOASSERTION
+PackageCopyrightText: <text>Test3 copyright text</text>
+PackageSummary: <text>Test package 3</text>
+PackageDownloadLocation: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+
+
+##### Package: test4@4.0.0
+
+PackageName: test4@4.0.0
+SPDXID: SPDXRef-Package-test4C404.0.0
+PackageVersion: 4.0.0
+PackageDownloadLocation: NOASSERTION
+PackageHomePage: https://github.com/pkgconf/pkgconf/
+PackageLicenseDeclared: MIT
+PackageLicenseConcluded: NOASSERTION
+PackageCopyrightText: NOASSERTION
+PackageSummary: <text>Test package 4</text>
+PackageDownloadLocation: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+
+
+##### Package: test5@5.0.0
+
+PackageName: test5@5.0.0
+SPDXID: SPDXRef-Package-test5C405.0.0
+PackageVersion: 5.0.0
+PackageDownloadLocation: NOASSERTION
+PackageHomePage: https://github.com/pkgconf/pkgconf/
+PackageLicenseDeclared: MIT
+PackageLicenseConcluded: NOASSERTION
+PackageCopyrightText: NOASSERTION
+PackageSummary: <text>Test package 5</text>
+PackageDownloadLocation: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+
+
+##### Package: test6@6.0.0
+
+PackageName: test6@6.0.0
+SPDXID: SPDXRef-Package-test6C406.0.0
+PackageVersion: 6.0.0
+PackageDownloadLocation: NOASSERTION
+PackageHomePage: https://github.com/pkgconf/pkgconf/releases/
+PackageLicenseDeclared: Apache-2.0
+PackageLicenseConcluded: NOASSERTION
+PackageCopyrightText: NOASSERTION
+PackageSummary: <text>Test package 6</text>
+PackageDownloadLocation: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+
+
+Relationship: SPDXRef-Package-metaC5fpackageC401.0.0 DEPENDS_ON SPDXRef-Package-test1C401.0.0
+Relationship: SPDXRef-Package-test1C401.0.0 DEPENDENCY_OF SPDXRef-Package-metaC5fpackageC401.0.0
+Relationship: SPDXRef-Package-metaC5fpackageC401.0.0 DEPENDS_ON SPDXRef-Package-test2C402.0.0
+Relationship: SPDXRef-Package-test2C402.0.0 DEPENDENCY_OF SPDXRef-Package-metaC5fpackageC401.0.0
+Relationship: SPDXRef-Package-metaC5fpackageC401.0.0 DEPENDS_ON SPDXRef-Package-test3C403.0.0
+Relationship: SPDXRef-Package-test3C403.0.0 DEPENDENCY_OF SPDXRef-Package-metaC5fpackageC401.0.0
+Relationship: SPDXRef-Package-metaC5fpackageC401.0.0 DEPENDS_ON SPDXRef-Package-test4C404.0.0
+Relationship: SPDXRef-Package-test4C404.0.0 DEPENDENCY_OF SPDXRef-Package-metaC5fpackageC401.0.0
+Relationship: SPDXRef-Package-metaC5fpackageC401.0.0 DEPENDS_ON SPDXRef-Package-test5C405.0.0
+Relationship: SPDXRef-Package-test5C405.0.0 DEPENDENCY_OF SPDXRef-Package-metaC5fpackageC401.0.0
+Relationship: SPDXRef-Package-metaC5fpackageC401.0.0 DEPENDS_ON SPDXRef-Package-test6C406.0.0
+Relationship: SPDXRef-Package-test6C406.0.0 DEPENDENCY_OF SPDXRef-Package-metaC5fpackageC401.0.0
+
+
+Relationship: SPDXRef-Package-test2C402.0.0 DEPENDS_ON SPDXRef-Package-test3C403.0.0
+Relationship: SPDXRef-Package-test3C403.0.0 DEPENDENCY_OF SPDXRef-Package-test2C402.0.0
+
+
+Relationship: SPDXRef-Package-test4C404.0.0 DEPENDS_ON SPDXRef-Package-test5C405.0.0
+Relationship: SPDXRef-Package-test5C405.0.0 DEPENDENCY_OF SPDXRef-Package-test4C404.0.0
+Relationship: SPDXRef-Package-test4C404.0.0 DEPENDS_ON SPDXRef-Package-test6C406.0.0
+Relationship: SPDXRef-Package-test6C406.0.0 DEPENDENCY_OF SPDXRef-Package-test4C404.0.0
+
+
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-metaC5fpackageC401.0.0
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-test1C401.0.0
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-test2C402.0.0
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-test3C403.0.0
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-test4C404.0.0
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-test5C405.0.0
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-test6C406.0.0

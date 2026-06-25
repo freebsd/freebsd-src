@@ -1,0 +1,5 @@
+Tool: bomtool
+ToolArgs: --creation-time=test test5 test6
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+ExpectedStdoutFile: ../../tests/lib-sbom-files/bomtool-multiple_packages.txt
+ExpectedExitCode: 0

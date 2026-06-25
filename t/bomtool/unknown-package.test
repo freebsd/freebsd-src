@@ -1,0 +1,4 @@
+Tool: bomtool
+ToolArgs: --creation-time=test no-such-pkg
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+ExpectedExitCode: 1

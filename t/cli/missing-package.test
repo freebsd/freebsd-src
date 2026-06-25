@@ -1,0 +1,4 @@
+Tool: pkgconf
+ToolArgs: --cflags boguspkg
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1
+ExpectedExitCode: 1

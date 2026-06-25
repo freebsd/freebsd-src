@@ -1,0 +1,5 @@
+Tool: pkgconf
+ToolArgs: --help
+ExpectedStdout: usage: pkgconf
+MatchStdout: Partial
+ExpectedExitCode: 0
