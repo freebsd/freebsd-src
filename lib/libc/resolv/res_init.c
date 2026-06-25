@@ -3,6 +3,7 @@
  *
  * Copyright (c) 1985, 1989, 1993
  *    The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2026 Dag-Erling Smørgrav
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -80,6 +81,7 @@
 #include <arpa/nameser.h>
 
 #include <ctype.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -103,9 +105,11 @@ static const char sort_mask[] = "/&";
 static u_int32_t net_mask(struct in_addr);
 #endif
 
-#if !defined(isascii)	/*%< XXX - could be a function */
-# define isascii(c) (!(c & 0200))
-#endif
+#define res_space(ch)							\
+	isspace((unsigned char)(ch))
+#define res_match(str, end, word)					\
+	(strncmp((str), (word), (end) - (str)) == 0 &&			\
+	    (word)[(end) - (str)] == '\0')
 
 /*
  * Resolver state default settings.
@@ -520,129 +524,136 @@ __res_vinit(res_state statp, int preinit) {
 static void
 res_setoptions(res_state statp, const char *options, const char *source)
 {
-	const char *cp = options;
-	int i;
+	const char *cp = options, *sp, *ep;
+	char *numend;
+	long num;
 	struct __res_state_ext *ext = statp->_u._ext.ext;
 
 #ifdef DEBUG
-	if (statp->options & RES_DEBUG)
+	if (statp->options & RES_DEBUG) {
 		printf(";; res_setoptions(\"%s\", \"%s\")...\n",
 		       options, source);
+	}
 #endif
-	while (*cp) {
+	for (;;) {
 		/* skip leading and inner runs of spaces */
-		while (*cp == ' ' || *cp == '\t')
+		while (res_space(*cp))
 			cp++;
+		/* find the separator if there is one */
+		sp = cp;
+		while (*sp != '\0' && !res_space(*sp) && *sp != ':')
+			sp++;
+		/* find the end of the option */
+		ep = sp;
+		while (*ep != '\0' && !res_space(*ep))
+			ep++;
+		/* end of option line */
+		if (ep == cp)
+			break;
 		/* search for and process individual options */
-		if (!strncmp(cp, "ndots:", sizeof("ndots:") - 1)) {
-			i = atoi(cp + sizeof("ndots:") - 1);
-			if (i <= RES_MAXNDOTS)
-				statp->ndots = i;
+		if (res_match(cp, sp, "ndots") && sp < ep) {
+			num = strtol(sp + 1, &numend, 10);
+			if (numend == ep && num <= RES_MAXNDOTS)
+				statp->ndots = num;
 			else
 				statp->ndots = RES_MAXNDOTS;
 #ifdef DEBUG
 			if (statp->options & RES_DEBUG)
 				printf(";;\tndots=%d\n", statp->ndots);
 #endif
-		} else if (!strncmp(cp, "timeout:", sizeof("timeout:") - 1)) {
-			i = atoi(cp + sizeof("timeout:") - 1);
-			if (i <= RES_MAXRETRANS)
-				statp->retrans = i;
+		} else if (res_match(cp, sp, "timeout") && sp < ep) {
+			num = strtol(sp + 1, &numend, 10);
+			if (numend == ep && num > 0 && num <= RES_MAXRETRANS)
+				statp->retrans = num;
 			else
 				statp->retrans = RES_MAXRETRANS;
 #ifdef DEBUG
 			if (statp->options & RES_DEBUG)
 				printf(";;\ttimeout=%d\n", statp->retrans);
 #endif
-		} else if (!strncmp(cp, "attempts:", sizeof("attempts:") - 1)){
-			i = atoi(cp + sizeof("attempts:") - 1);
-			if (i <= RES_MAXRETRY)
-				statp->retry = i;
+		} else if (res_match(cp, sp, "attempts") && sp < ep) {
+			num = strtol(sp + 1, &numend, 10);
+			if (numend == ep && num > 0 && num <= RES_MAXRETRY)
+				statp->retry = num;
 			else
 				statp->retry = RES_MAXRETRY;
 #ifdef DEBUG
 			if (statp->options & RES_DEBUG)
 				printf(";;\tattempts=%d\n", statp->retry);
 #endif
-		} else if (!strncmp(cp, "debug", sizeof("debug") - 1)) {
+		} else if (res_match(cp, ep, "debug")) {
 #ifdef DEBUG
 			if (!(statp->options & RES_DEBUG)) {
 				printf(";; res_setoptions(\"%s\", \"%s\")..\n",
 				       options, source);
-				statp->options |= RES_DEBUG;
 			}
+#endif
+			statp->options |= RES_DEBUG;
+#ifdef DEBUG
 			printf(";;\tdebug\n");
 #endif
-		} else if (!strncmp(cp, "no_tld_query",
-				    sizeof("no_tld_query") - 1) ||
-			   !strncmp(cp, "no-tld-query",
-				    sizeof("no-tld-query") - 1)) {
+		} else if (res_match(cp, ep, "no-tld-query") ||
+		    res_match(cp, ep, "no_tld_query")) {
 			statp->options |= RES_NOTLDQUERY;
-		} else if (!strncmp(cp, "inet6", sizeof("inet6") - 1)) {
+		} else if (res_match(cp, ep, "inet6")) {
 			statp->options |= RES_USE_INET6;
-		} else if (!strncmp(cp, "insecure1", sizeof("insecure1") - 1)) {
-		       statp->options |= RES_INSECURE1;
-		} else if (!strncmp(cp, "insecure2", sizeof("insecure2") - 1)) {
-		       statp->options |= RES_INSECURE2;
-		} else if (!strncmp(cp, "rotate", sizeof("rotate") - 1)) {
+		} else if (res_match(cp, ep, "insecure1")) {
+			statp->options |= RES_INSECURE1;
+		} else if (res_match(cp, ep, "insecure2")) {
+			statp->options |= RES_INSECURE2;
+		} else if (res_match(cp, ep, "blast")) {
+			statp->options |= RES_BLAST;
+		} else if (res_match(cp, ep, "rotate")) {
 			statp->options |= RES_ROTATE;
-		} else if (!strncmp(cp, "usevc", sizeof("usevc") - 1)) {
+		} else if (res_match(cp, ep, "usevc")) {
 			statp->options |= RES_USEVC;
-		} else if (!strncmp(cp, "no-check-names",
-				    sizeof("no-check-names") - 1)) {
+		} else if (res_match(cp, ep, "no-check-names")) {
 			statp->options |= RES_NOCHECKNAME;
-		} else if (!strncmp(cp, "reload-period:",
-				    sizeof("reload-period:") - 1)) {
-			if (ext != NULL) {
-				ext->reload_period = (u_short)
-				    atoi(cp + sizeof("reload-period:") - 1);
+		} else if (res_match(cp, sp, "reload-period") && sp < ep) {
+			num = strtol(sp + 1, &numend, 10);
+			if (numend == ep && num > 0 && num <= USHRT_MAX &&
+			    ext != NULL) {
+				ext->reload_period = (u_short)num;
 			}
-		}
 #ifdef RES_USE_EDNS0
-		else if (!strncmp(cp, "edns0", sizeof("edns0") - 1)) {
+		} else if (res_match(cp, ep, "edns0")) {
 			statp->options |= RES_USE_EDNS0;
-		}
 #endif
 #ifndef _LIBC
-		else if (!strncmp(cp, "dname", sizeof("dname") - 1)) {
+		} else if (res_match(cp, ep, "dname")) {
 			statp->options |= RES_USE_DNAME;
-		}
-		else if (!strncmp(cp, "nibble:", sizeof("nibble:") - 1)) {
-			if (ext == NULL)
-				goto skip;
-			cp += sizeof("nibble:") - 1;
-			i = MIN(strcspn(cp, " \t"), sizeof(ext->nsuffix) - 1);
-			strncpy(ext->nsuffix, cp, i);
-			ext->nsuffix[i] = '\0';
-		}
-		else if (!strncmp(cp, "nibble2:", sizeof("nibble2:") - 1)) {
-			if (ext == NULL)
-				goto skip;
-			cp += sizeof("nibble2:") - 1;
-			i = MIN(strcspn(cp, " \t"), sizeof(ext->nsuffix2) - 1);
-			strncpy(ext->nsuffix2, cp, i);
-			ext->nsuffix2[i] = '\0';
-		}
-		else if (!strncmp(cp, "v6revmode:", sizeof("v6revmode:") - 1)) {
-			cp += sizeof("v6revmode:") - 1;
-			/* "nibble" and "bitstring" used to be valid */
-			if (!strncmp(cp, "single", sizeof("single") - 1)) {
-				statp->options |= RES_NO_NIBBLE2;
-			} else if (!strncmp(cp, "both", sizeof("both") - 1)) {
-				statp->options &=
-					 ~RES_NO_NIBBLE2;
+		} else if (res_match(cp, sp, "nibble") && sp < ep) {
+			sp++;
+			if (ext != NULL && ep - sp < sizeof(ext->nsuffix)) {
+				strncpy(ext->nsuffix, sp, ep - sp);
+				ext->nsuffix[ep - sp] = '\0';
 			}
-		}
+		} else if (res_match(cp, sp, "nibble2") && sp < ep) {
+			sp++;
+			if (ext != NULL && ep - sp < sizeof(ext->nsuffix2)) {
+				strncpy(ext->nsuffix2, sp, ep - sp);
+				ext->nsuffix2[ep - sp] = '\0';
+			}
+		} else if (res_match(cp, sp, "v6revmode") && sp < ep) {
+			/* "nibble" and "bitstring" used to be valid */
+			if (res_match(sp + 1, ep, "single"))
+				statp->options |= RES_NO_NIBBLE2;
+			else if (res_match(sp + 1, ep, "both"))
+				statp->options &= ~RES_NO_NIBBLE2;
+#ifdef DEBUG
+			else
+				printf(";;\t%.*s: unrecognized value: %.*s\n",
+				    (int)(sp - cp), cp,
+				    (int)(ep - sp - 1), sp + 1);
 #endif
-		else {
-			/* XXX - print a warning here? */
-		}
-#ifndef _LIBC
-   skip:
+#endif /* !_LIBC */
+		} else {
+#ifdef DEBUG
+			printf(";;\tunrecognized option: %.*s\n",
+			    (int)(ep - cp), cp);
 #endif
-		/* skip to next run of spaces */
-		while (*cp && *cp != ' ' && *cp != '\t')
-			cp++;
+		}
+		cp = ep;
 	}
 }
 
