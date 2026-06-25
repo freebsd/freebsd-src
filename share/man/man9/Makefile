@@ -12,6 +12,7 @@ MAN=	accept_filter.9 \
 	altq.9 \
 	atomic.9 \
 	backlight.9 \
+	bcopy.9 \
 	bhnd.9 \
 	bhnd_erom.9 \
 	bios.9 \
@@ -228,7 +229,9 @@ MAN=	accept_filter.9 \
 	mbuf_tags.9 \
 	mdchain.9 \
 	memcchr.9 \
+	memcpy.9 \
 	memguard.9 \
+	memmove.9 \
 	microseq.9 \
 	microtime.9 \
 	microuptime.9 \
