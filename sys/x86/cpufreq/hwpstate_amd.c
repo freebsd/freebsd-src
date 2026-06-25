@@ -793,7 +793,7 @@ hwpstate_identify(driver_t *driver, device_t parent)
 		device_printf(parent, "hwpstate: add child failed\n");
 }
 
-struct set_autonomous_hwp_data {
+struct enable_cppc_data {
 	/* Inputs */
 	struct hwpstate_softc *sc;
 	/* Outputs */
@@ -808,7 +808,7 @@ struct set_autonomous_hwp_data {
 static void
 enable_cppc_cb(void *args)
 {
-	struct set_autonomous_hwp_data *const data = args;
+	struct enable_cppc_data *const data = args;
 	struct hwpstate_softc *const sc = data->sc;
 	uint64_t lowest_perf, highest_perf;
 	int error;
@@ -890,7 +890,7 @@ enable_cppc(struct hwpstate_softc *sc)
 {
 	const device_t dev = sc->dev;
 	const u_int cpuid = sc->cpuid;
-	struct set_autonomous_hwp_data data;
+	struct enable_cppc_data data;
 	struct sbuf sbs;
 	struct sbuf *sb;
 
