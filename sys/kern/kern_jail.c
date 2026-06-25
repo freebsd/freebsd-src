@@ -154,7 +154,7 @@ int	lastdeadid = 0;
 
 static int get_next_prid(struct prison **insprp);
 static int get_next_deadid(struct prison **insprp);
-static int do_jail_attach(struct thread *td, struct prison *pr, int drflags);
+static int do_jail_attach(struct thread *td, struct prison *pr, int *drflagsp);
 static void prison_complete(void *context, int pending);
 static void prison_deref(struct prison *pr, int flags);
 static void prison_deref_kill(struct prison *pr, struct prisonlist *freeprison);
@@ -2238,11 +2238,12 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		pr->pr_state = PRISON_STATE_ALIVE;
 	}
 
-	/* Attach this process to the prison if requested. */
+	/*
+	 * Attach this process to the prison if requested.  This will
+	 * unlock allprison_lock, meaning changes are now user-visible.
+	 */
 	if (flags & JAIL_ATTACH) {
-		error = do_jail_attach(td, pr,
-		    prison_lock_xlock(pr, drflags & PD_LOCK_FLAGS));
-		drflags &= ~(PD_LOCKED | PD_LIST_XLOCKED);
+		error = do_jail_attach(td, pr, &drflags);
 		if (error) {
 			vfs_opterror(opts, "attach failed");
 			goto done_deref;
@@ -2934,27 +2935,32 @@ int
 sys_jail_attach(struct thread *td, struct jail_attach_args *uap)
 {
 	struct prison *pr;
-	int error;
+	int drflags, error;
 
 	error = priv_check(td, PRIV_JAIL_ATTACH);
 	if (error)
 		return (error);
 
 	sx_slock(&allprison_lock);
+	drflags = PD_LIST_SLOCKED;
 	pr = prison_find_child(td->td_ucred->cr_prison, uap->jid);
 	if (pr == NULL) {
-		sx_sunlock(&allprison_lock);
-		return (EINVAL);
+		error = EINVAL;
+		goto done;
 	}
+	drflags |= PD_LOCKED;
 
 	/* Do not allow a process to attach to a prison that is not alive. */
 	if (!prison_isalive(pr)) {
-		mtx_unlock(&pr->pr_mtx);
-		sx_sunlock(&allprison_lock);
-		return (EINVAL);
+		error = EINVAL;
+		goto done;
 	}
 
-	return (do_jail_attach(td, pr, PD_LOCKED | PD_LIST_SLOCKED));
+	error = do_jail_attach(td, pr, &drflags);
+
+ done:
+	prison_deref(pr, drflags);
+	return (error);
 }
 
 /*
@@ -2971,40 +2977,43 @@ sys_jail_attach_jd(struct thread *td, struct jail_attach_jd_args *uap)
 
 	sx_slock(&allprison_lock);
 	drflags = PD_LIST_SLOCKED;
+	pr = NULL;
 	error = jaildesc_find(td, uap->fd, &pr, &jdcred);
 	if (error)
-		goto fail;
+		goto done;
 	drflags |= PD_DEREF;
 	error = priv_check_cred(jdcred, PRIV_JAIL_ATTACH);
 	crfree(jdcred);
 	if (error)
-		goto fail;
-	mtx_lock(&pr->pr_mtx);
-	drflags |= PD_LOCKED;
+		goto done;
 
 	/* Do not allow a process to attach to a prison that is not alive. */
 	if (!prison_isalive(pr)) {
 		error = EINVAL;
-		goto fail;
+		goto done;
 	}
 
-	return (do_jail_attach(td, pr, drflags));
+	error = do_jail_attach(td, pr, &drflags);
 
- fail:
+ done:
 	prison_deref(pr, drflags);
 	return (error);
 }
 
+/*
+ * Attach the current process to a prison.  On entry, the allprison
+ * lock should be at least shared.  On exit, both it and the prison
+ * itself will be unlocked, which will be refelected in *drflagsp.
+ */
 static int
-do_jail_attach(struct thread *td, struct prison *pr, int drflags)
+do_jail_attach(struct thread *td, struct prison *pr, int *drflagsp)
 {
 	struct proc *p;
 	struct ucred *newcred, *oldcred;
-	int error;
+	int drflags, error;
 
-	mtx_assert(&pr->pr_mtx, MA_OWNED);
 	sx_assert(&allprison_lock, SX_LOCKED);
-	drflags &= PD_LOCK_FLAGS;
+	KASSERT(prison_isvalid(pr), ("Attaching to invalid prison %p", pr));
 	/*
 	 * XXX: Note that there is a slight race here if two threads
 	 * in the same privileged process attempt to attach to two
@@ -3013,16 +3022,22 @@ do_jail_attach(struct thread *td, struct prison *pr, int drflags)
 	 * a process root from one prison, but attached to the jail
 	 * of another.
 	 */
-	if (!(drflags & PD_DEREF)) {
-		prison_hold(pr);
-		drflags |= PD_DEREF;
-	}
+
+	/*
+	 * Note the caller's locking state, but gain and track our own
+	 * references.  The caller will see that locks have been
+	 * dropped (which isn't true now, but will be after OSD calls).
+	 */
+	prison_hold(pr);
 	refcount_acquire(&pr->pr_uref);
-	drflags |= PD_DEUREF;
-	mtx_unlock(&pr->pr_mtx);
-	drflags &= ~PD_LOCKED;
+	drflags = PD_DEREF | PD_DEUREF | (*drflagsp & PD_LOCK_FLAGS);
+	*drflagsp &= PD_OP_FLAGS;
 
 	/* Let modules do whatever they need to prepare for attaching. */
+	if (drflags & PD_LOCKED) {
+		mtx_unlock(&pr->pr_mtx);
+		drflags &= ~PD_LOCKED;
+	}
 	error = osd_jail_call(pr, PR_METHOD_ATTACH, td);
 	if (error)
 		goto e_revert_osd;
