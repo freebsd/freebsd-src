@@ -127,3 +127,7 @@ coshl(long double x)
     /* |x| > o_threshold, cosh(x) overflow */
 	RETURNI(huge*huge);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(coshl, coshf128);
+#endif

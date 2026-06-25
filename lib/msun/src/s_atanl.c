@@ -79,3 +79,7 @@ atanl(long double x)
 	    return (expsign<0)? -z:z;
 	}
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(atanl, atanf128);
+#endif

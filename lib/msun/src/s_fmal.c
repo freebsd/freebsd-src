@@ -269,3 +269,7 @@ fmal(long double x, long double y, long double z)
 	else
 		return (add_and_denormalize(r.hi, adj, spread));
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(fmal, fmaf128);
+#endif

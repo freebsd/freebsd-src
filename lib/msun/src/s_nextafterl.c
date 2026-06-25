@@ -72,3 +72,7 @@ nextafterl(long double x, long double y)
 }
 
 __strong_reference(nextafterl, nexttowardl);
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(nextafterl, nextafterf128);
+#endif

@@ -27,6 +27,7 @@
  */
 
 #include <math.h>
+#include <float.h>
 
 #define	DECL(type, fn)			\
 type					\
@@ -43,3 +44,7 @@ fn(type x, type y)			\
 DECL(double, fdim)
 DECL(float, fdimf)
 DECL(long double, fdiml)
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(fdiml, fdimf128);
+#endif

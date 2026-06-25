@@ -156,3 +156,7 @@ sqrtl(long double x)
 	u.bits.exp--;
 	return (u.e);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(sqrtl, sqrtf128);
+#endif

@@ -48,3 +48,7 @@ logbl(long double x)
 	else						/* +/- inf or nan */
 		return (x * x);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(logbl, logbf128);
+#endif

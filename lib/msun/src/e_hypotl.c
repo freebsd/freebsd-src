@@ -118,3 +118,7 @@ hypotl(long double x, long double y)
 	    return t1*w;
 	} else return w;
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(hypotl, hypotf128);
+#endif

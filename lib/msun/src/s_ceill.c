@@ -94,3 +94,7 @@ ceill(long double x)
 	}
 	return (u.e);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(ceill, ceilf128);
+#endif

@@ -83,3 +83,7 @@ acoshl(long double x)
 	    RETURNI(log1pl(t+sqrtl(2.0*t+t*t)));
 	}
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(acoshl, acoshf128);
+#endif

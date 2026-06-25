@@ -47,3 +47,8 @@ long double scalbnl(long double x, int n)
 __strong_reference(scalbnl, ldexpl);
 #endif
 
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(scalbnl, scalbnf128);
+__weak_reference(ldexpl, ldexpf128);
+#endif

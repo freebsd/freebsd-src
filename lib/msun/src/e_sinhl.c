@@ -129,3 +129,7 @@ sinhl(long double x)
     /* |x| > o_threshold, sinh(x) overflow */
 	return x*shuge;
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(sinhl, sinhf128);
+#endif

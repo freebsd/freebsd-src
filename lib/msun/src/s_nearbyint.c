@@ -28,6 +28,7 @@
 
 #include <fenv.h>
 #include <math.h>
+#include <float.h>
 
 #pragma STDC FENV_ACCESS ON
 
@@ -61,3 +62,7 @@ fn(type x)			\
 DECL(double, nearbyint, rint)
 DECL(float, nearbyintf, rintf)
 DECL(long double, nearbyintl, rintl)
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(nearbyintl, nearbyintf128);
+#endif

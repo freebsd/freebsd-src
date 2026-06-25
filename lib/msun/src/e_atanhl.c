@@ -68,3 +68,7 @@ atanhl(long double x)
 	    t = 0.5*log1pl((x+x)/(one-x));
 	RETURNI((hx & 0x8000) == 0 ? t : -t);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(atanhl, atanhf128);
+#endif

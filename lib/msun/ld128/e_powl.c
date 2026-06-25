@@ -438,3 +438,5 @@ powl(long double x, long double y)
     }
   return s * z;
 }
+
+__weak_reference(powl, powf128);

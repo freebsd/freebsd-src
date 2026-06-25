@@ -44,3 +44,5 @@ nanl(const char *s)
 	u.ieee.bits.manh |= 1ULL << 47;	/* make it a quiet NaN */
 	return (u.ieee.e);
 }
+
+__weak_reference(nanl, nanf128);

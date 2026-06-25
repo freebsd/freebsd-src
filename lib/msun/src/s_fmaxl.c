@@ -27,6 +27,7 @@
  */
 
 #include <math.h>
+#include <float.h>
 
 #include "fpmath.h"
 
@@ -52,3 +53,7 @@ fmaxl(long double x, long double y)
 
 	return (x > y ? x : y);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(fmaxl, fmaxf128);
+#endif

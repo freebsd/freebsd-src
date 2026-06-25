@@ -99,3 +99,7 @@ sincosl(long double x, long double *sn, long double *cs)
 
 	RETURNV();
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(sincosl, sincosf128);
+#endif

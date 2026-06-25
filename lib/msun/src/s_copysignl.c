@@ -27,6 +27,7 @@
  */
 
 #include <math.h>
+#include <float.h>
 
 #include "fpmath.h"
 
@@ -40,3 +41,7 @@ copysignl(long double x, long double y)
 	ux.bits.sign = uy.bits.sign;
 	return (ux.e);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(copysignl, copysignf128);
+#endif

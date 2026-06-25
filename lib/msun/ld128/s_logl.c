@@ -729,3 +729,8 @@ log2l(long double x)
 }
 
 #endif /* STRUCT_RETURN */
+
+__weak_reference(logl, logf128);
+__weak_reference(log10l, log10f128);
+__weak_reference(log1pl, log1pf128);
+__weak_reference(log2l, log2f128);

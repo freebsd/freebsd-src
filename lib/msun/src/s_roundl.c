@@ -59,3 +59,7 @@ roundl(long double x)
 		RETURNI(-t);
 	}
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(roundl, roundf128);
+#endif

@@ -71,3 +71,7 @@ asinl(long double x)
 	}    
 	if(expsign>0) return t; else return -t;    
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(asinl, asinf128);
+#endif

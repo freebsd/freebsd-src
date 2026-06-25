@@ -29,6 +29,7 @@
  */
 
 #include <math.h>
+#include <float.h>
 
 #include "fpmath.h"
 
@@ -41,3 +42,7 @@ fabsl(long double x)
 	u.bits.sign = 0;
 	return (u.e);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(fabsl, fabsf128);
+#endif

@@ -60,3 +60,7 @@ frexpl(long double x, int *ex)
 	}
 	return (u.e);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(frexpl, frexpf128);
+#endif
