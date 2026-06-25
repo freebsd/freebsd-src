@@ -1659,32 +1659,36 @@ asmc_detect_sensors(device_t dev)
 		}
 	}
 
-	/* Voltage sensors: V..W range */
-	error = asmc_key_search(dev, "V\0\0\0", &start);
-	if (error == 0)
-		error = asmc_key_search(dev, "W\0\0\0", &end);
-	if (error == 0)
-		asmc_scan_sensor_range(dev, start, end, 'V',
-		    &sc->sc_voltage_count, sc->sc_voltage_sensors,
-		    ASMC_MAX_SENSORS);
+	/* Voltage/Current/Power sensors */
+	static const struct {
+		const char	*range_start;
+		const char	*range_end;
+		char		prefix;
+	} sensor_ranges[] = {
+		{ "V\0\0\0", "W\0\0\0", 'V' },	/* Voltage */
+		{ "I\0\0\0", "J\0\0\0", 'I' },	/* Current */
+		{ "P\0\0\0", "Q\0\0\0", 'P' },	/* Power */
+	};
+	static const size_t nsensor_ranges = nitems(sensor_ranges);
 
-	/* Current sensors: I..J range */
-	error = asmc_key_search(dev, "I\0\0\0", &start);
-	if (error == 0)
-		error = asmc_key_search(dev, "J\0\0\0", &end);
-	if (error == 0)
-		asmc_scan_sensor_range(dev, start, end, 'I',
-		    &sc->sc_current_count, sc->sc_current_sensors,
-		    ASMC_MAX_SENSORS);
+	int *sensor_counts[] = {
+	    &sc->sc_voltage_count, &sc->sc_current_count,
+	    &sc->sc_power_count };
+	char **sensor_arrays[] = {
+	    sc->sc_voltage_sensors, sc->sc_current_sensors,
+	    sc->sc_power_sensors };
 
-	/* Power sensors: P..Q range */
-	error = asmc_key_search(dev, "P\0\0\0", &start);
-	if (error == 0)
-		error = asmc_key_search(dev, "Q\0\0\0", &end);
-	if (error == 0)
-		asmc_scan_sensor_range(dev, start, end, 'P',
-		    &sc->sc_power_count, sc->sc_power_sensors,
-		    ASMC_MAX_SENSORS);
+	for (unsigned int r = 0; r < nsensor_ranges; r++) {
+		error = asmc_key_search(dev, sensor_ranges[r].range_start,
+		    &start);
+		if (error == 0)
+			error = asmc_key_search(dev,
+			    sensor_ranges[r].range_end, &end);
+		if (error == 0)
+			asmc_scan_sensor_range(dev, start, end,
+			    sensor_ranges[r].prefix, sensor_counts[r],
+			    sensor_arrays[r], ASMC_MAX_SENSORS);
+	}
 
 	/* Ambient light sensors: AL* in A..B range */
 	error = asmc_key_search(dev, "A\0\0\0", &start);
@@ -1722,63 +1726,46 @@ asmc_detect_sensors(device_t dev)
 	/* Register sysctls for detected sensors */
 	sysctlctx = device_get_sysctl_ctx(dev);
 
-	/* Voltage sensors */
-	if (sc->sc_voltage_count > 0) {
+	static const struct {
+		const char	*node_name;
+		const char	*node_desc;
+		char		tag;
+		const char	*leaf_desc;
+	} sensor_sysctl[] = {
+		{ "voltage", "Voltage sensors (millivolts)",  'V',
+		    "Voltage sensor (millivolts)" },
+		{ "current", "Current sensors (milliamps)",   'I',
+		    "Current sensor (milliamps)" },
+		{ "power",   "Power sensors (milliwatts)",    'P',
+		    "Power sensor (milliwatts)" },
+		{ "ambient", "Ambient light sensors",         'L',
+		    "Light sensor value" },
+	};
+
+	int *sysctl_counts[] = {
+	    &sc->sc_voltage_count, &sc->sc_current_count,
+	    &sc->sc_power_count, &sc->sc_light_count };
+	char **sysctl_arrays[] = {
+	    sc->sc_voltage_sensors, sc->sc_current_sensors,
+	    sc->sc_power_sensors, sc->sc_light_sensors };
+
+	for (unsigned int s = 0; s < nitems(sensor_sysctl); s++) {
+		int count = *sysctl_counts[s];
+		if (count <= 0)
+			continue;
 		tree_node = SYSCTL_ADD_NODE(sysctlctx,
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-		    "voltage", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Voltage sensors (millivolts)");
-
-		for (i = 0; i < sc->sc_voltage_count; i++) {
-			SYSCTL_ADD_PROC(sysctlctx, SYSCTL_CHILDREN(tree_node),
-			    OID_AUTO, sc->sc_voltage_sensors[i],
+		    sensor_sysctl[s].node_name,
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+		    sensor_sysctl[s].node_desc);
+		for (i = 0; i < count; i++) {
+			SYSCTL_ADD_PROC(sysctlctx,
+			    SYSCTL_CHILDREN(tree_node),
+			    OID_AUTO, sysctl_arrays[s][i],
 			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-			    dev, ('V' << 8) | i, asmc_sensor_sysctl, "I",
-			    "Voltage sensor (millivolts)");
-		}
-	}
-
-	/* Current sensors */
-	if (sc->sc_current_count > 0) {
-		tree_node = SYSCTL_ADD_NODE(sysctlctx,
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-		    "current", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Current sensors (milliamps)");
-
-		for (i = 0; i < sc->sc_current_count; i++) {
-			SYSCTL_ADD_PROC(sysctlctx, SYSCTL_CHILDREN(tree_node),
-			    OID_AUTO, sc->sc_current_sensors[i],
-			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-			    dev, ('I' << 8) | i, asmc_sensor_sysctl, "I",
-			    "Current sensor (milliamps)");
-		}
-	}
-
-	/* Power sensors */
-	if (sc->sc_power_count > 0) {
-		tree_node = SYSCTL_ADD_NODE(sysctlctx,
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-		    "power", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Power sensors (milliwatts)");
-
-		for (i = 0; i < sc->sc_power_count; i++) {
-			SYSCTL_ADD_PROC(sysctlctx, SYSCTL_CHILDREN(tree_node),
-			    OID_AUTO, sc->sc_power_sensors[i],
-			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-			    dev, ('P' << 8) | i, asmc_sensor_sysctl, "I",
-			    "Power sensor (milliwatts)");
-		}
-	}
-
-	/* Ambient light sensors */
-	if (sc->sc_light_count > 0) {
-		tree_node = SYSCTL_ADD_NODE(sysctlctx,
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-		    "ambient", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "Ambient light sensors");
-
-		for (i = 0; i < sc->sc_light_count; i++) {
-			SYSCTL_ADD_PROC(sysctlctx, SYSCTL_CHILDREN(tree_node),
-			    OID_AUTO, sc->sc_light_sensors[i],
-			    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
-			    dev, ('L' << 8) | i, asmc_sensor_sysctl, "I",
-			    "Light sensor value");
+			    dev, (sensor_sysctl[s].tag << 8) | i,
+			    asmc_sensor_sysctl, "I",
+			    sensor_sysctl[s].leaf_desc);
 		}
 	}
 
