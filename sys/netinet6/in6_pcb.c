@@ -465,25 +465,18 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
 	bzero(&laddr6, sizeof(laddr6));
 	laddr6.sin6_family = AF_INET6;
 
-	/*
-	 * Call inner routine, to assign local interface address.
-	 * in6_pcbladdr() may automatically fill in sin6_scope_id.
-	 */
 	INP_HASH_WLOCK(pcbinfo);
-	if ((error = in6_pcbladdr(inp, sin6, &laddr6.sin6_addr,
-	    sas_required)) != 0) {
-		INP_HASH_WUNLOCK(pcbinfo);
-		return (error);
-	}
-
-	if (in6_pcblookup_internal(pcbinfo, &sin6->sin6_addr, sin6->sin6_port,
-	    IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr) ?
-	    &laddr6.sin6_addr : &inp->in6p_laddr, inp->inp_lport, 0,
-	    M_NODOM, RT_ALL_FIBS) != NULL) {
-		INP_HASH_WUNLOCK(pcbinfo);
-		return (EADDRINUSE);
-	}
 	if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr)) {
+		/*
+		 * Call inner routine, to assign local interface address.
+		 * in6_pcbladdr() may automatically fill in sin6_scope_id.
+		 */
+		error = in6_pcbladdr(inp, sin6, &laddr6.sin6_addr,
+		    sas_required);
+		if (__predict_false(error)) {
+			INP_HASH_WUNLOCK(pcbinfo);
+			return (error);
+		}
 		if (inp->inp_lport == 0) {
 			error = in_pcb_lport_dest(inp,
 			    (struct sockaddr *) &laddr6, &inp->inp_lport,
@@ -495,7 +488,14 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
 			}
 		}
 		inp->in6p_laddr = laddr6.sin6_addr;
+	} else if (in6_pcblookup_internal(pcbinfo, &sin6->sin6_addr,
+	    sin6->sin6_port, &inp->in6p_laddr, inp->inp_lport, 0,
+	    M_NODOM, RT_ALL_FIBS) != NULL) {
+		INP_HASH_WUNLOCK(pcbinfo);
+		return (EADDRINUSE);
 	}
+	MPASS(inp->inp_lport != 0);
+	MPASS(!IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr));
 	inp->in6p_faddr = sin6->sin6_addr;
 	inp->inp_fport = sin6->sin6_port;
 	/* update flowinfo - draft-itojun-ipv6-flowlabel-api-00 */
