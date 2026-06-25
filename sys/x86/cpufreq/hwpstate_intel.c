@@ -314,16 +314,16 @@ sysctl_epp_select(SYSCTL_HANDLER_ARGS)
 	}
 
 	if (sc->hwp_pref_ctrl) {
-		sc->req =
-		    ((sc->req & ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE)
-		    | (val << 24u));
+		const uint64_t req_cached = sc->req = (sc->req &
+		    ~IA32_HWP_REQUEST_ENERGY_PERFORMANCE_PREFERENCE) |
+		    (val << 24u);
 
 		if (sc->hwp_pkg_ctrl_en)
 			ret = WRMSR_ON_CPU(dev, MSR_IA32_HWP_REQUEST_PKG,
-			    sc->req);
+			    req_cached);
 		else
 			ret = WRMSR_ON_CPU(dev, MSR_IA32_HWP_REQUEST,
-			    sc->req);
+			    req_cached);
 	} else {
 		val = EPP_TO_EPB(val);
 		MPASS((val & ~IA32_ENERGY_PERF_BIAS_POLICY_HINT_MASK) == 0);
