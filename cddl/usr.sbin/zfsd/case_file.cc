@@ -59,6 +59,7 @@
 #include <list>
 #include <map>
 #include <string>
+#include <vector>
 
 #include <devdctl/guid.h>
 #include <devdctl/event.h>
@@ -523,13 +524,82 @@ find_parent(nvlist_t *pool_config, nvlist_t *config, DevdCtl::Guid child_guid)
 	return (NULL);
 }
 
+/*
+ * Returns true if spare 'a' should be tried before spare 'b' when
+ * replacing a failed vdev with the given characteristics.
+ *
+ * Ordering criteria (most to least significant):
+ *  1. Distributed spare matching the failed vdev's dRAID is preferred
+ *     most (distributed spares rebuild faster than traditional spares).
+ *     Regular spares (no TOP_GUID) come next.  Non-matching distributed
+ *     spares are tried last, as the kernel will reject them anyway.
+ *  2. Matching rotational is preferred over mismatching.
+ *  3. Large enough is preferred over too small.
+ *  4. Smaller size is preferred over bigger (best fit).
+ */
+static bool
+spare_is_preferred(nvlist_t *a, nvlist_t *b, bool have_rotational,
+    uint64_t vdev_rotational, uint64_t vdev_size, uint64_t top_guid)
+{
+	uint64_t	 a_top, b_top, a_rotational, b_rotational;
+	uint64_t	 a_size, b_size;
+	uint64_t	*nvlist_array;
+	int		 a_pri, b_pri;
+	vdev_stat_t	*vs;
+	uint_t		 c;
+	bool		 a_ok, b_ok;
+
+	a_top = b_top = 0;
+	(void) nvlist_lookup_uint64(a, ZPOOL_CONFIG_TOP_GUID, &a_top);
+	(void) nvlist_lookup_uint64(b, ZPOOL_CONFIG_TOP_GUID, &b_top);
+	a_pri = (a_top == 0) ? 1 :
+	    (a_top == top_guid || top_guid == 0) ? 2 : 0;
+	b_pri = (b_top == 0) ? 1 :
+	    (b_top == top_guid || top_guid == 0) ? 2 : 0;
+	if (a_pri != b_pri)
+		return (a_pri > b_pri);
+
+	if (have_rotational) {
+		a_rotational = b_rotational = 0;
+		(void) nvlist_lookup_uint64(a,
+		    ZPOOL_CONFIG_VDEV_ROTATIONAL, &a_rotational);
+		(void) nvlist_lookup_uint64(b,
+		    ZPOOL_CONFIG_VDEV_ROTATIONAL, &b_rotational);
+		if ((a_rotational == vdev_rotational) !=
+		    (b_rotational == vdev_rotational))
+			return (a_rotational == vdev_rotational);
+	}
+
+	a_size = b_size = 0;
+	if (nvlist_lookup_uint64_array(a, ZPOOL_CONFIG_VDEV_STATS,
+	    &nvlist_array, &c) == 0) {
+		vs = reinterpret_cast<vdev_stat_t *>(nvlist_array);
+		a_size = vs->vs_rsize;
+	}
+	if (nvlist_lookup_uint64_array(b, ZPOOL_CONFIG_VDEV_STATS,
+	    &nvlist_array, &c) == 0) {
+		vs = reinterpret_cast<vdev_stat_t *>(nvlist_array);
+		b_size = vs->vs_rsize;
+	}
+	a_ok = (a_size >= vdev_size);
+	b_ok = (b_size >= vdev_size);
+	if (a_ok != b_ok)
+		return (a_ok);
+	return (a_size < b_size);
+}
+
 bool
 CaseFile::ActivateSpare() {
 	nvlist_t	*config, *nvroot, *parent_config;
-	nvlist_t       **spares;
+	nvlist_t	*vdev_config, **spares, *spare;
+	uint64_t	*nvlist_array;
 	const char	*devPath, *poolname, *vdev_type;
-	u_int		 nspares, i;
-	int		 error;
+	uint64_t	 vdev_rotational, vdev_size, top_guid;
+	vdev_stat_t	*vs;
+	u_int		 nspares, i, key;
+	uint_t		 nstats;
+	int		 error, j;
+	bool		 have_vdev_rotational;
 
 	ZpoolList zpl(ZpoolList::ZpoolByGUID, &m_poolGUID);
 	zpool_handle_t	*zhp(zpl.empty() ? NULL : zpl.front());
@@ -567,6 +637,16 @@ CaseFile::ActivateSpare() {
 			return (false);
 	}
 
+	/*
+	 * Don't activate a spare if one is already working on this vdev.
+	 */
+	{
+		Vdev replaced(BeingReplacedBy(zhp));
+		if (!replaced.DoesNotExist() && (replaced.IsResilvering() ||
+		    replaced.State() == VDEV_STATE_HEALTHY))
+			return (false);
+	}
+
 	nspares = 0;
 	nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_SPARES, &spares,
 				   &nspares);
@@ -576,49 +656,87 @@ CaseFile::ActivateSpare() {
 		       "No spares available for pool %s", poolname);
 		return (false);
 	}
-	for (i = 0; i < nspares; i++) {
-		uint64_t    *nvlist_array;
-		vdev_stat_t *vs;
-		uint_t	     nstats;
 
-		if (nvlist_lookup_uint64_array(spares[i],
+	/*
+	 * Collect the failed vdev's parameters for optimal spare selection.
+	 */
+	vdev_rotational = vdev_size = top_guid = 0;
+	have_vdev_rotational = false;
+	vdev_config = VdevIterator(zhp).Find(m_vdevGUID);
+	if (vdev_config != NULL) {
+		have_vdev_rotational = (nvlist_lookup_uint64(vdev_config,
+		    ZPOOL_CONFIG_VDEV_ROTATIONAL, &vdev_rotational) == 0);
+		if (nvlist_lookup_uint64_array(vdev_config,
+		    ZPOOL_CONFIG_VDEV_STATS, &nvlist_array, &nstats) == 0) {
+			vs = reinterpret_cast<vdev_stat_t *>(nvlist_array);
+			vdev_size = vs->vs_rsize;
+		}
+		(void) nvlist_lookup_uint64(vdev_config,
+		    ZPOOL_CONFIG_TOP_GUID, &top_guid);
+	}
+
+	/*
+	 * Build a sorted index array over the spares, so that better
+	 * candidates are tried first.
+	 */
+	std::vector<u_int> order(nspares);
+	for (i = 0; i < nspares; i++)
+		order[i] = i;
+	for (i = 1; i < nspares; i++) {
+		key = order[i];
+		j = (int)i - 1;
+		while (j >= 0 && spare_is_preferred(spares[key],
+		    spares[order[j]], have_vdev_rotational, vdev_rotational,
+		    vdev_size, top_guid)) {
+			order[j + 1] = order[j];
+			j--;
+		}
+		order[j + 1] = key;
+	}
+
+	/*
+	 * Try each spare in sorted order until one succeeds.
+	 */
+	for (i = 0; i < nspares; i++) {
+		spare = spares[order[i]];
+
+		if (nvlist_lookup_uint64_array(spare,
 		    ZPOOL_CONFIG_VDEV_STATS, &nvlist_array, &nstats) != 0) {
 			syslog(LOG_ERR, "CaseFile::ActivateSpare: Could not "
 			       "find vdev stats for pool %s, spare %d",
-			       poolname, i);
-			return (false);
+			       poolname, order[i]);
+			continue;
 		}
 		vs = reinterpret_cast<vdev_stat_t *>(nvlist_array);
 
-		if ((vs->vs_aux != VDEV_AUX_SPARED)
-		 && (vs->vs_state == VDEV_STATE_HEALTHY)) {
-			/* We found a usable spare */
-			break;
+		if ((vs->vs_aux == VDEV_AUX_SPARED)
+		 || (vs->vs_state != VDEV_STATE_HEALTHY))
+			continue;
+
+		error = nvlist_lookup_string(spare, ZPOOL_CONFIG_PATH,
+		    &devPath);
+		if (error != 0) {
+			syslog(LOG_ERR, "CaseFile::ActivateSpare: Cannot "
+			       "determine the path of pool %s, spare %d. "
+			       "Error %d", poolname, order[i], error);
+			continue;
 		}
+
+		error = nvlist_lookup_string(spare, ZPOOL_CONFIG_TYPE,
+		    &vdev_type);
+		if (error != 0) {
+			syslog(LOG_ERR, "CaseFile::ActivateSpare: Cannot "
+			       "determine the vdev type of pool %s, "
+			       "spare %d. Error %d",
+			       poolname, order[i], error);
+			continue;
+		}
+
+		if (Replace(vdev_type, devPath, /*isspare*/true))
+			return (true);
 	}
 
-	if (i == nspares) {
-		/* No available spares were found */
-		return (false);
-	}
-
-	error = nvlist_lookup_string(spares[i], ZPOOL_CONFIG_PATH, &devPath);
-	if (error != 0) {
-		syslog(LOG_ERR, "CaseFile::ActivateSpare: Cannot determine "
-		       "the path of pool %s, spare %d. Error %d",
-		       poolname, i, error);
-		return (false);
-	}
-
-	error = nvlist_lookup_string(spares[i], ZPOOL_CONFIG_TYPE, &vdev_type);
-	if (error != 0) {
-		syslog(LOG_ERR, "CaseFile::ActivateSpare: Cannot determine "
-		       "the vdev type of pool %s, spare %d. Error %d",
-		       poolname, i, error);
-		return (false);
-	}
-
-	return (Replace(vdev_type, devPath, /*isspare*/true));
+	return (false);
 }
 
 /* Does the argument event refer to a checksum error? */
@@ -1203,8 +1321,11 @@ CaseFile::Replace(const char* vdev_type, const char* path, bool isspare) {
 	/* Data was copied when added to the root vdev. */
 	nvlist_free(newvd);
 
+	/* Prefer sequential resilvering for distributed spares. */
 	retval = (zpool_vdev_attach(zhp, oldstr.c_str(), path, nvroot,
-       /*replace*/B_TRUE, /*rebuild*/ B_FALSE) == 0);
+	    /*replace*/B_TRUE,
+	    strcmp(vdev_type, VDEV_TYPE_DRAID_SPARE) == 0 ?
+	    B_TRUE : B_FALSE) == 0);
 	if (retval)
 		syslog(LOG_INFO, "Replacing vdev(%s/%s) with %s\n",
 		    poolname, oldstr.c_str(), path);
