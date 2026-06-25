@@ -180,6 +180,18 @@ osd_deregister(u_int type, u_int slot)
 	osdm[type].osd_destructors[slot - 1] = NULL;
 	OSD_DEBUG("Slot deregistration (type=%u, slot=%u).", type, slot);
 
+#ifdef INVARIANTS
+	/*
+	 * We trash the slot's osd_methods upon deregistration so that we take
+	 * a fault if something calls them, rather than potentially
+	 * inadvertently executing some arbitrary function if another module's
+	 * been mapped over the one that deregistered.
+	 */
+	for (u_int method = 0; method < osdm[type].osd_nmethods; method++) {
+		OSD_METHOD(osdm[type], slot, method) = (void *)0xdeadc0de;
+	}
+#endif
+
 	rm_wunlock(&osdm[type].osd_object_lock);
 	sx_xunlock(&osdm[type].osd_module_lock);
 }
