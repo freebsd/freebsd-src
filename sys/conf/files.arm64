@@ -865,4 +865,3 @@ arm64/mediatek/mt7622_clk_sgmii.c             optional clk fdt soc_mediatek
 arm64/mediatek/mt7622_clk_ssusbsys.c		optional clk fdt soc_mediatek
 arm64/mediatek/mt7622_clk_pciesys.c		optional clk fdt soc_mediatek
 arm64/mediatek/mdtk_clk.c	                optional clk fdt soc_mediatek
-

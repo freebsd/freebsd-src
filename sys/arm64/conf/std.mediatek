@@ -2,6 +2,9 @@ options		SOC_MEDIATEK
 
 device		uart_ns8250
 
+# GPIO / PINCTRL
+device		mt7622_pinctrl
+
 options         FDT
 # DTBs
 makeoptions     MODULES_EXTRA+="dtb/mediatek"
