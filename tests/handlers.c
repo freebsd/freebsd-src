@@ -21,6 +21,7 @@
    Copyright (c) 2023-2024 Sony Corporation / Snild Dolkow <snild@sony.com>
    Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
    Copyright (c) 2026      Berkay Eren Ürün <berkay.ueruen@siemens.com>
+   Copyright (c) 2026      Kartik Kenchi <netliomax25@gmail.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -47,12 +48,12 @@
 #  undef NDEBUG /* because test suite relies on assert(...) at the moment */
 #endif
 
+#include "expat_config.h"
+
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-
-#include "expat_config.h"
 
 #include "expat.h"
 #include "internal.h"
@@ -1991,4 +1992,52 @@ accumulate_and_suspend_comment_handler(void *userData, const XML_Char *data) {
   ParserPlusStorage *const parserPlusStorage = (ParserPlusStorage *)userData;
   accumulate_comment(parserPlusStorage->storage, data);
   XML_StopParser(parserPlusStorage->parser, XML_TRUE);
+}
+
+void XMLCALL
+forbidden_calls_character_handler(void *userData, const XML_Char *s, int len) {
+  UNUSED_P(s);
+  UNUSED_P(len);
+  XML_Parser parser = userData;
+
+  assert_true(parser != NULL); // self-test
+
+  assert_true(XML_GetBuffer(parser, 123) == NULL); // i.e. rejected
+
+  assert_true(XML_Parse(parser, "", 0, /*isFinal=*/XML_FALSE)
+              == XML_STATUS_ERROR); // i.e. rejected
+
+  assert_true(XML_ParseBuffer(parser, 0, /*isFinal=*/XML_FALSE)
+              == XML_STATUS_ERROR); // i.e. rejected
+
+  XML_ParserFree(parser); // rejected
+
+  assert_true(XML_ParserReset(parser, /*encodingName=*/NULL)
+              == XML_FALSE); // i.e. rejected
+
+  assert_true(XML_GetErrorCode(parser) == XML_ERROR_NONE);
+}
+
+void XMLCALL
+suspend_then_resume_character_handler(void *userData, const XML_Char *s,
+                                      int len) {
+  UNUSED_P(s);
+  UNUSED_P(len);
+  ResumeFromHandlerData *const data = (ResumeFromHandlerData *)userData;
+
+  data->callCount++;
+  if (data->callCount > 1) {
+    // Reached only if the guard under test is missing: XML_ResumeParser would
+    // then have driven the parser re-entrantly and called us again.  Bail out
+    // so the test fails by assertion below rather than recursing without bound.
+    return;
+  }
+
+  // Put the parser into XML_SUSPENDED so that, without the guard,
+  // XML_ResumeParser would proceed into a re-entrant parse.
+  assert_true(XML_StopParser(data->parser, /*resumable=*/XML_TRUE)
+              == XML_STATUS_OK);
+
+  // Resuming the parser from inside a handler must be rejected.
+  assert_true(XML_ResumeParser(data->parser) == XML_STATUS_ERROR);
 }

@@ -48,17 +48,14 @@
 #  undef NDEBUG /* because test suite relies on assert(...) at the moment */
 #endif
 
+#include "expat_config.h"
+
 #include <assert.h>
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-
-#if ! defined(__cplusplus)
-#  include <stdbool.h>
-#endif
-
-#include "expat_config.h"
 
 #include "expat.h"
 #include "internal.h"
@@ -3306,7 +3303,6 @@ get_feature(enum XML_FeatureEnum feature_id, long *presult) {
 /* Test odd corners of the XML_GetBuffer interface */
 START_TEST(test_get_buffer_1) {
   const char *text = get_buffer_test_text;
-  void *buffer;
   long context_bytes;
 
   /* Attempt to allocate a negative length buffer */
@@ -3314,7 +3310,7 @@ START_TEST(test_get_buffer_1) {
     fail("Negative length buffer not failed");
 
   /* Now get a small buffer and extend it past valid length */
-  buffer = XML_GetBuffer(g_parser, 1536);
+  void *const buffer = XML_GetBuffer(g_parser, 1536);
   if (buffer == NULL)
     fail("1.5K buffer failed");
   assert(buffer != NULL);
@@ -3349,10 +3345,9 @@ END_TEST
 /* Test more corners of the XML_GetBuffer interface */
 START_TEST(test_get_buffer_2) {
   const char *text = get_buffer_test_text;
-  void *buffer;
 
   /* Now get a decent buffer */
-  buffer = XML_GetBuffer(g_parser, 1536);
+  void *const buffer = XML_GetBuffer(g_parser, 1536);
   if (buffer == NULL)
     fail("1.5K buffer failed");
   assert(buffer != NULL);
@@ -4384,6 +4379,37 @@ START_TEST(test_skipped_external_entity) {
   if (_XML_Parse_SINGLE_BYTES(g_parser, text, (int)strlen(text), XML_TRUE)
       == XML_STATUS_ERROR)
     xml_failure(g_parser);
+}
+END_TEST
+
+START_TEST(test_scaff_index_shared_across_external_entity_parser) {
+  const char text[]
+      = "<!DOCTYPE doc [\n"
+        "<!ELEMENT a "
+        "((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((b))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))>\n"
+        "<!ENTITY % e SYSTEM 'ext'>\n"
+        "%e;\n"
+        "<!ELEMENT c "
+        "(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((d)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))>\n"
+        "]>\n"
+        "<doc/>";
+  ExtOption options[]
+      = {{XCS("ext"),
+          "<!ELEMENT x "
+          "((((((((((((((((((((((((((((((((y))))))))))))))))))))))))))))))))>"},
+         {NULL, NULL}};
+
+  XML_Parser parser = XML_ParserCreate(NULL);
+  XML_SetParamEntityParsing(parser, XML_PARAM_ENTITY_PARSING_ALWAYS);
+  XML_SetUserData(parser, options);
+  XML_SetExternalEntityRefHandler(parser, external_entity_optioner);
+  XML_SetElementDeclHandler(parser, dummy_element_decl_handler);
+
+  if (_XML_Parse_SINGLE_BYTES(parser, text, (int)strlen(text), XML_TRUE)
+      == XML_STATUS_ERROR)
+    xml_failure(parser);
+
+  XML_ParserFree(parser);
 }
 END_TEST
 
@@ -6754,6 +6780,8 @@ make_basic_test_case(Suite *s) {
   tcase_add_test(tc_basic, test_trailing_cr_in_att_value);
   tcase_add_test(tc_basic, test_standalone_internal_entity);
   tcase_add_test(tc_basic, test_skipped_external_entity);
+  tcase_add_test__ifdef_xml_dtd(
+      tc_basic, test_scaff_index_shared_across_external_entity_parser);
   tcase_add_test(tc_basic, test_skipped_null_loaded_ext_entity);
   tcase_add_test(tc_basic, test_skipped_unloaded_ext_entity);
   tcase_add_test__ifdef_xml_dtd(tc_basic, test_param_entity_with_trailing_cr);

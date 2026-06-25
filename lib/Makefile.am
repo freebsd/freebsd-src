@@ -10,6 +10,8 @@
 # Copyright (c) 2017      Tomasz Kłoczko <kloczek@fedoraproject.org>
 # Copyright (c) 2019      David Loffredo <loffredo@steptools.com>
 # Copyright (c) 2026      Gordon Messmer <gordon.messmer@gmail.com>
+# Copyright (c) 2026      Nick Begg <nick@stunttruck.net>
+# Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
 # Licensed under the MIT license:
 #
 # Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -112,14 +114,17 @@ EXTRA_DIST = \
     asciitab.h \
     expat_external.h \
     expat.h \
+    fallthrough.h \
     iasciitab.h \
     internal.h \
     latin1tab.h \
     libexpat.def.cmake \
+    memory_sanitizer.h \
     nametab.h \
     siphash.h \
     utf8tab.h \
     winconfig.h \
+    xcsinc.c \
     xmlrole.h \
     xmltok.h \
     xmltok_impl.c \

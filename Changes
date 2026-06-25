@@ -29,6 +29,94 @@
 !! THANK YOU!                        Sebastian Pipping -- Berlin, 2026-03-17 !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+Release 2.8.2 Thu June 25 2026
+        Security fixes:
+           #1246  CVE-2026-50219 -- Disallow calls to functions
+                    `XML_GetBuffer`, `XML_Parse`, `XML_ParseBuffer`,
+                    `XML_ParserFree`, `XML_ParserReset` to guard e.g.
+                    Expat bindings from memory corruption;
+                    this CPython issue is related:
+                    https://github.com/python/cpython/issues/146169
+           #1267  CVE-2026-56131 -- Protect XML_ResumeParser from being called
+                                    from a handler, plugging a hole in the fix
+                                    to CVE-2026-50219
+           #1272  CVE-2026-56132 -- Fix out-of-bound scaffolding index store
+                                    in `doProlog`
+     #1229 #1232  CVE-2026-56403 -- Integer overflow in `storeAtts`
+           #1249  CVE-2026-56404 -- Integer overflow in `addBinding`
+           #1251  CVE-2026-56405 -- Integer overflow in `getAttributeId`
+           #1255  CVE-2026-56406 -- Integer overflow in `XML_ParseBuffer`
+           #1262  CVE-2026-56407 -- Integer overflow in `textLen` handling
+            #565  CVE-2026-56408 -- Integer overflow in `copyString`
+                    (commit 16e2efd867ea8567ffa012210b52ef5918e20817)
+           #1259  CVE-2026-56409 -- xmlwf: Integer overflow in output path join
+           #1252  CVE-2026-56410 -- xmlwf: Integer overflow in
+                    `resolveSystemId`
+           #1263  CVE-2026-56411 -- xmlwf: Integer overflow in notation list
+                    allocation
+           #1278  CVE-2026-56412 -- Guard XML_TOK_DATA_CHARS handler calls in
+                    `doCdataSection`, plugging a hole in the fix to
+                    CVE-2026-50219
+
+        Bug fixes:
+           #1260  xmlwf: Escape names and base URI in meta output
+           #1266  xmlwf: Pick a safe quote for notation system and public IDs
+
+        Other changes:
+           #1257  CMake|Autotools: Stop using /dev/urandom by default
+     #1244 #1254  CMake: Fix guard for Unix sources of entropy
+     #1183 #1270  CMake|Windows: Add missing export for symbol
+                                 `XML_SetHashSalt16Bytes`
+           #1236  CMake: Mark option EXPAT_OSSFUZZ_BUILD as advanced
+           #1283  Limit output indentation for EXPAT_ENTITY_DEBUG=1 and
+                    allow unlimited indentation via EXPAT_ENTITY_DEBUG=2
+            #565  Replace some loops by use of `memcpy`, `strlen`, `wcslen`
+           #1220  lib: Use a size_t for group sizes
+           #1221  lib: Fix too-conservative integer overflow check when
+                       appending raw name
+           #1222  lib: Simplify attribute allocation/management logic
+           #1224  Update fallthrough annotations to satisfy Clang and GCC
+           #1226  lib: Remove unnecessary void * casts in random code
+           #1228  lib: Reduce scope of locals in storeAtts
+           #1230  lib: Count attributes with size_t variables
+           #1238  Minor get-buffer improvements
+     #1239 #1240  lib|tests: Include header expat_config.h first
+           #1241  lib: Shrink size of XML_GetBuffer
+           #1242  lib: Remove a legacy comment
+           #1243  lib: XML_ParserReset: Extract repeated linked-list move logic
+           #1243  lib: Unify entity free lists
+           #1247  lib: Fix use of '0' as boolean literal
+           #1248  lib: Make XML_Index overflow check more intuitive
+           #1256  lib: Use size_t for counting string/URI lengths
+           #1258  lib: XML_GetInputContext: Remove use of 0 for NULL
+           #1261  Comment typo fixes
+           #1275  Teach Memory Sanitizer semantics of randomization functions
+     #1276 #1281  Version info bumped from 13:1:12 (libexpat*.so.1.12.1)
+                    to 13:2:12 (libexpat*.so.1.12.2); see https://verbump.de/
+                    for what these numbers do
+
+        Infrastructure:
+           #1231  perl-integration.yml: Bump to XML::Parser 2.59
+           #1237  emscripten.yml: Bump from Ubuntu 22.04 to 24.04
+     #1183 #1271  windows-build.yml: Cover completeness of file
+                                     libexpat.def.cmake
+           #1274  linux.yml: Make llvm-symbolizer available in CI
+
+        Special thanks to:
+            Alessandro Gario
+            Asher Darden
+            Christoph Reiter
+            Haris Hussain
+            Matthew Fernandez
+            Kartik Kenchi
+            Nick Begg
+            Sajin S
+            Yousef Shanableh
+                 and
+            Anthropic
+            Astra Security
+            Trail of Bits
+
 Release 2.8.1 Sun May 10 2026
         Security fixes:
            #1216  CVE-2026-45186 -- Fix quadratic runtime from attribute name
@@ -1820,7 +1908,7 @@ Release 2.1.0 Sat March 24 2012
         - Bug Fixes:
           #1742315: Harmful XML_ParserCreateNS suggestion.
           #1785430: Expat build fails on linux-amd64 with gcc version>=4.1 -O3.
-          #1983953, 2517952, 2517962, 2649838: 
+          #1983953, 2517952, 2517962, 2649838:
                 Build modifications using autoreconf instead of buildconf.sh.
           #2815947, #2884086: OBJEXT and EXEEXT support while building.
           #2517938: xmlwf should return non-zero exit status if not well-formed.
@@ -1846,7 +1934,7 @@ Release 2.1.0 Sat March 24 2012
                 See bug #2990652 and patch #3312568.
           Added run-benchmark target to Makefile.in - relies on testdata module
                 present in the same relative location as in the repository.
-          
+
 Release 2.0.1 Tue June 5 2007
         - Fixed bugs #1515266, #1515600: The character data handler's calling
           of XML_StopParser() was not handled properly; if the parser was
