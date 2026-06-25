@@ -10,3 +10,4 @@ Requires: test1 \
   test6
 Source: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
 License: BSD-2-Clause
+Maintainer: Meta Maintainer

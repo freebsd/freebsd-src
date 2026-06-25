@@ -13,6 +13,7 @@ PackageName: variable-test2@2.0
 SPDXID: SPDXRef-Package-variable-test2C402.0
 PackageVersion: 2.0
 PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Variabletest2 Maintainer
 PackageHomePage: https://github.com/pkgconf/pkgconf/releases/
 PackageLicenseDeclared: MIT
 PackageLicenseConcluded: NOASSERTION
@@ -27,6 +28,7 @@ PackageName: variable-test1@1.0-123
 SPDXID: SPDXRef-Package-variable-test1C401.0-123
 PackageVersion: 1.0-123
 PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Variabletest1 Maintainer
 PackageHomePage: https://github.com/pkgconf/pkgconf/releases/
 PackageLicenseDeclared: BSD-2-Clause
 PackageLicenseConcluded: NOASSERTION

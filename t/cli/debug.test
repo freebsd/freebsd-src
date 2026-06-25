@@ -1,0 +1,7 @@
+Tool: pkgconf
+ToolArgs: --debug --exists foo 2>&1
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1
+ExpectedStdout: preloading pkg
+MatchStdout: partial
+ExpectedExitCode: 0
+SkipPlatforms: lite

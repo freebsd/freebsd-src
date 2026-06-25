@@ -17,6 +17,12 @@
             "specVersion": "3.0.1"
         },
         {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/mc_maintainer",
+            "name": "MC Maintainer"
+        },
+        {
             "type": "simplelicensing_LicenseExpression",
             "creationInfo": "_:creationinfo_1",
             "spdxId": "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/MIT",
@@ -44,6 +50,9 @@
             "name": "multi-copyright",
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/default"
+            ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/mc_maintainer"
             ],
             "software_copyrightText": "First copyright holder\nSecond copyright holder",
             "software_homePage": "https://example.com/mc",
@@ -79,6 +88,7 @@
             ],
             "element": [
                 "https://github.com/pkgconf/pkgconf/Agent/default",
+                "https://github.com/pkgconf/pkgconf/Agent/mc_maintainer",
                 "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/MIT",
                 "https://github.com/pkgconf/pkgconf/Relationship/multi-copyright/hasDeclaredLicense",
                 "https://github.com/pkgconf/pkgconf/Relationship/multi-copyright/hasConcludedLicense",

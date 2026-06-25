@@ -1,0 +1,8 @@
+Tool: pkgconf
+ToolArgs: --with-path=%TEST_FIXTURES_DIR%/lib1 --solution bar
+ExpectedStdout: virtual:world
+ExpectedStdout: bar
+ExpectedStdout: foo
+MatchStdout: partial
+ExpectedExitCode: 0
+SkipPlatforms: lite

@@ -13,6 +13,7 @@ PackageName: nolicense@1.0.0
 SPDXID: SPDXRef-Package-nolicenseC401.0.0
 PackageVersion: 1.0.0
 PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Nolicense Maintainer
 PackageHomePage: https://example.com/nolicense
 PackageLicenseDeclared: NOASSERTION
 PackageLicenseConcluded: NOASSERTION

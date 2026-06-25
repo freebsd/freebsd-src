@@ -17,6 +17,18 @@
             "specVersion": "3.0.1"
         },
         {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/variabletest2_maintainer",
+            "name": "Variabletest2 Maintainer"
+        },
+        {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/variabletest1_maintainer",
+            "name": "Variabletest1 Maintainer"
+        },
+        {
             "type": "simplelicensing_LicenseExpression",
             "creationInfo": "_:creationinfo_1",
             "spdxId": "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/MIT",
@@ -67,6 +79,9 @@
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/default"
             ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/variabletest2_maintainer"
+            ],
             "software_copyrightText": "NOASSERTION",
             "software_homePage": "https://github.com/pkgconf/pkgconf/releases/",
             "software_downloadLocation": "https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz",
@@ -79,6 +94,9 @@
             "name": "variable-test1",
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/default"
+            ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/variabletest1_maintainer"
             ],
             "software_copyrightText": "NOASSERTION",
             "software_homePage": "https://github.com/pkgconf/pkgconf/releases/",
@@ -145,7 +163,9 @@
             ],
             "element": [
                 "https://github.com/pkgconf/pkgconf/Agent/default",
+                "https://github.com/pkgconf/pkgconf/Agent/variabletest2_maintainer",
                 "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/MIT",
+                "https://github.com/pkgconf/pkgconf/Agent/variabletest1_maintainer",
                 "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/BSD-2-Clause",
                 "https://github.com/pkgconf/pkgconf/Relationship/variable-test2/dependsOn/variable-test1",
                 "https://github.com/pkgconf/pkgconf/Relationship/variable-test2/hasDeclaredLicense",

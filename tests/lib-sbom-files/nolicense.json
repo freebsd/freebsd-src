@@ -17,6 +17,12 @@
             "specVersion": "3.0.1"
         },
         {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/nolicense_maintainer",
+            "name": "Nolicense Maintainer"
+        },
+        {
             "type": "software_Sbom",
             "creationInfo": "_:creationinfo_1",
             "spdxId": "https://github.com/pkgconf/pkgconf/software_Sbom/nolicense",
@@ -37,6 +43,9 @@
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/default"
             ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/nolicense_maintainer"
+            ],
             "software_copyrightText": "Nolicense copyright text",
             "software_homePage": "https://example.com/nolicense",
             "software_downloadLocation": "https://example.com/nolicense/nolicense-1.0.0.tar.gz",
@@ -51,6 +60,7 @@
             ],
             "element": [
                 "https://github.com/pkgconf/pkgconf/Agent/default",
+                "https://github.com/pkgconf/pkgconf/Agent/nolicense_maintainer",
                 "https://github.com/pkgconf/pkgconf/software_Sbom/nolicense",
                 "https://github.com/pkgconf/pkgconf/Package/nolicense"
             ]

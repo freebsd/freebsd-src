@@ -1,0 +1,8 @@
+Tool: pkgconf
+ToolArgs: --exists foo 2>&1
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1
+Environment: PKG_CONFIG_EARLY_TRACE=1
+ExpectedStdout: installing default unveil handler
+MatchStdout: partial
+ExpectedExitCode: 0
+SkipPlatforms: lite

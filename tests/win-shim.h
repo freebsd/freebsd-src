@@ -22,6 +22,8 @@
 
 #include <direct.h>
 #include <io.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 // Shims shared by both MSVC and MSYS2
 #define mkdir(p, m) _mkdir(p)
@@ -50,6 +52,14 @@ mkdtemp(char *tmpl)
 	if (_mkdir(tmpl) != 0)
 		return NULL;
 	return tmpl;
+}
+
+static inline int
+mkstemp(char *tmpl)
+{
+	if (_mktemp_s(tmpl, strlen(tmpl) + 1) != 0)
+		return -1;
+	return _open(tmpl, _O_CREAT | _O_EXCL | _O_RDWR | _O_BINARY, _S_IREAD | _S_IWRITE);
 }
 #endif // _MSC_VER
 

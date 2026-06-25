@@ -38,7 +38,6 @@ static const char *creation_time = NULL;
 
 static pkgconf_client_t pkg_client;
 static uint64_t want_flags;
-static size_t maximum_package_count = 0;
 static int maximum_traverse_depth = 2000;
 static FILE *error_msgout = NULL;
 static FILE *sbom_out = NULL;
@@ -456,12 +455,6 @@ main(int argc, char *argv[])
 		const char *package = argv[pkg_optind];
 
 		if (package == NULL)
-			break;
-
-		/* check if there is a limit to the number of packages allowed to be included, if so and we have hit
-		 * the limit, stop adding packages to the queue.
-		 */
-		if (maximum_package_count > 0 && pkgq.length > maximum_package_count)
 			break;
 
 		while (isspace((unsigned char)package[0]))

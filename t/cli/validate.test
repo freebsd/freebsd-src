@@ -1,0 +1,6 @@
+Tool: pkgconf
+ToolArgs: --validate foo
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1
+ExpectedStdout:
+MatchStdout: empty
+ExpectedExitCode: 0

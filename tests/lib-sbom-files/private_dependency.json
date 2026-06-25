@@ -1,0 +1,176 @@
+{
+    "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+    "@graph": [
+        {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/default",
+            "name": "Default"
+        },
+        {
+            "type": "CreationInfo",
+            "@id": "_:creationinfo_1",
+            "created": "test",
+            "createdBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/default"
+            ],
+            "specVersion": "3.0.1"
+        },
+        {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/privparent_maintainer",
+            "name": "Privparent Maintainer"
+        },
+        {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/privchild_maintainer",
+            "name": "Privchild Maintainer"
+        },
+        {
+            "type": "simplelicensing_LicenseExpression",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/MIT",
+            "simplelicensing_licenseExpression": "MIT"
+        },
+        {
+            "type": "software_Sbom",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/software_Sbom/priv-parent",
+            "software_sbomType": [
+                "build"
+            ],
+            "rootElement": [
+                "https://github.com/pkgconf/pkgconf/Package/priv-parent"
+            ],
+            "element": [
+                "https://github.com/pkgconf/pkgconf/Relationship/priv-parent/dependsOn/priv-child",
+                "https://github.com/pkgconf/pkgconf/Relationship/priv-parent/hasDeclaredLicense",
+                "https://github.com/pkgconf/pkgconf/Relationship/priv-parent/hasConcludedLicense"
+            ]
+        },
+        {
+            "type": "software_Sbom",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/software_Sbom/priv-child",
+            "software_sbomType": [
+                "build"
+            ],
+            "rootElement": [
+                "https://github.com/pkgconf/pkgconf/Package/priv-child"
+            ],
+            "element": [
+                "https://github.com/pkgconf/pkgconf/Relationship/priv-child/hasDeclaredLicense",
+                "https://github.com/pkgconf/pkgconf/Relationship/priv-child/hasConcludedLicense"
+            ]
+        },
+        {
+            "type": "software_Package",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Package/priv-parent",
+            "name": "priv-parent",
+            "originatedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/default"
+            ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/privparent_maintainer"
+            ],
+            "software_copyrightText": "NOASSERTION",
+            "software_homePage": "https://example.com/priv-parent",
+            "software_downloadLocation": "",
+            "software_packageVersion": "1.0.0"
+        },
+        {
+            "type": "software_Package",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Package/priv-child",
+            "name": "priv-child",
+            "originatedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/default"
+            ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/privchild_maintainer"
+            ],
+            "software_copyrightText": "NOASSERTION",
+            "software_homePage": "https://example.com/priv-child",
+            "software_downloadLocation": "",
+            "software_packageVersion": "1.0.0"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Relationship/priv-parent/hasDeclaredLicense",
+            "from": "https://github.com/pkgconf/pkgconf/Package/priv-parent",
+            "to": [
+                "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/MIT"
+            ],
+            "relationshipType": "hasDeclaredLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Relationship/priv-parent/hasConcludedLicense",
+            "from": "https://github.com/pkgconf/pkgconf/Package/priv-parent",
+            "to": [
+                "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/MIT"
+            ],
+            "relationshipType": "hasConcludedLicense"
+        },
+        {
+            "type": "LifecycleScopedRelationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Relationship/priv-parent/dependsOn/priv-child",
+            "from": "https://github.com/pkgconf/pkgconf/Package/priv-parent",
+            "to": [
+                "https://github.com/pkgconf/pkgconf/Package/priv-child"
+            ],
+            "relationshipType": "dependsOn",
+            "scope": "development"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Relationship/priv-child/hasDeclaredLicense",
+            "from": "https://github.com/pkgconf/pkgconf/Package/priv-child",
+            "to": [
+                "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/MIT"
+            ],
+            "relationshipType": "hasDeclaredLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Relationship/priv-child/hasConcludedLicense",
+            "from": "https://github.com/pkgconf/pkgconf/Package/priv-child",
+            "to": [
+                "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/MIT"
+            ],
+            "relationshipType": "hasConcludedLicense"
+        },
+        {
+            "type": "SpdxDocument",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/spdxDocument/1",
+            "rootElement": [
+                "https://github.com/pkgconf/pkgconf/software_Sbom/priv-parent",
+                "https://github.com/pkgconf/pkgconf/software_Sbom/priv-child"
+            ],
+            "element": [
+                "https://github.com/pkgconf/pkgconf/Agent/default",
+                "https://github.com/pkgconf/pkgconf/Agent/privparent_maintainer",
+                "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/MIT",
+                "https://github.com/pkgconf/pkgconf/Agent/privchild_maintainer",
+                "https://github.com/pkgconf/pkgconf/Relationship/priv-parent/dependsOn/priv-child",
+                "https://github.com/pkgconf/pkgconf/Relationship/priv-parent/hasDeclaredLicense",
+                "https://github.com/pkgconf/pkgconf/Relationship/priv-parent/hasConcludedLicense",
+                "https://github.com/pkgconf/pkgconf/Relationship/priv-child/hasDeclaredLicense",
+                "https://github.com/pkgconf/pkgconf/Relationship/priv-child/hasConcludedLicense",
+                "https://github.com/pkgconf/pkgconf/software_Sbom/priv-parent",
+                "https://github.com/pkgconf/pkgconf/Package/priv-parent",
+                "https://github.com/pkgconf/pkgconf/software_Sbom/priv-child",
+                "https://github.com/pkgconf/pkgconf/Package/priv-child"
+            ]
+        }
+    ]
+}

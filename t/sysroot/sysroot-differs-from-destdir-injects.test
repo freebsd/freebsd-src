@@ -1,0 +1,6 @@
+Environment: PKG_CONFIG_SYSROOT_DIR=/sysroot
+Environment: DESTDIR=/other
+PackageSearchPath: lib1
+Query: foo
+WantedFlags: libs cflags
+ExpectedStdout: -fPIC -I/sysroot/test/include/foo -L/sysroot/test/lib -lfoo

@@ -13,6 +13,7 @@ PackageName: special@1.0.0
 SPDXID: SPDXRef-Package-specialC401.0.0
 PackageVersion: 1.0.0
 PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Special Maintainer
 PackageHomePage: https://example.com/special
 PackageLicenseDeclared: MIT
 PackageLicenseConcluded: NOASSERTION

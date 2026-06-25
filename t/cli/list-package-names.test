@@ -1,0 +1,5 @@
+Tool: pkgconf
+ToolArgs: --with-path=%TEST_FIXTURES_DIR%/lib1 --list-package-names
+ExpectedStdout: pkg-config
+MatchStdout: partial
+ExpectedExitCode: 0

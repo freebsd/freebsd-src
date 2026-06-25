@@ -1678,7 +1678,7 @@ pkgconf_pkg_traverse_main(pkgconf_client_t *client,
 	if (root->identifier == 0)
 		root->identifier = ++client->identifier;
 
-	PKGCONF_TRACE(client, "%s: level %d, serial %"PRIu64, root->id, maxdepth, client->serial);
+	PKGCONF_TRACE(client, "%s: level %d, serial %llu", root->id, maxdepth, (unsigned long long) client->serial);
 
 	if ((root->flags & PKGCONF_PKG_PROPF_VIRTUAL) != PKGCONF_PKG_PROPF_VIRTUAL || (client->flags & PKGCONF_PKG_PKGF_SKIP_ROOT_VIRTUAL) != PKGCONF_PKG_PKGF_SKIP_ROOT_VIRTUAL)
 	{

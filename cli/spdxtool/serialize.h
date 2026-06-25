@@ -203,7 +203,10 @@ spdxtool_serialize_value_object(spdxtool_serialize_object_list_t *object_list)
 {
 	spdxtool_serialize_value_t *value = calloc(1, sizeof(spdxtool_serialize_value_t));
 	if (!value)
+	{
+		spdxtool_serialize_object_list_free(object_list);
 		return NULL;
+	}
 
 	value->type = SPDXTOOL_SERIALIZE_TYPE_OBJECT;
 	value->value.o = object_list;
@@ -227,7 +230,10 @@ spdxtool_serialize_value_array(spdxtool_serialize_array_t *array)
 {
 	spdxtool_serialize_value_t *value = calloc(1, sizeof(spdxtool_serialize_value_t));
 	if (!value)
+	{
+		spdxtool_serialize_array_free(array);
 		return NULL;
+	}
 
 	value->type = SPDXTOOL_SERIALIZE_TYPE_ARRAY;
 	value->value.a = array;

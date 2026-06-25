@@ -1,0 +1,7 @@
+Tool: pkgconf
+ToolArgs: --libs foo
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1
+Environment: PKG_CONFIG_MSVC_SYNTAX=1
+ExpectedStdout: /libpath:/test/lib foo.lib
+ExpectedExitCode: 0
+SkipPlatforms: lite

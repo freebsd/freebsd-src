@@ -13,6 +13,7 @@ PackageName: meta_package@1.0.0
 SPDXID: SPDXRef-Package-metaC5fpackageC401.0.0
 PackageVersion: 1.0.0
 PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Meta Maintainer
 PackageHomePage: https://github.com/pkgconf/pkgconf
 PackageLicenseDeclared: BSD-2-Clause
 PackageLicenseConcluded: NOASSERTION
@@ -27,6 +28,7 @@ PackageName: test1@1.0.0
 SPDXID: SPDXRef-Package-test1C401.0.0
 PackageVersion: 1.0.0
 PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Test1 Maintainer
 PackageLicenseDeclared: BSD-1-Clause
 PackageLicenseConcluded: NOASSERTION
 PackageCopyrightText: <text>Test1 copyright text</text>
@@ -40,6 +42,7 @@ PackageName: test2@2.0.0
 SPDXID: SPDXRef-Package-test2C402.0.0
 PackageVersion: 2.0.0
 PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Test2 Maintainer
 PackageHomePage: https://github.com/pkgconf/pkgconf/
 PackageLicenseDeclared: BSD-2-Clause
 PackageLicenseConcluded: NOASSERTION
@@ -54,6 +57,7 @@ PackageName: test3@3.0.0
 SPDXID: SPDXRef-Package-test3C403.0.0
 PackageVersion: 3.0.0
 PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Test3 Maintainer
 PackageHomePage: https://github.com/pkgconf/pkgconf/
 PackageLicenseDeclared: BSD-4-Clause
 PackageLicenseConcluded: NOASSERTION
@@ -68,6 +72,7 @@ PackageName: test4@4.0.0
 SPDXID: SPDXRef-Package-test4C404.0.0
 PackageVersion: 4.0.0
 PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Test4 Maintainer
 PackageHomePage: https://github.com/pkgconf/pkgconf/
 PackageLicenseDeclared: MIT
 PackageLicenseConcluded: NOASSERTION
@@ -82,6 +87,7 @@ PackageName: test5@5.0.0
 SPDXID: SPDXRef-Package-test5C405.0.0
 PackageVersion: 5.0.0
 PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Test5 Maintainer
 PackageHomePage: https://github.com/pkgconf/pkgconf/
 PackageLicenseDeclared: MIT
 PackageLicenseConcluded: NOASSERTION
@@ -96,6 +102,7 @@ PackageName: test6@6.0.0
 SPDXID: SPDXRef-Package-test6C406.0.0
 PackageVersion: 6.0.0
 PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Test6 Maintainer
 PackageHomePage: https://github.com/pkgconf/pkgconf/releases/
 PackageLicenseDeclared: Apache-2.0
 PackageLicenseConcluded: NOASSERTION

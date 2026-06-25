@@ -79,6 +79,9 @@ Changes from 2.5.1 to 3.0.0:
   - pkgconf now falls back to readlink(2) on systems which lack readlinkat(2).
   - A fallback is provided for platforms without nl_langinfo_l, and xlocale.h is
     included where needed to build on macOS.
+  - Fixed -Werror=format build failures on MinGW caused by the PRIu64 macro
+    expanding to an MSVCRT format specifier that the GNU format-string checker
+    rejects; serial and identifier values are now printed with %llu.
   The expanded platform CI and the nl_langinfo_l/xlocale.h fallbacks are by
   moi15moi.
 

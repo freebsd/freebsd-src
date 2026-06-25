@@ -1,0 +1,4 @@
+Tool: pkgconf
+ToolArgs: --with-path=%TEST_FIXTURES_DIR%/lib1 --verbose --modversion foo
+ExpectedStdout: foo: 1.2.3
+ExpectedExitCode: 0

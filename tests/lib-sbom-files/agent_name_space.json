@@ -17,6 +17,12 @@
             "specVersion": "3.0.1"
         },
         {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/test3_maintainer",
+            "name": "Test3 Maintainer"
+        },
+        {
             "type": "simplelicensing_LicenseExpression",
             "creationInfo": "_:creationinfo_1",
             "spdxId": "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/BSD-4-Clause",
@@ -44,6 +50,9 @@
             "name": "test3",
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/my_agent"
+            ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/test3_maintainer"
             ],
             "software_copyrightText": "Test3 copyright text",
             "software_homePage": "https://github.com/pkgconf/pkgconf/",
@@ -79,6 +88,7 @@
             ],
             "element": [
                 "https://github.com/pkgconf/pkgconf/Agent/my_agent",
+                "https://github.com/pkgconf/pkgconf/Agent/test3_maintainer",
                 "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/BSD-4-Clause",
                 "https://github.com/pkgconf/pkgconf/Relationship/test3/hasDeclaredLicense",
                 "https://github.com/pkgconf/pkgconf/Relationship/test3/hasConcludedLicense",

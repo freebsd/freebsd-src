@@ -1,0 +1,6 @@
+Name: priv-child
+Description: Private dependency child
+URL: https://example.com/priv-child
+Version: 1.0.0
+License: MIT
+Maintainer: Privchild Maintainer

@@ -1,5 +1,5 @@
 project('pkgconf', 'c',
-  version : '2.9.91',
+  version : '2.9.92',
   license : 'ISC',
   default_options : [
     'c_std=c99',
@@ -155,7 +155,7 @@ else
   build_static = '-DPKGCONFIG_IS_NOT_STATIC'
 endif
 
-libpkgconf = library('pkgconf',
+libpkgconf_sources = [
   'libpkgconf/argvsplit.c',
   'libpkgconf/audit.c',
   'libpkgconf/buffer.c',
@@ -177,6 +177,10 @@ libpkgconf = library('pkgconf',
   'libpkgconf/tuple.c',
   'libpkgconf/variable.c',
   'libpkgconf/version.c',
+]
+
+libpkgconf = library('pkgconf',
+  libpkgconf_sources,
   c_args: ['-DLIBPKGCONF_EXPORT', build_static],
   install : true,
   version : '8.0.0',
@@ -281,8 +285,11 @@ api_tests = [
   'fragment',
   'license',
   'path-utils',
+  'personality',
+  'queue',
   'tuple',
   'variable',
+  'version',
 ]
 
 foreach t : api_tests
@@ -311,6 +318,68 @@ test_api_serialize_exe = executable('test-api-serialize',
   include_directories : [include_directories('.'), include_directories('tests/api'), include_directories('cli/spdxtool')],
   install : false)
 test('api-serialize', test_api_serialize_exe)
+
+# Allocation-failure (OOM) tests.  These drive the shared fuzzer/alloc-inject
+# fault injector through the linker's --wrap, so they are built wherever --wrap
+# is supported: glibc and musl Linux (GNU ld / lld), and skipped on macOS ld64
+# and MSVC.
+build_oom_tests = host_machine.system() == 'linux' \
+  and cc.has_link_argument('-Wl,--wrap=calloc')
+
+# Allocator set wrapped by fuzzer/alloc-inject.c.
+oom_wrap_args = [
+  '-Wl,--wrap=malloc', '-Wl,--wrap=calloc', '-Wl,--wrap=realloc',
+  '-Wl,--wrap=reallocarray', '-Wl,--wrap=strdup', '-Wl,--wrap=strndup',
+]
+
+if build_oom_tests
+  # Unit test: fault-inject spdxtool's own allocations.  It links libpkgconf
+  # normally (shared); only spdxtool's compiled-in allocations are wrapped,
+  # which is exactly what we want to fail here.
+  test_api_oom_spdxtool_exe = executable('test-api-oom-spdxtool',
+    'tests/api/test-oom-spdxtool.c',
+    'fuzzer/alloc-inject.c',
+    'cli/spdxtool/core.c',
+    'cli/spdxtool/software.c',
+    'cli/spdxtool/serialize.c',
+    'cli/spdxtool/simplelicensing.c',
+    'cli/spdxtool/util.c',
+    windows_manifest,
+    link_with : libpkgconf,
+    c_args : build_static,
+    link_args : oom_wrap_args,
+    include_directories : [include_directories('.'), include_directories('tests/api'), include_directories('cli/spdxtool'), include_directories('fuzzer')],
+    install : false)
+  test('api-oom-spdxtool', test_api_oom_spdxtool_exe)
+
+  # Replay the existing parser/solver fuzz targets over their seed corpus,
+  # deterministically and without libFuzzer, so the libpkgconf OOM paths they
+  # exercise via alloc-inject are captured by a coverage build (the clang/
+  # libFuzzer fuzz job is not coverage-instrumented).  --wrap only reaches
+  # allocations linked into the executable, so these link a static libpkgconf.
+  libpkgconf_fault = static_library('pkgconf-fault',
+    libpkgconf_sources,
+    c_args : ['-DLIBPKGCONF_EXPORT', build_static],
+    install : false)
+
+  fuzz_replays = [
+    ['parser', join_paths(meson.current_source_dir(), 'tests', 'lib1')],
+    ['solver', join_paths(meson.current_source_dir(), 'fuzzer', 'solver-corpus')],
+  ]
+  foreach r : fuzz_replays
+    replay_exe = executable('fuzz-replay-' + r[0],
+      'fuzzer/replay.c',
+      'fuzzer' / (r[0] + '-fuzzer.c'),
+      'fuzzer/alloc-inject.c',
+      link_with : libpkgconf_fault,
+      c_args : build_static,
+      link_args : oom_wrap_args,
+      include_directories : [include_directories('.'), include_directories('fuzzer')],
+      install : false)
+    # The exhaustive per-input injection loop is slow under ASAN; give it room.
+    test('fuzz-replay-' + r[0], replay_exe, args : [r[1]], timeout : 120)
+  endforeach
+endif
 
 fixtures_dir = join_paths(meson.current_source_dir(), 'tests')
 tool_dir = meson.current_build_dir()

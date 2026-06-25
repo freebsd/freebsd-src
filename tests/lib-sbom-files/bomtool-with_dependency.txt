@@ -13,6 +13,7 @@ PackageName: test2@2.0.0
 SPDXID: SPDXRef-Package-test2C402.0.0
 PackageVersion: 2.0.0
 PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Test2 Maintainer
 PackageHomePage: https://github.com/pkgconf/pkgconf/
 PackageLicenseDeclared: BSD-2-Clause
 PackageLicenseConcluded: NOASSERTION
@@ -27,6 +28,7 @@ PackageName: test3@3.0.0
 SPDXID: SPDXRef-Package-test3C403.0.0
 PackageVersion: 3.0.0
 PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Test3 Maintainer
 PackageHomePage: https://github.com/pkgconf/pkgconf/
 PackageLicenseDeclared: BSD-4-Clause
 PackageLicenseConcluded: NOASSERTION

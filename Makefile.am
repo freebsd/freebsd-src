@@ -26,17 +26,72 @@ EXTRA_DIST =	pkg.m4 \
 		t/cli/about.test \
 		t/cli/atleast-pkgconfig-version-fail.test \
 		t/cli/atleast-pkgconfig-version-pass.test \
+		t/cli/atleast-version-fail.test \
+		t/cli/atleast-version-inline-constraint.test \
+		t/cli/atleast-version-inline-overrides.test \
+		t/cli/atleast-version-pass.test \
 		t/cli/cflags-libs.test \
+		t/cli/debug.test \
+		t/cli/define-variable.test \
+		t/cli/dont-define-prefix.test \
+		t/cli/dump-personality-loaded.test \
 		t/cli/dump-personality.test \
+		t/cli/env-allow-system-cflags-default.test \
+		t/cli/env-allow-system-cflags.test \
+		t/cli/env-allow-system-libs-default.test \
+		t/cli/env-allow-system-libs.test \
+		t/cli/env-dont-relocate-paths.test \
+		t/cli/env-early-trace.test \
+		t/cli/env-log.test \
+		t/cli/env-maximum-traverse-depth.test \
+		t/cli/env-msvc-syntax.test \
+		t/cli/env-only.test \
+		t/cli/env-top-build-dir.test \
+		t/cli/env.test \
+		t/cli/exact-version-fail.test \
+		t/cli/exact-version-inline-constraint.test \
+		t/cli/exact-version-inline-overrides.test \
+		t/cli/exact-version-pass.test \
 		t/cli/exists-missing.test \
 		t/cli/exists-valid.test \
+		t/cli/fragment-filter.test \
 		t/cli/help.test \
+		t/cli/internal-cflags.test \
+		t/cli/keep-system-cflags-flag.test \
+		t/cli/keep-system-libs-flag.test \
+		t/cli/list-package-names.test \
+		t/cli/log-file.test \
+		t/cli/max-version-fail.test \
+		t/cli/max-version-inline-constraint.test \
+		t/cli/max-version-inline-overrides.test \
+		t/cli/max-version-pass.test \
+		t/cli/maximum-traverse-depth.test \
 		t/cli/missing-package.test \
 		t/cli/missing-package-error.test \
 		t/cli/modversion.test \
 		t/cli/no-arguments.test \
+		t/cli/no-cache.test \
+		t/cli/no-provides.test \
+		t/cli/no-uninstalled.test \
+		t/cli/path.test \
+		t/cli/personality.test \
+		t/cli/prefix-variable.test \
+		t/cli/print-provides.test \
+		t/cli/print-requires-private.test \
+		t/cli/print-requires.test \
+		t/cli/print-variables.test \
+		t/cli/shared.test \
+		t/cli/short-errors.test \
+		t/cli/silence-errors.test \
+		t/cli/simulate.test \
+		t/cli/solution.test \
 		t/cli/unknown-option.test \
+		t/cli/validate-warning.test \
+		t/cli/validate.test \
+		t/cli/variable.test \
+		t/cli/verbose.test \
 		t/cli/version.test \
+		t/cli/with-path.test \
 		t/basic/arbitrary-path.test \
 		t/basic/builtin-pkg-config-exists.test \
 		t/basic/builtin-pkg-config-pc_path-variable.test \
@@ -229,6 +284,7 @@ EXTRA_DIST =	pkg.m4 \
 		t/bomtool/no-license.test \
 		t/bomtool/output-file.test \
 		t/bomtool/package-whitespace.test \
+		t/bomtool/private-dependency.test \
 		t/bomtool/source-date-epoch.test \
 		t/bomtool/source-date-epoch-precedence.test \
 		t/bomtool/special-chars.test \
@@ -256,6 +312,7 @@ EXTRA_DIST =	pkg.m4 \
 		t/spdxtool/no-license.test \
 		t/spdxtool/output-file.test \
 		t/spdxtool/package-whitespace.test \
+		t/spdxtool/private-dependency.test \
 		t/spdxtool/source-date-epoch.test \
 		t/spdxtool/source-date-epoch-precedence.test \
 		t/spdxtool/special-chars.test \
@@ -307,6 +364,8 @@ EXTRA_DIST =	pkg.m4 \
 		t/sysroot/no-pc_sysrootdir-rewriting-variable.test \
 		t/sysroot/path-segment-awareness.test \
 		t/sysroot/skip-rewriting-when-sysroot-dir-is-root-dir.test \
+		t/sysroot/sysroot-differs-from-destdir-injects.test \
+		t/sysroot/sysroot-equals-destdir-fdo-rules.test \
 		t/sysroot/undefined-pc_sysrootdir-should-be-empty.test \
 		t/sysroot/uninstalled-rewriting-fdo-rules-with-pc_sysrootdir.test \
 		t/sysroot/uninstalled-rewriting-fdo-rules.test \
@@ -330,18 +389,6 @@ EXTRA_DIST =	pkg.m4 \
 		t/link-abi/multi-dedup.test \
 		tests/win-shim.h \
 		tests/api/test-api.h \
-		tests/api/test-audit.c \
-		tests/api/test-buffer.c \
-		tests/api/test-bytecode.c \
-		tests/api/test-client.c \
-		tests/api/test-dependency.c \
-		tests/api/test-fileio.c \
-		tests/api/test-fragment.c \
-		tests/api/test-license.c \
-		tests/api/test-path-utils.c \
-		tests/api/test-serialize.c \
-		tests/api/test-tuple.c \
-		tests/api/test-variable.c \
 		tests/lib-relocatable/lib/pkgconfig/foo.pc \
 		tests/lib1/argv-parse-2.pc \
 		tests/lib1/billion-laughs.pc \
@@ -389,6 +436,7 @@ EXTRA_DIST =	pkg.m4 \
 		tests/lib1/circular-3.pc \
 		tests/lib1/no-trailing-newline.pc \
 		tests/lib1/tilde.pc \
+		tests/lib1/top-builddir.pc \
 		tests/lib1/comments-in-fields.pc \
 		tests/lib1/nocflag.pc \
 		tests/lib1/typelibdir.pc \
@@ -475,6 +523,8 @@ EXTRA_DIST =	pkg.m4 \
 		tests/lib-sbom/special.pc \
 		tests/lib-sbom/variable-test1.pc \
 		tests/lib-sbom/variable-test2.pc \
+		tests/lib-sbom/priv-parent.pc \
+		tests/lib-sbom/priv-child.pc \
 		tests/lib-sbom-files/agent_name.json \
 		tests/lib-sbom-files/agent_name_space.json \
 		tests/lib-sbom-files/basic.json \
@@ -490,6 +540,7 @@ EXTRA_DIST =	pkg.m4 \
 		tests/lib-sbom-files/nolicense.json \
 		tests/lib-sbom-files/special.json \
 		tests/lib-sbom-files/with_dependency.json \
+		tests/lib-sbom-files/private_dependency.json \
 		tests/lib-sbom-files/bomtool-basic.txt \
 		tests/lib-sbom-files/bomtool-define_variable.txt \
 		tests/lib-sbom-files/bomtool-define_variable_with_dependency.txt \
@@ -498,7 +549,9 @@ EXTRA_DIST =	pkg.m4 \
 		tests/lib-sbom-files/bomtool-nolicense.txt \
 		tests/lib-sbom-files/bomtool-special.txt \
 		tests/lib-sbom-files/bomtool-with_dependency.txt \
+		tests/lib-sbom-files/bomtool-private_dependency.txt \
 		tests/personality-data/i386-linux-gnu.personality \
+		tests/personality-data/sysrooted.personality \
 		doc/conf.py \
 		doc/extract.py \
 		doc/index.rst \
@@ -592,9 +645,12 @@ API_TEST_PROGS =		\
 	test-api-fragment	\
 	test-api-license	\
 	test-api-path-utils	\
+	test-api-personality	\
+	test-api-queue		\
 	test-api-serialize	\
 	test-api-tuple		\
-	test-api-variable
+	test-api-variable	\
+	test-api-version
 
 noinst_PROGRAMS = test-runner $(API_TEST_PROGS)
 
@@ -645,6 +701,14 @@ test_api_path_utils_LDADD = $(api_test_ldadd)
 test_api_path_utils_SOURCES = tests/api/test-path-utils.c
 test_api_path_utils_CPPFLAGS = $(api_test_cppflags)
 
+test_api_personality_LDADD = $(api_test_ldadd)
+test_api_personality_SOURCES = tests/api/test-personality.c
+test_api_personality_CPPFLAGS = $(api_test_cppflags)
+
+test_api_queue_LDADD = $(api_test_ldadd)
+test_api_queue_SOURCES = tests/api/test-queue.c
+test_api_queue_CPPFLAGS = $(api_test_cppflags)
+
 test_api_serialize_LDADD = $(api_test_ldadd)
 test_api_serialize_SOURCES = \
 	tests/api/test-serialize.c \
@@ -663,6 +727,10 @@ test_api_variable_LDADD = $(api_test_ldadd)
 test_api_variable_SOURCES = tests/api/test-variable.c
 test_api_variable_CPPFLAGS = $(api_test_cppflags)
 
+test_api_version_LDADD = $(api_test_ldadd)
+test_api_version_SOURCES = tests/api/test-version.c
+test_api_version_CPPFLAGS = $(api_test_cppflags)
+
 dist_doc_DATA = CONTRIBUTING.md DCO README.md AUTHORS COPYING
 
 m4datadir              = $(datadir)/aclocal
@@ -680,9 +748,12 @@ check: pkgconf test-runner $(API_TEST_PROGS)
 	$(builddir)/test-api-fragment$(EXEEXT)
 	$(builddir)/test-api-license$(EXEEXT)
 	$(builddir)/test-api-path-utils$(EXEEXT)
+	$(builddir)/test-api-personality$(EXEEXT)
+	$(builddir)/test-api-queue$(EXEEXT)
 	$(builddir)/test-api-serialize$(EXEEXT)
 	$(builddir)/test-api-tuple$(EXEEXT)
 	$(builddir)/test-api-variable$(EXEEXT)
+	$(builddir)/test-api-version$(EXEEXT)
 	$(builddir)/test-runner$(EXEEXT) --test-fixtures=$(top_srcdir)/tests --tool-dir="$(PWD)" $(top_srcdir)/t/basic
 	$(builddir)/test-runner$(EXEEXT) --test-fixtures=$(top_srcdir)/tests --tool-dir="$(PWD)" $(top_srcdir)/t/cli
 	$(builddir)/test-runner$(EXEEXT) --test-fixtures=$(top_srcdir)/tests --tool-dir="$(PWD)" $(top_srcdir)/t/link-abi
@@ -696,3 +767,15 @@ check: pkgconf test-runner $(API_TEST_PROGS)
 	$(builddir)/test-runner$(EXEEXT) --test-fixtures=$(top_srcdir)/tests --tool-dir="$(PWD)" $(top_srcdir)/t/symlink
 	$(builddir)/test-runner$(EXEEXT) --test-fixtures=$(top_srcdir)/tests --tool-dir="$(PWD)" $(top_srcdir)/t/sysroot
 	$(builddir)/test-runner$(EXEEXT) --test-fixtures=$(top_srcdir)/tests --tool-dir="$(PWD)" $(top_srcdir)/t/tuple
+
+pkgconf-final-stamp:
+	@echo
+	@echo "============================================================================"
+	@echo "WARNING: Autotools support is deprecated and will be removed in pkgconf 3.1."
+	@echo "Please migrate to Meson or Muon."
+	@echo "See README.md for instructions on building with Meson."
+	@echo "============================================================================"
+	@echo
+
+all: pkgconf-final-stamp
+install-exec-hook: pkgconf-final-stamp

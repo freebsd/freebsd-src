@@ -1,0 +1,7 @@
+Name: priv-parent
+Description: Package with a private dependency
+URL: https://example.com/priv-parent
+Version: 1.0.0
+License: MIT
+Requires.private: priv-child
+Maintainer: Privparent Maintainer

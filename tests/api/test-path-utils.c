@@ -105,6 +105,154 @@ test_determine_prefix_logic(void)
 	pkgconf_buffer_finalize(&buf);
 }
 
+static const char *
+nth_path(const pkgconf_list_t *list, size_t idx)
+{
+	pkgconf_node_t *n;
+	size_t i = 0;
+
+	PKGCONF_FOREACH_LIST_ENTRY(list->head, n)
+	{
+		const pkgconf_path_t *p = n->data;
+
+		if (i++ == idx)
+			return p->path;
+	}
+
+	return NULL;
+}
+
+static void
+test_path_prepend(void)
+{
+	pkgconf_list_t list = PKGCONF_LIST_INITIALIZER;
+
+	pkgconf_path_prepend("/a", &list, false);
+	pkgconf_path_prepend("/b", &list, false);
+	pkgconf_path_prepend("/c", &list, false);
+
+	TEST_ASSERT_EQ(list.length, 3);
+	TEST_ASSERT_STRCMP_EQ(nth_path(&list, 0), "/c");
+	TEST_ASSERT_STRCMP_EQ(nth_path(&list, 1), "/b");
+	TEST_ASSERT_STRCMP_EQ(nth_path(&list, 2), "/a");
+
+	pkgconf_path_add("/d", &list, false);
+	TEST_ASSERT_EQ(list.length, 4);
+	TEST_ASSERT_STRCMP_EQ(nth_path(&list, 0), "/c");
+	TEST_ASSERT_STRCMP_EQ(nth_path(&list, 3), "/d");
+
+	pkgconf_path_prepend("/e//f", &list, false);
+	TEST_ASSERT_STRCMP_EQ(nth_path(&list, 0), "/e/f");
+
+	pkgconf_path_free(&list);
+	TEST_ASSERT_EQ(list.length, 0);
+	TEST_ASSERT_NULL(list.head);
+	TEST_ASSERT_NULL(list.tail);
+}
+
+static void
+test_path_prepend_filter(void)
+{
+	pkgconf_list_t list = PKGCONF_LIST_INITIALIZER;
+
+	pkgconf_path_prepend(".", &list, true);
+	TEST_ASSERT_EQ(list.length, 1);
+
+	pkgconf_path_prepend(".", &list, true);
+	TEST_ASSERT_EQ(list.length, 1);
+
+	pkgconf_path_prepend("..", &list, true);
+	TEST_ASSERT_EQ(list.length, 2);
+
+	pkgconf_path_prepend(".", &list, false);
+	TEST_ASSERT_EQ(list.length, 3);
+
+	pkgconf_path_free(&list);
+}
+
+static void
+test_path_prepend_list(void)
+{
+	pkgconf_list_t src = PKGCONF_LIST_INITIALIZER;
+	pkgconf_list_t dst = PKGCONF_LIST_INITIALIZER;
+
+	pkgconf_path_add("/s1", &src, false);
+	pkgconf_path_add("/s2", &src, false);
+	pkgconf_path_add("/s3", &src, false);
+
+	pkgconf_path_add("/d1", &dst, false);
+	pkgconf_path_add("/d2", &dst, false);
+
+	pkgconf_path_prepend_list(&dst, &src);
+
+	TEST_ASSERT_EQ(dst.length, 5);
+	TEST_ASSERT_STRCMP_EQ(nth_path(&dst, 0), "/s3");
+	TEST_ASSERT_STRCMP_EQ(nth_path(&dst, 1), "/s2");
+	TEST_ASSERT_STRCMP_EQ(nth_path(&dst, 2), "/s1");
+	TEST_ASSERT_STRCMP_EQ(nth_path(&dst, 3), "/d1");
+	TEST_ASSERT_STRCMP_EQ(nth_path(&dst, 4), "/d2");
+
+	TEST_ASSERT_EQ(src.length, 3);
+	TEST_ASSERT_STRCMP_EQ(nth_path(&src, 0), "/s1");
+	TEST_ASSERT_TRUE(nth_path(&dst, 2) != nth_path(&src, 0));
+
+	pkgconf_path_free(&dst);
+	TEST_ASSERT_EQ(dst.length, 0);
+
+	TEST_ASSERT_EQ(src.length, 3);
+	TEST_ASSERT_STRCMP_EQ(nth_path(&src, 2), "/s3");
+
+	pkgconf_path_prepend_list(&dst, &src);
+	TEST_ASSERT_EQ(dst.length, 3);
+	TEST_ASSERT_STRCMP_EQ(nth_path(&dst, 0), "/s3");
+	TEST_ASSERT_STRCMP_EQ(nth_path(&dst, 2), "/s1");
+
+	pkgconf_path_free(&src);
+	pkgconf_path_free(&dst);
+}
+
+static bool
+plausible(const char *text)
+{
+	pkgconf_buffer_t buf = PKGCONF_BUFFER_INITIALIZER;
+	bool result;
+
+	pkgconf_buffer_append(&buf, text);
+	result = pkgconf_path_is_plausible(&buf);
+	pkgconf_buffer_finalize(&buf);
+
+	return result;
+}
+
+static void
+test_path_is_plausible(void)
+{
+	pkgconf_buffer_t empty = PKGCONF_BUFFER_INITIALIZER;
+
+	TEST_ASSERT_FALSE(pkgconf_path_is_plausible(NULL));
+	TEST_ASSERT_FALSE(pkgconf_path_is_plausible(&empty));
+	pkgconf_buffer_finalize(&empty);
+
+	TEST_ASSERT_FALSE(plausible(""));
+	TEST_ASSERT_FALSE(plausible("   "));
+	TEST_ASSERT_FALSE(plausible("libfoo"));
+	TEST_ASSERT_FALSE(plausible("foo bar"));
+	TEST_ASSERT_FALSE(plausible("."));
+	TEST_ASSERT_FALSE(plausible(".."));
+
+	TEST_ASSERT_TRUE(plausible("/usr/lib/pkgconfig"));
+	TEST_ASSERT_TRUE(plausible("  /usr/lib"));
+	TEST_ASSERT_TRUE(plausible("./foo"));
+	TEST_ASSERT_TRUE(plausible("../foo"));
+	TEST_ASSERT_TRUE(plausible(".\\foo"));
+	TEST_ASSERT_TRUE(plausible("..\\foo"));
+	TEST_ASSERT_TRUE(plausible("C:/foo"));
+	TEST_ASSERT_TRUE(plausible("C:\\foo"));
+	TEST_ASSERT_TRUE(plausible("relative/path"));
+	TEST_ASSERT_TRUE(plausible("relative\\path"));
+	TEST_ASSERT_TRUE(plausible("Program Files/MySDK"));
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -114,6 +262,10 @@ main(int argc, char *argv[])
 	TEST_RUN(basename, test_path_find_basename);
 	TEST_RUN(basename, test_path_trim_basename);
 	TEST_RUN(basename, test_determine_prefix_logic);
+	TEST_RUN(basename, test_path_prepend);
+	TEST_RUN(basename, test_path_prepend_filter);
+	TEST_RUN(basename, test_path_prepend_list);
+	TEST_RUN(basename, test_path_is_plausible);
 
 	return EXIT_SUCCESS;
 }

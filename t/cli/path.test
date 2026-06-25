@@ -1,0 +1,6 @@
+Tool: pkgconf
+ToolArgs: --with-path=%TEST_FIXTURES_DIR%/lib1 --path foo
+ExpectedStdout: %TEST_FIXTURES_DIR%/lib1
+ExpectedStdout: foo.pc
+MatchStdout: partial
+ExpectedExitCode: 0

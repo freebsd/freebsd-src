@@ -6,3 +6,4 @@ License: MIT
 Source: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
 Requires: test5 \
   test6
+Maintainer: Test4 Maintainer

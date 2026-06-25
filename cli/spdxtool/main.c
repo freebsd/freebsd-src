@@ -30,7 +30,6 @@ static int maximum_traverse_depth = 2000;
 
 static pkgconf_client_t pkg_client;
 static uint64_t want_flags;
-static size_t maximum_package_count = 0;
 // static int maximum_traverse_depth = 2000;
 static FILE *error_msgout = NULL;
 static FILE *sbom_out = NULL;
@@ -93,6 +92,15 @@ generate_spdx_package(pkgconf_client_t *client, pkgconf_pkg_t *pkg, void *ptr)
 
 	pkgconf_tuple_add(client, &pkg->vars, "creationInfo", document->creation_info, false, 0);
 	pkgconf_tuple_add(client, &pkg->vars, "agent", document->agent, false, 0);
+
+	if (pkg->maintainer != NULL)
+	{
+		const char *supplier = spdxtool_core_spdx_document_add_maintainer(client, document, pkg->maintainer);
+		if (!supplier)
+			goto err;
+
+		pkgconf_tuple_add(client, &pkg->vars, "suppliedBy", supplier, false, 0);
+	}
 
 	if (pkg->license.head != NULL)
 	{
@@ -362,12 +370,6 @@ main(int argc, char *argv[])
 		const char *package = argv[pkg_optind];
 
 		if (package == NULL)
-			break;
-
-		/* check if there is a limit to the number of packages allowed to be included, if so and we have hit
-		 * the limit, stop adding packages to the queue.
-		 */
-		if (maximum_package_count > 0 && pkgq.length > maximum_package_count)
 			break;
 
 		while (isspace((unsigned char)package[0]))

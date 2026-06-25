@@ -17,6 +17,48 @@
             "specVersion": "3.0.1"
         },
         {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/meta_maintainer",
+            "name": "Meta Maintainer"
+        },
+        {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/test1_maintainer",
+            "name": "Test1 Maintainer"
+        },
+        {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/test2_maintainer",
+            "name": "Test2 Maintainer"
+        },
+        {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/test3_maintainer",
+            "name": "Test3 Maintainer"
+        },
+        {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/test4_maintainer",
+            "name": "Test4 Maintainer"
+        },
+        {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/test5_maintainer",
+            "name": "Test5 Maintainer"
+        },
+        {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/test6_maintainer",
+            "name": "Test6 Maintainer"
+        },
+        {
             "type": "simplelicensing_LicenseExpression",
             "creationInfo": "_:creationinfo_1",
             "spdxId": "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/BSD-2-Clause",
@@ -168,6 +210,9 @@
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/default"
             ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/meta_maintainer"
+            ],
             "software_copyrightText": "NOASSERTION",
             "software_homePage": "https://github.com/pkgconf/pkgconf",
             "software_downloadLocation": "https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz",
@@ -180,6 +225,9 @@
             "name": "test1",
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/default"
+            ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/test1_maintainer"
             ],
             "software_copyrightText": "Test1 copyright text",
             "software_homePage": "",
@@ -194,6 +242,9 @@
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/default"
             ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/test2_maintainer"
+            ],
             "software_copyrightText": "NOASSERTION",
             "software_homePage": "https://github.com/pkgconf/pkgconf/",
             "software_downloadLocation": "https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz",
@@ -206,6 +257,9 @@
             "name": "test3",
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/default"
+            ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/test3_maintainer"
             ],
             "software_copyrightText": "Test3 copyright text",
             "software_homePage": "https://github.com/pkgconf/pkgconf/",
@@ -220,6 +274,9 @@
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/default"
             ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/test4_maintainer"
+            ],
             "software_copyrightText": "NOASSERTION",
             "software_homePage": "https://github.com/pkgconf/pkgconf/",
             "software_downloadLocation": "https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz",
@@ -233,6 +290,9 @@
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/default"
             ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/test5_maintainer"
+            ],
             "software_copyrightText": "NOASSERTION",
             "software_homePage": "https://github.com/pkgconf/pkgconf/",
             "software_downloadLocation": "https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz",
@@ -245,6 +305,9 @@
             "name": "test6",
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/default"
+            ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/test6_maintainer"
             ],
             "software_copyrightText": "NOASSERTION",
             "software_homePage": "https://github.com/pkgconf/pkgconf/releases/",
@@ -496,10 +559,17 @@
             ],
             "element": [
                 "https://github.com/pkgconf/pkgconf/Agent/default",
+                "https://github.com/pkgconf/pkgconf/Agent/meta_maintainer",
                 "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/BSD-2-Clause",
+                "https://github.com/pkgconf/pkgconf/Agent/test1_maintainer",
                 "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/BSD-1-Clause",
+                "https://github.com/pkgconf/pkgconf/Agent/test2_maintainer",
+                "https://github.com/pkgconf/pkgconf/Agent/test3_maintainer",
                 "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/BSD-4-Clause",
+                "https://github.com/pkgconf/pkgconf/Agent/test4_maintainer",
                 "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/MIT",
+                "https://github.com/pkgconf/pkgconf/Agent/test5_maintainer",
+                "https://github.com/pkgconf/pkgconf/Agent/test6_maintainer",
                 "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/Apache-2.0",
                 "https://github.com/pkgconf/pkgconf/Relationship/meta_package/dependsOn/test1",
                 "https://github.com/pkgconf/pkgconf/Relationship/meta_package/dependsOn/test2",

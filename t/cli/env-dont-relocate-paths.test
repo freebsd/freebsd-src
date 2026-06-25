@@ -1,0 +1,6 @@
+Tool: pkgconf
+ToolArgs: --libs bar
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1
+Environment: PKG_CONFIG_DONT_RELOCATE_PATHS=1
+ExpectedStdout: -L/test/lib -lbar -lfoo
+ExpectedExitCode: 0

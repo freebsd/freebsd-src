@@ -23,8 +23,7 @@ typedef enum {
 	PKGCONF_VERSION_TOKEN_END = 0,
 	PKGCONF_VERSION_TOKEN_TILDE,
 	PKGCONF_VERSION_TOKEN_NUMERIC,
-	PKGCONF_VERSION_TOKEN_ALPHA,
-	PKGCONF_VERSION_TOKEN_OTHER
+	PKGCONF_VERSION_TOKEN_ALPHA
 } pkgconf_version_token_kind_t;
 
 typedef struct {
@@ -85,17 +84,14 @@ pkgconf_version_next_token(pkgconf_version_iter_t *it)
 		return tok;
 	}
 
-	if (isalpha((unsigned char)*s))
-	{
-		tok.kind = PKGCONF_VERSION_TOKEN_ALPHA;
-		while (*tok.end && isalpha((unsigned char)*tok.end))
-			tok.end++;
-		it->cur = tok.end;
-		return tok;
-	}
-
-	tok.kind = PKGCONF_VERSION_TOKEN_OTHER;
-	tok.end = s + 1;
+	/*
+	 * Having skipped separators and ruled out end-of-string, tilde and
+	 * digits, the only remaining possibility is alpha: isalnum(c) is by
+	 * definition isalpha(c) || isdigit(c).
+	 */
+	tok.kind = PKGCONF_VERSION_TOKEN_ALPHA;
+	while (*tok.end && isalpha((unsigned char)*tok.end))
+		tok.end++;
 	it->cur = tok.end;
 
 	return tok;
@@ -190,20 +186,10 @@ pkgconf_version_compare_token(const pkgconf_version_token_t *a, const pkgconf_ve
 	}
 
 	/* left-side is alpha, any right-side non-alpha wins */
-	if (a->kind == PKGCONF_VERSION_TOKEN_ALPHA)
-	{
-		if (b->kind != PKGCONF_VERSION_TOKEN_ALPHA)
-			return -1;
-
-		return pkgconf_version_compare_alpha(a, b);
-	}
-
-	if (a->kind < b->kind)
+	if (b->kind != PKGCONF_VERSION_TOKEN_ALPHA)
 		return -1;
-	if (a->kind > b->kind)
-		return 1;
 
-	return 0;
+	return pkgconf_version_compare_alpha(a, b);
 }
 
 /*

@@ -222,8 +222,15 @@ spdxtool_core_creation_info_to_object(pkgconf_client_t *client, const spdxtool_c
 
 	if (!(spdxtool_serialize_object_add_string(object_list, "type", creation->type) &&
 		spdxtool_serialize_object_add_string(object_list, "@id", creation->id) &&
-		spdxtool_serialize_object_add_string(object_list, "created", creation->created) &&
-		spdxtool_serialize_object_add_array(object_list, "createdBy", created_by) &&
+		spdxtool_serialize_object_add_string(object_list, "created", creation->created)))
+	{
+		/* created_by has not been handed to the object list yet */
+		spdxtool_serialize_array_free(created_by);
+		goto err;
+	}
+
+	/* object_add_array takes ownership of created_by, freeing it on failure */
+	if (!(spdxtool_serialize_object_add_array(object_list, "createdBy", created_by) &&
 		spdxtool_serialize_object_add_string(object_list, "specVersion", creation->spec_version)))
 	{
 		goto err;
@@ -326,6 +333,13 @@ spdxtool_core_spdx_document_free(spdxtool_core_spdx_document_t *spdx)
 	{
 		spdxtool_core_relationship_t *relationship = iter->data;
 		spdxtool_core_relationship_free(relationship);
+		free(iter);
+	}
+
+	PKGCONF_FOREACH_LIST_ENTRY_SAFE(spdx->maintainers.head, iter_next, iter)
+	{
+		spdxtool_core_agent_t *maintainer = iter->data;
+		spdxtool_core_agent_free(maintainer);
 		free(iter);
 	}
 
@@ -547,6 +561,60 @@ spdxtool_core_spdx_document_add_element(pkgconf_client_t *client, spdxtool_core_
 /*
  * !doc
  *
+ * .. c:function:: const char *spdxtool_core_spdx_document_add_maintainer(pkgconf_client_t *client, spdxtool_core_spdx_document_t *spdx, const char *name)
+ *
+ *    Register a package maintainer as an Agent and add it to the SpdxDocument so that
+ *    packages may reference it via their ``suppliedBy`` field.  Maintainers are
+ *    deduplicated by their spdxId, so a maintainer shared between packages is only
+ *    emitted once.  The first time a maintainer is seen, its spdxId is also added to
+ *    the document element list.
+ *
+ *    :param pkgconf_client_t *client: The pkgconf client being accessed.
+ *    :param spdxtool_core_spdx_document_t *spdx: SpdxDocument struct being used.
+ *    :param const char *name: Maintainer name as declared in the package.
+ *    :return: the maintainer Agent spdxId (owned by the document) on success, NULL on failure
+ */
+const char *
+spdxtool_core_spdx_document_add_maintainer(pkgconf_client_t *client, spdxtool_core_spdx_document_t *spdx, const char *name)
+{
+	pkgconf_node_t *iter = NULL;
+
+	if (!client || !spdx || !name)
+		return NULL;
+
+	spdxtool_core_agent_t *agent = spdxtool_core_agent_new(client, spdx->creation_info, name);
+	if (!agent)
+		return NULL;
+
+	PKGCONF_FOREACH_LIST_ENTRY(spdx->maintainers.head, iter)
+	{
+		spdxtool_core_agent_t *existing = iter->data;
+		if (!strcmp(existing->spdx_id, agent->spdx_id))
+		{
+			spdxtool_core_agent_free(agent);
+			return existing->spdx_id;
+		}
+	}
+
+	pkgconf_node_t *node = calloc(1, sizeof(pkgconf_node_t));
+	if (!node)
+	{
+		pkgconf_error(client, "spdxtool_core_spdx_document_add_maintainer: out of memory");
+		spdxtool_core_agent_free(agent);
+		return NULL;
+	}
+
+	pkgconf_node_insert_tail(node, agent, &spdx->maintainers);
+
+	if (!spdxtool_core_spdx_document_add_element(client, spdx, agent->spdx_id))
+		return NULL;
+
+	return agent->spdx_id;
+}
+
+/*
+ * !doc
+ *
  * .. c:function:: bool spdxtool_core_spdx_document_add_relationship(pkgconf_client_t *client, spdxtool_core_spdx_document_t *spdx, spdxtool_core_relationship_t *relationship)
  *
  *    Add relationship rel to SpdxDocument
@@ -650,6 +718,40 @@ err:
 /*
  * !doc
  *
+ * .. c:function:: bool spdxtool_core_relationship_set_scope(pkgconf_client_t *client, spdxtool_core_relationship_t *relationship, const char *scope)
+ *
+ *    Promote a relationship to a /Core/LifecycleScopedRelationship by attaching a lifecycle
+ *    scope (for example, ``development`` for a private build dependency).  This is the SPDX 3.0
+ *    representation of SPDX 2.x's ``*_DEPENDENCY_OF`` relationship variants.
+ *
+ *    :param pkgconf_client_t *client: The pkgconf client being accessed.
+ *    :param spdxtool_core_relationship_t *relationship: Relationship struct to scope.
+ *    :param const char *scope: LifecycleScopeType value, e.g. "development".
+ *    :return: true on success, false on failure
+ */
+bool
+spdxtool_core_relationship_set_scope(pkgconf_client_t *client, spdxtool_core_relationship_t *relationship, const char *scope)
+{
+	if (!relationship || !scope)
+		return false;
+
+	char *scope_copy = strdup(scope);
+	if (!scope_copy)
+	{
+		pkgconf_error(client, "spdxtool_core_relationship_set_scope: out of memory");
+		return false;
+	}
+
+	free(relationship->scope);
+	relationship->scope = scope_copy;
+	relationship->type = "LifecycleScopedRelationship";
+
+	return true;
+}
+
+/*
+ * !doc
+ *
  * .. c:function:: void spdxtool_core_relationship_free(spdxtool_core_relationship_t *relationship)
  *
  *    Free /Core/Relationship struct
@@ -669,6 +771,7 @@ spdxtool_core_relationship_free(spdxtool_core_relationship_t *relationship)
 	pkgconf_license_free(relationship->to);
 	free(relationship->to);
 	free(relationship->relationship_type);
+	free(relationship->scope);
 
 	free(relationship);
 }
@@ -713,6 +816,12 @@ spdxtool_core_relationship_to_object(pkgconf_client_t *client, const spdxtool_co
 		spdxtool_serialize_object_add_string(object_list, "from", relationship->from) &&
 		spdxtool_serialize_object_add_array(object_list, "to", to) &&
 		spdxtool_serialize_object_add_string(object_list, "relationshipType", relationship->relationship_type)))
+	{
+		goto err;
+	}
+
+	if (relationship->scope != NULL &&
+		!spdxtool_serialize_object_add_string(object_list, "scope", relationship->scope))
 	{
 		goto err;
 	}

@@ -276,8 +276,8 @@ print_solution_node(pkgconf_client_t *client, pkgconf_pkg_t *pkg, void *unused)
 {
 	(void) unused;
 
-	pkgconf_output_fmt(client->output, PKGCONF_OUTPUT_STDOUT, "%s (%"PRIu64")%s\n",
-		pkg->id, pkg->identifier,
+	pkgconf_output_fmt(client->output, PKGCONF_OUTPUT_STDOUT, "%s (%llu)%s\n",
+		pkg->id, (unsigned long long) pkg->identifier,
 		(pkg->flags & PKGCONF_PKG_PROPF_VISITED_PRIVATE) == PKGCONF_PKG_PROPF_VISITED_PRIVATE ? " [private]" : "");
 }
 

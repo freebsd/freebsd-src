@@ -55,6 +55,9 @@ spdxtool_core_spdx_document_add_package(pkgconf_client_t *client, spdxtool_core_
 bool
 spdxtool_core_spdx_document_add_element(pkgconf_client_t *client, spdxtool_core_spdx_document_t *spdx, const char *element);
 
+const char *
+spdxtool_core_spdx_document_add_maintainer(pkgconf_client_t *client, spdxtool_core_spdx_document_t *spdx, const char *name);
+
 void
 spdxtool_core_spdx_document_free(spdxtool_core_spdx_document_t *spdx);
 
@@ -63,6 +66,9 @@ spdxtool_core_spdx_document_to_object(pkgconf_client_t *client, spdxtool_core_sp
 
 spdxtool_core_relationship_t *
 spdxtool_core_relationship_new(pkgconf_client_t *client, const char *creation_info_id, const char *spdx_id, const char *from, pkgconf_list_t *to, const char *relationship_type);
+
+bool
+spdxtool_core_relationship_set_scope(pkgconf_client_t *client, spdxtool_core_relationship_t *relationship, const char *scope);
 
 void
 spdxtool_core_relationship_free(spdxtool_core_relationship_t *relationship);

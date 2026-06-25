@@ -169,7 +169,8 @@ spdxtool_serialize_object_add_take(spdxtool_serialize_object_list_t *object_list
 	{
 		free(node);
 		free(keycopy);
-		spdxtool_serialize_object_free(object);
+		/* object->key/value are not assigned yet; free the struct itself */
+		free(object);
 		spdxtool_serialize_value_free(value);
 		return NULL;
 	}
@@ -397,6 +398,18 @@ spdxtool_serialize_sbom(pkgconf_client_t *client, spdxtool_core_agent_t *agent, 
 		goto err;
 
 	pkgconf_node_t *iter = NULL;
+	PKGCONF_FOREACH_LIST_ENTRY(spdx->maintainers.head, iter)
+	{
+		spdxtool_core_agent_t *maintainer = iter->data;
+		if (!maintainer)
+		{
+			errstr = "maintainers list corrupted";
+			goto err;
+		}
+		if (!spdxtool_serialize_array_add_take(graph, spdxtool_core_agent_to_object(client, maintainer)))
+			goto err;
+	}
+
 	PKGCONF_FOREACH_LIST_ENTRY(spdx->licenses.head, iter)
 	{
 		spdxtool_simplelicensing_license_expression_t *expression = iter->data;

@@ -17,6 +17,12 @@
             "specVersion": "3.0.1"
         },
         {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/variabletest1_maintainer",
+            "name": "Variabletest1 Maintainer"
+        },
+        {
             "type": "simplelicensing_LicenseExpression",
             "creationInfo": "_:creationinfo_1",
             "spdxId": "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/BSD-2-Clause",
@@ -44,6 +50,9 @@
             "name": "variable-test1",
             "originatedBy": [
                 "https://github.com/pkgconf/pkgconf/Agent/default"
+            ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/variabletest1_maintainer"
             ],
             "software_copyrightText": "NOASSERTION",
             "software_homePage": "https://github.com/pkgconf/pkgconf/releases/",
@@ -79,6 +88,7 @@
             ],
             "element": [
                 "https://github.com/pkgconf/pkgconf/Agent/default",
+                "https://github.com/pkgconf/pkgconf/Agent/variabletest1_maintainer",
                 "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/BSD-2-Clause",
                 "https://github.com/pkgconf/pkgconf/Relationship/variable-test1/hasDeclaredLicense",
                 "https://github.com/pkgconf/pkgconf/Relationship/variable-test1/hasConcludedLicense",

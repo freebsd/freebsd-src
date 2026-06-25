@@ -5,3 +5,4 @@ Version: 2.0.0
 Requires: test3
 License: BSD-2-Clause
 Source: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+Maintainer: Test2 Maintainer

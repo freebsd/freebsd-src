@@ -6,3 +6,4 @@ License: BSD-4-Clause
 Copyright: Test3 copyright text
 Source: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
 
+Maintainer: Test3 Maintainer

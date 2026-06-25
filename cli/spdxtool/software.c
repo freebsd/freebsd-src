@@ -162,6 +162,37 @@ spdxtool_software_sbom_to_object(pkgconf_client_t *client, spdxtool_software_sbo
 		free(spdx_id_relation);
 	}
 
+	PKGCONF_FOREACH_LIST_ENTRY(sbom->rootElement->requires_private.head, node)
+	{
+		pkgconf_dependency_t *dep = node->data;
+		pkgconf_pkg_t *match = dep->match;
+		pkgconf_buffer_t relationship_buf = PKGCONF_BUFFER_INITIALIZER;
+
+		pkgconf_buffer_append_fmt(&relationship_buf, "%s%cdependsOn%c%s", sbom->rootElement->id, sep, sep, match->id);
+		char *relationship_str = pkgconf_buffer_freeze(&relationship_buf);
+		if (!relationship_str)
+			goto err;
+
+		char *spdx_id_relation = spdxtool_util_get_spdx_id_string(client, "Relationship", relationship_str);
+		free(relationship_str);
+		if (!spdx_id_relation)
+			goto err;
+
+		if (!spdxtool_serialize_array_add_string(element_array, spdx_id_relation))
+		{
+			free(spdx_id_relation);
+			goto err;
+		}
+
+		if (!spdxtool_core_spdx_document_add_element(client, sbom->spdx_document, spdx_id_relation))
+		{
+			free(spdx_id_relation);
+			goto err;
+		}
+
+		free(spdx_id_relation);
+	}
+
 	char *value = spdxtool_util_tuple_lookup(client, &sbom->rootElement->vars, "hasDeclaredLicense");
 	if (value)
 	{
@@ -275,9 +306,11 @@ spdxtool_software_package_to_object(pkgconf_client_t *client, pkgconf_pkg_t *pkg
 	spdxtool_serialize_value_t *ret = NULL;
 	spdxtool_serialize_object_list_t *object_list = NULL;
 	spdxtool_serialize_array_t *originated_by = NULL;
+	spdxtool_serialize_array_t *supplied_by = NULL;
 	char *creation_info = NULL;
 	char *spdx_id = NULL;
 	char *agent = NULL;
+	char *supplier = NULL;
 	char *spdx_id_license = NULL;
 	pkgconf_list_t relations = PKGCONF_LIST_INITIALIZER;
 	pkgconf_list_t *cpy_relations = NULL;
@@ -313,6 +346,21 @@ spdxtool_software_package_to_object(pkgconf_client_t *client, pkgconf_pkg_t *pkg
 	if (!spdxtool_serialize_object_add_array(object_list, "originatedBy", originated_by))
 		goto err;
 	originated_by = NULL;
+
+	supplier = spdxtool_util_tuple_lookup(client, &pkg->vars, "suppliedBy");
+	if (supplier)
+	{
+		supplied_by = spdxtool_serialize_array_new();
+		if (!supplied_by)
+			goto err;
+
+		if (!spdxtool_serialize_array_add_string(supplied_by, supplier))
+			goto err;
+
+		if (!spdxtool_serialize_object_add_array(object_list, "suppliedBy", supplied_by))
+			goto err;
+		supplied_by = NULL;
+	}
 
 	if (!serialize_copyright_lines_to_object(object_list, &pkg->copyright))
 		goto err;
@@ -430,6 +478,56 @@ spdxtool_software_package_to_object(pkgconf_client_t *client, pkgconf_pkg_t *pkg
 		cpy_relations = NULL;
 	}
 
+	PKGCONF_FOREACH_LIST_ENTRY(pkg->requires_private.head, node)
+	{
+		pkgconf_dependency_t *dep = node->data;
+		pkgconf_pkg_t *match = dep->match;
+		pkgconf_buffer_t relationship_buf = PKGCONF_BUFFER_INITIALIZER;
+
+		pkgconf_buffer_append_fmt(&relationship_buf, "%s%cdependsOn%c%s", pkg->id, sep, sep, match->id);
+		char *relationship_str = pkgconf_buffer_freeze(&relationship_buf);
+		if (!relationship_str)
+			goto err;
+
+		char *spdx_id_relation = spdxtool_util_get_spdx_id_string(client, "Relationship", relationship_str);
+		free(relationship_str);
+		if (!spdx_id_relation)
+			goto err;
+
+		char *spdx_id_package = spdxtool_util_get_spdx_id_string(client, "Package", match->id);
+		if (!spdx_id_package)
+		{
+			free(spdx_id_relation);
+			goto err;
+		}
+
+		cpy_relations = calloc(1, sizeof(pkgconf_list_t));
+		if (!cpy_relations)
+		{
+			free(spdx_id_relation);
+			free(spdx_id_package);
+			goto err;
+		}
+
+		pkgconf_license_insert(client, cpy_relations, PKGCONF_LICENSE_UNKNOWN, spdx_id_package);
+		spdxtool_core_relationship_t *relationship = spdxtool_core_relationship_new(client, creation_info, spdx_id_relation, spdx_id, cpy_relations, "dependsOn");
+		free(spdx_id_relation);
+		free(spdx_id_package);
+		if (!relationship)
+			goto err;
+		cpy_relations = NULL;
+		if (!spdxtool_core_relationship_set_scope(client, relationship, "development"))
+		{
+			spdxtool_core_relationship_free(relationship);
+			goto err;
+		}
+		if (!spdxtool_core_spdx_document_add_relationship(client, spdx, relationship))
+		{
+			spdxtool_core_relationship_free(relationship);
+			goto err;
+		}
+	}
+
 	ret = spdxtool_serialize_value_object(object_list);
 	object_list = NULL;
 
@@ -440,8 +538,10 @@ err:
 	free(creation_info);
 	free(spdx_id);
 	free(agent);
+	free(supplier);
 	free(spdx_id_license);
 	spdxtool_serialize_object_list_free(object_list);
 	spdxtool_serialize_array_free(originated_by);
+	spdxtool_serialize_array_free(supplied_by);
 	return ret;
 }

@@ -17,6 +17,12 @@
             "specVersion": "3.0.1"
         },
         {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://distfiles.ariadne.space/pkgconf/Agent/test3_maintainer",
+            "name": "Test3 Maintainer"
+        },
+        {
             "type": "simplelicensing_LicenseExpression",
             "creationInfo": "_:creationinfo_1",
             "spdxId": "https://distfiles.ariadne.space/pkgconf/simplelicensing_LicenseExpression/BSD-4-Clause",
@@ -44,6 +50,9 @@
             "name": "test3",
             "originatedBy": [
                 "https://distfiles.ariadne.space/pkgconf/Agent/default"
+            ],
+            "suppliedBy": [
+                "https://distfiles.ariadne.space/pkgconf/Agent/test3_maintainer"
             ],
             "software_copyrightText": "Test3 copyright text",
             "software_homePage": "https://github.com/pkgconf/pkgconf/",
@@ -79,6 +88,7 @@
             ],
             "element": [
                 "https://distfiles.ariadne.space/pkgconf/Agent/default",
+                "https://distfiles.ariadne.space/pkgconf/Agent/test3_maintainer",
                 "https://distfiles.ariadne.space/pkgconf/simplelicensing_LicenseExpression/BSD-4-Clause",
                 "https://distfiles.ariadne.space/pkgconf/Relationship/test3/hasDeclaredLicense",
                 "https://distfiles.ariadne.space/pkgconf/Relationship/test3/hasConcludedLicense",

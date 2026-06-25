@@ -1,0 +1,4 @@
+Tool: pkgconf
+ToolArgs: --with-path=%TEST_FIXTURES_DIR%/lib1 --internal-cflags --cflags requires-internal-2
+ExpectedStdout: -I/test/local/include/foo
+ExpectedExitCode: 0

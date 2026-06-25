@@ -1,0 +1,7 @@
+Tool: pkgconf
+ToolArgs: --cflags-only-I cflags-libs-only
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1
+Environment: PKG_CONFIG_SYSTEM_INCLUDE_PATH=/test/local/include/foo
+ExpectedStdout:
+MatchStdout: empty
+ExpectedExitCode: 0
