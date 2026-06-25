@@ -53,6 +53,7 @@
 #include <cam/scsi/scsi_all.h>
 
 #include <algorithm>
+#include <charconv>
 #include <libutil++.hh>
 
 #include "conf.h"
@@ -1378,17 +1379,55 @@ target::set_auth_type(const char *type)
 bool
 target::add_physical_port(std::string_view pport)
 {
-	/* Normalize ioctl port names. */
+	/* Normalize port names. */
 	std::string pname;
-	if (pport.compare(0, strlen("ioctl/"), "ioctl/") == 0) {
-		int ret, pp, vp;
+	size_t pos = pport.find('/');
+	if (pos == 0) {
+		log_warnx("invalid physical port \"%s\" for target "
+		    "\"%s\"", std::string(pport).c_str(), name());
+		return (false);
+	}
 
-		pname = std::string(pport);
-		ret = sscanf(pname.c_str(), "ioctl/%d/%d", &pp, &vp);
-		if (ret == 2) {
-			pname = freebsd::stringf("ioctl/%d/%d", pp, vp);
-			pport = pname;
+	if (pos != pport.npos) {
+		const char *pport_end = pport.data() + pport.size();
+		int pp, vp;
+
+		auto parse_int = [](const char *start, const char *end) -> int {
+			int value;
+
+			if (start == end)
+				return -1;
+
+			auto [ptr, ec] = std::from_chars(start, end, value);
+			if (ec != std::errc() || ptr != end)
+				return -1;
+			return value;
+		};
+
+		const char *ppstart = pport.data() + pos + 1;
+		size_t ppend = pport.find('/', pos + 1);
+		if (ppend == pport.npos) {
+			pp = parse_int(ppstart, pport_end);
+			vp = 0;
+		} else {
+			const char *vpstart = pport.data() + ppend + 1;
+			pp = parse_int(ppstart, pport.data() + ppend);
+			vp = parse_int(vpstart, pport_end);
 		}
+
+		if (pp == -1 || vp == -1) {
+			log_warnx("invalid physical port \"%s\" for target "
+			    "\"%s\"", std::string(pport).c_str(), name());
+			return (false);
+		}
+
+		pname = pport.substr(0, pos);
+		if (pp != 0 || vp != 0) {
+			pname += "/" + std::to_string(pp);
+			if (vp != 0)
+				pname += "/" + std::to_string(vp);
+		}
+		pport = pname;
 	}
 
 	for (const auto &s : t_pports) {
@@ -2679,7 +2718,9 @@ conf::add_pports(struct kports &kports)
 			 */
 			ret = sscanf(pport.c_str(), "ioctl/%d/%d", &i_pp,
 			    &i_vp);
-			if (ret == 2) {
+			if (ret > 0) {
+				if (ret == 1)
+					i_vp = 0;
 				if (!add_port(targ, pport, i_pp, i_vp)) {
 					log_warnx("can't create new port %s "
 					    "for %s", pport.c_str(),
