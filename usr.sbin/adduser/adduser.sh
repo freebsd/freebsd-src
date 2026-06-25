@@ -580,7 +580,7 @@ get_groups() {
 	fi
 	read _input
 
-	[ -n "$_input" ] && ugroups="$_input"
+	[ -n "$_input" ] && ugroups="$(echo "$_input" | tr -s ',:;' ' ')"
 }
 
 # get_expire_dates
