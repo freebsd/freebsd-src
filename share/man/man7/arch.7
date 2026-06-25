@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 20, 2026
+.Dd June 24, 2026
 .Dt ARCH 7
 .Os
 .Sh NAME
@@ -131,7 +131,7 @@ Discontinued architectures are shown in the following table.
 .It riscv64sf   Ta 12.0  Ta 13.5
 .It sparc64     Ta 5.0   Ta 12.4
 .El
-.Ss Type sizes
+.Ss Type Sizes
 All
 .Fx
 architectures use some variant of the ELF (see
@@ -242,7 +242,7 @@ Machine-dependent type sizes:
 .Pp
 .Sy time_t
 is 8 bytes on all supported architectures except i386.
-.Ss Endianness and Char Signedness
+.Ss Endianness and char Signedness
 .Bl -column -offset indent "Architecture" "Endianness" "char Signedness" "wchar_t Signedness"
 .It Sy Architecture Ta Sy Endianness Ta Sy char Signedness Ta Sy wchar_t Signedness
 .It aarch64     Ta little Ta unsigned Ta unsigned
