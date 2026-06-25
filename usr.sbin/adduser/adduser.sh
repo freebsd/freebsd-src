@@ -574,13 +574,13 @@ get_groups() {
 
 	if [ -z "$configflag" ]; then
 		[ -z "$fflag" ] && echo -n "Login group is $_group. Invite $username"
-		[ -z "$fflag" ] && echo -n " into other (space separated) groups? [$ugroups]: "
+		[ -z "$fflag" ] && echo -n " into other groups? [$ugroups]: "
 	else
 		[ -z "$fflag" ] && echo -n "Enter additional groups [$ugroups]: "
 	fi
 	read _input
 
-	[ -n "$_input" ] && ugroups="$_input"
+	[ -n "$_input" ] && ugroups="$(echo "$_input" | tr -s ',:;' ' ')"
 }
 
 # get_expire_dates
