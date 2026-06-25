@@ -1,0 +1,116 @@
+.\"
+.\" Copyright (c) 2026 Abdelkader Boudih <freebsd@seuros.com>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd June 19, 2026
+.Dt FWCAM 4
+.Os
+.Sh NAME
+.Nm fwcam
+.Nd IIDC FireWire digital camera driver
+.Sh SYNOPSIS
+.Cd "device firewire"
+.Cd "device fwcam"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for IIDC (Instrumentation and Industrial Digital
+Camera) v1.30 cameras attached via IEEE 1394 (FireWire).
+.Pp
+Video frames are received over an isochronous DMA channel and exposed
+through a character device.
+Applications read raw frames from
+.Pa /dev/fwcamX
+and configure the camera via
+.Xr ioctl 2 .
+.Pp
+The driver supports Format_0 (VGA non-compressed) video with the
+following modes:
+.Bl -tag -width "Mode 3" -compact
+.It Mode 0
+160x120 YUV444 (57,600 bytes per frame)
+.It Mode 1
+320x240 YUV422 (153,600 bytes per frame)
+.It Mode 2
+640x480 YUV411 (460,800 bytes per frame)
+.It Mode 3
+640x480 YUV422 (614,400 bytes per frame)
+.It Mode 4
+640x480 RGB8 (921,600 bytes per frame)
+.It Mode 5
+640x480 Mono8 (307,200 bytes per frame)
+.El
+.Pp
+Camera features
+.Pq brightness, gain, shutter, focus, etc.\&
+are queried and set via
+.Dv FWCAM_GFEAT
+and
+.Dv FWCAM_SFEAT
+ioctls.
+.Sh HARDWARE
+The
+.Nm
+driver supports any camera compliant with the IIDC 1394-based Digital Camera
+Specification v1.30.
+Tested hardware:
+.Bl -bullet -compact
+.It
+Apple iSight (FireWire cylinder),
+EUI-64 000a270004135e5d, Format_0 modes 1\(en3
+.El
+.Sh IOCTLS
+.Bl -tag -width "FWCAM_GINFO"
+.It Dv FWCAM_GMODE Pq Vt "struct fwcam_mode"
+Get the current video format, mode, and frame rate.
+The
+.Va frame_size
+field is filled with the computed frame size in bytes.
+.It Dv FWCAM_SMODE Pq Vt "struct fwcam_mode"
+Set the video format, mode, and frame rate.
+Streaming is restarted if active.
+.It Dv FWCAM_GFEAT Pq Vt "struct fwcam_feature"
+Get feature capabilities and current value.
+The caller sets
+.Va id
+to one of the
+.Dv FWCAM_FEAT_*
+constants; the driver fills
+.Va flags ,
+.Va min ,
+.Va max ,
+and
+.Va value .
+.It Dv FWCAM_SFEAT Pq Vt "struct fwcam_feature"
+Set a feature value.
+.It Dv FWCAM_GINFO Pq Vt "struct fwcam_info"
+Return camera capabilities, current settings, and stream statistics
+including dropped frame count and active ISO channel.
+.El
+.Sh SYSCTLS
+.Bl -tag -width "hw.firewire.fwcam.iso_channel"
+.It Va hw.firewire.fwcam.iso_channel
+Isochronous receive channel (default 0).
+Can be set as a tunable in
+.Xr loader.conf 5 .
+.El
+.Sh FILES
+.Bl -tag -width "/dev/fwcamX" -compact
+.It Pa /dev/fwcamX
+Camera character device.
+Read to obtain raw video frames.
+.El
+.Sh SEE ALSO
+.Xr firewire 4 ,
+.Xr fwohci 4
+.Pp
+IIDC 1394-based Digital Camera Specification v1.30,
+1394 Trade Association Document 1999023.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Abdelkader Boudih Aq Mt freebsd@seuros.com

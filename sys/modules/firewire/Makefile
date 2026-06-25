@@ -1,4 +1,5 @@
 SUBDIR=	firewire \
+	fwcam \
 	fwe \
 	fwip \
 	sbp \
