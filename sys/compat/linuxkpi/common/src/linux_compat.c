@@ -560,6 +560,8 @@ linux_cdev_pager_populate(vm_object_t vm_obj, vm_pindex_t pidx, int fault_type,
 		 */
 		*first = vmap->vm_pfn_first;
 		*last = *first + vmap->vm_pfn_count - 1;
+		MPASS(pidx >= *first);
+		MPASS(pidx <= *last);
 		err = VM_PAGER_OK;
 		break;
 	default:

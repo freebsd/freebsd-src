@@ -515,12 +515,15 @@ lkpi_vmf_insert_pfn_prot_locked(struct vm_area_struct *vma, unsigned long addr,
 	vm_page_t page;
 	vm_pindex_t pindex;
 
+	if (addr < vma->vm_start || addr >= vma->vm_end)
+		return (VM_FAULT_SIGBUS);
+
 	VM_OBJECT_ASSERT_WLOCKED(vm_obj);
 	vm_page_iter_init(&pages, vm_obj);
 	pindex = OFF_TO_IDX(addr - vma->vm_start);
 	if (vma->vm_pfn_count == 0)
 		vma->vm_pfn_first = pindex;
-	MPASS(pindex <= OFF_TO_IDX(vma->vm_end));
+	MPASS(pindex < OFF_TO_IDX(vma->vm_end));
 
 retry:
 	page = vm_page_grab_iter(vm_obj, pindex, VM_ALLOC_NOCREAT, &pages);
