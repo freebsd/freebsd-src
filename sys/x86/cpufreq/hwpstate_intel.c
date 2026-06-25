@@ -155,6 +155,8 @@ dump_cppc_request_cb(void *args)
 {
 	struct dump_cppc_request_cb *const data = args;
 
+	data->err = 0;
+
 	if (rdmsr_safe(MSR_IA32_PM_ENABLE, &data->enabled))
 		data->err |= HWP_ERROR_CPPC_ENABLE;
 	if (rdmsr_safe(MSR_IA32_HWP_CAPABILITIES, &data->caps))
