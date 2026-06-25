@@ -765,7 +765,16 @@ ugen20_process(struct libusb20_device *pdev)
 	while (1) {
 
 	  if (ioctl(pdev->file, IOUSB(USB_FS_COMPLETE), &temp)) {
-			if (errno == EBUSY) {
+			if (errno == EBUSY || errno == EINVAL) {
+				/*
+				 * EBUSY: no completion is pending.
+				 * EINVAL: a dequeued completion referenced an
+				 * endpoint that no longer exists, e.g. a stale
+				 * completion left over after a SET_INTERFACE /
+				 * SET_CONFIG tore the endpoints down. This is not
+				 * a device detach, so stop draining rather than
+				 * declaring the device gone.
+				 */
 				break;
 			} else {
 				/* device detached */
