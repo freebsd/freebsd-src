@@ -90,7 +90,7 @@ dnl If the API changes incompatibly set LIBAGE back to 0
 dnl
 
 LIBCURRENT=13  # sync
-LIBREVISION=1  # with
+LIBREVISION=2  # with
 LIBAGE=12      # CMakeLists.txt!
 
 AC_CONFIG_HEADERS([expat_config.h])
@@ -395,8 +395,23 @@ AC_DEFINE([XML_GE], 1,
           [Define as 1/0 to enable/disable support for general entities.])
 AC_DEFINE([XML_DTD], 1,
           [Define to make parameter entity parsing functionality available.])
-AC_DEFINE([XML_DEV_URANDOM], 1,
-          [Define to include code reading entropy from `/dev/urandom'.])
+
+
+have_dev_urandom=false
+
+AC_ARG_WITH([dev-urandom],
+  [AS_HELP_STRING([--with-dev-urandom],
+                  [enforce the use of /dev/urandom in the system @<:@default=no@:>@])
+AS_HELP_STRING([--without-dev-urandom],
+               [enforce not using /dev/urandom in the system @<:@default=no@:>@])],
+  [with_dev_urandom=${withval}],
+  [])
+
+AS_IF([test "x${with_dev_urandom}" = "xyes"],
+  [have_dev_urandom=true
+   AC_DEFINE([XML_DEV_URANDOM], 1,
+             [Define to include code reading entropy from `/dev/urandom'.])])
+
 
 AC_ARG_ENABLE([xml-attr-info],
   [AS_HELP_STRING([--enable-xml-attr-info],
@@ -580,7 +595,7 @@ Entropy sources:
              getentropy: ${have_getentropy}
               getrandom: ${have_getrandom_function}
   syscall SYS_getrandom: ${have_getrandom_syscall}
-           /dev/urandom: true
+           /dev/urandom: ${have_dev_urandom}
 
 Continue with e.g.:
   make -j2

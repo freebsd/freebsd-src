@@ -53,7 +53,7 @@
   <body>
     <div>
       <h1>
-        The Expat XML Parser <small>Release 2.8.1</small>
+        The Expat XML Parser <small>Release 2.8.2</small>
       </h1>
     </div>
 
@@ -1602,7 +1602,9 @@ XML_ParserReset(XML_Parser p,
         To state the obvious: the three parsing functions <code><a href=
         "#XML_Parse">XML_Parse</a></code>, <code><a href=
         "#XML_ParseBuffer">XML_ParseBuffer</a></code> and <code><a href=
-        "#XML_GetBuffer">XML_GetBuffer</a></code> must not be called from within a
+        "#XML_GetBuffer">XML_GetBuffer</a></code> as well as the two cleanup functions
+        <code><a href="#XML_ParserFree">XML_ParserFree</a></code> and <code><a href=
+        "#XML_ParserReset">XML_ParserReset</a></code> must not be called from within a
         handler unless they operate on a separate parser instance, that is, one that did
         not call the handler. For example, it is OK to call the parsing functions from
         within an <code>XML_ExternalEntityRefHandler</code>, if they apply to the parser

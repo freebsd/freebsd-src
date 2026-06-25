@@ -21,6 +21,7 @@
    Copyright (c) 2023      Sony Corporation / Snild Dolkow <snild@sony.com>
    Copyright (c) 2025      Berkay Eren Ürün <berkay.ueruen@siemens.com>
    Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
+   Copyright (c) 2026      Kartik Kenchi <netliomax25@gmail.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -47,10 +48,10 @@
 #  undef NDEBUG /* because test suite relies on assert(...) at the moment */
 #endif
 
+#include "expat_config.h"
+
 #include <assert.h>
 #include <string.h>
-
-#include "expat_config.h"
 
 #include "expat.h"
 #include "internal.h"
@@ -213,7 +214,7 @@ START_TEST(test_misc_version) {
   if (! versions_equal(&read_version, &parsed_version))
     fail("Version mismatch");
 
-  if (xcstrcmp(version_text, XCS("expat_2.8.1"))
+  if (xcstrcmp(version_text, XCS("expat_2.8.2"))
       != 0) /* needs bump on releases */
     fail("XML_*_VERSION in expat.h out of sync?\n");
 }
@@ -802,6 +803,39 @@ START_TEST(test_misc_no_infinite_loop_issue_1161) {
 }
 END_TEST
 
+START_TEST(test_misc_calls_forbidden_from_handlers) {
+  const char *const doc = "<doc>Hello world!</doc>";
+
+  XML_Parser parser = XML_ParserCreate(NULL);
+  XML_UseParserAsHandlerArg(parser);
+  XML_SetCharacterDataHandler(parser, forbidden_calls_character_handler);
+
+  assert_true(XML_Parse(parser, doc, (int)strlen(doc), /*isFinal=*/XML_TRUE)
+              == XML_STATUS_OK);
+
+  XML_ParserFree(parser);
+}
+END_TEST
+
+START_TEST(test_misc_resume_parser_forbidden_from_handler) {
+  const char *const doc = "<doc>Hello world!</doc>";
+
+  XML_Parser parser = XML_ParserCreate(NULL);
+  ResumeFromHandlerData data = {parser, 0};
+  XML_SetUserData(parser, &data);
+  XML_SetCharacterDataHandler(parser, suspend_then_resume_character_handler);
+
+  // The handler suspends the parser, so the top-level parse reports suspension
+  // rather than completion.  The handler also asserts that resuming from inside
+  // itself is rejected.
+  assert_true(XML_Parse(parser, doc, (int)strlen(doc), /*isFinal=*/XML_TRUE)
+              == XML_STATUS_SUSPENDED);
+  assert_true(data.callCount == 1);
+
+  XML_ParserFree(parser);
+}
+END_TEST
+
 void
 make_miscellaneous_test_case(Suite *s) {
   TCase *tc_misc = tcase_create("miscellaneous tests");
@@ -833,4 +867,6 @@ make_miscellaneous_test_case(Suite *s) {
   tcase_add_test(tc_misc, test_misc_sync_entity_tolerated);
   tcase_add_test(tc_misc, test_misc_async_entity_rejected);
   tcase_add_test(tc_misc, test_misc_no_infinite_loop_issue_1161);
+  tcase_add_test(tc_misc, test_misc_calls_forbidden_from_handlers);
+  tcase_add_test(tc_misc, test_misc_resume_parser_forbidden_from_handler);
 }
