@@ -750,8 +750,13 @@ cd9660node_rrip_tf(struct ISO_SUSP_ATTRIBUTES *p, fsnode *_node)
 	 * expiration time, and effective time.
 	 */
 
+#if HAVE_STRUCT_STAT_BIRTHTIME
 	cd9660_time_915(p->attr.rr_entry.TF.timestamp,
 		_node->inode->st.st_birthtime);
+#else
+	cd9660_time_915(p->attr.rr_entry.TF.timestamp,
+		_node->inode->st.st_ctime);
+#endif
 	p->attr.rr_entry.TF.h.length[0] += 7;
 
 	cd9660_time_915(p->attr.rr_entry.TF.timestamp + 7,
