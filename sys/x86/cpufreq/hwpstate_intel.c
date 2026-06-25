@@ -135,6 +135,12 @@ MODULE_VERSION(hwpstate_intel, 1);
 #define HWP_ERROR_CPPC_REQUEST_PKG   (1 << 3)
 #define HWP_ERROR_CPPC_EPP_WRITE     (1 << 4)
 
+static inline bool
+hwp_has_error(u_int res, u_int err)
+{
+	return ((res & err) != 0);
+}
+
 struct dump_cppc_request_cb {
 	struct hwp_softc *sc;
 	uint64_t enabled;
@@ -195,7 +201,7 @@ intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	sb = sbuf_new(NULL, NULL, 1024, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
 	sbuf_putc(sb, '\n');
 
-	if (data.err | HWP_ERROR_CPPC_ENABLE)
+	if (hwp_has_error(data.err, HWP_ERROR_CPPC_ENABLE))
 		sbuf_printf(sb, "CPU%u: IA32_PM_ENABLE: " MSR_NOT_READ_MSG "\n",
 		    pc->pc_cpuid);
 	else
@@ -204,7 +210,7 @@ intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 
 	if (data.enabled == 0)
 		goto out;
-	if (data.err | HWP_ERROR_CPPC_CAPS) {
+	if (hwp_has_error(data.err, HWP_ERROR_CPPC_CAPS)) {
 		sbuf_printf(sb,
 		    "IA32_HWP_CAPABILITIES: " MSR_NOT_READ_MSG "\n");
 	} else {
@@ -227,9 +233,9 @@ intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 		sbuf_printf(sb, "\t%s: %03u\n", name,			\
 		    (unsigned)(data.request_pkg >> offset) & 0xff);		\
 } while (0)
-	if (data.err | HWP_ERROR_CPPC_REQUEST) {
+	if (hwp_has_error(data.err, HWP_ERROR_CPPC_REQUEST)) {
 		sbuf_printf(sb, "IA32_HWP_REQUEST: " MSR_NOT_READ_MSG "\n");
-	} else if (data.err | HWP_ERROR_CPPC_REQUEST_PKG) {
+	} else if (hwp_has_error(data.err, HWP_ERROR_CPPC_REQUEST_PKG)) {
 		sbuf_printf(sb, "IA32_HWP_REQUEST_PKG: " MSR_NOT_READ_MSG "\n");
 	} else {
 		pkg_print(IA32_HWP_REQUEST_EPP_VALID,
@@ -505,30 +511,30 @@ set_autonomous_hwp(struct hwp_softc *sc)
 		return (ENXIO);
 
 	set_autonomous_hwp_send_one(sc, &data);
-	if (data.flag | HWP_ERROR_CPPC_ENABLE) {
+	if (hwp_has_error(data.flag, HWP_ERROR_CPPC_ENABLE)) {
 		device_printf(dev, "Failed to enable HWP for cpu%d (%d)\n",
 		    pc->pc_cpuid, EFAULT);
 		goto out;
 	}
-	if (data.flag | HWP_ERROR_CPPC_REQUEST) {
+	if (hwp_has_error(data.flag, HWP_ERROR_CPPC_REQUEST)) {
 		device_printf(dev,
 		    "Failed to read HWP request MSR for cpu%d (%d)\n",
 		    pc->pc_cpuid, EFAULT);
 		goto out;
 	}
-	if (data.flag | HWP_ERROR_CPPC_CAPS) {
+	if (hwp_has_error(data.flag, HWP_ERROR_CPPC_CAPS)) {
 		device_printf(dev,
 		    "Failed to read HWP capabilities MSR for cpu%d (%d)\n",
 		    pc->pc_cpuid, EFAULT);
 		goto out;
 	}
-	if (data.flag | HWP_ERROR_CPPC_REQUEST_WRITE) {
+	if (hwp_has_error(data.flag, HWP_ERROR_CPPC_REQUEST_WRITE)) {
 		device_printf(dev,
 		    "Failed to setup%s autonomous HWP for cpu%d\n",
 		    sc->hwp_pkg_ctrl_en ? " PKG" : "", pc->pc_cpuid);
 		goto out;
 	}
-	if (data.flag | HWP_ERROR_CPPC_REQUEST_PKG)
+	if (hwp_has_error(data.flag, HWP_ERROR_CPPC_REQUEST_PKG))
 		device_printf(dev,
 		    "Failed to set autonomous HWP for package\n");
 
@@ -700,26 +706,26 @@ intel_hwpstate_resume(device_t dev)
 		return (ENXIO);
 
 	hwpstate_resume_send_one(sc, &data);
-	if (data.flag | HWP_ERROR_CPPC_ENABLE) {
+	if (hwp_has_error(data.flag, HWP_ERROR_CPPC_ENABLE)) {
 		device_printf(dev,
 		    "Failed to enable HWP for cpu%d after suspend (%d)\n",
 		    pc->pc_cpuid, EFAULT);
 		goto out;
 	}
 
-	if (data.flag | HWP_ERROR_CPPC_REQUEST_WRITE) {
+	if (hwp_has_error(data.flag, HWP_ERROR_CPPC_REQUEST_WRITE)) {
 		device_printf(dev,
 		    "Failed to set%s autonomous HWP for cpu%d after suspend\n",
 		    sc->hwp_pkg_ctrl_en ? " PKG" : "", pc->pc_cpuid);
 		goto out;
 	}
-	if (data.flag | HWP_ERROR_CPPC_REQUEST_PKG) {
+	if (hwp_has_error(data.flag, HWP_ERROR_CPPC_REQUEST_PKG)) {
 		device_printf(dev,
 		    "Failed to set autonomous HWP for package after "
 		    "suspend\n");
 		goto out;
 	}
-	if (data.flag | HWP_ERROR_CPPC_EPP_WRITE) {
+	if (hwp_has_error(data.flag, HWP_ERROR_CPPC_EPP_WRITE)) {
 		device_printf(dev,
 		    "Failed to set energy perf bias for cpu%d after "
 		    "suspend\n",
