@@ -2764,7 +2764,7 @@ ptrace_syscallreq(struct thread *td, struct proc *p,
 	td->td_errno = nerror;
 
 	if (audited)
-		AUDIT_SYSCALL_EXIT(error, td);
+		AUDIT_SYSCALL_EXIT(tsr->ts_ret.sr_error, td);
 	if (!sy_thr_static)
 		syscall_thread_exit(td, se);
 }
