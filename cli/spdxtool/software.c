@@ -137,6 +137,10 @@ spdxtool_software_sbom_to_object(pkgconf_client_t *client, spdxtool_software_sbo
 		pkgconf_pkg_t *match = dep->match;
 		pkgconf_buffer_t relationship_buf = PKGCONF_BUFFER_INITIALIZER;
 
+		/* an unresolved (but tolerated) dependency has no match */
+		if (match == NULL)
+			continue;
+
 		pkgconf_buffer_append_fmt(&relationship_buf, "%s%cdependsOn%c%s", sbom->rootElement->id, sep, sep, match->id);
 		char *relationship_str = pkgconf_buffer_freeze(&relationship_buf);
 		if (!relationship_str)
@@ -167,6 +171,10 @@ spdxtool_software_sbom_to_object(pkgconf_client_t *client, spdxtool_software_sbo
 		pkgconf_dependency_t *dep = node->data;
 		pkgconf_pkg_t *match = dep->match;
 		pkgconf_buffer_t relationship_buf = PKGCONF_BUFFER_INITIALIZER;
+
+		/* an unresolved (but tolerated) dependency has no match */
+		if (match == NULL)
+			continue;
 
 		pkgconf_buffer_append_fmt(&relationship_buf, "%s%cdependsOn%c%s", sbom->rootElement->id, sep, sep, match->id);
 		char *relationship_str = pkgconf_buffer_freeze(&relationship_buf);
@@ -236,17 +244,24 @@ spdxtool_software_sbom_to_object(pkgconf_client_t *client, spdxtool_software_sbo
 		goto err;
 	}
 
-	if (!spdxtool_serialize_object_add_array(object_list, "software_sbomType", sbom_type_array))
-		goto err;
+	/* object_add_array always takes ownership of the array (it is freed even on
+	 * failure), so clear our reference before checking the result to avoid a
+	 * double free at the error label.
+	 */
+	bool ok = spdxtool_serialize_object_add_array(object_list, "software_sbomType", sbom_type_array);
 	sbom_type_array = NULL;
-
-	if (!spdxtool_serialize_object_add_array(object_list, "rootElement", root_element_array))
+	if (!ok)
 		goto err;
+
+	ok = spdxtool_serialize_object_add_array(object_list, "rootElement", root_element_array);
 	root_element_array = NULL;
-
-	if (!spdxtool_serialize_object_add_array(object_list, "element", element_array))
+	if (!ok)
 		goto err;
+
+	ok = spdxtool_serialize_object_add_array(object_list, "element", element_array);
 	element_array = NULL;
+	if (!ok)
+		goto err;
 
 	if (!spdxtool_core_spdx_document_add_package(client, sbom->spdx_document, sbom->rootElement))
 		goto err;
@@ -343,9 +358,14 @@ spdxtool_software_package_to_object(pkgconf_client_t *client, pkgconf_pkg_t *pkg
 		goto err;
 	}
 
-	if (!spdxtool_serialize_object_add_array(object_list, "originatedBy", originated_by))
-		goto err;
+	/* object_add_array always takes ownership of the array (it is freed even on
+	 * failure), so clear our reference before checking the result to avoid a
+	 * double free at the error label.
+	 */
+	bool ok = spdxtool_serialize_object_add_array(object_list, "originatedBy", originated_by);
 	originated_by = NULL;
+	if (!ok)
+		goto err;
 
 	supplier = spdxtool_util_tuple_lookup(client, &pkg->vars, "suppliedBy");
 	if (supplier)
@@ -357,9 +377,10 @@ spdxtool_software_package_to_object(pkgconf_client_t *client, pkgconf_pkg_t *pkg
 		if (!spdxtool_serialize_array_add_string(supplied_by, supplier))
 			goto err;
 
-		if (!spdxtool_serialize_object_add_array(object_list, "suppliedBy", supplied_by))
-			goto err;
+		ok = spdxtool_serialize_object_add_array(object_list, "suppliedBy", supplied_by);
 		supplied_by = NULL;
+		if (!ok)
+			goto err;
 	}
 
 	if (!serialize_copyright_lines_to_object(object_list, &pkg->copyright))
@@ -442,6 +463,10 @@ spdxtool_software_package_to_object(pkgconf_client_t *client, pkgconf_pkg_t *pkg
 		pkgconf_pkg_t *match = dep->match;
 		pkgconf_buffer_t relationship_buf = PKGCONF_BUFFER_INITIALIZER;
 
+		/* an unresolved (but tolerated) dependency has no match */
+		if (match == NULL)
+			continue;
+
 		pkgconf_buffer_append_fmt(&relationship_buf, "%s%cdependsOn%c%s", pkg->id, sep, sep, match->id);
 		char *relationship_str = pkgconf_buffer_freeze(&relationship_buf);
 		if (!relationship_str)
@@ -483,6 +508,10 @@ spdxtool_software_package_to_object(pkgconf_client_t *client, pkgconf_pkg_t *pkg
 		pkgconf_dependency_t *dep = node->data;
 		pkgconf_pkg_t *match = dep->match;
 		pkgconf_buffer_t relationship_buf = PKGCONF_BUFFER_INITIALIZER;
+
+		/* an unresolved (but tolerated) dependency has no match */
+		if (match == NULL)
+			continue;
 
 		pkgconf_buffer_append_fmt(&relationship_buf, "%s%cdependsOn%c%s", pkg->id, sep, sep, match->id);
 		char *relationship_str = pkgconf_buffer_freeze(&relationship_buf);

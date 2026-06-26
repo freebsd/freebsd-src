@@ -450,37 +450,25 @@ main(int argc, char *argv[])
 	if ((want_flags & PKG_HELP) == PKG_HELP)
 		return usage();
 
-	while (1)
+	/* Join the remaining arguments into a single query string, as the main
+	 * pkgconf CLI does, and let the dependency parser handle module names,
+	 * comparison operators and versions.
+	 */
+	pkgconf_buffer_t queryparams = PKGCONF_BUFFER_INITIALIZER;
+
+	while (pkg_optind < argc && argv[pkg_optind] != NULL)
 	{
-		const char *package = argv[pkg_optind];
+		if (pkgconf_buffer_len(&queryparams) > 0)
+			pkgconf_buffer_push_byte(&queryparams, ' ');
 
-		if (package == NULL)
-			break;
-
-		while (isspace((unsigned char)package[0]))
-			package++;
-
-		/* skip empty packages */
-		if (package[0] == '\0') {
-			pkg_optind++;
-			continue;
-		}
-
-		if (argv[pkg_optind + 1] == NULL || !PKGCONF_IS_OPERATOR_CHAR(*(argv[pkg_optind + 1])))
-		{
-			pkgconf_queue_push(&pkgq, package);
-			pkg_optind++;
-		}
-		else
-		{
-			char packagebuf[PKGCONF_BUFSIZE];
-
-			snprintf(packagebuf, sizeof packagebuf, "%s %s %s", package, argv[pkg_optind + 1], argv[pkg_optind + 2]);
-			pkg_optind += 3;
-
-			pkgconf_queue_push(&pkgq, packagebuf);
-		}
+		pkgconf_buffer_append(&queryparams, argv[pkg_optind]);
+		pkg_optind++;
 	}
+
+	if (pkgconf_buffer_len(&queryparams) > 0)
+		pkgconf_queue_push(&pkgq, pkgconf_buffer_str(&queryparams));
+
+	pkgconf_buffer_finalize(&queryparams);
 
 	if (pkgq.head == NULL)
 	{

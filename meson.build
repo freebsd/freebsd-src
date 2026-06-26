@@ -1,5 +1,5 @@
 project('pkgconf', 'c',
-  version : '2.9.92',
+  version : '2.9.93',
   license : 'ISC',
   default_options : [
     'c_std=c99',
@@ -95,15 +95,28 @@ foreach macro, value : feature_macros
 endforeach
 feature_defines = '\n'.join(feature_define_lines)
 
+have_reallocarray = false
 foreach f : check_functions
   name = f[0].to_upper().underscorify()
   if cc.has_function(f[0], prefix : feature_defines + '\n#include <@0@>'.format(f[1])) and cc.has_header_symbol(f[1], f[0], prefix : feature_defines)
     cdata.set('HAVE_@0@'.format(name), 1)
     cdata.set('HAVE_DECL_@0@'.format(name), 1)
+    if f[0] == 'reallocarray'
+      have_reallocarray = true
+    endif
   else
     cdata.set('HAVE_DECL_@0@'.format(name), 0)
   endif
 endforeach
+
+# The fuzzers link fuzzer/alloc-inject, which wraps reallocarray() and so
+# references __real_reallocarray; --wrap can only bind that to a reallocarray the
+# libc actually provides.  On platforms too old to have it (e.g. glibc < 2.26)
+# the link would fail, so disable fuzzing there (mirrors the OOM-test gate below).
+if fuzzing and not have_reallocarray
+  warning('fuzzing requested, but the C library lacks reallocarray() (e.g. glibc < 2.26); disabling')
+  fuzzing = false
+endif
 
 # nl_langinfo_l() needs locale.h for locale_t in addition to langinfo.h (on
 # macOS it also needs xlocale.h), so it can't share the single-header
@@ -257,6 +270,7 @@ spdxtool_exe = executable('spdxtool',
   'cli/spdxtool/serialize.c',
   'cli/spdxtool/simplelicensing.c',
   'cli/spdxtool/util.c',
+  'cli/spdxtool/generate.c',
   'cli/getopt_long.c',
   windows_manifest,
   link_with : libpkgconf,
@@ -323,8 +337,13 @@ test('api-serialize', test_api_serialize_exe)
 # fault injector through the linker's --wrap, so they are built wherever --wrap
 # is supported: glibc and musl Linux (GNU ld / lld), and skipped on macOS ld64
 # and MSVC.
+#
+# alloc-inject wraps reallocarray() and so references __real_reallocarray; --wrap
+# can only bind that to a reallocarray the libc actually provides.  On platforms
+# too old to have it (e.g. glibc < 2.26) the link would fail, so skip there.
 build_oom_tests = host_machine.system() == 'linux' \
-  and cc.has_link_argument('-Wl,--wrap=calloc')
+  and cc.has_link_argument('-Wl,--wrap=calloc') \
+  and have_reallocarray
 
 # Allocator set wrapped by fuzzer/alloc-inject.c.
 oom_wrap_args = [

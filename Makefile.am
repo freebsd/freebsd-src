@@ -613,6 +613,7 @@ noinst_HEADERS   = \
 	cli/getopt_long.h					\
 	cli/renderer-msvc.h					\
 	cli/spdxtool/core.h					\
+	cli/spdxtool/generate.h				\
 	cli/spdxtool/serialize.h			\
 	cli/spdxtool/simplelicensing.h		\
 	cli/spdxtool/software.h				\
@@ -632,6 +633,7 @@ spdxtool_SOURCES  = \
 	cli/spdxtool/serialize.c	\
 	cli/spdxtool/simplelicensing.c	\
 	cli/spdxtool/util.c		\
+	cli/spdxtool/generate.c		\
 	cli/getopt_long.c
 spdxtool_CPPFLAGS = -I$(top_srcdir)/libpkgconf -I$(top_srcdir)/cli -I$(top_srcdir)/cli/spdxtool
 

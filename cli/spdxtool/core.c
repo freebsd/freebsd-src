@@ -419,15 +419,24 @@ spdxtool_core_spdx_document_to_object(pkgconf_client_t *client, spdxtool_core_sp
 
 	if (!(spdxtool_serialize_object_add_string(object_list, "type", spdx->type) &&
 		spdxtool_serialize_object_add_string(object_list, "creationInfo", spdx->creation_info) &&
-		spdxtool_serialize_object_add_string(object_list, "spdxId", spdx->spdx_id) &&
-		spdxtool_serialize_object_add_array(object_list, "rootElement", root_element_array) &&
-		spdxtool_serialize_object_add_array(object_list, "element", element_array)))
+		spdxtool_serialize_object_add_string(object_list, "spdxId", spdx->spdx_id)))
 	{
 		goto err;
 	}
 
+	/* object_add_array always takes ownership of the array (it is freed even on
+	 * failure), so clear our reference before checking the result to avoid a
+	 * double free at the error label.
+	 */
+	bool ok = spdxtool_serialize_object_add_array(object_list, "rootElement", root_element_array);
 	root_element_array = NULL;
+	if (!ok)
+		goto err;
+
+	ok = spdxtool_serialize_object_add_array(object_list, "element", element_array);
 	element_array = NULL;
+	if (!ok)
+		goto err;
 
 	ret = spdxtool_serialize_value_object(object_list);
 	object_list = NULL;
@@ -813,12 +822,19 @@ spdxtool_core_relationship_to_object(pkgconf_client_t *client, const spdxtool_co
 	if (!(spdxtool_serialize_object_add_string(object_list, "type", relationship->type) &&
 		spdxtool_serialize_object_add_string(object_list, "creationInfo", relationship->creation_info) &&
 		spdxtool_serialize_object_add_string(object_list, "spdxId", relationship->spdx_id) &&
-		spdxtool_serialize_object_add_string(object_list, "from", relationship->from) &&
-		spdxtool_serialize_object_add_array(object_list, "to", to) &&
-		spdxtool_serialize_object_add_string(object_list, "relationshipType", relationship->relationship_type)))
+		spdxtool_serialize_object_add_string(object_list, "from", relationship->from)))
 	{
+		/* none of the above transfers ownership of `to` */
+		spdxtool_serialize_array_free(to);
 		goto err;
 	}
+
+	/* object_add_array always takes ownership of `to` (it is freed even on failure) */
+	if (!spdxtool_serialize_object_add_array(object_list, "to", to))
+		goto err;
+
+	if (!spdxtool_serialize_object_add_string(object_list, "relationshipType", relationship->relationship_type))
+		goto err;
 
 	if (relationship->scope != NULL &&
 		!spdxtool_serialize_object_add_string(object_list, "scope", relationship->scope))

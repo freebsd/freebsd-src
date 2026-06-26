@@ -47,8 +47,8 @@ serialize_escape_string(pkgconf_buffer_t *buffer, const char *s)
 			pkgconf_buffer_append(buffer, "\\t");
 			break;
 		default:
-			if (*p < 0x20)
-				pkgconf_buffer_append_fmt(buffer, "\\u%04x", (unsigned int)*p);
+			if ((unsigned char) *p < 0x20)
+				pkgconf_buffer_append_fmt(buffer, "\\u%04x", (unsigned int)(unsigned char) *p);
 			else
 				pkgconf_buffer_push_byte(buffer, *p);
 		}

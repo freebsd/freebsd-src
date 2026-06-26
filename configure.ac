@@ -12,7 +12,7 @@ dnl implied.  In no event shall the authors be liable for any damages arising
 dnl from the use of this software.
 
 AC_PREREQ([2.71])
-AC_INIT([pkgconf],[2.9.92],[https://github.com/pkgconf/pkgconf/issues/new])
+AC_INIT([pkgconf],[2.9.93],[https://github.com/pkgconf/pkgconf/issues/new])
 AC_MSG_WARN([
 ===================================================================
 Autotools support is deprecated and will be removed in pkgconf 3.1.

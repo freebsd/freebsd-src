@@ -60,7 +60,7 @@ all: pkgconf-lite
 libpkgconf/config.h:
 	@echo '#define PACKAGE_NAME "pkgconf-lite"' >> $@
 	@echo '#define PACKAGE_BUGREPORT "https://git.dereferenced.org/pkgconf/pkgconf/issues"' >> $@
-	@echo '#define PACKAGE_VERSION "2.9.92"' >> $@
+	@echo '#define PACKAGE_VERSION "2.9.93"' >> $@
 	@echo '#define PACKAGE PACKAGE_NAME " " PACKAGE_VERSION' >> $@
 
 pkgconf-lite: preflight libpkgconf/config.h ${PKGCONF_OBJS}
