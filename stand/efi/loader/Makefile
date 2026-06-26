@@ -22,9 +22,11 @@ SRCS=	autoload.c \
 	bootinfo.c \
 	conf.c \
 	copy.c \
+	decompress.c \
 	efi_main.c \
 	framebuffer.c \
 	main.c \
+	memdisk.c \
 	self_reloc.c \
 	vers.c \
 	gfx_fb.c \
@@ -50,6 +52,7 @@ CFLAGS.framebuffer.c += -I$(SRCTOP)/sys/teken
 CFLAGS.framebuffer.c += -I${SRCTOP}/contrib/pnglite
 CFLAGS.main.c += -I$(SRCTOP)/sys/teken
 CFLAGS.main.c += -I${SRCTOP}/contrib/pnglite
+CFLAGS.memdisk.c += -I${.OBJDIR}
 CFLAGS.gfx_fb.c += -I$(SRCTOP)/sys/teken
 CFLAGS.gfx_fb.c += -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
 CFLAGS.gfx_fb.c += -I${SRCTOP}/contrib/pnglite
@@ -61,6 +64,7 @@ CFLAGS.gfx_fb.c += ${ZLIB_CFLAGS}
 # of a short. There's no good cast to use here so just ignore the
 # warnings for now.
 CWARNFLAGS.main.c+=	-Wno-format
+CWARNFLAGS.memdisk.c+=	-Wno-format
 
 .PATH: ${.CURDIR}/../loader
 .PATH: ${.CURDIR}/../loader/arch/${__arch}

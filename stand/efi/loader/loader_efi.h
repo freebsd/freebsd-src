@@ -59,6 +59,8 @@ void * efi_translate(vm_offset_t ptr);
 void	efi_copy_finish(void);
 void	efi_copy_finish_nop(void);
 
+void maybe_download_ramdisk(int argc, CHAR16 **argv);
+
 #if defined(__amd64__) || defined(__i386__)
 /* Need this to setup page tables */
 extern EFI_PHYSICAL_ADDRESS staging;

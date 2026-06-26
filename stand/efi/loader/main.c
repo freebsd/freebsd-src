@@ -1320,6 +1320,14 @@ main(int argc, CHAR16 *argv[])
 	bcache_init(32768, 512);
 
 	/*
+	 * Scan the command line args for memdisk=<url> and download that image
+	 * to install as a ramdisk. This needs to be done before we scan the
+	 * handles because it installs a handle and creates the right ACPI
+	 * tables for the kernel to find it.
+	 */
+	maybe_download_ramdisk(argc, argv);
+
+	/*
 	 * Scan the BLOCK IO MEDIA handles then
 	 * march through the device switch probing for things.
 	 */
@@ -1328,6 +1336,11 @@ main(int argc, CHAR16 *argv[])
 		printf("efipart_inithandles failed with ERRNO %d, expect "
 		    "failures\n", i);
 	}
+
+	/*
+	 * Scan all the VirtualDisks, passing them along to the FreeBSD kernel.
+	 */
+	efiblk_memdisk_preload();
 
 	devinit();
 
