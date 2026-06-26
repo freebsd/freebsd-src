@@ -1163,15 +1163,15 @@ iichid_attach(device_t dev)
 	}
 
 	if (sc->irq_res == NULL || error != 0) {
+		device_printf(sc->dev, "Interrupt setup failed\n");
+		if (sc->irq_res != NULL)
+			bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid,
+			    sc->irq_res);
 #ifdef IICHID_SAMPLING
 		device_printf(sc->dev,
 		    "Using sampling mode\n");
 		sc->sampling_rate_slow = IICHID_SAMPLING_RATE_SLOW;
 #else
-		device_printf(sc->dev, "Interrupt setup failed\n");
-		if (sc->irq_res != NULL)
-			bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid,
-			    sc->irq_res);
 		iichid_detach(dev);
 		error = ENXIO;
 		goto done;
