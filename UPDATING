@@ -12,6 +12,45 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260630:
+	14.3-RELEASE-p16 EN-26:16.arm64
+			SA-26:37.vm
+			SA-26:39.execve
+			SA-26:40.zfs
+			SA-26:41.libalias
+			SA-26:42.unlinkat
+			SA-26:43.tcp
+			SA-26:44.posixshm
+			SA-26:45.audit
+			SA-26:46.ktls
+			SA-26:47.linux
+			SA-26:48.compat32
+			SA-26:49.iconv
+
+	32-bit setcontext(2) and swapcontext(2) fail on arm64. [EN-26:16.arm64]
+
+	Use-after-free in device pager page list. [SA-26:37.vm]
+
+	Local privilege escalation via execve(2) TOCTOU race. [SA-26:39.execve]
+
+	Multiple vulnerabilities in OpenZFS. [SA-26:40.zfs]
+
+	Buffer overflow in libalias RTSP handler. [SA-26:41.libalias]
+
+	unlinkat(2) ignores AT_RESOLVE_BENEATH flag. [SA-26:42.unlinkat]
+
+	Use-after-free in TCP RACK stack option handler. [SA-26:43.tcp]
+
+	Incorrect audit records for ptrace(2) syscall requests. [SA-26:45.audit]
+
+	Remote DOS via uninitialized memory access in KTLS receive. [SA-26:46.ktls]
+
+	Kernel stack disclosure in Linux compatibility layer. [SA-26:47.linux]
+
+	Kernel stack disclosure in 32-bit compatibility support. [SA-26:48.compat32]
+
+	Multiple vulnerabilities in iconv(3). [SA-26:49.iconv]
+
 20260609:
 	14.3-RELEASE-p15 EN-26:15.openssl
 			SA-26:25.thr
