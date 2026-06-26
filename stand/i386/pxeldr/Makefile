@@ -33,7 +33,7 @@ LOADERBIN= ${BOOTOBJ}/i386/loader_${L}/loader_${L}.bin
 # may have a bit more, the limit of 500,000 (488k) provides enough margin to
 # work in a huge array of environments. Larger values may work for specific
 # environments.
-PXEBOOTSIZE?=500000
+PXEBOOTSIZE?=530000
 
 CLEANFILES+= ${BOOT}.tmp
 
