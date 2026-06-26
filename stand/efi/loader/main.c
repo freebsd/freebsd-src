@@ -681,38 +681,20 @@ find_currdev(bool do_bootmgr, char *boot_info, size_t boot_info_sz)
 
 #ifdef EFI_ZFS_BOOT
 	/*
-	 * Sixth Choice: Probe the boot disk for ZFS and then probe the non-boot
-	 * disk if we have a relaxed boot poluicy.
+	 * Sixth Choice: With a relaxed policy, try ZFS pools on non-boot
+	 * devices after the boot device has been fully exhausted.
 	 */
-	{
+	if (boot_policy == RELAXED) {
 		zfsinfo_list_t *zfsinfo = efizfs_get_zfsinfo_list();
 		zfsinfo_t *zi;
 
-		/*
-		 * Try ZFS pool(s) on the boot device not reachable via
-		 * the partition walk above.
-		 */
 		STAILQ_FOREACH(zi, zfsinfo, zi_link) {
-			if (zi->zi_handle != boot_img->DeviceHandle)
+			if (zi->zi_handle == boot_img->DeviceHandle)
 				continue;
-			printf("Trying ZFS pool 0x%jx\n", zi->zi_pool_guid);
+			printf("Trying ZFS pool 0x%jx\n",
+			    zi->zi_pool_guid);
 			if (probe_zfs_currdev(zi->zi_pool_guid))
 				return (0);
-		}
-
-		/*
-		 * With a relaxed policy, try pools on other devices only
-		 * after the boot device has no bootable root.
-		 */
-		if (boot_policy == RELAXED) {
-			STAILQ_FOREACH(zi, zfsinfo, zi_link) {
-				if (zi->zi_handle == boot_img->DeviceHandle)
-					continue;
-				printf("Trying ZFS pool 0x%jx\n",
-				    zi->zi_pool_guid);
-				if (probe_zfs_currdev(zi->zi_pool_guid))
-					return (0);
-			}
 		}
 	}
 #endif /* EFI_ZFS_BOOT */
