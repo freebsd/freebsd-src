@@ -340,9 +340,20 @@ probe_md_currdev(void)
 }
 #endif
 
+/*
+ * Try the passed in partition or entire disk to see if we can find a bootable
+ * partition or zpool.
+ */
 static bool
-try_as_currdev(pdinfo_t *hd, pdinfo_t *pp)
+try_as_currdev(pdinfo_t *pp, bool verbose)
 {
+	if (verbose) {
+		CHAR16 *text = efi_devpath_name(pp->pd_devpath);
+		if (text != NULL) {
+			printf("Trying: %S\n", text);
+			efi_free_devpath_name(text);
+		}
+	}
 #ifdef EFI_ZFS_BOOT
 	uint64_t guid;
 
