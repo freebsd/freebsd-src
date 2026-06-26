@@ -157,18 +157,26 @@ static void
 get_cppc_regs_cb(void *args)
 {
 	struct get_cppc_regs_data *const data = args;
+	int error;
 
 	data->res = 0;
 
-	if (rdmsr_safe(MSR_IA32_PM_ENABLE, &data->enabled))
+	error = rdmsr_safe(MSR_IA32_PM_ENABLE, &data->enabled);
+	if (error != 0)
 		data->res |= HWP_ERROR_CPPC_ENABLE;
-	if (rdmsr_safe(MSR_IA32_HWP_CAPABILITIES, &data->caps))
+
+	error = rdmsr_safe(MSR_IA32_HWP_CAPABILITIES, &data->caps);
+	if (error != 0)
 		data->res |= HWP_ERROR_CPPC_CAPS;
-	if (rdmsr_safe(MSR_IA32_HWP_REQUEST, &data->request))
+
+	error = rdmsr_safe(MSR_IA32_HWP_REQUEST, &data->request);
+	if (error != 0)
 		data->res |= HWP_ERROR_CPPC_REQUEST;
 
 	if (data->sc->hwp_pkg_ctrl) {
-		if (rdmsr_safe(MSR_IA32_HWP_REQUEST_PKG, &data->request_pkg))
+		error = rdmsr_safe(MSR_IA32_HWP_REQUEST_PKG,
+		    &data->request_pkg);
+		if (error != 0)
 			data->res |= HWP_ERROR_CPPC_REQUEST_PKG;
 	}
 }
