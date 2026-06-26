@@ -376,6 +376,29 @@ try_as_currdev(pdinfo_t *pp, bool verbose)
 }
 
 /*
+ * Given a disk, try each of its partitions as the boot device.
+ */
+static int
+try_disk_and_partitions(pdinfo_t *disk, EFI_HANDLE skip_handle)
+{
+	pdinfo_t *pp;
+
+	if (disk == NULL)
+		return (ENOENT);
+
+	if (try_as_currdev(disk, true))
+		return (0);
+
+	STAILQ_FOREACH(pp, &disk->pd_part, pd_link) {
+		if (pp->pd_handle == skip_handle)
+			continue;
+		if (try_as_currdev(pp, true))
+			return (0);
+	}
+	return (ENOENT);
+}
+
+/*
  * Search the boot device first (i.e. the ESP and any sibling partitions).
  * Per the UEFI specification, filesystems on other devices must not be
  * preferred until the boot device has been fully exhausted.
@@ -383,7 +406,7 @@ try_as_currdev(pdinfo_t *pp, bool verbose)
 static int
 try_boot_device_partitions(void)
 {
-	pdinfo_t *dp, *pp, *espdp;
+	pdinfo_t *dp;
 	CHAR16 *text;
 
 	dp = efiblk_get_pdinfo_by_handle(boot_img->DeviceHandle);
@@ -392,30 +415,11 @@ try_boot_device_partitions(void)
 
 	text = efi_devpath_name(dp->pd_devpath);
 	if (text != NULL) {
-		printf("Trying ESP: %S\n", text);
+		printf("Trying ESP device: %S\n", text);
 		efi_free_devpath_name(text);
 	}
-	set_currdev_pdinfo(dp);
-	if (sanity_check_currdev())
-		return (0);
 
-	if (dp->pd_parent == NULL)
-		return (ENOENT);
-
-	espdp = dp;
-	dp = dp->pd_parent;
-	STAILQ_FOREACH(pp, &dp->pd_part, pd_link) {
-		if (espdp == pp)
-			continue;
-		text = efi_devpath_name(pp->pd_devpath);
-		if (text != NULL) {
-			printf("Trying: %S\n", text);
-			efi_free_devpath_name(text);
-		}
-		if (try_as_currdev(dp, pp))
-			return (0);
-	}
-	return (ENOENT);
+	return (try_disk_and_partitions(dp->pd_parent, dp->pd_handle));
 }
 
 /*
