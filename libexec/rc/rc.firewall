@@ -131,14 +131,11 @@ ipv6_available=$?
 ############
 # Set quiet mode if requested
 #
-case ${firewall_quiet} in
-[Yy][Ee][Ss])
+if checkyesno firewall_quiet; then
 	fwcmd="/sbin/ipfw -q"
-	;;
-*)
+else
 	fwcmd="/sbin/ipfw"
-	;;
-esac
+fi
 
 ############
 # Flush out the list before we begin.
@@ -159,27 +156,19 @@ setup_ipv6_mandatory
 #
 case ${firewall_type} in
 [Oo][Pp][Ee][Nn]|[Cc][Ll][Ii][Ee][Nn][Tt])
-	case ${natd_enable} in
-	[Yy][Ee][Ss])
-		if [ -n "${natd_interface}" ]; then
-			${fwcmd} add 50 divert natd ip4 from any to any via ${natd_interface}
-		fi
-		;;
-	esac
-	case ${firewall_nat_enable} in
-	[Yy][Ee][Ss])
-		if [ -n "${firewall_nat_interface}" ]; then
-			if echo "${firewall_nat_interface}" | \
+	if [ -n "${natd_interface}" ] && checkyesno natd_enable; then
+		${fwcmd} add 50 divert natd ip4 from any to any via ${natd_interface}
+	fi
+	if [ -n "${firewall_nat_interface}" ] && checkyesno firewall_nat_enable ; then
+		if echo "${firewall_nat_interface}" | \
 				grep -q -E '^[0-9]+(\.[0-9]+){0,3}$'; then
-				firewall_nat_flags="ip ${firewall_nat_interface} ${firewall_nat_flags}"
-			else
-				firewall_nat_flags="if ${firewall_nat_interface} ${firewall_nat_flags}"
-			fi
-			${fwcmd} nat 123 config log ${firewall_nat_flags}
-			${fwcmd} add 50 nat 123 ip4 from any to any via ${firewall_nat_interface}
+			firewall_nat_flags="ip ${firewall_nat_interface} ${firewall_nat_flags}"
+		else
+			firewall_nat_flags="if ${firewall_nat_interface} ${firewall_nat_flags}"
 		fi
-		;;
-	esac
+		${fwcmd} nat 123 config log ${firewall_nat_flags}
+		${fwcmd} add 50 nat 123 ip4 from any to any via ${firewall_nat_interface}
+	fi
 esac
 
 ############
@@ -320,13 +309,9 @@ case ${firewall_type} in
 	# translated by natd(8) would match the `deny' rule above.  Similarly
 	# an outgoing packet originated from it before being translated would
 	# match the `deny' rule below.
-	case ${natd_enable} in
-	[Yy][Ee][Ss])
-		if [ -n "${natd_interface}" ]; then
-			${fwcmd} add divert natd ip4 from any to any via ${natd_interface}
-		fi
-		;;
-	esac
+	if [ -n "${natd_interface}" ] && checkyesno natd_enable; then
+		${fwcmd} add divert natd ip4 from any to any via ${natd_interface}
+	fi
 
 	${fwcmd} add deny all from "table($BAD_ADDR_TBL)" to any via ${oif}
 	if [ -n "$inet6" ]; then
@@ -533,8 +518,8 @@ case ${firewall_type} in
 
 	# Deny and (if wanted) log the rest unconditionally.
 	log=""
-	if [ ${firewall_logdeny:-x} = "YES" -o ${firewall_logdeny:-x} = "yes" ] ; then
-	  log="log logamount 500"	# The default of 100 is too low.
+	if checkyesno firewall_logdeny; then
+	  log="log logamount 500"
 	  sysctl net.inet.ip.fw.verbose=1 >/dev/null
 	fi
 	${fwcmd} add deny $log ip from any to any
