@@ -584,7 +584,6 @@ ng_attach_cntl(struct socket *so)
 
 	/* Link the node and the private data. */
 	NG_NODE_SET_PRIVATE(priv->node, priv);
-	NG_NODE_REF(priv->node);
 	priv->refs++;
 
 	return (0);
@@ -685,7 +684,6 @@ ng_socket_free_priv(struct ngsock *priv)
 
 		priv->node = NULL;
 		mtx_unlock(&priv->mtx);
-		NG_NODE_UNREF(node);
 		ng_rmnode_self(node);
 	} else
 		mtx_unlock(&priv->mtx);
