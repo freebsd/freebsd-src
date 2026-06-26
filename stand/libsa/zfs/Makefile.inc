@@ -42,7 +42,7 @@ ZFS_EARLY=	-I${SAZFSSRC}/spl				\
 # has a bunch of defines that are present in OpenSolaris / Illumos, but missing
 # from FreeBSD.
 #
-.for i in ${ZFS_SRC} ${ZSTD_SRC}
+.for i in ${ZFS_SRC}
 CFLAGS.$i+=	-include ${ZFSTOP}/include/sys/simd_config.h \
 	-include ${ZFSOSINC}/spl/sys/ccompile.h \
 	-Wformat -Wall -I${ZFSTOP}/include \
