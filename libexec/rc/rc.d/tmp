@@ -42,10 +42,15 @@ tmp_svcj="NO"
 
 mount_tmpmfs()
 {
-	while read line; do
-		case $line in
-		/dev/md[0-9]*\ /tmp)
-			return;;
+	while read _dev _ _ _ _ _mp; do
+		case ${_mp} in
+		/tmp)
+			case ${_dev} in
+			tmpfs|/dev/md[0-9]*)
+				return 0
+				;;
+			esac
+			;;
 		esac
 	done <<*EOF
 $(df /tmp)
