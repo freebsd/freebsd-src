@@ -1014,13 +1014,15 @@ static const struct hwpstate_cpufreq_methods cppc_methods = {
 	.get = hwpstate_get_cppc,
 	.set = hwpstate_set_cppc,
 	.settings = hwpstate_settings_cppc,
-	.type = hwpstate_type_cppc };
+	.type = hwpstate_type_cppc
+};
 
 static const struct hwpstate_cpufreq_methods pstate_methods = {
 	.get = hwpstate_get_pstate,
 	.set = hwpstate_set_pstate,
 	.settings = hwpstate_settings_pstate,
-	.type = hwpstate_type_pstate };
+	.type = hwpstate_type_pstate
+};
 
 static int
 hwpstate_probe(device_t dev)
