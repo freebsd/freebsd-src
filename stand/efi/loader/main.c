@@ -668,7 +668,7 @@ find_currdev(bool do_bootmgr, char *boot_info, size_t boot_info_sz)
 	/*
 	 * Forth choice: If there is an embedded MD, try to use that.
 	 */
-	printf("Trying MD\n");
+	printf("Trying configured MD\n");
 	if (probe_md_currdev())
 		return (0);
 #endif /* MD_IMAGE_SIZE */
