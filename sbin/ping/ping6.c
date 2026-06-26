@@ -1242,8 +1242,10 @@ ping6(int argc, char *argv[])
 			clock_gettime(CLOCK_MONOTONIC, &last);
 			if (ntransmitted - nreceived - 1 > nmissedmax) {
 				nmissedmax = ntransmitted - nreceived - 1;
-				if (options & F_MISSED)
-					(void)write(STDOUT_FILENO, &BBELL, 1);
+				if (options & F_MISSED) {
+					(void)putc(BBELL, stdout);
+					(void)fflush(stdout);
+				}
 			}
 		}
 	}
@@ -1419,8 +1421,10 @@ pinger(void)
 		(void)printf("ping: wrote %s %d chars, ret=%d\n",
 		    hostname, cc, i);
 	}
-	if (!(options & F_QUIET) && options & F_DOT)
-		(void)write(STDOUT_FILENO, &DOT[DOTidx++ % DOTlen], 1);
+	if (!(options & F_QUIET) && options & F_DOT) {
+		(void)putc(DOT[DOTidx++ % DOTlen], stdout);
+		(void)fflush(stdout);
+	}
 
 	return(0);
 }
@@ -1617,11 +1621,14 @@ pr_pack(u_char *buf, int cc, struct msghdr *mhdr)
 			return;
 		}
 
-		if (options & F_DOT)
-			(void)write(STDOUT_FILENO, &BSPACE, 1);
-		else {
-			if (options & F_AUDIBLE)
-				(void)write(STDOUT_FILENO, &BBELL, 1);
+		if (options & F_DOT) {
+			(void)putc(BSPACE, stdout);
+			(void)fflush(stdout);
+		} else {
+			if (options & F_AUDIBLE) {
+				(void)putc(BBELL, stdout);
+				(void)fflush(stdout);
+			}
 			(void)printf("%d bytes from %s, icmp_seq=%u", cc,
 			    pr_addr(from, fromlen), seq);
 			(void)printf(" hlim=%d", hoplim);
@@ -1810,7 +1817,7 @@ pr_pack(u_char *buf, int cc, struct msghdr *mhdr)
 	}
 
 	if (!(options & F_DOT)) {
-		(void)putchar('\n');
+		(void)putc('\n', stdout);
 		if (options & F_VERBOSE)
 			pr_exthdrs(mhdr);
 		(void)fflush(stdout);
