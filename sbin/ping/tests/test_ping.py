@@ -431,8 +431,8 @@ round-trip min/avg/max/stddev = /// ms
                 "args": "ping -A -c3 192.0.2.2",
                 "returncode": 2,
                 "stdout": """\
-\x07\x07PING 192.0.2.2 (192.0.2.2): 56 data bytes
-
+PING 192.0.2.2 (192.0.2.2): 56 data bytes
+\x07\x07
 --- 192.0.2.2 ping statistics ---
 3 packets transmitted, 0 packets received, 100.0% packet loss
 """,
@@ -463,8 +463,8 @@ round-trip min/avg/max/stddev = /// ms
                 "args": "ping -A -c3 2001:db8::2",
                 "returncode": 2,
                 "stdout": """\
-\x07\x07PING(56=40+8+8 bytes) 2001:db8::1 --> 2001:db8::2
-
+PING(56=40+8+8 bytes) 2001:db8::1 --> 2001:db8::2
+\x07\x07
 --- 2001:db8::2 ping statistics ---
 3 packets transmitted, 0 packets received, 100.0% packet loss
 """,
