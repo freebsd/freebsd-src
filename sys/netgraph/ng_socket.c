@@ -118,14 +118,9 @@ static ng_rcvdata_t	ngs_rcvdata;
 static ng_disconnect_t	ngs_disconnect;
 
 /* Internal methods */
-static int	ng_attach_data(struct socket *so);
-static int	ng_attach_cntl(struct socket *so);
-static int	ng_attach_common(struct socket *so, int type);
-static void	ng_detach_common(struct ngpcb *pcbp, int type);
+static int	ng_attach_common(struct socket *, int, struct thread *);
+static void	ng_detach_common(struct socket *);
 static void	ng_socket_free_priv(struct ngsock *priv);
-static int	ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp);
-static int	ng_bind(struct sockaddr *nam, struct ngpcb *pcbp);
-
 static int	ngs_mod_event(module_t mod, int event, void *data);
 static void	ng_socket_item_applied(void *context, int error);
 
@@ -158,8 +153,6 @@ static LIST_HEAD(, ngpcb) ngsocklist;
 
 static struct mtx	ngsocketlist_mtx;
 
-#define sotongpcb(so) ((struct ngpcb *)(so)->so_pcb)
-
 /* If getting unexplained errors returned, set this to "kdb_enter("X"); */
 #ifndef TRAP_ERROR
 #define TRAP_ERROR
@@ -191,33 +184,10 @@ struct ngsock {
 ***************************************************************/
 
 static int
-ngc_attach(struct socket *so, int proto, struct thread *td)
-{
-	struct ngpcb *const pcbp = sotongpcb(so);
-	int error;
-
-	error = priv_check(td, PRIV_NETGRAPH_CONTROL);
-	if (error)
-		return (error);
-	if (pcbp != NULL)
-		return (EISCONN);
-	return (ng_attach_cntl(so));
-}
-
-static void
-ngc_detach(struct socket *so)
-{
-	struct ngpcb *const pcbp = sotongpcb(so);
-
-	KASSERT(pcbp != NULL, ("ngc_detach: pcbp == NULL"));
-	ng_detach_common(pcbp, NG_CONTROL);
-}
-
-static int
 ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	 struct mbuf *control, struct thread *td)
 {
-	struct ngpcb *const pcbp = sotongpcb(so);
+	struct ngpcb *const pcbp = so->so_pcb;
 	struct ngsock *const priv = NG_NODE_PRIVATE(pcbp->sockdata->node);
 	struct sockaddr_ng *const sap = (struct sockaddr_ng *) addr;
 	struct ng_mesg *msg;
@@ -365,56 +335,16 @@ release:
 	return (error);
 }
 
-static int
-ngc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
-{
-	struct ngpcb *const pcbp = sotongpcb(so);
-
-	if (pcbp == NULL)
-		return (EINVAL);
-	return (ng_bind(nam, pcbp));
-}
-
-static int
-ngc_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
-{
-	/*
-	 * At this time refuse to do this.. it used to
-	 * do something but it was undocumented and not used.
-	 */
-	printf("program tried to connect control socket to remote node\n");
-	return (EINVAL);
-}
-
 /***************************************************************
 	Data sockets
 ***************************************************************/
-
-static int
-ngd_attach(struct socket *so, int proto, struct thread *td)
-{
-	struct ngpcb *const pcbp = sotongpcb(so);
-
-	if (pcbp != NULL)
-		return (EISCONN);
-	return (ng_attach_data(so));
-}
-
-static void
-ngd_detach(struct socket *so)
-{
-	struct ngpcb *const pcbp = sotongpcb(so);
-
-	KASSERT(pcbp != NULL, ("ngd_detach: pcbp == NULL"));
-	ng_detach_common(pcbp, NG_DATA);
-}
 
 static int
 ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	 struct mbuf *control, struct thread *td)
 {
 	struct epoch_tracker et;
-	struct ngpcb *const pcbp = sotongpcb(so);
+	struct ngpcb *const pcbp = so->so_pcb;
 	struct sockaddr_ng *const sap = (struct sockaddr_ng *) addr;
 	int	len, error;
 	hook_p  hook = NULL;
@@ -491,16 +421,6 @@ release:
 	return (error);
 }
 
-static int
-ngd_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
-{
-	struct ngpcb *const pcbp = sotongpcb(so);
-
-	if (pcbp == NULL)
-		return (EINVAL);
-	return (ng_connect_data(nam, pcbp));
-}
-
 /*
  * Used for both data and control sockets
  */
@@ -508,11 +428,10 @@ static int
 ng_getsockaddr(struct socket *so, struct sockaddr *sa)
 {
 	struct sockaddr_ng *sg = (struct sockaddr_ng *)sa;
-	struct ngpcb *pcbp;
+	struct ngpcb *pcbp = so->so_pcb;
 	int error = 0;
 
-	pcbp = sotongpcb(so);
-	if ((pcbp == NULL) || (pcbp->sockdata == NULL))
+	if (pcbp->sockdata == NULL)
 		/* XXXGL: can this still happen? */
 		return (EINVAL);
 
@@ -545,21 +464,24 @@ ng_getsockaddr(struct socket *so, struct sockaddr *sa)
  */
 
 static int
-ng_attach_cntl(struct socket *so)
+ngc_attach(struct socket *so, int type, struct thread *td)
 {
 	struct ngsock *priv;
 	struct ngpcb *pcbp;
 	node_p node;
 	int error;
 
-	/* Setup protocol control block */
-	if ((error = ng_attach_common(so, NG_CONTROL)) != 0)
+	if ((error = priv_check(td, PRIV_NETGRAPH_CONTROL)) != 0)
 		return (error);
-	pcbp = sotongpcb(so);
+
+	/* Setup protocol control block */
+	if ((error = ng_attach_common(so, type, td)) != 0)
+		return (error);
+	pcbp = so->so_pcb;
 
 	/* Make the generic node components */
 	if ((error = ng_make_node_common(&typestruct, &node)) != 0) {
-		ng_detach_common(pcbp, NG_CONTROL);
+		ng_detach_common(so);
 		return (error);
 	}
 
@@ -590,18 +512,12 @@ ng_attach_cntl(struct socket *so)
 	return (0);
 }
 
-static int
-ng_attach_data(struct socket *so)
-{
-	return (ng_attach_common(so, NG_DATA));
-}
-
 /*
  * Set up a socket protocol control block.
  * This code is shared between control and data sockets.
  */
 static int
-ng_attach_common(struct socket *so, int type)
+ng_attach_common(struct socket *so, int type, struct thread *td)
 {
 	struct ngpcb *pcbp;
 	int error;
@@ -633,14 +549,15 @@ ng_attach_common(struct socket *so, int type)
  * then shut down the entire node. Shared code for control and data sockets.
  */
 static void
-ng_detach_common(struct ngpcb *pcbp, int which)
+ng_detach_common(struct socket *so)
 {
+	struct ngpcb *pcbp = so->so_pcb;
 	struct ngsock *priv = pcbp->sockdata;
 
 	if (priv != NULL) {
 		mtx_lock(&priv->mtx);
 
-		switch (which) {
+		switch (pcbp->type) {
 		case NG_CONTROL:
 			priv->ctlsock = NULL;
 			break;
@@ -695,8 +612,9 @@ ng_socket_free_priv(struct ngsock *priv)
  * Connect the data socket to a named control socket node.
  */
 static int
-ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
+ngd_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	struct ngpcb *const pcbp = so->so_pcb;
 	struct sockaddr_ng *sap;
 	node_p farnode;
 	struct ngsock *priv;
@@ -754,8 +672,9 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
  * Binding a socket means giving the corresponding node a name
  */
 static int
-ng_bind(struct sockaddr *nam, struct ngpcb *pcbp)
+ngc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
+	struct ngpcb *const pcbp = so->so_pcb;
 	struct ngsock *const priv = pcbp->sockdata;
 	struct sockaddr_ng *const sap = (struct sockaddr_ng *) nam;
 
@@ -1140,8 +1059,7 @@ static struct protosw ngcontrol_protosw = {
 	.pr_flags =		PR_ATOMIC | PR_ADDR /* | PR_RIGHTS */,
 	.pr_attach =		ngc_attach,
 	.pr_bind =		ngc_bind,
-	.pr_connect =		ngc_connect,
-	.pr_detach =		ngc_detach,
+	.pr_detach =		ng_detach_common,
 	.pr_disconnect =	dummy_disconnect,
 	.pr_send =		ngc_send,
 	.pr_sockaddr =		ng_getsockaddr,
@@ -1150,9 +1068,9 @@ static struct protosw ngdata_protosw = {
 	.pr_type =		SOCK_DGRAM,
 	.pr_protocol =		NG_DATA,
 	.pr_flags =		PR_ATOMIC | PR_ADDR,
-	.pr_attach =		ngd_attach,
+	.pr_attach =		ng_attach_common,
 	.pr_connect =		ngd_connect,
-	.pr_detach =		ngd_detach,
+	.pr_detach =		ng_detach_common,
 	.pr_disconnect =	dummy_disconnect,
 	.pr_send =		ngd_send,
 	.pr_sockaddr =		ng_getsockaddr,
