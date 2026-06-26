@@ -279,7 +279,7 @@ static int
 do_posix_spawn(pid_t *pid, const char *path,
     const posix_spawn_file_actions_t *fa,
     const posix_spawnattr_t *sa,
-    char * const argv[], char * const envp[], int use_env_path)
+    char * const argv[], char * const envp[], bool use_env_path)
 {
 	struct posix_spawn_args psa;
 	pid_t p;
@@ -401,7 +401,7 @@ posix_spawn(pid_t *pid, const char *path,
     const posix_spawnattr_t *sa,
     char * const argv[], char * const envp[])
 {
-	return (do_posix_spawn(pid, path, fa, sa, argv, envp, 0));
+	return (do_posix_spawn(pid, path, fa, sa, argv, envp, false));
 }
 
 int
@@ -410,7 +410,7 @@ posix_spawnp(pid_t *pid, const char *path,
     const posix_spawnattr_t *sa,
     char * const argv[], char * const envp[])
 {
-	return (do_posix_spawn(pid, path, fa, sa, argv, envp, 1));
+	return (do_posix_spawn(pid, path, fa, sa, argv, envp, true));
 }
 
 /*
