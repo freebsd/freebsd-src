@@ -56,7 +56,7 @@ CFLAGS.gfx_fb.c += -I${.CURDIR}/../libi386
 CFLAGS.gfx_fb.c += -I$(SRCTOP)/sys/teken
 CFLAGS.gfx_fb.c += -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
 CFLAGS.gfx_fb.c += -I${SRCTOP}/contrib/pnglite
-CFLAGS.gfx_fb.c += -DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
+CFLAGS.gfx_fb.c += ${ZLIB_CFLAGS}
 CFLAGS.gfx_bios.c += -I$(SRCTOP)/sys/teken
 CFLAGS.gfx_bios.c += -I${SRCTOP}/contrib/pnglite
 .else

@@ -181,6 +181,15 @@ CFLAGS+=	-fPIC
 CFLAGS+=	-mno-relax
 .endif
 
+# ZLIB flags
+ZLIB_CFLAGS=-DHAVE_MEMCPY -I${SYSDIR}/contrib/zlib ${NO_WDEPRECATED_NON_PROTOTYPE}
+
+# BZIP2 flags
+BZIP2_CFLAGS=-I${SRCTOP}/contrib/bzip2  -DBZ_NO_STDIO -DBZ_NO_COMPRESS
+
+# ZSTD client cflags
+ZSTD_CFLAGS=-I${SYSDIR}/contrib/zstd/lib
+
 # The boot loader build uses dd status=none, where possible, for reproducible
 # build output (since performance varies from run to run). Trouble is that
 # option was recently (10.3) added to FreeBSD and is non-standard. Only use it

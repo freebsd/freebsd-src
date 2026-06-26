@@ -45,6 +45,7 @@ HAVE_ZFS=	yes
 
 CFLAGS.bootinfo.c += -I$(SRCTOP)/sys/teken
 CFLAGS.bootinfo.c += -I${SRCTOP}/contrib/pnglite
+CFLAGS.decompress.c += ${ZLIB_CFLAGS} ${BZIP2_CFLAGS} ${ZSTD_CFLAGS}
 CFLAGS.framebuffer.c += -I$(SRCTOP)/sys/teken
 CFLAGS.framebuffer.c += -I${SRCTOP}/contrib/pnglite
 CFLAGS.main.c += -I$(SRCTOP)/sys/teken
@@ -52,7 +53,7 @@ CFLAGS.main.c += -I${SRCTOP}/contrib/pnglite
 CFLAGS.gfx_fb.c += -I$(SRCTOP)/sys/teken
 CFLAGS.gfx_fb.c += -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
 CFLAGS.gfx_fb.c += -I${SRCTOP}/contrib/pnglite
-CFLAGS.gfx_fb.c += -DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
+CFLAGS.gfx_fb.c += ${ZLIB_CFLAGS}
 
 # We implement a slightly non-standard %S in that it always takes a
 # CHAR16 that's common in UEFI-land instead of a wchar_t. This only

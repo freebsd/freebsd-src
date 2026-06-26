@@ -100,7 +100,6 @@ SRCS+=${i}
 # https://github.com/madler/zlib/issues/633 documents why we suppress deprecated
 # prototype warnings.
 .PATH: ${SRCTOP}/sys/contrib/zlib
-ZLIB_CFLAGS=-DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib ${NO_WDEPRECATED_NON_PROTOTYPE}
 .for i in adler32.c crc32.c infback.c inffast.c inflate.c inftrees.c zutil.c
 CFLAGS.${i}+=${ZLIB_CFLAGS}
 SRCS+=	${i}
@@ -161,7 +160,7 @@ CFLAGS.ffs_subr.c+= -DSTANDALONE_SMALL
 
 CFLAGS.gzipfs.c+= ${ZLIB_CFLAGS}
 CFLAGS.pkgfs.c+= ${ZLIB_CFLAGS}
-CFLAGS.bzipfs.c+= -I${SRCTOP}/contrib/bzip2  -DBZ_NO_STDIO -DBZ_NO_COMPRESS
+CFLAGS.bzipfs.c+= ${BZIP2_CFLAGS}
 
 # explicit_bzero and calculate_crc32c
 .PATH: ${SYSDIR}/libkern
