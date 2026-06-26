@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd May 6, 2026
+.Dd June 26, 2026
 .Dt CDEFS 9
 .Os
 .Sh NAME
@@ -121,6 +121,9 @@ family of functions.
 .Dq fastcall
 ABI to call and name mangle this function.
 .It Sy __result_use_check Ta Warn if function caller does not use its return value
+Obsolete, use
+.Sy __nodiscard
+instead.
 .It Sy __nodiscard Ta Equivalent to the standard
 .Dq [[nodiscard]]
 attribute.
@@ -134,6 +137,9 @@ If applied to a struct, C++ class or enum, this applies to all functions
 returning values of that type.
 If applied to a C++ constructor, this applies to creating instances of
 the class using that constructor.
+Note that
+.Sy __nodiscard
+must appear before the function declaration.
 .It Sy __returns_twice Ta Returns multiple times, like
 .Xr fork 2
 .It Sy __unreachable Ta This code is not reachable at runtime
