@@ -99,7 +99,8 @@ static device_method_t intel_hwpstate_methods[] = {
 
 struct hwp_softc {
 	device_t		dev;
-	bool 			hwp_notifications;
+
+	bool			hwp_notifications;
 	bool			hwp_activity_window;
 	bool			hwp_pref_ctrl;
 	bool			hwp_pkg_ctrl;
@@ -107,8 +108,10 @@ struct hwp_softc {
 	bool			hwp_perf_bias;
 	bool			hwp_perf_bias_cached;
 
-	uint64_t		req; /* Cached copy of HWP_REQUEST */
-	uint64_t		hwp_energy_perf_bias;	/* Cache PERF_BIAS */
+	/* Cached copy of HWP_REQUEST/HWP_REQUEST_PKG. */
+	uint64_t		req;
+	/* Cache PERF_BIAS. */
+	uint64_t		hwp_energy_perf_bias;
 
 	uint8_t			high;
 	uint8_t			guaranteed;
@@ -238,7 +241,7 @@ intel_hwp_dump_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	}
 
 #define pkg_print(x, name, offset) do {					\
-	if (!sc->hwp_pkg_ctrl || (data.request & x) != 0) 			\
+	if (!sc->hwp_pkg_ctrl || (data.request & x) != 0)			\
 		sbuf_printf(sb, "\t%s: %03u\n", name,			\
 		    (unsigned)(data.request >> offset) & 0xff);			\
 	else								\
