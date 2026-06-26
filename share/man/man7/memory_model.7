@@ -1,0 +1,121 @@
+.\"-
+.\" Copyright (c) 2026 Capabilities Limited
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" This software was developed by Capabilities Limited with funding from
+.\" Innovate UK and the Department for Science, Innovation and Technology
+.\" for the adoption and diffusion of CHERI technology under project
+.\" 10168042 (“CheriBSD feature extraction, maturity, and testing”).
+.\"
+.Dd June 26, 2026
+.Dt MEMORY_MODEL 7
+.Os
+.Sh NAME
+.Nm memory model
+.Nd Overview of the memory model
+.Sh DESCRIPTION
+Description of the memory model implemented by
+.Fx .
+.Ss Introduction
+This document covers various aspects of the memory model implemented by
+.Fx Ns 's
+supported architectures, compilers, and language runtimes.
+Some aspects are currently documented elsewhere, particularly in
+.Xr atomic 9 .
+.Ss Pointer Provenance
+On the surface, pointers are integer addresses within a (usually
+virtual) address space.
+In systems programming languages, pointers also have provenance which
+indicates where and when the pointer can access memory.
+Compilers use provenance information to perform alias analysis to
+justify optimizations.
+.Pp
+On CHERI targets, the bounds, permissions, and validity tag of
+capabilities make some aspects of provenance concrete.
+CHERI capabilities may only be derived from other capabilities and are
+subject to monotonicity guarantees.
+Specifically, no manipulation of a CHERI capability can produce a
+capability with more permissions than the original.
+.Pp
+Developers must take care to ensure that pointer provenance is not lost
+unless intended.
+Specifically:
+.Bl -dash
+.It
+When copying or manipulating pointers, use pointer types
+.Pq e.g., Vt char * ,
+.Vt intptr_t ,
+or
+.Vt uintptr_t
+to preserve provenance.
+Other integer types do not preserve provenance.
+.It
+Ensure that expressions using
+.Vt intptr_t
+or
+.Vt uintptr_t
+have a single, clear source of provenance.
+E.g., when adding two variables of type
+.Vt intptr_t
+cast the one that is an offset to
+.Vt size_t .
+.It
+Ensure that pointers are stored at their natural alignment.
+This is required by CHERI, and accessing an object through an improperly
+aligned pointer is undefined behavior in C.
+.It
+Cast pointers to a provenance-free type such as
+.Vt ptraddr_t
+when the address of a pointer is desired without provenance.
+.It
+Avoid manipulating pointer addresses such that they fall outside of the
+underlying allocation except one past the end as permitted by ISO C.
+Taking pointers further out of bounds
+.Pq even temporarily
+is undefined behavior in the C standard.
+In practice CHERI capabilities may be taken some distance out of bounds,
+but if taken too far out of bounds, the validity tag will be stripped.
+.El
+.Pp
+Developers must also take care not to leak valid pointers across address
+space boundaries.
+Specifically:
+.Bl -dash
+.It
+Copy objects containing pointers with provenance-perserving APIs such
+as:
+.Xr copyinptr 9 ,
+.Xr copyoutptr 9 ,
+.Xr memcpy 3 ,
+and
+.Xr memmove 3 .
+.It
+Copy objects that should not contain pointers using
+non-provenance-preserving APIs such as:
+.Xr copyin 9 ,
+.Xr copyout 9 ,
+.Xr memcpy_data 9 ,
+and
+.Xr memmove_data 9 .
+.El
+.Pp
+For practical advice on adapting to CHERI C/C++'s notion of provenance, see the
+.Lk https://ctsrd-cheri.github.io/cheri-c-programming/ CHERI C/C++ Programming Guide .
+A provenance-aware memory object model of C is documented in
+ISO/IEC TS 6010:2025:
+.Dq Programming languages – A Provenance-aware memory object model for C
+which can be read in draft form as WG14 paper
+.Lk https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3057.pdf N3057 .
+Further background on provenance in systems programming languages can
+be found in the Rust RFC
+.Lk https://rust-lang.github.io/rfcs/3559-rust-has-provenance.html 3559-rust-has-provenance .
+.Sh SEE ALSO
+.Xr arch 7 ,
+.Xr atomic 9
+.Sh AUTHORS
+This software and this manual page were developed by Capabilities
+Limited with funding from Innovate UK and the Department for Science,
+Innovation and Technology for the adoption and diffusion of CHERI
+technology under project 10168042
+.Pq Do CheriBSD feature extraction, maturity, and testing Dc .

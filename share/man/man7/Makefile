@@ -20,6 +20,7 @@ MAN=	arch.7 \
 	hostname.7 \
 	intro.7 \
 	maclabel.7 \
+	memory_model.7 \
 	mitigations.7 \
 	named_attribute.7 \
 	operator.7 \
