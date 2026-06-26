@@ -140,9 +140,6 @@ struct acpi_cpu_device {
 
 #define	CPUDEV_DEVICE_ID	"ACPI0007"
 
-/* Knob to disable acpi_cpu devices */
-bool acpi_cpu_disabled = false;
-
 /* Platform hardware resource information. */
 static uint32_t		 cpu_smi_cmd;	/* Value to write to SMI_CMD. */
 static uint8_t		 cpu_cst_cnt;	/* Indicate we are _CST aware. */
@@ -239,7 +236,7 @@ acpi_cpu_probe(device_t dev)
     ACPI_STATUS		   status;
     ACPI_OBJECT_TYPE	   type;
 
-    if (acpi_disabled("cpu") || acpi_cpu_disabled)
+    if (acpi_disabled("cpu"))
 	return (ENXIO);
     type = acpi_get_type(dev);
     if (type != ACPI_TYPE_PROCESSOR && type != ACPI_TYPE_DEVICE)

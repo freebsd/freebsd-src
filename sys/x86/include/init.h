@@ -43,9 +43,6 @@ struct init_ops {
 
 extern struct init_ops init_ops;
 
-/* Knob to disable acpi_cpu devices */
-extern bool acpi_cpu_disabled;
-
 /* Knob to disable acpi_hpet device */
 extern bool acpi_hpet_disabled;
 
