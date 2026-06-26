@@ -406,10 +406,14 @@ case ${firewall_type} in
 	#  firewall_myservices:		List of ports/protocols on which this
 	#				 host offers services.
 	#  firewall_allowservices:	List of IPv4 and/or IPv6 addresses
-	#				 that have access to
-	#				 $firewall_myservices.
+	#				 or subnets that have access to
+	#				 $firewall_myservices, or files
+	#				 containing such address or subnets,
+	#				 one per line.
 	#  firewall_trusted:		List of IPv4 and/or IPv6 addresses
-	#				 that have full access to this host.
+	#				 or subnets that have full access to
+	#				 this host, or files containing such
+	#				 addresses or subnets, one per line.
 	#				 Be very careful when setting this.
 	#				 This option can seriously degrade
 	#				 the level of protection provided by
@@ -467,25 +471,33 @@ case ${firewall_type} in
 	#       workstation won't be a problem.
 	#
 	for i in ${firewall_allowservices} ; do
+	  case $i in
+	  /*)
+	    grep '^[^#]' "$i"
+	    ;;
+	  *)
+	    echo "$i"
+	    ;;
+	  esac
+	done | while read i _; do
 	  for j in ${firewall_myservices} ; do
 	    case $j in
 	    [0-9A-Za-z]*/[Pp][Rr][Oo][Tt][Oo])
 	      ${fwcmd} add pass ${j%/[Pp][Rr][Oo][Tt][Oo]} from $i to me
-	    ;;
+	      ;;
 	    [0-9A-Za-z]*/[Tt][Cc][Pp])
 	      ${fwcmd} add pass tcp from $i to me ${j%/[Tt][Cc][Pp]}
-	    ;;
+	      ;;
 	    [0-9A-Za-z]*/[Uu][Dd][Pp])
 	      ${fwcmd} add pass udp from $i to me ${j%/[Uu][Dd][Pp]}
-	    ;;
+	      ;;
 	    *[0-9A-Za-z])
-	      echo "Consider using ${j}/tcp in firewall_myservices." \
-	        > /dev/stderr
+	      echo "Consider using ${j}/tcp in firewall_myservices." >&2
 	      ${fwcmd} add pass tcp from $i to me $j
-	    ;;
+	      ;;
 	    *)
-	      echo "Invalid port in firewall_myservices: $j" > /dev/stderr
-	    ;;
+	      echo "Invalid port in firewall_myservices: $j" >&2
+	      ;;
 	    esac
 	  done
 	done
@@ -494,6 +506,15 @@ case ${firewall_type} in
 	# Playing with the content of firewall_trusted could seriously
 	# degrade the level of protection provided by the firewall.
 	for i in ${firewall_trusted} ; do
+	  case $i in
+	  /*)
+	    grep '^[^#]' "$i"
+	    ;;
+	  *)
+	    echo "$i"
+	    ;;
+	  esac
+	done | while read i _ ; do
 	  ${fwcmd} add pass ip from $i to me
 	done
 
