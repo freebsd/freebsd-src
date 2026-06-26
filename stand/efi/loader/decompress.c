@@ -80,9 +80,9 @@ alloc_buffer(decomp_state *dctx, size_t size)
 		printf("Failed to allocate memory for %llu bytes\n", ULL(dctx->alloc_size));
 		return (status);
 	}
-	BS->SetMem((void *)dctx->buf, dctx->alloc_size, 0);
-	dctx->buf_cur = (uint8_t *)dctx->buf;
-	dctx->buf_end = (uint8_t *)dctx->buf + dctx->alloc_size;
+	BS->SetMem((void *)(uintptr_t)dctx->buf, dctx->alloc_size, 0);
+	dctx->buf_cur = (uint8_t *)(uintptr_t)dctx->buf;
+	dctx->buf_end = (uint8_t *)(uintptr_t)dctx->buf + dctx->alloc_size;
 	return (EFI_SUCCESS);
 }
 
@@ -100,12 +100,12 @@ grow_buffer(decomp_state *dctx)
 		printf("Failed to allocate memory for %llu bytes\n", ULL(newsz));
 		return (status);
 	}
-	memcpy((void *)newbuf, (void *)dctx->buf, dctx->alloc_size);
+	memcpy((void *)(uintptr_t)newbuf, (void *)(uintptr_t)dctx->buf, dctx->alloc_size);
 	BS->FreePages(dctx->buf, dctx->pages);
 	dctx->buf = newbuf;
 	dctx->pages = newpages;
-	dctx->buf_cur = (uint8_t *)dctx->buf + dctx->alloc_size;
-	dctx->buf_end = (uint8_t *)dctx->buf + newsz;
+	dctx->buf_cur = (uint8_t *)(uintptr_t)dctx->buf + dctx->alloc_size;
+	dctx->buf_end = (uint8_t *)(uintptr_t)dctx->buf + newsz;
 	BS->SetMem(dctx->buf_cur, newsz - dctx->alloc_size, 0);
 	dctx->alloc_size = newsz;
 	return (EFI_SUCCESS);
@@ -337,7 +337,7 @@ null_step(decomp_state *dctx, uint8_t *buf, size_t len, size_t offset)
 	}
 
 	CHAR8 *src = buf;
-	CHAR8 *dst = (void*)(dctx->buf + offset);
+	CHAR8 *dst = (void*)(uintptr_t)(dctx->buf + offset);
 	BS->CopyMem(dst, src, len);
 	return (end == dctx->size ? done : ok);
 }
@@ -417,5 +417,5 @@ decomp_buffer_length(decomp_state *dctx)
 {
 	if (dctx == NULL)
 		return (0);
-	return ((void *)dctx->buf_cur - (void *)dctx->buf);
+	return ((uintptr_t)dctx->buf_cur - (uintptr_t)dctx->buf);
 }
