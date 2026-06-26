@@ -300,12 +300,12 @@ void	*memmove_early(void * _Nonnull dest, const void * _Nonnull src, size_t n);
 	((__r >= __len) ? ENAMETOOLONG : 0);			\
 })
 
-int __result_use_check copyinstr(const void * __restrict udaddr,
+__nodiscard int copyinstr(const void * __restrict udaddr,
     void * _Nonnull __restrict kaddr, size_t len,
     size_t * __restrict lencopied);
-int __result_use_check copyin(const void * __restrict udaddr,
+__nodiscard int copyin(const void * __restrict udaddr,
     void * _Nonnull __restrict kaddr, size_t len);
-int __result_use_check copyin_nofault(const void * __restrict udaddr,
+__nodiscard int copyin_nofault(const void * __restrict udaddr,
     void * _Nonnull __restrict kaddr, size_t len);
 __nodiscard int copyout(const void * _Nonnull __restrict kaddr,
     void * __restrict udaddr, size_t len);
@@ -329,9 +329,9 @@ long	fuword(volatile const void *base);
 int	fuword16(volatile const void *base);
 int32_t	fuword32(volatile const void *base);
 int64_t	fuword64(volatile const void *base);
-int __result_use_check fueword(volatile const void *base, long *val);
-int __result_use_check fueword32(volatile const void *base, int32_t *val);
-int __result_use_check fueword64(volatile const void *base, int64_t *val);
+__nodiscard int fueword(volatile const void *base, long *val);
+__nodiscard int fueword32(volatile const void *base, int32_t *val);
+__nodiscard int fueword64(volatile const void *base, int64_t *val);
 __nodiscard int subyte(volatile void *base, int byte);
 __nodiscard int suword(volatile void *base, long word);
 __nodiscard int suword16(volatile void *base, int word);
