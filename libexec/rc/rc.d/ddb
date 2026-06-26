@@ -20,8 +20,8 @@ stop_cmd=":"
 ddb_prestart()
 {
 	# Silently exit if ddb is not enabled
-	if [ -z "`sysctl -Nq debug.ddb.scripting.scripts`" ]; then
-		return 1
+	if ! ${SYSCTL_N} -q debug.ddb.scripting.script >/dev/null; then
+		exit 1
 	fi
 }
 
