@@ -167,8 +167,7 @@ get_cppc_regs_cb(void *args)
 	if (rdmsr_safe(MSR_IA32_HWP_REQUEST, &data->request))
 		data->res |= HWP_ERROR_CPPC_REQUEST;
 
-	if (data->sc->hwp_pkg_ctrl &&
-	    (data->request & IA32_HWP_REQUEST_PACKAGE_CONTROL)) {
+	if (data->sc->hwp_pkg_ctrl) {
 		if (rdmsr_safe(MSR_IA32_HWP_REQUEST_PKG, &data->request_pkg))
 			data->res |= HWP_ERROR_CPPC_REQUEST_PKG;
 	}
