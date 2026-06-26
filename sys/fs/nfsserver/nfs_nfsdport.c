@@ -2183,7 +2183,7 @@ nfsvno_pnfsreplenish(void *arg)
 		goto out;
 	}
 	MNTEXP_LOCK(nep);
-	KASSERT(nep->ne_pnfsnumfile == PNFSD_START |
+	KASSERT(nep->ne_pnfsnumfile == PNFSD_START ||
 	    nep->ne_pnfsnumfile == PNFSD_STOP,
 	    ("nfsvno_pnfsreplenish: ne_pnfsnumfile not PNFSD_START/STOP"));
 	if (nep->ne_pnfsnumfile == PNFSD_START) {
