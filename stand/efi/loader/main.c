@@ -641,17 +641,24 @@ find_currdev(bool do_bootmgr, char *boot_info, size_t boot_info_sz)
 
 #ifdef MD_IMAGE_SIZE
 	/*
-	 * If there is an embedded MD, try to use that.
+	 * Forth choice: If there is an embedded MD, try to use that.
 	 */
 	printf("Trying MD\n");
 	if (probe_md_currdev())
 		return (0);
 #endif /* MD_IMAGE_SIZE */
 
+	/*
+	 * Fifth choice: try all the partitions on the boot device.
+	 */
 	if (try_boot_device_partitions() == 0)
 		return (0);
 
 #ifdef EFI_ZFS_BOOT
+	/*
+	 * Sixth Choice: Probe the boot disk for ZFS and then probe the non-boot
+	 * disk if we have a relaxed boot poluicy.
+	 */
 	{
 		zfsinfo_list_t *zfsinfo = efizfs_get_zfsinfo_list();
 		zfsinfo_t *zi;
@@ -686,8 +693,8 @@ find_currdev(bool do_bootmgr, char *boot_info, size_t boot_info_sz)
 #endif /* EFI_ZFS_BOOT */
 
 	/*
-	 * Try the device handle from our loaded image first.  If that
-	 * fails, use the device path from the loaded image and see if
+	 * Seventh choice: Try the device handle from our loaded image first.
+	 * If that fails, use the device path from the loaded image and see if
 	 * any of the nodes in that path match one of the enumerated
 	 * handles. Currently, this handle list is only for netboot.
 	 */
@@ -697,6 +704,12 @@ find_currdev(bool do_bootmgr, char *boot_info, size_t boot_info_sz)
 			return (0);
 	}
 
+	/*
+	 * Eighth choice: look up the device handle... This loops through the
+	 * entries to find the device handle. The network protocols have long
+	 * strings of device nodes in the device path, and this may make
+	 * something work.
+	 */
 	copy = NULL;
 	devpath = efi_lookup_image_devpath(IH);
 	while (devpath != NULL) {
@@ -1256,7 +1269,7 @@ main(int argc, CHAR16 *argv[])
 #endif
 
         /* Get our loaded image protocol interface structure. */
-	(void) OpenProtocolByHandle(IH, &imgid, (void **)&boot_img);
+	(void)OpenProtocolByHandle(IH, &imgid, (void **)&boot_img);
 
 	/* Report the RSDP early. */
 	acpi_detect();
