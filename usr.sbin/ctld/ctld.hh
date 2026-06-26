@@ -574,7 +574,6 @@ private:
 
 struct kports {
 	bool add_port(std::string &name, uint32_t ctl_port);
-	bool has_port(std::string_view name);
 	struct pport *find_port(const std::string &name);
 
 private:
