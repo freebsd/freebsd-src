@@ -629,10 +629,20 @@ find_currdev(bool do_bootmgr, char *boot_info, size_t boot_info_sz)
 		efi_devpath_free(devpath);
 		if (dp == NULL)
 			break;
-		printf("    Setting currdev to UEFI path %s\n",
-		    rootdev);
-		set_currdev_pdinfo(dp);
-		return (0);
+		printf("    Trying uefi_rootdev %s\n", rootdev);
+		/* if just a partition, just try that */
+		h = NULL;
+		if (dp->pd_parent != NULL) {
+			if (try_as_currdev(dp, false))
+				return (0);
+			/* That failed? Try the whole disk, but skip this part */
+			h = dp->pd_handle;
+			dp = dp->pd_parent;
+		}
+		/* otherwise, it's a full disk, so try all its partitions */
+		if (try_disk_and_partitions(dp, h) == 0)
+			return (0);
+		break;
 	} while (0);
 
 	/*
