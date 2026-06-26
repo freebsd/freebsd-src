@@ -1069,19 +1069,7 @@ bool
 kports::add_port(std::string &name, uint32_t ctl_port)
 {
 	const auto &pair = pports.try_emplace(name, name, ctl_port);
-	if (!pair.second) {
-		log_warnx("duplicate kernel port \"%s\" (%u)", name.c_str(),
-		    ctl_port);
-		return (false);
-	}
-
-	return (true);
-}
-
-bool
-kports::has_port(std::string_view name)
-{
-	return (pports.count(std::string(name)) > 0);
+	return (pair.second);
 }
 
 struct pport *

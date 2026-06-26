@@ -531,14 +531,9 @@ add_kernel_port(struct kports &kports, const struct cctl_port &port,
     std::string &name)
 {
 	log_debugx("CTL kernel port %u \"%s\"", port.port_id, name.c_str());
-	if (kports.has_port(name)) {
+	if (!kports.add_port(name, port.port_id)) {
 		log_warnx("Ignoring duplicate kernel port \"%s\"",
 		    name.c_str());
-		return;
-	}
-
-	if (!kports.add_port(name, port.port_id)) {
-		log_warnx("kports::add_port failed");
 	}
 }
 
