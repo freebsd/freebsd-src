@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Netfilix, Inc. Written by Warner Losh
+ * Copyright (c) 2026 Netflix, Inc. Written by Warner Losh
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
