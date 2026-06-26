@@ -82,6 +82,7 @@ static int	 fts_ufslinks(FTS *, const FTSENT *);
 #define	SET(opt)	(sp->fts_options |= (opt))
 
 #define	FCHDIR(sp, fd)	(!ISSET(FTS_NOCHDIR) && fchdir(fd))
+#define FTSP(sp)        ((struct _fts_private *)(sp))
 
 /* fts_build flags */
 #define	BCHILD		1		/* fts_children */
@@ -98,6 +99,7 @@ struct _fts_private {
 	struct statfs	ftsp_statfs;
 	dev_t		ftsp_dev;
 	int		ftsp_linksreliable;
+	int             ftsp_dirfd;
 };
 
 /*
@@ -251,6 +253,7 @@ fts_open(char * const *argv, int options,
 	sp = &priv->ftsp_fts;
 	sp->fts_compar = compar;
 	sp->fts_options = options;
+	priv->ftsp_dirfd = -1;
 
 	return (__fts_open(sp, argv, AT_FDCWD));
 }
@@ -722,6 +725,12 @@ fts_set_clientptr(FTS *sp, void *clientptr)
 	sp->fts_clientptr = clientptr;
 }
 
+int
+fts_get_dirfd(const FTS *sp)
+{
+        return (FTSP(sp)->ftsp_dirfd);
+}
+
 static struct dirent *
 fts_safe_readdir(DIR *dirp, int *readdir_errno)
 {
@@ -878,6 +887,7 @@ fts_build(FTS *sp, int type)
 	maxlen = sp->fts_pathlen - len;
 
 	level = cur->fts_level + 1;
+	FTSP(sp)->ftsp_dirfd = _dirfd(dirp);
 
 	/* Read the directory, attaching each entry to the `link' pointer. */
 	doadjust = 0;
