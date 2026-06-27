@@ -752,6 +752,10 @@ res_setoptions(res_state statp, const char *options, const char *source)
 #ifdef DEBUG
 			printf(";;\tdebug\n");
 #endif
+		} else if (res_match(cp, ep, "no-debug")) {
+			statp->options &= ~RES_DEBUG;
+		} else if (res_match(cp, ep, "no-rotate")) {
+			statp->options &= ~RES_ROTATE;
 		} else if (res_match(cp, ep, "no-tld-query") ||
 		    res_match(cp, ep, "no_tld_query")) {
 			statp->options |= RES_NOTLDQUERY;
