@@ -78,6 +78,12 @@ Only devices with the names matching
 will be displayed.
 The format of the regular expression is described in
 .Xr re_format 7 .
+.It Fl g
+Show Gigabytes
+.It Fl k
+Show kilobytes
+.It Fl m
+Show Megabytes
 .It Fl I Ar interval
 Refresh the
 .Nm
@@ -96,7 +102,7 @@ Enable display of statistics for other operations
 .It Fl p
 Only display physical providers (those with rank of 1).
 .It Fl s
-Enable blocks' size statistics.
+Enable average block size.
 .El
 .Sh INTERACTIVE COMMANDS
 These commands are currently recognized if
@@ -107,17 +113,33 @@ is not running in batch mode:
 Halve the update interval.
 .It Ic >
 Double the update interval.
+.It Ic 1
+Set update interval to one second
 .It Ic c
 Toggle display of
 .Xr geom 4
 consumers.
+.It Ic d
+Toggle display BIO_DELETE
 .It Ic f
 Display only devices with the names matching regular expression filter
 (prompt for filter).
 .It Ic F
 Remove device filter.
+.It Ic g
+Show gigabytes.
+.It Ic k
+Show kilobytes.
+.It Ic m
+Show megabytes.
+.It Ic o
+Toggle display other (BIO_FLUSH) operations.
+.It Ic p
+Toggle display other only primary providers.
 .It Ic q
 Quit
+.It Ic s
+Toggle average block size.
 .Nm .
 .El
 .Sh EXIT STATUS
