@@ -60,16 +60,17 @@ typedef struct {
 	rrd_t		dbr_months;
 } dbrrd_t;
 
-size_t rrd_len(rrd_t *rrd);
+size_t rrd_len(const rrd_t *rrd);
 
-const rrd_data_t *rrd_entry(rrd_t *r, size_t i);
+const rrd_data_t *rrd_entry(const rrd_t *r, size_t i);
 rrd_data_t *rrd_tail_entry(rrd_t *rrd);
 uint64_t rrd_tail(rrd_t *rrd);
-uint64_t rrd_get(rrd_t *rrd, size_t i);
+uint64_t rrd_get(const rrd_t *rrd, size_t i);
 
 void rrd_add(rrd_t *rrd, hrtime_t time, uint64_t txg);
 
 void dbrrd_add(dbrrd_t *db, hrtime_t time, uint64_t txg);
 uint64_t dbrrd_query(dbrrd_t *r, hrtime_t tv, dbrrd_rounding_t rouding);
+hrtime_t dbrrd_latest_time(dbrrd_t *r);
 
 #endif

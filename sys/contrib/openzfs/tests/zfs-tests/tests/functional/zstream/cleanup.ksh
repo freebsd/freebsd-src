@@ -22,29 +22,12 @@
 #
 
 #
-# Copyright (c) 2025, Klara Inc.
+# Copyright (c) 2026 by ConnectWise. All rights reserved.
 #
 
-. $STF_SUITE/include/libtest.shlib
-. $STF_SUITE/tests/functional/delegate/delegate_common.kshlib
+. $STF_SUITE/tests/functional/zstream/zstream.kshlib
 
-# Create staff group and add two user to it
-log_must add_group $STAFF_GROUP
-if ! id $STAFF1 > /dev/null 2>&1; then
-	log_must add_user $STAFF_GROUP $STAFF1
-fi
-if ! id $STAFF2 > /dev/null 2>&1; then
-	log_must add_user $STAFF_GROUP $STAFF2
-fi
+verify_runnable "both"
 
-# Create other group and add two user to it
-log_must add_group $OTHER_GROUP
-if ! id $OTHER1 > /dev/null 2>&1; then
-	log_must add_user $OTHER_GROUP $OTHER1
-fi
-if ! id $OTHER2 > /dev/null 2>&1; then
-	log_must add_user $OTHER_GROUP $OTHER2
-fi
-DISK=${DISKS%% *}
-
-default_raidz_setup $DISKS
+log_must rm -rf $BACKDIR
+default_cleanup $POOL

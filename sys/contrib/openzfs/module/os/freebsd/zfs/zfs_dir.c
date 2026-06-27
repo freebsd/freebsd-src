@@ -394,9 +394,9 @@ zfs_purgedir(znode_t *dzp)
 		    (ZTOV(xzp)->v_type == VLNK));
 
 		tx = dmu_tx_create(zfsvfs->z_os);
-		dmu_tx_hold_sa(tx, dzp->z_sa_hdl, B_FALSE);
+		dmu_tx_hold_sa(tx, dzp->z_sa_hdl, ZFS_SEQ_MAY_GROW(dzp));
 		dmu_tx_hold_zap(tx, dzp->z_id, FALSE, zap->za_name);
-		dmu_tx_hold_sa(tx, xzp->z_sa_hdl, B_FALSE);
+		dmu_tx_hold_sa(tx, xzp->z_sa_hdl, ZFS_SEQ_MAY_GROW(xzp));
 		dmu_tx_hold_zap(tx, zfsvfs->z_unlinkedobj, FALSE, NULL);
 		/* Is this really needed ? */
 		zfs_sa_upgrade_txholds(tx, xzp);
@@ -584,7 +584,7 @@ zfs_link_create(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
 	vnode_t *vp = ZTOV(zp);
 	uint64_t value;
 	int zp_is_dir = (vp->v_type == VDIR);
-	sa_bulk_attr_t bulk[5];
+	sa_bulk_attr_t bulk[6];
 	uint64_t mtime[2], ctime[2];
 	int count = 0;
 	int error;
@@ -647,7 +647,9 @@ zfs_link_create(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
 		    ctime, sizeof (ctime));
 		zfs_tstamp_update_setup(zp, STATE_CHANGED, mtime,
 		    ctime);
+		ZFS_PERSIST_SEQ(zp, bulk, count);
 	}
+	ASSERT3S(count, <=, ARRAY_SIZE(bulk));
 	error = sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
 	ASSERT0(error);
 
@@ -665,6 +667,8 @@ zfs_link_create(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_FLAGS(zfsvfs), NULL,
 	    &dzp->z_pflags, sizeof (dzp->z_pflags));
 	zfs_tstamp_update_setup(dzp, CONTENT_MODIFIED, mtime, ctime);
+	ZFS_PERSIST_SEQ(dzp, bulk, count);
+	ASSERT3S(count, <=, ARRAY_SIZE(bulk));
 	error = sa_bulk_update(dzp->z_sa_hdl, bulk, count, tx);
 	ASSERT0(error);
 	return (0);
@@ -729,7 +733,7 @@ zfs_link_destroy(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
 	vnode_t *vp = ZTOV(zp);
 	int zp_is_dir = (vp->v_type == VDIR);
 	boolean_t unlinked = B_FALSE;
-	sa_bulk_attr_t bulk[5];
+	sa_bulk_attr_t bulk[6];
 	uint64_t mtime[2], ctime[2];
 	int count = 0;
 	int error;
@@ -764,6 +768,13 @@ zfs_link_destroy(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
 			zp->z_unlinked = B_TRUE;
 			zp->z_links = 0;
 			unlinked = B_TRUE;
+			/*
+			 * NFS observers see nlink=0; advance change_cookie.
+			 * POSIX permits skipping the ctime stamp at nlink=0,
+			 * and the znode is destined for reap so persistence
+			 * would be wasted.
+			 */
+			atomic_inc_64(&zp->z_seq);
 		} else {
 			SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_CTIME(zfsvfs),
 			    NULL, &ctime, sizeof (ctime));
@@ -771,9 +782,11 @@ zfs_link_destroy(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
 			    NULL, &zp->z_pflags, sizeof (zp->z_pflags));
 			zfs_tstamp_update_setup(zp, STATE_CHANGED, mtime,
 			    ctime);
+			ZFS_PERSIST_SEQ(zp, bulk, count);
 		}
 		SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_LINKS(zfsvfs),
 		    NULL, &zp->z_links, sizeof (zp->z_links));
+		ASSERT3S(count, <=, ARRAY_SIZE(bulk));
 		error = sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
 		count = 0;
 		ASSERT0(error);
@@ -797,6 +810,8 @@ zfs_link_destroy(znode_t *dzp, const char *name, znode_t *zp, dmu_tx_t *tx,
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_FLAGS(zfsvfs),
 	    NULL, &dzp->z_pflags, sizeof (dzp->z_pflags));
 	zfs_tstamp_update_setup(dzp, CONTENT_MODIFIED, mtime, ctime);
+	ZFS_PERSIST_SEQ(dzp, bulk, count);
+	ASSERT3S(count, <=, ARRAY_SIZE(bulk));
 	error = sa_bulk_update(dzp->z_sa_hdl, bulk, count, tx);
 	ASSERT0(error);
 
@@ -827,6 +842,9 @@ zfs_make_xattrdir(znode_t *zp, vattr_t *vap, znode_t **xvpp, cred_t *cr)
 	zfs_acl_ids_t acl_ids;
 	boolean_t fuid_dirtied;
 	uint64_t parent __maybe_unused;
+
+	if (zfsvfs->z_replay == B_FALSE)
+		ASSERT_VOP_ELOCKED(ZTOV(zp), __func__);
 
 	*xvpp = NULL;
 
@@ -875,6 +893,9 @@ zfs_make_xattrdir(znode_t *zp, vattr_t *vap, znode_t **xvpp, cred_t *cr)
 
 	getnewvnode_drop_reserve();
 
+	/* Record that the file now has an xattr directory. */
+	zp->z_xattr_dir_absent = B_FALSE;
+
 	*xvpp = xzp;
 
 	return (0);
@@ -900,6 +921,19 @@ zfs_get_xattrdir(znode_t *zp, znode_t **xzpp, cred_t *cr, int flags)
 	znode_t		*xzp;
 	vattr_t		va;
 	int		error;
+
+	if (zfsvfs->z_replay == B_FALSE)
+		ASSERT_VOP_LOCKED(ZTOV(zp), __func__);
+
+	/*
+	 * Fast path: a file already known to have no xattr directory, when not
+	 * creating one, returns without taking the "" ZXATTR dirlock or doing
+	 * the SA_ZPL_XATTR lookup below.  z_xattr_dir_absent tracks this: it is
+	 * set when the lookup finds no directory and cleared when one is found
+	 * or created.
+	 */
+	if (!(flags & CREATE_XATTR_DIR) && zp->z_xattr_dir_absent)
+		return (SET_ERROR(ENOATTR));
 top:
 	error = zfs_dirent_lookup(zp, "", &xzp, ZXATTR);
 	if (error)
@@ -907,12 +941,19 @@ top:
 
 	if (xzp != NULL) {
 		*xzpp = xzp;
+		zp->z_xattr_dir_absent = B_FALSE;
 		return (0);
 	}
 
 
-	if (!(flags & CREATE_XATTR_DIR))
+	if (!(flags & CREATE_XATTR_DIR)) {
+		/*
+		 * z_xattr_dir_absent is serialized by the base vnode lock,
+		 * which the creator holds exclusive and readers hold shared.
+		 */
+		zp->z_xattr_dir_absent = B_TRUE;
 		return (SET_ERROR(ENOATTR));
+	}
 
 	if (zfsvfs->z_vfs->vfs_flag & VFS_RDONLY) {
 		return (SET_ERROR(EROFS));

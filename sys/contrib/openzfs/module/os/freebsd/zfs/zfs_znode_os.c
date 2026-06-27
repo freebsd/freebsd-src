@@ -151,6 +151,7 @@ zfs_znode_cache_constructor(void *buf, void *arg, int kmflags)
 	zp->z_xattr_cached = NULL;
 	zp->z_xattr_parent = 0;
 	zp->z_vnode = NULL;
+	zp->z_has_seq = B_FALSE;
 
 	return (0);
 }
@@ -287,6 +288,7 @@ zfs_create_share_dir(zfsvfs_t *zfsvfs, dmu_tx_t *tx)
 	ASSERT(!POINTER_IS_VALID(sharezp->z_zfsvfs));
 	sharezp->z_unlinked = 0;
 	sharezp->z_atime_dirty = 0;
+	sharezp->z_xattr_dir_absent = B_FALSE;
 	sharezp->z_zfsvfs = zfsvfs;
 	sharezp->z_is_sa = zfsvfs->z_use_sa;
 	sharezp->z_pflags = 0;
@@ -447,6 +449,7 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	zp->z_sa_hdl = NULL;
 	zp->z_unlinked = 0;
 	zp->z_atime_dirty = 0;
+	zp->z_xattr_dir_absent = B_FALSE;
 	zp->z_mapcnt = 0;
 	zp->z_id = db->db_object;
 	zp->z_blksz = blksz;
@@ -489,6 +492,18 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 		zfs_znode_free_kmem(zp);
 		return (NULL);
 	}
+
+	/*
+	 * Restore z_seq from SA_ZPL_SEQ when present, marking the file migrated
+	 * via the in-core z_has_seq (never persisted). Absence keeps the
+	 * default z_seq; FreeBSD's va_filerev never folded ctime in, so no
+	 * seed is needed across the upgrade.
+	 */
+	if (zp->z_is_sa && sa_lookup(zp->z_sa_hdl, SA_ZPL_SEQ(zfsvfs),
+	    &zp->z_seq, sizeof (zp->z_seq)) == 0)
+		zp->z_has_seq = B_TRUE;
+	else
+		zp->z_has_seq = B_FALSE;
 
 	zp->z_projid = projid;
 	zp->z_mode = mode;
@@ -1130,6 +1145,7 @@ zfs_rezget(znode_t *zp)
 		nvlist_free(zp->z_xattr_cached);
 		zp->z_xattr_cached = NULL;
 	}
+	zp->z_xattr_dir_absent = B_FALSE;
 	rw_exit(&zp->z_xattr_lock);
 
 	ASSERT0P(zp->z_sa_hdl);
@@ -1187,6 +1203,17 @@ zfs_rezget(znode_t *zp)
 	}
 
 	zp->z_projid = projid;
+
+	/*
+	 * Reload z_has_seq and z_seq from disk so stale in-core state from
+	 * before rollback/recv does not survive. A stale TRUE marker would
+	 * make ZFS_SEQ_MAY_GROW() skip the grow reservation while SA_ZPL_SEQ
+	 * is gone on disk.
+	 */
+	zp->z_has_seq = (zp->z_is_sa &&
+	    sa_lookup(zp->z_sa_hdl, SA_ZPL_SEQ(zfsvfs),
+	    &zp->z_seq, sizeof (zp->z_seq)) == 0);
+
 	zp->z_mode = mode;
 
 	if (gen != zp->z_gen) {
@@ -1378,7 +1405,7 @@ zfs_tstamp_update_setup_ext(znode_t *zp, uint_t flag, uint64_t mtime[2],
 
 	if (have_tx) {	/* will sa_bulk_update happen really soon? */
 		zp->z_atime_dirty = 0;
-		zp->z_seq++;
+		atomic_inc_64(&zp->z_seq);
 	} else {
 		zp->z_atime_dirty = 1;
 	}
@@ -1668,7 +1695,7 @@ zfs_freesp(znode_t *zp, uint64_t off, uint64_t len, int flag, boolean_t log)
 	zilog_t *zilog = zfsvfs->z_log;
 	uint64_t mode;
 	uint64_t mtime[2], ctime[2];
-	sa_bulk_attr_t bulk[3];
+	sa_bulk_attr_t bulk[4];
 	int count = 0;
 	int error;
 
@@ -1695,7 +1722,7 @@ zfs_freesp(znode_t *zp, uint64_t off, uint64_t len, int flag, boolean_t log)
 		return (error);
 log:
 	tx = dmu_tx_create(zfsvfs->z_os);
-	dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_FALSE);
+	dmu_tx_hold_sa(tx, zp->z_sa_hdl, ZFS_SEQ_MAY_GROW(zp));
 	zfs_sa_upgrade_txholds(tx, zp);
 	error = dmu_tx_assign(tx, DMU_TX_WAIT);
 	if (error) {
@@ -1708,6 +1735,8 @@ log:
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_FLAGS(zfsvfs),
 	    NULL, &zp->z_pflags, 8);
 	zfs_tstamp_update_setup(zp, CONTENT_MODIFIED, mtime, ctime);
+	ZFS_PERSIST_SEQ(zp, bulk, count);
+	ASSERT3S(count, <=, ARRAY_SIZE(bulk));
 	error = sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
 	ASSERT0(error);
 
@@ -1810,6 +1839,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 	ASSERT(!POINTER_IS_VALID(rootzp->z_zfsvfs));
 	rootzp->z_unlinked = 0;
 	rootzp->z_atime_dirty = 0;
+	rootzp->z_xattr_dir_absent = B_FALSE;
 	rootzp->z_is_sa = USE_SA(version, os);
 	rootzp->z_pflags = 0;
 

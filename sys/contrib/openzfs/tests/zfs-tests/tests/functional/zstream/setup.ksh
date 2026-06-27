@@ -22,22 +22,12 @@
 #
 
 #
-# Copyright (c) 2025, Klara Inc.
+# Copyright (c) 2026 by ConnectWise. All rights reserved.
 #
 
-. $STF_SUITE/include/libtest.shlib
-. $STF_SUITE/tests/functional/delegate/delegate_common.kshlib
+. $STF_SUITE/tests/functional/zstream/zstream.kshlib
 
+verify_runnable "both"
 
-poolexists $TESTPOOL1 && \
-	destroy_pool $TESTPOOL1
-
-del_user $STAFF1
-del_user $STAFF2
-del_group $STAFF_GROUP
-
-del_user $OTHER1
-del_user $OTHER2
-del_group $OTHER_GROUP
-
-default_cleanup
+log_must mkdir -p $BACKDIR
+default_setup $DISK1

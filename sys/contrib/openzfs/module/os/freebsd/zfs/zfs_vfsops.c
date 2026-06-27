@@ -51,7 +51,7 @@
 #include <sys/dsl_prop.h>
 #include <sys/dsl_dataset.h>
 #include <sys/dsl_deleg.h>
-#include <sys/spa.h>
+#include <sys/spa_impl.h>
 #include <sys/zap.h>
 #include <sys/sa.h>
 #include <sys/sa_impl.h>
@@ -69,6 +69,7 @@
 #include <sys/zfs_quota.h>
 
 #include "zfs_comutil.h"
+#include "zfs_crrd.h"
 
 #ifndef	MNTK_VMSETSIZE_BUG
 #define	MNTK_VMSETSIZE_BUG	0
@@ -1046,6 +1047,32 @@ zfsvfs_create(const char *osname, boolean_t readonly, zfsvfs_t **zfvp)
 	return (error);
 }
 
+int
+zfsvfs_create_hold(const char *osname, zfsvfs_t **zfvp)
+{
+	objset_t *os;
+	zfsvfs_t *zfsvfs;
+	int error;
+
+	zfsvfs = kmem_zalloc(sizeof (zfsvfs_t), KM_SLEEP);
+
+	error = dmu_objset_hold(osname, zfsvfs, &os);
+	if (error != 0) {
+		kmem_free(zfsvfs, sizeof (zfsvfs_t));
+		return (error);
+	}
+
+	if (dmu_objset_type(os) != DMU_OST_ZFS) {
+		dmu_objset_rele(os, zfsvfs);
+		kmem_free(zfsvfs, sizeof (zfsvfs_t));
+		return (EINVAL);
+	}
+
+	zfsvfs->z_use_hold = B_TRUE;
+	error = zfsvfs_create_impl(zfvp, zfsvfs, os);
+
+	return (error);
+}
 
 int
 zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
@@ -1069,7 +1096,10 @@ zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
 
 	error = zfsvfs_init(zfsvfs, os);
 	if (error != 0) {
-		dmu_objset_disown(os, B_TRUE, zfsvfs);
+		if (zfsvfs->z_use_hold)
+			dmu_objset_rele(os, zfsvfs);
+		else
+			dmu_objset_disown(os, B_TRUE, zfsvfs);
 		*zfvp = NULL;
 		kmem_free(zfsvfs, sizeof (zfsvfs_t));
 		return (error);
@@ -1323,7 +1353,12 @@ out:
 		dmu_objset_disown(zfsvfs->z_os, B_TRUE, zfsvfs);
 		zfsvfs_free(zfsvfs);
 	} else {
+		spa_t *spa = zfsvfs->z_os->os_spa;
+
 		atomic_inc_32(&zfs_active_fs_count);
+
+		vfsp->mnt_time = dbrrd_latest_time(&spa->spa_txg_log_time);
+		vfsp->mnt_time = MAX(vfsp->mnt_time, spa->spa_load_txg_ts);
 	}
 
 	return (error);

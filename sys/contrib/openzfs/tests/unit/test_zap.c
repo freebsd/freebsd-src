@@ -53,7 +53,7 @@ mock_crc64_init(void)
 
 /* Create a microzap backed by a mock dnode. */
 static dnode_t *
-mock_zap_create_microzap(void) {
+mock_zap_create_norm_microzap(int normflags) {
 	/*
 	 * We use DMU_OTN_ZAP_DATA so that DMU_OT_BYTESWAP() returns
 	 * DMU_BSWAP_ZAP without consulting dmu_ot[], which is not currently
@@ -62,20 +62,20 @@ mock_zap_create_microzap(void) {
 	mock_dnode_t *mdn = mock_dnode_create(512, DMU_OTN_ZAP_DATA);
 	dnode_t *dn = (dnode_t *)mdn;
 	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
-	mzap_create_impl(dn, 0, 0, tx);
+	mzap_create_impl(dn, normflags, 0, tx);
 	mock_tx_destroy((mock_dmu_tx_t *)tx);
 	return (dn);
 }
 
 /* Create a fatzap backed by a mock dnode. */
 static dnode_t *
-mock_zap_create_fatzap(void)
+mock_zap_create_norm_fatzap(int normflags)
 {
 	/*
 	 * We can only create microzaps directly. They only take u64s as a
 	 * value, so we add a u16 to trigger an upgrade to fatzap.
 	 */
-	dnode_t *dn = mock_zap_create_microzap();
+	dnode_t *dn = mock_zap_create_norm_microzap(normflags);
 	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
 	uint16_t upgrade = 0;
 	zap_add_by_dnode(dn, "_upgrade", sizeof (uint16_t), 1, &upgrade, tx);
@@ -83,6 +83,10 @@ mock_zap_create_fatzap(void)
 	mock_tx_destroy((mock_dmu_tx_t *)tx);
 	return (dn);
 }
+
+/* Shortcuts for ZAPs with no normalization flags set. */
+#define	mock_zap_create_microzap()	mock_zap_create_norm_microzap(0)
+#define	mock_zap_create_fatzap()	mock_zap_create_norm_fatzap(0)
 
 static bool
 mock_zap_is_microzap(dnode_t *dn)
@@ -110,18 +114,22 @@ mock_zap_destroy(dnode_t *dn)
 
 /* Create a ZAP of the type named in the given test params. */
 static dnode_t *
-mock_zap_create_params(const MunitParameter params[], const char *key) {
+mock_zap_create_norm_params(const MunitParameter params[], const char *key,
+    int normflags) {
 	const char *type = munit_parameters_get(params, key);
 	if (type == NULL)
 		munit_error("mock_zap_create_params: missing type param");
 	else if (strcmp(type, "micro") == 0)
-		return (mock_zap_create_microzap());
+		return (mock_zap_create_norm_microzap(normflags));
 	else if (strcmp(type, "fat") == 0)
-		return (mock_zap_create_fatzap());
+		return (mock_zap_create_norm_fatzap(normflags));
 	else
 		munit_errorf("mock_zap_create_params: invalid type '%s'", type);
 	__builtin_unreachable();
 }
+
+/* Shortcuts for ZAPs with no normalization flags set. */
+#define	mock_zap_create_params(p, k)	mock_zap_create_norm_params(p, k, 0)
 
 /*
  * Confirm the stored ZAP is of the type named in the given test params. This
@@ -234,7 +242,7 @@ test_zap_basic(const MunitParameter params[], void *data)
 /* ========== */
 
 /*
- * "Core" ZAP API tests. Covers the most basic functionality upon which which
+ * "Core" ZAP API tests. Covers the most basic functionality upon which
  * everything else is built.
  *
  * Note that to avoid microzap upgrade here, we only short keys and
@@ -687,7 +695,7 @@ test_cursor(const MunitParameter params[], void *data)
 	unit_ok(zap_cursor_init_by_dnode(&zc, dn));
 
 	/*
-	 * Cursors don't guarantee an order, so we run over them them all,
+	 * Cursors don't guarantee an order, so we run over them all,
 	 * confirm the key matches the value, and then set a bit for each
 	 * one we've seen. By the end, we should have seen them all.
 	 */
@@ -1093,6 +1101,479 @@ test_zap_value_search_mask(const MunitParameter params[], void *data)
 
 /* ========== */
 
+/* Key case normalization. */
+
+/*
+ * A TOUPPER ZAP hashes and matches keys by their uppercase form, ie a
+ * case-insensitive match.
+ */
+static MunitResult
+test_norm_toupper(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	dnode_t *dn =
+	    mock_zap_create_norm_params(params, "type", U8_TEXTPREP_TOUPPER);
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+
+	uint64_t val = 42;
+	unit_ok(zap_add_by_dnode(dn, "Hello",
+	    sizeof (uint64_t), 1, &val, tx));
+
+	/* MT_NORMALIZE finds any casing. */
+	uint64_t result = 0;
+	unit_ok(zap_lookup_norm_by_dnode(dn, "hello",
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE, NULL, 0, NULL));
+	unit_eq(result, 42);
+
+	result = 0;
+	unit_ok(zap_lookup_norm_by_dnode(dn, "HELLO",
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE, NULL, 0, NULL));
+	unit_eq(result, 42);
+
+	result = 0;
+	unit_ok(zap_lookup_norm_by_dnode(dn, "HeLlO",
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE, NULL, 0, NULL));
+	unit_eq(result, 42);
+
+	/* Exact lookup finds the stored form. */
+	result = 0;
+	unit_ok(zap_lookup_by_dnode(dn, "Hello",
+	    sizeof (uint64_t), 1, &result));
+	unit_eq(result, 42);
+
+	/* Exact lookup misses other casings. */
+	unit_err(zap_lookup_by_dnode(dn, "hello",
+	    sizeof (uint64_t), 1, &result), ENOENT);
+	unit_err(zap_lookup_by_dnode(dn, "HeLlO",
+	    sizeof (uint64_t), 1, &result), ENOENT);
+
+	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	unit_true(mock_zap_is_params(dn, params, "type"));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/*
+ * MT_MATCH_CASE forces an exact-case match on a normalizing (TOUPPER) ZAP.
+ */
+static MunitResult
+test_norm_match_case(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	dnode_t *dn =
+	    mock_zap_create_norm_params(params, "type", U8_TEXTPREP_TOUPPER);
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+
+	uint64_t val = 42;
+	unit_ok(zap_add_by_dnode(dn, "Hello",
+	    sizeof (uint64_t), 1, &val, tx));
+
+	/* MT_NORMALIZE alone matches any casing. */
+	uint64_t result = 0;
+	unit_ok(zap_lookup_norm_by_dnode(dn, "hello",
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE, NULL, 0, NULL));
+	unit_eq(result, 42);
+
+	/* Adding MT_MATCH_CASE rejects a case variant name. */
+	unit_err(zap_lookup_norm_by_dnode(dn, "hello",
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE | MT_MATCH_CASE,
+	    NULL, 0, NULL), ENOENT);
+
+	/* The exact-case name still matches under MT_MATCH_CASE. */
+	result = 0;
+	unit_ok(zap_lookup_norm_by_dnode(dn, "Hello",
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE | MT_MATCH_CASE,
+	    NULL, 0, NULL));
+	unit_eq(result, 42);
+
+	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	unit_true(mock_zap_is_params(dn, params, "type"));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/*
+ * NFC: canonical decomposition + canonical recomposition.
+ *
+ * NFC-normalized keys are stored in their original encoding but match but
+ * match by canonical composed form.
+ */
+static MunitResult
+test_norm_nfc(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	/*
+	 * "café" in NFC: "caf\xc3\xa9"  (U+00E9, e-acute precomposed)
+	 * "café" in NFD: "cafe\xcc\x81" (U+0065 + U+0301, e + combining acute)
+	 */
+	static const char nfc_key[] = "caf\xc3\xa9";
+	static const char nfd_key[] = "cafe\xcc\x81";
+
+	dnode_t *dn =
+	    mock_zap_create_norm_params(params, "type", U8_TEXTPREP_NFC);
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+
+	/* Insert the NFD form. */
+	uint64_t val = 42;
+	unit_ok(zap_add_by_dnode(dn, nfd_key, sizeof (uint64_t), 1, &val, tx));
+
+	/* Normalized lookup with NFC form finds it. */
+	uint64_t result = 0;
+	unit_ok(zap_lookup_norm_by_dnode(dn, nfc_key,
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE, NULL, 0, NULL));
+	unit_eq(result, 42);
+
+	/* Normalized lookup with NFD form also finds it. */
+	result = 0;
+	unit_ok(zap_lookup_norm_by_dnode(dn, nfd_key,
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE, NULL, 0, NULL));
+	unit_eq(result, 42);
+
+	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	unit_true(mock_zap_is_params(dn, params, "type"));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/*
+ * NFD: canonical decomposition without recomposition.
+ *
+ * NFD and NFC define the same canonical equivalence class, so this test uses
+ * the same pair as test_norm_nfc (NFC) and would pass under NFC too. Together
+ * the two tests verify the flags are independently wired.
+ */
+static MunitResult
+test_norm_nfd(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	/*
+	 * "café" in NFC: "caf\xc3\xa9"  (U+00E9, e-acute precomposed)
+	 * "café" in NFD: "cafe\xcc\x81" (U+0065 + U+0301, e + combining acute)
+	 */
+	static const char nfc_key[] = "caf\xc3\xa9";
+	static const char nfd_key[] = "cafe\xcc\x81";
+
+	dnode_t *dn =
+	    mock_zap_create_norm_params(params, "type", U8_TEXTPREP_NFD);
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+
+	/* Insert the NFC form. */
+	uint64_t val = 42;
+	unit_ok(zap_add_by_dnode(dn, nfc_key, sizeof (uint64_t), 1, &val, tx));
+
+	/* Normalized lookup with NFC form finds it. */
+	uint64_t result = 0;
+	unit_ok(zap_lookup_norm_by_dnode(dn, nfc_key,
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE, NULL, 0, NULL));
+	unit_eq(result, 42);
+
+	/* Normalized lookup with NFD form also finds it. */
+	result = 0;
+	unit_ok(zap_lookup_norm_by_dnode(dn, nfd_key,
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE, NULL, 0, NULL));
+	unit_eq(result, 42);
+
+	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	unit_true(mock_zap_is_params(dn, params, "type"));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/*
+ * NFKC: compatibility decomposition + canonical recomposition.
+ *
+ * Compatibility characters (e.g. the fi ligature U+FB01 ~~ "fi") are only
+ * recognised as equivalent under the K forms (NFKC/NFKD). They are NOT
+ * folded by NFC, NFD, or TOUPPER — so this pair is wrong under all of those.
+ */
+static MunitResult
+test_norm_nfkc(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	/*
+	 * "ﬁle": fi ligature (U+FB01 = \xef\xac\x81) + "le".
+	 * Normalizes to plain "file".
+	 */
+	static const char ligature_key[] = "\xef\xac\x81le";
+	static const char plain_key[] = "file";
+
+	dnode_t *dn =
+	    mock_zap_create_norm_params(params, "type", U8_TEXTPREP_NFKC);
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+
+	/* Insert the ligature. */
+	uint64_t val = 42;
+	unit_ok(zap_add_by_dnode(dn, ligature_key,
+	    sizeof (uint64_t), 1, &val, tx));
+
+	/* NFKC lookup with the plain form finds it. */
+	uint64_t result = 0;
+	unit_ok(zap_lookup_norm_by_dnode(dn, plain_key,
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE, NULL, 0, NULL));
+	unit_eq(result, 42);
+
+	/* NFKC lookup with the ligature also finds it */
+	result = 0;
+	unit_ok(zap_lookup_norm_by_dnode(dn, ligature_key,
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE, NULL, 0, NULL));
+	unit_eq(result, 42);
+
+	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	unit_true(mock_zap_is_params(dn, params, "type"));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/*
+ * NFKD: compatibility decomposition without recomposition.
+ *
+ * NFKC and NFKD define the same compatibility equivalence class, so this test
+ * uses the same pair as test_norm_nfkc. Together they verify the flags are
+ * independently wired.
+ */
+static MunitResult
+test_norm_nfkd(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	/*
+	 * "ﬁle": fi ligature (U+FB01 = \xef\xac\x81) + "le".
+	 * Normalizes to plain "file".
+	 */
+	static const char ligature_key[] = "\xef\xac\x81le";
+	static const char plain_key[] = "file";
+
+	dnode_t *dn =
+	    mock_zap_create_norm_params(params, "type", U8_TEXTPREP_NFKC);
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+
+	/* Insert the plain form. */
+	uint64_t val = 42;
+	unit_ok(zap_add_by_dnode(dn, plain_key,
+	    sizeof (uint64_t), 1, &val, tx));
+
+	/* NFKD lookup with the ligature finds it. */
+	uint64_t result = 0;
+	unit_ok(zap_lookup_norm_by_dnode(dn, ligature_key,
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE, NULL, 0, NULL));
+	unit_eq(result, 42);
+
+	/* NFKD lookup with plain form also finds it. */
+	result = 0;
+	unit_ok(zap_lookup_norm_by_dnode(dn, plain_key,
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE, NULL, 0, NULL));
+	unit_eq(result, 42);
+
+	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	unit_true(mock_zap_is_params(dn, params, "type"));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/*
+ * A ZAP does not enforce normalization uniqueness on insert - two keys that
+ * normalize to the same form can coexist. A normalized lookup detects the
+ * conflict and flags it for the caller on request.
+ */
+static MunitResult
+test_norm_conflict(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	dnode_t *dn =
+	    mock_zap_create_norm_params(params, "type", U8_TEXTPREP_TOUPPER);
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+
+	/* Insert two distinct keys that normalize to the same form. */
+	uint64_t v1 = 1, v2 = 2;
+	unit_ok(zap_add_by_dnode(dn, "Hello", sizeof (uint64_t), 1, &v1, tx));
+	unit_ok(zap_add_by_dnode(dn, "hello", sizeof (uint64_t), 1, &v2, tx));
+
+	/* Confirm both stored. */
+	uint64_t count = 0;
+	unit_ok(zap_count_by_dnode(dn, &count));
+	unit_eq(count, 2);
+
+	/*
+	 * Three different normalized lookups all return the first match for
+	 * the normalized form, but signal that a normalization conflict
+	 * occurred.
+	 */
+	uint64_t result = 0;
+	boolean_t conflict = B_FALSE;
+	unit_ok(zap_lookup_norm_by_dnode(dn, "Hello",
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE, NULL, 0, &conflict));
+	unit_true(conflict);
+	unit_eq(result, 1);
+
+	result = 0;
+	conflict = B_FALSE;
+	unit_ok(zap_lookup_norm_by_dnode(dn, "hello",
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE, NULL, 0, &conflict));
+	unit_true(conflict);
+	unit_eq(result, 1);
+
+	result = 0;
+	conflict = B_FALSE;
+	unit_ok(zap_lookup_norm_by_dnode(dn, "HELLO",
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE, NULL, 0, &conflict));
+	unit_true(conflict);
+	unit_eq(result, 1);
+
+	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	unit_true(mock_zap_is_params(dn, params, "type"));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/* A normalized lookup can return the original name form on request. */
+static MunitResult
+test_norm_realname(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	dnode_t *dn =
+	    mock_zap_create_norm_params(params, "type", U8_TEXTPREP_TOUPPER);
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+
+	uint64_t v = 1;
+	unit_ok(zap_add_by_dnode(dn, "HeLlO", sizeof (uint64_t), 1, &v, tx));
+
+	char realname[ZAP_MAXNAMELEN];
+	uint64_t result = 0;
+	unit_ok(zap_lookup_norm_by_dnode(dn, "hello",
+	    sizeof (uint64_t), 1, &result, MT_NORMALIZE,
+	    realname, sizeof (realname), NULL));
+	unit_eq(result, 1);
+	unit_str_eq(realname, "HeLlO");
+
+	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	unit_true(mock_zap_is_params(dn, params, "type"));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/* zap_remove_norm: remove by normalized name. */
+static MunitResult
+test_norm_remove(const MunitParameter params[], void *data)
+{
+	(void) data;
+
+	dnode_t *dn =
+	    mock_zap_create_norm_params(params, "type", U8_TEXTPREP_TOUPPER);
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+
+	/* Add two items with mixed-case keys. */
+	uint64_t v = 1;
+	unit_ok(zap_add_by_dnode(dn, "Hello", sizeof (uint64_t), 1, &v, tx));
+	unit_ok(zap_add_by_dnode(dn, "World", sizeof (uint64_t), 1, &v, tx));
+
+	/*
+	 * Removing with MT_NORMALIZE normalizes both the requested and stored
+	 * keys before comparison.
+	 */
+	unit_ok(zap_remove_norm_by_dnode(dn, "HELLO", MT_NORMALIZE, tx));
+	unit_err(zap_lookup_by_dnode(dn, "Hello",
+	    sizeof (uint64_t), 1, &v), ENOENT);
+
+	/* Must use exact case to remove without MT_NORMALIZE. */
+	unit_eq(zap_remove_norm_by_dnode(dn, "world", 0, tx), ENOENT);
+	unit_ok(zap_lookup_by_dnode(dn, "World", sizeof (uint64_t), 1, &v));
+	unit_ok(zap_remove_norm_by_dnode(dn, "World", 0, tx));
+	unit_eq(zap_lookup_by_dnode(dn, "World",
+	    sizeof (uint64_t), 1, &v), ENOENT);
+
+	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	unit_true(mock_zap_is_params(dn, params, "type"));
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/* ========== */
+
+/*
+ * Binary uint64-array keys (ZAP_FLAG_UINT64_KEY), as used by the dedup table
+ * and the block reference table.  Such a ZAP is always a fatzap.  Covers the
+ * uint64-key by-dnode operations: add, lookup, length, lookup_length, update
+ * and remove.
+ */
+static MunitResult
+test_zap_uint64_keys(const MunitParameter params[], void *data)
+{
+	(void) params, (void) data;
+
+	mock_dnode_t *mdn = mock_dnode_create(512, DMU_OTN_ZAP_DATA);
+	dnode_t *dn = (dnode_t *)mdn;
+	dmu_tx_t *tx = (dmu_tx_t *)mock_tx_create();
+	mzap_create_impl(dn, 0, ZAP_FLAG_HASH64 | ZAP_FLAG_UINT64_KEY, tx);
+	unit_true(mock_zap_is_fatzap(dn));
+
+	/* A two-word binary key, as used by the dedup and clone tables. */
+	uint64_t key[2] = { unit_rand_uint64(), unit_rand_uint64() };
+	uint64_t val = 1;
+
+	/* Store a value, then read it back by the same key. */
+	unit_ok(zap_add_uint64_by_dnode(dn, key, 2, sizeof (uint64_t), 1,
+	    &val, tx));
+	uint64_t out = 0;
+	unit_ok(zap_lookup_uint64_by_dnode(dn, key, 2, sizeof (uint64_t), 1,
+	    &out));
+	unit_eq(out, 1);
+
+	/* zap_length reports a value's size without reading it. */
+	uint64_t isz = 0, nint = 0;
+	unit_ok(zap_length_uint64_by_dnode(dn, key, 2, &isz, &nint));
+	unit_eq(isz, sizeof (uint64_t));
+	unit_eq(nint, 1);
+
+	/* zap_lookup_length: the value plus its real element count. */
+	out = 0;
+	uint64_t actual = 0;
+	unit_ok(zap_lookup_length_uint64_by_dnode(dn, key, 2,
+	    sizeof (uint64_t), 1, &out, &actual));
+	unit_eq(out, 1);
+	unit_eq(actual, 1);
+
+	/* zap_update replaces the value for an existing key. */
+	val = 2;
+	unit_ok(zap_update_uint64_by_dnode(dn, key, 2, sizeof (uint64_t), 1,
+	    &val, tx));
+	unit_ok(zap_lookup_uint64_by_dnode(dn, key, 2, sizeof (uint64_t), 1,
+	    &out));
+	unit_eq(out, 2);
+
+	/* A key that was never added is not found. */
+	uint64_t key2[2] = { unit_rand_uint64(), unit_rand_uint64() };
+	unit_err(zap_lookup_uint64_by_dnode(dn, key2, 2, sizeof (uint64_t), 1,
+	    &out), ENOENT);
+
+	/* After removal, the key can no longer be looked up. */
+	unit_ok(zap_remove_uint64_by_dnode(dn, key, 2, tx));
+	unit_err(zap_lookup_uint64_by_dnode(dn, key, 2, sizeof (uint64_t), 1,
+	    &out), ENOENT);
+
+	mock_tx_destroy((mock_dmu_tx_t *)tx);
+	mock_zap_destroy(dn);
+
+	return (MUNIT_OK);
+}
+
+/* ========== */
+
 /* Test suite definition and boilerplate. */
 
 #define	UNIT_PARAM_ZAP_TYPES(p)	\
@@ -1127,6 +1608,8 @@ static const MunitTest zap_tests[] = {
 	UNIT_TEST("microzap_stats",		test_microzap_stats),
 	UNIT_TEST("fatzap_stats",		test_fatzap_stats),
 
+	UNIT_TEST("uint64_keys",		test_zap_uint64_keys),
+
 	UNIT_TEST_ZAP_TYPES("cursor",		test_cursor),
 	UNIT_TEST_ZAP_TYPES("cursor_serialize",	test_cursor_serialize),
 
@@ -1143,6 +1626,17 @@ static const MunitTest zap_tests[] = {
 	    "zap_value_search",		test_zap_value_search),
 	UNIT_TEST_ZAP_TYPES(
 	    "zap_value_search_mask",	test_zap_value_search_mask),
+
+	UNIT_TEST("norm_toupper",	test_norm_toupper, zap_type_params),
+	UNIT_TEST("norm_match_case",	test_norm_match_case, zap_type_params),
+	UNIT_TEST("norm_nfc",		test_norm_nfc, zap_type_params),
+	UNIT_TEST("norm_nfd",		test_norm_nfd, zap_type_params),
+	UNIT_TEST("norm_nfkc",		test_norm_nfkc, zap_type_params),
+	UNIT_TEST("norm_nfkd",		test_norm_nfkd, zap_type_params),
+
+	UNIT_TEST("norm_conflict",	test_norm_conflict, zap_type_params),
+	UNIT_TEST("norm_realname",	test_norm_realname, zap_type_params),
+	UNIT_TEST("norm_remove",	test_norm_remove, zap_type_params),
 
 	{ 0 },
 };
