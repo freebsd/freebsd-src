@@ -4,7 +4,7 @@
  * Copyright (c) 1985, 1989, 1993
  *    The Regents of the University of California.  All rights reserved.
  * Copyright (c) 2026 Dag-Erling Smørgrav
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -16,7 +16,7 @@
  * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -32,14 +32,14 @@
 
 /*
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
- * 
+ *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies, and that
  * the name of Digital Equipment Corporation not be used in advertising or
  * publicity pertaining to distribution of the document or software without
  * specific, written prior permission.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
@@ -133,9 +133,8 @@ static int res_setsortlist(res_state, int, const char *, const char *);
  * Return 0 if completes successfully, -1 on error
  */
 int
-res_ninit(res_state statp) {
-	extern int __res_vinit(res_state, int);
-
+res_ninit(res_state statp)
+{
 	return (__res_vinit(statp, 0));
 }
 
@@ -153,7 +152,6 @@ __res_vinit(res_state statp, int preinit)
 			.sin_port = htons(NAMESERVER_PORT),
 			.sin_addr = { htonl(INADDR_LOOPBACK) },
 		} },
-#ifdef HAS_INET6_STRUCTS
 		{ .sin6 = {
 			.sin6_family = AF_INET6,
 #ifdef HAVE_SA_LEN
@@ -162,7 +160,6 @@ __res_vinit(res_state statp, int preinit)
 			.sin6_port = htons(NAMESERVER_PORT),
 			.sin6_addr = IN6ADDR_LOOPBACK_INIT,
 		} },
-#endif
 	};
 	char *cp, **pp;
 	int dots;
@@ -190,7 +187,7 @@ __res_vinit(res_state statp, int preinit)
 	statp->_u._ext.nscount = 0;
 	statp->_u._ext.ext = malloc(sizeof(*statp->_u._ext.ext));
 	if (statp->_u._ext.ext != NULL) {
-	        memset(statp->_u._ext.ext, 0, sizeof(*statp->_u._ext.ext));
+		memset(statp->_u._ext.ext, 0, sizeof(*statp->_u._ext.ext));
 		statp->_u._ext.ext->nsaddrs[0].sin = statp->nsaddr;
 		strcpy(statp->_u._ext.ext->nsuffix, "ip6.arpa");
 		strcpy(statp->_u._ext.ext->nsuffix2, "ip6.int");
@@ -829,7 +826,8 @@ freebsd15_res_rndinit(res_state statp)
 __sym_compat(__res_rndinit, freebsd15_res_rndinit, FBSD_1.4);
 
 u_int
-res_nrandomid(res_state statp) {
+res_nrandomid(res_state statp)
+{
 	(void) statp;
 
 	return ((u_int)(arc4random() & 0xffff));
@@ -843,10 +841,11 @@ res_nrandomid(res_state statp) {
  * This routine is not expected to be user visible.
  */
 void
-res_nclose(res_state statp) {
+res_nclose(res_state statp)
+{
 	int ns;
 
-	if (statp->_vcsock >= 0) { 
+	if (statp->_vcsock >= 0) {
 		(void) _close(statp->_vcsock);
 		statp->_vcsock = -1;
 		statp->_flags &= ~(RES_F_VC | RES_F_CONN);
@@ -860,7 +859,8 @@ res_nclose(res_state statp) {
 }
 
 void
-res_ndestroy(res_state statp) {
+res_ndestroy(res_state statp)
+{
 	res_nclose(statp);
 	if (statp->_u._ext.ext != NULL) {
 		free(statp->_u._ext.ext);
@@ -868,22 +868,6 @@ res_ndestroy(res_state statp) {
 	}
 	statp->options &= ~RES_INIT;
 }
-
-#ifndef _LIBC
-const char *
-res_get_nibblesuffix(res_state statp) {
-	if (statp->_u._ext.ext)
-		return (statp->_u._ext.ext->nsuffix);
-	return ("ip6.arpa");
-}
-
-const char *
-res_get_nibblesuffix2(res_state statp) {
-	if (statp->_u._ext.ext)
-		return (statp->_u._ext.ext->nsuffix2);
-	return ("ip6.int");
-}
-#endif
 
 void
 res_setservers(res_state statp, const union res_sockaddr_union *set, int cnt)
@@ -912,8 +896,6 @@ res_setservers(res_state statp, const union res_sockaddr_union *set, int cnt)
 				statp->nsaddr_list[nserv].sin_family = 0;
 			nserv++;
 			break;
-
-#ifdef HAS_INET6_STRUCTS
 		case AF_INET6:
 			size = sizeof(set->sin6);
 			if (statp->_u._ext.ext)
@@ -926,8 +908,6 @@ res_setservers(res_state statp, const union res_sockaddr_union *set, int cnt)
 				statp->nsaddr_list[nserv].sin_family = 0;
 			nserv++;
 			break;
-#endif
-
 		default:
 			break;
 		}
@@ -937,7 +917,8 @@ res_setservers(res_state statp, const union res_sockaddr_union *set, int cnt)
 }
 
 int
-res_getservers(res_state statp, union res_sockaddr_union *set, int cnt) {
+res_getservers(res_state statp, union res_sockaddr_union *set, int cnt)
+{
 	int i;
 	size_t size;
 	u_int16_t family;
@@ -945,7 +926,7 @@ res_getservers(res_state statp, union res_sockaddr_union *set, int cnt) {
 	for (i = 0; i < statp->nscount && i < cnt; i++) {
 		if (statp->_u._ext.ext)
 			family = statp->_u._ext.ext->nsaddrs[i].sin.sin_family;
-		else 
+		else
 			family = statp->nsaddr_list[i].sin_family;
 
 		switch (family) {
@@ -959,8 +940,6 @@ res_getservers(res_state statp, union res_sockaddr_union *set, int cnt) {
 				memcpy(&set->sin, &statp->nsaddr_list[i],
 				       size);
 			break;
-
-#ifdef HAS_INET6_STRUCTS
 		case AF_INET6:
 			size = sizeof(set->sin6);
 			if (statp->_u._ext.ext)
@@ -971,8 +950,6 @@ res_getservers(res_state statp, union res_sockaddr_union *set, int cnt) {
 				memcpy(&set->sin6, &statp->nsaddr_list[i],
 				       size);
 			break;
-#endif
-
 		default:
 			set->sin.sin_family = 0;
 			break;
@@ -981,5 +958,3 @@ res_getservers(res_state statp, union res_sockaddr_union *set, int cnt) {
 	}
 	return (statp->nscount);
 }
-
-/*! \file */
