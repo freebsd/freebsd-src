@@ -173,8 +173,7 @@ sndstat_remove_all_userdevs(struct sndstat_file *pf)
 {
 	struct sndstat_userdev *ud;
 
-	KASSERT(
-	    sx_xlocked(&pf->lock), ("%s: Called without pf->lock", __func__));
+	sx_assert(&pf->lock, SX_XLOCKED);
 	while ((ud = TAILQ_FIRST(&pf->userdev_list)) != NULL) {
 		TAILQ_REMOVE(&pf->userdev_list, ud, link);
 		free(ud->provider, M_DEVBUF);
