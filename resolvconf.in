@@ -922,11 +922,14 @@ tolower() {
 
 # Strip any trailing dot from each name as a FQDN does not belong
 # in resolv.conf(5).
+# Likewise, strip any leading dot from poorly configured routers
+# as some sunscribers don't work with that.
 # While DNS is not case sensitive, our labels for building the zones
 # are, so ensure it's lower case.
 process_domain()
 {
 	for word in $(tolower "$@"); do
+		word="${word#.}"
 		printf "%s " "${word%.}"
 	done
 	printf "\n"
