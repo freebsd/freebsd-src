@@ -342,16 +342,6 @@ const char *ld_env_prefix = LD_;
 
 static void (*rtld_exit_ptr)(void);
 
-/*
- * Fill in a DoneList with an allocation large enough to hold all of
- * the currently-loaded objects.  Keep this as a macro since it calls
- * alloca and we want that to occur within the scope of the caller.
- */
-#define donelist_init(dlp)                                             \
-	((dlp)->objs = alloca(obj_count * sizeof(dlp)->objs[0]),       \
-	    assert((dlp)->objs != NULL), (dlp)->num_alloc = obj_count, \
-	    (dlp)->num_used = 0)
-
 #define LD_UTRACE(e, h, mb, ms, r, n)                      \
 	do {                                               \
 		if (ld_utrace != NULL)                     \
@@ -1040,6 +1030,38 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	*exit_proc = rtld_exit_ptr;
 	*objp = obj_main;
 	return ((func_ptr_type)obj_main->entry);
+}
+
+/*
+ * Fill in a DoneList with an allocation large enough to hold all of
+ * the currently-loaded   Keep this as a macro since it calls
+ * alloca and we want that to occur within the scope of the caller.
+ */
+#define	DLP_ALLOCA_LIMIT	100	/* 800 bytes on LP64 */
+#define donelist_init(_DLP, _REQ)	do {				\
+	DoneList *_dlp = _DLP;						\
+	SymLook *_r = _REQ;						\
+	_dlp->num_alloc = obj_count,					\
+	_dlp->req = NULL;						\
+	if (_dlp->num_alloc > DLP_ALLOCA_LIMIT) {			\
+		_dlp->objs = xcalloc(_dlp->num_alloc, sizeof(_dlp->objs[0])); \
+		if (_r != NULL && _r->donelist_mem == NULL) {		\
+			_r->donelist_mem = _dlp->objs;			\
+			_dlp->req = _r;				\
+		}							\
+	} else {							\
+		_dlp->objs = alloca(_dlp->num_alloc * sizeof(_dlp->objs[0])); \
+	}								\
+	_dlp->num_used = 0;						\
+} while (0)
+
+static void
+donelist_free(DoneList *dlp)
+{
+	if (dlp->num_alloc > DLP_ALLOCA_LIMIT)
+		free(dlp->objs);
+	if (dlp->req != NULL)
+		dlp->req->donelist_mem = NULL;
 }
 
 void *
@@ -2319,7 +2341,7 @@ init_dag(Obj_Entry *root)
 
 	if (root->dag_inited)
 		return;
-	donelist_init(&donelist);
+	donelist_init(&donelist, NULL);
 
 	/* Root object belongs to own DAG. */
 	objlist_push_tail(&root->dldags, root);
@@ -2342,6 +2364,7 @@ init_dag(Obj_Entry *root)
 		}
 	}
 	root->dag_inited = true;
+	donelist_free(&donelist);
 }
 
 static void
@@ -4103,8 +4126,11 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 
 	LD_UTRACE(UTRACE_DLSYM_START, handle, NULL, 0, 0, name);
 	rlock_acquire(rtld_bind_lock, &lockstate);
-	if (sigsetjmp(lockstate.env, 0) != 0)
+	if (sigsetjmp(lockstate.env, 0) != 0) {
 		lock_upgrade(rtld_bind_lock, &lockstate);
+		free(req.donelist_mem);
+		req.donelist_mem = NULL;
+	}
 	if (handle == NULL || handle == RTLD_NEXT || handle == RTLD_DEFAULT ||
 	    handle == RTLD_SELF) {
 		if ((obj = obj_from_addr(retaddr)) == NULL) {
@@ -4173,7 +4199,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 			return (NULL);
 		}
 
-		donelist_init(&donelist);
+		donelist_init(&donelist, &req);
 		if (obj->mainprog) {
 			/* Handle obtained by dlopen(NULL, ...) implies global
 			 * scope. */
@@ -4204,6 +4230,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 				defobj = req.defobj_out;
 			}
 		}
+		donelist_free(&donelist);
 	}
 
 	if (def != NULL) {
@@ -4731,21 +4758,24 @@ get_program_var_addr(const char *name, RtldLockState *lockstate)
 {
 	SymLook req;
 	DoneList donelist;
+	const void **res;
 
 	symlook_init(&req, name);
 	req.lockstate = lockstate;
-	donelist_init(&donelist);
+	donelist_init(&donelist, NULL);
 	if (symlook_global(&req, &donelist) != 0)
 		return (NULL);
 	if (ELF_ST_TYPE(req.sym_out->st_info) == STT_FUNC)
-		return ((const void **)make_function_pointer(req.sym_out,
-		    req.defobj_out));
+		res = (const void **)make_function_pointer(req.sym_out,
+		    req.defobj_out);
 	else if (ELF_ST_TYPE(req.sym_out->st_info) == STT_GNU_IFUNC)
-		return ((const void **)rtld_resolve_ifunc(req.defobj_out,
-		    req.sym_out));
+		res = (const void **)rtld_resolve_ifunc(req.defobj_out,
+		    req.sym_out);
 	else
-		return ((const void **)(req.defobj_out->relocbase +
-		    req.sym_out->st_value));
+		res = (const void **)(req.defobj_out->relocbase +
+		    req.sym_out->st_value);
+	donelist_free(&donelist);
+	return (res);
 }
 
 /*
@@ -4820,7 +4850,7 @@ symlook_default(SymLook *req, const Obj_Entry *refobj)
 	SymLook req1;
 	int res;
 
-	donelist_init(&donelist);
+	donelist_init(&donelist, req);
 	symlook_init_from_req(&req1, req);
 
 	/*
@@ -4873,6 +4903,7 @@ symlook_default(SymLook *req, const Obj_Entry *refobj)
 		}
 	}
 
+	donelist_free(&donelist);
 	return (req->sym_out != NULL ? 0 : ESRCH);
 }
 
@@ -4954,13 +4985,15 @@ symlook_obj_load_filtees(SymLook *req, SymLook *req1, const Obj_Entry *obj,
     Needed_Entry *needed)
 {
 	DoneList donelist;
-	int flags;
+	int flags, res;
 
 	flags = (req->flags & SYMLOOK_EARLY) != 0 ? RTLD_LO_EARLY : 0;
 	load_filtees(__DECONST(Obj_Entry *, obj), flags, req->lockstate);
-	donelist_init(&donelist);
+	donelist_init(&donelist, NULL);
 	symlook_init_from_req(req1, req);
-	return (symlook_needed(req1, needed, &donelist));
+	res = symlook_needed(req1, needed, &donelist);
+	donelist_free(&donelist);
+	return (res);
 }
 
 /*
@@ -6305,6 +6338,7 @@ symlook_init_from_req(SymLook *dst, const SymLook *src)
 	dst->defobj_out = NULL;
 	dst->sym_out = NULL;
 	dst->lockstate = src->lockstate;
+	dst->donelist_mem = NULL;
 }
 
 static int

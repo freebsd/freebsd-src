@@ -319,6 +319,7 @@ typedef struct Struct_SymCache {
  */
 typedef struct Struct_DoneList {
     const Obj_Entry **objs;		/* Array of object pointers */
+    struct Struct_SymLook *req;
     unsigned int num_alloc;		/* Allocated size of the array */
     unsigned int num_used;		/* Number of array slots used */
 } DoneList;
@@ -348,6 +349,7 @@ typedef struct Struct_SymLook {
     const Obj_Entry *defobj_out;
     const Elf_Sym *sym_out;
     struct Struct_RtldLockState *lockstate;
+    void *donelist_mem;
 } SymLook;
 
 enum {
