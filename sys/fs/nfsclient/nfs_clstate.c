@@ -3585,7 +3585,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 	mount_t mp;
 	nfsattrbit_t attrbits, rattrbits;
 	nfsv4stateid_t stateid;
-	uint32_t seqid, slotid = 0, highslot, cachethis __unused;
+	uint32_t seqid, slotid = 0, highslot, cachethis;
 	uint8_t sessionid[NFSX_V4SESSIONID];
 	struct mbuf *rep;
 	struct nfscllayout *lyp;
@@ -3596,6 +3596,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 	struct nfsclsession *tsep;
 
 	gotseq_ok = 0;
+	cachethis = 0;
 	nfsrvd_rephead(nd);
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	taglen = fxdr_unsigned(int, *tl);
@@ -3922,6 +3923,9 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 				error = nfsv4_seqsession(seqid, slotid,
 				    highslot, tsep->nfsess_cbslots, &rep,
 				    tsep->nfsess_backslots);
+				/* For callbacks, do not reply NFSERR_DELAY. */
+				if (error == NFSERR_DELAY)
+					error = 0;
 			}
 			NFSUNLOCKCLSTATE();
 			if (error == 0 || error == NFSERR_REPLYFROMCACHE) {
@@ -4065,8 +4069,9 @@ nfsmout:
 	}
 	*nd->nd_errp = nfscl_errmap(nd, minorvers);
 out:
-	if (gotseq_ok != 0) {
+	if (gotseq_ok != 0 && cachethis != 0) {
 		rep = m_copym(nd->nd_mreq, 0, M_COPYALL, M_WAITOK);
+		NFSCL_DEBUG(4, "Got reply for cbcache=%p\n", rep);
 		NFSLOCKCLSTATE();
 		clp = nfscl_getclntsess(sessionid);
 		if (clp != NULL) {
@@ -5283,6 +5288,8 @@ nfscl_errmap(struct nfsrv_descript *nd, u_int32_t minorvers)
 	while (*++errp)
 		if (*errp == (short)nd->nd_repstat)
 			return (txdr_unsigned(nd->nd_repstat));
+	if (minorvers > NFSV4_MINORVERSION && *defaulterrp == NFSERR_RESOURCE)
+		return (txdr_unsigned(NFSERR_SERVERFAULT));
 	return (txdr_unsigned(*defaulterrp));
 }
 
