@@ -142,23 +142,20 @@ unmappedaddr(struct sockaddr_in6 *sin6)
 static int
 ftp_chkerr(conn_t *conn)
 {
-	if (fetch_getln(conn) == -1) {
+	ssize_t rlen;
+
+	if ((rlen = fetch_getln(conn)) < 0) {
 		fetch_syserr();
 		return (-1);
 	}
 	if (isftpinfo(conn->buf)) {
 		while (conn->buflen && !isftpreply(conn->buf)) {
-			if (fetch_getln(conn) == -1) {
+			if ((rlen = fetch_getln(conn)) < 0) {
 				fetch_syserr();
 				return (-1);
 			}
 		}
 	}
-
-	while (conn->buflen &&
-	    isspace((unsigned char)conn->buf[conn->buflen - 1]))
-		conn->buflen--;
-	conn->buf[conn->buflen] = '\0';
 
 	if (!isftpreply(conn->buf)) {
 		ftp_seterr(FTP_PROTOCOL_ERROR);

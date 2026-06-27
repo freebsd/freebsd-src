@@ -148,25 +148,30 @@ struct httpio
 static int
 http_new_chunk(struct httpio *io)
 {
-	char *p;
+	unsigned char *p, *eol;
 
 	if (fetch_getln(io->conn) == -1)
 		return (-1);
 
-	if (io->conn->buflen < 2 || !isxdigit((unsigned char)*io->conn->buf))
+	p = (unsigned char *)io->conn->buf;
+	if (io->conn->pos < 2 || !isxdigit(*p))
 		return (-1);
 
-	for (p = io->conn->buf; *p && !isspace((unsigned char)*p); ++p) {
-		if (*p == ';')
+	eol = (unsigned char *)io->conn->buf + io->conn->pos;
+	while (p < eol && !isspace(*p)) {
+		if (*p == ';') {
 			break;
-		if (!isxdigit((unsigned char)*p))
-			return (-1);
-		if (isdigit((unsigned char)*p)) {
+		} else if (*p >= '0' && *p <= '9') {
 			io->chunksize = io->chunksize * 16 +
 			    *p - '0';
-		} else {
+		} else if (*p >= 'A' && *p <= 'F') {
 			io->chunksize = io->chunksize * 16 +
-			    10 + tolower((unsigned char)*p) - 'a';
+			    10 + tolower(*p) - 'A';
+		} else if (*p >= 'a' && *p <= 'f') {
+			io->chunksize = io->chunksize * 16 +
+			    10 + tolower(*p) - 'a';
+		} else {
+			return (-1);
 		}
 	}
 
@@ -221,7 +226,7 @@ http_fillbuf(struct httpio *io, size_t len)
 	if (io->chunked == 0) {
 		if (http_growbuf(io, len) == -1)
 			return (-1);
-		if ((nbytes = fetch_read(io->conn, io->buf, len)) == -1) {
+		if ((nbytes = fetch_bufread(io->conn, io->buf, len)) == -1) {
 			io->error = errno;
 			return (-1);
 		}
@@ -247,7 +252,7 @@ http_fillbuf(struct httpio *io, size_t len)
 		len = io->chunksize;
 	if (http_growbuf(io, len) == -1)
 		return (-1);
-	if ((nbytes = fetch_read(io->conn, io->buf, len)) == -1) {
+	if ((nbytes = fetch_bufread(io->conn, io->buf, len)) == -1) {
 		io->error = errno;
 		return (-1);
 	}
@@ -256,8 +261,8 @@ http_fillbuf(struct httpio *io, size_t len)
 	io->chunksize -= nbytes;
 
 	if (io->chunksize == 0) {
-		if (fetch_read(io->conn, &ch, 1) != 1 || ch != '\r' ||
-		    fetch_read(io->conn, &ch, 1) != 1 || ch != '\n')
+		if (fetch_bufread(io->conn, &ch, 1) != 1 || ch != '\r' ||
+		    fetch_bufread(io->conn, &ch, 1) != 1 || ch != '\n')
 			return (-1);
 	}
 
@@ -515,34 +520,19 @@ clean_http_headerbuf(http_headerbuf_t *buf)
 	init_http_headerbuf(buf);
 }
 
-/* Remove whitespace at the end of the buffer */
-static void
-http_conn_trimright(conn_t *conn)
-{
-	while (conn->buflen &&
-	       isspace((unsigned char)conn->buf[conn->buflen - 1]))
-		conn->buflen--;
-	conn->buf[conn->buflen] = '\0';
-}
-
 static hdr_t
 http_next_header(conn_t *conn, http_headerbuf_t *hbuf, const char **p)
 {
 	unsigned int i, len;
 
-	/*
-	 * Have to do the stripping here because of the first line. So
-	 * it's done twice for the subsequent lines. No big deal
-	 */
-	http_conn_trimright(conn);
-	if (conn->buflen == 0)
+	if (conn->pos == 0 || conn->buf[0] == '\0')
 		return (hdr_end);
 
 	/* Copy the line to the headerbuf */
-	if (hbuf->bufsize < conn->buflen + 1) {
-		if ((hbuf->buf = realloc(hbuf->buf, conn->buflen + 1)) == NULL)
+	if (hbuf->bufsize < conn->pos + 1) {
+		if ((hbuf->buf = realloc(hbuf->buf, conn->pos + 1)) == NULL)
 			return (hdr_syserror);
-		hbuf->bufsize = conn->buflen + 1;
+		hbuf->bufsize = conn->pos + 1;
 	}
 	strcpy(hbuf->buf, conn->buf);
 	hbuf->buflen = conn->buflen;
@@ -556,12 +546,9 @@ http_next_header(conn_t *conn, http_headerbuf_t *hbuf, const char **p)
 			return (hdr_syserror);
 
 		/*
-		 * Note: we carry on the idea from the previous version
-		 * that a pure whitespace line is equivalent to an empty
-		 * one (so it's not continuation and will be handled when
-		 * we are called next)
+		 * Note: we previously considered a pure whitespace line
+		 * equivalent to an empty one.  This was incorrect.
 		 */
-		http_conn_trimright(conn);
 		if (conn->buf[0] != ' ' && conn->buf[0] != "\t"[0])
 			break;
 
