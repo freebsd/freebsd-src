@@ -26,6 +26,8 @@
  */
 
 #include <sys/param.h>
+#include <machine/cpu.h>
+#include <machine/cpufunc.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,12 +37,36 @@
 #include "rtld_malloc.h"
 #include "rtld_libc.h"
 
+static int rtld_malloc_spinlock;
+
+/*
+ * Almost always the rtld malloc is called under the write-locked rtld
+ * bind lock.  Due to this, xlock() would need a single CAS to take
+ * the spinlock.  But some places only own read-locked rtld bind lock,
+ * and then the spinlock protects the malloc structures from the
+ * parallel updates.
+ */
+static void
+xlock(void)
+{
+	while (atomic_cmpset_acq_int(&rtld_malloc_spinlock, 0, 1) == 0)
+		cpu_spinwait();
+}
+
+static void
+xunlock(void)
+{
+	atomic_store_rel_int(&rtld_malloc_spinlock, 0);
+}
+
 void *
 xcalloc(size_t number, size_t size)
 {
 	void *p;
 
+	xlock();
 	p = __crt_calloc(number, size);
+	xunlock();
 	if (p == NULL) {
 		rtld_fdputstr(STDERR_FILENO, "Out of memory\n");
 		_exit(1);
@@ -51,10 +77,11 @@ xcalloc(size_t number, size_t size)
 void *
 xmalloc(size_t size)
 {
-
 	void *p;
 
+	xlock();
 	p = __crt_malloc(size);
+	xunlock();
 	if (p == NULL) {
 		rtld_fdputstr(STDERR_FILENO, "Out of memory\n");
 		_exit(1);
@@ -83,10 +110,53 @@ xmalloc_aligned(size_t size, size_t align, size_t offset)
 	if (align < sizeof(void *))
 		align = sizeof(void *);
 
+	xlock();
 	res = __crt_aligned_alloc_offset(align, size, offset);
+	xunlock();
 	if (res == NULL) {
 		rtld_fdputstr(STDERR_FILENO, "Out of memory\n");
 		_exit(1);
 	}
 	return (res);
+}
+
+void *
+malloc(size_t size)
+{
+	void *p;
+
+	xlock();
+	p = __crt_malloc(size);
+	xunlock();
+	return (p);
+}
+
+void *
+calloc(size_t num, size_t size)
+{
+	void *p;
+
+	xlock();
+	p = __crt_calloc(num, size);
+	xunlock();
+	return (p);
+}
+
+void
+free(void *cp)
+{
+	xlock();
+	__crt_free(cp);
+	xunlock();
+}
+
+void *
+realloc(void *cp, size_t nbytes)
+{
+	void *p;
+
+	xlock();
+	p = __crt_realloc(cp, nbytes);
+	xunlock();
+	return (p);
 }

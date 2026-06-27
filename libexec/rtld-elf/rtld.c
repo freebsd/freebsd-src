@@ -6878,31 +6878,6 @@ getenv(const char *name)
 	    strlen(name))));
 }
 
-/* malloc */
-void *
-malloc(size_t nbytes)
-{
-	return (__crt_malloc(nbytes));
-}
-
-void *
-calloc(size_t num, size_t size)
-{
-	return (__crt_calloc(num, size));
-}
-
-void
-free(void *cp)
-{
-	__crt_free(cp);
-}
-
-void *
-realloc(void *cp, size_t nbytes)
-{
-	return (__crt_realloc(cp, nbytes));
-}
-
 extern int _rtld_version__FreeBSD_version __exported;
 int _rtld_version__FreeBSD_version = __FreeBSD_version;
 
