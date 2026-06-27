@@ -35,6 +35,7 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 
+#include <assert.h>
 #include <curses.h>
 #include <devstat.h>
 #include <err.h>
@@ -388,7 +389,7 @@ main(int argc, char **argv)
 	struct gconsumer *cp;
 	struct gident *gid;
 	char *p;
-	char ts[100], g_name[4096];
+	char ts[100], ts2[100], g_name[4096];
 	long double xfer_per_sec, busy_pct;
 	struct kstat krd, kwr, kfree, kother;
 	uint64_t queue_len;
@@ -396,7 +397,6 @@ main(int argc, char **argv)
 	memset(&kother, 0, sizeof kother);
 	hist = NULL;
 	el = NULL;
-	maxx = -1;
 	curx = -1;
 	loop = 0;
 	/* Turn on batch mode if output is not tty. */
@@ -502,10 +502,11 @@ main(int argc, char **argv)
 		dt += (tp.tv_nsec - tq.tv_nsec) * 1e-9;
 		tq = tp;
 		if (flag_C) { /* set timestamp string */
-			(void)strftime(ts,sizeof(ts),
-					"%F %T",localtime(&tq.tv_sec));
-			(void)snprintf(ts,sizeof(ts),
-					"%s.%.9ld",ts,tq.tv_nsec);
+			(void)strftime(ts2, sizeof(ts2),
+					"%F %T", localtime(&tq.tv_sec));
+			assert(strlen(ts2) < 50);
+			(void)snprintf(ts, sizeof(ts),
+					"%s.%.9ld" ,ts2,tq.tv_nsec);
 		}
 		if (loop > 1 && !flag_C)
 			text_header();
@@ -654,6 +655,7 @@ main(int argc, char **argv)
 		} else {
 			getyx(stdscr, cury, curx);
 			getmaxyx(stdscr, maxy, maxx);
+			(void)maxx;
 			clrtobot();
 			if (maxy - 1 <= cury)
 				move(maxy - 1, 0);
