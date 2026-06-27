@@ -92,7 +92,7 @@ hostname	RW,DIRECT	/tmp/direct-image
 hostname	RW,NODIRECT	/tmp/nodirect-image
 .Ed
 .Pp
-The first colunm specifies the ip, network with netmask, or the hostname
+The first column specifies the ip, network with netmask, or the hostname
 that the export applies to.
 .Pp
 The next column is the access flags that apply to the export
@@ -121,7 +121,7 @@ DIRECT and NODIRECT are used to coerce the use of the O_DIRECT flag to
 .Xr open 2 when the specified path is opened. If DIRECT is specified the
 path is always opened with O_DIRECT. If NODIRECT is specified the path is
 never opened with O_DIRECT. DIRECT access limits the cache effects of
-IO operaions on the file.  This has the effect of having clients accessing
+IO operations on the file.  This has the effect of having clients accessing
 exports to not impact the cache of the local machine, however it
 will cause greater IO utilization to the devices on which the files reside.
 .Pp
