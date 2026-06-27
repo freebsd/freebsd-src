@@ -175,6 +175,10 @@ _Noreturn void
 size_t	memalignment(const void *) __pure2;
 void	free_sized(void *, size_t) __noexcept;
 void	free_aligned_sized(void *, size_t, size_t) __noexcept;
+int	strfromd(char * __restrict, size_t, const char * __restrict, double);
+int	strfromf(char * __restrict, size_t, const char * __restrict, float);
+int	strfroml(char * __restrict, size_t,
+	    const char * __restrict, long double);
 #endif /* __ISO_C_VISIBLE >= 2023 */
 
 /*

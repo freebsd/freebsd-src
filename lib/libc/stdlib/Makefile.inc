@@ -55,6 +55,9 @@ MISRCS+= \
 	remque.c \
 	set_constraint_handler_s.c \
 	strfmon.c \
+	strfromd.c \
+	strfromf.c \
+	strfroml.c \
 	strtoimax.c \
 	strtol.c \
 	strtold.c \
@@ -96,7 +99,7 @@ MAN+=	a64l.3 abort.3 abs.3 atexit.3 atof.3 \
 	quick_exit.3 \
 	radixsort.3 rand.3 random.3 reallocarray.3 reallocf.3 realpath.3 \
 	set_constraint_handler_s.3 \
-	strfmon.3 strtod.3 strtol.3 strtonum.3 strtoul.3 system.3 \
+	strfmon.3 strfromd.3 strtod.3 strtol.3 strtonum.3 strtoul.3 system.3 \
 	tsearch.3
 
 MLINKS+=a64l.3 l64a.3 \
@@ -143,6 +146,8 @@ MLINKS+=reallocarray.3 recallocarray.3
 MLINKS+=set_constraint_handler_s.3 abort_handler_s.3
 MLINKS+=set_constraint_handler_s.3 ignore_handler_s.3
 MLINKS+=strfmon.3 strfmon_l.3
+MLINKS+=strfromd.3 strfromf.3 \
+	strfromd.3 strfroml.3
 MLINKS+=strtod.3 strtof.3 \
 	strtod.3 strtold.3
 MLINKS+=strtol.3 strtoll.3 \
