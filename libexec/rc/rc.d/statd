@@ -28,6 +28,7 @@ statd_precmd()
 
 load_rc_config $name
 
-rc_flags=${rpc_statd_flags}
+: ${statd_flags:="${rpc_statd_flags}"}
+export statd_flags
 
 run_rc_command $1
