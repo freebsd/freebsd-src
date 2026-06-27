@@ -124,6 +124,8 @@
 #define CMDID_RC_GET_OBJ_REG_V3			CMD_RC_V3(0x15E)
 #define CMDID_RC_SET_OBJ_IRQ			CMD_RC(0x15F)
 #define CMDID_RC_GET_CONN			CMD_RC(0x16C)
+#define CMDID_RC_CONNECT			CMD_RC(0x167)
+#define CMDID_RC_DISCONNECT			CMD_RC(0x168)
 
 /* ------------------------- DPIO command IDs ------------------------------- */
 #define CMD_IO_BASE_VERSION	1
@@ -152,6 +154,8 @@
 #define CMD_NI_V2(id)	(((id) << CMD_NI_ID_OFFSET) | CMD_NI_2ND_VERSION)
 #define CMD_NI_V4(id)	(((id) << CMD_NI_ID_OFFSET) | CMD_NI_4TH_VERSION)
 
+#define CMDID_NI_CREATE				CMD_NI(0x901)
+#define CMDID_NI_DESTROY			CMD_NI(0x981)
 #define CMDID_NI_OPEN				CMD_NI(0x801)
 #define CMDID_NI_CLOSE				CMD_NI(0x800)
 #define CMDID_NI_ENABLE				CMD_NI(0x002)
@@ -193,6 +197,8 @@
 
 #define CMD_BP(id)	(((id) << CMD_BP_ID_OFFSET) | CMD_BP_BASE_VERSION)
 
+#define CMDID_BP_CREATE				CMD_BP(0x904)
+#define CMDID_BP_DESTROY			CMD_BP(0x984)
 #define CMDID_BP_OPEN				CMD_BP(0x804)
 #define CMDID_BP_CLOSE				CMD_BP(0x800)
 #define CMDID_BP_ENABLE				CMD_BP(0x002)
@@ -226,6 +232,8 @@
 
 #define CMD_CON(id)	(((id) << CMD_CON_ID_OFFSET) | CMD_CON_BASE_VERSION)
 
+#define CMDID_CON_CREATE			CMD_CON(0x908)
+#define CMDID_CON_DESTROY			CMD_CON(0x988)
 #define CMDID_CON_OPEN				CMD_CON(0x808)
 #define CMDID_CON_CLOSE				CMD_CON(0x800)
 #define CMDID_CON_ENABLE			CMD_CON(0x002)

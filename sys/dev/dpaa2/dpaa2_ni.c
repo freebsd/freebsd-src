@@ -693,24 +693,134 @@ dpaa2_ni_fixed_media_status(if_t ifp, struct ifmediareq* ifmr)
 }
 
 static void
-dpaa2_ni_setup_fixed_link(struct dpaa2_ni_softc *sc)
+dpaa2_ni_setup_fixed_link(struct dpaa2_ni_softc *sc, uint32_t max_rate)
 {
-	/*
-	 * FIXME: When the DPNI is connected to a DPMAC, we can get the
-	 * 'apparent' speed from it.
-	 */
+	int subtype;
+
 	sc->fixed_link = true;
+
+	/*
+	 * The link is managed by the MC firmware; derive the reported media
+	 * from the connected DPMAC's maximum rate (in Mbit/s) so that
+	 * ifconfig shows e.g. 10Gbase-LR for an SFP+ port instead of a
+	 * hardcoded 1000baseT. The actual link is brought up by the MC.
+	 */
+	switch (max_rate) {
+	case 100000:
+		subtype = IFM_100G_LR4;
+		break;
+	case 40000:
+		subtype = IFM_40G_LR4;
+		break;
+	case 25000:
+		subtype = IFM_25G_LR;
+		break;
+	case 10000:
+		subtype = IFM_10G_LR;
+		break;
+	case 2500:
+		subtype = IFM_2500_KX;
+		break;
+	case 1000:
+		subtype = IFM_1000_KX;
+		break;
+	default:
+		subtype = IFM_1000_T;	/* historical fallback */
+		break;
+	}
 
 	ifmedia_init(&sc->fixed_ifmedia, 0, dpaa2_ni_media_change,
 		     dpaa2_ni_fixed_media_status);
-	ifmedia_add(&sc->fixed_ifmedia, IFM_ETHER | IFM_1000_T, 0, NULL);
-	ifmedia_set(&sc->fixed_ifmedia, IFM_ETHER | IFM_1000_T);
+	ifmedia_add(&sc->fixed_ifmedia, IFM_ETHER | subtype, 0, NULL);
+	ifmedia_set(&sc->fixed_ifmedia, IFM_ETHER | subtype);
 }
 
 static int
 dpaa2_ni_detach(device_t dev)
 {
-	/* TBD */
+	device_t pdev = device_get_parent(dev);
+	device_t child = dev;
+	struct dpaa2_ni_softc *sc = device_get_softc(dev);
+	struct dpaa2_devinfo *rcinfo = device_get_ivars(pdev);
+	struct dpaa2_devinfo *dinfo = device_get_ivars(dev);
+	struct dpaa2_cmd cmd;
+	uint16_t rc_token, ni_token;
+	uint32_t i;
+
+	/*
+	 * Detach the network interface from the stack first. After
+	 * ether_ifdetach() returns no ioctl, transmit or interface-dump path
+	 * (e.g. a netlink GETLINK walk) can reach this interface, so it is
+	 * safe to tear the rest of the device down.
+	 */
+	if (sc->ifp != NULL) {
+		DPNI_LOCK(sc);
+		if_setdrvflagbits(sc->ifp, 0, IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+		DPNI_UNLOCK(sc);
+		ether_ifdetach(sc->ifp);
+	}
+
+	/* Stop the periodic link-status callout. */
+	callout_drain(&sc->mii_callout);
+
+	/*
+	 * Disable the DPNI and its link-change interrupt in the MC. Once the
+	 * DPNI is disabled the MC stops dequeuing frames to our channels, so
+	 * no further CDANs can be generated.
+	 */
+	DPAA2_CMD_INIT(&cmd);
+	if (DPAA2_CMD_RC_OPEN(dev, child, &cmd, rcinfo->id, &rc_token) == 0) {
+		if (DPAA2_CMD_NI_OPEN(dev, child, &cmd, dinfo->id,
+		    &ni_token) == 0) {
+			(void)DPAA2_CMD_NI_SET_IRQ_ENABLE(dev, child, &cmd,
+			    DPNI_IRQ_INDEX, false);
+			(void)DPAA2_CMD_NI_DISABLE(dev, child, &cmd);
+			(void)DPAA2_CMD_NI_CLOSE(dev, child,
+			    DPAA2_CMD_TK(&cmd, ni_token));
+		}
+		(void)DPAA2_CMD_RC_CLOSE(dev, child,
+		    DPAA2_CMD_TK(&cmd, rc_token));
+	}
+
+	/* Tear down the link-change interrupt handler. */
+	if (sc->intr != NULL)
+		bus_teardown_intr(dev, sc->irq_res, sc->intr);
+	if (sc->irq_res != NULL)
+		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid[0],
+		    sc->irq_res);
+	pci_release_msi(dev);
+
+	/*
+	 * Free the buffer-pool replenish taskqueue before the channels: it
+	 * runs ch->bp_task which references the channels, and taskqueue_free()
+	 * drains any pending task.
+	 */
+	if (sc->bp_taskq != NULL) {
+		taskqueue_free(sc->bp_taskq);
+		sc->bp_taskq = NULL;
+	}
+
+	/* Free the per-CPU QBMan channels. */
+	for (i = 0; i < sc->chan_n; i++) {
+		dpaa2_chan_free(sc->channels[i]);
+		sc->channels[i] = NULL;
+	}
+	sc->chan_n = 0;
+
+	/* Detach any child (e.g. miibus) and return DPAA2 objects to the RC. */
+	bus_generic_detach(dev);
+	bus_release_resources(dev, dpaa2_ni_spec, sc->res);
+
+	/* Release the fixed-link media and the interface itself. */
+	if (sc->fixed_link)
+		ifmedia_removeall(&sc->fixed_ifmedia);
+	if (sc->ifp != NULL) {
+		if_free(sc->ifp);
+		sc->ifp = NULL;
+	}
+
+	mtx_destroy(&sc->lock);
+
 	return (0);
 }
 
@@ -729,7 +839,7 @@ dpaa2_ni_setup(device_t dev)
 	struct dpaa2_cmd cmd;
 	uint8_t eth_bca[ETHER_ADDR_LEN]; /* broadcast physical address */
 	uint16_t rc_token, ni_token, mac_token;
-	struct dpaa2_mac_attr attr;
+	struct dpaa2_mac_attr attr = { 0 };
 	enum dpaa2_mac_link_type link_type;
 	uint32_t link;
 	int error;
@@ -874,7 +984,7 @@ dpaa2_ni_setup(device_t dev)
 			if (link_type == DPAA2_MAC_LINK_TYPE_FIXED) {
 				device_printf(dev, "connected DPMAC is in FIXED "
 				    "mode\n");
-				dpaa2_ni_setup_fixed_link(sc);
+				dpaa2_ni_setup_fixed_link(sc, attr.max_rate);
 			} else if (link_type == DPAA2_MAC_LINK_TYPE_PHY) {
 				device_printf(dev, "connected DPMAC is in PHY "
 				    "mode\n");
@@ -930,7 +1040,7 @@ dpaa2_ni_setup(device_t dev)
 		} else if (ep2_desc.type == DPAA2_DEV_NI ||
 			   ep2_desc.type == DPAA2_DEV_MUX ||
 			   ep2_desc.type == DPAA2_DEV_SW) {
-			dpaa2_ni_setup_fixed_link(sc);
+			dpaa2_ni_setup_fixed_link(sc, 0);
 		}
 	}
 

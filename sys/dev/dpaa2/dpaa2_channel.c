@@ -285,6 +285,59 @@ fail_rc_open:
 }
 
 /**
+ * @brief Tear down a QBMan channel and free the resources allocated by
+ *        dpaa2_chan_setup().
+ *
+ * The caller must guarantee that the channel can no longer generate CDANs
+ * (i.e. the owning DPNI has been disabled) before calling this routine, so
+ * that no notification can reference the channel while it is being freed.
+ *
+ * NOTE: The Rx buffers seeded into the DPBP and the per-Tx-ring buffers are
+ *	 not reclaimed here; they are released together with the buffer pool
+ *	 when the DPBP resource is returned to the container.
+ */
+void
+dpaa2_chan_free(struct dpaa2_channel *ch)
+{
+	if (ch == NULL)
+		return;
+
+	/*
+	 * Stop and drain the per-channel cleanup taskqueue first so that no
+	 * cleanup task runs (and re-arms the CDAN) while we free the channel.
+	 */
+	if (ch->cleanup_tq != NULL) {
+		while (taskqueue_cancel(ch->cleanup_tq, &ch->cleanup_task,
+		    NULL) != 0)
+			taskqueue_drain(ch->cleanup_tq, &ch->cleanup_task);
+		taskqueue_free(ch->cleanup_tq);
+		ch->cleanup_tq = NULL;
+	}
+
+	/* Free the DMA-mapped channel storage used for VDQ responses. */
+	if (ch->store.vaddr != NULL)
+		bus_dmamem_free(ch->store.dmat, ch->store.vaddr, ch->store.dmap);
+	if (ch->store.dmat != NULL)
+		bus_dma_tag_destroy(ch->store.dmat);
+
+	/* Free the software Tx ring. */
+	if (ch->xmit_br != NULL)
+		buf_ring_free(ch->xmit_br, M_DEVBUF);
+	mtx_destroy(&ch->xmit_mtx);
+
+	/* Destroy the per-channel DMA tags. */
+	if (ch->rx_dmat != NULL)
+		bus_dma_tag_destroy(ch->rx_dmat);
+	if (ch->tx_dmat != NULL)
+		bus_dma_tag_destroy(ch->tx_dmat);
+	if (ch->sgt_dmat != NULL)
+		bus_dma_tag_destroy(ch->sgt_dmat);
+	mtx_destroy(&ch->dma_mtx);
+
+	free(ch, M_DPAA2_CH);
+}
+
+/**
  * @brief Performs an initial configuration of the frame queue.
  */
 int
