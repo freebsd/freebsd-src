@@ -95,6 +95,7 @@
 /* ensure that sockaddr_in6 and IN6ADDR_ANY_INIT are declared / defined */
 #include <resolv.h>
 
+#include "res_config.h"
 #include "res_private.h"
 
 static void res_readconf(res_state, const char *, int);
@@ -104,10 +105,8 @@ static int res_setnsaddr(res_state, int, const char *, const char *);
 static void res_setoptions(res_state, const char *, const char *);
 
 #ifdef RESOLVSORT
-static const char sort_mask[] = "/&";
-#define ISSORTMASK(ch) (strchr(sort_mask, ch) != NULL)
-static u_int32_t net_mask(struct in_addr);
-#endif
+static int res_setsortlist(res_state, int, const char *, const char *);
+#endif /* RESOLVSORT */
 
 #define res_space(ch)							\
 	isspace((unsigned char)(ch))
@@ -285,8 +284,7 @@ res_readconf(res_state statp, const char *resconf, int maxns)
 	size_t sz = 0;
 	int nserv = 0;
 #ifdef RESOLVSORT
-	int n, nsort = 0;
-	char *net;
+	int nsort = 0;
 #endif
 
 	if ((fp = fopen(resconf, "re")) == NULL)
@@ -357,101 +355,28 @@ res_readconf(res_state statp, const char *resconf, int maxns)
 			continue;
 		}
 #ifdef RESOLVSORT
+		/* read result sort order */
 		if (res_match(line, eow, "sortlist")) {
-			struct in_addr a;
-			struct in6_addr a6;
-			int m, i;
-			u_char *u;
-			struct __res_state_ext *ext = statp->_u._ext.ext;
-
-			cp = line + sizeof("sortlist") - 1;
 			while (nsort < MAXRESOLVSORT) {
-				while (*cp == ' ' || *cp == '\t')
+				cp = eow;
+				while (cp < eol && res_space(*cp))
 					cp++;
-				if (*cp == '\0' || *cp == '\n' || *cp == ';')
+				if (cp == eol)
 					break;
-				net = cp;
-				while (*cp && !ISSORTMASK(*cp) && *cp != ';' &&
-				    isascii(*cp) && !isspace((unsigned char)*cp))
-					cp++;
-				n = *cp;
-				*cp = 0;
-				if (inet_aton(net, &a)) {
-					statp->sort_list[nsort].addr = a;
-					if (ISSORTMASK(n)) {
-						*cp++ = n;
-						net = cp;
-						while (*cp && *cp != ';' &&
-						    isascii(*cp) &&
-						    !isspace((unsigned char)*cp))
-							cp++;
-						n = *cp;
-						*cp = 0;
-						if (inet_aton(net, &a)) {
-							statp->sort_list[nsort].mask = a.s_addr;
-						} else {
-							statp->sort_list[nsort].mask =
-							    net_mask(statp->sort_list[nsort].addr);
-						}
-					} else {
-						statp->sort_list[nsort].mask =
-						    net_mask(statp->sort_list[nsort].addr);
-					}
-					ext->sort_list[nsort].af = AF_INET;
-					ext->sort_list[nsort].addr.ina =
-					    statp->sort_list[nsort].addr;
-					ext->sort_list[nsort].mask.ina.s_addr =
-					    statp->sort_list[nsort].mask;
+				eow = cp;
+				while (eow < eol && !res_space(*eow))
+					eow++;
+				if (res_setsortlist(statp, nsort, cp, eow))
 					nsort++;
-				}
-				else if (inet_pton(AF_INET6, net, &a6) == 1) {
-
-					ext->sort_list[nsort].af = AF_INET6;
-					ext->sort_list[nsort].addr.in6a = a6;
-					u = (u_char *)&ext->sort_list[nsort].mask.in6a;
-					*cp++ = n;
-					net = cp;
-					while (*cp && *cp != ';' &&
-					    isascii(*cp) && !isspace(*cp))
-						cp++;
-					m = n;
-					n = *cp;
-					*cp = 0;
-					switch (m) {
-					case '/':
-						m = atoi(net);
-						break;
-					case '&':
-						if (inet_pton(AF_INET6, net, u) == 1) {
-							m = -1;
-							break;
-						}
-						/*FALLTHROUGH*/
-					default:
-						m = sizeof(struct in6_addr) * CHAR_BIT;
-						break;
-					}
-					if (m >= 0) {
-						for (i = 0; i < sizeof(struct in6_addr); i++) {
-							if (m <= 0) {
-								*u = 0;
-							} else {
-								m -= CHAR_BIT;
-								*u = (u_char)~0;
-								if (m < 0)
-									*u <<= -m;
-							}
-							u++;
-						}
-					}
-					statp->sort_list[nsort].addr.s_addr =
-					    (u_int32_t)0xffffffff;
-					statp->sort_list[nsort].mask =
-					    (u_int32_t)0xffffffff;
-					nsort++;
-				}
-				*cp = n;
 			}
+#ifdef DEBUG
+			while (cp < eol && res_space(*cp))
+				cp++;
+			if (cp < eol) {
+				printf(";; sortlist overflow: %.*s\n",
+				    (int)(eol - cp), cp);
+			}
+#endif
 			continue;
 		}
 #endif /* RESOLVSORT */
@@ -651,6 +576,108 @@ res_setnsaddr(res_state statp, int i, const char *str, const char *end)
 	return (ret);
 }
 
+#ifdef RESOLVSORT
+/*%
+ * Set the sort order.  Assumes no leading or trailing space.
+ */
+int
+res_setsortlist(res_state statp, int i, const char *str, const char *end)
+{
+	struct __res_state_ext *ext = statp->_u._ext.ext;
+	char addr[48], mask[48], *dst, *numend;
+	_Static_assert(sizeof(addr) > INET6_ADDRSTRLEN,
+	    "address buffer too small for AF_INET6");
+	_Static_assert(sizeof(addr) > INET_ADDRSTRLEN,
+	    "address buffer too small for AF_INET");
+	_Static_assert(sizeof(mask) > INET6_ADDRSTRLEN,
+	    "mask buffer too small for AF_INET6");
+	_Static_assert(sizeof(mask) > INET_ADDRSTRLEN,
+	    "mask buffer too small for AF_INET");
+	struct in_addr a;
+	struct in6_addr a6;
+	uint8_t *u;
+	long num;
+
+	/* copy the address */
+	dst = addr;
+	while (str < end && !res_space(*str) && *str != '/') {
+		*dst++ = *str++;
+		if (dst == addr + sizeof(addr))
+			return (0);
+	}
+	*dst = '\0';
+
+	/* copy the mask, if there is one */
+	dst = mask;
+	if (str < end) {
+		if (*str++ != '/')
+			return (0);
+		if (end - str >= sizeof(mask))
+			return (0);
+		memcpy(mask, str, end - str);
+		dst += end - str;
+	}
+	*dst = '\0';
+
+	/* IPv4 case */
+	if (inet_pton(AF_INET, addr, &a) == 1) {
+		statp->sort_list[i].addr = a;
+		if (mask[0] != '\0') {
+			if ((num = strtol(mask, &numend, 10)) < 0 ||
+			    num > 32 || *numend != '\0')
+				return (0);
+		} else {
+			if (IN_CLASSA(ntohl(a.s_addr)))
+				num = 8;
+			else if (IN_CLASSB(ntohl(a.s_addr)))
+				num = 16;
+			else
+				num = 24;
+		}
+		statp->sort_list[i].mask =
+		    htonl(0xffffffffU << (32 - num));
+		ext->sort_list[i].af = AF_INET;
+		ext->sort_list[i].addr.ina =
+		    statp->sort_list[i].addr;
+		ext->sort_list[i].mask.ina.s_addr =
+		    statp->sort_list[i].mask;
+#ifdef DEBUG
+		inet_ntop(AF_INET, &a, addr, sizeof(addr));
+		printf(";; sortlist %s/%ld\n", addr, num);
+#endif
+		return (1);
+	}
+
+	/* IPv6 case */
+	if (inet_pton(AF_INET6, addr, &a6) == 1) {
+		statp->sort_list[i].addr.s_addr = INADDR_NONE;
+		statp->sort_list[i].mask = INADDR_NONE;
+		ext->sort_list[i].af = AF_INET6;
+		ext->sort_list[i].addr.in6a = a6;
+		if (mask[0]) {
+			/* prefix length */
+			if ((num = strtol(mask, &numend, 10)) < 0 ||
+			    num > 128 || *numend != '\0')
+				return (0);
+		} else {
+			num = 64;
+		}
+#ifdef DEBUG
+		inet_ntop(AF_INET6, &a6, addr, sizeof(addr));
+		printf(";; sortlist %s/%ld\n", addr, num);
+#endif
+		a6 = (struct in6_addr)IN6ADDR_ANY_INIT;
+		for (u = a6.s6_addr8; num > 0; num -= 8)
+			*u++ = num > 8 ? 0xffU : 0xffU << (8 - num);
+		ext->sort_list[i].mask.in6a = a6;
+		return (1);
+	}
+
+	/* invalid */
+	return (0);
+}
+#endif /* RESOLVSORT */
+
 /*%
  * Split the string up into words and interpret them as resolver options.
  */
@@ -789,21 +816,6 @@ res_setoptions(res_state statp, const char *options, const char *source)
 		cp = ep;
 	}
 }
-
-#ifdef RESOLVSORT
-/* XXX - should really support CIDR which means explicit masks always. */
-static u_int32_t
-net_mask(struct in_addr in)		/*!< XXX - should really use system's version of this  */
-{
-	u_int32_t i = ntohl(in.s_addr);
-
-	if (IN_CLASSA(i))
-		return (htonl(IN_CLASSA_NET));
-	else if (IN_CLASSB(i))
-		return (htonl(IN_CLASSB_NET));
-	return (htonl(IN_CLASSC_NET));
-}
-#endif
 
 void
 freebsd15_res_rndinit(res_state statp)
