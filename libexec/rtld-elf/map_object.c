@@ -113,7 +113,7 @@ map_object(int fd, const char *path, const struct stat *sb, bool ismain)
 	note_end = 0;
 	note_map = NULL;
 	note_map_len = 0;
-	segs = alloca(sizeof(segs[0]) * hdr->e_phnum);
+	segs = xcalloc(hdr->e_phnum, sizeof(segs[0]));
 	stack_flags = PF_X | PF_R | PF_W;
 	text_end = 0;
 	while (phdr < phlimit) {
@@ -341,6 +341,7 @@ map_object(int fd, const char *path, const struct stat *sb, bool ismain)
 	if (note_map != NULL)
 		munmap(note_map, note_map_len);
 	munmap(hdr, page_size);
+	free(segs);
 	return (obj);
 
 error1:
@@ -351,6 +352,7 @@ error:
 	if (!phdr_in_zero_page(hdr))
 		munmap(phdr, hdr->e_phnum * sizeof(phdr[0]));
 	munmap(hdr, page_size);
+	free(segs);
 	return (NULL);
 }
 
