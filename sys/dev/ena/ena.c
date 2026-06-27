@@ -726,6 +726,8 @@ ena_setup_tx_resources(struct ena_adapter *adapter, int qid)
 	snprintf(thread_name, sizeof(thread_name), "%s txeq %d",
 	    device_get_nameunit(adapter->pdev), que->cpu);
 #else
+	if (que->domain >= 0)
+		cpu_mask = &cpuset_domain[que->domain];
 	snprintf(thread_name, sizeof(thread_name), "%s txeq %d",
 	    device_get_nameunit(adapter->pdev), que->id);
 #endif
@@ -1671,6 +1673,9 @@ ena_create_io_queues(struct ena_adapter *adapter)
 
 #ifdef RSS
 		cpu_mask = &queue->cpu_mask;
+#else
+		if (queue->domain >= 0)
+			cpu_mask = &cpuset_domain[queue->domain];
 #endif
 		taskqueue_start_threads_cpuset(&queue->cleanup_tq, 1, PI_NET,
 		    cpu_mask, "%s queue %d cleanup",
@@ -1815,6 +1820,8 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 	static int last_bind = 0;
 	int cur_bind;
 	int idx;
+#else
+	int domain;
 #endif
 	int irq_idx;
 
@@ -1827,6 +1834,9 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 		last_bind = (last_bind + adapter->num_io_queues) % num_buckets;
 	}
 	cur_bind = adapter->first_bind;
+#else
+	if (bus_get_domain(adapter->pdev, &domain))
+		domain = -1;
 #endif
 
 	for (int i = 0; i < adapter->num_io_queues; i++) {
@@ -1860,7 +1870,7 @@ ena_setup_io_intr(struct ena_adapter *adapter)
 		}
 		adapter->que[i].domain = idx;
 #else
-		adapter->que[i].domain = -1;
+		adapter->que[i].domain = domain;
 #endif /* RSS */
 	}
 
