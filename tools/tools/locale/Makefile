@@ -122,9 +122,9 @@ ENCODINGS=	UTF-8 \
 		UTF-32
 
 # CLDR files
-CLDRFILES_CORE= https://unicode.org/Public/cldr/${CLDRVERSION:R}/core.zip
-CLDRFILES_KEY=	https://unicode.org/Public/cldr/${CLDRVERSION:R}/cldr-keyboards-${CLDRVERSION}.zip
-CLDRFILES_TOOLS=https://unicode.org/Public/cldr/${CLDRVERSION:R}/cldr-tools-${CLDRVERSION}.jar
+CLDRFILES_CORE= https://unicode.org/Public/cldr/${CLDRVERSION}/core.zip
+CLDRFILES_KEY=	https://unicode.org/Public/cldr/${CLDRVERSION}/cldr-keyboards-${CLDRVERSION}.zip
+CLDRFILES_TOOLS=https://unicode.org/Public/cldr/${CLDRVERSION}/cldr-tools-${CLDRVERSION}.jar
 CLDRFILES_UCD=	https://www.unicode.org/Public/${UCDVERSION}/ucd/UCD.zip
 
 # fetch and extract targets
