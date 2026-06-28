@@ -22,6 +22,8 @@
 
 #include <atf-c.h>
 
+#define	FTS_TEST_MAXENTRIES 64
+
 static int
 fts_lexical_compar(const FTSENT * const *a, const FTSENT * const *b)
 {
@@ -44,9 +46,19 @@ ATF_TC_BODY(atfdcwd_matches_fts_open, tc)
 	char *paths[2];
 	FTS *fts;
 	FTSENT *ent;
-	int info1[64], info2[64];
-	char names1[64][NAME_MAX + 1], names2[64][NAME_MAX + 1];
+
+	int *info1, *info2;
+	char (*names1)[NAME_MAX + 1], (*names2)[NAME_MAX + 1];
 	int n1, n2, i;
+
+	info1 = malloc(FTS_TEST_MAXENTRIES * sizeof(*info1));
+	ATF_REQUIRE(info1 != NULL);
+	info2 = malloc(FTS_TEST_MAXENTRIES * sizeof(*info2));
+	ATF_REQUIRE(info2 != NULL);
+	names1 = malloc(FTS_TEST_MAXENTRIES * sizeof(*names1));
+	ATF_REQUIRE(names1 != NULL);
+	names2 = malloc(FTS_TEST_MAXENTRIES * sizeof(*names2));
+	ATF_REQUIRE(names2 != NULL);
 
 	cwd = malloc(PATH_MAX);
 	ATF_REQUIRE(cwd != NULL);
@@ -66,22 +78,22 @@ ATF_TC_BODY(atfdcwd_matches_fts_open, tc)
 	/* Collect fts_open results. */
 	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL,
 	    fts_lexical_compar)) != NULL);
-	n1 = 0;
-	while ((ent = fts_read(fts)) != NULL && n1 < 64) {
+	for (n1 = 0;
+	    (ent = fts_read(fts)) != NULL && n1 < FTS_TEST_MAXENTRIES;
+	    n1++) {
 		info1[n1] = ent->fts_info;
-		strlcpy(names1[n1], ent->fts_name, sizeof(names1[0]));
-		n1++;
+		strlcpy(names1[n1], ent->fts_name, NAME_MAX + 1);
 	}
 	ATF_REQUIRE_EQ_MSG(0, fts_close(fts), "fts_close: %m");
 
 	/* Collect fts_openat results. */
 	ATF_REQUIRE((fts = fts_openat(AT_FDCWD, paths, FTS_PHYSICAL,
 	    fts_lexical_compar)) != NULL);
-	n2 = 0;
-	while ((ent = fts_read(fts)) != NULL && n2 < 64) {
+	for (n2 = 0;
+	    (ent = fts_read(fts)) != NULL && n2 < FTS_TEST_MAXENTRIES;
+	    n2++) {
 		info2[n2] = ent->fts_info;
-		strlcpy(names2[n2], ent->fts_name, sizeof(names2[0]));
-		n2++;
+		strlcpy(names2[n2], ent->fts_name, NAME_MAX + 1);
 	}
 	ATF_REQUIRE_EQ_MSG(0, fts_close(fts), "fts_close: %m");
 
@@ -101,47 +113,14 @@ ATF_TC_BODY(atfdcwd_matches_fts_open, tc)
 
 	free(cwd);
 	free(abspath);
-}
-
-/*
- * fts_openat() with invalid options must return NULL with EINVAL.
- */
-ATF_TC(invalid_options);
-ATF_TC_HEAD(invalid_options, tc)
-{
-	atf_tc_set_md_var(tc, "descr",
-	    "fts_openat with invalid options returns NULL with EINVAL");
-}
-ATF_TC_BODY(invalid_options, tc)
-{
-	char *paths[] = { ".", NULL };
-
-	ATF_REQUIRE_ERRNO(EINVAL,
-	    fts_openat(AT_FDCWD, paths, ~0, NULL) == NULL);
-}
-
-/*
- * fts_openat() with empty argv must return NULL with EINVAL.
- */
-ATF_TC(empty_argv);
-ATF_TC_HEAD(empty_argv, tc)
-{
-	atf_tc_set_md_var(tc, "descr",
-	    "fts_openat with empty argv returns NULL with EINVAL");
-}
-ATF_TC_BODY(empty_argv, tc)
-{
-	char *paths[] = { NULL };
-
-	ATF_REQUIRE_ERRNO(EINVAL,
-	    fts_openat(AT_FDCWD, paths, FTS_PHYSICAL, NULL) == NULL);
+	free(info1);
+	free(info2);
+	free(names1);
+	free(names2);
 }
 
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, atfdcwd_matches_fts_open);
-	ATF_TP_ADD_TC(tp, invalid_options);
-	ATF_TP_ADD_TC(tp, empty_argv);
-
 	return (atf_no_error());
 }

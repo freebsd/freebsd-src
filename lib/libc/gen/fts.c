@@ -212,9 +212,14 @@ __fts_open(FTS *sp, char * const *argv, int rootfd)
 	 * and ".." are all fairly nasty problems.  Note, if we can't get the
 	 * descriptor we run anyway, just more slowly.
 	 */
-	if (!ISSET(FTS_NOCHDIR) &&
-	    (sp->fts_rfd = _openat(rootfd, ".", O_RDONLY | O_CLOEXEC, 0)) < 0)
-		SET(FTS_NOCHDIR);
+
+	if (!ISSET(FTS_NOCHDIR)) {
+		if (rootfd != AT_FDCWD)
+			sp->fts_rfd = rootfd;
+		else if ((sp->fts_rfd =
+			_open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
+			SET(FTS_NOCHDIR);
+	}
 
 	return (sp);
 
