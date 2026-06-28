@@ -173,7 +173,7 @@ ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
 					return (-1);
 				}
 			}
-			ip6 = (struct ip6_hdr *)(eh + 1);
+			ip6 = mtod(m, struct ip6_hdr *);
 			th = (struct tcphdr *)(ip6 + 1);
 			drop_hdrlen = sizeof(*ip6);
 			tlen = ntohs(ip6->ip6_plen);
@@ -205,7 +205,7 @@ ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
 					return (-1);
 				}
 			}
-			ip = (struct ip *)(eh + 1);
+			ip = mtod(m, struct ip *);
 			th = (struct tcphdr *)(ip + 1);
 			drop_hdrlen = sizeof(*ip);
 			iptos = ip->ip_tos;
