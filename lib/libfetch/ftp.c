@@ -1133,7 +1133,7 @@ ftp_request(struct url *url, const char *op, struct url_stat *us,
 
 	/* just a stat */
 	if (strcmp(op, "STAT") == 0) {
-		fetch_deref(conn);
+		--conn->ref;
 		ftp_disconnect(conn);
 		return (FILE *)1; /* bogus return value */
 	}
