@@ -285,7 +285,7 @@ vnet_pflog_uninit(const void *unused __unused)
  * Detach after pf is gone; otherwise we might touch pflog memory
  * from within pf after freeing pflog.
  */
-VNET_SYSUNINIT(vnet_pflog_uninit, SI_SUB_INIT_IF, SI_ORDER_SECOND,
+VNET_SYSUNINIT(vnet_pflog_uninit, SI_SUB_PROTO_FIREWALL, SI_ORDER_SECOND,
     vnet_pflog_uninit, NULL);
 
 static int
