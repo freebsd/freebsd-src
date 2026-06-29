@@ -240,6 +240,17 @@ res_dnok(const char *dn) {
  * Note that one _ comes from C and the others come from us.
  */
 
+#ifdef SOLARIS2
+#ifdef  __putlong
+#undef  __putlong
+#endif
+#ifdef  __putshort
+#undef  __putshort
+#endif
+#pragma weak    putlong         =       __putlong
+#pragma weak    putshort        =       __putshort
+#endif /* SOLARIS2 */
+
 void __putlong(u_int32_t src, u_char *dst) { ns_put32(src, dst); }
 void __putshort(u_int16_t src, u_char *dst) { ns_put16(src, dst); }
 #ifndef __ultrix__

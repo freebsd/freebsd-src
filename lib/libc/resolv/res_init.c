@@ -95,6 +95,10 @@
 
 #include "res_private.h"
 
+#ifdef SOLARIS2
+#include <sys/systeminfo.h>
+#endif
+
 static void res_setoptions(res_state, const char *, const char *);
 
 #ifdef RESOLVSORT
@@ -214,6 +218,28 @@ __res_vinit(res_state statp, int preinit) {
 	statp->nsort = 0;
 #endif
 	res_setservers(statp, u, nitems(u));
+
+#ifdef	SOLARIS2
+	/*
+	 * The old libresolv derived the defaultdomain from NIS/NIS+.
+	 * We want to keep this behaviour
+	 */
+	{
+		char buf[sizeof(statp->defdname)], *cp;
+		int ret;
+
+		if ((ret = sysinfo(SI_SRPC_DOMAIN, buf, sizeof(buf))) > 0 &&
+			(unsigned int)ret <= sizeof(buf)) {
+			if (buf[0] == '+')
+				buf[0] = '.';
+			cp = strchr(buf, '.');
+			cp = (cp == NULL) ? buf : (cp + 1);
+			strncpy(statp->defdname, cp,
+				sizeof(statp->defdname) - 1);
+			statp->defdname[sizeof(statp->defdname) - 1] = '\0';
+		}
+	}
+#endif	/* SOLARIS2 */
 
 	/* Allow user to override the local domain definition */
 	if ((cp = secure_getenv("LOCALDOMAIN")) != NULL) {
@@ -554,6 +580,22 @@ res_setoptions(res_state statp, const char *options, const char *source)
 			if (statp->options & RES_DEBUG)
 				printf(";;\ttimeout=%d\n", statp->retrans);
 #endif
+#ifdef	SOLARIS2
+		} else if (!strncmp(cp, "retrans:", sizeof("retrans:") - 1)) {
+			/*
+		 	 * For backward compatibility, 'retrans' is
+		 	 * supported as an alias for 'timeout', though
+		 	 * without an imposed maximum.
+		 	 */
+			statp->retrans = atoi(cp + sizeof("retrans:") - 1);
+		} else if (!strncmp(cp, "retry:", sizeof("retry:") - 1)){
+			/*
+			 * For backward compatibility, 'retry' is
+			 * supported as an alias for 'attempts', though
+			 * without an imposed maximum.
+			 */
+			statp->retry = atoi(cp + sizeof("retry:") - 1);
+#endif	/* SOLARIS2 */
 		} else if (!strncmp(cp, "attempts:", sizeof("attempts:") - 1)){
 			i = atoi(cp + sizeof("attempts:") - 1);
 			if (i <= RES_MAXRETRY)
