@@ -116,8 +116,6 @@ static int res_setsortlist(res_state, int, const char *, const char *);
 	(strncmp((str), (word), (end) - (str)) == 0 &&			\
 	    (word)[(end) - (str)] == '\0')
 
-const char *__res_conf_name = _PATH_RESCONF;
-
 /*
  * Resolver state default settings.
  */
@@ -216,8 +214,7 @@ __res_vinit(res_state statp, int preinit)
 	res_setservers(statp, u, nitems(u));
 
 	/* read the configuration file */
-	if (__res_conf_name != NULL)
-		res_readconf(statp, __res_conf_name, maxns);
+	res_readconf(statp, _PATH_RESCONF, maxns);
 
 	/* Allow user to override the local domain definition */
 	if ((cp = secure_getenv("LOCALDOMAIN")) != NULL) {
