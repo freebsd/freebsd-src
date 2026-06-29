@@ -1504,6 +1504,13 @@ OLD_FILES+=tests/lib/libc/stdtime/detect_tz_changes_test
 .if ${MK_DIALOG} == no
 OLD_FILES+=usr/bin/dialog
 OLD_FILES+=usr/bin/dpv
+OLD_FILES+=usr/include/dialog.h
+OLD_FILES+=usr/include/dlg_colors.h
+OLD_FILES+=usr/include/dlg_config.h
+OLD_FILES+=usr/include/dlg_keys.h
+OLD_FILES+=usr/include/dpv.h
+OLD_FILES+=usr/include/figpar.h
+OLD_FILES+=usr/include/string_m.h
 OLD_FILES+=usr/lib/libdialog.a
 OLD_FILES+=usr/lib/libdialog.so
 OLD_LIBS+=usr/lib/libdialog.so.10
