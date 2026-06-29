@@ -183,9 +183,15 @@ Reset (dis-arms) the event.
 Takes a 32bit integer argument where the state of the event before
 the operation is returned.
 .It Dv NTSYNC_IOC_EVENT_PULSE
-Atomically sets and then resets the event.
+Atomically sets the event, wakes up eligible waiters,
+and then resets the event.
 Takes a 32bit integer argument where the state of the event before
 the operation is returned.
+.Pp
+If the manual event is pulsed, it wakes up all waiters,
+after which it is reset.
+On the other hand, the automatic event is reset after
+waking up at most a single waiter.
 .It Dv NTSYNC_IOC_EVENT_READ
 Returns the current state of the event.
 Takes the
