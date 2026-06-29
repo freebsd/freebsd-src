@@ -1403,112 +1403,47 @@ fetch_read(conn_t *conn, void *buf, size_t len)
  */
 #define MIN_BUF_SIZE 1024
 
-ssize_t
+int
 fetch_getln(conn_t *conn)
 {
 	char *tmp;
 	size_t tmpsize;
-	ssize_t rlen;
+	ssize_t len;
+	char c;
 
-	/* allocate initial buffer */
 	if (conn->buf == NULL) {
-		if ((conn->buf = malloc(MIN_BUF_SIZE)) == NULL)
+		if ((conn->buf = malloc(MIN_BUF_SIZE)) == NULL) {
+			errno = ENOMEM;
 			return (-1);
-		conn->bufsize = MIN_BUF_SIZE;
-		conn->buflen = 0;
-		conn->pos = 0;
-	}
-
-	/* move residual data up */
-	if (conn->buflen > 0) {
-		if (conn->pos < conn->buflen) {
-			memmove(conn->buf, conn->buf + conn->pos,
-			    conn->buflen - conn->pos);
 		}
-		conn->buflen -= conn->pos;
-		conn->pos -= conn->pos;
+		conn->bufsize = MIN_BUF_SIZE;
 	}
 
-	/* do we have a complete line? */
-	while (conn->pos < conn->buflen)
-		if (conn->buf[conn->pos++] == '\n')
-			goto found;
+	conn->buf[0] = '\0';
+	conn->buflen = 0;
 
-	for (;;) {
-		/* read as much as we can right now */
-		rlen = fetch_read(conn, conn->buf + conn->buflen,
-		    conn->bufsize - conn->buflen - 1);
-		/* error */
-		if (rlen < 0)
+	do {
+		len = fetch_read(conn, &c, 1);
+		if (len == -1)
 			return (-1);
-		/* advance and terminate */
-		conn->buflen += rlen;
-		conn->buf[conn->buflen] = '\0';
-		/* connection closed */
-		if (rlen == 0)
+		if (len == 0)
 			break;
-		/* look for a newline */
-		while (conn->pos < conn->buflen)
-			if (conn->buf[conn->pos++] == '\n')
-				goto found;
-		/* do we need a bigger buffer? */
-		if (conn->buflen > conn->bufsize / 2) {
+		conn->buf[conn->buflen++] = c;
+		if (conn->buflen == conn->bufsize) {
 			tmp = conn->buf;
-			tmpsize = conn->bufsize * 2;
-			if ((tmp = realloc(tmp, tmpsize)) == NULL)
+			tmpsize = conn->bufsize * 2 + 1;
+			if ((tmp = realloc(tmp, tmpsize)) == NULL) {
+				errno = ENOMEM;
 				return (-1);
+			}
 			conn->buf = tmp;
 			conn->bufsize = tmpsize;
 		}
-	}
-	/* connection closed, return what's left */
-	conn->pos = conn->buflen;
-found:
-	rlen = conn->pos;
-	if (rlen > 0 && conn->buf[rlen - 1] == '\n')
-		conn->buf[--rlen] = '\0';
-	if (rlen > 0 && conn->buf[rlen - 1] == '\r')
-		conn->buf[--rlen] = '\0';
-	DEBUGF("<<< %.*s\n", (int)rlen, conn->buf);
-	return (rlen);
-}
+	} while (c != '\n');
 
-
-/*
- * Read from a connection, taking previously buffered data into account.
- */
-ssize_t
-fetch_bufread(conn_t *conn, void *buf, size_t len)
-{
-	ssize_t rlen;
-
-	/* avoid overflow */
-	if (len > SSIZE_MAX)
-		len = SSIZE_MAX;
-
-	/* allocate initial buffer */
-	if (conn->buf == NULL) {
-		conn->bufsize = MIN_BUF_SIZE;
-		while (conn->bufsize < len)
-			conn->bufsize *= 2;
-		if ((conn->buf = malloc(conn->bufsize)) == NULL)
-			return (-1);
-		conn->buflen = 0;
-		conn->pos = 0;
-	}
-
-	/* return residual data first */
-	if (conn->buflen > conn->pos) {
-		if (len > conn->buflen - conn->pos)
-			rlen = conn->buflen - conn->pos;
-		else
-			rlen = len;
-		memcpy(buf, conn->buf + conn->pos, rlen);
-		conn->pos += rlen;
-		return (rlen);
-	}
-
-	return (fetch_read(conn, buf, len));
+	conn->buf[conn->buflen] = '\0';
+	DEBUGF("<<< %s", conn->buf);
+	return (0);
 }
 
 
