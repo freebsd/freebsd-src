@@ -81,12 +81,11 @@
 #define LOMTU	16384
 #endif
 
-#define	LO_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_SCTP)
-#define	LO_CSUM_FEATURES6	(CSUM_TCP_IPV6 | CSUM_UDP_IPV6 | CSUM_SCTP_IPV6)
-#define	LO_CSUM_SET		(CSUM_DATA_VALID | CSUM_DATA_VALID_IPV6 | \
-				    CSUM_PSEUDO_HDR | \
-				    CSUM_IP_CHECKED | CSUM_IP_VALID | \
-				    CSUM_SCTP_VALID)
+#define	LO_CSUM_FEATURES	(CSUM_IP | CSUM_IP_TCP | CSUM_IP_UDP | \
+				    CSUM_IP_SCTP)
+#define	LO_CSUM_FEATURES6	(CSUM_IP6_TCP | CSUM_IP6_UDP | CSUM_IP6_SCTP)
+#define	LO_CSUM_SET		(CSUM_L3_CALC | CSUM_L3_VALID | \
+				    CSUM_L4_CALC | CSUM_L4_VALID)
 
 static int	loioctl(struct ifnet *, u_long, caddr_t);
 static int	looutput(struct ifnet *ifp, struct mbuf *m,
