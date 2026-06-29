@@ -156,4 +156,3 @@ bit-emu	147	BIT-EMU		# Bit-stream Emulation (RFC9801)
 pfsync	240	PFSYNC		# PF Synchronization [non IANA]
 #	253-254			# Use for experimentation and testing (RFC3692)
 #	255			# Reserved
-divert	258	DIVERT		# Divert pseudo-protocol [non IANA]
