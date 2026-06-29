@@ -100,27 +100,20 @@ for one of the domains.
 .Pp
 The search list is currently limited to six domains
 with a total of 256 characters.
-.It Cm sortlist Ar addr1 Ns Oo Li / Ns Ar plen1 Oc Op addr2 Ns Oo Li / Ns Ar plen2 Oc ...
-Sort order for query results in the form of a list of
-.Ar addr Ns Li / Ns Ar plen
-entries, for instance:
-.Bd -literal
-sortlist 198.51.100.0/24 203.0.113.0/24 2001:db8::/32
-.Ed
+.It Sy sortlist
+Sortlist allows addresses returned by the resolver to be sorted.
+A sortlist is specified by IP address netmask pairs.
+If the netmask is not specified,
+it defaults to the historical Class A/B/C netmask of the net;
+this usage is deprecated.
+The IP address
+and network pairs are separated by slashes.
+Up to 10 pairs may
+be specified.
+E.g.,
 .Pp
-If the prefix length is omitted, it defaults to historical class-based
-addressing for IPv4 and to 64 for IPv6.
-.Pp
-Query results that match one of the sort list entries are sorted
-accordingly and ahead of query results that don't.
-If multiple results match a single sort list entry, the order is
-unspecified.
-.Pp
-If multiple
-.Cm sortlist
-lines are encountered, entries are appended to the list in the order
-in which they were encountered, up to a maximum of ten.
-.It Cm options
+.Dl "sortlist 10.9.1.0/255.255.240.0 10.9.0.0/255.255.0.0"
+.It Cm options Ar option1 Op Ar option2 ...
 Options allows certain internal resolver variables to be modified.
 The following options are supported:
 .Bl -tag -width indent
