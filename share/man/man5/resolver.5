@@ -1,6 +1,5 @@
 .\" Copyright (c) 1986, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
-.\" Copyright (c) 2026 Dag-Erling Smørgrav
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -26,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 27, 2026
+.Dd March 15, 2026
 .Dt RESOLVER 5
 .Os
 .Sh NAME
@@ -41,56 +40,57 @@ is a set of routines in the C library
 which provide access to the Internet Domain Name System.
 The resolver configuration file contains information that is read
 by the resolver routines the first time they are invoked by a process.
+The file is designed to be human readable and contains a list of
+keywords with values that provide various types of resolver information.
 .Pp
-The file is read line by line.
-Anything after a
-.Sq #
-or
-.Sq \&;
-character is considered a comment and discarded.
-Blank lines are ignored.
-The first word on each non-blank line is a keyword which determines
-how the rest of the line is interpreted.
-Available keywords are:
-.Bl -tag -width indent
-.It Cm nameserver Ar address
-IPv4 or IPv6 address of a name server that the resolver should query.
+On a normally configured system, setting this file manually should not
+be necessary.
+The only name server(s) to be queried will be on the local machine
+or automatically configured using DHCP or a similar mechanism,
+the domain name is determined from the host name,
+and the domain search path is constructed from the domain name.
+.Pp
+The different configuration options are:
+.Bl -tag -width nameserver
+.It Sy nameserver
+IPv4 or IPv6 address of a name server
+that the resolver should query.
 Up to
 .Dv MAXNS
-(currently 3) name servers may be listed on separate lines.
-If there are multiple servers, the resolver library queries them in
-the order listed, unless
-.Dv RES_ROTATE
-is in effect
-.Po
-See the
-.Cm rotate
-option below
-.Pc .
+(currently 3) name servers may be listed,
+one per keyword.
+If there are multiple servers,
+the resolver library queries them in the order listed.
 If no
-.Cm nameserver
+.Sy nameserver
 entries are present,
 the default is to use the name server on the local machine.
 (The algorithm used is to try a name server, and if the query times out,
 try the next, until out of name servers,
 then repeat trying all the name servers
 until a maximum number of retries are made).
-.It Cm domain Ar name
-Set both the local domain name and the search list to
-.Ar name .
+.It Sy domain
+Local domain name.
 Most queries for names within this domain can use short names
 relative to the local domain.
-If no domain name has been set, it is derived from the local host name
-returned by
+If no
+.Sy domain
+entry is present, the domain is determined
+from the local host name returned by
 .Xr gethostname 3 ;
 the domain part is taken to be everything after the first
 .Ql \&. .
 Finally, if the host name does not contain a domain part, the root
 domain is assumed.
-.It Cm search Ar name1 Op name2 ...
-Sets the domain search list.
-Additionally, sets the local domain to
-.Ar name1 .
+.It Sy search
+Search list for host-name lookup.
+The search list is normally determined from the local domain name;
+by default, it contains only the local domain name.
+This may be changed by listing the desired domain search path
+following the
+.Sy search
+keyword with spaces or tabs separating
+the names.
 Most resolver queries will be attempted using each component
 of the search path in turn until a match is found.
 Note that this process may be slow and will generate a lot of network
@@ -101,7 +101,7 @@ for one of the domains.
 The search list is currently limited to six domains
 with a total of 256 characters.
 .It Sy sortlist
-Sortlist allows addresses returned by the resolver to be sorted.
+Sortlist allows addresses returned by gethostbyname to be sorted.
 A sortlist is specified by IP address netmask pairs.
 If the netmask is not specified,
 it defaults to the historical Class A/B/C netmask of the net;
@@ -113,21 +113,26 @@ be specified.
 E.g.,
 .Pp
 .Dl "sortlist 10.9.1.0/255.255.240.0 10.9.0.0/255.255.0.0"
-.It Cm options Ar option1 Op Ar option2 ...
+.It Sy options
 Options allows certain internal resolver variables to be modified.
-The following options are supported:
-.Bl -tag -width indent
-.It Cm debug
-Sets
+The syntax is
+.Pp
+\fBoptions\fP \fIoption\fP \fI...\fP
+.Pp
+where
+.Sy option
+is one of the following:
+.Bl -tag -width no_tld_query
+.It Sy debug
+sets
 .Dv RES_DEBUG
-in
-.Va _res.options .
-.It Cm usevc
-Sets
+in _res.options.
+.It Sy usevc
+sets
 .Dv RES_USEVC
 to use TCP instead of UDP for queries.
-.It Cm ndots Ns Li : Ns Ar n
-Sets a threshold for the number of dots which must appear in a name given to
+.It Sy ndots : Ns Ar n
+sets a threshold for the number of dots which must appear in a name given to
 .Fn res_query
 (see
 .Xr resolver 3 )
@@ -142,8 +147,8 @@ meaning that if there are any dots in a name, the name
 will be tried first as an absolute name before any
 .Em search list
 elements are appended to it.
-.It Cm timeout Ns Li : Ns Ar n
-Sets the initial amount of time the resolver will wait
+.It Sy timeout : Ns Ar n
+sets the initial amount of time the resolver will wait
 for a response from a remote
 name server before retrying the query via a different name server.
 The resolver may wait longer during subsequent retries
@@ -155,8 +160,8 @@ the allowed maximum is
 .Dv RES_MAXRETRANS
 (see
 .In resolv.h ) .
-.It Cm attempts Ns Li : Ns Ar n
-Sets the number of times the resolver will send a query to each of
+.It Sy attempts : Ns Ar n
+sets the number of times the resolver will send a query to each of
 its name servers
 before giving up and returning an error to the calling application.
 The default is
@@ -165,126 +170,118 @@ the allowed maximum is
 .Dv RES_MAXRETRY
 (see
 .In resolv.h ) .
-.It Cm edns0
+.It Sy edns0
 Sets
 .Dv RES_USE_EDNS0 .
 Attach an OPT pseudo-RR for the EDNS0 extension,
 as specified in RFC 2671.
 This allows the resolver to advertise a larger UDP receive buffer size,
 permitting responses larger than the original 512-byte limit.
-.It Cm inet6
+.It Sy inet6
 Sets
 .Dv RES_USE_INET6 .
-Causes the resolver
+Causes
+.Xr gethostbyname 3
 to look up AAAA records before A records
 and to map IPv4 responses into IPv6 addresses.
 The use of this option is discouraged.
-.It Cm insecure1
+.It Sy insecure1
 Sets
 .Dv RES_INSECURE1 .
 Disables the check that the response was received from the
 same server to which the query was sent.
 Use of this option is a security risk and is not recommended.
-.It Cm insecure2
+.It Sy insecure2
 Sets
 .Dv RES_INSECURE2 .
 Disables the check that the response contains a query
 matching the one that was sent.
 Use of this option is a security risk and is not recommended.
-.It Cm no-check-names
+.It Sy no-check-names
 Sets
 .Dv RES_NOCHECKNAME .
 Disables the check of incoming host names for invalid characters
 such as underscore, non-ASCII, or control characters.
-.It Cm no-tld-query
+.It Sy no_tld_query
 tells the resolver not to attempt to resolve a top level domain name, that
 is, a name that contains no dots.
 Use of this option does not prevent
 the resolver from obeying the standard
-.Cm domain
+.Sy domain
 and
-.Cm search
+.Sy search
 rules with the given name.
-.It Cm rotate
+.It Sy rotate
 Sets
 .Dv RES_ROTATE .
 Causes the resolver to round-robin among the configured name servers,
 distributing the query load instead of always trying the first
 listed server.
-.It Cm reload-period Ns Li : Ns Ar n
+.It Sy reload-period : Ns Ar n
 The resolver checks the modification time of
 .Pa /etc/resolv.conf
-if more than
+every
 .Ar n
-seconds have elapsed since the last check.
-If the file has changed, it is automatically reloaded.
+seconds.
+If
+.Pa /etc/resolv.conf
+has changed, it is automatically reloaded.
 The default for
 .Ar n
 is two seconds.
 Setting it to zero disables the file check.
 .El
 .Pp
-Options may also be passed as a space- or tab-separated list in the
+Options may also be specified as a space or tab separated list using the
 .Dv RES_OPTIONS
 environment variable.
-This environment variable is applied after the configuration file has
-been read.
 .El
 .Pp
 The
-.Cm domain
+.Sy domain
 and
-.Cm search
+.Sy search
 keywords are mutually exclusive.
 If more than one instance of these keywords is present,
-the last instance will override all previous instances.
+the last instance will override.
 .Pp
 The keyword and value must appear on a single line, and the keyword
 .Pq for example, Sy nameserver
 must start the line.
 The value follows the keyword, separated by white space.
-.Sh ENVIRONMENT
-.Bl -tag -width indent
-.It Dv LOCALDOMAIN
-If set, overrides the local domain and search list set in the resolver
-configuration file.
-.It Dv RES_OPTIONS
-If set, its value is split into words and interpreted as resolver
-options as described for the
-.Cm options
-keyword in the resolver configuration file.
-.El
 .Sh FILES
-.Bl -tag -width indent
+.Bl -tag -width /etc/resolv.conf -compact
 .It Pa /etc/resolv.conf
-Resolver configuration file.
+The file
+.Nm resolv.conf
+resides in
+.Pa /etc .
 .El
 .Sh EXAMPLES
-.Bd -literal
-# Set the local domain to example.com and the search list to
-# example.com, example.net, example.org
-search example.com example.net example.org
+A basic resolv.conf file could be in the following form.
+.Bd -literal -offset indent
+# The domain directive is only necessary, if your local
+# router advertises something like localdomain and you have
+# set up your hostnames via an external domain.
+domain localdomain.tld
 
-# Set the local domain and search list to example.com,
-# completely overriding the previous line
-domain example.com
-
-# Use this if you are running a local caching forwarding (or
-# recursing) resolver like local-unbound(8)
+# In case you a running a local dns server or caching name server
+# like local-unbound(8) for example.
 nameserver 127.0.0.1
 
 # IP address of the local or ISP name service
-nameserver 198.51.100.53
-nameserver 203.0.113.53
+nameserver 192.168.2.1
 
-# Enable EDNS0, which tells the name server that we are capable of
-# handling large responses.  This is required for DNSSEC.
+# Fallback nameservers, in this case these from Google.
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+
+# Attach an OPT pseudo-RR for the EDNS0 extension,
+# as specified in RFC 2671.
 options edns0
 .Ed
 .Sh SEE ALSO
-.Xr getaddrinfo 3 ,
 .Xr gethostbyname 3 ,
-.Xr gethostname 3 ,
 .Xr resolver 3 ,
 .Xr hostname 7 ,
 .Xr resolvconf 8
