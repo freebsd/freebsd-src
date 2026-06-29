@@ -97,10 +97,6 @@
 
 #include "res_private.h"
 
-static void res_readconf(res_state, const char *, int);
-static void res_setdefdname(res_state, const char *, const char *);
-static void res_setdnsrch(res_state, const char *, const char *);
-static int res_setnsaddr(res_state, int, const char *, const char *);
 static void res_setoptions(res_state, const char *, const char *);
 
 #ifdef RESOLVSORT
@@ -111,8 +107,6 @@ static u_int32_t net_mask(struct in_addr);
 
 #define res_space(ch)							\
 	isspace((unsigned char)(ch))
-#define res_comment(ch)							\
-	((ch) == '#' || (ch) == ';')
 #define res_match(str, end, word)					\
 	(strncmp((str), (word), (end) - (str)) == 0 &&			\
 	    (word)[(end) - (str)] == '\0')
@@ -142,9 +136,7 @@ res_ninit(res_state statp) {
 
 /*% This function has to be reachable by res_data.c but not publicly. */
 int
-__res_vinit(res_state statp, int preinit)
-{
-	char buf[NI_MAXHOST];
+__res_vinit(res_state statp, int preinit) {
 	union res_sockaddr_union u[] = {
 		{ .sin = {
 			.sin_family = AF_INET,
@@ -165,7 +157,17 @@ __res_vinit(res_state statp, int preinit)
 		} },
 #endif
 	};
+	FILE *fp;
 	char *cp, **pp;
+	int n;
+	char buf[BUFSIZ];
+	int nserv = 0;    /*%< number of nameserver records read from file */
+	int haveenv = 0;
+	int havesearch = 0;
+#ifdef RESOLVSORT
+	int nsort = 0;
+	char *net;
+#endif
 	int dots;
 	int maxns = MAXNS;
 
@@ -217,14 +219,263 @@ __res_vinit(res_state statp, int preinit)
 #endif
 	res_setservers(statp, u, nitems(u));
 
-	/* read the configuration file */
-	res_readconf(statp, _PATH_RESCONF, maxns);
-
 	/* Allow user to override the local domain definition */
 	if ((cp = secure_getenv("LOCALDOMAIN")) != NULL) {
-		while (res_space(*cp))
+		(void)strncpy(statp->defdname, cp, sizeof(statp->defdname) - 1);
+		statp->defdname[sizeof(statp->defdname) - 1] = '\0';
+		haveenv++;
+
+		/*
+		 * Set search list to be blank-separated strings
+		 * from rest of env value.  Permits users of LOCALDOMAIN
+		 * to still have a search list, and anyone to set the
+		 * one that they want to use as an individual (even more
+		 * important now that the rfc1535 stuff restricts searches)
+		 */
+		cp = statp->defdname;
+		pp = statp->dnsrch;
+		*pp++ = cp;
+		for (n = 0; *cp && pp < statp->dnsrch + MAXDNSRCH; cp++) {
+			if (*cp == '\n')	/*%< silly backwards compat */
+				break;
+			else if (*cp == ' ' || *cp == '\t') {
+				*cp = 0;
+				n = 1;
+			} else if (n) {
+				*pp++ = cp;
+				n = 0;
+				havesearch = 1;
+			}
+		}
+		/* null terminate last domain if there are excess */
+		while (*cp != '\0' && *cp != ' ' && *cp != '\t' && *cp != '\n')
 			cp++;
-		res_setdnsrch(statp, cp, NULL);
+		*cp = '\0';
+		*pp++ = NULL;
+	}
+
+#define	MATCH(line, name) \
+	(!strncmp(line, name, sizeof(name) - 1) && \
+	(line[sizeof(name) - 1] == ' ' || \
+	 line[sizeof(name) - 1] == '\t'))
+
+	if ((fp = fopen(_PATH_RESCONF, "re")) != NULL) {
+	    struct stat sb;
+	    struct timespec now;
+
+	    if (statp->_u._ext.ext != NULL) {
+		if (_fstat(fileno(fp), &sb) == 0) {
+		    statp->_u._ext.ext->conf_mtim = sb.st_mtim;
+		    if (clock_gettime(CLOCK_MONOTONIC_FAST, &now) == 0) {
+			statp->_u._ext.ext->conf_stat = now.tv_sec;
+		    }
+		}
+	    }
+
+	    /* read the config file */
+	    while (fgets(buf, sizeof(buf), fp) != NULL) {
+		/* skip comments */
+		if (*buf == ';' || *buf == '#')
+			continue;
+		/* read default domain name */
+		if (MATCH(buf, "domain")) {
+		    if (haveenv)	/*%< skip if have from environ */
+			    continue;
+		    cp = buf + sizeof("domain") - 1;
+		    while (*cp == ' ' || *cp == '\t')
+			    cp++;
+		    if ((*cp == '\0') || (*cp == '\n'))
+			    continue;
+		    strncpy(statp->defdname, cp, sizeof(statp->defdname) - 1);
+		    statp->defdname[sizeof(statp->defdname) - 1] = '\0';
+		    if ((cp = strpbrk(statp->defdname, " \t\n")) != NULL)
+			    *cp = '\0';
+		    havesearch = 0;
+		    continue;
+		}
+		/* set search list */
+		if (MATCH(buf, "search")) {
+		    if (haveenv)	/*%< skip if have from environ */
+			    continue;
+		    cp = buf + sizeof("search") - 1;
+		    while (*cp == ' ' || *cp == '\t')
+			    cp++;
+		    if ((*cp == '\0') || (*cp == '\n'))
+			    continue;
+		    strncpy(statp->defdname, cp, sizeof(statp->defdname) - 1);
+		    statp->defdname[sizeof(statp->defdname) - 1] = '\0';
+		    if ((cp = strchr(statp->defdname, '\n')) != NULL)
+			    *cp = '\0';
+		    /*
+		     * Set search list to be blank-separated strings
+		     * on rest of line.
+		     */
+		    cp = statp->defdname;
+		    pp = statp->dnsrch;
+		    *pp++ = cp;
+		    for (n = 0; *cp && pp < statp->dnsrch + MAXDNSRCH; cp++) {
+			    if (*cp == ' ' || *cp == '\t') {
+				    *cp = 0;
+				    n = 1;
+			    } else if (n) {
+				    *pp++ = cp;
+				    n = 0;
+			    }
+		    }
+		    /* null terminate last domain if there are excess */
+		    while (*cp != '\0' && *cp != ' ' && *cp != '\t')
+			    cp++;
+		    *cp = '\0';
+		    *pp++ = NULL;
+		    havesearch = 1;
+		    continue;
+		}
+		/* read nameservers to query */
+		if (MATCH(buf, "nameserver") && nserv < maxns) {
+		    struct addrinfo hints, *ai;
+		    char sbuf[NI_MAXSERV];
+		    const size_t minsiz =
+		        sizeof(statp->_u._ext.ext->nsaddrs[0]);
+
+		    cp = buf + sizeof("nameserver") - 1;
+		    while (*cp == ' ' || *cp == '\t')
+			cp++;
+		    cp[strcspn(cp, ";# \t\n")] = '\0';
+		    if ((*cp != '\0') && (*cp != '\n')) {
+			memset(&hints, 0, sizeof(hints));
+			hints.ai_family = PF_UNSPEC;
+			hints.ai_socktype = SOCK_DGRAM;	/*dummy*/
+			hints.ai_flags = AI_NUMERICHOST;
+			sprintf(sbuf, "%u", NAMESERVER_PORT);
+			if (getaddrinfo(cp, sbuf, &hints, &ai) == 0) {
+			    if (ai->ai_addrlen <= minsiz) {
+				if (statp->_u._ext.ext != NULL) {
+				    memcpy(&statp->_u._ext.ext->nsaddrs[nserv],
+					ai->ai_addr, ai->ai_addrlen);
+				}
+				if (ai->ai_addrlen <=
+				    sizeof(statp->nsaddr_list[nserv])) {
+				    memcpy(&statp->nsaddr_list[nserv],
+					ai->ai_addr, ai->ai_addrlen);
+				} else
+				    statp->nsaddr_list[nserv].sin_family = 0;
+				nserv++;
+			    }
+			    freeaddrinfo(ai);
+			}
+		    }
+		    continue;
+		}
+#ifdef RESOLVSORT
+		if (MATCH(buf, "sortlist")) {
+		    struct in_addr a;
+		    struct in6_addr a6;
+		    int m, i;
+		    u_char *u;
+		    struct __res_state_ext *ext = statp->_u._ext.ext;
+
+		    cp = buf + sizeof("sortlist") - 1;
+		    while (nsort < MAXRESOLVSORT) {
+			while (*cp == ' ' || *cp == '\t')
+			    cp++;
+			if (*cp == '\0' || *cp == '\n' || *cp == ';')
+			    break;
+			net = cp;
+			while (*cp && !ISSORTMASK(*cp) && *cp != ';' &&
+			       isascii(*cp) && !isspace((unsigned char)*cp))
+				cp++;
+			n = *cp;
+			*cp = 0;
+			if (inet_aton(net, &a)) {
+			    statp->sort_list[nsort].addr = a;
+			    if (ISSORTMASK(n)) {
+				*cp++ = n;
+				net = cp;
+				while (*cp && *cp != ';' &&
+					isascii(*cp) &&
+					!isspace((unsigned char)*cp))
+				    cp++;
+				n = *cp;
+				*cp = 0;
+				if (inet_aton(net, &a)) {
+				    statp->sort_list[nsort].mask = a.s_addr;
+				} else {
+				    statp->sort_list[nsort].mask = 
+					net_mask(statp->sort_list[nsort].addr);
+				}
+			    } else {
+				statp->sort_list[nsort].mask = 
+				    net_mask(statp->sort_list[nsort].addr);
+			    }
+			    ext->sort_list[nsort].af = AF_INET;
+			    ext->sort_list[nsort].addr.ina =
+				statp->sort_list[nsort].addr;
+			    ext->sort_list[nsort].mask.ina.s_addr =
+				statp->sort_list[nsort].mask;
+			    nsort++;
+			}
+			else if (inet_pton(AF_INET6, net, &a6) == 1) {
+
+			    ext->sort_list[nsort].af = AF_INET6;
+			    ext->sort_list[nsort].addr.in6a = a6;
+			    u = (u_char *)&ext->sort_list[nsort].mask.in6a;
+			    *cp++ = n;
+			    net = cp;
+			    while (*cp && *cp != ';' &&
+				    isascii(*cp) && !isspace(*cp))
+				cp++;
+			    m = n;
+			    n = *cp;
+			    *cp = 0;
+			    switch (m) {
+			    case '/':
+				m = atoi(net);
+				break;
+			    case '&':
+				if (inet_pton(AF_INET6, net, u) == 1) {
+				    m = -1;
+				    break;
+				}
+				/*FALLTHROUGH*/
+			    default:
+				m = sizeof(struct in6_addr) * CHAR_BIT;
+				break;
+			    }
+			    if (m >= 0) {
+				for (i = 0; i < sizeof(struct in6_addr); i++) {
+				    if (m <= 0) {
+					*u = 0;
+				    } else {
+					m -= CHAR_BIT;
+					*u = (u_char)~0;
+					if (m < 0)
+					    *u <<= -m;
+				    }
+				    u++;
+				}
+			    }
+			    statp->sort_list[nsort].addr.s_addr =
+				(u_int32_t)0xffffffff;
+			    statp->sort_list[nsort].mask =
+				(u_int32_t)0xffffffff;
+			    nsort++;
+			}
+			*cp = n;
+		    }
+		    continue;
+		}
+#endif
+		if (MATCH(buf, "options")) {
+		    res_setoptions(statp, buf + sizeof("options") - 1, "conf");
+		    continue;
+		}
+	    }
+	    if (nserv > 0) 
+		statp->nscount = nserv;
+#ifdef RESOLVSORT
+	    statp->nsort = nsort;
+#endif
+	    (void) fclose(fp);
 	}
 
 	/* guess default domain if not set */
@@ -234,7 +485,7 @@ __res_vinit(res_state statp, int preinit)
 		strcpy(statp->defdname, cp + 1);
 
 	/* find components of local domain that might be searched */
-	if (statp->dnsrch[0] == NULL) {
+	if (havesearch == 0) {
 		pp = statp->dnsrch;
 		*pp++ = statp->defdname;
 		*pp = NULL;
@@ -270,390 +521,6 @@ __res_vinit(res_state statp, int preinit)
 	return (statp->res_h_errno);
 }
 
-/*%
- * Read the resolver configuration file.
- */
-static void
-res_readconf(res_state statp, const char *resconf, int maxns)
-{
-	struct stat sb;
-	struct timespec now;
-	FILE *fp;
-	char *line = NULL, *eol, *eow;
-	char *cp;
-	ssize_t len;
-	size_t sz = 0;
-	int nserv = 0;
-#ifdef RESOLVSORT
-	int n, nsort = 0;
-	char *net;
-#endif
-
-	if ((fp = fopen(resconf, "re")) == NULL)
-		return;
-	if (statp->_u._ext.ext != NULL) {
-		if (_fstat(fileno(fp), &sb) == 0) {
-			statp->_u._ext.ext->conf_mtim = sb.st_mtim;
-			if (clock_gettime(CLOCK_MONOTONIC_FAST, &now) == 0) {
-				statp->_u._ext.ext->conf_stat = now.tv_sec;
-			}
-		}
-	}
-
-	while ((len = getline(&line, &sz, fp)) != -1) {
-		/* search for comment or end of line */
-		eol = line;
-		while (eol < line + len && !res_comment(*eol))
-			eol++;
-
-		/* now backtrack over whitespace */
-		while (eol > line && res_space(eol[-1]))
-			eol--;
-		*eol = '\0';
-
-		/* skip blank line */
-		if (eol == line)
-			continue;
-
-		/* isolate the first word */
-		eow = line;
-		while (eow < eol && !res_space(*eow))
-			eow++;
-
-		/* read default domain name */
-		if (res_match(line, eow, "domain")) {
-			cp = eow;
-			while (cp < eol && res_space(*cp))
-				cp++;
-			res_setdefdname(statp, cp, eol);
-			continue;
-		}
-
-		/* set search list */
-		if (res_match(line, eow, "search")) {
-			cp = eow;
-			while (cp < eol && res_space(*cp))
-				cp++;
-			res_setdnsrch(statp, cp, eol);
-			continue;
-		}
-
-		/* read nameservers to query */
-		if (res_match(line, eow, "nameserver")) {
-			cp = eow;
-			while (cp < eol && res_space(*cp))
-				cp++;
-			if (cp == eol)
-				continue;
-			if (nserv < maxns) {
-				if (res_setnsaddr(statp, nserv, cp, eol))
-					nserv++;
-#ifdef DEBUG
-			} else {
-				printf(";; nameserver overflow: %.*s\n",
-				    (int)(eol - cp), cp);
-#endif
-			}
-			continue;
-		}
-#ifdef RESOLVSORT
-		if (res_match(line, eow, "sortlist")) {
-			struct in_addr a;
-			struct in6_addr a6;
-			int m, i;
-			u_char *u;
-			struct __res_state_ext *ext = statp->_u._ext.ext;
-
-			cp = line + sizeof("sortlist") - 1;
-			while (nsort < MAXRESOLVSORT) {
-				while (*cp == ' ' || *cp == '\t')
-					cp++;
-				if (*cp == '\0' || *cp == '\n' || *cp == ';')
-					break;
-				net = cp;
-				while (*cp && !ISSORTMASK(*cp) && *cp != ';' &&
-				    isascii(*cp) && !isspace((unsigned char)*cp))
-					cp++;
-				n = *cp;
-				*cp = 0;
-				if (inet_aton(net, &a)) {
-					statp->sort_list[nsort].addr = a;
-					if (ISSORTMASK(n)) {
-						*cp++ = n;
-						net = cp;
-						while (*cp && *cp != ';' &&
-						    isascii(*cp) &&
-						    !isspace((unsigned char)*cp))
-							cp++;
-						n = *cp;
-						*cp = 0;
-						if (inet_aton(net, &a)) {
-							statp->sort_list[nsort].mask = a.s_addr;
-						} else {
-							statp->sort_list[nsort].mask =
-							    net_mask(statp->sort_list[nsort].addr);
-						}
-					} else {
-						statp->sort_list[nsort].mask =
-						    net_mask(statp->sort_list[nsort].addr);
-					}
-					ext->sort_list[nsort].af = AF_INET;
-					ext->sort_list[nsort].addr.ina =
-					    statp->sort_list[nsort].addr;
-					ext->sort_list[nsort].mask.ina.s_addr =
-					    statp->sort_list[nsort].mask;
-					nsort++;
-				}
-				else if (inet_pton(AF_INET6, net, &a6) == 1) {
-
-					ext->sort_list[nsort].af = AF_INET6;
-					ext->sort_list[nsort].addr.in6a = a6;
-					u = (u_char *)&ext->sort_list[nsort].mask.in6a;
-					*cp++ = n;
-					net = cp;
-					while (*cp && *cp != ';' &&
-					    isascii(*cp) && !isspace(*cp))
-						cp++;
-					m = n;
-					n = *cp;
-					*cp = 0;
-					switch (m) {
-					case '/':
-						m = atoi(net);
-						break;
-					case '&':
-						if (inet_pton(AF_INET6, net, u) == 1) {
-							m = -1;
-							break;
-						}
-						/*FALLTHROUGH*/
-					default:
-						m = sizeof(struct in6_addr) * CHAR_BIT;
-						break;
-					}
-					if (m >= 0) {
-						for (i = 0; i < sizeof(struct in6_addr); i++) {
-							if (m <= 0) {
-								*u = 0;
-							} else {
-								m -= CHAR_BIT;
-								*u = (u_char)~0;
-								if (m < 0)
-									*u <<= -m;
-							}
-							u++;
-						}
-					}
-					statp->sort_list[nsort].addr.s_addr =
-					    (u_int32_t)0xffffffff;
-					statp->sort_list[nsort].mask =
-					    (u_int32_t)0xffffffff;
-					nsort++;
-				}
-				*cp = n;
-			}
-			continue;
-		}
-#endif /* RESOLVSORT */
-		/* read resolver options */
-		if (res_match(line, eow, "options")) {
-			cp = eow;
-			while (res_space(*cp))
-				cp++;
-			res_setoptions(statp, cp, "conf");
-			continue;
-		}
-	}
-	free(line);
-	if (nserv > 0)
-		statp->nscount = nserv;
-#ifdef RESOLVSORT
-	statp->nsort = nsort;
-#endif
-	(void)fclose(fp);
-}
-
-/*%
- * Set the default domain to the first word of the string.  Assumes no
- * leading space.
- */
-static void
-res_setdefdname(res_state statp, const char *str, const char *end)
-{
-	const char *sp;
-
-	/* find end of string */
-	if (end == NULL) {
-		end = str;
-		while (*end != '\0')
-			end++;
-	}
-
-	/* find the first space */
-	sp = str;
-	while (sp < end && !res_space(*sp))
-		sp++;
-
-	/* check length of first word */
-	if (sp == str || sp - str >= sizeof(statp->defdname)) {
-		statp->defdname[0] = '\0';
-		statp->dnsrch[0] = NULL;
-		return;
-	}
-
-	/* copy the first word into defdname */
-	memcpy(statp->defdname, str, sp - str);
-	statp->defdname[sp - str] = '\0';
-	statp->dnsrch[0] = NULL;
-#ifdef DEBUG
-	printf(";; domain %s\n", statp->defdname);
-#endif
-}
-
-/*%
- * Set the default domain to the first word of the string and split the
- * string up into the search path.  Assumes no leading space.
- */
-static void
-res_setdnsrch(res_state statp, const char *str, const char *end)
-{
-	char *sp, *wp, *np;
-	int n;
-
-	/* find end of string */
-	if (end == NULL) {
-		end = str;
-		while (*end != '\0')
-			end++;
-	}
-
-	/* trim trailing space */
-	while (end > str && res_space(end[-1]))
-		end--;
-
-	/* check length of string */
-	if (end == str || end - str >= sizeof(statp->defdname)) {
-		statp->defdname[0] = '\0';
-		statp->dnsrch[0] = NULL;
-		return;
-	}
-
-	/* copy entire string into defdname */
-	memcpy(statp->defdname, str, end - str);
-	statp->defdname[end - str] = '\0';
-
-	/* split string into words */
-	for (wp = statp->defdname, n = 0;
-	     *wp != '\0' && n < MAXDNSRCH;
-	     wp = np) {
-		/* find the end of the word */
-		sp = wp;
-		while (*sp != '\0' && !res_space(*sp))
-			sp++;
-
-		/* find the start of the next word */
-		np = sp;
-		while (*np != '\0' && res_space(*np))
-			np++;
-
-		/* assign to the next slot */
-		if (sp > wp) {
-			statp->dnsrch[n] = wp;
-			*sp = '\0';
-#ifdef DEBUG
-			if (n == 0)
-				printf(";; domain %s\n;; search", statp->defdname);
-			printf(" %s", statp->dnsrch[n]);
-#endif
-			n++;
-		}
-	}
-#ifdef DEBUG
-	printf("\n");
-#endif
-
-	/* terminate the list */
-	statp->dnsrch[n] = NULL;
-}
-
-/*%
- * Resolve the string and insert the result in the specified slot in the
- * name server list.  Assumes no leading or trailing space.
- */
-static int
-res_setnsaddr(res_state statp, int i, const char *str, const char *end)
-{
-	char addr[48], port[8];
-	_Static_assert(sizeof(addr) > INET6_ADDRSTRLEN,
-	    "address buffer too small for AF_INET6");
-	_Static_assert(sizeof(addr) > INET_ADDRSTRLEN,
-	    "address buffer too small for AF_INET");
-	struct addrinfo hints = {
-		.ai_family = AF_UNSPEC,
-		.ai_socktype = SOCK_DGRAM,
-		.ai_flags = AI_NUMERICHOST,
-	};
-	struct addrinfo *ai;
-	int ret = 0;
-
-	/* find end of string */
-	if (end == NULL) {
-		end = str;
-		while (*end != '\0')
-			end++;
-	}
-
-	/* prepare port number */
-	snprintf(port, sizeof(port), "%u", NAMESERVER_PORT);
-
-	/* check length */
-	if (end - str >= sizeof(addr)) {
-#ifdef DEBUG
-		printf(";; nameserver too long: %.*s\n",
-		    (int)(end - str), str);
-#endif
-		return (0);
-	}
-
-	/* resolve the address */
-	memcpy(addr, str, end - str);
-	addr[end - str] = '\0';
-	if (getaddrinfo(addr, port, &hints, &ai) != 0) {
-#ifdef DEBUG
-		printf(";; nameserver invalid: %s\n", addr);
-#endif
-		return (0);
-	}
-
-	/* copy the sockaddr */
-	if (ai->ai_addrlen <= sizeof(statp->_u._ext.ext->nsaddrs[0])) {
-		if (statp->_u._ext.ext != NULL) {
-			memcpy(&statp->_u._ext.ext->nsaddrs[i],
-			    ai->ai_addr, ai->ai_addrlen);
-			ret = 1;
-		}
-		if (ai->ai_addrlen <= sizeof(statp->nsaddr_list[i])) {
-			memcpy(&statp->nsaddr_list[i],
-			    ai->ai_addr, ai->ai_addrlen);
-			ret = 1;
-		} else {
-			statp->nsaddr_list[i].sin_family = 0;
-		}
-#ifdef DEBUG
-		printf(";; nameserver %s\n", addr);
-#endif
-	} else {
-#ifdef DEBUG
-		printf(";; sockaddr too big: %s\n", addr);
-#endif
-	}
-	freeaddrinfo(ai);
-	return (ret);
-}
-
-/*%
- * Split the string up into words and interpret them as resolver options.
- */
 static void
 res_setoptions(res_state statp, const char *options, const char *source)
 {
@@ -870,8 +737,7 @@ res_get_nibblesuffix2(res_state statp) {
 #endif
 
 void
-res_setservers(res_state statp, const union res_sockaddr_union *set, int cnt)
-{
+res_setservers(res_state statp, const union res_sockaddr_union *set, int cnt) {
 	int i, nserv;
 	size_t size;
 
@@ -918,6 +784,7 @@ res_setservers(res_state statp, const union res_sockaddr_union *set, int cnt)
 		set++;
 	}
 	statp->nscount = nserv;
+	
 }
 
 int
