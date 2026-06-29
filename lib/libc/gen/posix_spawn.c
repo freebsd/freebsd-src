@@ -28,6 +28,7 @@
 
 #include "namespace.h"
 #include <sys/param.h>
+#include <sys/mman.h>
 #include <sys/procctl.h>
 #include <sys/procdesc.h>
 #include <sys/queue.h>
@@ -231,19 +232,7 @@ struct posix_spawn_args {
 	volatile int error;
 };
 
-#define	PSPAWN_STACK_ALIGNMENT	16
-#define	PSPAWN_STACK_ALIGNBYTES	(PSPAWN_STACK_ALIGNMENT - 1)
-#define	PSPAWN_STACK_ALIGN(sz) \
-	(((sz) + PSPAWN_STACK_ALIGNBYTES) & ~PSPAWN_STACK_ALIGNBYTES)
-
-/*
- * Below we'll assume that _RFORK_THREAD_STACK_SIZE is appropriately aligned for
- * the posix_spawn() case where we do not end up calling execvpe and won't ever
- * try to allocate space on the stack for argv[].
- */
 #define	_RFORK_THREAD_STACK_SIZE	4096
-_Static_assert((_RFORK_THREAD_STACK_SIZE % PSPAWN_STACK_ALIGNMENT) == 0,
-    "Inappropriate stack size alignment");
 
 static int
 _posix_spawn_thr(void *data)
@@ -285,11 +274,13 @@ do_posix_spawn(pid_t *pid, const char *path,
 	pid_t p;
 	int pfd;
 	bool do_pfd;
-	char *stack;
-	size_t stacksz;
+	char *guard, *stack;
+	size_t stacksz, pagesz;
 
 #if defined(__i386__) || defined(__amd64__)
 	stacksz = _RFORK_THREAD_STACK_SIZE;
+	pagesz = getpagesize();
+
 	if (use_env_path) {
 		size_t cnt;
 
@@ -304,24 +295,21 @@ do_posix_spawn(pid_t *pid, const char *path,
 		for (cnt = 0; argv[cnt] != NULL; ++cnt)
 			;
 		stacksz += MAX(3, cnt + 2) * sizeof(char *);
-		stacksz = PSPAWN_STACK_ALIGN(stacksz);
 	}
 
-	/*
-	 * aligned_alloc is not safe to use here, because we can't guarantee
-	 * that aligned_alloc and free will be provided by the same
-	 * implementation.  We've actively hit at least one application that
-	 * will provide its own malloc/free but not aligned_alloc leading to
-	 * a free by the wrong allocator.
-	 */
-	stack = malloc(stacksz);
-	if (stack == NULL)
+	stacksz = round_page(stacksz);
+	guard = mmap(NULL, stacksz + pagesz, 0, MAP_GUARD, -1, 0);
+	if (guard == MAP_FAILED)
 		return (ENOMEM);
-	stacksz = (((uintptr_t)stack + stacksz) & ~PSPAWN_STACK_ALIGNBYTES) -
-	    (uintptr_t)stack;
+	stack = mmap(guard + pagesz, stacksz, PROT_READ | PROT_WRITE,
+	    MAP_PRIVATE | MAP_FIXED | MAP_ANON, -1, 0);
+	if (stack == MAP_FAILED) {
+		munmap(guard, stacksz + pagesz);
+		return (ENOMEM);
+	}
 #else
-	stack = NULL;
-	stacksz = 0;
+	guard = stack = NULL;
+	pagesz = stacksz = 0;
 #endif
 	psa.path = path;
 	psa.fa = fa;
@@ -362,7 +350,8 @@ do_posix_spawn(pid_t *pid, const char *path,
 		p = rfork_thread(RFSPAWN, stack + stacksz, _posix_spawn_thr,
 		    &psa);
 	}
-	free(stack);
+	if (stack != NULL)
+		munmap(guard, stacksz + pagesz);
 
 	/*
 	 * The above block should leave us in a state where we've either
