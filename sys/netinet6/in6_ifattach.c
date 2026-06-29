@@ -781,7 +781,7 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 {
 	struct in6_ifaddr *ia;
 
-	/* XXXGL: can this happen after IFT_PFLOG and IFT_PFSYNC are gone? */
+	/* XXXGL: can this happen after IFT_PFSYNC is gone? */
 	if (ifp->if_inet6 == NULL)
 		return;
 	/*
@@ -856,7 +856,7 @@ _in6_ifdetach(struct ifnet *ifp, int purgeulp)
 {
 	struct ifaddr *ifa, *next;
 
-	/* XXXGL: can this happen after IFT_PFLOG and IFT_PFSYNC are gone? */
+	/* XXXGL: can this happen after IFT_PFSYNC is gone? */
 	if (ifp->if_inet6 == NULL)
 		return;
 
@@ -913,7 +913,7 @@ in6_ifdeparture(void *arg __unused, struct ifnet *ifp)
 {
 	struct in6_ifextra *ext = ifp->if_inet6;
 
-	/* XXXGL: can this happen after IFT_PFLOG and IFT_PFSYNC are gone? */
+	/* XXXGL: can this happen after IFT_PFSYNC is gone? */
 	if (ifp->if_inet6 == NULL)
 		return;
 

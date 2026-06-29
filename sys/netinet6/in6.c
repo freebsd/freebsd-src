@@ -2600,7 +2600,6 @@ in6_ifarrival(void *arg __unused, struct ifnet *ifp)
 
 	/* There are not IPv6-capable interfaces. */
 	switch (ifp->if_type) {
-	case IFT_PFLOG:
 	case IFT_PFSYNC:
 		ifp->if_inet6 = NULL;
 		return;

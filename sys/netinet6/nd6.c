@@ -374,7 +374,7 @@ nd6_setmtu(struct ifnet *ifp)
 	struct in6_ifextra *ndi = ifp->if_inet6;
 	uint32_t omaxmtu;
 
-	/* XXXGL: safety against IFT_PFSYNC & IFT_PFLOG */
+	/* XXXGL: safety against IFT_PFSYNC */
 	if (ndi == NULL)
 		return;
 
@@ -1660,7 +1660,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	struct in6_ifextra *ext = ifp->if_inet6;
 	int error = 0;
 
-	/* XXXGL: safety against IFT_PFSYNC & IFT_PFLOG */
+	/* XXXGL: safety against IFT_PFSYNC */
 	if (ext == NULL)
 		return (EPFNOSUPPORT);
 #define ND	ndi->ndi
