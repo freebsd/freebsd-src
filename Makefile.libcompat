@@ -89,6 +89,7 @@ distribute${libcompat} install${libcompat}: .PHONY
 # rather than the native make environment.
 
 _LC_LIBDIRS.yes=		lib
+_LC_LIBDIRS.yes+=		gnu/lib
 _LC_LIBDIRS.${MK_CDDL:tl}+=	cddl/lib
 _LC_LIBDIRS.${MK_CRYPT:tl}+=	secure/lib
 .if ${MK_MITKRB5} != "no"

@@ -29,6 +29,7 @@ DIRDEPS_FILTER.host = \
 	Nlib/libcompiler_rt \
 	Nlib/[mn]* \
 	Nlib/lib[t]* \
+	Ngnu/lib/lib[a-r]* \
 	Nsecure/lib* \
 	Nusr.bin/xinstall* \
 

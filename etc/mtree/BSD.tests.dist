@@ -292,6 +292,14 @@
     ..
     games
     ..
+    gnu
+        lib
+        ..
+        usr.bin
+            diff
+            ..
+        ..
+    ..
     include
     ..
     lib
