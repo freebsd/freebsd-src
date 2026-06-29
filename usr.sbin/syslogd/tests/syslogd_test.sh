@@ -194,6 +194,82 @@ host_filter_cleanup()
     syslogd_stop
 }
 
+atf_test_case "host_filter_overlap" "cleanup"
+host_filter_overlap_head()
+{
+    atf_set descr "Comma-separated host filters match every element when one name is a substring of another"
+}
+host_filter_overlap_body()
+{
+    logfile="${PWD}/host_filter_overlap.log"
+    printf "+webhost,host\nuser.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    syslogd_start
+
+    for h in webhost host; do
+        syslogd_log -p user.debug -t "${h}" -H "${h}" \
+            -h "${SYSLOGD_LOCAL_SOCKET}" "hello this is ${h}"
+    done
+    atf_check -s exit:0 -o match:"webhost: hello this is webhost" \
+        cat "${logfile}"
+    atf_check -s exit:0 -o match:"host: hello this is host" cat "${logfile}"
+
+    # Exclusion must drop every element too.
+    truncate -s 0 ${logfile}
+    printf "\-webhost,host\nuser.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    syslogd_reload
+
+    for h in webhost host; do
+        syslogd_log -p user.debug -t "${h}" -H "${h}" \
+            -h "${SYSLOGD_LOCAL_SOCKET}" "hello this is ${h}"
+    done
+    atf_check -s exit:0 -o not-match:"webhost: hello this is webhost" \
+        cat "${logfile}"
+    atf_check -s exit:0 -o not-match:"host: hello this is host" \
+        cat "${logfile}"
+}
+host_filter_overlap_cleanup()
+{
+    syslogd_stop
+}
+
+atf_test_case "prog_filter_overlap" "cleanup"
+prog_filter_overlap_head()
+{
+    atf_set descr "Comma-separated program filters match every element when one name is a substring of another"
+}
+prog_filter_overlap_body()
+{
+    logfile="${PWD}/prog_filter_overlap.log"
+    printf "!myprog,prog\nuser.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    syslogd_start
+
+    for p in myprog prog; do
+        syslogd_log -p user.debug -t "${p}" -h "${SYSLOGD_LOCAL_SOCKET}" \
+            "hello this is ${p}"
+    done
+    atf_check -s exit:0 -o match:"myprog: hello this is myprog" \
+        cat "${logfile}"
+    atf_check -s exit:0 -o match:"prog: hello this is prog" cat "${logfile}"
+
+    # Exclusion must drop every element too.
+    truncate -s 0 ${logfile}
+    printf "!-myprog,prog\nuser.debug\t${logfile}\n" > "${SYSLOGD_CONFIG}"
+    syslogd_reload
+
+    for p in myprog prog; do
+        syslogd_log -p user.debug -t "${p}" -h "${SYSLOGD_LOCAL_SOCKET}" \
+            "hello this is ${p}"
+    done
+    atf_check -s exit:0 -o not-match:"myprog: hello this is myprog" \
+        cat "${logfile}"
+    atf_check -s exit:0 -o not-match:"prog: hello this is prog" \
+        cat "${logfile}"
+}
+prog_filter_overlap_cleanup()
+{
+    syslogd_stop
+}
+
 atf_test_case "prop_filter" "cleanup"
 prop_filter_head()
 {
@@ -596,6 +672,8 @@ atf_init_test_cases()
     atf_add_test_case "reload"
     atf_add_test_case "prog_filter"
     atf_add_test_case "host_filter"
+    atf_add_test_case "host_filter_overlap"
+    atf_add_test_case "prog_filter_overlap"
     atf_add_test_case "prop_filter"
     atf_add_test_case "host_action"
     atf_add_test_case "pipe_action"
