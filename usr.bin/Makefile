@@ -192,6 +192,7 @@ SUBDIR.${MK_CALENDAR}+=	calendar
     ${MK_LLD} != "no" || ${MK_LLDB} != "no"
 SUBDIR+=	clang
 .endif
+SUBDIR.${MK_DIALOG}+=	dpv
 SUBDIR.${MK_EE}+=	ee
 SUBDIR.${MK_FILE}+=	file
 SUBDIR.${MK_FINGER}+=	finger

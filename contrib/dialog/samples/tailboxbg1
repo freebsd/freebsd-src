@@ -1,0 +1,32 @@
+#!/bin/sh
+# $Id: tailboxbg1,v 1.11 2019/12/11 00:12:27 tom Exp $
+
+. ./setup-vars
+
+. ./setup-tempfile
+
+./killall listing
+./listing >listing.out &
+
+$DIALOG --title "TAIL BOXES" \
+	--begin 10 10 "$@" --tailboxbg listing.out 8 58 \
+	--and-widget \
+	--begin 15 15 "$@" --tailboxbg listing.out 8 58 \
+	--and-widget \
+	--begin 3 10 "$@" --msgbox "Press OK " 5 30 \
+        2>$tempfile
+
+# The --and-widget causes a tab to be emitted, but our example will only
+# write one number to stderr.
+pid=`sed -e 's/	//g' $tempfile`
+if test -n "$pid" ; then
+# wait a while for the background process to run
+sleep 10
+
+# now kill it
+kill "-$SIG_QUIT" "$pid "2>&1 >/dev/null 2>/dev/null
+echo "killed [$pid]"
+fi
+
+# ...and the process that is making the listing
+./killall listing
