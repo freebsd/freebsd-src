@@ -338,7 +338,8 @@ map_object(int fd, const char *path, const struct stat *sb, bool ismain)
 	obj->stack_flags = stack_flags;
 	if (note_start < note_end)
 		digest_notes(obj, note_start, note_end);
-	if (note_map != NULL)
+finish:
+	if (note_map != NULL && note_map != MAP_FAILED)
 		munmap(note_map, note_map_len);
 	munmap(hdr, page_size);
 	free(segs);
@@ -347,13 +348,10 @@ map_object(int fd, const char *path, const struct stat *sb, bool ismain)
 error1:
 	munmap(mapbase, mapsize);
 error:
-	if (note_map != NULL && note_map != MAP_FAILED)
-		munmap(note_map, note_map_len);
 	if (!phdr_in_zero_page(hdr))
 		munmap(phdr, hdr->e_phnum * sizeof(phdr[0]));
-	munmap(hdr, page_size);
-	free(segs);
-	return (NULL);
+	obj = NULL;
+	goto finish;
 }
 
 bool
