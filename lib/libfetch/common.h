@@ -119,9 +119,9 @@ conn_t		*fetch_ref(conn_t *);
 int		 fetch_ssl_cb_verify_crt(int, X509_STORE_CTX*);
 #endif
 int		 fetch_ssl(conn_t *, const struct url *, int);
-ssize_t		 fetch_read(conn_t *, void *, size_t);
+ssize_t		 fetch_read(conn_t *, char *, size_t);
 int		 fetch_getln(conn_t *);
-ssize_t		 fetch_write(conn_t *, const void *, size_t);
+ssize_t		 fetch_write(conn_t *, const char *, size_t);
 ssize_t		 fetch_writev(conn_t *, struct iovec *, int);
 int		 fetch_putln(conn_t *, const char *, size_t);
 int		 fetch_close(conn_t *);
