@@ -1470,7 +1470,7 @@ match in ... port 2000:2999 rdr-to ... port 4000
 .Ed
 redirects ports 2000 to 2999 (inclusive) to port 4000.
 .Bd -literal -offset indent
-qmatch in ... port 2000:2999 rdr-to ... port 4000:*
+match in ... port 2000:2999 rdr-to ... port 4000:*
 .Ed
 redirects port 2000 to 4000, 2001 to 4001, ..., 2999 to 4999.
 .El
