@@ -50,15 +50,15 @@ ATF_TC_BODY(atfdcwd_matches_fts_open, tc)
 	int *info1, *info2;
 	char (*names1)[NAME_MAX + 1], (*names2)[NAME_MAX + 1];
 	int n1, n2, i;
-
-	info1 = malloc(FTS_TEST_MAXENTRIES * sizeof(*info1));
-	ATF_REQUIRE(info1 != NULL);
-	info2 = malloc(FTS_TEST_MAXENTRIES * sizeof(*info2));
-	ATF_REQUIRE(info2 != NULL);
-	names1 = malloc(FTS_TEST_MAXENTRIES * sizeof(*names1));
-	ATF_REQUIRE(names1 != NULL);
-	names2 = malloc(FTS_TEST_MAXENTRIES * sizeof(*names2));
-	ATF_REQUIRE(names2 != NULL);
+	
+	ATF_REQUIRE((info1 = malloc(FTS_TEST_MAXENTRIES *
+            sizeof(*info1))) != NULL);
+        ATF_REQUIRE((info2 = malloc(FTS_TEST_MAXENTRIES *
+            sizeof(*info2))) != NULL);
+        ATF_REQUIRE((names1 = malloc(FTS_TEST_MAXENTRIES *
+            sizeof(*names1))) != NULL);
+        ATF_REQUIRE((names2 = malloc(FTS_TEST_MAXENTRIES *
+            sizeof(*names2))) != NULL);
 
 	cwd = malloc(PATH_MAX);
 	ATF_REQUIRE(cwd != NULL);
