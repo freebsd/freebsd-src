@@ -313,6 +313,24 @@ __nodiscard int copyout_nofault(
     const void * _Nonnull __restrict kaddr, void * __restrict udaddr,
     size_t len);
 
+#ifdef __CHERI__
+__nodiscard int copyinptr(const void * __restrict udaddr,
+    void * _Nonnull __restrict kaddr, size_t len);
+__nodiscard int copyinptr_nofault(const void * __restrict udaddr,
+    void * _Nonnull __restrict kaddr, size_t len);
+__nodiscard int copyoutptr(
+    const void * _Nonnull __restrict kaddr, void * __restrict udaddr,
+    size_t len);
+__nodiscard int copyoutptr_nofault(
+    const void * _Nonnull __restrict kaddr, void * __restrict udaddr,
+    size_t len);
+#else
+#define	copyinptr		copyin
+#define	copyinptr_nofault	copyin_nofault
+#define	copyoutptr		copyout
+#define	copyoutptr_nofault	copyout_nofault
+#endif
+
 #ifdef SAN_NEEDS_INTERCEPTORS
 int	SAN_INTERCEPTOR(copyin)(const void *, void *, size_t);
 int	SAN_INTERCEPTOR(copyinstr)(const void *, void *, size_t, size_t *);

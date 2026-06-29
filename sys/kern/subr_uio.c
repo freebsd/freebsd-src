@@ -88,6 +88,30 @@ copyout_nofault(const void *kaddr, void *udaddr, size_t len)
 	return (error);
 }
 
+#ifdef __CHERI__
+int
+copyinptr_nofault(const void *udaddr, void *kaddr, size_t len)
+{
+	int error, save;
+
+	save = vm_fault_disable_pagefaults();
+	error = copyinptr(udaddr, kaddr, len);
+	vm_fault_enable_pagefaults(save);
+	return (error);
+}
+
+int
+copyoutptr_nofault(const void *kaddr, void *udaddr, size_t len)
+{
+	int error, save;
+
+	save = vm_fault_disable_pagefaults();
+	error = copyoutptr(kaddr, udaddr, len);
+	vm_fault_enable_pagefaults(save);
+	return (error);
+}
+#endif
+
 #define	PHYS_PAGE_COUNT(len)	(howmany(len, PAGE_SIZE) + 1)
 
 int
