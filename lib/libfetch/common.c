@@ -593,13 +593,10 @@ fetch_socks5_getenv(char **host, int *port)
 conn_t *
 fetch_connect(const char *host, int port, int af, int verbose)
 {
-	struct timeval now, timeout, delta;
-	struct pollfd pfd;
 	struct addrinfo *cais = NULL, *sais = NULL, *cai, *sai;
 	const char *bindaddr;
 	conn_t *conn = NULL;
 	int err = 0, sd = -1;
-	int deltams;
 	char *sockshost;
 	int socksport;
 
@@ -657,47 +654,15 @@ fetch_connect(const char *host, int port, int af, int verbose)
 			fetch_verbose("failed to bind to %s", bindaddr);
 			goto syserr;
 		}
-		/* make the socket non-blocking */
-		(void)fcntl(sd, F_SETFL, O_NONBLOCK);
-		/* start the clock */
-		if (fetchTimeout > 0) {
-			gettimeofday(&timeout, NULL);
-			timeout.tv_sec += fetchTimeout;
-			deltams = fetchTimeout * 1000;
-		}
 		/* attempt to connect to server address */
-		if ((err = connect(sd, sai->ai_addr, sai->ai_addrlen)) == 0)
+		while ((err = connect(sd, sai->ai_addr, sai->ai_addrlen)) < 0) {
+			if (errno == EINTR && fetchRestartCalls)
+				continue;
 			break;
-		/* wait for connection */
-		if (errno == EINPROGRESS) {
-			deltams = INFTIM;
-			pfd.fd = sd;
-			pfd.events = POLLOUT;
-			for (;;) {
-				/* wait for something to happen */
-				if (poll(&pfd, 1, deltams) >= 0)
-					break;
-				if (errno == EINTR && !fetchRestartCalls)
-					break;
-				/* check the clock */
-				if (fetchTimeout > 0) {
-					gettimeofday(&now, NULL);
-					if (!timercmp(&timeout, &now, >)) {
-						errno = ETIMEDOUT;
-						pfd.revents = POLLERR;
-						break;
-					}
-					timersub(&timeout, &now, &delta);
-					deltams = delta.tv_sec * 1000 +
-					    delta.tv_usec / 1000;
-				}
-			}
-			if (pfd.revents == POLLOUT) {
-				/* connection established */
-				err = 0;
-				break;
-			}
 		}
+		/* success? */
+		if (err == 0)
+			break;
 		/* clean up before next attempt */
 		close(sd);
 		sd = -1;
