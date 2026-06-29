@@ -585,7 +585,7 @@ vm_page_startup(vm_offset_t vaddr)
 	int biggestone, i, segind;
 #ifdef WITNESS
 	void *mapped;
-	int witness_size;
+	u_long witness_size;
 #endif
 #if defined(__i386__) && defined(VM_PHYSSEG_DENSE)
 	long ii;
@@ -610,7 +610,14 @@ vm_page_startup(vm_offset_t vaddr)
 
 	new_end = end;
 #ifdef WITNESS
-	witness_size = round_page(witness_startup_count());
+	/*
+	 * witness(4) support.  Allocate and map memory and initialize.
+	 * Advertised available memory is limited in order to avoid witness
+	 * misconfiguration consuming memory needed for subsequent essential
+	 * allocations.
+	 */
+	witness_size = round_page(witness_startup_count(
+	    trunc_page((new_end - phys_avail[biggestone]) / 2)));
 	new_end -= witness_size;
 	mapped = pmap_map(&vaddr, new_end, new_end + witness_size,
 	    VM_PROT_READ | VM_PROT_WRITE);

@@ -419,19 +419,16 @@ static u_long witness_count = WITNESS_COUNT;
 SYSCTL_ULONG(_debug_witness, OID_AUTO, witness_count,
     CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &witness_count, 0,
     "Maximum count of lock type entries");
-TUNABLE_ULONG("debug.witness.witness_count", &witness_count);
 
 static u_long witness_lo_data_count = WITNESS_LO_DATA_COUNT;
 SYSCTL_ULONG(_debug_witness, OID_AUTO, lock_order_data_count,
     CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &witness_lo_data_count, 0,
     "Maximum count of lock order data (stacks) to track");
-TUNABLE_ULONG("debug.witness.lock_order_data_count", &witness_lo_data_count);
 
 static u_long witness_lo_hash_size = WITNESS_LO_HASH_SIZE;
 SYSCTL_ULONG(_debug_witness, OID_AUTO, lock_order_hash_size,
     CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &witness_lo_hash_size, 0,
     "Hash table size for lock order data");
-TUNABLE_ULONG("debug.witness.lock_order_hash_size", &witness_lo_hash_size);
 
 /*
  * Output channel for witness messages.  By default we print to the console.
@@ -489,6 +486,7 @@ static struct witness *w_data;
 static uint8_t **w_rmatrix;
 static struct lock_list_entry w_locklistdata[LOCK_CHILDCOUNT];
 static struct witness_hash w_hash;	/* The witness hash table. */
+static u_long w_sz;	/* Witness startup memory allocation size */
 
 /* The lock order data hash */
 static struct witness_lock_order_data *w_lodata;
@@ -791,10 +789,10 @@ fixup_filename(const char *file)
 /*
  * Calculate the size of early witness structures.
  */
-int
-witness_startup_count(void)
+static u_long
+witness_startup_calc(void)
 {
-	int sz;
+	u_long sz;
 
 	sz = sizeof(struct witness) * witness_count;
 	sz += sizeof(*w_rmatrix) * (witness_count + 1);
@@ -803,8 +801,63 @@ witness_startup_count(void)
 	sz += sizeof(void *);
 	sz += sizeof(w_lodata[0]) * witness_lo_data_count;
 	sz += sizeof(w_lohash.wloh_array[0]) * witness_lo_hash_size;
+	sz = round_page(sz);
 
 	return (sz);
+}
+
+u_long
+witness_startup_count(u_long avail)
+{
+
+	/*
+	 * Tune witness.  We make an effort to protect against misconfiguration
+	 * consuming more memory than available, but we do not robustly protect
+	 * against integer overflow for all possible user-supplied values.
+	 */
+	TUNABLE_ULONG_FETCH("debug.witness.witness_count", &witness_count);
+	witness_count = ulmax(witness_count, 1);
+	TUNABLE_ULONG_FETCH("debug.witness.lock_order_data_count",
+	    &witness_lo_data_count);
+	TUNABLE_ULONG_FETCH("debug.witness.lock_order_hash_size",
+	    &witness_lo_hash_size);
+	w_sz = witness_startup_calc();
+	if (bootverbose)
+		printf("WITNESS configuration requests %lu KiB "
+		    "of startup allocations with witness_count=%lu, "
+		    "lock_order_data_count=%lu, lock_order_hash_size=%lu\n",
+		    w_sz / 1024, witness_count, witness_lo_data_count,
+		    witness_lo_hash_size);
+	if (w_sz <= avail)
+		return (w_sz);
+
+	/* Memory allocation would be too large, try fallbacks. */
+	printf("WARNING: WITNESS configuration requests %lu KiB, "
+	    "with %lu KiB available\n", w_sz / 1024, avail / 1024);
+	witness_count = ulmin(witness_count, WITNESS_COUNT);
+	witness_lo_data_count = ulmin(witness_lo_data_count,
+	    WITNESS_LO_DATA_COUNT);
+	witness_lo_hash_size = ulmin(witness_lo_hash_size,
+	    WITNESS_LO_HASH_SIZE);
+	w_sz = witness_startup_calc();
+	if (w_sz <= avail) {
+		printf("WARNING: WITNESS configuration reduced to defaults\n");
+		return (w_sz);
+	}
+
+	/* Minimize startup allocations, functionally disabling witness. */
+	witness_count = 1;
+	witness_lo_data_count = 0;
+	witness_lo_hash_size = 1;
+	w_sz = witness_startup_calc();
+	if (w_sz <= avail) {
+		printf("WARNING: WITNESS configuration defaults too large, "
+		    "lock order checks disabled\n");
+		return (w_sz);
+	}
+
+	panic("WITNESS unable to initialize with %lu KiB available",
+	    avail / 1024);
 }
 
 /*
@@ -842,6 +895,8 @@ witness_startup(void *mem)
 
 	w_lohash.wloh_array = (void *)p;
 	p += sizeof(w_lohash.wloh_array[0]) * witness_lo_hash_size;
+
+	MPASS(p <= (uintptr_t)mem + w_sz);
 
 	badstack_sbuf_size = witness_count * 256;
 
