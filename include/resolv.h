@@ -148,7 +148,11 @@ struct __res_state {
 	 * it breaks binary backward compatibility against FreeBSD's
 	 * resolver.  So, we changed not to see `sun'.
 	 */
+#if defined(sun) && 0
+	u_int	options;		/*%< option flags - see below. */
+#else
 	u_long	options;		/*%< option flags - see below. */
+#endif
 	int	nscount;		/*%< number of name servers */
 	struct sockaddr_in
 		nsaddr_list[MAXNS];	/*%< address of name server */
@@ -156,7 +160,11 @@ struct __res_state {
 	u_short	id;			/*%< current message id */
 	char	*dnsrch[MAXDNSRCH+1];	/*%< components of domain to search */
 	char	defdname[256];		/*%< default domain (deprecated) */
+#if defined(sun) && 0
+	u_int	pfcode;			/*%< RES_PRF_ flags - see below. */
+#else
 	u_long	pfcode;			/*%< RES_PRF_ flags - see below. */
+#endif
 	unsigned ndots:4;		/*%< threshold for initial abs. query */
 	unsigned nsort:4;		/*%< number of elements in sort_list[] */
 	char	unused[3];
@@ -187,7 +195,9 @@ typedef struct __res_state *res_state;
 
 union res_sockaddr_union {
 	struct sockaddr_in	sin;
+#ifdef IN6ADDR_ANY_INIT
 	struct sockaddr_in6	sin6;
+#endif
 #ifdef ISC_ALIGN64
 	int64_t			__align64;	/*%< 64bit alignment */
 #else
@@ -348,6 +358,9 @@ extern const struct res_sym __p_rcode_syms[];
 #define putlong			__putlong
 #define putshort		__putshort
 #define res_dnok		__res_dnok
+#if 0
+#define res_findzonecut		__res_findzonecut
+#endif
 #define res_findzonecut2	__res_findzonecut2
 #define res_hnok		__res_hnok
 #define res_hostalias		__res_hostalias
@@ -361,6 +374,9 @@ extern const struct res_sym __p_rcode_syms[];
 #define res_nquerydomain	__res_nquerydomain
 #define res_nsearch		__res_nsearch
 #define res_nsend		__res_nsend
+#if 0
+#define res_nsendsigned		__res_nsendsigned
+#endif
 #define res_nisourserver	__res_nisourserver
 #define res_ownok		__res_ownok
 #define res_queriesmatch	__res_queriesmatch
@@ -376,9 +392,24 @@ extern const struct res_sym __p_rcode_syms[];
 #define	res_nametotype		__res_nametotype
 #define	res_setservers		__res_setservers
 #define	res_getservers		__res_getservers
+#if 0
+#define	res_buildprotolist	__res_buildprotolist
+#define	res_destroyprotolist	__res_destroyprotolist
+#define	res_destroyservicelist	__res_destroyservicelist
+#define	res_get_nibblesuffix	__res_get_nibblesuffix
+#define	res_get_nibblesuffix2	__res_get_nibblesuffix2
+#endif
 #define	res_ourserver_p		__res_ourserver_p
+#if 0
+#define	res_protocolname	__res_protocolname
+#define	res_protocolnumber	__res_protocolnumber
+#endif
 #define	res_send_setqhook	__res_send_setqhook
 #define	res_send_setrhook	__res_send_setrhook
+#if 0
+#define	res_servicename		__res_servicename
+#define	res_servicenumber	__res_servicenumber
+#endif
 __BEGIN_DECLS
 int		res_hnok(const char *);
 int		res_ownok(const char *);
@@ -394,8 +425,10 @@ const char *	loc_ntoa(const u_char *, char *);
 int		dn_skipname(const u_char *, const u_char *);
 void		putlong(u_int32_t, u_char *);
 void		putshort(u_int16_t, u_char *);
+#ifndef __ultrix__
 u_int16_t	_getshort(const u_char *);
 u_int32_t	_getlong(const u_char *);
+#endif
 const char *	p_class(int);
 const char *	p_time(u_int32_t);
 const char *	p_type(int);
@@ -432,6 +465,12 @@ int		res_nmkquery(res_state, int, const char *, int, int,
 			     const u_char *, int, const u_char *,
 			     u_char *, int);
 int		res_nsend(res_state, const u_char *, int, u_char *, int);
+#if 0
+int		res_nsendsigned(res_state, const u_char *, int,
+				ns_tsig_key *, u_char *, int);
+int		res_findzonecut(res_state, const char *, ns_class, int,
+				char *, size_t, struct in_addr *, int);
+#endif
 int		res_findzonecut2(res_state, const char *, ns_class, int,
 				 char *, size_t,
 				 union res_sockaddr_union *, int);
@@ -442,6 +481,15 @@ int		res_nopt_rdata(res_state, int, u_char *, int, u_char *,
 void		res_send_setqhook(res_send_qhook);
 void		res_send_setrhook(res_send_rhook);
 int		__res_vinit(res_state, int);
+#if 0
+void		res_destroyservicelist(void);
+const char *	res_servicename(u_int16_t, const char *);
+const char *	res_protocolname(int);
+void		res_destroyprotolist(void);
+void		res_buildprotolist(void);
+const char *	res_get_nibblesuffix(res_state);
+const char *	res_get_nibblesuffix2(res_state);
+#endif
 void		res_ndestroy(res_state);
 u_int16_t	res_nametoclass(const char *, int *);
 u_int16_t	res_nametotype(const char *, int *);
@@ -451,3 +499,4 @@ int		res_getservers(res_state, union res_sockaddr_union *, int);
 __END_DECLS
 
 #endif /* !_RESOLV_H_ */
+/*! \file */
