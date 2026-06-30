@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: btsockstat
+Description: Show Bluetooth sockets information
+URL: https://man.freebsd.org/cgi/man.cgi?query=btsockstat(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/bluetooth/btsockstat
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+Requires: csu, libbluetooth, libc, libcompiler_rt, libkvm

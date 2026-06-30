@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: du
+Description: Display disk usage statistics
+URL: https://man.freebsd.org/cgi/man.cgi?query=du(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/du
+License: BSD-3-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt
+Copyright: 1989, 1993, 1994 The Regents of the University of California
+Requires: csu, libc, libcompiler_rt, libutil, libxo

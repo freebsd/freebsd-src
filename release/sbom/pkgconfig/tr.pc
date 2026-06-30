@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: tr
+Description: Translate characters
+URL: https://man.freebsd.org/cgi/man.cgi?query=tr(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/tr
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.16ea4b25.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt
+Copyright: 2004 Tim J. Robbins, 1988, 1993 The Regents of the University of California, 1991, 1993 The Regents of the University of California
+Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt

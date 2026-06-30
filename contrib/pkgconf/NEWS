@@ -1,6 +1,58 @@
 Changes from previous version of pkgconf
 ========================================
 
+Changes from 2.5.0 to 3.0.0:
+----------------------------
+
+* DEPRECATION: The autotools build system will be dropped after the 3.0 release.
+  Building pkgconf with muon is recommended for early bootstrap and meson in later
+  stages of bootstrap.
+  Alternatively users can use pkgconf-lite for early bootstrap.
+  See https://github.com/pkgconf/pkgconf/issues/481 for rationale and discussion.
+
+* New spdxtool(1) utility which generates SPDX Lite 3.0.1 Software Bills of
+  Material (SBOM) files.
+  Initial implementation by Tuukka Pasanen and sponsored by The FreeBSD
+  Foundation.
+  Additional patches by Ariadne Conill, Elizabeth Ashford and Tuukka Pasanen.
+
+* SPDX License expressions are now properly parsed and validated.
+  Patches by Tuukka Pasanen.
+
+* New test and I/O framework.
+  - kyua is no longer required to run tests.
+  - Declarative configuration for integration tests, C unit tests for functional tests.
+  - Tests now run on Windows.
+  Patches by Ariadne Conill and Elizabeth Ashford.
+
+* New pc(5) features:
+  - Source tag: a URI which describes where a given package may be downloaded.
+  - License.file tag: a path to a license file that is on disk.
+  - Requires.shared tag: like Requires.private, except a list of dependencies only used
+    when building in shared mode.
+  - Cflags.shared tag: like Cflags.private, except a list of CFLAGS only used when Building
+    in shared mode.
+  Patches by Tuukka Pasanen and Elizabeth Ashford.
+
+* Allow variables to be overridden using `PKG_CONFIG_MODULENAME_VARIABLENAME`
+  environmental variables.  This was formally specified but never implemented
+  in pkgconf.
+
+* Use append for PKG_CONFIG_LOG.
+
+* Allow building with readlink(3) instead of readlinkat(3) for systems
+  which do not have readlinkat(3).
+
+* Implement bytecode-based variable substitution.  This allows us to do things
+  like track whether special variables such as ${pc_sysrootdir} have been used
+  already (so that duplicate substitutions do not happen).
+
+* Build pkgconf on Windows with Visual Studio.
+
+* Add LLVM libFuzzer targets for fuzzing the pc(5) parser.
+
+* Drop use of strlcpy, strlcat and other silently truncating string functions.
+
 Changes from 2.5.0 to 2.5.1:
 ----------------------------
 

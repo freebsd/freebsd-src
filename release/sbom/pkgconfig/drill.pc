@@ -1,0 +1,10 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: drill
+Description: LDNS is a DNS library that facilitates DNS tool programming
+URL: https://github.com/NLnetLabs/ldns
+Version: 1.8.3
+License: BSD-3-Clause

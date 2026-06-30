@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: fsirand
+Description: Randomize inode generation numbers
+URL: https://man.freebsd.org/cgi/man.cgi?query=fsirand(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/fsirand
+License: BSD-4-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-4-Clause.94311660.txt
+Copyright: 1997 Todd C. Miller <Todd.Miller@courtesan.com>
+Requires: csu, libc, libcompiler_rt, libufs

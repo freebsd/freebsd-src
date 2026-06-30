@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: sockstat
+Description: List open sockets
+URL: https://man.freebsd.org/cgi/man.cgi?query=sockstat(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/sockstat
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-bsd-unchanged.f9e44ef7.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-bsd-unchanged.fad7b6fb.txt
+Copyright: 2002 Dag-Erling Smorgrav, 2025 ConnectWise
+Requires: csu, libc, libcapsicum, libcasper, libcasper.services.cap_net, libcasper.services.cap_netdb, libcasper.services.cap_pwd, libcasper.services.cap_sysctl, libcompiler_rt, libjail

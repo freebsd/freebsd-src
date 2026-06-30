@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: kldstat
+Description: Display status of dynamic kernel linker
+URL: https://man.freebsd.org/cgi/man.cgi?query=kldstat(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/kldstat
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 1997 Doug Rabson
+Requires: csu, libc, libcompiler_rt, libutil

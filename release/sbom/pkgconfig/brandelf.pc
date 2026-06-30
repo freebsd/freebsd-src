@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: brandelf
+Description: Mark an ELF binary for a specific ABI
+URL: https://man.freebsd.org/cgi/man.cgi?query=brandelf(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/brandelf
+License: LicenseRef-scancode-bsd-unchanged
+License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-bsd-unchanged.e00db836.txt
+Copyright: 2000, 2001 David O'Brien, 1996 Soren Schmidt
+Requires: csu, libc, libcapsicum, libcompiler_rt

@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: Mail
+Description: Send and receive mail
+URL: https://man.freebsd.org/cgi/man.cgi?query=mail(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/mail
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt
+Copyright: 1980, 1993 The Regents of the University of California, 1992, 1993 The Regents of the University of California, 1989, 1993 The Regents of the University of California
+Requires: csu, libc, libcompiler_rt

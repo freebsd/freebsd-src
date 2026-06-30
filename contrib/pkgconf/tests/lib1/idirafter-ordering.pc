@@ -1,4 +1,4 @@
 Name: Bad
 Description: Demonstrates problems with -idirafter in old pkg-config; see also https://bugs.freedesktop.org/show_bug.cgi?id=23480
 Version: 1
-Cflags: -I/opt/bad/include1 -idirafter -I/opt/bad/include2 -I/opt/bad/include3
+Cflags: -I/opt/bad/include1 -idirafter /opt/bad/include4 -I/opt/bad/include2 -I/opt/bad/include3

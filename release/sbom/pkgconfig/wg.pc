@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: wg
+Description: Tools for configuring WireGuard
+URL: https://git.zx2c4.com/wireguard-tools/
+Version: 1.0.20250521
+Source: https://git.zx2c4.com/wireguard-tools/tag/?h=v1.0.20250521
+License: GPL-2.0

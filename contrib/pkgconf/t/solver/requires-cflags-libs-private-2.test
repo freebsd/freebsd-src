@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: cflags-libs-private-a
+WantedFlags: libs static
+ExpectedStdout: -lc

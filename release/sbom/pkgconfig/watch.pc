@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: watch
+Description: Snoop on another tty line
+URL: https://man.freebsd.org/cgi/man.cgi?query=watch(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/watch
+License: LicenseRef-scancode-other-permissive
+License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-other-permissive.ce7c2bce.txt
+Copyright: 1995 Ugen
+Requires: csu, libc, libcompiler_rt, libtinfo

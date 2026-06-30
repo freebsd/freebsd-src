@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: crunchgen
+Description: Generates build environment for a crunched binary
+URL: https://man.freebsd.org/cgi/man.cgi?query=crunchgen(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/crunch/crunchgen
+License: BSD-2-Clause AND HPND-sell-variant
+License.file: ${pcfiledir}/LICENSES/HPND-sell-variant.aa138118.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 1994 University of Maryland, Copyright 2020 Alex Richardson <arichardson@FreeBSD.org>
+Requires: csu, libc, libcompiler_rt

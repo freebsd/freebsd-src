@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: savecore
+Description: Save a core dump of the operating system
+URL: https://man.freebsd.org/cgi/man.cgi?query=savecore(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/savecore
+License: BSD-3-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.9136516b.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt
+Copyright: 2002 Poul-Henning Kamp, 2002 Networks Associates Technology, Inc., 1986, 1992, 1993 The Regents of the University of California
+Requires: csu, libc, libcapsicum, libcompiler_rt, libxo, zlib, zstd

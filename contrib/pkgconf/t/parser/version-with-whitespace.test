@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: modversion
+Query: malformed-version
+ExpectedStdout: 3.922

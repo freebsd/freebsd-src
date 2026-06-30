@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: pflogd
+Description: Pf logging daemon
+URL: https://openbsd.org
+Version: 15.0
+Source: https://github.com/openbsd/src/tree/master/sbin/pflogd
+License: BSD-3-Clause
+License.file: ${pcfiledir}/LICENSES/ISC.11e6b90c.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.8da18da8.txt, ${pcfiledir}/LICENSES/ISC.15824d08.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt
+Copyright: (c) Copyright 2000-2003 by Michal Zalewski <lcamtuf@coredump.cx>, (c) Copyright 2003 by Mike Frantzen <frantzen@w4g.org>, 2001 Daniel Hartmeier, 2002,2003 Henning Brauer, 2004 Mike Frantzen <frantzen@openbsd.org>, 2001 Markus Friedl, 2001 Theo de Raadt, Henning Brauer <henning@openbsd.org>, 2002 Cedric Berger, 2002 Sony Computer Science Laboratories Inc., 2002, 2003 Henning Brauer <henning@openbsd.org>, 2003 Mike Frantzen <frantzen@openbsd.org>

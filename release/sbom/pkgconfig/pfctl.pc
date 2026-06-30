@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: pfctl
+Description: Control the packet filter (PF) device
+URL: https://man.freebsd.org/cgi/man.cgi?query=pfctl(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/pfctl
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.8da18da8.txt, ${pcfiledir}/LICENSES/ISC.15824d08.txt, ${pcfiledir}/LICENSES/ISC.11e6b90c.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt
+Copyright: 2002 Cedric Berger, 2001 Daniel Hartmeier, 2002,2003 Henning Brauer, 2002 Sony Computer Science Laboratories Inc., 2002, 2003 Henning Brauer <henning@openbsd.org>, 2004 Mike Frantzen <frantzen@openbsd.org>, 2003 Mike Frantzen <frantzen@openbsd.org>, (c) Copyright 2000-2003 by Michal Zalewski <lcamtuf@coredump.cx>, (c) Copyright 2003 by Mike Frantzen <frantzen@w4g.org>, Henning Brauer <henning@openbsd.org>, 2001 Markus Friedl, 2001 Theo de Raadt
+Requires: csu, libc, libcompiler_rt, libmd, libnv, libpfctl, msun

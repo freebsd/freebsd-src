@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: foo > 1.2.3
+WantedFlags: exists
+ExpectedExitCode: 1

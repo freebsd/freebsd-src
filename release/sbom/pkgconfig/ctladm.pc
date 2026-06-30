@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: ctladm
+Description: CAM Target Layer control utility
+URL: https://man.freebsd.org/cgi/man.cgi?query=ctladm(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/ctladm
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-intel-bsd-2-clause.b794004b.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-unknown-license-reference.ad4a9bb5.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.d3db918d.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.5bebe47e.txt
+Copyright: 2003, 2004 Silicon Graphics International Corp., 1997-2007 Kenneth D. Merry, 2012 The FreeBSD Foundation, 2018 Marcelo Araujo <araujo@FreeBSD.org>, Copyright julian Elischer 1993, 1994 HD Associates (contact dufault@hda.com), 1998 Kenneth D. Merry
+Requires: csu, libc, libcam, libcompiler_rt, libexpat, libnv, libsbuf, libutil

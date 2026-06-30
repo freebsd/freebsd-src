@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: gencat
+Description: NLS catalog compiler
+URL: https://man.freebsd.org/cgi/man.cgi?query=gencat(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/gencat
+License: ISC AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.7aec3d10.txt, ${pcfiledir}/LICENSES/HPND.7fa74d16.txt
+Copyright: 1996 The NetBSD Foundation, Inc., Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts
+Requires: csu, libc, libcompiler_rt

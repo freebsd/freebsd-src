@@ -1,0 +1,13 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: virtual_oss_cmd
+Description: Modify a running virtual_oss(8) instance's options
+URL: https://man.freebsd.org/cgi/man.cgi?query=virtual_oss_cmd(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/virtual_oss/virtual_oss_cmd
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 2021-2022 Hans Petter Selasky

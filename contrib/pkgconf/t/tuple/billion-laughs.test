@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+WantedFlags: validate
+Query: billion-laughs
+ExpectedStderr: warning: bytecode program exceeds iteration limit (512)
+MatchStderr: partial

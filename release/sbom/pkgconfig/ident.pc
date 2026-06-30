@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: ident
+Description: Identify RCS keyword string in files
+URL: https://man.freebsd.org/cgi/man.cgi?query=ident(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/ident
+License: LicenseRef-scancode-bsd-unchanged
+License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-bsd-unchanged.b0945d8f.txt
+Copyright: 2015-2021 Baptiste Daroussin <bapt@FreeBSD.org>, 2015 Xin LI <delphij@FreeBSD.org>
+Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt

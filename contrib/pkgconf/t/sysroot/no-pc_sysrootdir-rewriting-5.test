@@ -1,0 +1,5 @@
+Environment: PKG_CONFIG_SYSROOT_DIR=/sysroot
+PackageSearchPath: lib1
+Query: sysroot-dir-5
+WantedFlags: cflags
+ExpectedStdout: -I/sysroot/usr/include

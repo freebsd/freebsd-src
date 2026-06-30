@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: camcontrol
+Description: CAM control program
+URL: https://man.freebsd.org/cgi/man.cgi?query=camcontrol(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/camcontrol
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.5bebe47e.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.28d55d07.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-intel-bsd-2-clause.8230435b.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.7aec3d10.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-unknown-license-reference.ad4a9bb5.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.d3db918d.txt
+Copyright: 1998 Kenneth D. Merry, 2000 Kelly Yancey <kbyanc@posi.net>, 2016 Spectra Logic Corporation, 1997-2012 The NetBSD Foundation, Inc., 1997-2007 Kenneth D. Merry, 2011 Sandvine Incorporated, 2002-2011 Andre Albsmeier <andre@albsmeier.net>, 2013 Spectra Logic Corporation, 2015, 2016 Spectra Logic Corporation, Copyright julian Elischer 1993, 1994 HD Associates (contact dufault@hda.com), 2021 Netflix, Inc., 2014 Spectra Logic Corporation, 1997-2009 The NetBSD Foundation, Inc.
+Requires: csu, libc, libcam, libcompiler_rt, libnvmf, libsbuf, libutil

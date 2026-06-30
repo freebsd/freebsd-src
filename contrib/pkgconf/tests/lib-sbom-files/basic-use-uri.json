@@ -1,0 +1,90 @@
+{
+    "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+    "@graph": [
+        {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "github.com:pkgconf:pkgconf:Agent:default",
+            "name": "Default"
+        },
+        {
+            "type": "CreationInfo",
+            "@id": "_:creationinfo_1",
+            "created": "test",
+            "createdBy": [
+                "github.com:pkgconf:pkgconf:Agent:default"
+            ],
+            "specVersion": "3.0.1"
+        },
+        {
+            "type": "simplelicensing_LicenseExpression",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "github.com:pkgconf:pkgconf:simplelicensing_LicenseExpression:BSD-4-Clause",
+            "simplelicensing_licenseExpression": "BSD-4-Clause"
+        },
+        {
+            "type": "software_Sbom",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "github.com:pkgconf:pkgconf:software_Sbom:test3",
+            "software_sbomType": [
+                "build"
+            ],
+            "rootElement": [
+                "github.com:pkgconf:pkgconf:Package:test3"
+            ],
+            "element": [
+                "github.com:pkgconf:pkgconf:Relationship:test3:hasDeclaredLicense",
+                "github.com:pkgconf:pkgconf:Relationship:test3:hasConcludedLicense"
+            ]
+        },
+        {
+            "type": "software_Package",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "github.com:pkgconf:pkgconf:Package:test3",
+            "name": "test3",
+            "originatedBy": [
+                "github.com:pkgconf:pkgconf:Agent:default"
+            ],
+            "software_copyrightText": "Test3 copyright text",
+            "software_homePage": "https://github.com/pkgconf/pkgconf/",
+            "software_downloadLocation": "https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz",
+            "software_packageVersion": "3.0.0"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "github.com:pkgconf:pkgconf:Relationship:test3:hasDeclaredLicense",
+            "from": "github.com:pkgconf:pkgconf:Package:test3",
+            "to": [
+                "github.com:pkgconf:pkgconf:simplelicensing_LicenseExpression:BSD-4-Clause"
+            ],
+            "relationshipType": "hasDeclaredLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "github.com:pkgconf:pkgconf:Relationship:test3:hasConcludedLicense",
+            "from": "github.com:pkgconf:pkgconf:Package:test3",
+            "to": [
+                "github.com:pkgconf:pkgconf:simplelicensing_LicenseExpression:BSD-4-Clause"
+            ],
+            "relationshipType": "hasConcludedLicense"
+        },
+        {
+            "type": "SpdxDocument",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "github.com:pkgconf:pkgconf:spdxDocument:1",
+            "rootElement": [
+                "github.com:pkgconf:pkgconf:software_Sbom:test3"
+            ],
+            "element": [
+                "github.com:pkgconf:pkgconf:Agent:default",
+                "github.com:pkgconf:pkgconf:simplelicensing_LicenseExpression:BSD-4-Clause",
+                "github.com:pkgconf:pkgconf:Relationship:test3:hasDeclaredLicense",
+                "github.com:pkgconf:pkgconf:Relationship:test3:hasConcludedLicense",
+                "github.com:pkgconf:pkgconf:software_Sbom:test3",
+                "github.com:pkgconf:pkgconf:Package:test3"
+            ]
+        }
+    ]
+}

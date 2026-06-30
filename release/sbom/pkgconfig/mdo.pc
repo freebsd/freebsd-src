@@ -1,0 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: mdo
+Description: Execute commands as another user
+URL: https://man.freebsd.org/cgi/man.cgi?query=mdo(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/mdo
+License: BSD-2-Clause
+Copyright: 2024 Baptiste Daroussin <bapt@FreeBSD.org>, 2025 Kushagra Srivastava <kushagra1403@gmail.com>, 2025 The FreeBSD Foundation

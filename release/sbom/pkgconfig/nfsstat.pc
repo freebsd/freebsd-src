@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: nfsstat
+Description: Display NFS statistics
+URL: https://man.freebsd.org/cgi/man.cgi?query=nfsstat(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/nfsstat
+License: BSD-3-Clause AND LicenseRef-scancode-intel-bsd-2-clause
+License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-intel-bsd-2-clause.b794004b.txt
+Copyright: 1983, 1989, 1993 The Regents of the University of California, 2004, 2008, 2009 Silicon Graphics International Corp.
+Requires: csu, libc, libcompiler_rt, libdevstat, libkvm, libxo

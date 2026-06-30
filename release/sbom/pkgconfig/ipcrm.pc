@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: ipcrm
+Description: Remove the specified message queues, semaphore sets, and shared segments
+URL: https://man.freebsd.org/cgi/man.cgi?query=ipcrm(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.bin/ipcrm
+License: BSD-4-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-4-Clause.e7069f9c.txt
+Copyright: 1994 Adam Glass
+Requires: csu, libc, libcompiler_rt, libkvm

@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: ipnat
+Description: User interface to the NAT
+URL: https://man.freebsd.org/cgi/man.cgi?query=ipnat(1)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/ipf/ipnat
+License: LicenseRef-scancode-other-permissive
+License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-other-permissive.c5d7f3d3.txt
+Copyright: 2012 by Darren Reed
+Requires: csu, libc, libcompiler_rt, libkvm

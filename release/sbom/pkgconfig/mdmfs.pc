@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: mdmfs
+Description: Configure and mount an in-memory file system using the md(4) driver or the tmpfs(4) filesystem
+URL: https://man.freebsd.org/cgi/man.cgi?query=mdmfs(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/mdmfs
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
+Copyright: 2001 Dima Dorfman
+Requires: csu, libc, libcompiler_rt

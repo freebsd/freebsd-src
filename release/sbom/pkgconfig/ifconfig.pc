@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: ifconfig
+Description: Configure network interface parameters
+URL: https://man.freebsd.org/cgi/man.cgi?query=ifconfig(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/ifconfig
+License: BSD-4-Clause AND BSD-3-Clause AND BSD-2-Clause-FreeBSD AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.f8ca36a4.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-bsd-original-voices.814a582a.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/BSD-4-Clause.6bf7704c.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.da76510e.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.443ee1c0.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.7aec3d10.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.5bebe47e.txt, ${pcfiledir}/LICENSES/BSD-4-Clause.2311d4ed.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.e289d4bf.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-bsd-unmodified.2c3260b8.txt, ${pcfiledir}/LICENSES/BSD-4-Clause.c63ba0d5.txt
+Copyright: 2023 Alexander V. Chernikov <melifaro@FreeBSD.org>, 2022 Alexander V. Chernikov <melifaro@FreeBSD.org>, Copyright 2013 Ermal Luci, 2025-2026 Pouria Mousavizadeh Tehrani <pouria@FreeBSD.org>, 2011 Alexander V. Chernikov, 2011 Christian S.J. Peron, 2011 Bjoern A. Zeeb, 1999 Bill Paul <wpaul@ctr.columbia.edu>, 2012 ADARA Networks, Inc., 1983, 1993 The Regents of the University of California, Copyright 2001 Wasabi Systems, Inc., 2016 Yandex LLC, 2016 Andrey V. Elsukov <ae@FreeBSD.org>, 2009 Hiroki Sato, Copyright 2001 The Aerospace Corporation, 1997, 1998, 2000 The NetBSD Foundation, Inc., 2001 Networks Associates Technology, Inc., 2002 Michael Shalayeff, 2003 Ryan McBride, 1997 Jason R. Thorpe, 2004 Max Laier, 2014, Bryan Venteicher <bryanv@FreeBSD.org>, 1997 Peter Wemm, 2006 Max Laier, 2014 Alexander V. Chernikov, 2008 Andrew Thompson
+Requires: csu, libc, libcompiler_rt, libifconfig, libnv, libutil, msun

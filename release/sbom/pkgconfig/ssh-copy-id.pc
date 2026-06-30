@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: ssh-copy-id
+Description: Connectivity tool for remote login with the SSH protocol
+URL: https://openssh.com
+Version: 10.0p2
+Source: https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/openssh-10.0.tar.gz
+License: SSH-OpenSSH

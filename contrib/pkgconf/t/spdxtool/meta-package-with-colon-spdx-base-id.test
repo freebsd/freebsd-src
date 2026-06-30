@@ -1,0 +1,5 @@
+Tool: spdxtool
+ToolArgs: --creation-time=test --use-uri --spdx-base-id=distfiles.ariadne.space:pkgconf meta_package
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+ExpectedStdoutFile: ../../tests/lib-sbom-files/meta_package-use-uri-spdx-base-id.json
+ExpectedExitCode: 0

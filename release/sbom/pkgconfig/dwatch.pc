@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: dwatch
+Description: Watch processes as they trigger a particular DTrace probe.
+URL: https://cgit.freebsd.org/src/tree/cddl/usr.sbin/dwatch
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/cddl/usr.sbin/dwatch
+License: CDDL-1.1

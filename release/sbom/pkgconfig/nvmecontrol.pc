@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: nvmecontrol
+Description: NVM Express control utility
+URL: https://man.freebsd.org/cgi/man.cgi?query=nvmecontrol(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/nvmecontrol
+License: BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.28d55d07.txt
+Copyright: 2012-2013 Intel Corporation, 2018-2019 Alexander Motin <mav@FreeBSD.org>, 2020 Chuck Tuffli, 2023-2024 Chelsio Communications, Inc., 2019-2021 Netflix, Inc, 2019 Netflix, Inc, 2017 Netflix, Inc., 2024 Netflix, Inc, 2013 EMC Corp., 2016-2023 Warner Losh <imp@FreeBSD.org>, 2019 Alexander Motin <mav@FreeBSD.org>, 2016 Netflix, Inc., 2018 Netflix, Inc.
+Requires: csu, libc, libcompiler_rt, libnvmf, libutil

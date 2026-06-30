@@ -1,0 +1,14 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: tzsetup
+Description: Set local timezone
+URL: https://man.freebsd.org/cgi/man.cgi?query=tzsetup(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/tzsetup
+License: LicenseRef-scancode-mit-license-1998
+License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-mit-license-1998.efd275e2.txt
+Copyright: Copyright 1996 Massachusetts Institute of Technology
+Requires: csu, libbsddialog, libc, libcompiler_rt

@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+# Copyright(c) 2026 The FreeBSD Foundation.
+#
+Name: devd
+Description: Device state change daemon
+URL: https://man.freebsd.org/cgi/man.cgi?query=devd(8)
+Version: 15.0
+Source: https://cgit.freebsd.org/src/tree/sbin/devd
+License: BSD-3-Clause AND BSD-2-Clause
+License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt
+Copyright: 2002 M. Warner Losh <imp@FreeBSD.org>, 2002-2003 M. Warner Losh <imp@FreeBSD.org>, 2002-2010 M. Warner Losh <imp@FreeBSD.org>, 1988, 1993 The Regents of the University of California
+Requires: csu, libc, libc++, libcompiler_rt, libcxxrt, libutil, msun

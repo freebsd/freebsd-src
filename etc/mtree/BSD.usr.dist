@@ -837,6 +837,12 @@
             triggers
             ..
         ..
+        sbom
+            jsonld
+            ..
+            spdx
+            ..
+        ..
         security
         ..
         sendmail

@@ -7,9 +7,10 @@ MAN=		pkg.m4.7
 MANNODEV=	pc.5
 MANNODEV+=	pkgconf-personality.5
 
-SRCS=		audit.c buffer.c cache.c client.c pkg.c bsdstubs.c fragment.c
-SRCS+=		argvsplit.c fileio.c tuple.c dependency.c queue.c
-SRCS+=		path.c personality.c parser.c
+SRCS=		argvsplit.c audit.c buffer.c bufferset.c bytecode.c bsdstubs.c
+SRCS+=		cache.c client.c dependency.c fileio.c fragment.c license.c
+SRCS+=		output.c parser.c path.c personality.c pkg.c queue.c tuple.c
+SRCS+=		variable.c version.c
 INCS=		bsdstubs.h iter.h libpkgconf-api.h libpkgconf.h stdinc.h
 
 WARNS?=		3

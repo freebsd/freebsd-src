@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: cflags-shared-test
+WantedFlags: cflags
+ExpectedStdout: -I/test/local/include/foo -DFOO_SHARED
