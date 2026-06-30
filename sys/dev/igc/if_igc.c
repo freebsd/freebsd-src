@@ -683,7 +683,7 @@ igc_if_attach_pre(if_ctx_t ctx)
 
 	/* Enable only WOL MAGIC by default */
 	scctx->isc_capenable &= ~IFCAP_WOL;
-	if (sc->wol != 0)
+	if (sc->wol & IGC_WUFC_MAG)
 		scctx->isc_capenable |= IFCAP_WOL_MAGIC;
 
 	iflib_set_mac(ctx, hw->mac.addr);
@@ -2451,6 +2451,7 @@ igc_enable_wakeup(if_ctx_t ctx)
 	if_t ifp = iflib_get_ifp(ctx);
 	int error = 0;
 	u32 ctrl, rctl;
+	u32 phpm;
 
 	if (!pci_has_pm(dev))
 		return;
@@ -2461,6 +2462,8 @@ igc_enable_wakeup(if_ctx_t ctx)
 	 */
 	if ((if_getcapenable(ifp) & IFCAP_WOL_MAGIC) == 0)
 		sc->wol &= ~IGC_WUFC_MAG;
+	else
+		sc->wol |= IGC_WUFC_MAG;
 
 	if ((if_getcapenable(ifp) & IFCAP_WOL_UCAST) == 0)
 		sc->wol &= ~IGC_WUFC_EX;
@@ -2484,6 +2487,15 @@ igc_enable_wakeup(if_ctx_t ctx)
 	/* Enable wakeup by the MAC */
 	IGC_WRITE_REG(&sc->hw, IGC_WUC, IGC_WUC_PME_EN);
 	IGC_WRITE_REG(&sc->hw, IGC_WUFC, sc->wol);
+
+	/*
+	 * Clear PHPM bits that disable link speeds in D3,
+	 * otherwise the NIC won't wake on magic packet
+	 */
+	phpm = IGC_READ_REG(&sc->hw, IGC_I225_PHPM);
+	phpm &= ~(IGC_I225_PHPM_DIS_100_D3 | IGC_I225_PHPM_DIS_1000_D3 |
+	    IGC_I225_PHPM_DIS_2500_D3);
+	IGC_WRITE_REG(&sc->hw, IGC_I225_PHPM, phpm);
 
 pme:
 	if (!error && (if_getcapenable(ifp) & IFCAP_WOL))
