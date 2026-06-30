@@ -246,6 +246,10 @@ typedef	struct __siginfo {
 	} _reason;
 } siginfo_t;
 
+#ifdef _KERNEL
+typedef int (copyout_siginfo_t)(const siginfo_t *si, void *info);
+#endif
+
 #define si_trapno	_reason._fault._trapno
 #define si_timerid	_reason._timer._timerid
 #define si_overrun	_reason._timer._overrun

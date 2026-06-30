@@ -191,19 +191,25 @@ struct read_args {
 int
 sys_read(struct thread *td, struct read_args *uap)
 {
+	return (user_read(td, uap->fd, uap->buf, uap->nbyte));
+}
+
+int
+user_read(struct thread *td, int fd, void *buf, size_t nbyte)
+{
 	struct uio auio;
 	struct iovec aiov;
 	int error;
 
-	if (uap->nbyte > IOSIZE_MAX)
+	if (nbyte > IOSIZE_MAX)
 		return (EXTERROR(EINVAL, "length > iosize_max"));
-	aiov.iov_base = uap->buf;
-	aiov.iov_len = uap->nbyte;
+	aiov.iov_base = buf;
+	aiov.iov_len = nbyte;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
-	auio.uio_resid = uap->nbyte;
+	auio.uio_resid = nbyte;
 	auio.uio_segflg = UIO_USERSPACE;
-	error = kern_readv(td, uap->fd, &auio);
+	error = kern_readv(td, fd, &auio);
 	return (error);
 }
 
@@ -222,7 +228,6 @@ struct pread_args {
 int
 sys_pread(struct thread *td, struct pread_args *uap)
 {
-
 	return (kern_pread(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
 
@@ -267,13 +272,20 @@ struct readv_args {
 int
 sys_readv(struct thread *td, struct readv_args *uap)
 {
+	return (user_readv(td, uap->fd, uap->iovp, uap->iovcnt, copyinuio));
+}
+
+int
+user_readv(struct thread *td, int fd, const struct iovec *iovp, u_int iovcnt,
+    copyinuio_t *copyinuio_f)
+{
 	struct uio *auio;
 	int error;
 
-	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	error = copyinuio_f(iovp, iovcnt, &auio);
 	if (error)
 		return (error);
-	error = kern_readv(td, uap->fd, auio);
+	error = kern_readv(td, fd, auio);
 	freeuio(auio);
 	return (error);
 }
@@ -306,13 +318,21 @@ struct preadv_args {
 int
 sys_preadv(struct thread *td, struct preadv_args *uap)
 {
+	return (user_preadv(td, uap->fd, uap->iovp, uap->iovcnt, uap->offset,
+	    copyinuio));
+}
+
+int
+user_preadv(struct thread *td, int fd, struct iovec *iovp, u_int iovcnt,
+    off_t offset, copyinuio_t *copyinuio_f)
+{
 	struct uio *auio;
 	int error;
 
-	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	error = copyinuio_f(iovp, iovcnt, &auio);
 	if (error)
 		return (error);
-	error = kern_preadv(td, uap->fd, auio, uap->offset);
+	error = kern_preadv(td, fd, auio, offset);
 	freeuio(auio);
 	return (error);
 }
@@ -392,19 +412,25 @@ struct write_args {
 int
 sys_write(struct thread *td, struct write_args *uap)
 {
+	return (kern_write(td, uap->fd, uap->buf, uap->nbyte));
+}
+
+int
+kern_write(struct thread *td, int fd, const void *buf, size_t nbyte)
+{
 	struct uio auio;
 	struct iovec aiov;
 	int error;
 
-	if (uap->nbyte > IOSIZE_MAX)
+	if (nbyte > IOSIZE_MAX)
 		return (EXTERROR(EINVAL, "length > iosize_max"));
-	aiov.iov_base = (void *)(uintptr_t)uap->buf;
-	aiov.iov_len = uap->nbyte;
+	aiov.iov_base = (void *)(uintptr_t)buf;
+	aiov.iov_len = nbyte;
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
-	auio.uio_resid = uap->nbyte;
+	auio.uio_resid = nbyte;
 	auio.uio_segflg = UIO_USERSPACE;
-	error = kern_writev(td, uap->fd, &auio);
+	error = kern_writev(td, fd, &auio);
 	return (error);
 }
 
@@ -423,7 +449,6 @@ struct pwrite_args {
 int
 sys_pwrite(struct thread *td, struct pwrite_args *uap)
 {
-
 	return (kern_pwrite(td, uap->fd, uap->buf, uap->nbyte, uap->offset));
 }
 
@@ -469,13 +494,20 @@ struct writev_args {
 int
 sys_writev(struct thread *td, struct writev_args *uap)
 {
+	return (user_writev(td, uap->fd, uap->iovp, uap->iovcnt, copyinuio));
+}
+
+int
+user_writev(struct thread *td, int fd, const struct iovec *iovp, u_int iovcnt,
+    copyinuio_t *copyinuio_f)
+{
 	struct uio *auio;
 	int error;
 
-	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	error = copyinuio_f(iovp, iovcnt, &auio);
 	if (error)
 		return (error);
-	error = kern_writev(td, uap->fd, auio);
+	error = kern_writev(td, fd, auio);
 	freeuio(auio);
 	return (error);
 }
@@ -508,13 +540,21 @@ struct pwritev_args {
 int
 sys_pwritev(struct thread *td, struct pwritev_args *uap)
 {
+	return (user_pwritev(td, uap->fd, uap->iovp, uap->iovcnt, uap->offset,
+	    copyinuio));
+}
+
+int
+user_pwritev(struct thread *td, int fd, struct iovec *iovp, u_int iovcnt,
+    off_t offset, copyinuio_t *copyinuio_f)
+{
 	struct uio *auio;
 	int error;
 
-	error = copyinuio(uap->iovp, uap->iovcnt, &auio);
+	error = copyinuio_f(iovp, iovcnt, &auio);
 	if (error)
 		return (error);
-	error = kern_pwritev(td, uap->fd, auio, uap->offset);
+	error = kern_pwritev(td, fd, auio, offset);
 	freeuio(auio);
 	return (error);
 }
@@ -627,7 +667,6 @@ struct ftruncate_args {
 int
 sys_ftruncate(struct thread *td, struct ftruncate_args *uap)
 {
-
 	return (kern_ftruncate(td, uap->fd, uap->length));
 }
 
@@ -657,6 +696,12 @@ struct ioctl_args {
 int
 sys_ioctl(struct thread *td, struct ioctl_args *uap)
 {
+	return (user_ioctl(td, uap->fd, uap->com, uap->data, &uap->data));
+}
+
+int
+user_ioctl(struct thread *td, int fd, u_long ucom, void *udata, void *datap)
+{
 	u_char smalldata[SYS_IOCTL_SMALL_SIZE] __aligned(SYS_IOCTL_SMALL_ALIGN);
 	uint32_t com;
 	int arg, error;
@@ -664,14 +709,14 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 	caddr_t data;
 
 #ifdef INVARIANTS
-	if (uap->com > 0xffffffff) {
+	if (ucom > 0xffffffff) {
 		printf(
 		    "WARNING pid %d (%s): ioctl sign-extension ioctl %lx\n",
-		    td->td_proc->p_pid, td->td_name, uap->com);
+		    td->td_proc->p_pid, td->td_name, ucom);
 	}
 #endif
-	com = (uint32_t)uap->com;
 
+	com = (uint32_t)ucom;
 	/*
 	 * Interpret high order word to find amount of data to be
 	 * copied to/from the user's address space.
@@ -690,7 +735,7 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 	if (size > 0) {
 		if (com & IOC_VOID) {
 			/* Integer argument. */
-			arg = (intptr_t)uap->data;
+			arg = (intptr_t)udata;
 			data = (void *)&arg;
 			size = 0;
 		} else {
@@ -700,9 +745,9 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 				data = smalldata;
 		}
 	} else
-		data = (void *)&uap->data;
+		data = datap;
 	if (com & IOC_IN) {
-		error = copyin(uap->data, data, (u_int)size);
+		error = copyin(udata, data, size);
 		if (error != 0)
 			goto out;
 	} else if (com & IOC_OUT) {
@@ -713,10 +758,10 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 		bzero(data, size);
 	}
 
-	error = kern_ioctl(td, uap->fd, com, data);
+	error = kern_ioctl(td, fd, com, data);
 
 	if (error == 0 && (com & IOC_OUT))
-		error = copyout(data, uap->data, (u_int)size);
+		error = copyout(data, udata, (u_int)size);
 
 out:
 	if (size > SYS_IOCTL_SMALL_SIZE)
@@ -877,17 +922,26 @@ kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 int
 sys_fspacectl(struct thread *td, struct fspacectl_args *uap)
 {
+	return (user_fspacectl(td, uap->fd, uap->cmd, uap->rqsr, uap->flags,
+	    uap->rmsr));
+}
+
+int
+user_fspacectl(struct thread *td, int fd, int cmd,
+    const struct spacectl_range *rqsrp, int flags,
+    struct spacectl_range *rmsrp)
+{
 	struct spacectl_range rqsr, rmsr;
 	int error, cerror;
 
-	error = copyin(uap->rqsr, &rqsr, sizeof(rqsr));
+	error = copyin(rqsrp, &rqsr, sizeof(rqsr));
 	if (error != 0)
 		return (error);
 
-	error = kern_fspacectl(td, uap->fd, uap->cmd, &rqsr, uap->flags,
+	error = kern_fspacectl(td, fd, cmd, &rqsr, flags,
 	    &rmsr);
-	if (uap->rmsr != NULL) {
-		cerror = copyout(&rmsr, uap->rmsr, sizeof(rmsr));
+	if (rmsrp != NULL) {
+		cerror = copyout(&rmsr, rmsrp, sizeof(rmsr));
 		if (error == 0)
 			error = cerror;
 	}
@@ -991,19 +1045,25 @@ kern_specialfd(struct thread *td, int type, void *arg)
 }
 
 int
-sys___specialfd(struct thread *td, struct __specialfd_args *args)
+sys___specialfd(struct thread *td, struct __specialfd_args *uap)
+{
+	return (user___specialfd(td, uap->type, uap->req, uap->len));
+}
+
+int
+user___specialfd(struct thread *td, int type, const void *req, size_t len)
 {
 	int error;
 
-	switch (args->type) {
+	switch (type) {
 	case SPECIALFD_EVENTFD: {
 		struct specialfd_eventfd ae;
 
-		if (args->len != sizeof(struct specialfd_eventfd)) {
+		if (len != sizeof(struct specialfd_eventfd)) {
 			error = EXTERROR(EINVAL, "eventfd params ABI");
 			break;
 		}
-		error = copyin(args->req, &ae, sizeof(ae));
+		error = copyin(req, &ae, sizeof(ae));
 		if (error != 0)
 			break;
 		if ((ae.flags & ~(EFD_CLOEXEC | EFD_NONBLOCK |
@@ -1011,24 +1071,24 @@ sys___specialfd(struct thread *td, struct __specialfd_args *args)
 			error = EXTERROR(EINVAL, "reserved flag");
 			break;
 		}
-		error = kern_specialfd(td, args->type, &ae);
+		error = kern_specialfd(td, type, &ae);
 		break;
 	}
 	case SPECIALFD_INOTIFY: {
 		struct specialfd_inotify si;
 
-		if (args->len != sizeof(si)) {
+		if (len != sizeof(si)) {
 			error = EINVAL;
 			break;
 		}
-		error = copyin(args->req, &si, sizeof(si));
+		error = copyin(req, &si, sizeof(si));
 		if (error != 0)
 			break;
-		error = kern_specialfd(td, args->type, &si);
+		error = kern_specialfd(td, type, &si);
 		break;
 	}
 	default:
-		error = EXTERROR(EINVAL, "unknown type", args->type);
+		error = EXTERROR(EINVAL, "unknown type", type);
 		break;
 	}
 	return (error);
@@ -1053,28 +1113,35 @@ poll_no_poll(int events)
 int
 sys_pselect(struct thread *td, struct pselect_args *uap)
 {
+	return (user_pselect(td, uap->nd, uap->in, uap->ou, uap->ex, uap->ts,
+	    uap->sm));
+}
+
+int
+user_pselect(struct thread *td, int nd, fd_set *in, fd_set *ou, fd_set *ex,
+    const struct timespec *uts, const sigset_t *sm)
+{
 	struct timespec ts;
 	struct timeval tv, *tvp;
 	sigset_t set, *uset;
 	int error;
 
-	if (uap->ts != NULL) {
-		error = copyin(uap->ts, &ts, sizeof(ts));
+	if (uts != NULL) {
+		error = copyin(uts, &ts, sizeof(ts));
 		if (error != 0)
 		    return (error);
 		TIMESPEC_TO_TIMEVAL(&tv, &ts);
 		tvp = &tv;
 	} else
 		tvp = NULL;
-	if (uap->sm != NULL) {
-		error = copyin(uap->sm, &set, sizeof(set));
+	if (sm != NULL) {
+		error = copyin(sm, &set, sizeof(set));
 		if (error != 0)
 			return (error);
 		uset = &set;
 	} else
 		uset = NULL;
-	return (kern_pselect(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
-	    uset, NFDBITS));
+	return (kern_pselect(td, nd, in, ou, ex, tvp, uset, NFDBITS));
 }
 
 int
@@ -1122,19 +1189,25 @@ struct select_args {
 int
 sys_select(struct thread *td, struct select_args *uap)
 {
+	return (user_select(td, uap->nd, uap->in, uap->ou, uap->ex, uap->tv));
+}
+
+int
+user_select(struct thread *td, int nd, fd_set *in, fd_set *ou, fd_set *ex,
+    struct timeval *utv)
+{
 	struct timeval tv, *tvp;
 	int error;
 
-	if (uap->tv != NULL) {
-		error = copyin(uap->tv, &tv, sizeof(tv));
+	if (utv != NULL) {
+		error = copyin(utv, &tv, sizeof(tv));
 		if (error)
 			return (error);
 		tvp = &tv;
 	} else
 		tvp = NULL;
 
-	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp,
-	    NFDBITS));
+	return (kern_select(td, nd, in, ou, ex, tvp, NFDBITS));
 }
 
 /*
@@ -1525,18 +1598,24 @@ selscan(struct thread *td, fd_mask **ibits, fd_mask **obits, int nfd)
 int
 sys_poll(struct thread *td, struct poll_args *uap)
 {
+	return (user_poll(td, uap->fds, uap->nfds, uap->timeout));
+}
+
+int
+user_poll(struct thread *td, struct pollfd *fds, u_int nfds, int timeout)
+{
 	struct timespec ts, *tsp;
 
-	if (uap->timeout != INFTIM) {
-		if (uap->timeout < 0)
+	if (timeout != INFTIM) {
+		if (timeout < 0)
 			return (EXTERROR(EINVAL, "invalid timeout"));
-		ts.tv_sec = uap->timeout / 1000;
-		ts.tv_nsec = (uap->timeout % 1000) * 1000000;
+		ts.tv_sec = timeout / 1000;
+		ts.tv_nsec = (timeout % 1000) * 1000000;
 		tsp = &ts;
 	} else
 		tsp = NULL;
 
-	return (kern_poll(td, uap->fds, uap->nfds, tsp, NULL));
+	return (kern_poll(td, fds, nfds, tsp, NULL));
 }
 
 /*
@@ -1624,25 +1703,32 @@ kern_poll_kfds(struct thread *td, struct pollfd *kfds, u_int nfds,
 int
 sys_ppoll(struct thread *td, struct ppoll_args *uap)
 {
+	return (user_ppoll(td, uap->fds, uap->nfds, uap->ts, uap->set));
+}
+
+int
+user_ppoll(struct thread *td, struct pollfd *fds, u_int nfds,
+    const struct timespec *uts, const sigset_t *uset)
+{
 	struct timespec ts, *tsp;
 	sigset_t set, *ssp;
 	int error;
 
-	if (uap->ts != NULL) {
-		error = copyin(uap->ts, &ts, sizeof(ts));
+	if (uts != NULL) {
+		error = copyin(uts, &ts, sizeof(ts));
 		if (error)
 			return (error);
 		tsp = &ts;
 	} else
 		tsp = NULL;
-	if (uap->set != NULL) {
-		error = copyin(uap->set, &set, sizeof(set));
+	if (uset != NULL) {
+		error = copyin(uset, &set, sizeof(set));
 		if (error)
 			return (error);
 		ssp = &set;
 	} else
 		ssp = NULL;
-	return (kern_poll(td, uap->fds, uap->nfds, tsp, ssp));
+	return (kern_poll(td, fds, nfds, tsp, ssp));
 }
 
 /*
@@ -2292,24 +2378,30 @@ exterr_copyout(struct thread *td)
 int
 sys_exterrctl(struct thread *td, struct exterrctl_args *uap)
 {
+	return (kern_exterrctl(td, uap->op, uap->flags, uap->ptr));
+}
+
+int
+kern_exterrctl(struct thread *td, u_int op, u_int flags, void *ptr)
+{
 	uint32_t ver;
 	int error;
 
-	if ((uap->flags & ~(EXTERRCTLF_FORCE)) != 0)
+	if ((flags & ~(EXTERRCTLF_FORCE)) != 0)
 		return (EINVAL);
-	switch (uap->op) {
+	switch (op) {
 	case EXTERRCTL_ENABLE:
 		if ((td->td_pflags2 & TDP2_UEXTERR) != 0 &&
-		    (uap->flags & EXTERRCTLF_FORCE) == 0)
+		    (flags & EXTERRCTLF_FORCE) == 0)
 			return (EBUSY);
 		td->td_pflags2 &= ~TDP2_UEXTERR;
-		error = copyin(uap->ptr, &ver, sizeof(ver));
+		error = copyin(ptr, &ver, sizeof(ver));
 		if (error != 0)
 			return (error);
 		if (ver != UEXTERROR_VER)
 			return (EINVAL);
 		td->td_pflags2 |= TDP2_UEXTERR;
-		td->td_exterr_ptr = uap->ptr;
+		td->td_exterr_ptr = ptr;
 		return (0);
 	case EXTERRCTL_DISABLE:
 		if ((td->td_pflags2 & TDP2_UEXTERR) == 0)

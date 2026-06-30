@@ -31,8 +31,9 @@
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
-#include <sys/sysproto.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysent.h>
+#include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -374,17 +375,22 @@ struct module_stat_v2 {
 int
 sys_modstat(struct thread *td, struct modstat_args *uap)
 {
+	return (kern_modstat(td, uap->modid, uap->stat));
+}
+
+int
+kern_modstat(struct thread *td, int modid, struct module_stat *stat)
+{
 	module_t mod;
 	modspecific_t data;
 	int error = 0;
 	int id, namelen, refs, version;
-	struct module_stat *stat;
 	struct module_stat_v2 *stat_v2;
-	char *name;
+	char *name, *user_namep;
 	bool is_v1v2;
 
 	MOD_SLOCK;
-	mod = module_lookupbyid(uap->modid);
+	mod = module_lookupbyid(modid);
 	if (mod == NULL) {
 		MOD_SUNLOCK;
 		return (ENOENT);
@@ -394,7 +400,6 @@ sys_modstat(struct thread *td, struct modstat_args *uap)
 	name = mod->name;
 	data = mod->data;
 	MOD_SUNLOCK;
-	stat = uap->stat;
 
 	/*
 	 * Check the version of the user's structure.
@@ -405,12 +410,16 @@ sys_modstat(struct thread *td, struct modstat_args *uap)
 	    version == sizeof(struct module_stat_v2));
 	if (!is_v1v2 && version != sizeof(struct module_stat))
 		return (EINVAL);
+	if (is_v1v2)
+		user_namep = ((struct module_stat_v1 *)stat)->name;
+	else
+		user_namep = stat->name;
 	namelen = strlen(mod->name) + 1;
 	if (is_v1v2 && namelen > MAXMODNAMEV1V2)
 		namelen = MAXMODNAMEV1V2;
 	else if (namelen > MAXMODNAMEV3)
 		namelen = MAXMODNAMEV3;
-	if ((error = copyout(name, &stat->name[0], namelen)) != 0)
+	if ((error = copyout(name, user_namep, namelen)) != 0)
 		return (error);
 
 	/* Extending MAXMODNAME gives an offset change for v3. */
@@ -446,11 +455,17 @@ sys_modstat(struct thread *td, struct modstat_args *uap)
 int
 sys_modfind(struct thread *td, struct modfind_args *uap)
 {
+	return (kern_modfind(td, uap->name));
+}
+
+int
+kern_modfind(struct thread *td, const char *uname)
+{
 	int error = 0;
 	char name[MAXMODNAMEV3];
 	module_t mod;
 
-	if ((error = copyinstr(uap->name, name, sizeof name, 0)) != 0)
+	if ((error = copyinstr(uname, name, sizeof name, 0)) != 0)
 		return (error);
 
 	MOD_SLOCK;

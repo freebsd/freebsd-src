@@ -435,9 +435,16 @@ struct nmount_args {
 int
 sys_nmount(struct thread *td, struct nmount_args *uap)
 {
+	return (kern_nmount(td, uap->iovp, uap->iovcnt, uap->flags,
+	    copyinuio));
+}
+
+int
+kern_nmount(struct thread *td, struct iovec *iovp, u_int iovcnt, int flags32,
+    copyinuio_t *copyinuio_f)
+{
 	struct uio *auio;
 	int error;
-	u_int iovcnt;
 	uint64_t flags;
 
 	/*
@@ -445,11 +452,11 @@ sys_nmount(struct thread *td, struct nmount_args *uap)
 	 * 32-bits are passed in, but from here on everything handles
 	 * 64-bit flags correctly.
 	 */
-	flags = uap->flags;
+	flags = flags32;
 
 	AUDIT_ARG_FFLAGS(flags);
 	CTR4(KTR_VFS, "%s: iovp %p with iovcnt %d and flags %d", __func__,
-	    uap->iovp, uap->iovcnt, flags);
+	    (void *)iovp, iovcnt, flags);
 
 	/*
 	 * Filter out MNT_ROOTFS.  We do not want clients of nmount() in
@@ -460,18 +467,17 @@ sys_nmount(struct thread *td, struct nmount_args *uap)
 	 */
 	flags &= ~MNT_ROOTFS;
 
-	iovcnt = uap->iovcnt;
 	/*
 	 * Check that we have an even number of iovec's
 	 * and that we have at least two options.
 	 */
 	if ((iovcnt & 1) || (iovcnt < 4)) {
 		CTR2(KTR_VFS, "%s: failed for invalid iovcnt %d", __func__,
-		    uap->iovcnt);
+		    iovcnt);
 		return (EINVAL);
 	}
 
-	error = copyinuio(uap->iovp, iovcnt, &auio);
+	error = copyinuio_f(iovp, iovcnt, &auio);
 	if (error) {
 		CTR2(KTR_VFS, "%s: failed for invalid uio op with %d errno",
 		    __func__, error);

@@ -1195,20 +1195,27 @@ struct sigprocmask_args {
 int
 sys_sigprocmask(struct thread *td, struct sigprocmask_args *uap)
 {
+	return (user_sigprocmask(td, uap->how, uap->set, uap->oset));
+}
+
+int
+user_sigprocmask(struct thread *td, int how, const sigset_t *uset,
+    sigset_t *uoset)
+{
 	sigset_t set, oset;
 	sigset_t *setp, *osetp;
 	int error;
 
-	setp = (uap->set != NULL) ? &set : NULL;
-	osetp = (uap->oset != NULL) ? &oset : NULL;
+	setp = (uset != NULL) ? &set : NULL;
+	osetp = (uoset != NULL) ? &oset : NULL;
 	if (setp) {
-		error = copyin(uap->set, setp, sizeof(set));
+		error = copyin(uset, setp, sizeof(set));
 		if (error)
 			return (error);
 	}
-	error = kern_sigprocmask(td, uap->how, setp, osetp, 0);
+	error = kern_sigprocmask(td, how, setp, osetp, 0);
 	if (osetp && !error) {
-		error = copyout(osetp, uap->oset, sizeof(oset));
+		error = copyout(osetp, uoset, sizeof(oset));
 	}
 	return (error);
 }
@@ -1236,11 +1243,17 @@ osigprocmask(struct thread *td, struct osigprocmask_args *uap)
 int
 sys_sigwait(struct thread *td, struct sigwait_args *uap)
 {
+	return (user_sigwait(td, uap->set, uap->sig));
+}
+
+int
+user_sigwait(struct thread *td, const sigset_t *uset, int *usig)
+{
 	ksiginfo_t ksi;
 	sigset_t set;
 	int error;
 
-	error = copyin(uap->set, &set, sizeof(set));
+	error = copyin(uset, &set, sizeof(set));
 	if (error) {
 		td->td_retval[0] = error;
 		return (0);
@@ -1261,13 +1274,27 @@ sys_sigwait(struct thread *td, struct sigwait_args *uap)
 		return (0);
 	}
 
-	error = copyout(&ksi.ksi_signo, uap->sig, sizeof(ksi.ksi_signo));
+	error = copyout(&ksi.ksi_signo, usig, sizeof(ksi.ksi_signo));
 	td->td_retval[0] = error;
 	return (0);
 }
 
+static int
+copyout_siginfo(const siginfo_t *si, void *info)
+{
+	return (copyout(si, info, sizeof(*si)));
+}
+
 int
 sys_sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
+{
+	return (user_sigtimedwait(td, uap->set, uap->info, uap->timeout,
+	    copyout_siginfo));
+}
+
+int
+user_sigtimedwait(struct thread *td, const sigset_t *uset, void *info,
+    const struct timespec *utimeout, copyout_siginfo_t *copyout_siginfop)
 {
 	struct timespec ts;
 	struct timespec *timeout;
@@ -1275,8 +1302,8 @@ sys_sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 	ksiginfo_t ksi;
 	int error;
 
-	if (uap->timeout) {
-		error = copyin(uap->timeout, &ts, sizeof(ts));
+	if (utimeout) {
+		error = copyin(utimeout, &ts, sizeof(ts));
 		if (error)
 			return (error);
 
@@ -1284,7 +1311,7 @@ sys_sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 	} else
 		timeout = NULL;
 
-	error = copyin(uap->set, &set, sizeof(set));
+	error = copyin(uset, &set, sizeof(set));
 	if (error)
 		return (error);
 
@@ -1292,8 +1319,8 @@ sys_sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 	if (error)
 		return (error);
 
-	if (uap->info)
-		error = copyout(&ksi.ksi_info, uap->info, sizeof(siginfo_t));
+	if (info)
+		error = copyout_siginfop(&ksi.ksi_info, info);
 
 	if (error == 0)
 		td->td_retval[0] = ksi.ksi_signo;
@@ -1303,11 +1330,18 @@ sys_sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 int
 sys_sigwaitinfo(struct thread *td, struct sigwaitinfo_args *uap)
 {
+	return (user_sigwaitinfo(td, uap->set, uap->info, copyout_siginfo));
+}
+
+int
+user_sigwaitinfo(struct thread *td, const sigset_t *uset, void *info,
+    copyout_siginfo_t *copyout_siginfop)
+{
 	ksiginfo_t ksi;
 	sigset_t set;
 	int error;
 
-	error = copyin(uap->set, &set, sizeof(set));
+	error = copyin(uset, &set, sizeof(set));
 	if (error)
 		return (error);
 
@@ -1315,8 +1349,8 @@ sys_sigwaitinfo(struct thread *td, struct sigwaitinfo_args *uap)
 	if (error)
 		return (error);
 
-	if (uap->info)
-		error = copyout(&ksi.ksi_info, uap->info, sizeof(siginfo_t));
+	if (info)
+		error = copyout_siginfop(&ksi.ksi_info, info);
 
 	if (error == 0)
 		td->td_retval[0] = ksi.ksi_signo;
@@ -1478,6 +1512,12 @@ struct sigpending_args {
 int
 sys_sigpending(struct thread *td, struct sigpending_args *uap)
 {
+	return (kern_sigpending(td, uap->set));
+}
+
+int
+kern_sigpending(struct thread *td, sigset_t *set)
+{
 	struct proc *p = td->td_proc;
 	sigset_t pending;
 
@@ -1485,7 +1525,7 @@ sys_sigpending(struct thread *td, struct sigpending_args *uap)
 	pending = p->p_sigqueue.sq_signals;
 	SIGSETOR(pending, td->td_sigqueue.sq_signals);
 	PROC_UNLOCK(p);
-	return (copyout(&pending, uap->set, sizeof(sigset_t)));
+	return (copyout(&pending, set, sizeof(sigset_t)));
 }
 
 #ifdef COMPAT_43	/* XXX - COMPAT_FBSD3 */
@@ -1600,10 +1640,16 @@ struct sigsuspend_args {
 int
 sys_sigsuspend(struct thread *td, struct sigsuspend_args *uap)
 {
+	return (user_sigsuspend(td, uap->sigmask));
+}
+
+int
+user_sigsuspend(struct thread *td, const sigset_t *sigmask)
+{
 	sigset_t mask;
 	int error;
 
-	error = copyin(uap->sigmask, &mask, sizeof(mask));
+	error = copyin(sigmask, &mask, sizeof(mask));
 	if (error)
 		return (error);
 	return (kern_sigsuspend(td, mask));
@@ -3969,24 +4015,30 @@ sigfastblock_resched(struct thread *td, bool resched)
 int
 sys_sigfastblock(struct thread *td, struct sigfastblock_args *uap)
 {
+	return (kern_sigfastblock(td, uap->cmd, uap->ptr));
+}
+
+int
+kern_sigfastblock(struct thread *td, int cmd, uint32_t *ptr)
+{
 	struct proc *p;
 	int error, res;
 	uint32_t oldval;
 
 	error = 0;
 	p = td->td_proc;
-	switch (uap->cmd) {
+	switch (cmd) {
 	case SIGFASTBLOCK_SETPTR:
 		if ((td->td_pflags & TDP_SIGFASTBLOCK) != 0) {
 			error = EBUSY;
 			break;
 		}
-		if (((uintptr_t)(uap->ptr) & (sizeof(uint32_t) - 1)) != 0) {
+		if (((uintptr_t)(ptr) & (sizeof(uint32_t) - 1)) != 0) {
 			error = EINVAL;
 			break;
 		}
 		td->td_pflags |= TDP_SIGFASTBLOCK;
-		td->td_sigblock_ptr = uap->ptr;
+		td->td_sigblock_ptr = ptr;
 		break;
 
 	case SIGFASTBLOCK_UNBLOCK:

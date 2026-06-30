@@ -1392,11 +1392,17 @@ freebsd12_shm_open(struct thread *td, struct freebsd12_shm_open_args *uap)
 int
 sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 {
+	return (kern_shm_unlink(td, uap->path));
+}
+
+int
+kern_shm_unlink(struct thread *td, const char *userpath)
+{
 	char *path;
 	Fnv32_t fnv;
 	int error;
 
-	error = shm_copyin_path(td, uap->path, &path);
+	error = shm_copyin_path(td, userpath, &path);
 	if (error != 0)
 		return (error);
 
@@ -1413,14 +1419,19 @@ sys_shm_unlink(struct thread *td, struct shm_unlink_args *uap)
 int
 sys_shm_rename(struct thread *td, struct shm_rename_args *uap)
 {
+	return (kern_shm_rename(td, uap->path_from, uap->path_to, uap->flags));
+}
+
+int
+kern_shm_rename(struct thread *td, const char *path_from_p,
+    const char *path_to_p, int flags)
+{
 	char *path_from = NULL, *path_to = NULL;
 	Fnv32_t fnv_from, fnv_to;
 	struct shmfd *fd_from;
 	struct shmfd *fd_to;
 	int error;
-	int flags;
 
-	flags = uap->flags;
 	AUDIT_ARG_FFLAGS(flags);
 
 	/*
@@ -1446,16 +1457,16 @@ sys_shm_rename(struct thread *td, struct shm_rename_args *uap)
 	}
 
 	/* Renaming to or from anonymous makes no sense */
-	if (uap->path_from == SHM_ANON || uap->path_to == SHM_ANON) {
+	if (path_from_p == SHM_ANON || path_to_p == SHM_ANON) {
 		error = EINVAL;
 		goto out;
 	}
 
-	error = shm_copyin_path(td, uap->path_from, &path_from);
+	error = shm_copyin_path(td, path_from_p, &path_from);
 	if (error != 0)
 		goto out;
 
-	error = shm_copyin_path(td, uap->path_to, &path_to);
+	error = shm_copyin_path(td, path_to_p, &path_to);
 	if (error != 0)
 		goto out;
 
