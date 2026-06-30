@@ -1,0 +1,288 @@
+.\"
+.\" Copyright (c) 2026 Mark Johnston <markj@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd June 26, 2026
+.Dt GIT-MFC 1
+.Os
+.Sh NAME
+.Nm "git mfc"
+.Nd cherry-pick commits from an upstream branch to a stable or release branch
+.Sh SYNOPSIS
+.Nm
+.Op Fl efn
+.Op Fl -ignore-reverts
+.Op Fl -origin Ar branch
+.Op Fl r Ar remote
+.Ar revision ...
+.Nm
+.Fl -pending
+.Op Fl a Ar author
+.Op Fl -all
+.Op Fl -baking
+.Op Fl -origin Ar branch
+.Op Fl r Ar remote
+.Nm
+.Fl -dangling
+.Op Fl a Ar author
+.Op Fl -all
+.Op Fl -origin Ar branch
+.Op Fl r Ar remote
+.Sh DESCRIPTION
+The
+.Nm
+utility helps with MFCing (merge from CURRENT) commits to
+.Fx
+stable and release branches.
+It must be run from a checkout of the branch being MFCed
+.Em to .
+The origin branch is determined automatically and can be
+overridden with the
+.Fl -origin
+option.
+.Pp
+There are three modes of operation:
+.Bl -enum
+.It
+In the default mode, one or more revisions are specified on the command line.
+Each revision is cherry-picked with
+.Fl x
+to the current branch.
+The origin branch is scanned for commits with
+.Dq Fixes: ,
+.Dq MFC-with: ,
+or
+.Dq MFC with:
+tags referencing any of the specified revisions, and those fixup commits
+are automatically included in the correct order.
+.Pp
+If a specified revision has been reverted on the origin branch,
+.Nm
+refuses to cherry-pick it unless
+.Fl -ignore-reverts
+is given.
+Fixup commits that have been reverted are skipped with a warning.
+.Pp
+Commits that have already been cherry-picked to the current branch are
+automatically skipped.
+This allows the same
+.Nm
+command to be re-run after resolving a conflict without re-applying
+earlier commits.
+Use
+.Fl f
+to override this behavior.
+.It
+In
+.Fl -pending
+mode, no revisions are specified.
+Instead,
+.Nm
+scans the origin branch for commits with
+.Dq MFC after:
+tags whose waiting period has elapsed and which have not already been
+cherry-picked to the current branch.
+Commits that have been reverted upstream are excluded.
+By default, only commits authored by the current user
+.Pq as determined by Xr git-config 1
+are shown.
+.It
+In
+.Fl -dangling
+mode, no revisions are specified.
+Instead,
+.Nm
+finds commits in the current branch that have been cherry-picked from the
+origin branch but are missing associated fixup commits.
+Fixup commits that have been reverted upstream are excluded.
+By default, only cherry-picks authored by the current user
+.Pq as determined by Xr git-config 1
+are considered.
+.El
+.Pp
+The following options are available:
+.Bl -tag -width "-a author"
+.It Fl a Ar author , Fl -author Ar author
+With
+.Fl -pending
+or
+.Fl -dangling ,
+filter results to commits whose author email contains the given string.
+By default, the value of
+.Va user.email
+from
+.Xr git-config 1
+is used.
+.It Fl -all
+With
+.Fl -pending
+or
+.Fl -dangling ,
+show commits from all authors instead of only the current user.
+.It Fl -dangling
+Find cherry-picked commits in the current branch that are missing fixup
+commits from the origin branch.
+Cannot be combined with
+.Fl -pending
+or revision arguments.
+.It Fl e , Fl -edit
+Open the commit message in an editor before committing each cherry-pick.
+Passed through to
+.Xr git-cherry-pick 1 .
+.It Fl f , Fl -force
+Cherry-pick commits even if they appear to have already been cherry-picked
+to the current branch.
+By default,
+.Nm
+skips commits that are already present.
+.It Fl -ignore-reverts
+Cherry-pick commits even if they have been reverted on the origin branch.
+Without this flag,
+.Nm
+exits with an error when a reverted commit is specified.
+.It Fl -baking
+With
+.Fl -pending ,
+also show commits whose
+.Dq MFC after:
+waiting period has not yet elapsed.
+These are annotated with the date they become ready.
+.It Fl n
+Dry run.
+List the commits that would be cherry-picked, but do not actually
+cherry-pick them.
+The remote is not fetched in this mode.
+.It Fl -origin Ar branch
+Specify the upstream branch name.
+The default is determined automatically from
+.Pa sys/conf/newvers.sh :
+.Dq main
+for STABLE branches and
+.Dq stable/ Ns Ar major
+for RELEASE branches.
+.It Fl -pending
+Show upstream commits with
+.Dq MFC after:
+tags that are ready to be cherry-picked.
+Cannot be combined with
+.Fl -dangling
+or revision arguments.
+.It Fl r Ar remote , Fl -remote Ar remote
+Specify the git remote to fetch from.
+The default is the currently checked-out branch's upstream remote.
+.El
+.Pp
+Before running any operation,
+.Nm
+ensures that the origin is up to date by fetching it from the specified remote.
+.Sh IMPLEMENTATION NOTES
+.Nm
+is implemented in Python and depends on the gitpython module.
+.Pp
+.Nm
+uses text strings in commit log messages to establish relationships between
+commits.
+It recognizes the following tags in commit log messages:
+.Bl -tag -width "MFC after:"
+.It Dq Fixes: Ar hash
+Indicates that this commit fixes the commit identified by
+.Ar hash .
+When MFCing the referenced commit,
+.Nm
+will automatically include this fixup commit.
+.It Dq MFC-with: Ar hash , Dq MFC with: Ar hash
+Equivalent to
+.Dq Fixes: ;
+indicates that this commit should be MFCed together with the referenced commit.
+.It Dq MFC after: Ar N Ar unit
+Indicates that this commit should be MFCed after the specified waiting period.
+Recognized units are
+.Dq day ,
+.Dq days ,
+.Dq week ,
+.Dq weeks ,
+.Dq month ,
+and
+.Dq months .
+Used by the
+.Fl -pending
+mode.
+.El
+.Pp
+.Nm
+also looks for strings of the form,
+.Dq This reverts commit Ar hash ,
+inserted by
+.Xr git-revert 1 ,
+and
+.Dq cherry picked from commit Ar hash ,
+inserted by
+.Xr git-cherry-pick 1 .
+.Sh EXAMPLES
+Cherry-pick a single commit to the current branch, automatically including
+any fixup commits:
+.Bd -literal -offset indent
+$ git mfc abc123
+.Ed
+.Pp
+Cherry-pick a range of commits:
+.Bd -literal -offset indent
+$ git mfc abc123~..def456
+.Ed
+.Pp
+Preview which commits would be cherry-picked without actually doing it:
+.Bd -literal -offset indent
+$ git mfc -n abc123
+.Ed
+.Pp
+Cherry-pick a commit, opening an editor to amend the commit message first:
+.Bd -literal -offset indent
+$ git mfc -e abc123
+.Ed
+.Pp
+List your commits that are ready for MFC:
+.Bd -literal -offset indent
+$ git mfc --pending
+.Ed
+.Pp
+List pending commits from all authors:
+.Bd -literal -offset indent
+$ git mfc --pending --all
+.Ed
+.Pp
+Include commits whose MFC-after period has not yet elapsed:
+.Bd -literal -offset indent
+$ git mfc --pending --baking
+.Ed
+.Pp
+List commits ready for MFC by a specific author:
+.Bd -literal -offset indent
+$ git mfc --pending -a markj@FreeBSD.org
+.Ed
+.Pp
+Find MFCs in the current branch that are missing fixup commits:
+.Bd -literal -offset indent
+$ git mfc --dangling
+.Ed
+.Pp
+Cherry-pick a commit that was reverted upstream:
+.Bd -literal -offset indent
+$ git mfc --ignore-reverts abc123
+.Ed
+.Pp
+Use a different remote and origin branch:
+.Bd -literal -offset indent
+$ git mfc -r freebsd --origin main abc123
+.Ed
+.Sh SEE ALSO
+.Xr git-cherry-pick 1 ,
+.Xr git-config 1 ,
+.Xr git-revert 1 ,
+.Xr development 7
+.Sh AUTHORS
+The
+.Nm
+utility was written by
+.An -nosplit
+.An Mark Johnston Aq Mt markj@FreeBSD.org .
