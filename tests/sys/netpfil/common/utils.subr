@@ -63,7 +63,7 @@ firewall_config()
 		jexec ${jname} ipf -E
 		jexec ${jname} ipf -Fa -f $cwd/ipf.rule
 	elif [ ${fw} == "ipfnat" ]; then
-		jexec ${jname} service ipfilter start
+		jexec ${jname} ipf -E
 		jexec ${jname} ipnat -CF -f $cwd/ipfnat.rule
 		jexec ${jname} pfilctl link -o ipfilter:default-ip4 inet-local
 		jexec ${jname} pfilctl link -o ipfilter:default-ip6 inet6-local
