@@ -566,15 +566,21 @@ fbsdrun_start_thread(void *param)
 {
 	char tname[MAXCOMLEN + 1];
 	struct vcpu_info *vi = param;
-	int error;
 
 	snprintf(tname, sizeof(tname), "vcpu %d", vi->vcpuid);
 	pthread_set_name_np(pthread_self(), tname);
 
 	if (vcpumap[vi->vcpuid] != NULL) {
-		error = pthread_setaffinity_np(pthread_self(),
-		    sizeof(cpuset_t), vcpumap[vi->vcpuid]);
-		assert(error == 0);
+		if (pthread_setaffinity_np(pthread_self(),
+		    sizeof(cpuset_t), vcpumap[vi->vcpuid]) != 0) {
+			int i;
+			warn("Error pinning vcpu %d to host cpuset@%p", vi->vcpuid,
+			    vcpumap[vi->vcpuid]);
+			CPU_FOREACH_ISSET(i, vcpumap[vi->vcpuid]) {
+				warnx("cpu %d enabled\n", i);
+			}
+			exit(BHYVE_EXIT_ERROR);
+		}
 	}
 
 #ifdef BHYVE_SNAPSHOT
