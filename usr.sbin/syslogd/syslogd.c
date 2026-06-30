@@ -1752,6 +1752,24 @@ iovlist_truncate(struct iovlist *il, size_t size)
 }
 #endif
 
+static int
+find_forw_fd(const struct sockaddr_storage *rss,
+    const struct sockaddr_storage *lss, struct filed *skip)
+{
+	struct filed *f;
+
+	STAILQ_FOREACH(f, &fhead, next) {
+		if (f->f_type != F_FORW || f == skip)
+			continue;
+		for (size_t i = 0; i < f->f_num_addr_fds; ++i) {
+			if (memcmp(&f->f_addrs[i].raddr, rss, rss->ss_len) == 0 &&
+			    memcmp(&f->f_addrs[i].laddr, lss, lss->ss_len) == 0)
+				return (f->f_addr_fds[i]);
+		}
+	}
+	return (-1);
+}
+
 static void
 fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 {
@@ -1760,13 +1778,14 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 		ssize_t lsent;
 
 		if (Debug) {
-			int domain, sockfd = f->f_addr_fds[0];
+			int domain, port, sockfd = f->f_addr_fds[0];
 			socklen_t len = sizeof(domain);
 
 			if (getsockopt(sockfd, SOL_SOCKET, SO_DOMAIN,
 			    &domain, &len) < 0)
 				err(1, "getsockopt");
 
+			port = -1;
 			printf(" %s", f->f_hname);
 			switch (domain) {
 #ifdef INET
@@ -1776,8 +1795,10 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 				len = sizeof(sin);
 				if (getpeername(sockfd,
 				    (struct sockaddr *)&sin, &len) < 0)
-					err(1, "getpeername");
-				printf(":%d\n", ntohs(sin.sin_port));
+					warn("getpeername");
+				else
+					port = ntohs(sin.sin_port);
+				printf(":%d\n", port);
 				break;
 			}
 #endif
@@ -1788,8 +1809,10 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 				len = sizeof(sin6);
 				if (getpeername(sockfd,
 				    (struct sockaddr *)&sin6, &len) < 0)
-					err(1, "getpeername");
-				printf(":%d\n", ntohs(sin6.sin6_port));
+					warn("getpeername");
+				else
+					port = ntohs(sin6.sin6_port);
+				printf(":%d\n", port);
 				break;
 			}
 #endif
@@ -1803,23 +1826,76 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 		iovlist_truncate(il, MaxForwardLen);
 #endif
 
+		/*
+		 * We have some constraints on message forwarding:
+		 * - we want to send messages from an address to which syslogd
+		 *   is bound,
+		 * - syslogd might start before the system's routes are
+		 *   configured, in which case connect() will fail,
+		 * - there may be multiple logging rules which forward a message
+		 *   to a given address, i.e., sockets from different fileds
+		 *   may have the same <laddr, raddr> tuple,
+		 * - we don't want to use casper to forward messages for us, as
+		 *   that's a lot of overhead to add to each message.
+		 *
+		 * These constraints plus Capsicum's restrictions make this
+		 * rather complicated.  We handle the first constraint by
+		 * calling bind() when setting up forwarding sockets.  The
+		 * second constraint is handled by allowing connect() to fail
+		 * during setup; if the sendmsg() call below fails for that
+		 * reason, we then use cap_connect() to connect it lazily.
+		 * Finally, that connect() call may fail due to the third
+		 * constraint, in which case we look for another matching socket
+		 * and use that one instead.
+		 */
 		lsent = 0;
 		for (size_t i = 0; i < f->f_num_addr_fds; ++i) {
 			struct msghdr msg = {
 				.msg_iov = il->iov,
 				.msg_iovlen = il->iovcnt,
 			};
+			int fd;
 
-			lsent = sendmsg(f->f_addr_fds[i], &msg, 0);
+			fd = f->f_addr_fds[i];
+			lsent = sendmsg(fd, &msg, 0);
+			if (lsent == -1 &&
+			    (errno == ENOTCONN || errno == EDESTADDRREQ)) {
+				int error;
+
+				error = cap_connect(cap_net, fd,
+				    (struct sockaddr *)&f->f_addrs[i].raddr,
+				    f->f_addrs[i].raddr.ss_len);
+				if (error != 0 && errno == EADDRINUSE) {
+					fd = find_forw_fd(&f->f_addrs[i].raddr,
+					    &f->f_addrs[i].laddr, f);
+					if (fd != -1) {
+						(void)dup2(fd,
+						    f->f_addr_fds[i]);
+						fd = f->f_addr_fds[i];
+					} else {
+						/*
+						 * Something is preventing us
+						 * from connecting, we don't
+						 * have much recourse.  Keep
+						 * fd==-1 to trigger an error
+						 * from sendmsg() below.
+						 */
+						dprintf(
+						    "failed to connect to %s",
+						    f->f_hname);
+					}
+				}
+				lsent = sendmsg(fd, &msg, 0);
+			}
 			if (lsent == (ssize_t)il->totalsize && !send_to_all)
 				break;
 		}
 		dprintf("lsent/totalsize: %zd/%zu\n", lsent, il->totalsize);
 		if (lsent != (ssize_t)il->totalsize) {
 			int e = errno;
+
 			logerror("sendto");
-			errno = e;
-			switch (errno) {
+			switch (e) {
 			case ENOBUFS:
 			case ENETDOWN:
 			case ENETUNREACH:
@@ -1828,6 +1904,9 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 			case EADDRNOTAVAIL:
 			case EAGAIN:
 			case ECONNREFUSED:
+			case ENOTCONN:
+			case EDESTADDRREQ:
+			case EADDRINUSE:
 				break;
 			/* case EBADF: */
 			/* case EACCES: */
@@ -1836,7 +1915,7 @@ fprintlog_write(struct filed *f, struct iovlist *il, int flags)
 			/* case EMSGSIZE: */
 			default:
 				dprintf("removing entry: errno=%d\n", e);
-				f->f_type = F_UNUSED;
+				close_filed(f);
 				break;
 			}
 		}
@@ -2533,7 +2612,7 @@ syslogd_cap_enter(void)
 		err(1, "Failed to open the system.net libcasper service");
 	cap_close(cap_casper);
 	limit = cap_net_limit_init(cap_net,
-	    CAPNET_ADDR2NAME | CAPNET_NAME2ADDR);
+	    CAPNET_ADDR2NAME | CAPNET_NAME2ADDR | CAPNET_CONNECT);
 	if (limit == NULL)
 		err(1, "Failed to create system.net limits");
 	if (cap_net_limit(limit) == -1)
@@ -2641,15 +2720,18 @@ init(bool reload)
 				    &domain, &len) < 0)
 					err(1, "getsockopt");
 
+				port = -1;
 				switch (domain) {
 #ifdef INET
 				case AF_INET: {
 					struct sockaddr_in sin;
 
 					len = sizeof(sin);
-					if (getpeername(sockfd, (struct sockaddr *)&sin, &len) < 0)
-						err(1, "getpeername");
-					port = ntohs(sin.sin_port);
+					if (getpeername(sockfd,
+					    (struct sockaddr *)&sin, &len) < 0)
+						warn("getpeername");
+					else
+						port = ntohs(sin.sin_port);
 					break;
 				}
 #endif
@@ -2658,20 +2740,18 @@ init(bool reload)
 					struct sockaddr_in6 sin6;
 
 					len = sizeof(sin6);
-					if (getpeername(sockfd, (struct sockaddr *)&sin6, &len) < 0)
-						err(1, "getpeername");
-					port = ntohs(sin6.sin6_port);
+					if (getpeername(sockfd,
+					    (struct sockaddr *)&sin6, &len) < 0)
+						warn("getpeername");
+					else
+						port = ntohs(sin6.sin6_port);
 					break;
 				}
 #endif
 				default:
 					port = 0;
 				}
-				if (port != 514) {
-					printf("%s:%d", f->f_hname, port);
-				} else {
-					printf("%s", f->f_hname);
-				}
+				printf("%s:%d", f->f_hname, port);
 				break;
 			}
 
@@ -3014,13 +3094,20 @@ make_forw_socket(const nvlist_t *nvl, struct addrinfo *ai, struct addrinfo *lai)
 				errc(1, EADDRINUSE, "connect");
 			(void)close(s);
 			s = s1;
+		} else if (errno == ENETUNREACH || errno == EHOSTUNREACH) {
+			/*
+			 * We can't connect right now, the system is probably
+			 * not fully configured.  We will try again, using
+			 * cap_net, once something actually tries to log.
+			 */
+			;
 		} else {
 			err(1, "connect");
 		}
 	}
 	/* Make it a write-only socket. */
 	if (shutdown(s, SHUT_RD) < 0)
-		err(1, "shutdown");
+		warn("shutdown");
 
 	return (s);
 }
@@ -3144,7 +3231,8 @@ parse_action(const nvlist_t *nvl, const char *p, struct filed *f)
 		};
 		error = getaddrinfo(f->f_hname, p ? p : "syslog", &hints, &res);
 		if (error) {
-			dprintf("%s\n", gai_strerror(error));
+			dprintf("getaddrinfo(%s): %s\n", f->f_hname,
+			    gai_strerror(error));
 			break;
 		}
 		make_forw_socket_array(nvl, f, res);

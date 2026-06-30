@@ -588,6 +588,74 @@ forward_cleanup()
     syslogd_cleanup
 }
 
+atf_test_case "forward_reload" "cleanup"
+forward_reload_head()
+{
+    atf_set descr "syslogd might start before routes are configured"
+    atf_set require.user root
+}
+forward_reload_body()
+{
+    local epair server client
+
+    server=syslogd_server$$
+    client=syslogd_client$$
+
+    syslogd_check_req epair
+
+    atf_check -o save:epair ifconfig epair create
+    epair=$(cat epair)
+    epair=${epair%%a}
+
+    syslogd_mkjail $server vnet
+    atf_check ifconfig ${epair}a vnet $server
+    atf_check jexec $server ifconfig ${epair}a inet6 fd00::2/64
+
+    syslogd_mkjail $client vnet
+    atf_check ifconfig ${epair}b vnet $client
+
+    cat <<__EOF__ > ./server_config
+user.debug ${SYSLOGD_LOGFILE}
+ftp.debug ${SYSLOGD_LOGFILE}
+__EOF__
+
+    syslogd_start -j $server -f ${PWD}/server_config -b fd00::2
+
+    cat <<__EOF__ > ./client_config
+user.debug @[fd00::2]
+ftp.debug @[fd00::2]
+__EOF__
+
+    syslogd_start -j $client -f ${PWD}/client_config \
+        -p ${PWD}/client -P ${SYSLOGD_PIDFILE}.2
+
+    # Make sure the client can't reach the server with the current
+    # network configuration.
+    atf_check -s not-exit:0 -e match:"No route to host" \
+        jexec $client ping6 -c 1 fd00::2
+
+    syslogd_log_jail $client -p user.debug -t test1 "hello there"
+    syslogd_log_jail $client -p ftp.debug -t test2 "hi there"
+
+    atf_check jexec $client ifconfig ${epair}b inet6 fd00::1/64
+    atf_check -o ignore jexec $client ping6 -c 1 fd00::2
+
+    syslogd_check_log_nomatch "test1: hello there"
+    syslogd_check_log_nomatch "test2: hi there"
+
+    syslogd_log_jail $client \
+        -p user.debug -t test1 -h ${PWD}/client "how about now"
+    syslogd_check_log "test1: how about now"
+
+    syslogd_log_jail $client \
+        -p ftp.debug -t test2 -h ${PWD}/client "bing bong"
+    syslogd_check_log "test2: bing bong"
+}
+forward_reload_cleanup()
+{
+    syslogd_cleanup
+}
+
 atf_init_test_cases()
 {
     atf_add_test_case "unix"
@@ -605,4 +673,5 @@ atf_init_test_cases()
     atf_add_test_case "allowed_peer_forwarding"
     atf_add_test_case "allowed_peer_wildcard"
     atf_add_test_case "forward"
+    atf_add_test_case "forward_reload"
 }
