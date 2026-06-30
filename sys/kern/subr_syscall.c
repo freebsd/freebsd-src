@@ -146,12 +146,8 @@ syscallenter(struct thread *td)
 	if (__predict_false(AUDIT_SYSCALL_ENABLED() ||
 	    SYSTRACE_ENABLED() || !sy_thr_static)) {
 		if (!sy_thr_static) {
-			error = syscall_thread_enter(td, &se);
+			syscall_thread_enter(td, &se);
 			sy_thr_static = (se->sy_thrcnt & SY_THR_STATIC) != 0;
-			if (error != 0) {
-				td->td_errno = error;
-				goto retval;
-			}
 		}
 
 #ifdef KDTRACE_HOOKS
