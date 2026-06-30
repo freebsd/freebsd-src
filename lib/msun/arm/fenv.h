@@ -26,8 +26,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef	_FENV_H_
-#define	_FENV_H_
+#ifndef __STDC_VERSION_FENV_H__
+#define __STDC_VERSION_FENV_H__ 202311L
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
@@ -310,4 +310,4 @@ __fegetexcept_int(void)
 
 __END_DECLS
 
-#endif	/* !_FENV_H_ */
+#endif	/* !__STDC_VERSION_FENV_H__ */

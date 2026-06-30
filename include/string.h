@@ -29,8 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _STRING_H_
-#define	_STRING_H_
+#ifndef __STDC_VERSION_STRING_H__
+#define __STDC_VERSION_STRING_H__ 202311L
 
 #include <sys/cdefs.h>
 #include <sys/_null.h>
@@ -205,4 +205,4 @@ errno_t memset_s(void *, rsize_t, int, rsize_t);
 #endif /* __EXT1_VISIBLE */
 __END_DECLS
 
-#endif /* _STRING_H_ */
+#endif /* !__STDC_VERSION_STRING_H__ */

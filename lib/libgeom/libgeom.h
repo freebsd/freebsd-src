@@ -143,7 +143,7 @@ void geom_deletetree(struct gmesh *);
 
 struct gctl_req;
 
-#ifdef _STDIO_H_			/* limit #include pollution */
+#ifdef __STDC_VERSION_STDIO_H__		/* limit #include pollution */
 void gctl_dump(struct gctl_req *, FILE *);
 #endif
 void gctl_free(struct gctl_req *);

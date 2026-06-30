@@ -151,7 +151,7 @@ int	uu_lock_txfr(const char *_ttyname, pid_t _pid);
  * Conditionally prototype the following functions if the include
  * files upon which they depend have been included.
  */
-#ifdef _STDIO_H_
+#ifdef __STDC_VERSION_STDIO_H__
 char	*fparseln(FILE *_fp, size_t *_len, size_t *_lineno,
 	    const char _delim[3], int _flags);
 #endif

@@ -29,8 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _STDLIB_H_
-#define	_STDLIB_H_
+#ifndef __STDC_VERSION_STDLIB_H__
+#define __STDC_VERSION_STDLIB_H__ 202311L
 
 #include <sys/cdefs.h>
 #include <sys/_null.h>
@@ -414,4 +414,4 @@ errno_t	 qsort_s(void *, rsize_t, rsize_t,
 __END_DECLS
 __NULLABILITY_PRAGMA_POP
 
-#endif /* !_STDLIB_H_ */
+#endif /* !__STDC_VERSION_STDLIB_H__ */
