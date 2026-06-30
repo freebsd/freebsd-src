@@ -56,6 +56,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/disk.h>
+#include <sys/poll.h>
 #include <sys/queue.h>
 
 #include <machine/specialreg.h>
@@ -88,6 +89,8 @@
 #define	BSP	0
 
 #define	NDISKS	32
+
+#define READ_TIMEOUT 50
 
 /*
  * Reason for our loader reload and reentry, though these aren't really used
@@ -134,9 +137,18 @@ static int
 cb_getc(void *arg __unused)
 {
 	char c;
+	struct pollfd pfd = {
+		.events = POLLIN,
+		.fd = consin_fd,
+	};
 
+retry:
 	if (read(consin_fd, &c, 1) == 1)
 		return (c);
+	if (errno == EAGAIN &&
+	    poll(&pfd, 1, READ_TIMEOUT) >= 0)
+		goto retry;
+
 	return (-1);
 }
 
