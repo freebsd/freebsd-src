@@ -226,6 +226,13 @@ nvlist_to_filed(const nvlist_t *nvl_filed)
 			if (filed->f_addr_fds[i] < 0)
 				err(1, "dup");
 		}
+		filed->f_addrs = calloc(filed->f_num_addr_fds,
+		    sizeof(*filed->f_addrs));
+		if (filed->f_addrs == NULL)
+			err(1, "calloc");
+		memcpy(filed->f_addrs,
+		    nvlist_get_binary(nvl_filed, "f_addrs", NULL),
+		    filed->f_num_addr_fds * sizeof(*filed->f_addrs));
 	} else if (filed->f_type == F_PIPE) {
 		(void)strlcpy(filed->f_pname, nvlist_get_string(nvl_filed,
 		    "f_pname"), sizeof(filed->f_pname));
