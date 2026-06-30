@@ -500,7 +500,7 @@ ktls_ocf_tls_cbc_decrypt(struct ktls_session *tls,
 	iov[0].iov_len = sizeof(ad);
 	skip = sizeof(*hdr) + AES_BLOCK_LEN;
 	for (i = 1, n = m; n != NULL; n = n->m_next) {
-		if (n->m_len < skip) {
+		if (n->m_len <= skip) {
 			skip -= n->m_len;
 			continue;
 		}
