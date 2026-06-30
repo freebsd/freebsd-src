@@ -1,5 +1,7 @@
 .include <bsd.own.mk>
 
+SUBDIR+=		libdummy
+
 ATF_TESTS_C+=		arc4random_test
 ATF_TESTS_C+=		dir2_test
 ATF_TESTS_C+=		dlopen_empty_test

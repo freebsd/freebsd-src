@@ -30,8 +30,10 @@
  */
 
 #include <sys/param.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -173,6 +175,71 @@ ATF_TC_BODY(posix_spawnp_eacces, tc)
 	}
 }
 
+#define	NUM_DSO	512
+ATF_TC_WITHOUT_HEAD(posix_spawnp_stackunderflow);
+ATF_TC_BODY(posix_spawnp_stackunderflow, tc)
+{
+	struct stat sb;
+	char dsopath[MAXPATHLEN];
+	char *myargs[] = { "true", NULL };
+	void **handles;
+	char *dsomap;
+	size_t dsosz;
+	int error, fd, nfd, status;
+	pid_t pid, waitres;
+
+	/* Make sure we have no child processes. */
+	while (waitpid(-1, NULL, 0) != -1)
+		;
+	ATF_REQUIRE_MSG(errno == ECHILD, "errno was not ECHILD: %d", errno);
+
+	(void)snprintf(dsopath, sizeof(dsopath), "%s/libdummy.so",
+	    atf_tc_get_config_var(tc, "srcdir"));
+
+	fd = open(dsopath, O_RDONLY);
+	ATF_REQUIRE(fd >= 0);
+
+	/*
+	 * We'll open our original shlib and fdlopen() it repeatedly until we
+	 * have a lot of DSOs open, then we'll trigger a posix_spawnp.  This
+	 * previously unearthed suboptimal stack usage in rtld that caused
+	 * posix_spawnp()'s effectively-vforked environment to underflow its
+	 * stack.
+	 *
+	 * We only get one shot to trigger the underflow, as rtld binding the
+	 * symbols in the exec path in the rfork-child will affect the main
+	 * process, so we only test that we don't have a problem with a large
+	 * number of DSOs loaded.
+	 */
+	ATF_REQUIRE(fstat(fd, &sb) == 0);
+	dsosz = sb.st_size;
+	dsomap = mmap(NULL, dsosz, PROT_READ, MAP_SHARED, fd, 0);
+	ATF_REQUIRE(dsomap != MAP_FAILED);
+
+	handles = calloc(sizeof(*handles), NUM_DSO);
+	ATF_REQUIRE(handles != NULL);
+
+	for (int i = 0; i < NUM_DSO; i++) {
+		nfd = memfd_create("dsobase", MFD_CLOEXEC);
+		ATF_REQUIRE(nfd >= 0);
+		ATF_REQUIRE(ftruncate(nfd, dsosz) == 0);
+		ATF_REQUIRE(write(nfd, dsomap, dsosz) == dsosz);
+
+		handles[i] = fdlopen(nfd, RTLD_LAZY);
+		ATF_REQUIRE(handles[i] != NULL);
+		if (i > 0)
+			ATF_REQUIRE(handles[i] != handles[i - 1]);
+
+		close(nfd);
+	}
+
+	error = posix_spawnp(&pid, myargs[0], NULL, NULL, myargs, myenv);
+	ATF_REQUIRE(error == 0);
+	waitres = waitpid(pid, &status, 0);
+	ATF_REQUIRE(waitres == pid);
+	ATF_REQUIRE(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -181,6 +248,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, posix_spawnp_enoexec_fallback);
 	ATF_TP_ADD_TC(tp, posix_spawnp_enoexec_fallback_null_argv0);
 	ATF_TP_ADD_TC(tp, posix_spawnp_eacces);
+	ATF_TP_ADD_TC(tp, posix_spawnp_stackunderflow);
 
 	return (atf_no_error());
 }
