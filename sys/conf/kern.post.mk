@@ -293,7 +293,7 @@ _SKIP_DEPEND=	1
 
 kernel-depend: .depend
 SRCS=	assym.inc offset.inc vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
-	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
+	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} ${RSFILES} \
 	${MFILES:T:S/.m$/.h/}
 DEPENDOBJS+=	${SYSTEM_OBJS} genassym.o genoffset.o genoffset_test.o
 DEPENDOBJS+=	${CLEAN:M*.o}

@@ -77,7 +77,7 @@ XARGS_J?=	-J
 .include "kmod.opts.mk"
 .include <bsd.sysdir.mk>
 
-.SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S .m
+.SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S .m .rs
 
 # amd64 uses direct linking for kmod, all others use shared binaries
 .if ${MACHINE_CPUARCH} != amd64
@@ -166,6 +166,8 @@ CFLAGS+=	${DEBUG_FLAGS}
 CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 
+.include "rust.mk"
+
 .if ${MACHINE_CPUARCH} == "aarch64" || ${MACHINE_CPUARCH} == "riscv" || \
     ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "i386"
 CFLAGS+=	-fPIC
@@ -224,7 +226,8 @@ OBJS+=	${_firmw:C/\:.*$/.fwo/:T}
 SRCS+=${SRCS.${_o}}
 .endfor
 
-OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
+OBJS+=	${SRCS:N*.h:N*.rs:R:S/$/.o/g}
+OBJS+=	${SRCS:M*.rs:R:S/$/_rs.o/g}
 
 .if !defined(PROG)
 PROG=	${KMOD}.ko
@@ -564,6 +567,10 @@ cleanilinks:
 	rm -f ${_ILINKS}
 
 OBJS_DEPEND_GUESS+= ${SRCS:M*.h}
+.for _rs in ${SRCS:M*.rs}
+${_rs:R}_rs.o: ${_rs}
+	${NORMAL_RS}
+.endfor
 .if defined(KERNBUILDDIR)
 OBJS_DEPEND_GUESS+= opt_global.h
 .endif
