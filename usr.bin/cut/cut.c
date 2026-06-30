@@ -32,9 +32,13 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/capsicum.h>
+
+#include <capsicum_helpers.h>
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <locale.h>
 #include <stdio.h>
@@ -42,6 +46,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <wchar.h>
+
+#include <libcasper.h>
+#include <casper/cap_fileargs.h>
 
 static int	bflag;
 static int	cflag;
@@ -69,9 +76,11 @@ int
 main(int argc, char *argv[])
 {
 	FILE *fp;
+	fileargs_t *fa;
 	int (*fcn)(FILE *, const char *);
 	int ch, rval;
 	size_t n;
+	cap_rights_t rights;
 
 	setlocale(LC_ALL, "");
 
@@ -131,13 +140,23 @@ main(int argc, char *argv[])
 	else if (bflag)
 		fcn = nflag && MB_CUR_MAX > 1 ? b_n_cut : b_cut;
 
+	fa = fileargs_init(argc, argv, O_RDONLY, 0,
+	    cap_rights_init(&rights, CAP_FSTAT, CAP_FCNTL, CAP_READ), FA_OPEN);
+	if (fa == NULL)
+		err(1, "unable to init casper");
+	caph_cache_catpages();
+	if (caph_limit_stdio() < 0)
+		err(1, "unable to limit stdio");
+	if (caph_enter_casper() < 0)
+		err(1, "unable to enter capability mode");
+
 	rval = 0;
 	if (*argv)
 		for (; *argv; ++argv) {
 			if (strcmp(*argv, "-") == 0)
 				rval |= fcn(stdin, "stdin");
 			else {
-				if (!(fp = fopen(*argv, "r"))) {
+				if (!(fp = fileargs_fopen(fa, *argv, "r"))) {
 					warn("%s", *argv);
 					rval = 1;
 					continue;
@@ -148,6 +167,7 @@ main(int argc, char *argv[])
 		}
 	else
 		rval = fcn(stdin, "stdin");
+	fileargs_free(fa);
 	exit(rval);
 }
 
