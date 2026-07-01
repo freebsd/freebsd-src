@@ -31,6 +31,7 @@
 #include <sys/param.h>
 #include <sys/capsicum.h>
 #include <sys/domain.h>
+#include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
@@ -1082,10 +1083,11 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
     l_uintptr_t namelen, int flags)
 {
 	struct sockaddr_storage ss = { .ss_len = sizeof(ss) };
-	struct file *fp, *fp1;
+	struct file *fp, *headfp;
+	struct filecaps fcaps;
 	struct socket *so;
 	socklen_t len;
-	int bflags, error, error1;
+	int bflags, error;
 
 	bflags = 0;
 	fp = NULL;
@@ -1103,7 +1105,22 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 	} else
 		len = 0;
 
-	error = kern_accept4(td, s, (struct sockaddr *)&ss, bflags, &fp);
+	error = fget_cap(td, s, &cap_accept_rights, NULL, &headfp, &fcaps);
+	if (error != 0)
+		return (error);
+	if (headfp->f_ops == &path_fileops) {
+		fdrop(headfp, td);
+		filecaps_free(&fcaps);
+		return (EBADF);
+	}
+	if (headfp->f_type != DTYPE_SOCKET) {
+		fdrop(headfp, td);
+		filecaps_free(&fcaps);
+		return (ENOTSOCK);
+	}
+
+	error = kern_accept4_fp(td, headfp, &fcaps, (struct sockaddr *)&ss,
+	    bflags, &fp);
 
 	/*
 	 * Translate errno values into ones used by Linux.
@@ -1119,19 +1136,15 @@ linux_accept_common(struct thread *td, int s, l_uintptr_t addr,
 				error = EINVAL;
 			break;
 		case EINVAL:
-			error1 = getsock(td, s, &cap_accept_rights, &fp1);
-			if (error1 != 0) {
-				error = error1;
-				break;
-			}
-			so = fp1->f_data;
+			so = headfp->f_data;
 			if (so->so_type == SOCK_DGRAM)
 				error = EOPNOTSUPP;
-			fdrop(fp1, td);
 			break;
 		}
+		fdrop(headfp, td);
 		return (error);
 	}
+	fdrop(headfp, td);
 
 	if (PTRIN(addr) != NULL) {
 		len = min(ss.ss_len, len);
