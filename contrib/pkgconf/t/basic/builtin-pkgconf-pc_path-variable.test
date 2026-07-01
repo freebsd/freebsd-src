@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+Query: pkgconf
+WantVariable: pc_path
+ExpectedExitCode: 0
+ExpectedStdout: %TEST_FIXTURES_DIR%/lib1

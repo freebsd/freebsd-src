@@ -1,0 +1,12 @@
+Tool: pkgconf
+ToolArgs: --personality=%TEST_FIXTURES_DIR%/personality-data/sysrooted.personality --dump-personality
+ExpectedStdout: Triplet: i386-linux-gnu
+ExpectedStdout: SysrootDir: /custom/sysroot
+ExpectedStdout: DefaultSearchPaths: /usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig
+ExpectedStdout: SystemIncludePaths: /usr/lib/i386-linux-gnu/include
+ExpectedStdout: SystemLibraryPaths: /usr/lib/i386-linux-gnu/lib
+ExpectedStdout: WantDefaultPure: true
+ExpectedStdout: WantDefaultStatic: true
+MatchStdout: partial
+ExpectedExitCode: 0
+SkipPlatforms: lite

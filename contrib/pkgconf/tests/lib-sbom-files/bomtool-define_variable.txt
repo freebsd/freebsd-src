@@ -1,0 +1,25 @@
+SPDXVersion: SPDX-2.2
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentName: SBOM-SPDX-variable-test1C401.0-123
+DocumentNamespace: https://spdx.org/spdxdocs/bomtool
+Creator: Tool: bomtool
+Created: test
+
+
+##### Package: variable-test1@1.0-123
+
+PackageName: variable-test1@1.0-123
+SPDXID: SPDXRef-Package-variable-test1C401.0-123
+PackageVersion: 1.0-123
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Variabletest1 Maintainer
+PackageHomePage: https://github.com/pkgconf/pkgconf/releases/
+PackageLicenseDeclared: BSD-2-Clause
+PackageLicenseConcluded: NOASSERTION
+PackageCopyrightText: NOASSERTION
+PackageSummary: <text>Variable test 1</text>
+PackageDownloadLocation: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+
+
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-variable-test1C401.0-123

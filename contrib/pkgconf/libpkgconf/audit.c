@@ -2,6 +2,8 @@
  * audit.c
  * package audit log functions
  *
+ * SPDX-License-Identifier: pkgconf
+ *
  * Copyright (c) 2016 pkgconf authors (see AUTHORS).
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,6 +16,7 @@
  */
 
 #include <libpkgconf/libpkgconf.h>
+#include <errno.h>
 
 /*
  * !doc
@@ -66,7 +69,11 @@ pkgconf_audit_log(pkgconf_client_t *client, const char *format, ...)
 		return;
 
 	va_start(va, format);
-	vfprintf(client->auditf, format, va);
+	if (!pkgconf_output_file_vfmt(client->auditf, format, va))
+	{
+		// TODO: should probably return here
+		pkgconf_error(client, "Failed to output to file: %s", strerror(errno));
+	}
 	va_end(va);
 }
 
@@ -88,11 +95,24 @@ pkgconf_audit_log_dependency(pkgconf_client_t *client, const pkgconf_pkg_t *dep,
 	if (client->auditf == NULL)
 		return;
 
-	fprintf(client->auditf, "%s ", dep->id);
-	if (depnode->version != NULL && depnode->compare != PKGCONF_CMP_ANY)
+	if (!pkgconf_output_file_fmt(client->auditf, "%s ", dep->id))
 	{
-		fprintf(client->auditf, "%s %s ", pkgconf_pkg_get_comparator(depnode), depnode->version);
+		// TODO: should probably return here
+		pkgconf_error(client, "Failed to output to file: %s", strerror(errno));
 	}
 
-	fprintf(client->auditf, "[%s]\n", dep->version);
+	if (depnode->version != NULL && depnode->compare != PKGCONF_CMP_ANY)
+	{
+		if (!pkgconf_output_file_fmt(client->auditf, "%s %s ", pkgconf_pkg_get_comparator(depnode), depnode->version))
+		{
+			// TODO: should probably return here
+			pkgconf_error(client, "Failed to output to file: %s", strerror(errno));
+		}
+	}
+
+	if (!pkgconf_output_file_fmt(client->auditf, "[%s]\n", dep->version))
+	{
+		// TODO: should probably return here
+		pkgconf_error(client, "Failed to output to file: %s", strerror(errno));
+	}
 }

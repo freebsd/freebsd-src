@@ -1,0 +1,6 @@
+Environment: PKG_CONFIG_SYSROOT_DIR=/sysroot
+Environment: PKG_CONFIG_FDO_SYSROOT_RULES=1
+PackageSearchPath: lib1
+Query: omg-sysroot
+WantedFlags: libs
+ExpectedStdout: -L/sysroot/test/lib -lomg

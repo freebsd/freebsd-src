@@ -2,6 +2,8 @@
  * renderer-msvc.h
  * MSVC library syntax renderer header
  *
+ * SPDX-License-Identifier: pkgconf
+ *
  * Copyright (c) 2017 pkgconf authors (see AUTHORS).
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -18,6 +20,6 @@
 
 #include <libpkgconf/libpkgconf.h>
 
-const pkgconf_fragment_render_ops_t *msvc_renderer_get(void);
+pkgconf_fragment_render_ops_t *msvc_renderer_get(void);
 
 #endif

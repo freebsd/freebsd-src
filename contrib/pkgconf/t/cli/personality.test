@@ -1,0 +1,5 @@
+Tool: pkgconf
+ToolArgs: --personality=%TEST_FIXTURES_DIR%/personality-data/i386-linux-gnu.personality --variable=pc_path pkg-config
+ExpectedStdout: /usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig
+ExpectedExitCode: 0
+SkipPlatforms: lite

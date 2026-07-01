@@ -1,0 +1,5 @@
+Tool: spdxtool
+ToolArgs: --creation-time=test --define-variable=VERSION_VARIABLE_TEST=1.0-123 --define-variable=license_variable_test=MIT variable-test2
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+ExpectedStdoutFile: ../../tests/lib-sbom-files/define_variable_with_dependency.json
+ExpectedExitCode: 0

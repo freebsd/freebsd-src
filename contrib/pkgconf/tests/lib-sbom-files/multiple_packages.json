@@ -1,0 +1,170 @@
+{
+    "@context": "https://spdx.org/rdf/3.0.1/spdx-context.jsonld",
+    "@graph": [
+        {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/default",
+            "name": "Default"
+        },
+        {
+            "type": "CreationInfo",
+            "@id": "_:creationinfo_1",
+            "created": "test",
+            "createdBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/default"
+            ],
+            "specVersion": "3.0.1"
+        },
+        {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/test5_maintainer",
+            "name": "Test5 Maintainer"
+        },
+        {
+            "type": "Agent",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Agent/test6_maintainer",
+            "name": "Test6 Maintainer"
+        },
+        {
+            "type": "simplelicensing_LicenseExpression",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/MIT",
+            "simplelicensing_licenseExpression": "MIT"
+        },
+        {
+            "type": "simplelicensing_LicenseExpression",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/Apache-2.0",
+            "simplelicensing_licenseExpression": "Apache-2.0"
+        },
+        {
+            "type": "software_Sbom",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/software_Sbom/test5",
+            "software_sbomType": [
+                "build"
+            ],
+            "rootElement": [
+                "https://github.com/pkgconf/pkgconf/Package/test5"
+            ],
+            "element": [
+                "https://github.com/pkgconf/pkgconf/Relationship/test5/hasDeclaredLicense",
+                "https://github.com/pkgconf/pkgconf/Relationship/test5/hasConcludedLicense"
+            ]
+        },
+        {
+            "type": "software_Sbom",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/software_Sbom/test6",
+            "software_sbomType": [
+                "build"
+            ],
+            "rootElement": [
+                "https://github.com/pkgconf/pkgconf/Package/test6"
+            ],
+            "element": [
+                "https://github.com/pkgconf/pkgconf/Relationship/test6/hasDeclaredLicense",
+                "https://github.com/pkgconf/pkgconf/Relationship/test6/hasConcludedLicense"
+            ]
+        },
+        {
+            "type": "software_Package",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Package/test5",
+            "name": "test5",
+            "originatedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/default"
+            ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/test5_maintainer"
+            ],
+            "software_copyrightText": "NOASSERTION",
+            "software_homePage": "https://github.com/pkgconf/pkgconf/",
+            "software_downloadLocation": "https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz",
+            "software_packageVersion": "5.0.0"
+        },
+        {
+            "type": "software_Package",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Package/test6",
+            "name": "test6",
+            "originatedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/default"
+            ],
+            "suppliedBy": [
+                "https://github.com/pkgconf/pkgconf/Agent/test6_maintainer"
+            ],
+            "software_copyrightText": "NOASSERTION",
+            "software_homePage": "https://github.com/pkgconf/pkgconf/releases/",
+            "software_downloadLocation": "https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz",
+            "software_packageVersion": "6.0.0"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Relationship/test5/hasDeclaredLicense",
+            "from": "https://github.com/pkgconf/pkgconf/Package/test5",
+            "to": [
+                "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/MIT"
+            ],
+            "relationshipType": "hasDeclaredLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Relationship/test5/hasConcludedLicense",
+            "from": "https://github.com/pkgconf/pkgconf/Package/test5",
+            "to": [
+                "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/MIT"
+            ],
+            "relationshipType": "hasConcludedLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Relationship/test6/hasDeclaredLicense",
+            "from": "https://github.com/pkgconf/pkgconf/Package/test6",
+            "to": [
+                "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/Apache-2.0"
+            ],
+            "relationshipType": "hasDeclaredLicense"
+        },
+        {
+            "type": "Relationship",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/Relationship/test6/hasConcludedLicense",
+            "from": "https://github.com/pkgconf/pkgconf/Package/test6",
+            "to": [
+                "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/Apache-2.0"
+            ],
+            "relationshipType": "hasConcludedLicense"
+        },
+        {
+            "type": "SpdxDocument",
+            "creationInfo": "_:creationinfo_1",
+            "spdxId": "https://github.com/pkgconf/pkgconf/spdxDocument/1",
+            "rootElement": [
+                "https://github.com/pkgconf/pkgconf/software_Sbom/test5",
+                "https://github.com/pkgconf/pkgconf/software_Sbom/test6"
+            ],
+            "element": [
+                "https://github.com/pkgconf/pkgconf/Agent/default",
+                "https://github.com/pkgconf/pkgconf/Agent/test5_maintainer",
+                "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/MIT",
+                "https://github.com/pkgconf/pkgconf/Agent/test6_maintainer",
+                "https://github.com/pkgconf/pkgconf/simplelicensing_LicenseExpression/Apache-2.0",
+                "https://github.com/pkgconf/pkgconf/Relationship/test5/hasDeclaredLicense",
+                "https://github.com/pkgconf/pkgconf/Relationship/test5/hasConcludedLicense",
+                "https://github.com/pkgconf/pkgconf/Relationship/test6/hasDeclaredLicense",
+                "https://github.com/pkgconf/pkgconf/Relationship/test6/hasConcludedLicense",
+                "https://github.com/pkgconf/pkgconf/software_Sbom/test5",
+                "https://github.com/pkgconf/pkgconf/Package/test5",
+                "https://github.com/pkgconf/pkgconf/software_Sbom/test6",
+                "https://github.com/pkgconf/pkgconf/Package/test6"
+            ]
+        }
+    ]
+}

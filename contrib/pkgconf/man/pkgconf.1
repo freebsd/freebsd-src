@@ -7,7 +7,7 @@
 .\" This software is provided 'as is' and without any warranty, express or
 .\" implied.  In no event shall the authors be liable for any damages arising
 .\" from the use of this software.
-.Dd November 15, 2016
+.Dd June 23, 2026
 .Dt PKGCONF 1
 .Os
 .Sh NAME
@@ -31,6 +31,22 @@ The most common use is printing the compiler and linker flags needed
 to build software that uses the libraries given by the
 .Ar module
 arguments.
+.Pp
+When printing compiler and linker flags,
+.Nm
+escapes shell metacharacters
+.Pq such as quotes, whitespace, brackets, braces and glob characters
+in each fragment with a backslash.
+The output is intended to be re-tokenised by the consumer using POSIX shell
+word-splitting rules, as build systems generally do; under those rules the
+protective backslashes are removed and the original values are recovered.
+Note that pasting the output directly into an unquoted command substitution,
+for example
+.Ql cc $(pkgconf \-\-libs foo) ,
+performs word-splitting and pathname expansion but does
+.Em not
+remove the backslashes, so a value containing such characters may reach the
+toolchain with the escaping still present.
 .Pp
 The
 .Xr pc 5
@@ -57,7 +73,6 @@ These options are, ordered by descending priority:
 .Bl -enum
 .It
 No-module options:
-.Fl -relocate ,
 .Fl -dump-personality ,
 .Fl -about ,
 .Fl -version ,
@@ -79,6 +94,9 @@ command line and do not look at dependencies.
 Limited-output options:
 .Fl -validate ,
 .Fl -license ,
+.Fl -license-file ,
+.Fl -link-abi ,
+.Fl -source ,
 .Fl -uninstalled ,
 and
 .Fl -env :
@@ -120,7 +138,8 @@ General output options:
 .Fl -simulate ,
 .Fl -digraph ,
 .Fl -solution ,
-.Fl -fragment-tree :
+.Fl -fragment-tree ,
+.Fl -newlines :
 These options do not limit dependency resolution.
 .El
 .Pp
@@ -283,6 +302,29 @@ flags, or only the linker flags that are neither library path
 nor library flags, respectively.
 These options imply
 .Fl -print-errors .
+.It Fl -link-abi
+Print the set of link ABI tags
+.Pq for example Sy c No or Sy c++
+that the
+.Ar module
+must be linked against, derived from the
+.Sy Link.ABI
+properties found across its dependency closure.
+The tags from a package's own
+.Sy Link.ABI
+property and those of its public
+.Sy Requires
+always apply, while
+.Sy Requires.private
+tags apply only when linking statically
+.Pq Fl -static .
+A module with no link ABI requirements prints
+.Sy c .
+See
+.Xr pc 5
+for details of the
+.Sy Link.ABI
+property.
 .It Fl -list-all
 Walk the module search path in the order of descending priority.
 For each
@@ -385,6 +427,9 @@ output.
 This option is only available if the preprocessor macro
 .Dv PKGCONF_LITE
 was not defined during compilation.
+.It Fl -newlines
+Use newlines to separate individual CFLAGS or linker flag fragments
+instead of spaces.
 .It Fl -no-cache
 Skip caching packages when they are loaded into the internal resolver.
 This may result in an alternate dependency graph being computed.
@@ -475,10 +520,6 @@ This is mainly intended for use with the
 flag and has no effect if
 .Fl -shared
 is also specified.
-.It Fl -relocate Ns = Ns Ar path
-Relocates a path using the pkgconf_path_relocate API.
-This is mainly used by the testsuite to provide a guaranteed interface
-to the system's path relocation backend.
 .It Fl -shared
 Compute a simple dependency graph that is only suitable for shared linking.
 This option overrides
@@ -717,7 +758,6 @@ If not defined, the default list compiled into the
 program from the
 .Dv SYSTEM_INCLUDEDIR
 preprocessor macro is used instead.
-This variable is a pkgconf-specific extension.
 Any directories listed in the environment variables
 .Ev CPATH ,
 .Ev C_INCLUDE_PATH ,
@@ -737,7 +777,6 @@ If not defined, the default list compiled into the
 program from the
 .Dv SYSTEM_LIBDIR
 preprocessor macro is used instead.
-This variable is a pkgconf-specific extension.
 .It Ev PKG_CONFIG_TOP_BUILD_DIR
 The value of the
 .Va pc_top_builddir

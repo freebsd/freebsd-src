@@ -2,6 +2,8 @@
  * personality.c
  * libpkgconf cross-compile personality database
  *
+ * SPDX-License-Identifier: pkgconf
+ *
  * Copyright (c) 2018 pkgconf authors (see AUTHORS).
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -24,10 +26,6 @@
  * =========================
  */
 
-#ifdef _WIN32
-#	define strcasecmp _stricmp
-#endif
-
 /*
  * Increment each time the default personality is inited, decrement each time
  * it's deinited. Whenever it is 0, then the deinit frees the personality. In
@@ -44,29 +42,38 @@ build_default_search_path(pkgconf_list_t* dirlist)
 {
 #ifdef _WIN32
 	char namebuf[MAX_PATH];
-	char outbuf[MAX_PATH];
+	pkgconf_buffer_t pathbuf = PKGCONF_BUFFER_INITIALIZER;
 	char *p;
 
-	int sizepath = GetModuleFileName(NULL, namebuf, sizeof namebuf);
+	/* Reserve one byte for the NUL: GetModuleFileName returns the size passed
+	 * to it (nSize) when the path is truncated, so passing sizeof namebuf could
+	 * yield sizepath == sizeof namebuf and overflow namebuf[] by one byte below.
+	 *
+	 * See the GetModuleFileNameA return-value documentation:
+	 * https://learn.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-getmodulefilenamea
+	 */
+	int sizepath = GetModuleFileName(NULL, namebuf, sizeof namebuf - 1);
 	char * winslash;
 	namebuf[sizepath] = '\0';
-	while ((winslash = strchr (namebuf, '\\')) != NULL)
-	{
+
+	while ((winslash = strchr(namebuf, '\\')) != NULL)
 		*winslash = '/';
-	}
+
 	p = strrchr(namebuf, '/');
 	if (p == NULL)
+	{
 		pkgconf_path_split(PKG_DEFAULT_PATH, dirlist, true);
-
+		return;
+	}
 	*p = '\0';
-	pkgconf_strlcpy(outbuf, namebuf, sizeof outbuf);
-	pkgconf_strlcat(outbuf, "/", sizeof outbuf);
-	pkgconf_strlcat(outbuf, "../lib/pkgconfig", sizeof outbuf);
-	pkgconf_path_add(outbuf, dirlist, true);
-	pkgconf_strlcpy(outbuf, namebuf, sizeof outbuf);
-	pkgconf_strlcat(outbuf, "/", sizeof outbuf);
-	pkgconf_strlcat(outbuf, "../share/pkgconfig", sizeof outbuf);
-	pkgconf_path_add(outbuf, dirlist, true);
+
+	pkgconf_buffer_append_fmt(&pathbuf, "%s/../lib/pkgconfig", namebuf);
+	pkgconf_path_add(pkgconf_buffer_str(&pathbuf), dirlist, true);
+	pkgconf_buffer_reset(&pathbuf);
+
+	pkgconf_buffer_append_fmt(&pathbuf, "%s/../share/pkgconfig", namebuf);
+	pkgconf_path_add(pkgconf_buffer_str(&pathbuf), dirlist, true);
+	pkgconf_buffer_finalize(&pathbuf);
 #elif __HAIKU__
 	char **paths;
 	size_t count;
@@ -83,7 +90,7 @@ build_default_search_path(pkgconf_list_t* dirlist)
 		paths = NULL;
 	}
 #else
-	pkgconf_path_split(PKG_DEFAULT_PATH, dirlist, true);
+	pkgconf_path_split(PKG_DEFAULT_PATH, dirlist, false);
 #endif
 }
 
@@ -168,7 +175,7 @@ valid_triplet(const char *triplet)
 	return true;
 }
 
-typedef void (*personality_keyword_func_t)(pkgconf_cross_personality_t *p, const char *keyword, const size_t lineno, const ptrdiff_t offset, char *value);
+typedef void (*personality_keyword_func_t)(pkgconf_cross_personality_t *p, const char *keyword, const char *warnprefix, const ptrdiff_t offset, const char *value);
 typedef struct {
 	const char *keyword;
 	const personality_keyword_func_t func;
@@ -176,30 +183,34 @@ typedef struct {
 } personality_keyword_pair_t;
 
 static void
-personality_bool_func(pkgconf_cross_personality_t *p, const char *keyword, const size_t lineno, const ptrdiff_t offset, char *value)
+personality_bool_func(pkgconf_cross_personality_t *p, const char *keyword, const char *warnprefix, const ptrdiff_t offset, const char *value)
 {
 	(void) keyword;
-	(void) lineno;
+	(void) warnprefix;
 
 	bool *dest = (bool *)((char *) p + offset);
-	*dest = strcasecmp(value, "true") || strcasecmp(value, "yes") || *value == '1';
+	*dest = strcasecmp(value, "true") == 0 || strcasecmp(value, "yes") == 0 || strcasecmp(value, "1") == 0;
 }
 
 static void
-personality_copy_func(pkgconf_cross_personality_t *p, const char *keyword, const size_t lineno, const ptrdiff_t offset, char *value)
+personality_copy_func(pkgconf_cross_personality_t *p, const char *keyword, const char *warnprefix, const ptrdiff_t offset, const char *value)
 {
 	(void) keyword;
-	(void) lineno;
+	(void) warnprefix;
 
 	char **dest = (char **)((char *) p + offset);
+
+	if (*dest != NULL)
+		free(*dest);
+
 	*dest = strdup(value);
 }
 
 static void
-personality_fragment_func(pkgconf_cross_personality_t *p, const char *keyword, const size_t lineno, const ptrdiff_t offset, char *value)
+personality_fragment_func(pkgconf_cross_personality_t *p, const char *keyword, const char *warnprefix, const ptrdiff_t offset, const char *value)
 {
 	(void) keyword;
-	(void) lineno;
+	(void) warnprefix;
 
 	pkgconf_list_t *dest = (pkgconf_list_t *)((char *) p + offset);
 	pkgconf_path_split(value, dest, false);
@@ -224,8 +235,9 @@ personality_keyword_pair_cmp(const void *key, const void *ptr)
 }
 
 static void
-personality_keyword_set(pkgconf_cross_personality_t *p, const size_t lineno, const char *keyword, char *value)
+personality_keyword_set(void *data, const char *warnprefix, const char *keyword, const char *value)
 {
+	pkgconf_cross_personality_t *p = data;
 	const personality_keyword_pair_t *pair = bsearch(keyword,
 		personality_keyword_pairs, PKGCONF_ARRAY_SIZE(personality_keyword_pairs),
 		sizeof(personality_keyword_pair_t), personality_keyword_pair_cmp);
@@ -233,7 +245,7 @@ personality_keyword_set(pkgconf_cross_personality_t *p, const size_t lineno, con
 	if (pair == NULL || pair->func == NULL)
 		return;
 
-	pair->func(p, keyword, lineno, pair->offset, value);
+	pair->func(p, keyword, warnprefix, pair->offset, value);
 }
 
 static const pkgconf_parser_operand_func_t personality_parser_ops[256] = {
@@ -250,39 +262,45 @@ personality_warn_func(void *p, const char *fmt, ...)
 	(void) p;
 
 	va_start(va, fmt);
-	vfprintf(stderr, fmt, va);
+	pkgconf_output_file_vfmt(stderr, fmt, va);
 	va_end(va);
 }
 
 static pkgconf_cross_personality_t *
 load_personality_with_path(const char *path, const char *triplet, bool datadir)
 {
-	char pathbuf[PKGCONF_ITEM_SIZE];
+	pkgconf_buffer_t pathbuf = PKGCONF_BUFFER_INITIALIZER;
 	FILE *f;
 	pkgconf_cross_personality_t *p;
 
 	/* if triplet is null, assume that path is a direct path to the personality file */
 	if (triplet == NULL)
-		pkgconf_strlcpy(pathbuf, path, sizeof pathbuf);
+		pkgconf_buffer_append(&pathbuf, path);
 	else if (datadir)
-		snprintf(pathbuf, sizeof pathbuf, "%s/pkgconfig/personality.d/%s.personality", path, triplet);
+		pkgconf_buffer_append_fmt(&pathbuf, "%s/pkgconfig/personality.d/%s.personality", path, triplet);
 	else
-		snprintf(pathbuf, sizeof pathbuf, "%s/%s.personality", path, triplet);
+		pkgconf_buffer_append_fmt(&pathbuf, "%s/%s.personality", path, triplet);
 
 	p = calloc(1, sizeof(pkgconf_cross_personality_t));
 	if (p == NULL)
+	{
+		pkgconf_buffer_finalize(&pathbuf);
 		return NULL;
+	}
 
 	if (triplet != NULL)
 		p->name = strdup(triplet);
 
-	f = fopen(pathbuf, "r");
-	if (f == NULL) {
+	f = fopen(pkgconf_buffer_str(&pathbuf), "rb");
+	if (f == NULL)
+	{
+		pkgconf_buffer_finalize(&pathbuf);
 		pkgconf_cross_personality_deinit(p);
 		return NULL;
 	}
 
-	pkgconf_parser_parse(f, p, personality_parser_ops, personality_warn_func, pathbuf);
+	pkgconf_parser_parse(f, p, personality_parser_ops, personality_warn_func, pkgconf_buffer_str(&pathbuf));
+	pkgconf_buffer_finalize(&pathbuf);
 
 	return p;
 }
@@ -304,7 +322,6 @@ pkgconf_cross_personality_find(const char *triplet)
 	pkgconf_node_t *n;
 	pkgconf_cross_personality_t *out = NULL;
 #if ! defined(_WIN32) && ! defined(__HAIKU__)
-	char pathbuf[PKGCONF_ITEM_SIZE];
 	const char *envvar;
 #endif
 
@@ -319,16 +336,20 @@ pkgconf_cross_personality_find(const char *triplet)
 	envvar = getenv("XDG_DATA_HOME");
 	if (envvar != NULL)
 		pkgconf_path_add(envvar, &plist, true);
-	else {
+	else
+	{
 		envvar = getenv("HOME");
-		if (envvar != NULL) {
-			pkgconf_strlcpy(pathbuf, envvar, sizeof pathbuf);
-			pkgconf_strlcat(pathbuf, "/.local/share", sizeof pathbuf);
-			pkgconf_path_add(pathbuf, &plist, true);
+		if (envvar != NULL)
+		{
+			pkgconf_buffer_t pathbuf = PKGCONF_BUFFER_INITIALIZER;
+
+			pkgconf_buffer_append_fmt(&pathbuf, "%s/.local/share", envvar);
+			pkgconf_path_add(pkgconf_buffer_str(&pathbuf), &plist, true);
+			pkgconf_buffer_finalize(&pathbuf);
 		}
 	}
 
-	pkgconf_path_build_from_environ("XDG_DATA_DIRS", "/usr/local/share" PKG_CONFIG_PATH_SEP_S "/usr/share", &plist, true);
+	pkgconf_path_build_from_environ(NULL, "XDG_DATA_DIRS", "/usr/local/share" PKG_CONFIG_PATH_SEP_S "/usr/share", &plist, true);
 
 	PKGCONF_FOREACH_LIST_ENTRY(plist.head, n)
 	{

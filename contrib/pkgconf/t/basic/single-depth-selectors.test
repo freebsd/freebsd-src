@@ -1,0 +1,5 @@
+Environment: PKG_CONFIG_MAXIMUM_TRAVERSE_DEPTH=1
+PackageSearchPath: lib3
+WantedFlags: print-requires
+Query: bar
+ExpectedStdout: foo

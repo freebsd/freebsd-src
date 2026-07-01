@@ -1,4 +1,4 @@
-# pkgconf [![test](https://github.com/pkgconf/pkgconf/actions/workflows/test.yml/badge.svg)](https://github.com/pkgconf/pkgconf/actions/workflows/test.yml)
+# pkgconf [![test](https://github.com/pkgconf/pkgconf/actions/workflows/test.yml/badge.svg)](https://github.com/pkgconf/pkgconf/actions/workflows/test.yml) [![Coverage](https://img.shields.io/codecov/c/github/pkgconf/pkgconf)](https://app.codecov.io/github/pkgconf/pkgconf)
 
 `pkgconf` is a program which helps to configure compiler and linker flags for
 development libraries.  It is a superset of the functionality provided by
@@ -9,6 +9,11 @@ the original pkg-config.
 to allow other tooling such as compilers and IDEs to discover and use libraries 
 configured by pkgconf.
 
+`bomtool` and `spdxtool` are programs generating software bill of materials (SBOM)
+for a given set of pkg-config modules, in the SPDX 2.0 and SPDX Lite 3.0.1 format,
+respectively.  The output of these tools can then be translated into other SBOM
+formats as necessary.
+
 ## release tarballs
 
 Release tarballs are available on [distfiles.ariadne.space][distfiles].
@@ -17,12 +22,13 @@ Release tarballs are available on [distfiles.ariadne.space][distfiles].
 
 ## build system setup
 
-If you would like to use the git sources directly, or a snapshot of the
-sources from GitHub, you will need to regenerate the autotools build
-system artifacts yourself, or use Meson instead.  For example, on Alpine:
+pkgconf uses [Meson](https://mesonbuild.com) as its build system.
 
-    $ apk add autoconf automake libtool build-base
-    $ sh ./autogen.sh
+> **Note:** The autotools build system is deprecated as of pkgconf 3.0 and will be
+> removed in pkgconf 3.1.  New build configurations should use Meson or Muon.
+
+If you would like to use the git sources directly, or a snapshot of the sources from
+GitHub, Meson can be used directly without any additional bootstrap step.
 
 ## pkgconf-lite
 
@@ -78,10 +84,54 @@ scraped.  The `--debug` output is **not** a stable interface, and should **never
 depended on as a source of information.  If you need a stable interface to query pkg-config
 which is not covered, please get in touch.
 
-## compiling `pkgconf` and `libpkgconf` on UNIX
+## compiling `pkgconf` and `libpkgconf`
 
-pkgconf is basically compiled the same way any other autotools-based project is
-compiled:
+pkgconf is compiled using [Meson](https://mesonbuild.com):
+
+    $ meson setup build
+    $ meson compile -C build
+    $ meson install -C build
+
+If you are installing pkgconf into a custom prefix, such as `/opt/pkgconf`, you will
+likely want to define the default system includedir and libdir for your toolchain.
+To do this, use the `SYSTEM_LIBDIR` and `SYSTEM_INCLUDEDIR` Meson options like so:
+
+    $ meson setup build \
+         --prefix=/opt/pkgconf \
+         -DSYSTEM_LIBDIR=/lib:/usr/lib \
+         -DSYSTEM_INCLUDEDIR=/usr/include
+    $ meson compile -C build
+    $ meson install -C build
+
+There are a few additional defines such as `PKGCONFIGDIR`.  On Windows, the default
+`PKGCONFIGDIR` value is usually overridden at runtime based on path relocation.
+
+### bootstrapping with Muon
+
+In bootstrap environments where Python is not yet available, pkgconf can also be
+built with [Muon](https://muon.build), a C implementation of the Meson build
+description language.  The same `meson.build` files are used; no separate
+configuration is needed.  Both Meson and Muon are tested in CI.
+
+    $ muon setup build
+    $ samu -C build
+    $ muon install -C build
+
+For non-bootstrap builds, Meson is recommended.
+
+## compiling `pkgconf` and `libpkgconf` with autotools (deprecated)
+
+> **Warning:** The autotools build system is deprecated as of pkgconf 3.0 and will be
+> removed in pkgconf 3.1.  Please migrate to Meson or Muon.
+
+If you would like to use the git sources directly, or a snapshot of the sources from
+GitHub, you will need to regenerate the autotools build system artifacts yourself, or
+use Meson instead (recoommended).  For example, on Alpine:
+
+    $ apk add autoconf automake libtool build-base
+    $ sh ./autogen.sh
+
+pkgconf is then compiled the same way as any other autotools-based project:
 
     $ ./configure
     $ make
@@ -98,20 +148,6 @@ flags like so:
          --with-system-includedir=/usr/include
     $ make
     $ sudo make install
-
-## compiling `pkgconf` and `libpkgconf` with Meson (usually for Windows)
-
-pkgconf is compiled using [Meson](https://mesonbuild.com) on Windows. In theory, you could also use
-Meson to build on UNIX, but this is not recommended at this time as pkgconf is typically built
-much earlier than Meson.
-
-    $ meson setup build -Dtests=disabled
-    $ meson compile -C build
-    $ meson install -C build
-
-There are a few defines such as `SYSTEM_LIBDIR`, `PKGCONFIGDIR` and `SYSTEM_INCLUDEDIR`.
-However, on Windows, the default `PKGCONFIGDIR` value is usually overridden at runtime based
-on path relocation.
 
 ## pkg-config symlink
 

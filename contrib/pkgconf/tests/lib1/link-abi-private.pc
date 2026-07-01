@@ -1,0 +1,5 @@
+Name: link-abi-private
+Description: a library that privately depends on a C++ library
+Version: 1.0.0
+Requires.private: link-abi-cxx
+Libs: -lprivate

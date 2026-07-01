@@ -1,0 +1,41 @@
+SPDXVersion: SPDX-2.2
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentName: SBOM-SPDX-test5C405.0.0-test6C406.0.0
+DocumentNamespace: https://spdx.org/spdxdocs/bomtool
+Creator: Tool: bomtool
+Created: test
+
+
+##### Package: test5@5.0.0
+
+PackageName: test5@5.0.0
+SPDXID: SPDXRef-Package-test5C405.0.0
+PackageVersion: 5.0.0
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Test5 Maintainer
+PackageHomePage: https://github.com/pkgconf/pkgconf/
+PackageLicenseDeclared: MIT
+PackageLicenseConcluded: NOASSERTION
+PackageCopyrightText: NOASSERTION
+PackageSummary: <text>Test package 5</text>
+PackageDownloadLocation: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+
+
+##### Package: test6@6.0.0
+
+PackageName: test6@6.0.0
+SPDXID: SPDXRef-Package-test6C406.0.0
+PackageVersion: 6.0.0
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Test6 Maintainer
+PackageHomePage: https://github.com/pkgconf/pkgconf/releases/
+PackageLicenseDeclared: Apache-2.0
+PackageLicenseConcluded: NOASSERTION
+PackageCopyrightText: NOASSERTION
+PackageSummary: <text>Test package 6</text>
+PackageDownloadLocation: https://github.com/pkgconf/pkgconf/archive/refs/tags/pkgconf-2.5.1.tar.gz
+
+
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-test5C405.0.0
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-test6C406.0.0

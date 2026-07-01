@@ -1,0 +1,5 @@
+Tool: bomtool
+ToolArgs: --creation-time=test --define-variable=VERSION_VARIABLE_TEST=1.0-123 variable-test1
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+ExpectedStdoutFile: ../../tests/lib-sbom-files/bomtool-define_variable.txt
+ExpectedExitCode: 0

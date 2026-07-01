@@ -2,6 +2,8 @@
  * iter.h
  * Linked lists and iterators.
  *
+ * SPDX-License-Identifier: pkgconf
+ *
  * Copyright (c) 2013 pkgconf authors (see AUTHORS).
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,6 +17,8 @@
 
 #ifndef LIBPKGCONF_ITER_H
 #define LIBPKGCONF_ITER_H
+
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {

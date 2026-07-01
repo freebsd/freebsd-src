@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+Query: link-abi-plainc
+WantedFlags: link-abi
+ExpectedExitCode: 0
+ExpectedStdout: c

@@ -1,0 +1,5 @@
+Tool: bomtool
+ToolArgs: --version
+ExpectedStdout: bomtool
+MatchStdout: Partial
+ExpectedExitCode: 0

@@ -1,0 +1,9 @@
+Tool: pkgconf
+ToolArgs: --exists foo; cat out/audit.log
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1
+Environment: PKG_CONFIG_LOG=out/audit.log
+SetupMkdir: out
+ExpectedStdout: foo [1.2.3]
+MatchStdout: partial
+ExpectedExitCode: 0
+SkipPlatforms: windows

@@ -1,0 +1,8 @@
+SkipPlatforms: lite
+WantPersonality: %TEST_FIXTURES_DIR%/personality-data/i386-linux-gnu.personality 
+WantedFlags: dump-personality
+ExpectedStdout: Triplet: i386-linux-gnu
+ExpectedStdout: DefaultSearchPaths: /usr/lib/i386-linux-gnu/pkgconfig:/usr/share/pkgconfig
+ExpectedStdout: SystemIncludePaths: /usr/lib/i386-linux-gnu/include
+ExpectedStdout: SystemLibraryPaths: /usr/lib/i386-linux-gnu/lib
+MatchStdout: partial

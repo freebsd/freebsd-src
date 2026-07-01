@@ -15,3 +15,4 @@ Libs: -L${libdir} -lfoo
 Cflags: -fPIC -I${includedir}/foo
 Cflags.private: -DFOO_STATIC
 License: ISC
+Source: https://foo.bar/foo

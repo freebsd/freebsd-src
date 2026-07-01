@@ -1,0 +1,5 @@
+Name: link-abi-multi
+Description: a library declaring multiple Link.ABI tags with duplicates and mixed case
+Version: 1.0.0
+Libs: -lmulti
+Link.ABI: c++, Fortran, C++

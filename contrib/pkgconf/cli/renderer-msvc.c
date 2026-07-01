@@ -2,6 +2,8 @@
  * renderer-msvc.c
  * MSVC library syntax renderer
  *
+ * SPDX-License-Identifier: pkgconf
+ *
  * Copyright (c) 2017 pkgconf authors (see AUTHORS).
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -20,17 +22,14 @@
 #include "renderer-msvc.h"
 
 static inline bool
-fragment_should_quote(const pkgconf_fragment_t *frag)
+should_quote(const pkgconf_buffer_t *buf)
 {
 	const char *src;
 
-	if (frag->data == NULL)
-		return false;
-
-	for (src = frag->data; *src; src++)
+	for (src = buf->base; *src && src < buf->end; src++)
 	{
 		if (((*src < ' ') ||
-		    (*src >= (' ' + (frag->children.head != NULL ? 1 : 0)) && *src < '$') ||
+		    (*src >= (' ') && *src < '$') ||
 		    (*src > '$' && *src < '(') ||
 		    (*src > ')' && *src < '+') ||
 		    (*src > ':' && *src < '=') ||
@@ -45,127 +44,54 @@ fragment_should_quote(const pkgconf_fragment_t *frag)
 	return false;
 }
 
-static inline size_t
-fragment_len(const pkgconf_fragment_t *frag)
-{
-	size_t len = 1;
-
-	if (frag->type)
-		len += 2;
-
-	if (frag->data != NULL)
-	{
-		len += strlen(frag->data);
-
-		if (fragment_should_quote(frag))
-			len += 2;
-	}
-
-	return len;
-}
-
 static inline bool
 allowed_fragment(const pkgconf_fragment_t *frag)
 {
 	return !(!frag->type || frag->data == NULL || strchr("DILl", frag->type) == NULL);
 }
 
-static size_t
-msvc_renderer_render_len(const pkgconf_list_t *list, bool escape)
-{
-	(void) escape;
-
-	size_t out = 1;		/* trailing nul */
-	pkgconf_node_t *node;
-
-	PKGCONF_FOREACH_LIST_ENTRY(list->head, node)
-	{
-		const pkgconf_fragment_t *frag = node->data;
-
-		if (!allowed_fragment(frag))
-			continue;
-
-		switch (frag->type)
-		{
-			case 'L':
-				out += 9; /* "/libpath:" */
-				break;
-			case 'l':
-				out += 4; /* ".lib" */
-				break;
-			default:
-				break;
-		}
-
-		out += fragment_len(frag);
-	}
-
-	return out;
-}
-
 static void
-msvc_renderer_render_buf(const pkgconf_list_t *list, char *buf, size_t buflen, bool escape)
+msvc_renderer_render(const pkgconf_fragment_render_ctx_t *ctx, const pkgconf_fragment_t *frag, pkgconf_buffer_t *buf)
 {
-	pkgconf_node_t *node;
-	char *bptr = buf;
+	pkgconf_buffer_t tmpbuf = PKGCONF_BUFFER_INITIALIZER;
+	bool escape = ctx->escape;
 
-	memset(buf, 0, buflen);
+	if (!allowed_fragment(frag))
+		return;
 
-	PKGCONF_FOREACH_LIST_ENTRY(list->head, node)
-	{
-		const pkgconf_fragment_t *frag = node->data;
-		size_t buf_remaining = buflen - (bptr - buf);
-		size_t cnt;
-
-		if (!allowed_fragment(frag))
-			continue;
-
-		if (fragment_len(frag) > buf_remaining)
-			break;
-
-		switch(frag->type) {
-		case 'D':
-		case 'I':
-			*bptr++ = '/';
-			*bptr++ = frag->type;
-			break;
-		case 'L':
-			cnt = pkgconf_strlcpy(bptr, "/libpath:", buf_remaining);
-			bptr += cnt;
-			buf_remaining -= cnt;
-			break;
-		}
-
-		escape = fragment_should_quote(frag);
-
-		if (escape)
-			*bptr++ = '"';
-
-		cnt = pkgconf_strlcpy(bptr, frag->data, buf_remaining);
-		bptr += cnt;
-		buf_remaining -= cnt;
-
-		if (frag->type == 'l')
-		{
-			cnt = pkgconf_strlcpy(bptr, ".lib", buf_remaining);
-			bptr += cnt;
-		}
-
-		if (escape)
-			*bptr++ = '"';
-
-		*bptr++ = ' ';
+	switch(frag->type) {
+	case 'D':
+	case 'I':
+		pkgconf_buffer_append_fmt(buf, "/%c", frag->type);
+		break;
+	case 'L':
+		pkgconf_buffer_append(buf, "/libpath:");
+		break;
 	}
 
-	*bptr = '\0';
+	pkgconf_buffer_append(&tmpbuf, frag->data);
+
+	if (frag->type == 'l')
+		pkgconf_buffer_append(&tmpbuf, ".lib");
+
+	escape = should_quote(&tmpbuf);
+
+	if (escape)
+		pkgconf_buffer_push_byte(buf, '"');
+
+	pkgconf_buffer_append(buf, pkgconf_buffer_str_or_empty(&tmpbuf));
+
+	if (escape)
+		pkgconf_buffer_push_byte(buf, '"');
+
+	pkgconf_buffer_finalize(&tmpbuf);
 }
 
-static const pkgconf_fragment_render_ops_t msvc_renderer_ops = {
-	.render_len = msvc_renderer_render_len,
-	.render_buf = msvc_renderer_render_buf
+static pkgconf_fragment_render_ops_t msvc_renderer_ops = {
+	.render = msvc_renderer_render
 };
 
-const pkgconf_fragment_render_ops_t *
+pkgconf_fragment_render_ops_t *
 msvc_renderer_get(void)
 {
 	return &msvc_renderer_ops;

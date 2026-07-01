@@ -1,0 +1,3 @@
+Query:
+ExpectedExitCode: 1
+ExpectedStderr: Please specify at least one package name on the command line.
