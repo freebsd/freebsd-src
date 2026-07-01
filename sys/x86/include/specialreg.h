@@ -549,6 +549,9 @@
 /*
  * CPUID instruction 7 Structured Extended Features, leaf 1 eax info
  */
+#define	CPUID_STDEXT4_SHA512		0x00000001
+#define	CPUID_STDEXT4_SM3		0x00000002
+#define	CPUID_STDEXT4_SM4		0x00000004
 #define	CPUID_STDEXT4_LASS		0x00000040
 #define	CPUID_STDEXT4_FRED		0x00020000
 #define	CPUID_STDEXT4_LKGS		0x00040000

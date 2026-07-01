@@ -1052,6 +1052,9 @@ printcpuinfo(void)
 				printf("\n  Structured Extended Features4=0x%b",
 				    cpu_stdext_feature4,
 				       "\020"
+				       "\001SHA512"
+				       "\002SM3"
+				       "\003SM4"
 				       "\007LASS"
 				       "\022FRED"
 				       "\023LKGS"
