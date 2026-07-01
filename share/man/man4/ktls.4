@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd October 31, 2024
+.Dd June 30, 2026
 .Dt KTLS 4
 .Os
 .Sh NAME
@@ -182,6 +182,8 @@ A few of them are described below:
 .Bl -tag -width ".Va kern.ipc.tls.cbc_enable"
 .It Va kern.ipc.tls.enable
 Determines if new kernel TLS sessions can be created.
+.It Va kern.ipc.tls.rx_enable
+Determines if new kernel TLS receive sessions can be created.
 .It Va kern.ipc.tls.cbc_enable
 Determines if new kernel TLS sessions with a cipher suite using AES-CBC
 can be created.
