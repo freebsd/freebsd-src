@@ -70,6 +70,28 @@ require_ktls(void)
 #define	ATF_REQUIRE_KTLS()	require_ktls()
 
 static void
+require_ktls_rx(void)
+{
+	size_t len;
+	bool enable;
+
+	ATF_REQUIRE_KTLS();
+
+	len = sizeof(enable);
+	if (sysctlbyname("kern.ipc.tls.rx_enable", &enable, &len, NULL, 0) ==
+	    -1) {
+		if (errno == ENOENT)
+			atf_tc_skip("kernel does not support TLS offload");
+		atf_libc_error(errno, "Failed to read kern.ipc.tls.rx_enable");
+	}
+
+	if (!enable)
+		atf_tc_skip("Kernel TLS receive is disabled");
+}
+
+#define	ATF_REQUIRE_KTLS_RX()	require_ktls_rx()
+
+static void
 check_tls_mode(const atf_tc_t *tc, int s, int sockopt)
 {
 	if (atf_tc_get_config_var_as_bool_wd(tc, "ktls.require_ifnet", false)) {
@@ -2286,7 +2308,7 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_##name, tc)			\
 	struct tls_enable en;						\
 	uint64_t seqno;							\
 									\
-	ATF_REQUIRE_KTLS();						\
+	ATF_REQUIRE_KTLS_RX();						\
 	seqno = random();						\
 	build_tls_enable(tc, cipher_alg, key_size, auth_alg, minor,	\
 	    seqno, &en);						\
@@ -2306,7 +2328,7 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_bad_data, tc)			\
 	struct tls_enable en;						\
 	uint64_t seqno;							\
 									\
-	ATF_REQUIRE_KTLS();						\
+	ATF_REQUIRE_KTLS_RX();						\
 	seqno = random();						\
 	build_tls_enable(tc, cipher_alg, key_size, auth_alg, minor,	\
 	    seqno, &en);						\
@@ -2326,7 +2348,7 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_bad_mac, tc)			\
 	struct tls_enable en;						\
 	uint64_t seqno;							\
 									\
-	ATF_REQUIRE_KTLS();						\
+	ATF_REQUIRE_KTLS_RX();						\
 	seqno = random();						\
 	build_tls_enable(tc, cipher_alg, key_size, auth_alg, minor,	\
 	    seqno, &en);						\
@@ -2346,7 +2368,7 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_truncated_record, tc)		\
 	struct tls_enable en;						\
 	uint64_t seqno;							\
 									\
-	ATF_REQUIRE_KTLS();						\
+	ATF_REQUIRE_KTLS_RX();						\
 	seqno = random();						\
 	build_tls_enable(tc, cipher_alg, key_size, auth_alg, minor,	\
 	    seqno, &en);						\
@@ -2366,7 +2388,7 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_bad_major, tc)			\
 	struct tls_enable en;						\
 	uint64_t seqno;							\
 									\
-	ATF_REQUIRE_KTLS();						\
+	ATF_REQUIRE_KTLS_RX();						\
 	seqno = random();						\
 	build_tls_enable(tc, cipher_alg, key_size, auth_alg, minor,	\
 	    seqno, &en);						\
@@ -2386,7 +2408,7 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_bad_minor, tc)			\
 	struct tls_enable en;						\
 	uint64_t seqno;							\
 									\
-	ATF_REQUIRE_KTLS();						\
+	ATF_REQUIRE_KTLS_RX();						\
 	seqno = random();						\
 	build_tls_enable(tc, cipher_alg, key_size, auth_alg, minor,	\
 	    seqno, &en);						\
@@ -2406,7 +2428,7 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_##name, tc)			\
 	struct tls_enable en;						\
 	uint64_t seqno;							\
 									\
-	ATF_REQUIRE_KTLS();						\
+	ATF_REQUIRE_KTLS_RX();						\
 	seqno = random();						\
 	build_tls_enable(tc, cipher_alg, key_size, auth_alg, minor,	\
 	    seqno, &en);						\
@@ -2426,7 +2448,7 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_split_##name, tc)		\
 	struct tls_enable en;						\
 	uint64_t seqno;							\
 									\
-	ATF_REQUIRE_KTLS();						\
+	ATF_REQUIRE_KTLS_RX();						\
 	seqno = random();						\
 	build_tls_enable(tc, cipher_alg, key_size, auth_alg, minor,	\
 	    seqno, &en);						\
@@ -2622,7 +2644,7 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_bad_padding, tc)		\
 	struct tls_enable en;						\
 	uint64_t seqno;							\
 									\
-	ATF_REQUIRE_KTLS();						\
+	ATF_REQUIRE_KTLS_RX();						\
 	seqno = random();						\
 	build_tls_enable(tc, cipher_alg, key_size, auth_alg, minor,	\
 	    seqno, &en);						\
@@ -2679,7 +2701,7 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_bad_iv, tc)			\
 	struct tls_enable en;						\
 	uint64_t seqno;							\
 									\
-	ATF_REQUIRE_KTLS();						\
+	ATF_REQUIRE_KTLS_RX();						\
 	seqno = random();						\
 	build_tls_enable(tc, cipher_alg, key_size, auth_alg, minor,	\
 	    seqno, &en);						\
@@ -2722,7 +2744,7 @@ ATF_TC_BODY(ktls_receive_##cipher_name##_bad_type, tc)			\
 	struct tls_enable en;						\
 	uint64_t seqno;							\
 									\
-	ATF_REQUIRE_KTLS();						\
+	ATF_REQUIRE_KTLS_RX();						\
 	seqno = random();						\
 	build_tls_enable(tc, cipher_alg, key_size, auth_alg, minor,	\
 	    seqno, &en);						\
@@ -2781,7 +2803,7 @@ ATF_TC_BODY(ktls_receive_invalid_##name, tc)				\
 	struct tls_enable en;						\
 	uint64_t seqno;							\
 									\
-	ATF_REQUIRE_KTLS();						\
+	ATF_REQUIRE_KTLS_RX();						\
 	seqno = random();						\
 	build_tls_enable(tc, cipher_alg, key_size, auth_alg, minor,	\
 	    seqno, &en);						\
@@ -2820,7 +2842,7 @@ ATF_TC_BODY(ktls_receive_unsupported_##name, tc)			\
 	struct tls_enable en;						\
 	uint64_t seqno;							\
 									\
-	ATF_REQUIRE_KTLS();						\
+	ATF_REQUIRE_KTLS_RX();						\
 	seqno = random();						\
 	build_tls_enable(tc, cipher_alg, key_size, auth_alg, minor,	\
 	    seqno, &en);						\
@@ -2881,29 +2903,18 @@ ATF_TC_BODY(ktls_sendto_baddst, tc)
  * Make sure that listen(2) returns an error for KTLS-enabled sockets, and
  * verify that an attempt to enable KTLS on a listening socket fails.
  */
-ATF_TC_WITHOUT_HEAD(ktls_listening_socket);
-ATF_TC_BODY(ktls_listening_socket, tc)
+static void
+ktls_listening_socket(const atf_tc_t *tc, int optname)
 {
 	struct tls_enable en;
 	struct sockaddr_in sin;
 	int s;
 
-	ATF_REQUIRE_KTLS();
-
 	s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	ATF_REQUIRE(s >= 0);
 	build_tls_enable(tc, CRYPTO_AES_NIST_GCM_16, 128 / 8, 0,
 	    TLS_MINOR_VER_THREE, (uint64_t)random(), &en);
-	ATF_REQUIRE(setsockopt(s, IPPROTO_TCP, TCP_TXTLS_ENABLE, &en,
-	    sizeof(en)) == 0);
-	ATF_REQUIRE_ERRNO(EINVAL, listen(s, 1) == -1);
-	ATF_REQUIRE(close(s) == 0);
-
-	s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	ATF_REQUIRE(s >= 0);
-	build_tls_enable(tc, CRYPTO_AES_NIST_GCM_16, 128 / 8, 0,
-	    TLS_MINOR_VER_THREE, (uint64_t)random(), &en);
-	ATF_REQUIRE(setsockopt(s, IPPROTO_TCP, TCP_RXTLS_ENABLE, &en,
+	ATF_REQUIRE(setsockopt(s, IPPROTO_TCP, optname, &en,
 	    sizeof(en)) == 0);
 	ATF_REQUIRE_ERRNO(EINVAL, listen(s, 1) == -1);
 	ATF_REQUIRE(close(s) == 0);
@@ -2918,10 +2929,24 @@ ATF_TC_BODY(ktls_listening_socket, tc)
 	build_tls_enable(tc, CRYPTO_AES_NIST_GCM_16, 128 / 8, 0,
 	    TLS_MINOR_VER_THREE, (uint64_t)random(), &en);
 	ATF_REQUIRE_ERRNO(ENOTCONN,
-	    setsockopt(s, IPPROTO_TCP, TCP_TXTLS_ENABLE, &en, sizeof(en)) != 0);
-	ATF_REQUIRE_ERRNO(ENOTCONN,
-	    setsockopt(s, IPPROTO_TCP, TCP_RXTLS_ENABLE, &en, sizeof(en)) != 0);
+	    setsockopt(s, IPPROTO_TCP, optname, &en, sizeof(en)) != 0);
 	ATF_REQUIRE(close(s) == 0);
+}
+
+ATF_TC_WITHOUT_HEAD(ktls_listening_socket_tx);
+ATF_TC_BODY(ktls_listening_socket_tx, tc)
+{
+	ATF_REQUIRE_KTLS();
+
+	ktls_listening_socket(tc, TCP_TXTLS_ENABLE);
+}
+
+ATF_TC_WITHOUT_HEAD(ktls_listening_socket_rx);
+ATF_TC_BODY(ktls_listening_socket_rx, tc)
+{
+	ATF_REQUIRE_KTLS_RX();
+
+	ktls_listening_socket(tc, TCP_RXTLS_ENABLE);
 }
 
 /*
@@ -2947,7 +2972,7 @@ ATF_TC_BODY(ktls_receive_loopback_sendfile, tc)
 	int mode, shm, sockets[2];
 	socklen_t slen;
 
-	ATF_REQUIRE_KTLS();
+	ATF_REQUIRE_KTLS_RX();
 	seqno = random();
 	build_tls_enable(tc, CRYPTO_AES_NIST_GCM_16, 128 / 8, 0,
 	    TLS_MINOR_VER_TWO, seqno, &en);
@@ -3040,7 +3065,8 @@ ATF_TP_ADD_TCS(tp)
 
 	/* Miscellaneous */
 	ATF_TP_ADD_TC(tp, ktls_sendto_baddst);
-	ATF_TP_ADD_TC(tp, ktls_listening_socket);
+	ATF_TP_ADD_TC(tp, ktls_listening_socket_tx);
+	ATF_TP_ADD_TC(tp, ktls_listening_socket_rx);
 	ATF_TP_ADD_TC(tp, ktls_receive_loopback_sendfile);
 
 	return (atf_no_error());
