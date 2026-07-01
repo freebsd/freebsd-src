@@ -7,6 +7,7 @@
 #include "ui_animation.h"
 #include "../kernel/memory.h"
 #include "../kernel/memory_utils.h"
+#include "../drivers/virtio_gpu.h"
 
 static int strcmp(const char *s1, const char *s2) {
     while (*s1 && (*s1 == *s2)) {
@@ -23,10 +24,8 @@ static int screen_brightness = 100;
 int mobile_ui_init(void) {
     ui_state = UI_STATE_INIT;
 
-    // Initialize subsystems
-    if (fb_init() < 0) {
-        return -1;
-    }
+    fb_set_buffer((uint32_t *)gpu_framebuffer());
+    fb_clear(COLOR_BG);
 
     if (ui_widget_init() < 0) {
         return -1;

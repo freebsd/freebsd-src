@@ -196,7 +196,27 @@ vm_context_t *vm_create_context(uint32_t pid) {
         mem_free(ctx);
         return NULL;
     }
-    
+
+    /*
+     * Identity-map ALL physical I/O and memory space so kernel code can
+     * access UART, PLIC, CLINT, VirtIO MMIO, and the framebuffer without
+     * requiring a separate physical-to-virtual translation layer.
+     *
+     * Using Sv39 leaf PTEs at the level-2 table gives 1GB mappings.
+     */
+#define PHYS_IDENTITY_1GB(pa, flags) do { \
+    uint64_t _vpn2 = ((pa) >> 30) & 0x1FF; \
+    pte_t _pte = (((pa) >> 30) << 10) | (flags) | PTE_V; \
+    ctx->root_page_table[_vpn2] = _pte; \
+} while(0)
+
+    PHYS_IDENTITY_1GB(0x00000000UL,
+        PTE_R | PTE_W | PTE_X | PTE_A | PTE_D | PTE_U);
+    PHYS_IDENTITY_1GB(0x40000000UL,
+        PTE_R | PTE_W | PTE_X | PTE_A | PTE_D | PTE_U);
+
+#undef PHYS_IDENTITY_1GB
+
     return ctx;
 }
 

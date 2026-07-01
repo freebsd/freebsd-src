@@ -7,7 +7,7 @@ CFLAGS = -march=rv64imac_zicsr_zifencei -mabi=lp64 -O2 -g -ffreestanding -nostdl
 ASFLAGS = -march=rv64imac_zicsr_zifencei
 LDFLAGS = -T linker.ld -nostdlib
 
-SOURCES = entry.o kernel.o framebuffer_console.o memory.o task.o ipc.o posix_syscalls.o vm.o context_switch.o chardev.o interrupt.o buffer_cache.o vfs.o blockdev.o hybridfs.o virtio_blk.o uart.o page_cache.o virtio_net.o memory_utils.o pmp.o syscall_security.o aslr.o stack_canary.o framebuffer.o ui_widget.o window_manager.o mobile_ui.o ui_animation.o
+SOURCES = entry.o kernel.o framebuffer_console.o memory.o task.o ipc.o posix_syscalls.o vm.o context_switch.o chardev.o interrupt.o buffer_cache.o vfs.o blockdev.o hybridfs.o virtio_blk.o uart.o page_cache.o virtio_net.o memory_utils.o pmp.o syscall_security.o aslr.o stack_canary.o framebuffer.o ui_widget.o window_manager.o mobile_ui.o ui_animation.o pci_ecam.o virtio_gpu.o
 OBJECTS = $(SOURCES)
 
 all: vmlinux.riscv64
@@ -25,6 +25,25 @@ config.h: Makefile
 	@echo "#define CONFIG_ARCH_RISCV64 1" >> config.h
 	@echo "#define CONFIG_ISA_RV64IMAC 1" >> config.h
 	@echo "#define KERNEL_BASE 0x80000000" >> config.h
+	@echo "#define VM_MODE VM_MODE_SV39" >> config.h
+	@echo "#define DRAM_BASE 0x80000000" >> config.h
+	@echo "#define DRAM_SIZE 0x20000000" >> config.h
+	@echo "#define PLIC_BASE 0x0c000000" >> config.h
+	@echo "#define CLINT_BASE 0x02000000" >> config.h
+	@echo "#define UART_BASE 0x10000000" >> config.h
+	@echo "#define UART0_IRQ 10" >> config.h
+	@echo "#define TIMER_FREQ 10000000" >> config.h
+	@echo "#define TIMER_TICK_MS 10" >> config.h
+	@echo "#define MAX_IRQS 1024" >> config.h
+	@echo "#define CONFIG_DEBUG 1" >> config.h
+	@echo "#define CONFIG_SERIAL_DEBUG 1" >> config.h
+	@echo "#define CONFIG_SMP 1" >> config.h
+	@echo "#define CONFIG_MAX_CPUS 8" >> config.h
+	@echo "#define CONFIG_VIRTIO_BLOCK 1" >> config.h
+	@echo "#define CONFIG_VIRTIO_NET 1" >> config.h
+	@echo "#define CONFIG_ARCH_RISCV64 1" >> config.h
+	@echo "#define CONFIG_ISA_RV64IMAC 1" >> config.h
+	@echo "#define KERNEL_SIZE 0x1000000" >> config.h
 	@echo "#define PAGE_SIZE 4096" >> config.h
 	@echo "#endif" >> config.h
 
@@ -118,10 +137,16 @@ mobile_ui.o: ../ui/mobile_ui.c ../ui/mobile_ui.h ../ui/window_manager.h ../ui/ui
 ui_animation.o: ../ui/ui_animation.c ../ui/ui_animation.h ../ui/ui_widget.h ../ui/window_manager.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-vmlinux.riscv64: $(OBJECTS)
-	$(LD) $(LDFLAGS) -o $@ $^
+pci_ecam.o: ../drivers/pci_ecam.c ../drivers/pci_ecam.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+virtio_gpu.o: ../drivers/virtio_gpu.c ../drivers/virtio_gpu.h ../drivers/pci_ecam.h
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+vmlinux.riscv64: $(OBJECTS) config.h
+	$(LD) $(LDFLAGS) -o $@ $(OBJECTS)
 
 clean:
-	rm -f *.o vmlinux.riscv64
+	rm -f *.o vmlinux.riscv64 config.h
 
 .PHONY: all clean

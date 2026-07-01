@@ -38,16 +38,34 @@ typedef struct {
     uint32_t queue_tail;
 } port_queue_t;
 
+#define IPC_RING_CAPACITY 128
+
+typedef struct {
+    uint32_t head;
+    uint32_t tail;
+    uint32_t count;
+    uint8_t data[IPC_RING_CAPACITY];
+} ipc_ring_t;
+
 /* IPC operations */
 int ipc_port_create(uint32_t pid, port_t *port);
 int ipc_port_destroy(port_t port);
 int ipc_send_message(port_t dst, message_t *msg);
 int ipc_recv_message(port_t port, message_t *msg);
-int ipc_send_recv(port_t dst, message_t *send_msg, port_t reply_port, 
+int ipc_send_recv(port_t dst, message_t *send_msg, port_t reply_port,
                   message_t *reply_msg);
 
 /* Port operations */
 port_t ipc_allocate_port(void);
 void ipc_free_port(port_t port);
+
+/* Ring buffer helpers */
+void ipc_ring_init(ipc_ring_t *ring);
+int ipc_ring_push(ipc_ring_t *ring, const void *buf, uint32_t len);
+int ipc_ring_pop(ipc_ring_t *ring, void *buf, uint32_t len);
+int ipc_ring_empty(const ipc_ring_t *ring);
+
+int sys_ipc_send(port_t dst_port, const void *buf, uint32_t len);
+int sys_ipc_recv(port_t src_port, void *buf, uint32_t len, int block);
 
 #endif /* _IPC_H_ */

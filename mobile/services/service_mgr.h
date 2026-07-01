@@ -20,6 +20,7 @@
 #define SVC_STATE_RUNNING     2
 #define SVC_STATE_STOPPING    3
 #define SVC_STATE_FAILED      4
+#define SVC_STATE_WAITING     5
 
 #define SVC_CMD_START    'S'
 #define SVC_CMD_STOP     'T'
@@ -37,8 +38,10 @@ typedef struct service {
     char cmd[SVC_PATH_MAX];
     char *argv[SVC_MAX_CMDARGS];
     struct service *depends_on[SVC_DEPENDENCY_MAX];
+    char dep_names[SVC_DEPENDENCY_MAX][SVC_NAME_MAX];
     int dep_count;
     int enabled;
+    int svc_visit_mark;
 } service_t;
 
 /* Register a service with the manager */
@@ -67,5 +70,14 @@ void svc_shutdown(void);
 
 /* Watchdog check - restart crashed services */
 void svc_watchdog_check(void);
+
+/* Dependency management */
+int svc_add_dependency(const char *service, const char *depends_on);
+int svc_resolve_all_dependencies(void);
+int svc_detect_cycles(void);
+
+/* Bootstrap: start/stop all enabled services in dependency order */
+int svc_start_all(void);
+int svc_stop_all(void);
 
 #endif /* _SERVICE_MGR_H_ */

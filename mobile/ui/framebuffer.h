@@ -8,9 +8,9 @@
 
 #include <stdint.h>
 
-/* Framebuffer configuration */
-#define FB_WIDTH        1080
-#define FB_HEIGHT       1920
+/* Framebuffer configuration - matches QEMU virt stdvga */
+#define FB_WIDTH        1280
+#define FB_HEIGHT       720
 #define FB_BPP          32
 #define FB_SIZE         (FB_WIDTH * FB_HEIGHT * (FB_BPP / 8))
 
@@ -20,6 +20,7 @@
 #define COLOR_RED       0xFFFF0000
 #define COLOR_GREEN     0xFF00FF00
 #define COLOR_BLUE      0xFF0000FF
+#define COLOR_BG        0xFF0E0E1A
 #define COLOR_GRAY      0xFF808080
 #define COLOR_TRANSPARENT 0x00000000
 
@@ -33,6 +34,9 @@ typedef struct {
 
 /* Initialize framebuffer */
 int fb_init(void);
+
+/* Set external framebuffer buffer (e.g. from GPU driver) */
+void fb_set_buffer(uint32_t *buf);
 
 /* Get framebuffer instance */
 framebuffer_t *fb_get(void);

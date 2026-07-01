@@ -14,6 +14,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include "init.h"
+#include "service_mgr.h"
 
 static struct service_entry *service_list;
 static int service_count;
@@ -182,6 +183,30 @@ init_halt(void)
     reboot(RB_HALT_SYSTEM);
 }
 
+static void
+init_import_rc_to_service_mgr(void)
+{
+    char line[512];
+    char name[64];
+    char cmd[256];
+    int fd;
+
+    fd = open(INIT_RC_CONF_PATH, O_RDONLY);
+    if (fd == -1) {
+        syslog(LOG_WARNING, "Cannot read %s: %s", INIT_RC_CONF_PATH, strerror(errno));
+        return;
+    }
+
+    while (read(fd, line, sizeof(line)) > 0) {
+        int n = sscanf(line, "service_%63s=\"%255[^\"]\"", name, cmd);
+        if (n == 2) {
+            char *argv[] = { cmd };
+            svc_register(name, cmd, 1, argv);
+        }
+    }
+    close(fd);
+}
+
 int
 init_main(int argc __unused, char **argv __unused)
 {
@@ -191,18 +216,15 @@ init_main(int argc __unused, char **argv __unused)
     init_setup_mounts();
     setup_signal_handlers();
 
+    openlog("init", LOG_PID, LOG_DAEMON);
     syslog(LOG_INFO, "Mobile OS init starting");
 
-    /* Parse rc.conf */
-    init_parse_rc_conf(INIT_RC_CONF_PATH, &service_list, &service_count);
+    init_import_rc_to_service_mgr();
+    svc_resolve_all_dependencies();
+    svc_detect_cycles();
 
-    /* Fork and start each service */
-    for (int i = 0; i < service_count; i++) {
-        if (service_list[i].enabled) {
-            init_spawn_service(service_list[i].cmd);
-            service_list[i].pid = 0; /* Mark as spawned */
-        }
-    }
+    syslog(LOG_INFO, "Starting all services in dependency order");
+    svc_start_all();
 
     /* Start getty on ttyv0 */
     init_spawn_getty(INIT_GETTY_TTY);
@@ -217,14 +239,14 @@ init_main(int argc __unused, char **argv __unused)
                 syslog(LOG_WARNING, "Child %d killed by signal %d", child_pid, WTERMSIG(status));
             }
         }
-        
+
         if (init_sigchld_received) {
             init_sigchld_received = 0;
-            /* Reap any remaining zombies */
             while (waitpid(-1, NULL, WNOHANG) > 0)
                 ;
         }
-        
+
+        svc_watchdog_check();
         pause();
     }
 

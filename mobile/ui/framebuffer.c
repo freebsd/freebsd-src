@@ -44,6 +44,14 @@ framebuffer_t *fb_get(void) {
     return &fb;
 }
 
+/* Set external framebuffer buffer (e.g. GPU framebuffer) */
+void fb_set_buffer(uint32_t *buf) {
+    fb.buffer = buf;
+    fb.width = FB_WIDTH;
+    fb.height = FB_HEIGHT;
+    fb.bpp = FB_BPP;
+}
+
 /* Clear framebuffer */
 void fb_clear(uint32_t color) {
     for (int i = 0; i < FB_WIDTH * FB_HEIGHT; i++) {

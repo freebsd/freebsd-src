@@ -66,10 +66,11 @@ echo -e "${GREEN}kernel:${NC}   $KERNEL_BIN ($(du -h "$KERNEL_BIN" | cut -f1))"
 [ -f "$IMG_FILE" ] || { info "Creating 4G image..."; qemu-img create -f raw "$IMG_FILE" 4G; }
 echo -e "${GREEN}disk:${NC}     $IMG_FILE ($(du -h "$IMG_FILE" | cut -f1))"
 echo ""
-echo "Mode:       -nographic (all output to this terminal)"
+echo "Mode:       VNC :5900 + serial on this terminal"
 echo "CPUs:       $NCPU"
 echo "Memory:     $MEM"
 echo ""
+echo -e "${YELLOW}Connect VNC viewer to localhost:5900${NC}"
 echo -e "${YELLOW}Ctrl+A then X = quit${NC}"
 echo ""
 
@@ -85,6 +86,8 @@ exec qemu-system-riscv64 \
     -drive "file=$IMG_FILE,format=raw,if=virtio" \
     -netdev user,id=net0,hostfwd=tcp::2222-:22 \
     -device virtio-net-pci,netdev=net0 \
-    -nographic -monitor none \
+    -device virtio-gpu-pci \
+    -display vnc=:5900 \
+    -serial mon:stdio \
     -rtc base=localtime -nodefaults -device virtio-rng-pci \
     $GDB_ARGS

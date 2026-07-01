@@ -1,6 +1,8 @@
 /*
  * Service Manager Library - Implementation
  * BSD-style daemon service management
+ * Extended: name-based dependency resolution, dependency DFS, cycle detection,
+ *           wait-state enforcement, start-all ordering, and argv null termination.
  */
 
 #include <sys/types.h>
@@ -36,15 +38,41 @@ svc_reap_zombies(void)
 
     while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
         for (int i = 0; i < service_count; i++) {
-            if (services[i].pid == pid && services[i].state == SVC_STATE_RUNNING) {
-                services[i].state = SVC_STATE_STOPPED;
+            if (services[i].pid == pid) {
                 services[i].pid = -1;
-                syslog(LOG_WARNING, "Service %s (pid %d) died unexpectedly",
-                       services[i].name, pid);
+                if (services[i].state == SVC_STATE_RUNNING) {
+                    services[i].state = SVC_STATE_STOPPED;
+                    syslog(LOG_WARNING, "Service %s (pid %d) died unexpectedly",
+                           services[i].name, pid);
+
+                    if (services[i].restart_count < services[i].restart_max) {
+                        services[i].restart_count++;
+                        syslog(LOG_INFO,
+                               "Watchdog: restarting service '%s' (attempt %d/%d)",
+                               services[i].name,
+                               services[i].restart_count,
+                               services[i].restart_max);
+                        services[i].state = SVC_STATE_STARTING;
+                        svc_spawn(&services[i]);
+                    } else {
+                        services[i].state = SVC_STATE_FAILED;
+                        syslog(LOG_ERR,
+                               "Service '%s' exceeded restart limit (%d). Marking failed.",
+                               services[i].name,
+                               services[i].restart_max);
+                    }
+                } else if (services[i].state == SVC_STATE_STOPPING) {
+                    services[i].state = SVC_STATE_STOPPED;
+                    syslog(LOG_INFO, "Service %s stopped (pid %d)",
+                           services[i].name, pid);
+                }
             }
         }
     }
 }
+
+static int svc_bind_dependency(service_t *svc, const char *dep_name);
+static int svc_cycle_from(int svc_index, int *visited, int *stack);
 
 static service_t *
 svc_find(const char *name)
@@ -63,7 +91,6 @@ svc_spawn(service_t *svc)
 
     pid = fork();
     if (pid == 0) {
-        /* Child process */
         setsid();
         execv(svc->cmd, svc->argv);
         syslog(LOG_ERR, "Failed to exec service '%s': %s", svc->cmd, strerror(errno));
@@ -78,6 +105,25 @@ svc_spawn(service_t *svc)
     return -1;
 }
 
+static int
+svc_bind_dependency(service_t *svc, const char *dep_name)
+{
+    if (svc->dep_count >= SVC_DEPENDENCY_MAX)
+        return -1;
+    service_t *dep = svc_find(dep_name);
+    if (!dep) {
+        syslog(LOG_WARNING, "Service '%s' dependency '%s' not registered yet (will resolve later)",
+               svc->name, dep_name);
+        strncpy(svc->dep_names[svc->dep_count], dep_name, sizeof(svc->dep_names[0]) - 1);
+        svc->dep_names[svc->dep_count][sizeof(svc->dep_names[0]) - 1] = '\0';
+        svc->depends_on[svc->dep_count] = NULL;
+        svc->dep_count++;
+        return 0;
+    }
+    svc->depends_on[svc->dep_count++] = dep;
+    return 0;
+}
+
 int
 svc_register(const char *name, const char *cmd, int argc, char **argv)
 {
@@ -89,6 +135,7 @@ svc_register(const char *name, const char *cmd, int argc, char **argv)
     }
 
     svc = &services[service_count];
+    memset(svc, 0, sizeof(*svc));
     strncpy(svc->name, name, sizeof(svc->name) - 1);
     svc->name[sizeof(svc->name) - 1] = '\0';
 
@@ -96,7 +143,7 @@ svc_register(const char *name, const char *cmd, int argc, char **argv)
     svc->cmd[sizeof(svc->cmd) - 1] = '\0';
 
     svc->argv[0] = svc->cmd;
-    for (int i = 0; i < argc && i < SVC_MAX_CMDARGS - 1; i++) {
+    for (int i = 0; i < argc && i < SVC_MAX_CMDARGS - 2; i++) {
         svc->argv[i + 1] = argv[i];
     }
     svc->argv[argc + 1] = NULL;
@@ -115,6 +162,83 @@ svc_register(const char *name, const char *cmd, int argc, char **argv)
 }
 
 int
+svc_add_dependency(const char *service, const char *depends_on)
+{
+    service_t *svc = svc_find(service);
+    if (!svc) {
+        syslog(LOG_ERR, "Cannot add dependency: service '%s' not found", service);
+        return -1;
+    }
+    return svc_bind_dependency(svc, depends_on);
+}
+
+int
+svc_resolve_all_dependencies(void)
+{
+    int resolved = 0;
+    for (int i = 0; i < service_count; i++) {
+        service_t *svc = &services[i];
+        for (int d = 0; d < svc->dep_count; d++) {
+            if (!svc->depends_on[d] && svc->dep_names[d][0]) {
+                svc->depends_on[d] = svc_find(svc->dep_names[d]);
+                if (svc->depends_on[d]) {
+                    svc->dep_names[d][0] = '\0';
+                    resolved++;
+                } else {
+                    syslog(LOG_WARNING, "Dependency '%s' for service '%s' unresolved",
+                           svc->dep_names[d], svc->name);
+                }
+            }
+        }
+    }
+    syslog(LOG_INFO, "Resolved %d dependency references", resolved);
+    return resolved;
+}
+
+static int
+svc_cycle_from(int svc_index, int *visited, int *stack)
+{
+    if (stack[svc_index])
+        return 1;
+    if (visited[svc_index])
+        return 0;
+
+    visited[svc_index] = 1;
+    stack[svc_index] = 1;
+
+    for (int d = 0; d < services[svc_index].dep_count; d++) {
+        service_t *dep = services[svc_index].depends_on[d];
+        if (!dep)
+            continue;
+        int dep_index = (int)(dep - services);
+        if (svc_cycle_from(dep_index, visited, stack))
+            return 1;
+    }
+
+    stack[svc_index] = 0;
+    return 0;
+}
+
+int
+svc_detect_cycles(void)
+{
+    int visited[SVC_MAX_SERVICES];
+    int stack[SVC_MAX_SERVICES];
+    memset(visited, 0, sizeof(visited));
+    memset(stack, 0, sizeof(stack));
+
+    for (int i = 0; i < service_count; i++) {
+        if (svc_cycle_from(i, visited, stack)) {
+            syslog(LOG_ERR, "Dependency cycle detected involving service '%s'",
+                   services[i].name);
+            return -1;
+        }
+    }
+    syslog(LOG_INFO, "No dependency cycles detected");
+    return 0;
+}
+
+static int
 svc_start(const char *name)
 {
     service_t *svc;
@@ -125,19 +249,33 @@ svc_start(const char *name)
         return -1;
     }
 
-    /* Check dependencies */
+    if (svc->state == SVC_STATE_STARTING || svc->state == SVC_STATE_RUNNING)
+        return 0;
+
+    svc_resolve_all_dependencies();
+
+    /* If deps are missing or still unstarted, enter waiting. */
+    int blocked = 0;
     for (int i = 0; i < svc->dep_count; i++) {
-        if (svc->depends_on[i]->state != SVC_STATE_RUNNING) {
-            if (svc_start(svc->depends_on[i]->name) < 0) {
-                syslog(LOG_ERR, "Failed to start dependency '%s' for '%s'",
-                       svc->depends_on[i]->name, name);
-                return -1;
+        service_t *dep = svc->depends_on[i];
+        if (!dep) {
+            blocked = 1;
+            break;
+        }
+        if (dep->state != SVC_STATE_RUNNING) {
+            if (svc_start(dep->name) < 0) {
+                blocked = 1;
+                break;
             }
         }
     }
 
-    if (svc->state == SVC_STATE_RUNNING) {
-        return 0;
+    if (blocked) {
+        if (svc->state != SVC_STATE_WAITING) {
+            syslog(LOG_INFO, "Service '%s' waiting for dependencies", svc->name);
+            svc->state = SVC_STATE_WAITING;
+        }
+        return -1;
     }
 
     svc->state = SVC_STATE_STARTING;
@@ -268,15 +406,111 @@ svc_watchdog_check(void)
     if (svc_sigchld_received) {
         svc_sigchld_received = 0;
         svc_reap_zombies();
+    }
+}
 
-        for (int i = 0; i < service_count; i++) {
-            if (services[i].state == SVC_STATE_STOPPED && services[i].pid == -1 &&
-                services[i].enabled && services[i].restart_count < services[i].restart_max) {
-                syslog(LOG_INFO, "Restarting crashed service '%s'", services[i].name);
-                sleep(services[i].restart_delay);
-                services[i].restart_count++;
-                svc_spawn(&services[i]);
+static int
+svc_visit_clear(void)
+{
+    for (int i = 0; i < service_count; i++)
+        services[i].svc_visit_mark = 0;
+    return 0;
+}
+
+static int
+svc_topological_from(int svc_index, int *order, int *order_count)
+{
+    service_t *svc = &services[svc_index];
+
+    if (svc->svc_visit_mark == 1) {
+        syslog(LOG_ERR, "Dependency cycle detected (topo sort) involving '%s'",
+               svc->name);
+        return -1;
+    }
+    if (svc->svc_visit_mark == 2)
+        return 0;
+
+    svc->svc_visit_mark = 1;
+    for (int d = 0; d < svc->dep_count; d++) {
+        service_t *dep = svc->depends_on[d];
+        if (!dep)
+            continue;
+        int dep_index = (int)(dep - services);
+        if (svc_topological_from(dep_index, order, order_count) < 0)
+            return -1;
+    }
+    svc->svc_visit_mark = 2;
+    order[(*order_count)++] = svc_index;
+    return 0;
+}
+
+int
+svc_build_start_order(int *order_out, int *order_count)
+{
+    int order[SVC_MAX_SERVICES];
+    int count = 0;
+
+    for (int i = 0; i < service_count; i++) {
+        services[i].svc_visit_mark = 0;
+    }
+
+    for (int i = 0; i < service_count; i++) {
+        if (services[i].svc_visit_mark == 0) {
+            if (svc_topological_from(i, order, &count) < 0) {
+                svc_visit_clear();
+                return -1;
             }
         }
     }
+
+    for (int i = 0; i < count; i++) {
+        order_out[i] = order[i];
+    }
+    *order_count = count;
+    svc_visit_clear();
+    return 0;
+}
+
+int
+svc_start_all(void)
+{
+    int order[SVC_MAX_SERVICES];
+    int count = 0;
+
+    if (svc_build_start_order(order, &count) < 0) {
+        syslog(LOG_ERR, "Cannot start services: dependency cycle detected");
+        return -1;
+    }
+
+    syslog(LOG_INFO, "Starting %d services in dependency order", count);
+    for (int i = 0; i < count; i++) {
+        service_t *svc = &services[order[i]];
+        if (!svc->enabled)
+            continue;
+        if (svc->state == SVC_STATE_RUNNING)
+            continue;
+        char *argv[] = { svc->cmd };
+        svc_spawn(svc);
+    }
+    return 0;
+}
+
+int
+svc_stop_all(void)
+{
+    int order[SVC_MAX_SERVICES];
+    int count = 0;
+
+    if (svc_build_start_order(order, &count) < 0) {
+        syslog(LOG_WARNING, "Dependency cycle detected; stopping in reverse registration order");
+        for (int i = service_count - 1; i >= 0; i--)
+            order[count++] = i;
+    }
+
+    for (int i = count - 1; i >= 0; i--) {
+        service_t *svc = &services[order[i]];
+        if (svc->state == SVC_STATE_RUNNING)
+            svc_stop(svc->name);
+    }
+    return 0;
 }
