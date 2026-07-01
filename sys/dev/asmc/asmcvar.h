@@ -190,3 +190,89 @@ struct asmc_softc {
  * Interrupt keys.
  */
 #define ASMC_KEY_INTOK		"NTOK"	/* WO; 1 byte */
+
+/*
+ * System State Machine / diagnostics keys.
+ *
+ * MSSD - Mac System Shutdown cause (last shutdown reason code)
+ * MSSP - Mac System SleeP cause (last sleep reason code)
+ * MSAL - Mac System ALarm (thermal subsystem status bitmap)
+ * MSPS - Mac System Power State (current power state index)
+ * CLKT - CLocK Time (seconds since midnight, SMC RTC)
+ * MSTS - Mac System sTate/Status (SSM state; 0 = S0 awake)
+ */
+#define ASMC_KEY_CLKT		"CLKT"	/* RO; 4 bytes ui32 BE */
+#define ASMC_KEY_MSSD		"MSSD"	/* RO; 1 byte si8 */
+#define ASMC_KEY_MSSP		"MSSP"	/* RO; 1 byte si8 */
+#define ASMC_KEY_MSAL		"MSAL"	/* RO; 1 byte hex_ */
+#define ASMC_KEY_MSPS		"MSPS"	/* RO; 1 or 2 bytes hex_ */
+#define ASMC_KEY_MSTS		"MSTS"	/* RO; 1 byte ui8 */
+
+#define ASMC_MSAL_TSS		0x01	/* TSS running */
+#define ASMC_MSAL_THERM_VALID	0x02	/* thermal calibration valid */
+#define ASMC_MSAL_CALIB_VALID	0x08	/* I/P calibration valid */
+#define ASMC_MSAL_PROCHOT	0x40	/* Prochot enabled */
+#define ASMC_MSAL_PLIMITS	0x80	/* plimits enabled */
+
+/*
+ * Board identity keys.
+ *
+ * RPlt - board platform identifier (e.g. "Mac-XXXX")
+ * RGEN - security chip generation (3 = T2)
+ */
+#define ASMC_KEY_RPLT		"RPlt"	/* RO; 8 bytes ch8* */
+#define ASMC_KEY_RGEN		"RGEN"	/* RO; 1 byte ui8 */
+#define ASMC_RPLT_MAXLEN	8	/* RPlt key data length */
+
+/*
+ * Shutdown/sleep cause codes (MSSD/MSSP values).
+ *
+ * Positive values indicate normal operation; negative values indicate
+ * fault conditions.
+ * Sources: Apple SMC firmware, VirtualSMC docs, macOS
+ * pmset/powermetrics output.
+ */
+struct asmc_cause {
+	int8_t		code;
+	const char	*desc;		/* shutdown description */
+	const char	*sleep_desc;	/* sleep description, or NULL if same */
+};
+
+#define ASMC_CAUSE_BUFLEN	48	/* "-128 (temperature-overlimit-timeout)\0" */
+
+static const struct asmc_cause asmc_cause_table[] = {
+	{    5,	"good-shutdown",		"good-sleep" },
+	{    3,	"power-button",			NULL },
+	{    2,	"low-battery-sleep",		NULL },
+	{    1,	"overtemp-sleep",		NULL },
+	{    0,	"initial",			NULL },
+	{   -1,	"health-check",			NULL },
+	{   -2,	"power-supply",			NULL },
+	{   -3,	"temperature-multisleep",	NULL },
+	{   -4,	"sensor-fan",			NULL },
+	{  -30,	"temperature-overlimit-timeout",NULL },
+	{  -40,	"pswr-smrst",			NULL },	/* power supply watchdog reset */
+	{  -50,	"unmapped",			NULL },
+	{  -60,	"low-battery",			NULL },
+	{  -61,	"ninja-shutdown",		NULL },	/* sudden unexpected power loss */
+	{  -62,	"ninja-restart",		NULL },
+	{  -70,	"palm-rest-temperature",	NULL },
+	{  -71,	"sodimm-temperature",		NULL },
+	{  -72,	"heatpipe-temperature",		NULL },
+	{  -74,	"battery-temperature",		NULL },
+	{  -75,	"adapter-timeout",		NULL },
+	{  -77,	"manual-temperature",		NULL },
+	{  -78,	"adapter-current",		NULL },
+	{  -79,	"battery-current",		NULL },
+	{  -82,	"skin-temperature",		NULL },
+	{  -83,	"skin-temperature-sensors",	NULL },
+	{  -84,	"backup-temperature",		NULL },
+	{  -86,	"cpu-proximity-temperature",	NULL },
+	{  -95,	"cpu-temperature",		NULL },
+	{ -100,	"power-supply-temperature",	NULL },
+	{ -101,	"lcd-temperature",		NULL },
+	{ -102,	"rsm-power-fail",		NULL },
+	{ -103,	"battery-cuv",			NULL },	/* cell under-voltage */
+	{ -127,	"pmu-forced-shutdown",		NULL },
+	{ -128,	"unknown",			NULL },
+};
