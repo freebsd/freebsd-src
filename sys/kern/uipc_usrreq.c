@@ -2446,8 +2446,10 @@ uipc_sendfile_wait(struct socket *so, off_t need, int *space)
 			SOCK_RECVBUF_UNLOCK(so2);
 			return (EAGAIN);
 		}
-		if (!sockref)
+		if (!sockref) {
 			soref(so2);
+			sockref = true;
+		}
 		error = uipc_stream_sbwait(so2, so->so_snd.sb_timeo);
 		if (error == 0 &&
 		    __predict_false(sb->sb_state & SBS_CANTRCVMORE))
