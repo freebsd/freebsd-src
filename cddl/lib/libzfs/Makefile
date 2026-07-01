@@ -69,11 +69,12 @@ ARCH_C =
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 ARCH_C += 	zfs_fletcher_intel.c \
 		zfs_fletcher_sse.c 
-CFLAGS +=  -DHAVE_SSE2
+CFLAGS +=  -DHAVE_TOOLCHAIN_SSE2 -DHAVE_TOOLCHAIN_SSSE3
 .endif
 .if ${MACHINE_ARCH} == "amd64"
 ARCH_C +=	zfs_fletcher_avx512.c
-CFLAGS+= -DHAVE_AVX2 -DHAVE_AVX -D__x86_64 -DHAVE_AVX512F
+CFLAGS+= -D__x86_64 -DHAVE_TOOLCHAIN_AVX2 -DHAVE_TOOLCHAIN_AVX \
+	-DHAVE_TOOLCHAIN_AVX512F
 .endif
 .if ${MACHINE_CPUARCH} == "aarch64"
 ARCH_C +=	zfs_fletcher_aarch64_neon.c

@@ -217,12 +217,12 @@ ARCH_C += 	vdev_raidz_math_sse2.c \
 		vdev_raidz_math_ssse3.c \
 		zfs_fletcher_intel.c \
 		zfs_fletcher_sse.c 
-CFLAGS +=  -DHAVE_SSE2 	-DHAVE_SSE3
+CFLAGS +=  -DHAVE_TOOLCHAIN_SSE2 -DHAVE_TOOLCHAIN_SSSE3
 .endif
 .if ${MACHINE_ARCH} == "amd64"
 ARCH_C +=	zfs_fletcher_avx512.c
-CFLAGS+= -DHAVE_AVX2 -DHAVE_AVX -D__x86_64 -DHAVE_AVX512F \
-	-DHAVE_AVX512BW
+CFLAGS+= -D__x86_64 -DHAVE_TOOLCHAIN_AVX2 -DHAVE_TOOLCHAIN_AVX \
+	-DHAVE_TOOLCHAIN_AVX512F -DHAVE_TOOLCHAIN_AVX512BW
 .endif
 .if ${MACHINE_CPUARCH} == "aarch64"
 ARCH_C +=	zfs_fletcher_aarch64_neon.c
