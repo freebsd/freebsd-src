@@ -538,7 +538,8 @@ fail_point_destroy(struct fail_point *fp)
  * means "keep going".
  */
 enum fail_point_return_code
-fail_point_eval_nontrivial(struct fail_point *fp, int *return_value)
+fail_point_eval_nontrivial(struct fail_point *fp, bool *fp_enabled,
+    int *return_value)
 {
 	bool execute = false;
 	struct fail_point_entry *ent;
@@ -641,8 +642,10 @@ fail_point_eval_nontrivial(struct fail_point *fp, int *return_value)
 			break;
 	}
 
-	if (fail_point_is_off(fp))
+	if (fail_point_is_off(fp)) {
 		fail_point_eval_swap_out(fp, fp_setting);
+		*fp_enabled = false;
+	}
 
 abort:
 	fail_point_setting_release_ref(fp);
@@ -751,7 +754,8 @@ fail_point_get(struct fail_point *fp, struct sbuf *sb,
  * in a lock-safe manner.
  */
 static int
-fail_point_set(struct fail_point *fp, char *buf)
+fail_point_set(struct fail_point *fp, bool *fp_enabled,
+    char *buf)
 {
 	struct fail_point_entry *ent, *ent_next;
 	struct fail_point_setting *entries;
@@ -827,11 +831,19 @@ fail_point_set(struct fail_point *fp, char *buf)
 		}
 	}
 
+	/**
+	 * Set the quick-check boolean after swapping entries to NULL
+	 * and before the enable path, to ensure that the quick
+	 * check is always accurate (assume it's false).
+	 */
 	if (TAILQ_EMPTY(&entries->fp_entry_queue)) {
 		entries = fail_point_swap_settings(fp, NULL);
 		if (entries != NULL)
 			wakeup(FP_PAUSE_CHANNEL(fp));
+		else
+			*fp_enabled = false;
 	} else {
+		*fp_enabled = true;
 		if (should_wake_paused)
 			wakeup(FP_PAUSE_CHANNEL(fp));
 		fail_point_swap_settings(fp, entries);
@@ -860,6 +872,7 @@ int
 fail_point_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	struct fail_point *fp;
+	bool *fp_enabled = NULL;
 	char *buf;
 	struct sbuf sb, *sb_check;
 	int error;
@@ -867,6 +880,7 @@ fail_point_sysctl(SYSCTL_HANDLER_ARGS)
 	buf = NULL;
 	error = 0;
 	fp = arg1;
+	fp_enabled = fp->fp_enabled;
 
 	sb_check = sbuf_new(&sb, NULL, 1024, SBUF_AUTOEXTEND);
 	if (sb_check != &sb)
@@ -893,7 +907,7 @@ fail_point_sysctl(SYSCTL_HANDLER_ARGS)
 			goto out;
 		buf[req->newlen] = '\0';
 
-		error = fail_point_set(fp, buf);
+		error = fail_point_set(fp, fp_enabled, buf);
 	}
 
 	fail_point_garbage_collect();
