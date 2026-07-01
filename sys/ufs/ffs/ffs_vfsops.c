@@ -1962,7 +1962,7 @@ ffs_inotovp(struct mount *mp,
 		return (ESTALE);
 
 	ip = VTOI(nvp);
-	if (ip->i_mode == 0 || ip->i_gen != gen || ip->i_effnlink <= 0) {
+	if (ip->i_mode == 0 || ip->i_gen != gen) {
 		if (ip->i_mode == 0)
 			vgone(nvp);
 		vput(nvp);
