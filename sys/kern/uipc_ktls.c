@@ -656,6 +656,9 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 		}
 		break;
 	case CRYPTO_AES_CBC:
+		if (!ktls_cbc_enable)
+			return (EOPNOTSUPP);
+
 		switch (en->auth_algorithm) {
 		case CRYPTO_SHA1_HMAC:
 			break;
@@ -1301,9 +1304,6 @@ ktls_enable_rx(struct socket *so, struct tls_enable *en)
 	if (so->so_rcv.sb_tls_info != NULL)
 		return (EALREADY);
 
-	if (en->cipher_algorithm == CRYPTO_AES_CBC && !ktls_cbc_enable)
-		return (ENOTSUP);
-
 	error = ktls_create_session(so, en, &tls, KTLS_RX);
 	if (error)
 		return (error);
@@ -1386,9 +1386,6 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 	 */
 	if (so->so_snd.sb_tls_info != NULL)
 		return (EALREADY);
-
-	if (en->cipher_algorithm == CRYPTO_AES_CBC && !ktls_cbc_enable)
-		return (ENOTSUP);
 
 	/* TLS requires ext pgs */
 	if (mb_use_ext_pgs == 0)
