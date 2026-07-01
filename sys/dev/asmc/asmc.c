@@ -129,6 +129,15 @@ static int	asmc_aupo_sysctl(SYSCTL_HANDLER_ARGS);
 
 static int	asmc_key_getinfo(device_t, const char *, uint8_t *, char *);
 
+/* System state / board identity sysctls */
+static int	asmc_mssd_sysctl(SYSCTL_HANDLER_ARGS);
+static int	asmc_mssp_sysctl(SYSCTL_HANDLER_ARGS);
+static int	asmc_msal_sysctl(SYSCTL_HANDLER_ARGS);
+static int	asmc_clkt_sysctl(SYSCTL_HANDLER_ARGS);
+static int	asmc_msps_sysctl(SYSCTL_HANDLER_ARGS);
+static int	asmc_rplt_sysctl(SYSCTL_HANDLER_ARGS);
+static int	asmc_rgen_sysctl(SYSCTL_HANDLER_ARGS);
+
 #ifdef ASMC_DEBUG
 /* Raw key access */
 static int	asmc_raw_key_sysctl(SYSCTL_HANDLER_ARGS);
@@ -657,6 +666,72 @@ asmc_attach(device_t dev)
 		    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 		    dev, 0, asmc_bclm_sysctl, "I",
 		    "Battery charge limit (0-100)");
+	}
+
+	/* System state / board identity subtree. */
+	{
+		struct sysctl_oid *sys_tree;
+		uint8_t msps_len;
+
+		sys_tree = SYSCTL_ADD_NODE(sysctlctx,
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+		    "system", CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+		    "System state and board identity");
+		if (sys_tree == NULL) {
+			device_printf(dev,
+			    "failed to create system sysctl node\n");
+			goto nosms;
+		}
+
+		if (asmc_key_getinfo(dev, ASMC_KEY_MSSD, NULL, NULL) == 0)
+			SYSCTL_ADD_PROC(sysctlctx,
+			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "shutdown_cause",
+			    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+			    dev, 0, asmc_mssd_sysctl, "A",
+			    "Last shutdown cause (MSSD)");
+
+		if (asmc_key_getinfo(dev, ASMC_KEY_MSSP, NULL, NULL) == 0)
+			SYSCTL_ADD_PROC(sysctlctx,
+			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "sleep_cause",
+			    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+			    dev, 0, asmc_mssp_sysctl, "A",
+			    "Last sleep cause (MSSP)");
+
+		if (asmc_key_getinfo(dev, ASMC_KEY_MSAL, NULL, NULL) == 0)
+			SYSCTL_ADD_PROC(sysctlctx,
+			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "thermal_status",
+			    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+			    dev, 0, asmc_msal_sysctl, "A",
+			    "Thermal subsystem status flags (MSAL)");
+
+		if (asmc_key_getinfo(dev, ASMC_KEY_CLKT, NULL, NULL) == 0)
+			SYSCTL_ADD_PROC(sysctlctx,
+			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "time_of_day",
+			    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+			    dev, 0, asmc_clkt_sysctl, "IU",
+			    "Seconds since midnight per SMC clock (CLKT)");
+
+		if (asmc_key_getinfo(dev, ASMC_KEY_MSPS, &msps_len, NULL) == 0 &&
+		    (msps_len == 1 || msps_len == 2))
+			SYSCTL_ADD_PROC(sysctlctx,
+			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "power_state",
+			    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+			    dev, 0, asmc_msps_sysctl, "IU",
+			    "SMC power state index (MSPS)");
+
+		if (asmc_key_getinfo(dev, ASMC_KEY_RPLT, NULL, NULL) == 0)
+			SYSCTL_ADD_PROC(sysctlctx,
+			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "board_id",
+			    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
+			    dev, 0, asmc_rplt_sysctl, "A",
+			    "Apple internal board codename (RPlt)");
+
+		if (asmc_key_getinfo(dev, ASMC_KEY_RGEN, NULL, NULL) == 0)
+			SYSCTL_ADD_PROC(sysctlctx,
+			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "chip_gen",
+			    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+			    dev, 0, asmc_rgen_sysctl, "IU",
+			    "Apple security chip generation (RGEN; 3=T2)");
 	}
 
 	if (!sc->sc_has_sms)
@@ -2539,4 +2614,149 @@ asmc_backlight_get_info(device_t dev, struct backlight_info *info)
 	strlcpy(info->name, "Apple MacBook Keyboard", BACKLIGHTMAXNAMELENGTH);
 
 	return (0);
+}
+
+static const char *
+asmc_cause_str(int8_t cause, bool is_sleep)
+{
+	size_t i;
+
+	for (i = 0; i < nitems(asmc_cause_table); i++) {
+		if (asmc_cause_table[i].code != cause)
+			continue;
+		if (is_sleep && asmc_cause_table[i].sleep_desc != NULL)
+			return (asmc_cause_table[i].sleep_desc);
+		return (asmc_cause_table[i].desc);
+	}
+	return (NULL);
+}
+
+static int
+asmc_mssd_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t)arg1;
+	int8_t cause;
+	const char *desc;
+	char buf[ASMC_CAUSE_BUFLEN];
+
+	/* EIO: SMC I/O bus did not respond to key read. */
+	if (asmc_key_read(dev, ASMC_KEY_MSSD, (uint8_t *)&cause, 1) != 0)
+		return (EIO);
+
+	desc = asmc_cause_str(cause, false);
+	if (desc != NULL)
+		snprintf(buf, sizeof(buf), "%d (%s)", (int)cause, desc);
+	else
+		snprintf(buf, sizeof(buf), "%d", (int)cause);
+
+	return (sysctl_handle_string(oidp, buf, sizeof(buf), req));
+}
+
+static int
+asmc_mssp_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t)arg1;
+	int8_t cause;
+	const char *desc;
+	char buf[ASMC_CAUSE_BUFLEN];
+
+	/* EIO: SMC I/O bus did not respond to key read. */
+	if (asmc_key_read(dev, ASMC_KEY_MSSP, (uint8_t *)&cause, 1) != 0)
+		return (EIO);
+
+	desc = asmc_cause_str(cause, true);
+	if (desc != NULL)
+		snprintf(buf, sizeof(buf), "%d (%s)", (int)cause, desc);
+	else
+		snprintf(buf, sizeof(buf), "%d", (int)cause);
+
+	return (sysctl_handle_string(oidp, buf, sizeof(buf), req));
+}
+
+static int
+asmc_msal_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t)arg1;
+	uint8_t msal;
+	char buf[80];
+
+	/* EIO: SMC I/O bus did not respond to key read. */
+	if (asmc_key_read(dev, ASMC_KEY_MSAL, &msal, 1) != 0)
+		return (EIO);
+
+	snprintf(buf, sizeof(buf),
+	    "0x%02x (tss=%d therm_valid=%d calib_valid=%d prochot=%d plimits=%d)",
+	    msal,
+	    (msal & ASMC_MSAL_TSS) != 0,
+	    (msal & ASMC_MSAL_THERM_VALID) != 0,
+	    (msal & ASMC_MSAL_CALIB_VALID) != 0,
+	    (msal & ASMC_MSAL_PROCHOT) != 0,
+	    (msal & ASMC_MSAL_PLIMITS) != 0);
+
+	return (sysctl_handle_string(oidp, buf, sizeof(buf), req));
+}
+
+static int
+asmc_clkt_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t)arg1;
+	uint8_t buf[4];
+	uint32_t secs;
+
+	if (asmc_key_read(dev, ASMC_KEY_CLKT, buf, 4) != 0)
+		return (EIO);
+
+	secs = be32dec(buf);
+	return (sysctl_handle_32(oidp, &secs, 0, req));
+}
+
+static int
+asmc_msps_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t)arg1;
+	uint8_t buf[2], len;
+	uint32_t state;
+
+	if (asmc_key_getinfo(dev, ASMC_KEY_MSPS, &len, NULL) != 0)
+		return (EIO);
+	if (len != 1 && len != 2)
+		return (EIO);
+
+	memset(buf, 0, sizeof(buf));
+	if (asmc_key_read(dev, ASMC_KEY_MSPS, buf, len) != 0)
+		return (EIO);
+
+	state = (len == 1) ? buf[0] : be16dec(buf);
+	return (sysctl_handle_32(oidp, &state, 0, req));
+}
+
+static int
+asmc_rplt_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t)arg1;
+	uint8_t buf[ASMC_RPLT_MAXLEN + 1];
+	char name[ASMC_RPLT_MAXLEN + 1];
+
+	memset(buf, 0, sizeof(buf));
+	if (asmc_key_read(dev, ASMC_KEY_RPLT, buf, ASMC_RPLT_MAXLEN) != 0)
+		return (EIO);
+
+	memcpy(name, buf, ASMC_RPLT_MAXLEN);
+	name[ASMC_RPLT_MAXLEN] = '\0';
+
+	return (sysctl_handle_string(oidp, name, sizeof(name), req));
+}
+
+static int
+asmc_rgen_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	device_t dev = (device_t)arg1;
+	uint8_t gen;
+	uint32_t val;
+
+	if (asmc_key_read(dev, ASMC_KEY_RGEN, &gen, 1) != 0)
+		return (EIO);
+
+	val = gen;
+	return (sysctl_handle_32(oidp, &val, 0, req));
 }
