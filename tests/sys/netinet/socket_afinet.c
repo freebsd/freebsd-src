@@ -41,8 +41,8 @@
 
 #include <atf-c.h>
 
-ATF_TC_WITHOUT_HEAD(socket_afinet);
-ATF_TC_BODY(socket_afinet, tc)
+ATF_TC_WITHOUT_HEAD(basic);
+ATF_TC_BODY(basic, tc)
 {
 	int sd;
 
@@ -52,8 +52,8 @@ ATF_TC_BODY(socket_afinet, tc)
 	close(sd);
 }
 
-ATF_TC_WITHOUT_HEAD(socket_afinet_bind_zero);
-ATF_TC_BODY(socket_afinet_bind_zero, tc)
+ATF_TC_WITHOUT_HEAD(bind_zero);
+ATF_TC_BODY(bind_zero, tc)
 {
 	int sd, rc;
 	struct sockaddr_in sin;
@@ -73,8 +73,8 @@ ATF_TC_BODY(socket_afinet_bind_zero, tc)
 	close(sd);
 }
 
-ATF_TC_WITHOUT_HEAD(socket_afinet_bind_ok);
-ATF_TC_BODY(socket_afinet_bind_ok, tc)
+ATF_TC_WITHOUT_HEAD(bind_ok);
+ATF_TC_BODY(bind_ok, tc)
 {
 	int sd, rc;
 	struct sockaddr_in sin;
@@ -93,8 +93,8 @@ ATF_TC_BODY(socket_afinet_bind_ok, tc)
 	close(sd);
 }
 
-ATF_TC_WITHOUT_HEAD(socket_afinet_poll_no_rdhup);
-ATF_TC_BODY(socket_afinet_poll_no_rdhup, tc)
+ATF_TC_WITHOUT_HEAD(poll_no_rdhup);
+ATF_TC_BODY(poll_no_rdhup, tc)
 {
 	int ss, ss2, cs, rc;
 	struct sockaddr_in sin;
@@ -156,8 +156,8 @@ ATF_TC_BODY(socket_afinet_poll_no_rdhup, tc)
 	close(ss);
 }
 
-ATF_TC_WITHOUT_HEAD(socket_afinet_poll_rdhup);
-ATF_TC_BODY(socket_afinet_poll_rdhup, tc)
+ATF_TC_WITHOUT_HEAD(poll_rdhup);
+ATF_TC_BODY(poll_rdhup, tc)
 {
 	int ss, ss2, cs, rc;
 	struct sockaddr_in sin;
@@ -239,8 +239,8 @@ ATF_TC_BODY(socket_afinet_poll_rdhup, tc)
 	close(ss);
 }
 
-ATF_TC_WITHOUT_HEAD(socket_afinet_stream_reconnect);
-ATF_TC_BODY(socket_afinet_stream_reconnect, tc)
+ATF_TC_WITHOUT_HEAD(stream_reconnect);
+ATF_TC_BODY(stream_reconnect, tc)
 {
 	struct sockaddr_in sin;
 	socklen_t slen;
@@ -290,12 +290,12 @@ ATF_TC_BODY(socket_afinet_stream_reconnect, tc)
  * Make sure that unprivileged users can't set the IP_BINDANY or IPV6_BINDANY
  * socket options.
  */
-ATF_TC(socket_afinet_bindany);
-ATF_TC_HEAD(socket_afinet_bindany, tc)
+ATF_TC(bindany);
+ATF_TC_HEAD(bindany, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "unprivileged");
 }
-ATF_TC_BODY(socket_afinet_bindany, tc)
+ATF_TC_BODY(bindany, tc)
 {
 	int s;
 
@@ -503,13 +503,13 @@ multibind_test(const atf_tc_t *tc, int domain, int type)
  * Try to bind two sockets to the same address/port tuple.  Under some
  * conditions this is permitted.
  */
-ATF_TC(socket_afinet_multibind);
-ATF_TC_HEAD(socket_afinet_multibind, tc)
+ATF_TC(multibind);
+ATF_TC_HEAD(multibind, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
 	atf_tc_set_md_var(tc, "require.config", "unprivileged_user");
 }
-ATF_TC_BODY(socket_afinet_multibind, tc)
+ATF_TC_BODY(multibind, tc)
 {
 	multibind_test(tc, AF_INET, SOCK_STREAM);
 	multibind_test(tc, AF_INET, SOCK_DGRAM);
@@ -616,15 +616,15 @@ bind_connected_port_test(const atf_tc_t *tc, int domain, int type, bool wild,
  * SO_REUSE* are specified.  However, if the port is bound by a connected
  * socket, then it's fair game.
  */
-ATF_TC(socket_afinet_bind_connected_port);
-ATF_TC_HEAD(socket_afinet_bind_connected_port, tc)
+ATF_TC(bind_connected_port);
+ATF_TC_HEAD(bind_connected_port, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
 	atf_tc_set_md_var(tc, "require.config", "unprivileged_user");
 }
-ATF_TC_BODY(socket_afinet_bind_connected_port, tc)
+ATF_TC_BODY(bind_connected_port, tc)
 {
-	struct socket_afinet_bind_connected_port_res {
+	struct bind_connected_port_res {
 		int domain;
 		int type;
 		bool wild;
@@ -670,15 +670,15 @@ ATF_TC_BODY(socket_afinet_bind_connected_port, tc)
 
 ATF_TP_ADD_TCS(tp)
 {
-	ATF_TP_ADD_TC(tp, socket_afinet);
-	ATF_TP_ADD_TC(tp, socket_afinet_bind_zero);
-	ATF_TP_ADD_TC(tp, socket_afinet_bind_ok);
-	ATF_TP_ADD_TC(tp, socket_afinet_poll_no_rdhup);
-	ATF_TP_ADD_TC(tp, socket_afinet_poll_rdhup);
-	ATF_TP_ADD_TC(tp, socket_afinet_stream_reconnect);
-	ATF_TP_ADD_TC(tp, socket_afinet_bindany);
-	ATF_TP_ADD_TC(tp, socket_afinet_multibind);
-	ATF_TP_ADD_TC(tp, socket_afinet_bind_connected_port);
+	ATF_TP_ADD_TC(tp, basic);
+	ATF_TP_ADD_TC(tp, bind_zero);
+	ATF_TP_ADD_TC(tp, bind_ok);
+	ATF_TP_ADD_TC(tp, poll_no_rdhup);
+	ATF_TP_ADD_TC(tp, poll_rdhup);
+	ATF_TP_ADD_TC(tp, stream_reconnect);
+	ATF_TP_ADD_TC(tp, bindany);
+	ATF_TP_ADD_TC(tp, multibind);
+	ATF_TP_ADD_TC(tp, bind_connected_port);
 
 	return atf_no_error();
 }
