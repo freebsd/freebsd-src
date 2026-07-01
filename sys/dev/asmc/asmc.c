@@ -418,6 +418,37 @@ asmc_probe(device_t dev)
 	return (rv);
 }
 
+/*
+ * Try PIO first; fall back to MMIO for T2 Macs.
+ */
+static int
+asmc_try_probe(device_t dev)
+{
+	struct asmc_softc *sc = device_get_softc(dev);
+
+	sc->sc_ioport = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+	    &sc->sc_rid_port, RF_ACTIVE);
+	if (sc->sc_ioport != NULL)
+		return (0);
+
+	sc->sc_rid_mem = 0;
+	sc->sc_iomem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->sc_rid_mem, RF_ACTIVE);
+	if (sc->sc_iomem != NULL) {
+		if (asmc_mmio_probe(dev) == 0) {
+			sc->sc_is_mmio = true;
+			device_printf(dev, "using MMIO backend (T2)\n");
+			return (0);
+		}
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    sc->sc_rid_mem, sc->sc_iomem);
+		sc->sc_iomem = NULL;
+	}
+
+	device_printf(dev, "unable to allocate IO port\n");
+	return (ENOMEM);
+}
+
 static int
 asmc_attach(device_t dev)
 {
@@ -428,33 +459,9 @@ asmc_attach(device_t dev)
 	struct sysctl_ctx_list *sysctlctx;
 	struct sysctl_oid *sysctlnode;
 
-	/*
-	 * Try MMIO first (T2 Macs expose SMC via memory-mapped I/O).
-	 * Fall back to standard I/O port if MMIO is not available.
-	 */
-	sc->sc_rid_mem = 0;
-	sc->sc_iomem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &sc->sc_rid_mem, RF_ACTIVE);
-	if (sc->sc_iomem != NULL) {
-		if (asmc_mmio_probe(dev) == 0) {
-			sc->sc_is_mmio = 1;
-			device_printf(dev, "using MMIO backend (T2)\n");
-		} else {
-			bus_release_resource(dev, SYS_RES_MEMORY,
-			    sc->sc_rid_mem, sc->sc_iomem);
-			sc->sc_iomem = NULL;
-		}
-	}
-
-	if (!sc->sc_is_mmio) {
-		sc->sc_ioport = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
-		    &sc->sc_rid_port, RF_ACTIVE);
-		if (sc->sc_ioport == NULL) {
-			device_printf(dev, "unable to allocate IO port\n");
-			ret = ENOMEM;
-			goto err;
-		}
-	}
+	ret = asmc_try_probe(dev);
+	if (ret != 0)
+		goto err;
 
 	sysctlctx = device_get_sysctl_ctx(dev);
 	sysctlnode = device_get_sysctl_tree(dev);
