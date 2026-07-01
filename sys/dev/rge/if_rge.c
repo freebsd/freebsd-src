@@ -301,9 +301,9 @@ rge_attach(device_t dev)
 	    0, /* boundary */
 	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
 	    NULL, NULL, /* filter (unused) */
-	    BUS_SPACE_MAXADDR, /* maxsize */
+	    BUS_SPACE_MAXSIZE, /* maxsize */
 	    BUS_SPACE_UNRESTRICTED, /* nsegments */
-	    BUS_SPACE_MAXADDR, /* maxsegsize */
+	    BUS_SPACE_MAXSIZE, /* maxsegsize */
 	    0, /* flags */
 	    NULL, NULL, /* lockfunc, lockarg */
 	    &sc->sc_dmat);
