@@ -53,7 +53,7 @@
 
 #define	LINUX_XATTR_CREATE	0x1
 #define	LINUX_XATTR_REPLACE	0x2
-#define	LINUX_XATTR_FLAGS	LINUX_XATTR_CREATE|LINUX_XATTR_REPLACE
+#define	LINUX_XATTR_FLAGS	(LINUX_XATTR_CREATE | LINUX_XATTR_REPLACE)
 
 struct listxattr_args {
 	int		fd;
@@ -511,8 +511,8 @@ setxattr(struct thread *td, struct setxattr_args *args)
 			return (error);
 	}
 
-	if ((args->flags & ~(LINUX_XATTR_FLAGS)) != 0 ||
-	    args->flags == (LINUX_XATTR_FLAGS)) {
+	if ((args->flags & ~LINUX_XATTR_FLAGS) != 0 ||
+	    args->flags == LINUX_XATTR_FLAGS) {
 		error = EINVAL;
 		goto out_err;
 	}
@@ -520,7 +520,7 @@ setxattr(struct thread *td, struct setxattr_args *args)
 	if (error != 0)
 		goto out_err;
 
-	if ((args->flags & (LINUX_XATTR_FLAGS)) != 0 ) {
+	if ((args->flags & LINUX_XATTR_FLAGS) != 0) {
 		if (args->path != NULL)
 			error = kern_extattr_get_path(td, args->path,
 			    attrnamespace, attrname, NULL, args->size,
