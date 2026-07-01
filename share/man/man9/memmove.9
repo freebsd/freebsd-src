@@ -29,16 +29,19 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 19, 2026
+.Dd July 1, 2026
 .Dt MEMMOVE 9
 .Os
 .Sh NAME
-.Nm memmove
+.Nm memmove ,
+.Nm memmove_data
 .Nd copy bytes in memory
 .Sh SYNOPSIS
 .In sys/systm.h
 .Ft void *
 .Fn memmove "void *dst" "const void *src" "size_t len"
+.Ft void *
+.Fn memmove_data "void *dst" "const void *src" "size_t len"
 .Sh DESCRIPTION
 The
 .Fn memmove
@@ -49,18 +52,34 @@ bytes from object
 to object
 .Fa dst .
 The two objects may overlap;
-the copy is always done in a non-destructive manner.
+the copy is always done in a non-destructive manner and preserves
+the provenance of pointers in the copied object
+.Pq see Xr memory_model 7 for further information .
+The
+.Fn memmove_data
+function does the same except that it does not preserve the provenance
+of pointers in the copied object.
+On CHERI targets, the validity tag of any copied capability is
+explicitly cleared.
 .Sh RETURN VALUES
 The
 .Fn memmove
-function returns the original value of
+and
+.Fn memmove_data
+functions return the original value of
 .Fa dst .
 .Sh SEE ALSO
 .Xr bcopy 9 ,
-.Xr memcpy 9
+.Xr memcpy 9 ,
+.Xr memcpy_data 9
 .Sh STANDARDS
 The
 .Fn memmove
 function
 conforms to
 .St -isoC .
+.Sh HISTORY
+The
+.Fn memmove_data
+function first appeared in
+.Fx 16.0 .
