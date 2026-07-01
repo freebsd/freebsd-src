@@ -31,6 +31,7 @@
 #include <sys/wait.h>
 
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <errno.h>
 #include <poll.h>
@@ -516,23 +517,26 @@ ATF_TC_BODY(socket_afinet_multibind, tc)
 	multibind_test(tc, AF_INET6, SOCK_DGRAM);
 }
 
-static void
-bind_connected_port_test(const atf_tc_t *tc, int domain)
+/*
+ * Test operation of bind(2) in presence of a connected inpcb using the
+ * same local port.
+ */
+static enum bind_res
+bind_connected_port_test(const atf_tc_t *tc, int domain, int type, bool wild,
+    bool unpriv)
 {
 	struct sockaddr_in sin;
 	struct sockaddr_in6 sin6;
 	struct sockaddr *sinp;
 	socklen_t slen;
-	int error, sd[3], tmp;
+	int error, ss, cs, as;
 	enum bind_res res;
 
 	/*
 	 * Create a connected socket pair.
 	 */
-	sd[0] = socket(domain, SOCK_STREAM, 0);
-	ATF_REQUIRE_MSG(sd[0] >= 0, "socket failed: %s", strerror(errno));
-	sd[1] = socket(domain, SOCK_STREAM, 0);
-	ATF_REQUIRE_MSG(sd[1] >= 0, "socket failed: %s", strerror(errno));
+	ss = socket(domain, type, 0);
+	ATF_REQUIRE_MSG(ss >= 0, "socket failed: %s", strerror(errno));
 	if (domain == PF_INET) {
 		memset(&sin, 0, sizeof(sin));
 		sin.sin_family = AF_INET;
@@ -550,28 +554,61 @@ bind_connected_port_test(const atf_tc_t *tc, int domain)
 		sinp = (struct sockaddr *)&sin6;
 	}
 
-	error = bind(sd[0], sinp, sinp->sa_len);
+	error = bind(ss, sinp, sinp->sa_len);
 	ATF_REQUIRE_MSG(error == 0, "bind failed: %s", strerror(errno));
-	error = listen(sd[0], 1);
-	ATF_REQUIRE_MSG(error == 0, "listen failed: %s", strerror(errno));
 
-	error = getsockname(sd[0], sinp, &(socklen_t){ sinp->sa_len });
-	ATF_REQUIRE_MSG(error == 0, "getsockname failed: %s", strerror(errno));
-	if (domain == PF_INET)
-		sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	else
-		sin6.sin6_addr = in6addr_loopback;
-	error = connect(sd[1], sinp, sinp->sa_len);
-	ATF_REQUIRE_MSG(error == 0, "connect failed: %s", strerror(errno));
-	slen = sinp->sa_len;
-	tmp = accept(sd[0], sinp, &slen);
-	ATF_REQUIRE_MSG(tmp >= 0, "accept failed: %s", strerror(errno));
+	if (type == SOCK_STREAM) {
+		error = getsockname(ss, sinp, &(socklen_t){ sinp->sa_len });
+		ATF_REQUIRE_MSG(error == 0, "getsockname failed: %s",
+		    strerror(errno));
+		error = listen(ss, 1);
+		ATF_REQUIRE_MSG(error == 0,
+		    "listen failed: %s", strerror(errno));
+		cs = socket(domain, type, 0);
+		ATF_REQUIRE_MSG(cs >= 0, "socket failed: %s", strerror(errno));
+		if (domain == PF_INET)
+			sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		else
+			sin6.sin6_addr = in6addr_loopback;
+		error = connect(cs, sinp, sinp->sa_len);
+		ATF_REQUIRE_MSG(error == 0,
+		    "connect failed: %s", strerror(errno));
+		slen = sinp->sa_len;
+		as = accept(ss, sinp, &slen);
+		ATF_REQUIRE_MSG(as >= 0, "accept failed: %s", strerror(errno));
+	} else {
+		ATF_REQUIRE(type == SOCK_DGRAM);
+		if (domain == PF_INET) {
+			sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+			sin.sin_port = htons(6666);
+		} else {
+			sin6.sin6_addr = in6addr_loopback;
+			sin6.sin6_port = htons(6666);
+		}
+		error = connect(ss, sinp, sinp->sa_len);
+		ATF_REQUIRE_MSG(error == 0,
+		    "connect failed: %s", strerror(errno));
+		error = getsockname(ss, sinp, &(socklen_t){ sinp->sa_len });
+		ATF_REQUIRE_MSG(error == 0, "getsockname failed: %s",
+		    strerror(errno));
+	}
 
-	/* bind() should succeed even from an unprivileged user. */
-	res = child_bind_priv(tc, SOCK_STREAM, sinp, SO_REUSEADDR);
-	ATF_REQUIRE(res == BIND_REUSE_SUCCESS);
-	res = child_bind_unpriv(tc, SOCK_STREAM, sinp, SO_REUSEADDR);
-	ATF_REQUIRE(res == BIND_REUSE_SUCCESS);
+	if (wild) {
+		if (domain == PF_INET)
+			sin.sin_addr.s_addr = htonl(INADDR_ANY);
+		else
+			sin6.sin6_addr = in6addr_any;
+	}
+
+	res = child_bind(tc, type, sinp, SO_REUSEADDR, unpriv);
+
+	if (type == SOCK_STREAM) {
+		ATF_REQUIRE(close(as) == 0);
+		ATF_REQUIRE(close(cs) == 0);
+	}
+	ATF_REQUIRE(close(ss) == 0);
+
+	return (res);
 }
 
 /*
@@ -587,8 +624,48 @@ ATF_TC_HEAD(socket_afinet_bind_connected_port, tc)
 }
 ATF_TC_BODY(socket_afinet_bind_connected_port, tc)
 {
-	bind_connected_port_test(tc, AF_INET);
-	bind_connected_port_test(tc, AF_INET6);
+	struct socket_afinet_bind_connected_port_res {
+		int domain;
+		int type;
+		bool wild;
+		bool unpriv;
+		enum bind_res result;
+	} tests[] = {
+#define	x true
+#define	o false
+				     /* W  U */
+	    { AF_INET,	SOCK_STREAM,	x, x, BIND_REUSE_SUCCESS },
+	    { AF_INET,	SOCK_STREAM,	o, x, BIND_REUSE_SUCCESS },
+	    { AF_INET,	SOCK_STREAM,	x, o, BIND_REUSE_SUCCESS },
+	    { AF_INET,	SOCK_STREAM,	o, o, BIND_REUSE_SUCCESS },
+	    { AF_INET6,	SOCK_STREAM,	x, x, BIND_REUSE_SUCCESS },
+	    { AF_INET6,	SOCK_STREAM,	o, x, BIND_REUSE_SUCCESS },
+	    { AF_INET6,	SOCK_STREAM,	x, o, BIND_REUSE_SUCCESS },
+	    { AF_INET6,	SOCK_STREAM,	o, o, BIND_REUSE_SUCCESS },
+	    { AF_INET,	SOCK_DGRAM,	x, x, BIND_FAILED },
+	    { AF_INET,	SOCK_DGRAM,	o, x, BIND_FAILED },
+	    { AF_INET,	SOCK_DGRAM,	x, o, BIND_REUSE_SUCCESS },
+	    { AF_INET,	SOCK_DGRAM,	o, o, BIND_REUSE_SUCCESS },
+	    { AF_INET6,	SOCK_DGRAM,	x, x, BIND_FAILED },
+	    { AF_INET6,	SOCK_DGRAM,	o, x, BIND_FAILED },
+	    { AF_INET6,	SOCK_DGRAM,	x, o, BIND_REUSE_SUCCESS },
+	    { AF_INET6,	SOCK_DGRAM,	o, o, BIND_REUSE_SUCCESS },
+#undef x
+#undef o
+	};
+
+	for (u_int i = 0; i < nitems(tests); i++) {
+		enum bind_res res;
+
+		res = bind_connected_port_test(tc, tests[i].domain,
+		    tests[i].type, tests[i].wild, tests[i].unpriv);
+		ATF_REQUIRE_MSG(res == tests[i].result, "test #%u: "
+		    "domain %u type %u%s %sprivileged: result %u (expected %u)",
+		    i, tests[i].domain, tests[i].type,
+		    tests[i].wild ? " wild" : "",
+		    tests[i].unpriv ? "un" : "",
+		    res, tests[i].result);
+	}
 }
 
 ATF_TP_ADD_TCS(tp)
