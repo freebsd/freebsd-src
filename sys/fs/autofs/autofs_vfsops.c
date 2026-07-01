@@ -86,7 +86,7 @@ autofs_mount(struct mount *mp)
 	strlcpy(amp->am_mountpoint, fspath, sizeof(amp->am_mountpoint));
 	strlcpy(amp->am_options, options, sizeof(amp->am_options));
 	strlcpy(amp->am_prefix, prefix, sizeof(amp->am_prefix));
-	sx_init(&amp->am_lock, "autofslk");
+	sx_init(&amp->am_lock, "autfsm");
 	amp->am_last_fileno = 1;
 
 	vfs_getnewfsid(mp);
