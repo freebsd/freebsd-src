@@ -331,9 +331,20 @@ ATF_TC_BODY(socket_afinet_bindany, tc)
  * Bind a socket to the specified address, optionally dropping privileges and
  * setting one of the SO_REUSE* options first.
  *
- * Returns true if the bind succeeded, and false if it failed with EADDRINUSE.
+ * Expected returns for different test case scenarios are: 1) successful
+ * immediate bind(2), successful bind(2) after setting specified SO_REUSE*
+ * socket option, and bind(2) failed with EADDRINUSE.
  */
-static bool
+static enum bind_res {
+	BIND_FAILED = 0,
+	SETEUID_FAIL = 1,
+	SOCKET_FAIL = 2,
+	BIND_INSTANT_SUCCESS = 3,
+	BIND_BADERR1 = 4,
+	SETSOCKOPT_FAIL = 5,
+	BIND_REUSE_SUCCESS = 6,
+	BIND_BADERR2 = 7,
+}
 child_bind(const atf_tc_t *tc, int type, struct sockaddr *sa, int opt,
     bool unpriv)
 {
@@ -358,45 +369,43 @@ child_bind(const atf_tc_t *tc, int type, struct sockaddr *sa, int opt,
 
 			passwd = getpwnam(user);
 			if (seteuid(passwd->pw_uid) != 0)
-				_exit(1);
+				_exit(SETEUID_FAIL);
 		}
 
 		s = socket(sa->sa_family, type, 0);
 		if (s < 0)
-			_exit(2);
+			_exit(SOCKET_FAIL);
 		if (bind(s, sa, sa->sa_len) == 0)
-			_exit(3);
+			_exit(BIND_INSTANT_SUCCESS);
 		if (errno != EADDRINUSE)
-			_exit(4);
+			_exit(BIND_BADERR1);
 		if (opt != 0) {
 			if (setsockopt(s, SOL_SOCKET, opt, &(int){1},
 			    sizeof(int)) != 0)
-				_exit(5);
+				_exit(SETSOCKOPT_FAIL);
 		}
 		if (bind(s, sa, sa->sa_len) == 0)
-			_exit(6);
+			_exit(BIND_REUSE_SUCCESS);
 		if (errno != EADDRINUSE)
-			_exit(7);
-		_exit(0);
+			_exit(BIND_BADERR1);
+		_exit(BIND_FAILED);
 	} else {
 		int status;
 
 		ATF_REQUIRE_EQ(waitpid(child, &status, 0), child);
 		ATF_REQUIRE(WIFEXITED(status));
 		status = WEXITSTATUS(status);
-		ATF_REQUIRE_MSG(status == 0 || status == 6,
-		    "child exited with %d", status);
-		return (status == 6);
+		return (status);
 	}
 }
 
-static bool
+static enum bind_res
 child_bind_priv(const atf_tc_t *tc, int type, struct sockaddr *sa, int opt)
 {
 	return (child_bind(tc, type, sa, opt, false));
 }
 
-static bool
+static enum bind_res
 child_bind_unpriv(const atf_tc_t *tc, int type, struct sockaddr *sa, int opt)
 {
 	return (child_bind(tc, type, sa, opt, true));
@@ -453,7 +462,7 @@ multibind_test(const atf_tc_t *tc, int domain, int type)
 	int opts[4] = { 0, SO_REUSEADDR, SO_REUSEPORT, SO_REUSEPORT_LB };
 	int s;
 	bool flags[2] = { false, true };
-	bool res;
+	enum bind_res res;
 
 	for (size_t flagi = 0; flagi < nitems(flags); flagi++) {
 		for (size_t opti = 0; opti < nitems(opts); opti++) {
@@ -472,9 +481,9 @@ multibind_test(const atf_tc_t *tc, int domain, int type)
 				 */
 				if (opts[opti] != 0 &&
 				    opts[opti] != SO_REUSEADDR && opti == optj)
-					ATF_REQUIRE(res);
+					ATF_REQUIRE(res == BIND_REUSE_SUCCESS);
 				else
-					ATF_REQUIRE(!res);
+					ATF_REQUIRE(res == BIND_FAILED);
 
 				res = child_bind_unpriv(tc, type,
 				    (struct sockaddr *)&ss, opt);
@@ -482,7 +491,7 @@ multibind_test(const atf_tc_t *tc, int domain, int type)
 				 * Multi-binding is only allowed when both
 				 * sockets have the same owner.
 				 */
-				ATF_REQUIRE(!res);
+				ATF_REQUIRE(res == BIND_FAILED);
 			}
 			ATF_REQUIRE(close(s) == 0);
 		}
@@ -515,7 +524,7 @@ bind_connected_port_test(const atf_tc_t *tc, int domain)
 	struct sockaddr *sinp;
 	socklen_t slen;
 	int error, sd[3], tmp;
-	bool res;
+	enum bind_res res;
 
 	/*
 	 * Create a connected socket pair.
@@ -560,9 +569,9 @@ bind_connected_port_test(const atf_tc_t *tc, int domain)
 
 	/* bind() should succeed even from an unprivileged user. */
 	res = child_bind_priv(tc, SOCK_STREAM, sinp, SO_REUSEADDR);
-	ATF_REQUIRE(res);
+	ATF_REQUIRE(res == BIND_REUSE_SUCCESS);
 	res = child_bind_unpriv(tc, SOCK_STREAM, sinp, SO_REUSEADDR);
-	ATF_REQUIRE(res);
+	ATF_REQUIRE(res == BIND_REUSE_SUCCESS);
 }
 
 /*
