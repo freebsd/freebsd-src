@@ -191,7 +191,11 @@ SYSCTL_UINT(_net_isr, OID_AUTO, maxqlimit, CTLFLAG_RDTUN,
  * initialize the nh_qlimit field of their struct netisr_handler.  If this is
  * set above netisr_maxqlimit, we truncate it to the maximum during boot.
  */
+#ifdef MOBILE_OS
+#define	NETISR_DEFAULT_DEFAULTQLIMIT	128
+#else
 #define	NETISR_DEFAULT_DEFAULTQLIMIT	256
+#endif
 static u_int	netisr_defaultqlimit = NETISR_DEFAULT_DEFAULTQLIMIT;
 SYSCTL_UINT(_net_isr, OID_AUTO, defaultqlimit, CTLFLAG_RDTUN,
     &netisr_defaultqlimit, 0,

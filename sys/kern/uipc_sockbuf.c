@@ -65,8 +65,13 @@ void	(*aio_swake)(struct socket *, struct sockbuf *);
 
 #define	BUF_MAX_ADJ(_sz)	(((u_quad_t)(_sz)) * MCLBYTES / (MSIZE + MCLBYTES))
 
-u_long	sb_max = SB_MAX;
-u_long sb_max_adj = BUF_MAX_ADJ(SB_MAX);
+#ifdef MOBILE_OS
+#define MOBILE_SB_MAX	(2*1024*1024)
+#else
+#define MOBILE_SB_MAX	SB_MAX
+#endif
+u_long	sb_max = MOBILE_SB_MAX;
+u_long sb_max_adj = BUF_MAX_ADJ(MOBILE_SB_MAX);
 
 static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 

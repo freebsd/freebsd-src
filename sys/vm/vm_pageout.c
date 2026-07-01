@@ -184,6 +184,13 @@ SYSCTL_INT(_vm, OID_AUTO, pageout_oom_seq,
     CTLFLAG_RWTUN, &vm_pageout_oom_seq, 0,
     "back-to-back calls to oom detector to start OOM");
 
+#ifdef MOBILE_OS
+static int mobile_mode = 1;
+SYSCTL_INT(_vm, OID_AUTO, mobile_mode, CTLFLAG_RDTUN,
+    &mobile_mode, 0,
+    "Enable mobile memory management mode");
+#endif
+
 static int
 sysctl_laundry_weight(SYSCTL_HANDLER_ARGS)
 {
@@ -2330,6 +2337,14 @@ vm_pageout_init_domain(int domain)
 	    "pageout_helper_threads_enabled", CTLFLAG_RWTUN,
 	    &vmd->vmd_helper_threads_enabled, 0,
 	    "Enable multi-threaded inactive queue scanning");
+
+#ifdef MOBILE_OS
+	if (mobile_mode) {
+		vmd->vmd_inactive_target = MAX(vmd->vmd_free_count / 16, 16);
+		vmd->vmd_pageout_wakeup_thresh =
+		    (vmd->vmd_free_target * 4) / 5;
+	}
+#endif
 }
 
 static void
@@ -2372,6 +2387,15 @@ vm_pageout_init(void *dummy __unused)
 	 */
 	if (vm_page_max_user_wired == 0)
 		vm_page_max_user_wired = 4 * freecount / 5;
+
+#ifdef MOBILE_OS
+	if (mobile_mode) {
+		vm_background_launder_rate /= 2;
+		vm_background_launder_max /= 2;
+		if (vm_pageout_update_period == 0)
+			vm_pageout_update_period = 300;
+	}
+#endif
 }
 
 /*

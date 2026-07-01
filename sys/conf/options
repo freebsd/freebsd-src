@@ -1020,3 +1020,14 @@ QAT_DISABLE_SAFE_DC_MODE	opt_qat.h
 # EARLY_PRINTF specific options fo NS8250 uart
 UART_NS8250_EARLY_REG_IO_WIDTH	opt_uart.h
 UART_NS8250_EARLY_REG_SHIFT	opt_uart.h
+
+# UOS Mobile OS options
+MOBILE_OS		opt_mobile.h
+LOW_LATENCY		opt_mobile.h
+POWER_EFFICIENT		opt_mobile.h
+
+# UOS Security Framework
+UOS_SECURITY		opt_mobile.h
+UOS_WX_ENFORCE		opt_mobile.h
+UOS_UNVEIL		opt_mobile.h
+UOS_PLEDGE		opt_mobile.h

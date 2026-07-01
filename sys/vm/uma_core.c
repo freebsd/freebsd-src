@@ -378,7 +378,11 @@ static int zone_warnings = 1;
 SYSCTL_INT(_vm, OID_AUTO, zone_warnings, CTLFLAG_RWTUN, &zone_warnings, 0,
     "Warn when UMA zones becomes full");
 
+#ifdef MOBILE_OS
+static int multipage_slabs = 0;
+#else
 static int multipage_slabs = 1;
+#endif
 TUNABLE_INT("vm.debug.uma_multipage_slabs", &multipage_slabs);
 SYSCTL_INT(_vm_debug, OID_AUTO, uma_multipage_slabs,
     CTLFLAG_RDTUN | CTLFLAG_NOFETCH, &multipage_slabs, 0,
@@ -3253,10 +3257,15 @@ SYSINIT(uma_startup3, SI_SUB_VM_CONF, SI_ORDER_SECOND, uma_startup3, NULL);
 static void
 uma_startup4(void *arg __unused)
 {
+#ifdef MOBILE_OS
+	int timeout = 10;
+#else
+	int timeout = UMA_TIMEOUT;
+#endif
 	TIMEOUT_TASK_INIT(taskqueue_thread, &uma_timeout_task, 0, uma_timeout,
 	    NULL);
 	taskqueue_enqueue_timeout(taskqueue_thread, &uma_timeout_task,
-	    UMA_TIMEOUT * hz);
+	    timeout * hz);
 }
 SYSINIT(uma_startup4, SI_SUB_TASKQ, SI_ORDER_ANY, uma_startup4, NULL);
 

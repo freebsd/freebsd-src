@@ -32,6 +32,14 @@ options		MOBILE_OS
 options		LOW_LATENCY
 options		POWER_EFFICIENT
 
+# VM memory limits for low-configuration devices
+options		VM_KMEM_SIZE_SCALE=4
+options		VM_SWZONE_SIZE_MAX=(1024*1024)
+options		VM_BCACHE_SIZE_MAX=(4*1024*1024)
+
+# Filesystem memory savings
+options		NO_FFS_SNAPSHOT
+
 # ======================================================================
 # Scheduler & performance
 # ======================================================================

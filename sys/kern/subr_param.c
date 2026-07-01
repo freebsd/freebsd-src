@@ -329,6 +329,16 @@ init_param2(long physpages)
 	maxfilesperproc = (maxfiles / 10) * 9;
 	TUNABLE_INT_FETCH("kern.maxfilesperproc", &maxfilesperproc);
 
+#ifdef MOBILE_OS
+	if (maxusers == 0) {
+		maxusers = 64;
+		maxproc = 20 + 16 * maxusers;
+		maxprocperuid = (maxproc * 9) / 10;
+		maxfiles = 40 + 32 * maxusers;
+		maxfilesperproc = (maxfiles / 10) * 9;
+	}
+#endif
+
 	/*
 	 * Cannot be changed after boot.
 	 */
@@ -358,10 +368,15 @@ init_param2(long physpages)
 	 * The default for maxpipekva is min(1/64 of the kernel address space,
 	 * max(1/64 of main memory, 512KB)).  See sys_pipe.c for more details.
 	 */
+#ifdef MOBILE_OS
+	maxpipekva = ptoa(physpages / 256);
+	if (maxpipekva < 128 * 1024)
+		maxpipekva = 128 * 1024;
+#else
 	maxpipekva = ptoa(physpages / 64);
-	TUNABLE_LONG_FETCH("kern.ipc.maxpipekva", &maxpipekva);
 	if (maxpipekva < 512 * 1024)
 		maxpipekva = 512 * 1024;
+#endif
 	if (maxpipekva > (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) / 64)
 		maxpipekva = (VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS) /
 		    64;
