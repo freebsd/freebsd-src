@@ -40,8 +40,10 @@
 #include <sys/lock.h>
 #include <sys/module.h>
 
-#if defined(FDT) && !defined(__powerpc64__) 
+#if defined(FDT)
+#if !defined(__powerpc__)
 #include <dev/clk/clk.h>
+#endif
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
@@ -89,11 +91,13 @@ struct hym8563_softc {
 	struct intr_config_hook		init_hook;
 };
 
-#if defined(FDT) && !defined(__powerpc64__) 
+#if defined(FDT)
+#if !defined(__powerpc__)
 /* Clock class and method */
 struct hym8563_clk_sc {
 	device_t		base_dev;
 };
+#endif
 
 
 static struct ofw_compat_data compat_data[] = {
@@ -131,7 +135,7 @@ hym8563_write_1(device_t dev, uint8_t reg, uint8_t val)
 	return (iicdev_writeto(dev, reg, &val, 1, IIC_WAIT));
 }
 
-#if defined(FDT) && !defined(__powerpc64__) 
+#if defined(FDT) && !defined(__powerpc__)
 static int
 hym8563_clk_set_gate(struct clknode *clk, bool enable)
 {
@@ -430,7 +434,7 @@ static int
 hym8563_probe(device_t dev)
 {
 
-#if defined(FDT) && !defined(__powerpc64__) 
+#if defined(FDT)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
@@ -450,7 +454,7 @@ hym8563_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-#if defined(FDT) && !defined(__powerpc64__) 
+#if defined(FDT) && !defined(__powerpc__)
 	if (hym8563_attach_clocks(sc) != 0)
 		return(ENXIO);
 #endif
@@ -494,6 +498,6 @@ EARLY_DRIVER_MODULE(hym8563, iicbus, hym8563_driver, NULL, NULL,
     BUS_PASS_SUPPORTDEV + BUS_PASS_ORDER_FIRST);
 MODULE_VERSION(hym8563, 1);
 MODULE_DEPEND(hym8563, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
-#if defined(FDT) && !defined(__powerpc64__) 
+#if defined(FDT)
 IICBUS_FDT_PNP_INFO(compat_data);
 #endif

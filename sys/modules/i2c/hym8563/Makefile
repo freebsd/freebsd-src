@@ -3,6 +3,7 @@ KMOD=	hym8563
 SRCS=	hym8563.c
 
 SRCS+=	bus_if.h \
+	clknode_if.h \
 	clock_if.h \
 	device_if.h \
 	iicbus_if.h \
