@@ -60,6 +60,7 @@
 #include <vm/pmap.h>
 
 #include <x86/apicreg.h>
+#include <machine/atomic.h>
 #include <machine/clock.h>
 #include <machine/cpufunc.h>
 #include <machine/cputypes.h>
@@ -313,6 +314,8 @@ static uint64_t lapic_ipi_wait_mult;
 static int __read_mostly lapic_ds_idle_timeout = 1000000;
 #endif
 unsigned int max_apic_id;
+static void *lapic_thermal_function_value;
+static lapic_thermal_handle_function lapic_thermal_function_ptr;
 static int pcint_refcnt = 0;
 
 SYSCTL_NODE(_hw, OID_AUTO, apic, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
@@ -593,7 +596,9 @@ lapic_init(vm_paddr_t addr)
 	setidt(APIC_ERROR_INT, pti ? IDTVEC(errorint_pti) : IDTVEC(errorint),
 	    SDT_APIC, SEL_KPL, GSEL_APIC);
 
-	/* XXX: Thermal interrupt */
+	/* Thermal interrupt */
+	setidt(APIC_THERMAL_INT, pti ? IDTVEC(thermalint_pti) : IDTVEC(thermalint),
+	    SDT_APIC, SEL_KPL, GSEL_APIC);
 
 	/* Local APIC CMCI. */
 	setidt(APIC_CMC_INT, pti ? IDTVEC(cmcint_pti) : IDTVEC(cmcint),
@@ -920,7 +925,9 @@ lapic_setup(int boot)
 	    lapic_read32(LAPIC_LVT_ERROR)));
 	lapic_write32(LAPIC_ESR, 0);
 
-	/* XXX: Thermal LVT */
+	/* Thermal LVT */
+	lapic_write32(LAPIC_LVT_THERMAL, lvt_mode(la, APIC_LVT_THERMAL,
+	    lapic_read32(LAPIC_LVT_THERMAL)));
 
 	/* Program the CMCI LVT entry if present. */
 	if (maxlvt >= APIC_LVT_CMCI) {
@@ -1611,6 +1618,69 @@ lapic_enable_mca_elvt(void)
 	lapics[apic_id].la_elvts[APIC_ELVT_MCA].lvt_masked = 0;
 	lapics[apic_id].la_elvts[APIC_ELVT_MCA].lvt_active = 1;
 	return (APIC_ELVT_MCA);
+}
+
+void
+lapic_handle_thermal(void)
+{
+	lapic_thermal_handle_function func;
+
+	func = (lapic_thermal_handle_function)atomic_load_acq_ptr(
+	    (void *)&lapic_thermal_function_ptr);
+
+	if (func != NULL)
+		func(PCPU_GET(cpuid), lapic_thermal_function_value);
+
+	lapic_eoi();
+}
+
+static void
+lapic_update_thermal(void *dummy __unused)
+{
+	struct lapic *la;
+
+	la = &lapics[lapic_id()];
+	lapic_write32(LAPIC_LVT_THERMAL, lvt_mode(la, APIC_LVT_THERMAL,
+	    lapic_read32(LAPIC_LVT_THERMAL)));
+}
+
+void
+lapic_enable_thermal(lapic_thermal_handle_function thermfunc, void *value)
+{
+#ifdef DEV_ATPIC
+	/* Fail if the local APIC is not present. */
+	if (!x2apic_mode && lapic_map == NULL)
+		return;
+#endif
+
+	lapic_thermal_function_value = value;
+	atomic_store_rel_ptr((uintptr_t *)&lapic_thermal_function_ptr,
+	    (uintptr_t)thermfunc);
+
+	lvts[APIC_LVT_THERMAL].lvt_masked = 0;
+
+	MPASS(mp_ncpus == 1 || smp_started);
+	smp_rendezvous(NULL, lapic_update_thermal, NULL, NULL);
+}
+
+void
+lapic_disable_thermal(void)
+{
+#ifdef DEV_ATPIC
+	/* Fail if the local APIC is not present. */
+	if (!x2apic_mode && lapic_map == NULL)
+		return;
+#endif
+
+	lvts[APIC_LVT_THERMAL].lvt_masked = 1;
+
+#ifdef SMP
+	KASSERT(mp_ncpus == 1 || smp_started, ("thermal driver unloaded too early"));
+#endif
+	smp_rendezvous(NULL, lapic_update_thermal, NULL, NULL);
+
+	atomic_store_rel_ptr((uintptr_t *)&lapic_thermal_function_ptr,
+	    (uintptr_t)NULL);
 }
 
 void
