@@ -130,8 +130,7 @@ static int	asmc_aupo_sysctl(SYSCTL_HANDLER_ARGS);
 static int	asmc_key_getinfo(device_t, const char *, uint8_t *, char *);
 
 /* System state / board identity sysctls */
-static int	asmc_mssd_sysctl(SYSCTL_HANDLER_ARGS);
-static int	asmc_mssp_sysctl(SYSCTL_HANDLER_ARGS);
+static int	asmc_cause_sysctl(SYSCTL_HANDLER_ARGS);
 static int	asmc_msal_sysctl(SYSCTL_HANDLER_ARGS);
 static int	asmc_clkt_sysctl(SYSCTL_HANDLER_ARGS);
 static int	asmc_msps_sysctl(SYSCTL_HANDLER_ARGS);
@@ -687,14 +686,14 @@ asmc_attach(device_t dev)
 			SYSCTL_ADD_PROC(sysctlctx,
 			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "shutdown_cause",
 			    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-			    dev, 0, asmc_mssd_sysctl, "A",
+			    dev, 0, asmc_cause_sysctl, "A",
 			    "Last shutdown cause (MSSD)");
 
 		if (asmc_key_getinfo(dev, ASMC_KEY_MSSP, NULL, NULL) == 0)
 			SYSCTL_ADD_PROC(sysctlctx,
 			    SYSCTL_CHILDREN(sys_tree), OID_AUTO, "sleep_cause",
 			    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE,
-			    dev, 0, asmc_mssp_sysctl, "A",
+			    dev, 1, asmc_cause_sysctl, "A",
 			    "Last sleep cause (MSSP)");
 
 		if (asmc_key_getinfo(dev, ASMC_KEY_MSAL, NULL, NULL) == 0)
@@ -1487,78 +1486,50 @@ asmc_raw_type_sysctl(SYSCTL_HANDLER_ARGS)
 }
 #endif
 
-/*
- * Convert signed fixed-point SMC values to milli-units.
- * Format "spXY" means signed with X integer bits and Y fraction bits.
- */
-static int
-asmc_sp78_to_milli(const uint8_t *buf)
+/* SMC sensor type table: type string to fixed-point divisor. */
+static const struct {
+	const char	type[5];
+	int		divisor;
+} asmc_sensor_types[] = {
+	{ "sp78",  256 },
+	{ "sp87",  128 },
+	{ "sp4b", 2048 },
+	{ "sp5a", 1024 },
+	{ "sp69",  512 },
+	{ "sp96",   64 },
+	{ "sp2d", 8192 },
+	{ "ui16",    1 },
+	{ "",        0 },
+};
+
+/* Convert a 2-byte SMC value to milli-units. */
+static bool
+asmc_sensor_convert(const char *type, const uint8_t *buf, int *millivalue)
 {
-	int16_t val = (int16_t)be16dec(buf);
+	int i;
 
-	return ((int)val * 1000) / 256;
-}
-
-static int
-asmc_sp87_to_milli(const uint8_t *buf)
-{
-	int16_t val = (int16_t)be16dec(buf);
-
-	return ((int)val * 1000) / 128;
-}
-
-static int
-asmc_sp4b_to_milli(const uint8_t *buf)
-{
-	int16_t val = (int16_t)be16dec(buf);
-
-	return ((int)val * 1000) / 2048;
-}
-
-static int
-asmc_sp5a_to_milli(const uint8_t *buf)
-{
-	int16_t val = (int16_t)be16dec(buf);
-
-	return ((int)val * 1000) / 1024;
-}
-
-static int
-asmc_sp69_to_milli(const uint8_t *buf)
-{
-	int16_t val = (int16_t)be16dec(buf);
-
-	return ((int)val * 1000) / 512;
-}
-
-static int
-asmc_sp96_to_milli(const uint8_t *buf)
-{
-	int16_t val = (int16_t)be16dec(buf);
-
-	return ((int)val * 1000) / 64;
-}
-
-static int
-asmc_sp2d_to_milli(const uint8_t *buf)
-{
-	int16_t val = (int16_t)be16dec(buf);
-
-	return ((int)val * 1000) / 8192;
+	for (i = 0; asmc_sensor_types[i].divisor != 0; i++) {
+		if (strncmp(type, asmc_sensor_types[i].type, 4) != 0)
+			continue;
+		if (asmc_sensor_types[i].divisor == 1)
+			*millivalue = be16dec(buf);
+		else
+			*millivalue = ((int)(int16_t)be16dec(buf) * 1000) /
+			    asmc_sensor_types[i].divisor;
+		return (true);
+	}
+	return (false);
 }
 
 static bool
 asmc_sensor_type_supported(const char *type)
 {
+	int i;
 
-	return (strncmp(type, "sp78", 4) == 0 ||
-	    strncmp(type, "sp87", 4) == 0 ||
-	    strncmp(type, "sp4b", 4) == 0 ||
-	    strncmp(type, "sp5a", 4) == 0 ||
-	    strncmp(type, "sp69", 4) == 0 ||
-	    strncmp(type, "sp96", 4) == 0 ||
-	    strncmp(type, "sp2d", 4) == 0 ||
-	    strncmp(type, "ui16", 4) == 0);
+	for (i = 0; asmc_sensor_types[i].divisor != 0; i++)
+		if (strncmp(type, asmc_sensor_types[i].type, 4) == 0)
+			return (true);
+	return (false);
 }
 
 /*
@@ -1589,23 +1560,7 @@ asmc_sensor_read(device_t dev, const char *key, int *millivalue)
 	if (error != 0)
 		return (error);
 
-	if (strncmp(type, "sp78", 4) == 0) {
-		*millivalue = asmc_sp78_to_milli(buf);
-	} else if (strncmp(type, "sp87", 4) == 0) {
-		*millivalue = asmc_sp87_to_milli(buf);
-	} else if (strncmp(type, "sp4b", 4) == 0) {
-		*millivalue = asmc_sp4b_to_milli(buf);
-	} else if (strncmp(type, "sp5a", 4) == 0) {
-		*millivalue = asmc_sp5a_to_milli(buf);
-	} else if (strncmp(type, "sp69", 4) == 0) {
-		*millivalue = asmc_sp69_to_milli(buf);
-	} else if (strncmp(type, "sp96", 4) == 0) {
-		*millivalue = asmc_sp96_to_milli(buf);
-	} else if (strncmp(type, "sp2d", 4) == 0) {
-		*millivalue = asmc_sp2d_to_milli(buf);
-	} else if (strncmp(type, "ui16", 4) == 0) {
-		*millivalue = be16dec(buf);
-	} else {
+	if (!asmc_sensor_convert(type, buf, millivalue)) {
 		if (bootverbose)
 			device_printf(dev,
 			    "%s: unknown type '%s' for key %s\n",
@@ -2631,40 +2586,22 @@ asmc_cause_str(int8_t cause, bool is_sleep)
 	return (NULL);
 }
 
+/* MSSD/MSSP: last shutdown/sleep cause.  arg2: 0=shutdown, 1=sleep. */
 static int
-asmc_mssd_sysctl(SYSCTL_HANDLER_ARGS)
+asmc_cause_sysctl(SYSCTL_HANDLER_ARGS)
 {
 	device_t dev = (device_t)arg1;
+	bool is_sleep = (arg2 != 0);
+	const char *key = is_sleep ? ASMC_KEY_MSSP : ASMC_KEY_MSSD;
 	int8_t cause;
 	const char *desc;
 	char buf[ASMC_CAUSE_BUFLEN];
 
 	/* EIO: SMC I/O bus did not respond to key read. */
-	if (asmc_key_read(dev, ASMC_KEY_MSSD, (uint8_t *)&cause, 1) != 0)
+	if (asmc_key_read(dev, key, (uint8_t *)&cause, 1) != 0)
 		return (EIO);
 
-	desc = asmc_cause_str(cause, false);
-	if (desc != NULL)
-		snprintf(buf, sizeof(buf), "%d (%s)", (int)cause, desc);
-	else
-		snprintf(buf, sizeof(buf), "%d", (int)cause);
-
-	return (sysctl_handle_string(oidp, buf, sizeof(buf), req));
-}
-
-static int
-asmc_mssp_sysctl(SYSCTL_HANDLER_ARGS)
-{
-	device_t dev = (device_t)arg1;
-	int8_t cause;
-	const char *desc;
-	char buf[ASMC_CAUSE_BUFLEN];
-
-	/* EIO: SMC I/O bus did not respond to key read. */
-	if (asmc_key_read(dev, ASMC_KEY_MSSP, (uint8_t *)&cause, 1) != 0)
-		return (EIO);
-
-	desc = asmc_cause_str(cause, true);
+	desc = asmc_cause_str(cause, is_sleep);
 	if (desc != NULL)
 		snprintf(buf, sizeof(buf), "%d (%s)", (int)cause, desc);
 	else
