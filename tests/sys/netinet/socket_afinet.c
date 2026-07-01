@@ -492,7 +492,11 @@ multibind_test(const atf_tc_t *tc, int domain, int type)
 				 * Multi-binding is only allowed when both
 				 * sockets have the same owner.
 				 */
-				ATF_REQUIRE(res == BIND_FAILED);
+				ATF_REQUIRE_MSG(res == BIND_FAILED,
+				    "domain %u type %u opts %u:%u: "
+				    "result %u (expected %u)",
+				    domain, type, opts[opti], opts[optj],
+				    res, BIND_FAILED);
 			}
 			ATF_REQUIRE(close(s) == 0);
 		}
