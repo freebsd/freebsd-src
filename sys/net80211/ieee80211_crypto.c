@@ -1025,7 +1025,8 @@ ieee80211_crypto_init_aad(const struct ieee80211_frame *wh, uint8_t *aad,
 	/*
 	 * AAD for PV0 MPDUs:
 	 *
-	 * FC with bits 4..6 and 11..13 masked to zero; 14 is always one
+	 * FC + data frame - mask bits 4..6
+	 * FC 11..13 masked to zero; 14 is always one
 	 * A1 | A2 | A3
 	 * SC with bits 4..15 (seq#) masked to zero
 	 * A4 (if present)
@@ -1033,7 +1034,11 @@ ieee80211_crypto_init_aad(const struct ieee80211_frame *wh, uint8_t *aad,
 	 */
 	aad[0] = 0;	/* AAD length >> 8 */
 	/* NB: aad[1] set below */
-	aad[2] = wh->i_fc[0] & 0x8f;	/* see above for bitfields */
+	/* Only mask bits 4,5,6 if its a data frame */
+	aad[2] = wh->i_fc[0];
+	if (IEEE80211_IS_DATA(wh))
+		aad[2] &= 0x8f; /* see above for bitfields */
+
 	aad[3] = wh->i_fc[1] & 0xc7;	/* see above for bitfields */
 	/* mask aad[3] b7 if frame is data frame w/ QoS control field */
 	if (IEEE80211_IS_QOS_ANY(wh))
