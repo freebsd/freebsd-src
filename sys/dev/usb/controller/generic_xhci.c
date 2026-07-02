@@ -58,6 +58,9 @@
 #include <dev/usb/controller/xhci.h>
 #include <dev/usb/controller/xhcireg.h>
 
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
+
 #include "generic_xhci.h"
 
 #if __SIZEOF_LONG__ == 8
@@ -68,10 +71,31 @@
 #error unsupported long size
 #endif
 
+static ACPI_STATUS
+xhci_acpi_find_irq(ACPI_RESOURCE *res, void *context)
+{
+	uint32_t *irq = context;
+
+	switch (res->Type) {
+	case ACPI_RESOURCE_TYPE_IRQ:
+		if (res->Data.Irq.InterruptCount > 0)
+			*irq = res->Data.Irq.Interrupts[0];
+		break;
+	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
+		if (res->Data.ExtendedIrq.InterruptCount > 0)
+			*irq = res->Data.ExtendedIrq.Interrupts[0];
+		break;
+	}
+	return (AE_OK);
+}
+
 int
 generic_xhci_attach(device_t dev)
 {
 	struct xhci_softc *sc = device_get_softc(dev);
+	ACPI_HANDLE h, usb_h;
+	char *dev_id;
+	uint32_t child_irq = 0;
 	int err = 0, rid = 0;
 
 	sc->sc_bus.parent = dev;
@@ -82,16 +106,38 @@ generic_xhci_attach(device_t dev)
 	    RF_ACTIVE);
 	if (sc->sc_io_res == NULL) {
 		device_printf(dev, "Failed to map memory\n");
-		generic_xhci_detach(dev);
 		return (ENXIO);
 	}
 
 	sc->sc_io_tag = rman_get_bustag(sc->sc_io_res);
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
+	
+	/*
+	 * The Qualcomm dual role controller has the interrupt on a
+	 * child node.  Find it and parse its resources to find the
+	 * interrupt.
+	 */
+	dev_id = acpi_get_pnp_id(dev);
+	if (dev_id != NULL && 
+	    (strcmp(dev_id, "QCOM068B") == 0 || strcmp(dev_id, "QCOM068C") == 0)) {
+		
+		h = acpi_get_handle(dev);
+		if (ACPI_SUCCESS(AcpiGetHandle(h, "USB", &usb_h))) {
+			/* xhci_acpi_find_irq will fill child_irq */
+			AcpiWalkResources(usb_h, "_CRS", xhci_acpi_find_irq, &child_irq);
+			
+			if (child_irq > 0) {
+				/* Override the resource for this device */
+				bus_set_resource(dev, SYS_RES_IRQ, 0, child_irq, 1);
+			}
+		}
+	}
 
+	rid = 0; 
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
+
 	if (sc->sc_irq_res == NULL) {
 		device_printf(dev, "Failed to allocate IRQ\n");
 		generic_xhci_detach(dev);
@@ -106,7 +152,6 @@ generic_xhci_attach(device_t dev)
 	}
 
 	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
-
 	sprintf(sc->sc_vendor, XHCI_HC_VENDOR);
 	device_set_desc(sc->sc_bus.bdev, XHCI_HC_DEVSTR);
 
@@ -129,14 +174,14 @@ generic_xhci_attach(device_t dev)
 
 	err = xhci_start_controller(sc);
 	if (err != 0) {
-		device_printf(dev, "Failed to start XHCI controller, with error %d\n", err);
+		device_printf(dev, "Failed to start XHCI controller, error %d\n", err);
 		generic_xhci_detach(dev);
 		return (ENXIO);
 	}
 
 	err = device_probe_and_attach(sc->sc_bus.bdev);
 	if (err != 0) {
-		device_printf(dev, "Failed to initialize USB, with error %d\n", err);
+		device_printf(dev, "Failed to initialize USB, error %d\n", err);
 		generic_xhci_detach(dev);
 		return (ENXIO);
 	}
