@@ -150,6 +150,8 @@ int	lastprid = 0;
 
 static int get_next_prid(struct prison **insprp);
 static int do_jail_attach(struct thread *td, struct prison *pr, int *drflagsp);
+static int prison_attach_thread_single(struct thread *td);
+static void prison_attach_thread_single_end(struct thread *td);
 static void prison_complete(void *context, int pending);
 static void prison_deref(struct prison *pr, int flags);
 static void prison_deref_kill(struct prison *pr, struct prisonlist *freeprison);
@@ -1032,6 +1034,20 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	if (flags & ~JAIL_SET_MASK)
 		return (EINVAL);
 
+	/* Only let a single thread in the process try to attach at a time. */
+	if (flags & JAIL_ATTACH) {
+		error = prison_attach_thread_single(td);
+		if (error != 0)
+			return (error);
+	}
+
+#ifdef INET
+	ip4 = NULL;
+#endif
+#ifdef INET6
+	ip6 = NULL;
+#endif
+	g_path = NULL;
 	/*
 	 * Check all the parameters before committing to anything.  Not all
 	 * errors can be caught early, but we may as well try.  Also, this
@@ -1043,15 +1059,10 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	 *     than duplicate it under a different name.
 	 */
 	error = vfs_buildopts(optuio, &opts);
-	if (error)
-		return (error);
-#ifdef INET
-	ip4 = NULL;
-#endif
-#ifdef INET6
-	ip6 = NULL;
-#endif
-	g_path = NULL;
+	if (error) {
+		opts = NULL;
+		goto done_free;
+	}
 
 	cuflags = flags & (JAIL_CREATE | JAIL_UPDATE);
 	if (!cuflags) {
@@ -2203,7 +2214,10 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #endif
 	if (g_path != NULL)
 		free(g_path, M_TEMP);
-	vfs_freeopts(opts);
+	if (opts != NULL)
+		vfs_freeopts(opts);
+	if (flags & JAIL_ATTACH)
+		prison_attach_thread_single_end(td);
 	return (error);
 }
 
@@ -2637,6 +2651,10 @@ sys_jail_attach(struct thread *td, struct jail_attach_args *uap)
 	error = priv_check(td, PRIV_JAIL_ATTACH);
 	if (error)
 		return (error);
+	/* Only let a single thread in the process try to attach at a time. */
+	error = prison_attach_thread_single(td);
+	if (error != 0)
+		return (error);
 
 	sx_slock(&allprison_lock);
 	drflags = PD_LIST_SLOCKED;
@@ -2657,6 +2675,7 @@ sys_jail_attach(struct thread *td, struct jail_attach_args *uap)
 
  done:
 	prison_deref(pr, drflags);
+	prison_attach_thread_single_end(td);
 	return (error);
 }
 
@@ -2674,15 +2693,6 @@ do_jail_attach(struct thread *td, struct prison *pr, int *drflagsp)
 
 	sx_assert(&allprison_lock, SX_LOCKED);
 	KASSERT(prison_isvalid(pr), ("Attaching to invalid prison %p", pr));
-	/*
-	 * XXX: Note that there is a slight race here if two threads
-	 * in the same privileged process attempt to attach to two
-	 * different jails at the same time.  It is important for
-	 * user processes not to do this, or they might end up with
-	 * a process root from one prison, but attached to the jail
-	 * of another.
-	 */
-
 	/*
 	 * Note the caller's locking state, but gain and track our own
 	 * references.  The caller will see that locks have been
@@ -2764,7 +2774,7 @@ do_jail_attach(struct thread *td, struct prison *pr, int *drflagsp)
  e_unlock:
 	VOP_UNLOCK(pr->pr_root);
  e_revert_osd:
-	/* Tell modules this thread is still in its old jail after all. */
+	/* Tell modules this process is still in its old jail after all. */
 	if (!(drflags & (PD_LIST_SLOCKED | PD_LIST_XLOCKED))) {
 		sx_slock(&allprison_lock);
 		drflags |= PD_LIST_SLOCKED;
@@ -2772,6 +2782,43 @@ do_jail_attach(struct thread *td, struct prison *pr, int *drflagsp)
 	(void)osd_jail_call(td->td_ucred->cr_prison, PR_METHOD_ATTACH, td);
 	prison_deref(pr, drflags);
 	return (error);
+}
+
+/*
+ * Only one thread in a process should try to attach to a jail, or
+ * they might end up with a process root from one prison, but attached
+ * to the jail of another.  Enforce this by making the process run in
+ * single-threaded mode for the duration of the system call, which
+ * also prevents other related calls such as chroot.
+ */
+static int
+prison_attach_thread_single(struct thread *td)
+{
+	struct proc *p;
+	int error;
+
+	error = 0;
+	p = td->td_proc;
+	if ((atomic_load_int(&p->p_flag) & P_HADTHREADS) != 0) {
+		PROC_LOCK(p);
+		if (thread_single(p, SINGLE_BOUNDARY))
+			error = ERESTART;
+		PROC_UNLOCK(p);
+	}
+	return (error);
+}
+
+static void
+prison_attach_thread_single_end(struct thread *td)
+{
+	struct proc *p;
+
+	p = td->td_proc;
+	if ((atomic_load_int(&p->p_flag) & P_HADTHREADS) != 0) {
+		PROC_LOCK(p);
+		thread_single_end(p, SINGLE_BOUNDARY);
+		PROC_UNLOCK(p);
+	}
 }
 
 /*
