@@ -714,6 +714,7 @@ vendor DISPLAYLINK	0x17e9	DisplayLink
 vendor LENOVO		0x17ef	Lenovo
 vendor WAVESENSE	0x17f4	WaveSense
 vendor VAISALA		0x1843	Vaisala
+vendor VERBATIM 	0x18a5	Verbatim
 vendor E3C		0x18b4	E3C Technologies
 vendor AMIT		0x18c5	AMIT
 vendor GOOGLE		0x18d1	Google
@@ -4951,6 +4952,9 @@ product VIALABS VL701		0x0701	VL701 USB 3.0 SATA Bridge
 
 /* Vaisala products */
 product VAISALA CABLE		0x0200	USB Interface cable
+
+/* Verbatim products */
+product VERBATIM STORENGO	0x0243	Verbatim Store N Go
 
 /* Vertex products */
 product VERTEX VW110L		0x0100	Vertex VW110L modem
