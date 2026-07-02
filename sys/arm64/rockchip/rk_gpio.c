@@ -219,13 +219,31 @@ rk_gpio_intr(void *arg)
 
 	RK_GPIO_LOCK(sc);
 	status = rk_gpio_read_4(sc, RK_GPIO_INT_STATUS);
-	rk_gpio_write_4(sc, RK_GPIO_PORTA_EOI, status);
 	RK_GPIO_UNLOCK(sc);
 
 	while (status) {
 		int pin = ffs(status) - 1;
+		bool is_level;
 
 		status &= ~(1 << pin);
+
+		/*
+		 * Edge-triggered latches must be cleared before dispatch
+		 * so a new edge during the handler still registers a new
+		 * IRQ.  Level-triggered latches must be cleared AFTER the
+		 * consumer has deasserted the source line, otherwise the
+		 * latch immediately re-arms and we storm.  Edge EOI here;
+		 * level EOI is deferred to pic_post_filter (filter-only
+		 * consumers) or pic_post_ithread (threaded consumers).
+		 */
+		is_level = (sc->isrcs[pin].mode &
+		    (GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH)) != 0;
+		if (!is_level) {
+			RK_GPIO_LOCK(sc);
+			rk_gpio_write_4(sc, RK_GPIO_PORTA_EOI, 1u << pin);
+			RK_GPIO_UNLOCK(sc);
+		}
+
 		if (intr_isrc_dispatch(RK_GPIO_ISRC(sc, pin), tf)) {
 			/*
 			 * Pin asserted but no consumer is registered for it
@@ -235,14 +253,19 @@ rk_gpio_intr(void *arg)
 			 * messages per second.  Mask the pin's IRQ at the
 			 * controller and disable further dispatches; if a
 			 * consumer attaches later it will re-enable through
-			 * pic_enable_intr / rk_gpio_pic_enable_intr.
+			 * pic_enable_intr / rk_gpio_pic_enable_intr.  For
+			 * level pins also EOI now -- there is no consumer
+			 * to drive the source low.
 			 */
 			RK_GPIO_LOCK(sc);
 			rk_gpio_write_bit(sc, RK_GPIO_INTMASK, pin, 1);
 			rk_gpio_write_bit(sc, RK_GPIO_INTEN, pin, 0);
+			if (is_level)
+				rk_gpio_write_4(sc, RK_GPIO_PORTA_EOI,
+				    1u << pin);
 			RK_GPIO_UNLOCK(sc);
 			device_printf(sc->sc_dev,
-			    "Interrupt pin=%d unhandled — masked\n", pin);
+			    "Interrupt pin=%d unhandled -- masked\n", pin);
 			continue;
 		}
 
@@ -931,7 +954,34 @@ rk_pic_post_ithread(device_t dev, struct intr_irqsrc *isrc)
 	struct rk_pin_irqsrc *rkisrc = (struct rk_pin_irqsrc *)isrc;
 
 	RK_GPIO_LOCK(sc);
+	/*
+	 * Level pins: EOI now that the ithread has driven the source low,
+	 * then unmask so future level transitions can fire.  Edge pins
+	 * already EOI'd in rk_gpio_intr before dispatch.
+	 */
+	if (rkisrc->mode & (GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH))
+		rk_gpio_write_4(sc, RK_GPIO_PORTA_EOI, 1u << rkisrc->irq);
 	rk_gpio_write_bit(sc, RK_GPIO_INTMASK, rkisrc->irq, 0);
+	RK_GPIO_UNLOCK(sc);
+}
+
+/*
+ * Mirror image of pic_post_ithread for filter-only consumers: the MI
+ * interrupt framework calls this after a filter returns FILTER_HANDLED
+ * (no ithread).  The filter is expected to have read+cleared the source
+ * device's IRQ status itself, so the GPIO line is now low; we EOI the
+ * level latch here.  Edge pins are already EOI'd in rk_gpio_intr.
+ */
+static void
+rk_pic_post_filter(device_t dev, struct intr_irqsrc *isrc)
+{
+	struct rk_gpio_softc *sc = device_get_softc(dev);
+	struct rk_pin_irqsrc *rkisrc = (struct rk_pin_irqsrc *)isrc;
+
+	if ((rkisrc->mode & (GPIO_INTR_LEVEL_LOW | GPIO_INTR_LEVEL_HIGH)) == 0)
+		return;
+	RK_GPIO_LOCK(sc);
+	rk_gpio_write_4(sc, RK_GPIO_PORTA_EOI, 1u << rkisrc->irq);
 	RK_GPIO_UNLOCK(sc);
 }
 
@@ -966,6 +1016,7 @@ static device_method_t rk_gpio_methods[] = {
 	DEVMETHOD(pic_disable_intr,	rk_pic_disable_intr),
 	DEVMETHOD(pic_enable_intr,	rk_pic_enable_intr),
 	DEVMETHOD(pic_pre_ithread,	rk_pic_pre_ithread),
+	DEVMETHOD(pic_post_filter,	rk_pic_post_filter),
 	DEVMETHOD(pic_post_ithread,	rk_pic_post_ithread),
 
 	/* ofw_bus interface */
