@@ -804,9 +804,10 @@ lapic_dump(const char* str)
 	printf("\n  lint0: 0x%08x lint1: 0x%08x TPR: 0x%08x SVR: 0x%08x\n",
 	    lapic_read32(LAPIC_LVT_LINT0), lapic_read32(LAPIC_LVT_LINT1),
 	    lapic_read32(LAPIC_TPR), lapic_read32(LAPIC_SVR));
-	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x",
-	    lapic_read32(LAPIC_LVT_TIMER), lapic_read32(LAPIC_LVT_THERMAL),
+	printf("  timer: 0x%08x err: 0x%08x", lapic_read32(LAPIC_LVT_TIMER),
 	    lapic_read32(LAPIC_LVT_ERROR));
+	if (maxlvt >= APIC_LVT_THERMAL)
+		printf(" therm: 0x%08x", lapic_read32(LAPIC_LVT_THERMAL));
 	if (maxlvt >= APIC_LVT_PMC)
 		printf(" pmc: 0x%08x", lapic_read32(LAPIC_LVT_PCINT));
 	printf("\n");
@@ -932,8 +933,9 @@ lapic_setup(int boot)
 	lapic_write32(LAPIC_ESR, 0);
 
 	/* Thermal LVT */
-	lapic_write32(LAPIC_LVT_THERMAL, lvt_mode(la, APIC_LVT_THERMAL,
-	    lapic_read32(LAPIC_LVT_THERMAL)));
+	if (maxlvt >= APIC_LVT_THERMAL)
+		lapic_write32(LAPIC_LVT_THERMAL, lvt_mode(la, APIC_LVT_THERMAL,
+		    lapic_read32(LAPIC_LVT_THERMAL)));
 
 	/* Program the CMCI LVT entry if present. */
 	if (maxlvt >= APIC_LVT_CMCI) {
@@ -1644,14 +1646,17 @@ lapic_update_thermal(void *dummy __unused)
 	    lapic_read32(LAPIC_LVT_THERMAL)));
 }
 
-void
+bool
 lapic_enable_thermal(lapic_thermal_handler_t *func, void *func_arg)
 {
 #ifdef DEV_ATPIC
 	/* Fail if the local APIC is not present. */
 	if (!x2apic_mode && lapic_map == NULL)
-		return;
+		return (false);
 #endif
+
+	if (lapic_maxlvt() < APIC_LVT_THERMAL)
+		return (false);
 
 	lapic_thermal_function_arg = func_arg;
 	atomic_store_rel_ptr((uintptr_t *)&lapic_thermal_function,
@@ -1661,6 +1666,8 @@ lapic_enable_thermal(lapic_thermal_handler_t *func, void *func_arg)
 
 	MPASS(mp_ncpus == 1 || smp_started);
 	smp_rendezvous(NULL, lapic_update_thermal, NULL, NULL);
+
+	return (true);
 }
 
 void
@@ -1671,6 +1678,9 @@ lapic_disable_thermal(void)
 	if (!x2apic_mode && lapic_map == NULL)
 		return;
 #endif
+
+	if (lapic_maxlvt() < APIC_LVT_THERMAL)
+		return;
 
 	lvts[APIC_LVT_THERMAL].lvt_masked = 1;
 
