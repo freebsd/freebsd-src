@@ -2924,6 +2924,23 @@ skip_thunk:
 		case KD_TEXT:
 		case KD_TEXT1:
 		case KD_PIXEL:
+			if ((vw->vw_flags & VWF_GRAPHICS) &&
+			    vw == vd->vd_curwindow) {
+				/*
+				 * When leaving graphics mode on the currently
+				 * active window, reprogram the display
+				 * controller back to text mode immediately.
+				 * Without this, the CRTC retains the graphical
+				 * state and the console stays invisible until
+				 * the next VT switch.
+				 */
+				VT_LOCK(vd);
+				vd->vd_flags |= VDF_INVALID;
+				VT_UNLOCK(vd);
+				if (vd->vd_driver->vd_postswitch)
+					vd->vd_driver->vd_postswitch(vd);
+				vt_resume_flush_timer(vw, 0);
+			}
 			vw->vw_flags &= ~VWF_GRAPHICS;
 			break;
 		case KD_GRAPHICS:
