@@ -4,37 +4,40 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+
+#include "strfrom.h"
 
 int
 strfroml(char * __restrict s, size_t n, const char * __restrict fmt,
     long double fp)
 {
-	size_t i;
+	char conv, lc, *digits, *dend;
+	int prec, decpt, signflag, ret, mode, ndig_req;
 
-	/*
-	 * Advance past '%' to locate the conversion specifier, then past the
-	 * optional '.' and any decimal digits.  This scan is not validation,
-	 * so use of an invalid format string is UB per C23 §7.24.1.3 and no
-	 * error is signalled.
-	 */
-	i = 1;
-	if (fmt[i] == '.')
-		for (++i; (unsigned)(fmt[i] - '0') <= 9u; ++i)
-			continue;
+	conv = sf_parse_fmt(fmt, &prec);
+	lc = conv | 0x20;
 
-	/*
-	 * Insert 'L' before the conversion specifier so snprintf treats the
-	 * argument as long double as the caller's format intentionally omits
-	 * the length modifier per C23 §7.24.1.3.
-	 */
-	char ff[i + 3];
-	memcpy(ff, fmt, i);
-	ff[i] = 'L';
-	ff[i + 1] = fmt[i];
-	ff[i + 2] = '\0';
+	if (lc == 'a') {
+		digits = __hldtoa(fp, sf_xdigits(conv),
+		    prec >= 0 ? prec + 1 : -1, &decpt, &signflag, &dend);
+		ret = sf_render_hex(s, n, conv, prec, digits, dend, decpt,
+		    signflag);
+		freedtoa(digits);
+		return (ret);
+	}
 
-	return (snprintf(s, n, ff, fp));
+	if (prec < 0)
+		prec = 6;
+
+	sf_decimal_mode(lc, prec, &mode, &ndig_req);
+
+	digits = __ldtoa(&fp, mode, ndig_req, &decpt, &signflag, &dend);
+
+	ret = sf_render_decimal(s, n, conv, lc, prec, digits, dend, decpt,
+	    signflag, decpt == INT_MAX);
+
+	freedtoa(digits);
+
+	return (ret);
 }
