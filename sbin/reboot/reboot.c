@@ -421,19 +421,19 @@ main(int argc, char *argv[])
 			user = (pw = getpwuid(getuid())) ?
 			    pw->pw_name : "???";
 		if (dohalt) {
-			openlog("halt", 0, LOG_AUTH | LOG_CONS);
+			openlog("halt", LOG_CONS, LOG_AUTH);
 			syslog(LOG_CRIT, "halted by %s", user);
 		} else if (howto & RB_REROOT) {
-			openlog("reroot", 0, LOG_AUTH | LOG_CONS);
+			openlog("reroot", LOG_CONS, LOG_AUTH);
 			syslog(LOG_CRIT, "rerooted by %s", user);
 		} else if (howto & RB_POWEROFF) {
-			openlog("reboot", 0, LOG_AUTH | LOG_CONS);
+			openlog("reboot", LOG_CONS, LOG_AUTH);
 			syslog(LOG_CRIT, "powered off by %s", user);
 		} else if (howto & RB_POWERCYCLE) {
-			openlog("reboot", 0, LOG_AUTH | LOG_CONS);
+			openlog("reboot", LOG_CONS, LOG_AUTH);
 			syslog(LOG_CRIT, "power cycled by %s", user);
 		} else {
-			openlog("reboot", 0, LOG_AUTH | LOG_CONS);
+			openlog("reboot", LOG_CONS, LOG_AUTH);
 			syslog(LOG_CRIT, "rebooted by %s", user);
 		}
 	}
