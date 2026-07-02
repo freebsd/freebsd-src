@@ -34,7 +34,14 @@
 /* Feature bits. */
 #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0x1 /* Tell before reclaiming pages */
 #define VIRTIO_BALLOON_F_STATS_VQ	0x2 /* Memory stats virtqueue */
-#define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	0x4 /* Deflate balloon on OOM */
+#define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	0x4 /* Deflate balloon on guest OOM */
+#define VIRTIO_BALLOON_F_FREE_PAGE_HINT	0x8 /* VQ to report free pages */
+#define VIRTIO_BALLOON_F_PAGE_POISON	0x10 /* Guest is using page poisoning */
+#define VIRTIO_BALLOON_F_PAGE_REPORTING	0x20 /* Page reporting virtqueue */
+
+/* Free page hint command IDs (if FREE_PAGE_HINT). */
+#define VIRTIO_BALLOON_CMD_ID_STOP	0
+#define VIRTIO_BALLOON_CMD_ID_DONE	1
 
 /* Size of a PFN in the balloon interface. */
 #define VIRTIO_BALLOON_PFN_SHIFT 12
@@ -45,17 +52,25 @@ struct virtio_balloon_config {
 
 	/* Number of pages we've actually got in balloon. */
 	uint32_t actual;
+
+	/* Free page hint command id, reported by host (if FREE_PAGE_HINT). */
+	uint32_t free_page_hint_cmd_id;
+
+	/* Page poison value, reported by guest (if PAGE_POISON). */
+	uint32_t poison_val;
 };
 
-#define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */
-#define VIRTIO_BALLOON_S_SWAP_OUT 1   /* Amount of memory swapped out */
-#define VIRTIO_BALLOON_S_MAJFLT   2   /* Number of major faults */
-#define VIRTIO_BALLOON_S_MINFLT   3   /* Number of minor faults */
-#define VIRTIO_BALLOON_S_MEMFREE  4   /* Total amount of free memory */
-#define VIRTIO_BALLOON_S_MEMTOT   5   /* Total amount of memory */
-#define VIRTIO_BALLOON_S_AVAIL    6   /* Available memory as in /proc */
-#define VIRTIO_BALLOON_S_CACHES   7   /* Disk caches */
-#define VIRTIO_BALLOON_S_NR       8
+#define VIRTIO_BALLOON_S_SWAP_IN	0   /* Amount of memory swapped in */
+#define VIRTIO_BALLOON_S_SWAP_OUT	1   /* Amount of memory swapped out */
+#define VIRTIO_BALLOON_S_MAJFLT		2   /* Number of major faults */
+#define VIRTIO_BALLOON_S_MINFLT		3   /* Number of minor faults */
+#define VIRTIO_BALLOON_S_MEMFREE	4   /* Total amount of free memory */
+#define VIRTIO_BALLOON_S_MEMTOT		5   /* Total amount of memory */
+#define VIRTIO_BALLOON_S_AVAIL		6   /* Available memory as in /proc */
+#define VIRTIO_BALLOON_S_CACHES		7   /* Disk caches */
+#define VIRTIO_BALLOON_S_HTLB_PGALLOC	8   /* Hugetlb page allocations */
+#define VIRTIO_BALLOON_S_HTLB_PGFAIL	9   /* Hugetlb alloc failures */
+#define VIRTIO_BALLOON_S_NR		10
 
 /*
  * Memory statistics structure.
