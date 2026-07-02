@@ -2923,9 +2923,31 @@ skip_thunk:
 		switch (*(int *)data) {
 		case KD_TEXT:
 		case KD_TEXT1:
-		case KD_PIXEL:
+		case KD_PIXEL: {
+			bool restore = false;
+			VT_LOCK(vd);
+			if ((vw->vw_flags & VWF_GRAPHICS) &&
+			    vw == vd->vd_curwindow) {
+				/*
+				 * When leaving graphics mode on the currently
+				 * active window, reprogram the display
+				 * controller back to text mode immediately.
+				 * Without this, the CRTC retains the graphical
+				 * state and the console stays invisible until
+				 * the next VT switch.
+				 */
+				restore = true;
+				vd->vd_flags |= VDF_INVALID;
+			}
+			VT_UNLOCK(vd);
+			if (restore) {
+				if (vd->vd_driver->vd_postswitch)
+					vd->vd_driver->vd_postswitch(vd);
+				vt_resume_flush_timer(vw, 0);
+			}
 			vw->vw_flags &= ~VWF_GRAPHICS;
 			break;
+		}
 		case KD_GRAPHICS:
 			vw->vw_flags |= VWF_GRAPHICS;
 			break;
