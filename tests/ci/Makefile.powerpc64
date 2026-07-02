@@ -24,4 +24,4 @@ ci-buildkernel-powerpc64: ci-buildkernel .PHONY
 
 ci-buildimage-powerpc64: ci-buildimage .PHONY
 
-ci-runtest-powerpc64: ci-runtest .PHONY
+ci-runtest-powerpc64: ci-runtest-qemu .PHONY
