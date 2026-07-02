@@ -681,7 +681,18 @@ static struct loader_callbacks cb = {
 };
 
 static int
-altcons_open(char *path)
+setup_tty(int fd, int speed)
+{
+        struct termios cntrl;
+
+        if (tcgetattr(fd, &cntrl))
+                return (-1);
+        cfsetspeed(&cntrl, speed);
+        return (tcsetattr(fd, TCSANOW, &cntrl));
+}
+
+static int
+altcons_open(char *path, int speed)
 {
 	struct stat sb;
 	int err;
@@ -703,8 +714,13 @@ altcons_open(char *path)
 			fd = open(path, O_RDWR | O_NONBLOCK);
 			if (fd < 0)
 				err = errno;
-			else
+			else {
 				consin_fd = consout_fd = fd;
+				if (isatty(fd) && setup_tty(fd, speed) < 0) {
+					err = errno;
+					close(fd);
+				}
+			}
 		}
 	}
 
@@ -790,7 +806,9 @@ main(int argc, char** argv)
 {
 	void (*func)(struct loader_callbacks *, void *, int, int);
 	uint64_t mem_size;
-	int bootfd, opt, error, memflags, need_reinit;
+	int bootfd, opt, error, memflags, need_reinit, speed = B9600;
+	long l;
+	char *cp, *cons = NULL;
 
 	bootfd = -1;
 	progname = basename(argv[0]);
@@ -801,14 +819,17 @@ main(int argc, char** argv)
 	consin_fd = STDIN_FILENO;
 	consout_fd = STDOUT_FILENO;
 
-	while ((opt = getopt(argc, argv, "CSc:d:e:h:l:m:")) != -1) {
+	while ((opt = getopt(argc, argv, "CSc:s:d:e:h:l:m:")) != -1) {
 		switch (opt) {
 		case 'c':
-			error = altcons_open(optarg);
-			if (error != 0)
-				errx(EX_USAGE, "Could not open '%s'", optarg);
+			cons = optarg;
 			break;
-
+		case 's':
+			l = strtol(optarg, &cp, 10);
+			if (*cp != '\0' || l < 0 || l >= INT_MAX)
+				errx(EX_USAGE, "Unsupported speed '%s'", optarg);
+			speed = (int)l;
+			break;
 		case 'd':
 			error = disk_open(optarg);
 			if (error != 0)
@@ -849,6 +870,9 @@ main(int argc, char** argv)
 			usage();
 		}
 	}
+
+	if (cons != NULL && altcons_open(cons, speed) != 0)
+		errx(EX_USAGE, "Could not open '%s'", optarg);
 
 	argc -= optind;
 	argv += optind;
