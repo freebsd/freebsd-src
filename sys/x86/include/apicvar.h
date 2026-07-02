@@ -235,7 +235,7 @@ void	apic_enable_vector(u_int apic_id, u_int vector);
 void	apic_disable_vector(u_int apic_id, u_int vector);
 void	apic_free_vector(u_int apic_id, u_int vector, u_int irq);
 void	lapic_calibrate_timer(void);
-void	lapic_enable_thermal(lapic_thermal_handler_t *func, void *func_arg);
+bool	lapic_enable_thermal(lapic_thermal_handler_t *func, void *func_arg);
 void	lapic_disable_thermal(void);
 int	lapic_enable_pmc(void);
 void	lapic_disable_pmc(void);
