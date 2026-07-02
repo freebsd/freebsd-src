@@ -46,6 +46,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -290,7 +291,10 @@ static void
 cook_cat(FILE *fp)
 {
 	int ch, gobble, line, prev;
-	wint_t wch;
+	wchar_t wch;
+	char buf[MB_LEN_MAX];
+	mbstate_t mbs = {};
+	size_t n, x;
 
 	/* Reset EOF condition on stdin. */
 	if (fp == stdin && feof(stdin))
@@ -329,42 +333,64 @@ cook_cat(FILE *fp)
 				continue;
 			}
 		} else if (vflag) {
-			(void)ungetc(ch, fp);
 			/*
-			 * Our getwc(3) doesn't change file position
-			 * on error.
+			 * Read in bytes until complete multi-byte character
+			 * decoded, decode buffer full or EOF on input.
 			 */
-			if ((wch = getwc(fp)) == WEOF) {
-				if (ferror(fp) && errno == EILSEQ) {
-					clearerr(fp);
-					/* Resync attempt. */
-					memset(&fp->_mbstate, 0, sizeof(mbstate_t));
-					if ((ch = getc(fp)) == EOF)
-						break;
-					wch = ch;
-					goto ilseq;
-				} else
-					break;
+			for (n = 0; (x = mbrtowc(&wch, (buf[n] = ch, &buf[n++]),
+			    1, &mbs)) == (size_t)-2 && n < sizeof(buf) && (ch =
+			    getc(fp)) != EOF;)
+				;	/* nothing */
+			if (x < (size_t)-2) {
+				/*
+				 * We have a validly encoded wide character.
+				 * If the wide character is printable, copy the
+				 * encoded data directly to output. Otherwise
+				 * fallthrough to the raw byte escaped display.
+				 */
+				if (iswprint(wch)) {
+					for (x = 0; x < n; ++x)
+						if (putchar(buf[x]) == EOF)
+							goto stdout_eof;
+					ch = -1;	/* no newline squash */
+					continue;
+				}
+			} else {
+				/*
+				 * Either no valid wide character encoding was
+				 * found or the encoding was truncated at
+				 * MB_LEN_MAX bytes, in either case reset the
+				 * mbstate and push all but the first byte back
+				 * into the input stream and fall through to the
+				 * raw byte escaped display.
+				 */
+				memset(&mbs, 0, sizeof(mbs));
+				while (n > 1)
+					ungetc(buf[--n], fp);
 			}
-			if (!iswascii(wch) && !iswprint(wch)) {
-ilseq:
-				if (putchar('M') == EOF || putchar('-') == EOF)
-					break;
-				wch = toascii(wch);
+			for (x = 0; x < n; ++x) {
+				ch = buf[x];
+				if (!isascii(ch) && !isprint(ch)) {
+					if (putchar('M') == EOF ||
+					    putchar('-') == EOF)
+						goto stdout_eof;
+					ch = toascii(ch);
+				}
+				if (iscntrl(ch)) {
+					if (putchar('^') == EOF ||
+					    putchar(ch == '\177' ? '?' :
+					    ch | 0100) == EOF)
+						goto stdout_eof;
+					continue;
+				}
+				if (putchar(ch) == EOF)
+					goto stdout_eof;
 			}
-			if (iswcntrl(wch)) {
-				ch = toascii(wch);
-				ch = (ch == '\177') ? '?' : (ch | 0100);
-				if (putchar('^') == EOF || putchar(ch) == EOF)
-					break;
-				continue;
-			}
-			if (putwchar(wch) == WEOF)
-				break;
-			ch = -1;
+			ch = -1;	/* no newline squash */
 			continue;
 		}
 		if (putchar(ch) == EOF)
+stdout_eof:
 			break;
 	}
 	if (ferror(fp)) {
