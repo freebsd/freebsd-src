@@ -67,8 +67,8 @@
 .Lb libc
 .Sh SYNOPSIS
 .In wchar.h
-.Ft wchar_t *
-.Fn wmemchr "const wchar_t *s" "wchar_t c" "size_t n"
+.Ft "QWchar_t *"
+.Fn wmemchr "QWchar_t *s" "wchar_t c" "size_t n"
 .Ft int
 .Fn wmemcmp "const wchar_t *s1" "const wchar_t *s2" "size_t n"
 .Ft wchar_t *
@@ -87,8 +87,8 @@
 .Fn wcscasecmp "const wchar_t *s1" "const wchar_t *s2"
 .Ft wchar_t *
 .Fn wcscat "wchar_t * restrict s1" "const wchar_t * restrict s2"
-.Ft wchar_t *
-.Fn wcschr "const wchar_t *s" "wchar_t c"
+.Ft "QWchar_t *"
+.Fn wcschr "QWchar_t *s" "wchar_t c"
 .Ft int
 .Fn wcscmp "const wchar_t *s1" "const wchar_t *s2"
 .Ft wchar_t *
@@ -113,14 +113,14 @@
 .Fn wcsncpy "wchar_t * restrict s1" "const wchar_t * restrict s2" "size_t n"
 .Ft size_t
 .Fn wcsnlen "const wchar_t *s" "size_t maxlen"
-.Ft wchar_t *
-.Fn wcspbrk "const wchar_t *s1" "const wchar_t *s2"
-.Ft wchar_t *
-.Fn wcsrchr "const wchar_t *s" "wchar_t c"
+.Ft "QWchar_t *"
+.Fn wcspbrk "QWchar_t *s1" "const wchar_t *s2"
+.Ft "QWchar_t *"
+.Fn wcsrchr "QWchar_t *s" "wchar_t c"
 .Ft size_t
 .Fn wcsspn "const wchar_t *s1" "const wchar_t *s2"
-.Ft wchar_t *
-.Fn wcsstr "const wchar_t * restrict s1" "const wchar_t * restrict s2"
+.Ft "QWchar_t *"
+.Fn wcsstr "QWchar_t *s1" "const wchar_t *s2"
 .Sh DESCRIPTION
 The functions implement string manipulation operations over wide character
 strings.
@@ -154,21 +154,57 @@ counterpart, such as
 .Xr strspn 3 ,
 .Xr strstr 3
 .Sh STANDARDS
-These functions conform to
-.St -isoC-99 ,
-with the exception of
+Functions
+.Fn wmemcmp ,
+.Fn wmemcpy ,
+.Fn wmemmove ,
+.Fn wmemset ,
+.Fn wcscat ,
+.Fn wcscmp ,
+.Fn wcscpy ,
+.Fn wcscspn ,
+.Fn wcslen ,
+.Fn wcsncat ,
+.Fn wcsncmp ,
+.Fn wcsncpy ,
+and
+.Fn wcsspn
+conform to
+.St -isoC-99 .
+.Pp
+Functions
+.Fn wmemchr ,
+.Fn wcschr ,
+.Fn wcspbrk ,
+.Fn wcsrchr ,
+and
+.Fn wcsstr
+conform to
+.St -isoC-2023 ,
+where they are specified as qualifier-preserving functions.
+.Pp
+Functions
 .Fn wcpcpy ,
 .Fn wcpncpy ,
 .Fn wcscasecmp ,
 .Fn wcsdup ,
 .Fn wcsncasecmp ,
 and
-.Fn wcsnlen ,
-which conform to
-.St -p1003.1-2008 ;
+.Fn wcsnlen
+conform to
+.St -p1003.1-2008 ,
+and functions
+.Fn wcslcat
 and
-.Fn wcslcat ,
 .Fn wcslcpy ,
-and
-.Fn wmempcpy ,
-which are extensions.
+first introduced by
+.Ox ,
+conform to
+.St -p1003.1-2024 .
+.Pp
+Function
+.Fn wmempcpy
+is a
+.Tn GNU
+extensions.
+

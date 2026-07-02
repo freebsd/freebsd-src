@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd September 2, 2023
+.Dd June 21, 2026
 .Dt STRING 3
 .Os
 .Sh NAME
@@ -63,10 +63,10 @@
 .Fn strcat "char *s" "const char * append"
 .Ft char *
 .Fn strncat "char *s" "const char *append" "size_t count"
-.Ft char *
-.Fn strchr "const char *s" "int c"
-.Ft char *
-.Fn strrchr "const char *s" "int c"
+.Ft "QChar *"
+.Fn strchr "QChar *s" "int c"
+.Ft "QChar *"
+.Fn strrchr "QChar *s" "int c"
 .Ft int
 .Fn strcmp "const char *s1" "const char *s2"
 .Ft int
@@ -83,16 +83,16 @@
 .Fn strerror "int errno"
 .Ft size_t
 .Fn strlen "const char *s"
-.Ft char *
-.Fn strpbrk "const char *s" "const char *charset"
+.Ft "QChar *"
+.Fn strpbrk "QChar *s" "const char *charset"
 .Ft char *
 .Fn strsep "char **stringp" "const char *delim"
 .Ft size_t
 .Fn strspn "const char *s" "const char *charset"
 .Ft size_t
 .Fn strcspn "const char *s" "const char *charset"
-.Ft char *
-.Fn strstr "const char *big" "const char *little"
+.Ft "QChar *"
+.Fn strstr "QChar *big" "const char *little"
 .Ft char *
 .Fn strtok "char *s" "const char *delim"
 .Ft char *
@@ -136,20 +136,26 @@ for size limitations.
 The
 .Fn strcat ,
 .Fn strncat ,
-.Fn strchr ,
-.Fn strrchr ,
 .Fn strcmp ,
 .Fn strncmp ,
 .Fn strcpy ,
 .Fn strncpy ,
 .Fn strerror ,
 .Fn strlen ,
-.Fn strpbrk ,
 .Fn strspn ,
 .Fn strcspn ,
-.Fn strstr ,
 and
 .Fn strtok
 functions
 conform to
 .St -isoC .
+.Pp
+The
+.Fn strchr ,
+.Fn strrchr ,
+.Fn strpbrk ,
+and
+.Fn strstr
+functions conform to
+.St -isoC-2023 ,
+where they are specified as qualifier-preserving functions.

@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 9, 2008
+.Dd June 21, 2026
 .Dt MEMCHR 3
 .Os
 .Sh NAME
@@ -39,10 +39,10 @@
 .Lb libc
 .Sh SYNOPSIS
 .In string.h
-.Ft void *
-.Fn memchr "const void *b" "int c" "size_t len"
-.Ft void *
-.Fn memrchr "const void *b" "int c" "size_t len"
+.Ft "QVoid *"
+.Fn memchr "QVoid *b" "int c" "size_t len"
+.Ft "QVoid *"
+.Fn memrchr "QVoid *b" "int c" "size_t len"
 .Sh DESCRIPTION
 The
 .Fn memchr
@@ -92,13 +92,18 @@ bytes.
 .Sh STANDARDS
 The
 .Fn memchr
-function
-conforms to
-.St -isoC .
+function conforms to
+.St -isoC-2023 ,
+where it is specified as a qualifier-preserving function.
 .Pp
 The
 .Fn memrchr
 function is a GNU extension and conforms to no standard.
+Like the qualifier-preserving functions in
+.St -isoC-2023 ,
+.Fx implements
+.Fn memrchr
+as qualifier-preserving as well.
 .Sh HISTORY
 The
 .Fn memrchr

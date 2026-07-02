@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 17, 2019
+.Dd June 21, 2026
 .Dt BSEARCH 3
 .Os
 .Sh NAME
@@ -39,8 +39,8 @@
 .Lb libc
 .Sh SYNOPSIS
 .In stdlib.h
-.Ft void *
-.Fn bsearch "const void *key" "const void *base" "size_t nmemb" "size_t size" "int (*compar) (const void *, const void *)"
+.Ft "QVoid *"
+.Fn bsearch "const void *key" "QVoid *base" "size_t nmemb" "size_t size" "int (*compar) (const void *, const void *)"
 .Sh DESCRIPTION
 The
 .Fn bsearch
@@ -153,4 +153,5 @@ main(void)
 The
 .Fn bsearch
 function conforms to
-.St -isoC .
+.St -isoC-2023 ,
+where it is specified as a qualifier-preserving function.
