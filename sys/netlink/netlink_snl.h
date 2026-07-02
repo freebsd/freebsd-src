@@ -69,6 +69,18 @@
 		((char *)NLA_NEXT(_attr) <= _NLA_END(_start, _len));	\
 		_attr =  NLA_NEXT(_attr))
 
+#define NLA_NEXT_CONST(_attr) (const struct nlattr *)(const void *) \
+        ((const char *)_attr + NLA_ALIGN(_attr->nla_len))
+
+#define _NLA_END_CONST(_start, _len) \
+        ((const char *)(_start) + (_len))
+#define NLA_FOREACH_CONST(_attr, _start, _len)      \
+        for (_attr = (const struct nlattr *)(_start);		\
+		((const char *)_attr < _NLA_END_CONST(_start, _len)) && \
+		((const char *)NLA_NEXT_CONST(_attr) <=	\
+		_NLA_END_CONST(_start, _len)); \
+		_attr =  NLA_NEXT_CONST(_attr))
+
 struct linear_buffer {
 	char			*base;	/* Base allocated memory pointer */
 	uint32_t		offset;	/* Currently used offset */
