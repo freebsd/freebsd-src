@@ -29,6 +29,7 @@
  */
 
 #include <sys/capsicum.h>
+#include <netlink/netlink.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -144,9 +145,55 @@ ATF_TC_BODY(cap_rights, tc)
 	free(buf);
 }
 
+static void
+check_sysdecode_netlink(const struct nlmsghdr *msg, const char *expected)
+{
+	char *buf;
+	FILE *fp;
+	size_t sz;
+
+	fp = open_memstream(&buf, &sz);
+	ATF_REQUIRE(fp != NULL);
+
+	ATF_REQUIRE(sysdecode_netlink(fp, msg, sizeof(*msg)));
+	ATF_REQUIRE(fflush(fp) == 0);
+	buf[sz] = '\0';
+	ATF_REQUIRE_STREQ(buf, expected);
+
+	ATF_REQUIRE(fclose(fp) == 0);
+	free(buf);
+}
+
+ATF_TC_WITHOUT_HEAD(netlink);
+ATF_TC_BODY(netlink, tc)
+{
+	const struct nlmsghdr msg_known = {
+		.nlmsg_len = sizeof(struct nlmsghdr),
+		.nlmsg_type = NLMSG_NOOP,
+		.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK,
+		.nlmsg_seq = 42,
+		.nlmsg_pid = 1000,
+	};
+	const struct nlmsghdr msg_mixed = {
+		.nlmsg_len = sizeof(struct nlmsghdr),
+		.nlmsg_type = NLMSG_DONE,
+		.nlmsg_flags = NLM_F_REQUEST | NLM_F_ROOT,
+		.nlmsg_seq = 43,
+		.nlmsg_pid = 1000,
+	};
+
+	check_sysdecode_netlink(&msg_known,
+	    "netlink{len=16,type=NLMSG_NOOP,flags=NLM_F_REQUEST|NLM_F_ACK,"
+	    "seq=42,pid=1000}");
+	check_sysdecode_netlink(&msg_mixed,
+	    "netlink{len=16,type=NLMSG_DONE,flags=NLM_F_REQUEST|0x100,"
+	    "seq=43,pid=1000}");
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, cap_rights);
+	ATF_TP_ADD_TC(tp, netlink);
 
 	return (atf_no_error());
 }
