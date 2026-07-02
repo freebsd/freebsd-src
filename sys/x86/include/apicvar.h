@@ -198,7 +198,6 @@ extern int *apic_cpuids;
 extern void (*ipi_vectored)(u_int, int);
 
 typedef struct ioapic *ioapic_drv_t;
-typedef void (*lapic_thermal_handle_function)(int, void *);
 
 void	apic_register_enumerator(struct apic_enumerator *enumerator);
 ioapic_drv_t	ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase);
@@ -213,6 +212,9 @@ int	ioapic_set_polarity(ioapic_drv_t cookie, u_int pin, enum intr_polarity pol);
 int	ioapic_set_triggermode(ioapic_drv_t cookie, u_int pin,
 	    enum intr_trigger trigger);
 int	ioapic_set_smi(ioapic_drv_t cookie, u_int pin);
+
+/* First argument: 'cpuid' from 'struct pcpu', second: Opaque cookie. */
+typedef void lapic_thermal_handler_t(int, void *);
 
 void	lapic_create(u_int apic_id, int boot_cpu);
 void	lapic_init(vm_paddr_t addr);
@@ -233,7 +235,7 @@ void	apic_enable_vector(u_int apic_id, u_int vector);
 void	apic_disable_vector(u_int apic_id, u_int vector);
 void	apic_free_vector(u_int apic_id, u_int vector, u_int irq);
 void	lapic_calibrate_timer(void);
-void	lapic_enable_thermal(lapic_thermal_handle_function thermfunc, void *value);
+void	lapic_enable_thermal(lapic_thermal_handler_t *func, void *func_arg);
 void	lapic_disable_thermal(void);
 int	lapic_enable_pmc(void);
 void	lapic_disable_pmc(void);
