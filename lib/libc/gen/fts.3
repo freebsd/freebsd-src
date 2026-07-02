@@ -29,7 +29,9 @@
 .Dt FTS 3
 .Os
 .Sh NAME
-.Nm fts
+.Nm fts ,
+.Nm fts_openat ,
+.Nm fts_get_dirfd
 .Nd traverse a file hierarchy
 .Sh LIBRARY
 .Lb libc
@@ -37,6 +39,8 @@
 .In fts.h
 .Ft FTS *
 .Fn fts_open "char * const *path_argv" "int options" "int (*compar)(const FTSENT * const *, const FTSENT * const *)"
+.Ft FTS *
+.Fn fts_openat "int dirfd" "char * const *path_argv" "int options" "int (*compar)(const FTSENT * const *, const FTSENT * const *)"
 .Ft FTS *
 .Fn fts_open_b "char * const *path_argv" "int options" "int (^compar)(const FTSENT * const *, const FTSENT * const *)"
 .Ft FTSENT *
@@ -51,6 +55,8 @@
 .Fn fts_get_clientptr "FTS *ftsp"
 .Ft FTS *
 .Fn fts_get_stream "FTSENT *f"
+.Ft int
+.Fn fts_get_dirfd "const FTS *ftsp"
 .Ft int
 .Fn fts_close "FTS *ftsp"
 .Sh DESCRIPTION
@@ -599,6 +605,55 @@ except that it takes a block pointer instead of a function pointer.
 The block is copied before
 .Fn fts_open_b
 returns, so the original can safely go out of scope or be released.
+.Ss Fn fts_openat
+The
+.Fn fts_openat
+function is identical to
+.Fn fts_open
+except that it accepts a file descriptor
+.Fa dirfd
+as its first argument.
+If
+.Fa dirfd
+is
+.Dv AT_FDCWD ,
+the behaviour is identical to
+.Fn fts_open .
+Otherwise,
+.Fa dirfd
+must be an open file descriptor referring to a directory,
+and the traversal is rooted there.
+This allows
+.Fn fts_openat
+to be used inside Capsicum capability mode
+.Pq Xr capsicum 4 ,
+where path-based operations are not permitted after
+.Xr cap_enter 2 .
+The
+.Fn fts_openat
+function duplicates
+.Fa dirfd
+internally, so the caller may close it after
+.Fn fts_openat
+returns.
+.Ss Fn fts_get_dirfd
+The
+.Fn fts_get_dirfd
+function returns the file descriptor of the directory currently
+being traversed by
+.Fa ftsp ,
+or \-1 if no directory traversal is in progress.
+The returned descriptor is valid only until the next call to
+.Fn fts_read
+and must not be closed by the caller.
+Callers may use
+.Xr openat 2
+with the returned descriptor and the
+.Fa fts_name
+field of the current
+.Vt FTSENT
+to access files without relying on path-based operations,
+which is required in Capsicum capability mode.
 .Ss Fn fts_read
 The
 .Fn fts_read

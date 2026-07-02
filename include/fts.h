@@ -133,6 +133,7 @@ struct _ftsent {
 	struct stat *fts_statp;		/* stat(2) information */
 	char *fts_name;			/* file name */
 	FTS *fts_fts;			/* back pointer to main FTS */
+	int fts_dirfd;                  /* fd for parent directory */
 };
 
 #include <sys/cdefs.h>
