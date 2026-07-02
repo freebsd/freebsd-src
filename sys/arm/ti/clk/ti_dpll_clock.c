@@ -154,7 +154,7 @@ parse_dpll_reg(struct ti_dpll_softc *sc) {
 	ssize_t numbytes_regs;
 	uint32_t num_regs;
 	phandle_t node;
-	cell_t reg_cells[4];
+	cell_t reg_cells[6];
 
 	if (sc->dpll_type == TI_AM3_DPLL_X2_CLOCK ||
 		sc->dpll_type == TI_OMAP4_DPLL_X2_CLOCK) {
@@ -172,7 +172,7 @@ parse_dpll_reg(struct ti_dpll_softc *sc) {
 	num_regs = numbytes_regs / sizeof(cell_t);
 
 	/* Sanity check */
-	if (num_regs > 4)
+	if (num_regs > 6)
 		return (ENXIO);
 
 	OF_getencprop(node, "reg", reg_cells, numbytes_regs);
@@ -184,7 +184,7 @@ parse_dpll_reg(struct ti_dpll_softc *sc) {
 		case TI_AM3_DPLL_CLOCK:
 		case TI_AM3_DPLL_CORE_CLOCK:
 		case TI_AM3_DPLL_X2_CLOCK:
-			if (num_regs != 3)
+			if (num_regs < 3)
 				return (ENXIO);
 			sc->dpll_def.ti_clkmode_offset = reg_cells[0];
 			sc->dpll_def.ti_idlest_offset = reg_cells[1];
@@ -192,13 +192,15 @@ parse_dpll_reg(struct ti_dpll_softc *sc) {
 			break;
 
 		case TI_OMAP2_DPLL_CORE_CLOCK:
-			if (num_regs != 2)
+			if (num_regs < 2)
 				return (ENXIO);
 			sc->dpll_def.ti_clkmode_offset = reg_cells[0];
 			sc->dpll_def.ti_clksel_offset = reg_cells[1];
 			break;
 
 		default:
+			if (num_regs < 4)
+				return (ENXIO);
 			sc->dpll_def.ti_clkmode_offset = reg_cells[0];
 			sc->dpll_def.ti_idlest_offset = reg_cells[1];
 			sc->dpll_def.ti_clksel_offset = reg_cells[2];

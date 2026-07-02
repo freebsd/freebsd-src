@@ -147,7 +147,8 @@ EARLY_DRIVER_MODULE(simplebus, simplebus, simplebus_driver, 0, 0,
 static int
 simplebus_probe(device_t dev)
 {
- 
+	bool is_simple_bus = false;
+
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 	/*
@@ -166,7 +167,11 @@ simplebus_probe(device_t dev)
 	 * have children but aren't really buses in our world.  Without a
 	 * ranges property we will fail to attach, so just fail to probe too.
 	 */
-	if (!(ofw_bus_is_compatible(dev, "simple-bus") &&
+	is_simple_bus = ofw_bus_is_compatible(dev, "simple-bus");
+#ifdef FORCE_SIMPLE_PM_BUS
+	is_simple_bus = is_simple_bus || ofw_bus_is_compatible(dev, "simple-pm-bus");
+#endif
+	if (!(is_simple_bus &&
 	    ofw_bus_has_prop(dev, "ranges")) &&
 	    (ofw_bus_get_type(dev) == NULL || strcmp(ofw_bus_get_type(dev),
 	     "soc") != 0))
