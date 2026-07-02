@@ -314,8 +314,8 @@ static uint64_t lapic_ipi_wait_mult;
 static int __read_mostly lapic_ds_idle_timeout = 1000000;
 #endif
 unsigned int max_apic_id;
-static void *lapic_thermal_function_value;
-static lapic_thermal_handle_function lapic_thermal_function_ptr;
+static lapic_thermal_handler_t *lapic_thermal_function;
+static void *lapic_thermal_function_arg;
 static int pcint_refcnt = 0;
 
 SYSCTL_NODE(_hw, OID_AUTO, apic, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
@@ -1623,13 +1623,13 @@ lapic_enable_mca_elvt(void)
 void
 lapic_handle_thermal(void)
 {
-	lapic_thermal_handle_function func;
+	lapic_thermal_handler_t *func;
 
-	func = (lapic_thermal_handle_function)atomic_load_acq_ptr(
-	    (void *)&lapic_thermal_function_ptr);
+	func = (lapic_thermal_handler_t *)atomic_load_acq_ptr(
+	    (uintptr_t *)&lapic_thermal_function);
 
 	if (func != NULL)
-		func(PCPU_GET(cpuid), lapic_thermal_function_value);
+		func(PCPU_GET(cpuid), lapic_thermal_function_arg);
 
 	lapic_eoi();
 }
@@ -1645,7 +1645,7 @@ lapic_update_thermal(void *dummy __unused)
 }
 
 void
-lapic_enable_thermal(lapic_thermal_handle_function thermfunc, void *value)
+lapic_enable_thermal(lapic_thermal_handler_t *func, void *func_arg)
 {
 #ifdef DEV_ATPIC
 	/* Fail if the local APIC is not present. */
@@ -1653,9 +1653,9 @@ lapic_enable_thermal(lapic_thermal_handle_function thermfunc, void *value)
 		return;
 #endif
 
-	lapic_thermal_function_value = value;
-	atomic_store_rel_ptr((uintptr_t *)&lapic_thermal_function_ptr,
-	    (uintptr_t)thermfunc);
+	lapic_thermal_function_arg = func_arg;
+	atomic_store_rel_ptr((uintptr_t *)&lapic_thermal_function,
+	    (uintptr_t)func);
 
 	lvts[APIC_LVT_THERMAL].lvt_masked = 0;
 
@@ -1679,7 +1679,7 @@ lapic_disable_thermal(void)
 #endif
 	smp_rendezvous(NULL, lapic_update_thermal, NULL, NULL);
 
-	atomic_store_rel_ptr((uintptr_t *)&lapic_thermal_function_ptr,
+	atomic_store_rel_ptr((uintptr_t *)&lapic_thermal_function,
 	    (uintptr_t)NULL);
 }
 
