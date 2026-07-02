@@ -1,0 +1,95 @@
+.\"
+.\" Copyright (c) 2026 Faraz Vahedi <kfv@kfv.io>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd June 27, 2026
+.Dt STRFROMD 3
+.Os
+.Sh NAME
+.Nm strfromd ,
+.Nm strfromf ,
+.Nm strfroml
+.Nd convert floating point value to
+.Tn ASCII
+string
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In stdlib.h
+.Ft int
+.Fn strfromd "char * restrict str" "size_t size" "const char * restrict format" "double fp"
+.Ft int
+.Fn strfromf "char * restrict str" "size_t size" "const char * restrict format" "float fp"
+.Ft int
+.Fn strfroml "char * restrict str" "size_t size" "const char * restrict format" "long double fp"
+.Fc
+.Sh DESCRIPTION
+Functions
+.Fn strfromd ,
+.Fn strfromf ,
+and
+.Fn strfroml
+convert the floating-point value
+.Fa fp
+to a null-terminated string, storing at most
+.Fa size
+bytes
+.Pq including the terminating null character
+into the array pointed to by
+.Fa str .
+.Pp
+These functions are equivalent to
+.Fn snprintf "s" "n" "format" "fp" ,
+except that default argument promotions are not applied to
+.Fa fp ,
+and the
+.Fa format
+string is restricted.
+It shall consist of exactly the character
+.Ql % ,
+followed by an optional precision that does not contain an asterisk
+.Ql * ,
+followed by one of the conversion specifiers
+.Cm a , A , e , E , f , F , g ,
+or
+.Cm G .
+The conversion specifier applies to the type indicated by the
+function suffix, rather than by a length modifier.
+.Pp
+Use of any other format string results in undefined behaviour,
+as does any undefined behaviour inherited from
+.Xr snprintf 3
+per se.
+.Sh RETURN VALUES
+The
+.Fn strfromd ,
+.Fn strfromf ,
+and
+.Fn strfroml
+functions, as per
+.Xr snprintf 3 ,
+return the number of characters
+.Po
+not counting the terminating null character
+.Pc
+that would have been written
+had
+.Fa n
+been sufficiently large.
+Thus, the null-terminated output has been completely written if
+and only if the returned value is both nonnegative and less than
+.Fa size .
+.Sh SEE ALSO
+.Xr snprintf 3 ,
+.Xr strtod 3 ,
+.Xr strtol 3 ,
+.Xr strtoul 3
+.Sh STANDARDS
+Functions
+.Fn strfromd ,
+.Fn strfromf ,
+and
+.Fn strfroml
+conform to
+.St -isoC-2023 .
