@@ -88,6 +88,18 @@ text_base(pid_t pid, const char *path)
 	return (base);
 }
 
+static uint64_t
+ping_text_base(pid_t pid)
+{
+	uint64_t base;
+
+	base = text_base(pid, "/sbin/ping");
+	if (base == 0)
+		/* Work around name cache inconsistency. */
+		base = text_base(pid, "/sbin/ping6");
+	return (base);
+}
+
 /*
  * Make sure that ASLR can't be disabled for a setuid executable by an
  * unprivileged user.
@@ -115,9 +127,9 @@ ATF_TC_BODY(aslr_setuid, tc)
 	    "/sbin/ping is not setuid root");
 
 	child = spawn_ping(tc);
-	bases[0] = text_base(child, "/sbin/ping");
+	bases[0] = ping_text_base(child);
 	ATF_REQUIRE_MSG(bases[0] != 0,
-	    "failed to find /sbin/ping text segment");
+	    "failed to find ping text segment");
 
 	arg = 0;
 	error = procctl(P_PID, child, PROC_ASLR_STATUS, &arg);
@@ -137,9 +149,9 @@ ATF_TC_BODY(aslr_setuid, tc)
 
 	for (size_t i = 1; i < nitems(bases); i++) {
 		child = spawn_ping(tc);
-		bases[i] = text_base(child, "/sbin/ping");
+		bases[i] = ping_text_base(child);
 		ATF_REQUIRE_MSG(bases[i] != 0,
-		    "failed to find /sbin/ping text segment");
+		    "failed to find ping text segment");
 		error = kill(child, SIGTERM);
 		ATF_REQUIRE(error == 0);
 		pid = waitpid(child, &st, 0);
