@@ -41,6 +41,8 @@ and/or ports.
 
 	Use-after-free in TCP RACK stack option handler. [SA-26:43.tcp]
 
+	Multiple vulnerabilities in POSIX largepage objects. [SA-26:44.posixshm]
+
 	Incorrect audit records for ptrace(2) syscall requests. [SA-26:45.audit]
 
 	Remote DOS via uninitialized memory access in KTLS receive. [SA-26:46.ktls]
