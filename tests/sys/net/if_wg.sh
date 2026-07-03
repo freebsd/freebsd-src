@@ -374,6 +374,8 @@ wg_vnet_parent_routing_body()
 	wg1=$(ifconfig wg create)
 	wg2=$(ifconfig wg create)
 
+	atf_check ifconfig lo0 inet 127.0.0.1/8
+
 	vnet_mkjail wgtest1 ${wg1}
 	vnet_mkjail wgtest2 ${wg2}
 
