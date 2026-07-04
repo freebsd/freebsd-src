@@ -98,6 +98,7 @@ struct ucred;
 #include <sys/param.h>		/* MAXCPU */
 #include <sys/pcpu.h>		/* curthread */
 #include <sys/kpilite.h>
+#include <sys/limits.h>
 
 extern bool scheduler_stopped;
 
