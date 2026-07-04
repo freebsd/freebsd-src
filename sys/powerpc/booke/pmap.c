@@ -676,6 +676,8 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 	 * tunable.  The tunable should be a power of 2.
 	 */
 	tid_bits = ((mfspr(SPR_MMUCFG) & MMUCFG_PIDSIZE_M) >> MMUCFG_PIDSIZE_S);
+	if (tid_bits == 0)
+		tid_bits = 7;
 	TUNABLE_INT_FETCH("machdep.tid_max", &tid_max);
 	if (tid_max <= 0)
 		tid_max = INT_MAX;
