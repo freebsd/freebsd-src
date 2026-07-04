@@ -1225,14 +1225,17 @@ prepend_header:
 	}
 
 	/*
-	 * Send trailers. Wimp out and use writev(2).
+	 * Send trailers.
 	 */
 	if (trl_uio != NULL) {
+		ssize_t cnt;
+
 		SOCK_IO_SEND_UNLOCK(so);
 		CURVNET_RESTORE();
-		error = kern_writev(td, sockfd, trl_uio);
+		error = kern_filewrite(td, sockfd, sock_fp, trl_uio,
+		    (off_t)-1, 0, &cnt);
 		if (error == 0)
-			sbytes += td->td_retval[0];
+			sbytes += cnt;
 		goto out;
 	}
 
@@ -1240,15 +1243,8 @@ done:
 	SOCK_IO_SEND_UNLOCK(so);
 	CURVNET_RESTORE();
 out:
-	/*
-	 * If there was no error we have to clear td->td_retval[0]
-	 * because it may have been set by writev.
-	 */
-	if (error == 0) {
-		td->td_retval[0] = 0;
-		if (sbytes > 0 && vp != NULL)
-			INOTIFY(vp, IN_ACCESS);
-	}
+	if (error == 0 && sbytes > 0 && vp != NULL)
+		INOTIFY(vp, IN_ACCESS);
 	if (sent != NULL) {
 		(*sent) = sbytes;
 	}
@@ -1329,6 +1325,11 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 			    &trl_uio);
 			if (error != 0)
 				goto out;
+			if (trl_uio->uio_rw != UIO_WRITE) {
+				error = EINVAL;
+				goto out;
+			}
+			trl_uio->uio_td = td;
 		}
 	}
 

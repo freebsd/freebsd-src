@@ -172,6 +172,8 @@ int	kern_fcntl_freebsd(struct thread *td, int fd, int cmd, intptr_t arg);
 int	kern_fhopen(struct thread *td, const struct fhandle *u_fhp, int flags);
 int	kern_fhstat(struct thread *td, fhandle_t fh, struct stat *buf);
 int	kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf);
+int	kern_filewrite(struct thread *td, int fd, struct file *fp,
+	    struct uio *auio, off_t offset, int flags, ssize_t *cntp);
 int	kern_fpathconf(struct thread *td, int fd, int name, long *valuep);
 int	kern_freebsd11_getfsstat(struct thread *td,
 	    struct freebsd11_statfs *ubuf, long bufsize, int mode);
