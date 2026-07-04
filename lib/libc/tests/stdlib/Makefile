@@ -17,6 +17,7 @@ ATF_TESTS_C+=		qsort_s_test
 ATF_TESTS_C+=		qsort_bench
 ATF_TESTS_C+=		set_constraint_handler_s_test
 ATF_TESTS_C+=		strfmon_test
+ATF_TESTS_C+=		strfrom_test
 ATF_TESTS_C+=		system_test
 ATF_TESTS_C+=		tsearch_test
 ATF_TESTS_CXX+=		cxa_thread_atexit_test
