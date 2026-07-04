@@ -681,7 +681,7 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 		tid_max = INT_MAX;
 	else
 		tid_max = 1 << ilog2(tid_max);
-	tid_max = min((1 << tid_bits), tid_max) - 1;
+	tid_max = min((1 << (tid_bits + 1)), tid_max) - 1;
 
 	/*
 	 * Align kernel start and end address (kernel image).
