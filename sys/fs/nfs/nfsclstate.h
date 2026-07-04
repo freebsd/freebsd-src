@@ -162,17 +162,19 @@ struct nfscldeleg {
 	struct nfsclownerhead	nfsdl_owner;	/* locally issued state */
 	struct nfscllockownerhead nfsdl_lock;
 	nfsv4stateid_t		nfsdl_stateid;
-	struct acl_entry	nfsdl_ace;	/* Delegation ace */
 	struct nfsclclient	*nfsdl_clp;
 	struct nfsv4lock	nfsdl_rwlock;	/* for active I/O ops */
+#define nfsdl_startcopy		nfsdl_ace
+	struct acl_entry	nfsdl_ace;	/* Delegation ace */
 	struct nfscred		nfsdl_cred;	/* Cred. used for Open */
 	time_t			nfsdl_timestamp; /* used for stale cleanup */
 	u_int64_t		nfsdl_sizelimit; /* Limit for file growth */
 	u_int64_t		nfsdl_size;	/* saved copy of file size */
 	u_int64_t		nfsdl_change;	/* and change attribute */
 	struct timespec		nfsdl_modtime;	/* local modify time */
-	u_int16_t		nfsdl_fhlen;
 	u_int8_t		nfsdl_flags;
+#define nfsdl_endcopy		nfsdl_fhlen
+	u_int16_t		nfsdl_fhlen;
 	u_int8_t		nfsdl_fh[1];	/* must be last */
 };
 
