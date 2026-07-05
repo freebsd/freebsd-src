@@ -117,6 +117,7 @@ ATF_TC_WITHOUT_HEAD(event_set_read);
 ATF_TC_BODY(event_set_read, tc)
 {
 	struct ntsync_event_args args;
+	uint32_t prev;
 	int domain, evtfd;
 
 	require_ntsync();
@@ -129,7 +130,8 @@ ATF_TC_BODY(event_set_read, tc)
 	ATF_REQUIRE_MSG(evtfd >= 0, "NTSYNC_IOC_CREATE_EVENT: %s",
 	    strerror(errno));
 
-	ATF_REQUIRE(ioctl(evtfd, NTSYNC_IOC_EVENT_SET, NULL) == 0);
+	ATF_REQUIRE(ioctl(evtfd, NTSYNC_IOC_EVENT_SET, &prev) == 0);
+	ATF_REQUIRE_EQ(0U, prev);
 
 	memset(&args, 0, sizeof(args));
 	ATF_REQUIRE(ioctl(evtfd, NTSYNC_IOC_EVENT_READ, &args) == 0);
