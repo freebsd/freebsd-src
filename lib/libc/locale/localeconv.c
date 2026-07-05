@@ -88,7 +88,7 @@ localeconv_l(locale_t loc)
 	M_ASSIGN_CHAR(int_n_sep_by_space);
 	M_ASSIGN_CHAR(int_p_sign_posn);
 	M_ASSIGN_CHAR(int_n_sign_posn);
-	atomic_store_int(&loc->monetary_locale_changed, 0);
+	atomic_store_rel_int(&loc->monetary_locale_changed, 0);
     }
 
     if (atomic_load_acq_int(&loc->numeric_locale_changed) != 0) {
@@ -101,7 +101,7 @@ localeconv_l(locale_t loc)
 	N_ASSIGN_STR(decimal_point);
 	N_ASSIGN_STR(thousands_sep);
 	N_ASSIGN_STR(grouping);
-	atomic_store_int(&loc->numeric_locale_changed, 0);
+	atomic_store_rel_int(&loc->numeric_locale_changed, 0);
     }
 
     return ret;
