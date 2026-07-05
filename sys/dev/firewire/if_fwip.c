@@ -580,13 +580,6 @@ fwip_async_output(struct fwip_softc *fwip, if_t ifp)
 		 */
 
 		/*
-		 * Put the mbuf in the xfer early in case we hit an
-		 * error case below - fwip_output_callback will free
-		 * the mbuf.
-		 */
-		xfer->mbuf = m;
-
-		/*
 		 * We use the arp result (if any) to add a suitable firewire
 		 * packet header before handing off to the bus.
 		 */
@@ -601,7 +594,18 @@ fwip_async_output(struct fwip_softc *fwip, if_t ifp)
 			 */
 			uint32_t *p;
 
+			/*
+			 * M_PREPEND may move M_PKTHDR to a new head mbuf.
+			 * Keep xfer->mbuf NULL until it succeeds.
+			 */
+			xfer->mbuf = NULL;
 			M_PREPEND(m, 2*sizeof(uint32_t), M_NOWAIT);
+			if (m == NULL) {
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+				fwip_output_callback(xfer);
+				continue;
+			}
+			xfer->mbuf = m;
 			p = mtod(m, uint32_t *);
 			fp->mode.stream.len = m->m_pkthdr.len;
 			fp->mode.stream.chtag = broadcast_channel;
@@ -624,6 +628,10 @@ fwip_async_output(struct fwip_softc *fwip, if_t ifp)
 			struct fw_device *fd;
 			struct fw_eui64 eui;
 
+			/*
+			 * Error paths below let the callback free m.
+			 */
+			xfer->mbuf = m;
 			eui.hi = ntohl(destfw->sender_unique_ID_hi);
 			eui.lo = ntohl(destfw->sender_unique_ID_lo);
 			if (fwip->last_dest.hi != eui.hi ||
