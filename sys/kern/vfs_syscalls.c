@@ -1882,7 +1882,7 @@ restart:
 	}
 	if ((vn_irflag_read(nd.ni_dvp) & VIRF_NAMEDDIR) != 0) {
 		error = EINVAL;
-		goto out;
+		goto out2;
 	}
 	VATTR_NULL(&vattr);
 	vattr.va_mode = ACCESSPERMS &~ td->td_proc->p_pd->pd_cmask;
@@ -1894,9 +1894,7 @@ restart:
 		goto out2;
 #endif
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, &vattr, syspath);
-#ifdef MAC
 out2:
-#endif
 	VOP_VPUT_PAIR(nd.ni_dvp, error == 0 ? &nd.ni_vp : NULL, true);
 	vn_finished_write(mp);
 	NDFREE_PNBUF(&nd);
