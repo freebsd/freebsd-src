@@ -14276,6 +14276,18 @@ dtrace_dof_slurp(dof_hdr_t *dof, dtrace_vstate_t *vstate, cred_t *cr,
 			return (-1);
 		}
 
+		if (sec->dofs_offset < sizeof (dof_hdr_t)) {
+			dtrace_dof_error(dof, "section overlaps header");
+			return (-1);
+		}
+
+		if (sec->dofs_offset + sec->dofs_size > dof->dofh_secoff &&
+		    sec->dofs_offset < dof->dofh_secoff +
+		    dof->dofh_secnum * dof->dofh_secsize) {
+			dtrace_dof_error(dof, "invalid section offset");
+			return (-1);
+		}
+
 		if (sec->dofs_type == DOF_SECT_STRTAB && *((char *)daddr +
 		    sec->dofs_offset + sec->dofs_size - 1) != '\0') {
 			dtrace_dof_error(dof, "non-terminating string table");
