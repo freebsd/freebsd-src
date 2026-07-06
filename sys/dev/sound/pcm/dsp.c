@@ -3010,7 +3010,13 @@ dsp_kqevent(struct knote *kn, long hint)
 		return (1);
 	}
 	kn->kn_data = 0;
-	if (chn_polltrigger(ch)) {
+	/*
+	 * For mmaped channels pass the knote's own reference point so the
+	 * low watermark is tracked per-knote.  Non-mmaped channels ignore
+	 * the reference and fire based on the current amount of ready/free
+	 * data in the buffer, so all knotes see the same live state.
+	 */
+	if (chn_polltrigger(ch, (u_int64_t)kn->kn_sdata)) {
 		if (kn->kn_filter == EVFILT_READ) {
 			kn->kn_data = sndbuf_getready(ch->bufsoft);
 			if (ch->flags & CHN_F_MMAP)
@@ -3025,6 +3031,7 @@ dsp_kqevent(struct knote *kn, long hint)
 				kn->kn_kevent.ext[0] = sndbuf_getready(ch->bufsoft) / ch->bufsoft->align;
 		}
 		kn->kn_kevent.ext[1] = ch->xruns;
+		kn->kn_sdata = ch->bufsoft->total;
 	}
 
 	return (kn->kn_data > 0);
@@ -3070,6 +3077,11 @@ dsp_kqfilter(struct cdev *dev, struct knote *kn)
 		knlist_add(&ch->bufsoft->sel.si_note, kn, 1);
 		CHN_UNLOCK(ch);
 		kn->kn_hook = ch;
+		/*
+		 * Start tracking from the current position so the first event
+		 * fires after c->lw additional bytes have been transferred.
+		 */
+		kn->kn_sdata = ch->bufsoft->prev_total;
 	} else
 		err = EINVAL;
 	PCM_GIANT_LEAVE(d);
