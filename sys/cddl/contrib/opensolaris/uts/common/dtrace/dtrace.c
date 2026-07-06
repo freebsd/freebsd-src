@@ -16260,7 +16260,8 @@ dtrace_helper_provider_validate(dof_hdr_t *dof, dof_sec_t *sec)
 	}
 
 	if (prb_sec->dofs_entsize == 0 ||
-	    prb_sec->dofs_entsize > prb_sec->dofs_size) {
+	    prb_sec->dofs_entsize > prb_sec->dofs_size ||
+	    prb_sec->dofs_entsize < sizeof (dof_probe_t)) {
 		dtrace_dof_error(dof, "invalid entry size");
 		return (-1);
 	}
@@ -16281,6 +16282,11 @@ dtrace_helper_provider_validate(dof_hdr_t *dof, dof_sec_t *sec)
 	}
 
 	if (arg_sec->dofs_entsize != sizeof (uint8_t)) {
+		dtrace_dof_error(dof, "invalid entry size");
+		return (-1);
+	}
+
+	if (enoff_sec != NULL && enoff_sec->dofs_entsize != sizeof (uint32_t)) {
 		dtrace_dof_error(dof, "invalid entry size");
 		return (-1);
 	}
@@ -16325,7 +16331,7 @@ dtrace_helper_provider_validate(dof_hdr_t *dof, dof_sec_t *sec)
 		if (probe->dofpr_offidx + probe->dofpr_noffs <
 		    probe->dofpr_offidx ||
 		    (probe->dofpr_offidx + probe->dofpr_noffs) *
-		    off_sec->dofs_entsize > off_sec->dofs_size) {
+		    (uint64_t) off_sec->dofs_entsize > off_sec->dofs_size) {
 			dtrace_dof_error(dof, "invalid probe offset");
 			return (-1);
 		}
@@ -16347,7 +16353,8 @@ dtrace_helper_provider_validate(dof_hdr_t *dof, dof_sec_t *sec)
 			} else if (probe->dofpr_enoffidx +
 			    probe->dofpr_nenoffs < probe->dofpr_enoffidx ||
 			    (probe->dofpr_enoffidx + probe->dofpr_nenoffs) *
-			    enoff_sec->dofs_entsize > enoff_sec->dofs_size) {
+			    (uint64_t) enoff_sec->dofs_entsize >
+			    enoff_sec->dofs_size) {
 				dtrace_dof_error(dof, "invalid is-enabled "
 				    "offset");
 				return (-1);
@@ -16366,13 +16373,17 @@ dtrace_helper_provider_validate(dof_hdr_t *dof, dof_sec_t *sec)
 		if (probe->dofpr_argidx + probe->dofpr_xargc <
 		    probe->dofpr_argidx ||
 		    (probe->dofpr_argidx + probe->dofpr_xargc) *
-		    arg_sec->dofs_entsize > arg_sec->dofs_size) {
+		    (uint64_t) arg_sec->dofs_entsize > arg_sec->dofs_size) {
 			dtrace_dof_error(dof, "invalid args");
 			return (-1);
 		}
 
 		typeidx = probe->dofpr_nargv;
-		typestr = strtab + probe->dofpr_nargv;
+		if (typeidx >= str_sec->dofs_size) {
+			dtrace_dof_error(dof, "bad native argument type");
+			return (-1);
+		}
+		typestr = strtab + typeidx;
 		for (k = 0; k < probe->dofpr_nargc; k++) {
 			if (typeidx >= str_sec->dofs_size) {
 				dtrace_dof_error(dof, "bad "
@@ -16391,9 +16402,14 @@ dtrace_helper_provider_validate(dof_hdr_t *dof, dof_sec_t *sec)
 		}
 
 		typeidx = probe->dofpr_xargv;
-		typestr = strtab + probe->dofpr_xargv;
+		if (typeidx >= str_sec->dofs_size) {
+			dtrace_dof_error(dof, "bad native argument type");
+			return (-1);
+		}
+		typestr = strtab + typeidx;
 		for (k = 0; k < probe->dofpr_xargc; k++) {
-			if (arg[probe->dofpr_argidx + k] > probe->dofpr_nargc) {
+			if (arg[probe->dofpr_argidx + k] >=
+			    probe->dofpr_nargc) {
 				dtrace_dof_error(dof, "bad "
 				    "native argument index");
 				return (-1);
