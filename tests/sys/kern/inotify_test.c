@@ -54,6 +54,8 @@ ev2name(int event)
 		return ("IN_MOVED_TO");
 	case IN_OPEN:
 		return ("IN_OPEN");
+	case IN_IGNORED:
+		return ("IN_IGNORED");
 	default:
 		return (NULL);
 	}
@@ -832,6 +834,27 @@ ATF_TC_BODY(inotify_event_delete, tc)
 	close_inotify(ifd);
 }
 
+ATF_TC_WITHOUT_HEAD(inotify_event_delete_ignored);
+ATF_TC_BODY(inotify_event_delete_ignored, tc)
+{
+	char path[PATH_MAX];
+	int error, ifd, wd;
+
+	ifd = inotify(IN_NONBLOCK);
+
+	wd = watch_dir(ifd, IN_DELETE, path);
+
+	/*
+	 * IN_IGNORED should be generated when a watched directory is removed,
+	 * even if the watch was not configured to raise IN_DELETE_SELF.
+	 */
+	error = rmdir(path);
+	ATF_REQUIRE(error == 0);
+	consume_event(ifd, wd, 0, IN_IGNORED, NULL);
+
+	close_inotify(ifd);
+}
+
 ATF_TC_WITHOUT_HEAD(inotify_event_move);
 ATF_TC_BODY(inotify_event_move, tc)
 {
@@ -999,6 +1022,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, inotify_event_close_write);
 	ATF_TP_ADD_TC(tp, inotify_event_create);
 	ATF_TP_ADD_TC(tp, inotify_event_delete);
+	ATF_TP_ADD_TC(tp, inotify_event_delete_ignored);
 	ATF_TP_ADD_TC(tp, inotify_event_move);
 	ATF_TP_ADD_TC(tp, inotify_event_move_dir);
 	ATF_TP_ADD_TC(tp, inotify_event_open);
