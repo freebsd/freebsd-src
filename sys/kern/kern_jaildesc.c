@@ -129,18 +129,16 @@ jaildesc_alloc(struct thread *td, struct file **fpp, int *fdp, int owning)
 		if (error != 0)
 			return (error);
 	}
-	jd = malloc(sizeof(*jd), M_JAILDESC, M_WAITOK | M_ZERO);
 	error = falloc_caps(td, &fp, fdp, 0, NULL);
-	if (error != 0) {
-		free(jd, M_JAILDESC);
+	if (error != 0)
 		return (error);
-	}
-	finit(fp, priv_check_cred(fp->f_cred, PRIV_JAIL_SET) == 0 ?
-	    FREAD | FWRITE : FREAD, DTYPE_JAILDESC, jd, &jaildesc_ops);
+	jd = malloc(sizeof(*jd), M_JAILDESC, M_WAITOK | M_ZERO);
 	JAILDESC_LOCK_INIT(jd);
 	knlist_init_mtx(&jd->jd_selinfo.si_note, &jd->jd_lock);
 	if (owning)
 		jd->jd_flags |= JDF_OWNING;
+	finit(fp, priv_check_cred(fp->f_cred, PRIV_JAIL_SET) == 0 ?
+	    FREAD | FWRITE : FREAD, DTYPE_JAILDESC, jd, &jaildesc_ops);
 	*fpp = fp;
 	return (0);
 }
