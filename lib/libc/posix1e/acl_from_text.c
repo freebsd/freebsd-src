@@ -39,6 +39,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 #include <assert.h>
 
 #include "acl_support.h"
@@ -264,6 +265,24 @@ error_label:
 }
 
 /*
+ * Make sure the number given fits inside an uid_t or gid_t.
+ * Currently (2026-05-23) uid_t & gid_t is an uint32_t.
+ * Special case handle uid_t/gid_t numbers specified as negative numbers.
+ * Assumes that uid_t and gid_t are the same types.
+ */
+static int
+_invalid_uidgid(intmax_t v) {
+	if (v < 0) {
+		if ((-v) & ~(uintmax_t)((~(uid_t)0)>>1))
+			return (2); /* Underflow, does not fit into uid_t */
+	} else {
+		if (v & ~(uintmax_t)(~(uid_t)0))
+			return (1); /* Overflow, does not fit into uid_t */
+	}
+	return (0);
+}
+
+/*
  * Given a username/groupname from a text form of an ACL, return the uid/gid
  * XXX NOT THREAD SAFE, RELIES ON GETPWNAM, GETGRNAM
  * XXX USES *PW* AND *GR* WHICH ARE STATEFUL AND THEREFORE THIS ROUTINE
@@ -274,19 +293,21 @@ _acl_name_to_id(acl_tag_t tag, char *name, uid_t *id)
 {
 	struct group	*g;
 	struct passwd	*p;
-	unsigned long	l;
+	intmax_t        v;
 	char 		*endp;
 
 	switch(tag) {
 	case ACL_USER:
 		p = getpwnam(name);
 		if (p == NULL) {
-			l = strtoul(name, &endp, 0);
-			if (*endp != '\0' || l != (unsigned long)(uid_t)l) {
-				errno = EINVAL;
+			errno = 0;
+			v = strtoimax(name, &endp, 0);
+			if (name == endp || *endp != '\0' ||
+			    errno == ERANGE || _invalid_uidgid(v) != 0) {
+				errno = EINVAL; /* No or invalid number */
 				return (-1);
 			}
-			*id = (uid_t)l;
+			*id = v;
 			return (0);
 		}
 		*id = p->pw_uid;
@@ -295,12 +316,14 @@ _acl_name_to_id(acl_tag_t tag, char *name, uid_t *id)
 	case ACL_GROUP:
 		g = getgrnam(name);
 		if (g == NULL) {
-			l = strtoul(name, &endp, 0);
-			if (*endp != '\0' || l != (unsigned long)(gid_t)l) {
-				errno = EINVAL;
+			errno = 0;
+			v = strtoimax(name, &endp, 0);
+			if (name == endp || *endp != '\0' ||
+			    errno == ERANGE || _invalid_uidgid(v) != 0) {
+				errno = EINVAL; /* No or invalid number */
 				return (-1);
 			}
-			*id = (gid_t)l;
+			*id = v;
 			return (0);
 		}
 		*id = g->gr_gid;
