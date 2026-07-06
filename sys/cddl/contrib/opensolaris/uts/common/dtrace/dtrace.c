@@ -14201,8 +14201,8 @@ dtrace_dof_slurp(dof_hdr_t *dof, dtrace_vstate_t *vstate, cred_t *cr,
 		return (-1);
 	}
 
-	if (dof->dofh_secsize == 0) {
-		dtrace_dof_error(dof, "zero section header size");
+	if (dof->dofh_secsize < sizeof (dof_sec_t)) {
+		dtrace_dof_error(dof, "invalid section header size");
 		return (-1);
 	}
 
