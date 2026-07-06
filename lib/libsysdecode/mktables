@@ -48,35 +48,54 @@ fi
 
 all_headers=
 #
-# Generate a table C #definitions.  The including file can define the
-# TABLE_NAME(n), TABLE_ENTRY(x), and TABLE_END macros to define what
-# the tables map to.
+# Generate a table from C preprocessor symbol definitions.  The
+# including file can define the TABLE_START(n), TABLE_ENTRY(x), and
+# TABLE_END macros to define what the tables map to.
 #
 gen_table()
 {
-	local name grep file excl filter
-	name=$1
-	grep=$2
-	file=$3
-	excl=$4
+	local name=$1 grep=$2 file=$3 excl=$4
 
-	if [ -z "$excl" ]; then
-		filter="cat"
-	else
-		filter="egrep -v"
-	fi
 	cat <<_EOF_
 TABLE_START(${name})
 _EOF_
 	if [ -e "${include_dir}/${file}" ]; then
 		all_headers="${all_headers:+${all_headers} }${file}"
-		egrep "^#[[:space:]]*define[[:space:]]+"${grep}"[[:space:]]*" \
-			$include_dir/$file | ${filter} ${excl} | \
-		awk '{ for (i = 1; i <= NF; i++) \
-			if ($i ~ /define/) \
-				break; \
-			++i; \
-			printf "TABLE_ENTRY(%s)\n", $i }'
+		sed -nE ${excl:+-e "/${excl}/d"} \
+		    -e "/^#[[:space:]]*define[[:space:]]+${grep}/p" \
+		    "${include_dir}/${file}" | \
+		sed -Ee 's/.*define[[:space:]]+([^[:space:]]+)\>.*/TABLE_ENTRY(\1)/'
+	fi
+cat <<_EOF_
+TABLE_END
+
+_EOF_
+}
+
+#
+# Generate a table from C enum definitions.  The including file can
+# define the TABLE_START(n), TABLE_ENTRY(x), and TABLE_END macros to
+# define what the tables map to.  Works with most enum definitions as
+# long as each constant is on a line by itself.
+#
+gen_table_enum()
+{
+	local name=$1 grep=$2 file=$3 excl=$4
+
+	cat <<_EOF_
+TABLE_START(${name})
+_EOF_
+	if [ -e "${include_dir}/${file}" ]; then
+		all_headers="${all_headers:+${all_headers} }${file}"
+		# preprocess the header
+		${CPP:-${CC:-cc} -E} "${include_dir}/${file}" |
+		# filter out directives and apply exclusion
+		sed -Ee '/^#/d' ${excl:+-e "/${excl}/d"} |
+		# extract all enum definitions
+		awk '/^(typedef[[:space:]]*)?enum([[:space:]].*)?\{/,
+                     /^\}([[:space:]].*)?;/' |
+		# pick out the constants we want
+		sed -Ene 's/^[[:space:]]*('"${grep}"')\>.*/TABLE_ENTRY(\1)/p'
 	fi
 cat <<_EOF_
 TABLE_END
@@ -127,7 +146,7 @@ gen_table "rusage"          "RUSAGE_[A-Z]+[[:space:]]+[-0-9]+"             "sys/
 gen_table "schedpolicy"     "SCHED_[A-Z]+[[:space:]]+[0-9]+"               "sys/sched.h"
 gen_table "sendfileflags"   "SF_[A-Z]+[[:space:]]+[0-9]+"                  "sys/socket.h"
 gen_table "shmatflags"      "SHM_[A-Z]+[[:space:]]+[0-9]{6}"               "sys/shm.h"
-gen_table "shutdownhow"     "SHUT_[A-Z]+[[:space:]]+SHUT_[A-Z]+"           "sys/socket.h"
+gen_table_enum "shutdownhow" "SHUT_[A-Z]+"                                 "sys/socket.h"
 gen_table "sigbuscode"      "BUS_[A-Z]+[[:space:]]+[0-9]+"                 "sys/signal.h"
 gen_table "sigchldcode"     "CLD_[A-Z]+[[:space:]]+[0-9]+"                 "sys/signal.h"
 gen_table "sigfpecode"      "FPE_[A-Z]+[[:space:]]+[0-9]+"                 "sys/signal.h"
