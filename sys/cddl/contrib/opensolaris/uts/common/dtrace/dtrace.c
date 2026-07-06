@@ -14288,8 +14288,9 @@ dtrace_dof_slurp(dof_hdr_t *dof, dtrace_vstate_t *vstate, cred_t *cr,
 			return (-1);
 		}
 
-		if (sec->dofs_type == DOF_SECT_STRTAB && *((char *)daddr +
-		    sec->dofs_offset + sec->dofs_size - 1) != '\0') {
+		if (sec->dofs_type == DOF_SECT_STRTAB && (sec->dofs_size == 0 ||
+		    *((char *)daddr + sec->dofs_offset + sec->dofs_size - 1) !=
+		    '\0')) {
 			dtrace_dof_error(dof, "non-terminating string table");
 			return (-1);
 		}
