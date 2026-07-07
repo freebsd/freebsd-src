@@ -311,7 +311,6 @@ acpi_cpu_attach(device_t dev)
     struct acpi_cpu_softc *sc;
     struct acpi_softc	  *acpi_sc;
     ACPI_STATUS		   status;
-    u_int		   features;
     int			   cpu_id, drv_count, i;
     driver_t 		  **drivers;
     uint32_t		   cap_set[3];
@@ -415,6 +414,8 @@ acpi_cpu_attach(device_t dev)
     if (devclass_get_drivers(device_get_devclass(dev), &drivers,
 	&drv_count) == 0) {
 	for (i = 0; i < drv_count; i++) {
+	    u_int features = 0;
+
 	    if (ACPI_GET_FEATURES(drivers[i], &features) == 0)
 		sc->cpu_features |= features;
 	}
