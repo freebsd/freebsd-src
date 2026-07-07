@@ -3429,7 +3429,7 @@
 		    int flags
 		);
 	}
-603	AUE_PDOPENPID	STD {
+603	AUE_PDOPENPID	STD|CAPENABLED {
 		int pdopenpid(
 		    pid_t pid,
 		    int flags
