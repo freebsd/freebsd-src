@@ -41,6 +41,7 @@
 #include <sys/systm.h>
 #include <sys/acct.h>
 #include <sys/bitstring.h>
+#include <sys/capsicum.h>
 #include <sys/eventhandler.h>
 #include <sys/exterrvar.h>
 #include <sys/fcntl.h>
@@ -119,6 +120,7 @@ int
 sys_pdfork(struct thread *td, struct pdfork_args *uap)
 {
 	struct fork_req fr;
+	struct filecaps fcaps;
 	int error, fd, pid;
 
 	bzero(&fr, sizeof(fr));
@@ -126,6 +128,10 @@ sys_pdfork(struct thread *td, struct pdfork_args *uap)
 	fr.fr_pidp = &pid;
 	fr.fr_pd_fd = &fd;
 	fr.fr_pd_flags = uap->flags;
+	filecaps_fill(&fcaps);
+	if ((uap->flags & PD_PTRACE_CAP) == 0)
+		cap_rights_clear(&fcaps.fc_rights, CAP_PTRACE);
+	fr.fr_pd_fcaps = &fcaps;
 	AUDIT_ARG_FFLAGS(uap->flags);
 	/*
 	 * It is necessary to return fd by reference because 0 is a valid file
@@ -194,6 +200,7 @@ int
 sys_pdrfork(struct thread *td, struct pdrfork_args *uap)
 {
 	struct fork_req fr;
+	struct filecaps fcaps;
 	int error, fd, pid;
 
 	bzero(&fr, sizeof(fr));
@@ -226,6 +233,10 @@ sys_pdrfork(struct thread *td, struct pdrfork_args *uap)
 	fr.fr_pidp = &pid;
 	fr.fr_pd_fd = &fd;
 	fr.fr_pd_flags = uap->pdflags;
+	filecaps_fill(&fcaps);
+	if ((uap->pdflags & PD_PTRACE_CAP) == 0)
+		cap_rights_clear(&fcaps.fc_rights, CAP_PTRACE);
+	fr.fr_pd_fcaps = &fcaps;
 	error = fork1(td, &fr);
 	if (error == 0) {
 		td->td_retval[0] = pid;
@@ -1068,6 +1079,7 @@ fork1(struct thread *td, struct fork_req *fr)
 		    fr->fr_pd_flags, fr->fr_pd_fcaps);
 		if (error != 0)
 			goto fail2;
+		fr->fr_pd_fcaps = NULL;
 		AUDIT_ARG_FD(*fr->fr_pd_fd);
 	}
 
@@ -1163,6 +1175,8 @@ fail2:
 		fdclose(td, fp_procdesc, *fr->fr_pd_fd);
 		fdrop(fp_procdesc, td);
 	}
+	if (fr->fr_pd_fcaps != NULL)
+		filecaps_free(fr->fr_pd_fcaps);
 	atomic_add_int(&nprocs, -1);
 cleanup:
 	if (killsx_locked)
