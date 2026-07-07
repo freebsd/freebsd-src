@@ -1,0 +1,5 @@
+Papagan meta package
+
+This meta package installs the Papagan desktop environment components, the
+assistant service stub and a prototype dock UI. It is intended as a starting
+point for customizing a FreeBSD-based ISO for the Papagan distribution.

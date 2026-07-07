@@ -1,0 +1,49 @@
+#!/usr/local/bin/python3
+# Minimal assistant HTTP API for Papagan (startup stub).
+# This is a lightweight stub server to provide a stable API while we
+# incrementally integrate local models (ggml/llama.cpp) or remote backends.
+
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import json
+import os
+
+PORT = int(os.environ.get("PAPAGAN_PORT", "8085"))
+
+class Handler(BaseHTTPRequestHandler):
+    def _send(self, code, data):
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode())
+
+    def do_GET(self):
+        if self.path == "/health":
+            self._send(200, {"status": "ok"})
+        else:
+            self._send(404, {"error": "not_found"})
+
+    def do_POST(self):
+        if self.path == "/ask":
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length).decode()
+            try:
+                req = json.loads(body or "{}")
+            except Exception:
+                req = {}
+            question = req.get("q", "")
+            # TODO: Replace with real model call (local ggml / remote).
+            answer = {
+                "answer": f"Stub cevap: {question}",
+                "source": "stub"
+            }
+            self._send(200, answer)
+        else:
+            self._send(404, {"error": "not_found"})
+
+if __name__ == "__main__":
+    server = HTTPServer(("127.0.0.1", PORT), Handler)
+    print(f"Papagan Assistant running on 127.0.0.1:{PORT}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        server.server_close()

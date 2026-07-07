@@ -1,0 +1,25 @@
+#!/bin/sh
+# Minimal setup script used by papagan-meta. This script is installed to
+# /usr/local/bin/papagan-setup and is intended to be run once after install
+# to enable services and perform basic configuration.
+
+set -e
+
+echo "Running Papagan initial setup..."
+
+# Enable papagan assistant service
+if [ -f /usr/local/etc/rc.d/papagan_assistant ]; then
+    sysrc papagan_assistant_enable=YES || true
+    service papagan_assistant start || true
+fi
+
+# Create a default user if it doesn't exist (papagan)
+if ! id papagan >/dev/null 2>&1; then
+    echo "Creating user 'papagan'..."
+    pw useradd papagan -m -s /bin/sh || true
+fi
+
+# Placeholders for further configuration (themes, autologin, display manager)
+# TODO: Add DE-specific setup later
+
+echo "Papagan setup complete."
