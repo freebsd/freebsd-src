@@ -28,12 +28,14 @@
 
 #include <sys/types.h>
 #include <sys/capsicum.h>
+#include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/user.h>
 #include <sys/proc.h>
 #include <sys/procdesc.h>
 #include <sys/sysctl.h>
 #include <sys/wait.h>
+#include <machine/atomic.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -657,6 +659,76 @@ ATF_TC_BODY(pdopenpid_no_wakeup, tc)
 	ATF_REQUIRE(close(fd) == 0);
 }
 
+/*
+ * basic pddupfd functionality
+ */
+
+#define	EXPECTED_OFFSET		123
+
+ATF_TC_WITHOUT_HEAD(pddupfd_basic);
+ATF_TC_BODY(pddupfd_basic, tc)
+{
+	int *comm;
+	struct __wrusage wu;
+	struct __siginfo si;
+	int fd, pp, rfd, status, workfd, r, r1;
+	off_t off;
+	pid_t child;
+
+	comm = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE, MAP_SHARED |
+	    MAP_ANONYMOUS, -1, 0);
+	ATF_REQUIRE(comm != MAP_FAILED);
+	atomic_store_int(comm, -1);
+
+	child = fork();
+	ATF_REQUIRE(child != -1);
+	if (child == 0) {
+		workfd = open("/etc/passwd", O_RDONLY);
+		ATF_REQUIRE(workfd != -1);
+		atomic_store_int(comm, workfd);
+		while ((r = (int)atomic_load_int(comm)) >= 0)
+			sleep(1);
+		lseek(workfd, EXPECTED_OFFSET, SEEK_SET);
+		r -= 1;
+		atomic_store_int(comm, r);
+		while (r == (int)atomic_load_int(comm))
+			sleep(1);
+		_exit(0x23);
+	}
+
+	fd = pdopenpid(child, 0);
+	ATF_REQUIRE(fd != -1);
+	ATF_REQUIRE(pdgetpid(fd, &pp) == 0);
+
+	while ((rfd = (int)atomic_load_int(comm)) == -1)
+		;
+	ATF_REQUIRE(rfd >= 0);
+	workfd = pddupfd(fd, rfd, 0);
+	ATF_REQUIRE(workfd != -1);
+
+	/*
+	 * pddupfd-ed file must dup-ed, i.e. the underlying file must
+	 * be same between the remote and local filedescriptors.
+	 * Check that the initial seek offset is zero.  Then observe
+	 * the updated offset, which is only possible if the file is
+	 * indeed shared.
+	 */
+	off = lseek(workfd, 0, SEEK_CUR);
+	ATF_REQUIRE_EQ(off, 0);
+	r = -1;
+	atomic_store_int(comm, r);
+	while ((r1 = (int)atomic_load_int(comm)) == r)
+		sleep(1);
+	off = lseek(workfd, 0, SEEK_CUR);
+	ATF_REQUIRE_EQ(off, EXPECTED_OFFSET);
+	r1 -= 1;
+	atomic_store_int(comm, r1);
+	ATF_REQUIRE(close(workfd) == 0);
+
+	ATF_REQUIRE(pdwait(fd, &status, WEXITED, &wu, &si) != -1);
+	ATF_REQUIRE(close(fd) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, pid_recycle);
@@ -677,6 +749,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, pdopenpid_self);
 	ATF_TP_ADD_TC(tp, pdopenpid_exiting);
 	ATF_TP_ADD_TC(tp, pdopenpid_no_wakeup);
+
+	ATF_TP_ADD_TC(tp, pddupfd_basic);
 
 	return (atf_no_error());
 }
