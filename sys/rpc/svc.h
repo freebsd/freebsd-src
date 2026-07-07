@@ -155,6 +155,7 @@ typedef struct __rpc_svcxprt {
 	uid_t		xp_uid;
 	gid_t		*xp_gidp;
 	int		xp_doneddp;
+	bool_t		xp_extpg;	/* Can use M_EXTPG mbufs. */
 } SVCXPRT;
 
 /*

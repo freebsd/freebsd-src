@@ -743,6 +743,7 @@ struct nfsrv_descript {
 #define	ND_EXTLSCERTUSER	0x20000000000
 #define	ND_ERELOOKUP		0x40000000000
 #define	ND_MACHCRED		0x80000000000
+#define	ND_CANEXTPG		0x100000000000
 
 /*
  * ND_GSS should be the "or" of all GSS type authentications.

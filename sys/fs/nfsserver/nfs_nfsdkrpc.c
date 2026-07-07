@@ -97,6 +97,10 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_max_nfsvers,
     CTLFLAG_VNET | CTLFLAG_RWTUN, &VNET_NAME(nfs_maxvers), 0,
     "The highest version of NFS handled by the server");
 
+static bool nfsrv_mextpg = false;
+SYSCTL_BOOL(_vfs_nfsd, OID_AUTO, enable_mextpg, CTLFLAG_RW,
+    &nfsrv_mextpg, 0, "Enable use of M_EXTPG mbufs");
+
 static int nfs_proc(struct nfsrv_descript *, u_int32_t, SVCXPRT *xprt,
     struct nfsrvcache **);
 
@@ -315,7 +319,19 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			if ((xprt->xp_tls & RPCTLS_FLAGS_CERTUSER) != 0)
 				nd.nd_flag |= ND_TLSCERTUSER;
 		}
-		nd.nd_maxextsiz = 16384;
+		nd.nd_maxextsiz = MBUF_PEXT_MAX_PGS * PAGE_SIZE;
+		/*
+		 * If the NIC can handle M_EXTPG mbufs, they can be used
+		 * only if the reply will not be copied into the DRC.
+		 * This implies NFSv3 over TCP and NFSv4.n, but not NFSv4.0.
+		 * (NFSv4.n will set ND_SAVEREPLY if the reply is going
+		 *  to be copied into the session slot.)
+		 * Check for TCP transport (UDP uses the DRC) and a direct
+		 * map.
+		 */
+		if ((nfsrv_mextpg || xprt->xp_extpg) && nd.nd_nam2 == NULL &&
+		    PMAP_HAS_DMAP != 0)
+			nd.nd_flag |= ND_CANEXTPG;
 #ifdef MAC
 		mac_cred_associate_nfsd(nd.nd_cred);
 #endif
