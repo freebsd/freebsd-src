@@ -665,6 +665,12 @@ pdopenpid1(struct thread *td, pid_t pid, struct procdesc **pdf, struct file *fp)
 		PROC_UNLOCK(p);
 		return (EBUSY);
 	}
+	error = p_canopen(td, p);
+	if (error != 0) {
+		PROC_UNLOCK(p);
+		return (error);
+	}
+
 	pd = p->p_procdesc;
 	if (pd != NULL) {
 		MPASS((p->p_zombieref & PZOMBIEREF_PROCDESC) != 0);
