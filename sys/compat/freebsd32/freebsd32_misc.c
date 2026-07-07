@@ -1050,9 +1050,6 @@ freebsd32_ptrace_useraction(struct thread *td, int req, bool pd_mode, pid_t pid,
 	void *addr;
 	int data, error, i;
 
-	if (!allow_ptrace)
-		return (ENOSYS);
-
 	error = 0;
 	addr = &r;
 	data = udata;
