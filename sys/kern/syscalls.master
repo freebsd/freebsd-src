@@ -264,7 +264,7 @@
 25	AUE_GETEUID	STD|CAPENABLED {
 		uid_t geteuid(void);
 	}
-26	AUE_PTRACE	STD {
+26	AUE_PTRACE	STD|CAPENABLED {
 		int ptrace(
 		    int req,
 		    pid_t pid,
@@ -3435,7 +3435,7 @@
 			int flags
 		);
 	}
-605	AUE_PDPTRACE	STD {
+605	AUE_PDPTRACE	STD|CAPENABLED {
 		int pdptrace(
 			int req,
 			int pfd,

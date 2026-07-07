@@ -51,6 +51,7 @@
 #include <sys/sleepqueue.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/vnode.h>
@@ -674,6 +675,24 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 	return (error);
 }
 
+static int
+ptrace_check_allowed(struct thread *td, int req, bool pd_mode, pid_t pid)
+{
+	if (!allow_ptrace)
+		return (ENOSYS);
+	if (!IN_CAPABILITY_MODE(td))
+		return (0);
+	if (!allow_ptrace_in_cap_mode)
+		return (ECAPMODE);
+	if (pd_mode)
+		return (0);
+	if (req == PT_GET_CHILDREN && pid == td->td_proc->p_pid)
+		return (0);
+	if (req == PT_CLEARSTEP && pid == td->td_tid)
+		return (0);
+	return (ECAPMODE);
+}
+
 /*
  * Process debugging system call.
  */
@@ -714,12 +733,11 @@ ptrace_useraction(struct thread *td, int req, bool pd_mode, pid_t pid, int pfd,
 	void *addr;
 	int error, data;
 
-	if (!allow_ptrace)
-		return (ENOSYS);
+	error = ptrace_check_allowed(td, req, pd_mode, pid);
+	if (error != 0)
+		return (error);
 
-	error = 0;
 	addr = &r;
-
 	switch (req) {
 	case PT_GET_EVENT_MASK:
 	case PT_LWPINFO:
