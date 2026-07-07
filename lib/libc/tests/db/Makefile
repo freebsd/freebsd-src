@@ -10,12 +10,13 @@ ${PACKAGE}FILES+=		README
 ATF_TESTS_C+=		dbm_open_test
 ATF_TESTS_C+=		dbm_perm_test
 ATF_TESTS_C+=		dbm_nextkey_test
+ATF_TESTS_C+=		db_hash_tamper_test
 
 NETBSD_ATF_TESTS_C+=	db_hash_seq_test
 NETBSD_ATF_TESTS_SH+=	db_test
 ATF_TESTS_SH_SED_db_test=	-e 's,/bin/csh,/bin/cat,g'
 
-CFLAGS+=	-I${SRCTOP}/lib/libc/db/btree
+CFLAGS+=	-I${SRCTOP}/lib/libc/db/btree -I${SRCTOP}/lib/libc/db/hash
 
 .include "../Makefile.netbsd-tests"
 

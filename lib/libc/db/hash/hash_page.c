@@ -657,14 +657,29 @@ overflow_page(HTAB *hashp)
 #ifdef DEBUG2
 	int tmp1, tmp2;
 #endif
+#define	OVMSG	"HASH: Out of overflow pages.  Increase page size\n"
 	splitnum = hashp->OVFL_POINT;
+	if (splitnum >= NCACHED) {
+		(void)_write(STDERR_FILENO, OVMSG, sizeof(OVMSG) - 1);
+		errno = EFBIG;
+		return (0);
+	}
 	max_free = hashp->SPARES[splitnum];
 
 	free_page = (max_free - 1) >> (hashp->BSHIFT + BYTE_SHIFT);
 	free_bit = (max_free - 1) & ((hashp->BSIZE << BYTE_SHIFT) - 1);
+	if (free_page < 0 || free_page >= NCACHED) {
+		errno = EFTYPE;
+		return (0);
+	}
 
 	/* Look through all the free maps to find the first free block */
 	first_page = hashp->LAST_FREED >>(hashp->BSHIFT + BYTE_SHIFT);
+	if (first_page < 0 || first_page >= NCACHED) {
+		errno = EFTYPE;
+		return (0);
+	}
+
 	for ( i = first_page; i <= free_page; i++ ) {
 		if (!(freep = (u_int32_t *)hashp->mapp[i]) &&
 		    !(freep = fetch_bitmap(hashp, i)))
@@ -694,7 +709,6 @@ overflow_page(HTAB *hashp)
 	offset = hashp->SPARES[splitnum] -
 	    (splitnum ? hashp->SPARES[splitnum - 1] : 0);
 
-#define	OVMSG	"HASH: Out of overflow pages.  Increase page size\n"
 	if (offset > SPLITMASK) {
 		if (++splitnum >= NCACHED) {
 			(void)_write(STDERR_FILENO, OVMSG, sizeof(OVMSG) - 1);
