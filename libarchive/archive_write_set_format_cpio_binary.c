@@ -380,12 +380,12 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 {
 	struct cpio *cpio;
 	const char *p, *path;
-	int pathlength, ret, ret_final;
+	int ret, ret_final;
 	int64_t	ino;
 	struct cpio_binary_header h;
 	struct archive_string_conv *sconv;
 	struct archive_entry *entry_main;
-	size_t len;
+	size_t len, pathlength;
 
 	cpio = (struct cpio *)a->format_data;
 	ret_final = ARCHIVE_OK;
@@ -423,7 +423,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 		ret_final = ARCHIVE_WARN;
 	}
 	/* Include trailing null */
-	pathlength = (int)len + 1;
+	pathlength = len + 1;
 
 	h.h_magic = la_swap16(070707);
 	h.h_dev = la_swap16(archive_entry_dev(entry));
@@ -472,7 +472,13 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 		h.h_majmin = 0;
 
 	h.h_mtime = la_swap32((uint32_t)archive_entry_mtime(entry));
-	h.h_namesize = la_swap16(pathlength);
+	if (pathlength > 0xffff) {
+		archive_set_error(&a->archive, ERANGE,
+		    "Filename is too long for cpio format");
+		ret_final = ARCHIVE_FAILED;
+		goto exit_write_header;
+	}
+	h.h_namesize = la_swap16((uint16_t)pathlength);
 
 	/* Non-regular files don't store bodies. */
 	if (archive_entry_filetype(entry) != AE_IFREG)

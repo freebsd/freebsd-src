@@ -172,7 +172,7 @@ archive_write_ar_header(struct archive_write *a, struct archive_entry *entry)
 
 	/*
 	 * If we are now at the beginning of the archive,
-	 * we need first write the ar global header.
+	 * we have to write the ar global header first.
 	 */
 	if (!ar->wrote_global_header) {
 		__archive_write_output(a, "!<arch>\n", 8);

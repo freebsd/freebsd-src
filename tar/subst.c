@@ -75,11 +75,14 @@ add_substitution(struct bsdtar *bsdtar, const char *rule_text)
 		subst->last_rule->next = rule;
 	subst->last_rule = rule;
 
-	if (*rule_text == '\0')
+	const char delim = *rule_text;
+	if (delim == '\0')
 		lafe_errc(1, 0, "Empty replacement string");
-	end_pattern = strchr(rule_text + 1, *rule_text);
+	end_pattern = strchr(rule_text + 1, delim);
 	if (end_pattern == NULL)
-		lafe_errc(1, 0, "Invalid replacement string");
+		lafe_errc(1, 0, "Invalid replacement string \"%s\": "
+		    "missing closing delimiter '%c' after pattern",
+		    rule_text, delim);
 
 	pattern = malloc(end_pattern - rule_text);
 	if (pattern == NULL)
@@ -95,9 +98,11 @@ add_substitution(struct bsdtar *bsdtar, const char *rule_text)
 	free(pattern);
 
 	start_subst = end_pattern + 1;
-	end_pattern = strchr(start_subst, *rule_text);
+	end_pattern = strchr(start_subst, delim);
 	if (end_pattern == NULL)
-		lafe_errc(1, 0, "Invalid replacement string");
+		lafe_errc(1, 0, "Invalid replacement string \"%s\": "
+		    "missing closing delimiter '%c' after replacement",
+		    rule_text, delim);
 
 	rule->result = malloc(end_pattern - start_subst + 1);
 	if (rule->result == NULL)

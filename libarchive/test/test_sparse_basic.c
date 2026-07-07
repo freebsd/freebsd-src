@@ -695,3 +695,29 @@ DEFINE_TEST(test_fully_sparse_files)
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(cwd);
 }
+
+DEFINE_TEST(test_sparse_iterator)
+{
+	struct archive_entry *entry;
+	int64_t offset, length;
+	int count;
+
+	entry = archive_entry_new();
+	archive_entry_set_pathname(entry, "testfile");
+	archive_entry_set_mode(entry, 0100644);
+	archive_entry_set_size(entry, 1024);
+
+	/* Add one sparse block covering the entire file */
+	archive_entry_sparse_add_entry(entry, 0, 1024);
+
+	/* Should remove the only block covering the entire file */
+	archive_entry_sparse_reset(entry);
+
+	count = 0;
+	while (archive_entry_sparse_next(entry, &offset, &length) == ARCHIVE_OK)
+		count++;
+	assertEqualInt(0, count);
+	assertEqualInt(0, archive_entry_sparse_count(entry));
+
+	archive_entry_free(entry);
+}

@@ -899,9 +899,6 @@
 /* Define to 1 if you have the <wctype.h> header file. */
 #define HAVE_WCTYPE_H 1
 
-/* Define to 1 if you have the <wincrypt.h> header file. */
-#define HAVE_WINCRYPT_H 1
-
 /* Define to 1 if you have the <windows.h> header file. */
 #define HAVE_WINDOWS_H 1
 

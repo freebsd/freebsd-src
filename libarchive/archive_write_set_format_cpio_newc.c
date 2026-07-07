@@ -219,11 +219,11 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	int64_t ino;
 	struct cpio *cpio;
 	const char *p, *path;
-	int pathlength, ret, ret_final;
+	int ret, ret_final;
 	char h[c_header_size];
 	struct archive_string_conv *sconv;
 	struct archive_entry *entry_main;
-	size_t len;
+	size_t len, pathlength;
 	int pad;
 
 	cpio = (struct cpio *)a->format_data;
@@ -261,7 +261,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 		    archive_string_conversion_charset_name(sconv));
 		ret_final = ARCHIVE_WARN;
 	}
-	pathlength = (int)len + 1; /* Include trailing null. */
+	pathlength = len + 1; /* Include trailing null. */
 
 	memset(h, 0, c_header_size);
 	format_hex(0x070701, h + c_magic_offset, c_magic_size);
@@ -292,7 +292,12 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	    format_hex(0, h + c_rdevminor_offset, c_rdevminor_size);
 	}
 	format_hex(archive_entry_mtime(entry), h + c_mtime_offset, c_mtime_size);
-	format_hex(pathlength, h + c_namesize_offset, c_namesize_size);
+	if (format_hex(pathlength, h + c_namesize_offset, c_namesize_size)) {
+		archive_set_error(&a->archive, ERANGE,
+		    "Filename is too long for cpio format");
+		ret_final = ARCHIVE_FAILED;
+		goto exit_write_header;
+	}
 	format_hex(0, h + c_checksum_offset, c_checksum_size);
 
 	/* Non-regular files don't store bodies. */

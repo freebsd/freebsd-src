@@ -40,6 +40,7 @@
 #endif
 
 #include "archive.h"
+#include "archive_endian.h"
 #include "archive_private.h"
 #include "archive_string.h"
 #include "archive_write_private.h"
@@ -61,7 +62,7 @@ struct private_data {
 	char	*original_filename;
 #ifdef HAVE_ZLIB_H
 	z_stream	 stream;
-	int64_t		 total_in;
+	uint64_t	 total_in;
 	unsigned char	*compressed;
 	size_t		 compressed_buffer_size;
 	unsigned long	 crc;
@@ -178,7 +179,7 @@ archive_compressor_gzip_options(struct archive_write_filter *f, const char *key,
 		if (value) {
 			data->original_filename = strdup(value);
 			if (data->original_filename == NULL)
-				return (ARCHIVE_WARN);
+				return (ARCHIVE_FAILED);
 		}
 		return (ARCHIVE_OK);
 	}
@@ -230,11 +231,8 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 	data->compressed[2] = 0x08; /* "Deflate" compression */
 	data->compressed[3] = 0x00; /* Flags */
 	if (data->timestamp >= 0) {
-		time_t t = time(NULL);
-		data->compressed[4] = (uint8_t)(t)&0xff;  /* Timestamp */
-		data->compressed[5] = (uint8_t)(t>>8)&0xff;
-		data->compressed[6] = (uint8_t)(t>>16)&0xff;
-		data->compressed[7] = (uint8_t)(t>>24)&0xff;
+		uint32_t t = (uint32_t)time(NULL);
+		archive_le32enc(data->compressed + 4, t); /* Timestamp */
 	} else {
 		memset(&data->compressed[4], 0, 4);
 	}
@@ -253,9 +251,9 @@ archive_compressor_gzip_open(struct archive_write_filter *f)
 		/* Limit "original filename" to 32k or the
 		 * remaining space in the buffer, whichever is smaller.
 		 */
-		int ofn_length = strlen(data->original_filename);
-		int ofn_max_length = 32768;
-		int ofn_space_available = data->compressed
+		size_t ofn_length = strlen(data->original_filename);
+		size_t ofn_max_length = 32768;
+		size_t ofn_space_available = data->compressed
 			+ data->compressed_buffer_size
 			- data->stream.next_out
 			- 1;
@@ -358,14 +356,8 @@ archive_compressor_gzip_close(struct archive_write_filter *f)
 	}
 	if (ret == ARCHIVE_OK) {
 		/* Build and write out 8-byte trailer. */
-		trailer[0] = (uint8_t)(data->crc)&0xff;
-		trailer[1] = (uint8_t)(data->crc >> 8)&0xff;
-		trailer[2] = (uint8_t)(data->crc >> 16)&0xff;
-		trailer[3] = (uint8_t)(data->crc >> 24)&0xff;
-		trailer[4] = (uint8_t)(data->total_in)&0xff;
-		trailer[5] = (uint8_t)(data->total_in >> 8)&0xff;
-		trailer[6] = (uint8_t)(data->total_in >> 16)&0xff;
-		trailer[7] = (uint8_t)(data->total_in >> 24)&0xff;
+		archive_le32enc(trailer, data->crc);
+		archive_le32enc(trailer + 4, data->total_in);
 		ret = __archive_write_filter(f->next_filter, trailer, 8);
 	}
 

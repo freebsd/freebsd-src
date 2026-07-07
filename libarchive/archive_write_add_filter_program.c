@@ -184,6 +184,10 @@ __archive_write_program_allocate(const char *program)
 	data->child_stdin = -1;
 	data->child_stdout = -1;
 	data->program_name = strdup(program);
+	if (data->program_name == NULL) {
+		free(data);
+		return (NULL);
+	}
 	return (data);
 }
 

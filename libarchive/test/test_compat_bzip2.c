@@ -48,6 +48,7 @@ compat_bzip2(const char *name)
 	assert((a = archive_read_new()) != NULL);
 	if (ARCHIVE_OK != archive_read_support_filter_bzip2(a)) {
 		skipping("Unsupported bzip2");
+		archive_read_free(a);
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));

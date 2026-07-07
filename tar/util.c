@@ -746,12 +746,13 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 		snprintf(tmp, sizeof(tmp), "%lu,%lu",
 		    (unsigned long)archive_entry_rdevmajor(entry),
 		    (unsigned long)archive_entry_rdevminor(entry));
+		p = tmp;
 	} else {
-		strcpy(tmp, tar_i64toa(archive_entry_size(entry)));
+		p = tar_i64toa(archive_entry_size(entry));
 	}
-	if (w + strlen(tmp) >= bsdtar->gs_width)
-		bsdtar->gs_width = w+strlen(tmp)+1;
-	fprintf(out, "%*s", (int)(bsdtar->gs_width - w), tmp);
+	if (w + strlen(p) >= bsdtar->gs_width)
+		bsdtar->gs_width = w + strlen(p) + 1;
+	fprintf(out, "%*s", (int)(bsdtar->gs_width - w), p);
 
 	/* Format the time using 'ls -l' conventions. */
 	tim = archive_entry_mtime(entry);
@@ -772,11 +773,13 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 #else
 	ltime = localtime(&tim);
 #endif
-	if (ltime)
+	if (ltime) {
 		sw = strftime(tmp, sizeof(tmp), fmt, ltime);
+		p = tmp;
+	}
 	if (!ltime || !sw)
-		sprintf(tmp, "-- -- ----");
-	fprintf(out, " %s ", tmp);
+		p = "-- -- ----";
+	fprintf(out, " %s ", p);
 	safe_fprintf(out, "%s", archive_entry_pathname(entry));
 
 	/* Extra information for links. */

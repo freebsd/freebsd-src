@@ -82,7 +82,7 @@ test_copy(int use_open_fd)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	if (fd != -1)
 		close(fd);
@@ -115,7 +115,7 @@ test_empty_archive(void)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -156,7 +156,7 @@ test_empty_file(void)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -199,7 +199,7 @@ test_plain_header(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -284,7 +284,7 @@ test_extract_all_files(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -369,7 +369,7 @@ test_extract_all_files_zstd(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -419,7 +419,7 @@ test_extract_file_zstd_bcj_nobjc(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -498,7 +498,7 @@ test_extract_last_file(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -629,7 +629,7 @@ test_extract_all_files2(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -685,7 +685,7 @@ test_delta_lzma(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -741,7 +741,7 @@ test_bcj(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -798,7 +798,7 @@ test_ppmd(void)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -847,7 +847,7 @@ test_symname(void)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -1081,7 +1081,7 @@ test_arm_filter(const char *refname)
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -1155,7 +1155,7 @@ test_arm64_filter(const char *refname)
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -1404,7 +1404,7 @@ DEFINE_TEST(test_read_format_7zip_sfx_elf64trunc)
 	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_next_header(a, &ae));
 	assertEqualInt(0, archive_file_count(a));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -1476,8 +1476,8 @@ test_riscv_filter(const char *refname)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualInt((AE_IFREG | 0775), archive_entry_mode(ae));
 	assertEqualString("hw-riscv64", archive_entry_pathname(ae));
-	assertEqualInt(sizeof(buff), archive_entry_size(ae));
-	assertEqualInt(sizeof(buff), archive_read_data(a, buff, sizeof(buff)));
+	assertEqualIntA(a, sizeof(buff), archive_entry_size(ae));
+	assertEqualIntA(a, sizeof(buff), archive_read_data(a, buff, sizeof(buff)));
 
 	computed_crc = bitcrc32(computed_crc, buff, sizeof(buff));
 	assertEqualInt(computed_crc, expected_crc);
@@ -1486,7 +1486,7 @@ test_riscv_filter(const char *refname)
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 #endif
@@ -1500,9 +1500,12 @@ DEFINE_TEST(test_read_format_7zip_lzma2_riscv)
 
 	if (ARCHIVE_OK != archive_read_support_filter_lzma(a)) {
 		skipping("7zip:lzma decoding is not supported on this platform");
+	} else if (!lzma_filter_decoder_is_supported(LZMA_FILTER_RISCV)) {
+		skipping("liblzma does not support RISC-V BCJ filter at runtime");
 	} else {
 		test_riscv_filter("test_read_format_7zip_lzma2_riscv.7z");
 	}
+	archive_read_free(a);
 #else
 	skipping("This version of liblzma does not support LZMA_FILTER_RISCV");
 #endif
@@ -1543,7 +1546,7 @@ test_sparc_filter(const char *refname)
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(buff);
@@ -1616,7 +1619,7 @@ test_powerpc_filter(const char *refname)
 
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(buff);

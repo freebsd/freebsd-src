@@ -149,7 +149,7 @@ unsigned int
 i4le(const void* p_)
 {
 	const char *p = p_;
-	return (i2le(p) | (i2le(p + 2) << 16));
+	return (i2le(p) | ((unsigned int)i2le(p + 2) << 16));
 }
 unsigned long long
 i8le(const void* p_)

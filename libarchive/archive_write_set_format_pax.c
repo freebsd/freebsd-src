@@ -40,6 +40,7 @@
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
@@ -676,7 +677,8 @@ archive_write_pax_header(struct archive_write *a,
 			const wchar_t *wp;
 
 			wp = archive_entry_pathname_w(entry_original);
-			if (wp != NULL && wp[wcslen(wp) -1] != L'/') {
+			if (wp != NULL && wp[0] != L'\0' &&
+			    wp[wcslen(wp) - 1] != L'/') {
 				struct archive_wstring ws;
 
 				archive_string_init(&ws);
@@ -1934,17 +1936,17 @@ url_encode(const char *in)
 
 	for (s = in; *s != '\0'; s++) {
 		if (*s < 33 || *s > 126 || *s == '%' || *s == '=') {
-			if (SIZE_MAX - out_len < 4)
+			if (archive_ckd_add_size(&out_len, out_len, 3))
 				return (NULL);
-			out_len += 3;
 		} else {
-			if (SIZE_MAX - out_len < 2)
+			if (archive_ckd_add_size(&out_len, out_len, 1))
 				return (NULL);
-			out_len++;
 		}
 	}
 
-	out = malloc(out_len + 1);
+	if (archive_ckd_add_size(&out_len, out_len, 1))
+		return (NULL);
+	out = malloc(out_len);
 	if (out == NULL)
 		return (NULL);
 

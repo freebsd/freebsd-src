@@ -314,7 +314,7 @@ static int	_7z_compression_init_encoder(struct archive_write *, unsigned,
 		    int);
 static int	compression_init_encoder_zstd(struct archive *,
 		    struct la_zstream *, int, int);
-#if defined(HAVE_ZSTD_H)
+#if HAVE_ZSTD_H && HAVE_ZSTD_compressStream
 static int	compression_code_zstd(struct archive *,
 		    struct la_zstream *, enum la_zaction);
 static int	compression_end_zstd(struct archive *, struct la_zstream *);
@@ -379,7 +379,7 @@ archive_write_set_format_7zip(struct archive *_a)
 	zip->opt_compression = _7Z_BZIP2;
 #elif defined(HAVE_ZLIB_H)
 	zip->opt_compression = _7Z_DEFLATE;
-#elif HAVE_ZSTD_H
+#elif HAVE_ZSTD_H && HAVE_ZSTD_compressStream
 	zip->opt_compression = _7Z_ZSTD;
 #else
 	zip->opt_compression = _7Z_COPY;
@@ -841,7 +841,8 @@ copy_out(struct archive_write *a, uint64_t offset, uint64_t length)
 			return (ARCHIVE_FATAL);
 		}
 		if (rs == 0) {
-			archive_set_error(&(a->archive), 0,
+			archive_set_error(&(a->archive),
+			    ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Truncated 7-Zip archive");
 			return (ARCHIVE_FATAL);
 		}
@@ -1685,7 +1686,7 @@ file_new(struct archive_write *a, struct archive_entry *entry,
 		const char* linkpath;
 		linkpath = archive_entry_symlink_utf8(entry);
 		if (linkpath == NULL) {
-			free(file);
+			file_free(file);
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "symlink path could not be converted to UTF-8");
 			return (ARCHIVE_FAILED);

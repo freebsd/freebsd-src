@@ -35,65 +35,72 @@
 DEFINE_TEST(test_archive_parse_date)
 {
 	time_t now = time(NULL);
+	long long expected;
 
-	assertEqualInt(get_date(now, "Jan 1, 1970 UTC"), 0);
-	assertEqualInt(get_date(now, "7:12:18-0530 4 May 1983"), 420900138);
-	assertEqualInt(get_date(now, "2004/01/29 513 mest"), 1075345980);
-	assertEqualInt(get_date(now, "2038-06-01 00:01:02 UTC"),
+	assertEqualInt(archive_parse_date(now, "Jan 1, 1970 UTC"), 0);
+	assertEqualInt(archive_parse_date(now, "7:12:18-0530 4 May 1983"), 420900138);
+	assertEqualInt(archive_parse_date(now, "2004/01/29 513 mest"), 1075345980);
+	assertEqualInt(archive_parse_date(now, "2038-06-01 00:01:02 UTC"),
 	    sizeof(time_t) <= 4 ? -1 : 2158963262);
-	assertEqualInt(get_date(now, "99/02/17 7pm utc"), 919278000);
-	assertEqualInt(get_date(now, "02/17/99 7:11am est"), 919253460);
-	assertEqualInt(get_date(now, "now - 2 hours"),
-	    get_date(now, "2 hours ago"));
-	assertEqualInt(get_date(now, "2 hours ago"),
-	    get_date(now, "+2 hours ago"));
-	assertEqualInt(get_date(now, "now - 2 hours"),
-	    get_date(now, "-2 hours"));
+	assertEqualInt(archive_parse_date(now, "99/02/17 7pm utc"), 919278000);
+	assertEqualInt(archive_parse_date(now, "02/17/99 7:11am est"), 919253460);
+	assertEqualInt(archive_parse_date(now, "now - 2 hours"),
+	    archive_parse_date(now, "2 hours ago"));
+	assertEqualInt(archive_parse_date(now, "2 hours ago"),
+	    archive_parse_date(now, "+2 hours ago"));
+	assertEqualInt(archive_parse_date(now, "now - 2 hours"),
+	    archive_parse_date(now, "-2 hours"));
 	/* It's important that we handle ctime() format. */
-	assertEqualInt(get_date(now, "Sun Feb 22 17:38:26 PST 2009"),
+	assertEqualInt(archive_parse_date(now, "Sun Feb 22 17:38:26 PST 2009"),
 	    1235353106);
 	/* Basic relative offsets. */
 	/* If we use the actual current time as the reference, then
 	 * these tests break around DST changes, so it's actually
 	 * important to use a specific reference time here. */
-	assertEqualInt(get_date(0, "tomorrow"), 24 * 60 * 60);
-	assertEqualInt(get_date(0, "yesterday"), - 24 * 60 * 60);
-	assertEqualInt(get_date(0, "now + 1 hour"), 60 * 60);
-	assertEqualInt(get_date(0, "now + 1 hour + 1 minute"), 60 * 60 + 60);
+	assertEqualInt(archive_parse_date(0, "tomorrow"), 24 * 60 * 60);
+	assertEqualInt(archive_parse_date(0, "yesterday"), - 24 * 60 * 60);
+	assertEqualInt(archive_parse_date(0, "now + 1 hour"), 60 * 60);
+	assertEqualInt(archive_parse_date(0, "now + 1 hour + 1 minute"), 60 * 60 + 60);
 	/* Repeat the above for a different start time. */
 	now = 1231113600; /* Jan 5, 2009 00:00 UTC */
-	assertEqualInt(get_date(0, "Jan 5, 2009 00:00 UTC"), now);
-	assertEqualInt(get_date(now, "tomorrow"), now + 24 * 60 * 60);
-	assertEqualInt(get_date(now, "yesterday"), now - 24 * 60 * 60);
-	assertEqualInt(get_date(now, "now + 1 hour"), now + 60 * 60);
-	assertEqualInt(get_date(now, "now + 1 hour + 1 minute"),
+	assertEqualInt(archive_parse_date(0, "Jan 5, 2009 00:00 UTC"), now);
+	assertEqualInt(archive_parse_date(now, "tomorrow"), now + 24 * 60 * 60);
+	assertEqualInt(archive_parse_date(now, "yesterday"), now - 24 * 60 * 60);
+	assertEqualInt(archive_parse_date(now, "now + 1 hour"), now + 60 * 60);
+	assertEqualInt(archive_parse_date(now, "now + 1 hour + 1 minute"),
 	    now + 60 * 60 + 60);
-	assertEqualInt(get_date(now, "tomorrow 5:16am UTC"),
+	assertEqualInt(archive_parse_date(now, "tomorrow 5:16am UTC"),
 	    now + 24 * 60 * 60 + 5 * 60 * 60 + 16 * 60);
-	assertEqualInt(get_date(now, "UTC 5:16am tomorrow"),
+	assertEqualInt(archive_parse_date(now, "UTC 5:16am tomorrow"),
 	    now + 24 * 60 * 60 + 5 * 60 * 60 + 16 * 60);
 
 	/* Jan 5, 2009 was a Monday. */
-	assertEqualInt(get_date(now, "monday UTC"), now);
-	assertEqualInt(get_date(now, "sunday UTC"), now + 6 * 24 * 60 * 60);
-	assertEqualInt(get_date(now, "tuesday UTC"), now + 24 * 60 * 60);
+	assertEqualInt(archive_parse_date(now, "monday UTC"), now);
+	assertEqualInt(archive_parse_date(now, "sunday UTC"), now + 6 * 24 * 60 * 60);
+	assertEqualInt(archive_parse_date(now, "tuesday UTC"), now + 24 * 60 * 60);
 	/* "next tuesday" is one week after "tuesday" */
-	assertEqualInt(get_date(now, "UTC next tuesday"),
+	assertEqualInt(archive_parse_date(now, "UTC next tuesday"),
 	    now + 8 * 24 * 60 * 60);
 	/* "last tuesday" is one week before "tuesday" */
-	assertEqualInt(get_date(now, "last tuesday UTC"),
+	assertEqualInt(archive_parse_date(now, "last tuesday UTC"),
 	    now - 6 * 24 * 60 * 60);
 
 	/* Unix epoch timestamps */
-	assertEqualInt(get_date(now, "@0"), 0);
-	assertEqualInt(get_date(now, "@100"), 100);
-	assertEqualInt(get_date(now, "@+100"), 100);
+	assertEqualInt(archive_parse_date(now, "@0"), 0);
+	assertEqualInt(archive_parse_date(now, "@100"), 100);
+	assertEqualInt(archive_parse_date(now, "@1000000000"), 1000000000);
+	assertEqualInt(archive_parse_date(now, "@+100"), 100);
 
-	assertEqualInt(get_date(now, "@"), -1);
-	assertEqualInt(get_date(now, "@-"), -1);
-	assertEqualInt(get_date(now, "@+"), -1);
-	assertEqualInt(get_date(now, "@tenth"), -1);
-	assertEqualInt(get_date(now, "@100 tomorrow"), -1);
+	assertEqualInt(archive_parse_date(now, "@"), -1);
+	assertEqualInt(archive_parse_date(now, "@-"), -1);
+	assertEqualInt(archive_parse_date(now, "@+"), -1);
+	assertEqualInt(archive_parse_date(now, "@tenth"), -1);
+	assertEqualInt(archive_parse_date(now, "@100 tomorrow"), -1);
 
-	/* TODO: Lots more tests here. */
+	/* Verify handling of overlarge numbers */
+	expected = sizeof(time_t) == 4 ? -1 : 253375948800LL;
+	assertEqualInt(archive_parse_date(now, "Jan 1, 9999 UTC"), expected);
+	assertEqualInt(archive_parse_date(now, "Jan 1, 10000 UTC"), -1);
+	assertEqualInt(archive_parse_date(now, "Jan 1, 99999 UTC"), -1);
+	assertEqualInt(archive_parse_date(time(NULL), "2147483647-01-01 00:00:00"), -1);
 }

@@ -72,7 +72,7 @@ DEFINE_TEST(test_write_disk_secure745)
 	/* Permission of target dir should not have changed. */
 	assertFileMode("../target", 0700);
 
-	assert(0 == archive_write_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	archive_write_free(a);
 #endif
 }

@@ -1,0 +1,15 @@
+{
+  "dependencies": [
+    "zlib",
+    "bzip2",
+    "liblzma",
+    "zstd"
+  ],
+  "vcpkg-configuration": {
+    "default-registry": {
+      "kind": "git",
+      "repository": "https://github.com/microsoft/vcpkg",
+      "baseline": "44819aa2a6c10e56065e2b0330e7d6c89d1d2574"
+    }
+  }
+}

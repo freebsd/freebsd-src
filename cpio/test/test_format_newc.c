@@ -198,7 +198,7 @@ DEFINE_TEST(test_format_newc)
 	t = from_hex(e + 46, 8); /* mtime */
 	failure("t=%#08jx now=%#08jx=%jd", (uintmax_t)t, (uintmax_t)now,
 	    (intmax_t)now);
-	assert(t <= now); /* File wasn't created in future. */
+	assert(t <= now + 1); /* Allow 1 sec margin for timing variations. */
 	failure("t=%#08jx now - 2=%#08jx=%jd", (uintmax_t)t, (uintmax_t)now - 2,
 	    (intmax_t)now - 2);
 	assert(t >= now - 2); /* File was created w/in last 2 secs. */

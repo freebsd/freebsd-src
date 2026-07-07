@@ -39,6 +39,7 @@
 #endif
 
 #include "archive.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_string.h"
 #include "archive_write_private.h"
@@ -308,10 +309,9 @@ atol8(const char *p, size_t char_cnt)
 		else
 			return (-1);
 		p++;
-		if (l > (INT64_MAX >> 3))
+		if (archive_ckd_mul_i64(&l, l, 8) ||
+		    archive_ckd_add_i64(&l, l, digit))
 			return (-1);
-		l <<= 3;
-		l |= digit;
 	}
 	return (l);
 }

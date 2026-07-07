@@ -4,8 +4,8 @@ dnl First, define all of the version numbers up front.
 dnl In particular, this allows the version macro to be used in AC_INIT
 
 dnl These first two version numbers are updated automatically on each release.
-m4_define([LIBARCHIVE_VERSION_S],[3.8.7])
-m4_define([LIBARCHIVE_VERSION_N],[3008007])
+m4_define([LIBARCHIVE_VERSION_S],[3.8.8])
+m4_define([LIBARCHIVE_VERSION_N],[3008008])
 
 dnl bsdtar and bsdcpio versioning tracks libarchive
 m4_define([BSDTAR_VERSION_S],LIBARCHIVE_VERSION_S())
@@ -365,9 +365,9 @@ AS_VAR_IF([ac_cv_have_decl_FS_IOC_GETFLAGS], [yes],
     [AC_DEFINE_UNQUOTED([HAVE_WORKING_FS_IOC_GETFLAGS], [1],
                     [Define to 1 if you have a working FS_IOC_GETFLAGS])])
 
-AC_CHECK_HEADERS([locale.h membership.h paths.h poll.h pthread.h pwd.h])
-AC_CHECK_HEADERS([readpassphrase.h signal.h spawn.h])
-AC_CHECK_HEADERS([stdarg.h stdint.h stdlib.h string.h])
+AC_CHECK_HEADERS([intsafe.h locale.h membership.h paths.h poll.h pthread.h])
+AC_CHECK_HEADERS([pwd.h readpassphrase.h signal.h spawn.h])
+AC_CHECK_HEADERS([stdarg.h stdckdint.h stdint.h stdlib.h string.h])
 AC_CHECK_HEADERS([sys/acl.h sys/cdefs.h sys/ea.h sys/extattr.h])
 AC_CHECK_HEADERS([sys/ioctl.h sys/mkdev.h sys/mount.h])
 AC_CHECK_HEADERS([sys/param.h sys/poll.h sys/richacl.h])
@@ -377,7 +377,7 @@ AC_CHECK_HEADERS([time.h unistd.h utime.h wchar.h wctype.h])
 AC_CHECK_TYPE([suseconds_t])
 AC_CHECK_HEADERS([windows.h])
 # check windows.h first; the other headers require it.
-AC_CHECK_HEADERS([wincrypt.h winioctl.h],[],[],
+AC_CHECK_HEADERS([winioctl.h],[],[],
 [[#ifdef HAVE_WINDOWS_H
 # include <windows.h>
 #endif
@@ -1291,24 +1291,26 @@ main(int argc, char **argv)
 case "$host_os" in
   *mingw* | *cygwin* | *msys*)
 	;;
+  *darwin*)
+	CRYPTO_CHECK(MD5, LIBSYSTEM, md5)
+	CRYPTO_CHECK(SHA1, LIBSYSTEM, sha1)
+	CRYPTO_CHECK(SHA256, LIBSYSTEM, sha256)
+	CRYPTO_CHECK(SHA384, LIBSYSTEM, sha384)
+	CRYPTO_CHECK(SHA512, LIBSYSTEM, sha512)
+	;;
   *)
 	CRYPTO_CHECK(MD5, LIBC, md5)
-	CRYPTO_CHECK(MD5, LIBSYSTEM, md5)
 	CRYPTO_CHECK(RMD160, LIBC, rmd160)
 	CRYPTO_CHECK(SHA1, LIBC, sha1)
-	CRYPTO_CHECK(SHA1, LIBSYSTEM, sha1)
 	CRYPTO_CHECK(SHA256, LIBC, sha256)
 	CRYPTO_CHECK(SHA256, LIBC2, sha256)
 	CRYPTO_CHECK(SHA256, LIBC3, sha256)
-	CRYPTO_CHECK(SHA256, LIBSYSTEM, sha256)
 	CRYPTO_CHECK(SHA384, LIBC, sha384)
 	CRYPTO_CHECK(SHA384, LIBC2, sha384)
 	CRYPTO_CHECK(SHA384, LIBC3, sha384)
-	CRYPTO_CHECK(SHA384, LIBSYSTEM, sha384)
 	CRYPTO_CHECK(SHA512, LIBC, sha512)
 	CRYPTO_CHECK(SHA512, LIBC2, sha512)
 	CRYPTO_CHECK(SHA512, LIBC3, sha512)
-	CRYPTO_CHECK(SHA512, LIBSYSTEM, sha512)
 	;;
 esac
 

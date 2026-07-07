@@ -47,7 +47,7 @@ static void test_encrypted_rar_archive(const char *filename, int filenamesEncryp
 
 	/* We should only ever fail to read the data for "a.txt" and "c.txt" if they are encrypted */
 	/* NOTE: We'll never attempt this when filenames are encrypted, so we only check for solid here */
-	expected_read_data_result = solid ? ARCHIVE_FATAL : expected_file_size;
+	expected_read_data_result = solid ? ARCHIVE_FAILED : expected_file_size;
 
 	extract_reference_file(filename);
 	assert((a = archive_read_new()) != NULL);
@@ -81,7 +81,7 @@ static void test_encrypted_rar_archive(const char *filename, int filenamesEncryp
 		assertEqualInt(ARCHIVE_FATAL, archive_read_data(a, buff, sizeof(buff)));
 
 		/* Additional attempts to read headers are futile */
-		assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		return;
 	}
@@ -96,7 +96,7 @@ static void test_encrypted_rar_archive(const char *filename, int filenamesEncryp
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualInt(1, archive_read_has_encrypted_entries(a));
-	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_read_data(a, buff, sizeof(buff)));
 
 	/* Read the header for "c.txt" */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -120,13 +120,13 @@ static void test_encrypted_rar_archive(const char *filename, int filenamesEncryp
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualInt(1, archive_read_has_encrypted_entries(a));
-	assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualIntA(a, ARCHIVE_FAILED, archive_read_data(a, buff, sizeof(buff)));
 
 	/* End of archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 

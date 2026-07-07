@@ -65,6 +65,6 @@ DEFINE_TEST(test_read_format_rar_encryption_header)
 	assertEqualIntA(a, ARCHIVE_FORMAT_RAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

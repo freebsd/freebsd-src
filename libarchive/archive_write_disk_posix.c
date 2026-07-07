@@ -308,6 +308,10 @@ struct archive_write_disk {
 	int			 stream_valid;
 	int			 decmpfs_compression_level;
 #endif
+#if !(ARCHIVE_XATTR_LINUX || ARCHIVE_XATTR_DARWIN || ARCHIVE_XATTR_AIX ||\
+    ARCHIVE_XATTR_FREEBSD)
+	int			 warning_done;
+#endif
 };
 
 /*
@@ -596,11 +600,12 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	a->pst = NULL;
 	a->current_fixup = NULL;
 	a->deferred = 0;
-	if (a->entry) {
-		archive_entry_free(a->entry);
-		a->entry = NULL;
-	}
+	archive_entry_free(a->entry);
 	a->entry = archive_entry_clone(entry);
+	if (a->entry == NULL) {
+		archive_set_error(&a->archive, ENOMEM, "Out of memory");
+		return (ARCHIVE_FATAL);
+	}
 	a->fd = -1;
 	a->fd_offset = 0;
 	a->offset = 0;
@@ -971,7 +976,7 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 		return (ARCHIVE_OK);
 
 	if (a->filesize == 0 || a->fd < 0) {
-		archive_set_error(&a->archive, 0,
+		archive_set_error(&a->archive, EIO,
 		    "Attempt to write to an empty file");
 		return (ARCHIVE_WARN);
 	}
@@ -1595,7 +1600,7 @@ hfs_write_data_block(struct archive_write_disk *a, const char *buff,
 		return (ARCHIVE_OK);
 
 	if (a->filesize == 0 || a->fd < 0) {
-		archive_set_error(&a->archive, 0,
+		archive_set_error(&a->archive, EIO,
 		    "Attempt to write to an empty file");
 		return (ARCHIVE_WARN);
 	}
@@ -1674,7 +1679,7 @@ _archive_write_disk_data_block(struct archive *_a,
 	if (r < ARCHIVE_OK)
 		return (r);
 	if ((size_t)r < size) {
-		archive_set_error(&a->archive, 0,
+		archive_set_error(&a->archive, EOVERFLOW,
 		    "Too much data: Truncating file at %ju bytes",
 		    (uintmax_t)a->filesize);
 		return (ARCHIVE_WARN);
@@ -2196,7 +2201,7 @@ restore_entry(struct archive_write_disk *a)
 		if (a->skip_file_set &&
 		    a->st.st_dev == (dev_t)a->skip_file_dev &&
 		    a->st.st_ino == (ino_t)a->skip_file_ino) {
-			archive_set_error(&a->archive, 0,
+			archive_set_error(&a->archive, EIO,
 			    "Refusing to overwrite archive");
 			return (ARCHIVE_FAILED);
 		}
@@ -2996,7 +3001,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				 */
 				/*
 				if (!S_ISLNK(path)) {
-					fsobj_error(a_eno, a_estr, 0,
+					fsobj_error(a_eno, a_estr, -1,
 					    "Removing symlink ", path);
 				}
 				*/
@@ -3012,7 +3017,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 #endif
 				if (r != 0) {
 					tail[0] = c;
-					fsobj_error(a_eno, a_estr, 0,
+					fsobj_error(a_eno, a_estr, EIO,
 					    "Cannot remove intervening "
 					    "symlink ", path);
 					res = ARCHIVE_FAILED;
@@ -3072,7 +3077,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 					head = tail + 1;
 				} else {
 					tail[0] = c;
-					fsobj_error(a_eno, a_estr, 0,
+					fsobj_error(a_eno, a_estr, ELOOP,
 					    "Cannot extract through "
 					    "symlink ", path);
 					res = ARCHIVE_FAILED;
@@ -3080,7 +3085,7 @@ check_symlinks_fsobj(char *path, int *a_eno, struct archive_string *a_estr,
 				}
 			} else {
 				tail[0] = c;
-				fsobj_error(a_eno, a_estr, 0,
+				fsobj_error(a_eno, a_estr, ELOOP,
 				    "Cannot extract through symlink ", path);
 				res = ARCHIVE_FAILED;
 				break;
@@ -4693,12 +4698,10 @@ set_xattrs(struct archive_write_disk *a)
 static int
 set_xattrs(struct archive_write_disk *a)
 {
-	static int warning_done = 0;
-
 	/* If there aren't any extended attributes, then it's okay not
 	 * to extract them, otherwise, issue a single warning. */
-	if (archive_entry_xattr_count(a->entry) != 0 && !warning_done) {
-		warning_done = 1;
+	if (archive_entry_xattr_count(a->entry) != 0 && !a->warning_done) {
+		a->warning_done = 1;
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Cannot restore extended attributes on this system");
 		return (ARCHIVE_WARN);

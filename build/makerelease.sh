@@ -50,8 +50,8 @@ export MAKE_LIBARCHIVE_RELEASE="1"
 /bin/sh build/autogen.sh
 
 # Get the newest config.guess/config.sub from savannah.gnu.org
-curl 'http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD' > build/autoconf/config.guess
-curl 'http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD' > build/autoconf/config.sub
+curl -fsSL 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD' > build/autoconf/config.guess
+curl -fsSL 'https://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD' > build/autoconf/config.sub
 
 ./configure
 make distcheck

@@ -245,6 +245,7 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 		r = _popul_ehdr(&hdr, MAX_HDR_SIZE, rh);
 		if (r < 0) {
 			/* don't bother */
+			archive_string_free(&hdr);
 			archive_set_error(
 				&a->archive,
 				ARCHIVE_ERRNO_FILE_FORMAT,
@@ -371,7 +372,7 @@ _popul_ehdr(struct archive_string *tgt, size_t tsz, warc_essential_hdr_t hdr)
 		static const char _uri[] = "";
 		static const char _fil[] = "file://";
 		const char *u;
-		char *chk = strchr(hdr.tgturi, ':');
+		const char *chk = strchr(hdr.tgturi, ':');
 
 		if (chk != NULL && chk[1U] == '/' && chk[2U] == '/') {
 			/* yep, it's definitely a URI */

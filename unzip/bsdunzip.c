@@ -9,6 +9,7 @@
 #include "bsdunzip_platform.h"
 
 #include "la_queue.h"
+#include "lafe_fnmatch.h"
 #include "lafe_getline.h"
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -50,9 +51,6 @@
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#endif
-#ifdef HAVE_GETOPT_OPTRESET
-#include <getopt.h>
 #endif
 
 #include "bsdunzip.h"
@@ -307,12 +305,8 @@ match_pattern(struct pattern_list *list, const char *str)
 	struct pattern *entry;
 
 	STAILQ_FOREACH(entry, list, link) {
-#ifdef HAVE_FNMATCH
 		if (fnmatch(entry->pattern, str, C_opt ? FNM_CASEFOLD : 0) == 0)
 			return (1);
-#else
-#error "Unsupported platform: fnmatch() is required"
-#endif
 	}
 	return (0);
 }

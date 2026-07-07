@@ -684,6 +684,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the <iconv.h> header file. */
 #cmakedefine HAVE_ICONV_H 1
 
+/* Define to 1 if you have the <intsafe.h> header file. */
+#cmakedefine HAVE_INTSAFE_H 1
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #cmakedefine HAVE_INTTYPES_H 1
 
@@ -1024,6 +1027,9 @@ typedef uint64_t uintmax_t;
 
 /* Define to 1 if you have the <stdarg.h> header file. */
 #cmakedefine HAVE_STDARG_H 1
+
+/* Define to 1 if you have the <stdckdint.h> header file. */
+#cmakedefine HAVE_STDCKDINT_H 1
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #cmakedefine HAVE_STDINT_H 1

@@ -67,7 +67,7 @@ struct bsdtar {
 	/* Miscellaneous state information */
 	int		  argc;
 	char		**argv;
-	const char	 *argument;
+	char		 *argument;
 	size_t		  gs_width; /* For 'list_item' in read.c */
 	size_t		  u_width; /* for 'list_item' in read.c */
 	uid_t		  user_uid; /* UID running this program */

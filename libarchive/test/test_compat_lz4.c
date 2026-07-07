@@ -31,7 +31,7 @@
  * In particular:
  *  * lz4 -d will read multiple lz4 streams, concatenating the output
  *  * lz4 -d will stop at the end of a stream if the following data
- *    doesn't start with a lz4 signature.
+ *    doesn't start with an lz4 signature.
  */
 
 /*
@@ -78,7 +78,7 @@ verify(const char *name, const char *n[])
 	assertEqualString(archive_filter_name(a, 0), "lz4");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 

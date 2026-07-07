@@ -46,6 +46,6 @@ DEFINE_TEST(test_read_format_7zip_issue2765)
 	assertEqualInt(0, archive_file_count(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

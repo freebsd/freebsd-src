@@ -86,7 +86,7 @@ DEFINE_TEST(test_read_format_zip_utf8_paths)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
 	verify(a);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Verify with streaming reader. */
 	p = slurpfile(&s, "%s", refname);

@@ -1452,7 +1452,7 @@ DEFINE_TEST(test_read_format_rar5_only_crypt_exfld)
 	   during data extraction. */
 
 	assertA(archive_read_next_header(a, &ae) == ARCHIVE_OK);
-	assertA(archive_read_data(a, buf, sizeof(buf)) == ARCHIVE_FATAL);
+	assertA(archive_read_data(a, buf, sizeof(buf)) == ARCHIVE_FAILED);
 
 	/* The reader should also provide a valid error message. */
 	assertA(archive_error_string(a) != NULL);
@@ -1491,6 +1491,84 @@ DEFINE_TEST(test_read_format_rar5_invalidhash_and_validhtime_exfld)
 
 	assertA(archive_read_next_header(a, &ae) < 0);
 	assertA(archive_read_data(a, buf, sizeof(buf)) < 0);
+
+	EPILOGUE();
+}
+
+/*
+ * Regression tests for the RAR5 base-block parser leaving unconsumed body
+ * bytes before returning ARCHIVE_RETRY (GHSA-9h2c-464f-j3hj). Each archive is
+ * the test_read_format_rar5_stored archive with extra, unread bytes appended
+ * to a no-data block's body. Before the fix the reader did not skip those
+ * bytes, so the stream misaligned and the following file entry was lost; with
+ * the fix the trailing bytes are skipped and helloworld.txt is read normally.
+ */
+DEFINE_TEST(test_read_format_rar5_main_block_extra_bytes)
+{
+	const char helloworld_txt[] = "hello libarchive test suite!\n";
+	la_ssize_t file_size = sizeof(helloworld_txt) - 1;
+	char buff[64];
+
+	/* HEAD_MAIN block padded with trailing bytes the parser does not read. */
+	PROLOGUE("test_read_format_rar5_main_block_extra_bytes.rar");
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("helloworld.txt", archive_entry_pathname(ae));
+	assertEqualInt(file_size, archive_entry_size(ae));
+	assertA(file_size == archive_read_data(a, buff, file_size));
+	assertEqualMem(buff, helloworld_txt, file_size);
+
+	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_skip_block_extra_bytes)
+{
+	const char helloworld_txt[] = "hello libarchive test suite!\n";
+	la_ssize_t file_size = sizeof(helloworld_txt) - 1;
+	char buff[64];
+
+	/* An unknown HFL_SKIP_IF_UNKNOWN block carrying trailing bytes is inserted
+	 * before the file entry; the parser must skip the entire block. */
+	PROLOGUE("test_read_format_rar5_skip_block_extra_bytes.rar");
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("helloworld.txt", archive_entry_pathname(ae));
+	assertEqualInt(file_size, archive_entry_size(ae));
+	assertA(file_size == archive_read_data(a, buff, file_size));
+	assertEqualMem(buff, helloworld_txt, file_size);
+
+	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
+
+	EPILOGUE();
+}
+
+DEFINE_TEST(test_read_format_rar5_bytes_remaining_underflow)
+{
+	/* GH #2986 — CWE-191 signed integer underflow on
+	 * rar->file.bytes_remaining in process_block(). A malformed RAR5
+	 * archive whose compressed-block to_skip value exceeds the declared
+	 * remaining file data drives bytes_remaining negative; the negative
+	 * ssize_t later reaches read_ahead() and is implicitly converted to
+	 * a near-SIZE_MAX malloc request (CWE-122).
+	 *
+	 * The patched reader must reject the malformed archive with
+	 * ARCHIVE_FATAL before the negative value is reached. */
+
+	char buf[4096];
+	la_ssize_t r;
+	PROLOGUE("test_read_format_rar5_bytes_remaining_underflow.rar");
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("poc.txt", archive_entry_pathname(ae));
+
+	do {
+		r = archive_read_data(a, buf, sizeof(buf));
+	} while (r > 0);
+
+	assertEqualIntA(a, ARCHIVE_FATAL, r);
+	assertA(archive_error_string(a) != NULL);
 
 	EPILOGUE();
 }

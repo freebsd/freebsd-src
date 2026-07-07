@@ -41,7 +41,7 @@ DEFINE_TEST(test_read_filter_uudecode_raw)
 	assertEqualInt((AE_IFREG | 0755), archive_entry_mode(ae));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -62,6 +62,6 @@ DEFINE_TEST(test_read_filter_uudecode_base64_raw)
 	assertEqualInt((AE_IFREG | 0600), archive_entry_mode(ae));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

@@ -57,7 +57,6 @@ struct private_data {
 	int		 compression_level;
 #if defined(HAVE_BZLIB_H) && defined(BZ_CONFIG_ERROR)
 	bz_stream	 stream;
-	int64_t		 total_in;
 	char		*compressed;
 	size_t		 compressed_buffer_size;
 #else
@@ -238,9 +237,6 @@ archive_compressor_bzip2_write(struct archive_write_filter *f,
     const void *buff, size_t length)
 {
 	struct private_data *data = (struct private_data *)f->data;
-
-	/* Update statistics */
-	data->total_in += length;
 
 	/* Compress input data to output buffer */
 	SET_NEXT_IN(data, buff);

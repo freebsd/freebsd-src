@@ -23,9 +23,10 @@ static const short folder_gid = 40;
 
 static time_t now;
 
-static void verify_write_lzma(struct archive *a)
+static int verify_write_lzma(struct archive *a)
 {
 	struct archive_entry *entry;
+	int r;
 
 	/* Write entries. */
 
@@ -38,7 +39,13 @@ static void verify_write_lzma(struct archive *a)
 	archive_entry_set_gid(entry, file_gid);
 	archive_entry_set_mtime(entry, now, 0);
 	archive_entry_set_atime(entry, now + 3, 0);
-	assertEqualIntA(a, 0, archive_write_header(a, entry));
+	r = archive_write_header(a, entry);
+	if (r == ARCHIVE_FATAL && archive_errno(a) == ENOMEM) {
+		archive_entry_free(entry);
+		archive_free(a);
+		return -1;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, r);
 	assertEqualIntA(a, sizeof(file_data1), archive_write_data(a, file_data1, sizeof(file_data1)));
 	assertEqualIntA(a, sizeof(file_data2), archive_write_data(a, file_data2, sizeof(file_data2)));
 	archive_entry_free(entry);
@@ -54,6 +61,8 @@ static void verify_write_lzma(struct archive *a)
 	archive_entry_set_ctime(entry, now + 5, 0);
 	assertEqualIntA(a, 0, archive_write_header(a, entry));
 	archive_entry_free(entry);
+
+	return 0;
 }
 
 static void verify_xz_lzma(const char *buff, size_t used, uint16_t id,
@@ -361,7 +370,10 @@ DEFINE_TEST(test_write_format_zip_compression_lzmaxz)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_bytes_in_last_block(a, 1));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
 
-	verify_write_lzma(a);
+	if (verify_write_lzma(a) < 0) {
+		skipping("Not enough memory available");
+		return;
+	}
 
 	/* Close the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));

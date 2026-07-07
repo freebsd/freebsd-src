@@ -187,10 +187,10 @@ const char *testprog;
 
 #ifdef RUN_TEST_UNPRIV
 /* Unprivileged user to run as */
-const char *tuser = "nobody";
+static const char *tuser = "nobody";
 /* Original and test credentials */
-uid_t ouid, tuid;
-uid_t ogid, tgid;
+static uid_t ouid, tuid;
+static uid_t ogid, tgid;
 #endif
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -3056,11 +3056,41 @@ systemf(const char *fmt, ...)
 	pid_t pid;
 #endif
 	va_list ap;
+	size_t off = 0, avail = sizeof(buff);
 	int r;
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* system() on Windows runs its arguments through CMD.EXE, which has
+	 * notoriously unfriendly quoting rules. The current best documented way around
+	 * them is to wrap your *entire commandline* in sacrificial quotes.
+	 *
+	 * See CMD.EXE /? for more information. Excerpted here:
+	 * | Otherwise, old behavior is to see if the first character is
+	 * | a quote character and if so, strip the leading character and
+	 * | remove the last quote character on the command line, preserving
+	 * | any text after the last quote character.
+	 *
+	 * Since these tests often make use of systemf() with quoted arguments inside
+	 * the commandline, wrap every formatted commandline in quotes.
+	 */
+	avail -= 2;
+	off++;
+	buff[0] = '"';
+#endif
+
 	va_start(ap, fmt);
-	vsnprintf(buff, sizeof(buff), fmt, ap);
+	r = vsnprintf(buff + off, avail, fmt, ap);
 	va_end(ap);
+
+	if (r < 0 || (size_t)r > avail) {
+		return (-1);
+	}
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	buff[off + r] = '"';
+	buff[off + r + 1] = '\0';
+#endif
+
 	if (verbosity > VERBOSITY_FULL)
 		logprintf("Cmd: %s\n", buff);
 #if USE_POSIX_SPAWN
@@ -3747,7 +3777,7 @@ usage(const char *program)
 
 	printf("Usage: %s [options] <test> <test> ...\n", program);
 	printf("Default is to run all tests.\n");
-	printf("Otherwise, specify the numbers of the tests you wish to run.\n");
+	printf("Otherwise, specify tests by name or number.\n");
 	printf("Options:\n");
 	printf("  -d  Dump core after any failure, for debugging.\n");
 	printf("  -k  Keep all temp files.\n");

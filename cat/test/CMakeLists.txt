@@ -3,7 +3,7 @@
 #
 ############################################
 #
-# How to build bsdtar_test
+# How to build bsdcat_test
 #
 ############################################
 IF(ENABLE_CAT AND ENABLE_TEST)
@@ -51,25 +51,12 @@ IF(ENABLE_CAT AND ENABLE_TEST)
   # Generate list.h by grepping DEFINE_TEST() lines out of the C sources.
   #
   GENERATE_LIST_H(${CMAKE_CURRENT_BINARY_DIR}/list.h
-    ${CMAKE_CURRENT_LIST_FILE} ${bsdcat_test_SOURCES})
+    ${CMAKE_CURRENT_LIST_FILE} bsdcat_test ${bsdcat_test_SOURCES})
   SET_PROPERTY(DIRECTORY APPEND PROPERTY INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_BINARY_DIR})
 
-  # list.h has a line DEFINE_TEST(testname) for every
-  # test.  We can use that to define the tests for cmake by
-  # defining a DEFINE_TEST macro and reading list.h in.
-  MACRO (DEFINE_TEST _testname)
-    ADD_TEST(
-      NAME bsdcat_${_testname}
-      COMMAND bsdcat_test -vv
-                          -p $<TARGET_FILE:bsdcat>
-                          -r ${CMAKE_CURRENT_SOURCE_DIR}
-                          -s
-                          ${_testname})
-    SET_TESTS_PROPERTIES(bsdcat_${_testname} PROPERTIES SKIP_RETURN_CODE 2)
-  ENDMACRO (DEFINE_TEST _testname)
+  DISCOVER_TESTS(bsdcat ${bsdcat_test_SOURCES})
 
-  INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/test_utils)
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/cat/test)

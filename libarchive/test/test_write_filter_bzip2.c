@@ -241,7 +241,7 @@ DEFINE_TEST(test_write_filter_bzip2)
 	else
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_write_add_filter_bzip2(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_write_new()) != NULL);
@@ -252,7 +252,7 @@ DEFINE_TEST(test_write_filter_bzip2)
 	else
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_write_add_filter_bzip2(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_write_new()) != NULL);
@@ -265,7 +265,7 @@ DEFINE_TEST(test_write_filter_bzip2)
 		    archive_write_add_filter_bzip2(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used2));
-	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*

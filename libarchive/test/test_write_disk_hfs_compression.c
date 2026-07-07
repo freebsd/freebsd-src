@@ -146,7 +146,7 @@ DEFINE_TEST(test_write_disk_hfs_compression)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-	assertEqualIntA(ad, ARCHIVE_OK, archive_write_free(ad));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(ad));
 
 	/* Test file1. */
 	assertEqualInt(0, stat("file1", &st));
@@ -229,7 +229,7 @@ DEFINE_TEST(test_write_disk_hfs_compression)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
-	assertEqualIntA(ad, ARCHIVE_OK, archive_write_free(ad));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(ad));
 
 	/* Test file1. */
 	assertEqualInt(0, stat("file1", &st));

@@ -84,25 +84,12 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
   # Generate list.h by grepping DEFINE_TEST() lines out of the C sources.
   #
   GENERATE_LIST_H(${CMAKE_CURRENT_BINARY_DIR}/list.h
-    ${CMAKE_CURRENT_LIST_FILE} ${bsdcpio_test_SOURCES})
+    ${CMAKE_CURRENT_LIST_FILE} bsdcpio_test ${bsdcpio_test_SOURCES})
   SET_PROPERTY(DIRECTORY APPEND PROPERTY INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_BINARY_DIR})
 
-  # list.h has a line DEFINE_TEST(testname) for every
-  # test.  We can use that to define the tests for cmake by
-  # defining a DEFINE_TEST macro and reading list.h in.
-  MACRO (DEFINE_TEST _testname)
-    ADD_TEST(
-      NAME bsdcpio_${_testname}
-      COMMAND bsdcpio_test -vv
-                           -p $<TARGET_FILE:bsdcpio>
-                           -r ${CMAKE_CURRENT_SOURCE_DIR}
-                           -s
-                           ${_testname})
-    SET_TESTS_PROPERTIES(bsdcpio_${_testname} PROPERTIES SKIP_RETURN_CODE 2)
-  ENDMACRO (DEFINE_TEST _testname)
+  DISCOVER_TESTS(bsdcpio ${bsdcpio_test_SOURCES})
 
-  INCLUDE(${CMAKE_CURRENT_BINARY_DIR}/list.h)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/test_utils)
   INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/cpio/test)

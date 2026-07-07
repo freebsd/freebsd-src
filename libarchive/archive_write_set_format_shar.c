@@ -38,6 +38,7 @@
 #endif
 
 #include "archive.h"
+#include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
@@ -173,6 +174,10 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 	/* Save the entry for the closing. */
 	archive_entry_free(shar->entry);
 	shar->entry = archive_entry_clone(entry);
+	if (shar->entry == NULL) {
+		archive_set_error(&a->archive, ENOMEM, "Out of memory");
+		return (ARCHIVE_FATAL);
+	}
 	name = archive_entry_pathname(entry);
 
 	/* Handle some preparatory issues. */
@@ -408,9 +413,9 @@ static void
 uuencode_group(const char _in[3], char out[4])
 {
 	const unsigned char *in = (const unsigned char *)_in;
-	int t;
+	uint32_t t;
 
-	t = (in[0] << 16) | (in[1] << 8) | in[2];
+	t = archive_be24dec(in);
 	out[0] = UUENC( 0x3f & (t >> 18) );
 	out[1] = UUENC( 0x3f & (t >> 12) );
 	out[2] = UUENC( 0x3f & (t >> 6) );

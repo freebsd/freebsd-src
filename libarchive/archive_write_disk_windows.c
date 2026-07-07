@@ -70,21 +70,6 @@
 #define	IO_REPARSE_TAG_SYMLINK 0xA000000CL
 #endif
 
-static BOOL SetFilePointerEx_perso(HANDLE hFile,
-                             LARGE_INTEGER liDistanceToMove,
-                             PLARGE_INTEGER lpNewFilePointer,
-                             DWORD dwMoveMethod)
-{
-	LARGE_INTEGER li;
-	li.QuadPart = liDistanceToMove.QuadPart;
-	li.LowPart = SetFilePointer(
-	    hFile, li.LowPart, &li.HighPart, dwMoveMethod);
-	if(lpNewFilePointer) {
-		lpNewFilePointer->QuadPart = li.QuadPart;
-	}
-	return li.LowPart != (DWORD)-1 || GetLastError() == NO_ERROR;
-}
-
 struct fixup_entry {
 	struct fixup_entry	*next;
 	struct archive_acl	 acl;
@@ -595,45 +580,11 @@ la_mktemp(struct archive_write_disk *a)
 	return (fd);
 }
 
-#if _WIN32_WINNT < _WIN32_WINNT_VISTA
-static void *
-la_GetFunctionKernel32(const char *name)
-{
-	static HINSTANCE lib;
-	static int set;
-	if (!set) {
-		set = 1;
-		lib = LoadLibrary(TEXT("kernel32.dll"));
-	}
-	if (lib == NULL) {
-		fprintf(stderr, "Can't load kernel32.dll?!\n");
-		exit(1);
-	}
-	return (void *)GetProcAddress(lib, name);
-}
-#endif
-
 static int
 la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 {
-	static BOOL (WINAPI *f)(LPCWSTR, LPCWSTR, LPSECURITY_ATTRIBUTES);
 	BOOL ret;
-
-#if _WIN32_WINNT < _WIN32_WINNT_XP
-	static int set;
-/* CreateHardLinkW is available since XP and always loaded */
-	if (!set) {
-		set = 1;
-		f = la_GetFunctionKernel32("CreateHardLinkW");
-	}
-#else
-	f = CreateHardLinkW;
-#endif
-	if (!f) {
-		errno = ENOTSUP;
-		return (0);
-	}
-	ret = (*f)(linkname, target, NULL);
+	ret = CreateHardLinkW(linkname, target, NULL);
 	if (!ret) {
 		/* Under windows 2000, it is necessary to remove
 		 * the "\\?\" prefix. */
@@ -652,7 +603,7 @@ la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 				target += 4;
 		}
 #undef IS_UNC
-		ret = (*f)(linkname, target, NULL);
+		ret = CreateHardLinkW(linkname, target, NULL);
 	}
 	return (ret);
 }
@@ -666,30 +617,18 @@ la_CreateHardLinkW(wchar_t *linkname, wchar_t *target)
 static int
 la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target,
     int linktype) {
-	static BOOLEAN (WINAPI *f)(LPCWSTR, LPCWSTR, DWORD);
+	BOOL ret = 0;
+#if _WIN32_WINNT < _WIN32_WINNT_VISTA ||\
+    !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
+	(void)linkname; /* UNUSED */
+	(void)target; /* UNUSED */
+	(void)linktype; /* UNUSED */
+#else
 	wchar_t *ttarget, *p;
 	size_t len;
 	DWORD attrs = 0;
 	DWORD flags = 0;
 	DWORD newflags = 0;
-	BOOL ret = 0;
-
-#if _WIN32_WINNT < _WIN32_WINNT_VISTA
-/* CreateSymbolicLinkW is available since Vista and always loaded */
-	static int set;
-	if (!set) {
-		set = 1;
-		f = la_GetFunctionKernel32("CreateSymbolicLinkW");
-	}
-#else
-# if !defined(WINAPI_FAMILY_PARTITION) || WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
-	f = CreateSymbolicLinkW;
-# else
-	f = NULL;
-# endif
-#endif
-	if (!f)
-		return (0);
 
 	len = wcslen(target);
 	if (len == 0) {
@@ -751,15 +690,16 @@ la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target,
 			disk_unlink(linkname);
 	}
 
-	ret = (*f)(linkname, ttarget, newflags);
+	ret = CreateSymbolicLinkW(linkname, ttarget, newflags);
 	/*
 	 * Prior to Windows 10 calling CreateSymbolicLinkW() will fail
 	 * if SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE is set
 	 */
 	if (!ret) {
-		ret = (*f)(linkname, ttarget, flags);
+		ret = CreateSymbolicLinkW(linkname, ttarget, flags);
 	}
 	free(ttarget);
+#endif
 	return (ret);
 }
 
@@ -773,7 +713,7 @@ la_ftruncate(HANDLE handle, int64_t length)
 		return (-1);
 	}
 	distance.QuadPart = length;
-	if (!SetFilePointerEx_perso(handle, distance, NULL, FILE_BEGIN)) {
+	if (!SetFilePointerEx(handle, distance, NULL, FILE_BEGIN)) {
 		la_dosmaperr(GetLastError());
 		return (-1);
 	}
@@ -874,8 +814,11 @@ _archive_write_disk_header(struct archive *_a, struct archive_entry *entry)
 	a->current_fixup = NULL;
 	a->deferred = 0;
 	archive_entry_free(a->entry);
-	a->entry = NULL;
 	a->entry = archive_entry_clone(entry);
+	if (a->entry == NULL) {
+		archive_set_error(&a->archive, ENOMEM, "Out of memory");
+		return (ARCHIVE_FATAL);
+	}
 	a->fh = INVALID_HANDLE_VALUE;
 	a->fd_offset = 0;
 	a->offset = 0;
@@ -1106,7 +1049,7 @@ write_data_block(struct archive_write_disk *a, const char *buff, size_t size)
 		return (ARCHIVE_OK);
 
 	if (a->filesize == 0 || a->fh == INVALID_HANDLE_VALUE) {
-		archive_set_error(&a->archive, 0,
+		archive_set_error(&a->archive, EIO,
 		    "Attempt to write to an empty file");
 		return (ARCHIVE_WARN);
 	}
@@ -1190,7 +1133,7 @@ _archive_write_disk_data_block(struct archive *_a,
 	if (r < ARCHIVE_OK)
 		return (r);
 	if ((size_t)r < size) {
-		archive_set_error(&a->archive, 0,
+		archive_set_error(&a->archive, EOVERFLOW,
 		    "Write request too large");
 		return (ARCHIVE_WARN);
 	}
@@ -1607,7 +1550,7 @@ restore_entry(struct archive_write_disk *a)
 		if (a->skip_file_set &&
 		    bhfi_dev(&a->st) == a->skip_file_dev &&
 		    bhfi_ino(&a->st) == a->skip_file_ino) {
-			archive_set_error(&a->archive, 0,
+			archive_set_error(&a->archive, EIO,
 			    "Refusing to overwrite archive");
 			return (ARCHIVE_FAILED);
 		}
@@ -2198,7 +2141,7 @@ check_symlinks(struct archive_write_disk *a)
 				 * symlink with another symlink.
 				 */
 				if (!S_ISLNK(a->mode)) {
-					archive_set_error(&a->archive, 0,
+					archive_set_error(&a->archive, -1,
 					    "Removing symlink %ls",
 					    a->name);
 				}
@@ -2218,7 +2161,7 @@ check_symlinks(struct archive_write_disk *a)
 					r = disk_unlink(a->name);
 				}
 				if (r != 0) {
-					archive_set_error(&a->archive, 0,
+					archive_set_error(&a->archive, EIO,
 					    "Cannot remove intervening "
 					    "symlink %ls", a->name);
 					pn[0] = c;
@@ -2226,7 +2169,7 @@ check_symlinks(struct archive_write_disk *a)
 				}
 				a->pst = NULL;
 			} else {
-				archive_set_error(&a->archive, 0,
+				archive_set_error(&a->archive, ELOOP,
 				    "Cannot extract through symlink %ls",
 				    a->name);
 				pn[0] = c;

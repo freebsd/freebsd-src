@@ -41,7 +41,7 @@ DEFINE_TEST(test_read_format_rar_overflow)
     assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
     assertEqualInt(48, archive_entry_size(ae));
     /* The next call should reproduce Issue #2565 */
-    assertEqualIntA(a, ARCHIVE_FATAL, archive_read_data_block(a, &buff, &size, &offset));
+    assertEqualIntA(a, ARCHIVE_FAILED, archive_read_data_block(a, &buff, &size, &offset));
 
     assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
     assertEqualInt(ARCHIVE_OK, archive_read_free(a));

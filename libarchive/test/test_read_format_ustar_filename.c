@@ -75,7 +75,7 @@ test_read_format_ustar_filename_eucJP_UTF8(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_USTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -130,7 +130,7 @@ test_read_format_ustar_filename_CP866_KOI8R(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_USTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -185,7 +185,7 @@ test_read_format_ustar_filename_CP866_UTF8(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_USTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -241,7 +241,7 @@ test_read_format_ustar_filename_KOI8R_CP866(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_USTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -296,7 +296,7 @@ test_read_format_ustar_filename_KOI8R_UTF8(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_USTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -350,7 +350,7 @@ test_read_format_ustar_filename_eucJP_CP932(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_USTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -406,7 +406,7 @@ test_read_format_ustar_filename_CP866_CP1251(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_USTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -462,7 +462,7 @@ test_read_format_ustar_filename_CP866_CP1251_win(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_USTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -517,7 +517,7 @@ test_read_format_ustar_filename_KOI8R_CP1251(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_USTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
