@@ -9356,6 +9356,21 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 	}
 
 	/*
+	 * If the output interface does not accept unmapped mbufs, convert
+	 * them to mapped mbufs.
+	 */
+	if ((ifp->if_capenable & IFCAP_MEXTPG) == 0) {
+		error = mb_unmapped_to_ext(m0, &md);
+		if (error)
+			goto done;
+		/*
+		 * The first mbuf should not be reallocated because it is
+		 * always mapped.
+		 */
+		MPASS(m0 == md);
+	}
+
+	/*
 	 * If small enough for interface, or the interface will take
 	 * care of the fragmentation for us, we can just send directly.
 	 */
@@ -9696,6 +9711,11 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 	}
 
 	if ((u_long)m0->m_pkthdr.len <= ifp->if_mtu) {
+		if ((ifp->if_capenable & IFCAP_MEXTPG) == 0) {
+			if (mb_unmapped_to_ext(m0, &md) != 0)
+				goto done;
+			MPASS(m0 == md);
+		}
 		md = m0;
 		pf_dummynet_route(pd, s, r, ifp, sintosa(&dst), &md);
 		if (md != NULL) {
@@ -10953,6 +10973,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 {
 	struct pfi_kkif		*kif;
 	u_short			 action, reason = 0;
+	struct mbuf		*m;
 	struct m_tag		*mtag;
 	struct pf_krule		*a = NULL, *r = &V_pf_default_rule;
 	struct pf_kstate	*s = NULL;
@@ -10988,6 +11009,12 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 	}
 
 	if (__predict_false(! M_WRITABLE(*m0))) {
+		/* Need to convert unmapped mbufs before calling m_unshare(). */
+		if (mb_unmapped_to_ext(*m0, &m) != 0) {
+			*m0 = NULL;
+			return (PF_DROP);
+		}
+		MPASS(*m0 == m);
 		*m0 = m_unshare(*m0, M_NOWAIT);
 		if (*m0 == NULL) {
 			return (PF_DROP);
@@ -11007,6 +11034,14 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			*m0 = NULL;
 			return (PF_PASS);
 		}
+
+		/*
+		 * No need to call mb_unmapped_to_ext() here because it had
+		 * already been called in pf_route()/pf_route6() and dummynet
+		 * re-injected this packet.
+		 */
+
+		M_ASSERTMAPPED(*m0);
 		(ifp->if_output)(ifp, *m0, sintosa(&pd.pf_mtag->dst), NULL);
 		*m0 = NULL;
 		return (PF_PASS);
