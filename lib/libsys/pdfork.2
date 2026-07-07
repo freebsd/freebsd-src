@@ -176,6 +176,18 @@ specifying any file descriptors for the same process fail with the
 .Er ESRCH
 error.
 .Pp
+The
+.Fn pdopenpid
+system call is allowed in the capability mode
+.Pq see Xr capsicum 4
+when the target process is the child of the calling process, or
+when the calling process is the debugger of the target process.
+The debugger is attached to its target by
+.Xr ptrace 2 ,
+.Xr pdptrace 2 ,
+or by other means, e.g., by debugging the target process' parent with
+the follow-on-fork mode enabled.
+.Pp
 .Fn pdgetpid
 queries the process ID (PID) in the process descriptor
 .Fa fd .
@@ -454,6 +466,27 @@ The specified process does not have a file descriptor table.
 refers to a file that cannot be duplicated across a process boundary,
 such as a kqueue.
 .El
+.Pp
+The
+.Fn pdptrace
+system call returns the same errors as
+.Xr ptrace 2 ,
+as well as the following specific errors:
+.Bl -tag -width Er
+.It Bq Er ECAPMODE
+The process issuing the
+.Fn pdptrace
+call is in capability mode,
+and the
+.Dv security.bsd.allow_ptrace_in_cap_mode
+tunable is set to
+.Dv false .
+.It Bq Er ENOTCAPABLE
+The process called
+.Fn pdptrace
+on the process descriptor that does not have the
+.Dv CAP_PTRACE
+capability enabled.
 .Sh SEE ALSO
 .Xr close 2 ,
 .Xr fork 2 ,
