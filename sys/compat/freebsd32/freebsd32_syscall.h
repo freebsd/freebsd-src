@@ -520,4 +520,5 @@
 #define	FREEBSD32_SYS_pdrfork	600
 #define	FREEBSD32_SYS_freebsd32_pdwait	601
 #define	FREEBSD32_SYS_renameat2	602
-#define	FREEBSD32_SYS_MAXSYSCALL	603
+#define	FREEBSD32_SYS_pdopenpid	603
+#define	FREEBSD32_SYS_MAXSYSCALL	604
