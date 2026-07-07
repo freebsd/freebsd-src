@@ -92,6 +92,7 @@ struct _ftsent {
 	char *fts_path;			/* root path */
 	int fts_errno;			/* errno for this node */
 	int fts_symfd;			/* fd for symlink */
+	int fts_dirfd;                  /* fd for parent directory */
 	__size_t fts_pathlen;		/* strlen(fts_path) */
 	__size_t fts_namelen;		/* strlen(fts_name) */
 
@@ -133,7 +134,6 @@ struct _ftsent {
 	struct stat *fts_statp;		/* stat(2) information */
 	char *fts_name;			/* file name */
 	FTS *fts_fts;			/* back pointer to main FTS */
-	int fts_dirfd;                  /* fd for parent directory */
 };
 
 #include <sys/cdefs.h>
@@ -154,6 +154,7 @@ FTS	*fts_open_b(char * const *, int,
 FTSENT	*fts_read(FTS *);
 int	 fts_set(FTS *, FTSENT *, int);
 void	 fts_set_clientptr(FTS *, void *);
+int	 fts_get_dirfd(const FTS *);
 __END_DECLS
 
 #endif /* !_FTS_H_ */

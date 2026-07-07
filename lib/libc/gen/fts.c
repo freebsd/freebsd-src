@@ -99,7 +99,7 @@ struct _fts_private {
 	struct statfs	ftsp_statfs;
 	dev_t		ftsp_dev;
 	int		ftsp_linksreliable;
-	int             ftsp_dirfd;
+	int		ftsp_dirfd;
 };
 
 /*
