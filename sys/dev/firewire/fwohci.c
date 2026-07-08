@@ -155,6 +155,7 @@ void fwohci_txbufdb (struct fwohci_softc *, int , struct fw_bulkxfer *);
 static void fwohci_task_busreset(void *, int);
 static void fwohci_task_sid(void *, int);
 static void fwohci_task_dma(void *, int);
+static void fwohci_sid_timeout(void *);
 
 /*
  * memory allocated for DMA programs
@@ -427,17 +428,20 @@ fwohci_probe_phy(struct fwohci_softc *sc, device_t dev)
 	 *    It is not actually available port on your PC .
 	 */
 	OWRITE(sc, OHCI_HCCCTL, OHCI_HCC_LPS);
-	DELAY(500);
+	/* IEEE 1394a-2000 s6.1: PHY reset completes within 10 ms of LPS. */
+	DELAY(10000);
 
 	reg = fwphy_rddata(sc, FW_PHY_SPD_REG);
 
 	if ((reg >> 5) != 7) {
 		sc->fc.mode &= ~FWPHYASYST;
 		sc->fc.nport = reg & FW_PHY_NP;
-		sc->fc.speed = reg & FW_PHY_SPD >> 6;
+		sc->fc.speed = (reg & FW_PHY_SPD) >> 6;
 		if (sc->fc.speed > MAX_SPEED) {
-			device_printf(dev, "invalid speed %d (fixed to %d).\n",
-				sc->fc.speed, MAX_SPEED);
+			if (bootverbose)
+				device_printf(dev,
+				    "invalid speed %d (fixed to %d).\n",
+				    sc->fc.speed, MAX_SPEED);
 			sc->fc.speed = MAX_SPEED;
 		}
 		device_printf(dev,
@@ -449,8 +453,10 @@ fwohci_probe_phy(struct fwohci_softc *sc, device_t dev)
 		sc->fc.nport = reg & FW_PHY_NP;
 		sc->fc.speed = (reg2 & FW_PHY_ESPD) >> 5;
 		if (sc->fc.speed > MAX_SPEED) {
-			device_printf(dev, "invalid speed %d (fixed to %d).\n",
-				sc->fc.speed, MAX_SPEED);
+			if (bootverbose)
+				device_printf(dev,
+				    "invalid speed %d (fixed to %d).\n",
+				    sc->fc.speed, MAX_SPEED);
 			sc->fc.speed = MAX_SPEED;
 		}
 		device_printf(dev,
@@ -762,6 +768,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 	TASK_INIT(&sc->fwohci_task_busreset, 2, fwohci_task_busreset, sc);
 	TASK_INIT(&sc->fwohci_task_sid, 1, fwohci_task_sid, sc);
 	TASK_INIT(&sc->fwohci_task_dma, 0, fwohci_task_dma, sc);
+	callout_init_mtx(&sc->sid_timeout_callout, FW_GMTX(&sc->fc), 0);
 
 	fw_init(&sc->fc);
 	fwohci_reset(sc, dev);
@@ -804,6 +811,7 @@ fwohci_detach(struct fwohci_softc *sc, device_t dev)
 		fwohci_db_free(&sc->it[i]);
 		fwohci_db_free(&sc->ir[i]);
 	}
+	callout_drain(&sc->sid_timeout_callout);
 	if (sc->fc.taskqueue != NULL) {
 		taskqueue_drain(sc->fc.taskqueue, &sc->fwohci_task_busreset);
 		taskqueue_drain(sc->fc.taskqueue, &sc->fwohci_task_sid);
@@ -1824,7 +1832,8 @@ fwohci_intr_core(struct fwohci_softc *sc, uint32_t stat, int count)
 		/* Disable bus reset interrupt until sid recv. */
 		OWRITE(sc, FWOHCI_INTMASKCLR, OHCI_INT_PHY_BUS_R);
 
-		device_printf(fc->dev, "%s: BUS reset\n", __func__);
+		if (sc->sid_timeout_count == 0 || firewire_debug)
+			device_printf(fc->dev, "%s: BUS reset\n", __func__);
 		OWRITE(sc, FWOHCI_INTMASKCLR, OHCI_INT_CYC_LOST);
 		OWRITE(sc, OHCI_LNKCTLCLR, OHCI_CNTL_CYCSRC);
 
@@ -1835,6 +1844,10 @@ fwohci_intr_core(struct fwohci_softc *sc, uint32_t stat, int count)
 
 		if (!kdb_active)
 			taskqueue_enqueue(sc->fc.taskqueue, &sc->fwohci_task_busreset);
+
+		/* SID watchdog: recover if self-ID never completes. */
+		callout_reset(&sc->sid_timeout_callout, hz / 2,
+		    fwohci_sid_timeout, sc);
 	}
 	if (stat & OHCI_INT_PHY_SID) {
 		/* Enable bus reset interrupt */
@@ -1902,6 +1915,8 @@ fwohci_intr_core(struct fwohci_softc *sc, uint32_t stat, int count)
 		}
 
 		fc->status = FWBUSINIT;
+		callout_stop(&sc->sid_timeout_callout);
+		sc->sid_timeout_count = 0;
 
 		if (!kdb_active)
 			taskqueue_enqueue(sc->fc.taskqueue, &sc->fwohci_task_sid);
@@ -1982,7 +1997,13 @@ fwohci_intr_dma(struct fwohci_softc *sc, uint32_t stat, int count)
 		device_printf(fc->dev, "unrecoverable error\n");
 	}
 	if (stat & OHCI_INT_PHY_INT) {
-		device_printf(fc->dev, "phy int\n");
+		uint32_t r5;
+
+		/* Clear W1C interrupt bits; mask ISBR(6) to avoid bus reset. */
+		r5 = fwphy_rddata(sc, 5);
+		if (firewire_debug)
+			device_printf(fc->dev, "phy int: reg5=0x%02x\n", r5);
+		fwphy_wrdata(sc, 5, (r5 & ~(1 << 6)) | 0x3c);
 	}
 }
 
@@ -2039,6 +2060,28 @@ fwohci_task_sid(void *arg, int pending)
 	fw_drain_txq(fc);
 	fw_sidrcv(fc, buf, plen);
 	free(buf, M_FW);
+
+}
+
+/* SelfID timeout: called with FW_GLOCK held (callout_init_mtx). */
+static void
+fwohci_sid_timeout(void *arg)
+{
+	struct fwohci_softc *sc = arg;
+	struct firewire_comm *fc = &sc->fc;
+
+	FW_GLOCK_ASSERT(fc);
+	if (fc->status != FWBUSRESET)
+		return;
+
+	sc->sid_timeout_count++;
+	if (sc->sid_timeout_count == 1)
+		device_printf(fc->dev, "SelfID timeout, retrying\n");
+
+	/* Reset state machine so next bus reset is recognized. */
+	fc->status = FWBUSINIT;
+	OWRITE(sc, FWOHCI_INTSTATCLR, OHCI_INT_PHY_BUS_R);
+	OWRITE(sc, FWOHCI_INTMASK, OHCI_INT_PHY_BUS_R);
 }
 
 static void
