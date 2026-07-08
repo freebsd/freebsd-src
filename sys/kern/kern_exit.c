@@ -1566,14 +1566,9 @@ kern_pdwait(struct thread *td, int fd, int *status,
 	if (error != 0)
 		return (error);
 
-	error = fget(td, fd, &cap_pdwait_rights, &fp);
+	error = fget_procdesc(td, fd, &cap_pdwait_rights, &fp, &pd, NULL);
 	if (error != 0)
-		return (error);
-	if (fp->f_type != DTYPE_PROCDESC) {
-		error = EINVAL;
 		goto exit_unlocked;
-	}
-	pd = fp->f_data;
 
 	for (;;) {
 		/* We own a reference on the procdesc file. */
@@ -1624,7 +1619,8 @@ kern_pdwait(struct thread *td, int fd, int *status,
 exit_tree_locked:
 	sx_xunlock(&proctree_lock);
 exit_unlocked:
-	fdrop(fp, td);
+	if (fp != NULL)
+		fdrop(fp, td);
 	return (error);
 }
 

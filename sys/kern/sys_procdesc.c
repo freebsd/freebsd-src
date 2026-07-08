@@ -117,38 +117,6 @@ static const struct fileops procdesc_ops = {
 };
 
 /*
- * Return a locked process given a process descriptor, or ESRCH if it has
- * died.
- */
-int
-procdesc_find(struct thread *td, int fd, const cap_rights_t *rightsp,
-    struct proc **p)
-{
-	struct procdesc *pd;
-	struct file *fp;
-	int error;
-
-	error = fget(td, fd, rightsp, &fp);
-	if (error)
-		return (error);
-	if (fp->f_type != DTYPE_PROCDESC) {
-		error = EINVAL;
-		goto out;
-	}
-	pd = fp->f_data;
-	sx_slock(&proctree_lock);
-	if (pd->pd_proc != NULL) {
-		*p = pd->pd_proc;
-		PROC_LOCK(*p);
-	} else
-		error = ESRCH;
-	sx_sunlock(&proctree_lock);
-out:
-	fdrop(fp, td);
-	return (error);
-}
-
-/*
  * Function to be used by procstat(1) sysctls when returning procdesc
  * information.
  */
@@ -174,16 +142,11 @@ kern_pdgetpid(struct thread *td, int fd, const cap_rights_t *rightsp,
 	struct file *fp;
 	int error;
 
-	error = fget(td, fd, rightsp, &fp);
-	if (error)
-		return (error);
-	if (fp->f_type != DTYPE_PROCDESC) {
-		error = EBADF;
-		goto out;
-	}
-	*pidp = procdesc_pid(fp);
-out:
-	fdrop(fp, td);
+	error = fget_procdesc(td, fd, rightsp, &fp, NULL, NULL);
+	if (error == 0)
+		*pidp = procdesc_pid(fp);
+	if (fp != NULL)
+		fdrop(fp, td);
 	return (error);
 }
 
@@ -725,59 +688,88 @@ sys_pdopenpid(struct thread *td, struct pdopenpid_args *args)
 	return (kern_pdopenpid(td, args->pid, args->flags));
 }
 
+/*
+ * Get the file/process descriptor/process from the procdesc file
+ * descriptor.  The process descriptor and process returns are
+ * optional.  If requested to return the process, the proctree lock
+ * must be held, and the process will be returned locked.
+ *
+ * The caller must fdrop(*pfp) if *pfp != NULL, regardless of the
+ * error returned, after the proctree_lock is unlocked.
+ * procdesc_close() takes the proctree_lock.
+ */
+int
+fget_procdesc(struct thread *td, int pdfd, const cap_rights_t *cap_rights,
+    struct file **pfp, struct procdesc **pdp, struct proc **pp)
+{
+	struct file *fp;
+	struct procdesc *pd;
+	struct proc *p;
+	int error;
+
+	if (pp != NULL)
+		sx_assert(&proctree_lock, SX_LOCKED);
+
+	*pfp = NULL;
+	error = fget(td, pdfd, cap_rights, &fp);
+	if (error != 0)
+		return (error);
+	*pfp = fp;
+	if (fp->f_type != DTYPE_PROCDESC)
+		return (EBADF);
+	pd = fp->f_data;
+	if (pp != NULL) {
+		p = pd->pd_proc;
+		if (p == NULL) {
+			return (ESRCH);
+		} else {
+			*pp = p;
+			PROC_LOCK(p);
+		}
+	}
+	if (pdp != NULL)
+		*pdp = pd;
+	return (0);
+}
+
 static int
 kern_pddupfd(struct thread *td, int pdfd, int fd, int flags)
 {
 	struct proc *p;
 	struct file *fp, *pfp;
-	struct procdesc *pd;
 	struct filecaps fcaps;
 	uint8_t fd_flags;
 	int error, fdr;
 
-	error = fget(td, pdfd, &cap_pddupfd_rights, &pfp);
-	if (error != 0)
-		return (error);
-	if (pfp->f_type != DTYPE_PROCDESC) {
-		error = EBADF;
-		goto out;
-	}
-	pd = pfp->f_data;
-again:
 	sx_slock(&proctree_lock);
-	p = pd->pd_proc;
-	if (p != NULL) {
-		AUDIT_ARG_PROCESS(p);
-		PROC_LOCK(p);
-		sx_sunlock(&proctree_lock);
+	error = fget_procdesc(td, pdfd, &cap_pddupfd_rights, &pfp, NULL, &p);
+	if (error == 0) {
 		if ((p->p_flag & P_WEXIT) != 0) {
 			error = ESRCH;
+			PROC_UNLOCK(p);
 		} else {
-			/*
-			 * Block the target process from entering
-			 * execve().  We need to ensure that the
-			 * p_candebug() predicate is stable until the
-			 * fget_remote() call ends even after the
-			 * process lock is dropped.  For that, the
-			 * process must not change uid/suid.
-			 */
-			if (!execve_block(td, p))
-				goto again;
-			error = p_candebug(td, p);
-			if (error == 0)
-				_PHOLD(p);
-			else
-				execve_unblock(td, p);
+			_PHOLD(p);
 		}
-		PROC_UNLOCK(p);
-		if (error != 0)
-			goto out;
+	}
+	sx_sunlock(&proctree_lock);
+	if (error != 0)
+		goto out;
+	AUDIT_ARG_PROCESS(p);
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-		error = fget_remote(td, p, fd, &fcaps, &fd_flags, &fp);
-		PROC_LOCK(p);
-		execve_unblock(td, p);
-		_PRELE(p);
+	/*
+	 * Block the target process from entering execve().
+	 * We need to ensure that the p_candebug() predicate
+	 * is stable until the fget_remote() call ends even
+	 * after the process lock is dropped.  For that, the
+	 * process must not change uid/suid.
+	 */
+	execve_block_wait(td, p);
+	error = p_candebug(td, p);
+
+	if (error == 0) {
 		PROC_UNLOCK(p);
+		error = fget_remote(td, p, fd, &fcaps, &fd_flags, &fp);
 		if (error == 0) {
 			error = finstall_refed(td, fp, &fdr, O_CLOEXEC |
 			    ((fd_flags & FD_RESOLVE_BENEATH) != 0 ?
@@ -789,12 +781,14 @@ again:
 				td->td_retval[0] = fdr;
 			}
 		}
-	} else {
-		sx_sunlock(&proctree_lock);
-		error = ESRCH;
+		PROC_LOCK(p);
 	}
+	execve_unblock(td, p);
+	_PRELE(p);
+	PROC_UNLOCK(p);
 out:
-	fdrop(pfp, td);
+	if (pfp != NULL)
+		fdrop(pfp, td);
 	return (error);
 }
 

@@ -1956,6 +1956,7 @@ int
 sys_pdkill(struct thread *td, struct pdkill_args *uap)
 {
 	struct proc *p;
+	struct file *fp;
 	int error;
 
 	AUDIT_ARG_SIGNUM(uap->signum);
@@ -1963,14 +1964,19 @@ sys_pdkill(struct thread *td, struct pdkill_args *uap)
 	if ((u_int)uap->signum > _SIG_MAXSIG)
 		return (EINVAL);
 
-	error = procdesc_find(td, uap->fd, &cap_pdkill_rights, &p);
-	if (error)
-		return (error);
+	sx_slock(&proctree_lock);
+	error = fget_procdesc(td, uap->fd, &cap_pdkill_rights, &fp, NULL, &p);
+	sx_sunlock(&proctree_lock);
+	if (error != 0)
+		goto out;
 	AUDIT_ARG_PROCESS(p);
 	error = p_cansignal(td, p, uap->signum);
-	if (error == 0 && uap->signum)
+	if (error == 0 && uap->signum != 0)
 		kern_psignal(p, uap->signum);
 	PROC_UNLOCK(p);
+out:
+	if (fp != NULL)
+		fdrop(fp, td);
 	return (error);
 }
 
