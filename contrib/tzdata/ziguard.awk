@@ -184,7 +184,7 @@ DATAFORM != "main" {
 	  dstoff = get_minutes(rules)
 	} else {
 	  # The DST offset is normally an hour, but there are special cases.
-	  if (rules == "Morocco" && NF == 3) {
+	  if (rules == "Morocco" && $4 == 2026) {
 	    dstoff = -60
 	  } else if (rules == "NBorneo") {
 	    dstoff = 20
@@ -286,13 +286,13 @@ DATAFORM != "main" {
 	}
       }
     }
-    if ($1 ~ /^[+0-9-]/ && NF == 3) {
+    if ($1 ~ /^[+0-9-]/ && $4 == 2026) {
       if (DATAFORM == "rearguard") {
 	sub(/1:00\tMorocco/, "0:00\tMorocco")
-	sub(/\t\+01\/\+00$/, "\t+00/+01")
+	sub(/\t\+01\/\+00/, "\t+00/+01")
       } else {
 	sub(/0:00\tMorocco/, "1:00\tMorocco")
-	sub(/\t\+00\/+01$/, "\t+01/+00")
+	sub(/\t\+00\/+01/, "\t+01/+00")
       }
     }
   }
