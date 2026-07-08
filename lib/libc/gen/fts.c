@@ -82,7 +82,7 @@ static int	 fts_ufslinks(FTS *, const FTSENT *);
 #define	SET(opt)	(sp->fts_options |= (opt))
 
 #define	FCHDIR(sp, fd)	(!ISSET(FTS_NOCHDIR) && fchdir(fd))
-#define FTSP(sp)        ((struct _fts_private *)(sp))
+#define	FTSP(sp)	((struct _fts_private *)(sp))
 
 /* fts_build flags */
 #define	BCHILD		1		/* fts_children */
@@ -361,8 +361,6 @@ fts_close(FTS *sp)
 			p = p->fts_link != NULL ? p->fts_link : p->fts_parent;
 			free(freep);
 		}
-		if (p->fts_dirfd >= 0)
-			(void)_close(p->fts_dirfd);
 		free(p);
 	}
 
@@ -446,9 +444,9 @@ fts_read(FTS *sp)
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE)) {
 		p->fts_info = fts_stat(sp, p, 1, -1);
 		if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
-			if ((p->fts_symfd = p->fts_dirfd >= 0 ?
-                            _dup(p->fts_dirfd) : _openat(AT_FDCWD, ".",
-                            O_RDONLY | O_CLOEXEC, 0)) < 0) {
+			if ((p->fts_symfd = FTSP(sp)->ftsp_dirfd >= 0 ?
+			    _dup(FTSP(sp)->ftsp_dirfd) :
+			    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0) {
 				p->fts_errno = errno;
 				p->fts_info = FTS_ERR;
 			} else
@@ -492,7 +490,8 @@ fts_read(FTS *sp)
 		 * FTS_STOP or the fts_info field of the node.
 		 */
 		if (sp->fts_child != NULL) {
-			if (fts_safe_changedir(sp, p, p->fts_dirfd, p->fts_name)) {
+			if (fts_safe_changedir(sp, p,
+			    FTSP(sp)->ftsp_dirfd, p->fts_name)) {
 				p->fts_errno = errno;
 				p->fts_flags |= FTS_DONTCHDIR;
 				for (p = sp->fts_child; p != NULL;
@@ -540,9 +539,9 @@ next:	tmp = p;
 			p->fts_info = fts_stat(sp, p, 1, -1);
 			if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
 				if ((p->fts_symfd =
-                                    p->fts_dirfd >= 0 ?
-                                    _dup(p->fts_dirfd) : _openat(AT_FDCWD, ".",
-                                    O_RDONLY | O_CLOEXEC, 0)) < 0) {
+				    FTSP(sp)->ftsp_dirfd >= 0 ?
+				    _dup(FTSP(sp)->ftsp_dirfd) :
+				    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0) {
 					p->fts_errno = errno;
 					p->fts_info = FTS_ERR;
 				} else
@@ -568,8 +567,6 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
 		 * can distinguish between error and EOF.
 		 */
 		free(tmp);
-		if (p->fts_dirfd >= 0)
-			(void)_close(p->fts_dirfd);
 		free(p);
 		errno = 0;
 		return (sp->fts_cur = NULL);
@@ -683,9 +680,9 @@ fts_children(FTS *sp, int instr)
 	    ISSET(FTS_NOCHDIR))
 		return (sp->fts_child = fts_build(sp, instr));
 
-	if ((fd = sp->fts_cur->fts_dirfd >= 0 ?
-            _dup(sp->fts_cur->fts_dirfd) : _openat(AT_FDCWD, ".",
-            O_RDONLY | O_CLOEXEC, 0)) < 0)
+	if ((fd = FTSP(sp)->ftsp_dirfd >= 0 ?
+	    _dup(FTSP(sp)->ftsp_dirfd) :
+	    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (NULL);
 	sp->fts_child = fts_build(sp, instr);
 	serrno = (sp->fts_child == NULL) ? errno : 0;
@@ -928,7 +925,6 @@ mem1:				saved_errno = errno;
 		}
 
 		p->fts_level = level;
-		p->fts_dirfd = _dup(_dirfd(dirp));
 		p->fts_parent = sp->fts_cur;
 		p->fts_pathlen = len + dnamlen;
 
@@ -1207,7 +1203,6 @@ fts_alloc(FTS *sp, char *name, size_t namelen)
 		return (NULL);
 
 	p->fts_symfd = -1;
-	p->fts_dirfd = -1;
 	p->fts_path = sp->fts_path;
 	p->fts_name = (char *)(p + 1);
 	p->fts_namelen = namelen;
@@ -1228,8 +1223,6 @@ fts_lfree(FTSENT *head)
 	/* Free a linked list of structures. */
 	while ((p = head)) {
 		head = head->fts_link;
-		if (p->fts_dirfd >= 0)
-			(void)_close(p->fts_dirfd);
 		free(p);
 	}
 }
@@ -1347,8 +1340,8 @@ fts_ufslinks(FTS *sp, const FTSENT *ent)
 	 * avoidance.
 	 */
 	if (priv->ftsp_dev != ent->fts_dev) {
-		if ((ent->fts_dirfd >= 0 ?
-                    _fstatfs(ent->fts_dirfd, &priv->ftsp_statfs) :
+		if ((priv->ftsp_dirfd >= 0 ?
+		    _fstatfs(priv->ftsp_dirfd, &priv->ftsp_statfs) :
                     statfs(ent->fts_path, &priv->ftsp_statfs)) != -1) {
 			priv->ftsp_dev = ent->fts_dev;
 			priv->ftsp_linksreliable = 0;
