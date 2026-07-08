@@ -96,6 +96,8 @@ struct td_sched {
 	u_int		ts_slptime;	/* Number of ticks we vol. slept */
 	u_int		ts_runtime;	/* Number of ticks we were running */
 	u_int		ts_ticks;	/* pctcpu window's running tick count */
+	u_int		ts_load_avg;	/* decayed runnable average */
+	u_int		ts_lavg_tick;	/* tick of last PELT update */
 #ifdef KTR
 	char		ts_name[TS_NAME_LEN];
 #endif
@@ -194,6 +196,55 @@ _Static_assert(SCHED_CPU_DECAY_NUMER >= 0 && SCHED_CPU_DECAY_DENOM > 0 &&
     "SCHED_CPU_DECAY_DENOM");
 
 /*
+ * Per-Entity Load Tracking (PELT).
+ * Inspired by the Linux feature of the same name.
+ * Each thread carries a decayed average of the time it has spent
+ * runnable (that is, in a queue or running), and each CPU's tdq
+ * maintains the sum of its threads' averages. This is combined in a
+ * value called tdq_load_avg which aims to estimate the recent load
+ * on the CPU, i.e. how much CPU time its threads have been demanding.
+ * This is used alongside `tdq_load` to do more accurate
+ * load-balancing, as a simple thread count does not account for the
+ * "real" load put on the CPU.
+ *
+ * The per-thread value is in fixed point scale (SCHED_PELT_SCALE),
+ * updated with an exponential weighted moving average (EWMA) whose
+ * half-life is sched_pelt_halflife hz ticks (~32ms by default,
+ * similar to Linux).
+ *
+ * Rather than accumulating per-period contributions the way Linux
+ * does, we exploit the closed form of the EWMA over a span of n
+ * ticks during which the thread's state did not change:
+ *
+ *   runnable span:  avg' = SCALE - y^n * (SCALE - avg)
+ *   sleeping span:  avg' = y^n * avg
+ *
+ * where y^halflife = 1/2. This is feasible because the value is only
+ * updated when a thread's state changes.
+ * y^n is computed as (n / halflife) halvings (shifts) plus one
+ * multiply by a 32-entry table of 2^32 * 2^(-k/32) constants for the
+ * fractional remainder, scaled to the configured half-life.
+ */
+
+#define SCHED_PELT_SCALE 1024
+#define SCHED_PELT_NDECAY 32
+
+/* sched_pelt_decay_inv[k] = floor(2^32 * 2^(-k/SCHED_PELT_NDECAY)). */
+static const uint32_t sched_pelt_decay_inv[SCHED_PELT_NDECAY] = {
+	0xffffffff, 0xfa83b2db, 0xf5257d15, 0xefe4b99b,
+	0xeac0c6e7, 0xe5b906e7, 0xe0ccdeec, 0xdbfbb797,
+	0xd744fcca, 0xd2a81d91, 0xce248c15, 0xc9b9bd86,
+	0xc5672a11, 0xc12c4cca, 0xbd08a39f, 0xb8fbaf47,
+	0xb504f333, 0xb123f581, 0xad583eea, 0xa9a15ab4,
+	0xa5fed6a9, 0xa2704303, 0x9ef53260, 0x9b8d39b9,
+	0x9837f051, 0x94f4efa8, 0x91c3d373, 0x8ea4398b,
+	0x8b95c1e3, 0x88980e80, 0x85aac367, 0x82cd8698,
+};
+
+/* Half-life of the load average in hz ticks (set in sched_initticks()). */
+static u_int __read_mostly sched_pelt_halflife = SCHED_PELT_NDECAY;
+
+/*
  * These determine the interactivity of a process.  Interactivity differs from
  * cpu utilization in that it expresses the voluntary time slept vs time ran
  * while cpu utilization includes all time not running.  This more accurately
@@ -270,6 +321,7 @@ struct tdq {
 	struct thread	*tdq_curthread;	/* (t) Current executing thread. */
 	int		tdq_load;	/* (ts) Aggregate load. */
 	int		tdq_sysload;	/* (ts) For loadavg, !ITHD load. */
+	int		tdq_load_avg;	/* (ts) Sum of attached ts_load_avg. */
 	int		tdq_cpu_idle;	/* (ls) cpu_idle() is active. */
 	int		tdq_transferable; /* (ts) Transferable thread count. */
 	short		tdq_switchcnt;	/* (l) Switches this tick. */
@@ -297,6 +349,7 @@ struct tdq {
 
 /* Lockless accessors. */
 #define	TDQ_LOAD(tdq)		atomic_load_int(&(tdq)->tdq_load)
+#define	TDQ_LOAD_AVG(tdq)	atomic_load_int(&(tdq)->tdq_load_avg)
 #define	TDQ_TRANSFERABLE(tdq)	atomic_load_int(&(tdq)->tdq_transferable)
 #define	TDQ_SWITCHCNT(tdq)	(atomic_load_short(&(tdq)->tdq_switchcnt) + \
 				 atomic_load_short(&(tdq)->tdq_oldswitchcnt))
@@ -322,6 +375,8 @@ static int __read_mostly steal_idle = 1;
 static int __read_mostly steal_thresh = 2;
 static int __read_mostly always_steal = 0;
 static int __read_mostly trysteal_limit = 2;
+static int __read_mostly sched_pelt = 1;
+static int __read_mostly sched_pelt_balance_thresh = SCHED_PELT_SCALE >> 2;
 
 /*
  * One thread queue per processor.
@@ -357,6 +412,9 @@ static int sched_interact_score(struct thread *);
 static void sched_interact_update(struct thread *);
 static void sched_interact_fork(struct thread *);
 static void sched_pctcpu_update(struct td_sched *, int);
+static u_int sched_pelt_decay(u_int, u_int);
+static void sched_pelt_update(struct td_sched *, int);
+static void tdq_pelt_update(struct tdq *, struct td_sched *, int);
 
 /* Operations on per processor queues */
 static inline struct thread *runq_choose_realtime(struct runq *const rq);
@@ -441,6 +499,7 @@ tdq_print(int cpu)
 	printf("\tlock               %p\n", TDQ_LOCKPTR(tdq));
 	printf("\tLock name:         %s\n", tdq->tdq_name);
 	printf("\tload:              %d\n", tdq->tdq_load);
+	printf("\tload avg:          %d\n", tdq->tdq_load_avg);
 	printf("\tswitch cnt:        %d\n", tdq->tdq_switchcnt);
 	printf("\told switch cnt:    %d\n", tdq->tdq_oldswitchcnt);
 	printf("\tTS insert offset:  %d\n", tdq->tdq_ts_off);
@@ -596,12 +655,74 @@ tdq_runq_rem(struct tdq *tdq, struct thread *td)
 }
 
 /*
+ * Apply n hz ticks worth of decay to 'val', i.e. compute
+ * val * 2^(-n / sched_pelt_halflife) in fixed point. Whole half-lives are
+ * shifts, the remainder indexes sched_pelt_decay_inv, scaled to the
+ * configured half-life.
+ */
+static u_int
+sched_pelt_decay(u_int val, u_int n)
+{
+	u_int shift;
+
+	shift = n / sched_pelt_halflife;
+	if (shift >= 32)
+		return (0);
+	val >>= shift;
+	n %= sched_pelt_halflife;
+	if (n != 0)
+		val = (u_int)(((uint64_t)val *
+			sched_pelt_decay_inv[n * SCHED_PELT_NDECAY /
+			sched_pelt_halflife]) >> 32);
+	return (val);
+}
+
+/*
+ * Add the span since the last update into a thread's runnable
+ * average. 'run' tells whether the thread was runnable during that span.
+ */
+static void
+sched_pelt_update(struct td_sched *ts, int run)
+{
+	const u_int t = (u_int)ticks;
+	u_int span;
+
+	span = t - ts->ts_lavg_tick;
+	if (span == 0)
+		return;
+	if (run)
+		ts->ts_load_avg = SCHED_PELT_SCALE -
+			sched_pelt_decay(SCHED_PELT_SCALE - ts->ts_load_avg, span);
+	else
+		ts->ts_load_avg = sched_pelt_decay(ts->ts_load_avg, span);
+	ts->ts_lavg_tick = t;
+}
+
+/*
+ * Update a given tdq's load average count, given a thread attached to it.
+ */
+static void
+tdq_pelt_update(struct tdq *tdq, struct td_sched *ts, int run)
+{
+	u_int old;
+
+	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
+
+	old = ts->ts_load_avg;
+	sched_pelt_update(ts, run);
+	tdq->tdq_load_avg += (int)ts->ts_load_avg - (int)old;
+	KASSERT(tdq->tdq_load_avg >= 0,
+	    ("tdq_pelt_update: negative load_avg on queue %d", TDQ_ID(tdq)));
+}
+
+/*
  * Load is maintained for all threads RUNNING and ON_RUNQ.  Add the load
  * for this thread to the referenced thread queue.
  */
 static void
 tdq_load_add(struct tdq *tdq, struct thread *td)
 {
+	struct td_sched *ts;
 
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	THREAD_LOCK_BLOCKED_ASSERT(td, MA_OWNED);
@@ -609,6 +730,11 @@ tdq_load_add(struct tdq *tdq, struct thread *td)
 	tdq->tdq_load++;
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload++;
+
+	ts = td_get_sched(td);
+	sched_pelt_update(ts, 0);
+	tdq->tdq_load_avg += ts->ts_load_avg;
+
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
 	SDT_PROBE2(sched, , , load__change, (int)TDQ_ID(tdq), tdq->tdq_load);
 }
@@ -620,6 +746,7 @@ tdq_load_add(struct tdq *tdq, struct thread *td)
 static void
 tdq_load_rem(struct tdq *tdq, struct thread *td)
 {
+	struct td_sched *ts;
 
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	THREAD_LOCK_BLOCKED_ASSERT(td, MA_OWNED);
@@ -629,6 +756,14 @@ tdq_load_rem(struct tdq *tdq, struct thread *td)
 	tdq->tdq_load--;
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload--;
+
+	ts = td_get_sched(td);
+	tdq_pelt_update(tdq, ts, 1);
+	tdq->tdq_load_avg -= ts->ts_load_avg;
+
+	KASSERT(tdq->tdq_load_avg >= 0,
+	    ("tdq_load_rem: tdq_load_avg negative on queue %d", TDQ_ID(tdq)));
+
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
 	SDT_PROBE2(sched, , , load__change, (int)TDQ_ID(tdq), tdq->tdq_load);
 }
@@ -788,6 +923,18 @@ cpu_search_lowest(const struct cpu_group *cg, const struct cpu_search *s,
 		if (__predict_false(s->cs_running) && l > 0)
 			p = 0;
 
+		/*
+		 * Among CPUs with equal thread count, prefer the one
+		 * with the least average load. The term is scaled
+		 * so that one fully busy thread's worth of load (128)
+		 * outweighs the random jitter below, but stays below
+		 * the weight of a full thread (256). This can be
+		 * tuned if needed (using a shift of 2 would mean one busy
+		 * thread is worth one whole thread).
+		 */
+		if (sched_pelt)
+			load += TDQ_LOAD_AVG(tdq) >> 3;
+
 		load -= sched_random() % 128;
 		if (bload > load - p) {
 			bload = load - p;
@@ -840,6 +987,13 @@ cpu_search_highest(const struct cpu_group *cg, const struct cpu_search *s,
 		if (l < s->cs_load || TDQ_TRANSFERABLE(tdq) < s->cs_trans ||
 		    !CPU_ISSET(c, s->cs_mask))
 			continue;
+
+		/*
+		 * Among CPUs with equal thread count, prefer the one
+		 * with the highest average load.
+		 */
+		if (sched_pelt)
+			load += TDQ_LOAD_AVG(tdq) >> 3;
 
 		load -= sched_random() % 256;
 		if (load > bload) {
@@ -994,6 +1148,25 @@ tdq_unlock_pair(struct tdq *one, struct tdq *two)
 }
 
 /*
+ * Decide whether or not it is worth correcting an imbalance
+ * between two tdq according to PELT.
+ * A difference of a single thread is not enough to confirm (e.g. it
+ * might be due to noise); only migrate in the case where the CPU's
+ * load confirms that it has been busier by a margin.
+ */
+static bool
+sched_pelt_balance_ok(struct tdq *high, struct tdq *low)
+{
+
+	if (sched_pelt == 0)
+		return (true);
+	if (high->tdq_load - low->tdq_load > 1)
+		return (true);
+	return (high->tdq_load_avg - low->tdq_load_avg >
+	    sched_pelt_balance_thresh);
+}
+
+/*
  * Transfer load between two imbalanced thread queues.  Returns true if a thread
  * was moved between the queues, and false otherwise.
  */
@@ -1009,7 +1182,8 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 	/*
 	 * Transfer a thread from high to low.
 	 */
-	if (high->tdq_transferable != 0 && high->tdq_load > low->tdq_load) {
+	if (high->tdq_transferable != 0 && high->tdq_load > low->tdq_load &&
+	    sched_pelt_balance_ok(high, low)) {
 		lowpri = tdq_move(high, low);
 		if (lowpri != -1) {
 			/*
@@ -1486,11 +1660,15 @@ llc:
 	KASSERT(!CPU_ABSENT(cpu), ("sched_pickcpu: Picked absent CPU %d.", cpu));
 	/*
 	 * Compare the lowest loaded cpu to current cpu.
+	 * If this CPU has been consistently busier according to PELT,
+	 * prefer to take the other one instead.
 	 */
 	tdq = TDQ_CPU(cpu);
 	if (THREAD_CAN_SCHED(td, self) && TDQ_SELF()->tdq_lowpri > pri &&
 	    atomic_load_char(&tdq->tdq_lowpri) < PRI_MIN_IDLE &&
-	    TDQ_LOAD(TDQ_SELF()) <= TDQ_LOAD(tdq) + 1) {
+	    TDQ_LOAD(TDQ_SELF()) <= TDQ_LOAD(tdq) + 1 &&
+	    (sched_pelt == 0 || TDQ_LOAD_AVG(TDQ_SELF()) <=
+	    TDQ_LOAD_AVG(tdq) + SCHED_PELT_SCALE / 2)) {
 		SCHED_STAT_INC(pickcpu_local);
 		cpu = self;
 	}
@@ -1651,6 +1829,7 @@ sched_ule_initticks(void)
 	if (incr == 0)
 		incr = 1;
 	tickincr = incr;
+
 #ifdef SMP
 	/*
 	 * Set the default balance interval now that we know
@@ -1659,6 +1838,9 @@ sched_ule_initticks(void)
 	balance_interval = realstathz;
 	balance_ticks = balance_interval;
 	affinity = SCHED_AFFINITY_DEFAULT;
+
+	/* Set the PELT half-life to ~32ms. */
+	sched_pelt_halflife = imax(1, (hz * SCHED_PELT_NDECAY + 500) / 1000);
 #endif
 	if (sched_idlespinthresh < 0)
 		sched_idlespinthresh = 2 * max(10000, 6 * hz) / realstathz;
@@ -1864,6 +2046,7 @@ sched_ule_init(void)
 	ts0 = td_get_sched(&thread0);
 	ts0->ts_ftick = (u_int)ticks;
 	ts0->ts_ltick = ts0->ts_ftick;
+	ts0->ts_lavg_tick = ts0->ts_ftick;
 	ts0->ts_slice = 0;
 	ts0->ts_cpu = curcpu;	/* set valid CPU number */
 }
@@ -2554,6 +2737,8 @@ sched_ule_fork_thread(struct thread *td, struct thread *child)
 	ts2->ts_ticks = ts->ts_ticks;
 	ts2->ts_ltick = ts->ts_ltick;
 	ts2->ts_ftick = ts->ts_ftick;
+	ts2->ts_load_avg = ts->ts_load_avg;
+	ts2->ts_lavg_tick = ts->ts_lavg_tick;
 	/*
 	 * Do not inherit any borrowed priority from the parent.
 	 */
@@ -2727,6 +2912,10 @@ sched_ule_clock(struct thread *td, int cnt)
 	}
 	ts = td_get_sched(td);
 	sched_pctcpu_update(ts, 1);
+
+	if (!TD_IS_IDLETHREAD(td))
+		tdq_pelt_update(tdq, ts, 1);
+
 	if ((td->td_pri_class & PRI_FIFO_BIT) || TD_IS_IDLETHREAD(td))
 		return;
 
@@ -3509,4 +3698,14 @@ SYSCTL_INT(_kern_sched_ule, OID_AUTO, trysteal_limit, CTLFLAG_RWTUN,
 SYSCTL_INT(_kern_sched_ule, OID_AUTO, always_steal, CTLFLAG_RWTUN,
     &always_steal, 0,
     "Always run the stealer from the idle thread");
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, pelt, CTLFLAG_RWTUN,
+    &sched_pelt, 0,
+    "Use per-entity load tracking in load balancing decisions");
+SYSCTL_INT(_kern_sched_ule, OID_AUTO, pelt_balance_thresh, CTLFLAG_RWTUN,
+    &sched_pelt_balance_thresh, 0,
+    "Decayed load margin (out of 1024 per fully busy thread) required for "
+    "the long-term balancer to correct a single-thread imbalance");
+SYSCTL_UINT(_kern_sched_ule, OID_AUTO, pelt_halflife, CTLFLAG_RD,
+    &sched_pelt_halflife, 0,
+    "Half-life of the per-entity load averages in hz ticks");
 #endif
