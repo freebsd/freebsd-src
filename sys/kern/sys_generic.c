@@ -595,9 +595,9 @@ kern_filewrite(struct thread *td, int fd, struct file *fp, struct uio *auio,
 #endif
 	cnt = auio->uio_resid;
 	error = fo_write(fp, auio, td->td_ucred, flags, td);
+	cnt -= auio->uio_resid;
 #ifdef KTRACE
 	if (ktruio != NULL) {
-		cnt -= auio->uio_resid;
 		if (error == 0)
 			ktruio->uio_resid = cnt;
 		ktrgenio(fd, UIO_WRITE, ktruio, error);
