@@ -986,30 +986,40 @@ epoch_drain_callbacks(epoch_t epoch)
 	sched_unbind(td);
 	td->td_pinned = 0;
 
-	CPU_FOREACH(cpu)
-		epoch->e_drain_count++;
-	CPU_FOREACH(cpu) {
-		er = zpcpu_get_cpu(epoch->e_pcpu_record, cpu);
-		sched_bind(td, cpu);
-		epoch_call(epoch, &epoch_drain_cb, &er->er_drain_ctx);
-	}
+	/*
+	 * Schedule a destructor on each CPU and block until all of them have
+	 * run.  Don't assume that destructors are invoked in order: once we're
+	 * finished draining, do the same thing again to ensure that any
+	 * destructors scheduled after the first pass have also run.
+	 */
+	for (int i = 0; i < 2; i++) {
+		CPU_FOREACH(cpu)
+			epoch->e_drain_count++;
+		CPU_FOREACH(cpu) {
+			er = zpcpu_get_cpu(epoch->e_pcpu_record, cpu);
+			sched_bind(td, cpu);
+			epoch_call(epoch, &epoch_drain_cb, &er->er_drain_ctx);
+		}
 
-	/* restore CPU binding, if any */
-	if (was_bound != 0) {
-		sched_bind(td, old_cpu);
-	} else {
-		/* get thread back to initial CPU, if any */
-		if (old_pinned != 0)
+		/* restore CPU binding, if any */
+		if (was_bound != 0) {
 			sched_bind(td, old_cpu);
-		sched_unbind(td);
+		} else {
+			/* get thread back to initial CPU, if any */
+			if (old_pinned != 0)
+				sched_bind(td, old_cpu);
+			sched_unbind(td);
+		}
+		/* restore pinned after bind */
+		td->td_pinned = old_pinned;
+		thread_unlock(td);
+
+		while (epoch->e_drain_count != 0)
+			msleep(epoch, &epoch->e_drain_mtx, PZERO, "EDRAIN", 0);
+
+		thread_lock(td);
 	}
-	/* restore pinned after bind */
-	td->td_pinned = old_pinned;
-
 	thread_unlock(td);
-
-	while (epoch->e_drain_count != 0)
-		msleep(epoch, &epoch->e_drain_mtx, PZERO, "EDRAIN", 0);
 
 	mtx_unlock(&epoch->e_drain_mtx);
 	sx_xunlock(&epoch->e_drain_sx);
