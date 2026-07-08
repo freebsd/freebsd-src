@@ -1232,8 +1232,7 @@ prepend_header:
 
 		SOCK_IO_SEND_UNLOCK(so);
 		CURVNET_RESTORE();
-		error = kern_filewrite(td, sockfd, sock_fp, trl_uio,
-		    (off_t)-1, 0, &cnt);
+		error = kern_filewrite(td, sockfd, sock_fp, trl_uio, 0, &cnt);
 		if (error == 0)
 			sbytes += cnt;
 		goto out;
@@ -1325,10 +1324,7 @@ sendfile(struct thread *td, struct sendfile_args *uap, int compat)
 			    &trl_uio);
 			if (error != 0)
 				goto out;
-			if (trl_uio->uio_rw != UIO_WRITE) {
-				error = EINVAL;
-				goto out;
-			}
+			trl_uio->uio_rw = UIO_WRITE;
 			trl_uio->uio_td = td;
 		}
 	}

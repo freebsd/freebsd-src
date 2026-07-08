@@ -555,7 +555,7 @@ dofilewrite(struct thread *td, int fd, struct file *fp, struct uio *auio,
 	auio->uio_rw = UIO_WRITE;
 	auio->uio_td = td;
 	auio->uio_offset = offset;
-	error = kern_filewrite(td, fd, fp, auio, offset, flags, &cnt);
+	error = kern_filewrite(td, fd, fp, auio, flags, &cnt);
 
 	/*
 	 * Handle short writes and generate SIGPIPE if needed.
@@ -563,7 +563,7 @@ dofilewrite(struct thread *td, int fd, struct file *fp, struct uio *auio,
 	 * see sousrsend().
 	 */
 	if (error != 0 && fp->f_type != DTYPE_SOCKET) {
-		if (auio->uio_resid != cnt && (error == ERESTART ||
+		if (cnt != 0 && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 		if (error == EPIPE) {
@@ -584,7 +584,7 @@ dofilewrite(struct thread *td, int fd, struct file *fp, struct uio *auio,
  */
 int
 kern_filewrite(struct thread *td, int fd, struct file *fp, struct uio *auio,
-    off_t offset, int flags, ssize_t *cntp)
+    int flags, ssize_t *cntp)
 {
 	ssize_t cnt;
 	int error;
