@@ -770,10 +770,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
     	case AIONWRITE:	/* how many bytes can write ? */
 		if (wrch) {
 			CHN_LOCK(wrch);
-/*
-		if (wrch && wrch->bufhard.dl)
-			while (chn_wrfeed(wrch) == 0);
-*/
 			*arg_i = sndbuf_getfree(wrch->bufsoft);
 			CHN_UNLOCK(wrch);
 		} else {
@@ -986,9 +982,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
     	case FIONREAD: /* get # bytes to read */
 		if (rdch) {
 			CHN_LOCK(rdch);
-/*			if (rdch && rdch->bufhard.dl)
-				while (chn_rdfeed(rdch) == 0);
-*/
 			*arg_i = sndbuf_getready(rdch->bufsoft);
 			CHN_UNLOCK(rdch);
 		} else {
@@ -1630,7 +1623,6 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 			ret = EINVAL;
 		else {
 			struct snd_dbuf *bs;
-			/* int tmp; */
 
 			oss_count_t *oc = (oss_count_t *)arg;
 
