@@ -46,7 +46,8 @@
 #include "snd_fxdiv_gen.h"
 
 struct snd_dbuf *
-sndbuf_create(struct pcm_channel *channel, const char *desc)
+sndbuf_create(struct pcm_channel *channel, u_int32_t fmt, u_int32_t spd,
+    const char *desc)
 {
 	struct snd_dbuf *b;
 
@@ -54,6 +55,8 @@ sndbuf_create(struct pcm_channel *channel, const char *desc)
 	refcount_init(&b->refcount, 1);
 	snprintf(b->name, SNDBUF_NAMELEN, "%s:%s", channel->name, desc);
 	b->channel = channel;
+	sndbuf_setfmt(b, fmt);
+	sndbuf_setspd(b, spd);
 
 	return b;
 }

@@ -60,7 +60,7 @@ struct snd_dbuf {
 	char name[SNDBUF_NAMELEN];
 };
 
-struct snd_dbuf *sndbuf_create(struct pcm_channel *channel, const char *desc);
+struct snd_dbuf *sndbuf_create(struct pcm_channel *channel, u_int32_t fmt, u_int32_t spd, const char *desc);
 void sndbuf_destroy(struct snd_dbuf *b);
 void sndbuf_ref(struct snd_dbuf *b);
 void sndbuf_rele(struct snd_dbuf *b);

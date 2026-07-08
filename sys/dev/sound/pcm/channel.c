@@ -1223,8 +1223,8 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 	chn_vpc_reset(c, SND_VOL_C_PCM, 1);
 	CHN_UNLOCK(c);
 
-	b = sndbuf_create(c, "primary");
-	bs = sndbuf_create(c, "secondary");
+	b = sndbuf_create(c, c->format, c->speed, "primary");
+	bs = sndbuf_create(c, c->format, c->speed, "secondary");
 	if (b == NULL || bs == NULL) {
 		device_printf(d->dev, "%s(): failed to create %s buffer\n",
 		    __func__, b == NULL ? "hardware" : "software");
@@ -1246,10 +1246,6 @@ chn_init(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls,
 		goto fail;
 	}
 
-	sndbuf_setfmt(b, c->format);
-	sndbuf_setspd(b, c->speed);
-	sndbuf_setfmt(bs, c->format);
-	sndbuf_setspd(bs, c->speed);
 	sndbuf_setup(bs, NULL, 0);
 
 	/**
