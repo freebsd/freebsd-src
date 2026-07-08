@@ -592,10 +592,10 @@ in decreasing order of importance:
     locations while uninhabited.
     The leading "<code>-</code>" is a flag that the <abbr>UT</abbr> offset is in
     some sense undefined; this notation is derived
-    from <a href="https://www.rfc-editor.org/rfc/rfc3339">Internet
+    from <a href="https://www.rfc-editor.org/info/rfc3339/">Internet
     <abbr title="Request For Comments">RFC</abbr> 3339</a>.
     (The abbreviation Z that
-    <a href="https://www.rfc-editor.org/rfc/rfc9557">Internet
+    <a href="https://www.rfc-editor.org/info/rfc9557/">Internet
     <abbr>RFC</abbr> 9557</a> uses for this concept
     would violate the POSIX requirement
     of at least three characters in an abbreviation.)
@@ -632,7 +632,7 @@ Errors in the <code><abbr>tz</abbr></code> database arise from many sources:
     timestamps, and current predictions
     will be incorrect after future governments change the rules.
     For example, if today someone schedules a meeting for 13:00 next
-    October 1, Casablanca time, and tomorrow Morocco changes its
+    October 1, Dublin time, and tomorrow Ireland changes its
     daylight saving rules, software can mess up after the rule change
     if it blithely relies on conversions made before the change.
   </li>
@@ -657,7 +657,7 @@ Errors in the <code><abbr>tz</abbr></code> database arise from many sources:
     zones at all, often not even a stable landscape of mean times,
     prior to the middle decades of the twentieth century”.
     See: Timothy Shenk, <a
-href="https://dissentmagazine.org/blog/booked-a-global-history-of-time-vanessa-ogle/">Booked:
+href="https://dissentmagazine.org/online_articles/booked-a-global-history-of-time-vanessa-ogle/">Booked:
       A Global History of Time</a>. <cite>Dissent</cite> 2015-12-17.
   </li>
   <li>
@@ -938,7 +938,7 @@ with problems that were fixed in later POSIX editions.
     has a format that is hard to describe and is error-prone in practice.
     Also, proleptic <code>TZ</code> strings cannot deal with daylight
     saving time rules not based on the Gregorian calendar (as in
-    Morocco), or with situations where more than two time zone
+    Palestine), or with situations where more than two time zone
     abbreviations or <abbr>UT</abbr> offsets are used in an area.
     </p>
 
@@ -1128,7 +1128,7 @@ However POSIX.1-2024, like earlier POSIX editions, has some limitations:
     the name of a file from which time-related information is read.
     The file’s format is <dfn><abbr>TZif</abbr></dfn>,
     a timezone information format that contains binary data; see
-    <a href="https://www.rfc-editor.org/rfc/rfc9636">Internet
+    <a href="https://www.rfc-editor.org/info/rfc9636/">Internet
     <abbr>RFC</abbr> 9636</a>.
     The daylight saving time rules to be used for a
     particular timezone are encoded in the
@@ -1212,8 +1212,8 @@ The vestigial <abbr>API</abbr>s are:
   </li>
   <li>
     The <code>tm_isdst</code> member is almost never needed and most of
-    its uses should be discouraged in favor of the abovementioned
-    <abbr>API</abbr>s.
+    its uses should be discouraged in favor of the
+    <abbr>API</abbr>s mentioned above.
     It was intended as an index into the <code>tzname</code> variable,
     but as mentioned previously that usage is obsolete.
     Although it can still be used in arguments to
@@ -1558,7 +1558,7 @@ Sources for time on other planets:
     Michael Allison and Robert Schmunk,
     “<a href="https://www.giss.nasa.gov/tools/mars24/help/notes.html">Technical
       Notes on Mars Solar Time as Adopted by the Mars24 Sunclock</a>”
-    (2020-03-08).
+    (2023-05-15).
   </li>
   <li>
     Zara Mirmalek,

@@ -1,6 +1,69 @@
 News for the tz database
 
-Release 2026a - 2026-04-22 23:06:43 -0700
+Release 2026c - 2026-07-08 10:23:58 -0700
+
+  Briefly:
+    Alberta moved to permanent -06 on 2026-06-18.
+    Morocco moves to permanent +00 on 2026-09-20.
+    More integer overflow bugs have been fixed in zic.
+
+  Changes to future timestamps
+
+    Alberta’s 2026-03-08 spring forward was its last foreseeable clock
+    change, as it moved to permanent -06 thereafter.  (Thanks to Roozbeh
+    Pournader and others.)  Model this with its traditional abbreviation
+    CST.  Although the change to permanent -06 legally took place on
+    2026-06-18, temporarily model the change to occur on 2026-11-01 at
+    02:00 instead, for the same reason we introduced a similarly
+    temporary hack for British Columbia in 2026b.
+
+      Although another TZDB release will likely be needed soon because
+      Northwest Territories will likely follow Alberta, the legal
+      formalities have not yet taken place.
+
+    Morocco plans to move back to permanent UTC, without daylight
+    saving time transitions, on 2026-09-20 at 02:00.  This also
+    affects Western Sahara.
+
+  Changes to code
+
+    zic no longer overflows integers when processing outlandish input
+    like ‘Zone Ouch 0 - LMT 9223372036854775807’, ‘Zone Ouch 0
+    2562047788015215 LMT’, ‘Zone Ouch -2562047788015215:30:08 - LMT’,
+    and ‘Zone Ouch -2562047788015215:30:08 - %%z’.  This avoids
+    undefined behavior in C.  (Problems reported by Naveed Khan.)
+
+    On platforms that have EFTYPE, tzalloc now fails with errno set to
+    EFTYPE, not EINVAL, if it detects that the TZif file has an
+    invalid format or is not a regular file.  Formerly it did this
+    only on NetBSD, and only when the file was not a regular file.
+
+    Unprivileged programs no longer require TZif files to be regular
+    files or reject relative names containing ".." components.  This
+    reverts to the more-permissive 2025b behavior, as the stricter
+    behavior did not catch on in FreeBSD.
+
+    zic now reports any failure to remove a temporary file when
+    cleaning up after a previous failure.  (Problem reported by Tom
+    Lane.)
+
+  Changes to commentary
+
+    Northwest Territories is expected to move to permanent -06 prior to
+    2026-11-01 02:00, when clocks would otherwise fall back.  (Thanks to
+    Tim Parenti and James Bellaire.)  Model this with its traditional
+    abbreviation CST.  Unfortunately the change is not yet official, so
+    it is currently present only as comments that can be uncommented as
+    needed.
+
+  Changes to build procedure
+
+    The undocumented ‘typecheck’ Makefile check rule has been removed.
+    It stopped working in 2025a and evidently nobody noticed.
+    The rule was superseded by ‘check_time_t_alternatives’ in 2013d.
+
+
+Release 2026b - 2026-04-22 23:06:43 -0700
 
   Briefly:
     British Columbia moved to permanent -07 on 2026-03-09.
@@ -13,7 +76,7 @@ Release 2026a - 2026-04-22 23:06:43 -0700
     (Thanks to Arthur David Olson.)  Although the change to permanent
     -07 legally took place on 2026-03-09, temporarily model the change
     to occur on 2026-11-01 at 02:00 instead.  This works around a
-    limitation in CLDR v48.2 (2026-03-17).  This temporary hack is
+    limitation in CLDR 48.1 (2026-01-08).  This temporary hack is
     planned to be removed after CLDR is fixed.
 
   Changes to code
@@ -99,7 +162,7 @@ Release 2026a - 2026-03-01 22:59:49 -0800
     than attempting to override this fallback with the contents of the
     posixrules file.  This removes library support that was declared
     obsolete in release 2019b, and fixes some undefined behavior.
-    (Undefined behavior reported by GitHub user Naveed8951.)
+    (Undefined behavior reported by Naveed Khan.)
 
     The posix2time, posix2time_z, time2posix, and time2posix_z
     functions now set errno=EOVERFLOW and return ((time_t) -1) if the
@@ -111,7 +174,7 @@ Release 2026a - 2026-03-01 22:59:49 -0800
 
     Some other undefined behavior, triggered by TZif files containing
     outlandish but conforming UT offsets or leap second corrections,
-    has also been fixed.  (Some of these bugs reported by Naveed8951.)
+    has also been fixed.  (Some of these bugs reported by Naveed Khan.)
 
     localtime.c no longer rejects TZif files that exactly fit in its
     internal structures, fixing off-by-one typos introduced in 2014g.
@@ -221,7 +284,7 @@ Release 2025c - 2025-12-10 14:42:37 -0800
     rarely changing and many threads call tzcode simultaneously.
     It costs more CPU time and energy.
 
-    The new CFLAGS option -TTHREAD_TM_MULTI causes localtime to return
+    The new CFLAGS option -DTHREAD_TM_MULTI causes localtime to return
     a pointer to thread-specific memory, as FreeBSD does, instead of
     to the same memory in all threads.  This supports nonportable
     programs that incorrectly use localtime instead of localtime_r.
@@ -551,7 +614,7 @@ Release 2024a - 2024-02-01 09:28:56 -0800
     The leap-seconds.list file is now copied from the IERS instead of
     from its downstream counterpart at NIST, as the IERS version is
     now in the public domain too and tends to be more up-to-date.
-    (Thanks to Martin Burnicki for liaisoning with the IERS.)
+    (Thanks to Martin Burnicki for liaising with the IERS.)
 
   Changes to documentation
 
@@ -1709,7 +1772,7 @@ Release 2020a - 2020-04-23 16:03:47 -0700
     zic -L now supports an Expires line in the leapseconds file, and
     truncates the TZif output accordingly.  This propagates leap
     second expiration information into the TZif file, and avoids the
-    abovementioned localtime.c bug as well as similar bugs present in
+    localtime.c bug mentioned above, as well as similar bugs present in
     many client implementations.  If no Expires line is present, zic
     -L instead truncates the TZif output based on the #expires comment
     present in leapseconds files distributed by tzdb 2018f and later;
@@ -6666,7 +6729,7 @@ few (e.g., code2012c-data2012d) have tarballs with mixed version
 numbers.  Recent releases also come in an experimental format
 consisting of a single tarball tzdb-R.tar.lz with extra data.
 
-Release timestamps are taken from the release's commit (for newer,
+A release’s timestamp is taken from the release’s commit (for newer,
 Git-based releases), from the newest file in the tarball (for older
 releases, where this info is available) or from the email announcing
 the release (if all else fails; these are marked with a time zone
