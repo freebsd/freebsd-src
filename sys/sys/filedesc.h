@@ -243,6 +243,7 @@ filecaps_init(struct filecaps *fcaps)
 bool	filecaps_copy(const struct filecaps *src, struct filecaps *dst,
 	    bool locked);
 void	filecaps_move(struct filecaps *src, struct filecaps *dst);
+void	filecaps_fill(struct filecaps *fcaps);
 void	filecaps_free(struct filecaps *fcaps);
 
 int	closef(struct file *fp, struct thread *td);

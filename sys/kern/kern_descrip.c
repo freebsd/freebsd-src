@@ -1906,7 +1906,7 @@ filecaps_move(struct filecaps *src, struct filecaps *dst)
 /*
  * Fill the given filecaps structure with full rights.
  */
-static void
+void
 filecaps_fill(struct filecaps *fcaps)
 {
 
