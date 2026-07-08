@@ -96,7 +96,8 @@ consume_event_cookie(int ifd, int wd, unsigned int event, unsigned int flags,
 	ATF_REQUIRE(ev != NULL);
 
 	n = read(ifd, ev, evsz);
-	ATF_REQUIRE_MSG(n >= 0, "failed to read event %s", ev2name(event));
+	ATF_REQUIRE_MSG(n >= 0, "failed to read event %s: %s",
+	    ev2name(event), strerror(errno));
 	ATF_REQUIRE((size_t)n >= sizeof(*ev));
 	ATF_REQUIRE((size_t)n == sizeof(*ev) + ev->len);
 	ATF_REQUIRE((size_t)n == evsz);
