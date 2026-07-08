@@ -1189,6 +1189,8 @@ ural_tx_raw(struct ural_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	STAILQ_REMOVE_HEAD(&sc->tx_free, next);
 	sc->tx_nfree--;
 
+	ieee80211_output_seqno_assign(ni, -1, m0);
+
 	data->m = m0;
 	data->ni = ni;
 	data->rate = rate;
