@@ -43,6 +43,7 @@
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/stdarg.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/unistd.h>
 
@@ -77,6 +78,19 @@ struct taskqueue {
 	taskqueue_callback_fn	tq_callbacks[TASKQUEUE_NUM_CALLBACKS];
 	void			*tq_cb_contexts[TASKQUEUE_NUM_CALLBACKS];
 };
+
+static SYSCTL_NODE(_kern, OID_AUTO, taskqueue, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
+    "taskqueue information");
+
+/*
+ * Limit on the number of tasks that may be run in a single epoch section.
+ * It's profitable to batch tasks together, but there must be a bound in order
+ * to maintain system liveness.
+ */
+unsigned int net_epoch_task_limit = 8;
+SYSCTL_UINT(_kern_taskqueue, OID_AUTO, net_epoch_task_limit, CTLFLAG_RWTUN,
+    &net_epoch_task_limit, 0,
+    "Maximum number of tasks to run in an epoch section");
 
 #define	TQ_FLAGS_ACTIVE		(1 << 0)
 #define	TQ_FLAGS_BLOCKED	(1 << 1)
@@ -486,15 +500,15 @@ taskqueue_run_locked(struct taskqueue *queue)
 	struct epoch_tracker et;
 	struct taskqueue_busy tb;
 	struct task *task;
-	bool in_net_epoch;
+	unsigned int epochtasks;
 	int pending;
 
 	KASSERT(queue != NULL, ("tq is NULL"));
 	TQ_ASSERT_LOCKED(queue);
 	tb.tb_running = NULL;
 	LIST_INSERT_HEAD(&queue->tq_active, &tb, tb_link);
-	in_net_epoch = false;
 
+	epochtasks = 0;
 	while ((task = STAILQ_FIRST(&queue->tq_queue)) != NULL) {
 		STAILQ_REMOVE_HEAD(&queue->tq_queue, ta_link);
 		if (queue->tq_hint == task)
@@ -507,19 +521,23 @@ taskqueue_run_locked(struct taskqueue *queue)
 		TQ_UNLOCK(queue);
 
 		KASSERT(task->ta_func != NULL, ("task->ta_func is NULL"));
-		if (!in_net_epoch && TASK_IS_NET(task)) {
-			in_net_epoch = true;
-			NET_EPOCH_ENTER(et);
-		} else if (in_net_epoch && !TASK_IS_NET(task)) {
+		if (TASK_IS_NET(task)) {
+			if (epochtasks++ == 0)
+				NET_EPOCH_ENTER(et);
+		} else if (epochtasks > 0) {
 			NET_EPOCH_EXIT(et);
-			in_net_epoch = false;
+			epochtasks = 0;
 		}
 		task->ta_func(task->ta_context, pending);
+		if (epochtasks > net_epoch_task_limit) {
+			NET_EPOCH_EXIT(et);
+			epochtasks = 0;
+		}
 
 		TQ_LOCK(queue);
 		wakeup(task);
 	}
-	if (in_net_epoch)
+	if (epochtasks > 0)
 		NET_EPOCH_EXIT(et);
 	LIST_REMOVE(&tb, tb_link);
 }

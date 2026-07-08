@@ -342,14 +342,14 @@ gtaskqueue_run_locked(struct gtaskqueue *queue)
 	struct epoch_tracker et;
 	struct gtaskqueue_busy tb;
 	struct gtask *gtask;
-	bool in_net_epoch;
+	unsigned int epochtasks;
 
 	KASSERT(queue != NULL, ("tq is NULL"));
 	TQ_ASSERT_LOCKED(queue);
 	tb.tb_running = NULL;
 	LIST_INSERT_HEAD(&queue->tq_active, &tb, tb_link);
-	in_net_epoch = false;
 
+	epochtasks = 0;
 	while ((gtask = STAILQ_FIRST(&queue->tq_queue)) != NULL) {
 		STAILQ_REMOVE_HEAD(&queue->tq_queue, ta_link);
 		gtask->ta_flags &= ~TASK_ENQUEUED;
@@ -358,19 +358,23 @@ gtaskqueue_run_locked(struct gtaskqueue *queue)
 		TQ_UNLOCK(queue);
 
 		KASSERT(gtask->ta_func != NULL, ("task->ta_func is NULL"));
-		if (!in_net_epoch && TASK_IS_NET(gtask)) {
-			in_net_epoch = true;
-			NET_EPOCH_ENTER(et);
-		} else if (in_net_epoch && !TASK_IS_NET(gtask)) {
+		if (TASK_IS_NET(gtask)) {
+			if (epochtasks++ == 0)
+				NET_EPOCH_ENTER(et);
+		} else if (epochtasks > 0) {
 			NET_EPOCH_EXIT(et);
-			in_net_epoch = false;
+			epochtasks = 0;
 		}
 		gtask->ta_func(gtask->ta_context);
+		if (epochtasks > net_epoch_task_limit) {
+			NET_EPOCH_EXIT(et);
+			epochtasks = 0;
+		}
 
 		TQ_LOCK(queue);
 		wakeup(gtask);
 	}
-	if (in_net_epoch)
+	if (epochtasks > 0)
 		NET_EPOCH_EXIT(et);
 	LIST_REMOVE(&tb, tb_link);
 }

@@ -221,4 +221,6 @@ struct taskqueue *taskqueue_create_fast(const char *name, int mflags,
  */
 TASKQUEUE_DECLARE(bus);
 
+extern unsigned int net_epoch_task_limit;
+
 #endif /* !_SYS_TASKQUEUE_H_ */
