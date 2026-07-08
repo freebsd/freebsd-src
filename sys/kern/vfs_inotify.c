@@ -563,7 +563,7 @@ inotify_overflow_event(struct inotify_event *evp)
 }
 
 /*
- * Put an event record on the queue for an inotify desscriptor.  Return false if
+ * Put an event record on the queue for an inotify descriptor.  Return false if
  * the record was not enqueued for some reason, true otherwise.
  */
 static bool
