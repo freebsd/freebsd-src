@@ -36,7 +36,7 @@
 .Sh SYNOPSIS
 .In fts.h
 .Ft FTS *
-.Fn fts_openat "int dirfd" "char * const *path_argv" "int options" "int (*compar)(const FTSENT * const *, const FTSENT * const *)"
+.Fn fts_open "char * const *path_argv" "int options" "int (*compar)(const FTSENT * const *, const FTSENT * const *)"
 .Ft FTS *
 .Fn fts_open_b "char * const *path_argv" "int options" "int (^compar)(const FTSENT * const *, const FTSENT * const *)"
 .Ft FTSENT *
