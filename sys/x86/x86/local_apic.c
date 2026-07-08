@@ -333,16 +333,6 @@ SYSCTL_INT(_hw_apic, OID_AUTO, ds_idle_timeout, CTLFLAG_RWTUN,
 static void lapic_calibrate_initcount(struct lapic *la);
 
 /*
- * Calculate the max index of the present LVT entry from the value of
- * the LAPIC version register.
- */
-static int
-lapic_maxlvt(uint32_t version)
-{
-	return ((version & APIC_VER_MAXLVT) >> MAXLVTSHIFT);
-}
-
-/*
  * Use __nosanitizethread to exempt the LAPIC I/O accessors from KCSan
  * instrumentation.  Otherwise, if x2APIC is not available, use of the global
  * lapic_map will generate a KCSan false positive.  While the mapping is
@@ -387,6 +377,28 @@ lapic_write32_nofence(enum LAPIC_REGISTERS reg, uint32_t val)
 	} else {
 		*(volatile uint32_t *)(lapic_map + reg * LAPIC_MEM_MUL) = val;
 	}
+}
+
+static inline uint32_t __pure2
+lapic_version(void)
+{
+	return (lapic_read32(LAPIC_VERSION));
+}
+
+/*
+ * Calculate the max index of the present LVT entry from the value of
+ * the LAPIC version register.
+ */
+static inline int __pure2
+lapic_version_maxlvt(uint32_t version)
+{
+	return ((version & APIC_VER_MAXLVT) >> MAXLVTSHIFT);
+}
+
+static inline int __pure2
+lapic_maxlvt(void)
+{
+	return (lapic_version_maxlvt(lapic_version()));
 }
 
 #ifdef SMP
@@ -644,7 +656,7 @@ lapic_init(vm_paddr_t addr)
 	 * It seems that at least some KVM versions report
 	 * EOI_SUPPRESSION bit, but auto-EOI does not work.
 	 */
-	ver = lapic_read32(LAPIC_VERSION);
+	ver = lapic_version();
 	if ((ver & APIC_VER_EOI_SUPPRESSION) != 0) {
 		lapic_eoi_suppression = 1;
 		if (vm_guest == VM_GUEST_KVM) {
@@ -751,7 +763,7 @@ amd_read_ext_features(void)
 	if (cpu_vendor_id != CPU_VENDOR_AMD &&
 	    cpu_vendor_id != CPU_VENDOR_HYGON)
 		return (0);
-	version = lapic_read32(LAPIC_VERSION);
+	version = lapic_version();
 	if ((version & APIC_VER_AMD_EXT_SPACE) != 0)
 		return (lapic_read32(LAPIC_EXT_FEATURES));
 	else
@@ -776,14 +788,12 @@ amd_read_elvt_count(void)
 void
 lapic_dump(const char* str)
 {
-	uint32_t version;
-	uint32_t maxlvt;
+	const uint32_t version = lapic_version();
+	const int maxlvt = lapic_version_maxlvt(version);
 	uint32_t extf;
 	int elvt_count;
 	int i;
 
-	version = lapic_read32(LAPIC_VERSION);
-	maxlvt = lapic_maxlvt(version);
 	printf("cpu%d %s:\n", PCPU_GET(cpuid), str);
 	printf("     ID: 0x%08x   VER: 0x%08x LDR: 0x%08x DFR: 0x%08x",
 	    lapic_read32(LAPIC_ID), version,
@@ -840,10 +850,8 @@ static void
 lapic_early_mask_vecs(void)
 {
 	int elvt_count, lvts_count, i;
-	uint32_t version;
 
-	version = lapic_read32(LAPIC_VERSION);
-	lvts_count = min(nitems(lvts), lapic_maxlvt(version) + 1);
+	lvts_count = min(nitems(lvts), lapic_maxlvt() + 1);
 	for (i = 0; i < lvts_count; i++)
 		lapic_early_mask_vec(&lvts[i]);
 
@@ -855,9 +863,9 @@ lapic_early_mask_vecs(void)
 void
 lapic_setup(int boot)
 {
+	const uint32_t version = lapic_version();
+	const uint32_t maxlvt = lapic_version_maxlvt(version);
 	struct lapic *la;
-	uint32_t version;
-	uint32_t maxlvt;
 	register_t saveintr;
 	int elvt_count;
 	int i;
@@ -866,8 +874,6 @@ lapic_setup(int boot)
 
 	la = &lapics[lapic_id()];
 	KASSERT(la->la_present, ("missing APIC structure"));
-	version = lapic_read32(LAPIC_VERSION);
-	maxlvt = lapic_maxlvt(version);
 
 	/* Initialize the TPR to allow all interrupts. */
 	lapic_set_tpr(0);
@@ -1019,8 +1025,6 @@ int
 lapic_enable_pmc(void)
 {
 #ifdef HWPMC_HOOKS
-	u_int32_t maxlvt;
-
 #ifdef DEV_ATPIC
 	/* Fail if the local APIC is not present. */
 	if (!x2apic_mode && lapic_map == NULL)
@@ -1028,8 +1032,7 @@ lapic_enable_pmc(void)
 #endif
 
 	/* Fail if the PMC LVT is not present. */
-	maxlvt = lapic_maxlvt(lapic_read32(LAPIC_VERSION));
-	if (maxlvt < APIC_LVT_PMC)
+	if (lapic_maxlvt() < APIC_LVT_PMC)
 		return (0);
 
 	lvts[APIC_LVT_PMC].lvt_masked = 0;
@@ -1046,8 +1049,6 @@ void
 lapic_disable_pmc(void)
 {
 #ifdef HWPMC_HOOKS
-	u_int32_t maxlvt;
-
 #ifdef DEV_ATPIC
 	/* Fail if the local APIC is not present. */
 	if (!x2apic_mode && lapic_map == NULL)
@@ -1055,8 +1056,7 @@ lapic_disable_pmc(void)
 #endif
 
 	/* Fail if the PMC LVT is not present. */
-	maxlvt = lapic_maxlvt(lapic_read32(LAPIC_VERSION));
-	if (maxlvt < APIC_LVT_PMC)
+	if (lapic_maxlvt() < APIC_LVT_PMC)
 		return;
 
 	lvts[APIC_LVT_PMC].lvt_masked = 1;
@@ -1986,19 +1986,19 @@ DB_SHOW_COMMAND_FLAGS(lapic, db_show_lapic, DB_CMD_MEMSAFE)
 {
 	const struct lvt *l;
 	int elvt_count, lvts_count, i;
-	uint32_t v, vr;
+	const uint32_t v = lapic_version();
+	const int maxlvt = lapic_version_maxlvt(v);
+	const uint32_t vr = lapic_read32(LAPIC_SVR);
 
 	db_printf("lapic ID = %d\n", lapic_id());
-	v = lapic_read32(LAPIC_VERSION);
 	db_printf("version  = %d.%d (%#x) \n", (v & APIC_VER_VERSION) >> 4,
 	    v & 0xf, v);
-	db_printf("max LVT  = %d\n", lapic_maxlvt(v));
-	vr = lapic_read32(LAPIC_SVR);
+	db_printf("max LVT  = %d\n", maxlvt);
 	db_printf("SVR      = %02x (%s)\n", vr & APIC_SVR_VECTOR,
 	    vr & APIC_SVR_ENABLE ? "enabled" : "disabled");
 	db_printf("TPR      = %02x\n", lapic_read32(LAPIC_TPR));
 
-	lvts_count = min(nitems(lvts), lapic_maxlvt(v) + 1);
+	lvts_count = min(nitems(lvts), maxlvt + 1);
 	for (i = 0; i < lvts_count; i++) {
 		l = &lvts[i];
 		db_printf("LVT%d  (reg %#x %-5s) = %#010x\n", i, l->lvt_reg,
