@@ -79,6 +79,8 @@
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 #include <dev/mdio/mdio.h>
+#include <dev/iicbus/iic.h>
+#include <dev/iicbus/iiconf.h>
 
 #include "opt_acpi.h"
 #include "opt_platform.h"
@@ -2675,6 +2677,147 @@ dpaa2_ni_qflush(if_t ifp)
 	if_qflush(ifp);
 }
 
+/*
+ * SFP+ EEPROM access for SIOCGI2C, so "ifconfig -v <dpni>" can show the
+ * module's SFF-8472 identity and diagnostics.  The module EEPROM lives on an
+ * i2c bus reached in one of two ways:
+ *
+ *  - FDT: the DPMAC's device-tree node has an "sfp" phandle to an "sff,sfp"
+ *    node whose "i2c-bus" points at the (possibly muxed) i2c bus.  The MC bus
+ *    resolves this via DPAA2_MC_GET_SFP_DEV(); any i2c mux is switched
+ *    transparently by the i2c framework when the bus is requested.
+ *
+ *  - ACPI: firmware exposes no such association, so it is supplied per
+ *    interface by loader tunables and any i2c mux is switched explicitly here:
+ *      hw.dpaa2.dpni<unit>.sfp_bus    iicbus unit (e.g. 0 for iic0); <0 disabled
+ *      hw.dpaa2.dpni<unit>.sfp_mux    7-bit i2c mux address (e.g. 0x77); 0 none
+ *      hw.dpaa2.dpni<unit>.sfp_chan   mux channel the cage sits on
+ *      hw.dpaa2.dpni<unit>.sfp_type   0 = PCA9547 (sel 0x08|ch), 1 = PCA9548
+ */
+#define	DPAA2_SFP_MUX_9547	0
+#define	DPAA2_SFP_MUX_9548	1
+
+/*
+ * Read len bytes at offset from an SFP EEPROM (dev_addr 0xA0/0xA2) on the i2c
+ * bus that `requester` (a device on that bus) hangs off; the bus is held for
+ * the whole exchange.  When muxaddr != 0 an i2c mux channel is selected first
+ * (chsel) and restored afterwards (chrestore) -- the ACPI path, where the mux
+ * has no driver.  The FDT path passes muxaddr 0 and lets the i2c mux driver
+ * switch transparently on the bus request.
+ */
+static int
+dpaa2_ni_sfp_i2c_read(device_t requester, int muxaddr, uint8_t chsel,
+    uint8_t chrestore, uint8_t dev_addr, uint8_t offset, uint8_t *buf, int len)
+{
+	device_t bus = device_get_parent(requester);
+	struct iic_msg sel, rd[2];
+	uint8_t off = offset;
+	int error;
+
+	error = iicbus_request_bus(bus, requester, IIC_INTRWAIT);
+	if (error != 0)
+		return (iic2errno(error));
+
+	if (muxaddr != 0) {
+		sel.slave = (uint16_t)muxaddr << 1;
+		sel.flags = IIC_M_WR;
+		sel.len = 1;
+		sel.buf = &chsel;
+		error = iicbus_transfer(requester, &sel, 1);
+	}
+
+	if (error == 0) {
+		/* Write the byte offset (repeat-start), then read the data. */
+		rd[0].slave = dev_addr;		/* already 8-bit (0xA0/0xA2) */
+		rd[0].flags = IIC_M_WR | IIC_M_NOSTOP;
+		rd[0].len = 1;
+		rd[0].buf = &off;
+		rd[1].slave = dev_addr;
+		rd[1].flags = IIC_M_RD;
+		rd[1].len = len;
+		rd[1].buf = buf;
+		error = iicbus_transfer(requester, rd, 2);
+	}
+
+	if (muxaddr != 0) {
+		sel.slave = (uint16_t)muxaddr << 1;
+		sel.flags = IIC_M_WR;
+		sel.len = 1;
+		sel.buf = &chrestore;
+		(void)iicbus_transfer(requester, &sel, 1);
+	}
+
+	iicbus_release_bus(bus, requester);
+	return (error != 0 ? iic2errno(error) : 0);
+}
+
+static int
+dpaa2_ni_sfp_ioctl(struct dpaa2_ni_softc *sc, struct ifreq *ifr)
+{
+	struct ifi2creq req;
+	device_t requester = NULL, sfpbus = NULL;
+	char tname[64];
+	int unit, muxaddr = 0, error;
+	uint8_t chsel = 0, chrestore = 0;
+
+	error = copyin(ifr_data_get_ptr(ifr), &req, sizeof(req));
+	if (error != 0)
+		return (error);
+	if (req.dev_addr != 0xa0 && req.dev_addr != 0xa2)
+		return (EINVAL);
+	if (req.len == 0 || req.len > (int)sizeof(req.data))
+		return (EINVAL);
+	if ((u_int)req.offset + req.len > 256)
+		return (EINVAL);
+
+	/*
+	 * Primary path: the DPMAC's device tree names the SFP i2c bus.  Any mux
+	 * is switched transparently by the i2c framework (muxaddr stays 0).
+	 */
+	if (DPAA2_MC_GET_SFP_DEV(sc->dev, &sfpbus, sc->mac.dpmac_id) == 0 &&
+	    sfpbus != NULL)
+		requester = device_find_child(sfpbus, "iic", -1);
+
+	/*
+	 * Fallback: no device-tree association (e.g. ACPI boot).  Use the
+	 * per-interface loader tunables and drive the mux explicitly.
+	 */
+	if (requester == NULL) {
+		int busunit = -1, mux = 0, chan = 0, type = DPAA2_SFP_MUX_9547;
+
+		unit = device_get_unit(sc->dev);
+		snprintf(tname, sizeof(tname), "hw.dpaa2.dpni%d.sfp_bus", unit);
+		TUNABLE_INT_FETCH(tname, &busunit);
+		if (busunit < 0)
+			return (ENXIO);
+		snprintf(tname, sizeof(tname), "hw.dpaa2.dpni%d.sfp_mux", unit);
+		TUNABLE_INT_FETCH(tname, &mux);
+		snprintf(tname, sizeof(tname), "hw.dpaa2.dpni%d.sfp_chan", unit);
+		TUNABLE_INT_FETCH(tname, &chan);
+		snprintf(tname, sizeof(tname), "hw.dpaa2.dpni%d.sfp_type", unit);
+		TUNABLE_INT_FETCH(tname, &type);
+
+		requester = devclass_get_device(devclass_find("iic"), busunit);
+		if (requester == NULL)
+			return (ENXIO);
+		muxaddr = mux;
+		if (type == DPAA2_SFP_MUX_9548) {
+			chsel = (uint8_t)(1u << (chan & 0x07));
+			chrestore = 0x00;		/* all channels off */
+		} else {
+			chsel = (uint8_t)(0x08 | (chan & 0x07));  /* 9547 enable|ch */
+			chrestore = 0x08;		/* power-on value (ch0) */
+		}
+	}
+
+	error = dpaa2_ni_sfp_i2c_read(requester, muxaddr, chsel, chrestore,
+	    req.dev_addr, req.offset, req.data, req.len);
+	if (error != 0)
+		return (error);
+
+	return (copyout(&req, ifr_data_get_ptr(ifr), sizeof(req)));
+}
+
 static int
 dpaa2_ni_ioctl(if_t ifp, u_long c, caddr_t data)
 {
@@ -2689,6 +2832,13 @@ dpaa2_ni_ioctl(if_t ifp, u_long c, caddr_t data)
 	uint32_t changed = 0;
 	uint16_t rc_token, ni_token;
 	int mtu, error, rc = 0;
+
+	/*
+	 * SFP+ EEPROM access (SIOCGI2C) talks to an i2c bus, not the MC; handle
+	 * it before opening the resource container / NI object below.
+	 */
+	if (c == SIOCGI2C)
+		return (dpaa2_ni_sfp_ioctl(sc, ifr));
 
 	DPAA2_CMD_INIT(&cmd);
 
@@ -3939,6 +4089,7 @@ DRIVER_MODULE(miibus, dpaa2_ni, miibus_driver, 0, 0);
 DRIVER_MODULE(dpaa2_ni, dpaa2_rc, dpaa2_ni_driver, 0, 0);
 
 MODULE_DEPEND(dpaa2_ni, miibus, 1, 1, 1);
+MODULE_DEPEND(dpaa2_ni, iicbus, 1, 1, 1);
 #ifdef DEV_ACPI
 MODULE_DEPEND(dpaa2_ni, memac_mdio_acpi, 1, 1, 1);
 #endif
