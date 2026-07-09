@@ -114,6 +114,7 @@ static bool	igc_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 static void	igc_identify_hardware(if_ctx_t);
 static int	igc_allocate_pci_resources(if_ctx_t);
 static void	igc_free_pci_resources(if_ctx_t);
+static void	igc_disable_broken_aspm_l1_2(if_ctx_t);
 static void	igc_reset(if_ctx_t);
 static int	igc_setup_interface(if_ctx_t);
 static int	igc_setup_msix(if_ctx_t);
@@ -546,6 +547,14 @@ igc_if_attach_pre(if_ctx_t ctx)
 	/* Determine hardware and mac info */
 	igc_identify_hardware(ctx);
 
+	/*
+	 * I226 parts have an erratum where the PCIe ASPM L1.2 exit
+	 * latency can exceed what the packet buffer can absorb under
+	 * load, stalling the inbound packet stream.  Disable ASPM L1.2
+	 * on the device to work around it.
+	 */
+	igc_disable_broken_aspm_l1_2(ctx);
+
 	scctx->isc_tx_nsegments = IGC_MAX_SCATTER;
 	scctx->isc_nrxqsets_max =
 	    scctx->isc_ntxqsets_max = igc_set_num_queues(ctx);
@@ -788,6 +797,12 @@ igc_if_suspend(if_ctx_t ctx)
 static int
 igc_if_resume(if_ctx_t ctx)
 {
+	/*
+	 * PCIe config space, and with it ASPM L1.2, may have been reset
+	 * across the suspend/resume cycle.
+	 */
+	igc_disable_broken_aspm_l1_2(ctx);
+
 	igc_if_init(ctx);
 
 	return(0);
@@ -1487,6 +1502,35 @@ igc_identify_hardware(if_ctx_t ctx)
 		device_printf(dev, "Setup init failure\n");
 		return;
 	}
+}
+
+/*********************************************************************
+ *
+ *  I226 devices advertise support for the PCIe L1.2 link substate, but
+ *  due to a hardware erratum the exit latency from that low-power state
+ *  can exceed what the packet buffer can tolerate under load, which
+ *  stalls the inbound packet stream.  Disabling ASPM L1.2 on the device
+ *  itself (as opposed to disabling ASPM/power management in the BIOS or
+ *  at the OS level) works around the issue.
+ *
+ **********************************************************************/
+static void
+igc_disable_broken_aspm_l1_2(if_ctx_t ctx)
+{
+	device_t dev = iflib_get_dev(ctx);
+	struct igc_softc *sc = iflib_get_softc(ctx);
+	int cap;
+	uint32_t ctl1;
+
+	if (!igc_is_device_id_i226(&sc->hw))
+		return;
+
+	if (pci_find_extcap(dev, PCIZ_L1PM, &cap) != 0)
+		return;
+
+	ctl1 = pci_read_config(dev, cap + PCIR_L1PM_CTL1, 4);
+	ctl1 &= ~PCIM_L1PM_CTL1_ASPM_L1_2;
+	pci_write_config(dev, cap + PCIR_L1PM_CTL1, ctl1, 4);
 }
 
 static int
