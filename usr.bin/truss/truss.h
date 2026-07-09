@@ -25,6 +25,9 @@
  * SUCH DAMAGE.
  */
 
+#ifndef __TRUSS_TRUSS_H__
+#define	__TRUSS_TRUSS_H__
+
 #include <sys/queue.h>
 
 #define	FOLLOWFORKS		0x00000001
@@ -106,7 +109,9 @@ struct fd_domain
 struct procinfo {
 	LIST_ENTRY(procinfo) entries;
 	pid_t pid;
+	int pfd;
 	struct procabi *abi;
+	bool herald_printed;
 
 	LIST_HEAD(, threadinfo) threadlist;
 	LIST_HEAD(, fd_domain) fdlist;
@@ -117,6 +122,8 @@ struct trussinfo
 	int flags;
 	int strsize;
 	FILE *outfile;
+	int pdkq;
+	bool cap_mode;
 
 	struct timespec start_time;
 
@@ -124,3 +131,5 @@ struct trussinfo
 
 	LIST_HEAD(, procinfo) proclist;
 };
+
+#endif
