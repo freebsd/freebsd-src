@@ -230,22 +230,18 @@ vtballoon_attach(device_t dev)
 		goto fail;
 	}
 
+	virtqueue_enable_intr(sc->vtballoon_inflate_vq);
+	virtqueue_enable_intr(sc->vtballoon_deflate_vq);
+
+	sc->vtballoon_flags |= VTBALLOON_FLAG_WANTSIZE;
 	error = kthread_add(vtballoon_thread, sc, NULL, &sc->vtballoon_td,
 	    0, 0, "virtio_balloon");
 	if (error) {
+		virtqueue_disable_intr(sc->vtballoon_inflate_vq);
+		virtqueue_disable_intr(sc->vtballoon_deflate_vq);
 		device_printf(dev, "cannot create balloon kthread\n");
 		goto fail;
 	}
-
-	/*
-	 * Prime the resize flag so the thread evaluates the host's
-	 * desired balloon size on first wakeup.  This handles the
-	 * case where the host set num_pages before the guest booted.
-	 */
-	sc->vtballoon_flags |= VTBALLOON_FLAG_WANTSIZE;
-
-	virtqueue_enable_intr(sc->vtballoon_inflate_vq);
-	virtqueue_enable_intr(sc->vtballoon_deflate_vq);
 
 	/*
 	 * Register for guest low-memory events.  vm_lowmem is raised by the
@@ -583,9 +579,9 @@ vtballoon_sleep(struct vtballoon_softc *sc)
 {
 	int rc, timeout;
 	uint32_t current, desired;
+	bool wantsize;
 
 	rc = 0;
-	current = sc->vtballoon_current_npages;
 
 	VTBALLOON_LOCK(sc);
 	for (;;) {
@@ -598,13 +594,9 @@ vtballoon_sleep(struct vtballoon_softc *sc)
 		if (sc->vtballoon_flags & VTBALLOON_FLAG_GUEST_LOWMEM)
 			break;
 
-		/*
-		 * Only evaluate the host's desired balloon size when a
-		 * config change interrupt has been received.  This
-		 * prevents the thread from re-inflating pages that were
-		 * just freed in response to a guest low-memory event.
-		 */
-		if (sc->vtballoon_flags & VTBALLOON_FLAG_WANTSIZE) {
+		current = sc->vtballoon_current_npages;
+		wantsize = (sc->vtballoon_flags & VTBALLOON_FLAG_WANTSIZE) != 0;
+		if (wantsize) {
 			desired = vtballoon_desired_size(sc);
 			sc->vtballoon_desired_npages = desired;
 
@@ -651,7 +643,7 @@ static void
 vtballoon_thread(void *xsc)
 {
 	struct vtballoon_softc *sc;
-	uint32_t current, desired;
+	uint32_t current, desired, freed;
 	int guest_lowmem;
 
 	sc = xsc;
@@ -660,51 +652,48 @@ vtballoon_thread(void *xsc)
 		if (vtballoon_sleep(sc) != 0)
 			break;
 
-		/*
-		 * Check and clear the guest low-memory flag.  Also clear any
-		 * pending host resize request so that we do not
-		 * immediately re-inflate the pages just released to
-		 * the guest VM subsystem.  The host will send a new
-		 * config change interrupt if it still requires a
-		 * larger balloon.
-		 */
 		VTBALLOON_LOCK(sc);
 		guest_lowmem = sc->vtballoon_flags &
 		    VTBALLOON_FLAG_GUEST_LOWMEM;
 		if (guest_lowmem)
-			sc->vtballoon_flags &=
-			    ~(VTBALLOON_FLAG_GUEST_LOWMEM |
-			    VTBALLOON_FLAG_WANTSIZE);
+			sc->vtballoon_flags &= ~VTBALLOON_FLAG_GUEST_LOWMEM;
 		VTBALLOON_UNLOCK(sc);
 
-		if (guest_lowmem && sc->vtballoon_current_npages > 0) {
-			/*
-			 * Guest low memory: deflate up to
-			 * VTBALLOON_GUEST_LOWMEM_DEFLATE_PAGES regardless of
-			 * the host's desired balloon size.  This returns pages
-			 * to the guest VM subsystem before the OOM killer is
-			 * invoked.
-			 */
-			desired = sc->vtballoon_current_npages -
-			    MIN(sc->vtballoon_current_npages,
-			    VTBALLOON_GUEST_LOWMEM_DEFLATE_PAGES);
+		if (guest_lowmem) {
+			current = sc->vtballoon_current_npages;
+			if (current > 0) {
+				/*
+				 * Guest low memory: deflate up to
+				 * VTBALLOON_GUEST_LOWMEM_DEFLATE_PAGES regardless of
+				 * the host's desired balloon size.  This returns pages
+				 * to the guest VM subsystem before the OOM killer is
+				 * invoked.  Preserve the host target, but defer
+				 * re-evaluation briefly so we do not immediately
+				 * re-inflate the same pages.
+				 */
+				freed = MIN(current,
+				    VTBALLOON_GUEST_LOWMEM_DEFLATE_PAGES);
+				desired = current - freed;
 
-			sc->vtballoon_guest_lowmem_count++;
-			sc->vtballoon_guest_lowmem_pages +=
-			    sc->vtballoon_current_npages - desired;
+				if (__predict_false(sc->vtballoon_debug > 0))
+					device_printf(sc->vtballoon_dev,
+					    "guest low memory, deflating balloon by "
+					    "%d pages (current: %d)\n",
+					    freed, current);
 
-			if (__predict_false(sc->vtballoon_debug > 0))
-				device_printf(sc->vtballoon_dev,
-				    "guest low memory, deflating balloon by "
-				    "%d pages (current: %d)\n",
-				    sc->vtballoon_current_npages - desired,
-				    sc->vtballoon_current_npages);
+				while (sc->vtballoon_current_npages > desired)
+					vtballoon_deflate(sc,
+					    sc->vtballoon_current_npages - desired);
 
-			while (sc->vtballoon_current_npages > desired)
-				vtballoon_deflate(sc,
-				    sc->vtballoon_current_npages - desired);
+				sc->vtballoon_guest_lowmem_count++;
+				sc->vtballoon_guest_lowmem_pages += freed;
+				vtballoon_update_size(sc);
 
-			vtballoon_update_size(sc);
+				VTBALLOON_LOCK(sc);
+				sc->vtballoon_flags |= VTBALLOON_FLAG_WANTSIZE;
+				sc->vtballoon_timeout = VTBALLOON_LOWMEM_TIMEOUT;
+				VTBALLOON_UNLOCK(sc);
+			}
 			continue;
 		}
 
@@ -723,6 +712,7 @@ vtballoon_thread(void *xsc)
 
 	kthread_exit();
 }
+
 
 static int
 vtballoon_update_stats(struct vtballoon_softc *sc)
@@ -787,22 +777,24 @@ vtballoon_stats_vq_intr(void *xsc)
 	sc = xsc;
 	vq = sc->vtballoon_stats_vq;
 
-	/* Retrieve the buffer that the host returned to us. */
-	if (virtqueue_dequeue(vq, NULL) == NULL)
-		return;
+again:
+	while (virtqueue_dequeue(vq, NULL) != NULL) {
+		/* Collect fresh statistics and re-enqueue. */
+		nstats = vtballoon_update_stats(sc);
 
-	/* Collect fresh statistics and re-enqueue. */
-	nstats = vtballoon_update_stats(sc);
+		sglist_init(&sg, 1, segs);
+		error = sglist_append(&sg, sc->vtballoon_stats,
+		    sizeof(struct virtio_balloon_stat) * nstats);
+		KASSERT(error == 0, ("error adding stats to sglist"));
 
-	sglist_init(&sg, 1, segs);
-	error = sglist_append(&sg, sc->vtballoon_stats,
-	    sizeof(struct virtio_balloon_stat) * nstats);
-	KASSERT(error == 0, ("error adding stats to sglist"));
-
-	error = virtqueue_enqueue(vq, sc, &sg, 1, 0);
-	KASSERT(error == 0, ("error enqueuing stats to virtqueue"));
-	virtqueue_notify(vq);
-	virtqueue_enable_intr(vq);
+		error = virtqueue_enqueue(vq, sc, &sg, 1, 0);
+		KASSERT(error == 0, ("error enqueuing stats to virtqueue"));
+		virtqueue_notify(vq);
+	}
+	if (virtqueue_enable_intr(vq) != 0) {
+		virtqueue_disable_intr(vq);
+		goto again;
+	}
 }
 
 /*
@@ -825,10 +817,6 @@ vtballoon_guest_lowmem(void *arg, int flags)
 
 	/* Only respond to physical page shortage. */
 	if ((flags & VM_LOW_PAGES) == 0)
-		return;
-
-	/* Nothing to deflate. */
-	if (sc->vtballoon_current_npages == 0)
 		return;
 
 	VTBALLOON_LOCK(sc);
