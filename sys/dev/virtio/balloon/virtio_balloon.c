@@ -127,6 +127,8 @@ static int	vtballoon_sleep(struct vtballoon_softc *);
 static void	vtballoon_thread(void *);
 static void	vtballoon_guest_lowmem(void *, int);
 static void	vtballoon_setup_sysctl(struct vtballoon_softc *);
+static uint64_t	vtballoon_mem_available(struct vtballoon_softc *);
+static uint64_t	vtballoon_mem_caches(void);
 
 #define vtballoon_modern(_sc) \
     (((_sc)->vtballoon_features & VIRTIO_F_VERSION_1) != 0)
@@ -713,6 +715,35 @@ vtballoon_thread(void *xsc)
 	kthread_exit();
 }
 
+/*
+ * Estimate FreeBSD VM headroom without dipping below the page daemon's free
+ * and inactive targets.  This intentionally uses only existing VM counters;
+ * subsystem-specific reclaimable kernel caches such as ZFS ARC are outside
+ * the scope of this virtio driver estimate.
+ */
+static uint64_t
+vtballoon_mem_available(struct vtballoon_softc *sc __unused)
+{
+	int64_t available;
+	int64_t inactive;
+
+	available = ((int64_t)vm_free_count() - vm_cnt.v_free_target) * PAGE_SIZE;
+	inactive = ((int64_t)vm_inactive_count() - vm_cnt.v_inactive_target) *
+	    PAGE_SIZE;
+	if (inactive > 0)
+		available += inactive;
+
+	if (available < 0)
+		available = 0;
+	return ((uint64_t)available);
+}
+
+static uint64_t
+vtballoon_mem_caches(void)
+{
+
+	return ((uint64_t)vm_inactive_count() * PAGE_SIZE);
+}
 
 static int
 vtballoon_update_stats(struct vtballoon_softc *sc)
@@ -736,7 +767,7 @@ vtballoon_update_stats(struct vtballoon_softc *sc)
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_MEMFREE,
 	    (uint64_t)vm_free_count() * PAGE_SIZE);
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_AVAIL,
-	    ((uint64_t)vm_free_count() + vm_inactive_count()) * PAGE_SIZE);
+	    vtballoon_mem_available(sc));
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_SWAP_IN,
 	    VM_CNT_FETCH(v_swappgsin) * PAGE_SIZE);
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_SWAP_OUT,
@@ -746,14 +777,12 @@ vtballoon_update_stats(struct vtballoon_softc *sc)
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_MAJFLT,
 	    VM_CNT_FETCH(v_io_faults));
 	/*
-	 * Map CACHES to the inactive page queue.  The virtio spec defines
-	 * this as "disk caches" (Linux: page cache + reclaimable slab).
-	 * FreeBSD's inactive queue is the closest approximation -- it
-	 * contains pages eligible for reclaim, both file-backed and
-	 * anonymous, similar in spirit to Linux's reclaimable memory.
+	 * FreeBSD has no single Linux-style "disk caches" counter available
+	 * here.  Use inactive pages as the closest existing VM queue
+	 * approximation and avoid subsystem-specific cache accounting.
 	 */
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_CACHES,
-	    (uint64_t)vm_inactive_count() * PAGE_SIZE);
+	    vtballoon_mem_caches());
 
 #undef VTBALLOON_SET_STAT
 
