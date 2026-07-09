@@ -184,3 +184,24 @@ void igc_rx_fifo_flush_base(struct igc_hw *hw)
 	IGC_READ_REG(hw, IGC_RNBC);
 	IGC_READ_REG(hw, IGC_MPC);
 }
+
+/**
+ *  igc_is_device_id_i226 - Check whether the device is I226 silicon
+ *  @hw: pointer to the HW structure
+ *
+ *  I225 and I226 share the same mac.type, so this checks the PCI
+ *  device ID directly to distinguish I226 parts, e.g. for erratum
+ *  workarounds that apply only to that silicon.
+ **/
+bool igc_is_device_id_i226(struct igc_hw *hw)
+{
+	switch (hw->device_id) {
+	case IGC_DEV_ID_I226_LM:
+	case IGC_DEV_ID_I226_V:
+	case IGC_DEV_ID_I226_K:
+	case IGC_DEV_ID_I226_IT:
+		return true;
+	default:
+		return false;
+	}
+}
