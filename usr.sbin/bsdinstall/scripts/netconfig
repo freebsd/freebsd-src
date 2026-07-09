@@ -61,7 +61,7 @@ is_wireless_if() {
 }
 
 for IF in $INTERFACES; do
-	DESC=`sysctl -n dev.$(echo $IF | sed -E 's/([[:alpha:]]*)([[:digit:]]*)/\1.\2/g').%desc`
+	DESC=`sysctl -n dev.$(echo $IF | sed -E 's/([[:alnum:]]*)([[:digit:]])/\1.\2/').%desc`
 	BSDDIALOG_ITEMS="$BSDDIALOG_ITEMS $IF \"$DESC\""
 done
 
