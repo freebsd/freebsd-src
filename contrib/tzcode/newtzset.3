@@ -5,23 +5,23 @@
 tzset \- initialize time conversion information
 .SH SYNOPSIS
 .nf
-.B #include <time.h>
+.B "#include <time.h>"
 .PP
 .BI "timezone_t tzalloc(char const *" TZ );
 .PP
 .BI "void tzfree(timezone_t " tz );
 .PP
-.B void tzset(void);
+.B "void tzset(void);"
 .PP
 /* Optional and obsolescent:  */
 .br
-.B extern char *tzname[];
+.B "extern char *tzname[];"
 .br
-.B extern long timezone;
+.B "extern long timezone;"
 .br
-.B extern int daylight;
+.B "extern int daylight;"
 .PP
-.B cc ... \-ltz
+.BR cc " ... " \-ltz
 .fi
 .SH DESCRIPTION
 .ie '\(en'' .ds en \-
@@ -161,7 +161,7 @@ seconds) \*(en if present \*(en between zero and 59.  If preceded by a
 .q "\-" ,
 the time zone shall be east of the Prime Meridian; otherwise it shall be
 west (which may be indicated by an optional preceding
-.q "+" .
+.q "+" ).
 .TP
 .I rule
 Indicates when to change to and back from daylight saving time.  The
@@ -420,7 +420,7 @@ callers can instead use the
 and
 .I tm_zone
 members of
-.B struct tm,
+.BR "struct tm",
 or use
 .B strftime
 with "%z" or "%Z".

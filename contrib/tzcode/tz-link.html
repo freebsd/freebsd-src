@@ -197,9 +197,9 @@ more errors.</p>
 After obtaining the code and data files, see the
 <code>README</code> file for what to do next.
 The code lets you compile the <code><abbr>tz</abbr></code> source files into
-machine-readable binary files, one for each location. The binary files
-are in a special format specified by
-<a href="https://www.rfc-editor.org/rfc/rfc9636">The
+machine-readable binary files, one for each location.
+The binary file format is specified by
+<a href="https://www.rfc-editor.org/info/rfc9636/">The
 Time Zone Information Format (<abbr>TZif</abbr>)</a>
 (Internet <abbr title="Request For Comments">RFC</abbr> 9636).
 The code also lets
@@ -268,7 +268,7 @@ Studio Code</a>.
 </p>
 <p>
 For further information about updates, please see
-<a href="https://www.rfc-editor.org/rfc/rfc6557">Procedures for
+<a href="https://www.rfc-editor.org/info/rfc6557/">Procedures for
 Maintaining the Time Zone Database</a> (Internet <abbr>RFC</abbr> 6557).
 More detail can be
 found in <a href="theory.html">Theory and pragmatics of the
@@ -336,7 +336,7 @@ the Timing of Time Zone Changes</a>” for examples.
 an encyclopedic summary.</li>
 <li><a href="tz-how-to.html">How to Read the
 tz Database Source Files</a> explains the <code><abbr>tz</abbr></code>
-database format.</li>
+database source format.</li>
 <li><a
 href="https://blog.jonudell.net/2009/10/23/a-literary-appreciation-of-the-olsonzoneinfotz-database/">A
 literary appreciation of the Olson/Zoneinfo/tz database</a> comments on the
@@ -385,24 +385,22 @@ calculates the current time difference between locations.</li>
 <section>
 <h2 id="protocols">Network protocols for <code><abbr>tz</abbr></code> data</h2>
 <ul>
-<li><a href="https://www.rfc-editor.org/rfc/rfc7808">Time Zone
-Data Distribution Service</a> (TZDIST, Internet <abbr>RFC</abbr> 7808)
+<li><a href="https://www.rfc-editor.org/info/rfc7808/">Time Zone
+Data Distribution Service</a> (Internet <abbr>RFC</abbr> 7808)
 is associated with
-<a href="https://www.rfc-editor.org/rfc/rfc7809">CalDAV</a>
+<a href="https://www.rfc-editor.org/info/rfc7809/">CalDAV</a>
 (Internet <abbr>RFC</abbr> 7809), a calendar access protocol for
-transferring time zone data by reference.
-<a href="https://devguide.calconnect.org/Time-Zones/TZDS/">TZDIST
-implementations</a> are available.</li>
-<li>The <a href="https://www.rfc-editor.org/rfc/rfc5545">iCalendar format</a>
-(Internet <abbr>RFC</abbr> 5445)
+transferring time zone data by reference.</li>
+<li>The <a href="https://www.rfc-editor.org/info/rfc5545/">iCalendar format</a>
+(Internet <abbr>RFC</abbr> 5545)
 covers time zone
 data; see its VTIMEZONE calendar component.
 The iCalendar format requires specialized parsers and generators; a
-variant <a href="https://www.rfc-editor.org/rfc/rfc6321">xCal</a>
+variant <a href="https://www.rfc-editor.org/info/rfc6321/">xCal</a>
 (Internet <abbr>RFC</abbr> 6321) uses
 <a href="https://www.w3.org/XML/"><abbr
 title="Extensible Markup Language">XML</abbr></a> format, and a variant
-<a href="https://www.rfc-editor.org/rfc/rfc7265">jCal</a>
+<a href="https://www.rfc-editor.org/info/rfc7265/">jCal</a>
 (Internet <abbr>RFC</abbr> 7265)
 uses <a href="https://www.json.org/json-en.html"><abbr
 title="JavaScript Object Notation">JSON</abbr></a> format.</li>
@@ -417,7 +415,8 @@ distributions you can generally work around compatibility problems by
 running the command <code>make rearguard_tarballs</code> and compiling
 from the resulting tarballs instead.</p>
 <ul>
-<li><a href="https://github.com/libical/vzic">Vzic</a> is a <a
+<li><a href="https://github.com/libical">Libical</a>
+contains <code>vzic</code>, <a
 href="https://en.wikipedia.org/wiki/C_(programming_language)">C</a>
 program that compiles
 <code><abbr>tz</abbr></code> source into iCalendar-compatible VTIMEZONE files.
@@ -596,8 +595,7 @@ license.</li>
 <li>The <a
 href="https://www.gnu.org/software/libc/"><abbr>GNU</abbr> C
 Library</a>
-has an independent, thread-safe implementation of
-a <abbr>TZif</abbr> file reader.
+has a thread-safe <abbr>TZif</abbr> file reader.
 This library is freely available under the LGPL
 and is widely used in <abbr>GNU</abbr>/Linux systems.</li>
 <li><a href="https://www.gnome.org">GNOME</a>’s
@@ -725,8 +723,6 @@ sources for much of the older <code><abbr>tz</abbr></code> data</a>,
 they are unreliable as Shanks appears to have
 guessed many <abbr>UT</abbr> offsets and transitions. The atlases cite no
 sources and do not indicate which entries are guesswork.</li>
-<li><a href="https://en.wikipedia.org/wiki/HP-UX">HP-UX</a> has a database in
-its own <code>tztab</code>(4) format.</li>
 <li>Microsoft Windows has proprietary data mentioned
 <a href="#System.TimeZoneInfo">above</a>.</li>
 <li><a href="https://www.worldtimeserver.com">World Time Server</a>
@@ -1046,7 +1042,7 @@ title="Institute of Electrical and Electronics Engineers">IEEE</abbr> 1588)
 can achieve submicrosecond clock accuracy on a local area network
 with special-purpose hardware.</li>
 <li><a
-href="https://www.rfc-editor.org/rfc/rfc4833">Timezone
+href="https://www.rfc-editor.org/info/rfc4833/">Timezone
 Options for <abbr title="Dynamic Host Configuration Protocol">DHCP</abbr></a>
 (Internet <abbr>RFC</abbr> 4833)
 specifies a <a
@@ -1125,11 +1121,11 @@ half second, even though every <abbr>POSIX</abbr> minute has exactly
 sixty seconds. This approach works with the default <code><abbr>tz</abbr></code>
 <code>"posix"</code> configuration, is <a
 href="https://gitlab.com/NTPsec/ntpsec/-/blob/master/docs/leapsmear.adoc">supported</a>
-by the abovementioned <abbr>NTP</abbr> implementations, <a
+by the <abbr>NTP</abbr> implementations mentioned above, <a
 href="https://github.com/google/unsmear">supports</a> conversion between
 <abbr>UTC</abbr> and smeared <abbr>POSIX</abbr> timestamps, and is used by major
 cloud service providers. However, according to
-<a href="https://www.rfc-editor.org/rfc/rfc8633#section-3.7.1">§3.7.1 of
+<a href="https://www.rfc-editor.org/info/rfc8633#section-3.7.1">§3.7.1 of
 Network Time Protocol Best Current Practices</a>
 (Internet <abbr>RFC</abbr> 8633), leap smearing is not suitable for
 applications requiring accurate <abbr>UTC</abbr> or civil time,
@@ -1200,16 +1196,16 @@ interchange – Part 1: Basic rules</em></a>.</li>
 <a href="https://www.w3.org/TR/xmlschema/#dateTime"><abbr>XML</abbr>
 Schema: Datatypes – dateTime</a> specifies a format inspired by
 <abbr>ISO</abbr> 8601 that is in common use in <abbr>XML</abbr> data.</li>
-<li><a href="https://www.rfc-editor.org/rfc/rfc5322#section-3.3">§3.3 of
+<li><a href="https://www.rfc-editor.org/info/rfc5322#section-3.3">§3.3 of
 Internet Message Format</a> (Internet <abbr>RFC</abbr> 5322)
 specifies the time notation used in email and <a
 href="https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol"><abbr>HTTP</abbr></a>
 headers.</li>
 <li>
-<a href="https://www.rfc-editor.org/rfc/rfc3339">Date and Time
+<a href="https://www.rfc-editor.org/info/rfc3339/">Date and Time
 on the Internet: Timestamps</a> (Internet <abbr>RFC</abbr> 3339)
 specifies an <abbr>ISO</abbr> 8601 profile for use in new Internet protocols.
-An extension, <a href="https://www.rfc-editor.org/rfc/rfc9557">Date
+An extension, <a href="https://www.rfc-editor.org/info/rfc9557/">Date
 and Time on the Internet: Timestamps with Additional Information</a>
 (Internet <abbr>RFC</abbr> 9557) extends this profile
 to let you specify the <code><abbr>tzdb</abbr></code> timezone of a timestamp
@@ -1254,7 +1250,7 @@ is called “<abbr>GMT</abbr>”.</li>
 <ul>
 <li><a href="theory.html">Theory and pragmatics of the
 <code><abbr>tz</abbr></code> code and data</a></li>
-<li><a href="tz-art.html">Time and the Arts</a></li>
+<li><a href="tz-art.html">Time and the arts</a></li>
 </ul>
 </section>
 
