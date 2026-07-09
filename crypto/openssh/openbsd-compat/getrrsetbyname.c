@@ -595,27 +595,28 @@ parse_dns_rrsection(const u_char *answer, int size, const u_char **cp,
 static void
 free_dns_query(struct dns_query *p)
 {
-	if (p == NULL)
-		return;
+	struct dns_query *next;
 
-	if (p->name)
+	while (p != NULL) {
+		next = p->next;
 		free(p->name);
-	free_dns_query(p->next);
-	free(p);
+		free(p);
+		p = next;
+	}
 }
 
 static void
 free_dns_rr(struct dns_rr *p)
 {
-	if (p == NULL)
-		return;
+	struct dns_rr *next;
 
-	if (p->name)
+	while (p != NULL) {
+		next = p->next;
 		free(p->name);
-	if (p->rdata)
 		free(p->rdata);
-	free_dns_rr(p->next);
-	free(p);
+		free(p);
+		p = next;
+	}
 }
 
 static void

@@ -8,6 +8,11 @@ master :
 [![Coverity Status](https://scan.coverity.com/projects/21341/badge.svg)](https://scan.coverity.com/projects/openssh-portable)
 <br>
 
+10.3 :
+[![C/C++ CI](../../../actions/workflows/c-cpp.yml/badge.svg?branch=V_10_3)](../../../actions/workflows/c-cpp.yml?query=branch:V_10_3)
+[![VM CI](../../../actions/workflows/vm.yml/badge.svg?branch=V_10_3)](../../../actions/workflows/vm.yml?query=branch:V_10_3)
+[![C/C++ CI self-hosted](https://github.com/openssh/openssh-portable-selfhosted/actions/workflows/selfhosted.yml/badge.svg?branch=V_10_3)](https://github.com/openssh/openssh-portable-selfhosted/actions/workflows/selfhosted.yml?query=branch:V_10_3)
+
 10.2 :
 [![C/C++ CI](../../../actions/workflows/c-cpp.yml/badge.svg?branch=V_10_2)](../../../actions/workflows/c-cpp.yml?query=branch:V_10_2)
 [![VM CI](../../../actions/workflows/vm.yml/badge.svg?branch=V_10_2)](../../../actions/workflows/vm.yml?query=branch:V_10_2)
@@ -18,10 +23,3 @@ master :
 [![VM CI](../../../actions/workflows/vm.yml/badge.svg?branch=V_10_1)](../../../actions/workflows/vm.yml?query=branch:V_10_1)
 [![C/C++ CI self-hosted](https://github.com/openssh/openssh-portable-selfhosted/actions/workflows/selfhosted.yml/badge.svg?branch=V_10_1)](https://github.com/openssh/openssh-portable-selfhosted/actions/workflows/selfhosted.yml?query=branch:V_10_1)
 
-10.0 :
-[![C/C++ CI](../../../actions/workflows/c-cpp.yml/badge.svg?branch=V_10_0)](../../../actions/workflows/c-cpp.yml?query=branch:V_10_0)
-[![C/C++ CI self-hosted](https://github.com/openssh/openssh-portable-selfhosted/actions/workflows/selfhosted.yml/badge.svg?branch=V_10_0)](https://github.com/openssh/openssh-portable-selfhosted/actions/workflows/selfhosted.yml?query=branch:V_10_0)
-
-9.9 :
-[![C/C++ CI](../../../actions/workflows/c-cpp.yml/badge.svg?branch=V_9_9)](../../../actions/workflows/c-cpp.yml?query=branch:V_9_9)
-[![C/C++ CI self-hosted](https://github.com/openssh/openssh-portable-selfhosted/actions/workflows/selfhosted.yml/badge.svg?branch=V_9_9)](https://github.com/openssh/openssh-portable-selfhosted/actions/workflows/selfhosted.yml?query=branch:V_9_9)

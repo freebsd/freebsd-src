@@ -1,4 +1,4 @@
-#	$OpenBSD: cfgmatch.sh,v 1.17 2025/12/19 00:57:42 djm Exp $
+#	$OpenBSD: cfgmatch.sh,v 1.18 2026/05/31 11:31:57 djm Exp $
 #	Placed in the Public Domain.
 
 tid="sshd_config match"
@@ -155,7 +155,7 @@ EOD
 		done
 		trace "test spec $spec"
 		result=`${SUDO} ${SSHD} -f $OBJ/sshd_config -T -C "$spec" | \
-		    awk '$1=="banner"{print $2}'`
+		    awk 'tolower($1)=="banner"{print $2}'`
 		if [ "$result" != "$expected" ]; then
 			fail "match $config expected $expected got $result"
 		fi

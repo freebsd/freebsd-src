@@ -1,4 +1,4 @@
-#	$OpenBSD: addrmatch.sh,v 1.6 2020/08/28 03:17:13 dtucker Exp $
+#	$OpenBSD: addrmatch.sh,v 1.7 2026/05/31 11:31:57 djm Exp $
 #	Placed in the Public Domain.
 
 tid="address match"
@@ -13,7 +13,7 @@ run_trial()
 	verbose "test $descr for $user $addr $host"
 	result=`${SSHD} -f $OBJ/sshd_proxy -T \
 	    -C user=${user},addr=${addr},host=${host},laddr=${laddr},lport=${lport} | \
-	    awk '/^forcecommand/ {print $2}'`
+	    awk 'tolower($1) ~ /^forcecommand/ {print $2}'`
 	if [ "$result" != "$expected" ]; then
 		fail "failed '$descr' expected $expected got $result"
 	fi

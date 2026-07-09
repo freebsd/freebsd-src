@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-add.c,v 1.186 2026/03/05 05:44:15 djm Exp $ */
+/* $OpenBSD: ssh-add.c,v 1.187 2026/06/29 02:13:05 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -813,7 +813,7 @@ main(int argc, char **argv)
 {
 	extern char *optarg;
 	extern int optind;
-	int agent_fd;
+	int agent_fd = -1;
 	char *pkcs11provider = NULL, *skprovider = NULL;
 	char **dest_constraint_strings = NULL, **hostkey_files = NULL;
 	int r, i, ch, deleting = 0, ret = 0, key_only = 0, cert_only = 0;
@@ -834,19 +834,6 @@ main(int argc, char **argv)
 	log_init(__progname, log_level, log_facility, 1);
 
 	setvbuf(stdout, NULL, _IOLBF, 0);
-
-	/* First, get a connection to the authentication agent. */
-	switch (r = ssh_get_authentication_socket(&agent_fd)) {
-	case 0:
-		break;
-	case SSH_ERR_AGENT_NOT_PRESENT:
-		fprintf(stderr, "Could not open a connection to your "
-		    "authentication agent.\n");
-		exit(2);
-	default:
-		fprintf(stderr, "Error connecting to agent: %s\n", ssh_err(r));
-		exit(2);
-	}
 
 	skprovider = getenv("SSH_SK_PROVIDER");
 
@@ -943,7 +930,21 @@ main(int argc, char **argv)
 
 	if ((xflag != 0) + (lflag != 0) + (Dflag != 0) + (Qflag != 0) > 1)
 		fatal("Invalid combination of actions");
-	else if (xflag) {
+
+	/* First, get a connection to the authentication agent. */
+	switch (r = ssh_get_authentication_socket(&agent_fd)) {
+	case 0:
+		break;
+	case SSH_ERR_AGENT_NOT_PRESENT:
+		fprintf(stderr, "Could not open a connection to your "
+		    "authentication agent.\n");
+		exit(2);
+	default:
+		fprintf(stderr, "Error connecting to agent: %s\n", ssh_err(r));
+		exit(2);
+	}
+
+	if (xflag) {
 		if (lock_agent(agent_fd, xflag == 'x' ? 1 : 0) == -1)
 			ret = 1;
 		goto done;

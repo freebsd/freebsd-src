@@ -1,4 +1,4 @@
-/* $OpenBSD: auth.h,v 1.109 2026/02/06 01:24:36 djm Exp $ */
+/* $OpenBSD: auth.h,v 1.110 2026/07/06 07:44:48 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -175,6 +175,7 @@ void	auth_log(struct ssh *, int, int, const char *, const char *);
 void	auth_maxtries_exceeded(struct ssh *) __attribute__((noreturn));
 void	userauth_finish(struct ssh *, int, const char *, const char *);
 int	auth_root_allowed(struct ssh *, const char *);
+void	auth_failure_delay(Authctxt *, double);
 
 char	*auth2_read_banner(void);
 int	 auth2_methods_valid(const char *, int);

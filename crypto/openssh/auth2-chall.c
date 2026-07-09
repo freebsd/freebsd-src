@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-chall.c,v 1.60 2026/03/03 09:57:25 dtucker Exp $ */
+/* $OpenBSD: auth2-chall.c,v 1.61 2026/07/06 07:44:48 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2001 Per Allansson.  All rights reserved.
@@ -300,6 +300,7 @@ input_userauth_info_response(int type, uint32_t seq, struct ssh *ssh)
 	u_int i, nresp;
 	const char *devicename = NULL;
 	char **response = NULL;
+	double tstart = monotime_double();
 
 	if (authctxt == NULL)
 		fatal_f("no authctxt");
@@ -358,6 +359,9 @@ input_userauth_info_response(int type, uint32_t seq, struct ssh *ssh)
 			auth2_challenge_start(ssh);
 		}
 	}
+
+	if (!authenticated)
+		auth_failure_delay(authctxt, tstart);
 	userauth_finish(ssh, authenticated, "keyboard-interactive",
 	    devicename);
 	return 0;

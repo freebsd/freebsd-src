@@ -1,4 +1,4 @@
-/* $OpenBSD: servconf.c,v 1.446 2026/04/02 07:38:14 djm Exp $ */
+/* $OpenBSD: servconf.c,v 1.451 2026/07/07 01:00:22 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -63,6 +63,8 @@
 #include "digest.h"
 #include "version.h"
 
+#define SSHD_CONFIG_BLOB_VERSION	1
+
 #if !defined(SSHD_PAM_SERVICE)
 # define SSHD_PAM_SERVICE		"sshd"
 #endif
@@ -83,137 +85,111 @@ void
 initialize_server_options(ServerOptions *options)
 {
 	memset(options, 0, sizeof(*options));
+#define SSHCONF_INT(var, conf, flags, ms, def, cp)	options->var = -1;
+#define SSHCONF_INTFLAG(var, conf, flags, def, cp)	options->var = -1;
+#define SSHCONF_STRING(var, conf, flags, cp)		options->var = NULL;
+#define SSHCONF_STRARRAY(var, nvar, conf, flags, cp) \
+	options->nvar = 0; \
+	options->var = NULL;
+#define SSHCONF_CUSTOM(conf, funcsuffix, flags, cp) \
+	init_##funcsuffix(options)
+#define SSHCONF_NONCONF(funcsuffix) \
+	init_##funcsuffix(options)
+#define SSHCONF_DEPRECATE(conf, flags, opcode)		/* empty */
+#define SSHCONF_UNSUPPORTED_INT(var, conf, flags)	options->var = 0;
+#define SSHCONF_UNSUPPORTED_STRING(var, conf, flags)	options->var = NULL;
+#define SSHCONF_ALIAS(old, conf, flags)			/* empty */
 
-	/* Portable-specific options */
-	options->use_pam = -1;
-	options->pam_service_name = NULL;
-
-	/* Standard Options */
-	options->num_ports = 0;
-	options->ports_from_cmdline = 0;
-	options->queued_listen_addrs = NULL;
-	options->num_queued_listens = 0;
-	options->listen_addrs = NULL;
-	options->num_listen_addrs = 0;
-	options->address_family = -1;
-	options->routing_domain = NULL;
-	options->num_host_key_files = 0;
-	options->num_host_cert_files = 0;
-	options->host_key_agent = NULL;
-	options->pid_file = NULL;
-	options->login_grace_time = -1;
-	options->permit_root_login = PERMIT_NOT_SET;
-	options->ignore_rhosts = -1;
-	options->ignore_user_known_hosts = -1;
-	options->print_motd = -1;
-	options->print_lastlog = -1;
-	options->x11_forwarding = -1;
-	options->x11_display_offset = -1;
-	options->x11_use_localhost = -1;
-	options->permit_tty = -1;
-	options->permit_user_rc = -1;
-	options->xauth_location = NULL;
-	options->strict_modes = -1;
-	options->tcp_keep_alive = -1;
-	options->log_facility = SYSLOG_FACILITY_NOT_SET;
-	options->log_level = SYSLOG_LEVEL_NOT_SET;
-	options->num_log_verbose = 0;
-	options->log_verbose = NULL;
-	options->hostbased_authentication = -1;
-	options->hostbased_uses_name_from_packet_only = -1;
-	options->hostbased_accepted_algos = NULL;
-	options->hostkeyalgorithms = NULL;
-	options->pubkey_authentication = -1;
-	options->pubkey_auth_options = -1;
-	options->pubkey_accepted_algos = NULL;
-	options->kerberos_authentication = -1;
-	options->kerberos_or_local_passwd = -1;
-	options->kerberos_ticket_cleanup = -1;
-	options->kerberos_get_afs_token = -1;
-	options->gss_authentication=-1;
-	options->gss_cleanup_creds = -1;
-	options->gss_deleg_creds = -1;
-	options->gss_strict_acceptor = -1;
-	options->password_authentication = -1;
-	options->kbd_interactive_authentication = -1;
-	options->permit_empty_passwd = -1;
-	options->permit_user_env = -1;
-	options->permit_user_env_allowlist = NULL;
-	options->compression = -1;
-	options->rekey_limit = -1;
-	options->rekey_interval = -1;
-	options->allow_tcp_forwarding = -1;
-	options->allow_streamlocal_forwarding = -1;
-	options->allow_agent_forwarding = -1;
-	options->num_allow_users = 0;
-	options->num_deny_users = 0;
-	options->num_allow_groups = 0;
-	options->num_deny_groups = 0;
-	options->ciphers = NULL;
-	options->macs = NULL;
-	options->kex_algorithms = NULL;
-	options->ca_sign_algorithms = NULL;
-	options->fwd_opts.gateway_ports = -1;
-	options->fwd_opts.streamlocal_bind_mask = (mode_t)-1;
-	options->fwd_opts.streamlocal_bind_unlink = -1;
-	options->num_subsystems = 0;
-	options->max_startups_begin = -1;
-	options->max_startups_rate = -1;
-	options->max_startups = -1;
-	options->per_source_max_startups = -1;
-	options->per_source_masklen_ipv4 = -1;
-	options->per_source_masklen_ipv6 = -1;
-	options->per_source_penalty_exempt = NULL;
-	options->per_source_penalty.enabled = -1;
-	options->per_source_penalty.max_sources4 = -1;
-	options->per_source_penalty.max_sources6 = -1;
-	options->per_source_penalty.overflow_mode = -1;
-	options->per_source_penalty.overflow_mode6 = -1;
-	options->per_source_penalty.penalty_crash = -1.0;
-	options->per_source_penalty.penalty_authfail = -1.0;
-	options->per_source_penalty.penalty_invaliduser = -1.0;
-	options->per_source_penalty.penalty_noauth = -1.0;
-	options->per_source_penalty.penalty_grace = -1.0;
-	options->per_source_penalty.penalty_refuseconnection = -1.0;
-	options->per_source_penalty.penalty_max = -1.0;
-	options->per_source_penalty.penalty_min = -1.0;
-	options->max_authtries = -1;
-	options->max_sessions = -1;
-	options->banner = NULL;
-	options->use_dns = -1;
-	options->client_alive_interval = -1;
-	options->client_alive_count_max = -1;
-	options->num_authkeys_files = 0;
-	options->num_accept_env = 0;
-	options->num_setenv = 0;
-	options->permit_tun = -1;
-	options->permitted_opens = NULL;
-	options->permitted_listens = NULL;
-	options->adm_forced_command = NULL;
-	options->chroot_directory = NULL;
-	options->authorized_keys_command = NULL;
-	options->authorized_keys_command_user = NULL;
-	options->revoked_keys_files = NULL;
-	options->num_revoked_keys_files = 0;
-	options->sk_provider = NULL;
-	options->trusted_user_ca_keys = NULL;
-	options->authorized_principals_file = NULL;
-	options->authorized_principals_command = NULL;
-	options->authorized_principals_command_user = NULL;
-	options->ip_qos_interactive = -1;
+	/* Using macros for these is a bit overkill but forces consistency */
+#define init_hostkeyfile(options) \
+	options->host_key_files = 0; \
+	options->num_host_key_files = 0; \
+	options->host_key_file_userprovided = NULL;
+#define init_ipqos(options) \
+	options->ip_qos_interactive = -1; \
 	options->ip_qos_bulk = -1;
-	options->version_addendum = NULL;
-	options->fingerprint_hash = -1;
-	options->disable_forwarding = -1;
-	options->expose_userauth_info = -1;
-	options->required_rsa_size = -1;
-	options->channel_timeouts = NULL;
-	options->num_channel_timeouts = 0;
-	options->unused_connection_timeout = -1;
-	options->sshd_session_path = NULL;
-	options->sshd_auth_path = NULL;
-	options->refuse_connection = -1;
-	options->use_blocklist = -1;
+#define init_listenaddress(options) \
+	options->queued_listen_addrs = NULL; \
+	options->num_queued_listens = 0; \
+	options->listen_addrs = NULL; \
+	options->num_listen_addrs = 0;
+#define init_logfacility(options) \
+	options->log_facility = SYSLOG_FACILITY_NOT_SET;
+#define init_loglevel(options) \
+	options->log_level = SYSLOG_LEVEL_NOT_SET;
+#define init_port(options) \
+	options->num_ports = 0; \
+	options->ports_from_cmdline = 0;
+#define init_gatewayports(options) \
+	options->fwd_opts.gateway_ports = -1;
+#define init_streamlocalbindmask(options) \
+	options->fwd_opts.streamlocal_bind_mask = (mode_t)-1;
+#define init_streamlocalbindunlink(options) \
+	options->fwd_opts.streamlocal_bind_unlink = -1;
+#define init_maxstartups(options) \
+	options->max_startups_begin = -1; \
+	options->max_startups_rate = -1; \
+	options->max_startups = -1;
+#define init_permituserenv(options) \
+	options->permit_user_env = -1; \
+	options->permit_user_env_allowlist = NULL;
+#define init_persourcenetblocksize(options) \
+	options->per_source_masklen_ipv4 = -1; \
+	options->per_source_masklen_ipv6 = -1;
+#define init_persourcepenalties(options) \
+	options->per_source_penalty_exempt = NULL; \
+	options->per_source_penalty.enabled = -1; \
+	options->per_source_penalty.max_sources4 = -1; \
+	options->per_source_penalty.max_sources6 = -1; \
+	options->per_source_penalty.overflow_mode = -1; \
+	options->per_source_penalty.overflow_mode6 = -1; \
+	options->per_source_penalty.penalty_crash = -1.0; \
+	options->per_source_penalty.penalty_authfail = -1.0; \
+	options->per_source_penalty.penalty_invaliduser = -1.0; \
+	options->per_source_penalty.penalty_noauth = -1.0; \
+	options->per_source_penalty.penalty_grace = -1.0; \
+	options->per_source_penalty.penalty_refuseconnection = -1.0; \
+	options->per_source_penalty.penalty_max = -1.0; \
+	options->per_source_penalty.penalty_min = -1.0;
+#define init_rekeylimit(options) \
+	options->rekey_limit = -1; \
+	options->rekey_interval = -1;
+#define init_subsystem(options) \
+	options->num_subsystems = 0; \
+	options->subsystem_name = NULL; \
+	options->subsystem_command = NULL; \
+	options->subsystem_args = NULL;
+#define init_timingsecret(options) \
+	options->timing_secret = 0;
+
+	SSHD_CONFIG_ENTRIES
+
+#undef init_hostkeyfile
+#undef init_ipqos
+#undef init_listenaddress
+#undef init_logfacility
+#undef init_loglevel
+#undef init_port
+#undef init_gatewayports
+#undef init_streamlocalbindmask
+#undef init_streamlocalbindunlink
+#undef init_maxstartups
+#undef init_permituserenv
+#undef init_persourcenetblocksize
+#undef init_persourcepenalties
+#undef init_rekeylimit
+#undef init_subsystem
+#undef init_timingsecret
+#undef SSHCONF_INT
+#undef SSHCONF_INTFLAG
+#undef SSHCONF_STRING
+#undef SSHCONF_STRARRAY
+#undef SSHCONF_CUSTOM
+#undef SSHCONF_NONCONF
+#undef SSHCONF_DEPRECATE
+#undef SSHCONF_UNSUPPORTED_INT
+#undef SSHCONF_UNSUPPORTED_STRING
+#undef SSHCONF_ALIAS
 }
 
 /* Returns 1 if a string option is unset or set to "none" or 0 otherwise. */
@@ -274,8 +250,10 @@ servconf_add_hostkey(const char *file, const int line,
 {
 	char *apath = derelativise_path(path);
 
-	if (file == defaultkey && access(path, R_OK) != 0)
+	if (file == defaultkey && access(apath, R_OK) != 0) {
+		free(apath);
 		return;
+	}
 	opt_array_append2(file, line, "HostKey",
 	    &options->host_key_files, &options->host_key_file_userprovided,
 	    &options->num_host_key_files, apath, userprovided);
@@ -298,15 +276,47 @@ fill_default_server_options(ServerOptions *options)
 {
 	u_int i;
 
-	/* Portable-specific options */
-	if (options->use_pam == -1)
-		options->use_pam = 1;
+#define SSHCONF_INT(var, conf, flags, ms, def, cp) \
+	if (options->var == -1) \
+		options->var = def;
+#define SSHCONF_INTFLAG(var, conf, flags, def, cp) \
+	if (options->var == -1) \
+		options->var = def;
+#define SSHCONF_STRING(var, conf, flags, cp)		/* done manually */
+#define SSHCONF_STRARRAY(var, nvar, conf, flags, cp)	/* done manually */
+#define SSHCONF_CUSTOM(conf, funcsuffix, flags, cp)	/* done manually */
+#define SSHCONF_NONCONF(funcsuffix)			/* done manually */
+#define SSHCONF_DEPRECATE(conf, flags, opcode)		/* empty */
+#define SSHCONF_UNSUPPORTED_INT(var, conf, flags)	options->var = 0;
+#define SSHCONF_UNSUPPORTED_STRING(var, conf, flags) \
+	do { \
+		free(options->var); \
+		options->var = NULL; \
+	} while (0);
+#define SSHCONF_ALIAS(old, conf, flags)			/* empty */
+
+	/* XXX maybe use macros here too to force consistency? */
+
+	SSHD_CONFIG_ENTRIES
+
+#undef SSHCONF_INT
+#undef SSHCONF_INTFLAG
+#undef SSHCONF_STRING
+#undef SSHCONF_STRARRAY
+#undef SSHCONF_CUSTOM
+#undef SSHCONF_NONCONF
+#undef SSHCONF_DEPRECATE
+#undef SSHCONF_UNSUPPORTED_INT
+#undef SSHCONF_UNSUPPORTED_STRING
+#undef SSHCONF_ALIAS
+
+#ifdef USE_PAM
 	if (options->pam_service_name == NULL)
 		options->pam_service_name = xstrdup(SSHD_PAM_SERVICE);
+#endif
 
-	/* Standard Options */
 	if (options->num_host_key_files == 0) {
-		/* fill default hostkeys for protocols */
+		/* fill default hostkeys */
 		servconf_add_hostkey(defaultkey, 0, options,
 		    _PATH_HOST_RSA_KEY_FILE, 0);
 #ifdef OPENSSL_HAS_ECC
@@ -315,103 +325,34 @@ fill_default_server_options(ServerOptions *options)
 #endif
 		servconf_add_hostkey(defaultkey, 0, options,
 		    _PATH_HOST_ED25519_KEY_FILE, 0);
+		servconf_add_hostkey("[default]", 0, options,
+		    _PATH_HOST_MLDSA44_ED25519_KEY_FILE, 0);
 	}
 	if (options->num_host_key_files == 0)
 		fatal("No host key files found");
 	/* No certificates by default */
 	if (options->num_ports == 0)
 		options->ports[options->num_ports++] = SSH_DEFAULT_PORT;
-	if (options->address_family == -1)
-		options->address_family = AF_UNSPEC;
 	if (options->listen_addrs == NULL)
 		add_listen_addr(options, NULL, NULL, 0);
 	if (options->pid_file == NULL)
 		options->pid_file = xstrdup(_PATH_SSH_DAEMON_PID_FILE);
 	if (options->moduli_file == NULL)
 		options->moduli_file = xstrdup(_PATH_DH_MODULI);
-	if (options->login_grace_time == -1)
-		options->login_grace_time = 120;
-	if (options->permit_root_login == PERMIT_NOT_SET)
-		options->permit_root_login = PERMIT_NO;
-	if (options->ignore_rhosts == -1)
-		options->ignore_rhosts = 1;
-	if (options->ignore_user_known_hosts == -1)
-		options->ignore_user_known_hosts = 0;
-	if (options->print_motd == -1)
-		options->print_motd = 1;
-	if (options->print_lastlog == -1)
-		options->print_lastlog = 1;
-	if (options->x11_forwarding == -1)
-		options->x11_forwarding = 0;
-	if (options->x11_display_offset == -1)
-		options->x11_display_offset = 10;
-	if (options->x11_use_localhost == -1)
-		options->x11_use_localhost = 1;
 	if (options->xauth_location == NULL)
 		options->xauth_location = xstrdup(_PATH_XAUTH);
-	if (options->permit_tty == -1)
-		options->permit_tty = 1;
-	if (options->permit_user_rc == -1)
-		options->permit_user_rc = 1;
-	if (options->strict_modes == -1)
-		options->strict_modes = 1;
-	if (options->tcp_keep_alive == -1)
-		options->tcp_keep_alive = 1;
 	if (options->log_facility == SYSLOG_FACILITY_NOT_SET)
 		options->log_facility = SYSLOG_FACILITY_AUTH;
 	if (options->log_level == SYSLOG_LEVEL_NOT_SET)
 		options->log_level = SYSLOG_LEVEL_INFO;
-	if (options->hostbased_authentication == -1)
-		options->hostbased_authentication = 0;
-	if (options->hostbased_uses_name_from_packet_only == -1)
-		options->hostbased_uses_name_from_packet_only = 0;
-	if (options->pubkey_authentication == -1)
-		options->pubkey_authentication = 1;
-	if (options->pubkey_auth_options == -1)
-		options->pubkey_auth_options = 0;
-	if (options->kerberos_authentication == -1)
-		options->kerberos_authentication = 0;
-	if (options->kerberos_or_local_passwd == -1)
-		options->kerberos_or_local_passwd = 1;
-	if (options->kerberos_ticket_cleanup == -1)
-		options->kerberos_ticket_cleanup = 1;
-	if (options->kerberos_get_afs_token == -1)
-		options->kerberos_get_afs_token = 0;
-	if (options->gss_authentication == -1)
-		options->gss_authentication = 0;
-	if (options->gss_cleanup_creds == -1)
-		options->gss_cleanup_creds = 1;
-	if (options->gss_deleg_creds == -1)
-		options->gss_deleg_creds = 1;
-	if (options->gss_strict_acceptor == -1)
-		options->gss_strict_acceptor = 1;
-	if (options->password_authentication == -1)
-		options->password_authentication = 0;
-	if (options->kbd_interactive_authentication == -1)
-		options->kbd_interactive_authentication = 1;
-	if (options->permit_empty_passwd == -1)
-		options->permit_empty_passwd = 0;
 	if (options->permit_user_env == -1) {
 		options->permit_user_env = 0;
 		options->permit_user_env_allowlist = NULL;
 	}
-	if (options->compression == -1)
-#ifdef WITH_ZLIB
-		options->compression = COMP_DELAYED;
-#else
-		options->compression = COMP_NONE;
-#endif
-
 	if (options->rekey_limit == -1)
 		options->rekey_limit = 0;
 	if (options->rekey_interval == -1)
 		options->rekey_interval = 0;
-	if (options->allow_tcp_forwarding == -1)
-		options->allow_tcp_forwarding = FORWARD_ALLOW;
-	if (options->allow_streamlocal_forwarding == -1)
-		options->allow_streamlocal_forwarding = FORWARD_ALLOW;
-	if (options->allow_agent_forwarding == -1)
-		options->allow_agent_forwarding = 1;
 	if (options->fwd_opts.gateway_ports == -1)
 		options->fwd_opts.gateway_ports = 0;
 	if (options->max_startups == -1)
@@ -420,8 +361,6 @@ fill_default_server_options(ServerOptions *options)
 		options->max_startups_rate = 30;		/* 30% */
 	if (options->max_startups_begin == -1)
 		options->max_startups_begin = 10;
-	if (options->per_source_max_startups == -1)
-		options->per_source_max_startups = INT_MAX;
 	if (options->per_source_masklen_ipv4 == -1)
 		options->per_source_masklen_ipv4 = 32;
 	if (options->per_source_masklen_ipv6 == -1)
@@ -452,16 +391,6 @@ fill_default_server_options(ServerOptions *options)
 		options->per_source_penalty.penalty_min = 15.0;
 	if (options->per_source_penalty.penalty_max < 0.0)
 		options->per_source_penalty.penalty_max = 600.0;
-	if (options->max_authtries == -1)
-		options->max_authtries = DEFAULT_AUTH_FAIL_MAX;
-	if (options->max_sessions == -1)
-		options->max_sessions = DEFAULT_SESSIONS_MAX;
-	if (options->use_dns == -1)
-		options->use_dns = 1;
-	if (options->client_alive_interval == -1)
-		options->client_alive_interval = 0;
-	if (options->client_alive_count_max == -1)
-		options->client_alive_count_max = 3;
 	if (options->num_authkeys_files == 0) {
 		opt_array_append(defaultkey, 0, "AuthorizedKeysFiles",
 		    &options->authorized_keys_files,
@@ -472,8 +401,6 @@ fill_default_server_options(ServerOptions *options)
 		    &options->num_authkeys_files,
 		    _PATH_SSH_USER_PERMITTED_KEYS2);
 	}
-	if (options->permit_tun == -1)
-		options->permit_tun = SSH_TUNMODE_NO;
 	if (options->ip_qos_interactive == -1)
 		options->ip_qos_interactive = IPTOS_DSCP_EF;
 	if (options->ip_qos_bulk == -1)
@@ -484,26 +411,12 @@ fill_default_server_options(ServerOptions *options)
 		options->fwd_opts.streamlocal_bind_mask = 0177;
 	if (options->fwd_opts.streamlocal_bind_unlink == -1)
 		options->fwd_opts.streamlocal_bind_unlink = 0;
-	if (options->fingerprint_hash == -1)
-		options->fingerprint_hash = SSH_FP_HASH_DEFAULT;
-	if (options->disable_forwarding == -1)
-		options->disable_forwarding = 0;
-	if (options->expose_userauth_info == -1)
-		options->expose_userauth_info = 0;
 	if (options->sk_provider == NULL)
 		options->sk_provider = xstrdup("internal");
-	if (options->required_rsa_size == -1)
-		options->required_rsa_size = SSH_RSA_MINIMUM_MODULUS_SIZE;
-	if (options->unused_connection_timeout == -1)
-		options->unused_connection_timeout = 0;
 	if (options->sshd_session_path == NULL)
 		options->sshd_session_path = xstrdup(_PATH_SSHD_SESSION);
 	if (options->sshd_auth_path == NULL)
 		options->sshd_auth_path = xstrdup(_PATH_SSHD_AUTH);
-	if (options->refuse_connection == -1)
-		options->refuse_connection = 0;
-	if (options->use_blocklist == -1)
-		options->use_blocklist = 0;
 
 	assemble_algorithms(options);
 
@@ -549,48 +462,35 @@ fill_default_server_options(ServerOptions *options)
 #undef CLEAR_ON_NONE_ARRAY
 }
 
+/* Macros to declare ServerOpCodes enum values */
+#define SSHCONF_INT(var, conf, flags, ms, def, cp)	s##conf,
+#define SSHCONF_INTFLAG(var, conf, flags, def, cp)	s##conf,
+#define SSHCONF_STRING(var, conf, flags, cp)		s##conf,
+#define SSHCONF_STRARRAY(var, nvar, conf, flags, cp)	s##conf,
+#define SSHCONF_CUSTOM(conf, funcsuffix, flags, cp)	s##conf,
+#define SSHCONF_NONCONF(funcsuffix)			/* empty */
+#define SSHCONF_DEPRECATE(conf, flags, opcode)		/* empty */
+#define SSHCONF_UNSUPPORTED_INT(var, conf, flags)	/* empty */
+#define SSHCONF_UNSUPPORTED_STRING(var, conf, flags)	/* empty */
+#define SSHCONF_ALIAS(old, conf, flags)			/* empty */
+
 /* Keyword tokens. */
 typedef enum {
 	sBadOption,		/* == unknown option */
-	/* Portable-specific options */
-	sUsePAM, sPAMServiceName,
-	/* Standard Options */
-	sPort, sHostKeyFile, sLoginGraceTime,
-	sPermitRootLogin, sLogFacility, sLogLevel, sLogVerbose,
-	sKerberosAuthentication, sKerberosOrLocalPasswd, sKerberosTicketCleanup,
-	sKerberosGetAFSToken, sPasswordAuthentication,
-	sKbdInteractiveAuthentication, sListenAddress, sAddressFamily,
-	sPrintMotd, sPrintLastLog, sIgnoreRhosts,
-	sX11Forwarding, sX11DisplayOffset, sX11UseLocalhost,
-	sPermitTTY, sStrictModes, sEmptyPasswd, sTCPKeepAlive,
-	sPermitUserEnvironment, sAllowTcpForwarding, sCompression,
-	sRekeyLimit, sAllowUsers, sDenyUsers, sAllowGroups, sDenyGroups,
-	sIgnoreUserKnownHosts, sCiphers, sMacs, sPidFile, sModuliFile,
-	sGatewayPorts, sPubkeyAuthentication, sPubkeyAcceptedAlgorithms,
-	sXAuthLocation, sSubsystem, sMaxStartups, sMaxAuthTries, sMaxSessions,
-	sBanner, sUseDNS, sHostbasedAuthentication,
-	sHostbasedUsesNameFromPacketOnly, sHostbasedAcceptedAlgorithms,
-	sHostKeyAlgorithms, sPerSourceMaxStartups, sPerSourceNetBlockSize,
-	sPerSourcePenalties, sPerSourcePenaltyExemptList,
-	sClientAliveInterval, sClientAliveCountMax, sAuthorizedKeysFile,
-	sGssAuthentication, sGssCleanupCreds, sGssDelegateCreds, sGssStrictAcceptor,
-	sAcceptEnv, sSetEnv, sPermitTunnel,
-	sMatch, sPermitOpen, sPermitListen, sForceCommand, sChrootDirectory,
-	sUsePrivilegeSeparation, sAllowAgentForwarding,
-	sHostCertificate, sInclude,
-	sRevokedKeys, sTrustedUserCAKeys, sAuthorizedPrincipalsFile,
-	sAuthorizedPrincipalsCommand, sAuthorizedPrincipalsCommandUser,
-	sKexAlgorithms, sCASignatureAlgorithms, sIPQoS, sVersionAddendum,
-	sAuthorizedKeysCommand, sAuthorizedKeysCommandUser,
-	sAuthenticationMethods, sHostKeyAgent, sPermitUserRC,
-	sStreamLocalBindMask, sStreamLocalBindUnlink,
-	sAllowStreamLocalForwarding, sFingerprintHash, sDisableForwarding,
-	sExposeAuthInfo, sRDomain, sPubkeyAuthOptions, sSecurityKeyProvider,
-	sRequiredRSASize, sChannelTimeout, sUnusedConnectionTimeout,
-	sSshdSessionPath, sSshdAuthPath, sRefuseConnection,
-	sUseBlocklist,
+	SSHD_CONFIG_ENTRIES
+	sMatch, sInclude,
 	sDeprecated, sIgnore, sUnsupported
 } ServerOpCodes;
+#undef SSHCONF_INT
+#undef SSHCONF_INTFLAG
+#undef SSHCONF_STRING
+#undef SSHCONF_STRARRAY
+#undef SSHCONF_CUSTOM
+#undef SSHCONF_NONCONF
+#undef SSHCONF_DEPRECATE
+#undef SSHCONF_UNSUPPORTED_INT
+#undef SSHCONF_UNSUPPORTED_STRING
+#undef SSHCONF_ALIAS
 
 #define SSHCFG_GLOBAL		0x01	/* allowed in main section of config */
 #define SSHCFG_MATCH		0x02	/* allowed inside a Match section */
@@ -598,173 +498,48 @@ typedef enum {
 #define SSHCFG_NEVERMATCH	0x04  /* Match never matches; internal only */
 #define SSHCFG_MATCH_ONLY	0x08  /* Match only in conditional blocks; internal only */
 
+/* Macros to define keywords[] entries */
+#define SSHCONF_KW(conf, flags)		{ #conf, s##conf, flags },
+#define SSHCONF_INT(var, conf, flags, ms, def, cp)	SSHCONF_KW(conf, flags)
+#define SSHCONF_INTFLAG(var, conf, flags, def, cp)	SSHCONF_KW(conf, flags)
+#define SSHCONF_STRING(var, conf, flags, cp)		SSHCONF_KW(conf, flags)
+#define SSHCONF_STRARRAY(var, nvar, conf, flags, cp)	SSHCONF_KW(conf, flags)
+#define SSHCONF_CUSTOM(conf, funcsuffix, flags, cp)	SSHCONF_KW(conf, flags)
+#define SSHCONF_NONCONF(funcsuffix)			/* empty */
+#define SSHCONF_DEPRECATED				sDeprecated
+#define SSHCONF_IGNORE					sIgnore
+#define SSHCONF_DEPRECATE(conf, flags, opcode) \
+	{ #conf, opcode, flags },
+#define SSHCONF_UNSUPPORTED_INT(var, conf, flags) \
+	{ #conf, sUnsupported, flags },
+#define SSHCONF_UNSUPPORTED_STRING(var, conf, flags) \
+	{ #conf, sUnsupported, flags },
+#define SSHCONF_ALIAS(old, conf, flags) \
+	{ #old, s##conf, flags },
+
 /* Textual representation of the tokens. */
 static struct {
 	const char *name;
 	ServerOpCodes opcode;
 	u_int flags;
 } keywords[] = {
-	/* Portable-specific options */
-#ifdef USE_PAM
-	{ "usepam", sUsePAM, SSHCFG_GLOBAL },
-	{ "pamservicename", sPAMServiceName, SSHCFG_ALL },
-#else
-	{ "usepam", sUnsupported, SSHCFG_GLOBAL },
-	{ "pamservicename", sUnsupported, SSHCFG_ALL },
-#endif
-	{ "pamauthenticationviakbdint", sDeprecated, SSHCFG_GLOBAL },
-	/* Standard Options */
-	{ "port", sPort, SSHCFG_GLOBAL },
-	{ "hostkey", sHostKeyFile, SSHCFG_GLOBAL },
-	{ "hostdsakey", sHostKeyFile, SSHCFG_GLOBAL },		/* alias */
-	{ "hostkeyagent", sHostKeyAgent, SSHCFG_GLOBAL },
-	{ "pidfile", sPidFile, SSHCFG_GLOBAL },
-	{ "modulifile", sModuliFile, SSHCFG_GLOBAL },
-	{ "serverkeybits", sDeprecated, SSHCFG_GLOBAL },
-	{ "logingracetime", sLoginGraceTime, SSHCFG_GLOBAL },
-	{ "keyregenerationinterval", sDeprecated, SSHCFG_GLOBAL },
-	{ "permitrootlogin", sPermitRootLogin, SSHCFG_ALL },
-	{ "syslogfacility", sLogFacility, SSHCFG_GLOBAL },
-	{ "loglevel", sLogLevel, SSHCFG_ALL },
-	{ "logverbose", sLogVerbose, SSHCFG_ALL },
-	{ "rhostsauthentication", sDeprecated, SSHCFG_GLOBAL },
-	{ "rhostsrsaauthentication", sDeprecated, SSHCFG_ALL },
-	{ "hostbasedauthentication", sHostbasedAuthentication, SSHCFG_ALL },
-	{ "hostbasedusesnamefrompacketonly", sHostbasedUsesNameFromPacketOnly, SSHCFG_ALL },
-	{ "hostbasedacceptedalgorithms", sHostbasedAcceptedAlgorithms, SSHCFG_ALL },
-	{ "hostbasedacceptedkeytypes", sHostbasedAcceptedAlgorithms, SSHCFG_ALL }, /* obsolete */
-	{ "hostkeyalgorithms", sHostKeyAlgorithms, SSHCFG_GLOBAL },
-	{ "rsaauthentication", sDeprecated, SSHCFG_ALL },
-	{ "pubkeyauthentication", sPubkeyAuthentication, SSHCFG_ALL },
-	{ "pubkeyacceptedalgorithms", sPubkeyAcceptedAlgorithms, SSHCFG_ALL },
-	{ "pubkeyacceptedkeytypes", sPubkeyAcceptedAlgorithms, SSHCFG_ALL }, /* obsolete */
-	{ "pubkeyauthoptions", sPubkeyAuthOptions, SSHCFG_ALL },
-	{ "dsaauthentication", sPubkeyAuthentication, SSHCFG_GLOBAL }, /* alias */
-#ifdef KRB5
-	{ "kerberosauthentication", sKerberosAuthentication, SSHCFG_ALL },
-	{ "kerberosorlocalpasswd", sKerberosOrLocalPasswd, SSHCFG_GLOBAL },
-	{ "kerberosticketcleanup", sKerberosTicketCleanup, SSHCFG_GLOBAL },
-#ifdef USE_AFS
-	{ "kerberosgetafstoken", sKerberosGetAFSToken, SSHCFG_GLOBAL },
-#else
-	{ "kerberosgetafstoken", sUnsupported, SSHCFG_GLOBAL },
-#endif
-#else
-	{ "kerberosauthentication", sUnsupported, SSHCFG_ALL },
-	{ "kerberosorlocalpasswd", sUnsupported, SSHCFG_GLOBAL },
-	{ "kerberosticketcleanup", sUnsupported, SSHCFG_GLOBAL },
-	{ "kerberosgetafstoken", sUnsupported, SSHCFG_GLOBAL },
-#endif
-	{ "kerberostgtpassing", sUnsupported, SSHCFG_GLOBAL },
-	{ "afstokenpassing", sUnsupported, SSHCFG_GLOBAL },
-#ifdef GSSAPI
-	{ "gssapiauthentication", sGssAuthentication, SSHCFG_ALL },
-	{ "gssapicleanupcredentials", sGssCleanupCreds, SSHCFG_GLOBAL },
-	{ "gssapidelegatecredentials", sGssDelegateCreds, SSHCFG_GLOBAL },
-	{ "gssapistrictacceptorcheck", sGssStrictAcceptor, SSHCFG_GLOBAL },
-#else
-	{ "gssapiauthentication", sUnsupported, SSHCFG_ALL },
-	{ "gssapicleanupcredentials", sUnsupported, SSHCFG_GLOBAL },
-	{ "gssapidelegatecredentials", sUnsupported, SSHCFG_GLOBAL },
-	{ "gssapistrictacceptorcheck", sUnsupported, SSHCFG_GLOBAL },
-#endif
-	{ "passwordauthentication", sPasswordAuthentication, SSHCFG_ALL },
-	{ "kbdinteractiveauthentication", sKbdInteractiveAuthentication, SSHCFG_ALL },
-	{ "challengeresponseauthentication", sKbdInteractiveAuthentication, SSHCFG_ALL }, /* alias */
-	{ "skeyauthentication", sKbdInteractiveAuthentication, SSHCFG_ALL }, /* alias */
-	{ "checkmail", sDeprecated, SSHCFG_GLOBAL },
-	{ "listenaddress", sListenAddress, SSHCFG_GLOBAL },
-	{ "addressfamily", sAddressFamily, SSHCFG_GLOBAL },
-	{ "printmotd", sPrintMotd, SSHCFG_GLOBAL },
-#ifdef DISABLE_LASTLOG
-	{ "printlastlog", sUnsupported, SSHCFG_GLOBAL },
-#else
-	{ "printlastlog", sPrintLastLog, SSHCFG_GLOBAL },
-#endif
-	{ "ignorerhosts", sIgnoreRhosts, SSHCFG_ALL },
-	{ "ignoreuserknownhosts", sIgnoreUserKnownHosts, SSHCFG_GLOBAL },
-	{ "x11forwarding", sX11Forwarding, SSHCFG_ALL },
-	{ "x11displayoffset", sX11DisplayOffset, SSHCFG_ALL },
-	{ "x11uselocalhost", sX11UseLocalhost, SSHCFG_ALL },
-	{ "xauthlocation", sXAuthLocation, SSHCFG_GLOBAL },
-	{ "strictmodes", sStrictModes, SSHCFG_GLOBAL },
-	{ "permitemptypasswords", sEmptyPasswd, SSHCFG_ALL },
-	{ "permituserenvironment", sPermitUserEnvironment, SSHCFG_GLOBAL },
-	{ "uselogin", sDeprecated, SSHCFG_GLOBAL },
-	{ "compression", sCompression, SSHCFG_GLOBAL },
-	{ "rekeylimit", sRekeyLimit, SSHCFG_ALL },
-	{ "tcpkeepalive", sTCPKeepAlive, SSHCFG_GLOBAL },
-	{ "keepalive", sTCPKeepAlive, SSHCFG_GLOBAL },	/* obsolete alias */
-	{ "allowtcpforwarding", sAllowTcpForwarding, SSHCFG_ALL },
-	{ "allowagentforwarding", sAllowAgentForwarding, SSHCFG_ALL },
-	{ "allowusers", sAllowUsers, SSHCFG_ALL },
-	{ "denyusers", sDenyUsers, SSHCFG_ALL },
-	{ "allowgroups", sAllowGroups, SSHCFG_ALL },
-	{ "denygroups", sDenyGroups, SSHCFG_ALL },
-	{ "ciphers", sCiphers, SSHCFG_GLOBAL },
-	{ "macs", sMacs, SSHCFG_GLOBAL },
-	{ "protocol", sIgnore, SSHCFG_GLOBAL },
-	{ "gatewayports", sGatewayPorts, SSHCFG_ALL },
-	{ "subsystem", sSubsystem, SSHCFG_ALL },
-	{ "maxstartups", sMaxStartups, SSHCFG_GLOBAL },
-	{ "persourcemaxstartups", sPerSourceMaxStartups, SSHCFG_GLOBAL },
-	{ "persourcenetblocksize", sPerSourceNetBlockSize, SSHCFG_GLOBAL },
-	{ "persourcepenalties", sPerSourcePenalties, SSHCFG_GLOBAL },
-	{ "persourcepenaltyexemptlist", sPerSourcePenaltyExemptList, SSHCFG_GLOBAL },
-	{ "maxauthtries", sMaxAuthTries, SSHCFG_ALL },
-	{ "maxsessions", sMaxSessions, SSHCFG_ALL },
-	{ "banner", sBanner, SSHCFG_ALL },
-	{ "usedns", sUseDNS, SSHCFG_GLOBAL },
-	{ "verifyreversemapping", sDeprecated, SSHCFG_GLOBAL },
-	{ "reversemappingcheck", sDeprecated, SSHCFG_GLOBAL },
-	{ "clientaliveinterval", sClientAliveInterval, SSHCFG_ALL },
-	{ "clientalivecountmax", sClientAliveCountMax, SSHCFG_ALL },
-	{ "authorizedkeysfile", sAuthorizedKeysFile, SSHCFG_ALL },
-	{ "authorizedkeysfile2", sDeprecated, SSHCFG_ALL },
-	{ "useprivilegeseparation", sDeprecated, SSHCFG_GLOBAL},
-	{ "acceptenv", sAcceptEnv, SSHCFG_ALL },
-	{ "setenv", sSetEnv, SSHCFG_ALL },
-	{ "permittunnel", sPermitTunnel, SSHCFG_ALL },
-	{ "permittty", sPermitTTY, SSHCFG_ALL },
-	{ "permituserrc", sPermitUserRC, SSHCFG_ALL },
+	SSHD_CONFIG_ENTRIES
 	{ "match", sMatch, SSHCFG_ALL },
-	{ "permitopen", sPermitOpen, SSHCFG_ALL },
-	{ "permitlisten", sPermitListen, SSHCFG_ALL },
-	{ "forcecommand", sForceCommand, SSHCFG_ALL },
-	{ "chrootdirectory", sChrootDirectory, SSHCFG_ALL },
-	{ "hostcertificate", sHostCertificate, SSHCFG_GLOBAL },
-	{ "revokedkeys", sRevokedKeys, SSHCFG_ALL },
-	{ "trustedusercakeys", sTrustedUserCAKeys, SSHCFG_ALL },
-	{ "authorizedprincipalsfile", sAuthorizedPrincipalsFile, SSHCFG_ALL },
-	{ "kexalgorithms", sKexAlgorithms, SSHCFG_GLOBAL },
 	{ "include", sInclude, SSHCFG_ALL },
-	{ "ipqos", sIPQoS, SSHCFG_ALL },
-	{ "authorizedkeyscommand", sAuthorizedKeysCommand, SSHCFG_ALL },
-	{ "authorizedkeyscommanduser", sAuthorizedKeysCommandUser, SSHCFG_ALL },
-	{ "authorizedprincipalscommand", sAuthorizedPrincipalsCommand, SSHCFG_ALL },
-	{ "authorizedprincipalscommanduser", sAuthorizedPrincipalsCommandUser, SSHCFG_ALL },
-	{ "versionaddendum", sVersionAddendum, SSHCFG_GLOBAL },
-	{ "authenticationmethods", sAuthenticationMethods, SSHCFG_ALL },
-	{ "streamlocalbindmask", sStreamLocalBindMask, SSHCFG_ALL },
-	{ "streamlocalbindunlink", sStreamLocalBindUnlink, SSHCFG_ALL },
-	{ "allowstreamlocalforwarding", sAllowStreamLocalForwarding, SSHCFG_ALL },
-	{ "fingerprinthash", sFingerprintHash, SSHCFG_GLOBAL },
-	{ "disableforwarding", sDisableForwarding, SSHCFG_ALL },
-	{ "exposeauthinfo", sExposeAuthInfo, SSHCFG_ALL },
-	{ "rdomain", sRDomain, SSHCFG_ALL },
-	{ "casignaturealgorithms", sCASignatureAlgorithms, SSHCFG_ALL },
-	{ "securitykeyprovider", sSecurityKeyProvider, SSHCFG_GLOBAL },
-	{ "requiredrsasize", sRequiredRSASize, SSHCFG_ALL },
-	{ "channeltimeout", sChannelTimeout, SSHCFG_ALL },
-	{ "unusedconnectiontimeout", sUnusedConnectionTimeout, SSHCFG_ALL },
-	{ "sshdsessionpath", sSshdSessionPath, SSHCFG_GLOBAL },
-	{ "sshdauthpath", sSshdAuthPath, SSHCFG_GLOBAL },
-	{ "refuseconnection", sRefuseConnection, SSHCFG_ALL },
-	{ "useblocklist", sUseBlocklist, SSHCFG_GLOBAL },
-	{ "useblacklist", sUseBlocklist, SSHCFG_GLOBAL }, /* alias */
-
 	{ NULL, sBadOption, 0 }
 };
+#undef SSHCONF_INT
+#undef SSHCONF_INTFLAG
+#undef SSHCONF_STRING
+#undef SSHCONF_STRARRAY
+#undef SSHCONF_CUSTOM
+#undef SSHCONF_NONCONF
+#undef SSHCONF_DEPRECATED
+#undef SSHCONF_IGNORE
+#undef SSHCONF_DEPRECATE
+#undef SSHCONF_UNSUPPORTED_INT
+#undef SSHCONF_UNSUPPORTED_STRING
+#undef SSHCONF_ALIAS
 
 static struct {
 	int val;
@@ -1057,12 +832,13 @@ match_cfg_line(const char *full_line, int *acp, char ***avp,
 		    full_line, line);
 	} else {
 		debug3("checking match for '%s' user %s%s host %s addr %s "
-		    "laddr %s lport %d on line %d", full_line,
+		    "laddr %s lport %d rdomain %s on line %d", full_line,
 		    ci->user ? ci->user : "(null)",
 		    ci->user_invalid ? " (invalid)" : "",
 		    ci->host ? ci->host : "(null)",
 		    ci->address ? ci->address : "(null)",
-		    ci->laddress ? ci->laddress : "(null)", ci->lport, line);
+		    ci->laddress ? ci->laddress : "(null)", ci->lport,
+		    ci->rdomain ? ci->rdomain : "(null)", line);
 	}
 
 	while ((oattrib = argv_next(acp, avp)) != NULL) {
@@ -1402,6 +1178,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 
 	switch (opcode) {
 	/* Portable-specific options */
+#ifdef USE_PAM
 	case sUsePAM:
 		intptr = &options->use_pam;
 		goto parse_flag;
@@ -1415,6 +1192,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		if (*activep && *charptr == NULL)
 			*charptr = xstrdup(arg);
 		break;
+#endif
 
 	/* Standard Options */
 	case sBadOption:
@@ -1512,7 +1290,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 			*intptr = value;
 		break;
 
-	case sHostKeyFile:
+	case sHostKey:
 		arg = argv_next(&ac, &av);
 		if (!arg || *arg == '\0')
 			fatal("%s line %d: missing file name.",
@@ -1643,6 +1421,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 			*intptr = value;
 		break;
 
+#ifdef KRB5
 	case sKerberosAuthentication:
 		intptr = &options->kerberos_authentication;
 		goto parse_flag;
@@ -1654,26 +1433,30 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 	case sKerberosTicketCleanup:
 		intptr = &options->kerberos_ticket_cleanup;
 		goto parse_flag;
-
+#ifdef USE_AFS
 	case sKerberosGetAFSToken:
 		intptr = &options->kerberos_get_afs_token;
 		goto parse_flag;
+#endif /* USE_AFS */
+#endif /* KRB5 */
 
-	case sGssAuthentication:
+#ifdef GSSAPI
+	case sGSSAPIAuthentication:
 		intptr = &options->gss_authentication;
 		goto parse_flag;
 
-	case sGssCleanupCreds:
+	case sGSSAPICleanupCredentials:
 		intptr = &options->gss_cleanup_creds;
 		goto parse_flag;
 
-	case sGssDelegateCreds:
+	case sGSSAPIDelegateCredentials:
 		intptr = &options->gss_deleg_creds;
 		goto parse_flag;
 
-	case sGssStrictAcceptor:
+	case sGSSAPIStrictAcceptorCheck:
 		intptr = &options->gss_strict_acceptor;
 		goto parse_flag;
+#endif /* GSSAPI */
 
 	case sPasswordAuthentication:
 		intptr = &options->password_authentication;
@@ -1687,9 +1470,11 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		intptr = &options->print_motd;
 		goto parse_flag;
 
+#ifndef DISABLE_LASTLOG
 	case sPrintLastLog:
 		intptr = &options->print_lastlog;
 		goto parse_flag;
+#endif
 
 	case sX11Forwarding:
 		intptr = &options->x11_forwarding;
@@ -1730,7 +1515,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		intptr = &options->tcp_keep_alive;
 		goto parse_flag;
 
-	case sEmptyPasswd:
+	case sPermitEmptyPasswords:
 		intptr = &options->permit_empty_passwd;
 		goto parse_flag;
 
@@ -1802,7 +1587,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 		intptr = &options->use_dns;
 		goto parse_flag;
 
-	case sLogFacility:
+	case sSyslogFacility:
 		log_facility_ptr = &options->log_facility;
 		arg = argv_next(&ac, &av);
 		value = log_facility_number(arg);
@@ -2389,7 +2174,7 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 				debug2("%s line %d: no match for %s",
 				    filename, linenum, arg);
 				item = xcalloc(1, sizeof(*item));
-				item->selector = strdup(arg);
+				item->selector = xstrdup(arg);
 				TAILQ_INSERT_TAIL(includes,
 				    item, entry);
 			}
@@ -2399,8 +2184,8 @@ process_server_config_line_depth(ServerOptions *options, char *line,
 				debug2("%s line %d: including %s",
 				    filename, linenum, gbuf.gl_pathv[n]);
 				item = xcalloc(1, sizeof(*item));
-				item->selector = strdup(arg);
-				item->filename = strdup(gbuf.gl_pathv[n]);
+				item->selector = xstrdup(arg);
+				item->filename = xstrdup(gbuf.gl_pathv[n]);
 				if ((item->contents = sshbuf_new()) == NULL)
 					fatal_f("sshbuf_new failed");
 				load_server_config(item->filename,
@@ -2871,6 +2656,7 @@ parse_server_match_config(ServerOptions *options,
 	parse_server_config(&mo, "reprocess config", cfg, includes,
 	    connectinfo, 0);
 	copy_set_server_options(options, &mo, 0);
+	free_server_options(&mo);
 }
 
 int
@@ -2949,92 +2735,1230 @@ servconf_merge_subsystems(ServerOptions *dst, ServerOptions *src)
 	}
 }
 
+static int
+serialise_s32(struct sshbuf *buf, int v)
+{
+	uint32_t uv;
+	int r;
+
+	uv = v < 0 ? (uint32_t)(-(v + 1)) + 1 : (uint32_t)v;
+	if ((r = sshbuf_put_u8(buf, v < 0)) != 0 ||
+	    (r = sshbuf_put_u32(buf, uv)) != 0)
+		return r;
+	return 0;
+}
+
+static int
+serialise_s64(struct sshbuf *buf, int64_t v)
+{
+	uint64_t uv;
+	int r;
+
+	uv = v < 0 ? (uint64_t)(-(v + 1)) + 1 : (uint64_t)v;
+	if ((r = sshbuf_put_u8(buf, v < 0)) != 0 ||
+	    (r = sshbuf_put_u64(buf, uv)) != 0)
+		return r;
+	return 0;
+}
+
+static int
+serialise_mode(struct sshbuf *buf, mode_t v)
+{
+	u_int uv;
+
+	if (v == (mode_t)-1)
+		return serialise_s32(buf, -1);
+	uv = (u_int)v;
+	if ((mode_t)uv != v || uv > 0777)
+		return SSH_ERR_INVALID_FORMAT;
+	return serialise_s32(buf, (int)uv);
+}
+
+static int
+serialise_double(struct sshbuf *buf, double v)
+{
+	/*
+	 * XXX this is no good for a wire encoding.
+	 * It's fine for passing configurations via RPC, but it would
+	 * be nicer to have an exact binary encoding here.
+	 */
+	return sshbuf_put(buf, &v, sizeof(v));
+}
+
+static int
+serialise_nullable_string(struct sshbuf *buf, const char *s)
+{
+	int r;
+
+	if ((r = sshbuf_put_u8(buf, s != NULL)) != 0)
+		return r;
+	if (s == NULL)
+		return 0;
+	return sshbuf_put_cstring(buf, s);
+}
+
+static int
+serialise_nullable_string_array(struct sshbuf *buf, char **a, u_int n)
+{
+	int r;
+	u_int i;
+
+	if ((r = sshbuf_put_u32(buf, n)) != 0)
+		return r;
+	for (i = 0; i < n; i++) {
+		if ((r = serialise_nullable_string(buf, a[i])) != 0)
+			return r;
+	}
+	return 0;
+}
+
+static int
+serialise_hostkeyfile(const ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+	u_int i;
+
+	if ((r = sshbuf_put_u32(buf, options->num_host_key_files)) != 0) {
+		error_fr(r, "serialise length");
+		return r;
+	}
+	for (i = 0; i < options->num_host_key_files; i++) {
+		if ((r = serialise_s32(buf,
+		    options->host_key_file_userprovided[i])) != 0 ||
+		    (r = serialise_nullable_string(buf,
+		    options->host_key_files[i])) != 0) {
+			error_fr(r, "serialise member");
+			return r;
+		}
+	}
+	return 0;
+}
+
+static int
+serialise_ipqos(const ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = serialise_s32(buf, options->ip_qos_interactive)) != 0 ||
+	    (r = serialise_s32(buf, options->ip_qos_bulk)) != 0) {
+		error_fr(r, "serialise");
+		return r;
+	}
+
+	return 0;
+}
+
+static int
+serialise_listenaddress(const ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+	u_int i;
+
+	/* Note: only serialises queued listen addresses */
+	if ((r = sshbuf_put_u32(buf, options->num_queued_listens)) != 0) {
+		error_fr(r, "serialise length");
+		return r;
+	}
+	for (i = 0; i < options->num_queued_listens; i++) {
+		const struct queued_listenaddr *qla =
+		    options->queued_listen_addrs + i;
+
+		if ((r = sshbuf_put_cstring(buf, qla->addr)) != 0 ||
+		    (r = serialise_s32(buf, qla->port)) != 0 ||
+		    (r = serialise_nullable_string(buf, qla->rdomain)) != 0) {
+			error_fr(r, "serialise member");
+			return r;
+		}
+	}
+	return 0;
+}
+
+static int
+serialise_logfacility(const ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = serialise_s32(buf, (int)options->log_facility)) != 0) {
+		error_fr(r, "serialise");
+		return r;
+	}
+
+	return 0;
+}
+
+static int
+serialise_loglevel(const ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = serialise_s32(buf, (int)options->log_level)) != 0) {
+		error_fr(r, "serialise");
+		return r;
+	}
+
+	return 0;
+}
+
+static int
+serialise_port(const ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+	u_int i;
+
+	if ((r = sshbuf_put_u32(buf, options->num_ports)) != 0) {
+		error_fr(r, "serialise length");
+		return r;
+	}
+	for (i = 0; i < options->num_ports; i++) {
+		if ((r = serialise_s32(buf, options->ports[i])) != 0) {
+			error_fr(r, "serialise port");
+			return r;
+		}
+	}
+	return 0;
+}
+
+static int
+serialise_gatewayports(const ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = serialise_s32(buf, options->fwd_opts.gateway_ports)) != 0) {
+		error_fr(r, "serialise");
+		return r;
+	}
+	return 0;
+}
+
+static int
+serialise_streamlocalbindmask(const ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = serialise_mode(buf,
+	    options->fwd_opts.streamlocal_bind_mask)) != 0) {
+		error_fr(r, "serialise");
+		return r;
+	}
+	return 0;
+}
+
+static int
+serialise_streamlocalbindunlink(const ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = sshbuf_put_u8(buf,
+	    (options->fwd_opts.streamlocal_bind_unlink != 0))) != 0) {
+		error_fr(r, "serialise");
+		return r;
+	}
+	return 0;
+}
+
+static int
+serialise_maxstartups(const ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = serialise_s32(buf, options->max_startups_begin)) != 0 ||
+	    (r = serialise_s32(buf, options->max_startups_rate)) != 0 ||
+	    (r = serialise_s32(buf, options->max_startups)) != 0) {
+		error_fr(r, "serialise");
+		return r;
+	}
+
+	return 0;
+}
+
+static int
+serialise_permituserenv(const ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = serialise_s32(buf, options->permit_user_env)) != 0 ||
+	    (r = serialise_nullable_string(buf,
+	    options->permit_user_env_allowlist)) != 0) {
+		error_fr(r, "serialise");
+		return r;
+	}
+
+	return 0;
+}
+
+static int
+serialise_persourcenetblocksize(const ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = serialise_s32(buf, options->per_source_masklen_ipv4)) != 0 ||
+	    (r = serialise_s32(buf, options->per_source_masklen_ipv6)) != 0) {
+		error_fr(r, "serialise");
+		return r;
+	}
+
+	return 0;
+}
+
+static int
+serialise_persourcepenalties(const ServerOptions *options, struct sshbuf *buf)
+{
+	const struct per_source_penalty *psp = &options->per_source_penalty;
+	int r;
+
+	if ((r = serialise_s32(buf, psp->enabled)) != 0 ||
+	    (r = serialise_s32(buf, psp->max_sources4)) != 0 ||
+	    (r = serialise_s32(buf, psp->max_sources6)) != 0 ||
+	    (r = serialise_s32(buf, psp->overflow_mode)) != 0 ||
+	    (r = serialise_s32(buf, psp->overflow_mode6)) != 0 ||
+	    (r = serialise_double(buf, psp->penalty_crash)) != 0 ||
+	    (r = serialise_double(buf, psp->penalty_grace)) != 0 ||
+	    (r = serialise_double(buf, psp->penalty_authfail)) != 0 ||
+	    (r = serialise_double(buf, psp->penalty_invaliduser)) != 0 ||
+	    (r = serialise_double(buf, psp->penalty_noauth)) != 0 ||
+	    (r = serialise_double(buf, psp->penalty_refuseconnection)) != 0 ||
+	    (r = serialise_double(buf, psp->penalty_max)) != 0 ||
+	    (r = serialise_double(buf, psp->penalty_min)) != 0) {
+		error_fr(r, "serialise");
+		return r;
+	}
+
+	return 0;
+}
+
+static int
+serialise_rekeylimit(const ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = serialise_s64(buf, options->rekey_limit)) != 0 ||
+	    (r = serialise_s32(buf, options->rekey_interval)) != 0) {
+		error_fr(r, "serialise");
+		return r;
+	}
+
+	return 0;
+}
+
+static int
+serialise_subsystem(const ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+	u_int i;
+
+	if ((r = sshbuf_put_u32(buf, options->num_subsystems)) != 0) {
+		error_fr(r, "serialise length");
+		return r;
+	}
+	for (i = 0; i < options->num_subsystems; i++) {
+		if ((r = sshbuf_put_cstring(buf,
+		    options->subsystem_name[i])) != 0 ||
+		    (r = sshbuf_put_cstring(buf,
+		    options->subsystem_command[i])) != 0 ||
+		    (r = sshbuf_put_cstring(buf,
+		    options->subsystem_args[i])) != 0) {
+			error_fr(r, "serialise member");
+			return r;
+		}
+	}
+	return 0;
+}
+
+static int
+serialise_timingsecret(const ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = sshbuf_put_u64(buf, options->timing_secret)) != 0) {
+		error_fr(r, "serialise");
+		return r;
+	}
+	return 0;
+}
+
+
+int
+serialise_server_options(const ServerOptions *options, struct sshbuf **bufp)
+{
+	struct sshbuf *buf = NULL;
+	int r = SSH_ERR_INTERNAL_ERROR;
+
+	*bufp = NULL;
+
+	if ((buf = sshbuf_new()) == NULL)
+		return SSH_ERR_ALLOC_FAIL;
+	if ((r = sshbuf_put_u32(buf, SSHD_CONFIG_BLOB_VERSION)) != 0) {
+		error_fr(r, "serialise version");
+		goto out;
+	}
+
+#define SSHCONF_INT(var, conf, flags, ms, def, cp) \
+	if ((r = serialise_s32(buf, options->var)) != 0) { \
+		error_fr(r, "serialise %s", #var); \
+		goto out; \
+	}
+#define SSHCONF_INTFLAG(var, conf, flags, def, cp) \
+	if ((r = serialise_s32(buf, options->var)) != 0) { \
+		error_fr(r, "serialise %s", #var); \
+		goto out; \
+	}
+#define SSHCONF_STRING(var, conf, flags, cp) \
+	if ((r = serialise_nullable_string(buf, options->var)) != 0) { \
+		error_fr(r, "serialise %s", #var); \
+		goto out; \
+	}
+#define SSHCONF_STRARRAY(var, nvar, conf, flags, cp) \
+	if ((r = serialise_nullable_string_array(buf, options->var, \
+	    options->nvar)) != 0) { \
+		error_fr(r, "serialise %s", #var); \
+		goto out; \
+	}
+#define SSHCONF_CUSTOM(conf, funcsuffix, flags, cp) \
+	if ((r = serialise_##funcsuffix(options, buf)) != 0) \
+		goto out;
+#define SSHCONF_NONCONF(funcsuffix) \
+	if ((r = serialise_##funcsuffix(options, buf)) != 0) \
+		goto out;
+#define SSHCONF_DEPRECATE(conf, flags, opcode)		/* empty */
+#define SSHCONF_UNSUPPORTED_INT(var, conf, flags)	/* empty */
+#define SSHCONF_UNSUPPORTED_STRING(var, conf, flags)	/* empty */
+#define SSHCONF_ALIAS(old, conf, flags)			/* empty */
+
+	SSHD_CONFIG_ENTRIES
+
+#undef SSHCONF_INT
+#undef SSHCONF_INTFLAG
+#undef SSHCONF_STRING
+#undef SSHCONF_STRARRAY
+#undef SSHCONF_CUSTOM
+#undef SSHCONF_NONCONF
+#undef SSHCONF_DEPRECATE
+#undef SSHCONF_UNSUPPORTED_INT
+#undef SSHCONF_UNSUPPORTED_STRING
+#undef SSHCONF_ALIAS
+
+	/* success */
+	r = 0;
+	*bufp = buf;
+	buf = NULL; /* transferred */
+ out:
+	sshbuf_free(buf);
+	return r;
+}
+
+static int
+deserialise_s32(struct sshbuf *buf, int *v)
+{
+	uint32_t tmp;
+	int r;
+	u_char was_signed;
+
+	if ((r = sshbuf_get_u8(buf, &was_signed)) != 0 ||
+	    (r = sshbuf_get_u32(buf, &tmp)) != 0)
+		return r;
+	if (was_signed > 1)
+		return SSH_ERR_INVALID_FORMAT;
+	if (was_signed) {
+		if (tmp > (uint32_t)INT_MAX + 1)
+			return SSH_ERR_INVALID_FORMAT;
+		*v = tmp == (uint32_t)INT_MAX + 1 ? INT_MIN : -(int)tmp;
+	} else {
+		if (tmp > INT_MAX)
+			return SSH_ERR_INVALID_FORMAT;
+		*v = (int)tmp;
+	}
+	return 0;
+}
+
+static int
+deserialise_s64(struct sshbuf *buf, int64_t *v)
+{
+	uint64_t tmp;
+	int r;
+	u_char was_signed;
+
+	if ((r = sshbuf_get_u8(buf, &was_signed)) != 0 ||
+	    (r = sshbuf_get_u64(buf, &tmp)) != 0)
+		return r;
+	if (was_signed > 1)
+		return SSH_ERR_INVALID_FORMAT;
+	if (was_signed) {
+		if (tmp > (uint64_t)INT64_MAX + 1)
+			return SSH_ERR_INVALID_FORMAT;
+		*v = tmp == (uint64_t)INT64_MAX + 1 ?
+		    INT64_MIN : -(int64_t)tmp;
+	} else {
+		if (tmp > INT64_MAX)
+			return SSH_ERR_INVALID_FORMAT;
+		*v = (int64_t)tmp;
+	}
+	return 0;
+}
+
+static int
+deserialise_mode(struct sshbuf *buf, mode_t *v)
+{
+	int r, tmp;
+
+	if ((r = deserialise_s32(buf, &tmp)) != 0)
+		return r;
+	if (tmp == -1) {
+		*v = (mode_t)-1;
+		return 0;
+	}
+	if (tmp < 0 || tmp > 0777)
+		return SSH_ERR_INVALID_FORMAT;
+	*v = (mode_t)tmp;
+	return 0;
+}
+
+static int
+deserialise_double(struct sshbuf *buf, double *v)
+{
+	return sshbuf_get(buf, v, sizeof(*v));
+}
+
+static int
+deserialise_nullable_string(struct sshbuf *buf, char **sp)
+{
+	int r;
+	u_char present;
+
+	if ((r = sshbuf_get_u8(buf, &present)) != 0)
+		return r;
+	if (present == 0) {
+		*sp = NULL;
+		return 0;
+	}
+	if (present != 1)
+		return SSH_ERR_INVALID_FORMAT;
+	return sshbuf_get_cstring(buf, sp, NULL);
+}
+
+static void
+free_string_array(char **a, u_int n)
+{
+	u_int i;
+
+	if (a == NULL)
+		return;
+	for (i = 0; i < n; i++)
+		free(a[i]);
+	free(a);
+}
+
+static int
+deserialise_count(struct sshbuf *buf, u_int *np, const char *what)
+{
+	int r;
+	uint32_t n;
+
+	if ((r = sshbuf_get_u32(buf, &n)) != 0) {
+		error_fr(r, "deserialise %s length", what);
+		return r;
+	}
+	if (n > UINT_MAX) {
+		error_f("bad number of %s", what);
+		return SSH_ERR_INVALID_FORMAT;
+	}
+	if (n > sshbuf_len(buf)) {
+		error_f("bad number of %s", what);
+		return SSH_ERR_INVALID_FORMAT;
+	}
+	*np = n;
+	return 0;
+}
+
+static int
+deserialise_nullable_string_array(struct sshbuf *buf, char ***arrayp,
+    u_int *np)
+{
+	char **a = NULL;
+	int r;
+	u_int i, n;
+
+	*arrayp = NULL;
+	*np = 0;
+	if ((r = deserialise_count(buf, &n, "strings")) != 0)
+		return r;
+	if (n > 0)
+		a = xcalloc(n, sizeof(*a));
+	for (i = 0; i < n; i++) {
+		if ((r = deserialise_nullable_string(buf, a + i)) != 0) {
+			free_string_array(a, i + 1);
+			return r;
+		}
+	}
+	*arrayp = a;
+	*np = n;
+	return 0;
+}
+
+static void
+free_queued_listen_addrs(struct queued_listenaddr *qla, u_int n)
+{
+	u_int i;
+
+	if (qla == NULL)
+		return;
+	for (i = 0; i < n; i++) {
+		free(qla[i].addr);
+		free(qla[i].rdomain);
+	}
+	free(qla);
+}
+
+static int
+deserialise_hostkeyfile(ServerOptions *options, struct sshbuf *buf)
+{
+	int r, *userprovided = NULL;
+	u_int i, n;
+	char **files = NULL;
+
+	if ((r = deserialise_count(buf, &n, "host key files")) != 0)
+		return r;
+	if (n > 0) {
+		userprovided = xcalloc(n, sizeof(*userprovided));
+		files = xcalloc(n, sizeof(*files));
+	}
+	for (i = 0; i < n; i++) {
+		if ((r = deserialise_s32(buf, userprovided + i)) != 0 ||
+		    (r = deserialise_nullable_string(buf, files + i)) != 0) {
+			error_fr(r, "deserialise member");
+			free_string_array(files, i + 1);
+			free(userprovided);
+			return r;
+		}
+	}
+	options->num_host_key_files = n;
+	options->host_key_file_userprovided = userprovided;
+	options->host_key_files = files;
+	return 0;
+}
+
+static int
+deserialise_ipqos(ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = deserialise_s32(buf, &options->ip_qos_interactive)) != 0 ||
+	    (r = deserialise_s32(buf, &options->ip_qos_bulk)) != 0) {
+		error_fr(r, "deserialise");
+		return r;
+	}
+
+	return 0;
+}
+
+static int
+deserialise_listenaddress(ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+	u_int i, n;
+	struct queued_listenaddr *qla = NULL;
+
+	if ((r = deserialise_count(buf, &n, "listen addresses")) != 0)
+		return r;
+	if (n > 0)
+		qla = xcalloc(n, sizeof(*qla));
+	for (i = 0; i < n; i++) {
+		if ((r = sshbuf_get_cstring(buf, &qla[i].addr, NULL)) != 0 ||
+		    (r = deserialise_s32(buf, &qla[i].port)) != 0 ||
+		    (r = deserialise_nullable_string(buf,
+		    &qla[i].rdomain)) != 0) {
+			error_fr(r, "deserialise member");
+			free_queued_listen_addrs(qla, i + 1);
+			return r;
+		}
+	}
+	options->num_queued_listens = n;
+	options->queued_listen_addrs = qla;
+	return 0;
+}
+
+static int
+deserialise_logfacility(ServerOptions *options, struct sshbuf *buf)
+{
+	int r, tmp;
+
+	if ((r = deserialise_s32(buf, &tmp)) != 0) {
+		error_fr(r, "deserialise");
+		return r;
+	}
+	if (tmp != SYSLOG_FACILITY_NOT_SET &&
+	    log_facility_name((SyslogFacility)tmp) == NULL) {
+		error_f("bad syslog facility");
+		return SSH_ERR_INVALID_FORMAT;
+	}
+	options->log_facility = (SyslogFacility)tmp;
+
+	return 0;
+}
+
+static int
+deserialise_loglevel(ServerOptions *options, struct sshbuf *buf)
+{
+	int r, tmp;
+
+	if ((r = deserialise_s32(buf, &tmp)) != 0) {
+		error_fr(r, "deserialise");
+		return r;
+	}
+	if (tmp != SYSLOG_LEVEL_NOT_SET &&
+	    log_level_name((LogLevel)tmp) == NULL) {
+		error_f("bad log level");
+		return SSH_ERR_INVALID_FORMAT;
+	}
+	options->log_level = (LogLevel)tmp;
+
+	return 0;
+}
+
+static int
+deserialise_port(ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+	u_int i, n;
+
+	if ((r = deserialise_count(buf, &n, "ports")) != 0)
+		return r;
+	if (n > MAX_PORTS) {
+		error_f("bad number of ports");
+		return SSH_ERR_INVALID_FORMAT;
+	}
+	options->num_ports = n;
+	memset(options->ports, 0, sizeof(options->ports));
+	for (i = 0; i < options->num_ports; i++) {
+		if ((r = deserialise_s32(buf, options->ports + i)) != 0) {
+			error_fr(r, "deserialise port");
+			return r;
+		}
+	}
+	return 0;
+}
+
+static int
+deserialise_gatewayports(ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = deserialise_s32(buf, &options->fwd_opts.gateway_ports)) != 0) {
+		error_fr(r, "deserialise");
+		return r;
+	}
+	return 0;
+}
+
+static int
+deserialise_streamlocalbindmask(ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = deserialise_mode(buf,
+	    &options->fwd_opts.streamlocal_bind_mask)) != 0) {
+		error_fr(r, "deserialise");
+		return r;
+	}
+	return 0;
+}
+
+static int
+deserialise_streamlocalbindunlink(ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+	u_char tmp;
+
+	if ((r = sshbuf_get_u8(buf, &tmp)) != 0) {
+		error_fr(r, "deserialise");
+		return r;
+	}
+	if (tmp > 1) {
+		error_f("bad boolean");
+		return SSH_ERR_INVALID_FORMAT;
+	}
+	options->fwd_opts.streamlocal_bind_unlink = tmp;
+	return 0;
+}
+
+static int
+deserialise_maxstartups(ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = deserialise_s32(buf, &options->max_startups_begin)) != 0 ||
+	    (r = deserialise_s32(buf, &options->max_startups_rate)) != 0 ||
+	    (r = deserialise_s32(buf, &options->max_startups)) != 0) {
+		error_fr(r, "deserialise");
+		return r;
+	}
+
+	return 0;
+}
+
+static int
+deserialise_permituserenv(ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = deserialise_s32(buf, &options->permit_user_env)) != 0 ||
+	    (r = deserialise_nullable_string(buf,
+	    &options->permit_user_env_allowlist)) != 0) {
+		error_fr(r, "deserialise");
+		return r;
+	}
+	return 0;
+}
+
+static int
+deserialise_persourcenetblocksize(ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = deserialise_s32(buf,
+	    &options->per_source_masklen_ipv4)) != 0 ||
+	    (r = deserialise_s32(buf,
+	    &options->per_source_masklen_ipv6)) != 0) {
+		error_fr(r, "deserialise");
+		return r;
+	}
+
+	return 0;
+}
+
+static int
+deserialise_persourcepenalties(ServerOptions *options, struct sshbuf *buf)
+{
+	struct per_source_penalty *psp = &options->per_source_penalty;
+	int r;
+
+	if ((r = deserialise_s32(buf, &psp->enabled)) != 0 ||
+	    (r = deserialise_s32(buf, &psp->max_sources4)) != 0 ||
+	    (r = deserialise_s32(buf, &psp->max_sources6)) != 0 ||
+	    (r = deserialise_s32(buf, &psp->overflow_mode)) != 0 ||
+	    (r = deserialise_s32(buf, &psp->overflow_mode6)) != 0 ||
+	    (r = deserialise_double(buf, &psp->penalty_crash)) != 0 ||
+	    (r = deserialise_double(buf, &psp->penalty_grace)) != 0 ||
+	    (r = deserialise_double(buf, &psp->penalty_authfail)) != 0 ||
+	    (r = deserialise_double(buf, &psp->penalty_invaliduser)) != 0 ||
+	    (r = deserialise_double(buf, &psp->penalty_noauth)) != 0 ||
+	    (r = deserialise_double(buf,
+	    &psp->penalty_refuseconnection)) != 0 ||
+	    (r = deserialise_double(buf, &psp->penalty_max)) != 0 ||
+	    (r = deserialise_double(buf, &psp->penalty_min)) != 0) {
+		error_fr(r, "deserialise");
+		return r;
+	}
+
+	return 0;
+}
+
+static int
+deserialise_rekeylimit(ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = deserialise_s64(buf, &options->rekey_limit)) != 0 ||
+	    (r = deserialise_s32(buf, &options->rekey_interval)) != 0) {
+		error_fr(r, "deserialise");
+		return r;
+	}
+
+	return 0;
+}
+
+static int
+deserialise_subsystem(ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+	u_int i, n;
+	char **names = NULL, **commands = NULL, **args = NULL;
+
+	if ((r = deserialise_count(buf, &n, "subsystems")) != 0)
+		return r;
+	if (n > 0) {
+		names = xcalloc(n, sizeof(*names));
+		commands = xcalloc(n, sizeof(*names));
+		args = xcalloc(n, sizeof(*args));
+	}
+	for (i = 0; i < n; i++) {
+		if ((r = sshbuf_get_cstring(buf, names + i, NULL)) != 0 ||
+		    (r = sshbuf_get_cstring(buf, commands + i, NULL)) != 0 ||
+		    (r = sshbuf_get_cstring(buf, args + i, NULL)) != 0) {
+			error_fr(r, "deserialise member");
+			free_string_array(names, i + 1);
+			free_string_array(commands, i + 1);
+			free_string_array(args, i + 1);
+			return r;
+		}
+	}
+	options->num_subsystems = n;
+	options->subsystem_name = names;
+	options->subsystem_command = commands;
+	options->subsystem_args = args;
+	return 0;
+}
+
+static int
+deserialise_timingsecret(ServerOptions *options, struct sshbuf *buf)
+{
+	int r;
+
+	if ((r = sshbuf_get_u64(buf, &options->timing_secret)) != 0) {
+		error_fr(r, "deserialise");
+		return r;
+	}
+	return 0;
+}
+
+int
+deserialise_server_options(struct sshbuf *buf, ServerOptions *options)
+{
+	int r = SSH_ERR_INTERNAL_ERROR;
+	uint32_t version;
+	ServerOptions new_options;
+
+	initialize_server_options(&new_options);
+	if ((r = sshbuf_get_u32(buf, &version)) != 0) {
+		error_fr(r, "deserialise version");
+		goto out;
+	}
+	if (version != SSHD_CONFIG_BLOB_VERSION) {
+		error_f("unsupported config blob version %u", version);
+		r = SSH_ERR_INVALID_FORMAT;
+		goto out;
+	}
+#define SSHCONF_INT(var, conf, flags, ms, def, cp) \
+	if ((r = deserialise_s32(buf, &new_options.var)) != 0) { \
+		error_fr(r, "deserialise %s", #var); \
+		goto out; \
+	}
+#define SSHCONF_INTFLAG(var, conf, flags, def, cp) \
+	if ((r = deserialise_s32(buf, &new_options.var)) != 0) { \
+		error_fr(r, "deserialise %s", #var); \
+		goto out; \
+	}
+#define SSHCONF_STRING(var, conf, flags, cp) \
+	if ((r = deserialise_nullable_string(buf, &new_options.var)) != 0) { \
+		error_fr(r, "deserialise %s", #var); \
+		goto out; \
+	}
+#define SSHCONF_STRARRAY(var, nvar, conf, flags, cp) \
+	if ((r = deserialise_nullable_string_array(buf, &new_options.var, \
+	    &new_options.nvar)) != 0) { \
+		error_fr(r, "deserialise %s", #var); \
+		goto out; \
+	}
+#define SSHCONF_CUSTOM(conf, funcsuffix, flags, cp) \
+	if ((r = deserialise_##funcsuffix(&new_options, buf)) != 0) \
+		goto out;
+#define SSHCONF_NONCONF(funcsuffix) \
+	if ((r = deserialise_##funcsuffix(&new_options, buf)) != 0) \
+		goto out;
+#define SSHCONF_DEPRECATE(conf, flags, opcode)		/* empty */
+#define SSHCONF_UNSUPPORTED_INT(var, conf, flags)	new_options.var = 0;
+#define SSHCONF_UNSUPPORTED_STRING(var, conf, flags) \
+	do { \
+		free(new_options.var); \
+		new_options.var = NULL; \
+	} while (0);
+#define SSHCONF_ALIAS(old, conf, flags)			/* empty */
+
+	SSHD_CONFIG_ENTRIES
+
+	if (sshbuf_len(buf) != 0) {
+		error_f("trailing data in config blob");
+		r = SSH_ERR_INVALID_FORMAT;
+		goto out;
+	}
+
+#undef SSHCONF_INT
+#undef SSHCONF_INTFLAG
+#undef SSHCONF_STRING
+#undef SSHCONF_STRARRAY
+#undef SSHCONF_CUSTOM
+#undef SSHCONF_NONCONF
+#undef SSHCONF_DEPRECATE
+#undef SSHCONF_UNSUPPORTED_INT
+#undef SSHCONF_UNSUPPORTED_STRING
+#undef SSHCONF_ALIAS
+
+	/* success */
+	r = 0;
+	free_server_options(options);
+	*options = new_options;
+	memset(&new_options, 0, sizeof(new_options));
+ out:
+	free_server_options(&new_options);
+	return r;
+}
+
+static void
+free_hostkeyfile(ServerOptions *options)
+{
+	u_int i;
+
+	for (i = 0; i < options->num_host_key_files; i++)
+		free(options->host_key_files[i]);
+	free(options->host_key_files);
+	free(options->host_key_file_userprovided);
+}
+
+static void
+free_listenaddress(ServerOptions *options)
+{
+	u_int i;
+
+	free_queued_listen_addrs(options->queued_listen_addrs,
+	    options->num_queued_listens);
+
+	for (i = 0; i < options->num_listen_addrs; i++) {
+		free(options->listen_addrs[i].rdomain);
+		if (options->listen_addrs[i].addrs != NULL)
+			freeaddrinfo(options->listen_addrs[i].addrs);
+	}
+	free(options->listen_addrs);
+}
+
+static void
+free_permituserenv(ServerOptions *options)
+{
+	free(options->permit_user_env_allowlist);
+}
+
+static void
+free_subsystem(ServerOptions *options)
+{
+	u_int i;
+
+	for (i = 0; i < options->num_subsystems; i++) {
+		free(options->subsystem_name[i]);
+		free(options->subsystem_command[i]);
+		free(options->subsystem_args[i]);
+	}
+	free(options->subsystem_name);
+	free(options->subsystem_command);
+	free(options->subsystem_args);
+}
+
+void
+free_server_options(ServerOptions *options)
+{
+#define SSHCONF_INT(var, conf, flags, ms, def, cp)	/* empty */
+#define SSHCONF_INTFLAG(var, conf, flags, def, cp)	/* empty */
+#define SSHCONF_STRING(var, conf, flags, cp)		free(options->var);
+#define SSHCONF_STRARRAY(var, nvar, conf, flags, cp) \
+	free_string_array(options->var, options->nvar);
+#define SSHCONF_CUSTOM(conf, funcsuffix, flags, cp) \
+	free_##funcsuffix(options);
+#define SSHCONF_NONCONF(funcsuffix) \
+	free_##funcsuffix(options);
+#define SSHCONF_DEPRECATE(conf, flags, opcode)		/* empty */
+#define SSHCONF_UNSUPPORTED_INT(var, conf, flags)	options->var = 0;
+#define SSHCONF_UNSUPPORTED_STRING(var, conf, flags) \
+	do { \
+		free(options->var); \
+		options->var = NULL; \
+	} while (0);
+#define SSHCONF_ALIAS(old, conf, flags)			/* empty */
+
+#define free_ipqos(options)
+#define free_logfacility(options)
+#define free_loglevel(options)
+#define free_port(options)
+#define free_gatewayports(options)
+#define free_streamlocalbindmask(options)
+#define free_streamlocalbindunlink(options)
+#define free_maxstartups(options)
+#define free_persourcenetblocksize(options)
+#define free_persourcepenalties(options)
+#define free_rekeylimit(options)
+#define free_timingsecret(options)
+
+	SSHD_CONFIG_ENTRIES
+
+#undef free_ipqos
+#undef free_logfacility
+#undef free_loglevel
+#undef free_port
+#undef free_gatewayports
+#undef free_streamlocalbindmask
+#undef free_streamlocalbindunlink
+#undef free_maxstartups
+#undef free_persourcenetblocksize
+#undef free_persourcepenalties
+#undef free_rekeylimit
+#undef free_timingsecret
+
+#undef SSHCONF_INT
+#undef SSHCONF_INTFLAG
+#undef SSHCONF_STRING
+#undef SSHCONF_STRARRAY
+#undef SSHCONF_CUSTOM
+#undef SSHCONF_NONCONF
+#undef SSHCONF_DEPRECATE
+#undef SSHCONF_UNSUPPORTED_INT
+#undef SSHCONF_UNSUPPORTED_STRING
+#undef SSHCONF_ALIAS
+
+	initialize_server_options(options);
+}
+
+static void
+copy_server_option_int(int *dst, int src)
+{
+	if (src != -1)
+		*dst = src;
+}
+
+static void
+copy_server_option_int64(int64_t *dst, int64_t src)
+{
+	if (src != -1)
+		*dst = src;
+}
+
+static void
+copy_server_option_string(char **dst, const char *src)
+{
+	if (src != NULL && *dst != src) {
+		free(*dst);
+		*dst = xstrdup(src);
+	}
+}
+
+static void
+copy_server_option_strarray_values(char ***dst, u_int ndst,
+    char * const *src, u_int nsrc)
+{
+	u_int i;
+
+	if (nsrc == 0)
+		return;
+	for (i = 0; i < ndst; i++)
+		free((*dst)[i]);
+	free(*dst);
+	*dst = xcalloc(nsrc, sizeof(**dst));
+	for (i = 0; i < nsrc; i++)
+		(*dst)[i] = src[i] == NULL ? NULL : xstrdup(src[i]);
+}
+
+static void
+copy_server_option_strarray(char ***dst, u_int *ndst,
+    char * const *src, u_int nsrc)
+{
+	if (nsrc == 0)
+		return;
+	copy_server_option_strarray_values(dst, *ndst, src, nsrc);
+	*ndst = nsrc;
+}
+
+static void
+copy_ipqos(ServerOptions *dst, const ServerOptions *src)
+{
+	copy_server_option_int(&dst->ip_qos_interactive,
+	    src->ip_qos_interactive);
+	copy_server_option_int(&dst->ip_qos_bulk, src->ip_qos_bulk);
+}
+
+static void
+copy_gatewayports(ServerOptions *dst, const ServerOptions *src)
+{
+	copy_server_option_int(&dst->fwd_opts.gateway_ports,
+	    src->fwd_opts.gateway_ports);
+}
+
+static void
+copy_streamlocalbindunlink(ServerOptions *dst, const ServerOptions *src)
+{
+	copy_server_option_int(&dst->fwd_opts.streamlocal_bind_unlink,
+	    src->fwd_opts.streamlocal_bind_unlink);
+}
+
+static void
+copy_loglevel(ServerOptions *dst, const ServerOptions *src)
+{
+	if (src->log_level != -1)
+		dst->log_level = src->log_level;
+}
+
+static void
+copy_rekeylimit(ServerOptions *dst, const ServerOptions *src)
+{
+	copy_server_option_int64(&dst->rekey_limit, src->rekey_limit);
+	copy_server_option_int(&dst->rekey_interval, src->rekey_interval);
+}
+
+static void
+copy_subsystem(ServerOptions *dst, const ServerOptions *src)
+{
+	u_int old_num_subsystems = dst->num_subsystems;
+
+	if (src->num_subsystems == 0)
+		return;
+	copy_server_option_strarray_values(&dst->subsystem_name,
+	    old_num_subsystems, src->subsystem_name, src->num_subsystems);
+	copy_server_option_strarray_values(&dst->subsystem_command,
+	    old_num_subsystems, src->subsystem_command, src->num_subsystems);
+	copy_server_option_strarray_values(&dst->subsystem_args,
+	    old_num_subsystems, src->subsystem_args, src->num_subsystems);
+	dst->num_subsystems = src->num_subsystems;
+}
+
 /*
  * Copy any supported values that are set.
  *
- * If the preauth flag is set, we do not bother copying the string or
- * array values that are not used pre-authentication, because any that we
- * do use must be explicitly sent in mm_getpwnamallow().
+ * If the preauth flag is set, skip the post-authentication-only manual
+ * string cleanup and subsystem merge below.
  */
 void
 copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 {
-#define M_CP_INTOPT(n) do {\
-	if (src->n != -1) \
-		dst->n = src->n; \
-} while (0)
+	if (dst == src)
+		return;
 
-	M_CP_INTOPT(password_authentication);
-	M_CP_INTOPT(gss_authentication);
-	M_CP_INTOPT(pubkey_authentication);
-	M_CP_INTOPT(pubkey_auth_options);
-	M_CP_INTOPT(kerberos_authentication);
-	M_CP_INTOPT(hostbased_authentication);
-	M_CP_INTOPT(hostbased_uses_name_from_packet_only);
-	M_CP_INTOPT(kbd_interactive_authentication);
-	M_CP_INTOPT(permit_root_login);
-	M_CP_INTOPT(permit_empty_passwd);
-	M_CP_INTOPT(ignore_rhosts);
+#define SSHCONF_INT(var, conf, flags, ms, def, cp) \
+	cp(copy_server_option_int(&dst->var, src->var);)
+#define SSHCONF_INTFLAG(var, conf, flags, def, cp) \
+	cp(copy_server_option_int(&dst->var, src->var);)
+#define SSHCONF_STRING(var, conf, flags, cp) \
+	cp(copy_server_option_string(&dst->var, src->var);)
+#define SSHCONF_STRARRAY(var, nvar, conf, flags, cp) \
+	cp(copy_server_option_strarray(&dst->var, &dst->nvar, \
+	    src->var, src->nvar);)
+#define SSHCONF_CUSTOM(conf, funcsuffix, flags, cp) \
+	cp(copy_##funcsuffix(dst, src);)
+#define SSHCONF_NONCONF(funcsuffix)			/* empty */
+#define SSHCONF_DEPRECATE(conf, flags, opcode)		/* empty */
+#define SSHCONF_UNSUPPORTED_INT(var, conf, flags)	dst->var = 0;
+#define SSHCONF_UNSUPPORTED_STRING(var, conf, flags) \
+	do { \
+		free(dst->var); \
+		dst->var = NULL; \
+	} while (0);
+#define SSHCONF_ALIAS(old, conf, flags)			/* empty */
 
-	M_CP_INTOPT(allow_tcp_forwarding);
-	M_CP_INTOPT(allow_streamlocal_forwarding);
-	M_CP_INTOPT(allow_agent_forwarding);
-	M_CP_INTOPT(disable_forwarding);
-	M_CP_INTOPT(expose_userauth_info);
-	M_CP_INTOPT(permit_tun);
-	M_CP_INTOPT(fwd_opts.gateway_ports);
-	M_CP_INTOPT(fwd_opts.streamlocal_bind_unlink);
-	M_CP_INTOPT(x11_display_offset);
-	M_CP_INTOPT(x11_forwarding);
-	M_CP_INTOPT(x11_use_localhost);
-	M_CP_INTOPT(permit_tty);
-	M_CP_INTOPT(permit_user_rc);
-	M_CP_INTOPT(max_sessions);
-	M_CP_INTOPT(max_authtries);
-	M_CP_INTOPT(client_alive_count_max);
-	M_CP_INTOPT(client_alive_interval);
-	M_CP_INTOPT(ip_qos_interactive);
-	M_CP_INTOPT(ip_qos_bulk);
-	M_CP_INTOPT(rekey_limit);
-	M_CP_INTOPT(rekey_interval);
-	M_CP_INTOPT(log_level);
-	M_CP_INTOPT(required_rsa_size);
-	M_CP_INTOPT(unused_connection_timeout);
-	M_CP_INTOPT(refuse_connection);
+	SSHD_CONFIG_ENTRIES
+
+#undef SSHCONF_INT
+#undef SSHCONF_INTFLAG
+#undef SSHCONF_STRING
+#undef SSHCONF_STRARRAY
+#undef SSHCONF_CUSTOM
+#undef SSHCONF_NONCONF
+#undef SSHCONF_DEPRECATE
+#undef SSHCONF_UNSUPPORTED_INT
+#undef SSHCONF_UNSUPPORTED_STRING
+#undef SSHCONF_ALIAS
 
 	/*
 	 * The bind_mask is a mode_t that may be unsigned, so we can't use
-	 * M_CP_INTOPT - it does a signed comparison that causes compiler
-	 * warnings.
+	 * copy_server_option_int - it does a signed comparison that causes
+	 * compiler warnings.
 	 */
 	if (src->fwd_opts.streamlocal_bind_mask != (mode_t)-1) {
 		dst->fwd_opts.streamlocal_bind_mask =
 		    src->fwd_opts.streamlocal_bind_mask;
 	}
-
-	/* M_CP_STROPT and M_CP_STRARRAYOPT should not appear before here */
-#define M_CP_STROPT(n) do {\
-	if (src->n != NULL && dst->n != src->n) { \
-		free(dst->n); \
-		dst->n = xstrdup(src->n); \
-	} \
-} while(0)
-#define M_CP_STRARRAYOPT(s, num_s, clobber) do {\
-	u_int i; \
-	if (src->num_s != 0) { \
-		for (i = 0; i < dst->num_s; i++) \
-			free(dst->s[i]); \
-		free(dst->s); \
-		dst->s = xcalloc(src->num_s, sizeof(*dst->s)); \
-		for (i = 0; i < src->num_s; i++) \
-			dst->s[i] = xstrdup(src->s[i]); \
-		if (clobber) \
-			dst->num_s = src->num_s; \
-	} \
-} while(0)
-
-	/* See comment in servconf.h */
-	COPY_MATCH_STRING_OPTS();
 
 	/* Arguments that accept '+...' need to be expanded */
 	assemble_algorithms(dst);
@@ -3047,12 +3971,14 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 		return;
 
 	/* These options may be "none" to clear a global setting */
-	M_CP_STROPT(adm_forced_command);
+	copy_server_option_string(&dst->adm_forced_command,
+	    src->adm_forced_command);
 	if (option_clear_or_none(dst->adm_forced_command)) {
 		free(dst->adm_forced_command);
 		dst->adm_forced_command = NULL;
 	}
-	M_CP_STROPT(chroot_directory);
+	copy_server_option_string(&dst->chroot_directory,
+	    src->chroot_directory);
 	if (option_clear_or_none(dst->chroot_directory)) {
 		free(dst->chroot_directory);
 		dst->chroot_directory = NULL;
@@ -3061,10 +3987,6 @@ copy_set_server_options(ServerOptions *dst, ServerOptions *src, int preauth)
 	/* Subsystems require merging. */
 	servconf_merge_subsystems(dst, src);
 }
-
-#undef M_CP_INTOPT
-#undef M_CP_STROPT
-#undef M_CP_STRARRAYOPT
 
 #define SERVCONF_MAX_DEPTH	16
 static void
@@ -3305,10 +4227,10 @@ dump_config(ServerOptions *o)
 # endif
 #endif
 #ifdef GSSAPI
-	dump_cfg_fmtint(sGssAuthentication, o->gss_authentication);
-	dump_cfg_fmtint(sGssCleanupCreds, o->gss_cleanup_creds);
-	dump_cfg_fmtint(sGssDelegateCreds, o->gss_deleg_creds);
-	dump_cfg_fmtint(sGssStrictAcceptor, o->gss_strict_acceptor);
+	dump_cfg_fmtint(sGSSAPIAuthentication, o->gss_authentication);
+	dump_cfg_fmtint(sGSSAPICleanupCredentials, o->gss_cleanup_creds);
+	dump_cfg_fmtint(sGSSAPIDelegateCredentials, o->gss_deleg_creds);
+	dump_cfg_fmtint(sGSSAPIStrictAcceptorCheck, o->gss_strict_acceptor);
 #endif
 	dump_cfg_fmtint(sPasswordAuthentication, o->password_authentication);
 	dump_cfg_fmtint(sKbdInteractiveAuthentication,
@@ -3323,7 +4245,7 @@ dump_config(ServerOptions *o)
 	dump_cfg_fmtint(sPermitUserRC, o->permit_user_rc);
 	dump_cfg_fmtint(sStrictModes, o->strict_modes);
 	dump_cfg_fmtint(sTCPKeepAlive, o->tcp_keep_alive);
-	dump_cfg_fmtint(sEmptyPasswd, o->permit_empty_passwd);
+	dump_cfg_fmtint(sPermitEmptyPasswords, o->permit_empty_passwd);
 	dump_cfg_fmtint(sCompression, o->compression);
 	dump_cfg_fmtint(sGatewayPorts, o->fwd_opts.gateway_ports);
 	dump_cfg_fmtint(sUseDNS, o->use_dns);
@@ -3371,15 +4293,14 @@ dump_config(ServerOptions *o)
 
 	/* string arguments requiring a lookup */
 	dump_cfg_string(sLogLevel, log_level_name(o->log_level));
-	dump_cfg_string(sLogFacility, log_facility_name(o->log_facility));
+	dump_cfg_string(sSyslogFacility, log_facility_name(o->log_facility));
 
 	/* string array arguments */
 	dump_cfg_strarray_oneline(sAuthorizedKeysFile, o->num_authkeys_files,
 	    o->authorized_keys_files);
 	dump_cfg_strarray_oneline(sRevokedKeys, o->num_revoked_keys_files,
 	    o->revoked_keys_files);
-	dump_cfg_strarray(sHostKeyFile, o->num_host_key_files,
-	    o->host_key_files);
+	dump_cfg_strarray(sHostKey, o->num_host_key_files, o->host_key_files);
 	dump_cfg_strarray(sHostCertificate, o->num_host_cert_files,
 	    o->host_cert_files);
 	dump_cfg_strarray(sAllowUsers, o->num_allow_users, o->allow_users);

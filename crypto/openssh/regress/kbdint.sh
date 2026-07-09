@@ -1,4 +1,4 @@
-#	$OpenBSD: kbdint.sh,v 1.2 2026/02/24 00:39:59 dtucker Exp $
+#	$OpenBSD: kbdint.sh,v 1.3 2026/05/04 10:57:24 dtucker Exp $
 #	Placed in the Public Domain.
 #
 # This tests keyboard-interactive authentication.  It does not run by default,
@@ -11,7 +11,7 @@
 tid="kbdint"
 
 if [ -z "$SUDO" -o ! -f ${OBJ}/kbdintpw ]; then
-	skip "Password auth requires SUDO and kbdintpw file."
+	skip "kbdint auth test requires SUDO and kbdintpw file."
 fi
 
 # Enable keyboard-interactive auth

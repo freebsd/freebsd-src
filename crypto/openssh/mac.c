@@ -1,4 +1,4 @@
-/* $OpenBSD: mac.c,v 1.38 2026/03/03 09:57:25 dtucker Exp $ */
+/* $OpenBSD: mac.c,v 1.39 2026/05/13 05:58:58 djm Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -236,6 +236,7 @@ int
 mac_valid(const char *names)
 {
 	char *maclist, *cp, *p;
+	int found = 0;
 
 	if (names == NULL || strcmp(names, "") == 0)
 		return 0;
@@ -246,8 +247,9 @@ mac_valid(const char *names)
 		if (mac_setup(NULL, p) < 0) {
 			free(maclist);
 			return 0;
-		}
+		} else
+			found = 1;
 	}
 	free(maclist);
-	return 1;
+	return found;
 }

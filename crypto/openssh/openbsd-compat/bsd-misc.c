@@ -455,7 +455,7 @@ bzero(void *b, size_t n)
 int
 raise(int sig)
 {
-	kill(getpid(), sig);
+	return kill(getpid(), sig);
 }
 #endif
 

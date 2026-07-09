@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.h,v 1.50 2026/02/13 01:04:47 jsg Exp $ */
+/* $OpenBSD: sshconnect.h,v 1.51 2026/07/06 07:49:58 djm Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -76,7 +76,7 @@ int	 ssh_connect(struct ssh *, const char *, const char *,
 void	 ssh_kill_proxy_command(void);
 
 void	 ssh_login(struct ssh *, Sensitive *, const char *,
-    struct sockaddr *, u_short, struct passwd *, int,
+    struct sockaddr_storage *, u_short, struct passwd *, int,
     const struct ssh_conn_info *);
 
 int	 verify_host_key(char *, struct sockaddr *, struct sshkey *,
@@ -85,7 +85,7 @@ int	 verify_host_key(char *, struct sockaddr *, struct sshkey *,
 void	 get_hostfile_hostname_ipaddr(char *, struct sockaddr *, u_short,
     char **, char **);
 
-void	 ssh_kex2(struct ssh *ssh, char *, struct sockaddr *, u_short,
+void	 ssh_kex2(struct ssh *ssh, char *, struct sockaddr_storage *, u_short,
     const struct ssh_conn_info *);
 
 void	 ssh_userauth2(struct ssh *ssh, const char *, const char *,
@@ -101,3 +101,6 @@ void	 load_hostkeys_command(struct hostkeys *, const char *,
     const struct sshkey *, const char *);
 
 int hostkey_accepted_by_hostkeyalgs(const struct sshkey *);
+
+void ssh_conn_info_free(struct ssh_conn_info *);
+struct ssh_conn_info *ssh_conn_info_dup(const struct ssh_conn_info *);

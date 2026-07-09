@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile.inc,v 1.19 2025/10/23 19:06:10 miod Exp $
+#	$OpenBSD: Makefile.inc,v 1.20 2026/04/23 12:57:47 claudio Exp $
 
 .include <bsd.own.mk>
 .include <bsd.obj.mk>
@@ -35,7 +35,6 @@ CDIAGFLAGS+=	-Wcomment
 CDIAGFLAGS+=	-Wformat
 CDIAGFLAGS+=	-Wformat-security
 CDIAGFLAGS+=	-Wimplicit
-CDIAGFLAGS+=	-Winline
 CDIAGFLAGS+=	-Wmissing-declarations
 CDIAGFLAGS+=	-Wmissing-prototypes
 CDIAGFLAGS+=	-Wold-style-definition

@@ -1,4 +1,4 @@
-/* $OpenBSD: sshd.c,v 1.626 2026/02/09 21:21:39 dtucker Exp $ */
+/* $OpenBSD: sshd.c,v 1.628 2026/06/29 07:36:37 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001, 2002 Markus Friedl.  All rights reserved.
  * Copyright (c) 2002 Niels Provos.  All rights reserved.
@@ -1654,7 +1654,8 @@ main(int ac, char **av)
 		if (options.host_key_files[i] == NULL)
 			continue;
 		if ((r = sshkey_load_private(options.host_key_files[i], "",
-		    &key, NULL)) != 0 && r != SSH_ERR_SYSTEM_ERROR)
+		    &key, NULL)) != 0 &&
+		    r != SSH_ERR_SYSTEM_ERROR && !have_agent)
 			do_log2_r(r, ll, "Unable to load host key \"%s\"",
 			    options.host_key_files[i]);
 		if (sshkey_is_sk(key) &&
@@ -1716,6 +1717,7 @@ main(int ac, char **av)
 		case KEY_RSA:
 		case KEY_ECDSA:
 		case KEY_ED25519:
+		case KEY_MLDSA44_ED25519:
 		case KEY_ECDSA_SK:
 		case KEY_ED25519_SK:
 			if (have_agent || key != NULL)

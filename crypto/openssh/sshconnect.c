@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.382 2026/02/16 00:45:41 dtucker Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.384 2026/07/06 07:49:58 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -69,6 +69,49 @@ extern char *__progname;
 
 static int show_other_keys(struct hostkeys *, struct sshkey *);
 static void warn_changed_key(struct sshkey *);
+
+void
+ssh_conn_info_free(struct ssh_conn_info *cinfo)
+{
+	if (cinfo == NULL)
+		return;
+	free(cinfo->conn_hash_hex);
+	free(cinfo->shorthost);
+	free(cinfo->uidstr);
+	free(cinfo->keyalias);
+	free(cinfo->thishost);
+	free(cinfo->host_arg);
+	free(cinfo->portstr);
+	free(cinfo->remhost);
+	free(cinfo->remuser);
+	free(cinfo->homedir);
+	free(cinfo->locuser);
+	free(cinfo->jmphost);
+	freezero(cinfo, sizeof(*cinfo));
+}
+
+struct ssh_conn_info *
+ssh_conn_info_dup(const struct ssh_conn_info *cinfo)
+{
+	struct ssh_conn_info *ret;
+
+	if (cinfo == NULL)
+		return NULL;
+	ret = xcalloc(1, sizeof(*ret));
+	ret->conn_hash_hex = xstrdup(cinfo->conn_hash_hex);
+	ret->shorthost = xstrdup(cinfo->shorthost);
+	ret->uidstr = xstrdup(cinfo->uidstr);
+	ret->keyalias = xstrdup(cinfo->keyalias);
+	ret->thishost = xstrdup(cinfo->thishost);
+	ret->host_arg = xstrdup(cinfo->host_arg);
+	ret->portstr = xstrdup(cinfo->portstr);
+	ret->remhost = xstrdup(cinfo->remhost);
+	ret->remuser = xstrdup(cinfo->remuser);
+	ret->homedir = xstrdup(cinfo->homedir);
+	ret->locuser = xstrdup(cinfo->locuser);
+	ret->jmphost = xstrdup(cinfo->jmphost);
+	return ret;
+}
 
 /* Expand a proxy command */
 static char *
@@ -1594,8 +1637,8 @@ warn_nonpq_kex(void)
  */
 void
 ssh_login(struct ssh *ssh, Sensitive *sensitive, const char *orighost,
-    struct sockaddr *hostaddr, u_short port, struct passwd *pw, int timeout_ms,
-    const struct ssh_conn_info *cinfo)
+    struct sockaddr_storage *hostaddr, u_short port, struct passwd *pw,
+    int timeout_ms, const struct ssh_conn_info *cinfo)
 {
 	char *host;
 	char *server_user, *local_user;
@@ -1642,6 +1685,7 @@ show_other_keys(struct hostkeys *hostkeys, struct sshkey *key)
 		KEY_RSA,
 		KEY_ECDSA,
 		KEY_ED25519,
+		KEY_MLDSA44_ED25519,
 		-1
 	};
 	int i, ret = 0;

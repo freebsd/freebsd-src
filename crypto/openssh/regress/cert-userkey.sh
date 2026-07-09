@@ -1,4 +1,4 @@
-#	$OpenBSD: cert-userkey.sh,v 1.32 2026/02/11 22:58:23 djm Exp $
+#	$OpenBSD: cert-userkey.sh,v 1.33 2026/06/14 04:08:05 djm Exp $
 #	Placed in the Public Domain.
 
 tid="certified user keys"
@@ -10,7 +10,18 @@ cp $OBJ/ssh_proxy $OBJ/ssh_proxy_bak
 grep -v AuthorizedKeysFile $OBJ/sshd_proxy > $OBJ/sshd_proxy_bak
 echo "AuthorizedKeysFile $OBJ/authorized_keys_%u_*" >> $OBJ/sshd_proxy_bak
 
-PLAIN_TYPES=`$SSH -Q key-plain | maybe_filter_sk | sed 's/^ssh-//'`
+PLAIN_TYPES=""
+for i in `$SSH -Q key-plain | maybe_filter_sk`; do
+	case "$i" in
+	*@openssh.com*)	t="$i" ;;
+	*)		t=`echo "$i" | sed 's/^ssh-//'` ;;
+	esac
+	if [ -z "$PLAIN_TYPES" ]; then
+		PLAIN_TYPES="$t"
+	else
+		PLAIN_TYPES="$PLAIN_TYPES $t"
+	fi
+done
 EXTRA_TYPES=""
 rsa=""
 
@@ -24,6 +35,7 @@ kname() {
 	rsa-sha2-*) n="$1" ;;
 	sk-ecdsa-*) n="sk-ecdsa" ;;
 	sk-ssh-ed25519*) n="sk-ssh-ed25519" ;;
+	ssh-mldsa*) n=`echo "$1" | sed 's/@.*//'` ;;
 	# subshell because some seds will add a newline
 	*) n=$(echo $1 | sed 's/^rsa/ssh-rsa/;s/^ed/ssh-ed/') ;;
 	esac

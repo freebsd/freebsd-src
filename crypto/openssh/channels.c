@@ -1,4 +1,4 @@
-/* $OpenBSD: channels.c,v 1.458 2026/03/28 05:16:18 djm Exp $ */
+/* $OpenBSD: channels.c,v 1.463 2026/06/24 11:59:09 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -359,16 +359,20 @@ channel_classify(struct ssh *ssh, Channel *c)
 {
 	struct ssh_channels *sc = ssh->chanctxt;
 	const char *type = c->xctype == NULL ? c->ctype : c->xctype;
-	const char *classifier = (c->isatty || c->remote_has_tty) ?
+	const int has_tty = c->isatty || c->remote_has_tty;
+	const char *classifier = has_tty ?
 	    sc->bulk_classifier_tty : sc->bulk_classifier_notty;
 
 	c->bulk = type != NULL && match_pattern_list(type, classifier, 0) == 1;
+	debug3("channel %d: classify type \"%s\" (%s) as %s", c->self,
+	    type ? type : "(null)", has_tty ? "with TTY" : "no TTY",
+	    c->bulk ? "bulk" : "interactive");
 }
 
 /*
  * Sets "extended type" of a channel; used by session layer to add additional
  * information about channel types (e.g. shell, login, subsystem) that can then
- * be used to select timeouts.
+ * be used to select timeouts and DSCP values.
  * Will reset c->inactive_deadline as a side-effect.
  */
 void
@@ -1375,6 +1379,11 @@ x11_open_helper(struct ssh *ssh, struct sshbuf *b)
 	struct ssh_channels *sc = ssh->chanctxt;
 	u_char *ucp;
 	u_int proto_len, data_len;
+
+	if (sc->x11_saved_proto == NULL) {
+		error("X11 forwarding opened before X11 forwarding requested");
+		return -1;
+	}
 
 	/* Is this being called after the refusal deadline? */
 	if (sc->x11_refuse_time != 0 &&
@@ -2858,7 +2867,7 @@ channel_prepare_pollfd(Channel *c, u_int *next_pollfd,
 		if (ev != 0) {
 			c->pfds[3] = p;
 			pfd[p].fd = c->sock;
-			pfd[p].events = 0;
+			pfd[p].events = ev;
 			dump_channel_poll(__func__, "sock", c, p, &pfd[p]);
 			p++;
 		}

@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.c,v 1.213 2026/03/03 09:57:25 dtucker Exp $ */
+/* $OpenBSD: misc.c,v 1.215 2026/06/21 19:23:56 tb Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  * Copyright (c) 2005-2020 Damien Miller.  All rights reserved.
@@ -2588,10 +2588,12 @@ parse_absolute_time(const char *s, uint64_t *tp)
 	if ((cp = strptime(buf, fmt, &tm)) == NULL || *cp != '\0')
 		return SSH_ERR_INVALID_FORMAT;
 	if (is_utc) {
-		if ((tt = timegm(&tm)) < 0)
+		tm.tm_wday = -1;	/* sentinel for error */
+		if ((tt = timegm(&tm)) == -1 && tm.tm_wday == -1)
 			return SSH_ERR_INVALID_FORMAT;
 	} else {
-		if ((tt = mktime(&tm)) < 0)
+		tm.tm_wday = -1;	/* sentinel for error */
+		if ((tt = mktime(&tm)) == -1 && tm.tm_wday == -1)
 			return SSH_ERR_INVALID_FORMAT;
 	}
 	/* success */

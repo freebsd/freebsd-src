@@ -32,6 +32,7 @@ SRCS=	${LIBOPENSSH_SRCS} \
 	ssh-pkcs11.c smult_curve25519_ref.c \
 	poly1305.c chacha.c cipher-chachapoly.c cipher-chachapoly-libcrypto.c \
 	ssh-ed25519.c digest-openssl.c digest-libc.c \
+	libcrux-mlkem-mldsa.c ssh-mldsa-eddsa.c \
 	hmac.c ed25519.c ed25519-openssl.c \
 	kex.c kex-names.c kexdh.c kexgex.c kexecdh.c kexc25519.c \
 	kexgexc.c kexgexs.c \

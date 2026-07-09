@@ -1,4 +1,4 @@
-/*	$OpenBSD: ssherr.c,v 1.11 2026/02/06 23:31:29 dtucker Exp $	*/
+/*	$OpenBSD: ssherr.c,v 1.12 2026/06/14 03:59:34 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -72,6 +72,8 @@ ssh_err(int n)
 	case SSH_ERR_LIBCRYPTO_ERROR:
 		msg = ssherr_libcrypto();
 		return msg != NULL ? msg : "error in libcrypto";
+	case SSH_ERR_INTERNAL_CRYPTO_ERROR:
+		return "cryptographic operation failed";
 	case SSH_ERR_UNEXPECTED_TRAILING_DATA:
 		return "unexpected bytes remain after decoding";
 	case SSH_ERR_SYSTEM_ERROR:

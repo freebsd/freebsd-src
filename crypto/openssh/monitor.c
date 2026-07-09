@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor.c,v 1.255 2026/03/28 05:06:16 djm Exp $ */
+/* $OpenBSD: monitor.c,v 1.256 2026/05/31 11:30:50 djm Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -602,34 +602,26 @@ monitor_reset_key_state(void)
 int
 mm_answer_state(struct ssh *ssh, int sock, struct sshbuf *unused)
 {
-	struct sshbuf *m = NULL, *inc = NULL, *hostkeys = NULL;
+	struct sshbuf *m = NULL, *config = NULL, *hostkeys = NULL;
 	struct sshbuf *opts = NULL, *confdata = NULL;
-	struct include_item *item = NULL;
 	int postauth;
 	int r;
 
 	debug_f("config len %zu", sshbuf_len(cfg));
 
 	if ((m = sshbuf_new()) == NULL ||
-	    (inc = sshbuf_new()) == NULL ||
+	    (config = sshbuf_new()) == NULL ||
 	    (opts = sshbuf_new()) == NULL ||
 	    (confdata = sshbuf_new()) == NULL)
 		fatal_f("sshbuf_new failed");
 
-	/* XXX unnecessary? */
-	/* pack includes into a string */
-	TAILQ_FOREACH(item, &includes, entry) {
-		if ((r = sshbuf_put_cstring(inc, item->selector)) != 0 ||
-		    (r = sshbuf_put_cstring(inc, item->filename)) != 0 ||
-		    (r = sshbuf_put_stringb(inc, item->contents)) != 0)
-			fatal_fr(r, "compose includes");
-	}
-
 	hostkeys = pack_hostkeys();
+	if ((r = serialise_server_options(&options, &config)) != 0)
+		fatal_fr(r, "serialise_server_options");
 
 	/*
 	 * Protocol from monitor to unpriv privsep process:
-	 *	string	configuration
+	 *	string	configuration_blob
 	 *	uint64	timing_secret	XXX move delays to monitor and remove
 	 *	string	host_keys[] {
 	 *		string public_key
@@ -637,23 +629,17 @@ mm_answer_state(struct ssh *ssh, int sock, struct sshbuf *unused)
 	 *	}
 	 *	string  server_banner
 	 *	string  client_banner
-	 *	string	included_files[] {
-	 *		string	selector
-	 *		string	filename
-	 *		string	contents
-	 *	}
 	 *	string	configuration_data (postauth)
 	 *	string  keystate (postauth)
 	 *	string  authenticated_user (postauth)
 	 *	string  session_info (postauth)
 	 *	string  authopts (postauth)
 	 */
-	if ((r = sshbuf_put_stringb(m, cfg)) != 0 ||
+	if ((r = sshbuf_put_stringb(m, config)) != 0 ||
 	    (r = sshbuf_put_u64(m, options.timing_secret)) != 0 ||
 	    (r = sshbuf_put_stringb(m, hostkeys)) != 0 ||
 	    (r = sshbuf_put_stringb(m, ssh->kex->server_version)) != 0 ||
-	    (r = sshbuf_put_stringb(m, ssh->kex->client_version)) != 0 ||
-	    (r = sshbuf_put_stringb(m, inc)) != 0)
+	    (r = sshbuf_put_stringb(m, ssh->kex->client_version)) != 0)
 		fatal_fr(r, "compose config");
 
 	postauth = (authctxt && authctxt->pw && authctxt->authenticated);
@@ -662,7 +648,7 @@ mm_answer_state(struct ssh *ssh, int sock, struct sshbuf *unused)
 		fatal_f("internal error: called in postauth");
 	}
 
-	sshbuf_free(inc);
+	sshbuf_free(config);
 	sshbuf_free(opts);
 	sshbuf_free(confdata);
 	sshbuf_free(hostkeys);
@@ -842,27 +828,15 @@ void
 mm_encode_server_options(struct sshbuf *m)
 {
 	int r;
-	u_int i;
+	struct sshbuf *config;
 
-	/* XXX this leaks raw pointers to the unpriv child processes */
-	if ((r = sshbuf_put_string(m, &options, sizeof(options))) != 0)
+	if ((config = sshbuf_new()) == NULL)
+		fatal_f("sshbuf_new failed");
+	if ((r = serialise_server_options(&options, &config)) != 0)
+		fatal_fr(r, "serialise_server_options");
+	if ((r = sshbuf_put_stringb(m, config)) != 0)
 		fatal_fr(r, "assemble options");
-
-#define M_CP_STROPT(x) do { \
-		if (options.x != NULL && \
-		    (r = sshbuf_put_cstring(m, options.x)) != 0) \
-			fatal_fr(r, "assemble %s", #x); \
-	} while (0)
-#define M_CP_STRARRAYOPT(x, nx, clobber) do { \
-		for (i = 0; i < options.nx; i++) { \
-			if ((r = sshbuf_put_cstring(m, options.x[i])) != 0) \
-				fatal_fr(r, "assemble %s", #x); \
-		} \
-	} while (0)
-	/* See comment in servconf.h */
-	COPY_MATCH_STRING_OPTS();
-#undef M_CP_STROPT
-#undef M_CP_STRARRAYOPT
+	sshbuf_free(config);
 }
 
 /* Retrieves the password entry and also checks if the user is permitted */

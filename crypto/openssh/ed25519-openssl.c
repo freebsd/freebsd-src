@@ -1,4 +1,4 @@
-/* $OpenBSD: ed25519-openssl.c,v 1.1 2025/10/30 20:49:10 djm Exp $ */
+/* $OpenBSD: ed25519-openssl.c,v 1.3 2026/06/29 02:08:55 djm Exp $ */
 /*
  * Copyright (c) 2025 OpenSSH
  *
@@ -96,6 +96,38 @@ out:
 }
 
 int
+crypto_sign_ed25519_keypair_from_seed(unsigned char *pk, unsigned char *sk,
+    const unsigned char *seed)
+{
+	EVP_PKEY *pkey = NULL;
+	size_t pklen;
+	int ret = -1;
+
+	if ((pkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, NULL,
+	    seed, SSH_ED25519_RAW_SECRET_KEY_LEN)) == NULL) {
+		debug3_f("EVP_PKEY_new_raw_private_key failed");
+		goto out;
+	}
+
+	/* Extract public key */
+	pklen = crypto_sign_ed25519_PUBLICKEYBYTES;
+	if (!EVP_PKEY_get_raw_public_key(pkey, pk, &pklen)) {
+		debug3_f("EVP_PKEY_get_raw_public_key failed");
+		goto out;
+	}
+
+	/* Build sk = seed || pk */
+	memcpy(sk, seed, SSH_ED25519_RAW_SECRET_KEY_LEN);
+	memcpy(sk + SSH_ED25519_RAW_SECRET_KEY_LEN, pk,
+	    crypto_sign_ed25519_PUBLICKEYBYTES);
+
+	ret = 0;
+out:
+	EVP_PKEY_free(pkey);
+	return ret;
+}
+
+int
 crypto_sign_ed25519(unsigned char *sm, unsigned long long *smlen,
     const unsigned char *m, unsigned long long mlen,
     const unsigned char *sk)
@@ -160,6 +192,10 @@ crypto_sign_ed25519_open(unsigned char *m, unsigned long long *mlen,
 
 	if (smlen < crypto_sign_ed25519_BYTES) {
 		debug3_f("signed message bad length: %llu", smlen);
+		return -1;
+	}
+	if (smlen - crypto_sign_ed25519_BYTES > SIZE_MAX) {
+		debug3_f("signed message too long: %llu", smlen);
 		return -1;
 	}
 	/* Signature is first crypto_sign_ed25519_BYTES, message follows */

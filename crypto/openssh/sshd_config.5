@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd_config.5,v 1.397 2026/03/28 05:07:12 djm Exp $
-.Dd $Mdocdate: March 28 2026 $
+.\" $OpenBSD: sshd_config.5,v 1.399 2026/06/24 06:55:12 djm Exp $
+.Dd $Mdocdate: June 24 2026 $
 .Dt SSHD_CONFIG 5
 .Os
 .Sh NAME
@@ -633,6 +633,13 @@ or
 .Cm no .
 The default is
 .Cm yes .
+.Pp
+Compression applies to all traffic that flows over the SSH connection.
+If untrusted traffic (such as an open port-forward) is permitted over the
+connection alongside trusted traffic, then compression may leak information
+about session contents.
+For this reason, it is not recommended to enable compression for connections
+that share trusted and untrusted traffic.
 .It Cm DenyGroups
 This keyword can be followed by a list of group name patterns, separated
 by spaces.
@@ -769,6 +776,7 @@ machine's default store.
 This facility is provided to assist with operation on multi homed machines.
 The default is
 .Cm yes .
+This option may not be effective in Windows Active Directory environments.
 .It Cm HostbasedAcceptedAlgorithms
 Specifies the signature algorithms that will be accepted for hostbased
 authentication as a list of comma-separated patterns.
@@ -2110,7 +2118,7 @@ The default is
 Optionally specifies additional text to append to the SSH protocol banner
 sent by the server upon connection.
 The default is
-.Qq FreeBSD-20260514 .
+.Qq FreeBSD-20260709 .
 The value
 .Cm none
 may be used to disable this.

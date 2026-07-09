@@ -1,5 +1,5 @@
 #!/bin/sh
-# $OpenBSD: mktestdata.sh,v 1.12 2025/05/06 06:05:48 djm Exp $
+# $OpenBSD: mktestdata.sh,v 1.13 2026/06/14 04:08:06 djm Exp $
 
 PW=mekmitasdigoat
 
@@ -58,16 +58,17 @@ else
 	exit 1
 fi
 
-rm -f rsa_1 ecdsa_1 ed25519_1
-rm -f rsa_2 ecdsa_2 ed25519_2
+rm -f rsa_1 ecdsa_1 ed25519_1 mldsa44_ed25519_1
+rm -f rsa_2 ecdsa_2 ed25519_2 mldsa44_ed25519_2
 rm -f rsa_n ecdsa_n # new-format keys
-rm -f rsa_1_pw ecdsa_1_pw ed25519_1_pw
+rm -f rsa_1_pw ecdsa_1_pw ed25519_1_pw mldsa44_ed25519_1_pw
 rm -f rsa_n_pw ecdsa_n_pw
 rm -f pw *.pub *.bn.* *.param.* *.fp *.fp.bb
 
 ssh-keygen -t rsa -b 1024 -C "RSA test key #1" -N "" -f rsa_1 -m PEM
 ssh-keygen -t ecdsa -b 256 -C "ECDSA test key #1" -N "" -f ecdsa_1 -m PEM
 ssh-keygen -t ed25519 -C "ED25519 test key #1" -N "" -f ed25519_1
+ssh-keygen -t ssh-mldsa44-ed25519@openssh.com -C "MLDSA44-ED25519 test key #1" -N "" -f mldsa44_ed25519_1
 ssh-keygen -w "$SK_DUMMY" -t ecdsa-sk -C "ECDSA-SK test key #1" \
     -N "" -f ecdsa_sk1
 ssh-keygen -w "$SK_DUMMY" -t ed25519-sk -C "ED25519-SK test key #1" \
@@ -77,6 +78,7 @@ ssh-keygen -w "$SK_DUMMY" -t ed25519-sk -C "ED25519-SK test key #1" \
 ssh-keygen -t rsa -b 2048 -C "RSA test key #2" -N "" -f rsa_2 -m PEM
 ssh-keygen -t ecdsa -b 521 -C "ECDSA test key #2" -N "" -f ecdsa_2 -m PEM
 ssh-keygen -t ed25519 -C "ED25519 test key #2" -N "" -f ed25519_2
+ssh-keygen -t ssh-mldsa44-ed25519@openssh.com -C "MLDSA44-ED25519 test key #2" -N "" -f mldsa44_ed25519_2
 ssh-keygen -w "$SK_DUMMY" -t ecdsa-sk -C "ECDSA-SK test key #2" \
     -N "" -f ecdsa_sk2
 ssh-keygen -w "$SK_DUMMY" -t ed25519-sk -C "ED25519-SK test key #2" \
@@ -91,6 +93,7 @@ ssh-keygen -pf ecdsa_n -N ""
 cp rsa_1 rsa_1_pw
 cp ecdsa_1 ecdsa_1_pw
 cp ed25519_1 ed25519_1_pw
+cp mldsa44_ed25519_1 mldsa44_ed25519_1_pw
 cp ecdsa_sk1 ecdsa_sk1_pw
 cp ed25519_sk1 ed25519_sk1_pw
 cp rsa_1 rsa_n_pw
@@ -99,6 +102,7 @@ cp ecdsa_1 ecdsa_n_pw
 ssh-keygen -pf rsa_1_pw -m PEM -N "$PW"
 ssh-keygen -pf ecdsa_1_pw -m PEM -N "$PW"
 ssh-keygen -pf ed25519_1_pw -N "$PW"
+ssh-keygen -pf mldsa44_ed25519_1_pw -N "$PW"
 ssh-keygen -pf ecdsa_sk1_pw -m PEM -N "$PW"
 ssh-keygen -pf ed25519_sk1_pw -N "$PW"
 ssh-keygen -pf rsa_n_pw -N "$PW"
@@ -119,6 +123,9 @@ ssh-keygen -s rsa_2 -I hugo -n user1,user2 \
 ssh-keygen -s rsa_2 -I hugo -n user1,user2 \
     -Oforce-command=/bin/ls -Ono-port-forwarding -Osource-address=10.0.0.0/8 \
     -V 19990101:20110101 -z 4 ed25519_1.pub
+ssh-keygen -s rsa_2 -I hugo -n user1,user2 \
+    -Oforce-command=/bin/ls -Ono-port-forwarding -Osource-address=10.0.0.0/8 \
+    -V 19990101:20110101 -z 4 mldsa44_ed25519_1.pub
 ssh-keygen -s rsa_2 -I hugo -n user1,user2 \
     -Oforce-command=/bin/ls -Ono-port-forwarding -Osource-address=10.0.0.0/8 \
     -V 19990101:20110101 -z 4 ecdsa_sk1.pub
@@ -145,6 +152,8 @@ ssh-keygen -s ecdsa_1 -I julius -n host1,host2 -h \
     -V 19990101:20110101 -z 7 ecdsa_1.pub
 ssh-keygen -s ed25519_1 -I julius -n host1,host2 -h \
     -V 19990101:20110101 -z 8 ed25519_1.pub
+ssh-keygen -s ed25519_1 -I julius -n host1,host2 -h \
+    -V 19990101:20110101 -z 8 mldsa44_ed25519_1.pub
 ssh-keygen -s ecdsa_1 -I julius -n host1,host2 -h \
     -V 19990101:20110101 -z 7 ecdsa_sk1.pub
 ssh-keygen -s ed25519_1 -I julius -n host1,host2 -h \
@@ -153,28 +162,33 @@ ssh-keygen -s ed25519_1 -I julius -n host1,host2 -h \
 ssh-keygen -lf rsa_1 | awk '{print $2}' > rsa_1.fp
 ssh-keygen -lf ecdsa_1 | awk '{print $2}' > ecdsa_1.fp
 ssh-keygen -lf ed25519_1 | awk '{print $2}' > ed25519_1.fp
+ssh-keygen -lf mldsa44_ed25519_1 | awk '{print $2}' > mldsa44_ed25519_1.fp
 ssh-keygen -lf ecdsa_sk1 | awk '{print $2}' > ecdsa_sk1.fp
 ssh-keygen -lf ed25519_sk1 | awk '{print $2}' > ed25519_sk1.fp
 ssh-keygen -lf rsa_2 | awk '{print $2}' > rsa_2.fp
 ssh-keygen -lf ecdsa_2 | awk '{print $2}' > ecdsa_2.fp
 ssh-keygen -lf ed25519_2 | awk '{print $2}' > ed25519_2.fp
+ssh-keygen -lf mldsa44_ed25519_2 | awk '{print $2}' > mldsa44_ed25519_2.fp
 ssh-keygen -lf ecdsa_sk2 | awk '{print $2}' > ecdsa_sk2.fp
 ssh-keygen -lf ed25519_sk2 | awk '{print $2}' > ed25519_sk2.fp
 
 ssh-keygen -lf rsa_1-cert.pub  | awk '{print $2}' > rsa_1-cert.fp
 ssh-keygen -lf ecdsa_1-cert.pub  | awk '{print $2}' > ecdsa_1-cert.fp
 ssh-keygen -lf ed25519_1-cert.pub  | awk '{print $2}' > ed25519_1-cert.fp
+ssh-keygen -lf mldsa44_ed25519_1-cert.pub  | awk '{print $2}' > mldsa44_ed25519_1-cert.fp
 ssh-keygen -lf ecdsa_sk1-cert.pub  | awk '{print $2}' > ecdsa_sk1-cert.fp
 ssh-keygen -lf ed25519_sk1-cert.pub  | awk '{print $2}' > ed25519_sk1-cert.fp
 
 ssh-keygen -Bf rsa_1 | awk '{print $2}' > rsa_1.fp.bb
 ssh-keygen -Bf ecdsa_1 | awk '{print $2}' > ecdsa_1.fp.bb
 ssh-keygen -Bf ed25519_1 | awk '{print $2}' > ed25519_1.fp.bb
+ssh-keygen -Bf mldsa44_ed25519_1 | awk '{print $2}' > mldsa44_ed25519_1.fp.bb
 ssh-keygen -Bf ecdsa_sk1 | awk '{print $2}' > ecdsa_sk1.fp.bb
 ssh-keygen -Bf ed25519_sk1 | awk '{print $2}' > ed25519_sk1.fp.bb
 ssh-keygen -Bf rsa_2 | awk '{print $2}' > rsa_2.fp.bb
 ssh-keygen -Bf ecdsa_2 | awk '{print $2}' > ecdsa_2.fp.bb
 ssh-keygen -Bf ed25519_2 | awk '{print $2}' > ed25519_2.fp.bb
+ssh-keygen -Bf mldsa44_ed25519_2 | awk '{print $2}' > mldsa44_ed25519_2.fp.bb
 ssh-keygen -Bf ecdsa_sk2 | awk '{print $2}' > ecdsa_sk2.fp.bb
 ssh-keygen -Bf ed25519_sk2 | awk '{print $2}' > ed25519_sk2.fp.bb
 

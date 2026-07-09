@@ -1,4 +1,4 @@
-/* $OpenBSD: ssherr-libcrypto.c,v 1.1 2026/02/06 23:31:29 dtucker Exp $ */
+/* $OpenBSD: ssherr-libcrypto.c,v 1.2 2026/06/30 03:42:53 tb Exp $ */
 /*
  * Copyright (c) 2026 Darren Tucker
  *
@@ -36,7 +36,7 @@ ssherr_libcrypto(void)
 	const char *reason = NULL, *file, *data;
 	int ln, fl;
 
-	ERR_load_crypto_strings();
+	OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
 	while ((e = ERR_get_error_line_data(&file, &ln, &data, &fl)) != 0) {
 		ERR_error_string_n(e, buf, sizeof(buf));
 		snprintf(msg, sizeof(msg), "%s:%s:%d:%s", buf, file, ln,

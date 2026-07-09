@@ -1,5 +1,5 @@
 The SSH agent protocol is described in
-https://datatracker.ietf.org/doc/draft-ietf-sshm-ssh-agent/
+https://datatracker.ietf.org/doc/html/rfc9987
 
 This file documents OpenSSH's extensions to the agent protocol.
 
@@ -104,4 +104,4 @@ A SSH_AGENTC_ADD_SMARTCARD_KEY_CONSTRAINED will return SSH_AGENT_SUCCESS
 if any key (plain private or certificate) was successfully loaded, or
 SSH_AGENT_FAILURE if no key was loaded.
 
-$OpenBSD: PROTOCOL.agent,v 1.25 2025/08/29 03:50:38 djm Exp $
+$OpenBSD: PROTOCOL.agent,v 1.26 2026/06/02 06:18:27 djm Exp $

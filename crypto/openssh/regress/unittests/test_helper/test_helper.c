@@ -1,4 +1,4 @@
-/*	$OpenBSD: test_helper.c,v 1.16 2026/03/06 06:57:33 dtucker Exp $	*/
+/*	$OpenBSD: test_helper.c,v 1.18 2026/06/22 12:08:33 dtucker Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -151,7 +151,7 @@ main(int argc, char **argv)
 
 	seed_rng();
 #ifdef WITH_OPENSSL
-	ERR_load_crypto_strings();
+	OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
 #endif
 
 	/* Handle systems without __progname */
@@ -660,6 +660,20 @@ static double
 tstod(const struct timespec *ts)
 {
 	return (double)ts->tv_sec + ((double)ts->tv_nsec / 1000000000.0);
+}
+
+void
+hex2bin(uint8_t *bin, const char *hex, size_t len)
+{
+	size_t i;
+	unsigned int v;
+
+	/* Don't use %hhx since it's C99 and older platforms don't have it. */
+	for (i = 0; i < len; i++) {
+		ASSERT_INT_EQ(sscanf(hex + i * 2, "%02x", &v), 1);
+		ASSERT_U_INT_LE(v, 256);
+		bin[i] = (uint8_t)v;
+	}
 }
 
 void

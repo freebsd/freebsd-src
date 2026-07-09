@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keyscan.c,v 1.167 2025/08/29 03:50:38 djm Exp $ */
+/* $OpenBSD: ssh-keyscan.c,v 1.168 2026/06/14 03:59:34 djm Exp $ */
 /*
  * Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
  *
@@ -64,12 +64,13 @@ int ssh_port = SSH_DEFAULT_PORT;
 #define KT_ED25519	(1<<2)
 #define KT_ECDSA_SK	(1<<4)
 #define KT_ED25519_SK	(1<<5)
+#define KT_MLDSA44_ED25519 (1<<6)
 
 #define KT_MIN		KT_RSA
-#define KT_MAX		KT_ED25519_SK
+#define KT_MAX		KT_MLDSA44_ED25519
 
 int get_cert = 0;
-int get_keytypes = KT_RSA|KT_ECDSA|KT_ED25519|KT_ECDSA_SK|KT_ED25519_SK;
+int get_keytypes = KT_RSA|KT_ECDSA|KT_ED25519|KT_ECDSA_SK|KT_ED25519_SK|KT_MLDSA44_ED25519;
 
 int hash_hosts = 0;		/* Hash hostname on output */
 
@@ -256,6 +257,11 @@ keygrab_ssh2(con *c)
 		    "ecdsa-sha2-nistp256,"
 		    "ecdsa-sha2-nistp384,"
 		    "ecdsa-sha2-nistp521";
+		break;
+	case KT_MLDSA44_ED25519:
+		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = get_cert ?
+		    "ssh-mldsa44-ed25519-cert-v01@openssh.com" :
+		    "ssh-mldsa44-ed25519@openssh.com";
 		break;
 	case KT_ECDSA_SK:
 		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = get_cert ?
@@ -744,6 +750,9 @@ main(int argc, char **argv)
 					break;
 				case KEY_ECDSA_SK:
 					get_keytypes |= KT_ECDSA_SK;
+					break;
+				case KEY_MLDSA44_ED25519:
+					get_keytypes |= KT_MLDSA44_ED25519;
 					break;
 				case KEY_UNSPEC:
 				default:

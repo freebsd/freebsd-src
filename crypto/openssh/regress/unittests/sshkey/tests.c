@@ -1,4 +1,4 @@
-/* 	$OpenBSD: tests.c,v 1.2 2025/04/15 04:00:42 djm Exp $ */
+/* 	$OpenBSD: tests.c,v 1.3 2026/06/29 07:46:22 djm Exp $ */
 /*
  * Regress test for sshbuf.h buffer API
  *

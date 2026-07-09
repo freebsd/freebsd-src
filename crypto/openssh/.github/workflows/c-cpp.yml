@@ -9,6 +9,7 @@ name: CI
 #   fail immediately.
 #
 # LTESTS: Override the set of tests run.
+# TEST_SSH_TRACE: Set to yes for additional regress output.
 
 on:
   push:
@@ -51,7 +52,6 @@ jobs:
           - { target: ubuntu-22.04, config: gcc-12-Werror }
           - { target: ubuntu-22.04, config: gcc-sanitize-address }
           - { target: ubuntu-22.04, config: gcc-sanitize-undefined }
-          - { target: ubuntu-22.04, config: hardenedmalloc }
           - { target: ubuntu-22.04, config: heimdal }
           - { target: ubuntu-22.04, config: kitchensink }
           - { target: ubuntu-22.04, config: krb5 }
@@ -63,7 +63,7 @@ jobs:
           - { target: ubuntu-22.04, config: valgrind-2 }
           - { target: ubuntu-22.04, config: valgrind-3 }
           - { target: ubuntu-22.04, config: valgrind-4 }
-          - { target: ubuntu-22.04, config: valgrind-pam-1 }
+          # - { target: ubuntu-22.04, config: valgrind-pam-1 }
           - { target: ubuntu-22.04, config: valgrind-unit }
           - { target: ubuntu-22.04, config: without-openssl }
           - { target: ubuntu-latest, config: gcc-14 }
@@ -71,6 +71,7 @@ jobs:
           - { target: ubuntu-latest, config: clang-19 }
           - { target: ubuntu-latest, config: boringssl }
           - { target: ubuntu-latest, config: aws-lc }
+          - { target: ubuntu-latest, config: hardenedmalloc }
           - { target: ubuntu-latest, config: libressl-master }
           - { target: ubuntu-latest, config: libressl-3.2.7 }
           - { target: ubuntu-latest, config: libressl-3.3.6 }
@@ -83,6 +84,7 @@ jobs:
           - { target: ubuntu-latest, config: libressl-4.0.1 }
           - { target: ubuntu-latest, config: libressl-4.1.1 }
           - { target: ubuntu-latest, config: libressl-4.2.0 }
+          - { target: ubuntu-latest, config: libressl-4.3.2 }
           - { target: ubuntu-latest, config: openssl-master }
           - { target: ubuntu-latest, config: openssl-noec }
           - { target: ubuntu-latest, config: openssl-1.1.1 }
@@ -93,12 +95,14 @@ jobs:
           - { target: ubuntu-latest, config: openssl-3.1.0 }
           - { target: ubuntu-latest, config: openssl-3.1.8 }
           - { target: ubuntu-latest, config: openssl-3.2.6 }
-          - { target: ubuntu-latest, config: openssl-3.3.5 }
+          - { target: ubuntu-latest, config: openssl-3.3.7 }
           - { target: ubuntu-latest, config: openssl-3.4.0 }
-          - { target: ubuntu-latest, config: openssl-3.4.3 }
+          - { target: ubuntu-latest, config: openssl-3.4.5 }
           - { target: ubuntu-latest, config: openssl-3.5.0 }
           - { target: ubuntu-latest, config: openssl-3.5.3 }  # keep
-          - { target: ubuntu-latest, config: openssl-3.5.4 }
+          - { target: ubuntu-latest, config: openssl-3.5.6 }
+          - { target: ubuntu-latest, config: openssl-3.6.2 }
+          - { target: ubuntu-latest, config: openssl-4.0.0 }
           - { target: ubuntu-latest, config: openssl-1.1.1_stable }
           - { target: ubuntu-latest, config: openssl-3.0 }  # stable branch
           - { target: ubuntu-latest, config: openssl-3.1 }  # stable branch
@@ -107,6 +111,8 @@ jobs:
           - { target: ubuntu-latest, config: openssl-3.4 }  # stable branch
           - { target: ubuntu-latest, config: openssl-3.5 }  # stable branch
           - { target: ubuntu-latest, config: openssl-3.6 }  # stable branch
+          - { target: ubuntu-latest, config: openssl-4.0 }  # stable branch
+          - { target: ubuntu-latest, config: dropbear-versions }
           - { target: ubuntu-latest, config: putty-versions }
           - { target: ubuntu-latest, config: zlib-develop }
           - { target: ubuntu-latest, config: tcmalloc }
@@ -118,6 +124,7 @@ jobs:
     runs-on: ${{ matrix.target }}
     env:
       EPHEMERAL_VM: yes
+      CYGWIN: "winsymlinks:native"
     steps:
     - name: check RUN_ONLY_TARGET_CONFIG
       if: vars.RUN_ONLY_TARGET_CONFIG != ''
@@ -128,12 +135,12 @@ jobs:
     - name: install cygwin
       id: cygwin_install
       if: ${{ startsWith(matrix.target, 'windows') }}
-      uses: cygwin/cygwin-install-action@master
-      env:
-        CYGWIN: "winsymlinks:native"
-    - uses: actions/checkout@main
+      uses: cygwin/cygwin-install-action@a3d72946b163026bbd0fa9a88379ccbda4bd86bb # master
+    - name: checkout openssh git repo
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # main
     - name: setup CI system
-      run: sh ./.github/setup_ci.sh ${{ matrix.config }} ${{ matrix.target }}
+      run: |
+        sh -c "timeout 1200 .github/setup_ci.sh ${{ matrix.config }} ${{ matrix.target }} || .github/setup_ci.sh ${{ matrix.config }} ${{ matrix.target }}"
       env:
         CYGWIN_SETUP: ${{ steps.cygwin_install.outputs.setup }}
     - name: autoreconf
@@ -141,34 +148,35 @@ jobs:
     - name: configure
       run: sh ./.github/configure.sh ${{ matrix.config }}
     - name: save config
-      uses: actions/upload-artifact@main
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # main
       with:
         name: ${{ matrix.target }}-${{ matrix.config }}-config
         path: config.h
     - name: make clean
       run: make clean
     - name: make
-      run: make
+      run: make -j2
     - name: make tests
       run: sh ./.github/run_test.sh ${{ matrix.config }}
       env:
         TEST_SSH_UNSAFE_PERMISSIONS: 1
         TEST_SSH_HOSTBASED_AUTH: yes
+        TEST_SSH_TRACE: ${{ vars.TEST_SSH_TRACE }}
         LTESTS: ${{ vars.LTESTS }}
     - name: test OpenSSL3 ABI compatibility
       if: ${{ startsWith(matrix.config, 'openssl-3') }}
       run: |
        sh .github/install_libcrypto.sh -a ${{ matrix.config }} /opt/openssl
        sh .github/run_test.sh ${{ matrix.config }}
-    - name: show logs
-      if: failure()
-      run: for i in regress/failed*.log; do echo ====; echo logfile $i; echo =====; cat $i; done
     - name: chown logs
       if: failure()
-      run: test -x "$(which sudo 2>&1)" && sudo chown -R "${LOGNAME}" regress
+      run: sh -c 'SUDO="$(which sudo 2>/dev/null)"; $SUDO chown -R "${LOGNAME}" regress'
+    - name: show logs
+      if: failure()
+      run: sh -c "for i in regress/failed*.log; do echo ====; echo logfile $i; echo =====; cat $i; done"
     - name: save logs
       if: failure()
-      uses: actions/upload-artifact@main
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # main
       with:
         name: ${{ matrix.target }}-${{ matrix.config }}-logs
         path: |

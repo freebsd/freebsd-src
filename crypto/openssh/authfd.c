@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.c,v 1.141 2026/03/05 05:44:15 djm Exp $ */
+/* $OpenBSD: authfd.c,v 1.144 2026/06/29 08:57:06 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -205,7 +205,7 @@ ssh_request_reply_decode(int sock, struct sshbuf *request)
 void
 ssh_close_authentication_socket(int sock)
 {
-	if (getenv(SSH_AUTHSOCKET_ENV_NAME))
+	if (sock != -1 && getenv(SSH_AUTHSOCKET_ENV_NAME) != NULL)
 		close(sock);
 }
 
@@ -608,6 +608,8 @@ ssh_add_identity_constrained(int sock, struct sshkey *key,
 #endif
 	case KEY_ED25519:
 	case KEY_ED25519_CERT:
+	case KEY_MLDSA44_ED25519:
+	case KEY_MLDSA44_ED25519_CERT:
 	case KEY_ED25519_SK:
 	case KEY_ED25519_SK_CERT:
 		type = constrained ?
@@ -803,7 +805,7 @@ ssh_agent_query_extensions(int sock, char ***exts)
 		r = SSH_ERR_INVALID_FORMAT;
 		goto out;
 	}
-	ret = calloc(1, sizeof(*ret));
+	ret = xcalloc(1, sizeof(*ret));
 	while (sshbuf_len(msg)) {
 		ret = xrecallocarray(ret, i + 1, i + 2, sizeof(*ret));
 		if ((r = sshbuf_get_cstring(msg, ret + i, NULL)) != 0) {

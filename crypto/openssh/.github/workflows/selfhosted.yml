@@ -88,7 +88,7 @@ jobs:
           - { target: nbsd10, config: pam, host: libvirt }
           - { target: omnios, config: pam, host: libvirt }
           # ARM64 VMs
-          - { target: obsd-arm64, config: default, host: libvirt-arm64 }
+          - { target: obsdsnap-arm64, config: default, host: libvirt-arm64 }
           # VMs with persistent disks that have their own runner.
           - { target: win10, config: default,        host: persist-win10 }
           - { target: win10, config: cygwin-release, host: persist-win10 }
@@ -105,7 +105,7 @@ jobs:
     - name: shutdown VM if running
       if: env.VM == 'true'
       run: vmshutdown
-    - uses: actions/checkout@main
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # main
     - name: autoreconf
       run: autoreconf
     - name: startup VM
@@ -119,7 +119,7 @@ jobs:
     - name: configure
       run: vmrun ./.github/configure.sh ${{ matrix.config }}
 #    - name: save config
-#      uses: actions/upload-artifact@main
+#      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # main
 #      with:
 #        name: ${{ matrix.target }}-${{ matrix.config }}-config
 #        path: config.h
@@ -135,7 +135,7 @@ jobs:
       run: vmrun 'for i in regress/failed*.log; do echo ====; echo logfile $i; echo =====; cat $i; done'
     - name: save logs
       if: failure()
-      uses: actions/upload-artifact@main
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # main
       with:
         name: ${{ matrix.target }}-${{ matrix.config }}-logs
         path: |
@@ -184,7 +184,7 @@ jobs:
 
     - name: bigendian interop - save logs
       if: failure() && env.BIGENDIAN == 'true'
-      uses: actions/upload-artifact@main
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # main
       with:
         name: ${{ matrix.target }}-${{ matrix.config }}-interop-logs
         path: |

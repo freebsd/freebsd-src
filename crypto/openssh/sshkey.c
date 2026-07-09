@@ -1,4 +1,4 @@
-/* $OpenBSD: sshkey.c,v 1.161 2026/02/06 22:59:18 dtucker Exp $ */
+/* $OpenBSD: sshkey.c,v 1.163 2026/06/29 01:58:29 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2008 Alexander von Gernler.  All rights reserved.
@@ -90,6 +90,10 @@ extern const struct sshkey_impl sshkey_ed25519_impl;
 extern const struct sshkey_impl sshkey_ed25519_cert_impl;
 extern const struct sshkey_impl sshkey_ed25519_sk_impl;
 extern const struct sshkey_impl sshkey_ed25519_sk_cert_impl;
+#ifdef USE_MLDSA
+extern const struct sshkey_impl sshkey_mldsa44_ed25519_impl;
+extern const struct sshkey_impl sshkey_mldsa44_ed25519_cert_impl;
+#endif /* USE_MLDSA */
 #ifdef WITH_OPENSSL
 # ifdef OPENSSL_HAS_ECC
 #  ifdef ENABLE_SK
@@ -122,6 +126,10 @@ const struct sshkey_impl * const keyimpls[] = {
 	&sshkey_ed25519_sk_impl,
 	&sshkey_ed25519_sk_cert_impl,
 #endif
+#ifdef USE_MLDSA
+	&sshkey_mldsa44_ed25519_impl,
+	&sshkey_mldsa44_ed25519_cert_impl,
+#endif /* USE_MLDSA */
 #ifdef WITH_OPENSSL
 # ifdef OPENSSL_HAS_ECC
 	&sshkey_ecdsa_nistp256_impl,
@@ -439,6 +447,8 @@ sshkey_type_plain(int type)
 		return KEY_ECDSA_SK;
 	case KEY_ED25519_CERT:
 		return KEY_ED25519;
+	case KEY_MLDSA44_ED25519_CERT:
+		return KEY_MLDSA44_ED25519;
 	case KEY_ED25519_SK_CERT:
 		return KEY_ED25519_SK;
 	default:
@@ -459,6 +469,8 @@ sshkey_type_certified(int type)
 		return KEY_ECDSA_SK_CERT;
 	case KEY_ED25519:
 		return KEY_ED25519_CERT;
+	case KEY_MLDSA44_ED25519:
+		return KEY_MLDSA44_ED25519_CERT;
 	case KEY_ED25519_SK:
 		return KEY_ED25519_SK_CERT;
 	default:
@@ -2713,6 +2725,10 @@ sshkey_ec_validate_public(const EC_GROUP *group, const EC_POINT *public)
 			ret = SSH_ERR_ALLOC_FAIL;
 			goto out;
 		}
+		if (EC_GROUP_get_order(group, order, NULL) != 1) {
+			ret = SSH_ERR_LIBCRYPTO_ERROR;
+			goto out;
+		}
 		if ((nq = EC_POINT_new(group)) == NULL) {
 			ret = SSH_ERR_ALLOC_FAIL;
 			goto out;
@@ -3388,6 +3404,7 @@ sshkey_private_to_fileblob(struct sshkey *key, struct sshbuf *blob,
 #ifdef WITH_OPENSSL
 	case KEY_ECDSA_SK:
 #endif /* WITH_OPENSSL */
+	case KEY_MLDSA44_ED25519:
 		return sshkey_private_to_blob2(key, blob, passphrase,
 		    comment, openssh_format_cipher, openssh_format_rounds);
 	default:
@@ -3447,6 +3464,9 @@ translate_libcrypto_error(unsigned long pem_err)
 			return SSH_ERR_LIBCRYPTO_ERROR;
 		}
 	case ERR_LIB_ASN1:
+#ifdef ERR_LIB_OSSL_DECODER
+	case ERR_LIB_OSSL_DECODER:
+#endif
 		return SSH_ERR_INVALID_FORMAT;
 	}
 	return SSH_ERR_LIBCRYPTO_ERROR;

@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keyscan.1,v 1.53 2025/10/04 21:41:35 naddy Exp $
+.\"	$OpenBSD: ssh-keyscan.1,v 1.54 2026/06/26 06:17:13 djm Exp $
 .\"
 .\" Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
 .\"
@@ -6,7 +6,7 @@
 .\" permitted provided that due credit is given to the author and the
 .\" OpenBSD project by leaving this copyright notice intact.
 .\"
-.Dd $Mdocdate: October 4 2025 $
+.Dd $Mdocdate: June 26 2026 $
 .Dt SSH-KEYSCAN 1
 .Os
 .Sh NAME
@@ -49,6 +49,15 @@ Hosts to be scanned may be specified by hostname, address or by CIDR
 network range (e.g. 192.168.16/28).
 If a network range is specified, then all addresses in that range will
 be scanned.
+.Pp
+.Nm
+cannot verify the authenticity of the host keys it obtains, and an attacker
+on the network with the ability to intercept traffic could substitute their
+own host keys to enable impersonation of servers.
+Because of this,
+.Nm
+output should be verified out of band, or only used directly for host
+authentication if the network is trusted.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds

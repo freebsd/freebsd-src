@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshbuf.h,v 1.35 2026/03/03 09:57:25 dtucker Exp $	*/
+/*	$OpenBSD: sshbuf.h,v 1.36 2026/04/07 07:40:40 djm Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller
  *
@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #ifdef WITH_OPENSSL
 # include <openssl/bn.h>

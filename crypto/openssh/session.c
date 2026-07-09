@@ -1,4 +1,4 @@
-/* $OpenBSD: session.c,v 1.348 2026/03/05 05:40:36 djm Exp $ */
+/* $OpenBSD: session.c,v 1.350 2026/06/05 08:53:07 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
@@ -1625,21 +1625,22 @@ do_child(struct ssh *ssh, Session *s, const char *command)
 		exit(1);
 	} else if (s->is_subsystem == SUBSYSTEM_INT_SFTP) {
 		extern int optind, optreset;
-		int i;
-		char *p, *args;
+		int sftp_argc;
+		char **sftp_argv;
 
 		setproctitle("%s@%s", s->pw->pw_name, INTERNAL_SFTP_NAME);
-		args = xstrdup(command ? command : "sftp-server");
-		for (i = 0, (p = strtok(args, " ")); p; (p = strtok(NULL, " ")))
-			if (i < ARGV_MAX - 1)
-				argv[i++] = p;
-		argv[i] = NULL;
+		if (argv_split(command == NULL ? "sftp-server" : command,
+		    &sftp_argc, &sftp_argv, 1) != 0) {
+			error("internal error: can't split internal-sftp "
+			    "arguments");
+			exit(1);
+		}
 		optind = optreset = 1;
-		__progname = argv[0];
+		__progname = sftp_argv[0];
 #ifdef WITH_SELINUX
 		ssh_selinux_change_context("sftpd_t");
 #endif
-		exit(sftp_server_main(i, argv, s->pw));
+		exit(sftp_server_main(sftp_argc, sftp_argv, s->pw));
 	}
 
 	fflush(NULL);
@@ -1925,7 +1926,7 @@ static int
 session_subsystem_req(struct ssh *ssh, Session *s)
 {
 	struct stat st;
-	int r, success = 0;
+	int r, success = 0, found = 0;
 	char *prog, *cmd, *type;
 	u_int i;
 
@@ -1936,31 +1937,34 @@ session_subsystem_req(struct ssh *ssh, Session *s)
 	    s->pw->pw_name);
 
 	for (i = 0; i < options.num_subsystems; i++) {
-		if (strcmp(s->subsys, options.subsystem_name[i]) == 0) {
-			prog = options.subsystem_command[i];
-			cmd = options.subsystem_args[i];
-			if (strcmp(INTERNAL_SFTP_NAME, prog) == 0) {
-				s->is_subsystem = SUBSYSTEM_INT_SFTP;
-				debug("subsystem: %s", prog);
-			} else {
-				if (stat(prog, &st) == -1)
-					debug("subsystem: cannot stat %s: %s",
-					    prog, strerror(errno));
-				s->is_subsystem = SUBSYSTEM_EXT;
-				debug("subsystem: exec() %s", cmd);
-			}
-			xasprintf(&type, "session:subsystem:%s",
-			    options.subsystem_name[i]);
-			channel_set_xtype(ssh, s->chanid, type);
-			free(type);
-			success = do_exec(ssh, s, cmd) == 0;
-			break;
+		if (strcmp(s->subsys, options.subsystem_name[i]) != 0)
+			continue;
+		found = 1;
+		prog = options.subsystem_command[i];
+		cmd = options.subsystem_args[i];
+		if (strcmp(INTERNAL_SFTP_NAME, prog) == 0) {
+			s->is_subsystem = SUBSYSTEM_INT_SFTP;
+			debug("subsystem: %s", prog);
+		} else {
+			if (stat(prog, &st) == -1)
+				debug("subsystem: cannot stat %s: %s",
+				    prog, strerror(errno));
+			s->is_subsystem = SUBSYSTEM_EXT;
+			debug("subsystem: exec() %s", cmd);
 		}
+		xasprintf(&type, "session:subsystem:%s",
+		    options.subsystem_name[i]);
+		channel_set_xtype(ssh, s->chanid, type);
+		free(type);
+		success = do_exec(ssh, s, cmd) == 0;
+		break;
 	}
 
-	if (!success)
-		logit("subsystem request for %.100s by user %s failed, "
-		    "subsystem not found", s->subsys, s->pw->pw_name);
+	if (!success) {
+		logit("subsystem request for %.100s by user %s failed, %s",
+		    s->subsys, s->pw->pw_name,
+		    found ? "execution failed" : "subsystem not found");
+	}
 
 	return success;
 }

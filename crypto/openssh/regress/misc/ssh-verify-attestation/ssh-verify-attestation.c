@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-verify-attestation.c,v 1.3 2025/05/12 05:42:02 tb Exp $ */
+/* $OpenBSD: ssh-verify-attestation.c,v 1.4 2026/06/29 07:46:22 djm Exp $ */
 /*
  * Copyright (c) 2022-2024 Damien Miller
  *
@@ -339,7 +339,7 @@ main(int argc, char **argv)
 	extern int optind;
 	/* extern char *optarg; */
 
-	ERR_load_crypto_strings();
+	OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
 
 	sanitise_stdfd();
 	log_init(__progname, log_level, SYSLOG_FACILITY_AUTH, 1);

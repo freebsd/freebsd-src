@@ -15,8 +15,8 @@ if [ ! -z "$SUDO" ] && [ ! -z "$TEST_SSH_HOSTBASED_AUTH" ]; then
     $SUDO mkdir -p $sshconf
     $SUDO make install
     for key in $sshconf/ssh_host*key*.pub; do
-        echo `hostname` `cat $key` | \
-            $SUDO tee -a $sshconf/ssh_known_hosts >/dev/null
+	echo `hostname` `cat $key` | \
+	    $SUDO tee -a $sshconf/ssh_known_hosts >/dev/null
     done
 fi
 
@@ -45,6 +45,22 @@ if [ "$1" = "putty-versions" ]; then
 	exit 0
 fi
 
+if [ "$1" = "dropbear-versions" ]; then
+	make regress-binaries
+	# Work backward from current version to last version we support.
+	for ver in main `cd /tmp/dropbear && git tag | grep -E 'DROPBEAR_' | sort -rn`; do
+		year=`echo "$ver" | cut -f2 -d_ | cut -f1 -d.`
+		if [ "$ver" != "master" ] && [ "$year" -lt "2020" ]; then
+			exit 0
+		fi
+		.github/install_dropbear.sh "${ver}"
+		${env} make ${TEST_TARGET} \
+		    SKIP_LTESTS="${SKIP_LTESTS}" LTESTS="${LTESTS}"
+	done
+
+	exit 0
+fi
+
 if [ -z "${LTESTS}" ]; then
     ${env} make ${TEST_TARGET} SKIP_LTESTS="${SKIP_LTESTS}"
 else
@@ -59,8 +75,8 @@ fi
 if [ ! -z "${SSHD_CONFOPTS}" ]; then
     echo "rerunning t-exec with TEST_SSH_SSHD_CONFOPTS='${SSHD_CONFOPTS}'"
     if [ -z "${LTESTS}" ]; then
-        ${env} make t-exec SKIP_LTESTS="${SKIP_LTESTS}" TEST_SSH_SSHD_CONFOPTS="${SSHD_CONFOPTS}"
+	${env} make t-exec SKIP_LTESTS="${SKIP_LTESTS}" TEST_SSH_SSHD_CONFOPTS="${SSHD_CONFOPTS}"
     else
-        ${env} make t-exec SKIP_LTESTS="${SKIP_LTESTS}" LTESTS="${LTESTS}" TEST_SSH_SSHD_CONFOPTS="${SSHD_CONFOPTS}"
+	${env} make t-exec SKIP_LTESTS="${SKIP_LTESTS}" LTESTS="${LTESTS}" TEST_SSH_SSHD_CONFOPTS="${SSHD_CONFOPTS}"
     fi
 fi

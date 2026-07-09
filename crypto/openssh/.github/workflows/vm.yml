@@ -2,11 +2,7 @@
 # Security -> Actions -> Variables) to restrict the tests that are run
 # The supported variables are:
 #
-# RUN_ONLY_TARGET_CONFIG: Run only the single matching target and config,
-#   separated by spaces, eg "ubuntu-latest default".  All other tests will
-#   fail immediately.
-#
-# LTESTS: Override the set of tests run.
+# RUN_ONLY_PLATFORM: run only tests on specified platform.
 
 name: CI VM
 on:
@@ -18,7 +14,7 @@ on:
 jobs:
   dragonflybsd:
     name: "dragonflybsd-${{ matrix.target }}"
-    if: github.repository != 'openssh/openssh-portable-selfhosted'
+    if: github.repository != 'openssh/openssh-portable-selfhosted' && (vars.RUN_ONLY_PLATFORM == '' || vars.RUN_ONLY_PLATFORM == 'dragonflybsd')
     strategy:
       fail-fast: false
       matrix:
@@ -27,17 +23,17 @@ jobs:
         config: [default]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@main
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # main
     - name: autoreconf
       run: sh -c autoreconf
 
     - name: start DragonFlyBSD ${{ matrix.target }} VM
-      uses: vmactions/dragonflybsd-vm@v1
+      uses: vmactions/dragonflybsd-vm@4ba8127bd95c94b66fc4b885e37c99955ba308ea # v1
       with:
         release: ${{ matrix.target }}
         usesh: true
         prepare: |
-          pkg install -y sudo
+          timeout 600 pkg install -y sudo || pkg install -y sudo
           pw useradd builder -m
           echo "builder ALL=(ALL:ALL) NOPASSWD: ALL" >>/usr/local/etc/sudoers
           mkdir -p /var/empty /usr/local/etc
@@ -70,37 +66,50 @@ jobs:
     - name: "PAM: make"
       shell: dragonflybsd {0}
       run: cd $GITHUB_WORKSPACE && sudo -u builder make -j4
-    - name: "PAM: make tests"
+    - name: "PAM: make t-exec"
       shell: dragonflybsd {0}
       run: |
         cd $GITHUB_WORKSPACE
-        sudo -u builder env SUDO=sudo SSHD_CONFOPTS="UsePam yes" make tests
+        sudo -u builder env SUDO=sudo SSHD_CONFOPTS="UsePam yes" make t-exec
 
   freebsd:
     name: "freebsd-${{ matrix.target }}"
-    if: github.repository != 'openssh/openssh-portable-selfhosted'
+    if: github.repository != 'openssh/openssh-portable-selfhosted' && (vars.RUN_ONLY_PLATFORM == '' || vars.RUN_ONLY_PLATFORM == 'freebsd')
     strategy:
       fail-fast: false
       matrix:
         target:
+          - "12.4"
           - "13.5"
-          - "14.3"
-          # - "15.0" # "pkg" breaks with a libutil.so error...
+          - "14.4"
+          - "15.0"
         config: [default]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@main
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # main
     - name: autoreconf
       run: sh -c autoreconf
 
     - name: start FreeBSD ${{ matrix.target }} VM
-      uses: vmactions/freebsd-vm@v1
+      uses: vmactions/freebsd-vm@b84ab5559b5a1bb4b8ee2737d2506a16e1737636 # v1
       with:
         release: ${{ matrix.target }}
         usesh: true
         prepare: |
-          pkg install -y sudo
-          pw useradd builder -m
+          case $(uname -r) in
+          12.*)
+            timeout 600 ftp ftp://ftp.sudo.ws/pub/sudo/sudo-1.8.32.tar.gz || \
+              ftp ftp://ftp.sudo.ws/pub/sudo/sudo-1.8.32.tar.gz
+            tar xfz sudo-1.8.32.tar.gz
+            (cd sudo-1.8.32 && ./configure --sysconfdir=/usr/local/etc && make && make install)
+            ;;
+          *)
+            timeout 600 pkg install -y sudo || pkg install -y sudo
+            ;;
+          esac
+          openssl rand -base64 9 >$GITHUB_WORKSPACE/regress/password
+          pw useradd builder -m -h0 <$GITHUB_WORKSPACE/regress/password
+          chown builder $GITHUB_WORKSPACE/regress/password
           echo "builder ALL=(ALL:ALL) NOPASSWD: ALL" >>/usr/local/etc/sudoers
           mkdir -p /var/empty /usr/local/etc
           cp $GITHUB_WORKSPACE/moduli /usr/local/etc/moduli
@@ -121,7 +130,7 @@ jobs:
       shell: freebsd {0}
       run: |
         cd $GITHUB_WORKSPACE
-        sudo -u builder env SUDO=sudo make tests
+        sudo -u builder env SUDO=sudo make tests SKIP_LTESTS=scp3
 
     - name: "PAM: configure"
       shell: freebsd {0}
@@ -132,16 +141,22 @@ jobs:
     - name: "PAM: make"
       shell: freebsd {0}
       run: cd $GITHUB_WORKSPACE && sudo -u builder make -j4
-    - name: "PAM: make tests"
+    - name: "PAM: make t-exec UsePAM=no"
       shell: freebsd {0}
       run: |
         cd $GITHUB_WORKSPACE
-        sudo -u builder env SUDO=sudo SSHD_CONFOPTS="UsePam yes" make tests
+        sudo -u builder env SUDO=sudo make t-exec SKIP_LTESTS=scp3
+    - name: "PAM: make t-exec UsePAM=yes"
+      shell: freebsd {0}
+      run: |
+        cd $GITHUB_WORKSPACE
+        cp regress/password regress/kbdintpw
+        sudo -u builder env SUDO=sudo TEST_SSH_SSHD_CONFOPTS="UsePam yes" make t-exec SKIP_LTESTS=scp3
 
 
   netbsd:
     name: "netbsd-${{ matrix.target }}"
-    if: github.repository != 'openssh/openssh-portable-selfhosted'
+    if: github.repository != 'openssh/openssh-portable-selfhosted' && (vars.RUN_ONLY_PLATFORM == '' || vars.RUN_ONLY_PLATFORM == 'netbsd')
     strategy:
       fail-fast: false
       matrix:
@@ -153,18 +168,25 @@ jobs:
         config: [default]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@main
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # main
     - name: autoreconf
       run: sh -c autoreconf
 
     - name: start NetBSD ${{ matrix.target }} VM
-      uses: vmactions/netbsd-vm@v1
+      uses: vmactions/netbsd-vm@99816dccf75edf233ed6cd00a159e3a5b85ea373 # v1
       with:
         release: ${{ matrix.target }}
         usesh: true
+        sync: scp
+        copyback: false
         prepare: |
-          /usr/sbin/pkg_add sudo
-          /usr/sbin/useradd -m builder
+          case "$(uname -r)" in
+          9.*) export PKG_PATH="ftp://ftp.NetBSD.org/pub/pkgsrc/packages/NetBSD/$(uname -p)/9.0_2026Q1/All" ;;
+          esac
+          timeout 600 /usr/sbin/pkg_add sudo || /usr/sbin/pkg_add sudo
+          openssl rand -base64 9 >$GITHUB_WORKSPACE/regress/password
+          pw=$(tr -d '\n' <$GITHUB_WORKSPACE/regress/password | pwhash)
+          /usr/sbin/useradd -m -p "${pw}" builder
           echo "builder ALL=(ALL:ALL) NOPASSWD: ALL" >>/usr/pkg/etc/sudoers
           mkdir -p /var/empty /usr/local/etc
           cp $GITHUB_WORKSPACE/moduli /usr/local/etc/moduli
@@ -196,38 +218,46 @@ jobs:
     - name: "PAM: make"
       shell: netbsd {0}
       run: cd $GITHUB_WORKSPACE && sudo -u builder make -j4
-    - name: "PAM: make tests"
+    - name: "PAM: make t-exec UsePAM=no"
       shell: netbsd {0}
       run: |
         cd $GITHUB_WORKSPACE
-        sudo -u builder env SUDO=sudo SSHD_CONFOPTS="UsePam yes" make tests
+        sudo -u builder env SUDO=sudo make t-exec
+    - name: "PAM: make t-exec UsePAM=yes"
+      shell: netbsd {0}
+      run: |
+        cd $GITHUB_WORKSPACE
+        cp regress/password regress/kbdintpw
+        sudo -u builder env SUDO=sudo TEST_SSH_SSHD_CONFOPTS="UsePam yes" make t-exec
 
 
   omnios:
     name: "omnios-${{ matrix.target }}"
-    if: github.repository != 'openssh/openssh-portable-selfhosted'
+    if: github.repository != 'openssh/openssh-portable-selfhosted' && (vars.RUN_ONLY_PLATFORM == '' || vars.RUN_ONLY_PLATFORM == 'omnios')
     strategy:
       fail-fast: false
       matrix:
         target:
-          - "r151054"
-          - "r151046"
+          - "r151056-build"
+          - "r151058-build"
         config: [default]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@main
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # main
     - name: autoreconf
       run: sh -c autoreconf
 
     - name: start OmniOS ${{ matrix.target }} VM
-      uses: vmactions/omnios-vm@v1
+      uses: vmactions/omnios-vm@7f2be0b927aad1a78498c8aeeac4c4ce1fabd322 # v1
       with:
         release: ${{ matrix.target }}
         usesh: true
         prepare: |
           set -x
-          pfexec pkg refresh
-          pfexec pkg install build-essential
+          if [ ! -x $(which gcc 2>/dev/null) ]; then
+            timeout 900 pfexec pkg refresh || pfexec pkg refresh
+            timeout 900 pfexec pkg install build-essential || pfexec pkg install build-essential
+          fi
           useradd -m builder
           sed -e "s/^root.*ALL$/root ALL=(ALL) NOPASSWD: ALL/" /etc/sudoers >>/tmp/sudoers
           mv /tmp/sudoers /etc/sudoers
@@ -256,7 +286,7 @@ jobs:
 
   openbsd:
     name: "openbsd-${{ matrix.target }}"
-    if: github.repository != 'openssh/openssh-portable-selfhosted'
+    if: github.repository != 'openssh/openssh-portable-selfhosted' && (vars.RUN_ONLY_PLATFORM == '' || vars.RUN_ONLY_PLATFORM == 'openbsd')
     strategy:
       fail-fast: false
       matrix:
@@ -266,15 +296,16 @@ jobs:
           - "7.6"
           - "7.7"
           - "7.8"
+          - "7.9"
         config: [default]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@main
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # main
     - name: autoreconf
       run: sh -c autoreconf
 
     - name: start OpenBSD ${{ matrix.target }} VM
-      uses: vmactions/openbsd-vm@v1
+      uses: vmactions/openbsd-vm@18edb32f4e48dae5865d7b8b3a9587bc01218a20 # v1
       with:
         release: ${{ matrix.target }}
         usesh: true
@@ -312,19 +343,20 @@ jobs:
     # plaform (the latest snapshot) and most recent upstream code (or at least
     # the most recent code in the github mirror) instead of OpenSSH Portable.
     name: "openbsd-current-upstream"
-    if: github.repository != 'openssh/openssh-portable-selfhosted'
+    if: github.repository != 'openssh/openssh-portable-selfhosted' && (vars.RUN_ONLY_PLATFORM == '' || vars.RUN_ONLY_PLATFORM == 'openbsd')
     strategy:
       fail-fast: false
     runs-on: ubuntu-latest
     steps:
     - name: start OpenBSD VM
-      uses: vmactions/openbsd-vm@v1
+      uses: vmactions/openbsd-vm@18edb32f4e48dae5865d7b8b3a9587bc01218a20 # v1
       with:
         copyback: false
         nat: |
           "20022": "22"
         usesh: true
         prepare: |
+          timeout 600 pkg_add git || pkg_add git
           useradd -g wobj -m builder
           echo "permit nopass keepenv root" >/etc/doas.conf
           echo "permit nopass keepenv builder" >>/etc/doas.conf
@@ -332,15 +364,14 @@ jobs:
           chown root:wheel /etc/doas.conf
           chmod 644 /etc/doas.conf
           touch /etc/ssh/ssh_known_hosts
-          pkg_add git
 
-    - name: Fetch sysupgrade version
+    - name: fetch sysupgrade version
       run: |
         ver=$(curl -s https://cdn.openbsd.org/pub/OpenBSD/snapshots/amd64/BUILDINFO)
         echo "SNAPSHOT_VERSION=${ver}" >> $GITHUB_ENV
     - name: check for cached sysupgrade
       id: cache-sysupgrade
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         key: openbsd-sysupgrade ${{ env.SNAPSHOT_VERSION }}
         path: /tmp/_sysupgrade/
@@ -360,7 +391,7 @@ jobs:
         rsync -av openbsd:/home/_sysupgrade/ /tmp/_sysupgrade/
     - name: save sysupgrade to cache
       if: steps.cache-sysupgrade.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         key: openbsd-sysupgrade ${{ env.SNAPSHOT_VERSION }}
         path: /tmp/_sysupgrade/
@@ -400,7 +431,7 @@ jobs:
         for i in regress-logs/failed*.log; do echo ===; echo LOGFILE: $i; echo ===; cat $i; echo; done
     - name: save logs
       if: failure()
-      uses: actions/upload-artifact@main
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # main
       with:
         name: openbsd-current-upstream-logs
         path: regress-logs/*.log
@@ -408,30 +439,41 @@ jobs:
 
   solaris:
     name: "solaris-${{ matrix.target }}"
-    if: github.repository != 'openssh/openssh-portable-selfhosted'
+    if: github.repository != 'openssh/openssh-portable-selfhosted' && (vars.RUN_ONLY_PLATFORM == '' || vars.RUN_ONLY_PLATFORM == 'solaris')
     strategy:
       fail-fast: false
       matrix:
         target:
           - "11.4-gcc"
+          - "11.4-clang-19"
         config: [default]
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@main
+    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # main
     - name: autoreconf
       run: sh -c autoreconf
 
     - name: start Solaris ${{ matrix.target }} VM
-      uses: vmactions/solaris-vm@v1
+      uses: vmactions/solaris-vm@d30dd6c228c8661ade859e36ead7660b9a62efcc # v1
       with:
         release: ${{ matrix.target }}
         usesh: true
         prepare: |
-          set -x
+          echo Setting up user builder.
           useradd -m builder
+          openssl rand -base64 9 >$GITHUB_WORKSPACE/regress/password
+          chown builder $GITHUB_WORKSPACE/regress/password
+          pw=$(tr -d '\n' <$GITHUB_WORKSPACE/regress/password | openssl passwd -6 -stdin)
+          passwd -p "$pw" builder
+          echo Setting up sudo.
           sed -e "s/^root.*ALL$/root ALL=(ALL) NOPASSWD: ALL/" /etc/sudoers >>/tmp/sudoers
           mv /tmp/sudoers /etc/sudoers
-          echo "builder ALL=(ALL) NOPASSWD: ALL" >>/etc/sudoers
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >/etc/sudoers.d/builder
+          echo 'Testing sudo config for root->builder.'
+          sudo -u builder id
+          echo 'Testing sudo config for builder->root.'
+          sudo -u builder sudo id
+          echo Creating directories.
           mkdir -p /var/empty /usr/local/etc
           cp $GITHUB_WORKSPACE/moduli /usr/local/etc/moduli
 
@@ -451,7 +493,7 @@ jobs:
       shell: solaris {0}
       run: |
         cd $GITHUB_WORKSPACE
-        sudo -u builder make tests
+        sudo -u builder env SUDO=sudo make tests
 
     - name: "PAM: configure"
       shell: solaris {0}
@@ -462,9 +504,14 @@ jobs:
     - name: "PAM: make"
       shell: solaris {0}
       run: cd $GITHUB_WORKSPACE && sudo -u builder make
-    - name: "PAM: make tests"
+    - name: "PAM: make t-exec UsePAM=no"
       shell: solaris {0}
       run: |
         cd $GITHUB_WORKSPACE
-        sudo -u builder make tests
-
+        sudo -u builder env SUDO=sudo make t-exec
+    - name: "PAM: make t-exec UsePAM=yes"
+      shell: solaris {0}
+      run: |
+        cd $GITHUB_WORKSPACE
+        cp regress/password regress/kbdintpw
+        sudo -u builder env SUDO=sudo TEST_SSH_SSHD_CONFOPTS="UsePam yes" make t-exec

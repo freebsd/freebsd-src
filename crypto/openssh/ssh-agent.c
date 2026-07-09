@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-agent.c,v 1.324 2026/03/10 07:27:14 djm Exp $ */
+/* $OpenBSD: ssh-agent.c,v 1.330 2026/07/05 02:46:44 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -80,6 +80,7 @@
 #include "ssh-pkcs11.h"
 #include "sk-api.h"
 #include "myproposal.h"
+#include "version.h"
 
 #ifndef DEFAULT_ALLOWED_PROVIDERS
 # define DEFAULT_ALLOWED_PROVIDERS "/usr/lib*/*,/usr/local/lib*/*"
@@ -100,6 +101,8 @@
 #define AGENT_MAX_DEST_CONSTRAINTS	1024
 /* Maximum number of associated certificate constraints to accept on a key */
 #define AGENT_MAX_EXT_CERTS		1024
+/* Max length of username constraint */
+#define AGENT_USER_CONSTRAINT_MAX_LEN	256
 
 /* XXX store hostkey_sid in a refcounted tree */
 
@@ -628,7 +631,7 @@ send_status_generic(SocketEntry *e, u_int code)
 static void
 send_status(SocketEntry *e, int success)
 {
-	return send_status_generic(e,
+	send_status_generic(e,
 	    success ? SSH_AGENT_SUCCESS : SSH_AGENT_FAILURE);
 }
 
@@ -1095,13 +1098,13 @@ static int
 parse_dest_constraint_hop(struct sshbuf *b, struct dest_constraint_hop *dch)
 {
 	u_char key_is_ca;
-	size_t elen = 0;
+	size_t elen = 0, userlen = 0;
 	int r;
 	struct sshkey *k = NULL;
 	char *fp;
 
 	memset(dch, '\0', sizeof(*dch));
-	if ((r = sshbuf_get_cstring(b, &dch->user, NULL)) != 0 ||
+	if ((r = sshbuf_get_cstring(b, &dch->user, &userlen)) != 0 ||
 	    (r = sshbuf_get_cstring(b, &dch->hostname, NULL)) != 0 ||
 	    (r = sshbuf_get_string_direct(b, NULL, &elen)) != 0) {
 		error_fr(r, "parse");
@@ -1119,6 +1122,10 @@ parse_dest_constraint_hop(struct sshbuf *b, struct dest_constraint_hop *dch)
 	if (*dch->user == '\0') {
 		free(dch->user);
 		dch->user = NULL;
+	} else if (userlen > AGENT_USER_CONSTRAINT_MAX_LEN) {
+		error_f("user match pattern too long");
+		r = SSH_ERR_INVALID_FORMAT;
+		goto out;
 	}
 	while (sshbuf_len(b) != 0) {
 		dch->keys = xrecallocarray(dch->keys, dch->nkeys,
@@ -1803,7 +1810,7 @@ process_ext_query(SocketEntry *e)
 static void
 process_extension(SocketEntry *e)
 {
-	int r, success = 0;
+	int r, replied = 0, success = 0;
 	char *name;
 
 	debug2_f("entering");
@@ -1814,7 +1821,7 @@ process_extension(SocketEntry *e)
 	}
 
 	if (strcmp(name, "query") == 0)
-		success = process_ext_query(e);
+		replied = success = process_ext_query(e);
 	else if (strcmp(name, "session-bind@openssh.com") == 0)
 		success = process_ext_session_bind(e);
 	else {
@@ -1825,8 +1832,10 @@ process_extension(SocketEntry *e)
 	}
 	free(name);
 	/* Agent failures are signalled with a different error code */
-	send_status_generic(e,
-	    success ? SSH_AGENT_SUCCESS : SSH_AGENT_EXTENSION_FAILURE);
+	if (!replied) {
+		send_status_generic(e,
+		    success ? SSH_AGENT_SUCCESS : SSH_AGENT_EXTENSION_FAILURE);
+	}
 }
 
 /*
@@ -2243,7 +2252,8 @@ usage(void)
 	    "       ssh-agent [-TU] [-a bind_address] [-E fingerprint_hash] [-O option]\n"
 	    "                 [-P allowed_providers] [-t life] command [arg ...]\n"
 	    "       ssh-agent [-c | -s] -k\n"
-	    "       ssh-agent -u\n");
+	    "       ssh-agent -u\n"
+	    "       ssh-agent -V\n");
 	exit(1);
 }
 
@@ -2291,7 +2301,7 @@ main(int ac, char **av)
 	__progname = ssh_get_progname(av[0]);
 	seed_rng();
 
-	while ((ch = getopt(ac, av, "cDdksTuUxE:a:O:P:t:")) != -1) {
+	while ((ch = getopt(ac, av, "cDdksTuUVxE:a:O:P:t:")) != -1) {
 		switch (ch) {
 		case 'E':
 			fingerprint_hash = ssh_digest_alg_by_name(optarg);
@@ -2357,6 +2367,10 @@ main(int ac, char **av)
 		case 'U':
 			U_flag++;
 			break;
+		case 'V':
+			fprintf(stderr, "%s, %s\n",
+			    SSH_VERSION, SSH_OPENSSL_VERSION);
+			exit(0);
 		case 'x':
 			xcount = 0;
 			break;
@@ -2598,6 +2612,14 @@ skip:
 	sigaddset(&nsigset, SIGTERM);
 	sigaddset(&nsigset, SIGUSR1);
 
+	if (socket_name != NULL && unveil(socket_name, "c") == -1) {
+		fatal("%s: unveil %s %s", __progname, socket_name,
+		    strerror(errno));
+	}
+	if (*socket_dir != '\0' && unveil(socket_dir, "c") == -1) {
+		fatal("%s: unveil %s %s", __progname, socket_dir,
+		    strerror(errno));
+	}
 	if (unveil("/", "r") == -1)
 		fatal("%s: unveil /: %s", __progname, strerror(errno));
 	if ((ccp = getenv("SSH_SK_HELPER")) == NULL || *ccp == '\0')

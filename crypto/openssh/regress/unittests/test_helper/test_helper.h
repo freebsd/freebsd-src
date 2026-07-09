@@ -1,4 +1,4 @@
-/*	$OpenBSD: test_helper.h,v 1.12 2026/03/06 06:57:33 dtucker Exp $	*/
+/*	$OpenBSD: test_helper.h,v 1.13 2026/06/16 22:27:10 dtucker Exp $	*/
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -38,6 +38,8 @@ typedef void (test_onerror_func_t)(void *);
 /* Supplied by test suite */
 void tests(void);
 void benchmarks(void);
+
+void hex2bin(uint8_t *, const char *, size_t);
 
 const char *test_data_file(const char *name);
 void test_start(const char *n);

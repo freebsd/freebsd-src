@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.c,v 1.193 2026/03/05 05:40:35 djm Exp $ */
+/* $OpenBSD: kex.c,v 1.194 2026/05/31 04:44:38 djm Exp $ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
@@ -566,7 +566,7 @@ kex_input_newkeys(int type, uint32_t seq, struct ssh *ssh)
 	kex->done = 1;
 	kex->flags &= ~KEX_INITIAL;
 	sshbuf_reset(kex->peer);
-	kex->flags &= ~KEX_INIT_SENT;
+	kex->flags &= ~(KEX_INIT_SENT|KEX_INIT_RECVD);
 	return 0;
 }
 
@@ -624,6 +624,11 @@ kex_input_kexinit(int type, uint32_t seq, struct ssh *ssh)
 	}
 	free(kex->name);
 	kex->name = NULL;
+	if ((kex->flags & KEX_INIT_RECVD) != 0) {
+		ssh_packet_disconnect(ssh,
+		    "multiple KEXINIT received from peer");
+	}
+	kex->flags |= KEX_INIT_RECVD;
 	ssh_dispatch_set(ssh, SSH2_MSG_KEXINIT, &kex_protocol_error);
 	ptr = sshpkt_ptr(ssh, &dlen);
 	if ((r = sshbuf_put(kex->peer, ptr, dlen)) != 0)

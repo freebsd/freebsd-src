@@ -1,4 +1,4 @@
-/* $OpenBSD: kex.h,v 1.129 2026/03/05 05:40:36 djm Exp $ */
+/* $OpenBSD: kex.h,v 1.130 2026/05/31 04:44:38 djm Exp $ */
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -115,6 +115,7 @@ enum kex_exchange {
 #define KEX_HAS_PING			0x0020
 #define KEX_HAS_EXT_INFO_IN_AUTH	0x0040
 #define KEX_HAS_NEWAGENT		0x0080 /* only set in client */
+#define KEX_INIT_RECVD			0x0100
 
 /* kex->pq */
 #define KEX_NOT_PQ			0

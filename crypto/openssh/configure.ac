@@ -60,7 +60,7 @@ AC_PATH_PROG([SH], [bash])
 AC_PATH_PROG([SH], [ksh])
 AC_PATH_PROG([SH], [sh])
 AC_PATH_PROG([GROFF], [groff])
-AC_PATH_PROG([NROFF], [nroff awf])
+AC_PATH_PROGS([NROFF], [nroff awf])
 AC_PATH_PROG([MANDOC], [mandoc])
 AC_PATH_TOOL([PKGCONFIG], [pkg-config], [no])
 AC_SUBST([TEST_SHELL], [sh])
@@ -588,7 +588,7 @@ for include in sys/queue.h sys/tree.h; do
 	esac >"$header"
 done
 
-AC_CHECK_DECLS([le32toh, le64toh, htole64], [], [], [
+AC_CHECK_DECLS([le32toh, le64toh, htole64, htobe32], [], [], [
 #ifdef HAVE_SYS_TYPES_H
 # include <sys/types.h>
 #endif
@@ -3245,7 +3245,7 @@ if test "x$openssl" = "xyes" ; then
 	AC_MSG_CHECKING([if programs using OpenSSL functions will link])
 	AC_LINK_IFELSE(
 		[AC_LANG_PROGRAM([[ #include <openssl/err.h> ]],
-		[[ ERR_load_crypto_strings(); ]])],
+		[[ OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL); ]])],
 		[
 			AC_MSG_RESULT([yes])
 		],
@@ -3255,7 +3255,7 @@ if test "x$openssl" = "xyes" ; then
 			AC_MSG_CHECKING([if programs using OpenSSL need -ldl])
 			AC_LINK_IFELSE(
 				[AC_LANG_PROGRAM([[ #include <openssl/err.h> ]],
-				[[ ERR_load_crypto_strings(); ]])],
+				[[ OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL); ]])],
 				[
 					AC_MSG_RESULT([yes])
 					CHANNELLIBS="$CHANNELLIBS -ldl"
@@ -3296,12 +3296,23 @@ if test "x$openssl" = "xyes" ; then
 	])
 
 	if test "x$openssl_engine" = "xyes" ; then
+		AC_CHECK_HEADERS([openssl/opensslconf.h openssl/configuration.h])
 		AC_MSG_CHECKING([for OpenSSL ENGINE support])
 		AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+	#ifdef HAVE_OPENSSL_OPENSSLCONF_H
+	# include <openssl/opensslconf.h>
+	#endif
+	#ifdef HAVE_OPENSSL_CONFIGURATION_H
+	# include <openssl/configuration.h>
+	#endif
 	#include <openssl/engine.h>
 			]], [[
+				#ifndef OPENSSL_NO_ENGINE
 				ENGINE_load_builtin_engines();
 				ENGINE_register_all_complete();
+				#else
+				#error "OPENSSL_NO_ENGINE"
+				#endif
 			]])],
 			[ AC_MSG_RESULT([yes])
 			  AC_DEFINE([USE_OPENSSL_ENGINE], [1],
@@ -3309,26 +3320,6 @@ if test "x$openssl" = "xyes" ; then
 			], [ AC_MSG_ERROR([OpenSSL ENGINE support not found])
 		])
 	fi
-
-	# Check for OpenSSL without EVP_aes_{192,256}_cbc
-	AC_MSG_CHECKING([whether OpenSSL lacks support for AES 192/256])
-	AC_LINK_IFELSE(
-		[AC_LANG_PROGRAM([[
-	#include <stdlib.h>
-	#include <string.h>
-	#include <openssl/evp.h>
-		]], [[
-		exit(EVP_aes_192_cbc() == NULL || EVP_aes_256_cbc() == NULL);
-		]])],
-		[
-			AC_MSG_RESULT([no])
-		],
-		[
-			AC_MSG_RESULT([yes])
-			AC_DEFINE([OPENSSL_LOBOTOMISED_AES], [1],
-			    [libcrypto is missing AES 192 and 256 bit functions])
-		]
-	)
 
 	AC_MSG_CHECKING([if EVP_DigestUpdate returns an int])
 	AC_LINK_IFELSE(

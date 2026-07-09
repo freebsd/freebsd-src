@@ -381,9 +381,6 @@ static const struct sock_filter preauth_insns[] = {
 #ifdef __NR_clock_nanosleep_time64
 	SC_ALLOW(__NR_clock_nanosleep_time64),
 #endif
-#ifdef __NR_clock_gettime64
-	SC_ALLOW(__NR_clock_gettime64),
-#endif
 #ifdef __NR__newselect
 	SC_ALLOW(__NR__newselect),
 #endif
@@ -538,7 +535,6 @@ void
 ssh_sandbox_child(struct ssh_sandbox *box)
 {
 	struct rlimit rl_zero, rl_one = {.rlim_cur = 1, .rlim_max = 1};
-	int nnp_failed = 0;
 
 	/* Set rlimits for completeness if possible. */
 	rl_zero.rlim_cur = rl_zero.rlim_max = 0;
@@ -561,18 +557,11 @@ ssh_sandbox_child(struct ssh_sandbox *box)
 #endif /* SANDBOX_SECCOMP_FILTER_DEBUG */
 
 	debug3_f("setting PR_SET_NO_NEW_PRIVS");
-	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
-		debug("%s: prctl(PR_SET_NO_NEW_PRIVS): %s",
-		    __func__, strerror(errno));
-		nnp_failed = 1;
-	}
+	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1)
+		fatal_f("prctl(PR_SET_NO_NEW_PRIVS): %s", strerror(errno));
 	debug3_f("attaching seccomp filter program");
 	if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &preauth_program) == -1)
-		debug("%s: prctl(PR_SET_SECCOMP): %s",
-		    __func__, strerror(errno));
-	else if (nnp_failed)
-		fatal("%s: SECCOMP_MODE_FILTER activated but "
-		    "PR_SET_NO_NEW_PRIVS failed", __func__);
+		fatal_f("prctl(PR_SET_SECCOMP): %s", strerror(errno));
 }
 
 #endif /* SANDBOX_SECCOMP_FILTER */

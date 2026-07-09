@@ -367,6 +367,10 @@
    don't. */
 #define HAVE_DECL_HOWMANY 1
 
+/* Define to 1 if you have the declaration of 'htobe32', and to 0 if you
+   don't. */
+#define HAVE_DECL_HTOBE32 1
+
 /* Define to 1 if you have the declaration of 'htole64', and to 0 if you
    don't. */
 #define HAVE_DECL_HTOLE64 1
@@ -1055,6 +1059,12 @@
 
 /* Define to 1 if you have the 'openpty' function. */
 #define HAVE_OPENPTY 1
+
+/* Define to 1 if you have the <openssl/configuration.h> header file. */
+#define HAVE_OPENSSL_CONFIGURATION_H 1
+
+/* Define to 1 if you have the <openssl/opensslconf.h> header file. */
+#define HAVE_OPENSSL_OPENSSLCONF_H 1
 
 /* Define to 1 if you have the 'OpenSSL_version' function. */
 #define HAVE_OPENSSL_VERSION 1
@@ -1825,9 +1835,6 @@
 
 /* libcrypto has NID_secp521r1 */
 #define OPENSSL_HAS_NISTP521 1
-
-/* libcrypto is missing AES 192 and 256 bit functions */
-/* #undef OPENSSL_LOBOTOMISED_AES */
 
 /* Define if you want the OpenSSL internally seeded PRNG only */
 #define OPENSSL_PRNG_ONLY 1

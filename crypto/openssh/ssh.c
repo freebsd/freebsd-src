@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh.c,v 1.630 2026/04/02 07:50:55 djm Exp $ */
+/* $OpenBSD: ssh.c,v 1.634 2026/07/06 07:49:58 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -399,6 +399,7 @@ check_follow_cname(int direct, char **namep, const char *cname)
 		    "\"%s\" => \"%s\"", *namep, cname);
 		free(*namep);
 		*namep = xstrdup(cname);
+		lowercase(*namep);
 		return 1;
 	}
 	return 0;
@@ -610,26 +611,6 @@ set_addrinfo_port(struct addrinfo *addrs, int port)
 			break;
 		}
 	}
-}
-
-static void
-ssh_conn_info_free(struct ssh_conn_info *cinfo)
-{
-	if (cinfo == NULL)
-		return;
-	free(cinfo->conn_hash_hex);
-	free(cinfo->shorthost);
-	free(cinfo->uidstr);
-	free(cinfo->keyalias);
-	free(cinfo->thishost);
-	free(cinfo->host_arg);
-	free(cinfo->portstr);
-	free(cinfo->remhost);
-	free(cinfo->remuser);
-	free(cinfo->homedir);
-	free(cinfo->locuser);
-	free(cinfo->jmphost);
-	free(cinfo);
 }
 
 /*
@@ -1670,7 +1651,8 @@ main(int ac, char **av)
 	if (options.control_path != NULL) {
 		int sock;
 		if ((sock = muxclient(options.control_path)) >= 0) {
-			ssh_packet_set_connection(ssh, sock, sock);
+			if (ssh_packet_set_connection(ssh, sock, sock) == NULL)
+				fatal("ssh_packet_set_connection failed");
 			ssh_packet_set_mux(ssh);
 			goto skip_connect;
 		}
@@ -1759,9 +1741,11 @@ main(int ac, char **av)
 			L_CERT(_PATH_HOST_ECDSA_KEY_FILE, 0);
 			L_CERT(_PATH_HOST_ED25519_KEY_FILE, 1);
 			L_CERT(_PATH_HOST_RSA_KEY_FILE, 2);
+			L_CERT(_PATH_HOST_MLDSA44_ED25519_KEY_FILE, 3);
 			L_PUBKEY(_PATH_HOST_ECDSA_KEY_FILE, 4);
 			L_PUBKEY(_PATH_HOST_ED25519_KEY_FILE, 5);
 			L_PUBKEY(_PATH_HOST_RSA_KEY_FILE, 6);
+			L_PUBKEY(_PATH_HOST_MLDSA44_ED25519_KEY_FILE, 7);
 			if (loaded == 0)
 				debug("HostbasedAuthentication enabled but no "
 				   "local public host keys could be loaded.");
@@ -1819,8 +1803,8 @@ main(int ac, char **av)
 	ssh_signal(SIGCHLD, main_sigchld_handler);
 
 	/* Log into the remote system.  Never returns if the login fails. */
-	ssh_login(ssh, &sensitive_data, host, (struct sockaddr *)&hostaddr,
-	    options.port, pw, timeout_ms, cinfo);
+	ssh_login(ssh, &sensitive_data, host, &hostaddr, options.port,
+	    pw, timeout_ms, cinfo);
 
 	/* We no longer need the private host keys.  Clear them now. */
 	if (sensitive_data.nkeys != 0) {

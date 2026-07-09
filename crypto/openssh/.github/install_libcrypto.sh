@@ -51,7 +51,7 @@ if [ "${abi_compat_test}" = "y" ]; then
 		ver="${major}.$((${minor} + 1))"
 		echo selecting next release branch ${ver}
 		;;
-	openssl-3.*.*)
+	openssl-[34].*.*)
 		major=$(echo ${ver} | cut -f1 -d.)
 		minor=$(echo ${ver} | cut -f2 -d.)
 		patch=$(echo ${ver} | cut -f3 -d.)

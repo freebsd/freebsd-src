@@ -95,7 +95,7 @@ enum
 # define	IPTOS_DSCP_CS7		0xe0
 #endif /* IPTOS_DSCP_CS0 */
 #ifndef IPTOS_DSCP_VA
-# define	IPTOS_DSCP_VA		0x2c
+# define	IPTOS_DSCP_VA		0xb0
 #endif /* IPTOS_DSCP_VA */
 #ifndef IPTOS_DSCP_EF
 # define	IPTOS_DSCP_EF		0xb8
@@ -663,7 +663,8 @@ struct winsize {
 
 #if (defined(HAVE_DECL_LE32TOH) && HAVE_DECL_LE32TOH == 0) || \
     (defined(HAVE_DECL_LE64TOH) && HAVE_DECL_LE64TOH == 0) || \
-    (defined(HAVE_DECL_HTOLE64) && HAVE_DECL_HTOLE64 == 0)
+    (defined(HAVE_DECL_HTOLE64) && HAVE_DECL_HTOLE64 == 0) || \
+    (defined(HAVE_DECL_HTOBE32) && HAVE_DECL_HTOBE32 == 0)
 # define openssh_swap32(v)					\
 	(uint32_t)(((uint32_t)(v) & 0xff) << 24 |		\
 	((uint32_t)(v) & 0xff00) << 8 |				\
@@ -687,7 +688,10 @@ struct winsize {
 #  endif
 #  if defined(HAVE_DECL_HTOLE64) && HAVE_DECL_HTOLE64 == 0
 #   define htole64(v) (openssh_swap64(v))
-# endif
+#  endif
+#  if defined(HAVE_DECL_HTOBE32) && HAVE_DECL_HTOBE32 == 0
+#   define htobe32(v) ((uint32_t)v)
+#  endif
 # else
 #  if defined(HAVE_DECL_LE32TOH) && HAVE_DECL_LE32TOH == 0
 #   define le32toh(v) ((uint32_t)v)
@@ -697,6 +701,9 @@ struct winsize {
 #  endif
 #  if defined(HAVE_DECL_HTOLE64) && HAVE_DECL_HTOLE64 == 0
 #   define htole64(v) ((uint64_t)v)
+#  endif
+#  if defined(HAVE_DECL_HTOBE32) && HAVE_DECL_HTOBE32 == 0
+#   define htobe32(v) (openssh_swap32(v))
 #  endif
 # endif
 #endif
@@ -989,8 +996,9 @@ struct winsize {
  */
 #if defined(VARIABLE_LENGTH_ARRAYS) && defined(VARIABLE_DECLARATION_AFTER_CODE)
 # define USE_SNTRUP761X25519	1
-/* The ML-KEM768 implementation also uses C89 features */
+/* The ML-KEM768 and ML-DSA implementations also uses C89 features */
 # define USE_MLKEM768X25519	1
+# define USE_MLDSA		1
 #endif
 
 #if defined(HAVE_DECL_INFINITY) && HAVE_DECL_INFINITY == 0

@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-server.c,v 1.153 2026/03/03 09:57:25 dtucker Exp $ */
+/* $OpenBSD: sftp-server.c,v 1.156 2026/07/01 00:52:23 dtucker Exp $ */
 /*
  * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
@@ -1136,7 +1136,7 @@ process_readdir(uint32_t id)
 		send_status(id, SSH2_FX_FAILURE);
 	} else {
 		struct stat st;
-		char pathname[PATH_MAX];
+		char *pathname;
 		Stat *stats;
 		int nstats = 10, count = 0, i;
 
@@ -1146,10 +1146,11 @@ process_readdir(uint32_t id)
 				nstats *= 2;
 				stats = xreallocarray(stats, nstats, sizeof(Stat));
 			}
-/* XXX OVERFLOW ? */
-			snprintf(pathname, sizeof pathname, "%s%s%s", path,
+			xasprintf(&pathname, "%s%s%s", path,
 			    strcmp(path, "/") ? "/" : "", dp->d_name);
-			if (lstat(pathname, &st) == -1)
+			r = lstat(pathname, &st);
+			free(pathname);
+			if (r == -1)
 				continue;
 			stat_to_attrib(&st, &(stats[count].attrib));
 			stats[count].name = xstrdup(dp->d_name);
@@ -1606,6 +1607,7 @@ process_extended_copy_data(uint32_t id)
 	uint64_t len, read_off, read_len, write_off;
 	int r, copy_until_eof, status = SSH2_FX_OP_UNSUPPORTED;
 	size_t ret;
+	struct stat st_read, st_write;
 
 	if ((r = get_handle(iqueue, &read_handle)) != 0 ||
 	    (r = sshbuf_get_u64(iqueue, &read_off)) != 0 ||
@@ -1628,12 +1630,35 @@ process_extended_copy_data(uint32_t id)
 	} else
 		copy_until_eof = 0;
 
+	/* Disallow reading & writing to the same handle, path or inode */
 	read_fd = handle_to_fd(read_handle);
 	write_fd = handle_to_fd(write_handle);
-
-	/* Disallow reading & writing to the same handle or same path or dirs */
-	if (read_handle == write_handle || read_fd < 0 || write_fd < 0 ||
-	    !strcmp(handle_to_name(read_handle), handle_to_name(write_handle))) {
+	if (read_fd < 0 || write_fd < 0) {
+		error_f("bad read or write fd");
+		status = errno_to_portable(EBADF);
+		goto out;
+	}
+	if (fstat(read_fd, &st_read) != 0) {
+		status = errno_to_portable(errno);
+		error_f("fstat read_fd failed: %s", strerror(errno));
+		goto out;
+	}
+	if (fstat(write_fd, &st_write) != 0) {
+		status = errno_to_portable(errno);
+		error_f("fstat write_fd failed: %s", strerror(errno));
+		goto out;
+	}
+	if (read_handle == write_handle ||
+	    !strcmp(handle_to_name(read_handle), handle_to_name(write_handle)) ||
+	    (st_read.st_dev != 0 && st_read.st_ino != 0 &&
+	    st_read.st_dev == st_write.st_dev &&
+	    st_read.st_ino == st_write.st_ino)) {
+		error_f("refusing to read/write same file: "
+		    "read \"%s\" dev %lu ino %lu, write \"%s\" dev %lu ino %lu",
+		    handle_to_name(read_handle),
+		    (u_long)st_read.st_dev, (u_long)st_read.st_ino,
+		    handle_to_name(write_handle),
+		    (u_long)st_write.st_dev, (u_long)st_write.st_ino);
 		status = SSH2_FX_FAILURE;
 		goto out;
 	}
