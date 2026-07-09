@@ -441,6 +441,14 @@ vtpci_modern_negotiate_features(device_t dev, uint64_t child_features)
 	 */
 	child_features |= VIRTIO_F_VERSION_1;
 
+	/*
+	 * Accept per-virtqueue reset if the device offers it: negotiating
+	 * the feature carries no obligation for a driver that never uses
+	 * it, while declining capability-only transport features can make
+	 * strict devices refuse the entire feature set.
+	 */
+	child_features |= host_features & VIRTIO_F_RING_RESET;
+
 	features = vtpci_negotiate_features(&sc->vtpci_common,
 	    child_features, host_features);
 	vtpci_modern_write_features(sc, features);
