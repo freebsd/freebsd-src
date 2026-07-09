@@ -114,7 +114,7 @@ ZDUMPDIR = $(BINDIR)
 # The "zic" command goes in:
 ZICDIR = $(TOPDIR)/$(USRDIR)/sbin
 
-# Manual pages go in subdirectories of. . .
+# Manual pages go in subdirectories of:
 MANDIR = $(TOPDIR)/$(USRSHAREDIR)/man
 
 # Library functions are put in an archive in LIBDIR.
@@ -145,7 +145,7 @@ TIME_T_ALTERNATIVES_TAIL = int_least32_t.ck uint_least32_t.ck \
 # nonnegative TZ_CHANGE_INTERVAL also assumes this, so to be compatible with
 # these, use "posix_only" or "posix_right".  Use POSIX time on systems with
 # leap smearing; this can work better than unsmeared "right" time with
-# applications that are not leap second aware, and is closer to unsmeared
+# applications that are not aware of leap seconds, and is closer to unsmeared
 # "right" time than unsmeared POSIX time is (e.g., 0.5 vs 1.0 s max error).
 
 REDO=		posix_only
@@ -295,10 +295,10 @@ LDLIBS=
 #  -DTHREAD_SAFE to make localtime.c thread-safe, as POSIX requires;
 #	not needed by the main-program tz code, which is single-threaded.
 #	Append other compiler flags as needed, e.g., -pthread on GNU/Linux.
-#	The following options can also be used:
+#	With -DTHREAD_SAFE the following options can also be used:
 #	  -DTHREAD_PREFER_SINGLE to prefer speed in single-threaded apps,
 #	    at some cost in CPU time and energy in multi-threaded apps.
-#	    The following options can also be used:
+#	    With -DTHREAD_PREFER_SINGLE the following options can also be used:
 #	      -DHAVE___ISTHREADED=1 if there is an extern int __isthreaded
 #		variable, 0 otherwise (default is guessed)
 #	      -DHAVE_SYS_SINGLE_THREADED_H=0 if <sys/single_threaded.h> works,
@@ -377,12 +377,13 @@ GCC_DEBUG_FLAGS = -DGCC_LINT -g3 -O3 \
   -Wdeclaration-after-statement -Wdouble-promotion \
   -Wduplicated-branches -Wduplicated-cond -Wflex-array-member-not-at-end \
   -Wformat=2 -Wformat-overflow=2 -Wformat-signedness -Wformat-truncation \
-  -Wimplicit-fallthrough=5 -Winit-self -Wlogical-op \
+  -Wfree-labels -Wimplicit-fallthrough=5 -Winit-self \
+  -Wkeyword-macro -Wlogical-op \
   -Wmissing-declarations -Wmissing-prototypes \
   -Wmissing-variable-declarations -Wnested-externs \
   -Wnull-dereference \
   -Wold-style-definition -Woverlength-strings -Wpointer-arith \
-  -Wshadow -Wshift-overflow=2 -Wstrict-overflow \
+  -Wshadow -Wshift-overflow=2 \
   -Wstrict-prototypes -Wstringop-overflow=4 \
   -Wsuggest-attribute=cold \
   -Wsuggest-attribute=const -Wsuggest-attribute=format \
@@ -533,7 +534,7 @@ ZIC_INSTALL=	$(ZIC) -d '$(DESTDIR)$(TZDIR)'
 # mawk 1.3.3 and Solaris 10 /usr/bin/awk do not work.
 # Also, it is better (though not essential) if 'awk' supports UTF-8,
 # and unfortunately mawk and busybox awk do not support UTF-8.
-# Try AWK=gawk or AWK=nawk if your awk has the abovementioned problems.
+# Try AWK=gawk or AWK=nawk if your awk has the problems mentioned above.
 AWK=		awk
 
 # The full path name of a POSIX-compliant shell, preferably one that supports
@@ -913,7 +914,7 @@ tzselect:	tzselect.ksh version
 check: check_mild back.ck now.ck
 check_mild: check_web check_zishrink \
   character-set.ck white-space.ck links.ck mainguard.ck \
-  name-lengths.ck slashed-abbrs.ck sorted.ck \
+  name-lengths.ck news.ck slashed-abbrs.ck sorted.ck \
   tables.ck ziguard.ck tzs.ck
 
 # True if UTF8_LOCALE does not work;
@@ -1083,6 +1084,12 @@ zishrink-posix.ck zishrink-right.ck: \
 		rm -fr $@d t-$@d shrunk-$@d
 		touch $@
 
+# Check that NEWS has data release versions and dates in reverse order.
+news.ck: NEWS
+		grep '^Release [0-9][0-9][0-9][0-9]' NEWS | LC_ALL=C sort -cru
+		sed -n '/ -0000$$/!s/^Release [^ ]*//p' NEWS|LC_ALL=C sort -cru
+		touch $@
+
 clean_misc:
 		rm -fr *.ckd *.dir
 		rm -f *.ck *.core *.o *.out *.t core core.* \
@@ -1139,7 +1146,8 @@ SET_TIMESTAMP_N = sh -c '\
 # If DEST depends on A B C ... in this Makefile, callers should use
 # $(SET_TIMESTAMP_DEP) DEST A B C ..., for the benefit of any
 # downstream 'make' that considers equal timestamps to be out of date.
-# POSIX allows this 'make' behavior, and HP-UX 'make' does it.
+# POSIX allows this 'make' behavior, although only HP-UX 'make'
+# (which is no longer supported) did things that way.
 # If all that matters is that the timestamp be reproducible
 # and plausible, use $(SET_TIMESTAMP).
 SET_TIMESTAMP = $(SET_TIMESTAMP_N) 0
@@ -1399,24 +1407,6 @@ $(ALL_ASC):
 		$(SET_TIMESTAMP) $(@:.t=) $(?:.t=)
 		touch $@
 
-TYPECHECK_CFLAGS = $(CFLAGS) -DTYPECHECK -D__time_t_defined -D_TIME_T
-typecheck: long-long.ck unsigned.ck
-long-long.ck unsigned.ck: $(VERSION_DEPS)
-		rm -fr $@d
-		mkdir $@d
-		ln $(VERSION_DEPS) $@d
-		cd $@d && \
-		  case $@ in \
-		    long-long.*) i="long long";; \
-		    unsigned.* ) i="unsigned" ;; \
-		  esac && \
-		  $(MAKE) \
-		    CFLAGS="$(TYPECHECK_CFLAGS) \"-Dtime_t=$$i\"" \
-		    TOPDIR="$$PWD" \
-		    install
-		$@d/zdump -i -c 1970,1971 Europe/Rome
-		touch $@
-
 zonenames:	tzdata.zi
 		@$(AWK) '/^Z/ { print $$2 } /^L/ { print $$3 }' tzdata.zi
 
@@ -1442,6 +1432,5 @@ zic.o:		private.h tzdir.h tzfile.h version.h
 .PHONY: traditional_signatures traditional_signatures_version
 .PHONY: traditional_tarballs traditional_tarballs_version
 .PHONY: tailored_tarballs tailored_tarballs_version
-.PHONY: typecheck
 .PHONY: zonenames zones
 .PHONY: $(ZDS)

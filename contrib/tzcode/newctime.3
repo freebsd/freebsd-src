@@ -5,34 +5,34 @@
 asctime, ctime, difftime, gmtime, localtime, mktime \- convert date and time
 .SH SYNOPSIS
 .nf
-.B #include <time.h>
+.B "#include <time.h>"
 .PP
-.B struct tm *localtime(time_t const *clock);
+.B "struct tm *localtime(time_t const *clock);"
 .B "struct tm *localtime_r(time_t const *restrict clock,"
 .B "    struct tm *restrict result);"
 .B "struct tm *localtime_rz(timezone_t restrict zone,"
 .B "    time_t const *restrict clock,"
 .B "    struct tm *restrict result);"
 .PP
-.B struct tm *gmtime(time_t const *clock);
+.B "struct tm *gmtime(time_t const *clock);"
 .B "struct tm *gmtime_r(time_t const *restrict clock,"
 .B "    struct tm *restrict result);"
 .PP
-.B time_t mktime(struct tm *tm);
+.B "time_t mktime(struct tm *tm);"
 .B "time_t mktime_z(timezone_t restrict zone,"
 .B "    struct tm *restrict tm);"
 .PP
-.B double difftime(time_t time1, time_t time0);
+.B "double difftime(time_t time1, time_t time0);"
 .PP
-.B [[deprecated]] char *asctime(struct tm const *tm);
-.B [[deprecated]] char *ctime(time_t const *clock);
+.B "[[deprecated]] char *asctime(struct tm const *tm);"
+.B "[[deprecated]] char *ctime(time_t const *clock);"
 .PP
 /* Only in POSIX.1-2017 and earlier.  */
-.B char *ctime_r(time_t const *clock, char *buf);
+.B "char *ctime_r(time_t const *clock, char *buf);"
 .B "char *asctime_r(struct tm const *restrict tm,"
 .B "    char *restrict result);"
 .PP
-.B cc ... \-ltz
+.BR cc " ... " \-ltz
 .fi
 .SH DESCRIPTION
 .ie '\(en'' .ds en \-
@@ -240,7 +240,7 @@ are in the
 .B <time.h>
 header file.
 The structure (of type)
-.B struct tm
+.B "struct tm"
 includes the following fields:
 .RS
 .PP
