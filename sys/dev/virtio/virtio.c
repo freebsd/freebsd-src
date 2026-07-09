@@ -87,6 +87,14 @@ static struct virtio_feature_desc virtio_common_feature_desc[] = {
 	{ VIRTIO_F_BAD_FEATURE,		"BadFeature"		}, /* Legacy */
 	{ VIRTIO_F_VERSION_1,		"Version1"		},
 	{ VIRTIO_F_IOMMU_PLATFORM,	"IOMMUPlatform"		},
+	{ VIRTIO_F_RING_PACKED,		"RingPacked"		},
+	{ VIRTIO_F_IN_ORDER,		"InOrder"		},
+	{ VIRTIO_F_ORDER_PLATFORM,	"OrderPlatform"		},
+	{ VIRTIO_F_SR_IOV,		"SRIOV"			},
+	{ VIRTIO_F_NOTIFICATION_DATA,	"NotificationData"	},
+	{ VIRTIO_F_NOTIF_CONFIG_DATA,	"NotifConfigData"	},
+	{ VIRTIO_F_RING_RESET,		"RingReset"		},
+	{ VIRTIO_F_ADMIN_VQ,		"AdminVq"		},
 
 	{ 0, NULL }
 };

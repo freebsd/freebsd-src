@@ -63,10 +63,10 @@
  * The guest should never negotiate this feature; it
  * is used to detect faulty drivers.
  */
-#define VIRTIO_F_BAD_FEATURE	(1UL << 30)
+#define VIRTIO_F_BAD_FEATURE		(1UL << 30)
 
 /* v1.0 compliant. */
-#define VIRTIO_F_VERSION_1	(1ULL << 32)
+#define VIRTIO_F_VERSION_1		(1ULL << 32)
 
 /*
  * If clear - device has the IOMMU bypass quirk feature.
@@ -76,6 +76,30 @@
  * this is for compatibility with legacy systems.
  */
 #define VIRTIO_F_IOMMU_PLATFORM		(1ULL << 33)
+
+/* Support for packed virtqueues. */
+#define VIRTIO_F_RING_PACKED		(1ULL << 34)
+
+/* Device may behave as if IN_ORDER was negotiated. */
+#define VIRTIO_F_IN_ORDER		(1ULL << 35)
+
+/* Memory accesses are ordered by the platform. */
+#define VIRTIO_F_ORDER_PLATFORM		(1ULL << 36)
+
+/* Device supports Single Root I/O Virtualization. */
+#define VIRTIO_F_SR_IOV			(1ULL << 37)
+
+/* Driver passes extra data in device notifications. */
+#define VIRTIO_F_NOTIFICATION_DATA	(1ULL << 38)
+
+/* Driver uses the data provided by the device as a virtqueue identifier. */
+#define VIRTIO_F_NOTIF_CONFIG_DATA	(1ULL << 39)
+
+/* Driver can reset a queue individually. */
+#define VIRTIO_F_RING_RESET		(1ULL << 40)
+
+/* Device supports an administration virtqueue. */
+#define VIRTIO_F_ADMIN_VQ		(1ULL << 41)
 
 /*
  * Some VirtIO feature bits (currently bits 28 through 34) are
