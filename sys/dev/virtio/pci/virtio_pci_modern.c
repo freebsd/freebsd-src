@@ -464,7 +464,10 @@ vtpci_modern_finalize_features(device_t dev)
 
 	status = vtpci_modern_get_status(sc);
 	if ((status & VIRTIO_CONFIG_S_FEATURES_OK) == 0) {
-		device_printf(dev, "desired features were not accepted\n");
+		device_printf(dev, "desired features were not accepted "
+		    "(host %#jx, written %#jx)\n",
+		    (uintmax_t)sc->vtpci_common.vtpci_host_features,
+		    (uintmax_t)sc->vtpci_common.vtpci_features);
 		return (ENOTSUP);
 	}
 
