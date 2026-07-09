@@ -2315,6 +2315,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 
 	ps = p->p_sigacts;
 	KNOTE_LOCKED(p->p_klist, NOTE_SIGNAL | sig);
+	procdesc_jobstate(p);
 	prop = sigprop(sig);
 
 	if (td == NULL) {
@@ -3682,6 +3683,7 @@ childproc_jobstate(struct proc *p, int reason, int sig)
 	 */
 	p->p_pptr->p_flag |= P_STATCHILD;
 	wakeup(p->p_pptr);
+	procdesc_jobstate(p);
 
 	ps = p->p_pptr->p_sigacts;
 	mtx_lock(&ps->ps_mtx);

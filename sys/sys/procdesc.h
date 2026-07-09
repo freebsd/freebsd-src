@@ -104,6 +104,7 @@ struct procdesc {
 int	 procdesc_exit(struct proc *);
 int	 procdesc_find(struct thread *, int fd, const cap_rights_t *,
 	    struct proc **);
+void	 procdesc_jobstate(struct proc *p);
 int	 kern_pdgetpid(struct thread *, int fd, const cap_rights_t *,
 	    pid_t *pidp);
 void	 procdesc_new(struct proc *, int);
