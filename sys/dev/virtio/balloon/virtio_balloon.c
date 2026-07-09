@@ -40,12 +40,14 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/queue.h>
+#include <sys/eventhandler.h>
 
 #include <sys/vmmeter.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_pageout.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -64,6 +66,8 @@ struct vtballoon_softc {
 	uint64_t		 vtballoon_features;
 	uint32_t		 vtballoon_flags;
 #define VTBALLOON_FLAG_DETACH	 0x01
+#define VTBALLOON_FLAG_GUEST_LOWMEM	 0x02
+#define VTBALLOON_FLAG_WANTSIZE	 0x04
 
 	struct virtqueue	*vtballoon_inflate_vq;
 	struct virtqueue	*vtballoon_deflate_vq;
@@ -78,6 +82,11 @@ struct vtballoon_softc {
 	struct thread		*vtballoon_td;
 	uint32_t		*vtballoon_page_frames;
 	int			 vtballoon_timeout;
+	int			 vtballoon_debug;
+	uint64_t		 vtballoon_guest_lowmem_count;
+	uint64_t		 vtballoon_guest_lowmem_pages;
+
+	eventhandler_tag	 vtballoon_guest_lowmem_tag;
 };
 
 static struct virtio_feature_desc vtballoon_feature_desc[] = {
@@ -116,6 +125,7 @@ static void	vtballoon_free_page(struct vtballoon_softc *, vm_page_t);
 
 static int	vtballoon_sleep(struct vtballoon_softc *);
 static void	vtballoon_thread(void *);
+static void	vtballoon_guest_lowmem(void *, int);
 static void	vtballoon_setup_sysctl(struct vtballoon_softc *);
 
 #define vtballoon_modern(_sc) \
@@ -123,7 +133,9 @@ static void	vtballoon_setup_sysctl(struct vtballoon_softc *);
 
 /* Features desired/implemented by this driver. */
 #define VTBALLOON_FEATURES		\
-    (VIRTIO_BALLOON_F_MUST_TELL_HOST | VIRTIO_BALLOON_F_STATS_VQ)
+    (VIRTIO_BALLOON_F_MUST_TELL_HOST |	\
+     VIRTIO_BALLOON_F_STATS_VQ |	\
+     VIRTIO_BALLOON_F_DEFLATE_ON_OOM)
 
 /* Timeout between retries when the balloon needs inflating. */
 #define VTBALLOON_LOWMEM_TIMEOUT	hz
@@ -225,8 +237,26 @@ vtballoon_attach(device_t dev)
 		goto fail;
 	}
 
+	/*
+	 * Prime the resize flag so the thread evaluates the host's
+	 * desired balloon size on first wakeup.  This handles the
+	 * case where the host set num_pages before the guest booted.
+	 */
+	sc->vtballoon_flags |= VTBALLOON_FLAG_WANTSIZE;
+
 	virtqueue_enable_intr(sc->vtballoon_inflate_vq);
 	virtqueue_enable_intr(sc->vtballoon_deflate_vq);
+
+	/*
+	 * Register for guest low-memory events.  vm_lowmem is raised by the
+	 * FreeBSD guest when its own VM subsystem is short of pages; it is not
+	 * a host request to reclaim memory.  Deflating the balloon returns
+	 * pages to the guest before OOM handling.
+	 */
+	if (virtio_with_feature(dev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM)) {
+		sc->vtballoon_guest_lowmem_tag = EVENTHANDLER_REGISTER(vm_lowmem,
+		    vtballoon_guest_lowmem, sc, EVENTHANDLER_PRI_FIRST);
+	}
 
 	/*
 	 * Prime the stats virtqueue with one buffer so the hypervisor
@@ -266,6 +296,12 @@ vtballoon_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	if (sc->vtballoon_guest_lowmem_tag != NULL) {
+		EVENTHANDLER_DEREGISTER(vm_lowmem,
+		    sc->vtballoon_guest_lowmem_tag);
+		sc->vtballoon_guest_lowmem_tag = NULL;
+	}
+
 	if (sc->vtballoon_td != NULL) {
 		VTBALLOON_LOCK(sc);
 		sc->vtballoon_flags |= VTBALLOON_FLAG_DETACH;
@@ -299,6 +335,7 @@ vtballoon_config_change(device_t dev)
 	sc = device_get_softc(dev);
 
 	VTBALLOON_LOCK(sc);
+	sc->vtballoon_flags |= VTBALLOON_FLAG_WANTSIZE;
 	wakeup_one(sc);
 	VTBALLOON_UNLOCK(sc);
 
@@ -557,41 +594,119 @@ vtballoon_sleep(struct vtballoon_softc *sc)
 			break;
 		}
 
-		desired = vtballoon_desired_size(sc);
-		sc->vtballoon_desired_npages = desired;
+		/* Guest low-memory event: break out immediately to deflate. */
+		if (sc->vtballoon_flags & VTBALLOON_FLAG_GUEST_LOWMEM)
+			break;
 
 		/*
-		 * If given, use non-zero timeout on the first time through
-		 * the loop. On subsequent times, timeout will be zero so
-		 * we will reevaluate the desired size of the balloon and
-		 * break out to retry if needed.
+		 * Only evaluate the host's desired balloon size when a
+		 * config change interrupt has been received.  This
+		 * prevents the thread from re-inflating pages that were
+		 * just freed in response to a guest low-memory event.
 		 */
-		timeout = sc->vtballoon_timeout;
-		sc->vtballoon_timeout = 0;
+		if (sc->vtballoon_flags & VTBALLOON_FLAG_WANTSIZE) {
+			desired = vtballoon_desired_size(sc);
+			sc->vtballoon_desired_npages = desired;
 
-		if (current > desired)
-			break;
-		if (current < desired && timeout == 0)
-			break;
+			/*
+			 * If given, use non-zero timeout on the first
+			 * time through the loop.  On subsequent times,
+			 * timeout will be zero so we will reevaluate
+			 * the desired size of the balloon and break
+			 * out to retry if needed.
+			 */
+			timeout = sc->vtballoon_timeout;
+			sc->vtballoon_timeout = 0;
 
-		msleep(sc, VTBALLOON_MTX(sc), 0, "vtbslp", timeout);
+			if (current > desired)
+				break;
+			if (current < desired && timeout == 0)
+				break;
+			if (current < desired) {
+				/* Retry after timeout. */
+				msleep(sc, VTBALLOON_MTX(sc), 0,
+				    "vtbslp", timeout);
+				continue;
+			}
+
+			/* Target reached; clear the flag. */
+			sc->vtballoon_flags &= ~VTBALLOON_FLAG_WANTSIZE;
+		}
+
+		msleep(sc, VTBALLOON_MTX(sc), 0, "vtbslp", 0);
 	}
 	VTBALLOON_UNLOCK(sc);
 
 	return (rc);
 }
 
+/*
+ * Maximum number of pages to deflate in response to a guest low-memory event.
+ * The virtio spec does not prescribe a specific amount; we use a fixed
+ * page count so that the relief scales naturally with page size.
+ */
+#define VTBALLOON_GUEST_LOWMEM_DEFLATE_PAGES	256
+
 static void
 vtballoon_thread(void *xsc)
 {
 	struct vtballoon_softc *sc;
 	uint32_t current, desired;
+	int guest_lowmem;
 
 	sc = xsc;
 
 	for (;;) {
 		if (vtballoon_sleep(sc) != 0)
 			break;
+
+		/*
+		 * Check and clear the guest low-memory flag.  Also clear any
+		 * pending host resize request so that we do not
+		 * immediately re-inflate the pages just released to
+		 * the guest VM subsystem.  The host will send a new
+		 * config change interrupt if it still requires a
+		 * larger balloon.
+		 */
+		VTBALLOON_LOCK(sc);
+		guest_lowmem = sc->vtballoon_flags &
+		    VTBALLOON_FLAG_GUEST_LOWMEM;
+		if (guest_lowmem)
+			sc->vtballoon_flags &=
+			    ~(VTBALLOON_FLAG_GUEST_LOWMEM |
+			    VTBALLOON_FLAG_WANTSIZE);
+		VTBALLOON_UNLOCK(sc);
+
+		if (guest_lowmem && sc->vtballoon_current_npages > 0) {
+			/*
+			 * Guest low memory: deflate up to
+			 * VTBALLOON_GUEST_LOWMEM_DEFLATE_PAGES regardless of
+			 * the host's desired balloon size.  This returns pages
+			 * to the guest VM subsystem before the OOM killer is
+			 * invoked.
+			 */
+			desired = sc->vtballoon_current_npages -
+			    MIN(sc->vtballoon_current_npages,
+			    VTBALLOON_GUEST_LOWMEM_DEFLATE_PAGES);
+
+			sc->vtballoon_guest_lowmem_count++;
+			sc->vtballoon_guest_lowmem_pages +=
+			    sc->vtballoon_current_npages - desired;
+
+			if (__predict_false(sc->vtballoon_debug > 0))
+				device_printf(sc->vtballoon_dev,
+				    "guest low memory, deflating balloon by "
+				    "%d pages (current: %d)\n",
+				    sc->vtballoon_current_npages - desired,
+				    sc->vtballoon_current_npages);
+
+			while (sc->vtballoon_current_npages > desired)
+				vtballoon_deflate(sc,
+				    sc->vtballoon_current_npages - desired);
+
+			vtballoon_update_size(sc);
+			continue;
+		}
 
 		current = sc->vtballoon_current_npages;
 		desired = sc->vtballoon_desired_npages;
@@ -690,6 +805,38 @@ vtballoon_stats_vq_intr(void *xsc)
 	virtqueue_enable_intr(vq);
 }
 
+/*
+ * Handler for the guest vm_lowmem event.  The FreeBSD guest's pagedaemon
+ * fires this when the guest is short of physical pages; it is unrelated to
+ * the host asking the guest to give memory back.  We respond by waking the
+ * balloon kthread to deflate pages back to the guest, giving the VM subsystem
+ * more free pages before it resorts to the OOM killer.
+ *
+ * This callback runs in the pagedaemon context, so we must not block.
+ * We simply set a flag and wake the kthread, following the same pattern as
+ * vtballoon_vq_intr() and vtballoon_config_change().
+ */
+static void
+vtballoon_guest_lowmem(void *arg, int flags)
+{
+	struct vtballoon_softc *sc;
+
+	sc = arg;
+
+	/* Only respond to physical page shortage. */
+	if ((flags & VM_LOW_PAGES) == 0)
+		return;
+
+	/* Nothing to deflate. */
+	if (sc->vtballoon_current_npages == 0)
+		return;
+
+	VTBALLOON_LOCK(sc);
+	sc->vtballoon_flags |= VTBALLOON_FLAG_GUEST_LOWMEM;
+	wakeup_one(sc);
+	VTBALLOON_UNLOCK(sc);
+}
+
 static void
 vtballoon_setup_sysctl(struct vtballoon_softc *sc)
 {
@@ -710,4 +857,16 @@ vtballoon_setup_sysctl(struct vtballoon_softc *sc)
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "current",
 	    CTLFLAG_RD, &sc->vtballoon_current_npages, sizeof(uint32_t),
 	    "Current balloon size in pages");
+
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "debug",
+	    CTLFLAG_RWTUN, &sc->vtballoon_debug, 0,
+	    "Debug level");
+
+	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "guest_lowmem_deflations",
+	    CTLFLAG_RD, &sc->vtballoon_guest_lowmem_count,
+	    "Number of guest low-memory deflation events");
+
+	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "guest_lowmem_pages_freed",
+	    CTLFLAG_RD, &sc->vtballoon_guest_lowmem_pages,
+	    "Total pages freed by guest low-memory deflation");
 }
