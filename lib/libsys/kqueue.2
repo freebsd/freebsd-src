@@ -593,11 +593,19 @@ to monitor as the identifier and the events to watch for in
 and returns when the associated process performs one or more of the
 requested events.
 The events to monitor are:
-.Bl -tag -width "Dv NOTE_EXIT"
+.Bl -tag -width "Dv NOTE_PDSIGCHLD"
 .It Dv NOTE_EXIT
 The process has exited.
 The exit status will be stored in
 .Va data .
+.It Dv NOTE_PDSIGCHLD
+Activates on events that are reported through
+.Xr pdwait 2
+on the process descriptor.
+After the event is reported, the
+.Xr pdwait 2
+can be called to obtain the information about the process
+status change.
 .El
 .Pp
 On return,
