@@ -30,6 +30,11 @@
  *
  * $OpenBSD: fts.c,v 1.22 1999/10/03 19:22:22 millert Exp $
  */
+/*
+ * Compatibility shim for FBSD_1.5 fts(3) ABI.
+ * This file provides the old fts functions for binaries compiled
+ * against FreeBSD 15.x and earlier without fts_dirfd in FTSENT15.
+ */
 
 #include "namespace.h"
 #include <sys/param.h>
@@ -39,7 +44,12 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include "fts-compat15.h"
 #include <fts.h>
+#undef FTSENT
+#undef FTS
+#define FTSENT FTSENT15
+#define FTS FTS15
 #include <stdalign.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -54,7 +64,7 @@
 #else
 #include "block_abi.h"
 typedef DECLARE_BLOCK(int, fts_block,
-    const FTSENT * const *, const FTSENT * const *);
+    const FTSENT15 * const *, const FTSENT15 * const *);
 void qsort_b(void *, size_t, size_t, fts_block);
 #endif /* __BLOCKS__ */
 /* only present if linked with blocks runtime */
@@ -62,18 +72,17 @@ void *_Block_copy(const void *) __weak_symbol;
 void _Block_release(const void *) __weak_symbol;
 extern void *_NSConcreteGlobalBlock[] __weak_symbol;
 
-static FTSENT	*fts_alloc(FTS *, char *, size_t);
-static FTSENT	*fts_build(FTS *, int);
-static void	 fts_lfree(FTSENT *);
-static void	 fts_load(FTS *, FTSENT *);
+static FTSENT15	*fts_alloc(FTS *, char *, size_t);
+static FTSENT15	*fts_build(FTS *, int);
+static void	 fts_lfree(FTSENT15 *);
+static void	 fts_load(FTS *, FTSENT15 *);
 static size_t	 fts_maxarglen(char * const *);
-static FTS	*__fts_open(FTS *, char * const *, int);
-static void	 fts_padjust(FTS *, FTSENT *);
+static void	 fts_padjust(FTS *, FTSENT15 *);
 static int	 fts_palloc(FTS *, size_t);
-static FTSENT	*fts_sort(FTS *, FTSENT *, size_t);
-static int	 fts_stat(FTS *, FTSENT *, int, int);
-static int	 fts_safe_changedir(FTS *, FTSENT *, int, char *);
-static int	 fts_ufslinks(FTS *, const FTSENT *);
+static FTSENT15	*fts_sort(FTS *, FTSENT15 *, size_t);
+static int	 fts_stat(FTS *, FTSENT15 *, int, int);
+static int	 fts_safe_changedir(FTS *, FTSENT15 *, int, char *);
+static int	 fts_ufslinks(FTS *, const FTSENT15 *);
 
 #define	ISDOT(a)	(a[0] == '.' && (!a[1] || (a[1] == '.' && !a[2])))
 
@@ -82,16 +91,15 @@ static int	 fts_ufslinks(FTS *, const FTSENT *);
 #define	SET(opt)	(sp->fts_options |= (opt))
 
 #define	FCHDIR(sp, fd)	(!ISSET(FTS_NOCHDIR) && fchdir(fd))
-#define	FTSP(sp)	((struct _fts_private *)(sp))
 
 /* fts_build flags */
-#define	BCHILD		1		/* fts_children */
-#define	BNAMES		2		/* fts_children, names only */
-#define	BREAD		3		/* fts_read */
+#define	BCHILD		1		/* freebsd15_fts_children */
+#define	BNAMES		2		/* freebsd15_fts_children, names only */
+#define	BREAD		3		/* freebsd15_fts_read */
 
 /*
  * Internal representation of an FTS, including extra implementation
- * details.  The FTS returned from fts_open points to this structure's
+ * details.  The FTS returned from freebsd15_fts_open points to this structure's
  * ftsp_fts member (and can be cast to an _fts_private as required)
  */
 struct _fts_private {
@@ -99,7 +107,6 @@ struct _fts_private {
 	struct statfs	ftsp_statfs;
 	dev_t		ftsp_dev;
 	int		ftsp_linksreliable;
-	int		ftsp_dirfd;
 };
 
 /*
@@ -132,10 +139,10 @@ static const char *ufslike_filesystems[] = {
 		default: 0)
 
 static FTS *
-__fts_open(FTS *sp, char * const *argv, int rootfd)
+__fts_open(FTS *sp, char * const *argv)
 {
-	FTSENT *p, *root;
-	FTSENT *parent, *tmp;
+	FTSENT15 *p, *root;
+	FTSENT15 *parent, *tmp;
 	size_t len, nitems;
 
 	/* Logical walks turn on NOCHDIR; symbolic links are too hard. */
@@ -198,7 +205,7 @@ __fts_open(FTS *sp, char * const *argv, int rootfd)
 		root = fts_sort(sp, root, nitems);
 
 	/*
-	 * Allocate a dummy pointer and make fts_read think that we've just
+	 * Allocate a dummy pointer and make freebsd15_fts_read think that we've just
 	 * finished the node before the root(s); set p->fts_info to FTS_INIT
 	 * so that everything about the "current" node is ignored.
 	 */
@@ -212,13 +219,12 @@ __fts_open(FTS *sp, char * const *argv, int rootfd)
 	 * that we can get back here; this could be avoided for some paths,
 	 * but almost certainly not worth the effort.  Slashes, symbolic links,
 	 * and ".." are all fairly nasty problems.  Note, if we can't get the
-	 * descriptor we run anyway, just more slowly.  We use _openat rather
-	 * than _dup because rootfd may be AT_FDCWD, not a real descriptor.
+	 * descriptor we run anyway, just more slowly.
 	 */
 	if (!ISSET(FTS_NOCHDIR) &&
-	    (sp->fts_rfd = _openat(rootfd, ".", O_RDONLY |
-	    O_CLOEXEC, 0)) < 0)
+	    (sp->fts_rfd = _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		SET(FTS_NOCHDIR);
+
 	return (sp);
 
 mem3:	fts_lfree(root);
@@ -228,9 +234,9 @@ mem1:	free(sp);
 	return (NULL);
 }
 
-FTS *
-fts_open(char * const *argv, int options,
-    int (*compar)(const FTSENT * const *, const FTSENT * const *))
+FTS15 *
+freebsd15_fts_open(char * const *argv, int options,
+    int (*compar)(const FTSENT15 * const *, const FTSENT15 * const *))
 {
 	struct _fts_private *priv;
 	FTS *sp;
@@ -241,7 +247,7 @@ fts_open(char * const *argv, int options,
 		return (NULL);
 	}
 
-	/* fts_open() requires at least one path */
+	/* freebsd15_fts_open() requires at least one path */
 	if (*argv == NULL) {
 		errno = EINVAL;
 		return (NULL);
@@ -251,20 +257,19 @@ fts_open(char * const *argv, int options,
 	if ((priv = calloc(1, sizeof(*priv))) == NULL)
 		return (NULL);
 	sp = &priv->ftsp_fts;
-	sp->fts_compar = compar;
-	sp->fts_options = options;
-	priv->ftsp_dirfd = -1;
-
-	return (__fts_open(sp, argv, AT_FDCWD));
+	sp->fts_compar = (int (*)(const FTSENT * const *,
+            const FTSENT * const *))compar;
+        sp->fts_options = options;
+        return ((FTS15 *)__fts_open(sp, argv));
 }
 
 #ifdef __BLOCKS__
-FTS *
-fts_open_b(char * const *argv, int options,
-    int (^compar)(const FTSENT * const *, const FTSENT * const *))
+FTS15 *
+freebsd15_fts_open_b(char * const *argv, int options,
+    int (^compar)(const FTSENT15 * const *, const FTSENT15 * const *))
 #else
-FTS *
-fts_open_b(char * const *argv, int options, fts_block compar)
+FTS15 *
+freebsd15_fts_open_b(char * const *argv, int options, fts_block compar)
 #endif /* __BLOCKS__ */
 {
 	struct _fts_private *priv;
@@ -272,7 +277,7 @@ fts_open_b(char * const *argv, int options, fts_block compar)
 
 	/* No blocks, no problems. */
 	if (compar == NULL)
-		return (fts_open(argv, options, NULL));
+		return (freebsd15_fts_open(argv, options, NULL));
 
 	/* Avoid segfault if blocks runtime is missing. */
 	if (_Block_copy == NULL) {
@@ -286,7 +291,7 @@ fts_open_b(char * const *argv, int options, fts_block compar)
 		return (NULL);
 	}
 
-	/* fts_open() requires at least one path */
+	/* freebsd15_fts_open() requires at least one path */
 	if (*argv == NULL) {
 		errno = EINVAL;
 		return (NULL);
@@ -309,7 +314,7 @@ fts_open_b(char * const *argv, int options, fts_block compar)
 	sp->fts_compar_b = compar;
 	sp->fts_options = options | FTS_COMPAR_B;
 
-	if ((sp = __fts_open(sp, argv, AT_FDCWD)) == NULL) {
+	if ((sp = __fts_open(sp, argv)) == NULL) {
 #ifdef __BLOCKS__
 		Block_release(compar);
 #else
@@ -321,7 +326,7 @@ fts_open_b(char * const *argv, int options, fts_block compar)
 }
 
 static void
-fts_load(FTS *sp, FTSENT *p)
+fts_load(FTS *sp, FTSENT15 *p)
 {
 	size_t len;
 	char *cp;
@@ -330,7 +335,7 @@ fts_load(FTS *sp, FTSENT *p)
 	 * Load the stream structure for the next traversal.  Since we don't
 	 * actually enter the directory until after the preorder visit, set
 	 * the fts_accpath field specially so the chdir gets done to the right
-	 * place and the user can access the first node.  From fts_open it's
+	 * place and the user can access the first node.  From freebsd15_fts_open it's
 	 * known that the path will fit.
 	 */
 	len = p->fts_pathlen = p->fts_namelen;
@@ -345,9 +350,9 @@ fts_load(FTS *sp, FTSENT *p)
 }
 
 int
-fts_close(FTS *sp)
+freebsd15_fts_close(FTS *sp)
 {
-	FTSENT *freep, *p;
+	FTSENT15 *freep, *p;
 	int saved_errno;
 
 	/*
@@ -361,8 +366,6 @@ fts_close(FTS *sp)
 			p = p->fts_link != NULL ? p->fts_link : p->fts_parent;
 			free(freep);
 		}
-		if (p->fts_dirfd >= 0)
-			(void)_close(p->fts_dirfd);
 		free(p);
 	}
 
@@ -411,10 +414,10 @@ fts_close(FTS *sp)
 	(p->fts_path[p->fts_pathlen - 1] == '/'				\
 	    ? p->fts_pathlen - 1 : p->fts_pathlen)
 
-FTSENT *
-fts_read(FTS *sp)
+FTSENT15 *
+freebsd15_fts_read(FTS *sp)
 {
-	FTSENT *p, *tmp;
+	FTSENT15 *p, *tmp;
 	int instr;
 	char *t;
 	int saved_errno;
@@ -446,9 +449,8 @@ fts_read(FTS *sp)
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE)) {
 		p->fts_info = fts_stat(sp, p, 1, -1);
 		if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
-			if ((p->fts_symfd = p->fts_dirfd >= 0 ?
-			    _dup(p->fts_dirfd) :
-			    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0) {
+			if ((p->fts_symfd = _open(".", O_RDONLY | O_CLOEXEC,
+			    0)) < 0) {
 				p->fts_errno = errno;
 				p->fts_info = FTS_ERR;
 			} else
@@ -492,8 +494,7 @@ fts_read(FTS *sp)
 		 * FTS_STOP or the fts_info field of the node.
 		 */
 		if (sp->fts_child != NULL) {
-			if (fts_safe_changedir(sp, p,
-			    p->fts_dirfd, p->fts_name)) {
+			if (fts_safe_changedir(sp, p, -1, p->fts_accpath)) {
 				p->fts_errno = errno;
 				p->fts_flags |= FTS_DONTCHDIR;
 				for (p = sp->fts_child; p != NULL;
@@ -529,7 +530,7 @@ next:	tmp = p;
 		}
 
 		/*
-		 * User may have called fts_set on the node.  If skipped,
+		 * User may have called freebsd15_fts_set on the node.  If skipped,
 		 * ignore.  If followed, get a file descriptor so we can
 		 * get back if necessary.
 		 */
@@ -541,8 +542,6 @@ next:	tmp = p;
 			p->fts_info = fts_stat(sp, p, 1, -1);
 			if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
 				if ((p->fts_symfd =
-				    FTSP(sp)->ftsp_dirfd >= 0 ?
-				    _dup(FTSP(sp)->ftsp_dirfd) :
 				    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0) {
 					p->fts_errno = errno;
 					p->fts_info = FTS_ERR;
@@ -569,8 +568,6 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
 		 * can distinguish between error and EOF.
 		 */
 		free(tmp);
-		if (p->fts_dirfd >= 0)
-			(void)_close(p->fts_dirfd);
 		free(p);
 		errno = 0;
 		return (sp->fts_cur = NULL);
@@ -611,12 +608,12 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
 /*
  * Fts_set takes the stream as an argument although it's not used in this
  * implementation; it would be necessary if anyone wanted to add global
- * semantics to fts using fts_set.  An error return is allowed for similar
+ * semantics to fts using freebsd15_fts_set.  An error return is allowed for similar
  * reasons.
  */
 /* ARGSUSED */
 int
-fts_set(FTS *sp, FTSENT *p, int instr)
+freebsd15_fts_set(FTS *sp, FTSENT15 *p, int instr)
 {
 	if (instr != 0 && instr != FTS_AGAIN && instr != FTS_FOLLOW &&
 	    instr != FTS_NOINSTR && instr != FTS_SKIP) {
@@ -627,10 +624,10 @@ fts_set(FTS *sp, FTSENT *p, int instr)
 	return (0);
 }
 
-FTSENT *
-fts_children(FTS *sp, int instr)
+FTSENT15 *
+freebsd15_fts_children(FTS *sp, int instr)
 {
-	FTSENT *p;
+	FTSENT15 *p;
 	int fd, rc, serrno;
 
 	if (instr != 0 && instr != FTS_NAMEONLY) {
@@ -674,19 +671,17 @@ fts_children(FTS *sp, int instr)
 		instr = BCHILD;
 
 	/*
-	 * If using chdir on a relative path and called BEFORE fts_read does
+	 * If using chdir on a relative path and called BEFORE freebsd15_fts_read does
 	 * its chdir to the root of a traversal, we can lose -- we need to
 	 * chdir into the subdirectory, and we don't know where the current
 	 * directory is, so we can't get back so that the upcoming chdir by
-	 * fts_read will work.
+	 * freebsd15_fts_read will work.
 	 */
 	if (p->fts_level != FTS_ROOTLEVEL || p->fts_accpath[0] == '/' ||
 	    ISSET(FTS_NOCHDIR))
 		return (sp->fts_child = fts_build(sp, instr));
 
-	if ((fd = sp->fts_cur->fts_dirfd >= 0 ?
-	    _dup(sp->fts_cur->fts_dirfd) :
-	    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
+	if ((fd = _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (NULL);
 	sp->fts_child = fts_build(sp, instr);
 	serrno = (sp->fts_child == NULL) ? errno : 0;
@@ -700,36 +695,30 @@ fts_children(FTS *sp, int instr)
 	return (sp->fts_child);
 }
 
-#ifndef fts_get_clientptr
-#error "fts_get_clientptr not defined"
+#ifndef freebsd15_fts_get_clientptr
+#error "freebsd15_fts_get_clientptr not defined"
 #endif
 
 void *
-(fts_get_clientptr)(FTS *sp)
+(freebsd15_fts_get_clientptr)(FTS *sp)
 {
-	return (fts_get_clientptr(sp));
+	return (freebsd15_fts_get_clientptr(sp));
 }
 
-#ifndef fts_get_stream
-#error "fts_get_stream not defined"
+#ifndef freebsd15_fts_get_stream
+#error "freebsd15_fts_get_stream not defined"
 #endif
 
-FTS *
-(fts_get_stream)(FTSENT *p)
+FTS15 *
+(freebsd15_fts_get_stream)(FTSENT15 *p)
 {
-	return (fts_get_stream(p));
+	return (freebsd15_fts_get_stream(p));
 }
 
 void
-fts_set_clientptr(FTS *sp, void *clientptr)
+freebsd15_fts_set_clientptr(FTS *sp, void *clientptr)
 {
 	sp->fts_clientptr = clientptr;
-}
-
-int
-fts_get_dirfd(const FTS *sp)
-{
-        return (FTSP(sp)->ftsp_dirfd);
 }
 
 static struct dirent *
@@ -747,8 +736,8 @@ fts_safe_readdir(DIR *dirp, int *readdir_errno)
 
 /*
  * This is the tricky part -- do not casually change *anything* in here.  The
- * idea is to build the linked list of entries that are used by fts_children
- * and fts_read.  There are lots of special cases.
+ * idea is to build the linked list of entries that are used by freebsd15_fts_children
+ * and freebsd15_fts_read.  There are lots of special cases.
  *
  * The real slowdown in walking the tree is the stat calls.  If FTS_NOSTAT is
  * set and it's a physical walk (so that symbolic links can't be directories),
@@ -759,12 +748,12 @@ fts_safe_readdir(DIR *dirp, int *readdir_errno)
  * directories and for any files after the subdirectories in the directory have
  * been found, cutting the stat calls by about 2/3.
  */
-static FTSENT *
+static FTSENT15 *
 fts_build(FTS *sp, int type)
 {
 	struct dirent *dp;
-	FTSENT *p, *head;
-	FTSENT *cur, *tail;
+	FTSENT15 *p, *head;
+	FTSENT15 *cur, *tail;
 	DIR *dirp;
 	void *oldaddr;
 	char *cp;
@@ -779,7 +768,7 @@ fts_build(FTS *sp, int type)
 
 	/*
 	 * Open the directory for reading.  If this fails, we're done.
-	 * If being called from fts_read, set the fts_info field.
+	 * If being called from freebsd15_fts_read, set the fts_info field.
 	 */
 	if (ISSET(FTS_WHITEOUT))
 		oflag = DTF_NODUP;
@@ -843,7 +832,7 @@ fts_build(FTS *sp, int type)
 	 * and stay in the directory, chdir.  If this fails we keep going,
 	 * but set a flag so we don't chdir after the post-order visit.
 	 * We won't be able to stat anything, but we can still return the
-	 * names themselves.  Note, that since fts_read won't be able to
+	 * names themselves.  Note, that since freebsd15_fts_read won't be able to
 	 * chdir into the directory, it will have to return different path
 	 * names than before, i.e. "a/b" instead of "b".  Since the node
 	 * has already been visited in pre-order, have to wait until the
@@ -870,7 +859,7 @@ fts_build(FTS *sp, int type)
 	 * Figure out the max file name length that can be stored in the
 	 * current path -- the inner loop allocates more path as necessary.
 	 * We really wouldn't have to do the maxlen calculations here, we
-	 * could do them in fts_read before returning the path, but it's a
+	 * could do them in freebsd15_fts_read before returning the path, but it's a
 	 * lot easier here since the length is part of the dirent structure.
 	 *
 	 * If not changing directories set a pointer so that can just append
@@ -888,7 +877,6 @@ fts_build(FTS *sp, int type)
 	maxlen = sp->fts_pathlen - len;
 
 	level = cur->fts_level + 1;
-	FTSP(sp)->ftsp_dirfd = _dirfd(dirp);
 
 	/* Read the directory, attaching each entry to the `link' pointer. */
 	doadjust = 0;
@@ -929,7 +917,6 @@ mem1:				saved_errno = errno;
 		}
 
 		p->fts_level = level;
-		p->fts_dirfd = _dup(_dirfd(dirp));
 		p->fts_parent = sp->fts_cur;
 		p->fts_pathlen = len + dnamlen;
 
@@ -1022,9 +1009,9 @@ mem1:				saved_errno = errno;
 		sp->fts_path[cur->fts_pathlen] = '\0';
 
 	/*
-	 * If descended after called from fts_children or after called from
-	 * fts_read and nothing found, get back.  At the root level we use
-	 * the saved fd; if one of fts_open()'s arguments is a relative path
+	 * If descended after called from freebsd15_fts_children or after called from
+	 * freebsd15_fts_read and nothing found, get back.  At the root level we use
+	 * the saved fd; if one of freebsd15_fts_open()'s arguments is a relative path
 	 * to an empty directory, we wind up here with no other way back.  If
 	 * can't get back, we're done.
 	 */
@@ -1053,9 +1040,9 @@ mem1:				saved_errno = errno;
 }
 
 static int
-fts_stat(FTS *sp, FTSENT *p, int follow, int dfd)
+fts_stat(FTS *sp, FTSENT15 *p, int follow, int dfd)
 {
-	FTSENT *t;
+	FTSENT15 *t;
 	dev_t dev;
 	ino_t ino;
 	struct stat *sbp, sb;
@@ -1145,10 +1132,10 @@ err:		memset(sbp, 0, sizeof(struct stat));
 	return (FTS_DEFAULT);
 }
 
-static FTSENT *
-fts_sort(FTS *sp, FTSENT *head, size_t nitems)
+static FTSENT15 *
+fts_sort(FTS *sp, FTSENT15 *head, size_t nitems)
 {
-	FTSENT **ap, *p;
+	FTSENT15 **ap, *p;
 
 	/*
 	 * Construct an array of pointers to the structures and call qsort(3).
@@ -1160,7 +1147,7 @@ fts_sort(FTS *sp, FTSENT *head, size_t nitems)
 	if (nitems > sp->fts_nitems) {
 		sp->fts_nitems = nitems + 40;
 		if ((sp->fts_array = reallocf(sp->fts_array,
-		    sp->fts_nitems * sizeof(FTSENT *))) == NULL) {
+		    sp->fts_nitems * sizeof(FTSENT15 *))) == NULL) {
 			sp->fts_nitems = 0;
 			return (head);
 		}
@@ -1169,14 +1156,14 @@ fts_sort(FTS *sp, FTSENT *head, size_t nitems)
 		*ap++ = p;
 	if (ISSET(FTS_COMPAR_B)) {
 #ifdef __BLOCKS__
-		qsort_b(sp->fts_array, nitems, sizeof(FTSENT *),
+		qsort_b(sp->fts_array, nitems, sizeof(FTSENT15 *),
 		    (int (^)(const void *, const void *))sp->fts_compar_b);
 #else
-		qsort_b(sp->fts_array, nitems, sizeof(FTSENT *),
+		qsort_b(sp->fts_array, nitems, sizeof(FTSENT15 *),
 		    sp->fts_compar_b);
 #endif /* __BLOCKS__ */
 	} else {
-		qsort(sp->fts_array, nitems, sizeof(FTSENT *),
+		qsort(sp->fts_array, nitems, sizeof(FTSENT15 *),
 		    (int (*)(const void *, const void *))sp->fts_compar);
 	}
 	for (head = *(ap = sp->fts_array); --nitems; ++ap)
@@ -1185,19 +1172,19 @@ fts_sort(FTS *sp, FTSENT *head, size_t nitems)
 	return (head);
 }
 
-static FTSENT *
+static FTSENT15 *
 fts_alloc(FTS *sp, char *name, size_t namelen)
 {
-	FTSENT *p;
+	FTSENT15 *p;
 	size_t len;
 
 	/*
 	 * The file name is a variable length array and no stat structure is
-	 * necessary if the user has set the nostat bit.  Allocate the FTSENT
+	 * necessary if the user has set the nostat bit.  Allocate the FTSENT15
 	 * structure, the file name and the stat structure in one chunk, but
 	 * be careful that the stat structure is reasonably aligned.
 	 */
-	len = sizeof(FTSENT) + namelen + 1;
+	len = sizeof(FTSENT15) + namelen + 1;
 	if (!ISSET(FTS_NOSTAT)) {
 		len = roundup(len, alignof(struct stat));
 		p = calloc(1, len + sizeof(struct stat));
@@ -1208,7 +1195,6 @@ fts_alloc(FTS *sp, char *name, size_t namelen)
 		return (NULL);
 
 	p->fts_symfd = -1;
-	p->fts_dirfd = -1;
 	p->fts_path = sp->fts_path;
 	p->fts_name = (char *)(p + 1);
 	p->fts_namelen = namelen;
@@ -1222,15 +1208,13 @@ fts_alloc(FTS *sp, char *name, size_t namelen)
 }
 
 static void
-fts_lfree(FTSENT *head)
+fts_lfree(FTSENT15 *head)
 {
-	FTSENT *p;
+	FTSENT15 *p;
 
 	/* Free a linked list of structures. */
 	while ((p = head)) {
 		head = head->fts_link;
-		if (p->fts_dirfd >= 0)
-			(void)_close(p->fts_dirfd);
 		free(p);
 	}
 }
@@ -1255,9 +1239,9 @@ fts_palloc(FTS *sp, size_t more)
  * already returned.
  */
 static void
-fts_padjust(FTS *sp, FTSENT *head)
+fts_padjust(FTS *sp, FTSENT15 *head)
 {
-	FTSENT *p;
+	FTSENT15 *p;
 	char *addr = sp->fts_path;
 
 #define	ADJUST(p) do {							\
@@ -1295,7 +1279,7 @@ fts_maxarglen(char * const *argv)
  * Assumes p->fts_dev and p->fts_ino are filled in.
  */
 static int
-fts_safe_changedir(FTS *sp, FTSENT *p, int fd, char *path)
+fts_safe_changedir(FTS *sp, FTSENT15 *p, int fd, char *path)
 {
 	int ret, oerrno, newfd;
 	struct stat sb;
@@ -1335,7 +1319,7 @@ bail:
  * Check if the filesystem for "ent" has UFS-style links.
  */
 static int
-fts_ufslinks(FTS *sp, const FTSENT *ent)
+fts_ufslinks(FTS *sp, const FTSENT15 *ent)
 {
 	struct _fts_private *priv;
 	const char **cpp;
@@ -1348,9 +1332,7 @@ fts_ufslinks(FTS *sp, const FTSENT *ent)
 	 * avoidance.
 	 */
 	if (priv->ftsp_dev != ent->fts_dev) {
-		if ((priv->ftsp_dirfd >= 0 ?
-		    _fstatfs(priv->ftsp_dirfd, &priv->ftsp_statfs) :
-                    statfs(ent->fts_path, &priv->ftsp_statfs)) != -1) {
+		if (statfs(ent->fts_path, &priv->ftsp_statfs) != -1) {
 			priv->ftsp_dev = ent->fts_dev;
 			priv->ftsp_linksreliable = 0;
 			for (cpp = ufslike_filesystems; *cpp; cpp++) {
@@ -1367,12 +1349,12 @@ fts_ufslinks(FTS *sp, const FTSENT *ent)
 	return (priv->ftsp_linksreliable);
 }
 
-__sym_default(fts_open, fts_open, FBSD_1.9);
-__sym_default(fts_close, fts_close, FBSD_1.9);
-__sym_default(fts_read, fts_read, FBSD_1.9);
-__sym_default(fts_set, fts_set, FBSD_1.9);
-__sym_default(fts_children, fts_children, FBSD_1.9);
-__sym_default(fts_get_clientptr, fts_get_clientptr, FBSD_1.9);
-__sym_default(fts_get_stream, fts_get_stream, FBSD_1.9);
-__sym_default(fts_set_clientptr, fts_set_clientptr, FBSD_1.9);
-__sym_default(fts_open_b, fts_open_b, FBSD_1.9);
+__sym_compat(fts_open, freebsd15_fts_open, FBSD_1.5);
+__sym_compat(fts_close, freebsd15_fts_close, FBSD_1.5);
+__sym_compat(fts_read, freebsd15_fts_read, FBSD_1.5);
+__sym_compat(fts_set, freebsd15_fts_set, FBSD_1.5);
+__sym_compat(fts_children, freebsd15_fts_children, FBSD_1.5);
+__sym_compat(fts_get_clientptr, freebsd15_fts_get_clientptr, FBSD_1.5);
+__sym_compat(fts_get_stream, freebsd15_fts_get_stream, FBSD_1.5);
+__sym_compat(fts_set_clientptr, freebsd15_fts_set_clientptr, FBSD_1.5);
+__sym_compat(fts_open_b, freebsd15_fts_open_b, FBSD_1.5);

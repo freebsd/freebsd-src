@@ -92,6 +92,7 @@ struct _ftsent {
 	char *fts_path;			/* root path */
 	int fts_errno;			/* errno for this node */
 	int fts_symfd;			/* fd for symlink */
+	int fts_dirfd;                  /* fd for parent directory */
 	__size_t fts_pathlen;		/* strlen(fts_path) */
 	__size_t fts_namelen;		/* strlen(fts_name) */
 

@@ -63,6 +63,7 @@ SRCS+= \
 	fts.c \
 	fts-compat.c \
 	fts-compat11.c \
+	fts-compat15.c \
 	ftw.c \
 	ftw-compat11.c \
 	getbootfile.c \
