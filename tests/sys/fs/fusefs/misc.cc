@@ -280,7 +280,7 @@ TEST_F(FexecvDefaultPermissions, atime)
 	}, [&] {
 		char *const argv[] = {__DECONST(char *, "true"), NULL};
 		char *const env[] = {NULL};
-		char buf[8];
+		char cbuf[8];
 		int fd;
 
 		/* Note that fexecve doesn't actually require O_EXEC */
@@ -290,7 +290,7 @@ TEST_F(FexecvDefaultPermissions, atime)
 			return 1;
 		}
 		/* Read a few bytes, just to dirty the file's atime */
-		if (read(fd, buf, sizeof(buf)) < 0) {
+		if (read(fd, cbuf, sizeof(cbuf)) < 0) {
 			fprintf(stderr, "read: %s\n", strerror(errno));
 			return 1;
 		}
