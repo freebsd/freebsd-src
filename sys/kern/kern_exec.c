@@ -414,17 +414,11 @@ execve_block(struct thread *td, struct proc *p)
 void
 execve_block_wait(struct thread *td, struct proc *p)
 {
-	bool first;
-
 	PROC_ASSERT_HELD(p);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	for (first = true;; first = false) {
-		if (!first)
-			PROC_LOCK(p);
-		if (execve_block(td, p))
-			return;
-	}
+	while (!execve_block(td, p))
+		PROC_LOCK(p);
 }
 
 void
