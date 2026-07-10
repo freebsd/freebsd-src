@@ -3770,6 +3770,7 @@ validate(struct sockaddr *sa, const char *hname)
 int
 p_open(const char *prog, int *rpd)
 {
+	cap_rights_t rights;
 	struct sigaction act = { };
 	int pfd[2], pd;
 	pid_t pid;
@@ -3821,6 +3822,10 @@ p_open(const char *prog, int *rpd)
 		dprintf("Warning: cannot change pipe to PID %d to non-blocking"
 		    "behaviour.", pid);
 	}
+
+	if (cap_rights_limit(pd,
+	    cap_rights_init(&rights, CAP_PDKILL, CAP_EVENT)) == -1)
+		err(1, "cap_rights_limit");
 	*rpd = pd;
 	return (pfd[1]);
 }
