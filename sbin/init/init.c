@@ -116,7 +116,9 @@ static state_func_t catatonia(void);
 static state_func_t death(void);
 static state_func_t death_single(void);
 static state_func_t reroot(void);
+#ifdef RESCUE
 static state_func_t reroot_phase_two(void);
+#endif
 
 static state_func_t run_script(const char *);
 
@@ -269,7 +271,11 @@ invalid:
 	 * This code assumes that we always get arguments through flags,
 	 * never through bits set in some random machine register.
 	 */
-	while ((c = getopt(argc, argv, "dsfr")) != -1)
+	while ((c = getopt(argc, argv, "dsf"
+#ifdef RESCUE
+	    "r"
+#endif
+	    )) != -1)
 		switch (c) {
 		case 'd':
 			devfs = true;
@@ -280,9 +286,11 @@ invalid:
 		case 'f':
 			runcom_mode = FASTBOOT;
 			break;
+#ifdef RESCUE
 		case 'r':
 			initial_transition = reroot_phase_two;
 			break;
+#endif
 		default:
 			warning("unrecognized flag '-%c'", c);
 			break;
@@ -388,7 +396,10 @@ invalid:
 			free(s);
 	}
 
-	if (initial_transition != reroot_phase_two) {
+#ifdef RESCUE
+	if (initial_transition != reroot_phase_two)
+#endif
+	{
 		/*
 		 * Unmount reroot leftovers.  This runs after init(8)
 		 * gets reexecuted after reroot_phase_two() is done.
@@ -628,6 +639,7 @@ write_stderr(const char *message)
 	write(STDERR_FILENO, message, strlen(message));
 }
 
+#ifdef RESCUE
 static int
 read_file(const char *path, void **bufp, size_t *bufsizep)
 {
@@ -678,6 +690,7 @@ read_file(const char *path, void **bufp, size_t *bufsizep)
 
 	return (0);
 }
+#endif /* RESCUE */
 
 static int
 create_file(const char *path, const void *buf, size_t bufsize)
@@ -738,15 +751,13 @@ mount_tmpfs(const char *fspath)
 	return (0);
 }
 
+#ifndef RESCUE
+extern char reroot_seed_start[], reroot_seed_end[];
+
 static state_func_t
 reroot(void)
 {
-	void *buf;
-	size_t bufsize;
 	int error;
-
-	buf = NULL;
-	bufsize = 0;
 
 	revoke_ttys();
 	runshutdown();
@@ -762,31 +773,26 @@ reroot(void)
 		goto out;
 	}
 
-	/*
-	 * Copy the init binary into tmpfs, so that we can unmount
-	 * the old rootfs without committing suicide.
-	 */
-	error = read_file(init_path_argv0, &buf, &bufsize);
-	if (error != 0)
-		goto out;
 	error = mount_tmpfs(_PATH_REROOT);
 	if (error != 0)
 		goto out;
-	error = create_file(_PATH_REROOT_INIT, buf, bufsize);
+	error = create_file(_PATH_REROOT_INIT, reroot_seed_start,
+	    reroot_seed_end - reroot_seed_start);
 	if (error != 0)
 		goto out;
 
 	/*
 	 * Execute the temporary init.
 	 */
-	execl(_PATH_REROOT_INIT, _PATH_REROOT_INIT, "-r", NULL);
+	execl(_PATH_REROOT_INIT, _PATH_REROOT_INIT, NULL);
 	emergency("cannot exec %s: %m", _PATH_REROOT_INIT);
 
 out:
 	emergency("reroot failed; going to single user mode");
-	free(buf);
 	return (state_func_t) single_user;
 }
+
+#else /* !RESCUE */
 
 static state_func_t
 reroot_phase_two(void)
@@ -838,6 +844,57 @@ out:
 	emergency("reroot failed; going to single user mode");
 	return (state_func_t) single_user;
 }
+
+static state_func_t
+reroot(void)
+{
+	void *buf;
+	size_t bufsize;
+	int error;
+
+	buf = NULL;
+	bufsize = 0;
+
+	revoke_ttys();
+	runshutdown();
+
+	/*
+	 * Make sure nobody can interfere with our scheme.
+	 * Ignore ESRCH, which can apparently happen when
+	 * there are no processes to kill.
+	 */
+	error = kill(-1, SIGKILL);
+	if (error != 0 && errno != ESRCH) {
+		emergency("kill(2) failed: %m");
+		goto out;
+	}
+
+	/*
+	 * Copy the init binary into tmpfs, so that we can unmount
+	 * the old rootfs without committing suicide.
+	 */
+	error = read_file(init_path_argv0, &buf, &bufsize);
+	if (error != 0)
+		goto out;
+	error = mount_tmpfs(_PATH_REROOT);
+	if (error != 0)
+		goto out;
+	error = create_file(_PATH_REROOT_INIT, buf, bufsize);
+	if (error != 0)
+		goto out;
+
+	/*
+	 * Execute the temporary init.
+	 */
+	execl(_PATH_REROOT_INIT, _PATH_REROOT_INIT, "-r", NULL);
+	emergency("cannot exec %s: %m", _PATH_REROOT_INIT);
+
+out:
+	emergency("reroot failed; going to single user mode");
+	return (state_func_t) single_user;
+}
+
+#endif /* !RESCUE */
 
 /*
  * Bring the system up single user.

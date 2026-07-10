@@ -25,6 +25,8 @@ SUBDIR=adjkerntz \
 	ggate \
 	growfs \
 	ifconfig \
+	reroot_seed \
+	.WAIT \
 	init \
 	kldconfig \
 	kldload \
