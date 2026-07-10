@@ -45,7 +45,7 @@
 #include <machine/md_var.h>
 
 #define	KVM_CPUID_SIGNATURE			0x40000000
-#define	KVM_CPUID_FEATURES_LEAF			0x40000001
+#define	KVM_CPUID_FEATURES_LEAF(base)		((base) + 1)
 
 #define	KVM_FEATURE_CLOCKSOURCE			0x00000001
 #define	KVM_FEATURE_CLOCKSOURCE2		0x00000008
@@ -63,8 +63,7 @@ static inline bool
 kvm_cpuid_features_leaf_supported(void)
 {
 	return (vm_guest == VM_GUEST_KVM &&
-	    KVM_CPUID_FEATURES_LEAF > hv_base &&
-	    KVM_CPUID_FEATURES_LEAF <= hv_high);
+	    KVM_CPUID_FEATURES_LEAF(hv_base) <= hv_high);
 }
 
 static inline void
@@ -73,7 +72,7 @@ kvm_cpuid_get_features(u_int *regs)
 	if (!kvm_cpuid_features_leaf_supported())
 		regs[0] = regs[1] = regs[2] = regs[3] = 0;
 	else
-		do_cpuid(KVM_CPUID_FEATURES_LEAF, regs);
+		do_cpuid(KVM_CPUID_FEATURES_LEAF(hv_base), regs);
 }
 
 #endif /* !_X86_KVM_H_ */
