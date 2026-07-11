@@ -1031,7 +1031,8 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 				cur_fsid = vp->v_mount->mnt_stat.f_fsid;
 				NFSVOPUNLOCK(vp);
 				vpnes = nes;
-			}
+			} else if (nd->nd_repstat == ESTALE)
+				nfsrv_freestrandedstate(&fh);
 			break;
 		case NFSV4OP_PUTPUBFH:
 			if (nfs_pubfhset) {

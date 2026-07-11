@@ -169,6 +169,7 @@ int nfsrv_mdscopymr(char *, char *, char *, char *, int *, char *, NFSPROC_T *,
     struct vnode **, struct vnode **, struct pnfsdsfile **, struct nfsdevice **,
     struct nfsdevice **);
 void nfsrv_marknospc(char *, bool);
+void nfsrv_freestrandedstate(struct nfsrvfh *);
 
 /* nfs_nfsdserv.c */
 int nfsrvd_access(struct nfsrv_descript *, int,
