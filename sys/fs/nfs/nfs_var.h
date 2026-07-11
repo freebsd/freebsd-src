@@ -169,6 +169,7 @@ int nfsrv_mdscopymr(char *, char *, char *, char *, int *, char *, NFSPROC_T *,
     struct nfsdevice **);
 void nfsrv_marknospc(char *, bool);
 void nfsrv_removedeleg(fhandle_t *, struct nfsrv_descript *, NFSPROC_T *);
+void nfsrv_freestrandedstate(struct nfsrvfh *);
 
 /* nfs_nfsdserv.c */
 int nfsrvd_access(struct nfsrv_descript *, int,
