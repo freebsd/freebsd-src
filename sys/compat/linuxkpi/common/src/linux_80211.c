@@ -6218,13 +6218,14 @@ lkpi_80211_txq_tx_one(struct lkpi_sta *lsta, struct mbuf *m)
 ops_tx:
 #ifdef LINUXKPI_DEBUG_80211
 	if (linuxkpi_debug_80211 & D80211_TRACE_TX)
-		printf("%s:%d mo_tx :: lsta %p sta %p ni %p %6D skb %p "
-		    "TX ac %d prio %u qmap %u\n",
-		    __func__, __LINE__, lsta, sta, ni, ni->ni_macaddr, ":",
-		    skb, ac, skb->priority, skb->qmap);
+		printf("%s:%d mo_tx :: lsta %p { added_to_drv %d } sta %p "
+		    "ni %p %6D skb %p TX ac %d prio %u qmap %u\n",
+		    __func__, __LINE__, lsta, lsta->added_to_drv, sta,
+		    ni, ni->ni_macaddr, ":", skb, ac, skb->priority, skb->qmap);
 #endif
 	memset(&control, 0, sizeof(control));
-	control.sta = sta;
+	if (lsta->added_to_drv)
+		control.sta = sta;
 	wiphy_lock(hw->wiphy);
 	lkpi_80211_mo_tx(hw, &control, skb);
 	lsta->frms_tx++;
