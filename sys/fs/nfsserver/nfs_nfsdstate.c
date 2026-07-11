@@ -247,6 +247,7 @@ static void nfsrv_issuedelegation(struct vnode *vp, struct nfsclient *clp,
     nfsv4stateid_t *delegstateidp);
 static void nfsrv_clientlock(bool mlocked);
 static void nfsrv_clientunlock(bool mlocked);
+static void nfsrv_freelockifnotinuse(struct nfslockfile *lfp);
 
 /*
  * Lock the client structure, either with the mutex or the exclusive nfsd lock.
@@ -1530,20 +1531,13 @@ nfsrv_freedeleglist(struct nfsstatehead *sthp)
 static void
 nfsrv_freedeleg(struct nfsstate *stp)
 {
-	struct nfslockfile *lfp;
 
 	LIST_REMOVE(stp, ls_hash);
 	LIST_REMOVE(stp, ls_list);
 	LIST_REMOVE(stp, ls_file);
 	if ((stp->ls_flags & NFSLCK_DELEGWRITE) != 0)
 		nfsrv_writedelegcnt--;
-	lfp = stp->ls_lfp;
-	if (LIST_EMPTY(&lfp->lf_open) &&
-	    LIST_EMPTY(&lfp->lf_lock) && LIST_EMPTY(&lfp->lf_deleg) &&
-	    LIST_EMPTY(&lfp->lf_locallock) && LIST_EMPTY(&lfp->lf_rollback) &&
-	    lfp->lf_usecount == 0 &&
-	    nfsv4_testlock(&lfp->lf_locallock_lck) == 0)
-		nfsrv_freenfslockfile(lfp);
+	nfsrv_freelockifnotinuse(stp->ls_lfp);
 	free(stp, M_NFSDSTATE);
 	NFSD_VNET(nfsstatsv1_p)->srvdelegates--;
 	nfsrv_openpluslock--;
@@ -1625,12 +1619,7 @@ nfsrv_freeopen(struct nfsstate *stp, vnode_t vp, int cansleep, NFSPROC_T *p)
 	 * If there are locks associated with the open, the
 	 * nfslockfile structure can be freed via nfsrv_freelockowner().
 	 */
-	if (lfp != NULL && LIST_EMPTY(&lfp->lf_open) &&
-	    LIST_EMPTY(&lfp->lf_deleg) && LIST_EMPTY(&lfp->lf_lock) &&
-	    LIST_EMPTY(&lfp->lf_locallock) && LIST_EMPTY(&lfp->lf_rollback) &&
-	    lfp->lf_usecount == 0 &&
-	    nfsv4_testlock(&lfp->lf_locallock_lck) == 0)
-		nfsrv_freenfslockfile(lfp);
+	nfsrv_freelockifnotinuse(lfp);
 	free(stp, M_NFSDSTATE);
 	NFSD_VNET(nfsstatsv1_p)->srvopens--;
 	nfsrv_openpluslock--;
@@ -9021,4 +9010,76 @@ nfsrv_issuedelegation(struct vnode *vp, struct nfsclient *clp,
 		nfsrv_openpluslock++;
 		nfsrv_delegatecnt++;
 	}
+}
+
+/*
+ * Free the nfslockfile structure if not in use.
+ */
+static void
+nfsrv_freelockifnotinuse(struct nfslockfile *lfp)
+{
+
+	/*
+	 * The nfslockfile is freed here if there are no locks
+	 * associated with the open.
+	 * If there are locks associated with the open, the
+	 * nfslockfile structure can be freed via nfsrv_freelockowner().
+	 */
+	if (lfp != NULL && LIST_EMPTY(&lfp->lf_open) &&
+	    LIST_EMPTY(&lfp->lf_deleg) && LIST_EMPTY(&lfp->lf_lock) &&
+	    LIST_EMPTY(&lfp->lf_locallock) && LIST_EMPTY(&lfp->lf_rollback) &&
+	    lfp->lf_usecount == 0 &&
+	    nfsv4_testlock(&lfp->lf_locallock_lck) == 0)
+		nfsrv_freenfslockfile(lfp);
+}
+
+/*
+ * Free stranded open/lock/delegation/layouts.
+ * (These become stranded if the file has been deleted.)
+ */
+void
+nfsrv_freestrandedstate(struct nfsrvfh *nfp)
+{
+	struct nfslockfile *lfp;
+	struct nfsstate *stp, *nstp;
+	struct nfslayouthash *lhyp;
+	struct nfslayout *lyp, *nlyp;
+	fhandle_t *fhp;
+
+	if (nfp->nfsrvfh_len != NFSX_MYFH)
+		return;
+	fhp = (fhandle_t *)nfp->nfsrvfh_data;
+	NFSLOCKSTATE();
+	if (nfsrv_getlockfile(0, NULL, &lfp, fhp, 0) < 0) {
+		NFSUNLOCKSTATE();
+		return;
+	}
+	lfp->lf_usecount++;	/* So nfsrv_freeopen() does not free it. */
+	/* Note that nfsrv_freeopen() will also free the byte range locks. */
+	LIST_FOREACH_SAFE(stp, &lfp->lf_open, ls_file, nstp)
+		nfsrv_freeopen(stp, NULL, 0, curthread);
+
+	/*
+	 * Normally, a delegation will have been recalled when the file is
+	 * removed.  However, get rid of any that have somehow been
+	 * left stranded.
+	 */
+	LIST_FOREACH_SAFE(stp, &lfp->lf_deleg, ls_file, nstp)
+		nfsrv_freedeleg(stp);
+
+	/* Get rid of the nfslockfile, if no longer in use. */
+	lfp->lf_usecount--;
+	nfsrv_freelockifnotinuse(lfp);
+	NFSUNLOCKSTATE();
+
+	/* Free any layouts for the pNFS server case. */
+	if (nfsrv_devidcnt == 0)
+		return;
+	lhyp = NFSLAYOUTHASH(fhp);
+	NFSLOCKLAYOUT(lhyp);
+	TAILQ_FOREACH_SAFE(lyp, &lhyp->list, lay_list, nlyp) {
+		if (NFSBCMP(&lyp->lay_fh, fhp, sizeof(*fhp)) == 0)
+			nfsrv_freelayout(&lhyp->list, lyp);
+	}
+	NFSUNLOCKLAYOUT(lhyp);
 }
