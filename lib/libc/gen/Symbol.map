@@ -471,7 +471,6 @@ FBSD_1.9 {
 	fts_close;
 	fts_get_clientptr;
 	fts_get_stream;
-	fts_get_dirfd;
 	fts_open;
 	fts_open_b;
 	fts_read;
