@@ -14,7 +14,6 @@ MT76_USB=		0
 # General options for common code so drivers can check.
 MT76_ACPI?=		0
 MT76_CONFIG_PM?=	0
-MT76_DEBUGFS?=		1
 MT76_SOC_WED?=		0
 
 # Other
@@ -26,10 +25,6 @@ CFLAGS+=	-DCONFIG_ARCH_DMA_ADDR_T_64BIT
 
 .if defined(MT76_CONFIG_PM) && ${MT76_CONFIG_PM} > 0
 CFLAGS+=	-DCONFIG_PM
-.endif
-
-.if defined(MT76_DEBUGFS) && ${MT76_DEBUGFS} > 0
-CFLAGS+=	-DCONFIG_MAC80211_DEBUGFS
 .endif
 
 .if defined(MT76_SOC_WED) && ${MT76_SOC_WED} > 0

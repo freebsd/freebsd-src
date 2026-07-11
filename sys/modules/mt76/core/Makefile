@@ -6,6 +6,8 @@ KMOD=	${MT76_DRIVER_NAME}
 
 .PATH: ${COMMONDIR}
 
+MT76_DEBUGFS?=		1
+
 # Basic stuff.
 SRCS+=	mac80211.c mmio.c util.c dma.c  eeprom.c tx.c agg-rx.c mcu.c
 SRCS+=	channel.c scan.c wed.c
@@ -47,6 +49,7 @@ SRCS+=	mt792x_debugfs.c
 
 .if defined(MT76_DEBUGFS) && ${MT76_DEBUGFS} > 0
 SRCS+=	debugfs.c
+CFLAGS+=	-DCONFIG_MAC80211_DEBUGFS
 .endif
 
 #SRCS+=	trace.c

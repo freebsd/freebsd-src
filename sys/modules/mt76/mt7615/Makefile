@@ -23,6 +23,7 @@ SRCS+=	dma.c mmio.c pci.c pci_init.c pci_mac.c
 .if defined(MT7615_DEBUGFS) && ${MT7615_DEBUGFS} > 0
 SRCS+=	debugfs.c
 CFLAGS+=	-DCONFIG_MT7915_DEBUGFS
+CFLAGS+=	-DCONFIG_MAC80211_DEBUGFS
 .endif
 
 .if defined(MT7615_DEV_COREDUMP) && ${MT7615_DEV_COREDUMP} > 0

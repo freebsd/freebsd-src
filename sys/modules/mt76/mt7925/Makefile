@@ -27,6 +27,7 @@ SRCS+=	usb.c
 .if defined(MT7925_DEBUGFS) && ${MT7925_DEBUGFS} > 0
 SRCS+=	debugfs.c
 CFLAGS+=	-DCONFIG_MT7925_DEBUGFS
+CFLAGS+=	-DCONFIG_MAC80211_DEBUGFS
 .endif
 
 .include <bsd.kmod.mk>
