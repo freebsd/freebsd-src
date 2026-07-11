@@ -369,6 +369,7 @@ procdesc_jobstate(struct proc *p)
 	PROCDESC_LOCK(pd);
 	KNOTE_LOCKED(&pd->pd_selinfo.si_note, NOTE_PDSIGCHLD);
 	PROCDESC_UNLOCK(pd);
+	wakeup(&p->p_procdesc);
 }
 
 /*
