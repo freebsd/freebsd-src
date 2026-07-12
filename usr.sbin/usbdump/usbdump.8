@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 14, 2021
+.Dd July 12, 2026
 .Dt USBDUMP 8
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Op Fl i Ar ifname
 .Op Fl r Ar file
 .Op Fl s Ar snaplen
+.Op Fl t
 .Op Fl u
 .Op Fl v
 .Op Fl w Ar file
@@ -90,6 +91,8 @@ This option also works with the -f option.
 Snapshot
 .Ar snaplen
 bytes from each packet.
+.It Fl t
+Do not print packet timestamps.
 .It Fl u
 Unbuffered output.
 .It Fl v
@@ -140,7 +143,9 @@ is as follows:
 The meaning of the output format elements is as follows:
 .Bl -tag -width "<xfertype>"
 .It <time>
-A timestamp preceding all output lines.
+A timestamp preceding all output lines, unless the
+.Fl t
+option is used.
 The timestamp has the format "hh:mm:ss.frac" and is as accurate as
 the kernel's clock.
 .It <bus>
