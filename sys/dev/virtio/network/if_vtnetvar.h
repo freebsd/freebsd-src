@@ -183,6 +183,7 @@ struct vtnet_softc {
 	uint64_t		 vtnet_negotiated_features;
 	struct vtnet_statistics	 vtnet_stats;
 	struct callout		 vtnet_tick_ch;
+	struct task		 vtnet_announce_task;
 	struct ifmedia		 vtnet_media;
 	eventhandler_tag	 vtnet_vlan_attach;
 	eventhandler_tag	 vtnet_vlan_detach;
@@ -338,6 +339,7 @@ CTASSERT(sizeof(struct vtnet_mac_filter) <= PAGE_SIZE);
      VIRTIO_NET_F_CTRL_RX		| \
      VIRTIO_NET_F_CTRL_MAC_ADDR		| \
      VIRTIO_NET_F_CTRL_VLAN		| \
+     VIRTIO_NET_F_GUEST_ANNOUNCE	| \
      VIRTIO_NET_F_CSUM			| \
      VIRTIO_NET_F_HOST_TSO4		| \
      VIRTIO_NET_F_HOST_TSO6		| \
