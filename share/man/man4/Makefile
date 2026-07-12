@@ -591,6 +591,7 @@ MAN=	aac.4 \
 	tarfs.4 \
 	targ.4 \
 	tcp.4 \
+	tcp_bblog.4 \
 	tcp_bbr.4 \
 	tcp_rack.4 \
 	tdfx.4 \
