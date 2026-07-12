@@ -758,7 +758,7 @@ vtnet_negotiate_features(struct vtnet_softc *sc)
 {
 	device_t dev;
 	uint64_t features, negotiated_features;
-	int no_csum;
+	int error, no_csum;
 
 	dev = sc->vtnet_dev;
 	features = virtio_bus_is_modern(dev) ? VTNET_MODERN_FEATURES :
@@ -836,7 +836,19 @@ vtnet_negotiate_features(struct vtnet_softc *sc)
 	sc->vtnet_features = negotiated_features;
 	sc->vtnet_negotiated_features = negotiated_features;
 
-	return (virtio_finalize_features(dev));
+	error = virtio_finalize_features(dev);
+	if (error != 0 && (features & VTNET_OFFLOAD_FEATURES) != 0) {
+		device_printf(dev,
+		    "retrying feature negotiation without offloads\n");
+		features &= ~VTNET_OFFLOAD_FEATURES;
+		negotiated_features &= ~VTNET_OFFLOAD_FEATURES;
+		sc->vtnet_flags &= ~VTNET_FLAG_LRO_NOMRG;
+		sc->vtnet_features = negotiated_features;
+		sc->vtnet_negotiated_features = negotiated_features;
+		error = virtio_reinit(dev, features);
+	}
+
+	return (error);
 }
 
 static int
