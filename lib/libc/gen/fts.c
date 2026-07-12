@@ -1356,7 +1356,6 @@ fts_ufslinks(FTS *sp, const FTSENT *ent)
 	}
 	return (priv->ftsp_linksreliable);
 }
-
 __sym_default(fts_open, fts_open, FBSD_1.9);
 __sym_default(fts_close, fts_close, FBSD_1.9);
 __sym_default(fts_read, fts_read, FBSD_1.9);

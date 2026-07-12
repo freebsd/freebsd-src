@@ -1,4 +1,4 @@
-/*-
+/*
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (c) 1990, 1993, 1994
@@ -28,7 +28,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $OpenBSD: fts.c,v 1.22 1999/10/03 19:22:22 millert Exp $
  */
 /*
  * Compatibility shim for FBSD_1.5 fts(3) ABI.
@@ -46,10 +45,6 @@
 #include <fcntl.h>
 #include "fts-compat15.h"
 #include <fts.h>
-#undef FTSENT
-#undef FTS
-#define FTSENT FTSENT15
-#define FTS FTS15
 #include <stdalign.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -72,17 +67,17 @@ void *_Block_copy(const void *) __weak_symbol;
 void _Block_release(const void *) __weak_symbol;
 extern void *_NSConcreteGlobalBlock[] __weak_symbol;
 
-static FTSENT15	*fts_alloc(FTS *, char *, size_t);
-static FTSENT15	*fts_build(FTS *, int);
+static FTSENT15	*fts_alloc(FTS15 *, char *, size_t);
+static FTSENT15	*fts_build(FTS15 *, int);
 static void	 fts_lfree(FTSENT15 *);
-static void	 fts_load(FTS *, FTSENT15 *);
+static void	 fts_load(FTS15 *, FTSENT15 *);
 static size_t	 fts_maxarglen(char * const *);
-static void	 fts_padjust(FTS *, FTSENT15 *);
-static int	 fts_palloc(FTS *, size_t);
-static FTSENT15	*fts_sort(FTS *, FTSENT15 *, size_t);
-static int	 fts_stat(FTS *, FTSENT15 *, int, int);
-static int	 fts_safe_changedir(FTS *, FTSENT15 *, int, char *);
-static int	 fts_ufslinks(FTS *, const FTSENT15 *);
+static void	 fts_padjust(FTS15 *, FTSENT15 *);
+static int	 fts_palloc(FTS15 *, size_t);
+static FTSENT15	*fts_sort(FTS15 *, FTSENT15 *, size_t);
+static int	 fts_stat(FTS15 *, FTSENT15 *, int, int);
+static int	 fts_safe_changedir(FTS15 *, FTSENT15 *, int, char *);
+static int	 fts_ufslinks(FTS15 *, const FTSENT15 *);
 
 #define	ISDOT(a)	(a[0] == '.' && (!a[1] || (a[1] == '.' && !a[2])))
 
@@ -98,12 +93,12 @@ static int	 fts_ufslinks(FTS *, const FTSENT15 *);
 #define	BREAD		3		/* freebsd15_fts_read */
 
 /*
- * Internal representation of an FTS, including extra implementation
- * details.  The FTS returned from freebsd15_fts_open points to this structure's
+ * Internal representation of an FTS15, including extra implementation
+ * details.  The FTS15 returned from freebsd15_fts_open points to this structure's
  * ftsp_fts member (and can be cast to an _fts_private as required)
  */
 struct _fts_private {
-	FTS		ftsp_fts;
+	FTS15		ftsp_fts;
 	struct statfs	ftsp_statfs;
 	dev_t		ftsp_dev;
 	int		ftsp_linksreliable;
@@ -138,8 +133,8 @@ static const char *ufslike_filesystems[] = {
 		uint64_t: UINT64_MAX,					\
 		default: 0)
 
-static FTS *
-__fts_open(FTS *sp, char * const *argv)
+static FTS15 *
+__fts_open(FTS15 *sp, char * const *argv)
 {
 	FTSENT15 *p, *root;
 	FTSENT15 *parent, *tmp;
@@ -239,7 +234,7 @@ freebsd15_fts_open(char * const *argv, int options,
     int (*compar)(const FTSENT15 * const *, const FTSENT15 * const *))
 {
 	struct _fts_private *priv;
-	FTS *sp;
+	FTS15 *sp;
 
 	/* Options check. */
 	if (options & ~FTS_OPTIONMASK) {
@@ -257,8 +252,8 @@ freebsd15_fts_open(char * const *argv, int options,
 	if ((priv = calloc(1, sizeof(*priv))) == NULL)
 		return (NULL);
 	sp = &priv->ftsp_fts;
-	sp->fts_compar = (int (*)(const FTSENT * const *,
-            const FTSENT * const *))compar;
+	sp->fts_compar = (int (*)(const FTSENT15 * const *,
+            const FTSENT15 * const *))compar;
         sp->fts_options = options;
         return ((FTS15 *)__fts_open(sp, argv));
 }
@@ -273,7 +268,7 @@ freebsd15_fts_open_b(char * const *argv, int options, fts_block compar)
 #endif /* __BLOCKS__ */
 {
 	struct _fts_private *priv;
-	FTS *sp;
+	FTS15 *sp;
 
 	/* No blocks, no problems. */
 	if (compar == NULL)
@@ -326,7 +321,7 @@ freebsd15_fts_open_b(char * const *argv, int options, fts_block compar)
 }
 
 static void
-fts_load(FTS *sp, FTSENT15 *p)
+fts_load(FTS15 *sp, FTSENT15 *p)
 {
 	size_t len;
 	char *cp;
@@ -350,7 +345,7 @@ fts_load(FTS *sp, FTSENT15 *p)
 }
 
 int
-freebsd15_fts_close(FTS *sp)
+freebsd15_fts_close(FTS15 *sp)
 {
 	FTSENT15 *freep, *p;
 	int saved_errno;
@@ -415,7 +410,7 @@ freebsd15_fts_close(FTS *sp)
 	    ? p->fts_pathlen - 1 : p->fts_pathlen)
 
 FTSENT15 *
-freebsd15_fts_read(FTS *sp)
+freebsd15_fts_read(FTS15 *sp)
 {
 	FTSENT15 *p, *tmp;
 	int instr;
@@ -613,7 +608,7 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
  */
 /* ARGSUSED */
 int
-freebsd15_fts_set(FTS *sp, FTSENT15 *p, int instr)
+freebsd15_fts_set(FTS15 *sp, FTSENT15 *p, int instr)
 {
 	if (instr != 0 && instr != FTS_AGAIN && instr != FTS_FOLLOW &&
 	    instr != FTS_NOINSTR && instr != FTS_SKIP) {
@@ -625,7 +620,7 @@ freebsd15_fts_set(FTS *sp, FTSENT15 *p, int instr)
 }
 
 FTSENT15 *
-freebsd15_fts_children(FTS *sp, int instr)
+freebsd15_fts_children(FTS15 *sp, int instr)
 {
 	FTSENT15 *p;
 	int fd, rc, serrno;
@@ -700,7 +695,7 @@ freebsd15_fts_children(FTS *sp, int instr)
 #endif
 
 void *
-(freebsd15_fts_get_clientptr)(FTS *sp)
+(freebsd15_fts_get_clientptr)(FTS15 *sp)
 {
 	return (freebsd15_fts_get_clientptr(sp));
 }
@@ -716,7 +711,7 @@ FTS15 *
 }
 
 void
-freebsd15_fts_set_clientptr(FTS *sp, void *clientptr)
+freebsd15_fts_set_clientptr(FTS15 *sp, void *clientptr)
 {
 	sp->fts_clientptr = clientptr;
 }
@@ -749,7 +744,7 @@ fts_safe_readdir(DIR *dirp, int *readdir_errno)
  * been found, cutting the stat calls by about 2/3.
  */
 static FTSENT15 *
-fts_build(FTS *sp, int type)
+fts_build(FTS15 *sp, int type)
 {
 	struct dirent *dp;
 	FTSENT15 *p, *head;
@@ -1040,7 +1035,7 @@ mem1:				saved_errno = errno;
 }
 
 static int
-fts_stat(FTS *sp, FTSENT15 *p, int follow, int dfd)
+fts_stat(FTS15 *sp, FTSENT15 *p, int follow, int dfd)
 {
 	FTSENT15 *t;
 	dev_t dev;
@@ -1133,7 +1128,7 @@ err:		memset(sbp, 0, sizeof(struct stat));
 }
 
 static FTSENT15 *
-fts_sort(FTS *sp, FTSENT15 *head, size_t nitems)
+fts_sort(FTS15 *sp, FTSENT15 *head, size_t nitems)
 {
 	FTSENT15 **ap, *p;
 
@@ -1173,7 +1168,7 @@ fts_sort(FTS *sp, FTSENT15 *head, size_t nitems)
 }
 
 static FTSENT15 *
-fts_alloc(FTS *sp, char *name, size_t namelen)
+fts_alloc(FTS15 *sp, char *name, size_t namelen)
 {
 	FTSENT15 *p;
 	size_t len;
@@ -1226,7 +1221,7 @@ fts_lfree(FTSENT15 *head)
  * plus 256 bytes so don't realloc the path 2 bytes at a time.
  */
 static int
-fts_palloc(FTS *sp, size_t more)
+fts_palloc(FTS15 *sp, size_t more)
 {
 
 	sp->fts_pathlen += more + 256;
@@ -1239,7 +1234,7 @@ fts_palloc(FTS *sp, size_t more)
  * already returned.
  */
 static void
-fts_padjust(FTS *sp, FTSENT15 *head)
+fts_padjust(FTS15 *sp, FTSENT15 *head)
 {
 	FTSENT15 *p;
 	char *addr = sp->fts_path;
@@ -1279,7 +1274,7 @@ fts_maxarglen(char * const *argv)
  * Assumes p->fts_dev and p->fts_ino are filled in.
  */
 static int
-fts_safe_changedir(FTS *sp, FTSENT15 *p, int fd, char *path)
+fts_safe_changedir(FTS15 *sp, FTSENT15 *p, int fd, char *path)
 {
 	int ret, oerrno, newfd;
 	struct stat sb;
@@ -1319,7 +1314,7 @@ bail:
  * Check if the filesystem for "ent" has UFS-style links.
  */
 static int
-fts_ufslinks(FTS *sp, const FTSENT15 *ent)
+fts_ufslinks(FTS15 *sp, const FTSENT15 *ent)
 {
 	struct _fts_private *priv;
 	const char **cpp;

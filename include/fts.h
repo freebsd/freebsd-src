@@ -93,7 +93,7 @@ struct _ftsent {
 	int fts_errno;			/* errno for this node */
 	int fts_symfd;			/* fd for symlink */
 	int fts_dirfd;                  /* fd for parent directory */
-	int __fts_reserved[4];          /* reserved for future use */
+	int __fts_reserved[3];          /* reserved for future use */
 	__size_t fts_pathlen;		/* strlen(fts_path) */
 	__size_t fts_namelen;		/* strlen(fts_name) */
 
