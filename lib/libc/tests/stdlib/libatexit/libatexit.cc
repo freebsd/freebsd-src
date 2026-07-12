@@ -44,7 +44,7 @@ struct other_object {
 	}
 };
 
-void
+static void
 create_staticobj()
 {
 	static other_object obj;
