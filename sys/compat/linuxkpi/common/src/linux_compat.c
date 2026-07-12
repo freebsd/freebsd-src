@@ -1404,6 +1404,19 @@ linux_file_mmap_single(struct file *fp, const struct file_operations *fop,
 				error = ESTALE;
 				vm_no_fault = 1;
 			} else {
+				if (ptr->vm_start == vmap->vm_start &&
+				    ptr->vm_end <= vmap->vm_end) {
+					/*
+					 * Userspace wants to grow an existing
+					 * mapping. We already have a
+					 * `vm_object_t' for this mapping. We
+					 * just need to update the `struct
+					 * vm_area_struct` to have the correct
+					 * end address.
+					 */
+					ptr->vm_end = vmap->vm_end;
+				}
+
 				error = EEXIST;
 				vm_no_fault = (ptr->vm_ops->fault == NULL);
 			}
