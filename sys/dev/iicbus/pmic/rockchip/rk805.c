@@ -167,7 +167,8 @@ rk805_attach(device_t dev)
 	sc->rtc_regs.months = RK805_RTC_MONTHS;
 	sc->rtc_regs.months_mask = RK805_RTC_MONTHS_MASK;
 	sc->rtc_regs.years = RK805_RTC_YEARS;
-	sc->rtc_regs.weeks = RK805_RTC_WEEKS_MASK;
+	sc->rtc_regs.weeks = RK805_RTC_WEEKS;
+	sc->rtc_regs.weeks_mask = RK805_RTC_WEEKS_MASK;
 	sc->rtc_regs.ctrl = RK805_RTC_CTRL;
 	sc->rtc_regs.ctrl_stop_mask = RK805_RTC_CTRL_STOP;
 	sc->rtc_regs.ctrl_ampm_mask = RK805_RTC_AMPM_MODE;
