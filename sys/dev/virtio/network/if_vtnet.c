@@ -224,6 +224,9 @@ static int	vtnet_exec_ctrl_cmd(struct vtnet_softc *, uint8_t *,
 static int	vtnet_ctrl_mac_cmd(struct vtnet_softc *, uint8_t *);
 static int	vtnet_ctrl_guest_offloads(struct vtnet_softc *, uint64_t);
 static int	vtnet_ctrl_mq_cmd(struct vtnet_softc *, uint16_t);
+static int	vtnet_ctrl_announce_ack_cmd(struct vtnet_softc *);
+static bool	vtnet_announce_pending(struct vtnet_softc *);
+static void	vtnet_announce(void *, int);
 static int	vtnet_ctrl_rx_cmd(struct vtnet_softc *, uint8_t, bool);
 static int	vtnet_set_promisc(struct vtnet_softc *, bool);
 static int	vtnet_set_allmulti(struct vtnet_softc *, bool);
@@ -468,6 +471,7 @@ vtnet_attach(device_t dev)
 
 	VTNET_CORE_LOCK_INIT(sc);
 	callout_init_mtx(&sc->vtnet_tick_ch, VTNET_CORE_MTX(sc), 0);
+	TASK_INIT(&sc->vtnet_announce_task, 0, vtnet_announce, sc);
 	vtnet_load_tunables(sc);
 
 	vtnet_alloc_interface(sc);
@@ -642,6 +646,8 @@ vtnet_detach(device_t dev)
 		ether_ifdetach(ifp);
 	}
 
+	taskqueue_drain(taskqueue_thread, &sc->vtnet_announce_task);
+
 #ifdef DEV_NETMAP
 	netmap_detach(ifp);
 #endif
@@ -746,6 +752,8 @@ vtnet_config_change(device_t dev)
 
 	VTNET_CORE_LOCK(sc);
 	vtnet_update_link_status(sc);
+	if (vtnet_announce_pending(sc))
+		taskqueue_enqueue(taskqueue_thread, &sc->vtnet_announce_task);
 	if (sc->vtnet_link_active != 0)
 		vtnet_tx_start_all(sc);
 	VTNET_CORE_UNLOCK(sc);
@@ -4054,6 +4062,86 @@ error_destroy_hdr:
 	bus_dmamap_destroy(sc->vtnet_hdr_dmat, hdr_dmap);
 error_out:
 	return (error);
+}
+
+static int
+vtnet_ctrl_announce_ack_cmd(struct vtnet_softc *sc)
+{
+	struct sglist_seg segs[2];
+	bus_dmamap_t hdr_dmap;
+	bus_addr_t hdr_paddr;
+	struct sglist sg;
+	struct virtio_net_ctrl_hdr hdr __aligned(2);
+	uint8_t ack;
+	int error;
+
+	error = bus_dmamap_create(sc->vtnet_hdr_dmat, 0, &hdr_dmap);
+	if (error != 0)
+		goto error_out;
+
+	error = bus_dmamap_load(sc->vtnet_hdr_dmat, hdr_dmap, &hdr,
+	    sizeof(hdr), vtnet_load_callback, &hdr_paddr, BUS_DMA_NOWAIT);
+	if (error != 0)
+		goto error_destroy_hdr;
+
+	hdr.class = VIRTIO_NET_CTRL_ANNOUNCE;
+	hdr.cmd = VIRTIO_NET_CTRL_ANNOUNCE_ACK;
+	ack = VIRTIO_NET_ERR;
+	bus_dmamap_sync(sc->vtnet_hdr_dmat, hdr_dmap, BUS_DMASYNC_PREWRITE);
+
+	sglist_init(&sg, nitems(segs), segs);
+	error = sglist_append_phys(&sg, hdr_paddr, sizeof(hdr));
+	MPASS(error == 0 && sg.sg_nseg == nitems(segs) - 1);
+
+	if (error == 0)
+		error = vtnet_exec_ctrl_cmd(sc, &ack, &sg, sg.sg_nseg, 1);
+	if (error == 0)
+		error = (ack == VIRTIO_NET_OK ? 0 : EIO);
+
+	bus_dmamap_unload(sc->vtnet_hdr_dmat, hdr_dmap);
+error_destroy_hdr:
+	bus_dmamap_destroy(sc->vtnet_hdr_dmat, hdr_dmap);
+error_out:
+	return (error);
+}
+
+static bool
+vtnet_announce_pending(struct vtnet_softc *sc)
+{
+	uint16_t status;
+
+	if ((sc->vtnet_features & VIRTIO_NET_F_GUEST_ANNOUNCE) == 0	||
+	    (sc->vtnet_features & VIRTIO_NET_F_CTRL_VQ) == 0		||
+	    (sc->vtnet_features & VIRTIO_NET_F_STATUS) == 0)
+		return (false);
+
+	status = virtio_read_dev_config_2(sc->vtnet_dev,
+	    offsetof(struct virtio_net_config, status));
+
+	return ((status & VIRTIO_NET_S_ANNOUNCE) != 0);
+}
+
+static void
+vtnet_announce(void *xsc, int pending __unused)
+{
+	struct vtnet_softc *sc;
+	if_t ifp;
+
+	sc = xsc;
+	ifp = sc->vtnet_ifp;
+
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
+		return;
+
+	CURVNET_SET(if_getvnet(ifp));
+	EVENTHANDLER_INVOKE(iflladdr_event, ifp);
+	CURVNET_RESTORE();
+
+	VTNET_CORE_LOCK(sc);
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0 &&
+	    vtnet_ctrl_announce_ack_cmd(sc) != 0)
+		device_printf(sc->vtnet_dev, "cannot ack announcement\n");
+	VTNET_CORE_UNLOCK(sc);
 }
 
 static int
