@@ -337,6 +337,7 @@ CTASSERT(sizeof(struct vtnet_mac_filter) <= PAGE_SIZE);
      VIRTIO_NET_F_MTU			| \
      VIRTIO_NET_F_CTRL_VQ		| \
      VIRTIO_NET_F_CTRL_RX		| \
+     VIRTIO_NET_F_CTRL_RX_EXTRA		| \
      VIRTIO_NET_F_CTRL_MAC_ADDR		| \
      VIRTIO_NET_F_CTRL_VLAN		| \
      VIRTIO_NET_F_GUEST_ANNOUNCE	| \
