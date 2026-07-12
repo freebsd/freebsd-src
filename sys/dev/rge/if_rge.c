@@ -951,7 +951,7 @@ rge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		RGE_LOCK(sc);
-		if ((if_getflags(ifp) & IFF_DRV_RUNNING) != 0)
+		if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0)
 			rge_iff_locked(sc);
 		RGE_UNLOCK(sc);
 		break;
