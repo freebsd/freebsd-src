@@ -3819,6 +3819,13 @@ again:
 	}
 #endif
 	fvp = fromnd.ni_vp;
+	if (fromnd.ni_dvp->v_type != VDIR) {
+		NDFREE_PNBUF(&fromnd);
+		vrele(fromnd.ni_dvp);
+		if (fvp != NULL)
+			vrele(fromnd.ni_vp);
+		return (EBUSY);
+	}
 	if (exchange && fvp == NULL) {
 		NDFREE_PNBUF(&fromnd);
 		vrele(fromnd.ni_dvp);
@@ -3840,7 +3847,7 @@ again:
 	}
 	tdvp = tond.ni_dvp;
 	tvp = tond.ni_vp;
-	if (tdvp == vp_crossmp) {
+	if (tdvp->v_type != VDIR) {
 		/*
 		 * Rename of the root vnode of the mounted
 		 * filesystem. It is possible to get there with the
