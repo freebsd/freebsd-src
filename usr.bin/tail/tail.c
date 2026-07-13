@@ -105,8 +105,6 @@ main(int argc, char *argv[])
 	 * -r is the entire file, not 10 lines.
 	 */
 #define	ARG(units, forward, backward) {					\
-	if (style)							\
-		usage();						\
 	if (expand_number(optarg, &off))				\
 		err(1, "illegal offset -- %s", optarg);			\
 	if (off > INT64_MAX / units || off < INT64_MIN / units )	\
