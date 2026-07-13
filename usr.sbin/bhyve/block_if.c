@@ -495,6 +495,7 @@ blockif_open(nvlist_t *nvl, const char *ident)
 
 	pthread_once(&blockif_once, blockif_init);
 
+	bc = NULL;
 	fd = -1;
 	extra = 0;
 	ssopt = 0;
@@ -650,10 +651,13 @@ blockif_open(nvlist_t *nvl, const char *ident)
 	bc->bc_sectsz = sectsz;
 	bc->bc_psectsz = psectsz;
 	bc->bc_psectoff = psectoff;
-	pthread_mutex_init(&bc->bc_mtx, NULL);
-	pthread_cond_init(&bc->bc_cond, NULL);
+	if (pthread_mutex_init(&bc->bc_mtx, NULL) != 0)
+		goto err;
+	if (pthread_cond_init(&bc->bc_cond, NULL) != 0)
+		goto err;
 	bc->bc_paused = 0;
-	pthread_cond_init(&bc->bc_work_done_cond, NULL);
+	if (pthread_cond_init(&bc->bc_work_done_cond, NULL) != 0)
+		goto err;
 	TAILQ_INIT(&bc->bc_freeq);
 	TAILQ_INIT(&bc->bc_pendq);
 	TAILQ_INIT(&bc->bc_busyq);
@@ -664,13 +668,34 @@ blockif_open(nvlist_t *nvl, const char *ident)
 	}
 
 	for (i = 0; i < BLOCKIF_NUMTHR; i++) {
-		pthread_create(&bc->bc_btid[i], NULL, blockif_thr, bc);
+		if (pthread_create(&bc->bc_btid[i], NULL, blockif_thr, bc) != 0) {
+			bc->bc_btid[i] = NULL;
+			goto err;
+		}
 		snprintf(tname, sizeof(tname), "blk-%s-%d", ident, i);
 		pthread_set_name_np(bc->bc_btid[i], tname);
 	}
 
 	return (bc);
 err:
+	if (bc != NULL) {
+		void *jval;
+		if (bc->bc_cond != NULL) {
+			pthread_mutex_lock(&bc->bc_mtx);
+			bc->bc_closing = 1;
+			pthread_mutex_unlock(&bc->bc_mtx);
+			pthread_cond_broadcast(&bc->bc_cond);
+			for (i = 0; i < BLOCKIF_NUMTHR; i++)
+				if (bc->bc_btid[i] != NULL)
+					pthread_join(bc->bc_btid[i], &jval);
+			pthread_cond_destroy(&bc->bc_cond);
+		}
+		if (bc->bc_mtx != NULL)
+			pthread_mutex_destroy(&bc->bc_mtx);
+		if (bc->bc_work_done_cond != NULL)
+			pthread_cond_destroy(&bc->bc_work_done_cond);
+		free(bc);
+	}
 	if (fd >= 0)
 		close(fd);
 	return (NULL);
@@ -806,6 +831,7 @@ blockif_delete(struct blockif_ctxt *bc, struct blockif_req *breq)
 int
 blockif_cancel(struct blockif_ctxt *bc, struct blockif_req *breq)
 {
+	struct blockif_sig_elem bse;
 	struct blockif_elem *be;
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
@@ -849,11 +875,10 @@ blockif_cancel(struct blockif_ctxt *bc, struct blockif_req *breq)
 	 * Interrupt the processing thread to force it return
 	 * prematurely via it's normal callback path.
 	 */
+	pthread_mutex_init(&bse.bse_mtx, NULL);
+	pthread_cond_init(&bse.bse_cond, NULL);
 	while (be->be_status == BST_BUSY) {
-		struct blockif_sig_elem bse, *old_head;
-
-		pthread_mutex_init(&bse.bse_mtx, NULL);
-		pthread_cond_init(&bse.bse_cond, NULL);
+		struct blockif_sig_elem *old_head;
 
 		bse.bse_pending = 1;
 
@@ -872,6 +897,8 @@ blockif_cancel(struct blockif_ctxt *bc, struct blockif_req *breq)
 		pthread_mutex_unlock(&bse.bse_mtx);
 	}
 
+	pthread_mutex_destroy(&bse.bse_mtx);
+	pthread_cond_destroy(&bse.bse_cond);
 	pthread_mutex_unlock(&bc->bc_mtx);
 
 	/*
@@ -895,7 +922,7 @@ blockif_close(struct blockif_ctxt *bc)
 	pthread_mutex_lock(&bc->bc_mtx);
 	bc->bc_closing = 1;
 	if (bc->bc_resize_event != NULL)
-		mevent_disable(bc->bc_resize_event);
+		mevent_delete(bc->bc_resize_event);
 	pthread_mutex_unlock(&bc->bc_mtx);
 	pthread_cond_broadcast(&bc->bc_cond);
 	for (i = 0; i < BLOCKIF_NUMTHR; i++)
@@ -908,6 +935,9 @@ blockif_close(struct blockif_ctxt *bc)
 	 */
 	bc->bc_magic = 0;
 	close(bc->bc_fd);
+	pthread_mutex_destroy(&bc->bc_mtx);
+	pthread_cond_destroy(&bc->bc_cond);
+	pthread_cond_destroy(&bc->bc_work_done_cond);
 	free(bc);
 
 	return (0);
