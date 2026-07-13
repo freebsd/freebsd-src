@@ -56,6 +56,7 @@ static struct {
 	{ "freebsd-vinum", ALIAS_FREEBSD_VINUM },
 	{ "freebsd-zfs", ALIAS_FREEBSD_ZFS },
 	{ "mbr", ALIAS_MBR },
+	{ "ms-basic-data", ALIAS_MS_BASIC_DATA },
 	{ "ntfs", ALIAS_NTFS },
 	{ "prepboot", ALIAS_PPCBOOT },
 	{ "hifive-bbl", ALIAS_HIFIVE_BBL },

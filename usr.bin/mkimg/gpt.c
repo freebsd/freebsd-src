@@ -66,6 +66,7 @@ static struct mkimg_alias gpt_aliases[] = {
     {	ALIAS_FREEBSD_VINUM, ALIAS_PTR2TYPE(&gpt_uuid_freebsd_vinum) },
     {	ALIAS_FREEBSD_ZFS, ALIAS_PTR2TYPE(&gpt_uuid_freebsd_zfs) },
     {	ALIAS_MBR, ALIAS_PTR2TYPE(&gpt_uuid_mbr) },
+    {	ALIAS_MS_BASIC_DATA, ALIAS_PTR2TYPE(&gpt_uuid_ms_basic_data) },
     {	ALIAS_NTFS, ALIAS_PTR2TYPE(&gpt_uuid_ms_basic_data) },
     {	ALIAS_PPCBOOT, ALIAS_PTR2TYPE(&gpt_uuid_prep_boot) },
     {	ALIAS_HIFIVE_BBL, ALIAS_PTR2TYPE(&gpt_uuid_hifive_bbl) },
