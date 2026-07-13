@@ -152,8 +152,7 @@ int
 pmc_cpu_is_active(int cpu)
 {
 #ifdef	SMP
-	return (pmc_cpu_is_present(cpu) &&
-	    !CPU_ISSET(cpu, &hlt_cpus_mask));
+	return (pmc_cpu_is_present(cpu));
 #else
 	return (1);
 #endif

@@ -1187,7 +1187,6 @@ forward_wakeup(int cpunum)
 
 	CPU_SETOF(me, &dontuse);
 	CPU_OR(&dontuse, &dontuse, &stopped_cpus);
-	CPU_OR(&dontuse, &dontuse, &hlt_cpus_mask);
 	CPU_ZERO(&map2);
 	if (forward_wakeup_use_loop) {
 		STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
@@ -1389,7 +1388,6 @@ sched_4bsd_add(struct thread *td, int flags)
 	} else {
 		if (!single_cpu) {
 			tidlemsk = idle_cpus_mask;
-			CPU_ANDNOT(&tidlemsk, &tidlemsk, &hlt_cpus_mask);
 			CPU_CLR(cpuid, &tidlemsk);
 
 			if (!CPU_ISSET(cpuid, &idle_cpus_mask) &&
@@ -1827,22 +1825,7 @@ sched_4bsd_affinity(struct thread *td)
 static bool
 sched_4bsd_do_timer_accounting(void)
 {
-#ifdef SMP
-	/*
-	 * Don't do any accounting for the disabled HTT cores, since it
-	 * will provide misleading numbers for the userland.
-	 *
-	 * No locking is necessary here, since even if we lose the race
-	 * when hlt_cpus_mask changes it is not a big deal, really.
-	 *
-	 * Don't do that for ULE, since ULE doesn't consider hlt_cpus_mask
-	 * and unlike other schedulers it actually schedules threads to
-	 * those CPUs.
-	 */
-	return (!CPU_ISSET(PCPU_GET(cpuid), &hlt_cpus_mask));
-#else
 	return (true);
-#endif
 }
 
 static int
