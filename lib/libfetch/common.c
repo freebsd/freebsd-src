@@ -301,17 +301,6 @@ fetch_reopen(int sd)
 
 
 /*
- * Bump a connection's reference count.
- */
-conn_t *
-fetch_ref(conn_t *conn)
-{
-	++conn->ref;
-	return (conn);
-}
-
-
-/*
  * Resolve an address
  */
 struct addrinfo *

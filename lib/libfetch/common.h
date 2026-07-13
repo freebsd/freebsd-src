@@ -61,6 +61,18 @@ struct fetchconn {
 	int		 ref;		/* reference count */
 };
 
+static inline conn_t *fetch_ref(conn_t *conn)
+{
+	++conn->ref;
+	return (conn);
+}
+
+static inline conn_t *fetch_deref(conn_t *conn)
+{
+	--conn->ref;
+	return (conn);
+}
+
 /* Structure used for error message lists */
 struct fetcherr {
 	const int	 num;
@@ -115,7 +127,6 @@ struct addrinfo *fetch_resolve(const char *, int, int);
 int		 fetch_bind(int, int, const char *);
 conn_t		*fetch_connect(const char *, int, int, int);
 conn_t		*fetch_reopen(int);
-conn_t		*fetch_ref(conn_t *);
 #ifdef WITH_SSL
 int		 fetch_ssl_cb_verify_crt(int, X509_STORE_CTX*);
 #endif
