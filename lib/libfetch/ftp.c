@@ -148,8 +148,9 @@ ftp_chkerr(conn_t *conn)
 		fetch_syserr();
 		return (-1);
 	}
-	if (isftpinfo(conn->buf)) {
-		while (conn->buflen && !isftpreply(conn->buf)) {
+
+	if (isftpinfo(conn->line)) {
+		while (rlen && !isftpreply(conn->line)) {
 			if ((rlen = fetch_getln(conn)) < 0) {
 				fetch_syserr();
 				return (-1);
@@ -157,14 +158,14 @@ ftp_chkerr(conn_t *conn)
 		}
 	}
 
-	if (!isftpreply(conn->buf)) {
+	if (!isftpreply(conn->line)) {
 		ftp_seterr(FTP_PROTOCOL_ERROR);
 		return (-1);
 	}
 
-	conn->err = (conn->buf[0] - '0') * 100
-	    + (conn->buf[1] - '0') * 10
-	    + (conn->buf[2] - '0');
+	conn->err = (conn->line[0] - '0') * 100
+	    + (conn->line[1] - '0') * 10
+	    + (conn->line[2] - '0');
 
 	return (conn->err);
 }
@@ -236,8 +237,8 @@ ftp_pwd(conn_t *conn, char *pwd, size_t pwdlen)
 	if (conn->err != FTP_WORKING_DIRECTORY &&
 	    conn->err != FTP_FILE_ACTION_OK)
 		return (FTP_PROTOCOL_ERROR);
-	end = conn->buf + conn->buflen;
-	src = conn->buf + 4;
+	end = conn->line + conn->linelen;
+	src = conn->line + 4;
 	if (src >= end || *src++ != '"')
 		return (FTP_PROTOCOL_ERROR);
 	for (q = 0, dst = pwd; src < end && pwdlen--; ++src) {
@@ -417,7 +418,7 @@ ftp_stat(conn_t *conn, const char *file, struct url_stat *us)
 		ftp_seterr(e);
 		return (-1);
 	}
-	for (ln = conn->buf + 4; *ln && isspace((unsigned char)*ln); ln++)
+	for (ln = conn->line + 4; *ln && isspace((unsigned char)*ln); ln++)
 		/* nothing */ ;
 	for (us->size = 0; *ln && isdigit((unsigned char)*ln); ln++)
 		us->size = us->size * 10 + *ln - '0';
@@ -435,7 +436,7 @@ ftp_stat(conn_t *conn, const char *file, struct url_stat *us)
 		ftp_seterr(e);
 		return (-1);
 	}
-	for (ln = conn->buf + 4; *ln && isspace((unsigned char)*ln); ln++)
+	for (ln = conn->line + 4; *ln && isspace((unsigned char)*ln); ln++)
 		/* nothing */ ;
 	switch (strspn(ln, "0123456789")) {
 	case 14:
@@ -688,7 +689,7 @@ ftp_transfer(conn_t *conn, const char *oper, const char *file,
 		 * Find address and port number. The reply to the PASV command
 		 * is IMHO the one and only weak point in the FTP protocol.
 		 */
-		ln = conn->buf;
+		ln = conn->line;
 		switch (e) {
 		case FTP_PASSIVE_MODE:
 		case FTP_LPASSIVE_MODE:

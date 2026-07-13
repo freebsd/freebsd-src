@@ -126,8 +126,7 @@
  * I/O functions for decoding chunked streams
  */
 
-struct httpio
-{
+struct httpio {
 	conn_t		*conn;		/* connection */
 	int		 chunked;	/* chunked mode */
 	char		*buf;		/* chunk buffer */
@@ -148,17 +147,14 @@ struct httpio
 static int
 http_new_chunk(struct httpio *io)
 {
-	unsigned char *p, *eol;
+	char *p;
 
 	if (fetch_getln(io->conn) == -1)
 		return (-1);
 
-	p = (unsigned char *)io->conn->buf;
-	if (io->conn->pos < 2 || !isxdigit(*p))
-		return (-1);
-
-	eol = (unsigned char *)io->conn->buf + io->conn->pos;
-	while (p < eol && *p && !isspace(*p) && *p != ';') {
+	for (p = io->conn->line;
+	     *p != '\0' && !isspace((unsigned char)*p) && *p != ';';
+	     p++) {
 		io->chunksize <<= 4;
 		if (*p >= '0' && *p <= '9')
 			io->chunksize += *p - '0';
@@ -168,7 +164,6 @@ http_new_chunk(struct httpio *io)
 			io->chunksize += 10 + *p - 'a';
 		else
 			return (-1);
-		p++;
 	}
 
 #ifndef NDEBUG
@@ -435,9 +430,9 @@ http_get_reply(conn_t *conn)
 	 * on finding one, but if we do, insist on it being 1.0 or 1.1.
 	 * We don't care about the reason phrase.
 	 */
-	if (strncmp(conn->buf, "HTTP", 4) != 0)
+	if (conn->linelen < 4 || strncmp(conn->line, "HTTP", 4) != 0)
 		return (HTTP_PROTOCOL_ERROR);
-	p = conn->buf + 4;
+	p = conn->line + 4;
 	if (*p == '/') {
 		if (p[1] != '1' || p[2] != '.' || (p[3] != '0' && p[3] != '1'))
 			return (HTTP_PROTOCOL_ERROR);
@@ -521,17 +516,17 @@ http_next_header(conn_t *conn, http_headerbuf_t *hbuf, const char **p)
 {
 	unsigned int i, len;
 
-	if (conn->pos == 0 || conn->buf[0] == '\0')
+	if (conn->linelen == 0)
 		return (hdr_end);
 
 	/* Copy the line to the headerbuf */
-	if (hbuf->bufsize < conn->pos + 1) {
-		if ((hbuf->buf = realloc(hbuf->buf, conn->pos + 1)) == NULL)
+	if (hbuf->bufsize <= conn->linelen) {
+		if ((hbuf->buf = realloc(hbuf->buf, conn->linelen + 1)) == NULL)
 			return (hdr_syserror);
-		hbuf->bufsize = conn->pos + 1;
+		hbuf->bufsize = conn->linelen + 1;
 	}
-	strcpy(hbuf->buf, conn->buf);
-	hbuf->buflen = conn->buflen;
+	memcpy(hbuf->buf, conn->line, conn->linelen + 1);
+	hbuf->buflen = conn->linelen;
 
 	/*
 	 * Fetch possible continuation lines. Stop at 1st non-continuation
@@ -545,19 +540,19 @@ http_next_header(conn_t *conn, http_headerbuf_t *hbuf, const char **p)
 		 * Note: we previously considered a pure whitespace line
 		 * equivalent to an empty one.  This was incorrect.
 		 */
-		if (conn->buf[0] != ' ' && conn->buf[0] != "\t"[0])
+		if (conn->line[0] != ' ' && conn->line[0] != '\t')
 			break;
 
 		/* Got a continuation line. Concatenate to previous */
-		len = hbuf->buflen + conn->buflen;
-		if (hbuf->bufsize < len + 1) {
+		len = hbuf->buflen + conn->linelen;
+		if (hbuf->bufsize <= len) {
 			len *= 2;
 			if ((hbuf->buf = realloc(hbuf->buf, len + 1)) == NULL)
 				return (hdr_syserror);
 			hbuf->bufsize = len + 1;
 		}
-		strcpy(hbuf->buf + hbuf->buflen, conn->buf);
-		hbuf->buflen += conn->buflen;
+		memcpy(hbuf->buf + hbuf->buflen, conn->line, conn->linelen + 1);
+		hbuf->buflen += conn->linelen;
 	}
 
 	/*

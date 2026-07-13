@@ -1437,10 +1437,21 @@ fetch_getln(conn_t *conn)
 	/* allocate initial buffer */
 	if (conn->buf == NULL) {
 		if ((conn->buf = malloc(MIN_BUF_SIZE)) == NULL)
-			return (-1);
+			goto fail;
+		conn->line = conn->buf;
 		conn->bufsize = MIN_BUF_SIZE;
 		conn->buflen = 0;
 		conn->pos = 0;
+	}
+
+	/* look at the data we already have */
+	if (conn->pos < conn->buflen) {
+		conn->line = conn->buf + conn->pos;
+		while (conn->pos < conn->buflen)
+			if (conn->buf[conn->pos++] == '\n')
+				goto found;
+		/* reset for the upcoming memmove() */
+		conn->pos = conn->line - conn->buf;
 	}
 
 	/* move residual data up */
@@ -1451,12 +1462,8 @@ fetch_getln(conn_t *conn)
 		}
 		conn->buflen -= conn->pos;
 		conn->pos -= conn->pos;
+		conn->line = conn->buf;
 	}
-
-	/* do we have a complete line? */
-	while (conn->pos < conn->buflen)
-		if (conn->buf[conn->pos++] == '\n')
-			goto found;
 
 	for (;;) {
 		/* read as much as we can right now */
@@ -1464,7 +1471,7 @@ fetch_getln(conn_t *conn)
 		    conn->bufsize - conn->buflen - 1);
 		/* error */
 		if (rlen < 0)
-			return (-1);
+			goto fail;
 		/* advance and terminate */
 		conn->buflen += rlen;
 		conn->buf[conn->buflen] = '\0';
@@ -1480,21 +1487,25 @@ fetch_getln(conn_t *conn)
 			tmp = conn->buf;
 			tmpsize = conn->bufsize * 2;
 			if ((tmp = realloc(tmp, tmpsize)) == NULL)
-				return (-1);
-			conn->buf = tmp;
+				goto fail;
+			conn->line = conn->buf = tmp;
 			conn->bufsize = tmpsize;
 		}
 	}
 	/* connection closed, return what's left */
 	conn->pos = conn->buflen;
 found:
-	rlen = conn->pos;
-	if (rlen > 0 && conn->buf[rlen - 1] == '\n')
-		conn->buf[--rlen] = '\0';
-	if (rlen > 0 && conn->buf[rlen - 1] == '\r')
-		conn->buf[--rlen] = '\0';
-	DEBUGF("<<< %.*s\n", (int)rlen, conn->buf);
-	return (rlen);
+	conn->linelen = (conn->buf + conn->pos) - conn->line;
+	if (conn->linelen > 0 && conn->line[conn->linelen - 1] == '\n')
+		conn->line[--conn->linelen] = '\0';
+	if (conn->linelen > 0 && conn->line[conn->linelen - 1] == '\r')
+		conn->line[--conn->linelen] = '\0';
+	DEBUGF("<<< %.*s\n", (int)conn->linelen, conn->line);
+	return (conn->linelen);
+fail:
+	conn->line = NULL;
+	conn->linelen = 0;
+	return (-1);
 }
 
 
@@ -1520,6 +1531,8 @@ fetch_bufread(conn_t *conn, void *buf, size_t len)
 		conn->buflen = 0;
 		conn->pos = 0;
 	}
+	conn->line = NULL;
+	conn->linelen = 0;
 
 	/* return residual data first */
 	if (conn->buflen > conn->pos) {

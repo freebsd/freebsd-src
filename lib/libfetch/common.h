@@ -49,8 +49,10 @@ typedef struct fetchconn conn_t;
 struct fetchconn {
 	int		 sd;		/* socket descriptor */
 	char		*buf;		/* buffer */
+	char		*line;		/* line (within buffer) */
 	size_t		 bufsize;	/* buffer size */
 	size_t		 buflen;	/* length of buffer contents */
+	size_t		 linelen;	/* length of line */
 	size_t		 pos;		/* current position in buffer */
 	int		 err;		/* last protocol reply code */
 #ifdef WITH_SSL
