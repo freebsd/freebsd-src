@@ -869,16 +869,6 @@ g_eli_access(struct g_provider *pp, int dr, int dw, int de)
 	return (0);
 }
 
-static int
-g_eli_cpu_is_disabled(int cpu)
-{
-#ifdef SMP
-	return (CPU_ISSET(cpu, &hlt_cpus_mask));
-#else
-	return (0);
-#endif
-}
-
 static void
 g_eli_init_uma(void)
 {
@@ -1095,7 +1085,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		threads = mp_ncpus;
 	sc->sc_cpubind = (mp_ncpus > 1 && threads == mp_ncpus);
 	for (i = 0; i < threads; i++) {
-		if (g_eli_cpu_is_disabled(i)) {
+		if (CPU_ABSENT(i)) {
 			G_ELI_DEBUG(1, "%s: CPU %u disabled, skipping.",
 			    bpp->name, i);
 			continue;
