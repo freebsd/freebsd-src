@@ -990,17 +990,63 @@ g_eli_free_data(struct bio *bp)
 	bp->bio_driver2 = NULL;
 }
 
+static int
+g_eli_create_worker(struct g_eli_softc *sc, struct gctl_req *req,
+    struct g_provider *bpp, u_int idx)
+{
+	struct g_eli_worker *wr;
+	int error;
+
+	wr = malloc(sizeof(*wr), M_ELI, M_WAITOK | M_ZERO);
+	wr->w_softc = sc;
+	wr->w_number = idx;
+	wr->w_active = TRUE;
+
+	error = g_eli_newsession(wr);
+	if (error != 0) {
+		free(wr, M_ELI);
+		if (req != NULL) {
+			gctl_error(req, "Cannot set up crypto session "
+			    "for %s (error=%d).", bpp->name, error);
+		} else {
+			G_ELI_DEBUG(1, "Cannot set up crypto session "
+			    "for %s (error=%d).", bpp->name, error);
+		}
+		return (error);
+	}
+
+	error = kproc_create(g_eli_worker, wr, &wr->w_proc, 0, 0,
+	    "g_eli[%u] %s", idx, bpp->name);
+	if (error != 0) {
+		g_eli_freesession(wr);
+		free(wr, M_ELI);
+		if (req != NULL) {
+			gctl_error(req, "Cannot create kernel thread "
+			    "for %s (error=%d).", bpp->name, error);
+		} else {
+			G_ELI_DEBUG(1, "Cannot create kernel thread "
+			    "for %s (error=%d).", bpp->name, error);
+		}
+		return (error);
+	}
+
+	mtx_lock(&sc->sc_queue_mtx);
+	LIST_INSERT_HEAD(&sc->sc_workers, wr, w_next);
+	mtx_unlock(&sc->sc_queue_mtx);
+
+	return (0);
+}
+
 struct g_geom *
 g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
     const struct g_eli_metadata *md, const u_char *mkey, int nkey)
 {
 	struct g_eli_softc *sc;
-	struct g_eli_worker *wr;
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_consumer *cp;
 	struct g_geom_alias *gap;
-	u_int i, threads;
+	u_int i, nthreads;
 	int dcw, error;
 
 	G_ELI_DEBUG(1, "Creating device %s%s.", bpp->name, G_ELI_SUFFIX);
@@ -1080,49 +1126,33 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 
 	LIST_INIT(&sc->sc_workers);
 
-	threads = g_eli_threads;
-	if (threads == 0)
-		threads = mp_ncpus;
-	sc->sc_cpubind = (mp_ncpus > 1 && threads == mp_ncpus);
-	for (i = 0; i < threads; i++) {
-		if (CPU_ABSENT(i)) {
-			G_ELI_DEBUG(1, "%s: CPU %u disabled, skipping.",
-			    bpp->name, i);
-			continue;
-		}
-		wr = malloc(sizeof(*wr), M_ELI, M_WAITOK | M_ZERO);
-		wr->w_softc = sc;
-		wr->w_number = i;
-		wr->w_active = TRUE;
+	/*
+	 * Create a pool of worker kthreads according to one of two schemes:
+	 *
+	 *  1. CPU-bound: one thread per entry in the CPU map, which
+	 *     may be sparsely populated.
+	 *
+	 *  2. kern.geom.eli.threads: A linear pool of threads according to
+	 *     the user-tuned value. This may be greater-than or less-than
+	 *     mp_ncpus.
+	 */
+	nthreads = g_eli_threads;
+	if (nthreads == 0)
+		nthreads = mp_ncpus;
+	sc->sc_cpubind = mp_ncpus > 1 && nthreads == mp_ncpus;
 
-		error = g_eli_newsession(wr);
-		if (error != 0) {
-			free(wr, M_ELI);
-			if (req != NULL) {
-				gctl_error(req, "Cannot set up crypto session "
-				    "for %s (error=%d).", bpp->name, error);
-			} else {
-				G_ELI_DEBUG(1, "Cannot set up crypto session "
-				    "for %s (error=%d).", bpp->name, error);
-			}
-			goto failed;
+	if (sc->sc_cpubind) {
+		CPU_FOREACH(i) {
+			error = g_eli_create_worker(sc, req, bpp, i);
+			if (error != 0)
+				goto failed;
 		}
-
-		error = kproc_create(g_eli_worker, wr, &wr->w_proc, 0, 0,
-		    "g_eli[%u] %s", i, bpp->name);
-		if (error != 0) {
-			g_eli_freesession(wr);
-			free(wr, M_ELI);
-			if (req != NULL) {
-				gctl_error(req, "Cannot create kernel thread "
-				    "for %s (error=%d).", bpp->name, error);
-			} else {
-				G_ELI_DEBUG(1, "Cannot create kernel thread "
-				    "for %s (error=%d).", bpp->name, error);
-			}
-			goto failed;
+	} else {
+		for (i = 0; i < nthreads; i++) {
+			error = g_eli_create_worker(sc, req, bpp, i);
+			if (error != 0)
+				goto failed;
 		}
-		LIST_INSERT_HEAD(&sc->sc_workers, wr, w_next);
 	}
 
 	/*
