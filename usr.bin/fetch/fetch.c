@@ -88,7 +88,6 @@ static pid_t	 pgrp;		/*        our process group */
 static long	 w_secs;	/*    -w: retry delay */
 static int	 family = PF_UNSPEC;	/* -[46]: address family to use */
 
-static int	 sigalrm;	/* SIGALRM received */
 static int	 siginfo;	/* SIGINFO received */
 static int	 sigint;	/* SIGINT received */
 
@@ -174,9 +173,6 @@ static void
 sig_handler(int sig)
 {
 	switch (sig) {
-	case SIGALRM:
-		sigalrm = 1;
-		break;
 	case SIGINFO:
 		siginfo = 1;
 		break;
@@ -437,6 +433,7 @@ fetch(char *URL, const char *path, int *is_http)
 	char *tmppath;
 	int r, tries;
 	unsigned timeout;
+	int timedout = 0;
 	char *ptr;
 
 	f = of = NULL;
@@ -520,13 +517,7 @@ fetch(char *URL, const char *path, int *is_http)
 
 	/* just print size */
 	if (s_flag) {
-		if (timeout)
-			alarm(timeout);
 		r = fetchStat(url, &us, flags);
-		if (timeout)
-			alarm(0);
-		if (sigalrm || sigint)
-			goto signal;
 		if (r == -1) {
 			warnx("%s", fetchLastErrString);
 			goto failure;
@@ -575,13 +566,7 @@ again:
 	size_prev = sb.st_size;
 
 	/* start the transfer */
-	if (timeout)
-		alarm(timeout);
 	f = fetchXGet(url, &us, flags);
-	if (timeout)
-		alarm(0);
-	if (sigalrm || sigint)
-		goto signal;
 	if (f == NULL) {
 		if (i_flag && *is_http && fetchLastErrCode == FETCH_OK &&
 		    strcmp(fetchLastErrString, "Not Modified") == 0) {
@@ -749,7 +734,7 @@ again:
 	/* start the counter */
 	stat_start(&xs, path, us.size, count);
 
-	sigalrm = siginfo = sigint = 0;
+	siginfo = sigint = 0;
 
 	/* suck in the data */
 	setvbuf(f, NULL, _IOFBF, B_size);
@@ -786,8 +771,7 @@ again:
 		if (readcnt != 0)
 			break;
 	}
-	if (!sigalrm)
-		sigalrm = ferror(f) && errno == ETIMEDOUT;
+	timedout = ferror(f) && errno == ETIMEDOUT;
 	signal(SIGINFO, SIG_DFL);
 
 	stat_end(&xs);
@@ -812,18 +796,20 @@ again:
 	}
 
 	/* timed out or interrupted? */
-	if (sigalrm)
+	if (timedout) {
 		warnx("transfer timed out");
+		goto failure;
+	}
 	if (sigint) {
 		warnx("transfer interrupted");
 		goto failure;
 	}
 
-	/* timeout / interrupt before connection completley established? */
+	/* timeout / interrupt before connection completely established? */
 	if (f == NULL)
 		goto failure;
 
-	if (!sigalrm) {
+	if (!timedout) {
 		/* check the status of our files */
 		if (ferror(f))
 			warn("%s", URL);
@@ -851,7 +837,7 @@ again:
 	 * If the transfer timed out and we didn't know how much to
 	 * expect, assume the worst (i.e. we didn't get all of it)
 	 */
-	if (sigalrm && us.size == -1) {
+	if (timedout && us.size == -1) {
 		warnx("%s may be truncated", path);
 		goto failure_keep;
 	}
@@ -1127,7 +1113,6 @@ main(int argc, char *argv[])
 	sa.sa_flags = 0;
 	sa.sa_handler = sig_handler;
 	sigemptyset(&sa.sa_mask);
-	sigaction(SIGALRM, &sa, NULL);
 	sa.sa_flags = SA_RESETHAND;
 	sigaction(SIGINT, &sa, NULL);
 	fetchRestartCalls = 0;
