@@ -1,0 +1,171 @@
+.\"
+.\" Copyright (c) 2026 Ka Ho Ng
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd July 12, 2026
+.Dt SBINTIME 9
+.Os
+.Sh NAME
+.Nm sbintime_t ,
+.Nm sbintime_getsec ,
+.Nm bttosbt ,
+.Nm sbttobt ,
+.Nm sbttons ,
+.Nm nstosbt ,
+.Nm sbttous ,
+.Nm ustosbt ,
+.Nm sbttoms ,
+.Nm mstosbt ,
+.Nm sbttots ,
+.Nm tstosbt ,
+.Nm sbttotv ,
+.Nm tvtosbt
+.Nd Q32.32 fixed point representation of time
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/time.h
+.Vt typedef __int64_t __sbintime_t ;
+.Vt typedef __sbintime_t sbintime_t ;
+.Fd #define SBT_1S ((sbintime_t)1 << 32)
+.Fd #define SBT_1M (SBT_1S * 60)
+.Fd #define SBT_1MS (SBT_1S / 1000)
+.Fd #define SBT_1US (SBT_1S / 1000000)
+.Fd #define SBT_1NS (SBT_1S / 1000000000)
+.Ft int
+.Fn sbintime_getsec "sbintime_t sbt"
+.Ft sbintime_t
+.Fn bttosbt "const struct bintime bt"
+.Ft struct bintime
+.Fn sbttobt "sbintime_t sbt"
+.Ft int64_t
+.Fn sbttons "sbintime_t sbt"
+.Ft sbintime_t
+.Fn nstosbt "int64_t ns"
+.Ft int64_t
+.Fn sbttous "sbintime_t sbt"
+.Ft sbintime_t
+.Fn ustosbt "int64_t us"
+.Ft int64_t
+.Fn sbttoms "sbintime_t sbt"
+.Ft sbintime_t
+.Fn mstosbt "int64_t ms"
+.Ft struct timespec
+.Fn sbttots "sbintime_t sbt"
+.Ft sbintime_t
+.Fn tstosbt "struct timespec ts"
+.Ft struct timeval
+.Fn sbttotv "sbintime_t sbt"
+.Ft sbintime_t
+.Fn tvtosbt "struct timeval tv"
+.Sh DESCRIPTION
+The
+.Vt sbintime_t
+type is a Q32.32 fixed point representation of time.
+The high 32-bit integral bits specify the number of seconds,
+and the low 32-bit fractional bits specify the sub-second portion.
+Since the lower 32 bits are counting with a base unit of 1/2^32 seconds,
+.Ql (sbintime_t)0x1
+is just under 250 picoseconds.
+.Pp
+All of the conversion functions are designed to do the conversion without large
+truncation errors that are possible with naive math.
+.\" Begin of helper functions subsection
+.Bl -tag -width indent
+.It Fn sbintime_getsec sbt
+Return the whole number of seconds from a
+.Vt sbintime_t
+specified by the
+.Fa sbt
+argument.
+.It Fn bttosbt bt
+Convert a
+.Vt struct bintime
+specified by the
+.Fa bt
+argument to a
+.Vt sbintime_t .
+.It Fn sbttobt sbt
+Convert a
+.Vt sbintime_t
+specified by the
+.Fa sbt
+argument to a
+.Vt "struct bintime" .
+.It Fn sbttons sbt
+Convert a
+.Vt sbintime_t
+specified by the
+.Fa sbt
+argument to the number of nanoseconds.
+.It Fn nstosbt ns
+Convert the number of nanoseconds specified by the
+.Fa ns
+argument to a
+.Vt sbintime_t .
+.It Fn sbttous sbt
+Convert a
+.Vt sbintime_t
+specified by the
+.Fa sbt
+argument to the number of microseconds.
+.It Fn ustosbt us
+Convert the number of microseconds specified by the
+.Fa us
+argument to a
+.Vt sbintime_t .
+.It Fn sbttoms sbt
+Convert a
+.Vt sbintime_t
+specified by the
+.Fa sbt
+argument to the number of milliseconds.
+.It Fn mstosbt ms
+Convert the number of milliseconds specified by the
+.Fa ms
+argument to a
+.Vt sbintime_t .
+.It Fn sbttots sbt
+Convert a
+.Vt sbintime_t
+specified by the
+.Fa sbt
+argument to a
+.Vt "struct timespec" .
+.It Fn tstosbt ts
+Convert a
+.Vt "struct timespec"
+specified by the
+.Fa ts
+argument to a
+.Vt sbintime_t .
+.It Fn sbttotv sbt
+Convert a
+.Vt sbintime_t
+specified by the
+.Fa sbt
+argument to a
+.Vt "struct timeval" .
+.It Fn tvtosbt tv
+Convert a
+.Vt "struct timeval"
+specified by the
+.Fa tv
+argument to a
+.Vt sbintime_t .
+.El
+.\" End of helper functions subsection
+.Sh SEE ALSO
+.Xr bintime 9 ,
+.Xr callout 9 ,
+.Xr tvtohz 9
+.Sh HISTORY
+The
+.Nm sbintime_t
+type and most of the helper functions first appeared in
+.Fx 10.0 .
+The Xstosbt functions first appeared in
+.Fx 12.0 .
+.Sh AUTHORS
+This manual page was written by
+.An Ka Ho Ng Aq Mt khng@FreeBSD.org .
