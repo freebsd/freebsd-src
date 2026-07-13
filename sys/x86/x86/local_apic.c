@@ -1459,9 +1459,6 @@ lapic_handle_timer(struct trapframe *frame)
 	kmsan_mark(frame, sizeof(*frame), KMSAN_STATE_INITED);
 	trap_check_kstack();
 
-	if (!sched_do_timer_accounting())
-		return;
-
 	/* Look up our local APIC structure for the tick counters. */
 	la = &lapics[PCPU_GET(apic_id)];
 	(*la->la_timer_count)++;

@@ -1822,12 +1822,6 @@ sched_4bsd_affinity(struct thread *td)
 #endif
 }
 
-static bool
-sched_4bsd_do_timer_accounting(void)
-{
-	return (true);
-}
-
 static int
 sched_4bsd_find_l2_neighbor(int cpu)
 {
@@ -1876,7 +1870,6 @@ struct sched_instance sched_4bsd_instance = {
 	SLOT(sizeof_thread),
 	SLOT(tdname),
 	SLOT(clear_tdname),
-	SLOT(do_timer_accounting),
 	SLOT(find_l2_neighbor),
 	SLOT(init),
 	SLOT(init_ap),

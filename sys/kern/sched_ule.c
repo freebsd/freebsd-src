@@ -3321,12 +3321,6 @@ sched_ule_schedcpu(void)
 {
 }
 
-static bool
-sched_ule_do_timer_accounting(void)
-{
-	return (true);
-}
-
 #ifdef SMP
 static int
 sched_ule_find_child_with_core(int cpu, struct cpu_group *grp)
@@ -3436,7 +3430,6 @@ struct sched_instance sched_ule_instance = {
 	SLOT(sizeof_thread),
 	SLOT(tdname),
 	SLOT(clear_tdname),
-	SLOT(do_timer_accounting),
 	SLOT(find_l2_neighbor),
 	SLOT(init),
 	SLOT(init_ap),
