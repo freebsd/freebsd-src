@@ -92,7 +92,7 @@ struct sysent sysent[] = {
 	{ .sy_narg = AS(setuid_args), .sy_call = (sy_call_t *)sys_setuid, .sy_auevent = AUE_SETUID, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 23 = setuid */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)sys_getuid, .sy_auevent = AUE_GETUID, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 24 = getuid */
 	{ .sy_narg = 0, .sy_call = (sy_call_t *)sys_geteuid, .sy_auevent = AUE_GETEUID, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 25 = geteuid */
-	{ .sy_narg = AS(ptrace_args), .sy_call = (sy_call_t *)sys_ptrace, .sy_auevent = AUE_PTRACE, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 26 = ptrace */
+	{ .sy_narg = AS(ptrace_args), .sy_call = (sy_call_t *)sys_ptrace, .sy_auevent = AUE_PTRACE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 26 = ptrace */
 	{ .sy_narg = AS(recvmsg_args), .sy_call = (sy_call_t *)sys_recvmsg, .sy_auevent = AUE_RECVMSG, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 27 = recvmsg */
 	{ .sy_narg = AS(sendmsg_args), .sy_call = (sy_call_t *)sys_sendmsg, .sy_auevent = AUE_SENDMSG, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 28 = sendmsg */
 	{ .sy_narg = AS(recvfrom_args), .sy_call = (sy_call_t *)sys_recvfrom, .sy_auevent = AUE_RECVFROM, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 29 = recvfrom */
@@ -669,7 +669,7 @@ struct sysent sysent[] = {
 	{ .sy_narg = AS(pdrfork_args), .sy_call = (sy_call_t *)sys_pdrfork, .sy_auevent = AUE_PDRFORK, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 600 = pdrfork */
 	{ .sy_narg = AS(pdwait_args), .sy_call = (sy_call_t *)sys_pdwait, .sy_auevent = AUE_PDWAIT, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 601 = pdwait */
 	{ .sy_narg = AS(renameat2_args), .sy_call = (sy_call_t *)sys_renameat2, .sy_auevent = AUE_RENAMEAT, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 602 = renameat2 */
-	{ .sy_narg = AS(pdopenpid_args), .sy_call = (sy_call_t *)sys_pdopenpid, .sy_auevent = AUE_PDOPENPID, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 603 = pdopenpid */
+	{ .sy_narg = AS(pdopenpid_args), .sy_call = (sy_call_t *)sys_pdopenpid, .sy_auevent = AUE_PDOPENPID, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 603 = pdopenpid */
 	{ .sy_narg = AS(pddupfd_args), .sy_call = (sy_call_t *)sys_pddupfd, .sy_auevent = AUE_NULL, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 604 = pddupfd */
-	{ .sy_narg = AS(pdptrace_args), .sy_call = (sy_call_t *)sys_pdptrace, .sy_auevent = AUE_PDPTRACE, .sy_flags = 0, .sy_thrcnt = SY_THR_STATIC },	/* 605 = pdptrace */
+	{ .sy_narg = AS(pdptrace_args), .sy_call = (sy_call_t *)sys_pdptrace, .sy_auevent = AUE_PDPTRACE, .sy_flags = SYF_CAPENABLED, .sy_thrcnt = SY_THR_STATIC },	/* 605 = pdptrace */
 };
