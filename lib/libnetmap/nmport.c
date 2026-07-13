@@ -198,6 +198,7 @@ nmport_extmem_from_file(struct nmport_d *d, const char *fname)
 		errno = ENOMEM;
 		goto fail;
 	}
+	clnup->up.cleanup = NULL;
 
 	fd = open(fname, O_RDWR);
 	if (fd < 0) {
@@ -215,6 +216,7 @@ nmport_extmem_from_file(struct nmport_d *d, const char *fname)
 		goto fail;
 	}
 	close(fd);
+	fd = -1;
 
 	clnup->p = p;
 	clnup->size = mapsize;
@@ -230,7 +232,7 @@ fail:
 	if (fd >= 0)
 		close(fd);
 	if (clnup != NULL) {
-		if (clnup->p != MAP_FAILED)
+		if (clnup->up.cleanup != NULL)
 			nmport_pop_cleanup(d);
 		else
 			nmctx_free(ctx, clnup);
