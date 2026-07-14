@@ -296,6 +296,7 @@ int	ptrace_action(struct thread *td, int req, bool pd_mode, pid_t pid,
 	    int pfd, lwpid_t lwpid, void *addr, int data);
 
 extern bool allow_ptrace;
+extern bool allow_ptrace_in_cap_mode;
 
 #else /* !_KERNEL */
 
