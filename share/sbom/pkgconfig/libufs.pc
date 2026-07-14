@@ -5,7 +5,7 @@
 #
 Name: libufs
 Description: Library managing UFS
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libufs
 License: BSD-2-Clause
 Requires: csu, libc, libcompiler_rt

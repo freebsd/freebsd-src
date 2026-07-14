@@ -6,7 +6,7 @@
 Name: ypldap
 Description: YP map server using LDAP backend
 URL: https://man.freebsd.org/cgi/man.cgi?query=ypldap(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/ypldap
 License: ISC AND NTP-0
 License.file: ${pcfiledir}/LICENSES/ISC.a506e8a5.txt, ${pcfiledir}/LICENSES/ISC.e07b4364.txt, ${pcfiledir}/LICENSES/NTP-0.2ff06890.txt

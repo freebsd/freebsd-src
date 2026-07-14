@@ -6,7 +6,7 @@
 Name: mkstr
 Description: Create an error message file by massaging C source
 URL: https://man.freebsd.org/cgi/man.cgi?query=mkstr(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/mkstr
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

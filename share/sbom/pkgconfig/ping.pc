@@ -6,7 +6,7 @@
 Name: ping
 Description: Send ICMP or ICMPv6 ECHO_REQUEST packets to network hosts
 URL: https://man.freebsd.org/cgi/man.cgi?query=ping(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/ping
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.328b29b3.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.5a739641.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt

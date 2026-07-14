@@ -6,7 +6,7 @@
 Name: col
 Description: Filter reverse line feeds from input
 URL: https://man.freebsd.org/cgi/man.cgi?query=col(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/col
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

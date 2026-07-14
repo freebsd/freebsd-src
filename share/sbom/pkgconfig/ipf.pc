@@ -6,7 +6,7 @@
 Name: ipf
 Description: Alters packet filtering lists for IP packet input and output
 URL: https://man.freebsd.org/cgi/man.cgi?query=ipf(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/ipf/ipf
 License: BSD-4-Clause-UC AND LicenseRef-scancode-other-permissive
 License.file: ${pcfiledir}/LICENSES/BSD-4-Clause-UC.06c1e96a.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-other-permissive.c5d7f3d3.txt

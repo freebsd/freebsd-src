@@ -6,7 +6,7 @@
 Name: crunchide
 Description: Hides symbol names from ld, for crunching programs together
 URL: https://man.freebsd.org/cgi/man.cgi?query=crunchide(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/crunch/crunchide
 License: BSD-4-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-4-Clause.f43bb5a1.txt, ${pcfiledir}/LICENSES/HPND-sell-variant.aa138118.txt

@@ -6,7 +6,7 @@
 Name: config
 Description: Build system configuration files
 URL: https://man.freebsd.org/cgi/man.cgi?query=config(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/config
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.d51808e0.txt

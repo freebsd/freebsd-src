@@ -6,7 +6,7 @@
 Name: cap_mkdb
 Description: Create capability database
 URL: https://man.freebsd.org/cgi/man.cgi?query=cap_mkdb(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/cap_mkdb
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

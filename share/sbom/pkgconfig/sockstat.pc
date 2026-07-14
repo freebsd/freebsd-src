@@ -6,7 +6,7 @@
 Name: sockstat
 Description: List open sockets
 URL: https://man.freebsd.org/cgi/man.cgi?query=sockstat(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/sockstat
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-bsd-unchanged.f9e44ef7.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-bsd-unchanged.fad7b6fb.txt

@@ -6,7 +6,7 @@
 Name: uuencode
 Description: Encode / decode a binary file
 URL: https://man.freebsd.org/cgi/man.cgi?query=uuencode(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/bintrans
 License: BSD-3-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.4c6ac0a5.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt

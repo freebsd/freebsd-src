@@ -6,7 +6,7 @@
 Name: gjournal
 Description: Control utility for journaled devices
 URL: https://man.freebsd.org/cgi/man.cgi?query=gjournal(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/geom/journal
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.1d9b7f76.txt

@@ -6,7 +6,7 @@
 Name: systat
 Description: Display system statistics
 URL: https://man.freebsd.org/cgi/man.cgi?query=systat(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/systat
 License: BSD-3-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.5bebe47e.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.e9c61fa9.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-mit-license-1998.efd275e2.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt

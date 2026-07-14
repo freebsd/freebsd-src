@@ -6,7 +6,7 @@
 Name: etherswitchcfg
 Description: Configure a built-in Ethernet switch
 URL: https://man.freebsd.org/cgi/man.cgi?query=etherswitchcfg(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/etherswitchcfg
 License: BSD-4-Clause AND BSD-3-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-4-Clause.2311d4ed.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.e289d4bf.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt

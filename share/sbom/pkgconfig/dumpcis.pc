@@ -6,7 +6,7 @@
 Name: dumpcis
 Description: PC Card and Cardbus (PCMCIA) CIS display tool
 URL: https://man.freebsd.org/cgi/man.cgi?query=dumpcis(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/dumpcis
 License: BSD-3-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.b5add324.txt

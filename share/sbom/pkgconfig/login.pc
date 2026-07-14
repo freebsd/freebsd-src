@@ -6,7 +6,7 @@
 Name: login
 Description: Log into the computer
 URL: https://man.freebsd.org/cgi/man.cgi?query=login(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/login
 License: BSD-4-Clause AND BSD-3-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.da76510e.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/BSD-4-Clause-UC.06c1e96a.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.db376798.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.808174b8.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.1e49f7de.txt

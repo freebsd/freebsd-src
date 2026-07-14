@@ -5,7 +5,7 @@
 #
 Name: libcrypt
 Description: function performs password hashing with additional code added to deter key search attempts. Different algorithms can be used to in the hash.
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libcrypt
 License: BSD-3-Clause AND BSD-2-Clause
 Requires: csu, libc, libcompiler_rt

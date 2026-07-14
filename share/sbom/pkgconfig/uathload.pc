@@ -6,7 +6,7 @@
 Name: uathload
 Description: Load firmware for Atheros USB wireless devices
 URL: https://man.freebsd.org/cgi/man.cgi?query=uathload(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/uathload
 License: NOASSERTION
 Copyright: 2006 Sam Leffler, Errno Consulting

@@ -6,7 +6,7 @@
 Name: bsdiff
 Description: Generate a patch between two binary files
 URL: https://man.freebsd.org/cgi/man.cgi?query=bsdiff(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/bsdiff/bsdiff
 License: BSD-3-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/MIT.d52bc048.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.cb59cf40.txt

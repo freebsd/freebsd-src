@@ -6,7 +6,7 @@
 Name: wc
 Description: Word, line, character, and byte count
 URL: https://man.freebsd.org/cgi/man.cgi?query=wc(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/wc
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

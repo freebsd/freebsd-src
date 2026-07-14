@@ -6,7 +6,7 @@
 Name: ifconfig
 Description: Configure network interface parameters
 URL: https://man.freebsd.org/cgi/man.cgi?query=ifconfig(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/ifconfig
 License: BSD-4-Clause AND BSD-3-Clause AND BSD-2-Clause-FreeBSD AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.f8ca36a4.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-bsd-original-voices.814a582a.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/BSD-4-Clause.6bf7704c.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.da76510e.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.443ee1c0.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.7aec3d10.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.5bebe47e.txt, ${pcfiledir}/LICENSES/BSD-4-Clause.2311d4ed.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.e289d4bf.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-bsd-unmodified.2c3260b8.txt, ${pcfiledir}/LICENSES/BSD-4-Clause.c63ba0d5.txt

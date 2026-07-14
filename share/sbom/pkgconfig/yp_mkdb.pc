@@ -6,7 +6,7 @@
 Name: yp_mkdb
 Description: Generate the NIS databases
 URL: https://man.freebsd.org/cgi/man.cgi?query=yp_mkdb(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/yp_mkdb
 License: BSD-4-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-4-Clause.b7404244.txt

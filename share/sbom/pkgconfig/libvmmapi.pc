@@ -5,7 +5,7 @@
 #
 Name: libvmmapi
 Description: Library missing description
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libvmmapi
 License: NOASSERTION
 Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt, libutil

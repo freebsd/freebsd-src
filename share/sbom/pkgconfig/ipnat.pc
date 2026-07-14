@@ -6,7 +6,7 @@
 Name: ipnat
 Description: User interface to the NAT
 URL: https://man.freebsd.org/cgi/man.cgi?query=ipnat(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/ipf/ipnat
 License: LicenseRef-scancode-other-permissive
 License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-other-permissive.c5d7f3d3.txt

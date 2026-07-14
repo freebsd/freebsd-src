@@ -5,7 +5,7 @@
 #
 Name: libblocksruntime
 Description: Library missing description
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libblocksruntime
 License: NOASSERTION
 Requires: csu, libc, libcompiler_rt

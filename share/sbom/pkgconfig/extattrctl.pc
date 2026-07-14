@@ -6,7 +6,7 @@
 Name: extattrctl
 Description: Manage UFS1 extended attributes
 URL: https://man.freebsd.org/cgi/man.cgi?query=extattrctl(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/extattrctl
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt

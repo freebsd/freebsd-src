@@ -6,7 +6,7 @@
 Name: hostname
 Description: Set or print the name of current host system
 URL: https://man.freebsd.org/cgi/man.cgi?query=hostname(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/bin/hostname
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

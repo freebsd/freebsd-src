@@ -6,7 +6,7 @@
 Name: uptime
 Description: Show how long system has been running
 URL: https://man.freebsd.org/cgi/man.cgi?query=uptime(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/w
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

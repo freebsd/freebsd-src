@@ -5,7 +5,7 @@
 #
 Name: libcasper.services.cap_fileargs
 Description: Library for handling files in capability mode
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libcasper/services/cap_fileargs
 License: BSD-2-Clause
 Requires: csu, libc, libcasper, libcompiler_rt, libnv

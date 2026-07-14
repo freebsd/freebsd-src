@@ -6,6 +6,6 @@
 Name: libc
 Description: FreeBSD libc
 URL: https://www.FreeBSD.org
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libc
 License: BSD-3-Clause AND BSD-2-Clause AND BSD-1-Clause

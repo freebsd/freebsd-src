@@ -6,7 +6,7 @@
 Name: rpcgen
 Description: An RPC protocol compiler
 URL: https://man.freebsd.org/cgi/man.cgi?query=rpcgen(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/rpcgen
 License: LicenseRef-scancode-sun-rpc
 License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-sun-rpc.edac947f.txt

@@ -6,7 +6,7 @@
 Name: snapinfo
 Description: Show snapshot location on UFS file systems
 URL: https://man.freebsd.org/cgi/man.cgi?query=snapinfo(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/snapinfo
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt

@@ -6,7 +6,7 @@
 Name: mt
 Description: Magnetic tape manipulating program
 URL: https://man.freebsd.org/cgi/man.cgi?query=mt(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/mt
 License: BSD-3-Clause AND LicenseRef-scancode-intel-bsd-2-clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-intel-bsd-2-clause.b794004b.txt

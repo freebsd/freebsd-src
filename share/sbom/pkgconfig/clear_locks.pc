@@ -6,7 +6,7 @@
 Name: clear_locks
 Description: Clear locks held on behalf of an NFS client
 URL: https://man.freebsd.org/cgi/man.cgi?query=clear_locks(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/clear_locks
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt

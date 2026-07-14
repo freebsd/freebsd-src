@@ -6,7 +6,7 @@
 Name: lock
 Description: Reserve a terminal
 URL: https://man.freebsd.org/cgi/man.cgi?query=lock(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/lock
 License: Beerware AND BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

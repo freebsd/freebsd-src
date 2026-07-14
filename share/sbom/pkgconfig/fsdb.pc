@@ -6,7 +6,7 @@
 Name: fsdb
 Description: FFS debugging/editing tool
 URL: https://man.freebsd.org/cgi/man.cgi?query=fsdb(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/fsdb
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.fbf19e8e.txt

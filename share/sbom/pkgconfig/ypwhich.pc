@@ -6,7 +6,7 @@
 Name: ypwhich
 Description: Return hostname of NIS server of map master
 URL: https://man.freebsd.org/cgi/man.cgi?query=ypwhich(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/ypwhich
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt

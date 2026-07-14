@@ -5,6 +5,6 @@
 #
 Name: libopenbsd
 Description: Library missing description
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libopenbsd
 License: BSD-2-Clause

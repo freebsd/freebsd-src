@@ -6,7 +6,7 @@
 Name: kenv
 Description: List or modify the kernel environment
 URL: https://man.freebsd.org/cgi/man.cgi?query=kenv(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/bin/kenv
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.1d9b7f76.txt

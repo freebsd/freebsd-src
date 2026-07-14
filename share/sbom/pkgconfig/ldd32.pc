@@ -6,7 +6,7 @@
 Name: ldd32
 Description: List dynamic object dependencies
 URL: https://man.freebsd.org/cgi/man.cgi?query=ldd32(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/ldd32
 License: BSD-4-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-4-Clause.165a163c.txt

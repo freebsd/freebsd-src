@@ -5,6 +5,6 @@
 #
 Name: libedit.readline
 Description: Library missing description
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libedit/readline
 License: NOASSERTION

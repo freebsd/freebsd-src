@@ -6,7 +6,7 @@
 Name: chat
 Description: Automated conversational script with a modem
 URL: https://man.freebsd.org/cgi/man.cgi?query=chat(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/chat
 License: LicenseRef-scancode-public-domain-disclaimer
 License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain-disclaimer.89faa3c1.txt

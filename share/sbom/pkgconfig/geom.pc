@@ -6,7 +6,7 @@
 Name: geom
 Description: Universal control utility for GEOM classes
 URL: https://man.freebsd.org/cgi/man.cgi?query=geom(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/geom/core
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.1d9b7f76.txt

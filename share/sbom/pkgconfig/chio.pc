@@ -6,7 +6,7 @@
 Name: chio
 Description: Medium changer control utility
 URL: https://man.freebsd.org/cgi/man.cgi?query=chio(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/bin/chio
 License: BSD-4-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-4-Clause.bcc5ab4d.txt

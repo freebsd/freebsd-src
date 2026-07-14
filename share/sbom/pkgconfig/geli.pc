@@ -6,7 +6,7 @@
 Name: geli
 Description: Control utility for the cryptographic GEOM class
 URL: https://man.freebsd.org/cgi/man.cgi?query=geli(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/geom/eli
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.1d9b7f76.txt

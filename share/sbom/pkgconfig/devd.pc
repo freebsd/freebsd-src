@@ -6,7 +6,7 @@
 Name: devd
 Description: Device state change daemon
 URL: https://man.freebsd.org/cgi/man.cgi?query=devd(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/devd
 License: BSD-3-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

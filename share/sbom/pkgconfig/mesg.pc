@@ -6,7 +6,7 @@
 Name: mesg
 Description: Display (do not display) messages from other users
 URL: https://man.freebsd.org/cgi/man.cgi?query=mesg(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/mesg
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-unknown-license-reference.39686fea.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

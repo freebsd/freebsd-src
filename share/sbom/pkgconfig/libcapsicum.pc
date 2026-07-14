@@ -5,6 +5,6 @@
 #
 Name: libcapsicum
 Description: Practical capabilities for UNIX
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libcapsicum
 License: BSD-2-Clause

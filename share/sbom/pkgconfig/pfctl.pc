@@ -6,7 +6,7 @@
 Name: pfctl
 Description: Control the packet filter (PF) device
 URL: https://man.freebsd.org/cgi/man.cgi?query=pfctl(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/pfctl
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.8da18da8.txt, ${pcfiledir}/LICENSES/ISC.15824d08.txt, ${pcfiledir}/LICENSES/ISC.11e6b90c.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt

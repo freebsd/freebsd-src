@@ -6,7 +6,7 @@
 Name: dhclient
 Description: Dynamic Host Configuration Protocol (DHCP) client
 URL: https://man.freebsd.org/cgi/man.cgi?query=dhclient(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/dhclient
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.07d9d3ee.txt, ${pcfiledir}/LICENSES/ISC.65a17f42.txt, ${pcfiledir}/LICENSES/ISC.11e6b90c.txt

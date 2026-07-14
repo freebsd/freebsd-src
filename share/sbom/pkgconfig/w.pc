@@ -6,7 +6,7 @@
 Name: w
 Description: Display who is logged in and what they are doing
 URL: https://man.freebsd.org/cgi/man.cgi?query=w(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/w
 License: BSD-3-Clause AND Apache-2.0 WITH LLVM-exception
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

@@ -6,7 +6,7 @@
 Name: sort
 Description: Sort or merge records (lines) of text and binary files
 URL: https://man.freebsd.org/cgi/man.cgi?query=sort(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/sort
 License: BSD-2-Clause AND BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

@@ -6,7 +6,7 @@
 Name: cpuset
 Description: Configure processor sets
 URL: https://man.freebsd.org/cgi/man.cgi?query=cpuset(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/bin/cpuset
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.da76510e.txt

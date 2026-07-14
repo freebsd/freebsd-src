@@ -6,7 +6,7 @@
 Name: gunion
 Description: Control utility for UNION GEOM class
 URL: https://man.freebsd.org/cgi/man.cgi?query=gunion(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/geom/union
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.1d9b7f76.txt

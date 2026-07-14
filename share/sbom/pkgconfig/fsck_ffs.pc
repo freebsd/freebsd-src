@@ -6,7 +6,7 @@
 Name: fsck_ffs
 Description: File system consistency check and interactive repair
 URL: https://man.freebsd.org/cgi/man.cgi?query=fsck_ffs(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/fsck_ffs
 License: BSD-3-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.1d9b7f76.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.f6424733.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt

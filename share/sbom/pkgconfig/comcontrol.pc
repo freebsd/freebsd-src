@@ -6,7 +6,7 @@
 Name: comcontrol
 Description: Control a special tty device
 URL: https://man.freebsd.org/cgi/man.cgi?query=comcontrol(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/comcontrol
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.343bcf06.txt

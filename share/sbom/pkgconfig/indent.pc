@@ -6,7 +6,7 @@
 Name: indent
 Description: Indent and format C program source
 URL: https://man.freebsd.org/cgi/man.cgi?query=indent(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/indent
 License: BSD-4-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-4-Clause-UC.06c1e96a.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.a1a01172.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.73605b83.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.16ceb891.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.18b9a0c1.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt

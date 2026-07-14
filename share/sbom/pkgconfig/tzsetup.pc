@@ -6,7 +6,7 @@
 Name: tzsetup
 Description: Set local timezone
 URL: https://man.freebsd.org/cgi/man.cgi?query=tzsetup(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/tzsetup
 License: LicenseRef-scancode-mit-license-1998
 License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-mit-license-1998.efd275e2.txt

@@ -6,7 +6,7 @@
 Name: ctladm
 Description: CAM Target Layer control utility
 URL: https://man.freebsd.org/cgi/man.cgi?query=ctladm(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/ctladm
 License: BSD-3-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-intel-bsd-2-clause.b794004b.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-unknown-license-reference.ad4a9bb5.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.d3db918d.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.5bebe47e.txt

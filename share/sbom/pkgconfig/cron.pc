@@ -6,7 +6,7 @@
 Name: cron
 Description: Daemon to execute scheduled commands (Vixie Cron)
 URL: https://man.freebsd.org/cgi/man.cgi?query=cron(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/cron/cron
 License: BSD-4.3TAHOE AND BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/ISC.a9fefede.txt, ${pcfiledir}/LICENSES/BSD-4.3TAHOE.5b7a4e5a.txt

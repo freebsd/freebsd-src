@@ -6,6 +6,6 @@
 Name: ftp-proxy
 Description: Pf logging daemon
 URL: https://openbsd.org
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://github.com/openbsd/src/tree/master/usr.sbin/ftp-proxy
 License: 0BSD

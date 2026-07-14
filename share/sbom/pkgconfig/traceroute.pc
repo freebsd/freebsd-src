@@ -6,7 +6,7 @@
 Name: traceroute
 Description: Print the route packets take to network host
 URL: https://man.freebsd.org/cgi/man.cgi?query=traceroute(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/traceroute
 License: BSD-2-Clause AND BSD-4-Clause-Shortened AND BSD-4-Clause-UC
 License.file: ${pcfiledir}/LICENSES/BSD-4-Clause-UC.e776081c.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.7aec3d10.txt, ${pcfiledir}/LICENSES/BSD-4-Clause-Shortened.ad320323.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt

@@ -5,7 +5,7 @@
 #
 Name: libypclnt
 Description: Library missing description
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libypclnt
 License: NOASSERTION
 Requires: csu, libc, libcompiler_rt

@@ -6,7 +6,7 @@
 Name: pgrep
 Description: Find or signal processes by name
 URL: https://man.freebsd.org/cgi/man.cgi?query=pgrep(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/bin/pkill
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.7aec3d10.txt

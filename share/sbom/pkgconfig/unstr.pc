@@ -6,7 +6,7 @@
 Name: unstr
 Description: Create a random access file for storing strings
 URL: https://man.freebsd.org/cgi/man.cgi?query=unstr(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/fortune/strfile
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

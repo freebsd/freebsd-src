@@ -6,7 +6,7 @@
 Name: setkey
 Description: Manually manipulate the IPsec SA/SP database
 URL: https://man.freebsd.org/cgi/man.cgi?query=setkey(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/setkey
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.328b29b3.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.2b28f309.txt

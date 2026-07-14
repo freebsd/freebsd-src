@@ -6,7 +6,7 @@
 Name: showmount
 Description: Show remote nfs mounts on host
 URL: https://man.freebsd.org/cgi/man.cgi?query=showmount(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/showmount
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

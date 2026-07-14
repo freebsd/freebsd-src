@@ -6,7 +6,7 @@
 Name: calendar
 Description: Reminder service
 URL: https://man.freebsd.org/cgi/man.cgi?query=calendar(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/calendar
 License: BSD-3-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.c570f536.txt

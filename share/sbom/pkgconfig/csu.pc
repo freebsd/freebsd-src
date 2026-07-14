@@ -5,6 +5,6 @@
 #
 Name: csu
 Description: Library missing description
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/csu
 License: BSD-4-Clause AND BSD-2-Clause AND BSD-1-Clause

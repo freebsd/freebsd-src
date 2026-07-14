@@ -6,7 +6,7 @@
 Name: gzcat
 Description: Compression/decompression tool using Lempel-Ziv coding (LZ77)
 URL: https://man.freebsd.org/cgi/man.cgi?query=gzip(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/gzip
 License: BSD-3-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.7aec3d10.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.2e42e2d8.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.88f437cf.txt, ${pcfiledir}/LICENSES/ISC.a506e8a5.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-sudo.e5838632.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt, ${pcfiledir}/LICENSES/Zlib.83bd71d4.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.715ec2cd.txt

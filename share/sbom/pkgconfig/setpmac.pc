@@ -6,7 +6,7 @@
 Name: setpmac
 Description: Run a command with a different MAC process label
 URL: https://man.freebsd.org/cgi/man.cgi?query=setpmac(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/setpmac
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.9136516b.txt

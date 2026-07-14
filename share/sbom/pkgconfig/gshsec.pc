@@ -6,7 +6,7 @@
 Name: gshsec
 Description: Control utility for shared secret devices
 URL: https://man.freebsd.org/cgi/man.cgi?query=gshsec(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/geom/shsec
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.1d9b7f76.txt

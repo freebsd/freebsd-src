@@ -6,7 +6,7 @@
 Name: efibootmgr
 Description: Manipulate the EFI Boot Manager
 URL: https://man.freebsd.org/cgi/man.cgi?query=efibootmgr(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/efibootmgr
 License: LicenseRef-scancode-bsd-unchanged
 License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-bsd-unchanged.fad7b6fb.txt

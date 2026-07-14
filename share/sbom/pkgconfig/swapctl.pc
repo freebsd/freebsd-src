@@ -6,7 +6,7 @@
 Name: swapctl
 Description: Specify devices for paging and swapping
 URL: https://man.freebsd.org/cgi/man.cgi?query=swapctl(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/swapon
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

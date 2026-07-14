@@ -5,7 +5,7 @@
 #
 Name: msun
 Description: Library missing description
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/msun
 License: BSD-4-Clause AND BSD-2-Clause
 Requires: csu, libc, libcompiler_rt

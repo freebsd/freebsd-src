@@ -5,7 +5,7 @@
 #
 Name: libifconfig
 Description: Library for configure network interface parameters
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libifconfig
 License: BSD-3-Clause AND BSD-2-Clause
 Requires: msun

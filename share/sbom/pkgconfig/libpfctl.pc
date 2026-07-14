@@ -5,6 +5,6 @@
 #
 Name: libpfctl
 Description: Library for interaction with pf
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libpfctl
 License: BSD-2-Clause

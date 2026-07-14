@@ -6,7 +6,7 @@
 Name: lpr
 Description: Off line print
 URL: https://man.freebsd.org/cgi/man.cgi?query=lpr(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/lpr/lpr
 License: BSD-4-Clause-UC AND LicenseRef-scancode-unknown-license-reference
 License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-unknown-license-reference.39686fea.txt, ${pcfiledir}/LICENSES/BSD-4-Clause-UC.06c1e96a.txt

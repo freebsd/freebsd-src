@@ -6,7 +6,7 @@
 Name: expand
 Description: Expand tabs to spaces, and vice versa
 URL: https://man.freebsd.org/cgi/man.cgi?query=expand(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/expand
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

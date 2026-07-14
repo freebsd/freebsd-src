@@ -6,6 +6,6 @@
 Name: dwatch
 Description: Watch processes as they trigger a particular DTrace probe.
 URL: https://cgit.freebsd.org/src/tree/cddl/usr.sbin/dwatch
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/cddl/usr.sbin/dwatch
 License: CDDL-1.1

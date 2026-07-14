@@ -6,7 +6,7 @@
 Name: batch
 Description: Queue, examine or delete jobs for later execution
 URL: https://man.freebsd.org/cgi/man.cgi?query=at(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/at
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-Source-Code.423108f0.txt

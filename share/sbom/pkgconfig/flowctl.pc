@@ -6,7 +6,7 @@
 Name: flowctl
 Description: Ng_netflow(4) control utility
 URL: https://man.freebsd.org/cgi/man.cgi?query=flowctl(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/flowctl
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt

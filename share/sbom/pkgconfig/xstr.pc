@@ -6,7 +6,7 @@
 Name: xstr
 Description: Extract strings from C programs to implement shared strings
 URL: https://man.freebsd.org/cgi/man.cgi?query=xstr(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/xstr
 License: BSD-3-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

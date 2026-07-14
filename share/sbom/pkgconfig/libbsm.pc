@@ -5,7 +5,7 @@
 #
 Name: libbsm
 Description: Convert from BSM to other formats
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libbsm
 License: BSD-3-Clause AND BSD-2-Clause
 Requires: csu, libc, libcompiler_rt

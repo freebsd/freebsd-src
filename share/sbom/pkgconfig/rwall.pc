@@ -6,7 +6,7 @@
 Name: rwall
 Description: Send a message to users logged on a host
 URL: https://man.freebsd.org/cgi/man.cgi?query=rwall(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/rwall
 License: BSD-4-Clause-UC
 License.file: ${pcfiledir}/LICENSES/BSD-4-Clause-UC.06c1e96a.txt

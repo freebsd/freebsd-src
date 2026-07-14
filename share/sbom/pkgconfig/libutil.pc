@@ -5,7 +5,7 @@
 #
 Name: libutil
 Description: FreeBSD misc util library
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libutil
 License: BSD-4-Clause AND BSD-3-Clause AND BSD-2-Clause AND LicenseRef-scancode-other-permissive
 Requires: csu, libc, libcompiler_rt

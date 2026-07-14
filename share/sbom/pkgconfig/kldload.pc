@@ -6,7 +6,7 @@
 Name: kldload
 Description: Load a file into the kernel
 URL: https://man.freebsd.org/cgi/man.cgi?query=kldload(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/kldload
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt

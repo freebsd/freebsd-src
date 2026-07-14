@@ -6,7 +6,7 @@
 Name: mkimg
 Description: Utility to make disk images
 URL: https://man.freebsd.org/cgi/man.cgi?query=mkimg(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/mkimg
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt

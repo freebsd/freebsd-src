@@ -6,7 +6,7 @@
 Name: uhsoctl
 Description: Connection utility for Option based devices
 URL: https://man.freebsd.org/cgi/man.cgi?query=uhsoctl(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/uhsoctl
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt

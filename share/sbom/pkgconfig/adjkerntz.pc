@@ -6,7 +6,7 @@
 Name: adjkerntz
 Description: Adjust real-time clock (rtc) and kernel timezone offset
 URL: https://man.freebsd.org/cgi/man.cgi?query=adjkerntz(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/adjkerntz
 License: BSD-3-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.c570f536.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.c78f08b5.txt

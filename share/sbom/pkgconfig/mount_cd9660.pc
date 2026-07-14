@@ -6,7 +6,7 @@
 Name: mount_cd9660
 Description: Mount an ISO-9660 file system
 URL: https://man.freebsd.org/cgi/man.cgi?query=mount_cd9660(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/mount_cd9660
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

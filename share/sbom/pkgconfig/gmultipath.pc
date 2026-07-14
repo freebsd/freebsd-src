@@ -6,7 +6,7 @@
 Name: gmultipath
 Description: Disk multipath control utility
 URL: https://man.freebsd.org/cgi/man.cgi?query=gmultipath(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/geom/multipath
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.1d9b7f76.txt

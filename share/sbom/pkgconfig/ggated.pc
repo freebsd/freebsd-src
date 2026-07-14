@@ -6,7 +6,7 @@
 Name: ggated
 Description: GEOM Gate network daemon
 URL: https://man.freebsd.org/cgi/man.cgi?query=ggated(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/ggate/ggated
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.1d9b7f76.txt

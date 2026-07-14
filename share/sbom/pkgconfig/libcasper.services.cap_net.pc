@@ -5,7 +5,7 @@
 #
 Name: libcasper.services.cap_net
 Description: Library for networking in capability mode
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libcasper/services/cap_net
 License: BSD-2-Clause
 Requires: csu, libc, libcasper, libcompiler_rt, libnv

@@ -6,7 +6,7 @@
 Name: pflogd
 Description: Pf logging daemon
 URL: https://openbsd.org
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://github.com/openbsd/src/tree/master/sbin/pflogd
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/ISC.11e6b90c.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.8da18da8.txt, ${pcfiledir}/LICENSES/ISC.15824d08.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt

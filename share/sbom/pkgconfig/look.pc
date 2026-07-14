@@ -6,7 +6,7 @@
 Name: look
 Description: Display lines beginning with a given string
 URL: https://man.freebsd.org/cgi/man.cgi?query=look(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/look
 License: BSD-3-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt

@@ -5,7 +5,7 @@
 #
 Name: libmt
 Description: Library missing description
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/lib/libmt
 License: BSD-2-Clause
 Requires: csu, libc, libcompiler_rt, libexpat, libsbuf

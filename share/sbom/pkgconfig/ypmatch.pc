@@ -6,7 +6,7 @@
 Name: ypmatch
 Description: Print the values of one or more keys in a NIS database
 URL: https://man.freebsd.org/cgi/man.cgi?query=ypmatch(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/ypmatch
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt

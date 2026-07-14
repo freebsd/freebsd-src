@@ -6,7 +6,7 @@
 Name: spray
 Description: Send many packets to host
 URL: https://man.freebsd.org/cgi/man.cgi?query=spray(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/spray
 License: BSD-4-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-4-Clause.d4eb499e.txt

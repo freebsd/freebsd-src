@@ -6,7 +6,7 @@
 Name: fdisk
 Description: PC slice table maintenance utility
 URL: https://man.freebsd.org/cgi/man.cgi?query=fdisk(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/fdisk
 License: BSD-3-Clause AND BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/CMU-Mach.22826b3a.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt

@@ -6,7 +6,7 @@
 Name: crontab
 Description: Maintain crontab files for individual users (V3)
 URL: https://man.freebsd.org/cgi/man.cgi?query=crontab(1)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/cron/crontab
 License: ISC
 License.file: ${pcfiledir}/LICENSES/ISC.a9fefede.txt

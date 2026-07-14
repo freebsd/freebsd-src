@@ -6,7 +6,7 @@
 Name: decryptcore
 Description: Decrypt a core dump of the operating system
 URL: https://man.freebsd.org/cgi/man.cgi?query=decryptcore(8)
-Version: 15.0
+Version: ${FREEBSD_VERSION}
 Source: https://cgit.freebsd.org/src/tree/sbin/decryptcore
 License: BSD-2-Clause
 License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.1d9b7f76.txt

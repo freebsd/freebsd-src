@@ -10,11 +10,11 @@
 
 .if	${MK_SBOM} != "no"
 
-BOMTOOL?=	bomtool
+BOMTOOL?=	bomtool --define-variable=FREEBSD_VERSION=${OS_REVISION}
 JSONLDDIR?=	/usr/share/sbom/spdx-3.0.1
 SBOMDIR?=	${SRCTOP}/share/sbom/pkgconfig
 SPDXDIR?=	/usr/share/sbom/spdx-2.2
-SPDXTOOL?=	spdxtool
+SPDXTOOL?=	spdxtool --define-variable=FREEBSD_VERSION=${OS_REVISION}
 
 . if defined(LIB)
 SBOMNAME?=	lib${LIB}
