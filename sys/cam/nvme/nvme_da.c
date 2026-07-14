@@ -773,9 +773,9 @@ ndaasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		 * do nothing.
 		 */
 		if (sectorsize != softc->disk->d_sectorsize)
-			disk_media_changed(softc->disk, M_WAITOK);
+			disk_media_changed(softc->disk, M_NOWAIT);
 		else if (mediasize != softc->disk->d_mediasize)
-			disk_resize(softc->disk, M_WAITOK);
+			disk_resize(softc->disk, M_NOWAIT);
 		break;
 	}
 	case AC_ADVINFO_CHANGED:
