@@ -1244,6 +1244,16 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 			nvme_notify_ns(ctrlr, id);
 			ns->flags &= ~NVME_NS_CHANGED;
 		}
+		if (nsl->ns[0] == 0 && ctrlr->quirks & QUIRK_EMPTY_NAMESPACE_CHANGED_LOG) {
+			for (int i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++) {
+				struct nvme_namespace * ns = &ctrlr->ns[i];
+
+				ns->flags |= NVME_NS_CHANGED;
+				nvme_ns_construct(ns, i + 1, ctrlr);
+				nvme_notify_ns(ctrlr, i + 1);
+				ns->flags &= ~NVME_NS_CHANGED;
+			}
+		}
 	}
 
 	/*
