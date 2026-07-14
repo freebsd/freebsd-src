@@ -100,8 +100,8 @@ ena_cleanup(void *arg, int pending)
 	atomic_store_8(&rx_ring->first_interrupt, 1);
 
 	for (i = 0; i < ENA_CLEAN_BUDGET; ++i) {
-		rx_again = ena_rx_cleanup(rx_ring);
 		tx_again = ena_tx_cleanup(tx_ring);
+		rx_again = ena_rx_cleanup(rx_ring);
 
 		if (unlikely(((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) ||
 		    (ENA_FLAG_ISSET(ENA_FLAG_TRIGGER_RESET, adapter))))
