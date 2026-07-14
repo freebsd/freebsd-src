@@ -1308,6 +1308,11 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 			for (int j = 0; j < n_children; j++)
 				NVME_NS_CHANGED(children[j], nsl->ns[i]);
 		}
+		if (nsl->ns[0] == 0 && ctrlr->quirks & QUIRK_EMPTY_NAMESPACE_CHANGED_LOG) {
+			for (int i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++)
+				for (int j = 0; j < n_children; j++)
+					NVME_NS_CHANGED(children[j], i + 1);
+		}
 		free(children, M_TEMP);
 	}
 
