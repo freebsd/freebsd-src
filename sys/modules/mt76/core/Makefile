@@ -6,7 +6,7 @@ KMOD=	${MT76_DRIVER_NAME}
 
 .PATH: ${COMMONDIR}
 
-MT76_DEBUGFS?=		1
+MT76_DEBUGFS?=		0
 
 # Basic stuff.
 SRCS+=	mac80211.c mmio.c util.c dma.c  eeprom.c tx.c agg-rx.c mcu.c
