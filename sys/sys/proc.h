@@ -1195,6 +1195,7 @@ int	leavepgrp(struct proc *p);
 void	maybe_yield(void);
 void	mi_switch(int flags);
 int	p_candebug(struct thread *td, struct proc *p);
+int	p_canopen(struct thread *td, struct proc *p);
 int	p_cansee(struct thread *td, struct proc *p);
 int	p_cansched(struct thread *td, struct proc *p);
 int	p_cansignal(struct thread *td, struct proc *p, int signum);

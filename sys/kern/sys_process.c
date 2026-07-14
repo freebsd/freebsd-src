@@ -70,6 +70,11 @@
 #include <sys/procfs.h>
 #endif
 
+bool allow_ptrace_in_cap_mode = true;
+SYSCTL_BOOL(_security_bsd, OID_AUTO, allow_ptrace_in_cap_mode, CTLFLAG_RWTUN,
+    &allow_ptrace_in_cap_mode, 0,
+    "Allow ptrace(2) in capability mode");
+
 /* Assert it's safe to unlock a process, e.g. to allocate working memory */
 #define	PROC_ASSERT_TRACEREQ(p)	MPASS(((p)->p_flag2 & P2_PTRACEREQ) != 0)
 

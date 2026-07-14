@@ -46,14 +46,13 @@
  * System calls related to processes and protection
  */
 
-#include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
-#include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/abi_compat.h>
 #include <sys/acct.h>
+#include <sys/capsicum.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -2311,6 +2310,31 @@ cr_xids_subset(struct ucred *active_cred, struct ucred *obj_cred)
 	    active_cred->cr_uid == obj_cred->cr_ruid);
 
 	return (uidsubset && grpsubset);
+}
+
+/*
+ * Determine whether the td thread allowed to do pdopenpid(2) on the
+ * process p.  The permissions are scoped to the PIDs namespace and
+ * processes hierarchy, and do not imply permissions to perform
+ * operations on the resulting process descriptor, e.g. pdkill(2) and
+ * other.
+ */
+int
+p_canopen(struct thread *td, struct proc *p)
+{
+#ifdef INVARIANTS
+	if (IN_CAPABILITY_MODE(td))
+		sx_assert(&proctree_lock, SX_LOCKED);
+#endif
+
+	/*
+	 * Allow implicit parent in cap mode: either real parent or
+	 * debugger can open pid.
+	 */
+	if (!IN_CAPABILITY_MODE(td) || (allow_ptrace_in_cap_mode &&
+	    (td->td_proc == p->p_pptr || p->p_oppid == td->td_proc->p_pid)))
+		return (0);
+	return (ECAPMODE);
 }
 
 /*-
