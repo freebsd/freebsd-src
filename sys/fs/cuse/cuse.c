@@ -1546,11 +1546,19 @@ cuse_client_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	}
 	cuse_server_unlock(pcs);
 
-	if (error != 0)
+	/*
+	 * On error, free the client and unref the server, so that the
+	 * exiting server process does not become unkillable.
+	 */
+	if (error != 0) {
+		cuse_client_free(pcc);
 		return (error);
+	}
 
-	if ((error = devfs_set_cdevpriv(pcc, &cuse_client_free)) != 0)
+	if ((error = devfs_set_cdevpriv(pcc, &cuse_client_free)) != 0) {
+		cuse_client_free(pcc);
 		return (error);
+	}
 
 	pccmd = &pcc->cmds[CUSE_CMD_OPEN];
 
