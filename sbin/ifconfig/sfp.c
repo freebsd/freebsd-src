@@ -122,6 +122,11 @@ sfp_status(if_ctx *ctx)
 			printf("\n\tCMIS DUMP (Page 00h 128..255):\n");
 			hexdump(dump.data + 128, 128,
 			    "\t", HD_OMIT_COUNT | HD_OMIT_CHARS);
+			if (verbose > 3) {
+				printf("\n\tCMIS DUMP (Page 10h 128..255):\n");
+				hexdump(dump.data + CMIS_DUMP_P10, 128,
+				    "\t", HD_OMIT_COUNT | HD_OMIT_CHARS);
+			}
 			printf("\n\tCMIS DUMP (Page 11h 128..255):\n");
 			hexdump(dump.data + CMIS_DUMP_P11, 128,
 			    "\t", HD_OMIT_COUNT | HD_OMIT_CHARS);
