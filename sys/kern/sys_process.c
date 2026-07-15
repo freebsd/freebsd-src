@@ -1378,7 +1378,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		break;
 
 	case PT_GET_SC_RET:
-		if ((td2->td_dbgflags & (TDB_SCX)) == 0
+		if ((td2->td_dbgflags & TDB_SCX) == 0
 #ifdef COMPAT_FREEBSD32
 		    || (wrap32 && !safe)
 #endif
