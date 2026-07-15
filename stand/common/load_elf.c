@@ -725,7 +725,8 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 		if (shstr) {
 			for (i = 0; i < ehdr->e_shnum; i++) {
 				if (strcmp(shstr + shdr[i].sh_name,
-				    ".ctors") != 0)
+				    ".ctors") != 0 &&
+				    shdr[i].sh_type != SHT_INIT_ARRAY)
 					continue;
 				ctors = shdr[i].sh_addr;
 				file_addmetadata(fp, MODINFOMD_CTORS_ADDR,
