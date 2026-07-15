@@ -1306,8 +1306,9 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 		if (shdr[i].sh_type == SHT_SYMTAB) {
 			symtabindex = i;
 			symstrindex = shdr[i].sh_link;
-		} else if (shstrs != NULL && shdr[i].sh_name != 0 &&
-		    strcmp(shstrs + shdr[i].sh_name, ".ctors") == 0) {
+		} else if ((shstrs != NULL && shdr[i].sh_name != 0 &&
+		    strcmp(shstrs + shdr[i].sh_name, ".ctors") == 0) ||
+		    shdr[i].sh_type == SHT_INIT_ARRAY) {
 			/* Record relocated address and size of .ctors. */
 			lf->ctors_addr = mapbase + shdr[i].sh_addr - base_vaddr;
 			lf->ctors_size = shdr[i].sh_size;
