@@ -925,7 +925,7 @@ in_pcbbind_avail(struct inpcb *inp, const struct in_addr laddr,
 		 * to any endpoint address, local or not.
 		 */
 		if ((inp->inp_flags & INP_BINDANY) == 0 &&
-		    ifa_ifwithaddr_check((const struct sockaddr *)&sin) == 0)
+		    ifa_ifwithaddr_fib_check((const struct sockaddr *)&sin, fib) == 0)
 			return (EADDRNOTAVAIL);
 	}
 

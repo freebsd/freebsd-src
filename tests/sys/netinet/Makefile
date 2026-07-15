@@ -30,6 +30,7 @@ ATF_TESTS_SH=	arp \
 		redirect
 
 ATF_TESTS_PYTEST+=	carp.py \
+			fib_bind.py \
 			igmp.py \
 			ip_mroute.py \
 			tcp_hpts_test.py

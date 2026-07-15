@@ -743,7 +743,7 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct inpcb *inp;
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)nam;
 	struct ifaddr *ifa = NULL;
-	int error = 0;
+	int fib, error = 0;
 
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip6_bind: inp == NULL"));
@@ -759,9 +759,12 @@ rip6_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if ((error = sa6_embedscope(addr, V_ip6_use_defzone)) != 0)
 		return (error);
 
+	fib = V_rip_bind_all_fibs == 0 ? inp->inp_inc.inc_fibnum :
+	    RT_ALL_FIBS;
+
 	NET_EPOCH_ENTER(et);
 	if (!IN6_IS_ADDR_UNSPECIFIED(&addr->sin6_addr) &&
-	    (ifa = ifa_ifwithaddr((struct sockaddr *)addr)) == NULL) {
+	    (ifa = ifa_ifwithaddr_fib((struct sockaddr *)addr, fib)) == NULL) {
 		NET_EPOCH_EXIT(et);
 		return (EADDRNOTAVAIL);
 	}
