@@ -900,10 +900,8 @@ struct proc {
 						   sync core registered */
 #define	P2_MEMBAR_GLOBE		0x00400000	/* membar global expedited
 						   registered */
-
 #define	P2_LOGSIGEXIT_ENABLE	0x00800000	/* Disable logging on sigexit */
 #define	P2_LOGSIGEXIT_CTL	0x01000000	/* Override kern.logsigexit */
-
 #define	P2_HWT			0x02000000	/* Process is using HWT. */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
