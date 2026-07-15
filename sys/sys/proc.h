@@ -782,6 +782,7 @@ struct proc {
 	LIST_ENTRY(proc) p_jaillist;	/* (d) Jail process linkage. */
 	u_int		p_asig;		/* (c) ASYNCEXIT pending signal. */
 	u_int		p_tree_refcnt;	/* (e) proctree refcount */
+	u_int		p_zombieref;	/* (e) References for reap. */
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -910,6 +911,14 @@ struct proc {
 						   list */
 #define	P_TREE_REAPER		0x00000004	/* Reaper of subtree */
 #define	P_TREE_GRPEXITED	0x00000008	/* exit1() done with job ctl */
+
+/*
+ * p_zombieref; protected by proctree_lock.
+ */
+#define	PZOMBIEREF_PARENT	0x00000001	/* Ref for waitpid() */
+#define	PZOMBIEREF_PROCDESC	0x00000002	/* Ref for pdwait() */
+#define	PZOMBIEREF_NEEDPARENT	0x80000000	/* Had ref for waitpid() */
+#define	PZOMBIEREF_REFMASK	(PZOMBIEREF_PARENT | PZOMBIEREF_PROCDESC)
 
 /*
  * These were process status values (p_stat), now they are only used in
@@ -1205,7 +1214,8 @@ int	proc_iterate(int (*cb)(struct proc *, void *), void *cbarg);
 void	proc_linkup0(struct proc *p, struct thread *td);
 void	proc_linkup(struct proc *p, struct thread *td);
 struct proc *proc_realparent(struct proc *child);
-void	proc_reap(struct thread *td, struct proc *p, int *status, int options);
+void	proc_reap(struct thread *td, struct proc *p, int *status, int options,
+	    int zombieref);
 void	proc_reparent(struct proc *child, struct proc *newparent, bool set_oppid);
 void	proc_set_p2_wexit(struct proc *p);
 void	proc_set_traced(struct proc *p, bool stop);

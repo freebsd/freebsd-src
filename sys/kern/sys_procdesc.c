@@ -277,8 +277,10 @@ procdesc_free(struct procdesc *pd)
  * procdesc_exit() - notify a process descriptor that its process is exiting.
  * We use the proctree_lock to ensure that process exit either happens
  * strictly before or strictly after a concurrent call to procdesc_close().
+ * Return true if the process' parent is responsible for reaping the child,
+ * false otherwise.
  */
-void
+bool
 procdesc_exit(struct proc *p)
 {
 	struct procdesc *pd;
@@ -289,7 +291,7 @@ procdesc_exit(struct proc *p)
 
 	pd = p->p_procdesc;
 	if (pd == NULL)
-		return;
+		goto out;
 
 	PROCDESC_LOCK(pd);
 	KASSERT(pd->pd_fpcount > 0, ("%s: closed procdesc %p", __func__, pd));
@@ -304,6 +306,8 @@ procdesc_exit(struct proc *p)
 
 	/* Wakeup all waiters for this procdesc' process exit. */
 	wakeup(&p->p_procdesc);
+out:
+	return ((p->p_zombieref & PZOMBIEREF_PARENT) != 0);
 }
 
 void
@@ -418,15 +422,7 @@ procdesc_close(struct file *fp, struct thread *td)
 	} else {
 		PROC_LOCK(p);
 		AUDIT_ARG_PROCESS(p);
-		if (p->p_state == PRS_ZOMBIE) {
-			/*
-			 * If the process is already dead and just awaiting
-			 * reaping, do that now.  This will release the
-			 * process's reference to the process descriptor when it
-			 * calls back into procdesc_reap().
-			 */
-			proc_reap(curthread, p, NULL, 0);
-		} else if (pd->pd_fpcount == 0) /* last procdesc */ {
+		if (pd->pd_fpcount == 0) /* last procdesc */ {
 			/*
 			 * If the process is not yet dead, we need to kill it,
 			 * but we can't wait around synchronously for it to go
@@ -438,9 +434,27 @@ procdesc_close(struct file *fp, struct thread *td)
 			p->p_procdesc = NULL;
 			pd->pd_pid = -1;
 			procdesc_free(pd);
+			if (p->p_state == PRS_ZOMBIE) {
+				proc_reap(curthread, p, NULL, 0,
+				    PZOMBIEREF_PROCDESC);
+				goto out;
+			}
 
-			/* Failed finstall() should not cause reaping. */
-			if ((fp->f_pdflags & F_PD_NOFINSTALL) == 0) {
+			/*
+			 * Not a zombie, and no more opened process
+			 * descriptors. Clear PZOMBIEREF_PROCDESC
+			 * since right now nobody would call
+			 * proc_reap(p, PZOMBIEREF_PROCDESC).  The
+			 * flag is re-added if pdopenpid() is called.
+			 */
+			p->p_zombieref &= ~PZOMBIEREF_PROCDESC;
+
+			/*
+			 * A reference for waitpid() or failed
+			 * finstall() should not cause reaping.
+			 */
+			if ((fp->f_pdflags & F_PD_NOFINSTALL) == 0 &&
+			    (p->p_zombieref & PZOMBIEREF_PARENT) == 0) {
 				/*
 				 * Next, reparent it to its reaper
 				 * (usually init(8)) so that there's
@@ -456,12 +470,13 @@ procdesc_close(struct file *fp, struct thread *td)
 					proc_add_orphan(p, p->p_reaper);
 				}
 			}
+
 			procdesc_close_tail(fp, p);
 		} else {
 			procdesc_close_tail(fp, p);
 		}
 	}
-
+out:
 	/*
 	 * Release the file descriptor's reference on the process descriptor.
 	 */
@@ -652,6 +667,7 @@ pdopenpid1(struct thread *td, pid_t pid, struct procdesc **pdf, struct file *fp)
 	}
 	pd = p->p_procdesc;
 	if (pd != NULL) {
+		MPASS((p->p_zombieref & PZOMBIEREF_PROCDESC) != 0);
 		refcount_acquire(&pd->pd_refcount);
 		PROCDESC_LOCK(pd);
 		MPASS(pd->pd_fpcount > 0);
@@ -663,6 +679,8 @@ pdopenpid1(struct thread *td, pid_t pid, struct procdesc **pdf, struct file *fp)
 		pd->pd_proc = p;
 		pd->pd_pid = p->p_pid;
 		p->p_procdesc = pd;
+		MPASS((p->p_zombieref & PZOMBIEREF_PROCDESC) == 0);
+		p->p_zombieref |= PZOMBIEREF_PROCDESC;
 	}
 	procdesc_finit(pd, fp);
 	PROC_UNLOCK(p);
@@ -718,7 +736,7 @@ sys_pdopenpid(struct thread *td, struct pdopenpid_args *args)
 	AUDIT_ARG_PID(args->pid);
 	AUDIT_ARG_FFLAGS(args->flags);
 
-	if ((args->flags & ~(PD_ALLOWED_AT_FORK)) != 0)
+	if ((args->flags & ~(PD_ALLOWED_AT_OPENPID)) != 0)
 		return (EINVAL);
 	return (kern_pdopenpid(td, args->pid, args->flags));
 }

@@ -547,6 +547,15 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	    P2_STKGAP_DISABLE | P2_STKGAP_DISABLE_EXEC | P2_NO_NEW_PRIVS |
 	    P2_WXORX_DISABLE | P2_WXORX_ENABLE_EXEC | P2_LOGSIGEXIT_CTL |
 	    P2_LOGSIGEXIT_ENABLE);
+	if ((fr->fr_flags & RFPROCDESC) != 0) {
+		p2->p_zombieref = PZOMBIEREF_PROCDESC;
+		if ((fr->fr_pd_flags & PD_NOWAITPID) == 0 &&
+		    (fr->fr_flags & RFNOWAIT) == 0)
+			p2->p_zombieref |= (PZOMBIEREF_PARENT |
+			    PZOMBIEREF_NEEDPARENT);
+	} else {
+		p2->p_zombieref = PZOMBIEREF_PARENT | PZOMBIEREF_NEEDPARENT;
+	}
 	p2->p_swtick = ticks;
 	if (p1->p_flag & P_PROFIL)
 		startprofclock(p2);
