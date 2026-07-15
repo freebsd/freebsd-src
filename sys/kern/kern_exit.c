@@ -683,8 +683,7 @@ exit1(struct thread *td, int rval, int signo)
 	 * exit().
 	 */
 	signal_parent = 0;
-	procdesc_exit(p);
-	if (p->p_procdesc == NULL) {
+	if (p->p_procdesc == NULL || procdesc_exit(p)) {
 		/*
 		 * Notify parent that we're gone.  If parent has the
 		 * PS_NOCLDWAIT flag set, or if the handler is set to SIG_IGN,
@@ -986,7 +985,8 @@ sys_pdwait(struct thread *td, struct pdwait_args *uap)
  * lock as part of its work.
  */
 void
-proc_reap(struct thread *td, struct proc *p, int *status, int options)
+proc_reap(struct thread *td, struct proc *p, int *status, int options,
+    int zombieref)
 {
 	struct proc *q, *t;
 
@@ -1007,6 +1007,13 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 		 */
 		PROC_UNLOCK(p);
 		sx_xunlock(&proctree_lock);
+		return;
+	}
+
+	p->p_zombieref &= ~zombieref;
+	if ((p->p_zombieref & PZOMBIEREF_REFMASK) != 0) {
+		sx_xunlock(&proctree_lock);
+		PROC_UNLOCK(p);
 		return;
 	}
 
@@ -1192,9 +1199,8 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 
 	switch (idtype) {
 	case P_ALL:
-		if (p->p_procdesc == NULL ||
-		   (p->p_pptr == td->td_proc &&
-		   (p->p_flag & P_TRACED) != 0)) {
+		if ((p->p_zombieref & PZOMBIEREF_PARENT) != 0 ||
+		   (p->p_pptr == td->td_proc && (p->p_flag & P_TRACED) != 0)) {
 			break;
 		}
 
@@ -1246,14 +1252,17 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 		return (0);
 	}
 
-	if (p_canwait(td, p)) {
+	if (p_canwait(td, p) != 0 ||
+	    ((options & WEXITED) == 0 && p->p_state == PRS_ZOMBIE) ||
+	    /* waitpid() is disabled and waiter is not the debugger */
+	    ((p->p_zombieref & PZOMBIEREF_PARENT) == 0 &&
+	    (p->p_pptr != td->td_proc || (p->p_flag & P_TRACED) == 0))) {
 		PROC_UNLOCK(p);
 		return (0);
 	}
-
-	if ((options & WEXITED) == 0 && p->p_state == PRS_ZOMBIE) {
+	if (check_only) {
 		PROC_UNLOCK(p);
-		return (0);
+		return (1);
 	}
 
 	/*
@@ -1279,8 +1288,8 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 	 */
 	wait_fill_wrusage(p, wrusage);
 
-	if (p->p_state == PRS_ZOMBIE && !check_only) {
-		proc_reap(td, p, status, options);
+	if (p->p_state == PRS_ZOMBIE) {
+		proc_reap(td, p, status, options, PZOMBIEREF_PARENT);
 		return (-1);
 	}
 	return (1);
@@ -1481,18 +1490,6 @@ loop_locked:
 			return (0);
 		}
 
-		/*
-		 * When running in capsicum(4) mode, make wait(2) ignore
-		 * processes created with pdfork(2).  This is because one can
-		 * disown them - by passing their process descriptor to another
-		 * process - which means it needs to be prevented from touching
-		 * them afterwards.
-		 */
-		if (IN_CAPABILITY_MODE(td) && p->p_procdesc != NULL) {
-			PROC_UNLOCK(p);
-			continue;
-		}
-
 		nfound++;
 		PROC_LOCK_ASSERT(p, MA_OWNED);
 
@@ -1523,7 +1520,6 @@ loop_locked:
 			if (ret != 0) {
 				KASSERT(ret != -1, ("reaped an orphan (pid %d)",
 				    (int)td->td_retval[0]));
-				PROC_UNLOCK(p);
 				nfound++;
 				break;
 			}
@@ -1678,6 +1674,18 @@ proc_reparent(struct proc *child, struct proc *parent, bool set_oppid)
 	child->p_pptr = parent;
 	if (set_oppid)
 		child->p_oppid = parent->p_pid;
+
+	/*
+	 * When reparenting the child to the real parent which expects
+	 * to be able to call waitpid(), or reaper, re-enable
+	 * waitpid(2) for it, so that the zombie can be collected.
+	 */
+	if ((child->p_flag & P_TRACED) == 0 &&
+	    ((proc_realparent(child) == parent &&
+	    (child->p_zombieref & PZOMBIEREF_NEEDPARENT) != 0)
+	    || child->p_reaper == parent) &&
+	    (child->p_zombieref & PZOMBIEREF_PARENT) == 0)
+		child->p_zombieref |= PZOMBIEREF_PARENT;
 }
 
 static void
