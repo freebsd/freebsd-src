@@ -851,6 +851,26 @@ and
 .Xr sigreturn 2
 .Pc .
 .El
+.It Dv PT_SET_SC_RET
+Set the current system call return values.
+This request is only valid for threads stopped in a syscall
+entry (the
+.Dv PL_FLAG_SCE
+state).
+The
+.Fa addr
+argument specifies a pointer to a
+.Vt "struct ptrace_sc_ret" ,
+the
+.Fa data
+argument is set to the size of the structure.
+.Pp
+The current system call handler is not executed.
+After the thread is resumed, it returns to userspace with machine state
+set as though the system call handler had returned the values passed via
+the content of the
+.Vt "struct ptrace_sc_ret"
+argument.
 .It Dv PT_FOLLOW_FORK
 This request controls tracing for new child processes of a traced process.
 If
