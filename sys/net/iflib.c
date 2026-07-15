@@ -450,7 +450,6 @@ get_inuse(int size, qidx_t cidx, qidx_t pidx, uint8_t gen)
 struct iflib_rxq {
 	if_ctx_t	ifr_ctx;
 	iflib_fl_t	ifr_fl;
-	uint64_t	ifr_rx_irq;
 	struct pfil_head	*pfil;
 	/*
 	 * If there is a separate completion queue (IFLIB_HAS_RXCQ), this is
