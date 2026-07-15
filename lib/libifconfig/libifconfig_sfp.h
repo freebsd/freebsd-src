@@ -85,10 +85,11 @@ struct ifconfig_sfp_status {
 
 #define CMIS_DUMP_SIZE		512	/**< CMIS dump buffer size */
 #define CMIS_DUMP_P11		256	/**< offset of Page 11h in dump buffer */
+#define CMIS_DUMP_P10		384	/**< offset of Page 10h in dump buffer */
 
 /** SFP module I2C memory dump
  * SFP modules have one region, QSFP modules have two.
- * CMIS modules have three: lower memory, Page 00h, and Page 11h.
+ * CMIS modules have four: lower memory, Page 00h, Page 11h, and Page 10h.
  */
 struct ifconfig_sfp_dump {
 	uint8_t data[CMIS_DUMP_SIZE];	/**< memory dump data */
