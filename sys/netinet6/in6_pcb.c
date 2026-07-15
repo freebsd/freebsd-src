@@ -207,7 +207,7 @@ in6_pcbbind_avail(struct inpcb *inp, const struct sockaddr_in6 *sin6, int fib,
 		sin6.sin6_addr = *laddr;
 
 		NET_EPOCH_ENTER(et);
-		if ((ifa = ifa_ifwithaddr((const struct sockaddr *)&sin6)) ==
+		if ((ifa = ifa_ifwithaddr_fib((const struct sockaddr *)&sin6, fib)) ==
 		    NULL && (inp->inp_flags & INP_BINDANY) == 0) {
 			NET_EPOCH_EXIT(et);
 			return (EADDRNOTAVAIL);
