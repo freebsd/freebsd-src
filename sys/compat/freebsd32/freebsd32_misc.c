@@ -1005,6 +1005,16 @@ ptrace_sc_ret_to32(const struct ptrace_sc_ret *psr,
 	psr32->sr_error = psr->sr_error;
 }
 
+static void
+ptrace_sc_ret32_to_ret(const struct ptrace_sc_ret32 *psr32,
+    struct ptrace_sc_ret *psr)
+{
+	bzero(psr, sizeof(*psr));
+	psr->sr_retval[0] = psr32->sr_retval[0];
+	psr->sr_retval[1] = psr32->sr_retval[1];
+	psr->sr_error = psr32->sr_error;
+}
+
 int
 freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 {
@@ -1050,6 +1060,15 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 	case PT_GET_EVENT_MASK:
 	case PT_GET_SC_ARGS:
 	case PT_GET_SC_RET:
+		break;
+	case PT_SET_SC_RET:
+		if (uap->data != sizeof(r32.psr)) {
+			error = EINVAL;
+		} else {
+			error = copyin(uap->addr, &r32.psr, sizeof(r32.psr));
+			if (error == 0)
+				ptrace_sc_ret32_to_ret(&r32.psr, &r.psr);
+		}
 		break;
 	case PT_LWPINFO:
 		if (uap->data > sizeof(r32.pl))

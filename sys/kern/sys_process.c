@@ -719,6 +719,12 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_GET_SC_ARGS:
 	case PT_GET_SC_RET:
 		break;
+	case PT_SET_SC_RET:
+		if (uap->data != sizeof(r.psr))
+			error = EINVAL;
+		else
+			error = copyin(uap->addr, &r.psr, sizeof(r.psr));
+		break;
 	case PT_GETREGS:
 		bzero(&r.reg, sizeof(r.reg));
 		break;
@@ -1305,6 +1311,24 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		    "PT_GET_SC_RET: pid %d error %d retval %#lx,%#lx",
 		    p->p_pid, psr->sr_error, psr->sr_retval[0],
 		    psr->sr_retval[1]);
+		break;
+
+	case PT_SET_SC_RET:
+		if ((td2->td_dbgflags & TDB_SCE) == 0
+#ifdef COMPAT_FREEBSD32
+		    || (wrap32 && !safe)
+#endif
+		    ) {
+			error = EINVAL;
+			break;
+		}
+		psr = addr;
+		td2->td_errno = psr->sr_error;
+		if (td2->td_errno == 0) {
+			td2->td_retval[0] = psr->sr_retval[0];
+			td2->td_retval[1] = psr->sr_retval[1];
+		}
+		td2->td_dbgflags |= TDB_SET_SC_RET;
 		break;
 
 	case PT_STEP:

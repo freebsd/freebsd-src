@@ -531,6 +531,7 @@ enum {
 #define	TDB_BOUNDARY	0x00008000 /* ptracestop() at boundary */
 #define	TDB_COREDUMPREQ	0x00010000 /* Coredump request */
 #define	TDB_SCREMOTEREQ	0x00020000 /* Remote syscall request */
+#define	TDB_SET_SC_RET	0x00040000 /* PT_SET_SC_RET applied */
 
 /*
  * "Private" flags kept in td_pflags:
