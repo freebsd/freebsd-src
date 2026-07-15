@@ -1358,6 +1358,46 @@ uaudio_max_buffer_size(struct uaudio_chan *ch, uint8_t alt)
 	return (buf_size);
 }
 
+static bool
+uaudio20_clock_is_shared(struct uaudio_softc *sc, unsigned int x)
+{
+	/*
+	 * A clock entity that feeds both an OUTPUT (playback) and an
+	 * INPUT (capture) terminal shows up in both bitmaps: it is a
+	 * sample clock shared between the two directions.
+	 */
+	return ((sc->sc_mixer_clocks.bit_output[x / 8] & (1 << (x % 8))) != 0 &&
+	    (sc->sc_mixer_clocks.bit_input[x / 8] & (1 << (x % 8))) != 0);
+}
+
+static uint32_t
+uaudio_dir_running_rate(struct uaudio_chan *chans)
+{
+	unsigned int i;
+
+	for (i = 0; i != UAUDIO_MAX_CHILD; i++) {
+		struct uaudio_chan *ch = &chans[i];
+
+		if (ch->running != 0 && ch->cur_alt < ch->num_alt)
+			return (ch->usb_alt[ch->cur_alt].sample_rate);
+	}
+	return (0);		/* nothing streaming in this direction */
+}
+
+static bool
+uaudio_chan_match_rate(struct uaudio_chan *ch, uint32_t rate, uint8_t *p_alt)
+{
+	uint8_t x;
+
+	for (x = 0; x != ch->num_alt; x++) {
+		if (ch->usb_alt[x].sample_rate == rate) {
+			*p_alt = x;
+			return (true);
+		}
+	}
+	return (false);
+}
+
 static void
 uaudio_configure_msg_sub(struct uaudio_softc *sc,
     struct uaudio_chan *chan, int dir)
@@ -1451,6 +1491,35 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 			} else {
 				if (!(sc->sc_mixer_clocks.bit_input[x / 8] &
 				    (1 << (x % 8)))) {
+					continue;
+				}
+			}
+
+			/*
+			 * Shared-clock guard.  If this clock entity is
+			 * shared between the playback and capture paths,
+			 * and the OTHER direction is already streaming at
+			 * a different rate, do not reprogram the clock --
+			 * the rate that is already locked wins.  This
+			 * stops an idle or secondary stream from yanking
+			 * the shared clock out from under an active
+			 * stream and dropping USB stream lock.  The first
+			 * active stream owns the clock; a later one
+			 * follows it (see uaudio_chan_start(), which
+			 * re-aligns the jitter-info record stream to the
+			 * playback rate before it is started).
+			 */
+			if (uaudio20_clock_is_shared(sc, x)) {
+				uint32_t other = (dir == PCMDIR_PLAY) ?
+				    uaudio_dir_running_rate(sc->sc_rec_chan) :
+				    uaudio_dir_running_rate(sc->sc_play_chan);
+
+				if (other != 0 &&
+				    other != chan_alt->sample_rate) {
+					DPRINTF("shared clock ID=%u busy at "
+					    "%u Hz; not reprogramming to "
+					    "%u Hz\n", x, other,
+					    chan_alt->sample_rate);
 					continue;
 				}
 			}
@@ -2334,13 +2403,10 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	case USB_ST_SETUP:
 		/*
-		 * Check if the recording stream can be used as a
-		 * source of jitter information to save some
-		 * isochronous bandwidth:
+		 * Submit the transfer even when the recording stream
+		 * provides the jitter information, so that the feedback
+		 * rate keeps being sampled for diagnostic purposes.
 		 */
-		if (ch->priv_sc->sc_rec_chan[i].num_alt != 0 &&
-		    uaudio_debug == 0)
-			break;
 		usbd_xfer_set_frames(xfer, 1);
 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_framelen(xfer));
 		usbd_transfer_submit(xfer);
@@ -2884,12 +2950,33 @@ uaudio_chan_start(struct uaudio_chan *ch)
 		if (uaudio_chan_need_both(
 		    &sc->sc_play_chan[i],
 		    &sc->sc_rec_chan[i])) {
+			struct uaudio_chan *ch_play = &sc->sc_play_chan[i];
+			struct uaudio_chan *ch_rec = &sc->sc_rec_chan[i];
+			uint8_t rec_alt;
+
+			/*
+			 * The recording channel is only being started as a
+			 * source of jitter information for the playback
+			 * stream.  Align its nominal rate with the
+			 * playback rate so that (a) it does not reprogram
+			 * a sample clock shared with the playback path to
+			 * a conflicting rate, and (b) its expected frame
+			 * sizes match what the device actually produces,
+			 * keeping the derived jitter information valid.
+			 * The USB explore lock is held here, which also
+			 * serializes against uaudio_chan_set_param_speed().
+			 */
+			if (uaudio_chan_match_rate(ch_rec,
+			    ch_play->usb_alt[ch_play->set_alt].sample_rate,
+			    &rec_alt))
+				ch_rec->set_alt = rec_alt;
+
 			/*
 			 * Start both endpoints because of need for
 			 * jitter information:
 			 */
-			uaudio_chan_reconfigure(&sc->sc_rec_chan[i], CHAN_OP_START);
-			uaudio_chan_reconfigure(&sc->sc_play_chan[i], CHAN_OP_START);
+			uaudio_chan_reconfigure(ch_rec, CHAN_OP_START);
+			uaudio_chan_reconfigure(ch_play, CHAN_OP_START);
 		} else {
 			uaudio_chan_reconfigure(ch, CHAN_OP_START);
 		}
