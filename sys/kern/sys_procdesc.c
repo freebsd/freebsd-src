@@ -278,7 +278,7 @@ procdesc_free(struct procdesc *pd)
  * We use the proctree_lock to ensure that process exit either happens
  * strictly before or strictly after a concurrent call to procdesc_close().
  */
-int
+bool
 procdesc_exit(struct proc *p)
 {
 	struct procdesc *pd;
@@ -308,7 +308,7 @@ procdesc_exit(struct proc *p)
 		pd->pd_proc = NULL;
 		p->p_procdesc = NULL;
 		procdesc_free(pd);
-		return (1);
+		return (true);
 	}
 	selwakeup(&pd->pd_selinfo);
 	KNOTE_LOCKED(&pd->pd_selinfo.si_note, NOTE_EXIT | NOTE_PDSIGCHLD);
@@ -316,7 +316,7 @@ procdesc_exit(struct proc *p)
 
 	/* Wakeup all waiters for this procdesc' process exit. */
 	wakeup(&p->p_procdesc);
-	return (0);
+	return (false);
 }
 
 void

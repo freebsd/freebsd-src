@@ -1183,7 +1183,7 @@ wait_fill_wrusage(struct proc *p, struct __wrusage *wrusage)
 static int
 proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
     int *status, int options, struct __wrusage *wrusage, siginfo_t *siginfo,
-    int check_only)
+    bool check_only)
 {
 	sx_assert(&proctree_lock, SA_XLOCKED);
 
@@ -1472,7 +1472,7 @@ loop_locked:
 	LIST_FOREACH(p, &q->p_children, p_sibling) {
 		pid = p->p_pid;
 		ret = proc_to_reap(td, p, idtype, id, status, options,
-		    wrusage, siginfo, 0);
+		    wrusage, siginfo, false);
 		if (ret == 0)
 			continue;
 		else if (ret != 1) {
@@ -1518,7 +1518,7 @@ loop_locked:
 	if (nfound == 0) {
 		LIST_FOREACH(p, &q->p_orphans, p_orphan) {
 			ret = proc_to_reap(td, p, idtype, id, NULL, options,
-			    NULL, NULL, 1);
+			    NULL, NULL, true);
 			if (ret != 0) {
 				KASSERT(ret != -1, ("reaped an orphan (pid %d)",
 				    (int)td->td_retval[0]));
