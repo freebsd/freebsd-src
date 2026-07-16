@@ -14,6 +14,7 @@
 .Op Fl o Ar version
 .Op Fl p Ar samples
 .Op Fl t Ar timeout
+.Op Fl m Ar maxoffset
 .Ar server ...
 .Sh DESCRIPTION
 .Em Note :
@@ -151,6 +152,13 @@ The value is
 rounded to a multiple of 0.2 seconds.
 The default is 1 second, a
 value suitable for polling across a LAN.
+.It Fl m Ar maxoffset
+Specify the maximum acceptable offset as the value
+.Ar maxoffset ,
+in seconds and fraction.
+The clock will not be adjusted if the absolute time offset
+reported by the server exceeds
+.Ar maxoffset .
 .It Fl u
 Direct
 .Nm

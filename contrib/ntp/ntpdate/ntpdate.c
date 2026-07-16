@@ -161,6 +161,7 @@ int sys_numservers = 0; 	/* number of servers to poll */
 int sys_authenticate = 0;	/* true when authenticating */
 u_int32 sys_authkey = 0;	/* set to authentication key in use */
 u_long sys_authdelay = 0;	/* authentication delay */
+l_fp sys_maxoffset;      	/* maximum offset (zero is disabled) */
 int sys_version = NTP_VERSION;	/* version to poll with */
 
 /*
@@ -350,7 +351,7 @@ ntpdatemain (
 	/*
 	 * Decode argument list
 	 */
-	while ((c = ntp_getopt(argc, argv, "46a:bBde:k:o:p:qst:uv")) != EOF)
+	while ((c = ntp_getopt(argc, argv, "46a:bBde:k:o:p:qst:m:uv")) != EOF)
 		switch (c)
 		{
 		case '4':
@@ -419,6 +420,16 @@ ntpdatemain (
 				sys_timeout = ((LFPTOFP(&tmp) * TIMER_HZ)
 					   + 0x8000) >> 16;
 				sys_timeout = max(sys_timeout, MINTIMEOUT);
+			}
+			break;
+		case 'm':
+			if (!atolfp(ntp_optarg, &tmp)) {
+				(void) fprintf(stderr,
+					   "%s: maxoffset %s is undecodeable\n",
+					   progname, ntp_optarg);
+				errflg++;
+			} else {
+				sys_maxoffset = tmp;
 			}
 			break;
 		case 'v':
@@ -1262,6 +1273,7 @@ clock_adjust(void)
 {
 	register struct server *sp, *server;
 	int dostep;
+	l_fp offset;
 
 	for (sp = sys_servers; sp != NULL; sp = sp->next_server)
 		clock_filter(sp);
@@ -1294,6 +1306,22 @@ clock_adjust(void)
 		else
 			absoffset = (u_fp)server->soffset;
 		dostep = (absoffset >= NTPDATE_THRESHOLD);
+	}
+
+	offset = server->offset;
+	if (L_ISNEG(&offset)) {
+		L_NEG(&offset);
+	}
+	if (L_ISNEG(&sys_maxoffset)) {
+		L_NEG(&sys_maxoffset);
+	}
+	if (!L_ISZERO(&sys_maxoffset) && L_ISGT(&offset, &sys_maxoffset)) {
+		char offsetbuf[24], maxoffsetbuf[24];
+		strlcpy(offsetbuf, lfptoa(&server->offset, 6), sizeof(offsetbuf));
+		strlcpy(maxoffsetbuf, lfptoa(&sys_maxoffset, 6), sizeof(maxoffsetbuf));
+		msyslog(LOG_ERR, "absolute offset %s exceeded: offset %s sec",
+				maxoffsetbuf, offsetbuf);
+		exit(1);
 	}
 
 	if (dostep) {
