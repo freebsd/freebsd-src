@@ -14,6 +14,36 @@ rcvar="ntpdate_enable"
 stop_cmd=":"
 start_cmd="ntpdate_start"
 
+ntpdate_maxoffset()
+{
+	last -x -n2 reboot | \
+	    awk -v t_err=$ntpdate_reboot_error_dev \
+		-v t_max=$ntpdate_reboot_offset_max \
+		-v t_min=$ntpdate_reboot_offset_min '
+		BEGIN {
+			t_boot = 0
+			t_shutdown = 0
+		}
+		/boot time/     { t_boot = $3 }
+		/shutdown time/ { t_shutdown = $3 }
+		END {
+			if (t_boot > 0 && t_shutdown > 0 && t_boot > t_shutdown) {
+			       t_offset = t_err * (t_boot - t_shutdown)
+			       if (t_offset == 0) {
+				       print 0
+			       } else if (t_offset > t_max) {
+				       print t_max
+			       } else if (t_offset > t_min) {
+				       print t_offset
+			       } else {
+				       print t_min
+			       }
+			} else {
+				print 0
+			}
+		}'
+}
+
 ntpdate_start()
 {
 	if [ -z "$ntpdate_hosts" -a -f "$ntpdate_config" ]; then
@@ -26,11 +56,27 @@ ntpdate_start()
 	fi
 	if [ -n "$ntpdate_hosts" -o -n "$rc_flags" ]; then
 		echo "Setting date via ntp."
+		if checkyesno ntpdate_reboot_error_check; then
+			maxoffset=$(ntpdate_maxoffset)
+			if [ "$(echo "$maxoffset > 0" | bc -l)" -eq 1 ]; then
+				rc_flags="$rc_flags -m $maxoffset"
+				echo "maximum absolute offset: $maxoffset secs"
+			fi
+		fi
 		${ntpdate_program:-ntpdate} $rc_flags $ntpdate_hosts
 	fi
 }
 
 load_rc_config $name
+
+# enable temporal consistency check
+: ${ntpdate_reboot_error_check:=NO}
+# 0.01% deviation or ~8.64 seconds per day
+: ${ntpdate_reboot_error_dev:=0.0001}
+# 10 mins maximum absolute time offset
+: ${ntpdate_reboot_offset_max:=600}
+# 10 msec minimum absolute time offset
+: ${ntpdate_reboot_offset_min:=0.01}
 
 # doesn't make sense to run in a svcj: privileged operations
 ntpdate_svcj="NO"
