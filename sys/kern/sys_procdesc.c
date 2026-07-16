@@ -716,7 +716,7 @@ fget_procdesc(struct thread *td, int pdfd, const cap_rights_t *cap_rights,
 		return (error);
 	*pfp = fp;
 	if (fp->f_type != DTYPE_PROCDESC)
-		return (EBADF);
+		return (EINVAL);
 	pd = fp->f_data;
 	if (pp != NULL) {
 		p = pd->pd_proc;
