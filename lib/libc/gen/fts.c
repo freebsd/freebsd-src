@@ -169,7 +169,7 @@ __fts_open(FTS *sp, char * const *argv, int rootfd)
 		p->fts_accpath = p->fts_name;
 		p->fts_info = fts_stat(sp, p,
 		    ISSET(FTS_COMFOLLOWDIR) ? -1 : ISSET(FTS_COMFOLLOW),
-		    -1);
+		    p->fts_dirfd);
 
 		/* Command-line "." and ".." are real directories. */
 		if (p->fts_info == FTS_DOT)
@@ -429,7 +429,7 @@ fts_read(FTS *sp)
 
 	/* Any type of file may be re-visited; re-stat and re-turn. */
 	if (instr == FTS_AGAIN) {
-		p->fts_info = fts_stat(sp, p, 0, -1);
+		p->fts_info = fts_stat(sp, p, 0, p->fts_dirfd);
 		return (p);
 	}
 
@@ -441,7 +441,7 @@ fts_read(FTS *sp)
 	 */
 	if (instr == FTS_FOLLOW &&
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE)) {
-		p->fts_info = fts_stat(sp, p, 1, -1);
+		p->fts_info = fts_stat(sp, p, 1, p->fts_dirfd);
 		if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
 			if ((p->fts_symfd = p->fts_dirfd >= 0 ?
 			    _dup(p->fts_dirfd) :
@@ -535,7 +535,7 @@ next:	tmp = p;
 			goto next;
 		}
 		if (p->fts_instr == FTS_FOLLOW) {
-			p->fts_info = fts_stat(sp, p, 1, -1);
+			p->fts_info = fts_stat(sp, p, 1, p->fts_dirfd);
 			if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
 				if ((p->fts_symfd =
 				    p->fts_dirfd >= 0 ?
@@ -776,7 +776,17 @@ fts_build(FTS *sp, int type)
 		oflag = DTF_NODUP;
 	else
 		oflag = DTF_HIDEW | DTF_NODUP;
-	if ((dirp = __opendir2(cur->fts_accpath, oflag)) == NULL) {
+	if (cur->fts_dirfd >= 0) {
+		int _fd;
+		_fd = _openat(cur->fts_dirfd, cur->fts_name,
+		    O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		dirp = (_fd >= 0) ? fdopendir(_fd) : NULL;
+		if (_fd >= 0 && dirp == NULL)
+			_close(_fd);
+	} else {
+		dirp = __opendir2(cur->fts_accpath, oflag);
+	}
+	if (dirp == NULL) {
 		if (type == BREAD) {
 			cur->fts_info = FTS_DNR;
 			cur->fts_errno = errno;
@@ -946,7 +956,7 @@ mem1:				saved_errno = errno;
 				p->fts_info = fts_stat(sp, p, 0, _dirfd(dirp));
 			} else {
 				p->fts_accpath = p->fts_name;
-				p->fts_info = fts_stat(sp, p, 0, -1);
+				p->fts_info = fts_stat(sp, p, 0, _dirfd(dirp));
 			}
 
 			/* Decrement link count if applicable. */
