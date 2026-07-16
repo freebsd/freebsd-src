@@ -824,6 +824,15 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 		sx_xunlock(&proctree_lock);
 	}
 
+	/*
+	 * Activate procdesc NOTE_FORK after we attached the debugger
+	 * to the child.  This guarantees that a debugger which does
+	 * kevent() on the process descriptor to get notifications of
+	 * fork events, can properly observe the child right after the
+	 * notification fired.
+	 */
+	procdesc_fork(p1, p2->p_pid);
+
 	racct_proc_fork_done(p2);
 
 	if ((fr->fr_flags & RFSTOPPED) == 0) {

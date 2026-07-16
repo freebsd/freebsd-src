@@ -64,6 +64,7 @@ struct procdesc {
 	 */
 	struct proc	*pd_proc;		/* (t) Process. */
 	pid_t		 pd_pid;		/* (c) Cached pid. */
+	pid_t		 pd_last_child;		/* (p) Pid of the last child. */
 	u_int		 pd_refcount;		/* (r) Reference count. */
 	u_int		 pd_fpcount;		/* (p|t) files referencing me */
 
@@ -102,6 +103,7 @@ struct procdesc {
  * In-kernel interfaces to process descriptors.
  */
 bool	 procdesc_exit(struct proc *);
+void	 procdesc_fork(struct proc *p, pid_t child_pid);
 void	 procdesc_jobstate(struct proc *p);
 int	 kern_pdgetpid(struct thread *, int fd, const cap_rights_t *,
 	    pid_t *pidp);

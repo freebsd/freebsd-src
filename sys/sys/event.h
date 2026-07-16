@@ -202,9 +202,11 @@ struct freebsd11_kevent32 {
 /*
  * data/hint flags for EVFILT_PROC and EVFILT_PROCDESC, shared with userspace
  */
-#define	NOTE_EXIT	0x80000000		/* process exited */
-#define	NOTE_FORK	0x40000000		/* process forked */
-#define	NOTE_EXEC	0x20000000		/* process exec'd */
+#define	NOTE_EXIT	0x80000000		/* proc/procdesc: process
+						   exited */
+#define	NOTE_FORK	0x40000000		/* proc/procdesc: process
+						   forked */
+#define	NOTE_EXEC	0x20000000		/* proc: process exec'd */
 #define	NOTE_PDSIGCHLD	0x10000000		/* procdesc: pdwait() info
 						   available */
 #define	NOTE_SIGNAL	0x08000000		/* process received a signal,
