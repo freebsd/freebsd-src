@@ -54,6 +54,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_phys.h>
 #include <vm/vm_radix.h>
 
 /* The EFI regions we're allowed to map. */
@@ -253,6 +254,8 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 				    "attributes unsupported\n", i);
 			mode = VM_MEMATTR_UNCACHEABLE;
 		}
+		(void)vm_phys_fictitious_reg_range(p->md_phys, p->md_phys +
+		    p->md_pages * EFI_PAGE_SIZE, mode);
 		bits = pmap_cache_bits(kernel_pmap, mode, false) | X86_PG_RW |
 		    X86_PG_V;
 		VM_OBJECT_WLOCK(obj_1t1_pt);
