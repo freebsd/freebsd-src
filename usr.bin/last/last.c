@@ -81,6 +81,7 @@ static long	maxrec;				/* records to display */
 static const	char *file = NULL;		/* utx.log file */
 static int	sflag = 0;			/* show delta in seconds */
 static int	width = 5;			/* show seconds in delta */
+static int	xflag;				/* show date in seconds */
 static int	yflag;				/* show year */
 static int      d_first;
 static int	snapfound = 0;			/* found snapshot entry? */
@@ -123,7 +124,7 @@ main(int argc, char *argv[])
 
 	maxrec = -1;
 	snaptime = 0;
-	while ((ch = getopt(argc, argv, "0123456789d:f:h:n:st:wy")) != -1)
+	while ((ch = getopt(argc, argv, "0123456789d:f:h:n:st:wxy")) != -1)
 		switch (ch) {
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':
@@ -168,6 +169,9 @@ main(int argc, char *argv[])
 			break;
 		case 'w':
 			width = 8;
+			break;
+		case 'x':
+			xflag++;	/* Show date as seconds */
 			break;
 		case 'y':
 			yflag++;
@@ -354,7 +358,7 @@ printentry(struct utmpx *bp, struct idtab *tt)
 	xo_open_instance("last");
 	t = bp->ut_tv.tv_sec;
 	tm = localtime(&t);
-	(void) strftime(ct, sizeof(ct), d_first ?
+	(void) strftime(ct, sizeof(ct), xflag ? "%s" :  d_first ?
 	    (yflag ? "%a %e %b %Y %R" : "%a %e %b %R") :
 	    (yflag ? "%a %b %e %Y %R" : "%a %b %e %R"), tm);
 	switch (bp->ut_type) {
