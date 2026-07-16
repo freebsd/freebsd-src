@@ -167,6 +167,8 @@ __fts_open(FTS *sp, char * const *argv, int rootfd)
 		p->fts_level = FTS_ROOTLEVEL;
 		p->fts_parent = parent;
 		p->fts_accpath = p->fts_name;
+		if (rootfd != AT_FDCWD)
+                        p->fts_dirfd = _dup(rootfd);
 		p->fts_info = fts_stat(sp, p,
 		    ISSET(FTS_COMFOLLOWDIR) ? -1 : ISSET(FTS_COMFOLLOW),
 		    -1);
