@@ -6844,7 +6844,7 @@ linuxkpi_ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, uint8_t tid,
 	    !sta->deflink.eht_cap.has_eht) {
 		net80211_vap_printf(lsta->ni->ni_vap, "%s: HT or later not "
 		    "supported\n", __func__);
-		return (-ENOTSUPP);
+		return (-EINVAL);
 	}
 
 #ifdef __notyet__
