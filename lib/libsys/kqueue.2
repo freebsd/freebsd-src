@@ -598,6 +598,41 @@ The events to monitor are:
 The process has exited.
 The exit status will be stored in
 .Va data .
+.It Dv NOTE_FORK
+The process has forked.
+The process identifier
+.Pq PID
+of the most recently forked child is returned in the
+.Va data
+field.
+.Pp
+The identifier is advisory;
+if several children were spawned before the event is returned,
+only one of the PIDs is returned.
+Other mechanisms provide reliable reporting of fork events.
+For instance, debugging the process with a subscription for relevant
+events would serialize forks.
+See
+.Xr ptrace 2
+and the description of the
+.Dv PT_FOLLOW_FORK
+request.
+.Pp
+Unlike the
+.Dv EVFILT_PROC
+filter,
+the
+.Dv NOTE_TRACK
+pseudo-event is not supported.
+.Pp
+If both
+.Dv NOTE_EXIT
+and
+.Dv NOTE_FORK
+events are reported, then the
+.Va data
+field contains the exit status of the process,
+and the last child's PID is not returned.
 .It Dv NOTE_PDSIGCHLD
 Activates on events that are reported through
 .Xr pdwait 2
