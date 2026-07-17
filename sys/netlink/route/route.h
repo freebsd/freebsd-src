@@ -145,12 +145,12 @@ enum rt_scope_t {
 enum rtattr_type_t {
 	NL_RTA_UNSPEC,
 	NL_RTA_DST		= 1, /* binary, IPv4/IPv6 destination */
-	NL_RTA_SRC		= 2, /* binary, preferred source address */
+	NL_RTA_SRC		= 2, /* not supported */
 	NL_RTA_IIF		= 3, /* not supported */
 	NL_RTA_OIF		= 4, /* u32, transmit ifindex */
 	NL_RTA_GATEWAY		= 5, /* binary: IPv4/IPv6 gateway */
 	NL_RTA_PRIORITY		= 6, /* u32, path metric */
-	NL_RTA_PREFSRC		= 7, /* not supported */
+	NL_RTA_PREFSRC		= 7, /* binary, preferred source address */
 	NL_RTA_METRICS		= 8, /* nested, list of NL_RTAX* attrs */
 	NL_RTA_MULTIPATH	= 9, /* binary, array of struct rtnexthop */
 	NL_RTA_PROTOINFO	= 10, /* not supported / deprecated */
@@ -200,6 +200,7 @@ enum rtattr_type_t {
 #define RTA_GATEWAY		NL_RTA_GATEWAY
 #define RTA_PRIORITY		NL_RTA_PRIORITY
 #define RTA_PREFSRC		NL_RTA_PREFSRC
+#define RTA_IFA			NL_RTA_PREFSRC
 #define RTA_METRICS		NL_RTA_METRICS
 #define RTA_MULTIPATH		NL_RTA_MULTIPATH
 #define	RTA_PROTOINFO		NL_RTA_PROTOINFO

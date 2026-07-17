@@ -120,8 +120,8 @@ nhops_init(void)
 
 /*
  * Fetches the interface of source address used by the route.
- * In all cases except interface-address-route it would be the
- * same as the transmit interfaces.
+ * In all cases except interface-address-route and prefsrc it
+ * would be the same as the transmit interfaces.
  * However, for the interface address this function will return
  * this interface ifp instead of loopback. This is needed to support
  * link-local IPv6 loopback communications.
@@ -147,7 +147,8 @@ get_aifp(const struct nhop_object *nh)
 			FIB_NH_LOG(LOG_WARNING, nh, "unable to get aifp for %s index %d",
 				if_name(nh->nh_ifp), nh->gwl_sa.sdl_index);
 		}
-	}
+	} else if ((nh->nh_flags & NHF_PREFSRC) != 0)
+		aifp = nh->nh_ifa->ifa_ifp;
 
 	if (aifp == NULL)
 		aifp = nh->nh_ifp;

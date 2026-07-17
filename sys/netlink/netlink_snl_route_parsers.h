@@ -113,6 +113,7 @@ nlattr_get_multipath(struct snl_state *ss, struct nlattr *nla,
 struct snl_parsed_route {
 	struct sockaddr		*rta_dst;
 	struct sockaddr		*rta_gw;
+	struct sockaddr		*rta_pref_src;
 	struct nlattr		*rta_metrics;
 	struct rta_mpath	rta_multipath;
 	uint32_t		rta_oif;
@@ -142,6 +143,7 @@ static const struct snl_attr_parser _nla_p_route[] = {
 	{ .type = NL_RTA_OIF, .off = _OUT(rta_oif), .cb = snl_attr_get_uint32 },
 	{ .type = NL_RTA_GATEWAY, .off = _OUT(rta_gw), .cb = snl_attr_get_ip },
 	{ .type = NL_RTA_PRIORITY, .off = _OUT(rta_metric), .cb = snl_attr_get_uint32 },
+	{ .type = NL_RTA_PREFSRC, .off = _OUT(rta_pref_src), .cb = snl_attr_get_ip },
 	{ .type = NL_RTA_METRICS, .arg = &_metrics_parser, .cb = snl_attr_get_nested },
 	{ .type = NL_RTA_MULTIPATH, .off = _OUT(rta_multipath), .cb = nlattr_get_multipath },
 	{ .type = NL_RTA_KNH_ID, .off = _OUT(rta_knh_id), .cb = snl_attr_get_uint32 },

@@ -159,6 +159,34 @@ dump_rc_nhop_gw(struct nl_writer *nw, const struct nhop_object *nh)
 }
 
 static void
+dump_rc_nhop_prefsrc(struct nl_writer *nw, const struct nhop_object *nh)
+{
+	const struct ifaddr *ifa = nh->nh_ifa;
+#ifdef INET6
+	struct in6_addr in6;
+#endif
+
+	if ((nh->nh_flags & NHF_PREFSRC) == 0)
+		return;
+
+	switch (ifa->ifa_addr->sa_family) {
+#ifdef INET
+	case AF_INET:
+		nlattr_add(nw, NL_RTA_PREFSRC, 4,
+		    &((struct sockaddr_in *)((ifa)->ifa_addr))->sin_addr);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		in6 = ((struct sockaddr_in6 *)((ifa)->ifa_addr))->sin6_addr;
+		in6_clearscope(&in6);
+		nlattr_add(nw, NL_RTA_PREFSRC, 16, &in6);
+		break;
+#endif
+	}
+}
+
+static void
 dump_rc_nhop_mtu(struct nl_writer *nw, const struct nhop_object *nh)
 {
 	int nla_len = sizeof(struct nlattr) * 2 + sizeof(uint32_t);
@@ -193,6 +221,7 @@ dump_rc_nhg(struct nl_writer *nw, const struct route_nhop_data *rnd, struct rtms
 	if (nh->nh_flags & NHF_GATEWAY)
 		dump_rc_nhop_gw(nw, nh);
 
+	dump_rc_nhop_prefsrc(nw, nh);
 	wn = nhgrp_get_nhops(nhg, &num_nhops);
 	base_rtflags = nhop_get_rtflags(wn[0].nh);
 	uidx = nhgrp_get_uidx(nhg);
@@ -269,6 +298,7 @@ dump_rc_nhop(struct nl_writer *nw, const struct route_nhop_data *rnd, struct rtm
 	if (nh->nh_flags & NHF_GATEWAY)
 		dump_rc_nhop_gw(nw, nh);
 
+	dump_rc_nhop_prefsrc(nw, nh);
 	uidx = nhop_get_uidx(nh);
 	if (uidx != 0)
 		nlattr_add_u32(nw, NL_RTA_NH_ID, uidx);
@@ -518,6 +548,7 @@ nlattr_get_multipath(struct nlattr *nla, struct nl_pstate *npt,
 struct nl_parsed_route {
 	struct sockaddr		*rta_dst;
 	struct sockaddr		*rta_gw;
+	struct sockaddr		*rta_pref_src;
 	struct ifnet		*rta_oif;
 	struct rta_mpath	*rta_multipath;
 	uint32_t		rta_table;
@@ -547,6 +578,7 @@ static const struct nlattr_parser nla_p_rtmsg[] = {
 	{ .type = NL_RTA_OIF, .off = _OUT(rta_oif), .cb = nlattr_get_ifp },
 	{ .type = NL_RTA_GATEWAY, .off = _OUT(rta_gw), .cb = nlattr_get_ip },
 	{ .type = NL_RTA_PRIORITY, .off = _OUT(rta_metric), .cb = nlattr_get_uint32 },
+	{ .type = NL_RTA_PREFSRC, .off = _OUT(rta_pref_src), .cb = nlattr_get_ip },
 	{ .type = NL_RTA_METRICS, .arg = &metrics_parser, .cb = nlattr_get_nested },
 	{ .type = NL_RTA_MULTIPATH, .off = _OUT(rta_multipath), .cb = nlattr_get_multipath },
 	{ .type = NL_RTA_WEIGHT, .off = _OUT(rta_weight), .cb = nlattr_get_uint32 },
@@ -575,6 +607,7 @@ post_p_rtmsg(void *_attrs, struct nl_pstate *npt __unused)
 
 	set_scope6(attrs->rta_dst, attrs->rta_oif);
 	set_scope6(attrs->rta_gw, attrs->rta_oif);
+	set_scope6(attrs->rta_pref_src, attrs->rta_oif);
 	return (true);
 }
 NL_DECLARE_PARSER_EXT(rtm_parser, struct rtmsg, NULL, nlf_p_rtmsg, nla_p_rtmsg, post_p_rtmsg);
@@ -873,6 +906,13 @@ create_nexthop_one(struct nl_parsed_route *attrs, struct rta_mpath_nh *mpnh,
 	}
 	if (mpnh->ifp != NULL)
 		nhop_set_transmit_ifp(nh, mpnh->ifp);
+	if (attrs->rta_pref_src != NULL) {
+		error = nl_set_nexthop_prefsrc(nh, attrs->rta_pref_src);
+		if (error != 0) {
+			nhop_free(nh);
+			return (error);
+		}
+	}
 	nhop_set_pxtype_flag(nh, get_pxflag(attrs));
 	nhop_set_rtflags(nh, attrs->rta_rtflags);
 	nhop_set_metric(nh, attrs->rta_metric);
@@ -945,6 +985,13 @@ create_nexthop_from_attrs(struct nl_parsed_route *attrs,
 		}
 		if (attrs->rta_oif != NULL)
 			nhop_set_transmit_ifp(nh, attrs->rta_oif);
+		if (attrs->rta_pref_src != NULL) {
+			*perror = nl_set_nexthop_prefsrc(nh, attrs->rta_pref_src);
+			if (*perror != 0) {
+				nhop_free(nh);
+				return (NULL);
+			}
+		}
 		if (attrs->rtax_mtu != 0)
 			nhop_set_mtu(nh, attrs->rtax_mtu, true);
 		if (attrs->rta_expire > 0) {

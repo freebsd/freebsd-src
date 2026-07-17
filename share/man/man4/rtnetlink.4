@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 15, 2026
+.Dd July 28, 2026
 .Dt RTNETLINK 4
 .Os
 .Sh NAME
@@ -125,6 +125,9 @@ RTA_TABLE	fib number or RT_TABLE_UNSPEC to return all fibs
 (uint32_t) transmit interface index.
 .It Dv RTA_GATEWAY
 (binary) IPv4/IPv6 gateway address, depending on the
+.Va rtm_family .
+.It Dv RTA_PREFSRC
+(binary) IPv4/IPv6 preferred address, depending on the
 .Va rtm_family .
 .It Dv RTA_METRICS
 (nested) Container attribute, listing route properties.

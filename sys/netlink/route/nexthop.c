@@ -811,6 +811,28 @@ nl_set_nexthop_gw(struct nhop_object *nh, struct sockaddr *gw, if_t ifp,
 	return (0);
 }
 
+/*
+ * Sets nexthop @nh prefsrc specified by @src.
+ * Returns 0 on success or errno.
+ */
+int
+nl_set_nexthop_prefsrc(struct nhop_object *nh, struct sockaddr *src)
+{
+	struct ifaddr *ifa = NULL;
+	int fibnum = nhop_get_fibnum(nh);
+
+	MPASS(src != NULL);
+
+	ifa = ifa_ifwithaddr_fib(src, fibnum);
+	if (ifa == NULL)
+		return (EINVAL);
+
+	nhop_set_src(nh, ifa);
+	nh->nh_flags |= NHF_PREFSRC;
+
+	return (0);
+}
+
 static int
 newnhop(struct nl_parsed_nhop *attrs, struct user_nhop *unhop, struct nl_pstate *npt)
 {

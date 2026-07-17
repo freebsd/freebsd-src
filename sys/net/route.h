@@ -206,6 +206,7 @@ EVENTHANDLER_DECLARE(rtnumfibs_change, rtnumfibs_change_t);
 #define	NHF_GATEWAY		0x0200	/* RTF_GATEWAY */
 #define	NHF_HOST		0x0400	/* RTF_HOST */
 #define	NHF_INVALID		0x0800	/* Nexthop is unreachable */
+#define	NHF_PREFSRC		0x1000	/* Nexthop IFA is static */
 
 /* Nexthop request flags */
 #define	NHR_NONE		0x00	/* empty flags field */
