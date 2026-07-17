@@ -72,12 +72,13 @@ pgprot2cachemode(pgprot_t prot)
 		return (VM_MEMATTR_DEFAULT);
 }
 
-#define	page_to_virt(page)	linux_page_address(page)
 #define	virt_to_page(x)		PHYS_TO_VM_PAGE(vtophys(x))
 #define	page_to_pfn(pp)		atop(VM_PAGE_TO_PHYS(pp))
 #define	pfn_to_page(pfn)	PHYS_TO_VM_PAGE(ptoa(pfn))
-#define	nth_page(page,n)	pfn_to_page(page_to_pfn(page) + (n))
 #define	page_to_phys(page)	VM_PAGE_TO_PHYS(page)
+
+#define	page_to_virt(page)	linux_page_address(page)
+#define	nth_page(page,n)	pfn_to_page(page_to_pfn(page) + (n))
 
 #define	pgprot_noncached(prot)		\
 	(((prot) & VM_PROT_ALL) | cachemode2protval(VM_MEMATTR_UNCACHEABLE))
