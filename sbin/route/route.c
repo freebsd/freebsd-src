@@ -946,6 +946,7 @@ newroute(int argc, char **argv)
 					errx(EX_USAGE,
 					    "invalid fib number: %s", *argv);
 				break;
+			case K_PREFSRC:
 			case K_IFA:
 				if (!--argc)
 					usage(NULL);

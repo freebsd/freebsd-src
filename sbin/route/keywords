@@ -36,6 +36,7 @@ nostatic
 nostick
 osi
 prefixlen
+prefsrc
 proto1
 proto2
 proxy
