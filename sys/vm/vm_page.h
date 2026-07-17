@@ -772,6 +772,18 @@ vm_page_astate_load(vm_page_t m)
 }
 
 /*
+ *	Load a snapshot of a page's 32-bit atomic state, with acquire semantics.
+ */
+static inline vm_page_astate_t
+vm_page_astate_load_acq(vm_page_t m)
+{
+	vm_page_astate_t a;
+
+	a._bits = atomic_load_acq_32(&m->a._bits);
+	return (a);
+}
+
+/*
  *	Atomically compare and set a page's atomic state.
  */
 static inline bool
@@ -786,6 +798,26 @@ vm_page_astate_fcmpset(vm_page_t m, vm_page_astate_t *old, vm_page_astate_t new)
 	    ("%s: bits are unchanged", __func__));
 
 	return (atomic_fcmpset_32(&m->a._bits, &old->_bits, new._bits) != 0);
+}
+
+/*
+ *	Atomically compare and set a page's atomic state, with release
+ *	semantics.
+ */
+static inline bool
+vm_page_astate_fcmpset_rel(vm_page_t m, vm_page_astate_t *old,
+    vm_page_astate_t new)
+{
+
+	KASSERT(new.queue == PQ_INACTIVE || (new.flags & PGA_REQUEUE_HEAD) == 0,
+	    ("%s: invalid head requeue request for page %p", __func__, m));
+	KASSERT((new.flags & PGA_ENQUEUED) == 0 || new.queue != PQ_NONE,
+	    ("%s: setting PGA_ENQUEUED with PQ_NONE in page %p", __func__, m));
+	KASSERT(new._bits != old->_bits,
+	    ("%s: bits are unchanged", __func__));
+
+	return (atomic_fcmpset_rel_32(&m->a._bits, &old->_bits, new._bits) !=
+	    0);
 }
 
 /*

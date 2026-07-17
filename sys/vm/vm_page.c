@@ -3670,6 +3670,22 @@ vm_page_pqstate_fcmpset(vm_page_t m, vm_page_astate_t *old,
 	return (false);
 }
 
+static __always_inline bool
+vm_page_pqstate_fcmpset_rel(vm_page_t m, vm_page_astate_t *old,
+    vm_page_astate_t new)
+{
+	vm_page_astate_t tmp;
+
+	tmp = *old;
+	do {
+		if (__predict_true(vm_page_astate_fcmpset_rel(m, old, new)))
+			return (true);
+		counter_u64_add(pqstate_commit_retries, 1);
+	} while (old->_bits == tmp._bits);
+
+	return (false);
+}
+
 /*
  * Do the work of committing a queue state update that moves the page out of
  * its current queue.
@@ -3700,7 +3716,8 @@ _vm_page_pqstate_commit_dequeue(struct vm_pagequeue *pq, vm_page_t m,
 		next = TAILQ_NEXT(m, plinks.q);
 		TAILQ_REMOVE(&pq->pq_pl, m, plinks.q);
 		vm_pagequeue_cnt_dec(pq);
-		if (!vm_page_pqstate_fcmpset(m, old, new)) {
+		/* See vm_page_dequeue(). */
+		if (!vm_page_pqstate_fcmpset_rel(m, old, new)) {
 			if (next == NULL)
 				TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
 			else
@@ -4004,7 +4021,12 @@ vm_page_dequeue(vm_page_t m)
 {
 	vm_page_astate_t new, old;
 
-	old = vm_page_astate_load(m);
+	/*
+	 * Synchronize with _vm_page_pqstate_commit_dequeue(): make sure
+	 * that the page's queue linkage field updates are visible before
+	 * returning.
+	 */
+	old = vm_page_astate_load_acq(m);
 	do {
 		if (__predict_true(old.queue == PQ_NONE)) {
 			KASSERT((old.flags & PGA_QUEUE_STATE_MASK) == 0,
