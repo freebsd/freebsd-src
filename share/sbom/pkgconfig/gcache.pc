@@ -1,14 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: gcache
-Description: Control utility for CACHE GEOM class
-URL: https://man.freebsd.org/cgi/man.cgi?query=gcache(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/lib/geom/cache
-License: BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
 Copyright: 2006 Ruslan Ermilov <ru@FreeBSD.org>
+Description: Control utility for CACHE GEOM class
+License: BSD-2-Clause
+Name: gcache
 Requires: csu, libc, libcompiler_rt, libgeom
+Source: https://cgit.freebsd.org/src/tree/lib/geom/cache${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=gcache(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

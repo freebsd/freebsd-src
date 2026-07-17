@@ -1,13 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: recoverdisk
 Description: Recover data from disk-like devices.
-URL: https://man.freebsd.org/cgi/man.cgi?query=recoverdisk(1)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/sbin/recoverdisk
 License: Beerware
-License.file: ${pcfiledir}/LICENSES/Beerware.f43d6716.txt
+Name: recoverdisk
 Requires: csu, libc, libcompiler_rt, msun
+Source: https://cgit.freebsd.org/src/tree/sbin/recoverdisk${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=recoverdisk(1)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

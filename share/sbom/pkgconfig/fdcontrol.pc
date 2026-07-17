@@ -1,14 +1,12 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: fdcontrol
-Description: Display and modify floppy disk parameters
-URL: https://man.freebsd.org/cgi/man.cgi?query=fdcontrol(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.sbin/fdcontrol
-License: BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.0bb055ab.txt
 Copyright: 1994, 2001 by Joerg Wunsch, Dresden
+Description: Display and modify floppy disk parameters
+License: BSD-2-Clause
+Name: fdcontrol
 Requires: csu, libc, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/fdcontrol${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=fdcontrol(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

@@ -1,11 +1,10 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: libmt
 Description: Library missing description
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/lib/libmt
 License: BSD-2-Clause
+Name: libmt
 Requires: csu, libc, libcompiler_rt, libexpat, libsbuf
+Source: https://cgit.freebsd.org/src/tree/lib/libmt${FREEBSD_GIT_QUERY}
+Version: ${FREEBSD_RELEASE}

@@ -1,14 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: pax
-Description: Read and write file archives and copy directory hierarchies
-URL: https://man.freebsd.org/cgi/man.cgi?query=pax(1)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/bin/pax
-License: BSD-3-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.700bbbea.txt
 Copyright: 1992 Keith Muller, 1992, 1993 The Regents of the University of California
+Description: Read and write file archives and copy directory hierarchies
+License: BSD-3-Clause
+Name: pax
 Requires: csu, libc, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/bin/pax${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=pax(1)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

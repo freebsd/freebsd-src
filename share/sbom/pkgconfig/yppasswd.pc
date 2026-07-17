@@ -1,14 +1,12 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: yppasswd
-Description: Modify a user's password
-URL: https://man.freebsd.org/cgi/man.cgi?query=yppasswd(1)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.bin/passwd
-License: BSD-3-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.5bebe47e.txt
 Copyright: 2002 Networks Associates Technologies, Inc.
+Description: Modify a user's password
+License: BSD-3-Clause
+Name: yppasswd
 Requires: csu, libc, libcompiler_rt, libpam
+Source: https://cgit.freebsd.org/src/tree/usr.bin/passwd${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=yppasswd(1)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

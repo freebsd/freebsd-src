@@ -1,12 +1,11 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: pftp
 Description: Enhanced FTP client for Unix-like operating systems
-URL: https://ftp.netbsd.org/pub/NetBSD/misc/tnftp/
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/contrib/tnftp/
 License: BSD-3-Clause AND BSD-2-Clause
+Name: pftp
 Requires: csu, libc, libcompiler_rt, libedit
+Source: https://cgit.freebsd.org/src/tree/contrib/tnftp/
+URL: https://ftp.netbsd.org/pub/NetBSD/misc/tnftp/
+Version: ${FREEBSD_RELEASE}

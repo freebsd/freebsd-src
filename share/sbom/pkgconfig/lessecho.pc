@@ -1,12 +1,11 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: lessecho
 Description: Open-source file pager
+License: BSD-2-Clause
+Name: lessecho
+Requires: libncurses
+Source: https://www.greenwoodsoftware.com/less/less-679.tar.gz
 URL: https://www.greenwoodsoftware.com/less/
 Version: 679
-Source: https://www.greenwoodsoftware.com/less/less-679.tar.gz
-License: BSD-2-Clause
-Requires: libncurses

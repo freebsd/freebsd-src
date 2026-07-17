@@ -1,13 +1,11 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: backlight
-Description: Configure backlight hardware
-URL: https://man.freebsd.org/cgi/man.cgi?query=backlight(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.bin/backlight
-License: BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
 Copyright: 2020 Emmanuel Vadot <manu@FreeBSD.org>
+Description: Configure backlight hardware
+License: BSD-2-Clause
+Name: backlight
+Source: https://cgit.freebsd.org/src/tree/usr.bin/backlight${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=backlight(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

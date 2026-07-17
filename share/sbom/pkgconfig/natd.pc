@@ -1,13 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: natd
 Description: Network Address Translation daemon
-URL: https://man.freebsd.org/cgi/man.cgi?query=natd(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/sbin/natd
 License: LicenseRef-scancode-other-permissive
-License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-other-permissive.d3a0be35.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-other-permissive.472c8bff.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-other-permissive.d91bc005.txt
+Name: natd
 Requires: csu, libalias, libc, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/sbin/natd${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=natd(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

@@ -1,14 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: dhclient-script
+Copyright: 1995 RadioMail Corporation, 1995 The Internet Software Consortium, 1995, 1996 The Internet Software Consortium, 1995, 1996, 1997 The Internet Software Consortium, 1995, 1996, 1997, 1998 The Internet Software Consortium, 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium, 1995, 1996, 1998 The Internet Software Consortium, 1995, 1996, 1998, 1999 The Internet Software Consortium, 1995, 1996, 1999 The Internet Software Consortium, 1996 The Internet Software Consortium, 1997 The Internet Software Consortium, 2004 Henning Brauer <henning@openbsd.org>, 2021 Franco Fichtner <franco@opnsense.org>, Copyright 2004 Henning Brauer <henning@openbsd.org>
 Description: DHCP client network configuration script
-URL: https://man.freebsd.org/cgi/man.cgi?query=dhclient-script(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/sbin/dhclient
 License: BSD-3-Clause AND ISC
-License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.07d9d3ee.txt, ${pcfiledir}/LICENSES/ISC.65a17f42.txt, ${pcfiledir}/LICENSES/ISC.11e6b90c.txt
-Copyright: 1995, 1996 The Internet Software Consortium, Copyright 2004 Henning Brauer <henning@openbsd.org>, 1995, 1996, 1997, 1998, 1999 The Internet Software Consortium, 2004 Henning Brauer <henning@openbsd.org>, 1995, 1996, 1997 The Internet Software Consortium, 1996 The Internet Software Consortium, 1995, 1996, 1997, 1998 The Internet Software Consortium, 1995, 1996, 1998 The Internet Software Consortium, 1995 RadioMail Corporation, 1995 The Internet Software Consortium, 2003 Kenneth R Westerback <krw@openbsd.org>, 2021 Franco Fichtner <franco@opnsense.org>, 1995, 1996, 1998, 1999 The Internet Software Consortium, 1995, 1996, 1999 The Internet Software Consortium, 1997 The Internet Software Consortium
+Name: dhclient-script
 Requires: csu, libc, libcapsicum, libcompiler_rt, libutil
+Source: https://cgit.freebsd.org/src/tree/sbin/dhclient${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=dhclient-script(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

@@ -1,14 +1,12 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: tee
-Description: Duplicate standard input
-URL: https://man.freebsd.org/cgi/man.cgi?query=tee(1)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.bin/tee
-License: BSD-3-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt
 Copyright: 1988, 1993 The Regents of the University of California
+Description: Duplicate standard input
+License: BSD-3-Clause
+Name: tee
 Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/usr.bin/tee${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=tee(1)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

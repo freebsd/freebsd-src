@@ -1,11 +1,10 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: librtld_db
 Description: Library missing description
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/lib/librtld_db
 License: NOASSERTION
+Name: librtld_db
 Requires: csu, libc, libcompiler_rt, libelf, libprocstat, libutil
+Source: https://cgit.freebsd.org/src/tree/lib/librtld_db${FREEBSD_GIT_QUERY}
+Version: ${FREEBSD_RELEASE}

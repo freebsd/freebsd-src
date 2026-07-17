@@ -1,14 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: ipfw
+Copyright: 1993 Daniel Boulet, 1994 Ugen, 1996 Alex Nash, Paul Traina, Poul-Henning Kamp, 2002-2003 Luigi Rizzo, 2002-2003,2010 Luigi Rizzo, 2014 Alexander V. Chernikov, 2014 Yandex LLC, 2015-2016 Alexander V. Chernikov <melifaro@FreeBSD.org>, 2015-2019 Andrey V. Elsukov <ae@FreeBSD.org>, 2015-2019 Yandex LLC, 2016 Andrey V. Elsukov <ae@FreeBSD.org>, 2016 Centre for Advanced Internet Architectures, Swinburne University of Technology, Melbourne, Australia, 2016 Yandex LLC, 2019 Andrey V. Elsukov <ae@FreeBSD.org>, 2019 Boris N. Lytochkin <lytboris@gmail.com>, 2019 Yandex LLC
 Description: User interface for firewall, traffic shaper, packet scheduler, in-kernel NAT.
-URL: https://man.freebsd.org/cgi/man.cgi?query=ipfw(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/sbin/ipfw
 License: BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt, ${pcfiledir}/LICENSES/LicenseRef-scancode-other-permissive.ce7c2bce.txt
-Copyright: 2015-2019 Yandex LLC, 2015-2019 Andrey V. Elsukov <ae@FreeBSD.org>, 2002-2003 Luigi Rizzo, 1996 Alex Nash, Paul Traina, Poul-Henning Kamp, 1994 Ugen, 1993 Daniel Boulet, 2019 Yandex LLC, 2019 Andrey V. Elsukov <ae@FreeBSD.org>, 2019 Boris N. Lytochkin <lytboris@gmail.com>, 2014 Yandex LLC, 2014 Alexander V. Chernikov, 2015-2016 Alexander V. Chernikov <melifaro@FreeBSD.org>, 2002-2003,2010 Luigi Rizzo, 2016 Yandex LLC, 2016 Andrey V. Elsukov <ae@FreeBSD.org>, 2016 Centre for Advanced Internet Architectures, Swinburne University of Technology, Melbourne, Australia
+Name: ipfw
 Requires: csu, libalias, libc, libcompiler_rt, libjail, libutil
+Source: https://cgit.freebsd.org/src/tree/sbin/ipfw${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=ipfw(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

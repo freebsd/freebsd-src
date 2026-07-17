@@ -1,11 +1,10 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: ftp-proxy
 Description: Pf logging daemon
-URL: https://openbsd.org
-Version: ${FREEBSD_VERSION}
-Source: https://github.com/openbsd/src/tree/master/usr.sbin/ftp-proxy
 License: 0BSD
+Name: ftp-proxy
+Source: https://github.com/openbsd/src/tree/master/usr.sbin/ftp-proxy
+URL: https://openbsd.org
+Version: ${FREEBSD_RELEASE}

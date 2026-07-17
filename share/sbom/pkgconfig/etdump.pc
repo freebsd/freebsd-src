@@ -1,13 +1,11 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: etdump
-Description: Dump ISO-9660 El Torito boot catalog information
-URL: https://man.freebsd.org/cgi/man.cgi?query=etdump(1)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.bin/etdump
-License: BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
 Copyright: 2018 iXsystems, Inc.
+Description: Dump ISO-9660 El Torito boot catalog information
+License: BSD-2-Clause
+Name: etdump
+Source: https://cgit.freebsd.org/src/tree/usr.bin/etdump${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=etdump(1)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

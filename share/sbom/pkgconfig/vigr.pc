@@ -1,11 +1,11 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: vigr
+Copyright: 2014 Dag-Erling Smorgrav
 Description: Edit the group file
-URL: https://man.freebsd.org/cgi/man.cgi?query=vigr(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.sbin/vigr
 License: BSD-2-Clause
+Name: vigr
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/vigr${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=vigr(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

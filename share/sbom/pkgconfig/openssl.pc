@@ -1,11 +1,10 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: openssl
-Description: OpenSSL cryptography library
-URL: https://openssl-library.org
-Version: 3.5.4
-Source: https://github.com/openssl/openssl/tree/openssl-3.5.4
+Description: openssl cryptography library
 License: Apache-2.0
+Name: openssl
+Source: https://github.com/openssl/openssl/tree/openssl-3.5.4
+URL: https://openssl-library.org
+Version: ${FREEBSD_RELEASE}

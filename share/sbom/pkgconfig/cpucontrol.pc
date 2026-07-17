@@ -1,14 +1,12 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: cpucontrol
+Copyright: 2006, 2008 Stanislav Sedov <stas@FreeBSD.org>, 2008 Stanislav Sedov <stas@FreeBSD.org>, 2008-2011 Stanislav Sedov <stas@FreeBSD.org>, 2011 Fabien Thomas <fabient@FreeBSD.org>, 2012 Andriy Gapon <avg@FreeBSD.org>
 Description: Control utility for the cpuctl(4) device
-URL: https://man.freebsd.org/cgi/man.cgi?query=cpucontrol(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.sbin/cpucontrol
 License: BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.33ad0b90.txt
-Copyright: 2008 Stanislav Sedov <stas@FreeBSD.org>, 2011 Fabien Thomas <fabient@FreeBSD.org>, 2006, 2008 Stanislav Sedov <stas@FreeBSD.org>, 2012 Andriy Gapon <avg@FreeBSD.org>, 2008-2011 Stanislav Sedov <stas@FreeBSD.org>
+Name: cpucontrol
 Requires: csu, libc, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/cpucontrol${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=cpucontrol(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

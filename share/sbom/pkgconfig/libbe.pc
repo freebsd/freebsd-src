@@ -1,11 +1,10 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: libbe
 Description: Library for creating, destroying and modifying ZFS boot environments
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/lib/libbe
 License: BSD-2-Clause
+Name: libbe
 Requires: csu, libc, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/lib/libbe${FREEBSD_GIT_QUERY}
+Version: ${FREEBSD_RELEASE}

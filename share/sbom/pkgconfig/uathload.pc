@@ -1,13 +1,12 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: uathload
-Description: Load firmware for Atheros USB wireless devices
-URL: https://man.freebsd.org/cgi/man.cgi?query=uathload(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.sbin/uathload
-License: NOASSERTION
 Copyright: 2006 Sam Leffler, Errno Consulting
+Description: Load firmware for Atheros USB wireless devices
+License: NOASSERTION
+Name: uathload
 Requires: csu, libc, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/uathload${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=uathload(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

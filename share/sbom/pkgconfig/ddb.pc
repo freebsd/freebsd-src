@@ -1,14 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: ddb
-Description: Configure DDB kernel debugger properties
-URL: https://man.freebsd.org/cgi/man.cgi?query=ddb(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/sbin/ddb
-License: BSD-3-Clause AND BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
 Copyright: 2007 Robert N. M. Watson, 2008 Robert N. M. Watson
+Description: Configure DDB kernel debugger properties
+License: BSD-3-Clause AND BSD-2-Clause
+Name: ddb
 Requires: csu, libc, libcompiler_rt, libkvm
+Source: https://cgit.freebsd.org/src/tree/sbin/ddb${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=ddb(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

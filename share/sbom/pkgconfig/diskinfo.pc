@@ -1,14 +1,12 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: diskinfo
-Description: Get information about disk device
-URL: https://man.freebsd.org/cgi/man.cgi?query=diskinfo(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.sbin/diskinfo
-License: BSD-3-Clause AND BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.9136516b.txt
 Copyright: 2003 Poul-Henning Kamp, 2015 Spectra Logic Corporation, 2017 Alexander Motin <mav@FreeBSD.org>
+Description: Get information about disk device
+License: BSD-3-Clause AND BSD-2-Clause
+Name: diskinfo
 Requires: csu, libc, libcompiler_rt, libutil
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/diskinfo${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=diskinfo(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

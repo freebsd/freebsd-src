@@ -1,14 +1,12 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: printenv
-Description: Print out the environment
-URL: https://man.freebsd.org/cgi/man.cgi?query=printenv(1)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.bin/printenv
-License: BSD-3-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt
 Copyright: 1987, 1993 The Regents of the University of California
+Description: Print out the environment
+License: BSD-3-Clause
+Name: printenv
 Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/usr.bin/printenv${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=printenv(1)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

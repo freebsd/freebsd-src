@@ -1,14 +1,12 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: fwcontrol
+Copyright: 2002 Hidetoshi Shimokawa, 2003 Hidetoshi Shimokawa, 2005 Petr Holub, Hidetoshi Shimokawa
 Description: FireWire control utility
-URL: https://man.freebsd.org/cgi/man.cgi?query=fwcontrol(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.sbin/fwcontrol
 License: BSD-4-Clause
-License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-public-domain.c41c780a.txt, ${pcfiledir}/LICENSES/BSD-4-Clause-UC.15290ac5.txt
-Copyright: 2003 Hidetoshi Shimokawa, 2002 Hidetoshi Shimokawa, 2005 Petr Holub, Hidetoshi Shimokawa
+Name: fwcontrol
 Requires: csu, libc, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/fwcontrol${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=fwcontrol(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

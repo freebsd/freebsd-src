@@ -1,14 +1,12 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: ypbind
+Copyright: 1984, Sun Microsystems, Inc., 1992/3 Theo de Raadt <deraadt@fsa.ca>, 1996, 1997 Bill Paul <wpaul@ctr.columbia.edu>, 2009, Sun Microsystems, Inc.
 Description: NIS domain binding daemon
-URL: https://man.freebsd.org/cgi/man.cgi?query=ypbind(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.sbin/ypbind
 License: BSD-4-Clause AND BSD-3-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-4-Clause.b7404244.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.687e6a5a.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.b5add324.txt
-Copyright: 1996, 1997 Bill Paul <wpaul@ctr.columbia.edu>, 2009, Sun Microsystems, Inc., 1984, Sun Microsystems, Inc., 1992/3 Theo de Raadt <deraadt@fsa.ca>
+Name: ypbind
 Requires: csu, libc, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/ypbind${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=ypbind(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

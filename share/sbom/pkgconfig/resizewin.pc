@@ -1,14 +1,12 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: resizewin
-Description: Update terminal size
-URL: https://man.freebsd.org/cgi/man.cgi?query=resizewin(1)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.bin/resizewin
-License: BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
 Copyright: Copyright 2015 EMC / Isilon Storage Division
+Description: Update terminal size
+License: BSD-2-Clause
+Name: resizewin
 Requires: csu, libc, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/usr.bin/resizewin${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=resizewin(1)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

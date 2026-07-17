@@ -1,11 +1,10 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: libutil
 Description: FreeBSD misc util library
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/lib/libutil
 License: BSD-4-Clause AND BSD-3-Clause AND BSD-2-Clause AND LicenseRef-scancode-other-permissive
+Name: libutil
 Requires: csu, libc, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/lib/libutil${FREEBSD_GIT_QUERY}
+Version: ${FREEBSD_RELEASE}

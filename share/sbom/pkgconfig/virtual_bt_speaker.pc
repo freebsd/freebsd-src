@@ -1,13 +1,11 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: virtual_bt_speaker
-Description: Virtual bluetooth speaker
-URL: https://man.freebsd.org/cgi/man.cgi?query=virtual_bt_speaker(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.sbin/virtual_oss/virtual_bt_speaker
-License: BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
 Copyright: 2019 Google LLC
+Description: Virtual bluetooth speaker
+License: BSD-2-Clause
+Name: virtual_bt_speaker
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/virtual_oss/virtual_bt_speaker${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=virtual_bt_speaker(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

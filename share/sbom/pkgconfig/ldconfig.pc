@@ -1,14 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: ldconfig
-Description: Configure the dynamic linker search path for shared libraries
-URL: https://man.freebsd.org/cgi/man.cgi?query=ldconfig(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/sbin/ldconfig
-License: BSD-4-Clause AND BSD-3-Clause AND BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-4-Clause.165a163c.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
 Copyright: 1993,1995 Paul Kranenburg, 1998 John D. Polstra
+Description: Configure the dynamic linker search path for shared libraries
+License: BSD-4-Clause AND BSD-3-Clause AND BSD-2-Clause
+Name: ldconfig
 Requires: csu, libc, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/sbin/ldconfig${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=ldconfig(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

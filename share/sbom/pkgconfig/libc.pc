@@ -1,11 +1,10 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: libc
 Description: FreeBSD libc
-URL: https://www.FreeBSD.org
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/lib/libc
 License: BSD-3-Clause AND BSD-2-Clause AND BSD-1-Clause
+Name: libc
+Source: https://cgit.freebsd.org/src/tree/lib/libc${FREEBSD_GIT_QUERY}
+URL: https://www.FreeBSD.org
+Version: 15.0

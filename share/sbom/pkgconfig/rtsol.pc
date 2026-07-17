@@ -1,12 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: rtsol
 Description: Router solicitation daemon
-URL: https://man.freebsd.org/cgi/man.cgi?query=rtsol(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/sbin/rtsol
 License: BSD-3-Clause AND BSD-2-Clause
+Name: rtsol
 Requires: csu, libc, libcapsicum, libcompiler_rt, libutil
+Source: https://cgit.freebsd.org/src/tree/sbin/rtsol
+URL: https://man.freebsd.org/cgi/man.cgi?query=rtsol(8)
+Version: ${FREEBSD_RELEASE}

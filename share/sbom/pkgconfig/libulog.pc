@@ -1,11 +1,10 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: libulog
 Description: Library missing description
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/lib/libulog
 License: NOASSERTION
+Name: libulog
 Requires: csu, libc, libcompiler_rt, libmd
+Source: https://cgit.freebsd.org/src/tree/lib/libulog${FREEBSD_GIT_QUERY}
+Version: ${FREEBSD_RELEASE}

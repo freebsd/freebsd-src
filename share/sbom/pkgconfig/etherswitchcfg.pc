@@ -1,14 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: etherswitchcfg
+Copyright: 1983, 1993 The Regents of the University of California, 1997 Jason R. Thorpe, 2011-2012 Stefan Bethke
 Description: Configure a built-in Ethernet switch
-URL: https://man.freebsd.org/cgi/man.cgi?query=etherswitchcfg(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/sbin/etherswitchcfg
 License: BSD-4-Clause AND BSD-3-Clause AND BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-4-Clause.2311d4ed.txt, ${pcfiledir}/LICENSES/BSD-3-Clause.e289d4bf.txt, ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
-Copyright: 1997 Jason R. Thorpe, 1983, 1993 The Regents of the University of California, 2011-2012 Stefan Bethke
+Name: etherswitchcfg
 Requires: csu, libc, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/sbin/etherswitchcfg${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=etherswitchcfg(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

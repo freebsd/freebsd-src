@@ -1,14 +1,12 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: getconf
-Description: Retrieve standard configuration variables
-URL: https://man.freebsd.org/cgi/man.cgi?query=getconf(1)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.bin/getconf
-License: LicenseRef-scancode-mit-license-1998
-License.file: ${pcfiledir}/LICENSES/LicenseRef-scancode-mit-license-1998.efd275e2.txt
 Copyright: Copyright 2000 Massachusetts Institute of Technology
+Description: Retrieve standard configuration variables
+License: LicenseRef-scancode-mit-license-1998
+Name: getconf
 Requires: csu, libc, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/usr.bin/getconf${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=getconf(1)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

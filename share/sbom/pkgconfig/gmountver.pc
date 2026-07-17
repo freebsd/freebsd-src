@@ -1,14 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: gmountver
-Description: Control utility for disk mount verification GEOM class
-URL: https://man.freebsd.org/cgi/man.cgi?query=gmountver(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/lib/geom/mountver
-License: BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.1d9b7f76.txt
 Copyright: 2010 Edward Tomasz Napierala <trasz@FreeBSD.org>
+Description: Control utility for disk mount verification GEOM class
+License: BSD-2-Clause
+Name: gmountver
 Requires: csu, libc, libcompiler_rt, libgeom
+Source: https://cgit.freebsd.org/src/tree/lib/geom/mountver${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=gmountver(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

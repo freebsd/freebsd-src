@@ -1,11 +1,10 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: libsys
 Description: Library to manage system
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/lib/libsys
 License: BSD-3-Clause AND BSD-2-Clause
+Name: libsys
 Requires: csu, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/lib/libsys${FREEBSD_GIT_QUERY}
+Version: ${FREEBSD_RELEASE}

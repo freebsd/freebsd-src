@@ -1,11 +1,10 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: dtrace
 Description: Dynamic tracing compiler and tracing utility
+License: CDDL-1.1
+Name: dtrace
+Source: https://cgit.freebsd.org/src/tree/cddl/contrib/opensolaris/cmd/dtrace
 URL: https://cgit.freebsd.org/src/tree/cddl/contrib/opensolaris/cmd/dtrace
 Version: r178481
-Source: https://cgit.freebsd.org/src/tree/cddl/contrib/opensolaris/cmd/dtrace
-License: CDDL-1.1

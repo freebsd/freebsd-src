@@ -1,14 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: devmatch
-Description: Print information about unattached devices
-URL: https://man.freebsd.org/cgi/man.cgi?query=devmatch(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/sbin/devmatch
-License: BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
 Copyright: 2017 Netflix, Inc.
+Description: Print information about unattached devices
+License: BSD-2-Clause
+Name: devmatch
 Requires: csu, libc, libcompiler_rt, libdevinfo
+Source: https://cgit.freebsd.org/src/tree/sbin/devmatch${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=devmatch(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

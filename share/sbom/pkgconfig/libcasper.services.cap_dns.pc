@@ -1,11 +1,10 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: libcasper.services.cap_dns
 Description: Library for getting network host entry in capability mode
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/lib/libcasper/services/cap_dns
 License: BSD-2-Clause
+Name: libcasper.services.cap_dns
 Requires: csu, libc, libcasper, libcompiler_rt, libnv
+Source: https://cgit.freebsd.org/src/tree/lib/libcasper/services/cap_dns${FREEBSD_GIT_QUERY}
+Version: ${FREEBSD_RELEASE}

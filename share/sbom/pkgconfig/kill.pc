@@ -1,14 +1,12 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: kill
-Description: Terminate or signal a process
-URL: https://man.freebsd.org/cgi/man.cgi?query=kill(1)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/bin/kill
-License: BSD-3-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-3-Clause.791687bc.txt
 Copyright: 1988, 1993, 1994 The Regents of the University of California
+Description: Terminate or signal a process
+License: BSD-3-Clause
+Name: kill
 Requires: csu, libc, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/bin/kill${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=kill(1)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

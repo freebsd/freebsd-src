@@ -1,13 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: freebsd-version
-Description: Print the version and patch level of the installed system
-URL: https://man.freebsd.org/cgi/man.cgi?query=freebsd-version(1)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/bin/freebsd-version
-License: BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
 Copyright: 2013 Dag-Erling Smorgrav
+Description: Print the version and patch level of the installed system
+License: BSD-2-Clause
+Name: freebsd-version
+Source: https://cgit.freebsd.org/src/tree/bin/freebsd-version
+URL: https://man.freebsd.org/cgi/man.cgi?query=freebsd-version(1)
+Version: ${FREEBSD_RELEASE}

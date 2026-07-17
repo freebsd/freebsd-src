@@ -1,14 +1,12 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: spray
-Description: Send many packets to host
-URL: https://man.freebsd.org/cgi/man.cgi?query=spray(8)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.sbin/spray
-License: BSD-4-Clause AND BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-4-Clause.d4eb499e.txt
 Copyright: 1993 Winning Strategies, Inc.
+Description: Send many packets to host
+License: BSD-4-Clause AND BSD-2-Clause
+Name: spray
 Requires: csu, libc, libcompiler_rt, librpcsvc
+Source: https://cgit.freebsd.org/src/tree/usr.sbin/spray${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=spray(8)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

@@ -1,11 +1,10 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: libifconfig
 Description: Library for configure network interface parameters
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/lib/libifconfig
 License: BSD-3-Clause AND BSD-2-Clause
+Name: libifconfig
 Requires: msun
+Source: https://cgit.freebsd.org/src/tree/lib/libifconfig${FREEBSD_GIT_QUERY}
+Version: ${FREEBSD_RELEASE}

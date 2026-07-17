@@ -1,12 +1,9 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: libevent1
-Description: Event library
-Version: ${FREEBSD_VERSION}
-URL: https://openbsd.org
 License: BSD-3-Clause
 Maintainer: kp@, ks@
+Name: libevent1
 Requires: csu, libc, libcompiler_rt
+URL: https://openbsd.org

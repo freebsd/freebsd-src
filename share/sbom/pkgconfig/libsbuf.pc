@@ -1,11 +1,10 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: libsbuf
 Description: Library for manipulating smart buffers
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/lib/libsbuf
 License: BSD-3-Clause AND BSD-2-Clause
+Name: libsbuf
 Requires: csu, libc, libcompiler_rt
+Source: https://cgit.freebsd.org/src/tree/lib/libsbuf${FREEBSD_GIT_QUERY}
+Version: ${FREEBSD_RELEASE}

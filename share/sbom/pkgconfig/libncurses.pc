@@ -1,11 +1,10 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: libncurses
 Description: clone of System V curses
+License: X11
+Name: libncurses
+Source: https://invisible-island.net/archives/ncurses/ncurses-6.5.tar.gz
 URL: https://invisible-island.net/ncurses
 Version: 6.5
-Source: https://invisible-island.net/archives/ncurses/ncurses-6.5.tar.gz
-License: X11

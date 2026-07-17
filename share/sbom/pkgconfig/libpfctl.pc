@@ -1,10 +1,9 @@
+# Copyright (c) 2026 The FreeBSD Foundation
+#
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-# Copyright(c) 2026 The FreeBSD Foundation.
-#
-Name: libpfctl
 Description: Library for interaction with pf
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/lib/libpfctl
 License: BSD-2-Clause
+Name: libpfctl
+Source: https://cgit.freebsd.org/src/tree/lib/libpfctl${FREEBSD_GIT_QUERY}
+Version: ${FREEBSD_RELEASE}

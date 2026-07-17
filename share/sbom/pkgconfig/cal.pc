@@ -1,14 +1,12 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: cal
-Description: Displays a calendar and the date of Easter
-URL: https://man.freebsd.org/cgi/man.cgi?query=ncal(1)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.bin/ncal
-License: BSD-3-Clause AND BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
 Copyright: 1997 Wolfgang Helbig
+Description: Displays a calendar and the date of Easter
+License: BSD-3-Clause AND BSD-2-Clause
+Name: cal
 Requires: csu, libc, libcalendar, libcompiler_rt, libtinfo
+Source: https://cgit.freebsd.org/src/tree/usr.bin/ncal${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=ncal(1)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

@@ -1,14 +1,12 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: mkimg
+Copyright: 2002 Thomas Moestl <tmm@FreeBSD.org>, 2013,2014 Juniper Networks, Inc., 2014 Juniper Networks, Inc., 2014 Marcel Moolenaar, 2014, 2015 Marcel Moolenaar, 2016 Marcel Moolenaar, 2020 Oleksandr Tymoshenko <gonzo@FreeBSD.org>
 Description: Utility to make disk images
-URL: https://man.freebsd.org/cgi/man.cgi?query=mkimg(1)
-Version: ${FREEBSD_VERSION}
-Source: https://cgit.freebsd.org/src/tree/usr.bin/mkimg
 License: BSD-2-Clause
-License.file: ${pcfiledir}/LICENSES/BSD-2-Clause.543b1492.txt
-Copyright: 2014, 2015 Marcel Moolenaar, 2014 Juniper Networks, Inc., 2013,2014 Juniper Networks, Inc., 2014 Marcel Moolenaar, 2020 Oleksandr Tymoshenko <gonzo@FreeBSD.org>, 2016 Marcel Moolenaar, 2002 Thomas Moestl <tmm@FreeBSD.org>
+Name: mkimg
 Requires: csu, libc, libcompiler_rt, libutil
+Source: https://cgit.freebsd.org/src/tree/usr.bin/mkimg${FREEBSD_GIT_QUERY}
+URL: https://man.freebsd.org/cgi/man.cgi?query=mkimg(1)${FREEBSD_MAN_QUERY}
+Version: ${FREEBSD_RELEASE}

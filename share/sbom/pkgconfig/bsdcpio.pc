@@ -1,11 +1,10 @@
-# Copyright (c) 2026 The FreeBSD Foundation.
+# Copyright (c) 2026 The FreeBSD Foundation
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
 #
-Name: bsdcpio
 Description: Multi-format archive and compression library
+License: BSD-3-Clause AND BSD-2-Clause AND CC0-1.0 AND openssl AND Apache-2.0
+Name: bsdcpio
+Source: https://github.com/libarchive/libarchive/tree/v3.8.2
 URL: https://libarchive.org
 Version: 3.8.2
-Source: https://github.com/libarchive/libarchive/tree/v3.8.2
-License: BSD-3-Clause AND BSD-2-Clause AND CC0-1.0 AND openssl AND Apache-2.0
