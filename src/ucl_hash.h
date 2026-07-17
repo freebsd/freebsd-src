@@ -98,6 +98,12 @@ const void *ucl_hash_iterate2(ucl_hash_t *hashlin, ucl_hash_iter_t *iter, int *e
 bool ucl_hash_iter_has_next(ucl_hash_t *hashlin, ucl_hash_iter_t iter);
 
 /**
+ * Free a hash iterator (used when iteration is abandoned early)
+ * @param iter iterator to free, may be NULL
+ */
+void ucl_hash_iterate_free(ucl_hash_iter_t iter);
+
+/**
  * Reserves space in hash
  * @return true on sucess, false on failure (e.g. ENOMEM)
  * @param hashlin

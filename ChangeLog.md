@@ -1,5 +1,15 @@
 # Version history
 
+## Libucl 0.9.4
+
+- Fix double comma in JSON emission for consecutive implicit arrays (Fixes #312)
+- Add `ucl_object_iterate_end()` to fix iterator memory leak on early exit
+- Fix potential null pointer dereference in `ucl_hash_sort` function
+- Fix `ucl_object_replace_key` to return true on new insert
+- Reset length during object copy
+- Add null check in `ucl_object_reserve`
+- Skip building POSIX-only tests on Windows
+
 ## Libucl 0.9.3
 
 - Fix invalid JSON emission when merging objects (Fixes #312)
