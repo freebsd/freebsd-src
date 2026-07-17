@@ -1118,7 +1118,7 @@ dist_icenabler_write(struct hypctx *hypctx, u_int reg, u_int offset, u_int size,
 
 	MPASS(offset == 0);
 	MPASS(size == 4);
-	n = (reg - GICD_ISENABLER(0)) / 4;
+	n = (reg - GICD_ICENABLER(0)) / 4;
 	/* GICD_ICENABLER0 is RAZ/WI so handled separately */
 	MPASS(n > 0);
 	write_enabler(hypctx, n, false, wval);
