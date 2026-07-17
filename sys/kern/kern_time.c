@@ -1633,8 +1633,11 @@ realtimer_settime(struct itimer *it, int flags, struct itimerspec *value,
 		timespecclear(&val.it_interval);
 	}
 
-	if (ovalue != NULL)
-		realtimer_gettime(it, ovalue);
+	if (ovalue != NULL) {
+		error = realtimer_gettime(it, ovalue);
+		if (error != 0)
+			return (error);
+	}
 
 	it->it_time = val;
 	if (timespecisset(&val.it_value)) {
