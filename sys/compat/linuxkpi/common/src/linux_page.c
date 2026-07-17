@@ -743,7 +743,7 @@ void *
 linuxkpi_page_frag_alloc(struct page_frag_cache *pfc,
     size_t fragsz, gfp_t gfp)
 {
-	vm_page_t pages;
+	struct page *pages;
 
 	if (fragsz == 0)
 		return (NULL);
@@ -765,7 +765,7 @@ linuxkpi_page_frag_alloc(struct page_frag_cache *pfc,
 void
 linuxkpi_page_frag_free(void *addr)
 {
-	vm_page_t page;
+	struct page *page;
 
 	page = virt_to_page(addr);
 	linux_free_pages(page, 0);
