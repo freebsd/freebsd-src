@@ -1031,6 +1031,7 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 		register_t args[nitems(td->td_sa.args)];
 		struct ptrace_sc_ret psr;
 		int ptevents;
+		struct ptrace_child *children;
 	} r;
 	union {
 		struct ptrace_io_desc32 piod;
@@ -1173,6 +1174,14 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 			pscr_args[i] = pscr_args32[i];
 		r.sr.pscr_args = pscr_args;
 		break;
+	case PT_GET_CHILDREN:
+		if (uap->addr == NULL)
+			addr = NULL;
+		else if (uap->data < 0)
+			error = EINVAL;
+		else
+			addr = &r.children;
+		break;
 	case PTINTERNAL_FIRST ... PTINTERNAL_LAST:
 		error = EINVAL;
 		break;
@@ -1241,6 +1250,13 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 		error = copyout(&r32.sr.pscr_ret, uap->addr +
 		    offsetof(struct ptrace_sc_remote32, pscr_ret),
 		    sizeof(r32.psr));
+		break;
+	case PT_GET_CHILDREN:
+		if (uap->addr != 0) {
+			error = copyout(r.children, uap->addr,
+			    td->td_retval[0] * sizeof(struct ptrace_child));
+			free(r.children, M_TEMP);
+		}
 		break;
 	}
 
