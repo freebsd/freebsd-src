@@ -182,6 +182,7 @@ struct sk_buff {
 	uint16_t		qmap;		/* queue mapping */
 	uint16_t		_flags;		/* Internal flags. */
 #define	_SKB_FLAGS_SKBEXTFRAG	0x0001
+#define	_SKB_PP_RECYCLE		0x0010
 	uint16_t		l3hdroff;	/* network header offset from *head */
 	uint16_t		l4hdroff;	/* transport header offset from *head */
 	uint16_t		mac_header;	/* offset of mac_header */
@@ -263,6 +264,7 @@ static inline void
 dev_kfree_skb(struct sk_buff *skb)
 {
 	SKB_TRACE(skb);
+	SKB_IMPROVE("Need to be able to deal with page_pool");
 	kfree_skb(skb);
 }
 
@@ -1166,8 +1168,7 @@ static inline void
 skb_mark_for_recycle(struct sk_buff *skb)
 {
 	SKB_TRACE(skb);
-	/* page_pool */
-	SKB_TODO();
+	skb->_flags |= _SKB_PP_RECYCLE;
 }
 
 static inline int

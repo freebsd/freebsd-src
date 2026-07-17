@@ -55,6 +55,8 @@
 #include <linux/log2.h>
 #endif
 
+#include <net/page_pool/helpers.h>
+
 SYSCTL_DECL(_compat_linuxkpi);
 SYSCTL_NODE(_compat_linuxkpi, OID_AUTO, skb, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "LinuxKPI skbuff");
@@ -349,7 +351,12 @@ linuxkpi_kfree_skb(struct sk_buff *skb)
 			shinfo->frags[fragno].size = 0;
 			shinfo->frags[fragno].offset = 0;
 			shinfo->frags[fragno].page = NULL;
-			__free_page(p);
+#ifdef PAGE_IS_LKPI_PAGE
+			if ((skb->_flags & _SKB_PP_RECYCLE) != 0)
+				page_pool_put_full_page(p->pp, p, false);
+			else
+#endif
+				__free_page(p);
 			count++;
 		}
 	}
