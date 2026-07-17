@@ -2135,7 +2135,13 @@ vgic_v3_flush_hwstate(device_t dev, struct hypctx *hypctx)
 		if (i == hypctx->vgic_v3_regs.ich_lr_num)
 			break;
 
-		if (!irq->enabled)
+		/*
+		 * NB: Disabled active interrupts are kept around for EOI to
+		 * make them inactive, since we don't enable maintenace
+		 * interrupts to intercept EOIs for interrupts not in a list
+		 * register.
+		 */
+		if (!irq->enabled && !irq->active)
 			continue;
 
 		hypctx->vgic_v3_regs.ich_lr_el2[i] = ICH_LR_EL2_GROUP1 |
