@@ -935,8 +935,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	dbg("tcb_list_entry_offset %zu", tcb_list_entry_offset);
 
 	if (relocate_objects(obj_main,
-		ld_bind_now != NULL && *ld_bind_now != '\0', &obj_rtld,
-		SYMLOOK_EARLY, NULL) == -1)
+	    ld_bind_now != NULL && *ld_bind_now != '\0', &obj_rtld,
+	    SYMLOOK_EARLY, NULL) == -1)
 		rtld_die();
 
 	dbg("doing copy relocations");
