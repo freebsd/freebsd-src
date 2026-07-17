@@ -1708,18 +1708,18 @@ sa_dl_equal(const struct sockaddr *a, const struct sockaddr *b)
 }
 
 /*
- * Locate an interface based on a complete address.
+ * Locate an interface on the specified fib based on a complete address.
  */
-/*ARGSUSED*/
 struct ifaddr *
-ifa_ifwithaddr(const struct sockaddr *addr)
+ifa_ifwithaddr_fib(const struct sockaddr *addr, int fibnum)
 {
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
 
 	NET_EPOCH_ASSERT();
-
 	CK_STAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		if ((fibnum != RT_ALL_FIBS) && (ifp->if_fib != fibnum))
+			continue;
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
 				continue;
@@ -1740,16 +1740,33 @@ done:
 	return (ifa);
 }
 
+/*
+ * Locate an interface based on a complete address.
+ */
+struct ifaddr *
+ifa_ifwithaddr(const struct sockaddr *addr)
+{
+
+	return (ifa_ifwithaddr_fib(addr, RT_ALL_FIBS));
+}
+
 int
-ifa_ifwithaddr_check(const struct sockaddr *addr)
+ifa_ifwithaddr_fib_check(const struct sockaddr *addr, int fibnum)
 {
 	struct epoch_tracker et;
 	int rc;
 
 	NET_EPOCH_ENTER(et);
-	rc = (ifa_ifwithaddr(addr) != NULL);
+	rc = (ifa_ifwithaddr_fib(addr, fibnum) != NULL);
 	NET_EPOCH_EXIT(et);
 	return (rc);
+}
+
+int
+ifa_ifwithaddr_check(const struct sockaddr *addr)
+{
+
+	return (ifa_ifwithaddr_fib_check(addr, RT_ALL_FIBS));
 }
 
 /*
