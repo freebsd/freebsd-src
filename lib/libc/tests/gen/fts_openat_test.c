@@ -14,11 +14,13 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <fts.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/capsicum.h>
 
 #include <atf-c.h>
 
@@ -119,8 +121,58 @@ ATF_TC_BODY(atfdcwd_matches_fts_open, tc)
 	free(names2);
 }
 
+/*
+ * fts_openat() with a real dirfd must work in Capsicum capability mode.
+ */
+ATF_TC(openat_capsicum);
+ATF_TC_HEAD(openat_capsicum, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "fts_openat() with dirfd works in Capsicum capability mode");
+}
+ATF_TC_BODY(openat_capsicum, tc)
+{
+	char *paths[] = { ".", NULL };
+	FTS *fts;
+	FTSENT *ent;
+	int dirfd;
+	bool saw_file = false, saw_sub = false;
+
+	if (!feature_present("security_capabilities") ||
+	    !feature_present("security_capability_mode"))
+		atf_tc_skip("Capsicum not available");
+
+	ATF_REQUIRE_EQ(0, mkdir("dir", 0755));
+	ATF_REQUIRE_EQ(0, mkdir("dir/sub", 0755));
+	ATF_REQUIRE_EQ(0, close(creat("dir/sub/file", 0644)));
+	ATF_REQUIRE_EQ(0, close(creat("dir/other", 0644)));
+
+	ATF_REQUIRE((dirfd = open("dir", O_RDONLY | O_DIRECTORY)) >= 0);
+
+	ATF_REQUIRE((fts = fts_openat(dirfd, paths,
+	    FTS_PHYSICAL | FTS_NOCHDIR, NULL)) != NULL);
+
+	ATF_REQUIRE_EQ(0, cap_enter());
+
+	while ((ent = fts_read(fts)) != NULL) {
+		if (ent->fts_info == FTS_DP)
+			continue;
+		if (strcmp(ent->fts_name, "sub") == 0 &&
+		    ent->fts_info == FTS_D)
+			saw_sub = true;
+		if (strcmp(ent->fts_name, "file") == 0 &&
+		    ent->fts_info == FTS_F)
+			saw_file = true;
+	}
+
+	ATF_CHECK_MSG(saw_sub, "must have visited 'sub' directory");
+	ATF_CHECK_MSG(saw_file, "must have visited 'file'");
+	ATF_REQUIRE_EQ_MSG(0, fts_close(fts), "fts_close(): %m");
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, atfdcwd_matches_fts_open);
+	ATF_TP_ADD_TC(tp, openat_capsicum);
 	return (atf_no_error());
 }
