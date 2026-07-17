@@ -4378,6 +4378,7 @@ prison_priv_check(struct ucred *cred, int priv)
 		 * Allow ktrace privileges for root in jail.
 		 */
 	case PRIV_KTRACE:
+		return (0);
 
 		/*
 		 * Allow jailed processes to configure audit identity and
