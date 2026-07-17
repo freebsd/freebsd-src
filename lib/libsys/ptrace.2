@@ -1044,6 +1044,61 @@ Result of the execution is returned in the
 member.
 Note that the request and its result do not affect the returned value from
 the currently executed syscall, if any.
+.It Dv PT_GET_CHILDREN
+Returns a report describing the children of the process specified by
+.Fa pid .
+Only children visible to the current thread are reported.
+.Pp
+If the
+.Fa addr
+argument is
+.Dv NULL ,
+the instantaneous number of children is returned as
+the result of the request.
+.Pp
+If the
+.Fa addr
+argument is not
+.Dv NULL ,
+it must point to the array of
+.Bd -literal
+struct ptrace_child {
+	pid_t	pid;
+	int	flags;
+};
+.Ed
+elements.
+The size of the array in bytes must be passed in
+.Fa data .
+The
+.Dv PT_GET_CHILDREN
+implementation fills the array and returns the number of elements filled.
+.Pp
+For each element, the
+.Va pid
+member contains the PID of the corresponding child.
+The
+.Va flags
+member may have the following flags set:
+.Bl -tag -width PTCHLD_TRACED_BY_ME
+.It Dv PTCHLD_TRACED
+The child specified by the
+.Va pid
+member is traced.
+.It Dv PTCHLD_TRACED_BY_ME
+The child specified by the
+.Va pid
+member is traced
+by the caller (not the
+process specified by the
+.Fa pid
+argument to the function).
+.It Dv PTCHLD_EXITED
+The child process is exiting or is a zombie.
+.It Dv PTCHLD_ORPHAN
+The child process is currently being debugged by a process other
+than its parent process.
+.El
 .El
 .Sh PT_COREDUMP and PT_SC_REMOTE usage
 The process must be stopped before dumping or initiating a remote system call.
