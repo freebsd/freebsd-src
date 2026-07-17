@@ -5,4 +5,7 @@ COMPAT_PKGS=	dbg dev
 
 PKG_SETS=	optional
 
+# For sysrc.
+PKG_DEPS.sound=	bsdconfig
+
 .include <bsd.pkg.mk>
