@@ -135,7 +135,7 @@ sg_set_page(struct scatterlist *sg, struct page *page, unsigned int len,
 static inline struct page *
 sg_page(struct scatterlist *sg)
 {
-	return ((struct page *)((sg)->page_link & ~SG_PAGE_LINK_MASK));
+	return ((struct page *)(sg->page_link & ~SG_PAGE_LINK_MASK));
 }
 
 static inline void
