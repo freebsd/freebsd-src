@@ -208,7 +208,7 @@ zoned_create(struct gctl_req *req)
 		return;
 	}
 
-	strlcpy(md.md_magic, G_ZONED_MAGIC, sizeof(md.md_magic));
+	memcpy(md.md_magic, G_ZONED_MAGIC, sizeof(G_ZONED_MAGIC));
 	md.md_version = G_ZONED_VERSION;
 	md.md_id = arc4random();
 	md.md_zonesize = zonesize;
