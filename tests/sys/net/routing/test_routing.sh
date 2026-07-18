@@ -26,6 +26,16 @@ jq_nhop_filter()
 	    .gateway'
 }
 
+jq_get_ifaof_nhop()
+{
+	local nhop_id="$1"
+	local aifp_name="$2"
+
+	jq -r '.statistics."route-nhop-information"."nhop-table"."rt-family".[]."nh-entry".[] |
+	    select(.index == '${nhop_id}') |
+	    select(."address-interface-name" == "'${aifp_name}'") |
+	    .ifa'
+}
 
 atf_test_case "add_lowest_metric" "cleanup"
 add_lowest_metric_head()
@@ -299,6 +309,147 @@ test_ecmp_routes_by_event_cleanup()
 	vnet_cleanup
 }
 
+atf_test_case "add_v4route_with_prefsrc" "cleanup"
+add_v4route_with_prefsrc_head()
+{
+	atf_set descr 'Test prefsrc attribute on IPv4 route'
+	atf_set require.user root
+	atf_set require.progs jq
+}
+add_v4route_with_prefsrc_body()
+{
+	local jname epair0 lo0_addr ep0_prefix testprefix nhop_id ifa
+
+	jname="add_v4route_with_prefsrc"
+	lo0_addr="192.168.1.1"
+	ep0_prefix="172.16.1."
+	testprefix="10.0.0.0/24"
+
+	vnet_init
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}b
+
+	atf_check ifconfig lo0 inet ${lo0_addr}/32 alias up
+	atf_check ifconfig ${epair0}a inet ${ep0_prefix}1/30 up
+	atf_check ifconfig -j ${jname} ${epair0}b inet ${ep0_prefix}2/30 up
+
+	# Create an IPv4 route via epair0 with loopback address as its prefsrc
+	atf_check -o ignore \
+	    route -4 add -net ${testprefix} -gateway ${ep0_prefix}2 \
+	    -prefsrc ${lo0_addr}
+
+	# Check the connection
+	atf_check -o ignore ping -c1 -t1 ${ep0_prefix}2
+
+	# Verify that nexthop's ifa is set to our prefsrc
+	atf_check -o save:netstat \
+	    netstat -rn4 --libxo json
+	nhop_id=$(cat netstat | jq_rtentry ${testprefix} | jq '."nhop-kidx"')
+	atf_check -o save:netstat \
+	    netstat -on4W --libxo json
+	ifa=$(cat netstat | jq_get_ifaof_nhop ${nhop_id} lo0)
+	atf_check_equal "$ifa" "$lo0_addr"
+}
+add_v4route_with_prefsrc_cleanup()
+{
+	vnet_cleanup
+}
+
+atf_test_case "add_v6route_with_prefsrc" "cleanup"
+add_v6route_with_prefsrc_head()
+{
+	atf_set descr 'Test prefsrc attribute on IPv6 route'
+	atf_set require.user root
+	atf_set require.progs jq
+}
+add_v6route_with_prefsrc_body()
+{
+	local jname epair0 lo0_addr ep0_prefix testprefix nhop_id ifa
+
+	jname="add_v6route_with_prefsrc"
+	lo0_addr="3fff::1"
+	ep0_prefix="3fff:a::"
+	testprefix="2001:db8::/48"
+
+	vnet_init
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}b
+
+	atf_check ifconfig lo0 inet6 ${lo0_addr}/128 up
+	atf_check ifconfig ${epair0}a inet6 ${ep0_prefix}a/127 up
+	atf_check ifconfig -j ${jname} ${epair0}b inet6 ${ep0_prefix}b/127 up
+
+	# Create an IPv6 route via epair0 with loopback address as its prefsrc
+	atf_check -o ignore \
+	    route -6 add -net ${testprefix} -gateway ${ep0_prefix}b \
+	    -prefsrc ${lo0_addr}
+
+	# Check the connection
+	atf_check -o ignore ping -c1 -t1 ${ep0_prefix}b
+
+	# Verify that nexthop's ifa is set to our prefsrc
+	atf_check -o save:netstat \
+	    netstat -rn6 --libxo json
+	nhop_id=$(cat netstat | jq_rtentry ${testprefix} | jq '."nhop-kidx"')
+	atf_check -o save:netstat \
+	    netstat -on6W --libxo json
+	ifa=$(cat netstat | jq_get_ifaof_nhop ${nhop_id} lo0)
+	atf_check_equal "$ifa" "$lo0_addr"
+}
+add_v6route_with_prefsrc_cleanup()
+{
+	vnet_cleanup
+}
+
+atf_test_case "add_v4v6route_with_prefsrc" "cleanup"
+add_v4v6route_with_prefsrc_head()
+{
+	atf_set descr 'Test prefsrc attribute on IPv4 route over IPv6 nexthop'
+	atf_set require.user root
+	atf_set require.progs jq
+}
+add_v4v6route_with_prefsrc_body()
+{
+	local jname epair0 lo0_addr ep0_prefix testprefix nhop_id ifa
+
+	jname="add_v4v6route_with_prefsrc"
+	lo0_addr="192.168.1.1"
+	ep0_prefix="3fff:a::"
+	testprefix="10.0.0.0/24"
+
+	vnet_init
+	epair0=$(vnet_mkepair)
+
+	vnet_mkjail ${jname} ${epair0}b
+
+	atf_check ifconfig lo0 inet ${lo0_addr}/32 alias up
+	atf_check ifconfig ${epair0}a inet6 ${ep0_prefix}a/127 up
+	atf_check ifconfig -j ${jname} ${epair0}b inet6 ${ep0_prefix}b/127 up
+
+	# Create an IPv4 route via epair0 with IPv6 nexthop
+	# and loopback address as its prefsrc
+	atf_check -o ignore \
+	    route -4 add -net ${testprefix} -inet6 -gateway ${ep0_prefix}b \
+	    -inet -prefsrc ${lo0_addr}
+
+	# Check the connection
+	atf_check -o ignore ping -c1 -t1 ${ep0_prefix}b
+
+	# Verify that nexthop's ifa is set to our prefsrc
+	atf_check -o save:netstat \
+	    netstat -rn4 --libxo json
+	nhop_id=$(cat netstat | jq_rtentry ${testprefix} | jq '."nhop-kidx"')
+	atf_check -o save:netstat \
+	    netstat -on6W --libxo json
+	ifa=$(cat netstat | jq_get_ifaof_nhop ${nhop_id} lo0)
+	atf_check_equal "$ifa" "$lo0_addr"
+}
+add_v4v6route_with_prefsrc_cleanup()
+{
+	vnet_cleanup
+}
 
 atf_init_test_cases()
 {
@@ -306,4 +457,7 @@ atf_init_test_cases()
 	atf_add_test_case "add_default_metric"
 	atf_add_test_case "delete_route_with_metric"
 	atf_add_test_case "test_ecmp_routes_by_event"
+	atf_add_test_case "add_v4route_with_prefsrc"
+	atf_add_test_case "add_v6route_with_prefsrc"
+	atf_add_test_case "add_v4v6route_with_prefsrc"
 }
