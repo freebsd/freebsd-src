@@ -3419,12 +3419,12 @@ thread_stopped(struct proc *p)
 	n = p->p_suspcount;
 	if (p == curproc)
 		n++;
-	if ((p->p_flag & P_STOPPED_SIG) && (n == p->p_numthreads)) {
+	if ((p->p_flag & P_STOPPED_SIG) != 0 && n == p->p_numthreads) {
 		PROC_SUNLOCK(p);
 		p->p_flag &= ~P_WAITED;
 		PROC_LOCK(p->p_pptr);
 		childproc_stopped(p, (p->p_flag & P_TRACED) ?
-			CLD_TRAPPED : CLD_STOPPED);
+		    CLD_TRAPPED : CLD_STOPPED);
 		PROC_UNLOCK(p->p_pptr);
 		PROC_SLOCK(p);
 	}
