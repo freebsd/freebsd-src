@@ -30,6 +30,15 @@
  * Table header + zone entries hold the live per-zone state and are maintained
  * entirely by the kernel.
  */
+/* On-disk zone-state table header, at the start of the table's first sector. */
+struct g_zoned_table_hdr {
+	char		th_magic[16];	/* G_ZONED_TABLE_MAGIC. */
+	uint32_t	th_version;	/* Version number. */
+	uint32_t	th_nzones;	/* Zone entries that follow. */
+};
+_Static_assert(sizeof(struct g_zoned_table_hdr) == 24,
+    "on-disk zone table header layout changed");
+
 /* On-disk zone-state table entry */
 struct g_zoned_disk_entry {
 	uint8_t		de_type;		/* Zone type. */
@@ -186,6 +195,24 @@ struct g_zoned_softc {
 	uintmax_t			 sc_wrotebytes;
 	uintmax_t			 sc_zonecmds;
 };
+
+static __inline void
+zoned_table_hdr_encode(const struct g_zoned_table_hdr *th, u_char *data)
+{
+
+	bcopy(th->th_magic, data, sizeof(th->th_magic));
+	le32enc(data + 16, th->th_version);
+	le32enc(data + 20, th->th_nzones);
+}
+
+static __inline void
+zoned_table_hdr_decode(const u_char *data, struct g_zoned_table_hdr *th)
+{
+
+	bcopy(data, th->th_magic, sizeof(th->th_magic));
+	th->th_version = le32dec(data + 16);
+	th->th_nzones = le32dec(data + 20);
+}
 
 static __inline void
 g_zoned_entry_encode(const struct disk_zone_rep_entry *z, u_char *data)

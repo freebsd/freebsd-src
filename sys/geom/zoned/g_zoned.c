@@ -227,6 +227,7 @@ g_zoned_dirty_table(struct g_zoned_softc *sc)
 static void
 g_zoned_load_table(struct g_zoned_softc *sc, struct g_consumer *cp)
 {
+	struct g_zoned_table_hdr th;
 	struct disk_zone_rep_entry *z;
 	u_char *buf;
 	off_t off, resid, chunk;
@@ -251,9 +252,11 @@ g_zoned_load_table(struct g_zoned_softc *sc, struct g_consumer *cp)
 	valid = false;
 	buf = g_read_data(cp, sc->sc_taboff, sc->sc_secsize, &error);
 	if (buf != NULL) {
-		valid = strncmp((char *)buf, G_ZONED_TABLE_MAGIC,
-		    sizeof(G_ZONED_TABLE_MAGIC) - 1) == 0 &&
-		    le32dec(buf + 20) == sc->sc_nzones;
+		zoned_table_hdr_decode(buf, &th);
+		valid = memcmp(th.th_magic, G_ZONED_TABLE_MAGIC,
+		    sizeof(G_ZONED_TABLE_MAGIC)) == 0 &&
+		    th.th_version == G_ZONED_VERSION &&
+		    th.th_nzones == sc->sc_nzones;
 		g_free(buf);
 	}
 
@@ -403,6 +406,7 @@ g_zoned_flush_step(struct g_zoned_flush *fc)
 static u_char *
 g_zoned_encode_dirty(struct g_zoned_softc *sc, off_t *offp, off_t *totalp)
 {
+	struct g_zoned_table_hdr th;
 	u_char *buf;
 	off_t total;
 	uint32_t first, i, limit, seclo, sechi, zpersec;
@@ -420,10 +424,12 @@ g_zoned_encode_dirty(struct g_zoned_softc *sc, off_t *offp, off_t *totalp)
 	if (buf == NULL)
 		return (NULL);
 	if (seclo == 0) {
-		bcopy(G_ZONED_TABLE_MAGIC, buf,
-		    sizeof(G_ZONED_TABLE_MAGIC) - 1);
-		le32enc(buf + 16, G_ZONED_VERSION);
-		le32enc(buf + 20, sc->sc_nzones);
+		memset(&th, 0, sizeof(th));
+		memcpy(th.th_magic, G_ZONED_TABLE_MAGIC,
+		    sizeof(G_ZONED_TABLE_MAGIC));
+		th.th_version = G_ZONED_VERSION;
+		th.th_nzones = sc->sc_nzones;
+		zoned_table_hdr_encode(&th, buf);
 	}
 	/* Encode every entry falling into the sectors being written. */
 	first = (seclo == 0) ? 0 : (seclo - 1) * zpersec;
