@@ -493,16 +493,25 @@ static int
 procdesc_kqops_event(struct knote *kn, long hint)
 {
 	struct procdesc *pd;
+	struct proc *p;
 	u_int event;
 
 	pd = kn->kn_fp->f_data;
 	if (hint == 0) {
 		/*
 		 * Initial test after registration.  Generate notes in
-		 * case the process already terminated before registration.
+		 * case the process already terminated before
+		 * registration, or is stopped, or traced, with an event
+		 * pending.
 		 */
-		event = (pd->pd_flags & PDF_EXITED) != 0 ? (NOTE_EXIT |
-		    NOTE_PDSIGCHLD) : 0;
+		p = pd->pd_proc;
+		if ((pd->pd_flags & PDF_EXITED) != 0)
+			event = NOTE_EXIT | NOTE_PDSIGCHLD;
+		else if ((atomic_load_int(&p->p_flag) & (P_STOPPED_SIG |
+		    P_STOPPED_TRACE)) != 0)
+			event = NOTE_PDSIGCHLD;
+		else
+			event = 0;
 	} else {
 		/* Mask off extra data. */
 		event = (u_int)hint & NOTE_PCTRLMASK;
