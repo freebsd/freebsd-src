@@ -50,11 +50,19 @@ struct g_zoned_disk_entry {
 	uint8_t		de_type;		/* Zone type. */
 	uint8_t		de_condition;		/* Zone condition. */
 	uint8_t		de_flags;		/* Zone attribute flags. */
-	uint8_t		de_reserved[5];
-	uint64_t	de_write_pointer_lba;	/* Write pointer LBA. */
+	uint8_t		de_reserved;
+	uint32_t	de_write_pointer;	/* WP offset in the zone. */
 };
 #define	G_ZONED_ENTRY_SIZE	sizeof(struct g_zoned_disk_entry)
-_Static_assert(G_ZONED_ENTRY_SIZE == 16, "on-disk zone entry layout changed");
+_Static_assert(G_ZONED_ENTRY_SIZE == 8, "on-disk zone entry layout changed");
+
+/* de_write_pointer value for zones without a write pointer. */
+#define	G_ZONED_WP_NONE		0xffffffffu
+/*
+ * Zone size cap (in sectors) keeping every valid zone-relative write pointer,
+ * including that of a full zone (== zone length), below G_ZONED_WP_NONE.
+ */
+#define	G_ZONED_MAXZONESECS	(G_ZONED_WP_NONE - 1)
 
 /*
  * Maximum number of conventional-zone ranges that fit in the metadata.
@@ -228,20 +236,26 @@ g_zoned_entry_encode(const struct disk_zone_rep_entry *z, u_char *data)
 	de->de_type = z->zone_type;
 	de->de_condition = z->zone_condition;
 	de->de_flags = z->zone_flags;
-	memset(de->de_reserved, 0, sizeof(de->de_reserved));
-	de->de_write_pointer_lba = htole64(z->write_pointer_lba);
+	de->de_reserved = 0;
+	de->de_write_pointer = htole32(z->write_pointer_lba == UINT64_MAX ?
+	    G_ZONED_WP_NONE :
+	    (uint32_t)(z->write_pointer_lba - z->zone_start_lba));
 }
 
 static __inline void
-g_zoned_entry_decode(const u_char *data, struct disk_zone_rep_entry *z)
+g_zoned_entry_decode(const u_char *data, struct disk_zone_rep_entry *z,
+    uint64_t start_lba)
 {
 	const struct g_zoned_disk_entry *de =
 	    (const struct g_zoned_disk_entry *)data;
+	uint32_t wp;
 
 	z->zone_type = de->de_type;
 	z->zone_condition = de->de_condition;
 	z->zone_flags = de->de_flags;
-	z->write_pointer_lba = le64toh(de->de_write_pointer_lba);
+	wp = le32toh(de->de_write_pointer);
+	z->write_pointer_lba = (wp == G_ZONED_WP_NONE) ? UINT64_MAX :
+	    start_lba + wp;
 }
 #endif	/* _KERNEL */
 

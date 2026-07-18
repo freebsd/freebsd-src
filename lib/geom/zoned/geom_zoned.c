@@ -193,6 +193,11 @@ zoned_create(struct gctl_req *req)
 		    secsize);
 		return;
 	}
+	if ((uint64_t)zonesize / secsize > G_ZONED_MAXZONESECS) {
+		gctl_error(req, "Zone size %jd exceeds %u sectors.",
+		    (intmax_t)zonesize, G_ZONED_MAXZONESECS);
+		return;
+	}
 	nzones = g_zoned_nzones(msize, zonesize, secsize);
 	if (nzones == 0) {
 		gctl_error(req, "Zone size %jd is too large for %s.",

@@ -277,7 +277,8 @@ g_zoned_load_table(struct g_zoned_softc *sc, struct g_consumer *cp)
 		    sc->sc_nzones - zno);
 		for (i = 0; i < n; i++)
 			g_zoned_entry_decode(buf + i * G_ZONED_ENTRY_SIZE,
-			    &sc->sc_zones[zno + i]);
+			    &sc->sc_zones[zno + i],
+			    (uint64_t)(zno + i) * sc->sc_zonesecs);
 		g_free(buf);
 		zno += n;
 		off += chunk;
@@ -1109,7 +1110,8 @@ g_zoned_create(struct g_class *mp, const struct g_zoned_metadata *md,
 
 	nzones = md->md_nzones;
 	zonesecs = md->md_zonesize / pp->sectorsize;
-	if (nzones == 0 || zonesecs == 0 || md->md_nconv > G_ZONED_MAXCONV ||
+	if (nzones == 0 || zonesecs == 0 || zonesecs > G_ZONED_MAXZONESECS ||
+	    md->md_nconv > G_ZONED_MAXCONV ||
 	    (md->md_flags & ~G_ZONED_MD_FLAGSMASK) != 0) {
 		G_ZONED_DEBUG(0, "Bogus metadata on %s.", pp->name);
 		return (NULL);
