@@ -22,6 +22,12 @@
 #define	G_ZONED_VERSION		1
 
 /*
+ * Sentinel for "unlimited open/active sequential zones".
+ * See SVPD_ZBDC_MAX_SEQ_UNLIMITED.
+ */
+#define	G_ZONED_SEQ_UNLIMITED	0xffffffff
+
+/*
  * On-disk layout, carved out of the end of the backing provider:
  *
  *   [ ... usable (zoned) region ... | table header | zone entries | metadata ]

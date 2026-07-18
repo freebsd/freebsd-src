@@ -662,9 +662,8 @@ g_zoned_zonecmd(struct bio *bp, struct g_zoned_softc *sc)
 		/* Optimal zone counts are host-aware concepts; leave unset. */
 		p->optimal_seq_zones = 0;
 		p->optimal_nonseq_zones = 0;
-		/* 0xffffffff is the ZBC "unlimited" sentinel. */
 		p->max_seq_zones = (sc->sc_maxopen != 0) ? sc->sc_maxopen :
-		    0xffffffff;
+		    G_ZONED_SEQ_UNLIMITED;
 		g_io_deliver(bp, 0);
 		return;
 	}
