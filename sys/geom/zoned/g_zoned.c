@@ -508,10 +508,12 @@ g_zoned_flush_sync(struct g_zoned_softc *sc, struct g_consumer *cp)
 	}
 	g_topology_unlock();
 	error = 0;
-	for (done = 0; done < total && error == 0; done += chunk) {
+	for (done = 0; done < total; done += chunk) {
 		chunk = MIN(total - done, (off_t)maxphys);
 		chunk -= chunk % sc->sc_secsize;
 		error = g_write_data(cp, off + done, buf + done, chunk);
+		if (error != 0)
+			break;
 	}
 	if (error == 0)
 		error = g_io_flush(cp);
