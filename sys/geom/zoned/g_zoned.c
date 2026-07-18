@@ -136,16 +136,16 @@ static void
 g_zoned_set_cond(struct g_zoned_softc *sc, struct disk_zone_rep_entry *z,
     uint8_t cond)
 {
+	bool is_open, want_open;
 
 	mtx_assert(&sc->sc_lock, MA_OWNED);
 
-	if (g_zoned_cond_is_open(z->zone_condition) !=
-	    g_zoned_cond_is_open(cond)) {
-		if (g_zoned_cond_is_open(cond))
-			sc->sc_nopen++;
-		else
-			sc->sc_nopen--;
-	}
+	is_open = g_zoned_cond_is_open(z->zone_condition);
+	want_open = g_zoned_cond_is_open(cond);
+	if (!is_open && want_open)
+		sc->sc_nopen++;
+	else if (is_open && !want_open)
+		sc->sc_nopen--;
 	z->zone_condition = cond;
 }
 
