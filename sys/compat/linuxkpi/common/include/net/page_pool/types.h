@@ -1,5 +1,9 @@
-/*-
+/*
  * Copyright (c) 2023-2025 Bjoern A. Zeeb
+ * Copyright (c) 2025-2026 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Björn Zeeb
+ * under sponsorship from the FreeBSD Foundation.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -27,10 +31,23 @@ struct page_pool_params {
 };
 
 struct page_pool {
+	struct page_pool_params		params;
 };
 
 #define	PP_FLAG_DMA_MAP		BIT(0)
 #define	PP_FLAG_DMA_SYNC_DEV	BIT(1)
 #define	PP_FLAG_PAGE_FRAG	BIT(2)
+#define	PP_FLAGS_ALL		(PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV | \
+    PP_FLAG_PAGE_FRAG)
+
+struct page *linuxkpi_page_pool_alloc_frag(struct page_pool *, uint32_t *,
+    size_t, gfp_t);
+
+static inline struct page *
+page_pool_alloc_frag(struct page_pool *pp, uint32_t *offset,
+    size_t size, gfp_t gfp)
+{
+	return (linuxkpi_page_pool_alloc_frag(pp, offset, size, gfp));
+}
 
 #endif	/* _LINUXKPI_NET_PAGE_POOL_TYPES_H */
