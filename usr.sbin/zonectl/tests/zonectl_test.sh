@@ -94,9 +94,30 @@ report_starting_lba_cleanup()
 	zoned_md_cleanup
 }
 
+atf_test_case report_params cleanup
+report_params_head()
+{
+	atf_set "descr" "zonectl -c params reports the device parameters"
+	atf_set "require.user" "root"
+}
+report_params_body()
+{
+	alloc_zoned_md
+	atf_check gzoned create -s 256m -m 3 ${md}
+	atf_check -o match:"Zone Mode: Host Managed" \
+	    -o match:"URSWRZ.*: Yes" \
+	    -o match:"Open Sequential Write Required Zones: 3" \
+	    zonectl -d /dev/${md}.zoned -c params
+}
+report_params_cleanup()
+{
+	zoned_md_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case report_filter
 	atf_add_test_case report_zones
 	atf_add_test_case report_starting_lba
+	atf_add_test_case report_params
 }
