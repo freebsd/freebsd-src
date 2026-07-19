@@ -221,6 +221,8 @@ static int	pmc_detach_one_process(struct proc *p, struct pmc *pm,
 static void	pmc_destroy_owner_descriptor(struct pmc_owner *po);
 static void	pmc_destroy_pmc_descriptor(struct pmc *pm);
 static void	pmc_destroy_process_descriptor(struct pmc_process *pp);
+static void	pmc_reclaim_pmc_from_cpu(struct pmc *pm,
+    struct pmc_process *pp, int cpu);
 static struct pmc_owner *pmc_find_owner_descriptor(struct proc *p);
 static int	pmc_find_pmc(pmc_id_t pmcid, struct pmc **pm);
 static struct pmc *pmc_find_pmc_descriptor_in_process(struct pmc_owner *po,
@@ -1239,6 +1241,21 @@ pmc_detach_one_process(struct proc *p, struct pmc *pm, int flags)
 	if (pp->pp_pmcs[ri].pp_pmc != pm)
 		return (EINVAL);
 
+	/*
+	 * If this is a process-virtual PMC that is still loaded on the
+	 * hardware of the CPU we are running on (the common case when a
+	 * process detaches a PMC from itself), take it off and drop its
+	 * runcount reference now.  The reference is otherwise only
+	 * dropped by the switch-out reclaim, which the scheduler stops
+	 * calling once P_HWPMC is cleared below - leaking it and later
+	 * wedging pmc_wait_for_pmc_idle() at release time.
+	 */
+	if (PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm))) {
+		critical_enter();
+		pmc_reclaim_pmc_from_cpu(pm, pp, curthread->td_oncpu);
+		critical_exit();
+	}
+
 	pmc_unlink_target_process(pm, pp);
 
 	/* Issue a detach entry if a log file is configured */
@@ -1256,6 +1273,22 @@ pmc_detach_one_process(struct proc *p, struct pmc *pm, int flags)
 
 	if (pp->pp_refcnt != 0)	/* still a target of some PMC */
 		return (0);
+
+	/*
+	 * This detach removed the process' last PMC and we are about to
+	 * clear P_HWPMC.  If the detached PMC was its last target and is
+	 * still loaded on other CPUs (e.g. sibling threads of a
+	 * multi-threaded target, or a target running on another CPU),
+	 * drain those references first: the target is already unlinked so
+	 * it cannot reload the PMC, and P_HWPMC is still set so those
+	 * CPUs' switch-out reclaim still runs.  Bounded by the target
+	 * threads being scheduled out.
+	 */
+	if (PMC_IS_VIRTUAL_MODE(PMC_TO_MODE(pm)) &&
+	    LIST_EMPTY(&pm->pm_targets)) {
+		while (counter_u64_fetch(pm->pm_runcount) > 0)
+			pmc_force_context_switch();
+	}
 
 	pmc_remove_process_descriptor(pp);
 
@@ -1608,6 +1641,61 @@ pmc_delta(const struct pmc_classdep *pcd, pmc_value_t newvalue,
 	if (pcd->pcd_width < 64)
 		delta &= ((pmc_value_t)1 << pcd->pcd_width) - 1;
 	return (delta);
+}
+
+/*
+ * Take a process-virtual PMC off the hardware of 'cpu' if it is
+ * currently loaded there for process 'pp', accumulating its final
+ * count and dropping its runcount reference.  This is the same reclaim
+ * that context switch out and process exit perform, factored out so it
+ * can also run when a target is detached while the PMC may still be
+ * live: the runcount reference is decremented by the switch-out reclaim
+ * only, which the scheduler gates on P_HWPMC, so a detach that clears
+ * P_HWPMC without draining would leak the reference and later wedge
+ * pmc_wait_for_pmc_idle().  Must be called in a critical section.
+ */
+static void
+pmc_reclaim_pmc_from_cpu(struct pmc *pm, struct pmc_process *pp, int cpu)
+{
+	struct pmc_classdep *pcd;
+	struct pmc *phw_pm;
+	pmc_value_t newvalue, tmp;
+	u_int adjri, ri;
+
+	ri = PMC_TO_ROWINDEX(pm);
+	pcd = pmc_ri_to_classdep(md, ri, &adjri);
+
+	/* Only reclaim if this PMC is actually loaded on this CPU. */
+	phw_pm = NULL;
+	(void)(*pcd->pcd_get_config)(cpu, adjri, &phw_pm);
+	if (phw_pm != pm)
+		return;
+
+	KASSERT(counter_u64_fetch(pm->pm_runcount) > 0,
+	    ("[pmc,%d] pm=%p runcount %ju", __LINE__, pm,
+	    (uintmax_t)counter_u64_fetch(pm->pm_runcount)));
+
+	if (pm->pm_pcpu_state[cpu].pps_cpustate) {
+		pm->pm_pcpu_state[cpu].pps_cpustate = 0;
+		if (pm->pm_pcpu_state[cpu].pps_stalled == 0) {
+			(void)pcd->pcd_stop_pmc(cpu, adjri, pm);
+
+			if (PMC_TO_MODE(pm) == PMC_MODE_TC) {
+				(void)pcd->pcd_read_pmc(cpu, adjri, pm,
+				    &newvalue);
+				tmp = pmc_delta(pcd, newvalue,
+				    PMC_PCPU_SAVED(cpu, ri));
+
+				mtx_pool_lock_spin(pmc_mtxpool, pm);
+				pm->pm_gv.pm_savedvalue += tmp;
+				pp->pp_pmcs[ri].pp_pmcval += tmp;
+				mtx_pool_unlock_spin(pmc_mtxpool, pm);
+			}
+		}
+	}
+
+	counter_u64_add(pm->pm_runcount, -1);
+	(void)pcd->pcd_config_pmc(cpu, adjri, NULL);
 }
 
 /*
