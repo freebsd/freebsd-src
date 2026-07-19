@@ -3630,7 +3630,37 @@ re_stop(struct rl_softc *sc)
 		    0x00080000);
 	}
 
-	if ((sc->rl_flags & RL_FLAG_WAIT_TXPOLL) != 0) {
+	if ((sc->rl_flags & RL_FLAG_8168G_PLUS) != 0) {
+		/*
+		 * RTL8168G and later.  The STOPREQ command is defined only for
+		 * earlier controllers; issuing it on these parts can leave the
+		 * MAC wedged.  With the RXDV gate enabled above, drain the TX
+		 * descriptor queue and the on-chip TX/RX FIFOs and clear the
+		 * TX/RX enable bits so the DMA engine is idle before the reset
+		 * and buffer free below.  All waits are bounded.
+		 */
+		DELAY(2000);
+		for (i = RL_TIMEOUT; i > 0; i--) {
+			if ((CSR_READ_4(sc, RL_TXCFG) &
+			    RL_TXCFG_QUEUE_EMPTY) != 0)
+				break;
+			DELAY(100);
+		}
+		if (i == 0)
+			device_printf(sc->rl_dev, "stopping TXQ timed out!\n");
+		CSR_WRITE_1(sc, RL_COMMAND, CSR_READ_1(sc, RL_COMMAND) &
+		    ~(RL_CMD_TX_ENB | RL_CMD_RX_ENB));
+		for (i = RL_TIMEOUT * 3; i > 0; i--) {
+			if ((CSR_READ_1(sc, RL_MCU_CMD) &
+			    (RL_MCU_TXFIFO_EMPTY | RL_MCU_RXFIFO_EMPTY)) ==
+			    (RL_MCU_TXFIFO_EMPTY | RL_MCU_RXFIFO_EMPTY))
+				break;
+			DELAY(20);
+		}
+		if (i == 0)
+			device_printf(sc->rl_dev,
+			    "TX/RX FIFO drain timed out!\n");
+	} else if ((sc->rl_flags & RL_FLAG_WAIT_TXPOLL) != 0) {
 		for (i = RL_TIMEOUT; i > 0; i--) {
 			if ((CSR_READ_1(sc, sc->rl_txstart) &
 			    RL_TXSTART_START) == 0)
@@ -3660,6 +3690,15 @@ re_stop(struct rl_softc *sc)
 	DELAY(1000);
 	CSR_WRITE_2(sc, RL_IMR, 0x0000);
 	CSR_WRITE_2(sc, RL_ISR, 0xFFFF);
+
+	/*
+	 * Reset the controller before freeing the DMA buffers below.  A
+	 * controller that has not fully quiesced can keep fetching stale,
+	 * still-owned descriptors that point at about-to-be-freed mbufs.
+	 * re_init_locked() resets again on the reinit path; the extra reset
+	 * is idempotent and cheap.
+	 */
+	re_reset(sc);
 
 	if (sc->rl_head != NULL) {
 		m_freem(sc->rl_head);

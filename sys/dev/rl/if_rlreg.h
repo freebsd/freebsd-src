@@ -146,6 +146,14 @@
 #define	RL_MISC			0x00F0
 
 /*
+ * MCU command / FIFO status register (RTL8168G and later).  Polled to
+ * confirm the on-chip TX/RX FIFOs have drained before a controller reset.
+ */
+#define	RL_MCU_CMD		0x00D3
+#define	RL_MCU_TXFIFO_EMPTY	0x20	/* bit 5 */
+#define	RL_MCU_RXFIFO_EMPTY	0x10	/* bit 4 */
+
+/*
  * TX config register bits
  */
 #define	RL_TXCFG_CLRABRT	0x00000001	/* retransmit aborted pkt */
