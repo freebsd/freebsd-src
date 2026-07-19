@@ -291,8 +291,8 @@ int	proc_write_dbregs32(struct thread *_td, struct dbreg32 *_dbreg32);
 #endif
 
 void	ptrace_unsuspend(struct proc *p);
-int	ptrace_action(struct thread *td, int req, pid_t pid, void *addr,
-	    int data);
+int	ptrace_action(struct thread *td, int req, bool pd_mode, pid_t pid,
+	    int pfd, lwpid_t lwpid, void *addr, int data);
 
 extern bool allow_ptrace;
 

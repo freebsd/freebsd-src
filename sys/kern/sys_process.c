@@ -32,7 +32,7 @@
  */
 
 #include <sys/systm.h>
-#include <sys/caprights.h>
+#include <sys/capsicum.h>
 #include <sys/filedesc.h>
 #include <sys/imgact.h>
 #include <sys/ktr.h>
@@ -43,6 +43,7 @@
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/procdesc.h>
 #include <sys/ptrace.h>
 #include <sys/reg.h>
 #include <sys/rwlock.h>
@@ -681,8 +682,8 @@ struct ptrace_args {
 #endif
 
 static int
-ptrace_useraction(struct thread *td, int req, pid_t pid, void *uaddr,
-    int udata)
+ptrace_useraction(struct thread *td, int req, bool pd_mode, pid_t pid, int pfd,
+    lwpid_t lwpid, void *uaddr, int udata)
 {
 	/*
 	 * XXX this obfuscation is to reduce stack usage, but the register
@@ -792,7 +793,7 @@ ptrace_useraction(struct thread *td, int req, pid_t pid, void *uaddr,
 	if (error)
 		return (error);
 
-	error = ptrace_action(td, req, pid, addr, udata);
+	error = ptrace_action(td, req, pd_mode, pid, pfd, lwpid, addr, udata);
 	if (error != 0)
 		return (error);
 
@@ -1010,7 +1011,8 @@ ptrace_sel_coredump_thread(struct proc *p)
 }
 
 int
-ptrace_action(struct thread *td, int req, pid_t pid, void *addr, int data)
+ptrace_action(struct thread *td, int req, bool pd_mode, pid_t pid, int pfd,
+    lwpid_t lwpid, void *addr, int data)
 {
 	struct iovec iov;
 	struct uio uio;
@@ -1024,6 +1026,7 @@ ptrace_action(struct thread *td, int req, pid_t pid, void *addr, int data)
 	struct ptrace_coredump *pc;
 	struct thr_coredump_req *tcq;
 	struct thr_syscall_req *tsr;
+	struct file *pfp;
 	struct ptrace_child *children, *ptc;
 	int error, num, num1, tmp;
 	lwpid_t tid = 0, *buf;
@@ -1035,6 +1038,7 @@ ptrace_action(struct thread *td, int req, pid_t pid, void *addr, int data)
 	curp = td->td_proc;
 	proctree_locked = false;
 	p2_req_set = false;
+	pfp = NULL;
 
 	/* Lock proctree before locking the process. */
 	switch (req) {
@@ -1062,24 +1066,42 @@ ptrace_action(struct thread *td, int req, pid_t pid, void *addr, int data)
 	if (req == PT_TRACE_ME) {
 		p = td->td_proc;
 		PROC_LOCK(p);
-	} else {
-		if (pid <= PID_MAX) {
-			if ((p = pfind(pid)) == NULL) {
-				if (proctree_locked)
-					sx_xunlock(&proctree_lock);
-				return (ESRCH);
+	} else if (pd_mode) {
+		if (!proctree_locked)
+			sx_slock(&proctree_lock);
+		error = fget_procdesc(td, pfd, &cap_ptrace_rights, EINVAL,
+		    &pfp, NULL, &p);
+		if (!proctree_locked)
+			sx_sunlock(&proctree_lock);
+		if (error != 0)
+			goto fail_proctree;
+		pid = p->p_pid;
+		if (lwpid != -1) {
+			FOREACH_THREAD_IN_PROC(p, td2) {
+				if (td2->td_tid == lwpid)
+					break;
 			}
-		} else {
-			td2 = tdfind(pid, -1);
 			if (td2 == NULL) {
-				if (proctree_locked)
-					sx_xunlock(&proctree_lock);
-				return (ESRCH);
+				PROC_UNLOCK(p);
+				error = ESRCH;
+				goto fail_proctree;
 			}
-			p = td2->td_proc;
-			tid = pid;
-			pid = p->p_pid;
+			tid = td2->td_tid;
 		}
+	} else if (pid <= PID_MAX) {
+		if ((p = pfind(pid)) == NULL) {
+			error = ESRCH;
+			goto fail_proctree;
+		}
+	} else {
+		td2 = tdfind(pid, -1);
+		if (td2 == NULL) {
+			error = ESRCH;
+			goto fail_proctree;
+		}
+		p = td2->td_proc;
+		tid = pid;
+		pid = p->p_pid;
 	}
 	AUDIT_ARG_PROCESS(p);
 
@@ -1975,8 +1997,11 @@ fail:
 		p->p_flag2 &= ~P2_PTRACEREQ;
 	}
 	PROC_UNLOCK(p);
+fail_proctree:
 	if (proctree_locked)
 		sx_xunlock(&proctree_lock);
+	if (pfp != NULL)
+		fdrop(pfp, td);
 	return (error);
 }
 #undef PROC_READ
@@ -1985,7 +2010,7 @@ fail:
 int
 kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 {
-	return (ptrace_action(td, req, pid, addr, data));
+	return (ptrace_action(td, req, false, pid, -1, -1, addr, data));
 }
 
 int
@@ -1997,7 +2022,21 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 	AUDIT_ARG_CMD(uap->req);
 	AUDIT_ARG_VALUE(uap->data);
 
-	error = ptrace_useraction(td, uap->req, uap->pid, uap->addr,
-	    uap->data);
+	error = ptrace_useraction(td, uap->req, false, uap->pid, -1, -1,
+	    uap->addr, uap->data);
+	return (error);
+}
+
+int
+sys_pdptrace(struct thread *td, struct pdptrace_args *uap)
+{
+	int error;
+
+	AUDIT_ARG_FD(uap->pfd);
+	AUDIT_ARG_CMD(uap->req);
+	AUDIT_ARG_VALUE(uap->data);
+
+	error = ptrace_useraction(td, uap->req, true, -1, uap->pfd, uap->lwpid,
+	    uap->addr, uap->data);
 	return (error);
 }

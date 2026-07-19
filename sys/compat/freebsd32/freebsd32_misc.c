@@ -1016,8 +1016,8 @@ ptrace_sc_ret32_to_ret(const struct ptrace_sc_ret32 *psr32,
 }
 
 static int
-freebsd32_ptrace_useraction(struct thread *td, int req, pid_t pid,
-    void *uaddr, int udata)
+freebsd32_ptrace_useraction(struct thread *td, int req, bool pd_mode, pid_t pid,
+    int pfd, lwpid_t lwpid, void *uaddr, int udata)
 {
 	union {
 		struct ptrace_io_desc piod;
@@ -1181,7 +1181,7 @@ freebsd32_ptrace_useraction(struct thread *td, int req, pid_t pid,
 	if (error != 0)
 		return (error);
 
-	error = ptrace_action(td, req, pid, addr, data);
+	error = ptrace_action(td, req, pd_mode, pid, pfd, lwpid, addr, data);
 	if (error != 0)
 		return (error);
 
@@ -1259,8 +1259,22 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 	AUDIT_ARG_CMD(uap->req);
 	AUDIT_ARG_VALUE(uap->data);
 
-	error = freebsd32_ptrace_useraction(td, uap->req, uap->pid,
-	    uap->addr, uap->data);
+	error = freebsd32_ptrace_useraction(td, uap->req, false, uap->pid,
+	    -1, -1, uap->addr, uap->data);
+	return (error);
+}
+
+int
+freebsd32_pdptrace(struct thread *td, struct freebsd32_pdptrace_args *uap)
+{
+	int error;
+
+	AUDIT_ARG_FD(uap->pfd);
+	AUDIT_ARG_CMD(uap->req);
+	AUDIT_ARG_VALUE(uap->data);
+
+	error = freebsd32_ptrace_useraction(td, uap->req, true, -1,
+	    uap->pfd, uap->lwpid, uap->addr, uap->data);
 	return (error);
 }
 

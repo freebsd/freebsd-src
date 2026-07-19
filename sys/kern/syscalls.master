@@ -3435,5 +3435,14 @@
 			int flags
 		);
 	}
+605	AUE_PDPTRACE	STD {
+		int pdptrace(
+			int req,
+			int pfd,
+			int lwpid,
+			_Inout_opt_ _Contains_long_ptr_ void *addr,
+			int data
+		);
+	}
 
 ; vim: syntax=off
