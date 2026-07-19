@@ -1442,6 +1442,14 @@ rpo_tcp_udp_crc_offload_en_set(struct aq_hw *aq_hw,
 }
 
 void
+rpo_outer_vlan_tag_mode_set(struct aq_hw *aq_hw, uint32_t outer_vlan_tag_mode)
+{
+	AQ_WRITE_REG_BIT(aq_hw, rpo_outer_vl_ins_mode_adr,
+	    rpo_outer_vl_ins_mode_msk, rpo_outer_vl_ins_mode_shift,
+	    outer_vlan_tag_mode);
+}
+
+void
 rpo_lro_en_set(struct aq_hw *aq_hw, uint32_t lro_en)
 {
 	AQ_WRITE_REG(aq_hw, rpo_lro_en_adr, lro_en);

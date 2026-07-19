@@ -371,10 +371,12 @@ aq_if_attach_pre(if_ctx_t ctx)
 	softc->admin_ticks = 0;
 
 	iflib_set_mac(ctx, hw->mac_addr);
-	scctx->isc_tx_csum_flags = CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_TSO;
+	scctx->isc_tx_csum_flags = CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_TSO |
+	    CSUM_IP6_TCP | CSUM_IP6_UDP | CSUM_IP6_TSO;
 	scctx->isc_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_HWCSUM |
-	    IFCAP_TSO | IFCAP_LRO | IFCAP_JUMBO_MTU | IFCAP_VLAN_HWFILTER |
-	    IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
+	    IFCAP_HWCSUM_IPV6 | IFCAP_TSO | IFCAP_LRO | IFCAP_JUMBO_MTU |
+	    IFCAP_VLAN_HWFILTER | IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |
+	    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO;
 	scctx->isc_capenable = scctx->isc_capabilities;
 	scctx->isc_tx_nsegments = 31;
 	scctx->isc_tx_tso_segments_max = 31;
@@ -739,6 +741,11 @@ aq_if_init(if_ctx_t ctx)
 	aq_hw_udp_rss_enable(hw, aq_enable_rss_udp);
 	aq_hw_set_link_speed(hw, hw->link_rate);
 
+	/* iflib does not replay filter state after init; aq_hw_init() clears it. */
+	aq_if_multi_set(ctx);
+	if (aq_if_promisc_set(ctx, if_getflags(iflib_get_ifp(ctx))) != 0)
+		device_printf(softc->dev, "could not restore promiscuous mode\n");
+
 	AQ_DBG_EXIT(0);
 }
 
@@ -822,14 +829,18 @@ aq_if_multi_set(if_ctx_t ctx)
 	if_t ifp = iflib_get_ifp(ctx);
 	struct aq_hw  *hw = &softc->hw;
 	AQ_DBG_ENTER();
-	softc->mcnt = if_llmaddr_count(iflib_get_ifp(ctx));
-	if (softc->mcnt >= AQ_HW_MAC_MAX) {
-		aq_hw_set_promisc(hw, !!(if_getflags(ifp) & IFF_PROMISC),
-		    aq_is_vlan_promisc_required(softc),
-		    !!(if_getflags(ifp) & IFF_ALLMULTI) || aq_is_mc_promisc_required(softc));
-	} else {
-		if_foreach_llmaddr(iflib_get_ifp(ctx), &aq_mc_filter_apply, softc);
+	softc->mcnt = if_llmaddr_count(ifp);
+
+	/* Reconcile HW to the current list: clear stale slots, reprogram. */
+	if (softc->mcnt < AQ_HW_MAC_MAX) {
+		for (int i = 1; i < AQ_HW_MAC_MAX; i++)
+			rpfl2_uc_flr_en_set(hw, 0U, i);
+		if_foreach_llmaddr(ifp, &aq_mc_filter_apply, softc);
 	}
+
+	aq_hw_set_promisc(hw, !!(if_getflags(ifp) & IFF_PROMISC),
+	    aq_is_vlan_promisc_required(softc),
+	    !!(if_getflags(ifp) & IFF_ALLMULTI) || aq_is_mc_promisc_required(softc));
 	AQ_DBG_EXIT(0);
 }
 
@@ -1056,11 +1067,9 @@ aq_is_vlan_promisc_required(struct aq_dev *softc)
 
 	bit_count(softc->vlan_tags, 0, 4096, &vlan_tag_count);
 
-	if (vlan_tag_count <= AQ_HW_VLAN_MAX_FILTERS)
-		return (false);
-	else
-		return (true);
-
+	/* Filter only with 1..16 VLANs; 0 or >16 pass all tags. */
+	return (vlan_tag_count == 0 ||
+	    vlan_tag_count > AQ_HW_VLAN_MAX_FILTERS);
 }
 
 static void
@@ -1087,7 +1096,9 @@ aq_update_vlan_filters(struct aq_dev *softc)
 	}
 
 	hw_atl_b0_hw_vlan_set(hw, aq_vlans);
-	hw_atl_b0_hw_vlan_promisc_set(hw, aq_is_vlan_promisc_required(softc));
+	hw_atl_b0_hw_vlan_promisc_set(hw,
+	    aq_is_vlan_promisc_required(softc) ||
+	    (if_getflags(iflib_get_ifp(softc->ctx)) & IFF_PROMISC) != 0);
 }
 
 /* VLAN support */

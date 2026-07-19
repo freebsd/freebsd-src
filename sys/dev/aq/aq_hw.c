@@ -459,6 +459,9 @@ aq_hw_offload_set(struct aq_hw *hw)
 	/* LSO offloads*/
 	tdm_large_send_offload_en_set(hw, 0xFFFFFFFFU);
 
+	/* Outer (S-VLAN) tag parse mode */
+	rpo_outer_vlan_tag_mode_set(hw, 1U);
+
 	{
 		uint32_t i = 0;
 		uint32_t val = (8U < HW_ATL_B0_LRO_RXD_MAX) ? 0x3U :

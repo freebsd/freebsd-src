@@ -2145,6 +2145,19 @@
 /* default value of bitfield ipv4_chk_en */
 #define rpo_ipv4chk_en_default 0x0
 
+/* register address for bitfield outer_vl_ins_mode */
+#define rpo_outer_vl_ins_mode_adr 0x00005580
+/* bitmask for bitfield outer_vl_ins_mode */
+#define rpo_outer_vl_ins_mode_msk 0x00000004
+/* inverted bitmask for bitfield outer_vl_ins_mode */
+#define rpo_outer_vl_ins_mode_mskn 0xfffffffb
+/* lower bit position of bitfield outer_vl_ins_mode */
+#define rpo_outer_vl_ins_mode_shift 2
+/* width of bitfield outer_vl_ins_mode */
+#define rpo_outer_vl_ins_mode_width 1
+/* default value of bitfield outer_vl_ins_mode */
+#define rpo_outer_vl_ins_mode_default 0x0
+
 /* rx desc{d}_vl_strip bitfield definitions
  * preprocessor definitions for the bitfield "desc{d}_vl_strip".
  * parameter: descriptor {d} | stride size 0x20 | range [0, 31]

@@ -110,7 +110,9 @@ aq_ring_rx_init(struct aq_hw *hw, struct aq_ring *ring)
 
 	rdm_rx_desc_head_buff_size_set(hw, 0U, ring->index);
 	rdm_rx_desc_head_splitting_set(hw, 0U, ring->index);
-	rpo_rx_desc_vlan_stripping_set(hw, 0U, ring->index);
+	rpo_rx_desc_vlan_stripping_set(hw,
+	    (if_getcapenable(iflib_get_ifp(ring->dev->ctx)) &
+	    IFCAP_VLAN_HWTAGGING) != 0 ? 1U : 0U, ring->index);
 
 	/* Rx ring set mode */
 
@@ -363,7 +365,8 @@ aq_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		ri->iri_frags[i].irf_idx = cidx;
 		ri->iri_frags[i].irf_len = len;
 
-		if ((rx_desc->wb.pkt_type & 0x60) != 0) {
+		if ((if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) != 0 &&
+		    (rx_desc->wb.pkt_type & 0x60) != 0) {
 			ri->iri_flags |= M_VLANTAG;
 			ri->iri_vtag = le32toh(rx_desc->wb.vlan);
 		}
@@ -405,7 +408,8 @@ aq_setup_offloads(struct aq_dev *aq_dev, if_pkt_info_t pi, volatile struct aq_tx
 {
 	AQ_DBG_ENTER();
 	txd->cmd |= tx_desc_cmd_fcs;
-	txd->cmd |= (pi->ipi_csum_flags & (CSUM_IP|CSUM_TSO)) ?
+	txd->cmd |= ((pi->ipi_flags & IPI_TX_IPV4) &&
+	    (pi->ipi_csum_flags & (CSUM_IP | CSUM_IP_TSO))) ?
 	    tx_desc_cmd_ipv4 : 0;
 	txd->cmd |= (pi->ipi_csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP |
 	    CSUM_IP_UDP | CSUM_IP6_UDP)) ?  tx_desc_cmd_l4cs : 0;
