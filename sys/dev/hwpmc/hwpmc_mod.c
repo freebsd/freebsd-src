@@ -1593,6 +1593,24 @@ pmc_process_csw_in(struct thread *td)
 }
 
 /*
+ * Compute the change in a counter's value since it was last written.
+ * The hardware counter is only pcd_width bits wide and wraps around,
+ * while the value seeded into it may occupy the full 64-bit range, so
+ * take the difference modulo the counter width.
+ */
+static pmc_value_t
+pmc_delta(const struct pmc_classdep *pcd, pmc_value_t newvalue,
+    pmc_value_t oldvalue)
+{
+	pmc_value_t delta;
+
+	delta = newvalue - oldvalue;
+	if (pcd->pcd_width < 64)
+		delta &= ((pmc_value_t)1 << pcd->pcd_width) - 1;
+	return (delta);
+}
+
+/*
  * Thread context switch OUT.
  */
 static void
@@ -1604,8 +1622,7 @@ pmc_process_csw_out(struct thread *td)
 	struct pmc_process *pp;
 	struct pmc_thread *pt = NULL;
 	struct proc *p;
-	pmc_value_t newvalue;
-	int64_t tmp;
+	pmc_value_t newvalue, tmp;
 	enum pmc_mode mode;
 	int cpu;
 	u_int adjri, ri;
@@ -1743,22 +1760,18 @@ pmc_process_csw_out(struct thread *td)
 				}
 				mtx_pool_unlock_spin(pmc_mtxpool, pm);
 			} else {
-				tmp = newvalue - PMC_PCPU_SAVED(cpu, ri);
+				/*
+				 * For counting process-virtual PMCs, the
+				 * hardware counter's value increases
+				 * monotonically modulo the counter width;
+				 * pmc_delta() recovers the increment even
+				 * when the counter wrapped during the run.
+				 */
+				tmp = pmc_delta(pcd, newvalue,
+				    PMC_PCPU_SAVED(cpu, ri));
 
 				PMCDBG3(CSW,SWO,1,"cpu=%d ri=%d tmp=%jd (count)",
 				    cpu, ri, tmp);
-
-				/*
-				 * For counting process-virtual PMCs,
-				 * we expect the count to be
-				 * increasing monotonically, modulo a 64
-				 * bit wraparound.
-				 */
-				KASSERT(tmp >= 0,
-				    ("[pmc,%d] negative increment cpu=%d "
-				     "ri=%d newvalue=%jx saved=%jx "
-				     "incr=%jx", __LINE__, cpu, ri,
-				     newvalue, PMC_PCPU_SAVED(cpu, ri), tmp));
 
 				mtx_pool_lock_spin(pmc_mtxpool, pm);
 				pm->pm_gv.pm_savedvalue += tmp;
@@ -5070,7 +5083,8 @@ pmc_process_exit(void *arg __unused, struct proc *p)
 				if (PMC_TO_MODE(pm) == PMC_MODE_TC) {
 					pcd->pcd_read_pmc(cpu, adjri, pm,
 					    &newvalue);
-					tmp = newvalue - PMC_PCPU_SAVED(cpu, ri);
+					tmp = pmc_delta(pcd, newvalue,
+					    PMC_PCPU_SAVED(cpu, ri));
 
 					mtx_pool_lock_spin(pmc_mtxpool, pm);
 					pm->pm_gv.pm_savedvalue += tmp;
