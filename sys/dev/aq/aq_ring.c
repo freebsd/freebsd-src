@@ -333,11 +333,13 @@ aq_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	if_t ifp;
 	int cidx, rc = 0, i;
 	size_t len, total_len;
+	bool is_error = false;
 
 	AQ_DBG_ENTERA("[%d] start=%d", ring->index, ri->iri_cidx);
 	cidx = ri->iri_cidx;
 	ifp = iflib_get_ifp(aq_dev->ctx);
 	i = 0;
+	total_len = 0;
 
 	do {
 		if (i >= aq_dev->sctx->isc_rx_nsegments)
@@ -348,11 +350,15 @@ aq_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		trace_aq_rx_descr(ring->index, cidx,
 		    (volatile uint64_t *)rx_desc);
 
-		if ((rx_desc->wb.rx_stat & BIT(0)) != 0)
-			goto rx_err;
+		/* MAC error (rx_stat) or RX-DMA fault (rdm_err) -> drop. */
+		if ((rx_desc->wb.rx_stat & BIT(0)) != 0 || rx_desc->wb.rdm_err)
+			is_error = true;
 
 		if (!rx_desc->wb.eop) {
 			len = ring->rx_buf_size;
+		} else if (is_error) {
+			total_len = le32toh(rx_desc->wb.pkt_len);
+			len = 0;
 		} else {
 			total_len = le32toh(rx_desc->wb.pkt_len);
 			if (total_len < (size_t)i * ring->rx_buf_size)
@@ -375,6 +381,19 @@ aq_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		cidx = aq_next(cidx, ring->rx_size - 1);
 	} while (!rx_desc->wb.eop);
 
+	ri->iri_nfrags = i;
+	ri->iri_len = total_len;
+
+	/* Per-frame RX error: drop (zero-length frags), don't reset. */
+	if (is_error) {
+		counter_u64_add(ring->stats.rx_err, 1);
+		for (i = 0; i < ri->iri_nfrags; i++)
+			ri->iri_frags[i].irf_len = 0;
+		if (ri->iri_len == 0)
+			ri->iri_len = 1;	/* iflib asserts iri_len != 0 */
+		goto exit;
+	}
+
 	if ((if_getcapenable(ifp) & IFCAP_RXCSUM) != 0) {
 		aq_rx_set_cso_flags(rx_desc, ri);
 	}
@@ -382,9 +401,6 @@ aq_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	if (ri->iri_rsstype != M_HASHTYPE_NONE) {
 		ri->iri_flowid = le32toh(rx_desc->wb.rss_hash);
 	}
-
-	ri->iri_len = total_len;
-	ri->iri_nfrags = i;
 
 	counter_u64_add(ring->stats.rx_bytes, total_len);
 	counter_u64_add(ring->stats.rx_pkts, 1);
