@@ -30,6 +30,7 @@ TESTS_SUBDIRS+=		netlink
 TESTS_SUBDIRS+=		netmap
 TESTS_SUBDIRS+=		netpfil
 TESTS_SUBDIRS+=		opencrypto
+TESTS_SUBDIRS+=		pmc
 TESTS_SUBDIRS+=		posixshm
 TESTS_SUBDIRS+=		ses
 TESTS_SUBDIRS+=		sound
