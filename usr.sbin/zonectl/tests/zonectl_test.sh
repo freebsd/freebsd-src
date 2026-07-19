@@ -179,6 +179,35 @@ finish_zone_cleanup()
 	zoned_md_cleanup
 }
 
+atf_test_case zone_state_handling cleanup
+zone_state_handling_head()
+{
+	atf_set "descr" \
+	    "zone commands follow ZBC spec outside their transition states"
+	atf_set "require.user" "root"
+}
+zone_state_handling_body()
+{
+	alloc_zoned_md
+	atf_check gzoned create -s 256m -c 0 ${md}
+
+	# Explicitly targeting a conventional zone is the caller's error.
+	atf_check -s not-exit:0 -e ignore \
+	    zonectl -d /dev/${md}.zoned -c finish -l 0
+	# Closing an empty zone is a no-op.
+	atf_check zonectl -d /dev/${md}.zoned -c close -l 0x80000
+	atf_check_equal "3" "$(zone_count empty)"
+	# So is opening a full zone: it must stay full.
+	atf_check zonectl -d /dev/${md}.zoned -c finish -l 0x100000
+	atf_check zonectl -d /dev/${md}.zoned -c open -l 0x100000
+	atf_check_equal "1" "$(zone_count full)"
+	atf_check_equal "0" "$(zone_count exp_open)"
+}
+zone_state_handling_cleanup()
+{
+	zoned_md_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case report_filter
@@ -188,4 +217,5 @@ atf_init_test_cases()
 	atf_add_test_case open_zone
 	atf_add_test_case close_zone
 	atf_add_test_case finish_zone
+	atf_add_test_case zone_state_handling
 }

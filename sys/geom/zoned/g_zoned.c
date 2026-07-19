@@ -764,22 +764,19 @@ g_zoned_zonecmd(struct bio *bp, struct g_zoned_softc *sc)
 				return;
 			}
 			switch (args->zone_cmd) {
+			/*
+			 * Many operations here are no-op, per ZBC-r06.
+			 */
 			case DISK_ZONE_OPEN:
-				/*
-				 * "Open all" explicitly opens the closed
-				 * zones; opening a full zone is the caller's
-				 * error.
-				 */
 				if (all) {
 					if (z->zone_condition !=
 					    DISK_ZONE_COND_CLOSED)
 						continue;
 				} else if (z->zone_condition ==
-				    DISK_ZONE_COND_FULL) {
-					mtx_unlock(&sc->sc_lock);
-					g_io_deliver(bp, EINVAL);
-					return;
-				}
+				    DISK_ZONE_COND_FULL ||
+				    z->zone_condition ==
+				    DISK_ZONE_COND_EXPLICIT_OPEN)
+					continue;
 				if (!g_zoned_cond_is_open(z->zone_condition) &&
 				    !g_zoned_open_room(sc)) {
 					mtx_unlock(&sc->sc_lock);
@@ -790,14 +787,12 @@ g_zoned_zonecmd(struct bio *bp, struct g_zoned_softc *sc)
 				    DISK_ZONE_COND_EXPLICIT_OPEN);
 				break;
 			case DISK_ZONE_CLOSE:
-				if (all &&
-				    !g_zoned_cond_is_open(z->zone_condition))
+				if (!g_zoned_cond_is_open(z->zone_condition))
 					continue;
 				if (z->write_pointer_lba == z->zone_start_lba)
 					g_zoned_set_cond(sc, z,
 					    DISK_ZONE_COND_EMPTY);
-				else if (z->zone_condition !=
-				    DISK_ZONE_COND_FULL)
+				else
 					g_zoned_set_cond(sc, z,
 					    DISK_ZONE_COND_CLOSED);
 				break;
@@ -806,11 +801,15 @@ g_zoned_zonecmd(struct bio *bp, struct g_zoned_softc *sc)
 				    !g_zoned_cond_is_open(z->zone_condition) &&
 				    z->zone_condition != DISK_ZONE_COND_CLOSED)
 					continue;
+				if (z->zone_condition == DISK_ZONE_COND_FULL)
+					continue;
 				z->write_pointer_lba = z->zone_start_lba +
 				    z->zone_length;
 				g_zoned_set_cond(sc, z, DISK_ZONE_COND_FULL);
 				break;
 			case DISK_ZONE_RWP:
+				if (z->zone_condition == DISK_ZONE_COND_EMPTY)
+					continue;
 				z->write_pointer_lba = z->zone_start_lba;
 				z->zone_flags &= ~DISK_ZONE_FLAG_RESET;
 				g_zoned_set_cond(sc, z, DISK_ZONE_COND_EMPTY);
