@@ -1319,6 +1319,8 @@
         ..
         traceroute
         ..
+        zonectl
+        ..
     ..
 ..
 

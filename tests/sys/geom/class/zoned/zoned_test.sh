@@ -45,26 +45,6 @@ is_zoned_cleanup()
 	gzoned_test_cleanup
 }
 
-atf_test_case sequential cleanup
-sequential_head()
-{
-	atf_set "descr" "gzoned device has only sequential zones by default"
-	atf_set "require.user" "root"
-}
-sequential_body()
-{
-	gzoned_test_setup
-
-	alloc_zoned_md
-	atf_check gzoned create -s 256m ${md}
-	atf_check -o not-match:"Conventional" \
-	    zonectl -d /dev/${md}.zoned -c rz
-}
-sequential_cleanup()
-{
-	gzoned_test_cleanup
-}
-
 atf_test_case conventional cleanup
 conventional_head()
 {
@@ -77,8 +57,7 @@ conventional_body()
 
 	alloc_zoned_md
 	atf_check gzoned create -s 256m -c 1,3 ${md}
-	atf_check_equal "2" \
-	    "$(zonectl -d /dev/${md}.zoned -c rz | grep -c Conventional)"
+	atf_check_equal "2" "$(zone_count nonwp)"
 }
 conventional_cleanup()
 {
@@ -97,8 +76,7 @@ conventional_range_body()
 
 	alloc_zoned_md
 	atf_check gzoned create -s 256m -c 0-2 ${md}
-	atf_check_equal "3" \
-	    "$(zonectl -d /dev/${md}.zoned -c rz | grep -c Conventional)"
+	atf_check_equal "3" "$(zone_count nonwp)"
 }
 conventional_range_cleanup()
 {
@@ -126,30 +104,49 @@ all_zones_same_cleanup()
 	gzoned_test_cleanup
 }
 
-atf_test_case report_filter cleanup
-report_filter_head()
+atf_test_case conventional_ranges cleanup
+conventional_ranges_head()
 {
-	atf_set "descr" "zonectl -o only reports zones matching the filter"
+	atf_set "descr" "gzoned create -c accepts a list of zone ranges"
 	atf_set "require.user" "root"
 }
-report_filter_body()
+conventional_ranges_body()
 {
 	gzoned_test_setup
 
 	alloc_zoned_md
-	atf_check gzoned create -s 256m -c 0-1 ${md}
-
-	atf_check_equal "2" \
-	    "$(zonectl -d /dev/${md}.zoned -c rz -o nonwp -P summary | \
-	    awk '/zones,/ {print $1}')"
-	atf_check_equal "2" \
-	    "$(zonectl -d /dev/${md}.zoned -c rz -o empty -P summary | \
-	    awk '/zones,/ {print $1}')"
-	atf_check_equal "0" \
-	    "$(zonectl -d /dev/${md}.zoned -c rz -o full -P summary | \
-	    awk '/zones,/ {print $1}')"
+	atf_check gzoned create -s 256m -c 0,2-3 ${md}
+	atf_check_equal "3" "$(zone_count nonwp)"
+	# Zone 1 alone stays sequential: the second conventional zone
+	# reported must be zone 2, at LBA 512m / 512 = 0x100000.
+	atf_check_equal "0x100000" \
+	    "$(zonectl -d /dev/${md}.zoned -c rz -o nonwp -P script | \
+	    awk -F',' 'NR == 2 {gsub(/ /, "", $1); print $1}')"
 }
-report_filter_cleanup()
+conventional_ranges_cleanup()
+{
+	gzoned_test_cleanup
+}
+
+atf_test_case zone_size cleanup
+zone_size_head()
+{
+	atf_set "descr" "gzoned create -s adjusts the zone size"
+	atf_set "require.user" "root"
+}
+zone_size_body()
+{
+	gzoned_test_setup
+
+	alloc_zoned_md
+	atf_check gzoned create -s 128m ${md}
+	# 1024m of zone space now holds eight 128m zones instead of four.
+	atf_check -o match:"^8 zones," \
+	    zonectl -d /dev/${md}.zoned -c rz -P summary
+	# Zone 1 starts at LBA 128m / 512 = 0x40000.
+	atf_check_equal "0x40000" "$(zone_start 1)"
+}
+zone_size_cleanup()
 {
 	gzoned_test_cleanup
 }
@@ -198,6 +195,29 @@ reset_wp_conv_body()
 	    zonectl -d /dev/${md}.zoned -c rwp -l 0
 }
 reset_wp_conv_cleanup()
+{
+	gzoned_test_cleanup
+}
+
+atf_test_case reset_wp_empty cleanup
+reset_wp_empty_head()
+{
+	atf_set "descr" \
+	    "gzoned accepts a write pointer reset of an already-empty zone"
+	atf_set "require.user" "root"
+}
+reset_wp_empty_body()
+{
+	gzoned_test_setup
+
+	alloc_zoned_md
+	atf_check gzoned create -s 256m ${md}
+	atf_check_equal "0" "$(zone_wp 0)"
+	atf_check zonectl -d /dev/${md}.zoned -c rwp -l 0
+	atf_check_equal "0" "$(zone_wp 0)"
+	atf_check_equal "4" "$(zone_count empty)"
+}
+reset_wp_empty_cleanup()
 {
 	gzoned_test_cleanup
 }
@@ -306,6 +326,29 @@ write_boundary_cleanup()
 	gzoned_test_cleanup
 }
 
+atf_test_case write_conv_boundary cleanup
+write_conv_boundary_head()
+{
+	atf_set "descr" \
+	    "gzoned allows writes crossing two conventional zones"
+	atf_set "require.user" "root"
+}
+write_conv_boundary_body()
+{
+	gzoned_test_setup
+
+	alloc_zoned_md
+	atf_check gzoned create -s 256m -c 0-1 ${md}
+	# The same straddling write rejected in write_boundary is fine
+	# when the zones on both sides are conventional.
+	atf_check -e ignore \
+	    dd if=/dev/zero of=/dev/${md}.zoned bs=768k oseek=341 count=1
+}
+write_conv_boundary_cleanup()
+{
+	gzoned_test_cleanup
+}
+
 atf_test_case write_full cleanup
 write_full_head()
 {
@@ -390,6 +433,88 @@ max_open_cleanup()
 	gzoned_test_cleanup
 }
 
+atf_test_case max_open_limit cleanup
+max_open_limit_head()
+{
+	atf_set "descr" "gzoned rejects explicit opens beyond the open limit"
+	atf_set "require.user" "root"
+}
+max_open_limit_body()
+{
+	gzoned_test_setup
+
+	alloc_zoned_md
+	atf_check gzoned create -s 256m -m 2 ${md}
+	atf_check zonectl -d /dev/${md}.zoned -c open -l 0
+	atf_check zonectl -d /dev/${md}.zoned -c open -l 0x80000
+	atf_check_equal "2" "$(zone_count exp_open)"
+
+  # Explicitly open zones cannot be implicitly closed. A third open exceeds the
+  # limit until one of them is closed.
+	atf_check -s not-exit:0 -e ignore \
+	    zonectl -d /dev/${md}.zoned -c open -l 0x100000
+	atf_check zonectl -d /dev/${md}.zoned -c close -l 0
+	atf_check zonectl -d /dev/${md}.zoned -c open -l 0x100000
+	atf_check_equal "2" "$(zone_count exp_open)"
+}
+max_open_limit_cleanup()
+{
+	gzoned_test_cleanup
+}
+
+atf_test_case stop_force cleanup
+stop_force_head()
+{
+	atf_set "descr" "gzoned stop -f stops a busy device"
+	atf_set "require.user" "root"
+}
+stop_force_body()
+{
+	gzoned_test_setup
+
+	alloc_zoned_md
+	atf_check gzoned create -s 256m ${md}
+
+	# Keep the device open; a plain stop must fail, a forced one work.
+	sleep 5 < /dev/${md}.zoned &
+	spid=$!
+	sleep 0.5
+	atf_check -s not-exit:0 -e ignore gzoned stop ${md}.zoned
+	atf_check gzoned stop -f ${md}.zoned
+	wait_dev_gone /dev/${md}.zoned
+	kill $spid 2>/dev/null
+	wait $spid 2>/dev/null || true
+}
+stop_force_cleanup()
+{
+	gzoned_test_cleanup
+}
+
+atf_test_case create_on_zoned cleanup
+create_on_zoned_head()
+{
+	atf_set "descr" \
+	    "gzoned create on an already-zoned device fails gracefully"
+	atf_set "require.user" "root"
+}
+create_on_zoned_body()
+{
+	gzoned_test_setup
+
+	alloc_zoned_md
+	atf_check gzoned create -s 256m ${md}
+	# The metadata of the second device cannot land in the sequential
+	# zones of the first; creation must fail and leave it intact.
+	atf_check -s not-exit:0 -e ignore gzoned create -s 256m ${md}.zoned
+	atf_check test -c /dev/${md}.zoned
+	atf_check -o match:"^4 zones," \
+	    zonectl -d /dev/${md}.zoned -c rz -P summary
+}
+create_on_zoned_cleanup()
+{
+	gzoned_test_cleanup
+}
+
 atf_test_case fault_injection cleanup
 fault_injection_head()
 {
@@ -449,21 +574,26 @@ delete_rejected_cleanup()
 atf_init_test_cases()
 {
 	atf_add_test_case create
+	atf_add_test_case create_on_zoned
 	atf_add_test_case is_zoned
-	atf_add_test_case sequential
 	atf_add_test_case conventional
 	atf_add_test_case conventional_range
+	atf_add_test_case conventional_ranges
 	atf_add_test_case all_zones_same
-	atf_add_test_case report_filter
+	atf_add_test_case zone_size
 	atf_add_test_case reset_wp
 	atf_add_test_case reset_wp_conv
+	atf_add_test_case reset_wp_empty
 	atf_add_test_case unrestricted_reads
 	atf_add_test_case restricted_reads
 	atf_add_test_case write_out_of_order
 	atf_add_test_case write_boundary
+	atf_add_test_case write_conv_boundary
 	atf_add_test_case write_full
 	atf_add_test_case persistence
 	atf_add_test_case max_open
+	atf_add_test_case max_open_limit
+	atf_add_test_case stop_force
 	atf_add_test_case fault_injection
 	atf_add_test_case delete_rejected
 }

@@ -23,6 +23,13 @@ zone_wp()
 	    awk -F',' 'NR == 1 {gsub(/ /, "", $3); print $3}'
 }
 
+# Print the start LBA of the given zone number.
+zone_start()
+{
+	zonectl -d /dev/${md}.zoned -c rz -P script | \
+	    awk -F',' -v n=$(($1 + 1)) 'NR == n {gsub(/ /, "", $1); print $1}'
+}
+
 # Print the number of zones matching a report option.
 zone_count()
 {
