@@ -108,6 +108,7 @@ struct vm_phys_fictitious_seg {
 	vm_paddr_t	start;
 	vm_paddr_t	end;
 	vm_page_t	first_page;
+	vm_memattr_t	memattr;
 };
 
 RB_GENERATE_STATIC(fict_tree, vm_phys_fictitious_seg, node,
@@ -171,6 +172,12 @@ SYSCTL_OID(_vm, OID_AUTO, phys_segs,
     CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
     sysctl_vm_phys_segs, "A",
     "Phys Seg Info");
+
+static int sysctl_vm_phys_fictitious_segs(SYSCTL_HANDLER_ARGS);
+SYSCTL_OID(_vm, OID_AUTO, phys_fictitious_segs,
+    CTLTYPE_STRING | CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, 0,
+    sysctl_vm_phys_fictitious_segs, "A",
+    "Fictitious Phys Seg Info");
 
 #ifdef NUMA
 static int sysctl_vm_phys_locality(SYSCTL_HANDLER_ARGS);
@@ -336,6 +343,39 @@ sysctl_vm_phys_segs(SYSCTL_HANDLER_ARGS)
 		sbuf_printf(&sbuf, "domain:    %d\n", seg->domain);
 		sbuf_printf(&sbuf, "free list: %p\n", seg->free_queues);
 	}
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
+	return (error);
+}
+
+static int
+sysctl_vm_phys_fictitious_segs(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sbuf;
+	struct vm_phys_fictitious_seg *seg;
+	int error;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+	rw_rlock(&vm_phys_fictitious_reg_lock);
+	RB_FOREACH(seg, fict_tree, &vm_phys_fictitious_tree) {
+		const char *name;
+		char buf[8];
+
+		sbuf_printf(&sbuf, "\nstart:     %#jx\n",
+		    (uintmax_t)seg->start);
+		sbuf_printf(&sbuf, "end:       %#jx\n",
+		    (uintmax_t)seg->end);
+		name = vm_memattr_name(seg->memattr);
+		if (name == NULL) {
+			(void)snprintf(buf, sizeof(buf), "0x%02x", seg->memattr);
+			name = buf;
+		}
+		sbuf_printf(&sbuf, "attr:      %s\n", name);
+	}
+	rw_runlock(&vm_phys_fictitious_reg_lock);
 	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
 	return (error);
@@ -1155,6 +1195,7 @@ alloc:
 	seg->start = start;
 	seg->end = end;
 	seg->first_page = fp;
+	seg->memattr = memattr;
 
 	rw_wlock(&vm_phys_fictitious_reg_lock);
 	RB_INSERT(fict_tree, &vm_phys_fictitious_tree, seg);

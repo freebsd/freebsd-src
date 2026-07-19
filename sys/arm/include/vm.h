@@ -41,6 +41,25 @@
 /* Don't export aliased VM_MEMATTR to userland */
 #define VM_MEMATTR_WRITE_COMBINING 	VM_MEMATTR_WRITE_THROUGH /* for DRM */
 #define VM_MEMATTR_WRITE_BACK		VM_MEMATTR_WB_WA	/* for DRM */
+
+static inline const char *
+vm_memattr_name(vm_memattr_t memattr)
+{
+	switch (memattr) {
+	case VM_MEMATTR_WB_WA:
+		return ("write-back, write-allocate");
+	case VM_MEMATTR_NOCACHE:
+		return ("uncacheable");
+	case VM_MEMATTR_DEVICE:
+		return ("device");
+	case VM_MEMATTR_SO:
+		return ("strongly-ordered");
+	case VM_MEMATTR_WRITE_THROUGH:
+		return ("write-through");
+	default:
+		return (NULL);
+	}
+}
 #endif
 
 #endif /* !_MACHINE_VM_H_ */

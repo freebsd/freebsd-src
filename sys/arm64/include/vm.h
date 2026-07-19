@@ -38,11 +38,32 @@
 #define	VM_MEMATTR_DEVICE		VM_MEMATTR_DEVICE_nGnRE
 #define	VM_MEMATTR_DEVICE_NP		VM_MEMATTR_DEVICE_nGnRnE
 
+#define	VM_MEMATTR_DEFAULT		VM_MEMATTR_WRITE_BACK
+
 #ifdef _KERNEL
 /* If defined vmstat will try to use both of these in a switch statement */
 #define	VM_MEMATTR_WRITE_COMBINING	VM_MEMATTR_WRITE_THROUGH
-#endif
 
-#define	VM_MEMATTR_DEFAULT	VM_MEMATTR_WRITE_BACK
+static inline const char *
+vm_memattr_name(vm_memattr_t memattr)
+{
+	switch (memattr) {
+	case VM_MEMATTR_DEVICE_nGnRnE:
+		return ("device-nGnRnE");
+	case VM_MEMATTR_UNCACHEABLE:
+		return ("uncacheable");
+	case VM_MEMATTR_WRITE_BACK:
+		return ("write-back");
+	case VM_MEMATTR_WRITE_THROUGH:
+		return ("write-through");
+	case VM_MEMATTR_DEVICE_nGnRE:
+		return ("device-nGnRE");
+	case VM_MEMATTR_TAGGED:
+		return ("tagged");
+	default:
+		return (NULL);
+	}
+}
+#endif
 
 #endif /* !_MACHINE_VM_H_ */

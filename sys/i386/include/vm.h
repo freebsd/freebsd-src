@@ -43,4 +43,27 @@
 #define	VM_MEMATTR_DEFAULT		VM_MEMATTR_WRITE_BACK
 #define	VM_MEMATTR_DEVICE		VM_MEMATTR_UNCACHEABLE
 
+#ifdef _KERNEL
+static inline const char *
+vm_memattr_name(vm_memattr_t memattr)
+{
+	switch (memattr) {
+	case VM_MEMATTR_UNCACHEABLE:
+		return ("uncacheable");
+	case VM_MEMATTR_WRITE_COMBINING:
+		return ("write-combining");
+	case VM_MEMATTR_WRITE_THROUGH:
+		return ("write-through");
+	case VM_MEMATTR_WRITE_PROTECTED:
+		return ("write-protected");
+	case VM_MEMATTR_WRITE_BACK:
+		return ("write-back");
+	case VM_MEMATTR_WEAK_UNCACHEABLE:
+		return ("weak-uncacheable");
+	default:
+		return (NULL);
+	}
+}
+#endif
+
 #endif /* !_MACHINE_VM_H_ */

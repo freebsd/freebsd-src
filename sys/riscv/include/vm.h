@@ -38,4 +38,21 @@
 #define	VM_MEMATTR_LAST		VM_MEMATTR_DEVICE
 #define	VM_MEMATTR_TOTAL	(VM_MEMATTR_LAST + 1)
 
+#ifdef _KERNEL
+static inline const char *
+vm_memattr_name(vm_memattr_t memattr)
+{
+	switch (memattr) {
+	case VM_MEMATTR_PMA:
+		return ("write-back");
+	case VM_MEMATTR_UNCACHEABLE:
+		return ("uncacheable");
+	case VM_MEMATTR_DEVICE:
+		return ("device");
+	default:
+		return (NULL);
+	}
+}
+#endif
+
 #endif /* !_MACHINE_VM_H_ */

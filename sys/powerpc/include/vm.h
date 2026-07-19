@@ -42,4 +42,29 @@
 
 #define	VM_MEMATTR_DEVICE		VM_MEMATTR_DEFAULT
 
+#ifdef _KERNEL
+static inline const char *
+vm_memattr_name(vm_memattr_t memattr)
+{
+	switch (memattr) {
+	case VM_MEMATTR_DEFAULT:
+		return ("default");
+	case VM_MEMATTR_UNCACHEABLE:
+		return ("uncacheable");
+	case VM_MEMATTR_CACHEABLE:
+		return ("cacheable");
+	case VM_MEMATTR_WRITE_COMBINING:
+		return ("write-combining");
+	case VM_MEMATTR_WRITE_BACK:
+		return ("write-back");
+	case VM_MEMATTR_WRITE_THROUGH:
+		return ("write-through");
+	case VM_MEMATTR_PREFETCHABLE:
+		return ("prefetchable");
+	default:
+		return (NULL);
+	}
+}
+#endif
+
 #endif /* !_MACHINE_VM_H_ */
