@@ -383,7 +383,7 @@ int aq_hw_deinit(struct aq_hw *hw);
 int aq_hw_ver_match(const struct aq_hw_fw_version* ver_expected,
     const struct aq_hw_fw_version* ver_actual);
 
-void aq_hw_set_promisc(struct aq_hw *hw, bool l2_promisc, bool vlan_promisc,
+int aq_hw_set_promisc(struct aq_hw *hw, bool l2_promisc, bool vlan_promisc,
     bool mc_promisc);
 
 int aq_hw_set_power(struct aq_hw *hw, unsigned int power_state);

@@ -773,9 +773,11 @@ aq_if_init(if_ctx_t ctx)
 	aq_if_enable_intr(ctx);
 	aq_hw_rss_hash_set(&softc->hw, softc->rss_key);
 	aq_hw_rss_set(&softc->hw, softc->rss_table);
-	aq_hw_udp_rss_enable(hw, (aq_rss_hashconfig() &
-	    (RSS_HASHTYPE_RSS_UDP_IPV4 | RSS_HASHTYPE_RSS_UDP_IPV6 |
-	    RSS_HASHTYPE_RSS_UDP_IPV6_EX)) != 0);
+	/* A2 selects UDP hashing per-protocol in REDIR2; A1 uses the filter. */
+	if (!IS_CHIP_FEATURE(hw, ATLANTIC2))
+		aq_hw_udp_rss_enable(hw, (aq_rss_hashconfig() &
+		    (RSS_HASHTYPE_RSS_UDP_IPV4 | RSS_HASHTYPE_RSS_UDP_IPV6 |
+		    RSS_HASHTYPE_RSS_UDP_IPV6_EX)) != 0);
 	aq_hw_set_link_speed(hw, hw->link_rate);
 
 	/* iflib does not replay filter state after init; aq_hw_init() clears it. */
@@ -875,9 +877,12 @@ aq_if_multi_set(if_ctx_t ctx)
 		if_foreach_llmaddr(ifp, &aq_mc_filter_apply, softc);
 	}
 
-	aq_hw_set_promisc(hw, !!(if_getflags(ifp) & IFF_PROMISC),
+	if (aq_hw_set_promisc(hw, !!(if_getflags(ifp) & IFF_PROMISC),
 	    aq_is_vlan_promisc_required(softc),
-	    !!(if_getflags(ifp) & IFF_ALLMULTI) || aq_is_mc_promisc_required(softc));
+	    !!(if_getflags(ifp) & IFF_ALLMULTI) ||
+	    aq_is_mc_promisc_required(softc)) != 0)
+		device_printf(softc->dev,
+		    "multicast filter update failed\n");
 	AQ_DBG_EXIT(0);
 }
 
@@ -943,17 +948,18 @@ static int
 aq_if_promisc_set(if_ctx_t ctx, int flags)
 {
 	struct aq_dev *softc;
+	int err;
 
 	AQ_DBG_ENTER();
 
 	softc = iflib_get_softc(ctx);
 
-	aq_hw_set_promisc(&softc->hw, !!(flags & IFF_PROMISC),
+	err = aq_hw_set_promisc(&softc->hw, !!(flags & IFF_PROMISC),
 	    aq_is_vlan_promisc_required(softc),
 	    !!(flags & IFF_ALLMULTI) || aq_is_mc_promisc_required(softc));
 
-	AQ_DBG_EXIT(0);
-	return (0);
+	AQ_DBG_EXIT(err);
+	return (err);
 }
 
 static void
@@ -1127,9 +1133,10 @@ aq_update_vlan_filters(struct aq_dev *softc)
 	}
 
 	hw_atl_b0_hw_vlan_set(hw, aq_vlans);
-	hw_atl_b0_hw_vlan_promisc_set(hw,
+	if (hw_atl_b0_hw_vlan_promisc_set(hw,
 	    aq_is_vlan_promisc_required(softc) ||
-	    (if_getflags(iflib_get_ifp(softc->ctx)) & IFF_PROMISC) != 0);
+	    (if_getflags(iflib_get_ifp(softc->ctx)) & IFF_PROMISC) != 0) != 0)
+		device_printf(softc->dev, "VLAN filter update failed\n");
 }
 
 /* VLAN support */

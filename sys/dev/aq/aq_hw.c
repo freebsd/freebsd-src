@@ -37,6 +37,7 @@
 #include <sys/endian.h>
 #include <sys/socket.h>
 #include <machine/cpu.h>
+#include <net/rss_config.h>
 
 #include "aq_hw.h"
 #include "aq2_hw.h"
@@ -405,9 +406,11 @@ aq_hw_qos_set(struct aq_hw *hw)
 	uint32_t buff_size = 0U;
 	uint32_t n_tcs;
 	unsigned int i_priority = 0U;
+	unsigned int i;
 	int err = 0;
 
 	AQ_DBG_ENTER();
+
 	/* TPS Descriptor rate init */
 	tps_tx_pkt_shed_desc_rate_curr_time_res_set(hw, 0x0U);
 	tps_tx_pkt_shed_desc_rate_lim_set(hw, 0xA);
@@ -421,11 +424,22 @@ aq_hw_qos_set(struct aq_hw *hw)
 
 	/* One TC per active 8-ring group; share the buffer across them. */
 	n_tcs = aq_hw_active_tcs(hw);
-	buff_size = AQ_HW_TXBUF_MAX / n_tcs;
+	buff_size = (IS_CHIP_FEATURE(hw, ATLANTIC2) ?
+	    AQ2_HW_TXBUF_MAX : AQ_HW_TXBUF_MAX) / n_tcs;
 
 	for (tc = 0; tc < n_tcs; tc++) {
-		tps_tx_pkt_shed_tc_data_max_credit_set(hw, 0xFFF, tc);
-		tps_tx_pkt_shed_tc_data_weight_set(hw, 0x64, tc);
+		if (IS_CHIP_FEATURE(hw, ATLANTIC2)) {
+			/* Atlantic 2's data-TC credit/weight fields are wider. */
+			AQ_WRITE_REG_BIT(hw, TPS_DATA_TCT_REG(tc),
+			    TPS2_DATA_TCT_CREDIT_MAX,
+			    TPS2_DATA_TCT_CREDIT_MAX_SHIFT, 0xfff0);
+			AQ_WRITE_REG_BIT(hw, TPS_DATA_TCT_REG(tc),
+			    TPS2_DATA_TCT_WEIGHT,
+			    TPS2_DATA_TCT_WEIGHT_SHIFT, 0x640);
+		} else {
+			tps_tx_pkt_shed_tc_data_max_credit_set(hw, 0xFFF, tc);
+			tps_tx_pkt_shed_tc_data_weight_set(hw, 0x64, tc);
+		}
 		tps_tx_pkt_shed_desc_tc_max_credit_set(hw, 0x50, tc);
 		tps_tx_pkt_shed_desc_tc_weight_set(hw, 0x1E, tc);
 
@@ -438,7 +452,8 @@ aq_hw_qos_set(struct aq_hw *hw)
 
 	/* QoS Rx buf size per TC */
 	tc = 0;
-	buff_size = AQ_HW_RXBUF_MAX;
+	buff_size = IS_CHIP_FEATURE(hw, ATLANTIC2) ?
+	    AQ2_HW_RXBUF_MAX : AQ_HW_RXBUF_MAX;
 
 	rpb_rx_pkt_buff_size_per_tc_set(hw, buff_size, tc);
 	rpb_rx_buff_hi_threshold_per_tc_set(hw,
@@ -449,6 +464,20 @@ aq_hw_qos_set(struct aq_hw *hw)
 	/* QoS 802.1p priority -> TC mapping */
 	for (i_priority = 8U; i_priority--;)
 		rpf_rpb_user_priority_tc_map_set(hw, i_priority, 0U);
+
+	/* Atlantic 2 ring -> TC map (TC = ring / HW_ATL_B0_RINGS_PER_TC). */
+	if (IS_CHIP_FEATURE(hw, ATLANTIC2)) {
+		AQ_WRITE_REG_BIT(hw, TPB_TX_BUF_REG,
+		    TPB_TX_BUF_TC_Q_RAND_MAP_EN,
+		    TPB_TX_BUF_TC_Q_RAND_MAP_EN_SHIFT, 1);
+		/* TX packs a byte per ring (4/reg); RX a nibble (8/reg). */
+		for (i = 0; i < HW_ATL_B0_RINGS_MAX / 4; i++)
+			AQ_WRITE_REG(hw, AQ2_TX_Q_TC_MAP_REG(i),
+			    (i / 2) * 0x01010101U);
+		for (i = 0; i < HW_ATL_B0_RINGS_MAX / 8; i++)
+			AQ_WRITE_REG(hw, AQ2_RX_Q_TC_MAP_REG(i),
+			    i * 0x11111111U);
+	}
 
 	err = aq_hw_err_from_flags(hw);
 	AQ_DBG_EXIT(err);
@@ -541,7 +570,8 @@ aq_hw_init_tx_path(struct aq_hw *hw)
 	tdm_tx_desc_wr_wb_irq_en_set(hw, 1U);
 
 	/* misc */
-	AQ_WRITE_REG(hw, 0x00007040U, 0x00010000U);//IS_CHIP_FEATURE(TPO2) ? 0x00010000U : 0x00000000U);
+	AQ_WRITE_REG(hw, 0x00007040U,
+	    IS_CHIP_FEATURE(hw, TPO2) ? 0x00010000U : 0x00000000U);
 	tdm_tx_dca_en_set(hw, 0U);
 	tdm_tx_dca_mode_set(hw, 0U);
 
@@ -552,16 +582,67 @@ aq_hw_init_tx_path(struct aq_hw *hw)
 	return (err);
 }
 
+/* Atlantic 2: install one action-resolver-table row under the ART semaphore. */
+static int
+aq2_art_filter_set(struct aq_hw *hw, uint32_t idx, uint32_t tag,
+    uint32_t mask, uint32_t action)
+{
+	if (AQ_HW_WAIT_FOR(reg_glb_cpu_sem_get(hw, AQ2_ART_SEM_INDEX) == 1U,
+	    10U, 1000U) != 0) {
+		device_printf(hw->dev, "ART semaphore timeout, idx %u\n", idx);
+		return (EBUSY);
+	}
+
+	idx += hw->art_filter_base_index;
+	AQ_WRITE_REG(hw, AQ2_RPF_ACT_ART_REQ_TAG_REG(idx), tag);
+	AQ_WRITE_REG(hw, AQ2_RPF_ACT_ART_REQ_MASK_REG(idx), mask);
+	AQ_WRITE_REG(hw, AQ2_RPF_ACT_ART_REQ_ACTION_REG(idx), action);
+
+	reg_glb_cpu_sem_set(hw, 1U, AQ2_ART_SEM_INDEX);
+	return (0);
+}
+
 static int
 aq_hw_init_rx_path(struct aq_hw *hw)
 {
 	unsigned int control_reg_val = 0U;
 	int i;
-	int err;
+	int err = 0;
 
 	AQ_DBG_ENTER();
 	/* Rx TC/RSS number config */
 	rpb_rpf_rx_traf_class_mode_set(hw, 1U);
+
+	/*
+	 * Atlantic 2: program the RSS hash types the kernel honors.  UDP is
+	 * excluded by default (see aq_rss_hashconfig()); clearing its per-cast
+	 * bits keeps fragmented UDP on a single queue without the A1 L3L4
+	 * flow-filter workaround.
+	 */
+	if (IS_CHIP_FEATURE(hw, ATLANTIC2)) {
+		static const struct {
+			u_int		kern;
+			uint32_t	hw;
+		} ht_map[] = {
+			{ RSS_HASHTYPE_RSS_IPV4,	AQ2_RPF_REDIR2_HASHTYPE_IP },
+			{ RSS_HASHTYPE_RSS_TCP_IPV4,	AQ2_RPF_REDIR2_HASHTYPE_TCP4 },
+			{ RSS_HASHTYPE_RSS_UDP_IPV4,	AQ2_RPF_REDIR2_HASHTYPE_UDP4 },
+			{ RSS_HASHTYPE_RSS_IPV6,	AQ2_RPF_REDIR2_HASHTYPE_IP6 },
+			{ RSS_HASHTYPE_RSS_TCP_IPV6,	AQ2_RPF_REDIR2_HASHTYPE_TCP6 },
+			{ RSS_HASHTYPE_RSS_UDP_IPV6,	AQ2_RPF_REDIR2_HASHTYPE_UDP6 },
+			{ RSS_HASHTYPE_RSS_IPV6_EX,	AQ2_RPF_REDIR2_HASHTYPE_IP6EX },
+			{ RSS_HASHTYPE_RSS_TCP_IPV6_EX,	AQ2_RPF_REDIR2_HASHTYPE_TCP6EX },
+			{ RSS_HASHTYPE_RSS_UDP_IPV6_EX,	AQ2_RPF_REDIR2_HASHTYPE_UDP6EX },
+		};
+		u_int hc = aq_rss_hashconfig();
+		uint32_t ht = 0;
+
+		for (i = 0; i < (int)nitems(ht_map); i++)
+			if (hc & ht_map[i].kern)
+				ht |= ht_map[i].hw;
+		AQ_WRITE_REG_BIT(hw, AQ2_RPF_REDIR2_REG,
+		    AQ2_RPF_REDIR2_HASHTYPE, 0, ht);
+	}
 
 	/* Rx flow control */
 	rpb_rx_flow_ctl_mode_set(hw, 1U);
@@ -589,13 +670,38 @@ aq_hw_init_rx_path(struct aq_hw *hw)
 	/* Rx Interrupts */
 	rdm_rx_desc_wr_wb_irq_en_set(hw, 1U);
 
-	/* misc */
-	control_reg_val = 0x000F0000U; //RPF2
+	if (IS_CHIP_FEATURE(hw, ATLANTIC2)) {
+		/* Enable the resolver table and tag L2 unicast/broadcast. */
+		AQ_WRITE_REG_BIT(hw, AQ2_RPF_REC_TAB_ENABLE_REG,
+		    AQ2_RPF_REC_TAB_ENABLE_MASK, 0, AQ2_RPF_REC_TAB_ENABLE_MASK);
+		AQ_WRITE_REG_BIT(hw, RPF_L2UC_MSW_REG(0),
+		    RPF_L2UC_MSW_TAG, RPF_L2UC_MSW_TAG_SHIFT, 1);
+		AQ_WRITE_REG_BIT(hw, AQ2_RPF_L2BC_TAG_REG,
+		    AQ2_RPF_L2BC_TAG_MASK, 0, 1);
 
-	/* RSS hash type set for IP/TCP */
-	control_reg_val |= 0x1EU;
+		/* Drop rows (promisc lifts them); all PCP -> TC 0. */
+		err = aq2_art_filter_set(hw, AQ2_RPF_INDEX_L2_PROMISC_OFF, 0,
+		    AQ2_RPF_TAG_UC_MASK | AQ2_RPF_TAG_ALLMC_MASK,
+		    AQ2_ART_ACTION_DROP);
+		if (err == 0)
+			err = aq2_art_filter_set(hw,
+			    AQ2_RPF_INDEX_VLAN_PROMISC_OFF, 0,
+			    AQ2_RPF_TAG_VLAN_MASK | AQ2_RPF_TAG_UNTAG_MASK,
+			    AQ2_ART_ACTION_DROP);
+		for (i = 0; err == 0 && i < 8; i++)
+			err = aq2_art_filter_set(hw, AQ2_RPF_INDEX_PCP_TO_TC + i,
+			    ((uint32_t)i << AQ2_RPF_TAG_PCP_SHIFT),
+			    AQ2_RPF_TAG_PCP_MASK,
+			    AQ2_ART_ACTION_ASSIGN_TC(0));
+	} else {
+		/* misc */
+		control_reg_val = 0x000F0000U; //RPF2
 
-	AQ_WRITE_REG(hw, 0x00005040U, control_reg_val);
+		/* RSS hash type set for IP/TCP */
+		control_reg_val |= 0x1EU;
+
+		AQ_WRITE_REG(hw, 0x00005040U, control_reg_val);
+	}
 
 	rpfl2broadcast_en_set(hw, 1U);
 	rpfl2broadcast_flr_act_set(hw, 1U);
@@ -604,7 +710,8 @@ aq_hw_init_rx_path(struct aq_hw *hw)
 	rdm_rx_dca_en_set(hw, 0U);
 	rdm_rx_dca_mode_set(hw, 0U);
 
-	err = aq_hw_err_from_flags(hw);
+	if (err == 0)
+		err = aq_hw_err_from_flags(hw);
 	AQ_DBG_EXIT(err);
 	return (err);
 }
@@ -628,6 +735,10 @@ aq_hw_mac_addr_set(struct aq_hw *hw, uint8_t *mac_addr, uint8_t index)
 	rpfl2_uc_flr_en_set(hw, 0U, index);
 	rpfl2unicast_dest_addresslsw_set(hw, l, index);
 	rpfl2unicast_dest_addressmsw_set(hw, h, index);
+	/* Atlantic 2: classify this address into the resolver table. */
+	if (IS_CHIP_FEATURE(hw, ATLANTIC2))
+		AQ_WRITE_REG_BIT(hw, RPF_L2UC_MSW_REG(index),
+		    RPF_L2UC_MSW_TAG, RPF_L2UC_MSW_TAG_SHIFT, 1);
 	rpfl2_uc_flr_en_set(hw, 1U, index);
 
 	err = aq_hw_err_from_flags(hw);
@@ -685,6 +796,11 @@ aq_hw_init(struct aq_hw *hw, uint8_t *mac_addr, uint8_t adm_irq, bool msix)
 	aq_hw_mpi_set(hw, MPI_INIT, hw->link_rate);
 
 	aq_hw_qos_set(hw);
+
+	/* Atlantic 2: turn on the new RPF / action-resolver engine. */
+	if (IS_CHIP_FEATURE(hw, ATLANTIC2))
+		AQ_WRITE_REG_BIT(hw, AQ2_RPF_NEW_CTRL_REG,
+		    AQ2_RPF_NEW_CTRL_ENABLE, 11, 1);
 
 	err = aq_hw_err_from_flags(hw);
 	if (err != 0)
@@ -784,8 +900,13 @@ aq_hw_interrupt_moderation_set(struct aq_hw *hw)
 	rdm_rdm_intr_moder_en_set(hw, active);
 
 	for (int i = HW_ATL_B0_RINGS_MAX; i--;) {
-		reg_tx_intr_moder_ctrl_set(hw,  itr_tx, i);
-		reg_rx_intr_moder_ctrl_set(hw,  itr_rx, i);
+		/* A2 Tx moderation register moved; same layout.  Rx is shared. */
+		if (IS_CHIP_FEATURE(hw, ATLANTIC2))
+			AQ_WRITE_REG(hw, AQ2_TX_INTR_MODERATION_CTL_REG(i),
+			    itr_tx);
+		else
+			reg_tx_intr_moder_ctrl_set(hw, itr_tx, i);
+		reg_rx_intr_moder_ctrl_set(hw, itr_rx, i);
 	}
 
 	err = aq_hw_err_from_flags(hw);
@@ -816,6 +937,12 @@ hw_atl_b0_hw_vlan_set(struct aq_hw *hw, struct aq_rx_filter_vlan *aq_vlans)
 						   aq_vlans[i].vlan_id,
 						   i);
 			hw_atl_rpf_vlan_flr_act_set(hw, 1U, i);
+			/* A2: tag the filter so the VLAN drop row passes it. */
+			if (IS_CHIP_FEATURE(hw, ATLANTIC2))
+				AQ_WRITE_REG_BIT(hw,
+				    AQ2_RPF_VLAN_FLR_TAG_REG(i),
+				    AQ2_RPF_VLAN_FLR_TAG,
+				    AQ2_RPF_VLAN_FLR_TAG_SHIFT, 1U);
 			hw_atl_rpf_vlan_flr_en_set(hw, 1U, i);
 			if (aq_vlans[i].queue != 0xFF) {
 				hw_atl_rpf_vlan_rxq_flr_set(hw,
@@ -832,26 +959,45 @@ hw_atl_b0_hw_vlan_set(struct aq_hw *hw, struct aq_rx_filter_vlan *aq_vlans)
 int
 hw_atl_b0_hw_vlan_promisc_set(struct aq_hw *hw, bool promisc)
 {
+	int err;
+
+	/* A2: fallible ART write first; a timeout leaves the legacy bit as-is. */
+	if (IS_CHIP_FEATURE(hw, ATLANTIC2)) {
+		err = aq2_art_filter_set(hw, AQ2_RPF_INDEX_VLAN_PROMISC_OFF,
+		    0, AQ2_RPF_TAG_VLAN_MASK | AQ2_RPF_TAG_UNTAG_MASK,
+		    promisc ? AQ2_ART_ACTION_DISABLE : AQ2_ART_ACTION_DROP);
+		if (err != 0)
+			return (err);
+	}
 	hw_atl_rpf_vlan_prom_mode_en_set(hw, promisc);
 	return aq_hw_err_from_flags(hw);
 }
 
 
-void
+int
 aq_hw_set_promisc(struct aq_hw *hw, bool l2_promisc, bool vlan_promisc,
     bool mc_promisc)
 {
+	int err = 0;
+
 	AQ_DBG_ENTERA("promisc %d, vlan_promisc %d, allmulti %d", l2_promisc,
 	    vlan_promisc, mc_promisc);
 
 	rpfl2promiscuous_mode_en_set(hw, l2_promisc);
 
-	hw_atl_b0_hw_vlan_promisc_set(hw, l2_promisc | vlan_promisc);
+	err = hw_atl_b0_hw_vlan_promisc_set(hw, l2_promisc | vlan_promisc);
+
+	/* A2: promisc toggles the unicast drop row. */
+	if (err == 0 && IS_CHIP_FEATURE(hw, ATLANTIC2))
+		err = aq2_art_filter_set(hw, AQ2_RPF_INDEX_L2_PROMISC_OFF, 0,
+		    AQ2_RPF_TAG_UC_MASK | AQ2_RPF_TAG_ALLMC_MASK,
+		    l2_promisc ? AQ2_ART_ACTION_DISABLE : AQ2_ART_ACTION_DROP);
 
 	rpfl2_accept_all_mc_packets_set(hw, mc_promisc);
 	rpfl2multicast_flr_en_set(hw, mc_promisc, 0);
 
-	AQ_DBG_EXIT(0);
+	AQ_DBG_EXIT(err);
+	return (err);
 }
 
 int
@@ -918,6 +1064,26 @@ aq_hw_rss_set(struct aq_hw *hw,
 	uint32_t i = 0U;
 
 	memset(bitary, 0, sizeof(bitary));
+
+	/* A2 per-TC redirection table; flat RX rings, same queue per TC. */
+	if (IS_CHIP_FEATURE(hw, ATLANTIC2)) {
+		uint32_t n_tcs = aq_hw_active_tcs(hw);
+		int tc, slot, q;
+		uint32_t word;
+
+		AQ_WRITE_REG_BIT(hw, AQ2_RPF_REDIR2_REG, AQ2_RPF_REDIR2_INDEX,
+		    12, 0);
+		for (slot = 0; slot < AQ2_RPF_RSS_REDIR_MAX; slot++) {
+			q = rss_table[slot] &
+			    (HW_ATL_RSS_INDIRECTION_QUEUES_MAX - 1U);
+			word = 0U;
+			for (tc = 0; (uint32_t)tc < n_tcs; tc++)
+				word |= (uint32_t)q << (5 * tc);
+			AQ_WRITE_REG(hw, AQ2_RPF_RSS_REDIR_REG(0, slot), word);
+		}
+		/* A2 uses this table only; skip the legacy indirection writes. */
+		return (aq_hw_err_from_flags(hw));
+	}
 
 	for (i = HW_ATL_RSS_INDIRECTION_TABLE_MAX; i--;) {
 		uint32_t bit_pos = i * HW_ATL_RSS_INDIRECTION_ENTRY_BITS;
