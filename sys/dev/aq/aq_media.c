@@ -119,7 +119,7 @@ aq_mediachange(if_t ifp)
 
 	if (!(ifm->ifm_media & IFM_ETHER)) {
 		device_printf(aq_dev->dev,
-		    "%s(): aq_dev interface - bad media: 0x%X", __FUNCTION__,
+		    "%s(): aq_dev interface - bad media: 0x%X\n", __FUNCTION__,
 		    ifm->ifm_media);
 		return (0);    // should never happen
 	}

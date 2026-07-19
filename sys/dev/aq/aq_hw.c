@@ -95,7 +95,6 @@ aq_hw_fw_downld_dwords(struct aq_hw *hw, uint32_t a, uint32_t *p, uint32_t cnt)
 {
 	int err = 0;
 
-//    AQ_DBG_ENTER();
 	err = AQ_HW_WAIT_FOR(reg_glb_cpu_sem_get(hw, AQ_HW_FW_SM_RAM) == 1U, 1U,
 	     10000U);
 
@@ -128,7 +127,6 @@ aq_hw_fw_downld_dwords(struct aq_hw *hw, uint32_t a, uint32_t *p, uint32_t cnt)
 	reg_glb_cpu_sem_set(hw, 1U, AQ_HW_FW_SM_RAM);
 
 err_exit:
-//    AQ_DBG_EXIT(err);
 	return (err);
 }
 
@@ -211,7 +209,6 @@ int
 aq_hw_mpi_read_stats(struct aq_hw *hw, struct aq_hw_stats *stats)
 {
 	int err;
-//    AQ_DBG_ENTER();
 
 	err = hw->fw_ops->get_stats(hw, stats);
 
@@ -220,7 +217,6 @@ aq_hw_mpi_read_stats(struct aq_hw *hw, struct aq_hw_stats *stats)
 		stats->cprc = stats_rx_lro_coalesced_pkt_count0_get(hw);
 	}
 
-//    AQ_DBG_EXIT(err);
 	return (err);
 }
 
@@ -247,7 +243,6 @@ aq_hw_get_link_state(struct aq_hw *hw, uint32_t *link_speed, struct aq_hw_fc_inf
 {
 	int err = 0;
 
- //   AQ_DBG_ENTER();
 
 	enum aq_hw_fw_mpi_state mode;
 	enum aq_fw_link_speed speed = aq_fw_none;
@@ -293,7 +288,6 @@ aq_hw_get_link_state(struct aq_hw *hw, uint32_t *link_speed, struct aq_hw_fc_inf
 	fc_neg->fc_rx = !!(fc & aq_fw_fc_ENABLE_RX);
 	fc_neg->fc_tx = !!(fc & aq_fw_fc_ENABLE_TX);
 
- //   AQ_DBG_EXIT(0);
 	return (0);
 }
 
@@ -549,7 +543,6 @@ aq_hw_init_tx_path(struct aq_hw *hw)
 static int
 aq_hw_init_rx_path(struct aq_hw *hw)
 {
-	//struct aq_nic_cfg *cfg = hw->aq_nic_cfg;
 	unsigned int control_reg_val = 0U;
 	int i;
 	int err;

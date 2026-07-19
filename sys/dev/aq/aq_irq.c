@@ -122,11 +122,9 @@ aq_if_update_admin_status(if_ctx_t ctx)
 	struct aq_hw *hw = &aq_dev->hw;
 	uint32_t link_speed;
 
-	//	AQ_DBG_ENTER();
 
 	struct aq_hw_fc_info fc_neg;
 	aq_hw_get_link_state(hw, &link_speed, &fc_neg);
-//	AQ_DBG_PRINT(" link_speed=%d aq_dev->linkup=%d", link_speed, aq_dev->linkup);
 	if (link_speed && !aq_dev->linkup) { /* link was DOWN */
 		device_printf(aq_dev->dev, "atlantic: link UP: speed=%d\n", link_speed);
 
@@ -154,7 +152,6 @@ aq_if_update_admin_status(if_ctx_t ctx)
 	}
 
 	aq_update_hw_stats(aq_dev);
-//	AQ_DBG_EXIT(0);
 }
 
 /**************************************************************************/
@@ -168,7 +165,7 @@ aq_isr_rx(void *arg)
 	struct aq_hw    *hw = &aq_dev->hw;
 
 	itr_irq_status_clearlsw_set(hw, BIT(ring->msix));
-	AQ_HW_FLUSH();
+	AQ_HW_FLUSH(hw);
 	counter_u64_add(ring->stats.irq, 1);
 	return (FILTER_SCHEDULE_THREAD);
 }
@@ -183,7 +180,7 @@ aq_linkstat_isr(void *arg)
 	struct aq_hw          *hw = &aq_dev->hw;
 
 	itr_irq_status_clearlsw_set(hw, BIT(aq_dev->msix));
-	AQ_HW_FLUSH();
+	AQ_HW_FLUSH(hw);
 
 	iflib_admin_intr_deferred(aq_dev->ctx);
 

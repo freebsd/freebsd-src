@@ -56,12 +56,12 @@ extern uint32_t aq_hw_read_reg(struct aq_hw *hw, uint32_t reg);
 
 
 #define AQ_WRITE_REG_BIT(hw, reg, msk, shift, value) do { \
-	if (msk ^ ~0) { \
+	if ((msk) ^ ~0) { \
 		uint32_t reg_old, reg_new = 0U; \
 		reg_old = AQ_READ_REG(hw, reg); \
-		reg_new = (reg_old & (~msk)) | (value << shift); \
-	if (reg_old != reg_new) \
-		AQ_WRITE_REG(hw, reg, reg_new); \
+		reg_new = (reg_old & (~(msk))) | ((value) << (shift)); \
+		if (reg_old != reg_new) \
+			AQ_WRITE_REG(hw, reg, reg_new); \
 	} else { \
 		AQ_WRITE_REG(hw, reg, value); \
 	} \
@@ -71,11 +71,7 @@ extern uint32_t aq_hw_read_reg(struct aq_hw *hw, uint32_t reg);
 #define AQ_READ_REG_BIT(a, reg, msk, shift) ( \
 	((AQ_READ_REG(a, reg) & msk) >> shift))
 
-#define AQ_HW_FLUSH() { (void)AQ_READ_REG(hw, 0x10); }
-
-#define aq_hw_write_reg_bit AQ_WRITE_REG_BIT
-
-#define aq_hw_write_reg AQ_WRITE_REG
+#define AQ_HW_FLUSH(hw) { (void)AQ_READ_REG((hw), 0x10); }
 
 /* Driver-side per-backend statistics snapshot. */
 struct aq_hw_stats {

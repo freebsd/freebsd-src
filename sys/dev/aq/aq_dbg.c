@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD$");
 #include "aq_dbg.h"
 
 
-int dbg_level_ = 0;
-uint32_t dbg_categories_ = dbg_init | dbg_config | dbg_tx | dbg_rx | dbg_intr | dbg_fw;
+int aq_dbg_level = lvl_error;
+uint32_t aq_dbg_categories = dbg_init | dbg_config | dbg_tx | dbg_rx | dbg_intr | dbg_fw;
 
 
 
@@ -194,51 +194,5 @@ trace_aq_tx_context_descr(int ring_idx, unsigned int pointer,
 		  __entry->l4_len, __entry->l3_len, __entry->l2_len,
 		  __entry->ct_cmd, __entry->vlan_tag, __entry->ct_idx,
 		  __entry->des_typ);
-#endif
-}
-
-void
-DumpHex(const void* data, size_t size) {
-#if AQ_CFG_DEBUG_LVL > 3
-	char ascii[17];
-	size_t i, j;
-	char line[256];
-	char buf[256];
-
-	ascii[16] = '\0';
-	line[0] = '\0';
-	printf("packet at %p\n", data);
-
-	for (i = 0; i < size; ++i) {
-		sprintf(buf, "%02X ", ((const unsigned char*)data)[i]);
-		strcat(line, buf);
-		if (((const unsigned char*)data)[i] >= ' ' &&
-		    ((const unsigned char*)data)[i] <= '~') {
-			ascii[i % 16] = ((const unsigned char*)data)[i];
-		} else {
-			ascii[i % 16] = '.';
-		}
-		if ((i+1) % 8 == 0 || i+1 == size) {
-			strcat(line, " ");
-			if ((i+1) % 16 == 0) {
-				sprintf(buf, "|  %s \n", ascii);
-				strcat(line, buf);
-				printf("%s", line);
-				line[0] = '\0';
-			} else if (i+1 == size) {
-				ascii[(i+1) % 16] = '\0';
-				if ((i+1) % 16 <= 8) {
-					strcat(line, " ");
-				}
-				for (j = (i+1) % 16; j < 16; ++j) {
-					strcat(line, "   ");
-				}
-				sprintf(buf, "|  %s \n", ascii);
-				strcat(line, buf);
-				printf("%s", line);
-				line[0] = '\0';
-			}
-		}
-	}
 #endif
 }

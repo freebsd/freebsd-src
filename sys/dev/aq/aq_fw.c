@@ -95,13 +95,13 @@ int
 aq_fw_reset(struct aq_hw* hw)
 {
 	int ver = AQ_READ_REG(hw, 0x18);
-	uint32_t bootExitCode = 0;
+	uint32_t boot_exit_code = 0;
 	int k;
 
 	for (k = 0; k < 1000; ++k) {
-		uint32_t flbStatus = reg_glb_daisy_chain_status1_get(hw);
-		bootExitCode = AQ_READ_REG(hw, 0x388);
-		if (flbStatus != 0x06000000 || bootExitCode != 0)
+		uint32_t flb_status = reg_glb_daisy_chain_status1_get(hw);
+		boot_exit_code = AQ_READ_REG(hw, 0x388);
+		if (flb_status != 0x06000000 || boot_exit_code != 0)
 			break;
 	}
 
@@ -110,7 +110,7 @@ aq_fw_reset(struct aq_hw* hw)
 		return (EBUSY);
 	}
 
-	hw->rbl_enabled = bootExitCode != 0;
+	hw->rbl_enabled = boot_exit_code != 0;
 
 	trace(dbg_init, "RBL enabled = %d", hw->rbl_enabled);
 

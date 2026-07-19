@@ -711,7 +711,7 @@ aq_if_init(if_ctx_t ctx)
 	err = aq_hw_init(&softc->hw, softc->hw.mac_addr, softc->msix,
 	    softc->scctx->isc_intr == IFLIB_INTR_MSIX);
 	if (err != 0) {
-		device_printf(softc->dev, "atlantic: aq_hw_init: %d", err);
+		device_printf(softc->dev, "atlantic: aq_hw_init: %d\n", err);
 		AQ_DBG_EXIT(err);
 		return;
 	}
@@ -725,12 +725,12 @@ aq_if_init(if_ctx_t ctx)
 		err = aq_ring_tx_init(&softc->hw, ring);
 		if (err) {
 			device_printf(softc->dev,
-			    "atlantic: aq_ring_tx_init: %d", err);
+			    "atlantic: aq_ring_tx_init: %d\n", err);
 		}
 		err = aq_ring_tx_start(hw, ring);
 		if (err != 0) {
 			device_printf(softc->dev,
-			    "atlantic: aq_ring_tx_start: %d", err);
+			    "atlantic: aq_ring_tx_start: %d\n", err);
 		}
 	}
 	for (i = 0; i < softc->rx_rings_count; i++) {
@@ -739,12 +739,12 @@ aq_if_init(if_ctx_t ctx)
 		err = aq_ring_rx_init(&softc->hw, ring);
 		if (err) {
 			device_printf(softc->dev,
-			    "atlantic: aq_ring_rx_init: %d", err);
+			    "atlantic: aq_ring_rx_init: %d\n", err);
 		}
 		err = aq_ring_rx_start(hw, ring);
 		if (err != 0) {
 			device_printf(softc->dev,
-			    "atlantic: aq_ring_rx_start: %d", err);
+			    "atlantic: aq_ring_rx_start: %d\n", err);
 		}
 		aq_if_rx_queue_intr_enable(ctx, i);
 	}
@@ -942,7 +942,6 @@ aq_if_timer(if_ctx_t ctx, uint16_t qid)
 	struct aq_dev *softc;
 	uint64_t ticks_now;
 
-//	AQ_DBG_ENTER();
 
 	softc = iflib_get_softc(ctx);
 	ticks_now = ticks;
@@ -953,7 +952,6 @@ aq_if_timer(if_ctx_t ctx, uint16_t qid)
 		iflib_admin_intr_deferred(ctx);
 	}
 
-//	AQ_DBG_EXIT(0);
 	return;
 
 }
@@ -1062,7 +1060,7 @@ aq_if_msix_intr_assign(if_ctx_t ctx, int msix)
 	    rx_vectors);
 	if (rc) {
 		device_printf(iflib_get_dev(ctx),
-		    "Failed to register admin handler");
+		    "Failed to register admin handler\n");
 		goto fail;
 	}
 	AQ_DBG_EXIT(0);
@@ -1337,10 +1335,10 @@ aq_add_stats_sysctls(struct aq_dev *softc)
 
 	/* Runtime trace controls (global) */
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "debug",
-	    CTLFLAG_RW, &dbg_level_, 0,
+	    CTLFLAG_RW, &aq_dbg_level, 0,
 	    "Trace verbosity: 0=off, 3=err, 4=+warn, 5=+trace, 6=+detail");
 	SYSCTL_ADD_U32(ctx, child, OID_AUTO, "debug_categories",
-	    CTLFLAG_RW, &dbg_categories_, 0,
+	    CTLFLAG_RW, &aq_dbg_categories, 0,
 	    "Trace category mask: init=1 config=2 tx=4 rx=8 intr=16 fw=32");
 
 	/* Driver Statistics */
@@ -1373,7 +1371,7 @@ aq_add_stats_sysctls(struct aq_dev *softc)
 		SYSCTL_ADD_COUNTER_U64(ctx, queue_list, OID_AUTO, "rx_pkts",
 		    CTLFLAG_RD, &(ring->stats.rx_pkts), "RX Packets");
 		SYSCTL_ADD_COUNTER_U64(ctx, queue_list, OID_AUTO, "rx_bytes",
-		    CTLFLAG_RD, &(ring->stats.rx_bytes), "TX Octets");
+		    CTLFLAG_RD, &(ring->stats.rx_bytes), "RX Octets");
 		SYSCTL_ADD_COUNTER_U64(ctx, queue_list, OID_AUTO, "rx_err",
 		    CTLFLAG_RD, &(ring->stats.rx_err), "RX Errors");
 		SYSCTL_ADD_COUNTER_U64(ctx, queue_list, OID_AUTO, "irq",

@@ -83,11 +83,6 @@ aq_next(uint32_t i, uint32_t lim)
 
 int
 aq_ring_rx_init(struct aq_hw *hw, struct aq_ring *ring)
-/*                     uint64_t ring_addr,
-                     uint32_t ring_size,
-                     uint32_t ring_idx,
-                     uint32_t interrupt_cause,
-                     uint32_t cpu_idx) */
 {
 	int err;
 	uint32_t dma_desc_addr_lsw = (uint32_t)ring->rx_descs_phys & 0xffffffff;
@@ -132,11 +127,6 @@ aq_ring_rx_init(struct aq_hw *hw, struct aq_ring *ring)
 
 int
 aq_ring_tx_init(struct aq_hw *hw, struct aq_ring *ring)
-/*                     uint64_t ring_addr,
-                     uint32_t ring_size,
-                     uint32_t ring_idx,
-                     uint32_t interrupt_cause,
-                     uint32_t cpu_idx) */
 {
 	int err;
 	uint32_t dma_desc_addr_lsw = (uint32_t)ring->tx_descs_phys & 0xffffffff;
@@ -608,7 +598,7 @@ aq_isc_txd_credits_update(void *arg, uint16_t txqid, bool clear)
 	}
 
 	if (ring->tx_head == head) {
-		avail = 0; // ring->tx_size;
+		avail = 0;
 		goto done;
 	}
 

@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 
 
 
-enum fw1x_mode {
+enum aq_fw1x_mode {
 	FW1X_MPI_DEINIT = 0,
 	FW1X_MPI_RESERVED = 1,
 	FW1X_MPI_INIT = 2,
@@ -64,7 +64,7 @@ enum aq_fw1x_rate {
 	FW1X_RATE_INVALID = 1 << 6,
 };
 
-union fw1x_state_reg {
+union aq_fw1x_state_reg {
 	uint32_t val;
 	struct {
 		uint8_t mode;
@@ -77,17 +77,17 @@ union fw1x_state_reg {
 	};
 };
 
-static int fw1x_reset(struct aq_hw* hw);
+static int aq_fw1x_reset(struct aq_hw* hw);
 
-static int fw1x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state mode,
+static int aq_fw1x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state mode,
     enum aq_fw_link_speed speed);
-static int fw1x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state* mode,
+static int aq_fw1x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state* mode,
     enum aq_fw_link_speed* speed, enum aq_fw_link_fc* fc);
-static int fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac_addr);
-static int fw1x_get_stats(struct aq_hw* hw, struct aq_hw_stats* stats);
+static int aq_fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac_addr);
+static int aq_fw1x_get_stats(struct aq_hw* hw, struct aq_hw_stats* stats);
 
 
-static enum fw1x_mode
+static enum aq_fw1x_mode
 mpi_mode_to_fw1x(enum aq_hw_fw_mpi_state mode)
 {
 	switch (mode) {
@@ -136,7 +136,7 @@ link_speed_mask_to_fw1x(uint32_t /*aq_fw_link_speed*/ speed)
 }
 
 static enum aq_fw_link_speed
-fw1x_rate_to_link_speed(enum aq_fw1x_rate rate)
+aq_fw1x_rate_to_link_speed(enum aq_fw1x_rate rate)
 {
 	switch (rate) {
 	case FW1X_RATE_10G:
@@ -162,7 +162,7 @@ fw1x_rate_to_link_speed(enum aq_fw1x_rate rate)
 }
 
 static int
-fw1x_reset(struct aq_hw* hw)
+aq_fw1x_reset(struct aq_hw* hw)
 {
 	uint32_t tid0 = ~0u; /*< Initial value of MBOX transactionId. */
 	struct aq_hw_fw_mbox mbox;
@@ -199,10 +199,10 @@ fw1x_reset(struct aq_hw* hw)
 }
 
 static int
-fw1x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state mode,
+aq_fw1x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state mode,
     enum aq_fw_link_speed speed)
 {
-	union fw1x_state_reg state = {0};
+	union aq_fw1x_state_reg state = {0};
 	state.mode = mpi_mode_to_fw1x(mode);
 	state.speed = link_speed_mask_to_fw1x(speed);
 
@@ -215,10 +215,10 @@ fw1x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state mode,
 }
 
 static int
-fw1x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state* mode,
+aq_fw1x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state* mode,
     enum aq_fw_link_speed* speed, enum aq_fw_link_fc* fc)
 {
-	union fw1x_state_reg state = { .val = AQ_READ_REG(hw, AQ_HW_MPI_STATE_ADR) };
+	union aq_fw1x_state_reg state = { .val = AQ_READ_REG(hw, AQ_HW_MPI_STATE_ADR) };
 
 	trace(dbg_init, "fw1x> get_mode(): 0x36c -> %x, 0x368 -> %x",
 	    state.val, AQ_READ_REG(hw, AQ_HW_MPI_CONTROL_ADR));
@@ -244,7 +244,7 @@ fw1x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state* mode,
 		*mode = md;
 
 	if (speed)
-		*speed = fw1x_rate_to_link_speed(state.speed);
+		*speed = aq_fw1x_rate_to_link_speed(state.speed);
 
 	*fc = aq_fw_fc_none;
 
@@ -254,7 +254,7 @@ fw1x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state* mode,
 
 
 static int
-fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
+aq_fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 {
 	int err = EFAULT;
 	uint32_t mac_addr[2];
@@ -289,13 +289,13 @@ fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 	return (0);
 }
 
-/* fw1x_get_stats() memcpy's this raw block onto aq_hw_stats' prefix. */
+/* aq_fw1x_get_stats() memcpy's this raw block onto aq_hw_stats' prefix. */
 _Static_assert(sizeof(struct aq_fw1x_mbox_stats) ==
     __offsetof(struct aq_hw_stats, brc),
     "fw1x mailbox stats must match the aq_hw_stats prefix");
 
 static int
-fw1x_get_stats(struct aq_hw* hw, struct aq_hw_stats* stats)
+aq_fw1x_get_stats(struct aq_hw* hw, struct aq_hw_stats* stats)
 {
 	int err = 0;
 
@@ -312,11 +312,11 @@ fw1x_get_stats(struct aq_hw* hw, struct aq_hw_stats* stats)
 
 const struct aq_firmware_ops aq_fw1x_ops =
 {
-	.reset = fw1x_reset,
+	.reset = aq_fw1x_reset,
 
-	.set_mode = fw1x_set_mode,
-	.get_mode = fw1x_get_mode,
+	.set_mode = aq_fw1x_set_mode,
+	.get_mode = aq_fw1x_get_mode,
 
-	.get_mac_addr = fw1x_get_mac_addr,
-	.get_stats = fw1x_get_stats,
+	.get_mac_addr = aq_fw1x_get_mac_addr,
+	.get_stats = aq_fw1x_get_stats,
 };
