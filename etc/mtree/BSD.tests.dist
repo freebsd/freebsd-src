@@ -971,6 +971,8 @@
             utimensat
             ..
         ..
+        pmc
+        ..
         posixshm
         ..
         ses
