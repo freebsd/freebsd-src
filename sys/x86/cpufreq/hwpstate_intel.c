@@ -336,9 +336,7 @@ intel_hwpstate_hybrid_cb(void *ctx)
 void
 intel_hwpstate_identify(driver_t *driver, device_t parent)
 {
-#ifndef __i386__
 	uint32_t small_cores = 0;
-#endif
 
 	if (device_find_child(parent, "hwpstate_intel", DEVICE_UNIT_ANY) != NULL)
 		return;
@@ -359,7 +357,6 @@ intel_hwpstate_identify(driver_t *driver, device_t parent)
 	if ((cpu_power_eax & CPUTPM1_HWP) == 0)
 		return;
 
-#ifndef __i386__
 	/*
 	 * On hybrid-core systems, package-level control cannot be used.
 	 * It may cause all cores to run at the E-core frequency because
@@ -370,7 +367,6 @@ intel_hwpstate_identify(driver_t *driver, device_t parent)
 	    intel_hwpstate_hybrid_cb, smp_no_rendezvous_barrier, &small_cores);
 	if (small_cores > 0 && small_cores < mp_ncores)
 		hwpstate_pkg_ctrl_enable = false;
-#endif
 
 	if (BUS_ADD_CHILD(parent, 10, "hwpstate_intel", device_get_unit(parent))
 	    == NULL)
