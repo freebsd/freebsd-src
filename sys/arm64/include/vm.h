@@ -44,6 +44,7 @@
 /* If defined vmstat will try to use both of these in a switch statement */
 #define	VM_MEMATTR_WRITE_COMBINING	VM_MEMATTR_WRITE_THROUGH
 
+#ifndef LOCORE
 static inline const char *
 vm_memattr_name(vm_memattr_t memattr)
 {
@@ -64,6 +65,7 @@ vm_memattr_name(vm_memattr_t memattr)
 		return (NULL);
 	}
 }
+#endif
 #endif
 
 #endif /* !_MACHINE_VM_H_ */
