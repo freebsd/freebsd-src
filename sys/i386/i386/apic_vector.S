@@ -169,6 +169,21 @@ IDTVEC(errorint)
 	call	*%eax
 	jmp	doreti
 
+/*
+ * Local APIC thermal interrupt handler.
+ */
+	.text
+	SUPERALIGN_TEXT
+IDTVEC(thermalint_pti)
+IDTVEC(thermalint)
+	PUSH_FRAME
+	SET_KERNEL_SREGS
+	cld
+	KENTER
+	movl	$lapic_handle_thermal, %eax
+	call	*%eax
+	jmp	doreti
+
 #ifdef XENHVM
 /*
  * Xen event channel upcall interrupt handler.
