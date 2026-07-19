@@ -2731,7 +2731,34 @@ re_intr_msi(void *xsc)
 	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0) {
 		if (!if_sendq_empty(ifp))
 			re_start_locked(ifp);
+		/*
+		 * A Tx completion can set a Tx status bit between the ISR ack
+		 * near the top of this routine and re-enabling interrupts
+		 * below.  These controllers do not re-assert the MSI for a
+		 * status bit that is already set, so the completion would not
+		 * be serviced until the next interrupt or the 1 Hz re_tick()
+		 * reclaim (this is why hw.re.msi_disable is a known
+		 * workaround).  If a Tx bit is pending, clear just that bit and
+		 * reap the ring now; leave any Rx bits set so they re-arm the
+		 * interrupt normally and the Rx moderation state is untouched.
+		 */
+		status = CSR_READ_2(sc, RL_ISR);
+		if ((status & (RL_ISR_TX_OK | RL_ISR_TX_ERR |
+		    RL_ISR_TX_DESC_UNAVAIL)) != 0) {
+			CSR_WRITE_2(sc, RL_ISR, status & (RL_ISR_TX_OK |
+			    RL_ISR_TX_ERR | RL_ISR_TX_DESC_UNAVAIL));
+			if ((status & (RL_ISR_TX_OK |
+			    RL_ISR_TX_DESC_UNAVAIL)) != 0 &&
+			    (sc->rl_flags & RL_FLAG_PCIE) != 0)
+				CSR_WRITE_1(sc, sc->rl_txstart,
+				    RL_TXSTART_START);
+			re_txeof(sc);
+			if (!if_sendq_empty(ifp))
+				re_start_locked(ifp);
+		}
 		CSR_WRITE_2(sc, RL_IMR, intrs);
+		/* Flush the posted IMR write. */
+		(void)CSR_READ_2(sc, RL_ISR);
 	}
 	RL_UNLOCK(sc);
 }
