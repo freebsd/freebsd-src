@@ -71,8 +71,32 @@ report_zones_cleanup()
 	zoned_md_cleanup
 }
 
+atf_test_case report_starting_lba cleanup
+report_starting_lba_head()
+{
+	atf_set "descr" "zonectl -c rz -l reports zones from a starting LBA"
+	atf_set "require.user" "root"
+}
+report_starting_lba_body()
+{
+	alloc_zoned_md
+	atf_check gzoned create -s 256m ${md}
+	# Only zones 2 and 3 lie at or past LBA 0x100000 (512m).
+	atf_check_equal "2" \
+	    "$(zonectl -d /dev/${md}.zoned -c rz -l 0x100000 -P summary | \
+	    awk '/zones,/ {print $1}')"
+	atf_check_equal "0x100000" \
+	    "$(zonectl -d /dev/${md}.zoned -c rz -l 0x100000 -P script | \
+	    awk -F',' 'NR == 1 {gsub(/ /, "", $1); print $1}')"
+}
+report_starting_lba_cleanup()
+{
+	zoned_md_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case report_filter
 	atf_add_test_case report_zones
+	atf_add_test_case report_starting_lba
 }
