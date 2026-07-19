@@ -370,5 +370,6 @@ int aq_hw_rss_hash_set(struct aq_hw *hw, uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE
 int aq_hw_rss_hash_get(struct aq_hw *hw, uint8_t rss_key[HW_ATL_RSS_HASHKEY_SIZE]);
 int aq_hw_rss_set(struct aq_hw *hw, uint8_t rss_table[HW_ATL_RSS_INDIRECTION_TABLE_MAX]);
 int aq_hw_udp_rss_enable(struct aq_hw *hw, bool enable);
+u_int aq_rss_hashconfig(void);
 
 #endif // _AQ_HW_H_

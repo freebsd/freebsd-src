@@ -286,15 +286,18 @@ static struct if_shared_ctx aq_sctx_init = {
 	.isc_ntxd_default = {PAGE_SIZE / sizeof(volatile union aq_txc_desc) * 4},
 };
 
-/*
- * TUNEABLE PARAMETERS:
- */
-
-static SYSCTL_NODE(_hw, OID_AUTO, aq, CTLFLAG_RD, 0, "Atlantic driver parameters");
-/* UDP Receive-Side Scaling */
-static int aq_enable_rss_udp = 1;
-SYSCTL_INT(_hw_aq, OID_AUTO, enable_rss_udp, CTLFLAG_RDTUN, &aq_enable_rss_udp,
-     0, "Enable Receive-Side Scaling (RSS) for UDP");
+/* RSS hash types; honor the kernel policy (UDP 4-tuple off by default). */
+u_int
+aq_rss_hashconfig(void)
+{
+#ifdef RSS
+	return (rss_gethashconfig());
+#else
+	return (RSS_HASHTYPE_RSS_IPV4 | RSS_HASHTYPE_RSS_TCP_IPV4 |
+	    RSS_HASHTYPE_RSS_IPV6 | RSS_HASHTYPE_RSS_TCP_IPV6 |
+	    RSS_HASHTYPE_RSS_IPV6_EX | RSS_HASHTYPE_RSS_TCP_IPV6_EX);
+#endif
+}
 
 
 /*
@@ -450,11 +453,16 @@ aq_if_attach_post(if_ctx_t ctx)
 
 	aq_add_stats_sysctls(softc);
 	/* RSS */
-	arc4rand(softc->rss_key, HW_ATL_RSS_HASHKEY_SIZE, 0);
 	uint32_t rss_qs = MIN(softc->rx_rings_count, HW_ATL_RSS_INDIRECTION_QUEUES_MAX);
-	for (int i = nitems(softc->rss_table); i--;){
+#ifdef RSS
+	rss_getkey(softc->rss_key);
+	for (int i = nitems(softc->rss_table); i--;)
+		softc->rss_table[i] = rss_get_indirection_to_bucket(i) % rss_qs;
+#else
+	arc4rand(softc->rss_key, HW_ATL_RSS_HASHKEY_SIZE, 0);
+	for (int i = nitems(softc->rss_table); i--;)
 		softc->rss_table[i] = i % rss_qs;
-	}
+#endif
 exit:
 	AQ_DBG_EXIT(rc);
 	return (rc);
@@ -738,7 +746,9 @@ aq_if_init(if_ctx_t ctx)
 	aq_if_enable_intr(ctx);
 	aq_hw_rss_hash_set(&softc->hw, softc->rss_key);
 	aq_hw_rss_set(&softc->hw, softc->rss_table);
-	aq_hw_udp_rss_enable(hw, aq_enable_rss_udp);
+	aq_hw_udp_rss_enable(hw, (aq_rss_hashconfig() &
+	    (RSS_HASHTYPE_RSS_UDP_IPV4 | RSS_HASHTYPE_RSS_UDP_IPV6 |
+	    RSS_HASHTYPE_RSS_UDP_IPV6_EX)) != 0);
 	aq_hw_set_link_speed(hw, hw->link_rate);
 
 	/* iflib does not replay filter state after init; aq_hw_init() clears it. */

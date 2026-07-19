@@ -46,6 +46,7 @@
 #define AQ_HW_FW_SM_RAM        0x2U
 #define AQ_CFG_FW_MIN_VER_EXPECTED 0x01050006U
 
+static uint32_t aq_hw_active_tcs(struct aq_hw *hw);
 
 int
 aq_hw_err_from_flags(struct aq_hw *hw)
@@ -406,8 +407,7 @@ aq_hw_qos_set(struct aq_hw *hw)
 	tps_tx_pkt_shed_data_arb_mode_set(hw, 0U);
 
 	/* One TC per active 8-ring group; share the buffer across them. */
-	n_tcs = howmany(hw->tx_rings_count, HW_ATL_B0_RINGS_PER_TC);
-	n_tcs = MIN(MAX(n_tcs, 1U), HW_ATL_B0_TCS_MAX);
+	n_tcs = aq_hw_active_tcs(hw);
 	buff_size = AQ_HW_TXBUF_MAX / n_tcs;
 
 	for (tc = 0; tc < n_tcs; tc++) {
@@ -440,6 +440,16 @@ aq_hw_qos_set(struct aq_hw *hw)
 	err = aq_hw_err_from_flags(hw);
 	AQ_DBG_EXIT(err);
 	return (err);
+}
+
+/* Tx traffic classes currently provisioned (one per active 8-ring group). */
+static uint32_t
+aq_hw_active_tcs(struct aq_hw *hw)
+{
+	uint32_t n = howmany(MAX(hw->tx_rings_count, 1U),
+	    HW_ATL_B0_RINGS_PER_TC);
+
+	return (MIN(n, HW_ATL_B0_TCS_MAX));
 }
 
 static int
