@@ -66,6 +66,14 @@
 .Fc
 .Ft int
 .Fn pddupfd "int fd" "int remotefd" "int flags"
+.Ft int
+.Fo pdptrace
+.Fa "int req"
+.Fa "int fd"
+.Fa "int lwpid"
+.Fa "void *addr"
+.Fa "int data"
+.Fc
 .Sh DESCRIPTION
 Process descriptors are special file descriptors that represent processes,
 and are created using
@@ -83,7 +91,7 @@ on termination.
 .Fn pdfork
 can accept the
 .Fa pdflags:
-.Bl -tag -width PD_CLOEXEC
+.Bl -tag -width PD_PTRACE_CAP
 .It Dv PD_DAEMON
 Instead of the default terminate-on-close behaviour, allow the process to
 live until it is explicitly killed with
@@ -106,6 +114,16 @@ Set close-on-exec on process descriptor.
 .It Dv PD_NOWAITPID
 The parent cannot obtain the child's status with
 .Xr waitpid 2 .
+.It Dv PD_PTRACE_CAP
+Enable
+.Xr pdptrace 2
+requests on the resulting file descriptor.
+Otherwise the descriptor cannot be used to debug the child process.
+See
+.Xr rights 4
+for the description of the
+.Dv CAP_PTRACE
+capability.
 .El
 .Pp
 The
@@ -197,6 +215,32 @@ The
 argument is reserved and must be zero.
 Certain file descriptor types cannot be copied this way, namely
 kqueues.
+.Pp
+The
+.Fn pdptrace
+function enables execution of
+.Xr ptrace 2
+requests on the process specified by the process descriptor
+.Fa fd .
+.Pp
+In addition to the arguments taken by the
+.Xr ptrace 2 ,
+system call, the
+.Fa lwpid
+thread identifier can designate the thread on which the request
+must operate.
+The
+.Fa lwpid
+argument can be specified as \-1 if the call is not thread-specific,
+or kernel is allowed to select some thread on its own.
+.Pp
+Unlike the
+.Xr ptrace 2
+implementation,
+.Fn pdptrace
+does not clear the
+.Dv errno
+variable before executing the system call.
 .Sh INTERACTION OF PROCESS DESCRIPTORS AND Xr WAITPID 2
 .Pp
 The
@@ -461,8 +505,9 @@ functions were developed by
 with input from
 .An Alan Somers Aq Mt asomers@FreeBSD.org .
 The
-.Fn pdopenpid
+.Fn pdopenpid ,
+.Fn pddupfd ,
 and
-.Fn pddupfd
+.Fn pdptrace
 functions were developed by
 .An Konstantin Belousov Aq Mt kib@FreeBSD.org .
