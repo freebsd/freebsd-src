@@ -373,6 +373,31 @@ write_conv_boundary_cleanup()
 	gzoned_test_cleanup
 }
 
+atf_test_case write_conv_anywhere cleanup
+write_conv_anywhere_head()
+{
+	atf_set "descr" "gzoned conventional zones accept writes at any offset"
+	atf_set "require.user" "root"
+}
+write_conv_anywhere_body()
+{
+	gzoned_test_setup
+
+	alloc_zoned_md
+	atf_check gzoned create -s 256m -c 0 ${md}
+	# No write pointer: writing far into the zone and then again before
+	# the previous write must both succeed, and the zone never opens.
+	atf_check -e ignore \
+	    dd if=/dev/zero of=/dev/${md}.zoned bs=1m oseek=10 count=1
+	atf_check -e ignore \
+	    dd if=/dev/zero of=/dev/${md}.zoned bs=1m oseek=2 count=1
+	atf_check_equal "0" "$(zone_count imp_open)"
+}
+write_conv_anywhere_cleanup()
+{
+	gzoned_test_cleanup
+}
+
 atf_test_case write_full cleanup
 write_full_head()
 {
@@ -640,6 +665,7 @@ atf_init_test_cases()
 	atf_add_test_case write_out_of_order
 	atf_add_test_case write_boundary
 	atf_add_test_case write_conv_boundary
+	atf_add_test_case write_conv_anywhere
 	atf_add_test_case write_full
 	atf_add_test_case write_closed_zone
 	atf_add_test_case persistence
