@@ -278,6 +278,30 @@ restricted_reads_cleanup()
 	gzoned_test_cleanup
 }
 
+atf_test_case write_at_wp cleanup
+write_at_wp_head()
+{
+	atf_set "descr" "gzoned accepts writes at the write pointer"
+	atf_set "require.user" "root"
+}
+write_at_wp_body()
+{
+	gzoned_test_setup
+
+	alloc_zoned_md
+	atf_check gzoned create -s 256m ${md}
+	atf_check -e ignore dd if=/dev/zero of=/dev/${md}.zoned bs=1m count=1
+	atf_check_equal "0x800" "$(zone_wp 0)"
+	# A second write at the advanced write pointer is accepted too.
+	atf_check -e ignore \
+	    dd if=/dev/zero of=/dev/${md}.zoned bs=1m oseek=1 count=1
+	atf_check_equal "0x1000" "$(zone_wp 0)"
+}
+write_at_wp_cleanup()
+{
+	gzoned_test_cleanup
+}
+
 atf_test_case write_out_of_order cleanup
 write_out_of_order_head()
 {
@@ -586,6 +610,7 @@ atf_init_test_cases()
 	atf_add_test_case reset_wp_empty
 	atf_add_test_case unrestricted_reads
 	atf_add_test_case restricted_reads
+	atf_add_test_case write_at_wp
 	atf_add_test_case write_out_of_order
 	atf_add_test_case write_boundary
 	atf_add_test_case write_conv_boundary
