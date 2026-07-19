@@ -3600,6 +3600,8 @@ re_watchdog(struct rl_softc *sc)
 {
 	struct epoch_tracker et;
 	if_t ifp;
+	const char *imode;
+	uint32_t isr, imr, txcfg;
 
 	RL_LOCK_ASSERT(sc);
 
@@ -3607,17 +3609,70 @@ re_watchdog(struct rl_softc *sc)
 		return;
 
 	ifp = sc->rl_ifp;
+	/*
+	 * Snapshot the controller state before reclaim for the diagnostics
+	 * below.  Reading RL_ISR is side-effect free: the interrupt status
+	 * is cleared by writing ones, not by reading.
+	 */
+	imode = (sc->rl_flags & RL_FLAG_MSIX) ? "MSI-X" :
+	    (sc->rl_flags & RL_FLAG_MSI) ? "MSI" : "INTx";
+	isr = CSR_READ_2(sc, RL_ISR);
+	imr = CSR_READ_2(sc, RL_IMR);
 	re_txeof(sc);
 	if (sc->rl_ldata.rl_tx_free == sc->rl_ldata.rl_tx_desc_cnt) {
-		if_printf(ifp, "watchdog timeout (missed Tx interrupts) "
-		    "-- recovering\n");
+		/*
+		 * The retry reclaim drained the ring: a Tx completion interrupt
+		 * was lost.  Log the interrupt state so the lost-interrupt path
+		 * can be diagnosed without a debug build.
+		 */
+		if_printf(ifp, "watchdog timeout (missed Tx interrupts) -- "
+		    "recovering (ISR 0x%04x IMR 0x%04x %s)\n",
+		    isr, imr, imode);
 		if (!if_sendq_empty(ifp))
 			re_start_locked(ifp);
 		return;
 	}
 
-	if_printf(ifp, "watchdog timeout\n");
+	txcfg = CSR_READ_4(sc, RL_TXCFG);
+	/*
+	 * A genuine Tx stall.  Log the Tx ring position and controller
+	 * state in a single line -- enough to distinguish a lost doorbell,
+	 * a DMA stall, and a controller that has fallen off the bus.
+	 */
+	if_printf(ifp, "watchdog timeout -- resetting (tx %d/%d cons %d "
+	    "prod %d ISR 0x%04x IMR 0x%04x TXCFG 0x%08x %s)\n",
+	    sc->rl_ldata.rl_tx_free, sc->rl_ldata.rl_tx_desc_cnt,
+	    sc->rl_ldata.rl_tx_considx, sc->rl_ldata.rl_tx_prodidx,
+	    isr, imr, txcfg, imode);
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
+
+	/*
+	 * If the controller reads back all-ones it has fallen off the bus;
+	 * re_init_locked() cannot recover it, so flag it and bail rather
+	 * than spinning through reset after reset.
+	 */
+	if (txcfg == 0xFFFFFFFF) {
+		if_printf(ifp,
+		    "controller not responding; not reinitializing\n");
+		return;
+	}
+
+	/*
+	 * ASPM is a common cause of these Tx timeouts.  Make sure L0s/L1
+	 * and CLKREQ are still disabled on the link before reinitializing;
+	 * firmware or a power transition may have re-armed them.
+	 */
+	if (sc->rl_expcap != 0) {
+		uint16_t ctl;
+
+		ctl = pci_read_config(sc->rl_dev,
+		    sc->rl_expcap + PCIER_LINK_CTL, 2);
+		if ((ctl & (PCIEM_LINK_CTL_ECPM | PCIEM_LINK_CTL_ASPMC)) != 0) {
+			ctl &= ~(PCIEM_LINK_CTL_ECPM | PCIEM_LINK_CTL_ASPMC);
+			pci_write_config(sc->rl_dev,
+			    sc->rl_expcap + PCIER_LINK_CTL, ctl, 2);
+		}
+	}
 
 	NET_EPOCH_ENTER(et);
 	re_rxeof(sc, NULL);
