@@ -44,14 +44,18 @@ enum aq_media_type {
 };
 
 #define	AQ_LINK_UNKNOWN	0x00000000
-#define	AQ_LINK_100M	0x00000001
-#define	AQ_LINK_1G		0x00000002
-#define	AQ_LINK_2G5		0x00000004
-#define	AQ_LINK_5G		0x00000008
-#define	AQ_LINK_10G		0x00000010
+#define	AQ_LINK_10M	0x00000001
+#define	AQ_LINK_100M	0x00000002
+#define	AQ_LINK_1G	0x00000004
+#define	AQ_LINK_2G5	0x00000008
+#define	AQ_LINK_5G	0x00000010
+#define	AQ_LINK_10G	0x00000020
 
-#define	AQ_LINK_ALL	(AQ_LINK_100M | AQ_LINK_1G | AQ_LINK_2G5 | AQ_LINK_5G | \
-					 AQ_LINK_10G )
+#define	AQ_LINK_ALL	(AQ_LINK_10M | AQ_LINK_100M | AQ_LINK_1G | \
+			 AQ_LINK_2G5 | AQ_LINK_5G | AQ_LINK_10G)
+
+/* Atlantic 1 has no 10BASE-T PHY. */
+#define	AQ_LINK_ALL_ATLANTIC1	(AQ_LINK_ALL & ~AQ_LINK_10M)
 
 struct aq_stats {
 	uint64_t prc;

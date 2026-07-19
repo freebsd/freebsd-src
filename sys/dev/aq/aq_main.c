@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include "aq_device.h"
 #include "aq_fw.h"
 #include "aq_hw.h"
+#include "aq2_hw.h"
 #include "aq_hw_llh.h"
 #include "aq_ring.h"
 #include "aq_dbg.h"
@@ -135,6 +136,22 @@ static pci_vendor_info_t aq_vendor_info_array[] = {
 	    "Aquantia AQtion 5Gbit Network Adapter"),
 	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC112S,
 	    "Aquantia AQtion 2.5Gbit Network Adapter"),
+
+	/* Atlantic 2 (Marvell AQtion) */
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC113,
+	    "Marvell AQtion 10Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC113C,
+	    "Marvell AQtion 10Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC113CA,
+	    "Marvell AQtion 10Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC113CS,
+	    "Marvell AQtion 10Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC114CS,
+	    "Marvell AQtion 5Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC115C,
+	    "Marvell AQtion 2.5Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC116C,
+	    "Marvell AQtion 1Gbit Network Adapter"),
 
 	PVID_END
 };
@@ -344,6 +361,9 @@ aq_if_attach_pre(if_ctx_t ctx)
 	softc->hw.hw_tag = softc->mmio_tag;
 	softc->hw.hw_handle = softc->mmio_handle;
 	softc->hw.dev = softc->dev;
+	softc->hw.device_id = pci_get_device(softc->dev);
+	if (aq_is_atlantic2(softc->hw.device_id))
+		softc->hw.chip_features |= AQ_HW_CHIP_ATLANTIC2;
 	hw = &softc->hw;
 	hw->link_rate = aq_fw_speed_auto;
 	hw->itr = -1;
@@ -1166,7 +1186,7 @@ aq_hw_capabilities(struct aq_dev *softc)
 	case AQ_DEVICE_ID_AQC100:
 	case AQ_DEVICE_ID_AQC100S:
 		softc->media_type = AQ_MEDIA_TYPE_FIBRE;
-		softc->link_speeds = AQ_LINK_ALL & ~AQ_LINK_10G;
+		softc->link_speeds = AQ_LINK_ALL_ATLANTIC1;
 		break;
 
 	case AQ_DEVICE_ID_0001:
@@ -1174,7 +1194,7 @@ aq_hw_capabilities(struct aq_dev *softc)
 	case AQ_DEVICE_ID_AQC107:
 	case AQ_DEVICE_ID_AQC107S:
 		softc->media_type = AQ_MEDIA_TYPE_TP;
-		softc->link_speeds = AQ_LINK_ALL;
+		softc->link_speeds = AQ_LINK_ALL_ATLANTIC1;
 		break;
 
 	case AQ_DEVICE_ID_D108:
@@ -1183,7 +1203,7 @@ aq_hw_capabilities(struct aq_dev *softc)
 	case AQ_DEVICE_ID_AQC111:
 	case AQ_DEVICE_ID_AQC111S:
 		softc->media_type = AQ_MEDIA_TYPE_TP;
-		softc->link_speeds = AQ_LINK_ALL & ~AQ_LINK_10G;
+		softc->link_speeds = AQ_LINK_ALL_ATLANTIC1 & ~AQ_LINK_10G;
 		break;
 
 	case AQ_DEVICE_ID_D109:
@@ -1192,7 +1212,32 @@ aq_hw_capabilities(struct aq_dev *softc)
 	case AQ_DEVICE_ID_AQC112:
 	case AQ_DEVICE_ID_AQC112S:
 		softc->media_type = AQ_MEDIA_TYPE_TP;
+		softc->link_speeds = AQ_LINK_ALL_ATLANTIC1 &
+		    ~(AQ_LINK_10G | AQ_LINK_5G);
+		break;
+
+	case AQ_DEVICE_ID_AQC113:
+	case AQ_DEVICE_ID_AQC113C:
+	case AQ_DEVICE_ID_AQC113CA:
+	case AQ_DEVICE_ID_AQC113CS:
+		softc->media_type = AQ_MEDIA_TYPE_TP;
+		softc->link_speeds = AQ_LINK_ALL;
+		break;
+
+	case AQ_DEVICE_ID_AQC114CS:
+		softc->media_type = AQ_MEDIA_TYPE_TP;
+		softc->link_speeds = AQ_LINK_ALL & ~AQ_LINK_10G;
+		break;
+
+	case AQ_DEVICE_ID_AQC115C:
+		softc->media_type = AQ_MEDIA_TYPE_TP;
 		softc->link_speeds = AQ_LINK_ALL & ~(AQ_LINK_10G | AQ_LINK_5G);
+		break;
+
+	case AQ_DEVICE_ID_AQC116C:
+		softc->media_type = AQ_MEDIA_TYPE_TP;
+		softc->link_speeds =
+		    AQ_LINK_ALL & ~(AQ_LINK_10G | AQ_LINK_5G | AQ_LINK_2G5);
 		break;
 
 	default:

@@ -39,6 +39,7 @@
 #include <machine/cpu.h>
 
 #include "aq_hw.h"
+#include "aq2_hw.h"
 #include "aq_dbg.h"
 #include "aq_hw_llh.h"
 #include "aq_fw.h"
@@ -150,6 +151,10 @@ aq_hw_init_ucp(struct aq_hw *hw)
 	AQ_DBG_ENTER();
 
 	hw->fw_version.raw = 0;
+
+	/* Atlantic 2 uses a different reset/firmware handshake. */
+	if (IS_CHIP_FEATURE(hw, ATLANTIC2))
+		return (aq2_fw_reboot(hw));
 
 	err = aq_fw_reset(hw);
 	if (err != 0) {
@@ -280,6 +285,9 @@ aq_hw_get_link_state(struct aq_hw *hw, uint32_t *link_speed, struct aq_hw_fc_inf
 	case aq_fw_100M:
 		*link_speed = 100U;
 		break;
+	case aq_fw_10M:
+		*link_speed = 10U;
+		break;
 	default:
 		*link_speed = 0U;
 		break;
@@ -361,7 +369,11 @@ aq_hw_reset(struct aq_hw *hw)
 
 	AQ_DBG_ENTER();
 
-	err = aq_fw_reset(hw);
+	/* A2 resets by rebooting the MCP; A1 uses the RBL/FLB reset. */
+	if (IS_CHIP_FEATURE(hw, ATLANTIC2))
+		err = aq2_fw_reboot(hw);
+	else
+		err = aq_fw_reset(hw);
 	if (err != 0)
 		goto err_exit;
 
@@ -634,15 +646,32 @@ aq_hw_init(struct aq_hw *hw, uint8_t *mac_addr, uint8_t adm_irq, bool msix)
 
 	AQ_DBG_ENTER();
 
-	/* Force limit MRRS on RDM/TDM to 2K */
-	val = AQ_READ_REG(hw, AQ_HW_PCI_REG_CONTROL_6_ADR);
-	AQ_WRITE_REG(hw, AQ_HW_PCI_REG_CONTROL_6_ADR, (val & ~0x707) | 0x404);
+	/* Atlantic 1 only: clamp MRRS and TX DMA total request limit. */
+	if (!IS_CHIP_FEATURE(hw, ATLANTIC2)) {
+		/* Force limit MRRS on RDM/TDM to 2K */
+		val = AQ_READ_REG(hw, AQ_HW_PCI_REG_CONTROL_6_ADR);
+		AQ_WRITE_REG(hw, AQ_HW_PCI_REG_CONTROL_6_ADR,
+		    (val & ~0x707) | 0x404);
 
-	/* TX DMA total request limit. B0 hardware is not capable to
-	* handle more than (8K-MRRS) incoming DMA data.
-	* Value 24 in 256byte units
-	*/
-	AQ_WRITE_REG(hw, AQ_HW_TX_DMA_TOTAL_REQ_LIMIT_ADR, 24);
+		/* TX DMA total request limit. B0 hardware is not capable to
+		* handle more than (8K-MRRS) incoming DMA data.
+		* Value 24 in 256byte units
+		*/
+		AQ_WRITE_REG(hw, AQ_HW_TX_DMA_TOTAL_REQ_LIMIT_ADR, 24);
+	} else {
+		/* Atlantic 2: launch-time clock ratio per FPGA version. */
+		uint32_t fpgaver = AQ_READ_REG(hw, AQ2_HW_FPGA_VERSION_REG);
+		uint32_t ratio;
+
+		if (fpgaver < 0x01000000U)
+			ratio = AQ2_LAUNCHTIME_CTRL_RATIO_SPEED_FULL;
+		else if (fpgaver >= 0x01008502U)
+			ratio = AQ2_LAUNCHTIME_CTRL_RATIO_SPEED_HALF;
+		else
+			ratio = AQ2_LAUNCHTIME_CTRL_RATIO_SPEED_QUARTER;
+		AQ_WRITE_REG_BIT(hw, AQ2_LAUNCHTIME_CTRL_REG,
+		    AQ2_LAUNCHTIME_CTRL_RATIO, 8, ratio);
+	}
 
 	err = aq_hw_init_tx_path(hw);
 	if (err != 0)

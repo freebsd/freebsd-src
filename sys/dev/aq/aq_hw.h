@@ -201,6 +201,12 @@ struct aq_hw {
 	u_long flags;
 
 	uint32_t tx_rings_count;
+
+	/* Atlantic 2: base row added to every action-resolver-table index. */
+	uint32_t art_filter_base_index;
+
+	/* Atlantic 2: firmware statistics interface version (A0/B0). */
+	uint32_t aq2_iface;
 };
 
 #define AQ_HW_MAC      0U
@@ -254,6 +260,7 @@ struct aq_hw {
 #define AQ_HW_CHIP_REVISION_A0  0x01000000U
 #define AQ_HW_CHIP_REVISION_B0  0x02000000U
 #define AQ_HW_CHIP_REVISION_B1  0x04000000U
+#define AQ_HW_CHIP_ATLANTIC2    0x08000000U
 #define IS_CHIP_FEATURE(HW, _F_) (AQ_HW_CHIP_##_F_ & \
 	(HW)->chip_features)
 

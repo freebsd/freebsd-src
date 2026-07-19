@@ -39,11 +39,12 @@ struct aq_hw;
 enum aq_fw_link_speed
 {
 	aq_fw_none  = 0,
-	aq_fw_100M  = (1 << 0),
-	aq_fw_1G    = (1 << 1),
-	aq_fw_2G5   = (1 << 2),
-	aq_fw_5G    = (1 << 3),
-	aq_fw_10G   = (1 << 4),
+	aq_fw_10M   = (1 << 0),	/* Atlantic 2 only */
+	aq_fw_100M  = (1 << 1),
+	aq_fw_1G    = (1 << 2),
+	aq_fw_2G5   = (1 << 3),
+	aq_fw_5G    = (1 << 4),
+	aq_fw_10G   = (1 << 5),
 };
 
 enum aq_fw_link_fc
@@ -55,7 +56,7 @@ enum aq_fw_link_fc
 };
 
 #define aq_fw_speed_auto \
-    (aq_fw_100M | aq_fw_1G | aq_fw_2G5 | aq_fw_5G | aq_fw_10G)
+    (aq_fw_10M | aq_fw_100M | aq_fw_1G | aq_fw_2G5 | aq_fw_5G | aq_fw_10G)
 
 struct aq_firmware_ops
 {
@@ -70,10 +71,13 @@ struct aq_firmware_ops
 	int (*led_control)(struct aq_hw* hw, uint32_t mode);
 };
 
+/* aq_fw1x/aq_fw2x: Atlantic 1 firmware ABIs; aq2_fw: Atlantic 2 (AQC11x). */
 extern const struct aq_firmware_ops aq_fw1x_ops;
 extern const struct aq_firmware_ops aq_fw2x_ops;
+extern const struct aq_firmware_ops aq2_fw_ops;
 
 int aq_fw_reset(struct aq_hw* hw);
 int aq_fw_ops_init(struct aq_hw* hw);
+int aq2_fw_reboot(struct aq_hw* hw);
 
 #endif // AQ_FW_H
