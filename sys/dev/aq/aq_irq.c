@@ -56,12 +56,17 @@ int
 aq_update_hw_stats(struct aq_dev *aq_dev)
 {
 	struct aq_hw *hw = &aq_dev->hw;
-	struct aq_hw_fw_mbox mbox;
+	struct aq_hw_stats stats;
 
-	aq_hw_mpi_read_stats(hw, &mbox);
+	memset(&stats, 0, sizeof(stats));
+	if (aq_hw_mpi_read_stats(hw, &stats) != 0)
+		return (0);
 
-#define AQ_SDELTA(_N_) (aq_dev->curr_stats._N_ += \
-    mbox.stats._N_ - aq_dev->last_stats._N_)
+#define AQ_SDELTA(_N_) do { \
+	int32_t _d = (int32_t)(stats._N_ - aq_dev->last_stats._N_); \
+	if (_d > 0) \
+		aq_dev->curr_stats._N_ += _d; \
+} while (0)
 	if (aq_dev->linkup) {
 		AQ_SDELTA(uprc);
 		AQ_SDELTA(mprc);
@@ -86,15 +91,25 @@ aq_update_hw_stats(struct aq_dev *aq_dev)
 
 		AQ_SDELTA(dpc);
 
-		aq_dev->curr_stats.brc = aq_dev->curr_stats.ubrc +
-		    aq_dev->curr_stats.mbrc + aq_dev->curr_stats.bbrc;
-		aq_dev->curr_stats.btc = aq_dev->curr_stats.ubtc +
-		    aq_dev->curr_stats.mbtc + aq_dev->curr_stats.bbtc;
+		/*
+		 * Per-cast octets present: derive the aggregate from them.
+		 * Otherwise (B0) accumulate the firmware-reported aggregate.
+		 */
+		if (stats.ubrc | stats.mbrc | stats.bbrc)
+			aq_dev->curr_stats.brc = aq_dev->curr_stats.ubrc +
+			    aq_dev->curr_stats.mbrc + aq_dev->curr_stats.bbrc;
+		else
+			AQ_SDELTA(brc);
 
+		if (stats.ubtc | stats.mbtc | stats.bbtc)
+			aq_dev->curr_stats.btc = aq_dev->curr_stats.ubtc +
+			    aq_dev->curr_stats.mbtc + aq_dev->curr_stats.bbtc;
+		else
+			AQ_SDELTA(btc);
 	}
 #undef AQ_SDELTA
 
-	memcpy(&aq_dev->last_stats, &mbox.stats, sizeof(mbox.stats));
+	memcpy(&aq_dev->last_stats, &stats, sizeof(stats));
 
 	return (0);
 }

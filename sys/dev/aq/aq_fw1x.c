@@ -45,8 +45,6 @@ __FBSDID("$FreeBSD$");
 #include "aq_dbg.h"
 
 
-#define FW1X_MPI_CONTROL_ADR    0x368
-#define FW1X_MPI_STATE_ADR      0x36C
 
 
 enum fw1x_mode {
@@ -211,7 +209,7 @@ fw1x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state mode,
 	trace(dbg_init, "fw1x> set mode %d, rate mask = %#x; raw = %#x",
 	     state.mode, state.speed, state.val);
 
-	AQ_WRITE_REG(hw, FW1X_MPI_CONTROL_ADR, state.val);
+	AQ_WRITE_REG(hw, AQ_HW_MPI_CONTROL_ADR, state.val);
 
 	return (0);
 }
@@ -291,6 +289,11 @@ fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 	return (0);
 }
 
+/* fw1x_get_stats() memcpy's this raw block onto aq_hw_stats' prefix. */
+_Static_assert(sizeof(struct aq_fw1x_mbox_stats) ==
+    __offsetof(struct aq_hw_stats, brc),
+    "fw1x mailbox stats must match the aq_hw_stats prefix");
+
 static int
 fw1x_get_stats(struct aq_hw* hw, struct aq_hw_stats* stats)
 {
@@ -300,12 +303,8 @@ fw1x_get_stats(struct aq_hw* hw, struct aq_hw_stats* stats)
 	err = aq_hw_fw_downld_dwords(hw, hw->mbox_addr,
 	    (uint32_t*)(void*)&hw->mbox, sizeof hw->mbox / sizeof(uint32_t));
 
-	if (err == 0) {
-		if (stats != &hw->mbox.stats)
-			memcpy(stats, &hw->mbox.stats, sizeof *stats);
-
-		stats->dpc = reg_rx_dma_stat_counter7get(hw);
-	}
+	if (err == 0)
+		memcpy(stats, &hw->mbox.stats, sizeof hw->mbox.stats);
 
 	AQ_DBG_EXIT(err);
 	return (err);

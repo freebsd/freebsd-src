@@ -77,8 +77,42 @@ extern uint32_t aq_hw_read_reg(struct aq_hw *hw, uint32_t reg);
 
 #define aq_hw_write_reg AQ_WRITE_REG
 
-/* Statistics  */
+/* Driver-side per-backend statistics snapshot. */
 struct aq_hw_stats {
+	uint32_t uprc;
+	uint32_t mprc;
+	uint32_t bprc;
+	uint32_t erpt;
+	uint32_t uptc;
+	uint32_t mptc;
+	uint32_t bptc;
+	uint32_t erpr;
+	uint32_t mbtc;
+	uint32_t bbtc;
+	uint32_t mbrc;
+	uint32_t bbrc;
+	uint32_t ubrc;
+	uint32_t ubtc;
+	uint32_t ptc;
+	uint32_t prc;
+	uint32_t dpc;
+	uint32_t cprc;
+	uint32_t brc;	/* aggregate rx octets */
+	uint32_t btc;	/* aggregate tx octets */
+} __packed;
+
+union ip_addr {
+	struct {
+		uint8_t addr[16];
+	} v6;
+	struct {
+		uint8_t padding[12];
+		uint8_t addr[4];
+	} v4;
+} __packed;
+
+/* Raw fw1x MCP mailbox stats block, in hardware order. */
+struct aq_fw1x_mbox_stats {
 	uint32_t uprc;
 	uint32_t mprc;
 	uint32_t bprc;
@@ -99,21 +133,12 @@ struct aq_hw_stats {
 	uint32_t cprc;
 } __packed;
 
-union ip_addr {
-	struct {
-		uint8_t addr[16];
-	} v6;
-	struct {
-		uint8_t padding[12];
-		uint8_t addr[4];
-	} v4;
-} __packed;
-
+/* fw1x MCP mailbox: raw hardware layout, read verbatim. */
 struct aq_hw_fw_mbox {
 	uint32_t version;
 	uint32_t transaction_id;
 	int error;
-	struct aq_hw_stats stats;
+	struct aq_fw1x_mbox_stats stats;
 } __packed;
 
 struct aq_hw_fw_version {
@@ -152,6 +177,7 @@ struct aq_hw {
 
 	struct aq_hw_fc_info fc;
 	uint16_t link_rate;
+	uint16_t link_speed;	/* last negotiated rate (for ITR moderation) */
 
 	uint16_t device_id;
 	uint16_t subsystem_vendor_id;
@@ -339,7 +365,7 @@ int aq_hw_reset(struct aq_hw *hw);
 
 int aq_hw_mpi_create(struct aq_hw *hw);
 
-int aq_hw_mpi_read_stats(struct aq_hw *hw, struct aq_hw_fw_mbox *pmbox);
+int aq_hw_mpi_read_stats(struct aq_hw *hw, struct aq_hw_stats *stats);
 
 int aq_hw_init(struct aq_hw *hw, uint8_t *mac_addr, uint8_t adm_irq, bool msix);
 

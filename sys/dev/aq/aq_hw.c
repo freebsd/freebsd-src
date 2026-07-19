@@ -208,16 +208,16 @@ err_exit:
 }
 
 int
-aq_hw_mpi_read_stats(struct aq_hw *hw, struct aq_hw_fw_mbox *pmbox)
+aq_hw_mpi_read_stats(struct aq_hw *hw, struct aq_hw_stats *stats)
 {
 	int err;
 //    AQ_DBG_ENTER();
 
-	err = hw->fw_ops->get_stats(hw, &pmbox->stats);
+	err = hw->fw_ops->get_stats(hw, stats);
 
 	if (err == 0) {
-		pmbox->stats.dpc = reg_rx_dma_stat_counter7get(hw);
-		pmbox->stats.cprc = stats_rx_lro_coalesced_pkt_count0_get(hw);
+		stats->dpc = reg_rx_dma_stat_counter7get(hw);
+		stats->cprc = stats_rx_lro_coalesced_pkt_count0_get(hw);
 	}
 
 //    AQ_DBG_EXIT(err);
@@ -266,6 +266,8 @@ aq_hw_get_link_state(struct aq_hw *hw, uint32_t *link_speed, struct aq_hw_fc_inf
 	}
 	if (mode != MPI_INIT)
 		return (0);
+
+	hw->link_speed = speed;	/* remember negotiated rate for interrupt moderation */
 
 	switch (speed) {
 	case aq_fw_10G:
@@ -675,6 +677,9 @@ aq_hw_init(struct aq_hw *hw, uint8_t *mac_addr, uint8_t adm_irq, bool msix)
 	else
 		itr_irq_mode_set(hw, 0x5); //MSI + multi vector
 
+	/* Route both hardware error causes (map reg 0) to the admin vector. */
+	reg_gen_irq_map_set(hw,
+	    ((0x80U | adm_irq) << 24) | ((0x80U | adm_irq) << 16), 0);
 	reg_gen_irq_map_set(hw, 0x80 | adm_irq, 3);
 
 	err = aq_hw_offload_set(hw);
@@ -702,24 +707,25 @@ aq_hw_start(struct aq_hw *hw)
 int
 aq_hw_interrupt_moderation_set(struct aq_hw *hw)
 {
-	static unsigned int AQ_HW_NIC_timers_table_rx_[][2] = {
-	    {80, 120},//{0x6U, 0x38U},/* 10Gbit */
-	    {0xCU, 0x70U},/* 5Gbit */
-	    {0xCU, 0x70U},/* 5Gbit 5GS */
-	    {0x18U, 0xE0U},/* 2.5Gbit */
-	    {0x30U, 0x80U},/* 1Gbit */
-	    {0x4U, 0x50U},/* 100Mbit */
+	/* Rows in enum aq_fw_link_speed bit order (10M=0 .. 10G=5); index = ffs(speed)-1. */
+	static unsigned int aq_itr_timers_rx[][2] = {
+	    {0x4U, 0x50U},	/* 10Mbit */
+	    {0x4U, 0x50U},	/* 100Mbit */
+	    {0x30U, 0x80U},	/* 1Gbit */
+	    {0x18U, 0xE0U},	/* 2.5Gbit */
+	    {0xCU, 0x70U},	/* 5Gbit */
+	    {80, 120},		/* 10Gbit */
 	};
-	static unsigned int AQ_HW_NIC_timers_table_tx_[][2] = {
-	    {0x4fU, 0x1ff},//{0xffU, 0xffU}, /* 10Gbit */
-	    {0x4fU, 0xffU}, /* 5Gbit */
-	    {0x4fU, 0xffU}, /* 5Gbit 5GS */
-	    {0x4fU, 0xffU}, /* 2.5Gbit */
-	    {0x4fU, 0xffU}, /* 1Gbit */
-	    {0x4fU, 0xffU}, /* 100Mbit */
+	static unsigned int aq_itr_timers_tx[][2] = {
+	    {0x4fU, 0xffU},	/* 10Mbit */
+	    {0x4fU, 0xffU},	/* 100Mbit */
+	    {0x4fU, 0xffU},	/* 1Gbit */
+	    {0x4fU, 0xffU},	/* 2.5Gbit */
+	    {0x4fU, 0xffU},	/* 5Gbit */
+	    {0x4fU, 0x1ff},	/* 10Gbit */
 	};
 
-	uint32_t speed_index = 0U; //itr settings for 10 g
+	uint32_t speed_index = ffs(hw->link_speed ? hw->link_speed : aq_fw_10G) - 1;
 	uint32_t itr_rx = 2U;
 	uint32_t itr_tx = 2U;
 	int custom_itr = hw->itr;
@@ -731,14 +737,14 @@ aq_hw_interrupt_moderation_set(struct aq_hw *hw)
 
 	if (custom_itr == -1) {
 		/* set min timer value */
-		itr_rx |= AQ_HW_NIC_timers_table_rx_[speed_index][0] << 0x8U;
+		itr_rx |= aq_itr_timers_rx[speed_index][0] << 0x8U;
 		/* set max timer value */
-		itr_rx |= AQ_HW_NIC_timers_table_rx_[speed_index][1] << 0x10U;
+		itr_rx |= aq_itr_timers_rx[speed_index][1] << 0x10U;
 
 		/* set min timer value */
-		itr_tx |= AQ_HW_NIC_timers_table_tx_[speed_index][0] << 0x8U;
+		itr_tx |= aq_itr_timers_tx[speed_index][0] << 0x8U;
 		/* set max timer value */
-		itr_tx |= AQ_HW_NIC_timers_table_tx_[speed_index][1] << 0x10U;
+		itr_tx |= aq_itr_timers_tx[speed_index][1] << 0x10U;
 	} else {
 		if (custom_itr > 0x1FF)
 			custom_itr = 0x1FF;
