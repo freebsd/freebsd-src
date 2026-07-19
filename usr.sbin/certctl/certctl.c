@@ -523,6 +523,8 @@ write_certs(const char *dir, struct cert_tree *tree)
 				tmppath = xasprintf(".%s", path);
 				fd = openat(d, tmppath,
 				    O_CREAT | O_WRONLY | O_EXCL, mode);
+				if (!unprivileged && fd >= 0)
+					(void)fchmod(fd, mode);
 			}
 		}
 		/* write the certificate */
@@ -594,6 +596,8 @@ write_bundle(const char *dir, const char *file, struct cert_tree *tree)
 	} else {
 		tmpfile = xasprintf(".%s", file);
 		fd = openat(d, tmpfile, O_WRONLY | O_CREAT | O_EXCL, mode);
+		if (!unprivileged && fd >= 0)
+			(void)fchmod(fd, mode);
 	}
 	if (fd < 0 || (f = fdopen(fd, "w")) == NULL) {
 		if (tmpfile != NULL && fd >= 0) {
