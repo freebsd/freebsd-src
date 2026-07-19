@@ -906,7 +906,7 @@ ptrace_unsuspend(struct proc *p)
 }
 
 static int
-proc_can_ptrace(struct thread *td, struct proc *p)
+proc_can_ptrace1(struct thread *td, struct proc *p)
 {
 	int error;
 
@@ -914,10 +914,21 @@ proc_can_ptrace(struct thread *td, struct proc *p)
 
 	if ((p->p_flag & P_WEXIT) != 0)
 		return (ESRCH);
-
 	if ((error = p_cansee(td, p)) != 0)
 		return (error);
 	if ((error = p_candebug(td, p)) != 0)
+		return (error);
+	return (0);
+}
+
+static int
+proc_can_ptrace(struct thread *td, struct proc *p)
+{
+	int error;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	if ((error = proc_can_ptrace1(td, p)) != 0)
 		return (error);
 
 	/* not being traced... */
@@ -1084,14 +1095,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	}
 	AUDIT_ARG_PROCESS(p);
 
-	if ((p->p_flag & P_WEXIT) != 0) {
-		error = ESRCH;
-		goto fail;
-	}
-	if ((error = p_cansee(td, p)) != 0)
-		goto fail;
-
-	if ((error = p_candebug(td, p)) != 0)
+	error = proc_can_ptrace1(td, p);
+	if (error != 0)
 		goto fail;
 
 	/*
