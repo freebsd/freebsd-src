@@ -13,6 +13,13 @@ alloc_zoned_md()
 	echo ${md} > $MD_DEV_FILE
 }
 
+# Print the number of zones matching a report option.
+zone_count()
+{
+	zonectl -d /dev/${md}.zoned -c rz -o $1 -P summary | \
+	    awk '/zones,/ {print $1}'
+}
+
 zoned_md_cleanup()
 {
 	if [ -f "$MD_DEV_FILE" ]; then
@@ -114,10 +121,29 @@ report_params_cleanup()
 	zoned_md_cleanup
 }
 
+atf_test_case open_zone cleanup
+open_zone_head()
+{
+	atf_set "descr" "zonectl -c open explicitly opens a zone"
+	atf_set "require.user" "root"
+}
+open_zone_body()
+{
+	alloc_zoned_md
+	atf_check gzoned create -s 256m ${md}
+	atf_check zonectl -d /dev/${md}.zoned -c open -l 0
+	atf_check_equal "1" "$(zone_count exp_open)"
+}
+open_zone_cleanup()
+{
+	zoned_md_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case report_filter
 	atf_add_test_case report_zones
 	atf_add_test_case report_starting_lba
 	atf_add_test_case report_params
+	atf_add_test_case open_zone
 }
