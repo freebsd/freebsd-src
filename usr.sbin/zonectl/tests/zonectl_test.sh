@@ -50,7 +50,29 @@ report_filter_cleanup()
 	zoned_md_cleanup
 }
 
+atf_test_case report_zones cleanup
+report_zones_head()
+{
+	atf_set "descr" "zonectl -c rz reports every zone"
+	atf_set "require.user" "root"
+}
+report_zones_body()
+{
+	alloc_zoned_md
+	atf_check gzoned create -s 256m ${md}
+	atf_check -o match:"^4 zones," \
+	    zonectl -d /dev/${md}.zoned -c rz -P summary
+	atf_check_equal "4" \
+	    "$(zonectl -d /dev/${md}.zoned -c rz -P script | \
+	    awk 'END {print NR}')"
+}
+report_zones_cleanup()
+{
+	zoned_md_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case report_filter
+	atf_add_test_case report_zones
 }
