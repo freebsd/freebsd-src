@@ -200,17 +200,26 @@ SYSCTL_INT(_debug, OID_AUTO, nullfs_bug_bypass, CTLFLAG_RW,
  *   VOP_INOTIFY.
  * - If the lower vnode is watched, then the upper vnode should go through
  *   VOP_INOTIFY, so copy the flag up.
+ *
+ * The lockless check is only a fast path: the decision to change a flag
+ * is re-made under the upper vnode's interlock, since another thread may
+ * set or clear the flag concurrently.
  */
 static void
 null_copy_inotify(struct vnode *vp, struct vnode *lvp, short flag)
 {
+	if (__predict_true((vn_irflag_read(vp) & flag) ==
+	    (vn_irflag_read(lvp) & flag)))
+		return;
+	VI_LOCK(vp);
 	if ((vn_irflag_read(vp) & flag) != 0) {
-		if (__predict_false((vn_irflag_read(lvp) & flag) == 0))
-			vn_irflag_unset(vp, flag);
-	} else if ((vn_irflag_read(lvp) & flag) != 0) {
-		if (__predict_false((vn_irflag_read(vp) & flag) == 0))
-			vn_irflag_set(vp, flag);
+		if ((vn_irflag_read(lvp) & flag) == 0)
+			vn_irflag_unset_locked(vp, flag);
+	} else {
+		if ((vn_irflag_read(lvp) & flag) != 0)
+			vn_irflag_set_locked(vp, flag);
 	}
+	VI_UNLOCK(vp);
 }
 
 /*
