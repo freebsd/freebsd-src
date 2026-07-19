@@ -253,6 +253,10 @@ aq_hw_get_link_state(struct aq_hw *hw, uint32_t *link_speed, struct aq_hw_fc_inf
 	enum aq_fw_link_speed speed = aq_fw_none;
 	enum aq_fw_link_fc fc;
 
+	*link_speed = 0;
+	fc_neg->fc_rx = false;
+	fc_neg->fc_tx = false;
+
 	err = hw->fw_ops->get_mode(hw, &mode, &speed, &fc);
 
 	if (err != 0) {
@@ -260,7 +264,6 @@ aq_hw_get_link_state(struct aq_hw *hw, uint32_t *link_speed, struct aq_hw_fc_inf
 		AQ_DBG_EXIT(err);
 		return (err);
 	}
-	*link_speed = 0;
 	if (mode != MPI_INIT)
 		return (0);
 
@@ -376,7 +379,9 @@ aq_hw_reset(struct aq_hw *hw)
 		goto err_exit;
 	}
 
-	hw->fw_ops->reset(hw);
+	err = hw->fw_ops->reset(hw);
+	if (err != 0)
+		goto err_exit;
 
 	err = aq_hw_err_from_flags(hw);
 
@@ -644,8 +649,12 @@ aq_hw_init(struct aq_hw *hw, uint8_t *mac_addr, uint8_t adm_irq, bool msix)
 	*/
 	AQ_WRITE_REG(hw, AQ_HW_TX_DMA_TOTAL_REQ_LIMIT_ADR, 24);
 
-	aq_hw_init_tx_path(hw);
-	aq_hw_init_rx_path(hw);
+	err = aq_hw_init_tx_path(hw);
+	if (err != 0)
+		goto err_exit;
+	err = aq_hw_init_rx_path(hw);
+	if (err != 0)
+		goto err_exit;
 
 	aq_hw_mac_addr_set(hw, mac_addr, AQ_HW_MAC);
 

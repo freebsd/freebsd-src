@@ -42,9 +42,10 @@
 
 #define AQ_HW_WAIT_FOR(_B_, _US_, _N_) ({ \
 	unsigned int _i; \
-	for (_i = (_N_); !(_B_) && _i; --_i) \
+	int _b; \
+	for (_i = (_N_); !(_b = (_B_)) && _i; --_i) \
 		DELAY(_US_); \
-	(_i == 0) ? ETIMEDOUT : 0; \
+	_b ? 0 : ETIMEDOUT; \
 })
 
 

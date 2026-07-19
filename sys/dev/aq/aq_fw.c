@@ -306,6 +306,10 @@ mac_soft_reset_rbl(struct aq_hw* hw, enum aq_fw_bootloader_mode* mode)
 	reg_glb_cpu_no_reset_scratchpad_set(hw, 0xDEAD,
 	    NO_RESET_SCRATCHPAD_RBL_STATUS);
 
+	/* Clear a stale flash burst so the global reset frees the SPI bus. */
+	uint32_t spi = AQ_READ_REG(hw, 0x53c);
+	AQ_WRITE_REG(hw, 0x53c, spi | 0x10);
+
 	// Global software reset
 	rx_rx_reg_res_dis_set(hw, 0);
 	tx_tx_reg_res_dis_set(hw, 0);

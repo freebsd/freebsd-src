@@ -360,9 +360,14 @@ aq_if_attach_pre(if_ctx_t ctx)
 	}
 
 	if (hw->fast_start_enabled)
-		hw->fw_ops->reset(hw);
+		rc = hw->fw_ops->reset(hw);
 	else
-		aq_hw_reset(&softc->hw);
+		rc = aq_hw_reset(&softc->hw);
+	if (rc != 0) {
+		device_printf(softc->dev, "%s: reset failed, err=%d\n",
+		    __func__, rc);
+		goto fail;
+	}
 	aq_hw_capabilities(softc);
 
 	rc = aq_hw_get_mac_permanent(hw, hw->mac_addr);
@@ -480,7 +485,7 @@ aq_if_detach(if_ctx_t ctx)
 
 	aq_hw_deinit(&softc->hw);
 
-	for (i = 0; i < softc->scctx->isc_nrxqsets; i++)
+	for (i = 0; i < softc->rx_rings_count; i++)
 		iflib_irq_free(ctx, &softc->rx_rings[i]->irq);
 	iflib_irq_free(ctx, &softc->irq);
 
@@ -707,6 +712,8 @@ aq_if_init(if_ctx_t ctx)
 	    softc->scctx->isc_intr == IFLIB_INTR_MSIX);
 	if (err != 0) {
 		device_printf(softc->dev, "atlantic: aq_hw_init: %d", err);
+		AQ_DBG_EXIT(err);
+		return;
 	}
 
 	aq_if_media_status(ctx, &ifmr);
@@ -1029,7 +1036,6 @@ aq_if_msix_intr_assign(if_ctx_t ctx, int msix)
 
 		if (rc) {
 			device_printf(softc->dev, "failed to set up RX handler\n");
-			i--;
 			goto fail;
 		}
 
@@ -1057,15 +1063,12 @@ aq_if_msix_intr_assign(if_ctx_t ctx, int msix)
 	if (rc) {
 		device_printf(iflib_get_dev(ctx),
 		    "Failed to register admin handler");
-		i = softc->rx_rings_count - 1;
 		goto fail;
 	}
 	AQ_DBG_EXIT(0);
 	return (0);
 
 fail:
-	for (; i >= 0; i--)
-		iflib_irq_free(ctx, &softc->rx_rings[i]->irq);
 	AQ_DBG_EXIT(rc);
 	return (rc);
 }
