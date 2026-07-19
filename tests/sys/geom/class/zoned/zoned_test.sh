@@ -245,6 +245,31 @@ reset_wp_empty_cleanup()
 	gzoned_test_cleanup
 }
 
+atf_test_case reset_wp_finished cleanup
+reset_wp_finished_head()
+{
+	atf_set "descr" "gzoned resets a finished zone back to empty"
+	atf_set "require.user" "root"
+}
+reset_wp_finished_body()
+{
+	gzoned_test_setup
+
+	alloc_zoned_md
+	atf_check gzoned create -s 256m ${md}
+	atf_check zonectl -d /dev/${md}.zoned -c finish -l 0
+	atf_check_equal "1" "$(zone_count full)"
+
+	atf_check zonectl -d /dev/${md}.zoned -c rwp -l 0
+	atf_check_equal "0" "$(zone_count full)"
+	atf_check_equal "0" "$(zone_wp 0)"
+	atf_check_equal "4" "$(zone_count empty)"
+}
+reset_wp_finished_cleanup()
+{
+	gzoned_test_cleanup
+}
+
 atf_test_case unrestricted_reads cleanup
 unrestricted_reads_head()
 {
@@ -683,6 +708,7 @@ atf_init_test_cases()
 	atf_add_test_case reset_wp
 	atf_add_test_case reset_wp_conv
 	atf_add_test_case reset_wp_empty
+	atf_add_test_case reset_wp_finished
 	atf_add_test_case unrestricted_reads
 	atf_add_test_case restricted_reads
 	atf_add_test_case write_at_wp
