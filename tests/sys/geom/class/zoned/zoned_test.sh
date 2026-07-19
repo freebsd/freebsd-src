@@ -64,6 +64,29 @@ conventional_cleanup()
 	gzoned_test_cleanup
 }
 
+atf_test_case conventional_single cleanup
+conventional_single_head()
+{
+	atf_set "descr" "gzoned create -c accepts a single zone"
+	atf_set "require.user" "root"
+}
+conventional_single_body()
+{
+	gzoned_test_setup
+
+	alloc_zoned_md
+	atf_check gzoned create -s 256m -c 2 ${md}
+	atf_check_equal "1" "$(zone_count nonwp)"
+	# The conventional zone is zone 2. At LBA 512m / 512 = 0x100000.
+	atf_check_equal "0x100000" \
+	    "$(zonectl -d /dev/${md}.zoned -c rz -o nonwp -P script | \
+	    awk -F',' 'NR == 1 {gsub(/ /, "", $1); print $1}')"
+}
+conventional_single_cleanup()
+{
+	gzoned_test_cleanup
+}
+
 atf_test_case conventional_range cleanup
 conventional_range_head()
 {
@@ -652,6 +675,7 @@ atf_init_test_cases()
 	atf_add_test_case create_on_zoned
 	atf_add_test_case is_zoned
 	atf_add_test_case conventional
+	atf_add_test_case conventional_single
 	atf_add_test_case conventional_range
 	atf_add_test_case conventional_ranges
 	atf_add_test_case all_zones_same
