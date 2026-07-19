@@ -364,7 +364,7 @@ int aq_hw_set_link_speed(struct aq_hw *hw, uint32_t speed);
 
 int aq_hw_fw_downld_dwords(struct aq_hw *hw, uint32_t a, uint32_t *p, uint32_t cnt);
 
-int aq_hw_reset(struct aq_hw *hw);
+int aq_hw_reset(struct aq_hw *hw, bool reboot);
 
 int aq_hw_mpi_create(struct aq_hw *hw);
 

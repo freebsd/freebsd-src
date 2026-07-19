@@ -217,13 +217,17 @@ aq_hw_mpi_read_stats(struct aq_hw *hw, struct aq_hw_stats *stats)
 	int err;
 
 	err = hw->fw_ops->get_stats(hw, stats);
+	if (err != 0)
+		return (err);
 
-	if (err == 0) {
-		stats->dpc = reg_rx_dma_stat_counter7get(hw);
+	/* No firmware interface reports the RPB drop count; read it directly. */
+	stats->dpc = reg_rx_dma_stat_counter7get(hw);
+
+	/* The LRO counter has no A2 counterpart in any reference driver. */
+	if (!IS_CHIP_FEATURE(hw, ATLANTIC2))
 		stats->cprc = stats_rx_lro_coalesced_pkt_count0_get(hw);
-	}
 
-	return (err);
+	return (0);
 }
 
 static int
@@ -364,19 +368,25 @@ aq_hw_set_power(struct aq_hw *hw, unsigned int power_state)
 /* HW NIC functions */
 
 int
-aq_hw_reset(struct aq_hw *hw)
+aq_hw_reset(struct aq_hw *hw, bool reboot)
 {
 	int err = 0;
 
 	AQ_DBG_ENTER();
 
-	/* A2 resets by rebooting the MCP; A1 uses the RBL/FLB reset. */
-	if (IS_CHIP_FEATURE(hw, ATLANTIC2))
-		err = aq2_fw_reboot(hw);
-	else
-		err = aq_fw_reset(hw);
-	if (err != 0)
-		goto err_exit;
+	/*
+	 * A2 resets by rebooting the MCP; A1 uses the RBL/FLB reset.  At attach
+	 * aq_hw_mpi_create() has already done this, so the caller passes
+	 * reboot=false to skip the (costly, on A2) redundant MCP reboot.
+	 */
+	if (reboot) {
+		if (IS_CHIP_FEATURE(hw, ATLANTIC2))
+			err = aq2_fw_reboot(hw);
+		else
+			err = aq_fw_reset(hw);
+		if (err != 0)
+			goto err_exit;
+	}
 
 	itr_irq_reg_res_dis_set(hw, 0);
 	itr_res_irq_set(hw, 1);
@@ -569,9 +579,10 @@ aq_hw_init_tx_path(struct aq_hw *hw)
 	/* Tx interrupts */
 	tdm_tx_desc_wr_wb_irq_en_set(hw, 1U);
 
-	/* misc */
-	AQ_WRITE_REG(hw, 0x00007040U,
-	    IS_CHIP_FEATURE(hw, TPO2) ? 0x00010000U : 0x00000000U);
+	/* misc (Atlantic 1 TPO register; absent on Atlantic 2) */
+	if (!IS_CHIP_FEATURE(hw, ATLANTIC2))
+		AQ_WRITE_REG(hw, 0x00007040U,
+		    IS_CHIP_FEATURE(hw, TPO2) ? 0x00010000U : 0x00000000U);
 	tdm_tx_dca_en_set(hw, 0U);
 	tdm_tx_dca_mode_set(hw, 0U);
 

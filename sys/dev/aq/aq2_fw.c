@@ -422,6 +422,8 @@ aq2_fw_get_stats(struct aq_hw *hw, struct aq_hw_stats *stats)
 		stats->ptc = u.a0.tx_good_frames;
 	} else if (hw->aq2_iface == AQ2_FW_INTERFACE_OUT_VERSION_IFACE_VER_B0) {
 		/* B0 reports aggregate octets only; per-cast stays zero. */
+		stats->brc = u.b0.rx_good_octets;
+		stats->btc = u.b0.tx_good_octets;
 		stats->uprc = u.b0.rx_unicast_frames;
 		stats->mprc = u.b0.rx_multicast_frames;
 		stats->bprc = u.b0.rx_broadcast_frames;
