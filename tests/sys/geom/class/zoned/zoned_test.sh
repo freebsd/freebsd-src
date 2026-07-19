@@ -395,6 +395,32 @@ write_full_cleanup()
 	gzoned_test_cleanup
 }
 
+atf_test_case write_closed_zone cleanup
+write_closed_zone_head()
+{
+	atf_set "descr" "gzoned writes to a closed zone implicitly reopen it"
+	atf_set "require.user" "root"
+}
+write_closed_zone_body()
+{
+	gzoned_test_setup
+
+	alloc_zoned_md
+	atf_check gzoned create -s 256m ${md}
+	atf_check -e ignore dd if=/dev/zero of=/dev/${md}.zoned bs=1m count=1
+	atf_check zonectl -d /dev/${md}.zoned -c close -l 0
+	atf_check_equal "1" "$(zone_count closed)"
+
+	atf_check -e ignore \
+	    dd if=/dev/zero of=/dev/${md}.zoned bs=1m oseek=1 count=1
+	atf_check_equal "0" "$(zone_count closed)"
+	atf_check_equal "1" "$(zone_count imp_open)"
+}
+write_closed_zone_cleanup()
+{
+	gzoned_test_cleanup
+}
+
 atf_test_case persistence cleanup
 persistence_head()
 {
@@ -615,6 +641,7 @@ atf_init_test_cases()
 	atf_add_test_case write_boundary
 	atf_add_test_case write_conv_boundary
 	atf_add_test_case write_full
+	atf_add_test_case write_closed_zone
 	atf_add_test_case persistence
 	atf_add_test_case max_open
 	atf_add_test_case max_open_limit
