@@ -160,6 +160,25 @@ close_zone_cleanup()
 	zoned_md_cleanup
 }
 
+atf_test_case finish_zone cleanup
+finish_zone_head()
+{
+	atf_set "descr" "zonectl -c finish transitions a zone to full"
+	atf_set "require.user" "root"
+}
+finish_zone_body()
+{
+	alloc_zoned_md
+	atf_check gzoned create -s 256m ${md}
+	atf_check -e ignore dd if=/dev/zero of=/dev/${md}.zoned bs=1m count=1
+	atf_check zonectl -d /dev/${md}.zoned -c finish -l 0
+	atf_check_equal "1" "$(zone_count full)"
+}
+finish_zone_cleanup()
+{
+	zoned_md_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case report_filter
@@ -168,4 +187,5 @@ atf_init_test_cases()
 	atf_add_test_case report_params
 	atf_add_test_case open_zone
 	atf_add_test_case close_zone
+	atf_add_test_case finish_zone
 }
