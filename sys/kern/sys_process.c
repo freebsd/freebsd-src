@@ -714,8 +714,9 @@ struct ptrace_args {
 };
 #endif
 
-int
-sys_ptrace(struct thread *td, struct ptrace_args *uap)
+static int
+ptrace_useraction(struct thread *td, int req, pid_t pid, void *uaddr,
+    int udata)
 {
 	/*
 	 * XXX this obfuscation is to reduce stack usage, but the register
@@ -742,23 +743,19 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 
 	if (!allow_ptrace)
 		return (ENOSYS);
-	error = 0;
 
-	AUDIT_ARG_PID(uap->pid);
-	AUDIT_ARG_CMD(uap->req);
-	AUDIT_ARG_VALUE(uap->data);
+	error = 0;
 	addr = &r;
-	switch (uap->req) {
+
+	switch (req) {
 	case PT_GET_EVENT_MASK:
 	case PT_LWPINFO:
 	case PT_GET_SC_ARGS:
 	case PT_GET_SC_RET:
 		break;
 	case PT_SET_SC_RET:
-		if (uap->data != sizeof(r.psr))
-			error = EINVAL;
-		else
-			error = copyin(uap->addr, &r.psr, sizeof(r.psr));
+		error = udata != sizeof(r.psr) ? EINVAL :
+		    copyin(uaddr, &r.psr, sizeof(r.psr));
 		break;
 	case PT_GETREGS:
 		bzero(&r.reg, sizeof(r.reg));
@@ -771,41 +768,34 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		break;
 	case PT_GETREGSET:
 	case PT_SETREGSET:
-		error = copyin(uap->addr, &r.vec, sizeof(r.vec));
+		error = copyin(uaddr, &r.vec, sizeof(r.vec));
 		break;
 	case PT_SETREGS:
-		error = copyin(uap->addr, &r.reg, sizeof(r.reg));
+		error = copyin(uaddr, &r.reg, sizeof(r.reg));
 		break;
 	case PT_SETFPREGS:
-		error = copyin(uap->addr, &r.fpreg, sizeof(r.fpreg));
+		error = copyin(uaddr, &r.fpreg, sizeof(r.fpreg));
 		break;
 	case PT_SETDBREGS:
-		error = copyin(uap->addr, &r.dbreg, sizeof(r.dbreg));
+		error = copyin(uaddr, &r.dbreg, sizeof(r.dbreg));
 		break;
 	case PT_SET_EVENT_MASK:
-		if (uap->data != sizeof(r.ptevents))
-			error = EINVAL;
-		else
-			error = copyin(uap->addr, &r.ptevents, uap->data);
+		error = udata != sizeof(r.ptevents) ? EINVAL :
+		    copyin(uaddr, &r.ptevents, udata);
 		break;
 	case PT_IO:
-		error = copyin(uap->addr, &r.piod, sizeof(r.piod));
+		error = copyin(uaddr, &r.piod, sizeof(r.piod));
 		break;
 	case PT_VM_ENTRY:
-		error = copyin(uap->addr, &r.pve, sizeof(r.pve));
+		error = copyin(uaddr, &r.pve, sizeof(r.pve));
 		break;
 	case PT_COREDUMP:
-		if (uap->data != sizeof(r.pc))
-			error = EINVAL;
-		else
-			error = copyin(uap->addr, &r.pc, uap->data);
+		error = udata != sizeof(r.pc) ? EINVAL :
+		    copyin(uaddr, &r.pc, udata);
 		break;
 	case PT_SC_REMOTE:
-		if (uap->data != sizeof(r.sr)) {
-			error = EINVAL;
-			break;
-		}
-		error = copyin(uap->addr, &r.sr, uap->data);
+		error = udata != sizeof(r.sr) ? EINVAL :
+		    copyin(uaddr, &r.sr, udata);
 		if (error != 0)
 			break;
 		if (r.sr.pscr_nargs > nitems(td->td_sa.args)) {
@@ -819,9 +809,9 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		r.sr.pscr_args = pscr_args;
 		break;
 	case PT_GET_CHILDREN:
-		if (uap->addr == NULL)
+		if (uaddr == NULL)
 			addr = NULL;
-		else if (uap->data < 0)
+		else if (udata < 0)
 			error = EINVAL;
 		else
 			addr = &r.children;
@@ -830,59 +820,57 @@ sys_ptrace(struct thread *td, struct ptrace_args *uap)
 		error = EINVAL;
 		break;
 	default:
-		addr = uap->addr;
+		addr = uaddr;
 		break;
 	}
 	if (error != 0)
 		return (error);
 
-	error = kern_ptrace(td, uap->req, uap->pid, addr, uap->data);
+	error = ptrace_action(td, req, pid, addr, udata);
 	if (error != 0)
 		return (error);
 
-	switch (uap->req) {
+	switch (req) {
 	case PT_VM_ENTRY:
-		error = copyout(&r.pve, uap->addr, sizeof(r.pve));
+		error = copyout(&r.pve, uaddr, sizeof(r.pve));
 		break;
 	case PT_IO:
-		error = copyout(&r.piod, uap->addr, sizeof(r.piod));
+		error = copyout(&r.piod, uaddr, sizeof(r.piod));
 		break;
 	case PT_GETREGS:
-		error = copyout(&r.reg, uap->addr, sizeof(r.reg));
+		error = copyout(&r.reg, uaddr, sizeof(r.reg));
 		break;
 	case PT_GETFPREGS:
-		error = copyout(&r.fpreg, uap->addr, sizeof(r.fpreg));
+		error = copyout(&r.fpreg, uaddr, sizeof(r.fpreg));
 		break;
 	case PT_GETDBREGS:
-		error = copyout(&r.dbreg, uap->addr, sizeof(r.dbreg));
+		error = copyout(&r.dbreg, uaddr, sizeof(r.dbreg));
 		break;
 	case PT_GETREGSET:
-		error = copyout(&r.vec, uap->addr, sizeof(r.vec));
+		error = copyout(&r.vec, uaddr, sizeof(r.vec));
 		break;
 	case PT_GET_EVENT_MASK:
-		/* NB: The size in uap->data is validated in kern_ptrace(). */
-		error = copyout(&r.ptevents, uap->addr, uap->data);
+		/* NB: The size in uap->data is validated in ptraceimpl(). */
+		error = copyout(&r.ptevents, uaddr, udata);
 		break;
 	case PT_LWPINFO:
-		/* NB: The size in uap->data is validated in kern_ptrace(). */
-		error = copyout(&r.pl, uap->addr, uap->data);
+		/* NB: The size in uap->data is validated in ptraceimpl(). */
+		error = copyout(&r.pl, uaddr, udata);
 		break;
 	case PT_GET_SC_ARGS:
-		error = copyout(r.args, uap->addr, MIN(uap->data,
-		    sizeof(r.args)));
+		error = copyout(r.args, uaddr, MIN(udata, sizeof(r.args)));
 		break;
 	case PT_GET_SC_RET:
-		error = copyout(&r.psr, uap->addr, MIN(uap->data,
-		    sizeof(r.psr)));
+		error = copyout(&r.psr, uaddr, MIN(udata, sizeof(r.psr)));
 		break;
 	case PT_SC_REMOTE:
-		error = copyout(&r.sr.pscr_ret, uap->addr +
+		error = copyout(&r.sr.pscr_ret, (char *)uaddr +
 		    offsetof(struct ptrace_sc_remote, pscr_ret),
 		    sizeof(r.sr.pscr_ret));
 		break;
 	case PT_GET_CHILDREN:
-		if (uap->addr != NULL) {
-			error = copyout(r.children, uap->addr,
+		if (uaddr != NULL) {
+			error = copyout(r.children, uaddr,
 			    td->td_retval[0] * sizeof(struct ptrace_child));
 			free(r.children, M_TEMP);
 		}
@@ -1056,7 +1044,7 @@ ptrace_sel_coredump_thread(struct proc *p)
 }
 
 int
-kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
+ptrace_action(struct thread *td, int req, pid_t pid, void *addr, int data)
 {
 	struct iovec iov;
 	struct uio uio;
@@ -2027,3 +2015,23 @@ fail:
 }
 #undef PROC_READ
 #undef PROC_WRITE
+
+int
+kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
+{
+	return (ptrace_action(td, req, pid, addr, data));
+}
+
+int
+sys_ptrace(struct thread *td, struct ptrace_args *uap)
+{
+	int error;
+
+	AUDIT_ARG_PID(uap->pid);
+	AUDIT_ARG_CMD(uap->req);
+	AUDIT_ARG_VALUE(uap->data);
+
+	error = ptrace_useraction(td, uap->req, uap->pid, uap->addr,
+	    uap->data);
+	return (error);
+}
