@@ -1,4 +1,4 @@
-/*	$OpenBSD: look.c,v 1.24 2014/12/21 09:33:12 espie Exp $	*/
+/*	$OpenBSD: look.c,v 1.26 2026/02/25 05:37:25 op Exp $	*/
 
 /*-
  * SPDX-License-Identifier: BSD-3-Clause

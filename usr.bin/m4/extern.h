@@ -1,4 +1,4 @@
-/*	$OpenBSD: extern.h,v 1.55 2017/06/15 13:48:42 bcallah Exp $	*/
+/*	$OpenBSD: extern.h,v 1.57 2026/02/25 05:37:25 op Exp $	*/
 /*	$NetBSD: extern.h,v 1.3 1996/01/13 23:25:24 pk Exp $	*/
 
 /*-
@@ -93,7 +93,6 @@ extern int exit_code;
 
 /* misc.c */
 extern void	chrsave(int);
-extern char	*compute_prevep(void);
 extern void	getdiv(int);
 extern ptrdiff_t doindex(const char *, const char *);
 extern void	initspaces(void);
