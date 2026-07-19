@@ -2491,6 +2491,17 @@ dpaa2_ni_init(void *arg)
 		    __func__, error);
 	}
 
+	error = dpaa2_ni_setup_if_flags(sc);
+	if (error) {
+		device_printf(dev, "%s: failed to update interface flags: "
+		    "error=%d\n", __func__, error);
+	}
+	error = dpaa2_ni_update_mac_filters(ifp);
+	if (error) {
+		device_printf(dev, "%s: failed to update MAC filters: "
+		    "error=%d\n", __func__, error);
+	}
+
 	DPNI_LOCK(sc);
 	/* Announce we are up and running and can queue packets. */
 	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, IFF_DRV_OACTIVE);
