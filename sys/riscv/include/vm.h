@@ -39,6 +39,8 @@
 #define	VM_MEMATTR_TOTAL	(VM_MEMATTR_LAST + 1)
 
 #ifdef _KERNEL
+#include <sys/_null.h>
+
 static inline const char *
 vm_memattr_name(vm_memattr_t memattr)
 {

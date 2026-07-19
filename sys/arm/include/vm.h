@@ -42,6 +42,8 @@
 #define VM_MEMATTR_WRITE_COMBINING 	VM_MEMATTR_WRITE_THROUGH /* for DRM */
 #define VM_MEMATTR_WRITE_BACK		VM_MEMATTR_WB_WA	/* for DRM */
 
+#include <sys/_null.h>
+
 static inline const char *
 vm_memattr_name(vm_memattr_t memattr)
 {

@@ -45,6 +45,8 @@
 #define	VM_MEMATTR_WRITE_COMBINING	VM_MEMATTR_WRITE_THROUGH
 
 #ifndef LOCORE
+#include <sys/_null.h>
+
 static inline const char *
 vm_memattr_name(vm_memattr_t memattr)
 {
