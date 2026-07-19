@@ -2464,6 +2464,17 @@ re_txeof(struct rl_softc *sc)
 	/* No changes made to the TX ring, so no flush needed */
 
 	if (sc->rl_ldata.rl_tx_free != sc->rl_ldata.rl_tx_desc_cnt) {
+		/*
+		 * Some descriptors are still owned by the controller.  On PCIe
+		 * parts a TxPoll request can be lost when Tx packets are queued
+		 * too close together, leaving a non-empty ring with no transfer
+		 * in progress.  Re-arm the transmitter here -- this routine is
+		 * reached from the interrupt handlers, re_tick() and
+		 * re_watchdog() -- so a lost poll cannot stall the ring until
+		 * the watchdog fires.
+		 */
+		if ((sc->rl_flags & RL_FLAG_PCIE) != 0)
+			CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
 #ifdef RE_TX_MODERATION
 		/*
 		 * If not all descriptors have been reaped yet, reload
