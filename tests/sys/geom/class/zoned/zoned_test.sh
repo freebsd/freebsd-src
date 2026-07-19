@@ -522,6 +522,29 @@ persistence_cleanup()
 	gzoned_test_cleanup
 }
 
+atf_test_case clear_clears_metadata cleanup
+clear_clears_metadata_head()
+{
+	atf_set "descr" "gzoned clear erases the on-disk metadata"
+	atf_set "require.user" "root"
+}
+clear_clears_metadata_body()
+{
+	gzoned_test_setup
+
+	alloc_zoned_md
+	atf_check gzoned create -s 256m ${md}
+	atf_check gzoned clear /dev/${md}
+	wait_dev_gone /dev/${md}.zoned
+	true > /dev/${md}
+	sleep 1
+	atf_check test ! -c /dev/${md}.zoned
+}
+clear_clears_metadata_cleanup()
+{
+	gzoned_test_cleanup
+}
+
 atf_test_case max_open cleanup
 max_open_head()
 {
@@ -719,6 +742,7 @@ atf_init_test_cases()
 	atf_add_test_case write_full
 	atf_add_test_case write_closed_zone
 	atf_add_test_case persistence
+	atf_add_test_case clear_clears_metadata
 	atf_add_test_case max_open
 	atf_add_test_case max_open_limit
 	atf_add_test_case stop_force
