@@ -1,13 +1,14 @@
+.\"
 .\" Copyright (c) 2025 The FreeBSD Foundation
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd December 1, 2025
+.Dd July 9, 2026
 .Dt AQ 4
 .Os
 .Sh NAME
 .Nm aq
-.Nd Aquantia / Marvell AQ1xx 10 Gigabit Ethernet driver
+.Nd Aquantia / Marvell AQC1xx Ethernet driver
 .Sh SYNOPSIS
 To compile this driver into the kernel, place the following lines in your
 kernel configuration file:
@@ -36,19 +37,47 @@ driver is experimental, and has a number of caveats and limitations.
 .Sh HARDWARE
 The
 .Nm
-driver supports the following 10 Gigabit Ethernet PCIe controllers:
+driver supports the following PCIe Ethernet controllers:
 .Pp
 .Bl -bullet -compact
 .It
-aQuantia AQC107
+aQuantia AQC100 (100Mb/1Gb/2.5Gb/5Gb/10Gb SFP+)
 .It
-aQuantia AQC108
+aQuantia AQC100S (100Mb/1Gb/2.5Gb/5Gb/10Gb SFP+)
 .It
-aQuantia AQC109
+aQuantia AQC107 (100Mb/1Gb/2.5Gb/5Gb/10Gb RJ45)
 .It
-aQuantia AQC111
+aQuantia AQC107S (100Mb/1Gb/2.5Gb/5Gb/10Gb RJ45)
 .It
-aQuantia AQC112
+aQuantia AQC108 (100Mb/1Gb/2.5Gb/5Gb RJ45)
+.It
+aQuantia AQC108S (100Mb/1Gb/2.5Gb/5Gb RJ45)
+.It
+aQuantia AQC109 (100Mb/1Gb/2.5Gb RJ45)
+.It
+aQuantia AQC109S (100Mb/1Gb/2.5Gb RJ45)
+.It
+aQuantia AQC111 (100Mb/1Gb/2.5Gb/5Gb RJ45)
+.It
+aQuantia AQC111S (100Mb/1Gb/2.5Gb/5Gb RJ45)
+.It
+aQuantia AQC112 (100Mb/1Gb/2.5Gb RJ45)
+.It
+aQuantia AQC112S (100Mb/1Gb/2.5Gb RJ45)
+.It
+Marvell AQC113 (10Mb/100Mb/1Gb/2.5Gb/5Gb/10Gb RJ45)
+.It
+Marvell AQC113C (10Mb/100Mb/1Gb/2.5Gb/5Gb/10Gb RJ45)
+.It
+Marvell AQC113CA (10Mb/100Mb/1Gb/2.5Gb/5Gb/10Gb RJ45)
+.It
+Marvell AQC113CS (10Mb/100Mb/1Gb/2.5Gb/5Gb RJ45)
+.It
+Marvell AQC114CS (10Mb/100Mb/1Gb/2.5Gb/5Gb RJ45)
+.It
+Marvell AQC115C (10Mb/100Mb/1Gb/2.5Gb RJ45)
+.It
+Marvell AQC116C (10Mb/100Mb/1Gb RJ45)
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
