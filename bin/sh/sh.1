@@ -41,7 +41,7 @@
 .\" the referee document.  The original Standard can be obtained online at
 .\"     http://www.opengroup.org/unix/online.html.
 .\"
-.Dd June 16, 2026
+.Dd July 19, 2026
 .Dt SH 1
 .Os
 .Sh NAME
@@ -77,9 +77,7 @@ The current version of
 is close to the
 .St -p1003.1
 specification for the shell.
-It only supports features
-designated by POSIX,
-plus a few Berkeley extensions.
+Any extensions which are non-POSIX are marked below.
 This man page is not intended to be a tutorial nor a complete
 specification of the shell.
 .Ss Overview
@@ -228,6 +226,7 @@ command line editor (disables the
 .Fl V
 option if it has been set;
 set automatically when interactive on terminals).
+Non-POSIX option.
 See
 .Sx Command Line Editing .
 .It Fl e Li errexit
@@ -261,8 +260,12 @@ A do-nothing option for POSIX compliance.
 Ignore
 .Dv EOF Ap s
 from input when in interactive mode.
+The short name
+.Fl I
+is non-POSIX.
 .It Fl i Li interactive
 Force the shell to behave interactively.
+Non-POSIX option.
 .It Fl l
 Force the shell to act as if it has been invoked as a login shell.
 .It Fl m Li monitor
@@ -272,6 +275,7 @@ Set automatically when interactive.
 In a non-interactive shell,
 this option can be set even if no terminal is available
 and is useful to place processes in separate process groups.
+This option is specified by POSIX, but in practice is not entirely portable.
 .It Fl n Li noexec
 If not interactive, read commands but do not
 execute them.
@@ -288,6 +292,7 @@ commands from
 to
 .Fl P
 (physical directory layout).
+Non-POSIX option.
 .It Fl p Li privileged
 Turn on privileged mode.
 This mode is enabled on startup
@@ -304,6 +309,7 @@ after
 is sourced, and the contents of the
 .Ev ENV
 variable are ignored.
+This option is non-POSIX.
 .It Fl s Li stdin
 Read commands from standard input (set automatically
 if no file arguments are present).
@@ -312,13 +318,16 @@ no effect when set after the shell has already started
 running (i.e., when set with the
 .Ic set
 command).
+The short name
+.Fl s
+is non-POSIX.
 .It Fl T Li trapsasync
 When waiting for a child, execute traps immediately.
 If this option is not set,
 traps are executed after the child exits,
 as specified in
 .St -p1003.2 .
-This nonstandard option is useful for putting guarding shells around
+This non-POSIX option is useful for putting guarding shells around
 children that block signals.
 The surrounding shell may kill the child
 or it may just return control to the tty and leave the child alone,
@@ -339,6 +348,9 @@ Enable the built-in
 command line editor (disables
 .Fl E
 if it has been set).
+The short name
+.Fl V
+is non-POSIX.
 See
 .Sx Command Line Editing .
 .It Fl v Li verbose
@@ -367,10 +379,15 @@ if a command such as
 in the pipeline terminates with status 0 without reading its
 input completely.
 This option only has a long name.
+.Li pipefail
+is specified by
+.St -p1003.1-2024 ,
+but still is not entirely portable.
 .It Li verify
 Set
 .Dv O_VERIFY
 when sourcing files or loading profiles.
+Non-POSIX option.
 .\" See also
 .\" .Xr mac_veriexec 4 . TODO Does not exist; write it.
 .El
@@ -516,6 +533,9 @@ that byte and the rest of the string until the matching single-quote
 are ignored.
 .Pp
 Any other string starting with a backslash is an error.
+.Pp
+Dollar-single quotes are specified by POSIX, but in practice are not
+entirely portable.
 .It Double Quotes
 Enclosing characters within double quotes preserves the literal
 meaning of all characters except dollar sign
@@ -1085,6 +1105,8 @@ continuing until a list terminated with
 or the end of the
 .Ic case
 command.
+.Ic case
+fallthrough is specified by POSIX, but in practice is not entirely portable.
 .Ss Grouping Commands Together
 Commands may be grouped by writing either
 .Sm off
@@ -1173,7 +1195,7 @@ In the latter case, the function will be executed in a subshell when
 invoked.
 .Pp
 Variables may be declared to be local to a function by
-using the
+using the non-POSIX
 .Ic local
 command:
 .Pp
@@ -1449,7 +1471,7 @@ The primary prompt string, which defaults to
 unless you are the superuser, in which case it defaults to
 .Dq Li "# " .
 .Va PS1
-may include any of the following formatting sequences,
+may include any of the following non-POSIX formatting sequences,
 which are replaced by the given information:
 .Bl -tag -width indent
 .It Li \eD{format}
@@ -1590,7 +1612,7 @@ If the variants with
 or
 .Ql ?\&
 occur within a double-quoted string,
-as an extension there may be unquoted parts
+as a non-POSIX extension there may be unquoted parts
 (via double-quotes inside the expansion);
 .Ql }
 within such parts are also not examined in determining the matching
@@ -1953,7 +1975,7 @@ The character class may be complemented by making an exclamation point
 the first character of the character class.
 A caret
 .Pq Ql ^
-has the same effect but is non-standard.
+has the same effect but is non-POSIX.
 .Pp
 To include a
 .Ql \&]
@@ -2079,6 +2101,8 @@ List or alter key bindings for the line editor,
 .Xr editline 7 .
 This command is documented in
 .Xr editrc 5 .
+The behavior of this command depends on the library that is used
+to read user input, and thus can not be assumed to be standard.
 .It Ic break Op Ar num
 See the
 .Sx Flow-Control Constructs
@@ -2088,6 +2112,7 @@ Execute the specified built-in command,
 .Ar cmd .
 This is useful when the user wishes to override a shell function
 with the same name as a built-in command.
+This command is non-POSIX.
 .It Ic cd Oo Fl L | P Oc Oo Fl e Oc Op Ar directory
 .It Ic cd Fl
 Switch to the specified
@@ -2155,6 +2180,7 @@ to return exit status 1 if the full pathname of the new directory
 cannot be determined reliably or at all.
 Normally this is not considered an error,
 although a warning is printed.
+This option is specified by POSIX, but in practice is not entirely portable.
 .Pp
 If changing the directory fails, the exit status is greater than 1.
 If the directory is changed, the exit status is 0, or also 1 if
@@ -2222,6 +2248,7 @@ and append a newline character.
 .Bl -tag -width indent
 .It Fl n
 Suppress the output of the trailing newline.
+Non-POSIX option.
 .It Fl e
 Process C-style backslash escape sequences.
 The
@@ -2271,6 +2298,7 @@ a\eb
 $ echo -e a\e\e\e\eb
 a\eb
 .Ed
+Non-POSIX option.
 .El
 .Pp
 Only one of the
@@ -2322,6 +2350,7 @@ With no arguments the
 .Ic export
 command lists the names
 of all exported variables.
+Behavior with no arguments is not specified by POSIX.
 If the
 .Fl p
 option is specified, the exported variables are printed as
@@ -2505,7 +2534,7 @@ With arguments, the
 command removes each specified
 .Ar command
 from the hash table (unless they are functions) and then locates it.
-With the
+With the non-POSIX
 .Fl v
 option,
 .Ic hash
@@ -2524,6 +2553,7 @@ argument is omitted, use the current job.
 See
 .Sx Job Control
 for a list of job ID forms.
+This command is non-POSIX.
 .It Ic jobs Oo Fl lps Oc Op Ar job ...
 Print information about the specified jobs, or all jobs if no
 .Ar job
@@ -2632,7 +2662,7 @@ If the
 option is specified, only the process IDs for the process group leaders
 are printed, one per line.
 .Pp
-If the
+If the non-POSIX
 .Fl s
 option is specified, only the PIDs of the job commands are printed, one per
 line.
@@ -2677,7 +2707,7 @@ This is the default.
 .Fl t Ar timeout Oc Oo Fl er Oc Ar variable ...
 The
 .Ar prompt
-is printed if the
+is printed if the non-POSIX
 .Fl p
 option is specified
 and the standard input is a terminal.
@@ -2710,7 +2740,7 @@ character will be treated as though it were not in
 .Va IFS ,
 even if it is.
 .Pp
-If the
+If the non-POSIX
 .Fl t
 option is specified and the
 .Ar timeout
@@ -2736,7 +2766,7 @@ they are added up, e.g.\&
 .Ql 1h30m15s
 which adds up to 5,415 seconds.
 .Pp
-The
+The non-POSIX
 .Fl e
 option exists only for backward compatibility with older scripts.
 .Pp
@@ -2758,6 +2788,7 @@ by using the following form:
 With no arguments the
 .Ic readonly
 command lists the names of all read only variables.
+Behavior with no arguments is not specified by POSIX.
 If the
 .Fl p
 option is specified, the read-only variables are printed as
@@ -2817,7 +2848,7 @@ The
 .Ic setvar
 command is intended to be used in functions that
 assign values to variables whose names are passed as parameters.
-In general it is better to write
+This command is non-POSIX, and in general it is better to write
 .Dq Ar variable Ns = Ns Ar value
 rather than using
 .Ic setvar .
@@ -2879,7 +2910,7 @@ command has no effect on signals that were ignored on entry to the shell.
 .Pp
 Option
 .Fl l
-causes the
+is non-POSIX and causes the
 .Ic trap
 command to display a list of valid signal names.
 .It Ic true
@@ -2920,6 +2951,11 @@ or
 can be given.
 The default is to display the soft limits,
 and to set both the hard and the soft limits.
+Both
+.Fl H
+and
+.Fl S
+are specified by POSIX, but in practice are not entirely portable.
 .Pp
 Option
 .Fl a
@@ -2929,6 +2965,7 @@ command to display all resources.
 The parameter
 .Ar limit
 is not acceptable in this mode.
+This option is specified by POSIX, but in practice is not entirely portable.
 .Pp
 The remaining options specify which resource value is to be
 displayed or modified.
@@ -2936,6 +2973,7 @@ They are mutually exclusive.
 .Bl -tag -width indent
 .It Fl b Ar sbsize
 The maximum size of socket buffer usage, in bytes.
+Non-POSIX option.
 .It Fl c Ar coredumpsize
 The maximal size of core dump files, in 512-byte blocks.
 Setting
@@ -2943,6 +2981,7 @@ Setting
 to 0 prevents core dump files from being created.
 .It Fl d Ar datasize
 The maximal size of the data segment of a process, in kilobytes.
+This option is specified by POSIX, but in practice is not entirely portable.
 .It Fl f Ar filesize
 The maximal size of a file, in 512-byte blocks.
 .It Fl k Ar kqueues
@@ -2950,31 +2989,39 @@ The maximal number of kqueues
 (see
 .Xr kqueue 2 )
 for this user ID.
+Non-POSIX option.
 .It Fl l Ar lockedmem
 The maximal size of memory that can be locked by a process, in
 kilobytes.
+Non-POSIX option.
 .It Fl m Ar memoryuse
 The maximal resident set size of a process, in kilobytes.
+Non-POSIX option.
 .It Fl n Ar nofiles
 The maximal number of descriptors that could be opened by a process.
+This option is specified by POSIX, but in practice is not entirely portable.
 .It Fl o Ar umtxp
 The maximal number of process-shared locks
 (see
 .Xr pthread 3 )
 for this user ID.
+Non-POSIX option.
 .It Fl p Ar pseudoterminals
 The maximal number of pseudo-terminals for this user ID.
+Non-POSIX option.
 .It Fl s Ar stacksize
 The maximal size of the stack segment, in kilobytes.
 .It Fl t Ar time
 The maximal amount of CPU time to be used by each process, in seconds.
 .It Fl u Ar userproc
 The maximal number of simultaneous processes for this user ID.
+Non-POSIX option.
 .It Fl v Ar virtualmem
 The maximal virtual size of a process, in kilobytes.
 .It Fl w Ar swapuse
 The maximum amount of swap space reserved or used for this user ID,
 in kilobytes.
+Non-POSIX option.
 .El
 .It Ic umask Oo Fl S Oc Op Ar mask
 Set the file creation mask (see
