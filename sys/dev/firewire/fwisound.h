@@ -32,16 +32,17 @@
 #define FWISOUND_AUDIO_ENABLE		(1u << 31)
 #define FWISOUND_RATE_48000		(1u << 31)
 
+#define FWISOUND_MAX_SAMPLES	475		/* max samples per ISO packet */
+#define FWISOUND_SIGNATURE	0x73676874u	/* "sght" */
+
 /* Apple FireWire audio ISO payload. */
 struct fwisound_payload {
 	uint32_t	sample_count;		/* samples in this packet */
 	uint32_t	signature;		/* 0x73676874 = "sght" */
 	uint32_t	sample_total;		/* running total (drop detect)*/
 	uint32_t	reserved;
-	int16_t		samples[2 * 475];	/* stereo S16BE; *2 valid */
+	int16_t		samples[2 * FWISOUND_MAX_SAMPLES]; /* stereo S16BE */
 };
-
-#define FWISOUND_SIGNATURE	0x73676874u	/* "sght" */
 
 /* ISO DMA parameters */
 #define FWISOUND_ISO_CHANNEL	1

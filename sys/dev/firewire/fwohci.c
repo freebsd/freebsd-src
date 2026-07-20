@@ -84,9 +84,19 @@ char fwohcicode[32][0x20]= {
 	"Undef", "Undef", "Undef", "ack tardy",
 	"Undef", "ack data_err", "ack type_err", ""};
 
-#define MAX_SPEED 3
+#define MAX_SPEED FWSPD_S800
 extern char *linkspeed[];
 uint32_t tagbit[4] = {1 << 28, 1 << 29, 1 << 30, 1 << 31};
+
+/* OHCI-local timing and protocol constants */
+#define FWOHCI_PHY_DELAY	100	/* us delay after PHY register write */
+#define FWOHCI_PHY_POLL_LIMIT	1000	/* poll iterations for bus manager CSR */
+#define FW_MAXREC_BASE		8	/* maxrec = speed + FW_MAXREC_BASE */
+#define FWOHCI_ATRETRY_MAX	0x0f	/* max AT retries (phy/resp/req) */
+#define FW_CYCLES_PER_SEC	8000	/* ISO cycles per second */
+#define FW_CYCLETIMER_CYCLE_SHIFT 12	/* shift to extract cycle from cycletimer */
+#define FW_CYCLETIMER_CYCLE_MASK  0x7fff /* mask after shift (2-bit sec + 13-bit cycle) */
+#define FWOHCI_MAX_CYCLE_LOST	10	/* max CYC_LOST events before disabling */
 
 static struct tcode_info tinfo[] = {
 /*		hdr_len block 	flag	valid_response */
@@ -271,7 +281,7 @@ fwphy_wrdata(struct fwohci_softc *sc, uint32_t addr, uint32_t data)
 	fun = (PHYDEV_WRCMD | (addr << PHYDEV_REGADDR) |
 	      (data << PHYDEV_WRDATA));
 	OWRITE(sc, OHCI_PHYACCESS, fun);
-	DELAY(100);
+	DELAY(FWOHCI_PHY_DELAY);
 
 	return (fwphy_rddata(sc, addr));
 }
@@ -291,10 +301,10 @@ fwohci_set_bus_manager(struct firewire_comm *fc, u_int node)
 	OWRITE(sc, OHCI_CSR_DATA, node);
 	OWRITE(sc, OHCI_CSR_COMP, 0x3f);
 	OWRITE(sc, OHCI_CSR_CONT, OHCI_BUS_MANAGER_ID);
- 	for (i = 0; !(OREAD(sc, OHCI_CSR_CONT) & (1<<31)) && (i < 1000); i++)
+ 	for (i = 0; !(OREAD(sc, OHCI_CSR_CONT) & (1<<31)) && (i < FWOHCI_PHY_POLL_LIMIT); i++)
 		DELAY(10);
 	bm = OREAD(sc, OHCI_CSR_DATA);
-	if ((bm & 0x3f) == 0x3f)
+	if ((bm & FW_NODE_MASK) == FW_NO_BUS_MANAGER)
 		bm = node;
 	if (firewire_debug)
 		device_printf(sc->fc.dev, "%s: %d->%d (loop=%d)\n",
@@ -537,7 +547,7 @@ fwohci_reset(struct fwohci_softc *sc, device_t dev)
 	device_printf(dev, "Link %s, max_rec %d bytes.\n",
 			linkspeed[speed], MAXREC(max_rec));
 	/* XXX fix max_rec */
-	sc->fc.maxrec = sc->fc.speed + 8;
+	sc->fc.maxrec = sc->fc.speed + FW_MAXREC_BASE;
 	if (max_rec != sc->fc.maxrec) {
 		reg2 = (reg2 & 0xffff0fff) | (sc->fc.maxrec << 12);
 		device_printf(dev, "max_rec %d -> %d\n",
@@ -571,7 +581,7 @@ fwohci_reset(struct fwohci_softc *sc, device_t dev)
 	/* AT Retries */
 	OWRITE(sc, FWOHCI_RETRY,
 		/* CycleLimit   PhyRespRetries ATRespRetries ATReqRetries */
-		(0xffff << 16) | (0x0f << 8) | (0x0f << 4) | 0x0f);
+		(0xffff << 16) | (FWOHCI_ATRETRY_MAX << 8) | (FWOHCI_ATRETRY_MAX << 4) | FWOHCI_ATRETRY_MAX);
 
 	sc->atrq.top = STAILQ_FIRST(&sc->atrq.db_trq);
 	sc->atrs.top = STAILQ_FIRST(&sc->atrs.db_trq);
@@ -905,7 +915,7 @@ txloop:
 		hdr_len = 12;
 		ld[1] = fp->mode.ld[1];
 		ld[2] = fp->mode.ld[2];
-		ohcifp->mode.common.spd = 0;
+		ohcifp->mode.common.spd = FWSPD_S100;
 		ohcifp->mode.common.tcode = FWOHCITCODE_PHY;
 	} else {
 		ohcifp->mode.asycomm.dst = fp->mode.hdr.dst;
@@ -1450,14 +1460,14 @@ fwohci_next_cycle(struct firewire_comm *fc, int cycle_now)
 #define CYCLE_MOD	0x10
 #define CYCLE_DELAY	8	/* min delay to start DMA */
 	cycle = cycle + CYCLE_DELAY;
-	if (cycle >= 8000) {
+	if (cycle >= FW_CYCLES_PER_SEC) {
 		sec++;
-		cycle -= 8000;
+		cycle -= FW_CYCLES_PER_SEC;
 	}
 	cycle = roundup2(cycle, CYCLE_MOD);
-	if (cycle >= 8000) {
+	if (cycle >= FW_CYCLES_PER_SEC) {
 		sec++;
-		if (cycle == 8000)
+		if (cycle == FW_CYCLES_PER_SEC)
 			cycle = 0;
 		else
 			cycle = CYCLE_MOD;
@@ -1541,7 +1551,7 @@ fwohci_itxbuf_enable(struct firewire_comm *fc, int dmach)
 		OWRITE(sc, OHCI_ITCTLCLR(dmach), 0xffff0000);
 
 		/* 2bit second + 13bit cycle */
-		cycle_now = (fc->cyctimer(fc) >> 12) & 0x7fff;
+		cycle_now = (fc->cyctimer(fc) >> FW_CYCLETIMER_CYCLE_SHIFT) & FW_CYCLETIMER_CYCLE_MASK;
 		cycle_match = fwohci_next_cycle(fc, cycle_now);
 
 		OWRITE(sc, OHCI_ITCTL(dmach),
@@ -1900,7 +1910,7 @@ fwohci_intr_dma(struct fwohci_softc *sc, uint32_t stat, int count)
 	if (stat & OHCI_INT_CYC_LOST) {
 		if (sc->cycle_lost >= 0)
 			sc->cycle_lost++;
-		if (sc->cycle_lost > 10) {
+		if (sc->cycle_lost > FWOHCI_MAX_CYCLE_LOST) {
 			sc->cycle_lost = -1;
 			OWRITE(sc, FWOHCI_INTMASKCLR, OHCI_INT_CYC_LOST);
 			device_printf(fc->dev, "too many cycles lost, "
@@ -2439,10 +2449,10 @@ fwohci_txbufdb(struct fwohci_softc *sc, int dmach, struct fw_bulkxfer *bulkxfer)
 		fp = (struct fw_pkt *)db_tr->buf;
 		ohcifp = (struct fwohci_txpkthdr *) db[1].db.immed;
 		ohcifp->mode.ld[0] = fp->mode.ld[0];
-		ohcifp->mode.common.spd = 0 & 0x7;
+		ohcifp->mode.common.spd = FWSPD_S100;
 		ohcifp->mode.stream.len = fp->mode.stream.len;
 		ohcifp->mode.stream.chtag = chtag;
-		ohcifp->mode.stream.tcode = 0xa;
+		ohcifp->mode.stream.tcode = FWTCODE_STREAM;
 #if BYTE_ORDER == BIG_ENDIAN
 		FWOHCI_DMA_WRITE(db[1].db.immed[0], db[1].db.immed[0]);
 		FWOHCI_DMA_WRITE(db[1].db.immed[1], db[1].db.immed[1]);

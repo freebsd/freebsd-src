@@ -60,6 +60,10 @@
 #include <dev/firewire/fwohcireg.h>
 #include <dev/firewire/fwohcivar.h>
 
+#define FWOHCI_DMA_MAXSIZE	0x100000	/* 1MB */
+#define FWOHCI_DMA_NSEG		0x20		/* 32 segments */
+#define FWOHCI_DMA_MAXSEGSZ	0x8000		/* 32KB per segment */
+
 static int fwohci_pci_attach(device_t self);
 static int fwohci_pci_detach(device_t self);
 
@@ -284,9 +288,9 @@ fwohci_pci_attach(device_t self)
 #endif
 				/*highaddr*/BUS_SPACE_MAXADDR,
 				/*filter*/NULL, /*filterarg*/NULL,
-				/*maxsize*/0x100000,
-				/*nsegments*/0x20,
-				/*maxsegsz*/0x8000,
+				/*maxsize*/FWOHCI_DMA_MAXSIZE,
+				/*nsegments*/FWOHCI_DMA_NSEG,
+				/*maxsegsz*/FWOHCI_DMA_MAXSEGSZ,
 				/*flags*/BUS_DMA_ALLOCNOW,
 				/*lockfunc*/busdma_lock_mutex,
 				/*lockarg*/FW_GMTX(&sc->fc),

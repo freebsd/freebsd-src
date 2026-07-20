@@ -77,6 +77,23 @@ MALLOC_DEFINE(M_FWXFER, "fw_xfer", "XFER/FireWire");
 
 #define FW_MAXASYRTY 4
 
+/* Split timeout: 800 cycles (see IEEE 1394-1995 8.3.2.2.2) */
+#define FW_SPLIT_TIMEOUT_CYCLES	800
+/* Default available isochronous bandwidth units (IEEE 1394-1995 Table 8-4) */
+#define FW_BANDWIDTH_AVAILABLE	4915
+/* ROM header size in quads: bus info block (4) + CRC quad (1) */
+#define FW_ROM_HEADER_QUADS	5
+/* Maximum retries when exploring a remote node's CSR ROM */
+#define FW_EXPLORE_MAX_RETRIES	3
+/* maxrec value encoding 512-byte payload (2^(maxrec+1) = 512 => maxrec=8) */
+#define FW_MAXREC_512		8
+
+/* PHY configuration packet bit fields (IEEE 1394-1995 4.3.4.1) */
+#define FW_PHY_ROOT_BIT		(1 << 23)
+#define FW_PHY_ROOT_SHIFT	24
+#define FW_PHY_GAP_BIT		(1 << 22)
+#define FW_PHY_GAP_SHIFT	16
+
 devclass_t firewire_devclass;
 
 static void firewire_identify(driver_t *, device_t);
@@ -608,7 +625,7 @@ fw_drain_txq(struct firewire_comm *fc)
 	FW_GUNLOCK(fc);
 
 	mtx_lock(&fc->tlabel_lock);
-	for (i = 0; i < 0x40; i++)
+	for (i = 0; i < FW_NUM_TLABELS; i++)
 		while ((xfer = STAILQ_FIRST(&fc->tlabels[i])) != NULL) {
 			if (firewire_debug)
 				printf("tl=%d flag=%d\n", i, xfer->flag);
@@ -638,18 +655,18 @@ fw_reset_csr(struct firewire_comm *fc)
 
 	fc->max_node = -1;
 
-	for (i = 2; i < 0x100 / 4 - 2; i++) {
+	for (i = 2; i < FW_MAX_NODES - 2; i++) {
 		CSRARC(fc, SPED_MAP + i * 4) = 0;
 	}
 	CSRARC(fc, STATE_CLEAR) = 1 << 23 | 0 << 17 | 1 << 16 | 1 << 15 | 1 << 14;
 	CSRARC(fc, STATE_SET) = CSRARC(fc, STATE_CLEAR);
 	CSRARC(fc, RESET_START) = 0;
 	CSRARC(fc, SPLIT_TIMEOUT_HI) = 0;
-	CSRARC(fc, SPLIT_TIMEOUT_LO) = 800 << 19;
+	CSRARC(fc, SPLIT_TIMEOUT_LO) = FW_SPLIT_TIMEOUT_CYCLES << 19;
 	CSRARC(fc, CYCLE_TIME) = 0x0;
 	CSRARC(fc, BUS_TIME) = 0x0;
-	CSRARC(fc, BUS_MGR_ID) = 0x3f;
-	CSRARC(fc, BANDWIDTH_AV) = 4915;
+	CSRARC(fc, BUS_MGR_ID) = FW_NO_BUS_MANAGER;
+	CSRARC(fc, BANDWIDTH_AV) = FW_BANDWIDTH_AVAILABLE;
 	CSRARC(fc, CHANNELS_AV_HI) = 0xffffffff;
 	CSRARC(fc, CHANNELS_AV_LO) = 0xffffffff;
 	CSRARC(fc, IP_CHANNELS) = (1U << 31);
@@ -870,7 +887,7 @@ void fw_init(struct firewire_comm *fc)
 
 	/* Initialize Async handlers */
 	STAILQ_INIT(&fc->binds);
-	for (i = 0; i < 0x40; i++) {
+	for (i = 0; i < FW_NUM_TLABELS; i++) {
 		STAILQ_INIT(&fc->tlabels[i]);
 	}
 
@@ -1248,9 +1265,11 @@ fw_phy_config(struct firewire_comm *fc, int root_node, int gap_count)
 	fp = &xfer->send.hdr;
 	fp->mode.ld[1] = 0;
 	if (root_node >= 0)
-		fp->mode.ld[1] |= (1 << 23) | (root_node & 0x3f) << 24;
+		fp->mode.ld[1] |= FW_PHY_ROOT_BIT |
+		    (root_node & FW_NODE_MASK) << FW_PHY_ROOT_SHIFT;
 	if (gap_count >= 0)
-		fp->mode.ld[1] |= (1 << 22) | (gap_count & 0x3f) << 16;
+		fp->mode.ld[1] |= FW_PHY_GAP_BIT |
+		    (gap_count & FW_NODE_MASK) << FW_PHY_GAP_SHIFT;
 	fp->mode.ld[2] = ~fp->mode.ld[1];
 	fp->mode.common.tcode |= FWTCODE_PHY;
 
@@ -1303,7 +1322,7 @@ void fw_sidrcv(struct firewire_comm *fc, uint32_t *sid, u_int len)
 	u_int i, j, node, c_port = 0, i_branch = 0;
 
 	fc->sid_cnt = len / (sizeof(uint32_t) * 2);
-	fc->max_node = fc->nodeid & 0x3f;
+	fc->max_node = fc->nodeid & FW_NODE_MASK;
 	CSRARC(fc, NODE_IDS) = ((uint32_t)fc->nodeid) << 16;
 	fc->status = FWBUSCYMELECT;
 	fc->topology_map->crc_len = 2;
@@ -1311,7 +1330,7 @@ void fw_sidrcv(struct firewire_comm *fc, uint32_t *sid, u_int len)
 	fc->topology_map->self_id_count = 0;
 	fc->topology_map->node_count= 0;
 	fc->speed_map->generation++;
-	fc->speed_map->crc_len = 1 + (64 * 64 + 3) / 4;
+	fc->speed_map->crc_len = 1 + (FW_MAX_NODES * FW_MAX_NODES + 3) / 4;
 	self_id = &fc->topology_map->self_id[0];
 	for (i = 0; i < fc->sid_cnt; i++) {
 		if (sid[1] != ~sid[0]) {
@@ -1377,7 +1396,7 @@ void fw_sidrcv(struct firewire_comm *fc, uint32_t *sid, u_int len)
 	    (fc->irm == -1) ? "Not IRM capable" : "cable IRM",
 	    fc->irm, (fc->irm == fc->nodeid) ? " (me) " : "");
 
-	if (try_bmr && (fc->irm != -1) && (CSRARC(fc, BUS_MGR_ID) == 0x3f)) {
+	if (try_bmr && (fc->irm != -1) && (CSRARC(fc, BUS_MGR_ID) == FW_NO_BUS_MANAGER)) {
 		if (fc->irm == fc->nodeid) {
 			fc->status = FWBUSMGRDONE;
 			CSRARC(fc, BUS_MGR_ID) = fc->set_bmr(fc, fc->irm);
@@ -1633,7 +1652,7 @@ fw_explore_node(struct fw_device *dfwdev)
 		fwdev->dst = node;
 		fwdev->status = FWDEVINIT;
 		/* unchanged ? */
-		if (bcmp(&csr[0], &fwdev->csrrom[0], sizeof(uint32_t) * 5) == 0) {
+		if (bcmp(&csr[0], &fwdev->csrrom[0], sizeof(uint32_t) * FW_ROM_HEADER_QUADS) == 0) {
 			if (!STAILQ_EMPTY(&fwdev->units)) {
 				if (firewire_debug)
 					device_printf(fc->dev,
@@ -1651,7 +1670,7 @@ fw_explore_node(struct fw_device *dfwdev)
 	bzero(&fwdev->csrrom[0], CROMSIZE);
 
 	/* copy first quad and bus info block */
-	bcopy(&csr[0], &fwdev->csrrom[0], sizeof(uint32_t) * 5);
+	bcopy(&csr[0], &fwdev->csrrom[0], sizeof(uint32_t) * FW_ROM_HEADER_QUADS);
 	fwdev->rommax = CSRROMOFF + sizeof(uint32_t) * 4;
 
 	err = fw_explore_csrblock(fwdev, 0x14, 1); /* root directory */
@@ -1690,7 +1709,7 @@ static void
 fw_explore(struct firewire_comm *fc)
 {
 	int node, err, i, todo, todo2, trys;
-	char nodes[63];
+	char nodes[FW_MAX_NODES - 1];
 	struct fw_device dfwdev;
 	union fw_self_id *fwsid;
 
@@ -1698,7 +1717,7 @@ fw_explore(struct firewire_comm *fc)
 	/* setup dummy fwdev */
 	dfwdev.fc = fc;
 	dfwdev.speed = 0;
-	dfwdev.maxrec = 8; /* 512 */
+	dfwdev.maxrec = FW_MAXREC_512;
 	dfwdev.status = FWDEVINIT;
 
 	for (node = 0; node <= fc->max_node; node++) {
@@ -1725,7 +1744,7 @@ fw_explore(struct firewire_comm *fc)
 		nodes[todo++] = node;
 	}
 
-	for (trys = 0; todo > 0 && trys < 3; trys++) {
+	for (trys = 0; todo > 0 && trys < FW_EXPLORE_MAX_RETRIES; trys++) {
 		todo2 = 0;
 		for (i = 0; i < todo; i++) {
 			dfwdev.dst = nodes[i];
@@ -1977,11 +1996,11 @@ fw_get_tlabel(struct firewire_comm *fc, struct fw_xfer *xfer)
 	u_int dst, new_tlabel;
 	struct fw_xfer *txfer;
 
-	dst = xfer->send.hdr.mode.hdr.dst & 0x3f;
+	dst = xfer->send.hdr.mode.hdr.dst & FW_NODE_MASK;
 	mtx_lock(&fc->tlabel_lock);
-	new_tlabel = (fc->last_tlabel[dst] + 1) & 0x3f;
+	new_tlabel = (fc->last_tlabel[dst] + 1) & FW_TLABEL_MASK;
 	STAILQ_FOREACH(txfer, &fc->tlabels[new_tlabel], tlabel)
-		if ((txfer->send.hdr.mode.hdr.dst & 0x3f) == dst)
+		if ((txfer->send.hdr.mode.hdr.dst & FW_NODE_MASK) == dst)
 			break;
 	if (txfer == NULL) {
 		fc->last_tlabel[dst] = new_tlabel;

@@ -78,7 +78,7 @@ static void fwe_as_input (struct fw_xferq *);
 
 static int fwedebug = 0;
 static int stream_ch = 1;
-static int tx_speed = 2;
+static int tx_speed = FWSPD_S400;
 static int rx_queue_len = FWMAXQUEUE;
 
 static MALLOC_DEFINE(M_FWE, "if_fwe", "Ethernet over FireWire interface");
@@ -269,7 +269,7 @@ fwe_init(void *arg)
 
 	FWEDEBUG(ifp, "initializing\n");
 
-	/* XXX keep promiscoud mode */
+	/* keep promiscuous mode */
 	if_setflagbits(ifp, IFF_PROMISC, 0);
 
 	fc = fwe->fd.fc;
@@ -338,7 +338,7 @@ fwe_ioctl(if_t ifp, u_long cmd, caddr_t data)
 				if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 					fwe_stop(fwe);
 			}
-			/* XXX keep promiscoud mode */
+			/* keep promiscuous mode */
 			if_setflagbits(ifp, IFF_PROMISC, 0);
 			break;
 		case SIOCADDMULTI:

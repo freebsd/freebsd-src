@@ -381,7 +381,7 @@ fwisound_iso_input(struct fw_xferq *xferq)
 		}
 
 		sample_count = ntohl(pay->sample_count);
-		if (sample_count == 0 || sample_count > 475) {
+		if (sample_count == 0 || sample_count > FWISOUND_MAX_SAMPLES) {
 			m_freem(m);
 			continue;
 		}

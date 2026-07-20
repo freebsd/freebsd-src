@@ -91,9 +91,15 @@ static void fwip_start_send (void *, int);
 static void fwip_stream_input (struct fw_xferq *);
 static void fwip_unicast_input(struct fw_xfer *);
 
+/* tag field: bits [7:6] = 0b11 (broadcast), channel field: bits [5:0] = 31 */
+#define FWXFERQ_TAG_ALL		(3 << 6)
+#define FW_IP_CHANNEL		31
+/* GASP header: specifier_hi + specifier_lo/version + payload */
+#define FW_GASP_HDR_LEN		(3 * sizeof(uint32_t))
+
 static int fwipdebug = 0;
-static int broadcast_channel = 0xc0 | 0x1f; /*  tag | channel(XXX) */
-static int tx_speed = 2;
+static int broadcast_channel = FWXFERQ_TAG_ALL | FW_IP_CHANNEL;
+static int tx_speed = FWSPD_S400;
 static int rx_queue_len = FWMAXQUEUE;
 
 static MALLOC_DEFINE(M_FWIP, "if_fwip", "IP over FireWire interface");
@@ -548,9 +554,9 @@ fwip_async_output(struct fwip_softc *fwip, if_t ifp)
 			fp->mode.stream.chtag = broadcast_channel;
 			fp->mode.stream.tcode = FWTCODE_STREAM;
 			fp->mode.stream.sy = 0;
-			xfer->send.spd = 0;
+			xfer->send.spd = FWSPD_S100;
 			p[0] = htonl(nodeid << 16);
-			p[1] = htonl((0x5e << 24) | 1);
+			p[1] = htonl((CSRVAL_IETF << 24) | 1);
 		} else {
 			/*
 			 * Unicast packets are sent as block writes to the
@@ -702,7 +708,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 		 * version.
 		 */
 		p = mtod(m, uint32_t *);
-		if ((((ntohl(p[1]) & 0xffff) << 8) | ntohl(p[2]) >> 24) != 0x00005e
+		if ((((ntohl(p[1]) & 0xffff) << 8) | ntohl(p[2]) >> 24) != CSRVAL_IETF
 		    || (ntohl(p[2]) & 0xffffff) != 1) {
 			FWIPDEBUG(ifp, "Unrecognised GASP header %#08x %#08x\n",
 			    ntohl(p[1]), ntohl(p[2]));
@@ -724,7 +730,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 				struct fw_device *fd;
 				uint32_t *p = (uint32_t *) (mtag + 1);
 				fd = fw_noderesolve_nodeid(fwip->fd.fc,
-				    src & 0x3f);
+				    src & FW_NODE_MASK);
 				if (fd) {
 					p[0] = htonl(fd->eui.hi);
 					p[1] = htonl(fd->eui.lo);
@@ -739,7 +745,7 @@ fwip_stream_input(struct fw_xferq *xferq)
 		/*
 		 * Trim off the GASP header
 		 */
-		m_adj(m, 3*sizeof(uint32_t));
+		m_adj(m, FW_GASP_HDR_LEN);
 		m->m_pkthdr.rcvif = ifp;
 		firewire_input(ifp, m, src);
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);

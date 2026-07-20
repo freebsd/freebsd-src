@@ -74,6 +74,7 @@
 #define SBP_LOGIN_SIZE sizeof(struct sbp_login_res)
 #define SBP_QUEUE_LEN ((SBP_DMA_SIZE - SBP_LOGIN_SIZE) / sizeof(struct sbp_ocb))
 #define SBP_NUM_OCB (SBP_QUEUE_LEN * SBP_NUM_TARGETS)
+#define SBP_MAX_XFER 5		/* max concurrent xfers per target */
 
 /*
  * STATUS FIFO addressing
@@ -1287,7 +1288,7 @@ sbp_write_cmd(struct sbp_dev *sdev, int tcode, int offset)
 	target = sdev->target;
 	xfer = STAILQ_FIRST(&target->xferlist);
 	if (xfer == NULL) {
-		if (target->n_xfer > 5 /* XXX */) {
+		if (target->n_xfer > SBP_MAX_XFER) {
 			printf("sbp: no more xfer for this target\n");
 			return (NULL);
 		}

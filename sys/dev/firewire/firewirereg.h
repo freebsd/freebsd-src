@@ -98,6 +98,17 @@ struct firewire_softc {
 #define FW_MAX_DEVCH FW_MAX_DMACH
 #define FW_XFERTIMEOUT 1
 
+/* 6-bit transaction label space (IEEE 1394 6.2.4.2) */
+#define FW_NUM_TLABELS	0x40
+#define FW_TLABEL_MASK	0x3f
+
+/* 6-bit node ID fields */
+#define FW_MAX_NODES	64
+#define FW_NODE_MASK	0x3f
+
+/* BUS_MGR_ID register value when no bus manager is elected */
+#define FW_NO_BUS_MANAGER 0x3f
+
 struct firewire_dev_comm {
 	device_t dev;
 	struct firewire_comm *fc;
@@ -145,8 +156,8 @@ struct firewire_comm {
 	struct fw_eui64 eui;
 	struct fw_xferq
 		*arq, *atq, *ars, *ats, *it[FW_MAX_DMACH],*ir[FW_MAX_DMACH];
-	struct fw_xferlist tlabels[0x40];
-	u_char last_tlabel[0x40];
+	struct fw_xferlist tlabels[FW_NUM_TLABELS];
+	u_char last_tlabel[FW_NUM_TLABELS];
 	struct mtx tlabel_lock;
 	STAILQ_HEAD(, fw_bind) binds;
 	STAILQ_HEAD(, fw_device) devices;

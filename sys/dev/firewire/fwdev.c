@@ -408,7 +408,7 @@ fw_write_async(struct fw_drv1 *d, struct uio *uio, int ioflag)
 	xfer->fc = d->fc;
 	xfer->sc = NULL;
 	xfer->hand = fw_xferwake;
-	xfer->send.spd = 2 /* XXX */;
+	xfer->send.spd = FWSPD_S400;
 
 	if ((err = fw_asyreq(xfer->fc, -1, xfer)))
 		goto out;

@@ -82,6 +82,7 @@
 #define SBP_TARG_BIND_END	(((u_int64_t)SBP_TARG_BIND_HI << 32) | \
 				    SBP_TARG_BIND_LO(MAX_LOGINS))
 #define SBP_TARG_LOGIN_ID(lo)	(((lo) - SBP_TARG_BIND_LO(0))/0x20)
+#define SBP_TARG_MAX_CHUNK	2048	/* max DMA chunk per xfer */
 
 #define FETCH_MGM	0
 #define FETCH_CMD	1
@@ -931,7 +932,7 @@ sbp_targ_xfer_buf(struct orb_info *orbi, u_int offset,
 
 	while (size > 0) {
 		/* XXX assume dst_lo + off doesn't overflow */
-		len = MIN(size, 2048 /* XXX */);
+		len = MIN(size, SBP_TARG_MAX_CHUNK);
 		size -= len;
 		orbi->refcount ++;
 		if (ccb_dir == CAM_DIR_OUT) {
