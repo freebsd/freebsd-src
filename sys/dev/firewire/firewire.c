@@ -564,7 +564,9 @@ firewire_detach(device_t dev)
 	callout_stop(&fc->bmr_callout);
 	callout_stop(&fc->busprobe_callout);
 
-	/* TODO: cancel pending xfers in atq/ats queues */
+	/* Drain xfers queued by children during detach or pending callouts. */
+	fw_drain_txq(fc);
+
 	for (fwdev = STAILQ_FIRST(&fc->devices); fwdev != NULL;
 	     fwdev = fwdev_next) {
 		fwdev_next = STAILQ_NEXT(fwdev, link);
