@@ -1031,7 +1031,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 #ifdef COMPAT_FREEBSD32
 	int wrap32 = 0, safe = 0;
 #endif
-	bool proctree_locked, p2_req_set;
+	bool need_can_ptrace, proctree_locked, p2_req_set;
 
 	curp = td->td_proc;
 	proctree_locked = false;
@@ -1124,6 +1124,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	/*
 	 * Permissions check
 	 */
+	need_can_ptrace = true;
 	switch (req) {
 	case PT_TRACE_ME:
 		/*
@@ -1166,26 +1167,24 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		/* OK */
 		break;
 
-	case PT_CLEARSTEP:
-		/* Allow thread to clear single step for itself */
-		if (td->td_tid == tid)
-			break;
-		goto default_check;
-
-	case PT_GET_CHILDREN:
-		if (p == curp)
-			break;
-		goto default_check;
-
-default_check:
 	default:
+		/*
+		 * Allow thread to clear single step for itself.
+		 * PT_GET_CHILDREN on itself does not need P_TRACED.
+		 */
+		if ((req == PT_CLEARSTEP && td->td_tid == tid) ||
+		    (req == PT_GET_CHILDREN && p == curp))
+			need_can_ptrace = false;
+
 		/*
 		 * Check for ptrace eligibility before waiting for
 		 * holds to drain.
 		 */
-		error = proc_can_ptrace(td, p);
-		if (error != 0)
-			goto fail;
+		if (need_can_ptrace) {
+			error = proc_can_ptrace(td, p);
+			if (error != 0)
+				goto fail;
+		}
 
 		/*
 		 * Block parallel ptrace requests.  Most important, do
@@ -1203,7 +1202,7 @@ default_check:
 			}
 			if (error == 0 && td2->td_proc != p)
 				error = ESRCH;
-			if (error == 0)
+			if (error == 0 && need_can_ptrace)
 				error = proc_can_ptrace(td, p);
 			if (error != 0)
 				goto fail;
