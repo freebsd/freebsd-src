@@ -6,7 +6,7 @@ Copyright: 2002 Dag-Erling Smorgrav, 2025 ConnectWise
 Description: List open sockets
 License: BSD-2-Clause
 Name: sockstat
-Requires: csu, libc, libcapsicum, libcasper, libcasper.services.cap_net, libcasper.services.cap_netdb, libcasper.services.cap_pwd, libcasper.services.cap_sysctl, libcompiler_rt, libjail
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/sockstat${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=sockstat(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

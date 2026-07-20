@@ -5,5 +5,5 @@
 License: BSD-3-Clause
 Maintainer: kp@, ks@
 Name: libevent1
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 URL: https://openbsd.org

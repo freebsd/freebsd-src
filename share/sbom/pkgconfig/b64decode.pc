@@ -6,7 +6,7 @@ Copyright: 1983, 1993 The Regents of the University of California, 2020 Baptiste
 Description: Encode / decode a binary file
 License: BSD-3-Clause AND BSD-2-Clause
 Name: b64decode
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/bintrans${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=b64decode(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

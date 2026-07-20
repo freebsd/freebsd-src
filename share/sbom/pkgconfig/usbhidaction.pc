@@ -6,7 +6,7 @@ Copyright: 2000, 2002 The NetBSD Foundation, Inc.
 Description: Perform actions according to USB HID controls
 License: BSD-2-Clause
 Name: usbhidaction
-Requires: csu, libc, libcompiler_rt, libusbhid
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/usbhidaction${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=usbhidaction(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -5,7 +5,7 @@
 Description: Multibyte fork of the nvi editor for BSD
 License: BSD-3-Clause
 Name: nview
-Requires: csu, libc, libutil, libncurses, libtinfo
+Requires: ${SBOM_REQUIRES}
 Source: https://github.com/lichray/nvi2/tree/v2.2.2
 URL: https://github.com/lichray/nvi2
 Version: 2.2.2

@@ -6,7 +6,7 @@ Copyright: 1992, 1993 John Brezak, 1992, 1993 Theo de Raadt <deraadt@openbsd.org
 Description: Ask version of NIS map from NIS server
 License: BSD-3-Clause
 Name: yppoll
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/yppoll${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=yppoll(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

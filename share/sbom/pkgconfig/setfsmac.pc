@@ -6,7 +6,7 @@ Copyright: 2002, 2004 Networks Associates Technology, Inc.
 Description: Set MAC label for a file hierarchy
 License: BSD-2-Clause
 Name: setfsmac
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/setfmac${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=setfsmac(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

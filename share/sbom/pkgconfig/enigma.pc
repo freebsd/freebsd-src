@@ -5,7 +5,7 @@
 Description: Very simple file encryption
 License: LicenseRef-Public-Domain
 Name: enigma
-Requires: csu, libc, libcompiler_rt, libcrypt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/enigma${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=enigma(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

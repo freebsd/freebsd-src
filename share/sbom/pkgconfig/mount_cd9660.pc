@@ -6,7 +6,7 @@ Copyright: 1992, 1993, 1994 The Regents of the University of California
 Description: Mount an ISO-9660 file system
 License: BSD-3-Clause
 Name: mount_cd9660
-Requires: csu, libc, libcompiler_rt, libkiconv
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/mount_cd9660${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=mount_cd9660(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

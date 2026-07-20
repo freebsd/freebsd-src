@@ -5,6 +5,6 @@
 Description: Userland API library for kernel GEOM subsystem
 License: BSD-3-Clause AND BSD-2-Clause
 Name: libgeom
-Requires: csu, libc, libcompiler_rt, libexpat, libsbuf
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/libgeom${FREEBSD_GIT_QUERY}
 Version: ${FREEBSD_RELEASE}

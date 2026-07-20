@@ -6,7 +6,7 @@ Copyright: 1993 The Regents of the University of California
 Description: Reshape a data array
 License: BSD-3-Clause AND BSD-2-Clause
 Name: rs
-Requires: csu, libc, libc++, libcompiler_rt, libcxxrt, msun
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/rs${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=rs(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 1983, 1989, 1993 The Regents of the University of California, 2004, 2
 Description: Display NFS statistics
 License: BSD-3-Clause AND LicenseRef-scancode-intel-bsd-2-clause
 Name: nfsstat
-Requires: csu, libc, libcompiler_rt, libdevstat, libkvm, libxo
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/nfsstat${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=nfsstat(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

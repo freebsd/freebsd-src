@@ -6,7 +6,7 @@ Copyright: 1996 Jason R. Thorpe <thorpej@and.com>, 1997, by Matthew Jacob, for N
 Description: Medium changer control utility
 License: BSD-4-Clause
 Name: chio
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/bin/chio${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=chio(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

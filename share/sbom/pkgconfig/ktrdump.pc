@@ -6,7 +6,7 @@ Copyright: 2002 Jake Burkholder, 2004 Robert Watson
 Description: Print kernel ktr trace buffer
 License: BSD-2-Clause
 Name: ktrdump
-Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt, libkvm
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/ktrdump${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ktrdump(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -5,7 +5,7 @@
 Description: Enhanced FTP client for Unix-like operating systems
 License: BSD-3-Clause AND BSD-2-Clause
 Name: pftp
-Requires: csu, libc, libcompiler_rt, libedit
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/contrib/tnftp/
 URL: https://ftp.netbsd.org/pub/NetBSD/misc/tnftp/
 Version: ${FREEBSD_RELEASE}

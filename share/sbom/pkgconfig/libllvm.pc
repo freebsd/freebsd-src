@@ -6,7 +6,7 @@ Description: Collection of modular and reusable compiler and toolchain technolog
 License: Apache-2.0
 Maintainer: dim@, emaste@
 Name: libllvm
-Requires: libc++, libexecinfo, libz, msun
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/contrib/llvm-project/clang${FREEBSD_GIT_QUERY}
 URL: https://llvm.org
 Version: ${FREEBSD_RELEASE}

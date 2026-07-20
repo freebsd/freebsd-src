@@ -5,6 +5,6 @@
 Description: Library missing description
 License: NOASSERTION
 Name: libugidfw
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/libugidfw${FREEBSD_GIT_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 1987, 1993 The Regents of the University of California, 1989, 1993 Th
 Description: Read and write BSD label
 License: BSD-4-Clause AND BSD-3-Clause
 Name: disklabel
-Requires: csu, libc, libcompiler_rt, libgeom
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/bsdlabel${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=bsdlabel(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

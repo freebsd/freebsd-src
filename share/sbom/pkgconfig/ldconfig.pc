@@ -6,7 +6,7 @@ Copyright: 1993,1995 Paul Kranenburg, 1998 John D. Polstra
 Description: Configure the dynamic linker search path for shared libraries
 License: BSD-4-Clause AND BSD-3-Clause AND BSD-2-Clause
 Name: ldconfig
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/ldconfig${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ldconfig(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

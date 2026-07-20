@@ -5,7 +5,7 @@
 Description: LLVM's object file dumper
 License: Apache-2.0
 Name: llvm-objdump
-Requires: csu, libllvm, libc, libc++, libcompiler_rt, libcxxrt, libexecinfo, libthr, libz, libzstd, msun, libtinfo
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/contrib/llvm-project/clang
 URL: https://llvm.org
 Version: 19.x-llvmorg-19.1.4-0-gaadaa00de76e

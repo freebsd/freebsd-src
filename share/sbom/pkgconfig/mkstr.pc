@@ -6,7 +6,7 @@ Copyright: 1980, 1993 The Regents of the University of California
 Description: Create an error message file by massaging C source
 License: BSD-3-Clause
 Name: mkstr
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/mkstr${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=mkstr(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 1988, 1990, 1993 The Regents of the University of California
 Description: Close down the system at a given time
 License: BSD-3-Clause
 Name: poweroff
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/shutdown${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=poweroff(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

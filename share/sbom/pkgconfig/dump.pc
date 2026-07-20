@@ -6,7 +6,7 @@ Copyright: 1980, 1988, 1991, 1993 The Regents of the University of California, 1
 Description: File system backup
 License: BSD-3-Clause
 Name: dump
-Requires: csu, libc, libcompiler_rt, libufs
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/dump${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=dump(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

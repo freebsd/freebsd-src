@@ -6,7 +6,7 @@ Copyright: 2004 Dag-Erling Smorgrav
 Description: Display account information
 License: BSD-3-Clause AND BSD-2-Clause
 Name: logins
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/logins${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=logins(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 1989, 1993 The Regents of the University of California
 Description: Invoke a utility immune to hangups
 License: BSD-3-Clause
 Name: nohup
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/nohup${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=nohup(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

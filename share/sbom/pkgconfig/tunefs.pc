@@ -6,7 +6,7 @@ Copyright: 1983, 1993 The Regents of the University of California
 Description: Tune up an existing UFS file system
 License: BSD-3-Clause
 Name: tunefs
-Requires: csu, libc, libcompiler_rt, libufs
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/tunefs${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=tunefs(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

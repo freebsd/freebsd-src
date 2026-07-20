@@ -6,7 +6,7 @@ Copyright: 2012 by Darren Reed
 Description: Monitors /dev/ipl for logged packets
 License: LicenseRef-scancode-other-permissive
 Name: ipmon
-Requires: csu, libc, libcompiler_rt, libkvm
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/ipf/ipmon${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ipmon(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 2000-2014 Dag-Erling Smorgrav, 2013 Michael Gmelin <freebsd@grem.de>
 Description: Retrieve a file by Uniform Resource Locator
 License: LicenseRef-scancode-bsd-unchanged
 Name: fetch
-Requires: csu, libc, libcompiler_rt, libfetch
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/fetch${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=fetch(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

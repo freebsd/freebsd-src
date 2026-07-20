@@ -5,7 +5,7 @@
 Description: clone of System V curses form library
 License: X11
 Name: captoinfo
-Requires: csu, libc, libcompiler_rt, libncurses, libtinfo
+Requires: ${SBOM_REQUIRES}
 Source: https://invisible-island.net/archives/ncurses/ncurses-6.5.tar.gz
 URL: https://invisible-island.net/ncurses
 Version: 6.5

@@ -6,7 +6,7 @@ Copyright: 2001, 2002 Dima Dorfman, 2002 Dima Dorfman
 Description: DEVFS control
 License: BSD-2-Clause
 Name: devfs
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/devfs${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=devfs(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

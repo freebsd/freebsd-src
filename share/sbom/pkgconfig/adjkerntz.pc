@@ -6,7 +6,7 @@ Copyright: 1993 by Andrew A. Chernov, Moscow, Russia, 1993-1998 by Andrey A. Che
 Description: Adjust real-time clock (rtc) and kernel timezone offset
 License: BSD-3-Clause AND BSD-2-Clause
 Name: adjkerntz
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/adjkerntz${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=adjkerntz(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

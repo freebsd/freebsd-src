@@ -6,7 +6,7 @@ Copyright: 2010 Weongyo Jeong <weongyo@freebsd.org>
 Description: Dump traffic on USB host controller
 License: BSD-2-Clause
 Name: usbdump
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/usbdump${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=usbdump(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

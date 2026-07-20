@@ -6,7 +6,7 @@ Copyright: 2009 Gabor Kovesdan <gabor@FreeBSD.org>, 2012 Gabor Kovesdan <gabor@F
 Description: Sort or merge records (lines) of text and binary files
 License: BSD-2-Clause
 Name: sort
-Requires: csu, libc, libcompiler_rt, msun
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/sort${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=sort(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

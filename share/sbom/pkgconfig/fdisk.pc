@@ -6,7 +6,7 @@ Copyright: 1989 Robert. V. Baron Created, 1992 Carnegie Mellon University, 2003 
 Description: PC slice table maintenance utility
 License: BSD-3-Clause AND BSD-2-Clause
 Name: fdisk
-Requires: csu, libc, libcompiler_rt, libgeom
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/fdisk${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=fdisk(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

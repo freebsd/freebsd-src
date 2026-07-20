@@ -6,7 +6,7 @@ Copyright: 1997 Wolfgang Helbig
 Description: Displays a calendar and the date of Easter
 License: BSD-3-Clause AND BSD-2-Clause
 Name: ncal
-Requires: csu, libc, libcalendar, libcompiler_rt, libtinfo
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/ncal${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ncal(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

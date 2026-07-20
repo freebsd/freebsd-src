@@ -6,7 +6,7 @@ Copyright: 1980, 1987, 1992, 1993 The Regents of the University of California
 Description: Display first lines of a file
 License: BSD-3-Clause
 Name: head
-Requires: csu, libc, libcapsicum, libcompiler_rt, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/head${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=head(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

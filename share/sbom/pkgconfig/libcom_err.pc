@@ -5,6 +5,6 @@
 Description: Common error display library
 License: BSD-3-Clause
 Name: libcom_err
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 URL: https://www.heimdal.software
 Version: ${FREEBSD_RELEASE}

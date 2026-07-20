@@ -6,7 +6,7 @@ Copyright: 1999-2002 Robert N. M. Watson
 Description: Manage UFS1 extended attributes
 License: BSD-2-Clause
 Name: extattrctl
-Requires: csu, libc, libcompiler_rt, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/extattrctl${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=extattrctl(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

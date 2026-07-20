@@ -5,7 +5,7 @@
 Description: General purpose internetwork email routing application
 License: Sendmail
 Name: libmilter
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://ftp.sendmail.org/sendmail.8.18.1.tar.gz
 URL: https://ftp.sendmail.org
 Version: ${FREEBSD_RELEASE}

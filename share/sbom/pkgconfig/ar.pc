@@ -6,7 +6,7 @@ Copyright: 1990, 1993, 1994 The Regents of the University of California, 2003-20
 Description: Manage archives
 License: BSD-2-Clause AND BSD-3-Clause
 Name: ar
-Requires: csu, libarchive, libc, libcompiler_rt, libelf
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/ar${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ar(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

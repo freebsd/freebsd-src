@@ -6,7 +6,7 @@ Copyright: 1994 SigmaSoft, Th. Lockert <tholo@sigmasoft.com>
 Description: Report System V interprocess communication facilities status
 License: BSD-3-Clause
 Name: ipcs
-Requires: csu, libc, libcompiler_rt, libkvm
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/ipcs${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ipcs(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

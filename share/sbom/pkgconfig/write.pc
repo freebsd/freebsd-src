@@ -6,7 +6,7 @@ Copyright: 1989, 1993 The Regents of the University of California
 Description: Send a message to another user
 License: BSD-3-Clause
 Name: write
-Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/write${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=write(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

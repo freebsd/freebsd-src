@@ -6,7 +6,7 @@ Copyright: 2012 by Darren Reed
 Description: Reports on packet filter statistics and filter list
 License: LicenseRef-scancode-other-permissive
 Name: ipfstat
-Requires: csu, libc, libcompiler_rt, libkvm, libncurses, libtinfo
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/ipf/ipfstat${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ipfstat(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

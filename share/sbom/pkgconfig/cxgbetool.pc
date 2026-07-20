@@ -6,7 +6,7 @@ Copyright: 2011, 2025 Chelsio Communications, 2018 Chelsio Communications, Inc.
 Description: Userspace companion to Chelsio cxgbe Ethernet driver
 License: BSD-2-Clause
 Name: cxgbetool
-Requires: csu, libc, libcompiler_rt, libpcap
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/cxgbetool${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=cxgbetool(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

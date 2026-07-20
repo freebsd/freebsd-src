@@ -6,7 +6,7 @@ Copyright: 1993, John Brezak
 Description: Remote status display
 License: BSD-4-Clause-UC
 Name: rup
-Requires: csu, libc, libcompiler_rt, librpcsvc
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/rup${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=rup(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

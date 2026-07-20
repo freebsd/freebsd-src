@@ -6,7 +6,7 @@ Copyright: 1992 Christopher G. Demetriou
 Description: Control a special tty device
 License: BSD-3-Clause
 Name: comcontrol
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/comcontrol${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=comcontrol(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

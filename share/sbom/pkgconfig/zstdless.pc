@@ -5,7 +5,7 @@
 Description: Open-source file pager
 License: BSD-2-Clause
 Name: zstdless
-Requires: libncurses
+Requires: ${SBOM_REQUIRES}
 Source: https://www.greenwoodsoftware.com/less/less-679.tar.gz
 URL: https://www.greenwoodsoftware.com/less/
 Version: 679

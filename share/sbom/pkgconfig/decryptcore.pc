@@ -6,7 +6,7 @@ Copyright: 2016 Konrad Witaszczyk <def@FreeBSD.org>
 Description: Decrypt a core dump of the operating system
 License: BSD-2-Clause
 Name: decryptcore
-Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt, libpjdlog
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/decryptcore${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=decryptcore(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

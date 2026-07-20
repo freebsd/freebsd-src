@@ -6,7 +6,7 @@ Copyright: 2013 Hudson River Trading LLC
 Description: Protect processes from being killed when swap space is exhausted
 License: BSD-2-Clause
 Name: protect
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/protect${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=protect(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

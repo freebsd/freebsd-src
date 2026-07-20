@@ -7,7 +7,7 @@ Description: FreeBSD Device Tree Compiler
 License: BSD-2-Clause
 Maintainer: jrtc27@, kevans@, theraven@
 Name: dtc
-Requires: libcxxrt
+Requires: ${SBOM_REQUIRES}
 Source: https://github.com/davidchisnall/dtc/tree/23387dd5462d38bf2e7301e2811913d82e167efc
 URL: https://github.com/davidchisnall/dtc
 Version: ${FREEBSD_RELEASE}

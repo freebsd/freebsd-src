@@ -6,7 +6,7 @@ Copyright: 1990, 1993 The Regents of the University of California, 1995, 1996, 1
 Description: Print the route IPv6 packets will take to a network node
 License: BSD-3-Clause AND BSD-2-Clause
 Name: traceroute6
-Requires: csu, libc, libcapsicum, libcasper, libcasper.services.cap_dns, libcompiler_rt, libipsec
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/traceroute6${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=traceroute6(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

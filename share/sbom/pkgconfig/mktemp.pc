@@ -6,7 +6,7 @@ Copyright: 1994, 1995, 1996, 1998 Peter Wemm <peter@netplex.com.au>
 Description: Make temporary file name (unique)
 License: BSD-2-Clause AND LicenseRef-scancode-other-permissive
 Name: mktemp
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/mktemp${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=mktemp(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

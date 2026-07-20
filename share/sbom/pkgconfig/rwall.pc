@@ -6,7 +6,7 @@ Copyright: 1988, 1990 Regents of the University of California, 1993 Christopher 
 Description: Send a message to users logged on a host
 License: BSD-4-Clause-UC
 Name: rwall
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/rwall${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=rwall(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

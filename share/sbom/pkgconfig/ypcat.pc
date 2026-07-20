@@ -6,7 +6,7 @@ Copyright: 1992, 1993, 1996 Theo de Raadt <deraadt@theos.com>
 Description: Print the values of all keys in a NIS database
 License: BSD-2-Clause
 Name: ypcat
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/ypcat${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ypcat(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

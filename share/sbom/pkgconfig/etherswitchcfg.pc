@@ -6,7 +6,7 @@ Copyright: 1983, 1993 The Regents of the University of California, 1997 Jason R.
 Description: Configure a built-in Ethernet switch
 License: BSD-4-Clause AND BSD-3-Clause AND BSD-2-Clause
 Name: etherswitchcfg
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/etherswitchcfg${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=etherswitchcfg(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

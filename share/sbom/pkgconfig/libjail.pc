@@ -5,6 +5,6 @@
 Description: Create and manage system jails
 License: BSD-2-Clause
 Name: libjail
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/libjail${FREEBSD_GIT_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 2010 The FreeBSD Foundation
 Description: Display and update resource limits database
 License: BSD-2-Clause
 Name: rctl
-Requires: csu, libc, libcompiler_rt, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/rctl${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=rctl(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

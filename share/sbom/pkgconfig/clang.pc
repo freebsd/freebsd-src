@@ -5,7 +5,7 @@
 Description: The Clang C, C++, and Objective-C compiler
 License: Apache-2.0
 Name: clang
-Requires: csu, libclang, libllvm, libc, libc++, libcompiler_rt, libcxxrt, libexecinfo, libthr, libz, libzstd, msun, libncurses, libtinfo
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/contrib/llvm-project/clang${FREEBSD_GIT_QUERY}
 URL: https://llvm.org
 Version: ${FREEBSD_RELEASE}

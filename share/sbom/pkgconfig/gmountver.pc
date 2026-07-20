@@ -6,7 +6,7 @@ Copyright: 2010 Edward Tomasz Napierala <trasz@FreeBSD.org>
 Description: Control utility for disk mount verification GEOM class
 License: BSD-2-Clause
 Name: gmountver
-Requires: csu, libc, libcompiler_rt, libgeom
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/geom/mountver${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=gmountver(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

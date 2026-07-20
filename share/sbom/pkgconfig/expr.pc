@@ -5,7 +5,7 @@
 Description: Evaluate expression
 License: LicenseRef-scancode-public-domain
 Name: expr
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/bin/expr
 URL: https://man.freebsd.org/cgi/man.cgi?query=expr(1)
 Version: ${FREEBSD_RELEASE}

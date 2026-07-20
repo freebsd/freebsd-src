@@ -6,7 +6,7 @@ Copyright: 2000 Paul Saab <ps@FreeBSD.org>
 Description: Synchronize a file's in-core state with that on disk
 License: BSD-2-Clause
 Name: fsync
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/fsync${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=fsync(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

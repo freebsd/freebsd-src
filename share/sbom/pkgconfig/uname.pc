@@ -6,7 +6,7 @@ Copyright: 1993 The Regents of the University of California, 2002 Juli Mallett
 Description: Display information about the system
 License: BSD-4-Clause
 Name: uname
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/uname${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=uname(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

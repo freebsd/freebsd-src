@@ -6,7 +6,7 @@ Copyright: 1983, 1993 The Regents of the University of California, 1997 Jason R.
 Description: Configure network interface parameters
 License: BSD-4-Clause AND BSD-3-Clause AND BSD-2-Clause-FreeBSD AND BSD-2-Clause
 Name: ifconfig
-Requires: csu, libc, libcompiler_rt, libifconfig, libnv, libutil, msun
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/ifconfig${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ifconfig(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 1980, 1993 The Regents of the University of California, 1989, 1993 Th
 Description: Extract strings from C programs to implement shared strings
 License: BSD-3-Clause AND BSD-2-Clause
 Name: xstr
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/xstr${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=xstr(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

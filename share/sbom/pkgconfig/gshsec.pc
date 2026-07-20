@@ -6,7 +6,7 @@ Copyright: 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 Description: Control utility for shared secret devices
 License: BSD-2-Clause
 Name: gshsec
-Requires: csu, libc, libcompiler_rt, libgeom
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/geom/shsec${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=gshsec(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 1989, 1993, 1994 The Regents of the University of California
 Description: Execute a utility at an altered scheduling priority
 License: BSD-3-Clause
 Name: nice
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/nice${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=nice(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

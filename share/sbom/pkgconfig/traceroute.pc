@@ -6,7 +6,7 @@ Copyright: 1988, 1989, 1991, 1994, 1995, 1996, 1997, 1998, 1999, 2000 The Regent
 Description: Print the route packets take to network host
 License: BSD-2-Clause AND BSD-4-Clause-Shortened AND BSD-4-Clause-UC
 Name: traceroute
-Requires: csu, libc, libcapsicum, libcompiler_rt, libipsec
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/traceroute${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=traceroute(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

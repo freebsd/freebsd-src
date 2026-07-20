@@ -6,7 +6,7 @@ Copyright: 1993 by Adrian Mariano (adrian@cam.cornell.edu)
 Description: Conversion calculator
 License: BSD-4-Clause AND BSD-2-Clause
 Name: units
-Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt, libedit
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/units${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=units(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

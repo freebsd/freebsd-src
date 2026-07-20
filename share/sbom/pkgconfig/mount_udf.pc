@@ -6,7 +6,7 @@ Copyright: 1992, 1993, 1994 The Regents of the University of California, 2002 Sc
 Description: Mount a UDF file system
 License: BSD-3-Clause
 Name: mount_udf
-Requires: csu, libc, libcompiler_rt, libkiconv
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/mount_udf${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=mount_udf(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -5,7 +5,7 @@
 Description: Console utility for WiFi authentication with wpa_supplicant
 License: BSD-3-Clause
 Name: wpa_cli
-Requires: csu, libc, libcompiler_rt, libpcap, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://w1.fi/releases/hostapd-2.11.tar.gz
 URL: https://w1.fi/wpa_supplicant/
 Version: 2.11

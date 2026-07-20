@@ -6,7 +6,7 @@ Copyright: 2002 Thomas Moestl <tmm@FreeBSD.org>, 2013,2014 Juniper Networks, Inc
 Description: Utility to make disk images
 License: BSD-2-Clause
 Name: mkimg
-Requires: csu, libc, libcompiler_rt, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/mkimg${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=mkimg(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

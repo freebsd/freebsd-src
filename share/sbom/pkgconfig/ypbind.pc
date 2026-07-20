@@ -6,7 +6,7 @@ Copyright: 1984, Sun Microsystems, Inc., 1992/3 Theo de Raadt <deraadt@fsa.ca>, 
 Description: NIS domain binding daemon
 License: BSD-4-Clause AND BSD-3-Clause
 Name: ypbind
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/ypbind${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ypbind(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

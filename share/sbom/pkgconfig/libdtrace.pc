@@ -1,0 +1,11 @@
+# Copyright (c) 2026 The FreeBSD Foundation.
+#
+# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
+# SPDX-FileCopyrightText: 2026 The FreeBSD Foundation.
+#
+Name: libdtrace
+Description: DTrace Dynamic Tracing Software: Library Interfaces
+URL: https://dtrace.org
+Version: 20100818
+Source: https://cgit.freebsd.org/src/tree/cddl/contrib/opensolaris/lib/libdtrace
+License: CDDL-1.1

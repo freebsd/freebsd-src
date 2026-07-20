@@ -6,7 +6,7 @@ Copyright: (c) 1983,1984,1985,1986,1987,1988,1989 AT&T., (c) 1986,1987,1988.1989
 Description: An RPC protocol compiler
 License: LicenseRef-scancode-sun-rpc
 Name: rpcgen
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/rpcgen${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=rpcgen(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

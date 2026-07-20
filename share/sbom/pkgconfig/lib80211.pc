@@ -5,6 +5,6 @@
 Description: Library missing description
 License: BSD-3-Clause AND BSD-2-Clause
 Name: lib80211
-Requires: csu, libc, libcompiler_rt, libexpat, libsbuf
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/lib80211${FREEBSD_GIT_QUERY}
 Version: ${FREEBSD_RELEASE}

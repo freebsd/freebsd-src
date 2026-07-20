@@ -6,7 +6,7 @@ Copyright: 1989, 1993 The Regents of the University of California
 Description: Report or filter out repeated lines in a file
 License: BSD-3-Clause
 Name: uniq
-Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/uniq${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=uniq(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Description: BSD licensed ELF toolchain
 License: BSD-2-Clause
 Maintainer: emaste@, jkoshy@, kaiw@
 Name: libelf
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://sourceforge.net/p/elftoolchain/code/
 URL: https://sourceforge.net/projects/elftoolchain/
 Version: ${FREEBSD_RELEASE}

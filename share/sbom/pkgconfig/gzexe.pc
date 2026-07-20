@@ -6,7 +6,7 @@ Copyright: 1985, 1986, 1992, 1993 The Regents of the University of California, 1
 Description: Create auto-decompressing executables
 License: BSD-3-Clause AND BSD-2-Clause
 Name: gzexe
-Requires: csu, libc, libcompiler_rt, liblzma, libz, libzstd
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/gzip${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=gzexe(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

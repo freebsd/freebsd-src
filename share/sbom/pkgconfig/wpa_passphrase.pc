@@ -5,7 +5,7 @@
 Description: Utility for generating a 256-bit pre-shared WPA key from an ASCII passphrase
 License: BSD-3-Clause
 Name: wpa_passphrase
-Requires: csu, libc, libcompiler_rt, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://w1.fi/releases/hostapd-2.11.tar.gz
 URL: https://w1.fi/wpa_supplicant/
 Version: 2.11

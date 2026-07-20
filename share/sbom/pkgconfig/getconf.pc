@@ -6,7 +6,7 @@ Copyright: Copyright 2000 Massachusetts Institute of Technology
 Description: Retrieve standard configuration variables
 License: LicenseRef-scancode-mit-license-1998
 Name: getconf
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/getconf${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=getconf(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

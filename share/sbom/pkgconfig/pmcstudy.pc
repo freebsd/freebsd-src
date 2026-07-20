@@ -6,7 +6,7 @@ Copyright: 2014-2015 Netflix, Inc., 2015 Netflix, Inc.
 Description: Perform various studies on a system's overall PMCs
 License: LicenseRef-scancode-bsd-unchanged
 Name: pmcstudy
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/pmcstudy${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=pmcstudy(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

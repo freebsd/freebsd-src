@@ -5,6 +5,6 @@
 Description: Create an IPsec policy structure from a human readable string
 License: BSD-3-Clause
 Name: libipsec
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/libipsec${FREEBSD_GIT_QUERY}
 Version: ${FREEBSD_RELEASE}

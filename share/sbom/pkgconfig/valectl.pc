@@ -6,7 +6,7 @@ Copyright: 2013-2014 Michio Honda
 Description: Manage VALE network switches provided by netmap
 License: BSD-2-Clause
 Name: valectl
-Requires: csu, libc, libcompiler_rt, libnetmap
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/valectl${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=valectl(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

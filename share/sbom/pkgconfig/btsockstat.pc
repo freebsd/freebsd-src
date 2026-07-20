@@ -6,7 +6,7 @@ Copyright: 2001-2002 Maksim Yevmenkin <m_evmenkin@yahoo.com>
 Description: Show Bluetooth sockets information
 License: BSD-2-Clause
 Name: btsockstat
-Requires: csu, libbluetooth, libc, libcompiler_rt, libkvm
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/bluetooth/btsockstat${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=btsockstat(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 2002 Networks Associates Technologies, Inc.
 Description: Modify a user's password
 License: BSD-3-Clause
 Name: yppasswd
-Requires: csu, libc, libcompiler_rt, libpam
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/passwd${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=yppasswd(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

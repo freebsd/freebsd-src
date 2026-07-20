@@ -6,7 +6,7 @@ Copyright: 2002, 2003 Gordon Tetlow, 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>,
 Description: Determine filesystem type
 License: BSD-2-Clause AND BSD-3-Clause
 Name: fstyp
-Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt, libgeom, libmd, libufs
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/fstyp${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=fstyp(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

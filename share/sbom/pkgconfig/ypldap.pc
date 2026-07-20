@@ -6,7 +6,7 @@ Copyright: 2003, 2004 Henning Brauer <henning@openbsd.org>, 2003-2008 Henning Br
 Description: YP map server using LDAP backend
 License: ISC AND NTP-0
 Name: ypldap
-Requires: csu, libc, libcompiler_rt, libevent1, libopenbsd, librpcsvc, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/ypldap${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ypldap(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

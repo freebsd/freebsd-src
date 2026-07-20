@@ -6,7 +6,7 @@ Copyright: 1988, 1993, 1994 The Regents of the University of California
 Description: Change group
 License: BSD-3-Clause
 Name: chgrp
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/chown${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=chgrp(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: Copyright 2010 Nexenta Systems, Inc., Copyright 2011 Nexenta Systems,
 Description: Define locale environment
 License: BSD-2-Clause
 Name: localedef
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/localedef${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=localedef(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

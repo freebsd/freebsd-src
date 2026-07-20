@@ -6,7 +6,7 @@ Copyright: 2005 Mark Santcroos <marks@freebsd.org>
 Description: Show snapshot location on UFS file systems
 License: BSD-2-Clause
 Name: snapinfo
-Requires: csu, libc, libcompiler_rt, libufs
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/snapinfo${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=snapinfo(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

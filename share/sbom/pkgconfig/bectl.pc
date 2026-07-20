@@ -6,7 +6,7 @@ Copyright: 2017 Kyle J. Kneitinger <kyle@kneit.in>, 2018 Kyle Evans <kevans@Free
 Description: Manage ZFS boot environments
 License: Beerware AND BSD-2-Clause
 Name: bectl
-Requires: csu, libbe, libc, libcompiler_rt, libjail, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/bectl${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=bectl(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 1997 John D. Polstra
 Description: Execute a command while holding a file lock
 License: BSD-2-Clause
 Name: lockf
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/lockf${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=lockf(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

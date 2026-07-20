@@ -6,7 +6,7 @@ Copyright: 1995 Martin Husemann, 1995 Wolfgang Solfrank, 1995, 1996, 1997 Wolfga
 Description: DOS/Windows (FAT) file system consistency checker
 License: BSD-2-Clause
 Name: fsck_msdosfs
-Requires: csu, libc, libcompiler_rt, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/fsck_msdosfs${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=fsck_msdosfs(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

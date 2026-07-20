@@ -6,7 +6,7 @@ Copyright: 2001 Peter Pentchev
 Description: Display or modify the kernel module search path
 License: BSD-2-Clause
 Name: kldconfig
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/kldconfig${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=kldconfig(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

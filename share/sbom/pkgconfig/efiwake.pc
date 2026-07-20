@@ -6,7 +6,7 @@ Copyright: 2023 Johannes Totz
 Description: Manipulate the EFI wake timer
 License: BSD-2-Clause
 Name: efiwake
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/efiwake${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=efiwake(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

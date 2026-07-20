@@ -6,7 +6,7 @@ Copyright: 2012-2013 Intel Corporation, 2013 EMC Corp., 2016 Netflix, Inc., 2016
 Description: NVM Express control utility
 License: BSD-2-Clause
 Name: nvmecontrol
-Requires: csu, libc, libcompiler_rt, libnvmf, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/nvmecontrol${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=nvmecontrol(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

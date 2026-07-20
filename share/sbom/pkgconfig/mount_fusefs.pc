@@ -6,7 +6,7 @@ Copyright: 2005 Csaba Henk, 2005 Jean-Sebastien Pedron, 2019 The FreeBSD Foundat
 Description: Mount a Fuse file system daemon
 License: BSD-2-Clause
 Name: mount_fusefs
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/mount_fusefs${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=mount_fusefs(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

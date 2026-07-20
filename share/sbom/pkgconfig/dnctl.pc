@@ -6,7 +6,7 @@ Copyright: 1993 Daniel Boulet, 1994 Ugen, 1996 Alex Nash, Paul Traina, Poul-Henn
 Description: User interface for firewall, traffic shaper, packet scheduler, in-kernel NAT.
 License: BSD-2-Clause
 Name: dnctl
-Requires: csu, libalias, libc, libcompiler_rt, libjail, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/ipfw${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=dnctl(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 2012 Jeremie Le Hen <jlh@FreeBSD.org>
 Description: Change standard streams initial buffering
 License: BSD-3-Clause AND BSD-2-Clause
 Name: stdbuf
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/stdbuf${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=stdbuf(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

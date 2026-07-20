@@ -6,7 +6,7 @@ Copyright: 2009, 2014 The FreeBSD Foundation
 Description: Convert font files for use by the video console
 License: BSD-2-Clause
 Name: vtfontcvt
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/vtfontcvt${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=vtfontcvt(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

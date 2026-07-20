@@ -6,7 +6,7 @@ Copyright: 1999 James Howard and Dag-Erling Smorgrav, 2003 Thomas Klausner, 2008
 Description: Grep compressed files
 License: BSD-2-Clause
 Name: zstdegrep
-Requires: csu, libbz2, libc, libcompiler_rt, libregex, libz
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/grep${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=zstdegrep(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

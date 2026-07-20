@@ -6,7 +6,7 @@ Copyright: 1989, 1993 The Regents of the University of California
 Description: Concatenate and print files
 License: BSD-3-Clause
 Name: cat
-Requires: csu, libc, libcapsicum, libcasper, libcasper.services.cap_fileargs, libcasper.services.cap_net, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/bin/cat${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=cat(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

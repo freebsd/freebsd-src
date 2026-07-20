@@ -6,7 +6,7 @@ Copyright: 2005-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>, 2006 Pawel Jakub Daw
 Description: Control utility for journaled devices
 License: BSD-2-Clause
 Name: gjournal
-Requires: csu, libc, libcompiler_rt, libgeom, libmd, libufs
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/geom/journal${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=gjournal(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 1994 Soren Schmidt, 1994-1996 Soren Schmidt
 Description: System video console control and configuration utility
 License: BSD-3-Clause
 Name: vidcontrol
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/vidcontrol${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=vidcontrol(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

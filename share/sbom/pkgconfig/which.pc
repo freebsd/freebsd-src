@@ -6,7 +6,7 @@ Copyright: 2000 Dan Papasian
 Description: Locate a program file in the user's path
 License: BSD-3-Clause
 Name: which
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/which${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=which(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 2005-2008 Poul-Henning Kamp
 Description: Initialize, write, seek and extract data from a fifolog
 License: BSD-2-Clause
 Name: fifolog_create
-Requires: csu, libc, libcompiler_rt, libutil, libz
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/fifolog/fifolog_create${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=fifolog_create(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

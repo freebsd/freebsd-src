@@ -6,7 +6,7 @@ Copyright: 1993,94 Winning Strategies, Inc.
 Description: Interpret carriage-control characters
 License: BSD-4-Clause
 Name: asa
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/asa${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=asa(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

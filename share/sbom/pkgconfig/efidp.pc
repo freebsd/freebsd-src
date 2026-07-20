@@ -6,7 +6,7 @@ Copyright: 2016 Netflix, Inc.
 Description: UEFI Device Path manipulation
 License: BSD-2-Clause
 Name: efidp
-Requires: csu, libc, libcompiler_rt, libefivar, libgeom
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/efidp${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=efidp(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

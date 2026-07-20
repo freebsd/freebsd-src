@@ -5,7 +5,7 @@
 Description: Display asynchronous events
 License: GPL-2.0 OR BSD-2-Clause
 Name: ibv_uc_pingpong
-Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://downloads.openfabrics.org/OFED/archive/ofed-1.5.3/OFED-1.5.3.tgz
 URL: https://www.openfabrics.org/ofed-for-linux/
 Version: 1.5.3

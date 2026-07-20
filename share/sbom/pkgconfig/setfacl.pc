@@ -6,7 +6,7 @@ Copyright: 2001 Chris D. Faulhaber, 2001-2002 Chris D. Faulhaber
 Description: Set ACL information
 License: BSD-2-Clause
 Name: setfacl
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/bin/setfacl${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=setfacl(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

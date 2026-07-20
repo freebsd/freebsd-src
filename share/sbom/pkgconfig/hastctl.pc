@@ -6,7 +6,7 @@ Copyright: 2009-2010 The FreeBSD Foundation
 Description: Highly Available Storage control utility
 License: BSD-2-Clause
 Name: hastctl
-Requires: csu, libc, libcompiler_rt, libmd, libutil, libz
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/hastctl${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=hastctl(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

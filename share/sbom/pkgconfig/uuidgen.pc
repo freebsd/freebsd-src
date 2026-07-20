@@ -6,7 +6,7 @@ Copyright: 2002 Marcel Moolenaar, 2022 Tobias C. Berner
 Description: Generate universally unique identifiers
 License: BSD-2-Clause
 Name: uuidgen
-Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/bin/uuidgen${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=uuidgen(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

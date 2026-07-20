@@ -6,7 +6,7 @@ Copyright: 1994 The Regents of the University of California, 2003 Sean Chittende
 Description: Random lines from a file or random numbers
 License: BSD-3-Clause AND BSD-2-Clause
 Name: random
-Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/random${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=random(6)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 1980, 1992, 1993 The Regents of the University of California, 2010, 2
 Description: Make typescript of terminal session
 License: BSD-3-Clause
 Name: script
-Requires: csu, libc, libcompiler_rt, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/script${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=script(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -5,7 +5,7 @@
 Description: Convert file to c-source
 License: Beerware
 Name: file2c
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/file2c${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=file2c(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

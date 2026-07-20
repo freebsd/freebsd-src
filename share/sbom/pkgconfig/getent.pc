@@ -6,7 +6,7 @@ Copyright: 2004 The NetBSD Foundation, Inc.
 Description: Get entries from administrative database
 License: BSD-2-Clause
 Name: getent
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/getent${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=getent(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

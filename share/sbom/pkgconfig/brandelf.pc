@@ -6,7 +6,7 @@ Copyright: 1996 Soren Schmidt, 2000, 2001 David O'Brien
 Description: Mark an ELF binary for a specific ABI
 License: LicenseRef-scancode-bsd-unchanged
 Name: brandelf
-Requires: csu, libc, libcapsicum, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/brandelf${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=brandelf(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

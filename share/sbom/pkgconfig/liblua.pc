@@ -5,6 +5,6 @@
 Description: Library missing description
 License: MIT
 Name: liblua
-Requires: msun
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/liblua
 Version: ${FREEBSD_RELEASE}

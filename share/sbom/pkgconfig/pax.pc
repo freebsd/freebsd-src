@@ -6,7 +6,7 @@ Copyright: 1992 Keith Muller, 1992, 1993 The Regents of the University of Califo
 Description: Read and write file archives and copy directory hierarchies
 License: BSD-3-Clause
 Name: pax
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/bin/pax${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=pax(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 1992-1994,2001 by Joerg Wunsch, Dresden
 Description: Format floppy disks
 License: BSD-2-Clause
 Name: fdformat
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/fdformat${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=fdformat(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

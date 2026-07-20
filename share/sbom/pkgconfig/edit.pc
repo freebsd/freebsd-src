@@ -5,5 +5,5 @@
 Description: Easy Editor
 License: BSD-2-Clause
 Name: edit
-Requires: libncurses
+Requires: ${SBOM_REQUIRES}
 Version: 1.5.0

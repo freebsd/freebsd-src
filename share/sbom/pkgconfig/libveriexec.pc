@@ -5,6 +5,6 @@
 Description: Verified execution routines
 License: BSD-2-Clause
 Name: libveriexec
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/libveriexec${FREEBSD_GIT_QUERY}
 Version: ${FREEBSD_RELEASE}

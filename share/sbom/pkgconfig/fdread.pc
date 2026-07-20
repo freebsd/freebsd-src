@@ -6,7 +6,7 @@ Copyright: 2001 Joerg Wunsch
 Description: Read floppy disks
 License: BSD-2-Clause
 Name: fdread
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/fdread${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=fdread(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

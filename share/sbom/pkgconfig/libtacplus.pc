@@ -5,6 +5,6 @@
 Description: Library missing description
 License: NOASSERTION
 Name: libtacplus
-Requires: csu, libc, libcompiler_rt, libmd
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/libtacplus${FREEBSD_GIT_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 1995, 1996 Bill Paul <wpaul@ctr.columbia.edu>
 Description: Generate the NIS databases
 License: BSD-4-Clause
 Name: yp_mkdb
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/yp_mkdb${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=yp_mkdb(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

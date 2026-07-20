@@ -6,7 +6,7 @@ Copyright: 2002 Jonathan Belson <jon@witchspace.com>
 Description: System video console keyboard map/font dialog utilities
 License: BSD-2-Clause
 Name: vidfont
-Requires: csu, libbsddialog, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/kbdmap${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=vidfont(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

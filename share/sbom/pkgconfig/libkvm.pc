@@ -5,6 +5,6 @@
 Description: Kernel memory interface
 License: BSD-3-Clause AND BSD-2-Clause
 Name: libkvm
-Requires: csu, libc, libcompiler_rt, libelf
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/libkvm${FREEBSD_GIT_QUERY}
 Version: ${FREEBSD_RELEASE}

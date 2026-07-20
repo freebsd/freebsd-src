@@ -6,7 +6,7 @@ Copyright: 1997-2007 Kenneth D. Merry, 2003, 2004 Silicon Graphics International
 Description: CAM Target Layer / iSCSI target daemon
 License: BSD-2-Clause
 Name: ctld
-Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt, libexpat, libiscsiutil, libmd, libnv, libsbuf, libucl, libutil, msun
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/ctld${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ctld(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

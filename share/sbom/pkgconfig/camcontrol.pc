@@ -6,7 +6,7 @@ Copyright: 1994 HD Associates (contact dufault@hda.com), 1997-2007 Kenneth D. Me
 Description: CAM control program
 License: BSD-3-Clause AND BSD-2-Clause
 Name: camcontrol
-Requires: csu, libc, libcam, libcompiler_rt, libnvmf, libsbuf, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/camcontrol${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=camcontrol(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 1996 The NetBSD Foundation, Inc., 2003 Poul-Henning Kamp
 Description: Configuration utility for the concatenated disk driver
 License: BSD-2-Clause
 Name: ccdconfig
-Requires: csu, libc, libcompiler_rt, libgeom
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/ccdconfig${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ccdconfig(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

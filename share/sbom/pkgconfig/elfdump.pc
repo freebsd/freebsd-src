@@ -6,7 +6,7 @@ Copyright: 2001 Jake Burkholder, 2003 David O'Brien
 Description: Display information about ELF files
 License: BSD-2-Clause
 Name: elfdump
-Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/elfdump${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=elfdump(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

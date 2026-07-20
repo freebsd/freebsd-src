@@ -6,7 +6,7 @@ Copyright: 2010 Alexander Motin <mav@FreeBSD.org>
 Description: Control utility for software RAID devices
 License: BSD-2-Clause
 Name: graid
-Requires: csu, libc, libcompiler_rt, libgeom, libmd
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/geom/raid${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=graid(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

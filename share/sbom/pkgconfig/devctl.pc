@@ -6,7 +6,7 @@ Copyright: 2014 John Baldwin <jhb@FreeBSD.org>
 Description: Device control utility
 License: BSD-2-Clause
 Name: devctl
-Requires: csu, libc, libcompiler_rt, libdevctl
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/devctl${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=devctl(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

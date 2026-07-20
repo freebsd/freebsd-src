@@ -6,7 +6,7 @@ Copyright: 2007 Robert N. M. Watson, 2007, 2011 Robert N. M. Watson, 2007-2008 R
 Description: Get detailed process information
 License: BSD-2-Clause
 Name: pargs
-Requires: csu, libc, libcompiler_rt, libprocstat, libsbuf, libutil, libxo
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/procstat${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=procstat(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

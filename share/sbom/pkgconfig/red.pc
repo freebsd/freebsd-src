@@ -6,7 +6,7 @@ Copyright: 1993 Andrew Moore, 1993 Andrew Moore, Talke Studio
 Description: Text editor
 License: BSD-2-Clause
 Name: red
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/bin/ed${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=red(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

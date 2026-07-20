@@ -6,7 +6,7 @@ Copyright: 1992, 1993, 1994 The Regents of the University of California
 Description: Remove directories
 License: BSD-3-Clause
 Name: rmdir
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/bin/rmdir${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=rmdir(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 1983, 1993 The Regents of the University of California
 Description: Make entries in the system log
 License: BSD-3-Clause
 Name: logger
-Requires: csu, libc, libcapsicum, libcasper, libcasper.services.cap_syslog, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/logger${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=logger(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

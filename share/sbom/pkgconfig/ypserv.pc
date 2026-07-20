@@ -6,7 +6,7 @@ Copyright: 1995 Bill Paul <wpaul@ctr.columbia.edu>, 1995, 1996 Bill Paul <wpaul@
 Description: NIS database server
 License: BSD-4-Clause
 Name: ypserv
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/ypserv${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ypserv(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

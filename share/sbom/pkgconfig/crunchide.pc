@@ -6,7 +6,7 @@ Copyright: 1994 University of Maryland, 1997 Christopher G. Demetriou
 Description: Hides symbol names from ld, for crunching programs together
 License: BSD-4-Clause AND BSD-2-Clause
 Name: crunchide
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/crunch/crunchide${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=crunchide(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

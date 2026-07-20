@@ -6,7 +6,7 @@ Copyright: 1995 RadioMail Corporation, 1995 The Internet Software Consortium, 19
 Description: DHCP client network configuration script
 License: BSD-3-Clause AND ISC
 Name: dhclient-script
-Requires: csu, libc, libcapsicum, libcompiler_rt, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/dhclient${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=dhclient-script(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

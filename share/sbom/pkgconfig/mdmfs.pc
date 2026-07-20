@@ -6,7 +6,7 @@ Copyright: 2001 Dima Dorfman
 Description: Configure and mount an in-memory file system using the md(4) driver or the tmpfs(4) filesystem
 License: BSD-2-Clause
 Name: mdmfs
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/mdmfs${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=mdmfs(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

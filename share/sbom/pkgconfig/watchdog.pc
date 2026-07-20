@@ -6,7 +6,7 @@ Copyright: 2003-2004 Sean M. Kelly <smkelly@FreeBSD.org>, 2013 iXsystems.com
 Description: Watchdog control program
 License: BSD-2-Clause
 Name: watchdog
-Requires: csu, libc, libcompiler_rt, libutil, msun
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/watchdogd${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=watchdog(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 1997, Massachusetts Institute of Technology, 2001 - Garance Alistair 
 Description: Check validity of entries in the print spooler database
 License: BSD-3-Clause AND BSD-2-Clause
 Name: chkprintcap
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/lpr/chkprintcap${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=chkprintcap(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

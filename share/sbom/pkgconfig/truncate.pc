@@ -6,7 +6,7 @@ Copyright: 2000 Sheldon Hearn <sheldonh@FreeBSD.org>, 2021 The FreeBSD Foundatio
 Description: Resize files or manage file space
 License: BSD-3-Clause AND BSD-2-Clause
 Name: truncate
-Requires: csu, libc, libcompiler_rt, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/truncate${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=truncate(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

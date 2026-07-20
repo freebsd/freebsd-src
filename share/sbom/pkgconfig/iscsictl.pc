@@ -6,7 +6,7 @@ Copyright: 1997-2007 Kenneth D. Merry, 2012 The FreeBSD Foundation
 Description: ISCSI initiator management utility
 License: BSD-3-Clause AND BSD-2-Clause
 Name: iscsictl
-Requires: csu, libc, libcam, libcompiler_rt, libutil, libxo
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/iscsictl${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=iscsictl(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

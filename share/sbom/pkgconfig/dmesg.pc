@@ -6,7 +6,7 @@ Copyright: 1991, 1993 The Regents of the University of California
 Description: Display the system message buffer
 License: BSD-3-Clause AND BSD-2-Clause
 Name: dmesg
-Requires: csu, libc, libcompiler_rt, libkvm
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/dmesg${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=dmesg(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

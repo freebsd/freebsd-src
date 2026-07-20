@@ -6,7 +6,7 @@ Copyright: (c) UNIX System Laboratories, Inc., 1980, 1990, 1993, 1994 The Regent
 Description: Display free disk space
 License: BSD-3-Clause AND LicenseRef-scancode-unknown-license-reference
 Name: df
-Requires: csu, libc, libcompiler_rt, libutil, libxo
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/bin/df${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=df(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

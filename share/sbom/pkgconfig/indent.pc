@@ -6,7 +6,7 @@ Copyright: 1976 Board of Trustees of the University of Illinois, 1976 by the Boa
 Description: Indent and format C program source
 License: BSD-4-Clause AND BSD-2-Clause
 Name: indent
-Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/indent${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=indent(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

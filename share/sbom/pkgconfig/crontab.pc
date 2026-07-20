@@ -6,7 +6,7 @@ Copyright: 1997 by Internet Software Consortium, Copyright 1988,1990,1993,1994 b
 Description: Maintain crontab files for individual users (V3)
 License: ISC
 Name: crontab
-Requires: csu, libc, libcompiler_rt, libmd, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/cron/crontab${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=crontab(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

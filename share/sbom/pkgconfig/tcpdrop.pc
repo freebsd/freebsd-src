@@ -6,7 +6,7 @@ Copyright: 2004 Markus Friedl <markus@openbsd.org>, 2009 Juli Mallett <jmallett@
 Description: Drop TCP connections
 License: ISC
 Name: tcpdrop
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/tcpdrop${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=tcpdrop(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

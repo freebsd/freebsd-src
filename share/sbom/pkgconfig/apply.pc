@@ -6,7 +6,7 @@ Copyright: 1994 The Regents of the University of California
 Description: Apply a command to a set of arguments
 License: BSD-3-Clause
 Name: apply
-Requires: csu, libc, libcompiler_rt, libsbuf
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/apply${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=apply(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

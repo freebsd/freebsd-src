@@ -5,7 +5,7 @@
 Description: WPA Supplicant for Linux, BSD, Mac OS X, and Windows with support for WPA, WPA2 (IEEE 802.11i / RSN), and WPA3.
 License: BSD-3-Clause
 Name: wpa_supplicant
-Requires: openssl
+Requires: ${SBOM_REQUIRES}
 Source: https://w1.fi/releases/hostapd-2.11.tar.gz
 URL: https://w1.fi/wpa_supplicant/
 Version: 2.11

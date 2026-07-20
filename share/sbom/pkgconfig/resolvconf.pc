@@ -5,7 +5,7 @@
 Description: /etc/resolv.conf is a file that holds the configuration for the local resolution of domain names
 License: BSD-2-Clause
 Name: resolvconf
-Requires: csu, libc, libcompiler_rt, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://github.com/NetworkConfiguration/openresolv/tree/v3.9.2
 URL: https://roy.marples.name/projects/openresolv
 Version: 3.9.2

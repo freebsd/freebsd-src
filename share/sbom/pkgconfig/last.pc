@@ -6,7 +6,7 @@ Copyright: 1987, 1993, 1994 The Regents of the University of California, 2018 Ph
 Description: Indicate last logins of users and ttys
 License: BSD-3-Clause
 Name: last
-Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt, libxo
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/last${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=last(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

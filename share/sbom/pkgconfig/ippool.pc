@@ -6,7 +6,7 @@ Copyright: 2012 by Darren Reed
 Description: User interface to the IPFilter pools
 License: LicenseRef-scancode-other-permissive
 Name: ippool
-Requires: csu, libc, libcompiler_rt, libkvm
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/ipf/ippool${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ippool(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

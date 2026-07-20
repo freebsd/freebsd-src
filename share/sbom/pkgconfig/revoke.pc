@@ -6,7 +6,7 @@ Copyright: 2009 Ed Schouten <ed@FreeBSD.org>
 Description: Revoke a character device
 License: BSD-2-Clause
 Name: revoke
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/revoke${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=revoke(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

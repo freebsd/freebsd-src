@@ -6,7 +6,7 @@ Copyright: 2012 by Darren Reed
 Description: Saves and restores information for NAT and state tables.
 License: LicenseRef-scancode-other-permissive
 Name: ipfs
-Requires: csu, libc, libcompiler_rt, libkvm
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/ipf/ipfs${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ipfs(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

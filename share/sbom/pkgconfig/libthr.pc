@@ -5,6 +5,6 @@
 Description: 1:1 POSIX threads library
 License: BSD-4-Clause AND BSD-3-Clause AND BSD-2-Clause
 Name: libthr
-Requires: csu, libc, libcompiler_rt, libsys
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/libthr${FREEBSD_GIT_QUERY}
 Version: ${FREEBSD_RELEASE}

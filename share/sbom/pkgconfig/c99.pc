@@ -6,7 +6,7 @@ Copyright: 2002 Tim J. Robbins
 Description: Standard C language compiler
 License: BSD-2-Clause
 Name: c99
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/c99${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=c99(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

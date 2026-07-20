@@ -6,7 +6,7 @@ Copyright: 1989, 1991, 1993, 1994 The Regents of the University of California, 1
 Description: Set the options for a terminal device interface
 License: BSD-3-Clause
 Name: stty
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/bin/stty${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=stty(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 1992, 1993 The Regents of the University of California, 1998 John D. 
 Description: Get core images of running process
 License: BSD-3-Clause AND BSD-2-Clause
 Name: gcore
-Requires: csu, libc, libcompiler_rt, libsbuf, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/gcore${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=gcore(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

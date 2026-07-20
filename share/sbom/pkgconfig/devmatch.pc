@@ -6,7 +6,7 @@ Copyright: 2017 Netflix, Inc.
 Description: Print information about unattached devices
 License: BSD-2-Clause
 Name: devmatch
-Requires: csu, libc, libcompiler_rt, libdevinfo
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/devmatch${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=devmatch(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

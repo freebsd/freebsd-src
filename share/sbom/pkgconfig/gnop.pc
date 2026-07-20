@@ -6,7 +6,7 @@ Copyright: 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 Description: Control utility for NOP GEOM class
 License: BSD-2-Clause
 Name: gnop
-Requires: csu, libc, libcompiler_rt, libgeom
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/geom/nop${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=gnop(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

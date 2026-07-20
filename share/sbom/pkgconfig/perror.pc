@@ -6,7 +6,7 @@ Copyright: 2009 Hudson River Trading LLC
 Description: Print an error number as a string
 License: BSD-2-Clause
 Name: perror
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/perror${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=perror(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

@@ -6,7 +6,7 @@ Copyright: 2002 Tim J. Robbins
 Description: Display who is on the system
 License: BSD-4-Clause AND BSD-2-Clause
 Name: who
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/who${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=who(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

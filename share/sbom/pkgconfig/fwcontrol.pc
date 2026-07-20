@@ -6,7 +6,7 @@ Copyright: 2002 Hidetoshi Shimokawa, 2003 Hidetoshi Shimokawa, 2005 Petr Holub, 
 Description: FireWire control utility
 License: BSD-4-Clause
 Name: fwcontrol
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/fwcontrol${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=fwcontrol(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

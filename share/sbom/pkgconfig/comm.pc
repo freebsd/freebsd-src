@@ -6,7 +6,7 @@ Copyright: 1989, 1993, 1994 The Regents of the University of California
 Description: Select or reject lines common to two files
 License: BSD-3-Clause
 Name: comm
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/comm${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=comm(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

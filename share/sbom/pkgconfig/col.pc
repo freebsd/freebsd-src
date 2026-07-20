@@ -6,7 +6,7 @@ Copyright: 1990, 1993, 1994 The Regents of the University of California
 Description: Filter reverse line feeds from input
 License: BSD-3-Clause
 Name: col
-Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/col${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=col(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

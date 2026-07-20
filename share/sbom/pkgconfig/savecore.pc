@@ -6,7 +6,7 @@ Copyright: 1986, 1992, 1993 The Regents of the University of California, 2002 Ne
 Description: Save a core dump of the operating system
 License: BSD-3-Clause
 Name: savecore
-Requires: csu, libc, libcapsicum, libcompiler_rt, libxo, libz, libzstd
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/savecore${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=savecore(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

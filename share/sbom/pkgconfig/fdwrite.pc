@@ -5,7 +5,7 @@
 Description: Format and write floppy disks
 License: Beerware
 Name: fdwrite
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/fdwrite${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=fdwrite(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

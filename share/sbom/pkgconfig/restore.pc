@@ -6,7 +6,7 @@ Copyright: (c) UNIX System Laboratories, Inc., 1983, 1993 The Regents of the Uni
 Description: Restore files or file systems from backups made with dump
 License: BSD-3-Clause
 Name: restore
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/restore${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=restore(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

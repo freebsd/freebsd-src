@@ -5,6 +5,6 @@
 Description: FreeBSD misc util library
 License: BSD-4-Clause AND BSD-3-Clause AND BSD-2-Clause AND LicenseRef-scancode-other-permissive
 Name: libutil
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/libutil${FREEBSD_GIT_QUERY}
 Version: ${FREEBSD_RELEASE}

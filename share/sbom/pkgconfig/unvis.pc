@@ -5,7 +5,7 @@
 Description: display non-printable characters in a visual format
 License: BSD-3-Clause
 Name: unvis
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/unvis
 URL: https://man.freebsd.org/cgi/man.cgi?query=unvis(1)
 Version: ${FREEBSD_RELEASE}

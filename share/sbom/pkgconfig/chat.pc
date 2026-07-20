@@ -5,7 +5,7 @@
 Description: Automated conversational script with a modem
 License: LicenseRef-scancode-public-domain-disclaimer
 Name: chat
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/chat${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=chat(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

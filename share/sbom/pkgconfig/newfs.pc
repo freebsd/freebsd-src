@@ -6,7 +6,7 @@ Copyright: 1980, 1989, 1993 The Regents of the University of California, 1983, 1
 Description: Construct a new UFS1/UFS2 file system
 License: BSD-3-Clause
 Name: newfs
-Requires: csu, libc, libcompiler_rt, libufs, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/newfs${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=newfs(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

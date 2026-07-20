@@ -5,6 +5,6 @@
 Description: Device statistics utility library
 License: BSD-3-Clause
 Name: libdevstat
-Requires: csu, libc, libcompiler_rt, libkvm
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/libdevstat${FREEBSD_GIT_QUERY}
 Version: ${FREEBSD_RELEASE}

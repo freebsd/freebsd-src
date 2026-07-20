@@ -6,7 +6,7 @@ Copyright: 1980, 1993 The Regents of the University of California
 Description: Expand tabs to spaces, and vice versa
 License: BSD-3-Clause
 Name: unexpand
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/unexpand${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=unexpand(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

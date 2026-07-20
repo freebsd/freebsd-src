@@ -6,7 +6,7 @@ Copyright: 1989, 1993 The Regents of the University of California, Copyright 201
 Description: Formatted output
 License: BSD-3-Clause
 Name: printf
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/printf${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=printf(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

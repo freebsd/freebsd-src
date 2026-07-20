@@ -10,11 +10,12 @@
 
 .if	${MK_SBOM} != "no"
 
-BOMTOOL?=	bomtool --define-variable=FREEBSD_VERSION=${OS_REVISION}
+BOMTOOL?=	bomtool
 JSONLDDIR?=	/usr/share/sbom/spdx-3.0.1
 SBOMDIR?=	${SRCTOP}/share/sbom/pkgconfig
 SPDXDIR?=	/usr/share/sbom/spdx-2.2
-SPDXTOOL?=	spdxtool --define-variable=FREEBSD_VERSION=${OS_REVISION}
+SPDXTOOL?=	spdxtool
+TOOLARGS=	--define-variable=FREEBSD_VERSION=${OS_REVISION}
 
 . if defined(LIB)
 SBOMNAME?=	lib${LIB}
@@ -34,11 +35,18 @@ SBOM_TAG_ARGS=	-T ${SBOMTAGS:ts,:[*]}
 
 . if !empty(SBOMFILE) && exists(${SBOMDIR}/${SBOMFILE})
 
+_SBOMREQUIRES=
+.  for l in ${LIBADD}
+_SBOMREQUIRES+=	lib${l}
+.  endfor
+SBOMREQUIRES=	${_SBOMREQUIRES:S/ /,/gW}
+TOOLARGS+=	--define-variable=SBOM_REQUIRES=${SBOMREQUIRES:Q}
+
 .  if !defined(NO_JSONLD_SBOM)
 all: ${SBOMNAME}.jsonld
 
 ${SBOMNAME}.jsonld: ${SBOMDIR}/${SBOMFILE}
-	${SPDXTOOL} ${SBOMDIR}/${SBOMFILE} > ${.TARGET}
+	${SPDXTOOL} ${TOOLARGS} ${SBOMDIR}/${SBOMFILE} > ${.TARGET}
 
 jsonldinstall: .PHONY ${SBOMNAME}.jsonld
 	${INSTALL} ${SBOM_TAG_ARGS} -m 0644 ${SBOMNAME}.jsonld \
@@ -52,7 +60,7 @@ realinstall: jsonldinstall
 all: ${SBOMNAME}.spdx
 
 ${SBOMNAME}.spdx: ${SBOMDIR}/${SBOMFILE}
-	${BOMTOOL} ${SBOMDIR}/${SBOMFILE} > ${.TARGET}
+	${BOMTOOL} ${TOOLARGS} ${SBOMDIR}/${SBOMFILE} > ${.TARGET}
 
 spdxinstall: .PHONY ${SBOMNAME}.spdx
 	${INSTALL} ${SBOM_TAG_ARGS} -m 0644 ${SBOMNAME}.spdx \

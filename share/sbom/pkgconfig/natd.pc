@@ -5,7 +5,7 @@
 Description: Network Address Translation daemon
 License: LicenseRef-scancode-other-permissive
 Name: natd
-Requires: csu, libalias, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/natd${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=natd(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

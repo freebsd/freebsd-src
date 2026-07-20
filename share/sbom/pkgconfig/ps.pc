@@ -6,7 +6,7 @@ Copyright: 1990, 1993 The Regents of the University of California, 1990, 1993, 1
 Description: Process status
 License: BSD-3-Clause
 Name: ps
-Requires: csu, libc, libcompiler_rt, libjail, libkvm, libxo, msun
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/bin/ps${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ps(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

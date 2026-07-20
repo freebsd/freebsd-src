@@ -6,7 +6,7 @@ Copyright: 1984 through 1996, William LeFebvre, 1984, 1989, William LeFebvre, Ri
 Description: Display and update information about the top cpu processes
 License: NOASSERTION
 Name: top
-Requires: csu, libc, libcompiler_rt, libjail, libkvm, libsbuf, libutil, msun, libtinfo
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/top${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=top(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

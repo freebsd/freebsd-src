@@ -6,7 +6,7 @@ Copyright: 2006 Mathew Jacob <mjacob@FreeBSD.org>
 Description: Disk multipath control utility
 License: BSD-2-Clause
 Name: gmultipath
-Requires: csu, libc, libcompiler_rt, libgeom
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/geom/multipath${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=gmultipath(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

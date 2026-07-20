@@ -5,6 +5,6 @@
 Description: Port/Package build and test system
 License: BSD-3-Clause
 Name: kyua
-Requires: libcxxrt, lua, sqlite3
+Requires: ${SBOM_REQUIRES}
 URL: https://github.com/FreeBSD/kyua
 Version: 0.13

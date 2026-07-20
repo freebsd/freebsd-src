@@ -6,7 +6,7 @@ Copyright: 1990-2, RSA Data Security, Inc.
 Description: Calculate a message- digest fingerprint (checksum) for a file
 License: LicenseRef-scancode-rsa-1990
 Name: skein1024sum
-Requires: csu, libc, libcapsicum, libcasper, libcasper.services.cap_fileargs, libcompiler_rt, libmd
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/md5${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=skein1024sum(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

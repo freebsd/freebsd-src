@@ -5,7 +5,7 @@
 Description: ELF linker from the LLVM project
 License: Apache-2.0
 Name: ld
-Requires: csu, libllvm, libc, libc++, libcompiler_rt, libcxxrt, libthr, libz, msun, libncursesw
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/contrib/llvm-project/clang
 URL: https://llvm.org
 Version: 19.x-llvmorg-19.1.4-0-gaadaa00de76e

@@ -5,7 +5,7 @@
 Description: Side-by-side diff
 License: LicenseRef-scancode-public-domain
 Name: sdiff
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/sdiff${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=sdiff(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

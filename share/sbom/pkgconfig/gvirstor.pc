@@ -6,7 +6,7 @@ Copyright: 2005 Ivan Voras <ivoras@freebsd.org>
 Description: Control utility for virtual data storage devices
 License: BSD-2-Clause
 Name: gvirstor
-Requires: csu, libc, libcompiler_rt, libgeom
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/geom/virstor${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=gvirstor(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

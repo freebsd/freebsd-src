@@ -6,7 +6,7 @@ Copyright: 1988, 1989 by Adam de Boor, 1988, 1989, 1990 The Regents of the Unive
 Description: Print a dependency ordering of interdependent files
 License: BSD-4-Clause AND BSD-2-Clause
 Name: rcorder
-Requires: csu, libc, libcompiler_rt, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/rcorder${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=rcorder(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

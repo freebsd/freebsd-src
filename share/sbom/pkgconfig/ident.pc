@@ -6,7 +6,7 @@ Copyright: 2015 Xin LI <delphij@FreeBSD.org>, 2015-2021 Baptiste Daroussin <bapt
 Description: Identify RCS keyword string in files
 License: LicenseRef-scancode-bsd-unchanged
 Name: ident
-Requires: csu, libc, libcapsicum, libcasper, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/ident${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=ident(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

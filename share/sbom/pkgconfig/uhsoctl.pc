@@ -6,7 +6,7 @@ Copyright: 2008-2009 Fredrik Lindberg
 Description: Connection utility for Option based devices
 License: BSD-2-Clause
 Name: uhsoctl
-Requires: csu, libc, libcompiler_rt, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/uhsoctl${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=uhsoctl(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

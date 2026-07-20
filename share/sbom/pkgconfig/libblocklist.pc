@@ -5,6 +5,6 @@
 Description: Blocklistd notification library
 License: BSD-2-Clause
 Name: libblocklist
-Requires: csu, libc, libcompiler_rt, libthr
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/libblocklist${FREEBSD_GIT_QUERY}
 Version: ${FREEBSD_RELEASE}

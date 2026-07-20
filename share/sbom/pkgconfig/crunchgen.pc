@@ -6,7 +6,7 @@ Copyright: 1994 University of Maryland, Copyright 2020 Alex Richardson <arichard
 Description: Generates build environment for a crunched binary
 License: BSD-2-Clause AND HPND-sell-variant
 Name: crunchgen
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/crunch/crunchgen${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=crunchgen(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

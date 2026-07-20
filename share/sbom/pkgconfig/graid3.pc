@@ -6,7 +6,7 @@ Copyright: 2004-2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 Description: Control utility for RAID3 devices
 License: BSD-2-Clause
 Name: graid3
-Requires: csu, libc, libcompiler_rt, libgeom, libmd
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/geom/raid3${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=graid3(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

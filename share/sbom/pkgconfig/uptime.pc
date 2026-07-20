@@ -6,7 +6,7 @@ Copyright: 1980, 1991, 1993, 1994 The Regents of the University of California, 1
 Description: Show how long system has been running
 License: BSD-3-Clause
 Name: uptime
-Requires: csu, libc, libcompiler_rt, libkvm, libsbuf, libutil, libxo
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/w${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=uptime(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

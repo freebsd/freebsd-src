@@ -6,7 +6,7 @@ Copyright: 2000 Paul Saab <ps@FreeBSD.org>, 2000 Peter Wemm <peter@FreeBSD.org>
 Description: Kill processes by name
 License: BSD-2-Clause
 Name: killall
-Requires: csu, libc, libcompiler_rt, libjail
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/killall${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=killall(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

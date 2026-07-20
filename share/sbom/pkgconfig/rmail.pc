@@ -5,7 +5,7 @@
 Description: Postfix to Sendmail compatibility interface
 License: Sendmail
 Name: rmail
-Requires: openssl
+Requires: ${SBOM_REQUIRES}
 Source: https://ftp.sendmail.org/sendmail.8.18.1.tar.gz
 URL: https://ftp.sendmail.org
 Version: 8.18.1

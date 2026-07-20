@@ -6,7 +6,7 @@ Copyright: 2001 Daniel Hartmeier, 2002 Cedric Berger, 2002 Sony Computer Science
 Description: Control the packet filter (PF) device
 License: BSD-2-Clause
 Name: pfctl
-Requires: csu, libc, libcompiler_rt, libmd, libnv, libpfctl, msun
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/sbin/pfctl${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=pfctl(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

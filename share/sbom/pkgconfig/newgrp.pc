@@ -6,7 +6,7 @@ Copyright: 2002 Tim J. Robbins
 Description: Change to a new group
 License: BSD-2-Clause
 Name: newgrp
-Requires: csu, libc, libcompiler_rt, libcrypt, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/newgrp${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=newgrp(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

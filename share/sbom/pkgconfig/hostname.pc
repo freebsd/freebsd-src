@@ -6,7 +6,7 @@ Copyright: 1988, 1993 The Regents of the University of California
 Description: Set or print the name of current host system
 License: BSD-3-Clause
 Name: hostname
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/bin/hostname${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=hostname(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

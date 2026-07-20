@@ -6,7 +6,7 @@ Copyright: 1999 Berkeley Software Design, Inc.
 Description: Run detached from the controlling terminal
 License: BSD-3-Clause AND BSD-2-Clause
 Name: daemon
-Requires: csu, libc, libcompiler_rt, libutil
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.sbin/daemon${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=daemon(8)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

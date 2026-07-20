@@ -6,7 +6,7 @@ Copyright: 1997 Gareth McCaughan
 Description: Simple text formatter
 License: LicenseRef-scancode-other-permissive
 Name: fmt
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/fmt${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=fmt(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

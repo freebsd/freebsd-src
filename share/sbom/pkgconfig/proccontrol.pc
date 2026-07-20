@@ -6,7 +6,7 @@ Copyright: 2016 The FreeBSD Foundation
 Description: Control some process execution aspects
 License: BSD-2-Clause
 Name: proccontrol
-Requires: csu, libc, libcompiler_rt
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/usr.bin/proccontrol${FREEBSD_GIT_QUERY}
 URL: https://man.freebsd.org/cgi/man.cgi?query=proccontrol(1)${FREEBSD_MAN_QUERY}
 Version: ${FREEBSD_RELEASE}

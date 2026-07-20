@@ -5,6 +5,6 @@
 Description: Library for configure network interface parameters
 License: BSD-3-Clause AND BSD-2-Clause
 Name: libifconfig
-Requires: msun
+Requires: ${SBOM_REQUIRES}
 Source: https://cgit.freebsd.org/src/tree/lib/libifconfig${FREEBSD_GIT_QUERY}
 Version: ${FREEBSD_RELEASE}
