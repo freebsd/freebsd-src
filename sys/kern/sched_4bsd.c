@@ -110,7 +110,7 @@ struct td_sched {
 #define	TSF_AFFINITY	0x0001		/* Has a non-"full" CPU set. */
 
 #define SKE_RUNQ_PCPU(ts)						\
-    ((ts)->ts_runq != 0 && (ts)->ts_runq != &runq)
+    ((ts)->ts_runq != 0 && (ts)->ts_runq != &runq_global)
 
 #define	THREAD_CAN_SCHED(td, cpu)	\
     CPU_ISSET((cpu), &(td)->td_cpuset->cs_mask)
@@ -154,7 +154,7 @@ sched_4bsd_schedcpu(void)
 /*
  * Global run queue.
  */
-static struct runq runq;
+static struct runq runq_global;
 
 #ifdef SMP
 /*
@@ -182,7 +182,7 @@ setup_runqs(void)
 		runq_init(&runq_pcpu[i]);
 #endif
 
-	runq_init(&runq);
+	runq_init(&runq_global);
 }
 
 static int
@@ -682,10 +682,10 @@ static bool
 sched_4bsd_runnable(void)
 {
 #ifdef SMP
-	return (runq_not_empty(&runq) ||
+	return (runq_not_empty(&runq_global) ||
 	    runq_not_empty(&runq_pcpu[PCPU_GET(cpuid)]));
 #else
-	return (runq_not_empty(&runq));
+	return (runq_not_empty(&runq_global));
 #endif
 }
 
@@ -1371,7 +1371,7 @@ sched_4bsd_add(struct thread *td, int flags)
 		    "sched_add: adding td_sched:%p (td:%p) to gbl runq", ts,
 		    td);
 		cpu = NOCPU;
-		ts->ts_runq = &runq;
+		ts->ts_runq = &runq_global;
 	}
 
 	if ((td->td_flags & TDF_NOLOAD) == 0)
@@ -1435,7 +1435,7 @@ sched_4bsd_add(struct thread *td, int flags)
 	}
 	TD_SET_RUNQ(td);
 	CTR2(KTR_RUNQ, "sched_add: adding td_sched:%p (td:%p) to runq", ts, td);
-	ts->ts_runq = &runq;
+	ts->ts_runq = &runq_global;
 
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_add();
@@ -1466,7 +1466,7 @@ sched_4bsd_rem(struct thread *td)
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		sched_load_rem();
 #ifdef SMP
-	if (ts->ts_runq != &runq)
+	if (ts->ts_runq != &runq_global)
 		runq_length[ts->ts_runq - runq_pcpu]--;
 #endif
 	runq_remove(ts->ts_runq, td);
@@ -1481,14 +1481,14 @@ static struct thread *
 sched_4bsd_choose(void)
 {
 	struct thread *td;
-	struct runq *rq;
+	struct runq *runq;
 
 	mtx_assert(&sched_lock,  MA_OWNED);
 #ifdef SMP
 	struct thread *tdcpu;
 
-	rq = &runq;
-	td = runq_choose_fuzz(&runq, runq_fuzz);
+	runq = &runq_global;
+	td = runq_choose_fuzz(&runq_global, runq_fuzz);
 	tdcpu = runq_choose(&runq_pcpu[PCPU_GET(cpuid)]);
 
 	if (td == NULL ||
@@ -1497,14 +1497,14 @@ sched_4bsd_choose(void)
 		CTR2(KTR_RUNQ, "choosing td %p from pcpu runq %d", tdcpu,
 		     PCPU_GET(cpuid));
 		td = tdcpu;
-		rq = &runq_pcpu[PCPU_GET(cpuid)];
+		runq = &runq_pcpu[PCPU_GET(cpuid)];
 	} else {
 		CTR1(KTR_RUNQ, "choosing td_sched %p from main runq", td);
 	}
 
 #else
-	rq = &runq;
-	td = runq_choose(&runq);
+	runq = &runq_global;
+	td = runq_choose(&runq_global);
 #endif
 
 	if (td) {
@@ -1512,7 +1512,7 @@ sched_4bsd_choose(void)
 		if (td == tdcpu)
 			runq_length[PCPU_GET(cpuid)]--;
 #endif
-		runq_remove(rq, td);
+		runq_remove(runq, td);
 		td->td_flags |= TDF_DIDRUN;
 
 		KASSERT(td->td_flags & TDF_INMEM,
@@ -1794,7 +1794,7 @@ sched_4bsd_affinity(struct thread *td)
 		 * If we are on a per-CPU runqueue that is in the set,
 		 * then nothing needs to be done.
 		 */
-		if (ts->ts_runq != &runq &&
+		if (ts->ts_runq != &runq_global &&
 		    THREAD_CAN_SCHED(td, ts->ts_runq - runq_pcpu))
 			return;
 
