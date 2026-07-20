@@ -2491,9 +2491,10 @@ fw_bmr(struct firewire_comm *fc)
 			cmstr = fc->max_node;
 		else {
 			device_printf(fc->bdev,
-			    "root node is not cycle master capable\n");
-			/* TODO: issue PHY config to force root change + bus reset */
-			cmstr = fc->nodeid;
+			    "root node is not cycle master capable, "
+			    "forcing root to node %d\n", fc->nodeid);
+			fw_phy_config(fc, fc->nodeid, -1);
+			return 0;
 		}
 	} else
 		cmstr = -1;
