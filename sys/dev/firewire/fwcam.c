@@ -98,6 +98,11 @@ fwcam_search_dir_cmd_base(uint32_t *csrrom, uint32_t dir_qoff,
 	dir_len = dir->crc_len;
 	if (dir_qoff + 1 + dir_len > rom_quads)
 		return (0);
+	if (!crom_crc_valid((uint32_t *)&dir->entry[0], dir_len, dir->crc)) {
+		if (firewire_debug)
+			printf("fwcam: bad CRC in directory at 0x%x\n",
+			    dir_qoff);
+	}
 
 	for (i = 0; i < (int)dir_len; i++) {
 		if (dir_qoff + 1 + i >= rom_quads)

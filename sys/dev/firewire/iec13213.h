@@ -215,6 +215,7 @@ struct csrreg *crom_get(struct crom_context *);
 void crom_next(struct crom_context *);
 void crom_parse_text(struct crom_context *, char *, int);
 uint16_t crom_crc(uint32_t *r, int);
+int crom_crc_valid(uint32_t *data, int len, uint16_t expected);
 struct csrreg *crom_search_key(struct crom_context *, uint8_t);
 int crom_has_specver(uint32_t *, uint32_t, uint32_t);
 

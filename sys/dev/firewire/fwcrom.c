@@ -237,6 +237,13 @@ crom_crc(uint32_t *ptr, int len)
 	return ((uint16_t) crc);
 }
 
+int
+crom_crc_valid(uint32_t *data, int len, uint16_t expected)
+{
+
+	return (crom_crc(data, len) == expected);
+}
+
 #if !defined(_KERNEL) && !defined(_BOOT)
 static void
 crom_desc_specver(uint32_t spec, uint32_t ver, char *buf, int len)

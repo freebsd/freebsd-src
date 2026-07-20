@@ -123,6 +123,11 @@ fwisound_find_audio_base(struct fw_unit *unit)
 	udir_len = udir->crc_len;
 	if (udir_qoff + 1 + udir_len > rom_quads)
 		return (0);
+	if (!crom_crc_valid((uint32_t *)&udir->entry[0], udir_len, udir->crc)) {
+		if (firewire_debug)
+			printf("fwisound: bad CRC in unit directory at 0x%x\n",
+			    udir_qoff);
+	}
 
 	for (i = 0; i < (int)udir_len; i++) {
 		if (udir_qoff + 1 + i >= rom_quads)

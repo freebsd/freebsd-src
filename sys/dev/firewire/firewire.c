@@ -1519,7 +1519,11 @@ fw_explore_csrblock(struct fw_device *fwdev, int offset, int recur)
 	if (err)
 		return (-1);
 
-	/* TODO: validate directory CRC */
+	if (!crom_crc_valid((uint32_t *)reg, dir->crc_len, dir->crc)) {
+		if (firewire_debug)
+			printf("%s: bad CRC in directory at 0x%x\n",
+			    __func__, offset - (int)sizeof(uint32_t));
+	}
 
 	off = CSRROMOFF + offset + sizeof(uint32_t) * (dir->crc_len - 1);
 	if (fwdev->rommax < off)
@@ -1586,6 +1590,7 @@ fw_explore_node(struct fw_device *dfwdev)
 		return (-1);
 	}
 	binfo = (struct bus_info *)&csr[1];
+	/* Root header CRC spans entire ROM; validated per-directory below. */
 	if (binfo->bus_name != CSR_BUS_NAME_IEEE1394) {
 		dfwdev->status = FWDEVINVAL;
 		return (-1);
@@ -1828,6 +1833,10 @@ fw_parse_units(struct fw_device *fwdev)
 	root_len = rootdir->crc_len;
 	if (root_off + 1 + root_len > rom_quads)
 		return;
+	if (!crom_crc_valid((uint32_t *)&rootdir->entry[0], root_len,
+	    rootdir->crc) && firewire_debug)
+		device_printf(fwdev->fc->bdev,
+		    "fw_parse_units: bad root directory CRC\n");
 
 	uindex = 0;
 	for (ri = 0; ri < (int)root_len; ri++) {
@@ -1844,6 +1853,10 @@ fw_parse_units(struct fw_device *fwdev)
 		udir_len = udir->crc_len;
 		if (udir_qoff + 1 + udir_len > rom_quads)
 			continue;
+		if (!crom_crc_valid((uint32_t *)&udir->entry[0], udir_len,
+		    udir->crc) && firewire_debug)
+			printf("fw_parse_units: bad CRC in unit dir at 0x%x\n",
+			    udir_qoff);
 
 		spec_id = 0;
 		sw_version = 0;
