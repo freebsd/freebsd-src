@@ -206,9 +206,7 @@ fwohci_pci_init(device_t self)
 
 	cmd = pci_read_config(self, PCIR_COMMAND, 2);
 	cmd |= PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;
-#if 1  /* for broken hardware */
-	cmd &= ~PCIM_CMD_MWRICEN;
-#endif
+	cmd &= ~PCIM_CMD_MWRICEN;	/* for broken hardware */
 	pci_write_config(self, PCIR_COMMAND, cmd, 2);
 
 	latency = olatency = pci_read_config(self, PCIR_LATTIMER, 1);
@@ -241,11 +239,6 @@ fwohci_pci_attach(device_t self)
 	fwohci_softc_t *sc = device_get_softc(self);
 	int err;
 	int rid;
-
-#if 0
-	if (bootverbose)
-		firewire_debug = bootverbose;
-#endif
 
 	mtx_init(FW_GMTX(&sc->fc), "firewire", NULL, MTX_DEF);
 	fwohci_pci_init(self);

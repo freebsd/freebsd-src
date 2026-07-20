@@ -153,9 +153,6 @@ struct sbp_ocb {
 struct sbp_dev {
 #define SBP_DEV_RESET		0	/* accept login */
 #define SBP_DEV_LOGIN		1	/* to login */
-#if 0
-#define SBP_DEV_RECONN		2	/* to reconnect */
-#endif
 #define SBP_DEV_TOATTACH	3	/* to attach */
 #define SBP_DEV_PROBE		4	/* scan lun */
 #define SBP_DEV_ATTACHED	5	/* in operation */
@@ -223,9 +220,6 @@ struct sbp_softc {
 static void sbp_post_explore (void *);
 static void sbp_recv (struct fw_xfer *);
 static void sbp_mgm_callback (struct fw_xfer *);
-#if 0
-static void sbp_cmd_callback (struct fw_xfer *);
-#endif
 static void sbp_orb_pointer (struct sbp_dev *, struct sbp_ocb *);
 static void sbp_doorbell(struct sbp_dev *);
 static void sbp_execute_ocb (void *, bus_dma_segment_t *, int, int);
@@ -323,11 +317,6 @@ END_DEBUG
 
 	device_set_desc(dev, "SBP-2/SCSI over FireWire");
 
-#if 0
-	if (bootverbose)
-		debug = bootverbose;
-#endif
-
 	return (0);
 }
 
@@ -368,11 +357,6 @@ static struct {
 	struct fw_eui64 eui;
 } wired[] = {
 	/* Bus	Target	EUI64 */
-#if 0
-	{0,	2,	{0x00018ea0, 0x01fd0154}},	/* Logitec HDD */
-	{0,	0,	{0x00018ea6, 0x00100682}},	/* Logitec DVD */
-	{0,	1,	{0x00d03200, 0xa412006a}},	/* Yano HDD */
-#endif
 	{-1,	-1,	{0,0}}
 };
 
@@ -1566,25 +1550,15 @@ END_DEBUG
 	inq = (struct scsi_inquiry_data *) ccb->csio.data_ptr;
 	switch (SID_TYPE(inq)) {
 	case T_DIRECT:
-#if 0
-		/*
-		 * XXX Convert Direct Access device to RBC.
-		 * I've never seen FireWire DA devices which support READ_6.
-		 */
-		if (SID_TYPE(inq) == T_DIRECT)
-			inq->device |= T_RBC; /*  T_DIRECT == 0 */
-#endif
 		/* fall through */
 	case T_RBC:
 		/*
 		 * Override vendor/product/revision information.
 		 * Some devices sometimes return strange strings.
 		 */
-#if 1
 		bcopy(sdev->vendor, inq->vendor, sizeof(inq->vendor));
 		bcopy(sdev->product, inq->product, sizeof(inq->product));
 		bcopy(sdev->revision + 2, inq->revision, sizeof(inq->revision));
-#endif
 		break;
 	}
 	/*
@@ -2220,11 +2194,6 @@ sbp_mgm_timeout(void *arg)
 		__func__, sdev->bustgtlun, (uint32_t)ocb->bus_addr);
 	target->mgm_ocb_cur = NULL;
 	sbp_free_ocb(sdev, ocb);
-#if 0
-	/* XXX */
-	printf("run next request\n");
-	sbp_mgm_orb(sdev, ORB_FUN_RUNQUEUE, NULL);
-#endif
 	device_printf(sdev->target->sbp->fd.dev,
 		"%s:%s reset start\n",
 		__func__, sdev->bustgtlun);
@@ -2255,16 +2224,6 @@ sbp_timeout(void *arg)
 	case 3:
 		sbp_target_reset(sdev, sdev->timeout - 1);
 		break;
-#if 0
-	default:
-		/* XXX give up */
-		sbp_cam_detach_target(target);
-		if (target->luns != NULL)
-			free(target->luns, M_SBP);
-		target->num_lun = 0;
-		target->luns = NULL;
-		target->fwdev = NULL;
-#endif
 	}
 }
 
@@ -2388,19 +2347,6 @@ END_DEBUG
 			xpt_done(ccb);
 			return;
 		}
-#if 0
-		/* if we are in probe stage, pass only probe commands */
-		if (sdev->status == SBP_DEV_PROBE) {
-			char *name;
-			name = xpt_path_periph(ccb->ccb_h.path)->periph_name;
-			printf("probe stage, periph name: %s\n", name);
-			if (strcmp(name, "probe") != 0) {
-				ccb->ccb_h.status = CAM_REQUEUE_REQ;
-				xpt_done(ccb);
-				return;
-			}
-		}
-#endif
 		if ((ocb = sbp_get_ocb(sdev)) == NULL) {
 			ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 			if (sdev->freeze == 0) {

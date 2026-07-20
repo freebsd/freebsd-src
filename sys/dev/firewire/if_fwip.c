@@ -341,10 +341,6 @@ fwip_init(void *arg)
 	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
-#if 0
-	/* attempt to start output */
-	fwip_start(ifp);
-#endif
 }
 
 static int
@@ -488,9 +484,6 @@ fwip_async_output(struct fwip_softc *fwip, if_t ifp)
 		xfer = STAILQ_FIRST(&fwip->xferlist);
 		if (xfer == NULL) {
 			FWIP_UNLOCK(fwip);
-#if 0
-			printf("if_fwip: lack of xfer\n");
-#endif
 			break;
 		}
 		STAILQ_REMOVE_HEAD(&fwip->xferlist, link);
@@ -633,10 +626,6 @@ fwip_async_output(struct fwip_softc *fwip, if_t ifp)
 			i++;
 		}
 	}
-#if 0
-	if (i > 1)
-		printf("%d queued\n", i);
-#endif
 	if (i > 0)
 		xferq->start(fc);
 }

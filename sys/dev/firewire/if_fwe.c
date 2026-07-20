@@ -319,10 +319,6 @@ fwe_init(void *arg)
 	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
 	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 
-#if 0
-	/* attempt to start output */
-	fwe_start(ifp);
-#endif
 }
 
 
@@ -442,9 +438,6 @@ fwe_as_output(struct fwe_softc *fwe, if_t ifp)
 		FWE_LOCK(fwe);
 		xfer = STAILQ_FIRST(&fwe->xferlist);
 		if (xfer == NULL) {
-#if 0
-			printf("if_fwe: lack of xfer\n");
-#endif
 			FWE_UNLOCK(fwe);
 			break;
 		}
@@ -478,10 +471,6 @@ fwe_as_output(struct fwe_softc *fwe, if_t ifp)
 			i++;
 		}
 	}
-#if 0
-	if (i > 1)
-		printf("%d queued\n", i);
-#endif
 	if (i > 0)
 		xferq->start(fwe->fd.fc);
 }
@@ -496,9 +485,6 @@ fwe_as_input(struct fw_xferq *xferq)
 	struct fw_bulkxfer *sxfer;
 	struct fw_pkt *fp;
 	struct epoch_tracker et;
-#if 0
-	u_char *c;
-#endif
 
 	fwe = (struct fwe_softc *)xferq->sc;
 	ifp = fwe->eth_softc.ifp;
@@ -527,26 +513,8 @@ fwe_as_input(struct fw_xferq *xferq)
 		}
 
 		m->m_data += HDR_LEN + ETHER_ALIGN;
-#if 0
-		c = mtod(m, u_char *);
-#endif
 		m->m_len = m->m_pkthdr.len = fp->mode.stream.len - ETHER_ALIGN;
 		m->m_pkthdr.rcvif = ifp;
-#if 0
-		FWEDEBUG(ifp, "%02x %02x %02x %02x %02x %02x\n"
-			 "%02x %02x %02x %02x %02x %02x\n"
-			 "%02x %02x %02x %02x\n"
-			 "%02x %02x %02x %02x\n"
-			 "%02x %02x %02x %02x\n"
-			 "%02x %02x %02x %02x\n",
-			 c[0], c[1], c[2], c[3], c[4], c[5],
-			 c[6], c[7], c[8], c[9], c[10], c[11],
-			 c[12], c[13], c[14], c[15],
-			 c[16], c[17], c[18], c[19],
-			 c[20], c[21], c[22], c[23],
-			 c[20], c[21], c[22], c[23]
-		);
-#endif
 		NET_EPOCH_ENTER(et);
 		if_input(ifp, m);
 		NET_EPOCH_EXIT(et);

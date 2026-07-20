@@ -309,12 +309,7 @@ crom_desc(struct crom_context *cc, char *buf, int len)
 	reg = crom_get(cc);
 	switch (reg->key & CSRTYPE_MASK) {
 	case CSRTYPE_I:
-#if 0
-		len -= snprintf(buf, len, "%d", reg->val);
-		buf += strlen(buf);
-#else
 		*buf = '\0';
-#endif
 		break;
 	case CSRTYPE_C:
 		len -= snprintf(buf, len, "offset=0x%04x(%d)",

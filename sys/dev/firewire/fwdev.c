@@ -284,10 +284,6 @@ fw_read_async(struct fw_drv1 *d, struct uio *uio, int ioflag)
 	STAILQ_REMOVE_HEAD(&d->rq, link);
 	FW_GUNLOCK(xfer->fc);
 	fp = &xfer->recv.hdr;
-#if 0 /* for GASP ?? */
-	if (fc->irx_post != NULL)
-		fc->irx_post(fc, fp->mode.ld);
-#endif
 	tinfo = &xfer->fc->tcode[fp->mode.hdr.tcode];
 	err = uiomove(fp, tinfo->hdr_len, uio);
 	if (err)
@@ -469,11 +465,6 @@ isoloop:
 			it->queued = 0;
 		} else if (slept == 0) {
 			slept = 1;
-#if 0	/* XXX to avoid lock recursion */
-			err = fc->itx_enable(fc, it->dmach);
-			if (err)
-				goto out;
-#endif
 			err = msleep(it, FW_GMTX(fc), FWPRI, "fw_write", hz);
 			if (err)
 				goto out;

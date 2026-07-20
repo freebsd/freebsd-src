@@ -306,9 +306,6 @@ fw_asystart(struct fw_xfer *xfer)
 	FW_GLOCK(fc);
 	xfer->flag = FWXF_INQ;
 	STAILQ_INSERT_TAIL(&xfer->q->q, xfer, link);
-#if 0
-	xfer->q->queued++;
-#endif
 	FW_GUNLOCK(fc);
 	/* Kick DMA for non-mbuf xfers */
 	if (xfer->mbuf == NULL)
@@ -588,9 +585,6 @@ fw_xferq_drain(struct fw_xferq *xferq)
 
 	while ((xfer = STAILQ_FIRST(&xferq->q)) != NULL) {
 		STAILQ_REMOVE_HEAD(&xferq->q, link);
-#if 0
-		xferq->queued--;
-#endif
 		xfer->resp = EAGAIN;
 		xfer->flag = FWXF_SENTERR;
 		fw_xfer_done(xfer);
@@ -880,21 +874,6 @@ void fw_init(struct firewire_comm *fc)
 		STAILQ_INIT(&fc->tlabels[i]);
 	}
 
-/* DV depend CSRs see blue book */
-#if 0
-	CSRARC(fc, oMPR) = 0x3fff0001; /* # output channel = 1 */
-	CSRARC(fc, oPCR) = 0x8000007a;
-	for (i = 4; i < 0x7c/4; i += 4) {
-		CSRARC(fc, i + oPCR) = 0x8000007a;
-	}
-
-	CSRARC(fc, iMPR) = 0x00ff0001; /* # input channel = 1 */
-	CSRARC(fc, iPCR) = 0x803f0000;
-	for (i = 4; i < 0x7c/4; i += 4) {
-		CSRARC(fc, i + iPCR) = 0x0;
-	}
-#endif
-
 	fc->crom_src_buf = NULL;
 
 #ifdef FW_VMACCESS
@@ -980,9 +959,6 @@ fw_bindadd(struct firewire_comm *fc, struct fw_bind *fwb)
 int
 fw_bindremove(struct firewire_comm *fc, struct fw_bind *fwb)
 {
-#if 0
-	struct fw_xfer *xfer, *next;
-#endif
 	struct fw_bind *tfw;
 
 	FW_GLOCK(fc);
@@ -996,14 +972,6 @@ fw_bindremove(struct firewire_comm *fc, struct fw_bind *fwb)
 	FW_GUNLOCK(fc);
 	return (1);
 found:
-#if 0
-	/* shall we do this? */
-	for (xfer = STAILQ_FIRST(&fwb->xferlist); xfer != NULL; xfer = next) {
-		next = STAILQ_NEXT(xfer, link);
-		fw_xfer_free(xfer);
-	}
-	STAILQ_INIT(&fwb->xferlist);
-#endif
 	FW_GUNLOCK(fc);
 
 	return 0;
@@ -1210,9 +1178,6 @@ fw_xfer_unload(struct fw_xfer *xfer)
 		if (xfer->flag & FWXF_INQ) {
 			STAILQ_REMOVE(&xfer->q->q, xfer, fw_xfer, link);
 			xfer->flag &= ~FWXF_INQ;
-	#if 0
-			xfer->q->queued--;
-	#endif
 		}
 		FW_GUNLOCK(xfer->fc);
 
@@ -1221,15 +1186,8 @@ fw_xfer_unload(struct fw_xfer *xfer)
 		 * xfer after it's freed.
 		 */
 		fw_tl_free(xfer->fc, xfer);
-#if 1
-		if (xfer->flag & FWXF_START)
-			/*
-			 * This could happen if:
-			 *  1. We call fwohci_arcv() before fwohci_txd().
-			 *  2. firewire_watch() is called.
-			 */
+		if (firewire_debug && (xfer->flag & FWXF_START))
 			printf("fw_xfer_free FWXF_START\n");
-#endif
 	}
 	xfer->flag = FWXF_INIT;
 	xfer->resp = 0;
@@ -1267,10 +1225,6 @@ fw_xfer_free(struct fw_xfer *xfer)
 void
 fw_asy_callback_free(struct fw_xfer *xfer)
 {
-#if 0
-	printf("asyreq done flag=0x%02x resp=%d\n",
-				xfer->flag, xfer->resp);
-#endif
 	fw_xfer_free(xfer);
 }
 
@@ -2110,20 +2064,7 @@ fw_rcv(struct fw_rcv_buf *rb)
 	struct fw_bind *bind;
 	int tcode;
 	int oldstate;
-#if 0
-	int i, len;
-	{
-		uint32_t *qld;
-		int i;
-		qld = (uint32_t *)buf;
-		printf("spd %d len:%d\n", spd, len);
-		for (i = 0; i <= len && i < 32; i+= 4) {
-			printf("0x%08x ", ntohl(qld[i/4]));
-			if ((i % 16) == 15) printf("\n");
-		}
-		if ((i % 16) != 15) printf("\n");
-	}
-#endif
+
 	fp = (struct fw_pkt *)rb->vec[0].iov_base;
 	tcode = fp->mode.common.tcode;
 	switch (tcode) {
@@ -2142,17 +2083,7 @@ fw_rcv(struct fw_rcv_buf *rb)
 			    fp->mode.hdr.tlrt >> 2,
 			    fp->mode.hdr.tlrt & 3,
 			    fp->mode.rresq.data);
-#if 0
-			printf("try ad-hoc work around!!\n");
-			rb->xfer = fw_tl2xfer(rb->fc, fp->mode.hdr.src,
-			    (fp->mode.hdr.tlrt >> 2)^3);
-			if (rb->xfer == NULL) {
-				printf("no use...\n");
-				return;
-			}
-#else
 			return;
-#endif
 		}
 		fw_rcv_copy(rb);
 		if (rb->xfer->recv.hdr.mode.wres.rtcode != RESP_CMP)
@@ -2167,10 +2098,6 @@ fw_rcv(struct fw_rcv_buf *rb)
 			fw_xfer_done(rb->xfer);
 			break;
 		case FWXF_START:
-#if 0
-			if (firewire_debug)
-				printf("not sent yet tl=%x\n", rb->xfer->tl);
-#endif
 			break;
 		default:
 			device_printf(rb->fc->bdev, "%s: "
@@ -2230,19 +2157,11 @@ fw_rcv(struct fw_rcv_buf *rb)
 			resfp->mode.rresb.rtcode = RESP_ADDRESS_ERROR;
 			resfp->mode.rresb.extcode = 0;
 			resfp->mode.rresb.len = 0;
-/*
-			rb->xfer->hand = fw_xferwake;
-*/
 			rb->xfer->hand = fw_xfer_free;
 			if (fw_asyreq(rb->fc, -1, rb->xfer))
 				fw_xfer_free(rb->xfer);
 			return;
 		}
-#if 0
-		len = 0;
-		for (i = 0; i < rb->nvec; i++)
-			len += rb->vec[i].iov_len;
-#endif
 		rb->xfer = STAILQ_FIRST(&bind->xferlist);
 		if (rb->xfer == NULL) {
 			device_printf(rb->fc->bdev, "%s: "
@@ -2253,41 +2172,6 @@ fw_rcv(struct fw_rcv_buf *rb)
 		fw_rcv_copy(rb);
 		rb->xfer->hand(rb->xfer);
 		return;
-#if 0 /* shouldn't happen ?? or for GASP */
-	case FWTCODE_STREAM:
-	{
-		struct fw_xferq *xferq;
-
-		xferq = rb->fc->ir[sub];
-#if 0
-		printf("stream rcv dma %d len %d off %d spd %d\n",
-			sub, len, off, spd);
-#endif
-		if (xferq->queued >= xferq->maxq) {
-			printf("receive queue is full\n");
-			return;
-		}
-		rb->xfer = fw_xfer_alloc_buf(M_FWXFER, 0,
-		    vec[0].iov_len);
-		if (rb->xfer == NULL)
-			return;
-		fw_rcv_copy(rb)
-		xferq->queued++;
-		STAILQ_INSERT_TAIL(&xferq->q, rb->xfer, link);
-		sc = device_get_softc(rb->fc->bdev);
-		if (SEL_WAITING(&xferq->rsel))
-			selwakeuppri(&xferq->rsel, FWPRI);
-		if (xferq->flag & FWXFERQ_WAKEUP) {
-			xferq->flag &= ~FWXFERQ_WAKEUP;
-			wakeup((caddr_t)xferq);
-		}
-		if (xferq->flag & FWXFERQ_HANDLER) {
-			xferq->hand(xferq);
-		}
-		return;
-		break;
-	}
-#endif
 	default:
 		device_printf(rb->fc->bdev,"%s: unknown tcode %d\n",
 		    __func__, tcode);
