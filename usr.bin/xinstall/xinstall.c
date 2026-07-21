@@ -62,6 +62,13 @@
 
 #include "mtree.h"
 
+#ifndef _PATH_STDIN
+# ifndef _PATH_DEV
+#  defne _PATH_DEV "/dev/"
+# endif
+# define _PATH_STDIN _PATH_DEV "stdin"
+#endif
+
 /*
  * Memory strategy threshold, in pages: if physmem is larger than this, use a
  * large buffer.
@@ -808,18 +815,29 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 {
 	struct stat from_sb, temp_sb, to_sb;
 	struct timespec tsb[2];
-	int devnull, files_match, from_fd, serrno, stripped, target;
+	int devnull, files_match, from_fd, ispipe, serrno, stripped, target;
 	int temp_fd, to_fd;
 	char backup[MAXPATHLEN], *p, pathbuf[MAXPATHLEN], tempfile[MAXPATHLEN];
 	char *digestresult;
 
+	devnull = ispipe = 0;
 	digestresult = NULL;
 	files_match = stripped = 0;
 	from_fd = -1;
 	to_fd = -1;
 
-	/* If try to install NULL file to a directory, fails. */
-	if (flags & DIRECTORY || strcmp(from_name, _PATH_DEVNULL)) {
+	if (strcmp(from_name, _PATH_DEVNULL) == 0) {
+		/* We can't create a new file without a name */
+		if ((flags & DIRECTORY) != 0)
+			errc(EX_OSERR, EFTYPE, "%s", from_name);
+		devnull = 1;
+	} else if (strcmp(from_name, _PATH_STDIN) == 0 ||
+	    strcmp(from_name, "-") == 0) {
+		/* We can't create a new file without a name */
+		if ((flags & DIRECTORY) != 0)
+			errc(EX_OSERR, EFTYPE, "%s", from_name);
+		ispipe = 1;
+	} else {
 		if (!dolink) {
 			if (stat(from_name, &from_sb))
 				err(EX_OSERR, "%s", from_name);
@@ -834,9 +852,6 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 			    (p = strrchr(from_name, '/')) ? ++p : from_name);
 			to_name = pathbuf;
 		}
-		devnull = 0;
-	} else {
-		devnull = 1;
 	}
 	if (*to_name == '\0')
 		errx(EX_USAGE, "destination cannot be an empty string");
@@ -851,19 +866,28 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	if (target && !S_ISREG(to_sb.st_mode) && !S_ISLNK(to_sb.st_mode))
 		errc(EX_CANTCREAT, EFTYPE, "%s", to_name);
 
-	if (!devnull && (from_fd = open(from_name, O_RDONLY, 0)) < 0)
-		err(EX_OSERR, "%s", from_name);
+	if (devnull) {
+		/* No from_fd needed */
+	} else if (ispipe) {
+		from_fd = STDIN_FILENO;
+	} else {
+		if ((from_fd = open(from_name, O_RDONLY)) < 0)
+			err(EX_OSERR, "%s", from_name);
+	}
 
 	/* If we don't strip, we can compare first. */
 	if (docompare && !dostrip && target && S_ISREG(to_sb.st_mode)) {
-		if ((to_fd = open(to_name, O_RDONLY, 0)) < 0)
+		if ((to_fd = open(to_name, O_RDONLY)) < 0)
 			err(EX_OSERR, "%s", to_name);
 		if (devnull)
 			files_match = to_sb.st_size == 0;
-		else
+		else if (ispipe)
+			files_match = 0;
+		else {
 			files_match = !(compare(from_fd, from_name,
 			    (size_t)from_sb.st_size, to_fd,
 			    to_name, (size_t)to_sb.st_size, &digestresult));
+		}
 
 		/* Close "to" file unless we match. */
 		if (!files_match)
@@ -1070,7 +1094,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 #endif
 
 	(void)close(to_fd);
-	if (!devnull)
+	if (!devnull && !ispipe)
 		(void)close(from_fd);
 
 	metadata_log(to_name, "file", tsb, NULL, digestresult, to_sb.st_size);
@@ -1187,12 +1211,6 @@ copy(int from_fd, const char *from_name, int to_fd, const char *to_name)
 	ssize_t ret;
 #endif
 	DIGEST_CTX ctx;
-
-	/* Rewind file descriptors. */
-	if (lseek(from_fd, 0, SEEK_SET) < 0)
-		err(EX_OSERR, "lseek: %s", from_name);
-	if (lseek(to_fd, 0, SEEK_SET) < 0)
-		err(EX_OSERR, "lseek: %s", to_name);
 
 #ifndef BOOTSTRAP_XINSTALL
 	/* Try copy_file_range() if no digest is requested */
