@@ -124,6 +124,9 @@ proc_realparent(struct proc *child)
 	}
 	parent = __containerof(p->p_orphan.le_prev, struct proc,
 	    p_orphans.lh_first);
+	KASSERT(child->p_pptr != parent,
+	    ("proc %d %p orphaned but parent %d %p is realparent",
+	    child->p_pid, child, parent->p_pid, parent));
 	return (parent);
 }
 
