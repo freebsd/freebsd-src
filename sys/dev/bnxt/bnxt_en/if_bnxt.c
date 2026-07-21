@@ -1466,12 +1466,10 @@ skip_rdma:
 	ena |= HWRM_FUNC_BACKING_STORE_CFG_INPUT_DFLT_ENABLES;
 
 skip_legacy:
-	if (BNXT_CHIP_P7(softc)) {
-		if (softc->fw_cap & BNXT_FW_CAP_BACKING_STORE_V2)
-			rc = bnxt_backing_store_cfg_v2(softc, ena);
-	} else {
+	if (softc->fw_cap & BNXT_FW_CAP_BACKING_STORE_V2)
+		rc = bnxt_backing_store_cfg_v2(softc, ena);
+	else
 		rc = bnxt_hwrm_func_backing_store_cfg(softc, ena);
-	}
 	if (rc) {
 		device_printf(softc->dev, "Failed configuring context mem, rc = %d.\n",
 			      rc);

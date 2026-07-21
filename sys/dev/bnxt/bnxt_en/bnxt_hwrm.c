@@ -490,10 +490,8 @@ int bnxt_hwrm_func_backing_store_qcaps(struct bnxt_softc *softc)
 	if (softc->hwrm_spec_code < 0x10902 || softc->ctx_mem)
 		return 0;
 
-	if (BNXT_CHIP_P7(softc)) {
-		if (softc->fw_cap & BNXT_FW_CAP_BACKING_STORE_V2)
-			return bnxt_hwrm_func_backing_store_qcaps_v2(softc);
-	}
+	if (softc->fw_cap & BNXT_FW_CAP_BACKING_STORE_V2)
+		return bnxt_hwrm_func_backing_store_qcaps_v2(softc);
 
 	if (BNXT_VF(softc))
 		return 0;
@@ -1290,7 +1288,8 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	    flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_DBR_PACING_SUPPORTED)
 		softc->fw_cap |= BNXT_FW_CAP_DBR_PACING_SUPPORTED;
 
-	if (flags_ext2 & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT2_SW_MAX_RESOURCE_LIMITS_SUPPORTED)
+	if (BNXT_CHIP_P5_PLUS(softc) &&
+	    flags_ext2 & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT2_SW_MAX_RESOURCE_LIMITS_SUPPORTED)
 		softc->fw_cap |= BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS;
 
 	if (flags_ext2 & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT2_GENERIC_STATS_SUPPORTED)
