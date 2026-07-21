@@ -6,7 +6,7 @@
 .\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
 .\" from the FreeBSD Foundation.
 .\"
-.Dd November 5, 2025
+.Dd July 21, 2026
 .Dt EXTERROR 9
 .Os
 .Sh NAME
@@ -171,6 +171,17 @@ were modified to print the extended information if it is available
 in addition to the usual
 .Va errno
 decoding.
+.Pp
+Kernels built with the
+.Cd option EXTERR_STRINGS
+advertise the
+.Va kern.features.exterr_strings
+.Xr sysctl 8
+variable, see
+.Xr feature_present 3 ,
+indicating that the reported errors include the descriptive message strings.
+Without it, only the numeric information (error code, category,
+source line number and parameters) is available.
 .Sh ASYNCHRONOUS INPUT/OUTPUT
 Due to the nature of the
 .Fx
