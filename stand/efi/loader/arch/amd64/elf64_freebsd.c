@@ -102,7 +102,7 @@ elf64_exec(struct preloaded_file *fp)
 
 	trampcode = copy_staging == COPY_STAGING_ENABLE ?
 	    (vm_offset_t)G(1) : (vm_offset_t)G(4);
-	err = BS->AllocatePages(AllocateMaxAddress, EfiLoaderData, 1,
+	err = BS->AllocatePages(AllocateMaxAddress, EfiLoaderCode, 1,
 	    (EFI_PHYSICAL_ADDRESS *)&trampcode);
 	if (EFI_ERROR(err)) {
 		printf("Unable to allocate trampoline\n");
