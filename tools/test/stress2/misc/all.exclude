@@ -30,6 +30,8 @@ graid1_3.sh		Hang seen							20250915
 graid1_8.sh		Known issue							20170909
 graid1_9.sh		panic: Bad effnlink						20180212
 gunion.sh		CAM stuk in vmwait						20251226
+ifconfig.sh		https://people.freebsd.org/~pho/stress/log/log0666.txt		20260721
+ifconfig2.sh		https://people.freebsd.org/~pho/stress/log/log0666.txt		20260721
 lockf5.sh		Spinning threads seen						20160718
 maxvnodes2.sh		https://people.freebsd.org/~pho/stress/log/log0083.txt		20210329
 memguard.sh		https://people.freebsd.org/~pho/stress/log/log0088.txt		20210402
@@ -50,7 +52,6 @@ oom2.sh			Hang in pfault							20180324
 overcommit2.sh		CAM stuck in vmwait seen					20200112
 pmc4.sh			https://people.freebsd.org/~pho/stress/log/log0548.txt		20240904
 pmc8.sh			panic: [pmc,2749] (ri21, rc1) waiting too long for pmc to ...	20210621
-rename14.sh		https://people.freebsd.org/~pho/stress/log/log0433.txt		20230409
 sctp2.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 sctp3.sh		panic: Queues are not empty when handling SHUTDOWN-COMPLETE	20210211
 signal.sh		Timing issues. Needs fixing					20171116
@@ -72,7 +73,6 @@ syzkaller55.sh		https://people.freebsd.org/~pho/stress/log/log0533.txt		20240702
 syzkaller59.sh		Page fault							20220625
 syzkaller68.sh		Can not unload zfs.ko after this test				20260206
 syzkaller80.sh		panic								20250711
-syzkaller82.sh		panic: m_apply, length > size of mbuf chain			20250724
 syzkaller85.sh		panic: Assertion uio->uio_resid < 0 failed			20250928
 syzkaller90.sh		panic: general protection fault					20260318
 syzkaller91.sh		Kernel page fault with the following non-sleepable locks held	20260318
