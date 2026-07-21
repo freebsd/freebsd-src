@@ -8,3 +8,4 @@ Name: tcpdump
 Source: https://fossies.org/linux/misc/tcpdump-4.99.5.tar.gz
 URL: https://www.tcpdump.org
 Version: 4.99.5
+Requires: ${SBOM_REQUIRES}

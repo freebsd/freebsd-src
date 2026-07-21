@@ -2,10 +2,10 @@
 #
 # SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
 #
-Description: clone of System V curses
+Description: clone of System V curses tinfow library
 License: X11
-Name: libncurses
+Name: libtinfow
+Requires: ${SBOM_REQUIRES}
 Source: https://invisible-island.net/archives/ncurses/ncurses-6.5.tar.gz
 URL: https://invisible-island.net/ncurses
 Version: 6.5
-Requires: ${SBOM_REQUIRES}

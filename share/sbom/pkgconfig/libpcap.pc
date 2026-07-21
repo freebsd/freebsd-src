@@ -8,3 +8,4 @@ Name: libpcap
 Source: https://www.tcpdump.org/release/libpcap-1.10.5.tar.xz
 URL: https://www.tcpdump.org
 Version: ${FREEBSD_RELEASE}
+Requires: ${SBOM_REQUIRES}

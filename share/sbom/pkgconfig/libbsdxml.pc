@@ -4,7 +4,8 @@
 #
 Description: XML 1.0 parser written in C
 License: MIT
-Name: libexpat
+Name: libbsdxml
 Source: https://github.com/libexpat/libexpat/tree/R_2_7_3
 URL: https://github.com/libexpat/libexpat
 Version: ${FREEBSD_RELEASE}
+Requires: ${SBOM_REQUIRES}
