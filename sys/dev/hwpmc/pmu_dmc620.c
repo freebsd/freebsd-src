@@ -25,10 +25,6 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-#include "opt_hwpmc_hooks.h"
-#include "opt_acpi.h"
-
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/module.h>
