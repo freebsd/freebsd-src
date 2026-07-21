@@ -838,6 +838,8 @@ hdspechan_setspeed(kobj_t obj, void *data, uint32_t speed)
 	device_printf(scp->dev, "hdspechan_setspeed(%d)\n", speed);
 #endif
 
+	mtx_lock(&sc->lock);
+
 	if (hdspe_running(sc) == 1)
 		goto end;
 
@@ -888,8 +890,10 @@ hdspechan_setspeed(kobj_t obj, void *data, uint32_t speed)
 
 	sc->speed = hr->speed;
 end:
+	speed = sc->speed;
+	mtx_unlock(&sc->lock);
 
-	return (sc->speed);
+	return (speed);
 }
 
 static uint32_t
@@ -910,6 +914,8 @@ hdspechan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 #if 0
 	device_printf(scp->dev, "hdspechan_setblocksize(%d)\n", blocksize);
 #endif
+
+	mtx_lock(&sc->lock);
 
 	if (hdspe_running(sc) == 1)
 		goto end;
@@ -941,12 +947,20 @@ hdspechan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 		}
 	}
 
+	/* sndbuf_resize() may sleep. */
+	mtx_unlock(&sc->lock);
 	if (sndbuf_resize(ch->buffer,
 	    (HDSPE_CHANBUF_SIZE * AFMT_CHANNEL(ch->format)) / (hl->period * 4),
 	    (hl->period * 4)) != 0)
 		return (0);
 
 	mtx_lock(&sc->lock);
+	/* A channel may have started while the lock was dropped. */
+	if (hdspe_running(sc) == 1) {
+		mtx_unlock(&sc->lock);
+		return (0);
+	}
+
 	sc->ctrl_register &= ~HDSPE_LAT_MASK;
 	sc->ctrl_register |= hdspe_encode_latency(hl->n);
 	hdspe_write_4(sc, HDSPE_CONTROL_REG, sc->ctrl_register);
@@ -954,10 +968,12 @@ hdspechan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 	mtx_unlock(&sc->lock);
 
 #if 0
-	device_printf(scp->dev, "New period=%d\n", sc->period);
+	device_printf(scp->dev, "New period=%d\n", hl->period);
 #endif
 
+	return (ch->buffer->blksz);
 end:
+	mtx_unlock(&sc->lock);
 
 	return (ch->buffer->blksz);
 }
