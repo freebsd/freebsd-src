@@ -103,6 +103,9 @@ specifying the
 flag, closing that descriptor kills the process.
 .It Dv PD_CLOEXEC
 Set close-on-exec on process descriptor.
+.It Dv PD_NOWAITPID
+The parent cannot obtain the child's status with
+.Xr waitpid 2 .
 .El
 .Pp
 The
@@ -149,9 +152,6 @@ to succeed.
 Zombie processes cannot be opened.
 .Pp
 There might be more that one file descriptor referencing the process.
-But only one caller of
-.Fn pdwait
-gets the exit status.
 After the zombie is reaped, calls to
 .Fn pdwait
 specifying any file descriptors for the same process fail with the
@@ -176,7 +176,7 @@ the status information on the process referenced by the
 .Fa fd
 process descriptor.
 See the description of the
-.Xr wait6
+.Xr wait6 2
 system call for the behavior specification.
 .Pp
 The
@@ -197,6 +197,59 @@ The
 argument is reserved and must be zero.
 Certain file descriptor types cannot be copied this way, namely
 kqueues.
+.Sh INTERACTION OF PROCESS DESCRIPTORS AND Xr WAITPID 2
+.Pp
+The
+.Fn pdwait
+system call may be called on a process descriptor
+an unlimited number of times.
+In particular, it does not reap the target process,
+even if that process has exited.
+Each time, it returns the same status.
+.Bl -dash
+.It
+If the process was forked with
+.Fn pdfork ,
+and the
+.Dv PD_NOWAITPID
+flag was specified, then the process is automatically reaped after the
+last process descriptor referencing that process is closed.
+No
+.Xr waitpid 2
+call
+.Pq or a call from the same family of the wait functions which operate on PIDs
+are needed to reap the zombie process.
+.It
+If the process was created by
+.Fn pdfork ,
+and the
+.Dv PD_NOWAITPID
+flag was not specified, then after exiting,
+the process will not be reaped until the parent or reaper has called
+.Xr waitpid 2
+and all process descriptors referencing the process are closed.
+.It
+If the process was created by the
+.Xr fork 2
+system call
+.Pq which does not allocate a process descriptor for the child ,
+and later the process was opened by
+.Fn pdopenpid ,
+then a
+.Xr waitpid 2
+call from the parent is needed to reap the exited child.
+.El
+.Pp
+In any case, the PID of the process is not reused until its zombie
+is reaped, and all its process descriptors are closed.
+.Pp
+A debugger attached by
+.Xr ptrace 2
+can execute the
+.Fn waitpid
+calls against the alive target regardless of the way
+the target process was forked.
+.Sh INTERACTION OF PROCESS DESCRIPTORS WITH OTHER SYSTEM CALLS
 .Pp
 The following system calls also have effects specific to process descriptors:
 .Pp
