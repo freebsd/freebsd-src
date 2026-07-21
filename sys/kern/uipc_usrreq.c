@@ -2880,6 +2880,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	struct mtx *vplock;
 	struct sockaddr_un *soun;
 	struct vnode *vp;
+	struct socket *so2;
 	struct unpcb *unp, *unp2;
 	struct nameidata nd;
 	char buf[SOCK_MAXADDRLEN];
@@ -2895,7 +2896,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	if (nam->sa_len > sizeof(struct sockaddr_un))
 		return (EINVAL);
 	len = nam->sa_len - offsetof(struct sockaddr_un, sun_path);
-	if (len <= 0)
+	if (len < 0 || (len == 0 && fd == AT_FDCWD))
 		return (EINVAL);
 	soun = (struct sockaddr_un *)nam;
 	bcopy(soun->sun_path, buf, len);
@@ -2943,6 +2944,30 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 		sa = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
 	else
 		sa = NULL;
+
+	vp = NULL;
+	if (len == 0) {
+		struct file *fp;
+
+		/*
+		 * An empty path means that the descriptor itself is the peer
+		 * socket, rather than the starting directory for a pathname
+		 * lookup.
+		 */
+		error = getsock(td, fd,
+		    cap_rights_init_one(&rights, CAP_CONNECTAT), &fp);
+		if (error != 0)
+			goto bad;
+		so2 = fp->f_data;
+		if (so2->so_proto->pr_domain->dom_family != AF_UNIX)
+			error = EPROTOTYPE;
+		else
+			error = unp_connect_peer(so, sotounpcb(so2), &sa, td,
+			    return_locked);
+		fdrop(fp, td);
+		goto bad;
+	}
+
 	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF |
 	    (fd == AT_FDCWD ? 0 : EMPTYPATH), UIO_SYSSPACE, buf, fd,
 	    cap_rights_init_one(&rights, CAP_CONNECTAT));
