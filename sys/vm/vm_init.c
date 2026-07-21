@@ -276,7 +276,7 @@ again:
 	exec_map_entry_size = round_page(PATH_MAX + ARG_MAX);
 	exec_map_guard_pages = 1;
 	TUNABLE_INT_FETCH("vm.exec_map_guard_pages", &exec_map_guard_pages);
-	size = exec_map_entries *
+	size = (vm_size_t)exec_map_entries *
 	    (exec_map_entry_size + 2 * ptoa(exec_map_guard_pages)) +
 	    64 * PAGE_SIZE;
 	kmem_subinit(exec_map, kernel_map, &minaddr, &maxaddr, size, false);
