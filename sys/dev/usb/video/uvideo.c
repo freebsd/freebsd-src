@@ -3793,7 +3793,7 @@ uvideo_dqbuf(struct uvideo_softc *sc, struct v4l2_buffer *dqb)
 		error = mtx_sleep(sc, &sc->sc_mtx, PCATCH, "uvdqbuf", hz * 10);
 		if (error != 0) {
 			mtx_unlock(&sc->sc_mtx);
-			return (EINVAL);
+			return (error);
 		}
 		if (sc->sc_dying) {
 			mtx_unlock(&sc->sc_mtx);
