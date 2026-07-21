@@ -2,6 +2,7 @@
 
 # Test scenario from:
 # Bug 295826 - kern_renameat() infinite loop
+# D57453: Avoid infinite loop in renameat(2)
 
 set -u
 root=/root
