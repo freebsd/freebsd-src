@@ -3185,7 +3185,7 @@ pci_nvme_parse_config(struct pci_nvme_softc *sc, nvlist_t *nvl)
 	value = get_config_value_node(nvl, "qsz");
 	if (value != NULL) {
 		val = atoi(value);
-		if (val <= 0) {
+		if (val <= 0 || val > UINT16_MAX) {
 			EPRINTLN("nvme: Invalid qsz option %d", val);
 			return (-1);
 		}
