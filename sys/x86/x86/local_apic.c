@@ -2378,7 +2378,7 @@ native_lapic_ipi_vectored(u_int vector, int dest)
 void (*ipi_vectored)(u_int, int) = &native_lapic_ipi_vectored;
 #endif /* SMP */
 
-void (*fred_ipi_handlers[IPI_DYN_LAST - IPI_DYN_FIRST])(struct trapframe *);
+void (*fred_ipi_handlers[IPI_DYN_LAST - IPI_DYN_FIRST + 1])(struct trapframe *);
 
 /*
  * Since the IDT is shared by all CPUs the IPI slot update needs to be globally
