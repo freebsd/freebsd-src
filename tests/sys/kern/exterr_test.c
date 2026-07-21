@@ -30,6 +30,20 @@
 #include <errno.h>
 #include <exterr.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+/*
+ * Pin the message format by clearing EXTERROR_VERBOSE, which would
+ * otherwise change the output shape.
+ */
+static void
+pin_exterror_format(void)
+{
+
+	unsetenv("EXTERROR_VERBOSE");
+}
 
 ATF_TC(gettext_extended);
 ATF_TC_HEAD(gettext_extended, tc)
@@ -41,6 +55,8 @@ ATF_TC_BODY(gettext_extended, tc)
 	char exterr[UEXTERROR_MAXLEN];
 	int r;
 
+	pin_exterror_format();
+
 	/*
 	 * Use an invalid call to mmap() because it supports extended error
 	 * messages, requires no special resources, and does not need root.
@@ -50,8 +66,10 @@ ATF_TC_BODY(gettext_extended, tc)
 	r = uexterr_gettext(exterr, sizeof(exterr));
 	ATF_CHECK_EQ(0, r);
 	printf("Extended error: %s\n", exterr);
+	if (feature_present("exterr_strings") == 0)
+		atf_tc_skip("kernel built without EXTERR_STRINGS");
 	/* Note: error string may need to be updated due to kernel changes */
-	ATF_CHECK(strstr(exterr, " is not subset of ") != 0);
+	ATF_CHECK(strstr(exterr, " is not subset of ") != NULL);
 }
 
 ATF_TC(gettext_noextended);
@@ -64,6 +82,8 @@ ATF_TC_BODY(gettext_noextended, tc)
 {
 	char exterr[UEXTERROR_MAXLEN];
 	int r;
+
+	pin_exterror_format();
 
 	ATF_CHECK_ERRNO(EINVAL, exterrctl(EXTERRCTL_UD, 0, NULL));
 	r = uexterr_gettext(exterr, sizeof(exterr));
@@ -81,6 +101,8 @@ ATF_TC_BODY(gettext_noextended_after_extended, tc)
 {
 	char exterr[UEXTERROR_MAXLEN];
 	int r;
+
+	pin_exterror_format();
 
 	/*
 	 * First do something that will create an extended error message, but
