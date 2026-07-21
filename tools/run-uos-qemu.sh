@@ -78,6 +78,10 @@ GDB_ARGS=""
 [ "$GDB_MODE" -eq 1 ] && GDB_ARGS="-gdb tcp::1234 -S" && \
     echo -e "${YELLOW}GDB stub on :1234 (QEMU paused)${NC}"
 
+# NOTE: We use -device VGA (stdvga) instead of virtio-gpu because the
+# UOS(m) kernel writes directly to a linear framebuffer at 0x40000000.
+# virtio-gpu requires an active driver handshake; stdvga provides a plain
+# linear VRAM window the kernel can write pixels to immediately on boot.
 exec qemu-system-riscv64 \
     -M virt -cpu rv64 -smp "$NCPU" -m "$MEM" \
     -bios "$OPENBI" \
@@ -86,8 +90,8 @@ exec qemu-system-riscv64 \
     -drive "file=$IMG_FILE,format=raw,if=virtio" \
     -netdev user,id=net0,hostfwd=tcp::2222-:22 \
     -device virtio-net-pci,netdev=net0 \
-    -device virtio-gpu-pci \
-    -display vnc=:5900 \
+    -device VGA,vgamem_mb=16 \
+    -display vnc=0.0.0.0:0,share=allow-exclusive \
     -serial mon:stdio \
     -rtc base=localtime -nodefaults -device virtio-rng-pci \
     $GDB_ARGS

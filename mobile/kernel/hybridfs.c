@@ -12,6 +12,9 @@
 #include <stdint.h>
 #include "memory_utils.h"
 
+/* Forward declare serial output used for debug logging */
+extern void uart_puts(const char *s);
+
 #define HYBRID_MAGIC 0x555A4653  /* 'UZFS' */
 #define HYBRID_VERSION 1
 #define HYBRID_MAX_FILENAME 64

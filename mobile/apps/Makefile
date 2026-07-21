@@ -1,9 +1,9 @@
 # Mobile Apps Makefile
 # Builds all first-party apps for uOS(m) Mobile OS
 
-.PHONY: all clean home_screen settings terminal browser contacts messages
+.PHONY: all clean home_screen settings terminal browser contacts messages calculator notes
 
-APPS = home_screen settings terminal browser contacts messages
+APPS = home_screen settings terminal browser contacts messages calculator notes
 
 all: $(APPS)
 
@@ -25,6 +25,12 @@ contacts:
 messages:
 	$(MAKE) -C messages
 
+calculator:
+	$(MAKE) -C calculator
+
+notes:
+	$(MAKE) -C notes
+
 clean:
 	$(MAKE) -C home_screen clean
 	$(MAKE) -C settings clean
@@ -32,3 +38,5 @@ clean:
 	$(MAKE) -C browser clean
 	$(MAKE) -C contacts clean
 	$(MAKE) -C messages clean
+	$(MAKE) -C calculator clean
+	$(MAKE) -C notes clean

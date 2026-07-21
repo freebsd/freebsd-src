@@ -8,10 +8,15 @@
 #include "memory.h"
 #include <stddef.h>
 
+/* Fall back if config.h hasn't defined this */
+#ifndef TIMER_TICK_MS
+#define TIMER_TICK_MS 10
+#endif
+
 #define MAX_IRQS 256
 interrupt_handler_t irq_handlers[MAX_IRQS];
-static irq_handler_t irq_handlers_irq[MAX_IRQS];
-static void *irq_priv[MAX_IRQS];
+irq_handler_t irq_handlers_irq[MAX_IRQS];
+void *irq_priv[MAX_IRQS];
 
 extern void uart_puts(const char *s);
 extern void uart_putc(char c);

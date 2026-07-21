@@ -7,7 +7,7 @@ CFLAGS = -march=rv64imac_zicsr_zifencei -mabi=lp64 -O2 -g -ffreestanding -nostdl
 ASFLAGS = -march=rv64imac_zicsr_zifencei
 LDFLAGS = -T linker.ld -nostdlib
 
-SOURCES = entry.o kernel.o framebuffer_console.o memory.o task.o ipc.o posix_syscalls.o vm.o context_switch.o chardev.o interrupt.o buffer_cache.o vfs.o blockdev.o hybridfs.o virtio_blk.o uart.o page_cache.o virtio_net.o memory_utils.o pmp.o syscall_security.o aslr.o stack_canary.o framebuffer.o ui_widget.o window_manager.o mobile_ui.o ui_animation.o pci_ecam.o virtio_gpu.o
+SOURCES = entry.o uart_serial.o kernel.o framebuffer_console.o memory.o task.o ipc.o posix_syscalls.o vm.o context_switch.o chardev.o interrupt.o buffer_cache.o vfs.o blockdev.o hybridfs.o virtio_blk.o uart.o page_cache.o virtio_net.o memory_utils.o pmp.o syscall_security.o aslr.o stack_canary.o framebuffer.o ui_widget.o window_manager.o mobile_ui.o ui_animation.o pci_ecam.o
 OBJECTS = $(SOURCES)
 
 all: vmlinux.riscv64
@@ -55,6 +55,9 @@ framebuffer_console.o: framebuffer_console.c
 
 entry.o: entry.S
 	$(AS) $(ASFLAGS) -o $@ $<
+
+uart_serial.o: uart_serial.c
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 kernel.o: kernel.c
 	$(CC) $(CFLAGS) -c -o $@ $<

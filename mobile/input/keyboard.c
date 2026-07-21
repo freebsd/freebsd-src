@@ -13,6 +13,22 @@ static int linux_to_uos_keycode(int linux_keycode)
     return linux_keycode;
 }
 
+static const char unshifted_map[128] = {
+    0, 27, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', '\b',
+    '\t', 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\n',
+    0, 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', '`',
+    0, '\\', 'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', 0,
+    '*', 0, ' ', 0
+};
+
+static const char shifted_map[128] = {
+    0, 27, '!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '\b',
+    '\t', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', '{', '}', '\n',
+    0, 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ':', '"', '~',
+    0, '|', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '<', '>', '?', 0,
+    '*', 0, ' ', 0
+};
+
 /* Modifier bits */
 #define MOD_SHIFT 0x1
 #define MOD_CTRL  0x2
@@ -20,6 +36,28 @@ static int linux_to_uos_keycode(int linux_keycode)
 #define MOD_SUPER 0x8
 #define MOD_CAPSLOCK 0x10
 #define MOD_NUMLOCK  0x20
+
+static uint32_t get_unicode(int keycode, int modifiers) {
+    if (keycode < 0 || keycode >= 128) return 0;
+    
+    int is_shift = (modifiers & MOD_SHIFT) != 0;
+    int is_caps = (modifiers & MOD_CAPSLOCK) != 0;
+    
+    char c = 0;
+    if (is_shift) {
+        c = shifted_map[keycode];
+    } else {
+        c = unshifted_map[keycode];
+    }
+    
+    /* Apply capslock for alphabetic characters */
+    if (is_caps) {
+        if (c >= 'a' && c <= 'z') c -= 32;
+        else if (c >= 'A' && c <= 'Z') c += 32;
+    }
+    
+    return (uint32_t)c;
+}
 
 int kb_init(keyboard_state_t *state)
 {
@@ -46,7 +84,7 @@ int kb_process_event(keyboard_state_t *state, const struct input_event *ev, key_
 
     if (out) {
         out->keycode = keycode;
-        out->unicode = 0; /* TODO: implement unicode conversion */
+        out->unicode = get_unicode(keycode, state->modifiers);
         out->modifiers = state->modifiers;
     }
 

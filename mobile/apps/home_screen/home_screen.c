@@ -107,6 +107,8 @@ int home_screen_init(void) {
     home_screen_add_app("Browser", "com.uos.browser", 0);
     home_screen_add_app("Contacts", "com.uos.contacts", 0);
     home_screen_add_app("Messages", "com.uos.messages", 0);
+    home_screen_add_app("Calculator", "com.uos.calculator", 0);
+    home_screen_add_app("Notes", "com.uos.notes", 0);
     
     wm_init();
     ui_widget_init();

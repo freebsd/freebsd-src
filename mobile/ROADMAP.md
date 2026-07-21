@@ -129,6 +129,7 @@ Notes:
 
 | Config | SoC | Device class |
 |---|---|---|
+| `SM8650` | Snapdragon 8 Gen 3 | X4 + A720 + A520, Adreno 750 |
 | `SM8450` | Snapdragon 8cx Gen 3 / 8 Gen 2 | X3 + A715 + A510, Adreno 730 |
 | `SM8350` | Snapdragon 8cx Gen 2 | X1, Adreno 680 |
 | `SM7450` | Snapdragon 7cx Gen 3 | A78 + A55, Adreno 642 |

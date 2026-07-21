@@ -19,6 +19,9 @@ static char uart_tx_buffer[UART_BUFFER_SIZE];
 static volatile uint32_t uart_tx_head = 0;
 static volatile uint32_t uart_tx_tail = 0;
 
+/* Forward declaration */
+void uart_start_tx(void);
+
 /* UART operations */
 static int uart_open(void) {
     return 0;  /* UART is always ready */

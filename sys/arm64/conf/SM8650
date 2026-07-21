@@ -1,0 +1,13 @@
+# SM8650 - Snapdragon 8 Gen 3 (QCOM) configuration
+
+include		"std.qcom"
+include		"std.dev"
+
+ident		SM8650
+
+options 	SOC_QCOM_SM8650
+device		qcom_rpmh
+device		qcom_pdc
+device		qcom_spmi
+device		qcom_gpu_adreno
+device		qcom_mdss
