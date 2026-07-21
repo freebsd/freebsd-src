@@ -3,6 +3,7 @@
 .\"
 .\" Copyright 2020 Scott Long
 .\" Copyright 2020 Stefan Eßer
+.\" Copyright (c) 2026 Dag-Erling Smørgrav
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,97 +26,89 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 11, 2023
+.Dd July 20, 2026
 .Dt GETLOCALBASE 3
 .Os
 .Sh NAME
 .Nm getlocalbase
-.Nd "return the path to the local software directory"
+.Nd "return the path to the local software base directory"
 .Sh LIBRARY
 .Lb libutil
 .Sh SYNOPSIS
 .In libutil.h
-.Ft const char*
+.Ft "const char *"
 .Fn getlocalbase "void"
 .Sh DESCRIPTION
 The
-.Fn getlocalbase
-function returns the path to the local software base directory.
-Normally this is the
-.Pa /usr/local
-directory.
+.Nm
+function returns the path to the local software base directory,
+normally
+.Pa /usr/local .
+.Pp
 First the
 .Ev LOCALBASE
 environment variable is checked.
-If that does not exist then the
+If that variable is undefined or empty, the
 .Va user.localbase
 sysctl is checked.
-If that also does not exist then the value of the
-.Dv LOCALBASE_PATH
-compile-time variable is used.
-If that is undefined then the system default,
-.Pa _PATH_LOCALBASE
-is used.
+If that returns an empty string or an error occurs, the value of
+.Dv _PATH_LOCALBASE
+is used as a last resort.
 .Pp
-The contents of the string returned by the
-.Fn getlocalbase
-function shall not be modified.
+If the value obtained through these means is not a valid absolute path
+shorter than
+.Dv MAXPATHLEN ,
+a constant string which has been deliberately chosen to cause any file
+system operation using it to fail is returned instead.
+.Pp
+The contents of the string returned by
+.Nm
+shall not be modified by the caller.
 .Sh IMPLEMENTATION NOTES
-Calls to
-.Fn getlocalbase
-will perform a setugid check on the running binary before checking the
-environment.
+The
+.Ev LOCALBASE
+environment variable will only be used if the process calling
+.Nm
+is not setugid.
 .Pp
-The address returned by
-.Fn getlocalbase
-will point into the executing processes environment if it is the result of
-.Fn getenv "LOCALBASE" ,
-to a static buffer if it is the result of
-.Fn sysctl "user.localbase" ,
-and to a constant string if the compiled in default value is returned.
-.Pp
-The same value will be returned on successive calls during the run-time
-of the program, ignoring any changes to the environment variable or the
-sysctl value that might have been made.
+Successive calls to
+.Nm
+will return the same value throughout the lifetime of the process,
+regardless of any subsequent changes to the environment or sysctl
+variables.
 .Pp
 The
-.Fn getlocalbase
-function can be compiled with a non-default value of LOCALBASE_CTL_LEN.
-A value of 0 will disable fetching of the sysctl value, a value less than
-MAXPATHLEN will put a limit on the maximum string length supported for
-this sysctl value.
-If built with a non-default value of LOCALBASE_CTL_LEN, a value of the
-user.localbase sysctl variable longer than this value will make
-.Fn getlocalbase
-return a valid string that is not a valid path prefix in any filesystem.
+.Nm
+function is thread-safe if and only if it has been called at least
+once already.
 .Sh RETURN VALUES
 The
 .Fn getlocalbase
-function returns a pointer to a string, whose length may exceed MAXPATHLEN,
-if it has been obtained from the environment.
+function returns a pointer to a null-terminated string.
 .Sh ENVIRONMENT
-The
-.Fn getlocalbase
-library function retrieves the
-.Ev LOCALBASE
-environment variable.
-.Sh ERRORS
-The
-.Fn getlocalbase
-function always succeeds and returns a valid pointer to a string.
+.Bl -tag -width ".Ev LOCALBASE"
+.It Ev LOCALBASE
+Path to the local software base directory
+.El
 .Sh SEE ALSO
-.Xr env 1 ,
-.Xr src.conf 5 ,
+.Xr environ 7 ,
 .Xr sysctl 8
 .Sh HISTORY
 The
 .Nm
-library function first appeared in
+function first appeared in
 .Fx 13.0 .
 .Sh AUTHORS
 .An -nosplit
-This
-manual page was written by
+The
+.Nm
+function was originally written by
+.An Stefan Eßer Aq Mt se@FreeBSD.org
+and was later reimplemented by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .
+This manual page was originally written by
 .An Scott Long Aq Mt scottl@FreeBSD.org
 and
-.An Stefan Eßer Aq Mt se@FreeBSD.org .
+.An Stefan Eßer Aq Mt se@FreeBSD.org
+and was later substantially rewritten by
+.An Dag-Erling Sm\(/orgrav Aq Mt des@FreeBSD.org .
