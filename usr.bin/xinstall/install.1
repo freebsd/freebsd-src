@@ -27,7 +27,7 @@
 .\"
 .\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
 .\"
-.Dd June 3, 2026
+.Dd July 19, 2026
 .Dt INSTALL 1
 .Os
 .Sh NAME
@@ -288,6 +288,11 @@ utility attempts to prevent moving a file onto itself.
 Installing
 .Pa /dev/null
 creates an empty file.
+Installing
+.Pa /dev/stdin
+or
+.Sy -
+copies data from standard input to the target.
 .Sh ENVIRONMENT
 The
 .Nm
