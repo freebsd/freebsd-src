@@ -377,8 +377,8 @@ static struct name_table kevent_vnode_fflags[] = {
 };
 
 static struct name_table kevent_proc_fflags[] = {
-	X(NOTE_EXIT) X(NOTE_FORK) X(NOTE_EXEC) X(NOTE_TRACK) X(NOTE_TRACKERR)
-	X(NOTE_CHILD) XEND
+	X(NOTE_EXIT) X(NOTE_FORK) X(NOTE_EXEC) X(NOTE_PDSIGCHLD)
+	X(NOTE_TRACK) X(NOTE_TRACKERR) X(NOTE_CHILD) XEND
 };
 
 static struct name_table kevent_timer_fflags[] = {
