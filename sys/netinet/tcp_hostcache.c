@@ -768,7 +768,7 @@ tcp_hc_purge_internal(int all)
 			    "bucket length out of range at %u: %u", i,
 			    head->hch_length));
 			if (all ||
-			    atomic_load_int(&hc_entry->hc_expire) <= 0) {
+			    (int)atomic_load_int(&hc_entry->hc_expire) <= 0) {
 				if (hc_prev != NULL) {
 					KASSERT(hc_entry ==
 					    CK_SLIST_NEXT(hc_prev, hc_q),
