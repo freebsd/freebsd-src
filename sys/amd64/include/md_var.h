@@ -72,7 +72,6 @@ void	amd64_lower_shared_page(struct sysentvec *);
 void	amd64_bsp_pcpu_init1(struct pcpu *pc);
 void	amd64_bsp_pcpu_init2(uint64_t rsp0);
 void	amd64_bsp_ist_init(struct pcpu *pc);
-void	amd64_bsp_fred_csl_init(struct pcpu *pc);
 void	amd64_syscall(struct thread *td, int traced);
 void	amd64_syscall_ret_flush_l1d(int error);
 void	amd64_syscall_ret_flush_l1d_recalc(void);
