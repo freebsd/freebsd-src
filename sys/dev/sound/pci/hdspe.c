@@ -203,8 +203,8 @@ hdspe_alloc_resources(struct sc_info *sc)
 	sc->csh = rman_get_bushandle(sc->cs);
 
 	/* Allocate interrupt resource. */
-	sc->irqid = 0;
-	sc->irq = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &sc->irqid,
+	sc->rid = 0;
+	sc->irq = bus_alloc_resource_any(sc->dev, SYS_RES_IRQ, &sc->rid,
 	    RF_ACTIVE | RF_SHAREABLE);
 
 	if (!sc->irq ||
@@ -291,7 +291,7 @@ fail:
 	if (sc->dmat != NULL)
 		bus_dma_tag_destroy(sc->dmat);
 	if (sc->irq != NULL)
-		bus_release_resource(sc->dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+		bus_release_resource(sc->dev, SYS_RES_IRQ, sc->rid, sc->irq);
 	if (sc->cs != NULL)
 		bus_release_resource(sc->dev, SYS_RES_MEMORY, sc->csid, sc->cs);
 	return (ENXIO);
@@ -957,9 +957,9 @@ hdspe_detach(device_t dev)
 	if (sc->dmat)
 		bus_dma_tag_destroy(sc->dmat);
 	if (sc->irq)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
+		bus_release_resource(dev, SYS_RES_IRQ, sc->rid, sc->irq);
 	if (sc->cs)
-		bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(0), sc->cs);
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->csid, sc->cs);
 	cv_destroy(&sc->pcm_cv);
 	mtx_destroy(&sc->lock);
 
