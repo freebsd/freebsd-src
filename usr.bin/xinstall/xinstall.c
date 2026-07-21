@@ -52,6 +52,7 @@
 #include <sha256.h>
 #include <sha512.h>
 #include <spawn.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -135,16 +136,17 @@ extern char **environ;
 
 static gid_t gid;
 static uid_t uid;
-static int dobackup, docompare, dodir, dolink, dopreserve, dostrip, dounpriv,
-    safecopy, verbose;
-static int haveopt_f, haveopt_g, haveopt_m, haveopt_o;
+static bool dobackup, docompare, dodir, dopreserve, dostrip, dounpriv;
+static bool safecopy, verbose;
+static bool haveopt_f, haveopt_g, haveopt_m, haveopt_o;
+static int linkmode;
 static mode_t mode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 static FILE *metafp;
 static const char *group, *owner;
 static const char *suffix = BACKUP_SUFFIX;
 static char *destdir, *digest, *fflags, *metafile, *tags;
 
-static int	compare(int, const char *, size_t, int, const char *, size_t,
+static bool	compare(int, const char *, size_t, int, const char *, size_t,
 		    char **);
 static char	*copy(int, const char *, int, const char *);
 static int	create_tempfile(const char *, char *, size_t);
@@ -161,7 +163,7 @@ static void	install_dir(char *);
 static void	metadata_log(const char *, const char *, struct timespec *,
 		    const char *, const char *, off_t);
 static int	parseid(const char *, id_t *);
-static int	strip(const char *, int, const char *, char **);
+static bool	strip(const char *, int, const char *, char **);
 static void	usage(void);
 
 int
@@ -186,10 +188,10 @@ main(int argc, char *argv[])
 			suffix = optarg;
 			/* FALLTHROUGH */
 		case 'b':
-			dobackup = 1;
+			dobackup = true;
 			break;
 		case 'C':
-			docompare = 1;
+			docompare = true;
 			break;
 		case 'c':
 			/* For backwards compatibility. */
@@ -198,14 +200,14 @@ main(int argc, char *argv[])
 			destdir = optarg;
 			break;
 		case 'd':
-			dodir = 1;
+			dodir = true;
 			break;
 		case 'f':
-			haveopt_f = 1;
+			haveopt_f = true;
 			fflags = optarg;
 			break;
 		case 'g':
-			haveopt_g = 1;
+			haveopt_g = true;
 			group = optarg;
 			break;
 		case 'h':
@@ -215,24 +217,24 @@ main(int argc, char *argv[])
 			for (p = optarg; *p != '\0'; p++)
 				switch (*p) {
 				case 's':
-					dolink &= ~(LN_HARD|LN_MIXED);
-					dolink |= LN_SYMBOLIC;
+					linkmode &= ~(LN_HARD|LN_MIXED);
+					linkmode |= LN_SYMBOLIC;
 					break;
 				case 'h':
-					dolink &= ~(LN_SYMBOLIC|LN_MIXED);
-					dolink |= LN_HARD;
+					linkmode &= ~(LN_SYMBOLIC|LN_MIXED);
+					linkmode |= LN_HARD;
 					break;
 				case 'm':
-					dolink &= ~(LN_SYMBOLIC|LN_HARD);
-					dolink |= LN_MIXED;
+					linkmode &= ~(LN_SYMBOLIC|LN_HARD);
+					linkmode |= LN_MIXED;
 					break;
 				case 'a':
-					dolink &= ~LN_RELATIVE;
-					dolink |= LN_ABSOLUTE;
+					linkmode &= ~LN_RELATIVE;
+					linkmode |= LN_ABSOLUTE;
 					break;
 				case 'r':
-					dolink &= ~LN_ABSOLUTE;
-					dolink |= LN_RELATIVE;
+					linkmode &= ~LN_ABSOLUTE;
+					linkmode |= LN_RELATIVE;
 					break;
 				default:
 					errx(1, "%c: invalid link type", *p);
@@ -243,7 +245,7 @@ main(int argc, char *argv[])
 			metafile = optarg;
 			break;
 		case 'm':
-			haveopt_m = 1;
+			haveopt_m = true;
 			free(set);
 			if (!(set = setmode(optarg)))
 				errx(EX_USAGE, "invalid file mode: %s",
@@ -255,26 +257,26 @@ main(int argc, char *argv[])
 				    "databases in `%s'", optarg);
 			break;
 		case 'o':
-			haveopt_o = 1;
+			haveopt_o = true;
 			owner = optarg;
 			break;
 		case 'p':
-			docompare = dopreserve = 1;
+			docompare = dopreserve = true;
 			break;
 		case 'S':
-			safecopy = 1;
+			safecopy = true;
 			break;
 		case 's':
-			dostrip = 1;
+			dostrip = true;
 			break;
 		case 'T':
 			tags = optarg;
 			break;
 		case 'U':
-			dounpriv = 1;
+			dounpriv = true;
 			break;
 		case 'v':
-			verbose = 1;
+			verbose = true;
 			break;
 		case '?':
 		default:
@@ -290,7 +292,7 @@ main(int argc, char *argv[])
 	}
 
 	/* Cannot strip if creating a link. */
-	if (dostrip && dolink) {
+	if (dostrip && linkmode) {
 		warnx("-l and -s may not be specified together");
 		usage();
 	}
@@ -305,7 +307,7 @@ main(int argc, char *argv[])
 
 	if (getenv("DONTSTRIP") != NULL) {
 		warnx("DONTSTRIP set - will not strip installed binaries");
-		dostrip = 0;
+		dostrip = false;
 	}
 
 	/* must have at least two arguments, except when creating directories */
@@ -378,7 +380,7 @@ main(int argc, char *argv[])
 	to_name = argv[argc - 1];
 	no_target = stat(to_name, &to_sb);
 	if (!no_target && S_ISDIR(to_sb.st_mode)) {
-		if (dolink & LN_SYMBOLIC) {
+		if (linkmode & LN_SYMBOLIC) {
 			if (lstat(to_name, &to_sb) != 0)
 				err(EX_OSERR, "%s vanished", to_name);
 			if (S_ISLNK(to_sb.st_mode)) {
@@ -399,7 +401,7 @@ main(int argc, char *argv[])
 	/* can't do file1 file2 directory/file */
 	if (argc != 2) {
 		if (no_target)
-			warnx("target directory `%s' does not exist", 
+			warnx("target directory `%s' does not exist",
 			    argv[argc - 1]);
 		else
 			warnx("target `%s' is not a directory",
@@ -407,7 +409,7 @@ main(int argc, char *argv[])
 		usage();
 	}
 
-	if (!no_target && !dolink) {
+	if (!no_target && linkmode == 0) {
 		if (stat(*argv, &from_sb))
 			err(EX_OSERR, "%s", *argv);
 		if (!S_ISREG(to_sb.st_mode))
@@ -537,6 +539,7 @@ static int
 parseid(const char *name, id_t *id)
 {
 	char	*ep;
+
 	errno = 0;
 	*id = (id_t)strtoul(name, &ep, 10);
 	if (errno || *ep != '\0')
@@ -670,9 +673,9 @@ makelink(const char *from_name, const char *to_name,
 	struct stat to_sb;
 
 	/* Try hard links first. */
-	if (dolink & (LN_HARD|LN_MIXED)) {
+	if (linkmode & (LN_HARD|LN_MIXED)) {
 		if (do_link(from_name, to_name, target_sb) == -1) {
-			if ((dolink & LN_HARD) || errno != EXDEV)
+			if ((linkmode & LN_HARD) || errno != EXDEV)
 				err(EX_OSERR, "link %s -> %s", from_name, to_name);
 		} else {
 			if (stat(to_name, &to_sb))
@@ -717,7 +720,7 @@ makelink(const char *from_name, const char *to_name,
 	}
 
 	/* Symbolic links. */
-	if (dolink & LN_ABSOLUTE) {
+	if (linkmode & LN_ABSOLUTE) {
 		/* Convert source path to absolute. */
 		if (realpath(from_name, src) == NULL)
 			err(EX_OSERR, "%s: realpath", from_name);
@@ -727,7 +730,7 @@ makelink(const char *from_name, const char *to_name,
 		return;
 	}
 
-	if (dolink & LN_RELATIVE) {
+	if (linkmode & LN_RELATIVE) {
 		if (*from_name != '/') {
 			/* this is already a relative link */
 			do_symlink(from_name, to_name, target_sb);
@@ -813,32 +816,30 @@ makelink(const char *from_name, const char *to_name,
 static void
 install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 {
+	char backup[MAXPATHLEN], pathbuf[MAXPATHLEN], tempfile[MAXPATHLEN];
 	struct stat from_sb, temp_sb, to_sb;
 	struct timespec tsb[2];
-	int devnull, files_match, from_fd, ispipe, serrno, stripped, target;
-	int temp_fd, to_fd;
-	char backup[MAXPATHLEN], *p, pathbuf[MAXPATHLEN], tempfile[MAXPATHLEN];
-	char *digestresult;
+	char *digestresult, *p;
+	int from_fd, temp_fd, to_fd, serrno;
+	bool devnull, exists, files_match, ispipe, stripped;
 
-	devnull = ispipe = 0;
+	devnull = exists = files_match = ispipe = stripped = false;
 	digestresult = NULL;
-	files_match = stripped = 0;
-	from_fd = -1;
-	to_fd = -1;
+	from_fd = to_fd = -1;
 
 	if (strcmp(from_name, _PATH_DEVNULL) == 0) {
 		/* We can't create a new file without a name */
 		if ((flags & DIRECTORY) != 0)
 			errc(EX_OSERR, EFTYPE, "%s", from_name);
-		devnull = 1;
+		devnull = true;
 	} else if (strcmp(from_name, _PATH_STDIN) == 0 ||
 	    strcmp(from_name, "-") == 0) {
 		/* We can't create a new file without a name */
 		if ((flags & DIRECTORY) != 0)
 			errc(EX_OSERR, EFTYPE, "%s", from_name);
-		ispipe = 1;
+		ispipe = true;
 	} else {
-		if (!dolink) {
+		if (linkmode == 0) {
 			if (stat(from_name, &from_sb))
 				err(EX_OSERR, "%s", from_name);
 			if (!S_ISREG(from_sb.st_mode))
@@ -856,14 +857,14 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	if (*to_name == '\0')
 		errx(EX_USAGE, "destination cannot be an empty string");
 
-	target = (lstat(to_name, &to_sb) == 0);
+	exists = (lstat(to_name, &to_sb) == 0);
 
-	if (dolink) {
-		makelink(from_name, to_name, target ? &to_sb : NULL);
+	if (linkmode) {
+		makelink(from_name, to_name, exists ? &to_sb : NULL);
 		return;
 	}
 
-	if (target && !S_ISREG(to_sb.st_mode) && !S_ISLNK(to_sb.st_mode))
+	if (exists && !S_ISREG(to_sb.st_mode) && !S_ISLNK(to_sb.st_mode))
 		errc(EX_CANTCREAT, EFTYPE, "%s", to_name);
 
 	if (devnull) {
@@ -876,17 +877,17 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	}
 
 	/* If we don't strip, we can compare first. */
-	if (docompare && !dostrip && target && S_ISREG(to_sb.st_mode)) {
+	if (docompare && !dostrip && exists && S_ISREG(to_sb.st_mode)) {
 		if ((to_fd = open(to_name, O_RDONLY)) < 0)
 			err(EX_OSERR, "%s", to_name);
 		if (devnull)
 			files_match = to_sb.st_size == 0;
 		else if (ispipe)
-			files_match = 0;
+			files_match = false;
 		else {
-			files_match = !(compare(from_fd, from_name,
+			files_match = compare(from_fd, from_name,
 			    (size_t)from_sb.st_size, to_fd,
-			    to_name, (size_t)to_sb.st_size, &digestresult));
+			    to_name, (size_t)to_sb.st_size, &digestresult);
 		}
 
 		/* Close "to" file unless we match. */
@@ -928,7 +929,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	/*
 	 * Compare the stripped temp file with the target.
 	 */
-	if (docompare && dostrip && target && S_ISREG(to_sb.st_mode)) {
+	if (docompare && dostrip && exists && S_ISREG(to_sb.st_mode)) {
 		temp_fd = to_fd;
 
 		/* Re-open to_fd using the real target name. */
@@ -943,8 +944,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		}
 
 		if (compare(temp_fd, tempfile, (size_t)temp_sb.st_size, to_fd,
-			    to_name, (size_t)to_sb.st_size, &digestresult)
-			    == 0) {
+		    to_name, (size_t)to_sb.st_size, &digestresult)) {
 			/*
 			 * If target has more than one link we need to
 			 * replace it in order to snap the extra links.
@@ -955,13 +955,14 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 				tsb[1] = to_sb.st_mtim;
 				(void)utimensat(AT_FDCWD, tempfile, tsb, 0);
 			} else {
-				files_match = 1;
+				files_match = true;
 				(void)unlink(tempfile);
 			}
 			(void) close(temp_fd);
 		}
-	} else if (dostrip)
+	} else if (dostrip) {
 		digestresult = digest_file(tempfile);
+	}
 
 	/*
 	 * Move the new file into place if the files are different (or
@@ -973,7 +974,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		if (to_sb.st_flags & NOCHANGEBITS)
 			(void)chflags(to_name, to_sb.st_flags & ~NOCHANGEBITS);
 #endif
-		if (target && dobackup) {
+		if (exists && dobackup) {
 			if ((size_t)snprintf(backup, MAXPATHLEN, "%s%s", to_name,
 			    suffix) != strlen(to_name) + strlen(suffix)) {
 				unlink(tempfile);
@@ -1103,24 +1104,24 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 
 /*
  * compare --
- *	Compare two files; non-zero means files differ.
+ *	Compare two files; returns false if they differ.
  *	Compute digest and return its address in *dresp
  *	unless it points to pre-computed digest.
  */
-static int
+static bool
 compare(int from_fd, const char *from_name __unused, size_t from_len,
-	int to_fd, const char *to_name __unused, size_t to_len,
-	char **dresp)
+    int to_fd, const char *to_name __unused, size_t to_len,
+    char **dresp)
 {
 	static char *buf, *buf1, *buf2;
 	static size_t bufsize;
 	int do_digest;
 	int n1, n2;
-	int rv;
+	bool equal;
 	DIGEST_CTX ctx;
 
 	if (from_len != to_len)
-		return 1;
+		return false;
 
 	do_digest = (digesttype != DIGEST_NONE && dresp != NULL &&
 	    *dresp == NULL);
@@ -1145,21 +1146,24 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 		buf2 = buf + bufsize;
 	}
 
-	rv = 0;
+	equal = true;
 	lseek(from_fd, 0, SEEK_SET);
 	lseek(to_fd, 0, SEEK_SET);
-	while (rv == 0) {
+	while (equal) {
 		n1 = read(from_fd, buf1, bufsize);
 		if (n1 == 0)
 			break;		/* EOF */
 		else if (n1 > 0) {
 			n2 = read(to_fd, buf2, n1);
-			if (n2 == n1)
-				rv = memcmp(buf1, buf2, n1);
-			else
-				rv = 1;	/* out of sync */
-		} else
-			rv = 1;		/* read failure */
+			if (n2 == n1) {
+				if (memcmp(buf1, buf2, n1) != 0)
+					equal = false;
+			} else {
+				equal = false;	/* out of sync */
+			}
+		} else {
+			equal = false;	/* read failure */
+		}
 		if (do_digest)
 			digest_update(&ctx, buf1, n1);
 	}
@@ -1167,13 +1171,13 @@ compare(int from_fd, const char *from_name __unused, size_t from_len,
 	lseek(to_fd, 0, SEEK_SET);
 
 	if (do_digest) {
-		if (rv == 0)
+		if (equal)
 			*dresp = digest_end(&ctx, NULL);
 		else
 			(void)digest_end(&ctx, NULL);
 	}
 
-	return rv;
+	return (equal);
 }
 
 /*
@@ -1286,15 +1290,14 @@ done:
  * strip --
  *	Use strip(1) to strip the target file.
  *	Just invoke strip(1) on to_name if from_name is NULL, else try
- *	to run "strip -o to_name from_name" and return 0 on failure.
- *	Return 1 on success and assign result of digest_file(to_name)
+ *	to run "strip -o to_name from_name" and return false on failure.
+ *	Return true on success and assign result of digest_file(to_name)
  *	to *dresp.
  */
-static int
+static bool
 strip(const char *to_name, int to_fd, const char *from_name, char **dresp)
 {
-	const char *stripbin;
-	const char *args[5];
+	const char *args[5], *stripbin;
 	char *prefixed_from_name;
 	pid_t pid;
 	int error, serrno, status;
@@ -1314,7 +1317,7 @@ strip(const char *to_name, int to_fd, const char *from_name, char **dresp)
 		/* Prepend './' if from_name begins with '-' */
 		if (from_name[0] == '-') {
 			if (asprintf(&prefixed_from_name, "./%s", from_name) == -1)
-				return (0);
+				return (false);
 			args[3] = prefixed_from_name;
 		} else {
 			args[3] = from_name;
@@ -1337,7 +1340,7 @@ strip(const char *to_name, int to_fd, const char *from_name, char **dresp)
 	}
 	if (status != 0) {
 		if (from_name != NULL)
-			return (0);
+			return (false);
 		(void)unlink(to_name);
 		errx(EX_SOFTWARE, "strip command %s failed on %s",
 		    stripbin, to_name);
@@ -1350,7 +1353,7 @@ strip(const char *to_name, int to_fd, const char *from_name, char **dresp)
 	}
 	if (dresp != NULL)
 		*dresp = digest_file(to_name);
-	return (1);
+	return (true);
 }
 
 /*
@@ -1362,11 +1365,12 @@ install_dir(char *path)
 {
 	char *p;
 	struct stat sb;
-	int ch, tried_mkdir;
+	int ch;
+	bool tried_mkdir;
 
-	for (p = path;; ++p)
-		if (!*p || (p != path && *p  == '/')) {
-			tried_mkdir = 0;
+	for (p = path;; ++p) {
+		if (*p == '\0' || (p != path && *p  == '/')) {
+			tried_mkdir = false;
 			ch = *p;
 			*p = '\0';
 again:
@@ -1374,7 +1378,7 @@ again:
 				if (errno != ENOENT || tried_mkdir)
 					err(EX_OSERR, "stat %s", path);
 				if (mkdir(path, 0755) < 0) {
-					tried_mkdir = 1;
+					tried_mkdir = true;
 					if (errno == EEXIST)
 						goto again;
 					err(EX_OSERR, "mkdir %s", path);
@@ -1384,16 +1388,17 @@ again:
 					    path);
 			} else if (!S_ISDIR(sb.st_mode))
 				errx(EX_OSERR, "%s exists but is not a directory", path);
-			if (!(*p = ch))
+			if ((*p = ch) == '\0')
 				break;
- 		}
+		}
+	}
 
 	if (!dounpriv) {
 		if ((gid != (gid_t)-1 || uid != (uid_t)-1) &&
-		    chown(path, uid, gid))
+		    chown(path, uid, gid) != 0)
 			warn("chown %u:%u %s", uid, gid, path);
 		/* XXXBED: should we do the chmod in the dounpriv case? */
-		if (chmod(path, mode))
+		if (chmod(path, mode) != 0)
 			warn("chmod %o %s", mode, path);
 	}
 	metadata_log(path, "dir", NULL, NULL, NULL, 0);
@@ -1407,15 +1412,16 @@ again:
  */
 static void
 metadata_log(const char *path, const char *type, struct timespec *ts,
-	const char *slink, const char *digestresult, off_t size)
+    const char *slink, const char *digestresult, off_t size)
 {
 	static const char extra[] = { ' ', '\t', '\n', '\\', '#', '\0' };
 	const char *p;
 	char *buf;
 	size_t buflen, destlen;
 	struct flock metalog_lock;
+	id_t id;
 
-	if (!metafp)	
+	if (metafp == NULL)
 		return;
 	/* Buffer for strsnvis(3), used for both path and slink. */
 	buflen = strlen(path);
@@ -1446,23 +1452,19 @@ metadata_log(const char *path, const char *type, struct timespec *ts,
 		    (p[destlen] == '/' || p[destlen] == '\0'))
 			p += destlen;
 	}
-	while (*p && *p == '/')
+	while (*p != '\0' && *p == '/')
 		p++;
 	strsnvis(buf, buflen, p, VIS_OCTAL, extra);
 	p = buf;
 	/* Print details. */
 	fprintf(metafp, ".%s%s type=%s", *p ? "/" : "", p, type);
 	if (owner) {
-		id_t id;
-
 		if (parseid(owner, &id))
 			fprintf(metafp, " uid=%jd", (intmax_t)id);
 		else
 			fprintf(metafp, " uname=%s", owner);
 	}
 	if (group) {
-		id_t id;
-
 		if (parseid(group, &id))
 			fprintf(metafp, " gid=%jd", (intmax_t)id);
 		else
@@ -1478,11 +1480,11 @@ metadata_log(const char *path, const char *type, struct timespec *ts,
 	if (ts != NULL && dopreserve)
 		fprintf(metafp, " time=%lld.%09ld",
 		    (long long)ts[1].tv_sec, ts[1].tv_nsec);
-	if (digestresult && digest)
+	if (digestresult && digest != NULL)
 		fprintf(metafp, " %s=%s", digest, digestresult);
-	if (fflags)
+	if (fflags != NULL)
 		fprintf(metafp, " flags=%s", fflags);
-	if (tags)
+	if (tags != NULL)
 		fprintf(metafp, " tags=%s", tags);
 	fputc('\n', metafp);
 	/* Flush line. */
