@@ -1,9 +1,0 @@
-# Copyright (c) 2026 The FreeBSD Foundation
-#
-# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-#
-Description: LDNS is a DNS library that facilitates DNS tool programming
-License: BSD-3-Clause
-Name: host
-URL: https://github.com/NLnetLabs/ldns
-Version: 1.8.3

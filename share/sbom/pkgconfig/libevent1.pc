@@ -1,9 +1,0 @@
-# Copyright (c) 2026 The FreeBSD Foundation
-#
-# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-#
-License: BSD-3-Clause
-Maintainer: kp@, ks@
-Name: libevent1
-Requires: ${SBOM_REQUIRES}
-URL: https://openbsd.org

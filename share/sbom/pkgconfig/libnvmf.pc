@@ -1,9 +1,0 @@
-# Copyright (c) 2026 The FreeBSD Foundation
-#
-# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-#
-Description: NVMe Over Fabrics library
-License: BSD-2-Clause
-Name: libnvmf
-Source: https://cgit.freebsd.org/src/tree/lib/libnvmf${FREEBSD_GIT_QUERY}
-Version: ${FREEBSD_RELEASE}

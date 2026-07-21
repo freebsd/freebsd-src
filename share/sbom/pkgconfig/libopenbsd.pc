@@ -1,9 +1,0 @@
-# Copyright (c) 2026 The FreeBSD Foundation
-#
-# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-#
-Description: Library missing description
-License: BSD-2-Clause
-Name: libopenbsd
-Source: https://cgit.freebsd.org/src/tree/lib/libopenbsd${FREEBSD_GIT_QUERY}
-Version: ${FREEBSD_RELEASE}

@@ -1,9 +1,0 @@
-# Copyright (c) 2026 The FreeBSD Foundation
-#
-# SPDX-License-Identifier: BSD-2-Clause AND LicenseRef-FreeBSD-SBOM
-#
-Description: Easy Editor
-License: BSD-2-Clause
-Name: edit
-Requires: ${SBOM_REQUIRES}
-Version: 1.5.0
