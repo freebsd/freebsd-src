@@ -223,7 +223,6 @@ u2f_detach(device_t dev)
 	}
 
 	taskqueue_drain(taskqueue_thread, &sc->sc_kqtask);
-	hid_intr_stop(sc->sc_dev);
 
 	knlist_clear(&sc->sc_rsel.si_note, 0);
 	knlist_destroy(&sc->sc_rsel.si_note);
@@ -300,10 +299,8 @@ u2f_dtor(void *data)
 {
 	struct u2f_softc *sc = data;
 
-#ifdef NOT_YET
 	/* Disable interrupts. */
 	hid_intr_stop(sc->sc_dev);
-#endif
 
 	mtx_lock(&sc->sc_mtx);
 	sc->sc_state.open = false;
