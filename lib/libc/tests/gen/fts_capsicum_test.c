@@ -49,16 +49,9 @@ ATF_TC_BODY(fts_dirfd_valid, tc)
 		if (ent->fts_level == FTS_ROOTLEVEL)
 			continue;
 
-		ATF_CHECK_MSG(ent->fts_dirfd >= 0,
+		ATF_REQUIRE_MSG(ent->fts_dirfd >= 0,
 		    "fts_dirfd must be valid for '%s' at level %ld info=%d",
 		    ent->fts_name, ent->fts_level, ent->fts_info);
-
-		if (ent->fts_dirfd < 0)
-			continue;
-
-		/* Skip post-order — same entry as pre-order. */
-		if (ent->fts_info == FTS_DP)
-			continue;
 
 		ATF_REQUIRE_EQ_MSG(0,
 		    fstatat(ent->fts_dirfd, ent->fts_name, &sb_dirfd,
@@ -118,6 +111,8 @@ ATF_TC_BODY(fts_dirfd_capsicum, tc)
 	 */
 	ATF_REQUIRE((fts = fts_openat(dirfd, paths,
 	    FTS_PHYSICAL | FTS_NOCHDIR, NULL)) != NULL);
+	close(dirfd);
+
 
 	/* Enter capability mode — no more path-based syscalls. */
 	ATF_REQUIRE_EQ(0, cap_enter());
