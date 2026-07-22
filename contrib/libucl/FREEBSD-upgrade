@@ -33,7 +33,7 @@
 # 3. Merge vendor tree
 #
 # $ git subtree merge -P contrib/libucl vendor/libucl/<REF_BRANCH_TO_BE_IMPORTED>
-# $ sh -c 'for F in `cat FREEBSD-Xlist | grep -v FreeBSD`; do rm -rf ./$F ; done'
+# $ sh -c 'for F in `cat FREEBSD-Xlist | grep -v FreeBSD`; do git rm -rf ./$F ; done'
 #
 # Recheck if there were any new files were added which are not necessary in the
 # contrib tree. If so, remove them and also add them to the FREEBSD-Xlist file.

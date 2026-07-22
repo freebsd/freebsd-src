@@ -1,0 +1,13 @@
+section_a {
+    key_1 = "value_1";
+}
+section_a {
+    key_2 = "value_2";
+}
+section_b {
+    key_3 = "value_3";
+}
+section_b {
+    key_4 = "value_4";
+}
+

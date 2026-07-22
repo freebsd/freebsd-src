@@ -443,6 +443,14 @@ bool ucl_hash_iter_has_next(ucl_hash_t *hashlin, ucl_hash_iter_t iter)
 	return it->cur != NULL;
 }
 
+void ucl_hash_iterate_free(ucl_hash_iter_t iter)
+{
+	struct ucl_hash_real_iter *it = (struct ucl_hash_real_iter *) (iter);
+
+	if (it != NULL) {
+		UCL_FREE(sizeof(*it), it);
+	}
+}
 
 const ucl_object_t *
 ucl_hash_search(ucl_hash_t *hashlin, const char *key, unsigned keylen)
@@ -610,6 +618,9 @@ ucl_hash_cmp_case_sens(const void *a, const void *b)
 
 void ucl_hash_sort(ucl_hash_t *hashlin, enum ucl_object_keys_sort_flags fl)
 {
+	if (hashlin == NULL) {
+		return;
+	}
 
 	if (fl & UCL_SORT_KEYS_ICASE) {
 		DL_SORT(hashlin->head, ucl_hash_cmp_icase);

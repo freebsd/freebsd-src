@@ -22,10 +22,14 @@ macro(add_ucl_test testname sourcefile wrapper)
 	ENDIF()
 endmacro()
 
-# Build test binaries always (not just for testing)
-add_ucl_test(test_basic test_basic.c basic.test)
-add_ucl_test(test_speed test_speed.c speed.test)
-add_ucl_test(test_schema test_schema.c schema.test)
+# Tests using POSIX APIs (mmap, STDIN_FILENO, etc.) - skip on Windows
+IF(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+	add_ucl_test(test_basic test_basic.c basic.test)
+	add_ucl_test(test_speed test_speed.c speed.test)
+	add_ucl_test(test_schema test_schema.c schema.test)
+ENDIF()
+
+# Portable tests
 add_ucl_test(test_msgpack test_msgpack.c msgpack.test)
 add_ucl_test(test_generate test_generate.c generate.test)
 

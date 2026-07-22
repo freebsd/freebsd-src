@@ -1,5 +1,6 @@
 .github
 .gitignore
+CLAUDE.md
 CMakeLists.txt
 ChangeLog.md
 Makefile.am

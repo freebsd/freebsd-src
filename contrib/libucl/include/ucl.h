@@ -862,6 +862,29 @@ UCL_EXTERN const ucl_object_t *ucl_object_iterate_with_error(const ucl_object_t 
 #define ucl_object_iterate(ob, it, ev) ucl_object_iterate_with_error((ob), (it), (ev), NULL)
 
 /**
+ * Free resources associated with an inline iterator when iteration is
+ * abandoned before completion. Only needed for UCL_OBJECT iteration where
+ * internal heap state is allocated. Safe to call with a NULL iterator or
+ * on non-object types.
+ *
+ * Example usage:
+ * ucl_object_iter_t it = NULL;
+ * while ((cur = ucl_iterate_object(obj, &it, true))) {
+ *     if (error) {
+ *         ucl_object_iterate_end(obj, &it);
+ *         return;
+ *     }
+ * }
+ *
+ * @param obj the object being iterated
+ * @param iter pointer to the iterator to free
+ */
+UCL_EXTERN void ucl_object_iterate_end(const ucl_object_t *obj,
+										ucl_object_iter_t *iter);
+
+#define ucl_iterate_object_end ucl_object_iterate_end
+
+/**
  * Create new safe iterator for the specified object
  * @param obj object to iterate
  * @return new iterator object that should be used with safe iterators API only
