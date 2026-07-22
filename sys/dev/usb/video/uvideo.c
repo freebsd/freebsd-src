@@ -246,7 +246,7 @@ struct uvideo_softc {
 	vm_offset_t		sc_mmap_kva;
 	int			sc_mmap_buffer_idx;
 	q_mmap			sc_mmap_q;
-	int			sc_mmap_count;
+	size_t			sc_mmap_count;
 	int			sc_mmap_flag;
 	vm_object_t			sc_mmap_object;
 
@@ -3609,7 +3609,7 @@ uvideo_g_input(struct uvideo_softc *sc, int *input)
 static int
 uvideo_reqbufs(struct uvideo_softc *sc, struct v4l2_requestbuffers *rb)
 {
-	int i;
+	size_t i;
 	uint32_t buf_size;
 	size_t buf_size_total;
 	vm_object_t obj;
@@ -3637,7 +3637,7 @@ uvideo_reqbufs(struct uvideo_softc *sc, struct v4l2_requestbuffers *rb)
 		return (EINVAL);
 	if (SIZE_MAX / sc->sc_mmap_count < buf_size)
 		return (EINVAL);
-	buf_size_total = (size_t)sc->sc_mmap_count * buf_size;
+	buf_size_total = sc->sc_mmap_count * buf_size;
 	buf_size_total = round_page(buf_size_total);
 
 	/*
@@ -3684,11 +3684,10 @@ uvideo_reqbufs(struct uvideo_softc *sc, struct v4l2_requestbuffers *rb)
 	    buf_size_total, (uintmax_t)kva);
 
 	for (i = 0; i < sc->sc_mmap_count; i++) {
-		sc->sc_mmap[i].buf = sc->sc_mmap_buffer +
-		    ((size_t)i * buf_size);
+		sc->sc_mmap[i].buf = sc->sc_mmap_buffer + (i * buf_size);
 
 		sc->sc_mmap[i].v4l2_buf.index = i;
-		sc->sc_mmap[i].v4l2_buf.m.offset = (size_t)i * buf_size;
+		sc->sc_mmap[i].v4l2_buf.m.offset = i * buf_size;
 		sc->sc_mmap[i].v4l2_buf.length = buf_size;
 		sc->sc_mmap[i].v4l2_buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		sc->sc_mmap[i].v4l2_buf.sequence = 0;
