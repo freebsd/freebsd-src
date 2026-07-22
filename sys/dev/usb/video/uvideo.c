@@ -960,21 +960,20 @@ uvideo_detach(device_t dev)
 
 	sc->sc_dying = 1;
 
-	/* Stop any active streaming */
-	if (sc->sc_streaming) {
-		mtx_lock(&sc->sc_mtx);
-		sc->sc_streaming = 0;
-		mtx_unlock(&sc->sc_mtx);
-		uvideo_vs_close(sc);
-	}
-
 	/* Destroy character device */
 	if (sc->sc_cdev != NULL) {
 		destroy_dev(sc->sc_cdev);
 		sc->sc_cdev = NULL;
 	}
 
-	/* Unit number is implicitly freed when the cdev is destroyed */
+	/* Stop streaming if still active (e.g. detached while idle). */
+	mtx_lock(&sc->sc_mtx);
+	if (sc->sc_streaming) {
+		sc->sc_streaming = 0;
+		mtx_unlock(&sc->sc_mtx);
+		uvideo_vs_close(sc);
+	} else
+		mtx_unlock(&sc->sc_mtx);
 
 	/* Free frame buffers */
 	uvideo_vs_free_frame(sc);
@@ -2911,12 +2910,13 @@ uvideo_cdev_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 	mtx_unlock(&sc->sc_mtx);
 
 	/* Last close: stop streaming if still active (safety net) */
+	mtx_lock(&sc->sc_mtx);
 	if (sc->sc_streaming) {
-		mtx_lock(&sc->sc_mtx);
 		sc->sc_streaming = 0;
 		mtx_unlock(&sc->sc_mtx);
 		uvideo_vs_close(sc);
-	}
+	} else
+		mtx_unlock(&sc->sc_mtx);
 
 	uvideo_vs_free_frame(sc);
 
