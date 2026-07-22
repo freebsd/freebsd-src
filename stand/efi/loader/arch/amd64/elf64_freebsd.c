@@ -163,7 +163,7 @@ elf64_exec(struct preloaded_file *fp)
 		    (EFI_PHYSICAL_ADDRESS *)&PT4);
 		if (EFI_ERROR(err)) {
 			printf("Unable to allocate trampoline page table\n");
-			BS->FreePages(trampcode, 9);
+			BS->FreePages(trampcode, 1);
 			if (copy_auto)
 				copy_staging = COPY_STAGING_AUTO;
 			return (ENOMEM);
