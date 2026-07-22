@@ -233,7 +233,7 @@ struct uvideo_softc {
 	int			sc_streaming;
 
 	int			sc_max_ctrl_size;
-	int			sc_max_fbuf_size;
+	uint32_t		sc_max_fbuf_size;
 	int			sc_negotiated_flag;
 	int			sc_frame_rate;
 
@@ -1308,6 +1308,7 @@ uvideo_vs_parse_desc(struct uvideo_softc *sc,
 		return (error);
 
 	/* Parse video stream frame descriptors */
+	sc->sc_fmtgrp_idx = 0;
 	error = uvideo_vs_parse_desc_frame(sc);
 	if (error != USB_ERR_NORMAL_COMPLETION)
 		return (error);
@@ -1715,9 +1716,15 @@ uvideo_vs_parse_desc_frame_buffer_size(struct uvideo_softc *sc,
 	struct usb_video_frame_desc *fd =
 	    __DECONST(struct usb_video_frame_desc *, desc);
 	int fmtidx, frame_num;
-	uint32_t fbuf_size;
+	uint64_t fbuf_size;
 
 	fmtidx = sc->sc_fmtgrp_idx;
+	if (fmtidx >= UVIDEO_MAX_FORMAT ||
+	    sc->sc_fmtgrp[fmtidx].format == NULL) {
+		device_printf(sc->sc_dev,
+		    "frame descriptor without format!\n");
+		return (USB_ERR_INVAL);
+	}
 	frame_num = sc->sc_fmtgrp[fmtidx].frame_num;
 	if (frame_num >= UVIDEO_MAX_FRAME) {
 		device_printf(sc->sc_dev,
@@ -1744,7 +1751,7 @@ uvideo_vs_parse_desc_frame_buffer_size(struct uvideo_softc *sc,
 		fbuf_size = UGETDW(fd->u.uc.dwMaxVideoFrameBufferSize);
 
 	if (fbuf_size > sc->sc_max_fbuf_size)
-		sc->sc_max_fbuf_size = fbuf_size;
+		sc->sc_max_fbuf_size = (uint32_t)fbuf_size;
 
 	if (++sc->sc_fmtgrp[fmtidx].frame_num ==
 	    sc->sc_fmtgrp[fmtidx].format->bNumFrameDescriptors)
@@ -1761,9 +1768,16 @@ uvideo_vs_parse_desc_frame_max_rate(struct uvideo_softc *sc,
 	    __DECONST(struct usb_video_frame_desc *, desc);
 	uint8_t *p;
 	int i, fmtidx, frame_num, length, nivals;
-	uint32_t fbuf_size, frame_ival, next_frame_ival;
+	uint64_t fbuf_size;
+	uint32_t frame_ival, next_frame_ival;
 
 	fmtidx = sc->sc_fmtgrp_idx;
+	if (fmtidx >= UVIDEO_MAX_FORMAT ||
+	    sc->sc_fmtgrp[fmtidx].format == NULL) {
+		device_printf(sc->sc_dev,
+		    "frame descriptor without format!\n");
+		return (USB_ERR_INVAL);
+	}
 	frame_num = sc->sc_fmtgrp[fmtidx].frame_num;
 	if (frame_num >= UVIDEO_MAX_FRAME) {
 		device_printf(sc->sc_dev,
@@ -1803,7 +1817,7 @@ uvideo_vs_parse_desc_frame_max_rate(struct uvideo_softc *sc,
 	fbuf_size /= 8 * 10000000;
 
 	if (fbuf_size > sc->sc_max_fbuf_size)
-		sc->sc_max_fbuf_size = fbuf_size;
+		sc->sc_max_fbuf_size = (uint32_t)fbuf_size;
 
 	if (++sc->sc_fmtgrp[fmtidx].frame_num ==
 	    sc->sc_fmtgrp[fmtidx].format->bNumFrameDescriptors)
@@ -2240,7 +2254,7 @@ uvideo_vs_alloc_frame(struct uvideo_softc *sc)
 
 	fb->buf_size = UGETDW(sc->sc_desc_probe.dwMaxVideoFrameSize);
 
-	if (sc->sc_max_fbuf_size < fb->buf_size && sc->sc_mmap_flag == 0) {
+	if (sc->sc_max_fbuf_size < fb->buf_size) {
 		device_printf(sc->sc_dev,
 		    "software video buffer too small!\n");
 		return (USB_ERR_NOMEM);
@@ -2948,47 +2962,58 @@ uvideo_cdev_read(struct cdev *dev, struct uio *uio, int ioflag)
 		return (EIO);
 
 	/* Start streaming in read mode if not already running */
-	if (sc->sc_vidmode == VIDMODE_NONE) {
-		if (devfs_get_cdevpriv((void **)&priv) != 0 || priv == NULL)
-			return (EINVAL);
-		sc->sc_mmap_flag = 0;
-		sc->sc_vidmode = VIDMODE_READ;
-
-		error = uvideo_vs_init(sc);
-		if (error != USB_ERR_NORMAL_COMPLETION) {
-			sc->sc_vidmode = VIDMODE_NONE;
-			return (EIO);
-		}
-
-		/* Allocate a separate read buffer for frame delivery */
-		sc->sc_fbufferlen = sc->sc_max_fbuf_size;
-		if (sc->sc_fbufferlen == 0)
-			sc->sc_fbufferlen =
-			    UGETDW(sc->sc_desc_probe.dwMaxVideoFrameSize);
-		if (sc->sc_fbuffer == NULL) {
-			sc->sc_fbuffer = malloc(sc->sc_fbufferlen, M_USBDEV,
-			    M_WAITOK | M_ZERO);
-			if (sc->sc_fbuffer == NULL) {
-				sc->sc_vidmode = VIDMODE_NONE;
-				return (ENOMEM);
-			}
-		}
-
-		mtx_lock(&sc->sc_mtx);
-		sc->sc_streaming = 1;
-		priv->streaming = 1;
-		if (sc->sc_vs_cur->bulk_endpoint)
-			usbd_transfer_start(sc->sc_xfer[0]);
-		else {
-			int i;
-			for (i = 0; i < UVIDEO_IXFERS; i++)
-				usbd_transfer_start(sc->sc_xfer[i]);
-		}
+	mtx_lock(&sc->sc_mtx);
+	if (sc->sc_vidmode != VIDMODE_NONE) {
 		mtx_unlock(&sc->sc_mtx);
+		if (sc->sc_vidmode != VIDMODE_READ)
+			return (EBUSY);
+		goto read_wait;
+	}
+	if (devfs_get_cdevpriv((void **)&priv) != 0 || priv == NULL) {
+		mtx_unlock(&sc->sc_mtx);
+		return (EINVAL);
+	}
+	sc->sc_mmap_flag = 0;
+	sc->sc_vidmode = VIDMODE_READ;
+	mtx_unlock(&sc->sc_mtx);
+
+	error = uvideo_vs_init(sc);
+	if (error != USB_ERR_NORMAL_COMPLETION) {
+		mtx_lock(&sc->sc_mtx);
+		sc->sc_vidmode = VIDMODE_NONE;
+		mtx_unlock(&sc->sc_mtx);
+		return (EIO);
 	}
 
-	if (sc->sc_vidmode != VIDMODE_READ)
-		return (EBUSY);
+	/* Allocate a separate read buffer for frame delivery */
+	sc->sc_fbufferlen = sc->sc_max_fbuf_size;
+	if (sc->sc_fbufferlen == 0)
+		sc->sc_fbufferlen =
+		    UGETDW(sc->sc_desc_probe.dwMaxVideoFrameSize);
+	if (sc->sc_fbuffer == NULL) {
+		sc->sc_fbuffer = malloc(sc->sc_fbufferlen, M_USBDEV,
+		    M_WAITOK | M_ZERO);
+		if (sc->sc_fbuffer == NULL) {
+			mtx_lock(&sc->sc_mtx);
+			sc->sc_vidmode = VIDMODE_NONE;
+			mtx_unlock(&sc->sc_mtx);
+			return (ENOMEM);
+		}
+	}
+
+	mtx_lock(&sc->sc_mtx);
+	sc->sc_streaming = 1;
+	priv->streaming = 1;
+	if (sc->sc_vs_cur->bulk_endpoint)
+		usbd_transfer_start(sc->sc_xfer[0]);
+	else {
+		int i;
+		for (i = 0; i < UVIDEO_IXFERS; i++)
+			usbd_transfer_start(sc->sc_xfer[i]);
+	}
+	mtx_unlock(&sc->sc_mtx);
+
+read_wait:
 
 	/* Wait for a frame */
 	mtx_lock(&sc->sc_mtx);
@@ -3181,7 +3206,9 @@ uvideo_cdev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	vm_object_reference(sc->sc_mmap_object);
 	*object = sc->sc_mmap_object;
 
+	mtx_lock(&sc->sc_mtx);
 	sc->sc_mmap_flag = 1;
+	mtx_unlock(&sc->sc_mtx);
 
 	return (0);
 }
@@ -3430,7 +3457,7 @@ uvideo_s_fmt(struct uvideo_softc *sc, struct v4l2_format *fmt)
 	 * and commit controls with the device would disrupt the active USB
 	 * transfers.  V4L2 mandates EBUSY in this case. */
 	mtx_lock(&sc->sc_mtx);
-	if (sc->sc_streaming) {
+	if (sc->sc_streaming || sc->sc_mmap_count > 0) {
 		mtx_unlock(&sc->sc_mtx);
 		return (EBUSY);
 	}
@@ -3520,7 +3547,7 @@ uvideo_s_parm(struct uvideo_softc *sc, struct v4l2_streamparm *parm)
 	/* Reject parameter changes while streaming for the same reason as
 	 * S_FMT: they re-negotiate with the device. */
 	mtx_lock(&sc->sc_mtx);
-	if (sc->sc_streaming) {
+	if (sc->sc_streaming || sc->sc_mmap_count > 0) {
 		mtx_unlock(&sc->sc_mtx);
 		return (EBUSY);
 	}
@@ -3632,8 +3659,7 @@ uvideo_reqbufs(struct uvideo_softc *sc, struct v4l2_requestbuffers *rb)
 		sc->sc_mmap_count = rb->count;
 
 	buf_size = UGETDW(sc->sc_desc_probe.dwMaxVideoFrameSize);
-	if (buf_size == 0 || sc->sc_max_fbuf_size <= 0 ||
-	    buf_size > (u_int)sc->sc_max_fbuf_size)
+	if (buf_size == 0 || buf_size > sc->sc_max_fbuf_size)
 		return (EINVAL);
 	if (SIZE_MAX / sc->sc_mmap_count < buf_size)
 		return (EINVAL);
