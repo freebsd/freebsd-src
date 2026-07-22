@@ -49,6 +49,7 @@
 
 #include "bhyverun.h"
 #include "config.h"
+#include "config_schema.h"
 #include "debug.h"
 #include "fdt.h"
 #include "ipc.h"
@@ -57,6 +58,19 @@
 #include "pci_irq.h"
 #include "uart_emul.h"
 #include "riscv.h"
+
+static const struct config_option config_options_machdep[] = {
+	{ "console", CONFIG_OPTION_STRING },
+	{ "fdt.bootargs", CONFIG_OPTION_STRING },
+};
+
+void
+config_schema_merge_options_machdep(struct config_schema *schema)
+{
+
+	config_schema_merge_options(schema, NULL, config_options_machdep,
+	    nitems(config_options_machdep));
+}
 
 #define	FDT_SIZE	(64 * 1024)
 #define	FDT_DTB_ALIGN	8
@@ -152,6 +166,10 @@ bhyve_optparse(int argc, char **argv)
 			set_config_bool("monitor.no_reboot", true);
 			break;
 		case 'o':
+			if (strcmp(optarg, "help") == 0) {
+				print_config_options();
+				exit(0);
+			}
 			if (!bhyve_parse_config_option(optarg)) {
 				errx(EX_USAGE,
 				    "invalid configuration option '%s'",

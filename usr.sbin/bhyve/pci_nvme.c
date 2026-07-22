@@ -55,6 +55,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/errno.h>
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/crc16.h>
 #include <net/ieee_oui.h>
@@ -79,9 +80,28 @@
 #include "bhyverun.h"
 #include "block_if.h"
 #include "config.h"
+#include "config_schema.h"
 #include "debug.h"
 #include "pci_emul.h"
 
+static const struct config_option pci_nvme_config_options[] = {
+	{ "maxq", CONFIG_OPTION_INTEGER },
+	{ "qsz", CONFIG_OPTION_INTEGER },
+	{ "ioslots", CONFIG_OPTION_INTEGER },
+	{ "sectsz", CONFIG_OPTION_INTEGER },
+	{ "ser", CONFIG_OPTION_STRING },
+	{ "eui64", CONFIG_OPTION_INTEGER },
+	{ "dsm", CONFIG_OPTION_STRING },
+	{ "ram", CONFIG_OPTION_INTEGER },
+};
+
+static const struct config_option_set pci_nvme_config_option_set = {
+	.prefix = "pci.B.S.F.",
+	.base = &blockif_config_option_set,
+	.options = pci_nvme_config_options,
+	.count = nitems(pci_nvme_config_options),
+};
+CONFIG_OPTION_SET(pci_nvme_config_option_set);
 
 static int nvme_debug = 0;
 #define	DPRINTF(fmt, args...) if (nvme_debug) PRINTLN(fmt, ##args)

@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 3, 2026
+.Dd October 24, 2026
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -91,6 +91,8 @@
 .Ar vmname
 .Nm
 .Fl l Cm help
+.Nm
+.Fl o Cm help
 .Nm
 .Fl s Cm help
 .Sh DESCRIPTION
@@ -352,6 +354,8 @@ This option has no effect unless the
 configuration option is enabled or
 .Fl M
 was specified.
+.It Fl o Cm help
+Print a list of supported configuration variables.
 .It Fl o Ar var Ns Cm = Ns Ar value
 Set the configuration variable
 .Ar var

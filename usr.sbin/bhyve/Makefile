@@ -25,6 +25,7 @@ SRCS=	\
 	block_if.c		\
 	bootrom.c		\
 	config.c		\
+	config_schema.c		\
 	console.c		\
 	crc16.c			\
 	ctl_nvme_all.c		\

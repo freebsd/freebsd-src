@@ -40,7 +40,10 @@
 #include <sys/uio.h>
 #include <sys/unistd.h>
 
+struct config_option_set;
 struct vm_snapshot_meta;
+
+extern const struct config_option_set blockif_config_option_set;
 
 
 /*
