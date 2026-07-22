@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 26, 2025
+.Dd August 14, 2026
 .Dt BHYVE_CONFIG 5
 .Os
 .Sh NAME
@@ -225,9 +225,13 @@ This value is used for the guest's System Management BIOS System Information str
 Stock keeping unit of the chassis.
 It's also called product ID or purchase order number.
 This value is used for the guest's System Management BIOS System Information structure.
+.It Va vcpu.N.cpuset Ta string Ta none Ta
+Comma-separated host CPU IDs and ranges to which virtual CPU
+.Em N
+is pinned.
 .El
 .Ss x86-Specific Settings
-.Bl -column "x86.vmexit_on_pause" "integer" "Default"
+.Bl -column "domains.N.domain_policy" "integer" "Default"
 .It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
 .It Va x86.mptable Ta bool Ta true Ta
 Generate an MPTable.
@@ -254,6 +258,43 @@ This allows idle guest CPUs to yield the host CPU.
 Force a VM exit when a guest CPU executes the
 .Dv PAUSE
 instruction.
+.It Va domains.N.size Ta string Ta Ta
+Guest physical memory size assigned to NUMA domain
+.Em N .
+The value must be formatted as described in
+.Xr expand_number 3 .
+If at least one NUMA domain is configured without a memory size,
+the configured guest memory is split evenly across all configured domains.
+.It Va domains.N.cpus Ta string Ta Ta
+Comma-separated guest CPU IDs and ranges assigned to NUMA domain
+.Em N .
+This setting is required for each configured NUMA domain.
+.It Va domains.N.domain_policy Ta string Ta Ta
+Host NUMA memory allocation policy for the memory backing NUMA domain
+.Em N .
+The value uses the policy format accepted by
+.Xr cpuset 1
+with the
+.Fl n
+option.
+.El
+.Ss arm64 and RISC-V Specific Settings
+.Bl -column "console" "string" "Default"
+.It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
+.It Va console Ta string Ta Ta
+Backend device for the console.
+Supported backends are a character device pathname,
+.Dq stdio ,
+and
+.Ql tcp=ip:port .
+The
+.Dq stdio
+backend uses standard input and output of the
+.Xr bhyve 8
+process.
+The
+.Ql tcp=ip:port
+backend listens for TCP connections.
 .El
 .Sh DEVICE SETTINGS
 Device settings are stored under a device node.
