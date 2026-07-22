@@ -82,6 +82,7 @@ struct pf_frnode {
 	struct pf_addr		fn_dst;		/* ip destination address */
 	sa_family_t		fn_af;		/* address family */
 	u_int8_t		fn_proto;	/* protocol for fragments in fn_tree */
+	u_int8_t		fn_direction;	/* pf packet direction */
 	u_int32_t		fn_fragments;	/* number of entries in fn_tree */
 
 	RB_ENTRY(pf_frnode)	fn_entry;
@@ -155,22 +156,23 @@ static struct pf_fragment *pf_fillup_fragment(struct pf_frnode *, u_int32_t,
 		    struct pf_frent *, u_short *);
 static struct mbuf *pf_join_fragment(struct pf_fragment *);
 #ifdef INET
-static int	pf_reassemble(struct mbuf **, u_short *);
+static int	pf_reassemble(struct mbuf **, uint8_t, u_short *);
 #endif	/* INET */
 #ifdef INET6
 static int	pf_reassemble6(struct mbuf **,
-		    struct ip6_frag *, uint16_t, uint16_t, u_short *);
+		    struct ip6_frag *, uint16_t, uint16_t, uint8_t, u_short *);
 #endif	/* INET6 */
 
 #ifdef INET
 static void
-pf_ip2key(struct ip *ip, struct pf_frnode *key)
+pf_ip2key(struct ip *ip, struct pf_frnode *key, uint8_t dir)
 {
 
 	key->fn_src.v4 = ip->ip_src;
 	key->fn_dst.v4 = ip->ip_dst;
 	key->fn_af = AF_INET;
 	key->fn_proto = ip->ip_p;
+	key->fn_direction = dir;
 }
 #endif	/* INET */
 
@@ -225,6 +227,8 @@ pf_frnode_compare(struct pf_frnode *a, struct pf_frnode *b)
 	if ((diff = a->fn_proto - b->fn_proto) != 0)
 		return (diff);
 	if ((diff = a->fn_af - b->fn_af) != 0)
+		return (diff);
+	if ((diff = a->fn_direction - b->fn_direction) != 0)
 		return (diff);
 	if ((diff = pf_addr_cmp(&a->fn_src, &b->fn_src, a->fn_af)) != 0)
 		return (diff);
@@ -807,7 +811,7 @@ pf_join_fragment(struct pf_fragment *frag)
 
 #ifdef INET
 static int
-pf_reassemble(struct mbuf **m0, u_short *reason)
+pf_reassemble(struct mbuf **m0, uint8_t dir, u_short *reason)
 {
 	struct mbuf		*m = *m0;
 	struct ip		*ip = mtod(m, struct ip *);
@@ -831,7 +835,7 @@ pf_reassemble(struct mbuf **m0, u_short *reason)
 	frent->fe_off = (ntohs(ip->ip_off) & IP_OFFMASK) << 3;
 	frent->fe_mff = ntohs(ip->ip_off) & IP_MF;
 
-	pf_ip2key(ip, &key);
+	pf_ip2key(ip, &key, dir);
 
 	if ((frag = pf_fillup_fragment(&key, ip->ip_id, frent, reason)) == NULL)
 		return (PF_DROP);
@@ -902,7 +906,7 @@ pf_reassemble(struct mbuf **m0, u_short *reason)
 #ifdef INET6
 static int
 pf_reassemble6(struct mbuf **m0, struct ip6_frag *fraghdr,
-    uint16_t hdrlen, uint16_t extoff, u_short *reason)
+    uint16_t hdrlen, uint16_t extoff, uint8_t dir, u_short *reason)
 {
 	struct mbuf		*m = *m0;
 	struct ip6_hdr		*ip6 = mtod(m, struct ip6_hdr *);
@@ -936,6 +940,7 @@ pf_reassemble6(struct mbuf **m0, struct ip6_frag *fraghdr,
 	key.fn_af = AF_INET6;
 	/* Only the first fragment's protocol is relevant. */
 	key.fn_proto = 0;
+	key.fn_direction = dir;
 
 	if ((frag = pf_fillup_fragment(&key, fraghdr->ip6f_ident, frent, reason)) == NULL) {
 		PF_FRAG_UNLOCK();
@@ -1274,7 +1279,7 @@ pf_normalize_ip(u_short *reason, struct pf_pdesc *pd)
 		PF_FRAG_LOCK();
 		DPFPRINTF(PF_DEBUG_MISC, "reass frag %d @ %d-%d",
 		    h->ip_id, fragoff, max);
-		verdict = pf_reassemble(&pd->m, reason);
+		verdict = pf_reassemble(&pd->m, pd->dir, reason);
 		PF_FRAG_UNLOCK();
 
 		if (verdict != PF_PASS)
@@ -1375,7 +1380,8 @@ pf_normalize_ip6(int off, u_short *reason,
 	if (pd->virtual_proto == PF_VPROTO_FRAGMENT) {
 		/* Returns PF_DROP or *m0 is NULL or completely reassembled
 		 * mbuf. */
-		if (pf_reassemble6(&pd->m, &frag, off, pd->extoff, reason) != PF_PASS)
+		if (pf_reassemble6(&pd->m, &frag, off, pd->extoff, pd->dir, reason)
+		    != PF_PASS)
 			return (PF_DROP);
 		if (pd->m == NULL)
 			return (PF_DROP);
