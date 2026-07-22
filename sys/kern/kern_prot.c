@@ -197,7 +197,7 @@ sys_getpgid(struct thread *td, struct getpgid_args *uap)
 		p = td->td_proc;
 		PROC_LOCK(p);
 	} else {
-		p = pfind(uap->pid);
+		p = pfind_any(uap->pid);
 		if (p == NULL)
 			return (ESRCH);
 		error = p_cansee(td, p);
@@ -232,11 +232,12 @@ kern_getsid(struct thread *td, pid_t pid)
 	struct proc *p;
 	int error;
 
+	error = 0;
 	if (pid == 0) {
 		p = td->td_proc;
 		PROC_LOCK(p);
 	} else {
-		p = pfind(pid);
+		p = pfind_any(pid);
 		if (p == NULL)
 			return (ESRCH);
 		error = p_cansee(td, p);
@@ -245,9 +246,12 @@ kern_getsid(struct thread *td, pid_t pid)
 			return (error);
 		}
 	}
-	td->td_retval[0] = p->p_session->s_sid;
+	if (p->p_session != NULL)
+		td->td_retval[0] = p->p_session->s_sid;
+	else
+		error = EINVAL;
 	PROC_UNLOCK(p);
-	return (0);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
