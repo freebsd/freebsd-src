@@ -132,7 +132,6 @@ struct tarfs_mount {
 	struct tarfs_node	*root;
 	struct vnode		*vp;
 	struct mount		*vfs;
-	ino_t			 ino;
 	struct unrhdr		*ino_unr;
 	size_t			 iosize;
 	size_t			 nblocks;
