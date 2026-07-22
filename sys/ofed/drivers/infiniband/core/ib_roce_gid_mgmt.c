@@ -260,8 +260,10 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 			/* check if entry found */
 			sgid_attr = rdma_find_gid_by_port(device, &gid, i,
                                                           port, entry->ndev);
-			if (!IS_ERR(sgid_attr))
+			if (!IS_ERR(sgid_attr)) {
+				rdma_put_gid_attr(sgid_attr);
 				break;
+			}
 		}
 		if (i != IB_GID_TYPE_SIZE)
 			continue;
