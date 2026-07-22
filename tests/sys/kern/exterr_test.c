@@ -34,6 +34,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "freebsd_test_suite/macros.h"
+
 /*
  * Pin the message format by clearing EXTERROR_VERBOSE, which would
  * otherwise change the output shape.
@@ -66,8 +68,7 @@ ATF_TC_BODY(gettext_extended, tc)
 	r = uexterr_gettext(exterr, sizeof(exterr));
 	ATF_CHECK_EQ(0, r);
 	printf("Extended error: %s\n", exterr);
-	if (feature_present("exterr_strings") == 0)
-		atf_tc_skip("kernel built without EXTERR_STRINGS");
+	ATF_REQUIRE_FEATURE("exterr_strings");
 	/* Note: error string may need to be updated due to kernel changes */
 	ATF_CHECK(strstr(exterr, " is not subset of ") != NULL);
 }
