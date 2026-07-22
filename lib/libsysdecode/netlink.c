@@ -5,9 +5,14 @@
  */
 
 #include <sys/param.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <netlink/netlink.h>
 #include <netlink/netlink_generic.h>
 #include <netlink/netlink_snl.h>
+#include <netpfil/pf/pf_nl.h>
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -29,8 +34,195 @@
 static struct name_table *family_table = NULL;
 static size_t num_family = 0;
 
+typedef void decode_attr_f(FILE *fp, const struct nlattr *attr,
+    const char *attr_name, const void *args);
+struct nlattr_decoder {
+	uint16_t	type;	/* Attribute type */
+	const char	*attr_name;	/* Attribute name*/
+	decode_attr_f	*cb;	/* decoder function to call */
+	const void	*args;		/* nested decoder */
+};
+
+struct nlattr_decoder_set {
+	const struct nlattr_decoder	*decoders;	/* PFNL CMD Decoders */
+	size_t	count;	/*Attribute Count*/
+};
+
+#define	NL_DECLARE_ATTR_DECODER(_name, _np)			\
+static const struct nlattr_decoder_set _name = {			\
+	.decoders = &((_np)[0]),					\
+	.count = nitems(_np),						\
+}
+
+static void nl_decode_attrs_raw(FILE *fp, const struct nlattr *nla_head,
+    size_t len, const struct nlattr_decoder *ps, size_t pslen);
+
 static void
-sysdecode_netlink_pf(FILE *fp, const struct genlmsghdr *genl)
+nlattr_decode_in6_addr(FILE *fp, const struct nlattr *attr,
+    const char *attr_name, const void *args)
+{
+	(void)args;
+
+	struct in6_addr target;
+
+	if (NLA_DATA_LEN(attr) < (int)sizeof(target))
+		return;
+
+	memcpy(&target, NLA_DATA_CONST(attr), sizeof(struct in6_addr));
+
+	fprintf(fp, "%s=", attr_name);
+
+	char buf[INET6_ADDRSTRLEN];
+
+	if (inet_ntop(AF_INET6, &target, buf, sizeof(buf)) != NULL)
+		fprintf(fp, "%s", buf);
+}
+
+static void
+nlattr_decode_uint32(FILE *fp, const struct nlattr *attr, const char *attr_name,
+    const void *args)
+{
+	(void)args;
+
+	uint32_t target;
+
+	if (NLA_DATA_LEN(attr) < (int)sizeof(target))
+		return;
+
+	memcpy(&target, NLA_DATA_CONST(attr), sizeof(uint32_t));
+
+	fprintf(fp, "%s=%u", attr_name, target);
+}
+
+static void
+nlattr_decode_uint8(FILE *fp, const struct nlattr *attr, const char *attr_name,
+    const void *args)
+{
+	(void)args;
+
+	uint8_t target;
+
+	if (NLA_DATA_LEN(attr) < (int)sizeof(target))
+		return;
+
+	memcpy(&target, NLA_DATA_CONST(attr), sizeof(uint8_t));
+
+	fprintf(fp, "%s=%u", attr_name, target);
+}
+
+static void
+nlattr_decode_string(FILE *fp, const struct nlattr *attr, const char *attr_name,
+    const void *args)
+{
+	(void)args;
+
+	if (NLA_DATA_LEN(attr) == 0)
+		return;
+
+	const char *target = (const char *)NLA_DATA_CONST(attr);
+
+	fprintf(fp, "%s=%s", attr_name, target);
+}
+
+static void
+nlattr_decode_nested(FILE *fp, const struct nlattr *attr, const char *attr_name,
+    const void *args)
+{
+	const struct nlattr_decoder_set *set = args;
+
+	if (set == NULL)
+		return;
+
+	fprintf(fp, "%s=", attr_name);
+
+	nl_decode_attrs_raw(fp, NLA_DATA_CONST(attr), NLA_DATA_LEN(attr),
+	    set->decoders, set->count);
+}
+
+static const struct nlattr_decoder *
+search_decoders(const struct nlattr_decoder *ps, size_t pslen, int key)
+{
+	size_t left_i = 0, right_i = pslen - 1;
+
+	if (pslen == 0)
+		return (NULL);
+
+	if (key < ps[0].type || key > ps[pslen - 1].type)
+		return (NULL);
+
+	while (left_i + 1 < right_i) {
+		size_t mid_i = (left_i + right_i) / 2;
+		if (key < ps[mid_i].type)
+			right_i = mid_i;
+		else if (key > ps[mid_i].type)
+			left_i = mid_i + 1;
+		else
+			return (&ps[mid_i]);
+	}
+	if (ps[left_i].type == key)
+		return (&ps[left_i]);
+	else if (ps[right_i].type == key)
+		return (&ps[right_i]);
+	return (NULL);
+}
+
+static void
+nl_decode_attrs_raw(FILE *fp, const struct nlattr *nla_head, size_t len,
+    const struct nlattr_decoder *ps, size_t pslen)
+{
+	const struct nlattr_decoder *s;
+	const struct nlattr *nla;
+	bool first = true;
+
+	fprintf(fp, "{");
+
+	NLA_FOREACH_CONST(nla, nla_head, len) {
+		if (!first)
+			fprintf(fp, ",");
+
+		s = search_decoders(ps, pslen, nla->nla_type & NLA_TYPE_MASK);
+		if (s != NULL && s->cb != NULL)
+			s->cb(fp, nla, s->attr_name, s->args);
+
+		first = false;
+	}
+
+	fprintf(fp, "}");
+}
+
+static const struct nlattr_decoder nla_d_addr_wrap[] = {
+	{ .type = PF_AT_ADDR, .attr_name = "addr", .cb = nlattr_decode_in6_addr },
+	{ .type = PF_AT_MASK, .attr_name = "mask", .cb = nlattr_decode_in6_addr },
+	{ .type = PF_AT_IFNAME, .attr_name = "ifname", .cb = nlattr_decode_string },
+	{ .type = PF_AT_TABLENAME, .attr_name = "tablename", .cb = nlattr_decode_string },
+	{ .type = PF_AT_TYPE, .attr_name = "type", .cb = nlattr_decode_uint8 },
+	{ .type = PF_AT_IFLAGS, .attr_name = "iflags", .cb = nlattr_decode_uint8 },
+};
+NL_DECLARE_ATTR_DECODER(addr_wrap_decoder, nla_d_addr_wrap);
+
+static const struct nlattr_decoder nla_d_pool_addr[] = {
+	{ .type = PF_PA_ADDR, .attr_name = "addr", .cb = nlattr_decode_nested, .args = &addr_wrap_decoder},
+	{ .type = PF_PA_IFNAME, .attr_name = "ifname", .cb = nlattr_decode_string },
+};
+NL_DECLARE_ATTR_DECODER(pool_addr_decoder, nla_d_pool_addr);
+
+static const struct nlattr_decoder nla_d_add_addr[] = {
+	{ .type = PF_AA_ACTION, .attr_name = "action", .cb = nlattr_decode_uint32 },
+	{ .type = PF_AA_TICKET, .attr_name = "ticket", .cb = nlattr_decode_uint32 },
+	{ .type = PF_AA_NR, .attr_name = "nr", .cb = nlattr_decode_uint32 },
+	{ .type = PF_AA_R_NUM, .attr_name = "r_num", .cb = nlattr_decode_uint32 },
+	{ .type = PF_AA_R_ACTION, .attr_name = "r_action", .cb = nlattr_decode_uint8 },
+	{ .type = PF_AA_R_LAST, .attr_name = "r_last", .cb = nlattr_decode_uint8 },
+	{ .type = PF_AA_AF, .attr_name = "af", .cb = nlattr_decode_uint8 },
+	{ .type = PF_AA_ANCHOR, .attr_name = "anchor", .cb = nlattr_decode_string },
+	{ .type = PF_AA_ADDR, .attr_name = "addr", .cb = nlattr_decode_nested , .args = &pool_addr_decoder},
+	{ .type = PF_AA_WHICH, .attr_name = "which", .cb = nlattr_decode_uint32 },
+};
+NL_DECLARE_ATTR_DECODER(addr_parser, nla_d_add_addr);
+
+
+static void
+sysdecode_netlink_pf(FILE *fp, const struct genlmsghdr *genl, size_t nlm_len)
 {
 	uint8_t cmd = genl->cmd;
 	const char *cmd_name = sysdecode_pfnl_cmd(cmd);
@@ -39,6 +231,22 @@ sysdecode_netlink_pf(FILE *fp, const struct genlmsghdr *genl)
 		fprintf(fp, "cmd=%s", cmd_name);
 	else
 		fprintf(fp, "cmd=%u", cmd);
+
+	const struct nlattr *nla = (const struct nlattr *)(const void *)
+	    ((const char *)genl + sizeof(struct genlmsghdr));
+
+	switch (cmd) {
+	case PFNL_CMD_GET_ADDR:
+			nl_decode_attrs_raw(fp, nla, nlm_len,
+			    addr_parser.decoders, addr_parser.count);
+		break;
+	case PFNL_CMD_GET_ADDRS:
+			nl_decode_attrs_raw(fp, nla, nlm_len,
+			    addr_parser.decoders, addr_parser.count);
+		break;
+	default:
+		break;
+	}
 }
 
 bool
@@ -181,8 +389,11 @@ sysdecode_netlink(FILE *fp, const void *buf, size_t len, int protocol)
 				    (const struct genlmsghdr *)(const void *)
 				    ((const char *)nl +
 				    sizeof(struct nlmsghdr));
+				const size_t nlm_len = nl->nlmsg_len -
+				    (sizeof(struct nlmsghdr) +
+				    sizeof(struct genlmsghdr));
 
-				sysdecode_netlink_pf(fp, genl);
+				sysdecode_netlink_pf(fp, genl, nlm_len);
 			}
 
 			fprintf(fp, "}");
