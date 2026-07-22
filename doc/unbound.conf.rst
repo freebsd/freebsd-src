@@ -2055,6 +2055,13 @@ These options are part of the ``server:`` section.
     flushing away any poison.
     A value of 10 million is suggested.
 
+    It is useful to add 0.0.0.0/8 and '::' to the
+    :ref:`do-not-query-address<unbound.conf.do-not-query-address>` list.
+    Otherwise they may be answered, from localhost, and the different source
+    makes an unwanted reply that unnecessarily ticks up.
+    The :ref:`do-not-query-localhost<unbound.conf.do-not-query-localhost>`
+    option includes them, the zero subnets, when it is enabled.
+
     Default: 0 (disabled)
 
 

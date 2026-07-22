@@ -721,6 +721,12 @@ struct module_qstate {
 
 	/** whether the reply should be dropped */
 	int is_drop;
+	/** the global quota that was reached, by one of the modules.
+	 * So that continued counting can go on from that point. */
+	int global_quota_reached;
+	/** the global quota that a query started with, it is a subquery,
+	 * so that calling mesh states can see the increase. */
+	int global_quota_started;
 };
 
 /** 

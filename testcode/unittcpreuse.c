@@ -41,6 +41,7 @@
 #include "config.h"
 #include "testcode/unitmain.h"
 #include "util/log.h"
+#include "util/net_help.h"
 #include "util/random.h"
 #include "services/outside_network.h"
 
@@ -479,6 +480,278 @@ static void reuse_write_wait_test(void)
 	check_reuse_write_wait_removal(1, &reuse, store, 0, 1);
 }
 
+static void shared_port_test_ifs(void)
+{
+	struct shared_ports* shp;
+	struct shared_ports_if* shpif;
+	char* ifs[] = {"1.2.3.4", "1.2.3.5", "::1:2", "::1:3"};
+	int availports[] = {1, 2, 3, 4};
+	struct sockaddr_storage addr;
+	socklen_t addrlen;
+
+	shp = shared_ports_create(ifs, 4, 1, 1, availports, 4);
+	unit_assert(shp);
+
+	if(!ipstrtoaddr("1.2.3.4", UNBOUND_DNS_PORT, &addr, &addrlen))
+		log_err("could not parse");
+	shpif = shared_ports_find_if(shp, &addr, addrlen, 0);
+	unit_assert(shpif);
+
+	if(!ipstrtoaddr("1.2.3.5", UNBOUND_DNS_PORT, &addr, &addrlen))
+		log_err("could not parse");
+	shpif = shared_ports_find_if(shp, &addr, addrlen, 0);
+	unit_assert(shpif);
+
+	if(!ipstrtoaddr("::1:2", UNBOUND_DNS_PORT, &addr, &addrlen))
+		log_err("could not parse");
+	shpif = shared_ports_find_if(shp, &addr, addrlen, 0);
+	unit_assert(shpif);
+
+	if(!ipstrtoaddr("::1:3", UNBOUND_DNS_PORT, &addr, &addrlen))
+		log_err("could not parse");
+	shpif = shared_ports_find_if(shp, &addr, addrlen, 0);
+	unit_assert(shpif);
+
+	shared_ports_delete(shp);
+}
+
+/** See if a port is on the shared_ports ports list */
+static int
+pif_list_contains(struct shared_ports_if* shpif, int item)
+{
+	int i;
+	unit_assert(shpif->inuse >= 0 && shpif->inuse <= shpif->avail_total);
+	for(i=0; i< shpif->avail_total - shpif->inuse; i++) {
+		if(shpif->avail_ports[i] == item)
+			return 1;
+	}
+	return 0;
+}
+
+/** See if a number of ports are on the shared_ports list */
+static int
+pif_list_contains_items(struct shared_ports_if* shpif, int item1,
+	int item2, int item3, int item4)
+{
+	if(item1 != -1 && !pif_list_contains(shpif, item1))
+		return 0;
+	if(item2 != -1 && !pif_list_contains(shpif, item2))
+		return 0;
+	if(item3 != -1 && !pif_list_contains(shpif, item3))
+		return 0;
+	if(item4 != -1 && !pif_list_contains(shpif, item4))
+		return 0;
+	return 1;
+}
+
+static void shared_port_test_port(void)
+{
+	struct shared_ports* shp;
+	struct shared_ports_if* shpif;
+	char* ifs[] = {"1.2.3.4", "1.2.3.5"};
+	int availports[] = {1, 2, 3, 4};
+	struct sockaddr_storage addr;
+	socklen_t addrlen;
+	int p1, p2, p3, reused;
+	struct ub_randstate* rnd;
+
+	rnd = ub_initstate(NULL);
+	unit_assert(rnd);
+
+	shp = shared_ports_create(ifs, 2, 1, 1, availports, 4);
+	unit_assert(shp);
+
+	if(!ipstrtoaddr("1.2.3.4", UNBOUND_DNS_PORT, &addr, &addrlen))
+		log_err("could not parse");
+	shpif = shared_ports_find_if(shp, &addr, addrlen, 0);
+	unit_assert(shpif);
+
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 0);
+	unit_assert(pif_list_contains_items(shpif, 1, 2, 3, 4));
+
+	if(!shared_ports_fetch_random(shp, shpif, rnd,
+		0, 0, &p1, &reused)) {
+		unit_assert(0); /* should succeed */
+	}
+	unit_assert(reused == 0);
+	unit_assert(p1 != 0);
+	unit_assert(!pif_list_contains(shpif, p1));
+	if(p1 != 1) unit_assert(pif_list_contains(shpif, 1));
+	if(p1 != 2) unit_assert(pif_list_contains(shpif, 2));
+	if(p1 != 3) unit_assert(pif_list_contains(shpif, 3));
+	if(p1 != 4) unit_assert(pif_list_contains(shpif, 4));
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 1);
+
+	shared_ports_return_port(shp, shpif, p1);
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 0);
+	unit_assert(pif_list_contains_items(shpif, 1, 2, 3, 4));
+
+	/* pick up two items */
+	if(!shared_ports_fetch_random(shp, shpif, rnd,
+		0, 0, &p1, &reused)) {
+		unit_assert(0); /* should succeed */
+	}
+	unit_assert(reused == 0);
+	unit_assert(p1 != 0);
+	if(!shared_ports_fetch_random(shp, shpif, rnd,
+		0, 0, &p2, &reused)) {
+		unit_assert(0); /* should succeed */
+	}
+	unit_assert(reused == 0);
+	unit_assert(p2 != 0);
+	unit_assert(!pif_list_contains(shpif, p1));
+	unit_assert(!pif_list_contains(shpif, p2));
+	if(p1 != 1 && p2 != 1) unit_assert(pif_list_contains(shpif, 1));
+	if(p1 != 2 && p2 != 2) unit_assert(pif_list_contains(shpif, 2));
+	if(p1 != 3 && p2 != 3) unit_assert(pif_list_contains(shpif, 3));
+	if(p1 != 4 && p2 != 4) unit_assert(pif_list_contains(shpif, 4));
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 2);
+
+	shared_ports_return_port(shp, shpif, p1);
+	unit_assert(pif_list_contains(shpif, p1));
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 1);
+
+	shared_ports_return_port(shp, shpif, p2);
+	unit_assert(pif_list_contains(shpif, p2));
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 0);
+	unit_assert(pif_list_contains_items(shpif, 1, 2, 3, 4));
+
+	/* pick up three items */
+	if(!shared_ports_fetch_random(shp, shpif, rnd,
+		0, 0, &p1, &reused)) {
+		unit_assert(0); /* should succeed */
+	}
+	unit_assert(reused == 0);
+	unit_assert(p1 != 0);
+	if(!shared_ports_fetch_random(shp, shpif, rnd,
+		0, 0, &p2, &reused)) {
+		unit_assert(0); /* should succeed */
+	}
+	unit_assert(reused == 0);
+	unit_assert(p2 != 0);
+	if(!shared_ports_fetch_random(shp, shpif, rnd,
+		0, 0, &p3, &reused)) {
+		unit_assert(0); /* should succeed */
+	}
+	unit_assert(reused == 0);
+	unit_assert(p3 != 0);
+	unit_assert(!pif_list_contains(shpif, p1));
+	unit_assert(!pif_list_contains(shpif, p2));
+	unit_assert(!pif_list_contains(shpif, p3));
+	if(p1 != 1 && p2 != 1 && p3 != 1)
+		unit_assert(pif_list_contains(shpif, 1));
+	if(p1 != 2 && p2 != 2 && p3 != 2)
+		unit_assert(pif_list_contains(shpif, 2));
+	if(p1 != 3 && p2 != 3 && p3 != 3)
+		unit_assert(pif_list_contains(shpif, 3));
+	if(p1 != 4 && p2 != 4 && p3 != 4)
+		unit_assert(pif_list_contains(shpif, 4));
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 3);
+
+	shared_ports_return_port(shp, shpif, p1);
+	unit_assert(pif_list_contains(shpif, p1));
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 2);
+
+	shared_ports_return_port(shp, shpif, p2);
+	unit_assert(pif_list_contains(shpif, p2));
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 1);
+
+	shared_ports_return_port(shp, shpif, p3);
+	unit_assert(pif_list_contains(shpif, p3));
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 0);
+	unit_assert(pif_list_contains_items(shpif, 1, 2, 3, 4));
+
+	/* pick up all four items */
+	if(!shared_ports_fetch_random(shp, shpif, rnd,
+		0, 0, &p1, &reused)) {
+		unit_assert(0); /* should succeed */
+	}
+	unit_assert(reused == 0);
+	unit_assert(p1 != 0);
+
+	if(!shared_ports_fetch_random(shp, shpif, rnd,
+		0, 0, &p1, &reused)) {
+		unit_assert(0); /* should succeed */
+	}
+	unit_assert(reused == 0);
+	unit_assert(p1 != 0);
+
+	if(!shared_ports_fetch_random(shp, shpif, rnd,
+		0, 0, &p1, &reused)) {
+		unit_assert(0); /* should succeed */
+	}
+	unit_assert(reused == 0);
+	unit_assert(p1 != 0);
+
+	if(!shared_ports_fetch_random(shp, shpif, rnd,
+		0, 0, &p1, &reused)) {
+		unit_assert(0); /* should succeed */
+	}
+	unit_assert(reused == 0);
+	unit_assert(p1 != 0);
+	unit_assert(!pif_list_contains(shpif, 1));
+	unit_assert(!pif_list_contains(shpif, 2));
+	unit_assert(!pif_list_contains(shpif, 3));
+	unit_assert(!pif_list_contains(shpif, 4));
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 4);
+
+	/* more fetches fail, it is fully inuse. */
+	unit_assert(!shared_ports_fetch_random(shp, shpif, rnd, 0, 0, &p2,
+		&reused));
+	unit_assert(!shared_ports_fetch_random(shp, shpif, rnd, 0, 0, &p3,
+		&reused));
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 4);
+
+	/* reuse is then always the case */
+	if(!shared_ports_fetch_random(shp, shpif, rnd,
+		0 /* can reuse */, 4 /* reusenum */, &p1, &reused)) {
+		unit_assert(0); /* should succeed */
+	}
+	unit_assert(reused == 1);
+	unit_assert(p1 >= 0 && p1 < 4 /* reusenum */);
+
+	if(!shared_ports_fetch_random(shp, shpif, rnd,
+		0 /* can reuse */, 4 /* reusenum */, &p1, &reused)) {
+		unit_assert(0); /* should succeed */
+	}
+	unit_assert(reused == 1);
+	unit_assert(p1 >= 0 && p1 < 4 /* reusenum */);
+
+	/* return all the ports */
+	shared_ports_return_port(shp, shpif, 1);
+	unit_assert(pif_list_contains(shpif, 1));
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 3);
+	shared_ports_return_port(shp, shpif, 2);
+	unit_assert(pif_list_contains(shpif, 2));
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 2);
+	shared_ports_return_port(shp, shpif, 3);
+	unit_assert(pif_list_contains(shpif, 3));
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 1);
+	shared_ports_return_port(shp, shpif, 4);
+	unit_assert(pif_list_contains(shpif, 4));
+	unit_assert(shpif->avail_total == 4);
+	unit_assert(shpif->inuse == 0);
+	unit_assert(pif_list_contains_items(shpif, 1, 2, 3, 4));
+
+	shared_ports_delete(shp);
+	ub_randfree(rnd);
+}
+
 void tcpreuse_test(void)
 {
     unit_show_feature("tcp_reuse");
@@ -486,4 +759,7 @@ void tcpreuse_test(void)
     tcp_reuse_tree_list_test();
     waiting_tcp_list_test();
     reuse_write_wait_test();
+    unit_show_feature("shared_ports");
+    shared_port_test_ifs();
+    shared_port_test_port();
 }

@@ -1282,6 +1282,61 @@ static void localzone_test(void)
 	localzone_parents_test();
 }
 
+#include "services/mesh.h"
+/** mesh unit tests */
+static void mesh_test(void)
+{
+	struct regional* r2, *r3;
+	struct respip_client_info* c1, *c2, *c3;
+	unit_show_func("services/mesh.c", "mesh_copy_client_info");
+	r2 = regional_create();
+	r3 = regional_create();
+	if(!r2 || !r3) fatal_exit("out of memory");
+
+	c1 = calloc(1, sizeof(*c1));
+	if(!c1) fatal_exit("out of memory");
+	c1->view = calloc(1, sizeof(*c1->view));
+	if(!c1->view) fatal_exit("out of memory");
+	c1->view->name = strdup("view1");
+	if(!c1->view->name) fatal_exit("out of memory");
+
+	c2 = mesh_copy_client_info(r2, c1);
+	if(!c2) fatal_exit("out of memory");
+	c3 = mesh_copy_client_info(r3, c2);
+	if(!c3) fatal_exit("out of memory");
+
+	unit_assert(strcmp(c1->view->name, c2->view_name) == 0);
+	unit_assert(strcmp(c1->view->name, c3->view_name) == 0);
+
+	/* make sure that the c3 view_name is in the r3 region. */
+	unit_assert(r3->next == NULL);  /* only the first chunk present atm */
+	if(strlen(c3->view_name) >= r3->large_object_size) {
+		char* a = r3->large_list;
+		int found = 0;
+		while(a) {
+			if(strcmp(c3->view_name,
+				a + /* ALIGNEMENT */ sizeof(uint64_t)) == 0) {
+				found = 1;
+				break;
+			}
+			a = *(char**)a;
+		}
+		unit_assert(found == 1);
+	} else {
+		/* The allocation is expected in the r3 region first chunk */
+		unit_assert((uint8_t*)c3->view_name < ((uint8_t*)r3)+r3->first_size);
+	}
+
+	regional_destroy(r2);
+	/* ASAN should complain for the freed access below */
+	unit_assert(strcmp(c1->view->name, c3->view_name) == 0);
+
+	regional_destroy(r3);
+	free(c1->view->name);
+	free(c1->view);
+	free(c1);
+}
+
 void unit_show_func(const char* file, const char* func)
 {
 	printf("test %s:%s\n", file, func);
@@ -1356,6 +1411,7 @@ main(int argc, char* argv[])
 	msgparse_test();
 	edns_ede_answer_encode_test();
 	localzone_test();
+	mesh_test();
 #ifdef CLIENT_SUBNET
 	ecs_test();
 #endif /* CLIENT_SUBNET */

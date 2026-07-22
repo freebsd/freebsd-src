@@ -9,20 +9,21 @@ PRE="../.."
 
 # do the test
 
-# Query plain request over DNSCrypt channel get closed
-# We use TCP to avoid hanging on waiting for UDP.
-# We expect `outfile` to contain no DNS payload
-echo "> dig TCP www.example.com. DNSCrypt port"
-dig +tcp @127.0.0.1 -p $DNSCRYPT_PORT www.example.com. A | tee outfile
+# Query plain request over DNSCrypt.
+# This used to close the channel; now it returns SERVFAIL.
+# Old: We use TCP to avoid hanging on waiting for UDP.
+#      We expect `outfile` to contain no DNS payload
+echo "> dig www.example.com. DNSCrypt port"
+dig @127.0.0.1 -p $DNSCRYPT_PORT www.example.com. A | tee outfile
 echo "> cat logfiles"
 cat fwd.log
 cat unbound.log
 echo "> check answer"
-if grep "QUESTION SECTION" outfile; then
+if grep "SERVFAIL" outfile; then
+	echo "OK"
+else
 	echo "NOK"
 	exit 1
-else
-	echo "OK"
 fi
 
 

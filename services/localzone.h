@@ -573,7 +573,7 @@ enum respip_action {
 	respip_always_nxdomain = local_zone_always_nxdomain,
         /** answer with nodata response */
 	respip_always_nodata = local_zone_always_nodata,
-        /** answer with nodata response */
+        /** drop query */
 	respip_always_deny = local_zone_always_deny,
 	/** RPZ: truncate answer in order to force switch to tcp */
 	respip_truncate = local_zone_truncate,

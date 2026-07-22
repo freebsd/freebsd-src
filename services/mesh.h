@@ -683,9 +683,11 @@ void mesh_list_remove(struct mesh_state* m, struct mesh_state** fp,
  * @param mesh: to update the counters.
  * @param m: the mesh state.
  * @param cp: the comm_point to remove from the list.
+ * @param doq_stream: if not NULL, it specifies the doq_stream to match
+ *	for the delete.
  */
 void mesh_state_remove_reply(struct mesh_area* mesh, struct mesh_state* m,
-	struct comm_point* cp);
+	struct comm_point* cp, struct doq_stream* doq_stream);
 
 /** Callback for when the serve expired client timer has run out.  Tries to
  * find an expired answer in the cache and reply that to the client.
@@ -735,5 +737,9 @@ void mesh_respond_serve_expired(struct mesh_state* mstate);
  */
 void mesh_remove_callback(struct mesh_area* mesh, struct query_info* qinfo,
 	uint16_t qflags, mesh_cb_func_type cb, void* cb_arg);
+
+/** Copy the client info to the query region. */
+struct respip_client_info* mesh_copy_client_info(struct regional* region,
+	struct respip_client_info* cinfo);
 
 #endif /* SERVICES_MESH_H */

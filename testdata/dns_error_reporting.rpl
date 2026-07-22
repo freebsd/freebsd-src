@@ -12,6 +12,7 @@ server:
 	ede: no  # It is not needed for dns-error-reporting; only for clients to receive EDEs
 	dns-error-reporting: yes
 	do-ip6: no
+	do-not-query-localhost: no
 
 stub-zone:
 	name: domain

@@ -319,7 +319,7 @@ example.com.	360 IN NS	ns.example.com.
 SECTION ADDITIONAL
 ; this is picked up from the parent (because this simulation has the
 ; parent respond with servfail, not actually timeout)
-ns.example.com.	3600 	IN 	A	1.2.3.4
+ns.example.com.	360 	IN 	A	1.2.3.4
 ENTRY_END
 
 ; another query to see if there is another lookup towards the authority
@@ -342,7 +342,7 @@ www.example.com. 360 IN A	10.20.30.40
 SECTION AUTHORITY
 example.com.	360 IN NS	ns.example.com.
 SECTION ADDITIONAL
-ns.example.com.	3600 	IN 	A	1.2.3.4
+ns.example.com.	360 	IN 	A	1.2.3.4
 ENTRY_END
 
 ; some time later another query, and now it is fine to bother the authority
@@ -367,7 +367,7 @@ www.example.com. 330 IN A	10.20.30.40
 SECTION AUTHORITY
 example.com.	330 IN NS	ns.example.com.
 SECTION ADDITIONAL
-ns.example.com.	3570 	IN 	A	1.2.3.4
+ns.example.com.	330 	IN 	A	1.2.3.4
 ENTRY_END
 ; now the just-looked-up entry
 STEP 190 QUERY
@@ -388,7 +388,7 @@ www.example.com. 3600 IN A	10.20.30.40
 SECTION AUTHORITY
 example.com.	3600 IN NS	ns.example.com.
 SECTION ADDITIONAL
-ns.example.com.	3570 	IN 	A	1.2.3.4
+ns.example.com.	3600 	IN 	A	1.2.3.4
 ENTRY_END
 
 

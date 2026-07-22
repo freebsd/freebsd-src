@@ -1126,15 +1126,16 @@ outside_network_create(struct comm_base* base, size_t bufsize,
 	int ATTR_UNUSED(dscp),
 	struct infra_cache* infra,
 	struct ub_randstate* ATTR_UNUSED(rnd),
-	int ATTR_UNUSED(use_caps_for_id), int* ATTR_UNUSED(availports),
-	int ATTR_UNUSED(numavailports), size_t ATTR_UNUSED(unwanted_threshold),
+	int ATTR_UNUSED(use_caps_for_id),
+	size_t ATTR_UNUSED(unwanted_threshold),
 	int ATTR_UNUSED(outgoing_tcp_mss),
 	void (*unwanted_action)(void*), void* ATTR_UNUSED(unwanted_param),
 	int ATTR_UNUSED(do_udp), void* ATTR_UNUSED(sslctx),
 	int ATTR_UNUSED(delayclose), int ATTR_UNUSED(tls_use_sni),
 	struct dt_env* ATTR_UNUSED(dtenv), int ATTR_UNUSED(udp_connect),
 	int ATTR_UNUSED(max_reuse_tcp_queries), int ATTR_UNUSED(tcp_reuse_timeout),
-	int ATTR_UNUSED(tcp_auth_query_timeout))
+	int ATTR_UNUSED(tcp_auth_query_timeout),
+	struct shared_ports* ATTR_UNUSED(shared_ports))
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)base;
 	struct outside_network* outnet =  calloc(1,
@@ -1980,6 +1981,20 @@ int outnet_tcp_connect(int ATTR_UNUSED(s), struct sockaddr_storage* ATTR_UNUSED(
 	return 0;
 }
 
+struct shared_ports* shared_ports_create(char** ATTR_UNUSED(ifs),
+	int ATTR_UNUSED(num_ifs), int ATTR_UNUSED(do_ip4),
+        int ATTR_UNUSED(do_ip6), int* ATTR_UNUSED(availports),
+	int ATTR_UNUSED(numavailports))
+{
+	return calloc(1, sizeof(struct shared_ports));
+}
+
+void shared_ports_delete(struct shared_ports* shp)
+{
+	if(!shp) return;
+	free(shp);
+}
+
 int tcp_req_info_add_meshstate(struct tcp_req_info* ATTR_UNUSED(req),
         struct mesh_area* ATTR_UNUSED(mesh), struct mesh_state* ATTR_UNUSED(m))
 {
@@ -2018,6 +2033,15 @@ void http2_stream_add_meshstate(struct http2_stream* ATTR_UNUSED(h2_stream),
 }
 
 void http2_stream_remove_mesh_state(struct http2_stream* ATTR_UNUSED(h2_stream))
+{
+}
+
+void doq_stream_add_meshstate(struct doq_stream* ATTR_UNUSED(stream),
+	struct mesh_area* ATTR_UNUSED(mesh), struct mesh_state* ATTR_UNUSED(m))
+{
+}
+
+void doq_stream_remove_mesh_state(struct doq_stream* ATTR_UNUSED(stream))
 {
 }
 
