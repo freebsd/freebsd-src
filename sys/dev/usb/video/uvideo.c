@@ -2893,7 +2893,7 @@ uvideo_cdev_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct uvideo_softc *sc = dev->si_drv1;
 	usb_error_t error;
-	int ret;
+	int ret, fsize;
 
 	if (sc == NULL || sc->sc_dying)
 		return (ENXIO);
@@ -2942,23 +2942,31 @@ uvideo_cdev_read(struct cdev *dev, struct uio *uio, int ioflag)
 		return (EBUSY);
 
 	/* Wait for a frame */
+	mtx_lock(&sc->sc_mtx);
 	while (sc->sc_frames_ready == 0) {
-		if (ioflag & IO_NDELAY)
+		if (ioflag & IO_NDELAY) {
+			mtx_unlock(&sc->sc_mtx);
 			return (EWOULDBLOCK);
-		ret = tsleep(sc, PCATCH, "uvread", hz * 10);
-		if (ret != 0)
+		}
+		ret = mtx_sleep(sc, &sc->sc_mtx, PCATCH, "uvread", hz * 10);
+		if (ret != 0) {
+			mtx_unlock(&sc->sc_mtx);
 			return (ret);
-		if (sc->sc_dying)
+		}
+		if (sc->sc_dying) {
+			mtx_unlock(&sc->sc_mtx);
 			return (ENXIO);
+		}
 	}
 
 	sc->sc_frames_ready--;
+	fsize = sc->sc_fsize;
+	mtx_unlock(&sc->sc_mtx);
 
-	if (sc->sc_fsize == 0)
+	if (fsize == 0)
 		return (0);
 
-	return (uiomove(sc->sc_fbuffer, MIN(uio->uio_resid, sc->sc_fsize),
-	    uio));
+	return (uiomove(sc->sc_fbuffer, MIN(uio->uio_resid, fsize), uio));
 }
 
 static int
@@ -3367,6 +3375,16 @@ uvideo_s_fmt(struct uvideo_softc *sc, struct v4l2_format *fmt)
 	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return (EINVAL);
 
+	/* Reject format changes while streaming: re-negotiating the probe
+	 * and commit controls with the device would disrupt the active USB
+	 * transfers.  V4L2 mandates EBUSY in this case. */
+	mtx_lock(&sc->sc_mtx);
+	if (sc->sc_streaming) {
+		mtx_unlock(&sc->sc_mtx);
+		return (EBUSY);
+	}
+	mtx_unlock(&sc->sc_mtx);
+
 	DPRINTFN(1, "s_fmt: requested %dx%d\n",
 	    fmt->fmt.pix.width, fmt->fmt.pix.height);
 
@@ -3447,6 +3465,15 @@ static int
 uvideo_s_parm(struct uvideo_softc *sc, struct v4l2_streamparm *parm)
 {
 	usb_error_t error;
+
+	/* Reject parameter changes while streaming for the same reason as
+	 * S_FMT: they re-negotiate with the device. */
+	mtx_lock(&sc->sc_mtx);
+	if (sc->sc_streaming) {
+		mtx_unlock(&sc->sc_mtx);
+		return (EBUSY);
+	}
+	mtx_unlock(&sc->sc_mtx);
 
 	if (parm->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
 		if (parm->parm.capture.timeperframe.numerator == 0 ||
@@ -3652,8 +3679,11 @@ uvideo_qbuf(struct uvideo_softc *sc, struct v4l2_buffer *qb)
 	    qb->index >= sc->sc_mmap_count)
 		return (EINVAL);
 
+	/* Serialize with the USB transfer callbacks (producer). */
+	mtx_lock(&sc->sc_mtx);
 	sc->sc_mmap[qb->index].v4l2_buf.flags &= ~V4L2_BUF_FLAG_DONE;
 	sc->sc_mmap[qb->index].v4l2_buf.flags |= V4L2_BUF_FLAG_QUEUED;
+	mtx_unlock(&sc->sc_mtx);
 
 	DPRINTFN(2, "buffer %d ready for queueing\n", qb->index);
 
@@ -3670,24 +3700,40 @@ uvideo_dqbuf(struct uvideo_softc *sc, struct v4l2_buffer *dqb)
 	    dqb->memory != V4L2_MEMORY_MMAP)
 		return (EINVAL);
 
-	if (STAILQ_EMPTY(&sc->sc_mmap_q)) {
-		error = tsleep(sc, PCATCH, "uvdqbuf", hz * 10);
-		if (error)
+	/*
+	 * Serialize with the USB transfer callbacks (producer) that insert
+	 * completed buffers into sc_mmap_q under sc_mtx.  Use mtx_sleep so
+	 * the wait and the queue inspection are atomic.
+	 */
+	mtx_lock(&sc->sc_mtx);
+	while (STAILQ_EMPTY(&sc->sc_mmap_q)) {
+		error = mtx_sleep(sc, &sc->sc_mtx, PCATCH, "uvdqbuf", hz * 10);
+		if (error != 0) {
+			mtx_unlock(&sc->sc_mtx);
 			return (EINVAL);
+		}
+		if (sc->sc_dying) {
+			mtx_unlock(&sc->sc_mtx);
+			return (ENXIO);
+		}
 	}
 
 	mmap = STAILQ_FIRST(&sc->sc_mmap_q);
-	if (mmap == NULL)
+	if (mmap == NULL) {
+		mtx_unlock(&sc->sc_mtx);
 		return (EINVAL);
+	}
 
 	bcopy(&mmap->v4l2_buf, dqb, sizeof(struct v4l2_buffer));
 
 	mmap->v4l2_buf.flags &= ~V4L2_BUF_FLAG_DONE;
 	mmap->v4l2_buf.flags &= ~V4L2_BUF_FLAG_QUEUED;
 
+	STAILQ_REMOVE_HEAD(&sc->sc_mmap_q, q_frames);
+	mtx_unlock(&sc->sc_mtx);
+
 	DPRINTFN(2, "frame dequeued from index %d\n",
 	    mmap->v4l2_buf.index);
-	STAILQ_REMOVE_HEAD(&sc->sc_mmap_q, q_frames);
 
 	return (0);
 }
