@@ -277,6 +277,8 @@ find_closest_of_type(struct module_env* env, uint8_t* qname, size_t qnamelen,
 
 		/* snip off front label */
 		lablen = *qname;
+		if(lablen == 0)
+			break;
 		qname += lablen + 1;
 		qnamelen -= lablen + 1;
 	}
@@ -1065,7 +1067,7 @@ dns_cache_lookup(struct module_env* env,
 	if(env->cfg->harden_below_nxdomain) {
 		while(!dname_is_root(k.qname)) {
 			if(dpname && dpnamelen
-				&& !dname_subdomain_c(k.qname, dpname))
+				&& !dname_strict_subdomain_c(k.qname, dpname))
 				break; /* no synth nxdomain above the stub */
 			dname_remove_label(&k.qname, &k.qname_len);
 			h = query_info_hash(&k, flags);

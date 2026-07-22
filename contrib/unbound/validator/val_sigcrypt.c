@@ -1094,6 +1094,7 @@ canonicalize_rdata(sldns_buffer* buf, struct ub_packed_rrset_key* rrset,
 	size_t len)
 {
 	uint8_t* datstart = sldns_buffer_current(buf)-len+2;
+	size_t firstlen;
 	switch(ntohs(rrset->rk.type)) {
 		case LDNS_RR_TYPE_NXT: 
 		case LDNS_RR_TYPE_NS:
@@ -1113,8 +1114,9 @@ canonicalize_rdata(sldns_buffer* buf, struct ub_packed_rrset_key* rrset,
 		case LDNS_RR_TYPE_SOA:
 			/* two names after another */
 			query_dname_tolower(datstart);
-			query_dname_tolower(datstart + 
-				dname_valid(datstart, len-2));
+			firstlen = dname_valid(datstart, len-2);
+			if(firstlen && firstlen < len-2)
+				query_dname_tolower(datstart + firstlen);
 			return;
 		case LDNS_RR_TYPE_RT:
 		case LDNS_RR_TYPE_AFSDB:
@@ -1141,8 +1143,9 @@ canonicalize_rdata(sldns_buffer* buf, struct ub_packed_rrset_key* rrset,
 				return;
 			datstart += 2;
 			query_dname_tolower(datstart);
-			query_dname_tolower(datstart + 
-				dname_valid(datstart, len-2-2));
+			firstlen = dname_valid(datstart, len-2-2);
+			if(firstlen && firstlen < len-2-2)
+				query_dname_tolower(datstart + firstlen);
 			return;
 		case LDNS_RR_TYPE_NAPTR:
 			if(len < 2+4)
@@ -1662,6 +1665,13 @@ dnskey_verify_rrset_sig(struct regional* region, sldns_buffer* buf,
 	if((int)sig[2+3] > dname_signame_label_count(rrset->rk.dname)) {
 		verbose(VERB_QUERY, "verify: labelcount out of range");
 		*reason = "signature labelcount out of range";
+		if(reason_bogus)
+			*reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
+		return sec_status_bogus;
+	}
+	if((int)sig[2+3] < dname_signame_label_count(signer)) {
+		verbose(VERB_QUERY, "verify: RRSIG label count too low for signer");
+		*reason = "signature labelcount lower than signature signer";
 		if(reason_bogus)
 			*reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
 		return sec_status_bogus;

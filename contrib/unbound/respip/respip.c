@@ -1114,7 +1114,13 @@ respip_operate(struct module_qstate* qstate, enum module_ev event, int id,
 		if((qstate->qinfo.qtype == LDNS_RR_TYPE_A ||
 			qstate->qinfo.qtype == LDNS_RR_TYPE_AAAA ||
 			qstate->qinfo.qtype == LDNS_RR_TYPE_ANY) &&
-			qstate->return_msg && qstate->return_msg->rep) {
+			qstate->return_msg && qstate->return_msg->rep &&
+			!(qstate->env->need_to_validate &&
+			  (!(qstate->query_flags & BIT_CD)
+			    || qstate->env->cfg->ignore_cd) &&
+			  (qstate->return_msg->rep->security <= sec_status_bogus
+			    || qstate->return_msg->rep->security ==
+			    sec_status_secure_sentinel_fail))) {
 			struct reply_info* new_rep = qstate->return_msg->rep;
 			struct ub_packed_rrset_key* alias_rrset = NULL;
 			struct respip_action_info actinfo = {0, 0, 0, 0, NULL, 0, NULL};

@@ -198,6 +198,7 @@ get_cname_target(struct ub_packed_rrset_key* rrset, uint8_t** dname,
 {
 	struct packed_rrset_data* d;
 	size_t len;
+	if(!rrset) return;
 	if(ntohs(rrset->rk.type) != LDNS_RR_TYPE_CNAME && 
 		ntohs(rrset->rk.type) != LDNS_RR_TYPE_DNAME)
 		return;

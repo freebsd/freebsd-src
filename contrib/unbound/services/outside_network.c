@@ -208,6 +208,7 @@ static void
 waiting_tcp_delete(struct waiting_tcp* w)
 {
 	if(!w) return;
+	free(w->tls_auth_name);
 	if(w->timer)
 		comm_timer_delete(w->timer);
 	free(w);
@@ -1480,7 +1481,7 @@ portcomm_loweruse(struct outside_network* outnet, struct port_comm* pc)
 	pif = pc->pif;
 	log_assert(pif->inuse > 0);
 #ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
-	pif->avail_ports[pif->avail_total - pif->inuse] = pc->number;
+	shared_ports_return_port(outnet->shared_ports, pif->shpif, pc->number);
 #endif
 	pif->inuse--;
 	pif->out[pc->index] = pif->out[pif->inuse];
@@ -1694,19 +1695,19 @@ create_pending_tcp(struct outside_network* outnet, size_t bufsize)
 }
 
 /** setup an outgoing interface, ready address */
-static int setup_if(struct port_if* pif, const char* addrstr, 
-	int* avail, int numavail, size_t numfd)
+static int setup_if(struct port_if* pif, const char* addrstr, size_t numfd,
+	struct shared_ports* shp)
 {
-#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
-	pif->avail_total = numavail;
-	pif->avail_ports = (int*)memdup(avail, (size_t)numavail*sizeof(int));
-	if(!pif->avail_ports)
-		return 0;
-#endif
 	if(!ipstrtoaddr(addrstr, UNBOUND_DNS_PORT, &pif->addr, &pif->addrlen) &&
 	   !netblockstrtoaddr(addrstr, UNBOUND_DNS_PORT,
 			      &pif->addr, &pif->addrlen, &pif->pfxlen))
 		return 0;
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+	pif->shpif = shared_ports_find_if(shp, &pif->addr, pif->addrlen,
+		pif->pfxlen);
+#else
+	(void)shp;
+#endif
 	pif->maxout = (int)numfd;
 	pif->inuse = 0;
 	pif->out = (struct port_comm**)calloc(numfd, 
@@ -1720,12 +1721,12 @@ struct outside_network*
 outside_network_create(struct comm_base *base, size_t bufsize, 
 	size_t num_ports, char** ifs, int num_ifs, int do_ip4, 
 	int do_ip6, size_t num_tcp, int dscp, struct infra_cache* infra,
-	struct ub_randstate* rnd, int use_caps_for_id, int* availports, 
-	int numavailports, size_t unwanted_threshold, int tcp_mss,
+	struct ub_randstate* rnd, int use_caps_for_id,
+	size_t unwanted_threshold, int tcp_mss,
 	void (*unwanted_action)(void*), void* unwanted_param, int do_udp,
 	void* sslctx, int delayclose, int tls_use_sni, struct dt_env* dtenv,
 	int udp_connect, int max_reuse_tcp_queries, int tcp_reuse_timeout,
-	int tcp_auth_query_timeout)
+	int tcp_auth_query_timeout, struct shared_ports* shared_ports)
 {
 	struct outside_network* outnet = (struct outside_network*)
 		calloc(1, sizeof(struct outside_network));
@@ -1760,6 +1761,7 @@ outside_network_create(struct comm_base *base, size_t bufsize,
 	outnet->do_udp = do_udp;
 	outnet->tcp_mss = tcp_mss;
 	outnet->ip_dscp = dscp;
+	outnet->shared_ports = shared_ports;
 #ifndef S_SPLINT_S
 	if(delayclose) {
 		outnet->delayclose = 1;
@@ -1770,7 +1772,7 @@ outside_network_create(struct comm_base *base, size_t bufsize,
 	if(udp_connect) {
 		outnet->udp_connect = 1;
 	}
-	if(numavailports == 0 || num_ports == 0) {
+	if(num_ports == 0) {
 		log_err("no outgoing ports available");
 		outside_network_delete(outnet);
 		return NULL;
@@ -1831,13 +1833,13 @@ outside_network_create(struct comm_base *base, size_t bufsize,
 	/* allocate interfaces */
 	if(num_ifs == 0) {
 		if(do_ip4 && !setup_if(&outnet->ip4_ifs[0], "0.0.0.0", 
-			availports, numavailports, num_ports)) {
+			num_ports, outnet->shared_ports)) {
 			log_err("malloc failed");
 			outside_network_delete(outnet);
 			return NULL;
 		}
 		if(do_ip6 && !setup_if(&outnet->ip6_ifs[0], "::", 
-			availports, numavailports, num_ports)) {
+			num_ports, outnet->shared_ports)) {
 			log_err("malloc failed");
 			outside_network_delete(outnet);
 			return NULL;
@@ -1848,7 +1850,7 @@ outside_network_create(struct comm_base *base, size_t bufsize,
 		for(i=0; i<num_ifs; i++) {
 			if(str_is_ip6(ifs[i]) && do_ip6) {
 				if(!setup_if(&outnet->ip6_ifs[done_6], ifs[i],
-					availports, numavailports, num_ports)){
+					num_ports, outnet->shared_ports)){
 					log_err("malloc failed");
 					outside_network_delete(outnet);
 					return NULL;
@@ -1857,7 +1859,7 @@ outside_network_create(struct comm_base *base, size_t bufsize,
 			}
 			if(!str_is_ip6(ifs[i]) && do_ip4) {
 				if(!setup_if(&outnet->ip4_ifs[done_4], ifs[i],
-					availports, numavailports, num_ports)){
+					num_ports, outnet->shared_ports)){
 					log_err("malloc failed");
 					outside_network_delete(outnet);
 					return NULL;
@@ -1935,9 +1937,6 @@ outside_network_delete(struct outside_network* outnet)
 				comm_point_delete(pc->cp);
 				free(pc);
 			}
-#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
-			free(outnet->ip4_ifs[i].avail_ports);
-#endif
 			free(outnet->ip4_ifs[i].out);
 		}
 		free(outnet->ip4_ifs);
@@ -1951,9 +1950,6 @@ outside_network_delete(struct outside_network* outnet)
 				comm_point_delete(pc->cp);
 				free(pc);
 			}
-#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
-			free(outnet->ip6_ifs[i].avail_ports);
-#endif
 			free(outnet->ip6_ifs[i].out);
 		}
 		free(outnet->ip6_ifs);
@@ -2163,7 +2159,10 @@ static int
 select_ifport(struct outside_network* outnet, struct pending* pend,
 	int num_if, struct port_if* ifs)
 {
-	int my_if, my_port, fd, portno, inuse, tries=0;
+	int my_if, fd, portno, inuse, tries=0;
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+	int reused;
+#endif
 	struct port_if* pif;
 	/* randomly select interface and port */
 	if(num_if == 0) {
@@ -2177,37 +2176,35 @@ select_ifport(struct outside_network* outnet, struct pending* pend,
 		my_if = ub_random_max(outnet->rnd, num_if);
 		pif = &ifs[my_if];
 #ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
-		if(outnet->udp_connect) {
-			/* if we connect() we cannot reuse fds for a port */
-			if(pif->inuse >= pif->avail_total) {
-				tries++;
-				if(tries < MAX_PORT_RETRY)
-					continue;
-				log_err("failed to find an open port, drop msg");
-				return 0;
-			}
-			my_port = pif->inuse + ub_random_max(outnet->rnd,
-				pif->avail_total - pif->inuse);
-		} else  {
-			my_port = ub_random_max(outnet->rnd, pif->avail_total);
-			if(my_port < pif->inuse) {
-				/* port already open */
-				pend->pc = pif->out[my_port];
-				verbose(VERB_ALGO, "using UDP if=%d port=%d",
-					my_if, pend->pc->number);
-				break;
-			}
+		if(!shared_ports_fetch_random(outnet->shared_ports,
+			pif->shpif, outnet->rnd, outnet->udp_connect,
+			pif->inuse, &portno, &reused)) {
+			tries++;
+			if(tries < MAX_PORT_RETRY)
+				continue;
+			log_err("failed to find an open port, drop msg");
+			return 0;
 		}
-		/* try to open new port, if fails, loop to try again */
-		log_assert(pif->inuse < pif->maxout);
-		portno = pif->avail_ports[my_port - pif->inuse];
+		if(reused) {
+			/* port already open */
+			log_assert(portno < pif->inuse);
+			pend->pc = pif->out[portno];
+			verbose(VERB_ALGO, "using UDP if=%d port=%d",
+				my_if, pend->pc->number);
+			break;
+		}
 #else
-		my_port = portno = 0;
+		portno = 0;
 #endif
+		/* try to open new port, if fails, loop to try again */
 		fd = udp_sockport(&pif->addr, pif->addrlen, pif->pfxlen,
 			portno, &inuse, outnet->rnd, outnet->ip_dscp);
 		if(fd == -1 && !inuse) {
 			/* nonrecoverable error making socket */
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+			shared_ports_return_port(outnet->shared_ports,
+				pif->shpif, portno);
+#endif
 			return 0;
 		}
 		if(fd != -1) {
@@ -2224,6 +2221,11 @@ select_ifport(struct outside_network* outnet, struct pending* pend,
 							pend->addrlen);
 					}
 					sock_close(fd);
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+					shared_ports_return_port(
+						outnet->shared_ports,
+						pif->shpif, portno);
+#endif
 					return 0;
 				}
 			}
@@ -2241,14 +2243,14 @@ select_ifport(struct outside_network* outnet, struct pending* pend,
 
 			/* grab port in interface */
 			pif->out[pif->inuse] = pend->pc;
-#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
-			pif->avail_ports[my_port - pif->inuse] =
-				pif->avail_ports[pif->avail_total-pif->inuse-1];
-#endif
 			pif->inuse++;
 			break;
 		}
 		/* failed, already in use */
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+		shared_ports_return_port(outnet->shared_ports, pif->shpif,
+			portno);
+#endif
 		verbose(VERB_QUERY, "port %d in use, trying another", portno);
 		tries++;
 		if(tries == MAX_PORT_RETRY) {
@@ -2540,7 +2542,16 @@ pending_tcp_query(struct serviced_query* sq, sldns_buffer* packet,
 	w->cb = callback;
 	w->cb_arg = callback_arg;
 	w->ssl_upstream = sq->ssl_upstream;
-	w->tls_auth_name = sq->tls_auth_name;
+	if(sq->tls_auth_name) {
+		w->tls_auth_name = strdup(sq->tls_auth_name);
+		if(!w->tls_auth_name) {
+			comm_timer_delete(w->timer);
+			free(w);
+			return NULL;
+		}
+	} else {
+		w->tls_auth_name = NULL;
+	}
 	w->timeout = timeout;
 	w->id_node.key = NULL;
 	w->write_wait_prev = NULL;
@@ -3630,13 +3641,16 @@ fd_for_dest(struct outside_network* outnet, struct sockaddr_storage* to_addr,
 {
 	struct sockaddr_storage* addr;
 	socklen_t addrlen;
-	int i, try, pnum, dscp;
+	int i, try, dscp;
 	struct port_if* pif;
 
 	/* create fd */
 	dscp = outnet->ip_dscp;
 	for(try = 0; try<1000; try++) {
 		int port = 0;
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+		int reused = 0;
+#endif
 		int freebind = 0;
 		int noproto = 0;
 		int inuse = 0;
@@ -3665,16 +3679,18 @@ fd_for_dest(struct outside_network* outnet, struct sockaddr_storage* to_addr,
 		addr = &pif->addr;
 		addrlen = pif->addrlen;
 #ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
-		pnum = ub_random_max(outnet->rnd, pif->avail_total);
-		if(pnum < pif->inuse) {
-			/* port already open */
-			port = pif->out[pnum]->number;
-		} else {
-			/* unused ports in start part of array */
-			port = pif->avail_ports[pnum - pif->inuse];
+		if(!shared_ports_fetch_random(outnet->shared_ports,
+			pif->shpif, outnet->rnd, 0, pif->inuse,
+			&port, &reused)) {
+			/* try again, perhaps another interface. */
+			continue;
+		}
+		if(reused) {
+			log_assert(port < pif->inuse);
+			port = pif->out[port]->number;
 		}
 #else
-		pnum = port = 0;
+		port = 0;
 #endif
 		if(addr_is_ip6(to_addr, to_addrlen)) {
 			struct sockaddr_in6 sa = *(struct sockaddr_in6*)addr;
@@ -3689,6 +3705,14 @@ fd_for_dest(struct outside_network* outnet, struct sockaddr_storage* to_addr,
 				(struct sockaddr*)addr, addrlen, 1, &inuse, &noproto,
 				0, 0, 0, NULL, 0, freebind, 0, dscp);
 		}
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+		if(!reused) {
+			/* Return the port to the pool, since the caller does
+			 * not keep track of it, also have done fd, and bind. */
+			shared_ports_return_port(outnet->shared_ports,
+				pif->shpif, port);
+		}
+#endif
 		if(fd != -1) {
 			return fd;
 		}
@@ -3919,11 +3943,7 @@ if_get_mem(struct port_if* pif)
 {
 	size_t s;
 	int i;
-	s = sizeof(*pif) +
-#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
-	    sizeof(int)*pif->avail_total +
-#endif
-		sizeof(struct port_comm*)*pif->maxout;
+	s = sizeof(*pif) + sizeof(struct port_comm*)*pif->maxout;
 	for(i=0; i<pif->inuse; i++)
 		s += sizeof(*pif->out[i]) + 
 			comm_point_get_mem(pif->out[i]->cp);
@@ -4011,3 +4031,237 @@ serviced_get_mem(struct serviced_query* sq)
 	return s;
 }
 
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+/** Setup shared port interface */
+static int shared_ports_setup_if(struct shared_ports_if* shpif, char* str,
+	int* availports, int numavailports)
+{
+	shpif->avail_ports = (int*)memdup(availports,
+		(size_t)numavailports*sizeof(int));
+	if(!shpif->avail_ports)
+		return 0;
+	shpif->avail_total = numavailports;
+	shpif->inuse = 0;
+	shpif->pfxlen = 0;
+	if(!ipstrtoaddr(str, UNBOUND_DNS_PORT, &shpif->addr, &shpif->addrlen) &&
+	   !netblockstrtoaddr(str, UNBOUND_DNS_PORT, &shpif->addr,
+	   &shpif->addrlen, &shpif->pfxlen))
+		return 0;
+	return 1;
+}
+#endif
+
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+/** Allocate shared ports interfaces */
+static int shared_ports_alloc_ifs(struct shared_ports* shp, char** ifs,
+	int num_ifs, int do_ip4, int do_ip6, int* availports,
+	int numavailports)
+{
+#ifndef INET6
+	do_ip6 = 0;
+#endif
+	calc_num46(ifs, num_ifs, do_ip4, do_ip6,
+		&shp->num_ip4, &shp->num_ip6);
+	if(shp->num_ip4 != 0) {
+		if(!(shp->ip4_ifs = (struct shared_ports_if*)calloc(
+			(size_t)shp->num_ip4,
+			sizeof(struct shared_ports_if))))
+			return 0;
+	}
+	if(shp->num_ip6 != 0) {
+		if(!(shp->ip6_ifs = (struct shared_ports_if*)calloc(
+			(size_t)shp->num_ip6,
+			sizeof(struct shared_ports_if))))
+			return 0;
+	}
+	if(num_ifs == 0) {
+		if(do_ip4 && !shared_ports_setup_if(&shp->ip4_ifs[0],
+			"0.0.0.0", availports, numavailports))
+			return 0;
+		if(do_ip6 && !shared_ports_setup_if(&shp->ip6_ifs[0],
+			"::", availports, numavailports))
+			return 0;
+	} else {
+		size_t done_4 = 0, done_6 = 0;
+		int i;
+		for(i=0; i<num_ifs; i++) {
+			if(str_is_ip6(ifs[i]) && do_ip6) {
+				if(!shared_ports_setup_if(&shp->ip6_ifs[done_6],
+					ifs[i], availports, numavailports))
+					return 0;
+				done_6++;
+			}
+			if(!str_is_ip6(ifs[i]) && do_ip4) {
+				if(!shared_ports_setup_if(&shp->ip4_ifs[done_4],
+					ifs[i], availports, numavailports))
+					return 0;
+				done_4++;
+			}
+		}
+	}
+	return 1;
+}
+#endif
+
+struct shared_ports* shared_ports_create(char** ifs, int num_ifs, int do_ip4,
+	int do_ip6, int* availports, int numavailports)
+{
+	struct shared_ports* shp = calloc(1, sizeof(*shp));
+	if(!shp) {
+		log_err("malloc failed");
+		return NULL;
+	}
+	lock_basic_init(&shp->lock);
+	lock_protect(&shp->lock, shp, sizeof(*shp));
+
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+	/* Allocate interfaces */
+	if(!shared_ports_alloc_ifs(shp, ifs, num_ifs, do_ip4, do_ip6,
+		availports, numavailports)) {
+		log_err("malloc failed");
+		shared_ports_delete(shp);
+		return NULL;
+	}
+#else
+	(void)ifs; (void)num_ifs; (void)do_ip4; (void)do_ip6;
+	(void)availports; (void)numavailports;
+#endif
+	return shp;
+}
+
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+/** Delete shared ports interface structure */
+static void shared_ports_if_delete(struct shared_ports_if* shpif)
+{
+	if(!shpif)
+		return;
+	free(shpif->avail_ports);
+}
+#endif
+
+void shared_ports_delete(struct shared_ports* shp)
+{
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+	int i;
+#endif
+	if(!shp)
+		return;
+	lock_basic_destroy(&shp->lock);
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+	for(i=0; i<shp->num_ip4; i++) {
+		shared_ports_if_delete(&shp->ip4_ifs[i]);
+	}
+	free(shp->ip4_ifs);
+	for(i=0; i<shp->num_ip6; i++) {
+		shared_ports_if_delete(&shp->ip6_ifs[i]);
+	}
+	free(shp->ip6_ifs);
+#endif
+	free(shp);
+}
+
+struct shared_ports_if* shared_ports_find_if(struct shared_ports* shp,
+	struct sockaddr_storage* addr, socklen_t addrlen, int pfxlen)
+{
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+	struct shared_ports_if* ret, *ifs = NULL;
+	int i, num_ifs = 0;
+	lock_basic_lock(&shp->lock);
+	if(addr_is_ip6(addr, addrlen)) {
+		ifs = shp->ip6_ifs;
+		num_ifs = shp->num_ip6;
+	} else {
+		ifs = shp->ip4_ifs;
+		num_ifs = shp->num_ip4;
+	}
+	for(i=0; i<num_ifs; i++) {
+		if(sockaddr_cmp(addr, addrlen, &ifs[i].addr,
+			ifs[i].addrlen) == 0
+			&& pfxlen == ifs[i].pfxlen) {
+			ret = &ifs[i];
+			lock_basic_unlock(&shp->lock);
+			return ret;
+		}
+	}
+	lock_basic_unlock(&shp->lock);
+	return NULL;
+#else
+	(void)shp; (void)addr; (void)addrlen; (void)pfxlen;
+	return NULL;
+#endif
+}
+
+int shared_ports_fetch_random(struct shared_ports* shp,
+	struct shared_ports_if* shpif, struct ub_randstate* rnd,
+	int udp_connect, int reusenum, int* port, int* reused)
+{
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+	int portno = 0, my_port = 0;
+	if(!shpif)
+		return 0;
+	lock_basic_lock(&shp->lock);
+	if(udp_connect) {
+		/* if we connect() we cannot reuse fds for a port. */
+		if(shpif->inuse >= shpif->avail_total) {
+			lock_basic_unlock(&shp->lock);
+			return 0;
+		}
+		my_port = ub_random_max(rnd,
+			shpif->avail_total - shpif->inuse);
+	} else {
+		/* select from free ports and open ports on this thread. */
+		if(shpif->inuse >= shpif->avail_total) {
+			lock_basic_unlock(&shp->lock);
+			if(reusenum == 0) {
+				return 0;
+			}
+			my_port = ub_random_max(rnd, reusenum);
+			*port = my_port;
+			*reused = 1;
+			return 1;
+		}
+		my_port = ub_random_max(rnd, shpif->avail_total - shpif->inuse
+			+ reusenum);
+		if(my_port < reusenum) {
+			/* port already open */
+			lock_basic_unlock(&shp->lock);
+			*port = my_port;
+			*reused = 1;
+			return 1;
+		}
+		my_port -= reusenum;
+	}
+	log_assert(shpif->inuse < shpif->avail_total);
+	log_assert(my_port >= 0 && my_port < shpif->avail_total);
+	portno = shpif->avail_ports[my_port];
+	shpif->avail_ports[my_port] =
+		shpif->avail_ports[shpif->avail_total-shpif->inuse-1];
+	shpif->inuse++;
+	lock_basic_unlock(&shp->lock);
+	*port = portno;
+	*reused = 0;
+	return 1;
+#else
+	(void)shp; (void)shpif; (void)rnd; (void)udp_connect;
+	(void)reusenum;
+	*port = 0;
+	*reused = 0;
+	return 1;
+#endif
+}
+
+void shared_ports_return_port(struct shared_ports* shp,
+	struct shared_ports_if* shpif, int port)
+{
+#ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
+	if(!shpif)
+		return;
+	lock_basic_lock(&shp->lock);
+	log_assert(shpif->inuse > 0);
+	shpif->avail_ports[shpif->avail_total - shpif->inuse] = port;
+	shpif->inuse--;
+	lock_basic_unlock(&shp->lock);
+#else
+	(void)shp; (void)shpif; (void)port;
+#endif
+}

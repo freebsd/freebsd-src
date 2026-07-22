@@ -62,6 +62,7 @@ struct doq_table;
 struct cookie_secrets;
 struct fast_reload_thread;
 struct fast_reload_printq;
+struct shared_ports;
 
 #include "dnstap/dnstap_config.h"
 #ifdef USE_DNSTAP
@@ -97,6 +98,8 @@ struct daemon {
 	int rc_port;
 	/** listening ports for remote control */
 	struct listen_port* rc_ports;
+	/** the shared ports structure, with random ports numbers. */
+	struct shared_ports* shared_ports;
 	/** remote control connections management (for first worker) */
 	struct daemon_remote* rc;
 	/** ssl context for listening to dnstcp over ssl */

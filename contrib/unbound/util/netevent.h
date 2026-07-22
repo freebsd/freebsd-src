@@ -187,6 +187,8 @@ struct comm_reply {
 	/** port number for doq */
 	int doq_srcport;
 #endif /* HAVE_NGTCP2 */
+	/** The doq stream to register mesh states to. */
+	struct doq_stream* doq_stream;
 };
 
 /**
@@ -1093,8 +1095,10 @@ struct doq_server_socket {
 	struct doq_pkt_addr* blocked_paddr;
 	/** timer for this worker on this comm_point to wait on. */
 	struct comm_timer* timer;
+#ifdef HAVE_NGTCP2
 	/** the timer that is marked by the doq_socket as waited on. */
-	struct timeval marked_time;
+	ngtcp2_tstamp marked_time;
+#endif
 	/** the current time for use by time functions, time_t. */
 	time_t* now_tt;
 	/** the current time for use by time functions, timeval. */
