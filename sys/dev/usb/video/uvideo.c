@@ -3706,7 +3706,7 @@ uvideo_reqbufs(struct uvideo_softc *sc, struct v4l2_requestbuffers *rb)
 	sc->sc_mmap_kva = kva;
 	sc->sc_mmap_buffer_size = buf_size_total;
 
-	DPRINTFN(1, "allocated %d bytes mmap buffer at kva %#jx\n",
+	DPRINTFN(1, "allocated %zu bytes mmap buffer at kva %#jx\n",
 	    buf_size_total, (uintmax_t)kva);
 
 	for (i = 0; i < sc->sc_mmap_count; i++) {
