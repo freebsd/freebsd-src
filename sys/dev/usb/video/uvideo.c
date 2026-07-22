@@ -2822,16 +2822,44 @@ uvideo_read_frame(struct uvideo_softc *sc, uint8_t *buf, int len)
 /*  Character Device Operations                                     */
 /* ---------------------------------------------------------------- */
 
+/*
+ * Per-fd state (via devfs cdevpriv).  Tracks whether this fd started
+ * streaming so that STREAMOFF or close from a non-streaming fd (e.g. a
+ * second tab that failed REQBUFS) does not tear down the active stream
+ * owned by another fd.
+ */
+struct uvideo_cdevpriv {
+	int			streaming;
+};
+
+static void	uvideo_cdevpriv_dtor(void *);
+
+static void
+uvideo_cdevpriv_dtor(void *data)
+{
+
+	free(data, M_USBDEV);
+}
+
 static int
 uvideo_cdev_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct uvideo_softc *sc = dev->si_drv1;
+	struct uvideo_cdevpriv *priv;
+	int error;
 
 	if (sc == NULL || sc->sc_dying)
 		return (ENXIO);
 
 	if (sc->sc_vs_cur == NULL)
 		return (EIO);
+
+	priv = malloc(sizeof(*priv), M_USBDEV, M_WAITOK | M_ZERO);
+	error = devfs_set_cdevpriv(priv, uvideo_cdevpriv_dtor);
+	if (error != 0) {
+		free(priv, M_USBDEV);
+		return (error);
+	}
 
 	mtx_lock(&sc->sc_mtx);
 	if (sc->sc_open == 0) {
@@ -2853,9 +2881,26 @@ static int
 uvideo_cdev_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 {
 	struct uvideo_softc *sc = dev->si_drv1;
+	struct uvideo_cdevpriv *priv;
 
 	if (sc == NULL)
 		return (0);
+
+	/*
+	 * If this fd started streaming, stop the stream and free the
+	 * buffers so that a new fd (e.g. a refreshed browser tab) can
+	 * re-acquire the camera.  Other fds sharing the stream will get
+	 * EPIPE on DQBUF and should re-open.
+	 */
+	if (devfs_get_cdevpriv((void **)&priv) == 0 && priv != NULL &&
+	    priv->streaming) {
+		priv->streaming = 0;
+		mtx_lock(&sc->sc_mtx);
+		sc->sc_streaming = 0;
+		mtx_unlock(&sc->sc_mtx);
+		uvideo_vs_close(sc);
+		uvideo_vs_free_frame(sc);
+	}
 
 	mtx_lock(&sc->sc_mtx);
 	sc->sc_open--;
@@ -2865,7 +2910,7 @@ uvideo_cdev_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 	}
 	mtx_unlock(&sc->sc_mtx);
 
-	/* Last close: stop streaming if active */
+	/* Last close: stop streaming if still active (safety net) */
 	if (sc->sc_streaming) {
 		mtx_lock(&sc->sc_mtx);
 		sc->sc_streaming = 0;
@@ -2892,6 +2937,7 @@ static int
 uvideo_cdev_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct uvideo_softc *sc = dev->si_drv1;
+	struct uvideo_cdevpriv *priv;
 	usb_error_t error;
 	int ret, fsize;
 
@@ -2903,6 +2949,8 @@ uvideo_cdev_read(struct cdev *dev, struct uio *uio, int ioflag)
 
 	/* Start streaming in read mode if not already running */
 	if (sc->sc_vidmode == VIDMODE_NONE) {
+		if (devfs_get_cdevpriv((void **)&priv) != 0 || priv == NULL)
+			return (EINVAL);
 		sc->sc_mmap_flag = 0;
 		sc->sc_vidmode = VIDMODE_READ;
 
@@ -2928,6 +2976,7 @@ uvideo_cdev_read(struct cdev *dev, struct uio *uio, int ioflag)
 
 		mtx_lock(&sc->sc_mtx);
 		sc->sc_streaming = 1;
+		priv->streaming = 1;
 		if (sc->sc_vs_cur->bulk_endpoint)
 			usbd_transfer_start(sc->sc_xfer[0]);
 		else {
@@ -3702,6 +3751,11 @@ uvideo_dqbuf(struct uvideo_softc *sc, struct v4l2_buffer *dqb)
 	    dqb->memory != V4L2_MEMORY_MMAP)
 		return (EINVAL);
 
+	/* Buffers were freed (e.g. the streaming fd closed); fail fast
+	 * so the caller can re-open instead of waiting for a timeout. */
+	if (sc->sc_mmap_count == 0 || sc->sc_mmap_buffer == NULL)
+		return (EPIPE);
+
 	/*
 	 * Serialize with the USB transfer callbacks (producer) that insert
 	 * completed buffers into sc_mmap_q under sc_mtx.  Use mtx_sleep so
@@ -3743,13 +3797,21 @@ uvideo_dqbuf(struct uvideo_softc *sc, struct v4l2_buffer *dqb)
 static int
 uvideo_streamon(struct uvideo_softc *sc, int type)
 {
+	struct uvideo_cdevpriv *priv;
 	usb_error_t error;
 
 	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return (EINVAL);
 
-	if (sc->sc_streaming)
+	if (devfs_get_cdevpriv((void **)&priv) != 0 || priv == NULL)
+		return (EINVAL);
+
+	mtx_lock(&sc->sc_mtx);
+	if (priv->streaming || sc->sc_streaming) {
+		mtx_unlock(&sc->sc_mtx);
 		return (0);
+	}
+	mtx_unlock(&sc->sc_mtx);
 
 	sc->sc_vidmode = VIDMODE_MMAP;
 
@@ -3759,6 +3821,8 @@ uvideo_streamon(struct uvideo_softc *sc, int type)
 
 	mtx_lock(&sc->sc_mtx);
 	sc->sc_streaming = 1;
+	priv->streaming = 1;
+
 	if (sc->sc_vs_cur->bulk_endpoint)
 		usbd_transfer_start(sc->sc_xfer[0]);
 	else {
@@ -3774,18 +3838,27 @@ uvideo_streamon(struct uvideo_softc *sc, int type)
 static int
 uvideo_streamoff(struct uvideo_softc *sc, int type)
 {
+	struct uvideo_cdevpriv *priv;
 
 	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return (EINVAL);
 
-	if (!sc->sc_streaming)
+	if (devfs_get_cdevpriv((void **)&priv) != 0 || priv == NULL)
+		return (EINVAL);
+
+	/* Only the fd that started streaming may stop it. */
+	if (!priv->streaming) {
 		return (0);
+	}
+
+	priv->streaming = 0;
 
 	mtx_lock(&sc->sc_mtx);
 	sc->sc_streaming = 0;
 	mtx_unlock(&sc->sc_mtx);
 
 	uvideo_vs_close(sc);
+	uvideo_vs_free_frame(sc);
 
 	return (0);
 }
