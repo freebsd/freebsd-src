@@ -610,6 +610,7 @@ int
 fptr_whitelist_alloc_cleanup(void (*fptr)(void*))
 {
 	if(fptr == &worker_alloc_cleanup) return 1;
+	else if(fptr == &libworker_alloc_cleanup) return 1;
 	return 0;
 }
 

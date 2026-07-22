@@ -60,6 +60,7 @@ struct tube;
 struct sldns_buffer;
 struct ub_event_base;
 struct query_info;
+struct shared_ports;
 
 /** 
  * The library-worker status structure
@@ -84,6 +85,8 @@ struct libworker {
 	struct comm_base* base;
 	/** the backside outside network interface to the auth servers */
 	struct outside_network* back;
+	/** shared ports structure */
+	struct shared_ports* shared_ports;
 	/** random() table for this worker. */
 	struct ub_randstate* rndstate;
 	/** sslcontext for SSL wrapped DNS over TCP queries */

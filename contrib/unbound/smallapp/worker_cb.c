@@ -128,6 +128,12 @@ worker_alloc_cleanup(void* ATTR_UNUSED(arg))
 	log_assert(0);
 }
 
+void
+libworker_alloc_cleanup(void* ATTR_UNUSED(arg))
+{
+	log_assert(0);
+}
+
 struct outbound_entry* libworker_send_query(
 	struct query_info* ATTR_UNUSED(qinfo), uint16_t ATTR_UNUSED(flags),
 	int ATTR_UNUSED(dnssec), int ATTR_UNUSED(want_dnssec),

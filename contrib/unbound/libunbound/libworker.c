@@ -105,6 +105,7 @@ libworker_delete_env(struct libworker* w)
 	SSL_CTX_free(w->sslctx);
 #endif
 	outside_network_delete(w->back);
+	shared_ports_delete(w->shared_ports);
 }
 
 /** delete libworker struct */
@@ -219,17 +220,25 @@ libworker_setup(struct ub_ctx* ctx, int is_bg, struct ub_event_base* eb)
 		libworker_delete(w);
 		return NULL;
 	}
+	if(!(w->shared_ports = shared_ports_create(cfg->out_ifs,
+		cfg->num_out_ifs, cfg->do_ip4, cfg->do_ip6, ports, numports))) {
+		if(!w->is_bg || w->is_bg_thread) {
+			lock_basic_unlock(&ctx->cfglock);
+		}
+		libworker_delete(w);
+		return NULL;
+	}
 	w->back = outside_network_create(w->base, cfg->msg_buffer_size,
 		(size_t)cfg->outgoing_num_ports, cfg->out_ifs,
 		cfg->num_out_ifs, cfg->do_ip4, cfg->do_ip6, 
 		cfg->do_tcp?cfg->outgoing_num_tcp:0, cfg->ip_dscp,
 		w->env->infra_cache, w->env->rnd, cfg->use_caps_bits_for_id,
-		ports, numports, cfg->unwanted_threshold,
+		cfg->unwanted_threshold,
 		cfg->outgoing_tcp_mss, &libworker_alloc_cleanup, w,
 		cfg->do_udp || cfg->udp_upstream_without_downstream, w->sslctx,
 		cfg->delay_close, cfg->tls_use_sni, NULL, cfg->udp_connect,
 		cfg->max_reuse_tcp_queries, cfg->tcp_reuse_timeout,
-		cfg->tcp_auth_query_timeout);
+		cfg->tcp_auth_query_timeout, w->shared_ports);
 	w->env->outnet = w->back;
 	if(!w->is_bg || w->is_bg_thread) {
 		lock_basic_unlock(&ctx->cfglock);

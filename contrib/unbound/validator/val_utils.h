@@ -438,4 +438,8 @@ struct dns_msg* val_find_DS(struct module_env* env, uint8_t* nm, size_t nmlen,
 int derive_cname_from_dname(struct ub_packed_rrset_key* cname,
 	struct ub_packed_rrset_key* dname, uint8_t* out, size_t outlen);
 
+/** Get signer name from RRSIG, sname is NULL if malformed. */
+void rrsig_get_signer(uint8_t* data, size_t len, uint8_t** sname,
+	size_t* slen);
+
 #endif /* VALIDATOR_VAL_UTILS_H */

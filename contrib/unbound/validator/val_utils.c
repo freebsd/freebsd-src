@@ -157,7 +157,7 @@ val_classify_response(uint16_t query_flags, struct query_info* origqinf,
 }
 
 /** Get signer name from RRSIG */
-static void
+void
 rrsig_get_signer(uint8_t* data, size_t len, uint8_t** sname, size_t* slen)
 {
 	/* RRSIG rdata is not allowed to be compressed, it is stored
@@ -439,10 +439,15 @@ val_verify_rrset(struct module_env* env, struct val_env* ve,
 	 * only improves security status 
 	 * and bogus is set only once, even if we rechecked the status */
 	if(sec > d->security) {
+		int wc_expanded = 0;
 		d->security = sec;
-		if(sec == sec_status_secure)
+		if(sec == sec_status_secure) {
+			uint8_t* wc = NULL;
+			size_t wclen = 0;
 			d->trust = rrset_trust_validated;
-		else if(sec == sec_status_bogus) {
+			if(val_rrset_wildcard(rrset, &wc, &wclen) && wc)
+				wc_expanded = 1;
+		} else if(sec == sec_status_bogus) {
 			size_t i;
 			/* update ttl for rrset to fixed value. */
 			d->ttl = ve->bogus_ttl;
@@ -455,7 +460,11 @@ val_verify_rrset(struct module_env* env, struct val_env* ve,
 			lock_basic_unlock(&ve->bogus_lock);
 		}
 		/* if status updated - store in cache for reuse */
-		rrset_update_sec_status(env->rrset_cache, rrset, *env->now);
+		/* For a wildcard rrset, that is secure, do not store this
+		 * into the cache, because it changes proofs around the
+		 * item. */
+		if(!wc_expanded)
+			rrset_update_sec_status(env->rrset_cache, rrset, *env->now);
 	}
 
 	return sec;

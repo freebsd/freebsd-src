@@ -5745,8 +5745,7 @@ xfr_master_add_addrs(struct auth_master* m, struct ub_packed_rrset_key* rrset,
 
 /** callback for task_transfer lookup of host name, of A or AAAA */
 void auth_xfer_transfer_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
-	enum sec_status ATTR_UNUSED(sec), char* ATTR_UNUSED(why_bogus),
-	int ATTR_UNUSED(was_ratelimited))
+	enum sec_status sec, char* why_bogus, int ATTR_UNUSED(was_ratelimited))
 {
 	struct auth_xfer* xfr = (struct auth_xfer*)arg;
 	struct module_env* env;
@@ -5759,7 +5758,16 @@ void auth_xfer_transfer_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
 	}
 
 	/* process result */
-	if(rcode == LDNS_RCODE_NOERROR) {
+	if(sec == sec_status_bogus || sec == sec_status_secure_sentinel_fail) {
+		if(verbosity >= VERB_OPS) {
+			char zname[LDNS_MAX_DOMAINLEN];
+			dname_str(xfr->name, zname);
+			verbose(VERB_OPS, "auth zone %s: primary %s address lookup is DNSSEC bogus: %s",
+				zname, xfr->task_transfer->lookup_target->host,
+				(why_bogus?why_bogus:""));
+		}
+		/* fall through to next-lookup / next-master */
+	} else if(rcode == LDNS_RCODE_NOERROR) {
 		uint16_t wanted_qtype = LDNS_RR_TYPE_A;
 		struct regional* temp = env->scratch;
 		struct query_info rq;
@@ -6830,8 +6838,7 @@ xfr_probe_send_or_end(struct auth_xfer* xfr, struct module_env* env)
 
 /** callback for task_probe lookup of host name, of A or AAAA */
 void auth_xfer_probe_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
-	enum sec_status ATTR_UNUSED(sec), char* ATTR_UNUSED(why_bogus),
-	int ATTR_UNUSED(was_ratelimited))
+	enum sec_status sec, char* why_bogus, int ATTR_UNUSED(was_ratelimited))
 {
 	struct auth_xfer* xfr = (struct auth_xfer*)arg;
 	struct module_env* env;
@@ -6844,7 +6851,16 @@ void auth_xfer_probe_lookup_callback(void* arg, int rcode, sldns_buffer* buf,
 	}
 
 	/* process result */
-	if(rcode == LDNS_RCODE_NOERROR) {
+	if(sec == sec_status_bogus || sec == sec_status_secure_sentinel_fail) {
+		if(verbosity >= VERB_OPS) {
+			char zname[LDNS_MAX_DOMAINLEN];
+			dname_str(xfr->name, zname);
+			verbose(VERB_OPS, "auth zone %s: primary %s address probe lookup is DNSSEC bogus: %s",
+				zname, xfr->task_transfer->lookup_target->host,
+				(why_bogus?why_bogus:""));
+		}
+		/* fall through to next-lookup / next-master */
+	} else if(rcode == LDNS_RCODE_NOERROR) {
 		uint16_t wanted_qtype = LDNS_RR_TYPE_A;
 		struct regional* temp = env->scratch;
 		struct query_info rq;
