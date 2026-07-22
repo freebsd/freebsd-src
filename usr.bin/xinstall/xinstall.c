@@ -77,7 +77,7 @@ static char sccsid[] = "@(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 
 #ifndef _PATH_STDIN
 # ifndef _PATH_DEV
-#  defne _PATH_DEV "/dev/"
+#  define _PATH_DEV "/dev/"
 # endif
 # define _PATH_STDIN _PATH_DEV "stdin"
 #endif
