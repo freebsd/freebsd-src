@@ -70,6 +70,8 @@ struct module_env;
 struct module_qstate;
 struct query_info;
 struct config_file;
+struct shared_ports;
+struct shared_ports_if;
 
 /**
  * Send queries to outside servers and wait for answers from servers.
@@ -119,6 +121,9 @@ struct outside_network {
 	int udp_connect;
 	/** number of udp packets sent. */
 	size_t num_udp_outgoing;
+	/** the shared ports structure, with random ports numbers.
+	 * This is a reference to the member in the daemon structure. */
+	struct shared_ports* shared_ports;
 
 	/** array of outgoing IP4 interfaces */
 	struct port_if* ip4_ifs;
@@ -211,11 +216,8 @@ struct port_if {
 	int pfxlen;
 
 #ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
-	/** the available ports array. These are unused.
-	 * Only the first total-inuse part is filled. */
-	int* avail_ports;
-	/** the total number of available ports (size of the array) */
-	int avail_total;
+	/** the shared port numbers for this interface. */
+	struct shared_ports_if* shpif;
 #endif
 
 	/** array of the commpoints currently in use. 
@@ -243,6 +245,42 @@ struct port_comm {
 	int num_outstanding;
 	/** UDP commpoint, fd=-1 if not in use */
 	struct comm_point* cp;
+};
+
+/**
+ * Shared ports, the list of ports shared across threads
+ */
+struct shared_ports {
+	/** mutex on the ports */
+	lock_basic_type lock;
+	/** array of IP4 interfaces */
+	struct shared_ports_if* ip4_ifs;
+	/** number of outgoing IP4 interfaces */
+	int num_ip4;
+	/** array of IP6 interfaces */
+	struct shared_ports_if* ip6_ifs;
+	/** number of outgoing IP6 interfaces */
+	int num_ip6;
+};
+
+/**
+ * Shared ports for an interface.
+ */
+struct shared_ports_if {
+	/** address ready to allocate new socket (except port no). */
+	struct sockaddr_storage addr;
+	/** length of addr field */
+	socklen_t addrlen;
+	/** if a netblock, the prefix */
+	int pfxlen;
+
+	/** the available ports array. These are unused.
+	 * Only the first total-inuse part is filled. */
+	int* avail_ports;
+	/** the total number of available ports (size of the array) */
+	int avail_total;
+	/** the number in use. */
+	int inuse;
 };
 
 /**
@@ -419,7 +457,7 @@ struct waiting_tcp {
 	void* cb_arg;
 	/** if it uses ssl upstream */
 	int ssl_upstream;
-	/** ref to the tls_auth_name from the serviced_query */
+	/** owned copy of the tls_auth_name (malloced) */
 	char* tls_auth_name;
 	/** the packet was involved in an error, to stop looping errors */
 	int error_count;
@@ -551,8 +589,6 @@ struct serviced_query {
  * @param infra: pointer to infra cached used for serviced queries.
  * @param rnd: stored to create random numbers for serviced queries.
  * @param use_caps_for_id: enable to use 0x20 bits to encode id randomness.
- * @param availports: array of available ports. 
- * @param numavailports: number of available ports in array.
  * @param unwanted_threshold: when to take defensive action.
  * @param unwanted_action: the action to take.
  * @param unwanted_param: user parameter to action.
@@ -567,17 +603,18 @@ struct serviced_query {
  * @param max_reuse_tcp_queries: max number of queries on a reuse connection.
  * @param tcp_reuse_timeout: timeout for REUSE entries in milliseconds.
  * @param tcp_auth_query_timeout: timeout in milliseconds for TCP queries to auth servers.
+ * @param shared_ports: the shared_ports structure.
  * @return: the new structure (with no pending answers) or NULL on error.
  */
 struct outside_network* outside_network_create(struct comm_base* base,
 	size_t bufsize, size_t num_ports, char** ifs, int num_ifs,
 	int do_ip4, int do_ip6, size_t num_tcp, int dscp, struct infra_cache* infra, 
-	struct ub_randstate* rnd, int use_caps_for_id, int* availports, 
-	int numavailports, size_t unwanted_threshold, int tcp_mss,
+	struct ub_randstate* rnd, int use_caps_for_id,
+	size_t unwanted_threshold, int tcp_mss,
 	void (*unwanted_action)(void*), void* unwanted_param, int do_udp,
 	void* sslctx, int delayclose, int tls_use_sni, struct dt_env *dtenv,
 	int udp_connect, int max_reuse_tcp_queries, int tcp_reuse_timeout,
-	int tcp_auth_query_timeout);
+	int tcp_auth_query_timeout, struct shared_ports* shared_ports);
 
 /**
  * Delete outside_network structure.
@@ -818,6 +855,54 @@ struct comm_point* outnet_comm_point_for_http(struct outside_network* outnet,
 
 /** connect tcp connection to addr, 0 on failure */
 int outnet_tcp_connect(int s, struct sockaddr_storage* addr, socklen_t addrlen);
+
+/**
+ * Create new shared ports structure.
+ * @param ifs: interface names (or NULL for default interface).
+ *    These interfaces must be able to access all authoritative servers.
+ * @param num_ifs: number of names in array ifs.
+ * @param do_ip4: service IP4.
+ * @param do_ip6: service IP6.
+ * @param availports: array of available ports.
+ * @param numavailports: number of available ports in array.
+ * @return new, or NULL on failure.
+ */
+struct shared_ports* shared_ports_create(char** ifs, int num_ifs, int do_ip4,
+	int do_ip6, int* availports, int numavailports);
+
+/**
+ * Delete shared ports structure.
+ * @param shp: shared ports structure.
+ */
+void shared_ports_delete(struct shared_ports* shp);
+
+/** Find interface in shared ports. */
+struct shared_ports_if* shared_ports_find_if(struct shared_ports* shp,
+	struct sockaddr_storage* addr, socklen_t addrlen, int pfxlen);
+
+/**
+ * Get a shared port from the list of random ports.
+ * @param shp: shared ports structure.
+ * @param shpif: the shared ports interface.
+ * @param rnd: used to make random numbers.
+ * @param udp_connect: set to true if no reuse is possible.
+ * @param reusenum: number of ports that can be reused (already open).
+ * @param port: the port number is returned.
+ * @param reused: if the port numer is reused, returned.
+ * @return false on failure. That can mean no more free ports to use.
+ */
+int shared_ports_fetch_random(struct shared_ports* shp,
+	struct shared_ports_if* shpif, struct ub_randstate* rnd,
+	int udp_connect, int reusenum, int* port, int* reused);
+
+/**
+ * Return a shared port to the list of random ports.
+ * @param shp: shared ports structure.
+ * @param shpif: the shared ports interface.
+ * @param port: port number to return to be used again.
+ */
+void shared_ports_return_port(struct shared_ports* shp,
+	struct shared_ports_if* shpif, int port);
 
 /** callback for incoming udp answers from the network */
 int outnet_udp_cb(struct comm_point* c, void* arg, int error,

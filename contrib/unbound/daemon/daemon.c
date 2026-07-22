@@ -79,6 +79,7 @@
 #include "util/tcp_conn_limit.h"
 #include "util/edns.h"
 #include "services/listen_dnsport.h"
+#include "services/outside_network.h"
 #include "services/cache/rrset.h"
 #include "services/cache/infra.h"
 #include "services/localzone.h"
@@ -813,6 +814,10 @@ daemon_create_workers(struct daemon* daemon)
 		fatal_exit("out of memory during daemon init");
 	numport = daemon_get_shufport(daemon, shufport);
 	verbose(VERB_ALGO, "total of %d outgoing ports available", numport);
+	if(!(daemon->shared_ports = shared_ports_create(daemon->cfg->out_ifs,
+		daemon->cfg->num_out_ifs, daemon->cfg->do_ip4,
+		daemon->cfg->do_ip6, shufport, numport)))
+		fatal_exit("could not setup shared ports: out of memory");
 
 #ifdef HAVE_NGTCP2
 	if (cfg_has_quic(daemon->cfg)) {
@@ -843,10 +848,7 @@ daemon_create_workers(struct daemon* daemon)
 #endif
 	}
 	for(i=0; i<daemon->num; i++) {
-		if(!(daemon->workers[i] = worker_create(daemon, i,
-			shufport+numport*i/daemon->num, 
-			numport*(i+1)/daemon->num - numport*i/daemon->num)))
-			/* the above is not ports/numthr, due to rounding */
+		if(!(daemon->workers[i] = worker_create(daemon, i)))
 			fatal_exit("could not create worker");
 	}
 	/* create per-worker alloc caches if not reusing existing ones. */
@@ -1204,6 +1206,8 @@ daemon_cleanup(struct daemon* daemon)
 	if(!daemon->reuse_cache || daemon->need_to_exit)
 		daemon_clear_allocs(daemon);
 	daemon->num = 0;
+	shared_ports_delete(daemon->shared_ports);
+	daemon->shared_ports = NULL;
 #ifdef USE_DNSTAP
 	dt_delete(daemon->dtenv);
 	daemon->dtenv = NULL;

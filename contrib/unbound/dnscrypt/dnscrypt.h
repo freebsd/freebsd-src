@@ -128,7 +128,8 @@ int dnsc_handle_curved_request(struct dnsc_env* dnscenv,
  * \return 0 in case of failure.
  */
 
-int dnsc_handle_uncurved_request(struct comm_reply *repinfo);
+int dnsc_handle_uncurved_request(struct comm_reply *repinfo,
+	struct sldns_buffer* buffer);
 
 /**
  * Computes the size of the shared secret cache entry.

@@ -687,6 +687,9 @@ calc_size(sldns_buffer* pkt, uint16_t type, struct rr_parse* rr)
 			}
 			rdf++;
 		}
+		/* rdata ended before all _dname_count names were seen */
+		if(count != 0)
+			return 0; /* the rdata is too short. */
 	}
 	/* remaining rdata */
 	rr->size += pkt_len;
@@ -1068,13 +1071,13 @@ parse_edns_options_from_query(uint8_t* rdata_ptr, size_t rdata_len,
 			 * purposes. It will be overwritten if (re)creation
 			 * is needed.
 			 */
-			if(repinfo->remote_addr.ss_family == AF_INET) {
+			if(repinfo->client_addr.ss_family == AF_INET) {
 				memcpy(server_cookie + 16,
-					&((struct sockaddr_in*)&repinfo->remote_addr)->sin_addr, 4);
+					&((struct sockaddr_in*)&repinfo->client_addr)->sin_addr, 4);
 			} else {
 				cookie_is_v4 = 0;
 				memcpy(server_cookie + 16,
-					&((struct sockaddr_in6*)&repinfo->remote_addr)->sin6_addr, 16);
+					&((struct sockaddr_in6*)&repinfo->client_addr)->sin6_addr, 16);
 			}
 
 			if(cfg->cookie_secret_file &&

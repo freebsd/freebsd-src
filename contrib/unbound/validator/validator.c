@@ -517,6 +517,14 @@ generate_request(struct module_qstate* qstate, int id, uint8_t* name,
 		/* add our blacklist to the query blacklist */
 		sock_list_merge(&(*newq)->blacklist, (*newq)->region,
 			vq->chain_blacklist);
+		/* start its global quota counter where this one is. */
+		if(qstate->global_quota_reached >
+			(*newq)->global_quota_reached) {
+			(*newq)->global_quota_started =
+				qstate->global_quota_reached;
+			(*newq)->global_quota_reached =
+				qstate->global_quota_reached;
+		}
 	}
 	qstate->ext_state[id] = module_wait_subquery;
 	return 1;
@@ -1043,7 +1051,14 @@ validate_positive_response(struct module_env* env, struct val_env* ve,
 	uint8_t* wc = NULL;
 	size_t wl;
 	int wc_cached = 0;
+	int wc_to_cache = 0;
+	uint8_t* cache_wc = NULL;
+	size_t cache_wl = 0;
+	struct ub_packed_rrset_key* cache_s = NULL;
 	int wc_NSEC_ok = 0;
+	/* This is used to update the RRset cache, with the combination
+	 * of the dname expansion and this wildcard, for security status. */
+	struct ub_packed_rrset_key* wc_rrset = NULL;
 	int nsec3s_seen = 0;
 	size_t i;
 	struct ub_packed_rrset_key* s;
@@ -1062,14 +1077,20 @@ validate_positive_response(struct module_env* env, struct val_env* ve,
 				ntohs(s->rk.type), ntohs(s->rk.rrset_class));
 			chase_reply->security = sec_status_bogus;
 			update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
+			if(wc_rrset)
+				((struct packed_rrset_data*)wc_rrset->
+				entry.data)->security = sec_status_bogus;
 			return;
 		}
 		if(wc && !wc_cached && env->cfg->aggressive_nsec) {
-			rrset_cache_update_wildcard(env->rrset_cache, s, wc, wl,
-				env->alloc, *env->now);
+			/* Postpone cache adjust until proof has succeeded. */
+			wc_to_cache = 1;
+			cache_wc = wc;
+			cache_wl = wl;
+			cache_s = s;
 			wc_cached = 1;
 		}
-
+		if(wc) wc_rrset = s;
 	}
 
 	/* validate the AUTHORITY section as well - this will generally be 
@@ -1126,7 +1147,14 @@ validate_positive_response(struct module_env* env, struct val_env* ve,
 			"did not exist");
 		chase_reply->security = sec_status_bogus;
 		update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
+		if(wc_rrset)
+			((struct packed_rrset_data*)wc_rrset->
+			entry.data)->security = sec_status_bogus;
 		return;
+	}
+	if(wc_to_cache) {
+		rrset_cache_update_wildcard(env->rrset_cache, cache_s,
+			cache_wc, cache_wl, env->alloc, *env->now);
 	}
 
 	verbose(VERB_ALGO, "Successfully validated positive response");
@@ -1527,6 +1555,16 @@ validate_any_response(struct module_env* env, struct val_env* ve,
 			"did not exist");
 		chase_reply->security = sec_status_bogus;
 		update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
+		/* Make the expanded name and wildcard RRSIG rrsets bogus */
+		for(i=0; i<chase_reply->an_numrrsets; i++) {
+			uint8_t* cwc = NULL;
+			size_t cwl = 0;
+			s = chase_reply->rrsets[i];
+			if(val_rrset_wildcard(s, &cwc, &cwl) && cwc) {
+				((struct packed_rrset_data*)s->
+				entry.data)->security = sec_status_bogus;
+			}
+		}
 		return;
 	}
 
@@ -1564,6 +1602,9 @@ validate_cname_response(struct module_env* env, struct val_env* ve,
 	uint8_t* wc = NULL;
 	size_t wl;
 	int wc_NSEC_ok = 0;
+	/* This is used to update the RRset cache, with the combination
+	 * of the dname expansion and this wildcard, for security status. */
+	struct ub_packed_rrset_key* wc_rrset = NULL;
 	int nsec3s_seen = 0;
 	size_t i;
 	struct ub_packed_rrset_key* s;
@@ -1584,6 +1625,7 @@ validate_cname_response(struct module_env* env, struct val_env* ve,
 			update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
 			return;
 		}
+		if(wc) wc_rrset = s;
 		
 		/* Refuse wildcarded DNAMEs rfc 4597. 
 		 * Do not follow a wildcarded DNAME because 
@@ -1595,6 +1637,9 @@ validate_cname_response(struct module_env* env, struct val_env* ve,
 				ntohs(s->rk.type), ntohs(s->rk.rrset_class));
 			chase_reply->security = sec_status_bogus;
 			update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
+			if(wc_rrset)
+				((struct packed_rrset_data*)wc_rrset->
+				entry.data)->security = sec_status_bogus;
 			return;
 		}
 
@@ -1659,6 +1704,9 @@ validate_cname_response(struct module_env* env, struct val_env* ve,
 			"did not exist");
 		chase_reply->security = sec_status_bogus;
 		update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
+		if(wc_rrset)
+			((struct packed_rrset_data*)wc_rrset->
+			entry.data)->security = sec_status_bogus;
 		return;
 	}
 
@@ -3535,6 +3583,11 @@ val_inform_super(struct module_qstate* qstate, int id,
 	if(!vq) {
 		verbose(VERB_ALGO, "super: has no validator state");
 		return;
+	}
+	/* Pick up the global quota limit from the subquery. */
+	if(qstate->global_quota_reached > qstate->global_quota_started) {
+		super->global_quota_reached += qstate->global_quota_reached -
+			qstate->global_quota_started;
 	}
 	if(vq->wait_prime_ta) {
 		vq->wait_prime_ta = 0;
