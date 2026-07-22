@@ -1791,7 +1791,7 @@ uvideo_vs_parse_desc_frame_max_rate(struct uvideo_softc *sc,
 	nivals = UVIDEO_FRAME_NUM_INTERVALS(fd);
 
 	for (i = 0; i < nivals; i++) {
-		if (length <= 0)
+		if (length < (int)sizeof(uDWord))
 			break;
 		next_frame_ival = UGETDW(p);
 		if (next_frame_ival > frame_ival)
@@ -3294,7 +3294,7 @@ uvideo_enum_fsizes(struct uvideo_softc *sc, struct v4l2_frmsizeenum *fsizes)
 static int
 uvideo_enum_fivals(struct uvideo_softc *sc, struct v4l2_frmivalenum *fivals)
 {
-	int idx;
+	int idx, ival_bytes;
 	struct uvideo_format_group *fmtgrp = NULL;
 	struct usb_video_frame_desc *frame = NULL;
 	uint8_t *p;
@@ -3327,6 +3327,9 @@ uvideo_enum_fivals(struct uvideo_softc *sc, struct v4l2_frmivalenum *fivals)
 		return (EINVAL);
 
 	p = (uint8_t *)frame + UVIDEO_FRAME_MIN_LEN(frame);
+	ival_bytes = (int)frame->bLength - (int)UVIDEO_FRAME_MIN_LEN(frame);
+	if (ival_bytes < 0)
+		return (EINVAL);
 
 	bzero(fivals, sizeof(*fivals));
 	fivals->index = fi_index;
@@ -3336,6 +3339,8 @@ uvideo_enum_fivals(struct uvideo_softc *sc, struct v4l2_frmivalenum *fivals)
 
 	if (UVIDEO_FRAME_NUM_INTERVALS(frame) == 0) {
 		if (fi_index != 0)
+			return (EINVAL);
+		if (ival_bytes < (int)(3 * sizeof(uDWord)))
 			return (EINVAL);
 		fivals->type = V4L2_FRMIVAL_TYPE_STEPWISE;
 		fivals->stepwise.min.numerator = UGETDW(p);
@@ -3349,12 +3354,9 @@ uvideo_enum_fivals(struct uvideo_softc *sc, struct v4l2_frmivalenum *fivals)
 	} else {
 		if (fi_index >= (uint32_t)UVIDEO_FRAME_NUM_INTERVALS(frame))
 			return (EINVAL);
-		p += sizeof(uDWord) * fi_index;
-		if (p > frame->bLength + (uint8_t *)frame) {
-			device_printf(sc->sc_dev,
-			    "frame desc too short?\n");
+		if (ival_bytes < (int)((fi_index + 1) * sizeof(uDWord)))
 			return (EINVAL);
-		}
+		p += sizeof(uDWord) * fi_index;
 		fivals->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 		fivals->discrete.numerator = UGETDW(p);
 		fivals->discrete.denominator = 10000000;
