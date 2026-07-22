@@ -57,6 +57,7 @@
 
 #include "bhyverun.h"
 #include "config.h"
+#include "config_schema.h"
 #include "debug.h"
 #include "mevent.h"
 #include "pci_emul.h"
@@ -66,6 +67,22 @@
 
 #define BLOCKIF_NUMTHR	8
 #define BLOCKIF_MAXREQ	(BLOCKIF_RING_MAX + BLOCKIF_NUMTHR)
+
+static const struct config_option blockif_config_options[] = {
+	{ "path", CONFIG_OPTION_STRING },
+	{ "nocache", CONFIG_OPTION_BOOL },
+	{ "nodelete", CONFIG_OPTION_BOOL },
+	{ "sync", CONFIG_OPTION_BOOL },
+	{ "direct", CONFIG_OPTION_BOOL },
+	{ "ro", CONFIG_OPTION_BOOL },
+	{ "sectorsize", CONFIG_OPTION_STRING },
+	{ "bootindex", CONFIG_OPTION_INTEGER },
+};
+
+const struct config_option_set blockif_config_option_set = {
+	.options = blockif_config_options,
+	.count = nitems(blockif_config_options),
+};
 
 enum blockop {
 	BOP_READ,

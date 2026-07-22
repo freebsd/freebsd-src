@@ -46,6 +46,7 @@
 #include "bhyve_machdep.h"
 #include "bhyverun.h"
 #include "config.h"
+#include "config_schema.h"
 #include "debug.h"
 #include "fdt.h"
 #include "mem.h"
@@ -53,6 +54,23 @@
 #include "pci_irq.h"
 #include "rtc_pl031.h"
 #include "uart_emul.h"
+
+static const struct config_option config_options_machdep[] = {
+	{ "gdb.address", CONFIG_OPTION_STRING },
+	{ "gdb.port", CONFIG_OPTION_INTEGER },
+	{ "gdb.wait", CONFIG_OPTION_BOOL },
+	{ "rtc.use_localtime", CONFIG_OPTION_BOOL },
+	{ "console", CONFIG_OPTION_STRING },
+	{ "fdt.bootargs", CONFIG_OPTION_STRING },
+};
+
+void
+config_schema_merge_options_machdep(struct config_schema *schema)
+{
+
+	config_schema_merge_options(schema, NULL, config_options_machdep,
+	    nitems(config_options_machdep));
+}
 
 /* Start of mem + 1M */
 #define	FDT_BASE	0x100000
@@ -151,6 +169,10 @@ bhyve_optparse(int argc, char **argv)
 			set_config_value("memory.size", optarg);
 			break;
 		case 'o':
+			if (strcmp(optarg, "help") == 0) {
+				print_config_options();
+				exit(0);
+			}
 			if (!bhyve_parse_config_option(optarg)) {
 				errx(EX_USAGE,
 				    "invalid configuration option '%s'",
