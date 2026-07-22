@@ -46,10 +46,14 @@
 #include <sys/rwlock.h>
 
 #include <vm/vm.h>
-#include <vm/pmap.h>
-#include <vm/vm_page.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+#include <vm/vm_map.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -168,25 +172,6 @@ static d_ioctl_t	uvideo_cdev_ioctl;
 static d_poll_t		uvideo_cdev_poll;
 static d_kqfilter_t	uvideo_cdev_kqfilter;
 static d_mmap_single_t	uvideo_cdev_mmap_single;
-static int		uvideo_pg_ctor(void *, vm_ooffset_t, vm_prot_t,
-			    vm_ooffset_t, struct ucred *, u_short *);
-static void		uvideo_pg_dtor(void *);
-static int		uvideo_pg_fault(vm_object_t, vm_ooffset_t, int,
-			    vm_page_t *);
-
-/*
- * Per-buffer state for mmap lifetime management.  Allocated together
- * with the contig buffer at REQBUFS time and attached to a single
- * shared vm_object whose reference count tracks the active mappings.
- * The buffer is freed by cdev_pg_dtor() when the last reference (the
- * softc's own or a user mapping) is dropped.  Lives independently of
- * the softc so the pager dtor can safely free the buffer even after
- * device detach.
- */
-struct uvideo_mmap_state {
-	uint8_t				*ms_buffer;
-	size_t				ms_buffer_size;
-};
 
 static int	uvideo_querycap(struct uvideo_softc *, struct v4l2_capability *);
 static int	uvideo_enum_fmt(struct uvideo_softc *, struct v4l2_fmtdesc *);
@@ -258,6 +243,7 @@ struct uvideo_softc {
 	struct uvideo_mmap	*sc_mmap_cur;
 	uint8_t			*sc_mmap_buffer;
 	size_t			sc_mmap_buffer_size;
+	vm_offset_t		sc_mmap_kva;
 	int			sc_mmap_buffer_idx;
 	q_mmap			sc_mmap_q;
 	int			sc_mmap_count;
@@ -745,12 +731,6 @@ static const struct usb_config uvideo_bulk_config[1] = {
 	},
 };
 
-static const struct cdev_pager_ops uvideo_pager_ops = {
-	.cdev_pg_ctor = uvideo_pg_ctor,
-	.cdev_pg_dtor = uvideo_pg_dtor,
-	.cdev_pg_fault = uvideo_pg_fault,
-};
-
 /*
  * Character device switch
  */
@@ -940,6 +920,7 @@ uvideo_attach(device_t dev)
 	/* Init mmap queue */
 	STAILQ_INIT(&sc->sc_mmap_q);
 	sc->sc_mmap_count = 0;
+	sc->sc_mmap_kva = 0;
 	sc->sc_mmap_object = NULL;
 
 	/* Allocate unit number and create character device */
@@ -2296,18 +2277,14 @@ uvideo_vs_free_frame(struct uvideo_softc *sc)
 		fb->buf = NULL;
 	}
 
-	if (sc->sc_mmap_object != NULL) {
-		/*
-		 * Drop the softc's reference to the shared mmap object.
-		 * If user-space mappings still exist, the object and its
-		 * backing contig buffer stay alive until the last mapping
-		 * is dropped, at which point uvideo_pg_dtor() frees them.
-		 */
-		vm_object_deallocate(sc->sc_mmap_object);
-		sc->sc_mmap_object = NULL;
+	if (sc->sc_mmap_kva != 0) {
+		vm_map_remove(kernel_map, sc->sc_mmap_kva,
+		    sc->sc_mmap_kva + sc->sc_mmap_buffer_size);
 		sc->sc_mmap_buffer = NULL;
+		sc->sc_mmap_kva = 0;
 		sc->sc_mmap_buffer_size = 0;
 	}
+	sc->sc_mmap_object = NULL;
 
 	while (!STAILQ_EMPTY(&sc->sc_mmap_q))
 		STAILQ_REMOVE_HEAD(&sc->sc_mmap_q, q_frames);
@@ -2896,11 +2873,6 @@ uvideo_cdev_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 		uvideo_vs_close(sc);
 	}
 
-	/*
-	 * Release mmap buffer.  If there are still active mmap
-	 * mappings, the actual contigfree() is deferred to the
-	 * last uvideo_pg_dtor() invocation.
-	 */
 	uvideo_vs_free_frame(sc);
 
 	if (sc->sc_fbuffer != NULL) {
@@ -3155,79 +3127,6 @@ uvideo_cdev_mmap_single(struct cdev *dev, vm_ooffset_t *offset,
 	sc->sc_mmap_flag = 1;
 
 	return (0);
-}
-
-static int
-uvideo_pg_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
-    vm_ooffset_t foff, struct ucred *cred, u_short *color)
-{
-	struct uvideo_mmap_state *ms = handle;
-
-	if (ms->ms_buffer == NULL || foff + size > ms->ms_buffer_size)
-		return (EINVAL);
-
-	*color = 0;
-	return (0);
-}
-
-static void
-uvideo_pg_dtor(void *handle)
-{
-	struct uvideo_mmap_state *ms = handle;
-
-	/*
-	 * The last reference to the shared mmap object is gone (either the
-	 * softc released it, or the final user mapping was dropped).  Free
-	 * the backing contig buffer and the state.
-	 */
-	if (ms->ms_buffer != NULL)
-		contigfree(ms->ms_buffer, ms->ms_buffer_size, M_USBDEV);
-	free(ms, M_USBDEV);
-}
-
-static int
-uvideo_pg_fault(vm_object_t object, vm_ooffset_t offset, int prot,
-    vm_page_t *mres)
-{
-	struct uvideo_mmap_state *ms = object->un_pager.devp.handle;
-	vm_paddr_t paddr;
-	vm_page_t m;
-
-	if (ms->ms_buffer == NULL)
-		return (VM_PAGER_FAIL);
-
-	if (offset >= ms->ms_buffer_size)
-		return (VM_PAGER_FAIL);
-
-	paddr = vtophys(ms->ms_buffer + offset);
-	if (paddr == 0)
-		return (VM_PAGER_FAIL);
-
-	if (((*mres)->flags & PG_FICTITIOUS) != 0) {
-		/*
-		 * The passed-in page is already a fake page: just update
-		 * its physical address in place.
-		 */
-		m = *mres;
-		vm_page_updatefake(m, paddr, object->memattr);
-	} else {
-		/*
-		 * Replace the placeholder page allocated by the generic
-		 * fault path with our own fake page.  vm_page_getfake() can
-		 * allocate and must not be called with the object lock held;
-		 * vm_page_replace() then swaps the new page into the object
-		 * and frees the placeholder.  Without this the busy
-		 * placeholder stays in the object and dev_pager_dealloc()
-		 * dead-locks trying to acquire it.
-		 */
-		VM_OBJECT_WUNLOCK(object);
-		m = vm_page_getfake(paddr, object->memattr);
-		VM_OBJECT_WLOCK(object);
-		vm_page_replace(m, object, (*mres)->pindex, *mres);
-		*mres = m;
-	}
-	m->valid = VM_PAGE_BITS_ALL;
-	return (VM_PAGER_OK);
 }
 
 /* ---------------------------------------------------------------- */
@@ -3633,7 +3532,9 @@ static int
 uvideo_reqbufs(struct uvideo_softc *sc, struct v4l2_requestbuffers *rb)
 {
 	int i, buf_size, buf_size_total;
-	struct uvideo_mmap_state *ms;
+	vm_object_t obj;
+	vm_offset_t kva;
+	int error;
 
 	DPRINTFN(1, "reqbufs: count=%d\n", rb->count);
 
@@ -3654,39 +3555,48 @@ uvideo_reqbufs(struct uvideo_softc *sc, struct v4l2_requestbuffers *rb)
 	buf_size_total = sc->sc_mmap_count * buf_size;
 	buf_size_total = round_page(buf_size_total);
 
-	sc->sc_mmap_buffer = contigmalloc(buf_size_total, M_USBDEV,
-	    M_WAITOK | M_ZERO, 0, ~0UL, PAGE_SIZE, 0);
-	if (sc->sc_mmap_buffer == NULL) {
-		device_printf(sc->sc_dev, "can't allocate mmap buffer!\n");
+	/*
+	 * Allocate a physical vm_object of the requested size.  Use
+	 * phys_pager_allocate() so that un_pager.phys.ops is properly
+	 * initialised: a bare vm_object_allocate(OBJT_PHYS, ...)
+	 * leaves ops NULL and causes a page fault when the VM system
+	 * calls phys_pager_getpages() during vm_map_wire() or a
+	 * userspace fault on the mmap mapping.
+	 */
+	obj = phys_pager_allocate(NULL, &default_phys_pg_ops, NULL,
+	    buf_size_total, VM_PROT_ALL, 0, curthread->td_ucred);
+	if (obj == NULL) {
+		device_printf(sc->sc_dev, "can't allocate mmap vm_object!\n");
 		sc->sc_mmap_count = 0;
 		return (ENOMEM);
 	}
+
+	kva = vm_map_min(kernel_map);
+	error = vm_map_find(kernel_map, obj, 0, &kva, buf_size_total, 0,
+	    VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
+	    VM_PROT_READ | VM_PROT_WRITE, 0);
+	if (error != KERN_SUCCESS) {
+		vm_object_deallocate(obj);
+		device_printf(sc->sc_dev, "vm_map_find failed: %d\n", error);
+		sc->sc_mmap_count = 0;
+		return (vm_mmap_to_errno(error));
+	}
+	error = vm_map_wire(kernel_map, kva, kva + buf_size_total,
+	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
+	if (error != KERN_SUCCESS) {
+		vm_map_remove(kernel_map, kva, kva + buf_size_total);
+		device_printf(sc->sc_dev, "vm_map_wire failed: %d\n", error);
+		sc->sc_mmap_count = 0;
+		return (vm_mmap_to_errno(error));
+	}
+
+	sc->sc_mmap_object = obj;
+	sc->sc_mmap_buffer = (uint8_t *)kva;
+	sc->sc_mmap_kva = kva;
 	sc->sc_mmap_buffer_size = buf_size_total;
 
-	/*
-	 * Create a single shared vm_object backing the whole mmap buffer.
-	 * Its reference count (bumped by each mmap() and held by the softc)
-	 * tracks the lifetime of the mappings; the contig buffer is freed
-	 * by uvideo_pg_dtor() when the last reference goes away, which may
-	 * be after device detach.
-	 */
-	ms = malloc(sizeof(*ms), M_USBDEV, M_WAITOK | M_ZERO);
-	ms->ms_buffer = sc->sc_mmap_buffer;
-	ms->ms_buffer_size = sc->sc_mmap_buffer_size;
-	sc->sc_mmap_object = cdev_pager_allocate(ms, OBJT_DEVICE,
-	    &uvideo_pager_ops, sc->sc_mmap_buffer_size, VM_PROT_ALL,
-	    0, curthread->td_ucred);
-	if (sc->sc_mmap_object == NULL) {
-		free(ms, M_USBDEV);
-		contigfree(sc->sc_mmap_buffer, sc->sc_mmap_buffer_size,
-		    M_USBDEV);
-		sc->sc_mmap_buffer = NULL;
-		sc->sc_mmap_buffer_size = 0;
-		sc->sc_mmap_count = 0;
-		return (ENOMEM);
-	}
-
-	DPRINTFN(1, "allocated %d bytes mmap buffer\n", buf_size_total);
+	DPRINTFN(1, "allocated %d bytes mmap buffer at kva %#jx\n",
+	    buf_size_total, (uintmax_t)kva);
 
 	for (i = 0; i < sc->sc_mmap_count; i++) {
 		sc->sc_mmap[i].buf = sc->sc_mmap_buffer + (i * buf_size);
