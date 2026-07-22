@@ -153,6 +153,8 @@ SRCS.subr_physmem_test+= subr_physmem_test.c subr_physmem.c
 CFLAGS.subr_unit.c+=	-Wno-missing-prototypes
 SRCS.subr_unit_test+=	subr_unit.c
 
+CFLAGS.exterr_test+=	-I${SRCTOP}/tests
+
 WARNS?=	3
 
 TESTS_SUBDIRS+=	acct
