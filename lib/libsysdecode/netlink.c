@@ -26,6 +26,32 @@
  * to fallback to a standard hex/string dump.
  */
 
+/*
+ * These nlmsg_flags bits have a unique meaning regardless of the
+ * message direction or operation type.  Bits in the 0x100-0x800 range
+ * are operation-specific and are left as raw hex to avoid ambiguity.
+ */
+static struct name_table netlink_base_flags[] = {
+	{ NLM_F_REQUEST,	"NLM_F_REQUEST" },
+	{ NLM_F_MULTI,		"NLM_F_MULTI" },
+	{ NLM_F_ACK,		"NLM_F_ACK" },
+	{ NLM_F_ECHO,		"NLM_F_ECHO" },
+	{ NLM_F_DUMP_INTR,	"NLM_F_DUMP_INTR" },
+	{ NLM_F_DUMP_FILTERED,	"NLM_F_DUMP_FILTERED" },
+	{ 0,			NULL },
+};
+
+static void
+print_netlink_flags(FILE *fp, uint16_t flags)
+{
+	int rem;
+
+	if (!print_mask_int(fp, netlink_base_flags, flags, &rem))
+		fprintf(fp, "0x%x", rem);
+	else if (rem != 0)
+		fprintf(fp, "|0x%x", rem);
+}
+
 static struct name_table *family_table = NULL;
 static size_t num_family = 0;
 
@@ -79,11 +105,7 @@ sysdecode_netlink(FILE *fp, const void *buf, size_t len, int protocol)
 		}
 
 		fprintf(fp, "flags=");
-		const char *nlm_f = sysdecode_nlm_flag(nl->nlmsg_flags);
-		if (nlm_f != NULL)
-			fprintf(fp, "%s", nlm_f);
-		else
-			fprintf(fp, "0x%x", nl->nlmsg_flags);
+		print_netlink_flags(fp, nl->nlmsg_flags);
 
 		fprintf(fp, ",seq=%u,pid=%u", nl->nlmsg_seq, nl->nlmsg_pid);
 

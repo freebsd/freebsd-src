@@ -67,7 +67,6 @@ void	sysdecode_kevent_fflags(FILE *_fp, short _filter, int _fflags,
 	    int _base);
 const char *sysdecode_itimer(int _which);
 const char *sysdecode_pfnl_cmd(int _cmd);
-const char *sysdecode_nlm_flag(int _flag);
 const char *sysdecode_kevent_filter(int _filter);
 bool	sysdecode_kevent_flags(FILE *_fp, int _flags, int *_rem);
 const char *sysdecode_kldsym_cmd(int _cmd);
