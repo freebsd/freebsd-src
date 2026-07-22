@@ -58,6 +58,7 @@ const cmdline::bool_option pause_before_cleanup_upon_fail_option(
 
 
 const cmdline::bool_option pause_before_cleanup_option(
+    'P',
     "pause-before-cleanup",
     "Pauses right before the test cleanup");
 
