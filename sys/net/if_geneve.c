@@ -2841,6 +2841,7 @@ geneve_transmit(struct ifnet *ifp, struct mbuf *m)
 		break;
 #endif
 	default:
+		m_freem(m);
 		error = EAFNOSUPPORT;
 	}
 
