@@ -6,10 +6,7 @@ SRCS=	ssh-sk-helper.c ssh-sk.c sk-usbhid.c ssherr-nolibcrypto.c
 MAN=	ssh-sk-helper.8
 CFLAGS+=-I${SRCTOP}/contrib/libfido2/src
 
-LIBADD=	ssh crypto z
-.if ${MK_USB} != "no"
-LIBADD+= fido2 cbor
-.endif
+LIBADD=	ssh crypto z fido2 cbor
 
 .include <bsd.prog.mk>
 
