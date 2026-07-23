@@ -3024,7 +3024,7 @@ dsp_kqevent(struct knote *kn, long hint)
 	 * the reference and fire based on the current amount of ready/free
 	 * data in the buffer, so all knotes see the same live state.
 	 */
-	if (chn_polltrigger(ch, (u_int64_t)kn->kn_sdata)) {
+	if (chn_polltrigger(ch, (uint64_t)kn->kn_sdata)) {
 		if (kn->kn_filter == EVFILT_READ) {
 			kn->kn_data = sndbuf_getready(ch->bufsoft);
 			if (ch->flags & CHN_F_MMAP)

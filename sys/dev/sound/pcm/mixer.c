@@ -41,7 +41,7 @@
 #include "feeder_if.h"
 #include "mixer_if.h"
 
-static u_int16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {
+static uint16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {
 	[SOUND_MIXER_VOLUME]	= 75,
 	[SOUND_MIXER_BASS]	= 50,
 	[SOUND_MIXER_TREBLE]	= 50,
@@ -109,7 +109,7 @@ mixer_lookup(char *devname)
 
 static int
 mixer_set_softpcmvol(struct snd_mixer *m, struct snddev_info *d,
-    u_int left, u_int right)
+    unsigned int left, unsigned int right)
 {
 	struct pcm_channel *c;
 	int dropmtx, acquiremtx;
@@ -154,7 +154,7 @@ mixer_set_softpcmvol(struct snd_mixer *m, struct snddev_info *d,
 
 static int
 mixer_set_eq(struct snd_mixer *m, struct snddev_info *d,
-    u_int dev, u_int level)
+    unsigned int dev, unsigned int level)
 {
 	struct pcm_channel *c;
 	struct pcm_feeder *f;
@@ -205,12 +205,12 @@ mixer_set_eq(struct snd_mixer *m, struct snddev_info *d,
 }
 
 static int
-mixer_set(struct snd_mixer *m, u_int dev, u_int32_t muted, u_int lev)
+mixer_set(struct snd_mixer *m, unsigned int dev, uint32_t muted, unsigned int lev)
 {
 	struct snddev_info *d;
-	u_int l, r, tl, tr;
-	u_int32_t parent = SOUND_MIXER_NONE, child = 0;
-	u_int32_t realdev;
+	unsigned int l, r, tl, tr;
+	uint32_t parent = SOUND_MIXER_NONE, child = 0;
+	uint32_t realdev;
 	int i, dropmtx;
 
 	if (m == NULL || dev >= SOUND_MIXER_NRDEVICES ||
@@ -309,9 +309,9 @@ mixer_get(struct snd_mixer *mixer, int dev)
 }
 
 void
-mix_setmutedevs(struct snd_mixer *mixer, u_int32_t mutedevs)
+mix_setmutedevs(struct snd_mixer *mixer, uint32_t mutedevs)
 {
-	u_int32_t delta;
+	uint32_t delta;
 
 	/* Filter out invalid values. */
 	mutedevs &= mixer->devs;
@@ -331,10 +331,10 @@ mix_setmutedevs(struct snd_mixer *mixer, u_int32_t mutedevs)
 }
 
 static int
-mixer_setrecsrc(struct snd_mixer *mixer, u_int32_t src)
+mixer_setrecsrc(struct snd_mixer *mixer, uint32_t src)
 {
 	struct snddev_info *d;
-	u_int32_t recsrc;
+	uint32_t recsrc;
 	int dropmtx;
 
 	d = device_get_softc(mixer->dev);
@@ -447,7 +447,7 @@ mixer_set_recroute(struct snd_mixer *m, int route)
 }
 
 void
-mix_setdevs(struct snd_mixer *m, u_int32_t v)
+mix_setdevs(struct snd_mixer *m, uint32_t v)
 {
 	struct snddev_info *d;
 	int i;
@@ -478,15 +478,15 @@ mix_setdevs(struct snd_mixer *m, u_int32_t v)
  * @param v	mask of recording devices
  */
 void
-mix_setrecdevs(struct snd_mixer *m, u_int32_t v)
+mix_setrecdevs(struct snd_mixer *m, uint32_t v)
 {
 	m->recdevs = v;
 }
 
 void
-mix_setparentchild(struct snd_mixer *m, u_int32_t parent, u_int32_t childs)
+mix_setparentchild(struct snd_mixer *m, uint32_t parent, uint32_t childs)
 {
-	u_int32_t mask = 0;
+	uint32_t mask = 0;
 	int i;
 
 	if (m == NULL || parent >= SOUND_MIXER_NRDEVICES)
@@ -507,7 +507,7 @@ mix_setparentchild(struct snd_mixer *m, u_int32_t parent, u_int32_t childs)
 }
 
 void
-mix_setrealdev(struct snd_mixer *m, u_int32_t dev, u_int32_t realdev)
+mix_setrealdev(struct snd_mixer *m, uint32_t dev, uint32_t realdev)
 {
 	if (m == NULL || dev >= SOUND_MIXER_NRDEVICES ||
 	    !(realdev == SOUND_MIXER_NONE || realdev < SOUND_MIXER_NRDEVICES))
@@ -515,27 +515,27 @@ mix_setrealdev(struct snd_mixer *m, u_int32_t dev, u_int32_t realdev)
 	m->realdev[dev] = realdev;
 }
 
-u_int32_t
-mix_getparent(struct snd_mixer *m, u_int32_t dev)
+uint32_t
+mix_getparent(struct snd_mixer *m, uint32_t dev)
 {
 	if (m == NULL || dev >= SOUND_MIXER_NRDEVICES)
 		return SOUND_MIXER_NONE;
 	return m->parent[dev];
 }
 
-u_int32_t
+uint32_t
 mix_getdevs(struct snd_mixer *m)
 {
 	return m->devs;
 }
 
-u_int32_t
+uint32_t
 mix_getmutedevs(struct snd_mixer *m)
 {
 	return m->mutedevs;
 }
 
-u_int32_t
+uint32_t
 mix_getrecdevs(struct snd_mixer *m)
 {
 	return m->recdevs;
@@ -615,7 +615,7 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 {
 	struct snddev_info *snddev;
 	struct snd_mixer *m;
-	u_int16_t v;
+	uint16_t v;
 	struct cdev *pdev;
 	const char *name;
 	int i, unit, val;
@@ -637,7 +637,7 @@ mixer_init(device_t dev, kobj_class_t cls, void *devinfo)
 		if (resource_int_value(name, unit, snd_mixernames[i],
 		    &val) == 0) {
 			if (val >= 0 && val <= 100) {
-				v = (u_int16_t) val;
+				v = (uint16_t) val;
 			}
 		}
 
@@ -856,7 +856,7 @@ mixer_hwvol_step(device_t dev, int left_step, int right_step)
 }
 
 int
-mix_set(struct snd_mixer *m, u_int dev, u_int left, u_int right)
+mix_set(struct snd_mixer *m, unsigned int dev, unsigned int left, unsigned int right)
 {
 	int ret;
 
@@ -870,7 +870,7 @@ mix_set(struct snd_mixer *m, u_int dev, u_int left, u_int right)
 }
 
 int
-mix_get(struct snd_mixer *m, u_int dev)
+mix_get(struct snd_mixer *m, unsigned int dev)
 {
 	int ret;
 
@@ -884,7 +884,7 @@ mix_get(struct snd_mixer *m, u_int dev)
 }
 
 int
-mix_setrecsrc(struct snd_mixer *m, u_int32_t src)
+mix_setrecsrc(struct snd_mixer *m, uint32_t src)
 {
 	int ret;
 
@@ -897,10 +897,10 @@ mix_setrecsrc(struct snd_mixer *m, u_int32_t src)
 	return ((ret != 0) ? ENXIO : 0);
 }
 
-u_int32_t
+uint32_t
 mix_getrecsrc(struct snd_mixer *m)
 {
-	u_int32_t ret;
+	uint32_t ret;
 
 	KASSERT(m != NULL, ("NULL snd_mixer"));
 

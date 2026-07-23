@@ -65,7 +65,7 @@ struct sc_chinfo {
 	struct sc_info	*parent;
 	struct pcm_channel	*channel;
 	struct snd_dbuf	*buffer;
-	u_int32_t	fmt, spd;
+	uint32_t	fmt, spd;
 	int		dir;
 	int		dma_active, dma_was_active;
 };
@@ -99,10 +99,10 @@ struct sc_info {
 	unsigned int		bufsz;
 
 	struct sc_chinfo	rch, pch;
-	u_int8_t		rev;
+	uint8_t		rev;
 };
 
-static u_int32_t sc_fmt[] = {
+static uint32_t sc_fmt[] = {
 	SND_FORMAT(AFMT_U8, 1, 0),
 	SND_FORMAT(AFMT_U8, 2, 0),
 	SND_FORMAT(AFMT_S16_LE, 1, 0),
@@ -117,16 +117,16 @@ static struct pcmchan_caps sc_caps = {8000, 48000, sc_fmt, 0};
 
 #define sv_direct_set(x, y, z) _sv_direct_set(x, y, z, __LINE__)
 
-static u_int8_t
-sv_direct_get(struct sc_info *sc, u_int8_t reg)
+static uint8_t
+sv_direct_get(struct sc_info *sc, uint8_t reg)
 {
 	return bus_space_read_1(sc->enh_st, sc->enh_sh, reg);
 }
 
 static void
-_sv_direct_set(struct sc_info *sc, u_int8_t reg, u_int8_t val, int line)
+_sv_direct_set(struct sc_info *sc, uint8_t reg, uint8_t val, int line)
 {
-	u_int8_t n;
+	uint8_t n;
 	bus_space_write_1(sc->enh_st, sc->enh_sh, reg, val);
 
 	n = sv_direct_get(sc, reg);
@@ -135,8 +135,8 @@ _sv_direct_set(struct sc_info *sc, u_int8_t reg, u_int8_t val, int line)
 	}
 }
 
-static u_int8_t
-sv_indirect_get(struct sc_info *sc, u_int8_t reg)
+static uint8_t
+sv_indirect_get(struct sc_info *sc, uint8_t reg)
 {
 	if (reg == SV_REG_FORMAT || reg == SV_REG_ANALOG_PWR)
 		reg |= SV_CM_INDEX_MCE;
@@ -148,7 +148,7 @@ sv_indirect_get(struct sc_info *sc, u_int8_t reg)
 #define sv_indirect_set(x, y, z) _sv_indirect_set(x, y, z, __LINE__)
 
 static void
-_sv_indirect_set(struct sc_info *sc, u_int8_t reg, u_int8_t val, int line)
+_sv_indirect_set(struct sc_info *sc, uint8_t reg, uint8_t val, int line)
 {
 	if (reg == SV_REG_FORMAT || reg == SV_REG_ANALOG_PWR)
 		reg |= SV_CM_INDEX_MCE;
@@ -158,7 +158,7 @@ _sv_indirect_set(struct sc_info *sc, u_int8_t reg, u_int8_t val, int line)
 
 	reg &= ~SV_CM_INDEX_MCE;
 	if (reg != SV_REG_ADC_PLLM) {
-		u_int8_t n;
+		uint8_t n;
 		n = sv_indirect_get(sc, reg);
 		if (n != val) {
 			device_printf(sc->dev, "sv_indirect_set register 0x%02x %d != %d line %d\n", reg, n, val, line);
@@ -168,7 +168,7 @@ _sv_indirect_set(struct sc_info *sc, u_int8_t reg, u_int8_t val, int line)
 
 static void
 sv_dma_set_config(bus_space_tag_t st, bus_space_handle_t sh,
-		  u_int32_t base, u_int32_t count, u_int8_t mode)
+		  uint32_t base, uint32_t count, uint8_t mode)
 {
 	bus_space_write_4(st, sh, SV_DMA_ADDR, base);
 	bus_space_write_4(st, sh, SV_DMA_COUNT, count & 0xffffff);
@@ -178,7 +178,7 @@ sv_dma_set_config(bus_space_tag_t st, bus_space_handle_t sh,
 		   base, count, mode));
 }
 
-static u_int32_t
+static uint32_t
 sv_dma_get_count(bus_space_tag_t st, bus_space_handle_t sh)
 {
 	return bus_space_read_4(st, sh, SV_DMA_COUNT) & 0xffffff;
@@ -216,8 +216,8 @@ svchan_getcaps(kobj_t obj, void *data)
         return &sc_caps;
 }
 
-static u_int32_t
-svchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+static uint32_t
+svchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	struct sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
@@ -230,7 +230,7 @@ svchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 }
 
 static int
-svchan_setformat(kobj_t obj, void *data, u_int32_t format)
+svchan_setformat(kobj_t obj, void *data, uint32_t format)
 {
 	struct sc_chinfo *ch = data;
 	/* NB Just note format here as setting format register
@@ -240,8 +240,8 @@ svchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static u_int32_t
-svchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+static uint32_t
+svchan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct sc_chinfo *ch = data;
 	RANGE(speed, 8000, 48000);
@@ -253,10 +253,10 @@ svchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 /* Recording interface */
 
 static int
-sv_set_recspeed(struct sc_info *sc, u_int32_t speed)
+sv_set_recspeed(struct sc_info *sc, uint32_t speed)
 {
-	u_int32_t	f_out, f_actual;
-	u_int32_t	rs, re, r, best_r = 0, r2, t, n, best_n = 0;
+	uint32_t	f_out, f_actual;
+	uint32_t	rs, re, r, best_r = 0, r2, t, n, best_n = 0;
 	int32_t		m, best_m = 0, ms, me, err, min_err;
 
 	/* This algorithm is a variant described in sonicvibes.pdf
@@ -314,8 +314,8 @@ svrchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct sc_chinfo	*ch = data;
 	struct sc_info 		*sc = ch->parent;
-	u_int32_t		count, enable;
-	u_int8_t		v;
+	uint32_t		count, enable;
+	uint8_t		v;
 
 	switch(go) {
 	case PCMTRIG_START:
@@ -353,12 +353,12 @@ svrchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static u_int32_t
+static uint32_t
 svrchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo	*ch = data;
 	struct sc_info 		*sc = ch->parent;
-	u_int32_t sz, remain;
+	uint32_t sz, remain;
 
 	sz = ch->buffer->bufsize;
 	/* DMAC uses words */
@@ -386,8 +386,8 @@ svpchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct sc_chinfo	*ch = data;
 	struct sc_info		*sc = ch->parent;
-	u_int32_t		count, enable, speed;
-	u_int8_t		v;
+	uint32_t		count, enable, speed;
+	uint8_t		v;
 
 	switch(go) {
 	case PCMTRIG_START:
@@ -430,12 +430,12 @@ svpchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static u_int32_t
+static uint32_t
 svpchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo	*ch = data;
 	struct sc_info 		*sc = ch->parent;
-	u_int32_t sz, remain;
+	uint32_t sz, remain;
 
 	sz = ch->buffer->bufsize;
 	/* DMAA uses bytes */
@@ -459,12 +459,12 @@ CHANNEL_DECLARE(svpchan);
 /* Mixer support */
 
 struct sv_mix_props {
-	u_int8_t	reg;		/* Register */
-	u_int8_t	stereo:1;	/* Supports 2 channels */
-	u_int8_t	mute:1;		/* Supports muting */
-	u_int8_t	neg:1;		/* Negative gain */
-	u_int8_t	max;		/* Max gain */
-	u_int8_t	iselect;	/* Input selector */
+	uint8_t	reg;		/* Register */
+	uint8_t	stereo:1;	/* Supports 2 channels */
+	uint8_t	mute:1;		/* Supports muting */
+	uint8_t	neg:1;		/* Negative gain */
+	uint8_t	max;		/* Max gain */
+	uint8_t	iselect;	/* Input selector */
 } static const mt [SOUND_MIXER_NRDEVICES] = {
 	[SOUND_MIXER_LINE1]  = {SV_REG_AUX1,      1, 1, 1, SV_DEFAULT_MAX, SV_INPUT_AUX1},
 	[SOUND_MIXER_CD]     = {SV_REG_CD,        1, 1, 1, SV_DEFAULT_MAX, SV_INPUT_CD},
@@ -478,9 +478,9 @@ struct sv_mix_props {
 };
 
 static void
-sv_channel_gain(struct sc_info *sc, u_int32_t dev, u_int32_t gain, u_int32_t channel)
+sv_channel_gain(struct sc_info *sc, uint32_t dev, uint32_t gain, uint32_t channel)
 {
-	u_int8_t	v;
+	uint8_t	v;
 	int32_t		g;
 
 	g = mt[dev].max * gain / 100;
@@ -500,7 +500,7 @@ sv_channel_gain(struct sc_info *sc, u_int32_t dev, u_int32_t gain, u_int32_t cha
 }
 
 static int
-sv_gain(struct sc_info *sc, u_int32_t dev, u_int32_t left, u_int32_t right)
+sv_gain(struct sc_info *sc, uint32_t dev, uint32_t left, uint32_t right)
 {
 	sv_channel_gain(sc, dev, left, 0);
 	if (mt[dev].stereo)
@@ -520,7 +520,7 @@ sv_mix_mute_all(struct sc_info *sc)
 static int
 sv_mix_init(struct snd_mixer *m)
 {
-	u_int32_t 	i, v;
+	uint32_t 	i, v;
 
 	for(i = v = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 		if (mt[i].max) v |= (1 << i);
@@ -536,17 +536,17 @@ sv_mix_init(struct snd_mixer *m)
 }
 
 static int
-sv_mix_set(struct snd_mixer *m, u_int32_t dev, u_int32_t left, u_int32_t right)
+sv_mix_set(struct snd_mixer *m, uint32_t dev, uint32_t left, uint32_t right)
 {
 	struct sc_info	*sc = mix_getdevinfo(m);
 	return sv_gain(sc, dev, left, right);
 }
 
-static u_int32_t
-sv_mix_setrecsrc(struct snd_mixer *m, u_int32_t mask)
+static uint32_t
+sv_mix_setrecsrc(struct snd_mixer *m, uint32_t mask)
 {
 	struct sc_info	*sc = mix_getdevinfo(m);
-	u_int32_t	i, v;
+	uint32_t	i, v;
 
 	v = sv_indirect_get(sc, SV_REG_ADC_INPUT) & SV_INPUT_GAIN_MASK;
 	for(i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
@@ -573,7 +573,7 @@ MIXER_DECLARE(sv_mixer);
 static void
 sv_power(struct sc_info *sc, int state)
 {
-	u_int8_t v;
+	uint8_t v;
 
         switch (state) {
         case 0:
@@ -599,7 +599,7 @@ sv_power(struct sc_info *sc, int state)
 static int
 sv_init(struct sc_info *sc)
 {
-	u_int8_t	v;
+	uint8_t	v;
 
 	/* Effect reset */
 	v  = sv_direct_get(sc, SV_CM_CONTROL) & ~SV_CM_CONTROL_ENHANCED;
@@ -691,7 +691,7 @@ static void
 sv_intr(void *data)
 {
 	struct sc_info	*sc = data;
-	u_int8_t	status;
+	uint8_t	status;
 
 	status = sv_direct_get(sc, SV_CM_STATUS);
 	if (status & SV_CM_STATUS_AINT)
@@ -722,7 +722,7 @@ static int
 sv_attach(device_t dev) {
 	struct sc_info	*sc;
 	rman_res_t	count, midi_start, games_start;
-	u_int32_t	data;
+	uint32_t	data;
 	char		status[SND_STATUSLEN];
 	u_long		sdmaa, sdmac, ml, mu;
 
@@ -841,7 +841,7 @@ sv_attach(device_t dev) {
 
 	/* Poke port into dma_a configuration, nb bit flags to enable dma */
 	data = pci_read_config(dev, SV_PCI_DMAA, 4) | SV_PCI_DMA_ENABLE | SV_PCI_DMA_EXTENDED;
-	data = ((u_int32_t)sdmaa & 0xfffffff0) | (data & 0x0f);
+	data = ((uint32_t)sdmaa & 0xfffffff0) | (data & 0x0f);
 	pci_write_config(dev, SV_PCI_DMAA, data, 4);
 	DEB(printf("dmaa: 0x%x 0x%x\n", data, pci_read_config(dev, SV_PCI_DMAA, 4)));
 
@@ -859,7 +859,7 @@ sv_attach(device_t dev) {
 
 	/* Poke port into dma_c configuration, nb bit flags to enable dma */
 	data = pci_read_config(dev, SV_PCI_DMAC, 4) | SV_PCI_DMA_ENABLE | SV_PCI_DMA_EXTENDED;
-	data = ((u_int32_t)sdmac & 0xfffffff0) | (data & 0x0f);
+	data = ((uint32_t)sdmac & 0xfffffff0) | (data & 0x0f);
 	pci_write_config(dev, SV_PCI_DMAC, data, 4);
 	DEB(printf("dmac: 0x%x 0x%x\n", data, pci_read_config(dev, SV_PCI_DMAC, 4)));
 

@@ -47,7 +47,7 @@
 /* more accurate clocks and split audio1/audio2 rates */
 #define ESS18XX_NEWSPEED
 
-static u_int32_t ess_playfmt[] = {
+static uint32_t ess_playfmt[] = {
 	SND_FORMAT(AFMT_U8, 1, 0),
 	SND_FORMAT(AFMT_U8, 2, 0),
 	SND_FORMAT(AFMT_S8, 1, 0),
@@ -63,7 +63,7 @@ static struct pcmchan_caps ess_playcaps = {6000, 48000, ess_playfmt, 0};
 /*
  * Recording output is byte-swapped
  */
-static u_int32_t ess_recfmt[] = {
+static uint32_t ess_recfmt[] = {
 	SND_FORMAT(AFMT_U8, 1, 0),
 	SND_FORMAT(AFMT_U8, 2, 0),
 	SND_FORMAT(AFMT_S8, 1, 0),
@@ -83,7 +83,7 @@ struct ess_chinfo {
 	struct pcm_channel *channel;
 	struct snd_dbuf *buffer;
 	int dir, hwch, stopping;
-	u_int32_t fmt, spd, blksz;
+	uint32_t fmt, spd, blksz;
 };
 
 struct ess_info {
@@ -105,24 +105,24 @@ struct ess_info {
 #define ess_lock_assert(_ess) mtx_assert(&(_ess)->lock, MA_OWNED)
 
 static int ess_rd(struct ess_info *sc, int reg);
-static void ess_wr(struct ess_info *sc, int reg, u_int8_t val);
+static void ess_wr(struct ess_info *sc, int reg, uint8_t val);
 static int ess_dspready(struct ess_info *sc);
 static int ess_cmd(struct ess_info *sc, u_char val);
 static int ess_cmd1(struct ess_info *sc, u_char cmd, int val);
 static int ess_get_byte(struct ess_info *sc);
-static void ess_setmixer(struct ess_info *sc, u_int port, u_int value);
-static int ess_getmixer(struct ess_info *sc, u_int port);
+static void ess_setmixer(struct ess_info *sc, unsigned int port, unsigned int value);
+static int ess_getmixer(struct ess_info *sc, unsigned int port);
 static int ess_reset_dsp(struct ess_info *sc);
 
 static int ess_write(struct ess_info *sc, u_char reg, int val);
 static int ess_read(struct ess_info *sc, u_char reg);
 
 static void ess_intr(void *arg);
-static int ess_setupch(struct ess_info *sc, int ch, int dir, int spd, u_int32_t fmt, int len);
+static int ess_setupch(struct ess_info *sc, int ch, int dir, int spd, uint32_t fmt, int len);
 static int ess_start(struct ess_chinfo *ch);
 static int ess_stop(struct ess_chinfo *ch);
 
-static int ess_dmasetup(struct ess_info *sc, int ch, u_int32_t base, u_int16_t cnt, int dir);
+static int ess_dmasetup(struct ess_info *sc, int ch, uint32_t base, uint16_t cnt, int dir);
 static int ess_dmapos(struct ess_info *sc, int ch);
 static int ess_dmatrigger(struct ess_info *sc, int ch, int go);
 
@@ -157,7 +157,7 @@ port_rd(struct resource *port, int regno, int size)
 }
 
 static void
-port_wr(struct resource *port, int regno, u_int32_t data, int size)
+port_wr(struct resource *port, int regno, uint32_t data, int size)
 {
 	bus_space_tag_t st = rman_get_bustag(port);
 	bus_space_handle_t sh = rman_get_bushandle(port);
@@ -182,7 +182,7 @@ ess_rd(struct ess_info *sc, int reg)
 }
 
 static void
-ess_wr(struct ess_info *sc, int reg, u_int8_t val)
+ess_wr(struct ess_info *sc, int reg, uint8_t val)
 {
 	port_wr(sc->sb, reg, val, 1);
 }
@@ -226,7 +226,7 @@ ess_cmd1(struct ess_info *sc, u_char cmd, int val)
 }
 
 static void
-ess_setmixer(struct ess_info *sc, u_int port, u_int value)
+ess_setmixer(struct ess_info *sc, unsigned int port, unsigned int value)
 {
 	DEB(printf("ess_setmixer: reg=%x, val=%x\n", port, value);)
     	ess_wr(sc, SB_MIX_ADDR, (u_char) (port & 0xff)); /* Select register */
@@ -236,7 +236,7 @@ ess_setmixer(struct ess_info *sc, u_int port, u_int value)
 }
 
 static int
-ess_getmixer(struct ess_info *sc, u_int port)
+ess_getmixer(struct ess_info *sc, unsigned int port)
 {
     	int val;
 
@@ -359,11 +359,11 @@ ess_intr(void *arg)
 }
 
 /* utility functions for ESS */
-static u_int8_t
+static uint8_t
 ess_calcspeed8(int *spd)
 {
 	int speed = *spd;
-	u_int32_t t;
+	uint32_t t;
 
 	if (speed > 22000) {
 		t = (795500 + speed / 2) / speed;
@@ -378,11 +378,11 @@ ess_calcspeed8(int *spd)
 	return t & 0x000000ff;
 }
 
-static u_int8_t
+static uint8_t
 ess_calcspeed9(int *spd)
 {
 	int speed, s0, s1, use0;
-	u_int8_t t0, t1;
+	uint8_t t0, t1;
 
 	/* rate = source / (256 - divisor) */
 	/* divisor = 256 - (source / rate) */
@@ -400,7 +400,7 @@ ess_calcspeed9(int *spd)
 	return use0? t0 : t1;
 }
 
-static u_int8_t
+static uint8_t
 ess_calcfilter(int spd)
 {
 	int cutoff;
@@ -412,13 +412,13 @@ ess_calcfilter(int spd)
 }
 
 static int
-ess_setupch(struct ess_info *sc, int ch, int dir, int spd, u_int32_t fmt, int len)
+ess_setupch(struct ess_info *sc, int ch, int dir, int spd, uint32_t fmt, int len)
 {
 	int play = (dir == PCMDIR_PLAY)? 1 : 0;
 	int b16 = (fmt & AFMT_16BIT)? 1 : 0;
 	int stereo = (AFMT_CHANNEL(fmt) > 1)? 1 : 0;
 	int unsign = (!(fmt & AFMT_SIGNED))? 1 : 0;
-	u_int8_t spdval, fmtval;
+	uint8_t spdval, fmtval;
 
 	DEB(printf("ess_setupch\n"));
 	spdval = (sc->newspeed)? ess_calcspeed9(&spd) : ess_calcspeed8(&spd);
@@ -539,7 +539,7 @@ esschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 }
 
 static int
-esschan_setformat(kobj_t obj, void *data, u_int32_t format)
+esschan_setformat(kobj_t obj, void *data, uint32_t format)
 {
 	struct ess_chinfo *ch = data;
 
@@ -547,8 +547,8 @@ esschan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static u_int32_t
-esschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+static uint32_t
+esschan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct ess_chinfo *ch = data;
 	struct ess_info *sc = ch->parent;
@@ -561,8 +561,8 @@ esschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return ch->spd;
 }
 
-static u_int32_t
-esschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+static uint32_t
+esschan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	struct ess_chinfo *ch = data;
 
@@ -600,12 +600,12 @@ esschan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static u_int32_t
+static uint32_t
 esschan_getptr(kobj_t obj, void *data)
 {
 	struct ess_chinfo *ch = data;
 	struct ess_info *sc = ch->parent;
-	u_int32_t ret;
+	uint32_t ret;
 
 	ess_lock(sc);
 	ret = ess_dmapos(sc, ch->hwch);
@@ -712,8 +712,8 @@ essmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
     	return left | (right << 8);
 }
 
-static u_int32_t
-essmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
+static uint32_t
+essmix_setrecsrc(struct snd_mixer *m, uint32_t src)
 {
     	struct ess_info *sc = mix_getdevinfo(m);
     	u_char recdev;
@@ -754,7 +754,7 @@ MIXER_DECLARE(solomixer);
 /************************************************************/
 
 static int
-ess_dmasetup(struct ess_info *sc, int ch, u_int32_t base, u_int16_t cnt, int dir)
+ess_dmasetup(struct ess_info *sc, int ch, uint32_t base, uint16_t cnt, int dir)
 {
 	KASSERT(ch == 1 || ch == 2, ("bad ch"));
 	sc->dmasz[ch - 1] = cnt;
@@ -895,7 +895,7 @@ static int
 ess_probe(device_t dev)
 {
 	char *s = NULL;
-	u_int32_t subdev;
+	uint32_t subdev;
 
 	subdev = (pci_get_subdevice(dev) << 16) | pci_get_subvendor(dev);
 	switch (pci_get_devid(dev)) {
@@ -960,7 +960,7 @@ ess_attach(device_t dev)
 {
     	struct ess_info *sc;
     	char status[SND_STATUSLEN];
-	u_int16_t ddma;
+	uint16_t ddma;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	pci_enable_busmaster(dev);

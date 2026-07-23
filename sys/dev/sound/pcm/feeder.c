@@ -90,7 +90,7 @@ feeder_create(struct feeder_class *fc, struct pcm_feederdesc *desc)
 }
 
 struct feeder_class *
-feeder_getclass(u_int32_t type)
+feeder_getclass(uint32_t type)
 {
 	struct feeder_class *fc;
 
@@ -132,7 +132,7 @@ feeder_remove(struct pcm_channel *c)
 }
 
 struct pcm_feeder *
-feeder_find(struct pcm_channel *c, u_int32_t type)
+feeder_find(struct pcm_channel *c, uint32_t type)
 {
 	struct pcm_feeder *f;
 
@@ -181,10 +181,10 @@ feeder_find(struct pcm_channel *c, u_int32_t type)
 #define score_val(s1)		((s1) & 0x3f00)
 #define score_cse(s1)		((s1) & 0x7f)
 
-static u_int32_t
-snd_fmtscore(u_int32_t fmt)
+static uint32_t
+snd_fmtscore(uint32_t fmt)
 {
-	u_int32_t ret;
+	uint32_t ret;
 
 	ret = 0;
 	if (fmt & AFMT_SIGNED)
@@ -212,10 +212,10 @@ snd_fmtscore(u_int32_t fmt)
 	return ret;
 }
 
-static u_int32_t
-snd_fmtbestfunc(u_int32_t fmt, u_int32_t *fmts, int cheq)
+static uint32_t
+snd_fmtbestfunc(uint32_t fmt, uint32_t *fmts, int cheq)
 {
-	u_int32_t best, score, score2, oldscore;
+	uint32_t best, score, score2, oldscore;
 	int i;
 
 	if (fmt == 0 || fmts == NULL || fmts[0] == 0)
@@ -257,23 +257,23 @@ snd_fmtbestfunc(u_int32_t fmt, u_int32_t *fmts, int cheq)
 	return best;
 }
 
-static u_int32_t
-snd_fmtbestbit(u_int32_t fmt, u_int32_t *fmts)
+static uint32_t
+snd_fmtbestbit(uint32_t fmt, uint32_t *fmts)
 {
 	return snd_fmtbestfunc(fmt, fmts, 0);
 }
 
-static u_int32_t
-snd_fmtbestchannel(u_int32_t fmt, u_int32_t *fmts)
+static uint32_t
+snd_fmtbestchannel(uint32_t fmt, uint32_t *fmts)
 {
 	return snd_fmtbestfunc(fmt, fmts, 1);
 }
 
-u_int32_t
-snd_fmtbest(u_int32_t fmt, u_int32_t *fmts)
+uint32_t
+snd_fmtbest(uint32_t fmt, uint32_t *fmts)
 {
-	u_int32_t best1, best2;
-	u_int32_t score, score1, score2;
+	uint32_t best1, best2;
+	uint32_t score, score1, score2;
 
 	if (snd_fmtvalid(fmt, fmts))
 		return fmt;
@@ -304,7 +304,7 @@ snd_fmtbest(u_int32_t fmt, u_int32_t *fmts)
 }
 
 static int
-feed_root(struct pcm_feeder *feeder, struct pcm_channel *ch, u_int8_t *buffer, u_int32_t count, void *source)
+feed_root(struct pcm_feeder *feeder, struct pcm_channel *ch, uint8_t *buffer, uint32_t count, void *source)
 {
 	struct snd_dbuf *src = source;
 	int l, offset;

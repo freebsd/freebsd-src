@@ -33,7 +33,7 @@ INTERFACE ac97;
 
 CODE {
 
-	static u_int32_t
+	static uint32_t
 	ac97_noinit(kobj_t obj, void *devinfo)
 	{
 		return 1;
@@ -41,7 +41,7 @@ CODE {
 
 };
 
-METHOD u_int32_t init {
+METHOD uint32_t init {
 	kobj_t obj;
 	void *devinfo;
 } DEFAULT ac97_noinit;
@@ -56,5 +56,5 @@ METHOD int write {
 	kobj_t obj;
 	void *devinfo;
 	int regno;
-	u_int32_t data;
+	uint32_t data;
 };

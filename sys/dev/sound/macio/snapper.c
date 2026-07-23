@@ -100,7 +100,7 @@ static int	snapper_uninit(struct snd_mixer *m);
 static int	snapper_reinit(struct snd_mixer *m);
 static int	snapper_set(struct snd_mixer *m, unsigned dev, unsigned left,
 		    unsigned right);
-static u_int32_t	snapper_setrecsrc(struct snd_mixer *m, u_int32_t src);
+static uint32_t	snapper_setrecsrc(struct snd_mixer *m, uint32_t src);
 
 static device_method_t snapper_methods[] = {
 	/* Device interface. */
@@ -289,7 +289,7 @@ static const char snapper_regsize[] = {
 };
 
 /* dB = 20 * log (x) table. */
-static u_int	snapper_volume_table[100] = {      	
+static unsigned int	snapper_volume_table[100] = {      	
 	0x00000148,   0x0000015C,   0x00000171,   0x00000186,   // -46.0,	-45.5,	-45.0,	-44.5,
 	0x0000019E,   0x000001B6,   0x000001D0,   0x000001EB,   // -44.0,	-43.5,	-43.0,	-42.5,
 	0x00000209,   0x00000227,   0x00000248,   0x0000026B,   // -42.0,	-41.5,	-41.0,	-40.5,
@@ -320,7 +320,7 @@ static u_int	snapper_volume_table[100] = {
 static int
 snapper_write(struct snapper_softc *sc, uint8_t reg, const void *data)
 {
-	u_int size;
+	unsigned int size;
 	uint8_t buf[16];
 
 	struct iic_msg msg[] = {
@@ -381,7 +381,7 @@ static int
 snapper_init(struct snd_mixer *m)
 {
 	struct snapper_softc *sc;
-	u_int		x = 0;
+	unsigned int		x = 0;
 
 	sc = device_get_softc(mix_getdevinfo(m));
 
@@ -436,7 +436,7 @@ static int
 snapper_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct snapper_softc *sc;
-	u_int l, r;
+	unsigned int l, r;
 	u_char reg[6];
 
 	sc = device_get_softc(mix_getdevinfo(m));
@@ -464,8 +464,8 @@ snapper_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	return (0);
 }
 
-static u_int32_t
-snapper_setrecsrc(struct snd_mixer *m, u_int32_t src)
+static uint32_t
+snapper_setrecsrc(struct snd_mixer *m, uint32_t src)
 {
 	return (0);
 }

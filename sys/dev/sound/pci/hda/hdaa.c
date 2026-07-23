@@ -2055,7 +2055,7 @@ hdaa_audio_setup(struct hdaa_chan *ch)
 static unsigned
 gcd(unsigned a, unsigned b)
 {
-	u_int c;
+	unsigned int c;
 
 	while (b != 0) {
 		c = a;

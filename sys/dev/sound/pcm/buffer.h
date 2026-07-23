@@ -36,20 +36,20 @@
 #define SNDBUF_NAMELEN	48
 
 struct snd_dbuf {
-	u_int8_t *buf, *tmpbuf;
-	u_int8_t *shadbuf; /**< shadow buffer used w/ S_D_SILENCE/SKIP */
+	uint8_t *buf, *tmpbuf;
+	uint8_t *shadbuf; /**< shadow buffer used w/ S_D_SILENCE/SKIP */
 	volatile int sl; /**< shadbuf ready length in # of bytes */
 	unsigned int bufsize, maxsize, allocsize;
 	volatile int dl; /* transfer size */
 	volatile int rp; /* pointers to the ready area */
 	volatile int rl; /* length of ready area */
 	volatile int hp;
-	volatile u_int64_t total, prev_total;
+	volatile uint64_t total, prev_total;
 	int dmachan;       /* dma channel */
-	u_int32_t fmt, spd, bps, align;
+	uint32_t fmt, spd, bps, align;
 	unsigned int blksz, blkcnt;
 	int xrun;
-	u_int32_t flags;
+	uint32_t flags;
 	bus_dmamap_t dmamap;
 	bus_dma_tag_t dmatag;
 	bus_addr_t buf_addr;
@@ -60,7 +60,7 @@ struct snd_dbuf {
 	char name[SNDBUF_NAMELEN];
 };
 
-struct snd_dbuf *sndbuf_create(struct pcm_channel *channel, u_int32_t fmt, u_int32_t spd, const char *desc);
+struct snd_dbuf *sndbuf_create(struct pcm_channel *channel, uint32_t fmt, uint32_t spd, const char *desc);
 void sndbuf_destroy(struct snd_dbuf *b);
 void sndbuf_ref(struct snd_dbuf *b);
 void sndbuf_rele(struct snd_dbuf *b);
@@ -73,11 +73,11 @@ int sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 void sndbuf_reset(struct snd_dbuf *b);
 void sndbuf_clear(struct snd_dbuf *b, unsigned int length);
 void sndbuf_fillsilence(struct snd_dbuf *b);
-void sndbuf_fillsilence_rl(struct snd_dbuf *b, u_int rl);
+void sndbuf_fillsilence_rl(struct snd_dbuf *b, unsigned int rl);
 void sndbuf_softreset(struct snd_dbuf *b);
 void sndbuf_clearshadow(struct snd_dbuf *b);
 
-int sndbuf_setfmt(struct snd_dbuf *b, u_int32_t fmt);
+int sndbuf_setfmt(struct snd_dbuf *b, uint32_t fmt);
 void sndbuf_setspd(struct snd_dbuf *b, unsigned int spd);
 
 void *sndbuf_getbufofs(struct snd_dbuf *b, unsigned int ofs);
@@ -89,25 +89,25 @@ unsigned int sndbuf_getfree(struct snd_dbuf *b);
 unsigned int sndbuf_getfreeptr(struct snd_dbuf *b);
 unsigned int sndbuf_getready(struct snd_dbuf *b);
 unsigned int sndbuf_getreadyptr(struct snd_dbuf *b);
-u_int64_t sndbuf_getblocks(struct snd_dbuf *b);
+uint64_t sndbuf_getblocks(struct snd_dbuf *b);
 unsigned int sndbuf_xbytes(unsigned int v, struct snd_dbuf *from, struct snd_dbuf *to);
-u_int8_t sndbuf_zerodata(u_int32_t fmt);
+uint8_t sndbuf_zerodata(uint32_t fmt);
 
-int sndbuf_acquire(struct snd_dbuf *b, u_int8_t *from, unsigned int count);
-int sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count);
+int sndbuf_acquire(struct snd_dbuf *b, uint8_t *from, unsigned int count);
+int sndbuf_dispose(struct snd_dbuf *b, uint8_t *to, unsigned int count);
 int sndbuf_feed(struct snd_dbuf *from, struct snd_dbuf *to, struct pcm_channel *channel, struct pcm_feeder *feeder, unsigned int count);
 
 #ifdef OSSV4_EXPERIMENT
 void sndbuf_getpeaks(struct snd_dbuf *b, int *lp, int *rp);
 #endif
 
-static inline u_int32_t
-snd_xbytes(u_int32_t v, u_int32_t from, u_int32_t to)
+static inline uint32_t
+snd_xbytes(uint32_t v, uint32_t from, uint32_t to)
 {
 
 	if (from == to)
 		return (v);
 	if (from == 0)
 		return (0);
-	return ((u_int64_t)v * to / from);
+	return ((uint64_t)v * to / from);
 }

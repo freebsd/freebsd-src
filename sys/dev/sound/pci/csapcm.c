@@ -55,7 +55,7 @@ struct csa_chinfo {
 	struct pcm_channel *channel;
 	struct snd_dbuf *buffer;
 	int dir;
-	u_int32_t fmt, spd;
+	uint32_t fmt, spd;
 	int dma;
 };
 
@@ -72,9 +72,9 @@ struct csa_info {
 	u_long		pctl;
 	u_long		cctl;
 	struct csa_chinfo pch, rch;
-	u_int32_t	ac97[CS461x_AC97_NUMBER_RESTORE_REGS];
-	u_int32_t	ac97_powerdown;
-	u_int32_t	ac97_general_purpose;
+	uint32_t	ac97[CS461x_AC97_NUMBER_RESTORE_REGS];
+	uint32_t	ac97_powerdown;
+	uint32_t	ac97_general_purpose;
 };
 
 /* -------------------------------------------------------------------- */
@@ -95,7 +95,7 @@ static void	csa_releaseres(struct csa_info *scp, device_t dev);
 static void	csa_ac97_suspend(struct csa_info *csa);
 static void	csa_ac97_resume(struct csa_info *csa);
 
-static u_int32_t csa_playfmt[] = {
+static uint32_t csa_playfmt[] = {
 	SND_FORMAT(AFMT_U8, 1, 0),
 	SND_FORMAT(AFMT_U8, 2, 0),
 	SND_FORMAT(AFMT_S8, 1, 0),
@@ -108,7 +108,7 @@ static u_int32_t csa_playfmt[] = {
 };
 static struct pcmchan_caps csa_playcaps = {8000, 48000, csa_playfmt, 0};
 
-static u_int32_t csa_recfmt[] = {
+static uint32_t csa_recfmt[] = {
 	SND_FORMAT(AFMT_S16_LE, 1, 0),
 	SND_FORMAT(AFMT_S16_LE, 2, 0),
 	0
@@ -139,7 +139,7 @@ csa_active(struct csa_info *csa, int run)
 static int
 csa_rdcd(kobj_t obj, void *devinfo, int regno)
 {
-	u_int32_t data;
+	uint32_t data;
 	struct csa_info *csa = (struct csa_info *)devinfo;
 
 	csa_active(csa, 1);
@@ -151,7 +151,7 @@ csa_rdcd(kobj_t obj, void *devinfo, int regno)
 }
 
 static int
-csa_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
+csa_wrcd(kobj_t obj, void *devinfo, int regno, uint32_t data)
 {
 	struct csa_info *csa = (struct csa_info *)devinfo;
 
@@ -542,7 +542,7 @@ csachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 }
 
 static int
-csachan_setformat(kobj_t obj, void *data, u_int32_t format)
+csachan_setformat(kobj_t obj, void *data, uint32_t format)
 {
 	struct csa_chinfo *ch = data;
 
@@ -550,8 +550,8 @@ csachan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static u_int32_t
-csachan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+static uint32_t
+csachan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct csa_chinfo *ch = data;
 
@@ -559,8 +559,8 @@ csachan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return ch->spd; /* XXX calc real speed */
 }
 
-static u_int32_t
-csachan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+static uint32_t
+csachan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	return CS461x_BUFFSIZE / 2;
 }
@@ -591,13 +591,13 @@ csachan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static u_int32_t
+static uint32_t
 csachan_getptr(kobj_t obj, void *data)
 {
 	struct csa_chinfo *ch = data;
 	struct csa_info *csa = ch->parent;
 	csa_res *resp;
-	u_int32_t ptr;
+	uint32_t ptr;
 
 	resp = &csa->res;
 
