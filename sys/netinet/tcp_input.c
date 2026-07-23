@@ -2386,7 +2386,7 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 	/*
 	 * Ack processing.
 	 */
-	if (SEQ_GEQ(tp->snd_una, tp->iss + (TCP_MAXWIN << tp->snd_scale))) {
+	if (SEQ_GT(tp->snd_una, tp->iss + (TCP_MAXWIN << tp->snd_scale))) {
 		/* Checking SEG.ACK against ISS is definitely redundant. */
 		tp->t_flags2 |= TF2_NO_ISS_CHECK;
 	}
