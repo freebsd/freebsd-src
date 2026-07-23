@@ -138,11 +138,7 @@ static int
 emu_midi_probe(device_t dev)
 {
 	struct emu_midi_softc *scp;
-	uintptr_t func, is_emu10k1;
-
-	BUS_READ_IVAR(device_get_parent(dev), dev, 0, &func);
-	if (func != SCF_MIDI)
-		return (ENXIO);
+	uintptr_t is_emu10k1;
 
 	scp = device_get_softc(dev);
 	bzero(scp, sizeof(*scp));
@@ -157,15 +153,13 @@ static int
 emu_midi_attach(device_t dev)
 {
 	struct emu_midi_softc * scp;
-	struct sndcard_func *func;
 	struct emu_midiinfo *midiinfo;
 	uint32_t inte_val, ipr_val;
 
 	scp = device_get_softc(dev);
-	func = device_get_ivars(dev);
 
 	scp->dev = dev;
-	midiinfo = (struct emu_midiinfo *)func->varinfo;
+	midiinfo = (struct emu_midiinfo *)device_get_ivars(dev);
 	scp->port = midiinfo->port;
 	scp->card = midiinfo->card;
 

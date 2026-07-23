@@ -220,7 +220,6 @@ csa_attach(device_t dev)
 {
 	sc_p scp;
 	csa_res *resp;
-	struct sndcard_func *func;
 	int error = ENXIO;
 
 	scp = device_get_softc(dev);
@@ -274,18 +273,12 @@ csa_attach(device_t dev)
 	/* Attach the children. */
 
 	/* PCM Audio */
-	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
-	func->varinfo = &scp->binfo;
-	func->func = SCF_PCM;
 	scp->pcm = device_add_child(dev, "pcm", DEVICE_UNIT_ANY);
-	device_set_ivars(scp->pcm, func);
+	device_set_ivars(scp->pcm, &scp->binfo);
 
 	/* Midi Interface */
-	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_WAITOK | M_ZERO);
-	func->varinfo = &scp->binfo;
-	func->func = SCF_MIDI;
 	scp->midi = device_add_child(dev, "midi", DEVICE_UNIT_ANY);
-	device_set_ivars(scp->midi, func);
+	device_set_ivars(scp->midi, &scp->binfo);
 
 	bus_attach_children(dev);
 
@@ -300,12 +293,6 @@ err_mem:
 err_io:
 	bus_release_resource(dev, SYS_RES_MEMORY, resp->io_rid, resp->io);
 	return (error);
-}
-
-static void
-csa_child_deleted(device_t dev, device_t child)
-{
-	free(device_get_ivars(child), M_DEVBUF);
 }
 
 static int
@@ -411,7 +398,6 @@ csa_setup_intr(device_t bus, device_t child,
 {
 	sc_p scp;
 	csa_res *resp;
-	struct sndcard_func *func;
 
 	if (filter != NULL) {
 		printf("ata-csa.c: we cannot use a filter here\n");
@@ -420,28 +406,21 @@ csa_setup_intr(device_t bus, device_t child,
 	scp = device_get_softc(bus);
 	resp = &scp->res;
 
-	/*
-	 * Look at the function code of the child to determine
-	 * the appropriate handler for it.
-	 */
-	func = device_get_ivars(child);
-	if (func == NULL || irq != resp->irq)
+	if (irq != resp->irq)
 		return (EINVAL);
 
-	switch (func->func) {
-	case SCF_PCM:
+	/*
+	 * Look at which child device this is to determine the
+	 * appropriate handler for it.
+	 */
+	if (child == scp->pcm) {
 		scp->pcmintr = intr;
 		scp->pcmintr_arg = arg;
-		break;
-
-	case SCF_MIDI:
+	} else if (child == scp->midi) {
 		scp->midiintr = intr;
 		scp->midiintr_arg = arg;
-		break;
-
-	default:
+	} else
 		return (EINVAL);
-	}
 	*cookiep = scp;
 	if ((csa_readio(resp, BA0_HISR) & HISR_INTENA) == 0)
 		csa_writeio(resp, BA0_HICR, HICR_IEV | HICR_CHGM);
@@ -455,33 +434,25 @@ csa_teardown_intr(device_t bus, device_t child,
 {
 	sc_p scp;
 	csa_res *resp;
-	struct sndcard_func *func;
 
 	scp = device_get_softc(bus);
 	resp = &scp->res;
 
-	/*
-	 * Look at the function code of the child to determine
-	 * the appropriate handler for it.
-	 */
-	func = device_get_ivars(child);
-	if (func == NULL || irq != resp->irq || cookie != scp)
+	if (irq != resp->irq || cookie != scp)
 		return (EINVAL);
 
-	switch (func->func) {
-	case SCF_PCM:
+	/*
+	 * Look at which child device this is to determine the
+	 * appropriate handler for it.
+	 */
+	if (child == scp->pcm) {
 		scp->pcmintr = NULL;
 		scp->pcmintr_arg = NULL;
-		break;
-
-	case SCF_MIDI:
+	} else if (child == scp->midi) {
 		scp->midiintr = NULL;
 		scp->midiintr_arg = NULL;
-		break;
-
-	default:
+	} else
 		return (EINVAL);
-	}
 
 	return (0);
 }
@@ -1043,7 +1014,6 @@ static device_method_t csa_methods[] = {
 	DEVMETHOD(device_resume,	csa_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_child_deleted,	csa_child_deleted),
 	DEVMETHOD(bus_alloc_resource,	csa_alloc_resource),
 	DEVMETHOD(bus_release_resource,	csa_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),

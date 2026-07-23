@@ -1297,13 +1297,8 @@ emu_pcm_uninit(struct emu_pcm_info *sc __unused)
 static int
 emu_pcm_probe(device_t dev)
 {
-	uintptr_t func, route;
+	uintptr_t route;
 	const char *rt;
-
-	BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_FUNC, &func);
-
-	if (func != SCF_PCM)
-		return (ENXIO);
 
 	rt = "UNKNOWN";
 	BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ROUTE, &route);
