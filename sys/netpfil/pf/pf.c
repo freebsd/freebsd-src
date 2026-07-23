@@ -3134,14 +3134,23 @@ pf_remove_state(struct pf_kstate *s)
 		case PF_STATE_LINK_TYPE_SOURCELIM: {
 			struct pf_sourcelim *srlim;
 			struct pf_source key, *sr;
+			int sidx, kidx;
+
+			if (s->direction == PF_IN) {
+				sidx = 0;
+				kidx = PF_SK_WIRE;
+			} else {
+				sidx = 1;
+				kidx = PF_SK_STACK;
+			}
 
 			srlim = pf_sourcelim_find(s->sourcelim);
 			KASSERT(srlim != NULL,
 			    ("pf_state %p pfl %p cannot find sourcelim %u", s,
 			    pfl, s->sourcelim));
 
-			pf_source_key(srlim, &key, s->key[PF_SK_WIRE]->af,
-			    &s->key[PF_SK_WIRE]->addr[0 /* XXX or 1? */]);
+			pf_source_key(srlim, &key, s->key[kidx]->af,
+			    &s->key[kidx]->addr[sidx]);
 
 			sr = pf_source_find(srlim, &key);
 			KASSERT(sr != NULL,

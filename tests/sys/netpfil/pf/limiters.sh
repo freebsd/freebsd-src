@@ -306,6 +306,51 @@ source_basic_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "out" "cleanup"
+out_head()
+{
+	atf_set descr 'Test limiters on outbound rules'
+	atf_set require.user root
+}
+
+out_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+
+	ifconfig ${epair}a 192.0.2.2/24 up
+	ifconfig ${epair}a inet alias 192.0.2.3/24 up
+
+	vnet_mkjail alcatraz ${epair}b
+	jexec alcatraz ifconfig ${epair}b 192.0.2.1/24 up
+
+	# Sanity check
+	atf_check -s exit:0 -o ignore \
+	    ping -S 192.0.2.2 -c 1 192.0.2.1
+	atf_check -s exit:0 -o ignore \
+	    ping -S 192.0.2.3 -c 1 192.0.2.1
+
+	jexec alcatraz pfctl -e
+
+	# Allow up to one source for ICMP.
+	pft_set_rules alcatraz \
+	    "set timeout icmp.error 120" \
+	    "source limiter \"crash\" id 1 entries 10000 limit 1000" \
+	    "block out proto icmp" \
+	    "pass out from any to any source limiter \"crash\" keep state"
+
+	atf_check -s exit:0 -o ignore \
+	    ping -S 192.0.2.2 -c 2 192.0.2.1
+
+	jexec alcatraz pfctl -Fs
+}
+
+out_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "state_basic"
@@ -313,4 +358,5 @@ atf_init_test_cases()
 	atf_add_test_case "state_block"
 	atf_add_test_case "state_multiple"
 	atf_add_test_case "source_basic"
+	atf_add_test_case "out"
 }
