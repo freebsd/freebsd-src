@@ -1117,7 +1117,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	atomic_add_int(&nprocs, -1);
 }
 
-static void
+void
 wait_fill_siginfo(struct proc *p, siginfo_t *siginfo)
 {
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -1160,7 +1160,7 @@ wait_fill_siginfo(struct proc *p, siginfo_t *siginfo)
 	 */
 }
 
-static void
+void
 wait_fill_wrusage(struct proc *p, struct __wrusage *wrusage)
 {
 	struct rusage *rup;
