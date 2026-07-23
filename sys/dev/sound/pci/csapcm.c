@@ -756,12 +756,10 @@ static int
 pcmcsa_probe(device_t dev)
 {
 	char *s;
-	struct sndcard_func *func;
 
 	/* The parent device has already been probed. */
 
-	func = device_get_ivars(dev);
-	if (func == NULL || func->func != SCF_PCM)
+	if (device_get_ivars(dev) == NULL)
 		return (ENXIO);
 
 	s = "CS461x PCM Audio";
@@ -777,11 +775,9 @@ pcmcsa_attach(device_t dev)
 	csa_res *resp;
 	char status[SND_STATUSLEN];
 	struct ac97_info *codec;
-	struct sndcard_func *func;
 
 	csa = malloc(sizeof(*csa), M_DEVBUF, M_WAITOK | M_ZERO);
-	func = device_get_ivars(dev);
-	csa->binfo = func->varinfo;
+	csa->binfo = device_get_ivars(dev);
 	/*
 	 * Fake the status of DMA so that the initial value of
 	 * PCTL and CCTL can be stored into csa->pctl and csa->cctl,

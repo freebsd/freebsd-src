@@ -182,12 +182,9 @@ csamidi_muninit(struct mpu401 *arg __unused, void *cookie)
 static int
 midicsa_probe(device_t dev)
 {
-	struct sndcard_func *func;
-
 	/* The parent device has already been probed. */
 
-	func = device_get_ivars(dev);
-	if (func == NULL || func->func != SCF_MIDI)
+	if (device_get_ivars(dev) == NULL)
 		return (ENXIO);
 
 	device_set_desc(dev, "CS461x MIDI");
