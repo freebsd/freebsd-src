@@ -1237,6 +1237,8 @@ void	cpu_throw(struct thread *, struct thread *) __dead2;
 void	cpu_update_pcb(struct thread *);
 bool	curproc_sigkilled(void);
 void	userret(struct thread *, struct trapframe *);
+void	wait_fill_siginfo(struct proc *p, struct __siginfo *siginfo);
+void	wait_fill_wrusage(struct proc *p, struct __wrusage *wrusage);
 
 void	cpu_exit(struct thread *);
 void	exit1(struct thread *, int, int) __dead2;
