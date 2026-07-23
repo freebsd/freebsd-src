@@ -5091,14 +5091,67 @@ product YAMAHA MOTIF7		0x1006	MOTIF7 MIDI Synth. Workstation
 product YAMAHA MOTIF8		0x1007	MOTIF8 MIDI Synth. Workstation
 product YAMAHA UX96		0x1008	UX96 MIDI I/F
 product YAMAHA UX16		0x1009	UX16 MIDI I/F
+product YAMAHA EOS_BX		0x100a	EOS BX MIDI I/F
+product YAMAHA UCMX		0x100c	UC-MX MIDI I/F
+product YAMAHA UCKX		0x100d	UC-KX MIDI I/F
 product YAMAHA S08		0x100e	S08 MIDI Keyboard
 product YAMAHA CLP150		0x100f	CLP-150 digital piano
 product YAMAHA CLP170		0x1010	CLP-170 digital piano
+product YAMAHA P250		0x1011	P-250 digital piano
+product YAMAHA TYROS		0x1012	TYROS MIDI Synth. Workstation
+product YAMAHA PF500		0x1013	PF-500 digital piano
+product YAMAHA S90		0x1014	S90 MIDI Synth.
+product YAMAHA MOTIFR		0x1015	MOTIF-R MIDI Synth. Workstation
+product YAMAHA MDP5		0x1016	MDP-5 MIDI I/F
+product YAMAHA CVP204		0x1017	CVP-204 digital piano
+product YAMAHA CVP206		0x1018	CVP-206 digital piano
+product YAMAHA CVP208		0x1019	CVP-208 digital piano
+product YAMAHA CVP210		0x101a	CVP-210 digital piano
+product YAMAHA PSR1100		0x101b	PSR-1100 digital piano
+product YAMAHA PSR2100		0x101c	PSR-2100 digital piano
+product YAMAHA CLP175		0x101d	CLP-175 digital piano
+product YAMAHA PSRK1		0x101e	PSR-K1 digital piano
+product YAMAHA EZJ24		0x101f	EZ-J24 digital piano
+product YAMAHA EZJ250I		0x1020	EZ-250i digital piano
+product YAMAHA MOTIF_ES6	0x1021	MOTIF ES 6 MIDI Synth. Workstation
+product YAMAHA MOTIF_ES7	0x1022	MOTIF ES 7 MIDI Synth. Workstation
+product YAMAHA MOTIF_ES8	0x1023	MOTIF ES 8 MIDI Synth. Workstation
+product YAMAHA CVP301		0x1024	CVP-301 digital piano
+product YAMAHA CVP303		0x1025	CVP-303 digital piano
+product YAMAHA CVP305		0x1026	CVP-305 digital piano
+product YAMAHA CVP307		0x1027	CVP-307 digital piano
+product YAMAHA CVP309		0x1028	CVP-309 digital piano
+product YAMAHA CVP309GP		0x1029	CVP-309GP digital piano
+product YAMAHA PSR1500		0x102a	PSR-1500 digital piano
+product YAMAHA PSR3000		0x102b	PSR-3000 digital piano
+product YAMAHA ELS01_01C	0x102e	ELS-01/01C digital piano
+product YAMAHA PSR295_293	0x1030	PSR-295/293 digital piano
+product YAMAHA DGX205_203	0x1031	DGX-205/203 digital piano
+product YAMAHA DGX305		0x1032	DGX-305 digital piano
+product YAMAHA DGX505		0x1033	DGX-505 digital piano
+product YAMAHA MOX6_MOX8	0x1503	MOX6/MOX8 MIDI Synth. Workstation
+product YAMAHA DGP7		0x2000	DGP-7 digital piano
+product YAMAHA DGP5		0x2001	DGP-5 digital piano
 product YAMAHA RPU200		0x3104	RP-U200
 product YAMAHA RTA54I		0x4000	NetVolante RTA54i Broadband&ISDN Router
 product YAMAHA RTW65B		0x4001	NetVolante RTW65b Broadband Wireless Router
 product YAMAHA RTW65I		0x4002	NetVolante RTW65i Broadband&ISDN Wireless Router
 product YAMAHA RTA55I		0x4004	NetVolante RTA55i Broadband VoIP Router
+product YAMAHA CS1D		0x5000	CS1D MIDI I/F
+product YAMAHA DSP1D		0x5001	DSP1D MIDI I/F
+product YAMAHA DME32		0x5002	DME32 MIDI I/F
+product YAMAHA DM2000		0x5003	DM2000 MIDI I/F
+product YAMAHA 02R96		0x5004	02R96 MIDI I/F
+product YAMAHA ACU16C		0x5005	ACU16-C MIDI I/F
+product YAMAHA NHB32C		0x5006	NHB32-C MIDI I/F
+product YAMAHA DM1000		0x5007	DM1000 MIDI I/F
+product YAMAHA 01V96		0x5008	01V96 MIDI I/F
+product YAMAHA SPX2000		0x5009	SPX2000 MIDI I/F
+product YAMAHA PM5D		0x500a	PM5D MIDI I/F
+product YAMAHA DME64N		0x500b	DME64N MIDI I/F
+product YAMAHA DME24N		0x500c	DME24N MIDI I/F
+product YAMAHA DTX		0x7000	DTX Electronic Drum Kit
+product YAMAHA UB99		0x7010	UB99 Multi-Effect Pedal
 
 /* Yano products */
 product YANO U640MO		0x0101	U640MO-03
