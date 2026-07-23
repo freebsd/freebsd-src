@@ -212,6 +212,17 @@ align_abort(struct thread *td, struct trapframe *frame, uint64_t esr,
     uint64_t far, int lower)
 {
 	if (!lower) {
+		/*
+		 * Accessing unaligned memory may fault when using atomics.
+		 * Make sure we don't panic if we're doing an unaligned
+		 * access to userland memory, as can happen with _umtx_op()
+		 */
+		if (td->td_intr_nesting_level == 0 &&
+		    td->td_pcb->pcb_onfault != 0) {
+			frame->tf_elr = td->td_pcb->pcb_onfault;
+			return;
+		}
+
 		print_registers(frame);
 		print_gp_register("far", far);
 		printf(" esr: 0x%.16lx\n", esr);
