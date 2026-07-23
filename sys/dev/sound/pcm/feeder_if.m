@@ -81,7 +81,7 @@ METHOD int get {
 METHOD int feed {
 	struct pcm_feeder* feeder;
 	struct pcm_channel* c;
-	u_int8_t* buffer;
-	u_int32_t count;
+	uint8_t* buffer;
+	uint32_t count;
 	void* source;
 };

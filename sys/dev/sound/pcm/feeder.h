@@ -43,7 +43,7 @@ enum feeder_type {
 };
 
 struct pcm_feederdesc {
-	u_int32_t in, out;
+	uint32_t in, out;
 };
 
 struct feeder_class {
@@ -61,14 +61,14 @@ struct pcm_feeder {
 };
 
 void feeder_register(void *p);
-struct feeder_class *feeder_getclass(u_int32_t type);
+struct feeder_class *feeder_getclass(uint32_t type);
 
-u_int32_t snd_fmtbest(u_int32_t fmt, u_int32_t *fmts);
+uint32_t snd_fmtbest(uint32_t fmt, uint32_t *fmts);
 
 int feeder_add(struct pcm_channel *c, struct feeder_class *fc,
     struct pcm_feederdesc *desc);
 void feeder_remove(struct pcm_channel *c);
-struct pcm_feeder *feeder_find(struct pcm_channel *c, u_int32_t type);
+struct pcm_feeder *feeder_find(struct pcm_channel *c, uint32_t type);
 int feeder_chain(struct pcm_channel *);
 
 #define FEEDER_DECLARE(feeder, ctype)					\

@@ -81,7 +81,7 @@ static int csa_probe(device_t dev);
 static int csa_attach(device_t dev);
 static struct resource *csa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 					      rman_res_t start, rman_res_t end,
-					      rman_res_t count, u_int flags);
+					      rman_res_t count, unsigned int flags);
 static int csa_release_resource(device_t bus, device_t child, struct resource *r);
 static int csa_setup_intr(device_t bus, device_t child,
 			  struct resource *irq, int flags,
@@ -92,7 +92,7 @@ static int csa_teardown_intr(device_t bus, device_t child,
 static driver_intr_t csa_intr;
 static int csa_initialize(sc_p scp);
 static int csa_downloadimage(csa_res *resp);
-static int csa_transferimage(csa_res *resp, u_int32_t *src, u_long dest, u_long len);
+static int csa_transferimage(csa_res *resp, uint32_t *src, u_long dest, u_long len);
 
 static void
 amp_none(void)
@@ -110,7 +110,7 @@ clkrun_hack(int run)
 #ifdef __i386__
 	device_t		child;
 	int			port;
-	u_int16_t		control;
+	uint16_t		control;
 	bus_space_tag_t		btag;
 
 	child = pci_find_device(0x8086, 0x7113);
@@ -153,7 +153,7 @@ static struct csa_card cards_4615[] = {
 static struct csa_card nocard = {0, 0, "unknown", NULL, NULL, NULL, 0};
 
 struct card_type {
-	u_int32_t devid;
+	uint32_t devid;
 	char *name;
 	struct csa_card *cards;
 };
@@ -354,7 +354,7 @@ csa_resume(device_t dev)
 
 static struct resource *
 csa_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		   rman_res_t start, rman_res_t end, rman_res_t count, u_int flags)
+		   rman_res_t start, rman_res_t end, rman_res_t count, unsigned int flags)
 {
 	sc_p scp;
 	csa_res *resp;
@@ -491,7 +491,7 @@ csa_intr(void *arg)
 {
 	sc_p scp = arg;
 	csa_res *resp;
-	u_int32_t hisr;
+	uint32_t hisr;
 
 	resp = &scp->res;
 
@@ -527,7 +527,7 @@ static int
 csa_initialize(sc_p scp)
 {
 	int i;
-	u_int32_t acsts, acisv;
+	uint32_t acsts, acisv;
 	csa_res *resp;
 
 	resp = &scp->res;
@@ -726,7 +726,7 @@ void
 csa_clearserialfifos(csa_res *resp)
 {
 	int i, j, pwr;
-	u_int8_t clkcr1, serbst;
+	uint8_t clkcr1, serbst;
 
 	/*
 	 * See if the devices are powered down.  If so, we must power them up first
@@ -826,7 +826,7 @@ csa_downloadimage(csa_res *resp)
 }
 
 static int
-csa_transferimage(csa_res *resp, u_int32_t *src, u_long dest, u_long len)
+csa_transferimage(csa_res *resp, uint32_t *src, u_long dest, u_long len)
 {
 	u_long ul;
 
@@ -850,10 +850,10 @@ csa_transferimage(csa_res *resp, u_int32_t *src, u_long dest, u_long len)
 }
 
 int
-csa_readcodec(csa_res *resp, u_long offset, u_int32_t *data)
+csa_readcodec(csa_res *resp, u_long offset, uint32_t *data)
 {
 	int i;
-	u_int32_t acctl, acsts;
+	uint32_t acctl, acsts;
 
 	/*
 	 * Make sure that there is not data sitting around from a previous
@@ -944,10 +944,10 @@ csa_readcodec(csa_res *resp, u_long offset, u_int32_t *data)
 }
 
 int
-csa_writecodec(csa_res *resp, u_long offset, u_int32_t data)
+csa_writecodec(csa_res *resp, u_long offset, uint32_t data)
 {
 	int i;
-	u_int32_t acctl;
+	uint32_t acctl;
 
 	/*
 	 * Setup the AC97 control registers on the CS461x to send the
@@ -996,10 +996,10 @@ csa_writecodec(csa_res *resp, u_long offset, u_int32_t data)
 	return (0);
 }
 
-u_int32_t
+uint32_t
 csa_readio(csa_res *resp, u_long offset)
 {
-	u_int32_t ul;
+	uint32_t ul;
 
 	if (offset < BA0_AC97_RESET)
 		return bus_space_read_4(rman_get_bustag(resp->io), rman_get_bushandle(resp->io), offset) & 0xffffffff;
@@ -1011,7 +1011,7 @@ csa_readio(csa_res *resp, u_long offset)
 }
 
 void
-csa_writeio(csa_res *resp, u_long offset, u_int32_t data)
+csa_writeio(csa_res *resp, u_long offset, uint32_t data)
 {
 	if (offset < BA0_AC97_RESET)
 		bus_space_write_4(rman_get_bustag(resp->io), rman_get_bushandle(resp->io), offset, data);
@@ -1019,14 +1019,14 @@ csa_writeio(csa_res *resp, u_long offset, u_int32_t data)
 		csa_writecodec(resp, offset, data);
 }
 
-u_int32_t
+uint32_t
 csa_readmem(csa_res *resp, u_long offset)
 {
 	return bus_space_read_4(rman_get_bustag(resp->mem), rman_get_bushandle(resp->mem), offset);
 }
 
 void
-csa_writemem(csa_res *resp, u_long offset, u_int32_t data)
+csa_writemem(csa_res *resp, u_long offset, uint32_t data)
 {
 	bus_space_write_4(rman_get_bustag(resp->mem), rman_get_bushandle(resp->mem), offset, data);
 }

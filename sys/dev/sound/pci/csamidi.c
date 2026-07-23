@@ -79,7 +79,7 @@ struct csa_midi_softc {
 
 static struct kobj_class csamidi_mpu_class;
 
-static u_int32_t
+static uint32_t
 csamidi_readio(struct csa_midi_softc *scp, u_long offset)
 {
 	if (offset < BA0_AC97_RESET)
@@ -89,7 +89,7 @@ csamidi_readio(struct csa_midi_softc *scp, u_long offset)
 }
 
 static void
-csamidi_writeio(struct csa_midi_softc *scp, u_long offset, u_int32_t data)
+csamidi_writeio(struct csa_midi_softc *scp, u_long offset, uint32_t data)
 {
 	if (offset < BA0_AC97_RESET)
 		bus_space_write_4(rman_get_bustag(scp->io), rman_get_bushandle(scp->io), offset, data);

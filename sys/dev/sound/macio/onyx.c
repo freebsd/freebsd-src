@@ -74,7 +74,7 @@ static int	onyx_uninit(struct snd_mixer *m);
 static int	onyx_reinit(struct snd_mixer *m);
 static int	onyx_set(struct snd_mixer *m, unsigned dev, unsigned left,
 			    unsigned right);
-static u_int32_t	onyx_setrecsrc(struct snd_mixer *m, u_int32_t src);
+static uint32_t	onyx_setrecsrc(struct snd_mixer *m, uint32_t src);
 
 static device_method_t onyx_methods[] = {
 	/* Device interface. */
@@ -168,7 +168,7 @@ static const struct onyx_reg onyx_initdata = {
 static int
 onyx_write(struct onyx_softc *sc, uint8_t reg, const uint8_t value)
 {
-	u_int size;
+	unsigned int size;
 	uint8_t buf[16];
 
 	struct iic_msg msg[] = {
@@ -226,7 +226,7 @@ static int
 onyx_init(struct snd_mixer *m)
 {
 	struct onyx_softc *sc;
-	u_int  x = 0;
+	unsigned int  x = 0;
 
 	sc = device_get_softc(mix_getdevinfo(m));
 
@@ -289,8 +289,8 @@ onyx_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	return (0);
 }
 
-static u_int32_t
-onyx_setrecsrc(struct snd_mixer *m, u_int32_t src)
+static uint32_t
+onyx_setrecsrc(struct snd_mixer *m, uint32_t src)
 {
 	return (0);
 }

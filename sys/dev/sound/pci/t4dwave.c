@@ -66,12 +66,12 @@ struct tr_info;
 
 /* channel registers */
 struct tr_chinfo {
-	u_int32_t cso, alpha, fms, fmc, ec;
-	u_int32_t lba;
-	u_int32_t eso, delta;
-	u_int32_t rvol, cvol;
-	u_int32_t gvsel, pan, vol, ctrl;
-	u_int32_t active:1, was_active:1;
+	uint32_t cso, alpha, fms, fmc, ec;
+	uint32_t lba;
+	uint32_t eso, delta;
+	uint32_t rvol, cvol;
+	uint32_t gvsel, pan, vol, ctrl;
+	uint32_t active:1, was_active:1;
 	int index, bufhalf;
 	struct snd_dbuf *buffer;
 	struct pcm_channel *channel;
@@ -79,8 +79,8 @@ struct tr_chinfo {
 };
 
 struct tr_rchinfo {
-	u_int32_t delta;
-	u_int32_t active:1, was_active:1;
+	uint32_t delta;
+	uint32_t active:1, was_active:1;
 	struct snd_dbuf *buffer;
 	struct pcm_channel *channel;
 	struct tr_info *parent;
@@ -88,8 +88,8 @@ struct tr_rchinfo {
 
 /* device private data */
 struct tr_info {
-	u_int32_t type;
-	u_int32_t rev;
+	uint32_t type;
+	uint32_t rev;
 
 	bus_space_tag_t st;
 	bus_space_handle_t sh;
@@ -101,8 +101,8 @@ struct tr_info {
 
 	struct mtx lock;
 
-	u_int32_t hwchns;
-	u_int32_t playchns;
+	uint32_t hwchns;
+	uint32_t playchns;
 	unsigned int bufsz;
 
 	struct tr_chinfo chinfo[TR_MAXPLAYCH];
@@ -111,7 +111,7 @@ struct tr_info {
 
 /* -------------------------------------------------------------------- */
 
-static u_int32_t tr_recfmt[] = {
+static uint32_t tr_recfmt[] = {
 	SND_FORMAT(AFMT_U8, 1, 0),
 	SND_FORMAT(AFMT_U8, 2, 0),
 	SND_FORMAT(AFMT_S8, 1, 0),
@@ -124,7 +124,7 @@ static u_int32_t tr_recfmt[] = {
 };
 static struct pcmchan_caps tr_reccaps = {4000, 48000, tr_recfmt, 0};
 
-static u_int32_t tr_playfmt[] = {
+static uint32_t tr_playfmt[] = {
 	SND_FORMAT(AFMT_U8, 1, 0),
 	SND_FORMAT(AFMT_U8, 2, 0),
 	SND_FORMAT(AFMT_S8, 1, 0),
@@ -141,7 +141,7 @@ static struct pcmchan_caps tr_playcaps = {4000, 48000, tr_playfmt, 0};
 
 /* Hardware */
 
-static u_int32_t
+static uint32_t
 tr_rd(struct tr_info *tr, int regno, int size)
 {
 	switch(size) {
@@ -157,7 +157,7 @@ tr_rd(struct tr_info *tr, int regno, int size)
 }
 
 static void
-tr_wr(struct tr_info *tr, int regno, u_int32_t data, int size)
+tr_wr(struct tr_info *tr, int regno, uint32_t data, int size)
 {
 	switch(size) {
 	case 1:
@@ -211,7 +211,7 @@ tr_rdcd(kobj_t obj, void *devinfo, int regno)
 	regno &= 0x7f;
 	mtx_lock(&tr->lock);
 	if (tr->type == ALI_PCI_ID) {
-		u_int32_t chk1, chk2;
+		uint32_t chk1, chk2;
 		j = trw;
 		for (i = TR_TIMEOUT_CDC; (i > 0) && (j & trw); i--)
 			j = tr_rd(tr, treg, 4);
@@ -235,7 +235,7 @@ tr_rdcd(kobj_t obj, void *devinfo, int regno)
 }
 
 static int
-tr_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
+tr_wrcd(kobj_t obj, void *devinfo, int regno, uint32_t data)
 {
 	struct tr_info *tr = (struct tr_info *)devinfo;
 	int i, j, treg, trw;
@@ -272,7 +272,7 @@ tr_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 		for (i = TR_TIMEOUT_CDC; (i > 0) && (j & trw); i--)
 			j = tr_rd(tr, treg, 4);
 		if (i > 0) {
-			u_int32_t chk1, chk2;
+			uint32_t chk1, chk2;
 			chk1 = tr_rd(tr, 0xc8, 4);
 			chk2 = tr_rd(tr, 0xc8, 4);
 			for (i = TR_TIMEOUT_CDC; (i > 0) && (chk1 == chk2);
@@ -306,7 +306,7 @@ AC97_DECLARE(tr_ac97);
 /* playback channel interrupts */
 
 #if 0
-static u_int32_t
+static uint32_t
 tr_testint(struct tr_chinfo *ch)
 {
 	struct tr_info *tr = ch->parent;
@@ -333,7 +333,7 @@ static void
 tr_enaint(struct tr_chinfo *ch, int enable)
 {
 	struct tr_info *tr = ch->parent;
-       	u_int32_t i, reg;
+       	uint32_t i, reg;
 	int bank, chan;
 
 	mtx_lock(&tr->lock);
@@ -390,7 +390,7 @@ static void
 tr_wrch(struct tr_chinfo *ch)
 {
 	struct tr_info *tr = ch->parent;
-	u_int32_t cr[TR_CHN_REGS], i;
+	uint32_t cr[TR_CHN_REGS], i;
 
 	ch->gvsel 	&= 0x00000001;
 	ch->fmc		&= 0x00000003;
@@ -440,7 +440,7 @@ static void
 tr_rdch(struct tr_chinfo *ch)
 {
 	struct tr_info *tr = ch->parent;
-	u_int32_t cr[5], i;
+	uint32_t cr[5], i;
 
 	mtx_lock(&tr->lock);
 	tr_selch(ch);
@@ -480,10 +480,10 @@ tr_rdch(struct tr_chinfo *ch)
 	}
 }
 
-static u_int32_t
-tr_fmttobits(u_int32_t fmt)
+static uint32_t
+tr_fmttobits(uint32_t fmt)
 {
-	u_int32_t bits;
+	uint32_t bits;
 
 	bits = 0;
 	bits |= (fmt & AFMT_SIGNED)? 0x2 : 0;
@@ -515,7 +515,7 @@ trpchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 }
 
 static int
-trpchan_setformat(kobj_t obj, void *data, u_int32_t format)
+trpchan_setformat(kobj_t obj, void *data, uint32_t format)
 {
 	struct tr_chinfo *ch = data;
 
@@ -524,8 +524,8 @@ trpchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static u_int32_t
-trpchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+static uint32_t
+trpchan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct tr_chinfo *ch = data;
 
@@ -533,8 +533,8 @@ trpchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return (ch->delta * 48000) >> 12;
 }
 
-static u_int32_t
-trpchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+static uint32_t
+trpchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	struct tr_chinfo *ch = data;
 
@@ -575,7 +575,7 @@ trpchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static u_int32_t
+static uint32_t
 trpchan_getptr(kobj_t obj, void *data)
 {
 	struct tr_chinfo *ch = data;
@@ -623,11 +623,11 @@ trrchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 }
 
 static int
-trrchan_setformat(kobj_t obj, void *data, u_int32_t format)
+trrchan_setformat(kobj_t obj, void *data, uint32_t format)
 {
 	struct tr_rchinfo *ch = data;
 	struct tr_info *tr = ch->parent;
-	u_int32_t i, bits;
+	uint32_t i, bits;
 
 	bits = tr_fmttobits(format);
 	/* set # of samples between interrupts */
@@ -640,8 +640,8 @@ trrchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static u_int32_t
-trrchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+static uint32_t
+trrchan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct tr_rchinfo *ch = data;
 	struct tr_info *tr = ch->parent;
@@ -654,8 +654,8 @@ trrchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return (48000 << 12) / ch->delta;
 }
 
-static u_int32_t
-trrchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+static uint32_t
+trrchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	struct tr_rchinfo *ch = data;
 
@@ -669,7 +669,7 @@ trrchan_trigger(kobj_t obj, void *data, int go)
 {
 	struct tr_rchinfo *ch = data;
 	struct tr_info *tr = ch->parent;
-	u_int32_t i;
+	uint32_t i;
 
 	if (!PCMTRIG_COMMON(go))
 		return 0;
@@ -696,7 +696,7 @@ trrchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static u_int32_t
+static uint32_t
 trrchan_getptr(kobj_t obj, void *data)
 {
  	struct tr_rchinfo *ch = data;
@@ -732,7 +732,7 @@ tr_intr(void *p)
 {
 	struct tr_info *tr = (struct tr_info *)p;
 	struct tr_chinfo *ch;
-	u_int32_t active, mask, bufhalf, chnum, intsrc;
+	uint32_t active, mask, bufhalf, chnum, intsrc;
 	int tmp;
 
 	intsrc = tr_rd(tr, TR_REG_MISCINT, 4);

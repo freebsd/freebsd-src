@@ -388,12 +388,12 @@ emu_dspmixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned righ
 	return  (0);
 }
 
-static u_int32_t
-emu_dspmixer_setrecsrc(struct snd_mixer *m, u_int32_t src)
+static uint32_t
+emu_dspmixer_setrecsrc(struct snd_mixer *m, uint32_t src)
 {
 	struct emu_pcm_info *sc;
 	int i;
-	u_int32_t recmask;
+	uint32_t recmask;
 	int	input[8];
 
 	sc = mix_getdevinfo(m);
@@ -489,8 +489,8 @@ emu_efxmixer_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned righ
 	return  (0);
 }
 
-static u_int32_t
-emu_efxmixer_setrecsrc(struct snd_mixer *m __unused, u_int32_t src __unused)
+static uint32_t
+emu_efxmixer_setrecsrc(struct snd_mixer *m __unused, uint32_t src __unused)
 {
 	return (SOUND_MASK_MONITOR);
 }

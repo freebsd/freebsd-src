@@ -52,8 +52,8 @@
 
 /* we rely on this struct being packed to 64 bits */
 struct via_dma_op {
-        u_int32_t ptr;
-        u_int32_t flags;
+        uint32_t ptr;
+        uint32_t flags;
 #define VIA_DMAOP_EOL         0x80000000
 #define VIA_DMAOP_FLAG        0x40000000
 #define VIA_DMAOP_STOP        0x20000000
@@ -89,11 +89,11 @@ struct via_info {
 
 	struct via_chinfo pch, rch;
 	struct via_dma_op *sgd_table;
-	u_int16_t codec_caps;
+	uint16_t codec_caps;
 	struct mtx lock;
 };
 
-static u_int32_t via_fmt[] = {
+static uint32_t via_fmt[] = {
 	SND_FORMAT(AFMT_U8, 1, 0),
 	SND_FORMAT(AFMT_U8, 2, 0),
 	SND_FORMAT(AFMT_S16_LE, 1, 0),
@@ -103,7 +103,7 @@ static u_int32_t via_fmt[] = {
 static struct pcmchan_caps via_vracaps = {4000, 48000, via_fmt, 0};
 static struct pcmchan_caps via_caps = {48000, 48000, via_fmt, 0};
 
-static __inline u_int32_t
+static __inline uint32_t
 via_rd(struct via_info *via, int regno, int size)
 {
 
@@ -120,7 +120,7 @@ via_rd(struct via_info *via, int regno, int size)
 }
 
 static __inline void
-via_wr(struct via_info *via, int regno, u_int32_t data, int size)
+via_wr(struct via_info *via, int regno, uint32_t data, int size)
 {
 
 	switch (size) {
@@ -174,7 +174,7 @@ via_waitvalid_codec(struct via_info *via)
 }
 
 static int
-via_write_codec(kobj_t obj, void *addr, int reg, u_int32_t val)
+via_write_codec(kobj_t obj, void *addr, int reg, uint32_t val)
 {
 	struct via_info *via = addr;
 
@@ -216,7 +216,7 @@ AC97_DECLARE(via_ac97);
 static int
 via_buildsgdt(struct via_chinfo *ch)
 {
-	u_int32_t phys_addr, flag;
+	uint32_t phys_addr, flag;
 	int i, segs, seg_size;
 
 	/*
@@ -277,7 +277,7 @@ viachan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 }
 
 static int
-viachan_setformat(kobj_t obj, void *data, u_int32_t format)
+viachan_setformat(kobj_t obj, void *data, uint32_t format)
 {
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
@@ -300,8 +300,8 @@ viachan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static u_int32_t
-viachan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+static uint32_t
+viachan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
@@ -323,8 +323,8 @@ viachan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 		return 48000;
 }
 
-static u_int32_t
-viachan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+static uint32_t
+viachan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	struct via_chinfo *ch = data;
 
@@ -359,13 +359,13 @@ viachan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static u_int32_t
+static uint32_t
 viachan_getptr(kobj_t obj, void *data)
 {
 	struct via_chinfo *ch = data;
 	struct via_info *via = ch->parent;
 	bus_addr_t sgd_addr = ch->sgd_addr;
-	u_int32_t ptr, base, base1, len, seg;
+	uint32_t ptr, base, base1, len, seg;
 
 	mtx_lock(&via->lock);
 	base1 = via_rd(via, ch->base, 4);
@@ -469,7 +469,7 @@ via_attach(device_t dev)
 {
 	struct via_info *via = NULL;
 	char status[SND_STATUSLEN];
-	u_int32_t data, cnt;
+	uint32_t data, cnt;
 
 	via = malloc(sizeof(*via), M_DEVBUF, M_WAITOK | M_ZERO);
 	mtx_init(&via->lock, device_get_nameunit(dev), "snd_via82c686 softc",

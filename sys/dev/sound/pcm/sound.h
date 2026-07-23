@@ -152,8 +152,8 @@ unsigned int pcm_getbuffersize(device_t dev, unsigned int minbufsz, unsigned int
 void pcm_init(device_t dev, void *devinfo);
 int pcm_register(device_t dev, char *str);
 int pcm_unregister(device_t dev);
-u_int32_t pcm_getflags(device_t dev);
-void pcm_setflags(device_t dev, u_int32_t val);
+uint32_t pcm_getflags(device_t dev);
+void pcm_setflags(device_t dev, uint32_t val);
 void *pcm_getdevinfo(device_t dev);
 
 int snd_setup_intr(device_t dev, struct resource *res, int flags,

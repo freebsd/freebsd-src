@@ -278,10 +278,10 @@ chn_lockdestroy(struct pcm_channel *c)
  * @retval 0 = not ready for I/O
  */
 int
-chn_polltrigger(struct pcm_channel *c, u_int64_t ref_total)
+chn_polltrigger(struct pcm_channel *c, uint64_t ref_total)
 {
 	struct snd_dbuf *bs = c->bufsoft;
-	u_int delta;
+	unsigned int delta;
 
 	CHN_LOCKASSERT(c);
 
@@ -596,10 +596,10 @@ chn_intr(struct pcm_channel *c)
 	CHN_UNLOCK(c);
 }
 
-u_int32_t
+uint32_t
 chn_start(struct pcm_channel *c, int force)
 {
-	u_int32_t i, j;
+	uint32_t i, j;
 	struct snd_dbuf *b = c->bufhard;
 	struct snd_dbuf *bs = c->bufsoft;
 	int err;
@@ -693,7 +693,7 @@ chn_sync(struct pcm_channel *c, int threshold)
 {
     	struct snd_dbuf *b, *bs;
 	int ret, count, hcount, minflush, resid, residp, syncdelay, blksz;
-	u_int32_t cflag;
+	uint32_t cflag;
 
 	CHN_LOCKASSERT(c);
 
@@ -1641,10 +1641,10 @@ chn_vpc_reset(struct pcm_channel *c, int vc, int force)
 		chn_setvolume_matrix(c, vc, i, c->volume[vc][SND_CHN_T_VOL_0DB]);
 }
 
-static u_int32_t
-round_pow2(u_int32_t v)
+static uint32_t
+round_pow2(uint32_t v)
 {
-	u_int32_t ret;
+	uint32_t ret;
 
 	if (v < 2)
 		v = 2;
@@ -1657,7 +1657,7 @@ round_pow2(u_int32_t v)
 	return ret;
 }
 
-u_int32_t
+uint32_t
 chn_2ndbufmaxsize(struct pcm_channel *c)
 {
 	struct snd_dbuf *bs;
@@ -1669,13 +1669,13 @@ chn_2ndbufmaxsize(struct pcm_channel *c)
 	maxsize = (uint64_t)bs->align * bs->spd * CHN_2NDBUFTIME_MS / 1000;
 	RANGE(maxsize, CHN_2NDBUFSIZE_MIN, CHN_2NDBUFSIZE_MAX);
 
-	return ((u_int32_t)maxsize);
+	return ((uint32_t)maxsize);
 }
 
-static u_int32_t
-round_blksz(u_int32_t v, int round, u_int32_t maxsize)
+static uint32_t
+round_blksz(uint32_t v, int round, uint32_t maxsize)
 {
-	u_int32_t ret, tmp;
+	uint32_t ret, tmp;
 
 	if (round < 1)
 		round = 1;
@@ -1770,8 +1770,8 @@ round_blksz(u_int32_t v, int round, u_int32_t maxsize)
 #define CHN_LATENCY_DATA_REF	192000 /* 48khz stereo 16bit ~ 48000 x 2 x 2 */
 
 static int
-chn_calclatency(int dir, int latency, int bps, u_int32_t datarate,
-				u_int32_t max, int *rblksz, int *rblkcnt)
+chn_calclatency(int dir, int latency, int bps, uint32_t datarate,
+				uint32_t max, int *rblksz, int *rblkcnt)
 {
 	static int pblkcnts[CHN_LATENCY_PROFILE_MAX + 1][CHN_LATENCY_MAX + 1] = {
 		{1, 2, 3, 4, 5, 5, 4, 3, 2, 1, 1},
@@ -1789,7 +1789,7 @@ chn_calclatency(int dir, int latency, int bps, u_int32_t datarate,
 		{14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 16},
 		{15, 15, 15, 15, 15, 16, 16, 16, 16, 16, 17}
 	};
-	u_int32_t bufsz;
+	uint32_t bufsz;
 	int lprofile, blksz, blkcnt;
 
 	if (latency < CHN_LATENCY_MIN || latency > CHN_LATENCY_MAX ||
@@ -1996,8 +1996,8 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 	/*
 	 * Interrupt timeout
 	 */
-	c->timeout = ((u_int64_t)hz * bs->bufsize) /
-	    ((u_int64_t)bs->spd * bs->align);
+	c->timeout = ((uint64_t)hz * bs->bufsize) /
+	    ((uint64_t)bs->spd * bs->align);
 	if (c->parentchannel != NULL)
 		c->timeout = min(c->timeout, c->parentchannel->timeout);
 	if (c->timeout < 1)
@@ -2330,10 +2330,10 @@ chn_getcaps(struct pcm_channel *c)
 	return CHANNEL_GETCAPS(c->methods, c->devinfo);
 }
 
-u_int32_t
+uint32_t
 chn_getformats(struct pcm_channel *c)
 {
-	u_int32_t *fmtlist, fmts;
+	uint32_t *fmtlist, fmts;
 	int i;
 
 	fmtlist = chn_getcaps(c)->fmtlist;
@@ -2349,7 +2349,7 @@ chn_getformats(struct pcm_channel *c)
 }
 
 int
-chn_notify(struct pcm_channel *c, u_int32_t flags)
+chn_notify(struct pcm_channel *c, uint32_t flags)
 {
 	struct pcm_channel *ch;
 	struct pcmchan_caps *caps;

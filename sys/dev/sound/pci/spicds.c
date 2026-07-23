@@ -73,7 +73,7 @@ spicds_wrbit(struct spicds_info *codec, int bit)
 }
 
 static void
-spicds_wrcd(struct spicds_info *codec, int reg, u_int16_t val)
+spicds_wrcd(struct spicds_info *codec, int reg, uint16_t val)
 {
 	int mask;
 
