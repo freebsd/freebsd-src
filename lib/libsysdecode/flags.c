@@ -1217,9 +1217,14 @@ sysdecode_pfnl_cmd(int cmd)
 	return (lookup_value(pfnl_cmd, cmd));
 }
 
-const char *
-sysdecode_nlm_flag(int flag)
+void
+sysdecode_nlm_flag(FILE *fp, int flags)
 {
 
-	return (lookup_value(nlm_flag, flag));
+	int rem;
+
+	if (!print_mask_int(fp, nlm_flag, flags, &rem))
+		fprintf(fp, "0x%x", rem);
+	else if (rem != 0)
+		fprintf(fp, "|0x%x", rem);
 }

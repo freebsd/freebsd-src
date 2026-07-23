@@ -287,11 +287,7 @@ sysdecode_netlink(FILE *fp, const void *buf, size_t len, int protocol)
 		}
 
 		fprintf(fp, "flags=");
-		const char *nlm_f = sysdecode_nlm_flag(nl->nlmsg_flags);
-		if (nlm_f != NULL)
-			fprintf(fp, "%s", nlm_f);
-		else
-			fprintf(fp, "0x%x", nl->nlmsg_flags);
+		sysdecode_nlm_flag(fp, nl->nlmsg_flags);
 
 		fprintf(fp, ",seq=%u,pid=%u", nl->nlmsg_seq, nl->nlmsg_pid);
 
@@ -371,7 +367,6 @@ sysdecode_netlink(FILE *fp, const void *buf, size_t len, int protocol)
 				family_table[num_family] =
 				    (struct name_table){0, NULL};
 			}
-
 			fprintf(fp, "}");
 			break;
 		default:
