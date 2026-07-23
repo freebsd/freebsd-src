@@ -2301,10 +2301,16 @@ em_if_update_admin_status(if_ctx_t ctx)
 		if (hw->mac.type < igb_mac_min)
 			automasked = em_automask_tso(ctx);
 
-		/* Automasking resets the interface so don't mark it up yet */
+		/*
+		 * Automasking resets the interface, so don't mark it up;
+		 * clear link_active instead so the post-reset pass redelivers
+		 * the deferred UP.
+		 */
 		if (!automasked)
 			iflib_link_state_change(ctx, LINK_STATE_UP,
 			    IF_Mbps(sc->link_speed));
+		else
+			sc->link_active = 0;
 	} else if (!link_check && (sc->link_active == 1)) {
 		sc->link_speed = 0;
 		sc->link_duplex = 0;
