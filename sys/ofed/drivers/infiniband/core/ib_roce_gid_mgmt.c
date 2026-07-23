@@ -213,6 +213,7 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 	union ib_gid gid;
 	if_t ifp;
 	int default_gids;
+	int gid_tbl_len;
 	int i;
 
 	struct ipx_queue ipx_head;
@@ -271,13 +272,15 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 		update_gid(GID_ADD, device, port, &gid, entry->ndev);
 	}
 
+	gid_tbl_len = device->port_immutable[port].gid_tbl_len;
+
 	/* remove stale GIDs, if any */
-	for (i = default_gids;; i++) {
+	for (i = default_gids; i < gid_tbl_len; i++) {
 		union ipx_addr ipx;
 
 		sgid_attr = rdma_get_gid_attr(device, port, i);
 		if (IS_ERR(sgid_attr))
-			break;
+			continue;
 
 		ndev = sgid_attr->ndev;
 		gid = sgid_attr->gid;
