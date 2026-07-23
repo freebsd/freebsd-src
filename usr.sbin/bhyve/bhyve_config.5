@@ -241,10 +241,10 @@ Inject a general protection fault if a guest accesses a Model Specific
 Register (MSR) that is not emulated.
 If this is false, writes are ignored and reads return zero.
 .It Va x86.verbosemsr Ta bool Ta false Ta
-Enable verbose MSR print out. When this option is true,
-messages related to reading from (rdmsr) and writing to (wrmsr)
-MSRs on virtual CPUs will be printed out. This can be useful for
-debugging purposes.
+Enable verbose MSR print out.
+When this option is true, messages related to reading from (rdmsr)
+and writing to (wrmsr) MSRs on virtual CPUs will be printed out.
+This can be useful for debugging purposes.
 .It Va x86.vmexit_on_hlt Ta bool Ta false Ta
 Force a VM exit when a guest CPU executes the
 .Dv HLT
@@ -408,7 +408,7 @@ bridge as the backend.
 The value of
 .Va backend
 is passed to
-.Xr nm_open
+.Nm nm_open
 to connect to a netmap port.
 .It slirp
 Use the slirp backend to provide a userspace network stack.
@@ -455,7 +455,12 @@ Either the pathname of a character device or
 to use standard input and output of the
 .Xr bhyve 8
 process.
-.It Va tcp Ta Oo Ar IP Ns : Oc Ns Ar port Ta Ta
+.It Va tcp Ta Xo
+.Sm off
+.Op Ar IP Cm \&:
+.Ar port
+.Sm on
+.Xc Ta Ta
 TCP address to listen on for remote connections.
 The IP address must be given as a numeric address.
 IPv6 addresses must be enclosed in square brackets and
@@ -469,8 +474,8 @@ supports scoped identifiers as described in
 Values of PCI register.
 .Bl -column "device" "Default"
 .It Sy Name Ta Sy Default
-.It Va vendor Ta integer Ta 0x1275 Ta
-.It Va device Ta integer Ta 0x1275 Ta
+.It Va vendor Ta 0x1275
+.It Va device Ta 0x1275
 .El
 .El
 .Ss AHCI Controller Settings
@@ -527,7 +532,12 @@ If specified, it must be a unicast MAC address.
 .It Sy Name Ta Sy Format Ta Sy Default Ta Sy Description
 .It Va wait Ta bool Ta false Ta
 Wait for a remote connection before starting the VM.
-.It Va rfb Ta Oo Ar IP Ns : Oc Ns Ar port Ta 127.0.0.1:5900 Ta
+.It Va rfb Ta Xo
+.Sm off
+.Op Ar IP Cm \&:
+.Ar port
+.Sm on
+.Xc Ta 127.0.0.1:5900 Ta
 TCP address to listen on for remote connections.
 The IP address must be given as a numeric address.
 IPv6 addresses must be enclosed in square brackets and
