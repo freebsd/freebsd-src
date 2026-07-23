@@ -347,22 +347,10 @@ out:
 	return (ret);
 }
 
-static void
-intel_hwpstate_hybrid_cb(void *ctx)
-{
-	uint32_t *small_cores = ctx;
-
-#ifdef __i386__
-	(void)small_cores;
-#else
-	atomic_add_32(small_cores, PCPU_GET(small_core));
-#endif
-}
-
 void
 intel_hwpstate_identify(driver_t *driver, device_t parent)
 {
-	uint32_t small_cores = 0;
+	int i;
 
 	if (device_find_child(parent, "hwpstate_intel", DEVICE_UNIT_ANY) != NULL)
 		return;
@@ -389,10 +377,12 @@ intel_hwpstate_identify(driver_t *driver, device_t parent)
 	 * the resulting package frequency depends on the last core that
 	 * sets the frequency.
 	 */
-	smp_rendezvous_cpus(all_cpus, smp_no_rendezvous_barrier,
-	    intel_hwpstate_hybrid_cb, smp_no_rendezvous_barrier, &small_cores);
-	if (small_cores > 0 && small_cores < mp_ncores)
-		hwpstate_pkg_ctrl_enable = false;
+	CPU_FOREACH(i) {
+		if (pcpu_find(i)->pc_small_core) {
+			hwpstate_pkg_ctrl_enable = false;
+			break;
+		}
+	}
 
 	if (BUS_ADD_CHILD(parent, 10, "hwpstate_intel", device_get_unit(parent))
 	    == NULL)
