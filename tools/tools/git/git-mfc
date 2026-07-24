@@ -59,7 +59,7 @@ def origin_branch():
         err(1, f"could not determine BRANCH from {newvers}")
     if branch == "CURRENT":
         err(1, "this is a CURRENT tree, we do not MFC to CURRENT")
-    if branch == "STABLE":
+    if branch == "STABLE" or branch == "PRERELEASE":
         return "main"
     if re.match(r'^RELEASE(-p\d+)?$', branch):
         if revision is None:
