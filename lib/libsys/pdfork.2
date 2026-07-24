@@ -195,6 +195,8 @@ flag set.
 The
 .Fa flags
 argument is reserved and must be zero.
+Certain file descriptor types cannot be copied this way, namely
+kqueues.
 .Pp
 The following system calls also have effects specific to process descriptors:
 .Pp
@@ -350,6 +352,10 @@ The file descriptor
 is not a valid file descriptor in the specified process.
 .It Bq Er ENOENT
 The specified process does not have a file descriptor table.
+.It Bq Er EOPNOTSUPP
+.Fa remotefd
+refers to a file that cannot be duplicated across a process boundary,
+such as a kqueue.
 .El
 .Sh SEE ALSO
 .Xr close 2 ,

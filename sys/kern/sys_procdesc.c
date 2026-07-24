@@ -796,9 +796,13 @@ kern_pddupfd(struct thread *td, int pdfd, int fd, int flags)
 		PROC_UNLOCK(p);
 		error = fget_remote(td, p, fd, &fcaps, &fd_flags, &fp);
 		if (error == 0) {
-			error = finstall_refed(td, fp, &fdr, O_CLOEXEC |
-			    ((fd_flags & FD_RESOLVE_BENEATH) != 0 ?
-			    O_RESOLVE_BENEATH : 0), &fcaps);
+			if ((fp->f_ops->fo_flags & DFLAG_PASSABLE) == 0) {
+				error = EOPNOTSUPP;
+			} else {
+				error = finstall_refed(td, fp, &fdr, O_CLOEXEC |
+				    ((fd_flags & FD_RESOLVE_BENEATH) != 0 ?
+				    O_RESOLVE_BENEATH : 0), &fcaps);
+			}
 			if (error != 0) {
 				fdrop(fp, td);
 				filecaps_free(&fcaps);
