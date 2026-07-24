@@ -1940,6 +1940,7 @@ restart:
 		flags = pr->ndpr_stateflags & (NDPRF_DETACHED | NDPRF_ONLINK);
 		if (flags == 0 || flags == (NDPRF_DETACHED | NDPRF_ONLINK)) {
 			genid = V_nd6_list_genid;
+			nd6_prefix_ref(pr);
 			ND6_RUNLOCK();
 			if ((flags & NDPRF_ONLINK) != 0 &&
 			    (e = nd6_prefix_offlink(pr)) != 0) {
@@ -1958,6 +1959,7 @@ restart:
 					    &pr->ndpr_prefix.sin6_addr),
 					    pr->ndpr_plen, e));
 			}
+			nd6_prefix_rele(pr);
 			ND6_RLOCK();
 			if (genid != V_nd6_list_genid)
 				goto restart;
@@ -2220,6 +2222,7 @@ restart:
 				int e;
 
 				genid = V_nd6_list_genid;
+				nd6_prefix_ref(opr);
 				ND6_RUNLOCK();
 				if ((e = nd6_prefix_onlink(opr)) != 0) {
 					nd6log((LOG_ERR,
@@ -2231,6 +2234,7 @@ restart:
 					    if_name(opr->ndpr_ifp), e));
 				} else
 					a_failure = 0;
+				nd6_prefix_rele(opr);
 				ND6_RLOCK();
 				if (genid != V_nd6_list_genid)
 					goto restart;
