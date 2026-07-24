@@ -2109,7 +2109,7 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
     const struct timespec *tsp, struct kevent *keva, struct thread *td)
 {
 	struct kevent *kevp;
-	struct knote *kn, *marker;
+	struct knote *kn, marker;
 	struct knlist *knl;
 	sbintime_t asbt, rsbt;
 	int count, error, haskqglobal, influx, nkev, touch;
@@ -2148,8 +2148,8 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 			asbt = -1;
 	} else
 		asbt = 0;
-	marker = knote_alloc(M_WAITOK);
-	marker->kn_status = KN_MARKER;
+	memset(&marker, 0, sizeof(marker));
+	marker.kn_status = KN_MARKER;
 	KQ_LOCK(kq);
 
 retry:
@@ -2172,13 +2172,13 @@ retry:
 		goto done;
 	}
 
-	TAILQ_INSERT_TAIL(&kq->kq_head, marker, kn_tqe);
+	TAILQ_INSERT_TAIL(&kq->kq_head, &marker, kn_tqe);
 	influx = 0;
 	while (count) {
 		KQ_OWNED(kq);
 		kn = TAILQ_FIRST(&kq->kq_head);
 
-		if ((kn->kn_status == KN_MARKER && kn != marker) ||
+		if ((kn->kn_status == KN_MARKER && kn != &marker) ||
 		    kn_in_flux(kn)) {
 			if (influx) {
 				influx = 0;
@@ -2196,7 +2196,7 @@ retry:
 			kq->kq_count--;
 			continue;
 		}
-		if (kn == marker) {
+		if (kn == &marker) {
 			KQ_FLUX_WAKEUP(kq);
 			if (count == maxevents)
 				goto retry;
@@ -2294,11 +2294,10 @@ retry:
 				break;
 		}
 	}
-	TAILQ_REMOVE(&kq->kq_head, marker, kn_tqe);
+	TAILQ_REMOVE(&kq->kq_head, &marker, kn_tqe);
 done:
 	KQ_OWNED(kq);
 	KQ_UNLOCK_FLUX(kq);
-	knote_free(marker);
 done_nl:
 	KQ_NOTOWNED(kq);
 	if (nkev != 0)
@@ -3148,7 +3147,7 @@ kqueue_fork_copy(struct filedesc *fdp, struct file *fp, struct file *fp1,
     struct proc *p1, struct thread *td)
 {
 	struct kqueue *kq, *kq1;
-	struct knote *marker;
+	struct knote marker;
 	int error, i;
 
 	error = 0;
@@ -3157,26 +3156,24 @@ kqueue_fork_copy(struct filedesc *fdp, struct file *fp, struct file *fp1,
 
 	kq1 = fp1->f_data;
 	kq = kq1->kq_forksrc;
-	marker = knote_alloc(M_WAITOK);
-	marker->kn_status = KN_MARKER;
-	marker->kn_kq = kq;
+	memset(&marker, 0, sizeof(marker));
+	marker.kn_status = KN_MARKER;
+	marker.kn_kq = kq;
 
 	KQ_LOCK(kq);
 	for (i = 0; i < kq->kq_knlistsize; i++) {
-		kqueue_fork_copy_list(&kq->kq_knlist[i], marker, kq, kq1,
+		kqueue_fork_copy_list(&kq->kq_knlist[i], &marker, kq, kq1,
 		    p1, fdp);
 	}
 	if (kq->kq_knhashmask != 0) {
 		for (i = 0; i <= kq->kq_knhashmask; i++) {
-			kqueue_fork_copy_list(&kq->kq_knhash[i], marker, kq,
+			kqueue_fork_copy_list(&kq->kq_knhash[i], &marker, kq,
 			    kq1, p1, fdp);
 		}
 	}
 	kqueue_release(kq, 1);
 	kq1->kq_forksrc = NULL;
 	KQ_UNLOCK_FLUX(kq);
-
-	knote_free(marker);
 	return (error);
 }
 
