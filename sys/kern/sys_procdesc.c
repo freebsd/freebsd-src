@@ -278,45 +278,31 @@ procdesc_free(struct procdesc *pd)
  * We use the proctree_lock to ensure that process exit either happens
  * strictly before or strictly after a concurrent call to procdesc_close().
  */
-bool
+void
 procdesc_exit(struct proc *p)
 {
 	struct procdesc *pd;
 
 	sx_assert(&proctree_lock, SA_XLOCKED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	KASSERT(p->p_procdesc != NULL, ("procdesc_exit: p_procdesc NULL"));
 	MPASS((p->p_flag & P_WEXIT) != 0);
 
 	pd = p->p_procdesc;
+	if (pd == NULL)
+		return;
 
 	PROCDESC_LOCK(pd);
-	KASSERT(pd->pd_fpcount > 0 || p->p_pptr == p->p_reaper,
-	    ("procdesc_exit: closed && parent not reaper"));
+	KASSERT(pd->pd_fpcount > 0, ("%s: closed procdesc %p", __func__, pd));
 
 	pd->pd_flags |= PDF_EXITED;
 	pd->pd_xstat = KW_EXITCODE(p->p_xexit, p->p_xsig);
 
-	/*
-	 * If the process descriptor has been closed, then we have nothing
-	 * to do; return 1 so that init will get SIGCHLD and do the reaping.
-	 * Clean up the procdesc now rather than letting it happen during
-	 * that reap.
-	 */
-	if (pd->pd_fpcount == 0) {
-		PROCDESC_UNLOCK(pd);
-		pd->pd_proc = NULL;
-		p->p_procdesc = NULL;
-		procdesc_free(pd);
-		return (true);
-	}
 	selwakeup(&pd->pd_selinfo);
 	KNOTE_LOCKED(&pd->pd_selinfo.si_note, NOTE_EXIT | NOTE_PDSIGCHLD);
 	PROCDESC_UNLOCK(pd);
 
 	/* Wakeup all waiters for this procdesc' process exit. */
 	wakeup(&p->p_procdesc);
-	return (false);
 }
 
 void

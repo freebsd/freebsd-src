@@ -102,7 +102,7 @@ struct procdesc {
 /*
  * In-kernel interfaces to process descriptors.
  */
-bool	 procdesc_exit(struct proc *);
+void	 procdesc_exit(struct proc *);
 void	 procdesc_fork(struct proc *p, pid_t child_pid);
 void	 procdesc_jobstate(struct proc *p);
 int	 kern_pdgetpid(struct thread *, int fd, const cap_rights_t *,
