@@ -869,6 +869,8 @@ zone_put_bucket(uma_zone_t zone, int domain, uma_bucket_t bucket, void *udata,
 	 */
 	zdom->uzd_nitems += bucket->ub_cnt;
 	if (__predict_true(zdom->uzd_nitems < zone->uz_bucket_max)) {
+		bool head;
+
 		if (ws) {
 			zone_domain_imax_set(zdom, zdom->uzd_nitems);
 		} else {
@@ -887,8 +889,14 @@ zone_put_bucket(uma_zone_t zone, int domain, uma_bucket_t bucket, void *udata,
 		/*
 		 * Try to promote reuse of recently used items.  For items
 		 * protected by SMR, try to defer reuse to minimize polling.
+		 * If KASAN is configured, try to defer reuse to improve UAF
+		 * detection.
 		 */
-		if (bucket->ub_seq == SMR_SEQ_INVALID)
+		head = bucket->ub_seq == SMR_SEQ_INVALID;
+#ifdef KASAN
+		head = head && (zone->uz_flags & UMA_ZONE_NOKASAN) != 0;
+#endif
+		if (head)
 			STAILQ_INSERT_HEAD(&zdom->uzd_buckets, bucket, ub_link);
 		else
 			STAILQ_INSERT_TAIL(&zdom->uzd_buckets, bucket, ub_link);
