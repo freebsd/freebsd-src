@@ -430,15 +430,31 @@ enum {
 #define CHN_TIMEOUT_MIN		1
 #define CHN_TIMEOUT_MAX		10
 
-/*
- * This should be large enough to hold all pcm data between
- * tsleeps in chn_{read,write} at the highest sample rate.
- * (which is usually 48kHz * 16bit * stereo = 192000 bytes/sec)
- */
+/* Default block size for the secondary buffer. */
 #define CHN_2NDBUFBLKSIZE	(2 * 1024)
 /* The total number of blocks per secondary bufhard. */
 #define CHN_2NDBUFBLKNUM	(32)
-/* The size of a whole secondary bufhard. */
-#define CHN_2NDBUFMAXSIZE	(131072)
+/*
+ * The secondary buffer cap scales with the channel byte rate, targeting
+ * CHN_2NDBUFTIME_MS of stream so that all pcm data between tsleeps in
+ * chn_{read,write} fits, clamped to [CHN_2NDBUFSIZE_MIN,
+ * CHN_2NDBUFSIZE_MAX].
+ *
+ * The floor is the historical secondary buffer size and preserves memory
+ * use for low byte-rate streams; it holds ~680 ms at the once-typical
+ * 48kHz * 16bit * stereo rate (192000 bytes/sec), well above the target
+ * (~38 KiB there).
+ *
+ * The ceiling bounds per-channel buffer memory.  Buffers are allocated at
+ * the derived size, so only streams that actually run at high byte rates
+ * approach it.  It holds the full target through MADI-class streams
+ * (64ch * 32-bit * 48kHz, ~12.3 MB/s); beyond that, coverage shrinks
+ * proportionally (e.g. ~85 ms at 64ch * 32-bit * 192kHz).
+ */
+#define CHN_2NDBUFSIZE_MIN	(131072)
+#define CHN_2NDBUFSIZE_MAX	(4 * 1024 * 1024)
+#define CHN_2NDBUFTIME_MS	200
+
+u_int32_t chn_2ndbufmaxsize(struct pcm_channel *);
 
 #define CHANNEL_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, sizeof(struct kobj))
