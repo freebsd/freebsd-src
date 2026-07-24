@@ -4447,37 +4447,82 @@ fail:
 	return (NULL);
 }
 
-/* See uma.h */
-void
-uma_zfree_smr(uma_zone_t zone, void *item)
+static __always_inline bool
+cache_free_item(uma_zone_t zone, int uz_flags, void *item, void *udata)
 {
 	uma_cache_t cache;
-	uma_cache_bucket_t bucket;
+	int itemdomain;
+
+	/*
+	 * If possible, free to the per-CPU cache.  There are two
+	 * requirements for safe access to the per-CPU cache: (1) the thread
+	 * accessing the cache must not be preempted or yield during access,
+	 * and (2) the thread must not migrate CPUs without switching which
+	 * cache it accesses.  We rely on a critical section to prevent
+	 * preemption and migration.  We release the critical section in
+	 * order to acquire the zone mutex if we are unable to free to the
+	 * current cache; when we re-acquire the critical section, we must
+	 * detect and handle migration if it has occurred.
+	 */
+	itemdomain = 0;
+#ifdef NUMA
+	if ((uz_flags & UMA_ZONE_FIRSTTOUCH) != 0)
+		itemdomain = item_domain(item);
+#endif
+
+	critical_enter();
+	do {
+		uma_cache_bucket_t bucket;
+
+		cache = &zone->uz_cpu[curcpu];
+		/*
+		 * Try to free into the allocbucket first to give LIFO
+		 * ordering for cache-hot datastructures.  Spill over
+		 * into the freebucket if necessary.  Alloc will swap
+		 * them if one runs dry.
+		 */
+		bucket = &cache->uc_allocbucket;
+#ifdef NUMA
+		if ((uz_flags & UMA_ZONE_FIRSTTOUCH) != 0 &&
+		    PCPU_GET(domain) != itemdomain) {
+			bucket = &cache->uc_crossbucket;
+		} else
+#endif
+		if (bucket->ucb_cnt == bucket->ucb_entries &&
+		   cache->uc_freebucket.ucb_cnt <
+		   cache->uc_freebucket.ucb_entries)
+			cache_bucket_swap(&cache->uc_freebucket,
+			    &cache->uc_allocbucket);
+		if (__predict_true(bucket->ucb_cnt < bucket->ucb_entries)) {
+			cache_bucket_push(cache, bucket, item);
+			critical_exit();
+			return (true);
+		}
+	} while (cache_free(zone, cache, udata, itemdomain));
+	critical_exit();
+
+	return (false);
+}
+
+static __always_inline bool
+cache_free_smr(uma_zone_t zone, void *item, void *udata)
+{
+	uma_cache_t cache;
 	int itemdomain;
 #ifdef NUMA
 	int uz_flags;
 #endif
 
-	CTR3(KTR_UMA, "uma_zfree_smr zone %s(%p) item %p",
-	    zone->uz_name, zone, item);
-
-#ifdef UMA_ZALLOC_DEBUG
-	KASSERT((zone->uz_flags & UMA_ZONE_SMR) != 0,
-	    ("uma_zfree_smr: called with non-SMR zone."));
-	KASSERT(item != NULL, ("uma_zfree_smr: Called with NULL pointer."));
-	SMR_ASSERT_NOT_ENTERED(zone->uz_smr);
-	if (uma_zfree_debug(zone, item, NULL) == EJUSTRETURN)
-		return;
-#endif
-	cache = &zone->uz_cpu[curcpu];
 	itemdomain = 0;
 #ifdef NUMA
-	uz_flags = cache_uz_flags(cache);
+	uz_flags = cache_uz_flags(&zone->uz_cpu[curcpu]);
 	if ((uz_flags & UMA_ZONE_FIRSTTOUCH) != 0)
 		itemdomain = item_domain(item);
 #endif
 	critical_enter();
 	do {
+		uma_cache_bucket_t bucket;
+
 		cache = &zone->uz_cpu[curcpu];
 		/* SMR Zones must free to the free bucket. */
 		bucket = &cache->uc_freebucket;
@@ -4490,10 +4535,32 @@ uma_zfree_smr(uma_zone_t zone, void *item)
 		if (__predict_true(bucket->ucb_cnt < bucket->ucb_entries)) {
 			cache_bucket_push(cache, bucket, item);
 			critical_exit();
-			return;
+			return (true);
 		}
-	} while (cache_free(zone, cache, NULL, itemdomain));
+	} while (cache_free(zone, cache, udata, itemdomain));
 	critical_exit();
+
+	return (false);
+}
+
+/* See uma.h */
+void
+uma_zfree_smr(uma_zone_t zone, void *item)
+{
+	CTR3(KTR_UMA, "uma_zfree_smr zone %s(%p) item %p",
+	    zone->uz_name, zone, item);
+
+#ifdef UMA_ZALLOC_DEBUG
+	KASSERT((zone->uz_flags & UMA_ZONE_SMR) != 0,
+	    ("uma_zfree_smr: called with non-SMR zone."));
+	KASSERT(item != NULL, ("uma_zfree_smr: Called with NULL pointer."));
+	SMR_ASSERT_NOT_ENTERED(zone->uz_smr);
+	if (uma_zfree_debug(zone, item, NULL) == EJUSTRETURN)
+		return;
+#endif
+
+	if (cache_free_smr(zone, item, NULL))
+		return;
 
 	/*
 	 * If nothing else caught this, we'll just do an internal free.
@@ -4506,8 +4573,7 @@ void
 uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 {
 	uma_cache_t cache;
-	uma_cache_bucket_t bucket;
-	int itemdomain, uz_flags;
+	int uz_flags;
 
 	/* Enable entropy collection for RANDOM_ENABLE_UMA kernel option */
 	random_harvest_fast_uma(&zone, sizeof(zone), RANDOM_UMA);
@@ -4540,55 +4606,12 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	 * The race here is acceptable.  If we miss it we'll just have to wait
 	 * a little longer for the limits to be reset.
 	 */
-	if (__predict_false(uz_flags & UMA_ZFLAG_LIMIT)) {
-		if (atomic_load_32(&zone->uz_sleepers) > 0)
-			goto zfree_item;
-	}
+	if (__predict_false(uz_flags & UMA_ZFLAG_LIMIT) &&
+	    atomic_load_32(&zone->uz_sleepers) > 0)
+		goto zfree_item;
 
-	/*
-	 * If possible, free to the per-CPU cache.  There are two
-	 * requirements for safe access to the per-CPU cache: (1) the thread
-	 * accessing the cache must not be preempted or yield during access,
-	 * and (2) the thread must not migrate CPUs without switching which
-	 * cache it accesses.  We rely on a critical section to prevent
-	 * preemption and migration.  We release the critical section in
-	 * order to acquire the zone mutex if we are unable to free to the
-	 * current cache; when we re-acquire the critical section, we must
-	 * detect and handle migration if it has occurred.
-	 */
-	itemdomain = 0;
-#ifdef NUMA
-	if ((uz_flags & UMA_ZONE_FIRSTTOUCH) != 0)
-		itemdomain = item_domain(item);
-#endif
-	critical_enter();
-	do {
-		cache = &zone->uz_cpu[curcpu];
-		/*
-		 * Try to free into the allocbucket first to give LIFO
-		 * ordering for cache-hot datastructures.  Spill over
-		 * into the freebucket if necessary.  Alloc will swap
-		 * them if one runs dry.
-		 */
-		bucket = &cache->uc_allocbucket;
-#ifdef NUMA
-		if ((uz_flags & UMA_ZONE_FIRSTTOUCH) != 0 &&
-		    PCPU_GET(domain) != itemdomain) {
-			bucket = &cache->uc_crossbucket;
-		} else
-#endif
-		if (bucket->ucb_cnt == bucket->ucb_entries &&
-		   cache->uc_freebucket.ucb_cnt <
-		   cache->uc_freebucket.ucb_entries)
-			cache_bucket_swap(&cache->uc_freebucket,
-			    &cache->uc_allocbucket);
-		if (__predict_true(bucket->ucb_cnt < bucket->ucb_entries)) {
-			cache_bucket_push(cache, bucket, item);
-			critical_exit();
-			return;
-		}
-	} while (cache_free(zone, cache, udata, itemdomain));
-	critical_exit();
+	if (cache_free_item(zone, uz_flags, item, udata))
+		return;
 
 	/*
 	 * If nothing else caught this, we'll just do an internal free.
