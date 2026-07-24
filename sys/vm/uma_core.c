@@ -4447,8 +4447,11 @@ fail:
 	return (NULL);
 }
 
+/*
+ * Try to free an item to the per-CPU cache, promoting its quick reuse.
+ */
 static __always_inline bool
-cache_free_item(uma_zone_t zone, int uz_flags, void *item, void *udata)
+cache_free_reuse(uma_zone_t zone, int uz_flags, void *item, void *udata)
 {
 	uma_cache_t cache;
 	int itemdomain;
@@ -4504,8 +4507,14 @@ cache_free_item(uma_zone_t zone, int uz_flags, void *item, void *udata)
 	return (false);
 }
 
+/*
+ * Try to free an object to the per-CPU cache, deferring its reuse.  This is
+ * used by the SMR-protected allocator, which cannot reuse the item until
+ * smr_poll() guarantees that no threads are still accessing it, and by
+ * sanitizers, which wish to defer reuse to make UAF detection more effective.
+ */
 static __always_inline bool
-cache_free_smr(uma_zone_t zone, void *item, void *udata)
+cache_free_defer(uma_zone_t zone, void *item, void *udata)
 {
 	uma_cache_t cache;
 	int itemdomain;
@@ -4524,7 +4533,6 @@ cache_free_smr(uma_zone_t zone, void *item, void *udata)
 		uma_cache_bucket_t bucket;
 
 		cache = &zone->uz_cpu[curcpu];
-		/* SMR Zones must free to the free bucket. */
 		bucket = &cache->uc_freebucket;
 #ifdef NUMA
 		if ((uz_flags & UMA_ZONE_FIRSTTOUCH) != 0 &&
@@ -4559,7 +4567,7 @@ uma_zfree_smr(uma_zone_t zone, void *item)
 		return;
 #endif
 
-	if (cache_free_smr(zone, item, NULL))
+	if (cache_free_defer(zone, item, NULL))
 		return;
 
 	/*
@@ -4607,16 +4615,22 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	 * a little longer for the limits to be reset.
 	 */
 	if (__predict_false(uz_flags & UMA_ZFLAG_LIMIT) &&
-	    atomic_load_32(&zone->uz_sleepers) > 0)
-		goto zfree_item;
-
-	if (cache_free_item(zone, uz_flags, item, udata))
+	    atomic_load_32(&zone->uz_sleepers) > 0) {
+		/* We will free directly to the zone. */
+	}
+#ifdef KASAN
+	else if ((uz_flags & UMA_ZONE_NOKASAN) == 0) {
+		if (cache_free_defer(zone, item, udata))
+			return;
+	}
+#endif
+	else if (cache_free_reuse(zone, uz_flags, item, udata)) {
 		return;
+	}
 
 	/*
 	 * If nothing else caught this, we'll just do an internal free.
 	 */
-zfree_item:
 	zone_free_item(zone, item, udata, SKIP_DTOR);
 }
 
