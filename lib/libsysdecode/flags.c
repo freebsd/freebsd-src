@@ -63,7 +63,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
-#include <sysdecode.h>
 #include <unistd.h>
 #include <sys/bitstring.h>
 #include <netgraph/bluetooth/include/ng_hci.h>
@@ -73,6 +72,7 @@
 #include <netlink/netlink.h>
 
 #include "support.h"
+#include "sysdecode.h"
 
 #define	X(a)	{ a, #a },
 #define	XEND	{ 0, NULL }
