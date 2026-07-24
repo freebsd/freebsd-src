@@ -154,7 +154,7 @@ def reverts(commit):
     reverts, or None.
     """
     for line in commit.message.splitlines():
-        m = re.match(r'^This reverts commit ([0-9a-f]{40})\.', line)
+        m = re.match(r'^This reverts commit ([0-9a-f]{40})', line)
         if m:
             return m.group(1)
     return None
