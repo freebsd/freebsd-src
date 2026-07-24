@@ -501,11 +501,11 @@ def main():
     if args.remote:
         remote = args.remote
     else:
-        try:
-            tracking = repo.active_branch.tracking_branch()
-            remote = tracking.remote_name if tracking else 'freebsd'
-        except (TypeError, ValueError):
-            remote = 'freebsd'
+        tracking = repo.active_branch.tracking_branch()
+        if tracking:
+            remote = tracking.remote_name
+        else:
+            err(1, "could not find upstream branch, use --remote")
 
     upstream = remote + '/' + origin
 
