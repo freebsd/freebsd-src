@@ -1744,7 +1744,7 @@ uvideo_vs_parse_desc_frame_buffer_size(struct uvideo_softc *sc,
 	 * width * height * bpp since dwMaxVideoFrameBufferSize may be wrong.
 	 */
 	if (desc->bDescriptorSubtype == UDESCSUB_VS_FRAME_UNCOMPRESSED) {
-		fbuf_size = UGETW(fd->u.uc.wWidth) *
+		fbuf_size = (uint64_t)UGETW(fd->u.uc.wWidth) *
 		    UGETW(fd->u.uc.wHeight) *
 		    sc->sc_fmtgrp[fmtidx].format->u.uc.bBitsPerPixel / NBBY;
 	} else
@@ -2037,6 +2037,8 @@ uvideo_vs_negotiation(struct uvideo_softc *sc, int commit)
 			else if (frame_ival >= max)
 				frame_ival = max;
 			else {
+				if (step == 0)
+					step = 1;
 				for (i = min;
 				    i + step / 2 < frame_ival;
 				    i += step)
