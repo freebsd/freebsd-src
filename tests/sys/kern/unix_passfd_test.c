@@ -1189,6 +1189,36 @@ ATF_TC_CLEANUP(cross_jail_dirfd, tc)
 		err(1, "jail_remove");
 }
 
+/*
+ * Verify that FD_RESOLVE_BENEATH is preserved when an fd is passed over a UNIX
+ * domain socket.
+ */
+ATF_TC_WITHOUT_HEAD(resolve_beneath_preserved);
+ATF_TC_BODY(resolve_beneath_preserved, tc)
+{
+	int fd[2], getfd, putfd, fdflags;
+
+	domainsocketpair(fd);
+	tempfile(&putfd);
+
+	fdflags = fcntl(putfd, F_GETFD);
+	ATF_REQUIRE(fdflags != -1);
+	ATF_REQUIRE(fcntl(putfd, F_SETFD, fdflags | FD_RESOLVE_BENEATH) != -1);
+	ATF_REQUIRE((fcntl(putfd, F_GETFD) & FD_RESOLVE_BENEATH) != 0);
+
+	sendfd(fd[0], putfd);
+	recvfd(fd[1], &getfd, 0);
+
+	fdflags = fcntl(getfd, F_GETFD);
+	ATF_REQUIRE(fdflags != -1);
+	ATF_REQUIRE_MSG((fdflags & FD_RESOLVE_BENEATH) != 0,
+	    "FD_RESOLVE_BENEATH was not preserved across SCM_RIGHTS transfer");
+
+	ATF_REQUIRE(close(putfd) == 0);
+	ATF_REQUIRE(close(getfd) == 0);
+	closesocketpair(fd);
+}
+
 ATF_TC_WITHOUT_HEAD(listening_socket);
 ATF_TC_BODY(listening_socket, tc)
 {
@@ -1239,6 +1269,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, empty_rights_message);
 	ATF_TP_ADD_TC(tp, control_creates_records);
 	ATF_TP_ADD_TC(tp, cross_jail_dirfd);
+	ATF_TP_ADD_TC(tp, resolve_beneath_preserved);
 	ATF_TP_ADD_TC(tp, listening_socket);
 
 	return (atf_no_error());

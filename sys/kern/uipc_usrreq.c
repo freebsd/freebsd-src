@@ -3488,15 +3488,25 @@ unp_freerights(struct filedescent **fdep, int fdcount)
 	free(fdep[0], M_FILECAPS);
 }
 
-static bool
-restrict_rights(struct file *fp, struct thread *td)
+/*
+ * Flags to set on the receiving side when externalizing a file descriptor.
+ * When transferring fds between jails, ensure that the receiver cannot use
+ * a dirfd to escape the jail chroot.
+ */
+static int
+externalize_fdflags(struct filedescent *fde, struct thread *td)
 {
 	struct prison *prison1, *prison2;
 
-	prison1 = fp->f_cred->cr_prison;
+	if ((fde->fde_flags & UF_RESOLVE_BENEATH) != 0)
+		return (O_RESOLVE_BENEATH);
+	prison1 = fde->fde_file->f_cred->cr_prison;
 	prison2 = td->td_ucred->cr_prison;
-	return (prison1 != prison2 && prison1->pr_root != prison2->pr_root &&
-	    prison2 != &prison0);
+	if (prison1 != prison2 && prison1->pr_root != prison2->pr_root &&
+	    prison2 != &prison0)
+		return (O_RESOLVE_BENEATH);
+	else
+		return (0);
 }
 
 static int
@@ -3562,9 +3572,9 @@ unp_externalize(struct mbuf *control, struct mbuf **controlp, int flags)
 				struct file *fp;
 
 				fp = fdep[i]->fde_file;
-				_finstall(fdesc, fp, *fdp, fdflags |
-				    (restrict_rights(fp, td) ?
-				    O_RESOLVE_BENEATH : 0), &fdep[i]->fde_caps);
+				_finstall(fdesc, fp, *fdp,
+				    fdflags | externalize_fdflags(fdep[i], td),
+				    &fdep[i]->fde_caps);
 				unp_externalize_fp(fp);
 			}
 
@@ -3800,6 +3810,7 @@ unp_internalize(struct mbuf *control, struct mchain *mc, struct thread *td)
 				fdep[i]->fde_file = fde->fde_file;
 				filecaps_copy(&fde->fde_caps,
 				    &fdep[i]->fde_caps, true);
+				fdep[i]->fde_flags = fde->fde_flags;
 				unp_internalize_fp(fdep[i]->fde_file);
 			}
 			FILEDESC_SUNLOCK(fdesc);
