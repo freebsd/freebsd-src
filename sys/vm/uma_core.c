@@ -3782,6 +3782,7 @@ static __noinline bool
 cache_alloc(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
 {
 	uma_bucket_t bucket;
+	uint32_t zflags;
 	int curdomain, domain;
 	bool new;
 
@@ -3791,10 +3792,15 @@ cache_alloc(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
 	 * If we have run out of items in our alloc bucket see
 	 * if we can switch with the free bucket.
 	 *
-	 * SMR Zones can't re-use the free bucket until the sequence has
-	 * expired.
+	 * SMR zones can't re-use the free bucket until the sequence has
+	 * expired.  When KASAN is enabled, we want to avoid re-using free
+	 * items in order to improve reliability of use-after-free detection.
 	 */
-	if ((cache_uz_flags(cache) & UMA_ZONE_SMR) == 0 &&
+	zflags = cache_uz_flags(cache);
+	if ((zflags & UMA_ZONE_SMR) == 0 &&
+#ifdef KASAN
+	    (zflags & UMA_ZONE_NOKASAN) != 0 &&
+#endif
 	    cache->uc_freebucket.ucb_cnt != 0) {
 		cache_bucket_swap(&cache->uc_freebucket,
 		    &cache->uc_allocbucket);
@@ -3823,8 +3829,7 @@ cache_alloc(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
 	 * the critical section.
 	 */
 	domain = PCPU_GET(domain);
-	if ((cache_uz_flags(cache) & UMA_ZONE_ROUNDROBIN) != 0 ||
-	    VM_DOMAIN_EMPTY(domain))
+	if ((zflags & UMA_ZONE_ROUNDROBIN) != 0 || VM_DOMAIN_EMPTY(domain))
 		domain = zone_domain_highest(zone, domain);
 	bucket = cache_fetch_bucket(zone, cache, domain);
 	if (bucket == NULL && zone->uz_bucket_size != 0 && !bucketdisable) {
@@ -3849,7 +3854,7 @@ cache_alloc(uma_zone_t zone, uma_cache_t cache, void *udata, int flags)
 	critical_enter();
 	cache = &zone->uz_cpu[curcpu];
 	if (cache->uc_allocbucket.ucb_bucket == NULL &&
-	    ((cache_uz_flags(cache) & UMA_ZONE_FIRSTTOUCH) == 0 ||
+	    ((zflags & UMA_ZONE_FIRSTTOUCH) == 0 ||
 	    (curdomain = PCPU_GET(domain)) == domain ||
 	    VM_DOMAIN_EMPTY(curdomain))) {
 		if (new)
