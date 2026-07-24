@@ -680,7 +680,8 @@ exit1(struct thread *td, int rval, int signo)
 	 * exit().
 	 */
 	signal_parent = 0;
-	if (p->p_procdesc == NULL || procdesc_exit(p)) {
+	procdesc_exit(p);
+	if (p->p_procdesc == NULL) {
 		/*
 		 * Notify parent that we're gone.  If parent has the
 		 * PS_NOCLDWAIT flag set, or if the handler is set to SIG_IGN,
