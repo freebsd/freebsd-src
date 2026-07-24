@@ -9,7 +9,7 @@
 # This file is sorted in git log order (newest commits first).
 
 # sys/kern/kern_cpu.c whitespace
-XXX
+22f80045a1869c3dd66aef0284fae32093ba5816
 # witness white space cleanup and style(9) tweeks
 f5377665253b2b107ee8a4690ad2e6682375b304
 # style fixes for device_if.m
