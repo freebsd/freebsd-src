@@ -109,6 +109,25 @@ static int dsp_oss_setsong(struct pcm_channel *wrch, struct pcm_channel *rdch, o
 static int dsp_oss_setname(struct pcm_channel *wrch, struct pcm_channel *rdch, oss_longname_t *name);
 #endif
 
+static uint32_t
+dsp_clamp_fragments(uint32_t maxfrags, uint32_t fragsz, uint32_t maxsize)
+{
+	if (maxfrags == 0)
+		maxfrags = maxsize / fragsz;
+	if (maxfrags < 2)
+		maxfrags = 2;
+	if ((uint64_t)maxfrags * fragsz > maxsize)
+		maxfrags = maxsize / fragsz;
+	return (maxfrags);
+}
+
+static unsigned int
+dsp_low_water(struct pcm_channel *ch, int lw)
+{
+	RANGE(lw, 1, ch->bufsoft->bufsize);
+	return ((unsigned int)lw);
+}
+
 int
 dsp_make_dev(device_t dev)
 {
@@ -1244,18 +1263,13 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 			RANGE(fragln, 4, 16);
 			fragsz = 1 << fragln;
 
-			if (maxfrags == 0)
-				maxfrags = CHN_2NDBUFMAXSIZE / fragsz;
-			if (maxfrags < 2)
-				maxfrags = 2;
-			if (maxfrags * fragsz > CHN_2NDBUFMAXSIZE)
-				maxfrags = CHN_2NDBUFMAXSIZE / fragsz;
-
 			DEB(printf("SNDCTL_DSP_SETFRAGMENT %d frags, %d sz\n", maxfrags, fragsz));
 			PCM_ACQUIRE_QUICK(d);
 		    	if (rdch) {
 				CHN_LOCK(rdch);
-				ret = chn_setblocksize(rdch, maxfrags, fragsz);
+				ret = chn_setblocksize(rdch,
+				    dsp_clamp_fragments(maxfrags, fragsz,
+				    chn_2ndbufmaxsize(rdch)), fragsz);
 				r_maxfrags = rdch->bufsoft->blkcnt;
 				r_fragsz = rdch->bufsoft->blksz;
 				CHN_UNLOCK(rdch);
@@ -1265,7 +1279,9 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 			}
 		    	if (wrch && ret == 0) {
 				CHN_LOCK(wrch);
-				ret = chn_setblocksize(wrch, maxfrags, fragsz);
+				ret = chn_setblocksize(wrch,
+				    dsp_clamp_fragments(maxfrags, fragsz,
+				    chn_2ndbufmaxsize(wrch)), fragsz);
 				maxfrags = wrch->bufsoft->blkcnt;
 				fragsz = wrch->bufsoft->blksz;
 				CHN_UNLOCK(wrch);
@@ -1653,12 +1669,12 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
 	 */
 		if (wrch != NULL) {
 			CHN_LOCK(wrch);
-			wrch->lw = (*arg_i > 1) ? *arg_i : 1;
+			wrch->lw = dsp_low_water(wrch, *arg_i);
 			CHN_UNLOCK(wrch);
 		}
 		if (rdch != NULL) {
 			CHN_LOCK(rdch);
-			rdch->lw = (*arg_i > 1) ? *arg_i : 1;
+			rdch->lw = dsp_low_water(rdch, *arg_i);
 			CHN_UNLOCK(rdch);
 		}
 		break;

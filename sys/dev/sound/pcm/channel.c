@@ -1657,15 +1657,30 @@ round_pow2(u_int32_t v)
 	return ret;
 }
 
+u_int32_t
+chn_2ndbufmaxsize(struct pcm_channel *c)
+{
+	struct snd_dbuf *bs;
+	uint64_t maxsize;
+
+	CHN_LOCKASSERT(c);
+
+	bs = c->bufsoft;
+	maxsize = (uint64_t)bs->align * bs->spd * CHN_2NDBUFTIME_MS / 1000;
+	RANGE(maxsize, CHN_2NDBUFSIZE_MIN, CHN_2NDBUFSIZE_MAX);
+
+	return ((u_int32_t)maxsize);
+}
+
 static u_int32_t
-round_blksz(u_int32_t v, int round)
+round_blksz(u_int32_t v, int round, u_int32_t maxsize)
 {
 	u_int32_t ret, tmp;
 
 	if (round < 1)
 		round = 1;
 
-	ret = min(round_pow2(v), CHN_2NDBUFMAXSIZE >> 1);
+	ret = min(round_pow2(v), maxsize >> 1);
 
 	if (ret > v && (ret >> 1) > 0 && (ret >> 1) >= ((v * 3) >> 2))
 		ret >>= 1;
@@ -1780,14 +1795,16 @@ chn_calclatency(int dir, int latency, int bps, u_int32_t datarate,
 	if (latency < CHN_LATENCY_MIN || latency > CHN_LATENCY_MAX ||
 	    bps < 1 || datarate < 1 ||
 	    !(dir == PCMDIR_PLAY || dir == PCMDIR_REC)) {
+		if (max < CHN_2NDBUFSIZE_MIN)
+			max = CHN_2NDBUFSIZE_MIN;
 		if (rblksz != NULL)
-			*rblksz = CHN_2NDBUFMAXSIZE >> 1;
+			*rblksz = max >> 1;
 		if (rblkcnt != NULL)
 			*rblkcnt = 2;
 		printf("%s(): FAILED dir=%d latency=%d bps=%d "
 		    "datarate=%u max=%u\n",
 		    __func__, dir, latency, bps, datarate, max);
-		return CHN_2NDBUFMAXSIZE;
+		return max;
 	}
 
 	lprofile = chn_latency_profile;
@@ -1804,7 +1821,7 @@ chn_calclatency(int dir, int latency, int bps, u_int32_t datarate,
 	    datarate));
 	if (bufsz > max)
 		bufsz = max;
-	blksz = round_blksz(bufsz >> blkcnt, bps);
+	blksz = round_blksz(bufsz >> blkcnt, bps, max);
 
 	if (rblksz != NULL)
 		*rblksz = blksz;
@@ -1821,6 +1838,7 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 	struct snd_dbuf *b, *bs, *pb;
 	int sblksz, sblkcnt, hblksz, hblkcnt, limit = 0, nsblksz, nsblkcnt;
 	int ret;
+	u_int32_t maxsize;
 
 	CHN_LOCKASSERT(c);
 
@@ -1843,14 +1861,15 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 
 	bs = c->bufsoft;
 	b = c->bufhard;
+	maxsize = chn_2ndbufmaxsize(c);
 
 	if (!(blksz == 0 || blkcnt == -1) &&
 	    (blksz < 16 || blksz < bs->align || blkcnt < 2 ||
-	    (blksz * blkcnt) > CHN_2NDBUFMAXSIZE))
+	    (uint64_t)blksz * blkcnt > maxsize))
 		return EINVAL;
 
 	chn_calclatency(c->direction, latency, bs->align,
-	    bs->align * bs->spd, CHN_2NDBUFMAXSIZE,
+	    bs->align * bs->spd, maxsize,
 	    &sblksz, &sblkcnt);
 
 	if (blksz == 0 || blkcnt == -1) {
@@ -1871,7 +1890,7 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 		 * defeat the purpose of having custom control. The least
 		 * we can do is round it to the nearest ^2 and align it.
 		 */
-		sblksz = round_blksz(blksz, bs->align);
+		sblksz = round_blksz(blksz, bs->align, maxsize);
 		sblkcnt = round_pow2(blkcnt);
 	}
 
@@ -1890,18 +1909,28 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 			    sndbuf_xbytes(pb->blksz, pb, bs) * 2 : 0;
 		}
 	} else {
+		/*
+		 * The byte-rate-scaled cap applies to the secondary buffer
+		 * only.  It exists to absorb userland scheduling latency,
+		 * which the secondary buffer alone must cover; hardware
+		 * buffer geometry keeps the historical cap, since enlarging
+		 * it would change fragment sizes and interrupt cadence
+		 * visible to drivers, and remains bounded by b->maxsize
+		 * below.
+		 */
 		hblkcnt = 2;
 		if (c->flags & CHN_F_HAS_SIZE) {
 			hblksz = round_blksz(sndbuf_xbytes(sblksz, bs, b),
-			    b->align);
+			    b->align, CHN_2NDBUFSIZE_MIN);
 			hblkcnt = round_pow2(bs->blkcnt);
 		} else
 			chn_calclatency(c->direction, latency,
 			    b->align, b->align * b->spd,
-			    CHN_2NDBUFMAXSIZE, &hblksz, &hblkcnt);
+			    CHN_2NDBUFSIZE_MIN, &hblksz, &hblkcnt);
 
 		if ((hblksz << 1) > b->maxsize)
-			hblksz = round_blksz(b->maxsize >> 1, b->align);
+			hblksz = round_blksz(b->maxsize >> 1, b->align,
+			    CHN_2NDBUFSIZE_MIN);
 
 		while ((hblksz * hblkcnt) > b->maxsize) {
 			if (hblkcnt < 4)
@@ -1922,7 +1951,8 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 
 		if (!CHN_EMPTY(c, children)) {
 			nsblksz = round_blksz(
-			    sndbuf_xbytes(b->blksz, b, bs), bs->align);
+			    sndbuf_xbytes(b->blksz, b, bs), bs->align,
+			    maxsize);
 			nsblkcnt = b->blkcnt;
 			if (c->direction == PCMDIR_PLAY) {
 				do {
@@ -1938,13 +1968,13 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 			limit = sndbuf_xbytes(b->blksz, b, bs) * 2;
 	}
 
-	if (limit > CHN_2NDBUFMAXSIZE)
-		limit = CHN_2NDBUFMAXSIZE;
+	if ((u_int32_t)limit > maxsize)
+		limit = maxsize;
 
-	while ((sblksz * sblkcnt) < limit)
+	while ((uint64_t)sblksz * sblkcnt < (uint64_t)limit)
 		sblkcnt <<= 1;
 
-	while ((sblksz * sblkcnt) > CHN_2NDBUFMAXSIZE) {
+	while ((uint64_t)sblksz * sblkcnt > maxsize) {
 		if (sblkcnt < 4)
 			sblksz >>= 1;
 		else
