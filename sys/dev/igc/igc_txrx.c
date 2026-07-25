@@ -486,7 +486,7 @@ igc_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		    le32toh(rxd->wb.lower.lo_dword.data) & IGC_PKTTYPE_MASK;
 
 		ri->iri_len += len;
-		rxr->rx_bytes += ri->iri_len;
+		rxr->rx_bytes += len;
 
 		rxd->wb.upper.status_error = 0;
 		eop = ((staterr & IGC_RXD_STAT_EOP) == IGC_RXD_STAT_EOP);
