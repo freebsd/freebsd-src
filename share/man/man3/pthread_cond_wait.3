@@ -45,13 +45,26 @@ variable specified by
 .Fa cond ,
 and releases the mutex specified by
 .Fa mutex .
-The waiting thread unblocks only after another thread calls
+The waiting thread unblocks after another thread calls
 .Xr pthread_cond_signal 3 ,
 or
 .Xr pthread_cond_broadcast 3
 with the same condition variable, and the current thread reacquires the lock
 on
 .Fa mutex .
+.Pp
+It is possible that the
+.Fn pthread_cond_wait
+function returns without corresponding wakeup from either
+.Fn pthread_cond_signal
+or
+.Fn pthread_cond_broadcast .
+Such condition is called spurious wakeup, and is allowed by
+.St -p1003.1-96 .
+Applications should have a boolean expression used for each wait
+on the condition variable, and recheck it after return from the
+.Fn pthread_cond_wait
+function.
 .Sh RETURN VALUES
 If successful, the
 .Fn pthread_cond_wait
