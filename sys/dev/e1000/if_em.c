@@ -496,6 +496,7 @@ static int	em_get_regs(SYSCTL_HANDLER_ARGS);
 
 static void	lem_smartspeed(struct e1000_softc *);
 static void	igb_configure_queues(struct e1000_softc *);
+static void	igb_initialize_interrupt_rate(struct e1000_softc *);
 static void	em_flush_desc_rings(struct e1000_softc *);
 
 
@@ -967,6 +968,13 @@ em_if_attach_pre(if_ctx_t ctx)
 	INIT_DEBUGOUT("em_if_attach_pre: begin");
 	dev = iflib_get_dev(ctx);
 	sc = iflib_get_softc(ctx);
+
+	if (em_max_interrupt_rate <= 0) {
+		device_printf(dev,
+		    "Invalid max_interrupt_rate %d; using default %d\n",
+		    em_max_interrupt_rate, EM_INTS_DEFAULT);
+		em_max_interrupt_rate = EM_INTS_DEFAULT;
+	}
 
 	sc->ctx = sc->osdep.ctx = ctx;
 	sc->dev = sc->osdep.dev = dev;
@@ -1622,6 +1630,8 @@ em_if_init(if_ctx_t ctx)
 		/* Set up queue routing */
 		igb_configure_queues(sc);
 	}
+	if (sc->hw.mac.type >= igb_mac_min)
+		igb_initialize_interrupt_rate(sc);
 
 	/* this clears any pending interrupts */
 	E1000_READ_REG(&sc->hw, E1000_ICR);
@@ -1732,14 +1742,13 @@ em_newitr(struct e1000_softc *sc, struct em_rx_queue *que,
 		nextlatency = rxr->rx_nextlatency;
 
 		/* Use half default (4K) ITR if sub-gig */
-		if (sc->link_speed != 1000) {
+		if (sc->link_speed < SPEED_1000) {
 			newitr = EM_INTS_4K;
 			goto em_set_next_itr;
 		}
 		/* Want at least enough packet buffer for two frames to AIM */
 		if (sc->shared->isc_max_frame_size * 2 > (sc->pba << 10)) {
 			newitr = em_max_interrupt_rate;
-			sc->enable_aim = 0;
 			goto em_set_next_itr;
 		}
 
@@ -2627,7 +2636,7 @@ igb_configure_queues(struct e1000_softc *sc)
 	struct e1000_hw *hw = &sc->hw;
 	struct em_rx_queue *rx_que;
 	struct em_tx_queue *tx_que;
-	u32 tmp, ivar = 0, newitr = 0;
+	u32 tmp, ivar = 0;
 
 	/* First turn on RSS capability */
 	if (hw->mac.type != e1000_82575)
@@ -2751,22 +2760,28 @@ igb_configure_queues(struct e1000_softc *sc)
 		break;
 	}
 
-	/* Set the igb starting interrupt rate */
-	if (em_max_interrupt_rate > 0) {
-		newitr = IGB_INTS_TO_EITR(em_max_interrupt_rate);
-
-		if (hw->mac.type == e1000_82575)
-			newitr |= newitr << 16;
-		else
-			newitr |= E1000_EITR_CNT_IGNR;
-
-		for (int i = 0; i < sc->rx_num_queues; i++) {
-			rx_que = &sc->rx_queues[i];
-			E1000_WRITE_REG(hw, E1000_EITR(rx_que->msix), newitr);
-		}
-	}
-
 	return;
+}
+
+static void
+igb_initialize_interrupt_rate(struct e1000_softc *sc)
+{
+	struct e1000_hw *hw = &sc->hw;
+	struct em_rx_queue *rx_que;
+	u32 newitr;
+
+	newitr = IGB_INTS_TO_EITR(em_max_interrupt_rate);
+	if (hw->mac.type == e1000_82575)
+		newitr |= newitr << 16;
+	else
+		newitr |= E1000_EITR_CNT_IGNR;
+
+	for (int i = 0; i < sc->rx_num_queues; i++) {
+		rx_que = &sc->rx_queues[i];
+		rx_que->itr_setting = newitr;
+		E1000_WRITE_REG(hw, E1000_EITR(rx_que->msix),
+		    rx_que->itr_setting);
+	}
 }
 
 static void
@@ -3300,9 +3315,10 @@ em_reset(if_ctx_t ctx)
 		hw->fc.refresh_time = 0xFFFF;
 		/* Jumbos need adjusted PBA */
 		if (if_getmtu(ifp) > ETHERMTU)
-			E1000_WRITE_REG(hw, E1000_PBA, 12);
+			pba = E1000_PBA_12K;
 		else
-			E1000_WRITE_REG(hw, E1000_PBA, 26);
+			pba = E1000_PBA_26K;
+		E1000_WRITE_REG(hw, E1000_PBA, pba);
 		break;
 	case e1000_82575:
 	case e1000_82576:
@@ -5017,7 +5033,7 @@ em_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
 		tque = oidp->oid_arg1;
 		hw = &tque->sc->hw;
 		if (hw->mac.type >= igb_mac_min)
-			reg = E1000_READ_REG(hw, E1000_EITR(tque->me));
+			reg = E1000_READ_REG(hw, E1000_EITR(tque->msix));
 		else if (hw->mac.type == e1000_82574 &&
 		    tque->sc->intr_type == IFLIB_INTR_MSIX)
 			reg = E1000_READ_REG(hw, E1000_EITR_82574(tque->msix));
@@ -5044,7 +5060,7 @@ em_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
 	} else {
 		usec = (reg & IGB_QVECTOR_MASK);
 		if (usec > 0)
-			rate = IGB_INTS_TO_EITR(usec);
+			rate = IGB_EITR_TO_INTS(usec);
 		else
 			rate = 0;
 	}
