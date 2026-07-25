@@ -461,10 +461,27 @@ em_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	    first, pidx_last, i);
 	pi->ipi_new_pidx = i;
 
-	/* Sent data accounting for AIM */
+	/*
+	 * Sent data accounting for AIM.  For TSO, ipi_len is the whole
+	 * unsegmented payload, which is not a size the moderation
+	 * calculation can use.  Count the segments the hardware will put on
+	 * the wire and the header each of them carries, so that the average
+	 * it sees is a wire packet.
+	 */
+	if (do_tso && pi->ipi_tso_segsz != 0) {
+		u32 hdrlen, segs;
+
+		hdrlen = pi->ipi_ehdrlen + pi->ipi_ip_hlen + pi->ipi_tcp_hlen;
+		if (pi->ipi_len > hdrlen) {
+			segs = howmany(pi->ipi_len - hdrlen, pi->ipi_tso_segsz);
+			txr->tx_bytes += pi->ipi_len + (segs - 1) * hdrlen;
+			txr->tx_packets += segs;
+			return (0);
+		}
+	}
+
 	txr->tx_bytes += pi->ipi_len;
 	++txr->tx_packets;
-
 	return (0);
 }
 
