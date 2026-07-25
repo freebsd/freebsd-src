@@ -458,6 +458,14 @@ struct em_rx_queue {
 	struct if_irq		que_irq;
 };  
 
+/* Driver-observed link state and its publication barrier. */
+enum em_link_state {
+	EM_LINK_STATE_DOWN = 0,
+	EM_LINK_STATE_DOWN_RESET_PENDING,
+	EM_LINK_STATE_UP,
+	EM_LINK_STATE_UP_RESET_PENDING,
+};
+
 /* Our softc structure */
 struct e1000_softc {
 	struct e1000_hw		hw;
@@ -519,7 +527,7 @@ struct e1000_softc {
 	u32			shadow_vfta[EM_VFTA_SIZE];
 
 	/* Info about the interface */
-	u16			link_active;
+	enum em_link_state	link_state;
 	u16			fc;
 	u16			link_speed;
 	u16			link_duplex;
