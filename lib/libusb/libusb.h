@@ -324,16 +324,18 @@ struct libusb_version {
 	const char *describe;
 };
 
+typedef struct libusb_context libusb_context;
+typedef void (*libusb_log_cb)(libusb_context *ctx, enum libusb_log_level,
+    const char *str);
+
 struct libusb_init_option {
 	enum libusb_option option;
 	union {
 		int64_t ival;
+		libusb_log_cb log_cbval;
 	} value;
 };
 
-typedef struct libusb_context libusb_context;
-typedef void (*libusb_log_cb)(libusb_context *ctx, enum libusb_log_level,
-    const char *str);
 typedef struct libusb_device libusb_device;
 typedef struct libusb_device_handle libusb_device_handle;
 typedef struct libusb_pollfd libusb_pollfd;
