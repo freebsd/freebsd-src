@@ -36,7 +36,11 @@
 .Sh SYNOPSIS
 .In pthread.h
 .Ft int
-.Fn pthread_cond_timedwait "pthread_cond_t *cond" "pthread_mutex_t *mutex" "const struct timespec *abstime"
+.Fo pthread_cond_timedwait
+.Fa "pthread_cond_t *cond"
+.Fa "pthread_mutex_t *mutex"
+.Fa "const struct timespec *abstime"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn pthread_cond_timedwait
