@@ -949,7 +949,7 @@ rpcbaddrlist(char *netid, int argc, char **argv)
 			re = &head->rpcb_entry_map;
 			printf("%10u%3u    ",
 				parms.r_prog, parms.r_vers);
-			sprintf(buf, "%s/%s/%s ",
+			snprintf(buf, sizeof(buf), "%s/%s/%s ",
 				re->r_nc_protofmly, re->r_nc_proto,
 				re->r_nc_semantics == NC_TPI_CLTS ? "clts" :
 				re->r_nc_semantics == NC_TPI_COTS ? "cots" :
