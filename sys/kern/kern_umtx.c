@@ -2934,11 +2934,10 @@ do_unlock_umutex(struct thread *td, struct umutex *m, bool rb)
 
 static int
 do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
-    struct timespec *timeout, u_long wflags)
+    struct umtx_abs_timeout *timo, u_long wflags)
 {
-	struct umtx_abs_timeout timo;
 	struct umtx_q *uq;
-	uint32_t flags, clockid, hasw;
+	uint32_t flags, hasw;
 	int error;
 
 	uq = td->td_umtxq;
@@ -2948,23 +2947,6 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 	error = umtx_key_get(cv, TYPE_CV, GET_SHARE(flags), &uq->uq_key);
 	if (error != 0)
 		return (error);
-
-	if ((wflags & CVWAIT_CLOCKID) != 0) {
-		error = fueword32(&cv->c_clockid, &clockid);
-		if (error == -1) {
-			umtx_key_release(&uq->uq_key);
-			return (EFAULT);
-		}
-		if ((clockid < CLOCK_REALTIME ||
-		    clockid >= CLOCK_THREAD_CPUTIME_ID) &&
-		    clockid != CLOCK_TAI) {
-			/* hmm, only HW clock id will work. */
-			umtx_key_release(&uq->uq_key);
-			return (EINVAL);
-		}
-	} else {
-		clockid = CLOCK_REALTIME;
-	}
 
 	umtxq_lock(&uq->uq_key);
 	umtxq_busy(&uq->uq_key);
@@ -2990,15 +2972,9 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 
 	error = do_unlock_umutex(td, m, false);
 
-	if (timeout != NULL)
-		umtx_abs_timeout_init(&timo, clockid,
-		    (wflags & CVWAIT_ABSTIME) != 0, timeout);
-
 	umtxq_lock(&uq->uq_key);
-	if (error == 0) {
-		error = umtxq_sleep(uq, "ucond", timeout == NULL ?
-		    NULL : &timo);
-	}
+	if (error == 0)
+		error = umtxq_sleep(uq, "ucond", timo);
 
 	if ((uq->uq_flags & UQF_UMTXQ) == 0)
 		error = 0;
@@ -4138,19 +4114,63 @@ static int
 __umtx_op_cv_wait(struct thread *td, struct _umtx_op_args *uap,
     const struct umtx_copyops *ops)
 {
+	struct umtx_abs_timeout *timop, timo;
 	struct timespec *ts, timeout;
+	struct _umtx_time umtime;
+	struct ucond *cv;
+	u_long wflags;
+	uint32_t clockid;
 	int error;
 
-	/* Allow a null timespec (wait forever). */
-	if (uap->uaddr2 == NULL)
-		ts = NULL;
-	else {
-		error = ops->copyin_timeout(uap->uaddr2, &timeout);
+	cv = uap->obj;
+	wflags = uap->val;
+	if ((wflags & ~(CVWAIT_CHECK_UNPARKING | CVWAIT_ABSTIME |
+	    CVWAIT_CLOCKID | CVWAIT_UMTX_TIME)) != 0 ||
+	    ((wflags & (CVWAIT_ABSTIME | CVWAIT_CLOCKID)) != 0 &&
+	    (wflags & CVWAIT_UMTX_TIME) != 0))
+		return (EINVAL);
+
+	if ((wflags & CVWAIT_UMTX_TIME) == 0) {
+		/* Allow a null timespec (wait forever). */
+		if (uap->uaddr2 == NULL) {
+			ts = NULL;
+		} else {
+			error = ops->copyin_timeout(uap->uaddr2, &timeout);
+			if (error != 0)
+				return (error);
+			ts = &timeout;
+		}
+		if ((wflags & CVWAIT_CLOCKID) != 0) {
+			error = fueword32(&cv->c_clockid, &clockid);
+			if (error == -1)
+				return (EFAULT);
+		} else {
+			clockid = CLOCK_REALTIME;
+		}
+		if (ts != NULL) {
+			umtx_abs_timeout_init(&timo, clockid,
+			    (wflags & CVWAIT_ABSTIME) != 0, ts);
+			timop = &timo;
+		} else {
+			timop = NULL;
+		}
+	} else {
+		if (uap->uaddr2 == NULL)
+			return (EINVAL);
+		error = ops->copyin_umtx_time(uap->uaddr2, ops->umtx_time_sz,
+		    &umtime);
 		if (error != 0)
 			return (error);
-		ts = &timeout;
+		timop = &timo;
+		umtx_abs_timeout_init2(timop, &umtime);
 	}
-	return (do_cv_wait(td, uap->obj, uap->uaddr1, ts, uap->val));
+	/* only HW clock id will work. */
+	if (timop != NULL && (timop->clockid < CLOCK_REALTIME ||
+	    timop->clockid >= CLOCK_THREAD_CPUTIME_ID) &&
+	    timop->clockid != CLOCK_TAI)
+		return (EINVAL);
+
+	return (do_cv_wait(td, cv, uap->uaddr1, timop, wflags));
 }
 
 static int
