@@ -410,8 +410,18 @@ struct tx_ring {
 
 	/* Soft stats */
 	unsigned long		tx_irq;
-	unsigned long		tx_packets;
-	unsigned long		tx_bytes;
+
+	/*
+	 * Free running AIM counters.  The producer updates these while
+	 * encapsulating packets, then publishes both together at the TX
+	 * doorbell.  The interrupt handler samples only the published value,
+	 * so it cannot observe one counter without the other.
+	 */
+	u32			tx_packets;
+	u32			tx_bytes;
+	uint64_t		tx_aim_snapshot __aligned(8);
+	u32			tx_packets_last;
+	u32			tx_bytes_last;
 
 	/* Saved csum offloading context information */
 	int			csum_flags;
@@ -425,6 +435,15 @@ struct tx_ring {
 	uint32_t		csum_txd_upper;
 	uint32_t		csum_txd_lower;	/* last field */
 };
+
+static __inline void
+em_aim_publish(struct tx_ring *txr)
+{
+	uint64_t snapshot;
+
+	snapshot = ((uint64_t)txr->tx_bytes << 32) | txr->tx_packets;
+	atomic_store_rel_64(&txr->tx_aim_snapshot, snapshot);
+}
 
 /*
  * The Receive ring, one per rx queue
@@ -445,12 +464,31 @@ struct rx_ring {
 	/* Soft stats */
 	unsigned long		rx_irq;
 	unsigned long		rx_discarded;
-	unsigned long		rx_packets;
-	unsigned long		rx_bytes;
+
+	/*
+	 * Free running AIM counters.  RX publishes both together when iflib
+	 * returns descriptors to hardware.  The interrupt handler samples only
+	 * the published value, so watchdog-driven RX processing cannot expose
+	 * one counter without the other.
+	 */
+	u32			rx_packets;
+	u32			rx_bytes;
+	uint64_t		rx_aim_snapshot __aligned(8);
+	u32			rx_packets_last;
+	u32			rx_bytes_last;
 
 	/* Next requested ITR latency */
 	u8			rx_nextlatency;
 };
+
+static __inline void
+em_aim_publish_rx(struct rx_ring *rxr)
+{
+	uint64_t snapshot;
+
+	snapshot = ((uint64_t)rxr->rx_bytes << 32) | rxr->rx_packets;
+	atomic_store_rel_64(&rxr->rx_aim_snapshot, snapshot);
+}
 
 struct em_tx_queue {
 	struct e1000_softc	*sc;
