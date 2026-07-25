@@ -260,6 +260,14 @@
 #define IGB_EITR_TO_INTS(i)	((IGB_EITR_DIVIDEND << IGB_EITR_SHIFT) / \
 					    ((i) & IGB_QVECTOR_MASK))
 
+/*
+ * The average packet size calculation in em_ring_itr() yields an EITR
+ * interval field value.  That field is quarter microsecond granular (see
+ * IGB_EITR_SHIFT), so an interval of V is 1000000 / (V / 4) interrupts per
+ * second.
+ */
+#define EM_AIM_DIVIDEND		(IGB_EITR_DIVIDEND << IGB_EITR_SHIFT)
+
 #define IGB_LINK_ITR		2000
 #define I210_LINK_DELAY		1000
 
@@ -478,9 +486,6 @@ struct rx_ring {
 	uint64_t		rx_aim_snapshot __aligned(8);
 	u32			rx_packets_last;
 	u32			rx_bytes_last;
-
-	/* Next requested ITR latency */
-	u8			rx_nextlatency;
 };
 
 static __inline void
