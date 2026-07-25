@@ -679,7 +679,7 @@ lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		len = le16toh(rxd->length);
 		ri->iri_len += len;
-		rxr->rx_bytes += ri->iri_len;
+		rxr->rx_bytes += len;
 
 		eop = (status & E1000_RXD_STAT_EOP) != 0;
 
@@ -745,7 +745,7 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		len = le16toh(rxd->wb.upper.length);
 		ri->iri_len += len;
-		rxr->rx_bytes += ri->iri_len;
+		rxr->rx_bytes += len;
 
 		eop = (staterr & E1000_RXD_STAT_EOP) != 0;
 
