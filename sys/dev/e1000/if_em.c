@@ -1788,7 +1788,8 @@ em_set_next_itr:
 
 		if (newitr != que->itr_setting) {
 			que->itr_setting = newitr;
-			if (hw->mac.type == e1000_82574 && que->msix) {
+			if (hw->mac.type == e1000_82574 &&
+			    sc->intr_type == IFLIB_INTR_MSIX) {
 				E1000_WRITE_REG(hw,
 				    E1000_EITR_82574(que->msix),
 				    que->itr_setting);
@@ -3809,6 +3810,19 @@ em_initialize_receive_unit(if_ctx_t ctx)
 			/* Set the default interrupt throttling rate */
 			E1000_WRITE_REG(hw, E1000_ITR,
 			    EM_INTS_TO_ITR(em_max_interrupt_rate));
+
+			/*
+			 * The 82574 MSI-X EITR registers are programmed
+			 * with the same value further below.  Either way
+			 * the hardware now holds the default rate, so seed
+			 * the software copy to match; otherwise a stale
+			 * itr_setting left over from AIM makes em_newitr()
+			 * skip the write that would restore it.
+			 */
+			for (i = 0, que = sc->rx_queues; i < sc->rx_num_queues;
+			    i++, que++)
+				que->itr_setting =
+				    EM_INTS_TO_ITR(em_max_interrupt_rate);
 		}
 
 		/* XXX TEMPORARY WORKAROUND: on some systems with 82573
@@ -4917,8 +4931,9 @@ em_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
 		hw = &tque->sc->hw;
 		if (hw->mac.type >= igb_mac_min)
 			reg = E1000_READ_REG(hw, E1000_EITR(tque->me));
-		else if (hw->mac.type == e1000_82574 && tque->msix)
-			reg = E1000_READ_REG(hw, E1000_EITR_82574(tque->me));
+		else if (hw->mac.type == e1000_82574 &&
+		    tque->sc->intr_type == IFLIB_INTR_MSIX)
+			reg = E1000_READ_REG(hw, E1000_EITR_82574(tque->msix));
 		else
 			reg = E1000_READ_REG(hw, E1000_ITR);
 	} else {
@@ -4926,7 +4941,8 @@ em_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
 		hw = &rque->sc->hw;
 		if (hw->mac.type >= igb_mac_min)
 			reg = E1000_READ_REG(hw, E1000_EITR(rque->msix));
-		else if (hw->mac.type == e1000_82574 && rque->msix)
+		else if (hw->mac.type == e1000_82574 &&
+		    rque->sc->intr_type == IFLIB_INTR_MSIX)
 			reg = E1000_READ_REG(hw,
 			    E1000_EITR_82574(rque->msix));
 		else
