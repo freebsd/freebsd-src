@@ -332,6 +332,7 @@ igc_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx)
 	struct tx_ring *txr = &que->txr;
 
 	IGC_WRITE_REG(&sc->hw, IGC_TDT(txr->me), pidx);
+	igc_aim_publish(txr);
 }
 
 static int
@@ -423,6 +424,7 @@ igc_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused,
 	struct rx_ring *rxr = &que->rxr;
 
 	IGC_WRITE_REG(&sc->hw, IGC_RDT(rxr->me), pidx);
+	igc_aim_publish_rx(rxr);
 }
 
 static int
@@ -486,7 +488,6 @@ igc_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		    le32toh(rxd->wb.lower.lo_dword.data) & IGC_PKTTYPE_MASK;
 
 		ri->iri_len += len;
-		rxr->rx_bytes += len;
 
 		rxd->wb.upper.status_error = 0;
 		eop = ((staterr & IGC_RXD_STAT_EOP) == IGC_RXD_STAT_EOP);
@@ -514,6 +515,7 @@ igc_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		i++;
 	} while (!eop);
 
+	rxr->rx_bytes += ri->iri_len;
 	rxr->rx_packets++;
 
 	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
