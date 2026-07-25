@@ -462,7 +462,7 @@ static int	em_get_rs(SYSCTL_HANDLER_ARGS);
 static void	em_print_debug_info(struct e1000_softc *);
 static int 	em_is_valid_ether_addr(u8 *);
 static void	em_newitr(struct e1000_softc *, struct em_rx_queue *,
-    struct tx_ring *, struct rx_ring *);
+    struct rx_ring *);
 static bool	em_automask_tso(if_ctx_t);
 static int	em_sysctl_tso_tcp_flags_mask(SYSCTL_HANDLER_ARGS);
 static int	em_sysctl_int_delay(SYSCTL_HANDLER_ARGS);
@@ -1641,6 +1641,47 @@ em_if_init(if_ctx_t ctx)
 	}
 }
 
+/*
+ * RX publishes its byte and packet counters as one snapshot when iflib
+ * returns descriptors to hardware.  This also covers watchdog-driven RX
+ * processing, which can run while the interrupt vector is unmasked.
+ */
+static __inline void
+em_aim_rx_delta(struct rx_ring *rxr, u32 *bytes, u32 *packets)
+{
+	uint64_t snapshot;
+	u32 now_bytes, now_packets;
+
+	snapshot = atomic_load_acq_64(&rxr->rx_aim_snapshot);
+	now_bytes = snapshot >> 32;
+	now_packets = (u32)snapshot;
+	*bytes = now_bytes - rxr->rx_bytes_last;
+	*packets = now_packets - rxr->rx_packets_last;
+	rxr->rx_bytes_last = now_bytes;
+	rxr->rx_packets_last = now_packets;
+}
+
+/*
+ * TX publishes its byte and packet counters as one snapshot at the doorbell,
+ * because encapsulation can overlap the interrupt filter.  The two halves
+ * remain independent free running u32 counters, so their deltas are correct
+ * across wrap.
+ */
+static __inline void
+em_aim_tx_delta(struct tx_ring *txr, u32 *bytes, u32 *packets)
+{
+	uint64_t snapshot;
+	u32 now_bytes, now_packets;
+
+	snapshot = atomic_load_acq_64(&txr->tx_aim_snapshot);
+	now_bytes = snapshot >> 32;
+	now_packets = (u32)snapshot;
+	*bytes = now_bytes - txr->tx_bytes_last;
+	*packets = now_packets - txr->tx_packets_last;
+	txr->tx_bytes_last = now_bytes;
+	txr->tx_packets_last = now_packets;
+}
+
 enum itr_latency_target {
 	itr_latency_disabled = 0,
 	itr_latency_lowest = 1,
@@ -1654,16 +1695,32 @@ enum itr_latency_target {
  *********************************************************************/
 static void
 em_newitr(struct e1000_softc *sc, struct em_rx_queue *que,
-    struct tx_ring *txr, struct rx_ring *rxr)
+    struct rx_ring *rxr)
 {
 	struct e1000_hw *hw = &sc->hw;
-	unsigned long bytes, bytes_per_packet, packets;
-	unsigned long rxbytes, rxpackets, txbytes, txpackets;
+	struct em_tx_queue *tx_que;
+	u32 bytes, bytes_per_packet, packets;
+	u32 ringbytes, ringpackets, rxbytes, rxpackets, txbytes, txpackets;
 	u32 newitr;
 	u8 nextlatency;
+	int i;
 
-	rxbytes = atomic_load_long(&rxr->rx_bytes);
-	txbytes = atomic_load_long(&txr->tx_bytes);
+	em_aim_rx_delta(rxr, &rxbytes, &rxpackets);
+
+	/*
+	 * A vector can service more than one TX ring when iflib is configured
+	 * with unequal RX and TX queue counts.  Sample every ring routed to
+	 * this vector rather than treating the vector as a TX queue index.
+	 */
+	txbytes = txpackets = 0;
+	for (i = 0; i < sc->tx_num_queues; i++) {
+		tx_que = &sc->tx_queues[i];
+		if (tx_que->msix != que->msix)
+			continue;
+		em_aim_tx_delta(&tx_que->txr, &ringbytes, &ringpackets);
+		txbytes += ringbytes;
+		txpackets += ringpackets;
+	}
 
 	/* Idle, do nothing */
 	if (txbytes == 0 && rxbytes == 0)
@@ -1686,15 +1743,13 @@ em_newitr(struct e1000_softc *sc, struct em_rx_queue *que,
 			goto em_set_next_itr;
 		}
 
-		bytes = bytes_per_packet = 0;
+		bytes = bytes_per_packet = packets = 0;
 		/* Get largest values from the associated tx and rx ring */
-		txpackets = atomic_load_long(&txr->tx_packets);
 		if (txpackets != 0) {
 			bytes = txbytes;
 			bytes_per_packet = txbytes / txpackets;
 			packets = txpackets;
 		}
-		rxpackets = atomic_load_long(&rxr->rx_packets);
 		if (rxpackets != 0) {
 			bytes = lmax(bytes, rxbytes);
 			bytes_per_packet =
@@ -1816,7 +1871,6 @@ em_intr(void *arg)
 	struct e1000_softc *sc = arg;
 	struct e1000_hw *hw = &sc->hw;
 	struct em_rx_queue *que = &sc->rx_queues[0];
-	struct tx_ring *txr = &sc->tx_queues[0].txr;
 	struct rx_ring *rxr = &que->rxr;
 	if_ctx_t ctx = sc->ctx;
 	u32 reg_icr;
@@ -1855,13 +1909,7 @@ em_intr(void *arg)
 		sc->rx_overruns++;
 
 	if (hw->mac.type >= e1000_82540)
-		em_newitr(sc, que, txr, rxr);
-
-	/* Reset state */
-	txr->tx_bytes = 0;
-	txr->tx_packets = 0;
-	rxr->rx_bytes = 0;
-	rxr->rx_packets = 0;
+		em_newitr(sc, que, rxr);
 
 	return (FILTER_SCHEDULE_THREAD);
 }
@@ -1916,18 +1964,11 @@ em_msix_que(void *arg)
 {
 	struct em_rx_queue *que = arg;
 	struct e1000_softc *sc = que->sc;
-	struct tx_ring *txr = &sc->tx_queues[que->msix].txr;
 	struct rx_ring *rxr = &que->rxr;
 
 	++que->irqs;
 
-	em_newitr(sc, que, txr, rxr);
-
-	/* Reset state */
-	txr->tx_bytes = 0;
-	txr->tx_packets = 0;
-	rxr->rx_bytes = 0;
-	rxr->rx_packets = 0;
+	em_newitr(sc, que, rxr);
 
 	return (FILTER_SCHEDULE_THREAD);
 }
@@ -3543,6 +3584,9 @@ em_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 		/* Set up some basics */
 
 		struct tx_ring *txr = &que->txr;
+		KASSERT(__is_aligned(&txr->tx_aim_snapshot, sizeof(uint64_t)),
+		    ("%s: misaligned TX AIM snapshot %p", __func__,
+		    &txr->tx_aim_snapshot));
 		txr->sc = que->sc = sc;
 		que->me = txr->me =  i;
 
@@ -3596,6 +3640,9 @@ em_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 	for (i = 0, que = sc->rx_queues; i < nrxqsets; i++, que++) {
 		/* Set up some basics */
 		struct rx_ring *rxr = &que->rxr;
+		KASSERT(__is_aligned(&rxr->rx_aim_snapshot, sizeof(uint64_t)),
+		    ("%s: misaligned RX AIM snapshot %p", __func__,
+		    &rxr->rx_aim_snapshot));
 		rxr->sc = que->sc = sc;
 		rxr->que = que;
 		que->me = rxr->me =  i;
