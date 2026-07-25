@@ -1103,7 +1103,7 @@ gfx_fb_flush(void)
 #if defined(EFI)
 	if (gfx_state.tg_fb_type == FB_GOP && !ignore_gop_blt &&
 	    boot_services_active) {
-		EFI_GRAPHICS_OUTPUT_PROTOCOL *gop = gfx_state.tg_private;
+		EFI_GRAPHICS_OUTPUT *gop = gfx_state.tg_private;
 		EFI_TPL tpl;
 
 		assert(gop != NULL);
