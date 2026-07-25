@@ -166,6 +166,7 @@ static int	igc_sysctl_eee(SYSCTL_HANDLER_ARGS);
 static int	igc_get_regs(SYSCTL_HANDLER_ARGS);
 
 static void	igc_configure_queues(struct igc_softc *);
+static void	igc_initialize_interrupt_rate(struct igc_softc *);
 
 
 /*********************************************************************
@@ -469,6 +470,13 @@ igc_if_attach_pre(if_ctx_t ctx)
 	INIT_DEBUGOUT("igc_if_attach_pre: begin");
 	dev = iflib_get_dev(ctx);
 	sc = iflib_get_softc(ctx);
+
+	if (igc_max_interrupt_rate <= 0) {
+		device_printf(dev,
+		    "Invalid max_interrupt_rate %d; using default %d\n",
+		    igc_max_interrupt_rate, IGC_INTS_DEFAULT);
+		igc_max_interrupt_rate = IGC_INTS_DEFAULT;
+	}
 
 	sc->ctx = sc->osdep.ctx = ctx;
 	sc->dev = sc->osdep.dev = dev;
@@ -881,6 +889,7 @@ igc_if_init(if_ctx_t ctx)
 
 	if (sc->intr_type == IFLIB_INTR_MSIX) /* Set up queue routing */
 		igc_configure_queues(sc);
+	igc_initialize_interrupt_rate(sc);
 
 	/* this clears any pending interrupts */
 	IGC_READ_REG(&sc->hw, IGC_ICR);
@@ -991,7 +1000,6 @@ igc_neweitr(struct igc_softc *sc, struct igc_rx_queue *que,
 		/* Want at least enough packet buffer for two frames to AIM */
 		if (sc->shared->isc_max_frame_size * 2 > (sc->pba << 10)) {
 			neweitr = igc_max_interrupt_rate;
-			sc->enable_aim = 0;
 			goto igc_set_next_eitr;
 		}
 
@@ -1641,7 +1649,7 @@ igc_configure_queues(struct igc_softc *sc)
 	struct igc_hw *hw = &sc->hw;
 	struct igc_rx_queue *rx_que;
 	struct igc_tx_queue *tx_que;
-	u32 ivar = 0, newitr = 0;
+	u32 ivar = 0;
 
 	/* First turn on RSS capability */
 	IGC_WRITE_REG(hw, IGC_GPIE,
@@ -1684,18 +1692,25 @@ igc_configure_queues(struct igc_softc *sc)
 	sc->link_mask = 1 << sc->linkvec;
 	IGC_WRITE_REG(hw, IGC_IVAR_MISC, ivar);
 
-	/* Set the starting interrupt rate */
-	if (igc_max_interrupt_rate > 0)
-		newitr = IGC_INTS_TO_EITR(igc_max_interrupt_rate);
+	return;
+}
 
+static void
+igc_initialize_interrupt_rate(struct igc_softc *sc)
+{
+	struct igc_hw *hw = &sc->hw;
+	struct igc_rx_queue *rx_que;
+	u32 newitr;
+
+	newitr = IGC_INTS_TO_EITR(igc_max_interrupt_rate);
 	newitr |= IGC_EITR_CNT_IGNR;
 
 	for (int i = 0; i < sc->rx_num_queues; i++) {
 		rx_que = &sc->rx_queues[i];
-		IGC_WRITE_REG(hw, IGC_EITR(rx_que->msix), newitr);
+		rx_que->eitr_setting = newitr;
+		IGC_WRITE_REG(hw, IGC_EITR(rx_que->msix),
+		    rx_que->eitr_setting);
 	}
-
-	return;
 }
 
 static void
@@ -2698,7 +2713,7 @@ igc_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
 	if (tx) {
 		tque = oidp->oid_arg1;
 		hw = &tque->sc->hw;
-		reg = IGC_READ_REG(hw, IGC_EITR(tque->me));
+		reg = IGC_READ_REG(hw, IGC_EITR(tque->msix));
 	} else {
 		rque = oidp->oid_arg1;
 		hw = &rque->sc->hw;
@@ -2707,7 +2722,7 @@ igc_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
 
 	usec = (reg & IGC_QVECTOR_MASK);
 	if (usec > 0)
-		rate = IGC_INTS_TO_EITR(usec);
+		rate = IGC_EITR_TO_INTS(usec);
 	else
 		rate = 0;
 
