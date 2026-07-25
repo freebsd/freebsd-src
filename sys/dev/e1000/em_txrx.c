@@ -478,6 +478,8 @@ em_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx)
 	struct tx_ring *txr = &que->txr;
 
 	E1000_WRITE_REG(&sc->hw, E1000_TDT(txr->me), pidx);
+	if (sc->hw.mac.type >= e1000_82540)
+		em_aim_publish(txr);
 }
 
 static int
@@ -603,6 +605,8 @@ em_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused,
 	struct rx_ring *rxr = &que->rxr;
 
 	E1000_WRITE_REG(&sc->hw, E1000_RDT(rxr->me), pidx);
+	if (sc->hw.mac.type >= e1000_82540)
+		em_aim_publish_rx(rxr);
 }
 
 static int
@@ -681,7 +685,6 @@ lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		len = le16toh(rxd->length);
 		ri->iri_len += len;
-		rxr->rx_bytes += len;
 
 		eop = (status & E1000_RXD_STAT_EOP) != 0;
 
@@ -703,6 +706,7 @@ lem_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		i++;
 	} while (!eop);
 
+	rxr->rx_bytes += ri->iri_len;
 	rxr->rx_packets++;
 
 	if (scctx->isc_capenable & IFCAP_RXCSUM)
@@ -747,7 +751,6 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		len = le16toh(rxd->wb.upper.length);
 		ri->iri_len += len;
-		rxr->rx_bytes += len;
 
 		eop = (staterr & E1000_RXD_STAT_EOP) != 0;
 
@@ -768,6 +771,7 @@ em_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		i++;
 	} while (!eop);
 
+	rxr->rx_bytes += ri->iri_len;
 	rxr->rx_packets++;
 
 	if (scctx->isc_capenable & IFCAP_RXCSUM)
