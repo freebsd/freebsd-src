@@ -5,15 +5,18 @@
  *
  */
 
+#include <sys/cdefs.h>
 #include <unistd.h>
 
 static int exit_code = -1;
 static bool fatal_atexit;
 
-extern "C" {
-	void set_fatal_atexit(bool);
-	void set_exit_code(int);
-}
+__BEGIN_DECLS
+
+void set_fatal_atexit(bool);
+void set_exit_code(int);
+
+__END_DECLS
 
 void
 set_fatal_atexit(bool fexit)
