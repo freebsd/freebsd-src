@@ -171,8 +171,10 @@
 #define IGC_EITR_DIVIDEND	1000000
 #define IGC_EITR_SHIFT		2
 #define IGC_QVECTOR_MASK	0x7FFC
-#define IGC_INTS_TO_EITR(i)	(((IGC_EITR_DIVIDEND/i) & IGC_QVECTOR_MASK) << \
-				    IGC_EITR_SHIFT)
+#define IGC_INTS_TO_EITR(i)	\
+	(((IGC_EITR_DIVIDEND / (i)) << IGC_EITR_SHIFT) & IGC_QVECTOR_MASK)
+#define IGC_EITR_TO_INTS(i)	((IGC_EITR_DIVIDEND << IGC_EITR_SHIFT) / \
+					    ((i) & IGC_QVECTOR_MASK))
 
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
