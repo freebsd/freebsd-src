@@ -46,11 +46,14 @@ _Static_assert(sizeof(struct pthread_cond) <= THR_PAGE_SIZE_MIN,
 /*
  * Prototypes
  */
+int __pthread_cond_clockwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
+    clockid_t clockid, const struct timespec *abstime);
 int __pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
     const struct timespec * abstime);
 static int cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);
 static int cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
-    const struct timespec *abstime, bool cancel);
+    clockid_t clockid, const struct timespec *abstime, bool cancel,
+    bool clockwait);
 static int cond_signal_common(pthread_cond_t *cond);
 static int cond_broadcast_common(pthread_cond_t *cond);
 
@@ -64,6 +67,7 @@ __weak_reference(__thr_cond_wait, __pthread_cond_wait);
 __weak_reference(_thr_cond_wait, _pthread_cond_wait);
 __weak_reference(__pthread_cond_timedwait, pthread_cond_timedwait);
 __weak_reference(_thr_cond_timedwait, _pthread_cond_timedwait);
+__weak_reference(__pthread_cond_clockwait, pthread_cond_clockwait);
 __weak_reference(_thr_cond_init, pthread_cond_init);
 __weak_reference(_thr_cond_init, _pthread_cond_init);
 __weak_reference(_thr_cond_destroy, pthread_cond_destroy);
@@ -202,9 +206,11 @@ _thr_cond_destroy(pthread_cond_t *cond)
  */
 static int
 cond_wait_kernel(struct pthread_cond *cvp, struct pthread_mutex *mp,
-    const struct timespec *abstime, bool cancel)
+    clockid_t clockid, const struct timespec *abstime, bool cancel,
+    bool clockwait)
 {
 	struct pthread *curthread;
+	struct _umtx_time utime;
 	int error, error2, recurse, robust;
 
 	curthread = _get_curthread();
@@ -219,8 +225,16 @@ cond_wait_kernel(struct pthread_cond *cvp, struct pthread_mutex *mp,
 
 	if (cancel)
 		_thr_cancel_enter2(curthread, 0);
-	error = _thr_ucond_wait(&cvp->kcond, &mp->m_lock, abstime,
-	    CVWAIT_ABSTIME | CVWAIT_CLOCKID);
+	if (clockwait) {
+		utime._timeout = *abstime;
+		utime._flags = UMTX_ABSTIME;
+		utime._clockid = clockid;
+		error = _thr_ucond_wait(&cvp->kcond, &mp->m_lock, NULL,
+		    &utime, CVWAIT_UMTX_TIME);
+	} else {
+		error = _thr_ucond_wait(&cvp->kcond, &mp->m_lock, abstime,
+		    NULL, CVWAIT_ABSTIME | CVWAIT_CLOCKID);
+	}
 	if (cancel)
 		_thr_cancel_leave(curthread, 0);
 
@@ -274,7 +288,7 @@ cond_wait_kernel(struct pthread_cond *cvp, struct pthread_mutex *mp,
 
 static int
 cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
-    const struct timespec *abstime, bool cancel)
+    clockid_t clockid, const struct timespec *abstime, bool cancel)
 {
 	struct pthread *curthread;
 	struct sleepqueue *sq;
@@ -315,7 +329,7 @@ cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
 
 		if (cancel)
 			_thr_cancel_enter2(curthread, 0);
-		error = _thr_sleep(curthread, cvp->kcond.c_clockid, abstime);
+		error = _thr_sleep(curthread, clockid, abstime);
 		if (cancel)
 			_thr_cancel_leave(curthread, 0);
 
@@ -350,7 +364,8 @@ cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
 
 static int
 cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
-    const struct timespec *abstime, bool cancel)
+    clockid_t clockid, const struct timespec *abstime, bool cancel,
+    bool clockwait)
 {
 	struct pthread	*curthread = _get_curthread();
 	struct pthread_cond *cvp;
@@ -358,6 +373,9 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 	int error;
 
 	CHECK_AND_INIT_COND
+
+	if (!clockwait)
+		clockid = cvp->kcond.c_clockid;
 
 	if (*mutex == THR_PSHARED_PTR) {
 		mp = __thr_pshared_offpage(mutex, 0);
@@ -372,23 +390,25 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 
 	if (curthread->attr.sched_policy != SCHED_OTHER ||
 	    (mp->m_lock.m_flags & (UMUTEX_PRIO_PROTECT | UMUTEX_PRIO_INHERIT |
-	    USYNC_PROCESS_SHARED)) != 0 || CV_PSHARED(cvp))
-		return (cond_wait_kernel(cvp, mp, abstime, cancel));
-	else
-		return (cond_wait_user(cvp, mp, abstime, cancel));
+	    USYNC_PROCESS_SHARED)) != 0 || CV_PSHARED(cvp)) {
+		return (cond_wait_kernel(cvp, mp, clockid, abstime, cancel,
+		    clockwait));
+	} else {
+		return (cond_wait_user(cvp, mp, clockid, abstime, cancel));
+	}
 }
 
 int
 _thr_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 {
-	return (cond_wait_common(cond, mutex, NULL, false));
+	return (cond_wait_common(cond, mutex, 0, NULL, false, false));
 }
 
 int
 __thr_cond_wait(pthread_cond_t * __restrict cond,
     pthread_mutex_t * __restrict mutex)
 {
-	return (cond_wait_common(cond, mutex, NULL, true));
+	return (cond_wait_common(cond, mutex, 0, NULL, true, false));
 }
 
 int
@@ -400,18 +420,30 @@ _thr_cond_timedwait(pthread_cond_t * __restrict cond,
 	    abstime->tv_nsec >= 1000000000)
 		return (EINVAL);
 
-	return (cond_wait_common(cond, mutex, abstime, false));
+	return (cond_wait_common(cond, mutex, 0, abstime, false, false));
 }
 
 int
 __pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
-		       const struct timespec *abstime)
+    const struct timespec *abstime)
 {
 	if (abstime == NULL || abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
 	    abstime->tv_nsec >= 1000000000)
 		return (EINVAL);
 
-	return (cond_wait_common(cond, mutex, abstime, true));
+	return (cond_wait_common(cond, mutex, 0, abstime, true, false));
+}
+
+int
+__pthread_cond_clockwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
+    clockid_t clockid, const struct timespec *abstime)
+{
+
+	if (abstime == NULL || abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
+	    abstime->tv_nsec >= 1000000000)
+		return (EINVAL);
+
+	return (cond_wait_common(cond, mutex, clockid, abstime, true, true));
 }
 
 static int

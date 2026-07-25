@@ -28,6 +28,7 @@
 
 #include "thr_private.h"
 #include "thr_umtx.h"
+#include <assert.h>
 
 void
 _thr_umutex_init(struct umutex *mtx)
@@ -242,20 +243,35 @@ _thr_ucond_init(struct ucond *cv)
 
 int
 _thr_ucond_wait(struct ucond *cv, struct umutex *m,
-    const struct timespec *timeout, int flags)
+    const struct timespec *timeout, const struct _umtx_time *utimep, int flags)
 {
 	struct pthread *curthread;
+	const struct timespec *ts;
+	void *arg2;
 
-	if (timeout != NULL && (timeout->tv_sec < 0 || (timeout->tv_sec == 0 &&
-	    timeout->tv_nsec <= 0))) {
+	assert(timeout == NULL || utimep == NULL);
+	if (timeout != NULL) {
+		ts = timeout;
+		arg2 = __DECONST(void *, timeout);
+		assert((flags & CVWAIT_UMTX_TIME) == 0);
+	} else if (utimep != NULL) {
+		ts = &utimep->_timeout;
+		arg2 = __DECONST(void *, utimep);
+		assert((flags & CVWAIT_UMTX_TIME) != 0);
+	} else {
+		ts = NULL;
+		arg2 = NULL;
+		assert((flags & CVWAIT_UMTX_TIME) == 0);
+	}
+	if (ts != NULL && (ts->tv_sec < 0 || (ts->tv_sec == 0 &&
+	    ts->tv_nsec <= 0))) {
 		curthread = _get_curthread();
 		_thr_umutex_unlock(m, TID(curthread));
                 return (ETIMEDOUT);
 	}
-	return (_umtx_op_err(cv, UMTX_OP_CV_WAIT, flags, m,
-	    __DECONST(void *, timeout)));
+	return (_umtx_op_err(cv, UMTX_OP_CV_WAIT, flags, m, arg2));
 }
- 
+
 int
 _thr_ucond_signal(struct ucond *cv)
 {
