@@ -41,10 +41,20 @@
 .Fa "pthread_mutex_t *mutex"
 .Fa "const struct timespec *abstime"
 .Fc
+.In time.h
+.Ft int
+.Fo pthread_cond_clockwait
+.Fa "pthread_cond_t *cond"
+.Fa "pthread_mutex_t *mutex"
+.Fa "clockid_t clockid"
+.Fa "const struct timespec *abstime"
+.Fc
 .Sh DESCRIPTION
 The
 .Fn pthread_cond_timedwait
-function atomically blocks the current thread waiting on the condition
+and
+.Fn pthread_cond_clockwait
+functions atomically blocks the current thread waiting on the condition
 variable specified by
 .Fa cond ,
 and releases the mutex specified by
@@ -59,10 +69,22 @@ time specified in
 and the current thread reacquires the lock on
 .Fa mutex .
 .Pp
-The clock used to measure
+The
+.Fn pthread_cond_clockwait
+function is identical to
+.Fn pthread_cond_timedwait ,
+except in the way the clock to measure time-out is named.
+For the
+.Fn pthread_cond_timedwait
+function, the clock used to measure
 .Fa abstime
 can be specified during creation of the condition variable using
 .Xr pthread_condattr_setclock 3 .
+For the
+.Fn pthread_cond_clockwait
+function, the clock is specified by the
+.Fa clockid
+argument.
 .Sh RETURN VALUES
 If successful, the
 .Fn pthread_cond_timedwait
@@ -101,3 +123,9 @@ The
 .Fn pthread_cond_timedwait
 function conforms to
 .St -p1003.1-96 .
+The
+.Fn pthread_cond_clockwait
+function conforms to
+.St -p1003.1-2024
+and appeared in
+.Fx 16.0 .
