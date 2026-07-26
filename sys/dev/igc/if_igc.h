@@ -177,6 +177,14 @@
 					    ((i) & IGC_QVECTOR_MASK))
 
 /*
+ * The average packet size calculation in igc_ring_itr() yields an EITR
+ * interval field value.  That field is quarter microsecond granular (see
+ * IGC_EITR_SHIFT), so an interval of V is 1000000 / (V / 4) interrupts per
+ * second.
+ */
+#define IGC_AIM_DIVIDEND	(IGC_EITR_DIVIDEND << IGC_EITR_SHIFT)
+
+/*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
  * multiple of 128 bytes. So we align TDBA/RDBA on 128 byte boundary. This will
  * also optimize cache line size effect. H/W supports up to cache line size 128.
@@ -299,9 +307,6 @@ struct rx_ring {
 	uint64_t		rx_aim_snapshot __aligned(8);
 	u32			rx_packets_last;
 	u32			rx_bytes_last;
-
-        /* Next requested EITR latency */
-        u8			rx_nextlatency;
 };
 
 static __inline void
