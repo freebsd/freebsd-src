@@ -46,11 +46,11 @@ _Static_assert(sizeof(struct pthread_cond) <= THR_PAGE_SIZE_MIN,
 /*
  * Prototypes
  */
-int	__pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
-		       const struct timespec * abstime);
+int __pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
+    const struct timespec * abstime);
 static int cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);
 static int cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
-		    const struct timespec *abstime, int cancel);
+    const struct timespec *abstime, bool cancel);
 static int cond_signal_common(pthread_cond_t *cond);
 static int cond_broadcast_common(pthread_cond_t *cond);
 
@@ -202,7 +202,7 @@ _thr_cond_destroy(pthread_cond_t *cond)
  */
 static int
 cond_wait_kernel(struct pthread_cond *cvp, struct pthread_mutex *mp,
-    const struct timespec *abstime, int cancel)
+    const struct timespec *abstime, bool cancel)
 {
 	struct pthread *curthread;
 	int error, error2, recurse, robust;
@@ -274,7 +274,7 @@ cond_wait_kernel(struct pthread_cond *cvp, struct pthread_mutex *mp,
 
 static int
 cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
-    const struct timespec *abstime, int cancel)
+    const struct timespec *abstime, bool cancel)
 {
 	struct pthread *curthread;
 	struct sleepqueue *sq;
@@ -350,12 +350,12 @@ cond_wait_user(struct pthread_cond *cvp, struct pthread_mutex *mp,
 
 static int
 cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
-	const struct timespec *abstime, int cancel)
+    const struct timespec *abstime, bool cancel)
 {
 	struct pthread	*curthread = _get_curthread();
 	struct pthread_cond *cvp;
 	struct pthread_mutex *mp;
-	int	error;
+	int error;
 
 	CHECK_AND_INIT_COND
 
@@ -381,16 +381,14 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 int
 _thr_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 {
-
-	return (cond_wait_common(cond, mutex, NULL, 0));
+	return (cond_wait_common(cond, mutex, NULL, false));
 }
 
 int
 __thr_cond_wait(pthread_cond_t * __restrict cond,
     pthread_mutex_t * __restrict mutex)
 {
-
-	return (cond_wait_common(cond, mutex, NULL, 1));
+	return (cond_wait_common(cond, mutex, NULL, true));
 }
 
 int
@@ -398,24 +396,22 @@ _thr_cond_timedwait(pthread_cond_t * __restrict cond,
     pthread_mutex_t * __restrict mutex,
     const struct timespec * __restrict abstime)
 {
-
 	if (abstime == NULL || abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
 	    abstime->tv_nsec >= 1000000000)
 		return (EINVAL);
 
-	return (cond_wait_common(cond, mutex, abstime, 0));
+	return (cond_wait_common(cond, mutex, abstime, false));
 }
 
 int
 __pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
 		       const struct timespec *abstime)
 {
-
 	if (abstime == NULL || abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
 	    abstime->tv_nsec >= 1000000000)
 		return (EINVAL);
 
-	return (cond_wait_common(cond, mutex, abstime, 1));
+	return (cond_wait_common(cond, mutex, abstime, true));
 }
 
 static int
