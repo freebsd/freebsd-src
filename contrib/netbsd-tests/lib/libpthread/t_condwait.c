@@ -47,25 +47,41 @@ __RCSID("$NetBSD: t_condwait.c,v 1.8 2019/08/11 11:42:23 martin Exp $");
 
 static const int debug = 1;
 
+struct run_param {
+	clockid_t clck;
+	bool clockwait;
+	bool pshared;
+};
+
 static void *
 run(void *param)
 {
 	struct timespec ts, to, te, twmin, twmax;
-	clockid_t clck;
-	pthread_condattr_t attr;
+	struct run_param *rp;
+	pthread_condattr_t cattr;
 	pthread_cond_t cond;
-	pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;
+	pthread_mutexattr_t mattr;
+	pthread_mutex_t m;
 	int ret = 0;
 
+	rp = param;
 
-	clck = *(clockid_t *)param;
-	PTHREAD_REQUIRE(pthread_condattr_init(&attr));
-	PTHREAD_REQUIRE(pthread_condattr_setclock(&attr, clck));
-	pthread_cond_init(&cond, &attr);
+	PTHREAD_REQUIRE(pthread_condattr_init(&cattr));
+	PTHREAD_REQUIRE(pthread_mutexattr_init(&mattr));
+	if (!rp->clockwait)
+		PTHREAD_REQUIRE(pthread_condattr_setclock(&cattr, rp->clck));
+	if (rp->pshared) {
+		PTHREAD_REQUIRE(pthread_condattr_setpshared(&cattr,
+		    PTHREAD_PROCESS_SHARED));
+		PTHREAD_REQUIRE(pthread_mutexattr_setpshared(&mattr,
+		    PTHREAD_PROCESS_SHARED));
+	}
+	pthread_mutex_init(&m, &mattr);
+	pthread_cond_init(&cond, &cattr);
 
 	ATF_REQUIRE_EQ((ret = pthread_mutex_lock(&m)), 0);
 
-	ATF_REQUIRE_EQ(clock_gettime(clck, &ts), 0);
+	ATF_REQUIRE_EQ(clock_gettime(rp->clck, &ts), 0);
 	to = ts;
 
 	if (debug)
@@ -74,10 +90,14 @@ run(void *param)
 
 	ts.tv_sec += WAITTIME;	/* Timeout wait */
 
-	switch (ret = pthread_cond_timedwait(&cond, &m, &ts)) {
+	if (rp->clockwait)
+		ret = pthread_cond_clockwait(&cond, &m, rp->clck, &ts);
+	else
+		ret = pthread_cond_timedwait(&cond, &m, &ts);
+	switch (ret) {
 	case ETIMEDOUT:
 		/* Timeout */
-		ATF_REQUIRE_EQ(clock_gettime(clck, &te), 0);
+		ATF_REQUIRE_EQ(clock_gettime(rp->clck, &te), 0);
 		timespecsub(&te, &to, &to);
 		if (debug) {
 			printf("timeout: %lld.%09ld sec\n",
@@ -113,12 +133,18 @@ run(void *param)
 }
 
 static void
-cond_wait(clockid_t clck, const char *msg) {
+cond_wait(clockid_t clck, bool clockwait, bool pshared, const char *msg)
+{
 	pthread_t child;
+	struct run_param rp;
+
+	rp.clck = clck;
+	rp.clockwait = clockwait;
+	rp.pshared = pshared;
 
 	if (debug)
 		printf( "**** %s clock wait starting\n", msg);
-	ATF_REQUIRE_EQ(pthread_create(&child, NULL, run, &clck), 0);
+	ATF_REQUIRE_EQ(pthread_create(&child, NULL, run, &rp), 0);
 	ATF_REQUIRE_EQ(pthread_join(child, NULL), 0); /* wait for terminate */
 	if (debug)
 		printf( "**** %s clock wait ended\n", msg);
@@ -127,28 +153,76 @@ cond_wait(clockid_t clck, const char *msg) {
 ATF_TC(cond_wait_real);
 ATF_TC_HEAD(cond_wait_real, tc)
 {
-	atf_tc_set_md_var(tc, "descr", "Checks pthread_cond_timedwait "
-	    "with CLOCK_REALTIME");
+	atf_tc_set_md_var(tc, "descr",
+	    "Checks pthread_cond_timedwait with CLOCK_REALTIME");
 }
 
 ATF_TC_BODY(cond_wait_real, tc) {
-	cond_wait(CLOCK_REALTIME, "CLOCK_REALTIME");
+	cond_wait(CLOCK_REALTIME, false, false, "CLOCK_REALTIME");
 }
 
 ATF_TC(cond_wait_mono);
 ATF_TC_HEAD(cond_wait_mono, tc)
 {
-	atf_tc_set_md_var(tc, "descr", "Checks pthread_cond_timedwait "
-	    "with CLOCK_MONOTONIC");
+	atf_tc_set_md_var(tc, "descr",
+	    "Checks pthread_cond_timedwait with CLOCK_MONOTONIC");
 }
 
 ATF_TC_BODY(cond_wait_mono, tc) {
-	cond_wait(CLOCK_MONOTONIC, "CLOCK_MONOTONIC");
+	cond_wait(CLOCK_MONOTONIC, false, false, "CLOCK_MONOTONIC");
+}
+
+ATF_TC(cond_clockwait_real);
+ATF_TC_HEAD(cond_clockwait_real, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Checks pthread_cond_clockwait with CLOCK_REALTIME");
+}
+
+ATF_TC_BODY(cond_clockwait_real, tc) {
+	cond_wait(CLOCK_REALTIME, true, false, "CLOCK_REALTIME");
+}
+
+ATF_TC(cond_clockwait_mono);
+ATF_TC_HEAD(cond_clockwait_mono, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Checks pthread_cond_clockwait with CLOCK_MONOTONIC");
+}
+
+ATF_TC_BODY(cond_clockwait_mono, tc) {
+	cond_wait(CLOCK_MONOTONIC, true, false, "CLOCK_MONOTONIC");
+}
+
+ATF_TC(cond_klockwait_real);
+ATF_TC_HEAD(cond_klockwait_real, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+    "Checks pthread_cond_clockwait with CLOCK_REALTIME calling kernel");
+}
+
+ATF_TC_BODY(cond_klockwait_real, tc) {
+	cond_wait(CLOCK_REALTIME, true, true, "CLOCK_REALTIME");
+}
+
+ATF_TC(cond_klockwait_mono);
+ATF_TC_HEAD(cond_klockwait_mono, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+    "Checks pthread_cond_clockwait with CLOCK_MONOTONIC calling kernel");
+}
+
+ATF_TC_BODY(cond_klockwait_mono, tc) {
+	cond_wait(CLOCK_MONOTONIC, true, true, "CLOCK_MONOTONIC");
 }
 
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, cond_wait_real);
 	ATF_TP_ADD_TC(tp, cond_wait_mono);
+	ATF_TP_ADD_TC(tp, cond_clockwait_real);
+	ATF_TP_ADD_TC(tp, cond_clockwait_mono);
+	ATF_TP_ADD_TC(tp, cond_klockwait_real);
+	ATF_TP_ADD_TC(tp, cond_klockwait_mono);
 	return atf_no_error();
 }
