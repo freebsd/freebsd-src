@@ -1743,15 +1743,16 @@ xhci_do_poll(struct usb_bus *bus)
  * td_next: the TD to link to (qwTrb0 is set to its physical address), or
  *          NULL when this is the end of the static chain (xhci_transfer_insert
  *          will later overwrite qwTrb0 with the ring-return address).
- * last:    when true, CHAIN_BIT is NOT set on this link TRB; the hardware
- *          treats it as a TD boundary.  When false, CHAIN_BIT is set so
- *          the hardware continues to the next TD without a TD boundary.
+ * chain:   when true, CHAIN_BIT is set on this link TRB so the hardware
+ *          continues into td_next without a TD boundary; this is used when
+ *          one transfer frame spans multiple xhci_td objects.  When false
+ *          the link TRB ends the hardware TD.
  *
- * NOTE: isochronous transfers must always use last=true (no CHAIN) even for
- * non-final frames; see xhci_setup_isoc() for the rationale.
+ * NOTE: link TRBs between two frames must not use chain=true; in particular
+ * isochronous frames must never be chained, see xhci_setup_isoc().
  */
 static void
-xhci_td_fill_link(struct xhci_td *td, struct xhci_td *td_next, bool last)
+xhci_td_fill_link(struct xhci_td *td, struct xhci_td *td_next, bool chain)
 {
 	struct xhci_trb *trb;
 	uint32_t dword;
@@ -1761,86 +1762,140 @@ xhci_td_fill_link(struct xhci_td *td, struct xhci_td *td_next, bool last)
 	trb->dwTrb2 = 0;
 	dword = XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_LINK) | XHCI_TRB_3_CYCLE_BIT |
 	    XHCI_TRB_3_IOC_BIT;
+	if (chain)
+		dword |= XHCI_TRB_3_CHAIN_BIT;
 	trb->dwTrb3 = htole32(dword);
-	(void)last;
 }
 
 /*
  * Build Normal TRBs for one transfer frame.
+ *
+ * A single xhci_td holds TRBs for at most XHCI_TD_PAYLOAD_MAX bytes.
+ * Larger frames are split across consecutive TDs, pre-allocated by
+ * xhci_xfer_setup(), whose link TRBs carry CHAIN_BIT so that the hardware
+ * treats the whole frame as one TD.  Returns the last TD used; the caller
+ * must take its obj_next to reach the TD for the next frame.
  *
  * cache:   DMA page cache containing the data.
  * offset:  byte offset within cache (non-zero for isochronous frames that
  *          share a single frbuffer[0]).
  * len:     number of bytes in this frame (0 = zero-length packet).
  * mps:     maximum packet size of the endpoint.
- * td:      transfer descriptor to fill.
- * td_next: next TD in the chain (for the link TRB), or NULL if last.
+ * td:      first transfer descriptor to fill.
  * is_in:   true for an IN endpoint (ISP_BIT is set on data TRBs).
  * step_td: if true, leave CYCLE_BIT clear on the first TRB so that
  *          xhci_activate_transfer() can start it later (bulk IN stepping).
- * last:    true if this is the last TD of the transfer.
+ * last:    true if this is the last frame of the transfer.
  */
-static void
+static struct xhci_td *
 xhci_setup_normal_trbs(struct usb_page_cache *cache, uint32_t offset,
-    uint32_t len, uint32_t mps, struct xhci_td *td, struct xhci_td *td_next,
-    bool is_in, bool step_td, bool last)
+    uint32_t len, uint32_t mps, struct xhci_td *td, bool is_in, bool step_td,
+    bool last)
 {
 	struct xhci_trb *trb;
 	struct usb_page_search search;
-	uint32_t cur_len, seg_len, npkt, dword;
+	struct xhci_td *td_first;
+	struct xhci_td *td_alt_next;
+	uint32_t cur_len, td_end, seg_len, npkt, dword;
+	bool is_final;
 	int i;
 
-	trb = NULL;
+	td_first = td;
 	cur_len = 0;
-	i = 0;
 
-	do {
-		trb = &td->td_trb[i];
-		if (len > 0) {
-			usbd_get_page(cache, offset + cur_len, &search);
-			seg_len = search.length;
-			if (cur_len + seg_len > len)
-				seg_len = len - cur_len;
-			if (seg_len > XHCI_TD_PAGE_SIZE)
-				seg_len = XHCI_TD_PAGE_SIZE;
-			cur_len += seg_len;
-		} else {
-			/* Zero-length packet: no data buffer */
-			memset(&search, 0, sizeof(search));
-			seg_len = 0;
+	for (;;) {
+		/* Number of bytes described by the current TD */
+		td->len = len - cur_len;
+		if (td->len > XHCI_TD_PAYLOAD_MAX)
+			td->len = XHCI_TD_PAYLOAD_MAX;
+		td_end = cur_len + td->len;
+
+		i = 0;
+		do {
+			trb = &td->td_trb[i];
+			if (len > 0) {
+				usbd_get_page(cache, offset + cur_len, &search);
+				seg_len = search.length;
+				if (cur_len + seg_len > td_end)
+					seg_len = td_end - cur_len;
+				if (seg_len > XHCI_TD_PAGE_SIZE)
+					seg_len = XHCI_TD_PAGE_SIZE;
+				cur_len += seg_len;
+			} else {
+				/* Zero-length packet: no data buffer */
+				memset(&search, 0, sizeof(search));
+				seg_len = 0;
+			}
+
+			/* TD size counts the packets left in the frame */
+			npkt = howmany(len - cur_len, mps);
+			if (npkt > 31)
+				npkt = 31;
+
+			trb->qwTrb0 = htole64(search.physaddr);
+			trb->dwTrb2 = htole32(XHCI_TRB_2_BYTES_SET(seg_len) |
+			    XHCI_TRB_2_TDSZ_SET(npkt));
+			dword = XHCI_TRB_3_CHAIN_BIT |
+			    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL);
+			if (is_in)
+				dword |= XHCI_TRB_3_ISP_BIT;
+			/* First TRB of the frame: omit CYCLE if stepping */
+			if (td != td_first || i > 0 || !step_td)
+				dword |= XHCI_TRB_3_CYCLE_BIT;
+			trb->dwTrb3 = htole32(dword);
+			i++;
+		} while (cur_len < td_end);
+
+		is_final = (cur_len == len);
+
+		/*
+		 * Last data TRB of each TD: add IOC so that the interrupt
+		 * handler gets an event to advance td_transfer_cache.  On
+		 * the frame's final data TRB additionally remove CHAIN and
+		 * clear the TD size.
+		 */
+		trb->dwTrb3 |= htole32(XHCI_TRB_3_IOC_BIT);
+		if (is_final) {
+			trb->dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);
+			trb->dwTrb2 &= ~htole32(XHCI_TRB_2_TDSZ_SET(31));
 		}
 
-		npkt = howmany(len - cur_len, mps);
-		if (npkt > 31)
-			npkt = 31;
+		td->ntrb = i;
+		td->remainder = 0;
+		td->status = 0;
 
-		trb->qwTrb0 = htole64(search.physaddr);
-		trb->dwTrb2 = htole32(
-		    XHCI_TRB_2_BYTES_SET(seg_len) | XHCI_TRB_2_TDSZ_SET(npkt));
-		dword = XHCI_TRB_3_CHAIN_BIT |
-		    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_NORMAL);
-		if (is_in)
-			dword |= XHCI_TRB_3_ISP_BIT;
-		/* First TRB: omit CYCLE if stepping */
-		if (i > 0 || !step_td)
-			dword |= XHCI_TRB_3_CYCLE_BIT;
-		trb->dwTrb3 = htole32(dword);
-		i++;
-	} while (cur_len < len);
+		/*
+		 * Intermediate link TRBs keep CHAIN_BIT set so that the
+		 * frame continues into the next TD without a TD boundary.
+		 */
+		xhci_td_fill_link(td, (is_final && last) ? NULL : td->obj_next,
+		    !is_final);
 
-	/* Last data TRB: remove CHAIN, add IOC, clear TD size */
-	trb->dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);
-	trb->dwTrb3 |= htole32(XHCI_TRB_3_IOC_BIT);
-	trb->dwTrb2 &= ~htole32(XHCI_TRB_2_TDSZ_SET(31));
+		if (is_final)
+			break;
 
-	td->ntrb = i;
-	td->len = len;
-	td->remainder = 0;
-	td->status = 0;
-	td->alt_next = last ? NULL : td_next;
+		if (td->obj_next == NULL)
+			panic("%s: out of XHCI transfer descriptors!",
+			    __FUNCTION__);
+		td = td->obj_next;
+	}
 
-	xhci_td_fill_link(td, td_next, last);
-	usb_pc_cpu_flush(td->page_cache);
+	/*
+	 * All TDs of one frame must share the same alt_next:
+	 * xhci_generic_done_sub() uses an alt_next change to detect the end
+	 * of a frame, and a short packet must skip ahead to the next frame,
+	 * not to the next TD of the same frame.
+	 */
+	td_alt_next = last ? NULL : td->obj_next;
+	for (;;) {
+		td_first->alt_next = td_alt_next;
+		usb_pc_cpu_flush(td_first->page_cache);
+		if (td_first == td)
+			break;
+		td_first = td_first->obj_next;
+	}
+
+	return (td);
 }
 
 /*
@@ -1895,8 +1950,7 @@ xhci_setup_ctrl(struct usb_xfer *xfer, struct xhci_td *td)
 		td->status = 0;
 		td->alt_next = setup_only ? NULL : td->obj_next;
 
-		xhci_td_fill_link(td, setup_only ? NULL : td->obj_next,
-		    setup_only);
+		xhci_td_fill_link(td, setup_only ? NULL : td->obj_next, false);
 		usb_pc_cpu_flush(td->page_cache);
 
 		if (setup_only)
@@ -1966,7 +2020,7 @@ xhci_setup_ctrl(struct usb_xfer *xfer, struct xhci_td *td)
 		td->status = 0;
 		td->alt_next = is_last ? NULL : td->obj_next;
 
-		xhci_td_fill_link(td, is_last ? NULL : td->obj_next, is_last);
+		xhci_td_fill_link(td, is_last ? NULL : td->obj_next, false);
 		usb_pc_cpu_flush(td->page_cache);
 
 		if (is_last)
@@ -2002,7 +2056,7 @@ xhci_setup_ctrl(struct usb_xfer *xfer, struct xhci_td *td)
 	td->status = 0;
 	td->alt_next = NULL;
 
-	xhci_td_fill_link(td, NULL, true);
+	xhci_td_fill_link(td, NULL, false);
 	usb_pc_cpu_flush(td->page_cache);
 
 	return (td);
@@ -2030,11 +2084,10 @@ xhci_setup_bulk(struct usb_xfer *xfer, struct xhci_td *td)
 		 * calls xhci_activate_transfer().
 		 */
 		bool step_td = is_in && (i != 0) && !multishort;
-		struct xhci_td *td_next = is_last ? NULL : td->obj_next;
 
-		xhci_setup_normal_trbs(&xfer->frbuffers[i], 0,
-		    xfer->frlengths[i], xfer->max_packet_size, td, td_next,
-		    is_in, step_td, is_last);
+		td = xhci_setup_normal_trbs(&xfer->frbuffers[i], 0,
+		    xfer->frlengths[i], xfer->max_packet_size, td, is_in,
+		    step_td, is_last);
 		td_last = td;
 		td = td->obj_next;
 	}
@@ -2056,8 +2109,7 @@ xhci_setup_bulk(struct usb_xfer *xfer, struct xhci_td *td)
 
 		if (last_len > 0 && (last_len % xfer->max_packet_size) == 0) {
 			xhci_setup_normal_trbs(NULL, 0, 0,
-			    xfer->max_packet_size, td, NULL, is_in, false,
-			    true);
+			    xfer->max_packet_size, td, is_in, false, true);
 			/*
 			 * Fix the previous TD's link TRB: point to the ZLP TD
 			 * and set CHAIN_BIT.  The address fix is necessary
@@ -2279,10 +2331,10 @@ xhci_setup_isoc(struct usb_xfer *xfer, struct xhci_td *td)
 		 * as a single chained TD and generate only one Transfer Event
 		 * for the whole transfer instead of one per frame, which causes
 		 * td_transfer_cache to stall on the first frame and time out.
-		 * Pass last=true unconditionally so qwTrb0 is still written
+		 * Pass chain=false unconditionally so qwTrb0 is still written
 		 * with td_next's address while CHAIN is suppressed.
 		 */
-		xhci_td_fill_link(td, td_next, true);
+		xhci_td_fill_link(td, td_next, false);
 		usb_pc_cpu_flush(td->page_cache);
 
 		td_last = td;
