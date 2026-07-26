@@ -78,8 +78,8 @@ gce-do-package-${_FS}:
 
 gce-do-upload-${_FS}:
 	@# Fallthrough in case the bucket already exists.
-	/usr/local/bin/gsutil mb gs://${GCE_BUCKET} || true
-	/usr/local/bin/gsutil cp ${.OBJDIR}/${GCE_TARGET_${_FS}}.tar.gz \
+	/usr/local/bin/gcloud storage buckets create gs://${GCE_BUCKET} || true
+	/usr/local/bin/gcloud storage cp ${.OBJDIR}/${GCE_TARGET_${_FS}}.tar.gz \
 		gs://${GCE_BUCKET}/
 	/usr/local/bin/gcloud compute images create ${GCE_TARGET_${_FS}} \
 		--architecture=${GCE_ARCH} \
