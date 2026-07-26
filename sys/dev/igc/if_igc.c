@@ -942,12 +942,60 @@ igc_aim_tx_delta(struct tx_ring *txr, u32 *bytes, u32 *packets)
 	txr->tx_packets_last = now_packets;
 }
 
-enum eitr_latency_target {
-	eitr_latency_disabled = 0,
-	eitr_latency_lowest = 1,
-	eitr_latency_low = 2,
-	eitr_latency_bulk = 3
-};
+/*********************************************************************
+ *
+ *  Do Adaptive Interrupt Moderation:
+ *    - Calculate based on average size over the last interval
+ *
+ *  Returns interrupts per second rather than a register value, so that the
+ *  caller's IGC_INTS_TO_EITR() conversion applies, or zero if the interval
+ *  carried no packet to measure.
+ *
+ *********************************************************************/
+static u32
+igc_ring_itr(struct igc_softc *sc, u32 rxbytes, u32 rxpackets, u32 txbytes,
+    u32 txpackets)
+{
+	u32 newitr = 0;
+
+	if (txbytes && txpackets)
+		newitr = txbytes / txpackets;
+	if (rxbytes && rxpackets)
+		newitr = max(newitr, rxbytes / rxpackets);
+
+	/*
+	 * No packet was observed, so there is no size to work from.  Report no
+	 * observation and let the caller keep the rate it already has.
+	 */
+	if (newitr == 0)
+		return (0);
+
+	newitr += 24; /* account for hardware frame, crc */
+	/* set an upper boundary */
+	newitr = min(newitr, 3000);
+	/* Be nice to the mid range */
+	if ((newitr > 300) && (newitr < 1200))
+		newitr = (newitr / 3);
+	else
+		newitr = (newitr / 2);
+
+	/* The value above was written straight to EITR; make it a rate */
+	newitr = IGC_AIM_DIVIDEND / newitr;
+
+	/*
+	 * Cap the rate: enable_aim=1 is the normal setting, enable_aim=2 opts
+	 * into the low latency end.  The original was unbounded and would ask
+	 * for ~95k ints/s on minimum sized frames.  There is deliberately no
+	 * floor, so jumbo traffic settles near 2.7k ints/s.
+	 */
+	if (sc->enable_aim == 1)
+		newitr = min(newitr, IGC_INTS_20K);
+	else
+		newitr = min(newitr, IGC_INTS_70K);
+
+	return (newitr);
+}
+
 /*********************************************************************
  *
  *  Helper to calculate next EITR value for AIM
@@ -959,10 +1007,8 @@ igc_neweitr(struct igc_softc *sc, struct igc_rx_queue *que,
 {
 	struct igc_hw *hw = &sc->hw;
 	struct igc_tx_queue *tx_que;
-	u32 bytes, bytes_per_packet, packets;
 	u32 ringbytes, ringpackets, rxbytes, rxpackets, txbytes, txpackets;
 	u32 neweitr;
-	u8 nextlatency;
 	int i;
 
 	igc_aim_rx_delta(rxr, &rxbytes, &rxpackets);
@@ -986,109 +1032,22 @@ igc_neweitr(struct igc_softc *sc, struct igc_rx_queue *que,
 	if (txbytes == 0 && rxbytes == 0)
 		return;
 
-	neweitr = 0;
-
-	if (sc->enable_aim) {
-		nextlatency = rxr->rx_nextlatency;
-
-		/* Use half default (4K) ITR if sub-gig */
-		if (sc->link_speed < 1000) {
-			neweitr = IGC_INTS_4K;
-			goto igc_set_next_eitr;
-		}
-		/* Want at least enough packet buffer for two frames to AIM */
-		if (sc->shared->isc_max_frame_size * 2 > (sc->pba << 10)) {
-			neweitr = igc_max_interrupt_rate;
-			goto igc_set_next_eitr;
-		}
-
-		bytes = bytes_per_packet = packets = 0;
-		/* Get largest values from the associated tx and rx ring */
-		if (txpackets != 0) {
-			bytes = txbytes;
-			bytes_per_packet = txbytes / txpackets;
-			packets = txpackets;
-		}
-		if (rxpackets != 0) {
-			bytes = lmax(bytes, rxbytes);
-			bytes_per_packet =
-			    lmax(bytes_per_packet, rxbytes / rxpackets);
-			packets = lmax(packets, rxpackets);
-		}
-
-		/* Latency state machine */
-		switch (nextlatency) {
-		case eitr_latency_disabled: /* Bootstrapping */
-			nextlatency = eitr_latency_low;
-			break;
-		case eitr_latency_lowest: /* 70k ints/s */
-			/* TSO and jumbo frames */
-			if (bytes_per_packet > 8000)
-				nextlatency = eitr_latency_bulk;
-			else if ((packets < 5) && (bytes > 512))
-				nextlatency = eitr_latency_low;
-			break;
-		case eitr_latency_low: /* 20k ints/s */
-			if (bytes > 10000) {
-				/* Handle TSO */
-				if (bytes_per_packet > 8000)
-					nextlatency = eitr_latency_bulk;
-				else if ((packets < 10) ||
-				    (bytes_per_packet > 1200))
-					nextlatency = eitr_latency_bulk;
-				else if (packets > 35)
-					nextlatency = eitr_latency_lowest;
-			} else if (bytes_per_packet > 2000) {
-				nextlatency = eitr_latency_bulk;
-			} else if (packets < 3 && bytes < 512) {
-				nextlatency = eitr_latency_lowest;
-			}
-			break;
-		case eitr_latency_bulk: /* 4k ints/s */
-			if (bytes > 25000) {
-				if (packets > 35)
-					nextlatency = eitr_latency_low;
-			} else if (bytes < 1500)
-				nextlatency = eitr_latency_low;
-			break;
-		default:
-			nextlatency = eitr_latency_low;
-			device_printf(sc->dev,
-			    "Unexpected neweitr transition %d\n",
-			    nextlatency);
-			break;
-		}
-
-		/* Trim itr_latency_lowest for default AIM setting */
-		if (sc->enable_aim == 1 && nextlatency == eitr_latency_lowest)
-			nextlatency = eitr_latency_low;
-
-		/* Request new latency */
-		rxr->rx_nextlatency = nextlatency;
-	} else {
-		/* We may have toggled to AIM disabled */
-		nextlatency = eitr_latency_disabled;
-		rxr->rx_nextlatency = nextlatency;
-	}
-
-	/* ITR state machine */
-	switch(nextlatency) {
-	case eitr_latency_lowest:
-		neweitr = IGC_INTS_70K;
-		break;
-	case eitr_latency_low:
-		neweitr = IGC_INTS_20K;
-		break;
-	case eitr_latency_bulk:
-		neweitr = IGC_INTS_4K;
-		break;
-	case eitr_latency_disabled:
-	default:
+	if (sc->enable_aim == 0) {
 		neweitr = igc_max_interrupt_rate;
-		break;
+	} else if (sc->link_speed < SPEED_1000) {
+		/* Use half default (4K) ITR if sub-gig */
+		neweitr = IGC_INTS_4K;
+	} else if (sc->shared->isc_max_frame_size * 2 > (sc->pba << 10)) {
+		/* Want at least enough packet buffer for two frames to AIM */
+		neweitr = igc_max_interrupt_rate;
+	} else {
+		neweitr = igc_ring_itr(sc, rxbytes, rxpackets, txbytes,
+		    txpackets);
+		/* No usable observation; leave the rate where it is */
+		if (neweitr == 0)
+			return;
 	}
 
-igc_set_next_eitr:
 	neweitr = IGC_INTS_TO_EITR(neweitr);
 
 	neweitr |= IGC_EITR_CNT_IGNR;
