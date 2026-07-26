@@ -149,6 +149,13 @@
 #define	QM_FQCTRL_HOLDACTIVE		0x0002
 #define	QM_FQCTRL_LIC			0x0001
 
+/*
+ * Context_A stashing config.
+ */
+#define	QM_STASHING_EXCL_ANNOTATION	0x04
+#define	QM_STASHING_EXCL_DATA		0x02
+#define	QM_STASHING_EXCL_CONTEXT	0x01
+
 #define	QMAN_CHANNEL_POOL1_REV1		0x21
 #define	QMAN_CHANNEL_POOL1_REV3		0x401
 
@@ -496,7 +503,8 @@ qman_fq_create(uint32_t fqids_num, int channel, uint8_t wq,
     bool force_fqid, uint32_t fqid_or_align, bool init_parked,
     bool hold_active, bool prefer_in_cache, bool congst_avoid_ena,
     void *congst_group, int8_t overhead_accounting_len,
-    uint32_t tail_drop_threshold)
+    uint32_t tail_drop_threshold,
+    uint8_t annotation_cl, uint8_t data_cl)
 {
 	union qman_mc_command cmd;
 	struct qman_softc *sc;
@@ -528,6 +536,24 @@ qman_fq_create(uint32_t fqids_num, int channel, uint8_t wq,
 	cmd.init_fq.fq_ctrl = (prefer_in_cache ? QM_FQCTRL_LIC : 0) |
 	    (hold_active ? QM_FQCTRL_HOLDACTIVE : 0) |
 	    (congst_avoid_ena ? QM_FQCTRL_AVOIDBLOCK : 0);
+
+	/*
+	 * Configure hardware cache stashing: on dequeue, QMan will push
+	 * the requested number of cachelines of frame annotation and/or
+	 * frame data into the destination core's cache, hiding memory
+	 * latency for the RX callback.
+	 */
+	if (annotation_cl != 0 || data_cl != 0) {
+		uint64_t excl, cl;
+
+		excl = (annotation_cl != 0 ? QM_STASHING_EXCL_ANNOTATION : 0) |
+		    (data_cl != 0 ? QM_STASHING_EXCL_DATA : 0);
+		cl = ((annotation_cl & 3) << 4) | ((data_cl & 3) << 2);
+		/* excl in wire byte 0 (bits 63-56), cl in wire byte 1. */
+		cmd.init_fq.context_a = (excl << 56) | (cl << 48);
+		cmd.init_fq.fq_ctrl |= QM_FQCTRL_CTXASTASH;
+		cmd.init_fq.we_mask |= QCSP_INIT_FQ_WE_CONTEXT_A;
+	}
 
 	critical_enter();
 

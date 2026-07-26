@@ -73,16 +73,42 @@
 #define DPAA_ETH_UNLOCK(sc)		mtx_unlock(&(sc)->sc_lock)
 #define DPAA_ETH_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_lock, MA_OWNED)
 
+/*
+ * On 64-bit Book-E the direct map is always present, and the driver's
+ * UMA zones plus page-sized mbuf clusters live in it.  Bypass the
+ * page-table walk in pmap_kextract() for those; fall back for
+ * MJUM9BYTES/MJUM16BYTES clusters, which are kmem_alloc_contig()'d
+ * into KVA.
+ */
+static inline vm_paddr_t
+dpaa_eth_va_to_phys(vm_offset_t va)
+{
+	if (__predict_true(va >= DMAP_BASE_ADDRESS && va <= DMAP_MAX_ADDRESS))
+		return (DMAP_TO_PHYS(va));
+	return (pmap_kextract(va));
+}
+
 /**
  * @group dTSEC RM private defines.
  * @{
  */
 #define	DTSEC_BPOOLS_USED	(1)
 #define	DTSEC_MAX_TX_QUEUE_LEN	256
+/*
+ * Sample the hardware TX FQ counter every Nth packet.  The FQ counter is
+ * 24 bits and the soft cap above is 256, so overshoot by N is trivial.
+ */
+#define	DTSEC_MAX_TX_QUEUE_CHECK_INTERVAL	32
+/*
+ * Confirmation callback drain-detection.  Fast path (TX not backpressured)
+ * skips the MC call entirely; when flagged, we sample every Nth callback to
+ * detect the drain-to-zero transition.
+ */
+#define	DTSEC_TX_CONF_CHECK_INTERVAL		32
 
 struct dpaa_eth_frame_info {
-	struct mbuf			*fi_mbuf;
 	struct fman_internal_context	fi_ic;
+	struct mbuf			*fi_mbuf;
 	struct dpaa_sgte		fi_sgt[DPAA_NUM_OF_SG_TABLE_ENTRY];
 };
 
@@ -90,6 +116,13 @@ enum dpaa_eth_pool_params {
 	DTSEC_RM_POOL_RX_LOW_MARK	= 16,
 	DTSEC_RM_POOL_RX_HIGH_MARK	= 64,
 	DTSEC_RM_POOL_RX_MAX_SIZE	= 256,
+	/*
+	 * MAX_SIZE is a soft cap set well below the BMan hardware pool
+	 * limit, so sampling the depth every N put-backs per CPU is safe:
+	 * worst-case overshoot is N * ncpus buffers, still tiny vs. the
+	 * hardware pool.
+	 */
+	DTSEC_RM_POOL_RX_CHECK_INTERVAL	= 32,
 
 	DTSEC_RM_POOL_FI_LOW_MARK	= 16,
 	DTSEC_RM_POOL_FI_HIGH_MARK	= 64,
@@ -227,7 +260,7 @@ dtsec_add_buffers(struct dpaa_eth_softc *sc, int count)
 			b = uma_zalloc(sc->sc_rx_zone, M_NOWAIT);
 			if (b == NULL)
 				return (ENOMEM);
-			pa = pmap_kextract((vm_offset_t)b);
+			pa = DMAP_TO_PHYS((vm_offset_t)b);
 			bufs[i].buf_hi = (pa >> 32);
 			bufs[i].buf_lo = (pa & 0xffffffff);
 		}
@@ -273,6 +306,9 @@ dpaa_eth_pool_rx_free(struct dpaa_eth_softc *sc)
 
 	if (sc->sc_rx_zone != NULL)
 		uma_zdestroy(sc->sc_rx_zone);
+
+	free(sc->sc_rx_pool_check_cnt, M_DEVBUF);
+	sc->sc_rx_pool_check_cnt = NULL;
 }
 
 int
@@ -287,6 +323,10 @@ dpaa_eth_pool_rx_init(struct dpaa_eth_softc *sc)
 
 	sc->sc_rx_zone = uma_zcreate(sc->sc_rx_zname, MCLBYTES, NULL,
 	    NULL, NULL, NULL, MCLBYTES - 1, 0);
+
+	sc->sc_rx_pool_check_cnt = malloc_aligned(
+	    (mp_maxid + 1) * sizeof(struct dpaa_pcpu_cnt),
+	    CACHE_LINE_SIZE, M_DEVBUF, M_WAITOK | M_ZERO);
 
 	sc->sc_rx_pool = bman_pool_create(&sc->sc_rx_bpid, MCLBYTES,
 	    DTSEC_RM_POOL_RX_MAX_SIZE, DTSEC_RM_POOL_RX_LOW_MARK,
@@ -316,11 +356,19 @@ dpaa_eth_fq_mext_free(struct mbuf *m)
 
 	buffer = m->m_ext.ext_arg1;
 	sc = m->m_ext.ext_arg2;
-	if (bman_count(sc->sc_rx_pool) <= DTSEC_RM_POOL_RX_MAX_SIZE)
-		bman_put_buffer(sc->sc_rx_pool,
-		    pmap_kextract((vm_offset_t)buffer), sc->sc_rx_bpid);
-	else
+	/*
+	 * Sloppy per-CPU sampling: no pin, no atomic.  A stray migration
+	 * between the curcpu read and the increment can only mis-attribute
+	 * one bump to the wrong CPU's counter; the sampling rate stays
+	 * within the acceptable slop window.
+	 */
+	if ((++sc->sc_rx_pool_check_cnt[curcpu].cnt &
+	    (DTSEC_RM_POOL_RX_CHECK_INTERVAL - 1)) == 0 &&
+	    bman_count(sc->sc_rx_pool) > DTSEC_RM_POOL_RX_MAX_SIZE)
 		dpaa_eth_pool_rx_put_buffer(sc, buffer, NULL);
+	else
+		bman_put_buffer(sc->sc_rx_pool,
+		    DMAP_TO_PHYS((vm_offset_t)buffer), sc->sc_rx_bpid);
 }
 
 static int
@@ -421,8 +469,6 @@ dpaa_eth_fq_tx_confirm_callback(device_t portal, struct qman_fq *fq,
 {
 	struct dpaa_eth_frame_info *fi;
 	struct dpaa_eth_softc *sc;
-	unsigned int qlen;
-	struct dpaa_sgte *sgt0;
 
 	sc = app;
 
@@ -434,25 +480,33 @@ dpaa_eth_fq_tx_confirm_callback(device_t portal, struct qman_fq *fq,
 	 * We are storing struct dpaa_eth_frame_info in first entry
 	 * of scatter-gather table.
 	 */
-	sgt0 = (struct dpaa_sgte *)PHYS_TO_DMAP(frame->addr + frame->offset);
-	fi = (struct dpaa_eth_frame_info *)PHYS_TO_DMAP(sgt0->addr);
+	fi = (struct dpaa_eth_frame_info *)PHYS_TO_DMAP(frame->addr);
 
 	/* Free transmitted frame */
 	m_freem(fi->fi_mbuf);
 	dpaa_eth_fi_free(sc, fi);
 
-	qlen = qman_fq_get_counter(sc->sc_tx_conf_fq, QMAN_COUNTER_FRAME);
+	/*
+	 * Fast path: TX isn't backpressured, so there's nothing to
+	 * restart.  Acquire load pairs with the release store on the
+	 * TX path so a concurrent set of the flag is observed here.
+	 */
+	if (atomic_load_acq_int(&sc->sc_tx_fq_full) == 0)
+		return (1);
 
-	if (qlen == 0) {
-		DPAA_ETH_LOCK(sc);
+	/* Rate-limit the MC round-trip to detect drain-to-zero. */
+	if ((sc->sc_tx_conf_check_cnt++ &
+	    (DTSEC_TX_CONF_CHECK_INTERVAL - 1)) != 0)
+		return (1);
+	if (qman_fq_get_counter(sc->sc_tx_conf_fq, QMAN_COUNTER_FRAME) != 0)
+		return (1);
 
-		if (sc->sc_tx_fq_full) {
-			sc->sc_tx_fq_full = 0;
-			dpaa_eth_if_start_locked(sc);
-		}
-
-		DPAA_ETH_UNLOCK(sc);
+	DPAA_ETH_LOCK(sc);
+	if (sc->sc_tx_fq_full) {
+		atomic_store_rel_int(&sc->sc_tx_fq_full, 0);
+		dpaa_eth_if_start_locked(sc);
 	}
+	DPAA_ETH_UNLOCK(sc);
 
 	return (1);
 }
@@ -484,8 +538,13 @@ dpaa_eth_fq_rx_init(struct dpaa_eth_softc *sc)
 	/* Default Frame Queue */
 	if (sc->sc_rx_channel == 0)
 		sc->sc_rx_channel = qman_alloc_channel();
+	/*
+	 * Stash 1 cacheline of frame annotation (parse result / IC) and
+	 * 1 of frame data head into the destination core's cache when
+	 * QMan dequeues an RX frame -- the RX callback reads both.
+	 */
 	fq = qman_fq_create(1, sc->sc_rx_channel, DTSEC_RM_FQR_RX_WQ,
-	    false, 0, false, false, true, false, 0, 0, 0);
+	    false, 0, false, false, true, false, 0, 0, 0, 1, 1);
 	if (fq == NULL) {
 		device_printf(sc->sc_dev,
 		    "could not create default RX queue\n");
@@ -529,7 +588,8 @@ dpaa_eth_fq_tx_init(struct dpaa_eth_softc *sc)
 
 	/* TX Frame Queue */
 	fq = qman_fq_create(1, sc->sc_port_tx_qman_chan,
-	    DTSEC_RM_FQR_TX_WQ, false, 0, false, false, true, false, 0, 0, 0);
+	    DTSEC_RM_FQR_TX_WQ, false, 0, false, false, true, false, 0, 0, 0,
+	    0, 0);
 	if (fq == NULL) {
 		device_printf(sc->sc_dev, "could not create default TX queue"
 		    "\n");
@@ -543,7 +603,7 @@ dpaa_eth_fq_tx_init(struct dpaa_eth_softc *sc)
 	/* TX Confirmation Frame Queue */
 	fq = qman_fq_create(1, sc->sc_rx_channel,
 	    DTSEC_RM_FQR_TX_CONF_WQ, false, 0, false, false, true, false, 0, 0,
-	    0);
+	    0, 0, 0);
 	if (fq == NULL) {
 		device_printf(sc->sc_dev, "could not create TX confirmation "
 		    "queue\n");
@@ -612,7 +672,7 @@ dpaa_eth_if_start_locked(struct dpaa_eth_softc *sc)
 {
 	vm_size_t dsize, psize, ssize;
 	struct dpaa_eth_frame_info *fi;
-	unsigned int qlen, i;
+	unsigned int i;
 	struct mbuf *m0, *m;
 	vm_offset_t vaddr;
 	struct dpaa_fd fd;
@@ -626,12 +686,16 @@ dpaa_eth_if_start_locked(struct dpaa_eth_softc *sc)
 	if ((if_getdrvflags(sc->sc_ifnet) & IFF_DRV_RUNNING) != IFF_DRV_RUNNING)
 		return;
 
-	while (!if_sendq_empty(sc->sc_ifnet)) {
-		/* Check length of the TX queue */
-		qlen = qman_fq_get_counter(sc->sc_tx_fq, QMAN_COUNTER_FRAME);
+	if (sc->sc_tx_fq_full)
+		return;
 
-		if (qlen >= DTSEC_MAX_TX_QUEUE_LEN) {
-			sc->sc_tx_fq_full = 1;
+	while (!if_sendq_empty(sc->sc_ifnet)) {
+		if ((sc->sc_tx_queue_check_cnt++ &
+		    (DTSEC_MAX_TX_QUEUE_CHECK_INTERVAL - 1)) == 0 &&
+		    qman_fq_get_counter(sc->sc_tx_fq, QMAN_COUNTER_FRAME) >=
+		    DTSEC_MAX_TX_QUEUE_LEN) {
+			atomic_store_rel_int(&sc->sc_tx_fq_full, 1);
+			sc->sc_tx_queue_check_cnt = 0;
 			return;
 		}
 
@@ -650,16 +714,10 @@ dpaa_eth_if_start_locked(struct dpaa_eth_softc *sc)
 		psize = 0;
 		dsize = 0;
 		fi->fi_mbuf = m0;
+
 		while (m && i < DPAA_NUM_OF_SG_TABLE_ENTRY) {
 			if (m->m_len == 0)
 				continue;
-
-			/*
-			 * First entry in scatter-gather table is used to keep
-			 * pointer to frame info structure.
-			 */
-			fi->fi_sgt[i].addr = pmap_kextract((vm_offset_t)fi);
-			i++;
 
 			dsize = m->m_len;
 			vaddr = (vm_offset_t)m->m_data;
@@ -668,7 +726,7 @@ dpaa_eth_if_start_locked(struct dpaa_eth_softc *sc)
 				if (m->m_len < ssize)
 					ssize = m->m_len;
 
-				fi->fi_sgt[i].addr = pmap_kextract(vaddr);
+				fi->fi_sgt[i].addr = dpaa_eth_va_to_phys(vaddr);
 				fi->fi_sgt[i].length = ssize;
 
 				fi->fi_sgt[i].extension = 0;
@@ -697,15 +755,14 @@ dpaa_eth_if_start_locked(struct dpaa_eth_softc *sc)
 
 		fi->fi_sgt[i - 1].final = 1;
 
-		fd.addr = pmap_kextract((vm_offset_t)&fi->fi_ic);
+		fd.addr = DMAP_TO_PHYS((vm_offset_t)fi);
 		fd.length = psize;
 		fd.format = DPAA_FD_FORMAT_SHORT_MBSF;
 
 		fd.liodn = 0;
 		fd.bpid = 0;
 		fd.eliodn = 0;
-		fd.offset = offsetof(struct dpaa_eth_frame_info, fi_sgt) -
-		    offsetof(struct dpaa_eth_frame_info, fi_ic);
+		fd.offset = offsetof(struct dpaa_eth_frame_info, fi_sgt);
 		fd.cmd_stat = dpaa_eth_tx_add_csum(fi);
 
 		DPAA_ETH_UNLOCK(sc);

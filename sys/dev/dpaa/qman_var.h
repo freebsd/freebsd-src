@@ -44,7 +44,7 @@ union qman_mc_command {
 		uint16_t ics_cred;
 		uint16_t td_thresh_oac;
 		uint32_t context_b;
-		uint32_t context_a;
+		uint64_t context_a;
 		uint8_t _rsvd1[32];
 	} init_fq;
 	struct {
@@ -92,7 +92,7 @@ union qman_mc_result {
 		uint16_t ics_cred;
 		uint16_t td_thresh;
 		uint32_t context_b;
-		uint32_t context_a;
+		uint64_t context_a;	/* 8 bytes on the wire */
 		uint16_t oac;
 		uint8_t _rsvd1[30];
 	} query_fq;
@@ -130,6 +130,8 @@ union qman_mc_result {
 		uint8_t _rsvd[61];
 	} alter_fqs;
 };
+_Static_assert(sizeof(union qman_mc_command) == 64, "MC command mis-sized");
+_Static_assert(sizeof(union qman_mc_result) == 64, "MC result mis-sized");
 
 struct qman_mc {
 	uint8_t polarity;
