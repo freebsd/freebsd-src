@@ -125,6 +125,20 @@ Default 1 (disabled).
 .It Va hw.igc.max_interrupt_rate
 Maximum device interrupts per second.
 The default is 8000.
+This is the rate used when adaptive interrupt moderation is disabled, and
+the fallback when it has no usable measurement.
+.It Va hw.igc.enable_aim
+Adaptive interrupt moderation.
+The interrupt rate is derived from the average size of the packets seen
+since the previous interrupt, so that bulk traffic is coalesced while small
+packet traffic keeps its latency.
+A value of 0 disables it and pins the rate to
+.Va hw.igc.max_interrupt_rate ,
+1 selects the normal range, and 2 selects the low-latency range.
+The default value is 1.
+Setting 2 raises the interrupt rate substantially on small packet workloads
+and is rarely a win; prefer the default unless latency has been measured to
+matter more than the additional interrupt load.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
