@@ -84,11 +84,6 @@ g_zero_fill_pages(struct bio *bp)
 	size_t length;
 	vm_offset_t offset;
 
-	aiovec.iov_base = g_zero_buffer;
-	aiovec.iov_len = PAGE_SIZE;
-	auio.uio_iov = &aiovec;
-	auio.uio_iovcnt = 1;
-	auio.uio_offset = 0;
 	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_td = curthread;
@@ -102,6 +97,12 @@ g_zero_fill_pages(struct bio *bp)
 	bp->bio_resid = bp->bio_length;
 	offset = bp->bio_ma_offset & PAGE_MASK;
 	for (int i = 0; i < bp->bio_ma_n && bp->bio_resid > 0; i++) {
+		aiovec.iov_base = g_zero_buffer;
+		aiovec.iov_len = PAGE_SIZE;
+		auio.uio_iov = &aiovec;
+		auio.uio_iovcnt = 1;
+		auio.uio_offset = 0;
+
 		length = MIN(PAGE_SIZE - offset, bp->bio_resid);
 		auio.uio_resid = length;
 
