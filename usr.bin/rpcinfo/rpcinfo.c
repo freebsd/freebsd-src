@@ -79,7 +79,7 @@
 #define MAXHOSTLEN 256
 #define	MIN_VERS	((u_long) 0)
 #define	MAX_VERS	((u_long) 4294967295UL)
-#define	UNKNOWN		"unknown"
+static char unknown[] = "unknown";
 
 /*
  * Functions to be performed.
@@ -103,7 +103,7 @@ struct netidlist {
 };
 
 struct verslist {
-	int vers;
+	rpcvers_t vers;
 	struct verslist *next;
 };
 
@@ -144,8 +144,8 @@ static void	print_getaddrstat(int, rpcb_stat *);
 static void	usage(void);
 static u_long	getprognum(char *);
 static u_long	getvers(char *);
-static char	*spaces(int);
-static bool_t	add_version(struct rpcbdump_short *, u_long);
+static const char *spaces(size_t);
+static bool_t	add_version(struct rpcbdump_short *, rpcvers_t);
 static bool_t	add_netid(struct rpcbdump_short *, char *);
 
 int
@@ -584,7 +584,7 @@ get_inet_address(struct sockaddr_in *addr, char *host)
 
 /*ARGSUSED*/
 static bool_t
-reply_proc(void *res, struct netbuf *who, struct netconfig *nconf)
+reply_proc(void *res __unused, struct netbuf *who, struct netconfig *nconf)
 	/* void *res;			Nothing comes back */
 	/* struct netbuf *who;		Who sent us the reply */
 	/* struct netconfig *nconf; 	On which transport the reply came */
@@ -595,13 +595,13 @@ reply_proc(void *res, struct netbuf *who, struct netconfig *nconf)
 	struct sockaddr *sa = (struct sockaddr *)who->buf;
 
 	if (getnameinfo(sa, sa->sa_len, hostbuf, NI_MAXHOST, NULL, 0, 0)) {
-		hostname = UNKNOWN;
+		hostname = unknown;
 	} else {
 		hostname = hostbuf;
 	}
 	uaddr = taddr2uaddr(nconf, who);
 	if (uaddr == NULL) {
-		printf("%s\t%s\n", UNKNOWN, hostname);
+		printf("%s\t%s\n", unknown, hostname);
 	} else {
 		printf("%s\t%s\n", uaddr, hostname);
 		free((char *)uaddr);
@@ -628,7 +628,7 @@ brdcst(int argc, char **argv)
 }
 
 static bool_t
-add_version(struct rpcbdump_short *rs, u_long vers)
+add_version(struct rpcbdump_short *rs, rpcvers_t vers)
 {
 	struct verslist *vl;
 
@@ -767,7 +767,7 @@ rpcbdump(int dumptype, char *netid, int argc, char **argv)
 			    }
 			    if (list->rpcb_map.r_netid == NULL)
 				    goto error;
-			    list->rpcb_map.r_owner = UNKNOWN;
+			    list->rpcb_map.r_owner = unknown;
 			    low = pmaphead->pml_map.pm_port & 0xff;
 			    high = (pmaphead->pml_map.pm_port >> 8) & 0xff;
 			    (void)asprintf(&list->rpcb_map.r_addr,
@@ -975,7 +975,8 @@ rpcbgetstat(int argc, char **argv)
 	struct timeval minutetimeout;
 	register CLIENT *client;
 	char *host;
-	int i, j;
+	unsigned int i;
+	int j;
 	rpcbs_addrlist *pa;
 	rpcbs_rmtcalllist *pr;
 	int cnt, flen;
@@ -1651,7 +1652,7 @@ print_rmtcallstat(int rtype, rpcb_stat *infp)
 }
 
 static void
-print_getaddrstat(int rtype, rpcb_stat *infp)
+print_getaddrstat(int rtype __unused, rpcb_stat *infp)
 {
 	rpcbs_addrlist_ptr al;
 	register struct rpcent *rpc;
@@ -1669,14 +1670,14 @@ print_getaddrstat(int rtype, rpcb_stat *infp)
 	}
 }
 
-static char *
-spaces(int howmany)
+static const char *
+spaces(size_t howmany)
 {
 	static char space_array[] =		/* 64 spaces */
 	"                                                                ";
 
-	if (howmany <= 0 || howmany > sizeof (space_array)) {
+	if (howmany >= sizeof(space_array)) {
 		return ("");
 	}
-	return (&space_array[sizeof (space_array) - howmany - 1]);
+	return (&space_array[sizeof(space_array) - howmany - 1]);
 }
