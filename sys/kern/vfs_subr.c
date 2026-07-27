@@ -875,6 +875,7 @@ int
 vfs_busy(struct mount *mp, int flags)
 {
 	struct mount_pcpu *mpcpu;
+	int error;
 
 	MPASS((flags & ~MBF_MASK) == 0);
 	CTR3(KTR_VFS, "%s: mp %p with flags %d", __func__, mp, flags);
@@ -919,10 +920,24 @@ vfs_busy(struct mount *mp, int flags)
 		if (flags & MBF_MNTLSTLOCK)
 			mtx_unlock(&mountlist_mtx);
 		mp->mnt_kern_flag |= MNTK_MWAIT;
-		msleep(mp, MNT_MTX(mp), PVFS | PDROP, "vfs_busy", 0);
+		error = msleep(mp, MNT_MTX(mp), ((flags & MBF_PCATCH) != 0 ?
+		    PCATCH : 0) | PVFS | PDROP, "vfs_busy", 0);
 		if (flags & MBF_MNTLSTLOCK)
 			mtx_lock(&mountlist_mtx);
 		MNT_ILOCK(mp);
+		if (error != 0) {
+			MNT_REL(mp);
+
+			/*
+			 * Clearing MNTK_MWAIT might cause spurious
+			 * wakeups, but better clear our flag there
+			 * then leak it.
+			 */
+			mp->mnt_kern_flag &= ~MNTK_MWAIT;
+			wakeup(mp);
+			MNT_IUNLOCK(mp);
+			return (error);
+		}
 	}
 	if (flags & MBF_MNTLSTLOCK)
 		mtx_unlock(&mountlist_mtx);
