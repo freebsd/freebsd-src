@@ -38,6 +38,7 @@
 #include <sys/tree.h>
 #include <sys/wait.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <signal.h>
@@ -66,7 +67,7 @@ RB_GENERATE_STATIC(pidtree, pid, entry, pidcmp);
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: pwait [-t timeout] [-opv] pid ...\n");
+	fprintf(stderr, "usage: pwait [-oprv] [-t timeout] pid ...\n");
 	exit(EX_USAGE);
 }
 
@@ -84,22 +85,26 @@ main(int argc, char *argv[])
 	size_t sz;
 	long pid;
 	pid_t mypid;
-	int i, kq, n, ndone, nleft, opt, pid_max, ret, status;
-	bool oflag, pflag, tflag, verbose;
+	int i, kq, n, ndone, nleft, notes, opt, pid_max, ret, status;
+	bool oflag, pflag, rflag, tflag, verbose;
 
 	oflag = false;
 	pflag = false;
+	rflag = false;
 	tflag = false;
 	verbose = false;
 	memset(&itv, 0, sizeof(itv));
 
-	while ((opt = getopt(argc, argv, "opt:v")) != -1) {
+	while ((opt = getopt(argc, argv, "oprt:v")) != -1) {
 		switch (opt) {
 		case 'o':
 			oflag = true;
 			break;
 		case 'p':
 			pflag = true;
+			break;
+		case 'r':
+			rflag = true;
 			break;
 		case 't':
 			tflag = true;
@@ -163,6 +168,9 @@ main(int argc, char *argv[])
 	}
 	ndone = nleft = 0;
 	mypid = getpid();
+	notes = rflag ? NOTE_REAP : NOTE_EXIT;
+	if (verbose)
+		notes |= NOTE_EXIT;
 	for (n = 0; n < argc; n++) {
 		s = argv[n];
 		/* Undocumented Solaris compat */
@@ -188,7 +196,7 @@ main(int argc, char *argv[])
 			free(p);
 			continue;
 		}
-		EV_SET(e + nleft, pid, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
+		EV_SET(e + nleft, pid, EVFILT_PROC, EV_ADD, notes, 0, NULL);
 		if (kevent(kq, e + nleft, 1, NULL, 0, NULL) == -1) {
 			if (errno != ESRCH)
 				err(EX_OSERR, "kevent()");
@@ -228,9 +236,11 @@ main(int argc, char *argv[])
 					printf("timeout\n");
 				}
 				ret = 124;
+				continue;
 			}
+			assert(e[i].filter == EVFILT_PROC);
 			pid = e[i].ident;
-			if (verbose) {
+			if ((e[i].fflags & NOTE_EXIT) && verbose) {
 				status = e[i].data;
 				if (WIFEXITED(status)) {
 					printf("%ld: exited with status %d.\n",
@@ -242,13 +252,20 @@ main(int argc, char *argv[])
 					printf("%ld: terminated.\n", pid);
 				}
 			}
-			k.pid = pid;
-			if ((p = RB_FIND(pidtree, &pids, &k)) != NULL) {
-				RB_REMOVE(pidtree, &pids, p);
-				free(p);
-				ndone++;
+			if ((e[i].fflags & NOTE_REAP) && verbose) {
+				printf("%ld: reaped.\n", pid);
 			}
-			--nleft;
+			if ((e[i].fflags & NOTE_REAP) ||
+			    (!rflag && (e[i].fflags & NOTE_EXIT))) {
+				/* this process is done */
+				k.pid = pid;
+				if ((p = RB_FIND(pidtree, &pids, &k)) != NULL) {
+					RB_REMOVE(pidtree, &pids, p);
+					free(p);
+					ndone++;
+				}
+				--nleft;
+			}
 		}
 	}
 	if (pflag) {
