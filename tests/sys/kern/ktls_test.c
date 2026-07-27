@@ -51,45 +51,26 @@
 #include <openssl/hmac.h>
 
 static void
-require_ktls(void)
+require_ktls(bool need_rx)
 {
+	const char *name = need_rx ? "kern.ipc.tls.rx_enable" :
+	    "kern.ipc.tls.enable";
 	size_t len;
 	bool enable;
 
 	len = sizeof(enable);
-	if (sysctlbyname("kern.ipc.tls.enable", &enable, &len, NULL, 0) == -1) {
+	if (sysctlbyname(name, &enable, &len, NULL, 0) == -1) {
 		if (errno == ENOENT)
 			atf_tc_skip("kernel does not support TLS offload");
-		atf_libc_error(errno, "Failed to read kern.ipc.tls.enable");
+		atf_libc_error(errno, "Failed to read %s", name);
 	}
 
 	if (!enable)
-		atf_tc_skip("Kernel TLS is disabled");
+		atf_tc_skip("Kernel TLS%s is disabled", need_rx ? " RX" : "");
 }
 
-#define	ATF_REQUIRE_KTLS()	require_ktls()
-
-static void
-require_ktls_rx(void)
-{
-	size_t len;
-	bool enable;
-
-	ATF_REQUIRE_KTLS();
-
-	len = sizeof(enable);
-	if (sysctlbyname("kern.ipc.tls.rx_enable", &enable, &len, NULL, 0) ==
-	    -1) {
-		if (errno == ENOENT)
-			atf_tc_skip("kernel does not support TLS offload");
-		atf_libc_error(errno, "Failed to read kern.ipc.tls.rx_enable");
-	}
-
-	if (!enable)
-		atf_tc_skip("Kernel TLS receive is disabled");
-}
-
-#define	ATF_REQUIRE_KTLS_RX()	require_ktls_rx()
+#define	ATF_REQUIRE_KTLS()	require_ktls(false)
+#define	ATF_REQUIRE_KTLS_RX()	require_ktls(true)
 
 static void
 check_tls_mode(const atf_tc_t *tc, int s, int sockopt)
