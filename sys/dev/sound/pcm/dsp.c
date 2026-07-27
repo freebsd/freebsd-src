@@ -146,7 +146,7 @@ dsp_make_dev(device_t dev)
 	devargs.mda_si_drv1 = sc;
 	err = make_dev_s(&devargs, &sc->dsp_dev, "dsp%d", unit);
 	if (err != 0) {
-		device_printf(dev, "failed to create dsp%d: error %d",
+		device_printf(dev, "failed to create dsp%d: error %d\n",
 		    unit, err);
 		return (err);
 	}
