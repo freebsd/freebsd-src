@@ -1167,8 +1167,9 @@ void PPC64::writePlt(uint8_t *buf, const Symbol &sym,
 }
 
 void PPC64::writeIplt(uint8_t *buf, const Symbol &sym,
-                      uint64_t /*pltEntryAddr*/) const {
-  writePPC64LoadAndBranch(ctx, buf, sym.getGotPltVA(ctx));
+                      uint64_t pltEntryAddr) const {
+  writePPC64LoadAndBranch(ctx, buf, pltEntryAddr, sym.getGotPltVA(ctx),
+                          /*toc=*/false);
 }
 
 static std::pair<RelType, uint64_t> toAddr16Rel(RelType type, uint64_t val) {
