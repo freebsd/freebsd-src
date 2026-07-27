@@ -15,6 +15,7 @@ ATF_TESTS_SH+=	if_vlan
 ATF_TESTS_SH+=	if_wg
 
 TESTS_SUBDIRS+=	if_ovpn
+TESTS_SUBDIRS+=	wg
 TESTS_SUBDIRS+=	routing
 
 # The netmap bridge application is used by if_wg tests.

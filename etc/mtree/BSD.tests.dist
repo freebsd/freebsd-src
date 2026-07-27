@@ -858,6 +858,8 @@
             ..
             routing
             ..
+            wg
+            ..
         ..
         netgraph
         ..
