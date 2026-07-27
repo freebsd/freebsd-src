@@ -473,11 +473,14 @@ procdesc_kqops_event(struct knote *kn, long hint)
 	if ((kn->kn_sfflags & event) != 0)
 		kn->kn_fflags |= kn->kn_sfflags & event;
 
+	/* Report exit status */
+	if ((kn->kn_fflags & NOTE_EXIT) != 0)
+		kn->kn_data = pd->pd_xstat;
+
 	/* Process is gone, so flag the event as finished. */
-	if (event == NOTE_EXIT) {
+	if ((event & NOTE_REAP) != 0 ||
+	    ((event & NOTE_EXIT) != 0 && (kn->kn_sfflags & NOTE_REAP) == 0)) {
 		kn->kn_flags |= EV_EOF | EV_ONESHOT;
-		if (kn->kn_fflags & NOTE_EXIT)
-			kn->kn_data = pd->pd_xstat;
 		if (kn->kn_fflags == 0)
 			kn->kn_flags |= EV_DROP;
 		return (1);
