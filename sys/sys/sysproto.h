@@ -1740,7 +1740,7 @@ struct getrandom_args {
 };
 struct getfhat_args {
 	char fd_l_[PADL_(int)]; int fd; char fd_r_[PADR_(int)];
-	char path_l_[PADL_(char *)]; char * path; char path_r_[PADR_(char *)];
+	char path_l_[PADL_(const char *)]; const char * path; char path_r_[PADR_(const char *)];
 	char fhp_l_[PADL_(struct fhandle *)]; struct fhandle * fhp; char fhp_r_[PADR_(struct fhandle *)];
 	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
 };

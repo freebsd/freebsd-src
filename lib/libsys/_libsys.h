@@ -436,7 +436,7 @@ typedef int (__sys_kevent_t)(int, const struct kevent *, int, struct kevent *, i
 typedef int (__sys_cpuset_getdomain_t)(cpulevel_t, cpuwhich_t, id_t, size_t, domainset_t *, int *);
 typedef int (__sys_cpuset_setdomain_t)(cpulevel_t, cpuwhich_t, id_t, size_t, domainset_t *, int);
 typedef int (__sys_getrandom_t)(void *, size_t, unsigned int);
-typedef int (__sys_getfhat_t)(int, char *, struct fhandle *, int);
+typedef int (__sys_getfhat_t)(int, const char *, struct fhandle *, int);
 typedef int (__sys_fhlink_t)(struct fhandle *, const char *);
 typedef int (__sys_fhlinkat_t)(struct fhandle *, int, const char *);
 typedef int (__sys_fhreadlink_t)(struct fhandle *, char *, size_t);
@@ -848,7 +848,7 @@ int __sys_kevent(int fd, const struct kevent * changelist, int nchanges, struct 
 int __sys_cpuset_getdomain(cpulevel_t level, cpuwhich_t which, id_t id, size_t domainsetsize, domainset_t * mask, int * policy);
 int __sys_cpuset_setdomain(cpulevel_t level, cpuwhich_t which, id_t id, size_t domainsetsize, domainset_t * mask, int policy);
 int __sys_getrandom(void * buf, size_t buflen, unsigned int flags);
-int __sys_getfhat(int fd, char * path, struct fhandle * fhp, int flags);
+int __sys_getfhat(int fd, const char * path, struct fhandle * fhp, int flags);
 int __sys_fhlink(struct fhandle * fhp, const char * to);
 int __sys_fhlinkat(struct fhandle * fhp, int tofd, const char * to);
 int __sys_fhreadlink(struct fhandle * fhp, char * buf, size_t bufsize);
