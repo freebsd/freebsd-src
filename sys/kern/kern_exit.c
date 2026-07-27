@@ -1572,12 +1572,12 @@ kern_pdwait(struct thread *td, int fd, int *status,
 		goto exit_unlocked;
 
 	for (;;) {
+		sx_xlock(&proctree_lock);
 		/* We own a reference on the procdesc file. */
 		KASSERT(pd->pd_fpcount > 0,
 		    ("closed proc %p procdesc %p pd flags %#x",
-		    p, pd, pd->pd_flags));
+		    pd->pd_proc, pd, pd->pd_flags));
 
-		sx_xlock(&proctree_lock);
 		p = pd->pd_proc;
 		if (p == NULL) {
 			error = ESRCH;
