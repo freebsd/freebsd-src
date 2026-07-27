@@ -316,6 +316,7 @@ struct knote {
 #define KN_MARKER	0x20			/* ignore this knote */
 #define KN_KQUEUE	0x40			/* this knote belongs to a kq */
 #define	KN_SCAN		0x100			/* flux set in kqueue_scan() */
+#define	KN_CPONFORK	(KN_ACTIVE | KN_DISABLED) /* state preserved by fork */
 	int			kn_influx;
 	unsigned int		kn_sfflags;	/* saved filter flags */
 	int64_t			kn_sdata;	/* saved data field */
