@@ -230,6 +230,8 @@ chacha20poly1305_encrypt_mbuf(struct mbuf *m, const uint64_t nonce,
 	crp.crp_cipher_key = key;
 	crp.crp_callback = crypto_callback;
 	ret = crypto_dispatch(&crp);
+	if (ret == 0)
+		ret = crp.crp_etype;
 	crypto_destroyreq(&crp);
 	return (ret);
 }
@@ -253,6 +255,8 @@ chacha20poly1305_decrypt_mbuf(struct mbuf *m, const uint64_t nonce,
 	crp.crp_cipher_key = key;
 	crp.crp_callback = crypto_callback;
 	ret = crypto_dispatch(&crp);
+	if (ret == 0)
+		ret = crp.crp_etype;
 	crypto_destroyreq(&crp);
 	if (ret)
 		return (ret);
@@ -270,9 +274,14 @@ crypto_init(void)
 		.csp_cipher_klen = CHACHA20POLY1305_KEY_SIZE,
 		.csp_flags = CSP_F_SEPARATE_AAD | CSP_F_SEPARATE_OUTPUT
 	};
-	int ret = crypto_newsession(&chacha20_poly1305_sid, &csp, CRYPTOCAP_F_SOFTWARE);
+	int ret = crypto_newsession(&chacha20_poly1305_sid, &csp,
+	    CRYPTOCAP_F_SOFTWARE);
 	if (ret != 0)
 		return (ret);
+	if (!CRYPTO_SESS_SYNC(chacha20_poly1305_sid)) {
+		crypto_freesession(chacha20_poly1305_sid);
+		return (ENXIO);
+	}
 	return (0);
 }
 
