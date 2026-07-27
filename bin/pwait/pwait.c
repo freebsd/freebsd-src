@@ -87,7 +87,7 @@ main(int argc, char *argv[])
 	size_t sz;
 	long pid;
 	pid_t mypid;
-	int i, kq, n, ndone, nleft, notes, opt, pid_max, ret, status;
+	int i, kq, n, ndone, nev, nleft, notes, opt, pid_max, ret, status;
 	bool oflag, pflag, rflag, tflag, verbose;
 
 	oflag = false;
@@ -165,10 +165,10 @@ main(int argc, char *argv[])
 	if (sysctlbyname("kern.pid_max", &pid_max, &sz, NULL, 0) != 0) {
 		pid_max = 99999;
 	}
-	if ((e = malloc((argc + tflag) * sizeof(*e))) == NULL) {
+	if ((e = malloc((argc + 1 + tflag) * sizeof(*e))) == NULL) {
 		err(EX_OSERR, "malloc");
 	}
-	ndone = nleft = 0;
+	ndone = nev = nleft = 0;
 	mypid = getpid();
 	notes = rflag ? NOTE_REAP : NOTE_EXIT;
 	if (verbose)
@@ -208,18 +208,28 @@ main(int argc, char *argv[])
 			ndone++;
 		} else {
 			nleft++;
+			nev++;
 		}
 	}
 
+	/*
+	 * Detect SIGINFO so we can print a status.
+	 */
+	EV_SET(e + nev, SIGINFO, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
+	if (kevent(kq, e + nev, 1, NULL, 0, NULL) == -1) {
+		err(EX_OSERR, "kevent");
+	}
+	nev++;
 	if ((ndone == 0 || !oflag) && nleft > 0 && tflag) {
 		/*
 		 * Explicitly detect SIGALRM so that an exit status of 124
 		 * can be returned rather than 142.
 		 */
-		EV_SET(e + nleft, SIGALRM, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
-		if (kevent(kq, e + nleft, 1, NULL, 0, NULL) == -1) {
+		EV_SET(e + nev, SIGALRM, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
+		if (kevent(kq, e + nev, 1, NULL, 0, NULL) == -1) {
 			err(EX_OSERR, "kevent");
 		}
+		nev++;
 		/* Ignore SIGALRM to not interrupt kevent(2). */
 		signal(SIGALRM, SIG_IGN);
 		if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
@@ -227,13 +237,25 @@ main(int argc, char *argv[])
 		}
 	}
 	ret = EX_OK;
+	setvbuf(stderr, NULL, _IOLBF, 0);
 	while ((ndone == 0 || !oflag) && ret == EX_OK && nleft > 0) {
-		n = kevent(kq, NULL, 0, e, nleft + tflag, NULL);
+		n = kevent(kq, NULL, 0, e, nev, NULL);
 		if (n == -1) {
 			err(EX_OSERR, "kevent");
 		}
 		for (i = 0; i < n; i++) {
-			if (e[i].filter == EVFILT_SIGNAL) {
+			if (e[i].filter == EVFILT_SIGNAL &&
+			    e[i].ident == SIGINFO) {
+				p = RB_MIN(pidtree, &pids);
+				fprintf(stderr, "%d", p->pid);
+				while ((p = RB_NEXT(pidtree, &pids, p)) != NULL) {
+					fprintf(stderr, " %d", p->pid);
+				}
+				fprintf(stderr, "\n");
+				continue;
+			}
+			if (e[i].filter == EVFILT_SIGNAL &&
+			    e[i].ident == SIGALRM) {
 				if (verbose) {
 					printf("timeout\n");
 				}
