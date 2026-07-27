@@ -47,6 +47,7 @@ pci_get_vendor()
 		0x168c)	echo "qca" ;;	# Qualcomm Atheros
 		0x17cb)	echo "qca" ;;	# Qualcomm Technologies
 		0x8086)	echo "intel" ;;
+		0x0b48)	echo "ittim" ;;
 	esac
 }
 
