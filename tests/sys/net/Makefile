@@ -19,6 +19,7 @@ TEST_METADATA+=	execenv_jail_params="vnet allow.raw_sockets"
 
 TESTS_SUBDIRS+=	bpf
 TESTS_SUBDIRS+=	if_ovpn
+TESTS_SUBDIRS+=	wg
 TESTS_SUBDIRS+=	routing
 
 # The netmap bridge application is used by if_wg tests.
