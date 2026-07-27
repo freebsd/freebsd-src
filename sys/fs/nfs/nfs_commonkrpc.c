@@ -1127,7 +1127,20 @@ tryagain:
 			if ((nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0) ||
 			   (clp != NULL && i == NFSV4OP_CBSEQUENCE && j != 0)) {
 				NFSCL_DEBUG(1, "failed seq=%d\n", j);
-				if (sep != NULL && i == NFSV4OP_SEQUENCE &&
+				KASSERT(slot == -1, ("newnfs_request: slot not"
+				    " -1"));
+				/*
+				 * RFC8881 (unlike RFC5661) specifies that a
+				 * NFSERR_DELAY reply to SEQUENCE is handled
+				 * by a retry with same slot/sequence#.
+				 * (Although not explicit, I will assume this
+				 *  applies to CB_SEQUENCE as well.)
+				 */
+				if (j == NFSERR_DELAY) {
+					nd->nd_repstat =
+					    NFSERR_RETRYUNCACHEDREP;
+				} else if (sep != NULL &&
+				    i == NFSV4OP_SEQUENCE &&
 				    j == NFSERR_SEQMISORDERED) {
 					mtx_lock(&sep->nfsess_mtx);
 					sep->nfsess_badslots |=
