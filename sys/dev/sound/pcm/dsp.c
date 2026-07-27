@@ -148,7 +148,7 @@ dsp_make_dev(device_t dev)
 	if (err != 0) {
 		device_printf(dev, "failed to create dsp%d: error %d",
 		    unit, err);
-		return (ENXIO);
+		return (err);
 	}
 
 	return (0);
