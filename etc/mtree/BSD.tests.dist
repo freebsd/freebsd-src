@@ -904,6 +904,8 @@
             ..
             routing
             ..
+            wg
+            ..
         ..
         netgraph
         ..
