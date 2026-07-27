@@ -1305,7 +1305,7 @@ ktrsyscall_freebsd(struct ktr_syscall *ktr, register_t **resip,
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
 				putchar(',');
-				print_mask_arg(sysdecode_shmat_flags, *ip);
+				print_mask_arg0(sysdecode_shmat_flags, *ip);
 				ip++;
 				narg--;
 				break;
