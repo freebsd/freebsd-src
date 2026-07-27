@@ -209,7 +209,10 @@ struct freebsd11_kevent32 {
 #define	NOTE_EXEC	0x20000000		/* proc: process exec'd */
 #define	NOTE_PDSIGCHLD	0x10000000		/* procdesc: pdwait() info
 						   available */
-#define	NOTE_PCTRLMASK	0xf0000000		/* mask for hint bits */
+#define	NOTE_SIGNAL	0x08000000		/* process received a signal,
+						   shared with EVFIL_SIGNAL */
+#define	NOTE_REAP	0x04000000		/* process reaped */
+#define	NOTE_PCTRLMASK	0xfc000000		/* mask for hint bits */
 #define	NOTE_PDATAMASK	0x000fffff		/* mask for pid */
 
 /* additional flags for EVFILT_PROC */
@@ -262,12 +265,6 @@ struct knlist {
 #define KNOTE_UNLOCKED(list, hint)	knote(list, hint, 0)
 
 #define	KNLIST_EMPTY(list)		SLIST_EMPTY(&(list)->kl_list)
-
-/*
- * Flag indicating hint is a signal.  Used by EVFILT_SIGNAL, and also
- * shared by EVFILT_PROC  (all knotes attached to p->p_klist)
- */
-#define NOTE_SIGNAL	0x08000000
 
 /*
  * Hint values for the optional f_touch event filter.  If f_touch is not set 

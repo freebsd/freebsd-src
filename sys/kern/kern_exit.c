@@ -1055,6 +1055,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	sx_xunlock(&proctree_lock);
 
 	PROC_LOCK(p);
+	KNOTE_LOCKED(p->p_klist, NOTE_REAP);
 	knlist_detach(p->p_klist);
 	p->p_klist = NULL;
 	PROC_UNLOCK(p);
