@@ -681,6 +681,10 @@ fetch_connect(const char *host, int port, int af, int verbose)
 					    delta.tv_usec / 1000;
 				}
 			}
+			if (pfd.revents & POLLHUP) {
+				errno = ECONNREFUSED;
+				break;
+			}
 			if (pfd.revents == POLLOUT) {
 				/* connection established */
 				err = 0;
