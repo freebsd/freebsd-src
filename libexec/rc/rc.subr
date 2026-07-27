@@ -803,7 +803,7 @@ sort_lite()
 #
 wait_for_pids()
 {
-	local _list _prefix _j
+	local _list= _prefix= _j=
 
 	for _j in "$@"; do
 		if kill -0 $_j 2>/dev/null; then
@@ -814,7 +814,7 @@ wait_for_pids()
 	while [ -n "$_list" ]; do
 		echo -n ${_prefix:-"Waiting for PIDS: "}$_list
 		_prefix=", "
-		_list=$(pwait -op $_list 2>/dev/null)
+		_list=$(pwait -opr $_list 2>/dev/null)
 	done
 	if [ -n "$_prefix" ]; then
 		echo "."

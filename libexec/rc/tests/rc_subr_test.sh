@@ -123,20 +123,12 @@ wait_for_pids_progress_head()
 }
 wait_for_pids_progress_body()
 {
-	cat >>script <<'EOF'
-. /etc/rc.subr
-sleep 15 &
-a=$!
-sleep 10 &
-b=$!
-sleep 5 &
-c=$!
-wait_for_pids $a $b $c
-EOF
-	re="^Waiting for PIDS: [0-9]+ [0-9]+ [0-9]+"
-	re="${re}, [0-9]+ [0-9]+"
-	re="${re}, [0-9]+\.$"
-	atf_check -s exit:0 -o match:"${re}" /bin/sh script
+	a=$(sleep 4 >/dev/null & echo $!)
+	b=$(sleep 3 >/dev/null & echo $!)
+	c=$(sleep 2 >/dev/null & echo $!)
+	atf_check \
+	    -o inline:"Waiting for PIDS: $a $b $c, $a $b, $a.\n" \
+	    /bin/sh -c ". /etc/rc.subr; wait_for_pids $a $b $c"
 }
 
 atf_init_test_cases()
