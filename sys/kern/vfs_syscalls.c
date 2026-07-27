@@ -278,7 +278,7 @@ kern_do_statfs(struct thread *td, struct mount *mp, struct statfs *buf)
 
 	if (mp == NULL)
 		return (EBADF);
-	error = vfs_busy(mp, 0);
+	error = vfs_busy(mp, MBF_PCATCH);
 	vfs_rel(mp);
 	if (error != 0)
 		return (error);
