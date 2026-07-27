@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd March 26, 2023
+.Dd July 22, 2026
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -516,9 +516,15 @@ The exit status will be stored in
 .Va data
 in the same format as the status returned by
 .Xr wait 2 .
+.It Dv NOTE_REAP
+The process has been reaped by a call to the
+.Xr wait 2
+family of functions.
 .It Dv NOTE_FORK
 The process has called
-.Fn fork .
+.Xr fork 2
+or
+.Xr vfork 2 .
 .It Dv NOTE_EXEC
 The process has executed a new process via
 .Xr execve 2

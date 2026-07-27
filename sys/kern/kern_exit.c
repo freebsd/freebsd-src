@@ -987,6 +987,7 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	proc_id_clear(PROC_ID_PID, p->p_pid);
 
 	PROC_LOCK(p);
+	KNOTE_LOCKED(p->p_klist, NOTE_REAP);
 	knlist_detach(p->p_klist);
 	p->p_klist = NULL;
 	PROC_UNLOCK(p);

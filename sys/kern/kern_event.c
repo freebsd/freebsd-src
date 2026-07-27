@@ -421,7 +421,7 @@ filt_procattach(struct knote *kn)
 	bool exiting, immediate;
 
 	exiting = immediate = false;
-	if (kn->kn_sfflags & NOTE_EXIT)
+	if (kn->kn_sfflags & (NOTE_EXIT | NOTE_REAP))
 		p = pfind_any(kn->kn_id);
 	else
 		p = pfind(kn->kn_id);
@@ -446,7 +446,7 @@ filt_procattach(struct knote *kn)
 		kn->kn_flags &= ~EV_FLAG2;
 		kn->kn_data = kn->kn_sdata;		/* ppid */
 		kn->kn_fflags = NOTE_CHILD;
-		kn->kn_sfflags &= ~(NOTE_EXIT | NOTE_EXEC | NOTE_FORK);
+		kn->kn_sfflags &= ~NOTE_PCTRLMASK;
 		immediate = true; /* Force immediate activation of child note. */
 	}
 	/*
@@ -508,12 +508,15 @@ filt_proc(struct knote *kn, long hint)
 	if ((kn->kn_sfflags & event) != 0)
 		kn->kn_fflags |= kn->kn_sfflags & event;
 
+	/* Report exit status */
+	if ((kn->kn_fflags & NOTE_EXIT) != 0)
+		kn->kn_data = KW_EXITCODE(p->p_xexit, p->p_xsig);
+
 	/* Process is gone, so flag the event as finished. */
-	if ((event & NOTE_EXIT) != 0) {
+	if ((event & NOTE_REAP) != 0 ||
+	    ((event & NOTE_EXIT) != 0 && (kn->kn_sfflags & NOTE_REAP) == 0)) {
 		kn->kn_flags |= EV_EOF | EV_ONESHOT;
 		kn->kn_ptr.p_proc = NULL;
-		if (kn->kn_fflags & NOTE_EXIT)
-			kn->kn_data = KW_EXITCODE(p->p_xexit, p->p_xsig);
 		if (kn->kn_fflags == 0)
 			kn->kn_flags |= EV_DROP;
 		return (1);
