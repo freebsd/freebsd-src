@@ -269,10 +269,46 @@ ATF_TC_BODY(cponfork_notes, tc)
 	cponfork_notes_mask_check(info.si_status, true);
 }
 
+/*
+ * Exercise a rare race: while the kernel is copying knotes during a fork, try
+ * to set things up so that a new knote is activated while the copy is still in
+ * progress.
+ */
+ATF_TC_WITHOUT_HEAD(cponfork_timer_race);
+ATF_TC_BODY(cponfork_timer_race, tc)
+{
+	struct kevent ev;
+	int error, kq, status;
+	pid_t pid;
+
+	for (int i = 0; i < 100; i++) {
+		kq = kqueuex(KQUEUE_CPONFORK);
+		ATF_REQUIRE(kq >= 0);
+
+		EV_SET(&ev, 0, EVFILT_TIMER, EV_ADD | EV_ENABLE, NOTE_NSECONDS,
+		    1, NULL);
+		error = kevent(kq, &ev, 1, NULL, 0, NULL);
+		ATF_REQUIRE(error == 0);
+
+		pid = fork();
+		ATF_REQUIRE(pid != -1);
+		if (pid == 0)
+			_exit(0);
+
+		error = waitpid(pid, &status, 0);
+		ATF_REQUIRE(error != -1);
+		ATF_REQUIRE(WIFEXITED(status));
+		ATF_REQUIRE_EQ(WEXITSTATUS(status), 0);
+
+		ATF_REQUIRE(close(kq) == 0);
+	}
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, shared_table_filt_sig);
 	ATF_TP_ADD_TC(tp, cponfork_notes);
+	ATF_TP_ADD_TC(tp, cponfork_timer_race);
 
 	return (atf_no_error());
 }

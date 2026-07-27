@@ -3072,13 +3072,29 @@ kqueue_fork_alloc(struct filedesc *fdp, struct file *fp, struct file **fp1,
 }
 
 static void
-kqueue_fork_copy_knote(struct kqueue *kq1, struct knote *kn, struct proc *p1,
-    struct filedesc *fdp)
+kqueue_fork_copy_knote(struct kqueue *kq, struct kqueue *kq1, struct knote *kn,
+    struct proc *p1, struct filedesc *fdp)
 {
 	struct knote *kn1;
+	struct knlist *knl;
 	const struct filterops *fop;
 	int error;
+	bool enqueue;
 
+	KASSERT(kn->kn_influx != 0,
+	    ("%s: knote %p not in flux", __func__, kn));
+	KASSERT((kn->kn_status & KN_DETACHED) == 0,
+	    ("%s: knote %p not detached", __func__, kn));
+
+	if ((kn->kn_status & KN_MARKER) != 0)
+		return;
+	if ((kn->kn_status & KN_KQUEUE) != 0) {
+		/*
+		 * We cannot hold references to a kqueue outside of the process
+		 * itself, kqueue_close() does not handle this possibility.
+		 */
+		return;
+	}
 	fop = kn->kn_fop;
 	if (fop->f_copy == NULL || (fop->f_isfd &&
 	    fdp->fd_files->fdt_ofiles[kn->kn_kevent.ident].fde_file == NULL))
@@ -3088,9 +3104,13 @@ kqueue_fork_copy_knote(struct kqueue *kq1, struct knote *kn, struct proc *p1,
 		return;
 
 	kn1 = knote_alloc(M_WAITOK);
+
+	knl = kn_list_lock(kn);
+	KQ_LOCK(kq);
 	*kn1 = *kn;
-	kn1->kn_status |= KN_DETACHED;
-	kn1->kn_status &= ~KN_QUEUED;
+	KQ_UNLOCK(kq);
+	kn_list_unlock(knl);
+	kn1->kn_status = KN_DETACHED | (kn1->kn_status & KN_CPONFORK);
 	kn1->kn_kq = kq1;
 	kn1->kn_knlist = NULL;
 	error = fop->f_copy(kn1, p1);
@@ -3105,12 +3125,19 @@ kqueue_fork_copy_knote(struct kqueue *kq1, struct knote *kn, struct proc *p1,
 		knote_free(kn1);
 		return;
 	}
-	if (kn->kn_knlist != NULL)
-		knlist_add(kn->kn_knlist, kn1, 0);
+	if (kn->kn_knlist != NULL) {
+		knl = kn_list_lock(kn);
+		knlist_add(kn->kn_knlist, kn1, 1);
+	} else {
+		knl = NULL;
+	}
+	enqueue = kn->kn_fop->f_event(kn1, 0) != 0;
+	kn_list_unlock(knl);
+
 	KQ_LOCK(kq1);
 	knote_attach(kn1, kq1);
 	kn1->kn_influx = 0;
-	if ((kn->kn_status & KN_QUEUED) != 0)
+	if (enqueue && (kn1->kn_status & KN_QUEUED) == 0)
 		knote_enqueue(kn1);
 	KQ_UNLOCK(kq1);
 }
@@ -3134,7 +3161,7 @@ kqueue_fork_copy_list(struct klist *knlist, struct knote *marker,
 		kn_enter_flux(kn);
 		SLIST_INSERT_AFTER(kn, marker, kn_link);
 		KQ_UNLOCK(kq);
-		kqueue_fork_copy_knote(kq1, kn, p1, fdp);
+		kqueue_fork_copy_knote(kq, kq1, kn, p1, fdp);
 		KQ_LOCK(kq);
 		kn_leave_flux(kn);
 		kn = SLIST_NEXT(marker, kn_link);
