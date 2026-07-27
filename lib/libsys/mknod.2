@@ -53,13 +53,20 @@ indicates a block or character special file,
 .Fa dev
 is a configuration dependent specification denoting a particular device
 on the system.
-Otherwise,
+Otherwise, if
+.Fa mode
+indicates the request to create a FIFO
+.Pq see Xr mkfifo 2
+the
 .Fa dev
-is ignored.
+argument must be zero.
+For creating whiteouts, the
+.Fa dev
+argument is ignored.
 .Pp
 The
 .Fn mknod
-system call
+system call, when called to create special files,
 requires super-user privileges.
 .Pp
 The
@@ -132,10 +139,12 @@ The
 argument
 points outside the process's allocated address space.
 .It Bq Er EINVAL
-Creating anything else than a block or character special
-file (or a
-.Em whiteout )
-is not supported.
+Creating anything other than a block or character special
+file, whiteout, or FIFO, is not supported.
+.It Bq Er EINVAL
+Non-zero
+.Fa dev
+specified when creating FIFO.
 .El
 .Pp
 In addition to the errors returned by the
