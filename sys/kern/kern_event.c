@@ -257,6 +257,14 @@ SYSCTL_UINT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
 		wakeup((kq));						\
 	}								\
 } while (0)
+#define KQ_FLUX_SLEEP_WMESG(kq, kn, flags, wmesg) do {			\
+	KASSERT((kn)->kn_kq == (kq),					\
+	    ("%s: knote %p not on kqueue %p", __func__, kn, kq));	\
+	(kq)->kq_state |= KQ_FLUXWAIT;					\
+	msleep((kq), &(kq)->kq_lock, PSOCK | (flags), (wmesg), 0);	\
+} while (0)
+#define KQ_FLUX_SLEEP(kq, kn, flags)					\
+	KQ_FLUX_SLEEP_WMESG(kq, kn, flags, "kqfluxwt")
 #define KQ_UNLOCK_FLUX(kq) do {						\
 	KQ_FLUX_WAKEUP(kq);						\
 	mtx_unlock(&(kq)->kq_lock);					\
@@ -1789,8 +1797,7 @@ findkn:
 			FILEDESC_XUNLOCK(td->td_proc->p_fd);
 			filedesc_unlock = 0;
 		}
-		kq->kq_state |= KQ_FLUXWAIT;
-		msleep(kq, &kq->kq_lock, PSOCK | PDROP, "kqflxwt", 0);
+		KQ_FLUX_SLEEP(kq, kn, PDROP);
 		if (fp != NULL) {
 			fdrop(fp, td);
 			fp = NULL;
@@ -2187,9 +2194,7 @@ retry:
 				influx = 0;
 				KQ_FLUX_WAKEUP(kq);
 			}
-			kq->kq_state |= KQ_FLUXWAIT;
-			error = msleep(kq, &kq->kq_lock, PSOCK,
-			    "kqflxwt", 0);
+			KQ_FLUX_SLEEP(kq, kn, 0);
 			continue;
 		}
 
@@ -2423,8 +2428,7 @@ kqueue_drain(struct kqueue *kq, struct thread *td)
 	for (i = 0; i < kq->kq_knlistsize; i++) {
 		while ((kn = SLIST_FIRST(&kq->kq_knlist[i])) != NULL) {
 			if (kn_in_flux(kn)) {
-				kq->kq_state |= KQ_FLUXWAIT;
-				msleep(kq, &kq->kq_lock, PSOCK, "kqclo1", 0);
+				KQ_FLUX_SLEEP_WMESG(kq, kn, 0, "kqclo1");
 				continue;
 			}
 			kn_enter_flux(kn);
@@ -2437,9 +2441,8 @@ kqueue_drain(struct kqueue *kq, struct thread *td)
 		for (i = 0; i <= kq->kq_knhashmask; i++) {
 			while ((kn = SLIST_FIRST(&kq->kq_knhash[i])) != NULL) {
 				if (kn_in_flux(kn)) {
-					kq->kq_state |= KQ_FLUXWAIT;
-					msleep(kq, &kq->kq_lock, PSOCK,
-					       "kqclo2", 0);
+					KQ_FLUX_SLEEP_WMESG(kq, kn, 0,
+					    "kqclo2");
 					continue;
 				}
 				kn_enter_flux(kn);
@@ -2834,8 +2837,7 @@ knlist_cleardel(struct knlist *knl, struct thread *td, int islocked, int killkn)
 		KQ_LOCK(kq);
 		KASSERT(kn_in_flux(kn), ("knote removed w/o list lock"));
 		knl->kl_unlock(knl->kl_lockarg);
-		kq->kq_state |= KQ_FLUXWAIT;
-		msleep(kq, &kq->kq_lock, PSOCK | PDROP, "kqkclr", 0);
+		KQ_FLUX_SLEEP_WMESG(kq, kn, PDROP, "kqkclr");
 		kq = NULL;
 		knl->kl_lock(knl->kl_lockarg);
 	}
@@ -2881,8 +2883,7 @@ knote_fdclose(struct thread *td, int fd)
 				 * the case that it's in the process of being
 				 * dropped anyways.
 				 */
-				kq->kq_state |= KQ_FLUXWAIT;
-				msleep(kq, &kq->kq_lock, PSOCK, "kqflxwt", 0);
+				KQ_FLUX_SLEEP(kq, kn, 0);
 				continue;
 			}
 			kn_enter_flux(kn);
@@ -2946,8 +2947,7 @@ knote_drop_detached(struct knote *kn, struct thread *td)
 		    kn, kn->kn_influx));
 		if (kn->kn_influx == 1)
 			break;
-		kq->kq_state |= KQ_FLUXWAIT;
-		msleep(kq, &kq->kq_lock, PSOCK, "kqflxwt", 0);
+		KQ_FLUX_SLEEP(kq, kn, 0);
 	}
 
 	MPASS(kn->kn_kq == kq);
