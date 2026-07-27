@@ -38,50 +38,34 @@
 #define _NETINET_IN_PCB_H_
 
 /*
- * PCB with AF_INET6 null bind'ed laddr can receive AF_INET input packet.
- * So, AF_INET6 null laddr is also used as AF_INET null laddr, by utilizing
- * the following structure.  This requires padding always be zeroed out,
- * which is done right after inpcb allocation and stays through its lifetime.
- */
-struct in_addr_4in6 {
-	uint32_t	ia46_pad32[3];
-	struct in_addr	ia46_addr4;
-};
-
-union in_dependaddr {
-	struct in_addr_4in6 id46_addr;
-	struct in6_addr	id6_addr;
-};
-
-/*
- * NOTE: ipv6 addrs should be 64-bit aligned, per RFC 2553.  in_conninfo has
- * some extra padding to accomplish this.
+ * NOTE: IPv6 inpcb bound to unspecified local address shall also receive IPv4
+ * traffic.  Thus, IPv6 local address that is IN6_IS_ADDR_UNSPECIFIED() should
+ * also be usable as IPv4 INADDR_ANY.  This requires padding in in_dependaddr
+ * to always be zeroed out, which is done right after inpcb allocation and
+ * stays through its lifetime.
  * NOTE 2: tcp_syncache.c uses first 5 32-bit words, which identify fport,
  * lport, faddr to generate hash, so these fields shouldn't be moved.
- */
-struct in_endpoints {
-	uint16_t	ie_fport;		/* foreign port */
-	uint16_t	ie_lport;		/* local port */
-	/* protocol dependent part, local and foreign addr */
-	union in_dependaddr ie_dependfaddr;	/* foreign host table entry */
-	union in_dependaddr ie_dependladdr;	/* local host table entry */
-#define	ie_faddr	ie_dependfaddr.id46_addr.ia46_addr4
-#define	ie_laddr	ie_dependladdr.id46_addr.ia46_addr4
-#define	ie6_faddr	ie_dependfaddr.id6_addr
-#define	ie6_laddr	ie_dependladdr.id6_addr
-	uint32_t	ie6_zoneid;		/* scope zone id */
-};
-
-/*
- * XXX The defines for inc_* are hacks and should be changed to direct
- * references.
  */
 struct in_conninfo {
 	uint8_t		inc_flags;
 	uint8_t		inc_len;
-	uint16_t	inc_fibnum;	/* XXX was pad, 16 bits is plenty */
-	/* protocol dependent part */
-	struct in_endpoints inc_ie;
+	uint16_t	inc_fibnum;
+	struct in_endpoints {
+		uint16_t	ie_fport;		/* foreign port */
+		uint16_t	ie_lport;		/* local port */
+		union in_dependaddr {
+			struct {
+				uint32_t __pad[3];
+				struct in_addr id4_addr;
+			};
+			struct in6_addr	id6_addr;
+		} ie_dependfaddr, ie_dependladdr;
+#define	ie_faddr	ie_dependfaddr.id4_addr
+#define	ie_laddr	ie_dependladdr.id4_addr
+#define	ie6_faddr	ie_dependfaddr.id6_addr
+#define	ie6_laddr	ie_dependladdr.id6_addr
+		uint32_t	ie6_zoneid;		/* scope zone id */
+	} inc_ie;
 };
 
 /*
@@ -566,7 +550,7 @@ VNET_DECLARE(uint32_t, in_pcbhashseed);
  * wildcard IPv4 and wildcard IPv6 must be the same, otherwise AF_INET6
  * wildcard bound pcb won't be able to receive AF_INET connections, while:
  * jenkins_hash(&zeroes, 1, s) != jenkins_hash(&zeroes, 4, s)
- * See also comment above struct in_addr_4in6.
+ * See also comment above struct in_conninfo.
  */
 #define	IN_ADDR_JHASH32(addr)						\
 	((addr)->s_addr == INADDR_ANY ? V_in_pcbhashseed :		\

@@ -74,7 +74,7 @@ struct inpcblbgroup {
 	uint8_t		il_numa_domain;
 	int		il_fibnum;
 	union in_dependaddr il_dependladdr;		/* (c) */
-#define	il_laddr	il_dependladdr.id46_addr.ia46_addr4
+#define	il_laddr	il_dependladdr.id4_addr
 #define	il6_laddr	il_dependladdr.id6_addr
 	uint32_t	il_inpsiz; /* max count in il_inp[] (h) */
 	uint32_t	il_inpcnt; /* cur count in il_inp[] (h) */
