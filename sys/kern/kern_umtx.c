@@ -2028,7 +2028,7 @@ int
 umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi, uint32_t owner,
     const char *wmesg, struct umtx_abs_timeout *timo, bool shared)
 {
-	struct thread *td, *td1;
+	struct thread *td;
 	struct umtx_q *uq1;
 	int error, pri;
 #ifdef INVARIANTS
@@ -2044,13 +2044,22 @@ umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi, uint32_t owner,
 	umtxq_insert(uq);
 	mtx_lock(&umtx_lock);
 	if (pi->pi_owner == NULL) {
+		struct thread *ownertd;
+
 		mtx_unlock(&umtx_lock);
-		td1 = tdfind(owner, shared ? -1 : td->td_proc->p_pid);
+		ownertd = tdfind(owner, shared ? -1 : td->td_proc->p_pid);
 		mtx_lock(&umtx_lock);
-		if (td1 != NULL) {
-			if (pi->pi_owner == NULL)
-				umtx_pi_setowner(pi, td1);
-			PROC_UNLOCK(td1->td_proc);
+		if (ownertd != NULL) {
+			/*
+			 * An exiting thread that has already called
+			 * umtx_thread_exit() must not be made the owner of a
+			 * shared mutex.
+			 */
+			if ((ownertd->td_proc->p_flag & P_WEXIT) == 0 &&
+			    (ownertd->td_dbgflags & TDB_EXIT) == 0 &&
+			    pi->pi_owner == NULL)
+				umtx_pi_setowner(pi, ownertd);
+			PROC_UNLOCK(ownertd->td_proc);
 		}
 	}
 
