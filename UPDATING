@@ -12,6 +12,18 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260722:
+	The wait_for_pids() function in rc.subr, used by rc scripts
+	when stopping or restarting a service, has been modified to
+	use pwait(1)'s new -r option, which requires kernel support.
+	When upgrading across this change, you should install a new
+	kernel first, then reboot, then install a new world, run
+	etcupdate, and reboot again.  Otherwise, you may find that
+	rc.subr is unable to stop services because the running kernel
+	does not provide the support that the updated pwait(1) needs.
+	Alternatively, if you deem it safe, you may use fastboot(8) to
+	reboot without shutting down services first.
+
 20260116:
 	Bump __FreeBSD_version to 1403508 for various LinuxKPI changes
 	so they could be detected if needed.
