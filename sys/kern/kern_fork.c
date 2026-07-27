@@ -701,6 +701,13 @@ do_fork(struct thread *td, struct fork_req *fr, struct proc *p2, struct thread *
 	if (p2->p_reaper == p1 && p1 != initproc) {
 		p2->p_reapsubtree = p2->p_pid;
 		proc_id_set_cond(PROC_ID_REAP, p2->p_pid);
+	} else {
+		/*
+		 * Explicitly copy this field under the proctree lock, as it
+		 * might have changed since the bulk copying of the parent's
+		 * fields.
+		 */
+		p2->p_reapsubtree = p1->p_reapsubtree;
 	}
 	sx_xunlock(&proctree_lock);
 
