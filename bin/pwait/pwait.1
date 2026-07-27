@@ -88,6 +88,18 @@ Print the exit status when each process terminates or
 .Ql timeout
 if the timer goes off earlier.
 .El
+.Pp
+If
+.Nm
+receives
+.Dv SIGINFO
+(see the
+.Sy status
+argument for
+.Xr stty 1 )
+signal,
+a space-separated list of processes still being waited on is printed
+to the standard error output.
 .Sh EXIT STATUS
 The
 .Nm
@@ -148,6 +160,7 @@ $ echo $?
 .Xr kill 1 ,
 .Xr pkill 1 ,
 .Xr ps 1 ,
+.Xr stty 1 ,
 .Xr wait 1 ,
 .Xr kqueue 2
 .Sh NOTES
