@@ -166,7 +166,7 @@ ATF_TC_HEAD(pwait_normal, tc)
 }
 ATF_TC_BODY(pwait_normal, tc)
 {
-	pwait_reap_test(true);
+	pwait_reap_test(false);
 }
 
 ATF_TC(pwait_reap);
