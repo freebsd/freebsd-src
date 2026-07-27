@@ -12,6 +12,20 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260729:
+	14.4-RELEASE-p8	EN-26:18.tzdata
+			SA-26:52.if_wg
+			SA-26:54.sysvsem
+			SA-26:55.elf
+
+	Timezone database information update. [EN-26:18.tzdata]
+
+	Missing MAC validation in wg(4) packet decryption. [SA-26:52.if_wg]
+
+	Heap out-of-bounds access in semctl(2). [SA-26:54.sysvsem]
+
+	Race condition in ELF core dump segment counting. [SA-26:55.elf]
+
 20260630:
 	14.4-RELEASE-p7	EN-26:16.arm64
 			SA-26:37.vm
