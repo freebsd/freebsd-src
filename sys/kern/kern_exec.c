@@ -32,12 +32,12 @@
 #include "opt_ktrace.h"
 #include "opt_vm.h"
 
-#include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/acct.h>
 #include <sys/asan.h>
 #include <sys/capsicum.h>
 #include <sys/compressor.h>
+#include <sys/dirent.h>
 #include <sys/eventhandler.h>
 #include <sys/exec.h>
 #include <sys/fcntl.h>
@@ -568,12 +568,46 @@ interpret:
 		newbinname[nd.ni_cnd.cn_namelen] = '\0';
 		imgp->vp = newtextvp;
 
+		if (atomic_load_8(&newtextdvp->v_type) != VDIR) {
+			struct vnode *dvp1;
+			char *buf1;
+			size_t buf1len;
+
+			/*
+			 * The newtextdvp vnode might be not a
+			 * directory when reclaimed or when the image
+			 * is mounted over a regular file.  In the
+			 * latter case, try to resolve the containing
+			 * directory.
+			 *
+			 * In any case, p_textdvp must be either a
+			 * directory or reclaimed.
+			 */
+			VOP_UNLOCK(imgp->vp);
+			dvp1 = newtextdvp;
+			buf1len = MAXNAMLEN + 1;
+			buf1 = malloc(buf1len, M_TEMP, M_WAITOK);
+			error = vn_vptocnp(&dvp1, buf1, &buf1len);
+			if (error == 0) {
+				if (atomic_load_8(&dvp1->v_type) == VDIR) {
+					newtextdvp = dvp1;
+				} else {
+					vrele(dvp1);
+					newtextdvp = NULL;
+				}
+			} else {
+				newtextdvp = NULL;
+			}
+			free(buf1, M_TEMP);
+			vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
+		}
+
 		/*
 		 * Do the best to calculate the full path to the image file.
 		 */
 		if (args->fname[0] == '/') {
 			imgp->execpath = args->fname;
-		} else {
+		} else if (newtextdvp != NULL) {
 			VOP_UNLOCK(imgp->vp);
 			freepath_size = MAXPATHLEN;
 			if (vn_fullpath_hardlink(newtextvp, newtextdvp,
