@@ -3158,7 +3158,7 @@
 564	AUE_NULL	STD {
 		int getfhat(
 		    int fd,
-		    _In_z_ char *path,
+		    _In_z_ const char *path,
 		    _Out_ struct fhandle *fhp,
 		    int flags
 		);

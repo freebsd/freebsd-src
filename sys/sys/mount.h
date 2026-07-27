@@ -1245,7 +1245,7 @@ int	fhstat(const struct fhandle *, struct stat *);
 int	fhstatfs(const struct fhandle *, struct statfs *);
 int	fstatfs(int, struct statfs *);
 int	getfh(const char *, fhandle_t *);
-int	getfhat(int, char *, struct fhandle *, int);
+int	getfhat(int, const char *, struct fhandle *, int);
 int	getfsstat(struct statfs *, long, int);
 int	getmntinfo(struct statfs **, int);
 int	lgetfh(const char *, fhandle_t *);
