@@ -3,6 +3,7 @@
 
 # PROVIDE: nuageinit_user_data_script
 # REQUIRE: local
+# BEFORE:  firstboot_freebsd_update firstboot_pkg_upgrade
 # KEYWORD: firstboot
 
 . /etc/rc.subr
