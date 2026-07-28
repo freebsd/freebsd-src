@@ -5486,6 +5486,28 @@ iflib_device_iov_uninit(device_t dev)
 	CTX_UNLOCK(ctx);
 }
 
+void
+iflib_device_iov_uninit_restart(device_t dev)
+{
+	if_ctx_t ctx;
+	bool restart;
+
+	ctx = device_get_softc(dev);
+
+	CTX_LOCK(ctx);
+	/*
+	 * RUNNING can be clear while a watchdog reset is pending but the
+	 * hardware is still live.  Always stop before the driver changes its
+	 * queue layout, and use IFF_UP only to preserve administrative state.
+	 */
+	restart = (if_getflags(ctx->ifc_ifp) & IFF_UP) != 0;
+	iflib_stop(ctx);
+	IFDI_IOV_UNINIT(ctx);
+	if (restart)
+		iflib_init_locked(ctx);
+	CTX_UNLOCK(ctx);
+}
+
 int
 iflib_device_iov_add_vf(device_t dev, uint16_t vfnum, const nvlist_t *params)
 {
