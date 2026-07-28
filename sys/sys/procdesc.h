@@ -71,10 +71,15 @@ struct procdesc {
 	/*
 	 * In-flight data and notification of events.
 	 */
-	int		 pd_flags;		/* (p) PD_ flags. */
-	u_short		 pd_xstat;		/* (p) Exit status. */
+	int		 pd_flags;		/* (t) PD_ flags. */
 	struct selinfo	 pd_selinfo;		/* (p) Event notification. */
 	struct mtx	 pd_lock;		/* Protect data + events. */
+
+	/* Exit status. */
+	u_int		 pd_xexit;
+	u_int		 pd_xsig;
+	struct __wrusage pd_wrusage;
+	siginfo_t	 pd_siginfo;
 };
 
 /*
@@ -89,6 +94,7 @@ struct procdesc {
 /*
  * Flags for the pd_flags field.
  */
+#define	PDF_EXIT_INFO	0x00000001	/* Exit info calculated. */
 #define	PDF_EXITED	0x00000004	/* Process exited. */
 
 /*
@@ -111,6 +117,7 @@ void	 procdesc_new(struct proc *, int);
 void	 procdesc_finit(struct procdesc *, struct file *);
 pid_t	 procdesc_pid(struct file *);
 void	 procdesc_reap(struct proc *);
+void	 procdesc_fill_winfo(struct procdesc *pd, bool proc_locked);
 
 int	 procdesc_falloc(struct thread *, struct file **, int *, int,
 	    struct filecaps *);
