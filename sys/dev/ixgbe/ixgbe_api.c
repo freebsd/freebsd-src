@@ -495,7 +495,9 @@ s32 ixgbe_stop_adapter(struct ixgbe_hw *hw)
  **/
 s32 ixgbe_read_pba_string(struct ixgbe_hw *hw, u8 *pba_num, u32 pba_num_size)
 {
-	return ixgbe_read_pba_string_generic(hw, pba_num, pba_num_size);
+	return ixgbe_call_func(hw, hw->eeprom.ops.read_pba_string,
+			       (hw, pba_num, pba_num_size),
+			       IXGBE_NOT_IMPLEMENTED);
 }
 
 /**
