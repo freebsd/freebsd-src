@@ -750,7 +750,7 @@ static int mlx5dv_get_srq(struct ibv_srq *srq_in,
 	return 0;
 }
 
-int mlx5dv_init_obj(struct mlx5dv_obj *obj, uint64_t obj_type)
+static int _mlx5dv_init_obj(struct mlx5dv_obj *obj, uint64_t obj_type)
 {
 	int ret = 0;
 
@@ -765,6 +765,36 @@ int mlx5dv_init_obj(struct mlx5dv_obj *obj, uint64_t obj_type)
 
 	return ret;
 }
+
+/*
+ * mlx5dv_init_obj is exported with two ABI versions so that binaries linked
+ * against the historical symbol keep working after the mlx5dv_cq UAR field was
+ * revised.  The current implementation (MLX5_1.2) leaves mlx5dv_cq.cq_uar set
+ * to the CQ's UAR register (a 'void *').  The MLX5_1.0 compat wrapper restores
+ * the historical 'void **' value at that location.
+ */
+int mlx5dv_init_obj_1_2(struct mlx5dv_obj *obj, uint64_t obj_type);
+int mlx5dv_init_obj_1_0(struct mlx5dv_obj *obj, uint64_t obj_type);
+
+int mlx5dv_init_obj_1_2(struct mlx5dv_obj *obj, uint64_t obj_type)
+{
+	return _mlx5dv_init_obj(obj, obj_type);
+}
+
+int mlx5dv_init_obj_1_0(struct mlx5dv_obj *obj, uint64_t obj_type)
+{
+	int ret;
+
+	ret = _mlx5dv_init_obj(obj, obj_type);
+	if (!ret && (obj_type & MLX5DV_OBJ_CQ)) {
+		/* ABI version 1.0 returns the 'void **' at this location. */
+		obj->cq.out->cq_uar = to_mctx(obj->cq.in->context)->uar;
+	}
+	return ret;
+}
+
+__asm__(".symver mlx5dv_init_obj_1_2, mlx5dv_init_obj@@MLX5_1.2");
+__asm__(".symver mlx5dv_init_obj_1_0, mlx5dv_init_obj@MLX5_1.0");
 
 static void adjust_uar_info(struct mlx5_device *mdev,
 			    struct mlx5_context *context,
