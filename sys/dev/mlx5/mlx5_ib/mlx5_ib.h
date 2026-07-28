@@ -468,7 +468,6 @@ enum mlx5_ib_qp_flags {
 	MLX5_IB_QP_RSS				= 1 << 8,
 	MLX5_IB_QP_CVLAN_STRIPPING		= 1 << 9,
 	MLX5_IB_QP_UNDERLAY			= 1 << 10,
-	MLX5_IB_QP_TUNNEL_OFFLOAD		= 1 << 12,
 };
 
 struct mlx5_umr_wr {
