@@ -781,8 +781,10 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 
 	return (0);
 out:
-	if (iov_inited)
+	if (iov_inited) {
 		PCI_IOV_UNINIT(dev);
+		IOV_WRITE(dinfo, PCIR_SRIOV_NUM_VFS, 0, 2);
+	}
 
 	for (i = 0; i <= PCIR_MAX_BAR_0; i++) {
 		if (iov->iov_bar[i].res != NULL) {
