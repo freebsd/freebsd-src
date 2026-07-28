@@ -236,7 +236,7 @@ SSHCONF_INT(unused_connection_timeout, UnusedConnectionTimeout, SSHCFG_ALL, NULL
 SSHCONF_STRING(sshd_session_path, SshdSessionPath, SSHCFG_GLOBAL, SSHCFG_COPY_NONE) \
 SSHCONF_STRING(sshd_auth_path, SshdAuthPath, SSHCFG_GLOBAL, SSHCFG_COPY_NONE) \
 SSHCONF_INTFLAG(refuse_connection, RefuseConnection, SSHCFG_ALL, 0, SSHCFG_COPY_MATCH) \
-SSHCONF_INTFLAG(use_blocklist, UseBlocklist, SSHCFG_ALL, 0, SSHCFG_COPY_MATCH)
+SSHCONF_INTFLAG(use_blocklist, UseBlocklist, SSHCFG_GLOBAL, 0, SSHCFG_COPY_NONE)
 
 #define SSHD_CONFIG_ENTRIES_LEGACY \
 SSHCONF_DEPRECATE(ServerKeyBits, SSHCFG_GLOBAL, SSHCONF_DEPRECATED) \
