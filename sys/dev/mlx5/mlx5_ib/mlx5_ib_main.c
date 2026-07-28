@@ -110,15 +110,42 @@ static int mlx5_netdev_event(struct notifier_block *this,
 						 roce.nb);
 
 	switch (event) {
-	case NETDEV_REGISTER:
-	case NETDEV_UNREGISTER:
-		write_lock(&ibdev->roce.netdev_lock);
+	case NETDEV_REGISTER: {
+		if_t old;
+
 		/* check if network interface belongs to mlx5en */
-		if (mlx5_netdev_match(ndev, ibdev->mdev, "mce"))
-			ibdev->roce.netdev = (event == NETDEV_UNREGISTER) ?
-					     NULL : ndev;
+		if (!mlx5_netdev_match(ndev, ibdev->mdev, "mce"))
+			break;
+
+		/*
+		 * Hold a reference on the recorded netdev so the stored
+		 * pointer cannot dangle if the interface is freed before it
+		 * is cleared.  Release the previously recorded netdev (if any)
+		 * outside the lock.
+		 */
+		if_ref(ndev);
+		write_lock(&ibdev->roce.netdev_lock);
+		old = ibdev->roce.netdev;
+		ibdev->roce.netdev = ndev;
 		write_unlock(&ibdev->roce.netdev_lock);
+		if (old != NULL)
+			if_rele(old);
 		break;
+	}
+	case NETDEV_UNREGISTER: {
+		if_t old;
+
+		write_lock(&ibdev->roce.netdev_lock);
+		old = ibdev->roce.netdev;
+		if (old == ndev)
+			ibdev->roce.netdev = NULL;
+		else
+			old = NULL;
+		write_unlock(&ibdev->roce.netdev_lock);
+		if (old != NULL)
+			if_rele(old);
+		break;
+	}
 
 	case NETDEV_UP:
 	case NETDEV_DOWN: {
@@ -3220,24 +3247,46 @@ static int mlx5_add_netdev_notifier(struct mlx5_ib_dev *dev)
 
 static void mlx5_remove_netdev_notifier(struct mlx5_ib_dev *dev)
 {
+	if_t old;
+
 	if (dev->roce.nb.notifier_call) {
 		unregister_netdevice_notifier(&dev->roce.nb);
 		dev->roce.nb.notifier_call = NULL;
 	}
+
+	/*
+	 * No further events can arrive once the notifier is gone; drop the
+	 * reference taken when the netdev was recorded.
+	 */
+	write_lock(&dev->roce.netdev_lock);
+	old = dev->roce.netdev;
+	dev->roce.netdev = NULL;
+	write_unlock(&dev->roce.netdev_lock);
+	if (old != NULL)
+		if_rele(old);
 }
 
 static int
 mlx5_enable_roce_if_cb(if_t ifp, void *arg)
 {
 	struct mlx5_ib_dev *dev = arg;
+	if_t old;
 
 	/* check if network interface belongs to mlx5en */
 	if (!mlx5_netdev_match(ifp, dev->mdev, "mce"))
 		return (0);
 
+	/*
+	 * Hold a reference on the recorded netdev; it is released on teardown
+	 * or when a later event replaces it.
+	 */
+	if_ref(ifp);
 	write_lock(&dev->roce.netdev_lock);
+	old = dev->roce.netdev;
 	dev->roce.netdev = ifp;
 	write_unlock(&dev->roce.netdev_lock);
+	if (old != NULL)
+		if_rele(old);
 
 	return (0);
 }
@@ -3247,6 +3296,15 @@ static int mlx5_enable_eth(struct mlx5_ib_dev *dev)
 	struct epoch_tracker et;
 	VNET_ITERATOR_DECL(vnet_iter);
 	int err;
+
+	/*
+	 * Register the netdev notifier before scanning for existing
+	 * interfaces, so a register/unregister that races with the scan
+	 * cannot be missed.
+	 */
+	err = mlx5_add_netdev_notifier(dev);
+	if (err)
+		return err;
 
 	/* Check if mlx5en net device already exists */
 	VNET_LIST_RLOCK();
@@ -3258,10 +3316,6 @@ static int mlx5_enable_eth(struct mlx5_ib_dev *dev)
 	}
 	NET_EPOCH_EXIT(et);
 	VNET_LIST_RUNLOCK();
-
-	err = mlx5_add_netdev_notifier(dev);
-	if (err)
-		return err;
 
 	if (MLX5_CAP_GEN(dev->mdev, roce)) {
 		err = mlx5_nic_vport_enable_roce(dev->mdev);
