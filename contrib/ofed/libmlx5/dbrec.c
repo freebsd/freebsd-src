@@ -126,9 +126,12 @@ void mlx5_free_db(struct mlx5_context *context, __be32 *db)
 
 	pthread_mutex_lock(&context->db_list_mutex);
 
-	for (page = context->db_list; page; page = page->next)
-		if (((uintptr_t) db & ~(ps - 1)) == (uintptr_t) page->buf.buf)
+	for (page = context->db_list; page; page = page->next) {
+		uintptr_t base = (uintptr_t) page->buf.buf;
+
+		if ((uintptr_t) db >= base && (uintptr_t) db - base < ps)
 			break;
+	}
 
 	if (!page)
 		goto out;
