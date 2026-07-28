@@ -209,6 +209,13 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 	/* Reset VF registers to initial values */
 	ixgbe_virt_clr_reg(hw);
 
+	/*
+	 * VFLR does not clear VFMAILBOX.VFU. Drop stale ownership and
+	 * cached read-to-clear status.
+	 */
+	IXGBE_WRITE_REG(hw, IXGBE_VFMAILBOX, 0);
+	hw->mbx.vf_mailbox = 0;
+
 	/* mailbox timeout can now become active */
 	mbx->timeout = IXGBE_VF_MBX_INIT_TIMEOUT;
 
