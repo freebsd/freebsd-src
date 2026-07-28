@@ -1992,10 +1992,17 @@ int mlx5_query_device_ex(struct ibv_context *context,
 	attr->rss_caps.rx_hash_function = resp.rss_caps.rx_hash_function;
 	attr->packet_pacing_caps = resp.packet_pacing_caps.caps;
 
-	if (resp.support_multi_pkt_send_wqe & MLX5_ALLOW_MPW)
+	/*
+	 * The kernel reports the raw two-bit 'multi_pkt_send_wqe' HW
+	 * capability (0 = unsupported, 1 = MPW allowed, 3 = enhanced MPW),
+	 * not the MLX5_ALLOW_MPW / MLX5_SUPPORT_EMPW bitmask that upstream
+	 * libmlx5 expects.  Interpret the raw value so MPW is not silently
+	 * disabled on kernels that report the legacy encoding.
+	 */
+	if (resp.support_multi_pkt_send_wqe)
 		mctx->vendor_cap_flags |= MLX5_VENDOR_CAP_FLAGS_MPW_ALLOWED;
 
-	if (resp.support_multi_pkt_send_wqe & MLX5_SUPPORT_EMPW)
+	if (resp.support_multi_pkt_send_wqe == 3)
 		mctx->vendor_cap_flags |= MLX5_VENDOR_CAP_FLAGS_ENHANCED_MPW;
 
 	mctx->cqe_comp_caps = resp.cqe_comp_caps;
