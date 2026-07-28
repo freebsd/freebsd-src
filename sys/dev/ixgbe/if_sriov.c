@@ -353,6 +353,7 @@ ixgbe_vf_reset_msg(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 	struct ixgbe_hw *hw;
 	uint32_t ack;
 	uint32_t resp[IXGBE_VF_PERMADDR_MSG_LEN];
+	int i, queue_count;
 
 	hw = &sc->hw;
 
@@ -362,6 +363,18 @@ ixgbe_vf_reset_msg(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 	 * now safe to clear this VF's mailbox.
 	 */
 	ixgbe_clear_mbx(hw, vf->pool);
+
+	/*
+	 * VF reset does not clear the transmit head write-back addresses.
+	 * The queues were disabled by ixgbe_process_vf_reset().
+	 */
+	queue_count = ixgbe_vf_queues(sc->iov_mode);
+	for (i = 0; i < queue_count; i++) {
+		IXGBE_WRITE_REG(hw,
+		    IXGBE_PVFTDWBAHn(queue_count, vf->pool, i), 0);
+		IXGBE_WRITE_REG(hw,
+		    IXGBE_PVFTDWBALn(queue_count, vf->pool, i), 0);
+	}
 
 	if (ixgbe_validate_mac_addr(vf->ether_addr) == 0) {
 		ixgbe_set_rar(&sc->hw, vf->rar_index, vf->ether_addr,
