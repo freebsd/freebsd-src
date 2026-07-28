@@ -1272,6 +1272,9 @@
 #define	MSR_SMM_MASK	0xc0010113	/* SMM TSEG address mask */
 #define	MSR_VM_CR	0xc0010114	/* SVM: feature control */
 #define	MSR_VM_HSAVE_PA 0xc0010117	/* SVM: host save area address */
+#define	MSR_AMD_RAPL_POWER_UNIT 0xc0010299 /* RAPL unit shifts */
+#define	MSR_AMD_CORE_ENERGY_STATUS 0xc001029a /* RAPL per-core energy */
+#define	MSR_AMD_PKG_ENERGY_STATUS 0xc001029b /* RAPL package energy */
 #define	MSR_AMD_CPUID07	0xc0011002	/* CPUID 07 %ebx override */
 #define	MSR_AMD_CPUID01	0xc0011004	/* CPUID 01 %ecx override */
 #define	MSR_EXTFEATURES	0xc0011005	/* Extended CPUID Features override */
