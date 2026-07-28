@@ -128,9 +128,9 @@ struct tcp_hostcache {
 	u_int		bucket_limit;
 	u_int		cache_count;
 	u_int		cache_limit;
-	int		expire;
-	int		prune;
-	int		purgeall;
+	u_int		expire;
+	u_int		prune;
+	u_int		purgeall;
 };
 
 /* Arbitrary values */
@@ -146,6 +146,8 @@ VNET_DEFINE_STATIC(struct callout, tcp_hc_callout);
 #define	V_tcp_hc_callout	VNET(tcp_hc_callout)
 
 static struct hc_metrics *tcp_hc_lookup(const struct in_conninfo *);
+static int sysctl_tcp_hc_expire(SYSCTL_HANDLER_ARGS);
+static int sysctl_tcp_hc_prune(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_hc_list(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_hc_histo(SYSCTL_HANDLER_ARGS);
 static int sysctl_tcp_hc_purgenow(SYSCTL_HANDLER_ARGS);
@@ -178,15 +180,17 @@ SYSCTL_UINT(_net_inet_tcp_hostcache, OID_AUTO, count, CTLFLAG_VNET | CTLFLAG_RD,
     &VNET_NAME(tcp_hostcache.cache_count), 0,
     "Current number of entries in hostcache");
 
-SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, expire, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(tcp_hostcache.expire), 0,
+SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, expire,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    &VNET_NAME(tcp_hostcache.expire), 0, sysctl_tcp_hc_expire, "IU",
     "Expire time of TCP hostcache entries");
 
-SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, prune, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(tcp_hostcache.prune), 0,
+SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, prune,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    &VNET_NAME(tcp_hostcache.prune), 0, sysctl_tcp_hc_prune, "IU",
     "Time between purge runs");
 
-SYSCTL_INT(_net_inet_tcp_hostcache, OID_AUTO, purge, CTLFLAG_VNET | CTLFLAG_RW,
+SYSCTL_UINT(_net_inet_tcp_hostcache, OID_AUTO, purge, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_hostcache.purgeall), 0,
     "Expire all entries on next purge run");
 
@@ -201,8 +205,8 @@ SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, histo,
     "Print a histogram of hostcache hashbucket utilization");
 
 SYSCTL_PROC(_net_inet_tcp_hostcache, OID_AUTO, purgenow,
-    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
-    NULL, 0, sysctl_tcp_hc_purgenow, "I",
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, 0, sysctl_tcp_hc_purgenow, "IU",
     "Immediately purge all entries");
 
 static MALLOC_DEFINE(M_HOSTCACHE, "hostcache", "TCP hostcache");
@@ -621,6 +625,44 @@ tcp_hc_update(const struct in_conninfo *inc, struct tcp_hc_metrics *hcm)
 }
 
 /*
+ * Sysctl function: adjusts the expire timeout and adjusts the prune value accordingly.
+ */
+static int
+sysctl_tcp_hc_expire(SYSCTL_HANDLER_ARGS)
+{
+	int error, expire;
+
+	expire = V_tcp_hostcache.expire;
+	error = sysctl_handle_int(oidp, &expire, 0, req);
+	if (error != 0 || !req->newptr)
+		return (error);
+	if (expire < V_tcp_hostcache.prune)
+		V_tcp_hostcache.prune = expire;
+	V_tcp_hostcache.expire = expire;
+	return (0);
+}
+
+/*
+ * Sysctl function: adjusts the prune time and adjusts the expire timeout accordingly.
+ */
+static int
+sysctl_tcp_hc_prune(SYSCTL_HANDLER_ARGS)
+{
+	int error, prune;
+
+	prune = V_tcp_hostcache.prune;
+	error = sysctl_handle_int(oidp, &prune, 0, req);
+	if (error != 0 || !req->newptr)
+		return (error);
+	if (prune > V_tcp_hostcache.expire)
+		V_tcp_hostcache.expire = prune;
+	V_tcp_hostcache.prune = prune;
+	callout_reset(&V_tcp_hc_callout, V_tcp_hostcache.prune * hz,
+	    tcp_hc_purge, curvnet);
+	return (0);
+}
+
+/*
  * Sysctl function: prints the list and values of all hostcache entries in
  * unsorted order.
  */
@@ -831,7 +873,7 @@ sysctl_tcp_hc_purgenow(SYSCTL_HANDLER_ARGS)
 
 	val = 0;
 	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
+	if (error != 0 || !req->newptr)
 		return (error);
 
 	if (val == 2)
