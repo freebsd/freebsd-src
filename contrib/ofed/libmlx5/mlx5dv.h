@@ -34,6 +34,7 @@
 #define _MLX5DV_H_
 
 #include <infiniband/types.h> /* For the __be64 type */
+#include <sys/types.h>
 #include <infiniband/endian.h>
 
 #if defined(__SSE3__)
