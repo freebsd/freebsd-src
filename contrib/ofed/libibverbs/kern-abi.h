@@ -960,7 +960,7 @@ struct __ib_uverbs_flow_spec_hdr {
 	__u16 size;
 	__u16 reserved;
 	/* followed by flow_spec */
-	__u64 flow_spec_data[0];
+	__u64 __attribute__((aligned(8))) flow_spec_data[0];
 };
 
 /* Define in rdma/ib_user_verbs.h after refactoring OFED - start */

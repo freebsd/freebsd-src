@@ -2209,7 +2209,7 @@ static int parse_flow_attr(u32 *match_c, u32 *match_v,
 			 IPPROTO_GRE);
 
 		MLX5_SET(fte_match_set_misc, misc_params_c, gre_protocol,
-			 0xffff);
+			 ntohs(ib_spec->gre.mask.protocol));
 		MLX5_SET(fte_match_set_misc, misc_params_v, gre_protocol,
 			 ntohs(ib_spec->gre.val.protocol));
 
