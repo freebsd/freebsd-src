@@ -28,6 +28,7 @@
  */
 
 #include "if_em.h"
+#include "if_igb_iov.h"
 #include <sys/sbuf.h>
 #include <machine/_inttypes.h>
 
@@ -404,6 +405,11 @@ static const pci_vendor_info_t igbv_vendor_info_array[] = {
 static void	*em_register(device_t);
 static void	*igb_register(device_t);
 static void	*igbv_register(device_t);
+static int	igb_device_attach(device_t);
+#ifdef PCI_IOV
+static int	igb_device_iov_init(device_t, uint16_t, const nvlist_t *);
+static void	igb_device_iov_uninit(device_t);
+#endif
 static int	em_if_attach_pre(if_ctx_t);
 static int	em_if_attach_post(if_ctx_t);
 static int	em_if_detach(if_ctx_t);
@@ -455,6 +461,8 @@ static void	em_update_vf_stats_counters(struct e1000_softc *);
 static void	em_update_stats_counters(struct e1000_softc *);
 static void	em_add_hw_stats(struct e1000_softc *);
 static int	em_if_set_promisc(if_ctx_t, int);
+static int	em_if_set_promisc_impl(if_ctx_t, int);
+static bool	em_if_defer_promisc(struct e1000_softc *);
 static bool	em_if_vlan_filter_capable(if_ctx_t);
 static bool	em_if_vlan_filter_used(if_ctx_t);
 static void	em_if_vlan_filter_enable(struct e1000_softc *);
@@ -529,11 +537,16 @@ static device_method_t igb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_register, igb_register),
 	DEVMETHOD(device_probe, iflib_device_probe),
-	DEVMETHOD(device_attach, iflib_device_attach),
+	DEVMETHOD(device_attach, igb_device_attach),
 	DEVMETHOD(device_detach, iflib_device_detach),
 	DEVMETHOD(device_shutdown, iflib_device_shutdown),
 	DEVMETHOD(device_suspend, iflib_device_suspend),
 	DEVMETHOD(device_resume, iflib_device_resume),
+#ifdef PCI_IOV
+	DEVMETHOD(pci_iov_init, igb_device_iov_init),
+	DEVMETHOD(pci_iov_uninit, igb_device_iov_uninit),
+	DEVMETHOD(pci_iov_add_vf, iflib_device_iov_add_vf),
+#endif
 	DEVMETHOD_END
 };
 
@@ -655,6 +668,11 @@ static device_method_t igb_if_methods[] = {
 	DEVMETHOD(ifdi_tx_queue_intr_enable, igb_if_tx_queue_intr_enable),
 	DEVMETHOD(ifdi_debug, em_if_debug),
 	DEVMETHOD(ifdi_needs_restart, em_if_needs_restart),
+#ifdef PCI_IOV
+	DEVMETHOD(ifdi_iov_init, igb_if_iov_init),
+	DEVMETHOD(ifdi_iov_uninit, igb_if_iov_uninit),
+	DEVMETHOD(ifdi_iov_vf_add, igb_if_iov_vf_add),
+#endif
 	DEVMETHOD_END
 };
 
@@ -981,6 +999,59 @@ igbv_register(device_t dev)
 {
 	return (&igbv_sctx_init);
 }
+
+static int
+igb_device_attach(device_t dev)
+{
+	struct e1000_softc *sc;
+	if_ctx_t ctx;
+	int error;
+
+	error = iflib_device_attach(dev);
+	if (error != 0)
+		return (error);
+
+	ctx = device_get_softc(dev);
+	sc = iflib_get_softc(ctx);
+	(void)igb_iov_attach(sc);
+	return (0);
+}
+
+#ifdef PCI_IOV
+static int
+igb_device_iov_init(device_t dev, uint16_t num_vfs,
+    const nvlist_t *params)
+{
+	struct e1000_softc *sc;
+	if_ctx_t ctx;
+	int error;
+
+	ctx = device_get_softc(dev);
+	sc = iflib_get_softc(ctx);
+	error = igb_iov_validate(sc, num_vfs);
+	if (error != 0)
+		return (error);
+	return (iflib_device_iov_init_restart(dev, num_vfs, params));
+}
+
+static void
+igb_device_iov_uninit(device_t dev)
+{
+	struct e1000_softc *sc;
+	if_ctx_t ctx;
+
+	ctx = device_get_softc(dev);
+	sc = iflib_get_softc(ctx);
+	/*
+	 * pci_iov(4) has already detached the VF devices.  Tell the stop
+	 * half of iflib's restart transaction not to wait for acknowledgements
+	 * from VFs which can no longer service their mailbox vectors.
+	 */
+	atomic_store_rel_32(&sc->iov_teardown, 1);
+	iflib_device_iov_uninit_restart(dev);
+}
+
+#endif
 
 static int
 em_set_num_queues(if_ctx_t ctx)
@@ -1513,6 +1584,7 @@ em_if_detach(if_ctx_t ctx)
 
 	INIT_DEBUGOUT("em_if_detach: begin");
 
+	igb_iov_detach(sc);
 	e1000_phy_hw_reset(&sc->hw);
 
 	em_release_manageability(sc);
@@ -1601,7 +1673,7 @@ em_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 		break;
 	default:
 		if (sc->hw.mac.type >= igb_mac_min)
-			max_frame_size = 9234;
+			max_frame_size = IGB_MAX_FRAME_SIZE;
 		else /* lem */
 			max_frame_size = MAX_JUMBO_FRAME_SIZE;
 	}
@@ -1633,6 +1705,8 @@ em_if_init(if_ctx_t ctx)
 	int i;
 
 	INIT_DEBUGOUT("em_if_init: begin");
+	if (sc->vf_ifp)
+		sc->vf_reset_pending = true;
 
 	/* Get the latest mac address, User can use a LAA */
 	bcopy(if_getlladdr(ifp), sc->hw.mac.addr, ETHER_ADDR_LEN);
@@ -1653,6 +1727,7 @@ em_if_init(if_ctx_t ctx)
 	}
 
 	/* Initialize the hardware */
+	igb_iov_reset_prepare(sc);
 	em_reset(ctx);
 	/* Re-arm a link-up transition deferred for this reset. */
 	if (sc->link_state == EM_LINK_STATE_DOWN_RESET_PENDING ||
@@ -1697,7 +1772,11 @@ em_if_init(if_ctx_t ctx)
 	em_setup_vlan_hw_support(ctx);
 
 	/* Don't lose promiscuous settings */
-	em_if_set_promisc(ctx, if_getflags(ifp));
+	em_if_set_promisc_impl(ctx, if_getflags(ifp));
+	atomic_readandclear_32(&sc->promisc_pending);
+
+	/* Restore PF/VF pool configuration after the global reset. */
+	igb_iov_initialize(sc);
 
 	if (sc->hw.mac.ops.clear_hw_cntrs != NULL)
 		sc->hw.mac.ops.clear_hw_cntrs(&sc->hw);
@@ -1733,6 +1812,8 @@ em_if_init(if_ctx_t ctx)
 		else
 			e1000_set_eee_i350(&sc->hw, true, true);
 	}
+	if (sc->vf_ifp)
+		sc->vf_reset_pending = false;
 }
 
 /*
@@ -2039,17 +2120,43 @@ em_msix_link(void *arg)
 
 	++sc->link_irq;
 	MPASS(sc->hw.back != NULL);
+	/*
+	 * The VF's admin vector represents mailbox and link activity.  It has
+	 * no PF ICR at E1000_ICR, so process every admin-vector interrupt,
+	 * matching the igbvf misc-vector model.
+	 */
+	if (sc->vf_ifp) {
+		sc->hw.mac.get_link_status = true;
+		iflib_admin_intr_deferred(sc->ctx);
+		E1000_WRITE_REG(&sc->hw, E1000_EIMS, sc->link_mask);
+		return (FILTER_HANDLED);
+	}
+
 	reg_icr = E1000_READ_REG(&sc->hw, E1000_ICR);
+
+	/*
+	 * Enabling or disabling SR-IOV can briefly make PF MMIO reads return
+	 * all ones.  This is not an interrupt cause; in particular, do not
+	 * turn it into a malicious-driver event.
+	 */
+	if (__predict_false(reg_icr == 0xffffffff))
+		goto rearm;
 
 	if (reg_icr & E1000_ICR_RXO)
 		sc->rx_overruns++;
 
 	if (reg_icr & (E1000_ICR_RXSEQ | E1000_ICR_LSC))
 		em_handle_link(sc->ctx);
+	if (reg_icr & E1000_ICR_MDDET)
+		igb_iov_mdd_event(sc);
+	if (reg_icr & E1000_ICR_VMMB)
+		iflib_admin_intr_deferred(sc->ctx);
 
+rearm:
 	/* Re-arm unconditionally */
 	if (sc->hw.mac.type >= igb_mac_min) {
-		E1000_WRITE_REG(&sc->hw, E1000_IMS, E1000_IMS_LSC);
+		E1000_WRITE_REG(&sc->hw, E1000_IMS,
+		    E1000_IMS_LSC | igb_iov_intr_mask(sc));
 		E1000_WRITE_REG(&sc->hw, E1000_EIMS, sc->link_mask);
 	} else if (sc->hw.mac.type == e1000_82574) {
 		E1000_WRITE_REG(&sc->hw, E1000_IMS,
@@ -2187,10 +2294,61 @@ em_if_media_change(if_ctx_t ctx)
 static int
 em_if_set_promisc(if_ctx_t ctx, int flags)
 {
+	struct e1000_softc *sc;
+
+	sc = iflib_get_softc(ctx);
+	if (em_if_defer_promisc(sc))
+		return (0);
+	return (em_if_set_promisc_impl(ctx, flags));
+}
+
+static bool
+em_if_defer_promisc(struct e1000_softc *sc)
+{
+	switch (sc->hw.mac.type) {
+	case e1000_82576:
+	case e1000_i350:
+	case e1000_vfadapt:
+	case e1000_vfadapt_i350:
+		break;
+	default:
+		return (false);
+	}
+
+	/*
+	 * iflib drops its context lock around IFDI_PROMISC_SET.  Run mailbox
+	 * and IOV register operations later from the locked admin task.
+	 * A deferred VF mailbox rejection cannot be returned to ifconfig; the
+	 * admin task logs it instead.
+	 */
+	atomic_set_32(&sc->promisc_pending, 1);
+	iflib_admin_intr_deferred(sc->ctx);
+	return (true);
+}
+
+static int
+em_if_set_promisc_impl(if_ctx_t ctx, int flags)
+{
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
+	enum e1000_promisc_type type;
 	u32 reg_rctl;
 	int mcnt = 0;
+
+	if (sc->vf_ifp) {
+		if (flags & IFF_PROMISC)
+			type = e1000_promisc_enabled;
+		else if (flags & IFF_ALLMULTI)
+			type = e1000_promisc_multicast;
+		else
+			type = e1000_promisc_disabled;
+		if (e1000_promisc_set_vf(&sc->hw, type) != E1000_SUCCESS) {
+			device_printf(sc->dev,
+			    "VF promiscuous-mode request failed\n");
+			return (EPERM);
+		}
+		return (0);
+	}
 
 	reg_rctl = E1000_READ_REG(&sc->hw, E1000_RCTL);
 	reg_rctl &= ~(E1000_RCTL_SBP | E1000_RCTL_UPE);
@@ -2210,16 +2368,21 @@ em_if_set_promisc(if_ctx_t ctx, int flags)
 		if (em_debug_sbp)
 			reg_rctl |= E1000_RCTL_SBP;
 		E1000_WRITE_REG(&sc->hw, E1000_RCTL, reg_rctl);
-		em_if_vlan_filter_disable(sc);
+		if (igb_iov_enabled(sc))
+			em_if_vlan_filter_enable(sc);
+		else
+			em_if_vlan_filter_disable(sc);
 	} else {
 		if (flags & IFF_ALLMULTI) {
 			reg_rctl |= E1000_RCTL_MPE;
 			reg_rctl &= ~E1000_RCTL_UPE;
 			E1000_WRITE_REG(&sc->hw, E1000_RCTL, reg_rctl);
 		}
-		if (em_if_vlan_filter_used(ctx))
+		if (igb_iov_enabled(sc) || em_if_vlan_filter_used(ctx))
 			em_if_vlan_filter_enable(sc);
 	}
+	igb_iov_update_pf_vmolr(sc);
+	igb_iov_rebuild_vlan(sc);
 	return (0);
 }
 
@@ -2268,6 +2431,11 @@ em_if_multi_set(if_ctx_t ctx)
 
 	mcnt = if_foreach_llmaddr(ifp, em_copy_maddr, mta);
 
+	if (sc->vf_ifp) {
+		e1000_update_mc_addr_list(&sc->hw, mta, mcnt);
+		return;
+	}
+
 	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
 		e1000_update_mc_addr_list(&sc->hw, mta, mcnt);
 
@@ -2293,6 +2461,8 @@ em_if_multi_set(if_ctx_t ctx)
 		if (sc->hw.bus.pci_cmd_word & CMD_MEM_WRT_INVALIDATE)
 			e1000_pci_set_mwi(&sc->hw);
 	}
+	igb_iov_rebuild_mta(sc);
+	igb_iov_update_pf_vmolr(sc);
 }
 
 /*********************************************************************
@@ -2321,6 +2491,12 @@ em_if_update_admin_status(if_ctx_t ctx)
 	u32 link_check, thstat, ctrl;
 	bool reset_requested = false;
 
+	if (atomic_readandclear_32(&sc->promisc_pending) != 0)
+		(void)em_if_set_promisc_impl(ctx,
+		    if_getflags(iflib_get_ifp(ctx)));
+	igb_iov_handle_mdd(sc);
+	igb_iov_handle_mbx(sc);
+
 	link_check = thstat = ctrl = 0;
 	/* Get the cached link value or read phy for real */
 	switch (hw->phy.media_type) {
@@ -2348,7 +2524,12 @@ em_if_update_admin_status(if_ctx_t ctx)
 		break;
 	/* VF device is type_unknown */
 	case e1000_media_type_unknown:
-		e1000_check_for_link(hw);
+		if (e1000_check_for_link(hw) != E1000_SUCCESS &&
+		    sc->vf_ifp && !sc->vf_reset_pending) {
+			sc->vf_reset_pending = true;
+			iflib_request_reset(ctx);
+			iflib_admin_intr_deferred(ctx);
+		}
 		link_check = !hw->mac.get_link_status;
 		/* FALLTHROUGH */
 	default:
@@ -2401,7 +2582,12 @@ em_if_update_admin_status(if_ctx_t ctx)
 		    hw->mac.type >= igb_mac_min) {
 			hw->dev_spec._82575.media_changed = false;
 			sc->flags |= IGB_MEDIA_RESET;
-			em_reset(ctx);
+			if (igb_iov_enabled(sc)) {
+				iflib_request_reset(ctx);
+				iflib_admin_intr_deferred(ctx);
+				reset_requested = true;
+			} else
+				em_reset(ctx);
 		}
 		/* Only do TSO on gigabit for older chips due to errata */
 		if (hw->mac.type < igb_mac_min)
@@ -2417,6 +2603,7 @@ em_if_update_admin_status(if_ctx_t ctx)
 			iflib_link_state_change(ctx, LINK_STATE_UP,
 			    IF_Mbps(sc->link_speed));
 		}
+		igb_iov_ping_all_vfs(sc);
 	} else if (!link_check &&
 	    (sc->link_state == EM_LINK_STATE_UP ||
 	    sc->link_state == EM_LINK_STATE_UP_RESET_PENDING)) {
@@ -2432,6 +2619,7 @@ em_if_update_admin_status(if_ctx_t ctx)
 		    EM_LINK_STATE_DOWN_RESET_PENDING : EM_LINK_STATE_DOWN;
 		if (link_was_published)
 			iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
+		igb_iov_ping_all_vfs(sc);
 	}
 	em_update_stats_counters(sc);
 
@@ -2472,6 +2660,7 @@ em_if_stop(if_ctx_t ctx)
 	if (sc->hw.mac.type >= e1000_pch_spt && sc->hw.mac.type < igb_mac_min)
 		em_flush_desc_rings(sc);
 
+	igb_iov_reset_prepare(sc);
 	e1000_reset_hw(&sc->hw);
 	if (sc->hw.mac.type >= e1000_82544 && !sc->vf_ifp)
 		E1000_WRITE_REG(&sc->hw, E1000_WUFC, 0);
@@ -2682,6 +2871,14 @@ igb_configure_queues(struct e1000_softc *sc)
 	struct em_tx_queue *tx_que;
 	u32 tmp, ivar = 0;
 
+	/*
+	 * Queue ownership can change when SR-IOV is enabled or disabled.
+	 * Rebuild the interrupt mask for the current layout instead of
+	 * retaining vectors from a previous initialization.
+	 */
+	sc->que_mask = 0;
+	sc->link_mask = 0;
+
 	/* First turn on RSS capability */
 	if (hw->mac.type != e1000_82575)
 		E1000_WRITE_REG(hw, E1000_GPIE,
@@ -2714,6 +2911,7 @@ igb_configure_queues(struct e1000_softc *sc)
 				ivar |= rx_que->msix | E1000_IVAR_VALID;
 			}
 			E1000_WRITE_REG_ARRAY(hw, E1000_IVAR0, index, ivar);
+			sc->que_mask |= rx_que->eims;
 		}
 		/* TX entries */
 		for (int i = 0; i < sc->tx_num_queues; i++) {
@@ -2845,6 +3043,8 @@ igb_initialize_interrupt_rate(struct e1000_softc *sc)
 		E1000_WRITE_REG(hw, E1000_EITR(rx_que->msix),
 		    rx_que->itr_setting);
 	}
+	if (sc->intr_type == IFLIB_INTR_MSIX)
+		E1000_WRITE_REG(hw, E1000_EITR(sc->linkvec), newitr);
 }
 
 static void
@@ -2973,6 +3173,16 @@ igb_init_dmac(struct e1000_softc *sc, u32 pba)
 
 	if (hw->mac.type == e1000_i211)
 		return;
+
+	/*
+	 * I350 DMA coalescing and SR-IOV are mutually exclusive.  Preserve
+	 * the configured value so it can be restored after IOV is disabled.
+	 */
+	if (igb_iov_enabled(sc)) {
+		if (hw->mac.type > e1000_82580)
+			E1000_WRITE_REG(hw, E1000_DMACR, 0);
+		return;
+	}
 
 	max_frame_size = sc->shared->isc_max_frame_size;
 	if (hw->mac.type > e1000_82580) {
@@ -3945,7 +4155,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 	rctl &= ~E1000_RCTL_SBP;
 
 	/* Enable Long Packet receive */
-	if (if_getmtu(ifp) > ETHERMTU)
+	if (igb_iov_enabled(sc) || if_getmtu(ifp) > ETHERMTU)
 		rctl |= E1000_RCTL_LPE;
 	else
 		rctl &= ~E1000_RCTL_LPE;
@@ -4086,16 +4296,16 @@ em_initialize_receive_unit(if_ctx_t ctx)
 	} else if (hw->mac.type >= igb_mac_min) {
 		u32 psize, srrctl = 0;
 
-		if (if_getmtu(ifp) > ETHERMTU) {
+		if (igb_iov_enabled(sc)) {
+			E1000_WRITE_REG(hw, E1000_RLPML,
+			    IGB_IOV_MAX_FRAME_SIZE);
+		} else if (!sc->vf_ifp && if_getmtu(ifp) > ETHERMTU) {
 			psize = scctx->isc_max_frame_size;
 			/* are we on a vlan? */
 			if (if_vlantrunkinuse(ifp))
 				psize += VLAN_TAG_SIZE;
 
-			if (sc->vf_ifp)
-				e1000_rlpml_set_vf(hw, psize);
-			else
-				E1000_WRITE_REG(hw, E1000_RLPML, psize);
+			E1000_WRITE_REG(hw, E1000_RLPML, psize);
 		}
 
 		/* Set maximum packet buffer len */
@@ -4109,11 +4319,11 @@ em_initialize_receive_unit(if_ctx_t ctx)
 		 * This drops frames rather than hanging the RX MAC for all
 		 * queues.
 		 */
-		if ((sc->rx_num_queues > 1) &&
+		if (igb_iov_enabled(sc) ||
+		    ((sc->rx_num_queues > 1) &&
 		    (sc->fc == e1000_fc_none ||
-		     sc->fc == e1000_fc_rx_pause)) {
+		    sc->fc == e1000_fc_rx_pause)))
 			srrctl |= E1000_SRRCTL_DROP_EN;
-		}
 		/* Setup the Base and Length of the Rx Descriptor Rings */
 		for (i = 0, que = sc->rx_queues; i < sc->rx_num_queues;
 		    i++, que++) {
@@ -4190,37 +4400,62 @@ static void
 em_if_vlan_register(if_ctx_t ctx, u16 vtag)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
-	u32 index, bit;
+	bool present;
+	u32 index, mask;
 
 	index = (vtag >> 5) & 0x7F;
-	bit = vtag & 0x1F;
-	sc->shadow_vfta[index] |= (1 << bit);
-	++sc->num_vlans;
-	if (!sc->vf_ifp)
-		em_if_vlan_filter_write(sc);
-	else
-		/*
-		 * Physical funtion may reject registering VLAN
-		 * but we have no way to inform the stack
-		 * about that.
-		 */
-		e1000_vfta_set_vf(&sc->hw, vtag, true);
+	mask = 1U << (vtag & 0x1F);
+	present = (sc->shadow_vfta[index] & mask) != 0;
+	/*
+	 * On a VF, record registration intent for replay even if the PF is not
+	 * ready to accept it yet.
+	 */
+	sc->shadow_vfta[index] |= mask;
+	if (!present)
+		++sc->num_vlans;
+	if (sc->vf_ifp &&
+	    e1000_vfta_set_vf(&sc->hw, vtag, true) != E1000_SUCCESS) {
+		device_printf(sc->dev,
+		    "VF VLAN %u add request failed\n", vtag);
+	}
+	if (!sc->vf_ifp) {
+		if (igb_iov_enabled(sc))
+			igb_iov_rebuild_vlan(sc);
+		else
+			em_if_vlan_filter_write(sc);
+	}
 }
 
 static void
 em_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
-	u32 index, bit;
+	bool present;
+	u32 index, mask;
 
 	index = (vtag >> 5) & 0x7F;
-	bit = vtag & 0x1F;
-	sc->shadow_vfta[index] &= ~(1 << bit);
-	--sc->num_vlans;
-	if (!sc->vf_ifp)
-		em_if_vlan_filter_write(sc);
-	else
-		e1000_vfta_set_vf(&sc->hw, vtag, false);
+	mask = 1U << (vtag & 0x1F);
+	present = (sc->shadow_vfta[index] & mask) != 0;
+	if (sc->vf_ifp &&
+	    e1000_vfta_set_vf(&sc->hw, vtag, false) != E1000_SUCCESS) {
+		device_printf(sc->dev,
+		    "VF VLAN %u remove request failed\n", vtag);
+		/*
+		 * The PF can still admit this VID.  Retain the bit so its
+		 * stripped frames remain tagged and are dropped by vlan(4)
+		 * after the child disappears, rather than reaching the parent.
+		 */
+		return;
+	}
+	sc->shadow_vfta[index] &= ~mask;
+	if (present)
+		--sc->num_vlans;
+	if (!sc->vf_ifp) {
+		if (igb_iov_enabled(sc))
+			igb_iov_rebuild_vlan(sc);
+		else
+			em_if_vlan_filter_write(sc);
+	}
 }
 
 static bool
@@ -4299,15 +4534,29 @@ em_setup_vlan_hw_support(if_ctx_t ctx)
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	struct e1000_hw *hw = &sc->hw;
 	if_t ifp = iflib_get_ifp(ctx);
-	u32 reg;
+	u32 max_frame_size, reg;
+	u16 vid;
 
 	/*
 	 * Only PFs have control over VLAN HW filtering
 	 * configuration. VFs have to act as if it's always
 	 * enabled.
 	 */
-	if (sc->vf_ifp)
+	if (sc->vf_ifp) {
+		max_frame_size = min(sc->shared->isc_max_frame_size +
+		    VLAN_TAG_SIZE, IGB_IOV_MAX_FRAME_SIZE);
+		e1000_rlpml_set_vf(hw, max_frame_size);
+		for (vid = 0; vid < 4096; vid++) {
+			if ((sc->shadow_vfta[vid >> 5] &
+			    (1U << (vid & 0x1f))) == 0)
+				continue;
+			if (e1000_vfta_set_vf(hw, vid, true) != E1000_SUCCESS)
+				device_printf(sc->dev,
+				    "VF VLAN %u restore request failed\n",
+				    vid);
+		}
 		return;
+	}
 
 	if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING &&
 	    !em_disable_crc_stripping) {
@@ -4320,11 +4569,25 @@ em_setup_vlan_hw_support(if_ctx_t ctx)
 		E1000_WRITE_REG(hw, E1000_CTRL, reg);
 	}
 
-	/* If we aren't doing HW filtering, we're done */
+	/*
+	 * SR-IOV always needs VFE for VF isolation.  When PF hardware VLAN
+	 * filtering is disabled, the IOV VLAN rebuild instead makes the PF
+	 * VLAN-promiscuous without disabling the global filter.
+	 */
 	if (!em_if_vlan_filter_capable(ctx))  {
-		em_if_vlan_filter_disable(sc);
+		if (igb_iov_enabled(sc)) {
+#ifdef PCI_IOV
+			sc->iov_pf_vlan_promisc = true;
+#endif
+			em_if_vlan_filter_enable(sc);
+		} else
+			em_if_vlan_filter_disable(sc);
 		return;
 	}
+#ifdef PCI_IOV
+	if (igb_iov_enabled(sc))
+		sc->iov_pf_vlan_promisc = false;
+#endif
 
 	/*
 	 * A soft reset zero's out the VFTA, so
@@ -4371,14 +4634,21 @@ igb_if_intr_enable(if_ctx_t ctx)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	struct e1000_hw *hw = &sc->hw;
-	u32 mask;
+	u32 mask, reg;
 
 	if (__predict_true(sc->intr_type == IFLIB_INTR_MSIX)) {
 		mask = (sc->que_mask | sc->link_mask);
-		E1000_WRITE_REG(hw, E1000_EIAC, mask);
-		E1000_WRITE_REG(hw, E1000_EIAM, mask);
+		/*
+		 * VF interrupt controls are also mapped into these registers.
+		 * Preserve them and change only the PF vectors we own.
+		 */
+		reg = E1000_READ_REG(hw, E1000_EIAC);
+		E1000_WRITE_REG(hw, E1000_EIAC, reg | mask);
+		reg = E1000_READ_REG(hw, E1000_EIAM);
+		E1000_WRITE_REG(hw, E1000_EIAM, reg | mask);
 		E1000_WRITE_REG(hw, E1000_EIMS, mask);
-		E1000_WRITE_REG(hw, E1000_IMS, E1000_IMS_LSC);
+		E1000_WRITE_REG(hw, E1000_IMS,
+		    E1000_IMS_LSC | igb_iov_intr_mask(sc));
 	} else
 		E1000_WRITE_REG(hw, E1000_IMS, IMS_ENABLE_MASK);
 	E1000_WRITE_FLUSH(hw);
@@ -4389,10 +4659,22 @@ igb_if_intr_disable(if_ctx_t ctx)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	struct e1000_hw *hw = &sc->hw;
+	u32 mask, reg;
 
 	if (__predict_true(sc->intr_type == IFLIB_INTR_MSIX)) {
-		E1000_WRITE_REG(hw, E1000_EIMC, 0xffffffff);
-		E1000_WRITE_REG(hw, E1000_EIAC, 0);
+		/*
+		 * Do not use a blanket EIMC write here.  VF interrupt controls
+		 * are mapped into the same PF register space, so clearing bits
+		 * we do not own can leave running VFs with interrupts masked.
+		 * Before initial queue configuration the owned mask is zero
+		 * because this driver has not enabled a vector yet.
+		 */
+		mask = (sc->que_mask | sc->link_mask);
+		reg = E1000_READ_REG(hw, E1000_EIAM);
+		E1000_WRITE_REG(hw, E1000_EIAM, reg & ~mask);
+		E1000_WRITE_REG(hw, E1000_EIMC, mask);
+		reg = E1000_READ_REG(hw, E1000_EIAC);
+		E1000_WRITE_REG(hw, E1000_EIAC, reg & ~mask);
 	}
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
 	E1000_WRITE_FLUSH(hw);

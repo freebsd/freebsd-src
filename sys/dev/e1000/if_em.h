@@ -48,6 +48,7 @@
 #endif
 #include <sys/buf_ring.h>
 #include <sys/bus.h>
+#include <sys/callout.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -95,6 +96,9 @@
 #include "e1000_82571.h"
 #include "ifdi_if.h"
 
+struct igb_vf;
+struct igb_vf_mac_filter;
+
 /* Tunables */
 
 /*
@@ -133,6 +137,7 @@
 #define EM_DEFAULT_RXD		1024
 #define EM_DEFAULT_MULTI_RXD	4096
 #define IGB_MAX_RXD		4096
+#define IGB_MAX_FRAME_SIZE	9234
 
 /*
  * EM_TIDV - Transmit Interrupt Delay Value
@@ -592,6 +597,27 @@ struct e1000_softc {
 	u32			pba;
 	int			link_mask;
 	int			tso_automasked;
+	u32			promisc_pending;
+
+#ifdef PCI_IOV
+	struct igb_vf		*vfs;
+	struct igb_vf_mac_filter *vf_mac_filters;
+	struct callout		iov_mbx_retry;
+	u32			iov_vfta[EM_VFTA_SIZE];
+	u32			iov_mdd_cause;
+	u32			iov_pending;
+	u32			iov_spoof_pending;
+	u32			iov_teardown;
+	struct timeval		iov_last_mdd_log;
+	u16			num_vfs;
+	u16			num_vf_mac_filters;
+	u16			pool;
+	bool			iov_hw_active;
+	bool			iov_mbx_retry_initialized;
+	bool			iov_pf_mdd_blocked;
+	bool			iov_pf_vlan_promisc;
+	bool			iov_vfta_valid;
+#endif
 
 	u64			que_mask;
 
@@ -616,6 +642,7 @@ struct e1000_softc {
 	} ustats;
 
 	u16			vf_ifp;
+	bool			vf_reset_pending;
 };
 
 /********************************************************************************

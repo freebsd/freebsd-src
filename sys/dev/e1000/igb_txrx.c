@@ -73,6 +73,28 @@ struct if_txrx igb_txrx = {
 	.ift_legacy_intr = em_intr
 };
 
+static bool
+igb_vf_vlan_registered(const struct e1000_softc *sc, u16 vtag)
+{
+	u16 vid;
+
+	/*
+	 * 82576 strips an administrative access VLAN but still reports it in
+	 * the descriptor.  Like Linux igbvf, expose tags only when the VF
+	 * requested that VID from the PF.
+	 */
+	if (sc->hw.mac.type != e1000_vfadapt &&
+	    sc->hw.mac.type != e1000_vfadapt_i350)
+		return (true);
+	vid = EVL_VLANOFTAG(vtag);
+	/*
+	 * A trunk VF is an implicit member of VID 0, so retain priority-tag
+	 * metadata without requiring vlan(4) to register a VID-0 interface.
+	 */
+	return (vid == 0 ||
+	    (sc->shadow_vfta[vid >> 5] & (1U << (vid & 0x1f))) != 0);
+}
+
 /**********************************************************************
  *
  *  Setup work for hardware segmentation offload (TSO) on
@@ -519,7 +541,8 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 			ri->iri_vtag = be16toh(rxd->wb.upper.vlan);
 		else
 			ri->iri_vtag = le16toh(rxd->wb.upper.vlan);
-		ri->iri_flags |= M_VLANTAG;
+		if (igb_vf_vlan_registered(sc, ri->iri_vtag))
+			ri->iri_flags |= M_VLANTAG;
 	}
 
 	ri->iri_flowid =
