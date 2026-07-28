@@ -359,7 +359,7 @@ cc_ack_received(struct tcpcb *tp, struct tcphdr *th, uint16_t nsegs,
 void
 cc_conn_init(struct tcpcb *tp)
 {
-	struct hc_metrics_lite metrics;
+	struct tcp_hc_metrics metrics;
 	struct inpcb *inp = tptoinpcb(tp);
 	u_int maxseg;
 	int rtt;
@@ -3714,12 +3714,12 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
  */
 void
 tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
-    struct hc_metrics_lite *metricptr, struct tcp_ifcap *cap)
+    struct tcp_hc_metrics *metricptr, struct tcp_ifcap *cap)
 {
 	int mss = 0;
 	uint32_t maxmtu = 0;
 	struct inpcb *inp = tptoinpcb(tp);
-	struct hc_metrics_lite metrics;
+	struct tcp_hc_metrics metrics;
 #ifdef INET6
 	int isipv6 = ((inp->inp_vflag & INP_IPV6) != 0) ? 1 : 0;
 	size_t min_protoh = isipv6 ?
@@ -3765,7 +3765,7 @@ tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
 		 * if there was no cache hit.
 		 */
 		if (metricptr != NULL)
-			bzero(metricptr, sizeof(struct hc_metrics_lite));
+			bzero(metricptr, sizeof(struct tcp_hc_metrics));
 		return;
 	}
 
@@ -3876,7 +3876,7 @@ tcp_mss(struct tcpcb *tp, int offer)
 	uint32_t bufsize;
 	struct inpcb *inp = tptoinpcb(tp);
 	struct socket *so;
-	struct hc_metrics_lite metrics;
+	struct tcp_hc_metrics metrics;
 	struct tcp_ifcap cap;
 
 	KASSERT(tp != NULL, ("%s: tp == NULL", __func__));

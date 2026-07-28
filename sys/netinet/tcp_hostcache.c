@@ -53,7 +53,7 @@
  * entry if a hash is full.  Value updates for an entry shall be atomic.
  *
  * TCP stack(s) communication with tcp_hostcache() is done via KBI functions
- * tcp_hc_*() and the hc_metrics_lite structure.
+ * tcp_hc_*() and the tcp_hc_metrics structure.
  *
  * Since tcp_hostcache is only caching information, there are no fatal
  * consequences if we either can't allocate a new entry or have to drop
@@ -371,12 +371,12 @@ tcp_hc_lookup(const struct in_conninfo *inc)
  */
 void
 tcp_hc_get(const struct in_conninfo *inc,
-    struct hc_metrics_lite *hc_metrics_lite)
+    struct tcp_hc_metrics *hc_metrics)
 {
 	struct hc_metrics *hc_entry;
 
 	if (!V_tcp_use_hostcache) {
-		bzero(hc_metrics_lite, sizeof(*hc_metrics_lite));
+		bzero(hc_metrics, sizeof(*hc_metrics));
 		return;
 	}
 
@@ -389,17 +389,17 @@ tcp_hc_get(const struct in_conninfo *inc,
 	 * If we don't have an existing object.
 	 */
 	if (hc_entry == NULL) {
-		bzero(hc_metrics_lite, sizeof(*hc_metrics_lite));
+		bzero(hc_metrics, sizeof(*hc_metrics));
 		return;
 	}
 
-	hc_metrics_lite->hc_mtu = atomic_load_32(&hc_entry->hc_mtu);
-	hc_metrics_lite->hc_ssthresh = atomic_load_32(&hc_entry->hc_ssthresh);
-	hc_metrics_lite->hc_rtt = atomic_load_32(&hc_entry->hc_rtt);
-	hc_metrics_lite->hc_rttvar = atomic_load_32(&hc_entry->hc_rttvar);
-	hc_metrics_lite->hc_cwnd = atomic_load_32(&hc_entry->hc_cwnd);
-	hc_metrics_lite->hc_sendpipe = atomic_load_32(&hc_entry->hc_sendpipe);
-	hc_metrics_lite->hc_recvpipe = atomic_load_32(&hc_entry->hc_recvpipe);
+	hc_metrics->hc_mtu = atomic_load_32(&hc_entry->hc_mtu);
+	hc_metrics->hc_ssthresh = atomic_load_32(&hc_entry->hc_ssthresh);
+	hc_metrics->hc_rtt = atomic_load_32(&hc_entry->hc_rtt);
+	hc_metrics->hc_rttvar = atomic_load_32(&hc_entry->hc_rttvar);
+	hc_metrics->hc_cwnd = atomic_load_32(&hc_entry->hc_cwnd);
+	hc_metrics->hc_sendpipe = atomic_load_32(&hc_entry->hc_sendpipe);
+	hc_metrics->hc_recvpipe = atomic_load_32(&hc_entry->hc_recvpipe);
 
 	smr_exit(V_tcp_hostcache.smr);
 }
@@ -436,9 +436,9 @@ tcp_hc_getmtu(const struct in_conninfo *inc)
 void
 tcp_hc_updatemtu(const struct in_conninfo *inc, uint32_t mtu)
 {
-	struct hc_metrics_lite hcml = { .hc_mtu = mtu };
+	struct tcp_hc_metrics hcm = { .hc_mtu = mtu };
 
-	return (tcp_hc_update(inc, &hcml));
+	return (tcp_hc_update(inc, &hcm));
 }
 
 /*
@@ -446,7 +446,7 @@ tcp_hc_updatemtu(const struct in_conninfo *inc, uint32_t mtu)
  * Creates a new entry if none was found.
  */
 void
-tcp_hc_update(const struct in_conninfo *inc, struct hc_metrics_lite *hcml)
+tcp_hc_update(const struct in_conninfo *inc, struct tcp_hc_metrics *hcm)
 {
 	struct hc_head *hc_head;
 	struct hc_metrics *hc_entry, *hc_prev;
@@ -543,59 +543,60 @@ tcp_hc_update(const struct in_conninfo *inc, struct hc_metrics_lite *hcml)
 	 * Fill in data.  Use atomics, since an existing entry is
 	 * accessible by readers in SMR section.
 	 */
-	if (hcml->hc_mtu != 0) {
-		atomic_store_32(&hc_entry->hc_mtu, hcml->hc_mtu);
+	if (hcm->hc_mtu != 0) {
+		atomic_store_32(&hc_entry->hc_mtu, hcm->hc_mtu);
 	}
-	if (hcml->hc_rtt != 0) {
+	if (hcm->hc_rtt != 0) {
 		if (hc_entry->hc_rtt == 0)
-			v = hcml->hc_rtt;
+			v = hcm->hc_rtt;
 		else
 			v = ((uint64_t)hc_entry->hc_rtt +
-			    (uint64_t)hcml->hc_rtt) / 2;
+			    (uint64_t)hcm->hc_rtt) / 2;
 		atomic_store_32(&hc_entry->hc_rtt, v);
 		TCPSTAT_INC(tcps_cachedrtt);
 	}
-	if (hcml->hc_rttvar != 0) {
+	if (hcm->hc_rttvar != 0) {
 	        if (hc_entry->hc_rttvar == 0)
-			v = hcml->hc_rttvar;
+			v = hcm->hc_rttvar;
 		else
 			v = ((uint64_t)hc_entry->hc_rttvar +
-			    (uint64_t)hcml->hc_rttvar) / 2;
+			    (uint64_t)hcm->hc_rttvar) / 2;
 		atomic_store_32(&hc_entry->hc_rttvar, v);
 		TCPSTAT_INC(tcps_cachedrttvar);
 	}
-	if (hcml->hc_ssthresh != 0) {
+	if (hcm->hc_ssthresh != 0) {
 		if (hc_entry->hc_ssthresh == 0)
-			v = hcml->hc_ssthresh;
+			v = hcm->hc_ssthresh;
 		else
-			v = (hc_entry->hc_ssthresh + hcml->hc_ssthresh) / 2;
+			v = (hc_entry->hc_ssthresh +
+			    hcm->hc_ssthresh) / 2;
 		atomic_store_32(&hc_entry->hc_ssthresh, v);
 		TCPSTAT_INC(tcps_cachedssthresh);
 	}
-	if (hcml->hc_cwnd != 0) {
+	if (hcm->hc_cwnd != 0) {
 		if (hc_entry->hc_cwnd == 0)
-			v = hcml->hc_cwnd;
+			v = hcm->hc_cwnd;
 		else
 			v = ((uint64_t)hc_entry->hc_cwnd +
-			    (uint64_t)hcml->hc_cwnd) / 2;
+			    (uint64_t)hcm->hc_cwnd) / 2;
 		atomic_store_32(&hc_entry->hc_cwnd, v);
 		/* TCPSTAT_INC(tcps_cachedcwnd); */
 	}
-	if (hcml->hc_sendpipe != 0) {
+	if (hcm->hc_sendpipe != 0) {
 		if (hc_entry->hc_sendpipe == 0)
-			v = hcml->hc_sendpipe;
+			v = hcm->hc_sendpipe;
 		else
 			v = ((uint64_t)hc_entry->hc_sendpipe +
-			    (uint64_t)hcml->hc_sendpipe) /2;
+			    (uint64_t)hcm->hc_sendpipe) / 2;
 		atomic_store_32(&hc_entry->hc_sendpipe, v);
 		/* TCPSTAT_INC(tcps_cachedsendpipe); */
 	}
-	if (hcml->hc_recvpipe != 0) {
+	if (hcm->hc_recvpipe != 0) {
 		if (hc_entry->hc_recvpipe == 0)
-			v = hcml->hc_recvpipe;
+			v = hcm->hc_recvpipe;
 		else
 			v = ((uint64_t)hc_entry->hc_recvpipe +
-			    (uint64_t)hcml->hc_recvpipe) /2;
+			    (uint64_t)hcm->hc_recvpipe) / 2;
 		atomic_store_32(&hc_entry->hc_recvpipe, v);
 		/* TCPSTAT_INC(tcps_cachedrecvpipe); */
 	}

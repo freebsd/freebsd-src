@@ -2479,7 +2479,7 @@ tcp_discardcb(struct tcpcb *tp)
 	 * say srtt etc into the general one used by other stacks.
 	 */
 	if (tp->t_rttupdated >= 4) {
-		struct hc_metrics_lite metrics;
+		struct tcp_hc_metrics metrics;
 		uint32_t ssthresh;
 
 		bzero(&metrics, sizeof(metrics));
