@@ -311,6 +311,7 @@ s32 ixgbe_aci_send_cmd(struct ixgbe_hw *hw, struct ixgbe_aci_desc *desc,
 			buf_cpy = (u8 *)ixgbe_malloc(hw, buf_size);
 			if (!buf_cpy)
 				return IXGBE_ERR_OUT_OF_MEM;
+			memcpy(buf_cpy, buf, buf_size);
 		}
 		memcpy(&desc_cpy, desc, sizeof(desc_cpy));
 	}
