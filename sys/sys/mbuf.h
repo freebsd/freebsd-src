@@ -1166,7 +1166,7 @@ m_extrefcnt(struct mbuf *m)
  * XXX: Broken at the moment.  Need some UMA magic to make it work again.
  */
 #define	M_ASSERTVALID(m)						\
-	KASSERT((((struct mbuf *)m)->m_flags & 0) == 0,			\
+	KASSERT((((struct mbuf *)(m))->m_flags & 0) == 0,			\
 	    ("%s: attempted use of a free mbuf %p!", __func__, (m)))
 
 /* Check whether any mbuf in the chain is unmapped. */
