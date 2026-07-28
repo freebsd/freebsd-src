@@ -295,7 +295,8 @@ procdesc_exit(struct proc *p)
 	KASSERT(pd->pd_fpcount > 0, ("%s: closed procdesc %p", __func__, pd));
 
 	pd->pd_flags |= PDF_EXITED;
-	pd->pd_xstat = KW_EXITCODE(p->p_xexit, p->p_xsig);
+	pd->pd_xexit = p->p_xexit;
+	pd->pd_xsig = p->p_xsig;
 
 	selwakeup(&pd->pd_selinfo);
 	KNOTE_LOCKED(&pd->pd_selinfo.si_note, NOTE_EXIT | NOTE_PDSIGCHLD);
@@ -337,6 +338,25 @@ procdesc_fork(struct proc *p, pid_t child_pid)
 	PROC_UNLOCK(p);
 }
 
+void
+procdesc_fill_winfo(struct procdesc *pd, bool proc_locked)
+{
+	struct proc *p;
+
+	sx_assert(&proctree_lock, SA_XLOCKED);
+
+	if ((pd->pd_flags & (PDF_EXITED | PDF_EXIT_INFO)) == PDF_EXITED) {
+		pd->pd_flags |= PDF_EXIT_INFO;
+		p = pd->pd_proc;
+		if (!proc_locked)
+			PROC_LOCK(p);
+		wait_fill_siginfo(p, &pd->pd_siginfo);
+		wait_fill_wrusage(p, &pd->pd_wrusage);
+		if (!proc_locked)
+			PROC_UNLOCK(p);
+	}
+}
+
 /*
  * When a process descriptor is reaped, perhaps as a result of close(), release
  * the process's reference on the process descriptor.
@@ -350,6 +370,7 @@ procdesc_reap(struct proc *p)
 	KASSERT(p->p_procdesc != NULL, ("procdesc_reap: p_procdesc == NULL"));
 
 	pd = p->p_procdesc;
+	procdesc_fill_winfo(pd, false);
 	pd->pd_proc = NULL;
 	p->p_procdesc = NULL;
 	procdesc_free(pd);
@@ -458,7 +479,7 @@ procdesc_poll(struct file *fp, int events, struct ucred *active_cred,
 	revents = 0;
 	pd = fp->f_data;
 	PROCDESC_LOCK(pd);
-	if (pd->pd_flags & PDF_EXITED)
+	if ((atomic_load_int(&pd->pd_flags) & PDF_EXITED) != 0)
 		revents |= POLLHUP;
 	else
 		selrecord(td, &pd->pd_selinfo);
@@ -491,7 +512,7 @@ procdesc_kqops_event(struct knote *kn, long hint)
 		 * pending.
 		 */
 		p = pd->pd_proc;
-		if ((pd->pd_flags & PDF_EXITED) != 0)
+		if ((atomic_load_int(&pd->pd_flags) & PDF_EXITED) != 0)
 			event = NOTE_EXIT | NOTE_PDSIGCHLD;
 		else if ((atomic_load_int(&p->p_flag) & (P_STOPPED_SIG |
 		    P_STOPPED_TRACE)) != 0)
@@ -509,7 +530,7 @@ procdesc_kqops_event(struct knote *kn, long hint)
 
 	/* Report exit status */
 	if ((kn->kn_fflags & NOTE_EXIT) != 0)
-		kn->kn_data = pd->pd_xstat;
+		kn->kn_data = KW_EXITCODE(pd->pd_xexit, pd->pd_xsig);
 
 	/* Process is gone, so flag the event as finished. */
 	if ((event & NOTE_REAP) != 0 ||

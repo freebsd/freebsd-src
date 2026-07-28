@@ -1578,28 +1578,37 @@ kern_pdwait(struct thread *td, int fd, int *status,
 		    ("closed proc %p procdesc %p pd flags %#x",
 		    pd->pd_proc, pd, pd->pd_flags));
 
+		if ((pd->pd_flags & PDF_EXITED) != 0) {
+			if ((options & WEXITED) == 0) {
+				error = ESRCH;
+				goto exit_tree_locked;
+			}
+			procdesc_fill_winfo(pd, false);
+			*status = KW_EXITCODE(pd->pd_xexit, pd->pd_xsig);
+			if (wrusage != NULL) {
+				memcpy(wrusage, &pd->pd_wrusage,
+				    sizeof(*wrusage));
+			}
+			if (siginfo != NULL) {
+				memcpy(siginfo, &pd->pd_siginfo,
+				    sizeof(*siginfo));
+			}
+			goto exit_tree_locked;
+		}
 		p = pd->pd_proc;
 		if (p == NULL) {
 			error = ESRCH;
 			goto exit_tree_locked;
 		}
 		PROC_LOCK(p);
+		MPASS(p->p_state != PRS_ZOMBIE);
 
 		error = p_canwait(td, p);
 		if (error != 0)
 			break;
-		if ((options & WEXITED) == 0 && p->p_state == PRS_ZOMBIE) {
-			error = ESRCH;
-			break;
-		}
 
 		wait_fill_siginfo(p, siginfo);
 		wait_fill_wrusage(p, wrusage);
-
-		if (p->p_state == PRS_ZOMBIE) {
-			proc_reap(td, p, status, options);
-			goto exit_unlocked;
-		}
 
 		if (wait6_check_alive(td, options, p, status, siginfo))
 			goto exit_unlocked;
