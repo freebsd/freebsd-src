@@ -1839,6 +1839,15 @@ create_cmd_qp(struct ibv_context *context,
 	int port = 1;
 	int ret;
 
+	/*
+	 * The command QP send WQ is sized from tm_cap.max_ops; a value of 0
+	 * would create a zero-length WQ, so reject it explicitly.
+	 */
+	if (srq_attr->tm_cap.max_ops == 0) {
+		errno = EINVAL;
+		return NULL;
+	}
+
 	ret = ibv_cmd_query_port(context, port, &port_attr,
 				 &pcmd, sizeof(pcmd));
 	if (ret) {
