@@ -4646,7 +4646,7 @@ s32 ixgbe_hic_unlocked(struct ixgbe_hw *hw, u32 *buffer, u32 length,
 		return IXGBE_SUCCESS;
 
 	/* Check command completion */
-	if ((timeout && i == timeout) ||
+	if ((timeout && i == timeout * 1000) ||
 	    !(IXGBE_READ_REG(hw, IXGBE_HICR) & IXGBE_HICR_SV)) {
 		ERROR_REPORT1(IXGBE_ERROR_CAUTION,
 			      "Command has failed with no status valid.\n");
