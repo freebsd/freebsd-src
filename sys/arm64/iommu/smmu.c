@@ -142,7 +142,7 @@
 
 #define	Q_WRP(q, p)		((p) & (1 << (q)->size_log2))
 #define	Q_IDX(q, p)		((p) & ((1 << (q)->size_log2) - 1))
-#define	Q_OVF(p)		((p) & (1 << 31)) /* Event queue overflowed */
+#define	Q_OVF(p)		((p) & (1u << 31)) /* Event queue overflowed */
 
 #define	SMMU_Q_ALIGN		(64 * 1024)
 
