@@ -4105,7 +4105,7 @@ struct ixgbe_mac_operations {
 	s32 (*init_uta_tables)(struct ixgbe_hw *);
 	void (*set_mac_anti_spoofing)(struct ixgbe_hw *, bool, int);
 	void (*set_vlan_anti_spoofing)(struct ixgbe_hw *, bool, int);
-	s32 (*toggle_txdctl)(struct ixgbe_hw *hw, u32 vf_index);
+	s32 (*toggle_txdctl)(struct ixgbe_hw *hw, u32 vf_number);
 	s32 (*update_xcast_mode)(struct ixgbe_hw *, int);
 	s32 (*set_rlpml)(struct ixgbe_hw *, u16);
 
