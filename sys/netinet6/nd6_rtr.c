@@ -556,6 +556,7 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 			IP6STAT_INC(ip6s_exthdrtoolong);
 			return;
 		}
+		ip6 = mtod(m, struct ip6_hdr *);
 	}
 	nd_ra = (struct nd_router_advert *)((caddr_t)ip6 + off);
 
