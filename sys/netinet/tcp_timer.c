@@ -859,6 +859,8 @@ tcp_timer_next(struct tcpcb *tp, sbintime_t *precision)
 	sbintime_t after, before;
 
 	for (i = 0, rv = TT_N, after = before = SBT_MAX; i < TT_N; i++) {
+		if (tp->t_timers[i] == SBT_MAX)
+			continue;
 		if (tp->t_timers[i] < after) {
 			after = tp->t_timers[i];
 			rv = i;
