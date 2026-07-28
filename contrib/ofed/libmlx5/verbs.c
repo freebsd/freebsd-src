@@ -1266,6 +1266,11 @@ enum {
 };
 
 enum {
+	MLX5DV_QP_CREATE_SUP_FLAGS =
+		(MLX5DV_QP_CREATE_TUNNEL_OFFLOADS),
+};
+
+enum {
 	MLX5_CREATE_QP_EX2_COMP_MASK = (IBV_QP_INIT_ATTR_CREATE_FLAGS |
 					IBV_QP_INIT_ATTR_MAX_TSO_HEADER |
 					IBV_QP_INIT_ATTR_IND_TABLE |
@@ -1318,14 +1323,16 @@ static struct ibv_qp *create_qp(struct ibv_context *context,
 
 		if (mlx5_qp_attr->comp_mask &
 		    MLX5DV_QP_INIT_ATTR_MASK_QP_CREATE_FLAGS) {
-			if (mlx5_qp_attr->create_flags &
-			    MLX5DV_QP_CREATE_TUNNEL_OFFLOADS) {
-				mlx5_create_flags = MLX5_QP_FLAG_TUNNEL_OFFLOADS;
-			} else {
+			if (!check_comp_mask(mlx5_qp_attr->create_flags,
+					     MLX5DV_QP_CREATE_SUP_FLAGS)) {
 				mlx5_dbg(fp, MLX5_DBG_QP,
 					 "Unsupported creation flags requested for create_qp\n");
 				errno = EINVAL;
 				goto err;
+			}
+			if (mlx5_qp_attr->create_flags &
+			    MLX5DV_QP_CREATE_TUNNEL_OFFLOADS) {
+				mlx5_create_flags |= MLX5_QP_FLAG_TUNNEL_OFFLOADS;
 			}
 		}
 	}
