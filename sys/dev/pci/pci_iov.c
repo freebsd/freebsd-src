@@ -759,9 +759,24 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 		}
 	}
 
-	if (!ari_enabled && PCI_RID2SLOT(last_rid) != 0) {
-		error = ENOSPC;
-		goto out;
+	if (!ari_enabled) {
+		uint16_t vf_rid;
+
+		/*
+		 * Without ARI, VFs on the PF's bus must use device 0.
+		 * VFs on another bus use the conventional device/function
+		 * encoding and may have a non-zero device number.  For
+		 * example, Intel 82576 and I350 VFs start at device 16 on
+		 * the next bus when ARI is unavailable.
+		 */
+		vf_rid = first_rid;
+		for (i = 0; i < num_vfs; i++, vf_rid += rid_stride) {
+			if (PCI_RID2BUS(vf_rid) == pci_get_bus(dev) &&
+			    PCI_RID2SLOT(vf_rid) != 0) {
+				error = ENOSPC;
+				goto out;
+			}
+		}
 	}
 
 	iov_ctl = IOV_READ(dinfo, PCIR_SRIOV_CTL, 2);
