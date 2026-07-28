@@ -929,6 +929,8 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	if (init_attr->create_flags & ~(IB_QP_CREATE_SIGNATURE_EN |
 					IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK |
 					IB_QP_CREATE_IPOIB_UD_LSO |
+					IB_QP_CREATE_SCATTER_FCS |
+					IB_QP_CREATE_CVLAN_STRIPPING |
 					MLX5_IB_QP_CREATE_SQPN_QP1 |
 					MLX5_IB_QP_CREATE_WC_TEST))
 		return -EINVAL;
