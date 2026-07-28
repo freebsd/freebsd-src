@@ -4153,7 +4153,7 @@ s32 ixgbe_clear_vfta_generic(struct ixgbe_hw *hw)
 /**
  * ixgbe_toggle_txdctl_generic - Toggle VF's queues
  * @hw: pointer to hardware structure
- * @vf_number: VF index
+ * @vf_number: VF number
  *
  * Enable and disable each queue in VF.
  */
