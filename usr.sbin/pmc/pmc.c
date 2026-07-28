@@ -36,11 +36,11 @@
 #include <string.h>
 #include <pmc.h>
 #include <pmclog.h>
+#include <libelf.h>
 #include <libpmcstat.h>
 #include <sysexits.h>
 #include <unistd.h>
 
-#include <libpmcstat.h>
 #include "cmd_pmc.h"
 
 int	pmc_displayheight = DEFAULT_DISPLAY_HEIGHT;
@@ -57,27 +57,44 @@ struct pmcstat_process_hash_list pmcstat_process_hash[PMCSTAT_NHASH];
 struct cmd_handler {
 	const char *ch_name;
 	cmd_disp_t ch_fn;
+	const char *ch_desc;
 };
 
 static struct cmd_handler disp_table[] = {
-	{"stat", cmd_pmc_stat},
-	{"stat-system", cmd_pmc_stat_system},
-	{"list-events", cmd_pmc_list_events},
-	{"filter", cmd_pmc_filter},
-	{"summary", cmd_pmc_summary},
-	{NULL, NULL}
+	{ "filter", cmd_pmc_filter, NULL },
+	{ "frontend", cmd_pmc_frontend, "Analyze front-end stalls" },
+	{ "info", cmd_pmc_info, "Display high level information about a log" },
+	{ "list-events", cmd_pmc_list_events, "List available PMC events" },
+	{ "record", cmd_pmc_record, "Record a performance sample" },
+	{ "stat", cmd_pmc_stat, NULL },
+	{ "stat-system", cmd_pmc_stat_system, NULL },
+	{ "summary", cmd_pmc_summary, NULL },
+	{ NULL, NULL, NULL }
 };
 
-static void __dead2
+static void
 usage(void)
 {
-	errx(EX_USAGE,
-	    "\t pmc management utility\n"
-	    "\t stat <program> run program and print stats\n"
-		 "\t stat-system <program> run program and print system wide stats for duration of execution\n"
-		 "\t list-events list PMC events available on host\n"
-		 "\t filter filter records by lwp, pid, or event\n"
-	    );
+	int i;
+
+	fprintf(stderr, "Usage: pmc <COMMAND> [OPTIONS] ...\n\n");
+	fprintf(stderr, "PMC tool\n\n");
+
+	fprintf(stderr, "Commands:\n");
+	for (i = 0; disp_table[i].ch_name != NULL; i++) {
+		// Hide stuff we plan to deprecate
+		if (disp_table[i].ch_desc)
+			fprintf(stderr, "    %-12s    %s\n",
+			    disp_table[i].ch_name, disp_table[i].ch_desc);
+	}
+
+	fprintf(stderr, "\nEnvironment Variables:\n");
+	fprintf(stderr, "    CLICOLOR        Enables color graphs\n");
+	fprintf(stderr, "    SYSROOT         Path to system root\n");
+	fprintf(stderr, "    SYMROOT         Path to debug symbols\n");
+	fprintf(stderr, "    TERM            Controls symbols and color palettes\n");
+
+	exit(EX_USAGE);
 }
 
 static cmd_disp_t
@@ -109,9 +126,14 @@ main(int argc, char **argv)
 	/* Allocate a kqueue */
 	if ((pmc_kq = kqueue()) < 0)
 		err(EX_OSERR, "ERROR: Cannot allocate kqueue");
+
 	if (pmc_init() < 0)
 		err(EX_UNAVAILABLE,
 		    "ERROR: Initialization of the pmc(3) library failed"
 		    );
+
+	if (elf_version(EV_CURRENT) == EV_NONE)
+		err(EX_UNAVAILABLE, "ERROR: ELF library version too old");
+
 	return (disp(argc, argv));
 }

@@ -41,10 +41,13 @@ typedef int (*cmd_disp_t)(int, char **);
 #if defined(__cplusplus)
 extern "C" {
 #endif
-	int	cmd_pmc_stat(int, char **);
+	int	cmd_pmc_info(int, char **);
 	int	cmd_pmc_filter(int, char **);
-	int	cmd_pmc_stat_system(int, char **);
+	int	cmd_pmc_frontend(int, char **);
 	int	cmd_pmc_list_events(int, char **);
+	int	cmd_pmc_record(int, char **);
+	int	cmd_pmc_stat(int, char **);
+	int	cmd_pmc_stat_system(int, char **);
 	int	cmd_pmc_summary(int, char **);
 #if defined(__cplusplus)
 };
