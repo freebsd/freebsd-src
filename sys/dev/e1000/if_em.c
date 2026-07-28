@@ -775,9 +775,12 @@ static int em_get_regs(SYSCTL_HANDLER_ARGS)
 	struct sbuf *sb;
 	u32 *regs_buff;
 	int rc;
+	uint32_t rxqid, txqid;
 
 	regs_buff = malloc(sizeof(u32) * IGB_REGS_LEN, M_DEVBUF, M_WAITOK);
 	memset(regs_buff, 0, IGB_REGS_LEN * sizeof(u32));
+	rxqid = sc->rx_queues[0].rxr.me;
+	txqid = sc->tx_queues[0].txr.me;
 
 	rc = sysctl_wire_old_buffer(req, 0);
 	MPASS(rc == 0);
@@ -799,19 +802,19 @@ static int em_get_regs(SYSCTL_HANDLER_ARGS)
 	regs_buff[2] = E1000_READ_REG(hw, E1000_CTRL_EXT);
 	regs_buff[3] = E1000_READ_REG(hw, E1000_ICR);
 	regs_buff[4] = E1000_READ_REG(hw, E1000_RCTL);
-	regs_buff[5] = E1000_READ_REG(hw, E1000_RDLEN(0));
-	regs_buff[6] = E1000_READ_REG(hw, E1000_RDH(0));
-	regs_buff[7] = E1000_READ_REG(hw, E1000_RDT(0));
-	regs_buff[8] = E1000_READ_REG(hw, E1000_RXDCTL(0));
-	regs_buff[9] = E1000_READ_REG(hw, E1000_RDBAL(0));
-	regs_buff[10] = E1000_READ_REG(hw, E1000_RDBAH(0));
+	regs_buff[5] = E1000_READ_REG(hw, E1000_RDLEN(rxqid));
+	regs_buff[6] = E1000_READ_REG(hw, E1000_RDH(rxqid));
+	regs_buff[7] = E1000_READ_REG(hw, E1000_RDT(rxqid));
+	regs_buff[8] = E1000_READ_REG(hw, E1000_RXDCTL(rxqid));
+	regs_buff[9] = E1000_READ_REG(hw, E1000_RDBAL(rxqid));
+	regs_buff[10] = E1000_READ_REG(hw, E1000_RDBAH(rxqid));
 	regs_buff[11] = E1000_READ_REG(hw, E1000_TCTL);
-	regs_buff[12] = E1000_READ_REG(hw, E1000_TDBAL(0));
-	regs_buff[13] = E1000_READ_REG(hw, E1000_TDBAH(0));
-	regs_buff[14] = E1000_READ_REG(hw, E1000_TDLEN(0));
-	regs_buff[15] = E1000_READ_REG(hw, E1000_TDH(0));
-	regs_buff[16] = E1000_READ_REG(hw, E1000_TDT(0));
-	regs_buff[17] = E1000_READ_REG(hw, E1000_TXDCTL(0));
+	regs_buff[12] = E1000_READ_REG(hw, E1000_TDBAL(txqid));
+	regs_buff[13] = E1000_READ_REG(hw, E1000_TDBAH(txqid));
+	regs_buff[14] = E1000_READ_REG(hw, E1000_TDLEN(txqid));
+	regs_buff[15] = E1000_READ_REG(hw, E1000_TDH(txqid));
+	regs_buff[16] = E1000_READ_REG(hw, E1000_TDT(txqid));
+	regs_buff[17] = E1000_READ_REG(hw, E1000_TXDCTL(txqid));
 	regs_buff[18] = E1000_READ_REG(hw, E1000_TDFH);
 	regs_buff[19] = E1000_READ_REG(hw, E1000_TDFT);
 	regs_buff[20] = E1000_READ_REG(hw, E1000_TDFHS);
@@ -2615,10 +2618,13 @@ igb_configure_queues(struct e1000_softc *sc)
 	case e1000_vfadapt_i350:
 		/* RX entries */
 		for (int i = 0; i < sc->rx_num_queues; i++) {
-			u32 index = i >> 1;
-			ivar = E1000_READ_REG_ARRAY(hw, E1000_IVAR0, index);
+			uint32_t index, qid;
+
 			rx_que = &sc->rx_queues[i];
-			if (i & 1) {
+			qid = rx_que->rxr.me;
+			index = qid >> 1;
+			ivar = E1000_READ_REG_ARRAY(hw, E1000_IVAR0, index);
+			if (qid & 1) {
 				ivar &= 0xFF00FFFF;
 				ivar |= (rx_que->msix | E1000_IVAR_VALID) <<
 				    16;
@@ -2630,10 +2636,13 @@ igb_configure_queues(struct e1000_softc *sc)
 		}
 		/* TX entries */
 		for (int i = 0; i < sc->tx_num_queues; i++) {
-			u32 index = i >> 1;
-			ivar = E1000_READ_REG_ARRAY(hw, E1000_IVAR0, index);
+			uint32_t index, qid;
+
 			tx_que = &sc->tx_queues[i];
-			if (i & 1) {
+			qid = tx_que->txr.me;
+			index = qid >> 1;
+			ivar = E1000_READ_REG_ARRAY(hw, E1000_IVAR0, index);
+			if (qid & 1) {
 				ivar &= 0x00FFFFFF;
 				ivar |= (tx_que->msix | E1000_IVAR_VALID) <<
 				    24;
@@ -2654,10 +2663,13 @@ igb_configure_queues(struct e1000_softc *sc)
 	case e1000_82576:
 		/* RX entries */
 		for (int i = 0; i < sc->rx_num_queues; i++) {
-			u32 index = i & 0x7; /* Each IVAR has two entries */
-			ivar = E1000_READ_REG_ARRAY(hw, E1000_IVAR0, index);
+			uint32_t index, qid;
+
 			rx_que = &sc->rx_queues[i];
-			if (i < 8) {
+			qid = rx_que->rxr.me;
+			index = qid & 0x7; /* Each IVAR has two entries */
+			ivar = E1000_READ_REG_ARRAY(hw, E1000_IVAR0, index);
+			if (qid < 8) {
 				ivar &= 0xFFFFFF00;
 				ivar |= rx_que->msix | E1000_IVAR_VALID;
 			} else {
@@ -2670,10 +2682,13 @@ igb_configure_queues(struct e1000_softc *sc)
 		}
 		/* TX entries */
 		for (int i = 0; i < sc->tx_num_queues; i++) {
-			u32 index = i & 0x7; /* Each IVAR has two entries */
-			ivar = E1000_READ_REG_ARRAY(hw, E1000_IVAR0, index);
+			uint32_t index, qid;
+
 			tx_que = &sc->tx_queues[i];
-			if (i < 8) {
+			qid = tx_que->txr.me;
+			index = qid & 0x7; /* Each IVAR has two entries */
+			ivar = E1000_READ_REG_ARRAY(hw, E1000_IVAR0, index);
+			if (qid < 8) {
 				ivar &= 0xFFFF00FF;
 				ivar |= (tx_que->msix | E1000_IVAR_VALID) <<
 				    8;
@@ -3685,9 +3700,11 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 	for (int i = 0; i < sc->tx_num_queues; i++, txr++) {
 		u64 bus_addr;
 		caddr_t offp, endp;
+		uint32_t qid;
 
 		que = &sc->tx_queues[i];
 		txr = &que->txr;
+		qid = txr->me;
 		bus_addr = txr->tx_paddr;
 
 		/* Clear checksum offload context. */
@@ -3696,17 +3713,17 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 		bzero(offp, endp - offp);
 
 		/* Base and Len of TX Ring */
-		E1000_WRITE_REG(hw, E1000_TDLEN(i),
+		E1000_WRITE_REG(hw, E1000_TDLEN(qid),
 		    scctx->isc_ntxd[0] * sizeof(struct e1000_tx_desc));
-		E1000_WRITE_REG(hw, E1000_TDBAH(i), (u32)(bus_addr >> 32));
-		E1000_WRITE_REG(hw, E1000_TDBAL(i), (u32)bus_addr);
+		E1000_WRITE_REG(hw, E1000_TDBAH(qid), (u32)(bus_addr >> 32));
+		E1000_WRITE_REG(hw, E1000_TDBAL(qid), (u32)bus_addr);
 		/* Init the HEAD/TAIL indices */
-		E1000_WRITE_REG(hw, E1000_TDT(i), 0);
-		E1000_WRITE_REG(hw, E1000_TDH(i), 0);
+		E1000_WRITE_REG(hw, E1000_TDT(qid), 0);
+		E1000_WRITE_REG(hw, E1000_TDH(qid), 0);
 
 		HW_DEBUGOUT2("Base = %x, Length = %x\n",
-		    E1000_READ_REG(hw, E1000_TDBAL(i)),
-		    E1000_READ_REG(hw, E1000_TDLEN(i)));
+		    E1000_READ_REG(hw, E1000_TDBAL(qid)),
+		    E1000_READ_REG(hw, E1000_TDLEN(qid)));
 
 		txdctl = 0; /* clear txdctl */
 		txdctl |= 0x1f; /* PTHRESH */
@@ -3716,7 +3733,7 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 		txdctl |= E1000_TXDCTL_GRAN;
 		txdctl |= 1 << 25; /* LWTHRESH */
 
-		E1000_WRITE_REG(hw, E1000_TXDCTL(i), txdctl);
+		E1000_WRITE_REG(hw, E1000_TXDCTL(qid), txdctl);
 	}
 
 	/* Set the default values for the Tx Inter Packet Gap timer */
@@ -3943,18 +3960,19 @@ em_initialize_receive_unit(if_ctx_t ctx)
 		struct rx_ring *rxr = &que->rxr;
 		/* Setup the Base and Length of the Rx Descriptor Ring */
 		u64 bus_addr = rxr->rx_paddr;
+		uint32_t qid = rxr->me;
 #if 0
 		u32 rdt = sc->rx_num_queues -1;  /* default */
 #endif
 
-		E1000_WRITE_REG(hw, E1000_RDLEN(i),
+		E1000_WRITE_REG(hw, E1000_RDLEN(qid),
 		    scctx->isc_nrxd[0] *
 		    sizeof(union e1000_rx_desc_extended));
-		E1000_WRITE_REG(hw, E1000_RDBAH(i), (u32)(bus_addr >> 32));
-		E1000_WRITE_REG(hw, E1000_RDBAL(i), (u32)bus_addr);
+		E1000_WRITE_REG(hw, E1000_RDBAH(qid), (u32)(bus_addr >> 32));
+		E1000_WRITE_REG(hw, E1000_RDBAL(qid), (u32)bus_addr);
 		/* Setup the Head and Tail Descriptor Pointers */
-		E1000_WRITE_REG(hw, E1000_RDH(i), 0);
-		E1000_WRITE_REG(hw, E1000_RDT(i), 0);
+		E1000_WRITE_REG(hw, E1000_RDH(qid), 0);
+		E1000_WRITE_REG(hw, E1000_RDT(qid), 0);
 	}
 
 	/*
@@ -4014,6 +4032,7 @@ em_initialize_receive_unit(if_ctx_t ctx)
 			struct rx_ring *rxr = &que->rxr;
 			u64 bus_addr = rxr->rx_paddr;
 			u32 rxdctl;
+			uint32_t qid = rxr->me;
 
 #ifdef notyet
 			/* Configure for header split? -- ignore for now */
@@ -4022,22 +4041,22 @@ em_initialize_receive_unit(if_ctx_t ctx)
 			srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 #endif
 
-			E1000_WRITE_REG(hw, E1000_RDLEN(i),
+			E1000_WRITE_REG(hw, E1000_RDLEN(qid),
 			    scctx->isc_nrxd[0] *
 			    sizeof(struct e1000_rx_desc));
-			E1000_WRITE_REG(hw, E1000_RDBAH(i),
+			E1000_WRITE_REG(hw, E1000_RDBAH(qid),
 			    (uint32_t)(bus_addr >> 32));
-			E1000_WRITE_REG(hw, E1000_RDBAL(i),
+			E1000_WRITE_REG(hw, E1000_RDBAL(qid),
 			    (uint32_t)bus_addr);
-			E1000_WRITE_REG(hw, E1000_SRRCTL(i), srrctl);
+			E1000_WRITE_REG(hw, E1000_SRRCTL(qid), srrctl);
 			/* Enable this Queue */
-			rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(i));
+			rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(qid));
 			rxdctl |= E1000_RXDCTL_QUEUE_ENABLE;
 			rxdctl &= 0xFFF00000;
 			rxdctl |= IGB_RX_PTHRESH;
 			rxdctl |= IGB_RX_HTHRESH << 8;
 			rxdctl |= IGB_RX_WTHRESH << 16;
-			E1000_WRITE_REG(hw, E1000_RXDCTL(i), rxdctl);
+			E1000_WRITE_REG(hw, E1000_RXDCTL(qid), rxdctl);
 		}		
 	} else if (hw->mac.type >= e1000_pch2lan) {
 		if (if_getmtu(ifp) > ETHERMTU)
@@ -4977,6 +4996,38 @@ em_sysctl_reg_handler(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_int(oidp, &val, 0, req));
 }
 
+enum em_ring_register {
+	EM_RING_HEAD,
+	EM_RING_TAIL,
+};
+
+/* Queue register addresses can change when the PF enters IOV mode. */
+static int
+em_sysctl_tx_ring_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct tx_ring *txr;
+	u_int reg, val;
+
+	txr = oidp->oid_arg1;
+	reg = oidp->oid_arg2 == EM_RING_HEAD ? E1000_TDH(txr->me) :
+	    E1000_TDT(txr->me);
+	val = E1000_READ_REG(&txr->sc->hw, reg);
+	return (sysctl_handle_int(oidp, &val, 0, req));
+}
+
+static int
+em_sysctl_rx_ring_handler(SYSCTL_HANDLER_ARGS)
+{
+	struct rx_ring *rxr;
+	u_int reg, val;
+
+	rxr = oidp->oid_arg1;
+	reg = oidp->oid_arg2 == EM_RING_HEAD ? E1000_RDH(rxr->me) :
+	    E1000_RDT(rxr->me);
+	val = E1000_READ_REG(&rxr->sc->hw, reg);
+	return (sysctl_handle_int(oidp, &val, 0, req));
+}
+
 /* Per queue holdoff interrupt rate handler */
 static int
 em_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
@@ -5093,12 +5144,12 @@ em_add_hw_stats(struct e1000_softc *sc)
 		    "IU", "Interrupt Rate");
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head",
-		    CTLTYPE_UINT | CTLFLAG_RD, sc,
-		    E1000_TDH(txr->me), em_sysctl_reg_handler, "IU",
+		    CTLTYPE_UINT | CTLFLAG_RD, txr, EM_RING_HEAD,
+		    em_sysctl_tx_ring_handler, "IU",
 		    "Transmit Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_tail",
-		    CTLTYPE_UINT | CTLFLAG_RD, sc,
-		    E1000_TDT(txr->me), em_sysctl_reg_handler, "IU",
+		    CTLTYPE_UINT | CTLFLAG_RD, txr, EM_RING_TAIL,
+		    em_sysctl_tx_ring_handler, "IU",
 		    "Transmit Descriptor Tail");
 		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "tx_irq",
 		    CTLFLAG_RD, &txr->tx_irq,
@@ -5118,12 +5169,12 @@ em_add_hw_stats(struct e1000_softc *sc)
 		    "IU", "Interrupt Rate");
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head",
-		    CTLTYPE_UINT | CTLFLAG_RD, sc,
-		    E1000_RDH(rxr->me), em_sysctl_reg_handler, "IU",
+		    CTLTYPE_UINT | CTLFLAG_RD, rxr, EM_RING_HEAD,
+		    em_sysctl_rx_ring_handler, "IU",
 		    "Receive Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_tail",
-		    CTLTYPE_UINT | CTLFLAG_RD, sc,
-		    E1000_RDT(rxr->me), em_sysctl_reg_handler, "IU",
+		    CTLTYPE_UINT | CTLFLAG_RD, rxr, EM_RING_TAIL,
+		    em_sysctl_rx_ring_handler, "IU",
 		    "Receive Descriptor Tail");
 		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "rx_irq",
 		    CTLFLAG_RD, &rxr->rx_irq,
@@ -5814,15 +5865,15 @@ em_print_debug_info(struct e1000_softc *sc)
 	for (int i = 0; i < sc->tx_num_queues; i++, txr++) {
 		device_printf(dev, "TX Queue %d ------\n", i);
 		device_printf(dev, "hw tdh = %d, hw tdt = %d\n",
-		    E1000_READ_REG(&sc->hw, E1000_TDH(i)),
-		    E1000_READ_REG(&sc->hw, E1000_TDT(i)));
+		    E1000_READ_REG(&sc->hw, E1000_TDH(txr->me)),
+		    E1000_READ_REG(&sc->hw, E1000_TDT(txr->me)));
 
 	}
 	for (int j=0; j < sc->rx_num_queues; j++, rxr++) {
 		device_printf(dev, "RX Queue %d ------\n", j);
 		device_printf(dev, "hw rdh = %d, hw rdt = %d\n",
-		    E1000_READ_REG(&sc->hw, E1000_RDH(j)),
-		    E1000_READ_REG(&sc->hw, E1000_RDT(j)));
+		    E1000_READ_REG(&sc->hw, E1000_RDH(rxr->me)),
+		    E1000_READ_REG(&sc->hw, E1000_RDT(rxr->me)));
 	}
 }
 
