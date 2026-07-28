@@ -4130,7 +4130,7 @@ sysctl_ifname(SYSCTL_HANDLER_ARGS)
 	char name[IFNAMSIZ];
 	int error;
 
-	strncpy(name, if_name(priv->ifp), sizeof(name));
+	strlcpy(name, if_name(priv->ifp), sizeof(name));
 	error = sysctl_handle_string(oidp, name, sizeof(name), req);
 	return (error);
 }
@@ -4969,7 +4969,8 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 
 	SYSCTL_ADD_PROC(&priv->sysctl_ctx,
 			SYSCTL_CHILDREN(device_get_sysctl_tree(mdev->pdev->dev.bsddev)),
-			OID_AUTO, "ifname", CTLTYPE_STRING | CTLFLAG_RD, priv, 0,
+			OID_AUTO, "ifname", CTLTYPE_STRING | CTLFLAG_RD |
+			CTLFLAG_MPSAFE, priv, 0,
 			sysctl_ifname, "A", "ifname managed by driver");
 
 	return (priv);
