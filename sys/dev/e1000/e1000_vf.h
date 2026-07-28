@@ -227,13 +227,14 @@ struct e1000_mac_info {
 
 struct e1000_mbx_operations {
 	s32 (*init_params)(struct e1000_hw *hw);
-	s32 (*read)(struct e1000_hw *, u32 *, u16,  u16);
+	s32 (*read)(struct e1000_hw *, u32 *, u16, u16, bool);
 	s32 (*write)(struct e1000_hw *, u32 *, u16, u16);
 	s32 (*read_posted)(struct e1000_hw *, u32 *, u16,  u16);
 	s32 (*write_posted)(struct e1000_hw *, u32 *, u16, u16);
 	s32 (*check_for_msg)(struct e1000_hw *, u16);
 	s32 (*check_for_ack)(struct e1000_hw *, u16);
 	s32 (*check_for_rst)(struct e1000_hw *, u16);
+	s32 (*unlock)(struct e1000_hw *, u16);
 };
 
 struct e1000_mbx_stats {
@@ -290,7 +291,7 @@ enum e1000_promisc_type {
 
 /* These functions must be implemented by drivers */
 s32  e1000_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
-void e1000_vfta_set_vf(struct e1000_hw *, u16, bool);
+s32 e1000_vfta_set_vf(struct e1000_hw *, u16, bool);
 void e1000_rlpml_set_vf(struct e1000_hw *, u16);
 s32 e1000_promisc_set_vf(struct e1000_hw *, enum e1000_promisc_type);
 #endif /* _E1000_VF_H_ */

@@ -402,7 +402,7 @@ enum e1000_promisc_type {
 	e1000_num_promisc_types
 };
 
-void e1000_vfta_set_vf(struct e1000_hw *, u16, bool);
+s32 e1000_vfta_set_vf(struct e1000_hw *, u16, bool);
 void e1000_rlpml_set_vf(struct e1000_hw *, u16);
 s32 e1000_promisc_set_vf(struct e1000_hw *, enum e1000_promisc_type type);
 void e1000_write_vfta_i350(struct e1000_hw *hw, u32 offset, u32 value);

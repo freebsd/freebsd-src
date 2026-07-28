@@ -400,7 +400,7 @@ static void e1000_write_msg_read_ack(struct e1000_hw *hw,
 void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
 				  u8 *mc_addr_list, u32 mc_addr_count)
 {
-	u32 msgbuf[E1000_VFMAILBOX_SIZE];
+	u32 msgbuf[E1000_VFMAILBOX_SIZE] = {};
 	u16 *hash_list = (u16 *)&msgbuf[1];
 	u32 hash_value;
 	u32 i;
@@ -442,10 +442,14 @@ void e1000_update_mc_addr_list_vf(struct e1000_hw *hw,
  *  @hw: pointer to the HW structure
  *  @vid: determines the vfta register and bit to set/unset
  *  @set: if true then set bit, else clear bit
+ *
+ *  Returns success if the PF accepted the request, or an error otherwise.
  **/
-void e1000_vfta_set_vf(struct e1000_hw *hw, u16 vid, bool set)
+s32 e1000_vfta_set_vf(struct e1000_hw *hw, u16 vid, bool set)
 {
+	struct e1000_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
+	s32 ret_val;
 
 	msgbuf[0] = E1000_VF_SET_VLAN;
 	msgbuf[1] = vid;
@@ -453,7 +457,15 @@ void e1000_vfta_set_vf(struct e1000_hw *hw, u16 vid, bool set)
 	if (set)
 		msgbuf[0] |= E1000_VF_SET_VLAN_ADD;
 
-	e1000_write_msg_read_ack(hw, msgbuf, 2);
+	ret_val = mbx->ops.write_posted(hw, msgbuf, 2, 0);
+	if (!ret_val)
+		ret_val = mbx->ops.read_posted(hw, msgbuf, 1, 0);
+	if (!ret_val &&
+	    ((msgbuf[0] & 0xffff) != E1000_VF_SET_VLAN ||
+	    !(msgbuf[0] & E1000_VT_MSGTYPE_ACK)))
+		ret_val = -E1000_ERR_MAC_INIT;
+
+	return (ret_val);
 }
 
 /** e1000_rlpml_set_vf - Set the maximum receive packet length
@@ -559,13 +571,17 @@ static s32 e1000_check_for_link_vf(struct e1000_hw *hw)
 
 	/* if the read failed it could just be a mailbox collision, best wait
 	 * until we are called again and don't report an error */
-	if (mbx->ops.read(hw, &in_msg, 1, 0))
+	if (mbx->ops.read(hw, &in_msg, 1, 0, true))
 		goto out;
 
 	/* if incoming message isn't clear to send we are waiting on response */
 	if (!(in_msg & E1000_VT_MSGTYPE_CTS)) {
-		/* message is not CTS and is NACK we have lost CTS status */
-		if (in_msg & E1000_VT_MSGTYPE_NACK)
+		/*
+		 * A NACK or a PF control message without CTS means that the PF
+		 * discarded our state and requires a new VF reset handshake.
+		 */
+		if ((in_msg & E1000_VT_MSGTYPE_NACK) != 0 ||
+		    (in_msg & 0xffff) == E1000_PF_CONTROL_MSG)
 			ret_val = -E1000_ERR_MAC_INIT;
 		goto out;
 	}
@@ -585,4 +601,3 @@ static s32 e1000_check_for_link_vf(struct e1000_hw *hw)
 out:
 	return ret_val;
 }
-
