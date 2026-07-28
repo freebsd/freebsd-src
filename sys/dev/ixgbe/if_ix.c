@@ -1871,9 +1871,9 @@ ixgbe_update_stats_counters(struct ixgbe_softc *sc)
 {
 	struct ixgbe_hw *hw = &sc->hw;
 	struct ixgbe_hw_stats *stats = &sc->stats.pf;
-	u32 missed_rx = 0, bprc, lxon, lxoff, total;
+	u32 missed_rx = 0, bprc, lxon, lxoff;
 	u32 lxoffrxc;
-	u64 total_missed_rx = 0;
+	u64 total_missed_rx = 0, total;
 
 	stats->crcerrs += IXGBE_READ_REG(hw, IXGBE_CRCERRS);
 	stats->illerrc += IXGBE_READ_REG(hw, IXGBE_ILLERRC);
@@ -1942,7 +1942,7 @@ ixgbe_update_stats_counters(struct ixgbe_softc *sc)
 	stats->lxontxc += lxon;
 	lxoff = IXGBE_READ_REG(hw, IXGBE_LXOFFTXC);
 	stats->lxofftxc += lxoff;
-	total = lxon + lxoff;
+	total = (u64)lxon + lxoff;
 
 	stats->gptc += IXGBE_READ_REG(hw, IXGBE_GPTC);
 	stats->mptc += IXGBE_READ_REG(hw, IXGBE_MPTC);
