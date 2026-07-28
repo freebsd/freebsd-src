@@ -553,7 +553,7 @@ ixgbe_vf_get_queues(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
 	hw = &sc->hw;
 
 	/* GET_QUEUES is not supported on pre-1.1 APIs. */
-	switch (msg[0]) {
+	switch (vf->api_ver) {
 	case IXGBE_API_VER_1_0:
 	case IXGBE_API_VER_UNKNOWN:
 		ixgbe_send_vf_failure(sc, vf, msg[0]);
