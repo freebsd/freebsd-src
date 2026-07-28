@@ -5545,6 +5545,37 @@ iflib_device_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params)
 	return (error);
 }
 
+int
+iflib_device_iov_init_restart(device_t dev, uint16_t num_vfs,
+    const nvlist_t *params)
+{
+	if_ctx_t ctx;
+	if_t ifp;
+	int error;
+
+	ctx = device_get_softc(dev);
+	ifp = ctx->ifc_ifp;
+
+	CTX_LOCK(ctx);
+	/*
+	 * Drivers which change the PF queue layout need the complete iflib
+	 * stop/init sequence around their IOV callback.  Keep that transition
+	 * within one context-lock critical section.
+	 */
+	if ((if_getflags(ifp) & IFF_UP) == 0 ||
+	    (if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
+		error = ENETDOWN;
+		goto out;
+	}
+
+	iflib_stop(ctx);
+	error = IFDI_IOV_INIT(ctx, num_vfs, params);
+	iflib_init_locked(ctx);
+out:
+	CTX_UNLOCK(ctx);
+	return (error);
+}
+
 void
 iflib_device_iov_uninit(device_t dev)
 {
@@ -5552,6 +5583,28 @@ iflib_device_iov_uninit(device_t dev)
 
 	CTX_LOCK(ctx);
 	IFDI_IOV_UNINIT(ctx);
+	CTX_UNLOCK(ctx);
+}
+
+void
+iflib_device_iov_uninit_restart(device_t dev)
+{
+	if_ctx_t ctx;
+	bool restart;
+
+	ctx = device_get_softc(dev);
+
+	CTX_LOCK(ctx);
+	/*
+	 * RUNNING can be clear while a watchdog reset is pending but the
+	 * hardware is still live.  Always stop before the driver changes its
+	 * queue layout, and use IFF_UP only to preserve administrative state.
+	 */
+	restart = (if_getflags(ctx->ifc_ifp) & IFF_UP) != 0;
+	iflib_stop(ctx);
+	IFDI_IOV_UNINIT(ctx);
+	if (restart)
+		iflib_init_locked(ctx);
 	CTX_UNLOCK(ctx);
 }
 

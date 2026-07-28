@@ -450,7 +450,9 @@ int iflib_device_shutdown(device_t);
 int iflib_device_probe_vendor(device_t);
 
 int iflib_device_iov_init(device_t, uint16_t, const nvlist_t *);
+int iflib_device_iov_init_restart(device_t, uint16_t, const nvlist_t *);
 void iflib_device_iov_uninit(device_t);
+void iflib_device_iov_uninit_restart(device_t);
 int iflib_device_iov_add_vf(device_t, uint16_t, const nvlist_t *);
 
 /*
