@@ -91,6 +91,7 @@ s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw)
 				      ixgbe_validate_eeprom_checksum_generic;
 	eeprom->ops.update_checksum = ixgbe_update_eeprom_checksum_generic;
 	eeprom->ops.calc_checksum = ixgbe_calc_eeprom_checksum_generic;
+	eeprom->ops.read_pba_string = ixgbe_read_pba_string_generic;
 
 	/* MAC */
 	mac->ops.init_hw = ixgbe_init_hw_generic;
