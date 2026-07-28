@@ -280,6 +280,7 @@ markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2006/06/01"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\n2006/01/18"]
 mav [label="Alexander Motin\nmav@FreeBSD.org\n2007/04/12"]
 maxim [label="Maxim Konovalov\nmaxim@FreeBSD.org\n2002/02/07"]
+mchoo [label="Minsoo Choo\nmchoo@FreeBSD.org\n2026/07/29"]
 mdf [label="Matthew Fleming\nmdf@FreeBSD.org\n2010/06/04"]
 mdodd [label="Matthew N. Dodd\nmdodd@FreeBSD.org\n1999/07/27"]
 melifaro [label="Alexander V. Chernikov\nmelifaro@FreeBSD.org\n2011/10/04"]
@@ -676,6 +677,7 @@ jhb -> bnovkov
 jhb -> jch
 jhb -> jeff
 jhb -> kbyanc
+jhb -> mchoo
 jhb -> peterj
 jhb -> pfg
 jhb -> rnoland
