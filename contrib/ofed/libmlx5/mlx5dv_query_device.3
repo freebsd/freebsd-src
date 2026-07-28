@@ -26,6 +26,15 @@ struct mlx5dv_context {
 uint8_t         version;
 uint64_t        flags;
 uint64_t        comp_mask;
+struct mlx5dv_cqe_comp_caps    cqe_comp_caps;
+struct mlx5dv_sw_parsing_caps  sw_parsing_caps;
+.in -8
+};
+
+enum mlx5dv_context_comp_mask {
+.in +8
+ MLX5DV_CONTEXT_MASK_CQE_COMPRESION = (1 << 0),
+ MLX5DV_CONTEXT_MASK_SWP            = (1 << 1),
 .in -8
 };
 
@@ -45,6 +54,10 @@ enum mlx5dv_context_flags {
 0 on success or the value of errno on failure (which indicates the failure reason).
 .SH "NOTES"
  * Compatibility mask (comp_mask) is in/out field.
+ * The \fIcqe_comp_caps\fR and \fIsw_parsing_caps\fR members are valid only when
+ the matching comp_mask bit (MLX5DV_CONTEXT_MASK_CQE_COMPRESION or
+ MLX5DV_CONTEXT_MASK_SWP) is requested by the caller on input and returned set
+ by the library on output.
 .SH "SEE ALSO"
 .BR mlx5dv (7),
 .BR ibv_query_device (3)
