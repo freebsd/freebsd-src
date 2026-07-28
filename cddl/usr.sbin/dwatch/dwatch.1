@@ -1,4 +1,4 @@
-.\" Copyright (c) 2014-2018 Devin Teske
+.\" Copyright (c) 2014-2026 Devin Teske
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -22,7 +22,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 18, 2025
+.Dd July 4, 2026
 .Dt DWATCH 1
 .Os
 .Sh NAME
@@ -382,17 +382,69 @@ Print mode and path from
 .Xr chmod 2 ,
 .Xr lchmod 2 ,
 .Xr fchmodat 2
+.It coredump
+Print coredump-worthy signal deliveries with a verdict of whether a
+core will actually be written
+.It coredump-top
+Maintain a running catalog of coredump-worthy signals by process and
+signal
+.It dtmalloc
+Print kernel
+.Xr malloc 9
+and
+.Xr free 9
+activity by malloc type,
+meeting a size threshold
+.It dtmalloc-top
+Maintain a running catalog of net bytes and allocation balance by
+malloc type
+.Pq leak suspects rise
 .It errno
 Print non-zero errno results from system calls
+.It errno- Ns Ar NAME
+Print system calls returning the given errno,
+by symbolic name or number
+.Pq e.g., errno-ENOENT, errno-ENOTCAPABLE, errno-13
+.It hang
+Print threads that were asleep longer than a threshold,
+as they wake,
+naming the sleeper and the waker
+.It hang-top
+Maintain a running catalog of long sleeps by process
 .It io
 Print disk I/O details provided by
 .Xr dtrace_io 4
+.It io-slow
+Print disk I/O requests exceeding a latency threshold
 .It ip
 Print IPv4 and IPv6 details provided by
 .Xr dtrace_ip 4
+.It jail
+Print jail management activity from
+.Xr jail 2 ,
+.Xr jail_set 2 ,
+.Xr jail_get 2 ,
+.Xr jail_attach 2 ,
+.Xr jail_remove 2
 .It kill
 Print signal and pid from
 .Xr kill 2
+.It lock
+Print kernel lock contention details provided by
+.Xr dtrace_lockstat 4
+.It lock-spin
+Print kernel lock spinning details provided by
+.Xr dtrace_lockstat 4
+.It mib
+Print network stack statistics counters as they increment
+.Pq requires a kernel built with options KDTRACE_MIB_SDT
+.It namei
+Print pathname resolution details provided by the
+.Fn vfs:namei:lookup
+probes
+.It namei-failure
+Print failed pathname resolutions
+.Pq also namei-enoent for ENOENT only
 .It nanosleep
 Print requested time from
 .Xr nanosleep 2
@@ -400,12 +452,19 @@ Print requested time from
 Print path from
 .Xr open 2 ,
 .Xr openat 2
+.It priv
+Print privilege requests denied by
+.Xr priv_check 9
+.Pq also priv-ok for those granted
 .It proc
 Print process execution details provided by
 .Xr dtrace_proc 4
 .It proc-signal
 Print process signal details provided by
 .Xr dtrace_proc 4
+.It proc-signal-fatal
+Print only signals whose default disposition is to terminate the
+receiving process
 .It rw
 Print buffer contents from
 .Xr read 2 ,
@@ -413,12 +472,24 @@ Print buffer contents from
 .It sched
 Print CPU scheduling details provided by
 .Xr dtrace_sched 4
+.It sched-latency
+Print threads that waited longer than a threshold between becoming
+runnable and running
+.It slow
+Print filesystem-related syscalls exceeding a latency threshold
+.It slow-syscall
+Print any syscall exceeding a latency threshold
 .It tcp
 Print TCP address/port details provided by
 .Xr dtrace_tcp 4
 .It tcp-io
 Print TCP I/O details provided by
 .Xr dtrace_tcp 4
+.It tcp-retransmit
+Print TCP retransmissions,
+retransmit timeouts,
+and connections dropped by retransmit exhaustion
+.Pq requires a kernel built with options KDTRACE_MIB_SDT
 .It udp
 Print UDP I/O details provided by
 .Xr dtrace_udp 4
@@ -454,6 +525,26 @@ Print symlink paths being created by
 These environment variables affect the execution of
 .Nm :
 .Bl -tag -width "DWATCH_PROFILES_PATH"
+.It Ev DWATCH_HANG_MS
+Minimum sleep duration,
+in milliseconds,
+displayed by the hang profiles
+.Pq default 1000; 0 to show everything .
+.It Ev DWATCH_IO_MS
+Minimum disk I/O request latency,
+in milliseconds,
+displayed by the io-slow profile
+.Pq default 100; 0 to show everything .
+.It Ev DWATCH_LOCK_MS
+Minimum lock holdoff duration,
+in milliseconds,
+displayed by the lock profiles
+.Pq default 1; 0 to show everything .
+.It Ev DWATCH_MALLOC_MIN
+Minimum allocation size,
+in bytes,
+displayed by the dtmalloc profiles
+.Pq default 65536; 0 to show everything .
 .It Ev DWATCH_PROFILES_PATH
 If
 .Ev DWATCH_PROFILES_PATH
@@ -464,6 +555,16 @@ variable instead of the default
 .Ql Li /usr/libexec/dwatch:/usr/local/libexec/dwatch .
 If set to NULL,
 profiles are not loaded.
+.It Ev DWATCH_SCHED_MS
+Minimum run-queue wait,
+in milliseconds,
+displayed by the sched-latency profile
+.Pq default 10; 0 to show everything .
+.It Ev DWATCH_SLOW_MS
+Minimum syscall latency,
+in milliseconds,
+displayed by the slow profiles
+.Pq default 100 .
 .El
 .Sh EXIT STATUS
 .Ex -std

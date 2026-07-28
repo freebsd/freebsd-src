@@ -55,6 +55,7 @@ DSRCS=		cam.d			\
 		errno.d			\
 		io.d			\
 		ip.d			\
+		priv.d			\
 		psinfo.d		\
 		sctp.d			\
 		siftr.d			\
@@ -150,7 +151,7 @@ LDFLAGS+=	-fsanitize=address -fsanitize=undefined
 
 LIBADD=	ctf elf proc pthread rtld_db xo
 
-CLEANFILES=	dt_errtags.c dt_names.c
+CLEANFILES=	dt_errtags.c dt_names.c priv.d
 
 .include <bsd.lib.mk>
 
@@ -159,3 +160,6 @@ dt_errtags.c: ${OPENSOLARIS_USR_DISTDIR}/lib/libdtrace/common/dt_errtags.h
 
 dt_names.c: ${OPENSOLARIS_SYS_DISTDIR}/uts/common/sys/dtrace.h
 	sh ${OPENSOLARIS_USR_DISTDIR}/lib/libdtrace/common/mknames.sh < ${.ALLSRC} > ${.TARGET}
+
+priv.d: mkpriv ${SRCTOP}/sys/sys/priv.h
+	sh ${.CURDIR}/mkpriv -o ${.TARGET} ${SRCTOP}/sys/sys/priv.h

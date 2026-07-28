@@ -1,0 +1,131 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for slow syscall detection $
+# $Copyright: 2026 Devin Teske. All rights reserved. $
+#
+############################################################ DESCRIPTION
+#
+# Print syscalls whose entry-to-return latency meets or exceeds a threshold
+# (default 100 ms; tunable via DWATCH_SLOW_MS in the environment). Answers
+# "why is my application stalling?" by naming the slow operation, the time
+# it took, and any errno it returned. The default profile watches a curated
+# set of filesystem-related syscalls that are expected to be fast. Use
+# slow-syscall to watch every syscall (NB: intentionally-blocking syscalls
+# such as select(2), poll(2), kevent(2), and wait4(2) will dominate), or
+# slow-NAME (e.g., slow-connect) to watch a single syscall by name.
+#
+############################################################ PROBE
+
+case "$PROFILE" in
+slow)
+	: ${PROBE:=$( echo \
+		syscall::open:return, \
+		syscall::openat:return, \
+		syscall::close:return, \
+		syscall::read:return, \
+		syscall::readv:return, \
+		syscall::pread:return, \
+		syscall::preadv:return, \
+		syscall::write:return, \
+		syscall::writev:return, \
+		syscall::pwrite:return, \
+		syscall::pwritev:return, \
+		syscall::copy_file_range:return, \
+		syscall::getdirentries:return, \
+		syscall::readlink:return, \
+		syscall::readlinkat:return, \
+		syscall::fsync:return, \
+		syscall::fdatasync:return, \
+		syscall::rename:return, \
+		syscall::renameat:return, \
+		syscall::renameat2:return, \
+		syscall::unlink:return, \
+		syscall::unlinkat:return )} ;;
+slow-open)
+	: ${PROBE:=syscall::open:return, syscall::openat:return} ;;
+slow-read)
+	: ${PROBE:=$( echo \
+		syscall::read:return, \
+		syscall::readv:return, \
+		syscall::pread:return, \
+		syscall::preadv:return, \
+		syscall::getdirentries:return, \
+		syscall::readlink:return, \
+		syscall::readlinkat:return )} ;;
+slow-write)
+	: ${PROBE:=$( echo \
+		syscall::write:return, \
+		syscall::writev:return, \
+		syscall::pwrite:return, \
+		syscall::pwritev:return, \
+		syscall::copy_file_range:return )} ;;
+slow-fsync)
+	: ${PROBE:=syscall::fsync:return, syscall::fdatasync:return} ;;
+slow-syscall)
+	: ${PROBE:=syscall:::return} ;;
+*)
+	: ${PROBE:=syscall::${PROFILE#slow-}:return}
+esac
+
+#
+# Derive the matching entry probes from the return probes being watched
+#
+ENTRY_PROBE=$( echo "$PROBE" | awk 'gsub(/:return/, ":entry") || 1' )
+
+############################################################ EVENT ACTION
+
+: ${DWATCH_SLOW_MS:=100}
+
+case "$DWATCH_SLOW_MS" in
+""|*[!0-9]*) die "DWATCH_SLOW_MS must be a number" ;; # NOTREACHED
+esac
+
+[ "$CUSTOM_TEST" ] ||
+	EVENT_TEST="this->slow_ns >= (int64_t)$DWATCH_SLOW_MS * 1000000"
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+self int64_t	slow_ts;
+this int64_t	slow_ns;
+
+$ENTRY_PROBE /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");}
+	self->slow_ts = timestamp;
+}
+
+$PROBE /* probe ID $(( $ID + 1 )) */
+{${TRACE:+
+	printf("<$(( $ID + 1 ))>");
+}
+	/* NB: -1 if we did not see the entry (enabled mid-syscall) */
+	this->slow_ns = self->slow_ts ? timestamp - self->slow_ts : -1;
+	self->slow_ts = 0;
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 2 ))
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print syscall latency details
+	 */
+	printf("%s(2) %d.%03d ms%s%s",
+		probefunc,
+		this->slow_ns / 1000000,
+		(this->slow_ns % 1000000) / 1000,
+		errno > 0 ? " -- " : "",
+		errno > 0 ? strerror[errno] : "");
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

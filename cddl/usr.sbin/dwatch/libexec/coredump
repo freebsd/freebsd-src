@@ -1,0 +1,210 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for coredump-worthy signal delivery $
+# $Copyright: 2026 Devin Teske. All rights reserved. $
+#
+############################################################ DESCRIPTION
+#
+# Print signals whose default action produces a coredump, as they are
+# sent, together with a verdict of whether a core will actually be
+# written, rendered the same way and in the same order the kernel will
+# decide it: the target may be ignoring or catching the signal, dumps
+# may be disabled (kern.coredump), the target may be flagged sugid
+# (kern.sugid_coredump) or may have disabled tracing via procctl(2)
+# PROC_TRACE_CTL, or RLIMIT_CORE may be 0.
+# Coredump-worthy is defined by the SIGPROP_CORE entries of the
+# sigproptbl in kern_sig.c: SIGQUIT, SIGILL, SIGTRAP, SIGABRT, SIGEMT,
+# SIGFPE, SIGBUS, SIGSEGV, and SIGSYS.
+# The coredump-top profile maintains a running catalog, updated
+# every 3 seconds, of coredump-worthy signals by process and signal.
+# Combine with `-O cmd' to capture state as each event occurs.
+#
+############################################################ PRAGMAS
+
+case "$PROFILE" in
+coredump-top)
+	DTRACE_PRAGMA="
+		option quiet
+		option aggsortrev
+	" # END-QUOTE
+	;;
+esac
+
+############################################################ PROBE
+
+case "$PROFILE" in
+coredump-top)
+	: ${PROBE:=profile:::tick-3s} ;;
+*)
+	: ${PROBE:=proc:::signal-send}
+esac
+
+############################################################ GLOBALS
+
+exec 9<<EOF
+/*
+ * Signals whose default action includes a coredump, per the
+ * SIGPROP_CORE entries of the sigproptbl in kern_sig.c of FreeBSD
+ */
+inline int coredump_sig[int sig] =
+	sig == SIGQUIT ?	1 :
+	sig == SIGILL ?		1 :
+	sig == SIGTRAP ?	1 :
+	sig == SIGABRT ?	1 :	/* SIGIOT */
+	sig == SIGEMT ?		1 :
+	sig == SIGFPE ?		1 :
+	sig == SIGBUS ?		1 :
+	sig == SIGSEGV ?	1 :
+	sig == SIGSYS ?		1 :
+	0;
+EOF
+GLOBALS=$( cat <&9 )
+
+############################################################ EVENT ACTION
+
+[ "$CUSTOM_TEST" ] || case "$PROFILE" in
+coredump-top)	;;
+*)		EVENT_TEST="coredump_sig[this->sig]"
+esac
+
+############################################################ ACTIONS
+
+if [ "$PROFILE" = "coredump-top" ]; then
+exec 9<<EOF
+$GLOBALS
+
+BEGIN { printf("Cataloging coredump-worthy signals ...") } /* probe ID $ID */
+
+proc:::signal-send /coredump_sig[(int)arg2]/ /* probe ID $(( $ID + 1 )) */
+{
+	@cores[stringof(((struct proc *)args[1])->p_comm),
+		signal_string[(int)arg2]] = count();
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 2 ))
+else
+exec 9<<EOF
+$GLOBALS
+
+this int		sig;
+this pid_t		pid;
+this string		verdict;
+this struct proc *	target;
+this u_int		core_catch;
+this u_int		core_ign;
+this u_int		core_notrace;
+this u_int		core_sugid;
+this uint64_t		core_limit;
+
+$PROBE /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");
+}
+	this->target = (struct proc *)args[1];
+	this->pid = (pid_t)this->target->p_pid;
+	this->sig = (int)arg2;
+}
+
+$PROBE /* probe ID $(( $ID + 1 )) */
+{${TRACE:+
+	printf("<$(( $ID + 1 ))>");
+}
+	/*
+	 * Render a verdict the way the kernel will: disposition first
+	 * (struct sigacts), then the coredump() gauntlet in its order:
+	 * kern.coredump, kern.sugid_coredump vs P_SUGID, procctl(2)
+	 * PROC_TRACE_CTL (P2_NOTRACE), and finally RLIMIT_CORE
+	 */
+	this->core_ign =
+		this->target->p_sigacts->ps_sigignore.__bits[
+			(this->sig - 1) >> 5] &
+		(1 << ((this->sig - 1) & 31));
+	this->core_catch =
+		this->target->p_sigacts->ps_sigcatch.__bits[
+			(this->sig - 1) >> 5] &
+		(1 << ((this->sig - 1) & 31));
+	this->core_sugid =
+		this->target->p_flag & 0x00000100; /* P_SUGID */
+	this->core_notrace =
+		this->target->p_flag2 & 0x00000002; /* P2_NOTRACE */
+	this->core_limit = this->target->p_limit->
+		pl_rlimit[4].rlim_cur; /* RLIMIT_CORE */
+
+	this->verdict =
+		this->core_ign ?	"ignored" :
+		this->core_catch ?	"caught" :
+		\`do_coredump == 0 ?	"denied by kern.coredump" :
+		this->core_sugid && \`sugid_coredump == 0 ?
+			"denied by kern.sugid_coredump" :
+		this->core_notrace ?	"denied by procctl trace ctl" :
+		this->core_limit == 0 ?	"denied by RLIMIT_CORE" :
+		"will dump core";
+
+	$( pproc -P _core "(struct proc *)args[1]" )
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 2 ))
+fi
+
+############################################################ EVENT TAG
+
+# For the running catalog, override the default `UID.GID CMD[PID]: ' tag
+# with ANSI cursor-homing and screen-clearing codes plus column headers.
+
+if [ "$PROFILE" = "coredump-top" ]; then
+size=$( stty size 2> /dev/null )
+rows="${size%% *}"
+cols="${size#* }"
+
+exec 9<<EOF
+	printf("\033[H"); /* Position the cursor at top-left */
+	printf("\033[J"); /* Clear display from cursor to end */
+
+	/* Header line containing probe (left) and date (right) */
+	printf("%-*s%s%Y%s\n",
+		$(( ${cols:-80} - 20 )), "$PROBE",
+		console ? "\033[32m" : "",
+		walltimestamp,
+		console ? "\033[39m" : "");
+
+	/* Column headers */
+	printf("%s%8s %-20s %s%s\n",
+		console ? "\033[1m" : "",
+		"COUNT",
+		"EXECNAME",
+		"SIGNAL",
+		console ? "\033[22m" : "");
+EOF
+EVENT_TAG=$( cat <&9 )
+fi
+
+############################################################ EVENT DETAILS
+
+if [ "$PROFILE" = "coredump-top" ]; then
+exec 9<<EOF
+	/* NB: Cumulative; not truncated between updates */
+	printa("%@8u %-20s %s\n", @cores);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+elif [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print coredump-worthy signal details
+	 */
+	printf("%s[%d] pid %d (%s) -- %s",
+		signal_string[this->sig],
+		this->sig,
+		this->pid,
+		this->verdict,
+		this->args_core);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

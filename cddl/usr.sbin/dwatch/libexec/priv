@@ -1,0 +1,59 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for priv_check(9) privilege requests $
+# $Copyright: 2026 Devin Teske. All rights reserved. $
+#
+############################################################ DESCRIPTION
+#
+# Print privilege requests denied by priv_check(9), decoded to their
+# symbolic priv(9) names by the priv_string table in priv.d of
+# libdtrace(1). Answers "why is this process getting EPERM?" -- kernel
+# privilege denials (jails, unprivileged users, MAC policies) name the
+# exact privilege refused, something no amount of truss(1) will reveal.
+# Use priv-ok to instead watch privileges being granted.
+#
+# NB: Requires priv.d, a drop-in file for older releases like this module.
+#
+############################################################ PROBE
+
+case "$PROFILE" in
+priv)
+	: ${PROBE:=priv:kernel:priv_check:priv-err} ;;
+*)
+	: ${PROBE:=priv:kernel:priv_check:${PROFILE#priv-}}
+esac
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+this int priv;
+
+$PROBE /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");}
+	this->priv = (int)arg0;
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 1 ))
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print privilege request details
+	 */
+	printf("%s %s (%d)",
+		probename == "priv-err" ? "denied" : "granted",
+		priv_string[this->priv],
+		this->priv);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

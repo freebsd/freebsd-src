@@ -1,16 +1,25 @@
 PACKAGE=	dwatch
 FILESDIR=	${LIBEXECDIR}/dwatch
 FILES=		chmod \
+		coredump \
+		dtmalloc \
 		errno \
+		hang \
 		io \
 		ip \
+		jail \
 		kill \
+		lock \
+		mib \
+		namei \
 		nanosleep \
 		open \
+		priv \
 		proc \
 		rw \
 		sched \
 		sendrecv \
+		slow \
 		systop \
 		tcp \
 		udp \
@@ -23,11 +32,37 @@ FILES=		chmod \
 LINKMODE=	${SHAREMODE}
 LINKS=	${LIBEXECDIR}/dwatch/chmod ${LIBEXECDIR}/dwatch/fchmodat
 LINKS+=	${LIBEXECDIR}/dwatch/chmod ${LIBEXECDIR}/dwatch/lchmod
+LINKS+=	${LIBEXECDIR}/dwatch/coredump ${LIBEXECDIR}/dwatch/coredump-top
+LINKS+=	${LIBEXECDIR}/dwatch/dtmalloc ${LIBEXECDIR}/dwatch/dtmalloc-top
+LINKS+=	${LIBEXECDIR}/dwatch/errno ${LIBEXECDIR}/dwatch/errno-EACCES
+LINKS+=	${LIBEXECDIR}/dwatch/errno ${LIBEXECDIR}/dwatch/errno-ECAPMODE
+LINKS+=	${LIBEXECDIR}/dwatch/errno ${LIBEXECDIR}/dwatch/errno-ENOENT
+LINKS+=	${LIBEXECDIR}/dwatch/errno ${LIBEXECDIR}/dwatch/errno-ENOTCAPABLE
+LINKS+=	${LIBEXECDIR}/dwatch/errno ${LIBEXECDIR}/dwatch/errno-EPERM
+LINKS+=	${LIBEXECDIR}/dwatch/hang ${LIBEXECDIR}/dwatch/hang-top
 LINKS+=	${LIBEXECDIR}/dwatch/io ${LIBEXECDIR}/dwatch/io-done
+LINKS+=	${LIBEXECDIR}/dwatch/io ${LIBEXECDIR}/dwatch/io-slow
 LINKS+=	${LIBEXECDIR}/dwatch/io ${LIBEXECDIR}/dwatch/io-start
 LINKS+=	${LIBEXECDIR}/dwatch/ip ${LIBEXECDIR}/dwatch/ip-receive
 LINKS+=	${LIBEXECDIR}/dwatch/ip ${LIBEXECDIR}/dwatch/ip-send
+LINKS+=	${LIBEXECDIR}/dwatch/jail ${LIBEXECDIR}/dwatch/jail-attach
+LINKS+=	${LIBEXECDIR}/dwatch/jail ${LIBEXECDIR}/dwatch/jail-get
+LINKS+=	${LIBEXECDIR}/dwatch/jail ${LIBEXECDIR}/dwatch/jail-remove
+LINKS+=	${LIBEXECDIR}/dwatch/jail ${LIBEXECDIR}/dwatch/jail-set
+LINKS+=	${LIBEXECDIR}/dwatch/lock ${LIBEXECDIR}/dwatch/lock-adaptive
+LINKS+=	${LIBEXECDIR}/dwatch/lock ${LIBEXECDIR}/dwatch/lock-block
+LINKS+=	${LIBEXECDIR}/dwatch/lock ${LIBEXECDIR}/dwatch/lock-lockmgr
+LINKS+=	${LIBEXECDIR}/dwatch/lock ${LIBEXECDIR}/dwatch/lock-rw
+LINKS+=	${LIBEXECDIR}/dwatch/lock ${LIBEXECDIR}/dwatch/lock-spin
+LINKS+=	${LIBEXECDIR}/dwatch/lock ${LIBEXECDIR}/dwatch/lock-sx
+LINKS+=	${LIBEXECDIR}/dwatch/lock ${LIBEXECDIR}/dwatch/lock-thread
+LINKS+=	${LIBEXECDIR}/dwatch/mib ${LIBEXECDIR}/dwatch/tcp-retransmit
+LINKS+=	${LIBEXECDIR}/dwatch/namei ${LIBEXECDIR}/dwatch/namei-enoent
+LINKS+=	${LIBEXECDIR}/dwatch/namei ${LIBEXECDIR}/dwatch/namei-entry
+LINKS+=	${LIBEXECDIR}/dwatch/namei ${LIBEXECDIR}/dwatch/namei-failure
 LINKS+=	${LIBEXECDIR}/dwatch/open ${LIBEXECDIR}/dwatch/openat
+LINKS+=	${LIBEXECDIR}/dwatch/priv ${LIBEXECDIR}/dwatch/priv-err
+LINKS+=	${LIBEXECDIR}/dwatch/priv ${LIBEXECDIR}/dwatch/priv-ok
 LINKS+=	${LIBEXECDIR}/dwatch/proc ${LIBEXECDIR}/dwatch/proc-create
 LINKS+=	${LIBEXECDIR}/dwatch/proc ${LIBEXECDIR}/dwatch/proc-exec
 LINKS+=	${LIBEXECDIR}/dwatch/proc ${LIBEXECDIR}/dwatch/proc-exec-failure
@@ -36,6 +71,7 @@ LINKS+=	${LIBEXECDIR}/dwatch/proc ${LIBEXECDIR}/dwatch/proc-exit
 LINKS+=	${LIBEXECDIR}/dwatch/proc ${LIBEXECDIR}/dwatch/proc-signal
 LINKS+=	${LIBEXECDIR}/dwatch/proc ${LIBEXECDIR}/dwatch/proc-signal-clear
 LINKS+=	${LIBEXECDIR}/dwatch/proc ${LIBEXECDIR}/dwatch/proc-signal-discard
+LINKS+=	${LIBEXECDIR}/dwatch/proc ${LIBEXECDIR}/dwatch/proc-signal-fatal
 LINKS+=	${LIBEXECDIR}/dwatch/proc ${LIBEXECDIR}/dwatch/proc-signal-send
 LINKS+=	${LIBEXECDIR}/dwatch/proc ${LIBEXECDIR}/dwatch/proc-status
 LINKS+=	${LIBEXECDIR}/dwatch/rw ${LIBEXECDIR}/dwatch/read
@@ -45,6 +81,7 @@ LINKS+=	${LIBEXECDIR}/dwatch/sched ${LIBEXECDIR}/dwatch/sched-cpu
 LINKS+=	${LIBEXECDIR}/dwatch/sched ${LIBEXECDIR}/dwatch/sched-dequeue
 LINKS+=	${LIBEXECDIR}/dwatch/sched ${LIBEXECDIR}/dwatch/sched-enqueue
 LINKS+=	${LIBEXECDIR}/dwatch/sched ${LIBEXECDIR}/dwatch/sched-exec
+LINKS+=	${LIBEXECDIR}/dwatch/sched ${LIBEXECDIR}/dwatch/sched-latency
 LINKS+=	${LIBEXECDIR}/dwatch/sched ${LIBEXECDIR}/dwatch/sched-lend-pri
 LINKS+=	${LIBEXECDIR}/dwatch/sched ${LIBEXECDIR}/dwatch/sched-load-change
 LINKS+=	${LIBEXECDIR}/dwatch/sched ${LIBEXECDIR}/dwatch/sched-off-cpu
@@ -63,6 +100,11 @@ LINKS+=	${LIBEXECDIR}/dwatch/sendrecv ${LIBEXECDIR}/dwatch/recvmsg
 LINKS+=	${LIBEXECDIR}/dwatch/sendrecv ${LIBEXECDIR}/dwatch/send
 LINKS+=	${LIBEXECDIR}/dwatch/sendrecv ${LIBEXECDIR}/dwatch/sendmsg
 LINKS+=	${LIBEXECDIR}/dwatch/sendrecv ${LIBEXECDIR}/dwatch/sendto
+LINKS+=	${LIBEXECDIR}/dwatch/slow ${LIBEXECDIR}/dwatch/slow-fsync
+LINKS+=	${LIBEXECDIR}/dwatch/slow ${LIBEXECDIR}/dwatch/slow-open
+LINKS+=	${LIBEXECDIR}/dwatch/slow ${LIBEXECDIR}/dwatch/slow-read
+LINKS+=	${LIBEXECDIR}/dwatch/slow ${LIBEXECDIR}/dwatch/slow-syscall
+LINKS+=	${LIBEXECDIR}/dwatch/slow ${LIBEXECDIR}/dwatch/slow-write
 LINKS+=	${LIBEXECDIR}/dwatch/tcp ${LIBEXECDIR}/dwatch/tcp-accept
 LINKS+=	${LIBEXECDIR}/dwatch/tcp ${LIBEXECDIR}/dwatch/tcp-accept-established
 LINKS+=	${LIBEXECDIR}/dwatch/tcp ${LIBEXECDIR}/dwatch/tcp-accept-refused
