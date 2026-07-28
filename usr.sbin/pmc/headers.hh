@@ -39,6 +39,7 @@
 #define PMC_ARCH_ARM64		0x02
 #define PMC_ARCH_PPC64		0x03
 #define PMC_ARCH_RISCV64	0x04
+#define PMC_ARCH_ARM		0x05
 
 struct pmchdr_header
 {
