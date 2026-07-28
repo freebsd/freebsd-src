@@ -842,11 +842,14 @@ ixv_negotiate_api(struct ixgbe_softc *sc)
 static u_int
 ixv_if_multi_set_cb(void *cb_arg, struct sockaddr_dl *addr, u_int cnt)
 {
+	if (cnt >= MAX_NUM_MULTICAST_ADDRESSES)
+		return (0);
+
 	bcopy(LLADDR(addr),
 	    &((u8 *)cb_arg)[cnt * IXGBE_ETH_LENGTH_OF_ADDRESS],
 	    IXGBE_ETH_LENGTH_OF_ADDRESS);
 
-	return (++cnt);
+	return (1);
 }
 
 /************************************************************************
@@ -1982,4 +1985,3 @@ ixv_init_device_features(struct ixgbe_softc *sc)
 	if (sc->feat_cap & IXGBE_FEATURE_NEEDS_CTXD)
 		sc->feat_en |= IXGBE_FEATURE_NEEDS_CTXD;
 } /* ixv_init_device_features */
-
