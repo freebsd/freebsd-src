@@ -52,6 +52,7 @@ struct pmc_mdep;
 #include <dev/hwpmc/hwpmc_amd.h>
 #include <dev/hwpmc/hwpmc_ibs.h>
 #include <dev/hwpmc/hwpmc_core.h>
+#include <dev/hwpmc/hwpmc_rapl.h>
 #include <dev/hwpmc/hwpmc_tsc.h>
 #include <dev/hwpmc/hwpmc_uncore.h>
 

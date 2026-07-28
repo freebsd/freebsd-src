@@ -118,6 +118,7 @@ dev/hwpmc/hwpmc_ibs.c		optional	hwpmc
 dev/hwpmc/hwpmc_intel.c		optional	hwpmc
 dev/hwpmc/hwpmc_core.c		optional	hwpmc
 dev/hwpmc/hwpmc_uncore.c	optional	hwpmc
+dev/hwpmc/hwpmc_rapl.c		optional	hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
 dev/hyperv/hvsock/hv_sock.c				optional	hyperv

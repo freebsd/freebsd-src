@@ -60,7 +60,7 @@
  * The patch version is incremented for every bug fix.
  */
 #define	PMC_VERSION_MAJOR	0x0A
-#define	PMC_VERSION_MINOR	0x01
+#define	PMC_VERSION_MINOR	0x02
 #define	PMC_VERSION_PATCH	0x0000
 
 #define	PMC_VERSION		(PMC_VERSION_MAJOR << 24 |		\
@@ -156,7 +156,8 @@ enum pmc_cputype {
     __PMC_CLASS(POWER8,		0x15,	"IBM POWER8 class")			\
     __PMC_CLASS(DMC620_PMU_CD2,	0x16,	"ARM DMC620 Memory Controller PMU CLKDIV2") \
     __PMC_CLASS(DMC620_PMU_C,	0x17,	"ARM DMC620 Memory Controller PMU CLK")	\
-    __PMC_CLASS(CMN600_PMU,	0x18,	"Arm CoreLink CMN600 Coherent Mesh Network PMU")
+    __PMC_CLASS(CMN600_PMU,	0x18,	"Arm CoreLink CMN600 Coherent Mesh Network PMU") \
+    __PMC_CLASS(RAPL,		0x19,	"AMD/Intel RAPL energy counters")
 
 enum pmc_class {
 #undef  __PMC_CLASS
@@ -165,7 +166,7 @@ enum pmc_class {
 };
 
 #define	PMC_CLASS_FIRST	PMC_CLASS_TSC
-#define	PMC_CLASS_LAST	PMC_CLASS_CMN600_PMU
+#define	PMC_CLASS_LAST	PMC_CLASS_RAPL
 
 /*
  * A PMC can be in the following states:
