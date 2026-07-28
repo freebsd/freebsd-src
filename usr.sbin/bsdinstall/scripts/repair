@@ -132,6 +132,18 @@ option_shell() {
 	/bin/sh
 }
 
+#
+# option fsck parameters and check function
+#
+fsck_name="fsck"
+fsck_desc="fsck partition"
+option_fsck() {
+	echo "<=== FSCK ===>"
+	fsck /dev/$part
+	echo "When finished, type 'exit' to return to the action menu."
+	/bin/sh
+}
+
 while :; do
 	#
 	# Initialize by grepping ufs partitions and zfs pools on the system
@@ -195,6 +207,7 @@ while :; do
 		set --
 		[ "$mounted" = yes ] && set -- "$@" "$chroot_name" "$chroot_desc"
 		set -- "$@" "$shell_name" "$shell_desc"
+		[ "$fs" = "freebsd-ufs" ] && set -- "$@" "$fsck_name" "$fsck_desc"
 
 		exec 5>&1
 		action=$(bsddialog --backtitle "$OSNAME Installer" --title 'Inspect selected partition' \
@@ -244,6 +257,9 @@ while :; do
 			;;
 		$shell_name)
 			option_shell
+			;;
+		$fsck_name)
+			option_fsck
 			;;
 		esac
 	done
