@@ -1299,6 +1299,7 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 	u8 oui_bytes[3] = {0, 0, 0};
 	u8 cable_tech = 0;
 	u8 cable_spec = 0;
+	u8 retries;
 	u16 enforce_sfp = 0;
 	static bool warned_once = false;
 
@@ -1313,9 +1314,22 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 	/* LAN ID is needed for I2C access */
 	hw->mac.ops.set_lan_id(hw);
 
-	status = hw->phy.ops.read_i2c_eeprom(hw,
-					     IXGBE_SFF_IDENTIFIER,
-					     &identifier);
+	/*
+	 * Some SFPs with a microcontroller ACK I2C reads before the data
+	 * backing them is initialized.  Retry successfully completed reads
+	 * with invalid identifier values before declaring the module
+	 * unsupported.  Failed transactions are retried by the I2C helper.
+	 */
+	for (retries = 0; retries < 5; retries++) {
+		status = hw->phy.ops.read_i2c_eeprom(hw,
+		    IXGBE_SFF_IDENTIFIER, &identifier);
+
+		DEBUGOUT2("status %d, SFF identifier 0x%x\n", status,
+		    identifier);
+		if (status != IXGBE_SUCCESS ||
+		    identifier == IXGBE_SFF_IDENTIFIER_SFP)
+			break;
+	}
 
 	if (status != IXGBE_SUCCESS)
 		goto err_read_i2c_eeprom;
