@@ -12,6 +12,32 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260729:
+	15.1-RELEASE-p2	EN-26:18.tzdata
+			EN-26:19.tzdata
+			SA-26:50.kqueue
+			SA-26:51.ktimer
+			SA-26:52.if_wg
+			SA-26:53.ktrace
+			SA-26:54.sysvsem
+			SA-26:55.elf
+
+	Timezone database information update. [EN-26:18.tzdata]
+
+	Race conditions in zvol device management. [EN-26:19.zfs]
+
+	Use-after-free in kqueue copy-on-fork. [SA-26:50.kqueue]
+
+	Kernel stack disclosure via timer_settime(2). [SA-26:51.ktimer]
+
+	Missing MAC validation in wg(4) packet decryption. [SA-26:52.if_wg]
+
+	ktrace privilege incorrectly validated in jails. [SA-26:53.ktrace]
+
+	Heap out-of-bounds access in semctl(2). [SA-26:54.sysvsem]
+
+	Race condition in ELF core dump segment counting. [SA-26:55.elf]
+
 20260630:
 	15.1-RELEASE-p1	EN-26:16.arm64
 			EN-26:17.rpcsec_tls
