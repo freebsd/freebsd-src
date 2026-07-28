@@ -10,6 +10,15 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+72e57bc26417, 3dfbbe8586bb, d8e8f9251975:
+	These patches provide improvements for the pNFS server
+	configuration.  New optional features include:
+	- Support for striped Flexible File Layouts (RFC8435).
+	- Support for pre-creation of files, allowing the
+	  Open/Create to be done without communicating with
+	  any DSs, so long as the cache of pre-created files
+	  is not depleted.
+
 b92b9da33006, 13d3bd165e22:
 	This patch allows vfs.nfsd.srvmaxio to be set to
 	a value as high as 4Mbytes.  It is usually set
