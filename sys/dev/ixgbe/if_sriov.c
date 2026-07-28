@@ -599,7 +599,7 @@ ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf)
 	}
 
 	if (!(vf->flags & IXGBE_VF_CTS)) {
-		ixgbe_send_vf_success(sc, vf, msg[0]);
+		ixgbe_send_vf_failure(sc, vf, msg[0]);
 		return;
 	}
 
