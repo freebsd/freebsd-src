@@ -1,0 +1,138 @@
+.\"
+.\" Copyright (c) 2026 Advanced Micro Devices, Inc.
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd July 6, 2026
+.Dt PMC.RAPL 3
+.Os
+.Sh NAME
+.Nm pmc.rapl
+.Nd measurements using RAPL energy counters
+.Sh LIBRARY
+.Lb libpmc
+.Sh SYNOPSIS
+.In pmc.h
+.Sh DESCRIPTION
+.Tn AMD
+and
+.Tn Intel
+processors report cumulative energy consumption through the RAPL
+(Running Average Power Limit) machine specific registers.
+The
+.Li PMC_CLASS_RAPL
+class exposes these registers as read-only 64-bit counters that may
+only be allocated in system-wide counting mode
+.Pq Li PMC_MODE_SC .
+Counter values are cumulative energy in microjoules.
+The kernel scales the raw hardware counts by the hardware energy unit,
+so no further conversion is required.
+.Pp
+A counter's accumulator is not reset when a PMC is allocated or
+released; it reflects energy consumed since the counters began
+accumulating and is reset only when the
+.Xr hwpmc 4
+module is unloaded.
+An individual reading is therefore meaningful only as a difference
+between two samples.
+.Pp
+The hardware counters are 32 bits wide and wrap frequently under load.
+The RAPL PMC class instead provides virtual 64-bit counters that are
+guaranteed to be monotonic, by periodically sampling the hardware
+counters while at least one RAPL PMC is allocated.
+.Pp
+RAPL events do not support further event qualifiers.
+.Ss Event Specifiers
+The following event names are supported:
+.Bl -tag -width indent
+.It Li rapl-energy-pkg
+Energy consumed by the processor package (socket) the counter is bound
+to.
+.It Li rapl-energy-cores
+On
+.Tn AMD
+processors, energy consumed by the physical core the counter is bound
+to.
+On
+.Tn Intel
+processors, energy consumed by the PP0 (all cores) power plane of the
+package, i.e. a package-scoped value.
+.It Li rapl-energy-dram
+Energy consumed by the DRAM domain of the package.
+Present only on
+.Tn Intel
+processors that implement the DRAM domain, typically server parts.
+.El
+.Ss Counter Scope
+RAPL counters measure package or core power domains, not individual
+CPUs: every CPU of a domain reads the same underlying counter.
+Consumers should bind one PMC per domain and must not sum readings
+from CPUs that share a domain.
+.Pp
+The class advertises the
+.Li PMC_CAP_DOMWIDE
+capability, which makes
+.Xr pmcstat 8
+allocate one counter per NUMA domain instead of one per CPU.
+NUMA domains follow the firmware memory policy and need not match
+packages, in either direction:
+.Bl -bullet
+.It
+With several NUMA domains per package (for example
+.Tn AMD
+NPS2/NPS4 or
+.Tn Intel
+Sub-NUMA Clustering),
+.Xr pmcstat 8
+allocates one counter per domain, so package-scoped counters within
+one package alias each other: each reading is correct on its own,
+but they must not be summed.
+.It
+With a single NUMA domain spanning several packages (for example
+.Tn AMD
+NPS0 memory interleaving, NUMA disabled in firmware, or a kernel
+built without NUMA support),
+.Xr pmcstat 8
+allocates only one counter, on the first configured CPU, and the
+remaining packages are silently not measured.
+.El
+.Pp
+For explicit placement, allocate one system-scope PMC per package
+with
+.Xr pmc_allocate 3 ,
+or give
+.Xr pmcstat 8
+one
+.Fl c Ar cpu
+and
+.Fl s Ar event
+pair per package, for example on a two-socket system whose second
+package starts at CPU 64:
+.Dl pmcstat -c 0 -s rapl-energy-pkg -c 64 -s rapl-energy-pkg
+A single
+.Fl c
+list naming several CPUs does not achieve this: for
+.Li PMC_CAP_DOMWIDE
+counters
+.Xr pmcstat 8
+honors only the first CPU of the list.
+.Ss Privilege
+Allocating a RAPL PMC always requires the
+.Li PRIV_PMC_SYSTEM
+privilege, regardless of the
+.Va security.bsd.unprivileged_syspmcs
+sysctl: fine-grained energy readings form a power side channel
+(PLATYPUS, CVE-2020-8694 and CVE-2020-12912).
+Unprivileged allocation requests fail with
+.Er EPERM .
+.Sh SEE ALSO
+.Xr pmc 3 ,
+.Xr pmc.tsc 3 ,
+.Xr pmc_allocate 3 ,
+.Xr pmc_read 3 ,
+.Xr pmclog 3 ,
+.Xr hwpmc 4 ,
+.Xr pmcstat 8
+.Sh HISTORY
+The RAPL PMC class first appeared in
+.Fx 16.0 .
