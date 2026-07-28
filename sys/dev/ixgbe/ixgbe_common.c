@@ -5454,11 +5454,11 @@ void ixgbe_get_etk_id(struct ixgbe_hw *hw, struct ixgbe_nvm_version *nvm_ver)
 	 * word bit 15.
 	 */
 	if ((etk_id_h & NVM_ETK_VALID) == 0) {
-		nvm_ver->etk_id = etk_id_h;
-		nvm_ver->etk_id |= (etk_id_l << NVM_ETK_SHIFT);
+		nvm_ver->etk_id = (u32)etk_id_h;
+		nvm_ver->etk_id |= (u32)etk_id_l << NVM_ETK_SHIFT;
 	} else {
-		nvm_ver->etk_id = etk_id_l;
-		nvm_ver->etk_id |= (etk_id_h << NVM_ETK_SHIFT);
+		nvm_ver->etk_id = (u32)etk_id_l;
+		nvm_ver->etk_id |= (u32)etk_id_h << NVM_ETK_SHIFT;
 	}
 }
 
