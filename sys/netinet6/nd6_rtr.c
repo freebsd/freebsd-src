@@ -1434,11 +1434,8 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_prefix **newp)
 	ND6_WUNLOCK();
 
 	/* ND_OPT_PI_FLAG_ONLINK processing */
-	if (new->ndpr_raf_onlink) {
-		struct epoch_tracker et;
-
+	if (new->ndpr_raf_onlink != 0) {
 		ND6_ONLINK_LOCK();
-		NET_EPOCH_ENTER(et);
 		if ((error = nd6_prefix_onlink(new)) != 0) {
 			nd6log((LOG_ERR, "%s: failed to make the prefix %s/%d "
 			    "on-link on %s (errno=%d)\n", __func__,
@@ -1446,7 +1443,6 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_prefix **newp)
 			    pr->ndpr_plen, if_name(pr->ndpr_ifp), error));
 			/* proceed anyway. XXX: is it correct? */
 		}
-		NET_EPOCH_EXIT(et);
 		ND6_ONLINK_UNLOCK();
 	}
 
@@ -2138,7 +2134,6 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(ifp,
 	    IN6_IFF_NOTREADY | IN6_IFF_ANYCAST);
 	if (ifa == NULL) {
-		/* XXX: freebsd does not have ifa_ifwithaf */
 		CK_STAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family == AF_INET6) {
 				ifa_ref(ifa);
@@ -2147,6 +2142,7 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 		}
 		/* should we care about ia6_flags? */
 	}
+	NET_EPOCH_EXIT(et);
 	if (ifa == NULL) {
 		/*
 		 * This can still happen, when, for example, we receive an RA
@@ -2164,7 +2160,6 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 		error = nd6_prefix_onlink_rtrequest(pr, ifa);
 		ifa_free(ifa);
 	}
-	NET_EPOCH_EXIT(et);
 
 	return (error);
 }
