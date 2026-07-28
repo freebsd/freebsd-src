@@ -2250,12 +2250,14 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 	struct mlx5_flow_table	*ft = ft_prio->flow_table;
 	struct mlx5_ib_flow_handler *handler;
 	struct mlx5_flow_spec *spec;
+	struct mlx5_flow_destination *rule_dst = dst;
 	const void *ib_flow = (const void *)flow_attr + sizeof(*flow_attr);
 	unsigned int spec_index;
 	struct mlx5_flow_act flow_act = {};
-	bool is_drop;
+	bool is_drop = false;
 	u32 action;
 	int err = 0;
+	int dest_num = dst ? 1 : 0;
 
 	if (!is_valid_attr(flow_attr))
 		return ERR_PTR(-EINVAL);
@@ -2282,12 +2284,16 @@ static struct mlx5_ib_flow_handler *create_flow_rule(struct mlx5_ib_dev *dev,
 	}
 
 	spec->match_criteria_enable = get_match_criteria_enable(spec->match_criteria);
-	if (is_drop)
+	if (is_drop) {
 		action = MLX5_FLOW_CONTEXT_ACTION_DROP;
-	else
+		rule_dst = NULL;
+		dest_num = 0;
+	} else {
 		action = dst ? MLX5_FLOW_CONTEXT_ACTION_FWD_DEST : 0;
+	}
 	flow_act.action = action;
-	handler->rule = mlx5_add_flow_rules(ft, spec, &flow_act, dst, 1);
+	handler->rule = mlx5_add_flow_rules(ft, spec, &flow_act, rule_dst,
+					    dest_num);
 
 	if (IS_ERR(handler->rule)) {
 		err = PTR_ERR(handler->rule);
