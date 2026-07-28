@@ -582,9 +582,6 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (pd->pd_class != a->pm_class)
 		return EINVAL;
 
-	if ((a->pm_flags & PMC_F_EV_PMU) == 0)
-		return (EINVAL);
-
 	caps = pm->pm_caps;
 
 	PMCDBG2(MDP,ALL,1,"amd-allocate ri=%d caps=0x%x", ri, caps);
@@ -596,7 +593,8 @@ amd_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if((ri >= 12 && ri < 16) && !(a->pm_md.pm_amd.pm_amd_sub_class == PMC_AMD_SUB_CLASS_DATA_FABRIC))
 		return EINVAL;
 
-	if (strlen(pmc_cpuid) != 0) {
+	/* PMC_F_EV_PMU: config comes from pmu-events tables. */
+	if ((a->pm_flags & PMC_F_EV_PMU) != 0) {
 		pm->pm_md.pm_amd.pm_amd_evsel =
 			a->pm_md.pm_amd.pm_amd_config;
 		PMCDBG2(MDP,ALL,2,"amd-allocate ri=%d -> config=0x%x", ri, a->pm_md.pm_amd.pm_amd_config);
