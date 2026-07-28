@@ -436,6 +436,11 @@ static s32 ixgbe_obtain_mbx_lock_vf(struct ixgbe_hw *hw)
 	while (countdown--) {
 		/* Reserve mailbox for VF use */
 		vf_mailbox = ixgbe_read_mailbox_vf(hw);
+
+		/* Check if the mailbox is already owned by the VF or PF */
+		if (vf_mailbox & (IXGBE_VFMAILBOX_VFU | IXGBE_VFMAILBOX_PFU))
+			goto retry;
+
 		vf_mailbox |= IXGBE_VFMAILBOX_VFU;
 		IXGBE_WRITE_REG(hw, IXGBE_VFMAILBOX, vf_mailbox);
 
@@ -445,6 +450,7 @@ static s32 ixgbe_obtain_mbx_lock_vf(struct ixgbe_hw *hw)
 			break;
 		}
 
+	retry:
 		/* Wait a bit before trying again */
 		usec_delay(mbx->usec_delay);
 	}
@@ -870,8 +876,8 @@ static s32 ixgbe_obtain_mbx_lock_pf(struct ixgbe_hw *hw, u16 vf_id)
 		/* Reserve mailbox for PF use */
 		pf_mailbox = IXGBE_READ_REG(hw, IXGBE_PFMAILBOX(vf_id));
 
-		/* Check if other thread holds the PF lock already */
-		if (pf_mailbox & IXGBE_PFMAILBOX_PFU)
+		/* Check if the mailbox is already owned by the PF or VF */
+		if (pf_mailbox & (IXGBE_PFMAILBOX_PFU | IXGBE_PFMAILBOX_VFU))
 			goto retry;
 
 		pf_mailbox |= IXGBE_PFMAILBOX_PFU;
