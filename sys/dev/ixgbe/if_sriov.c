@@ -437,7 +437,10 @@ ixgbe_vf_set_mc_addr(struct ixgbe_softc *sc, struct ixgbe_vf *vf, u32 *msg)
 		IXGBE_WRITE_REG(&sc->hw, IXGBE_MTA(vec_reg), mta_reg);
 	}
 
-	vmolr |= IXGBE_VMOLR_ROMPE;
+	if (entries == 0)
+		vmolr &= ~IXGBE_VMOLR_ROMPE;
+	else
+		vmolr |= IXGBE_VMOLR_ROMPE;
 	IXGBE_WRITE_REG(&sc->hw, IXGBE_VMOLR(vf->pool), vmolr);
 	ixgbe_send_vf_success(sc, vf, msg[0]);
 } /* ixgbe_vf_set_mc_addr */
