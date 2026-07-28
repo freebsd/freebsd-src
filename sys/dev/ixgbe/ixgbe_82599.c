@@ -609,13 +609,15 @@ out:
  **/
 void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw)
 {
-	u32 autoc2_reg;
 	u16 ee_ctrl_2 = 0;
+	u32 autoc2_reg;
+	s32 status;
 
 	DEBUGFUNC("ixgbe_stop_mac_link_on_d3_82599");
-	ixgbe_read_eeprom(hw, IXGBE_EEPROM_CTRL_2, &ee_ctrl_2);
+	status = ixgbe_read_eeprom(hw, IXGBE_EEPROM_CTRL_2, &ee_ctrl_2);
 
-	if (!ixgbe_mng_present(hw) && !hw->wol_enabled &&
+	if (status == IXGBE_SUCCESS &&
+	    !ixgbe_mng_present(hw) && !hw->wol_enabled &&
 	    ee_ctrl_2 & IXGBE_EEPROM_CCD_BIT) {
 		autoc2_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
 		autoc2_reg |= IXGBE_AUTOC2_LINK_DISABLE_ON_D3_MASK;
