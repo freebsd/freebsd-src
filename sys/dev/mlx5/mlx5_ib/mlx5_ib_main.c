@@ -886,7 +886,8 @@ static int mlx5_ib_query_device(struct ib_device *ibdev,
 	if (field_avail(typeof(resp), sw_parsing_caps,
 			uhw->outlen)) {
 		resp.response_length += sizeof(resp.sw_parsing_caps);
-		if (MLX5_CAP_ETH(mdev, swp)) {
+		if (MLX5_CAP_GEN(mdev, eth_net_offloads) &&
+		    MLX5_CAP_ETH(mdev, swp)) {
 			resp.sw_parsing_caps.sw_parsing_offloads |=
 				MLX5_IB_SW_PARSING;
 
