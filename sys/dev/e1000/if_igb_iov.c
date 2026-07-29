@@ -557,6 +557,7 @@ igb_iov_reset_prepare(struct e1000_softc *sc)
 	sc->iov_hw_active = false;
 	if (sc->iov_mbx_retry_initialized)
 		callout_stop(&sc->iov_mbx_retry);
+	sc->iov_mta_valid = false;
 	sc->iov_vfta_valid = false;
 	atomic_readandclear_32(&sc->iov_mdd_cause);
 	atomic_readandclear_32(&sc->iov_pending);
@@ -568,8 +569,10 @@ igb_iov_rebuild_mta(struct e1000_softc *sc)
 {
 	struct e1000_hw *hw;
 	struct igb_vf *vf;
-	u32 mta;
+	u32 hash_bit, hash_reg, hash_value;
+	u32 mta[MAX_MTA_REG] = {};
 	u16 hash;
+	bool changed;
 	int i, j, mcnt;
 
 	if (!igb_iov_enabled(sc))
@@ -580,22 +583,38 @@ igb_iov_rebuild_mta(struct e1000_softc *sc)
 	    ETHER_ADDR_LEN * MAX_NUM_MULTICAST_ADDRESSES);
 	mcnt = if_foreach_llmaddr(iflib_get_ifp(sc->ctx),
 	    igb_iov_copy_maddr, sc->mta);
-	e1000_update_mc_addr_list(hw, sc->mta,
-	    min(mcnt, MAX_NUM_MULTICAST_ADDRESSES));
+	mcnt = min(mcnt, MAX_NUM_MULTICAST_ADDRESSES);
+	for (i = 0; i < mcnt; i++) {
+		hash_value = e1000_hash_mc_addr(hw,
+		    &sc->mta[i * ETHER_ADDR_LEN]);
+		hash_reg = (hash_value >> 5) &
+		    (hw->mac.mta_reg_count - 1);
+		hash_bit = hash_value & 0x1f;
+		mta[hash_reg] |= 1U << hash_bit;
+	}
 	for (i = 0; i < sc->num_vfs; i++) {
 		vf = &sc->vfs[i];
 		if (!(vf->flags & IGB_VF_ACTIVE))
 			continue;
 		for (j = 0; j < vf->mc_count; j++) {
 			hash = vf->mc_hashes[j] & 0xfff;
-			mta = E1000_READ_REG_ARRAY(hw, E1000_MTA,
-			    (hash >> 5) & 0x7f);
-			mta |= 1U << (hash & 0x1f);
-			E1000_WRITE_REG_ARRAY(hw, E1000_MTA,
-			    (hash >> 5) & 0x7f, mta);
+			mta[(hash >> 5) & (hw->mac.mta_reg_count - 1)] |=
+			    1U << (hash & 0x1f);
 		}
 		igb_iov_configure_vmolr(sc, vf);
 	}
+
+	changed = false;
+	for (i = hw->mac.mta_reg_count - 1; i >= 0; i--) {
+		if (sc->iov_mta_valid && hw->mac.mta_shadow[i] == mta[i])
+			continue;
+		hw->mac.mta_shadow[i] = mta[i];
+		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, mta[i]);
+		changed = true;
+	}
+	if (changed)
+		E1000_WRITE_FLUSH(hw);
+	sc->iov_mta_valid = true;
 }
 
 static int
@@ -1641,6 +1660,7 @@ igb_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
 	for (i = 0; i < sc->num_vf_mac_filters; i++)
 		sc->vf_mac_filters[i].rar_index = i + 1;
 	sc->pool = num_vfs;
+	sc->iov_mta_valid = false;
 	sc->iov_pf_mdd_blocked = false;
 	sc->tx_queues[0].txr.me = sc->pool;
 	sc->rx_queues[0].rxr.me = sc->pool;
@@ -1717,6 +1737,7 @@ igb_if_iov_uninit(if_ctx_t ctx)
 	sc->num_vfs = 0;
 	sc->num_vf_mac_filters = 0;
 	sc->pool = 0;
+	sc->iov_mta_valid = false;
 	sc->iov_pf_mdd_blocked = false;
 	sc->iov_pf_vlan_promisc = false;
 	sc->iov_vfta_valid = false;

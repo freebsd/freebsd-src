@@ -2554,7 +2554,8 @@ em_if_multi_set(if_ctx_t ctx)
 		return;
 	}
 
-	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
+	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES &&
+	    !igb_iov_enabled(sc))
 		e1000_update_mc_addr_list(&sc->hw, mta, mcnt);
 
 	reg_rctl = E1000_READ_REG(&sc->hw, E1000_RCTL);

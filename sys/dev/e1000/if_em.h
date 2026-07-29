@@ -611,6 +611,7 @@ struct e1000_softc {
 	u16			num_vf_mac_filters;
 	u16			pool;
 	bool			iov_hw_active;
+	bool			iov_mta_valid;
 	bool			iov_mbx_retry_initialized;
 	bool			iov_pf_mdd_blocked;
 	bool			iov_pf_vlan_promisc;
