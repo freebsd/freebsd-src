@@ -584,6 +584,9 @@ struct e1000_softc {
 	*/
 	u32			shadow_vfta[EM_VFTA_SIZE];
 	u32			vf_vfta_stale[EM_VFTA_SIZE];
+	u32			vf_vfta_retry[EM_VFTA_SIZE];
+	sbintime_t		vf_vlan_retry_deadline;
+	u16			vf_vlan_retry_cursor;
 
 	/* Info about the interface */
 	enum em_link_state	link_state;
@@ -674,6 +677,8 @@ void	igbv_initialize_transmit_unit(if_ctx_t);
 void	igbv_reconcile_mac(struct e1000_softc *, if_t);
 bool	igbv_reset(if_ctx_t);
 void	igbv_update_uc_addr_list(struct e1000_softc *, if_t);
+void	igbv_vlan_retry_add(struct e1000_softc *, u16);
+void	igbv_vlan_retry_clear(struct e1000_softc *, u16);
 
 /********************************************************************************
  * vendor_info_array

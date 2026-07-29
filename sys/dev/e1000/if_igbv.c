@@ -31,6 +31,8 @@
 #include <sys/sbuf.h>
 
 #define	IGBV_MAX_MAC_FILTERS	3
+#define	IGBV_VLAN_RETRY_BATCH	4
+#define	IGBV_VLAN_RETRY_WINDOW	(8 * SBT_1S)
 
 struct igb_vf_uc_addr_list {
 	struct e1000_softc	*sc;
@@ -38,6 +40,87 @@ struct igb_vf_uc_addr_list {
 };
 
 static bool	igbv_tx_pending(struct e1000_softc *);
+static bool	igbv_vlan_retry_pending(const struct e1000_softc *);
+static void	igbv_vlan_retry_tick(struct e1000_softc *);
+
+void
+igbv_vlan_retry_add(struct e1000_softc *sc, u16 vid)
+{
+	bool pending;
+
+	KASSERT(sc->vf_ifp, ("%s called for a PF", __func__));
+	pending = igbv_vlan_retry_pending(sc);
+	sc->vf_vfta_retry[vid >> 5] |= 1U << (vid & 0x1f);
+	/* Bound the whole batch from its first failure, not each new VID. */
+	if (!pending)
+		sc->vf_vlan_retry_deadline =
+		    getsbinuptime() + IGBV_VLAN_RETRY_WINDOW;
+}
+
+void
+igbv_vlan_retry_clear(struct e1000_softc *sc, u16 vid)
+{
+
+	KASSERT(sc->vf_ifp, ("%s called for a PF", __func__));
+	sc->vf_vfta_retry[vid >> 5] &= ~(1U << (vid & 0x1f));
+}
+
+static bool
+igbv_vlan_retry_pending(const struct e1000_softc *sc)
+{
+	int i;
+
+	for (i = 0; i < EM_VFTA_SIZE; i++)
+		if (sc->vf_vfta_retry[i] != 0)
+			return (true);
+	return (false);
+}
+
+static void
+igbv_vlan_retry_tick(struct e1000_softc *sc)
+{
+	u32 bit;
+	u16 vid;
+	int attempts, i, remaining;
+
+	if (!igbv_vlan_retry_pending(sc)) {
+		sc->vf_vlan_retry_deadline = 0;
+		return;
+	}
+	if (getsbinuptime() >= sc->vf_vlan_retry_deadline) {
+		remaining = 0;
+		for (i = 0; i < EM_VFTA_SIZE; i++)
+			remaining += bitcount32(sc->vf_vfta_retry[i]);
+		memset(sc->vf_vfta_retry, 0, sizeof(sc->vf_vfta_retry));
+		sc->vf_vlan_retry_deadline = 0;
+		device_printf(sc->dev,
+		    "VF VLAN restore retries exhausted for %d VIDs\n",
+		    remaining);
+		return;
+	}
+
+	/*
+	 * The mailbox NACK does not distinguish a transient PF rate limit
+	 * from permanent VLVF exhaustion.  Retry at the PF's sustained
+	 * allowance, but bound the entire recovery window so ENOSPC cannot
+	 * create a permanent mailbox poller.
+	 */
+	for (attempts = 0, i = 0;
+	    attempts < IGBV_VLAN_RETRY_BATCH && i < 4096; i++) {
+		vid = sc->vf_vlan_retry_cursor;
+		sc->vf_vlan_retry_cursor = (vid + 1) & 0xfff;
+		bit = 1U << (vid & 0x1f);
+		if ((sc->vf_vfta_retry[vid >> 5] & bit) == 0)
+			continue;
+		attempts++;
+		if ((sc->shadow_vfta[vid >> 5] & bit) == 0 ||
+		    e1000_vfta_set_vf(&sc->hw, vid, true) ==
+		    E1000_SUCCESS)
+			sc->vf_vfta_retry[vid >> 5] &= ~bit;
+	}
+	if (!igbv_vlan_retry_pending(sc))
+		sc->vf_vlan_retry_deadline = 0;
+}
 
 int
 igbv_if_attach_pre(if_ctx_t ctx)
@@ -98,7 +181,7 @@ igbv_if_update_admin_status(if_ctx_t ctx)
 	struct e1000_softc *sc;
 	struct e1000_hw *hw;
 	device_t dev;
-	bool link_check;
+	bool link_check, timer_tick;
 
 	sc = iflib_get_softc(ctx);
 	hw = &sc->hw;
@@ -151,9 +234,12 @@ igbv_if_update_admin_status(if_ctx_t ctx)
 		iflib_admin_intr_deferred(ctx);
 	}
 	/* em_if_init() establishes a new counter baseline after the reset. */
-	if (!sc->vf_reset_pending &&
-	    atomic_readandclear_32(&sc->stats_pending) != 0)
+	timer_tick = !sc->vf_reset_pending &&
+	    atomic_readandclear_32(&sc->stats_pending) != 0;
+	if (timer_tick) {
 		em_update_stats_counters(sc);
+		igbv_vlan_retry_tick(sc);
+	}
 }
 
 static bool
@@ -197,6 +283,9 @@ igbv_reset(if_ctx_t ctx)
 		return (false);
 	}
 	memset(sc->vf_vfta_stale, 0, sizeof(sc->vf_vfta_stale));
+	memset(sc->vf_vfta_retry, 0, sizeof(sc->vf_vfta_retry));
+	sc->vf_vlan_retry_deadline = 0;
+	sc->vf_vlan_retry_cursor = 0;
 	if (e1000_init_hw(hw) < 0) {
 		device_printf(sc->dev, "Hardware Initialization Failed\n");
 		return (false);

@@ -4581,9 +4581,11 @@ em_if_vlan_register(if_ctx_t ctx, u16 vtag)
 		++sc->num_vlans;
 	if (sc->vf_ifp &&
 	    e1000_vfta_set_vf(&sc->hw, vtag, true) != E1000_SUCCESS) {
+		igbv_vlan_retry_add(sc, vtag);
 		device_printf(sc->dev,
 		    "VF VLAN %u add request failed\n", vtag);
-	}
+	} else if (sc->vf_ifp)
+		igbv_vlan_retry_clear(sc, vtag);
 	if (!sc->vf_ifp) {
 		if (igb_iov_enabled(sc))
 			igb_iov_rebuild_vlan(sc);
@@ -4602,6 +4604,8 @@ em_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 	index = (vtag >> 5) & 0x7F;
 	mask = 1U << (vtag & 0x1F);
 	present = (sc->shadow_vfta[index] & mask) != 0;
+	if (sc->vf_ifp)
+		igbv_vlan_retry_clear(sc, vtag);
 	if (sc->vf_ifp &&
 	    e1000_vfta_set_vf(&sc->hw, vtag, false) != E1000_SUCCESS) {
 		device_printf(sc->dev,
@@ -4704,6 +4708,7 @@ em_setup_vlan_hw_support(if_ctx_t ctx)
 	s32 error;
 	u32 max_frame_size, reg;
 	u16 vid;
+	int restore_failures;
 
 	/*
 	 * Only PFs have control over VLAN HW filtering
@@ -4714,6 +4719,7 @@ em_setup_vlan_hw_support(if_ctx_t ctx)
 		max_frame_size = min(sc->shared->isc_max_frame_size +
 		    VLAN_TAG_SIZE, IGB_IOV_MAX_FRAME_SIZE);
 		e1000_rlpml_set_vf(hw, max_frame_size);
+		restore_failures = 0;
 		for (vid = 0; vid < 4096; vid++) {
 			if ((sc->shadow_vfta[vid >> 5] &
 			    (1U << (vid & 0x1f))) == 0)
@@ -4723,11 +4729,16 @@ em_setup_vlan_hw_support(if_ctx_t ctx)
 			 * replay if the PF mailbox is absent during reset.
 			 */
 			error = e1000_vfta_set_vf(hw, vid, true);
-			if (error != E1000_SUCCESS)
-				device_printf(sc->dev,
-				    "VF VLAN %u restore request failed\n",
-				    vid);
+			if (error != E1000_SUCCESS) {
+				igbv_vlan_retry_add(sc, vid);
+				restore_failures++;
+			} else
+				igbv_vlan_retry_clear(sc, vid);
 		}
+		if (restore_failures != 0)
+			device_printf(sc->dev,
+			    "VF VLAN restore failed for %d VIDs; retrying\n",
+			    restore_failures);
 		return;
 	}
 
