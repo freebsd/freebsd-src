@@ -1022,6 +1022,9 @@ _mb_unmapped_to_ext(struct mbuf *m, struct mbuf **mres)
 		m_extadd(m_new, sf_buf_kva(sf), PAGE_SIZE,
 		    mb_unmapped_free_mext, sf, mref, m->m_flags & M_RDONLY,
 		    EXT_SFBUF);
+		m_new->m_ext.ext_flags |=
+		    (m->m_epg_flags & EPG_FLAG_ANON) != 0 ?
+		    EXT_FLAG_SFBUF_ANON : 0;
 		m_new->m_data += segoff;
 		m_new->m_len = seglen;
 
