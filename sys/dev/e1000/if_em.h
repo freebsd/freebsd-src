@@ -389,11 +389,8 @@ struct igb_vf_mac_filter;
 #define UPDATE_VF_REG(reg, last, cur)		\
 do {						\
 	u32 new = E1000_READ_REG(&sc->hw, reg);	\
-	if (new < last)				\
-		cur += 0x100000000LL;		\
+	cur += (u32)(new - last);		\
 	last = new;				\
-	cur &= 0xFFFFFFFF00000000LL;		\
-	cur |= new;				\
 } while (0)
 
 struct e1000_softc;
@@ -586,6 +583,7 @@ struct e1000_softc {
 	** to repopulate it.
 	*/
 	u32			shadow_vfta[EM_VFTA_SIZE];
+	u32			vf_vfta_stale[EM_VFTA_SIZE];
 
 	/* Info about the interface */
 	enum em_link_state	link_state;
@@ -635,6 +633,8 @@ struct e1000_softc {
 	unsigned long		link_irq;
 	unsigned long		rx_overruns;
 	unsigned long		watchdog_events;
+	u64			rx_csum_good;
+	u64			rx_csum_errors;
 
 	union {
 		struct e1000_hw_stats	stats;		/* !sc->vf_ifp */
@@ -652,16 +652,22 @@ struct e1000_softc {
 int	em_if_attach_pre(if_ctx_t);
 int	em_if_attach_post(if_ctx_t);
 void	em_add_device_sysctls(struct e1000_softc *);
+int	em_if_set_promisc_impl(if_ctx_t, int);
+bool	em_is_valid_ether_addr(const u8 *);
 void	em_initialize_transmit_rings(if_ctx_t);
+void	em_update_stats_counters(struct e1000_softc *);
 void	igb_initialize_receive_rings(if_ctx_t, bool);
 
 int	igbv_get_regs(SYSCTL_HANDLER_ARGS);
 int	igbv_if_attach_pre(if_ctx_t);
 int	igbv_if_attach_post(if_ctx_t);
+int	igbv_if_media_change(if_ctx_t);
 void	igbv_if_intr_enable(if_ctx_t);
 void	igbv_if_intr_disable(if_ctx_t);
+void	igbv_if_update_admin_status(if_ctx_t);
 void	igbv_initialize_receive_unit(if_ctx_t);
 void	igbv_initialize_transmit_unit(if_ctx_t);
+void	igbv_reconcile_mac(struct e1000_softc *, if_t);
 bool	igbv_reset(if_ctx_t);
 
 /********************************************************************************

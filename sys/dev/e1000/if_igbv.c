@@ -30,6 +30,8 @@
 
 #include <sys/sbuf.h>
 
+static bool	igbv_tx_pending(struct e1000_softc *);
+
 int
 igbv_if_attach_pre(if_ctx_t ctx)
 {
@@ -76,6 +78,92 @@ igbv_if_attach_post(if_ctx_t ctx)
 	return (0);
 }
 
+int
+igbv_if_media_change(if_ctx_t ctx __unused)
+{
+
+	return (EOPNOTSUPP);
+}
+
+void
+igbv_if_update_admin_status(if_ctx_t ctx)
+{
+	struct e1000_softc *sc;
+	struct e1000_hw *hw;
+	device_t dev;
+	bool link_check;
+
+	sc = iflib_get_softc(ctx);
+	hw = &sc->hw;
+	dev = iflib_get_dev(ctx);
+	KASSERT(sc->vf_ifp, ("%s called for a PF", __func__));
+
+	if (!sc->vf_reset_pending &&
+	    atomic_readandclear_32(&sc->promisc_pending) != 0)
+		(void)em_if_set_promisc_impl(ctx,
+		    if_getflags(iflib_get_ifp(ctx)));
+
+	if (e1000_check_for_link(hw) != E1000_SUCCESS &&
+	    !sc->vf_reset_pending) {
+		sc->vf_reset_pending = true;
+		iflib_request_reset(ctx);
+		iflib_admin_intr_deferred(ctx);
+	}
+	link_check = !hw->mac.get_link_status;
+
+	if (link_check &&
+	    (sc->link_state == EM_LINK_STATE_DOWN ||
+	    sc->link_state == EM_LINK_STATE_DOWN_RESET_PENDING)) {
+		e1000_get_speed_and_duplex(hw, &sc->link_speed,
+		    &sc->link_duplex);
+		if (bootverbose)
+			device_printf(dev, "Link is up %d Mbps %s\n",
+			    sc->link_speed,
+			    sc->link_duplex == FULL_DUPLEX ?
+			    "Full Duplex" : "Half Duplex");
+		sc->link_state = EM_LINK_STATE_UP;
+		iflib_link_state_change(ctx, LINK_STATE_UP,
+		    IF_Mbps(sc->link_speed));
+	} else if (!link_check &&
+	    (sc->link_state == EM_LINK_STATE_UP ||
+	    sc->link_state == EM_LINK_STATE_UP_RESET_PENDING)) {
+		sc->link_speed = 0;
+		sc->link_duplex = 0;
+		sc->link_state = EM_LINK_STATE_DOWN;
+		iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
+	}
+
+	/*
+	 * A VF stops transmit DMA when its PF reports link down.  Reset if
+	 * descriptors remain queued so they cannot be sent stale when carrier
+	 * returns, matching the periodic check in Linux igbvf.
+	 */
+	if (!link_check && !sc->vf_reset_pending && igbv_tx_pending(sc)) {
+		sc->vf_reset_pending = true;
+		iflib_request_reset(ctx);
+		iflib_admin_intr_deferred(ctx);
+	}
+	/* em_if_init() establishes a new counter baseline after the reset. */
+	if (!sc->vf_reset_pending)
+		em_update_stats_counters(sc);
+}
+
+static bool
+igbv_tx_pending(struct e1000_softc *sc)
+{
+	struct tx_ring *txr;
+	u32 head, tail;
+
+	for (int i = 0; i < sc->tx_num_queues; i++) {
+		txr = &sc->tx_queues[i].txr;
+		head = E1000_READ_REG(&sc->hw, E1000_TDH(txr->me));
+		tail = E1000_READ_REG(&sc->hw, E1000_TDT(txr->me));
+		if (head != tail)
+			return (true);
+	}
+	return (false);
+}
+
 bool
 igbv_reset(if_ctx_t ctx)
 {
@@ -100,6 +188,7 @@ igbv_reset(if_ctx_t ctx)
 		e1000_check_for_link(hw);
 		return (false);
 	}
+	memset(sc->vf_vfta_stale, 0, sizeof(sc->vf_vfta_stale));
 	if (e1000_init_hw(hw) < 0) {
 		device_printf(sc->dev, "Hardware Initialization Failed\n");
 		return (false);
@@ -202,4 +291,30 @@ igbv_get_regs(SYSCTL_HANDLER_ARGS)
 	error = sbuf_finish(sb);
 	sbuf_delete(sb);
 	return (error);
+}
+
+void
+igbv_reconcile_mac(struct e1000_softc *sc, if_t ifp)
+{
+	u8 *lladdr;
+
+	if (!em_is_valid_ether_addr(sc->hw.mac.addr))
+		return;
+	lladdr = (u8 *)if_getlladdr(ifp);
+	if (memcmp(lladdr, sc->hw.mac.addr, ETHER_ADDR_LEN) == 0)
+		return;
+
+	device_printf(sc->dev,
+	    "PF rejected or replaced the requested MAC; using %6D\n",
+	    sc->hw.mac.addr, ":");
+	/*
+	 * if_setlladdr() would re-enter the driver's address-change path.
+	 * Initialization already holds the context lock, so update the
+	 * storage directly and issue the notification it would have sent.
+	 */
+	memcpy(lladdr, sc->hw.mac.addr, ETHER_ADDR_LEN);
+
+	CURVNET_SET_QUIET(if_getvnet(ifp));
+	EVENTHANDLER_INVOKE(iflladdr_event, ifp);
+	CURVNET_RESTORE();
 }

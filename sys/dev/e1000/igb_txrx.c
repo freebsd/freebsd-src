@@ -56,7 +56,14 @@ static int igb_tx_ctx_setup(struct tx_ring *, if_pkt_info_t, uint32_t *,
 static int igb_tso_setup(struct tx_ring *, if_pkt_info_t, uint32_t *,
     uint32_t *);
 
-static void igb_rx_checksum(uint32_t, if_rxd_info_t, uint32_t);
+enum igb_rx_csum_status {
+	IGB_RX_CSUM_NONE,
+	IGB_RX_CSUM_GOOD,
+	IGB_RX_CSUM_ERROR,
+};
+
+static enum igb_rx_csum_status igb_rx_checksum(uint32_t, if_rxd_info_t,
+    uint32_t);
 static int igb_determine_rsstype(uint16_t);
 
 extern void igb_if_enable_intr(if_ctx_t);
@@ -76,6 +83,7 @@ struct if_txrx igb_txrx = {
 static bool
 igb_vf_vlan_registered(const struct e1000_softc *sc, u16 vtag)
 {
+	u32 vlans;
 	u16 vid;
 
 	/*
@@ -91,8 +99,8 @@ igb_vf_vlan_registered(const struct e1000_softc *sc, u16 vtag)
 	 * A trunk VF is an implicit member of VID 0, so retain priority-tag
 	 * metadata without requiring vlan(4) to register a VID-0 interface.
 	 */
-	return (vid == 0 ||
-	    (sc->shadow_vfta[vid >> 5] & (1U << (vid & 0x1f))) != 0);
+	vlans = sc->shadow_vfta[vid >> 5] | sc->vf_vfta_stale[vid >> 5];
+	return (vid == 0 || (vlans & (1U << (vid & 0x1f))) != 0);
 }
 
 /**********************************************************************
@@ -481,6 +489,7 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 	uint16_t pkt_info, len;
 	uint32_t ptype, staterr;
+	enum igb_rx_csum_status csum_status;
 	int i, cidx;
 	bool eop;
 
@@ -530,8 +539,15 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	rxr->rx_bytes += ri->iri_len;
 	rxr->rx_packets++;
 
-	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
-		igb_rx_checksum(staterr, ri, ptype);
+	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0) {
+		csum_status = igb_rx_checksum(staterr, ri, ptype);
+		if (sc->vf_ifp) {
+			if (csum_status == IGB_RX_CSUM_GOOD)
+				sc->rx_csum_good++;
+			else if (csum_status == IGB_RX_CSUM_ERROR)
+				sc->rx_csum_errors++;
+		}
+	}
 
 	if (staterr & E1000_RXD_STAT_VP) {
 		if (((sc->hw.mac.type == e1000_i350) ||
@@ -560,19 +576,19 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
  *  doesn't spend time verifying the checksum.
  *
  *********************************************************************/
-static void
+static enum igb_rx_csum_status
 igb_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype)
 {
 	uint16_t status = (uint16_t)staterr;
 	uint8_t errors = (uint8_t)(staterr >> 24);
 
 	if (__predict_false(status & E1000_RXD_STAT_IXSM))
-		return;
+		return (IGB_RX_CSUM_NONE);
 
 	/* If there is a layer 3 or 4 error we are done */
 	if (__predict_false(errors &
 	    (E1000_RXD_ERR_IPE | E1000_RXD_ERR_TCPE)))
-		return;
+		return (IGB_RX_CSUM_ERROR);
 
 	/* IP Checksum Good */
 	if (status & E1000_RXD_STAT_IPCS)
@@ -592,6 +608,8 @@ igb_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype)
 			ri->iri_csum_data = htons(0xffff);
 		}
 	}
+
+	return (IGB_RX_CSUM_GOOD);
 }
 
 /********************************************************************

@@ -455,11 +455,11 @@ static int	igb_if_tx_queue_intr_enable(if_ctx_t, uint16_t);
 static void	em_if_multi_set(if_ctx_t);
 static void	em_if_update_admin_status(if_ctx_t);
 static void	em_if_debug(if_ctx_t);
-static void	em_update_stats_counters(struct e1000_softc *);
+static void	em_initialize_vf_stats(struct e1000_softc *);
+static void	em_rebase_vf_stats(struct e1000_softc *);
 static void	em_update_vf_stats_counters(struct e1000_softc *);
 static void	em_add_hw_stats(struct e1000_softc *);
 static int	em_if_set_promisc(if_ctx_t, int);
-static int	em_if_set_promisc_impl(if_ctx_t, int);
 static bool	em_if_defer_promisc(struct e1000_softc *);
 static bool	em_if_vlan_filter_capable(if_ctx_t);
 static bool	em_if_vlan_filter_used(if_ctx_t);
@@ -476,7 +476,6 @@ static int	em_sysctl_print_fw_version(SYSCTL_HANDLER_ARGS);
 static int	em_sysctl_debug_info(SYSCTL_HANDLER_ARGS);
 static int	em_get_rs(SYSCTL_HANDLER_ARGS);
 static void	em_print_debug_info(struct e1000_softc *);
-static int 	em_is_valid_ether_addr(u8 *);
 static void	em_newitr(struct e1000_softc *, struct em_rx_queue *,
     struct rx_ring *);
 static bool	em_automask_tso(if_ctx_t);
@@ -692,10 +691,10 @@ static device_method_t igbv_if_methods[] = {
 	DEVMETHOD(ifdi_tx_queues_alloc, em_if_tx_queues_alloc),
 	DEVMETHOD(ifdi_rx_queues_alloc, em_if_rx_queues_alloc),
 	DEVMETHOD(ifdi_queues_free, em_if_queues_free),
-	DEVMETHOD(ifdi_update_admin_status, em_if_update_admin_status),
+	DEVMETHOD(ifdi_update_admin_status, igbv_if_update_admin_status),
 	DEVMETHOD(ifdi_multi_set, em_if_multi_set),
 	DEVMETHOD(ifdi_media_status, em_if_media_status),
-	DEVMETHOD(ifdi_media_change, em_if_media_change),
+	DEVMETHOD(ifdi_media_change, igbv_if_media_change),
 	DEVMETHOD(ifdi_mtu_set, em_if_mtu_set),
 	DEVMETHOD(ifdi_promisc_set, em_if_set_promisc),
 	DEVMETHOD(ifdi_timer, em_if_timer),
@@ -1528,7 +1527,9 @@ em_if_attach_pre(if_ctx_t ctx)
 	** important in reading the nvm and
 	** mac from that.
 	*/
-	e1000_reset_hw(hw);
+	if (e1000_reset_hw(hw) != E1000_SUCCESS && sc->vf_ifp)
+		device_printf(dev,
+		    "PF is not ready; VF mailbox initialization deferred\n");
 
 	/* Make sure a PF has a good EEPROM before we read from it. */
 	if (!sc->vf_ifp && e1000_validate_nvm_checksum(hw) < 0) {
@@ -1555,6 +1556,9 @@ em_if_attach_pre(if_ctx_t ctx)
 
 	if (!em_is_valid_ether_addr(hw->mac.addr)) {
 		if (sc->vf_ifp) {
+			device_printf(dev,
+			    "PF did not assign a MAC address; using a "
+			    "locally generated address\n");
 			ether_gen_addr(iflib_get_ifp(ctx),
 			    (struct ether_addr *)hw->mac.addr);
 		} else {
@@ -1617,13 +1621,16 @@ em_if_attach_post(if_ctx_t ctx)
 
 	/* Initialize statistics */
 	if (sc->vf_ifp)
-		sc->ustats.vf_stats = (struct e1000_vf_stats){};
+		em_initialize_vf_stats(sc);
 	else
 		sc->ustats.stats = (struct e1000_hw_stats){};
 
 	em_update_stats_counters(sc);
 	hw->mac.get_link_status = 1;
-	em_if_update_admin_status(ctx);
+	if (sc->vf_ifp)
+		igbv_if_update_admin_status(ctx);
+	else
+		em_if_update_admin_status(ctx);
 	em_add_hw_stats(sc);
 
 	/* Non-AMT based hardware can now take control from firmware */
@@ -1777,17 +1784,23 @@ em_if_init(if_ctx_t ctx)
 	if_softc_ctx_t scctx = sc->shared;
 	if_t ifp = iflib_get_ifp(ctx);
 	struct em_tx_queue *tx_que;
+	bool vf_mbx_ready;
 	int i;
 
 	INIT_DEBUGOUT("em_if_init: begin");
+	vf_mbx_ready = !sc->vf_ifp;
 	if (sc->vf_ifp)
 		sc->vf_reset_pending = true;
 
 	/* Get the latest mac address, User can use a LAA */
 	bcopy(if_getlladdr(ifp), sc->hw.mac.addr, ETHER_ADDR_LEN);
 
-	/* Put the address into the Receive Address Array */
-	e1000_rar_set(&sc->hw, sc->hw.mac.addr, 0);
+	/*
+	 * A VF restores its address only after its reset handshake establishes
+	 * CTS.  The PF path programs RAR[0] directly here.
+	 */
+	if (!sc->vf_ifp)
+		e1000_rar_set(&sc->hw, sc->hw.mac.addr, 0);
 
 	/*
 	 * With the 82571 adapter, RAR[0] may be overwritten
@@ -1803,15 +1816,22 @@ em_if_init(if_ctx_t ctx)
 
 	/* Initialize the hardware */
 	igb_iov_reset_prepare(sc);
-	if (sc->vf_ifp)
-		(void)igbv_reset(ctx);
-	else
+	if (sc->vf_ifp) {
+		vf_mbx_ready = igbv_reset(ctx);
+		em_rebase_vf_stats(sc);
+	} else {
 		em_reset(ctx);
+	}
+	if (sc->vf_ifp && vf_mbx_ready)
+		igbv_reconcile_mac(sc, ifp);
 	/* Re-arm a link-up transition deferred for this reset. */
 	if (sc->link_state == EM_LINK_STATE_DOWN_RESET_PENDING ||
 	    sc->link_state == EM_LINK_STATE_UP_RESET_PENDING)
 		sc->link_state = EM_LINK_STATE_DOWN;
-	em_if_update_admin_status(ctx);
+	if (sc->vf_ifp)
+		igbv_if_update_admin_status(ctx);
+	else
+		em_if_update_admin_status(ctx);
 
 	for (i = 0, tx_que = sc->tx_queues; i < sc->tx_num_queues;
 	    i++, tx_que++) {
@@ -1844,8 +1864,13 @@ em_if_init(if_ctx_t ctx)
 	else
 		em_initialize_transmit_unit(ctx);
 
-	/* Setup Multicast table */
-	em_if_multi_set(ctx);
+	/*
+	 * A failed VF reset has no CTS channel on which to restore mailbox
+	 * state.  The reset detector schedules another complete init, which
+	 * replays these interface-owned lists after the handshake succeeds.
+	 */
+	if (vf_mbx_ready)
+		em_if_multi_set(ctx);
 
 	sc->rx_mbuf_sz = iflib_get_rx_mbuf_sz(ctx);
 	if (sc->vf_ifp)
@@ -1853,11 +1878,13 @@ em_if_init(if_ctx_t ctx)
 	else
 		em_initialize_receive_unit(ctx);
 
-	/* Set up VLAN support and filter */
-	em_setup_vlan_hw_support(ctx);
+	if (vf_mbx_ready) {
+		/* Set up VLAN support and filter. */
+		em_setup_vlan_hw_support(ctx);
 
-	/* Don't lose promiscuous settings */
-	em_if_set_promisc_impl(ctx, if_getflags(ifp));
+		/* Don't lose promiscuous settings. */
+		em_if_set_promisc_impl(ctx, if_getflags(ifp));
+	}
 	atomic_readandclear_32(&sc->promisc_pending);
 
 	/* Restore PF/VF pool configuration after the global reset. */
@@ -2414,12 +2441,13 @@ em_if_defer_promisc(struct e1000_softc *sc)
 	return (true);
 }
 
-static int
+int
 em_if_set_promisc_impl(if_ctx_t ctx, int flags)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
 	enum e1000_promisc_type type;
+	s32 error;
 	u32 reg_rctl;
 	int mcnt = 0;
 
@@ -2430,7 +2458,8 @@ em_if_set_promisc_impl(if_ctx_t ctx, int flags)
 			type = e1000_promisc_multicast;
 		else
 			type = e1000_promisc_disabled;
-		if (e1000_promisc_set_vf(&sc->hw, type) != E1000_SUCCESS) {
+		error = e1000_promisc_set_vf(&sc->hw, type);
+		if (error != E1000_SUCCESS) {
 			device_printf(sc->dev,
 			    "VF promiscuous-mode request failed\n");
 			return (EPERM);
@@ -2578,6 +2607,8 @@ em_if_update_admin_status(if_ctx_t ctx)
 	device_t dev = iflib_get_dev(ctx);
 	u32 link_check, thstat, ctrl;
 	bool reset_requested = false;
+
+	KASSERT(!sc->vf_ifp, ("%s called for a VF", __func__));
 
 	if (atomic_readandclear_32(&sc->promisc_pending) != 0)
 		(void)em_if_set_promisc_impl(ctx,
@@ -3902,6 +3933,14 @@ em_setup_interface(if_ctx_t ctx)
 	 * Specify the media types supported by this adapter and register
 	 * callbacks to update media and link information
 	 */
+	if (sc->vf_ifp) {
+		ifmedia_add(sc->media,
+		    IFM_ETHER | IFM_1000_T | IFM_FDX, 0, NULL);
+		ifmedia_set(sc->media,
+		    IFM_ETHER | IFM_1000_T | IFM_FDX);
+		return (0);
+	}
+
 	if (sc->hw.phy.media_type == e1000_media_type_fiber ||
 	    sc->hw.phy.media_type == e1000_media_type_internal_serdes) {
 		u_char fiber_type = IFM_1000_SX;	/* default type */
@@ -4522,6 +4561,7 @@ em_if_vlan_register(if_ctx_t ctx, u16 vtag)
 	 * ready to accept it yet.
 	 */
 	sc->shadow_vfta[index] |= mask;
+	sc->vf_vfta_stale[index] &= ~mask;
 	if (!present)
 		++sc->num_vlans;
 	if (sc->vf_ifp &&
@@ -4552,11 +4592,12 @@ em_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 		device_printf(sc->dev,
 		    "VF VLAN %u remove request failed\n", vtag);
 		/*
-		 * The PF can still admit this VID.  Retain the bit so its
-		 * stripped frames remain tagged and are dropped by vlan(4)
-		 * after the child disappears, rather than reaching the parent.
+		 * Hardware might still admit this VID.  Preserve its receive
+		 * tag until a successful VF reset proves the stale filter gone.
 		 */
-		return;
+		sc->vf_vfta_stale[index] |= mask;
+	} else {
+		sc->vf_vfta_stale[index] &= ~mask;
 	}
 	sc->shadow_vfta[index] &= ~mask;
 	if (present)
@@ -4645,6 +4686,7 @@ em_setup_vlan_hw_support(if_ctx_t ctx)
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	struct e1000_hw *hw = &sc->hw;
 	if_t ifp = iflib_get_ifp(ctx);
+	s32 error;
 	u32 max_frame_size, reg;
 	u16 vid;
 
@@ -4661,7 +4703,12 @@ em_setup_vlan_hw_support(if_ctx_t ctx)
 			if ((sc->shadow_vfta[vid >> 5] &
 			    (1U << (vid & 0x1f))) == 0)
 				continue;
-			if (e1000_vfta_set_vf(hw, vid, true) != E1000_SUCCESS)
+			/*
+			 * Desired state remains in shadow_vfta for the next
+			 * replay if the PF mailbox is absent during reset.
+			 */
+			error = e1000_vfta_set_vf(hw, vid, true);
+			if (error != E1000_SUCCESS)
 				device_printf(sc->dev,
 				    "VF VLAN %u restore request failed\n",
 				    vid);
@@ -4890,16 +4937,13 @@ em_release_hw_control(struct e1000_softc *sc)
 	return;
 }
 
-static int
-em_is_valid_ether_addr(u8 *addr)
+bool
+em_is_valid_ether_addr(const u8 *addr)
 {
-	char zero_addr[6] = { 0, 0, 0, 0, 0, 0 };
+	static const u8 zero_addr[ETHER_ADDR_LEN];
 
-	if ((addr[0] & 1) || (!bcmp(addr, zero_addr, ETHER_ADDR_LEN))) {
-		return (false);
-	}
-
-	return (true);
+	return (!ETHER_IS_MULTICAST(addr) &&
+	    memcmp(addr, zero_addr, ETHER_ADDR_LEN) != 0);
 }
 
 static bool
@@ -5269,7 +5313,7 @@ em_disable_aspm(struct e1000_softc *sc)
  *  Update the board statistics counters.
  *
  **********************************************************************/
-static void
+void
 em_update_stats_counters(struct e1000_softc *sc)
 {
 	struct e1000_hw_stats *stats;
@@ -5381,15 +5425,60 @@ em_update_stats_counters(struct e1000_softc *sc)
 }
 
 static void
+em_initialize_vf_stats(struct e1000_softc *sc)
+{
+	struct e1000_vf_stats *stats;
+
+	stats = &sc->ustats.vf_stats;
+	*stats = (struct e1000_vf_stats){};
+	em_rebase_vf_stats(sc);
+}
+
+static void
+em_rebase_vf_stats(struct e1000_softc *sc)
+{
+	struct e1000_vf_stats *stats;
+
+	/*
+	 * A PF reset starts a new VF counter epoch.  Preserve the accumulated
+	 * totals while establishing a new raw baseline so the reset is not
+	 * mistaken for a 32-bit wrap.
+	 */
+	stats = &sc->ustats.vf_stats;
+#define INIT_VF_REG(reg, name) do {					\
+	stats->last_##name = E1000_READ_REG(&sc->hw, reg);		\
+} while (0)
+	INIT_VF_REG(E1000_VFGPRC, gprc);
+	INIT_VF_REG(E1000_VFGORC, gorc);
+	INIT_VF_REG(E1000_VFGPTC, gptc);
+	INIT_VF_REG(E1000_VFGOTC, gotc);
+	/*
+	 * I350 specification update erratum 31 says VFMPRC is not
+	 * accessible from VF memory.  The 0xf3c register remains valid on
+	 * 82576 VFs, but must not be read on vfadapt_i350.
+	 */
+	if (sc->hw.mac.type == e1000_vfadapt)
+		INIT_VF_REG(E1000_VFMPRC, mprc);
+	else
+		stats->last_mprc = 0;
+	INIT_VF_REG(E1000_VFGOTLBC, gotlbc);
+	INIT_VF_REG(E1000_VFGPTLBC, gptlbc);
+	INIT_VF_REG(E1000_VFGORLBC, gorlbc);
+	INIT_VF_REG(E1000_VFGPRLBC, gprlbc);
+#undef INIT_VF_REG
+}
+
+static void
 em_update_vf_stats_counters(struct e1000_softc *sc)
 {
 	struct e1000_vf_stats *stats;
 
-	if (sc->link_speed == 0)
-		return;
-
 	stats = &sc->ustats.vf_stats;
 
+	/*
+	 * Internal VF loopback traffic can continue without physical link,
+	 * so sample the counters regardless of link state.
+	 */
 	UPDATE_VF_REG(E1000_VFGPRC,
 	    stats->last_gprc, stats->gprc);
 	UPDATE_VF_REG(E1000_VFGORC,
@@ -5398,8 +5487,17 @@ em_update_vf_stats_counters(struct e1000_softc *sc)
 	    stats->last_gptc, stats->gptc);
 	UPDATE_VF_REG(E1000_VFGOTC,
 	    stats->last_gotc, stats->gotc);
-	UPDATE_VF_REG(E1000_VFMPRC,
-	    stats->last_mprc, stats->mprc);
+	if (sc->hw.mac.type == e1000_vfadapt)
+		UPDATE_VF_REG(E1000_VFMPRC,
+		    stats->last_mprc, stats->mprc);
+	UPDATE_VF_REG(E1000_VFGOTLBC,
+	    stats->last_gotlbc, stats->gotlbc);
+	UPDATE_VF_REG(E1000_VFGPTLBC,
+	    stats->last_gptlbc, stats->gptlbc);
+	UPDATE_VF_REG(E1000_VFGORLBC,
+	    stats->last_gorlbc, stats->gorlbc);
+	UPDATE_VF_REG(E1000_VFGPRLBC,
+	    stats->last_gprlbc, stats->gprlbc);
 }
 
 static uint64_t
@@ -5688,9 +5786,35 @@ em_add_hw_stats(struct e1000_softc *sc)
 		SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octets_txd",
 		    CTLFLAG_RD, &vfstats->gotc,
 		    "Good Octets Transmitted");
-		SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_recvd",
-		    CTLFLAG_RD, &vfstats->mprc,
-		    "Multicast Packets Received");
+		if (sc->hw.mac.type == e1000_vfadapt) {
+			SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO,
+			    "mcast_pkts_recvd", CTLFLAG_RD, &vfstats->mprc,
+			    "Multicast Packets Received");
+		}
+		SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO,
+		    "loopback_good_pkts_recvd",
+		    CTLFLAG_RD, &vfstats->gprlbc,
+		    "Good Loopback Packets Received");
+		SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO,
+		    "loopback_good_pkts_txd",
+		    CTLFLAG_RD, &vfstats->gptlbc,
+		    "Good Loopback Packets Transmitted");
+		SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO,
+		    "loopback_good_octets_recvd",
+		    CTLFLAG_RD, &vfstats->gorlbc,
+		    "Good Loopback Octets Received");
+		SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO,
+		    "loopback_good_octets_txd",
+		    CTLFLAG_RD, &vfstats->gotlbc,
+		    "Good Loopback Octets Transmitted");
+		SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO,
+		    "rx_csum_offload_good",
+		    CTLFLAG_RD, &sc->rx_csum_good,
+		    "Receive Checksum Offload Successes");
+		SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO,
+		    "rx_csum_offload_errors",
+		    CTLFLAG_RD, &sc->rx_csum_errors,
+		    "Receive Checksum Offload Errors");
 		return;
 	}
 
