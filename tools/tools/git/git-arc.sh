@@ -609,14 +609,15 @@ apply_rev()
         parents=$(diff2parents "$rev")
         for parent in $parents; do
             echo "Applying parent ${parent}..."
-            if ! apply_rev $parent $commit $raw $stack; then
-                return 1
-            fi
+            apply_rev $parent $commit $raw $stack
         done
     fi
 
+    # If a patch fails to apply, the corresponding command below will exit
+    # with a non-zero status and terminate the script.
     if $raw; then
-        fetch -o /dev/stdout "https://reviews.freebsd.org/${rev}.diff" | git apply --index
+        fetch -o /dev/stdout "https://reviews.freebsd.org/${rev}.diff" | \
+	    git -C "$(git rev-parse --show-toplevel)" apply --index --reject
     else
         arc patch --skip-dependencies --nobranch --nocommit --force $rev
     fi
@@ -624,7 +625,6 @@ apply_rev()
     if ${commit}; then
         patch_commit $rev
     fi
-    return 0
 }
 
 gitarc__patch()
