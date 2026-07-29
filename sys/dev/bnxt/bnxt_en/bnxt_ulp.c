@@ -426,7 +426,11 @@ void bnxt_destroy_irq(struct bnxt_softc *softc)
 	kfree(softc->irq_tbl);
 }
 
-static int bnxt_populate_irq(struct bnxt_softc *softc)
+/*
+ * Build the IRQ table from scratch for isc_ntxqsets + irq_count vectors;
+ * usable by any feature needing private IRQs without prior setup.
+ */
+int bnxt_populate_irq(struct bnxt_softc *softc, int irq_count)
 {
 	struct resource_list *rl = NULL;
 	struct resource_list_entry *rle = NULL;
@@ -434,20 +438,79 @@ static int bnxt_populate_irq(struct bnxt_softc *softc)
 	struct pci_devinfo *dinfo = NULL;
 	int i;
 
-	softc->total_irqs = softc->scctx->isc_nrxqsets + BNXT_ROCE_IRQ_COUNT;
+	softc->total_irqs = softc->scctx->isc_ntxqsets + irq_count;
 	irq_tbl = kzalloc(softc->total_irqs * sizeof(*softc->irq_tbl), GFP_KERNEL);
 
 	if (!irq_tbl) {
 		device_printf(softc->dev, "Failed to allocate IRQ table\n");
 		return -1;
 	}
+
 	dinfo = device_get_ivars(softc->pdev->dev.bsddev);
 	rl = &dinfo->resources;
 	rle = resource_list_find(rl, SYS_RES_IRQ, 1);
+	if (rle == NULL) {
+		device_printf(softc->dev,
+		    "No default resources for rid = %d, type = %d\n",
+		    1, SYS_RES_IRQ);
+		kfree(irq_tbl);
+		return -1;
+	}
+
 	softc->pdev->dev.irq_start = rle->start;
 	softc->pdev->dev.irq_end = rle->start + softc->total_irqs;
 
 	for (i = 0; i < softc->total_irqs; i++) {
+		irq_tbl[i].entry = i;
+		irq_tbl[i].vector = softc->pdev->dev.irq_start + i;
+	}
+
+	softc->irq_tbl = irq_tbl;
+
+	return 0;
+}
+
+/*
+ * Grow the IRQ table by BNXT_ROCE_IRQ_COUNT on top of existing entries (e.g.
+ * MPC's) instead of reassigning total_irqs, to avoid reclaiming MPC's rids.
+ */
+static int bnxt_populate_irq_roce(struct bnxt_softc *softc)
+{
+	struct resource_list *rl = NULL;
+	struct resource_list_entry *rle = NULL;
+	struct pci_devinfo *dinfo = NULL;
+	struct bnxt_msix_tbl *irq_tbl;
+	int prev_total_irqs = softc->total_irqs;
+	int i;
+
+	softc->total_irqs += BNXT_ROCE_IRQ_COUNT;
+	irq_tbl = krealloc(softc->irq_tbl,
+	    softc->total_irqs * sizeof(*softc->irq_tbl), GFP_KERNEL);
+
+	if (!irq_tbl) {
+		device_printf(softc->dev, "Failed to allocate IRQ table\n");
+		/* Roll back total_irqs since the table itself wasn't grown. */
+		softc->total_irqs = prev_total_irqs;
+		return -1;
+	}
+
+	dinfo = device_get_ivars(softc->pdev->dev.bsddev);
+	rl = &dinfo->resources;
+	rle = resource_list_find(rl, SYS_RES_IRQ, 1);
+	if (rle == NULL) {
+		device_printf(softc->dev,
+		    "No default resources for rid = %d, type = %d\n",
+		    1, SYS_RES_IRQ);
+		/* irq_tbl isn't installed yet; free it and roll back total_irqs. */
+		kfree(irq_tbl);
+		softc->total_irqs = prev_total_irqs;
+		return -1;
+	}
+
+	softc->pdev->dev.irq_start = rle->start;
+	softc->pdev->dev.irq_end = rle->start + softc->total_irqs;
+
+	for (i = prev_total_irqs; i < softc->total_irqs; i++) {
 		irq_tbl[i].entry = i;
 		irq_tbl[i].vector = softc->pdev->dev.irq_start + i;
 	}
@@ -521,7 +584,7 @@ int bnxt_rdma_aux_device_add(struct bnxt_softc *bp)
 	struct auxiliary_device *aux_dev;
 	int ret = -1;
 
-	if (bnxt_populate_irq(bp))
+	if (bnxt_populate_irq_roce(bp))
 		return ret;
 
 	device_printf(bp->dev, "V:D:SV:SD %x:%x:%x:%x, irq 0x%x, "

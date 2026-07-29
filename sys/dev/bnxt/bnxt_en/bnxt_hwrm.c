@@ -32,6 +32,7 @@
 
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
+#include "bnxt_mpc.h"
 #include "hsi_struct_def.h"
 #include "bnxt_coredump.h"
 
@@ -1205,6 +1206,7 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	    (void *)softc->hwrm_cmd_resp.idi_vaddr;
 	struct bnxt_func_info *func = &softc->func;
 	uint32_t flags, flags_ext, flags_ext2;
+	uint8_t mpc_chnls_cap = 0;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_QCAPS);
 	req.fid = htole16(0xffff);
@@ -1354,8 +1356,18 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 		}
 	}
 
+	/*
+	 * Only extract the field needed here; the actual alloc/free work
+	 * (malloc(M_NOWAIT)/free() in bnxt_alloc_mpc_info()) happens after
+	 * BNXT_HWRM_UNLOCK() below instead of under hwrm_lock.
+	 */
+	if (BNXT_PF(softc))
+		mpc_chnls_cap = resp->mpc_chnls_cap;
+
 fail:
 	BNXT_HWRM_UNLOCK(softc);
+	if (!rc && BNXT_PF(softc))
+		bnxt_alloc_mpc_info(softc, mpc_chnls_cap);
 	return rc;
 }
 
@@ -1467,6 +1479,22 @@ bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
 	fn_qcfg->alloc_hw_ring_grps = le16toh(resp->alloc_hw_ring_grps);
 	fn_qcfg->alloc_stat_ctx = le16toh(resp->alloc_stat_ctx);
 	fn_qcfg->alloc_msix = le16toh(resp->alloc_msix);
+
+	fn_qcfg->orig_alloc_completion_rings = fn_qcfg->alloc_completion_rings;
+	fn_qcfg->orig_alloc_tx_rings = fn_qcfg->alloc_tx_rings;
+
+	/* Reserve minimum rings for MPC */
+	if (BNXT_PF(softc)) {
+		if (softc->mpc_info) {
+			uint16_t mpc_min = BNXT_MIN_MPC_TCE + BNXT_MIN_MPC_RCE;
+
+			/* Clamp to 0 instead of underflowing these unsigned counts. */
+			fn_qcfg->alloc_completion_rings -=
+			    min(fn_qcfg->alloc_completion_rings, mpc_min);
+			fn_qcfg->alloc_tx_rings -=
+			    min(fn_qcfg->alloc_tx_rings, mpc_min);
+		}
+	}
 
 	switch (resp->port_partition_type) {
 	case HWRM_FUNC_QCFG_OUTPUT_PORT_PARTITION_TYPE_NPAR1_0:
@@ -1976,17 +2004,24 @@ bnxt_hwrm_ring_alloc(struct bnxt_softc *softc, uint8_t type,
 
 	switch (type) {
 	case HWRM_RING_ALLOC_INPUT_RING_TYPE_TX:
-		cp_ring = &softc->tx_cp_rings[idx];
+		if (ring->queue_id == BNXT_MPC_QUEUE_ID) {
+			cp_ring = ring->cp_ring;
+			req.mpc_chnls_type = ring->mpc_chnl_type;
+			req.enables |= htole32(HWRM_RING_ALLOC_INPUT_ENABLES_MPC_CHNLS_TYPE);
+		} else {
+			cp_ring = &softc->tx_cp_rings[idx];
 
-		req.cmpl_ring_id = htole16(cp_ring->ring.phys_id);
-		/* queue_id - what CoS queue the TX ring is associated with */
-		req.queue_id = htole16(softc->tx_q_info[0].queue_id);
+			/* queue_id - what CoS queue the TX ring is associated with */
+			req.queue_id = htole16(softc->tx_q_info[0].queue_id);
 
+			req.enables |= htole32(
+			    HWRM_RING_ALLOC_INPUT_ENABLES_STAT_CTX_ID_VALID);
+		}
 		req.stat_ctx_id = htole32(cp_ring->stats_ctx_id);
-		req.enables |= htole32(
-		    HWRM_RING_ALLOC_INPUT_ENABLES_STAT_CTX_ID_VALID);
-		if (softc->fw_cap & BNXT_FLAG_TX_COAL_CMPL)
+		if (softc->fw_cap & BNXT_FLAG_TX_COAL_CMPL &&
+		    ring->queue_id != BNXT_MPC_QUEUE_ID)
 			req.cmpl_coal_cnt = softc->tx_hw_coal_cnt;
+		req.cmpl_ring_id = htole16(cp_ring->ring.phys_id);
 		break;
 	case HWRM_RING_ALLOC_INPUT_RING_TYPE_RX:
 		if (!BNXT_CHIP_P5_PLUS(softc))
@@ -2023,7 +2058,10 @@ bnxt_hwrm_ring_alloc(struct bnxt_softc *softc, uint8_t type,
 		}
 
                 req.cq_handle = htole64(ring->id);
-		req.nq_ring_id = htole16(softc->nq_rings[idx].ring.phys_id);
+		if (ring->queue_id == BNXT_MPC_QUEUE_ID)
+			req.nq_ring_id = htole16(softc->mpc_info->mpc_nq_rings[idx].ring.phys_id);
+		else
+			req.nq_ring_id = htole16(softc->nq_rings[idx].ring.phys_id);
 		req.enables |= htole32(
 			HWRM_RING_ALLOC_INPUT_ENABLES_NQ_RING_ID_VALID);
 		break;

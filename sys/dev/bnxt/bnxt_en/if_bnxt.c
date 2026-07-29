@@ -76,6 +76,7 @@
 #include "bnxt_log_data.h"
 #include "bnxt_coredump.h"
 #include "bnxt_ptp.h"
+#include "bnxt_mpc.h"
 
 /*
  * PCI Device ID Table
@@ -260,7 +261,7 @@ static int bnxt_handle_isr(void *arg);
 static void bnxt_clear_ids(struct bnxt_softc *softc);
 static void inline bnxt_do_enable_intr(struct bnxt_cp_ring *cpr);
 static void inline bnxt_do_disable_intr(struct bnxt_cp_ring *cpr);
-static void bnxt_mark_cpr_invalid(struct bnxt_cp_ring *cpr);
+void bnxt_mark_cpr_invalid(struct bnxt_cp_ring *cpr);
 static void bnxt_def_cp_task(void *context, int pending);
 static void bnxt_handle_async_event(struct bnxt_softc *softc,
     struct cmpl_base *cmpl);
@@ -449,6 +450,8 @@ bnxt_init_sctx_variants(uint16_t device_id)
 	bnxt_sctx_pf_init = bnxt_sctx_template;
 
     bnxt_sctx_pf_init.isc_admin_intrcnt = BNXT_ROCE_IRQ_COUNT;
+    if (device_id == BCM57608)
+	bnxt_sctx_pf_init.isc_admin_intrcnt += BNXT_MAX_MPC;
 
     bnxt_sctx_vf_init = bnxt_sctx_template;
     bnxt_sctx_vf_init.isc_flags |= IFLIB_IS_VF;
@@ -553,7 +556,7 @@ bnxt_nq_free(struct bnxt_softc *softc)
 }
 
 
-static void
+void
 bnxt_set_db_mask(struct bnxt_softc *bp, struct bnxt_ring *db,
 		 u32 ring_type)
 {
@@ -668,6 +671,15 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 	}
 
 	softc->ntxqsets = ntxqsets;
+	bnxt_set_dflt_mpc_rings(softc);
+	rc = bnxt_alloc_mpcs(softc);
+	if (rc == 0)
+		rc = bnxt_alloc_mpc_rings(softc);
+	if (rc) {
+		bnxt_free_mpc_rings(softc);
+		bnxt_free_mpcs(softc);
+		goto dma_alloc_fail;
+	}
 	return rc;
 
 dma_alloc_fail:
@@ -709,6 +721,9 @@ bnxt_queues_free(if_ctx_t ctx)
 	free(softc->rx_rings, M_DEVBUF);
 	free(softc->rx_cp_rings, M_DEVBUF);
 	bnxt_nq_free(softc);
+
+	bnxt_free_mpc_rings(softc);
+	bnxt_free_mpcs(softc);
 }
 
 static int
@@ -1296,11 +1311,20 @@ bnxt_bs_trace_init(struct bnxt_softc *bp, struct bnxt_ctx_mem_type *ctxm)
 static int
 bnxt_backing_store_cfg_v2(struct bnxt_softc *softc, u32 ena)
 {
+	struct bnxt_mpc_info *mpc = softc->mpc_info;
 	struct bnxt_ctx_mem_info *ctx = softc->ctx_mem;
 	struct bnxt_ctx_mem_type *ctxm;
 	u16 last_type = BNXT_CTX_INV;
 	int rc = 0;
 	u16 type;
+
+	if (BNXT_PF(softc) && mpc && mpc->mpc_chnls_cap) {
+		ctxm = &ctx->ctx_arr[BNXT_CTX_MTQM];
+		rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, ctxm->max_entries, 1);
+		if (rc)
+			return rc;
+		last_type = BNXT_CTX_MTQM;
+	}
 
 	if (BNXT_PF(softc)) {
 		for (type = BNXT_CTX_SRT_TRACE; type <= BNXT_CTX_ROCE_HWRM_TRACE; type++) {
@@ -2971,6 +2995,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 
 failed:
 	bnxt_free_sysctl_ctx(softc);
+	bnxt_free_mpc_info(softc);
 init_sysctl_failed:
 	bnxt_hwrm_func_drv_unrgtr(softc, false);
 	if (BNXT_PF(softc))
@@ -3022,6 +3047,10 @@ bnxt_attach_post(if_ctx_t ctx)
 
 	softc->rx_buf_size = min(softc->scctx->isc_max_frame_size, BNXT_PAGE_SIZE);
 	bnxt_dcb_init(softc);
+	rc = bnxt_mpc_irq_setup(softc);
+	if (rc)
+		goto failed;
+
 	bnxt_rdma_aux_device_init(softc);
 
 	/* SR-IOV attach */
@@ -3034,6 +3063,8 @@ bnxt_attach_post(if_ctx_t ctx)
 		    "crash dump init failure rc: %d\n", rc);
 
 failed:
+	/* No cleanup needed: on nonzero return iflib_device_register() calls
+	 * IFDI_DETACH and IFDI_QUEUES_FREE, which tear down anything set up so far. */
 	return rc;
 }
 
@@ -3045,6 +3076,7 @@ bnxt_detach(if_ctx_t ctx)
 	struct bnxt_vlan_tag *tmp;
 	int i;
 
+	bnxt_mpc_irq_cleanup(softc);
 	bnxt_rdma_aux_device_uninit(softc);
 	cancel_delayed_work_sync(&softc->fw_reset_task);
 	cancel_work_sync(&softc->sp_task);
@@ -3057,6 +3089,11 @@ bnxt_detach(if_ctx_t ctx)
 	bnxt_free_sysctl_ctx(softc);
 	bnxt_free_crash_dump_mem(softc);
 	bnxt_hwrm_func_reset(softc);
+	/* Must run before bnxt_free_mpc_info(): these gate on mpc_info being
+	 * non-NULL, so freeing it first would leak the MPC rings. */
+	bnxt_free_mpc_rings(softc);
+	bnxt_free_mpcs(softc);
+	bnxt_free_mpc_info(softc);
 	bnxt_free_ctx_mem(softc);
 	bnxt_clear_ids(softc);
 	iflib_irq_free(ctx, &softc->def_cp_ring.irq);
@@ -3133,6 +3170,11 @@ bnxt_hwrm_resource_free(struct bnxt_softc *softc)
 		if (rc)
 			goto fail;
 	}
+
+	rc = bnxt_hwrm_mpc_ring_free(softc);
+	if (rc)
+		goto fail;
+
 	rc = bnxt_hwrm_free_filter(softc);
 	if (rc)
 		goto fail;
@@ -3520,6 +3562,11 @@ skip_def_cp_ring:
 		softc->db_ops.bnxt_db_tx(&softc->tx_rings[i], 0);
 	}
 
+	if (BNXT_PF(softc)) {
+		rc = bnxt_hwrm_mpc_ring_alloc(softc);
+		if (rc)
+			goto fail;
+	}
 	bnxt_do_enable_intr(&softc->def_cp_ring);
 	bnxt_get_port_module_status(softc);
 	bnxt_media_status(softc->ctx, &ifmr);
@@ -5303,6 +5350,7 @@ bnxt_clear_ids(struct bnxt_softc *softc)
 		softc->ag_rings[i].phys_id = (uint16_t)HWRM_NA_SIGNATURE;
 		softc->grp_info[i].grp_id = (uint16_t)HWRM_NA_SIGNATURE;
 	}
+	bnxt_clear_mpc_rings_ids(softc);
 	softc->vnic_info.filter_id = -1;
 	softc->vnic_info.id = (uint16_t)HWRM_NA_SIGNATURE;
 	softc->vnic_info.rss_id = (uint16_t)HWRM_NA_SIGNATURE;
@@ -5310,7 +5358,7 @@ bnxt_clear_ids(struct bnxt_softc *softc)
 	    softc->vnic_info.rss_grp_tbl.idi_size);
 }
 
-static void
+void
 bnxt_mark_cpr_invalid(struct bnxt_cp_ring *cpr)
 {
 	struct cmpl_base *cmp = (void *)cpr->ring.vaddr;

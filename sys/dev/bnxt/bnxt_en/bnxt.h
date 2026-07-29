@@ -608,6 +608,11 @@ struct tx_bd_opaque {
 
 #define TX_RING_MASK(txr) ((txr)->ring_size - 1)
 
+struct bnxt_sw_mpc_tx_bd {
+	uint8_t inline_bds;
+	unsigned long handle;
+};
+
 struct bnxt_ring {
 	uint64_t		paddr;
 	vm_offset_t		doorbell;
@@ -618,6 +623,15 @@ struct bnxt_ring {
 	uint16_t		phys_id;
 	uint16_t		idx;
 	uint16_t		running_bds;	/* host TX-completion-coalescing accumulator */
+	uint8_t			queue_id;	/* CoS queue, or BNXT_MPC_QUEUE_ID below */
+#define BNXT_MPC_QUEUE_ID	0xff
+	uint8_t			mpc_chnl_type;	/* valid when queue_id == BNXT_MPC_QUEUE_ID */
+	struct iflib_dma_info	ring_mem;	/* manual DMA alloc for driver-private rings (MPC) */
+	struct bnxt_cp_ring	*cp_ring;	/* completion ring this TX ring reports to (MPC) */
+	uint16_t		prod;		/* MPC TX ring producer index */
+	uint16_t		cons;		/* MPC TX ring consumer index */
+	struct mtx		tx_lock;	/* MPC TX ring lock */
+	struct bnxt_sw_mpc_tx_bd *tx_mpc_buf_ring;
 	struct bnxt_full_tpa_start *tpa_start;
 	union {
 		u64             db_key64;
@@ -649,6 +663,10 @@ struct bnxt_cp_ring {
 	uint8_t			type;
 #define Q_TYPE_TX		1
 #define Q_TYPE_RX		2
+#define TX_CP_NQ		3	/* MPC-private NQ ring (bnxt_mpc.c) */
+	int			msix_vec;	/* MPC-private ring: bus_setup_intr vector */
+	struct resource		*irq_res;	/* MPC-private ring: bus_setup_intr resource */
+	void			*irq_cookie;	/* MPC-private ring: bus_setup_intr cookie */
 };
 
 struct bnxt_full_tpa_start {
@@ -718,6 +736,10 @@ struct bnxt_func_qcfg {
 	uint16_t alloc_completion_rings;
 	uint16_t alloc_tx_rings;
 	uint16_t alloc_rx_rings;
+	/* Firmware-granted counts before the MPC reservation is subtracted;
+	 * bnxt_set_dflt_mpc_rings() needs these unreduced values. */
+	uint16_t orig_alloc_completion_rings;
+	uint16_t orig_alloc_tx_rings;
 	uint16_t alloc_vnics;
 	uint16_t alloc_rss_ctx;
 	uint16_t alloc_l2_ctx;
@@ -1435,6 +1457,8 @@ struct bnxt_softc {
 	struct bnxt_ptp_cfg	*ptp_cfg;
 	bool			rx_ts_enabled;
 
+	struct bnxt_mpc_info	*mpc_info;
+
 #define BNXT_CAGR_CQCOAL_OFFSET			0xc00
 #define BNXT_CAGR_NQAGG_MAXTIMER		0x5930000
 #define BNXT_CAGR_TICK_RES_DEFAULT		0x2
@@ -1523,6 +1547,10 @@ int bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
 			    uint32_t mem_size, uint8_t depth,
 			    struct bnxt_ctx_mem_type *ctxm);
 int bnxt_hwrm_ptp_qcfg(struct bnxt_softc *bp);
+int bnxt_populate_irq(struct bnxt_softc *softc, int irq_count);
+void bnxt_mark_cpr_invalid(struct bnxt_cp_ring *cpr);
+void bnxt_set_db_mask(struct bnxt_softc *bp, struct bnxt_ring *db,
+    uint32_t ring_type);
 
 static inline u32
 readl_fbsd(struct bnxt_softc *bp, u32 reg_off, u8 bar_idx)
