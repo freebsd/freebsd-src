@@ -1423,6 +1423,14 @@ struct bnxt_softc {
 
 	struct bnxt_ptp_cfg	*ptp_cfg;
 	bool			rx_ts_enabled;
+
+#define BNXT_CAGR_CQCOAL_OFFSET			0xc00
+#define BNXT_CAGR_NQAGG_MAXTIMER		0x5930000
+#define BNXT_CAGR_TICK_RES_DEFAULT		0x2
+#define BNXT_CAGR_TICK_RES_MIN			0x0
+#define BNXT_CAGR_TICK_RES_MAX			0x4
+#define BNXT_CAGR_TICK_RES_OFFSET		16
+	uint32_t		cagr_tick_res;
 };
 
 struct bnxt_filter_info {

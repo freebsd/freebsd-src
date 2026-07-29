@@ -1556,6 +1556,30 @@ bnxt_set_coal_tx_frames_irq(SYSCTL_HANDLER_ARGS) {
 	return rc;
 }
 
+static int
+bnxt_set_cagr_tick_res(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->cagr_tick_res;
+
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	if (val < BNXT_CAGR_TICK_RES_MIN ||
+	    val > BNXT_CAGR_TICK_RES_MAX)
+		return EINVAL;
+
+	softc->cagr_tick_res = val;
+
+	return rc;
+}
+
 static
 void simulate_reset(struct bnxt_softc *bp, char *fwcli_string)
 {
@@ -1648,6 +1672,9 @@ bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_coal_tx_frames_irq, "I",
 	    "interrupt coalescing Tx Frames IRQ");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cagr_tick_res",
+	    CTLTYPE_INT | CTLFLAG_RDTUN | CTLFLAG_MPSAFE, softc, 0,
+	    bnxt_set_cagr_tick_res, "I", "CAGR tick resolution");
 	SYSCTL_ADD_U32(ctx, children, OID_AUTO, "flags", CTLFLAG_RD,
 		&softc->flags, 0, "flags");
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "fw_cap", CTLFLAG_RD,

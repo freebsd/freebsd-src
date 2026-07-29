@@ -2065,6 +2065,26 @@ static inline void __bnxt_map_fw_health_reg(struct bnxt_softc *bp, u32 reg)
 	    BNXT_HWRM_BAR_IDX, reg & BNXT_GRC_BASE_MASK);
 }
 
+static void
+bnxt_set_cqcoal_tick_res(struct bnxt_softc *bp)
+{
+	u32 val = 0;
+	u32 cagr_addr = BNXT_GRCPF_REG_WINDOW_BASE_OUT + BNXT_CAGR_CQCOAL_OFFSET;
+
+	if (!BNXT_CHIP_P7(bp))
+		return;
+
+	writel_fbsd(bp, BNXT_GRCPF_REG_WINDOW_BASE_OUT, BNXT_HWRM_BAR_IDX,
+	    BNXT_CAGR_NQAGG_MAXTIMER);
+	val = readl_fbsd(bp, cagr_addr, BNXT_HWRM_BAR_IDX);
+
+	/* Clear out CAGR tick resolution bits(16-19), before writing new value */
+	val &= ~(0xf << BNXT_CAGR_TICK_RES_OFFSET);
+
+	writel_fbsd(bp, cagr_addr, BNXT_HWRM_BAR_IDX,
+	    (val | bp->cagr_tick_res << BNXT_CAGR_TICK_RES_OFFSET));
+}
+
 static int bnxt_map_fw_health_regs(struct bnxt_softc *bp)
 {
 	struct bnxt_fw_health *fw_health = bp->fw_health;
@@ -2203,6 +2223,12 @@ static bool bnxt_fw_reset_timeout(struct bnxt_softc *bp)
 static int bnxt_open(struct bnxt_softc *bp)
 {
 	int rc = 0;
+
+	/* A function/chip reset drops the CAGR tick-resolution register
+	 * programmed in bnxt_attach_pre(); restore it before we start
+	 * relying on interrupt coalescing again. */
+	bnxt_set_cqcoal_tick_res(bp);
+
 	if (BNXT_PF(bp))
 		rc = bnxt_hwrm_nvm_get_dev_info(bp, &bp->nvm_info->mfg_id,
 			&bp->nvm_info->device_id, &bp->nvm_info->sector_size,
@@ -2886,6 +2912,10 @@ bnxt_attach_pre(if_ctx_t ctx)
 	    HWRM_VNIC_RSS_CFG_INPUT_HASH_TYPE_IPV6 |
 	    HWRM_VNIC_RSS_CFG_INPUT_HASH_TYPE_TCP_IPV6 |
 	    HWRM_VNIC_RSS_CFG_INPUT_HASH_TYPE_UDP_IPV6;
+
+	if (BNXT_CHIP_P7(softc))
+		softc->cagr_tick_res = BNXT_CAGR_TICK_RES_DEFAULT;
+
 	rc = bnxt_create_config_sysctls_pre(softc);
 	if (rc)
 		goto failed;
@@ -2929,6 +2959,8 @@ bnxt_attach_pre(if_ctx_t ctx)
 		if (pci_get_vpd_readonly(softc->dev, "PN", &part_num) == 0)
 			snprintf(softc->board_partno, sizeof(softc->board_partno), "%s", part_num);
 	}
+
+	bnxt_set_cqcoal_tick_res(softc);
 
 	return (rc);
 
