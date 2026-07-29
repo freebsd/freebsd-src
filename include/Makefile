@@ -151,6 +151,10 @@ CAMSCSI=	scsi_all.h \
 		smp_all.h
 CAMSCSIDIR=	${INCLUDEDIR}/cam/scsi
 
+.PATH: ${SRCTOP}/sys/dev/coreboot
+COREBOOT=	corebootio.h
+COREBOOTDIR=	${INCLUDEDIR}/dev/coreboot
+
 .PATH: ${SRCTOP}/sys/fs/cd9660
 FS9660=		cd9660_mount.h \
 		cd9660_node.h \
@@ -254,6 +258,7 @@ INCSGROUPS=	INCS \
 		CAMMMC \
 		CAMNVME \
 		CAMSCSI \
+		COREBOOT \
 		CRYPTO \
 		EVDEV \
 		FS9660 \
@@ -381,7 +386,7 @@ copies: .PHONY .META
 	cd ${SDESTDIR}${INCLUDEDIR}; find ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto \
 	    machine machine/pc ${_MARCHS} -maxdepth 1 -mindepth 1 -type l \
 	    -name "*.h" -print -delete || true
-.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hid:Ndev/hyperv:Ndev/pci:Ndev/veriexec:Ndev/wg} ${LSUBSUBDIRS}
+.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/coreboot:Ndev/evdev:Ndev/hid:Ndev/hyperv:Ndev/pci:Ndev/veriexec:Ndev/wg} ${LSUBSUBDIRS}
 	cd ${SRCTOP}/sys; \
 	${INSTALL} -C ${TAG_ARGS:D${TAG_ARGS},dev} -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${SDESTDIR}${INCLUDEDIR}/$i
@@ -417,7 +422,7 @@ symlinks: .PHONY .META
 	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
 	    $$(printf '../../../%s ' sys/$i/*.h) ${SDESTDIR}${INCLUDEDIR}/$i
 .endfor
-.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hid:Ndev/hyperv:Ndev/pci:Ndev/veriexec:Ndev/wg}
+.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/coreboot:Ndev/evdev:Ndev/hid:Ndev/hyperv:Ndev/pci:Ndev/veriexec:Ndev/wg}
 	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
 	    $$(printf '../../../../%s ' sys/$i/*.h) ${SDESTDIR}${INCLUDEDIR}/$i
 .endfor
@@ -438,6 +443,8 @@ symlinks: .PHONY .META
 	    ${SDESTDIR}${INCLUDEDIR}/dev/hyperv; \
 	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/pci/pcireg.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/pci; \
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/coreboot/corebootio.h \
+	    ${SDESTDIR}${INCLUDEDIR}/dev/coreboot; \
 	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/veriexec/veriexec_ioctl.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/veriexec;
 .for i in ${LSUBSUBDIRS}

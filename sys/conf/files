@@ -1358,6 +1358,10 @@ dev/cfi/cfi_core.c		optional cfi
 dev/cfi/cfi_dev.c		optional cfi
 dev/cfi/cfi_disk.c		optional cfid
 dev/chromebook_platform/chromebook_platform.c	optional chromebook_platform
+dev/coreboot/coreboot.c			optional coreboot
+dev/coreboot/coreboot_cbmem.c		optional coreboot
+dev/coreboot/coreboot_console.c		optional coreboot
+dev/coreboot/coreboot_timestamps.c	optional coreboot
 dev/ciss/ciss.c			optional ciss
 dev/clk/clk.c			optional clk
 dev/clk/clkdev_if.m		optional clk
