@@ -1700,8 +1700,7 @@ bnxt_thor2_db_rx_cq(void *db_ptr, bool enable_irq)
 	uint32_t cons = cpr->raw_cons;
 	uint32_t toggle = 0;
 
-	if (cons == UINT32_MAX)
-		cons = 0;
+	cons++;
 
 	if (enable_irq == true)
 		toggle = cpr->toggle;
