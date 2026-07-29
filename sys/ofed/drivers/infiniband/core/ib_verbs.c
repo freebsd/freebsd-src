@@ -1698,6 +1698,54 @@ int ib_modify_qp_with_udata(struct ib_qp *ib_qp, struct ib_qp_attr *attr,
 }
 EXPORT_SYMBOL(ib_modify_qp_with_udata);
 
+int ib_get_eth_speed(struct ib_device *dev, u8 port_num, u16 *speed, u8 *width)
+{
+	uint64_t netdev_speed;
+	if_t netdev;
+
+	if (rdma_port_get_link_layer(dev, port_num) != IB_LINK_LAYER_ETHERNET)
+		return -EINVAL;
+
+	if (!dev->get_netdev)
+		return -EOPNOTSUPP;
+
+	netdev = dev->get_netdev(dev, port_num);
+	if (!netdev)
+		return -ENODEV;
+
+        netdev_speed = if_getbaudrate(netdev);
+
+	dev_put(netdev);
+
+	if (netdev_speed == 0) {
+		netdev_speed = IF_Mbps(1000);
+		if_printf(netdev, "speed is unknown, defaulting to 1Gbps\n");
+	}
+
+	if (netdev_speed <= IF_Mbps(1000)) {
+		*width = IB_WIDTH_1X;
+		*speed = IB_SPEED_SDR;
+	} else if (netdev_speed <= IF_Mbps(10000)) {
+		*width = IB_WIDTH_1X;
+		*speed = IB_SPEED_FDR10;
+	} else if (netdev_speed <= IF_Mbps(20000)) {
+		*width = IB_WIDTH_4X;
+		*speed = IB_SPEED_DDR;
+	} else if (netdev_speed <= IF_Mbps(25000)) {
+		*width = IB_WIDTH_1X;
+		*speed = IB_SPEED_EDR;
+	} else if (netdev_speed <= IF_Mbps(40000)) {
+		*width = IB_WIDTH_4X;
+		*speed = IB_SPEED_FDR10;
+	} else {
+		*width = IB_WIDTH_4X;
+		*speed = IB_SPEED_EDR;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ib_get_eth_speed);
+
 int ib_modify_qp(struct ib_qp *qp,
 		 struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask)

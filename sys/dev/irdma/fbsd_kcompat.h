@@ -147,7 +147,6 @@ void irdma_destroy_ah(struct ib_ah *ibah, u32 flags);
 void irdma_destroy_ah_stub(struct ib_ah *ibah, u32 flags);
 int irdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 int irdma_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata);
-int ib_get_eth_speed(struct ib_device *dev, u32 port_num, u16 *speed, u8 *width);
 enum rdma_link_layer irdma_get_link_layer(struct ib_device *ibdev,
 					  u8 port_num);
 int irdma_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
