@@ -78,11 +78,11 @@ translator siftrinfo_t < struct pkt_node *p > {
 	rport =			p == NULL ? 0 : ntohs(p->fport);
 	laddr =			p == NULL ? "<unknown>" :
 	    p->ipver == INP_IPV4 ?
-	    inet_ntoa(&p->laddr.id46_addr.ia46_addr4.s_addr) :
+	    inet_ntoa(&p->laddr.id4_addr.s_addr) :
 	    inet_ntoa6(&p->laddr.id6_addr);
 	raddr =			p == NULL ? "<unknown>" :
 	    p->ipver == INP_IPV4 ?
-	    inet_ntoa(&p->faddr.id46_addr.ia46_addr4.s_addr) :
+	    inet_ntoa(&p->faddr.id4_addr.s_addr) :
 	    inet_ntoa6(&p->faddr.id6_addr);
 	snd_cwnd =		p == NULL ? 0 : p->snd_cwnd;
 	snd_wnd =		p == NULL ? 0 : p->snd_wnd;
