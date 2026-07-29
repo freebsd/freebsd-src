@@ -1626,6 +1626,7 @@ em_if_attach_post(if_ctx_t ctx)
 		sc->ustats.stats = (struct e1000_hw_stats){};
 
 	em_update_stats_counters(sc);
+	atomic_readandclear_32(&sc->stats_pending);
 	hw->mac.get_link_status = 1;
 	if (sc->vf_ifp)
 		igbv_if_update_admin_status(ctx);
@@ -2595,9 +2596,13 @@ em_if_multi_set(if_ctx_t ctx)
 static void
 em_if_timer(if_ctx_t ctx, uint16_t qid)
 {
+	struct e1000_softc *sc;
+
 	if (qid != 0)
 		return;
 
+	sc = iflib_get_softc(ctx);
+	atomic_set_32(&sc->stats_pending, 1);
 	iflib_admin_intr_deferred(ctx);
 }
 
@@ -2733,7 +2738,15 @@ em_if_update_admin_status(if_ctx_t ctx)
 			iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
 		igb_iov_ping_all_vfs(sc);
 	}
-	em_update_stats_counters(sc);
+	/*
+	 * Mailbox, link, and timer events share this admin task.  The PF
+	 * statistics sweep performs 66 MMIO reads, so run it only when the
+	 * ordinary iflib timer requests a sample rather than once per mailbox
+	 * message.  Exported counters can consequently trail hardware by the
+	 * timer interval (normally 500 ms).
+	 */
+	if (atomic_readandclear_32(&sc->stats_pending) != 0)
+		em_update_stats_counters(sc);
 
 	/* Reset LAA into RAR[0] on 82571 */
 	if (hw->mac.type == e1000_82571 && e1000_get_laa_state_82571(hw))

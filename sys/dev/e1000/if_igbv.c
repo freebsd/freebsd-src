@@ -151,7 +151,8 @@ igbv_if_update_admin_status(if_ctx_t ctx)
 		iflib_admin_intr_deferred(ctx);
 	}
 	/* em_if_init() establishes a new counter baseline after the reset. */
-	if (!sc->vf_reset_pending)
+	if (!sc->vf_reset_pending &&
+	    atomic_readandclear_32(&sc->stats_pending) != 0)
 		em_update_stats_counters(sc);
 }
 

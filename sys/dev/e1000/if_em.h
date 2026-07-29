@@ -596,6 +596,7 @@ struct e1000_softc {
 	int			link_mask;
 	int			tso_automasked;
 	u32			promisc_pending;
+	u32			stats_pending;
 
 #ifdef PCI_IOV
 	struct igb_vf		*vfs;
