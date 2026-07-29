@@ -132,6 +132,30 @@ option_shell() {
 	/bin/sh
 }
 
+#
+# option mtree parameters and check function
+#
+mtree_name="mtree"
+mtree_desc="compare partition directory hierarchy mtree with installation media mtree"
+MTREE_LOG=/tmp/bsdinstall_repair_mtree_log
+option_mtree() {
+	mtree -e -p /mnt -f /etc/mtree/BSD.root.dist > $MTREE_LOG 2>&1
+	retval=$?
+	[ $retval -eq 0 ] && echo "mtrees match" > $MTREE_LOG
+	bsddialog --backtitle "$OSNAME Installer" --title 'MTREE' \
+	        --textbox $MTREE_LOG 0 0
+
+	[ $retval -eq 0 ] && return
+
+	bsddialog --backtitle "$OSNAME Installer" --title 'mtree detected changes' \
+	        --yesno 'Some changes were detected. Would you like to reset to defaults?' --defaultno 0 0
+	if [ $? -eq $BSDDIALOG_OK ]; then
+	        mtree -eu -p /mnt -f /etc/mtree/BSD.root.dist > $MTREE_LOG 2>&1
+	        bsddialog --backtitle "$OSNAME Installer" --title 'MTREE RESET' \
+	                --textbox $MTREE_LOG 0 0
+	fi
+}
+
 while :; do
 	#
 	# Initialize by grepping ufs partitions and zfs pools on the system
@@ -195,6 +219,7 @@ while :; do
 		set --
 		[ "$mounted" = yes ] && set -- "$@" "$chroot_name" "$chroot_desc"
 		set -- "$@" "$shell_name" "$shell_desc"
+		set -- "$@" "$mtree_name" "$mtree_desc"
 
 		exec 5>&1
 		action=$(bsddialog --backtitle "$OSNAME Installer" --title 'Inspect selected partition' \
@@ -244,6 +269,9 @@ while :; do
 			;;
 		$shell_name)
 			option_shell
+			;;
+		$mtree_name)
+			option_mtree
 			;;
 		esac
 	done
