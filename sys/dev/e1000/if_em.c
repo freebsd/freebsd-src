@@ -3763,7 +3763,7 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 			sc->txd_cmd |= E1000_TXD_CMD_IDE;
 	}
 
-	if (hw->mac.type >= e1000_82540)
+	if (hw->mac.type >= e1000_82540 && hw->mac.type < igb_mac_min)
 		E1000_WRITE_REG(hw, E1000_TADV, sc->tx_abs_int_delay.value);
 
 	if (hw->mac.type == e1000_82571 || hw->mac.type == e1000_82572) {
