@@ -4232,7 +4232,7 @@ ATF_TC_BODY(ptrace__proc_reparent, tc)
 	pid_t traced, debuger, wpid;
 	int pd, status;
 
-	traced = pdfork(&pd, 0);
+	traced = pdfork(&pd, PD_NOWAITPID);
 	ATF_REQUIRE(traced >= 0);
 	if (traced == 0) {
 		raise(SIGSTOP);
@@ -4305,12 +4305,11 @@ ATF_TC_BODY(ptrace__procdesc_wait_child, tc)
 	ATF_REQUIRE(ptrace(PT_CONTINUE, child, (caddr_t)1, 0) != -1);
 
 	/*
-	 * If process was created by pdfork, the return code have to
-	 * be collected through process descriptor.
+	 * If process was created by pdfork but without PD_NOWAITPID,
+	 * the return code is available for wait().
 	 */
 	wpid = wait(&status);
-	REQUIRE_EQ(wpid, -1);
-	REQUIRE_EQ(errno, ECHILD);
+	REQUIRE_EQ(wpid, child);
 
 	ATF_REQUIRE(close(pd) != -1);
 }
