@@ -90,6 +90,12 @@
 #include <net/if_bridgevar.h>
 #include <net/if_gif.h>
 
+#include <netlink/netlink.h>
+#include <netlink/netlink_ctl.h>
+#include <netlink/netlink_var.h>
+#include <netlink/netlink_route.h>
+#include <netlink/route/route_var.h>
+
 #include <security/mac/mac_framework.h>
 
 static const char gifname[] = "gif";
@@ -97,6 +103,7 @@ static const char gifname[] = "gif";
 MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
 static struct sx gif_ioctl_sx;
 SX_SYSINIT(gif_ioctl_sx, &gif_ioctl_sx, "gif_ioctl");
+#define GIF_LOCK_ASSERT() sx_assert(&gif_ioctl_sx, SA_XLOCKED)
 
 void	(*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp, int af);
 void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
@@ -110,8 +117,18 @@ static void	gif_delete_tunnel(struct gif_softc *);
 static int	gif_ioctl(struct ifnet *, u_long, caddr_t);
 static int	gif_transmit(struct ifnet *, struct mbuf *);
 static void	gif_qflush(struct ifnet *);
-static int	gif_clone_create(struct if_clone *, int, caddr_t);
-static void	gif_clone_destroy(struct ifnet *);
+static int	gif_clone_create(struct if_clone *, char *, size_t,
+		    struct ifc_data *, struct ifnet **);
+static int	gif_clone_destroy(struct if_clone *, struct ifnet *, uint32_t);
+static int	gif_clone_create_nl(struct if_clone *, char *, size_t,
+		    struct ifc_data_nl *);
+static int	gif_clone_modify_nl(struct ifnet *, struct ifc_data_nl *);
+static void	gif_clone_dump_nl(struct ifnet *, struct nl_writer *);
+
+static int	gif_set_addr_nl(struct gif_softc *, struct nl_pstate *,
+		    struct sockaddr *, struct sockaddr *);
+static int	gif_set_flags_nl(struct gif_softc *, struct nl_pstate *,
+		    uint32_t);
 VNET_DEFINE_STATIC(struct if_clone *, gif_cloner);
 #define	V_gif_cloner	VNET(gif_cloner)
 
@@ -134,8 +151,145 @@ VNET_DEFINE_STATIC(int, max_gif_nesting) = MAX_GIF_NEST;
 SYSCTL_INT(_net_link_gif, OID_AUTO, max_nesting, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(max_gif_nesting), 0, "Max nested tunnels");
 
+struct nl_parsed_gif {
+	struct sockaddr		*ifla_local;
+	struct sockaddr		*ifla_remote;
+	uint32_t		ifla_flags;
+};
+
+#define _OUT(_field)   offsetof(struct nl_parsed_gif, _field)
+static const struct nlattr_parser nla_p_gif[] = {
+	{ .type = IFLA_IPTUN_LOCAL, .off = _OUT(ifla_local), .cb = nlattr_get_ip },
+	{ .type = IFLA_IPTUN_REMOTE, .off = _OUT(ifla_remote), .cb = nlattr_get_ip },
+	{ .type = IFLA_IPTUN_FLAGS, .off = _OUT(ifla_flags), .cb = nlattr_get_uint32 },
+};
+#undef _OUT
+NL_DECLARE_ATTR_PARSER(gif_modify_parser, nla_p_gif);
+
+static const struct nlhdr_parser *all_parsers[] = {
+       &gif_modify_parser,
+};
+
 static int
-gif_clone_create(struct if_clone *ifc, int unit, caddr_t params)
+gif_clone_create_nl(struct if_clone *ifc, char *name, size_t len,
+    struct ifc_data_nl *ifd)
+{
+	struct ifc_data ifd_new = {
+		.flags = IFC_F_SYSSPACE,
+		.unit = ifd->unit,
+	};
+
+	return (gif_clone_create(ifc, name, len, &ifd_new, &ifd->ifp));
+}
+
+static int
+gif_clone_modify_nl(struct ifnet *ifp, struct ifc_data_nl *ifd)
+{
+	struct gif_softc *sc;
+	struct nl_parsed_link *lattrs = ifd->lattrs;
+	struct nl_pstate *npt = ifd->npt;
+	struct nl_parsed_gif params = {};
+	struct nlattr *attrs = lattrs->ifla_idata;
+	struct nlattr_bmask bm;
+	int error;
+
+	if ((attrs == NULL) ||
+	    (nl_has_attr(ifd->bm, IFLA_LINKINFO) == 0)) {
+		error = nl_modify_ifp_generic(ifp, lattrs, ifd->bm, npt);
+		return (error);
+	}
+
+	error = priv_check(curthread, PRIV_NET_GIF);
+	if (error)
+		return (error);
+
+	nl_get_attrs_bmask_raw(NLA_DATA(attrs), NLA_DATA_LEN(attrs), &bm);
+	if ((error = nl_parse_nested(attrs, &gif_modify_parser, npt, &params)) != 0)
+		return (error);
+
+	sx_xlock(&gif_ioctl_sx);
+	sc = ifp->if_softc;
+	if (sc == NULL)
+		goto generic;
+
+	if (nl_has_attr(&bm, IFLA_IPTUN_LOCAL) && nl_has_attr(&bm, IFLA_IPTUN_REMOTE))
+		error = gif_set_addr_nl(sc, npt, params.ifla_local, params.ifla_remote);
+	else if (nl_has_attr(&bm, IFLA_IPTUN_LOCAL) || nl_has_attr(&bm, IFLA_IPTUN_REMOTE)) {
+		error = EINVAL;
+		nlmsg_report_err_msg(npt, "Specify both remote and local address together");
+	}
+
+	if (error == 0 && nl_has_attr(&bm, IFLA_IPTUN_FLAGS))
+		error = gif_set_flags_nl(sc, npt, params.ifla_flags);
+
+generic:
+	sx_xunlock(&gif_ioctl_sx);
+
+	if (error == 0)
+		error = nl_modify_ifp_generic(ifp, ifd->lattrs, ifd->bm, ifd->npt);
+
+	return (error);
+}
+
+static void
+gif_clone_dump_nl(struct ifnet *ifp, struct nl_writer *nw)
+{
+	struct gif_softc *sc;
+	int off, off2;
+
+	nlattr_add_u32(nw, IFLA_LINK, ifp->if_index);
+	nlattr_add_string(nw, IFLA_IFNAME, ifp->if_xname);
+
+	off = nlattr_add_nested(nw, IFLA_LINKINFO);
+	if (off == 0)
+		return;
+
+	nlattr_add_string(nw, IFLA_INFO_KIND, gifname);
+	off2 = nlattr_add_nested(nw, IFLA_INFO_DATA);
+	if (off2 == 0) {
+		nlattr_set_len(nw, off);
+		return;
+	}
+
+	sx_slock(&gif_ioctl_sx);
+	sc = ifp->if_softc;
+	if (sc == NULL)
+		goto ret;
+
+	if (sc->gif_family == AF_INET) {
+#ifdef INET
+		struct in_aliasreq in;
+		if (in_gif_ioctl(sc, SIOCGIFPSRCADDR, (caddr_t)&in) == 0)
+			nlattr_add_in_addr(nw, IFLA_IPTUN_LOCAL,
+			    &in.ifra_addr.sin_addr);
+		if (in_gif_ioctl(sc, SIOCGIFPDSTADDR, (caddr_t)&in) == 0)
+			nlattr_add_in_addr(nw, IFLA_IPTUN_REMOTE,
+			    &in.ifra_addr.sin_addr);
+#endif
+	} else if (sc->gif_family == AF_INET6) {
+#ifdef INET6
+		struct in6_aliasreq in6;
+		if (in6_gif_ioctl(sc, SIOCGIFPSRCADDR_IN6, (caddr_t)&in6) == 0)
+			nlattr_add_in6_addr(nw, IFLA_IPTUN_LOCAL,
+			    &in6.ifra_addr.sin6_addr);
+		if (in6_gif_ioctl(sc, SIOCGIFPDSTADDR_IN6, (caddr_t)&in6) == 0)
+			nlattr_add_in6_addr(nw, IFLA_IPTUN_REMOTE,
+			    &in6.ifra_addr.sin6_addr);
+#endif
+	}
+
+	nlattr_add_u32(nw, IFLA_IPTUN_FLAGS, sc->gif_options);
+
+ret:
+	nlattr_set_len(nw, off2);
+	nlattr_set_len(nw, off);
+
+	sx_sunlock(&gif_ioctl_sx);
+}
+
+static int
+gif_clone_create(struct if_clone *ifc, char *name, size_t len,
+    struct ifc_data *ifd, struct ifnet **ifpp)
 {
 	struct gif_softc *sc;
 
@@ -143,7 +297,7 @@ gif_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	sc->gif_fibnum = curthread->td_proc->p_fibnum;
 	GIF2IFP(sc) = if_alloc(IFT_GIF);
 	GIF2IFP(sc)->if_softc = sc;
-	if_initname(GIF2IFP(sc), gifname, unit);
+	if_initname(GIF2IFP(sc), gifname, ifd->unit);
 
 	GIF2IFP(sc)->if_addrlen = 0;
 	GIF2IFP(sc)->if_mtu    = GIF_MTU;
@@ -161,6 +315,7 @@ gif_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	bpfattach(GIF2IFP(sc), DLT_NULL, sizeof(u_int32_t));
 	if (ng_gif_attach_p != NULL)
 		(*ng_gif_attach_p)(GIF2IFP(sc));
+	*ifpp = GIF2IFP(sc);
 
 	return (0);
 }
@@ -180,32 +335,42 @@ gif_reassign(struct ifnet *ifp, struct vnet *new_vnet __unused,
 }
 #endif /* VIMAGE */
 
-static void
-gif_clone_destroy(struct ifnet *ifp)
+static int
+gif_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 {
 	struct gif_softc *sc;
 
 	sx_xlock(&gif_ioctl_sx);
 	sc = ifp->if_softc;
 	gif_delete_tunnel(sc);
+	ifp->if_softc = NULL;
+	sx_xunlock(&gif_ioctl_sx);
 	if (ng_gif_detach_p != NULL)
 		(*ng_gif_detach_p)(ifp);
 	bpfdetach(ifp);
 	if_detach(ifp);
-	ifp->if_softc = NULL;
-	sx_xunlock(&gif_ioctl_sx);
 
 	GIF_WAIT();
 	if_free(ifp);
 	free(sc, M_GIF);
+
+	return (0);
 }
 
 static void
 vnet_gif_init(const void *unused __unused)
 {
-
-	V_gif_cloner = if_clone_simple(gifname, gif_clone_create,
-	    gif_clone_destroy, 0);
+	struct if_clone_addreq_v2 req = {
+		.version = 2,
+		.flags = IFC_F_AUTOUNIT,
+		.match_f = NULL,
+		.create_f = gif_clone_create,
+		.destroy_f = gif_clone_destroy,
+		.create_nl_f = gif_clone_create_nl,
+		.modify_nl_f = gif_clone_modify_nl,
+		.dump_nl_f = gif_clone_dump_nl,
+	};
+	V_gif_cloner = ifc_attach_cloner(gifname, (struct if_clone_addreq *)&req);
 #ifdef INET
 	in_gif_init();
 #endif
@@ -220,7 +385,7 @@ static void
 vnet_gif_uninit(const void *unused __unused)
 {
 
-	if_clone_detach(V_gif_cloner);
+	ifc_detach_cloner(V_gif_cloner);
 #ifdef INET
 	in_gif_uninit();
 #endif
@@ -237,6 +402,8 @@ gifmodevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
+		NL_VERIFY_PARSERS(all_parsers);
+		break;
 	case MOD_UNLOAD:
 		break;
 	default:
@@ -567,6 +734,37 @@ drop:
 }
 
 static int
+gif_set_flags(struct gif_softc *sc, u_int opt)
+{
+	int error = 0;
+
+	GIF_LOCK_ASSERT();
+
+	if (opt & ~GIF_OPTMASK)
+		return (EINVAL);
+	if (sc->gif_options == opt)
+		return (0);
+
+	switch (sc->gif_family) {
+#ifdef INET
+	case AF_INET:
+		error = in_gif_setopts(sc, opt);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		error = in6_gif_setopts(sc, opt);
+		break;
+#endif
+	default:
+		/* No need to invoke AF-handler */
+		sc->gif_options = opt;
+	}
+
+	return (error);
+}
+
+static int
 gif_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ifreq *ifr = (struct ifreq*)data;
@@ -640,27 +838,7 @@ gif_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    sizeof(options));
 		if (error)
 			break;
-		if (options & ~GIF_OPTMASK) {
-			error = EINVAL;
-			break;
-		}
-		if (sc->gif_options != options) {
-			switch (sc->gif_family) {
-#ifdef INET
-			case AF_INET:
-				error = in_gif_setopts(sc, options);
-				break;
-#endif
-#ifdef INET6
-			case AF_INET6:
-				error = in6_gif_setopts(sc, options);
-				break;
-#endif
-			default:
-				/* No need to invoke AF-handler */
-				sc->gif_options = options;
-			}
-		}
+		error = gif_set_flags(sc, options);
 		break;
 	default:
 		error = EINVAL;
@@ -687,7 +865,7 @@ static void
 gif_delete_tunnel(struct gif_softc *sc)
 {
 
-	sx_assert(&gif_ioctl_sx, SA_XLOCKED);
+	GIF_LOCK_ASSERT();
 	if (sc->gif_family != 0) {
 		CK_LIST_REMOVE(sc, srchash);
 		CK_LIST_REMOVE(sc, chain);
@@ -698,4 +876,62 @@ gif_delete_tunnel(struct gif_softc *sc)
 	sc->gif_family = 0;
 	GIF2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
 	if_link_state_change(GIF2IFP(sc), LINK_STATE_DOWN);
+}
+
+static int
+gif_set_addr_nl(struct gif_softc *sc, struct nl_pstate *npt,
+    struct sockaddr *src, struct sockaddr *dst)
+{
+#if defined(INET) || defined(INET6)
+	union {
+#ifdef INET
+		struct in_aliasreq in;
+#endif
+#ifdef INET6
+		struct in6_aliasreq in6;
+#endif
+	} aliasreq;
+#endif
+	int error;
+
+	/* XXX: this sanity check runs again in in[6]_gif_ioctl */
+	if (src->sa_family != dst->sa_family)
+		error = EADDRNOTAVAIL;
+#ifdef INET
+	else if (src->sa_family == AF_INET) {
+		memcpy(&aliasreq.in.ifra_addr, src, sizeof(struct sockaddr_in));
+		memcpy(&aliasreq.in.ifra_dstaddr, dst, sizeof(struct sockaddr_in));
+		error = in_gif_ioctl(sc, SIOCSIFPHYADDR, (caddr_t)&aliasreq.in);
+	}
+#endif
+#ifdef INET6
+	else if (src->sa_family == AF_INET6) {
+		memcpy(&aliasreq.in6.ifra_addr, src, sizeof(struct sockaddr_in6));
+		memcpy(&aliasreq.in6.ifra_dstaddr, dst, sizeof(struct sockaddr_in6));
+		error = in6_gif_ioctl(sc, SIOCSIFPHYADDR_IN6, (caddr_t)&aliasreq.in6);
+	}
+#endif
+	else
+		error = EAFNOSUPPORT;
+
+	if (error == EADDRNOTAVAIL)
+		nlmsg_report_err_msg(npt, "address is invalid");
+	if (error == EEXIST)
+		nlmsg_report_err_msg(npt, "remote and local addresses are the same");
+	if (error == EAFNOSUPPORT)
+		nlmsg_report_err_msg(npt, "address family is not supported");
+
+	return (error);
+}
+
+static int
+gif_set_flags_nl(struct gif_softc *sc, struct nl_pstate *npt, uint32_t opt)
+{
+	int error;
+
+	error = gif_set_flags(sc, opt);
+	if (error == EINVAL)
+		nlmsg_report_err_msg(npt, "gif flags are invalid");
+
+	return (error);
 }
