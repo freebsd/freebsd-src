@@ -37,10 +37,13 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_rss.h"
+#include "opt_kern_tls.h"
 
 #include <machine/atomic.h>
 #include "bnxt.h"
 #include "bnxt_ptp.h"
+#include "bnxt_ktls.h"
+#include "bnxt_log.h"
 
 /*
  * Function prototypes
@@ -79,7 +82,7 @@ struct if_txrx bnxt_txrx  = {
  * Device Dependent Packet Transmit and Receive Functions
  */
 
-static const uint16_t bnxt_tx_lhint[] = {
+const uint16_t bnxt_tx_lhint[] = {
 	TX_BD_SHORT_FLAGS_LHINT_LT512,
 	TX_BD_SHORT_FLAGS_LHINT_LT1K,
 	TX_BD_SHORT_FLAGS_LHINT_LT2K,
@@ -97,11 +100,26 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 	bool need_cpl = false;
 	bool need_hi = false;
 	uint16_t flags_type;
-	uint16_t lflags;
+	uint16_t lflags = 0;
 	uint32_t cfa_meta;
 	int seg = 0;
 	uint8_t wrap = 0;
 	struct tx_bd_opaque *opq;
+
+	txr->prod = pi->ipi_pidx;
+#ifdef KTLS_IFLIB_SUPPORT
+	uint32_t kid = 0;
+	int ret;
+
+	if (pi->ipi_mbuf != NULL) {
+		ret = bnxt_ktls_xmit(softc, txr, &pi->ipi_mbuf, &lflags, &kid, pi);
+
+		if (ret) {
+			BNXT_DEBUG(softc->dev, "kTLS xmit failed, ret=%d\n", ret);
+			return ret;
+		}
+	}
+#endif
 
 	if ((pi->ipi_flags & IPI_TX_INTR) != 0)
 		need_cpl = true;
@@ -121,7 +139,7 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 	/* TODO: Devices before Cu+B1 need to not mix long and short BDs */
 	need_hi = true;
 
-	pi->ipi_new_pidx = pi->ipi_pidx;
+	pi->ipi_new_pidx = txr->prod;
 	tbd = &((struct tx_bd_long *)txr->vaddr)[pi->ipi_new_pidx];
 	pi->ipi_ndescs = 0;
 	opq = (struct tx_bd_opaque *)&tbd->opaque;
@@ -165,11 +183,21 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 			txr->epoch_arr[pi->ipi_new_pidx] = txr->epoch_bit;
 
 		tbdh = &((struct tx_bd_long_hi *)txr->vaddr)[pi->ipi_new_pidx];
+#ifdef KTLS_IFLIB_SUPPORT
+		tbdh->kid_or_ts_high_mss = htole32((pi->ipi_tso_segsz &  TX_BD_LONG_MSS_MASK) |
+					   ((KID_HIGH(kid) << TX_BD_LONG_KID_OR_TS_HIGH_SFT) &
+					     TX_BD_LONG_KID_OR_TS_HIGH_MASK));
+
+		tbdh->kid_or_ts_low_hdr_size = htole16((((pi->ipi_ehdrlen + pi->ipi_ip_hlen +
+					pi->ipi_tcp_hlen) >> 1) & TX_BD_LONG_HDR_SIZE_MASK) |
+					((KID_LOW(kid) << TX_BD_LONG_KID_OR_TS_LOW_SFT) &
+					 TX_BD_LONG_KID_OR_TS_LOW_MASK));
+#else
 		tbdh->kid_or_ts_high_mss = htole16(pi->ipi_tso_segsz);
 		tbdh->kid_or_ts_low_hdr_size = htole16((pi->ipi_ehdrlen + pi->ipi_ip_hlen +
 		    pi->ipi_tcp_hlen) >> 1);
+#endif
 		tbdh->cfa_action = 0;
-		lflags = 0;
 		cfa_meta = 0;
 		if (pi->ipi_mflags & M_VLANTAG) {
 			/* TODO: Do we need to byte-swap the vtag here? */
@@ -231,6 +259,7 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 	if (pi->ipi_new_pidx < EPOCH_ARR_SZ)
 		txr->epoch_arr[pi->ipi_new_pidx] = txr->epoch_bit;
 
+	txr->prod = pi->ipi_new_pidx;
 	return 0;
 }
 
@@ -252,6 +281,7 @@ bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, bool clear)
 	struct bnxt_cp_ring *cpr = &softc->tx_cp_rings[txqid];
 	struct tx_cmpl *cmpl = (struct tx_cmpl *)cpr->ring.vaddr;
 	struct bnxt_ring *txr;
+	struct bnxt_sw_tx_bd *tx_buf;
 	int avail = 0;
 	uint32_t cons = cpr->cons;
 	uint32_t raw_cons = cpr->raw_cons;
@@ -294,6 +324,32 @@ bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, bool clear)
 			 */
 			if (!clear)
 				goto done;
+
+			if (__predict_false(opq->ktls_replay)) {
+				struct bnxt_tls_info *ktls = softc->ktls_info;
+				struct bnxt_replay_pkt *pkt;
+				uint32_t idx = opq->idx;
+
+				txr = &softc->tx_rings[txqid];
+				if (idx >= txr->ring_size) {
+					bnxt_log_live(softc, BNXT_LOGGER_L2,
+					    "%s: Invalid replay idx %u (ring_size=%u) "
+					    "on TXQ %u, opaque 0x%x\n",
+					    __func__, idx, txr->ring_size, txqid,
+					    cmpl[cons].opaque);
+					break;
+				}
+				tx_buf = &txr->tx_buf_ring[idx];
+				pkt = &txr->replay_pkt[idx];
+				MPASS(tx_buf->is_replay);
+				bus_dmamap_sync(ktls->dma_tag, pkt->dma_map,
+				    BUS_DMASYNC_POSTWRITE);
+				bus_dmamap_unload(ktls->dma_tag, pkt->dma_map);
+				m_freem(pkt->mbuf);
+				counter_u64_add(ktls->counters[BNXT_KTLS_TX_MBUF_FREES], 1);
+				pkt->mbuf = NULL;
+				tx_buf->is_replay = 0;
+			}
 			break;
 		case TX_CMPL_COAL_TYPE_TX_L2_COAL:
 			if (softc->fw_cap & BNXT_FLAG_TX_COAL_CMPL) {
