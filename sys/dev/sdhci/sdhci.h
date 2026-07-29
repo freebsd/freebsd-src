@@ -95,6 +95,8 @@
 #define	SDHCI_QUIRK_MMC_HS400_IF_CAN_SDR104		(1 << 29)
 /* SDMA boundary in SDHCI_BLOCK_SIZE broken - use front-end supplied value. */
 #define	SDHCI_QUIRK_BROKEN_SDMA_BOUNDARY		(1 << 30)
+/* Slot type in SDHCI_CAPABILITIES reads as embedded, but slot is removable. */
+#define	SDHCI_QUIRK_SLOTTYPE_BROKEN			(1U << 31)
 
 /*
  * Controller registers

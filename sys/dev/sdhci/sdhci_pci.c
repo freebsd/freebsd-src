@@ -142,6 +142,7 @@ static const struct sdhci_device {
 	{ 0x5aca8086,	0xffff,	"Intel Apollo Lake SDXC Controller",
 	    SDHCI_QUIRK_BROKEN_DMA |	/* APL18 erratum */
 	    SDHCI_QUIRK_WAIT_WHILE_BUSY |
+	    SDHCI_QUIRK_SLOTTYPE_BROKEN |
 	    SDHCI_QUIRK_PRESET_VALUE_BROKEN },
 	{ 0x5acc8086,	0xffff,	"Intel Apollo Lake eMMC 5.0 Controller",
 	    SDHCI_QUIRK_BROKEN_DMA |	/* APL18 erratum */
