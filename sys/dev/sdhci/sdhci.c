@@ -901,7 +901,8 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 			SDHCI_LOCK_DESTROY(slot);
 			return (ENXIO);
 		} else if ((caps & SDHCI_SLOTTYPE_MASK) ==
-		    SDHCI_SLOTTYPE_EMBEDDED) {
+		    SDHCI_SLOTTYPE_EMBEDDED &&
+		    !(slot->quirks & SDHCI_QUIRK_SLOTTYPE_BROKEN)) {
 			slot->opt |= SDHCI_SLOT_EMBEDDED | SDHCI_NON_REMOVABLE;
 		}
 	}
