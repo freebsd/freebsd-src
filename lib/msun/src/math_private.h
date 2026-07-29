@@ -482,7 +482,7 @@ do {								\
  */
 #define _SPLIT(x, xh, xl)		\
 do {					\
-	typeof(x) __t1;			\
+	typeof(xl) __t1;		\
 	__t1 = (x) * _CC;		\
 	xh = __t1 + ((x) - __t1);	\
 	xl = (x) - xh;			\
@@ -505,8 +505,8 @@ do {				\
  */
 #define _SLOW2SUM(x, y, hi, lo)			\
 do {						\
-	volatile typeof(x) __t1;		\
-	typeof(x) __t2;				\
+	volatile typeof(lo) __t1;		\
+	typeof(lo) __t2;				\
 	hi = (x) + (y);				\
 	__t1 = hi - (y);			\
 	__t2 = hi - __t1;			\
@@ -520,7 +520,7 @@ do {						\
  */
 #define _XADD(xh, xl, yh, yl, zh, zl)			\
 do {							\
-	typeof(xh) __s1, __s2, __s3, __s4, __s5, __s6;	\
+	typeof(zl) __s1, __s2, __s3, __s4, __s5, __s6;	\
 	_SLOW2SUM(xh, yh, __s1, __s2);			\
 	_SLOW2SUM(xl, yl, __s3, __s4);			\
 	_FAST2SUM(__s1, __s2 + __s3, __s5, __s6);	\
@@ -533,8 +533,7 @@ do {							\
  */
 #define _MUL(x, y, r1 ,r2)				\
 do  {							\
-	typeof(x) __xh, __xl, __yh, __yl;		\
-	typeof(x) __t1;				\
+	typeof(r2) __xh, __xl, __yh, __yl, __t1;	\
 	_SPLIT(x, __xh, __xl);				\
 	_SPLIT(y, __yh, __yl);				\
 	r1 = (x) * (y);					\
@@ -547,12 +546,31 @@ do  {							\
  * and low parts via the _SPLIT macro.  x and y are multiplied to give z
  * as high and low parts.
  */
-#define _XMUL(xh, xl, yh, yl, ph, pl)	\
-do {					\
-    _MUL(xh, yh, ph, pl);		\
-    pl += xl * yl + xl * yh + xh * yl;	\
+#define _XMUL(xh, xl, yh, yl, ph, pl)		\
+do {						\
+	_MUL(xh, yh, ph, pl);			\
+	pl += xl * yl + xl * yh + xh * yl;	\
 } while(0)
 
+/*
+ * Use the final Newton-Raphson iteration for a / sqrt(a) from Karp and
+ * Markstein to get nearly 2*p bits of precision split into zh and zl
+ * for sqrt(a).
+ */
+#define _SQRT(x, zh, zl)			\
+do {						\
+	typeof(zl) s, ph, pl, xh, xl, yh, yl;	\
+	_SPLIT(x, xh, xl);			\
+	s = 1 / _ROOT(x);			\
+	yh = s * xh;				\
+	yl = s * xl;				\
+	_XMUL(yh, yl, yh, yl, ph, pl);		\
+	_XADD(xh, xl, -ph, -pl, zh, zl);	\
+	s /= 2;					\
+	_MUL(s, zh, ph, pl);			\
+	pl += s * zl;				\
+	_XADD(yh, yl, ph, pl, zh, zl);		\
+} while(0)
 
 /*
  * Common routine to process the arguments to nan(), nanf(), and nanl().

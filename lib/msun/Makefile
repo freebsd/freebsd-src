@@ -97,9 +97,8 @@ COMMON_SRCS= b_tgamma.c \
 	w_cabs.c w_cabsf.c w_drem.c w_dremf.c
 
 # IEEE-754 2008 and ISO/IEC TS 18661-4 half-cycle trignometric functions
-COMMON_SRCS+= s_cospi.c s_cospif.c \
-	s_sinpi.c s_sinpif.c \
-	s_tanpi.c s_tanpif.c
+COMMON_SRCS+= s_asinpi.c s_asinpif.c s_atanpi.c s_atanpif.c \
+	s_cospi.c s_cospif.c s_sinpi.c s_sinpif.c s_tanpi.c s_tanpif.c
 
 # LIBCSRCDIR is defined lazily, so can't be used for exists() below
 LIBC_SRCTOP=${SRCTOP}/lib/libc
@@ -135,7 +134,8 @@ COMMON_SRCS+=	b_tgammal.c catrigl.c \
 	e_lgammal.c e_lgammal_r.c e_powl.c \
 	e_remainderl.c e_sinhl.c e_sqrtl.c \
 	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
-	s_asinhl.c s_atanl.c s_cbrtl.c s_ceill.c s_cexpl.c \
+	s_asinhl.c s_asinpil.c s_atanl.c s_atanpil.c \
+	s_cbrtl.c s_ceill.c s_cexpl.c \
 	s_clogl.c s_cosl.c s_cospil.c s_cprojl.c \
 	s_csqrtl.c s_erfl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
 	s_fmaxl.c s_fmaximuml.c s_fmaximum_magl.c \
@@ -180,7 +180,8 @@ SRCS=	${COMMON_SRCS} ${ARCH_SRCS}
 
 INCS+=	fenv.h math.h
 
-MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 \
+MAN=	acos.3 acosh.3 acospi.3 asin.3 asinh.3 asinpi.3 \
+	atan.3 atan2.3 atanh.3 atanpi.3 \
 	ceil.3 cacos.3 ccos.3 ccosh.3 cexp.3 \
 	cimag.3 clog.3 copysign.3 cos.3 cosh.3 cospi.3 \
 	cpow.3 csqrt.3 erf.3 \
@@ -198,10 +199,13 @@ MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 \
 
 MLINKS+=acos.3 acosf.3 acos.3 acosl.3
 MLINKS+=acosh.3 acoshf.3 acosh.3 acoshl.3
+MLINKS+=acospi.3 acospif.3 acospi.3 acospil.3
 MLINKS+=asin.3 asinf.3 asin.3 asinl.3
 MLINKS+=asinh.3 asinhf.3 asinh.3 asinhl.3
+MLINKS+=asinpi.3 asinpif.3 asinpi.3 asinpil.3
 MLINKS+=atan.3 atanf.3 atan.3 atanl.3
 MLINKS+=atanh.3 atanhf.3 atanh.3 atanhl.3
+MLINKS+=atanpi.3 atanpif.3 atanpi.3 atanpil.3
 MLINKS+=atan2.3 atan2f.3 atan2.3 atan2l.3 \
 	atan2.3 carg.3 atan2.3 cargf.3 atan2.3 cargl.3
 MLINKS+=cacos.3 cacosf.3 cacos.3 cacosl.3 \

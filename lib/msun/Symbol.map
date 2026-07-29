@@ -320,6 +320,15 @@ FBSD_1.7 {
 /* First added in 16.0-CURRENT */
 
 FBSD_1.9 {
+	acospi;
+	acospif;
+	acospil;
+	asinpi;
+	asinpif;
+	asinpil;
+	atanpi;
+	atanpif;
+	atanpil;
 	fmaximum;
 	fmaximumf;
 	fmaximuml;

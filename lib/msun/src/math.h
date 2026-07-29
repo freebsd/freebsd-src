@@ -511,6 +511,15 @@ void		sincosl(long double, long double *, long double *);
 #endif /* __BSD_VISIBLE */
 
 #if __ISO_C_VISIBLE >= 2023
+double		acospi(double);
+float		acospif(float);
+long double 	acospil(long double);
+double		asinpi(double);
+float		asinpif(float);
+long double 	asinpil(long double);
+double		atanpi(double);
+float		atanpif(float);
+long double	atanpil(long double);
 double		cospi(double);
 float		cospif(float);
 long double 	cospil(long double);
