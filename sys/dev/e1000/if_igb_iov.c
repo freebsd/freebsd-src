@@ -11,6 +11,7 @@
 #ifdef PCI_IOV
 
 #include <sys/iov.h>
+#include <sys/sdt.h>
 #include <sys/time.h>
 
 #define	IGB_IOV_RAH_POOLSEL_SHIFT	18
@@ -77,6 +78,23 @@ struct igb_vf_mac_filter {
 };
 
 MALLOC_DEFINE(M_IGB_IOV, "igb_iov", "igb SR-IOV allocations");
+
+/*
+ * These logical-write probes let hardware tests verify the elision policy.
+ * e1000_write_vfta_i350() expands one VFTA call into ten physical writes, so
+ * the probes intentionally count calls made by the rebuild rather than MMIO
+ * transactions.  The state probe exposes the final software images while the
+ * stack arrays are still live.
+ */
+SDT_PROVIDER_DEFINE(igb_iov);
+SDT_PROBE_DEFINE3(igb_iov, vlan, rebuild, vfta_clear,
+    "struct e1000_softc *", "u_int", "uint32_t");
+SDT_PROBE_DEFINE3(igb_iov, vlan, rebuild, vlvf_write,
+    "struct e1000_softc *", "u_int", "uint32_t");
+SDT_PROBE_DEFINE3(igb_iov, vlan, rebuild, vfta_set,
+    "struct e1000_softc *", "u_int", "uint32_t");
+SDT_PROBE_DEFINE3(igb_iov, vlan, rebuild, state,
+    "struct e1000_softc *", "uint32_t *", "uint32_t *");
 
 static const struct timeval igb_iov_nack_interval = { 2, 0 };
 static const struct timeval igb_iov_mbx_log_interval = { 2, 0 };
@@ -471,6 +489,29 @@ igb_iov_intr_mask(const struct e1000_softc *sc)
 }
 
 static void
+igb_iov_vfta_shadow_invalidate(struct e1000_softc *sc)
+{
+
+	/*
+	 * I350 erratum 20 makes VFTA reads unreliable while VMDq loopback or
+	 * anti-spoofing is active.  The shadow is therefore authoritative
+	 * until a reset or another independent hardware writer invalidates
+	 * it.  Readback cannot reliably audit a stale-but-valid shadow on
+	 * this part, so keep all shadow mutation in these two helpers.
+	 */
+	memset(sc->iov_vfta, 0, sizeof(sc->iov_vfta));
+	sc->iov_vfta_valid = false;
+}
+
+static void
+igb_iov_vfta_shadow_store(struct e1000_softc *sc, const u32 *vfta)
+{
+
+	memcpy(sc->iov_vfta, vfta, sizeof(sc->iov_vfta));
+	sc->iov_vfta_valid = true;
+}
+
+static void
 igb_iov_notify_vfs_reset(struct e1000_softc *sc)
 {
 	struct igb_vf *vf;
@@ -558,7 +599,7 @@ igb_iov_reset_prepare(struct e1000_softc *sc)
 	if (sc->iov_mbx_retry_initialized)
 		callout_stop(&sc->iov_mbx_retry);
 	sc->iov_mta_valid = false;
-	sc->iov_vfta_valid = false;
+	igb_iov_vfta_shadow_invalidate(sc);
 	atomic_readandclear_32(&sc->iov_mdd_cause);
 	atomic_readandclear_32(&sc->iov_pending);
 	atomic_readandclear_32(&sc->iov_spoof_pending);
@@ -657,9 +698,11 @@ igb_iov_rebuild_vlan(struct e1000_softc *sc)
 	struct e1000_hw *hw;
 	struct igb_vf *vf;
 	u32 old_vlvf[E1000_VLVF_ARRAY_SIZE];
-	u32 vfta[EM_VFTA_SIZE], vlvf[E1000_VLVF_ARRAY_SIZE];
+	u32 effective_vfta[EM_VFTA_SIZE], vfta[EM_VFTA_SIZE];
+	u32 vlvf[E1000_VLVF_ARRAY_SIZE];
 	u32 old_vfta, rctl, vmolr;
-	bool pf_overflow, pf_vlan_promisc, preserve_pf;
+	bool force_vfta, pf_overflow, pf_vlan_promisc, preserve_pf;
+	bool vfta_changed, vlvf_changed;
 	int i, vid;
 
 	if (!igb_iov_enabled(sc))
@@ -769,28 +812,54 @@ igb_iov_rebuild_vlan(struct e1000_softc *sc)
 	 * transition to a PF-only VLAN deliberately retains VFTA membership
 	 * and falls through to the default PF pool.
 	 */
+	force_vfta = hw->mac.type == e1000_i350 &&
+	    !sc->iov_vfta_valid;
+	vfta_changed = false;
 	for (i = 0; i < EM_VFTA_SIZE; i++) {
 		/*
 		 * I350 erratum 20 makes VFTA reads unreliable while VMDq
 		 * loopback or anti-spoofing is active.  Its ten-write
-		 * workaround is already in e1000_write_vfta_i350(); keep a
-		 * software shadow for the read side of this transition.
+		 * workaround is already in e1000_write_vfta_i350().  Force a
+		 * complete clear when the authoritative shadow is invalid;
+		 * 82576 can safely diff against its live register contents.
 		 */
 		if (hw->mac.type == e1000_i350)
-			old_vfta = sc->iov_vfta_valid ? sc->iov_vfta[i] : 0;
+			old_vfta = force_vfta ? 0 : sc->iov_vfta[i];
 		else
 			old_vfta =
 			    E1000_READ_REG_ARRAY(hw, E1000_VFTA, i);
-		e1000_write_vfta(hw, i, old_vfta & vfta[i]);
+		effective_vfta[i] = old_vfta & vfta[i];
+		if (force_vfta || effective_vfta[i] != old_vfta) {
+			SDT_PROBE3(igb_iov, vlan, rebuild, vfta_clear,
+			    sc, i, effective_vfta[i]);
+			e1000_write_vfta(hw, i, effective_vfta[i]);
+			vfta_changed = true;
+		}
 	}
-	E1000_WRITE_FLUSH(hw);
+	if (vfta_changed)
+		E1000_WRITE_FLUSH(hw);
+	vlvf_changed = false;
 	for (i = 0; i < E1000_VLVF_ARRAY_SIZE; i++)
-		E1000_WRITE_REG(hw, E1000_VLVF(i), vlvf[i]);
-	E1000_WRITE_FLUSH(hw);
+		if (vlvf[i] != old_vlvf[i]) {
+			SDT_PROBE3(igb_iov, vlan, rebuild, vlvf_write,
+			    sc, i, vlvf[i]);
+			E1000_WRITE_REG(hw, E1000_VLVF(i), vlvf[i]);
+			vlvf_changed = true;
+		}
+	if (vlvf_changed)
+		E1000_WRITE_FLUSH(hw);
+	vfta_changed = false;
 	for (i = 0; i < EM_VFTA_SIZE; i++)
-		e1000_write_vfta(hw, i, vfta[i]);
-	memcpy(sc->iov_vfta, vfta, sizeof(sc->iov_vfta));
-	sc->iov_vfta_valid = true;
+		if (vfta[i] != effective_vfta[i]) {
+			SDT_PROBE3(igb_iov, vlan, rebuild, vfta_set,
+			    sc, i, vfta[i]);
+			e1000_write_vfta(hw, i, vfta[i]);
+			vfta_changed = true;
+		}
+	if (vfta_changed)
+		E1000_WRITE_FLUSH(hw);
+	SDT_PROBE3(igb_iov, vlan, rebuild, state, sc, vfta, vlvf);
+	igb_iov_vfta_shadow_store(sc, vfta);
 }
 
 static bool
@@ -1740,8 +1809,7 @@ igb_if_iov_uninit(if_ctx_t ctx)
 	sc->iov_mta_valid = false;
 	sc->iov_pf_mdd_blocked = false;
 	sc->iov_pf_vlan_promisc = false;
-	sc->iov_vfta_valid = false;
-	memset(sc->iov_vfta, 0, sizeof(sc->iov_vfta));
+	igb_iov_vfta_shadow_invalidate(sc);
 	sc->tx_queues[0].txr.me = 0;
 	sc->rx_queues[0].rxr.me = 0;
 	atomic_readandclear_32(&sc->iov_mdd_cause);
