@@ -617,6 +617,7 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
  */
 #define	EXT_FLAG_EMBREF		0x000001	/* embedded ext_count */
 #define	EXT_FLAG_EXTREF		0x000002	/* external ext_cnt, notyet */
+#define	EXT_FLAG_SFBUF_ANON	0x000004	/* sendfile buffer is mutable */
 
 #define	EXT_FLAG_NOFREE		0x000010	/* don't free mbuf to pool, notyet */
 
