@@ -45,6 +45,7 @@
 #include <net/iflib.h>
 #include <linux/types.h>
 
+#include "bnxt_compat.h"
 #include "hsi_struct_def.h"
 #include "bnxt_dcb.h"
 #include "bnxt_auxbus_compat.h"
