@@ -61,6 +61,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_rss.h"
+#include "opt_kern_tls.h"
 
 #include "ifdi_if.h"
 
@@ -77,6 +78,7 @@
 #include "bnxt_coredump.h"
 #include "bnxt_ptp.h"
 #include "bnxt_mpc.h"
+#include "bnxt_ktls.h"
 
 /*
  * PCI Device ID Table
@@ -649,6 +651,16 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		softc->tx_rings[i].db_ring_mask = softc->tx_rings[i].ring_size - 1;
 		softc->tx_rings[i].vaddr = vaddrs[i * ntxqs + 1];
 		softc->tx_rings[i].paddr = paddrs[i * ntxqs + 1];
+		softc->tx_rings[i].tx_buf_ring =
+		    malloc(softc->tx_rings[i].ring_size * sizeof(struct bnxt_sw_tx_bd),
+		    M_DEVBUF, M_NOWAIT | M_ZERO);
+
+		if (!softc->tx_rings[i].tx_buf_ring) {
+			device_printf(iflib_get_dev(ctx),
+			    "unable to allocate TX buffer ring\n");
+			rc = ENOMEM;
+			goto tx_buf_ring_alloc_fail;
+		}
 
 		bnxt_create_tx_sysctls(softc, i);
 
@@ -682,9 +694,15 @@ bnxt_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 	}
 	return rc;
 
+tx_buf_ring_alloc_fail:
+	/* tx_stats DMA already succeeded for all ntxqsets; walk the full range
+	 * here (unallocated tx_buf_ring entries are NULL, so free() no-ops). */
+	i = ntxqsets;
 dma_alloc_fail:
-	for (i = i - 1; i >= 0; i--)
+	for (i = i - 1; i >= 0; i--) {
 		iflib_dma_free(&softc->tx_stats[i]);
+		free(softc->tx_rings[i].tx_buf_ring, M_DEVBUF);
+	}
 	free(softc->tx_rings, M_DEVBUF);
 ring_alloc_fail:
 	free(softc->tx_cp_rings, M_DEVBUF);
@@ -701,8 +719,13 @@ bnxt_queues_free(if_ctx_t ctx)
 	int i;
 
 	// Free TX queues
-	for (i=0; i<softc->ntxqsets; i++)
+	for (i=0; i<softc->ntxqsets; i++) {
+#if defined(KERN_TLS)
+		bnxt_free_ktls_rexmit_mbuf(&softc->tx_rings[i]);
+#endif
 		iflib_dma_free(&softc->tx_stats[i]);
+		free(softc->tx_rings[i].tx_buf_ring, M_DEVBUF);
+	}
 	free(softc->tx_rings, M_DEVBUF);
 	softc->tx_rings = NULL;
 	free(softc->tx_cp_rings, M_DEVBUF);
@@ -1327,6 +1350,22 @@ bnxt_backing_store_cfg_v2(struct bnxt_softc *softc, u32 ena)
 	}
 
 	if (BNXT_PF(softc)) {
+		struct bnxt_tls_info *ktls = softc->ktls_info;
+		uint32_t max_tx_ctx = 0;
+
+		if (ktls)
+			max_tx_ctx = BNXT_TCK(ktls).max_ctx;
+
+		if (max_tx_ctx) {
+			ctxm = &ctx->ctx_arr[BNXT_CTX_TCK];
+			rc = bnxt_setup_ctxm_pg_tbls(softc, ctxm, max_tx_ctx, 1);
+			if (rc)
+				return rc;
+			last_type = BNXT_CTX_TCK;
+		}
+	}
+
+	if (BNXT_PF(softc)) {
 		for (type = BNXT_CTX_SRT_TRACE; type <= BNXT_CTX_ROCE_HWRM_TRACE; type++) {
 			ctxm = &ctx->ctx_arr[type];
 			if (!(ctxm->flags & BNXT_CTX_MEM_TYPE_VALID))
@@ -1924,7 +1963,9 @@ static void bnxt_fw_reset_close(struct bnxt_softc *bp)
 	}
 	if (pci_is_enabled(bp->pdev))
 		pci_disable_device(bp->pdev);
+	bnxt_ktls_del_all(bp);
 	pci_disable_busmaster(bp->dev);
+	bnxt_clear_ktls(bp);
 	bnxt_free_ctx_mem(bp);
 }
 
@@ -2762,6 +2803,28 @@ bnxt_attach_pre(if_ctx_t ctx)
 		memcpy(softc->rx_q_ids, softc->tx_q_ids, sizeof(softc->rx_q_ids));
 	}
 
+#if defined(KERN_TLS)
+	if (BNXT_CHIP_P7(softc)) {
+		rc = bnxt_ktls_sysctls(softc);
+		if (rc) {
+			device_printf(softc->dev, "attach: max_ktls_entries sysctl creation failed\n");
+			goto failed;
+		}
+
+		if (softc->max_ktls_entries == 0 ||
+		    softc->max_ktls_entries > BNXT_KTLS_MAX_ENTRIES ) {
+
+			if (softc->max_ktls_entries > BNXT_KTLS_MAX_ENTRIES)
+				device_printf(softc->dev,
+					      "attach: max_ktls_entries (%d) exceeds allowed max (%d), resetting to default (%d)\n",
+					      softc->max_ktls_entries, BNXT_KTLS_MAX_ENTRIES, BNXT_KTLS_ENTRIES_DEFAULT);
+
+			softc->max_ktls_entries = BNXT_KTLS_ENTRIES_DEFAULT;
+		}
+
+	}
+#endif
+
 	/* Get the HW capabilities */
 	rc = bnxt_hwrm_func_qcaps(softc);
 	if (rc)
@@ -2840,6 +2903,14 @@ bnxt_attach_pre(if_ctx_t ctx)
 	bnxt_clear_ids(softc);
 	if (rc)
 		goto failed;
+
+#if defined(KERN_TLS) && defined(KTLS_IFLIB_SUPPORT)
+	/* iflib latches isc_tx_pad into ift_pad during iflib_queues_alloc(),
+	 * before bnxt_ktls_init() runs, so size it here off the firmware
+	 * capability bit alone; unused if kTLS init later fails. */
+	if (BNXT_MPC_CRYPTO_CAPABLE(softc))
+		scctx->isc_tx_pad = BNXT_MAX_NUM_SEGS + 5;
+#endif
 
 	/* Now set up iflib sc */
 	scctx->isc_tx_nsegments = 31,
@@ -2960,6 +3031,16 @@ bnxt_attach_pre(if_ctx_t ctx)
 	if (rc)
 		goto failed;
 
+	if (softc->fw_cap & BNXT_FW_CAP_KTLS_SUPPORTED) {
+		rc = bnxt_create_ktls_sysctls(softc);
+		if (rc)
+			goto failed;
+
+		rc = bnxt_create_mpc_cmp_time_sysctls(softc);
+		if (rc)
+			goto failed;
+	}
+
 	if (softc->fw_cap & BNXT_FW_CAP_PTP) {
 		rc = bnxt_hwrm_ptp_qcfg(softc);
 		if (!rc) {
@@ -3051,6 +3132,51 @@ bnxt_attach_post(if_ctx_t ctx)
 	if (rc)
 		goto failed;
 
+#if defined(KERN_TLS)
+	/* kTLS needs an MPC TCE ring, so init it after bnxt_tx_queues_alloc()
+	 * has set up ntxqsets and the MPC rings. */
+	rc = bnxt_ktls_init(softc);
+	if (!rc && softc->ktls_info) {
+		int i, j, err;
+
+		bnxt_alloc_ktls_counters(softc);
+		if_setsndtagallocfn(ifp, bnxt_tls_snd_tag_alloc);
+		device_printf(softc->dev, "kTLS is supported ifp:%p ctx:%p dev: %p softc: %p\n",
+			ifp, ctx, iflib_get_dev(ctx), softc);
+
+		if_setcapabilitiesbit(ifp, IFCAP_TXTLS4 | IFCAP_TXTLS6, 0);
+		if_setcapenablebit(ifp, IFCAP_TXTLS4 | IFCAP_TXTLS6, 0);
+		/* isc_tx_pad is set in bnxt_attach_pre() instead; iflib latches
+		 * it into ift_pad long before this function runs. */
+
+		/*
+		 * tx_rings[] already exists (allocated by
+		 * bnxt_tx_queues_alloc()); set up each ring's kTLS retransmit
+		 * mbuf now that ktls_info exists.
+		 */
+		for (i = 0; i < softc->ntxqsets; i++) {
+			err = bnxt_alloc_ktls_rexmit_mbuf(softc, &softc->tx_rings[i]);
+			if (err) {
+				/* Disable KTLs entirely when enough memory is not avaiable */
+				for (j = i - 1; j >= 0; j--)
+					bnxt_free_ktls_rexmit_mbuf(&softc->tx_rings[j]);
+
+				device_printf(softc->dev,
+					"Error:%d, kTLS support is disabled\n", err);
+
+				if_setcapenablebit(ifp, 0,
+					(IFCAP_TXTLS4 | IFCAP_TXTLS6));
+				/* Must run before bnxt_free_ktls_info(), which NULLs
+				 * ktls_info and would otherwise leak the counters. */
+				bnxt_free_ktls_counters(softc);
+				bnxt_free_ktls_info(softc);
+				break;
+			}
+		}
+	} else
+		bnxt_free_ktls_info(softc);
+#endif
+
 	bnxt_rdma_aux_device_init(softc);
 
 	/* SR-IOV attach */
@@ -3081,12 +3207,58 @@ bnxt_detach(if_ctx_t ctx)
 	cancel_delayed_work_sync(&softc->fw_reset_task);
 	cancel_work_sync(&softc->sp_task);
 	bnxt_dcb_free(softc);
+
+#ifdef KERN_TLS
+	{
+		struct bnxt_tls_info *ktls = softc->ktls_info;
+		int wait;
+
+		if (ktls) {
+			for (i = 0; i < softc->ntxqsets; i++)
+				bnxt_free_ktls_rexmit_mbuf(&softc->tx_rings[i]);
+
+			/* wait for all threads in bnxt_tls_snd_tag_alloc() to exit */
+			while (atomic_load_32(&ktls->snd_tag_alloc_ref) != 0) {
+				pause("W", hz);
+			}
+
+			device_printf(softc->dev, "Active sessions before wait: %u\n",
+				uma_zone_get_cur(ktls->zone));
+			/*
+			 * Do not time out: bnxt_free_ktls_info() below destroys
+			 * this zone unconditionally, and a tag some socket still
+			 * holds a reference to would use-after-free once released.
+			 * Log periodically instead of waiting silently.
+			 */
+			wait = 0;
+			while (ktls->init != 0 && uma_zone_get_cur(ktls->zone) != 0) {
+				if ((wait % 30) == 0)
+					device_printf(softc->dev,
+					    "kTLS: %u session(s) still active, waiting\n",
+					    uma_zone_get_cur(ktls->zone));
+				pause("W", hz);
+				wait++;
+			}
+
+			wait = 30;
+			while (wait && atomic_load_32(&ktls->pending)) {
+				device_printf(softc->dev, "KTLS device add/delete pending: %u"
+					" waittime[%d]\n", wait, atomic_load_32(&ktls->pending));
+				pause_sbt("bnxt_detach_sleep", mstosbt(1000 * 2), 0, C_HARDCLOCK);
+				wait--;
+			}
+		}
+	}
+#endif
+
 	SLIST_REMOVE(&pf_list, &softc->list, bnxt_softc_list, next);
 	bnxt_num_pfs--;
 	bnxt_wol_config(ctx);
 	bnxt_do_disable_intr(&softc->def_cp_ring);
 	bnxt_ptp_free(softc);
 	bnxt_free_sysctl_ctx(softc);
+	bnxt_free_ktls_counters(softc);
+	bnxt_free_ktls_info(softc);
 	bnxt_free_crash_dump_mem(softc);
 	bnxt_hwrm_func_reset(softc);
 	/* Must run before bnxt_free_mpc_info(): these gate on mpc_info being
@@ -3127,8 +3299,10 @@ bnxt_detach(if_ctx_t ctx)
 	bnxt_unregister_logger(softc, BNXT_LOGGER_L2);
 	mtx_destroy(&softc->log_lock);
 
-	if (!bnxt_num_pfs && bnxt_pf_wq)
+	if (!bnxt_num_pfs && bnxt_pf_wq) {
 		destroy_workqueue(bnxt_pf_wq);
+		bnxt_pf_wq = NULL;
+	}
 
 	if (softc->pdev)
 		linux_pci_detach_device(softc->pdev);

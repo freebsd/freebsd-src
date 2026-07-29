@@ -238,6 +238,11 @@
 
 #define BNXT_MAX_NUM_QUEUES (BNXT_MAX_L2_QUEUES + BNXT_ROCE_IRQ_COUNT)
 
+#define BNXT_DEBUG(dev, fmt, ...) do { \
+	if (bootverbose) \
+		device_printf(dev, "" fmt, ##__VA_ARGS__); \
+} while (0)
+
 /* Completion related defines */
 #define CMP_VALID(cmp, v_bit) \
 	((!!(((struct cmpl_base *)(cmp))->info3_v & htole32(CMPL_BASE_V))) == !!(v_bit) )
@@ -322,6 +327,7 @@
 	(offsetof(struct tx_port_stats_ext, counter) / 8)
 
 extern const char bnxt_driver_version[];
+extern const uint16_t bnxt_tx_lhint[];
 typedef void (*bnxt_doorbell_tx)(void *, uint16_t idx);
 typedef void (*bnxt_doorbell_rx)(void *, uint16_t idx);
 typedef void (*bnxt_doorbell_rx_cq)(void *, bool);
@@ -609,9 +615,45 @@ struct tx_bd_opaque {
 
 #define TX_RING_MASK(txr) ((txr)->ring_size - 1)
 
+#define SET_TX_OPAQUE_KTLS(opq, txr, replay, prod, segs)			\
+	do {								\
+		opq->ktls_replay = (replay);		\
+		opq->idx = (prod) & TX_RING_MASK(txr);	\
+		opq->bds = (segs);				\
+	} while(0)
+
+#define KID_HIGH(kid)	((kid & 0x000fff80) >> 7)   /*Upper 13 bits of KID*/
+#define KID_LOW(kid)	(kid & 0x0000007f)           /*Lower 7 bits of KID*/
+#define TX_BD_FLAGS_CRYPTO_EN	(1 << 15)
+
+/* Hand-rolled generic BD views used only for byte-addressable copies of
+ * the kTLS presync command (see bnxt_ktls_pre_xmit()); distinct from the
+ * full HSI tx_bd_short/tx_bd_long types used for normal TX BDs. */
+struct tx_bd {
+	uint32_t tx_bd_len_flags_type;
+#define TX_BD_TYPE					(0x3f << 0)
+#define TX_BD_FLAGS_BD_CNT_SHIFT			8
+#define TX_BD_LEN_SHIFT					16
+	uint32_t tx_bd_opaque;
+	uint64_t tx_bd_haddr;
+} __packed;
+
+struct tx_bd_presync {
+	uint32_t tx_bd_len_flags_type;
+#define TX_BD_TYPE_PRESYNC_TX_BD			(0x09 << 0)
+	uint32_t tx_bd_opaque;
+	uint32_t tx_bd_kid;
+	uint32_t tx_bd_unused;
+} __packed;
+
 struct bnxt_sw_mpc_tx_bd {
 	uint8_t inline_bds;
 	unsigned long handle;
+};
+
+struct bnxt_sw_tx_bd {
+	uint8_t is_replay;
+	uint8_t inline_bds;
 };
 
 struct bnxt_ring {
@@ -632,7 +674,11 @@ struct bnxt_ring {
 	uint16_t		prod;		/* MPC TX ring producer index */
 	uint16_t		cons;		/* MPC TX ring consumer index */
 	struct mtx		tx_lock;	/* MPC TX ring lock */
-	struct bnxt_sw_mpc_tx_bd *tx_mpc_buf_ring;
+	union {
+		struct bnxt_sw_tx_bd		*tx_buf_ring;
+		struct bnxt_sw_mpc_tx_bd	*tx_mpc_buf_ring;
+	};
+	struct bnxt_replay_pkt	*replay_pkt;
 	struct bnxt_full_tpa_start *tpa_start;
 	union {
 		u64             db_key64;
@@ -865,6 +911,7 @@ struct bnxt_ctx_mem_type {
 #define BNXT_CTX_FTQM	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_FP_TQM_RING
 #define BNXT_CTX_MRAV	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_MRAV
 #define BNXT_CTX_TIM	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_TIM
+#define BNXT_CTX_TCK	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_TX_CK
 #define BNXT_CTX_TKC	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_TKC
 #define BNXT_CTX_RKC	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_RKC
 #define BNXT_CTX_MTQM	HWRM_FUNC_BACKING_STORE_CFG_V2_INPUT_TYPE_MP_TQM_RING
@@ -914,6 +961,20 @@ struct bnxt_ctx_mem_info {
 	struct bnxt_ctx_mem_type	ctx_arr[BNXT_CTX_V2_MAX];
 };
 
+enum bnxt_tls_rtpe {
+	BNXT_CRYPTO_TYPE_KTLS = 0,
+	BNXT_CRYPTO_TYPE_QUIC,
+};
+
+struct bnxt_hw_tls_resc {
+	uint32_t	min_tx_key_ctxs;
+	uint32_t	max_tx_key_ctxs;
+	uint32_t	resv_tx_key_ctxs;
+	uint32_t	min_rx_key_ctxs;
+	uint32_t	max_rx_key_ctxs;
+	uint32_t	resv_rx_key_ctxs;
+};
+
 struct bnxt_hw_resc {
 	uint16_t	min_rsscos_ctxs;
 	uint16_t	max_rsscos_ctxs;
@@ -941,6 +1002,7 @@ struct bnxt_hw_resc {
 	uint16_t	max_nqs;
 	uint16_t	max_irqs;
 	uint16_t	resv_irqs;
+	struct bnxt_hw_tls_resc tls_resc[2];
 };
 
 enum bnxt_type_ets {
@@ -1354,6 +1416,7 @@ struct bnxt_softc {
 	#define BNXT_FW_CAP_CFA_NTUPLE_RX_EXT_IP_PROTO	BIT_ULL(47)
 	#define BNXT_FW_CAP_ENABLE_RDMA_SRIOV		BIT_ULL(48)
 	#define BNXT_FW_CAP_RSS_TCAM			BIT_ULL(49)
+	#define BNXT_FW_CAP_KTLS_SUPPORTED		BIT_ULL(50)
 	#define BNXT_FLAG_TX_COAL_CMPL			BIT_ULL(51)
 
 	#define BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS      BIT_ULL(61)
@@ -1459,6 +1522,12 @@ struct bnxt_softc {
 	bool			rx_ts_enabled;
 
 	struct bnxt_mpc_info	*mpc_info;
+	struct bnxt_tls_info	*ktls_info;
+	struct sysctl_ctx_list	ktls_stats;
+	struct sysctl_oid	*ktls_stats_oid;
+	struct sysctl_ctx_list	mpc_cmp_time_stats;
+	struct sysctl_oid	*mpc_cmp_time_stats_oid;
+	uint32_t		max_ktls_entries;
 
 #define BNXT_CAGR_CQCOAL_OFFSET			0xc00
 #define BNXT_CAGR_NQAGG_MAXTIMER		0x5930000
@@ -1604,4 +1673,10 @@ bnxt_test_and_clear_bit_nonatomic(int nr, bitstr_t *bmap)
 	bit_clear(bmap, nr);
 	return (1);
 }
+
+int bnxt_tls_snd_tag_alloc(if_t ifp,
+    union if_snd_tag_alloc_params *params,
+    struct m_snd_tag **ppmt);
+int bnxt_ktls_xmit(struct bnxt_softc* softc, struct bnxt_ring* txr,
+    struct mbuf** ppmb, uint16_t* lflags, uint32_t* kid, if_pkt_info_t pi);
 #endif /* _BNXT_H */

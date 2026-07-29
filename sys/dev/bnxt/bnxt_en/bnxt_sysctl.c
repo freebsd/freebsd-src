@@ -34,6 +34,83 @@
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
 #include "bnxt_sysctl.h"
+#include "bnxt_ktls.h"
+
+struct bnxt_ktls_counters_list {
+	enum bnxt_ktls_counters id;
+	const char *label;
+	const char *desc;
+};
+static const struct bnxt_ktls_counters_list ktls_counters[] = {
+	{ BNXT_KTLS_TX_ADD,			"add_tx_session",		"KTLS sessions add count" },
+	{ BNXT_KTLS_TX_DEL,			"delete_tx_session",		"KTLS sessions delete count" },
+	{ BNXT_KTLS_TX_HW_PKT,			"hw_tx_pkts",			"HW KTLS TX count" },
+	{ BNXT_KTLS_TX_FAILED,			"failed_tx_pkts",		"SW KTLS TX count" },
+	{ BNXT_KTLS_TX_OOO,			"ooo_tx_pkts",			"OOO KTLS TX count" },
+	{ BNXT_KTLS_TX_RETRANS,			"retrans_tx_pkts",		"Retransmitted KTLS TX count" },
+	{ BNXT_KTLS_TX_REPLAY,			"replay_tx_pkts",		"Replay KTLS TX count" },
+	{ BNXT_KTLS_TX_SEQ_FWD,			"seq_fwd_tx_pkts",		"Seq forward KTLS Tx count" },
+	{ BNXT_KTLS_TX_SEQ_FWD_TLS_HDR,		"seq_fwd_tx_tls_hdr_pkts",	"Seq forward Tx packets with TLS header" },
+	{ BNXT_KTLS_TX_SEQ_FWD_SILENT_DROPS,	"seq_fwd_tx_silent_drops_pkts",	"Silently dropped seq forward packets" },
+	{ BNXT_KTLS_TX_SEQ_FWD_REPLAY,		"seq_fwd_tx_replay_pkts",	"Replayed Seq forward packets" },
+	{ BNXT_KTLS_TX_MBUF_ALLOCS,		"mbuf_allocs",			"Alloc mbufs count" },
+	{ BNXT_KTLS_TX_MBUF_FREES,		"mbuf_frees",			"Free mbufs count" },
+	{ BNXT_KTLS_TX_MBUF_ERRORS,		"mbuf_errors",			"Error mbufs count" },
+};
+static const int ktls_counters_count = sizeof(ktls_counters) / sizeof(ktls_counters[0]);
+
+struct bnxt_ktls_err_counters_list {
+	enum bnxt_ktls_err_counters id;
+	const char *label;
+	const char *desc;
+};
+static const struct bnxt_ktls_err_counters_list ktls_err_counters[] = {
+	{ BNXT_KTLS_TX_DEV_ADD_FAILED,	    "add_tx_session_failure",	"Tx KTLS device add failure count" },
+	{ BNXT_KTLS_TX_MPC_TIMEOUT,	    "mpc_cmd_timeout",		"Timeout MPC commands count" },
+	{ BNXT_KTLS_TX_UNINITIALIZED,	    "ktls_tx_uninit",		"snd_tag alloc failure due to ktls not initialized" },
+	{ BNXT_KTLS_TX_CTX_ALLOC_FAILED,    "ctx_alloc_failures",	"snd_tag alloc failure due to ctx alloc failed" },
+	{ BNXT_KTLS_TX_MPC_FAILED,	    "mpc_failures",		"MPC command failures count" },
+	{ BNXT_KTLS_TX_TCE_NOT_READY,	    "tce_not_ready",		"Tx crypto engine(TCE) is not ready" },
+	{ BNXT_KTLS_TX_TCE_READY_DELAYED,   "tce_ready_delayed",	"TCE getting ready with delay" },
+	{ BNXT_KTLS_TX_TCE_BAD,	    	    "tce_bad",			"TCE is in bad state" },
+	{ BNXT_KTLS_TX_UNSUPPORTED_TLS_HDR, "unsupported_tls_hdr",	"snd_tag alloc failure due to unsupported TLS header" },
+	{ BNXT_KTLS_TX_INVALID_TAG, 	    "invalid_tag",		"Invalid snd_tag" },
+	{ BNXT_KTLS_TX_ZERO_TCP_PAYLEN,     "zero_payload",		"Packet/s with zero TCP payload" },
+	{ BNXT_KTLS_TX_INVALID_REC_SN,      "invalid_rec_sn",		"Invalid Record" },
+	{ BNXT_KTLS_TX_TCE_FREE,	    "tce_free",        		"Packets received when crypto delete is ongoing"},
+	{ BNXT_KTLS_TX_MPC_RING_BUSY,	    "mpc_ring_busy",		"MPC ring full on crypto add/delete xmit, retry count"},
+};
+
+static const int ktls_err_counters_count = sizeof(ktls_err_counters) / sizeof(ktls_err_counters[0]);
+
+struct bnxt_mpc_cmp_time_counters_list {
+	enum bnxt_mpc_cmp_time_counters id;
+	const char *label;
+	const char *desc;
+};
+static const struct bnxt_mpc_cmp_time_counters_list mpc_cmp_counters[] = {
+	{ BNXT_MPC_CMP_TIME_1US,		"<=1us",	"MPC command completion <= 1us" },
+	{ BNXT_MPC_CMP_TIME_1_5US,		"1-5us",	"MPC command completion between 1-5us" },
+	{ BNXT_MPC_CMP_TIME_5_10US,		"5-10us",	"MPC command completion between 5-10us" },
+	{ BNXT_MPC_CMP_TIME_10_15US,		"10-15us",	"MPC command completion between 10-15us" },
+	{ BNXT_MPC_CMP_TIME_15_20US,		"15-20us",	"MPC command completion between 15-20us" },
+	{ BNXT_MPC_CMP_TIME_20_25US,		"20-25us",	"MPC command completion between 20-25us" },
+	{ BNXT_MPC_CMP_TIME_25_50US,		"25-50us",	"MPC command completion between 25-50us" },
+	{ BNXT_MPC_CMP_TIME_50_100US,		"50-100us",	"MPC command completion between 50-100us" },
+	{ BNXT_MPC_CMP_TIME_100_200US,		"100-200us",	"MPC command completion between 100-200us" },
+	{ BNXT_MPC_CMP_TIME_200_500US,		"200-500us",	"MPC command completion between 200-500us" },
+	{ BNXT_MPC_CMP_TIME_500_1000US,		"500-1000us",	"MPC command completion between 500-1000us" },
+	{ BNXT_MPC_CMP_TIME_1000_1500US,	"1000-1500us",	"MPC command completion between 1000-1500us" },
+	{ BNXT_MPC_CMP_TIME_1500_2000US,	"1500-2000us",	"MPC command completion between 1500-2000us" },
+	{ BNXT_MPC_CMP_TIME_2000_2500US,	"2000-2500us",	"MPC command completion between 2000-2500us" },
+	{ BNXT_MPC_CMP_TIME_2500_3000US,	"2500-3000us",	"MPC command completion between 2500-3000us" },
+	{ BNXT_MPC_CMP_TIME_3000_3500US,	"3000-3500us",	"MPC command completion between 3000-3500us" },
+	{ BNXT_MPC_CMP_TIME_3500_4000US,	"3500-4000us",	"MPC command completion between 3500-4000us" },
+	{ BNXT_MPC_CMP_TIME_4000_4500US,	"4000-4500us",	"MPC command completion between 4000-4500us" },
+	{ BNXT_MPC_CMP_TIME_4500_5000US,	"4500-5000us",	"MPC command completion between 4500-5000us" },
+	{ BNXT_MPC_CMP_TIME_5000_PLUS_US,	"5000+us",	"MPC command completion >= 5000us" },
+};
+static const int mpc_cmp_counters_count = sizeof(mpc_cmp_counters) / sizeof(mpc_cmp_counters[0]);
 
 DEFINE_MUTEX(tmp_mutex); /* mutex lock for driver */
 extern void bnxt_fw_reset(struct bnxt_softc *bp);
@@ -121,6 +198,27 @@ bnxt_init_sysctl_ctx(struct bnxt_softc *softc)
 		return ENOMEM;
 	}
 
+	sysctl_ctx_init(&softc->ktls_stats);
+	ctx = device_get_sysctl_ctx(softc->dev);
+	softc->ktls_stats_oid = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
+	    "ktls_stats", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "kTLS statistics");
+	if (!softc->ktls_stats_oid) {
+		sysctl_ctx_free(&softc->ktls_stats);
+		return ENOMEM;
+	}
+
+	sysctl_ctx_init(&softc->mpc_cmp_time_stats);
+	ctx = device_get_sysctl_ctx(softc->dev);
+	softc->mpc_cmp_time_stats_oid = SYSCTL_ADD_NODE(ctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev)), OID_AUTO,
+	    "mpc_cmp_time_stats", CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+	    "MPC completion time statistics");
+	if (!softc->mpc_cmp_time_stats_oid) {
+		sysctl_ctx_free(&softc->mpc_cmp_time_stats);
+		return ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -173,6 +271,22 @@ bnxt_free_sysctl_ctx(struct bnxt_softc *softc)
 			rc = orc;
 		else
 			softc->dcb_oid = NULL;
+	}
+
+	if (softc->ktls_stats_oid != NULL) {
+		orc = sysctl_ctx_free(&softc->ktls_stats);
+		if (orc)
+			rc = orc;
+		else
+			softc->ktls_stats_oid = NULL;
+	}
+
+	if (softc->mpc_cmp_time_stats_oid != NULL) {
+		orc = sysctl_ctx_free(&softc->mpc_cmp_time_stats);
+		if (orc)
+			rc = orc;
+		else
+			softc->mpc_cmp_time_stats_oid = NULL;
 	}
 
 	return rc;
@@ -2237,5 +2351,109 @@ int
 bnxt_create_config_sysctls_post(struct bnxt_softc *softc)
 {
 	/* Nothing for now, meant for future expansion */
+	return 0;
+}
+
+static int
+sysctl_counter_u64_handler(SYSCTL_HANDLER_ARGS)
+{
+	counter_u64_t *counter = (counter_u64_t *)arg1;
+	uint64_t val = counter_u64_fetch(*counter);
+
+	return sysctl_handle_64(oidp, &val, 0, req);
+}
+
+int
+bnxt_create_ktls_sysctls(struct bnxt_softc *softc)
+{
+	struct bnxt_tls_info *ktls = softc->ktls_info;
+	struct sysctl_oid *oid;
+
+	if (!ktls)
+		return 0;
+
+	oid = SYSCTL_ADD_NODE(&softc->ktls_stats,
+			      SYSCTL_CHILDREN(softc->ktls_stats_oid), OID_AUTO,
+			      "ktls_stats", CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+			      "In-kernel TLS statistics");
+	if (!oid)
+		return ENOMEM;
+
+	for (int i = 0; i < ktls_counters_count; i++) {
+		const struct bnxt_ktls_counters_list *counters = &ktls_counters[i];
+
+		SYSCTL_ADD_PROC(&softc->ktls_stats,
+				SYSCTL_CHILDREN(oid), OID_AUTO,
+				counters->label,
+				CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
+				&ktls->counters[counters->id],
+				0,
+				sysctl_counter_u64_handler,
+				"Q",
+				counters->desc);
+	}
+
+	for (int i = 0; i < ktls_err_counters_count; i++) {
+		const struct bnxt_ktls_err_counters_list *err_counters = &ktls_err_counters[i];
+
+		SYSCTL_ADD_PROC(&softc->ktls_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+				err_counters->label,
+				CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
+				&ktls->err_counters[err_counters->id], 0,
+				sysctl_counter_u64_handler, "Q",
+				err_counters->desc);
+	}
+
+	return 0;
+}
+
+int
+bnxt_ktls_sysctls(struct bnxt_softc *softc)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *children;
+	struct sysctl_oid *oid;
+
+	ctx = device_get_sysctl_ctx(softc->dev);
+	children = SYSCTL_CHILDREN(device_get_sysctl_tree(softc->dev));
+
+	oid = SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "max_ktls_entries",
+			      CTLFLAG_RDTUN, &softc->max_ktls_entries, 0,
+			      "Maximum number of TLS offload entries to preallocate (default: 102400, max: 512000)");
+	if (!oid)
+		return ENOMEM;
+
+	return 0;
+}
+
+int
+bnxt_create_mpc_cmp_time_sysctls(struct bnxt_softc *softc)
+{
+	struct bnxt_tls_info *ktls = softc->ktls_info;
+	struct sysctl_oid *oid;
+
+	if (!ktls)
+		return 0;
+
+	oid = SYSCTL_ADD_NODE(&softc->mpc_cmp_time_stats,
+			      SYSCTL_CHILDREN(softc->mpc_cmp_time_stats_oid), OID_AUTO,
+			      "mpc_cmp_stats", CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "MPC CMP time statistics");
+	if (!oid)
+		return ENOMEM;
+
+	for (int i = 0; i < mpc_cmp_counters_count; i++) {
+		const struct bnxt_mpc_cmp_time_counters_list *mpc_counters = &mpc_cmp_counters[i];
+
+		SYSCTL_ADD_PROC(&softc->mpc_cmp_time_stats,
+				SYSCTL_CHILDREN(oid), OID_AUTO,
+				mpc_counters->label,
+				CTLTYPE_U64 | CTLFLAG_RD | CTLFLAG_MPSAFE,
+				&ktls->mpc_cmp_time[mpc_counters->id],
+				0,
+				sysctl_counter_u64_handler,
+				"Q",
+				mpc_counters->desc);
+	}
+
 	return 0;
 }

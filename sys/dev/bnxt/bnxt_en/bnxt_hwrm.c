@@ -30,9 +30,12 @@
 #include <sys/endian.h>
 #include <linux/pci.h>
 
+#include "opt_kern_tls.h"
+
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
 #include "bnxt_mpc.h"
+#include "bnxt_ktls.h"
 #include "hsi_struct_def.h"
 #include "bnxt_coredump.h"
 
@@ -789,11 +792,21 @@ int bnxt_hwrm_func_resc_qcaps(struct bnxt_softc *softc, bool all)
 	hw_resc->min_stat_ctxs = le16toh(resp->min_stat_ctx);
 	hw_resc->max_stat_ctxs = le16toh(resp->max_stat_ctx);
 
+	{
+		struct bnxt_hw_tls_resc *tls_resc =
+		    &hw_resc->tls_resc[BNXT_CRYPTO_TYPE_KTLS];
+
+		tls_resc->min_tx_key_ctxs = le32toh(resp->min_ktls_tx_key_ctxs);
+		tls_resc->max_tx_key_ctxs = le32toh(resp->max_ktls_tx_key_ctxs);
+		tls_resc->min_rx_key_ctxs = le32toh(resp->min_ktls_rx_key_ctxs);
+		tls_resc->max_rx_key_ctxs = le32toh(resp->max_ktls_rx_key_ctxs);
+	}
+
 	if (BNXT_CHIP_P5_PLUS(softc)) {
 		hw_resc->max_nqs = hw_resc->max_irqs = le16toh(resp->max_msix);
 		hw_resc->max_hw_ring_grps = hw_resc->max_rx_rings;
 	}
-	
+
 	if (BNXT_PF(softc)) {
 		struct bnxt_pf_info *pf = &softc->pf;
 
@@ -1206,6 +1219,11 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	    (void *)softc->hwrm_cmd_resp.idi_vaddr;
 	struct bnxt_func_info *func = &softc->func;
 	uint32_t flags, flags_ext, flags_ext2;
+#if defined(KERN_TLS) && defined(KTLS_IFLIB_SUPPORT)
+	bool ktls_fw_supported = false;
+	uint16_t ktls_max_keys = 0, ktls_ctxs_per_partition = 0;
+	bool ktls_partition_cap = false;
+#endif
 	uint8_t mpc_chnls_cap = 0;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_QCAPS);
@@ -1259,6 +1277,16 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	if (BNXT_PF(softc) && (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_ECN_STATS_SUPPORTED))
 		softc->fw_cap |= BNXT_FW_CAP_ECN_STATS;
 
+#if defined(KERN_TLS) && defined(KTLS_IFLIB_SUPPORT)
+	if (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_KTLS_SUPPORTED) {
+		softc->fw_cap |= BNXT_FW_CAP_KTLS_SUPPORTED;
+		/* Actual alloc/free is deferred until after BNXT_HWRM_UNLOCK(); it can sleep. */
+		ktls_fw_supported = true;
+		ktls_max_keys = le16toh(resp->max_key_ctxs_alloc);
+		ktls_partition_cap = BNXT_PARTITION_CAP(resp);
+		ktls_ctxs_per_partition = le16toh(resp->ctxs_per_partition);
+	}
+#endif
 	if (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_PTP_PPS_SUPPORTED)
 		softc->fw_cap |= BNXT_FW_CAP_PTP_PPS;
 	if (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_PTP_PTM_SUPPORTED)
@@ -1364,10 +1392,27 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	if (BNXT_PF(softc))
 		mpc_chnls_cap = resp->mpc_chnls_cap;
 
+	BNXT_HWRM_UNLOCK(softc);
+	if (BNXT_PF(softc))
+		bnxt_alloc_mpc_info(softc, mpc_chnls_cap);
+#if defined(KERN_TLS) && defined(KTLS_IFLIB_SUPPORT)
+	if (ktls_fw_supported) {
+		bnxt_alloc_ktls_info(softc, ktls_max_keys, ktls_partition_cap,
+		    ktls_ctxs_per_partition);
+		/*
+		 * HW Tx completion coalescing is not used with HW KTLS; the
+		 * driver expects ordinary per-packet TX completions on that path.
+		 */
+		if (softc->ktls_info != NULL)
+			softc->fw_cap &= ~BNXT_FLAG_TX_COAL_CMPL;
+	} else {
+		bnxt_free_ktls_info(softc);
+	}
+#endif
+	return rc;
+
 fail:
 	BNXT_HWRM_UNLOCK(softc);
-	if (!rc && BNXT_PF(softc))
-		bnxt_alloc_mpc_info(softc, mpc_chnls_cap);
 	return rc;
 }
 
@@ -1461,6 +1506,8 @@ bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
         struct hwrm_func_qcfg_output *resp =
 	    (void *)softc->hwrm_cmd_resp.idi_vaddr;
 	struct bnxt_func_qcfg *fn_qcfg = &softc->fn_qcfg;
+	struct bnxt_hw_resc *hw_resc = &softc->hw_resc;
+	struct bnxt_hw_tls_resc *tls_resc;
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_QCFG);
         req.fid = htole16(0xffff);
@@ -1534,6 +1581,10 @@ bnxt_hwrm_func_qcfg(struct bnxt_softc *softc)
                 softc->fw_cap |= BNXT_FW_CAP_RING_MONITOR;
         if (flags & HWRM_FUNC_QCFG_OUTPUT_FLAGS_ENABLE_RDMA_SRIOV)
                 softc->fw_cap |= BNXT_FW_CAP_ENABLE_RDMA_SRIOV;
+
+	tls_resc = &hw_resc->tls_resc[BNXT_CRYPTO_TYPE_KTLS];
+	tls_resc->resv_tx_key_ctxs = le32toh(resp->num_ktls_tx_key_ctxs);
+	tls_resc->resv_rx_key_ctxs = le32toh(resp->num_ktls_rx_key_ctxs);
 
 	if (softc->db_size)
 		goto end;
@@ -2486,6 +2537,7 @@ bnxt_hwrm_reserve_pf_rings(struct bnxt_softc *softc)
 	req.num_rx_rings = htole16(BNXT_MAX_NUM_QUEUES);
 	req.num_vnics = htole16(BNXT_MAX_NUM_QUEUES);
 	req.num_stat_ctxs = htole16(BNXT_MAX_NUM_QUEUES * 2);
+	bnxt_hwrm_reserve_pf_key_ctxs(softc, &req, BNXT_CRYPTO_TYPE_KTLS);
 
 	return hwrm_send_message(softc, &req, sizeof(req));
 }

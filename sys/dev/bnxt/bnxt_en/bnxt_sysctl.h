@@ -42,3 +42,6 @@ int bnxt_create_hw_lro_sysctls(struct bnxt_softc *softc);
 int bnxt_create_pause_fc_sysctls(struct bnxt_softc *softc);
 int bnxt_create_dcb_sysctls(struct bnxt_softc *softc);
 int bnxt_create_dcb_ets_sysctls(struct bnxt_softc *softc);
+int bnxt_create_ktls_sysctls(struct bnxt_softc *softc);
+int bnxt_ktls_sysctls(struct bnxt_softc *softc);
+int bnxt_create_mpc_cmp_time_sysctls(struct bnxt_softc *softc);
