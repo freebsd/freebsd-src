@@ -56,7 +56,6 @@ struct rib_head {
 	rn_walktree_from_t	*rnh_walktree_from; /* traverse tree below a */
 	rnh_set_nh_pfxflags_f_t	*rnh_set_nh_pfxflags;	/* hook to alter record prior to insertion */
 	rt_gen_t		rnh_gen;	/* datapath generation counter */
-	int			rnh_multipath;	/* multipath capable ? */
 	struct radix_node	rnh_nodes[3];	/* empty tree for common case */
 	struct rmlock		rib_lock;	/* config/data path lock */
 	struct radix_mask_head	rmhead;		/* masks radix head */
@@ -67,9 +66,8 @@ struct rib_head {
 	time_t			next_expire;	/* Next expire run ts */
 	uint32_t		rnh_prefixes;	/* Number of prefixes */
 	rt_gen_t		rnh_gen_rib;	/* fib algo: rib generation counter */
-	uint32_t		rib_dying:1;	/* rib is detaching */
-	uint32_t		rib_algo_fixed:1;/* fixed algorithm */
-	uint32_t		rib_algo_init:1;/* algo init done */
+	bool			rib_dying:1,	/* rib is detaching */
+				rib_algo_init:1;/* algo init done */
 	struct nh_control	*nh_control;	/* nexthop subsystem data */
 	rnh_augment_nh_f_t	*rnh_augment_nh;/* hook to alter nexthop prior to insertion */
 	CK_STAILQ_HEAD(, rib_subscription)	rnh_subscribers;/* notification subscribers */
