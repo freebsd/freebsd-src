@@ -2360,7 +2360,8 @@ ktls_mbuf_crypto_state(struct mbuf *mb, int offset, int len)
 		    (mb->m_epg_flags & EPG_FLAG_ANON) == 0)
 			return (KTLS_MBUF_CRYPTO_ST_SHAREDMBUF);
 		if ((mb->m_flags & M_EXT) != 0 &&
-		    mb->m_ext.ext_type == EXT_SFBUF)
+		    mb->m_ext.ext_type == EXT_SFBUF &&
+		    (mb->m_ext.ext_flags & EXT_FLAG_SFBUF_ANON) == 0)
 			return (KTLS_MBUF_CRYPTO_ST_SHAREDMBUF);
 
 		m_flags_ored |= mb->m_flags;
