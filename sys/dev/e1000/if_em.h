@@ -643,6 +643,8 @@ struct e1000_softc {
 
 	u16			vf_ifp;
 	bool			vf_reset_pending;
+	/* A PF can retain auxiliary filters across a VF reset. */
+	bool			vf_uc_filters_set;
 };
 
 /*
@@ -669,6 +671,7 @@ void	igbv_initialize_receive_unit(if_ctx_t);
 void	igbv_initialize_transmit_unit(if_ctx_t);
 void	igbv_reconcile_mac(struct e1000_softc *, if_t);
 bool	igbv_reset(if_ctx_t);
+void	igbv_update_uc_addr_list(struct e1000_softc *, if_t);
 
 /********************************************************************************
  * vendor_info_array

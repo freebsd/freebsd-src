@@ -30,6 +30,13 @@
 
 #include <sys/sbuf.h>
 
+#define	IGBV_MAX_MAC_FILTERS	3
+
+struct igb_vf_uc_addr_list {
+	struct e1000_softc	*sc;
+	u8			addrs[IGBV_MAX_MAC_FILTERS][ETHER_ADDR_LEN];
+};
+
 static bool	igbv_tx_pending(struct e1000_softc *);
 
 int
@@ -291,6 +298,65 @@ igbv_get_regs(SYSCTL_HANDLER_ARGS)
 	error = sbuf_finish(sb);
 	sbuf_delete(sb);
 	return (error);
+}
+
+static u_int
+igbv_copy_uc_addr(void *arg, struct sockaddr_dl *sdl, u_int idx)
+{
+	struct igb_vf_uc_addr_list *list;
+	const u8 *addr;
+
+	list = arg;
+	addr = (const u8 *)LLADDR(sdl);
+	if (memcmp(addr, list->sc->hw.mac.addr, ETHER_ADDR_LEN) == 0)
+		return (0);
+	if (idx < IGBV_MAX_MAC_FILTERS)
+		memcpy(list->addrs[idx], addr, ETHER_ADDR_LEN);
+	return (1);
+}
+
+void
+igbv_update_uc_addr_list(struct e1000_softc *sc, if_t ifp)
+{
+	struct igb_vf_uc_addr_list list = {
+		.sc = sc,
+	};
+	u_int count;
+
+	count = if_foreach_lladdr(ifp, igbv_copy_uc_addr, &list);
+	if (count > IGBV_MAX_MAC_FILTERS) {
+		device_printf(sc->dev,
+		    "too many secondary unicast addresses; maximum is %u\n",
+		    IGBV_MAX_MAC_FILTERS);
+	}
+	if (count == 0 && !sc->vf_uc_filters_set)
+		return;
+	/*
+	 * Linux igb PFs validate the address field before dispatching the CLR
+	 * subcommand.  Supply the primary address rather than the zero payload
+	 * used by igbvf so those PFs actually remove the old filters.  FreeBSD
+	 * PFs dispatch CLR before inspecting the otherwise-ignored address.
+	 */
+	if (e1000_set_uc_addr_vf(&sc->hw, E1000_VF_MAC_FILTER_CLR,
+	    sc->hw.mac.addr) != E1000_SUCCESS) {
+		device_printf(sc->dev,
+		    "VF secondary unicast filter clear request failed\n");
+		return;
+	}
+	sc->vf_uc_filters_set = false;
+	if (count > IGBV_MAX_MAC_FILTERS)
+		return;
+
+	for (u_int i = 0; i < count; i++) {
+		if (e1000_set_uc_addr_vf(&sc->hw, E1000_VF_MAC_FILTER_ADD,
+		    list.addrs[i]) != E1000_SUCCESS) {
+			device_printf(sc->dev,
+			    "VF secondary unicast filter add request failed "
+			    "for %6D\n", list.addrs[i], ":");
+		} else
+			sc->vf_uc_filters_set = true;
+		usec_delay(200);
+	}
 }
 
 void

@@ -389,6 +389,41 @@ static void e1000_write_msg_read_ack(struct e1000_hw *hw,
 }
 
 /**
+ *  e1000_set_uc_addr_vf - Add or clear secondary unicast addresses
+ *  @hw: pointer to the HW structure
+ *  @sub_cmd: E1000_VF_MAC_FILTER_ADD or E1000_VF_MAC_FILTER_CLR
+ *  @addr: address to add, or a valid compatibility address when clearing
+ *
+ *  Uses the secondary-MAC mailbox subprotocol implemented by Linux igbvf.
+ *  Linux igb PFs validate this field before dispatching the clear subcommand,
+ *  even though they do not otherwise use it for a clear request.
+ **/
+s32
+e1000_set_uc_addr_vf(struct e1000_hw *hw, u32 sub_cmd, u8 *addr)
+{
+	struct e1000_mbx_info *mbx = &hw->mbx;
+	u32 msgbuf[3] = {};
+	u32 request;
+	s32 ret_val;
+
+	msgbuf[0] = E1000_VF_SET_MAC_ADDR | sub_cmd;
+	request = msgbuf[0];
+	if (addr != NULL)
+		memcpy(&msgbuf[1], addr, ETHER_ADDR_LEN);
+
+	ret_val = mbx->ops.write_posted(hw, msgbuf, 3, 0);
+	if (ret_val == E1000_SUCCESS)
+		ret_val = mbx->ops.read_posted(hw, msgbuf, 3, 0);
+
+	msgbuf[0] &= ~E1000_VT_MSGTYPE_CTS;
+	if (ret_val == E1000_SUCCESS &&
+	    msgbuf[0] == (request | E1000_VT_MSGTYPE_NACK))
+		ret_val = -E1000_ERR_NO_SPACE;
+
+	return (ret_val);
+}
+
+/**
  *  e1000_update_mc_addr_list_vf - Update Multicast addresses
  *  @hw: pointer to the HW structure
  *  @mc_addr_list: array of multicast addresses to program

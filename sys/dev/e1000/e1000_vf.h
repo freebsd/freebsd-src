@@ -294,4 +294,5 @@ s32  e1000_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
 s32 e1000_vfta_set_vf(struct e1000_hw *, u16, bool);
 void e1000_rlpml_set_vf(struct e1000_hw *, u16);
 s32 e1000_promisc_set_vf(struct e1000_hw *, enum e1000_promisc_type);
+s32 e1000_set_uc_addr_vf(struct e1000_hw *, u32, u8 *);
 #endif /* _E1000_VF_H_ */

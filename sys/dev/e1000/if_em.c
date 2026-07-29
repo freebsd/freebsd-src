@@ -2550,6 +2550,7 @@ em_if_multi_set(if_ctx_t ctx)
 
 	if (sc->vf_ifp) {
 		e1000_update_mc_addr_list(&sc->hw, mta, mcnt);
+		igbv_update_uc_addr_list(sc, ifp);
 		return;
 	}
 
