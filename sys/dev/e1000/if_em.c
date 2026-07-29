@@ -342,8 +342,6 @@ static const pci_vendor_info_t igb_vendor_info_array[] =
 	    "Intel(R) PRO/1000 ET 82576 (Quad Copper)"),
 	PVID(0x8086, E1000_DEV_ID_82576_QUAD_COPPER_ET2,
 	    "Intel(R) PRO/1000 ET(2) 82576 (Quad Copper)"),
-	PVID(0x8086, E1000_DEV_ID_82576_VF,
-	    "Intel(R) PRO/1000 82576 Virtual Function"),
 	PVID(0x8086, E1000_DEV_ID_82580_COPPER,
 	    "Intel(R) I340 82580 (Copper)"),
 	PVID(0x8086, E1000_DEV_ID_82580_FIBER, "Intel(R) I340 82580 (Fiber)"),
@@ -365,7 +363,6 @@ static const pci_vendor_info_t igb_vendor_info_array[] =
 	PVID(0x8086, E1000_DEV_ID_I350_FIBER, "Intel(R) I350 (Fiber)"),
 	PVID(0x8086, E1000_DEV_ID_I350_SERDES, "Intel(R) I350 (SERDES)"),
 	PVID(0x8086, E1000_DEV_ID_I350_SGMII, "Intel(R) I350 (SGMII)"),
-	PVID(0x8086, E1000_DEV_ID_I350_VF, "Intel(R) I350 Virtual Function"),
 	PVID(0x8086, E1000_DEV_ID_I210_COPPER, "Intel(R) I210 (Copper)"),
 	PVID(0x8086, E1000_DEV_ID_I210_COPPER_IT,
 	    "Intel(R) I210 IT (Copper)"),
@@ -389,11 +386,24 @@ static const pci_vendor_info_t igb_vendor_info_array[] =
 	PVID_END
 };
 
+static const pci_vendor_info_t igbv_vendor_info_array[] = {
+	PVID(0x8086, E1000_DEV_ID_82576_VF,
+	    "Intel(R) PRO/1000 82576 Virtual Function"),
+	PVID(0x8086, E1000_DEV_ID_82576_VF_HV,
+	    "Intel(R) PRO/1000 82576 Virtual Function"),
+	PVID(0x8086, E1000_DEV_ID_I350_VF,
+	    "Intel(R) I350 Virtual Function"),
+	PVID(0x8086, E1000_DEV_ID_I350_VF_HV,
+	    "Intel(R) I350 Virtual Function"),
+	PVID_END
+};
+
 /*********************************************************************
  *  Function prototypes
  *********************************************************************/
 static void	*em_register(device_t);
 static void	*igb_register(device_t);
+static void	*igbv_register(device_t);
 static int	em_if_attach_pre(if_ctx_t);
 static int	em_if_attach_post(if_ctx_t);
 static int	em_if_detach(if_ctx_t);
@@ -527,6 +537,18 @@ static device_method_t igb_methods[] = {
 	DEVMETHOD_END
 };
 
+static device_method_t igbv_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_register, igbv_register),
+	DEVMETHOD(device_probe, iflib_device_probe),
+	DEVMETHOD(device_attach, iflib_device_attach),
+	DEVMETHOD(device_detach, iflib_device_detach),
+	DEVMETHOD(device_shutdown, iflib_device_shutdown),
+	DEVMETHOD(device_suspend, iflib_device_suspend),
+	DEVMETHOD(device_resume, iflib_device_resume),
+	DEVMETHOD_END
+};
+
 
 static driver_t em_driver = {
 	"em", em_methods, sizeof(struct e1000_softc),
@@ -551,6 +573,18 @@ MODULE_DEPEND(igb, ether, 1, 1, 1);
 MODULE_DEPEND(igb, iflib, 1, 1, 1);
 
 IFLIB_PNP_INFO(pci, igb, igb_vendor_info_array);
+
+static driver_t igbv_driver = {
+	"igbv", igbv_methods, sizeof(struct e1000_softc),
+};
+
+DRIVER_MODULE(igbv, pci, igbv_driver, 0, 0);
+
+MODULE_DEPEND(igbv, pci, 1, 1, 1);
+MODULE_DEPEND(igbv, ether, 1, 1, 1);
+MODULE_DEPEND(igbv, iflib, 1, 1, 1);
+
+IFLIB_PNP_INFO(pci, igbv_driver, igbv_vendor_info_array);
 
 static device_method_t em_if_methods[] = {
 	DEVMETHOD(ifdi_attach_pre, em_if_attach_pre),
@@ -761,6 +795,40 @@ static struct if_shared_ctx igb_sctx_init = {
 	.isc_ntxd_default = {EM_DEFAULT_TXD},
 };
 
+/*
+ * igb PFs and igbv VFs share the same ifdi implementation, but iflib must
+ * know which instances are VFs so that detaching a VF does not invoke the
+ * PF-only PCI IOV detach guard.
+ */
+static struct if_shared_ctx igbv_sctx_init = {
+	.isc_magic = IFLIB_MAGIC,
+	.isc_q_align = PAGE_SIZE,
+	.isc_tx_maxsize = EM_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_tx_maxsegsize = PAGE_SIZE,
+	.isc_tso_maxsize = EM_TSO_SIZE + sizeof(struct ether_vlan_header),
+	.isc_tso_maxsegsize = EM_TSO_SEG_SIZE,
+	.isc_rx_maxsize = MJUM9BYTES,
+	.isc_rx_nsegments = 1,
+	.isc_rx_maxsegsize = MJUM9BYTES,
+	.isc_nfl = 1,
+	.isc_nrxqs = 1,
+	.isc_ntxqs = 1,
+	.isc_admin_intrcnt = 1,
+	.isc_vendor_info = igbv_vendor_info_array,
+	.isc_driver_version = igb_driver_version,
+	.isc_driver = &igb_if_driver,
+	.isc_flags =
+	    IFLIB_NEED_SCRATCH | IFLIB_TSO_INIT_IP | IFLIB_NEED_ZERO_CSUM |
+	    IFLIB_IS_VF,
+
+	.isc_nrxd_min = {EM_MIN_RXD},
+	.isc_ntxd_min = {EM_MIN_TXD},
+	.isc_nrxd_max = {IGB_MAX_RXD},
+	.isc_ntxd_max = {IGB_MAX_TXD},
+	.isc_nrxd_default = {EM_DEFAULT_RXD},
+	.isc_ntxd_default = {EM_DEFAULT_TXD},
+};
+
 /*****************************************************************
  *
  * Dump Registers
@@ -899,6 +967,12 @@ static void *
 igb_register(device_t dev)
 {
 	return (&igb_sctx_init);
+}
+
+static void *
+igbv_register(device_t dev)
+{
+	return (&igbv_sctx_init);
 }
 
 static int
@@ -2656,7 +2730,14 @@ igb_configure_queues(struct e1000_softc *sc)
 		}
 
 		/* And for the link interrupt */
-		ivar = (sc->linkvec | E1000_IVAR_VALID) << 8;
+		if (sc->vf_ifp) {
+			/*
+			 * VTIVAR_MISC maps the VF mailbox in bits 7:0.
+			 * The PF IVAR_MISC maps other causes in bits 15:8.
+			 */
+			ivar = sc->linkvec | E1000_IVAR_VALID;
+		} else
+			ivar = (sc->linkvec | E1000_IVAR_VALID) << 8;
 		sc->link_mask = 1 << sc->linkvec;
 		E1000_WRITE_REG(hw, E1000_IVAR_MISC, ivar);
 		break;
