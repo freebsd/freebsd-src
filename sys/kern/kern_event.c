@@ -2160,6 +2160,7 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 		asbt = 0;
 	memset(&marker, 0, sizeof(marker));
 	marker.kn_status = KN_MARKER;
+	marker.kn_kq = kq;
 	KQ_LOCK(kq);
 
 retry:
