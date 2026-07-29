@@ -513,7 +513,8 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 	if (staterr & E1000_RXD_STAT_VP) {
 		if (((sc->hw.mac.type == e1000_i350) ||
-		    (sc->hw.mac.type == e1000_i354)) &&
+		    (sc->hw.mac.type == e1000_i354) ||
+		    (sc->hw.mac.type == e1000_vfadapt_i350)) &&
 		    (staterr & E1000_RXDEXT_STATERR_LB))
 			ri->iri_vtag = be16toh(rxd->wb.upper.vlan);
 		else
