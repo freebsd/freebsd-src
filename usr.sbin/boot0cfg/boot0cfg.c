@@ -115,6 +115,7 @@ static int v_flag;
 int
 main(int argc, char *argv[])
 {
+    struct stat sb;
     u_int8_t *mbr, *boot0;
     int boot0_size, mbr_size;
     const char *bpath, *fpath;
@@ -183,9 +184,15 @@ main(int argc, char *argv[])
     argv += optind;
     if (argc != 1)
         usage();
-    disk = g_device_path(*argv);
-    if (disk == NULL)
-        errx(1, "Unable to get providername for %s\n", *argv);
+    if (stat(*argv, &sb) == 0 && S_ISREG(sb.st_mode)) {
+        disk = strdup(*argv);
+        if (disk == NULL)
+            err(1, "strdup");
+    } else {
+        disk = g_device_path(*argv);
+        if (disk == NULL)
+            errx(1, "Unable to get providername for %s\n", *argv);
+    }
     up = B_flag || d_arg != -1 || m_arg != -1 || o_flag || s_arg != -1
 	|| t_arg != -1;
 
@@ -373,6 +380,7 @@ write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size,
     int disable_dsn)
 {
 	struct gctl_req *grq;
+	struct stat sb;
 	const char *errmsg;
 	char *pname;
 	ssize_t n;
@@ -394,20 +402,40 @@ write_mbr(const char *fname, int flags, u_int8_t *mbr, int mbr_size,
 	if (flags != 0)
 		err(1, "can't open file %s to write backup", fname);
 
-	/* Try open it read only. */
+	/*
+	 * Try to open it read only to pass to GEOM,
+	 * or inspect if it's a regular file.
+	 */
 	fd = open(fname, O_RDONLY);
 	if (fd == -1) {
 		warn("error opening %s", fname);
 		return;
 	}
 
+	/*
+	 * If name is a regular file, re-open it in write-only mode
+	 * and write the MBR straight to it.
+	 */
+	if (fstat(fd, &sb) == 0 && S_ISREG(sb.st_mode)) {
+		close(fd);
+		fd = open(fname, O_WRONLY);
+		if (fd == -1)
+			err(1, "can't open %s for writing", fname);
+		n = write(fd, mbr, mbr_size);
+		close(fd);
+		if (n != mbr_size)
+			errx(1, "%s: short write", fname);
+		return;
+	}
+
 	pname = g_providername(fd);
+	close(fd);
 	if (pname == NULL) {
 		warn("error getting providername for %s", fname);
 		return;
 	}
 
-	/* First check that GEOM_PART is available */
+	/* Check that GEOM_PART is available */
 	if (geom_class_available("PART") != 0) {
 		grq = gctl_get_handle();
 		gctl_ro_param(grq, "class", -1, "PART");
@@ -594,6 +622,6 @@ usage(void)
 {
     fprintf(stderr, "%s\n%s\n",
     "usage: boot0cfg [-Bv] [-b boot0] [-d drive] [-f file] [-m mask]",
-    "                [-o options] [-s slice] [-t ticks] disk");
+    "                [-o options] [-s slice] [-t ticks] disk | file");
     exit(1);
 }
