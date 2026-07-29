@@ -1584,4 +1584,24 @@ writel_fbsd(struct bnxt_softc *bp, u32 reg_off, u8 bar_idx, u32 val)
 		panic("%s: invalid bar_idx %u", __func__, bar_idx);
 	}
 }
+
+/* Non-atomic test-and-set; caller must hold the lock serializing bmap.
+ * bitstring.h has no equivalent primitive. */
+static inline int
+bnxt_test_and_set_bit_nonatomic(int nr, bitstr_t *bmap)
+{
+	if (bit_test(bmap, nr))
+		return (1);
+	bit_set(bmap, nr);
+	return (0);
+}
+
+static inline int
+bnxt_test_and_clear_bit_nonatomic(int nr, bitstr_t *bmap)
+{
+	if (!bit_test(bmap, nr))
+		return (0);
+	bit_clear(bmap, nr);
+	return (1);
+}
 #endif /* _BNXT_H */
