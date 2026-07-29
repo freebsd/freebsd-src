@@ -19,6 +19,9 @@
 #define	IGB_IOV_MAX_MAC_FILTERS		3
 #define	IGB_IOV_MAX_MC_HASHES		30
 #define	IGB_IOV_MBX_RETRY_COUNT		6
+/* Allow two complete 31-VID replays, then sustain eight additions/second. */
+#define	IGB_IOV_VLAN_CHANGE_BURST	64
+#define	IGB_IOV_VLAN_CHANGE_INTERVAL	(SBT_1S / 8)
 /* 82576 Datasheet rev. 2.0, Section 8.14.16: VMOLR[31] must be one. */
 #define	IGB_82576_VMOLR_RSV		(1U << 31)
 #define	IGB_82576_LVMMC_BLOCK_MASK	0x1c
@@ -58,11 +61,13 @@ struct igb_vf {
 	struct timeval	last_mdd_log;
 	sbintime_t	mbx_retry_at;
 	sbintime_t	mdd_notify_at;
+	sbintime_t	vlan_token_time;
 	u16	pool;
 	u16	rar_index;
 	u16	max_frame_size;
 	u16	mc_count;
 	u16	vlan_count;
+	u16	vlan_tokens;
 	u16	default_vlan;
 	u8	mbx_retry_count;
 	u8	mac[ETHER_ADDR_LEN];
@@ -165,6 +170,34 @@ static bool
 igb_iov_nack_allowed(struct igb_vf *vf)
 {
 	return (ratecheck(&vf->last_nack, &igb_iov_nack_interval) != 0);
+}
+
+static void
+igb_iov_reset_vlan_rate(struct igb_vf *vf)
+{
+
+	vf->vlan_token_time = getsbinuptime();
+	vf->vlan_tokens = IGB_IOV_VLAN_CHANGE_BURST;
+}
+
+static bool
+igb_iov_vlan_add_allowed(struct igb_vf *vf)
+{
+	sbintime_t elapsed, now;
+	uint64_t refill;
+
+	now = getsbinuptime();
+	elapsed = now - vf->vlan_token_time;
+	if (elapsed >= IGB_IOV_VLAN_CHANGE_INTERVAL) {
+		refill = elapsed / IGB_IOV_VLAN_CHANGE_INTERVAL;
+		vf->vlan_tokens = min((uint64_t)IGB_IOV_VLAN_CHANGE_BURST,
+		    vf->vlan_tokens + refill);
+		vf->vlan_token_time = now;
+	}
+	if (vf->vlan_tokens == 0)
+		return (false);
+	vf->vlan_tokens--;
+	return (true);
 }
 
 static u32
@@ -642,7 +675,6 @@ igb_iov_rebuild_mta(struct e1000_softc *sc)
 			mta[(hash >> 5) & (hw->mac.mta_reg_count - 1)] |=
 			    1U << (hash & 0x1f);
 		}
-		igb_iov_configure_vmolr(sc, vf);
 	}
 
 	changed = false;
@@ -881,12 +913,17 @@ igb_iov_vlan_present(struct e1000_softc *sc, u16 vid, bool include_pf)
 static int
 igb_iov_vlan_unique_count(struct e1000_softc *sc, bool include_pf)
 {
-	int count, vid;
+	u32 vlans;
+	int count, i, word;
 
 	count = 0;
-	for (vid = 0; vid < 4096; vid++)
-		if (igb_iov_vlan_present(sc, vid, include_pf))
-			count++;
+	for (word = 0; word < EM_VFTA_SIZE; word++) {
+		vlans = include_pf ? sc->shadow_vfta[word] : 0;
+		for (i = 0; i < sc->num_vfs; i++)
+			if ((sc->vfs[i].flags & IGB_VF_ACTIVE) != 0)
+				vlans |= sc->vfs[i].vlans[word];
+		count += bitcount32(vlans);
+	}
 	return (count);
 }
 
@@ -909,10 +946,17 @@ igb_iov_set_vlan(struct e1000_softc *sc, struct igb_vf *vf, u16 vid,
 	if (add == present)
 		return (0);
 
+	/*
+	 * Removals always reduce privilege and remain available.  Charge only
+	 * additions, which a hostile VF must alternate with removals to force
+	 * repeated global VLAN rebuilds.
+	 */
 	if (add && !igb_iov_vlan_present(sc, vid, false) &&
 	    igb_iov_vlan_unique_count(sc, false) >=
 	    E1000_VLVF_ARRAY_SIZE)
 		return (ENOSPC);
+	if (add && !igb_iov_vlan_add_allowed(vf))
+		return (EBUSY);
 
 	if (add) {
 		vf->vlans[vid >> 5] |= bit;
@@ -1170,6 +1214,7 @@ igb_iov_set_multicast(struct e1000_softc *sc, struct igb_vf *vf, u32 *msg)
 		    "VF %u multicast list exceeds 30 entries; "
 		    "enabling all-multicast reception\n", vf->pool);
 	}
+	igb_iov_configure_vmolr(sc, vf);
 	igb_iov_rebuild_mta(sc);
 	return (0);
 }
@@ -1660,6 +1705,12 @@ igb_iov_initialize(struct e1000_softc *sc)
 		vf = &sc->vfs[i];
 		if (!(vf->flags & IGB_VF_ACTIVE))
 			continue;
+		/*
+		 * A PF-wide reset is trusted and can require a complete guest
+		 * replay.  Guest-controlled RESET and VFLR do not refill this
+		 * allowance.
+		 */
+		igb_iov_reset_vlan_rate(vf);
 		igb_iov_clear_mac_filters(sc, vf);
 		igb_iov_reset_vf_state(sc, vf);
 		igb_iov_clear_rar(sc, vf->rar_index);
@@ -1875,6 +1926,7 @@ igb_if_iov_vf_add(if_ctx_t ctx, u16 vfnum, const nvlist_t *config)
 	vf->rar_index = sc->hw.mac.rar_entry_count - (vfnum + 1);
 	vf->max_frame_size = ETHER_MAX_LEN;
 	vf->default_vlan = vlan;
+	igb_iov_reset_vlan_rate(vf);
 	if (nvlist_exists_binary(config, "mac-addr")) {
 		mac = nvlist_get_binary(config, "mac-addr", &mac_size);
 		if (mac_size != ETHER_ADDR_LEN || !igb_iov_mac_valid(mac))
