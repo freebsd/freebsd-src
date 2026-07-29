@@ -396,10 +396,6 @@ in6_pcbladdr(struct inpcb *inp, struct sockaddr_in6 *sin6,
 	if ((error = sa6_embedscope(sin6, V_ip6_use_defzone)) != 0)
 		return(error);
 
-	/* RFC4291 section 2.5.2 */
-	if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
-		return (ENETUNREACH);
-
 	if ((error = prison_remote_ip6(inp->inp_cred, &sin6->sin6_addr)) != 0)
 		return (error);
 
@@ -464,6 +460,10 @@ in6_pcbconnect(struct inpcb *inp, struct sockaddr_in6 *sin6, struct ucred *cred,
 	    ("%s: invalid address length for %p", __func__, sin6));
 	KASSERT(IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr),
 	    ("%s: inp is already connected", __func__));
+
+	/* RFC4291 section 2.5.2 */
+	if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
+		return (ENETUNREACH);
 
 	anonport = (inp->inp_lport == 0);
 
