@@ -56,8 +56,14 @@ struct g_zoned_disk_entry {
 #define	G_ZONED_ENTRY_SIZE	sizeof(struct g_zoned_disk_entry)
 _Static_assert(G_ZONED_ENTRY_SIZE == 8, "on-disk zone entry layout changed");
 
-/* de_write_pointer value for zones without a write pointer. */
-#define	G_ZONED_WP_NONE		0xffffffffu
+/*
+ * write_pointer_lba for zones with no valid write pointer (e.g. conventional
+ * zones). All-ones is what drives report in practice, as the ZBC-3 and ZAC-3
+ * specs do not define a value.
+ */
+#define	G_ZONED_WP_NONE_LBA	UINT64_MAX
+/* On-disk, zone-relative counterpart in de_write_pointer. */
+#define	G_ZONED_WP_NONE		0xffffffff
 /*
  * Zone size cap (in sectors) keeping every valid zone-relative write pointer,
  * including that of a full zone (== zone length), below G_ZONED_WP_NONE.
@@ -237,8 +243,8 @@ g_zoned_entry_encode(const struct disk_zone_rep_entry *z, u_char *data)
 	de->de_condition = z->zone_condition;
 	de->de_flags = z->zone_flags;
 	de->de_reserved = 0;
-	de->de_write_pointer = htole32(z->write_pointer_lba == UINT64_MAX ?
-	    G_ZONED_WP_NONE :
+	de->de_write_pointer = htole32(
+	    z->write_pointer_lba == G_ZONED_WP_NONE_LBA ? G_ZONED_WP_NONE :
 	    (uint32_t)(z->write_pointer_lba - z->zone_start_lba));
 }
 
@@ -254,7 +260,7 @@ g_zoned_entry_decode(const u_char *data, struct disk_zone_rep_entry *z,
 	z->zone_condition = de->de_condition;
 	z->zone_flags = de->de_flags;
 	wp = le32toh(de->de_write_pointer);
-	z->write_pointer_lba = (wp == G_ZONED_WP_NONE) ? UINT64_MAX :
+	z->write_pointer_lba = (wp == G_ZONED_WP_NONE) ? G_ZONED_WP_NONE_LBA :
 	    start_lba + wp;
 }
 #endif	/* _KERNEL */

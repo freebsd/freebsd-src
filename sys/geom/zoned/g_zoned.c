@@ -193,11 +193,8 @@ g_zoned_reset_zones(struct g_zoned_softc *sc)
 		if (g_zoned_is_conv(sc, i)) {
 			z->zone_type = DISK_ZONE_TYPE_CONVENTIONAL;
 			z->zone_condition = DISK_ZONE_COND_NOT_WP;
-			/*
-			 * Conventional zones have no write pointer; report
-			 * the all-ones sentinel like real (zoned) drives do.
-			 */
-			z->write_pointer_lba = UINT64_MAX;
+			/* Conventional zones have no write pointer. */
+			z->write_pointer_lba = G_ZONED_WP_NONE_LBA;
 		} else {
 			z->zone_type = DISK_ZONE_TYPE_SEQ_REQUIRED;
 			z->zone_condition = DISK_ZONE_COND_EMPTY;
@@ -304,7 +301,7 @@ g_zoned_load_table(struct g_zoned_softc *sc, struct g_consumer *cp)
 		if (g_zoned_is_conv(sc, i)) {
 			z->zone_type = DISK_ZONE_TYPE_CONVENTIONAL;
 			z->zone_condition = DISK_ZONE_COND_NOT_WP;
-			z->write_pointer_lba = UINT64_MAX;
+			z->write_pointer_lba = G_ZONED_WP_NONE_LBA;
 			continue;
 		}
 		z->zone_type = DISK_ZONE_TYPE_SEQ_REQUIRED;
