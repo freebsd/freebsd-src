@@ -15,13 +15,13 @@ strfroml(char * __restrict s, size_t n, const char * __restrict fmt,
 	char conv, lc, *digits, *dend;
 	int prec, decpt, signflag, ret, mode, ndig_req;
 
-	conv = sf_parse_fmt(fmt, &prec);
+	conv = __sf_parse_fmt(fmt, &prec);
 	lc = conv | 0x20;
 
 	if (lc == 'a') {
-		digits = __hldtoa(fp, sf_xdigits(conv),
+		digits = __hldtoa(fp, __sf_xdigits(conv),
 		    prec >= 0 ? prec + 1 : -1, &decpt, &signflag, &dend);
-		ret = sf_render_hex(s, n, conv, prec, digits, dend, decpt,
+		ret = __sf_render_hex(s, n, conv, prec, digits, dend, decpt,
 		    signflag);
 		freedtoa(digits);
 		return (ret);
@@ -30,11 +30,11 @@ strfroml(char * __restrict s, size_t n, const char * __restrict fmt,
 	if (prec < 0)
 		prec = 6;
 
-	sf_decimal_mode(lc, prec, &mode, &ndig_req);
+	__sf_decimal_mode(lc, prec, &mode, &ndig_req);
 
 	digits = __ldtoa(&fp, mode, ndig_req, &decpt, &signflag, &dend);
 
-	ret = sf_render_decimal(s, n, conv, lc, prec, digits, dend, decpt,
+	ret = __sf_render_decimal(s, n, conv, lc, prec, digits, dend, decpt,
 	    signflag, decpt == INT_MAX);
 
 	freedtoa(digits);

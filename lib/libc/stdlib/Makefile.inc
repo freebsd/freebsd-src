@@ -55,6 +55,7 @@ MISRCS+= \
 	remque.c \
 	set_constraint_handler_s.c \
 	strfmon.c \
+	strfrom.c \
 	strfromd.c \
 	strfromf.c \
 	strfroml.c \
