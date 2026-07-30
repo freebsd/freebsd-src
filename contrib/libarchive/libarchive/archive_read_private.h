@@ -76,10 +76,10 @@ struct archive_read_filter_bidder {
 struct archive_read_filter_vtable {
 	/* Return next block. */
 	ssize_t (*read)(struct archive_read_filter *, const void **);
-	/* Close (just this filter) and free(self). */
-	int (*close)(struct archive_read_filter *self);
+	/* Close (just this filter) and free(filter). */
+	int (*close)(struct archive_read_filter *);
 	/* Read any header metadata if available. */
-	int (*read_header)(struct archive_read_filter *self, struct archive_entry *entry);
+	int (*read_header)(struct archive_read_filter *, struct archive_entry *);
 };
 
 /*
@@ -179,6 +179,15 @@ struct archive_read {
 
 	/* File offset of beginning of most recently-read header. */
 	int64_t		  header_position;
+
+	/*
+	 * Declared uncompressed size of the entry whose header was most
+	 * recently read, or -1 if no size was declared.  Lets format-
+	 * agnostic consumers like archive_read_data_into_fd() cap their
+	 * output at the size an entry actually promised, regardless of
+	 * whether the format reader enforces that itself.
+	 */
+	int64_t		  entry_bytes_declared;
 
 	/* Nodes and offsets of compressed data block */
 	unsigned int data_start_node;

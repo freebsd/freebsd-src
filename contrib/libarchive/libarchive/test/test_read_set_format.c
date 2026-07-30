@@ -148,7 +148,7 @@ DEFINE_TEST(test_read_append_filter)
   assertEqualInt(1, archive_file_count(a));
   assertEqualInt(archive_filter_code(a, 0), ARCHIVE_COMPRESSION_GZIP);
   assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
-  assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
   assertEqualInt(ARCHIVE_OK,archive_read_free(a));
 }
 
@@ -208,6 +208,174 @@ DEFINE_TEST(test_read_append_grzip_filter)
     assertEqualIntA(a, ARCHIVE_WARN, r);
   }
 
+  archive_read_free(a);
+}
+
+DEFINE_TEST(test_read_append_compress_filter)
+{
+  struct archive *a;
+  int r;
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+  r = archive_read_append_filter(a, ARCHIVE_FILTER_COMPRESS);
+  assertEqualIntA(a, ARCHIVE_OK, r);
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+DEFINE_TEST(test_read_append_bzip2_filter)
+{
+  struct archive *a;
+  int r;
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+  r = archive_read_append_filter(a, ARCHIVE_FILTER_BZIP2);
+  if (r != ARCHIVE_OK && archive_bzlib_version() == NULL && !canBzip2()) {
+    skipping("bzip2 tests require bzlib or working bzip2 command");
+    archive_read_free(a);
+    return;
+  }
+  if (r == ARCHIVE_WARN && canBzip2())
+    assertEqualString(archive_error_string(a), "Using external bzip2 program");
+  else
+    assertEqualIntA(a, ARCHIVE_OK, r);
+  archive_read_free(a);
+}
+
+DEFINE_TEST(test_read_append_lrzip_filter)
+{
+  struct archive *a;
+  int r;
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+  r = archive_read_append_filter(a, ARCHIVE_FILTER_LRZIP);
+  if (r != ARCHIVE_OK && !canLrzip()) {
+    skipping("lrzip tests require working lrzip command");
+    archive_read_free(a);
+    return;
+  }
+  if (r == ARCHIVE_WARN && canLrzip())
+    assertEqualString(archive_error_string(a), "Using external lrzip program for lrzip decompression");
+  else
+    assertEqualIntA(a, ARCHIVE_OK, r);
+  archive_read_free(a);
+}
+
+DEFINE_TEST(test_read_append_lz4_filter)
+{
+  struct archive *a;
+  int r;
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+  r = archive_read_append_filter(a, ARCHIVE_FILTER_LZ4);
+  if (r != ARCHIVE_OK && archive_liblz4_version() == NULL && !canLz4()) {
+    skipping("lz4 tests require liblz4 or working lz4 command");
+    archive_read_free(a);
+    return;
+  }
+  if (r == ARCHIVE_WARN && canLz4())
+    assertEqualString(archive_error_string(a), "Using external lz4 program");
+  else
+    assertEqualIntA(a, ARCHIVE_OK, r);
+  archive_read_free(a);
+}
+
+DEFINE_TEST(test_read_append_lzip_filter)
+{
+  struct archive *a;
+  int r;
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+  r = archive_read_append_filter(a, ARCHIVE_FILTER_LZIP);
+  if (r != ARCHIVE_OK && archive_liblzma_version() == NULL && !canLzip()) {
+    skipping("lzip tests require liblzma or working lzip command");
+    archive_read_free(a);
+    return;
+  }
+  if (r == ARCHIVE_WARN && canLzip())
+    assertEqualString(archive_error_string(a), "Using external lzip program for lzip decompression");
+  else
+    assertEqualIntA(a, ARCHIVE_OK, r);
+  archive_read_free(a);
+}
+
+DEFINE_TEST(test_read_append_lzma_filter)
+{
+  struct archive *a;
+  int r;
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+  r = archive_read_append_filter(a, ARCHIVE_FILTER_LZMA);
+  if (r != ARCHIVE_OK && archive_liblzma_version() == NULL && !canLzma()) {
+    skipping("lzma tests require liblzma or working lzma command");
+    archive_read_free(a);
+    return;
+  }
+  if (r == ARCHIVE_WARN && canLzma())
+    assertEqualString(archive_error_string(a), "Using external lzma program for lzma decompression");
+  else
+    assertEqualIntA(a, ARCHIVE_OK, r);
+  archive_read_free(a);
+}
+
+DEFINE_TEST(test_read_append_zstd_filter)
+{
+  struct archive *a;
+  int r;
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+  r = archive_read_append_filter(a, ARCHIVE_FILTER_ZSTD);
+  if (r != ARCHIVE_OK && archive_libzstd_version() == NULL && !canZstd()) {
+    skipping("zstd tests require libzstd or working zstd command");
+    archive_read_free(a);
+    return;
+  }
+  if (r == ARCHIVE_WARN && canZstd())
+    assertEqualString(archive_error_string(a), "Using external zstd program for zstd decompression");
+  else
+    assertEqualIntA(a, ARCHIVE_OK, r);
+  archive_read_free(a);
+}
+
+DEFINE_TEST(test_read_append_rpm_filter)
+{
+  struct archive *a;
+  int r;
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+  r = archive_read_append_filter(a, ARCHIVE_FILTER_RPM);
+  assertEqualIntA(a, ARCHIVE_OK, r);
+  archive_read_free(a);
+}
+
+DEFINE_TEST(test_read_append_uu_filter)
+{
+  struct archive *a;
+  int r;
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+  r = archive_read_append_filter(a, ARCHIVE_FILTER_UU);
+  assertEqualIntA(a, ARCHIVE_OK, r);
+  archive_read_free(a);
+}
+
+DEFINE_TEST(test_read_append_none_filter)
+{
+  struct archive *a;
+  int r;
+
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_set_format(a, ARCHIVE_FORMAT_TAR));
+  r = archive_read_append_filter(a, ARCHIVE_FILTER_NONE);
+  assertEqualIntA(a, ARCHIVE_OK, r);
   archive_read_free(a);
 }
 

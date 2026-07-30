@@ -40,6 +40,7 @@
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
@@ -182,8 +183,7 @@ archive_write_set_format_cpio_binary(struct archive *_a, int format)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_cpio_binary");
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_free != NULL)
-		(a->format_free)(a);
+	(void)__archive_write_unregister_format(a);
 
 	cpio = calloc(1, sizeof(*cpio));
 	if (cpio == NULL) {
@@ -235,7 +235,7 @@ static int
 archive_write_binary_options(struct archive_write *a, const char *key,
     const char *val)
 {
-	struct cpio *cpio = (struct cpio *)a->format_data;
+	struct cpio *cpio = a->format_data;
 	int ret = ARCHIVE_FAILED;
 
 	if (strcmp(key, "hdrcharset")  == 0) {
@@ -307,10 +307,16 @@ synthesize_ino_value(struct cpio *cpio, struct archive_entry *entry)
 
 	/* Ensure space for the new mapping. */
 	if (cpio->ino_list_size <= cpio->ino_list_next) {
-		size_t newsize = cpio->ino_list_size < 512
-		    ? 512 : cpio->ino_list_size * 2;
-		void *newlist = realloc(cpio->ino_list,
-		    sizeof(cpio->ino_list[0]) * newsize);
+		size_t newsize, size;
+		if (cpio->ino_list_size < 512)
+			newsize = 512;
+		else if (archive_ckd_mul_size(&newsize,
+		    cpio->ino_list_size, 2))
+			return (-1);
+		if (archive_ckd_mul_size(&size,
+		    newsize, sizeof(cpio->ino_list[0])))
+			return (-1);
+		void *newlist = realloc(cpio->ino_list, size);
 		if (newlist == NULL)
 			return (-1);
 
@@ -329,10 +335,9 @@ synthesize_ino_value(struct cpio *cpio, struct archive_entry *entry)
 static struct archive_string_conv *
 get_sconv(struct archive_write *a)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format_data;
 	struct archive_string_conv *sconv;
 
-	cpio = (struct cpio *)a->format_data;
 	sconv = cpio->opt_sconv;
 	if (sconv == NULL) {
 		if (!cpio->init_default_conversion) {
@@ -378,16 +383,15 @@ archive_write_binary_header(struct archive_write *a, struct archive_entry *entry
 static int
 write_header(struct archive_write *a, struct archive_entry *entry)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format_data;
 	const char *p, *path;
-	int pathlength, ret, ret_final;
+	int ret, ret_final;
 	int64_t	ino;
 	struct cpio_binary_header h;
 	struct archive_string_conv *sconv;
 	struct archive_entry *entry_main;
-	size_t len;
+	size_t len, pathlength;
 
-	cpio = (struct cpio *)a->format_data;
 	ret_final = ARCHIVE_OK;
 	sconv = get_sconv(a);
 
@@ -423,7 +427,7 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 		ret_final = ARCHIVE_WARN;
 	}
 	/* Include trailing null */
-	pathlength = (int)len + 1;
+	pathlength = len + 1;
 
 	h.h_magic = la_swap16(070707);
 	h.h_dev = la_swap16(archive_entry_dev(entry));
@@ -472,7 +476,13 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 		h.h_majmin = 0;
 
 	h.h_mtime = la_swap32((uint32_t)archive_entry_mtime(entry));
-	h.h_namesize = la_swap16(pathlength);
+	if (pathlength > 0xffff) {
+		archive_set_error(&a->archive, ERANGE,
+		    "Filename is too long for cpio format");
+		ret_final = ARCHIVE_FAILED;
+		goto exit_write_header;
+	}
+	h.h_namesize = la_swap16((uint16_t)pathlength);
 
 	/* Non-regular files don't store bodies. */
 	if (archive_entry_filetype(entry) != AE_IFREG)
@@ -555,10 +565,9 @@ exit_write_header:
 static ssize_t
 archive_write_binary_data(struct archive_write *a, const void *buff, size_t s)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format_data;
 	int ret;
 
-	cpio = (struct cpio *)a->format_data;
 	if (s > cpio->entry_bytes_remaining)
 		s = (size_t)cpio->entry_bytes_remaining;
 
@@ -592,9 +601,8 @@ archive_write_binary_close(struct archive_write *a)
 static int
 archive_write_binary_free(struct archive_write *a)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format_data;
 
-	cpio = (struct cpio *)a->format_data;
 	free(cpio->ino_list);
 	free(cpio);
 	a->format_data = NULL;
@@ -604,9 +612,7 @@ archive_write_binary_free(struct archive_write *a)
 static int
 archive_write_binary_finish_entry(struct archive_write *a)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format_data;
 
-	cpio = (struct cpio *)a->format_data;
-	return (__archive_write_nulls(a,
-		(size_t)cpio->entry_bytes_remaining));
+	return (__archive_write_nulls(a, cpio->entry_bytes_remaining));
 }

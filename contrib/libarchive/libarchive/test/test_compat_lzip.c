@@ -124,7 +124,7 @@ compat_lzip(const char *name)
 	assertEqualString(archive_filter_name(a, 0), "lzip");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -165,7 +165,7 @@ compat_lzip_3(const char *name)
 	assertEqualString(archive_filter_name(a, 0), "lzip");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_RAW);
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -202,7 +202,7 @@ compat_lzip_4(const char *name)
 	assertEqualString(archive_filter_name(a, 0), "lzip");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 

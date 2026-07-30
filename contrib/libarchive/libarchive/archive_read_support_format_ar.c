@@ -45,6 +45,7 @@
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 
@@ -54,7 +55,7 @@ struct ar {
 	 * but haven't yet marked as consumed.  Must be paired with
 	 * entry_bytes_remaining usage/modification.
 	 */
-	size_t   entry_bytes_unconsumed;
+	int64_t  entry_bytes_unconsumed;
 	int64_t	 entry_offset;
 	int64_t	 entry_padding;
 	char	*strtab;
@@ -80,18 +81,18 @@ struct ar {
 #define AR_fmag_offset 58
 #define AR_fmag_size 2
 
-static int	archive_read_format_ar_bid(struct archive_read *a, int);
-static int	archive_read_format_ar_cleanup(struct archive_read *a);
-static int	archive_read_format_ar_read_data(struct archive_read *a,
-		    const void **buff, size_t *size, int64_t *offset);
-static int	archive_read_format_ar_skip(struct archive_read *a);
-static int	archive_read_format_ar_read_header(struct archive_read *a,
-		    struct archive_entry *e);
-static uint64_t	ar_atol8(const char *p, unsigned char_cnt);
-static uint64_t	ar_atol10(const char *p, unsigned char_cnt);
-static int	ar_parse_gnu_filename_table(struct archive_read *a);
-static int	ar_parse_common_header(struct ar *ar, struct archive_entry *,
-		    const char *h);
+static int	archive_read_format_ar_bid(struct archive_read *, int);
+static int	archive_read_format_ar_cleanup(struct archive_read *);
+static int	archive_read_format_ar_read_data(struct archive_read *,
+		    const void **, size_t *, int64_t *);
+static int	archive_read_format_ar_skip(struct archive_read *);
+static int	archive_read_format_ar_read_header(struct archive_read *,
+		    struct archive_entry *);
+static uint64_t	ar_atol8(const char *, size_t);
+static uint64_t	ar_atol10(const char *, size_t);
+static int	ar_parse_gnu_filename_table(struct archive_read *);
+static void	ar_parse_common_header(struct ar *, struct archive_entry *,
+		    const char *);
 
 int
 archive_read_support_format_ar(struct archive *_a)
@@ -134,12 +135,12 @@ archive_read_support_format_ar(struct archive *_a)
 static int
 archive_read_format_ar_cleanup(struct archive_read *a)
 {
-	struct ar *ar;
+	struct ar *ar = a->format->data;
 
-	ar = (struct ar *)(a->format->data);
 	free(ar->strtab);
 	free(ar);
-	(a->format->data) = NULL;
+	a->format->data = NULL;
+
 	return (ARCHIVE_OK);
 }
 
@@ -164,14 +165,12 @@ archive_read_format_ar_bid(struct archive_read *a, int best_bid)
 
 static int
 _ar_read_header(struct archive_read *a, struct archive_entry *entry,
-	struct ar *ar, const char *h, size_t *unconsumed)
+	struct ar *ar, const char *h, int64_t *unconsumed)
 {
 	char filename[AR_name_size + 1];
 	uint64_t number; /* Used to hold parsed numbers before validation. */
-	size_t bsd_name_length, entry_size;
-	char *p, *st;
+	char *p;
 	const void *b;
-	int r;
 
 	/* Verify the magic signature on the file header. */
 	if (strncmp(h + AR_fmag_offset, "`\n", 2) != 0) {
@@ -247,14 +246,20 @@ _ar_read_header(struct archive_read *a, struct archive_entry *entry,
 	}
 
 	/*
+	 * Parse the time, owner, mode, size fields.
+	 * This must come before any call to _read_ahead.
+	 */
+	ar_parse_common_header(ar, entry, h);
+
+	/*
 	 * '//' is the GNU filename table.
 	 * Later entries can refer to names in this table.
 	 */
 	if (strcmp(filename, "//") == 0) {
-		/* This must come before any call to _read_ahead. */
-		ar_parse_common_header(ar, entry, h);
+		char *st;
+		size_t entry_size;
+
 		archive_entry_copy_pathname(entry, filename);
-		archive_entry_set_filetype(entry, AE_IFREG);
 		/* Get the size of the filename table. */
 		number = ar_atol10(h + AR_size_offset, AR_size_size);
 		if (number > SIZE_MAX || number > 1024 * 1024 * 1024) {
@@ -309,22 +314,15 @@ _ar_read_header(struct archive_read *a, struct archive_entry *entry,
 	 */
 	if (filename[0] == '/' && filename[1] >= '0' && filename[1] <= '9') {
 		number = ar_atol10(h + AR_name_offset + 1, AR_name_size - 1);
-		/*
-		 * If we can't look up the real name, warn and return
-		 * the entry with the wrong name.
-		 */
+		/* Fail if we can't look up the real name. */
 		if (ar->strtab == NULL || number >= ar->strtab_size) {
 			archive_set_error(&a->archive, EINVAL,
 			    "Can't find long filename for GNU/SVR4 archive entry");
-			archive_entry_copy_pathname(entry, filename);
-			/* Parse the time, owner, mode, size fields. */
-			ar_parse_common_header(ar, entry, h);
 			return (ARCHIVE_FATAL);
 		}
 
 		archive_entry_copy_pathname(entry, &ar->strtab[(size_t)number]);
-		/* Parse the time, owner, mode, size fields. */
-		return (ar_parse_common_header(ar, entry, h));
+		return (ARCHIVE_OK);
 	}
 
 	/*
@@ -333,9 +331,7 @@ _ar_read_header(struct archive_read *a, struct archive_entry *entry,
 	 * the filename to the file contents.
 	 */
 	if (strncmp(filename, "#1/", 3) == 0) {
-		/* Parse the time, owner, mode, size fields. */
-		/* This must occur before _read_ahead is called again. */
-		ar_parse_common_header(ar, entry, h);
+		size_t bsd_name_length;
 
 		/* Parse the size of the name, adjust the file size. */
 		number = ar_atol10(h + AR_name_offset + 3, AR_name_size - 3);
@@ -346,7 +342,7 @@ _ar_read_header(struct archive_read *a, struct archive_entry *entry,
 		 */
 		if (number > SIZE_MAX - 1
 		    || number > 1024 * 1024
-		    || (int64_t)number > ar->entry_bytes_remaining) {
+		    || number > (uint64_t)ar->entry_bytes_remaining) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "Bad input file size");
 			return (ARCHIVE_FATAL);
@@ -385,49 +381,33 @@ _ar_read_header(struct archive_read *a, struct archive_entry *entry,
 	}
 
 	/*
-	 * "/" is the SVR4/GNU archive symbol table.
-	 * "/SYM64/" is the SVR4/GNU 64-bit variant archive symbol table.
-	 */
-	if (strcmp(filename, "/") == 0 || strcmp(filename, "/SYM64/") == 0) {
-		archive_entry_copy_pathname(entry, filename);
-		/* Parse the time, owner, mode, size fields. */
-		r = ar_parse_common_header(ar, entry, h);
-		/* Force the file type to a regular file. */
-		archive_entry_set_filetype(entry, AE_IFREG);
-		return (r);
-	}
-
-	/*
-	 * "__.SYMDEF" is a BSD archive symbol table.
-	 */
-	if (strcmp(filename, "__.SYMDEF") == 0) {
-		archive_entry_copy_pathname(entry, filename);
-		/* Parse the time, owner, mode, size fields. */
-		return (ar_parse_common_header(ar, entry, h));
-	}
-
-	/*
 	 * Otherwise, this is a standard entry.  The filename
 	 * has already been trimmed as much as possible, based
 	 * on our current knowledge of the format.
+	 *
+	 * Note for future implementations:
+	 *
+	 * - "/" is the SVR4/GNU archive symbol table.
+	 * - "/SYM64/" is the SVR4/GNU 64-bit variant archive symbol table.
+	 * - "__.SYMDEF" is a BSD archive symbol table.
 	 */
 	archive_entry_copy_pathname(entry, filename);
-	return (ar_parse_common_header(ar, entry, h));
+	return (ARCHIVE_OK);
 }
 
 static int
 archive_read_format_ar_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
-	struct ar *ar = (struct ar*)(a->format->data);
-	size_t unconsumed;
+	struct ar *ar = a->format->data;
+	int64_t unconsumed;
 	const void *header_data;
 	int ret;
 
 	if (!ar->read_global_header) {
 		/*
-		 * We are now at the beginning of the archive,
-		 * so we need first consume the ar global header.
+		 * We are at the beginning of the archive now,
+		 * so we have to consume the ar global header first.
 		 */
 		__archive_read_consume(a, 8);
 		ar->read_global_header = 1;
@@ -451,11 +431,11 @@ archive_read_format_ar_read_header(struct archive_read *a,
 }
 
 
-static int
+static void
 ar_parse_common_header(struct ar *ar, struct archive_entry *entry,
     const char *h)
 {
-	uint64_t n;
+	int64_t n;
 
 	/* Copy remaining header */
 	archive_entry_set_mtime(entry,
@@ -467,23 +447,20 @@ ar_parse_common_header(struct ar *ar, struct archive_entry *entry,
 	archive_entry_set_mode(entry,
 	    (mode_t)ar_atol8(h + AR_mode_offset, AR_mode_size));
 	archive_entry_set_filetype(entry, AE_IFREG);
-	n = ar_atol10(h + AR_size_offset, AR_size_size);
+	n = (int64_t)ar_atol10(h + AR_size_offset, AR_size_size);
 
 	ar->entry_offset = 0;
 	ar->entry_padding = n % 2;
 	archive_entry_set_size(entry, n);
 	ar->entry_bytes_remaining = n;
-	return (ARCHIVE_OK);
 }
 
 static int
 archive_read_format_ar_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
+	struct ar *ar = a->format->data;
 	ssize_t bytes_read;
-	struct ar *ar;
-
-	ar = (struct ar *)(a->format->data);
 
 	if (ar->entry_bytes_unconsumed) {
 		__archive_read_consume(a, ar->entry_bytes_unconsumed);
@@ -508,17 +485,9 @@ archive_read_format_ar_read_data(struct archive_read *a,
 		ar->entry_bytes_remaining -= bytes_read;
 		return (ARCHIVE_OK);
 	} else {
-		int64_t skipped = __archive_read_consume(a, ar->entry_padding);
-		if (skipped >= 0) {
-			ar->entry_padding -= skipped;
-		}
-		if (ar->entry_padding) {
-			if (skipped >= 0) {
-				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-					"Truncated ar archive - failed consuming padding");
-			}
+		if (__archive_read_consume(a, ar->entry_padding) < 0)
 			return (ARCHIVE_FATAL);
-		}
+		ar->entry_padding = 0;
 		*buff = NULL;
 		*size = 0;
 		*offset = ar->entry_offset;
@@ -529,15 +498,11 @@ archive_read_format_ar_read_data(struct archive_read *a,
 static int
 archive_read_format_ar_skip(struct archive_read *a)
 {
-	int64_t bytes_skipped;
-	struct ar* ar;
+	struct ar *ar = a->format->data;
 
-	ar = (struct ar *)(a->format->data);
-
-	bytes_skipped = __archive_read_consume(a,
-	    ar->entry_bytes_remaining + ar->entry_padding
-	    + ar->entry_bytes_unconsumed);
-	if (bytes_skipped < 0)
+	if (__archive_read_consume(a,
+	    ar->entry_bytes_remaining + ar->entry_padding +
+	    ar->entry_bytes_unconsumed) < 0)
 		return (ARCHIVE_FATAL);
 
 	ar->entry_bytes_remaining = 0;
@@ -550,11 +515,10 @@ archive_read_format_ar_skip(struct archive_read *a)
 static int
 ar_parse_gnu_filename_table(struct archive_read *a)
 {
-	struct ar *ar;
+	struct ar *ar = a->format->data;
 	char *p;
 	size_t size;
 
-	ar = (struct ar*)(a->format->data);
 	size = ar->strtab_size;
 
 	for (p = ar->strtab; p < ar->strtab + size - 1; ++p) {
@@ -586,51 +550,47 @@ bad_string_table:
 }
 
 static uint64_t
-ar_atol8(const char *p, unsigned char_cnt)
+ar_atol8(const char *p, size_t char_cnt)
 {
-	uint64_t l, limit, last_digit_limit;
+	uint64_t l;
 	unsigned int digit, base;
 
 	base = 8;
-	limit = UINT64_MAX / base;
-	last_digit_limit = UINT64_MAX % base;
 
 	while ((*p == ' ' || *p == '\t') && char_cnt-- > 0)
 		p++;
 
 	l = 0;
 	digit = *p - '0';
-	while (*p >= '0' && digit < base  && char_cnt-- > 0) {
-		if (l>limit || (l == limit && digit > last_digit_limit)) {
+	while (*p >= '0' && digit < base && char_cnt-- > 0) {
+		if (archive_ckd_mul_u64(&l, l, base) ||
+		    archive_ckd_add_u64(&l, l, digit)) {
 			l = UINT64_MAX; /* Truncate on overflow. */
 			break;
 		}
-		l = (l * base) + digit;
 		digit = *++p - '0';
 	}
 	return (l);
 }
 
 static uint64_t
-ar_atol10(const char *p, unsigned char_cnt)
+ar_atol10(const char *p, size_t char_cnt)
 {
-	uint64_t l, limit, last_digit_limit;
+	uint64_t l;
 	unsigned int base, digit;
 
 	base = 10;
-	limit = UINT64_MAX / base;
-	last_digit_limit = UINT64_MAX % base;
 
 	while ((*p == ' ' || *p == '\t') && char_cnt-- > 0)
 		p++;
 	l = 0;
 	digit = *p - '0';
 	while (*p >= '0' && digit < base  && char_cnt-- > 0) {
-		if (l > limit || (l == limit && digit > last_digit_limit)) {
+		if (archive_ckd_mul_u64(&l, l, base) ||
+		    archive_ckd_add_u64(&l, l, digit)) {
 			l = UINT64_MAX; /* Truncate on overflow. */
 			break;
 		}
-		l = (l * base) + digit;
 		digit = *++p - '0';
 	}
 	return (l);

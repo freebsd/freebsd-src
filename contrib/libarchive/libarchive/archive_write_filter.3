@@ -50,6 +50,8 @@ Streaming Archive Library (libarchive, -larchive)
 .Ft int
 .Fn archive_write_add_filter_b64encode "struct archive *"
 .Ft int
+.Fn archive_write_add_filter_by_name "struct archive *" "const char *name"
+.Ft int
 .Fn archive_write_add_filter_bzip2 "struct archive *"
 .Ft int
 .Fn archive_write_add_filter_compress "struct archive *"
@@ -100,6 +102,8 @@ Note that the compressed output is always properly blocked.
 .Xc
 The output will be encoded as specified.
 The encoded output is always properly blocked.
+.It Fn archive_write_add_filter_by_name
+Sets the corresponding filter based on the common name.
 .It Fn archive_write_add_filter_none
 This is never necessary.
 It is provided only for backwards compatibility.
@@ -111,6 +115,10 @@ write callbacks.
 .Sh RETURN VALUES
 These functions return
 .Cm ARCHIVE_OK
+.Po or
+.Cm ARCHIVE_WARN
+if an external program had to be executed to handle the filter
+.Pc
 on success, or
 .Cm ARCHIVE_FATAL .
 .\"

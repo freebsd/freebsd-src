@@ -37,6 +37,7 @@ TESTS_SRCS=	\
 	test_basic.c				\
 	test_d.c				\
 	test_doubledash.c			\
+	test_f.c				\
 	test_glob.c				\
 	test_j.c				\
 	test_n.c				\
@@ -44,9 +45,12 @@ TESTS_SRCS=	\
 	test_o.c				\
 	test_p.c				\
 	test_q.c				\
+	test_symlink.c				\
+	test_symlink_dotdot.c			\
 	test_singlefile.c 			\
 	test_t.c				\
 	test_t_bad.c				\
+	test_u.c				\
 	test_version.c				\
 	test_x.c
 
@@ -66,11 +70,17 @@ list.h: ${TESTS_SRCS} Makefile
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 CLEANFILES+=	list.h list.h.tmp
-
 ${PACKAGE}FILES+= test_I.zip.uu
 ${PACKAGE}FILES+= test_basic.zip.uu
 ${PACKAGE}FILES+= test_encrypted.zip.uu
+${PACKAGE}FILES+= test_f_new.zip.uu
+${PACKAGE}FILES+= test_f_old.zip.uu
 ${PACKAGE}FILES+= test_singlefile.zip.uu
+${PACKAGE}FILES+= test_symlink_1.zip.uu
+${PACKAGE}FILES+= test_symlink_2.zip.uu
+${PACKAGE}FILES+= test_symlink_dotdot.zip.uu
 ${PACKAGE}FILES+= test_t_bad.zip.uu
+${PACKAGE}FILES+= test_u_new.zip.uu
+${PACKAGE}FILES+= test_u_old.zip.uu
 
 .include <bsd.test.mk>

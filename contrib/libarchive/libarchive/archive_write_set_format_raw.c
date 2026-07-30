@@ -55,8 +55,7 @@ archive_write_set_format_raw(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_raw");
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_free != NULL)
-		(a->format_free)(a);
+	(void)__archive_write_unregister_format(a);
 
 	raw = calloc(1, sizeof(*raw));
 	if (raw == NULL) {
@@ -82,7 +81,7 @@ archive_write_set_format_raw(struct archive *_a)
 static int
 archive_write_raw_header(struct archive_write *a, struct archive_entry *entry)
 {
-	struct raw *raw = (struct raw *)a->format_data;
+	struct raw *raw = a->format_data;
 
 	if (archive_entry_filetype(entry) != AE_IFREG) {
 		archive_set_error(&a->archive, ERANGE,
@@ -116,9 +115,8 @@ archive_write_raw_data(struct archive_write *a, const void *buff, size_t s)
 static int
 archive_write_raw_free(struct archive_write *a)
 {
-	struct raw *raw;
+	struct raw *raw = a->format_data;
 
-	raw = (struct raw *)a->format_data;
 	free(raw);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);

@@ -78,7 +78,7 @@ test_winzip_aes(const char *refname, int need_libz)
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 
@@ -128,7 +128,7 @@ test_winzip_aes(const char *refname, int need_libz)
 	assertEqualIntA(a, ARCHIVE_FORMAT_ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 

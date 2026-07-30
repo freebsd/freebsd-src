@@ -61,12 +61,38 @@
 #define	ARCHIVE_READ_DISK_MAGIC (0xbadb0c5U)
 #define	ARCHIVE_MATCH_MAGIC	(0xcad11c9U)
 
+/*
+ * Having the state be a bitmask makes it easy to check
+ * for combinations of allowed states.  These should
+ * generally only be used in public API entry points,
+ * primarily in archive_read.c, archive_write.c, etc.
+ * Internal callbacks can rely on the core machinery
+ * to only call them when appropriate.
+ *
+ * Generally checked via `__archive_check_magic()`.
+ */
+
+/* Newly created archive object, not yet opened */
 #define	ARCHIVE_STATE_NEW	1U
+/* Archive is ready to read a header. */
 #define	ARCHIVE_STATE_HEADER	2U
+/* A header has been read: client can ask for data
+ * or they can ask for the next header and
+ * we'll automatically skip the remaining data. */
 #define	ARCHIVE_STATE_DATA	4U
+/* Similar to STATE_DATA but after a FAILED header:
+ * the client may not read data, but they may ask
+ * for the next header and we'll recover. */
+#define	ARCHIVE_STATE_DATA_RECOVERY	8U
+/* End-of-archive has been reached.  Client can only
+ * close or free the archive. */
 #define	ARCHIVE_STATE_EOF	0x10U
+/* Archive is closed; client is only allowed to free the archive. */
 #define	ARCHIVE_STATE_CLOSED	0x20U
+/* Archive is in a FATAL error state: a close request
+ * is permitted but ignored. */
 #define	ARCHIVE_STATE_FATAL	0x8000U
+/* Any valid (non-fatal) state. */
 #define	ARCHIVE_STATE_ANY	(0xFFFFU & ~ARCHIVE_STATE_FATAL)
 
 struct archive_vtable {

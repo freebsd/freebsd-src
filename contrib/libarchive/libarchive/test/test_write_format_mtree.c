@@ -109,7 +109,7 @@ test_write_format_mtree_sub(int use_set, int dironly)
         assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	if (use_set) {
-		const char *p;
+		char *p;
 
 		buff[used] = '\0';
 		assert(NULL != (p = strstr(buff, "\n/set ")));
@@ -197,7 +197,7 @@ test_write_format_mtree_sub2(int use_set, int dironly)
         assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
   if (use_set) {
-    const char *p;
+    char *p;
 
     buff[used] = '\0';
     assert(NULL != (p = strstr(buff, "\n/set ")));

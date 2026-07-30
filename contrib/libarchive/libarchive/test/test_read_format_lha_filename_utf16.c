@@ -127,7 +127,7 @@ test_read_format_lha_filename_UTF16_UTF8(const char *refname)
 	assertEqualIntA(a, ARCHIVE_FORMAT_LHA, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
