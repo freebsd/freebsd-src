@@ -519,15 +519,28 @@ ATF_TC_WITHOUT_HEAD(pdopenpid_pdwait_only_one);
 ATF_TC_BODY(pdopenpid_pdwait_only_one, tc)
 {
 	pid_t child;
-	int fd1, fd2, status;
+	int fd1, fd2, pip[2], status;
+
+	ATF_REQUIRE_EQ(pipe(pip), 0);
 
 	child = pdfork(&fd1, PD_DAEMON);
 	ATF_REQUIRE_MSG(child >= 0, "pdfork: %s", strerror(errno));
-	if (child == 0)
-		_exit(42);
+	if (child == 0) {
+		char c;
 
+		close(pip[1]);
+		/* Block until the parent has opened the second fd. */
+		(void)read(pip[0], &c, 1);
+		_exit(42);
+	}
+	ATF_REQUIRE(close(pip[0]) == 0);
+
+	/* Open the second fd while the child is still alive. */
 	fd2 = pdopenpid(child, 0);
 	ATF_REQUIRE_MSG(fd2 >= 0, "pdopenpid: %s", strerror(errno));
+
+	/* Release the child so that it exits. */
+	ATF_REQUIRE(close(pip[1]) == 0);
 
 	/* Collect via the first fd. */
 	ATF_REQUIRE_MSG(pdwait(fd1, &status, WEXITED, NULL, NULL) == 0,
