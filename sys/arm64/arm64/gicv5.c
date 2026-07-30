@@ -29,6 +29,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bitset.h>
 #include <sys/bus.h>
 #include <sys/cpuset.h>
 #include <sys/intr.h>
@@ -39,6 +40,7 @@
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/rman.h>
 #include <sys/smp.h>
 
@@ -91,10 +93,17 @@
 #define	IRS_CFG_WRITE_8(_irs, _reg, _val)			\
     bus_write_8((_irs)->irs_cfg, (_reg), (_val))
 
+#define NR_VM_IDS (MAXCPU * 2)
+BITSET_DEFINE(_vm_ids, NR_VM_IDS);
+
+SLIST_HEAD(vm_data_head, gicv5_vm_data);
+
 struct gicv5_irs {
 	cpuset_t		 irs_cpus;
 	struct resource		*irs_cfg;
 	uint64_t		*ist_base;
+
+	uint64_t		*vmt_base;
 
 	u_int			irs_next_irq_cpu;
 
@@ -112,6 +121,30 @@ struct gicv5_irs {
 #ifdef INVARIANTS
 	bool			irs_ready;
 #endif
+
+	bool 			has_virt;
+
+	u_int			vm_id_count;
+	u_int			vpe_id_count;
+
+	struct mtx		vm_lock;
+	struct _vm_ids		vm_ids;
+	struct vm_data_head	vm_data_head;
+
+	size_t			vmd_size;
+	size_t			vped_size;
+};
+
+struct gicv5_vm_data {
+	SLIST_ENTRY(gicv5_vm_data) node;
+
+	int vm_id;
+
+	uint64_t *vpet;
+	void *vpete;
+	uint32_t *lpi_ist;
+	uint32_t *spi_ist;
+	void *vmd;
 };
 
 struct gicv5_irqsrc {
@@ -250,6 +283,8 @@ gicv5_irs_alloc_ist(struct gicv5_softc *sc, struct gicv5_irs *irs,
 {
 	irs->ist_base = contigmalloc(size, M_DEVBUF, M_WAITOK | M_ZERO, 0,
 	    (1ul << irs->irs_parange) - 1, size, 0);
+	KASSERT(irs->ist_base != NULL,
+	    ("%s: Failed to alloc %zu bytes", __func__, size));
 	if (sc->gic_coherent)
 		/* Ensure the IRS observed zeroed memory */
 		dsb(ishst);
@@ -379,6 +414,40 @@ gicv5_irs_extend_ist(device_t dev, device_t child, u_int lpi)
 	mtx_unlock_spin(&irs->irs_lock);
 }
 
+static void
+gicv5_irs_init_vmt(struct gicv5_softc *sc, struct gicv5_irs *irs,
+    int vm_id_count)
+{
+	uint64_t cfgr;
+
+	cfgr = (ilog2_int(vm_id_count) << IRS_VMT_VM_ID_BITS_SHIFT) &
+	    IRS_VMT_VM_ID_BITS_MASK;
+	IRS_CFG_WRITE_4(irs, IRS_VMT_CFGR, cfgr);
+
+	KASSERT((vtophys(irs->vmt_base) & ~IRS_IST_BASER_ADDR_MASK) == 0,
+	    ("%s: Invalid VMT base address %lx", __func__,
+	    vtophys(irs->vmt_base)));
+	IRS_CFG_WRITE_8(irs, IRS_VMT_BASER, vtophys(irs->vmt_base) |
+	    IRS_VMT_BASER_VALID);
+
+	gicv5_wait_for_op(irs, IRS_VMT_STATUSR, IRS_VMT_STATUSR_IDLE, NULL);
+}
+
+static void
+gicv5_irs_alloc_vmt(struct gicv5_softc *sc, struct gicv5_irs *irs,
+    size_t size)
+{
+	irs->vmt_base = contigmalloc(size, M_DEVBUF, M_WAITOK | M_ZERO, 0,
+	    IRS_VMT_BASER_ADDR_LIMIT, size, 0);
+	KASSERT(irs->vmt_base != NULL,
+	    ("%s: Failed to alloc %zu bytes", __func__, size));
+	if (sc->gic_coherent)
+		/* Ensure the IRS observed zeroed memory */
+		dsb(ishst);
+	else
+		cpu_dcache_wbinv_range(irs->vmt_base, size);
+}
+
 void
 gicv5_irs_init(device_t dev, u_int idx, cpuset_t *cpuset)
 {
@@ -394,6 +463,9 @@ gicv5_irs_init(device_t dev, u_int idx, cpuset_t *cpuset)
 	    M_ZERO | M_WAITOK);
 	CPU_COPY(cpuset, &sc->gic_irs[idx]->irs_cpus);
 	sc->gic_irs[idx]->irs_cfg_rid = idx;
+
+	BIT_FILL(NR_VM_IDS, &sc->gic_irs[idx]->vm_ids);
+	SLIST_INIT(&sc->gic_irs[idx]->vm_data_head);
 }
 
 static void
@@ -402,10 +474,11 @@ gicv5_irs_attach(device_t dev, struct gicv5_irs *irs, u_int idx)
 	struct gicv5_softc *sc;
 	const char *name;
 	uint64_t icc_idr0;
-	uint32_t cfgr, cr1, idr2;
+	uint32_t cfgr, cr1, idr0, idr2, idr3, idr4;
 	u_int istsz, lpi_id_bits, l2sz, spi_count, spi_end;
 	int error, iaffid;
 	bool two_levels;
+	int vm_id_bits;
 
 	sc = device_get_softc(dev);
 	name = device_get_nameunit(dev);
@@ -417,6 +490,7 @@ gicv5_irs_attach(device_t dev, struct gicv5_irs *irs, u_int idx)
 	irs->irs_ready = false;
 #endif
 	mtx_init(&irs->irs_lock, "GICv5 IRS lock", NULL, MTX_SPIN);
+	mtx_init(&irs->vm_lock, "GICv5 IRS VM lock", NULL, MTX_DEF);
 
 	irs->irs_cfg = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &irs->irs_cfg_rid, RF_ACTIVE);
@@ -451,6 +525,8 @@ gicv5_irs_attach(device_t dev, struct gicv5_irs *irs, u_int idx)
 		irs->irs_parange = 56;
 		break;
 	}
+
+	sc->has_virt = IRS_CFG_READ_4(irs, IRS_IDR0) & IRS_IDR0_VIRT;
 
 	/* Set the control registers */
 	if (sc->gic_coherent) {
@@ -502,6 +578,9 @@ gicv5_irs_attach(device_t dev, struct gicv5_irs *irs, u_int idx)
 	}
 
 	icc_idr0 = READ_SPECIALREG(ICC_IDR0_EL1);
+	if ((icc_idr0 & ICC_IDR0_GCIE_LEGACY_MASK) != 0)
+		device_printf(dev, "Have VGICv3\n");
+
 	switch(icc_idr0 & ICC_IDR0_ID_BITS_MASK) {
 	case ICC_IDR0_ID_BITS_16:
 		lpi_id_bits = MIN(lpi_id_bits, 16);
@@ -511,6 +590,8 @@ gicv5_irs_attach(device_t dev, struct gicv5_irs *irs, u_int idx)
 		lpi_id_bits = MIN(lpi_id_bits, 24);
 		break;
 	}
+
+	sc->gic_lpi_id_bits = lpi_id_bits;
 
 	/* The IST entries contain metadata so the size will be larger */
 	if ((idr2 & IRS_IDR2_ISTMD) != 0) {
@@ -618,9 +699,230 @@ gicv5_irs_attach(device_t dev, struct gicv5_irs *irs, u_int idx)
 		isb();
 	}
 
+	idr0 = IRS_CFG_READ_4(irs, IRS_IDR0);
+	if (idr0 & IRS_IDR0_VIRT) {
+		idr3 = IRS_CFG_READ_4(irs, IRS_IDR3);
+		idr4 = IRS_CFG_READ_4(irs, IRS_IDR4);
+
+		if (idr3 & IRS_IDR3_VMD)
+			irs->vmd_size = 1 << ((idr4 & IRS_IDR3_VMD_SZ_MASK) >>
+			    IRS_IDR3_VMD_SZ_SHIFT);
+		else
+			irs->vmd_size = 0;
+
+		vm_id_bits = (idr3 & IRS_IDR3_VM_ID_BITS_MASK)
+		    >> IRS_IDR3_VM_ID_BITS_SHIFT;
+		irs->vm_id_count = MIN(1 << vm_id_bits, NR_VM_IDS);
+
+		irs->vped_size = 1 << (idr4 & IRS_IDR4_VPED_SZ_MASK);
+		irs->vpe_id_count = 2 << ((idr4 & IRS_IDR4_VPE_ID_BITS_MASK)
+		    >> IRS_IDR4_VPE_ID_BITS_SHIFT);
+
+		gicv5_irs_alloc_vmt(sc, irs, irs->vm_id_count * L2_VMTE_SIZE);
+		gicv5_irs_init_vmt(sc, irs, irs->vm_id_count);
+	}
+
 #ifdef INVARIANTS
 	irs->irs_ready = true;
 #endif
+}
+
+int
+gicv5_alloc_vm(device_t dev, int nr_vpes)
+{
+	struct gicv5_vm_data *vm_data;
+	struct gicv5_softc *sc;
+	struct gicv5_irs *irs;
+	size_t lpi_ist_align;
+	size_t spi_ist_align;
+	uintptr_t vpete_p;
+	uint64_t *vmte;
+	int i;
+
+	int spi_id_bits = 16;
+	int lpi_id_bits;
+
+	sc = device_get_softc(dev);
+	irs = sc->gic_irs[0];
+
+	if (nr_vpes > irs->vpe_id_count)
+		return (EINVAL);
+
+	lpi_id_bits = sc->gic_lpi_id_bits;
+
+	lpi_ist_align = MAX(L2_ISTE_SIZE * (1 << lpi_id_bits), 64);
+	spi_ist_align = MAX(L2_ISTE_SIZE * (1 << spi_id_bits), 64);
+
+	vm_data = malloc(sizeof(*vm_data), M_DEVBUF, M_ZERO | M_WAITOK);
+
+	vm_data->vpet = contigmalloc(VPETE_SIZE * nr_vpes,
+	    M_DEVBUF, M_ZERO | M_WAITOK, 0, IRS_VMT_BASER_ADDR_LIMIT,
+	    VPETE_SIZE * ilog2_int(nr_vpes), 0);
+	vm_data->vpete = contigmalloc(irs->vped_size * nr_vpes,
+	    M_DEVBUF, M_ZERO | M_WAITOK, 0, IRS_VMT_BASER_ADDR_LIMIT,
+	    irs->vped_size, 0);
+	vm_data->lpi_ist = contigmalloc(L2_ISTE_SIZE * (1 << lpi_id_bits),
+	    M_DEVBUF, M_ZERO | M_WAITOK, 0, IRS_VMT_BASER_ADDR_LIMIT,
+	    lpi_ist_align, 0);
+	vm_data->spi_ist = contigmalloc(L2_ISTE_SIZE * (1 << spi_id_bits),
+	    M_DEVBUF, M_ZERO | M_WAITOK, 0, IRS_VMT_BASER_ADDR_LIMIT,
+	    spi_ist_align, 0);
+	if (irs->vmd_size != 0)
+		vm_data->vmd = contigmalloc(irs->vmd_size, M_DEVBUF,
+		    M_ZERO | M_WAITOK, 0, IRS_VMT_BASER_ADDR_LIMIT,
+		    irs->vmd_size, 0);
+
+	if (!vm_data->vpet || !vm_data->vpete || !vm_data->lpi_ist ||
+	    !vm_data->spi_ist || (irs->vmd_size != 0 && !vm_data->vmd)) {
+		free(vm_data->vmd, M_DEVBUF);
+		free(vm_data->spi_ist, M_DEVBUF);
+		free(vm_data->lpi_ist, M_DEVBUF);
+		free(vm_data->vpete, M_DEVBUF);
+		free(vm_data->vpet, M_DEVBUF);
+		free(vm_data, M_DEVBUF);
+
+		return (ENOMEM);
+	}
+
+	vpete_p = (uintptr_t)vm_data->vpete;
+
+	for (i = 0; i < nr_vpes; i++) {
+		vm_data->vpet[i] = (vtophys(vpete_p) & VPETE_VPED_ADDR_MASK) |
+		    VPETE_VALID;
+		vpete_p += VPE_DESC_SIZE;
+	}
+
+	/* Allocate VM ID */
+	mtx_lock(&irs->vm_lock);
+
+	vm_data->vm_id = BIT_FFS(irs->vm_id_count, &irs->vm_ids) - 1;
+	if (vm_data->vm_id < 0) {
+		mtx_unlock(&irs->vm_lock);
+
+		free(vm_data->vmd, M_DEVBUF);
+		free(vm_data->spi_ist, M_DEVBUF);
+		free(vm_data->lpi_ist, M_DEVBUF);
+		free(vm_data->vpete, M_DEVBUF);
+		free(vm_data->vpet, M_DEVBUF);
+		free(vm_data, M_DEVBUF);
+
+		return (ENOMEM);
+	}
+
+	BIT_CLR(irs->vm_id_count, vm_data->vm_id, &irs->vm_ids);
+	SLIST_INSERT_HEAD(&irs->vm_data_head, vm_data, node);
+
+	mtx_unlock(&irs->vm_lock);
+
+	/* Fill in VMT entry now we have a VM ID */
+	vmte = &irs->vmt_base[vm_data->vm_id * 4];
+
+	vmte[L2_VMTE_VPE_ADDR_IDX] =
+	    (vtophys(vm_data->vpet) & L2_VMTE_VPET_ADDR_MASK) |
+	    ((uint64_t)ilog2_int(nr_vpes) << L2_VMTE_VPE_ID_BITS_SHIFT);
+	vmte[L2_VMTE_SPI_ADDR_IDX] =
+	    (vtophys(vm_data->spi_ist) & L2_VMTE_SPI_IST_ADDR_MASK) |
+	    ((uint64_t)spi_id_bits << L2_VMTE_SPI_ID_BITS_SHIFT) |
+	    L2_VMTE_SPI_IST_VALID;
+	vmte[L2_VMTE_LPI_ADDR_IDX] =
+	    (vtophys(vm_data->lpi_ist) & L2_VMTE_LPI_IST_ADDR_MASK) |
+	    ((uint64_t)lpi_id_bits << L2_VMTE_LPI_ID_BITS_SHIFT) |
+	    L2_VMTE_LPI_IST_VALID;
+	if (irs->vmd_size)
+		vmte[L2_VMTE_VMD_ADDR_IDX] =
+		    (vtophys(vm_data->vmd) & L2_VMTE_VMD_ADDR_MASK) |
+		    L2_VMTE_VALID;
+	else
+		vmte[L2_VMTE_VMD_ADDR_IDX] = L2_VMTE_VALID;
+
+	if (sc->gic_coherent) {
+		/* Ensure the IRS observed zeroed memory */
+		dsb(ishst);
+	} else {
+		cpu_dcache_wbinv_range(vmte, sizeof(L2_VMTE_SIZE));
+		cpu_dcache_wbinv_range(vm_data->vpet,
+		    sizeof(VPETE_SIZE) * nr_vpes);
+		cpu_dcache_wbinv_range(vm_data->vpete,
+		    sizeof(VPE_DESC_SIZE) * nr_vpes);
+		cpu_dcache_wbinv_range(vm_data->lpi_ist,
+		    sizeof(L2_ISTE_SIZE) * (1 << lpi_id_bits));
+		cpu_dcache_wbinv_range(vm_data->spi_ist,
+		    sizeof(L2_ISTE_SIZE) * (1 << spi_id_bits));
+		if (irs->vmd_size)
+			cpu_dcache_wbinv_range(vm_data->vmd, irs->vmd_size);
+	}
+
+	IRS_CFG_WRITE_8(irs, IRS_VMAP_VMR,
+	    IRS_VMAP_VMR_M | (vm_data->vm_id & IRS_VMAP_VMR_VM_ID_MASK));
+
+	mtx_lock_spin(&irs->irs_lock);
+	gicv5_wait_for_op(irs, IRS_VMT_STATUSR, IRS_VMT_STATUSR_IDLE, NULL);
+	mtx_unlock_spin(&irs->irs_lock);
+
+	return (0);
+}
+
+int
+gicv5_free_vm(device_t dev, int vm_id)
+{
+	struct gicv5_vm_data *vm_data;
+	struct gicv5_softc *sc;
+	struct gicv5_irs *irs;
+
+	sc = device_get_softc(dev);
+	irs = sc->gic_irs[0];
+
+	KASSERT(vm_id < irs->vm_id_count, ("%s: VM ID out of range", __func__));
+	KASSERT(!BIT_ISSET(irs->vm_id_count, vm_id, &sc->gic_irs[0]->vm_ids),
+	    ("%s: VM ID not allocated", __func__));
+
+	mtx_lock(&irs->vm_lock);
+
+	BIT_SET(irs->vm_id_count, vm_id, &sc->gic_irs[0]->vm_ids);
+
+	/* Make VM invalid */
+	IRS_CFG_WRITE_8(irs, IRS_VMAP_VMR,
+	    IRS_VMAP_VMR_M | IRS_VMAP_VMR_U |
+	    (vm_id & IRS_VMAP_VMR_VM_ID_MASK));
+
+	mtx_lock_spin(&irs->irs_lock);
+	gicv5_wait_for_op(irs, IRS_VMT_STATUSR, IRS_VMT_STATUSR_IDLE, NULL);
+	mtx_unlock_spin(&irs->irs_lock);
+
+	SLIST_FOREACH(vm_data, &irs->vm_data_head, node) {
+		if (vm_data->vm_id == vm_id) {
+			SLIST_REMOVE(&irs->vm_data_head, vm_data,
+			    gicv5_vm_data, node);
+
+			mtx_unlock(&irs->vm_lock);
+
+			free(vm_data->vpet, M_DEVBUF);
+			free(vm_data->vpete, M_DEVBUF);
+			free(vm_data->lpi_ist, M_DEVBUF);
+			free(vm_data->spi_ist, M_DEVBUF);
+			free(vm_data->vmd, M_DEVBUF);
+
+			free(vm_data, M_DEVBUF);
+
+			return (0);
+		}
+	}
+
+	mtx_unlock(&irs->vm_lock);
+
+	return (ENOENT);
+}
+
+int
+gicv5_get_max_vpe_count(device_t dev)
+{
+	struct gicv5_softc *sc;
+	struct gicv5_irs *irs;
+
+	sc = device_get_softc(dev);
+	irs = sc->gic_irs[0];
+
+	return (irs->vpe_id_count);
 }
 
 void
