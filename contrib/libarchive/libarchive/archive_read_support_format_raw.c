@@ -34,10 +34,11 @@
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 
-struct raw_info {
+struct raw {
 	int64_t offset; /* Current position in the file. */
 	int64_t unconsumed;
 	int     end_of_file;
@@ -54,22 +55,22 @@ static int	archive_read_format_raw_read_header(struct archive_read *,
 int
 archive_read_support_format_raw(struct archive *_a)
 {
-	struct raw_info *info;
 	struct archive_read *a = (struct archive_read *)_a;
+	struct raw *raw;
 	int r;
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_raw");
 
-	info = calloc(1, sizeof(*info));
-	if (info == NULL) {
+	raw = calloc(1, sizeof(*raw));
+	if (raw == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
-		    "Can't allocate raw_info data");
+		    "Can't allocate raw data");
 		return (ARCHIVE_FATAL);
 	}
 
 	r = __archive_read_register_format(a,
-	    info,
+	    raw,
 	    "raw",
 	    archive_read_format_raw_bid,
 	    NULL,
@@ -81,7 +82,7 @@ archive_read_support_format_raw(struct archive *_a)
 	    NULL,
 	    NULL);
 	if (r != ARCHIVE_OK)
-		free(info);
+		free(raw);
 	return (r);
 }
 
@@ -107,10 +108,9 @@ static int
 archive_read_format_raw_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
-	struct raw_info *info;
+	struct raw *raw = a->format->data;
 
-	info = (struct raw_info *)(a->format->data);
-	if (info->end_of_file)
+	if (raw->end_of_file)
 		return (ARCHIVE_EOF);
 
 	a->archive.archive_format = ARCHIVE_FORMAT_RAW;
@@ -128,39 +128,43 @@ static int
 archive_read_format_raw_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
-	struct raw_info *info;
+	struct raw *raw = a->format->data;
 	ssize_t avail;
 
-	info = (struct raw_info *)(a->format->data);
-
 	/* Consume the bytes we read last time. */
-	if (info->unconsumed) {
-		__archive_read_consume(a, info->unconsumed);
-		info->unconsumed = 0;
+	if (raw->unconsumed) {
+		__archive_read_consume(a, raw->unconsumed);
+		raw->unconsumed = 0;
 	}
 
-	if (info->end_of_file)
+	if (raw->end_of_file)
 		return (ARCHIVE_EOF);
 
 	/* Get whatever bytes are immediately available. */
 	*buff = __archive_read_ahead(a, 1, &avail);
 	if (avail > 0) {
 		/* Return the bytes we just read */
+		*offset = raw->offset;
+		if (archive_ckd_add_i64(&raw->offset, raw->offset, avail)) {
+			avail = INT64_MAX - *offset;
+			if (avail == 0) {
+				*size = 0;
+				return (ARCHIVE_FATAL);
+			}
+		}
 		*size = avail;
-		*offset = info->offset;
-		info->offset += *size;
-		info->unconsumed = avail;
+		raw->unconsumed = avail;
 		return (ARCHIVE_OK);
 	} else if (0 == avail) {
 		/* Record and return end-of-file. */
-		info->end_of_file = 1;
+		raw->end_of_file = 1;
 		*size = 0;
-		*offset = info->offset;
+		*offset = raw->offset;
 		return (ARCHIVE_EOF);
 	} else {
 		/* Record and return an error. */
 		*size = 0;
-		*offset = info->offset;
+		*offset = raw->offset;
 		return ((int)avail);
 	}
 }
@@ -168,24 +172,23 @@ archive_read_format_raw_read_data(struct archive_read *a,
 static int
 archive_read_format_raw_read_data_skip(struct archive_read *a)
 {
-	struct raw_info *info = (struct raw_info *)(a->format->data);
+	struct raw *raw = a->format->data;
 
 	/* Consume the bytes we read last time. */
-	if (info->unconsumed) {
-		__archive_read_consume(a, info->unconsumed);
-		info->unconsumed = 0;
+	if (raw->unconsumed) {
+		__archive_read_consume(a, raw->unconsumed);
+		raw->unconsumed = 0;
 	}
-	info->end_of_file = 1;
+	raw->end_of_file = 1;
 	return (ARCHIVE_OK);
 }
 
 static int
 archive_read_format_raw_cleanup(struct archive_read *a)
 {
-	struct raw_info *info;
+	struct raw *raw = a->format->data;
 
-	info = (struct raw_info *)(a->format->data);
-	free(info);
+	free(raw);
 	a->format->data = NULL;
 	return (ARCHIVE_OK);
 }

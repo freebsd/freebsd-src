@@ -40,7 +40,7 @@ DEFINE_TEST(test_write_filter_gzip)
 	size_t buffsize, datasize;
 	unsigned char *rbuff;
 	char path[16];
-	size_t used1, used2;
+	size_t used1, used2, used3;
 	int i, r, use_prog = 0;
 
 	buffsize = 2000000;
@@ -218,7 +218,7 @@ DEFINE_TEST(test_write_filter_gzip)
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_set_filter_option(a, NULL, "compression-level", "1"));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_write_open_memory(a, buff, buffsize, &used2));
+	    archive_write_open_memory(a, buff, buffsize, &used3));
 	for (i = 0; i < 100; i++) {
 		snprintf(path, sizeof(path), "file%03d", i);
 		assert((ae = archive_entry_new()) != NULL);
@@ -234,10 +234,13 @@ DEFINE_TEST(test_write_filter_gzip)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-	/* Level 1 really does result in larger data. */
-	failure("Compression-level=1 wrote %d bytes; default wrote %d bytes",
-	    (int)used2, (int)used1);
-	assert(used2 > used1);
+	/* Level 1 really does result in larger data than level 9.
+	 * We can't compare levels 1 and 6 because those produce identical
+	 * results on Ubuntu s390x, since Ubuntu configures both levels to
+	 * use DFLTCC hardware compression. */
+	failure("Compression-level=1 wrote %d bytes; compression-level=9 wrote %d bytes",
+	    (int)used3, (int)used2);
+	assert(used3 > used2);
 
 	/* Basic gzip header tests */
 	rbuff = (unsigned char *)buff;
@@ -255,7 +258,7 @@ DEFINE_TEST(test_write_filter_gzip)
 		skipping("gzip reading not fully supported on this platform");
 	} else {
 		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_read_open_memory(a, buff, used2));
+		    archive_read_open_memory(a, buff, used3));
 		for (i = 0; i < 100; i++) {
 			snprintf(path, sizeof(path), "file%03d", i);
 			if (!assertEqualInt(ARCHIVE_OK,
@@ -280,14 +283,14 @@ DEFINE_TEST(test_write_filter_gzip)
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, (use_prog)?ARCHIVE_WARN:ARCHIVE_OK,
 	    archive_write_add_filter_gzip(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
 	assertEqualIntA(a, (use_prog)?ARCHIVE_WARN:ARCHIVE_OK,
 	    archive_write_add_filter_gzip(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_write_new()) != NULL);
@@ -295,7 +298,7 @@ DEFINE_TEST(test_write_filter_gzip)
 	assertEqualIntA(a, (use_prog)?ARCHIVE_WARN:ARCHIVE_OK,
 	    archive_write_add_filter_gzip(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, buffsize, &used2));
-	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*

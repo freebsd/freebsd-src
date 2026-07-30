@@ -67,7 +67,7 @@ DEFINE_TEST(test_pax_xattr_header)
         assertEqualIntA(a, 8, archive_write_data(a, "12345678", 9));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assertEqualFile("test1.tar","test_pax_xattr_header_all.tar");
 
@@ -86,7 +86,7 @@ DEFINE_TEST(test_pax_xattr_header)
         assertEqualIntA(a, 8, archive_write_data(a, "12345678", 9));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assertEqualFile("test2.tar","test_pax_xattr_header_schily.tar");
 
@@ -105,7 +105,7 @@ DEFINE_TEST(test_pax_xattr_header)
         assertEqualIntA(a, 8, archive_write_data(a, "12345678", 9));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assertEqualFile("test3.tar","test_pax_xattr_header_libarchive.tar");
 
@@ -123,7 +123,7 @@ DEFINE_TEST(test_pax_xattr_header)
         assertEqualIntA(a, 8, archive_write_data(a, "12345678", 9));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assertEqualFile("test4.tar","test_pax_xattr_header_all.tar");
 }

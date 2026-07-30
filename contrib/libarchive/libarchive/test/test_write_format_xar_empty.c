@@ -41,7 +41,7 @@ DEFINE_TEST(test_write_format_xar_empty)
 	assert((a = archive_write_new()) != NULL);
 	if (archive_write_set_format_xar(a) != ARCHIVE_OK) {
 		skipping("xar is not supported on this platform");
-		assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));

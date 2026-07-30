@@ -137,7 +137,7 @@ test_format_filter_by_ext(const char *output_file,
 		    archive_filter_code(a, 0));
 		assertEqualIntA(a, format_id, archive_format(a) & ARCHIVE_FORMAT_BASE_MASK );
 
-		assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	}
 	free(buff);

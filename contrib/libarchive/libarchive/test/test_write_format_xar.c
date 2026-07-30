@@ -25,13 +25,16 @@
  */
 #include "test.h"
 
+#define __LIBARCHIVE_TEST
+#include "archive_write_private.h"
+
 #include <locale.h>
 
 static void
 test_xar(const char *option)
 {
 	char buff2[64];
-	size_t buffsize = 1500;
+	size_t buffsize = 4096;
 	char *buff;
 	struct archive_entry *ae;
 	struct archive *a;
@@ -44,14 +47,14 @@ test_xar(const char *option)
 	assert((a = archive_write_new()) != NULL);
 	if (archive_write_set_format_xar(a) != ARCHIVE_OK) {
 		skipping("xar is not supported on this platform");
-		assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 		return;
 	}
 	assertA(0 == archive_write_add_filter_none(a));
 	if (option != NULL &&
 	    archive_write_set_options(a, option) != ARCHIVE_OK) {
 		skipping("option `%s` is not supported on this platform", option);
-		assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 		return;
 	}
 
@@ -93,13 +96,13 @@ test_xar(const char *option)
 	archive_entry_free(ae);
 
 	/*
-	 * "dir/file3" has a bunch of attributes and 8 bytes of data.
+	 * "dir/file" has a bunch of attributes and 8 bytes of data.
 	 */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_set_atime(ae, 2, 20);
 	archive_entry_set_ctime(ae, 4, 40);
 	archive_entry_set_mtime(ae, 5, 50);
-	archive_entry_copy_pathname(ae, "dir/file");
+	archive_entry_copy_pathname(ae, "dir/../../dir/file");
 	archive_entry_set_mode(ae, AE_IFREG | 0755);
 	archive_entry_set_size(ae, 8);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
@@ -113,7 +116,7 @@ test_xar(const char *option)
 	archive_entry_set_atime(ae, 2, 20);
 	archive_entry_set_ctime(ae, 4, 40);
 	archive_entry_set_mtime(ae, 5, 50);
-	archive_entry_copy_pathname(ae, "dir/dir2/file4");
+	archive_entry_copy_pathname(ae, "dir/..//dir/dir2/file4");
 	archive_entry_copy_hardlink(ae, "file");
 	archive_entry_set_mode(ae, AE_IFREG | 0755);
 	archive_entry_set_nlink(ae, 2);
@@ -170,7 +173,7 @@ test_xar(const char *option)
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 *
@@ -298,7 +301,7 @@ test_xar(const char *option)
 	 */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(buff);
 }
@@ -318,18 +321,42 @@ DEFINE_TEST(test_write_format_xar)
 	/* Disable TOC checksum. */
 	test_xar("!toc-checksum");
 	test_xar("toc-checksum=none");
+#ifdef ARCHIVE_HAS_SHA1
 	/* Specify TOC checksum type to sha1. */
 	test_xar("toc-checksum=sha1");
+#endif
+#ifdef ARCHIVE_HAS_MD5
 	/* Specify TOC checksum type to md5. */
 	test_xar("toc-checksum=md5");
+#endif
+#ifdef ARCHIVE_HAS_SHA256
+	/* Specify TOC checksum type to sha256. */
+	test_xar("toc-checksum=sha256");
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	/* Specify TOC checksum type to sha512. */
+	test_xar("toc-checksum=sha512");
+#endif
 
 	/* Disable file checksum. */
 	test_xar("!checksum");
 	test_xar("checksum=none");
+#ifdef ARCHIVE_HAS_SHA1
 	/* Specify file checksum type to sha1. */
 	test_xar("checksum=sha1");
+#endif
+#ifdef ARCHIVE_HAS_MD5
 	/* Specify file checksum type to md5. */
 	test_xar("checksum=md5");
+#endif
+#ifdef ARCHIVE_HAS_SHA256
+	/* Specify file checksum type to sha256. */
+	test_xar("checksum=sha256");
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	/* Specify file checksum type to sha512. */
+	test_xar("checksum=sha512");
+#endif
 
 	/* Disable compression. */
 	test_xar("!compression");
@@ -350,4 +377,73 @@ DEFINE_TEST(test_write_format_xar)
 	test_xar("compression=xz");
 	test_xar("compression=xz,compression-level=1");
 	test_xar("compression=xz,compression-level=9");
+}
+
+DEFINE_TEST(test_write_format_xar_entry_trunc)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	unsigned char buff[1024];
+	size_t used = 0;
+
+	assert((a = archive_write_new()) != NULL);
+	if (archive_write_set_format_xar(a) != ARCHIVE_OK) {
+		skipping("xar is not supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+		return;
+	}
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_add_filter_none(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_pathname(ae, "foo");
+	archive_entry_set_mode(ae, S_IFREG | 0644);
+	archive_entry_set_size(ae, 1028);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
+	assertEqualIntA(a, 3, archive_write_data(a, "foo", 3));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+}
+
+DEFINE_TEST(test_write_format_xar_unregister)
+{
+	struct archive *a;
+	struct archive_write *aw;
+
+	assert((a = archive_write_new()) != NULL);
+	if (archive_write_set_format_xar(a) != ARCHIVE_OK) {
+		skipping("xar is not supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+		return;
+	}
+
+	aw = (struct archive_write *)a;
+	assert(aw->format_data != NULL);
+	assert(aw->format_free != NULL);
+
+	assertEqualIntA(a, ARCHIVE_OK,
+	    __archive_write_unregister_format(aw));
+
+	assert(aw->format_data == NULL);
+	assert(aw->format_name == NULL);
+	assert(aw->format_init == NULL);
+	assert(aw->format_options == NULL);
+	assert(aw->format_finish_entry == NULL);
+	assert(aw->format_write_header == NULL);
+	assert(aw->format_write_data == NULL);
+	assert(aw->format_close == NULL);
+	assert(aw->format_free == NULL);
+	assertEqualInt(0, aw->archive.archive_format);
+	assert(aw->archive.archive_format_name == NULL);
+
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_format_option(a, NULL, "compression",
+	        "gzip"));
+
+	assertEqualIntA(a, ARCHIVE_OK,
+	    __archive_write_unregister_format(aw));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }

@@ -74,7 +74,7 @@ DEFINE_TEST(test_read_format_gtar_filename_eucJP_UTF8)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_GNUTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -127,7 +127,7 @@ DEFINE_TEST(test_read_format_gtar_filename_CP866_KOI8R)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_GNUTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -179,7 +179,7 @@ DEFINE_TEST(test_read_format_gtar_filename_CP866_UTF8)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_GNUTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -232,7 +232,7 @@ DEFINE_TEST(test_read_format_gtar_filename_KOI8R_CP866)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_GNUTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -284,7 +284,7 @@ DEFINE_TEST(test_read_format_gtar_filename_KOI8R_UTF8)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_GNUTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -335,7 +335,7 @@ DEFINE_TEST(test_read_format_gtar_filename_eucJP_CP932)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_GNUTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -388,7 +388,7 @@ DEFINE_TEST(test_read_format_gtar_filename_CP866_CP1251)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_GNUTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -441,7 +441,7 @@ DEFINE_TEST(test_read_format_gtar_filename_CP866_CP1251_win)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_GNUTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -493,7 +493,7 @@ DEFINE_TEST(test_read_format_gtar_filename_KOI8R_CP1251)
 	assertEqualIntA(a, ARCHIVE_FORMAT_TAR_GNUTAR, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 cleanup:
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

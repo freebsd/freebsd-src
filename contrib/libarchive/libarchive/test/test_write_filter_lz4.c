@@ -100,6 +100,8 @@ DEFINE_TEST(test_write_filter_lz4)
 		skipping("Can't verify lz4 writing by reading back;"
 		    " lz4 reading not fully supported on this platform");
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		free(data);
+		free(buff);
 		return;
 	}
 
@@ -247,14 +249,14 @@ DEFINE_TEST(test_write_filter_lz4)
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, (use_prog)?ARCHIVE_WARN:ARCHIVE_OK,
 	    archive_write_add_filter_lz4(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_write_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ustar(a));
 	assertEqualIntA(a, (use_prog)?ARCHIVE_WARN:ARCHIVE_OK,
 	    archive_write_add_filter_lz4(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	assert((a = archive_write_new()) != NULL);
@@ -263,7 +265,7 @@ DEFINE_TEST(test_write_filter_lz4)
 	    archive_write_add_filter_lz4(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_write_open_memory(a, buff, buffsize, &used2));
-	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*

@@ -68,7 +68,7 @@ DEFINE_TEST(test_write_format_gnutar_filenames)
 		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, template));
 		assertEqualIntA(a, 8, archive_write_data(a, "12345678", 9));
 		assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-		assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 
 		/* Read back and verify the filename. */
@@ -81,7 +81,7 @@ DEFINE_TEST(test_write_format_gnutar_filenames)
 		assertEqualString(filename, archive_entry_pathname(ae));
 		assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-		assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	}
 
 	archive_entry_free(template);
@@ -127,7 +127,7 @@ DEFINE_TEST(test_write_format_gnutar_linknames)
 		assertA(0 == archive_write_open_memory(a, buff, buffsize, &used));
 		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, template));
 		assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-		assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 
 		/* Read back and verify the filename. */
@@ -141,7 +141,7 @@ DEFINE_TEST(test_write_format_gnutar_linknames)
 		assertEqualString(filename, archive_entry_symlink(ae));
 		assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-		assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	}
 
 	archive_entry_free(template);

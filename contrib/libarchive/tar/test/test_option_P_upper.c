@@ -79,4 +79,5 @@ DEFINE_TEST(test_extract_tar_absolute_paths)
 #else
 	assertFileNotExists(temp_absolute_file_name + 1); // Skip the slash.
 #endif
+	free(temp_absolute_file_name);
 }

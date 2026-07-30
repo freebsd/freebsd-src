@@ -79,7 +79,7 @@ test_read_format_cab_filename_CP932_eucJP(const char *refname)
 
 	/* Close the archive. */
 cleanup:
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -157,7 +157,7 @@ test_read_format_cab_filename_CP932_UTF8(const char *refname)
 
 	/* Close the archive. */
 cleanup:
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 

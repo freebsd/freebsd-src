@@ -22,6 +22,10 @@
 #include "config.h"
 #endif
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#include "bsdunzip_windows.h"
+#endif
+
 #ifdef HAVE_LIBARCHIVE
 /* If we're using the platform libarchive, include system headers. */
 #include <archive.h>

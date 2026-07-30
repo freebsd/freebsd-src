@@ -79,11 +79,13 @@ DEFINE_TEST(test_write_disk_secure746a)
  */
 DEFINE_TEST(test_write_disk_secure746b)
 {
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	skipping("archive_write_disk security checks not supported on Windows");
-#else
 	struct archive *a;
 	struct archive_entry *ae;
+
+	if (!canSymlink()) {
+		skipping("Can't test symlinks on this filesystem");
+		return;
+	}
 
 	/* Start with a known umask. */
 	assertUmask(UMASK);
@@ -123,5 +125,4 @@ DEFINE_TEST(test_write_disk_secure746b)
 
 	assertEqualIntA(a, ARCHIVE_FATAL, archive_write_close(a));
 	archive_write_free(a);
-#endif
 }

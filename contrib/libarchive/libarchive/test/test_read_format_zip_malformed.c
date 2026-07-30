@@ -42,7 +42,7 @@ test_malformed1(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, refname, 10240));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Verify with streaming reader. */
 	p = slurpfile(&s, "%s", refname);
@@ -51,7 +51,7 @@ test_malformed1(void)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, read_open_memory(a, p, s, 31));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(p);
 }
 

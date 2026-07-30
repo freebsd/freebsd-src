@@ -174,6 +174,11 @@ archive_write_set_format_gnutar(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	struct gnutar *gnutar;
 
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_set_format_gnutar");
+
+	(void)__archive_write_unregister_format(a);
+
 	gnutar = calloc(1, sizeof(*gnutar));
 	if (gnutar == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
@@ -197,7 +202,7 @@ static int
 archive_write_gnutar_options(struct archive_write *a, const char *key,
     const char *val)
 {
-	struct gnutar *gnutar = (struct gnutar *)a->format_data;
+	struct gnutar *gnutar = a->format_data;
 	int ret = ARCHIVE_FAILED;
 
 	if (strcmp(key, "hdrcharset")  == 0) {
@@ -231,9 +236,8 @@ archive_write_gnutar_close(struct archive_write *a)
 static int
 archive_write_gnutar_free(struct archive_write *a)
 {
-	struct gnutar *gnutar;
+	struct gnutar *gnutar = a->format_data;
 
-	gnutar = (struct gnutar *)a->format_data;
 	free(gnutar);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
@@ -242,12 +246,11 @@ archive_write_gnutar_free(struct archive_write *a)
 static int
 archive_write_gnutar_finish_entry(struct archive_write *a)
 {
-	struct gnutar *gnutar;
+	struct gnutar *gnutar = a->format_data;
 	int ret;
 
-	gnutar = (struct gnutar *)a->format_data;
-	ret = __archive_write_nulls(a, (size_t)
-	    (gnutar->entry_bytes_remaining + gnutar->entry_padding));
+	ret = __archive_write_nulls(a,
+	    gnutar->entry_bytes_remaining + gnutar->entry_padding);
 	gnutar->entry_bytes_remaining = gnutar->entry_padding = 0;
 	return (ret);
 }
@@ -255,10 +258,9 @@ archive_write_gnutar_finish_entry(struct archive_write *a)
 static ssize_t
 archive_write_gnutar_data(struct archive_write *a, const void *buff, size_t s)
 {
-	struct gnutar *gnutar;
+	struct gnutar *gnutar = a->format_data;
 	int ret;
 
-	gnutar = (struct gnutar *)a->format_data;
 	if (s > gnutar->entry_bytes_remaining)
 		s = (size_t)gnutar->entry_bytes_remaining;
 	ret = __archive_write_output(a, buff, s);
@@ -272,14 +274,12 @@ static int
 archive_write_gnutar_header(struct archive_write *a,
      struct archive_entry *entry)
 {
+	struct gnutar *gnutar = a->format_data;
 	char buff[512];
 	int r, ret, ret2 = ARCHIVE_OK;
 	char tartype;
-	struct gnutar *gnutar;
 	struct archive_string_conv *sconv;
 	struct archive_entry *entry_main;
-
-	gnutar = (struct gnutar *)a->format_data;
 
 	/* Setup default string conversion. */
 	if (gnutar->opt_sconv == NULL) {
@@ -321,7 +321,8 @@ archive_write_gnutar_header(struct archive_write *a,
 		const wchar_t *wp;
 
 		wp = archive_entry_pathname_w(entry);
-		if (wp != NULL && wp[wcslen(wp) -1] != L'/') {
+		if (wp != NULL && wp[0] != L'\0' &&
+		    wp[wcslen(wp) - 1] != L'/') {
 			struct archive_wstring ws;
 
 			archive_string_init(&ws);
@@ -493,6 +494,13 @@ archive_write_gnutar_header(struct archive_write *a,
 		size_t length = gnutar->linkname_length + 1;
 		struct archive_entry *temp = archive_entry_new2(&a->archive);
 
+		if (temp == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Linkname");
+			ret = ARCHIVE_FATAL;
+			goto exit_write_header;
+		}
+
 		/* Uname/gname here don't really matter since no one reads them;
 		 * these are the values that GNU tar happens to use on FreeBSD. */
 		archive_entry_set_uname(temp, "root");
@@ -522,6 +530,13 @@ archive_write_gnutar_header(struct archive_write *a,
 		const char *pathname = gnutar->pathname;
 		size_t length = gnutar->pathname_length + 1;
 		struct archive_entry *temp = archive_entry_new2(&a->archive);
+
+		if (temp == NULL) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Linkname");
+			ret = ARCHIVE_FATAL;
+			goto exit_write_header;
+		}
 
 		/* Uname/gname here don't really matter since no one reads them;
 		 * these are the values that GNU tar happens to use on FreeBSD. */
@@ -588,13 +603,11 @@ static int
 archive_format_gnutar_header(struct archive_write *a, char h[512],
     struct archive_entry *entry, char tartype)
 {
+	struct gnutar *gnutar = a->format_data;
 	unsigned int checksum;
 	int i, ret;
 	size_t copy_length;
 	const char *p;
-	struct gnutar *gnutar;
-
-	gnutar = (struct gnutar *)a->format_data;
 
 	ret = 0;
 
@@ -651,7 +664,7 @@ archive_format_gnutar_header(struct archive_write *a, char h[512],
 		copy_length = gnutar->gname_length;
 	}
 	if (copy_length > 0) {
-		if (strlen(p) > GNUTAR_gname_size)
+		if (copy_length > GNUTAR_gname_size)
 			copy_length = GNUTAR_gname_size;
 		memcpy(h + GNUTAR_gname_offset, p, copy_length);
 	}

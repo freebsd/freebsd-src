@@ -24,6 +24,8 @@
  */
 #include "test.h"
 
+#include <locale.h>
+
 static void
 test_open_filename_mbs(void)
 {
@@ -196,4 +198,25 @@ DEFINE_TEST(test_open_filename)
 {
 	test_open_filename_mbs();
 	test_open_filename_wcs();
+}
+
+DEFINE_TEST(test_open_filename_wcs_oob)
+{
+	struct archive *a;
+
+	/* Continue even if not available for best test coverage. */
+	setlocale(LC_ALL, "en_US.UTF-8");
+
+	/*
+	 * Try to open file with filename which might use more bytes in
+	 * MBS representation than in wchar_t if platform uses 16 bit wchar_t,
+	 * e.g. Cygwin (3 times a Euro sign, i.e. 3*2+2=8 vs 3*3+1=10 bytes).
+	 */
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    archive_read_open_filename_w(a, L"\u20AC\u20AC\u20AC", 512));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

@@ -85,4 +85,5 @@ DEFINE_TEST(test_write_disk_secure_noabsolutepaths)
 
 	assertEqualInt(ARCHIVE_OK, archive_write_free(ad));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+	free(temp_absolute_file_name);
 }

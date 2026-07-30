@@ -158,7 +158,7 @@ DEFINE_TEST(test_ustar_filename_encoding_CP1251_UTF8)
 
 	if (NULL == setlocale(LC_ALL, "Russian_Russia") &&
 	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
-		skipping("KOI8-R locale not available on this system.");
+		skipping("CP1251 locale not available on this system.");
 		return;
 	}
 
@@ -170,7 +170,7 @@ DEFINE_TEST(test_ustar_filename_encoding_CP1251_UTF8)
 	assertEqualInt(ARCHIVE_OK, archive_write_set_format_ustar(a));
 	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
 		skipping("This system cannot convert character-set"
-		    " from KOI8-R to UTF-8.");
+		    " from CP1251 to UTF-8.");
 		archive_write_free(a);
 		return;
 	}
@@ -178,7 +178,7 @@ DEFINE_TEST(test_ustar_filename_encoding_CP1251_UTF8)
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
-	/* Set a KOI8-R filename. */
+	/* Set a CP1251 filename. */
 	archive_entry_set_pathname(entry, "\xEF\xF0\xE8");
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
@@ -202,7 +202,7 @@ DEFINE_TEST(test_ustar_filename_encoding_ru_RU_CP1251)
 	size_t used;
 
 	if (NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
-		skipping("KOI8-R locale not available on this system.");
+		skipping("CP1251 locale not available on this system.");
 		return;
 	}
 
@@ -216,7 +216,7 @@ DEFINE_TEST(test_ustar_filename_encoding_ru_RU_CP1251)
 	    archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	entry = archive_entry_new2(a);
-	/* Set a KOI8-R filename. */
+	/* Set a CP1251 filename. */
 	archive_entry_set_pathname(entry, "\xEF\xF0\xE8");
 	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);

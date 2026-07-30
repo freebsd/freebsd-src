@@ -186,7 +186,7 @@ test_write_format_iso9660_zisofs_1(void)
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	failure("The ISO image size should be 71680 bytes.");
 	assertEqualInt(used, 2048 * 35);
@@ -318,7 +318,7 @@ test_write_format_iso9660_zisofs_1(void)
 	 */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(buff);
 }
@@ -433,7 +433,7 @@ test_write_format_iso9660_zisofs_2(void)
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	failure("The ISO image size should be 110592 bytes.");
 	assertEqualInt(used, 2048 * 54);
@@ -567,7 +567,7 @@ test_write_format_iso9660_zisofs_2(void)
 	 */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(buff);
 }
@@ -656,7 +656,7 @@ test_write_format_iso9660_zisofs_3(void)
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	failure("The ISO image size should be 81920 bytes.");
 	assertEqualInt(used, 2048 * 40);
@@ -815,7 +815,7 @@ test_write_format_iso9660_zisofs_3(void)
 	 */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(buff);
 }

@@ -45,6 +45,6 @@ DEFINE_TEST(test_read_filter_gzip_recursive)
 	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_GZIP);
 	assertEqualString(archive_filter_name(a, 0), "gzip");
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

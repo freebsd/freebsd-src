@@ -988,3 +988,31 @@ DEFINE_TEST(test_entry)
 	/* Release the experimental entry. */
 	archive_entry_free(e);
 }
+
+DEFINE_TEST(test_entry_mac_metadata_self_copy)
+{
+	static const unsigned char metadata[64] = {
+		0x41, 0x42, 0x43, 0x44
+	};
+	struct archive_entry *entry;
+	const void *copy;
+	size_t copy_size;
+
+	assert((entry = archive_entry_new()) != NULL);
+	archive_entry_copy_mac_metadata(entry, metadata, sizeof(metadata));
+	copy = archive_entry_mac_metadata(entry, &copy_size);
+	assertEqualInt(sizeof(metadata), copy_size);
+
+	archive_entry_copy_mac_metadata(entry, copy, copy_size);
+	copy = archive_entry_mac_metadata(entry, &copy_size);
+	assertEqualInt(sizeof(metadata), copy_size);
+	assertEqualMem(metadata, copy, sizeof(metadata));
+
+	archive_entry_copy_mac_metadata(entry,
+	    (const unsigned char *)copy + 1, copy_size - 1);
+	copy = archive_entry_mac_metadata(entry, &copy_size);
+	assertEqualInt(sizeof(metadata) - 1, copy_size);
+	assertEqualMem(metadata + 1, copy, sizeof(metadata) - 1);
+
+	archive_entry_free(entry);
+}

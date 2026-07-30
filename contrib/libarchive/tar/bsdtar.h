@@ -67,7 +67,7 @@ struct bsdtar {
 	/* Miscellaneous state information */
 	int		  argc;
 	char		**argv;
-	const char	 *argument;
+	char		 *argument;
 	size_t		  gs_width; /* For 'list_item' in read.c */
 	size_t		  u_width; /* for 'list_item' in read.c */
 	uid_t		  user_uid; /* UID running this program */
@@ -196,7 +196,6 @@ int	need_report(void);
 int	pathcmp(const char *a, const char *b);
 void	safe_fprintf(FILE * ARCHIVE_RESTRICT, const char * ARCHIVE_RESTRICT fmt, ...) __LA_PRINTF(2, 3);
 void	set_chdir(struct bsdtar *, const char *newdir);
-const char *tar_i64toa(int64_t);
 void	tar_mode_c(struct bsdtar *bsdtar);
 void	tar_mode_r(struct bsdtar *bsdtar);
 void	tar_mode_t(struct bsdtar *bsdtar);

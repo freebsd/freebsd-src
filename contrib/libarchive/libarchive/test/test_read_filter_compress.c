@@ -35,7 +35,7 @@ DEFINE_TEST(test_read_filter_compress_truncated)
 	assertEqualIntA(a, ARCHIVE_FATAL,
 	    archive_read_open_memory(a, data, sizeof(data)));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -59,7 +59,7 @@ DEFINE_TEST(test_read_filter_compress_empty2)
 	assertEqualString(archive_filter_name(a, 0), "compress (.Z)");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_EMPTY);
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -75,6 +75,6 @@ DEFINE_TEST(test_read_filter_compress_invalid)
 	assertEqualIntA(a, ARCHIVE_FATAL,
 	    archive_read_open_memory(a, data, sizeof(data)));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

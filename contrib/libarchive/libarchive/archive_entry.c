@@ -1239,7 +1239,7 @@ _archive_entry_copy_link_l(struct archive_entry *entry,
 }
 
 void
-archive_entry_set_mode(struct archive_entry *entry, mode_t m)
+archive_entry_set_mode(struct archive_entry *entry, __LA_MODE_T m)
 {
 	entry->stat_valid = 0;
 	entry->acl.mode = m;
@@ -1314,7 +1314,7 @@ _archive_entry_copy_pathname_l(struct archive_entry *entry,
 }
 
 void
-archive_entry_set_perm(struct archive_entry *entry, mode_t p)
+archive_entry_set_perm(struct archive_entry *entry, __LA_MODE_T p)
 {
 	entry->stat_valid = 0;
 	entry->acl.mode &= AE_IFMT;
@@ -1562,17 +1562,21 @@ void
 archive_entry_copy_mac_metadata(struct archive_entry *entry,
     const void *p, size_t s)
 {
-  free(entry->mac_metadata);
-  if (p == NULL || s == 0) {
-    entry->mac_metadata = NULL;
-    entry->mac_metadata_size = 0;
-  } else {
-    entry->mac_metadata_size = s;
-    entry->mac_metadata = malloc(s);
-    if (entry->mac_metadata == NULL)
-      abort();
-    memcpy(entry->mac_metadata, p, s);
-  }
+	void *metadata;
+
+	if (p == NULL || s == 0) {
+		free(entry->mac_metadata);
+		entry->mac_metadata = NULL;
+		entry->mac_metadata_size = 0;
+	} else {
+		metadata = malloc(s);
+		if (metadata == NULL)
+			abort();
+		memcpy(metadata, p, s);
+		free(entry->mac_metadata);
+		entry->mac_metadata = metadata;
+		entry->mac_metadata_size = s;
+	}
 }
 
 /* Digest handling */

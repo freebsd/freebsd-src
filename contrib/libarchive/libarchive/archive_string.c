@@ -450,6 +450,8 @@ default_iconv_charset(const char *charset) {
 	return locale_charset();
 #elif HAVE_NL_LANGINFO
 	return nl_langinfo(CODESET);
+#elif defined(__BIONIC__)
+	return "UTF-8";
 #else
 	return "";
 #endif
@@ -1372,7 +1374,7 @@ free_sconv_object(struct archive_string_conv *sc)
 }
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-# if defined(WINAPI_FAMILY_PARTITION) && !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+# if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 #  define GetOEMCP() CP_OEMCP
 # endif
 
@@ -2325,7 +2327,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 
 	remaining = length;
 	itp = (const uint8_t *)_p;
-	while (*itp && remaining > 0) {
+	while (remaining > 0 && *itp) {
 		if (*itp > 127) {
 			// Non-ASCII: Substitute with suitable replacement
 			if (sc->flag & SCONV_TO_UTF8) {
@@ -2340,6 +2342,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 			archive_strappend_char(as, *itp);
 		}
 		++itp;
+		--remaining;
 	}
 	return (return_value);
 }
