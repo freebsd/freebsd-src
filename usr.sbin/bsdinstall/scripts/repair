@@ -207,7 +207,7 @@ while :; do
 		set --
 		[ "$mounted" = yes ] && set -- "$@" "$chroot_name" "$chroot_desc"
 		set -- "$@" "$shell_name" "$shell_desc"
-		[ "$mounted" = yes ] && [ "$fs" = "freebsd-ufs" ] && set -- "$@" "$fsck_name" "$fsck_desc"
+		[ "$fs" = "freebsd-ufs" ] && set -- "$@" "$fsck_name" "$fsck_desc"
 
 		exec 5>&1
 		action=$(bsddialog --backtitle "$OSNAME Installer" --title 'Inspect selected partition' \
