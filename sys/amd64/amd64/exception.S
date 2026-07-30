@@ -1403,6 +1403,23 @@ gsbase_load_fault:
 	movq	$0,PCB_GSBASE(%r8)
 	jmp	doreti
 
+#if defined(__clang__) && (__clang_major__ <= 18)
+	.macro	lkgs	reg
+	.if	\reg != %ax
+	.err	"Only %ax is supported"
+	.endif
+	.byte	0xf2, 0x0f, 0x00, 0xf0
+	.endm
+
+	.macro	eretu
+	.byte	0xf3, 0x0f, 0x01, 0xca
+	.endm
+
+	.macro	erets
+	.byte	0xf2, 0x0f, 0x01, 0xca
+	.endm
+#endif
+
 /*
  * FRED guarantees that on entry, %rflags is set to '2', which in
  * particular means that interrupts are disabled, and DF/AC are clear.
