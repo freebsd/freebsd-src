@@ -795,6 +795,13 @@ static int em_get_regs(SYSCTL_HANDLER_ARGS)
 	u32 *regs_buff;
 	int rc;
 
+	/*
+	 * This sysctl is registered before iflib allocates the queue arrays,
+	 * and remains registered while iflib tears them down.
+	 */
+	if (sc->rx_queues == NULL || sc->tx_queues == NULL)
+		return (ENXIO);
+
 	regs_buff = malloc(sizeof(u32) * IGB_REGS_LEN, M_DEVBUF, M_WAITOK);
 	memset(regs_buff, 0, IGB_REGS_LEN * sizeof(u32));
 
