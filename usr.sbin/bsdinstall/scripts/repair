@@ -138,6 +138,7 @@ option_shell() {
 fsck_name="fsck"
 fsck_desc="fsck partition"
 option_fsck() {
+	clear
 	echo "<=== FSCK ===>"
 	fsck /dev/$part
 	echo "When finished, type 'exit' to return to the action menu."
