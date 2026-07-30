@@ -1254,6 +1254,7 @@ em_if_attach_pre(if_ctx_t ctx)
 
 	/* Determine hardware and mac info */
 	em_identify_hardware(ctx);
+	sc->osdep.vf_82576 = sc->hw.mac.type == e1000_vfadapt;
 
 	/* VF sysctls are deferred until attach-post confirms MSI-X. */
 	ctx_list = device_get_sysctl_ctx(dev);

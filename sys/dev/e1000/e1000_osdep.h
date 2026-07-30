@@ -162,6 +162,7 @@ struct e1000_osdep
 	device_t	   dev;
 	if_ctx_t	   ctx;
 	bool		   vf;
+	bool		   vf_82576;
 };
 
 #ifdef INVARIANTS
@@ -174,7 +175,7 @@ struct e1000_osdep
  * support must extend this predicate from the applicable device CSR map.
  */
 static __inline bool
-e1000_vf_reg_valid(uint32_t reg, bool write)
+e1000_vf_reg_valid(uint32_t reg, bool write, bool vf_82576)
 {
 	/* VF mailbox memory: 16 dwords beginning at 0x800. */
 	if (reg >= 0x00800 && reg <= 0x0083c && (reg & 3) == 0)
@@ -191,6 +192,7 @@ e1000_vf_reg_valid(uint32_t reg, bool write)
 	case 0x02808:	/* RDLEN */
 	case 0x0280c:	/* SRRCTL */
 	case 0x02810:	/* RDH */
+	case 0x02814:	/* RXCTL */
 	case 0x02818:	/* RDT */
 	case 0x02828:	/* RXDCTL */
 		return (true);
@@ -202,15 +204,26 @@ e1000_vf_reg_valid(uint32_t reg, bool write)
 	case 0x03804:	/* TDBAH */
 	case 0x03808:	/* TDLEN */
 	case 0x03810:	/* TDH */
+	case 0x03814:	/* TXCTL */
 	case 0x03818:	/* TDT */
 	case 0x03828:	/* TXDCTL */
+	case 0x03838:	/* TDWBAL */
+	case 0x0383c:	/* TDWBAH */
 		return (true);
 	}
+
+	/*
+	 * 82576 exposes VFMPRC at 0xf3c.  I350 erratum 31 makes
+	 * its corrected 0xf38 address inaccessible to a VF.
+	 */
+	if (vf_82576 && reg == 0x00f3c)
+		return (!write);
 
 	switch (reg) {
 	case 0x00000:	/* CTRL */
 	case 0x000c4:	/* Legacy ITR, listed but unused by igb VFs */
 	case 0x00c40:	/* V2PMAILBOX(0) */
+	case 0x00f0c:	/* VFPSRTYPE */
 	case 0x01524:	/* EIMS */
 	case 0x0152c:	/* EIAC */
 	case 0x01530:	/* EIAM */
@@ -225,7 +238,6 @@ e1000_vf_reg_valid(uint32_t reg, bool write)
 	case 0x00f14:	/* VFGPTC */
 	case 0x00f18:	/* VFGORC */
 	case 0x00f34:	/* VFGOTC */
-	case 0x00f3c:	/* VFMPRC */
 	case 0x00f40:	/* VFGPRLBC */
 	case 0x00f44:	/* VFGPTLBC */
 	case 0x00f48:	/* VFGORLBC */
@@ -261,7 +273,8 @@ e1000_rd32(struct e1000_osdep *osdep, uint32_t reg)
 	    ("e1000: register offset %#jx too large (max is %#jx)",
 	    (uintmax_t)reg, (uintmax_t)osdep->mem_bus_space_size));
 #ifdef INVARIANTS
-	KASSERT(!osdep->vf || e1000_vf_reg_valid(reg, false),
+	KASSERT(!osdep->vf ||
+	    e1000_vf_reg_valid(reg, false, osdep->vf_82576),
 	    ("e1000: invalid VF register read at %#x", reg));
 #endif
 
@@ -278,7 +291,8 @@ e1000_wr32(struct e1000_osdep *osdep, uint32_t reg, uint32_t value)
 	    ("e1000: register offset %#jx too large (max is %#jx)",
 	    (uintmax_t)reg, (uintmax_t)osdep->mem_bus_space_size));
 #ifdef INVARIANTS
-	KASSERT(!osdep->vf || e1000_vf_reg_valid(reg, true),
+	KASSERT(!osdep->vf ||
+	    e1000_vf_reg_valid(reg, true, osdep->vf_82576),
 	    ("e1000: invalid VF register write at %#x", reg));
 #endif
 
