@@ -11,7 +11,6 @@
 #include <ctype.h>
 #include <locale.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "strfrom.h"
 
@@ -37,6 +36,16 @@ sf_write(char *s, size_t n, int *pos, const char *src, int len)
 
 	for (i = 0; i < len; i++)
 		sf_putc(s, n, pos, src[i]);
+}
+
+/*
+ * Write a null terminated string.
+ */
+static void
+sf_puts(char *s, size_t n, int *pos, const char *src)
+{
+	while (*src != '\0')
+		sf_putc(s, n, pos, *src++);
 }
 
 /*
@@ -69,10 +78,7 @@ sf_seal(char *s, size_t n, int pos)
 static void
 sf_putdp(char *s, size_t n, int *pos)
 {
-	const char *dp;
-
-	dp = localeconv()->decimal_point;
-	sf_write(s, n, pos, dp, dp[1] == '\0' ? 1 : (int)strlen(dp));
+	sf_puts(s, n, pos, localeconv()->decimal_point);
 }
 
 /*
@@ -162,8 +168,8 @@ sf_special(char *s, size_t n, char conv, int signflag, int is_nan)
 	upper = isupper((unsigned char)conv);
 	if (!is_nan && signflag)
 		sf_putc(s, n, &pos, '-');
-	sf_write(s, n, &pos,
-	    is_nan ? (upper ? "NAN" : "nan") : (upper ? "INF" : "inf"), 3);
+	sf_puts(s, n, &pos,
+	    is_nan ? (upper ? "NAN" : "nan") : (upper ? "INF" : "inf"));
 	sf_seal(s, n, pos);
 	return (pos);
 }
@@ -379,7 +385,6 @@ sf_afmt(char *s, size_t n, int user_prec, char conv,
 const char *
 __sf_xdigits(char conv)
 {
-
 	return (isupper((unsigned char)conv) ? "0123456789ABCDEF" :
 	    "0123456789abcdef");
 }
