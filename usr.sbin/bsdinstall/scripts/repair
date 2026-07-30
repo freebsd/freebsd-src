@@ -138,6 +138,7 @@ option_shell() {
 zpool_scrub_name="zpool-scrub"
 zpool_scrub_desc="zpool scrub selected pool"
 option_zpool_scrub() {
+	clear
 	echo "<=== ZPOOL SCRUB ===>"
 	zpool scrub $part
 	echo "<=== ZPOOL SCRUB DONE ===>"
