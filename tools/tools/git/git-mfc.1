@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd June 26, 2026
+.Dd July 28, 2026
 .Dt GIT-MFC 1
 .Os
 .Sh NAME
@@ -31,6 +31,10 @@
 .Op Fl -all
 .Op Fl -origin Ar branch
 .Op Fl r Ar remote
+.Nm
+.Fl -continue
+.Nm
+.Fl -abort
 .Sh DESCRIPTION
 The
 .Nm
@@ -76,8 +80,10 @@ All commits are cherry-picked using a single
 .Xr git-cherry-pick 1
 invocation.
 If a conflict occurs, resolve it and run
-.Dq git cherry-pick --continue
-to proceed with the remaining commits.
+.Nm Fl -continue
+to proceed with the remaining commits, or
+.Nm Fl -abort
+to give up.
 .It
 In
 .Fl -pending
@@ -108,6 +114,8 @@ are considered.
 .Pp
 The following options are available:
 .Bl -tag -width "-a author"
+.It Fl -abort
+Abort a cherry-pick in progress.
 .It Fl a Ar author , Fl -author Ar author
 With
 .Fl -pending
@@ -126,6 +134,8 @@ By default, the value of
 from
 .Xr git-config 1
 is used.
+.It Fl -continue
+Continue cherry-picking after resolving a conflict.
 .It Fl -all
 With
 .Fl -pending
@@ -136,7 +146,9 @@ show commits from all authors instead of only the current user.
 Find cherry-picked commits in the current branch that are missing fixup
 commits from the origin branch.
 Cannot be combined with
-.Fl -pending
+.Fl -pending ,
+.Fl -abort ,
+.Fl -continue ,
 or revision arguments.
 .It Fl e , Fl -edit
 Open the commit message in an editor before committing each cherry-pick.
@@ -178,7 +190,9 @@ Show upstream commits with
 .Dq MFC after:
 tags that are ready to be cherry-picked.
 Cannot be combined with
-.Fl -dangling
+.Fl -dangling ,
+.Fl -abort ,
+.Fl -continue ,
 or revision arguments.
 .It Fl r Ar remote , Fl -remote Ar remote
 Specify the git remote to fetch from.

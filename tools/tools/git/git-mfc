@@ -419,9 +419,8 @@ def cherry_pick(commits, edit=False):
     result = subprocess.run(cmd, capture_output=False)
     if result.returncode != 0:
         print("\nCherry-pick failed.", file=sys.stderr)
-        print("Resolve the conflict and run 'git cherry-pick --continue',",
-              file=sys.stderr)
-        print("or run 'git cherry-pick --abort' to give up.", file=sys.stderr)
+        print("Resolve the conflict and run 'git mfc --continue',", file=sys.stderr)
+        print("or run 'git mfc --abort' to give up.", file=sys.stderr)
         sys.exit(1)
 
 
@@ -432,34 +431,37 @@ def main():
                     'automatically including fixup commits.',
     )
     parser.add_argument(
-        '-e', '--edit', action='store_true',
-        help='Edit the commit message before committing',
-    )
-    parser.add_argument(
-        '-n', action='store_true',
-        help='List the commits that would be cherry-picked, but do not act',
-    )
-    parser.add_argument(
-        '-a', '--author', type=str, default=None,
-        help='Filter --pending/--dangling results by author (default: ignore author)',
+        '--abort', action='store_true',
+        help='Abort a cherry-pick in progress',
     )
     parser.add_argument(
         '--all', action='store_true',
         help='With --pending/--dangling, show commits from all authors',
     )
     parser.add_argument(
+        '-a', '--author', type=str, default=None,
+        help='Filter --pending/--dangling results by author (default: ignore author)',
+    )
+    parser.add_argument(
         '--baking', action='store_true',
-        help='With --pending, also show commits whose MFC-after period '
-             'has not yet elapsed',
+        help='With --pending, also show commits whose MFC-after period has not yet elapsed',
     )
     parser.add_argument(
         '-c', '--committer', type=str, default=None,
         help='Filter --pending/--dangling results by committer (default: current user)',
     )
     parser.add_argument(
+        '--continue', action='store_true', dest='continue_',
+        help='Continue cherry-picking after resolving a conflict',
+    )
+    parser.add_argument(
         '--dangling', action='store_true',
         help='Find cherry-picked commits in the current branch that are '
              'missing fixup commits from the origin branch',
+    )
+    parser.add_argument(
+        '-e', '--edit', action='store_true',
+        help='Edit the commit message before committing',
     )
     parser.add_argument(
         '-f', '--force', action='store_true',
@@ -468,6 +470,10 @@ def main():
     parser.add_argument(
         '--ignore-reverts', action='store_true',
         help='Cherry-pick commits even if they were reverted upstream',
+    )
+    parser.add_argument(
+        '-n', action='store_true',
+        help='List the commits that would be cherry-picked, but do not act',
     )
     parser.add_argument(
         '--pending', action='store_true',
@@ -488,11 +494,21 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.dangling and args.pending:
-        err(1, 'usage error: --dangling and --pending are mutually exclusive')
-    if (args.dangling or args.pending) and len(args.commits) > 0:
-        err(1, 'usage error: revisions cannot be specified with --dangling or --pending')
-    if not args.dangling and not args.pending and len(args.commits) == 0:
+    mode = []
+    if args.dangling:
+        mode.append('--dangling')
+    if args.pending:
+        mode.append('--pending')
+    if args.abort:
+        mode.append('--abort')
+    if args.continue_:
+        mode.append('--continue')
+    if len(mode) > 1:
+        err(1, 'usage error: only one of --dangling, --pending, --abort, '
+               'or --continue may be specified')
+    if len(mode) == 1 and len(args.commits) > 0:
+        err(1, f'usage error: revisions cannot be specified with {mode[0]}')
+    if len(mode) == 0 and len(args.commits) == 0:
         err(1, 'usage error: at least one revision is required')
 
     origin = args.origin if args.origin else origin_branch()
@@ -509,13 +525,13 @@ def main():
 
     upstream = remote + '/' + origin
 
-    if not args.n:
+    if not args.n and not args.abort and not args.continue_:
         repo.remotes[remote].fetch(origin)
 
     # Do we want to filter commits by author or committer?  By default, use
     # the current git user's email to match the committer field.
     author = committer = None
-    if not getattr(args, 'all'):
+    if not args.all:
         user_email = repo.config_reader().get_value('user', 'email', default=None)
         if args.author:
             author = args.author
@@ -547,6 +563,16 @@ def main():
             else:
                 status = f"ready on {date_str}"
             print(f'{commit_summary(commit)} ({status})')
+    elif args.abort:
+        result = subprocess.run(['git', 'cherry-pick', '--abort'],
+                                capture_output=False)
+        if result.returncode != 0:
+            err(1, "failed to abort cherry-pick")
+    elif args.continue_:
+        result = subprocess.run(['git', 'cherry-pick', '--continue'],
+                                capture_output=False)
+        if result.returncode != 0:
+            err(1, "failed to continue cherry-pick")
     else:
         tomfc, reverted = mfcclosure(repo, upstream, args.commits)
 
