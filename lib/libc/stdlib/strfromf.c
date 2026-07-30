@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <ctype.h>
 #include <stdlib.h>
 
 #include "strfrom.h"
@@ -17,7 +18,7 @@ strfromf(char * __restrict s, size_t n, const char * __restrict fmt, float fp)
 
 	dbl = (double)fp;
 	conv = __sf_parse_fmt(fmt, &prec);
-	lc = conv | 0x20;
+	lc = tolower((unsigned char)conv);
 
 	if (lc == 'a') {
 		digits = __hdtoa(dbl, __sf_xdigits(conv),

@@ -8,6 +8,7 @@
  * Shared helpers for strfromd, strfromf, and strfroml (C23 §7.24.1.3).
  */
 
+#include <ctype.h>
 #include <locale.h>
 #include <stdlib.h>
 #include <string.h>
@@ -158,7 +159,7 @@ sf_special(char *s, size_t n, char conv, int signflag, int is_nan)
 	int upper;
 
 	pos = 0;
-	upper = (conv >= 'A' && conv <= 'Z');
+	upper = isupper((unsigned char)conv);
 	if (!is_nan && signflag)
 		sf_putc(s, n, &pos, '-');
 	sf_write(s, n, &pos,
@@ -197,7 +198,8 @@ sf_efmt(char *s, size_t n, int prec, char conv,
 		sf_write(s, n, &pos, digits + 1, copy);
 		sf_padc(s, n, &pos, '0', prec - copy);
 	}
-	sf_emit_exp(s, n, &pos, conv == 'e' ? 'e' : 'E', decpt - 1, 2);
+	sf_emit_exp(s, n, &pos, isupper((unsigned char)conv) ? 'E' : 'e',
+	    decpt - 1, 2);
 
 	sf_seal(s, n, pos);
 	return (pos);
@@ -313,7 +315,8 @@ sf_gfmt(char *s, size_t n, int prec, char conv,
 			sf_putdp(s, n, &pos);
 			sf_write(s, n, &pos, digits + 1, ndig - 1);
 		}
-		sf_emit_exp(s, n, &pos, conv == 'g' ? 'e' : 'E', decpt - 1, 2);
+		sf_emit_exp(s, n, &pos, isupper((unsigned char)conv) ? 'E' : 'e',
+		    decpt - 1, 2);
 	}
 
 	sf_seal(s, n, pos);
@@ -341,7 +344,7 @@ sf_afmt(char *s, size_t n, int user_prec, char conv,
 	if (signflag)
 		sf_putc(s, n, &pos, '-');
 	sf_putc(s, n, &pos, '0');
-	sf_putc(s, n, &pos, conv == 'a' ? 'x' : 'X');
+	sf_putc(s, n, &pos, isupper((unsigned char)conv) ? 'X' : 'x');
 
 	/*
 	 * Integer part of the significand.
@@ -363,7 +366,8 @@ sf_afmt(char *s, size_t n, int user_prec, char conv,
 		sf_write(s, n, &pos, digits + 1, copy);
 		sf_padc(s, n, &pos, '0', user_prec - copy);
 	}
-	sf_emit_exp(s, n, &pos, conv == 'a' ? 'p' : 'P', decpt - 1, 1);
+	sf_emit_exp(s, n, &pos, isupper((unsigned char)conv) ? 'P' : 'p',
+	    decpt - 1, 1);
 
 	sf_seal(s, n, pos);
 	return (pos);
@@ -376,7 +380,8 @@ const char *
 __sf_xdigits(char conv)
 {
 
-	return (conv == 'a' ? "0123456789abcdef" : "0123456789ABCDEF");
+	return (isupper((unsigned char)conv) ? "0123456789ABCDEF" :
+	    "0123456789abcdef");
 }
 
 /*
