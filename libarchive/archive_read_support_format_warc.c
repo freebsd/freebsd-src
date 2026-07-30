@@ -25,27 +25,34 @@
 
 #include "archive_platform.h"
 
-/**
- * WARC is standardised by ISO TC46/SC4/WG12 and currently available as
- * ISO 28500:2009.
- * For the purposes of this file we used the final draft from:
+/*
+ * An overview of WARC format:
+ *
+ * WARC files are laid out as a sequence of records.  Each record has
+ * a text header followed by a content block whose size is given by
+ * Content-Length.  This reader supports WARC/0.12 through WARC/1.0
+ * and was written using the final draft that became ISO 28500:2009:
  * http://bibnum.bnf.fr/warc/WARC_ISO_28500_version1_latestdraft.pdf
  *
- * Todo:
- * [ ] real-world warcs can contain resources at endpoints ending in /
- *     e.g. http://bibnum.bnf.fr/warc/
- *     if you're lucky their response contains a Content-Location: header
- *     pointing to a unix-compliant filename, in the example above it's
- *     Content-Location: http://bibnum.bnf.fr/warc/index.html
- *     however, that's not mandated and github for example doesn't follow
- *     this convention.
- *     We need a set of archive options to control what to do with
- *     entries like these, at the moment care is taken to skip them.
+ * This reader exposes resource and response records as regular files
+ * when they have a usable WARC-Target-URI.  WARC-Date is exposed as
+ * ctime, and a Last-Modified record header is exposed as mtime when
+ * present.
  *
- **/
+ * TODO: Real-world WARCs can contain resources at endpoints ending in
+ * a slash, for example http://bibnum.bnf.fr/warc/.  Some responses
+ * include a Content-Location header that points to a Unix-compatible
+ * filename such as http://bibnum.bnf.fr/warc/index.html, but WARC does
+ * not require that convention and some sites do not follow it.  Until
+ * archive options exist to control these entries, this reader skips
+ * them instead of creating directory endpoints as files.
+ */
 
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#ifdef HAVE_CTYPE_H
+#include <ctype.h>
 #endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
@@ -56,40 +63,35 @@
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
-#ifdef HAVE_LIMITS_H
-#include <limits.h>
-#endif
-#ifdef HAVE_CTYPE_H
-#include <ctype.h>
-#endif
 #ifdef HAVE_TIME_H
 #include <time.h>
 #endif
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 
 typedef enum {
 	WT_NONE,
-	/* warcinfo */
+	/* WARC info */
 	WT_INFO,
-	/* metadata */
+	/* Metadata */
 	WT_META,
-	/* resource */
+	/* Resource */
 	WT_RSRC,
-	/* request, unsupported */
+	/* Request, unsupported */
 	WT_REQ,
-	/* response, unsupported */
+	/* Response */
 	WT_RSP,
-	/* revisit, unsupported */
+	/* Revisit, unsupported */
 	WT_RVIS,
-	/* conversion, unsupported */
+	/* Conversion, unsupported */
 	WT_CONV,
-	/* continuation, unsupported at the moment */
+	/* Continuation, currently unsupported */
 	WT_CONT,
-	/* invalid type */
+	/* Invalid type */
 	LAST_WT
 } warc_type_t;
 
@@ -103,82 +105,92 @@ typedef struct {
 	char *str;
 } warc_strbuf_t;
 
-struct warc_s {
-	/* content length ahead */
-	size_t cntlen;
-	/* and how much we've processed so far */
-	size_t cntoff;
-	/* and how much we need to consume between calls */
-	size_t unconsumed;
+struct warc {
+	/* Content length of the current record */
+	int64_t cntlen;
+	/* Bytes processed from the current record */
+	int64_t cntoff;
+	/* Bytes to consume before the next read */
+	int64_t unconsumed;
 
-	/* string pool */
+	/* String pool */
 	warc_strbuf_t pool;
-	/* previous version */
+	/* Previous version */
 	unsigned int pver;
-	/* stringified format name */
+	/* Stringified format name */
 	struct archive_string sver;
 };
 
-static int _warc_bid(struct archive_read *a, int);
-static int _warc_cleanup(struct archive_read *a);
-static int _warc_read(struct archive_read*, const void**, size_t*, int64_t*);
-static int _warc_skip(struct archive_read *a);
-static int _warc_rdhdr(struct archive_read *a, struct archive_entry *e);
+static int	archive_read_format_warc_bid(struct archive_read *, int);
+static int	archive_read_format_warc_cleanup(struct archive_read *);
+static int	archive_read_format_warc_read_data(struct archive_read *,
+		    const void **, size_t *, int64_t *);
+static int	archive_read_format_warc_skip(struct archive_read *);
+static int	archive_read_format_warc_read_header(struct archive_read *,
+		    struct archive_entry *);
 
-/* private routines */
-static unsigned int _warc_rdver(const char *buf, size_t bsz);
-static unsigned int _warc_rdtyp(const char *buf, size_t bsz);
-static warc_string_t _warc_rduri(const char *buf, size_t bsz);
-static ssize_t _warc_rdlen(const char *buf, size_t bsz);
-static time_t _warc_rdrtm(const char *buf, size_t bsz);
-static time_t _warc_rdmtm(const char *buf, size_t bsz);
-static const char *_warc_find_eoh(const char *buf, size_t bsz);
-static const char *_warc_find_eol(const char *buf, size_t bsz);
+/* Private routines */
+static unsigned int	warc_read_version(const char *, size_t);
+static unsigned int	warc_read_type(const char *, size_t);
+static warc_string_t	warc_read_uri(const char *, size_t);
+static int64_t		warc_read_length(const char *, size_t);
+static time_t		warc_read_date(const char *, size_t);
+static time_t		warc_read_last_modified(const char *, size_t);
+static const char	*warc_find_eoh(const char *, size_t);
+static const char	*warc_find_eol(const char *, size_t);
 
 int
 archive_read_support_format_warc(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
-	struct warc_s *w;
+	struct warc *warc;
 	int r;
 
 	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_read_support_format_warc");
 
-	if ((w = calloc(1, sizeof(*w))) == NULL) {
+	if ((warc = calloc(1, sizeof(*warc))) == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate warc data");
 		return (ARCHIVE_FATAL);
 	}
 
-	r = __archive_read_register_format(
-		a, w, "warc",
-		_warc_bid, NULL, _warc_rdhdr, _warc_read,
-		_warc_skip, NULL, _warc_cleanup, NULL, NULL);
+	r = __archive_read_register_format(a,
+	    warc,
+	    "warc",
+	    archive_read_format_warc_bid,
+	    NULL,
+	    archive_read_format_warc_read_header,
+	    archive_read_format_warc_read_data,
+	    archive_read_format_warc_skip,
+	    NULL,
+	    archive_read_format_warc_cleanup,
+	    NULL,
+	    NULL);
 
 	if (r != ARCHIVE_OK) {
-		free(w);
+		free(warc);
 		return (r);
 	}
 	return (ARCHIVE_OK);
 }
 
 static int
-_warc_cleanup(struct archive_read *a)
+archive_read_format_warc_cleanup(struct archive_read *a)
 {
-	struct warc_s *w = a->format->data;
+	struct warc *warc = a->format->data;
 
-	if (w->pool.len > 0U) {
-		free(w->pool.str);
+	if (warc->pool.len > 0U) {
+		free(warc->pool.str);
 	}
-	archive_string_free(&w->sver);
-	free(w);
+	archive_string_free(&warc->sver);
+	free(warc);
 	a->format->data = NULL;
 	return (ARCHIVE_OK);
 }
 
 static int
-_warc_bid(struct archive_read *a, int best_bid)
+archive_read_format_warc_bid(struct archive_read *a, int best_bid)
 {
 	const char *hdr;
 	ssize_t nrd;
@@ -186,55 +198,52 @@ _warc_bid(struct archive_read *a, int best_bid)
 
 	(void)best_bid; /* UNUSED */
 
-	/* check first line of file, it should be a record already */
-	if ((hdr = __archive_read_ahead(a, 12U, &nrd)) == NULL) {
-		/* no idea what to do */
-		return -1;
-	} else if (nrd < 12) {
-		/* nah, not for us, our magic cookie is at least 12 bytes */
+	/* Check the first line, which should already be a record header. */
+	if ((hdr = __archive_read_ahead(a, 12, &nrd)) == NULL) {
+		/* Not enough data to identify this format. */
 		return -1;
 	}
 
-	/* otherwise snarf the record's version number */
-	ver = _warc_rdver(hdr, nrd);
+	/* Parse the record version number. */
+	ver = warc_read_version(hdr, nrd);
 	if (ver < 1200U || ver > 10000U) {
-		/* we only support WARC 0.12 to 1.0 */
+		/* Only WARC 0.12 through WARC 1.0 are supported. */
 		return -1;
 	}
 
-	/* otherwise be confident */
+	/* WARC magic and version checks passed. */
 	return (64);
 }
 
 static int
-_warc_rdhdr(struct archive_read *a, struct archive_entry *entry)
+archive_read_format_warc_read_header(struct archive_read *a,
+    struct archive_entry *entry)
 {
 #define HDR_PROBE_LEN		(12U)
-	struct warc_s *w = a->format->data;
+	struct warc *warc = a->format->data;
 	unsigned int ver;
 	const char *buf;
 	ssize_t nrd;
 	const char *eoh;
 	char *tmp;
-	/* for the file name, saves some strndup()'ing */
+	/* Reuse the header buffer while parsing the file name. */
 	warc_string_t fnam;
-	/* warc record type, not that we really use it a lot */
+	/* WARC record type */
 	warc_type_t ftyp;
-	/* content-length+error monad */
-	ssize_t cntlen;
-	/* record time is the WARC-Date time we reinterpret it as ctime */
+	/* Content length, or a negative error indicator */
+	int64_t cntlen;
+	/* WARC-Date is exposed as the entry ctime. */
 	time_t rtime;
-	/* mtime is the Last-Modified time which will be the entry's mtime */
+	/* A Last-Modified record header is exposed as the entry mtime. */
 	time_t mtime;
 
 start_over:
-	/* just use read_ahead() they keep track of unconsumed
-	 * bits and bobs for us; no need to put an extra shift in
-	 * and reproduce that functionality here */
+	/* Use read_ahead(); it already tracks unconsumed bytes, so this
+	 * reader does not need a separate shift buffer. */
 	buf = __archive_read_ahead(a, HDR_PROBE_LEN, &nrd);
 
 	if (nrd < 0) {
-		/* no good */
+		/* I/O or stream error. */
 		archive_set_error(
 			&a->archive, ARCHIVE_ERRNO_MISC,
 			"Bad record header");
@@ -244,19 +253,17 @@ start_over:
 		 * must be EOF therefore */
 		return (ARCHIVE_EOF);
 	}
- 	/* looks good so far, try and find the end of the header now */
-	eoh = _warc_find_eoh(buf, nrd);
+	/* Locate the end of the record header. */
+	eoh = warc_find_eoh(buf, nrd);
 	if (eoh == NULL) {
-		/* still no good, the header end might be beyond the
-		 * probe we've requested, but then again who'd cram
-		 * so much stuff into the header *and* be 28500-compliant */
+		/* The header terminator was not found in the probed data. */
 		archive_set_error(
 			&a->archive, ARCHIVE_ERRNO_MISC,
 			"Bad record header");
 		return (ARCHIVE_FATAL);
 	}
-	ver = _warc_rdver(buf, eoh - buf);
-	/* we currently support WARC 0.12 to 1.0 */
+	ver = warc_read_version(buf, eoh - buf);
+	/* Only WARC 0.12 through WARC 1.0 are supported. */
 	if (ver == 0U) {
 		archive_set_error(
 			&a->archive, ARCHIVE_ERRNO_MISC,
@@ -269,78 +276,73 @@ start_over:
 			ver / 10000, (ver % 10000) / 100);
 		return (ARCHIVE_FATAL);
 	}
-	cntlen = _warc_rdlen(buf, eoh - buf);
+	cntlen = warc_read_length(buf, eoh - buf);
 	if (cntlen < 0) {
-		/* nightmare!  the specs say content-length is mandatory
-		 * so I don't feel overly bad stopping the reader here */
+		/* This reader requires Content-Length before processing a record. */
 		archive_set_error(
 			&a->archive, EINVAL,
 			"Bad content length");
 		return (ARCHIVE_FATAL);
 	}
-	rtime = _warc_rdrtm(buf, eoh - buf);
+	rtime = warc_read_date(buf, eoh - buf);
 	if (rtime == (time_t)-1) {
-		/* record time is mandatory as per WARC/1.0,
-		 * so just barf here, fast and loud */
+		/* This reader requires WARC-Date before processing a record. */
 		archive_set_error(
 			&a->archive, EINVAL,
 			"Bad record time");
 		return (ARCHIVE_FATAL);
 	}
 
-	/* let the world know we're a WARC archive */
+	/* Report this archive as WARC. */
 	a->archive.archive_format = ARCHIVE_FORMAT_WARC;
-	if (ver != w->pver) {
-		/* stringify this entry's version */
-		archive_string_sprintf(&w->sver,
+	if (ver != warc->pver) {
+		/* Format this entry's WARC version. */
+		archive_string_sprintf(&warc->sver,
 			"WARC/%u.%u", ver / 10000, (ver % 10000) / 100);
-		/* remember the version */
-		w->pver = ver;
+		/* Remember the version for later entries. */
+		warc->pver = ver;
 	}
-	/* start off with the type */
-	ftyp = _warc_rdtyp(buf, eoh - buf);
-	/* and let future calls know about the content */
-	w->cntlen = cntlen;
-	w->cntoff = 0U;
-	mtime = 0;/* Avoid compiling error on some platform. */
+	/* Parse the record type. */
+	ftyp = warc_read_type(buf, eoh - buf);
+	/* Save content state for subsequent read calls. */
+	warc->cntlen = cntlen;
+	warc->cntoff = 0;
+	mtime = 0;/* Avoid compiler warnings on some platforms. */
 
 	switch (ftyp) {
 	case WT_RSRC:
 	case WT_RSP:
-		/* only try and read the filename in the cases that are
-		 * guaranteed to have one */
-		fnam = _warc_rduri(buf, eoh - buf);
-		/* check the last character in the URI to avoid creating
-		 * directory endpoints as files, see Todo above */
+		/* Read the filename only for record types that are expected to
+		 * have a target URI. */
+		fnam = warc_read_uri(buf, eoh - buf);
+		/* Avoid creating directory endpoints as files. */
 		if (fnam.len == 0 || fnam.str[fnam.len - 1] == '/') {
-			/* break here for now */
+			/* Skip this record. */
 			fnam.len = 0U;
 			fnam.str = NULL;
 			break;
 		}
-		/* bang to our string pool, so we save a
-		 * malloc()+free() roundtrip */
-		if (fnam.len + 1U > w->pool.len) {
-			w->pool.len = ((fnam.len + 64U) / 64U) * 64U;
-			tmp = realloc(w->pool.str, w->pool.len);
+		/* Copy the name into the reusable string pool to avoid a malloc/free
+		 * roundtrip for each entry. */
+		if (fnam.len + 1U > warc->pool.len) {
+			warc->pool.len = ((fnam.len + 64U) / 64U) * 64U;
+			tmp = realloc(warc->pool.str, warc->pool.len);
 			if (tmp == NULL) {
 				archive_set_error(
 					&a->archive, ENOMEM,
 					"Out of memory");
 				return (ARCHIVE_FATAL);
 			}
-			w->pool.str = tmp;
+			warc->pool.str = tmp;
 		}
-		memcpy(w->pool.str, fnam.str, fnam.len);
-		w->pool.str[fnam.len] = '\0';
-		/* let no one else know about the pool, it's a secret, shhh */
-		fnam.str = w->pool.str;
+		memcpy(warc->pool.str, fnam.str, fnam.len);
+		warc->pool.str[fnam.len] = '\0';
+		/* Hide the pool implementation behind the parsed string. */
+		fnam.str = warc->pool.str;
 
-		/* snarf mtime or deduce from rtime
-		 * this is a custom header added by our writer, it's quite
-		 * hard to believe anyone else would go through with it
-		 * (apart from being part of some http responses of course) */
-		if ((mtime = _warc_rdmtm(buf, eoh - buf)) == (time_t)-1) {
+		/* Use a Last-Modified record header when present; otherwise fall back
+		 * to WARC-Date. */
+		if ((mtime = warc_read_last_modified(buf, eoh - buf)) == (time_t)-1) {
 			mtime = rtime;
 		}
 		break;
@@ -358,19 +360,19 @@ start_over:
 		break;
 	}
 
-	/* now eat some of those delicious buffer bits */
+	/* Consume the record header. */
 	__archive_read_consume(a, eoh - buf);
 
 	switch (ftyp) {
 	case WT_RSRC:
 	case WT_RSP:
 		if (fnam.len > 0U) {
-			/* populate entry object */
+			/* Populate the entry object. */
 			archive_entry_set_filetype(entry, AE_IFREG);
 			archive_entry_copy_pathname(entry, fnam.str);
 			archive_entry_set_size(entry, cntlen);
 			archive_entry_set_perm(entry, 0644);
-			/* rtime is the new ctime, mtime stays mtime */
+			/* WARC-Date becomes ctime; mtime comes from Last-Modified or WARC-Date. */
 			archive_entry_set_ctime(entry, rtime, 0L);
 			archive_entry_set_mtime(entry, mtime, 0L);
 			break;
@@ -385,8 +387,8 @@ start_over:
 	case WT_CONT:
 	case LAST_WT:
 	default:
-		/* consume the content and start over */
-		if (_warc_skip(a) < 0)
+		/* Skip this record body and look for the next one. */
+		if (archive_read_format_warc_skip(a) < 0)
 			return (ARCHIVE_FATAL);
 		goto start_over;
 	}
@@ -394,62 +396,69 @@ start_over:
 }
 
 static int
-_warc_read(struct archive_read *a, const void **buf, size_t *bsz, int64_t *off)
+archive_read_format_warc_read_data(struct archive_read *a, const void **buf,
+    size_t *bsz, int64_t *off)
 {
-	struct warc_s *w = a->format->data;
+	struct warc *warc = a->format->data;
 	const char *rab;
 	ssize_t nrd;
 
-	if (w->cntoff >= w->cntlen) {
-	eof:
-		/* it's our lucky day, no work, we can leave early */
-		*buf = NULL;
-		*bsz = 0U;
-		*off = w->cntoff;
-		w->unconsumed = 0U;
-		return (ARCHIVE_EOF);
+	if (warc->unconsumed) {
+		__archive_read_consume(a, warc->unconsumed);
+		warc->unconsumed = 0;
 	}
 
-	if (w->unconsumed) {
-		__archive_read_consume(a, w->unconsumed);
-		w->unconsumed = 0U;
+	if (warc->cntoff >= warc->cntlen) {
+		/* No data is available to return for this entry. */
+		*buf = NULL;
+		*bsz = 0U;
+		*off = warc->cntoff;
+		return (ARCHIVE_EOF);
 	}
 
 	rab = __archive_read_ahead(a, 1U, &nrd);
 	if (nrd < 0) {
 		*bsz = 0U;
-		/* big catastrophe */
+		/* Propagate the read error. */
 		return (int)nrd;
 	} else if (nrd == 0) {
-		goto eof;
-	} else if ((size_t)nrd > w->cntlen - w->cntoff) {
-		/* clamp to content-length */
-		nrd = w->cntlen - w->cntoff;
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Truncated WARC file data");
+		return (ARCHIVE_FATAL);
+	} else if ((int64_t)nrd > warc->cntlen - warc->cntoff) {
+		/* Clamp reads to Content-Length. */
+		nrd = warc->cntlen - warc->cntoff;
 	}
-	*off = w->cntoff;
+	*off = warc->cntoff;
 	*bsz = nrd;
 	*buf = rab;
 
-	w->cntoff += nrd;
-	w->unconsumed = (size_t)nrd;
+	warc->cntoff += nrd;
+	warc->unconsumed = nrd;
 	return (ARCHIVE_OK);
 }
 
 static int
-_warc_skip(struct archive_read *a)
+archive_read_format_warc_skip(struct archive_read *a)
 {
-	struct warc_s *w = a->format->data;
+	struct warc *warc = a->format->data;
 
-	if (__archive_read_consume(a, w->cntlen) < 0 ||
+	if (warc->cntoff > warc->cntlen)
+		return (ARCHIVE_FATAL);
+	if (warc->unconsumed) {
+		__archive_read_consume(a, warc->unconsumed);
+		warc->unconsumed = 0;
+	}
+	if (__archive_read_consume(a, warc->cntlen - warc->cntoff) < 0 ||
 	    __archive_read_consume(a, 4U/*\r\n\r\n separator*/) < 0)
 		return (ARCHIVE_FATAL);
-	w->cntlen = 0U;
-	w->cntoff = 0U;
+	warc->cntlen = 0;
+	warc->cntoff = 0;
 	return (ARCHIVE_OK);
 }
 
 
-/* private routines */
+/* Private routines */
 static void*
 deconst(const void *c)
 {
@@ -469,44 +478,41 @@ xmemmem(const char *hay, const size_t haysize,
 	unsigned int nsum;
 	unsigned int eqp;
 
-	/* trivial checks first
-         * a 0-sized needle is defined to be found anywhere in haystack
-         * then run strchr() to find a candidate in HAYSTACK (i.e. a portion
-         * that happens to begin with *NEEDLE) */
+	/* Handle trivial cases first.  A zero-sized needle is defined to be
+	 * found anywhere in the haystack; otherwise find the first candidate
+	 * that begins with *NEEDLE. */
 	if (needlesize == 0UL) {
 		return deconst(hay);
 	} else if ((hay = memchr(hay, *needle, haysize)) == NULL) {
-		/* trivial */
+		/* No candidate match remains. */
 		return NULL;
 	}
 
-	/* First characters of haystack and needle are the same now. Both are
-	 * guaranteed to be at least one character long.  Now computes the sum
-	 * of characters values of needle together with the sum of the first
-	 * needle_len characters of haystack. */
+	/* The first characters of haystack and needle already match, and both
+	 * strings are at least one character long.  Compute the rolling XOR
+	 * values for the needle and the first NEEDLESIZE characters of haystack. */
 	for (hp = hay + 1U, np = needle + 1U, hsum = *hay, nsum = *hay, eqp = 1U;
 	     hp < eoh && np < eon;
 	     hsum ^= *hp, nsum ^= *np, eqp &= *hp == *np, hp++, np++);
 
 	/* HP now references the (NEEDLESIZE + 1)-th character. */
 	if (np < eon) {
-		/* haystack is smaller than needle, :O */
+		/* The haystack is smaller than the needle. */
 		return NULL;
 	} else if (eqp) {
-		/* found a match */
+		/* Found a match. */
 		return deconst(hay);
 	}
 
-	/* now loop through the rest of haystack,
-	 * updating the sum iteratively */
+	/* Loop through the rest of the haystack and update the rolling XOR
+	 * iteratively. */
 	for (cand = hay; hp < eoh; hp++) {
 		hsum ^= *cand++;
 		hsum ^= *hp;
 
-		/* Since the sum of the characters is already known to be
-		 * equal at that point, it is enough to check just NEEDLESIZE - 1
-		 * characters for equality,
-		 * also CAND is by design < HP, so no need for range checks */
+		/* When the rolling XOR values match, it is enough to check
+		 * NEEDLESIZE - 1 characters for equality.  CAND is always before
+		 * HP by design, so no range check is needed. */
 		if (hsum == nsum && memcmp(cand, needle, needlesize - 1U) == 0) {
 			return deconst(cand);
 		}
@@ -519,7 +525,7 @@ strtoi_lim(const char *str, const char **ep, int llim, int ulim)
 {
 	int res = 0;
 	const char *sp;
-	/* we keep track of the number of digits via rulim */
+	/* Track the number of digits with rulim. */
 	int rulim;
 
 	for (sp = str, rulim = ulim > 10 ? ulim : 10;
@@ -546,11 +552,11 @@ time_from_tm(struct tm *t)
         /* Use platform timegm() if available. */
         return (timegm(t));
 #else
-        /* Else use direct calculation using POSIX assumptions. */
-        /* First, fix up tm_yday based on the year/month/day. */
+        /* Otherwise, calculate directly using POSIX assumptions. */
+        /* First, fix up tm_yday based on the year, month, and day. */
         if (mktime(t) == (time_t)-1)
                 return ((time_t)-1);
-        /* Then we can compute timegm() from first principles. */
+        /* Then compute timegm() from first principles. */
         return (t->tm_sec
             + t->tm_min * 60
             + t->tm_hour * 3600
@@ -565,48 +571,48 @@ time_from_tm(struct tm *t)
 static time_t
 xstrpisotime(const char *s, char **endptr)
 {
-/** like strptime() but strictly for ISO 8601 Zulu strings */
+/* Like strptime(), but only for ISO 8601 Zulu strings. */
 	struct tm tm;
 	time_t res = (time_t)-1;
 
-	/* make sure tm is clean */
+	/* Clear the tm structure. */
 	memset(&tm, 0, sizeof(tm));
 
-	/* as a courtesy to our callers, and since this is a non-standard
-	 * routine, we skip leading whitespace */
+	/* This is a non-standard routine, so skip leading whitespace for
+	 * caller convenience. */
 	while (*s == ' ' || *s == '\t')
 		++s;
 
-	/* read year */
+	/* Read the year. */
 	if ((tm.tm_year = strtoi_lim(s, &s, 1583, 4095)) < 0 || *s++ != '-') {
 		goto out;
 	}
-	/* read month */
+	/* Read the month. */
 	if ((tm.tm_mon = strtoi_lim(s, &s, 1, 12)) < 0 || *s++ != '-') {
 		goto out;
 	}
-	/* read day-of-month */
+	/* Read the day of the month. */
 	if ((tm.tm_mday = strtoi_lim(s, &s, 1, 31)) < 0 || *s++ != 'T') {
 		goto out;
 	}
-	/* read hour */
+	/* Read the hour. */
 	if ((tm.tm_hour = strtoi_lim(s, &s, 0, 23)) < 0 || *s++ != ':') {
 		goto out;
 	}
-	/* read minute */
+	/* Read the minute. */
 	if ((tm.tm_min = strtoi_lim(s, &s, 0, 59)) < 0 || *s++ != ':') {
 		goto out;
 	}
-	/* read second */
+	/* Read the second. */
 	if ((tm.tm_sec = strtoi_lim(s, &s, 0, 60)) < 0 || *s++ != 'Z') {
 		goto out;
 	}
 
-	/* massage TM to fulfill some of POSIX' constraints */
+	/* Adjust tm fields to satisfy POSIX constraints. */
 	tm.tm_year -= 1900;
 	tm.tm_mon--;
 
-	/* now convert our custom tm struct to a unix stamp using UTC */
+	/* Convert the tm structure to a Unix timestamp in UTC. */
 	res = time_from_tm(&tm);
 
 out:
@@ -616,8 +622,14 @@ out:
 	return res;
 }
 
+static int
+warc_isdigit(const char c)
+{
+	return c >= '0' && c <= '9';
+}
+
 static unsigned int
-_warc_rdver(const char *buf, size_t bsz)
+warc_read_version(const char *buf, size_t bsz)
 {
 	static const char magic[] = "WARC/";
 	const char *c;
@@ -625,35 +637,34 @@ _warc_rdver(const char *buf, size_t bsz)
 	unsigned int end = 0U;
 
 	if (bsz < 12 || memcmp(buf, magic, sizeof(magic) - 1U) != 0) {
-		/* buffer too small or invalid magic */
+		/* Buffer too small or invalid magic. */
 		return ver;
 	}
-	/* looks good so far, read the version number for a laugh */
+	/* Parse the version number. */
 	buf += sizeof(magic) - 1U;
 
-	if (isdigit((unsigned char)buf[0U]) && (buf[1U] == '.') &&
-	    isdigit((unsigned char)buf[2U])) {
-		/* we support a maximum of 2 digits in the minor version */
-		if (isdigit((unsigned char)buf[3U]))
+	if (warc_isdigit(buf[0]) && buf[1] == '.' && warc_isdigit(buf[2])) {
+		/* Support at most two digits in the minor version. */
+		if (warc_isdigit(buf[3]))
 			end = 1U;
-		/* set up major version */
+		/* Set up the major version. */
 		ver = (buf[0U] - '0') * 10000U;
-		/* set up minor version */
+		/* Set up the minor version. */
 		if (end == 1U) {
 			ver += (buf[2U] - '0') * 1000U;
 			ver += (buf[3U] - '0') * 100U;
 		} else
 			ver += (buf[2U] - '0') * 100U;
 		/*
-		 * WARC below version 0.12 has a space-separated header
-		 * WARC 0.12 and above terminates the version with a CRLF
+		 * WARC versions before 0.12 use a space-separated header.
+		 * WARC 0.12 and later terminate the version with CRLF.
 		 */
 		c = buf + 3U + end;
 		if (ver >= 1200U) {
 			if (memcmp(c, "\r\n", 2U) != 0)
 				ver = 0U;
 		} else {
-			/* ver < 1200U */
+			/* Version is below WARC 0.12. */
 			if (*c != ' ' && *c != '\t')
 				ver = 0U;
 		}
@@ -662,22 +673,22 @@ _warc_rdver(const char *buf, size_t bsz)
 }
 
 static unsigned int
-_warc_rdtyp(const char *buf, size_t bsz)
+warc_read_type(const char *buf, size_t bsz)
 {
 	static const char _key[] = "\r\nWARC-Type:";
 	const char *val, *eol;
 
 	if ((val = xmemmem(buf, bsz, _key, sizeof(_key) - 1U)) == NULL) {
-		/* no bother */
+		/* Header field is absent. */
 		return WT_NONE;
 	}
 	val += sizeof(_key) - 1U;
-	if ((eol = _warc_find_eol(val, buf + bsz - val)) == NULL) {
-		/* no end of line */
+	if ((eol = warc_find_eol(val, buf + bsz - val)) == NULL) {
+		/* Header field has no end of line. */
 		return WT_NONE;
 	}
 
-	/* overread whitespace */
+	/* Skip leading whitespace. */
 	while (val < eol && (*val == ' ' || *val == '\t'))
 		++val;
 
@@ -691,55 +702,55 @@ _warc_rdtyp(const char *buf, size_t bsz)
 }
 
 static warc_string_t
-_warc_rduri(const char *buf, size_t bsz)
+warc_read_uri(const char *buf, size_t bsz)
 {
 	static const char _key[] = "\r\nWARC-Target-URI:";
 	const char *val, *uri, *eol, *p;
 	warc_string_t res = {0U, NULL};
 
 	if ((val = xmemmem(buf, bsz, _key, sizeof(_key) - 1U)) == NULL) {
-		/* no bother */
+		/* Header field is absent. */
 		return res;
 	}
-	/* overread whitespace */
+	/* Skip leading whitespace. */
 	val += sizeof(_key) - 1U;
-	if ((eol = _warc_find_eol(val, buf + bsz - val)) == NULL) {
-		/* no end of line */
+	if ((eol = warc_find_eol(val, buf + bsz - val)) == NULL) {
+		/* Header field has no end of line. */
 		return res;
 	}
 
 	while (val < eol && (*val == ' ' || *val == '\t'))
 		++val;
 
-	/* overread URL designators */
+	/* Locate the :// separator. */
 	if ((uri = xmemmem(val, eol - val, "://", 3U)) == NULL) {
-		/* not touching that! */
+		/* Ignore values without a :// separator. */
 		return res;
 	}
 
-	/* spaces inside uri are not allowed, CRLF should follow */
+	/* Spaces inside a URI are not allowed; CRLF should follow. */
 	for (p = val; p < eol; p++) {
 		if (isspace((unsigned char)*p))
 			return res;
 	}
 
-	/* there must be at least space for ftp */
+	/* Require enough room for the shortest supported scheme. */
 	if (uri < (val + 3U))
 		return res;
 
-	/* move uri to point to after :// */
+	/* Move uri past the :// separator. */
 	uri += 3U;
 
-	/* now then, inspect the URI */
+	/* Inspect the scheme prefix. */
 	if (memcmp(val, "file", 4U) == 0) {
-		/* perfect, nothing left to do here */
+		/* Keep file:// paths as-is. */
 
 	} else if (memcmp(val, "http", 4U) == 0 ||
 		   memcmp(val, "ftp", 3U) == 0) {
-		/* overread domain, and the first / */
+		/* Skip the domain and the first slash. */
 		while (uri < eol && *uri++ != '/');
 	} else {
-		/* not sure what to do? best to bugger off */
+		/* Unsupported URI scheme. */
 		return res;
 	}
 	res.str = uri;
@@ -747,42 +758,49 @@ _warc_rduri(const char *buf, size_t bsz)
 	return res;
 }
 
-static ssize_t
-_warc_rdlen(const char *buf, size_t bsz)
+static int64_t
+warc_read_length(const char *buf, size_t bsz)
 {
 	static const char _key[] = "\r\nContent-Length:";
-	const char *val, *eol;
-	char *on = NULL;
-	long int len;
+	const char *val, *eol, *p;
+	int64_t len;
 
 	if ((val = xmemmem(buf, bsz, _key, sizeof(_key) - 1U)) == NULL) {
-		/* no bother */
+		/* Header field is absent. */
 		return -1;
 	}
 	val += sizeof(_key) - 1U;
-	if ((eol = _warc_find_eol(val, buf + bsz - val)) == NULL) {
-		/* no end of line */
+
+	if ((eol = warc_find_eol(val, buf + bsz - val)) == NULL) {
+		/* Malformed field with no end of line. */
 		return -1;
 	}
 
-	/* skip leading whitespace */
+	/* Skip leading whitespace. */
 	while (val < eol && (*val == ' ' || *val == '\t'))
 		val++;
-	/* there must be at least one digit */
-	if (!isdigit((unsigned char)*val))
+
+	/* Require at least one digit. */
+	if (val >= eol || *val < '0' || *val > '9')
 		return -1;
-	errno = 0;
-	len = strtol(val, &on, 10);
-	if (errno != 0 || on != eol) {
-		/* line must end here */
-		return -1;
+
+	len = 0;
+	for (p = val; p < eol; p++) {
+		int64_t digit;
+
+		if (*p < '0' || *p > '9')
+			return -1;
+		digit = *p - '0';
+		if (archive_ckd_mul_i64(&len, len, 10) ||
+		    archive_ckd_add_i64(&len, len, digit))
+			return -1;
 	}
 
-	return (size_t)len;
+	return len;
 }
 
 static time_t
-_warc_rdrtm(const char *buf, size_t bsz)
+warc_read_date(const char *buf, size_t bsz)
 {
 	static const char _key[] = "\r\nWARC-Date:";
 	const char *val, *eol;
@@ -790,26 +808,26 @@ _warc_rdrtm(const char *buf, size_t bsz)
 	time_t res;
 
 	if ((val = xmemmem(buf, bsz, _key, sizeof(_key) - 1U)) == NULL) {
-		/* no bother */
+		/* Header field is absent. */
 		return (time_t)-1;
 	}
 	val += sizeof(_key) - 1U;
-	if ((eol = _warc_find_eol(val, buf + bsz - val)) == NULL ) {
-		/* no end of line */
+	if ((eol = warc_find_eol(val, buf + bsz - val)) == NULL ) {
+		/* Header field has no end of line. */
 		return -1;
 	}
 
-	/* xstrpisotime() kindly overreads whitespace for us, so use that */
+	/* xstrpisotime() skips leading whitespace. */
 	res = xstrpisotime(val, &on);
 	if (on != eol) {
-		/* line must end here */
+		/* The field must end here. */
 		return -1;
 	}
 	return res;
 }
 
 static time_t
-_warc_rdmtm(const char *buf, size_t bsz)
+warc_read_last_modified(const char *buf, size_t bsz)
 {
 	static const char _key[] = "\r\nLast-Modified:";
 	const char *val, *eol;
@@ -817,26 +835,26 @@ _warc_rdmtm(const char *buf, size_t bsz)
 	time_t res;
 
 	if ((val = xmemmem(buf, bsz, _key, sizeof(_key) - 1U)) == NULL) {
-		/* no bother */
+		/* Header field is absent. */
 		return (time_t)-1;
 	}
 	val += sizeof(_key) - 1U;
-	if ((eol = _warc_find_eol(val, buf + bsz - val)) == NULL ) {
-		/* no end of line */
+	if ((eol = warc_find_eol(val, buf + bsz - val)) == NULL ) {
+		/* Header field has no end of line. */
 		return -1;
 	}
 
-	/* xstrpisotime() kindly overreads whitespace for us, so use that */
+	/* xstrpisotime() skips leading whitespace. */
 	res = xstrpisotime(val, &on);
 	if (on != eol) {
-		/* line must end here */
+		/* The field must end here. */
 		return -1;
 	}
 	return res;
 }
 
-static const char*
-_warc_find_eoh(const char *buf, size_t bsz)
+static const char *
+warc_find_eoh(const char *buf, size_t bsz)
 {
 	static const char _marker[] = "\r\n\r\n";
 	const char *hit = xmemmem(buf, bsz, _marker, sizeof(_marker) - 1U);
@@ -847,12 +865,11 @@ _warc_find_eoh(const char *buf, size_t bsz)
 	return hit;
 }
 
-static const char*
-_warc_find_eol(const char *buf, size_t bsz)
+static const char *
+warc_find_eol(const char *buf, size_t bsz)
 {
 	static const char _marker[] = "\r\n";
 	const char *hit = xmemmem(buf, bsz, _marker, sizeof(_marker) - 1U);
 
 	return hit;
 }
-/* archive_read_support_format_warc.c ends here */

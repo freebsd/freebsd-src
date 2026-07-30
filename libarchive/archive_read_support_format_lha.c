@@ -390,10 +390,9 @@ static int
 archive_read_format_lha_options(struct archive_read *a,
     const char *key, const char *val)
 {
-	struct lha *lha;
+	struct lha *lha = a->format->data;
 	int ret = ARCHIVE_FAILED;
 
-	lha = (struct lha *)(a->format->data);
 	if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -472,9 +471,9 @@ static int
 archive_read_format_lha_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
+	struct lha *lha = a->format->data;
 	struct archive_wstring linkname;
 	struct archive_wstring pathname;
-	struct lha *lha;
 	const unsigned char *p;
 	const char *signature;
 	int err;
@@ -485,7 +484,6 @@ archive_read_format_lha_read_header(struct archive_read *a,
 	if (a->archive.archive_format_name == NULL)
 		a->archive.archive_format_name = "lha";
 
-	lha = (struct lha *)(a->format->data);
 	lha->decompress_init = 0;
 	lha->end_of_entry = 0;
 	lha->end_of_entry_cleanup = 0;
@@ -900,7 +898,7 @@ lha_read_file_header_1(struct archive_read *a, struct lha *lha)
 {
 	const unsigned char *p;
 	size_t extdsize;
-	int i, err, err2;
+	int err, err2;
 	int namelen, padding;
 	unsigned char headersum, sum_calculated;
 
@@ -925,10 +923,9 @@ lha_read_file_header_1(struct archive_read *a, struct lha *lha)
 	if ((p = __archive_read_ahead(a, lha->header_size, NULL)) == NULL)
 		return (truncated_error(a));
 
-	for (i = 0; i < namelen; i++) {
-		if (p[i + H1_FILE_NAME_OFFSET] == 0xff)
-			goto invalid;/* Invalid filename. */
-	}
+	if (memchr(p + H1_FILE_NAME_OFFSET, 0xff,
+	    (size_t)namelen) != NULL)
+		goto invalid; /* Invalid filename. */
 	archive_strncpy(&lha->filename, p + H1_FILE_NAME_OFFSET, namelen);
 	lha->crc = archive_le16dec(p + H1_FILE_NAME_OFFSET + namelen);
 	lha->setflag |= CRC_IS_SET;
@@ -1097,7 +1094,7 @@ lha_read_file_header_3(struct archive_read *a, struct lha *lha)
 	header_crc = lha_crc16(0, p, H3_FIXED_SIZE);
 	__archive_read_consume(a, H3_FIXED_SIZE);
 
-	/* Reject rediculously large header */
+	/* Reject ridiculously large header */
 	if (lha->header_size > 65536) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "LHa header size too large");
@@ -1452,7 +1449,7 @@ invalid:
 static int
 lha_end_of_entry(struct archive_read *a)
 {
-	struct lha *lha = (struct lha *)(a->format->data);
+	struct lha *lha = a->format->data;
 	int r = ARCHIVE_EOF;
 
 	if (!lha->end_of_entry_cleanup) {
@@ -1473,7 +1470,7 @@ static int
 archive_read_format_lha_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
-	struct lha *lha = (struct lha *)(a->format->data);
+	struct lha *lha = a->format->data;
 	int r;
 
 	if (lha->entry_unconsumed) {
@@ -1506,7 +1503,7 @@ static int
 lha_read_data_none(struct archive_read *a, const void **buff,
     size_t *size, int64_t *offset)
 {
-	struct lha *lha = (struct lha *)(a->format->data);
+	struct lha *lha = a->format->data;
 	ssize_t bytes_avail;
 
 	if (lha->entry_bytes_remaining == 0) {
@@ -1553,7 +1550,7 @@ static int
 lha_read_data_lzh(struct archive_read *a, const void **buff,
     size_t *size, int64_t *offset)
 {
-	struct lha *lha = (struct lha *)(a->format->data);
+	struct lha *lha = a->format->data;
 	ssize_t bytes_avail;
 	int r;
 
@@ -1643,10 +1640,8 @@ lha_read_data_lzh(struct archive_read *a, const void **buff,
 static int
 archive_read_format_lha_read_data_skip(struct archive_read *a)
 {
-	struct lha *lha;
+	struct lha *lha = a->format->data;
 	int64_t bytes_skipped;
-
-	lha = (struct lha *)(a->format->data);
 
 	if (lha->entry_unconsumed) {
 		/* Consume as much as the decompressor actually used. */
@@ -1674,7 +1669,7 @@ archive_read_format_lha_read_data_skip(struct archive_read *a)
 static int
 archive_read_format_lha_cleanup(struct archive_read *a)
 {
-	struct lha *lha = (struct lha *)(a->format->data);
+	struct lha *lha = a->format->data;
 
 	lzh_decode_free(&(lha->strm));
 	archive_string_free(&(lha->dirname));
@@ -1683,7 +1678,7 @@ archive_read_format_lha_cleanup(struct archive_read *a)
 	archive_string_free(&(lha->gname));
 	archive_wstring_free(&(lha->ws));
 	free(lha);
-	(a->format->data) = NULL;
+	a->format->data = NULL;
 	return (ARCHIVE_OK);
 }
 

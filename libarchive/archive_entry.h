@@ -28,7 +28,7 @@
 #define	ARCHIVE_ENTRY_H_INCLUDED
 
 /* Note: Compiler will complain if this does not match archive.h! */
-#define	ARCHIVE_VERSION_NUMBER 3008008
+#define	ARCHIVE_VERSION_NUMBER 3008009
 
 /*
  * Note: archive_entry.h is for use outside of libarchive; the
@@ -666,7 +666,7 @@ __LA_DECL void	 archive_entry_sparse_add_entry(struct archive_entry *,
 	    la_int64_t /* offset */, la_int64_t /* length */);
 
 /*
- * To retrieve the xattr list, first "reset", then repeatedly ask for the
+ * To retrieve the sparse list, first "reset", then repeatedly ask for the
  * "next" entry.
  */
 

@@ -38,8 +38,8 @@ archive_read_append_filter(struct archive *_a, int code)
 {
   int r1, r2, number_bidders, i;
   const char *str;
-  struct archive_read_filter_bidder *bidder;
-  struct archive_read_filter *filter;
+  struct archive_read_filter_bidder *b;
+  struct archive_read_filter *f;
   struct archive_read *a = (struct archive_read *)_a;
 
   r2 = (ARCHIVE_OK);
@@ -118,30 +118,30 @@ archive_read_append_filter(struct archive *_a, int code)
   {
     number_bidders = sizeof(a->bidders) / sizeof(a->bidders[0]);
 
-    bidder = a->bidders;
-    for (i = 1; i < number_bidders; i++, bidder++)
+    b = a->bidders;
+    for (i = 1; i < number_bidders; i++, b++)
     {
-      if (!bidder->name || !strcmp(bidder->name, str))
+      if (!b->name || !strcmp(b->name, str))
         break;
     }
-    if (!bidder->name || strcmp(bidder->name, str))
+    if (!b->name || strcmp(b->name, str))
     {
       archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
           "Internal error: Unable to append filter");
       return (ARCHIVE_FATAL);
     }
 
-    filter = calloc(1, sizeof(*filter));
-    if (filter == NULL)
+    f = calloc(1, sizeof(*f));
+    if (f == NULL)
     {
       archive_set_error(&a->archive, ENOMEM, "Out of memory");
       return (ARCHIVE_FATAL);
     }
-    filter->bidder = bidder;
-    filter->archive = a;
-    filter->upstream = a->filter;
-    a->filter = filter;
-    r2 = (bidder->vtable->init)(a->filter);
+    f->bidder = b;
+    f->archive = a;
+    f->upstream = a->filter;
+    a->filter = f;
+    r2 = (b->vtable->init)(a->filter);
     if (r2 != ARCHIVE_OK) {
       __archive_read_free_filters(a);
       return (ARCHIVE_FATAL);
@@ -163,8 +163,8 @@ archive_read_append_filter_program_signature(struct archive *_a,
   const char *cmd, const void *signature, size_t signature_len)
 {
   int r, number_bidders, i;
-  struct archive_read_filter_bidder *bidder;
-  struct archive_read_filter *filter;
+  struct archive_read_filter_bidder *b;
+  struct archive_read_filter *f;
   struct archive_read *a = (struct archive_read *)_a;
 
   if (archive_read_support_filter_program_signature(_a, cmd, signature,
@@ -173,36 +173,36 @@ archive_read_append_filter_program_signature(struct archive *_a,
 
   number_bidders = sizeof(a->bidders) / sizeof(a->bidders[0]);
 
-  bidder = a->bidders;
-  for (i = 0; i < number_bidders; i++, bidder++)
+  b = a->bidders;
+  for (i = 0; i < number_bidders; i++, b++)
   {
     /* Program bidder name set to filter name after initialization */
-    if (bidder->data && !bidder->name)
+    if (b->data && !b->name)
       break;
   }
-  if (!bidder->data)
+  if (!b->data)
   {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
         "Internal error: Unable to append program filter");
     return (ARCHIVE_FATAL);
   }
 
-  filter = calloc(1, sizeof(*filter));
-  if (filter == NULL)
+  f = calloc(1, sizeof(*f));
+  if (f == NULL)
   {
     archive_set_error(&a->archive, ENOMEM, "Out of memory");
     return (ARCHIVE_FATAL);
   }
-  filter->bidder = bidder;
-  filter->archive = a;
-  filter->upstream = a->filter;
-  a->filter = filter;
-  r = (bidder->vtable->init)(a->filter);
+  f->bidder = b;
+  f->archive = a;
+  f->upstream = a->filter;
+  a->filter = f;
+  r = (b->vtable->init)(a->filter);
   if (r != ARCHIVE_OK) {
     __archive_read_free_filters(a);
     return (ARCHIVE_FATAL);
   }
-  bidder->name = a->filter->name;
+  b->name = a->filter->name;
 
   a->bypass_filter_bidding = 1;
   return r;

@@ -75,18 +75,18 @@ archive_read_support_filter_lrzip(struct archive *_a)
  * Bidder just verifies the header and returns the number of verified bits.
  */
 static int
-lrzip_bidder_bid(struct archive_read_filter_bidder *self,
-    struct archive_read_filter *filter)
+lrzip_bidder_bid(struct archive_read_filter_bidder *b,
+    struct archive_read_filter *f)
 {
 	const unsigned char *p;
 	ssize_t len;
 	int i;
 
-	(void)self; /* UNUSED */
+	(void)b; /* UNUSED */
 	/* Start by looking at the first six bytes of the header, which
 	 * is all fixed layout. */
 	len = 6;
-	p = __archive_read_filter_ahead(filter, len, NULL);
+	p = __archive_read_filter_ahead(f, len, NULL);
 	if (p == NULL)
 		return (0);
 
@@ -105,15 +105,15 @@ lrzip_bidder_bid(struct archive_read_filter_bidder *self,
 }
 
 static int
-lrzip_bidder_init(struct archive_read_filter *self)
+lrzip_bidder_init(struct archive_read_filter *f)
 {
 	int r;
 
-	r = __archive_read_program(self, "lrzip -d -q");
+	r = __archive_read_program(f, "lrzip -d -q");
 	/* Note: We set the format here even if __archive_read_program()
 	 * above fails.  We do, after all, know what the format is
 	 * even if we weren't able to read it. */
-	self->code = ARCHIVE_FILTER_LRZIP;
-	self->name = "lrzip";
+	f->code = ARCHIVE_FILTER_LRZIP;
+	f->name = "lrzip";
 	return (r);
 }

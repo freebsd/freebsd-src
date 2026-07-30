@@ -153,9 +153,6 @@ extern char **environ;
 #if !defined(__BORLANDC__)
 #define getcwd _getcwd
 #endif
-#define lstat stat
-/*#define lstat _stat64*/
-/*#define stat _stat64*/
 #define rmdir _rmdir
 #if !defined(__BORLANDC__)
 #define strdup _strdup
@@ -358,10 +355,28 @@ my_GetFileInformationByName(const char *path, BY_HANDLE_FILE_INFORMATION *bhfi)
 {
 	HANDLE h;
 	int r;
+	const char *p;
+	char *s, *pn;
+
+	/* Replace slashes with backslashes in path */
+	pn = malloc(strlen(path) + 1);
+	if (pn == NULL) {
+		return (0);
+	}
+
+	for (p = path, s = pn; *p != '\0'; p++, s++) {
+		if (*p == '/')
+			*s = '\\';
+		else
+			*s = *p;
+	}
+	*s = '\0';
 
 	memset(bhfi, 0, sizeof(*bhfi));
-	h = CreateFileA(path, FILE_READ_ATTRIBUTES, 0, NULL,
-		OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	h = CreateFileA(pn, FILE_READ_ATTRIBUTES, 0, NULL,
+		OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS |
+		    FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+	free(pn);
 	if (h == INVALID_HANDLE_VALUE)
 		return (0);
 	r = GetFileInformationByHandle(h, bhfi);
@@ -1508,7 +1523,8 @@ assertion_file_time(const char *file, int line,
 	 * a directory file. If not, CreateFile() will fail when
 	 * the pathname is a directory. */
 	h = CreateFileA(pathname, FILE_READ_ATTRIBUTES, 0, NULL,
-	    OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	    OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS |
+	        FILE_FLAG_OPEN_REPARSE_POINT, NULL);
 	if (h == INVALID_HANDLE_VALUE) {
 		failure_start(file, line, "Can't access %s\n", pathname);
 		failure_finish(NULL);
@@ -1733,13 +1749,28 @@ assertion_file_size(const char *file, int line, const char *pathname, long size)
 int
 assertion_is_dir(const char *file, int line, const char *pathname, int mode)
 {
-	struct stat st;
 	int r;
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	(void)mode; /* UNUSED */
-#endif
 	assertion_count(file, line);
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	BY_HANDLE_FILE_INFORMATION st;
+	(void)mode; /* UNUSED */
+	r = my_GetFileInformationByName(pathname, &st);
+	if (r == 0) {
+		failure_start(file, line, "Dir should exist: %s", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+	if ((st.dwFileAttributes &
+	    (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) !=
+	    FILE_ATTRIBUTE_DIRECTORY) {
+		failure_start(file, line, "%s is not a dir", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+#else
+	struct stat st;
 	r = lstat(pathname, &st);
 	if (r != 0) {
 		failure_start(file, line, "Dir should exist: %s", pathname);
@@ -1751,7 +1782,6 @@ assertion_is_dir(const char *file, int line, const char *pathname, int mode)
 		failure_finish(NULL);
 		return (0);
 	}
-#if !defined(_WIN32) || defined(__CYGWIN__)
 	/* Windows doesn't handle permissions the same way as POSIX,
 	 * so just ignore the mode tests. */
 	/* TODO: Can we do better here? */
@@ -1771,20 +1801,35 @@ assertion_is_dir(const char *file, int line, const char *pathname, int mode)
 int
 assertion_is_reg(const char *file, int line, const char *pathname, int mode)
 {
-	struct stat st;
 	int r;
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	(void)mode; /* UNUSED */
-#endif
 	assertion_count(file, line);
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	BY_HANDLE_FILE_INFORMATION st;
+	(void)mode; /* UNUSED */
+	r = my_GetFileInformationByName(pathname, &st);
+	if (r == 0) {
+		failure_start(file, line, "File should exist: %s", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+	if ((st.dwFileAttributes &
+	    (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) !=
+	    0) {
+		failure_start(file, line, "%s is not a regular file", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+#else
+	struct stat st;
 	r = lstat(pathname, &st);
 	if (r != 0 || !S_ISREG(st.st_mode)) {
 		failure_start(file, line, "File should exist: %s", pathname);
 		failure_finish(NULL);
 		return (0);
 	}
-#if !defined(_WIN32) || defined(__CYGWIN__)
+
 	/* Windows doesn't handle permissions the same way as POSIX,
 	 * so just ignore the mode tests. */
 	/* TODO: Can we do better here? */
@@ -2160,7 +2205,7 @@ assertion_utimes(const char *file, int line, const char *pathname,
 	assertion_count(file, line);
 	h = CreateFileA(pathname,GENERIC_READ | GENERIC_WRITE,
 		    FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
-		    FILE_FLAG_BACKUP_SEMANTICS, NULL);
+		    FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
 	if (h == INVALID_HANDLE_VALUE) {
 		failure_start(file, line, "Can't access %s\n", pathname);
 		failure_finish(NULL);
@@ -3082,7 +3127,7 @@ systemf(const char *fmt, ...)
 	r = vsnprintf(buff + off, avail, fmt, ap);
 	va_end(ap);
 
-	if (r < 0 || (size_t)r > avail) {
+	if (r < 0 || (size_t)r >= avail) {
 		return (-1);
 	}
 

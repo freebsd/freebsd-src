@@ -30,6 +30,15 @@ IF(ENABLE_TAR)
   IF(WIN32 AND NOT CYGWIN)
     LIST(APPEND bsdtar_SOURCES bsdtar_windows.c)
     LIST(APPEND bsdtar_SOURCES bsdtar_windows.h)
+    IF(NOT MSVC)
+      # The GNU toolchains (MinGW/Clang) do not generate an application
+      # manifest, so we embed one through a resource script.
+      ENABLE_LANGUAGE(RC)
+      INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+      LIST(APPEND bsdtar_SOURCES bsdtar.rc)
+      SET_SOURCE_FILES_PROPERTIES(bsdtar.rc PROPERTIES
+        OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/bsdtar.exe.manifest)
+    ENDIF(NOT MSVC)
   ENDIF(WIN32 AND NOT CYGWIN)
 
   # bsdtar documentation
@@ -44,6 +53,10 @@ IF(ENABLE_TAR)
     SET_TARGET_PROPERTIES(bsdtar PROPERTIES COMPILE_DEFINITIONS
     				 LIBARCHIVE_STATIC)
   ENDIF(ENABLE_TAR_SHARED)
+  IF(WIN32 AND NOT CYGWIN AND MSVC)
+    # MSVC merges .manifest sources into the linker's default manifest
+    TARGET_SOURCES(bsdtar PRIVATE bsdtar.exe.manifest)
+  ENDIF(WIN32 AND NOT CYGWIN AND MSVC)
 
   # Installation rules
   IF(ENABLE_INSTALL)

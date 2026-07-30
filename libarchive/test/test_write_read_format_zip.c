@@ -436,7 +436,7 @@ verify_contents(struct archive *a, int seeking, int improved_streaming)
 	}
 	assertEqualIntA(a, 5,
 	    archive_read_data(a, filedata, sizeof(filedata)));
-	assertEqualMem(filedata, "ghijk", 4);
+	assertEqualMem(filedata, "ghijk", 5);
 
 	/* Read symlink. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -534,7 +534,7 @@ verify_contents(struct archive *a, int seeking, int improved_streaming)
 	}
 	assertEqualIntA(a, 5,
 	    archive_read_data(a, filedata, sizeof(filedata)));
-	assertEqualMem(filedata, "ijklm", 4);
+	assertEqualMem(filedata, "ijklm", 5);
 
 	/* Read symlink. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));

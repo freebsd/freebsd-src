@@ -108,10 +108,14 @@ archive_read_support_format_xar(struct archive *_a)
 #define CKSUM_NONE	0
 #define CKSUM_SHA1	1
 #define CKSUM_MD5	2
+#define CKSUM_SHA256	3
+#define CKSUM_SHA512	4
 
 #define MD5_SIZE	16
 #define SHA1_SIZE	20
-#define MAX_SUM_SIZE	20
+#define SHA256_SIZE	32
+#define SHA512_SIZE	64
+#define MAX_SUM_SIZE	64
 
 enum enctype {
 	NONE,
@@ -134,6 +138,12 @@ struct chksumwork {
 #endif
 #ifdef ARCHIVE_HAS_SHA1
 	archive_sha1_ctx	 sha1ctx;
+#endif
+#ifdef ARCHIVE_HAS_SHA256
+	archive_sha256_ctx	 sha256ctx;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	archive_sha512_ctx	 sha512ctx;
 #endif
 };
 
@@ -214,8 +224,8 @@ struct hdlink {
 
 struct heap_queue {
 	struct xar_file		**files;
-	int			 allocated;
-	int			 used;
+	size_t			 allocated;
+	size_t			 used;
 };
 
 enum xmlstatus {
@@ -396,7 +406,7 @@ static int	heap_add_entry(struct archive_read *a,
 static struct xar_file *heap_get_entry(struct heap_queue *);
 static int	add_link(struct archive_read *,
     struct xar *, struct xar_file *);
-static void	checksum_init(struct archive_read *, int, int);
+static int	checksum_init(struct archive_read *, int, int);
 static void	checksum_update(struct archive_read *, const void *,
 		    size_t, const void *, size_t);
 static int	checksum_final(struct archive_read *, const void *,
@@ -524,6 +534,8 @@ xar_bid(struct archive_read *a, int best_bid)
 	case CKSUM_NONE:
 	case CKSUM_SHA1:
 	case CKSUM_MD5:
+	case CKSUM_SHA256:
+	case CKSUM_SHA512:
 		bid += 32;
 		break;
 	default:
@@ -536,7 +548,7 @@ xar_bid(struct archive_read *a, int best_bid)
 static int
 read_toc(struct archive_read *a)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	struct xar_file *file;
 	const unsigned char *b;
 	uint64_t toc_compressed_size;
@@ -544,8 +556,6 @@ read_toc(struct archive_read *a)
 	uint32_t toc_chksum_alg;
 	ssize_t bytes;
 	int r;
-
-	xar = (struct xar *)(a->format->data);
 
 	/*
 	 * Read xar header.
@@ -674,12 +684,11 @@ read_toc(struct archive_read *a)
 static int
 xar_read_header(struct archive_read *a, struct archive_entry *entry)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	struct xar_file *file;
 	struct xattr *xattr;
 	int r;
 
-	xar = (struct xar *)(a->format->data);
 	r = ARCHIVE_OK;
 
 	if (xar->offset == 0) {
@@ -729,6 +738,7 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 		if (errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for Gname");
+			file_free(file);
 			return (ARCHIVE_FATAL);
 		}
 		archive_set_error(&a->archive,
@@ -744,6 +754,7 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 		if (errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for Uname");
+			file_free(file);
 			return (ARCHIVE_FATAL);
 		}
 		archive_set_error(&a->archive,
@@ -758,6 +769,7 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 		if (errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for Pathname");
+			file_free(file);
 			return (ARCHIVE_FATAL);
 		}
 		archive_set_error(&a->archive,
@@ -774,6 +786,7 @@ xar_read_header(struct archive_read *a, struct archive_entry *entry)
 		if (errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for Linkname");
+			file_free(file);
 			return (ARCHIVE_FATAL);
 		}
 		archive_set_error(&a->archive,
@@ -874,11 +887,9 @@ static int
 xar_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	size_t used = 0;
 	int r;
-
-	xar = (struct xar *)(a->format->data);
 
 	if (xar->entry_unconsumed) {
 		__archive_read_consume(a, xar->entry_unconsumed);
@@ -937,10 +948,9 @@ abort_read_data:
 static int
 xar_read_data_skip(struct archive_read *a)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	int64_t bytes_skipped;
 
-	xar = (struct xar *)(a->format->data);
 	if (xar->end_of_file)
 		return (ARCHIVE_EOF);
 	bytes_skipped = __archive_read_consume(a, xar->entry_remaining +
@@ -955,12 +965,11 @@ xar_read_data_skip(struct archive_read *a)
 static int
 xar_cleanup(struct archive_read *a)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	struct hdlink *hdlink;
-	int i;
+	size_t i;
 	int r;
 
-	xar = (struct xar *)(a->format->data);
 	checksum_cleanup(a);
 	r = decompression_cleanup(a);
 	hdlink = xar->hdlink_list;
@@ -990,9 +999,8 @@ xar_cleanup(struct archive_read *a)
 static int
 move_reading_point(struct archive_read *a, uint64_t offset)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 
-	xar = (struct xar *)(a->format->data);
 	if (xar->offset - xar->h_base != offset) {
 		/* Seek forward to the start of file contents. */
 		int64_t step;
@@ -1027,8 +1035,7 @@ rd_contents_init(struct archive_read *a, enum enctype encoding,
 	if ((r = decompression_init(a, encoding)) != ARCHIVE_OK)
 		return (r);
 	/* Init checksum library. */
-	checksum_init(a, a_sum_alg, e_sum_alg);
-	return (ARCHIVE_OK);
+	return (checksum_init(a, a_sum_alg, e_sum_alg));
 }
 
 static int
@@ -1077,16 +1084,14 @@ atou64(const char *p, size_t char_cnt, int base, uint64_t *val)
 	uint64_t l;
 
 	l = 0;
-	if (char_cnt > 0) {
-		int digit;
+	while (char_cnt-- > 0) {
+		int digit = *p++ - '0';
 
-		digit = *p - '0';
-		while (digit >= 0 && digit < base && char_cnt-- > 0) {
-			if (archive_ckd_mul_u64(&l, l, base) ||
-			    archive_ckd_add_u64(&l, l, digit))
-				return (ARCHIVE_FATAL);
-			digit = *++p - '0';
-		}
+		if (digit < 0 || digit >= base)
+			break;
+		if (archive_ckd_mul_u64(&l, l, base) ||
+		    archive_ckd_add_u64(&l, l, digit))
+			return (ARCHIVE_FATAL);
 	}
 
 	*val = l;
@@ -1166,31 +1171,31 @@ parse_time(const char *p, size_t n)
 	p += 4;
 	if (*p++ != '-')
 		return (t);
-	if (atou64(p, 4, 10, &data) != ARCHIVE_OK || data < 1 || data > 12)
+	if (atou64(p, 2, 10, &data) != ARCHIVE_OK || data < 1 || data > 12)
 		return (t);
 	tm.tm_mon = (int)data -1;
 	p += 2;
 	if (*p++ != '-')
 		return (t);
-	if (atou64(p, 4, 10, &data) != ARCHIVE_OK || data < 1 || data > 31)
+	if (atou64(p, 2, 10, &data) != ARCHIVE_OK || data < 1 || data > 31)
 		return (t);
 	tm.tm_mday = (int)data;
 	p += 2;
 	if (*p++ != 'T')
 		return (t);
-	if (atou64(p, 4, 10, &data) != ARCHIVE_OK || data > 23)
+	if (atou64(p, 2, 10, &data) != ARCHIVE_OK || data > 23)
 		return (t);
 	tm.tm_hour = (int)data;
 	p += 2;
 	if (*p++ != ':')
 		return (t);
-	if (atou64(p, 4, 10, &data) != ARCHIVE_OK || data > 59)
+	if (atou64(p, 2, 10, &data) != ARCHIVE_OK || data > 59)
 		return (t);
 	tm.tm_min = (int)data;
 	p += 2;
 	if (*p++ != ':')
 		return (t);
-	if (atou64(p, 4, 10, &data) != ARCHIVE_OK || data > 60)
+	if (atou64(p, 2, 10, &data) != ARCHIVE_OK || data > 60)
 		return (t);
 	tm.tm_sec = (int)data;
 #if 0
@@ -1209,19 +1214,17 @@ heap_add_entry(struct archive_read *a,
     struct heap_queue *heap, struct xar_file *file)
 {
 	uint64_t file_id, parent_id;
-	int hole, parent;
+	size_t hole, parent;
 
 	/* Expand our pending files list as necessary. */
 	if (heap->used >= heap->allocated) {
 		struct xar_file **new_pending_files;
-		int new_size;
+		size_t new_size;
 
 		if (heap->allocated < 1024)
 			new_size = 1024;
-		else
-			new_size = heap->allocated * 2;
-		/* Overflow might keep us from growing the list. */
-		if (new_size <= heap->allocated) {
+		else if (archive_ckd_mul_size(&new_size, heap->allocated, 2)) {
+			/* Overflow keeps us from growing the list. */
 			archive_set_error(&a->archive,
 			    ENOMEM, "Out of memory");
 			return (ARCHIVE_FATAL);
@@ -1249,7 +1252,7 @@ heap_add_entry(struct archive_read *a,
 	 */
 	hole = heap->used++;
 	while (hole > 0) {
-		parent = (hole - 1)/2;
+		parent = (hole - 1) / 2;
 		parent_id = heap->files[parent]->id;
 		if (file_id >= parent_id) {
 			heap->files[hole] = file;
@@ -1268,7 +1271,7 @@ static struct xar_file *
 heap_get_entry(struct heap_queue *heap)
 {
 	uint64_t a_id, b_id, c_id;
-	int a, b, c;
+	size_t a, b, c;
 	struct xar_file *r, *tmp;
 
 	if (heap->used < 1)
@@ -1338,7 +1341,7 @@ add_link(struct archive_read *a, struct xar *xar, struct xar_file *file)
 	return (ARCHIVE_OK);
 }
 
-static void
+static int
 _checksum_init(struct chksumwork *sumwrk, int sum_alg)
 {
 	sumwrk->alg = sum_alg;
@@ -1351,7 +1354,20 @@ _checksum_init(struct chksumwork *sumwrk, int sum_alg)
 	case CKSUM_MD5:
 		archive_md5_init(&(sumwrk->md5ctx));
 		break;
+#ifdef ARCHIVE_HAS_SHA256
+	case CKSUM_SHA256:
+		archive_sha256_init(&(sumwrk->sha256ctx));
+		break;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	case CKSUM_SHA512:
+		archive_sha512_init(&(sumwrk->sha512ctx));
+		break;
+#endif
+	default:
+		return (ARCHIVE_FATAL);
 	}
+	return (ARCHIVE_OK);
 }
 
 static void
@@ -1367,6 +1383,16 @@ _checksum_update(struct chksumwork *sumwrk, const void *buff, size_t size)
 	case CKSUM_MD5:
 		archive_md5_update(&(sumwrk->md5ctx), buff, size);
 		break;
+#ifdef ARCHIVE_HAS_SHA256
+	case CKSUM_SHA256:
+		archive_sha256_update(&(sumwrk->sha256ctx), buff, size);
+		break;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	case CKSUM_SHA512:
+		archive_sha512_update(&(sumwrk->sha512ctx), buff, size);
+		break;
+#endif
 	}
 }
 
@@ -1391,27 +1417,48 @@ _checksum_final(struct chksumwork *sumwrk, const void *val, size_t len)
 		    memcmp(val, sum, MD5_SIZE) != 0)
 			r = ARCHIVE_FAILED;
 		break;
+#ifdef ARCHIVE_HAS_SHA256
+	case CKSUM_SHA256:
+		archive_sha256_final(&(sumwrk->sha256ctx), sum);
+		if (len != SHA256_SIZE ||
+		    memcmp(val, sum, SHA256_SIZE) != 0)
+			r = ARCHIVE_FAILED;
+		break;
+#endif
+#ifdef ARCHIVE_HAS_SHA512
+	case CKSUM_SHA512:
+		archive_sha512_final(&(sumwrk->sha512ctx), sum);
+		if (len != SHA512_SIZE ||
+		    memcmp(val, sum, SHA512_SIZE) != 0)
+			r = ARCHIVE_FAILED;
+		break;
+#endif
+	default:
+		r = ARCHIVE_FAILED;
 	}
 	return (r);
 }
 
-static void
+static int
 checksum_init(struct archive_read *a, int a_sum_alg, int e_sum_alg)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 
-	xar = (struct xar *)(a->format->data);
-	_checksum_init(&(xar->a_sumwrk), a_sum_alg);
-	_checksum_init(&(xar->e_sumwrk), e_sum_alg);
+	if (_checksum_init(&(xar->a_sumwrk), a_sum_alg) != ARCHIVE_OK ||
+	    _checksum_init(&(xar->e_sumwrk), e_sum_alg) != ARCHIVE_OK) {
+		archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
+		    "Unsupported checksum");
+		return (ARCHIVE_FATAL);
+	}
+	return (ARCHIVE_OK);
 }
 
 static void
 checksum_update(struct archive_read *a, const void *abuff, size_t asize,
     const void *ebuff, size_t esize)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 
-	xar = (struct xar *)(a->format->data);
 	_checksum_update(&(xar->a_sumwrk), abuff, asize);
 	_checksum_update(&(xar->e_sumwrk), ebuff, esize);
 }
@@ -1420,27 +1467,24 @@ static int
 checksum_final(struct archive_read *a, const void *a_sum_val,
     size_t a_sum_len, const void *e_sum_val, size_t e_sum_len)
 {
-	struct xar *xar;
-	int r;
+	struct xar *xar = a->format->data;
 
-	xar = (struct xar *)(a->format->data);
-	r = _checksum_final(&(xar->a_sumwrk), a_sum_val, a_sum_len);
-	if (r == ARCHIVE_OK)
-		r = _checksum_final(&(xar->e_sumwrk), e_sum_val, e_sum_len);
-	if (r != ARCHIVE_OK)
+	if (_checksum_final(&(xar->a_sumwrk), a_sum_val, a_sum_len) != ARCHIVE_OK ||
+	    _checksum_final(&(xar->e_sumwrk), e_sum_val, e_sum_len) != ARCHIVE_OK) {
 		archive_set_error(&(a->archive), ARCHIVE_ERRNO_MISC,
-		    "Sumcheck error");
-	return (r);
+		    "Checksum error");
+		return (ARCHIVE_FATAL);
+	}
+	return (ARCHIVE_OK);
 }
 
 static int
 decompression_init(struct archive_read *a, enum enctype encoding)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	const char *detail;
 	int r;
 
-	xar = (struct xar *)(a->format->data);
 	xar->rd_encoding = encoding;
 	switch (encoding) {
 	case NONE:
@@ -1576,12 +1620,11 @@ static int
 decompress(struct archive_read *a, const void **buff, size_t *outbytes,
     const void *b, size_t *used)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	void *outbuff;
 	size_t avail_in, avail_out;
 	int r;
 
-	xar = (struct xar *)(a->format->data);
 	avail_in = *used;
 	outbuff = (void *)(uintptr_t)*buff;
 	if (outbuff == NULL) {
@@ -1704,10 +1747,9 @@ decompress(struct archive_read *a, const void **buff, size_t *outbytes,
 static int
 decompression_cleanup(struct archive_read *a)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	int r;
 
-	xar = (struct xar *)(a->format->data);
 	r = ARCHIVE_OK;
 	if (xar->stream_valid) {
 		if (inflateEnd(&(xar->stream)) != Z_OK) {
@@ -1736,9 +1778,7 @@ decompression_cleanup(struct archive_read *a)
 
 static void
 checksum_cleanup(struct archive_read *a) {
-	struct xar *xar;
-
-	xar = (struct xar *)(a->format->data);
+	struct xar *xar = a->format->data;
 
 	_checksum_final(&(xar->a_sumwrk), NULL, 0);
 	_checksum_final(&(xar->e_sumwrk), NULL, 0);
@@ -1791,8 +1831,11 @@ file_new(struct archive_read *a, struct xar *xar, struct xmlattr_list *list)
 	}
 	xar->file = file;
 	file->nlink = 1;
-	if (heap_add_entry(a, &(xar->file_queue), file) != ARCHIVE_OK)
+	if (heap_add_entry(a, &(xar->file_queue), file) != ARCHIVE_OK) {
+		xar->file = file->parent;
+		file_free(file);
 		return (ARCHIVE_FATAL);
+	}
 	return (ARCHIVE_OK);
 }
 
@@ -1897,9 +1940,16 @@ getsumalgorithm(struct xmlattr_list *list)
 			const char *v = attr->value;
 			if ((v[0] == 'S' || v[0] == 's') &&
 			    (v[1] == 'H' || v[1] == 'h') &&
-			    (v[2] == 'A' || v[2] == 'a') &&
-			    v[3] == '1' && v[4] == '\0')
-				alg = CKSUM_SHA1;
+			    (v[2] == 'A' || v[2] == 'a')) {
+				if (v[3] == '1' && v[4] == '\0')
+					alg = CKSUM_SHA1;
+				else if (v[3] == '2' && v[4] == '5' &&
+				    v[5] == '6' && v[6] == '\0')
+					alg = CKSUM_SHA256;
+				else if (v[3] == '5' && v[4] == '1' &&
+				    v[5] == '2' && v[6] == '\0')
+					alg = CKSUM_SHA512;
+			}
 			if ((v[0] == 'M' || v[0] == 'm') &&
 			    (v[1] == 'D' || v[1] == 'd') &&
 			    v[2] == '5' && v[3] == '\0')
@@ -1957,10 +2007,8 @@ unknowntag_end(struct xar *xar, const char *name)
 static int
 xml_start(struct archive_read *a, const char *name, struct xmlattr_list *list)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	struct xmlattr *attr;
-
-	xar = (struct xar *)(a->format->data);
 
 #if DEBUG
 	fprintf(stderr, "xml_sta:[%s]\n", name);
@@ -2253,11 +2301,8 @@ xml_start(struct archive_read *a, const char *name, struct xmlattr_list *list)
 static void
 xml_end(void *userData, const char *name)
 {
-	struct archive_read *a;
-	struct xar *xar;
-
-	a = (struct archive_read *)userData;
-	xar = (struct xar *)(a->format->data);
+	struct archive_read *a = (struct archive_read *)userData;
+	struct xar *xar = a->format->data;
 
 #if DEBUG
 	fprintf(stderr, "xml_end:[%s]\n", name);
@@ -2631,7 +2676,7 @@ strappend_base64(struct xar *xar,
 	len = 0;
 	out = buff;
 	b = (const unsigned char *)s;
-	while (l > 0) {
+	while (l > 1) {
 		int n = 0;
 
 		if (base64[b[0]] < 0 || base64[b[1]] < 0)
@@ -2679,13 +2724,10 @@ is_string(const char *known, const char *data, size_t len)
 static int
 xml_data(void *userData, const char *s, size_t len)
 {
+	struct archive_read *a = (struct archive_read *)userData;
+	struct xar *xar = a->format->data;
 	uint64_t val;
-	struct archive_read *a;
-	struct xar *xar;
 	int r;
-
-	a = (struct archive_read *)userData;
-	xar = (struct xar *)(a->format->data);
 
 #if DEBUG
 	{
@@ -3166,15 +3208,12 @@ xml2_xmlattr_setup(struct archive_read *a,
 static int
 xml2_read_cb(void *context, char *buffer, int len)
 {
-	struct archive_read *a;
-	struct xar *xar;
+	struct archive_read *a = (struct archive_read *)context;
+	struct xar *xar = a->format->data;
 	const void *d;
 	size_t outbytes;
 	size_t used = 0;
 	int r;
-
-	a = (struct archive_read *)context;
-	xar = (struct xar *)(a->format->data);
 
 	if (xar->toc_remaining <= 0)
 		return (0);
@@ -3204,10 +3243,9 @@ static void
 xml2_error_hdr(void *arg, const char *msg, xmlParserSeverities severity,
     xmlTextReaderLocatorPtr locator)
 {
-	struct archive_read *a;
+	struct archive_read *a = (struct archive_read *)arg;
 
 	(void)locator; /* UNUSED */
-	a = (struct archive_read *)arg;
 	switch (severity) {
 	case XML_PARSER_SEVERITY_VALIDITY_WARNING:
 	case XML_PARSER_SEVERITY_WARNING:
@@ -3357,14 +3395,12 @@ expat_data_cb(void *userData, const XML_Char *s, int len)
 static int
 expat_read_toc(struct archive_read *a)
 {
-	struct xar *xar;
+	struct xar *xar = a->format->data;
 	XML_Parser parser;
 	struct expat_userData ud;
 
 	ud.state = ARCHIVE_OK;
 	ud.archive = a;
-
-	xar = (struct xar *)(a->format->data);
 
 	/* Initialize XML Parser library. */
 	parser = XML_ParserCreate(NULL);
@@ -3449,15 +3485,12 @@ static HRESULT STDMETHODCALLTYPE
 asaRead(ISequentialStream *this, void *pv, ULONG cb, ULONG *pcbRead)
 {
 	struct ArchiveStreamAdapter *asa = (struct ArchiveStreamAdapter *)this;
-	struct archive_read *a;
-	struct xar *xar;
+	struct archive_read *a = asa->a;
+	struct xar *xar = a->format->data;
 	const void *d = pv;
 	size_t outbytes = cb;
 	size_t used = 0;
 	int r;
-
-	a = asa->a;
-	xar = (struct xar *)(a->format->data);
 
 	*pcbRead = 0;
 

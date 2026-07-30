@@ -117,7 +117,7 @@ struct mtree_entry {
 	int64_t ino;
 };
 
-struct mtree_writer {
+struct mtree {
 	struct mtree_entry *mtree_entry;
 	struct mtree_entry *root;
 	struct mtree_entry *cur_dirent;
@@ -220,10 +220,10 @@ static int attr_counter_inc(struct attr_counter **, struct attr_counter *,
 	struct attr_counter *, struct mtree_entry *);
 static struct attr_counter * attr_counter_new(struct mtree_entry *,
 	struct attr_counter *);
-static int attr_counter_set_collect(struct mtree_writer *,
+static int attr_counter_set_collect(struct mtree *,
 	struct mtree_entry *);
-static void attr_counter_set_free(struct mtree_writer *);
-static int get_global_set_keys(struct mtree_writer *, struct mtree_entry *);
+static void attr_counter_set_free(struct mtree *);
+static int get_global_set_keys(struct mtree *, struct mtree_entry *);
 static int mtree_entry_add_child_tail(struct mtree_entry *,
 	struct mtree_entry *);
 static int mtree_entry_create_virtual_dir(struct archive_write *, const char *,
@@ -236,14 +236,14 @@ static int mtree_entry_exchange_same_entry(struct archive_write *,
 static void mtree_entry_free(struct mtree_entry *);
 static int mtree_entry_new(struct archive_write *, struct archive_entry *,
 	struct mtree_entry **);
-static void mtree_entry_register_free(struct mtree_writer *);
-static void mtree_entry_register_init(struct mtree_writer *);
+static void mtree_entry_register_free(struct mtree *);
+static void mtree_entry_register_init(struct mtree *);
 static int mtree_entry_setup_filenames(struct archive_write *,
 	struct mtree_entry *, struct archive_entry *);
 static int mtree_entry_tree_add(struct archive_write *, struct mtree_entry **);
-static void sum_init(struct mtree_writer *);
-static void sum_update(struct mtree_writer *, const void *, size_t);
-static void sum_final(struct mtree_writer *, struct reg_info *);
+static void sum_init(struct mtree *);
+static void sum_update(struct mtree *, const void *, size_t);
+static void sum_final(struct mtree *, struct reg_info *);
 static void sum_write(struct archive_string *, struct reg_info *);
 static int write_mtree_entry(struct archive_write *, struct mtree_entry *);
 static int write_dot_dot_entry(struct archive_write *, struct mtree_entry *);
@@ -358,7 +358,7 @@ mtree_quote(struct archive_string *s, const char *str)
  * Indent a line as the mtree utility does so it is readable for people.
  */
 static void
-mtree_indent(struct mtree_writer *mtree)
+mtree_indent(struct mtree *mtree)
 {
 	int i, fn, nd, pd;
 	const char *r, *s, *x;
@@ -434,7 +434,7 @@ mtree_indent(struct mtree_writer *mtree)
  * collected by the attr_counter_set_collect() function.
  */
 static void
-write_global(struct mtree_writer *mtree)
+write_global(struct mtree *mtree)
 {
 	struct archive_string setstr;
 	struct archive_string unsetstr;
@@ -636,7 +636,7 @@ attr_counter_inc(struct attr_counter **top, struct attr_counter *ac,
  * Tabulate uid, gid, mode and fflags of a entry in order to be used for /set.
  */
 static int
-attr_counter_set_collect(struct mtree_writer *mtree, struct mtree_entry *me)
+attr_counter_set_collect(struct mtree *mtree, struct mtree_entry *me)
 {
 	struct attr_counter *ac, *last;
 	struct attr_counter_set *acs = &mtree->acs;
@@ -713,7 +713,7 @@ attr_counter_set_collect(struct mtree_writer *mtree, struct mtree_entry *me)
 }
 
 static void
-attr_counter_set_free(struct mtree_writer *mtree)
+attr_counter_set_free(struct mtree *mtree)
 {
 	struct attr_counter_set *acs = &mtree->acs;
 
@@ -724,7 +724,7 @@ attr_counter_set_free(struct mtree_writer *mtree)
 }
 
 static int
-get_global_set_keys(struct mtree_writer *mtree, struct mtree_entry *me)
+get_global_set_keys(struct mtree *mtree, struct mtree_entry *me)
 {
 	int keys;
 
@@ -913,7 +913,7 @@ static int
 archive_write_mtree_header(struct archive_write *a,
     struct archive_entry *entry)
 {
-	struct mtree_writer *mtree= a->format_data;
+	struct mtree *mtree = a->format_data;
 	struct mtree_entry *mtree_entry;
 	int r, r2;
 
@@ -956,7 +956,7 @@ archive_write_mtree_header(struct archive_write *a,
 static int
 write_mtree_entry(struct archive_write *a, struct mtree_entry *me)
 {
-	struct mtree_writer *mtree = a->format_data;
+	struct mtree *mtree = a->format_data;
 	struct archive_string *str;
 	int keys, ret;
 
@@ -1107,7 +1107,7 @@ write_mtree_entry(struct archive_write *a, struct mtree_entry *me)
 static int
 write_dot_dot_entry(struct archive_write *a, struct mtree_entry *n)
 {
-	struct mtree_writer *mtree = a->format_data;
+	struct mtree *mtree = a->format_data;
 	int ret;
 
 	if (n->parentdir.s) {
@@ -1142,7 +1142,7 @@ write_dot_dot_entry(struct archive_write *a, struct mtree_entry *n)
 static int
 write_mtree_entry_tree(struct archive_write *a)
 {
-	struct mtree_writer *mtree = a->format_data;
+	struct mtree *mtree = a->format_data;
 	struct mtree_entry *np = mtree->root;
 	struct archive_rb_node *n;
 	int ret;
@@ -1245,7 +1245,7 @@ write_mtree_entry_tree(struct archive_write *a)
 static int
 archive_write_mtree_finish_entry(struct archive_write *a)
 {
-	struct mtree_writer *mtree = a->format_data;
+	struct mtree *mtree = a->format_data;
 	struct mtree_entry *me;
 
 	if ((me = mtree->mtree_entry) == NULL)
@@ -1261,7 +1261,7 @@ archive_write_mtree_finish_entry(struct archive_write *a)
 static int
 archive_write_mtree_close(struct archive_write *a)
 {
-	struct mtree_writer *mtree= a->format_data;
+	struct mtree *mtree = a->format_data;
 	int ret;
 
 	if (mtree->root != NULL) {
@@ -1278,7 +1278,7 @@ archive_write_mtree_close(struct archive_write *a)
 static ssize_t
 archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 {
-	struct mtree_writer *mtree= a->format_data;
+	struct mtree *mtree = a->format_data;
 
 	if (n > mtree->entry_bytes_remaining)
 		n = (size_t)mtree->entry_bytes_remaining;
@@ -1297,7 +1297,7 @@ archive_write_mtree_data(struct archive_write *a, const void *buff, size_t n)
 static int
 archive_write_mtree_free(struct archive_write *a)
 {
-	struct mtree_writer *mtree= a->format_data;
+	struct mtree *mtree = a->format_data;
 
 	if (mtree == NULL)
 		return (ARCHIVE_OK);
@@ -1317,7 +1317,7 @@ static int
 archive_write_mtree_options(struct archive_write *a, const char *key,
     const char *value)
 {
-	struct mtree_writer *mtree= a->format_data;
+	struct mtree *mtree = a->format_data;
 	int keybit = 0;
 
 	switch (key[0]) {
@@ -1429,12 +1429,11 @@ static int
 archive_write_set_format_mtree_default(struct archive *_a, const char *fn)
 {
 	struct archive_write *a = (struct archive_write *)_a;
-	struct mtree_writer *mtree;
+	struct mtree *mtree;
 
 	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_NEW, fn);
 
-	if (a->format_free != NULL)
-		(a->format_free)(a);
+	(void)__archive_write_unregister_format(a);
 
 	if ((mtree = calloc(1, sizeof(*mtree))) == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
@@ -1481,9 +1480,7 @@ archive_write_set_format_mtree_classic(struct archive *_a)
 		"archive_write_set_format_mtree_classic");
 	if (r == ARCHIVE_OK) {
 		struct archive_write *a = (struct archive_write *)_a;
-		struct mtree_writer *mtree;
-
-		mtree = (struct mtree_writer *)a->format_data;
+		struct mtree *mtree = a->format_data;
 
 		/* Set to output a mtree archive in classic format. */
 		mtree->classic = 1;
@@ -1495,7 +1492,7 @@ archive_write_set_format_mtree_classic(struct archive *_a)
 }
 
 static void
-sum_init(struct mtree_writer *mtree)
+sum_init(struct mtree *mtree)
 {
 
 	mtree->compute_sum = 0;
@@ -1556,7 +1553,7 @@ sum_init(struct mtree_writer *mtree)
 }
 
 static void
-sum_update(struct mtree_writer *mtree, const void *buff, size_t n)
+sum_update(struct mtree *mtree, const void *buff, size_t n)
 {
 	if (mtree->compute_sum & F_CKSUM) {
 		/*
@@ -1614,7 +1611,7 @@ sum_update(struct mtree_writer *mtree, const void *buff, size_t n)
 }
 
 static void
-sum_final(struct mtree_writer *mtree, struct reg_info *reg)
+sum_final(struct mtree *mtree, struct reg_info *reg)
 {
 	struct ae_digest digest;
 
@@ -1995,7 +1992,7 @@ mtree_entry_create_virtual_dir(struct archive_write *a, const char *pathname,
 }
 
 static void
-mtree_entry_register_add(struct mtree_writer *mtree, struct mtree_entry *file)
+mtree_entry_register_add(struct mtree *mtree, struct mtree_entry *file)
 {
         file->next = NULL;
         *mtree->file_list.last = file;
@@ -2003,14 +2000,14 @@ mtree_entry_register_add(struct mtree_writer *mtree, struct mtree_entry *file)
 }
 
 static void
-mtree_entry_register_init(struct mtree_writer *mtree)
+mtree_entry_register_init(struct mtree *mtree)
 {
 	mtree->file_list.first = NULL;
 	mtree->file_list.last = &(mtree->file_list.first);
 }
 
 static void
-mtree_entry_register_free(struct mtree_writer *mtree)
+mtree_entry_register_free(struct mtree *mtree)
 {
 	struct mtree_entry *file, *file_next;
 
@@ -2073,6 +2070,7 @@ get_path_component(char *name, size_t n, const char *fn)
 static int
 mtree_entry_tree_add(struct archive_write *a, struct mtree_entry **filep)
 {
+	struct mtree *mtree = a->format_data;
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	char name[_MAX_FNAME];/* Included null terminator size. */
 #elif defined(NAME_MAX) && NAME_MAX >= 255
@@ -2080,7 +2078,6 @@ mtree_entry_tree_add(struct archive_write *a, struct mtree_entry **filep)
 #else
 	char name[256];
 #endif
-	struct mtree_writer *mtree = (struct mtree_writer *)a->format_data;
 	struct mtree_entry *dent, *file, *np;
 	const char *fn, *p;
 	int l, r;

@@ -1,0 +1,19 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Embed an application manifest that marks bsdunzip as long-path aware.
+ *
+ * bsdunzip's file name handling is limited to MAX_PATH (260) characters unless
+ * the process opts in to long paths via a "longPathAware" manifest.
+ * A system-wide LongPathsEnabled registry value is not sufficient on its own;
+ * the executable must also carry this manifest.  Without it, extracting into
+ * deeply nested destination directories fails.
+ *
+ * See:
+ * https://learn.microsoft.com/windows/win32/fileio/maximum-file-path-limitation
+ */
+
+#define RT_MANIFEST 24
+#define CREATEPROCESS_MANIFEST_RESOURCE_ID 1
+
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "bsdunzip.exe.manifest"

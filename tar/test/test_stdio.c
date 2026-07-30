@@ -8,7 +8,7 @@
 
 /*
  * This data would fit onto one line, but it's easier to understand when it's
- * on mulitple lines (and thus matches the output files).
+ * on multiple lines (and thus matches the output files).
  */
 static const char *cvf_err =
 "a f\n"

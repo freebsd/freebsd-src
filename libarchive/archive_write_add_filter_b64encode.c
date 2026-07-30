@@ -46,7 +46,7 @@
 
 #define LBYTES	57
 
-struct private_b64encode {
+struct b64encode {
 	int			mode;
 	struct archive_string	name;
 	struct archive_string	encoded_buff;
@@ -64,6 +64,7 @@ static int archive_filter_b64encode_close(struct archive_write_filter *);
 static int archive_filter_b64encode_free(struct archive_write_filter *);
 static void la_b64_encode(struct archive_string *, const unsigned char *, size_t);
 static int64_t atol8(const char *, size_t);
+static void free_data(struct b64encode *);
 
 static const char base64[] = {
 	'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
@@ -80,34 +81,38 @@ static const char base64[] = {
  * Add a compress filter to this write handle.
  */
 int
-archive_write_add_filter_b64encode(struct archive *_a)
+archive_write_add_filter_b64encode(struct archive *a)
 {
-	struct archive_write *a = (struct archive_write *)_a;
-	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
-	struct private_b64encode *state;
+	struct archive_write_filter *f;
+	struct b64encode *b64encode;
 
-	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
+	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_b64encode");
 
-	state = calloc(1, sizeof(*state));
-	if (state == NULL) {
-		archive_set_error(f->archive, ENOMEM,
-		    "Can't allocate data for b64encode filter");
-		return (ARCHIVE_FATAL);
-	}
-	archive_strcpy(&state->name, "-");
-	state->mode = 0644;
+	b64encode = calloc(1, sizeof(*b64encode));
+	if (b64encode == NULL)
+		goto memerr;
+	archive_strcpy(&b64encode->name, "-");
+	b64encode->mode = 0644;
 
-	f->data = state;
+	f = __archive_write_allocate_filter(a);
+	if (f == NULL)
+		goto memerr;
 	f->name = "b64encode";
 	f->code = ARCHIVE_FILTER_UU;
-	f->open = archive_filter_b64encode_open;
+	f->data = b64encode;
 	f->options = archive_filter_b64encode_options;
+	f->open = archive_filter_b64encode_open;
 	f->write = archive_filter_b64encode_write;
 	f->close = archive_filter_b64encode_close;
 	f->free = archive_filter_b64encode_free;
 
 	return (ARCHIVE_OK);
+memerr:
+	free_data(b64encode);
+	archive_set_error(a, ENOMEM,
+	    "Can't allocate data for b64encode filter");
+	return (ARCHIVE_FATAL);
 }
 
 /*
@@ -117,7 +122,7 @@ static int
 archive_filter_b64encode_options(struct archive_write_filter *f, const char *key,
     const char *value)
 {
-	struct private_b64encode *state = (struct private_b64encode *)f->data;
+	struct b64encode *b64encode = f->data;
 
 	if (strcmp(key, "mode") == 0) {
 		int64_t val;
@@ -133,7 +138,7 @@ archive_filter_b64encode_options(struct archive_write_filter *f, const char *key
 			    "invalid mode option");
 			return (ARCHIVE_FAILED);
 		}
-		state->mode = (int)val & 0777;
+		b64encode->mode = (int)val & 0777;
 		return (ARCHIVE_OK);
 	} else if (strcmp(key, "name") == 0) {
 		if (value == NULL) {
@@ -141,7 +146,7 @@ archive_filter_b64encode_options(struct archive_write_filter *f, const char *key
 			    "name option requires a string");
 			return (ARCHIVE_FAILED);
 		}
-		archive_strcpy(&state->name, value);
+		archive_strcpy(&b64encode->name, value);
 		return (ARCHIVE_OK);
 	}
 
@@ -157,7 +162,7 @@ archive_filter_b64encode_options(struct archive_write_filter *f, const char *key
 static int
 archive_filter_b64encode_open(struct archive_write_filter *f)
 {
-	struct private_b64encode *state = (struct private_b64encode *)f->data;
+	struct b64encode *b64encode = f->data;
 	size_t bs = 65536, bpb;
 
 	if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {
@@ -170,18 +175,17 @@ archive_filter_b64encode_open(struct archive_write_filter *f)
 			bs -= bs % bpb;
 	}
 
-	state->bs = bs;
-	if (archive_string_ensure(&state->encoded_buff, bs + 512) == NULL) {
+	b64encode->bs = bs;
+	if (archive_string_ensure(&b64encode->encoded_buff, bs + 512) == NULL) {
 		archive_set_error(f->archive, ENOMEM,
 		    "Can't allocate data for b64encode buffer");
 		return (ARCHIVE_FATAL);
 	}
 
-	archive_string_sprintf(&state->encoded_buff, "begin-base64 %o %s\n",
-	    (unsigned int)state->mode, state->name.s);
+	archive_string_sprintf(&b64encode->encoded_buff, "begin-base64 %o %s\n",
+	    (unsigned int)b64encode->mode, b64encode->name.s);
 
-	f->data = state;
-	return (0);
+	return (ARCHIVE_OK);
 }
 
 static void
@@ -225,39 +229,39 @@ static int
 archive_filter_b64encode_write(struct archive_write_filter *f, const void *buff,
     size_t length)
 {
-	struct private_b64encode *state = (struct private_b64encode *)f->data;
+	struct b64encode *b64encode = f->data;
 	const unsigned char *p = buff;
 	int ret = ARCHIVE_OK;
 
 	if (length == 0)
 		return (ret);
 
-	if (state->hold_len) {
-		while (state->hold_len < LBYTES && length > 0) {
-			state->hold[state->hold_len++] = *p++;
+	if (b64encode->hold_len) {
+		while (b64encode->hold_len < LBYTES && length > 0) {
+			b64encode->hold[b64encode->hold_len++] = *p++;
 			length--;
 		}
-		if (state->hold_len < LBYTES)
+		if (b64encode->hold_len < LBYTES)
 			return (ret);
-		la_b64_encode(&state->encoded_buff, state->hold, LBYTES);
-		state->hold_len = 0;
+		la_b64_encode(&b64encode->encoded_buff, b64encode->hold, LBYTES);
+		b64encode->hold_len = 0;
 	}
 
 	for (; length >= LBYTES; length -= LBYTES, p += LBYTES)
-		la_b64_encode(&state->encoded_buff, p, LBYTES);
+		la_b64_encode(&b64encode->encoded_buff, p, LBYTES);
 
 	/* Save remaining bytes. */
 	if (length > 0) {
-		memcpy(state->hold, p, length);
-		state->hold_len = length;
+		memcpy(b64encode->hold, p, length);
+		b64encode->hold_len = length;
 	}
-	while (archive_strlen(&state->encoded_buff) >= state->bs) {
+	while (archive_strlen(&b64encode->encoded_buff) >= b64encode->bs) {
 		ret = __archive_write_filter(f->next_filter,
-		    state->encoded_buff.s, state->bs);
-		memmove(state->encoded_buff.s,
-		    state->encoded_buff.s + state->bs,
-		    state->encoded_buff.length - state->bs);
-		state->encoded_buff.length -= state->bs;
+		    b64encode->encoded_buff.s, b64encode->bs);
+		memmove(b64encode->encoded_buff.s,
+		    b64encode->encoded_buff.s + b64encode->bs,
+		    b64encode->encoded_buff.length - b64encode->bs);
+		b64encode->encoded_buff.length -= b64encode->bs;
 	}
 
 	return (ret);
@@ -270,26 +274,24 @@ archive_filter_b64encode_write(struct archive_write_filter *f, const void *buff,
 static int
 archive_filter_b64encode_close(struct archive_write_filter *f)
 {
-	struct private_b64encode *state = (struct private_b64encode *)f->data;
+	struct b64encode *b64encode = f->data;
 
 	/* Flush remaining bytes. */
-	if (state->hold_len != 0)
-		la_b64_encode(&state->encoded_buff, state->hold, state->hold_len);
-	archive_string_sprintf(&state->encoded_buff, "====\n");
+	if (b64encode->hold_len != 0)
+		la_b64_encode(&b64encode->encoded_buff, b64encode->hold,
+		    b64encode->hold_len);
+	archive_string_sprintf(&b64encode->encoded_buff, "====\n");
 	/* Write the last block */
 	archive_write_set_bytes_in_last_block(f->archive, 1);
 	return __archive_write_filter(f->next_filter,
-	    state->encoded_buff.s, archive_strlen(&state->encoded_buff));
+	    b64encode->encoded_buff.s, archive_strlen(&b64encode->encoded_buff));
 }
 
 static int
 archive_filter_b64encode_free(struct archive_write_filter *f)
 {
-	struct private_b64encode *state = (struct private_b64encode *)f->data;
-
-	archive_string_free(&state->name);
-	archive_string_free(&state->encoded_buff);
-	free(state);
+	free_data(f->data);
+	f->data = NULL;
 	return (ARCHIVE_OK);
 }
 
@@ -316,3 +318,12 @@ atol8(const char *p, size_t char_cnt)
 	return (l);
 }
 
+static void
+free_data(struct b64encode *b64encode)
+{
+	if (b64encode != NULL) {
+		archive_string_free(&b64encode->name);
+		archive_string_free(&b64encode->encoded_buff);
+		free(b64encode);
+	}
+}

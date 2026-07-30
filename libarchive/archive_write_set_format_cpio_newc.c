@@ -113,8 +113,7 @@ archive_write_set_format_cpio_newc(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_cpio_newc");
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_free != NULL)
-		(a->format_free)(a);
+	(void)__archive_write_unregister_format(a);
 
 	cpio = calloc(1, sizeof(*cpio));
 	if (cpio == NULL) {
@@ -138,7 +137,7 @@ static int
 archive_write_newc_options(struct archive_write *a, const char *key,
     const char *val)
 {
-	struct cpio *cpio = (struct cpio *)a->format_data;
+	struct cpio *cpio = a->format_data;
 	int ret = ARCHIVE_FAILED;
 
 	if (strcmp(key, "hdrcharset")  == 0) {
@@ -166,10 +165,9 @@ archive_write_newc_options(struct archive_write *a, const char *key,
 static struct archive_string_conv *
 get_sconv(struct archive_write *a)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format_data;
 	struct archive_string_conv *sconv;
 
-	cpio = (struct cpio *)a->format_data;
 	sconv = cpio->opt_sconv;
 	if (sconv == NULL) {
 		if (!cpio->init_default_conversion) {
@@ -216,8 +214,8 @@ archive_write_newc_header(struct archive_write *a, struct archive_entry *entry)
 static int
 write_header(struct archive_write *a, struct archive_entry *entry)
 {
+	struct cpio *cpio = a->format_data;
 	int64_t ino;
-	struct cpio *cpio;
 	const char *p, *path;
 	int ret, ret_final;
 	char h[c_header_size];
@@ -226,7 +224,6 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	size_t len, pathlength;
 	int pad;
 
-	cpio = (struct cpio *)a->format_data;
 	ret_final = ARCHIVE_OK;
 	sconv = get_sconv(a);
 
@@ -378,10 +375,9 @@ exit_write_header:
 static ssize_t
 archive_write_newc_data(struct archive_write *a, const void *buff, size_t s)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format_data;
 	int ret;
 
-	cpio = (struct cpio *)a->format_data;
 	if (s > cpio->entry_bytes_remaining)
 		s = (size_t)cpio->entry_bytes_remaining;
 
@@ -430,6 +426,8 @@ archive_write_newc_close(struct archive_write *a)
 	struct archive_entry *trailer;
 
 	trailer = archive_entry_new();
+	if (trailer == NULL)
+		return ARCHIVE_FATAL;
 	archive_entry_set_nlink(trailer, 1);
 	archive_entry_set_size(trailer, 0);
 	archive_entry_set_pathname(trailer, "TRAILER!!!");
@@ -442,9 +440,8 @@ archive_write_newc_close(struct archive_write *a)
 static int
 archive_write_newc_free(struct archive_write *a)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format_data;
 
-	cpio = (struct cpio *)a->format_data;
 	free(cpio);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
@@ -453,9 +450,8 @@ archive_write_newc_free(struct archive_write *a)
 static int
 archive_write_newc_finish_entry(struct archive_write *a)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format_data;
 
-	cpio = (struct cpio *)a->format_data;
 	return (__archive_write_nulls(a,
-		(size_t)cpio->entry_bytes_remaining + cpio->padding));
+	    cpio->entry_bytes_remaining + cpio->padding));
 }

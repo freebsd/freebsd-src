@@ -666,6 +666,9 @@ typedef uint64_t uintmax_t;
 /* Define to 1 if you have the `getpwuid_r' function. */
 #cmakedefine HAVE_GETPWUID_R 1
 
+/* Define to 1 if you have the `gettimeofday' function. */
+#cmakedefine HAVE_GETTIMEOFDAY 1
+
 /* Define to 1 if you have the `getvfsbyname' function. */
 #cmakedefine HAVE_GETVFSBYNAME 1
 

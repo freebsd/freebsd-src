@@ -251,36 +251,6 @@ static const size_t fflags_limit = 512; /* Longest fflags */
 static const size_t acl_limit = 131072; /* Longest textual ACL: 128kiB */
 static const int64_t entry_limit = 0xfffffffffffffffLL; /* 2^60 bytes = 1 ExbiByte */
 
-/*
- * There's no standard for TIME_T_MAX.  So we compute it
- * here.  TODO: Move this to configure time, but be careful
- * about cross-compile environments.
- */
-static time_t
-get_time_t_max(void)
-{
-#if defined(TIME_T_MAX)
-        return TIME_T_MAX;
-#else
-        /* ISO C allows time_t to be a floating-point type,
-           but POSIX requires an integer type.  The following
-           should work on any system that follows the POSIX
-           conventions. */
-        if (((time_t)0) < ((time_t)-1)) {
-                /* Time_t is unsigned */
-                return (~(time_t)0);
-        } else {
-                /* Time_t is signed. */
-                /* Assume it's the same as int64_t or int32_t */
-                if (sizeof(time_t) == sizeof(int64_t)) {
-                        return (time_t)INT64_MAX;
-                } else {
-                        return (time_t)INT32_MAX;
-                }
-        }
-#endif
-}
-
 int
 archive_read_support_format_gnutar(struct archive *a)
 {
@@ -330,9 +300,8 @@ archive_read_support_format_tar(struct archive *_a)
 static int
 archive_read_format_tar_cleanup(struct archive_read *a)
 {
-	struct tar *tar;
+	struct tar *tar = a->format->data;
 
-	tar = (struct tar *)(a->format->data);
 	gnu_clear_sparse_list(tar);
 	archive_string_free(&tar->entry_pathname);
 	archive_string_free(&tar->entry_pathname_override);
@@ -342,7 +311,7 @@ archive_read_format_tar_cleanup(struct archive_read *a)
 	archive_string_free(&tar->line);
 	archive_string_free(&tar->localname);
 	free(tar);
-	(a->format->data) = NULL;
+	a->format->data = NULL;
 	return (ARCHIVE_OK);
 }
 
@@ -469,10 +438,9 @@ static int
 archive_read_format_tar_options(struct archive_read *a,
     const char *key, const char *val)
 {
-	struct tar *tar;
+	struct tar *tar = a->format->data;
 	int ret = ARCHIVE_FAILED;
 
-	tar = (struct tar *)(a->format->data);
 	if (strcmp(key, "compat-2x")  == 0) {
 		/* Handle UTF-8 filenames as libarchive 2.x */
 		tar->compat_2x = (val != NULL && val[0] != 0);
@@ -555,14 +523,12 @@ archive_read_format_tar_read_header(struct archive_read *a,
 	 * probably not worthwhile just to support the relatively
 	 * obscure tar->cpio conversion case.
 	 */
-	struct tar *tar;
+	struct tar *tar = a->format->data;
 	const char *p;
 	const wchar_t *wp;
 	int r;
 	size_t l;
 	int64_t unconsumed = 0;
-
-	tar = (struct tar *)(a->format->data);
 
 	/* Assign default device/inode values. */
 	archive_entry_set_dev(entry, 1 + tar->default_dev); /* Don't use zero. */
@@ -639,11 +605,9 @@ static int
 archive_read_format_tar_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
+	struct tar *tar = a->format->data;
 	ssize_t bytes_read;
-	struct tar *tar;
 	struct sparse_block *p;
-
-	tar = (struct tar *)(a->format->data);
 
 	for (;;) {
 		/* Remove exhausted entries from sparse list. */
@@ -703,10 +667,8 @@ archive_read_format_tar_read_data(struct archive_read *a,
 static int
 archive_read_format_tar_skip(struct archive_read *a)
 {
+	struct tar *tar = a->format->data;
 	int64_t request;
-	struct tar* tar;
-
-	tar = (struct tar *)(a->format->data);
 
 	request = tar->entry_bytes_remaining + tar->entry_padding +
 	    tar->entry_bytes_unconsumed;
@@ -1104,21 +1066,19 @@ static int
 header_Solaris_ACL(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h, int64_t *unconsumed)
 {
-	const struct archive_entry_header_ustar *header;
 	struct archive_string	 acl_text;
 	size_t size;
 	int err, acl_type;
 	uint64_t type;
 	char *acl, *p;
 
-	header = (const struct archive_entry_header_ustar *)h;
-	size = (size_t)tar_atol(header->size, sizeof(header->size));
 	archive_string_init(&acl_text);
 	err = read_body_to_string(a, tar, &acl_text, h, unconsumed);
 	if (err != ARCHIVE_OK) {
 		archive_string_free(&acl_text);
 		return (err);
 	}
+	size = archive_strlen(&acl_text);
 
 	/* TODO: Examine the first characters to see if this
 	 * is an AIX ACL descriptor.  We'll likely never support
@@ -1377,6 +1337,7 @@ header_common(struct archive_read *a, struct tar *tar,
 	const struct archive_entry_header_ustar	*header;
 	const char *existing_linkpath;
 	const wchar_t *existing_wcs_linkpath;
+	mode_t header_mode;
 	int     err = ARCHIVE_OK;
 
 	header = (const struct archive_entry_header_ustar *)h;
@@ -1384,12 +1345,10 @@ header_common(struct archive_read *a, struct tar *tar,
 	/* Parse out the numeric fields (all are octal) */
 
 	/* Split mode handling: Set filetype always, perm only if not already set */
-	archive_entry_set_filetype(entry,
-	    (mode_t)tar_atol(header->mode, sizeof(header->mode)));
-	if (!archive_entry_perm_is_set(entry)) {
-		archive_entry_set_perm(entry,
-			(mode_t)tar_atol(header->mode, sizeof(header->mode)));
-	}
+	header_mode = (mode_t)tar_atol(header->mode, sizeof(header->mode));
+	archive_entry_set_filetype(entry, header_mode);
+	if (!archive_entry_perm_is_set(entry))
+		archive_entry_set_perm(entry, header_mode);
 
 	/* Set uid, gid, mtime if not already set */
 	if (!archive_entry_uid_is_set(entry)) {
@@ -1402,7 +1361,7 @@ header_common(struct archive_read *a, struct tar *tar,
 		int64_t t64 = tar_atol(header->mtime, sizeof(header->mtime));
 		time_t t = (time_t)t64;
 		if ((int64_t)t != t64) { /* time_t overflowed */
-			t = get_time_t_max();
+			t = TIME_MAX;
 		}
 		archive_entry_set_mtime(entry, t, 0);
 	}
@@ -1679,24 +1638,9 @@ is_mac_metadata_entry(struct archive_entry *entry) {
 	const char *p, *name;
 	const wchar_t *wp, *wname;
 
-	wname = wp = archive_entry_pathname_w(entry);
-	if (wp != NULL) {
+	name = p = archive_entry_pathname(entry);
+	if (p != NULL) {
 		/* Find the last path element. */
-		for (; *wp != L'\0'; ++wp) {
-			if (wp[0] == '/' && wp[1] != L'\0')
-				wname = wp + 1;
-		}
-		/*
-		 * If last path element starts with "._", then
-		 * this is a Mac extension.
-		 */
-		if (wname[0] == L'.' && wname[1] == L'_' && wname[2] != L'\0')
-			return 1;
-	} else {
-		/* Find the last path element. */
-		name = p = archive_entry_pathname(entry);
-		if (p == NULL)
-			return (ARCHIVE_FAILED);
 		for (; *p != '\0'; ++p) {
 			if (p[0] == '/' && p[1] != '\0')
 				name = p + 1;
@@ -1706,6 +1650,21 @@ is_mac_metadata_entry(struct archive_entry *entry) {
 		 * this is a Mac extension.
 		 */
 		if (name[0] == '.' && name[1] == '_' && name[2] != '\0')
+			return 1;
+	} else {
+		/* Find the last path element. */
+		wname = wp = archive_entry_pathname_w(entry);
+		if (wp == NULL)
+			return 0;
+		for (; *wp != L'\0'; ++wp) {
+			if (wp[0] == L'/' && wp[1] != L'\0')
+				wname = wp + 1;
+		}
+		/*
+		 * If last path element starts with "._", then
+		 * this is a Mac extension.
+		 */
+		if (wname[0] == L'.' && wname[1] == L'_' && wname[2] != L'\0')
 			return 1;
 	}
 	/* Not a mac extension */
@@ -1787,7 +1746,6 @@ header_pax_global(struct archive_read *a, struct tar *tar,
 	const struct archive_entry_header_ustar *header;
 	int64_t size, to_consume;
 
-	(void)a; /* UNUSED */
 	(void)tar; /* UNUSED */
 	(void)entry; /* UNUSED */
 
@@ -1797,6 +1755,11 @@ header_pax_global(struct archive_read *a, struct tar *tar,
 		archive_set_error(&a->archive, EINVAL,
 		    "Special header has invalid size: %lld",
 		    (long long)size);
+		return (ARCHIVE_FATAL);
+	}
+	if (size == 0) {
+		archive_set_error(&a->archive, EINVAL,
+		    "Invalid empty pax global extended header");
 		return (ARCHIVE_FATAL);
 	}
 	to_consume = ((size + 511) & ~511);
@@ -1944,6 +1907,11 @@ header_pax_extension(struct archive_read *a, struct tar *tar,
 			    "pax extension header has invalid size: %lld",
 			    (long long)ext_size);
 	  return (ARCHIVE_FATAL);
+	}
+	if (ext_size == 0) {
+		archive_set_error(&a->archive, EINVAL,
+		    "Invalid empty pax extended header");
+		return (ARCHIVE_FATAL);
 	}
 
 	ext_padding = 0x1ff & (-ext_size);
@@ -3056,6 +3024,7 @@ static int
 header_gnutar(struct archive_read *a, struct tar *tar,
     struct archive_entry *entry, const void *h, int64_t *unconsumed)
 {
+	struct archive_entry_header_gnutar header_copy;
 	const struct archive_entry_header_gnutar *header;
 	int64_t t;
 	int err = ARCHIVE_OK;
@@ -3066,8 +3035,14 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 	 * filename is stored as in old-style archives.
 	 */
 
+	/*
+	 * Sparse extension reads can reuse the callback buffer containing h,
+	 * so preserve the main header until common fields are parsed.
+	 */
+	memcpy(&header_copy, h, sizeof(header_copy));
+	header = &header_copy;
+
 	/* Copy filename over (to ensure null termination). */
-	header = (const struct archive_entry_header_gnutar *)h;
 	const char *existing_pathname = archive_entry_pathname(entry);
 	const wchar_t *existing_wcs_pathname = archive_entry_pathname_w(entry);
 	if ((existing_pathname == NULL || existing_pathname[0] == '\0')
@@ -3146,7 +3121,7 @@ header_gnutar(struct archive_read *a, struct tar *tar,
 	}
 
 	/* Grab fields common to all tar variants. */
-	err = header_common(a, tar, entry, h);
+	err = header_common(a, tar, entry, header);
 	if (err == ARCHIVE_FATAL)
 		return (err);
 
@@ -3469,13 +3444,10 @@ pax_attribute_SUN_holesdata(struct archive_read *a, struct tar *tar,
 				return (ARCHIVE_FATAL);
 			tar->sparse_last->hole = hole;
 		}
-		if (length == 0 || *e == '\n') {
-			if (length == 0 && *e == '\n') {
-				return (ARCHIVE_OK);
-			} else {
-				return (ARCHIVE_WARN);
-			}
-		}
+		if (length == 0)
+			return (ARCHIVE_OK);
+		if (*e == '\n')
+			return (ARCHIVE_WARN);
 		p = e + 1;
 		length--;
 		hole = hole == 0;
@@ -3538,17 +3510,17 @@ tar_atol_base_n(const char *p, size_t char_cnt, int base)
 	}
 
 	l = 0;
-	if (char_cnt != 0) {
+	while (char_cnt != 0) {
 		digit = *p - '0';
-		while (digit >= 0 && digit < base && char_cnt != 0) {
-			if (archive_ckd_mul_i64(&l, l, base) ||
-			    archive_ckd_add_i64(&l, l, sign * digit)) {
-				 /* Truncate on overflow. */
-				return sign < 0 ? INT64_MIN : INT64_MAX;
-			}
-			digit = *++p - '0';
-			char_cnt--;
+		if (digit < 0 || digit >= base)
+			break;
+		if (archive_ckd_mul_i64(&l, l, base) ||
+		    archive_ckd_add_i64(&l, l, sign * digit)) {
+			 /* Truncate on overflow. */
+			return sign < 0 ? INT64_MIN : INT64_MAX;
 		}
+		p++;
+		char_cnt--;
 	}
 	return l;
 }

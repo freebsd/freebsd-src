@@ -36,6 +36,7 @@ DEFINE_TEST(test_write_format_pax)
 	int i;
 	char nulls[1024];
 	int64_t offset, length;
+	char long_slashes[300 + 1];
 
 	buff = malloc(buffsize); /* million bytes of work area */
 	assert(buff != NULL);
@@ -124,6 +125,23 @@ DEFINE_TEST(test_write_format_pax)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	archive_entry_free(ae);
 	assertEqualIntA(a, 8, archive_write_data(a, "12345678", 9));
+
+	/*
+	 * A pathname made entirely of '/' characters used to trigger an
+	 * out-of-bounds read in the pax writer when the pathname was long
+	 * enough to require USTAR name splitting.
+	 */
+	memset(long_slashes, '/', 300);
+	long_slashes[300] = '\0';
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_set_atime(ae, 2, 20);
+	archive_entry_set_ctime(ae, 4, 40);
+	archive_entry_set_mtime(ae, 5, 50);
+	archive_entry_copy_pathname(ae, long_slashes);
+	archive_entry_set_mode(ae, S_IFREG | 0644);
+	archive_entry_set_size(ae, 0);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+	archive_entry_free(ae);
 
 	/*
 	 * XXX TODO XXX Archive directory, other file types.
@@ -242,6 +260,19 @@ DEFINE_TEST(test_write_format_pax)
 	assertEqualInt(8, archive_entry_size(ae));
 	assertEqualIntA(a, 8, archive_read_data(a, buff2, 10));
 	assertEqualMem(buff2, "12345678", 8);
+
+	/*
+	 * Read the all-slash pathname entry.
+	 */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(long_slashes, archive_entry_pathname(ae));
+	assertEqualInt(2, archive_entry_atime(ae));
+	assertEqualInt(20, archive_entry_atime_nsec(ae));
+	assertEqualInt(4, archive_entry_ctime(ae));
+	assertEqualInt(40, archive_entry_ctime_nsec(ae));
+	assertEqualInt(5, archive_entry_mtime(ae));
+	assertEqualInt(50, archive_entry_mtime_nsec(ae));
+	assertEqualInt(0, archive_entry_size(ae));
 
 	/*
 	 * Verify the end of the archive.

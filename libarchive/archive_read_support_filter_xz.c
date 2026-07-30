@@ -50,7 +50,7 @@
 
 #if HAVE_LZMA_H && HAVE_LIBLZMA
 
-struct private_data {
+struct xz {
 	lzma_stream	 stream;
 	unsigned char	*out_block;
 	size_t		 out_block_size;
@@ -197,14 +197,14 @@ archive_read_support_filter_lzip(struct archive *_a)
  * Test whether we can handle this data.
  */
 static int
-xz_bidder_bid(struct archive_read_filter_bidder *self,
-    struct archive_read_filter *filter)
+xz_bidder_bid(struct archive_read_filter_bidder *b,
+    struct archive_read_filter *f)
 {
 	const unsigned char *buffer;
 
-	(void)self; /* UNUSED */
+	(void)b; /* UNUSED */
 
-	buffer = __archive_read_filter_ahead(filter, 6, NULL);
+	buffer = __archive_read_filter_ahead(f, 6, NULL);
 	if (buffer == NULL)
 		return (0);
 
@@ -230,17 +230,17 @@ xz_bidder_bid(struct archive_read_filter_bidder *self,
  * they have other evidence (file name, command-line option) to go on.
  */
 static int
-lzma_bidder_bid(struct archive_read_filter_bidder *self,
-    struct archive_read_filter *filter)
+lzma_bidder_bid(struct archive_read_filter_bidder *b,
+    struct archive_read_filter *f)
 {
 	const unsigned char *buffer;
 	uint32_t dicsize;
 	uint64_t uncompressed_size;
 	int bits_checked;
 
-	(void)self; /* UNUSED */
+	(void)b; /* UNUSED */
 
-	buffer = __archive_read_filter_ahead(filter, 14, NULL);
+	buffer = __archive_read_filter_ahead(f, 14, NULL);
 	if (buffer == NULL)
 		return (0);
 
@@ -336,13 +336,13 @@ lzma_bidder_bid(struct archive_read_filter_bidder *self,
 }
 
 static int
-lzip_has_member(struct archive_read_filter *filter)
+lzip_has_member(struct archive_read_filter *f)
 {
 	const unsigned char *buffer;
 	int bits_checked;
 	int log2dic;
 
-	buffer = __archive_read_filter_ahead(filter, 6, NULL);
+	buffer = __archive_read_filter_ahead(f, 6, NULL);
 	if (buffer == NULL)
 		return (0);
 
@@ -369,12 +369,12 @@ lzip_has_member(struct archive_read_filter *filter)
 }
 
 static int
-lzip_bidder_bid(struct archive_read_filter_bidder *self,
-    struct archive_read_filter *filter)
+lzip_bidder_bid(struct archive_read_filter_bidder *b,
+    struct archive_read_filter *f)
 {
 
-	(void)self; /* UNUSED */
-	return (lzip_has_member(filter));
+	(void)b; /* UNUSED */
+	return (lzip_has_member(f));
 }
 
 #if HAVE_LZMA_H && HAVE_LIBLZMA
@@ -383,34 +383,34 @@ lzip_bidder_bid(struct archive_read_filter_bidder *self,
  * liblzma 4.999.7 and later support both lzma and xz streams.
  */
 static int
-xz_bidder_init(struct archive_read_filter *self)
+xz_bidder_init(struct archive_read_filter *f)
 {
-	self->code = ARCHIVE_FILTER_XZ;
-	self->name = "xz";
-	return (xz_lzma_bidder_init(self));
+	f->code = ARCHIVE_FILTER_XZ;
+	f->name = "xz";
+	return (xz_lzma_bidder_init(f));
 }
 
 static int
-lzma_bidder_init(struct archive_read_filter *self)
+lzma_bidder_init(struct archive_read_filter *f)
 {
-	self->code = ARCHIVE_FILTER_LZMA;
-	self->name = "lzma";
-	return (xz_lzma_bidder_init(self));
+	f->code = ARCHIVE_FILTER_LZMA;
+	f->name = "lzma";
+	return (xz_lzma_bidder_init(f));
 }
 
 static int
-lzip_bidder_init(struct archive_read_filter *self)
+lzip_bidder_init(struct archive_read_filter *f)
 {
-	self->code = ARCHIVE_FILTER_LZIP;
-	self->name = "lzip";
-	return (xz_lzma_bidder_init(self));
+	f->code = ARCHIVE_FILTER_LZIP;
+	f->name = "lzip";
+	return (xz_lzma_bidder_init(f));
 }
 
 /*
  * Set an error code and choose an error message
  */
 static void
-set_error(struct archive_read_filter *self, int ret)
+set_error(struct archive_read_filter *f, int ret)
 {
 
 	switch (ret) {
@@ -418,36 +418,36 @@ set_error(struct archive_read_filter *self, int ret)
 	case LZMA_OK: /* Decompressor made some progress. */
 		break;
 	case LZMA_MEM_ERROR:
-		archive_set_error(&self->archive->archive, ENOMEM,
+		archive_set_error(&f->archive->archive, ENOMEM,
 		    "Lzma library error: Cannot allocate memory");
 		break;
 	case LZMA_MEMLIMIT_ERROR:
-		archive_set_error(&self->archive->archive, ENOMEM,
+		archive_set_error(&f->archive->archive, ENOMEM,
 		    "Lzma library error: Out of memory");
 		break;
 	case LZMA_FORMAT_ERROR:
-		archive_set_error(&self->archive->archive,
+		archive_set_error(&f->archive->archive,
 		    ARCHIVE_ERRNO_MISC,
 		    "Lzma library error: format not recognized");
 		break;
 	case LZMA_OPTIONS_ERROR:
-		archive_set_error(&self->archive->archive,
+		archive_set_error(&f->archive->archive,
 		    ARCHIVE_ERRNO_MISC,
 		    "Lzma library error: Invalid options");
 		break;
 	case LZMA_DATA_ERROR:
-		archive_set_error(&self->archive->archive,
+		archive_set_error(&f->archive->archive,
 		    ARCHIVE_ERRNO_MISC,
 		    "Lzma library error: Corrupted input data");
 		break;
 	case LZMA_BUF_ERROR:
-		archive_set_error(&self->archive->archive,
+		archive_set_error(&f->archive->archive,
 		    ARCHIVE_ERRNO_MISC,
 		    "Lzma library error:  No progress is possible");
 		break;
 	default:
 		/* Return an error. */
-		archive_set_error(&self->archive->archive,
+		archive_set_error(&f->archive->archive,
 		    ARCHIVE_ERRNO_MISC,
 		    "Lzma decompression failed:  Unknown error");
 		break;
@@ -464,84 +464,83 @@ xz_lzma_reader_vtable = {
  * Setup the callbacks.
  */
 static int
-xz_lzma_bidder_init(struct archive_read_filter *self)
+xz_lzma_bidder_init(struct archive_read_filter *f)
 {
 	static const size_t out_block_size = 64 * 1024;
 	void *out_block;
-	struct private_data *state;
+	struct xz *xz;
 	int ret;
 
-	state = calloc(1, sizeof(*state));
+	xz = calloc(1, sizeof(*xz));
 	out_block = malloc(out_block_size);
-	if (state == NULL || out_block == NULL) {
-		archive_set_error(&self->archive->archive, ENOMEM,
+	if (xz == NULL || out_block == NULL) {
+		archive_set_error(&f->archive->archive, ENOMEM,
 		    "Can't allocate data for xz decompression");
 		free(out_block);
-		free(state);
+		free(xz);
 		return (ARCHIVE_FATAL);
 	}
 
-	self->data = state;
-	state->out_block_size = out_block_size;
-	state->out_block = out_block;
-	self->vtable = &xz_lzma_reader_vtable;
+	f->data = xz;
+	xz->out_block_size = out_block_size;
+	xz->out_block = out_block;
+	f->vtable = &xz_lzma_reader_vtable;
 
-	state->stream.avail_in = 0;
+	xz->stream.avail_in = 0;
 
-	state->stream.next_out = state->out_block;
-	state->stream.avail_out = state->out_block_size;
+	xz->stream.next_out = xz->out_block;
+	xz->stream.avail_out = xz->out_block_size;
 
-	state->crc32 = 0;
-	if (self->code == ARCHIVE_FILTER_LZIP) {
+	xz->crc32 = 0;
+	if (f->code == ARCHIVE_FILTER_LZIP) {
 		/*
 		 * We have to read a lzip header and use it to initialize
 		 * compression library, thus we cannot initialize the
 		 * library for lzip here.
 		 */
-		state->in_stream = 0;
+		xz->in_stream = 0;
 		return (ARCHIVE_OK);
 	} else
-		state->in_stream = 1;
+		xz->in_stream = 1;
 
 	/* Initialize compression library. */
-	if (self->code == ARCHIVE_FILTER_XZ)
-		ret = lzma_stream_decoder(&(state->stream),
+	if (f->code == ARCHIVE_FILTER_XZ)
+		ret = lzma_stream_decoder(&(xz->stream),
 		    LZMA_MEMLIMIT,/* memlimit */
 		    LZMA_CONCATENATED);
 	else
-		ret = lzma_alone_decoder(&(state->stream),
+		ret = lzma_alone_decoder(&(xz->stream),
 		    LZMA_MEMLIMIT);/* memlimit */
 
 	if (ret == LZMA_OK)
 		return (ARCHIVE_OK);
 
 	/* Library setup failed: Choose an error message and clean up. */
-	set_error(self, ret);
+	set_error(f, ret);
 
-	free(state->out_block);
-	free(state);
-	self->data = NULL;
-	self->vtable = NULL;
+	free(xz->out_block);
+	free(xz);
+	f->data = NULL;
+	f->vtable = NULL;
 	return (ARCHIVE_FATAL);
 }
 
 static int
-lzip_init(struct archive_read_filter *self)
+lzip_init(struct archive_read_filter *f)
 {
-	struct private_data *state;
+	struct xz *xz = f->data;
 	const unsigned char *h;
 	lzma_filter filters[2];
 	unsigned char props[5];
 	uint32_t dicsize;
 	int log2dic, ret;
 
-	state = (struct private_data *)self->data;
-	h = __archive_read_filter_ahead(self->upstream, 6, NULL);
+	h = __archive_read_filter_ahead(f->upstream, 6, NULL);
 	if (h == NULL)
 		return (ARCHIVE_FATAL);
 
 	/* Get a version number. */
-	state->lzip_ver = h[4];
+	xz->lzip_ver = h[4];
 
 	/*
 	 * Setup lzma property.
@@ -558,8 +557,8 @@ lzip_init(struct archive_read_filter *self)
 	archive_le32enc(props+1, dicsize);
 
 	/* Consume lzip header. */
-	__archive_read_filter_consume(self->upstream, 6);
-	state->member_in = 6;
+	__archive_read_filter_consume(f->upstream, 6);
+	xz->member_in = 6;
 
 	filters[0].id = LZMA_FILTER_LZMA1;
 	filters[0].options = NULL;
@@ -568,74 +567,73 @@ lzip_init(struct archive_read_filter *self)
 
 	ret = lzma_properties_decode(&filters[0], NULL, props, sizeof(props));
 	if (ret != LZMA_OK) {
-		set_error(self, ret);
+		set_error(f, ret);
 		return (ARCHIVE_FATAL);
 	}
-	ret = lzma_raw_decoder(&(state->stream), filters);
+	ret = lzma_raw_decoder(&(xz->stream), filters);
 	free(filters[0].options);
 	if (ret != LZMA_OK) {
-		set_error(self, ret);
+		set_error(f, ret);
 		return (ARCHIVE_FATAL);
 	}
 	return (ARCHIVE_OK);
 }
 
 static int
-lzip_tail(struct archive_read_filter *self)
+lzip_tail(struct archive_read_filter *f)
 {
-	struct private_data *state;
-	const unsigned char *f;
+	struct xz *xz = f->data;
+	const unsigned char *p;
 	ssize_t avail_in;
 	int tail;
 
-	state = (struct private_data *)self->data;
-	if (state->lzip_ver == 0)
+	if (xz->lzip_ver == 0)
 		tail = 12;
 	else
 		tail = 20;
-	f = __archive_read_filter_ahead(self->upstream, tail, &avail_in);
-	if (f == NULL && avail_in < 0)
+	p = __archive_read_filter_ahead(f->upstream, tail, &avail_in);
+	if (p == NULL && avail_in < 0)
 		return (ARCHIVE_FATAL);
-	if (f == NULL || avail_in < tail) {
-		archive_set_error(&self->archive->archive, ARCHIVE_ERRNO_MISC,
+	if (p == NULL || avail_in < tail) {
+		archive_set_error(&f->archive->archive, ARCHIVE_ERRNO_MISC,
 		    "Lzip: Remaining data is less bytes");
 		return (ARCHIVE_FAILED);
 	}
 
 	/* Check the crc32 value of the uncompressed data of the current
 	 * member */
-	if (state->crc32 != archive_le32dec(f)) {
+	if (xz->crc32 != archive_le32dec(p)) {
 #ifndef DONT_FAIL_ON_CRC_ERROR
-		archive_set_error(&self->archive->archive, ARCHIVE_ERRNO_MISC,
+		archive_set_error(&f->archive->archive, ARCHIVE_ERRNO_MISC,
 		    "Lzip: CRC32 error");
 		return (ARCHIVE_FAILED);
 #endif
 	}
 
 	/* Check the uncompressed size of the current member */
-	if ((uint64_t)state->member_out != archive_le64dec(f + 4)) {
-		archive_set_error(&self->archive->archive, ARCHIVE_ERRNO_MISC,
+	if ((uint64_t)xz->member_out != archive_le64dec(p + 4)) {
+		archive_set_error(&f->archive->archive, ARCHIVE_ERRNO_MISC,
 		    "Lzip: Uncompressed size error");
 		return (ARCHIVE_FAILED);
 	}
 
 	/* Check the total size of the current member */
-	if (state->lzip_ver == 1 &&
-	    (uint64_t)state->member_in + tail != archive_le64dec(f + 12)) {
-		archive_set_error(&self->archive->archive, ARCHIVE_ERRNO_MISC,
+	if (xz->lzip_ver == 1 &&
+	    (uint64_t)xz->member_in + tail != archive_le64dec(p + 12)) {
+		archive_set_error(&f->archive->archive, ARCHIVE_ERRNO_MISC,
 		    "Lzip: Member size error");
 		return (ARCHIVE_FAILED);
 	}
-	__archive_read_filter_consume(self->upstream, tail);
+	__archive_read_filter_consume(f->upstream, tail);
 
 	/* If current lzip data consists of multi member, try decompressing
 	 * a next member. */
-	if (lzip_has_member(self->upstream) != 0) {
-		state->in_stream = 0;
-		state->crc32 = 0;
-		state->member_out = 0;
-		state->member_in = 0;
-		state->eof = 0;
+	if (lzip_has_member(f->upstream) != 0) {
+		xz->in_stream = 0;
+		xz->crc32 = 0;
+		xz->member_out = 0;
+		xz->member_in = 0;
+		xz->eof = 0;
 	}
 	return (ARCHIVE_OK);
 }
@@ -644,82 +642,80 @@ lzip_tail(struct archive_read_filter *self)
  * Return the next block of decompressed data.
  */
 static ssize_t
-xz_filter_read(struct archive_read_filter *self, const void **p)
+xz_filter_read(struct archive_read_filter *f, const void **p)
 {
-	struct private_data *state;
+	struct xz *xz = f->data;
 	size_t decompressed;
 	ssize_t avail_in;
 	int64_t member_in;
 	int ret;
 
-	state = (struct private_data *)self->data;
-
 	redo:
 	/* Empty our output buffer. */
-	state->stream.next_out = state->out_block;
-	state->stream.avail_out = state->out_block_size;
-	member_in = state->member_in;
+	xz->stream.next_out = xz->out_block;
+	xz->stream.avail_out = xz->out_block_size;
+	member_in = xz->member_in;
 
 	/* Try to fill the output buffer. */
-	while (state->stream.avail_out > 0 && !state->eof) {
-		if (!state->in_stream) {
+	while (xz->stream.avail_out > 0 && !xz->eof) {
+		if (!xz->in_stream) {
 			/*
 			 * Initialize liblzma for lzip
 			 */
-			ret = lzip_init(self);
+			ret = lzip_init(f);
 			if (ret != ARCHIVE_OK)
 				return (ret);
-			state->in_stream = 1;
+			xz->in_stream = 1;
 		}
-		state->stream.next_in =
-		    __archive_read_filter_ahead(self->upstream, 1, &avail_in);
-		if (state->stream.next_in == NULL && avail_in < 0) {
-			archive_set_error(&self->archive->archive,
+		xz->stream.next_in =
+		    __archive_read_filter_ahead(f->upstream, 1, &avail_in);
+		if (xz->stream.next_in == NULL && avail_in < 0) {
+			archive_set_error(&f->archive->archive,
 			    ARCHIVE_ERRNO_MISC,
 			    "truncated input");
 			return (ARCHIVE_FATAL);
 		}
-		state->stream.avail_in = avail_in;
+		xz->stream.avail_in = avail_in;
 
 		/* Decompress as much as we can in one pass. */
-		ret = lzma_code(&(state->stream),
-		    (state->stream.avail_in == 0)? LZMA_FINISH: LZMA_RUN);
+		ret = lzma_code(&(xz->stream),
+		    (xz->stream.avail_in == 0)? LZMA_FINISH: LZMA_RUN);
 		switch (ret) {
 		case LZMA_STREAM_END: /* Found end of stream. */
-			state->eof = 1;
+			xz->eof = 1;
 			/* FALL THROUGH */
 		case LZMA_OK: /* Decompressor made some progress. */
-			__archive_read_filter_consume(self->upstream,
-			    avail_in - state->stream.avail_in);
-			state->member_in +=
-			    avail_in - state->stream.avail_in;
+			__archive_read_filter_consume(f->upstream,
+			    avail_in - xz->stream.avail_in);
+			xz->member_in +=
+			    avail_in - xz->stream.avail_in;
 			break;
 		default:
-			set_error(self, ret);
+			set_error(f, ret);
 			return (ARCHIVE_FATAL);
 		}
 	}
 
-	decompressed = state->stream.next_out - state->out_block;
-	state->member_out += decompressed;
+	decompressed = xz->stream.next_out - xz->out_block;
+	xz->member_out += decompressed;
 	if (decompressed == 0) {
-		if (member_in != state->member_in &&
-		    self->code == ARCHIVE_FILTER_LZIP &&
-		    state->eof) {
-			ret = lzip_tail(self);
+		if (member_in != xz->member_in &&
+		    f->code == ARCHIVE_FILTER_LZIP &&
+		    xz->eof) {
+			ret = lzip_tail(f);
 			if (ret != ARCHIVE_OK)
 				return (ret);
-			if (!state->eof)
+			if (!xz->eof)
 				goto redo;
 		}
 		*p = NULL;
 	} else {
-		*p = state->out_block;
-		if (self->code == ARCHIVE_FILTER_LZIP) {
-			state->crc32 = lzma_crc32(state->out_block,
-			    decompressed, state->crc32);
-			if (state->eof) {
-				ret = lzip_tail(self);
+		*p = xz->out_block;
+		if (f->code == ARCHIVE_FILTER_LZIP) {
+			xz->crc32 = lzma_crc32(xz->out_block,
+			    decompressed, xz->crc32);
+			if (xz->eof) {
+				ret = lzip_tail(f);
 				if (ret != ARCHIVE_OK)
 					return (ret);
 			}
@@ -732,14 +728,13 @@ xz_filter_read(struct archive_read_filter *self, const void **p)
  * Clean up the decompressor.
  */
 static int
-xz_filter_close(struct archive_read_filter *self)
+xz_filter_close(struct archive_read_filter *f)
 {
-	struct private_data *state;
+	struct xz *xz = f->data;
 
-	state = (struct private_data *)self->data;
-	lzma_end(&(state->stream));
-	free(state->out_block);
-	free(state);
+	lzma_end(&(xz->stream));
+	free(xz->out_block);
+	free(xz);
 	return (ARCHIVE_OK);
 }
 
@@ -753,44 +748,44 @@ xz_filter_close(struct archive_read_filter *self)
  *
  */
 static int
-lzma_bidder_init(struct archive_read_filter *self)
+lzma_bidder_init(struct archive_read_filter *f)
 {
 	int r;
 
-	r = __archive_read_program(self, "lzma -d -qq");
+	r = __archive_read_program(f, "lzma -d -qq");
 	/* Note: We set the format here even if __archive_read_program()
 	 * above fails.  We do, after all, know what the format is
 	 * even if we weren't able to read it. */
-	self->code = ARCHIVE_FILTER_LZMA;
-	self->name = "lzma";
+	f->code = ARCHIVE_FILTER_LZMA;
+	f->name = "lzma";
 	return (r);
 }
 
 static int
-xz_bidder_init(struct archive_read_filter *self)
+xz_bidder_init(struct archive_read_filter *f)
 {
 	int r;
 
-	r = __archive_read_program(self, "xz -d -qq");
+	r = __archive_read_program(f, "xz -d -qq");
 	/* Note: We set the format here even if __archive_read_program()
 	 * above fails.  We do, after all, know what the format is
 	 * even if we weren't able to read it. */
-	self->code = ARCHIVE_FILTER_XZ;
-	self->name = "xz";
+	f->code = ARCHIVE_FILTER_XZ;
+	f->name = "xz";
 	return (r);
 }
 
 static int
-lzip_bidder_init(struct archive_read_filter *self)
+lzip_bidder_init(struct archive_read_filter *f)
 {
 	int r;
 
-	r = __archive_read_program(self, "lzip -d -q");
+	r = __archive_read_program(f, "lzip -d -q");
 	/* Note: We set the format here even if __archive_read_program()
 	 * above fails.  We do, after all, know what the format is
 	 * even if we weren't able to read it. */
-	self->code = ARCHIVE_FILTER_LZIP;
-	self->name = "lzip";
+	f->code = ARCHIVE_FILTER_LZIP;
+	f->name = "lzip";
 	return (r);
 }
 

@@ -278,3 +278,14 @@ DEFINE_TEST(test_write_format_gnutar)
 
 	free(buff);
 }
+
+DEFINE_TEST(test_write_format_gnutar_switch)
+{
+	struct archive *a;
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_7zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_gnutar(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_gnutar(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+}

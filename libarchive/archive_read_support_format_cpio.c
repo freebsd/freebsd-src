@@ -261,13 +261,11 @@ archive_read_support_format_cpio(struct archive *_a)
 static int
 archive_read_format_cpio_bid(struct archive_read *a, int best_bid)
 {
+	struct cpio *cpio = a->format->data;
 	const unsigned char *p;
-	struct cpio *cpio;
 	int bid;
 
 	(void)best_bid; /* UNUSED */
-
-	cpio = (struct cpio *)(a->format->data);
 
 	if ((p = __archive_read_ahead(a, 6, NULL)) == NULL)
 		return (-1);
@@ -326,10 +324,9 @@ static int
 archive_read_format_cpio_options(struct archive_read *a,
     const char *key, const char *val)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format->data;
 	int ret = ARCHIVE_FAILED;
 
-	cpio = (struct cpio *)(a->format->data);
 	if (strcmp(key, "compat-2x")  == 0) {
 		/* Handle filenames as libarchive 2.x */
 		cpio->init_default_conversion = (val != NULL)?1:0;
@@ -364,14 +361,14 @@ static int
 archive_read_format_cpio_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format->data;
 	const void *h, *hl;
 	struct archive_string_conv *sconv;
 	size_t namelength;
 	size_t name_pad;
+	int is_trailer;
 	int r;
 
-	cpio = (struct cpio *)(a->format->data);
 	sconv = cpio->opt_sconv;
 	if (sconv == NULL) {
 		if (!cpio->init_default_conversion) {
@@ -411,6 +408,9 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 		    archive_string_conversion_charset_name(sconv));
 		r = ARCHIVE_WARN;
 	}
+	/* Save this before consuming the name buffer below. */
+	is_trailer = (namelength == 11 &&
+	    memcmp((const char *)h, "TRAILER!!!", 10) == 0);
 	cpio->entry_offset = 0;
 
 	__archive_read_consume(a, namelength);
@@ -451,8 +451,7 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 	 * header.  XXX */
 
 	/* Compare name to "TRAILER!!!" to test for end-of-archive. */
-	if (namelength == 11 && strncmp((const char *)h, "TRAILER!!!",
-	    10) == 0) {
+	if (is_trailer) {
 		/* TODO: Store file location of start of block. */
 		archive_clear_error(&a->archive);
 		return (ARCHIVE_EOF);
@@ -470,10 +469,8 @@ static int
 archive_read_format_cpio_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
+	struct cpio *cpio = a->format->data;
 	ssize_t bytes_read;
-	struct cpio *cpio;
-
-	cpio = (struct cpio *)(a->format->data);
 
 	if (cpio->entry_bytes_unconsumed) {
 		__archive_read_consume(a, cpio->entry_bytes_unconsumed);
@@ -508,7 +505,7 @@ archive_read_format_cpio_read_data(struct archive_read *a,
 static int
 archive_read_format_cpio_skip(struct archive_read *a)
 {
-	struct cpio *cpio = (struct cpio *)(a->format->data);
+	struct cpio *cpio = a->format->data;
 	int64_t to_skip = cpio->entry_bytes_remaining + cpio->entry_padding +
 		cpio->entry_bytes_unconsumed;
 
@@ -545,7 +542,8 @@ find_newc_header(struct archive_read *a)
 {
 	const void *h;
 	const char *p, *q;
-	size_t skip, skipped = 0;
+	int64_t skip;
+	uintmax_t skipped = 0;
 	ssize_t bytes;
 
 	for (;;) {
@@ -577,9 +575,9 @@ find_newc_header(struct archive_read *a)
 					if (skipped > 0) {
 						archive_set_error(&a->archive,
 						    0,
-						    "Skipped %d bytes before "
+						    "Skipped %ju bytes before "
 						    "finding valid header",
-						    (int)skipped);
+						    skipped);
 						return (ARCHIVE_WARN);
 					}
 					return (ARCHIVE_OK);
@@ -1000,9 +998,8 @@ header_bin_be(struct archive_read *a, struct cpio *cpio,
 static int
 archive_read_format_cpio_cleanup(struct archive_read *a)
 {
-	struct cpio *cpio;
+	struct cpio *cpio = a->format->data;
 
-	cpio = (struct cpio *)(a->format->data);
         /* Free inode->name map */
         while (cpio->links_head != NULL) {
                 struct links_entry *lp = cpio->links_head->next;
@@ -1012,7 +1009,7 @@ archive_read_format_cpio_cleanup(struct archive_read *a)
                 cpio->links_head = lp;
         }
 	free(cpio);
-	(a->format->data) = NULL;
+	a->format->data = NULL;
 	return (ARCHIVE_OK);
 }
 

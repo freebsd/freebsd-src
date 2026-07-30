@@ -969,3 +969,109 @@ DEFINE_TEST(test_read_format_xar_large_mode)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+/*
+ * A TOC with an odd-length base64-encoded <name> used to make
+ * strappend_base64() read one byte past the (non-NUL-terminated) expat
+ * character-data buffer and then underflow its size_t length counter.
+ * The trailing incomplete base64 character must be dropped; the rest of
+ * the name still decodes ("YWJjA" -> "abc").
+ */
+DEFINE_TEST(test_read_format_xar_base64_oob)
+{
+	const char *reffile = "test_read_format_xar_base64_oob.xar";
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+
+	extract_reference_file(reffile);
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_filter_all(a));
+
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xar reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+
+	assertA(0 == archive_read_open_filename(a, reffile, 10240));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("abc", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/*
+ * A numeric TOC field (here <inode>) is parsed by atou64().  Under the
+ * expat backend that function is handed the raw, non-NUL-terminated
+ * character-data buffer (libxml2 masks this by passing a strlen'd copy).
+ * The loop fetched the next digit with *++p before checking the remaining
+ * count, so an all-digit field whose content ends at the parser buffer
+ * read one byte past the supplied range.  The parsed value is unchanged;
+ * only the stray read is gone.  Build with ASan to catch the over-read.
+ */
+DEFINE_TEST(test_read_format_xar_atou64_overread)
+{
+	const char *reffile = "test_read_format_xar_atou64_overread.xar";
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+
+	extract_reference_file(reffile);
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_filter_all(a));
+
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xar reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+
+	assertA(0 == archive_read_open_filename(a, reffile, 10240));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("num", archive_entry_pathname(ae));
+	assertEqualInt(1234567890, archive_entry_ino64(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
+/*
+ * parse_time() reads a fixed 20-byte timestamp and handed atou64() a width
+ * of 4 for every field.  The trailing seconds field sits at offset 17, so a
+ * value whose last three bytes are all digits (here "...00:00:123") made
+ * atou64() read one byte past the 20-byte value.  This archive carries such
+ * an <mtime>; reading it must stay within the value.
+ */
+DEFINE_TEST(test_read_format_xar_parse_time_overread)
+{
+	const char *reffile = "test_read_format_xar_parse_time_overread.xar";
+	struct archive_entry *ae;
+	struct archive *a;
+	int r;
+
+	extract_reference_file(reffile);
+	assert((a = archive_read_new()) != NULL);
+	assertA(0 == archive_read_support_filter_all(a));
+
+	r = archive_read_support_format_xar(a);
+	if (r == ARCHIVE_WARN) {
+		skipping("xar reading not fully supported on this platform");
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+		return;
+	}
+
+	assertA(0 == archive_read_open_filename(a, reffile, 10240));
+
+	assertA(0 == archive_read_next_header(a, &ae));
+	assertEqualString("num", archive_entry_pathname(ae));
+	assertEqualInt(1234567890, archive_entry_ino64(ae));
+
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}

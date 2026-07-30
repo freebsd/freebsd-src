@@ -98,11 +98,8 @@ shar_quote(struct archive_string *buf, const char *str, int in_shell)
 	}
 }
 
-/*
- * Set output format to 'shar' format.
- */
-int
-archive_write_set_format_shar(struct archive *_a)
+static int
+shar_set_format(struct archive *_a, int dump)
 {
 	struct archive_write *a = (struct archive_write *)_a;
 	struct shar *shar;
@@ -111,8 +108,7 @@ archive_write_set_format_shar(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_shar");
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_free != NULL)
-		(a->format_free)(a);
+	(void)__archive_write_unregister_format(a);
 
 	shar = calloc(1, sizeof(*shar));
 	if (shar == NULL) {
@@ -121,16 +117,32 @@ archive_write_set_format_shar(struct archive *_a)
 	}
 	archive_string_init(&shar->work);
 	archive_string_init(&shar->quoted_name);
+	if (dump) {
+		shar->dump = 1;
+		a->format_write_data = archive_write_shar_data_uuencode;
+		a->archive.archive_format = ARCHIVE_FORMAT_SHAR_DUMP;
+		a->archive.archive_format_name = "shar dump";
+	} else {
+		a->format_write_data = archive_write_shar_data_sed;
+		a->archive.archive_format = ARCHIVE_FORMAT_SHAR_BASE;
+		a->archive.archive_format_name = "shar";
+	}
 	a->format_data = shar;
 	a->format_name = "shar";
 	a->format_write_header = archive_write_shar_header;
 	a->format_close = archive_write_shar_close;
 	a->format_free = archive_write_shar_free;
-	a->format_write_data = archive_write_shar_data_sed;
 	a->format_finish_entry = archive_write_shar_finish_entry;
-	a->archive.archive_format = ARCHIVE_FORMAT_SHAR_BASE;
-	a->archive.archive_format_name = "shar";
 	return (ARCHIVE_OK);
+}
+
+/*
+ * Set output format to 'shar' format.
+ */
+int
+archive_write_set_format_shar(struct archive *a)
+{
+	return shar_set_format(a, 0);
 }
 
 /*
@@ -140,31 +152,19 @@ archive_write_set_format_shar(struct archive *_a)
  * and other extended file information.
  */
 int
-archive_write_set_format_shar_dump(struct archive *_a)
+archive_write_set_format_shar_dump(struct archive *a)
 {
-	struct archive_write *a = (struct archive_write *)_a;
-	struct shar *shar;
-
-	int ret = archive_write_set_format_shar(&a->archive);
-	if (ret != ARCHIVE_OK)
-		return ret;
-	shar = (struct shar *)a->format_data;
-	shar->dump = 1;
-	a->format_write_data = archive_write_shar_data_uuencode;
-	a->archive.archive_format = ARCHIVE_FORMAT_SHAR_DUMP;
-	a->archive.archive_format_name = "shar dump";
-	return (ARCHIVE_OK);
+	return shar_set_format(a, 1);
 }
 
 static int
 archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 {
+	struct shar *shar = a->format_data;
 	const char *linkname;
 	const char *name;
 	char *p, *pp;
-	struct shar *shar;
 
-	shar = (struct shar *)a->format_data;
 	if (!shar->wrote_header) {
 		archive_strcat(&shar->work, "#!/bin/sh\n");
 		archive_strcat(&shar->work, "# This is a shell archive\n");
@@ -343,14 +343,13 @@ archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 static ssize_t
 archive_write_shar_data_sed(struct archive_write *a, const void *buff, size_t n)
 {
+	struct shar *shar = a->format_data;
 	static const size_t ensured = 65533;
-	struct shar *shar;
 	const char *src;
 	char *buf, *buf_end;
 	int ret;
 	size_t written = n;
 
-	shar = (struct shar *)a->format_data;
 	if (!shar->has_data || n == 0)
 		return (0);
 
@@ -475,12 +474,11 @@ static ssize_t
 archive_write_shar_data_uuencode(struct archive_write *a, const void *buff,
     size_t length)
 {
-	struct shar *shar;
+	struct shar *shar = a->format_data;
 	const char *src;
 	size_t n;
 	int ret;
 
-	shar = (struct shar *)a->format_data;
 	if (!shar->has_data)
 		return (ARCHIVE_OK);
 	src = (const char *)buff;
@@ -524,13 +522,12 @@ archive_write_shar_data_uuencode(struct archive_write *a, const void *buff,
 static int
 archive_write_shar_finish_entry(struct archive_write *a)
 {
+	struct shar *shar = a->format_data;
 	const char *g, *p, *u;
-	struct shar *shar;
 	int ret;
 
-	shar = (struct shar *)a->format_data;
 	if (shar->entry == NULL)
-		return (0);
+		return (ARCHIVE_OK);
 
 	if (shar->dump) {
 		/* Finish uuencoded data. */
@@ -602,15 +599,13 @@ archive_write_shar_finish_entry(struct archive_write *a)
 static int
 archive_write_shar_close(struct archive_write *a)
 {
-	struct shar *shar;
+	struct shar *shar = a->format_data;
 	int ret;
 
 	/*
 	 * TODO: Accumulate list of directory names/modes and
 	 * fix them all up at end-of-archive.
 	 */
-
-	shar = (struct shar *)a->format_data;
 
 	/*
 	 * Only write the end-of-archive markers if the archive was
@@ -640,9 +635,8 @@ archive_write_shar_close(struct archive_write *a)
 static int
 archive_write_shar_free(struct archive_write *a)
 {
-	struct shar *shar;
+	struct shar *shar = a->format_data;
 
-	shar = (struct shar *)a->format_data;
 	if (shar == NULL)
 		return (ARCHIVE_OK);
 

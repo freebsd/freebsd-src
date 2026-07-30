@@ -3918,6 +3918,28 @@ DEFINE_TEST(test_read_format_rar_ppmd_use_after_free2)
   assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
+DEFINE_TEST(test_read_format_rar_seek_data_cursor0)
+{
+  const char* reffile = "test_read_format_rar_seek_data_cursor0.rar";
+
+  struct archive_entry *ae;
+  struct archive *a;
+
+  extract_reference_file(reffile);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_filter_all(a));
+  assertA(0 == archive_read_support_format_all(a));
+  assertA(0 == archive_read_open_filename(a, reffile, 10240));
+
+  assertA(ARCHIVE_OK == archive_read_next_header(a, &ae));
+
+  failure("RAR seek should reject an invalid cursor state");
+  assert(archive_seek_data(a, -1, SEEK_END) < 0);
+
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 DEFINE_TEST(test_read_format_rar_newsub_huge)
 {
 #if SIZE_MAX == UINT64_MAX

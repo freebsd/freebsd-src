@@ -172,8 +172,7 @@ archive_write_set_format_ustar(struct archive *_a)
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_ustar");
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_free != NULL)
-		(a->format_free)(a);
+	(void)__archive_write_unregister_format(a);
 
 	/* Basic internal sanity test. */
 	if (sizeof(template_header) != 512) {
@@ -206,7 +205,7 @@ static int
 archive_write_ustar_options(struct archive_write *a, const char *key,
     const char *val)
 {
-	struct ustar *ustar = (struct ustar *)a->format_data;
+	struct ustar *ustar = a->format_data;
 	int ret = ARCHIVE_FAILED;
 
 	if (strcmp(key, "hdrcharset")  == 0) {
@@ -234,13 +233,11 @@ archive_write_ustar_options(struct archive_write *a, const char *key,
 static int
 archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 {
+	struct ustar *ustar = a->format_data;
 	char buff[512];
 	int ret, ret2;
-	struct ustar *ustar;
 	struct archive_entry *entry_main;
 	struct archive_string_conv *sconv;
-
-	ustar = (struct ustar *)a->format_data;
 
 	/* Setup default string conversion. */
 	if (ustar->opt_sconv == NULL) {
@@ -736,9 +733,8 @@ archive_write_ustar_close(struct archive_write *a)
 static int
 archive_write_ustar_free(struct archive_write *a)
 {
-	struct ustar *ustar;
+	struct ustar *ustar = a->format_data;
 
-	ustar = (struct ustar *)a->format_data;
 	free(ustar);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
@@ -747,12 +743,11 @@ archive_write_ustar_free(struct archive_write *a)
 static int
 archive_write_ustar_finish_entry(struct archive_write *a)
 {
-	struct ustar *ustar;
+	struct ustar *ustar = a->format_data;
 	int ret;
 
-	ustar = (struct ustar *)a->format_data;
 	ret = __archive_write_nulls(a,
-	    (size_t)(ustar->entry_bytes_remaining + ustar->entry_padding));
+	    ustar->entry_bytes_remaining + ustar->entry_padding);
 	ustar->entry_bytes_remaining = ustar->entry_padding = 0;
 	return (ret);
 }
@@ -760,10 +755,9 @@ archive_write_ustar_finish_entry(struct archive_write *a)
 static ssize_t
 archive_write_ustar_data(struct archive_write *a, const void *buff, size_t s)
 {
-	struct ustar *ustar;
+	struct ustar *ustar = a->format_data;
 	int ret;
 
-	ustar = (struct ustar *)a->format_data;
 	if (s > ustar->entry_bytes_remaining)
 		s = (size_t)ustar->entry_bytes_remaining;
 	ret = __archive_write_output(a, buff, s);

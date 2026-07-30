@@ -216,7 +216,7 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	myAssertEqualMem(e + 148, "010034\0 ", 8); /* checksum */
 	myAssertEqualMem(e + 156, "0", 1); /* linkflag */
 	myAssertEqualMem(e + 157, "", 1); /* linkname */
-	myAssertEqualMem(e + 257, "ustar\000000", 8); /* signature/version */
+	myAssertEqualMem(e + 257, "ustar\00000", 8); /* signature/version */
 	myAssertEqualMem(e + 265, "", 1); /* uname */
 	myAssertEqualMem(e + 297, "", 1); /* gname */
 	myAssertEqualMem(e + 329, "000000 ", 8); /* devmajor */
@@ -237,7 +237,7 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	myAssertEqualMem(e + 148, "010707\0 ", 8); /* checksum */
 	myAssertEqualMem(e + 156, "0", 1); /* linkflag */
 	myAssertEqualMem(e + 157, "", 1); /* linkname */
-	myAssertEqualMem(e + 257, "ustar\000000", 8); /* signature/version */
+	myAssertEqualMem(e + 257, "ustar\00000", 8); /* signature/version */
 	myAssertEqualMem(e + 265, "", 1); /* uname */
 	myAssertEqualMem(e + 297, "", 1); /* gname */
 	myAssertEqualMem(e + 329, "000000 ", 8); /* devmajor */
@@ -256,7 +256,7 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	myAssertEqualMem(e + 148, "007747\0 ", 8); /* checksum */
 	myAssertEqualMem(e + 156, "5", 1); /* typeflag */
 	myAssertEqualMem(e + 157, "", 1); /* linkname */
-	myAssertEqualMem(e + 257, "ustar\000000", 8); /* signature/version */
+	myAssertEqualMem(e + 257, "ustar\00000", 8); /* signature/version */
 	myAssertEqualMem(e + 265, "", 1); /* uname */
 	myAssertEqualMem(e + 297, "", 1); /* gname */
 	myAssertEqualMem(e + 329, "000000 ", 8); /* devmajor */
@@ -275,7 +275,7 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	myAssertEqualMem(e + 148, "011446\0 ", 8); /* checksum */
 	myAssertEqualMem(e + 156, "2", 1); /* linkflag */
 	myAssertEqualMem(e + 157, "file", 5); /* linkname */
-	myAssertEqualMem(e + 257, "ustar\000000", 8); /* signature/version */
+	myAssertEqualMem(e + 257, "ustar\00000", 8); /* signature/version */
 	myAssertEqualMem(e + 265, "", 1); /* uname */
 	myAssertEqualMem(e + 297, "", 1); /* gname */
 	myAssertEqualMem(e + 329, "000000 ", 8); /* devmajor */
@@ -294,7 +294,7 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	myAssertEqualMem(e + 148, "034242\0 ", 8); /* checksum */
 	myAssertEqualMem(e + 156, "0", 1); /* linkflag */
 	myAssertEqualMem(e + 157, "", 1); /* linkname */
-	myAssertEqualMem(e + 257, "ustar\000000", 8); /* signature/version */
+	myAssertEqualMem(e + 257, "ustar\00000", 8); /* signature/version */
 	myAssertEqualMem(e + 265, "", 1); /* uname */
 	myAssertEqualMem(e + 297, "", 1); /* gname */
 	myAssertEqualMem(e + 329, "000000 ", 8); /* devmajor */
@@ -313,7 +313,7 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	myAssertEqualMem(e + 148, "026230\0 ", 8); /* checksum */
 	myAssertEqualMem(e + 156, "0", 1); /* linkflag */
 	myAssertEqualMem(e + 157, "", 1); /* linkname */
-	myAssertEqualMem(e + 257, "ustar\000000", 8); /* signature/version */
+	myAssertEqualMem(e + 257, "ustar\00000", 8); /* signature/version */
 	myAssertEqualMem(e + 265, "", 1); /* uname */
 	myAssertEqualMem(e + 297, "", 1); /* gname */
 	myAssertEqualMem(e + 329, "000000 ", 8); /* devmajor */
@@ -332,7 +332,7 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	myAssertEqualMem(e + 148, "055570\0 ", 8); /* checksum */
 	myAssertEqualMem(e + 156, "0", 1); /* linkflag */
 	myAssertEqualMem(e + 157, "", 1); /* linkname */
-	myAssertEqualMem(e + 257, "ustar\000000", 8); /* signature/version */
+	myAssertEqualMem(e + 257, "ustar\00000", 8); /* signature/version */
 	myAssertEqualMem(e + 265, "", 1); /* uname */
 	myAssertEqualMem(e + 297, "", 1); /* gname */
 	myAssertEqualMem(e + 329, "000000 ", 8); /* devmajor */

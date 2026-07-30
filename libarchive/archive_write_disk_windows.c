@@ -194,6 +194,8 @@ struct archive_write_disk {
 
 static int	disk_unlink(const wchar_t *);
 static int	disk_rmdir(const wchar_t *);
+static int	check_symlinks_by_path(struct archive_write_disk *,
+		    wchar_t *, size_t *, int);
 static int	check_symlinks(struct archive_write_disk *);
 static int	create_filesystem_object(struct archive_write_disk *);
 static struct fixup_entry *current_fixup(struct archive_write_disk *,
@@ -244,8 +246,8 @@ static ssize_t	_archive_write_disk_data_block(struct archive *, const void *,
     ((((int64_t)(bhfi)->nFileSizeHigh) << 32) | (bhfi)->nFileSizeLow)
 
 static int
-file_information(struct archive_write_disk *a, wchar_t *path,
-    BY_HANDLE_FILE_INFORMATION *st, mode_t *mode, int sim_lstat)
+file_information(wchar_t *path, BY_HANDLE_FILE_INFORMATION *st,
+    mode_t *mode, int sim_lstat)
 {
 	HANDLE h;
 	int r;
@@ -282,10 +284,10 @@ file_information(struct archive_write_disk *a, wchar_t *path,
 	ZeroMemory(&createExParams, sizeof(createExParams));
 	createExParams.dwSize = sizeof(createExParams);
 	createExParams.dwFileFlags = flag;
-	h = CreateFile2(a->name, 0, 0,
+	h = CreateFile2(path, 0, 0,
 		OPEN_EXISTING, &createExParams);
 #else
-	h = CreateFileW(a->name, 0, 0, NULL,
+	h = CreateFileW(path, 0, 0, NULL,
 	    OPEN_EXISTING, flag, NULL);
 #endif
 	if (h == INVALID_HANDLE_VALUE &&
@@ -629,6 +631,7 @@ la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target,
 	DWORD attrs = 0;
 	DWORD flags = 0;
 	DWORD newflags = 0;
+	DWORD lasterr = 0;
 
 	len = wcslen(target);
 	if (len == 0) {
@@ -693,10 +696,14 @@ la_CreateSymbolicLinkW(const wchar_t *linkname, const wchar_t *target,
 	ret = CreateSymbolicLinkW(linkname, ttarget, newflags);
 	/*
 	 * Prior to Windows 10 calling CreateSymbolicLinkW() will fail
-	 * if SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE is set
+	 * if SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE is set; however,
+	 * trying this fallback if we fail due to a bad path will replace
+	 * ENOENT with EPERM and confuse later error recovery efforts.
 	 */
 	if (!ret) {
-		ret = CreateSymbolicLinkW(linkname, ttarget, flags);
+		lasterr = GetLastError();
+		if (lasterr != ERROR_PATH_NOT_FOUND)
+			ret = CreateSymbolicLinkW(linkname, ttarget, flags);
 	}
 	free(ttarget);
 #endif
@@ -741,7 +748,7 @@ lazy_stat(struct archive_write_disk *a)
 	 * XXX At this point, symlinks should not be hit, otherwise
 	 * XXX a race occurred.  Do we want to check explicitly for that?
 	 */
-	if (file_information(a, a->name, &a->st, NULL, 1) == 0) {
+	if (file_information(a->name, &a->st, NULL, 1) == 0) {
 		a->pst = &a->st;
 		return (ARCHIVE_OK);
 	}
@@ -1516,7 +1523,7 @@ restore_entry(struct archive_write_disk *a)
 		 * such symlinks. We always need both source and target
 		 * information.
 		 */
-		r = file_information(a, a->name, &lst, &lst_mode, 1);
+		r = file_information(a->name, &lst, &lst_mode, 1);
 		if (r != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't stat existing object");
@@ -1525,7 +1532,7 @@ restore_entry(struct archive_write_disk *a)
 			if (lst.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
 				dirlnk = 1;
 			/* In case of a symlink we need target information */
-			r = file_information(a, a->name, &a->st, &st_mode, 0);
+			r = file_information(a->name, &a->st, &st_mode, 0);
 			if (r != 0) {
 				a->st = lst;
 				st_mode = lst_mode;
@@ -1653,6 +1660,7 @@ create_filesystem_object(struct archive_write_disk *a)
 	mode_t final_mode, mode;
 	int r;
 	DWORD attrs = 0;
+	DWORD file_flags = 0;
 # if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
 		CREATEFILE2_EXTENDED_PARAMETERS createExParams;
 #endif
@@ -1675,6 +1683,22 @@ create_filesystem_object(struct archive_write_disk *a)
 			free(linksanitized);
 			return (r);
 		}
+
+		if (a->flags & ARCHIVE_EXTRACT_SECURE_SYMLINKS) {
+			r = check_symlinks_by_path(a, linksanitized, NULL, 1);
+			if (r != ARCHIVE_OK) {
+				/*
+				 * Prevent extracting a hardlink to a symlink.
+				 * libarchive supports the POSIX feature of
+				 * hardlinks with data payloads, which would
+				 * provide a way to write through an otherwise
+				 * disallowed symlink.
+				 */
+				free(linksanitized);
+				return (r);
+			}
+		}
+
 		linkfull = __la_win_permissive_name_w(linksanitized);
 		free(linksanitized);
 		namefull = __la_win_permissive_name_w(a->name);
@@ -1752,6 +1776,13 @@ create_filesystem_object(struct archive_write_disk *a)
 			else
 				disk_unlink(a->name);
 		}
+
+		/*
+		 * Since the symlink-safe path cache is just an optimization, and we
+		 * are about to create a new symlink, invalidating the cache prevents
+		 * incidentally writing through the entry we are about to create.
+		 */
+		a->path_safe.s[0] = 0;
 #if HAVE_SYMLINK
 		return symlink(linkname, a->name) ? errno : 0;
 #else
@@ -1790,16 +1821,31 @@ create_filesystem_object(struct archive_write_disk *a)
 	case AE_IFREG:
 		a->tmpname = NULL;
 		fullname = a->name;
+		if ((a->flags & ARCHIVE_EXTRACT_SECURE_SYMLINKS) == 0) {
+			/*
+			 * Creating a regular file is expected to fail with EEXIST if *any
+			 * object* exists at the target location.
+			 * SECURE_SYMLINKS deletes any symbolic link that would have been
+			 * written through. When it's off, though, we risk writing through
+			 * extant but broken symlinks unless we allow CreateFile to fail
+			 * on the link rather than creating its target.
+			 *
+			 * This is effectively O_EXCL.
+			 */
+			file_flags |= FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS;
+		}
+
 		/* O_WRONLY | O_CREAT | O_EXCL */
 # if _WIN32_WINNT >= 0x0602 /* _WIN32_WINNT_WIN8 */
 		ZeroMemory(&createExParams, sizeof(createExParams));
 		createExParams.dwSize = sizeof(createExParams);
 		createExParams.dwFileAttributes = FILE_ATTRIBUTE_NORMAL;
+		createExParams.dwFileFlags = file_flags;
 		a->fh = CreateFile2(fullname, GENERIC_WRITE, 0,
 		    CREATE_NEW, &createExParams);
 #else
 		a->fh = CreateFileW(fullname, GENERIC_WRITE, 0, NULL,
-		    CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+		    CREATE_NEW, FILE_ATTRIBUTE_NORMAL | file_flags, NULL);
 #endif
 		if (a->fh == INVALID_HANDLE_VALUE &&
 		    GetLastError() == ERROR_INVALID_NAME &&
@@ -1810,7 +1856,7 @@ create_filesystem_object(struct archive_write_disk *a)
 			    CREATE_NEW, &createExParams);
 #else
 			a->fh = CreateFileW(fullname, GENERIC_WRITE, 0, NULL,
-			    CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+			    CREATE_NEW, FILE_ATTRIBUTE_NORMAL | file_flags, NULL);
 #endif
 		}
 		if (a->fh == INVALID_HANDLE_VALUE) {
@@ -2075,9 +2121,10 @@ current_fixup(struct archive_write_disk *a, const wchar_t *pathname)
  * recent paths.
  */
 static int
-check_symlinks(struct archive_write_disk *a)
+check_symlinks_by_path(struct archive_write_disk *a,
+    wchar_t *path, size_t *safe_len, int checking_linkname)
 {
-	wchar_t *pn, *p;
+	wchar_t *pn, *p, *su;
 	wchar_t c;
 	int r;
 	BY_HANDLE_FILE_INFORMATION st;
@@ -2088,13 +2135,17 @@ check_symlinks(struct archive_write_disk *a)
 	 * destination would be altered by a symlink.
 	 */
 	/* Whatever we checked last time doesn't need to be re-checked. */
-	pn = a->name;
+	pn = path;
 	p = a->path_safe.s;
 	while ((*pn != '\0') && (*p == *pn))
 		++p, ++pn;
 	/* Skip leading backslashes */
 	while (*pn == '\\')
 		++pn;
+	su = pn;
+	/* The end-of-safe region, however, should not cover a partial leaf name */
+	while (su > path && *su != '\\')
+		--su;
 	c = pn[0];
 	/* Keep going until we've checked the entire name. */
 	while (pn[0] != '\0' && (pn[0] != '\\' || pn[1] != '\0')) {
@@ -2104,13 +2155,20 @@ check_symlinks(struct archive_write_disk *a)
 		c = pn[0];
 		pn[0] = '\0';
 		/* Check that we haven't hit a symlink. */
-		r = file_information(a, a->name, &st, &st_mode, 1);
+		r = file_information(path, &st, &st_mode, 1);
 		if (r != 0) {
 			/* We've hit a dir that doesn't exist; stop now. */
 			if (errno == ENOENT)
 				break;
 		} else if (S_ISLNK(st_mode)) {
 			if (c == '\0') {
+				if (checking_linkname) {
+					archive_set_error(&a->archive, ELOOP,
+					    "Cannot write hardlink to symlink %ls",
+					    path);
+					pn[0] = c;
+					return (ARCHIVE_FAILED);
+				}
 				/*
 				 * Last element is a file or directory symlink.
 				 * Remove it so we can overwrite it with the
@@ -2122,14 +2180,14 @@ check_symlinks(struct archive_write_disk *a)
 				}
 				if (st.dwFileAttributes &
 				    FILE_ATTRIBUTE_DIRECTORY) {
-					r = disk_rmdir(a->name);
+					r = disk_rmdir(path);
 				} else {
-					r = disk_unlink(a->name);
+					r = disk_unlink(path);
 				}
 				if (r) {
 					archive_set_error(&a->archive, errno,
 					    "Could not remove symlink %ls",
-					    a->name);
+					    path);
 					pn[0] = c;
 					return (ARCHIVE_FAILED);
 				}
@@ -2143,11 +2201,16 @@ check_symlinks(struct archive_write_disk *a)
 				if (!S_ISLNK(a->mode)) {
 					archive_set_error(&a->archive, -1,
 					    "Removing symlink %ls",
-					    a->name);
+					    path);
+					/*
+					 * We can safely return the entire path as a safe range,
+					 * having deleted the symlink at the leaf with no intent
+					 * to create another symlink.
+					 */
+					su = pn;
 				}
 				/* Symlink gone.  No more problem! */
-				pn[0] = c;
-				return (0);
+				break;
 			} else if (a->flags & ARCHIVE_EXTRACT_UNLINK) {
 				/* User asked us to remove problems. */
 				if (a->flags &
@@ -2156,14 +2219,14 @@ check_symlinks(struct archive_write_disk *a)
 				}
 				if (st.dwFileAttributes &
 				    FILE_ATTRIBUTE_DIRECTORY) {
-					r = disk_rmdir(a->name);
+					r = disk_rmdir(path);
 				} else {
-					r = disk_unlink(a->name);
+					r = disk_unlink(path);
 				}
 				if (r != 0) {
 					archive_set_error(&a->archive, EIO,
 					    "Cannot remove intervening "
-					    "symlink %ls", a->name);
+					    "symlink %ls", path);
 					pn[0] = c;
 					return (ARCHIVE_FAILED);
 				}
@@ -2171,20 +2234,45 @@ check_symlinks(struct archive_write_disk *a)
 			} else {
 				archive_set_error(&a->archive, ELOOP,
 				    "Cannot extract through symlink %ls",
-				    a->name);
+				    path);
 				pn[0] = c;
 				return (ARCHIVE_FAILED);
 			}
 		}
+		su = pn;
 		if (!c)
 			break;
 		pn[0] = c;
 		pn++;
 	}
 	pn[0] = c;
-	/* We've checked and/or cleaned the whole path, so remember it. */
-	archive_wstrcpy(&a->path_safe, a->name);
+	if (safe_len)
+		*safe_len = su - path;
 	return (ARCHIVE_OK);
+}
+
+static int
+check_symlinks(struct archive_write_disk *a)
+{
+	int r;
+	size_t safe_len;
+	r = check_symlinks_by_path(a, a->name, &safe_len, 0);
+
+	if (r == ARCHIVE_OK) {
+		/*
+		 * We've checked and/or cleaned the whole path, so remember the
+		 * portion check_symlinks_by_path returned as "safe" (typically
+		 * the parent of the entry we are about to create, unless that
+		 * entry was just unlinked.)
+		 *
+		 * We only cache path safety info for entry paths (which we
+		 * operate on in a->name). We do not cache safety info for
+		 * any other paths.
+		 */
+		archive_wstrncpy(&a->path_safe, a->name, safe_len);
+	}
+
+	return (r);
 }
 
 static int
@@ -2456,7 +2544,7 @@ create_dir(struct archive_write_disk *a, wchar_t *path)
 	 * here loses the ability to extract through symlinks.  Also note
 	 * that this should not use the a->st cache.
 	 */
-	if (file_information(a, path, &st, &st_mode, 0) == 0) {
+	if (file_information(path, &st, &st_mode, 0) == 0) {
 		if (S_ISDIR(st_mode))
 			return (ARCHIVE_OK);
 		if ((a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
@@ -2523,7 +2611,7 @@ create_dir(struct archive_write_disk *a, wchar_t *path)
 	 * don't add it to the fixup list here, as it's already been
 	 * added.
 	 */
-	if (file_information(a, path, &st, &st_mode, 0) == 0 &&
+	if (file_information(path, &st, &st_mode, 0) == 0 &&
 	    S_ISDIR(st_mode))
 		return (ARCHIVE_OK);
 

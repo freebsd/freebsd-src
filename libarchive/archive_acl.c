@@ -1516,7 +1516,7 @@ archive_acl_from_text_nl(struct archive_acl *acl, const char *text,
 		const char *end;
 	} field[6], name;
 
-	const char *s, *st;
+	const char *s, *st, *text_end;
 	int numfields, fields, n, r, sol, ret;
 	int type, types, tag, permset, id;
 	size_t len;
@@ -1539,6 +1539,7 @@ archive_acl_from_text_nl(struct archive_acl *acl, const char *text,
 
 	ret = ARCHIVE_OK;
 	types = 0;
+	text_end = (text == NULL) ? text : text + length;
 
 	while (text != NULL && length > 0 && *text != '\0') {
 		/*
@@ -1563,6 +1564,18 @@ archive_acl_from_text_nl(struct archive_acl *acl, const char *text,
 		if (field[0].start == NULL || field[0].end == NULL) {
 			/* This should never happen */
 			return (ARCHIVE_FATAL);
+		}
+
+		if (field[0].start == text_end) {
+			/*
+			 * Empty entry: next_field() consumed the rest of the
+			 * buffer as separators or whitespace, leaving
+			 * field[0].start one past the end.  'text' is not
+			 * guaranteed to be NUL terminated, so the byte after it
+			 * must not be dereferenced.
+			 */
+			ret = ARCHIVE_WARN;
+			continue;
 		}
 
 		if (*(field[0].start) == '#') {

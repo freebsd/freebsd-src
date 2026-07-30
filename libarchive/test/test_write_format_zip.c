@@ -428,7 +428,7 @@ verify_contents(struct archive *a, int seeking, int content)
 	if (content) {
 		assertEqualIntA(a, 5,
 		    archive_read_data(a, filedata, sizeof(filedata)));
-		assertEqualMem(filedata, "ghijk", 4);
+		assertEqualMem(filedata, "ghijk", 5);
 	}
 
 	/* Read symlink. */
@@ -520,7 +520,7 @@ verify_contents(struct archive *a, int seeking, int content)
 	if (content) {
 		assertEqualIntA(a, 5,
 		    archive_read_data(a, filedata, sizeof(filedata)));
-		assertEqualMem(filedata, "ijklm", 4);
+		assertEqualMem(filedata, "ijklm", 5);
 	}
 
 	/* Read symlink. */

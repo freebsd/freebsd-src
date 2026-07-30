@@ -1,0 +1,11 @@
+Level-0 LHA archive with two entries: "bad_symlink" is a symlink
+(Unix-extended mode field, S_IFLNK) whose pathname has no '|' separator,
+so lha_parse_linkname() can't extract a link target and read_header()
+returns ARCHIVE_FAILED; "second" is a normal stored file. See
+test_read_format_lha_symlink_missing_target.c.
+
+begin 644 test_read_format_lha_symlink_missing_target.lzh
+M+>LM;&@P+0``````````````````"V)A9%]S>6UL:6YK``!5``````#_H0``
+J```:]BUL:#`M"P````L````````````&<V5C;VYD:&5L;&\@=V]R;&0`
+`
+end

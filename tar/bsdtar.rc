@@ -1,0 +1,20 @@
+/*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Embed an application manifest that marks bsdtar as long-path aware.
+ *
+ * bsdtar implements -C/--directory on Windows with SetCurrentDirectoryW(),
+ * whose argument is limited to MAX_PATH (260) characters unless the process
+ * opts in to long paths via a "longPathAware" manifest.  A system-wide
+ * LongPathsEnabled registry value is not sufficient on its own; the executable
+ * must also carry this manifest.  Without it, extracting into deeply nested
+ * destination directories fails with "could not chdir to ...".
+ *
+ * See:
+ * https://learn.microsoft.com/windows/win32/fileio/maximum-file-path-limitation
+ */
+
+#define RT_MANIFEST 24
+#define CREATEPROCESS_MANIFEST_RESOURCE_ID 1
+
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "bsdtar.exe.manifest"

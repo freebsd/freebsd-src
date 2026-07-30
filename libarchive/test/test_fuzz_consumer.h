@@ -99,14 +99,14 @@ fuzz_consume_u32(struct fuzz_consumer *c)
 FUZZ_UNUSED static int64_t
 fuzz_consume_i64(struct fuzz_consumer *c)
 {
-	int64_t val = 0;
+	uint64_t val = 0;
 	if (c->pos + 8 <= c->size) {
 		int i;
 		for (i = 0; i < 8; i++)
-			val |= (int64_t)c->data[c->pos + i] << (8 * i);
+			val |= (uint64_t)c->data[c->pos + i] << (8 * i);
 		c->pos += 8;
 	}
-	return val;
+	return (int64_t)val;
 }
 
 FUZZ_UNUSED static const char *

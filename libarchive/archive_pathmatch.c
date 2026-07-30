@@ -337,7 +337,7 @@ pm_w(const wchar_t *p, const wchar_t *s, int flags, int depth)
 			}
 			if (*end == L']') {
 				/* We found [...], try to match it. */
-				if (!pm_list_w(p + 1, end, *s, flags))
+				if (*s == L'\0' || !pm_list_w(p + 1, end, *s, flags))
 					return (0);
 				p = end; /* Jump to trailing ']' char. */
 				break;

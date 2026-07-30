@@ -51,7 +51,7 @@
 #include "archive_read_private.h"
 
 #ifdef HAVE_ZLIB_H
-struct private_data {
+struct gzip {
 	z_stream	 stream;
 	char		 in_stream;
 	unsigned char	*out_block;
@@ -120,9 +120,9 @@ archive_read_support_filter_gzip(struct archive *_a)
 #define MAX_FILENAME_LENGTH (1024 * 1024L)
 #define MAX_COMMENT_LENGTH (1024 * 1024L)
 static ssize_t
-peek_at_header(struct archive_read_filter *filter, int *pbits,
+peek_at_header(struct archive_read_filter *f, int *pbits,
 #ifdef HAVE_ZLIB_H
-	       struct private_data *state
+	       struct gzip *gzip
 #else
 	       void *state
 #endif
@@ -139,7 +139,7 @@ peek_at_header(struct archive_read_filter *filter, int *pbits,
 	/* Start by looking at the first ten bytes of the header, which
 	 * is all fixed layout. */
 	len = 10;
-	p = __archive_read_filter_ahead(filter, len, &avail);
+	p = __archive_read_filter_ahead(f, len, &avail);
 	if (p == NULL)
 		return (0);
 	/* We only support deflation- third byte must be 0x08. */
@@ -152,8 +152,8 @@ peek_at_header(struct archive_read_filter *filter, int *pbits,
 	header_flags = p[3];
 	/* Bytes 4-7 are mod time in little endian. */
 #ifdef HAVE_ZLIB_H
-	if (state)
-		state->mtime = archive_le32dec(p + 4);
+	if (gzip)
+		gzip->mtime = archive_le32dec(p + 4);
 #endif
 	/* Byte 8 is deflate flags. */
 	/* XXXX TODO: return deflate flags back to consume_header for use
@@ -162,7 +162,7 @@ peek_at_header(struct archive_read_filter *filter, int *pbits,
 
 	/* Optional extra data:  2 byte length plus variable body. */
 	if (header_flags & 4) {
-		p = __archive_read_filter_ahead(filter, len + 2, &avail);
+		p = __archive_read_filter_ahead(f, len + 2, &avail);
 		if (p == NULL)
 			return (0);
 		len += archive_le16dec(p + len);
@@ -180,7 +180,7 @@ peek_at_header(struct archive_read_filter *filter, int *pbits,
 				if (avail > MAX_FILENAME_LENGTH) {
 					return (0);
 				}
-				p = __archive_read_filter_ahead(filter,
+				p = __archive_read_filter_ahead(f,
 				    len, &avail);
 			}
 			if (p == NULL)
@@ -188,10 +188,10 @@ peek_at_header(struct archive_read_filter *filter, int *pbits,
 		} while (p[len - 1] != 0);
 
 #ifdef HAVE_ZLIB_H
-		if (state) {
+		if (gzip) {
 			/* Reset the name in case of repeat header reads. */
-			free(state->name);
-			state->name = strdup((const char *)&p[file_start]);
+			free(gzip->name);
+			gzip->name = strdup((const char *)&p[file_start]);
 		}
 #endif
 	}
@@ -204,7 +204,7 @@ peek_at_header(struct archive_read_filter *filter, int *pbits,
 				if (avail > MAX_COMMENT_LENGTH) {
 					return (0);
 				}
-				p = __archive_read_filter_ahead(filter,
+				p = __archive_read_filter_ahead(f,
 				    len, &avail);
 			}
 			if (p == NULL)
@@ -214,7 +214,7 @@ peek_at_header(struct archive_read_filter *filter, int *pbits,
 
 	/* Optional header CRC */
 	if ((header_flags & 2)) {
-		p = __archive_read_filter_ahead(filter, len + 2, &avail);
+		p = __archive_read_filter_ahead(f, len + 2, &avail);
 		if (p == NULL)
 			return (0);
 #if 0
@@ -236,14 +236,14 @@ peek_at_header(struct archive_read_filter *filter, int *pbits,
  * Bidder just verifies the header and returns the number of verified bits.
  */
 static int
-gzip_bidder_bid(struct archive_read_filter_bidder *self,
-    struct archive_read_filter *filter)
+gzip_bidder_bid(struct archive_read_filter_bidder *b,
+    struct archive_read_filter *f)
 {
 	int bits_checked;
 
-	(void)self; /* UNUSED */
+	(void)b; /* UNUSED */
 
-	if (peek_at_header(filter, &bits_checked, NULL))
+	if (peek_at_header(f, &bits_checked, NULL))
 		return (bits_checked);
 	return (0);
 }
@@ -256,35 +256,33 @@ gzip_bidder_bid(struct archive_read_filter_bidder *self,
  * in case that's available.
  */
 static int
-gzip_bidder_init(struct archive_read_filter *self)
+gzip_bidder_init(struct archive_read_filter *f)
 {
 	int r;
 
-	r = __archive_read_program(self, "gzip -d");
+	r = __archive_read_program(f, "gzip -d");
 	/* Note: We set the format here even if __archive_read_program()
 	 * above fails.  We do, after all, know what the format is
 	 * even if we weren't able to read it. */
-	self->code = ARCHIVE_FILTER_GZIP;
-	self->name = "gzip";
+	f->code = ARCHIVE_FILTER_GZIP;
+	f->name = "gzip";
 	return (r);
 }
 
 #else
 
 static int
-gzip_read_header(struct archive_read_filter *self, struct archive_entry *entry)
+gzip_read_header(struct archive_read_filter *f, struct archive_entry *entry)
 {
-	struct private_data *state;
-
-	state = (struct private_data *)self->data;
+	struct gzip *gzip = f->data;
 
 	/* An mtime of 0 is considered invalid/missing. */
-	if (state->mtime != 0)
-		archive_entry_set_mtime(entry, state->mtime, 0);
+	if (gzip->mtime != 0)
+		archive_entry_set_mtime(entry, gzip->mtime, 0);
 
 	/* If the name is available, extract it. */
-	if (state->name)
-		archive_entry_set_pathname(entry, state->name);
+	if (gzip->name)
+		archive_entry_set_pathname(entry, gzip->name);
 
 	return (ARCHIVE_OK);
 }
@@ -302,59 +300,57 @@ gzip_reader_vtable = {
  * Initialize the filter object.
  */
 static int
-gzip_bidder_init(struct archive_read_filter *self)
+gzip_bidder_init(struct archive_read_filter *f)
 {
-	struct private_data *state;
+	struct gzip *gzip;
 	static const size_t out_block_size = 64 * 1024;
 	void *out_block;
 
-	self->code = ARCHIVE_FILTER_GZIP;
-	self->name = "gzip";
+	f->code = ARCHIVE_FILTER_GZIP;
+	f->name = "gzip";
 
-	state = calloc(1, sizeof(*state));
+	gzip = calloc(1, sizeof(*gzip));
 	out_block = malloc(out_block_size);
-	if (state == NULL || out_block == NULL) {
+	if (gzip == NULL || out_block == NULL) {
 		free(out_block);
-		free(state);
-		archive_set_error(&self->archive->archive, ENOMEM,
+		free(gzip);
+		archive_set_error(&f->archive->archive, ENOMEM,
 		    "Can't allocate data for gzip decompression");
 		return (ARCHIVE_FATAL);
 	}
 
-	self->data = state;
-	state->out_block_size = out_block_size;
-	state->out_block = out_block;
-	self->vtable = &gzip_reader_vtable;
+	f->data = gzip;
+	gzip->out_block_size = out_block_size;
+	gzip->out_block = out_block;
+	f->vtable = &gzip_reader_vtable;
 
-	state->in_stream = 0; /* We're not actually within a stream yet. */
+	gzip->in_stream = 0; /* We're not actually within a stream yet. */
 
 	return (ARCHIVE_OK);
 }
 
 static int
-consume_header(struct archive_read_filter *self)
+consume_header(struct archive_read_filter *f)
 {
-	struct private_data *state;
+	struct gzip *gzip = f->data;
 	ssize_t avail, max_in;
 	size_t len;
 	int ret;
 
-	state = (struct private_data *)self->data;
-
 	/* If this is a real header, consume it. */
-	len = peek_at_header(self->upstream, NULL, state);
+	len = peek_at_header(f->upstream, NULL, gzip);
 	if (len == 0)
 		return (ARCHIVE_EOF);
-	__archive_read_filter_consume(self->upstream, len);
+	__archive_read_filter_consume(f->upstream, len);
 
 	/* Initialize CRC accumulator. */
-	state->crc = crc32(0L, NULL, 0);
+	gzip->crc = crc32(0L, NULL, 0);
 
 	/* Initialize compression library. */
-	state->stream.next_in = (unsigned char *)(uintptr_t)
-	    __archive_read_filter_ahead(self->upstream, 1, &avail);
+	gzip->stream.next_in = (unsigned char *)(uintptr_t)
+	    __archive_read_filter_ahead(f->upstream, 1, &avail);
 	if (avail < 0) {
-		archive_set_error(&self->archive->archive,
+		archive_set_error(&f->archive->archive,
 		    ARCHIVE_ERRNO_MISC,
 		    "Failed to read gzip input");
 		return (ARCHIVE_FATAL);
@@ -365,34 +361,34 @@ consume_header(struct archive_read_filter *self)
 		max_in = UINT_MAX;
 	if (avail > max_in)
 		avail = max_in;
-	state->stream.avail_in = (uInt)avail;
-	ret = inflateInit2(&(state->stream),
+	gzip->stream.avail_in = (uInt)avail;
+	ret = inflateInit2(&(gzip->stream),
 	    -15 /* Don't check for zlib header */);
 
 	/* Decipher the error code. */
 	switch (ret) {
 	case Z_OK:
-		state->in_stream = 1;
+		gzip->in_stream = 1;
 		return (ARCHIVE_OK);
 	case Z_STREAM_ERROR:
-		archive_set_error(&self->archive->archive,
+		archive_set_error(&f->archive->archive,
 		    ARCHIVE_ERRNO_MISC,
 		    "Internal error initializing compression library: "
 		    "invalid setup parameter");
 		break;
 	case Z_MEM_ERROR:
-		archive_set_error(&self->archive->archive, ENOMEM,
+		archive_set_error(&f->archive->archive, ENOMEM,
 		    "Internal error initializing compression library: "
 		    "out of memory");
 		break;
 	case Z_VERSION_ERROR:
-		archive_set_error(&self->archive->archive,
+		archive_set_error(&f->archive->archive,
 		    ARCHIVE_ERRNO_MISC,
 		    "Internal error initializing compression library: "
 		    "invalid library version");
 		break;
 	default:
-		archive_set_error(&self->archive->archive,
+		archive_set_error(&f->archive->archive,
 		    ARCHIVE_ERRNO_MISC,
 		    "Internal error initializing compression library: "
 		    " Zlib error %d", ret);
@@ -402,59 +398,55 @@ consume_header(struct archive_read_filter *self)
 }
 
 static int
-consume_trailer(struct archive_read_filter *self)
+consume_trailer(struct archive_read_filter *f)
 {
-	struct private_data *state;
+	struct gzip *gzip = f->data;
 	const unsigned char *p;
 
-	state = (struct private_data *)self->data;
-
-	state->in_stream = 0;
-	switch (inflateEnd(&(state->stream))) {
+	gzip->in_stream = 0;
+	switch (inflateEnd(&(gzip->stream))) {
 	case Z_OK:
 		break;
 	default:
-		archive_set_error(&self->archive->archive,
+		archive_set_error(&f->archive->archive,
 		    ARCHIVE_ERRNO_MISC,
 		    "Failed to clean up gzip decompressor");
 		return (ARCHIVE_FATAL);
 	}
 
 	/* GZip trailer is a fixed 8 byte structure. */
-	p = __archive_read_filter_ahead(self->upstream, 8, NULL);
+	p = __archive_read_filter_ahead(f->upstream, 8, NULL);
 	if (p == NULL)
 		return (ARCHIVE_FATAL);
 
 	/* XXX TODO: Verify the length and CRC. */
 
 	/* We've verified the trailer, so consume it now. */
-	__archive_read_filter_consume(self->upstream, 8);
+	__archive_read_filter_consume(f->upstream, 8);
 
 	return (ARCHIVE_OK);
 }
 
 static ssize_t
-gzip_filter_read(struct archive_read_filter *self, const void **p)
+gzip_filter_read(struct archive_read_filter *f, const void **p)
 {
-	struct private_data *state;
+	struct gzip *gzip = f->data;
 	size_t decompressed;
 	ssize_t avail_in, max_in;
 	int ret;
 
-	state = (struct private_data *)self->data;
-
 	/* Empty our output buffer. */
-	state->stream.next_out = state->out_block;
-	state->stream.avail_out = (uInt)state->out_block_size;
+	gzip->stream.next_out = gzip->out_block;
+	gzip->stream.avail_out = (uInt)gzip->out_block_size;
 
 	/* Try to fill the output buffer. */
-	while (state->stream.avail_out > 0 && !state->eof) {
+	while (gzip->stream.avail_out > 0 && !gzip->eof) {
 		/* If we're not in a stream, read a header
 		 * and initialize the decompression library. */
-		if (!state->in_stream) {
-			ret = consume_header(self);
+		if (!gzip->in_stream) {
+			ret = consume_header(f);
 			if (ret == ARCHIVE_EOF) {
-				state->eof = 1;
+				gzip->eof = 1;
 				break;
 			}
 			if (ret < ARCHIVE_OK)
@@ -464,10 +456,10 @@ gzip_filter_read(struct archive_read_filter *self, const void **p)
 		/* Peek at the next available data. */
 		/* ZLib treats stream.next_in as const but doesn't declare
 		 * it so, hence this ugly cast. */
-		state->stream.next_in = (unsigned char *)(uintptr_t)
-		    __archive_read_filter_ahead(self->upstream, 1, &avail_in);
-		if (state->stream.next_in == NULL) {
-			archive_set_error(&self->archive->archive,
+		gzip->stream.next_in = (unsigned char *)(uintptr_t)
+		    __archive_read_filter_ahead(f->upstream, 1, &avail_in);
+		if (gzip->stream.next_in == NULL) {
+			archive_set_error(&f->archive->archive,
 			    ARCHIVE_ERRNO_MISC,
 			    "truncated gzip input");
 			return (ARCHIVE_FATAL);
@@ -478,27 +470,27 @@ gzip_filter_read(struct archive_read_filter *self, const void **p)
 			max_in = UINT_MAX;
 		if (avail_in > max_in)
 			avail_in = max_in;
-		state->stream.avail_in = (uInt)avail_in;
+		gzip->stream.avail_in = (uInt)avail_in;
 
 		/* Decompress and consume some of that data. */
-		ret = inflate(&(state->stream), 0);
+		ret = inflate(&(gzip->stream), 0);
 		switch (ret) {
 		case Z_OK: /* Decompressor made some progress. */
-			__archive_read_filter_consume(self->upstream,
-			    avail_in - state->stream.avail_in);
+			__archive_read_filter_consume(f->upstream,
+			    avail_in - gzip->stream.avail_in);
 			break;
 		case Z_STREAM_END: /* Found end of stream. */
-			__archive_read_filter_consume(self->upstream,
-			    avail_in - state->stream.avail_in);
+			__archive_read_filter_consume(f->upstream,
+			    avail_in - gzip->stream.avail_in);
 			/* Consume the stream trailer; release the
 			 * decompression library. */
-			ret = consume_trailer(self);
+			ret = consume_trailer(f);
 			if (ret < ARCHIVE_OK)
 				return (ret);
 			break;
 		default:
 			/* Return an error. */
-			archive_set_error(&self->archive->archive,
+			archive_set_error(&f->archive->archive,
 			    ARCHIVE_ERRNO_MISC,
 			    "gzip decompression failed");
 			return (ARCHIVE_FATAL);
@@ -506,11 +498,11 @@ gzip_filter_read(struct archive_read_filter *self, const void **p)
 	}
 
 	/* We've read as much as we can. */
-	decompressed = state->stream.next_out - state->out_block;
+	decompressed = gzip->stream.next_out - gzip->out_block;
 	if (decompressed == 0)
 		*p = NULL;
 	else
-		*p = state->out_block;
+		*p = gzip->out_block;
 	return (decompressed);
 }
 
@@ -518,29 +510,28 @@ gzip_filter_read(struct archive_read_filter *self, const void **p)
  * Clean up the decompressor.
  */
 static int
-gzip_filter_close(struct archive_read_filter *self)
+gzip_filter_close(struct archive_read_filter *f)
 {
-	struct private_data *state;
+	struct gzip *gzip = f->data;
 	int ret;
 
-	state = (struct private_data *)self->data;
 	ret = ARCHIVE_OK;
 
-	if (state->in_stream) {
-		switch (inflateEnd(&(state->stream))) {
+	if (gzip->in_stream) {
+		switch (inflateEnd(&(gzip->stream))) {
 		case Z_OK:
 			break;
 		default:
-			archive_set_error(&(self->archive->archive),
+			archive_set_error(&(f->archive->archive),
 			    ARCHIVE_ERRNO_MISC,
 			    "Failed to clean up gzip compressor");
 			ret = ARCHIVE_FATAL;
 		}
 	}
 
-	free(state->name);
-	free(state->out_block);
-	free(state);
+	free(gzip->name);
+	free(gzip->out_block);
+	free(gzip);
 	return (ret);
 }
 

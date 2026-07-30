@@ -49,6 +49,9 @@
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
 #endif
+#ifdef HAVE_TIME_H
+#include <time.h>
+#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -243,5 +246,22 @@ archive_ckd_sub_i64(int64_t *result, int64_t a, int64_t b)
 	return 0;
 #endif
 }
+
+#if !defined(TIME_MAX)
+#define TIME_MAX (((time_t)0 < (time_t)-1) ? (time_t)~0 :		\
+	    sizeof(time_t) == sizeof(long long) ? (time_t)LLONG_MAX :	\
+	    sizeof(time_t) == sizeof(long) ? (time_t)LONG_MAX :		\
+	    sizeof(time_t) == sizeof(int) ? (time_t)INT_MAX :		\
+	    sizeof(time_t) == sizeof(short) ? (time_t)SHRT_MAX :	\
+	    1 /* I give up */)
+#endif
+#if !defined(TIME_MIN)
+#define TIME_MIN (((time_t)0 < (time_t)-1) ? (time_t)0 :		\
+	    sizeof(time_t) == sizeof(long long) ? (time_t)LLONG_MIN :	\
+	    sizeof(time_t) == sizeof(long) ? (time_t)LONG_MIN :		\
+	    sizeof(time_t) == sizeof(int) ? (time_t)INT_MIN :		\
+	    sizeof(time_t) == sizeof(short) ? (time_t)SHRT_MIN :	\
+	    -1 /* I give up */)
+#endif
 
 #endif

@@ -70,6 +70,7 @@ archive_read_open_FILE(struct archive *a, FILE *f)
 	struct read_FILE_data *mine;
 	size_t block_size = 128 * 1024;
 	void *b;
+	int r;
 
 	archive_clear_error(a);
 	mine = calloc(1, sizeof(*mine));
@@ -104,7 +105,9 @@ archive_read_open_FILE(struct archive *a, FILE *f)
 	archive_read_set_skip_callback(a, FILE_skip);
 	archive_read_set_seek_callback(a, FILE_seek);
 	archive_read_set_close_callback(a, FILE_close);
-	archive_read_set_callback_data(a, mine);
+	r = archive_read_set_callback_data(a, mine);
+	if (r < 0)
+		return (r);
 	return (archive_read_open1(a));
 }
 

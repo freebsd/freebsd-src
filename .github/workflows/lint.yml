@@ -1,0 +1,34 @@
+name: Lint
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  Lint:
+    runs-on: ubuntu-26.04
+    env:
+      BS: cmake
+      CRYPTO: openssl
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Update apt cache
+      run: sudo apt-get update
+    - name: Install dependencies
+      run: sudo apt-get install -y autoconf automake build-essential cmake git libssl-dev nettle-dev libmbedtls-dev libacl1-dev libbz2-dev liblzma-dev liblz4-dev libzstd-dev lzop pkg-config zlib1g-dev libclang-22-dev libclang-cpp22-dev clang-22 ninja-build
+    - name: Install Lint
+      run: |-
+        set -euo pipefail
+        cmake -S build/la-lint -B /tmp/lint-build -GNinja
+        cmake --build /tmp/lint-build
+        cmake --install /tmp/lint-build
+    - name: Configure
+      run: ./build/ci/build.sh -a configure
+      env:
+        CMAKE_ARGS: -GNinja -DENABLE_CLANG_TIDY=YES -DCLANG_TIDY_PATH=la-lint
+    - name: Build
+      run: ./build/ci/build.sh -a build
+      env:
+        MAKE: ninja
+        MAKE_ARGS: --

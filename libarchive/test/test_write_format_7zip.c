@@ -26,6 +26,9 @@
 
 #include "test.h"
 
+#define __LIBARCHIVE_TEST
+#include "archive_write_private.h"
+
 static void
 test_basic(const char *compression_type)
 {
@@ -572,4 +575,40 @@ DEFINE_TEST(test_write_format_7zip_basic_zstd)
 {
 	/* Test that making a 7-Zip archive file with zstandard compression. */
 	test_basic("zstd");
+}
+
+DEFINE_TEST(test_write_format_7zip_unregister)
+{
+	struct archive *a;
+	struct archive_write *aw;
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_7zip(a));
+
+	aw = (struct archive_write *)a;
+	assert(aw->format_data != NULL);
+	assert(aw->format_free != NULL);
+
+	assertEqualIntA(a, ARCHIVE_OK,
+	    __archive_write_unregister_format(aw));
+
+	assert(aw->format_data == NULL);
+	assert(aw->format_name == NULL);
+	assert(aw->format_init == NULL);
+	assert(aw->format_options == NULL);
+	assert(aw->format_finish_entry == NULL);
+	assert(aw->format_write_header == NULL);
+	assert(aw->format_write_data == NULL);
+	assert(aw->format_close == NULL);
+	assert(aw->format_free == NULL);
+	assertEqualInt(0, aw->archive.archive_format);
+	assert(aw->archive.archive_format_name == NULL);
+
+	assertEqualIntA(a, ARCHIVE_FAILED,
+	    archive_write_set_format_option(a, NULL, "compression",
+	        "store"));
+
+	assertEqualIntA(a, ARCHIVE_OK,
+	    __archive_write_unregister_format(aw));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }

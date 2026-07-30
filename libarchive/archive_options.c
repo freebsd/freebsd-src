@@ -33,7 +33,7 @@
 
 static char *
 parse_option(char **str,
-    char **mod, char **opt, char **val);
+    const char **mod, const char **opt, const char **val);
 
 int
 _archive_set_option(struct archive *a,
@@ -102,8 +102,8 @@ _archive_set_options(struct archive *a, const char *options,
     unsigned int magic, const char *fn, option_handler use_option)
 {
 	int allok = 1, anyok = 0, ignore_mod_err = 0, r;
-	char *data;
-	char *s, *mod, *opt, *val;
+	char *data, *s;
+	const char *mod, *opt, *val;
 
 	archive_check_magic(a, magic, ARCHIVE_STATE_NEW, fn);
 
@@ -168,10 +168,10 @@ _archive_set_options(struct archive *a, const char *options,
 }
 
 static char *
-parse_option(char **s, char **m, char **o, char **v)
+parse_option(char **s, const char **m, const char **o, const char **v)
 {
-	char *end, *mod, *opt, *val;
-	char *p;
+	const char *mod, *val;
+	char *end, *opt, *p;
 
 	end = NULL;
 	mod = NULL;

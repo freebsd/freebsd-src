@@ -47,6 +47,7 @@
 #include "archive_endian.h"
 #include "archive_entry.h"
 #include "archive_entry_locale.h"
+#include "archive_integer.h"
 #include "archive_private.h"
 #include "archive_read_private.h"
 #include "archive_string.h"
@@ -314,8 +315,8 @@ struct file_info {
 
 struct heap_queue {
 	struct file_info **files;
-	int		 allocated;
-	int		 used;
+	size_t		 allocated;
+	size_t		 used;
 };
 
 struct iso9660 {
@@ -337,8 +338,8 @@ struct iso9660 {
 			uint64_t	 offset;/* Offset of CE on disk. */
 			struct file_info *file;
 		}		*reqs;
-		int		 cnt;
-		int		 allocated;
+		size_t		 cnt;
+		size_t		 allocated;
 	}	read_ce_req;
 
 	int64_t		previous_number;
@@ -379,8 +380,6 @@ struct iso9660 {
 	size_t		 utf16be_path_len;
 	unsigned char *utf16be_previous_path;
 	size_t		 utf16be_previous_path_len;
-	/* Null buffer used in bidder to improve its performance. */
-	unsigned char	 null[2048];
 };
 
 static int	archive_read_format_iso9660_bid(struct archive_read *, int);
@@ -403,12 +402,12 @@ static time_t	isodate17(const unsigned char *);
 static int	isodate17_valid(const unsigned char *);
 static time_t	isodate7(const unsigned char *);
 static int	isodate7_valid(const unsigned char *);
-static int	isBootRecord(struct iso9660 *, const unsigned char *);
+static int	isBootRecord(const unsigned char *);
 static int	isVolumePartition(struct iso9660 *, const unsigned char *);
-static int	isVDSetTerminator(struct iso9660 *, const unsigned char *);
+static int	isVDSetTerminator(const unsigned char *);
 static int	isJolietSVD(struct iso9660 *, const unsigned char *);
-static int	isSVD(struct iso9660 *, const unsigned char *);
-static int	isEVD(struct iso9660 *, const unsigned char *);
+static int	isSVD(const unsigned char *);
+static int	isEVD(const unsigned char *);
 static int	isPVD(struct iso9660 *, const unsigned char *);
 static int	isRootDirectoryRecord(const unsigned char *);
 static int	isValid723Integer(const unsigned char *);
@@ -503,7 +502,7 @@ archive_read_support_format_iso9660(struct archive *_a)
 static int
 archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	ssize_t bytes_read;
 	const unsigned char *p;
 	int seenTerminator;
@@ -512,8 +511,6 @@ archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 	   make, don't bother testing. */
 	if (best_bid > 48)
 		return (-1);
-
-	iso9660 = (struct iso9660 *)(a->format->data);
 
 	/*
 	 * Skip the first 32k (reserved area) and get the first
@@ -547,15 +544,15 @@ archive_read_format_iso9660_bid(struct archive_read *a, int best_bid)
 			if (isJolietSVD(iso9660, p))
 				continue;
 		}
-		if (isBootRecord(iso9660, p))
+		if (isBootRecord(p))
 			continue;
-		if (isEVD(iso9660, p))
+		if (isEVD(p))
 			continue;
-		if (isSVD(iso9660, p))
+		if (isSVD(p))
 			continue;
 		if (isVolumePartition(iso9660, p))
 			continue;
-		if (isVDSetTerminator(iso9660, p)) {
+		if (isVDSetTerminator(p)) {
 			seenTerminator = 1;
 			break;
 		}
@@ -576,9 +573,7 @@ static int
 archive_read_format_iso9660_options(struct archive_read *a,
 		const char *key, const char *val)
 {
-	struct iso9660 *iso9660;
-
-	iso9660 = (struct iso9660 *)(a->format->data);
+	struct iso9660 *iso9660 = a->format->data;
 
 	if (strcmp(key, "joliet") == 0) {
 		if (val == NULL || strcmp(val, "off") == 0 ||
@@ -603,26 +598,23 @@ archive_read_format_iso9660_options(struct archive_read *a,
 }
 
 static int
-isNull(struct iso9660 *iso9660, const unsigned char *h, unsigned offset,
-unsigned bytes)
+isNull(const unsigned char *h, unsigned offset, unsigned bytes)
 {
-
-	while (bytes >= sizeof(iso9660->null)) {
-		if (!memcmp(iso9660->null, h + offset, sizeof(iso9660->null)))
-			return (0);
-		offset += sizeof(iso9660->null);
-		bytes -= sizeof(iso9660->null);
-	}
-	if (bytes)
-		return memcmp(iso9660->null, h + offset, bytes) == 0;
-	else
+	if (bytes == 0)
 		return (1);
+
+	/*
+	 * If the first byte is zero and every byte equals the following
+	 * byte, the entire range is zero.
+	 */
+	return (h[offset] == 0 &&
+	    (bytes == 1 ||
+	    memcmp(h + offset, h + offset + 1, bytes - 1) == 0));
 }
 
 static int
-isBootRecord(struct iso9660 *iso9660, const unsigned char *h)
+isBootRecord(const unsigned char *h)
 {
-	(void)iso9660; /* UNUSED */
 
 	/* Type of the Volume Descriptor Boot Record must be 0. */
 	if (h[0] != 0)
@@ -662,9 +654,8 @@ isVolumePartition(struct iso9660 *iso9660, const unsigned char *h)
 }
 
 static int
-isVDSetTerminator(struct iso9660 *iso9660, const unsigned char *h)
+isVDSetTerminator(const unsigned char *h)
 {
-	(void)iso9660; /* UNUSED */
 
 	/* Type of the Volume Descriptor Set Terminator must be 255. */
 	if (h[0] != 255)
@@ -675,7 +666,7 @@ isVDSetTerminator(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, 7, 2048-7))
+	if (!isNull(h, 7, 2048-7))
 		return (0);
 
 	return (1);
@@ -690,7 +681,7 @@ isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 
 	/* Check if current sector is a kind of Supplementary Volume
 	 * Descriptor. */
-	if (!isSVD(iso9660, h))
+	if (!isSVD(h))
 		return (0);
 
 	/* FIXME: do more validations according to joliet spec. */
@@ -731,25 +722,24 @@ isJolietSVD(struct iso9660 *iso9660, const unsigned char *h)
 }
 
 static int
-isSVD(struct iso9660 *iso9660, const unsigned char *h)
+isSVD(const unsigned char *h)
 {
 	const unsigned char *p;
 	ssize_t logical_block_size;
 	int32_t volume_block;
 	int32_t location;
 
-	(void)iso9660; /* UNUSED */
 
 	/* Type 2 means it's a SVD. */
 	if (h[SVD_type_offset] != 2)
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, SVD_reserved1_offset, SVD_reserved1_size))
+	if (!isNull(h, SVD_reserved1_offset, SVD_reserved1_size))
 		return (0);
-	if (!isNull(iso9660, h, SVD_reserved2_offset, SVD_reserved2_size))
+	if (!isNull(h, SVD_reserved2_offset, SVD_reserved2_size))
 		return (0);
-	if (!isNull(iso9660, h, SVD_reserved3_offset, SVD_reserved3_size))
+	if (!isNull(h, SVD_reserved3_offset, SVD_reserved3_size))
 		return (0);
 
 	/* File structure version must be 1 for ISO9660/ECMA119. */
@@ -791,14 +781,13 @@ isSVD(struct iso9660 *iso9660, const unsigned char *h)
 }
 
 static int
-isEVD(struct iso9660 *iso9660, const unsigned char *h)
+isEVD(const unsigned char *h)
 {
 	const unsigned char *p;
 	ssize_t logical_block_size;
 	int32_t volume_block;
 	int32_t location;
 
-	(void)iso9660; /* UNUSED */
 
 	/* Type of the Enhanced Volume Descriptor must be 2. */
 	if (h[PVD_type_offset] != 2)
@@ -813,11 +802,11 @@ isEVD(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, PVD_reserved2_offset, PVD_reserved2_size))
+	if (!isNull(h, PVD_reserved2_offset, PVD_reserved2_size))
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, PVD_reserved3_offset, PVD_reserved3_size))
+	if (!isNull(h, PVD_reserved3_offset, PVD_reserved3_size))
 		return (0);
 
 	/* Logical block size must be > 0. */
@@ -853,11 +842,11 @@ isEVD(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, PVD_reserved4_offset, PVD_reserved4_size))
+	if (!isNull(h, PVD_reserved4_offset, PVD_reserved4_size))
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, PVD_reserved5_offset, PVD_reserved5_size))
+	if (!isNull(h, PVD_reserved5_offset, PVD_reserved5_size))
 		return (0);
 
 	/* Read Root Directory Record in Volume Descriptor. */
@@ -891,7 +880,7 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, PVD_reserved2_offset, PVD_reserved2_size))
+	if (!isNull(h, PVD_reserved2_offset, PVD_reserved2_size))
 		return (0);
 
 	/* Volume space size must be encoded according to 7.3.3 */
@@ -903,7 +892,7 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 		return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, PVD_reserved3_offset, PVD_reserved3_size))
+	if (!isNull(h, PVD_reserved3_offset, PVD_reserved3_size))
 		return (0);
 
 	/* Volume set size must be encoded according to 7.2.3 */
@@ -961,7 +950,7 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 			return (0);
 
 	/* Reserved field must be 0. */
-	if (!isNull(iso9660, h, PVD_reserved5_offset, PVD_reserved5_size))
+	if (!isNull(h, PVD_reserved5_offset, PVD_reserved5_size))
 		return (0);
 
 	/* XXX TODO: Check other values for sanity; reject more
@@ -1034,12 +1023,11 @@ isRootDirectoryRecord(const unsigned char *p) {
 static int
 read_children(struct archive_read *a, struct file_info *parent)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	const unsigned char *b, *p;
 	struct file_info *multi;
 	size_t step, skip_size;
 
-	iso9660 = (struct iso9660 *)(a->format->data);
 	/* flush any remaining bytes from the last round to ensure
 	 * we're positioned */
 	if (iso9660->entry_bytes_unconsumed) {
@@ -1086,7 +1074,7 @@ read_children(struct archive_read *a, struct file_info *parent)
 		p = b;
 		b += iso9660->logical_block_size;
 		step -= iso9660->logical_block_size;
-		for (; *p != 0 && p + DR_name_offset < b && p + *p <= b;
+		for (; p < b && b - p > DR_name_offset && *p != 0 && *p <= b - p;
 			p += *p) {
 			struct file_info *child;
 
@@ -1247,11 +1235,9 @@ static int
 archive_read_format_iso9660_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	struct file_info *file;
 	int r, rd_r = ARCHIVE_OK;
-
-	iso9660 = (struct iso9660 *)(a->format->data);
 
 	if (!a->archive.archive_format) {
 		a->archive.archive_format = ARCHIVE_FORMAT_ISO9660;
@@ -1499,7 +1485,7 @@ static int
 zisofs_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	struct zisofs  *zisofs;
 	const unsigned char *p;
 	size_t avail;
@@ -1507,7 +1493,6 @@ zisofs_read_data(struct archive_read *a,
 	size_t uncompressed_size;
 	int r;
 
-	iso9660 = (struct iso9660 *)(a->format->data);
 	zisofs = &iso9660->entry_zisofs;
 
 	p = __archive_read_ahead(a, 1, &bytes_read);
@@ -1738,10 +1723,8 @@ static int
 archive_read_format_iso9660_read_data(struct archive_read *a,
     const void **buff, size_t *size, int64_t *offset)
 {
+	struct iso9660 *iso9660 = a->format->data;
 	ssize_t bytes_read;
-	struct iso9660 *iso9660;
-
-	iso9660 = (struct iso9660 *)(a->format->data);
 
 	if (iso9660->entry_bytes_unconsumed) {
 		__archive_read_consume(a, iso9660->entry_bytes_unconsumed);
@@ -1805,10 +1788,9 @@ archive_read_format_iso9660_read_data(struct archive_read *a,
 static int
 archive_read_format_iso9660_cleanup(struct archive_read *a)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	int r = ARCHIVE_OK;
 
-	iso9660 = (struct iso9660 *)(a->format->data);
 	release_files(iso9660);
 	free(iso9660->read_ce_req.reqs);
 	archive_string_free(&iso9660->pathname);
@@ -1828,7 +1810,7 @@ archive_read_format_iso9660_cleanup(struct archive_read *a)
 	free(iso9660->utf16be_path);
 	free(iso9660->utf16be_previous_path);
 	free(iso9660);
-	(a->format->data) = NULL;
+	a->format->data = NULL;
 	return (r);
 }
 
@@ -1840,7 +1822,7 @@ static struct file_info *
 parse_file_info(struct archive_read *a, struct file_info *parent,
     const unsigned char *isodirrec, size_t reclen)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	struct file_info *file, *filep;
 	size_t name_len;
 	const unsigned char *rr_start, *rr_end;
@@ -1849,8 +1831,6 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 	uint64_t fsize, offset;
 	int32_t location;
 	int flags;
-
-	iso9660 = (struct iso9660 *)(a->format->data);
 
 	if (reclen != 0)
 		dr_len = (size_t)isodirrec[DR_length_offset];
@@ -2192,10 +2172,8 @@ static int
 parse_rockridge(struct archive_read *a, struct file_info *file,
     const unsigned char *p, const unsigned char *end)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	int entry_seen = 0;
-
-	iso9660 = (struct iso9660 *)(a->format->data);
 
 	while (p + 4 <= end  /* Enough space for another entry. */
 	    && p[0] >= 'A' && p[0] <= 'Z' /* Sanity-check 1st char of name. */
@@ -2366,13 +2344,11 @@ static int
 register_CE(struct archive_read *a, int32_t location,
     struct file_info *file)
 {
-	struct iso9660 *iso9660;
+	struct iso9660 *iso9660 = a->format->data;
 	struct read_ce_queue *heap;
-	struct read_ce_req *p;
 	uint64_t offset, parent_offset;
-	int hole, parent;
+	size_t hole, parent;
 
-	iso9660 = (struct iso9660 *)(a->format->data);
 	offset = ((uint64_t)location) * (uint64_t)iso9660->logical_block_size;
 	if (((file->mode & AE_IFMT) == AE_IFREG &&
 	    offset >= file->offset) ||
@@ -2389,14 +2365,13 @@ register_CE(struct archive_read *a, int32_t location,
 	/* Expand our CE list as necessary. */
 	heap = &(iso9660->read_ce_req);
 	if (heap->cnt >= heap->allocated) {
-		int new_size;
+		struct read_ce_req *p;
+		size_t new_size;
 
 		if (heap->allocated < 16)
 			new_size = 16;
-		else
-			new_size = heap->allocated * 2;
-		/* Overflow might keep us from growing the list. */
-		if (new_size <= heap->allocated) {
+		else if (archive_ckd_mul_size(&new_size, heap->allocated, 2)) {
+			/* Overflow keeps us from growing the list. */
 			archive_set_error(&a->archive, ENOMEM, "Out of memory");
 			return (ARCHIVE_FATAL);
 		}
@@ -2438,7 +2413,7 @@ static void
 next_CE(struct read_ce_queue *heap)
 {
 	uint64_t a_offset, b_offset, c_offset;
-	int a, b, c;
+	size_t a, b, c;
 	struct read_ce_req tmp;
 
 	if (heap->cnt < 1)
@@ -2765,7 +2740,7 @@ parse_rockridge_ZF1(struct file_info *file, const unsigned char *data,
     int data_length)
 {
 
-	if (data[0] == 0x70 && data[1] == 0x7a && data_length == 12) {
+	if (data_length == 12 && data[0] == 0x70 && data[1] == 0x7a) {
         /* paged zlib */
         file->pz = 1;
         file->pz_log2_bs = data[3];
@@ -3144,7 +3119,7 @@ heap_add_entry(struct archive_read *a, struct heap_queue *heap,
     struct file_info *file, uint64_t key)
 {
 	uint64_t file_key, parent_key;
-	int hole, parent;
+	size_t hole, parent;
 
 	/* Reserve 16 bits for possible key collisions (needed for linked items) */
 	/* For ISO files with more than 65535 entries, reordering will still occur */
@@ -3154,12 +3129,12 @@ heap_add_entry(struct archive_read *a, struct heap_queue *heap,
 	/* Expand our pending files list as necessary. */
 	if (heap->used >= heap->allocated) {
 		struct file_info **new_pending_files;
-		int new_size = heap->allocated * 2;
+		size_t new_size;
 
 		if (heap->allocated < 1024)
 			new_size = 1024;
-		/* Overflow might keep us from growing the list. */
-		if (new_size <= heap->allocated) {
+		else if (archive_ckd_mul_size(&new_size, heap->allocated, 2)) {
+			/* Overflow keeps us from growing the list. */
 			archive_set_error(&a->archive,
 			    ENOMEM, "Out of memory");
 			return (ARCHIVE_FATAL);
@@ -3186,7 +3161,7 @@ heap_add_entry(struct archive_read *a, struct heap_queue *heap,
 	 */
 	hole = heap->used++;
 	while (hole > 0) {
-		parent = (hole - 1)/2;
+		parent = (hole - 1) / 2;
 		parent_key = heap->files[parent]->key;
 		if (file_key >= parent_key) {
 			heap->files[hole] = file;
@@ -3205,7 +3180,7 @@ static struct file_info *
 heap_get_entry(struct heap_queue *heap)
 {
 	uint64_t a_key, b_key, c_key;
-	int a, b, c;
+	size_t a, b, c;
 	struct file_info *r, *tmp;
 
 	if (heap->used < 1)

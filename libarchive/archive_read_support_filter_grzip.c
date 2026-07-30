@@ -76,14 +76,14 @@ archive_read_support_filter_grzip(struct archive *_a)
  * Bidder just verifies the header and returns the number of verified bits.
  */
 static int
-grzip_bidder_bid(struct archive_read_filter_bidder *self,
-    struct archive_read_filter *filter)
+grzip_bidder_bid(struct archive_read_filter_bidder *b,
+    struct archive_read_filter *f)
 {
 	const unsigned char *p;
 
-	(void)self; /* UNUSED */
+	(void)b; /* UNUSED */
 
-	p = __archive_read_filter_ahead(filter, sizeof(grzip_magic), NULL);
+	p = __archive_read_filter_ahead(f, sizeof(grzip_magic), NULL);
 	if (p == NULL)
 		return (0);
 
@@ -94,15 +94,15 @@ grzip_bidder_bid(struct archive_read_filter_bidder *self,
 }
 
 static int
-grzip_bidder_init(struct archive_read_filter *self)
+grzip_bidder_init(struct archive_read_filter *f)
 {
 	int r;
 
-	r = __archive_read_program(self, "grzip -d");
+	r = __archive_read_program(f, "grzip -d");
 	/* Note: We set the format here even if __archive_read_program()
 	 * above fails.  We do, after all, know what the format is
 	 * even if we weren't able to read it. */
-	self->code = ARCHIVE_FILTER_GRZIP;
-	self->name = "grzip";
+	f->code = ARCHIVE_FILTER_GRZIP;
+	f->name = "grzip";
 	return (r);
 }

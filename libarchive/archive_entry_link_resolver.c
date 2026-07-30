@@ -41,6 +41,7 @@
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_integer.h"
 
 /*
  * This is mostly a pretty straightforward hash table implementation.
@@ -387,7 +388,7 @@ insert_entry(struct archive_entry_linkresolver *res,
 	}
 
 	/* If the links cache is getting too full, enlarge the hash table. */
-	if (res->number_entries > res->number_buckets * 2)
+	if (res->number_entries / 2 > res->number_buckets)
 		grow_hash(res);
 
 	hash = (size_t)(archive_entry_dev(entry) ^ archive_entry_ino64(entry));
@@ -413,8 +414,7 @@ grow_hash(struct archive_entry_linkresolver *res)
 	size_t i, bucket;
 
 	/* Try to enlarge the bucket list. */
-	new_size = res->number_buckets * 2;
-	if (new_size < res->number_buckets)
+	if (archive_ckd_mul_size(&new_size, res->number_buckets, 2))
 		return;
 	new_buckets = calloc(new_size, sizeof(struct links_entry *));
 

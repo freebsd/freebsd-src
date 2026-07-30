@@ -176,7 +176,7 @@ DEFINE_TEST(test_read_format_zip_filename_UTF8_eucJP)
 	 * Bit 11 of its general purpose bit flag is set.
 	 */
 	if (NULL == setlocale(LC_ALL, "ja_JP.eucJP")) {
-		skipping("ja_JP.eucJP locale not availablefilename_ on "
+		skipping("ja_JP.eucJP locale not available on "
 			 "this system.");
 		return;
 	}

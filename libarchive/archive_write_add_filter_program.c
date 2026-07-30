@@ -70,7 +70,7 @@ struct archive_write_program_data {
 	char		*program_name;
 };
 
-struct private_data {
+struct program {
 	struct archive_write_program_data *pdata;
 	struct archive_string description;
 	char		*cmd;
@@ -81,51 +81,53 @@ static int archive_compressor_program_write(struct archive_write_filter *,
 		    const void *, size_t);
 static int archive_compressor_program_close(struct archive_write_filter *);
 static int archive_compressor_program_free(struct archive_write_filter *);
+static void free_data(struct program *);
 
 /*
  * Add a filter to this write handle that passes all data through an
  * external program.
  */
 int
-archive_write_add_filter_program(struct archive *_a, const char *cmd)
+archive_write_add_filter_program(struct archive *a, const char *cmd)
 {
-	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
-	struct private_data *data;
+	struct archive_write_filter *f;
+	struct program *program;
 	static const char prefix[] = "Program: ";
 
-	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_program");
 
-	f->data = calloc(1, sizeof(*data));
-	if (f->data == NULL)
+	program = calloc(1, sizeof(*program));
+	if (program == NULL)
 		goto memerr;
-	data = (struct private_data *)f->data;
-
-	data->cmd = strdup(cmd);
-	if (data->cmd == NULL)
+	program->cmd = strdup(cmd);
+	if (program->cmd == NULL)
 		goto memerr;
-
-	data->pdata = __archive_write_program_allocate(cmd);
-	if (data->pdata == NULL)
+	program->pdata = __archive_write_program_allocate(cmd);
+	if (program->pdata == NULL)
 		goto memerr;
-
 	/* Make up a description string. */
-	if (archive_string_ensure(&data->description,
+	if (archive_string_ensure(&program->description,
 	    strlen(prefix) + strlen(cmd) + 1) == NULL)
 		goto memerr;
-	archive_strcpy(&data->description, prefix);
-	archive_strcat(&data->description, cmd);
+	archive_strcpy(&program->description, prefix);
+	archive_strcat(&program->description, cmd);
 
-	f->name = data->description.s;
+	f = __archive_write_allocate_filter(a);
+	if (f == NULL)
+		goto memerr;
+	f->name = program->description.s;
 	f->code = ARCHIVE_FILTER_PROGRAM;
+	f->data = program;
 	f->open = archive_compressor_program_open;
 	f->write = archive_compressor_program_write;
 	f->close = archive_compressor_program_close;
 	f->free = archive_compressor_program_free;
+
 	return (ARCHIVE_OK);
 memerr:
-	archive_compressor_program_free(f);
-	archive_set_error(_a, ENOMEM,
+	free_data(program);
+	archive_set_error(a, ENOMEM,
 	    "Can't allocate memory for filter program");
 	return (ARCHIVE_FATAL);
 }
@@ -133,40 +135,33 @@ memerr:
 static int
 archive_compressor_program_open(struct archive_write_filter *f)
 {
-	struct private_data *data = (struct private_data *)f->data;
+	struct program *program = f->data;
 
-	return __archive_write_program_open(f, data->pdata, data->cmd);
+	return __archive_write_program_open(f, program->pdata, program->cmd);
 }
 
 static int
 archive_compressor_program_write(struct archive_write_filter *f,
     const void *buff, size_t length)
 {
-	struct private_data *data = (struct private_data *)f->data;
+	struct program *program = f->data;
 
-	return __archive_write_program_write(f, data->pdata, buff, length);
+	return __archive_write_program_write(f, program->pdata, buff, length);
 }
 
 static int
 archive_compressor_program_close(struct archive_write_filter *f)
 {
-	struct private_data *data = (struct private_data *)f->data;
+	struct program *program = f->data;
 
-	return __archive_write_program_close(f, data->pdata);
+	return __archive_write_program_close(f, program->pdata);
 }
 
 static int
 archive_compressor_program_free(struct archive_write_filter *f)
 {
-	struct private_data *data = (struct private_data *)f->data;
-
-	if (data) {
-		free(data->cmd);
-		archive_string_free(&data->description);
-		__archive_write_program_free(data->pdata);
-		free(data);
-		f->data = NULL;
-	}
+	free_data(f->data);
+	f->data = NULL;
 	return (ARCHIVE_OK);
 }
 
@@ -391,3 +386,13 @@ cleanup:
 	return ret;
 }
 
+static void
+free_data(struct program *program)
+{
+	if (program) {
+		free(program->cmd);
+		archive_string_free(&program->description);
+		__archive_write_program_free(program->pdata);
+		free(program);
+	}
+}

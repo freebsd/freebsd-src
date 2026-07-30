@@ -73,10 +73,16 @@ static void create_sparse_file(const char *, const struct sparse *);
 /* A few data points:
  * = ZFS on FreeBSD needs this to be at least 200kB
  * = macOS APFS needs this to be at least 4096x4097 bytes
+ * = Linux tmpfs on 16KB-page architectures (like LoongArch64) uses
+ *   32MiB Transparent Huge Pages (THP). If a hole is exactly the
+ *   size of a THP, the data blocks on either side can end up in
+ *   adjacent physical folios, causing SEEK_HOLE to report the range
+ *   as contiguous data.
  *
- * 32MiB here is bigger than either of the above.
+ * 64MiB here is enough to ensure a hole exists between THP folios on all
+ * common architectures.
  */
-#define MIN_HOLE (32 * 1024UL * 1024UL)
+#define MIN_HOLE (64 * 1024UL * 1024UL)
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #include <winioctl.h>
@@ -364,7 +370,9 @@ verify_sparse_file(struct archive *a, const char *path,
 		/* Block that overlaps beginning of data */
 		if (expected_offset < offset
 		    && expected_offset + (int64_t)sparse->size <= offset + (int64_t)bytes_read) {
-			const char *end = (const char *)buff + (expected_offset - offset) + (size_t)sparse->size;
+			/* Avoid forming an intermediate pointer before buff. */
+			const char *end = (const char *)buff
+			    + ((expected_offset - offset) + (int64_t)sparse->size);
 #if DEBUG
 			fprintf(stderr, "    overlapping hole expected_offset=%d, size=%d\n", (int)expected_offset, (int)sparse->size);
 #endif
@@ -379,7 +387,8 @@ verify_sparse_file(struct archive *a, const char *path,
 		}
 		/* Blocks completely contained in data we just read. */
 		while (expected_offset + (int64_t)sparse->size <= offset + (int64_t)bytes_read) {
-			const char *end = (const char *)buff + (expected_offset - offset) + (size_t)sparse->size;
+			const char *end = (const char *)buff
+			    + ((expected_offset - offset) + (int64_t)sparse->size);
 			if (sparse->type == HOLE) {
 #if DEBUG
 				fprintf(stderr, "    contained hole expected_offset=%d, size=%d\n", (int)expected_offset, (int)sparse->size);

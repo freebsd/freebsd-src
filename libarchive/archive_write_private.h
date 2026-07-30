@@ -69,7 +69,7 @@ void __archive_write_filters_free(struct archive *);
 struct archive_write_filter *__archive_write_allocate_filter(struct archive *);
 
 int __archive_write_output(struct archive_write *, const void *, size_t);
-int __archive_write_nulls(struct archive_write *, size_t);
+int __archive_write_nulls(struct archive_write *, uint64_t);
 int __archive_write_filter(struct archive_write_filter *, const void *, size_t);
 
 struct archive_write {
@@ -131,6 +131,8 @@ struct archive_write {
 	archive_passphrase_callback *passphrase_callback;
 	void		*passphrase_client_data;
 };
+
+int	__archive_write_unregister_format(struct archive_write *);
 
 /*
  * Utility function to format a USTAR header into a buffer.  If

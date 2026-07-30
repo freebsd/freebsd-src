@@ -85,7 +85,7 @@
 #define	FIRST	257		/* First free entry. */
 #define	CLEAR	256		/* Table clear output code. */
 
-struct private_data {
+struct compress {
 	int64_t in_count, out_count, checkpoint;
 
 	int code_len;			/* Number of bits/code. */
@@ -111,6 +111,7 @@ static int archive_compressor_compress_write(struct archive_write_filter *,
 		    const void *, size_t);
 static int archive_compressor_compress_close(struct archive_write_filter *);
 static int archive_compressor_compress_free(struct archive_write_filter *);
+static void free_data(struct compress *);
 
 #if ARCHIVE_VERSION_NUMBER < 4000000
 int
@@ -125,17 +126,35 @@ archive_write_set_compression_compress(struct archive *a)
  * Add a compress filter to this write handle.
  */
 int
-archive_write_add_filter_compress(struct archive *_a)
+archive_write_add_filter_compress(struct archive *a)
 {
-	struct archive_write *a = (struct archive_write *)_a;
-	struct archive_write_filter *f = __archive_write_allocate_filter(_a);
+	struct archive_write_filter *f;
+	struct compress *compress;
 
-	archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
+	archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_add_filter_compress");
-	f->open = &archive_compressor_compress_open;
-	f->code = ARCHIVE_FILTER_COMPRESS;
+
+	compress = calloc(1, sizeof(*compress));
+	if (compress == NULL)
+		goto memerr;
+
+	f = __archive_write_allocate_filter(a);
+	if (f == NULL)
+		goto memerr;
 	f->name = "compress";
+	f->code = ARCHIVE_FILTER_COMPRESS;
+	f->data = compress;
+	f->open = archive_compressor_compress_open;
+	f->write = archive_compressor_compress_write;
+	f->close = archive_compressor_compress_close;
+	f->free = archive_compressor_compress_free;
+
 	return (ARCHIVE_OK);
+memerr:
+	free_data(compress);
+	archive_set_error(a, ENOMEM,
+	    "Can't allocate data for compression");
+	return (ARCHIVE_FATAL);
 }
 
 /*
@@ -144,18 +163,8 @@ archive_write_add_filter_compress(struct archive *_a)
 static int
 archive_compressor_compress_open(struct archive_write_filter *f)
 {
-	struct private_data *state;
+	struct compress *compress = f->data;
 	size_t bs = 65536, bpb;
-
-	f->code = ARCHIVE_FILTER_COMPRESS;
-	f->name = "compress";
-
-	state = calloc(1, sizeof(*state));
-	if (state == NULL) {
-		archive_set_error(f->archive, ENOMEM,
-		    "Can't allocate data for compression");
-		return (ARCHIVE_FATAL);
-	}
 
 	if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {
 		/* Buffer size should be a multiple number of the bytes
@@ -166,41 +175,38 @@ archive_compressor_compress_open(struct archive_write_filter *f)
 		else if (bpb != 0)
 			bs -= bs % bpb;
 	}
-	state->compressed_buffer_size = bs;
-	state->compressed = malloc(state->compressed_buffer_size);
+	compress->compressed_buffer_size = bs;
+	compress->compressed = malloc(compress->compressed_buffer_size);
 
-	if (state->compressed == NULL) {
+	if (compress->compressed == NULL) {
 		archive_set_error(f->archive, ENOMEM,
 		    "Can't allocate data for compression buffer");
-		free(state);
 		return (ARCHIVE_FATAL);
 	}
 
-	f->write = archive_compressor_compress_write;
-	f->close = archive_compressor_compress_close;
-	f->free = archive_compressor_compress_free;
+	/* Should NEVER generate this code. */
+	compress->max_maxcode = 0x10000;
+	/* Length of input. */
+	compress->in_count = 0;
+	compress->bit_buf = 0;
+	compress->bit_offset = 0;
+	/* Includes 3-byte header mojo. */
+	compress->out_count = 3;
+	compress->compress_ratio = 0;
+	compress->checkpoint = CHECK_GAP;
+	compress->code_len = 9;
+	compress->cur_maxcode = MAXCODE(compress->code_len);
+	compress->first_free = FIRST;
 
-	state->max_maxcode = 0x10000;	/* Should NEVER generate this code. */
-	state->in_count = 0;		/* Length of input. */
-	state->bit_buf = 0;
-	state->bit_offset = 0;
-	state->out_count = 3;		/* Includes 3-byte header mojo. */
-	state->compress_ratio = 0;
-	state->checkpoint = CHECK_GAP;
-	state->code_len = 9;
-	state->cur_maxcode = MAXCODE(state->code_len);
-	state->first_free = FIRST;
-
-	memset(state->hashtab, 0xff, sizeof(state->hashtab));
+	memset(compress->hashtab, 0xff, sizeof(compress->hashtab));
 
 	/* Prime output buffer with a gzip header. */
-	state->compressed[0] = 0x1f; /* Compress */
-	state->compressed[1] = 0x9d;
-	state->compressed[2] = 0x90; /* Block mode, 16bit max */
-	state->compressed_offset = 3;
+	compress->compressed[0] = 0x1f; /* Compress */
+	compress->compressed[1] = 0x9d;
+	compress->compressed[2] = 0x90; /* Block mode, 16bit max */
+	compress->compressed_offset = 3;
 
-	f->data = state;
-	return (0);
+	return (ARCHIVE_OK);
 }
 
 /*-
@@ -224,17 +230,17 @@ static const unsigned char rmask[9] =
 static int
 output_byte(struct archive_write_filter *f, unsigned char c)
 {
-	struct private_data *state = f->data;
+	struct compress *compress = f->data;
 
-	state->compressed[state->compressed_offset++] = c;
-	++state->out_count;
+	compress->compressed[compress->compressed_offset++] = c;
+	++compress->out_count;
 
-	if (state->compressed_buffer_size == state->compressed_offset) {
+	if (compress->compressed_buffer_size == compress->compressed_offset) {
 		int ret = __archive_write_filter(f->next_filter,
-		    state->compressed, state->compressed_buffer_size);
+		    compress->compressed, compress->compressed_buffer_size);
 		if (ret != ARCHIVE_OK)
 			return ARCHIVE_FATAL;
-		state->compressed_offset = 0;
+		compress->compressed_offset = 0;
 	}
 
 	return ARCHIVE_OK;
@@ -243,7 +249,7 @@ output_byte(struct archive_write_filter *f, unsigned char c)
 static int
 output_code(struct archive_write_filter *f, int ocode)
 {
-	struct private_data *state = f->data;
+	struct compress *compress = f->data;
 	int bits, ret, clear_flg, bit_offset;
 
 	clear_flg = ocode == CLEAR;
@@ -252,11 +258,11 @@ output_code(struct archive_write_filter *f, int ocode)
 	 * Since ocode is always >= 8 bits, only need to mask the first
 	 * hunk on the left.
 	 */
-	bit_offset = state->bit_offset % 8;
-	state->bit_buf |= (ocode << bit_offset) & 0xff;
-	output_byte(f, state->bit_buf);
+	bit_offset = compress->bit_offset % 8;
+	compress->bit_buf |= (ocode << bit_offset) & 0xff;
+	output_byte(f, compress->bit_buf);
 
-	bits = state->code_len - (8 - bit_offset);
+	bits = compress->code_len - (8 - bit_offset);
 	ocode >>= 8 - bit_offset;
 	/* Get any 8 bit parts in the middle (<=1 for up to 16 bits). */
 	if (bits >= 8) {
@@ -265,41 +271,41 @@ output_code(struct archive_write_filter *f, int ocode)
 		bits -= 8;
 	}
 	/* Last bits. */
-	state->bit_offset += state->code_len;
-	state->bit_buf = ocode & rmask[bits];
-	if (state->bit_offset == state->code_len * 8)
-		state->bit_offset = 0;
+	compress->bit_offset += compress->code_len;
+	compress->bit_buf = ocode & rmask[bits];
+	if (compress->bit_offset == compress->code_len * 8)
+		compress->bit_offset = 0;
 
 	/*
 	 * If the next entry is going to be too big for the ocode size,
 	 * then increase it, if possible.
 	 */
-	if (clear_flg || state->first_free > state->cur_maxcode) {
+	if (clear_flg || compress->first_free > compress->cur_maxcode) {
 	       /*
 		* Write the whole buffer, because the input side won't
 		* discover the size increase until after it has read it.
 		*/
-		if (state->bit_offset > 0) {
-			while (state->bit_offset < state->code_len * 8) {
-				ret = output_byte(f, state->bit_buf);
+		if (compress->bit_offset > 0) {
+			while (compress->bit_offset < compress->code_len * 8) {
+				ret = output_byte(f, compress->bit_buf);
 				if (ret != ARCHIVE_OK)
 					return ret;
-				state->bit_offset += 8;
-				state->bit_buf = 0;
+				compress->bit_offset += 8;
+				compress->bit_buf = 0;
 			}
 		}
-		state->bit_buf = 0;
-		state->bit_offset = 0;
+		compress->bit_buf = 0;
+		compress->bit_offset = 0;
 
 		if (clear_flg) {
-			state->code_len = 9;
-			state->cur_maxcode = MAXCODE(state->code_len);
+			compress->code_len = 9;
+			compress->cur_maxcode = MAXCODE(compress->code_len);
 		} else {
-			state->code_len++;
-			if (state->code_len == 16)
-				state->cur_maxcode = state->max_maxcode;
+			compress->code_len++;
+			if (compress->code_len == 16)
+				compress->cur_maxcode = compress->max_maxcode;
 			else
-				state->cur_maxcode = MAXCODE(state->code_len);
+				compress->cur_maxcode = MAXCODE(compress->code_len);
 		}
 	}
 
@@ -309,13 +315,13 @@ output_code(struct archive_write_filter *f, int ocode)
 static int
 output_flush(struct archive_write_filter *f)
 {
-	struct private_data *state = f->data;
+	struct compress *compress = f->data;
 	int ret;
 
 	/* At EOF, write the rest of the buffer. */
-	if (state->bit_offset % 8) {
-		state->code_len = (state->bit_offset % 8 + 7) / 8;
-		ret = output_byte(f, state->bit_buf);
+	if (compress->bit_offset % 8) {
+		compress->code_len = (compress->bit_offset % 8 + 7) / 8;
+		ret = output_byte(f, compress->bit_buf);
 		if (ret != ARCHIVE_OK)
 			return ret;
 	}
@@ -330,7 +336,7 @@ static int
 archive_compressor_compress_write(struct archive_write_filter *f,
     const void *buff, size_t length)
 {
-	struct private_data *state = (struct private_data *)f->data;
+	struct compress *compress = f->data;
 	int i;
 	int ratio;
 	int c, disp, ret;
@@ -341,23 +347,24 @@ archive_compressor_compress_write(struct archive_write_filter *f,
 
 	bp = buff;
 
-	if (state->in_count == 0) {
-		state->cur_code = *bp++;
-		++state->in_count;
+	if (compress->in_count == 0) {
+		compress->cur_code = *bp++;
+		++compress->in_count;
 		--length;
 	}
 
 	while (length--) {
 		c = *bp++;
-		state->in_count++;
-		state->cur_fcode = (c << 16) | state->cur_code;
-		i = ((c << HSHIFT) ^ state->cur_code);	/* Xor hashing. */
+		compress->in_count++;
+		compress->cur_fcode = (c << 16) | compress->cur_code;
+		/* Xor hashing. */
+		i = ((c << HSHIFT) ^ compress->cur_code);
 
-		if (state->hashtab[i] == state->cur_fcode) {
-			state->cur_code = state->codetab[i];
+		if (compress->hashtab[i] == compress->cur_fcode) {
+			compress->cur_code = compress->codetab[i];
 			continue;
 		}
-		if (state->hashtab[i] < 0)	/* Empty slot. */
+		if (compress->hashtab[i] < 0)	/* Empty slot. */
 			goto nomatch;
 		/* Secondary hash (after G. Knott). */
 		if (i == 0)
@@ -368,40 +375,40 @@ archive_compressor_compress_write(struct archive_write_filter *f,
 		if ((i -= disp) < 0)
 			i += HSIZE;
 
-		if (state->hashtab[i] == state->cur_fcode) {
-			state->cur_code = state->codetab[i];
+		if (compress->hashtab[i] == compress->cur_fcode) {
+			compress->cur_code = compress->codetab[i];
 			continue;
 		}
-		if (state->hashtab[i] >= 0)
+		if (compress->hashtab[i] >= 0)
 			goto probe;
  nomatch:
-		ret = output_code(f, state->cur_code);
+		ret = output_code(f, compress->cur_code);
 		if (ret != ARCHIVE_OK)
 			return ret;
-		state->cur_code = c;
-		if (state->first_free < state->max_maxcode) {
-			state->codetab[i] = state->first_free++;	/* code -> hashtable */
-			state->hashtab[i] = state->cur_fcode;
+		compress->cur_code = c;
+		if (compress->first_free < compress->max_maxcode) {
+			compress->codetab[i] = compress->first_free++;	/* code -> hashtable */
+			compress->hashtab[i] = compress->cur_fcode;
 			continue;
 		}
-		if (state->in_count < state->checkpoint)
+		if (compress->in_count < compress->checkpoint)
 			continue;
 
-		state->checkpoint = state->in_count + CHECK_GAP;
+		compress->checkpoint = compress->in_count + CHECK_GAP;
 
-		if (state->in_count <= 0x007fffff && state->out_count != 0)
-			ratio = (int)(state->in_count * 256 / state->out_count);
-		else if ((ratio = (int)(state->out_count / 256)) == 0)
+		if (compress->in_count <= 0x007fffff && compress->out_count != 0)
+			ratio = (int)(compress->in_count * 256 / compress->out_count);
+		else if ((ratio = (int)(compress->out_count / 256)) == 0)
 			ratio = 0x7fffffff;
 		else
-			ratio = (int)(state->in_count / ratio);
+			ratio = (int)(compress->in_count / ratio);
 
-		if (ratio > state->compress_ratio)
-			state->compress_ratio = ratio;
+		if (ratio > compress->compress_ratio)
+			compress->compress_ratio = ratio;
 		else {
-			state->compress_ratio = 0;
-			memset(state->hashtab, 0xff, sizeof(state->hashtab));
-			state->first_free = FIRST;
+			compress->compress_ratio = 0;
+			memset(compress->hashtab, 0xff, sizeof(compress->hashtab));
+			compress->first_free = FIRST;
 			ret = output_code(f, CLEAR);
 			if (ret != ARCHIVE_OK)
 				return ret;
@@ -418,10 +425,10 @@ archive_compressor_compress_write(struct archive_write_filter *f,
 static int
 archive_compressor_compress_close(struct archive_write_filter *f)
 {
-	struct private_data *state = (struct private_data *)f->data;
+	struct compress *compress = f->data;
 	int ret;
 
-	ret = output_code(f, state->cur_code);
+	ret = output_code(f, compress->cur_code);
 	if (ret != ARCHIVE_OK)
 		return ret;
 	ret = output_flush(f);
@@ -430,16 +437,23 @@ archive_compressor_compress_close(struct archive_write_filter *f)
 
 	/* Write the last block */
 	ret = __archive_write_filter(f->next_filter,
-	    state->compressed, state->compressed_offset);
+	    compress->compressed, compress->compressed_offset);
 	return (ret);
 }
 
 static int
 archive_compressor_compress_free(struct archive_write_filter *f)
 {
-	struct private_data *state = (struct private_data *)f->data;
-
-	free(state->compressed);
-	free(state);
+	free_data(f->data);
+	f->data = NULL;
 	return (ARCHIVE_OK);
+}
+
+static void
+free_data(struct compress *compress)
+{
+	if (compress != NULL) {
+		free(compress->compressed);
+		free(compress);
+	}
 }

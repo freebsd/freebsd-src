@@ -26,6 +26,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
 
 /*
  * Regression test: malformed bracket expressions in patterns caused
@@ -37,8 +38,10 @@
  * redzones detect overreads.
  */
 
-/* Declare the internal function we want to test. */
+/* Declare the internal functions we want to test. */
 int __archive_pathmatch(const char *pattern, const char *string, int flags);
+int __archive_pathmatch_w(const wchar_t *pattern, const wchar_t *string,
+    int flags);
 
 /*
  * Replay a fuzzer repro file through __archive_pathmatch().
@@ -114,4 +117,40 @@ DEFINE_TEST(test_archive_pathmatch_oob_bracket)
 DEFINE_TEST(test_archive_pathmatch_oob_strchr)
 {
 	replay_pathmatch_repro("test_archive_pathmatch_oob_strchr.bin");
+}
+
+/*
+ * Wide-character twin of the bracket over-read.  pm_w() matched a [...]
+ * class without first checking whether the subject string was already
+ * exhausted, so a negated class ([!...]/[^...]) at end-of-string reported
+ * a match and advanced the subject pointer past its terminator.  Allocate
+ * tight wide buffers so ASan's redzones catch the over-read.
+ */
+static void
+check_pathmatch_w_oob(const wchar_t *pat, const wchar_t *str, int flags)
+{
+	size_t plen = wcslen(pat) + 1;
+	size_t slen = wcslen(str) + 1;
+	wchar_t *pattern = (wchar_t *)malloc(plen * sizeof(wchar_t));
+	wchar_t *string = (wchar_t *)malloc(slen * sizeof(wchar_t));
+
+	if (assert(pattern != NULL) && assert(string != NULL)) {
+		wmemcpy(pattern, pat, plen);
+		wmemcpy(string, str, slen);
+		/* This must not read past the allocated buffers. */
+		__archive_pathmatch_w(pattern, string, flags);
+	}
+	free(pattern);
+	free(string);
+}
+
+DEFINE_TEST(test_archive_pathmatch_oob_bracket_w)
+{
+	/* PATHMATCH_NO_ANCHOR_START | PATHMATCH_NO_ANCHOR_END, as used by
+	 * archive_match() exclusion patterns. */
+	int flags = 1 | 2;
+
+	check_pathmatch_w_oob(L"abc[!x]", L"abc", flags);
+	check_pathmatch_w_oob(L"[!a]", L"", flags);
+	check_pathmatch_w_oob(L"[^a]", L"", flags);
 }
