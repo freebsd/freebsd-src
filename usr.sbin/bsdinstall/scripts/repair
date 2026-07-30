@@ -143,16 +143,16 @@ option_mtree() {
 	retval=$?
 	[ $retval -eq 0 ] && echo "mtrees match" > $MTREE_LOG
 	bsddialog --backtitle "$OSNAME Installer" --title 'MTREE' \
-	        --textbox $MTREE_LOG 0 0
+		--textbox $MTREE_LOG 0 0
 
 	[ $retval -eq 0 ] && return
 
 	bsddialog --backtitle "$OSNAME Installer" --title 'mtree detected changes' \
-	        --yesno 'Some changes were detected. Would you like to reset to defaults?' --defaultno 0 0
+		--yesno 'Some changes were detected. Would you like to reset to defaults?' --defaultno 0 0
 	if [ $? -eq $BSDDIALOG_OK ]; then
-	        mtree -eu -p /mnt -f /etc/mtree/BSD.root.dist > $MTREE_LOG 2>&1
-	        bsddialog --backtitle "$OSNAME Installer" --title 'MTREE RESET' \
-	                --textbox $MTREE_LOG 0 0
+		mtree -eu -p /mnt -f /etc/mtree/BSD.root.dist > $MTREE_LOG 2>&1
+		bsddialog --backtitle "$OSNAME Installer" --title 'MTREE RESET' \
+			--textbox $MTREE_LOG 0 0
 	fi
 }
 
@@ -160,7 +160,7 @@ while :; do
 	#
 	# Initialize by grepping ufs partitions and zfs pools on the system
 	#
-	partitions=$(gpart show -p | grep 'freebsd-ufs' | grep -v diskid |  awk '{ print $3, $4 }')
+	partitions=$(gpart show -p | grep 'freebsd-ufs' | grep -v diskid | awk '{ print $3, $4 }')
 	pools=$(zpool import | grep pool: | awk '{ print $2, "zpool" }')
 	if [ -z "$partitions" -a -z "$pools" ]; then
 		msgbox 'No partition detected' 'No partition detected. Exiting to live system.'
