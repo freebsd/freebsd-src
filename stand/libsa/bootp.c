@@ -120,7 +120,7 @@ bootp_fill_request(unsigned char *bp_vend)
 void
 bootp(int sock)
 {
-	void *pkt;
+	void *pkt = NULL;
 	struct iodesc *d;
 	struct bootp *bp;
 	struct {
@@ -128,36 +128,28 @@ bootp(int sock)
 		struct bootp wbootp;
 	} wbuf;
 	struct bootp *rbootp;
+	bool init_reboot = false;
 
 	DEBUG_PRINTF(1, ("bootp: socket=%d\n", sock));
 	if (!bot)
 		bot = getsecs();
-	
+
 	if (!(d = socktodesc(sock))) {
 		printf("bootp: bad socket. %d\n", sock);
 		return;
 	}
 	DEBUG_PRINTF(1, ("bootp: socktodesc=%lx\n", (long)d));
 
+restart:
 	bp = &wbuf.wbootp;
 	bzero(bp, sizeof(*bp));
 
 	bp->bp_op = BOOTREQUEST;
 	bp->bp_htype = 1;		/* 10Mb Ethernet (48 bits) */
 	bp->bp_hlen = 6;
-	bp->bp_xid = htonl(d->xid);
 	MACPY(d->myea, bp->bp_chaddr);
 	strncpy(bp->bp_file, bootfile, sizeof(bp->bp_file));
 	bcopy(vm_rfc1048, bp->bp_vend, sizeof(vm_rfc1048));
-#ifdef SUPPORT_DHCP
-	bp->bp_vend[4] = TAG_DHCP_MSGTYPE;
-	bp->bp_vend[5] = 1;
-	bp->bp_vend[6] = DHCPDISCOVER;
-	bootp_fill_request(&bp->bp_vend[7]);
-
-#else
-	bp->bp_vend[4] = TAG_END;
-#endif
 
 	d->myip.s_addr = INADDR_ANY;
 	d->myport = htons(IPPORT_BOOTPC);
@@ -165,47 +157,130 @@ bootp(int sock)
 	d->destport = htons(IPPORT_BOOTPS);
 
 #ifdef SUPPORT_DHCP
-	expected_dhcpmsgtype = DHCPOFFER;
-	dhcp_ok = 0;
+	/*
+	 * If a DHCP reply is already cached (populated by a lower layer
+	 * that captured it from firmware, e.g. UEFI PXE Base Code), enter
+	 * RFC 2131 § 4.3.2 INIT-REBOOT: skip DISCOVER/OFFER and go
+	 * straight to REQUEST with option 50 = cached IP.  The DHCP
+	 * server confirms the lease with an ACK containing whatever
+	 * options this client asks for, which may be a superset of what
+	 * the firmware asked for (e.g. option 26 interface-MTU, option 16
+	 * swap-server).  On NAK or timeout, fall back to a full
+	 * DISCOVER/OFFER/REQUEST/ACK cycle.
+	 */
+	if (bootp_response != NULL &&
+	    bootp_response->bp_yiaddr.s_addr != INADDR_ANY) {
+		init_reboot = true;
+		rbootp = bootp_response;
+		d->xid = ntohl(rbootp->bp_xid);
+		DEBUG_PRINTF(1, ("bootp: using cached DHCP reply "
+		    "(INIT-REBOOT), yiaddr=%s xid=0x%08x\n",
+		    inet_ntoa(rbootp->bp_yiaddr), (unsigned)d->xid));
+	} else
+#endif
+	if (d->xid == 0) {
+		/*
+		 * RFC 951 / RFC 2131 § 4.1 recommend a random xid.
+		 * Without a real RNG in the loader, seed from the
+		 * interface MAC (host-unique) mixed with the current
+		 * time (unique across reboots on the same host).  This
+		 * avoids the pre-existing behavior of every fresh
+		 * BOOTP/DHCP client sending xid=0, which risks
+		 * broadcast-reply mis-correlation when several PXE
+		 * clients boot concurrently — bootprecv() enforces
+		 * xid matching.
+		 */
+		memcpy(&d->xid, &d->myea[2], sizeof(d->xid));
+		d->xid ^= (uint32_t)getsecs();
+	}
+	bp->bp_xid = htonl(d->xid);
+
+	if (!init_reboot) {
+#ifdef SUPPORT_DHCP
+		bp->bp_vend[4] = TAG_DHCP_MSGTYPE;
+		bp->bp_vend[5] = 1;
+		bp->bp_vend[6] = DHCPDISCOVER;
+		bootp_fill_request(&bp->bp_vend[7]);
+		expected_dhcpmsgtype = DHCPOFFER;
+		dhcp_ok = 0;
+#else
+		bp->bp_vend[4] = TAG_END;
 #endif
 
-	if(sendrecv(d,
-		    bootpsend, bp, sizeof(*bp),
-		    bootprecv, &pkt, (void **)&rbootp, NULL) == -1) {
-	    printf("bootp: no reply\n");
-	    return;
+		if (sendrecv(d,
+			    bootpsend, bp, sizeof(*bp),
+			    bootprecv, &pkt, (void **)&rbootp, NULL) == -1) {
+			printf("bootp: no reply\n");
+			return;
+		}
 	}
 
 #ifdef SUPPORT_DHCP
-	if(dhcp_ok) {
+	if (dhcp_ok || init_reboot) {
 		uint32_t leasetime;
+		int off;
+
+		bp->bp_vend[4] = TAG_DHCP_MSGTYPE;
+		bp->bp_vend[5] = 1;
 		bp->bp_vend[6] = DHCPREQUEST;
 		bp->bp_vend[7] = TAG_REQ_ADDR;
 		bp->bp_vend[8] = 4;
 		bcopy(&rbootp->bp_yiaddr, &bp->bp_vend[9], 4);
-		bp->bp_vend[13] = TAG_SERVERID;
-		bp->bp_vend[14] = 4;
-		bcopy(&dhcp_serverip.s_addr, &bp->bp_vend[15], 4);
-		bp->bp_vend[19] = TAG_LEASETIME;
-		bp->bp_vend[20] = 4;
+		off = 13;
+		if (!init_reboot) {
+			/* SELECTING: server-id identifies the server whose
+			 * OFFER we accepted.  INIT-REBOOT omits it (RFC 2131
+			 * § 4.3.2). */
+			bp->bp_vend[off++] = TAG_SERVERID;
+			bp->bp_vend[off++] = 4;
+			bcopy(&dhcp_serverip.s_addr, &bp->bp_vend[off], 4);
+			off += 4;
+		}
+		bp->bp_vend[off++] = TAG_LEASETIME;
+		bp->bp_vend[off++] = 4;
 		leasetime = htonl(300);
-		bcopy(&leasetime, &bp->bp_vend[21], 4);
-		bootp_fill_request(&bp->bp_vend[25]);
+		bcopy(&leasetime, &bp->bp_vend[off], 4);
+		off += 4;
+		bootp_fill_request(&bp->bp_vend[off]);
 
 		expected_dhcpmsgtype = DHCPACK;
 
-		free(pkt);
-		if(sendrecv(d,
+		if (pkt != NULL) {
+			free(pkt);
+			pkt = NULL;
+		}
+		if (sendrecv(d,
 			    bootpsend, bp, sizeof(*bp),
 			    bootprecv, &pkt, (void **)&rbootp, NULL) == -1) {
+			if (init_reboot) {
+				printf("bootp: INIT-REBOOT failed, "
+				    "falling back to DISCOVER\n");
+				free(bootp_response);
+				bootp_response = NULL;
+				bootp_response_size = 0;
+				init_reboot = false;
+				if (pkt != NULL) {
+					free(pkt);
+					pkt = NULL;
+				}
+				goto restart;
+			}
 			printf("DHCPREQUEST failed\n");
 			return;
 		}
+		if (init_reboot)
+			DEBUG_PRINTF(1, ("bootp: INIT-REBOOT ACK received\n"));
 	}
 #endif
 
 	myip = d->myip = rbootp->bp_yiaddr;
-	servip = rbootp->bp_siaddr;
+	/*
+	 * Preserve a pre-set servip (e.g. seeded by PXE-consuming code
+	 * from a ProxyDHCP offer) when the ACK's siaddr is zero, which is
+	 * typical for non-PXE-aware primary DHCP servers.
+	 */
+	if (rbootp->bp_siaddr.s_addr != INADDR_ANY)
+		servip = rbootp->bp_siaddr;
 	if (rootip.s_addr == INADDR_ANY)
 		rootip = servip;
 	bcopy(rbootp->bp_file, bootfile, sizeof(bootfile));

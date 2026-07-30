@@ -324,7 +324,6 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 #endif
 
 	bcopy(net->Mode->CurrentAddress.Addr, desc->myea, 6);
-	desc->xid = 1;
 }
 
 static void
