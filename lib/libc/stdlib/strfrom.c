@@ -14,60 +14,66 @@
 
 #include "strfrom.h"
 
+struct sf_buf {
+	char	*s;
+	size_t	 n;
+	int	 pos;
+};
+
 /*
- * Write c to s[*pos] if within the n-1 writable bytes; always advance *pos.
- * n is the total buffer capacity, including the null slot.
+ * Write c to b->s[b->pos] if within the n-1 writable bytes; always advance
+ * b->pos.  n is the total buffer capacity, including the null slot.
  */
 static void
-sf_putc(char *s, size_t n, int *pos, char c)
+sf_putc(struct sf_buf *b, char c)
 {
-	if (n > 0 && (size_t)*pos < n - 1)
-		s[*pos] = c;
-	(*pos)++;
+	if (b->n > 0 && (size_t)b->pos < b->n - 1)
+		b->s[b->pos] = c;
+	b->pos++;
 }
 
 /*
  * Write len bytes from src.
  */
 static void
-sf_write(char *s, size_t n, int *pos, const char *src, int len)
+sf_write(struct sf_buf *b, const char *src, int len)
 {
 	int i;
 
 	for (i = 0; i < len; i++)
-		sf_putc(s, n, pos, src[i]);
+		sf_putc(b, src[i]);
 }
 
 /*
  * Write a null terminated string.
  */
 static void
-sf_puts(char *s, size_t n, int *pos, const char *src)
+sf_puts(struct sf_buf *b, const char *src)
 {
 	while (*src != '\0')
-		sf_putc(s, n, pos, *src++);
+		sf_putc(b, *src++);
 }
 
 /*
  * Write count copies of c.
  */
 static void
-sf_padc(char *s, size_t n, int *pos, char c, int count)
+sf_padc(struct sf_buf *b, char c, int count)
 {
 	int i;
 
 	for (i = 0; i < count; i++)
-		sf_putc(s, n, pos, c);
+		sf_putc(b, c);
 }
 
 /*
  * Seal the buffer: null terminate at min(pos, n-1).
  */
 static void
-sf_seal(char *s, size_t n, int pos)
+sf_seal(struct sf_buf *b)
 {
-	if (n > 0)
-		s[(size_t)pos < n ? pos : n - 1] = '\0';
+	if (b->n > 0)
+		b->s[(size_t)b->pos < b->n ? b->pos : b->n - 1] = '\0';
 }
 
 /*
@@ -76,9 +82,9 @@ sf_seal(char *s, size_t n, int pos)
  * per-thread locale as vfprintf(3).  The radix may be multibyte.
  */
 static void
-sf_putdp(char *s, size_t n, int *pos)
+sf_putdp(struct sf_buf *b)
 {
-	sf_puts(s, n, pos, localeconv()->decimal_point);
+	sf_puts(b, localeconv()->decimal_point);
 }
 
 /*
@@ -88,17 +94,17 @@ sf_putdp(char *s, size_t n, int *pos)
  * Handles the full exponent range of every supported type.
  */
 static void
-sf_emit_exp(char *s, size_t n, int *pos, char ec, int exp, int mindig)
+sf_emit_exp(struct sf_buf *b, char ec, int exp, int mindig)
 {
 	char buf[16];
 	int len;
 
-	sf_putc(s, n, pos, ec);
+	sf_putc(b, ec);
 	if (exp < 0) {
-		sf_putc(s, n, pos, '-');
+		sf_putc(b, '-');
 		exp = -exp;
 	} else {
-		sf_putc(s, n, pos, '+');
+		sf_putc(b, '+');
 	}
 
 	len = 0;
@@ -109,7 +115,7 @@ sf_emit_exp(char *s, size_t n, int *pos, char ec, int exp, int mindig)
 	while (len < mindig)
 		buf[len++] = '0';
 	while (len > 0)
-		sf_putc(s, n, pos, buf[--len]);
+		sf_putc(b, buf[--len]);
 }
 
 /*
@@ -154,24 +160,22 @@ __sf_parse_fmt(const char *fmt, int *prec)
 }
 
 /*
- * Render Inf or NaN into s[0..n-1].
+ * Render Inf or NaN into b->s[0..n-1].
  *
  * is_nan: non-zero if digits[0] == 'N' (NaN), zero for Infinity.
  */
 static int
-sf_special(char *s, size_t n, char conv, int signflag, int is_nan)
+sf_special(struct sf_buf *b, char conv, int signflag, int is_nan)
 {
-	int pos;
 	int upper;
 
-	pos = 0;
+	b->pos = 0;
 	upper = isupper((unsigned char)conv);
 	if (!is_nan && signflag)
-		sf_putc(s, n, &pos, '-');
-	sf_puts(s, n, &pos,
-	    is_nan ? (upper ? "NAN" : "nan") : (upper ? "INF" : "inf"));
-	sf_seal(s, n, pos);
-	return (pos);
+		sf_putc(b, '-');
+	sf_puts(b, is_nan ? (upper ? "NAN" : "nan") : (upper ? "INF" : "inf"));
+	sf_seal(b);
+	return (b->pos);
 }
 
 /*
@@ -182,33 +186,31 @@ sf_special(char *s, size_t n, char conv, int signflag, int is_nan)
  * returned by dtoa.
  */
 static int
-sf_efmt(char *s, size_t n, int prec, char conv,
+sf_efmt(struct sf_buf *b, int prec, char conv,
     const char *digits, int ndig, int decpt, int signflag)
 {
-	int pos;
 	int avail, copy;
 
-	pos = 0;
+	b->pos = 0;
 	if (signflag)
-		sf_putc(s, n, &pos, '-');
+		sf_putc(b, '-');
 
 	/*
 	 * Leading significant digit.
 	 */
-	sf_putc(s, n, &pos, ndig > 0 ? digits[0] : '0');
+	sf_putc(b, ndig > 0 ? digits[0] : '0');
 
 	if (prec > 0) {
-		sf_putdp(s, n, &pos);
+		sf_putdp(b);
 		avail = ndig > 1 ? ndig - 1 : 0;
 		copy = avail < prec ? avail : prec;
-		sf_write(s, n, &pos, digits + 1, copy);
-		sf_padc(s, n, &pos, '0', prec - copy);
+		sf_write(b, digits + 1, copy);
+		sf_padc(b, '0', prec - copy);
 	}
-	sf_emit_exp(s, n, &pos, isupper((unsigned char)conv) ? 'E' : 'e',
-	    decpt - 1, 2);
+	sf_emit_exp(b, isupper((unsigned char)conv) ? 'E' : 'e', decpt - 1, 2);
 
-	sf_seal(s, n, pos);
-	return (pos);
+	sf_seal(b);
+	return (b->pos);
 }
 
 /*
@@ -218,47 +220,46 @@ sf_efmt(char *s, size_t n, int prec, char conv,
  * before the decimal point (may be <= 0).
  */
 static int
-sf_ffmt(char *s, size_t n, int prec, int signflag,
+sf_ffmt(struct sf_buf *b, int prec, int signflag,
     const char *digits, int ndig, int decpt)
 {
-	int pos;
 	int avail, copy, rem, zc;
 
-	pos = 0;
+	b->pos = 0;
 	if (signflag)
-		sf_putc(s, n, &pos, '-');
+		sf_putc(b, '-');
 
 	if (decpt <= 0) {
-		sf_putc(s, n, &pos, '0');
+		sf_putc(b, '0');
 		if (prec > 0) {
-			sf_putdp(s, n, &pos);
+			sf_putdp(b);
 			zc = -decpt < prec ? -decpt : prec;
 			rem = prec - zc;
 			copy = ndig < rem ? ndig : rem;
-			sf_padc(s, n, &pos, '0', zc);
-			sf_write(s, n, &pos, digits, copy);
-			sf_padc(s, n, &pos, '0', rem - copy);
+			sf_padc(b, '0', zc);
+			sf_write(b, digits, copy);
+			sf_padc(b, '0', rem - copy);
 		}
 	} else {
 		/*
 		 * decpt digits (or zeros) before the point.
 		 */
 		copy = ndig < decpt ? ndig : decpt;
-		sf_write(s, n, &pos, digits, copy);
-		sf_padc(s, n, &pos, '0', decpt - copy);
+		sf_write(b, digits, copy);
+		sf_padc(b, '0', decpt - copy);
 		if (prec > 0) {
-			sf_putdp(s, n, &pos);
+			sf_putdp(b);
 			avail = ndig - decpt;
 			if (avail < 0)
 				avail = 0;
 			copy = avail < prec ? avail : prec;
-			sf_write(s, n, &pos, digits + decpt, copy);
-			sf_padc(s, n, &pos, '0', prec - copy);
+			sf_write(b, digits + decpt, copy);
+			sf_padc(b, '0', prec - copy);
 		}
 	}
 
-	sf_seal(s, n, pos);
-	return (pos);
+	sf_seal(b);
+	return (b->pos);
 }
 
 /*
@@ -267,13 +268,12 @@ sf_ffmt(char *s, size_t n, int prec, int signflag,
  * dtoa was called with mode=2, ndigits=max(1, prec).
  */
 static int
-sf_gfmt(char *s, size_t n, int prec, char conv,
+sf_gfmt(struct sf_buf *b, int prec, char conv,
     const char *digits, int ndig, int decpt, int signflag)
 {
-	int pos;
 	int ep, copy, frac;
 
-	pos = 0;
+	b->pos = 0;
 	/*
 	 * Precision 0 is treated as 1 per C23 §7.23.6.1.
 	 */
@@ -286,7 +286,7 @@ sf_gfmt(char *s, size_t n, int prec, char conv,
 		ndig--;
 
 	if (signflag)
-		sf_putc(s, n, &pos, '-');
+		sf_putc(b, '-');
 
 	/*
 	 * Standard says −4 ≤ exponent < P test: exponent = decpt − 1
@@ -296,37 +296,37 @@ sf_gfmt(char *s, size_t n, int prec, char conv,
 		 * %f style, per C23 §7.23.6.1.
 		 */
 		if (decpt <= 0) {
-			sf_putc(s, n, &pos, '0');
+			sf_putc(b, '0');
 			if (ndig > 0) {
-				sf_putdp(s, n, &pos);
-				sf_padc(s, n, &pos, '0', -decpt);
-				sf_write(s, n, &pos, digits, ndig);
+				sf_putdp(b);
+				sf_padc(b, '0', -decpt);
+				sf_write(b, digits, ndig);
 			}
 		} else {
 			copy = ndig < decpt ? ndig : decpt;
-			sf_write(s, n, &pos, digits, copy);
-			sf_padc(s, n, &pos, '0', decpt - copy);
+			sf_write(b, digits, copy);
+			sf_padc(b, '0', decpt - copy);
 			frac = ndig - decpt;
 			if (frac > 0) {
-				sf_putdp(s, n, &pos);
-				sf_write(s, n, &pos, digits + decpt, frac);
+				sf_putdp(b);
+				sf_write(b, digits + decpt, frac);
 			}
 		}
 	} else {
 		/*
 		 * %e style, per C23 §7.23.6.1.
 		 */
-		sf_putc(s, n, &pos, ndig > 0 ? digits[0] : '0');
+		sf_putc(b, ndig > 0 ? digits[0] : '0');
 		if (ndig > 1) {
-			sf_putdp(s, n, &pos);
-			sf_write(s, n, &pos, digits + 1, ndig - 1);
+			sf_putdp(b);
+			sf_write(b, digits + 1, ndig - 1);
 		}
-		sf_emit_exp(s, n, &pos, isupper((unsigned char)conv) ? 'E' : 'e',
+		sf_emit_exp(b, isupper((unsigned char)conv) ? 'E' : 'e',
 		    decpt - 1, 2);
 	}
 
-	sf_seal(s, n, pos);
-	return (pos);
+	sf_seal(b);
+	return (b->pos);
 }
 
 /*
@@ -340,22 +340,21 @@ sf_gfmt(char *s, size_t n, int prec, char conv,
  * user_prec: digits after the hex point (-1 for shortest-exact).
  */
 static int
-sf_afmt(char *s, size_t n, int user_prec, char conv,
+sf_afmt(struct sf_buf *b, int user_prec, char conv,
     const char *digits, int ndig, int decpt, int signflag)
 {
-	int pos;
 	int after, copy;
 
-	pos = 0;
+	b->pos = 0;
 	if (signflag)
-		sf_putc(s, n, &pos, '-');
-	sf_putc(s, n, &pos, '0');
-	sf_putc(s, n, &pos, isupper((unsigned char)conv) ? 'X' : 'x');
+		sf_putc(b, '-');
+	sf_putc(b, '0');
+	sf_putc(b, isupper((unsigned char)conv) ? 'X' : 'x');
 
 	/*
 	 * Integer part of the significand.
 	 */
-	sf_putc(s, n, &pos, ndig > 0 ? digits[0] : '0');
+	sf_putc(b, ndig > 0 ? digits[0] : '0');
 
 	after = ndig - 1;
 	if (user_prec < 0) {
@@ -363,20 +362,19 @@ sf_afmt(char *s, size_t n, int user_prec, char conv,
 		 * Shortest-exact: emit only the non-zero significant tail.
 		 */
 		if (after > 0) {
-			sf_putdp(s, n, &pos);
-			sf_write(s, n, &pos, digits + 1, after);
+			sf_putdp(b);
+			sf_write(b, digits + 1, after);
 		}
 	} else if (user_prec > 0) {
-		sf_putdp(s, n, &pos);
+		sf_putdp(b);
 		copy = after < user_prec ? after : user_prec;
-		sf_write(s, n, &pos, digits + 1, copy);
-		sf_padc(s, n, &pos, '0', user_prec - copy);
+		sf_write(b, digits + 1, copy);
+		sf_padc(b, '0', user_prec - copy);
 	}
-	sf_emit_exp(s, n, &pos, isupper((unsigned char)conv) ? 'P' : 'p',
-	    decpt - 1, 1);
+	sf_emit_exp(b, isupper((unsigned char)conv) ? 'P' : 'p', decpt - 1, 1);
 
-	sf_seal(s, n, pos);
-	return (pos);
+	sf_seal(b);
+	return (b->pos);
 }
 
 /*
@@ -421,13 +419,16 @@ int
 __sf_render_hex(char *s, size_t n, char conv, int prec,
     char *digits, char *dend, int decpt, int signflag)
 {
+	struct sf_buf b;
 	int ndig, usprec;
 
+	b.s = s;
+	b.n = n;
 	if (decpt == INT_MAX)
-		return (sf_special(s, n, conv, signflag, digits[0] == 'N'));
+		return (sf_special(&b, conv, signflag, digits[0] == 'N'));
 	ndig = (int)(dend - digits);
 	usprec = prec >= 0 ? prec : ndig - 1;
-	return (sf_afmt(s, n, usprec, conv, digits, ndig, decpt, signflag));
+	return (sf_afmt(&b, usprec, conv, digits, ndig, decpt, signflag));
 }
 
 /*
@@ -438,20 +439,21 @@ int
 __sf_render_decimal(char *s, size_t n, char conv, char lc, int prec,
     char *digits, char *dend, int decpt, int signflag, int is_special)
 {
+	struct sf_buf b;
 	int ndig;
 
+	b.s = s;
+	b.n = n;
 	if (is_special)
-		return (sf_special(s, n, conv, signflag, digits[0] == 'N'));
+		return (sf_special(&b, conv, signflag, digits[0] == 'N'));
 	ndig = (int)(dend - digits);
 	switch (lc) {
 	case 'e':
-		return (sf_efmt(s, n, prec, conv, digits, ndig, decpt,
-		    signflag));
+		return (sf_efmt(&b, prec, conv, digits, ndig, decpt, signflag));
 	case 'f':
-		return (sf_ffmt(s, n, prec, signflag, digits, ndig, decpt));
+		return (sf_ffmt(&b, prec, signflag, digits, ndig, decpt));
 	case 'g':
-		return (sf_gfmt(s, n, prec, conv, digits, ndig, decpt,
-		    signflag));
+		return (sf_gfmt(&b, prec, conv, digits, ndig, decpt, signflag));
 	default:
 		__unreachable();
 	}
