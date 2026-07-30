@@ -1,0 +1,69 @@
+.\"
+.\" Copyright 2026 Colin Percival
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd July 31, 2026
+.Dt GROWFS_POSTBOOT 7
+.Os
+.Sh NAME
+.Nm growfs_postboot
+.Nd automatically grow file systems during runtime
+.Sh DESCRIPTION
+The
+.Nm
+script expands filesystems automatically.
+Typically it is run via
+.Xr devd 8
+in response to a SIZECHANGE notification.
+It will enlarge the final partition of a partitioned disk; expand a UFS
+file system; or expand a zpool device, as appropriate.
+.Pp
+The following option in
+.Pa /etc/rc.conf
+controls the behavior of
+.Nm :
+.Bl -tag -width "growfs_postboot_enable" -offset indent
+.It Va growfs_postboot_enable
+.Pq Dq Li NO
+If set to
+.Dq Li YES ,
+the script will enlarge partitions and file systems when disks expand.
+.El
+.Pp
+Note that the
+.Xr growfs 7
+startup script will normally place a swap partition at the end of the disk
+containing the root file system, which will prevent the file system growing
+further; as such, in most cases it will be advisable to set
+.Va growfs_swap_size
+to
+.Dq Li 0
+in virtual machine images if
+.Nm
+is being enabled.
+If the system has already booted without that setting, a swap partition may
+have already been created, in which case it must be removed before this script
+can grow the root file system.
+.Sh FILES
+.Bl -tag -compact -width Pa
+.It Pa /etc/rc.conf
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr rc.conf 5 ,
+.Xr growfs 7 ,
+.Xr devd 8 ,
+.Xr growfs 8 ,
+.Xr zpool 8
+.Sh HISTORY
+The
+.Nm
+script first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Colin Percival Aq Mt cperciva@FreeBSD.org
+.Sh CAVEATS
+I/O may be paused while file systems grow, so this functionality should be used
+with care on systems with strict latency requirements.
