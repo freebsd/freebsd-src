@@ -66,6 +66,24 @@
 #include <sys/epoch.h>
 
 #ifdef _KERNEL
+/*
+ * For IPv6 pseudo header checksum; to be used by TCP-MD5,
+ * and for OCF source level compatibility with OpenBSD.
+ */
+struct ip6_hdr_pseudo {
+	struct in6_addr ip6ph_src;
+	struct in6_addr ip6ph_dst;
+	uint32_t	ip6ph_len;
+	uint8_t		ip6ph_zero[3];
+	uint8_t		ip6ph_nxt;
+} __aligned(4);
+
+#ifdef INVARIANTS
+/* Aligned size of pseudo-header must equal size of IPv6 header. */
+_Static_assert(sizeof(struct ip6_hdr_pseudo) == 40,
+    "IPv6 pseudo-header alignment failure");
+#endif
+
 struct ip6asfrag;		/* frag6.c */
 TAILQ_HEAD(ip6fraghead, ip6asfrag);
 
