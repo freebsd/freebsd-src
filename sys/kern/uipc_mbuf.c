@@ -2148,6 +2148,15 @@ m_unshare(struct mbuf *m0, int how)
 	mprev = NULL;
 	for (m = m0; m != NULL; m = mprev->m_next) {
 		/*
+		 * m_unshare() can not process KTLS mbufs because they must
+		 * neither be linearized nor converted to mapped.
+		 */
+		if (mbuf_has_tls_session(m)) {
+			m_freem(m0);
+			return (NULL);
+		}
+
+		/*
 		 * Regular mbufs are ignored unless there's a cluster
 		 * in front of it that we can use to coalesce.  We do
 		 * the latter mainly so later clusters can be coalesced
