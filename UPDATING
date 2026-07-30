@@ -27,6 +27,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20260728:
+	The Intel 82576 and I350 Virtual Function devices have been split from
+	the igb(4) driver into the igbv driver.  Interfaces previously exposed
+	as igbN are now exposed as igbvN.  Network configuration files must be
+	updated accordingly.
+
 20260727:
 	The wait_for_pids() function in rc.subr, used by rc scripts
 	when stopping or restarting a service, has been modified to
