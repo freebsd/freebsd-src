@@ -4008,7 +4008,14 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 		/* Clear checksum offload context. */
 		offp = (caddr_t)txr + offsetof(struct tx_ring, csum_flags);
 		endp = (caddr_t)(txr + 1);
-		bzero(offp, endp - offp);
+		memset(offp, 0, endp - offp);
+
+		if (hw->mac.type >= igb_mac_min) {
+			txdctl = E1000_READ_REG(hw, E1000_TXDCTL(qid));
+			E1000_WRITE_REG(hw, E1000_TXDCTL(qid),
+			    txdctl & ~E1000_TXDCTL_QUEUE_ENABLE);
+			E1000_WRITE_FLUSH(hw);
+		}
 
 		/* Base and Len of TX Ring */
 		E1000_WRITE_REG(hw, E1000_TDLEN(qid),
@@ -4027,9 +4034,12 @@ em_initialize_transmit_unit(if_ctx_t ctx)
 		txdctl |= 0x1f; /* PTHRESH */
 		txdctl |= 1 << 8; /* HTHRESH */
 		txdctl |= 1 << 16;/* WTHRESH */
-		txdctl |= 1 << 22; /* Reserved bit 22 must always be 1 */
-		txdctl |= E1000_TXDCTL_GRAN;
-		txdctl |= 1 << 25; /* LWTHRESH */
+		if (hw->mac.type < igb_mac_min) {
+			txdctl |= 1 << 22; /* Reserved bit must always be 1 */
+			txdctl |= E1000_TXDCTL_GRAN;
+			txdctl |= 1 << 25; /* LWTHRESH */
+		} else
+			txdctl |= E1000_TXDCTL_QUEUE_ENABLE;
 
 		E1000_WRITE_REG(hw, E1000_TXDCTL(qid), txdctl);
 	}
@@ -4339,6 +4349,11 @@ em_initialize_receive_unit(if_ctx_t ctx)
 			srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 #endif
 
+			rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(qid));
+			E1000_WRITE_REG(hw, E1000_RXDCTL(qid),
+			    rxdctl & ~E1000_RXDCTL_QUEUE_ENABLE);
+			E1000_WRITE_FLUSH(hw);
+
 			E1000_WRITE_REG(hw, E1000_RDLEN(qid),
 			    scctx->isc_nrxd[0] *
 			    sizeof(struct e1000_rx_desc));
@@ -4346,9 +4361,10 @@ em_initialize_receive_unit(if_ctx_t ctx)
 			    (uint32_t)(bus_addr >> 32));
 			E1000_WRITE_REG(hw, E1000_RDBAL(qid),
 			    (uint32_t)bus_addr);
+			E1000_WRITE_REG(hw, E1000_RDH(qid), 0);
+			E1000_WRITE_REG(hw, E1000_RDT(qid), 0);
 			E1000_WRITE_REG(hw, E1000_SRRCTL(qid), srrctl);
 			/* Enable this Queue */
-			rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(qid));
 			rxdctl |= E1000_RXDCTL_QUEUE_ENABLE;
 			rxdctl &= 0xFFF00000;
 			rxdctl |= IGB_RX_PTHRESH;
