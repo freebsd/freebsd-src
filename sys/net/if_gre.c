@@ -405,7 +405,6 @@ gre_reassign(struct ifnet *ifp, struct vnet *new_vnet __unused,
 	if (sc != NULL)
 		gre_delete_tunnel(sc);
 	sx_xunlock(&gre_ioctl_sx);
-	if_link_state_change(ifp, LINK_STATE_DOWN);
 }
 #endif /* VIMAGE */
 
@@ -419,7 +418,6 @@ gre_clone_destroy(struct if_clone *ifc, struct ifnet *ifp, uint32_t flags)
 	gre_delete_tunnel(sc);
 	ifp->if_softc = NULL;
 	sx_xunlock(&gre_ioctl_sx);
-	if_link_state_change(GRE2IFP(sc), LINK_STATE_DOWN);
 	bpfdetach(ifp);
 	if_detach(ifp);
 
@@ -662,6 +660,7 @@ gre_delete_tunnel(struct gre_softc *sc)
 		sc->gre_so = NULL;
 	}
 	GRE2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_link_state_change(GRE2IFP(sc), LINK_STATE_DOWN);
 }
 
 struct gre_list *
