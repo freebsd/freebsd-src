@@ -208,7 +208,7 @@ while :; do
 		set --
 		[ "$mounted" = yes ] && set -- "$@" "$chroot_name" "$chroot_desc"
 		set -- "$@" "$shell_name" "$shell_desc"
-		[ "$fs" = "zpool" ] && set -- "$@" "$zpool_scrub_name" "$zpool_scrub_desc"
+		[ "$mounted" = yes ] && [ "$fs" = "zpool" ] && set -- "$@" "$zpool_scrub_name" "$zpool_scrub_desc"
 
 		exec 5>&1
 		action=$(bsddialog --backtitle "$OSNAME Installer" --title 'Inspect selected partition' \
