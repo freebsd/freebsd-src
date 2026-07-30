@@ -1668,6 +1668,8 @@ em_if_detach(if_ctx_t ctx)
 	INIT_DEBUGOUT("em_if_detach: begin");
 
 	igb_iov_detach(sc);
+	if (sc->vf_ifp)
+		igbv_queue_retry_detach(sc);
 	if (!sc->vf_ifp)
 		e1000_phy_hw_reset(&sc->hw);
 
@@ -1700,6 +1702,8 @@ em_if_suspend(if_ctx_t ctx)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 
+	if (sc->vf_ifp)
+		igbv_queue_retry_stop(sc);
 	em_release_manageability(sc);
 	em_release_hw_control(sc);
 	em_enable_wakeup(ctx);
@@ -1791,8 +1795,10 @@ em_if_init(if_ctx_t ctx)
 
 	INIT_DEBUGOUT("em_if_init: begin");
 	vf_mbx_ready = !sc->vf_ifp;
-	if (sc->vf_ifp)
+	if (sc->vf_ifp) {
+		igbv_queue_retry_prepare(sc);
 		sc->vf_reset_pending = true;
+	}
 
 	/* Get the latest mac address, User can use a LAA */
 	bcopy(if_getlladdr(ifp), sc->hw.mac.addr, ETHER_ADDR_LEN);
@@ -1823,6 +1829,16 @@ em_if_init(if_ctx_t ctx)
 		em_rebase_vf_stats(sc);
 	} else {
 		em_reset(ctx);
+	}
+	if (sc->vf_ifp && !sc->vf_queues_sanitized) {
+		/*
+		 * Do not program or enable rings while retained queue state
+		 * might still contain a previous VF owner's DMA address.  A
+		 * bounded callout retries initialization after iflib returns;
+		 * the deferred admin task clears its optimistic RUNNING flag.
+		 */
+		igbv_queue_retry_failed(ctx);
+		return;
 	}
 	if (sc->vf_ifp && vf_mbx_ready)
 		igbv_reconcile_mac(sc, ifp);
@@ -2781,6 +2797,9 @@ em_if_stop(if_ctx_t ctx)
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 
 	INIT_DEBUGOUT("em_if_stop: begin");
+
+	if (sc->vf_ifp)
+		igbv_queue_retry_stop(sc);
 
 	/* I219 needs special flushing to avoid hangs */
 	if (sc->hw.mac.type >= e1000_pch_spt && sc->hw.mac.type < igb_mac_min)

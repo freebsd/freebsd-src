@@ -30,9 +30,24 @@
 
 #include <sys/sbuf.h>
 
+#define	IGBV_82576_QUEUES		2
+#define	IGBV_I350_QUEUES		1
 #define	IGBV_MAX_MAC_FILTERS	3
+#define	IGBV_QUEUE_DISABLE_BUSY_RETRIES	10
+#define	IGBV_QUEUE_DISABLE_DELAY_US	10
+#define	IGBV_QUEUE_DISABLE_PAUSE	(100 * SBT_1US)
+#define	IGBV_QUEUE_DISABLE_RETRIES	20
+#define	IGBV_QUEUE_SANITIZE_ATTEMPTS	3
 #define	IGBV_VLAN_RETRY_BATCH	4
 #define	IGBV_VLAN_RETRY_WINDOW	(8 * SBT_1S)
+
+static const struct timeval igbv_queue_log_interval = { 2, 0 };
+static const sbintime_t igbv_queue_retry_delay[] = {
+	100 * SBT_1MS,
+	500 * SBT_1MS,
+};
+_Static_assert(nitems(igbv_queue_retry_delay) + 1 ==
+    IGBV_QUEUE_SANITIZE_ATTEMPTS, "missing queue retry delay");
 
 struct igb_vf_uc_addr_list {
 	struct e1000_softc	*sc;
@@ -42,6 +57,101 @@ struct igb_vf_uc_addr_list {
 static bool	igbv_tx_pending(struct e1000_softc *);
 static bool	igbv_vlan_retry_pending(const struct e1000_softc *);
 static void	igbv_vlan_retry_tick(struct e1000_softc *);
+
+static void
+igbv_queue_retry_callout(void *arg)
+{
+	struct e1000_softc *sc;
+	if_t ifp;
+
+	sc = arg;
+	if (atomic_readandclear_32(&sc->vf_queue_retry_pending) == 0)
+		return;
+	ifp = iflib_get_ifp(sc->ctx);
+	if ((if_getflags(ifp) & IFF_UP) == 0) {
+		atomic_set_32(&sc->vf_queue_retry_new_epoch, 1);
+		return;
+	}
+	iflib_request_reset(sc->ctx);
+	iflib_admin_intr_deferred(sc->ctx);
+}
+
+void
+igbv_queue_retry_detach(struct e1000_softc *sc)
+{
+
+	if (!sc->vf_queue_retry_initialized)
+		return;
+	atomic_readandclear_32(&sc->vf_queue_retry_pending);
+	callout_drain(&sc->vf_queue_retry);
+	sc->vf_queue_retry_initialized = false;
+}
+
+void
+igbv_queue_retry_stop(struct e1000_softc *sc)
+{
+
+	if (!sc->vf_queue_retry_initialized)
+		return;
+	if (atomic_readandclear_32(&sc->vf_queue_retry_pending) != 0)
+		atomic_set_32(&sc->vf_queue_retry_new_epoch, 1);
+	callout_stop(&sc->vf_queue_retry);
+}
+
+void
+igbv_queue_retry_prepare(struct e1000_softc *sc)
+{
+	bool new_epoch;
+
+	new_epoch =
+	    atomic_readandclear_32(&sc->vf_queue_retry_new_epoch) != 0;
+	if (!sc->vf_queue_gave_up && !new_epoch)
+		return;
+	sc->vf_queue_failures = 0;
+	sc->vf_queue_gave_up = false;
+}
+
+static void
+igbv_queue_retry_succeeded(struct e1000_softc *sc)
+{
+
+	atomic_readandclear_32(&sc->vf_queue_retry_pending);
+	atomic_readandclear_32(&sc->vf_queue_retry_new_epoch);
+	if (sc->vf_queue_retry_initialized)
+		callout_stop(&sc->vf_queue_retry);
+	sc->vf_queue_failures = 0;
+	sc->vf_queue_gave_up = false;
+}
+
+void
+igbv_queue_retry_failed(if_ctx_t ctx)
+{
+	struct e1000_softc *sc;
+	sbintime_t delay;
+
+	sc = iflib_get_softc(ctx);
+	KASSERT(sc->vf_ifp, ("%s called for a PF", __func__));
+
+	if (sc->vf_queue_failures < IGBV_QUEUE_SANITIZE_ATTEMPTS)
+		sc->vf_queue_failures++;
+	if (sc->vf_queue_failures < IGBV_QUEUE_SANITIZE_ATTEMPTS) {
+		delay = igbv_queue_retry_delay[sc->vf_queue_failures - 1];
+		atomic_set_32(&sc->vf_queue_retry_pending, 1);
+		callout_reset_sbt(&sc->vf_queue_retry, delay, 0,
+		    igbv_queue_retry_callout, sc, C_PREL(1));
+	} else if (!sc->vf_queue_gave_up) {
+		atomic_readandclear_32(&sc->vf_queue_retry_pending);
+		callout_stop(&sc->vf_queue_retry);
+		sc->vf_queue_gave_up = true;
+		device_printf(sc->dev,
+		    "retained VF queues remained active after %u attempts; "
+		    "interface left down; toggle it down/up to retry\n",
+		    sc->vf_queue_failures);
+	}
+
+	iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
+	iflib_admin_intr_deferred(ctx);
+}
 
 void
 igbv_vlan_retry_add(struct e1000_softc *sc, u16 vid)
@@ -125,6 +235,7 @@ igbv_vlan_retry_tick(struct e1000_softc *sc)
 int
 igbv_if_attach_pre(if_ctx_t ctx)
 {
+	struct e1000_softc *sc;
 	device_t dev;
 	int error;
 
@@ -137,7 +248,11 @@ igbv_if_attach_pre(if_ctx_t ctx)
 	if (error != 0)
 		return (error);
 
-	KASSERT(((struct e1000_softc *)iflib_get_softc(ctx))->vf_ifp &&
+	sc = iflib_get_softc(ctx);
+	callout_init(&sc->vf_queue_retry, 1);
+	sc->vf_queue_retry_initialized = true;
+
+	KASSERT(sc->vf_ifp &&
 	    (iflib_get_sctx(ctx)->isc_flags & IFLIB_IS_VF) != 0,
 	    ("%s: igbv attached without VF policy", __func__));
 	return (0);
@@ -187,6 +302,18 @@ igbv_if_update_admin_status(if_ctx_t ctx)
 	hw = &sc->hw;
 	dev = iflib_get_dev(ctx);
 	KASSERT(sc->vf_ifp, ("%s called for a PF", __func__));
+
+	/*
+	 * iflib's init callback cannot report failure and marks the interface
+	 * running after it returns.  Complete the failed-init transition from
+	 * this deferred task, after iflib has set its driver flags.
+	 */
+	if (!sc->vf_queues_sanitized) {
+		igbv_if_intr_disable(ctx);
+		if_setdrvflagbits(iflib_get_ifp(ctx), IFF_DRV_OACTIVE,
+		    IFF_DRV_RUNNING);
+		return;
+	}
 
 	if (!sc->vf_reset_pending &&
 	    atomic_readandclear_32(&sc->promisc_pending) != 0)
@@ -258,11 +385,87 @@ igbv_tx_pending(struct e1000_softc *sc)
 	return (false);
 }
 
+static bool
+igbv_sanitize_queues(struct e1000_softc *sc)
+{
+	struct e1000_hw *hw;
+	u32 rxdctl, txdctl;
+	int i, nqueues, retry;
+
+	hw = &sc->hw;
+	switch (hw->mac.type) {
+	case e1000_vfadapt:
+		nqueues = IGBV_82576_QUEUES;
+		break;
+	case e1000_vfadapt_i350:
+		nqueues = IGBV_I350_QUEUES;
+		break;
+	default:
+		return (true);
+	}
+
+	/*
+	 * The 82576 and I350 specification updates, Software Clarification 3,
+	 * note that VFLR leaves this queue configuration intact.  Clear it
+	 * before programming the new rings so igbv does not depend on its PF
+	 * to sanitize state left by a previous VF owner.  igbv uses only queue
+	 * zero, but must also clear the unused second 82576 queue.
+	 *
+	 * Disable every queue first and wait for outstanding DMA activity to
+	 * stop before programming TDWBAL/H.  Spin only for the normal fast
+	 * transition, then sleep until the bounded deadline.
+	 */
+	for (i = 0; i < nqueues; i++) {
+		E1000_WRITE_REG(hw, E1000_RXDCTL(i), 0);
+		E1000_WRITE_REG(hw, E1000_TXDCTL(i), 0);
+	}
+	E1000_WRITE_FLUSH(hw);
+	for (retry = 0; retry < IGBV_QUEUE_DISABLE_RETRIES; retry++) {
+		for (i = 0; i < nqueues; i++) {
+			rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(i));
+			txdctl = E1000_READ_REG(hw, E1000_TXDCTL(i));
+			if ((rxdctl & E1000_RXDCTL_QUEUE_ENABLE) != 0 ||
+			    (txdctl & E1000_TXDCTL_QUEUE_ENABLE) != 0)
+				break;
+		}
+		if (i == nqueues)
+			break;
+		if (retry + 1 < IGBV_QUEUE_DISABLE_RETRIES) {
+			if (retry < IGBV_QUEUE_DISABLE_BUSY_RETRIES)
+				DELAY(IGBV_QUEUE_DISABLE_DELAY_US);
+			else
+				pause_sbt("igbvqds",
+				    IGBV_QUEUE_DISABLE_PAUSE, 0,
+				    C_PREL(1));
+		}
+	}
+	if (retry == IGBV_QUEUE_DISABLE_RETRIES) {
+		if (ratecheck(&sc->vf_last_queue_log,
+		    &igbv_queue_log_interval))
+			device_printf(sc->dev,
+			    "could not disable retained VF queues; "
+			    "reset deferred\n");
+		return (false);
+	}
+
+	for (i = 0; i < nqueues; i++) {
+		E1000_WRITE_REG(hw, E1000_SRRCTL(i), 0);
+		E1000_WRITE_REG(hw, E1000_DCA_RXCTRL(i), 0);
+		E1000_WRITE_REG(hw, E1000_TDWBAL(i), 0);
+		E1000_WRITE_REG(hw, E1000_TDWBAH(i), 0);
+		E1000_WRITE_REG(hw, E1000_DCA_TXCTRL(i), 0);
+	}
+	E1000_WRITE_REG(hw, E1000_VFPSRTYPE, 0);
+	E1000_WRITE_FLUSH(hw);
+	return (true);
+}
+
 bool
 igbv_reset(if_ctx_t ctx)
 {
 	struct e1000_softc *sc;
 	struct e1000_hw *hw;
+	s32 error;
 
 	sc = iflib_get_softc(ctx);
 	hw = &sc->hw;
@@ -278,7 +481,14 @@ igbv_reset(if_ctx_t ctx)
 		.requested_mode = e1000_fc_none,
 	};
 
-	if (e1000_reset_hw(hw) != E1000_SUCCESS) {
+	error = e1000_reset_hw(hw);
+	sc->vf_queues_sanitized = igbv_sanitize_queues(sc);
+	if (!sc->vf_queues_sanitized) {
+		e1000_check_for_link(hw);
+		return (false);
+	}
+	igbv_queue_retry_succeeded(sc);
+	if (error != E1000_SUCCESS) {
 		e1000_check_for_link(hw);
 		return (false);
 	}
@@ -322,6 +532,8 @@ igbv_if_intr_enable(if_ctx_t ctx)
 	sc = iflib_get_softc(ctx);
 	hw = &sc->hw;
 	KASSERT(sc->vf_ifp, ("%s called for a PF", __func__));
+	if (!sc->vf_queues_sanitized)
+		return;
 	mask = sc->que_mask | sc->link_mask;
 
 	E1000_WRITE_REG(hw, E1000_EIAC, mask);

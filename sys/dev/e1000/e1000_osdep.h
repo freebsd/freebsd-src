@@ -171,8 +171,10 @@ struct e1000_osdep
  * the OS accessors so a PF-only register that leaks into the shared VF path
  * fails at its first access instead of returning reserved-register garbage.
  *
- * The driver intentionally uses only queue pair zero.  Expanding VF queue
- * support must extend this predicate from the applicable device CSR map.
+ * The driver intentionally uses only queue pair zero.  It also clears the
+ * retained configuration of the unused second 82576 queue pair after VFLR.
+ * Expanding VF data-path queue support must extend this predicate from the
+ * applicable device CSR map.
  */
 static __inline bool
 e1000_vf_reg_valid(uint32_t reg, bool write, bool vf_82576)
@@ -210,6 +212,20 @@ e1000_vf_reg_valid(uint32_t reg, bool write, bool vf_82576)
 	case 0x03838:	/* TDWBAL */
 	case 0x0383c:	/* TDWBAH */
 		return (true);
+	}
+
+	/* Retained configuration from 82576 virtual queue one. */
+	if (vf_82576) {
+		switch (reg) {
+		case 0x0290c:	/* SRRCTL(1) */
+		case 0x02914:	/* RXCTL(1) */
+		case 0x02928:	/* RXDCTL(1) */
+		case 0x03914:	/* TXCTL(1) */
+		case 0x03928:	/* TXDCTL(1) */
+		case 0x03938:	/* TDWBAL(1) */
+		case 0x0393c:	/* TDWBAH(1) */
+			return (true);
+		}
 	}
 
 	/*

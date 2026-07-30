@@ -286,6 +286,7 @@
 #define E1000_TXDMAC		0x03000  /* Tx DMA Control - RW */
 #define E1000_KABGTXD		0x03004  /* AFE Band Gap Transmit Ref Data */
 #define E1000_PSRTYPE(_i)	(0x05480 + ((_i) * 4))
+#define E1000_VFPSRTYPE		0x00F0C
 #define E1000_RAL(_i)		(((_i) <= 15) ? (0x05400 + ((_i) * 8)) : \
 				 (0x054E0 + ((_i - 16) * 8)))
 #define E1000_RAH(_i)		(((_i) <= 15) ? (0x05404 + ((_i) * 8)) : \

@@ -646,7 +646,15 @@ struct e1000_softc {
 		struct e1000_vf_stats	vf_stats;	/* sc->vf_ifp */
 	} ustats;
 
+	struct callout		vf_queue_retry;
+	struct timeval		vf_last_queue_log;
+	u32			vf_queue_retry_new_epoch;
+	u32			vf_queue_retry_pending;
 	u16			vf_ifp;
+	u8			vf_queue_failures;
+	bool			vf_queue_gave_up;
+	bool			vf_queue_retry_initialized;
+	bool			vf_queues_sanitized;
 	bool			vf_reset_pending;
 	/* A PF can retain auxiliary filters across a VF reset. */
 	bool			vf_uc_filters_set;
@@ -674,6 +682,10 @@ void	igbv_if_intr_disable(if_ctx_t);
 void	igbv_if_update_admin_status(if_ctx_t);
 void	igbv_initialize_receive_unit(if_ctx_t);
 void	igbv_initialize_transmit_unit(if_ctx_t);
+void	igbv_queue_retry_detach(struct e1000_softc *);
+void	igbv_queue_retry_failed(if_ctx_t);
+void	igbv_queue_retry_prepare(struct e1000_softc *);
+void	igbv_queue_retry_stop(struct e1000_softc *);
 void	igbv_reconcile_mac(struct e1000_softc *, if_t);
 bool	igbv_reset(if_ctx_t);
 void	igbv_update_uc_addr_list(struct e1000_softc *, if_t);
