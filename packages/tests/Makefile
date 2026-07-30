@@ -10,7 +10,7 @@ PKG_DEPS.tests+=	atf
 PKG_DEPS.tests+=	flua
 
 # Some tests need GoogleTest
-PKG_DEPS.tests+=	googletest
+PKG_DEPS.tests+=	utilities
 
 # The test framework requires Kyua.
 PKG_DEPS.tests+=	kyua
