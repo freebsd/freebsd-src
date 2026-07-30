@@ -4,7 +4,7 @@ SRCS    = device_if.h bus_if.h pci_if.h pci_iov_if.h opt_ddb.h opt_inet.h \
 	  opt_inet6.h opt_rss.h ifdi_if.h
 SRCS    += $(CORE_SRC) $(LEGACY_SRC)
 SRCS	+= $(COMMON_SHARED) $(LEGACY_SHARED) $(PCIE_SHARED)
-CORE_SRC = if_em.c if_igb_iov.c em_txrx.c e1000_osdep.c
+CORE_SRC = if_em.c if_igbv.c if_igb_iov.c em_txrx.c e1000_osdep.c
 CORE_SRC += igb_txrx.c
 COMMON_SHARED = e1000_api.c e1000_base.c e1000_phy.c e1000_nvm.c e1000_mac.c \
 		e1000_manage.c e1000_vf.c e1000_mbx.c e1000_i210.c

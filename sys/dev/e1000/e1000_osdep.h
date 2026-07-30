@@ -161,7 +161,82 @@ struct e1000_osdep
 	bus_space_handle_t flash_bus_space_handle;
 	device_t	   dev;
 	if_ctx_t	   ctx;
+	bool		   vf;
 };
+
+#ifdef INVARIANTS
+/*
+ * 82576 and I350 VFs expose a sparse register file.  Keep this list local to
+ * the OS accessors so a PF-only register that leaks into the shared VF path
+ * fails at its first access instead of returning reserved-register garbage.
+ *
+ * The driver intentionally uses only queue pair zero.  Expanding VF queue
+ * support must extend this predicate from the applicable device CSR map.
+ */
+static __inline bool
+e1000_vf_reg_valid(uint32_t reg, bool write)
+{
+	/* VF mailbox memory: 16 dwords beginning at 0x800. */
+	if (reg >= 0x00800 && reg <= 0x0083c && (reg & 3) == 0)
+		return (true);
+
+	/* The three VF MSI-X interrupt-throttling registers. */
+	if (reg >= 0x01680 && reg <= 0x01688 && (reg & 3) == 0)
+		return (true);
+
+	/* Receive queue zero. */
+	switch (reg) {
+	case 0x02800:	/* RDBAL */
+	case 0x02804:	/* RDBAH */
+	case 0x02808:	/* RDLEN */
+	case 0x0280c:	/* SRRCTL */
+	case 0x02810:	/* RDH */
+	case 0x02818:	/* RDT */
+	case 0x02828:	/* RXDCTL */
+		return (true);
+	}
+
+	/* Transmit queue zero. */
+	switch (reg) {
+	case 0x03800:	/* TDBAL */
+	case 0x03804:	/* TDBAH */
+	case 0x03808:	/* TDLEN */
+	case 0x03810:	/* TDH */
+	case 0x03818:	/* TDT */
+	case 0x03828:	/* TXDCTL */
+		return (true);
+	}
+
+	switch (reg) {
+	case 0x00000:	/* CTRL */
+	case 0x000c4:	/* Legacy ITR, listed but unused by igb VFs */
+	case 0x00c40:	/* V2PMAILBOX(0) */
+	case 0x01524:	/* EIMS */
+	case 0x0152c:	/* EIAC */
+	case 0x01530:	/* EIAM */
+	case 0x01700:	/* IVAR0 */
+	case 0x01740:	/* IVAR_MISC */
+		return (true);
+	case 0x01520:	/* EICS */
+	case 0x01528:	/* EIMC */
+		return (write);
+	case 0x00008:	/* STATUS */
+	case 0x00f10:	/* VFGPRC */
+	case 0x00f14:	/* VFGPTC */
+	case 0x00f18:	/* VFGORC */
+	case 0x00f34:	/* VFGOTC */
+	case 0x00f3c:	/* VFMPRC */
+	case 0x00f40:	/* VFGPRLBC */
+	case 0x00f44:	/* VFGPTLBC */
+	case 0x00f48:	/* VFGORLBC */
+	case 0x00f50:	/* VFGOTLBC */
+	case 0x01580:	/* EICR */
+		return (!write);
+	default:
+		return (false);
+	}
+}
+#endif
 
 #define E1000_REGISTER(hw, reg) (((hw)->mac.type >= e1000_82543) \
     ? reg : e1000_translate_register_82542(reg))
@@ -185,6 +260,10 @@ e1000_rd32(struct e1000_osdep *osdep, uint32_t reg)
 	KASSERT(reg < osdep->mem_bus_space_size,
 	    ("e1000: register offset %#jx too large (max is %#jx)",
 	    (uintmax_t)reg, (uintmax_t)osdep->mem_bus_space_size));
+#ifdef INVARIANTS
+	KASSERT(!osdep->vf || e1000_vf_reg_valid(reg, false),
+	    ("e1000: invalid VF register read at %#x", reg));
+#endif
 
 	return (bus_space_read_4(osdep->mem_bus_space_tag,
 	    osdep->mem_bus_space_handle, reg));
@@ -198,6 +277,10 @@ e1000_wr32(struct e1000_osdep *osdep, uint32_t reg, uint32_t value)
 	KASSERT(reg < osdep->mem_bus_space_size,
 	    ("e1000: register offset %#jx too large (max is %#jx)",
 	    (uintmax_t)reg, (uintmax_t)osdep->mem_bus_space_size));
+#ifdef INVARIANTS
+	KASSERT(!osdep->vf || e1000_vf_reg_valid(reg, true),
+	    ("e1000: invalid VF register write at %#x", reg));
+#endif
 
 	bus_space_write_4(osdep->mem_bus_space_tag,
 	    osdep->mem_bus_space_handle, reg, value);
@@ -277,4 +360,3 @@ e1000_wr32(struct e1000_osdep *osdep, uint32_t reg, uint32_t value)
 #endif
 
 #endif  /* _FREEBSD_OS_H_ */
-

@@ -645,6 +645,25 @@ struct e1000_softc {
 	bool			vf_reset_pending;
 };
 
+/*
+ * Shared PF/VF mechanisms and VF policy entry points.  The latter live in
+ * if_igbv.c so the VF method table cannot accidentally select PF policy.
+ */
+int	em_if_attach_pre(if_ctx_t);
+int	em_if_attach_post(if_ctx_t);
+void	em_add_device_sysctls(struct e1000_softc *);
+void	em_initialize_transmit_rings(if_ctx_t);
+void	igb_initialize_receive_rings(if_ctx_t, bool);
+
+int	igbv_get_regs(SYSCTL_HANDLER_ARGS);
+int	igbv_if_attach_pre(if_ctx_t);
+int	igbv_if_attach_post(if_ctx_t);
+void	igbv_if_intr_enable(if_ctx_t);
+void	igbv_if_intr_disable(if_ctx_t);
+void	igbv_initialize_receive_unit(if_ctx_t);
+void	igbv_initialize_transmit_unit(if_ctx_t);
+bool	igbv_reset(if_ctx_t);
+
 /********************************************************************************
  * vendor_info_array
  *

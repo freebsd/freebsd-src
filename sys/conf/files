@@ -1638,6 +1638,8 @@ dev/efidev/efirt.c		optional efirt
 dev/efidev/efirtc.c		optional efirt efirtc
 dev/e1000/if_em.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
+dev/e1000/if_igbv.c		optional em \
+	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/if_igb_iov.c		optional em \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/em_txrx.c		optional em \

@@ -96,6 +96,11 @@ em_dump_rs(struct e1000_softc *sc)
 	int16_t rs_cidx;
 	uint8_t status;
 
+	if (sc->tx_queues == NULL) {
+		device_printf(sc->dev, "queue state is unavailable\n");
+		return;
+	}
+
 	printf("\n");
 	ntxd = scctx->isc_ntxd[0];
 	for (qid = 0; qid < sc->tx_num_queues; qid++) {
