@@ -292,7 +292,8 @@ zonectl_print_rz(struct disk_zone_report *report, zone_output_flags out_flags,
 		    (uintmax_t)entry->zone_start_lba,
 		    field_widths[ZONE_FW_LEN],
 		    (uintmax_t)entry->zone_length);
-		if (entry->write_pointer_lba == 0xffffffffffffffff) {
+		if (entry->write_pointer_lba == 0xffffffffffff ||
+		    entry->write_pointer_lba == 0xffffffffffffffff) {
 			/*
 			 * This value is reported by HDDs for conventional
 			 * zones.  It really means "N/A".  Reported it as -1,
