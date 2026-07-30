@@ -587,8 +587,7 @@ fetch_connect(const char *host, int port, int af, int verbose)
 	struct addrinfo *cais = NULL, *sais = NULL, *cai, *sai;
 	const char *bindaddr;
 	conn_t *conn = NULL;
-	int err = 0, sd = -1;
-	int deltams;
+	int deltams, err = 0, serrno, sd = -1;
 	char *sockshost;
 	int socksport;
 
@@ -628,6 +627,12 @@ fetch_connect(const char *host, int port, int af, int verbose)
 
 	/* try each server address in turn */
 	for (err = 0, sai = sais; sai != NULL; sai = sai->ai_next) {
+		/* start the clock */
+		if (fetchTimeout > 0) {
+			gettimeofday(&timeout, NULL);
+			timeout.tv_sec += fetchTimeout;
+		}
+
 		/* open socket */
 		if ((sd = socket(sai->ai_family, SOCK_STREAM, 0)) < 0) {
 			err = -1;
@@ -635,6 +640,7 @@ fetch_connect(const char *host, int port, int af, int verbose)
 				continue;
 			goto syserr;
 		}
+
 		/* attempt to bind to client address */
 		for (err = 0, cai = cais; cai != NULL; cai = cai->ai_next) {
 			if (cai->ai_family != sai->ai_family)
@@ -646,75 +652,83 @@ fetch_connect(const char *host, int port, int af, int verbose)
 			fetch_verbose("failed to bind to %s", bindaddr);
 			goto syserr;
 		}
+
 		/* make the socket non-blocking */
 		(void)fcntl(sd, F_SETFL, O_NONBLOCK);
-		/* start the clock */
-		if (fetchTimeout > 0) {
-			gettimeofday(&timeout, NULL);
-			timeout.tv_sec += fetchTimeout;
-			deltams = fetchTimeout * 1000;
-		}
+
 		/* attempt to connect to server address */
 		if ((err = connect(sd, sai->ai_addr, sai->ai_addrlen)) == 0)
 			break;
+		if (errno != EINPROGRESS)
+			goto next;
+
 		/* wait for connection */
-		if (errno == EINPROGRESS) {
+		for (;;) {
 			deltams = INFTIM;
 			pfd.fd = sd;
 			pfd.events = POLLOUT;
-			for (;;) {
-				/* wait for something to happen */
-				if (poll(&pfd, 1, deltams) >= 0)
-					break;
-				if (errno == EINTR && !fetchRestartCalls)
-					break;
-				/* check the clock */
-				if (fetchTimeout > 0) {
-					gettimeofday(&now, NULL);
-					if (!timercmp(&timeout, &now, >)) {
-						errno = ETIMEDOUT;
-						pfd.revents = POLLERR;
-						break;
-					}
-					timersub(&timeout, &now, &delta);
-					deltams = delta.tv_sec * 1000 +
-					    delta.tv_usec / 1000;
+
+			/* check the clock */
+			if (fetchTimeout > 0) {
+				gettimeofday(&now, NULL);
+				if (!timercmp(&timeout, &now, >)) {
+					errno = ETIMEDOUT;
+					err = -1;
+					goto next;
 				}
+				timersub(&timeout, &now, &delta);
+				deltams = delta.tv_sec * 1000 +
+				    delta.tv_usec / 1000;
 			}
-			if (pfd.revents & POLLHUP) {
-				errno = ECONNREFUSED;
+			/* wait for something to happen */
+			if ((err = poll(&pfd, 1, deltams)) > 0)
 				break;
-			}
+			if (err == 0)
+				continue;
+			if (errno != EINTR)
+				goto syserr;
+			if (!fetchRestartCalls)
+				break;
+		}
+
+		/* check the outcome */
+		if (err > 0) {
 			if (pfd.revents == POLLOUT) {
 				/* connection established */
 				err = 0;
 				break;
 			}
+			/* we don't know the actual reason */
+			errno = ECONNREFUSED;
 		}
+next:
 		/* clean up before next attempt */
+		serrno = errno;
 		close(sd);
 		sd = -1;
+		errno = serrno;
 	}
+
+	/* all attempts failed */
 	if (err != 0) {
-		if (verbose && sockshost == NULL) {
-			fetch_info("failed to connect to %s:%d", host, port);
-			goto syserr;
-		} else if (sockshost != NULL) {
+		if (sockshost != NULL) {
 			fetch_verbose("failed to connect to SOCKS5 server %s:%d",
 			    sockshost, socksport);
 			socks5_seterr(SOCKS5_ERR_CONN_REFUSED);
 			goto fail;
 		}
+		fetch_verbose("failed to connect to %s:%d", host, port);
 		goto syserr;
 	}
 
 	if ((conn = fetch_reopen(sd)) == NULL)
 		goto syserr;
 
-	if (sockshost)
+	if (sockshost != NULL) {
 		if (!fetch_socks5_init(conn, host, port, verbose))
 			goto fail;
-	free(sockshost);
+		free(sockshost);
+	}
 	if (cais != NULL)
 		freeaddrinfo(cais);
 	if (sais != NULL)
@@ -723,7 +737,8 @@ fetch_connect(const char *host, int port, int af, int verbose)
 syserr:
 	fetch_syserr();
 fail:
-	free(sockshost);
+	if (sockshost != NULL)
+		free(sockshost);
 	/* Fully close if it was opened; otherwise just don't leak the fd. */
 	if (conn != NULL)
 		fetch_close(conn);
