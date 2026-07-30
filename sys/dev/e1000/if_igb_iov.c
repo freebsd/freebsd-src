@@ -25,14 +25,24 @@
 /* 82576 Datasheet rev. 2.0, Section 8.14.16: VMOLR[31] must be one. */
 #define	IGB_82576_VMOLR_RSV		(1U << 31)
 #define	IGB_82576_LVMMC_BLOCK_MASK	0x1c
+#define	IGB_82576_NUM_QUEUES		16
 #define	IGB_82576_QUEUE_MASK		0xffff
 #define	IGB_82576_STAGGERED_QUEUE_SHIFT	8
+#define	IGB_82576_VF_QUEUE_STRIDE	8
+#define	IGB_82576_VF_QUEUES		2
 #define	IGB_I350_DTXCTL_ENABLE_SPOOF_QUEUE	(1U << 2)
 #define	IGB_I350_LVMMC_MAC_VLAN_SPOOF	(1U << 25)
 #define	IGB_I350_LVMMC_LAST_Q_SHIFT	29
 #define	IGB_I350_LVMMC_LAST_Q_MASK	0x7
+#define	IGB_I350_NUM_QUEUES		8
 #define	IGB_I350_QUEUE_MASK		0xff
 #define	IGB_I350_RESET_ACK_TIMEOUT	(100 * SBT_1MS)
+#define	IGB_I350_VF_QUEUES		1
+#define	IGB_IOV_QUEUE_DISABLE_BUSY_RETRIES	10
+#define	IGB_IOV_QUEUE_DISABLE_DELAY_US	10
+#define	IGB_IOV_QUEUE_DISABLE_PAUSE	(100 * SBT_1US)
+#define	IGB_IOV_QUEUE_DISABLE_RETRIES	20
+#define	IGB_IOV_VF_QUEUES_MAX		2
 
 #define	IGB_VF_CTS			(1U << 0)
 #define	IGB_VF_CAP_MAC			(1U << 1)
@@ -59,6 +69,7 @@ struct igb_vf {
 	struct timeval	last_mbx_log;
 	struct timeval	last_spoof_log;
 	struct timeval	last_mdd_log;
+	struct timeval	last_queue_log;
 	sbintime_t	mbx_retry_at;
 	sbintime_t	mdd_notify_at;
 	sbintime_t	vlan_token_time;
@@ -1022,12 +1033,103 @@ igb_iov_vf_vlan_is_default(const struct igb_vf *vf)
 	return (true);
 }
 
-static void
+static bool
+igb_iov_sanitize_vf_queues(struct e1000_softc *sc,
+    struct igb_vf *vf)
+{
+	struct e1000_hw *hw;
+	u16 qid[IGB_IOV_VF_QUEUES_MAX];
+	u32 rxdctl, txdctl;
+	int i, nqueues, retry;
+
+	hw = &sc->hw;
+	switch (hw->mac.type) {
+	case e1000_82576:
+		nqueues = IGB_82576_VF_QUEUES;
+		qid[0] = vf->pool;
+		qid[1] = vf->pool + IGB_82576_VF_QUEUE_STRIDE;
+		break;
+	case e1000_i350:
+		nqueues = IGB_I350_VF_QUEUES;
+		qid[0] = vf->pool;
+		break;
+	default:
+		return (true);
+	}
+
+	/*
+	 * I350 maps pool n to queue n.  82576 gives VF n physical queues n
+	 * and n + 8, so both retained queue configurations must be cleared.
+	 */
+	for (i = 0; i < nqueues; i++)
+		KASSERT(qid[i] < (hw->mac.type == e1000_82576 ?
+		    IGB_82576_NUM_QUEUES : IGB_I350_NUM_QUEUES),
+		    ("%s: invalid VF queue %u", __func__, qid[i]));
+
+	/*
+	 * The 82576 and I350 specification updates, Software Clarification 3,
+	 * note that VFLR does not reset the VF queue configuration.  Clear the
+	 * PF-programmable state before acknowledging the reset so a new VF
+	 * owner cannot inherit it, particularly a descriptor-head write-back
+	 * DMA address.  The new VF driver initializes its active ring pointers
+	 * during queue setup.
+	 *
+	 * Disable every queue first, then wait for outstanding DMA activity to
+	 * stop before clearing TDWBAL/H and the remaining retained state.
+	 * Spin only for the normal fast transition, then sleep so a VF that
+	 * keeps asserting QUEUE_ENABLE cannot busy-wait the PF for 10 ms.
+	 */
+	for (i = 0; i < nqueues; i++) {
+		E1000_WRITE_REG(hw, E1000_RXDCTL(qid[i]), 0);
+		E1000_WRITE_REG(hw, E1000_TXDCTL(qid[i]), 0);
+	}
+	E1000_WRITE_FLUSH(hw);
+	for (retry = 0; retry < IGB_IOV_QUEUE_DISABLE_RETRIES; retry++) {
+		for (i = 0; i < nqueues; i++) {
+			rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(qid[i]));
+			txdctl = E1000_READ_REG(hw, E1000_TXDCTL(qid[i]));
+			if ((rxdctl & E1000_RXDCTL_QUEUE_ENABLE) != 0 ||
+			    (txdctl & E1000_TXDCTL_QUEUE_ENABLE) != 0)
+				break;
+		}
+		if (i == nqueues)
+			break;
+		if (retry + 1 < IGB_IOV_QUEUE_DISABLE_RETRIES) {
+			if (retry < IGB_IOV_QUEUE_DISABLE_BUSY_RETRIES)
+				DELAY(IGB_IOV_QUEUE_DISABLE_DELAY_US);
+			else
+				pause_sbt("igbqds",
+				    IGB_IOV_QUEUE_DISABLE_PAUSE, 0,
+				    C_PREL(1));
+		}
+	}
+	if (retry == IGB_IOV_QUEUE_DISABLE_RETRIES) {
+		if (ratecheck(&vf->last_queue_log,
+		    &igb_iov_mbx_log_interval))
+			device_printf(sc->dev,
+			    "could not disable queues for VF %u; "
+			    "reset deferred\n", vf->pool);
+		return (false);
+	}
+
+	for (i = 0; i < nqueues; i++) {
+		E1000_WRITE_REG(hw, E1000_SRRCTL(qid[i]), 0);
+		E1000_WRITE_REG(hw, E1000_DCA_RXCTRL(qid[i]), 0);
+		E1000_WRITE_REG(hw, E1000_TDWBAL(qid[i]), 0);
+		E1000_WRITE_REG(hw, E1000_TDWBAH(qid[i]), 0);
+		E1000_WRITE_REG(hw, E1000_DCA_TXCTRL(qid[i]), 0);
+	}
+	E1000_WRITE_REG(hw, E1000_PSRTYPE(vf->pool), 0);
+	E1000_WRITE_FLUSH(hw);
+	return (true);
+}
+
+static bool
 igb_iov_reset_event_common(struct e1000_softc *sc, struct igb_vf *vf,
     bool reset_intrs)
 {
 	struct e1000_hw *hw;
-	bool rebuild_mta, rebuild_vlan;
+	bool rebuild_mta, rebuild_vlan, sanitized;
 	u32 reg;
 
 	hw = &sc->hw;
@@ -1040,6 +1142,7 @@ igb_iov_reset_event_common(struct e1000_softc *sc, struct igb_vf *vf,
 	if (reset_intrs)
 		E1000_WRITE_REG(hw, E1000_VTCTRL(vf->pool),
 		    E1000_VTCTRL_RST);
+	sanitized = igb_iov_sanitize_vf_queues(sc, vf);
 	E1000_WRITE_REG(hw, E1000_VMVIR(vf->pool), 0);
 	igb_iov_clear_mac_filters(sc, vf);
 	igb_iov_clear_rar(sc, vf->rar_index);
@@ -1048,12 +1151,13 @@ igb_iov_reset_event_common(struct e1000_softc *sc, struct igb_vf *vf,
 		igb_iov_rebuild_mta(sc);
 	if (rebuild_vlan)
 		igb_iov_rebuild_vlan(sc);
+	return (sanitized);
 }
 
-static void
+static bool
 igb_iov_reset_event(struct e1000_softc *sc, struct igb_vf *vf)
 {
-	igb_iov_reset_event_common(sc, vf, true);
+	return (igb_iov_reset_event_common(sc, vf, true));
 }
 
 static void
@@ -1070,8 +1174,11 @@ igb_iov_mdd_reset_event(struct e1000_softc *sc, struct igb_vf *vf)
 	 * message to make the guest reinitialize.  FreeBSD and DPDK consume
 	 * that message directly; Linux ACKs it and the PF's non-CTS ACK path
 	 * replies with the NACK that schedules igbvf's reset task.
+	 *
+	 * Sanitization failure leaves the pool disabled.  The VF reset
+	 * handshake retries it and is NACKed while a queue remains active.
 	 */
-	igb_iov_reset_event_common(sc, vf, false);
+	(void)igb_iov_reset_event_common(sc, vf, false);
 }
 
 static void
@@ -1081,7 +1188,11 @@ igb_iov_reset_msg(struct e1000_softc *sc, struct igb_vf *vf)
 	u32 msg[3], reg;
 
 	hw = &sc->hw;
-	igb_iov_reset_event(sc, vf);
+	if (!igb_iov_reset_event(sc, vf)) {
+		msg[0] = E1000_VF_RESET | E1000_VT_MSGTYPE_NACK;
+		e1000_write_mbx(hw, msg, 1, vf->pool);
+		return;
+	}
 	igb_iov_map_rar(sc, vf->rar_index, vf->mac, vf->pool);
 	igb_iov_set_anti_spoof(sc, vf);
 
@@ -1369,8 +1480,13 @@ igb_iov_handle_mbx(struct e1000_softc *sc)
 		if (!(vf->flags & IGB_VF_ACTIVE))
 			continue;
 		now = getsbinuptime();
-		if (e1000_check_for_rst(hw, vf->pool) == 0)
-			igb_iov_reset_event(sc, vf);
+		if (e1000_check_for_rst(hw, vf->pool) == 0) {
+			/*
+			 * The old VF is gone.  A new owner's reset handshake
+			 * reruns sanitization before enabling its pool.
+			 */
+			(void)igb_iov_reset_event(sc, vf);
+		}
 		if ((vf->flags &
 		    (IGB_VF_MBX_PENDING | IGB_VF_MBX_GAVE_UP)) == 0 &&
 		    e1000_check_for_msg(hw, vf->pool) == 0) {
