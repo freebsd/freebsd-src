@@ -522,6 +522,8 @@ def main():
             remote = tracking.remote_name
         else:
             err(1, "could not find upstream branch, use --remote")
+    if remote not in repo.remotes:
+        err(1, f"remote repository '{remote}' not found")
 
     upstream = remote + '/' + origin
 
