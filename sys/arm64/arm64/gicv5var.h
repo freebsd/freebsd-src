@@ -60,6 +60,9 @@ struct gicv5_devinfo {
 	struct gicv5_irs	*di_irs;
 };
 
+#define GICV5_PPIS_PER_REG	64
+#define GICV5_PPI_COUNT		128
+
 #define	GICV5_IVAR_LPI_START	5000
 
 __BUS_ACCESSOR(gicv5, lpi_start, GICV5, LPI_START, u_int);

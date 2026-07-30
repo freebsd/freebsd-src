@@ -59,6 +59,8 @@
 #include <dev/vmm/vmm_mem.h>
 #include <dev/vmm/vmm_vm.h>
 
+#include <arm64/arm64/gicv5reg.h>
+
 #include "mmu.h"
 #include "arm64.h"
 #include "hyp.h"
@@ -541,6 +543,19 @@ vmmops_init(struct vm *vm, pmap_t pmap)
 	get_kernel_reg(ID_AA64MMFR1_EL1, &idreg);
 	if (ID_AA64MMFR1_HCX_VAL(idreg) >= ID_AA64MMFR1_HCX_IMPL)
 		hyp->feats |= HYP_FEAT_HCX;
+
+	get_kernel_reg(ID_AA64PFR2_EL1, &idreg);
+	if (ID_AA64PFR2_GCIE_VAL(idreg) >= ID_AA64PFR2_GCIE_IMPL) {
+		hyp->feats |= HYP_FEAT_GICV5;
+
+		get_kernel_reg(ICC_IDR0_EL1, &idreg);
+		if (idreg & ICC_IDR0_GCIE_LEGACY_MASK)
+			hyp->feats |= HYP_FEAT_GICV3_OR_LEGACY;
+	} else {
+		get_kernel_reg(ID_AA64PFR0_EL1, &idreg);
+		if (ID_AA64PFR0_GIC_VAL(idreg) >= ID_AA64PFR0_GIC_CPUIF_EN)
+			hyp->feats |= HYP_FEAT_GICV3_OR_LEGACY;
+	}
 
 	hyp->cntvoff_el2 = READ_CNTPCT();
 	vgic_vminit(hyp);
@@ -1464,4 +1479,10 @@ vmmops_setcap(void *vcpui, int num, int val)
 	}
 
 	return (ret);
+}
+
+int
+vmm_get_max_ipa_bits(void)
+{
+	return (vmm_max_ipa_bits);
 }

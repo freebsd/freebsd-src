@@ -29,6 +29,11 @@
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/malloc.h>
+
+#include <dev/vmm/vmm_vm.h>
+
+#include <arm64/vmm/arm64.h>
 
 #include "vgic.h"
 #include "vgic_if.h"
@@ -125,9 +130,33 @@ vgic_init(void)
 }
 
 int
+vgic_get_version(void)
+{
+	return (VGIC_GET_VERSION(vgic_dev));
+}
+
+int
 vgic_attach_to_vm(struct hyp *hyp, struct vm_vgic_descr *descr)
 {
-	return (VGIC_ATTACH_TO_VM(vgic_dev, hyp, descr));
+	int rv;
+
+	rv = VGIC_ATTACH_TO_VM(vgic_dev, hyp, descr);
+	if (rv != 0)
+		return (rv);
+
+	for (u_int cpu = 0; cpu < vm_get_maxcpus(hyp->vm); cpu++) {
+		struct hypctx *hypctx;
+
+		hypctx = hyp->ctx[cpu];
+		if (hypctx == NULL)
+			continue;
+		MPASS(hypctx->vgic_cpu != NULL);
+		VGIC_CPUINIT(vgic_dev, hypctx);
+	}
+
+	hyp->vgic_ver = hyp->vgic->vgic_ver;
+
+	return (0);
 }
 
 void
@@ -139,25 +168,29 @@ vgic_detach_from_vm(struct hyp *hyp)
 void
 vgic_vminit(struct hyp *hyp)
 {
+	hyp->vgic = malloc(sizeof(*hyp->vgic), M_DEVBUF, M_WAITOK | M_ZERO);
 	VGIC_VMINIT(vgic_dev, hyp);
 }
 
 void
 vgic_cpuinit(struct hypctx *hypctx)
 {
-	VGIC_CPUINIT(vgic_dev, hypctx);
+	hypctx->vgic_cpu = malloc(sizeof(*hypctx->vgic_cpu), M_DEVBUF,
+	    M_WAITOK | M_ZERO);
 }
 
 void
 vgic_cpucleanup(struct hypctx *hypctx)
 {
 	VGIC_CPUCLEANUP(vgic_dev, hypctx);
+	free(hypctx->vgic_cpu, M_DEVBUF);
 }
 
 void
 vgic_vmcleanup(struct hyp *hyp)
 {
 	VGIC_VMCLEANUP(vgic_dev, hyp);
+	free(hyp->vgic, M_DEVBUF);
 }
 
 int

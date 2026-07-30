@@ -40,6 +40,7 @@ SRCS+=	vgic.c \
 	vgic_if.h \
 	vgic_if.c \
 	vgic_v3.c \
+	vgic_v5.c \
 	vtimer.c
 
 CLEANFILES+=	vmm_nvhe_exception.o vmm_nvhe.o

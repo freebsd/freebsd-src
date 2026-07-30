@@ -109,8 +109,7 @@ vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
 		struct vm_vgic_version *vgv;
 
 		vgv = (struct vm_vgic_version *)data;
-		/* TODO: Query the vgic driver for this */
-		vgv->version = 3;
+		vgv->version = vgic_get_version();
 		vgv->flags = 0;
 		error = 0;
 		break;

@@ -31,8 +31,10 @@
 
 
 #include <sys/elf_common.h>
+#include <machine/armreg.h>
 #include <machine/asm.h>
 #include <machine/hypervisor.h>
+#include "../arm64/gicv5reg.h"
 
 #include "assym.inc"
 #include "hyp_assym.h"
@@ -268,14 +270,21 @@ LEND(handle_el2_el1_sync64)
 LENTRY(handle_el2_el1_irq64)
 	do_world_switch_to_host
 	str	x9, [sp, #-16]!
+	mrs	x9, id_aa64pfr2_el1
+	tst	x9, #ID_AA64PFR2_GCIE_MASK
+	beq	1f
+	mrs	x9, ICC_IDR0_EL1
+	tst	x9, #ICC_IDR0_GCIE_LEGACY_MASK
+	beq	3f
+1:
 	mrs	x9, ich_misr_el2
 	cmp	x9, xzr
-	beq	1f
+	beq	2f
 	mov	x0, #EXCP_TYPE_MAINT_IRQ
-	b	2f
-1:
-	mov	x0, #EXCP_TYPE_EL1_IRQ
+	b	3f
 2:
+	mov	x0, #EXCP_TYPE_EL1_IRQ
+3:
 	ldr	x9, [sp], #16
 	ret
 LEND(handle_el2_el1_irq64)

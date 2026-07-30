@@ -662,6 +662,19 @@
 #define	ICH_HFGRTR_EL2_CRn		12
 #define	ICH_HFGRTR_EL2_CRm		9
 #define	ICH_HFGRTR_EL2_op2		4
+#define ICH_HFGRTR_EL2_ICC_PPI_ACTIVERn_EL1     (0x1ul << 20)
+#define ICH_HFGRTR_EL2_ICC_PPI_PRIORITYn_EL1    (0x1ul << 19)
+#define ICH_HFGRTR_EL2_ICC_PPI_PENDRn_EL1       (0x1ul << 18)
+#define ICH_HFGRTR_EL2_ICC_PPI_ENABLERn_EL1     (0x1ul << 17)
+#define ICH_HFGRTR_EL2_ICC_PPI_HMRn_EL1         (0x1ul << 16)
+#define ICH_HFGRTR_EL2_ICC_IAFFIDR_EL1          (0x1ul << 7)
+#define ICH_HFGRTR_EL2_ICC_ICSR_EL1             (0x1ul << 6)
+#define ICH_HFGRTR_EL2_ICC_PCR_EL1              (0x1ul << 5)
+#define ICH_HFGRTR_EL2_ICC_HPPIR_EL1            (0x1ul << 4)
+#define ICH_HFGRTR_EL2_ICC_HAPR_EL1             (0x1ul << 3)
+#define ICH_HFGRTR_EL2_ICC_CR0_EL1              (0x1ul << 2)
+#define ICH_HFGRTR_EL2_ICC_IDRn_EL1             (0x1ul << 1)
+#define ICH_HFGRTR_EL2_ICC_APR_EL1              (0x1ul << 0)
 
 /*
  * ICH_HFGWTR_EL2
@@ -673,6 +686,14 @@
 #define	ICH_HFGWTR_EL2_CRn		12
 #define	ICH_HFGWTR_EL2_CRm		9
 #define	ICH_HFGWTR_EL2_op2		6
+#define ICH_HFGWTR_EL2_ICC_PPI_ACTIVERn_EL1     (0x1ul << 20)
+#define ICH_HFGWTR_EL2_ICC_PPI_PRIORITYn_EL1    (0x1ul << 19)
+#define ICH_HFGWTR_EL2_ICC_PPI_PENDRn_EL1       (0x1ul << 18)
+#define ICH_HFGWTR_EL2_ICC_PPI_ENABLERn_EL1     (0x1ul << 17)
+#define ICH_HFGWTR_EL2_ICC_ICSR_EL1             (0x1ul << 6)
+#define ICH_HFGWTR_EL2_ICC_PCR_EL1              (0x1ul << 5)
+#define ICH_HFGWTR_EL2_ICC_CR0_EL1              (0x1ul << 2)
+#define ICH_HFGWTR_EL2_ICC_APR_EL1              (0x1ul << 0)
 
 /*
  * ICH_HPPIR_EL2
@@ -858,7 +879,26 @@
 #define	IRS_IDR7			0x001c
 #define	 IRS_IDR7_SPI_BASE		0x00ffffff
 #define	IRS_IIDR			0x0040
+#define	 IRS_IIDR_PRODUCT_ID_SHIFT	20
+#define	 IRS_IIDR_PRODUCT_ID_MASK	(0xfffu << IRS_IIDR_PRODUCT_ID_SHIFT)
+#define	 IRS_IIDR_VARIANT_SHIFT		16
+#define	 IRS_IIDR_VARIANT_MASK		(0xfu << IRS_IIDR_VARIANT_SHIFT)
+#define	 IRS_IIDR_REVISION_SHIFT	12
+#define	 IRS_IIDR_REVISION_MASK		(0xfu << IRS_IIDR_REVISION_SHIFT)
+#define	 IRS_IIDR_IMPLEMENTER_SHIFT	0
+#define	 IRS_IIDR_IMPLEMENTER_MASK	(0xfffu << IRS_IIDR_IMPLEMENTED_SHIFT)
 #define	IRS_AIDR			0x0044
+#define	 IRS_AIDR_COMPONENT_SHIFT	0
+#define	 IRS_AIDR_COMPONENT_IRS		(0x0u << IRS_AIDR_COMPONENT_SHIFT)
+#define	 IRS_AIDR_COMPONENT_ITS		(0x1u << IRS_AIDR_COMPONENT_SHIFT)
+#define	 IRS_AIDR_COMPONENT_IWB		(0x2u << IRS_AIDR_COMPONENT_SHIFT)
+#define	 IRS_AIDR_COMPONENT_MASK	(0xfu << IRS_AIDR_COMPONENT_SHIFT)
+#define	 IRS_AIDR_ARCH_MAJOR_REV_SHIFT	4
+#define	 IRS_AIDR_ARCH_MAJOR_REV_V5	(0x0u << IRS_AIDR_ARCH_MAJOR_REV_SHIFT)
+#define	 IRS_AIDR_ARCH_MAJOR_REV_MASK	(0xfu << IRS_AIDR_ARCH_MAJOR_REV_SHIFT)
+#define	 IRS_AIDR_ARCH_MINOR_REV_SHIFT	0
+#define	 IRS_AIDR_ARCH_MINOR_REV_0	(0x0u << IRS_AIDR_ARCH_MINOR_REV_SHIFT)
+#define	 IRS_AIDR_ARCH_MINOR_REV_MASK	(0xfu << IRS_AIDR_ARCH_MINOR_REV_SHIFT)
 #define	IRS_CR0				0x0080
 #define	 IRS_CR0_IDLE			(0x1u << 1)
 #define	 IRS_CR0_IRSEN			(0x1u << 0)
@@ -904,6 +944,7 @@
 #define	IRS_SYNC_STATUSR		0x00c4
 #define	IRS_SPI_VMR			0x0100
 #define	IRS_SPI_SELR			0x0108
+#define	 IRS_SPI_SELR_ID_MASK		(0xffffffu << 0)
 #define	IRS_SPI_DOMAINR			0x010c
 #define	IRS_SPI_RESAMPLER		0x0110
 #define	IRS_SPI_CFGR			0x0114
@@ -913,8 +954,14 @@
 #define	 IRS_SPI_STATUSR_V		(0x1u << 1)
 #define	 IRS_SPI_STATUSR_IDLE		(0x1u << 0)
 #define	IRS_PE_SELR			0x0140
+#define	 IRS_PE_SELR_IAFFID_SHIFT	0
+#define	 IRS_PE_SELR_IAFFID_MASK	(0xffffu << IRS_PE_SELR_IAFFID_SHIFT)
 #define	IRS_PE_STATUSR			0x0144
+#define	 IRS_PE_CR0_ONLINE		(0x1 << 2)
+#define	 IRS_PE_CR0_V			(0x1 << 1)
+#define	 IRS_PE_CR0_IDLE		(0x1 << 0)
 #define	IRS_PE_CR0			0x0148
+#define	 IRS_PE_CR0_DPS			(0x1 << 0)
 #define	IRS_IST_BASER			0x0180
 #define	 IRS_IST_BASER_ADDR_LIMIT	0x0100000000000000ul
 #define	 IRS_IST_BASER_ADDR_MASK	0x00ffffffffffffc0ul

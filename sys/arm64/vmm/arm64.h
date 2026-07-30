@@ -36,8 +36,8 @@
 #include "io/vgic_v3.h"
 #include "io/vtimer.h"
 
-struct vgic_v3;
-struct vgic_v3_cpu;
+struct vgic;
+struct vgic_cpu;
 
 /*
   Encode the index of a given register within VNCR into the enum value.
@@ -148,6 +148,40 @@ enum hypctx_sysreg {
 
 	HOST_CNTHCTL_EL2,
 	HOST_CNTVOFF_EL2,
+
+
+	/* GICv5 registers */
+	HOST_ICH_PPI_ACTIVER0_EL2,
+	HOST_ICH_PPI_ACTIVER1_EL2,
+	HOST_ICH_PPI_DVIR0_EL2,
+	HOST_ICH_PPI_DVIR1_EL2,
+	HOST_ICH_PPI_ENABLER0_EL2,
+	HOST_ICH_PPI_ENABLER1_EL2,
+	HOST_ICH_PPI_PENDR0_EL2,
+	HOST_ICH_PPI_PENDR1_EL2,
+	HOST_ICH_PPI_PRIORITYR0_EL2,
+	HOST_ICH_PPI_PRIORITYR1_EL2,
+	HOST_ICH_PPI_PRIORITYR2_EL2,
+	HOST_ICH_PPI_PRIORITYR3_EL2,
+	HOST_ICH_PPI_PRIORITYR4_EL2,
+	HOST_ICH_PPI_PRIORITYR5_EL2,
+	HOST_ICH_PPI_PRIORITYR6_EL2,
+	HOST_ICH_PPI_PRIORITYR7_EL2,
+	HOST_ICH_PPI_PRIORITYR8_EL2,
+	HOST_ICH_PPI_PRIORITYR9_EL2,
+	HOST_ICH_PPI_PRIORITYR10_EL2,
+	HOST_ICH_PPI_PRIORITYR11_EL2,
+	HOST_ICH_PPI_PRIORITYR12_EL2,
+	HOST_ICH_PPI_PRIORITYR13_EL2,
+	HOST_ICH_PPI_PRIORITYR14_EL2,
+	HOST_ICH_PPI_PRIORITYR15_EL2,
+	HOST_ICH_HFGITR_EL2,
+	HOST_ICH_HFGRTR_EL2,
+	HOST_ICH_HFGWTR_EL2,
+	HOST_ICH_VCTLR_EL2,
+	HOST_ICH_HPPIR_EL2,
+	HOST_ICH_APR_EL2,
+	HOST_ICH_APR_RING_EL2,
 
 	NR_NON_VNCR_REGS,
 
@@ -285,7 +319,8 @@ struct hypctx {
 		uint16_t	ich_lr_num;
 		uint16_t	ich_apr_num;
 	} vgic_v3;
-	struct vgic_v3_cpu	*vgic_cpu;
+	struct vgic_cpu		*vgic_cpu;
+
 	bool			has_exception;
 	bool			dbg_oslock;
 
@@ -346,12 +381,15 @@ struct hyp {
 	uint64_t	cntvoff_el2;    /* VM-wide virtual timer offset */
 	uint64_t	el2_addr;	/* The address of this in el2 space */
 	uint64_t	feats;		/* Which features are enabled */
-#define	HYP_FEAT_HCX		(0x1ul << 0)
-#define	HYP_FEAT_ECV_POFF	(0x1ul << 1)
-#define	HYP_FEAT_FGT		(0x1ul << 2)
-#define	HYP_FEAT_FGT2		(0x1ul << 3)
+#define	HYP_FEAT_HCX			(0x1ul << 0)
+#define	HYP_FEAT_ECV_POFF		(0x1ul << 1)
+#define	HYP_FEAT_FGT			(0x1ul << 2)
+#define	HYP_FEAT_FGT2			(0x1ul << 3)
+#define	HYP_FEAT_GICV3_OR_LEGACY	(0x1ul << 4)
+#define	HYP_FEAT_GICV5			(0x1ul << 5)
 	bool		vgic_attached;
-	struct vgic_v3	*vgic;
+	struct vgic	*vgic;
+	int		vgic_ver;
 	struct hypctx	*ctx[];
 };
 
@@ -365,5 +403,6 @@ uint64_t	vmm_call_hyp(uint64_t, ...);
 
 struct hypctx *arm64_get_active_vcpu(void);
 void raise_data_insn_abort(struct hypctx *, uint64_t, bool, int);
+int vmm_get_max_ipa_bits(void);
 
 #endif /* !_VMM_ARM64_H_ */

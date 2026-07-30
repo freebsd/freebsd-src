@@ -36,6 +36,7 @@ extern device_t vgic_dev;
 
 bool vgic_present(void);
 void vgic_init(void);
+int vgic_get_version(void);
 int vgic_attach_to_vm(struct hyp *hyp, struct vm_vgic_descr *descr);
 void vgic_detach_from_vm(struct hyp *hyp);
 void vgic_vminit(struct hyp *hyp);

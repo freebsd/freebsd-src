@@ -69,9 +69,6 @@
 #include "gicv5var.h"
 #include "gic_v3_var.h" /* For GICV3_IVAR_NIRQS */
 
-#define	GICV5_PPIS_PER_REG			64
-#define	GICV5_PPI_COUNT				128
-
 #define	LPI_IPI_BASE		0
 #define	LPI_IPI_LIMIT		(LPI_IPI_BASE + (mp_maxid + 1) * INTR_IPI_COUNT)
 #define	LPI_IS_IPI(lpi)		((lpi) < LPI_ITS_BASE)

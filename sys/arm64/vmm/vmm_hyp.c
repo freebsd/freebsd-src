@@ -32,9 +32,13 @@
 #include <sys/types.h>
 #include <sys/proc.h>
 
+#include <dev/vmm/vmm_vm.h>
 
 #include "arm64.h"
 #include "hyp.h"
+#include "io/vgic_internal.h"
+
+#include <arm64/arm64/gicv5reg.h>
 
 struct hypctx;
 
@@ -170,22 +174,14 @@ vmm_hyp_reg_store_pmu_debug(struct hypctx *hypctx, bool guest)
 }
 
 static void
-vmm_hyp_reg_store_vgic(struct hypctx *hypctx, bool guest)
+vmm_hyp_reg_store_vgic_v3(struct hypctx *hypctx, struct hyp *hyp)
 {
-	hypctx_write_sys_reg(hypctx, HOST_ICH_HCR_EL2,
-	    READ_SPECIALREG(ich_hcr_el2));
-	hypctx_write_sys_reg(hypctx, HOST_ICH_VMCR_EL2,
-	    READ_SPECIALREG(ich_vmcr_el2));
-
-	 if (!guest)
-		 return;
-
 	/* Store the GICv3 registers */
-	 hypctx_write_sys_reg(hypctx, HOST_ICH_EISR_EL2,
+	hypctx_write_sys_reg(hypctx, HOST_ICH_EISR_EL2,
 	    READ_SPECIALREG(ich_eisr_el2));
-	 hypctx_write_sys_reg(hypctx, HOST_ICH_ELRSR_EL2,
+	hypctx_write_sys_reg(hypctx, HOST_ICH_ELRSR_EL2,
 	    READ_SPECIALREG(ich_elrsr_el2));
-	 hypctx_write_sys_reg(hypctx, HOST_ICH_MISR_EL2,
+	hypctx_write_sys_reg(hypctx, HOST_ICH_MISR_EL2,
 	    READ_SPECIALREG(ich_misr_el2));
 
 	switch (hypctx->vgic_v3.ich_lr_num - 1) {
@@ -208,7 +204,7 @@ case x:								\
 	STORE_LR(3);
 	STORE_LR(2);
 	STORE_LR(1);
-	default:
+default:
 	STORE_LR(0);
 #undef STORE_LR
 	}
@@ -223,10 +219,93 @@ case x:								\
 	STORE_APR(3);
 	STORE_APR(2);
 	STORE_APR(1);
-	default:
+default:
 	STORE_APR(0);
 #undef STORE_APR
 	}
+}
+
+static void
+vmm_hyp_reg_store_vgic_v5(struct hypctx *hypctx, struct hyp *hyp)
+{
+	/* Store the GICv5 registers */
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_ACTIVER0_EL2,
+	    READ_SPECIALREG(ICH_PPI_ACTIVER0_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_ACTIVER1_EL2,
+	    READ_SPECIALREG(ICH_PPI_ACTIVER1_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_ENABLER0_EL2,
+	    READ_SPECIALREG(ICH_PPI_ENABLER0_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_ENABLER1_EL2,
+	    READ_SPECIALREG(ICH_PPI_ENABLER1_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PENDR0_EL2,
+	    READ_SPECIALREG(ICH_PPI_PENDR0_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PENDR1_EL2,
+	    READ_SPECIALREG(ICH_PPI_PENDR1_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR0_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR0_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR1_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR1_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR2_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR2_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR3_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR3_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR4_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR4_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR5_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR5_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR6_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR6_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR7_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR7_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR8_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR8_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR9_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR9_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR10_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR10_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR11_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR11_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR12_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR12_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR13_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR13_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR14_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR14_EL2));
+	hypctx_write_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR15_EL2,
+	    READ_SPECIALREG(ICH_PPI_PRIORITYR15_EL2));
+
+	hypctx_write_sys_reg(hypctx, HOST_ICH_VMCR_EL2,
+	    READ_SPECIALREG(ich_vmcr_el2));
+}
+
+static void
+vmm_hyp_reg_store_vgic(struct hypctx *hypctx, struct hyp *hyp, bool guest)
+{
+	if (guest && (hyp->feats & HYP_FEAT_GICV5)) {
+		hypctx_write_sys_reg(hypctx, HOST_ICH_HPPIR_EL2,
+		    READ_SPECIALREG(ICH_HPPIR_EL2));
+		WRITE_SPECIALREG(ICH_CONTEXTR_EL2, 0); /* No VPE resident */
+	}
+
+	if (hyp->feats & HYP_FEAT_GICV3_OR_LEGACY) {
+		hypctx_write_sys_reg(hypctx, HOST_ICH_HCR_EL2,
+		    READ_SPECIALREG(ich_hcr_el2));
+	}
+
+	hypctx_write_sys_reg(hypctx, HOST_ICH_VMCR_EL2,
+	    READ_SPECIALREG(ich_vmcr_el2));
+
+	if (!guest)
+		return;
+
+	if (hyp->feats & HYP_FEAT_GICV3_OR_LEGACY)
+		vmm_hyp_reg_store_vgic_v3(hypctx, hyp);
+
+	if ((hyp->feats & HYP_FEAT_GICV5) && (hyp->vgic_ver == 5))
+		vmm_hyp_reg_store_vgic_v5(hypctx, hyp);
+
+	if (hyp->feats & HYP_FEAT_GICV5)
+		WRITE_SPECIALREG(ICH_VCTLR_EL2, 0);
 }
 
 static void
@@ -626,17 +705,8 @@ vmm_hyp_reg_restore_timer(struct hypctx *hypctx, struct hyp *hyp, bool guest)
 }
 
 static void
-vmm_hyp_reg_restore_vgic(struct hypctx *hypctx, bool guest)
+vmm_hyp_reg_restore_vgic_v3(struct hypctx *hypctx, struct hyp *hyp)
 {
-	/* Load the GICv3 registers */
-	WRITE_SPECIALREG(ich_hcr_el2,
-	    hypctx_read_sys_reg(hypctx, HOST_ICH_HCR_EL2));
-	WRITE_SPECIALREG(ich_vmcr_el2,
-	    hypctx_read_sys_reg(hypctx, HOST_ICH_VMCR_EL2));
-
-	if (!guest)
-		return;
-
 	switch (hypctx->vgic_v3.ich_lr_num - 1) {
 #define	LOAD_LR(x)							\
 case x:									\
@@ -657,7 +727,7 @@ case x:									\
 	LOAD_LR(3);
 	LOAD_LR(2);
 	LOAD_LR(1);
-	default:
+default:
 	LOAD_LR(0);
 #undef LOAD_LR
 	}
@@ -672,16 +742,119 @@ case x:									\
 	LOAD_APR(3);
 	LOAD_APR(2);
 	LOAD_APR(1);
-	default:
+default:
 	LOAD_APR(0);
 #undef LOAD_APR
 	}
 }
 
 static void
+vmm_hyp_reg_restore_vgic_v5(struct hypctx *hypctx, struct hyp *hyp)
+{
+	/* Store the GICv5 registers */
+	WRITE_SPECIALREG(ICH_PPI_ACTIVER0_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_ACTIVER0_EL2));
+	WRITE_SPECIALREG(ICH_PPI_ACTIVER1_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_ACTIVER1_EL2));
+
+	WRITE_SPECIALREG(ICH_PPI_DVIR0_EL2, 0x1ul << 27); // CNTV irq
+	WRITE_SPECIALREG(ICH_PPI_DVIR1_EL2, 0);
+
+	WRITE_SPECIALREG(ICH_PPI_ENABLER0_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_ENABLER0_EL2));
+	WRITE_SPECIALREG(ICH_PPI_ENABLER1_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_ENABLER1_EL2));
+
+	WRITE_SPECIALREG(ICH_PPI_PENDR0_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PENDR0_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PENDR1_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PENDR1_EL2));
+
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR0_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR0_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR1_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR1_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR2_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR2_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR3_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR3_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR4_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR4_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR5_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR5_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR6_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR6_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR7_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR7_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR8_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR8_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR9_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR9_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR10_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR10_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR11_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR11_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR12_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR12_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR13_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR13_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR14_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR14_EL2));
+	WRITE_SPECIALREG(ICH_PPI_PRIORITYR15_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_PPI_PRIORITYR15_EL2));
+
+	WRITE_SPECIALREG(ICH_HFGITR_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_HFGITR_EL2));
+	WRITE_SPECIALREG(ICH_HFGRTR_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_HFGRTR_EL2));
+	WRITE_SPECIALREG(ICH_HFGWTR_EL2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_HFGWTR_EL2));
+
+	WRITE_SPECIALREG(ICH_VCTLR_EL2, ICH_VCTLR_EN);
+}
+
+static void
+vmm_hyp_reg_restore_vgic(struct hypctx *hypctx, struct hyp *hyp, bool guest)
+{
+	int vcpuid;
+
+	if (hyp->feats & HYP_FEAT_GICV3_OR_LEGACY) {
+		/* Load the GICv3 registers */
+		WRITE_SPECIALREG(ich_hcr_el2,
+		    hypctx_read_sys_reg(hypctx, HOST_ICH_HCR_EL2));
+	}
+
+	WRITE_SPECIALREG(ich_vmcr_el2,
+	    hypctx_read_sys_reg(hypctx, HOST_ICH_VMCR_EL2));
+
+	if (!guest)
+		return;
+
+	if (hyp->feats & HYP_FEAT_GICV3_OR_LEGACY)
+		vmm_hyp_reg_restore_vgic_v3(hypctx, hyp);
+
+	if (hyp->feats & HYP_FEAT_GICV5) {
+		if (hyp->vgic_ver == 3) {
+			/* Enable GICv3 support */
+			WRITE_SPECIALREG(ICH_VCTLR_EL2, ICH_VCTLR_V3);
+			WRITE_SPECIALREG(ICH_VCTLR_EL2, ICH_VCTLR_V3 | ICH_VCTLR_EN);
+		} else
+			vmm_hyp_reg_restore_vgic_v5(hypctx, hyp);
+
+		vcpuid = vcpu_vcpuid(hypctx->vcpu);
+
+		WRITE_SPECIALREG(ICH_CONTEXTR_EL2, ICH_CONTEXTR_EL2_V |
+		    (((uint64_t)vcpuid << ICH_CONTEXTR_EL2_VPE_SHIFT) &
+		    ICH_CONTEXTR_EL2_VPE_MASK) |
+		    ((hyp->vgic->v5.vm_id << ICH_CONTEXTR_EL2_VM_SHIFT) &
+		    ICH_CONTEXTR_EL2_VM_MASK));
+	}
+}
+
+static void
 vmm_hyp_reg_store(struct hypctx *hypctx, struct hyp *hyp, bool guest)
 {
-	vmm_hyp_reg_store_vgic(hypctx, guest);
+	vmm_hyp_reg_store_vgic(hypctx, hyp, guest);
 	vmm_hyp_reg_store_timer(hypctx, hyp, guest);
 	vmm_hyp_reg_store_pmu_debug(hypctx, guest);
 	vmm_hyp_reg_store_special(hypctx, hyp, guest);
@@ -693,7 +866,7 @@ vmm_hyp_reg_restore(struct hypctx *hypctx, struct hyp *hyp, bool guest)
 	vmm_hyp_reg_restore_special(hypctx, hyp, guest);
 	vmm_hyp_reg_restore_pmu_debug(hypctx);
 	vmm_hyp_reg_restore_timer(hypctx, hyp, guest);
-	vmm_hyp_reg_restore_vgic(hypctx, guest);
+	vmm_hyp_reg_restore_vgic(hypctx, hyp, guest);
 }
 
 static void
@@ -758,6 +931,7 @@ static uint64_t
 __vmm_hyp_call_guest(struct hypctx *hypctx, struct hypctx *host_hypctx)
 {
 	uint64_t ret;
+
 	WRITE_SPECIALREG(vttbr_el2, hypctx_read_sys_reg(hypctx, HOST_VTTBR_EL2));
 	WRITE_SPECIALREG(mdcr_el2, hypctx_read_sys_reg(hypctx, HOST_MDCR_EL2));
 	/* Call into the guest */

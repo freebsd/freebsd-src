@@ -93,16 +93,10 @@ struct vgic_v3_virt_features {
 	size_t ich_apr_num;
 };
 
-
 /* How many IRQs we support (SGIs + PPIs + SPIs). Not including LPIs */
 #define	VGIC_NIRQS	1023
 /* Pretend to be an Arm design */
 #define	VGIC_IIDR	0x43b
-
-static vgic_inject_irq_t vgic_v3_inject_irq;
-static vgic_inject_msi_t vgic_v3_inject_msi;
-
-static int vgic_v3_max_cpu_count(device_t dev, struct hyp *hyp);
 
 #define	INJECT_IRQ(hyp, vcpuid, irqid, level)			\
     vgic_v3_inject_irq(NULL, (hyp), (vcpuid), (irqid), (level))
@@ -346,40 +340,19 @@ mpidr_to_vcpu(struct hyp *hyp, uint64_t mpidr)
 	return (-1);
 }
 
-static void
+void
 vgic_v3_vminit(device_t dev, struct hyp *hyp)
 {
-	struct vgic_v3 *vgic;
-
-	hyp->vgic = malloc(sizeof(*hyp->vgic), M_VGIC_V3,
-	    M_WAITOK | M_ZERO);
-	vgic = hyp->vgic;
-
-	/*
-	 * Configure the Distributor control register. The register resets to an
-	 * architecturally UNKNOWN value, so we reset to 0 to disable all
-	 * functionality controlled by the register.
-	 *
-	 * The exception is GICD_CTLR.DS, which is RA0/WI when the Distributor
-	 * supports one security state (ARM GIC Architecture Specification for
-	 * GICv3 and GICv4, p. 4-464)
-	 */
-	vgic->gicd_ctlr = 0;
-
-	mtx_init(&vgic->dist_mtx, "VGICv3 Distributor lock", NULL,
-	    MTX_SPIN);
 }
 
-static void
+void
 vgic_v3_cpuinit(device_t dev, struct hypctx *hypctx)
 {
 	struct vgic_v3_cpu *vgic_cpu;
 	struct vgic_v3_irq *irq;
 	int i, irqid;
 
-	hypctx->vgic_cpu = malloc(sizeof(*hypctx->vgic_cpu),
-	    M_VGIC_V3, M_WAITOK | M_ZERO);
-	vgic_cpu = hypctx->vgic_cpu;
+	vgic_cpu = &hypctx->vgic_cpu->v3;
 
 	mtx_init(&vgic_cpu->lr_mtx, "VGICv3 ICH_LR_EL2 lock", NULL, MTX_SPIN);
 
@@ -447,39 +420,36 @@ vgic_v3_cpuinit(device_t dev, struct hypctx *hypctx)
 	hypctx->vgic_v3.ich_apr_num = virt_features.ich_apr_num;
 }
 
-static void
+void
 vgic_v3_cpucleanup(device_t dev, struct hypctx *hypctx)
 {
 	struct vgic_v3_cpu *vgic_cpu;
 	struct vgic_v3_irq *irq;
 	int irqid;
 
-	vgic_cpu = hypctx->vgic_cpu;
+	vgic_cpu = &hypctx->vgic_cpu->v3;
 	for (irqid = 0; irqid < VGIC_PRV_I_NUM; irqid++) {
 		irq = &vgic_cpu->private_irqs[irqid];
 		mtx_destroy(&irq->irq_spinmtx);
 	}
 
 	mtx_destroy(&vgic_cpu->lr_mtx);
-	free(hypctx->vgic_cpu->private_irqs, M_VGIC_V3);
-	free(hypctx->vgic_cpu, M_VGIC_V3);
+	free(vgic_cpu->private_irqs, M_VGIC_V3);
 }
 
-static void
+void
 vgic_v3_vmcleanup(device_t dev, struct hyp *hyp)
 {
-	mtx_destroy(&hyp->vgic->dist_mtx);
-	free(hyp->vgic, M_VGIC_V3);
 }
 
-static int
+int
 vgic_v3_max_cpu_count(device_t dev, struct hyp *hyp)
 {
 	struct vgic_v3 *vgic;
 	size_t count;
 	int16_t max_count;
 
-	vgic = hyp->vgic;
+	vgic = &hyp->vgic->v3;
 	max_count = vm_get_maxcpus(hyp->vm);
 
 	/* No registers, assume the maximum CPUs */
@@ -659,7 +629,7 @@ write_pendr(struct hypctx *hypctx, int n, bool set, uint64_t val)
 		target_hypctx = hyp->ctx[target_vcpu];
 		if (target_hypctx == NULL)
 			goto next_irq;
-		vgic_cpu = target_hypctx->vgic_cpu;
+		vgic_cpu = &target_hypctx->vgic_cpu->v3;
 
 		if (!set) {
 			/* pending -> not pending */
@@ -735,7 +705,7 @@ write_activer(struct hypctx *hypctx, u_int n, bool set, uint64_t val)
 		target_hypctx = hyp->ctx[target_vcpu];
 		if (target_hypctx == NULL)
 			goto next_irq;
-		vgic_cpu = target_hypctx->vgic_cpu;
+		vgic_cpu = &target_hypctx->vgic_cpu->v3;
 
 		if (!set) {
 			/* active -> not active */
@@ -895,16 +865,20 @@ dist_ctlr_read(struct hypctx *hypctx, u_int reg, uint64_t *rval,
 {
 	struct hyp *hyp;
 	struct vgic_v3 *vgic;
+	uint64_t val;
 
 	hyp = hypctx->hyp;
-	vgic = hyp->vgic;
+	vgic = &hyp->vgic->v3;
 
-	mtx_lock_spin(&vgic->dist_mtx);
-	*rval = vgic->gicd_ctlr;
-	mtx_unlock_spin(&vgic->dist_mtx);
+	val = atomic_load_32(&vgic->gicd_ctlr);
+
+	/* No GICv2 emulation, so this is RAO */
+	val |= GICD_CTLR_ARE_NS;
 
 	/* Writes are never pending */
-	*rval &= ~GICD_CTLR_RWP;
+	val &= ~GICD_CTLR_RWP;
+
+	*rval = val;
 }
 
 static void
@@ -915,7 +889,7 @@ dist_ctlr_write(struct hypctx *hypctx, u_int reg, u_int offset, u_int size,
 
 	MPASS(offset == 0);
 	MPASS(size == 4);
-	vgic = hypctx->hyp->vgic;
+	vgic = &hypctx->hyp->vgic->v3;
 
 	/*
 	 * GICv2 backwards compatibility is not implemented so
@@ -929,10 +903,8 @@ dist_ctlr_write(struct hypctx *hypctx, u_int reg, u_int offset, u_int size,
 	 */
 	wval &= GICD_CTLR_G1A;
 	wval |= GICD_CTLR_ARE_NS;
-	mtx_lock_spin(&vgic->dist_mtx);
-	vgic->gicd_ctlr = wval;
+	atomic_store_32(&vgic->gicd_ctlr, wval);
 	/* TODO: Wake any vcpus that have interrupts pending */
-	mtx_unlock_spin(&vgic->dist_mtx);
 }
 
 /* GICD_TYPER */
@@ -1216,7 +1188,7 @@ dist_read(struct vcpu *vcpu, uint64_t fault_ipa, uint64_t *rval,
 
 	hypctx = vcpu_get_cookie(vcpu);
 	hyp = hypctx->hyp;
-	vgic = hyp->vgic;
+	vgic = &hyp->vgic->v3;
 
 	/* Check the register is one of ours and is the correct size */
 	if (fault_ipa < vgic->dist_start || fault_ipa + size > vgic->dist_end) {
@@ -1254,7 +1226,7 @@ dist_write(struct vcpu *vcpu, uint64_t fault_ipa, uint64_t wval,
 
 	hypctx = vcpu_get_cookie(vcpu);
 	hyp = hypctx->hyp;
-	vgic = hyp->vgic;
+	vgic = &hyp->vgic->v3;
 
 	/* Check the register is one of ours and is the correct size */
 	if (fault_ipa < vgic->dist_start || fault_ipa + size > vgic->dist_end) {
@@ -1461,7 +1433,7 @@ redist_read(struct vcpu *vcpu, uint64_t fault_ipa, uint64_t *rval,
 	/* Find the current vcpu ctx to get the vgic struct */
 	hypctx = vcpu_get_cookie(vcpu);
 	hyp = hypctx->hyp;
-	vgic = hyp->vgic;
+	vgic = &hyp->vgic->v3;
 
 	/* Check the register is one of ours and is the correct size */
 	if (fault_ipa < vgic->redist_start ||
@@ -1539,7 +1511,7 @@ redist_write(struct vcpu *vcpu, uint64_t fault_ipa, uint64_t wval,
 	/* Find the current vcpu ctx to get the vgic struct */
 	hypctx = vcpu_get_cookie(vcpu);
 	hyp = hypctx->hyp;
-	vgic = hyp->vgic;
+	vgic = &hyp->vgic->v3;
 
 	/* Check the register is one of ours and is the correct size */
 	if (fault_ipa < vgic->redist_start ||
@@ -1675,7 +1647,7 @@ vgic_v3_mmio_init(struct hyp *hyp)
 	int i;
 
 	/* Allocate memory for the SPIs */
-	vgic = hyp->vgic;
+	vgic = &hyp->vgic->v3;
 	vgic->irqs = malloc((VGIC_NIRQS - VGIC_PRV_I_NUM) *
 	    sizeof(*vgic->irqs), M_VGIC_V3, M_WAITOK | M_ZERO);
 
@@ -1696,7 +1668,7 @@ vgic_v3_mmio_destroy(struct hyp *hyp)
 	struct vgic_v3_irq *irq;
 	int i;
 
-	vgic = hyp->vgic;
+	vgic = &hyp->vgic->v3;
 	for (i = 0; i < VGIC_NIRQS - VGIC_PRV_I_NUM; i++) {
 		irq = &vgic->irqs[i];
 
@@ -1706,7 +1678,7 @@ vgic_v3_mmio_destroy(struct hyp *hyp)
 	free(vgic->irqs, M_VGIC_V3);
 }
 
-static int
+int
 vgic_v3_attach_to_vm(device_t dev, struct hyp *hyp, struct vm_vgic_descr *descr)
 {
 	struct vm *vm;
@@ -1741,7 +1713,8 @@ vgic_v3_attach_to_vm(device_t dev, struct hyp *hyp, struct vm_vgic_descr *descr)
 	if (cpu_count > vm_get_maxcpus(vm))
 		return (EINVAL);
 
-	vgic = hyp->vgic;
+	hyp->vgic->vgic_ver = 3;
+	vgic = &hyp->vgic->v3;
 
 	/* Set the distributor address and size for trapping guest access. */
 	vgic->dist_start = descr->v3_regs.dist_start;
@@ -1767,7 +1740,7 @@ vgic_v3_attach_to_vm(device_t dev, struct hyp *hyp, struct vm_vgic_descr *descr)
 	return (0);
 }
 
-static void
+void
 vgic_v3_detach_from_vm(device_t dev, struct hyp *hyp)
 {
 	if (hyp->vgic_attached) {
@@ -1789,13 +1762,13 @@ vgic_v3_get_irq(struct hyp *hyp, int vcpuid, uint32_t irqid)
 		hypctx = hyp->ctx[vcpuid];
 		if (hypctx == NULL)
 			return (NULL);
-		vgic_cpu = hypctx->vgic_cpu;
+		vgic_cpu = &hypctx->vgic_cpu->v3;
 		irq = &vgic_cpu->private_irqs[irqid];
 	} else if (irqid <= GIC_LAST_SPI) {
 		irqid -= VGIC_PRV_I_NUM;
 		if (irqid >= VGIC_NIRQS)
 			return (NULL);
-		irq = &hyp->vgic->irqs[irqid];
+		irq = &hyp->vgic->v3.irqs[irqid];
 	} else if (irqid < GIC_FIRST_LPI) {
 		return (NULL);
 	} else {
@@ -1814,13 +1787,13 @@ vgic_v3_release_irq(struct vgic_v3_irq *irq)
 	mtx_unlock_spin(&irq->irq_spinmtx);
 }
 
-static bool
+bool
 vgic_v3_has_pending_irq(device_t dev, struct hypctx *hypctx)
 {
 	struct vgic_v3_cpu *vgic_cpu;
 	bool empty;
 
-	vgic_cpu = hypctx->vgic_cpu;
+	vgic_cpu = &hypctx->vgic_cpu->v3;
 	mtx_lock_spin(&vgic_cpu->lr_mtx);
 	empty = TAILQ_EMPTY(&vgic_cpu->irq_act_pend);
 	mtx_unlock_spin(&vgic_cpu->lr_mtx);
@@ -1848,7 +1821,7 @@ vgic_v3_check_irq(struct vgic_v3_irq *irq, bool level)
 	return (false);
 }
 
-static int
+int
 vgic_v3_inject_irq(device_t dev, struct hyp *hyp, int vcpuid, uint32_t irqid,
     bool level)
 {
@@ -1894,7 +1867,7 @@ vgic_v3_inject_irq(device_t dev, struct hyp *hyp, int vcpuid, uint32_t irqid,
 	}
 
 	notify = false;
-	vgic_cpu = hypctx->vgic_cpu;
+	vgic_cpu = &hypctx->vgic_cpu->v3;
 
 	mtx_lock_spin(&vgic_cpu->lr_mtx);
 
@@ -1919,13 +1892,13 @@ out:
 	return (0);
 }
 
-static int
+int
 vgic_v3_inject_msi(device_t dev, struct hyp *hyp, uint64_t msg, uint64_t addr)
 {
 	struct vgic_v3 *vgic;
 	uint64_t reg;
 
-	vgic = hyp->vgic;
+	vgic = &hyp->vgic->v3;
 
 	/* This is a 4 byte register */
 	if (addr < vgic->dist_start || addr + 4 > vgic->dist_end) {
@@ -1939,14 +1912,14 @@ vgic_v3_inject_msi(device_t dev, struct hyp *hyp, uint64_t msg, uint64_t addr)
 	return (INJECT_IRQ(hyp, -1, msg, true));
 }
 
-static void
+void
 vgic_v3_flush_hwstate(device_t dev, struct hypctx *hypctx)
 {
 	struct vgic_v3_cpu *vgic_cpu;
 	struct vgic_v3_irq *irq;
 	int i;
 
-	vgic_cpu = hypctx->vgic_cpu;
+	vgic_cpu = &hypctx->vgic_cpu->v3;
 
 	/*
 	 * All Distributor writes have been executed at this point, do not
@@ -2021,7 +1994,7 @@ out:
 	mtx_unlock_spin(&vgic_cpu->lr_mtx);
 }
 
-static void
+void
 vgic_v3_sync_hwstate(device_t dev, struct hypctx *hypctx)
 {
 	struct vgic_v3_cpu *vgic_cpu;
@@ -2029,7 +2002,7 @@ vgic_v3_sync_hwstate(device_t dev, struct hypctx *hypctx)
 	uint64_t lr;
 	int i;
 
-	vgic_cpu = hypctx->vgic_cpu;
+	vgic_cpu = &hypctx->vgic_cpu->v3;
 
 	/* Exit early if there are no buffered interrupts */
 	if (vgic_cpu->ich_lr_used == 0)
@@ -2093,7 +2066,7 @@ vgic_v3_sync_hwstate(device_t dev, struct hypctx *hypctx)
 	vgic_cpu->ich_lr_used = 0;
 }
 
-static void
+void
 vgic_v3_init(device_t dev)
 {
 	uint64_t ich_vtr_el2;
@@ -2146,11 +2119,14 @@ struct vgic_v3_softc {
 static int
 vgic_v3_probe(device_t dev)
 {
+	u_int rev;
+
 	if (!gic_get_vgic(dev))
 		return (EINVAL);
 
-	/* We currently only support the GICv3 */
-	if (gic_get_hw_rev(dev) < 3)
+	/* We currently only support the GICv3/v4 */
+	rev = gic_get_hw_rev(dev);
+	if (rev < 3 || rev > 4)
 		return (EINVAL);
 
 	device_set_desc(dev, "Virtual GIC v3");
@@ -2255,6 +2231,12 @@ vgic_v3_detach(device_t dev)
 	return (0);
 }
 
+static int
+vgic_v3_get_version(device_t dev)
+{
+        return (3);
+}
+
 static device_method_t vgic_v3_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		vgic_v3_probe),
@@ -2275,6 +2257,7 @@ static device_method_t vgic_v3_methods[] = {
 	DEVMETHOD(vgic_inject_msi,	vgic_v3_inject_msi),
 	DEVMETHOD(vgic_flush_hwstate,	vgic_v3_flush_hwstate),
 	DEVMETHOD(vgic_sync_hwstate,	vgic_v3_sync_hwstate),
+	DEVMETHOD(vgic_get_version,	vgic_v3_get_version),
 
 	/* End */
 	DEVMETHOD_END

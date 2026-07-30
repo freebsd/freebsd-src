@@ -30,6 +30,9 @@
 #ifndef _VGIC_INTERNAL_H_
 #define	_VGIC_INTERNAL_H_
 
+struct hyp;
+struct hypctx;
+
 struct vgic_v3_irq {
 	/* List of IRQs that are active or pending */
 	TAILQ_ENTRY(vgic_v3_irq) act_pend_list;
@@ -80,6 +83,48 @@ struct vgic_v3_cpu {
 	u_int		ich_lr_used;
 };
 
+/* Global data not needed by EL2 */
+struct vgic_v5 {
+	struct mtx 	irs_mtx;
+	uint64_t 	irs_start;
+	size_t   	irs_end;
+
+	bool		irs_en;
+	uint32_t 	irs_cr1;
+
+	uint64_t	irs_ist_baser;
+	uint32_t	irs_ist_cfgr;
+
+	int		irs_pe_selr;
+
+	uint32_t	irs_spi_statusr;
+	uint32_t	irs_spi_selr;
+
+	int		max_cpu_count;
+	int		vm_id;
+};
+
+/* Per-CPU data not needed by EL2 */
+struct vgic_v5_cpu {
+	bool		dps;
+};
+
+struct vgic {
+	u_int	vgic_ver;
+
+	union {
+		struct vgic_v3 v3;
+		struct vgic_v5 v5;
+	};
+};
+
+struct vgic_cpu {
+	union {
+		struct vgic_v3_cpu v3;
+		struct vgic_v5_cpu v5;
+	};
+};
+
 typedef void (register_read)(struct hypctx *, u_int, uint64_t *, void *);
 typedef void (register_write)(struct hypctx *, u_int, u_int, u_int,
     uint64_t, void *);
@@ -88,7 +133,7 @@ register_read vgic_zero_read;
 register_write vgic_ignore_write;
 
 #define	VGIC_8_BIT	(1 << 0)
-/* (1 << 1) is reserved for 16 bit accesses */
+#define	VGIC_16_BIT	(1 << 1)
 #define	VGIC_32_BIT	(1 << 2)
 #define	VGIC_64_BIT	(1 << 3)
 
@@ -128,5 +173,19 @@ bool vgic_register_read(struct hypctx *, struct vgic_register *, u_int, u_int,
     u_int, uint64_t *, void *);
 bool vgic_register_write(struct hypctx *, struct vgic_register *, u_int, u_int,
     u_int, uint64_t, void *);
+
+void vgic_v3_vminit(device_t, struct hyp *);
+void vgic_v3_cpuinit(device_t, struct hypctx *);
+void vgic_v3_cpucleanup(device_t, struct hypctx *);
+void vgic_v3_vmcleanup(device_t, struct hyp *);
+int vgic_v3_max_cpu_count(device_t, struct hyp *);
+int vgic_v3_attach_to_vm(device_t, struct hyp *, struct vm_vgic_descr *);
+void vgic_v3_detach_from_vm(device_t, struct hyp *);
+bool vgic_v3_has_pending_irq(device_t, struct hypctx *);
+int vgic_v3_inject_irq(device_t, struct hyp *, int, uint32_t, bool);
+int vgic_v3_inject_msi(device_t dev, struct hyp *, uint64_t, uint64_t);
+void vgic_v3_flush_hwstate(device_t, struct hypctx *);
+void vgic_v3_sync_hwstate(device_t, struct hypctx *);
+void vgic_v3_init(device_t);
 
 #endif /* _VGIC_INTERNAL_H_ */

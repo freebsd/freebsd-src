@@ -179,6 +179,7 @@ arm64/vmm/vmm_vhe_exception.S			optional vmm		\
 	dependency	"$S/arm64/vmm/vmm_hyp_exception.S"
 arm64/vmm/io/vgic.c				optional vmm
 arm64/vmm/io/vgic_v3.c				optional vmm
+arm64/vmm/io/vgic_v5.c				optional vmm
 arm64/vmm/io/vgic_if.m				optional vmm
 arm64/vmm/io/vtimer.c				optional vmm
 dev/vmm/vmm_dev.c				optional vmm

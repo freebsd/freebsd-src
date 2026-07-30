@@ -91,6 +91,7 @@ struct vmm_regs {
 	uint64_t	id_aa64mmfr2;
 	uint64_t	id_aa64pfr0;
 	uint64_t	id_aa64pfr1;
+	uint64_t	id_aa64pfr2;
 };
 
 static const struct vmm_regs vmm_arch_regs_masks = {
@@ -127,6 +128,8 @@ static const struct vmm_regs vmm_arch_regs_masks = {
 	    ID_AA64PFR0_EL2_64 |
 	    ID_AA64PFR0_EL1_64 |
 	    ID_AA64PFR0_EL0_64,
+	.id_aa64pfr2 =
+	    ID_AA64PFR2_GCIE_NONE
 };
 
 /* Host registers masked by vmm_arch_regs_masks. */
@@ -169,6 +172,7 @@ vmm_regs_init(struct vmm_regs *regs, const struct vmm_regs *masks)
 	_FETCH_KERN_REG(ID_AA64MMFR2_EL1, id_aa64mmfr2);
 	_FETCH_KERN_REG(ID_AA64PFR0_EL1, id_aa64pfr0);
 	_FETCH_KERN_REG(ID_AA64PFR1_EL1, id_aa64pfr1);
+	_FETCH_KERN_REG(ID_AA64PFR2_EL1, id_aa64pfr2);
 #undef _FETCH_KERN_REG
 	return (0);
 }
@@ -426,6 +430,40 @@ vmm_reg_wi(struct vcpu *vcpu, uint64_t wval, void *arg)
 }
 
 static int
+vmm_read_id_aa64pfr0_el1(struct vcpu *vcpu, uint64_t *rval, void *arg)
+{
+	struct hypctx *hypctx;
+
+	hypctx = vcpu_get_cookie(vcpu);
+
+	if (hypctx->hyp->vgic_ver == 3)
+		*rval = (vmm_arch_regs.id_aa64pfr0 & ~ID_AA64PFR0_GIC_MASK) |
+		    ID_AA64PFR0_GIC_CPUIF_EN;
+	else
+		*rval = (vmm_arch_regs.id_aa64pfr0 & ~ID_AA64PFR0_GIC_MASK) |
+		    ID_AA64PFR0_GIC_CPUIF_NONE;
+
+	return (0);
+}
+
+static int
+vmm_read_id_aa64pfr2_el1(struct vcpu *vcpu, uint64_t *rval, void *arg)
+{
+	struct hypctx *hypctx;
+
+	hypctx = vcpu_get_cookie(vcpu);
+
+	if (hypctx->hyp->vgic_ver == 5)
+		*rval = (vmm_arch_regs.id_aa64pfr2 & ~ID_AA64PFR2_GCIE_MASK) |
+		    ID_AA64PFR2_GCIE_IMPL;
+	else
+		*rval = (vmm_arch_regs.id_aa64pfr2 & ~ID_AA64PFR2_GCIE_MASK) |
+		    ID_AA64PFR2_GCIE_NONE;
+
+	return (0);
+}
+
+static int
 vmm_write_oslar_el1(struct vcpu *vcpu, uint64_t wval, void *arg)
 {
 	struct hypctx *hypctx;
@@ -481,8 +519,9 @@ static const struct vmm_special_reg vmm_special_regs[] = {
 	/* ID registers */
 	ID_SPECIAL_REG(ID_AA64AFR0_EL1, id_aa64afr0),
 	ID_SPECIAL_REG(ID_AA64AFR1_EL1, id_aa64afr1),
-	ID_SPECIAL_REG(ID_AA64PFR0_EL1, id_aa64pfr0),
+	SPECIAL_REG(ID_AA64PFR0_EL1, vmm_read_id_aa64pfr0_el1, vmm_reg_wi),
 	ID_SPECIAL_REG(ID_AA64PFR1_EL1, id_aa64pfr1),
+	SPECIAL_REG(ID_AA64PFR2_EL1, vmm_read_id_aa64pfr2_el1, vmm_reg_wi),
 	ID_SPECIAL_REG(ID_AA64DFR0_EL1, id_aa64dfr0),
 	ID_SPECIAL_REG(ID_AA64DFR1_EL1, id_aa64dfr1),
 	ID_SPECIAL_REG(ID_AA64ISAR0_EL1, id_aa64isar0),

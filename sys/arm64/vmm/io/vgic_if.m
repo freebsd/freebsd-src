@@ -102,3 +102,7 @@ METHOD void sync_hwstate {
 	device_t dev;
 	struct hypctx *hypctx;
 }
+
+METHOD int get_version {
+	device_t dev;
+}
