@@ -5,6 +5,7 @@ PACKAGE=devd
 CONFGROUPS=	CONFS DEVD
 CONFS=	devd.conf
 DEVD=	devmatch.conf
+DEVD+=	growfs_postboot.conf
 DEVDDIR=	/etc/devd
 .if ${MK_ACPI} != "no"
 DEVD+=	asus.conf

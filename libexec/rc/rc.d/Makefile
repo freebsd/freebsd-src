@@ -24,6 +24,7 @@ CONFS=	DAEMON \
 	fsck \
 	growfs \
 	growfs_fstab \
+	growfs_postboot \
 	hostid \
 	hostid_save \
 	hostname \
