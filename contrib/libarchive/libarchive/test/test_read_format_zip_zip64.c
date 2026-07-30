@@ -47,7 +47,7 @@ verify_file0_seek(struct archive *a)
 #endif
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 static void
@@ -76,7 +76,7 @@ verify_file0_stream(struct archive *a, int size_known)
 #endif
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 DEFINE_TEST(test_read_format_zip_zip64a)

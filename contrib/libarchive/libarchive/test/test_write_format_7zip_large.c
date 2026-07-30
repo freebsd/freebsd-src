@@ -126,7 +126,7 @@ test_large(const char *compression_type)
 	assertEqualIntA(a, ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(buff);

@@ -130,7 +130,7 @@ test_format_by_name(const char *format_name, const char *compression_type,
 		    archive_filter_code(a, 0));
 		assertEqualIntA(a, format_id, archive_format(a));
 
-		assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	}
 	free(buff);

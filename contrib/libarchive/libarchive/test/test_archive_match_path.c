@@ -233,8 +233,8 @@ test_inclusion_mbs(void)
 		return;
 	}
 
-	/* Test for pattern "^aa*" */
-	assertEqualIntA(m, 0, archive_match_include_pattern(m, "^aa*"));
+	/* Test for pattern "aa*" */
+	assertEqualIntA(m, 0, archive_match_include_pattern(m, "aa*"));
 
 	/* Test with 'aa1234', which should not be excluded. */
 	archive_entry_copy_pathname(ae, "aa1234");
@@ -282,8 +282,8 @@ test_inclusion_wcs(void)
 		return;
 	}
 
-	/* Test for pattern "^aa*" */
-	assertEqualIntA(m, 0, archive_match_include_pattern_w(m, L"^aa*"));
+	/* Test for pattern "aa*" */
+	assertEqualIntA(m, 0, archive_match_include_pattern_w(m, L"aa*"));
 
 	/* Test with 'aa1234', which should not be excluded. */
 	archive_entry_copy_pathname(ae, "aa1234");
@@ -383,8 +383,8 @@ test_exclusion_and_inclusion(void)
 	}
 
 	assertEqualIntA(m, 0, archive_match_exclude_pattern(m, "^aaa*"));
-	assertEqualIntA(m, 0, archive_match_include_pattern_w(m, L"^aa*"));
-	assertEqualIntA(m, 0, archive_match_include_pattern(m, "^a1*"));
+	assertEqualIntA(m, 0, archive_match_include_pattern_w(m, L"aa*"));
+	assertEqualIntA(m, 0, archive_match_include_pattern(m, "a1*"));
 
 	/* Test with 'aa1234', which should not be excluded. */
 	archive_entry_copy_pathname(ae, "aa1234");
@@ -413,13 +413,13 @@ test_exclusion_and_inclusion(void)
 	/* Verify unmatched inclusion patterns. */
 	assertEqualIntA(m, ARCHIVE_OK,
 	    archive_match_path_unmatched_inclusions_next(m, &mp));
-	assertEqualString("^a1*", mp);
+	assertEqualString("a1*", mp);
 	assertEqualIntA(m, ARCHIVE_EOF,
 	    archive_match_path_unmatched_inclusions_next(m, &mp));
 	/* Verify unmatched inclusion patterns again in Wide-Char. */
 	assertEqualIntA(m, ARCHIVE_OK,
 	    archive_match_path_unmatched_inclusions_next_w(m, &wp));
-	assertEqualWString(L"^a1*", wp);
+	assertEqualWString(L"a1*", wp);
 	assertEqualIntA(m, ARCHIVE_EOF,
 	    archive_match_path_unmatched_inclusions_next_w(m, &wp));
 

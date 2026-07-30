@@ -266,7 +266,7 @@ verify(const char *refname, enum comp_type comp)
 
 	/* Close the archive. */
 finish:
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -332,7 +332,7 @@ verify2(const char *refname, enum comp_type comp)
 	assertEqualIntA(a, ARCHIVE_FORMAT_CAB, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
@@ -387,7 +387,7 @@ verify3(const char *refname, enum comp_type comp)
 	assertEqualIntA(a, ARCHIVE_FORMAT_CAB, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 

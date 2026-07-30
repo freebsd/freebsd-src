@@ -50,4 +50,5 @@ DEFINE_TEST(test_extract_cpio_absolute_paths)
 	r = systemf("%s -i --insecure < archive.cpio 2> stderr3.txt", testprog);
 	assert(r == 0);
 	assertFileExists(temp_absolute_file_name);
+	free(temp_absolute_file_name);
 }

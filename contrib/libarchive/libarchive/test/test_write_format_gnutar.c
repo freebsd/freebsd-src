@@ -199,7 +199,7 @@ DEFINE_TEST(test_write_format_gnutar)
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Some basic verification of the low-level format.
@@ -274,7 +274,18 @@ DEFINE_TEST(test_write_format_gnutar)
 	 */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(buff);
+}
+
+DEFINE_TEST(test_write_format_gnutar_switch)
+{
+	struct archive *a;
+
+	assert((a = archive_write_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_7zip(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_gnutar(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_gnutar(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }

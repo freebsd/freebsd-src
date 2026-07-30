@@ -77,6 +77,8 @@ DEFINE_TEST(test_read_filter_program)
 	    archive_read_next_header(a, &ae));
 	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_PROGRAM);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
+	assertEqualString("Program: gzip -d", archive_filter_name(a, 0));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualString("Program: gzip -d", archive_filter_name(a, 0));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

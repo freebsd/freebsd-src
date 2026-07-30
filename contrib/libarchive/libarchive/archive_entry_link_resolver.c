@@ -41,6 +41,7 @@
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_integer.h"
 
 /*
  * This is mostly a pretty straightforward hash table implementation.
@@ -78,7 +79,7 @@ struct links_entry {
 struct archive_entry_linkresolver {
 	struct links_entry	**buckets;
 	struct links_entry	 *spare;
-	unsigned long		  number_entries;
+	size_t			  number_entries;
 	size_t			  number_buckets;
 	int			  strategy;
 };
@@ -158,13 +159,12 @@ archive_entry_linkresolver_set_strategy(struct archive_entry_linkresolver *res,
 void
 archive_entry_linkresolver_free(struct archive_entry_linkresolver *res)
 {
-	struct links_entry *le;
-
 	if (res == NULL)
 		return;
 
-	while ((le = next_entry(res, NEXT_ENTRY_ALL)) != NULL)
-		archive_entry_free(le->entry);
+	while (next_entry(res, NEXT_ENTRY_ALL) != NULL) {
+		/* Actual freeing done by next_entry() */
+	}
 	free(res->buckets);
 	free(res);
 }
@@ -382,9 +382,13 @@ insert_entry(struct archive_entry_linkresolver *res,
 	if (le == NULL)
 		return (NULL);
 	le->canonical = archive_entry_clone(entry);
+	if (le->canonical == NULL) {
+		free(le);
+		return (NULL);
+	}
 
 	/* If the links cache is getting too full, enlarge the hash table. */
-	if (res->number_entries > res->number_buckets * 2)
+	if (res->number_entries / 2 > res->number_buckets)
 		grow_hash(res);
 
 	hash = (size_t)(archive_entry_dev(entry) ^ archive_entry_ino64(entry));
@@ -410,8 +414,7 @@ grow_hash(struct archive_entry_linkresolver *res)
 	size_t i, bucket;
 
 	/* Try to enlarge the bucket list. */
-	new_size = res->number_buckets * 2;
-	if (new_size < res->number_buckets)
+	if (archive_ckd_mul_size(&new_size, res->number_buckets, 2))
 		return;
 	new_buckets = calloc(new_size, sizeof(struct links_entry *));
 

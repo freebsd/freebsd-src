@@ -262,7 +262,7 @@ write_contents(struct archive *a)
 
 
 	/* Close out the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_write_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }
 
@@ -428,7 +428,7 @@ verify_contents(struct archive *a, int seeking, int content)
 	if (content) {
 		assertEqualIntA(a, 5,
 		    archive_read_data(a, filedata, sizeof(filedata)));
-		assertEqualMem(filedata, "ghijk", 4);
+		assertEqualMem(filedata, "ghijk", 5);
 	}
 
 	/* Read symlink. */
@@ -520,7 +520,7 @@ verify_contents(struct archive *a, int seeking, int content)
 	if (content) {
 		assertEqualIntA(a, 5,
 		    archive_read_data(a, filedata, sizeof(filedata)));
-		assertEqualMem(filedata, "ijklm", 4);
+		assertEqualMem(filedata, "ijklm", 5);
 	}
 
 	/* Read symlink. */
@@ -550,7 +550,7 @@ verify_contents(struct archive *a, int seeking, int content)
 
 	/* Verify the end of the archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 

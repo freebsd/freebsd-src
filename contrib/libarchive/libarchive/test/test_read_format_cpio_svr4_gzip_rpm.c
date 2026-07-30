@@ -123,7 +123,7 @@ DEFINE_TEST(test_read_format_cpio_svr4_gzip_rpm)
 	assertEqualString(archive_filter_name(a, 0), "gzip");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_SVR4_NOCRC);
  
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 

@@ -129,7 +129,9 @@ Sets the corresponding format based on the common name.
 .Fn archive_write_set_format_filter_by_ext
 .Fn archive_write_set_format_filter_by_ext_def
 .Xc
-Sets both filters and format based on the output filename.
+Sets both filters and format based on the output filename, optionally
+referring to a default extension if the supplied filename does not have a
+known one.
 Supported extensions: .7z, .zip, .jar, .cpio, .iso, .a, .ar, .tar, .tgz, .tar.gz, .tar.bz2, .tar.xz
 .It Xo
 .Fn archive_write_set_format_7zip

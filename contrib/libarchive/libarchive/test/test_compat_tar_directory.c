@@ -64,7 +64,7 @@ test_compat_tar_directory_1(void)
 	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_NONE);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR);
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 

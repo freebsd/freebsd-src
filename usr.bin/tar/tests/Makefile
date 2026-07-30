@@ -81,6 +81,7 @@ TESTS_SRCS=	\
 	test_option_r.c				\
 	test_option_s.c				\
 	test_option_safe_writes.c		\
+	test_option_stdout_size_exceeds_declared.c	\
 	test_option_uid_uname.c			\
 	test_option_uuencode.c			\
 	test_option_xattrs.c			\
@@ -127,6 +128,8 @@ ${PACKAGE}FILES+=	test_list_item.tar.uu
 ${PACKAGE}FILES+=	test_option_keep_newer_files.tar.Z.uu
 ${PACKAGE}FILES+=	test_option_passphrase.zip.uu
 ${PACKAGE}FILES+=	test_option_s.tar.Z.uu
+${PACKAGE}FILES+=	test_option_stdout_size_exceeds_declared_deflate.zip.uu
+${PACKAGE}FILES+=	test_option_stdout_size_exceeds_declared_stored.zip.uu
 ${PACKAGE}FILES+=	test_patterns_2.tar.uu
 ${PACKAGE}FILES+=	test_patterns_3.tar.uu
 ${PACKAGE}FILES+=	test_patterns_4.tar.uu

@@ -133,7 +133,7 @@ compat_lzma(const char *name)
 	assertEqualString(archive_filter_name(a, 0), "lzma");
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 

@@ -102,7 +102,7 @@ DEFINE_TEST(test_read_format_cpio_afio)
 	assertEqualIntA(a, archive_read_has_encrypted_entries(a), ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED);
 	assertA(archive_filter_code(a, 0) == ARCHIVE_FILTER_NONE);
 	assertA(archive_format(a) == ARCHIVE_FORMAT_CPIO_AFIO_LARGE);
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(p);
@@ -124,4 +124,28 @@ DEFINE_TEST(test_read_format_cpio_afio_broken)
 	assertEqualInt(archive_filter_code(a, 0), ARCHIVE_FILTER_NONE);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_AFIO_LARGE);
 	archive_read_free(a);
+}
+
+DEFINE_TEST(test_read_format_cpio_afio_header)
+{
+  const char *reffiles[] =
+  {
+    "test_read_format_cpio_afio_header.part1.cpio",
+    "test_read_format_cpio_afio_header.part2.cpio",
+    NULL
+  };
+  struct archive_entry *ae;
+  struct archive *a;
+
+  extract_reference_files(reffiles);
+  assert((a = archive_read_new()) != NULL);
+  assertA(0 == archive_read_support_format_cpio(a));
+  assertA(0 == archive_read_open_filenames(a, reffiles, 10240));
+
+  /* File "a" */
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+  assertEqualString("a", archive_entry_pathname(ae));
+
+  assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+  assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

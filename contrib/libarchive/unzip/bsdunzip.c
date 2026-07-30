@@ -9,6 +9,7 @@
 #include "bsdunzip_platform.h"
 
 #include "la_queue.h"
+#include "lafe_fnmatch.h"
 #include "lafe_getline.h"
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -50,9 +51,6 @@
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#endif
-#ifdef HAVE_GETOPT_OPTRESET
-#include <getopt.h>
 #endif
 
 #include "bsdunzip.h"
@@ -147,6 +145,7 @@ errorx(const char *fmt, ...)
 	exit(EXIT_FAILURE);
 }
 
+#if defined(HAVE_LCHMOD) || defined(HAVE_UTIMENSAT) || defined(HAVE_LUTIMES)
 /* non-fatal error message + errno */
 static void
 warning(const char *fmt, ...)
@@ -162,6 +161,7 @@ warning(const char *fmt, ...)
 	va_end(ap);
 	fprintf(stderr, ": %s\n", strerror(errno));
 }
+#endif
 
 /* non-fatal error message, no errno */
 static void
@@ -307,12 +307,8 @@ match_pattern(struct pattern_list *list, const char *str)
 	struct pattern *entry;
 
 	STAILQ_FOREACH(entry, list, link) {
-#ifdef HAVE_FNMATCH
 		if (fnmatch(entry->pattern, str, C_opt ? FNM_CASEFOLD : 0) == 0)
 			return (1);
-#else
-#error "Unsupported platform: fnmatch() is required"
-#endif
 	}
 	return (0);
 }
@@ -332,9 +328,33 @@ accept_pathname(const char *pathname)
 	return (1);
 }
 
+/* System call to create a directory. */
+static int
+system_mkdir(const char *pathname, int mode)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	(void)mode; /* UNUSED */
+	return _mkdir(pathname);
+#else
+	return mkdir(pathname, mode);
+#endif
+}
+
+static void
+system_unlink(const char *pathname) {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (unlink(pathname) == -1) {
+		/* Windows treats directory symbolic links specially. */
+		rmdir(pathname);
+	}
+#else
+	(void)unlink(pathname);
+#endif
+}
+
 /*
  * Create the specified directory with the specified mode, taking certain
- * precautions on they way.
+ * precautions on the way.
  */
 static void
 make_dir(const char *path, int mode)
@@ -352,14 +372,9 @@ make_dir(const char *path, int mode)
 		 * even compromise (if this non-directory happens to be a
 		 * symlink to somewhere unsafe), so we don't.
 		 */
-
-		/*
-		 * Don't check unlink() result; failure will cause mkdir()
-		 * to fail later, which we will catch.
-		 */
-		(void)unlink(path);
+		system_unlink(path);
 	}
-	if (mkdir(path, (mode_t)mode) != 0 && errno != EEXIST)
+	if (system_mkdir(path, (mode_t)mode) != 0 && errno != EEXIST)
 		error("mkdir('%s')", path);
 }
 
@@ -384,10 +399,10 @@ make_parent(char *path)
 			*sep = '/';
 			return;
 		}
-		unlink(path);
+		system_unlink(path);
 	}
 	make_parent(path);
-	mkdir(path, 0755);
+	system_mkdir(path, 0755);
 	*sep = '/';
 
 #if 0
@@ -464,7 +479,7 @@ handle_existing_file(char **path)
 			/* FALLTHROUGH */
 		case 'y':
 		case 'Y':
-			(void)unlink(*path);
+			system_unlink(*path);
 			return 1;
 		case 'N':
 			n_opt = 1;
@@ -664,10 +679,10 @@ recheck:
 #endif
 			    ))
 				return;
-			(void)unlink(*path);
+			system_unlink(*path);
 		} else if (o_opt) {
 			/* overwrite */
-			(void)unlink(*path);
+			system_unlink(*path);
 		} else if (n_opt) {
 			/* do not overwrite */
 			return;
@@ -744,6 +759,17 @@ recheck:
 		error("close('%s')", *path);
 }
 
+static int
+pathname_is_insecure(const char* pathname)
+{
+	size_t len = strlen(pathname);
+	return (pathname[0] == '/' ||
+	    strcmp(pathname, "..") == 0 ||
+	    strncmp(pathname, "../", 3) == 0 ||
+	    strstr(pathname, "/../") != NULL ||
+	    (len >= 3 && strcmp(pathname + len - 3, "/..") == 0));
+}
+
 /*
  * Extract a zipfile entry: first perform some sanity checks to ensure
  * that it is either a directory or a regular file and that the path is
@@ -763,6 +789,7 @@ static void
 extract(struct archive *a, struct archive_entry *e)
 {
 	char *pathname, *realpathname;
+	const char *linktarget;
 	mode_t filetype;
 	char *p, *q;
 
@@ -774,10 +801,17 @@ extract(struct archive *a, struct archive_entry *e)
 	filetype = archive_entry_filetype(e);
 
 	/* sanity checks */
-	if (pathname[0] == '/' ||
-	    strncmp(pathname, "../", 3) == 0 ||
-	    strstr(pathname, "/../") != NULL) {
+	if (pathname_is_insecure(pathname)) {
 		warningx("skipping insecure entry '%s'", pathname);
+		ac(archive_read_data_skip(a));
+		free(pathname);
+		return;
+	}
+
+	if (S_ISLNK(filetype) &&
+	    ((linktarget = archive_entry_symlink(e)) != NULL) &&
+	    pathname_is_insecure(linktarget)) {
+		warningx("skipping insecure symlink '%s' to '%s'", pathname, linktarget);
 		ac(archive_read_data_skip(a));
 		free(pathname);
 		return;
@@ -884,9 +918,9 @@ list(struct archive *a, struct archive_entry *e)
 	mtime = archive_entry_mtime(e);
 	tm = localtime(&mtime);
 	if (*y_str)
-		strftime(buf, sizeof(buf), "%m-%d-%Y %R", tm);
+		strftime(buf, sizeof(buf), "%m-%d-%Y %H:%M", tm);
 	else
-		strftime(buf, sizeof(buf), "%m-%d-%y %R", tm);
+		strftime(buf, sizeof(buf), "%m-%d-%y %H:%M", tm);
 
 	pathname = archive_entry_pathname(e);
 	if (!pathname)

@@ -80,7 +80,7 @@ archive_read_support_format_all(struct archive *a)
 	/* Note: We always return ARCHIVE_OK here, even if some of the
 	 * above return ARCHIVE_WARN.  The intent here is to enable
 	 * "as much as possible."  Clients who need specific
-	 * compression should enable those individually so they can
+	 * formats should enable those individually so they can
 	 * verify the level of support. */
 	/* Clear any warning messages set by the above functions. */
 	archive_clear_error(a);

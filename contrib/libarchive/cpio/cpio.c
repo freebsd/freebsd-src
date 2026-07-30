@@ -1002,7 +1002,10 @@ mode_in(struct cpio *cpio)
 			lafe_errc(1, archive_errno(a),
 			    "%s", archive_error_string(a));
 		}
-		if (archive_match_path_excluded(cpio->matching, entry))
+		r = archive_match_path_excluded(cpio->matching, entry);
+		if (r < 0)
+			lafe_errc(1, 0, "%s", archive_error_string(cpio->matching));
+		if (r)
 			continue;
 		if (cpio->option_rename)
 			cpio_rename(entry);
@@ -1117,7 +1120,10 @@ mode_list(struct cpio *cpio)
 			lafe_errc(1, archive_errno(a),
 			    "%s", archive_error_string(a));
 		}
-		if (archive_match_path_excluded(cpio->matching, entry))
+		r = archive_match_path_excluded(cpio->matching, entry);
+		if (r < 0)
+			lafe_errc(1, 0, "%s", archive_error_string(cpio->matching));
+		if (r)
 			continue;
 		if (cpio->verbose)
 			list_item_verbose(cpio, entry);

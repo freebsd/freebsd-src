@@ -49,68 +49,81 @@
 #include "archive_write_private.h"
 #include "archive_write_set_format_private.h"
 
-struct warc_s {
+/*
+ * Overview of the WARC writer:
+ *
+ * This writer emits WARC/1.0 resource records for regular files.  It
+ * writes a warcinfo record once by default, unless the omit-warcinfo
+ * option is used.  Each resource record gets a WARC-Target-URI from
+ * the entry pathname, a generated WARC-Record-ID, and a mandatory
+ * Content-Length header.
+ */
+
+struct warc {
 	unsigned int omit_warcinfo:1;
 
 	time_t now;
-	mode_t typ;
-	unsigned int rng;
-	/* populated size */
-	uint64_t populz;
+	mode_t filetype;
+	/* Remaining bytes to write for the current entry */
+	uint64_t entry_bytes_remaining;
 };
 
-static const char warcinfo[] =
+#define WARC_HEADER_MAX_SIZE 512
+
+static const char warcinfo_payload[] =
     "software: libarchive/" ARCHIVE_VERSION_ONLY_STRING "\r\n"
     "format: WARC file version 1.0\r\n";
 
-typedef enum {
-	WT_NONE,
-	/* warcinfo */
-	WT_INFO,
-	/* metadata */
-	WT_META,
-	/* resource */
-	WT_RSRC,
-	/* request, unsupported */
-	WT_REQ,
-	/* response, unsupported */
-	WT_RSP,
-	/* revisit, unsupported */
-	WT_RVIS,
-	/* conversion, unsupported */
-	WT_CONV,
-	/* continuation, unsupported at the moment */
-	WT_CONT,
-	/* invalid type */
-	LAST_WT
-} warc_type_t;
+enum warc_type {
+	WARC_TYPE_NONE,
+	/* WARC info */
+	WARC_TYPE_INFO,
+	/* Metadata */
+	WARC_TYPE_METADATA,
+	/* Resource */
+	WARC_TYPE_RESOURCE,
+	/* Request, unsupported */
+	WARC_TYPE_REQUEST,
+	/* Response, unsupported by this writer */
+	WARC_TYPE_RESPONSE,
+	/* Revisit, unsupported */
+	WARC_TYPE_REVISIT,
+	/* Conversion, unsupported */
+	WARC_TYPE_CONVERSION,
+	/* Continuation, currently unsupported */
+	WARC_TYPE_CONTINUATION,
+	WARC_TYPE_LAST
+};
 
-typedef struct {
-	warc_type_t type;
-	const char *tgturi;
-	const char *recid;
-	time_t rtime;
-	time_t mtime;
-	const char *cnttyp;
-	uint64_t cntlen;
-} warc_essential_hdr_t;
+struct warc_header {
+	enum warc_type type;
+	const char *target_uri;
+	const char *record_id;
+	time_t record_time;
+	time_t modification_time;
+	const char *content_type;
+	uint64_t content_length;
+};
 
-typedef struct {
-	unsigned int u[4U];
-} warc_uuid_t;
+struct warc_uuid {
+	unsigned int value[4U];
+};
 
-static int _warc_options(struct archive_write*, const char *key, const char *v);
-static int _warc_header(struct archive_write *a, struct archive_entry *entry);
-static ssize_t _warc_data(struct archive_write *a, const void *buf, size_t sz);
-static int _warc_finish_entry(struct archive_write *a);
-static int _warc_close(struct archive_write *a);
-static int _warc_free(struct archive_write *a);
+static int	archive_write_warc_options(struct archive_write *,
+		    const char *, const char *);
+static int	archive_write_warc_header(struct archive_write *,
+		    struct archive_entry *);
+static ssize_t	archive_write_warc_data(struct archive_write *, const void *,
+		    size_t);
+static int	archive_write_warc_finish_entry(struct archive_write *);
+static int	archive_write_warc_close(struct archive_write *);
+static int	archive_write_warc_free(struct archive_write *);
 
-/* private routines */
-static ssize_t _popul_ehdr(struct archive_string *t, size_t z, warc_essential_hdr_t);
-static int _gen_uuid(warc_uuid_t *tgt);
+static void	warc_format_time(struct archive_string *, const char *, time_t);
+static ssize_t	warc_populate_header(struct archive_string *, size_t,
+		    struct warc_header);
+static void	warc_generate_uuid(struct warc_uuid *);
 
-
 /*
  * Set output format to ISO 28500 (aka WARC) format.
  */
@@ -118,103 +131,110 @@ int
 archive_write_set_format_warc(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
-	struct warc_s *w;
+	struct warc *warc;
 
 	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
 	    ARCHIVE_STATE_NEW, "archive_write_set_format_warc");
 
 	/* If another format was already registered, unregister it. */
-	if (a->format_free != NULL) {
-		(a->format_free)(a);
-	}
+	(void)__archive_write_unregister_format(a);
 
-	w = malloc(sizeof(*w));
-	if (w == NULL) {
+	warc = malloc(sizeof(*warc));
+	if (warc == NULL) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate warc data");
 		return (ARCHIVE_FATAL);
 	}
-	/* by default we're emitting a file wide header */
-	w->omit_warcinfo = 0U;
-	/* obtain current time for date fields */
-	w->now = time(NULL);
-	/* reset file type info */
-	w->typ = 0;
-	/* also initialise our rng */
-	w->rng = (unsigned int)w->now;
+	/* Emit a warcinfo record by default. */
+	warc->omit_warcinfo = 0U;
+	/* Use the current time for WARC-Date values. */
+	warc->now = time(NULL);
+	/* Reset file type information. */
+	warc->filetype = 0;
 
-	a->format_data = w;
+	a->format_data = warc;
 	a->format_name = "WARC/1.0";
-	a->format_options = _warc_options;
-	a->format_write_header = _warc_header;
-	a->format_write_data = _warc_data;
-	a->format_close = _warc_close;
-	a->format_free = _warc_free;
-	a->format_finish_entry = _warc_finish_entry;
+	a->format_options = archive_write_warc_options;
+	a->format_write_header = archive_write_warc_header;
+	a->format_write_data = archive_write_warc_data;
+	a->format_close = archive_write_warc_close;
+	a->format_free = archive_write_warc_free;
+	a->format_finish_entry = archive_write_warc_finish_entry;
 	a->archive.archive_format = ARCHIVE_FORMAT_WARC;
 	a->archive.archive_format_name = "WARC/1.0";
 	return (ARCHIVE_OK);
 }
 
-
-/* archive methods */
 static int
-_warc_options(struct archive_write *a, const char *key, const char *val)
+archive_write_warc_options(struct archive_write *a, const char *key,
+    const char *val)
 {
-	struct warc_s *w = a->format_data;
+	struct warc *warc = a->format_data;
 
 	if (strcmp(key, "omit-warcinfo") == 0) {
 		if (val == NULL || strcmp(val, "true") == 0) {
-			/* great */
-			w->omit_warcinfo = 1U;
+			/* Option accepted. */
+			warc->omit_warcinfo = 1U;
 			return (ARCHIVE_OK);
 		}
 	}
 
-	/* Note: The "warn" return is just to inform the options
-	 * supervisor that we didn't handle it.  It will generate
-	 * a suitable error if no one used this option. */
+	/* ARCHIVE_WARN tells the options supervisor that this option was not
+	 * handled here.  It will report an error if no module uses it. */
 	return (ARCHIVE_WARN);
 }
 
 static int
-_warc_header(struct archive_write *a, struct archive_entry *entry)
+archive_write_warc_header(struct archive_write *a, struct archive_entry *entry)
 {
-	struct warc_s *w = a->format_data;
-	struct archive_string hdr;
-#define MAX_HDR_SIZE 512
+	struct warc *warc = a->format_data;
+	struct archive_string header;
 
-	/* check whether warcinfo record needs outputting */
-	if (!w->omit_warcinfo) {
-		ssize_t r;
-		warc_essential_hdr_t wi = {
-			WT_INFO,
-			/*uri*/NULL,
-			/*urn*/NULL,
-			/*rtm*/0,
-			/*mtm*/0,
-			/*cty*/"application/warc-fields",
-			/*len*/sizeof(warcinfo) - 1U,
+	/* Emit the warcinfo record if needed. */
+	if (!warc->omit_warcinfo) {
+		ssize_t header_size;
+		int ret;
+		struct warc_header warcinfo_header = {
+			WARC_TYPE_INFO,
+			/* URI */NULL,
+			/* Record ID */NULL,
+			/* Record time */0,
+			/* Modified time */0,
+			/* Content type */"application/warc-fields",
+			/* Content length */sizeof(warcinfo_payload) - 1U,
 		};
-		wi.rtime = w->now;
-		wi.mtime = w->now;
+		warcinfo_header.record_time = warc->now;
+		warcinfo_header.modification_time = warc->now;
 
-		archive_string_init(&hdr);
-		r = _popul_ehdr(&hdr, MAX_HDR_SIZE, wi);
-		if (r >= 0) {
-			/* jackpot! */
-			/* now also use HDR buffer for the actual warcinfo */
-			archive_strncat(&hdr, warcinfo, sizeof(warcinfo) -1);
-
-			/* append end-of-record indicator */
-			archive_strncat(&hdr, "\r\n\r\n", 4);
-
-			/* write to output stream */
-			__archive_write_output(a, hdr.s, archive_strlen(&hdr));
+		archive_string_init(&header);
+		header_size = warc_populate_header(&header,
+		    WARC_HEADER_MAX_SIZE, warcinfo_header);
+		if (header_size < 0) {
+			archive_string_free(&header);
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Cannot archive warcinfo record");
+			return (ARCHIVE_FAILED);
 		}
-		/* indicate we're done with file header writing */
-		w->omit_warcinfo = 1U;
-		archive_string_free(&hdr);
+
+		/* Reuse the header buffer for the warcinfo payload. */
+		archive_strncat(&header, warcinfo_payload,
+		    sizeof(warcinfo_payload) - 1);
+
+		/* Append the end-of-record indicator. */
+		archive_strncat(&header, "\r\n\r\n", 4);
+
+		/* Write the warcinfo record to the output stream. */
+		ret = __archive_write_output(a, header.s,
+		    archive_strlen(&header));
+		if (ret != ARCHIVE_OK) {
+			archive_string_free(&header);
+			return (ret);
+		}
+
+		/* Mark the file header as written. */
+		warc->omit_warcinfo = 1U;
+		archive_string_free(&header);
 	}
 
 	if (archive_entry_pathname(entry) == NULL) {
@@ -223,221 +243,249 @@ _warc_header(struct archive_write *a, struct archive_entry *entry)
 		return (ARCHIVE_WARN);
 	}
 
-	w->typ = archive_entry_filetype(entry);
-	w->populz = 0U;
-	if (w->typ == AE_IFREG) {
-		warc_essential_hdr_t rh = {
-			WT_RSRC,
-			/*uri*/NULL,
-			/*urn*/NULL,
-			/*rtm*/0,
-			/*mtm*/0,
-			/*cty*/NULL,
-			/*len*/0,
+	warc->filetype = archive_entry_filetype(entry);
+	warc->entry_bytes_remaining = 0U;
+	if (warc->filetype == AE_IFREG) {
+		struct warc_header resource_header = {
+			WARC_TYPE_RESOURCE,
+			/* URI */NULL,
+			/* Record ID */NULL,
+			/* Record time */0,
+			/* Modified time */0,
+			/* Content type */NULL,
+			/* Content length */0,
 		};
-		ssize_t r;
-		rh.tgturi = archive_entry_pathname(entry);
-		rh.rtime = w->now;
-		rh.mtime = archive_entry_mtime(entry);
-		rh.cntlen = (size_t)archive_entry_size(entry);
+		ssize_t header_size;
+		int ret;
+		int64_t size;
 
-		archive_string_init(&hdr);
-		r = _popul_ehdr(&hdr, MAX_HDR_SIZE, rh);
-		if (r < 0) {
-			/* don't bother */
-			archive_set_error(
-				&a->archive,
-				ARCHIVE_ERRNO_FILE_FORMAT,
-				"cannot archive file");
-			return (ARCHIVE_WARN);
+		resource_header.target_uri = archive_entry_pathname(entry);
+		resource_header.record_time = warc->now;
+		resource_header.modification_time = archive_entry_mtime(entry);
+		if (!archive_entry_size_is_set(entry)) {
+			archive_set_error(&a->archive, -1,
+			    "Size required");
+			return (ARCHIVE_FAILED);
 		}
-		/* otherwise append to output stream */
-		__archive_write_output(a, hdr.s, r);
-		/* and let subsequent calls to _data() know about the size */
-		w->populz = rh.cntlen;
-		archive_string_free(&hdr);
+		size = archive_entry_size(entry);
+		if (size < 0) {
+			archive_set_error(&a->archive, -1,
+			    "Size required");
+			return (ARCHIVE_FAILED);
+		}
+		resource_header.content_length = (uint64_t)size;
+
+		archive_string_init(&header);
+		header_size = warc_populate_header(&header,
+		    WARC_HEADER_MAX_SIZE, resource_header);
+		if (header_size < 0) {
+			/* Header generation failed. */
+			archive_string_free(&header);
+			archive_set_error(&a->archive,
+			    ARCHIVE_ERRNO_FILE_FORMAT,
+			    "WARC resource header is too large");
+			return (ARCHIVE_FATAL);
+		}
+		/* Append the header to the output stream. */
+		ret = __archive_write_output(a, header.s, header_size);
+		if (ret != ARCHIVE_OK) {
+			archive_string_free(&header);
+			return (ret);
+		}
+		/* Save the remaining size for subsequent data callbacks. */
+		warc->entry_bytes_remaining = resource_header.content_length;
+		archive_string_free(&header);
 		return (ARCHIVE_OK);
 	}
-	/* just resort to erroring as per Tim's advice */
+	/* Report unsupported file types through the common helper. */
 	__archive_write_entry_filetype_unsupported(
 	    &a->archive, entry, "WARC");
 	return (ARCHIVE_FAILED);
 }
 
 static ssize_t
-_warc_data(struct archive_write *a, const void *buf, size_t len)
+archive_write_warc_data(struct archive_write *a, const void *buf, size_t len)
 {
-	struct warc_s *w = a->format_data;
+	struct warc *warc = a->format_data;
 
-	if (w->typ == AE_IFREG) {
-		int rc;
+	if (warc->filetype == AE_IFREG) {
+		int ret;
 
-		/* never write more bytes than announced */
-		if (len > w->populz) {
-			len = (size_t)w->populz;
+		/* Never write more bytes than announced. */
+		if ((uint64_t)len > warc->entry_bytes_remaining) {
+			len = (size_t)warc->entry_bytes_remaining;
 		}
 
-		/* now then, out we put the whole shebang */
-		rc = __archive_write_output(a, buf, len);
-		if (rc != ARCHIVE_OK) {
-			return rc;
+		/* Write the entry data. */
+		ret = __archive_write_output(a, buf, len);
+		if (ret != ARCHIVE_OK) {
+			return (ret);
 		}
+		warc->entry_bytes_remaining -= len;
 	}
-	return len;
+	return (len);
 }
 
 static int
-_warc_finish_entry(struct archive_write *a)
+archive_write_warc_finish_entry(struct archive_write *a)
 {
-	static const char _eor[] = "\r\n\r\n";
-	struct warc_s *w = a->format_data;
+	static const char end_of_record[] = "\r\n\r\n";
+	struct warc *warc = a->format_data;
 
-	if (w->typ == AE_IFREG) {
-		int rc = __archive_write_output(a, _eor, sizeof(_eor) - 1U);
+	if (warc->filetype == AE_IFREG) {
+		int ret;
 
-		if (rc != ARCHIVE_OK) {
-			return rc;
+		if (warc->entry_bytes_remaining != 0U) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "WARC entry is shorter than Content-Length");
+			return (ARCHIVE_FATAL);
+		}
+
+		ret = __archive_write_output(a, end_of_record,
+		    sizeof(end_of_record) - 1U);
+		if (ret != ARCHIVE_OK) {
+			return (ret);
 		}
 	}
-	/* reset type info */
-	w->typ = 0;
+	/* Reset file type information. */
+	warc->filetype = 0;
 	return (ARCHIVE_OK);
 }
 
 static int
-_warc_close(struct archive_write *a)
+archive_write_warc_close(struct archive_write *a)
 {
 	(void)a; /* UNUSED */
 	return (ARCHIVE_OK);
 }
 
 static int
-_warc_free(struct archive_write *a)
+archive_write_warc_free(struct archive_write *a)
 {
-	struct warc_s *w = a->format_data;
+	struct warc *warc = a->format_data;
 
-	free(w);
+	free(warc);
 	a->format_data = NULL;
 	return (ARCHIVE_OK);
 }
 
-
-/* private routines */
+/* Like strftime(3), but for time_t objects. */
 static void
-xstrftime(struct archive_string *as, const char *fmt, time_t t)
+warc_format_time(struct archive_string *str, const char *format, time_t t)
 {
-/** like strftime(3) but for time_t objects */
-	struct tm *rt;
+	struct tm *tm;
 #if defined(HAVE_GMTIME_R) || defined(HAVE_GMTIME_S)
-	struct tm timeHere;
+	struct tm tm_storage;
 #endif
-	char strtime[100];
+	char time_string[100];
 	size_t len;
 
 #if defined(HAVE_GMTIME_S)
-	rt = gmtime_s(&timeHere, &t) ? NULL : &timeHere;
+	tm = gmtime_s(&tm_storage, &t) ? NULL : &tm_storage;
 #elif defined(HAVE_GMTIME_R)
-	rt = gmtime_r(&t, &timeHere);
+	tm = gmtime_r(&t, &tm_storage);
 #else
-	rt = gmtime(&t);
+	tm = gmtime(&t);
 #endif
-	if (!rt)
+	if (tm == NULL)
 		return;
-	/* leave the hard yacker to our role model strftime() */
-	len = strftime(strtime, sizeof(strtime)-1, fmt, rt);
-	archive_strncat(as, strtime, len);
+	/* Let strftime() handle the actual formatting. */
+	len = strftime(time_string, sizeof(time_string) - 1, format, tm);
+	archive_strncat(str, time_string, len);
 }
 
 static ssize_t
-_popul_ehdr(struct archive_string *tgt, size_t tsz, warc_essential_hdr_t hdr)
+warc_populate_header(struct archive_string *header_string, size_t max_size,
+    struct warc_header header)
 {
-	static const char _ver[] = "WARC/1.0\r\n";
-	static const char * const _typ[LAST_WT] = {
+	static const char version[] = "WARC/1.0\r\n";
+	static const char * const record_types[WARC_TYPE_LAST] = {
 		NULL, "warcinfo", "metadata", "resource", NULL
 	};
-	char std_uuid[48U];
+	char generated_record_id[48U];
 
-	if (hdr.type == WT_NONE || hdr.type > WT_RSRC) {
-		/* brilliant, how exactly did we get here? */
-		return -1;
+	if (header.type == WARC_TYPE_NONE || header.type > WARC_TYPE_RESOURCE) {
+		/* Invalid record type for this writer. */
+		return (-1);
 	}
 
-	archive_strcpy(tgt, _ver);
+	archive_strcpy(header_string, version);
 
-	archive_string_sprintf(tgt, "WARC-Type: %s\r\n", _typ[hdr.type]);
+	archive_string_sprintf(header_string, "WARC-Type: %s\r\n",
+	    record_types[header.type]);
 
-	if (hdr.tgturi != NULL) {
-		/* check if there's a xyz:// */
-		static const char _uri[] = "";
-		static const char _fil[] = "file://";
-		const char *u;
-		char *chk = strchr(hdr.tgturi, ':');
+	if (header.target_uri != NULL) {
+		const char *uri_prefix;
+		const char *scheme = strchr(header.target_uri, ':');
 
-		if (chk != NULL && chk[1U] == '/' && chk[2U] == '/') {
-			/* yep, it's definitely a URI */
-			u = _uri;
+		/* Check whether the value already contains ://. */
+		if (scheme != NULL && scheme[1U] == '/' && scheme[2U] == '/') {
+			/* Already has a scheme-style :// prefix. */
+			uri_prefix = "";
 		} else {
-			/* hm, best to prepend file:// then */
-			u = _fil;
+			/* Prepend file:// for local paths. */
+			uri_prefix = "file://";
 		}
-		archive_string_sprintf(tgt,
-			"WARC-Target-URI: %s%s\r\n", u, hdr.tgturi);
+		archive_string_sprintf(header_string,
+		    "WARC-Target-URI: %s%s\r\n", uri_prefix,
+		    header.target_uri);
 	}
 
-	/* record time is usually when the http is sent off,
-	 * just treat the archive writing as such for a moment */
-	xstrftime(tgt, "WARC-Date: %Y-%m-%dT%H:%M:%SZ\r\n", hdr.rtime);
+	/* Write WARC-Date from header.record_time. */
+	warc_format_time(header_string,
+	    "WARC-Date: %Y-%m-%dT%H:%M:%SZ\r\n", header.record_time);
 
-	/* while we're at it, record the mtime */
-	xstrftime(tgt, "Last-Modified: %Y-%m-%dT%H:%M:%SZ\r\n", hdr.mtime);
+	/* Also write Last-Modified from header.modification_time. */
+	warc_format_time(header_string,
+	    "Last-Modified: %Y-%m-%dT%H:%M:%SZ\r\n",
+	    header.modification_time);
 
-	if (hdr.recid == NULL) {
-		/* generate one, grrrr */
-		warc_uuid_t u;
+	if (header.record_id == NULL) {
+		/* Generate a record ID when one was not provided. */
+		struct warc_uuid uuid;
 
-		_gen_uuid(&u);
-		/* Unfortunately, archive_string_sprintf does not
-		 * handle the minimum number following '%'.
-		 * So we have to use snprintf function here instead
-		 * of archive_string_snprintf function. */
-#if defined(_WIN32) && !defined(__CYGWIN__) && !( defined(_MSC_VER) && _MSC_VER >= 1900)
+		warc_generate_uuid(&uuid);
+		/* archive_string_sprintf() does not support minimum field widths, so
+		 * use snprintf() for UUID formatting. */
+#if defined(_WIN32) && !defined(__CYGWIN__) && \
+    !(defined(_MSC_VER) && _MSC_VER >= 1900)
 #define snprintf _snprintf
 #endif
-		snprintf(
-			std_uuid, sizeof(std_uuid),
-			"<urn:uuid:%08x-%04x-%04x-%04x-%04x%08x>",
-			u.u[0U],
-			u.u[1U] >> 16U, u.u[1U] & 0xffffU,
-			u.u[2U] >> 16U, u.u[2U] & 0xffffU,
-			u.u[3U]);
-		hdr.recid = std_uuid;
+		snprintf(generated_record_id, sizeof(generated_record_id),
+		    "<urn:uuid:%08x-%04x-%04x-%04x-%04x%08x>",
+		    uuid.value[0U],
+		    uuid.value[1U] >> 16U, uuid.value[1U] & 0xffffU,
+		    uuid.value[2U] >> 16U, uuid.value[2U] & 0xffffU,
+		    uuid.value[3U]);
+		header.record_id = generated_record_id;
 	}
 
-	/* record-id is mandatory, fingers crossed we won't fail */
-	archive_string_sprintf(tgt, "WARC-Record-ID: %s\r\n", hdr.recid);
+	/* WARC-Record-ID is mandatory. */
+	archive_string_sprintf(header_string, "WARC-Record-ID: %s\r\n",
+	    header.record_id);
 
-	if (hdr.cnttyp != NULL) {
-		archive_string_sprintf(tgt, "Content-Type: %s\r\n", hdr.cnttyp);
+	if (header.content_type != NULL) {
+		archive_string_sprintf(header_string, "Content-Type: %s\r\n",
+		    header.content_type);
 	}
 
-	/* next one is mandatory */
-	archive_string_sprintf(tgt, "Content-Length: %ju\r\n", (uintmax_t)hdr.cntlen);
-	/**/
-	archive_strncat(tgt, "\r\n", 2);
+	/* Content-Length is mandatory. */
+	archive_string_sprintf(header_string, "Content-Length: %ju\r\n",
+	    (uintmax_t)header.content_length);
+	/* End of header. */
+	archive_strncat(header_string, "\r\n", 2);
 
-	return (archive_strlen(tgt) >= tsz)? -1: (ssize_t)archive_strlen(tgt);
+	return (archive_strlen(header_string) >= max_size) ?
+	    -1 : (ssize_t)archive_strlen(header_string);
 }
 
-static int
-_gen_uuid(warc_uuid_t *tgt)
+static void
+warc_generate_uuid(struct warc_uuid *uuid)
 {
-	archive_random(tgt->u, sizeof(tgt->u));
-	/* obey uuid version 4 rules */
-	tgt->u[1U] &= 0xffff0fffU;
-	tgt->u[1U] |= 0x4000U;
-	tgt->u[2U] &= 0x3fffffffU;
-	tgt->u[2U] |= 0x80000000U;
-	return 0;
+	archive_random(uuid->value, sizeof(uuid->value));
+	/* Apply UUID version 4 rules. */
+	uuid->value[1U] &= 0xffff0fffU;
+	uuid->value[1U] |= 0x4000U;
+	uuid->value[2U] &= 0x3fffffffU;
+	uuid->value[2U] |= 0x80000000U;
 }
-
-/* archive_write_set_format_warc.c ends here */

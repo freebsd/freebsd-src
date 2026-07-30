@@ -218,7 +218,7 @@ DEFINE_TEST(test_compat_gtar_large)
 	/* Verify that the reader actually read to the end of data */
 	assertEqualInt(reader.zero_blocks_remaining, 0);
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	free(reader.zero_block);
 }

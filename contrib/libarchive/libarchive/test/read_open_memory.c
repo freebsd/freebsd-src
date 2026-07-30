@@ -86,6 +86,7 @@ read_open_memory_internal(struct archive *a, const void *buff,
     size_t size, size_t read_size, int level)
 {
 	struct read_memory_data *mine = NULL;
+	int r;
 
 	switch (level) {
 	case 3:
@@ -112,7 +113,12 @@ read_open_memory_internal(struct archive *a, const void *buff,
 
 		archive_read_set_read_callback(a, memory_read);
 		archive_read_set_close_callback(a, memory_read_close);
-		archive_read_set_callback_data(a, mine);
+		r = archive_read_set_callback_data(a, mine);
+		if (r < 0)
+			return (r);
+		__LA_FALLTHROUGH;
+	default:
+		break;
 	}
 	return archive_read_open1(a);
 }
