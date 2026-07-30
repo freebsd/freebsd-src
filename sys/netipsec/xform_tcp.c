@@ -63,6 +63,7 @@
 
 #ifdef INET6
 #include <netinet/ip6.h>
+#include <netinet6/ip6_var.h>
 #include <netipsec/ipsec6.h>
 #endif
 
@@ -154,25 +155,23 @@ ip_pseudo_compute(struct mbuf *m, MD5_CTX *ctx)
 static int
 ip6_pseudo_compute(struct mbuf *m, MD5_CTX *ctx)
 {
-	struct ip6_pseudo {
-		struct in6_addr src, dst;
-		uint32_t len;
-		uint32_t nxt;
-	} ip6p __aligned(4);
+	struct ip6_hdr_pseudo ip6ph = {
+		.ip6ph_zero = {}
+	};
 	struct ip6_hdr *ip6;
 	int hdr_len;
 
 	ip6 = mtod(m, struct ip6_hdr *);
-	ip6p.src = ip6->ip6_src;
-	ip6p.dst = ip6->ip6_dst;
+	ip6ph.ip6ph_src = ip6->ip6_src;
+	ip6ph.ip6ph_dst = ip6->ip6_dst;
 	hdr_len = sizeof(struct ip6_hdr);
 	if (ip6->ip6_nxt == IPPROTO_UDP)
 		/* TCP over UDP */
 		hdr_len += sizeof(struct udphdr);
-	/* XXX: ext headers */
-	ip6p.len = htonl(m->m_pkthdr.len - hdr_len);
-	ip6p.nxt = htonl(IPPROTO_TCP);
-	MD5Update(ctx, (char *)&ip6p, sizeof(ip6p));
+	/* Append TCP segment and fixup length. */
+	ip6ph.ip6ph_len = htonl(m->m_pkthdr.len - hdr_len);
+	ip6ph.ip6ph_nxt = IPPROTO_TCP;
+	MD5Update(ctx, &ip6ph, sizeof(ip6ph));
 	return (hdr_len);
 }
 #endif
