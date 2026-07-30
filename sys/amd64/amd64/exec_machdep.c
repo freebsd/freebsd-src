@@ -573,12 +573,15 @@ fill_fpregs_xmm(struct savefpu *sv_xmm, struct fpreg *fpregs)
 }
 
 /* internalize from fpregs into sv_xmm */
-static void
+static int
 set_fpregs_xmm(struct fpreg *fpregs, struct savefpu *sv_xmm)
 {
 	struct envxmm *penv_xmm = &sv_xmm->sv_env;
 	struct envxmm *penv_fpreg = (struct envxmm *)&fpregs->fpr_env;
 	int i;
+
+	if ((penv_fpreg->en_mxcsr & ~cpu_mxcsr_mask) != 0)
+		return (EINVAL);
 
 	/* fpregs -> pcb */
 	/* FPU control/status */
@@ -589,7 +592,7 @@ set_fpregs_xmm(struct fpreg *fpregs, struct savefpu *sv_xmm)
 	penv_xmm->en_rip = penv_fpreg->en_rip;
 	penv_xmm->en_rdp = penv_fpreg->en_rdp;
 	penv_xmm->en_mxcsr = penv_fpreg->en_mxcsr;
-	penv_xmm->en_mxcsr_mask = penv_fpreg->en_mxcsr_mask & cpu_mxcsr_mask;
+	penv_xmm->en_mxcsr_mask = penv_fpreg->en_mxcsr_mask;
 
 	/* FPU registers */
 	for (i = 0; i < 8; ++i)
@@ -598,6 +601,8 @@ set_fpregs_xmm(struct fpreg *fpregs, struct savefpu *sv_xmm)
 	/* SSE registers */
 	for (i = 0; i < 16; ++i)
 		bcopy(fpregs->fpr_xacc[i], sv_xmm->sv_xmm[i].xmm_bytes, 16);
+
+	return (0);
 }
 
 /* externalize from td->pcb */
@@ -617,12 +622,14 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
+	int error;
 
 	critical_enter();
-	set_fpregs_xmm(fpregs, get_pcb_user_save_td(td));
-	fpuuserinited(td);
+	error = set_fpregs_xmm(fpregs, get_pcb_user_save_td(td));
+	if (error == 0)
+		fpuuserinited(td);
 	critical_exit();
-	return (0);
+	return (error);
 }
 
 /*
