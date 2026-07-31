@@ -2475,6 +2475,34 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
 }
 
 /*
+ * Some devices must remain enabled even when _STA (ACPI 6.5, section 6.3.7)
+ * reports them as not present:
+ *
+ * - PCI link devices (_HID PNP0C0F, section 6.1.5), which sometimes report
+ *   "present" but not "functional" (i.e. if disabled).
+ * - The RTC (_HID PNP0B00), which is needed for CMOS register space unless
+ *   the FADT indicates it is not present (checked in the RTC probe routine).
+ * - Docking stations, which have a _DCK method (section 6.5.2), since the
+ *   system may be undocked at boot.
+ */
+static bool
+acpi_always_present(ACPI_HANDLE handle)
+{
+    ACPI_HANDLE h;
+
+    if (acpi_MatchHid(handle, "PNP0C0F"))
+	return (true);
+
+    if (acpi_MatchHid(handle, "PNP0B00"))
+	return (true);
+
+    if (ACPI_SUCCESS(AcpiGetHandle(handle, "_DCK", &h)))
+	return (true);
+
+    return (false);
+}
+
+/*
  * Evaluate a child device and determine whether we might attach a device to
  * it.
  */
@@ -2485,7 +2513,6 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
     struct acpi_device	*ad;
     struct acpi_prw_data prw;
     ACPI_OBJECT_TYPE type;
-    ACPI_HANDLE h;
     device_t bus, child;
     char *handle_str;
     int d, order;
@@ -2549,30 +2576,14 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     * leave it disabled (so that we have a device_t attached to
 	     * the handle, but we don't probe it).
 	     *
-	     * XXX PCI link devices sometimes report "present" but not
-	     * "functional" (i.e. if disabled).  Go ahead and probe them
-	     * anyway since we may enable them later.
+	     * Devices that are kept enabled still have their resources
+	     * parsed below so that resource-based hint matching
+	     * (BUS_HINT_DEVICE_UNIT) can wire their unit numbers;
+	     * otherwise a hinted ISA device can duplicate the ACPI
+	     * device.
 	     */
-	    if (type == ACPI_TYPE_DEVICE && !acpi_DeviceIsPresent(child)) {
-		/* Never disable PCI link devices. */
-		if (acpi_MatchHid(handle, "PNP0C0F"))
-		    break;
-
-		/*
-		 * RTC Device should be enabled for CMOS register space
-		 * unless FADT indicate it is not present.
-		 * (checked in RTC probe routine.)
-		 */
-		if (acpi_MatchHid(handle, "PNP0B00"))
-		    break;
-
-		/*
-		 * Docking stations should remain enabled since the system
-		 * may be undocked at boot.
-		 */
-		if (ACPI_SUCCESS(AcpiGetHandle(handle, "_DCK", &h)))
-		    break;
-
+	    if (type == ACPI_TYPE_DEVICE && !acpi_DeviceIsPresent(child) &&
+		!acpi_always_present(handle)) {
 		device_disable(child);
 		break;
 	    }
