@@ -734,9 +734,8 @@ ixv_msix_mbx(void *arg)
 	/* Clear interrupt with write */
 	IXGBE_WRITE_REG(hw, IXGBE_VTEICR, reg);
 
-	/* Link status change */
-	if (reg & IXGBE_EICR_LSC)
-		iflib_admin_intr_deferred(sc->ctx);
+	/* The admin vector also carries PF mailbox notifications. */
+	iflib_admin_intr_deferred(sc->ctx);
 
 	IXGBE_WRITE_REG(hw, IXGBE_VTEIMS, IXGBE_EIMS_OTHER);
 
