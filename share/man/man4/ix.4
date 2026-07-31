@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd November 10, 2025
+.Dd August 6, 2026
 .Dt IX 4
 .Os
 .Sh NAME
@@ -70,6 +70,27 @@ The maximum MTU size for Jumbo Frames is 9710.
 This driver version supports VLANs.
 For information on enabling VLANs, see
 .Xr ifconfig 8 .
+.Sh SR-IOV
+The driver-specific
+.Va vlan
+parameter in
+.Xr iovctl.conf 5
+accepts a VLAN identifier from 1 through 4095 or the keyword
+.Dq trunk ,
+which is the default.
+A numeric VLAN configures an access VF: the PF inserts the VLAN tag on
+transmit and strips it on receive.
+The stripped administrative tag is not presented to the VF network stack as
+.Dv M_VLANTAG ,
+so received packets are delivered directly through the VF interface.
+With
+.Dq trunk ,
+the VF may add and remove individual VLAN memberships; tags for VLANs
+registered by the VF are presented normally to its network stack.
+.Pp
+VLAN filtering remains enabled in the hardware while SR-IOV is active so that
+the PF can enforce VLAN ownership for each VF pool, including when hardware
+VLAN filtering has been disabled on the PF interface.
 .Sh HARDWARE
 The
 .Nm
@@ -220,6 +241,7 @@ issue to
 .Xr ng_ether 4 ,
 .Xr polling 4 ,
 .Xr vlan 4 ,
+.Xr iovctl.conf 5 ,
 .Xr ifconfig 8 ,
 .Xr sysctl 8
 .Sh HISTORY

@@ -403,7 +403,7 @@ ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 	struct rx_ring *rxr = &que->rxr;
 	union ixgbe_adv_rx_desc *rxd;
 
-	uint16_t pkt_info, len, cidx, i;
+	uint16_t pkt_info, len, cidx, i, vid, vtag;
 	uint32_t ptype;
 	uint32_t staterr = 0;
 	bool eop;
@@ -463,8 +463,20 @@ ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 			ri->iri_rsstype = M_HASHTYPE_OPAQUE_HASH;
 	}
 	if ((rxr->vtag_strip) && (staterr & IXGBE_RXD_STAT_VP)) {
-		ri->iri_vtag = le16toh(rxd->wb.upper.vlan);
-		ri->iri_flags |= M_VLANTAG;
+		vtag = le16toh(rxd->wb.upper.vlan);
+		vid = EVL_VLANOFTAG(vtag);
+		/*
+		 * A PF-assigned port VLAN is stripped before a VF receives the
+		 * frame, but it is not one of the VLANs registered by the VF.
+		 * Do not expose that administrative tag to the VF's network
+		 * stack.  Locally registered trunk VLANs retain M_VLANTAG.
+		 */
+		if ((sc->feat_en & IXGBE_FEATURE_VF) == 0 ||
+		    (sc->shadow_vfta[vid >> 5] &
+		    (1U << (vid & 0x1f))) != 0) {
+			ri->iri_vtag = vtag;
+			ri->iri_flags |= M_VLANTAG;
+		}
 	}
 
 	ri->iri_nfrags = i;
