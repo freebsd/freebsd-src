@@ -357,6 +357,7 @@ struct ixgbe_vf {
 	u_int		rar_index;
 	u_int		maximum_frame_size;
 	uint32_t	flags;
+	struct timeval	last_mdd_log;
 	uint8_t		ether_addr[ETHER_ADDR_LEN];
 	uint16_t	mc_hash[IXGBE_MAX_VF_MC];
 	uint32_t	vlans[IXGBE_VFTA_SIZE];
@@ -463,6 +464,8 @@ struct ixgbe_softc {
 	bool			iov_vfta_valid;
 	bool			iov_vlan_promisc;
 	bool			iov_mbx_cleanup_pending;
+	bool			iov_pf_mdd_reset_pending;
+	struct timeval		iov_last_mdd_log;
 
 	/* Bypass */
 	struct ixgbe_bp_data	bypass;

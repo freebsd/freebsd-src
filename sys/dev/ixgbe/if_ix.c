@@ -4080,6 +4080,11 @@ ixgbe_if_init(if_ctx_t ctx)
 	/* Setup DMA Coalescing */
 	ixgbe_config_dmac(sc);
 
+	if (sc->feat_en & IXGBE_FEATURE_SRIOV) {
+		ixgbe_enable_mdd(hw);
+		ixgbe_activate_vfs(sc);
+	}
+
 	/* And now turn on interrupts */
 	ixgbe_if_enable_intr(ctx);
 
@@ -4724,6 +4729,8 @@ ixgbe_if_stop(if_ctx_t ctx)
 
 	INIT_DEBUGOUT("ixgbe_if_stop: begin\n");
 
+	if (sc->feat_en & IXGBE_FEATURE_SRIOV)
+		ixgbe_disable_mdd(hw);
 	ixgbe_reset_hw(hw);
 	hw->adapter_stopped = false;
 	ixgbe_stop_adapter(hw);
@@ -5156,6 +5163,7 @@ static int
 ixgbe_sysctl_flowcntl(SYSCTL_HANDLER_ARGS)
 {
 	struct ixgbe_softc *sc;
+	struct sx *ctx_lock;
 	int error, fc;
 
 	sc = (struct ixgbe_softc *)arg1;
@@ -5165,11 +5173,15 @@ ixgbe_sysctl_flowcntl(SYSCTL_HANDLER_ARGS)
 	if ((error) || (req->newptr == NULL))
 		return (error);
 
-	/* Don't bother if it's not changed */
+	/* Serialize the live register update with the administrative task. */
+	ctx_lock = iflib_ctx_lock_get(sc->ctx);
+	sx_xlock(ctx_lock);
 	if (fc == sc->hw.fc.current_mode)
-		return (0);
-
-	return ixgbe_set_flowcntl(sc, fc);
+		error = 0;
+	else
+		error = ixgbe_set_flowcntl(sc, fc);
+	sx_xunlock(ctx_lock);
+	return (error);
 } /* ixgbe_sysctl_flowcntl */
 
 /************************************************************************
@@ -5184,19 +5196,41 @@ ixgbe_sysctl_flowcntl(SYSCTL_HANDLER_ARGS)
 static int
 ixgbe_set_flowcntl(struct ixgbe_softc *sc, int fc)
 {
+	bool enable_drop, mdd_active;
+
 	switch (fc) {
 	case ixgbe_fc_rx_pause:
 	case ixgbe_fc_tx_pause:
 	case ixgbe_fc_full:
-		if (sc->num_rx_queues > 1)
-			ixgbe_disable_rx_drop(sc);
+		enable_drop = false;
 		break;
 	case ixgbe_fc_none:
-		if (sc->num_rx_queues > 1)
-			ixgbe_enable_rx_drop(sc);
+		enable_drop = true;
 		break;
 	default:
 		return (EINVAL);
+	}
+
+	/* Updating SRRCTL on a live queue is itself an MDD violation. */
+	mdd_active = sc->num_rx_queues > 1 &&
+	    (sc->feat_en & IXGBE_FEATURE_SRIOV) != 0 &&
+	    (if_getdrvflags(iflib_get_ifp(sc->ctx)) & IFF_DRV_RUNNING) != 0;
+	if (mdd_active)
+		ixgbe_disable_mdd(&sc->hw);
+	if (sc->num_rx_queues > 1) {
+		if (enable_drop)
+			ixgbe_enable_rx_drop(sc);
+		else
+			ixgbe_disable_rx_drop(sc);
+	}
+	if (mdd_active) {
+		ixgbe_enable_mdd(&sc->hw);
+		/* Service an event whose interrupt edge was lost while masked. */
+		if (ixgbe_mbx_pending(sc)) {
+			atomic_set_32(&sc->task_requests,
+			    IXGBE_REQUEST_TASK_MBX);
+			iflib_admin_intr_deferred(sc->ctx);
+		}
 	}
 
 	sc->hw.fc.requested_mode = fc;
