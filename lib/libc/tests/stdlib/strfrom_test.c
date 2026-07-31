@@ -13,10 +13,10 @@
  * producing the same wrong answer.
  */
 
+#include <errno.h>
 #include <float.h>
 #include <locale.h>
 #include <math.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -466,22 +466,95 @@ ATF_TC_BODY(strfrom_locale, tc)
 	ATF_CHECK_STREQ("0x1,8p+0", buf);
 }
 
+/*
+ * Per C23 §7.24.1.3p2, format string outside the restricted grammar is
+ * undefined behaviour.  FreeBSD reports it as the programming error it
+ * is; the conversion yields "EDOOFUS" and sets errno accordingly.
+ */
+static void
+check_edoofus(const char *fmt, int ret, const char *buf)
+{
+	ATF_CHECK_MSG(ret == 7, "%s: return %d, want 7", fmt, ret);
+	ATF_CHECK_STREQ_MSG("EDOOFUS", buf, "%s: got \"%s\"", fmt, buf);
+	ATF_CHECK_MSG(errno == EDOOFUS, "%s: errno %d, want %d", fmt, errno,
+	    EDOOFUS);
+}
+
 ATF_TC_WITHOUT_HEAD(strfrom_empty_format);
 ATF_TC_BODY(strfrom_empty_format, tc)
 {
 	char buf[FBUF];
+	int ret;
 
-	atf_tc_expect_signal(SIGABRT, "empty strfrom format aborts");
-	strfromd(buf, sizeof(buf), "", 1.0);
+	errno = 0;
+	ret = strfromd(buf, sizeof(buf), "", 1.0);
+	check_edoofus("", ret, buf);
 }
 
 ATF_TC_WITHOUT_HEAD(strfrom_bad_specifier);
 ATF_TC_BODY(strfrom_bad_specifier, tc)
 {
 	char buf[FBUF];
+	int ret;
 
-	atf_tc_expect_signal(SIGABRT, "invalid strfrom specifier aborts");
-	strfromd(buf, sizeof(buf), "%q", 1.0);
+	errno = 0;
+	ret = strfromd(buf, sizeof(buf), "%q", 1.0);
+	check_edoofus("%q", ret, buf);
+
+	errno = 0;
+	ret = strfromf(buf, sizeof(buf), "%.2q", 1.0f);
+	check_edoofus("%.2q", ret, buf);
+
+	errno = 0;
+	ret = strfroml(buf, sizeof(buf), "%", 1.0L);
+	check_edoofus("%", ret, buf);
+
+	errno = 0;
+	ret = strfromd(buf, sizeof(buf), "f", 1.0);
+	check_edoofus("f", ret, buf);
+
+	errno = 0;
+	ret = strfromd(buf, sizeof(buf), "%*f", 1.0);
+	check_edoofus("%*f", ret, buf);
+
+	errno = 0;
+	ret = strfromd(buf, sizeof(buf), "%f ", 1.0);
+	check_edoofus("%f ", ret, buf);
+}
+
+ATF_TC_WITHOUT_HEAD(strfrom_bad_format_truncation);
+ATF_TC_BODY(strfrom_bad_format_truncation, tc)
+{
+	char buf[FBUF];
+	int ret;
+
+	/* The error string obeys the snprintf(3) truncation rules. */
+	buf[0] = 'X';
+	errno = 0;
+	ret = strfromd(buf, 0, "%q", 1.0);
+	ATF_CHECK_MSG(ret == 7, "return %d, want 7", ret);
+	ATF_CHECK_MSG(buf[0] == 'X', "buffer modified with n==0");
+	ATF_CHECK_EQ(EDOOFUS, errno);
+
+	errno = 0;
+	ret = strfromd(buf, 4, "%q", 1.0);
+	ATF_CHECK_MSG(ret == 7, "return %d, want 7", ret);
+	ATF_CHECK_STREQ("EDO", buf);
+	ATF_CHECK_EQ(EDOOFUS, errno);
+}
+
+ATF_TC_WITHOUT_HEAD(strfrom_errno_preserved);
+ATF_TC_BODY(strfrom_errno_preserved, tc)
+{
+	char buf[FBUF];
+
+	errno = 0;
+	strfromd(buf, sizeof(buf), "%f", 1.0);
+	ATF_CHECK_EQ(0, errno);
+	strfromf(buf, sizeof(buf), "%a", 1.0f);
+	ATF_CHECK_EQ(0, errno);
+	strfroml(buf, sizeof(buf), "%.3g", 1.0L);
+	ATF_CHECK_EQ(0, errno);
 }
 
 ATF_TP_ADD_TCS(tp)
@@ -510,6 +583,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, strfrom_locale);
 	ATF_TP_ADD_TC(tp, strfrom_empty_format);
 	ATF_TP_ADD_TC(tp, strfrom_bad_specifier);
+	ATF_TP_ADD_TC(tp, strfrom_bad_format_truncation);
+	ATF_TP_ADD_TC(tp, strfrom_errno_preserved);
 
 	return (atf_no_error());
 }

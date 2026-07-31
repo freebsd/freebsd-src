@@ -25,6 +25,7 @@
 #include "gdtoa.h"
 
 char	__sf_parse_fmt(const char *, int *);
+int	__sf_edoofus(char *, size_t);
 const char *__sf_xdigits(char);
 void	__sf_decimal_mode(char, int, int *, int *);
 int	__sf_render_hex(char *, size_t, char, int, char *, char *, int, int);

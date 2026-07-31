@@ -23,7 +23,6 @@ string
 .Fn strfromf "char * restrict str" "size_t size" "const char * restrict format" "float fp"
 .Ft int
 .Fn strfroml "char * restrict str" "size_t size" "const char * restrict format" "long double fp"
-.Fc
 .Sh DESCRIPTION
 Functions
 .Fn strfromd ,
@@ -32,7 +31,7 @@ and
 .Fn strfroml
 convert the floating-point value
 .Fa fp
-to a null-terminated string, storing at most
+to a null terminated string, storing at most
 .Fa size
 bytes
 .Pq including the terminating null character
@@ -61,6 +60,14 @@ Use of any other format string results in undefined behaviour,
 as does any undefined behaviour inherited from
 .Xr snprintf 3
 per se.
+In case of a format string not specified by the standard, the string
+.Ql EDOOFUS
+is written to
+.Fa str ,
+subject to the same truncation rules as a successful conversion, and
+.Va errno
+is set to
+.Er EDOOFUS .
 .Sh RETURN VALUES
 The
 .Fn strfromd ,
@@ -77,9 +84,16 @@ that would have been written
 had
 .Fa n
 been sufficiently large.
-Thus, the null-terminated output has been completely written if
+Thus, the null terminated output has been completely written if
 and only if the returned value is both nonnegative and less than
 .Fa size .
+.Sh ERRORS
+.Bl -tag -width Er
+.It Bq Er EDOOFUS
+The
+.Fa format
+string is not of the form the standard specifies.
+.El
 .Sh SEE ALSO
 .Xr snprintf 3 ,
 .Xr strtod 3 ,

@@ -18,6 +18,8 @@ strfromf(char * __restrict s, size_t n, const char * __restrict fmt, float fp)
 
 	dbl = (double)fp;
 	conv = __sf_parse_fmt(fmt, &prec);
+	if (conv == '\0')
+		return (__sf_edoofus(s, n));
 	lc = tolower((unsigned char)conv);
 
 	if (lc == 'a') {

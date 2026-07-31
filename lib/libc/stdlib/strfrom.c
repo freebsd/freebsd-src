@@ -9,6 +9,7 @@
  */
 
 #include <ctype.h>
+#include <errno.h>
 #include <locale.h>
 #include <stdlib.h>
 
@@ -121,42 +122,57 @@ sf_emit_exp(struct sf_buf *b, char ec, int exp, int mindig)
 /*
  * Parse "%[.prec]conv" per C23 §7.24.1.3.
  *
- * Returns the conversion specifier character; *prec is -1 if absent.
- *
- * C23 §7.24.1.3p2 makes any other format string undefined behaviour.
- * Per §3.5.3, terminating execution is an explicitly valid response to an
- * undefined behaviour, and abort() here makes the default __unreachable()
- * branch in any other caller literally unreachable rather than merely a
- * contract annotation.
+ * Returns the conversion specifier character, or '\0' with errno set to
+ * EDOOFUS if fmt is not one of the forms the standard permits; *prec is
+ * -1 when the precision is absent.
  */
 char
 __sf_parse_fmt(const char *fmt, int *prec)
 {
 	const char *p;
-	char c;
-
-	if (*fmt != '%')
-		abort();
-	p = fmt + 1;
 
 	*prec = -1;
+	if (*fmt != '%')
+		return ('\0');
+	p = fmt + 1;
+
 	if (*p == '.') {
 		*prec = 0;
 		while (*++p >= '0' && *p <= '9')
 			*prec = *prec * 10 + (*p - '0');
 	}
-	c = *p;
 
-	switch (c) {
+	switch (*p) {
 	case 'a': case 'A':
 	case 'e': case 'E':
 	case 'f': case 'F':
 	case 'g': case 'G':
 		break;
 	default:
-		abort();
+		return ('\0');
 	}
-	return (c);
+
+	return (p[1] == '\0' ? *p : '\0');
+}
+
+/*
+ * Report a format string the standard does not permit.
+ *
+ * Sets errno and renders "EDOOFUS" under the ordinary snprintf(3) truncation
+ * rules, which keeps a faulty caller alive and its output obviously wrong.
+ */
+int
+__sf_edoofus(char *s, size_t n)
+{
+	struct sf_buf b;
+
+	errno = EDOOFUS;
+	b.s = s;
+	b.n = n;
+	b.pos = 0;
+	sf_puts(&b, "EDOOFUS");
+	sf_seal(&b);
+	return (b.pos);
 }
 
 /*

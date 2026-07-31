@@ -16,6 +16,8 @@ strfromd(char * __restrict s, size_t n, const char * __restrict fmt, double fp)
 	int prec, decpt, signflag, ret, mode, ndig_req;
 
 	conv = __sf_parse_fmt(fmt, &prec);
+	if (conv == '\0')
+		return (__sf_edoofus(s, n));
 	lc = tolower((unsigned char)conv);
 
 	if (lc == 'a') {
