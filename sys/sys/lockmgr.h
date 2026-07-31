@@ -82,6 +82,7 @@ void	 _lockmgr_disown(struct lock *lk, const char *file, int line);
 
 void	 lockallowrecurse(struct lock *lk);
 void	 lockallowshare(struct lock *lk);
+bool	 lockcanrecurse(struct lock *lk);
 void	 lockdestroy(struct lock *lk);
 void	 lockdisablerecurse(struct lock *lk);
 void	 lockdisableshare(struct lock *lk);
