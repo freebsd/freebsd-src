@@ -121,6 +121,12 @@ map_object(int fd, const char *path, const struct stat *sb, bool ismain)
 			break;
 
 		case PT_LOAD:
+			if (phdr->p_memsz < phdr->p_filesz) {
+				_rtld_error("%s: invalid PT_LOAD segment",
+				    path);
+				goto error;
+			}
+
 			segs[++nsegs] = phdr;
 			if ((segs[nsegs]->p_align & (page_size - 1)) != 0) {
 				_rtld_error(
@@ -140,6 +146,12 @@ map_object(int fd, const char *path, const struct stat *sb, bool ismain)
 			break;
 
 		case PT_TLS:
+			if (phdr->p_memsz < phdr->p_filesz) {
+				_rtld_error("%s: invalid PT_TLS segment",
+				    path);
+				goto error;
+			}
+
 			phtls = phdr;
 			break;
 

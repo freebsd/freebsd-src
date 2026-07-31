@@ -1748,6 +1748,12 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 			break;
 
 		case PT_TLS:
+			if (ph->p_memsz < ph->p_filesz) {
+				_rtld_error("%s: invalid PT_TLS segment",
+				    path);
+				return (NULL);
+			}
+
 			obj->tlsindex = 1;
 			obj->tlssize = ph->p_memsz;
 			obj->tlsalign = ph->p_align;
