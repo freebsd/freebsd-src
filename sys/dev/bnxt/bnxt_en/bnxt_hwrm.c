@@ -597,6 +597,9 @@ int bnxt_hwrm_func_backing_store_qcaps(struct bnxt_softc *softc)
 		memcpy(ctxm, &ctx->ctx_arr[BNXT_CTX_STQM], sizeof(*ctxm));
 		ctxm->instance_bmap = (1 << ctx->tqm_fp_rings_count) - 1;
 
+		/* Do not inherit STQM's pg_info pointer (prevents aliasing on reset). */
+		ctxm->pg_info = NULL;
+
 		rc = bnxt_alloc_all_ctx_pg_info(softc, BNXT_CTX_MAX);
 	} else {
 		rc = 0;
