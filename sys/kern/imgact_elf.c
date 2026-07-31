@@ -2387,14 +2387,14 @@ __elfN(set_fpregset)(struct regset *rs, struct thread *td, void *buf,
 {
 	elf_prfpregset_t *fpregset;
 
-	fpregset = buf;
 	KASSERT(size == sizeof(*fpregset), ("%s: invalid size", __func__));
+
+	fpregset = buf;
 #if defined(COMPAT_FREEBSD32) && __ELF_WORD_SIZE == 32
-	set_fpregs32(td, fpregset);
+	return (set_fpregs32(td, fpregset) == 0);
 #else
-	set_fpregs(td, fpregset);
+	return (set_fpregs(td, fpregset) == 0);
 #endif
-	return (true);
 }
 
 static struct regset __elfN(regset_fpregset) = {
