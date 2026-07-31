@@ -483,7 +483,7 @@ gicv5_irs_attach(device_t dev, struct gicv5_irs *irs, u_int idx)
 
 	idr2 = IRS_CFG_READ_4(irs, IRS_IDR2);
 
-	two_levels = (idr2 & IRS_IDR2_IST_LEVELS) != 0;
+	two_levels = (idr2 & IRS_IDR2_IST_LEVELS_TWO) != 0;
 	lpi_id_bits = IRS_IDR2_ID_BITS(idr2);
 
 	if (!two_levels) {
@@ -508,7 +508,7 @@ gicv5_irs_attach(device_t dev, struct gicv5_irs *irs, u_int idx)
 	}
 
 	/* The IST entries contain metadata so the size will be larger */
-	if ((idr2 & IRS_IRD2_ISTMD) != 0) {
+	if ((idr2 & IRS_IDR2_ISTMD) != 0) {
 		uint64_t istmd_sz;
 
 		istmd_sz = (idr2 & IRS_IDR2_ISTMD_SZ_MASK) >>
