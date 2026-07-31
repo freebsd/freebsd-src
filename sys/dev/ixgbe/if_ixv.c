@@ -99,6 +99,7 @@ static void     ixv_if_update_admin_status(if_ctx_t);
 static int      ixv_if_msix_intr_assign(if_ctx_t, int);
 
 static int      ixv_if_mtu_set(if_ctx_t, uint32_t);
+static void     ixv_reconcile_mac(struct ixgbe_softc *, if_t);
 static void     ixv_if_init(if_ctx_t);
 static void     ixv_if_local_timer(if_ctx_t, uint16_t);
 static void     ixv_if_stop(if_ctx_t);
@@ -591,6 +592,29 @@ ixv_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 	return error;
 } /* ixv_if_mtu_set */
 
+static void
+ixv_reconcile_mac(struct ixgbe_softc *sc, if_t ifp)
+{
+	uint8_t *lladdr;
+
+	if (ixgbe_validate_mac_addr(sc->hw.mac.addr) != IXGBE_SUCCESS)
+		return;
+	lladdr = (uint8_t *)if_getlladdr(ifp);
+	if (bcmp(lladdr, sc->hw.mac.addr, ETHER_ADDR_LEN) == 0)
+		return;
+
+	device_printf(sc->dev,
+	    "PF rejected or replaced the requested MAC; using %6D\n",
+	    sc->hw.mac.addr, ":");
+	/*
+	 * Initialization holds the context lock; avoid re-entering the driver.
+	 */
+	bcopy(sc->hw.mac.addr, lladdr, ETHER_ADDR_LEN);
+	CURVNET_SET_QUIET(if_getvnet(ifp));
+	EVENTHANDLER_INVOKE(iflladdr_event, ifp);
+	CURVNET_RESTORE();
+} /* ixv_reconcile_mac */
+
 /************************************************************************
  * ixv_if_init - Init entry point
  *
@@ -624,6 +648,8 @@ ixv_if_init(if_ctx_t ctx)
 	/* Reset VF and renegotiate mailbox API version */
 	hw->mac.ops.reset_hw(hw);
 	hw->mac.ops.start_hw(hw);
+	hw->mac.ops.get_mac_addr(hw, hw->mac.addr);
+	ixv_reconcile_mac(sc, ifp);
 	error = ixv_negotiate_api(sc);
 	if (error) {
 		device_printf(dev,
