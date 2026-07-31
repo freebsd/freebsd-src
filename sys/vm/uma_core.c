@@ -538,9 +538,6 @@ bucket_zone_drain(int domain)
 }
 
 #ifdef KASAN
-_Static_assert(UMA_SMALLEST_UNIT % KASAN_SHADOW_SCALE == 0,
-    "Base UMA allocation size not a multiple of the KASAN scale factor");
-
 static void
 kasan_mark_item_valid(uma_zone_t zone, void *item)
 {
@@ -605,7 +602,7 @@ kasan_mark_slab_invalid(uma_keg_t keg, void *mem)
 			sz = keg->uk_ppera * PAGE_SIZE;
 		else
 			sz = keg->uk_pgoff;
-		kasan_mark(mem, 0, sz, KASAN_UMA_FREED);
+		kasan_mark(mem, 0, sz, KASAN_GENERIC_REDZONE);
 	}
 }
 #else /* !KASAN */
@@ -2261,8 +2258,8 @@ struct keg_layout_result {
 };
 
 static void
-keg_layout_one(uma_keg_t keg, u_int rsize, u_int slabsize, u_int fmt,
-    struct keg_layout_result *kl)
+keg_layout_one(uma_keg_t keg, u_int size, u_int rsize, u_int slabsize,
+    u_int fmt, struct keg_layout_result *kl)
 {
 	u_int total;
 
@@ -2275,7 +2272,7 @@ keg_layout_one(uma_keg_t keg, u_int rsize, u_int slabsize, u_int fmt,
 		kl->slabsize += PAGE_SIZE;
 	}
 
-	kl->ipers = slab_ipers_hdr(keg->uk_size, rsize, kl->slabsize,
+	kl->ipers = slab_ipers_hdr(size, rsize, kl->slabsize,
 	    (fmt & UMA_ZFLAG_OFFPAGE) == 0);
 
 	/* Account for memory used by an offpage slab header. */
@@ -2304,7 +2301,7 @@ keg_layout(uma_keg_t keg)
 	u_int alignsize;
 	u_int nfmt;
 	u_int pages;
-	u_int rsize;
+	u_int size, rsize;
 	u_int slabsize;
 	u_int i, j;
 
@@ -2320,21 +2317,33 @@ keg_layout(uma_keg_t keg)
 	     PRINT_UMA_ZFLAGS));
 
 	alignsize = keg->uk_align + 1;
-#ifdef KASAN
-	/*
-	 * ASAN requires that each allocation be aligned to the shadow map
-	 * scale factor.
-	 */
-	if (alignsize < KASAN_SHADOW_SCALE)
-		alignsize = KASAN_SHADOW_SCALE;
-#endif
 
 	/*
-	 * Calculate the size of each allocation (rsize) according to
-	 * alignment.  If the requested size is smaller than we have
-	 * allocation bits for we round it up.
+	 * Calculate the size of each allocation.  uk_size is the originally
+	 * requested item size that the consumer expects to use.  "size" is the
+	 * requested size after adjusting for an optional redzone after each
+	 * item (currently used only by KASAN).  rsize is the final size between
+	 * item start addresses after adjusting for alignment and minimum
+	 * allocation size requirements.
+	 *
+	 * The padding given by the difference rsize - size may not be present
+	 * for the last item in a slab.
 	 */
-	rsize = MAX(keg->uk_size, UMA_SMALLEST_UNIT);
+	size = keg->uk_size;
+
+#ifdef KASAN
+	if ((keg->uk_flags & UMA_ZONE_NOKASAN) == 0) {
+		/*
+		 * kasan_mark() requires that each allocation be aligned to the
+		 * shadow map scale factor.
+		 */
+		if (alignsize < KASAN_SHADOW_SCALE)
+			alignsize = KASAN_SHADOW_SCALE;
+		size += KASAN_SHADOW_SCALE;
+	}
+#endif
+
+	rsize = MAX(size, UMA_SMALLEST_UNIT);
 	rsize = roundup2(rsize, alignsize);
 
 	if ((keg->uk_flags & UMA_ZONE_CACHESPREAD) != 0) {
@@ -2356,7 +2365,7 @@ keg_layout(uma_keg_t keg)
 		 * represent a single item.  We will try to fit as many
 		 * additional items into the slab as possible.
 		 */
-		slabsize = round_page(keg->uk_size);
+		slabsize = round_page(size);
 	}
 
 	/* Build a list of all of the available formats for this keg. */
@@ -2393,13 +2402,13 @@ keg_layout(uma_keg_t keg)
 	 * for small items (up to PAGE_SIZE), the iteration increment is one
 	 * page; and for large items, the increment is one item.
 	 */
-	i = (slabsize + rsize - keg->uk_size) / MAX(PAGE_SIZE, rsize);
+	i = (slabsize + rsize - size) / MAX(PAGE_SIZE, rsize);
 	KASSERT(i >= 1, ("keg %s(%p) flags=0x%b slabsize=%u, rsize=%u, i=%u",
 	    keg->uk_name, keg, keg->uk_flags, PRINT_UMA_ZFLAGS, slabsize,
 	    rsize, i));
 	for ( ; ; i++) {
 		slabsize = (rsize <= PAGE_SIZE) ? ptoa(i) :
-		    round_page(rsize * (i - 1) + keg->uk_size);
+		    round_page(rsize * (i - 1) + size);
 
 		for (j = 0; j < nfmt; j++) {
 			/* Only if we have no viable format yet. */
@@ -2407,7 +2416,8 @@ keg_layout(uma_keg_t keg)
 			    kl.ipers > 0)
 				continue;
 
-			keg_layout_one(keg, rsize, slabsize, fmts[j], &kl_tmp);
+			keg_layout_one(keg, size, rsize, slabsize, fmts[j],
+			    &kl_tmp);
 			if (kl_tmp.eff <= kl.eff)
 				continue;
 
@@ -3499,6 +3509,10 @@ item_ctor(uma_zone_t zone, int uz_flags, int size, void *udata, int flags,
 #ifdef INVARIANTS
 	bool skipdbg;
 #endif
+
+	KASSERT(zone->uz_keg == NULL ||
+	    ((uintptr_t)item & zone->uz_keg->uk_align) == 0,
+	    ("item_ctor: underaligned item %p from %s", item, zone->uz_name));
 
 	kasan_mark_item_valid(zone, item);
 	kmsan_mark_item_uninitialized(zone, item);
