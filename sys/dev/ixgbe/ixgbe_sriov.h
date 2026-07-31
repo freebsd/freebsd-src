@@ -48,6 +48,7 @@
 #define IXGBE_VF_CAP_VLAN       (1 << 2) /* VF is permitted to join vlans. */
 #define IXGBE_VF_ACTIVE         (1 << 3) /* VF is active. */
 #define IXGBE_VF_ANTI_SPOOF     (1 << 4) /* Enforce source identity. */
+#define IXGBE_VF_ALLOW_PROMISC  (1 << 5) /* VF may request promiscuity. */
 #define IXGBE_VF_INDEX(vmdq)    ((vmdq) / 32)
 #define IXGBE_VF_BIT(vmdq)      (1 << ((vmdq) % 32))
 
@@ -61,6 +62,8 @@
 #define IXGBE_API_VER_1_0	0
 #define IXGBE_API_VER_2_0	1	/* Solaris API.  Not supported. */
 #define IXGBE_API_VER_1_1	2
+#define IXGBE_API_VER_1_2	3
+#define IXGBE_API_VER_1_3	4
 #define IXGBE_API_VER_UNKNOWN	UINT16_MAX
 
 #define IXGBE_NO_VM             0

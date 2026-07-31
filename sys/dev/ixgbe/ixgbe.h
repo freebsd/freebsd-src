@@ -357,6 +357,7 @@ struct ixgbe_vf {
 	uint16_t	num_vlans;
 	uint16_t	default_vlan;
 	uint16_t	api_ver;
+	uint8_t		xcast_mode;
 };
 
 /* Our softc structure */
@@ -397,6 +398,7 @@ struct ixgbe_softc {
 	 * to repopulate it.
 	 */
 	u32			shadow_vfta[IXGBE_VFTA_SIZE];
+	bool			vf_mcast_overflow_warned;
 
 	/* Info about the interface */
 	int			advertise;	/* link speeds */
