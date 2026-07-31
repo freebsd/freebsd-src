@@ -921,9 +921,6 @@ nosyms:
 	if (__elfN(parse_modmetadata)(fp, ef, p_start, p_end) == 0)
 		goto out;
 
-	if (ef->kernel)		/* kernel must not depend on anything */
-		goto out;
-
 out:
 	if (dp)
 		free(dp);
