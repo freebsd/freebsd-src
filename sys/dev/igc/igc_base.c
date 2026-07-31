@@ -192,6 +192,9 @@ void igc_rx_fifo_flush_base(struct igc_hw *hw)
  *  I225 and I226 share the same mac.type, so this checks the PCI
  *  device ID directly to distinguish I226 parts, e.g. for erratum
  *  workarounds that apply only to that silicon.
+ *
+ *  I226_LMVP and I226_BLANK_NVM are absent from the equivalent Linux
+ *  errata; keep them listed here so a future resync does not drop them.
  **/
 bool igc_is_device_id_i226(struct igc_hw *hw)
 {
@@ -200,6 +203,8 @@ bool igc_is_device_id_i226(struct igc_hw *hw)
 	case IGC_DEV_ID_I226_V:
 	case IGC_DEV_ID_I226_K:
 	case IGC_DEV_ID_I226_IT:
+	case IGC_DEV_ID_I226_LMVP:
+	case IGC_DEV_ID_I226_BLANK_NVM:
 		return true;
 	default:
 		return false;
