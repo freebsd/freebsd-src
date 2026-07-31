@@ -636,6 +636,12 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 		if (phdr[i].p_type != PT_LOAD)
 			continue;
 
+		if (phdr[i].p_memsz < phdr[i].p_filesz) {
+			printf("elf" __XSTRING(__ELF_WORD_SIZE)
+			    "_loadimage: invalid PT_LOAD segment\n");
+			goto out;
+		}
+
 		if (module_verbose >= MODULE_VERBOSE_FULL) {
 			printf("Segment: 0x%lx@0x%lx -> 0x%lx-0x%lx",
 			    (long)phdr[i].p_filesz, (long)phdr[i].p_offset,
