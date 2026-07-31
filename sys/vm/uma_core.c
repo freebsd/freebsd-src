@@ -635,8 +635,7 @@ kmsan_mark_item_uninitialized(uma_zone_t zone, void *item)
 	size_t sz;
 	int i;
 
-	if ((zone->uz_flags &
-	    (UMA_ZFLAG_CACHE | UMA_ZONE_SECONDARY | UMA_ZONE_MALLOC)) != 0) {
+	if ((zone->uz_flags & (UMA_ZFLAG_CACHE | UMA_ZONE_SECONDARY)) != 0) {
 		/*
 		 * Cache zones should not be instrumented by default, as UMA
 		 * does not have enough information to do so correctly.
@@ -645,9 +644,6 @@ kmsan_mark_item_uninitialized(uma_zone_t zone, void *item)
 		 *
 		 * Items from secondary zones are initialized by the parent
 		 * zone and thus cannot safely be marked by UMA.
-		 *
-		 * malloc zones are handled directly by malloc(9) and friends,
-		 * since they can provide more precise origin tracking.
 		 */
 		return;
 	}
@@ -662,7 +658,9 @@ kmsan_mark_item_uninitialized(uma_zone_t zone, void *item)
 
 	sz = zone->uz_size;
 	if ((zone->uz_flags & UMA_ZONE_PCPU) == 0) {
-		kmsan_orig(item, sz, KMSAN_TYPE_UMA, KMSAN_RET_ADDR);
+		/* malloc(9) updates the origin map itself. */
+		if ((zone->uz_flags & UMA_ZONE_MALLOC) == 0)
+			kmsan_orig(item, sz, KMSAN_TYPE_UMA, KMSAN_RET_ADDR);
 		kmsan_mark(item, sz, KMSAN_STATE_UNINIT);
 	} else {
 		pcpu_item = zpcpu_base_to_offset(item);
