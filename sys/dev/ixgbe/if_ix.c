@@ -241,7 +241,6 @@ static void ixgbe_add_hw_stats(struct ixgbe_softc *);
 static int  ixgbe_set_flowcntl(struct ixgbe_softc *, int);
 static int  ixgbe_set_advertise(struct ixgbe_softc *, int);
 static int  ixgbe_get_default_advertise(struct ixgbe_softc *);
-static void ixgbe_setup_vlan_hw_support(if_ctx_t);
 static void ixgbe_config_gpie(struct ixgbe_softc *);
 static void ixgbe_config_delay_values(struct ixgbe_softc *);
 
@@ -2321,12 +2320,21 @@ static void
 ixgbe_if_vlan_register(if_ctx_t ctx, u16 vtag)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	u16 index, bit;
+	bool present;
+	u16 index;
+	u32 mask;
 
 	index = (vtag >> 5) & 0x7F;
-	bit = vtag & 0x1F;
-	sc->shadow_vfta[index] |= (1 << bit);
-	++sc->num_vlans;
+	mask = 1U << (vtag & 0x1F);
+	present = (sc->shadow_vfta[index] & mask) != 0;
+	sc->shadow_vfta[index] |= mask;
+	if (!present)
+		++sc->num_vlans;
+#ifdef PCI_IOV
+	if ((sc->feat_en & IXGBE_FEATURE_SRIOV) != 0 &&
+	    sc->iov_vfta_valid && !sc->iov_vlan_promisc)
+		(void)ixgbe_set_vfta(&sc->hw, vtag, sc->pool, true, true);
+#endif
 	ixgbe_setup_vlan_hw_support(ctx);
 } /* ixgbe_if_vlan_register */
 
@@ -2339,96 +2347,167 @@ static void
 ixgbe_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	u16 index, bit;
+	bool present;
+	u16 index;
+	u32 mask;
 
 	index = (vtag >> 5) & 0x7F;
-	bit = vtag & 0x1F;
-	sc->shadow_vfta[index] &= ~(1 << bit);
-	--sc->num_vlans;
-	/* Re-init to load the changes */
+	mask = 1U << (vtag & 0x1F);
+	present = (sc->shadow_vfta[index] & mask) != 0;
+	sc->shadow_vfta[index] &= ~mask;
+	if (present)
+		--sc->num_vlans;
+#ifdef PCI_IOV
+	if ((sc->feat_en & IXGBE_FEATURE_SRIOV) != 0 &&
+	    sc->iov_vfta_valid && !sc->iov_vlan_promisc)
+		(void)ixgbe_set_vfta(&sc->hw, vtag, sc->pool, false, true);
+#endif
 	ixgbe_setup_vlan_hw_support(ctx);
 } /* ixgbe_if_vlan_unregister */
+
+#ifdef PCI_IOV
+static bool
+ixgbe_iov_pf_owns_vlan(const struct ixgbe_softc *sc, u16 vlan)
+{
+
+	return ((sc->shadow_vfta[vlan >> 5] &
+	    (1U << (vlan & 0x1f))) != 0);
+}
+
+/*
+ * start_hw clears both VFTA and VLVF.  Reconstruct the shared tables from
+ * PF and VF desired state after every reset or filtering-mode transition.
+ * Allocate VF entries first so PF-only VLANs cannot exhaust VLVF.
+ */
+static void
+ixgbe_iov_vlan_rebuild(struct ixgbe_softc *sc, bool promisc)
+{
+	struct ixgbe_hw *hw;
+	struct ixgbe_vf *vf;
+	u32 vfta[IXGBE_VFTA_SIZE];
+	u32 bits, vlan, vlvf;
+	int bit, failures, i, word;
+
+	hw = &sc->hw;
+	bcopy(sc->shadow_vfta, vfta, sizeof(vfta));
+	(void)ixgbe_clear_vfta(hw);
+	failures = 0;
+	for (i = 0; i < sc->num_vfs; i++) {
+		vf = &sc->vfs[i];
+		if ((vf->flags & IXGBE_VF_ACTIVE) == 0)
+			continue;
+		for (word = 0; word < IXGBE_VFTA_SIZE; word++) {
+			bits = vf->vlans[word];
+			while (bits != 0) {
+				bit = ffs(bits) - 1;
+				vlan = word * 32 + bit;
+				if (ixgbe_set_vfta(hw, vlan, vf->pool, true,
+				    false) == IXGBE_SUCCESS)
+					vfta[word] |= 1U << bit;
+				else
+					failures++;
+				bits &= ~(1U << bit);
+			}
+		}
+	}
+
+	/* Add the PF to shared entries, or every entry in promiscuous mode. */
+	for (i = 1; i < IXGBE_VLVF_ENTRIES; i++) {
+		vlvf = IXGBE_READ_REG(hw, IXGBE_VLVF(i));
+		if ((vlvf & IXGBE_VLVF_VIEN) == 0)
+			continue;
+		vlan = vlvf & IXGBE_VLVF_VLANID_MASK;
+		if (promisc || ixgbe_iov_pf_owns_vlan(sc, vlan))
+			(void)ixgbe_set_vfta(hw, vlan, sc->pool, true, true);
+		vfta[vlan >> 5] |= 1U << (vlan & 0x1f);
+	}
+	if (promisc)
+		for (i = 0; i < IXGBE_VFTA_SIZE; i++)
+			vfta[i] = UINT32_MAX;
+	for (i = 0; i < IXGBE_VFTA_SIZE; i++)
+		IXGBE_WRITE_REG(hw, IXGBE_VFTA(i), vfta[i]);
+	if (failures != 0)
+		device_printf(sc->dev,
+		    "VF VLAN restore failed for %d memberships\n", failures);
+}
+
+static void
+ixgbe_iov_vlan_sync(struct ixgbe_softc *sc, bool promisc)
+{
+
+	if (sc->iov_vfta_valid && sc->iov_vlan_promisc == promisc)
+		return;
+	ixgbe_iov_vlan_rebuild(sc, promisc);
+	sc->iov_vlan_promisc = promisc;
+	sc->iov_vfta_valid = true;
+}
+#endif
 
 /************************************************************************
  * ixgbe_setup_vlan_hw_support
  ************************************************************************/
-static void
+void
 ixgbe_setup_vlan_hw_support(if_ctx_t ctx)
 {
 	if_t ifp = iflib_get_ifp(ctx);
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
 	struct rx_ring *rxr;
+	bool strip;
 	int i;
 	u32 ctrl;
 
-
-	/*
-	 * We get here thru init_locked, meaning
-	 * a soft reset, this has already cleared
-	 * the VFTA and other state, so if there
-	 * have been no vlan's registered do nothing.
-	 */
-	if (sc->num_vlans == 0 ||
-	    (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) == 0) {
-		/* Clear the vlan hw flag */
-		for (i = 0; i < sc->num_rx_queues; i++) {
-			rxr = &sc->rx_queues[i].rxr;
-			/* On 82599 the VLAN enable is per/queue in RXDCTL */
-			if (hw->mac.type != ixgbe_mac_82598EB) {
-				ctrl = IXGBE_READ_REG(hw,
-				    IXGBE_RXDCTL(rxr->me));
+	strip = sc->num_vlans != 0 &&
+	    (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) != 0;
+	for (i = 0; i < sc->num_rx_queues; i++) {
+		rxr = &sc->rx_queues[i].rxr;
+		/* On 82599 and newer VLAN stripping is per receive queue. */
+		if (hw->mac.type != ixgbe_mac_82598EB) {
+			ctrl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(rxr->me));
+			if (strip)
+				ctrl |= IXGBE_RXDCTL_VME;
+			else
 				ctrl &= ~IXGBE_RXDCTL_VME;
-				IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(rxr->me),
-				    ctrl);
-			}
-			rxr->vtag_strip = false;
+			IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(rxr->me), ctrl);
 		}
-		ctrl = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
-		/* Enable the Filter Table if enabled */
+		rxr->vtag_strip = strip;
+	}
+
+	ctrl = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
+	if (hw->mac.type == ixgbe_mac_82598EB) {
+		if (strip)
+			ctrl |= IXGBE_VLNCTRL_VME;
+		else
+			ctrl &= ~IXGBE_VLNCTRL_VME;
+	}
+
+#ifdef PCI_IOV
+	if ((sc->feat_en & IXGBE_FEATURE_SRIOV) != 0) {
+		/*
+		 * VFE must remain enabled to enforce per-pool VLAN ownership.
+		 */
+		ctrl &= ~IXGBE_VLNCTRL_CFIEN;
+		ctrl |= IXGBE_VLNCTRL_VFE;
+		IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, ctrl);
+		ixgbe_iov_vlan_sync(sc,
+		    (if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER) == 0);
+		return;
+	}
+#endif
+
+	if (!strip ||
+	    (if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER) == 0) {
 		ctrl |= IXGBE_VLNCTRL_CFIEN;
 		ctrl &= ~IXGBE_VLNCTRL_VFE;
-		if (hw->mac.type == ixgbe_mac_82598EB)
-			ctrl &= ~IXGBE_VLNCTRL_VME;
 		IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, ctrl);
 		return;
 	}
 
-	/* Setup the queues for vlans */
-	if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) {
-		for (i = 0; i < sc->num_rx_queues; i++) {
-			rxr = &sc->rx_queues[i].rxr;
-			/* On 82599 the VLAN enable is per/queue in RXDCTL */
-			if (hw->mac.type != ixgbe_mac_82598EB) {
-				ctrl = IXGBE_READ_REG(hw,
-				    IXGBE_RXDCTL(rxr->me));
-				ctrl |= IXGBE_RXDCTL_VME;
-				IXGBE_WRITE_REG(hw, IXGBE_RXDCTL(rxr->me),
-				    ctrl);
-			}
-			rxr->vtag_strip = true;
-		}
-	}
-
-	if ((if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER) == 0)
-		return;
-	/*
-	 * A soft reset zero's out the VFTA, so
-	 * we need to repopulate it now.
-	 */
+	/* A soft reset clears VFTA, so restore the PF's desired bitmap. */
 	for (i = 0; i < IXGBE_VFTA_SIZE; i++)
-		if (sc->shadow_vfta[i] != 0)
-			IXGBE_WRITE_REG(hw, IXGBE_VFTA(i),
-			    sc->shadow_vfta[i]);
-
-	ctrl = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
-	/* Enable the Filter Table if enabled */
-	if (if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER) {
-		ctrl &= ~IXGBE_VLNCTRL_CFIEN;
-		ctrl |= IXGBE_VLNCTRL_VFE;
-	}
-	if (hw->mac.type == ixgbe_mac_82598EB)
-		ctrl |= IXGBE_VLNCTRL_VME;
+		IXGBE_WRITE_REG(hw, IXGBE_VFTA(i), sc->shadow_vfta[i]);
+	ctrl &= ~IXGBE_VLNCTRL_CFIEN;
+	ctrl |= IXGBE_VLNCTRL_VFE;
 	IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, ctrl);
 } /* ixgbe_setup_vlan_hw_support */
 
@@ -3839,6 +3918,7 @@ ixgbe_if_init(if_ctx_t ctx)
 
 	ixgbe_init_hw(hw);
 	sc->iov_mta_valid = false;
+	sc->iov_vfta_valid = false;
 
 	ixgbe_initialize_iov(sc);
 

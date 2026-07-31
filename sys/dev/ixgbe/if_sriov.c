@@ -36,6 +36,7 @@
 
 #ifdef PCI_IOV
 
+#include <sys/iov.h>
 #include <sys/ktr.h>
 
 MALLOC_DEFINE(M_IXGBE_SRIOV, "ix_sriov", "ix SR-IOV allocations");
@@ -66,6 +67,8 @@ ixgbe_define_iov_schemas(device_t dev, int *error)
 	    IOV_SCHEMA_HASDEFAULT, false);
 	pci_iov_schema_add_bool(vf_schema, "allow-promisc",
 	    IOV_SCHEMA_HASDEFAULT, false);
+	pci_iov_schema_add_vlan(vf_schema, "vlan", IOV_SCHEMA_HASDEFAULT,
+	    VF_VLAN_TRUNK);
 	*error = pci_iov_attach(dev, pf_schema, vf_schema);
 	if (*error != 0) {
 		device_printf(dev,
@@ -249,16 +252,105 @@ ixgbe_ping_all_vfs(struct ixgbe_softc *sc)
 } /* ixgbe_ping_all_vfs */
 
 
+static bool
+ixgbe_pf_owns_vlan(struct ixgbe_softc *sc, uint16_t tag)
+{
+	if_t ifp;
+
+	ifp = iflib_get_ifp(sc->ctx);
+	if ((if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER) == 0)
+		return (true);
+	return ((sc->shadow_vfta[tag >> 5] &
+	    (1U << (tag & 0x1f))) != 0);
+}
+
+static bool
+ixgbe_vf_owns_vlan(const struct ixgbe_vf *vf, uint16_t tag)
+{
+
+	return ((vf->vlans[tag >> 5] & (1U << (tag & 0x1f))) != 0);
+}
+
 static void
-ixgbe_vf_set_default_vlan(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
-    uint16_t tag)
+ixgbe_vf_vlan_release_pf_only(struct ixgbe_softc *sc, uint16_t tag)
+{
+	struct ixgbe_hw *hw;
+	uint32_t bits[2];
+	s32 slot;
+
+	hw = &sc->hw;
+	slot = ixgbe_find_vlvf_slot(hw, tag, true);
+	if (slot <= 0)
+		return;
+	bits[0] = IXGBE_READ_REG(hw, IXGBE_VLVFB(slot * 2));
+	bits[1] = IXGBE_READ_REG(hw, IXGBE_VLVFB(slot * 2 + 1));
+	bits[sc->pool / 32] &= ~(1U << (sc->pool % 32));
+	if (bits[0] != 0 || bits[1] != 0)
+		return;
+
+	/* The VFTA bit still admits this VLAN to the PF's default pool. */
+	IXGBE_WRITE_REG(hw, IXGBE_VLVF(slot), 0);
+	IXGBE_WRITE_REG(hw, IXGBE_VLVFB(slot * 2), 0);
+	IXGBE_WRITE_REG(hw, IXGBE_VLVFB(slot * 2 + 1), 0);
+}
+
+static s32
+ixgbe_vf_vlan_hw_update(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    uint16_t tag, bool enable)
+{
+	struct ixgbe_hw *hw;
+	s32 error;
+
+	hw = &sc->hw;
+	if (!enable &&
+	    ixgbe_find_vlvf_slot(hw, tag, true) < IXGBE_SUCCESS)
+		return (IXGBE_SUCCESS);
+	/*
+	 * Allocate the VLVF entry with the PF first when it also owns this
+	 * VLAN.  This guarantees that adding the VF cannot hide the VLAN from
+	 * the PF when the shared VFTA bit becomes pool-selective.
+	 */
+	if (enable && ixgbe_pf_owns_vlan(sc, tag)) {
+		error = ixgbe_set_vfta(hw, tag, sc->pool, true, false);
+		if (error != IXGBE_SUCCESS)
+			return (error);
+	}
+
+	error = ixgbe_set_vfta(hw, tag, vf->pool, enable, false);
+	if (error != IXGBE_SUCCESS)
+		return (error);
+
+	/* Free a PF-only VLVF slot without removing the PF's VFTA bit. */
+	if (!enable && ixgbe_pf_owns_vlan(sc, tag))
+		ixgbe_vf_vlan_release_pf_only(sc, tag);
+	return (IXGBE_SUCCESS);
+}
+
+static void
+ixgbe_vf_vlan_record(struct ixgbe_vf *vf, uint16_t tag, bool enable)
+{
+	u32 mask;
+
+	mask = 1U << (tag & 0x1f);
+	if (enable) {
+		vf->vlans[tag >> 5] |= mask;
+		vf->num_vlans++;
+	} else {
+		vf->vlans[tag >> 5] &= ~mask;
+		vf->num_vlans--;
+	}
+}
+
+static void
+ixgbe_vf_configure_default_vlan(struct ixgbe_softc *sc,
+    struct ixgbe_vf *vf)
 {
 	struct ixgbe_hw *hw;
 	uint32_t vmolr, vmvir;
+	uint16_t tag;
 
 	hw = &sc->hw;
-
-	vf->vlan_tag = tag;
+	tag = vf->default_vlan;
 
 	vmolr = IXGBE_READ_REG(hw, IXGBE_VMOLR(vf->pool));
 
@@ -286,7 +378,45 @@ ixgbe_vf_set_default_vlan(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
 	}
 	IXGBE_WRITE_REG(hw, IXGBE_VMOLR(vf->pool), vmolr);
 	IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf->pool), vmvir);
-} /* ixgbe_vf_set_default_vlan */
+} /* ixgbe_vf_configure_default_vlan */
+
+static void
+ixgbe_vf_clear_vlans(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    bool clear_hw)
+{
+	uint32_t bits;
+	int bit, index;
+
+	for (index = 0; index < IXGBE_VFTA_SIZE; index++) {
+		bits = vf->vlans[index];
+		while (bits != 0) {
+			bit = ffs(bits) - 1;
+			if (clear_hw)
+				(void)ixgbe_vf_vlan_hw_update(sc, vf,
+				    index * 32 + bit, false);
+			bits &= ~(1U << bit);
+		}
+	}
+	bzero(vf->vlans, sizeof(vf->vlans));
+	vf->num_vlans = 0;
+}
+
+static s32
+ixgbe_vf_reset_vlan(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    bool clear_hw)
+{
+	s32 error;
+
+	ixgbe_vf_clear_vlans(sc, vf, clear_hw);
+	error = IXGBE_SUCCESS;
+	if (vf->default_vlan != 0) {
+		error = ixgbe_vf_vlan_hw_update(sc, vf, vf->default_vlan, true);
+		if (error == IXGBE_SUCCESS)
+			ixgbe_vf_vlan_record(vf, vf->default_vlan, true);
+	}
+	ixgbe_vf_configure_default_vlan(sc, vf);
+	return (error);
+}
 
 static boolean_t
 ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
@@ -338,8 +468,13 @@ static void
 ixgbe_process_vf_reset(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 {
 	bool rebuild_mta;
+	s32 error;
 
-	ixgbe_vf_set_default_vlan(sc, vf, vf->default_vlan);
+	error = ixgbe_vf_reset_vlan(sc, vf, true);
+	if (error != IXGBE_SUCCESS)
+		device_printf(sc->dev,
+		    "VF %u default VLAN restore failed: %d\n",
+		    vf->pool, error);
 
 	rebuild_mta = vf->num_mc_hashes != 0;
 	vf->num_mc_hashes = 0;
@@ -497,26 +632,37 @@ ixgbe_vf_set_mc_addr(struct ixgbe_softc *sc, struct ixgbe_vf *vf, u32 *msg)
 static void
 ixgbe_vf_set_vlan(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 {
-	struct ixgbe_hw *hw;
-	int enable;
+	bool enable, present;
+	s32 error;
 	uint16_t tag;
 
-	hw = &sc->hw;
-	enable = IXGBE_VT_MSGINFO(msg[0]);
+	enable = IXGBE_VT_MSGINFO(msg[0]) != 0;
 	tag = msg[1] & IXGBE_VLVF_VLANID_MASK;
 
-	if (!(vf->flags & IXGBE_VF_CAP_VLAN)) {
+	if (!(vf->flags & IXGBE_VF_CAP_VLAN) || vf->default_vlan != 0 ||
+	    (msg[1] & ~IXGBE_VLVF_VLANID_MASK) != 0) {
 		ixgbe_send_vf_failure(sc, vf, msg[0]);
 		return;
 	}
 
 	/* It is illegal to enable vlan tag 0. */
-	if (tag == 0 && enable != 0) {
+	if (tag == 0 && enable) {
 		ixgbe_send_vf_failure(sc, vf, msg[0]);
 		return;
 	}
 
-	ixgbe_set_vfta(hw, tag, vf->pool, enable, false);
+	present = ixgbe_vf_owns_vlan(vf, tag);
+	if (enable == present) {
+		ixgbe_send_vf_success(sc, vf, msg[0]);
+		return;
+	}
+
+	error = ixgbe_vf_vlan_hw_update(sc, vf, tag, enable);
+	if (error != IXGBE_SUCCESS) {
+		ixgbe_send_vf_failure(sc, vf, msg[0]);
+		return;
+	}
+	ixgbe_vf_vlan_record(vf, tag, enable);
 	ixgbe_send_vf_success(sc, vf, msg[0]);
 } /* ixgbe_vf_set_vlan */
 
@@ -811,25 +957,32 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 	free(sc->vfs, M_IXGBE_SRIOV);
 	sc->vfs = NULL;
 	sc->feat_en &= ~IXGBE_FEATURE_SRIOV;
+	sc->iov_vfta_valid = false;
+	sc->iov_vlan_promisc = false;
+	(void)ixgbe_clear_vfta(hw);
+	ixgbe_setup_vlan_hw_support(ctx);
 } /* ixgbe_if_iov_uninit */
 
-static void
+static s32
 ixgbe_init_vf(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 {
 	struct ixgbe_hw *hw;
 	uint32_t vf_index, pfmbimr;
+	s32 error;
 
 	hw = &sc->hw;
 
 	if (!(vf->flags & IXGBE_VF_ACTIVE))
-		return;
+		return (IXGBE_SUCCESS);
 
 	vf_index = IXGBE_VF_INDEX(vf->pool);
 	pfmbimr = IXGBE_READ_REG(hw, IXGBE_PFMBIMR(vf_index));
 	pfmbimr |= IXGBE_VF_BIT(vf->pool);
 	IXGBE_WRITE_REG(hw, IXGBE_PFMBIMR(vf_index), pfmbimr);
 
-	ixgbe_vf_set_default_vlan(sc, vf, vf->vlan_tag);
+	error = ixgbe_vf_reset_vlan(sc, vf, false);
+	if (error != IXGBE_SUCCESS)
+		return (error);
 	vf->num_mc_hashes = 0;
 	bzero(vf->mc_hash, sizeof(vf->mc_hash));
 
@@ -843,6 +996,7 @@ ixgbe_init_vf(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	ixgbe_vf_enable_receive(sc, vf);
 
 	ixgbe_send_vf_msg(&sc->hw, vf, IXGBE_PF_CONTROL_MSG);
+	return (IXGBE_SUCCESS);
 } /* ixgbe_init_vf */
 
 void
@@ -900,8 +1054,11 @@ ixgbe_initialize_iov(struct ixgbe_softc *sc)
 	vt_ctl |= (sc->pool << IXGBE_VT_CTL_POOL_SHIFT);
 	IXGBE_WRITE_REG(hw, IXGBE_VT_CTL, vt_ctl);
 
-	for (i = 0; i < sc->num_vfs; i++)
-		ixgbe_init_vf(sc, &sc->vfs[i]);
+	for (i = 0; i < sc->num_vfs; i++) {
+		if (ixgbe_init_vf(sc, &sc->vfs[i]) != IXGBE_SUCCESS)
+			device_printf(sc->dev,
+			    "VF %d default VLAN restore failed\n", i);
+	}
 } /* ixgbe_initialize_iov */
 
 
@@ -924,6 +1081,9 @@ ixgbe_if_iov_vf_add(if_ctx_t ctx, u16 vfnum, const nvlist_t *config)
 	struct ixgbe_softc *sc;
 	struct ixgbe_vf *vf;
 	const void *mac;
+	uint64_t configured_vlan;
+	uint16_t vlan;
+	s32 error;
 
 	sc = iflib_get_softc(ctx);
 
@@ -931,11 +1091,23 @@ ixgbe_if_iov_vf_add(if_ctx_t ctx, u16 vfnum, const nvlist_t *config)
 	    vfnum, sc->num_vfs));
 
 	vf = &sc->vfs[vfnum];
-	vf->pool= vfnum;
+	if (vf->flags & IXGBE_VF_ACTIVE)
+		return (EBUSY);
+
+	configured_vlan = nvlist_get_number(config, "vlan");
+	if (configured_vlan > VF_VLAN_TRUNK)
+		return (EINVAL);
+	vlan = configured_vlan;
+	if (vlan == 0)
+		return (ENOTSUP);
+	if (vlan == VF_VLAN_TRUNK)
+		vlan = 0;
+
+	vf->pool = vfnum;
 
 	/* RAR[0] is used by the PF so use vfnum + 1 for VF RAR. */
 	vf->rar_index = vfnum + 1;
-	vf->default_vlan = 0;
+	vf->default_vlan = vlan;
 	vf->maximum_frame_size = ETHER_MAX_LEN;
 	ixgbe_update_max_frame(sc, vf->maximum_frame_size);
 	if (nvlist_get_bool(config, "mac-anti-spoof"))
@@ -952,10 +1124,18 @@ ixgbe_if_iov_vf_add(if_ctx_t ctx, u16 vfnum, const nvlist_t *config)
 		 * we must allow the VF to choose one.
 		 */
 		vf->flags |= IXGBE_VF_CAP_MAC;
+	if (vf->default_vlan == 0)
+		vf->flags |= IXGBE_VF_CAP_VLAN;
 
 	vf->flags |= IXGBE_VF_ACTIVE;
 
-	ixgbe_init_vf(sc, vf);
+	error = ixgbe_init_vf(sc, vf);
+	if (error != IXGBE_SUCCESS) {
+		vf->flags &= ~IXGBE_VF_ACTIVE;
+		vf->default_vlan = 0;
+		ixgbe_vf_clear_vlans(sc, vf, true);
+		return (ENOSPC);
+	}
 
 	return (0);
 } /* ixgbe_if_iov_vf_add */

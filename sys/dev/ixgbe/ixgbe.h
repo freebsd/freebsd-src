@@ -352,9 +352,10 @@ struct ixgbe_vf {
 	uint32_t	flags;
 	uint8_t		ether_addr[ETHER_ADDR_LEN];
 	uint16_t	mc_hash[IXGBE_MAX_VF_MC];
+	uint32_t	vlans[IXGBE_VFTA_SIZE];
 	uint16_t	num_mc_hashes;
+	uint16_t	num_vlans;
 	uint16_t	default_vlan;
-	uint16_t	vlan_tag;
 	uint16_t	api_ver;
 };
 
@@ -442,6 +443,8 @@ struct ixgbe_softc {
 	int			pool;
 	struct ixgbe_vf		*vfs;
 	bool			iov_mta_valid;
+	bool			iov_vfta_valid;
+	bool			iov_vlan_promisc;
 
 	/* Bypass */
 	struct ixgbe_bp_data	bypass;
@@ -607,6 +610,7 @@ void ixgbe_free_transmit_structures(struct ixgbe_softc *);
 int  ixgbe_setup_receive_structures(struct ixgbe_softc *);
 void ixgbe_free_receive_structures(struct ixgbe_softc *);
 int  ixgbe_get_regs(SYSCTL_HANDLER_ARGS);
+void ixgbe_setup_vlan_hw_support(if_ctx_t);
 
 void ixgbe_add_fw_logging_tunables(struct ixgbe_softc *sc,
 	struct sysctl_oid *parent);
