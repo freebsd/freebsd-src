@@ -180,7 +180,19 @@ int bnxt_tls_snd_tag_alloc(if_t ifp, union if_snd_tag_alloc_params* params,
 	if (!test_bit(BNXT_STATE_OPEN, &priv->state))
 		return (EPROTONOSUPPORT);
 
+	if (atomic_load_acq_int(&priv->detached))
+		return (EPROTONOSUPPORT);
+
+	/*
+	 * Re-check `detached` after incrementing snd_tag_alloc_ref so
+	 * bnxt_detach()'s drain loop can see this ref and wait for it.
+	 */
 	atomic_add_32(&priv->ktls_info->snd_tag_alloc_ref, 1);
+
+	if (atomic_load_acq_int(&priv->detached)) {
+		atomic_subtract_32(&priv->ktls_info->snd_tag_alloc_ref, 1);
+		return (EPROTONOSUPPORT);
+	}
 
 	if (priv->ktls_info->init == 0) {
 		counter_u64_add(ktls->err_counters[BNXT_KTLS_TX_UNINITIALIZED], 1);

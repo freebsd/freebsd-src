@@ -2661,6 +2661,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 	softc->slot = pci_get_slot(softc->dev);
 	softc->function = pci_get_function(softc->dev);
 	softc->dev_fn = PCI_DEVFN(softc->slot, softc->function);
+	atomic_store_rel_int(&softc->detached, 0);
 
 	bnxt_set_flags_by_devid(softc);
 
