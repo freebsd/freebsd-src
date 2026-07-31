@@ -114,6 +114,7 @@ static void     ixv_configure_ivars(struct ixgbe_softc *);
 static void     ixv_if_enable_intr(if_ctx_t);
 static void     ixv_if_disable_intr(if_ctx_t);
 static void     ixv_if_multi_set(if_ctx_t);
+static int      ixv_if_promisc_set(if_ctx_t, int);
 
 static void     ixv_if_register_vlan(if_ctx_t, u16);
 static void     ixv_if_unregister_vlan(if_ctx_t, u16);
@@ -174,6 +175,7 @@ static device_method_t ixv_if_methods[] = {
 	DEVMETHOD(ifdi_queues_free, ixv_if_queues_free),
 	DEVMETHOD(ifdi_update_admin_status, ixv_if_update_admin_status),
 	DEVMETHOD(ifdi_multi_set, ixv_if_multi_set),
+	DEVMETHOD(ifdi_promisc_set, ixv_if_promisc_set),
 	DEVMETHOD(ifdi_mtu_set, ixv_if_mtu_set),
 	DEVMETHOD(ifdi_media_status, ixv_if_media_status),
 	DEVMETHOD(ifdi_media_change, ixv_if_media_change),
@@ -847,6 +849,7 @@ ixv_negotiate_api(struct ixgbe_softc *sc)
 {
 	struct ixgbe_hw *hw = &sc->hw;
 	int mbx_api[] = {
+		ixgbe_mbox_api_13,
 		ixgbe_mbox_api_12,
 		ixgbe_mbox_api_11,
 		ixgbe_mbox_api_10,
@@ -862,6 +865,40 @@ ixv_negotiate_api(struct ixgbe_softc *sc)
 
 	return (EINVAL);
 } /* ixv_negotiate_api */
+
+static int
+ixv_update_xcast_mode(struct ixgbe_softc *sc, int flags)
+{
+	if_t ifp;
+	int mode;
+
+	ifp = iflib_get_ifp(sc->ctx);
+	if (flags & IFF_PROMISC)
+		mode = IXGBEVF_XCAST_MODE_PROMISC;
+	else if ((flags & IFF_ALLMULTI) != 0 ||
+	    if_llmaddr_count(ifp) > IXGBE_MAX_VF_MC)
+		mode = IXGBEVF_XCAST_MODE_ALLMULTI;
+	else if (if_llmaddr_count(ifp) != 0)
+		mode = IXGBEVF_XCAST_MODE_MULTI;
+	else
+		mode = IXGBEVF_XCAST_MODE_NONE;
+	return (ixgbevf_update_xcast_mode(&sc->hw, mode));
+}
+
+static int
+ixv_if_promisc_set(if_ctx_t ctx, int flags)
+{
+	struct ixgbe_softc *sc;
+	if_t ifp;
+
+	sc = iflib_get_softc(ctx);
+	ifp = iflib_get_ifp(ctx);
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0)
+		return (0);
+	if (ixv_update_xcast_mode(sc, flags) != IXGBE_SUCCESS)
+		return (EOPNOTSUPP);
+	return (0);
+} /* ixv_if_promisc_set */
 
 
 static u_int
@@ -889,7 +926,7 @@ ixv_if_multi_set(if_ctx_t ctx)
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	u8 *update_ptr;
 	if_t ifp = iflib_get_ifp(ctx);
-	int mcnt = 0;
+	int error, mcnt = 0;
 
 	IOCTL_DEBUGOUT("ixv_if_multi_set: begin");
 
@@ -899,6 +936,16 @@ ixv_if_multi_set(if_ctx_t ctx)
 
 	sc->hw.mac.ops.update_mc_addr_list(&sc->hw, update_ptr, mcnt,
 	    ixv_mc_array_itr, true);
+	error = ixv_update_xcast_mode(sc, if_getflags(ifp));
+	if (mcnt > IXGBE_MAX_VF_MC && error != IXGBE_SUCCESS) {
+		if (!sc->vf_mcast_overflow_warned)
+			device_printf(sc->dev,
+			    "PF rejected all-multicast fallback; only %d "
+			    "multicast addresses are active\n",
+			    IXGBE_MAX_VF_MC);
+		sc->vf_mcast_overflow_warned = true;
+	} else if (mcnt <= IXGBE_MAX_VF_MC)
+		sc->vf_mcast_overflow_warned = false;
 } /* ixv_if_multi_set */
 
 /************************************************************************

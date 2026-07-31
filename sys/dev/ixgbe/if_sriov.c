@@ -342,11 +342,11 @@ ixgbe_vf_vlan_record(struct ixgbe_vf *vf, uint16_t tag, bool enable)
 }
 
 static void
-ixgbe_vf_configure_default_vlan(struct ixgbe_softc *sc,
-    struct ixgbe_vf *vf)
+ixgbe_vf_configure_vmolr(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 {
 	struct ixgbe_hw *hw;
 	uint32_t vmolr, vmvir;
+	uint8_t xcast_mode;
 	uint16_t tag;
 
 	hw = &sc->hw;
@@ -354,11 +354,9 @@ ixgbe_vf_configure_default_vlan(struct ixgbe_softc *sc,
 
 	vmolr = IXGBE_READ_REG(hw, IXGBE_VMOLR(vf->pool));
 
-	/* Do not receive packets that pass inexact filters. */
-	vmolr &= ~(IXGBE_VMOLR_ROMPE | IXGBE_VMOLR_ROPE);
-
-	/* Disable Multicast Promicuous Mode. */
-	vmolr &= ~IXGBE_VMOLR_MPE;
+	vmolr &= ~(IXGBE_VMOLR_UPE | IXGBE_VMOLR_ROMPE |
+	    IXGBE_VMOLR_ROPE | IXGBE_VMOLR_MPE | IXGBE_VMOLR_VPE |
+	    IXGBE_VMOLR_AUPE);
 
 	/* Accept broadcasts. */
 	vmolr |= IXGBE_VMOLR_BAM;
@@ -376,9 +374,28 @@ ixgbe_vf_configure_default_vlan(struct ixgbe_softc *sc,
 		/* Tag all traffic with provided vlan tag. */
 		vmvir = (tag | IXGBE_VMVIR_VLANA_DEFAULT);
 	}
+
+	xcast_mode = vf->xcast_mode;
+	if ((vf->api_ver == IXGBE_API_VER_UNKNOWN ||
+	    vf->api_ver < IXGBE_API_VER_1_2) && vf->num_mc_hashes != 0)
+		xcast_mode = IXGBEVF_XCAST_MODE_MULTI;
+	switch (xcast_mode) {
+	case IXGBEVF_XCAST_MODE_PROMISC:
+		vmolr |= IXGBE_VMOLR_UPE;
+		/* FALLTHROUGH */
+	case IXGBEVF_XCAST_MODE_ALLMULTI:
+		vmolr |= IXGBE_VMOLR_MPE;
+		/* FALLTHROUGH */
+	case IXGBEVF_XCAST_MODE_MULTI:
+		vmolr |= IXGBE_VMOLR_ROMPE;
+		break;
+	case IXGBEVF_XCAST_MODE_NONE:
+	default:
+		break;
+	}
 	IXGBE_WRITE_REG(hw, IXGBE_VMOLR(vf->pool), vmolr);
 	IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf->pool), vmvir);
-} /* ixgbe_vf_configure_default_vlan */
+} /* ixgbe_vf_configure_vmolr */
 
 static void
 ixgbe_vf_clear_vlans(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
@@ -416,7 +433,7 @@ ixgbe_vf_reset_vlan(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
 		if (error == IXGBE_SUCCESS)
 			ixgbe_vf_vlan_record(vf, vf->default_vlan, true);
 	}
-	ixgbe_vf_configure_default_vlan(sc, vf);
+	ixgbe_vf_configure_vmolr(sc, vf);
 	return (error);
 }
 
@@ -472,15 +489,15 @@ ixgbe_process_vf_reset(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	bool rebuild_mta;
 	s32 error;
 
+	rebuild_mta = vf->num_mc_hashes != 0;
+	vf->xcast_mode = IXGBEVF_XCAST_MODE_NONE;
+	vf->num_mc_hashes = 0;
+	bzero(vf->mc_hash, sizeof(vf->mc_hash));
 	error = ixgbe_vf_reset_vlan(sc, vf, true);
 	if (error != IXGBE_SUCCESS)
 		device_printf(sc->dev,
 		    "VF %u default VLAN restore failed: %d\n",
 		    vf->pool, error);
-
-	rebuild_mta = vf->num_mc_hashes != 0;
-	vf->num_mc_hashes = 0;
-	bzero(vf->mc_hash, sizeof(vf->mc_hash));
 	if (rebuild_mta)
 		ixgbe_iov_rebuild_mta(sc);
 
@@ -609,24 +626,21 @@ ixgbe_vf_set_mc_addr(struct ixgbe_softc *sc, struct ixgbe_vf *vf, u32 *msg)
 {
 	u16	*list = (u16*)&msg[1];
 	int	entries;
-	u32	vmolr;
 
-	entries = (msg[0] & IXGBE_VT_MSGINFO_MASK) >> IXGBE_VT_MSGINFO_SHIFT;
+	entries = (msg[0] & IXGBE_VT_MSGINFO_MASK) >>
+	    IXGBE_VT_MSGINFO_SHIFT;
 	entries = min(entries, IXGBE_MAX_VF_MC);
-
-	vmolr = IXGBE_READ_REG(&sc->hw, IXGBE_VMOLR(vf->pool));
-	vmolr &= ~IXGBE_VMOLR_ROMPE;
-	IXGBE_WRITE_REG(&sc->hw, IXGBE_VMOLR(vf->pool), vmolr);
 
 	bzero(vf->mc_hash, sizeof(vf->mc_hash));
 	bcopy(list, vf->mc_hash, entries * sizeof(*list));
 	vf->num_mc_hashes = entries;
+	if (entries != 0 && vf->xcast_mode == IXGBEVF_XCAST_MODE_NONE)
+		vf->xcast_mode = IXGBEVF_XCAST_MODE_MULTI;
+	else if (entries == 0 &&
+	    vf->xcast_mode == IXGBEVF_XCAST_MODE_MULTI)
+		vf->xcast_mode = IXGBEVF_XCAST_MODE_NONE;
 	ixgbe_iov_rebuild_mta(sc);
-
-	if (entries != 0) {
-		vmolr |= IXGBE_VMOLR_ROMPE;
-		IXGBE_WRITE_REG(&sc->hw, IXGBE_VMOLR(vf->pool), vmolr);
-	}
+	ixgbe_vf_configure_vmolr(sc, vf);
 	ixgbe_send_vf_success(sc, vf, msg[0]);
 } /* ixgbe_vf_set_mc_addr */
 
@@ -730,6 +744,8 @@ ixgbe_vf_api_negotiate(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
 	switch (msg[1]) {
 	case IXGBE_API_VER_1_0:
 	case IXGBE_API_VER_1_1:
+	case IXGBE_API_VER_1_2:
+	case IXGBE_API_VER_1_3:
 		vf->api_ver = msg[1];
 		ixgbe_send_vf_success(sc, vf, msg[0]);
 		break;
@@ -739,6 +755,47 @@ ixgbe_vf_api_negotiate(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
 		break;
 	}
 } /* ixgbe_vf_api_negotiate */
+
+static void
+ixgbe_vf_update_xcast_mode(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    uint32_t *msg)
+{
+	struct ixgbe_hw *hw;
+	uint32_t mode;
+
+	hw = &sc->hw;
+	mode = msg[1];
+	switch (vf->api_ver) {
+	case IXGBE_API_VER_1_2:
+		if (mode == IXGBEVF_XCAST_MODE_PROMISC)
+			goto failure;
+		break;
+	case IXGBE_API_VER_1_3:
+		break;
+	default:
+		goto failure;
+	}
+	if (mode > IXGBEVF_XCAST_MODE_PROMISC)
+		goto failure;
+	if (mode > IXGBEVF_XCAST_MODE_MULTI &&
+	    !(vf->flags & IXGBE_VF_ALLOW_PROMISC))
+		goto failure;
+	if (mode == IXGBEVF_XCAST_MODE_PROMISC &&
+	    (hw->mac.type <= ixgbe_mac_82599EB ||
+	    !(IXGBE_READ_REG(hw, IXGBE_FCTRL) & IXGBE_FCTRL_UPE)))
+		goto failure;
+
+	vf->xcast_mode = mode;
+	ixgbe_vf_configure_vmolr(sc, vf);
+	msg[0] &= IXGBE_VT_MSG_MASK;
+	msg[0] |= IXGBE_VT_MSGTYPE_SUCCESS | IXGBE_VT_MSGTYPE_CTS;
+	msg[1] = mode;
+	ixgbe_write_mbx(hw, msg, 2, vf->pool);
+	return;
+
+failure:
+	ixgbe_send_vf_failure(sc, vf, msg[0]);
+} /* ixgbe_vf_update_xcast_mode */
 
 
 static void
@@ -823,6 +880,9 @@ ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf)
 		break;
 	case IXGBE_VF_GET_QUEUES:
 		ixgbe_vf_get_queues(sc, vf, msg);
+		break;
+	case IXGBE_VF_UPDATE_XCAST_MODE:
+		ixgbe_vf_update_xcast_mode(sc, vf, msg);
 		break;
 	default:
 		ixgbe_send_vf_failure(sc, vf, msg[0]);
@@ -982,11 +1042,13 @@ ixgbe_init_vf(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	pfmbimr |= IXGBE_VF_BIT(vf->pool);
 	IXGBE_WRITE_REG(hw, IXGBE_PFMBIMR(vf_index), pfmbimr);
 
+	vf->xcast_mode = IXGBEVF_XCAST_MODE_NONE;
+	vf->api_ver = IXGBE_API_VER_UNKNOWN;
+	vf->num_mc_hashes = 0;
+	bzero(vf->mc_hash, sizeof(vf->mc_hash));
 	error = ixgbe_vf_reset_vlan(sc, vf, false);
 	if (error != IXGBE_SUCCESS)
 		return (error);
-	vf->num_mc_hashes = 0;
-	bzero(vf->mc_hash, sizeof(vf->mc_hash));
 
 	if (ixgbe_validate_mac_addr(vf->ether_addr) == 0) {
 		ixgbe_set_rar(&sc->hw, vf->rar_index,
@@ -1114,6 +1176,8 @@ ixgbe_if_iov_vf_add(if_ctx_t ctx, u16 vfnum, const nvlist_t *config)
 	ixgbe_update_max_frame(sc, vf->maximum_frame_size);
 	if (nvlist_get_bool(config, "mac-anti-spoof"))
 		vf->flags |= IXGBE_VF_ANTI_SPOOF;
+	if (nvlist_get_bool(config, "allow-promisc"))
+		vf->flags |= IXGBE_VF_ALLOW_PROMISC;
 
 	if (nvlist_exists_binary(config, "mac-addr")) {
 		mac = nvlist_get_binary(config, "mac-addr", NULL);
