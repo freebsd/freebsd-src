@@ -1226,6 +1226,27 @@ em_if_attach_pre(if_ctx_t ctx)
 	em_setup_msix(ctx);
 	e1000_get_bus_info(hw);
 
+	/*
+	 * Some conventional PCI systems hang when e1000 devices use
+	 * DMA addresses above 4 GB.  Keep PCI-mode DMA below that boundary
+	 * by default; PCI-X and PCIe retain 64-bit DMA.
+	 */
+	if (hw->bus.type == e1000_bus_type_pci) {
+		SYSCTL_ADD_BOOL(ctx_list, child, OID_AUTO, "allow_64bit_dma",
+		    CTLFLAG_RDTUN, &sc->allow_64bit_dma, 0,
+		    "Allow 64-bit DMA in conventional PCI mode");
+		if (sc->allow_64bit_dma)
+			device_printf(dev, "64-bit DMA in conventional PCI mode.  "
+			    "Some chipsets are unstable.\n");
+		else {
+			scctx->isc_dma_width = 32;
+			device_printf(dev, "32-bit DMA in conventional PCI mode.  "
+			    "Set dev.%s.%d.allow_64bit_dma=1 at boot to enable "
+			    "64-bit DMA if the chipset is stable with it.\n",
+			    device_get_name(dev), device_get_unit(dev));
+		}
+	}
+
 	/* Set up some sysctls for the tunable interrupt delays */
 	if (hw->mac.type < igb_mac_min) {
 		em_add_int_delay_sysctl(sc, "rx_int_delay",

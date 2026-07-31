@@ -556,6 +556,7 @@ struct e1000_softc {
 	int			if_flags;
 	int			em_insert_vlan_header;
 	u32			ims;
+	bool			allow_64bit_dma;
 	bool			in_detach;
 
 	u32			flags;
