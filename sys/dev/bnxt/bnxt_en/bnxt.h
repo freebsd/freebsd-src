@@ -1509,6 +1509,8 @@ struct bnxt_softc {
 	u16			fw_reset_max_dsecs;
 #define BNXT_DFLT_FW_RST_MAX_DSECS	60
 	unsigned long		fw_reset_timestamp;
+	unsigned long		fw_reset_notify_timestamp;
+	u16			fw_reset_req_min_dsecs;
 
 	struct bnxt_fw_health	*fw_health;
 	char			board_partno[64];

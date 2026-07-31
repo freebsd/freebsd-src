@@ -1932,6 +1932,21 @@ static u32 bnxt_fw_health_readl(struct bnxt_softc *bp, int reg_idx)
 	return val;
 }
 
+/*
+ * Sleep until at least min_ms milliseconds have passed since start_jiffies.
+ */
+static void bnxt_sleep_until_min_elapsed(unsigned long start_jiffies,
+    unsigned int min_ms)
+{
+	unsigned long elapsed_time;
+	unsigned int elapsed_time_ms;
+
+	elapsed_time = jiffies - start_jiffies;
+	elapsed_time_ms = (unsigned int)(elapsed_time * 1000 / HZ);
+	if (elapsed_time_ms < min_ms)
+		msleep(min_ms - elapsed_time_ms);
+}
+
 static void bnxt_fw_reset_close(struct bnxt_softc *bp)
 {
 	int i;
@@ -2443,6 +2458,8 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		fallthrough;
 	case BNXT_FW_RESET_STATE_POLL_FW:
 		bp->hwrm_cmd_timeo = SHORT_HWRM_CMD_TIMEOUT;
+		bnxt_sleep_until_min_elapsed(bp->fw_reset_notify_timestamp,
+		    bp->fw_reset_req_min_dsecs * 100);
 		rc = bnxt_hwrm_poll(bp);
 		if (rc) {
 			if (bnxt_fw_reset_timeout(bp)) {
@@ -5667,9 +5684,11 @@ bnxt_handle_async_event(struct bnxt_softc *softc, struct cmpl_base *cmpl)
 			goto async_event_process_exit;
 
 		softc->fw_reset_timestamp = jiffies;
+		softc->fw_reset_notify_timestamp = jiffies;
 		softc->fw_reset_min_dsecs = ae->timestamp_lo;
 		if (!softc->fw_reset_min_dsecs)
 			softc->fw_reset_min_dsecs = BNXT_DFLT_FW_RST_MIN_DSECS;
+		softc->fw_reset_req_min_dsecs = softc->fw_reset_min_dsecs;
 		softc->fw_reset_max_dsecs = le16toh(ae->timestamp_hi);
 		if (!softc->fw_reset_max_dsecs)
 			softc->fw_reset_max_dsecs = BNXT_DFLT_FW_RST_MAX_DSECS;
