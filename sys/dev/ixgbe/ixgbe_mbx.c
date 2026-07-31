@@ -789,6 +789,22 @@ static s32 ixgbe_check_for_msg_pf(struct ixgbe_hw *hw, u16 vf_id)
 	return IXGBE_ERR_MBX;
 }
 
+/*
+ * Legacy callers expect checking for a message to consume its interrupt
+ * cause before attempting to read the mailbox.  This keeps a failed read
+ * from leaving VFREQ pending indefinitely.
+ */
+static s32 ixgbe_check_for_msg_pf_legacy(struct ixgbe_hw *hw, u16 vf_id)
+{
+	s32 ret_val;
+
+	ret_val = ixgbe_check_for_msg_pf(hw, vf_id);
+	if (ret_val == IXGBE_SUCCESS)
+		ixgbe_clear_msg_pf(hw, vf_id);
+
+	return ret_val;
+}
+
 /**
  * ixgbe_check_for_ack_pf - checks to see if the VF has ACKed
  * @hw: pointer to the HW structure
@@ -876,8 +892,12 @@ static s32 ixgbe_obtain_mbx_lock_pf(struct ixgbe_hw *hw, u16 vf_id)
 		/* Reserve mailbox for PF use */
 		pf_mailbox = IXGBE_READ_REG(hw, IXGBE_PFMAILBOX(vf_id));
 
-		/* Check if the mailbox is already owned by the PF or VF */
-		if (pf_mailbox & (IXGBE_PFMAILBOX_PFU | IXGBE_PFMAILBOX_VFU))
+		/* A peer-held mailbox cannot be recovered by retrying here. */
+		if (pf_mailbox & IXGBE_PFMAILBOX_VFU)
+			return IXGBE_ERR_MBX;
+
+		/* Retry transient contention with another PF-side caller. */
+		if (pf_mailbox & IXGBE_PFMAILBOX_PFU)
 			goto retry;
 
 		pf_mailbox |= IXGBE_PFMAILBOX_PFU;
@@ -1127,7 +1147,7 @@ void ixgbe_init_mbx_params_pf_id(struct ixgbe_hw *hw, u16 vf_id)
 	mbx->ops[vf_id].release = ixgbe_release_mbx_lock_dummy;
 	mbx->ops[vf_id].read = ixgbe_read_mbx_pf_legacy;
 	mbx->ops[vf_id].write = ixgbe_write_mbx_pf_legacy;
-	mbx->ops[vf_id].check_for_msg = ixgbe_check_for_msg_pf;
+	mbx->ops[vf_id].check_for_msg = ixgbe_check_for_msg_pf_legacy;
 	mbx->ops[vf_id].check_for_ack = ixgbe_check_for_ack_pf;
 	mbx->ops[vf_id].check_for_rst = ixgbe_check_for_rst_pf;
 	mbx->ops[vf_id].clear = ixgbe_clear_mbx_pf;
