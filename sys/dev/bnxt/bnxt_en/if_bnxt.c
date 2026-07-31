@@ -3202,6 +3202,11 @@ bnxt_detach(if_ctx_t ctx)
 	struct bnxt_vlan_tag *tmp;
 	int i;
 
+	/* Set first: the admin task isn't drained before IFDI_DETACH and can
+	 * still fire concurrently, so it must see this immediately via
+	 * atomic_store_rel_int()/atomic_load_acq_int(). */
+	atomic_store_rel_int(&softc->detached, 1);
+
 	bnxt_mpc_irq_cleanup(softc);
 	bnxt_rdma_aux_device_uninit(softc);
 	cancel_delayed_work_sync(&softc->fw_reset_task);
@@ -4215,6 +4220,9 @@ bnxt_update_admin_status(if_ctx_t ctx)
 	 * request every sec with which firmware timeouts can happen
 	 */
 	if (!BNXT_PF(softc))
+		return;
+
+	if (atomic_load_acq_int(&softc->detached))
 		return;
 
 	bnxt_hwrm_port_qstats(softc);

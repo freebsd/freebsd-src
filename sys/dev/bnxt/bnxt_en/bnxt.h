@@ -1350,6 +1350,9 @@ struct bnxt_softc {
 	struct bnxt_nvram_info	*nvm_info;
 	bool wol;
 	bool is_dev_init;
+	/* Cross-thread flag; access only via atomic_load_acq_int()/
+	 * atomic_store_rel_int(), never as a plain bool. */
+	volatile int detached;
 	struct bnxt_hw_lro	hw_lro;
 	uint8_t wol_filter_id;
 	uint16_t		rx_coal_usecs;
