@@ -406,6 +406,10 @@ struct ixgbe_softc {
 	 * to repopulate it.
 	 */
 	u32			shadow_vfta[IXGBE_VFTA_SIZE];
+	u32			vf_vfta_retry[IXGBE_VFTA_SIZE];
+	sbintime_t		vf_vlan_retry_deadline;
+	u32			vf_vlan_retry_tick;
+	u16			vf_vlan_retry_cursor;
 	bool			vf_mcast_overflow_warned;
 
 	/* Info about the interface */
