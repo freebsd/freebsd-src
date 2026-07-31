@@ -33,7 +33,7 @@
 .\"
 .\" Author: Jim Harris <jimharris@FreeBSD.org>
 .\"
-.Dd February 20, 2026
+.Dd July 31, 2026
 .Dt NVMECONTROL 8
 .Os
 .Sh NAME
@@ -175,6 +175,7 @@
 .Op Fl l
 .Op Fl p power_state
 .Op Fl w workload_hint
+.Aq Ar device-id | Ar namespace-id
 .Nm
 .Ic selftest
 .Aq Fl c Ar code
@@ -629,6 +630,9 @@ Manage the power modes of the NVMe controller.
 .Bl -tag -width 6n
 .It Fl l
 List all supported power modes.
+Modes marked with an asterisk
+.Pq Dq *
+are non-operational power modes.
 .It Fl p Ar mode
 Set the power mode to
 .Ar mode .
