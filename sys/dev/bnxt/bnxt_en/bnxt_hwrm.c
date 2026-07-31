@@ -2230,6 +2230,26 @@ bnxt_hwrm_port_qstats(struct bnxt_softc *softc)
 
 	return rc;
 }
+
+int bnxt_hwrm_generic_qstats(struct bnxt_softc *bp, u8 flags)
+{
+	struct hwrm_stat_generic_qstats_input req = {0};
+	int rc;
+
+	if (!(bp->fw_cap & BNXT_FW_CAP_GENERIC_STATS))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_STAT_GENERIC_QSTATS);
+
+	req.flags = flags;
+	req.generic_stat_size = sizeof(struct generic_sw_hw_stats);
+	req.generic_stat_host_addr = htole64(bp->hw_generic_stats.idi_paddr);
+
+	rc = hwrm_send_message(bp, &req, sizeof(req));
+
+	return rc;
+}
+
 static int bnxt_hwrm_pri2cos_idx(struct bnxt_softc *softc, uint32_t path_dir)
 {
 	struct hwrm_queue_pri2cos_qcfg_input req = {0};

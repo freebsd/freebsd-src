@@ -735,6 +735,7 @@ bnxt_queues_free(if_ctx_t ctx)
 	// Free RX queues
 	for (i=0; i<softc->nrxqsets; i++)
 		iflib_dma_free(&softc->rx_stats[i]);
+	iflib_dma_free(&softc->hw_generic_stats);
 	iflib_dma_free(&softc->hw_tx_port_stats);
 	iflib_dma_free(&softc->hw_rx_port_stats);
 	iflib_dma_free(&softc->hw_tx_port_stats_ext);
@@ -807,6 +808,17 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
  * This can be deleted when there will be no further additions of counters.
  */
 #define BNXT_PORT_STAT_PADDING  512
+
+	rc = iflib_dma_alloc(ctx, sizeof(struct generic_sw_hw_stats), &softc->hw_generic_stats, 0);
+	/* Generic stats are optional */
+	if (rc) {
+		softc->fw_cap &= ~BNXT_FW_CAP_GENERIC_STATS;
+		iflib_dma_free(&softc->hw_generic_stats);
+	} else {
+		bus_dmamap_sync(softc->hw_generic_stats.idi_tag,
+		    softc->hw_generic_stats.idi_map, BUS_DMASYNC_PREREAD);
+		softc->generic_stats = (void *) softc->hw_generic_stats.idi_vaddr;
+	}
 
 	rc = iflib_dma_alloc(ctx, sizeof(struct rx_port_stats) + BNXT_PORT_STAT_PADDING,
 	    &softc->hw_rx_port_stats, 0);
@@ -916,6 +928,7 @@ bnxt_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs,
 		bnxt_create_rx_sysctls(softc, i);
 	}
 
+	bnxt_create_generic_stats_sysctls(softc);
 	/*
 	 * When SR-IOV is enabled, avoid each VF sending PORT_QSTATS
          * HWRM every sec with which firmware timeouts can happen
@@ -4256,6 +4269,8 @@ bnxt_update_admin_status(if_ctx_t ctx)
 			bit_clear(softc->state_bv, BNXT_STATE_LINK_CHANGE);
 			bnxt_media_status(softc->ctx, &ifmr);
 		}
+
+		bnxt_hwrm_generic_qstats(softc, 0);
 	}
 
 	return;

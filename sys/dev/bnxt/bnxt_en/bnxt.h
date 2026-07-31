@@ -1294,6 +1294,9 @@ struct bnxt_softc {
 	struct tx_port_stats_ext *tx_port_stats_ext;
 	struct rx_port_stats_ext *rx_port_stats_ext;
 
+	struct iflib_dma_info	hw_generic_stats;
+	struct generic_sw_hw_stats	*generic_stats;
+
 	uint16_t		fw_rx_stats_ext_size;
 	uint16_t		fw_tx_stats_ext_size;
 	uint16_t		hw_ring_stats_size;

@@ -337,6 +337,100 @@ bnxt_create_tx_sysctls(struct bnxt_softc *softc, int txr)
 }
 
 int
+bnxt_create_generic_stats_sysctls(struct bnxt_softc *softc)
+{
+	struct sysctl_oid *oid;
+	char	name[32];
+	char	desc[64];
+
+	sprintf(name, "generic_stats");
+	sprintf(desc, "Generic Stats");
+	oid = SYSCTL_ADD_NODE(&softc->hw_stats,
+	    SYSCTL_CHILDREN(softc->hw_stats_oid), OID_AUTO, name,
+		CTLFLAG_RD | CTLFLAG_MPSAFE, 0, desc);
+	if (!oid)
+		return ENOMEM;
+
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_statistics_tx_tlp", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_statistics_tx_tlp, "pcie_statistics_tx_tlp");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_statistics_rx_tlp", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_statistics_rx_tlp, "pcie_statistics_rx_tlp");
+
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_hdr_posted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_hdr_posted, "pcie_credit_fc_hdr_posted");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_hdr_nonposted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_hdr_nonposted, "pcie_credit_fc_hdr_nonposted");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_hdr_cmpl", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_hdr_cmpl, "pcie_credit_fc_hdr_cmpl");
+
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_data_posted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_data_posted, "pcie_credit_fc_data_posted");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_data_nonposted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_data_nonposted, "pcie_credit_fc_data_nonposted");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_data_cmpl", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_data_cmpl, "pcie_credit_fc_data_cmpl");
+
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_tgt_nonposted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_tgt_nonposted, "pcie_credit_fc_tgt_nonposted");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_tgt_data_posted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_tgt_data_posted, "pcie_credit_fc_tgt_data_posted");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_tgt_hdr_posted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_tgt_hdr_posted, "pcie_credit_fc_tgt_hdr_posted");
+
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_cmpl_hdr_posted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_cmpl_hdr_posted, "pcie_credit_fc_cmpl_hdr_posted");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_credit_fc_cmpl_data_posted", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_credit_fc_cmpl_data_posted, "pcie_credit_fc_cmpl_data_posted");
+
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_cmpl_longest", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_cmpl_longest, "pcie_cmpl_longest");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "pcie_cmpl_shortest", CTLFLAG_RD,
+	    &softc->generic_stats->pcie_cmpl_shortest, "pcie_cmpl_shortest");
+
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "cache_miss_count_cfcq", CTLFLAG_RD,
+	    &softc->generic_stats->cache_miss_count_cfcq, "cache_miss_count_cfcq");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "cache_miss_count_cfcs", CTLFLAG_RD,
+	    &softc->generic_stats->cache_miss_count_cfcs, "cache_miss_count_cfcs");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "cache_miss_count_cfcc", CTLFLAG_RD,
+	    &softc->generic_stats->cache_miss_count_cfcc, "cache_miss_count_cfcc");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "cache_miss_count_cfcm", CTLFLAG_RD,
+	    &softc->generic_stats->cache_miss_count_cfcm, "cache_miss_count_cfcm");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "hw_db_recov_dbs_dropped", CTLFLAG_RD,
+	    &softc->generic_stats->hw_db_recov_dbs_dropped, "hw_db_recov_dbs_dropped");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "hw_db_recov_drops_serviced", CTLFLAG_RD,
+	    &softc->generic_stats->hw_db_recov_drops_serviced, "hw_db_recov_drops_serviced");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "hw_db_recov_dbs_recovered", CTLFLAG_RD,
+	    &softc->generic_stats->hw_db_recov_dbs_recovered, "hw_db_recov_dbs_recovered");
+	SYSCTL_ADD_QUAD(&softc->hw_stats, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "hw_db_recov_oo_drop_count", CTLFLAG_RD,
+	    &softc->generic_stats->hw_db_recov_oo_drop_count, "hw_db_recov_oo_drop_count");
+
+	return 0;
+}
+
+int
 bnxt_create_port_stats_sysctls(struct bnxt_softc *softc)
 {
 	struct sysctl_oid *oid;
