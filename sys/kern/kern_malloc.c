@@ -729,7 +729,7 @@ malloc_domainset(size_t size, struct malloc_type *mtp, struct domainset *ds,
 #endif
 
 	if (__predict_false(size > kmem_zmax || (flags & M_EXEC) != 0)) {
-		va = malloc_large(&size, mtp, DOMAINSET_RR(), flags);
+		va = malloc_large(&size, mtp, ds, flags);
 	} else {
 		int indx;
 
