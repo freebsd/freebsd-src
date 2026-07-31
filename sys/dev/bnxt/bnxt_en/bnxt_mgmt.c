@@ -592,6 +592,20 @@ bnxt_mgmt_process_hwrm(struct cdev *dev, u_long cmd, caddr_t data,
 			ret = -EFAULT;
 			goto end;
 		}
+
+		/*
+		 * TOCTOU: this second copyin re-reads len_req/len_resp from
+		 * userspace, so require them to match msg_temp's already-validated
+		 * values to prevent overflowing the buffers sized from those.
+		 */
+		if (msg2->len_req != msg_temp.len_req ||
+		    msg2->len_resp != msg_temp.len_resp) {
+			device_printf(softc->dev, "%s:%d len_req/len_resp "
+				      "mismatch on second copy\n",
+				      __func__, __LINE__);
+			ret = -EINVAL;
+			goto end;
+		}
 		msg = msg2;
 
 		for (i = 0; i < num_ind; i++) {
@@ -635,8 +649,6 @@ bnxt_mgmt_process_hwrm(struct cdev *dev, u_long cmd, caddr_t data,
 	}
 
 	ret = bnxt_hwrm_passthrough(softc, req, msg->len_req, resp, msg->len_resp, msg->timeout);
-	if (ret)
-		goto end;
 
 	for (i = 0; i < num_ind; i++) {
 		if ((msg->dma[i].read_or_write)) {
