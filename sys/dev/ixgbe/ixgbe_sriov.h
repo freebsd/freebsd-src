@@ -72,6 +72,7 @@ void ixgbe_if_iov_uninit(if_ctx_t);
 void ixgbe_initialize_iov(struct ixgbe_softc *);
 void ixgbe_recalculate_max_frame(struct ixgbe_softc *);
 void ixgbe_ping_all_vfs(struct ixgbe_softc *);
+u_int ixgbe_iov_rebuild_mta(struct ixgbe_softc *);
 int  ixgbe_pci_iov_detach(device_t);
 void ixgbe_define_iov_schemas(device_t, int *);
 void ixgbe_align_all_queue_indices(struct ixgbe_softc *);
