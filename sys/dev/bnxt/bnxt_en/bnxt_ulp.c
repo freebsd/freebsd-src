@@ -104,14 +104,19 @@ static int bnxt_unregister_dev(struct bnxt_en_dev *edev, int ulp_id)
 
 	mtx_lock(&bp->en_ops_lock);
 	RCU_INIT_POINTER(ulp->ulp_ops, NULL);
+	mtx_unlock(&bp->en_ops_lock);
 	synchronize_rcu();
+	mtx_lock(&bp->en_ops_lock);
 	ulp->max_async_event_id = 0;
 	ulp->async_events_bmap = NULL;
+	mtx_unlock(&bp->en_ops_lock);
 	while (atomic_read(&ulp->ref_count) != 0 && i < 10) {
 		msleep(100);
 		i++;
 	}
-	mtx_unlock(&bp->en_ops_lock);
+	/* Tell the caller a ULP consumer may still hold a reference into torn-down state. */
+	if (atomic_read(&ulp->ref_count) != 0)
+		return ETIMEDOUT;
 	return 0;
 }
 
