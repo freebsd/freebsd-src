@@ -256,10 +256,17 @@ _hwrm_send_message(struct bnxt_softc *softc, void *msg, uint32_t msg_len)
 		DELAY(1000);
 	}
 	if (i >= softc->hwrm_cmd_timeo) {
-		device_printf(softc->dev,
-		    "Timeout sending %s: (timeout: %u) seq: %d\n",
-		    GET_HWRM_REQ_TYPE(req->req_type), softc->hwrm_cmd_timeo,
-		    le16toh(req->seq_id));
+		if (req->req_type == HWRM_PORT_QSTATS ||
+		    req->req_type == HWRM_PORT_QSTATS_EXT)
+			bnxt_log_live(softc, BNXT_LOGGER_L2,
+				      "Timeout sending %s: (timeout: %u) seq: %d\n",
+				      GET_HWRM_REQ_TYPE(req->req_type), softc->hwrm_cmd_timeo,
+				      le16toh(req->seq_id));
+		else
+			device_printf(softc->dev,
+				      "Timeout sending %s: (timeout: %u) seq: %d\n",
+				      GET_HWRM_REQ_TYPE(req->req_type), softc->hwrm_cmd_timeo,
+				      le16toh(req->seq_id));
 		return ETIMEDOUT;
 	}
 	/* Last byte of resp contains the valid key */

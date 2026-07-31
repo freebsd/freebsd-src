@@ -1978,10 +1978,6 @@ static void bnxt_fw_reset_close(struct bnxt_softc *bp)
 		bnxt_fw_fatal_close(bp);
 	}
 
-	iflib_request_reset(bp->ctx);
-	bnxt_stop(bp->ctx);
-	bnxt_hwrm_func_drv_unrgtr(bp, false);
-
 	for (i = bp->nrxqsets-1; i>=0; i--) {
 		if (BNXT_CHIP_P5_PLUS(bp))
 			iflib_irq_free(bp->ctx, &bp->nq_rings[i].irq);
@@ -2310,9 +2306,51 @@ static bool bnxt_fw_reset_timeout(struct bnxt_softc *bp)
 			  (bp->fw_reset_max_dsecs * HZ / 10));
 }
 
+/* enqueue an iflib reset and wait for RUNNING/OACTIVE to flip 1->0->1. */
+static int
+bnxt_iflib_reset_sync(struct bnxt_softc *bp, int timeout_us)
+{
+	unsigned flags;
+	bool reset_started;
+	int remaining_us = timeout_us;
+
+	/* request reset (async) and enqueue admin task */
+	iflib_request_reset(bp->ctx);
+	iflib_admin_intr_deferred(bp->ctx);
+
+	/* see if reset already started */
+	flags = if_getdrvflags(bp->ifp);
+	reset_started = ((flags & IFF_DRV_RUNNING) == 0) ||
+			 ((flags & IFF_DRV_OACTIVE) != 0);
+
+	while (remaining_us > 0) {
+		flags = if_getdrvflags(bp->ifp);
+
+		if (!reset_started) {
+			/* wait for reset to START (RUNNING=0 or OACTIVE=1) */
+			if ((flags & IFF_DRV_RUNNING) == 0 || (flags & IFF_DRV_OACTIVE) != 0)
+				reset_started = true;
+		} else {
+			/* wait for reset to FINISH (RUNNING=1 and OACTIVE=0) */
+			if ((flags & IFF_DRV_RUNNING) != 0 && (flags & IFF_DRV_OACTIVE) == 0)
+				return 0;  /* success */
+		}
+
+		pause_sbt("bnxtrst", SBT_1US * 20, 0, 0);  /* 20 us sleep */
+		remaining_us -= 20;
+	}
+	return ETIMEDOUT;
+}
+
 static int bnxt_open(struct bnxt_softc *bp)
 {
 	int rc = 0;
+
+	rc = bnxt_hwrm_func_reset(bp);
+	if (rc) {
+		device_printf(bp->dev, "reinit: hwrm func_reset failed\n");
+		return rc;
+	}
 
 	/* A function/chip reset drops the CAGR tick-resolution register
 	 * programmed in bnxt_attach_pre(); restore it before we start
@@ -2380,10 +2418,6 @@ static int bnxt_open(struct bnxt_softc *bp)
 	}
 
 	bnxt_msix_intr_assign(bp->ctx, 0);
-	rc = bnxt_init_hw(bp->ctx);
-	if (rc != 0)
-		return (rc);
-	bnxt_intr_enable(bp->ctx);
 
 	if (test_and_clear_bit(BNXT_STATE_FW_RESET_DET, &bp->state)) {
 		if (!test_bit(BNXT_STATE_IN_FW_RESET, &bp->state)) {
@@ -2391,7 +2425,13 @@ static int bnxt_open(struct bnxt_softc *bp)
 		}
 	}
 
-	device_printf(bp->dev, "Network interface is UP and operational\n");
+	rc = bnxt_iflib_reset_sync(bp, 3000000);
+	if (rc) {
+		device_printf(bp->dev, "timeout waiting for reset/init\n");
+		return rc;
+	}
+
+	device_printf(bp->dev, "FW Reset Successfull, Interface is UP and Operational\n");
 
 	return rc;
 }
@@ -2488,9 +2528,8 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 	case BNXT_FW_RESET_STATE_OPENING:
 		rc = bnxt_open(bp);
 		if (rc) {
-			device_printf(bp->dev, "bnxt_open() failed during FW reset\n");
+			device_printf(bp->dev, "Firmware reset failed (err=%d)\n", rc);
 			bnxt_fw_reset_abort(bp, rc);
-			rtnl_unlock();
 			return;
 		}
 
@@ -3452,7 +3491,8 @@ bnxt_func_reset(struct bnxt_softc *softc)
 		return;
 	}
 
-	bnxt_hwrm_resource_free(softc);
+	if (!test_bit(BNXT_STATE_IN_FW_RESET, &softc->state))
+		bnxt_hwrm_resource_free(softc);
 	return;
 }
 
@@ -5729,7 +5769,8 @@ bnxt_handle_async_event(struct bnxt_softc *softc, struct cmpl_base *cmpl)
 			softc->fw_health->survivals++;
 			set_bit(BNXT_STATE_FW_NON_FATAL_COND, &softc->state);
 		}
-		device_printf(softc->dev,
+		device_printf(softc->dev, "%s firmware reset event arrived.\n", type_str);
+		bnxt_log_live(softc, BNXT_LOGGER_L2,
 			   "%s firmware reset event, data1: 0x%x, data2: 0x%x, min wait %u ms, max wait %u ms\n",
 			   type_str, data1, data2,
 			   softc->fw_reset_min_dsecs * 100,
