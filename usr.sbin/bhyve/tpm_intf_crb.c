@@ -371,11 +371,18 @@ tpm_crb_mem_handler(struct vcpu *vcpu __unused, const int dir,
 			break;
 		}
 		case offsetof(struct tpm_crb_regs, ctrl_cancel): {
-			/* TODO: cancel the tpm command */
-			warnx(
-			    "%s: cancelling a TPM command is not implemented yet",
-			    __func__);
+			union tpm_crb_reg_ctrl_cancel cancel;
 
+			if ((size_t)size > sizeof(cancel))
+				goto err_out;
+
+			tpm_crb_mmiocpy(&cancel, val, size);
+			if (cancel.cancel != 0) {
+				/* TODO: cancel the tpm command */
+				warnx(
+		    "%s: cancelling a TPM command is not implemented yet",
+				    __func__);
+			}
 			break;
 		}
 		case offsetof(struct tpm_crb_regs, int_enable):
