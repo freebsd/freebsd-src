@@ -172,7 +172,12 @@ restart:
 	    bootp_response->bp_yiaddr.s_addr != INADDR_ANY) {
 		init_reboot = true;
 		rbootp = bootp_response;
-		d->xid = ntohl(rbootp->bp_xid);
+		/*
+		 * INIT-REBOOT is a new DHCP transaction, distinct from
+		 * the firmware's cached DISCOVER/OFFER/REQUEST/ACK.
+		 * Use the firmware's xid just as an entropy source.
+		 */
+		d->xid = ntohl(rbootp->bp_xid) + 1;
 		DEBUG_PRINTF(1, ("bootp: using cached DHCP reply "
 		    "(INIT-REBOOT), yiaddr=%s xid=0x%08x\n",
 		    inet_ntoa(rbootp->bp_yiaddr), (unsigned)d->xid));
@@ -259,6 +264,7 @@ restart:
 				bootp_response = NULL;
 				bootp_response_size = 0;
 				init_reboot = false;
+				++d->xid;
 				if (pkt != NULL) {
 					free(pkt);
 					pkt = NULL;
