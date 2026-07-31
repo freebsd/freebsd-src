@@ -3758,7 +3758,7 @@ skip_def_cp_ring:
 			goto fail;
 
 		if (BNXT_CHIP_P5_PLUS(softc))
-			softc->db_ops.bnxt_db_tx_cq(&softc->tx_cp_rings[i], 1);
+			softc->db_ops.bnxt_db_tx_cq(&softc->tx_cp_rings[i], 0);
 
 		/* Allocate the TX ring */
 		rc = bnxt_hwrm_ring_alloc(softc,
@@ -4405,7 +4405,6 @@ process_nq(struct bnxt_softc *softc, uint16_t nqid)
 {
 	struct bnxt_cp_ring *cpr = &softc->nq_rings[nqid];
 	nq_cn_t *cmp = (nq_cn_t *) cpr->ring.vaddr;
-	struct bnxt_cp_ring *tx_cpr = &softc->tx_cp_rings[nqid];
 	struct bnxt_cp_ring *rx_cpr = &softc->rx_cp_rings[nqid];
 	bool v_bit = cpr->v_bit;
 	uint32_t cons = cpr->cons;
@@ -4423,7 +4422,6 @@ process_nq(struct bnxt_softc *softc, uint16_t nqid)
 		if (NQE_CN_TYPE(nq_type) != NQ_CN_TYPE_CQ_NOTIFICATION) {
 			 bnxt_process_async_msg(cpr, (tx_cmpl_t *)&cmp[cons]);
 		} else {
-			tx_cpr->toggle = NQE_CN_TOGGLE(cmp[cons].type);
 			rx_cpr->toggle = NQE_CN_TOGGLE(cmp[cons].type);
 			rx_cqe = true;
 		}
