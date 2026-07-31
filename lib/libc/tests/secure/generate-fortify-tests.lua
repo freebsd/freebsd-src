@@ -113,12 +113,21 @@ local printf_init = [[
 	srcvar[sizeof(srcvar) - 1] = '\0';
 ]]
 
-local readv_stackvars = "\tstruct iovec iov[1];\n"
 local readv_init = [[
+	replace_stdin();
+
+	for (size_t __i = 0; __i < 2; __i++) {
+		__stack.__buf[__i].iov_base = &__stack.padding_l;
+		__stack.__buf[__i].iov_len = 1;
+	}
+]]
+
+local readv_iov_stackvars = "\tstruct iovec iov[1];\n"
+local readv_iov_init = [[
+	replace_stdin();
+
 	iov[0].iov_base = __stack.__buf;
 	iov[0].iov_len = __len;
-
-	replace_stdin();
 ]]
 
 local socket_stackvars = "\tint sock[2] = { -1, -1 };\n"
@@ -411,7 +420,7 @@ local all_tests = {
 				"__buf",
 				"__len",
 			},
-			init = stdio_init,
+			init = readv_init,
 		},
 		{
 			func = "readv",
@@ -422,8 +431,8 @@ local all_tests = {
 				"nitems(iov)",
 			},
 			exclude = excludes_stack_overflow,
-			stackvars = readv_stackvars,
-			init = readv_init,
+			stackvars = readv_iov_stackvars,
+			init = readv_iov_init,
 			uses_len = true,
 		},
 		{
@@ -436,7 +445,7 @@ local all_tests = {
 				"__len",
 				"0",
 			},
-			init = stdio_init,
+			init = readv_init,
 		},
 		{
 			func = "preadv",
@@ -448,8 +457,8 @@ local all_tests = {
 				"0",
 			},
 			exclude = excludes_stack_overflow,
-			stackvars = readv_stackvars,
-			init = readv_init,
+			stackvars = readv_iov_stackvars,
+			init = readv_iov_init,
 			uses_len = true,
 		},
 	},
