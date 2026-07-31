@@ -124,6 +124,40 @@ ixgbe_process_vf_ack(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 		ixgbe_send_vf_failure(sc, vf, 0);
 }
 
+static void
+ixgbe_vf_set_anti_spoof(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
+{
+	struct ixgbe_hw *hw;
+	uint32_t reg;
+	bool enable;
+
+	hw = &sc->hw;
+	enable = (vf->flags & IXGBE_VF_ANTI_SPOOF) != 0;
+	if (hw->mac.ops.set_mac_anti_spoofing != NULL)
+		hw->mac.ops.set_mac_anti_spoofing(hw, enable, vf->pool);
+	if (hw->mac.ops.set_vlan_anti_spoofing != NULL)
+		hw->mac.ops.set_vlan_anti_spoofing(hw, enable, vf->pool);
+	if (hw->mac.ops.set_ethertype_anti_spoofing != NULL) {
+		if (enable) {
+			IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_LLDP),
+			    IXGBE_ETQF_FILTER_EN | IXGBE_ETQF_TX_ANTISPOOF |
+			    ETHERTYPE_LLDP);
+			IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_FC),
+			    IXGBE_ETQF_FILTER_EN | IXGBE_ETQF_TX_ANTISPOOF |
+			    ETHERTYPE_FLOWCONTROL);
+		}
+		hw->mac.ops.set_ethertype_anti_spoofing(hw, enable,
+		    vf->pool);
+	}
+
+	reg = IXGBE_READ_REG(hw, IXGBE_VMECM(IXGBE_VF_INDEX(vf->pool)));
+	if (enable)
+		reg |= IXGBE_VF_BIT(vf->pool);
+	else
+		reg &= ~IXGBE_VF_BIT(vf->pool);
+	IXGBE_WRITE_REG(hw, IXGBE_VMECM(IXGBE_VF_INDEX(vf->pool)), reg);
+}
+
 static inline boolean_t
 ixgbe_vf_mac_changed(struct ixgbe_vf *vf, const uint8_t *mac)
 {
@@ -314,6 +348,7 @@ ixgbe_process_vf_reset(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 		ixgbe_iov_rebuild_mta(sc);
 
 	ixgbe_clear_rar(&sc->hw, vf->rar_index);
+	ixgbe_vf_set_anti_spoof(sc, vf);
 	ixgbe_toggle_txdctl(&sc->hw, vf->pool);
 
 	vf->api_ver = IXGBE_API_VER_UNKNOWN;
@@ -741,6 +776,7 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 	struct ixgbe_hw *hw;
 	struct ixgbe_softc *sc;
 	uint32_t pf_reg, vf_reg;
+	int i;
 
 	sc = iflib_get_softc(ctx);
 	hw = &sc->hw;
@@ -756,6 +792,17 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 		vf_reg = 0;
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(vf_reg), 0);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(vf_reg), 0);
+
+	for (i = 0; i < sc->num_vfs; i++) {
+		if (!(sc->vfs[i].flags & IXGBE_VF_ACTIVE))
+			continue;
+		sc->vfs[i].flags &= ~IXGBE_VF_ANTI_SPOOF;
+		ixgbe_vf_set_anti_spoof(sc, &sc->vfs[i]);
+	}
+	if (hw->mac.ops.set_ethertype_anti_spoofing != NULL) {
+		IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_LLDP), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_FC), 0);
+	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_VT_CTL, 0);
 
@@ -790,6 +837,7 @@ ixgbe_init_vf(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 		ixgbe_set_rar(&sc->hw, vf->rar_index,
 		    vf->ether_addr, vf->pool, true);
 	}
+	ixgbe_vf_set_anti_spoof(sc, vf);
 
 	ixgbe_vf_enable_transmit(sc, vf);
 	ixgbe_vf_enable_receive(sc, vf);
@@ -890,6 +938,8 @@ ixgbe_if_iov_vf_add(if_ctx_t ctx, u16 vfnum, const nvlist_t *config)
 	vf->default_vlan = 0;
 	vf->maximum_frame_size = ETHER_MAX_LEN;
 	ixgbe_update_max_frame(sc, vf->maximum_frame_size);
+	if (nvlist_get_bool(config, "mac-anti-spoof"))
+		vf->flags |= IXGBE_VF_ANTI_SPOOF;
 
 	if (nvlist_exists_binary(config, "mac-addr")) {
 		mac = nvlist_get_binary(config, "mac-addr", NULL);

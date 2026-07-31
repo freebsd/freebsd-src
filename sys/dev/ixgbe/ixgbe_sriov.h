@@ -47,6 +47,7 @@
 #define IXGBE_VF_CAP_MAC        (1 << 1) /* VF is permitted to change MAC. */
 #define IXGBE_VF_CAP_VLAN       (1 << 2) /* VF is permitted to join vlans. */
 #define IXGBE_VF_ACTIVE         (1 << 3) /* VF is active. */
+#define IXGBE_VF_ANTI_SPOOF     (1 << 4) /* Enforce source identity. */
 #define IXGBE_VF_INDEX(vmdq)    ((vmdq) / 32)
 #define IXGBE_VF_BIT(vmdq)      (1 << ((vmdq) % 32))
 
