@@ -108,14 +108,6 @@ dtrace_malloc_probe_func_t __read_mostly	dtrace_malloc_probe;
 #define	MALLOC_DEBUG	1
 #endif
 
-#if defined(KASAN) || defined(DEBUG_REDZONE)
-#define	DEBUG_REDZONE_ARG_DEF	, unsigned long osize
-#define	DEBUG_REDZONE_ARG	, osize
-#else
-#define	DEBUG_REDZONE_ARG_DEF
-#define	DEBUG_REDZONE_ARG
-#endif
-
 typedef	enum {
 	SLAB_COOKIE_SLAB_PTR		= 0x0,
 	SLAB_COOKIE_MALLOC_LARGE	= 0x1,
@@ -541,7 +533,7 @@ contigfree(void *addr, unsigned long size __unused, struct malloc_type *type)
 
 #ifdef MALLOC_DEBUG
 static int
-malloc_dbg(caddr_t *vap, size_t *sizep, struct malloc_type *mtp,
+malloc_dbg(void **vap, size_t *sizep, struct malloc_type *mtp,
     int flags)
 {
 	KASSERT(mtp->ks_version == M_VERSION, ("malloc: bad malloc type version"));
@@ -611,12 +603,13 @@ malloc_large_size(uma_slab_t slab)
 }
 
 static caddr_t __noinline
-malloc_large(size_t size, struct malloc_type *mtp, struct domainset *policy,
-    int flags DEBUG_REDZONE_ARG_DEF)
+malloc_large(size_t *sizep, struct malloc_type *mtp, struct domainset *policy,
+    int flags)
 {
 	void *va;
+	size_t size;
 
-	size = roundup(size, PAGE_SIZE);
+	size = roundup(*sizep, PAGE_SIZE);
 	va = kmem_malloc_domainset(policy, size, flags);
 	if (va != NULL) {
 		/* Use low bits unused for slab pointers. */
@@ -624,15 +617,7 @@ malloc_large(size_t size, struct malloc_type *mtp, struct domainset *policy,
 		uma_total_inc(size);
 	}
 	malloc_type_allocated(mtp, va == NULL ? 0 : size);
-	if (__predict_false(va == NULL)) {
-		KASSERT((flags & M_WAITOK) == 0,
-		    ("malloc(M_WAITOK) returned NULL"));
-	} else {
-#ifdef DEBUG_REDZONE
-		va = redzone_setup(va, osize);
-#endif
-		kasan_mark(va, osize, size, KASAN_MALLOC_REDZONE);
-	}
+	*sizep = size;
 	return (va);
 }
 
@@ -657,13 +642,14 @@ free_large(void *addr, size_t size)
 void *
 (malloc)(size_t size, struct malloc_type *mtp, int flags)
 {
-	int indx;
-	caddr_t va;
 	uma_zone_t zone;
+	void *va;
+	int indx;
 #if defined(DEBUG_REDZONE) || defined(KASAN)
 	unsigned long osize = size;
 #endif
 
+	/* We don't want to handle this rare case in a hot path. */
 	MPASS((flags & M_EXEC) == 0);
 
 #ifdef MALLOC_DEBUG
@@ -672,36 +658,34 @@ void *
 		return (va);
 #endif
 
-	if (__predict_false(size > kmem_zmax))
-		return (malloc_large(size, mtp, DOMAINSET_RR(), flags
-		    DEBUG_REDZONE_ARG));
+	if (__predict_false(size > kmem_zmax)) {
+		va = malloc_large(&size, mtp, DOMAINSET_RR(), flags);
+	} else {
+		if (size & KMEM_ZMASK)
+			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
+		indx = kmemsize[size >> KMEM_ZSHIFT];
+		zone = kmemzones[indx].kz_zone[mtp_get_subzone(mtp)];
+		va = uma_zalloc_arg(zone, zone, flags);
+		if (va != NULL)
+			size = zone->uz_size;
+		malloc_type_zone_allocated(mtp, va == NULL ? 0 : size, indx);
+	}
+	KASSERT(va != NULL || (flags & M_WAITOK) == 0,
+	    ("malloc(M_WAITOK) returned NULL"));
 
-	if (size & KMEM_ZMASK)
-		size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
-	indx = kmemsize[size >> KMEM_ZSHIFT];
-	zone = kmemzones[indx].kz_zone[mtp_get_subzone(mtp)];
-	va = uma_zalloc_arg(zone, zone, flags);
-	if (va != NULL) {
-		size = zone->uz_size;
-		if ((flags & M_ZERO) == 0) {
-			kmsan_mark(va, size, KMSAN_STATE_UNINIT);
-			kmsan_orig(va, size, KMSAN_TYPE_MALLOC, KMSAN_RET_ADDR);
-		}
-	}
-	malloc_type_zone_allocated(mtp, va == NULL ? 0 : size, indx);
-	if (__predict_false(va == NULL)) {
-		KASSERT((flags & M_WAITOK) == 0,
-		    ("malloc(M_WAITOK) returned NULL"));
-	}
 #ifdef DEBUG_REDZONE
 	if (va != NULL)
 		va = redzone_setup(va, osize);
 #endif
 #ifdef KASAN
 	if (va != NULL)
-		kasan_mark((void *)va, osize, size, KASAN_MALLOC_REDZONE);
+		kasan_mark(va, osize, size, KASAN_MALLOC_REDZONE);
 #endif
-	return ((void *) va);
+#ifdef KMSAN
+	if (va != NULL && (flags & M_ZERO) == 0)
+		kmsan_orig(va, size, KMSAN_TYPE_MALLOC, KMSAN_RET_ADDR);
+#endif
+	return (va);
 }
 
 static void *
@@ -732,14 +716,11 @@ malloc_domainset(size_t size, struct malloc_type *mtp, struct domainset *ds,
     int flags)
 {
 	struct vm_domainset_iter di;
-	caddr_t va;
+	void *va;
 	int domain;
-	int indx;
 #if defined(KASAN) || defined(DEBUG_REDZONE)
 	unsigned long osize = size;
 #endif
-
-	MPASS((flags & M_EXEC) == 0);
 
 #ifdef MALLOC_DEBUG
 	va = NULL;
@@ -747,35 +728,37 @@ malloc_domainset(size_t size, struct malloc_type *mtp, struct domainset *ds,
 		return (va);
 #endif
 
-	if (__predict_false(size > kmem_zmax))
-		return (malloc_large(size, mtp, DOMAINSET_RR(), flags
-		    DEBUG_REDZONE_ARG));
+	if (__predict_false(size > kmem_zmax || (flags & M_EXEC) != 0)) {
+		va = malloc_large(&size, mtp, DOMAINSET_RR(), flags);
+	} else {
+		int indx;
 
-	indx = -1;
-	va = NULL;
-	if (vm_domainset_iter_policy_init(&di, ds, &domain, &flags) == 0)
-		do {
-			va = malloc_domain(&size, &indx, mtp, domain, flags);
-		} while (va == NULL && vm_domainset_iter_policy(&di, &domain) == 0);
-	malloc_type_zone_allocated(mtp, va == NULL ? 0 : size, indx);
-
-	if (__predict_false(va == NULL)) {
-		KASSERT((flags & M_WAITOK) == 0,
-		    ("malloc(M_WAITOK) returned NULL"));
+		indx = -1;
+		va = NULL;
+		if (vm_domainset_iter_policy_init(&di, ds, &domain,
+		    &flags) == 0) {
+			do {
+				va = malloc_domain(&size, &indx, mtp, domain,
+				    flags);
+			} while (va == NULL &&
+			    vm_domainset_iter_policy(&di, &domain) == 0);
+		}
+		malloc_type_zone_allocated(mtp, va == NULL ? 0 : size, indx);
 	}
+	KASSERT(va != NULL || (flags & M_WAITOK) == 0,
+	    ("malloc(M_WAITOK) returned NULL"));
+
 #ifdef DEBUG_REDZONE
 	if (va != NULL)
 		va = redzone_setup(va, osize);
 #endif
 #ifdef KASAN
 	if (va != NULL)
-		kasan_mark((void *)va, osize, size, KASAN_MALLOC_REDZONE);
+		kasan_mark(va, osize, size, KASAN_MALLOC_REDZONE);
 #endif
 #ifdef KMSAN
-	if ((flags & M_ZERO) == 0) {
-		kmsan_mark(va, size, KMSAN_STATE_UNINIT);
+	if (va != NULL && (flags & M_ZERO) == 0)
 		kmsan_orig(va, size, KMSAN_TYPE_MALLOC, KMSAN_RET_ADDR);
-	}
 #endif
 	return (va);
 }
@@ -794,22 +777,7 @@ void *
 malloc_domainset_exec(size_t size, struct malloc_type *mtp, struct domainset *ds,
     int flags)
 {
-#if defined(DEBUG_REDZONE) || defined(KASAN)
-	unsigned long osize = size;
-#endif
-#ifdef MALLOC_DEBUG
-	caddr_t va;
-#endif
-
-	flags |= M_EXEC;
-
-#ifdef MALLOC_DEBUG
-	va = NULL;
-	if (malloc_dbg(&va, &size, mtp, flags) != 0)
-		return (va);
-#endif
-
-	return (malloc_large(size, mtp, ds, flags DEBUG_REDZONE_ARG));
+	return (malloc_domainset(size, mtp, ds, flags | M_EXEC));
 }
 
 void *
