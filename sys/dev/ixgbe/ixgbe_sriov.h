@@ -69,6 +69,8 @@
 #define IXGBE_NO_VM             0
 #define IXGBE_32_VM             32
 #define IXGBE_64_VM             64
+#define IXGBE_MAX_PF_MAC_FILTERS 15
+#define IXGBE_MAX_VF_MAC_FILTERS 3
 
 int  ixgbe_if_iov_vf_add(if_ctx_t, u16, const nvlist_t *);
 int  ixgbe_if_iov_init(if_ctx_t, u16, const nvlist_t *);

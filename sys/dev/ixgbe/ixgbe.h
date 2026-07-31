@@ -345,6 +345,13 @@ struct ix_tx_queue {
 
 #define IXGBE_MAX_VF_MC	30	/* Max number of multicast entries */
 
+struct ixgbe_vf_mac_filter {
+	uint16_t	rar_index;
+	uint16_t	pool;
+	bool		active;
+	uint8_t		mac[ETHER_ADDR_LEN];
+};
+
 struct ixgbe_vf {
 	u_int		pool;
 	u_int		rar_index;
@@ -354,6 +361,7 @@ struct ixgbe_vf {
 	uint16_t	mc_hash[IXGBE_MAX_VF_MC];
 	uint32_t	vlans[IXGBE_VFTA_SIZE];
 	uint16_t	num_mc_hashes;
+	uint16_t	num_mac_filters;
 	uint16_t	num_vlans;
 	uint16_t	default_vlan;
 	uint16_t	api_ver;
@@ -444,6 +452,8 @@ struct ixgbe_softc {
 	int			num_vfs;
 	int			pool;
 	struct ixgbe_vf		*vfs;
+	struct ixgbe_vf_mac_filter *vf_mac_filters;
+	int			num_vf_mac_filters;
 	bool			iov_mta_valid;
 	bool			iov_vfta_valid;
 	bool			iov_vlan_promisc;

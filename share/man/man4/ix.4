@@ -91,6 +91,16 @@ registered by the VF are presented normally to its network stack.
 VLAN filtering remains enabled in the hardware while SR-IOV is active so that
 the PF can enforce VLAN ownership for each VF pool, including when hardware
 VLAN filtering has been disabled on the PF interface.
+.Pp
+Secondary unicast addresses requested by a VF are accepted only when the VF
+is permitted to change its MAC address and
+.Va mac-anti-spoof
+is disabled in its
+.Xr iovctl.conf 5
+configuration.
+The hardware MAC anti-spoofing control can validate only the VF's primary
+source address, so the driver does not silently weaken an enabled policy to
+install secondary addresses.
 .Sh HARDWARE
 The
 .Nm
