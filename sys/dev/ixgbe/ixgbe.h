@@ -441,6 +441,7 @@ struct ixgbe_softc {
 	int			num_vfs;
 	int			pool;
 	struct ixgbe_vf		*vfs;
+	bool			iov_mta_valid;
 
 	/* Bypass */
 	struct ixgbe_bp_data	bypass;

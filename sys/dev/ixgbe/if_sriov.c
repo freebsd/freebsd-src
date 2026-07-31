@@ -303,9 +303,15 @@ ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 static void
 ixgbe_process_vf_reset(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 {
+	bool rebuild_mta;
+
 	ixgbe_vf_set_default_vlan(sc, vf, vf->default_vlan);
 
-	// XXX clear multicast addresses
+	rebuild_mta = vf->num_mc_hashes != 0;
+	vf->num_mc_hashes = 0;
+	bzero(vf->mc_hash, sizeof(vf->mc_hash));
+	if (rebuild_mta)
+		ixgbe_iov_rebuild_mta(sc);
 
 	ixgbe_clear_rar(&sc->hw, vf->rar_index);
 	ixgbe_toggle_txdctl(&sc->hw, vf->pool);
@@ -431,30 +437,24 @@ ixgbe_vf_set_mc_addr(struct ixgbe_softc *sc, struct ixgbe_vf *vf, u32 *msg)
 {
 	u16	*list = (u16*)&msg[1];
 	int	entries;
-	u32	vmolr, vec_bit, vec_reg, mta_reg;
+	u32	vmolr;
 
 	entries = (msg[0] & IXGBE_VT_MSGINFO_MASK) >> IXGBE_VT_MSGINFO_SHIFT;
 	entries = min(entries, IXGBE_MAX_VF_MC);
 
 	vmolr = IXGBE_READ_REG(&sc->hw, IXGBE_VMOLR(vf->pool));
-
-	vf->num_mc_hashes = entries;
-
-	/* Set the appropriate MTA bit */
-	for (int i = 0; i < entries; i++) {
-		vf->mc_hash[i] = list[i];
-		vec_reg = (vf->mc_hash[i] >> 5) & 0x7F;
-		vec_bit = vf->mc_hash[i] & 0x1F;
-		mta_reg = IXGBE_READ_REG(&sc->hw, IXGBE_MTA(vec_reg));
-		mta_reg |= (1 << vec_bit);
-		IXGBE_WRITE_REG(&sc->hw, IXGBE_MTA(vec_reg), mta_reg);
-	}
-
-	if (entries == 0)
-		vmolr &= ~IXGBE_VMOLR_ROMPE;
-	else
-		vmolr |= IXGBE_VMOLR_ROMPE;
+	vmolr &= ~IXGBE_VMOLR_ROMPE;
 	IXGBE_WRITE_REG(&sc->hw, IXGBE_VMOLR(vf->pool), vmolr);
+
+	bzero(vf->mc_hash, sizeof(vf->mc_hash));
+	bcopy(list, vf->mc_hash, entries * sizeof(*list));
+	vf->num_mc_hashes = entries;
+	ixgbe_iov_rebuild_mta(sc);
+
+	if (entries != 0) {
+		vmolr |= IXGBE_VMOLR_ROMPE;
+		IXGBE_WRITE_REG(&sc->hw, IXGBE_VMOLR(vf->pool), vmolr);
+	}
 	ixgbe_send_vf_success(sc, vf, msg[0]);
 } /* ixgbe_vf_set_mc_addr */
 
@@ -759,9 +759,10 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 
 	IXGBE_WRITE_REG(hw, IXGBE_VT_CTL, 0);
 
+	sc->num_vfs = 0;
+	ixgbe_iov_rebuild_mta(sc);
 	free(sc->vfs, M_IXGBE_SRIOV);
 	sc->vfs = NULL;
-	sc->num_vfs = 0;
 	sc->feat_en &= ~IXGBE_FEATURE_SRIOV;
 } /* ixgbe_if_iov_uninit */
 
@@ -782,8 +783,8 @@ ixgbe_init_vf(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	IXGBE_WRITE_REG(hw, IXGBE_PFMBIMR(vf_index), pfmbimr);
 
 	ixgbe_vf_set_default_vlan(sc, vf, vf->vlan_tag);
-
-	// XXX multicast addresses
+	vf->num_mc_hashes = 0;
+	bzero(vf->mc_hash, sizeof(vf->mc_hash));
 
 	if (ixgbe_validate_mac_addr(vf->ether_addr) == 0) {
 		ixgbe_set_rar(&sc->hw, vf->rar_index,

@@ -3838,6 +3838,7 @@ ixgbe_if_init(if_ctx_t ctx)
 	hw->addr_ctrl.rar_used_count = 1;
 
 	ixgbe_init_hw(hw);
+	sc->iov_mta_valid = false;
 
 	ixgbe_initialize_iov(sc);
 
@@ -4190,6 +4191,67 @@ ixgbe_mc_filter_apply(void *arg, struct sockaddr_dl *sdl, u_int idx)
 	return (1);
 } /* ixgbe_mc_filter_apply */
 
+#ifdef PCI_IOV
+/*
+ * The MTA is shared by the PF and every VF.  Rebuild it from all owners
+ * because an individual bit cannot be cleared safely when hashes collide.
+ */
+u_int
+ixgbe_iov_rebuild_mta(struct ixgbe_softc *sc)
+{
+	struct ixgbe_hw *hw;
+	struct ixgbe_mc_addr *mta;
+	struct ixgbe_vf *vf;
+	u32 old_mta[IXGBE_MAX_MTA];
+	u32 hash;
+	u_int i, mcnt;
+	int vf_index;
+
+	hw = &sc->hw;
+	mta = sc->mta;
+	bzero(mta, sizeof(*mta) * MAX_NUM_MULTICAST_ADDRESSES);
+	mcnt = if_foreach_llmaddr(iflib_get_ifp(sc->ctx),
+	    ixgbe_mc_filter_apply, sc);
+
+	bcopy(hw->mac.mta_shadow, old_mta, sizeof(old_mta));
+	bzero(hw->mac.mta_shadow, sizeof(hw->mac.mta_shadow));
+	hw->addr_ctrl.num_mc_addrs = mcnt;
+	hw->addr_ctrl.mta_in_use = 0;
+
+	for (i = 0; i < mcnt; i++)
+		ixgbe_set_mta(hw, mta[i].addr);
+
+	for (vf_index = 0; vf_index < sc->num_vfs; vf_index++) {
+		vf = &sc->vfs[vf_index];
+		if (!(vf->flags & IXGBE_VF_ACTIVE))
+			continue;
+
+		for (i = 0; i < vf->num_mc_hashes; i++) {
+			hash = vf->mc_hash[i] & 0xfff;
+			hw->mac.mta_shadow[(hash >> 5) &
+			    (hw->mac.mcft_size - 1)] |=
+			    1U << (hash & 0x1f);
+			hw->addr_ctrl.mta_in_use++;
+		}
+	}
+
+	for (i = 0; i < hw->mac.mcft_size; i++) {
+		if (sc->iov_mta_valid &&
+		    old_mta[i] == hw->mac.mta_shadow[i])
+			continue;
+		IXGBE_WRITE_REG_ARRAY(hw, IXGBE_MTA(0), i,
+		    hw->mac.mta_shadow[i]);
+	}
+	sc->iov_mta_valid = true;
+
+	IXGBE_WRITE_REG(hw, IXGBE_MCSTCTRL,
+	    (hw->addr_ctrl.mta_in_use != 0 ? IXGBE_MCSTCTRL_MFE : 0) |
+	    hw->mac.mc_filter_type);
+
+	return (mcnt);
+}
+#endif
+
 static void
 ixgbe_if_multi_set(if_ctx_t ctx)
 {
@@ -4202,16 +4264,23 @@ ixgbe_if_multi_set(if_ctx_t ctx)
 
 	IOCTL_DEBUGOUT("ixgbe_if_multi_set: begin");
 
-	mta = sc->mta;
-	bzero(mta, sizeof(*mta) * MAX_NUM_MULTICAST_ADDRESSES);
+#ifdef PCI_IOV
+	if (sc->feat_en & IXGBE_FEATURE_SRIOV) {
+		mcnt = ixgbe_iov_rebuild_mta(sc);
+	} else
+#endif
+	{
+		mta = sc->mta;
+		bzero(mta, sizeof(*mta) * MAX_NUM_MULTICAST_ADDRESSES);
 
-	mcnt = if_foreach_llmaddr(iflib_get_ifp(ctx), ixgbe_mc_filter_apply,
-	    sc);
+		mcnt = if_foreach_llmaddr(iflib_get_ifp(ctx),
+		    ixgbe_mc_filter_apply, sc);
 
-	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES) {
-		update_ptr = (u8 *)mta;
-		ixgbe_update_mc_addr_list(&sc->hw, update_ptr, mcnt,
-		    ixgbe_mc_array_itr, true);
+		if (mcnt < MAX_NUM_MULTICAST_ADDRESSES) {
+			update_ptr = (u8 *)mta;
+			ixgbe_update_mc_addr_list(&sc->hw, update_ptr, mcnt,
+			    ixgbe_mc_array_itr, true);
+		}
 	}
 
 	fctrl = IXGBE_READ_REG(&sc->hw, IXGBE_FCTRL);
