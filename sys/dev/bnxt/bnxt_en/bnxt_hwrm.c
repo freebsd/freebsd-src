@@ -876,7 +876,7 @@ bnxt_hwrm_passthrough(struct bnxt_softc *softc, void *req, uint32_t req_len,
 		void *resp, uint32_t resp_len, uint32_t app_timeout)
 {
 	int rc = 0;
-	void *output = (void *)softc->hwrm_cmd_resp.idi_vaddr;
+	struct hwrm_err_output *output = (void *)softc->hwrm_cmd_resp.idi_vaddr;
 	struct input *input = req;
 	uint32_t old_timeo;
 
@@ -889,13 +889,24 @@ bnxt_hwrm_passthrough(struct bnxt_softc *softc, void *req, uint32_t req_len,
 		softc->hwrm_cmd_timeo = max(app_timeout, softc->hwrm_cmd_timeo);
 	rc = _hwrm_send_message(softc, req, req_len);
 	softc->hwrm_cmd_timeo = old_timeo;
+
+	/*
+	 * On ETIMEDOUT the shared resp buffer may still hold a stale, unrelated
+	 * response, so skip the copy; otherwise clamp to resp_len and PAGE_SIZE.
+	 */
+	if (rc != ETIMEDOUT) {
+		uint32_t copy_len = min(resp_len, output->resp_len);
+
+		copy_len = min(copy_len, PAGE_SIZE);
+		if (copy_len)
+			memcpy(resp, output, copy_len);
+	}
+
 	if (rc) {
 		device_printf(softc->dev, "%s: %s command failed with rc: 0x%x\n",
 			      __FUNCTION__, GET_HWRM_REQ_TYPE(input->req_type), rc);
 		goto fail;
 	}
-
-	memcpy(resp, output, resp_len);
 fail:
 	BNXT_HWRM_UNLOCK(softc);
 	return rc;
