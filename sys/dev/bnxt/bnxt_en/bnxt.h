@@ -50,6 +50,7 @@
 #include "bnxt_dcb.h"
 #include "bnxt_auxbus_compat.h"
 #include "bnxt_sriov.h"
+#include "bnxt_log.h"
 
 #define DFLT_HWRM_CMD_TIMEOUT		500
 
