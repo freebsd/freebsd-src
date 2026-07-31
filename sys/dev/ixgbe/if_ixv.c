@@ -110,6 +110,10 @@ static void     ixv_initialize_receive_units(if_ctx_t);
 static void     ixv_initialize_rss_mapping(struct ixgbe_softc *);
 
 static void     ixv_setup_vlan_support(if_ctx_t);
+static void     ixv_vlan_retry_add(struct ixgbe_softc *, u16);
+static void     ixv_vlan_retry_clear(struct ixgbe_softc *, u16);
+static bool     ixv_vlan_retry_pending(const struct ixgbe_softc *);
+static void     ixv_vlan_retry_tick(struct ixgbe_softc *);
 static void     ixv_configure_ivars(struct ixgbe_softc *);
 static void     ixv_if_enable_intr(if_ctx_t);
 static void     ixv_if_disable_intr(if_ctx_t);
@@ -207,6 +211,9 @@ TUNABLE_INT("hw.ixv.flow_control", &ixv_flow_control);
  */
 static int ixv_header_split = false;
 TUNABLE_INT("hw.ixv.hdr_split", &ixv_header_split);
+
+#define	IXV_VLAN_RETRY_BATCH	4
+#define	IXV_VLAN_RETRY_WINDOW	(8 * SBT_1S)
 
 extern struct if_txrx ixgbe_txrx;
 
@@ -978,8 +985,13 @@ ixv_mc_array_itr(struct ixgbe_hw *hw, u8 **update_ptr, u32 *vmdq)
 static void
 ixv_if_local_timer(if_ctx_t ctx, uint16_t qid)
 {
+	struct ixgbe_softc *sc;
+
 	if (qid != 0)
 		return;
+
+	sc = iflib_get_softc(ctx);
+	atomic_set_32(&sc->vf_vlan_retry_tick, 1);
 
 	/* Fire off the adminq task */
 	iflib_admin_intr_deferred(ctx);
@@ -997,6 +1009,7 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	device_t dev = iflib_get_dev(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	s32 status;
 
 	sc->hw.mac.get_link_status = true;
@@ -1007,7 +1020,7 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 	if (status != IXGBE_SUCCESS && sc->hw.adapter_stopped == false) {
 		/* Mailbox's Clear To Send status is lost or timeout occurred.
 		 * We need reinitialization. */
-		if_init(iflib_get_ifp(ctx), ctx);
+		if_init(ifp, ctx);
 	}
 
 	if (sc->link_up && sc->link_enabled) {
@@ -1028,6 +1041,11 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 			sc->link_active = false;
 		}
 	}
+
+	/* iflib clears RUNNING before stop; do not replay after VF reset. */
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0 &&
+	    atomic_readandclear_32(&sc->vf_vlan_retry_tick) != 0)
+		ixv_vlan_retry_tick(sc);
 
 	/* Stats Update */
 	ixv_update_stats(sc);
@@ -1303,7 +1321,8 @@ ixv_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
 {
 	switch (event) {
 	case IFLIB_RESTART_VLAN_CONFIG:
-		/* XXX: This may not need to return true */
+		/* The callbacks update the PF directly and queue failed work. */
+		return (false);
 	default:
 		return (true);
 	}
@@ -1592,7 +1611,113 @@ ixv_initialize_receive_units(if_ctx_t ctx)
 } /* ixv_initialize_receive_units */
 
 /************************************************************************
- * ixv_setup_vlan_support
+ * VF VLAN mailbox retry helpers
+ ************************************************************************/
+static void
+ixv_vlan_retry_add(struct ixgbe_softc *sc, u16 vid)
+{
+	bool pending;
+
+	pending = ixv_vlan_retry_pending(sc);
+	sc->vf_vfta_retry[vid >> 5] |= 1U << (vid & 0x1f);
+	/* Start a bounded no-progress window when work becomes pending. */
+	if (!pending || sc->vf_vlan_retry_deadline == 0)
+		sc->vf_vlan_retry_deadline =
+		    getsbinuptime() + IXV_VLAN_RETRY_WINDOW;
+}
+
+static void
+ixv_vlan_retry_clear(struct ixgbe_softc *sc, u16 vid)
+{
+	u32 bit;
+	bool pending;
+
+	bit = 1U << (vid & 0x1f);
+	pending = (sc->vf_vfta_retry[vid >> 5] & bit) != 0;
+	sc->vf_vfta_retry[vid >> 5] &= ~bit;
+	if (!pending) {
+		/* A successful mailbox operation proves the PF is responsive. */
+		if (sc->vf_vlan_retry_deadline == 0 &&
+		    ixv_vlan_retry_pending(sc))
+			sc->vf_vlan_retry_deadline =
+			    getsbinuptime() + IXV_VLAN_RETRY_WINDOW;
+		return;
+	}
+	if (ixv_vlan_retry_pending(sc))
+		sc->vf_vlan_retry_deadline =
+		    getsbinuptime() + IXV_VLAN_RETRY_WINDOW;
+	else
+		sc->vf_vlan_retry_deadline = 0;
+}
+
+static bool
+ixv_vlan_retry_pending(const struct ixgbe_softc *sc)
+{
+	int i;
+
+	for (i = 0; i < IXGBE_VFTA_SIZE; i++)
+		if (sc->vf_vfta_retry[i] != 0)
+			return (true);
+	return (false);
+}
+
+static void
+ixv_vlan_retry_tick(struct ixgbe_softc *sc)
+{
+	struct ixgbe_hw *hw;
+	bool enable;
+	s32 error;
+	u32 bit;
+	u16 vid;
+	int attempts, i, remaining;
+
+	if (!ixv_vlan_retry_pending(sc)) {
+		sc->vf_vlan_retry_deadline = 0;
+		return;
+	}
+	/*
+	 * Exhausted entries remain dormant until reset, a VLAN callback, or
+	 * another successful VLAN mailbox request.
+	 */
+	if (sc->vf_vlan_retry_deadline == 0)
+		return;
+	if (getsbinuptime() >= sc->vf_vlan_retry_deadline) {
+		remaining = 0;
+		for (i = 0; i < IXGBE_VFTA_SIZE; i++)
+			remaining += bitcount32(sc->vf_vfta_retry[i]);
+		sc->vf_vlan_retry_deadline = 0;
+		device_printf(sc->dev,
+		    "VF VLAN retries exhausted for %d VIDs\n", remaining);
+		return;
+	}
+
+	/*
+	 * A mailbox NACK does not distinguish transient PF unavailability
+	 * from a permanent policy rejection or VLVF exhaustion.  Reconcile a
+	 * bounded batch per timer tick so none of those cases creates a busy
+	 * mailbox poller.  Stop after the first failure so a silent PF can
+	 * consume at most one mailbox timeout per pass, while a responsive PF
+	 * can drain several successful requests.
+	 */
+	hw = &sc->hw;
+	for (attempts = 0, i = 0;
+	    attempts < IXV_VLAN_RETRY_BATCH && i < 4096; i++) {
+		vid = sc->vf_vlan_retry_cursor;
+		sc->vf_vlan_retry_cursor = (vid + 1) & 0xfff;
+		bit = 1U << (vid & 0x1f);
+		if ((sc->vf_vfta_retry[vid >> 5] & bit) == 0)
+			continue;
+		attempts++;
+		enable = (sc->shadow_vfta[vid >> 5] & bit) != 0;
+		error = hw->mac.ops.set_vfta(hw, vid, 0, enable, false);
+		if (error != IXGBE_SUCCESS)
+			break;
+		ixv_vlan_retry_clear(sc, vid);
+	}
+}
+
+/************************************************************************
+ * ixv_setup_vlan_support - Configure and restore VLAN support
  ************************************************************************/
 static void
 ixv_setup_vlan_support(if_ctx_t ctx)
@@ -1600,83 +1725,97 @@ ixv_setup_vlan_support(if_ctx_t ctx)
 	if_t ifp = iflib_get_ifp(ctx);
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
-	u32 ctrl, vid, vfta, retry;
+	s32 error;
+	u32 ctrl, vfta;
+	u16 vid;
+	int restore_failures;
 
-	/*
-	 * We get here thru if_init, meaning
-	 * a soft reset, this has already cleared
-	 * the VFTA and other state, so if there
-	 * have been no vlan's registered do nothing.
-	 */
-	if (sc->num_vlans == 0)
-		return;
-
-	if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) {
-		/* Enable the queues */
-		for (int i = 0; i < sc->num_rx_queues; i++) {
-			ctrl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(i));
+	for (int i = 0; i < sc->num_rx_queues; i++) {
+		ctrl = IXGBE_READ_REG(hw, IXGBE_VFRXDCTL(i));
+		if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) {
 			ctrl |= IXGBE_RXDCTL_VME;
-			IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(i), ctrl);
-			/*
-			 * Let Rx path know that it needs to store VLAN tag
-			 * as part of extra mbuf info.
-			 */
 			sc->rx_queues[i].rxr.vtag_strip = true;
+		} else {
+			ctrl &= ~IXGBE_RXDCTL_VME;
+			sc->rx_queues[i].rxr.vtag_strip = false;
 		}
+		IXGBE_WRITE_REG(hw, IXGBE_VFRXDCTL(i), ctrl);
 	}
 
 	/*
-	 * If filtering VLAN tags is disabled,
-	 * there is no need to fill VLAN Filter Table Array (VFTA).
+	 * The PF controls the pool membership independently of the VF's local
+	 * HWFILTER capability.  A reset removes those memberships, so replay
+	 * every registered VLAN through the mailbox.
+	 *
+	 * Keep failed removal requests pending as well.  They are harmless and
+	 * idempotent after a successful reset, and still needed if the reset
+	 * handshake did not reach the PF.
 	 */
-	if ((if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER) == 0)
-		return;
-
-	/*
-	 * A soft reset zero's out the VFTA, so
-	 * we need to repopulate it now.
-	 */
+	sc->vf_vlan_retry_deadline = 0;
+	sc->vf_vlan_retry_cursor = 0;
+	restore_failures = 0;
 	for (int i = 0; i < IXGBE_VFTA_SIZE; i++) {
 		if (sc->shadow_vfta[i] == 0)
 			continue;
 		vfta = sc->shadow_vfta[i];
-		/*
-		 * Reconstruct the vlan id's
-		 * based on the bits set in each
-		 * of the array ints.
-		 */
 		for (int j = 0; j < 32; j++) {
-			retry = 0;
-			if ((vfta & (1 << j)) == 0)
+			if ((vfta & (1U << j)) == 0)
 				continue;
 			vid = (i * 32) + j;
-			/* Call the shared code mailbox routine */
-			while (hw->mac.ops.set_vfta(hw, vid, 0, true, false)) {
-				if (++retry > 5)
-					break;
-			}
+			/* One timeout is enough to declare this replay deferred. */
+			if (restore_failures == 0)
+				error = hw->mac.ops.set_vfta(hw, vid, 0, true,
+				    false);
+			else
+				error = IXGBE_ERR_MBX;
+			if (error != IXGBE_SUCCESS) {
+				ixv_vlan_retry_add(sc, vid);
+				restore_failures++;
+			} else
+				ixv_vlan_retry_clear(sc, vid);
 		}
 	}
+	if (ixv_vlan_retry_pending(sc))
+		sc->vf_vlan_retry_deadline =
+		    getsbinuptime() + IXV_VLAN_RETRY_WINDOW;
+	if (restore_failures != 0)
+		device_printf(sc->dev,
+		    "VF VLAN restore failed for %d VIDs; retrying\n",
+		    restore_failures);
 } /* ixv_setup_vlan_support */
 
 /************************************************************************
  * ixv_if_register_vlan
  *
  *   Run via a vlan config EVENT, it enables us to use the
- *   HW Filter table since we can get the vlan id. This just
- *   creates the entry in the soft version of the VFTA, init
- *   will repopulate the real table.
+ *   HW Filter table since we can get the vlan id.
  ************************************************************************/
 static void
 ixv_if_register_vlan(if_ctx_t ctx, u16 vtag)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	u16 index, bit;
+	bool pending, present;
+	u32 index, mask;
+	s32 error;
 
 	index = (vtag >> 5) & 0x7F;
-	bit = vtag & 0x1F;
-	sc->shadow_vfta[index] |= (1 << bit);
-	++sc->num_vlans;
+	mask = 1U << (vtag & 0x1F);
+	present = (sc->shadow_vfta[index] & mask) != 0;
+	pending = (sc->vf_vfta_retry[index] & mask) != 0;
+	sc->shadow_vfta[index] |= mask;
+	if (!present)
+		++sc->num_vlans;
+	if (present && !pending)
+		return;
+
+	error = sc->hw.mac.ops.set_vfta(&sc->hw, vtag, 0, true, false);
+	if (error != IXGBE_SUCCESS) {
+		ixv_vlan_retry_add(sc, vtag);
+		if (!pending)
+			device_printf(sc->dev,
+			    "VF VLAN %u add request failed; retrying\n", vtag);
+	} else
+		ixv_vlan_retry_clear(sc, vtag);
 } /* ixv_if_register_vlan */
 
 /************************************************************************
@@ -1689,12 +1828,29 @@ static void
 ixv_if_unregister_vlan(if_ctx_t ctx, u16 vtag)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	u16 index, bit;
+	bool pending, present;
+	u32 index, mask;
+	s32 error;
 
 	index = (vtag >> 5) & 0x7F;
-	bit = vtag & 0x1F;
-	sc->shadow_vfta[index] &= ~(1 << bit);
-	--sc->num_vlans;
+	mask = 1U << (vtag & 0x1F);
+	present = (sc->shadow_vfta[index] & mask) != 0;
+	pending = (sc->vf_vfta_retry[index] & mask) != 0;
+	sc->shadow_vfta[index] &= ~mask;
+	if (present)
+		--sc->num_vlans;
+	if (!present && !pending)
+		return;
+
+	error = sc->hw.mac.ops.set_vfta(&sc->hw, vtag, 0, false, false);
+	if (error != IXGBE_SUCCESS) {
+		ixv_vlan_retry_add(sc, vtag);
+		if (!pending)
+			device_printf(sc->dev,
+			    "VF VLAN %u remove request failed; "
+			    "retrying\n", vtag);
+	} else
+		ixv_vlan_retry_clear(sc, vtag);
 } /* ixv_if_unregister_vlan */
 
 /************************************************************************
