@@ -1110,6 +1110,14 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 				error = ENOEXEC;
 				goto out;
 			}
+
+			if (phdr->p_memsz < phdr->p_filesz) {
+				link_elf_error(filename,
+				    "Invalid program header");
+				error = ENOEXEC;
+				goto out;
+			}
+
 			/*
 			 * XXX: We just trust they come in right order ??
 			 */
