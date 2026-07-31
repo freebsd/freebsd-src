@@ -623,7 +623,14 @@ static int json_events(const char *fn,
 			} else if (json_streq(map, field, "EnAllCores")) {
 				addfield(map, &allcores, "", "allcores=", val);
 			} else if (json_streq(map, field, "EnAllSlices")) {
-				addfield(map, &allslices, "", "allslices=", val);
+				/*
+				 * We use the AMD PPR Family 1Ah Model 70h
+				 * naming scheme of allsources rather than
+				 * slices.  The symbol EnAllSlices is not used
+				 * anywhere except in Zen 4+ for the L3
+				 * counters.
+				 */
+				addfield(map, &allslices, "", "allsources=", val);
 			} else if (json_streq(map, field, "SliceId")) {
 				/*
 				 * We use sourceid because there's a
