@@ -1195,6 +1195,12 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
       break;
 
     case TY_ENDDISC:
+      if (opt->hdr.len < 3) {
+        log_Printf(LogLCP, "%s - too short\n", request);
+        fsm_rej(dec, opt);
+        lcp->my_reject |= (1 << opt->hdr.id);
+        break;
+      }
       mp = &lcp->fsm.bundle->ncp.mp;
       log_Printf(LogLCP, "%s %s\n", request,
                  mp_Enddisc(opt->data[0], opt->data + 1, opt->hdr.len - 3));
