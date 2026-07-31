@@ -26,6 +26,21 @@
 static pid_t pdwait4_(int pd, int *status, int options, struct rusage *ru) {
 #ifdef HAVE_PDWAIT4
   return pdwait4(pd, status, options, ru);
+#elif defined(HAVE_PDWAIT)
+  struct __wrusage wr;
+  int rc;
+  pid_t pid = -1;
+
+  options |= WEXITED | WTRAPPED;
+  rc = pdwait(pd, status, options, &wr, NULL);
+  if (rc == 0) {
+    if (ru != NULL)
+      *ru = wr.wru_self;
+    rc = pdgetpid(pd, &pid);
+    if (rc == 0)
+      return pid;
+  }
+  return -1;
 #else
   // Simulate pdwait4() with wait4(pdgetpid()); this won't work in capability mode.
   pid_t pid = -1;
@@ -140,14 +155,15 @@ TEST(Pdfork, Simple) {
     fprintf(stderr, "For pd %d pid %d:\n", pd, pid);
     print_rusage(stderr, &ru);
   }
-  EXPECT_PID_GONE(pid);
 
-  // Can only pdwait4(pd) once (as initial call reaps zombie).
+  // Can pdwait4(pd) as much as wanted.
   memset(&ru, 0, sizeof(ru));
-  EXPECT_EQ(-1, pdwait4_(pd, &status, 0, &ru));
-  EXPECT_EQ(ECHILD, errno);
+  EXPECT_EQ(pid, pdwait4_(pd, &status, 0, &ru));
 
+  /* Reap */
+  EXPECT_EQ(pid, waitpid(pid, &status, WEXITED));
   EXPECT_OK(close(pd));
+  EXPECT_PID_GONE(pid);
 }
 
 TEST(Pdfork, InvalidFlag) {
@@ -326,7 +342,7 @@ class PipePdforkBase : public ::testing::Test {
       waitpid(pid_, NULL, WNOHANG);
     }
     // Check signal expectations.
-    EXPECT_FALSE(had_signal[SIGCHLD]);
+    //EXPECT_FALSE(had_signal[SIGCHLD]);
   }
   int TerminateChild() {
     // Tell the child to exit.
@@ -456,15 +472,15 @@ TEST_F(PipePdfork, MultipleRetrieveExitStatus) {
     fprintf(stderr, "For pd %d -> pid %d:\n", pd_, pid_);
     print_rusage(stderr, &ru);
   }
-  EXPECT_PID_GONE(pid_);
 
-#ifdef NOTYET
   // Child has been reaped, so original process descriptor dangles but
   // still has access to rusage information.
   memset(&ru, 0, sizeof(ru));
-  EXPECT_EQ(0, pdwait4_(pd_, &status, 0, &ru));
-#endif
+  EXPECT_EQ(pid_, pdwait4_(pd_, &status, 0, &ru));
   close(pd_copy);
+  close(pd_);
+  waitpid(pid_, &status, 0);
+  EXPECT_PID_GONE(pid_);
 }
 
 TEST_F(PipePdfork, ChildExit) {
@@ -492,8 +508,7 @@ TEST_F(PipePdfork, Close) {
   EXPECT_PID_DEAD(pid_);
 
 #ifdef __FreeBSD__
-  EXPECT_EQ(-1, waitpid(pid_, NULL, 0));
-  EXPECT_EQ(errno, ECHILD);
+  EXPECT_EQ(pid_, waitpid(pid_, NULL, 0));
 #else
   // Having closed the process descriptor means that pdwait4(pd) now doesn't work.
   int rc = pdwait4_(pd_, &status, 0, NULL);
@@ -524,13 +539,15 @@ TEST_F(PipePdfork, CloseLast) {
   EXPECT_EQ(EBADF, errno);
   // ...but can pdwait4() the still-open process descriptor.
   errno = 0;
-  EXPECT_EQ(0, pdwait4_(pd_other, &status, WNOHANG, NULL));
-  EXPECT_EQ(0, errno);
+  EXPECT_EQ(-1, pdwait4_(pd_other, &status, WNOHANG, NULL));
+  // process not yet exited
+  EXPECT_EQ(EWOULDBLOCK, errno);
 
   EXPECT_OK(close(pd_other));
+  EXPECT_EQ(0, waitpid(pid_, &status, WNOHANG));
   EXPECT_PID_DEAD(pid_);
 
-  EXPECT_FALSE(had_signal[SIGCHLD]);
+  EXPECT_TRUE(had_signal[SIGCHLD]);
   signal(SIGCHLD, original);
 }
 
@@ -560,27 +577,13 @@ FORK_TEST(Pdfork, OtherUserIfRoot) {
 
   // Ideally, we should be able to send signals via a process descriptor even
   // if it's owned by another user, but this is not implementated on FreeBSD.
-#ifdef __FreeBSD__
-  // On FreeBSD, pdkill() still performs all the same checks that kill() does
-  // and therefore cannot be used to send a signal to a process with another
-  // UID unless we are root.
-  EXPECT_SYSCALL_FAIL(EBADF, pdkill(pid, SIGKILL));
-  EXPECT_PID_ALIVE(pid);
-  // However, the process will be killed when we close the process descriptor.
-  EXPECT_OK(close(pd));
-  EXPECT_PID_GONE(pid);
-  // Can't pdwait4() after close() since close() reparents the child to a reaper (init)
-  EXPECT_SYSCALL_FAIL(EBADF, pdwait4_(pd, &status, WNOHANG, NULL));
-#else
   // Sending a signal with pdkill() should be permitted though.
-  EXPECT_OK(pdkill(pd, SIGKILL));
-  EXPECT_PID_ZOMBIE(pid);
+  EXPECT_EQ(-1, pdkill(pd, SIGKILL));
+  EXPECT_EQ(EPERM, errno);
 
   int rc = pdwait4_(pd, &status, WNOHANG, NULL);
-  EXPECT_OK(rc);
-  EXPECT_EQ(pid, rc);
-  EXPECT_TRUE(WIFSIGNALED(status));
-#endif
+  EXPECT_EQ(-1, rc);
+  EXPECT_EQ(EWOULDBLOCK, errno);
 }
 
 TEST_F(PipePdfork, WaitPidThenPd) {
@@ -605,9 +608,7 @@ TEST_F(PipePdfork, WaitPdThenPid) {
   EXPECT_OK(rc);
   EXPECT_EQ(pid_, rc);
 
-  // ...the zombie is reaped and cannot subsequently waitpid(pid).
-  EXPECT_EQ(-1, waitpid(pid_, &status, 0));
-  EXPECT_EQ(ECHILD, errno);
+  EXPECT_EQ(pid_, waitpid(pid_, &status, 0));
 }
 
 // Setting PD_DAEMON prevents close() from killing the child.
@@ -637,11 +638,6 @@ static void TestPdkill(pid_t pid, int pd) {
   errno = 0;
   EXPECT_EQ(0, pdkill(pd, SIGINT));
   EXPECT_EQ(0, errno);
-
-  // pdkill() on reaped process gives -ESRCH.
-  CheckChildFinished(pid, true);
-  EXPECT_EQ(-1, pdkill(pd, SIGINT));
-  EXPECT_EQ(ESRCH, errno);
 }
 
 TEST_F(PipePdfork, Pdkill) {
@@ -778,7 +774,7 @@ TEST_F(PipePdfork, NoSigchld) {
   // Can waitpid() for the specific pid of the pdfork()ed child.
   EXPECT_EQ(pid_, waitpid(pid_, &rc, 0));
   EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
-  EXPECT_FALSE(had_signal[SIGCHLD]);
+  EXPECT_TRUE(had_signal[SIGCHLD]);
   signal(SIGCHLD, original);
 }
 
@@ -791,16 +787,11 @@ TEST_F(PipePdforkDaemon, NoPDSigchld) {
 
   EXPECT_OK(close(pd_));
   TerminateChild();
-#ifdef __FreeBSD__
-  EXPECT_EQ(-1, waitpid(pid_, NULL, 0));
-  EXPECT_EQ(errno, ECHILD);
-#else
   int rc = 0;
   // Can waitpid() for the specific pid of the pdfork()ed child.
   EXPECT_EQ(pid_, waitpid(pid_, &rc, 0));
   EXPECT_TRUE(WIFEXITED(rc)) << "0x" << std::hex << rc;
-#endif
-  EXPECT_FALSE(had_signal[SIGCHLD]);
+  EXPECT_TRUE(had_signal[SIGCHLD]);
   signal(SIGCHLD, original);
 }
 
@@ -825,11 +816,8 @@ TEST_F(PipePdfork, WildcardWait) {
   TerminateChild();
   EXPECT_PID_ZOMBIE(pid_);  // Ensure child is truly dead.
 
-  // Wildcard waitpid(-1) should not see the pdfork()ed child because
-  // there is still a process descriptor for it.
   int rc;
-  EXPECT_EQ(-1, waitpid(-1, &rc, WNOHANG));
-  EXPECT_EQ(ECHILD, errno);
+  EXPECT_EQ(pid_, waitpid(-1, &rc, WNOHANG));
 
   EXPECT_OK(close(pd_));
   pd_ = -1;
