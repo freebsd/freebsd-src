@@ -4260,6 +4260,10 @@ bnxt_update_admin_status(if_ctx_t ctx)
 	return;
 }
 
+/* Poll interval for bnxt_update_admin_status(); not sysctl-tunable, unlike
+ * other driver intervals. */
+#define BNXT_ADMIN_POLL_TICKS (hz / 4)		/* 250ms */
+
 static void
 bnxt_if_timer(if_ctx_t ctx, uint16_t qid)
 {
@@ -4267,8 +4271,7 @@ bnxt_if_timer(if_ctx_t ctx, uint16_t qid)
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 	uint64_t ticks_now = ticks;
 
-        /* Schedule bnxt_update_admin_status() once per sec */
-	if (ticks_now - softc->admin_ticks >= hz) {
+	if (ticks_now - softc->admin_ticks >= BNXT_ADMIN_POLL_TICKS) {
 		softc->admin_ticks = ticks_now;
 		iflib_admin_intr_deferred(ctx);
 	}
