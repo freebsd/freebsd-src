@@ -167,6 +167,31 @@ ixgbe_vf_mac_changed(struct ixgbe_vf *vf, const uint8_t *mac)
 	return (bcmp(mac, vf->ether_addr, ETHER_ADDR_LEN) != 0);
 }
 
+static bool
+ixgbe_rar_mac_in_use(struct ixgbe_softc *sc, const uint8_t *mac,
+    int excluded_rar)
+{
+	struct ixgbe_hw *hw;
+	uint32_t addr_high, addr_low, rah;
+	int i;
+
+	hw = &sc->hw;
+	addr_low = (uint32_t)mac[0] | ((uint32_t)mac[1] << 8) |
+	    ((uint32_t)mac[2] << 16) | ((uint32_t)mac[3] << 24);
+	addr_high = (uint32_t)mac[4] | ((uint32_t)mac[5] << 8);
+	for (i = 0; i < hw->mac.num_rar_entries; i++) {
+		if (i == excluded_rar)
+			continue;
+		rah = IXGBE_READ_REG(hw, IXGBE_RAH(i));
+		if ((rah & IXGBE_RAH_AV) != 0 &&
+		    (rah & 0xffff) == addr_high &&
+		    IXGBE_READ_REG(hw, IXGBE_RAL(i)) == addr_low)
+			return (true);
+	}
+	return (ixgbe_validate_mac_addr(hw->mac.san_addr) == IXGBE_SUCCESS &&
+	    bcmp(hw->mac.san_addr, mac, ETHER_ADDR_LEN) == 0);
+}
+
 static inline int
 ixgbe_vf_queues(int mode)
 {
@@ -437,6 +462,25 @@ ixgbe_vf_reset_vlan(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
 	return (error);
 }
 
+static void
+ixgbe_vf_clear_mac_filters(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    bool clear_hw)
+{
+	struct ixgbe_vf_mac_filter *filter;
+	int i;
+
+	for (i = 0; i < sc->num_vf_mac_filters; i++) {
+		filter = &sc->vf_mac_filters[i];
+		if (!filter->active || filter->pool != vf->pool)
+			continue;
+		if (clear_hw)
+			(void)ixgbe_clear_rar(&sc->hw, filter->rar_index);
+		filter->active = false;
+		bzero(filter->mac, sizeof(filter->mac));
+	}
+	vf->num_mac_filters = 0;
+}
+
 static boolean_t
 ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 {
@@ -501,6 +545,7 @@ ixgbe_process_vf_reset(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	if (rebuild_mta)
 		ixgbe_iov_rebuild_mta(sc);
 
+	ixgbe_vf_clear_mac_filters(sc, vf, true);
 	ixgbe_clear_rar(&sc->hw, vf->rar_index);
 	ixgbe_vf_set_anti_spoof(sc, vf);
 	ixgbe_toggle_txdctl(&sc->hw, vf->pool);
@@ -604,6 +649,11 @@ ixgbe_vf_set_mac(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 	}
 
 	if (ixgbe_validate_mac_addr(mac) != 0) {
+		ixgbe_send_vf_failure(sc, vf, msg[0]);
+		return;
+	}
+	if (ixgbe_vf_mac_changed(vf, mac) &&
+	    ixgbe_rar_mac_in_use(sc, mac, vf->rar_index)) {
 		ixgbe_send_vf_failure(sc, vf, msg[0]);
 		return;
 	}
@@ -732,7 +782,73 @@ static void
 ixgbe_vf_set_macvlan(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
     uint32_t *msg)
 {
-	//XXX implement this
+	struct ixgbe_vf_mac_filter *filter, *free_filter;
+	struct ixgbe_hw *hw;
+	uint8_t *mac;
+	int i, index;
+
+	hw = &sc->hw;
+	index = IXGBE_VT_MSGINFO(msg[0]);
+	if (index == 0) {
+		ixgbe_vf_clear_mac_filters(sc, vf, true);
+		ixgbe_vf_set_anti_spoof(sc, vf);
+		ixgbe_send_vf_success(sc, vf, msg[0]);
+		return;
+	}
+	if (!(vf->flags & IXGBE_VF_CAP_MAC))
+		goto failure;
+	/* This hardware can anti-spoof only the VF's primary source MAC. */
+	if ((vf->flags & IXGBE_VF_ANTI_SPOOF) != 0)
+		goto failure;
+
+	mac = (uint8_t *)&msg[1];
+	if (ixgbe_validate_mac_addr(mac) != IXGBE_SUCCESS)
+		goto failure;
+	if (index == 1)
+		ixgbe_vf_clear_mac_filters(sc, vf, true);
+	if (bcmp(mac, vf->ether_addr, ETHER_ADDR_LEN) == 0) {
+		ixgbe_vf_set_anti_spoof(sc, vf);
+		ixgbe_send_vf_success(sc, vf, msg[0]);
+		return;
+	}
+
+	free_filter = NULL;
+	for (i = 0; i < sc->num_vf_mac_filters; i++) {
+		filter = &sc->vf_mac_filters[i];
+		if (!filter->active) {
+			if (free_filter == NULL)
+				free_filter = filter;
+			continue;
+		}
+		if (bcmp(filter->mac, mac, ETHER_ADDR_LEN) != 0)
+			continue;
+		if (filter->pool != vf->pool)
+			goto failure;
+		ixgbe_send_vf_success(sc, vf, msg[0]);
+		return;
+	}
+	if (vf->num_mac_filters >= IXGBE_MAX_VF_MAC_FILTERS ||
+	    free_filter == NULL)
+		goto failure;
+
+	/* Reject collisions with PF, VF-primary, or other reserved RARs. */
+	if (ixgbe_rar_mac_in_use(sc, mac, -1))
+		goto failure;
+
+	if (ixgbe_set_rar(hw, free_filter->rar_index, mac, vf->pool,
+	    true) != IXGBE_SUCCESS)
+		goto failure;
+	free_filter->active = true;
+	free_filter->pool = vf->pool;
+	bcopy(mac, free_filter->mac, ETHER_ADDR_LEN);
+	vf->num_mac_filters++;
+	/* MAC anti-spoofing accepts only the primary address on this family. */
+	ixgbe_vf_set_anti_spoof(sc, vf);
+	ixgbe_send_vf_success(sc, vf, msg[0]);
+	return;
+
+failure:
+	ixgbe_vf_set_anti_spoof(sc, vf);
 	ixgbe_send_vf_failure(sc, vf, msg[0]);
 } /* ixgbe_vf_set_macvlan */
 
@@ -924,7 +1040,7 @@ int
 ixgbe_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
 {
 	struct ixgbe_softc *sc;
-	int retval = 0;
+	int i, num_filters, retval = 0;
 
 	sc = iflib_get_softc(ctx);
 	sc->iov_mode = IXGBE_NO_VM;
@@ -960,6 +1076,22 @@ ixgbe_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
 	if (sc->vfs == NULL) {
 		retval = ENOMEM;
 		goto err_init_iov;
+	}
+	num_filters = sc->hw.mac.num_rar_entries - num_vfs - 1 -
+	    IXGBE_MAX_PF_MAC_FILTERS;
+	if (num_filters > 0) {
+		sc->vf_mac_filters = mallocarray(num_filters,
+		    sizeof(*sc->vf_mac_filters), M_IXGBE_SRIOV,
+		    M_NOWAIT | M_ZERO);
+		if (sc->vf_mac_filters != NULL) {
+			sc->num_vf_mac_filters = num_filters;
+			for (i = 0; i < num_filters; i++)
+				sc->vf_mac_filters[i].rar_index =
+				    IXGBE_MAX_PF_MAC_FILTERS + 1 + i;
+		} else
+			device_printf(sc->dev,
+			    "could not allocate VF secondary MAC filters; "
+			    "SET_MACVLAN will be unavailable\n");
 	}
 
 	sc->num_vfs = num_vfs;
@@ -1004,6 +1136,7 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 	for (i = 0; i < sc->num_vfs; i++) {
 		if (!(sc->vfs[i].flags & IXGBE_VF_ACTIVE))
 			continue;
+		ixgbe_vf_clear_mac_filters(sc, &sc->vfs[i], true);
 		sc->vfs[i].flags &= ~IXGBE_VF_ANTI_SPOOF;
 		ixgbe_vf_set_anti_spoof(sc, &sc->vfs[i]);
 	}
@@ -1016,6 +1149,9 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 
 	sc->num_vfs = 0;
 	ixgbe_iov_rebuild_mta(sc);
+	free(sc->vf_mac_filters, M_IXGBE_SRIOV);
+	sc->vf_mac_filters = NULL;
+	sc->num_vf_mac_filters = 0;
 	free(sc->vfs, M_IXGBE_SRIOV);
 	sc->vfs = NULL;
 	sc->feat_en &= ~IXGBE_FEATURE_SRIOV;
@@ -1046,6 +1182,7 @@ ixgbe_init_vf(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	vf->api_ver = IXGBE_API_VER_UNKNOWN;
 	vf->num_mc_hashes = 0;
 	bzero(vf->mc_hash, sizeof(vf->mc_hash));
+	ixgbe_vf_clear_mac_filters(sc, vf, false);
 	error = ixgbe_vf_reset_vlan(sc, vf, false);
 	if (error != IXGBE_SUCCESS)
 		return (error);
@@ -1145,6 +1282,7 @@ ixgbe_if_iov_vf_add(if_ctx_t ctx, u16 vfnum, const nvlist_t *config)
 	struct ixgbe_softc *sc;
 	struct ixgbe_vf *vf;
 	const void *mac;
+	uint8_t mac_addr[ETHER_ADDR_LEN];
 	uint64_t configured_vlan;
 	uint16_t vlan;
 	s32 error;
@@ -1157,6 +1295,7 @@ ixgbe_if_iov_vf_add(if_ctx_t ctx, u16 vfnum, const nvlist_t *config)
 	vf = &sc->vfs[vfnum];
 	if (vf->flags & IXGBE_VF_ACTIVE)
 		return (EBUSY);
+	bzero(vf, sizeof(*vf));
 
 	configured_vlan = nvlist_get_number(config, "vlan");
 	if (configured_vlan > VF_VLAN_TRUNK)
@@ -1169,8 +1308,8 @@ ixgbe_if_iov_vf_add(if_ctx_t ctx, u16 vfnum, const nvlist_t *config)
 
 	vf->pool = vfnum;
 
-	/* RAR[0] is used by the PF so use vfnum + 1 for VF RAR. */
-	vf->rar_index = vfnum + 1;
+	/* Allocate VF-primary RARs from the top, away from PF filters. */
+	vf->rar_index = sc->hw.mac.num_rar_entries - (vfnum + 1);
 	vf->default_vlan = vlan;
 	vf->maximum_frame_size = ETHER_MAX_LEN;
 	ixgbe_update_max_frame(sc, vf->maximum_frame_size);
@@ -1181,7 +1320,12 @@ ixgbe_if_iov_vf_add(if_ctx_t ctx, u16 vfnum, const nvlist_t *config)
 
 	if (nvlist_exists_binary(config, "mac-addr")) {
 		mac = nvlist_get_binary(config, "mac-addr", NULL);
-		bcopy(mac, vf->ether_addr, ETHER_ADDR_LEN);
+		bcopy(mac, mac_addr, sizeof(mac_addr));
+		if (ixgbe_validate_mac_addr(mac_addr) != IXGBE_SUCCESS)
+			return (EINVAL);
+		if (ixgbe_rar_mac_in_use(sc, mac_addr, vf->rar_index))
+			return (EADDRINUSE);
+		bcopy(mac_addr, vf->ether_addr, ETHER_ADDR_LEN);
 		if (nvlist_get_bool(config, "allow-set-mac"))
 			vf->flags |= IXGBE_VF_CAP_MAC;
 	} else
