@@ -108,6 +108,9 @@ void *__xa_store(struct xarray *, uint32_t, void *, gfp_t);
 bool __xa_empty(struct xarray *);
 void *__xa_next(struct xarray *, unsigned long *, bool);
 
+#define	xa_insert_irq(xa, index, ptr, gfp) \
+	xa_insert((xa), (index), (ptr), (gfp))
+
 #define	xa_store_irq(xa, index, ptr, gfp) \
 	xa_store((xa), (index), (ptr), (gfp))
 
