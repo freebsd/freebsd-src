@@ -226,7 +226,8 @@ rtmsg_nl_int(struct nl_helper *h, int cmd, int rtm_flags, int fib, int rtm_addrs
 		rtm->rtm_flags = RTM_F_PREFIX;
 
 	snl_add_msg_attr_ip(&nw, RTA_DST, dst);
-	snl_add_msg_attr_ip(&nw, RTA_PREFSRC, prefsrc);
+	if (prefsrc != NULL)
+		snl_add_msg_attr_ip(&nw, RTA_PREFSRC, prefsrc);
 	snl_add_msg_attr_u32(&nw, RTA_TABLE, fib);
 
 	uint32_t rta_oif = 0;
