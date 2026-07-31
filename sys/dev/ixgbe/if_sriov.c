@@ -43,6 +43,8 @@ MALLOC_DEFINE(M_IXGBE_SRIOV, "ix_sriov", "ix SR-IOV allocations");
 
 #define IXGBE_VF_MBX_CLEANUP_GRACE	(2 * SBT_1S)
 
+static const struct timeval ixgbe_mdd_log_interval = { 2, 0 };
+
 /************************************************************************
  * ixgbe_define_iov_schemas
  ************************************************************************/
@@ -264,7 +266,9 @@ ixgbe_ping_all_vfs(struct ixgbe_softc *sc)
 
 	for (int i = 0; i < sc->num_vfs; i++) {
 		vf = &sc->vfs[i];
-		if (vf->flags & IXGBE_VF_ACTIVE)
+		if ((vf->flags &
+		    (IXGBE_VF_ACTIVE | IXGBE_VF_TRAFFIC_DISABLED)) ==
+		    IXGBE_VF_ACTIVE)
 			ixgbe_send_vf_msg(&sc->hw, vf, IXGBE_PF_CONTROL_MSG);
 	}
 } /* ixgbe_ping_all_vfs */
@@ -556,6 +560,11 @@ ixgbe_process_vf_reset(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 		    IXGBE_PVFTDWBALn(queue_count, vf->pool, i), 0);
 	}
 
+	/* VFLR also leaves malicious-driver queue blocks asserted. */
+	ixgbe_restore_mdd_vf(hw, vf->pool);
+
+	vf->flags &= ~(IXGBE_VF_INIT_DONE | IXGBE_VF_MDD_BLOCKED |
+	    IXGBE_VF_MDD_NOTIFY_PENDING);
 	vf->api_ver = IXGBE_API_VER_UNKNOWN;
 } /* ixgbe_process_vf_reset */
 
@@ -570,7 +579,10 @@ ixgbe_vf_enable_transmit(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 
 	vf_index = IXGBE_VF_INDEX(vf->pool);
 	vfte = IXGBE_READ_REG(hw, IXGBE_VFTE(vf_index));
-	vfte |= IXGBE_VF_BIT(vf->pool);
+	if (vf->flags & IXGBE_VF_TRAFFIC_DISABLED)
+		vfte &= ~IXGBE_VF_BIT(vf->pool);
+	else
+		vfte |= IXGBE_VF_BIT(vf->pool);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(vf_index), vfte);
 } /* ixgbe_vf_enable_transmit */
 
@@ -585,7 +597,8 @@ ixgbe_vf_enable_receive(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 
 	vf_index = IXGBE_VF_INDEX(vf->pool);
 	vfre = IXGBE_READ_REG(hw, IXGBE_VFRE(vf_index));
-	if (ixgbe_vf_frame_size_compatible(sc, vf))
+	if (!(vf->flags & IXGBE_VF_TRAFFIC_DISABLED) &&
+	    ixgbe_vf_frame_size_compatible(sc, vf))
 		vfre |= IXGBE_VF_BIT(vf->pool);
 	else
 		vfre &= ~IXGBE_VF_BIT(vf->pool);
@@ -614,7 +627,7 @@ ixgbe_vf_reset_msg(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 	ixgbe_vf_enable_transmit(sc, vf);
 	ixgbe_vf_enable_receive(sc, vf);
 
-	vf->flags |= IXGBE_VF_CTS;
+	vf->flags |= IXGBE_VF_CTS | IXGBE_VF_INIT_DONE;
 
 	resp[0] = IXGBE_VF_RESET | ack;
 	bcopy(vf->ether_addr, &resp[1], ETHER_ADDR_LEN);
@@ -1038,6 +1051,104 @@ ixgbe_cleanup_vf_mbx(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	vf->mbx_cleanup_deadline = now + IXGBE_VF_MBX_CLEANUP_GRACE;
 }
 
+static void
+ixgbe_notify_vf_mdd_reset(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
+{
+	u32 msg;
+	int error;
+
+	msg = IXGBE_PF_CONTROL_MSG | IXGBE_VT_MSGTYPE_FAILURE;
+	error = ixgbe_write_mbx(&sc->hw, &msg, 1, vf->pool);
+	if (error == IXGBE_SUCCESS) {
+		vf->flags &= ~IXGBE_VF_MDD_NOTIFY_PENDING;
+		return;
+	}
+
+	/* The periodic admin pass retries after any mailbox collision. */
+	if (ratecheck(&vf->last_mdd_log, &ixgbe_mdd_log_interval))
+		device_printf(sc->dev,
+		    "could not notify VF %u of malicious-driver reset: %d; "
+		    "will retry\n", vf->pool, error);
+}
+
+static void
+ixgbe_handle_mdd(struct ixgbe_softc *sc)
+{
+	struct ixgbe_hw *hw;
+	struct ixgbe_vf *vf;
+	bool pf_reset;
+	u32 rx_cause, tx_cause;
+	u32 vf_bitmap[2] = {};
+	int pool;
+
+	hw = &sc->hw;
+	ixgbe_mdd_event(hw, vf_bitmap);
+	if (vf_bitmap[0] != 0 || vf_bitmap[1] != 0) {
+		tx_cause = IXGBE_READ_REG(hw, IXGBE_LVMMC_TX);
+		rx_cause = IXGBE_READ_REG(hw, IXGBE_LVMMC_RX);
+	} else {
+		tx_cause = 0;
+		rx_cause = 0;
+	}
+	pf_reset = false;
+	for (pool = 0; pool < 64; pool++) {
+		if ((vf_bitmap[pool / 32] & (1U << (pool % 32))) == 0)
+			continue;
+
+		if (pool == sc->pool) {
+			if (sc->iov_pf_mdd_reset_pending)
+				continue;
+			sc->iov_pf_mdd_reset_pending = true;
+			pf_reset = true;
+			if (ratecheck(&sc->iov_last_mdd_log,
+			    &ixgbe_mdd_log_interval))
+				device_printf(sc->dev,
+				    "malicious-driver event on PF pool "
+				    "(last tx cause %#x, last rx cause %#x); "
+				    "resetting PF\n",
+				    tx_cause, rx_cause);
+			continue;
+		}
+		if (pool >= sc->num_vfs) {
+			ixgbe_restore_mdd_vf(hw, pool);
+			continue;
+		}
+		vf = &sc->vfs[pool];
+		if (!(vf->flags & IXGBE_VF_ACTIVE)) {
+			ixgbe_restore_mdd_vf(hw, pool);
+			continue;
+		}
+
+		if ((vf->flags & IXGBE_VF_MDD_BLOCKED) != 0)
+			continue;
+		if (ratecheck(&vf->last_mdd_log, &ixgbe_mdd_log_interval))
+			device_printf(sc->dev,
+			    "malicious-driver event from VF %u "
+			    "(last tx cause %#x, last rx cause %#x); "
+			    "requesting VF reset\n",
+			    vf->pool, tx_cause, rx_cause);
+
+		/*
+		 * Keep both the pool gate and the per-queue WQBR block asserted.
+		 * PFVFTE stops packet-data fetches but can still allow descriptor
+		 * fetches into the internal queue, so releasing WQBR here would
+		 * leave a hostile VF able to retrigger MDD before it resets.
+		 * ixgbe_process_vf_reset() releases WQBR in the new reset epoch.
+		 */
+		vf->flags |= IXGBE_VF_MDD_BLOCKED;
+		vf->flags &= ~IXGBE_VF_CTS;
+		ixgbe_vf_enable_transmit(sc, vf);
+		ixgbe_vf_enable_receive(sc, vf);
+		IXGBE_WRITE_FLUSH(hw);
+		vf->flags |= IXGBE_VF_MDD_NOTIFY_PENDING;
+	}
+
+	if (pf_reset) {
+		iflib_request_reset(sc->ctx);
+		iflib_admin_intr_deferred(sc->ctx);
+	}
+}
+
 /* Tasklet for handling VF -> PF mailbox messages */
 void
 ixgbe_handle_mbx(void *context)
@@ -1046,14 +1157,16 @@ ixgbe_handle_mbx(void *context)
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw;
 	struct ixgbe_vf *vf;
-	bool cleanup_pending, reset_pending, reset_seen;
+	bool cleanup_pending, mbx_activity, reset_pending, reset_seen;
 	int i;
 
 	hw = &sc->hw;
 	cleanup_pending = false;
+	ixgbe_handle_mdd(sc);
 
 	for (i = 0; i < sc->num_vfs; i++) {
 		vf = &sc->vfs[i];
+		mbx_activity = false;
 
 		if (vf->flags & IXGBE_VF_ACTIVE) {
 			reset_seen = hw->mbx.ops[vf->pool].check_for_rst(hw,
@@ -1069,6 +1182,7 @@ ixgbe_handle_mbx(void *context)
 
 			if (hw->mbx.ops[vf->pool].check_for_msg(hw,
 			    vf->pool) == 0) {
+				mbx_activity = true;
 				if (ixgbe_process_vf_msg(ctx, vf, reset_pending))
 					vf->flags &= ~IXGBE_VF_MBX_CLEANUP;
 			}
@@ -1077,8 +1191,15 @@ ixgbe_handle_mbx(void *context)
 				ixgbe_cleanup_vf_mbx(sc, vf);
 
 			if (hw->mbx.ops[vf->pool].check_for_ack(hw,
-			    vf->pool) == 0)
+			    vf->pool) == 0) {
+				mbx_activity = true;
 				ixgbe_process_vf_ack(sc, vf);
+			}
+
+			/* Do not overwrite a response from this mailbox pass. */
+			if (!mbx_activity &&
+			    (vf->flags & IXGBE_VF_MDD_NOTIFY_PENDING) != 0)
+				ixgbe_notify_vf_mdd_reset(sc, vf);
 
 			if (vf->flags & IXGBE_VF_MBX_CLEANUP)
 				cleanup_pending = true;
@@ -1088,16 +1209,17 @@ ixgbe_handle_mbx(void *context)
 } /* ixgbe_handle_mbx */
 
 /*
- * VFREQ, VFACK, and a bare VFLR can remain latched without a usable shared
- * mailbox interrupt across a PF stop/restart.  Sample their aggregate
- * registers from the periodic admin pass so work does not depend on another
- * edge.
+ * VFREQ, VFACK, a bare VFLR, and WQBR can remain latched without a usable
+ * shared mailbox interrupt across a PF stop/restart or an MDD mask interval.
+ * Sample their aggregate registers from the periodic admin pass so work does
+ * not depend on another edge.  Pending asynchronous MDD notifications use the
+ * same pass to retry after the VF wins a mailbox collision.
  */
 bool
 ixgbe_mbx_pending(struct ixgbe_softc *sc)
 {
 	struct ixgbe_hw *hw;
-	uint32_t active_mbx[4], active_rst[2], events;
+	uint32_t active_mbx[4], active_rst[2], events, vf_mdd[2];
 	int i, index;
 
 	if (sc->num_vfs == 0)
@@ -1105,9 +1227,12 @@ ixgbe_mbx_pending(struct ixgbe_softc *sc)
 
 	bzero(active_mbx, sizeof(active_mbx));
 	bzero(active_rst, sizeof(active_rst));
+	bzero(vf_mdd, sizeof(vf_mdd));
 	for (i = 0; i < sc->num_vfs; i++) {
 		if ((sc->vfs[i].flags & IXGBE_VF_ACTIVE) == 0)
 			continue;
+		if ((sc->vfs[i].flags & IXGBE_VF_MDD_NOTIFY_PENDING) != 0)
+			return (true);
 		index = IXGBE_PFMBICR_INDEX(sc->vfs[i].pool);
 		active_mbx[index] |=
 		    IXGBE_PFMBICR_VFREQ_VF1 <<
@@ -1146,6 +1271,16 @@ ixgbe_mbx_pending(struct ixgbe_softc *sc)
 		if ((events & active_rst[index]) != 0)
 			return (true);
 	}
+	ixgbe_mdd_event(hw, vf_mdd);
+	/* A fenced VF retains WQBR until reset; do not reschedule for it. */
+	for (i = 0; i < sc->num_vfs; i++) {
+		if ((sc->vfs[i].flags & IXGBE_VF_MDD_BLOCKED) != 0)
+			vf_mdd[i / 32] &= ~(1U << (i % 32));
+	}
+	if (sc->iov_pf_mdd_reset_pending)
+		vf_mdd[sc->pool / 32] &= ~(1U << (sc->pool % 32));
+	if (vf_mdd[0] != 0 || vf_mdd[1] != 0)
+		return (true);
 	return (false);
 }
 
@@ -1237,6 +1372,7 @@ ixgbe_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
 
 	sc->num_vfs = num_vfs;
 	sc->iov_mbx_cleanup_pending = false;
+	sc->iov_pf_mdd_reset_pending = false;
 	ixgbe_init_mbx_params_pf(&sc->hw);
 
 	sc->feat_en |= IXGBE_FEATURE_SRIOV;
@@ -1253,6 +1389,7 @@ err_init_iov:
 	sc->pool = 0;
 	sc->iov_mode = IXGBE_NO_VM;
 	sc->iov_mbx_cleanup_pending = false;
+	sc->iov_pf_mdd_reset_pending = false;
 
 	return (retval);
 } /* ixgbe_if_iov_init */
@@ -1268,6 +1405,7 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 
 	sc = iflib_get_softc(ctx);
 	hw = &sc->hw;
+	ixgbe_disable_mdd(hw);
 
 	/* Enable rx/tx for the PF and disable it for all VFs. */
 	pf_reg = IXGBE_VF_INDEX(sc->pool);
@@ -1329,6 +1467,7 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 	sc->iov_vfta_valid = false;
 	sc->iov_vlan_promisc = false;
 	sc->iov_mbx_cleanup_pending = false;
+	sc->iov_pf_mdd_reset_pending = false;
 	(void)ixgbe_clear_vfta(hw);
 	ixgbe_setup_vlan_hw_support(ctx);
 } /* ixgbe_if_iov_uninit */
@@ -1341,6 +1480,8 @@ ixgbe_init_vf(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	s32 error;
 
 	hw = &sc->hw;
+	vf->flags &= ~(IXGBE_VF_INIT_DONE | IXGBE_VF_MDD_BLOCKED |
+	    IXGBE_VF_MDD_NOTIFY_PENDING);
 
 	if (!(vf->flags & IXGBE_VF_ACTIVE))
 		return (IXGBE_SUCCESS);
@@ -1365,12 +1506,22 @@ ixgbe_init_vf(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	}
 	ixgbe_vf_set_anti_spoof(sc, vf);
 
-	ixgbe_vf_enable_transmit(sc, vf);
-	ixgbe_vf_enable_receive(sc, vf);
-
-	ixgbe_send_vf_msg(&sc->hw, vf, IXGBE_PF_CONTROL_MSG);
+	vf->flags |= IXGBE_VF_INIT_DONE;
 	return (IXGBE_SUCCESS);
 } /* ixgbe_init_vf */
+
+static void
+ixgbe_activate_vf(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
+{
+	if ((vf->flags & (IXGBE_VF_ACTIVE | IXGBE_VF_INIT_DONE)) !=
+	    (IXGBE_VF_ACTIVE | IXGBE_VF_INIT_DONE) ||
+	    (vf->flags & IXGBE_VF_TRAFFIC_DISABLED))
+		return;
+
+	ixgbe_vf_enable_transmit(sc, vf);
+	ixgbe_vf_enable_receive(sc, vf);
+	ixgbe_send_vf_msg(&sc->hw, vf, IXGBE_PF_CONTROL_MSG);
+} /* ixgbe_activate_vf */
 
 void
 ixgbe_initialize_iov(struct ixgbe_softc *sc)
@@ -1381,6 +1532,7 @@ ixgbe_initialize_iov(struct ixgbe_softc *sc)
 
 	if (sc->iov_mode == IXGBE_NO_VM)
 		return;
+	sc->iov_pf_mdd_reset_pending = false;
 
 	/* RMW appropriate registers based on IOV mode */
 	/* Read... */
@@ -1433,6 +1585,15 @@ ixgbe_initialize_iov(struct ixgbe_softc *sc)
 			    "VF %d default VLAN restore failed\n", i);
 	}
 } /* ixgbe_initialize_iov */
+
+void
+ixgbe_activate_vfs(struct ixgbe_softc *sc)
+{
+	int i;
+
+	for (i = 0; i < sc->num_vfs; i++)
+		ixgbe_activate_vf(sc, &sc->vfs[i]);
+} /* ixgbe_activate_vfs */
 
 
 /* Check the max frame setting of all active VF's */
@@ -1518,6 +1679,7 @@ ixgbe_if_iov_vf_add(if_ctx_t ctx, u16 vfnum, const nvlist_t *config)
 		ixgbe_vf_clear_vlans(sc, vf, true);
 		return (ENOSPC);
 	}
+	ixgbe_activate_vf(sc, vf);
 
 	return (0);
 } /* ixgbe_if_iov_vf_add */
