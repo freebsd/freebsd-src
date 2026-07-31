@@ -198,7 +198,7 @@ static const pci_vendor_info_t bnxt_vendor_info_array[] =
 SLIST_HEAD(softc_list, bnxt_softc_list) pf_list;
 int bnxt_num_pfs = 0;
 
-void
+bool
 process_nq(struct bnxt_softc *softc, uint16_t nqid);
 static void *bnxt_register(device_t dev);
 
@@ -4131,7 +4131,7 @@ bnxt_process_async_msg(struct bnxt_cp_ring *cpr, tx_cmpl_t *cmpl)
 	}
 }
 
-void
+bool
 process_nq(struct bnxt_softc *softc, uint16_t nqid)
 {
 	struct bnxt_cp_ring *cpr = &softc->nq_rings[nqid];
@@ -4142,6 +4142,7 @@ process_nq(struct bnxt_softc *softc, uint16_t nqid)
 	uint32_t cons = cpr->cons;
 	uint32_t raw_cons = cpr->raw_cons;
 	uint16_t nq_type, nqe_cnt = 0;
+	bool rx_cqe = false;
 
 	while (1) {
 		if (!NQ_VALID(&cmp[cons], v_bit)) {
@@ -4155,6 +4156,7 @@ process_nq(struct bnxt_softc *softc, uint16_t nqid)
 		} else {
 			tx_cpr->toggle = NQE_CN_TOGGLE(cmp[cons].type);
 			rx_cpr->toggle = NQE_CN_TOGGLE(cmp[cons].type);
+			rx_cqe = true;
 		}
 
 		NEXT_CP_CONS_V(&cpr->ring, cons, v_bit);
@@ -4167,6 +4169,8 @@ done:
 		cpr->raw_cons = raw_cons;
 		cpr->v_bit = v_bit;
 	}
+
+	return rx_cqe;
 }
 
 static int
@@ -4175,10 +4179,14 @@ bnxt_rx_queue_intr_enable(if_ctx_t ctx, uint16_t qid)
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 
 	if (BNXT_CHIP_P5_PLUS(softc)) {
-		process_nq(softc, qid);
+		bool ret = false;
+		ret = process_nq(softc, qid);
 		softc->db_ops.bnxt_db_nq(&softc->nq_rings[qid], 1);
-	}
-	softc->db_ops.bnxt_db_rx_cq(&softc->rx_cp_rings[qid], 1);
+		if (ret)
+			softc->db_ops.bnxt_db_rx_cq(&softc->rx_cp_rings[qid], 1);
+	} else
+		softc->db_ops.bnxt_db_rx_cq(&softc->rx_cp_rings[qid], 1);
+
         return 0;
 }
 
