@@ -1200,7 +1200,9 @@ int bnxt_qplib_qext_stat(struct bnxt_qplib_rcfw *rcfw, u32 fid,
 		goto bail;
 
 	/* dump when dyndbg is enabled */
-	print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, sb, sizeof(*sb));
+	if (bootverbose)
+		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, sb, sizeof(*sb));
+
 	estat->tx_atomic_req = le64_to_cpu(sb->tx_atomic_req_pkts);
 	estat->tx_read_req = le64_to_cpu(sb->tx_read_req_pkts);
 	estat->tx_read_res = le64_to_cpu(sb->tx_read_res_pkts);
