@@ -495,6 +495,13 @@ lockdisablerecurse(struct lock *lk)
 	lk->lock_object.lo_flags &= ~LO_RECURSABLE;
 }
 
+bool
+lockcanrecurse(struct lock *lk)
+{
+	lockmgr_assert(lk, KA_LOCKED);
+	return ((lk->lock_object.lo_flags & LO_RECURSABLE) != 0);
+}
+
 void
 lockdestroy(struct lock *lk)
 {

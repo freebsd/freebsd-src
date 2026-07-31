@@ -480,6 +480,8 @@ extern	u_int vn_lock_pair_pause_max;
 #define	VI_MTX(vp)	(&(vp)->v_interlock)
 
 #define	VN_LOCK_AREC(vp)	lockallowrecurse((vp)->v_vnlock)
+#define	VN_LOCK_DREC(vp)	lockdisablerecurse((vp)->v_vnlock)
+#define	VN_LOCK_CANREC(vp)	lockcanrecurse((vp)->v_vnlock)
 #define	VN_LOCK_ASHARE(vp)	lockallowshare((vp)->v_vnlock)
 #define	VN_LOCK_DSHARE(vp)	lockdisableshare((vp)->v_vnlock)
 
