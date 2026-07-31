@@ -3359,18 +3359,18 @@ kern_proc_kqueues_out(struct proc *p, struct sbuf *sb, size_t maxlen,
 	size_t sb_len;
 	int error;
 
-	if (maxlen == -1 || maxlen == 0)
+	if (maxlen == -1)
+		return (kern_proc_kqueues_out1(curthread, p, sb, compat32));
+
+	if (maxlen == 0)
 		sb_len = 128;
 	else
 		sb_len = maxlen;
-	s = sbuf_new(&sm, NULL, sb_len, maxlen == -1 ? SBUF_AUTOEXTEND :
-	    SBUF_FIXEDLEN);
+	s = sbuf_new(&sm, NULL, sb_len, SBUF_FIXEDLEN);
 	error = kern_proc_kqueues_out1(curthread, p, s, compat32);
 	sbuf_finish(s);
-	if (error == 0) {
-		sbuf_bcat(sb, sbuf_data(s), MIN(sbuf_len(s), maxlen == -1 ?
-		    SIZE_T_MAX : maxlen));
-	}
+	if (error == 0)
+		sbuf_bcat(sb, sbuf_data(s), MIN(sbuf_len(s), maxlen));
 	sbuf_delete(s);
 	return (error);
 }
