@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 6, 2026
+.Dd August 7, 2026
 .Dt IX 4
 .Os
 .Sh NAME
@@ -101,6 +101,13 @@ configuration.
 The hardware MAC anti-spoofing control can validate only the VF's primary
 source address, so the driver does not silently weaken an enabled policy to
 install secondary addresses.
+.Pp
+Ethertype anti-spoofing and malicious-driver detection and recovery are
+available only on X550-family devices.
+The driver cannot enable those hardware protections on earlier devices such
+as 82599.
+After a malicious-driver event, the PF keeps the offending VF's transmit and
+receive paths disabled until the VF completes a new reset handshake.
 .Sh HARDWARE
 The
 .Nm

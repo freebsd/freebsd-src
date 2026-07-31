@@ -43,15 +43,19 @@
 #include <net/iflib.h>
 #include "ixgbe_mbx.h"
 
-#define IXGBE_VF_CTS            (1 << 0) /* VF is clear to send. */
-#define IXGBE_VF_CAP_MAC        (1 << 1) /* VF is permitted to change MAC. */
-#define IXGBE_VF_CAP_VLAN       (1 << 2) /* VF is permitted to join vlans. */
-#define IXGBE_VF_ACTIVE         (1 << 3) /* VF is active. */
-#define IXGBE_VF_ANTI_SPOOF     (1 << 4) /* Enforce source identity. */
-#define IXGBE_VF_ALLOW_PROMISC  (1 << 5) /* VF may request promiscuity. */
-#define IXGBE_VF_MBX_CLEANUP    (1 << 6) /* Reset mailbox cleanup pending. */
+#define IXGBE_VF_CTS            (1U << 0) /* VF is clear to send. */
+#define IXGBE_VF_CAP_MAC        (1U << 1) /* VF is permitted to change MAC. */
+#define IXGBE_VF_CAP_VLAN       (1U << 2) /* VF is permitted to join vlans. */
+#define IXGBE_VF_ACTIVE         (1U << 3) /* VF is active. */
+#define IXGBE_VF_ANTI_SPOOF     (1U << 4) /* Enforce source identity. */
+#define IXGBE_VF_ALLOW_PROMISC  (1U << 5) /* VF may request promiscuity. */
+#define IXGBE_VF_MBX_CLEANUP    (1U << 6) /* Reset cleanup pending. */
+#define IXGBE_VF_INIT_DONE      (1U << 7) /* Hardware state is ready. */
+#define IXGBE_VF_MDD_BLOCKED    (1U << 11) /* VF is gated after MDD. */
+#define IXGBE_VF_MDD_NOTIFY_PENDING (1U << 12) /* Retry reset notice. */
+#define IXGBE_VF_TRAFFIC_DISABLED IXGBE_VF_MDD_BLOCKED
 #define IXGBE_VF_INDEX(vmdq)    ((vmdq) / 32)
-#define IXGBE_VF_BIT(vmdq)      (1 << ((vmdq) % 32))
+#define IXGBE_VF_BIT(vmdq)      (1U << ((vmdq) % 32))
 
 #define IXGBE_VT_MSG_MASK	0xFFFF
 
@@ -78,6 +82,7 @@ int  ixgbe_if_iov_init(if_ctx_t, u16, const nvlist_t *);
 int  ixgbe_iov_validate(struct ixgbe_softc *, u16);
 void ixgbe_if_iov_uninit(if_ctx_t);
 void ixgbe_initialize_iov(struct ixgbe_softc *);
+void ixgbe_activate_vfs(struct ixgbe_softc *);
 void ixgbe_recalculate_max_frame(struct ixgbe_softc *);
 void ixgbe_ping_all_vfs(struct ixgbe_softc *);
 u_int ixgbe_iov_rebuild_mta(struct ixgbe_softc *);
@@ -95,6 +100,7 @@ u32  ixgbe_get_mrqc(int);
 #define ixgbe_init_iov(_a,_b,_c)
 #define ixgbe_uninit_iov(_a)
 #define ixgbe_initialize_iov(_a)
+#define ixgbe_activate_vfs(_a)
 #define ixgbe_recalculate_max_frame(_a)
 #define ixgbe_ping_all_vfs(_a)
 #define ixgbe_define_iov_schemas(_a,_b)

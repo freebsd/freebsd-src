@@ -1375,7 +1375,7 @@ void ixgbe_restore_mdd_vf_X550(struct ixgbe_hw *hw, u32 vf)
  **/
 void ixgbe_mdd_event_X550(struct ixgbe_hw *hw, u32 *vf_bitmap)
 {
-	u32 wqbr;
+	u32 rx_wqbr, tx_wqbr, wqbr;
 	u32 i, j, reg, q, shift, vf, idx;
 
 	DEBUGFUNC("ixgbe_mdd_event_X550");
@@ -1397,8 +1397,18 @@ void ixgbe_mdd_event_X550(struct ixgbe_hw *hw, u32 *vf_bitmap)
 
 	/* Read WQBR_TX and WQBR_RX and check for malicious queues */
 	for (i = 0; i < 4; i++) {
-		wqbr = IXGBE_READ_REG(hw, IXGBE_WQBR_TX(i));
-		wqbr |= IXGBE_READ_REG(hw, IXGBE_WQBR_RX(i));
+		tx_wqbr = IXGBE_READ_REG(hw, IXGBE_WQBR_TX(i));
+		rx_wqbr = IXGBE_READ_REG(hw, IXGBE_WQBR_RX(i));
+		/*
+		 * Every WQBR bit represents a queue, so all ones is a valid
+		 * sample.  Use a register with reserved-zero bits to distinguish
+		 * that value from failed MMIO on a removed device.
+		 */
+		if (__predict_false((tx_wqbr == UINT32_MAX ||
+		    rx_wqbr == UINT32_MAX) &&
+		    IXGBE_READ_REG(hw, IXGBE_STATUS) == UINT32_MAX))
+			return;
+		wqbr = tx_wqbr | rx_wqbr;
 
 		if (!wqbr)
 			continue;
@@ -1406,7 +1416,7 @@ void ixgbe_mdd_event_X550(struct ixgbe_hw *hw, u32 *vf_bitmap)
 		/* Get malicious queue */
 		for (j = 0; j < 32 && wqbr; j++) {
 
-			if (!(wqbr & (1 << j)))
+			if (!(wqbr & (1U << j)))
 				continue;
 
 			/* Get queue from bitmask */
@@ -1417,8 +1427,8 @@ void ixgbe_mdd_event_X550(struct ixgbe_hw *hw, u32 *vf_bitmap)
 
 			/* Set vf bit in vf_bitmap */
 			idx = vf / 32;
-			vf_bitmap[idx] |= (1 << (vf % 32));
-			wqbr &= ~(1 << j);
+			vf_bitmap[idx] |= (1U << (vf % 32));
+			wqbr &= ~(1U << j);
 		}
 	}
 }

@@ -964,8 +964,17 @@ static s32 ixgbe_write_mbx_pf_legacy(struct ixgbe_hw *hw, u32 *msg, u16 size,
 	if (ret_val)
 		return ret_val;
 
+	/*
+	 * A VF request wins over an asynchronous PF message.  Recheck VFREQ
+	 * after acquiring PFU so the request and its payload remain intact for
+	 * the normal mailbox path.
+	 */
+	if (ixgbe_check_for_msg_pf(hw, vf_id) == IXGBE_SUCCESS) {
+		ixgbe_release_mbx_lock_pf(hw, vf_id);
+		return IXGBE_ERR_MBX;
+	}
+
 	/* flush msg and acks as we are overwriting the message buffer */
-	ixgbe_check_for_msg_pf(hw, vf_id);
 	ixgbe_clear_msg_pf(hw, vf_id);
 	ixgbe_check_for_ack_pf(hw, vf_id);
 	ixgbe_clear_ack_pf(hw, vf_id);
@@ -1005,6 +1014,16 @@ static s32 ixgbe_write_mbx_pf(struct ixgbe_hw *hw, u32 *msg, u16 size,
 	ret_val = ixgbe_obtain_mbx_lock_pf(hw, vf_id);
 	if (ret_val)
 		goto out;
+
+	/*
+	 * A VF request wins over an asynchronous PF message.  PFU now keeps
+	 * PFMBMEM stable, so recheck VFREQ under ownership and leave the request
+	 * intact for the normal mailbox path to consume.
+	 */
+	if (ixgbe_check_for_msg_pf(hw, vf_id) == IXGBE_SUCCESS) {
+		ret_val = IXGBE_ERR_MBX;
+		goto out;
+	}
 
 	/* flush msg and acks as we are overwriting the message buffer */
 	ixgbe_clear_msg_pf(hw, vf_id);
