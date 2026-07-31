@@ -115,7 +115,7 @@ static const int mpc_cmp_counters_count = sizeof(mpc_cmp_counters) / sizeof(mpc_
 DEFINE_MUTEX(tmp_mutex); /* mutex lock for driver */
 extern void bnxt_fw_reset(struct bnxt_softc *bp);
 extern void bnxt_queue_sp_work(struct bnxt_softc *bp);
-extern void
+extern bool
 process_nq(struct bnxt_softc *softc, uint16_t nqid);
 /*
  * We want to create:
