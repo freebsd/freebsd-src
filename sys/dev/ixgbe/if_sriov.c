@@ -1252,6 +1252,14 @@ static void
 ixgbe_vf_api_negotiate(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
     uint32_t *msg)
 {
+	if (msg[1] == IXGBE_API_VER_1_6) {
+		if (sc->hw.mac.type != ixgbe_mac_E610)
+			goto failure;
+		vf->api_ver = msg[1];
+		ixgbe_send_vf_success(sc, vf, msg[0]);
+		return;
+	}
+
 	switch (msg[1]) {
 	case IXGBE_API_VER_1_0:
 	case IXGBE_API_VER_1_1:
@@ -1261,10 +1269,13 @@ ixgbe_vf_api_negotiate(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
 		ixgbe_send_vf_success(sc, vf, msg[0]);
 		break;
 	default:
-		vf->api_ver = IXGBE_API_VER_UNKNOWN;
-		ixgbe_send_vf_failure(sc, vf, msg[0]);
-		break;
+		goto failure;
 	}
+	return;
+
+failure:
+	vf->api_ver = IXGBE_API_VER_UNKNOWN;
+	ixgbe_send_vf_failure(sc, vf, msg[0]);
 } /* ixgbe_vf_api_negotiate */
 
 static void
@@ -1282,6 +1293,7 @@ ixgbe_vf_update_xcast_mode(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
 			goto failure;
 		break;
 	case IXGBE_API_VER_1_3:
+	case IXGBE_API_VER_1_6:
 		break;
 	default:
 		goto failure;
@@ -1338,6 +1350,43 @@ ixgbe_vf_get_queues(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
 
 	ixgbe_write_mbx(hw, resp, IXGBE_VF_GET_QUEUES_RESP_LEN, vf->pool);
 } /* ixgbe_vf_get_queues */
+
+static void
+ixgbe_vf_get_link_state(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    uint32_t *msg)
+{
+	switch (vf->api_ver) {
+	case IXGBE_API_VER_1_2:
+	case IXGBE_API_VER_1_3:
+	case IXGBE_API_VER_1_6:
+		break;
+	default:
+		ixgbe_send_vf_failure(sc, vf, msg[0]);
+		return;
+	}
+
+	msg[0] = IXGBE_VF_GET_LINK_STATE | IXGBE_VT_MSGTYPE_SUCCESS |
+	    IXGBE_VT_MSGTYPE_CTS;
+	msg[1] = 1;
+	ixgbe_write_mbx(&sc->hw, msg, 2, vf->pool);
+} /* ixgbe_vf_get_link_state */
+
+static void
+ixgbe_vf_get_pf_link_state(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    uint32_t *msg)
+{
+	if (sc->hw.mac.type != ixgbe_mac_E610 ||
+	    vf->api_ver != IXGBE_API_VER_1_6) {
+		ixgbe_send_vf_failure(sc, vf, msg[0]);
+		return;
+	}
+
+	msg[0] = IXGBE_VF_GET_PF_LINK_STATE | IXGBE_VT_MSGTYPE_SUCCESS |
+	    IXGBE_VT_MSGTYPE_CTS;
+	msg[1] = sc->link_speed;
+	msg[2] = sc->link_up;
+	ixgbe_write_mbx(&sc->hw, msg, 3, vf->pool);
+} /* ixgbe_vf_get_pf_link_state */
 
 
 static bool
@@ -1408,6 +1457,12 @@ ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf, bool reset_pending)
 		break;
 	case IXGBE_VF_UPDATE_XCAST_MODE:
 		ixgbe_vf_update_xcast_mode(sc, vf, msg);
+		break;
+	case IXGBE_VF_GET_LINK_STATE:
+		ixgbe_vf_get_link_state(sc, vf, msg);
+		break;
+	case IXGBE_VF_GET_PF_LINK_STATE:
+		ixgbe_vf_get_pf_link_state(sc, vf, msg);
 		break;
 	default:
 		ixgbe_send_vf_failure(sc, vf, msg[0]);
