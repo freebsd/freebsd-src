@@ -63,17 +63,15 @@ wmemstream_grow(struct wmemstream *ms, fpos_t newoff)
 		newsize = newoff;
 	if (newsize > ms->len) {
 		buf = reallocarray(*ms->bufp, newsize + 1, sizeof(wchar_t));
-		if (buf != NULL) {
+		if (buf == NULL)
+			return (0);
 #ifdef DEBUG
-			fprintf(stderr, "WMS: %p growing from %zd to %zd\n",
-			    ms, ms->len, newsize);
+		fprintf(stderr, "WMS: %p growing from %zd to %zd\n",
+		    ms, ms->len, newsize);
 #endif
-			wmemset(buf + ms->len + 1, 0, newsize - ms->len);
-			*ms->bufp = buf;
-			ms->len = newsize;
-			return (1);
-		}
-		return (0);
+		wmemset(buf + ms->len + 1, 0, newsize - ms->len);
+		*ms->bufp = buf;
+		ms->len = newsize;
 	}
 	return (1);
 }

@@ -62,17 +62,16 @@ memstream_grow(struct memstream *ms, fpos_t newoff)
 		newsize = newoff;
 	if (newsize > ms->len) {
 		buf = realloc(*ms->bufp, newsize + 1);
-		if (buf != NULL) {
+		if (buf == NULL)
+			return (0);
+
 #ifdef DEBUG
-			fprintf(stderr, "MS: %p growing from %zd to %zd\n",
-			    ms, ms->len, newsize);
+		fprintf(stderr, "MS: %p growing from %zd to %zd\n",
+		    ms, ms->len, newsize);
 #endif
-			memset(buf + ms->len + 1, 0, newsize - ms->len);
-			*ms->bufp = buf;
-			ms->len = newsize;
-			return (1);
-		}
-		return (0);
+		memset(buf + ms->len + 1, 0, newsize - ms->len);
+		*ms->bufp = buf;
+		ms->len = newsize;
 	}
 	return (1);
 }
