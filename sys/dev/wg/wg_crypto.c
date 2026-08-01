@@ -265,7 +265,7 @@ chacha20poly1305_decrypt_mbuf(struct mbuf *m, const uint64_t nonce,
 }
 
 int
-crypto_init(void)
+wg_crypto_init(void)
 {
 	struct crypto_session_params csp = {
 		.csp_mode = CSP_MODE_AEAD,
@@ -286,7 +286,7 @@ crypto_init(void)
 }
 
 void
-crypto_deinit(void)
+wg_crypto_deinit(void)
 {
 	crypto_freesession(chacha20_poly1305_sid);
 }
