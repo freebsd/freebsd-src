@@ -56,6 +56,11 @@ static const sbintime_t ixv_mbx_retry_delay[] = {
 
 static const struct timeval ixv_mbx_log_interval = { 60, 0 };
 
+/* Bound stale carrier state without flapping on a busy PF mailbox. */
+#define IXV_LINK_MBX_FAILURE_LIMIT	3
+/* Match Intel's two-second VF service timer and spread PF mailbox load. */
+#define IXV_LINK_POLL_TICKS		4
+
 /************************************************************************
  * PCI Device ID Table
  *
@@ -448,6 +453,7 @@ ixv_if_attach_pre(if_ctx_t ctx)
 	/* Determine hardware revision */
 	ixv_identify_hardware(ctx);
 	ixv_init_device_features(sc);
+	sc->vf_link_poll_tick = device_get_unit(dev) % IXV_LINK_POLL_TICKS;
 
 	/* Initialize the shared code */
 	error = ixgbe_init_ops_vf(hw);
@@ -896,6 +902,9 @@ ixv_mbx_retry_succeeded(struct ixgbe_softc *sc)
 	if (sc->vf_mbx_retry_initialized)
 		callout_stop(&sc->vf_mbx_retry);
 	sc->vf_mbx_retry_stage = 0;
+	sc->vf_link_mbx_failures = 0;
+	sc->vf_link_poll_tick =
+	    device_get_unit(sc->dev) % IXV_LINK_POLL_TICKS;
 	sc->vf_mbx_last_log.tv_sec = 0;
 	sc->vf_mbx_last_log.tv_usec = 0;
 }
@@ -982,7 +991,12 @@ ixv_if_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 
 	INIT_DEBUGOUT("ixv_media_status: begin");
 
-	iflib_admin_intr_deferred(ctx);
+	/* E610 link state is refreshed by the phased service timer. */
+	if (sc->hw.mac.type != ixgbe_mac_E610_vf ||
+	    sc->hw.api_version != ixgbe_mbox_api_16) {
+		atomic_set_32(&sc->vf_link_update, 1);
+		iflib_admin_intr_deferred(ctx);
+	}
 
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
@@ -1062,6 +1076,10 @@ ixv_negotiate_api(struct ixgbe_softc *sc)
 	};
 	int i = 0;
 
+	if (hw->mac.type == ixgbe_mac_E610_vf &&
+	    ixgbevf_negotiate_api_version(hw, ixgbe_mbox_api_16) == 0)
+		return (0);
+
 	while (mbx_api[i] != ixgbe_mbox_api_unknown) {
 		if (ixgbevf_negotiate_api_version(hw, mbx_api[i]) == 0)
 			return (0);
@@ -1095,6 +1113,9 @@ ixv_queue_limit(struct ixgbe_softc *sc, bool mailbox_ready)
 	case ixgbe_mac_X550EM_a_vf:
 		limit = 2;
 		break;
+	case ixgbe_mac_E610_vf:
+		limit = 1;
+		break;
 	default:
 		return (1);
 	}
@@ -1105,6 +1126,7 @@ ixv_queue_limit(struct ixgbe_softc *sc, bool mailbox_ready)
 		case ixgbe_mbox_api_11:
 		case ixgbe_mbox_api_12:
 		case ixgbe_mbox_api_13:
+		case ixgbe_mbox_api_16:
 			num_tcs = default_tc = 0;
 			if (ixgbevf_get_queues(hw, &num_tcs, &default_tc) == 0) {
 				limit = imin(hw->mac.max_tx_queues,
@@ -1248,6 +1270,12 @@ ixv_if_local_timer(if_ctx_t ctx, uint16_t qid)
 
 	sc = iflib_get_softc(ctx);
 	atomic_set_32(&sc->vf_vlan_retry_tick, 1);
+	if (sc->hw.mac.type != ixgbe_mac_E610_vf ||
+	    sc->hw.api_version != ixgbe_mbox_api_16 ||
+	    ++sc->vf_link_poll_tick == IXV_LINK_POLL_TICKS) {
+		sc->vf_link_poll_tick = 0;
+		atomic_set_32(&sc->vf_link_update, 1);
+	}
 
 	/* Fire off the adminq task */
 	iflib_admin_intr_deferred(ctx);
@@ -1266,6 +1294,7 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	device_t dev = iflib_get_dev(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
+	bool check_link;
 	s32 status;
 	uint64_t baudrate;
 
@@ -1278,10 +1307,34 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 		return;
 	}
 
-	sc->hw.mac.get_link_status = true;
-
-	status = ixgbe_check_link(&sc->hw, &sc->link_speed,
-	    &sc->link_up, false);
+	check_link = atomic_readandclear_32(&sc->vf_link_update) != 0;
+	if (sc->hw.mac.type != ixgbe_mac_E610_vf ||
+	    sc->hw.api_version != ixgbe_mbox_api_16)
+		check_link = true;
+	if (check_link) {
+		sc->hw.mac.get_link_status = true;
+		status = ixgbe_check_link(&sc->hw, &sc->link_speed,
+		    &sc->link_up, false);
+	} else if (ixgbe_check_for_rst(&sc->hw, 0) == IXGBE_SUCCESS) {
+		/* Process an unsolicited PF reset without issuing another query. */
+		status = IXGBE_ERR_MBX;
+	} else
+		status = IXGBE_SUCCESS;
+	if (sc->hw.mac.type == ixgbe_mac_E610_vf &&
+	    sc->hw.api_version == ixgbe_mbox_api_16 &&
+	    status != IXGBE_SUCCESS && status != IXGBE_ERR_MBX) {
+		/*
+		 * A busy PF can miss an individual link-state request.  Preserve
+		 * the last confirmed state across brief transport failures, but
+		 * bound how long stale carrier can remain visible if the PF is gone.
+		 */
+		if (sc->vf_link_mbx_failures < IXV_LINK_MBX_FAILURE_LIMIT)
+			sc->vf_link_mbx_failures++;
+		if (sc->vf_link_mbx_failures == IXV_LINK_MBX_FAILURE_LIMIT)
+			sc->link_up = false;
+		status = IXGBE_SUCCESS;
+	} else if (status == IXGBE_SUCCESS)
+		sc->vf_link_mbx_failures = 0;
 
 	if (status != IXGBE_SUCCESS && sc->hw.adapter_stopped == false) {
 		/* Mailbox's Clear To Send status is lost or timeout occurred.
@@ -1345,6 +1398,7 @@ ixv_if_stop(if_ctx_t ctx)
 	if (mailbox_ready && (if_getflags(ifp) & IFF_UP) == 0)
 		hw->mac.ops.reset_hw(hw);
 	atomic_store_rel_32(&sc->vf_mbx_ready, 0);
+	sc->vf_link_mbx_failures = 0;
 	sc->hw.adapter_stopped = false;
 	hw->mac.ops.stop_adapter(hw);
 

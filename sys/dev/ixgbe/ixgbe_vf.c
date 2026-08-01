@@ -444,6 +444,7 @@ s32 ixgbevf_update_xcast_mode(struct ixgbe_hw *hw, int xcast_mode)
 		/* Fall through */
 	case ixgbe_mbox_api_13:
 	case ixgbe_mbox_api_15:
+	case ixgbe_mbox_api_16:
 		break;
 	default:
 		return IXGBE_ERR_FEATURE_NOT_SUPPORTED;
@@ -488,6 +489,47 @@ s32 ixgbe_get_link_state_vf(struct ixgbe_hw *hw, bool *link_state)
 	}
 
 	return ret_val;
+}
+
+/**
+ * ixgbevf_get_pf_link_state - Get PF's link status
+ * @hw: pointer to the HW structure
+ * @speed: link speed
+ * @link_up: indicate if link is up/down
+ *
+ * Ask PF to provide link_up state and speed of the link.
+ *
+ * Return: IXGBE_ERR_MBX in the case of mailbox error,
+ * IXGBE_ERR_FEATURE_NOT_SUPPORTED if the op is not supported or 0 on success.
+ */
+int ixgbevf_get_pf_link_state(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
+			      bool *link_up)
+{
+	u32 msgbuf[3] = {};
+	int err;
+
+	if (hw->api_version != ixgbe_mbox_api_16)
+		return IXGBE_ERR_FEATURE_NOT_SUPPORTED;
+
+	msgbuf[0] = IXGBE_VF_GET_PF_LINK_STATE;
+	err = ixgbevf_write_msg_read_ack(hw, msgbuf, msgbuf, 3);
+	if (err)
+		return (err);
+	if (msgbuf[0] & IXGBE_VT_MSGTYPE_FAILURE) {
+		*speed = IXGBE_LINK_SPEED_UNKNOWN;
+		return (IXGBE_ERR_MBX);
+	}
+	if ((msgbuf[0] & IXGBE_VT_MSGTYPE_CTS) == 0 ||
+	    (msgbuf[0] & ~IXGBE_VT_MSGTYPE_CTS) !=
+	    (IXGBE_VF_GET_PF_LINK_STATE | IXGBE_VT_MSGTYPE_SUCCESS)) {
+		*speed = IXGBE_LINK_SPEED_UNKNOWN;
+		return (IXGBE_ERR_MBX);
+	}
+
+	*speed = msgbuf[1];
+	*link_up = msgbuf[2];
+
+	return err;
 }
 
 /**
@@ -623,12 +665,29 @@ s32 ixgbe_check_mac_link_vf(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
 
 	UNREFERENCED_1PARAMETER(autoneg_wait_to_complete);
 
+	if (link_up == NULL)
+		return (IXGBE_ERR_PARAM);
+
 	/* If we were hit with a reset drop the link */
 	if (!mbx->ops[0].check_for_rst(hw, 0) || !mbx->timeout)
 		mac->get_link_status = true;
 
 	if (!mac->get_link_status)
 		goto out;
+	if (mac->type == ixgbe_mac_E610_vf &&
+	    hw->api_version == ixgbe_mbox_api_16) {
+		ret_val = ixgbevf_get_pf_link_state(hw, speed, link_up);
+		if (ret_val == IXGBE_ERR_MBX) {
+			/* A PF NACK means the VF has lost clear-to-send state. */
+			*link_up = false;
+			return (ret_val);
+		} else if (ret_val != IXGBE_SUCCESS) {
+			/* Let the driver debounce transient transport failures. */
+			return (ret_val);
+		}
+		mac->get_link_status = !*link_up;
+		return (IXGBE_SUCCESS);
+	}
 
 	/* if link status is down no point in checking to see if pf is up */
 	links_reg = IXGBE_READ_REG(hw, IXGBE_VFLINKS);
@@ -777,6 +836,7 @@ int ixgbevf_get_queues(struct ixgbe_hw *hw, unsigned int *num_tcs,
 	case ixgbe_mbox_api_12:
 	case ixgbe_mbox_api_13:
 	case ixgbe_mbox_api_15:
+	case ixgbe_mbox_api_16:
 		break;
 	default:
 		return 0;
