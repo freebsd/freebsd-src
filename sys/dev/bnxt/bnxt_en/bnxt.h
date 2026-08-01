@@ -712,10 +712,21 @@ struct bnxt_cp_ring {
 #define Q_TYPE_TX		1
 #define Q_TYPE_RX		2
 #define TX_CP_NQ		3	/* MPC-private NQ ring (bnxt_mpc.c) */
+/* BNXT_TX_ONLY_NQ is kept distinct from the MPC-private TX_CP_NQ above -
+ * same field, unrelated arrays. */
+#define SHARED_NQ		4
+#define BNXT_TX_ONLY_NQ		5
+#define RX_CP_NQ		6
 	int			msix_vec;	/* MPC-private ring: bus_setup_intr vector */
 	struct resource		*irq_res;	/* MPC-private ring: bus_setup_intr resource */
 	void			*irq_cookie;	/* MPC-private ring: bus_setup_intr cookie */
 };
+
+#define MAX_RXQ_INDEX(softc) ((softc)->nrxqsets - 1)
+#define IS_SHARED_NQ(softc, i) \
+	(BNXT_CHIP_P5_PLUS(softc) && (softc)->nq_rings[i].type == SHARED_NQ)
+#define IS_TX_NQ(softc, i) ((softc)->nq_rings[i].type == BNXT_TX_ONLY_NQ)
+#define IS_RX_NQ(softc, i) ((softc)->nq_rings[i].type == RX_CP_NQ)
 
 struct bnxt_full_tpa_start {
 	struct rx_tpa_start_cmpl low;

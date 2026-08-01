@@ -3000,6 +3000,19 @@ bnxt_attach_pre(if_ctx_t ctx)
 		device_printf(softc->dev,
 		    "WARNING: ntxd0 (%d) should be at least 2 * ntxd1 (%d).  Driver may be unstable\n",
 		    scctx->isc_ntxd[0], scctx->isc_ntxd[1]);
+
+	/*
+	 * Unsupported configuration: number of Rx rings
+	 * exceeding number of Tx rings
+	 */
+	if (scctx->isc_nrxqsets > scctx->isc_ntxqsets) {
+		device_printf(softc->dev, "Unsupported config: number of"
+		    " Rx rings(%u) exceeds number of Tx rings(%u)\n",
+		    scctx->isc_nrxqsets, scctx->isc_ntxqsets);
+		rc = EOPNOTSUPP;
+		goto failed;
+	}
+
 	scctx->isc_txqsizes[0] = sizeof(struct cmpl_base) * scctx->isc_ntxd[0];
 	scctx->isc_txqsizes[1] = sizeof(struct tx_bd_short) *
 	    scctx->isc_ntxd[1];
@@ -3436,31 +3449,33 @@ bnxt_hwrm_resource_free(struct bnxt_softc *softc)
 	if (rc)
 		goto fail;
 
-	for (i = 0; i < softc->nrxqsets; i++) {
-		rc = bnxt_hwrm_ring_grp_free(softc, &softc->grp_info[i]);
-		if (rc)
-			goto fail;
+	for (i = 0; i < softc->ntxqsets; i++) {
+		if (IS_SHARED_NQ(softc, i) || !BNXT_CHIP_P5_PLUS(softc)) {
+			rc = bnxt_hwrm_ring_grp_free(softc, &softc->grp_info[i]);
+			if (rc)
+				goto fail;
 
-		rc = bnxt_hwrm_ring_free(softc,
-				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX_AGG,
-				&softc->ag_rings[i],
-				(uint16_t)HWRM_NA_SIGNATURE);
-		if (rc)
-			goto fail;
+			rc = bnxt_hwrm_ring_free(softc,
+					HWRM_RING_ALLOC_INPUT_RING_TYPE_RX_AGG,
+					&softc->ag_rings[i],
+					(uint16_t)HWRM_NA_SIGNATURE);
+			if (rc)
+				goto fail;
 
-		rc = bnxt_hwrm_ring_free(softc,
-				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX,
-				&softc->rx_rings[i],
-				softc->rx_cp_rings[i].ring.phys_id);
-		if (rc)
-			goto fail;
+			rc = bnxt_hwrm_ring_free(softc,
+					HWRM_RING_ALLOC_INPUT_RING_TYPE_RX,
+					&softc->rx_rings[i],
+					softc->rx_cp_rings[i].ring.phys_id);
+			if (rc)
+				goto fail;
 
-		rc = bnxt_hwrm_ring_free(softc,
-				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
-				&softc->rx_cp_rings[i].ring,
-				(uint16_t)HWRM_NA_SIGNATURE);
-		if (rc)
-			goto fail;
+			rc = bnxt_hwrm_ring_free(softc,
+					HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
+					&softc->rx_cp_rings[i].ring,
+					(uint16_t)HWRM_NA_SIGNATURE);
+			if (rc)
+				goto fail;
+		}
 
 		if (BNXT_CHIP_P5_PLUS(softc)) {
 			rc = bnxt_hwrm_ring_free(softc,
@@ -3471,9 +3486,11 @@ bnxt_hwrm_resource_free(struct bnxt_softc *softc)
 				goto fail;
 		}
 
-		rc = bnxt_hwrm_stat_ctx_free(softc, &softc->rx_cp_rings[i]);
-		if (rc)
-			goto fail;
+		if (IS_SHARED_NQ(softc, i) || !BNXT_CHIP_P5_PLUS(softc)) {
+			rc = bnxt_hwrm_stat_ctx_free(softc, &softc->rx_cp_rings[i]);
+			if (rc)
+				goto fail;
+		}
 	}
 
 fail:
@@ -3662,12 +3679,23 @@ skip_def_cp_ring:
 		}
 	}
 
-	for (i = 0; i < softc->nrxqsets; i++) {
-		/* Allocate the statistics context */
-		rc = bnxt_hwrm_stat_ctx_alloc(softc, &softc->rx_cp_rings[i],
-		    softc->rx_stats[i].idi_paddr);
-		if (rc)
-			goto fail;
+	for (i = 0; i < softc->ntxqsets; i++) {
+		/* Extra Tx rings over Rx: NQs up to MAX_RXQ_INDEX are shared
+		 * Tx/Rx; NQs beyond that are Tx-only. */
+		if (BNXT_CHIP_P5_PLUS(softc)) {
+			if (i <= MAX_RXQ_INDEX(softc))
+				softc->nq_rings[i].type = SHARED_NQ;
+			else
+				softc->nq_rings[i].type = BNXT_TX_ONLY_NQ;
+		}
+
+		if (IS_SHARED_NQ(softc, i) || !BNXT_CHIP_P5_PLUS(softc)) {
+			/* Allocate the statistics context */
+			rc = bnxt_hwrm_stat_ctx_alloc(softc, &softc->rx_cp_rings[i],
+			    softc->rx_stats[i].idi_paddr);
+			if (rc)
+				goto fail;
+		}
 
 		if (BNXT_CHIP_P5_PLUS(softc)) {
 			/* Allocate the NQ */
@@ -3686,53 +3714,56 @@ skip_def_cp_ring:
 
 			softc->db_ops.bnxt_db_nq(&softc->nq_rings[i], 1);
 		}
-		/* Allocate the completion ring */
-		softc->rx_cp_rings[i].cons = UINT32_MAX;
-		softc->rx_cp_rings[i].raw_cons = UINT32_MAX;
-		softc->rx_cp_rings[i].v_bit = 1;
-		softc->rx_cp_rings[i].last_idx = UINT32_MAX;
-		softc->rx_cp_rings[i].toggle = 0;
-		bnxt_mark_cpr_invalid(&softc->rx_cp_rings[i]);
-		rc = bnxt_hwrm_ring_alloc(softc,
-				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
-				&softc->rx_cp_rings[i].ring);
-		bnxt_set_db_mask(softc, &softc->rx_cp_rings[i].ring,
-				HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL);
-		if (rc)
-			goto fail;
 
-		if (BNXT_CHIP_P5_PLUS(softc))
-			softc->db_ops.bnxt_db_rx_cq(&softc->rx_cp_rings[i], 1);
+		if (IS_SHARED_NQ(softc, i) || !BNXT_CHIP_P5_PLUS(softc)) {
+			/* Allocate the completion ring */
+			softc->rx_cp_rings[i].cons = UINT32_MAX;
+			softc->rx_cp_rings[i].raw_cons = UINT32_MAX;
+			softc->rx_cp_rings[i].v_bit = 1;
+			softc->rx_cp_rings[i].last_idx = UINT32_MAX;
+			softc->rx_cp_rings[i].toggle = 0;
+			bnxt_mark_cpr_invalid(&softc->rx_cp_rings[i]);
+			rc = bnxt_hwrm_ring_alloc(softc,
+					HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL,
+					&softc->rx_cp_rings[i].ring);
+			bnxt_set_db_mask(softc, &softc->rx_cp_rings[i].ring,
+					HWRM_RING_ALLOC_INPUT_RING_TYPE_L2_CMPL);
+			if (rc)
+				goto fail;
 
-		/* Allocate the RX ring */
-		rc = bnxt_hwrm_ring_alloc(softc,
-		    HWRM_RING_ALLOC_INPUT_RING_TYPE_RX, &softc->rx_rings[i]);
-		bnxt_set_db_mask(softc, &softc->rx_rings[i],
-				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX);
-		if (rc)
-			goto fail;
-		softc->db_ops.bnxt_db_rx(&softc->rx_rings[i], 0);
+			if (BNXT_CHIP_P5_PLUS(softc))
+				softc->db_ops.bnxt_db_rx_cq(&softc->rx_cp_rings[i], 1);
 
-		/* Allocate the AG ring */
-		rc = bnxt_hwrm_ring_alloc(softc,
-				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX_AGG,
-				&softc->ag_rings[i]);
-		bnxt_set_db_mask(softc, &softc->ag_rings[i],
-				HWRM_RING_ALLOC_INPUT_RING_TYPE_RX_AGG);
-		if (rc)
-			goto fail;
-		softc->db_ops.bnxt_db_rx(&softc->ag_rings[i], 0);
+			/* Allocate the RX ring */
+			rc = bnxt_hwrm_ring_alloc(softc,
+			    HWRM_RING_ALLOC_INPUT_RING_TYPE_RX, &softc->rx_rings[i]);
+			bnxt_set_db_mask(softc, &softc->rx_rings[i],
+					HWRM_RING_ALLOC_INPUT_RING_TYPE_RX);
+			if (rc)
+				goto fail;
+			softc->db_ops.bnxt_db_rx(&softc->rx_rings[i], 0);
 
-		/* Allocate the ring group */
-		softc->grp_info[i].stats_ctx =
-		    softc->rx_cp_rings[i].stats_ctx_id;
-		softc->grp_info[i].rx_ring_id = softc->rx_rings[i].phys_id;
-		softc->grp_info[i].ag_ring_id = softc->ag_rings[i].phys_id;
-		softc->grp_info[i].cp_ring_id =
-		    softc->rx_cp_rings[i].ring.phys_id;
-		rc = bnxt_hwrm_ring_grp_alloc(softc, &softc->grp_info[i]);
-		if (rc)
-			goto fail;
+			/* Allocate the AG ring */
+			rc = bnxt_hwrm_ring_alloc(softc,
+					HWRM_RING_ALLOC_INPUT_RING_TYPE_RX_AGG,
+					&softc->ag_rings[i]);
+			bnxt_set_db_mask(softc, &softc->ag_rings[i],
+					HWRM_RING_ALLOC_INPUT_RING_TYPE_RX_AGG);
+			if (rc)
+				goto fail;
+			softc->db_ops.bnxt_db_rx(&softc->ag_rings[i], 0);
+
+			/* Allocate the ring group */
+			softc->grp_info[i].stats_ctx =
+			    softc->rx_cp_rings[i].stats_ctx_id;
+			softc->grp_info[i].rx_ring_id = softc->rx_rings[i].phys_id;
+			softc->grp_info[i].ag_ring_id = softc->ag_rings[i].phys_id;
+			softc->grp_info[i].cp_ring_id =
+			    softc->rx_cp_rings[i].ring.phys_id;
+			rc = bnxt_hwrm_ring_grp_alloc(softc, &softc->grp_info[i]);
+			if (rc)
+				goto fail;
+		}
 	}
 
 	/* Inform PF to approve MAC as default VF MAC. */
@@ -4387,10 +4418,12 @@ bnxt_tx_queue_intr_enable(if_ctx_t ctx, uint16_t qid)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 
-	if (BNXT_CHIP_P5_PLUS(softc))
-		softc->db_ops.bnxt_db_nq(&softc->nq_rings[qid], 1);
-	else
+	if (BNXT_CHIP_P5_PLUS(softc)) {
+		if (!IS_SHARED_NQ(softc, qid))
+			softc->db_ops.bnxt_db_nq(&softc->nq_rings[qid], 1);
+	} else {
 		softc->db_ops.bnxt_db_rx_cq(&softc->tx_cp_rings[qid], 1);
+	}
 
 	return 0;
 }
