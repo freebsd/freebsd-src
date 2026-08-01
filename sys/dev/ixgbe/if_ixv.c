@@ -87,6 +87,7 @@ static const pci_vendor_info_t ixv_vendor_info_array[] =
  * Function prototypes
  ************************************************************************/
 static void     *ixv_register(device_t);
+static int      ixv_probe(device_t);
 static int      ixv_if_attach_pre(if_ctx_t);
 static int      ixv_if_attach_post(if_ctx_t);
 static int      ixv_if_detach(if_ctx_t);
@@ -163,7 +164,7 @@ static int      ixv_msix_mbx(void *);
 static device_method_t ixv_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_register, ixv_register),
-	DEVMETHOD(device_probe, iflib_device_probe),
+	DEVMETHOD(device_probe, ixv_probe),
 	DEVMETHOD(device_attach, iflib_device_attach),
 	DEVMETHOD(device_detach, iflib_device_detach),
 	DEVMETHOD(device_shutdown, iflib_device_shutdown),
@@ -248,6 +249,16 @@ static void *
 ixv_register(device_t dev)
 {
 	return (&ixv_sctx_init);
+}
+
+static int
+ixv_probe(device_t dev)
+{
+	if (pci_get_device(dev) == IXGBE_DEV_ID_E610_VF &&
+	    pci_get_subdevice(dev) == IXGBE_SUBDEV_ID_E610_VF_HV)
+		return (ENXIO);
+
+	return (iflib_device_probe(dev));
 }
 
 /************************************************************************
