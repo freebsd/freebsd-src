@@ -5265,13 +5265,6 @@ ixgbe_enable_rx_drop(struct ixgbe_softc *sc)
 		IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(rxr->me), srrctl);
 	}
 
-	/* enable drop for each vf */
-	for (int i = 0; i < sc->num_vfs; i++) {
-		IXGBE_WRITE_REG(hw, IXGBE_QDE,
-		    (IXGBE_QDE_WRITE |
-		    (i << IXGBE_QDE_IDX_SHIFT) |
-		    IXGBE_QDE_ENABLE));
-	}
 } /* ixgbe_enable_rx_drop */
 
 /************************************************************************
@@ -5291,11 +5284,6 @@ ixgbe_disable_rx_drop(struct ixgbe_softc *sc)
 		IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(rxr->me), srrctl);
 	}
 
-	/* disable drop for each vf */
-	for (int i = 0; i < sc->num_vfs; i++) {
-		IXGBE_WRITE_REG(hw, IXGBE_QDE,
-		    (IXGBE_QDE_WRITE | (i << IXGBE_QDE_IDX_SHIFT)));
-	}
 } /* ixgbe_disable_rx_drop */
 
 /************************************************************************

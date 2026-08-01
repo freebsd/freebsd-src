@@ -588,12 +588,39 @@ ixgbe_vf_enable_transmit(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 
 
 static void
+ixgbe_vf_set_rx_drop(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    bool enable)
+{
+	struct ixgbe_hw *hw;
+	u32 qde;
+	int i, queue_count;
+
+	hw = &sc->hw;
+	queue_count = ixgbe_vf_queues(sc->iov_mode);
+	for (i = 0; i < queue_count; i++) {
+		qde = IXGBE_QDE_WRITE |
+		    (ixgbe_vf_que_index(sc->iov_mode, vf->pool, i) <<
+		    IXGBE_QDE_IDX_SHIFT);
+		if (enable) {
+			qde |= IXGBE_QDE_ENABLE;
+			if (vf->default_vlan != 0 &&
+			    hw->mac.type >= ixgbe_mac_X550)
+				qde |= IXGBE_QDE_HIDE_VLAN;
+		}
+		IXGBE_WRITE_REG(hw, IXGBE_QDE, qde);
+		IXGBE_WRITE_FLUSH(hw);
+	}
+}
+
+static void
 ixgbe_vf_enable_receive(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 {
 	struct ixgbe_hw *hw;
 	uint32_t vf_index, vfre;
 
 	hw = &sc->hw;
+	/* Keep one VF without receive descriptors from blocking its peers. */
+	ixgbe_vf_set_rx_drop(sc, vf, true);
 
 	vf_index = IXGBE_VF_INDEX(vf->pool);
 	vfre = IXGBE_READ_REG(hw, IXGBE_VFRE(vf_index));
@@ -1442,6 +1469,7 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 	for (i = 0; i < sc->num_vfs; i++) {
 		if (!(sc->vfs[i].flags & IXGBE_VF_ACTIVE))
 			continue;
+		ixgbe_vf_set_rx_drop(sc, &sc->vfs[i], false);
 		ixgbe_vf_clear_mac_filters(sc, &sc->vfs[i], true);
 		sc->vfs[i].flags &= ~IXGBE_VF_ANTI_SPOOF;
 		ixgbe_vf_set_anti_spoof(sc, &sc->vfs[i]);
