@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 24, 2022
+.Dd August 1, 2026
 .Dt IP6 4
 .Os
 .Sh NAME
@@ -502,6 +502,16 @@ multicast groups and other multicast options include
 .Dv IPV6_LEAVE_GROUP ,
 and
 .Dv IPV6_JOIN_GROUP .
+.Pp
+In addition, the
+.Dv IPV6_JOIN_GROUP ,
+and
+.Dv IPV6_LEAVE_GROUP
+socket options will accept IPv4-mapped multicast group
+addresses for Any-Source Memberships (ASM) only.
+This is an extension to the behaviour for unicast IPv4-mapped
+address support described in Section 3.7 of RFC 3493,
+which has been adopted by many network applications.
 .Ss Raw Sockets
 Raw IPv6 sockets are connectionless and are normally used with the
 .Xr sendto 2
@@ -729,3 +739,12 @@ The
 .Dv IPV6_PORTRANGE
 socket option and the conflict resolution rule are not defined in the
 RFCs and should be considered implementation dependent.
+.Sh HISTORY
+The extensions for
+.Dv IPV6_JOIN_GROUP
+and
+.Dv IPV6_LEAVE_GROUP
+to accept IPv4 group addresses in RFC 4291 IPv4-mapped format were added in
+.Fx 16.0 .
+These extensions were never formally defined in RFC 3493, and RFC 4038 did not
+define any migration mechanism for multicast groups specified in this way.
