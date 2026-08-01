@@ -1022,7 +1022,7 @@ ixl_vf_mac_valid(struct ixl_vf *vf, const uint8_t *addr)
 	 * is not its assigned MAC.
 	 */
 	if (!(vf->vf_flags & VF_FLAG_SET_MAC_CAP) &&
-	    !(ETHER_IS_MULTICAST(addr) || !ixl_ether_is_equal(addr, vf->mac)))
+	    !(ETHER_IS_MULTICAST(addr) || ixl_ether_is_equal(addr, vf->mac)))
 		return (EPERM);
 
 	return (0);
@@ -1824,4 +1824,3 @@ out:
 
 	return (error);
 }
-
