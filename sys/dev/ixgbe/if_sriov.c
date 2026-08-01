@@ -41,6 +41,8 @@
 
 MALLOC_DEFINE(M_IXGBE_SRIOV, "ix_sriov", "ix SR-IOV allocations");
 
+#define IXGBE_VF_MBX_CLEANUP_GRACE	(2 * SBT_1S)
+
 /************************************************************************
  * ixgbe_define_iov_schemas
  ************************************************************************/
@@ -521,9 +523,13 @@ ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 static void
 ixgbe_process_vf_reset(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 {
+	struct ixgbe_hw *hw;
 	bool rebuild_mta;
 	s32 error;
+	int i, queue_count;
 
+	hw = &sc->hw;
+	vf->flags &= ~IXGBE_VF_CTS;
 	rebuild_mta = vf->num_mc_hashes != 0;
 	vf->xcast_mode = IXGBEVF_XCAST_MODE_NONE;
 	vf->num_mc_hashes = 0;
@@ -537,9 +543,18 @@ ixgbe_process_vf_reset(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 		ixgbe_iov_rebuild_mta(sc);
 
 	ixgbe_vf_clear_mac_filters(sc, vf, true);
-	ixgbe_clear_rar(&sc->hw, vf->rar_index);
+	ixgbe_clear_rar(hw, vf->rar_index);
 	ixgbe_vf_set_anti_spoof(sc, vf);
-	ixgbe_toggle_txdctl(&sc->hw, vf->pool);
+	ixgbe_toggle_txdctl(hw, vf->pool);
+
+	/* VFLR does not clear transmit head write-back state. */
+	queue_count = ixgbe_vf_queues(sc->iov_mode);
+	for (i = 0; i < queue_count; i++) {
+		IXGBE_WRITE_REG(hw,
+		    IXGBE_PVFTDWBAHn(queue_count, vf->pool, i), 0);
+		IXGBE_WRITE_REG(hw,
+		    IXGBE_PVFTDWBALn(queue_count, vf->pool, i), 0);
+	}
 
 	vf->api_ver = IXGBE_API_VER_UNKNOWN;
 } /* ixgbe_process_vf_reset */
@@ -584,28 +599,10 @@ ixgbe_vf_reset_msg(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 	struct ixgbe_hw *hw;
 	uint32_t ack;
 	uint32_t resp[IXGBE_VF_PERMADDR_MSG_LEN];
-	int i, queue_count;
 
 	hw = &sc->hw;
 
 	ixgbe_process_vf_reset(sc, vf);
-	/*
-	 * The reset request was consumed by ixgbe_process_vf_msg(), so it is
-	 * now safe to clear this VF's mailbox.
-	 */
-	ixgbe_clear_mbx(hw, vf->pool);
-
-	/*
-	 * VF reset does not clear the transmit head write-back addresses.
-	 * The queues were disabled by ixgbe_process_vf_reset().
-	 */
-	queue_count = ixgbe_vf_queues(sc->iov_mode);
-	for (i = 0; i < queue_count; i++) {
-		IXGBE_WRITE_REG(hw,
-		    IXGBE_PVFTDWBAHn(queue_count, vf->pool, i), 0);
-		IXGBE_WRITE_REG(hw,
-		    IXGBE_PVFTDWBALn(queue_count, vf->pool, i), 0);
-	}
 
 	if (ixgbe_validate_mac_addr(vf->ether_addr) == 0) {
 		ixgbe_set_rar(&sc->hw, vf->rar_index, vf->ether_addr,
@@ -936,8 +933,8 @@ ixgbe_vf_get_queues(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
 } /* ixgbe_vf_get_queues */
 
 
-static void
-ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf)
+static bool
+ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf, bool reset_pending)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 #ifdef KTR
@@ -945,25 +942,39 @@ ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf)
 #endif
 	struct ixgbe_hw *hw;
 	uint32_t msg[IXGBE_VFMAILBOX_SIZE];
+	bool cleanup_complete;
 	int error;
 
 	hw = &sc->hw;
+	cleanup_complete = true;
 
 	error = ixgbe_read_mbx(hw, msg, IXGBE_VFMAILBOX_SIZE, vf->pool);
 
 	if (error != 0)
-		return;
+		return (false);
+	/*
+	 * Some devices do not clear VFMBMEM on VFLR.  Copy a pending request
+	 * first because the VF posts its mailbox reset request after raising
+	 * the reset event.
+	 */
+	if (reset_pending || msg[0] == IXGBE_VF_RESET)
+		cleanup_complete =
+		    ixgbe_clear_mbx(hw, vf->pool) == IXGBE_SUCCESS;
+	/* The successful read ACKed the request; dispatch it even if not clear. */
 
 	CTR3(KTR_MALLOC, "%s: received msg %x from %d", if_name(ifp),
 	    msg[0], vf->pool);
 	if (msg[0] == IXGBE_VF_RESET) {
 		ixgbe_vf_reset_msg(sc, vf, msg);
-		return;
+		return (cleanup_complete);
 	}
+	/* Discard requests from the mailbox session invalidated by VFLR. */
+	if (reset_pending)
+		return (cleanup_complete);
 
 	if (!(vf->flags & IXGBE_VF_CTS)) {
 		ixgbe_send_vf_failure(sc, vf, msg[0]);
-		return;
+		return (true);
 	}
 
 	switch (msg[0] & IXGBE_VT_MSG_MASK) {
@@ -994,7 +1005,38 @@ ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf)
 	default:
 		ixgbe_send_vf_failure(sc, vf, msg[0]);
 	}
+	return (true);
 } /* ixgbe_process_vf_msg */
+
+static void
+ixgbe_cleanup_vf_mbx(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
+{
+	struct ixgbe_hw *hw;
+	sbintime_t now;
+
+	hw = &sc->hw;
+	if (ixgbe_clear_mbx(hw, vf->pool) == IXGBE_SUCCESS) {
+		vf->flags &= ~IXGBE_VF_MBX_CLEANUP;
+		return;
+	}
+
+	now = getsbinuptime();
+	if (now < vf->mbx_cleanup_deadline)
+		return;
+
+	/*
+	 * A functioning VF posts VFREQ within the grace interval.  Ownership
+	 * still held after that interval is residue from the old reset epoch.
+	 * The force-clear helper rechecks VFREQ before asserting RVFU.
+	 */
+	if (ixgbe_force_clear_mbx_pf(hw, vf->pool) == IXGBE_SUCCESS) {
+		vf->flags &= ~IXGBE_VF_MBX_CLEANUP;
+		return;
+	}
+
+	/* A request raced the force-clear attempt; give it another interval. */
+	vf->mbx_cleanup_deadline = now + IXGBE_VF_MBX_CLEANUP_GRACE;
+}
 
 /* Tasklet for handling VF -> PF mailbox messages */
 void
@@ -1004,28 +1046,108 @@ ixgbe_handle_mbx(void *context)
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw;
 	struct ixgbe_vf *vf;
+	bool cleanup_pending, reset_pending, reset_seen;
 	int i;
 
 	hw = &sc->hw;
+	cleanup_pending = false;
 
 	for (i = 0; i < sc->num_vfs; i++) {
 		vf = &sc->vfs[i];
 
 		if (vf->flags & IXGBE_VF_ACTIVE) {
-			if (hw->mbx.ops[vf->pool].check_for_rst(hw,
-			    vf->pool) == 0)
+			reset_seen = hw->mbx.ops[vf->pool].check_for_rst(hw,
+			    vf->pool) == 0;
+			if (reset_seen) {
+				vf->flags |= IXGBE_VF_MBX_CLEANUP;
+				vf->mbx_cleanup_deadline = getsbinuptime() +
+				    IXGBE_VF_MBX_CLEANUP_GRACE;
 				ixgbe_process_vf_reset(sc, vf);
+			}
+			reset_pending =
+			    (vf->flags & IXGBE_VF_MBX_CLEANUP) != 0;
 
 			if (hw->mbx.ops[vf->pool].check_for_msg(hw,
-			    vf->pool) == 0)
-				ixgbe_process_vf_msg(ctx, vf);
+			    vf->pool) == 0) {
+				if (ixgbe_process_vf_msg(ctx, vf, reset_pending))
+					vf->flags &= ~IXGBE_VF_MBX_CLEANUP;
+			}
+			if (reset_pending &&
+			    (vf->flags & IXGBE_VF_MBX_CLEANUP) != 0)
+				ixgbe_cleanup_vf_mbx(sc, vf);
 
 			if (hw->mbx.ops[vf->pool].check_for_ack(hw,
 			    vf->pool) == 0)
 				ixgbe_process_vf_ack(sc, vf);
+
+			if (vf->flags & IXGBE_VF_MBX_CLEANUP)
+				cleanup_pending = true;
 		}
 	}
+	sc->iov_mbx_cleanup_pending = cleanup_pending;
 } /* ixgbe_handle_mbx */
+
+/*
+ * VFREQ, VFACK, and a bare VFLR can remain latched without a usable shared
+ * mailbox interrupt across a PF stop/restart.  Sample their aggregate
+ * registers from the periodic admin pass so work does not depend on another
+ * edge.
+ */
+bool
+ixgbe_mbx_pending(struct ixgbe_softc *sc)
+{
+	struct ixgbe_hw *hw;
+	uint32_t active_mbx[4], active_rst[2], events;
+	int i, index;
+
+	if (sc->num_vfs == 0)
+		return (false);
+
+	bzero(active_mbx, sizeof(active_mbx));
+	bzero(active_rst, sizeof(active_rst));
+	for (i = 0; i < sc->num_vfs; i++) {
+		if ((sc->vfs[i].flags & IXGBE_VF_ACTIVE) == 0)
+			continue;
+		index = IXGBE_PFMBICR_INDEX(sc->vfs[i].pool);
+		active_mbx[index] |=
+		    IXGBE_PFMBICR_VFREQ_VF1 <<
+		    IXGBE_PFMBICR_SHIFT(sc->vfs[i].pool);
+		active_mbx[index] |=
+		    IXGBE_PFMBICR_VFACK_VF1 <<
+		    IXGBE_PFMBICR_SHIFT(sc->vfs[i].pool);
+		index = IXGBE_PFVFLRE_INDEX(sc->vfs[i].pool);
+		active_rst[index] |=
+		    1U << IXGBE_PFVFLRE_SHIFT(sc->vfs[i].pool);
+	}
+
+	hw = &sc->hw;
+	for (index = 0; index < nitems(active_mbx); index++) {
+		if (active_mbx[index] != 0 &&
+		    (IXGBE_READ_REG(hw, IXGBE_PFMBICR(index)) &
+		    active_mbx[index]) != 0)
+			return (true);
+	}
+	for (index = 0; index < nitems(active_rst); index++) {
+		if (active_rst[index] == 0)
+			continue;
+		switch (hw->mac.type) {
+		case ixgbe_mac_82599EB:
+			events = IXGBE_READ_REG(hw, IXGBE_PFVFLRE(index));
+			break;
+		case ixgbe_mac_X540:
+		case ixgbe_mac_X550:
+		case ixgbe_mac_X550EM_x:
+		case ixgbe_mac_X550EM_a:
+			events = IXGBE_READ_REG(hw, IXGBE_PFVFLREC(index));
+			break;
+		default:
+			return (false);
+		}
+		if ((events & active_rst[index]) != 0)
+			return (true);
+	}
+	return (false);
+}
 
 int
 ixgbe_iov_validate(struct ixgbe_softc *sc, u16 num_vfs)
@@ -1114,6 +1236,7 @@ ixgbe_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
 	}
 
 	sc->num_vfs = num_vfs;
+	sc->iov_mbx_cleanup_pending = false;
 	ixgbe_init_mbx_params_pf(&sc->hw);
 
 	sc->feat_en |= IXGBE_FEATURE_SRIOV;
@@ -1129,6 +1252,7 @@ err_init_iov:
 	sc->num_vfs = 0;
 	sc->pool = 0;
 	sc->iov_mode = IXGBE_NO_VM;
+	sc->iov_mbx_cleanup_pending = false;
 
 	return (retval);
 } /* ixgbe_if_iov_init */
@@ -1204,6 +1328,7 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 	ixgbe_align_all_queue_indices(sc);
 	sc->iov_vfta_valid = false;
 	sc->iov_vlan_promisc = false;
+	sc->iov_mbx_cleanup_pending = false;
 	(void)ixgbe_clear_vfta(hw);
 	ixgbe_setup_vlan_hw_support(ctx);
 } /* ixgbe_if_iov_uninit */
@@ -1404,5 +1529,12 @@ ixgbe_handle_mbx(void *context)
 {
 	UNREFERENCED_PARAMETER(context);
 } /* ixgbe_handle_mbx */
+
+bool
+ixgbe_mbx_pending(struct ixgbe_softc *sc)
+{
+	UNREFERENCED_PARAMETER(sc);
+	return (false);
+}
 
 #endif
