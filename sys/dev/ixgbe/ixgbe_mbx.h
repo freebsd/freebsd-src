@@ -153,6 +153,9 @@ enum ixgbe_pfvf_api_rev {
 #define IXGBE_VF_UPDATE_XCAST_MODE	0x0c
 #define IXGBE_VF_GET_LINK_STATE  0x10
 
+/* mailbox API, version 1.6 VF requests */
+#define IXGBE_VF_GET_PF_LINK_STATE 0x11 /* get status of the link on PF */
+
 /* mode choices for IXGBE_VF_UPDATE_XCAST_MODE */
 enum ixgbevf_xcast_modes {
 	IXGBEVF_XCAST_MODE_NONE = 0,

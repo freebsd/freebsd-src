@@ -428,10 +428,13 @@ struct ixgbe_softc {
 	u32			vf_mbx_ready;
 	u32			vf_mbx_retry_pending;
 	u32			vf_vlan_retry_tick;
+	u32			vf_link_update;
 	u16			vf_vlan_retry_cursor;
 	u8			vf_mbx_retry_stage;
 	bool			vf_mbx_retry_initialized;
 	bool			vf_mcast_overflow_warned;
+	u8			vf_link_mbx_failures;
+	u8			vf_link_poll_tick;
 
 	/* Info about the interface */
 	int			advertise;	/* link speeds */
