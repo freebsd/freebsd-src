@@ -158,8 +158,6 @@ static void inm_release(struct in_multi *);
 static struct ip_moptions *
 		inp_findmoptions(struct inpcb *);
 static int	inp_get_source_filters(struct inpcb *, struct sockopt *);
-static int	inp_join_group(struct inpcb *, struct sockopt *);
-static int	inp_leave_group(struct inpcb *, struct sockopt *);
 static int	inp_block_unblock_source(struct inpcb *, struct sockopt *);
 static int	inp_set_multicast_if(struct inpcb *, struct sockopt *);
 static int	inp_set_source_filters(struct inpcb *, struct sockopt *);
@@ -1884,7 +1882,7 @@ const struct in_addr *ina, const u_int index)
 /*
  * Join an IPv4 multicast group, possibly with a source.
  */
-static int
+int
 inp_join_group(struct inpcb *inp, struct sockopt *sopt)
 {
 	struct group_source_req		 gsr;
@@ -2208,7 +2206,7 @@ out_inp_unlocked:
 /*
  * Leave an IPv4 multicast group on an inpcb, possibly with a source.
  */
-static int
+int
 inp_leave_group(struct inpcb *inp, struct sockopt *sopt)
 {
 	struct epoch_tracker		 et;

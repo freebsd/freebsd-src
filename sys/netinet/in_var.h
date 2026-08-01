@@ -459,6 +459,11 @@ void	in_ifattach(void *, struct ifnet *);
 void	in_detachhead(struct rib_head *rh);
 #endif
 
+struct sockopt;
+
+int	inp_join_group(struct inpcb *, struct sockopt *);
+int	inp_leave_group(struct inpcb *, struct sockopt *);
+
 #endif /* _KERNEL */
 
 /* INET6 stuff */
