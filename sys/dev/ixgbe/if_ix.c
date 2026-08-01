@@ -6170,6 +6170,7 @@ ixgbe_init_device_features(struct ixgbe_softc *sc)
 		break;
 	case ixgbe_mac_E610:
 		sc->feat_cap |= IXGBE_FEATURE_RECOVERY_MODE;
+		sc->feat_cap |= IXGBE_FEATURE_SRIOV;
 		sc->feat_cap |= IXGBE_FEATURE_DBG_DUMP;
 		sc->feat_cap |= IXGBE_FEATURE_FW_LOGGING;
 		error = ixgbe_get_caps(&sc->hw);
