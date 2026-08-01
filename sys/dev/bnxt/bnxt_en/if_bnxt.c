@@ -1985,8 +1985,6 @@ static void bnxt_fw_reset_close(struct bnxt_softc *bp)
 			iflib_irq_free(bp->ctx, &bp->rx_cp_rings[i].irq);
 
 	}
-	if (pci_is_enabled(bp->pdev))
-		pci_disable_device(bp->pdev);
 	bnxt_ktls_del_all(bp);
 	pci_disable_busmaster(bp->dev);
 	bnxt_clear_ktls(bp);
