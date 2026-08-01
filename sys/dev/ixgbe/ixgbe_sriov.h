@@ -75,6 +75,7 @@
 #define IXGBE_API_VER_1_1	2
 #define IXGBE_API_VER_1_2	3
 #define IXGBE_API_VER_1_3	4
+#define IXGBE_API_VER_1_6	ixgbe_mbox_api_16
 #define IXGBE_API_VER_UNKNOWN	UINT16_MAX
 
 #define IXGBE_NO_VM             0
