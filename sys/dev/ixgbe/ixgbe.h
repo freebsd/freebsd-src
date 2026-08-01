@@ -366,6 +366,7 @@ struct ixgbe_vf {
 	uint16_t	default_vlan;
 	uint16_t	api_ver;
 	uint8_t		xcast_mode;
+	sbintime_t	mbx_cleanup_deadline;
 };
 
 /* Our softc structure */
@@ -461,6 +462,7 @@ struct ixgbe_softc {
 	bool			iov_mta_valid;
 	bool			iov_vfta_valid;
 	bool			iov_vlan_promisc;
+	bool			iov_mbx_cleanup_pending;
 
 	/* Bypass */
 	struct ixgbe_bp_data	bypass;
