@@ -28,9 +28,11 @@
  */
 
 #include "namespace.h"
+#include <sys/param.h>
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdckdint.h>
 #ifdef DEBUG
 #include <stdint.h>
 #endif
@@ -56,13 +58,20 @@ static int
 wmemstream_grow(struct wmemstream *ms, fpos_t newoff)
 {
 	wchar_t *buf;
-	ssize_t newsize;
+	ssize_t newlen;
 
 	if (newoff < 0 || newoff >= SSIZE_MAX / sizeof(wchar_t))
-		newsize = SSIZE_MAX / sizeof(wchar_t) - 1;
+		newlen = SSIZE_MAX / sizeof(wchar_t) - 1;
 	else
-		newsize = newoff;
-	if (newsize > ms->size) {
+		newlen = newoff;
+	if (newlen > ms->size) {
+		size_t newsize;
+
+		if (ckd_add(&newsize, ms->size, ms->size / 2))
+			newsize = SSIZE_MAX - 1;
+
+		newsize = MAX(newsize, newlen);
+
 		buf = reallocarray(*ms->bufp, newsize + 1, sizeof(wchar_t));
 		if (buf == NULL)
 			return (0);
@@ -74,8 +83,9 @@ wmemstream_grow(struct wmemstream *ms, fpos_t newoff)
 		*ms->bufp = buf;
 		ms->size = newsize;
 	}
-	if (newsize > ms->len)
-		ms->len = newsize;
+
+	if (newlen > ms->len)
+		ms->len = newlen;
 	return (1);
 }
 
