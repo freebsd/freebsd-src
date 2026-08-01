@@ -197,6 +197,7 @@ ixgbe_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	TXD = (struct ixgbe_adv_tx_context_desc *) &txr->tx_base[first];
 	if ((pi->ipi_csum_flags & CSUM_OFFLOAD) ||
 	    (sc->feat_en & IXGBE_FEATURE_NEEDS_CTXD) ||
+	    (sc->feat_en & IXGBE_FEATURE_SRIOV) ||
 	    pi->ipi_vtag) {
 		/*********************************************
 		 * Set up the appropriate offload context
