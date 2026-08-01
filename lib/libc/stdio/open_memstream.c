@@ -46,6 +46,7 @@
 struct memstream {
 	char **bufp;
 	size_t *sizep;
+	size_t size;
 	ssize_t len;
 	fpos_t offset;
 };
@@ -60,19 +61,22 @@ memstream_grow(struct memstream *ms, fpos_t newoff)
 		newsize = SSIZE_MAX - 1;
 	else
 		newsize = newoff;
-	if (newsize > ms->len) {
+	if (newsize > ms->size) {
 		buf = realloc(*ms->bufp, newsize + 1);
 		if (buf == NULL)
 			return (0);
 
 #ifdef DEBUG
 		fprintf(stderr, "MS: %p growing from %zd to %zd\n",
-		    ms, ms->len, newsize);
+		    ms, ms->size, newsize);
 #endif
-		memset(buf + ms->len + 1, 0, newsize - ms->len);
+		memset(buf + ms->size + 1, 0, newsize - ms->size);
 		*ms->bufp = buf;
-		ms->len = newsize;
+		ms->size = newsize;
 	}
+
+	if (newsize > ms->len)
+		ms->len = newsize;
 	return (1);
 }
 
@@ -192,6 +196,7 @@ open_memstream(char **bufp, size_t *sizep)
 	}
 	ms->bufp = bufp;
 	ms->sizep = sizep;
+	ms->size = 0;
 	ms->len = 0;
 	ms->offset = 0;
 	memstream_update(ms);
