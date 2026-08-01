@@ -210,8 +210,8 @@ s32 ixgbe_reset_hw_vf(struct ixgbe_hw *hw)
 	ixgbe_virt_clr_reg(hw);
 
 	/*
-	 * VFLR does not clear VFMAILBOX.VFU. Drop stale ownership and
-	 * cached read-to-clear status.
+	 * Some devices do not clear VFMAILBOX.VFU on VFLR.  Drop stale
+	 * ownership and cached read-to-clear status.
 	 */
 	IXGBE_WRITE_REG(hw, IXGBE_VFMAILBOX, 0);
 	hw->mbx.vf_mailbox = 0;

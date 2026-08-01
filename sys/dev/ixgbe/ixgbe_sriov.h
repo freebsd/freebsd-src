@@ -49,6 +49,7 @@
 #define IXGBE_VF_ACTIVE         (1 << 3) /* VF is active. */
 #define IXGBE_VF_ANTI_SPOOF     (1 << 4) /* Enforce source identity. */
 #define IXGBE_VF_ALLOW_PROMISC  (1 << 5) /* VF may request promiscuity. */
+#define IXGBE_VF_MBX_CLEANUP    (1 << 6) /* Reset mailbox cleanup pending. */
 #define IXGBE_VF_INDEX(vmdq)    ((vmdq) / 32)
 #define IXGBE_VF_BIT(vmdq)      (1 << ((vmdq) % 32))
 
@@ -106,5 +107,6 @@ u32  ixgbe_get_mrqc(int);
 
 void ixgbe_if_init(if_ctx_t ctx);
 void ixgbe_handle_mbx(void *);
+bool ixgbe_mbx_pending(struct ixgbe_softc *);
 
 #endif

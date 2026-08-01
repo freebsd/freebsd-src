@@ -4831,7 +4831,14 @@ ixgbe_if_update_admin_status(if_ctx_t ctx)
 		ixgbe_handle_mod(ctx);
 	if (sc->task_requests & IXGBE_REQUEST_TASK_MSF)
 		ixgbe_handle_msf(ctx);
-	if (sc->task_requests & IXGBE_REQUEST_TASK_MBX)
+	/*
+	 * A reset request re-enables VF traffic, so do not service mailboxes
+	 * while the PF is stopped.  VFREQ, VFACK, and VFLR are hardware-latched
+	 * and ixgbe_mbx_pending() resamples them after the PF is running again.
+	 */
+	if ((if_getdrvflags(iflib_get_ifp(ctx)) & IFF_DRV_RUNNING) != 0 &&
+	    ((sc->task_requests & IXGBE_REQUEST_TASK_MBX) != 0 ||
+	    sc->iov_mbx_cleanup_pending || ixgbe_mbx_pending(sc)))
 		ixgbe_handle_mbx(ctx);
 	if (sc->task_requests & IXGBE_REQUEST_TASK_FDIR)
 		ixgbe_reinit_fdir(ctx);

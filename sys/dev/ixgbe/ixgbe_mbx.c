@@ -207,7 +207,8 @@ s32 ixgbe_check_for_rst(struct ixgbe_hw *hw, u16 mbx_id)
  * @hw: pointer to the HW structure
  * @mbx_id: id of mailbox to write
  *
- * Set VFMBMEM of given VF to 0x0.
+ * Set VFMBMEM of given VF to 0x0.  A peer-owned or newly posted mailbox is
+ * left intact.
  **/
 s32 ixgbe_clear_mbx(struct ixgbe_hw *hw, u16 mbx_id)
 {
@@ -1112,24 +1113,79 @@ static s32 ixgbe_read_mbx_pf(struct ixgbe_hw *hw, u32 *msg, u16 size,
 }
 
 /**
- * ixgbe_clear_mbx_pf - Clear Mailbox Memory
+ * ixgbe_clear_mbx_pf - Clear idle Mailbox Memory
  * @hw: pointer to the HW structure
  * @vf_id: the VF index
  *
- * Set VFMBMEM of given VF to 0x0.
+ * Set VFMBMEM of given VF to 0x0 unless the VF owns it or has posted a new
+ * request.
  **/
 static s32 ixgbe_clear_mbx_pf(struct ixgbe_hw *hw, u16 vf_id)
 {
-	u16 mbx_size = hw->mbx.size;
+	s32 ret_val;
+	u16 mbx_size;
 	u16 i;
 
 	if (vf_id > 63)
 		return IXGBE_ERR_PARAM;
 
+	/*
+	 * Serialize against a VF composing a request.  After acquiring PFU,
+	 * recheck VFREQ to close the window between the caller's mailbox check
+	 * and this clear.  Leave a newly posted request intact for the normal
+	 * mailbox path to consume.
+	 */
+	ret_val = ixgbe_obtain_mbx_lock_pf(hw, vf_id);
+	if (ret_val != IXGBE_SUCCESS)
+		return ret_val;
+	if (ixgbe_check_for_msg_pf(hw, vf_id) == IXGBE_SUCCESS) {
+		ret_val = IXGBE_ERR_MBX;
+		goto out;
+	}
+
+	mbx_size = hw->mbx.size;
 	for (i = 0; i < mbx_size; ++i)
 		IXGBE_WRITE_REG_ARRAY(hw, IXGBE_PFMBMEM(vf_id), i, 0x0);
+	ret_val = IXGBE_SUCCESS;
 
-	return IXGBE_SUCCESS;
+out:
+	ixgbe_release_mbx_lock_pf(hw, vf_id);
+	return ret_val;
+}
+
+/**
+ * ixgbe_force_clear_mbx_pf - Revoke stale VF ownership and clear its mailbox
+ * @hw: pointer to the HW structure
+ * @vf_id: the VF index
+ *
+ * VFLR does not clear VFMAILBOX.VFU on some devices.  The caller must allow a
+ * live VF a bounded interval to finish posting its reset request before using
+ * this function.  Refuse to revoke ownership if a request is already posted,
+ * then use RVFU and the normal synchronized clear path.
+ **/
+s32 ixgbe_force_clear_mbx_pf(struct ixgbe_hw *hw, u16 vf_id)
+{
+	u32 pf_mailbox;
+
+	if (vf_id > 63)
+		return IXGBE_ERR_PARAM;
+
+	pf_mailbox = IXGBE_READ_REG(hw, IXGBE_PFMAILBOX(vf_id));
+	if ((pf_mailbox & IXGBE_PFMAILBOX_VFU) == 0)
+		return ixgbe_clear_mbx_pf(hw, vf_id);
+	if (ixgbe_check_for_msg_pf(hw, vf_id) == IXGBE_SUCCESS)
+		return IXGBE_ERR_MBX;
+
+	/*
+	 * Hardware has no atomic revoke-if-idle operation.  A VF that starts a
+	 * request after the grace interval can race RVFU; the synchronized clear
+	 * below detects a request that has reached VFREQ, and its failure makes
+	 * the caller retain cleanup state for another interval.
+	 */
+	IXGBE_WRITE_REG(hw, IXGBE_PFMAILBOX(vf_id), IXGBE_PFMAILBOX_RVFU);
+	IXGBE_WRITE_FLUSH(hw);
+
+	return ixgbe_clear_mbx_pf(hw, vf_id);
 }
 
 /**
