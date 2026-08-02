@@ -629,7 +629,7 @@ aq_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 						   M_AQ, M_NOWAIT | M_ZERO);
 		if (!ring){
 			rc = ENOMEM;
-			device_printf(softc->dev, "atlantic: tx_ring malloc fail\n");
+			device_printf(softc->dev, "tx_ring malloc fail\n");
 			goto fail;
 		}
 		ring->tx_descs = (volatile struct aq_tx_desc*)vaddrs[i];
@@ -644,7 +644,7 @@ aq_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 		rc = aq_ring_stats_alloc(ring);
 		if (rc != 0) {
 			device_printf(softc->dev,
-			    "atlantic: tx_ring stats alloc fail\n");
+			    "tx_ring stats alloc fail\n");
 			goto fail;
 		}
 	}
@@ -675,7 +675,7 @@ aq_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 		if (!ring){
 			rc = ENOMEM;
 			device_printf(softc->dev,
-			    "atlantic: rx_ring malloc fail\n");
+			    "rx_ring malloc fail\n");
 			goto fail;
 		}
 
@@ -690,7 +690,7 @@ aq_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 		rc = aq_ring_stats_alloc(ring);
 		if (rc != 0) {
 			device_printf(softc->dev,
-			    "atlantic: rx_ring stats alloc fail\n");
+			    "rx_ring stats alloc fail\n");
 			goto fail;
 		}
 	}
@@ -756,7 +756,7 @@ aq_if_init(if_ctx_t ctx)
 	err = aq_hw_init(&softc->hw, softc->hw.mac_addr, softc->msix,
 	    softc->scctx->isc_intr == IFLIB_INTR_MSIX);
 	if (err != 0) {
-		device_printf(softc->dev, "atlantic: aq_hw_init: %d\n", err);
+		device_printf(softc->dev, "aq_hw_init: %d\n", err);
 		AQ_DBG_EXIT(err);
 		return;
 	}
@@ -774,12 +774,12 @@ aq_if_init(if_ctx_t ctx)
 		err = aq_ring_tx_init(&softc->hw, ring);
 		if (err) {
 			device_printf(softc->dev,
-			    "atlantic: aq_ring_tx_init: %d\n", err);
+			    "aq_ring_tx_init: %d\n", err);
 		}
 		err = aq_ring_tx_start(hw, ring);
 		if (err != 0) {
 			device_printf(softc->dev,
-			    "atlantic: aq_ring_tx_start: %d\n", err);
+			    "aq_ring_tx_start: %d\n", err);
 		}
 	}
 	for (i = 0; i < softc->rx_rings_count; i++) {
@@ -788,12 +788,12 @@ aq_if_init(if_ctx_t ctx)
 		err = aq_ring_rx_init(&softc->hw, ring);
 		if (err) {
 			device_printf(softc->dev,
-			    "atlantic: aq_ring_rx_init: %d\n", err);
+			    "aq_ring_rx_init: %d\n", err);
 		}
 		err = aq_ring_rx_start(hw, ring);
 		if (err != 0) {
 			device_printf(softc->dev,
-			    "atlantic: aq_ring_rx_start: %d\n", err);
+			    "aq_ring_rx_start: %d\n", err);
 		}
 		aq_if_rx_queue_intr_enable(ctx, i);
 	}
@@ -1325,80 +1325,38 @@ aq_sysctl_print_rss_config(SYSCTL_HANDLER_ARGS)
 	return (0);
 }
 
-static int
-aq_sysctl_print_tx_head(SYSCTL_HANDLER_ARGS)
-{
-	struct aq_ring  *ring = arg1;
-	int             error = 0;
-	unsigned int   val;
-
-	if (!ring)
-		return (0);
-
-	val = tdm_tx_desc_head_ptr_get(&ring->dev->hw, ring->index);
-
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return (error);
-
-	return (0);
-}
+enum aq_ring_ptr {
+	AQ_RING_TX_HEAD,
+	AQ_RING_TX_TAIL,
+	AQ_RING_RX_HEAD,
+	AQ_RING_RX_TAIL,
+};
 
 static int
-aq_sysctl_print_tx_tail(SYSCTL_HANDLER_ARGS)
+aq_sysctl_print_ring_ptr(SYSCTL_HANDLER_ARGS)
 {
-	struct aq_ring  *ring = arg1;
-	int             error = 0;
-	unsigned int   val;
+	struct aq_ring	*ring = arg1;
+	unsigned int	val;
 
-	if (!ring)
+	if (ring == NULL)
 		return (0);
 
-	val = reg_tx_dma_desc_tail_ptr_get(&ring->dev->hw, ring->index);
+	switch (arg2) {
+	case AQ_RING_TX_HEAD:
+		val = tdm_tx_desc_head_ptr_get(&ring->dev->hw, ring->index);
+		break;
+	case AQ_RING_TX_TAIL:
+		val = reg_tx_dma_desc_tail_ptr_get(&ring->dev->hw, ring->index);
+		break;
+	case AQ_RING_RX_HEAD:
+		val = rdm_rx_desc_head_ptr_get(&ring->dev->hw, ring->index);
+		break;
+	default: /* AQ_RING_RX_TAIL */
+		val = reg_rx_dma_desc_tail_ptr_get(&ring->dev->hw, ring->index);
+		break;
+	}
 
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return (error);
-
-	return (0);
-}
-
-static int
-aq_sysctl_print_rx_head(SYSCTL_HANDLER_ARGS)
-{
-	struct aq_ring  *ring = arg1;
-	int             error = 0;
-	unsigned int   val;
-
-	if (!ring)
-		return (0);
-
-	val = rdm_rx_desc_head_ptr_get(&ring->dev->hw, ring->index);
-
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return (error);
-
-	return (0);
-}
-
-static int
-aq_sysctl_print_rx_tail(SYSCTL_HANDLER_ARGS)
-{
-	struct aq_ring  *ring = arg1;
-	int             error = 0;
-	unsigned int   val;
-
-	if (!ring)
-		return (0);
-
-	val = reg_rx_dma_desc_tail_ptr_get(&ring->dev->hw, ring->index);
-
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return (error);
-
-	return (0);
+	return (sysctl_handle_int(oidp, &val, 0, req));
 }
 
 static int
@@ -1467,11 +1425,11 @@ aq_add_stats_sysctls(struct aq_dev *softc)
 		SYSCTL_ADD_COUNTER_U64(ctx, queue_list, OID_AUTO, "tx_bytes",
 		    CTLFLAG_RD, &(ring->stats.tx_bytes), "TX Octets");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "tx_head",
-		    CTLTYPE_UINT | CTLFLAG_RD, ring, 0,
-		    aq_sysctl_print_tx_head, "IU", "ring head pointer");
+		    CTLTYPE_UINT | CTLFLAG_RD, ring, AQ_RING_TX_HEAD,
+		    aq_sysctl_print_ring_ptr, "IU", "ring head pointer");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "tx_tail",
-		    CTLTYPE_UINT | CTLFLAG_RD, ring, 0,
-		aq_sysctl_print_tx_tail, "IU", "ring tail pointer");
+		    CTLTYPE_UINT | CTLFLAG_RD, ring, AQ_RING_TX_TAIL,
+		    aq_sysctl_print_ring_ptr, "IU", "ring tail pointer");
 	}
 
 	for (int i = 0; i < softc->rx_rings_count; i++) {
@@ -1490,11 +1448,11 @@ aq_add_stats_sysctls(struct aq_dev *softc)
 		SYSCTL_ADD_COUNTER_U64(ctx, queue_list, OID_AUTO, "irq",
 		    CTLFLAG_RD, &(ring->stats.irq), "RX interrupts");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rx_head",
-		    CTLTYPE_UINT | CTLFLAG_RD, ring, 0,
-		aq_sysctl_print_rx_head, "IU", "ring head pointer");
+		    CTLTYPE_UINT | CTLFLAG_RD, ring, AQ_RING_RX_HEAD,
+		    aq_sysctl_print_ring_ptr, "IU", "ring head pointer");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rx_tail",
-		    CTLTYPE_UINT | CTLFLAG_RD, ring, 0,
-		aq_sysctl_print_rx_tail, "IU", " ring tail pointer");
+		    CTLTYPE_UINT | CTLFLAG_RD, ring, AQ_RING_RX_TAIL,
+		    aq_sysctl_print_ring_ptr, "IU", "ring tail pointer");
 	}
 
 	stat_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "mac",

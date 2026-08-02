@@ -150,11 +150,17 @@ enum aq_debug_category
 #define trace_detail(_hw, _cat, _fmt, args...)				\
 	aq_trace_base(_hw, lvl_detail, _cat, _fmt, ##args)
 
+#if AQ_CFG_DEBUG_LVL > 2
 void trace_aq_tx_descr(struct aq_hw *hw, int ring_idx, unsigned int pointer,
     volatile uint64_t descr[2]);
 void trace_aq_rx_descr(struct aq_hw *hw, int ring_idx, unsigned int pointer,
     volatile uint64_t descr[2]);
 void trace_aq_tx_context_descr(struct aq_hw *hw, int ring_idx,
     unsigned int pointer, volatile uint64_t descr[2]);
+#else
+#define trace_aq_tx_descr(...)		((void)0)
+#define trace_aq_rx_descr(...)		((void)0)
+#define trace_aq_tx_context_descr(...)	((void)0)
+#endif
 
 #endif // AQ_DBG_H
