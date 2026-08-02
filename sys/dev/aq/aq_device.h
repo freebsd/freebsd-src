@@ -35,6 +35,17 @@
 #ifndef _AQ_DEVICE_H_
 #define _AQ_DEVICE_H_
 
+#include <sys/bitstring.h>
+#include <sys/queue.h>
+#include <sys/socket.h>
+#include <sys/sysctl.h>
+
+#include <net/ethernet.h>
+#include <net/if.h>
+#include <net/if_media.h>
+#include <net/if_var.h>
+#include <net/iflib.h>
+
 #include "aq_hw.h"
 
 enum aq_media_type {
@@ -138,6 +149,11 @@ struct aq_dev {
 
 	uint8_t			rss_key[HW_ATL_RSS_HASHKEY_SIZE];
 	uint8_t			rss_table[HW_ATL_RSS_INDIRECTION_TABLE_MAX];
+
+	int			dbg_level;
+	uint32_t		dbg_categories;
+
+	struct sysctl_ctx_list	aq_sysctl_ctx;
 };
 
 int aq_update_hw_stats(struct aq_dev *aq_dev);

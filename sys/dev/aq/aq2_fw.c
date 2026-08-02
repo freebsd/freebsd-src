@@ -32,6 +32,7 @@
 #include "aq_hw_llh.h"
 #include "aq2_hw.h"
 #include "aq_fw.h"
+#include "aq_dbg.h"
 
 static int aq2_fw_reset(struct aq_hw *hw);
 static int aq2_fw_set_mode(struct aq_hw *hw, enum aq_hw_fw_mpi_state mode,
@@ -40,6 +41,7 @@ static int aq2_fw_get_mode(struct aq_hw *hw, enum aq_hw_fw_mpi_state *mode,
     enum aq_fw_link_speed *speed, enum aq_fw_link_fc *fc);
 static int aq2_fw_get_mac_addr(struct aq_hw *hw, uint8_t *mac);
 static int aq2_fw_get_stats(struct aq_hw *hw, struct aq_hw_stats *stats);
+static int aq2_fw_get_temp(struct aq_hw *hw, int *temp_mc);
 
 /* Coherent OUT-window read, bracketed by the transaction id. */
 static int
@@ -97,6 +99,7 @@ aq2_fw_reboot(struct aq_hw *hw)
 		device_printf(hw->dev, "A2 firmware reboot timeout\n");
 		return (ETIMEDOUT);
 	}
+	trace(hw, dbg_init, "aq2> F/W boot started, %d ms", (20000 - timo) / 100);
 
 	for (timo = 200000; timo > 0; timo--) {
 		v = AQ_READ_REG(hw, AQ2_MIF_BOOT_REG);
@@ -111,6 +114,8 @@ aq2_fw_reboot(struct aq_hw *hw)
 		device_printf(hw->dev, "A2 firmware restart timeout\n");
 		return (ETIMEDOUT);
 	}
+	trace(hw, dbg_init, "aq2> F/W boot complete, %d ms",
+	    (200000 - timo) / 100);
 
 	v = AQ_READ_REG(hw, AQ2_MIF_BOOT_REG);
 	if (v & AQ2_MIF_BOOT_FAILED) {
@@ -152,9 +157,12 @@ aq2_fw_reboot(struct aq_hw *hw)
 		iface = "unknown";
 		break;
 	}
-	device_printf(hw->dev, "Atlantic 2 %s, firmware %u.%u.%u\n", iface,
-	    hw->fw_version.major_version, hw->fw_version.minor_version,
-	    hw->fw_version.build_number);
+	if (!hw->fw_announced || bootverbose) {
+		device_printf(hw->dev, "Atlantic 2 %s, firmware %u.%u.%u\n",
+		    iface, hw->fw_version.major_version,
+		    hw->fw_version.minor_version, hw->fw_version.build_number);
+		hw->fw_announced = true;
+	}
 
 	/* Base row added to every action-resolver-table index. */
 	err = aq2_fw_interface_buffer_read(hw,
@@ -165,6 +173,8 @@ aq2_fw_reboot(struct aq_hw *hw)
 	hw->art_filter_base_index = ((filter_caps[2] &
 	    AQ2_FW_INTERFACE_OUT_FILTER_CAPS3_RESOLVER_BASE_INDEX) >>
 	    AQ2_FW_INTERFACE_OUT_FILTER_CAPS3_RESOLVER_BASE_INDEX_SHIFT) * 8;
+	trace(hw, dbg_init, "aq2> ART filter base index = %u",
+	    hw->art_filter_base_index);
 
 	return (0);
 }
@@ -173,11 +183,17 @@ aq2_fw_reboot(struct aq_hw *hw)
 static int
 aq2_fw_wait_shared_ack(struct aq_hw *hw)
 {
+	int err;
+
 	AQ_WRITE_REG(hw, AQ2_MIF_HOST_FINISHED_STATUS_WRITE_REG,
 	    AQ2_MIF_HOST_FINISHED_STATUS_ACK);
-	return (AQ_HW_WAIT_FOR((AQ_READ_REG(hw,
+	err = AQ_HW_WAIT_FOR((AQ_READ_REG(hw,
 	    AQ2_MIF_HOST_FINISHED_STATUS_READ_REG) &
-	    AQ2_MIF_HOST_FINISHED_STATUS_ACK) == 0, 100, 1000));
+	    AQ2_MIF_HOST_FINISHED_STATUS_ACK) == 0, 100, 1000);
+	if (err != 0)
+		trace_error(hw, dbg_fw, "aq2> shared buffer ack timed out");
+
+	return (err);
 }
 
 static int
@@ -203,6 +219,9 @@ aq2_fw_reset(struct aq_hw *hw)
 	v &= ~AQ2_FW_INTERFACE_IN_REQUEST_POLICY_PROMISC_RX_QUEUE_TX_INDEX;
 	AQ_WRITE_REG(hw, AQ2_FW_INTERFACE_IN_REQUEST_POLICY_REG, v);
 
+	trace(hw, dbg_init, "aq2> reset: mtu %u, request policy %#x",
+	    HW_ATL_B0_MTU_JUMBO, v);
+
 	err = aq2_fw_wait_shared_ack(hw);
 	if (err != 0)
 		device_printf(hw->dev, "A2 firmware reset timed out\n");
@@ -225,9 +244,11 @@ aq2_fw_get_mac_addr(struct aq_hw *hw, uint8_t *mac)
 	mac_addr[0] = htole32(mac_addr[0]);
 	mac_addr[1] = htole32(mac_addr[1]);
 	memcpy(mac, (uint8_t *)mac_addr, ETHER_ADDR_LEN);
+	trace(hw, dbg_init, "aq2> MAC addr %6D", mac, ":");
 	return (0);
 }
 
+/* No fw_mtx: the IN window is written only from iflib-serialised paths. */
 static int
 aq2_fw_set_mode(struct aq_hw *hw, enum aq_hw_fw_mpi_state mode,
     enum aq_fw_link_speed speed)
@@ -278,6 +299,9 @@ aq2_fw_set_mode(struct aq_hw *hw, enum aq_hw_fw_mpi_state mode,
 		    AQ2_FW_INTERFACE_IN_LINK_CONTROL_MODE, 0,
 		    AQ2_FW_INTERFACE_IN_LINK_CONTROL_MODE_SHUTDOWN);
 	}
+
+	trace(hw, dbg_init, "aq2> set mode %d, speed mask %#x, link options %#x",
+	    mode, speed, v);
 
 	/* Options acked before ACTIVE so bring-up negotiates the new mask. */
 	AQ_WRITE_REG(hw, AQ2_FW_INTERFACE_IN_LINK_OPTIONS_REG, v);
@@ -337,6 +361,9 @@ aq2_fw_get_mode(struct aq_hw *hw, enum aq_hw_fw_mpi_state *modep,
 		fc |= aq_fw_fc_ENABLE_RX;
 	if (fcp != NULL)
 		*fcp = fc;
+
+	trace_detail(hw, dbg_init,
+	    "aq2> get mode: link status %#x, speed %d, fc %d", v, speed, fc);
 
 	return (0);
 }
@@ -400,8 +427,11 @@ aq2_fw_get_stats(struct aq_hw *hw, struct aq_hw_stats *stats)
 
 	err = aq2_fw_interface_buffer_read(hw, AQ2_FW_INTERFACE_OUT_STATS_REG,
 	    (uint32_t *)&u, sizeof(u));
-	if (err != 0)
+	if (err != 0) {
+		trace_error(hw, dbg_fw,
+		    "aq2> statistics read FAILED, error %d", err);
 		return (err);
+	}
 
 	if (hw->aq2_iface == AQ2_FW_INTERFACE_OUT_VERSION_IFACE_VER_A0) {
 		stats->uprc = u.a0.rx_unicast_frames;
@@ -434,7 +464,36 @@ aq2_fw_get_stats(struct aq_hw *hw, struct aq_hw_stats *stats)
 		stats->bptc = u.b0.tx_broadcast_frames;
 		stats->erpt = u.b0.tx_errors;
 		stats->ptc = u.b0.tx_good_frames;
+	} else {
+		trace_warn(hw, dbg_fw,
+		    "aq2> unknown F/W interface version %u, no statistics",
+		    hw->aq2_iface);
 	}
+
+	return (0);
+}
+
+static int
+aq2_fw_get_temp(struct aq_hw *hw, int *temp_mc)
+{
+	uint32_t raw;
+	int err;
+
+	err = aq2_fw_interface_buffer_read(hw,
+	    AQ2_FW_INTERFACE_OUT_PHY_HEALTH_MONITOR_REG, &raw, sizeof(raw));
+	if (err != 0)
+		return (err);
+
+	/* The F/W zeroes the block until the PHY reports in. */
+	if ((raw & AQ2_FW_INTERFACE_OUT_PHY_HEALTH_MONITOR_READY) == 0) {
+		trace_detail(hw, dbg_fw, "aq2> PHY health monitor not ready");
+		return (ENXIO);
+	}
+
+	/* F/W reports whole degrees Celsius. */
+	*temp_mc = (int)(int8_t)((raw &
+	    AQ2_FW_INTERFACE_OUT_PHY_TEMPERATURE) >>
+	    AQ2_FW_INTERFACE_OUT_PHY_TEMPERATURE_S) * 1000;
 
 	return (0);
 }
@@ -445,5 +504,6 @@ const struct aq_firmware_ops aq2_fw_ops = {
 	.get_mode = aq2_fw_get_mode,
 	.get_mac_addr = aq2_fw_get_mac_addr,
 	.get_stats = aq2_fw_get_stats,
+	.get_temp = aq2_fw_get_temp,
 	.led_control = NULL,
 };

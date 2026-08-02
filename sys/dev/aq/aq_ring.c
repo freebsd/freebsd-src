@@ -268,7 +268,7 @@ aq_isc_rxd_available(void *arg, uint16_t rxqid, qidx_t idx, qidx_t budget)
 
 	for (iter = 0, cnt = 0, i = idx;
 	    iter < ring->rx_size && cnt <= budget;) {
-		trace_aq_rx_descr(ring->index, i,
+		trace_aq_rx_descr(&aq_dev->hw, ring->index, i,
 		    (volatile uint64_t*)&rx_desc[i]);
 		if (!rx_desc[i].wb.dd)
 			break;
@@ -337,7 +337,7 @@ aq_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 		rx_desc = (volatile struct aq_rx_desc *) &ring->rx_descs[cidx];
 
-		trace_aq_rx_descr(ring->index, cidx,
+		trace_aq_rx_descr(&aq_dev->hw, ring->index, cidx,
 		    (volatile uint64_t *)rx_desc);
 
 		/* MAC error (rx_stat) or RX-DMA fault (rdm_err) -> drop. */
@@ -498,7 +498,7 @@ aq_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	AQ_DBG_PRINT("tx_cmd = 0x%x", tx_cmd);
 
 	if (tx_cmd) {
-		trace_aq_tx_context_descr(ring->index, pidx,
+		trace_aq_tx_context_descr(&aq_dev->hw, ring->index, pidx,
 		    (volatile void*)txc);
 		/* We've consumed the first desc, adjust counters */
 		pidx = aq_next(pidx, ring->tx_size - 1);
@@ -537,7 +537,7 @@ aq_isc_txd_encap(void *arg, if_pkt_info_t pi)
 		txd->len = segs[i].ds_len;
 		txd->pay_len = pay_len;
 		if (i < pi->ipi_nsegs - 1)
-			trace_aq_tx_descr(ring->index, pidx,
+			trace_aq_tx_descr(&aq_dev->hw, ring->index, pidx,
 			    (volatile void*)txd);
 
 		pidx = aq_next(pidx, ring->tx_size - 1);
@@ -548,7 +548,7 @@ aq_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	txd->eop = 1U;
 
 	AQ_DBG_DUMP_DESC(txd);
-	trace_aq_tx_descr(ring->index, pidx, (volatile void*)txd);
+	trace_aq_tx_descr(&aq_dev->hw, ring->index, pidx, (volatile void*)txd);
 	ring->tx_tail = pidx;
 
 	counter_u64_add(ring->stats.tx_pkts, 1);

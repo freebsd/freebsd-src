@@ -177,6 +177,7 @@ struct aq_fw2x_mailbox // struct fwHostInterface
 
 // MSM Statistics
 #define FW2X_CAP_STATISTICS (1ull << (32 + CAPS_HI_STATISTICS))
+#define FW2X_CAP_TEMPERATURE (1ull << (32 + CAPS_HI_TEMPERATURE))
 
 
 #define FW2X_RATE_MASK  (FW2X_RATE_100M | FW2X_RATE_1G | FW2X_RATE_2G5 | FW2X_RATE_5G | FW2X_RATE_10G)
@@ -249,11 +250,11 @@ aq_fw2x_reset(struct aq_hw* hw)
 	    (uint32_t*)&caps, sizeof caps/sizeof(uint32_t));
 	if (err == 0) {
 		hw->fw_caps = caps.caps_lo | ((uint64_t)caps.caps_hi << 32);
-		trace(dbg_init,
+		trace(hw, dbg_init,
 		     "fw2x> F/W capabilities mask = %llx",
 		     (unsigned long long)hw->fw_caps);
 	} else {
-		trace_error(dbg_init,
+		trace_error(hw, dbg_init,
 		     "fw2x> can't get F/W capabilities mask, error %d", err);
 	}
 
@@ -292,9 +293,12 @@ static int
 aq_fw2x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state mode,
     enum aq_fw_link_speed speed)
 {
-	uint64_t mpi_ctrl = get_mpi_ctrl(hw);
+	uint64_t mpi_ctrl;
 
 	AQ_DBG_ENTERA("speed=%d", speed);
+
+	mtx_lock(&hw->fw_mtx);
+	mpi_ctrl = get_mpi_ctrl(hw);
 	switch (mode) {
 	case MPI_INIT:
 		mpi_ctrl &= ~FW2X_RATE_MASK;
@@ -316,11 +320,14 @@ aq_fw2x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state mode,
 		break;
 
 	default:
-		trace_error(dbg_init, "fw2x> unknown MPI state %d", mode);
+		mtx_unlock(&hw->fw_mtx);
+		trace_error(hw, dbg_init, "fw2x> unknown MPI state %d", mode);
 		return (EINVAL);
 	}
 
 	set_mpi_ctrl(hw, mpi_ctrl);
+	mtx_unlock(&hw->fw_mtx);
+
 	AQ_DBG_EXIT(0);
 	return (0);
 }
@@ -329,10 +336,11 @@ static int
 aq_fw2x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state* mode,
     enum aq_fw_link_speed* link_speed, enum aq_fw_link_fc* fc)
 {
-	uint64_t mpi_state = get_mpi_state(hw);
-	uint32_t rates = mpi_state & FW2X_RATE_MASK;
+	uint64_t mpi_state;
+	uint32_t rates;
 
-
+	mtx_lock(&hw->fw_mtx);
+	mpi_state = get_mpi_state(hw);
 	if (mode) {
 		uint64_t mpi_ctrl = get_mpi_ctrl(hw);
 		if (mpi_ctrl & FW2X_RATE_MASK)
@@ -340,6 +348,9 @@ aq_fw2x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state* mode,
 		else
 		*mode = MPI_DEINIT;
 	}
+	mtx_unlock(&hw->fw_mtx);
+
+	rates = mpi_state & FW2X_RATE_MASK;
 
 	enum aq_fw_link_speed speed = aq_fw_none;
 
@@ -374,7 +385,7 @@ aq_fw2x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 
 	uint32_t efuse_shadow_addr = AQ_READ_REG(hw, 0x364);
 	if (efuse_shadow_addr == 0) {
-		trace_error(dbg_init, "couldn't read eFUSE Shadow Address");
+		trace_error(hw, dbg_init, "couldn't read eFUSE Shadow Address");
 		AQ_DBG_EXIT(EFAULT);
 		return (EFAULT);
 	}
@@ -428,26 +439,64 @@ aq_fw2x_get_stats(struct aq_hw* hw, struct aq_hw_stats* stats)
 	int err;
 
 	if ((hw->fw_caps & FW2X_CAP_STATISTICS) == 0) {
-		trace_warn(dbg_fw, "fw2x> statistics not supported by F/W");
+		trace_warn(hw, dbg_fw, "fw2x> statistics not supported by F/W");
 		return (ENOTSUP);
 	}
 
 	/* Kick-and-read: take the F/W's previous snapshot, request the next. */
+	mtx_lock(&hw->fw_mtx);
 	err = aq_hw_fw_downld_dwords(hw,
 	    hw->mbox_addr + offsetof(struct aq_fw2x_mailbox, msm),
 	    (uint32_t*)&aq_fw2x_stats, sizeof aq_fw2x_stats/sizeof(uint32_t));
 
-	aq_fw2x_stats_to_fw_stats(stats, &aq_fw2x_stats);
-
-	if (err != 0)
-		trace_error(dbg_fw,
-		    "fw2x> download statistics data FAILED, error %d", err);
-
 	mpi_ctrl = get_mpi_ctrl(hw);
 	mpi_ctrl ^= FW2X_CAP_STATISTICS;
 	set_mpi_ctrl(hw, mpi_ctrl);
+	mtx_unlock(&hw->fw_mtx);
+
+	aq_fw2x_stats_to_fw_stats(stats, &aq_fw2x_stats);
+
+	if (err != 0)
+		trace_error(hw, dbg_fw,
+		    "fw2x> download statistics data FAILED, error %d", err);
 
 	return (err);
+}
+
+static int
+aq_fw2x_get_temp(struct aq_hw* hw, int* temp_mc)
+{
+	uint64_t mpi_ctrl, req_bit;
+	uint32_t raw;
+	int err;
+
+	if ((hw->fw_caps & FW2X_CAP_TEMPERATURE) == 0)
+		return (ENOTSUP);
+
+	/* Toggle the request bit and wait for the F/W to echo it back. */
+	mtx_lock(&hw->fw_mtx);
+	mpi_ctrl = get_mpi_ctrl(hw);
+	req_bit = mpi_ctrl & FW2X_CAP_TEMPERATURE;
+	set_mpi_ctrl(hw, mpi_ctrl ^ FW2X_CAP_TEMPERATURE);
+
+	err = AQ_HW_WAIT_FOR((get_mpi_state(hw) & FW2X_CAP_TEMPERATURE) !=
+	    req_bit, 1, 10000);
+	if (err == 0)
+		err = aq_hw_fw_downld_dwords(hw, hw->mbox_addr +
+		    offsetof(struct aq_fw2x_mailbox, phy_temperature),
+		    &raw, 1);
+	mtx_unlock(&hw->fw_mtx);
+
+	if (err != 0) {
+		trace_error(hw, dbg_fw,
+		    "fw2x> temperature read FAILED, error %d", err);
+		return (err);
+	}
+
+	/* F/W reports 1/256 degree Celsius. */
+	*temp_mc = (int)(int16_t)(raw & 0xffff) * 1000 / 256;
+
+	return (0);
 }
 
 static int
@@ -476,6 +525,7 @@ const struct aq_firmware_ops aq_fw2x_ops =
 
 	.get_mac_addr = aq_fw2x_get_mac_addr,
 	.get_stats = aq_fw2x_get_stats,
+	.get_temp = aq_fw2x_get_temp,
 
 	.led_control = aq_fw2x_led_control,
 };

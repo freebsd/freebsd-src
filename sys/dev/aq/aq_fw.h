@@ -68,6 +68,9 @@ struct aq_firmware_ops
 	int (*get_mac_addr)(struct aq_hw* hw, uint8_t* mac_addr);
 	int (*get_stats)(struct aq_hw* hw, struct aq_hw_stats* stats);
 
+	/* Reports millidegrees Celsius. */
+	int (*get_temp)(struct aq_hw* hw, int* temp_mc);
+
 	int (*led_control)(struct aq_hw* hw, uint32_t mode);
 };
 

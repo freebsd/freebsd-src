@@ -45,18 +45,13 @@ __FBSDID("$FreeBSD$");
 #include "aq_dbg.h"
 
 
-int aq_dbg_level = lvl_error;
-uint32_t aq_dbg_categories = dbg_init | dbg_config | dbg_tx | dbg_rx | dbg_intr | dbg_fw;
-
-
-
 #define DESCR_FIELD(DESCR, BIT_BEGIN, BIT_END) \
 	((DESCR >> BIT_END) &\
 		(BIT(BIT_BEGIN - BIT_END + 1) -1))
 
 #define __field(TYPE, VAR) TYPE VAR;
 void
-trace_aq_tx_descr(int ring_idx, unsigned int pointer,
+trace_aq_tx_descr(struct aq_hw *hw, int ring_idx, unsigned int pointer,
     volatile uint64_t descr[2])
 {
 #if AQ_CFG_DEBUG_LVL > 2
@@ -92,7 +87,7 @@ trace_aq_tx_descr(int ring_idx, unsigned int pointer,
 	entry.des_typ = DESCR_FIELD(descr[1], 2, 0);
 
 
-	aq_log_detail("trace_aq_tx_descr ring=%d descr=%u pay_len=%u ct_en=%u ct_idx=%u rsvd2=0x%x tx_cmd=0x%x eop=%u dd=%u buf_len=%u rsvd1=%u des_typ=0x%x",
+	aq_log_detail(hw, "trace_aq_tx_descr ring=%d descr=%u pay_len=%u ct_en=%u ct_idx=%u rsvd2=0x%x tx_cmd=0x%x eop=%u dd=%u buf_len=%u rsvd1=%u des_typ=0x%x",
 		  entry.ring_idx, entry.pointer, entry.pay_len,
 		  entry.ct_en, entry.ct_idx, entry.rsvd2,
 		  entry.tx_cmd, entry.eop, entry.dd, entry.buf_len,
@@ -101,7 +96,8 @@ trace_aq_tx_descr(int ring_idx, unsigned int pointer,
 }
 
 void
-trace_aq_rx_descr(int ring_idx, unsigned int pointer, volatile uint64_t descr[2])
+trace_aq_rx_descr(struct aq_hw *hw, int ring_idx, unsigned int pointer,
+    volatile uint64_t descr[2])
 {
 #if AQ_CFG_DEBUG_LVL > 2
 	uint8_t dd;
@@ -142,7 +138,7 @@ trace_aq_rx_descr(int ring_idx, unsigned int pointer, volatile uint64_t descr[2]
 	eop = DESCR_FIELD(descr[1], 1, 1);
 	dd = DESCR_FIELD(descr[1], 0, 0);
 
-	printf("trace_aq_rx_descr ring=%d descr=%u rss_hash=0x%x hdr_len=%u sph=%u rx_cntl=%u rsvd=0x%x avb_ts=%u rdm_err=%u pkt_type=%u rss_type=%u vlan_tag=%u next_desp=%u pkt_len=%u rsc_cnt=%u rx_estat=0x%x rx_stat=0x%x eop=%u dd=%u\n",
+	aq_log_detail(hw, "trace_aq_rx_descr ring=%d descr=%u rss_hash=0x%x hdr_len=%u sph=%u rx_cntl=%u rsvd=0x%x avb_ts=%u rdm_err=%u pkt_type=%u rss_type=%u vlan_tag=%u next_desp=%u pkt_len=%u rsc_cnt=%u rx_estat=0x%x rx_stat=0x%x eop=%u dd=%u",
 		  ring_idx, pointer, rss_hash,
 		  hdr_len, sph, rx_cntl,
 		  rsvd, avb_ts, rdm_err,
@@ -153,7 +149,7 @@ trace_aq_rx_descr(int ring_idx, unsigned int pointer, volatile uint64_t descr[2]
 }
 
 void
-trace_aq_tx_context_descr(int ring_idx, unsigned int pointer,
+trace_aq_tx_context_descr(struct aq_hw *hw, int ring_idx, unsigned int pointer,
     volatile uint64_t descr[2])
 {
 #if AQ_CFG_DEBUG_LVL > 2
@@ -188,7 +184,7 @@ trace_aq_tx_context_descr(int ring_idx, unsigned int pointer,
 	__entry->ct_idx = DESCR_FIELD(descr[1], 3, 3);
 	__entry->des_typ = DESCR_FIELD(descr[1], 2, 0);
 
-	printf("trace_aq_tx_context_descr ring=%d descr=%u out_len=%u tun_len=%u resvd3=%lu mss_len=%u l4_len=%u l3_len=%u l2_len=%d ct_cmd=%u vlan_tag=%u ct_idx=%u des_typ=0x%x\n",
+	aq_log_detail(hw, "trace_aq_tx_context_descr ring=%d descr=%u out_len=%u tun_len=%u resvd3=%lu mss_len=%u l4_len=%u l3_len=%u l2_len=%d ct_cmd=%u vlan_tag=%u ct_idx=%u des_typ=0x%x",
 		  __entry->ring_idx, __entry->pointer, __entry->out_len,
 		  __entry->tun_len, __entry->resvd3, __entry->mss_len,
 		  __entry->l4_len, __entry->l3_len, __entry->l2_len,

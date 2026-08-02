@@ -194,10 +194,11 @@ aq_fw1x_reset(struct aq_hw* hw)
 		DELAY(10);
 	}
 
-	trace_error(dbg_init, "F/W 1.x reset finalize timeout");
+	trace_error(hw, dbg_init, "F/W 1.x reset finalize timeout");
 	return (EBUSY);
 }
 
+/* No fw_mtx here: the control register is written whole, never modified. */
 static int
 aq_fw1x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state mode,
     enum aq_fw_link_speed speed)
@@ -206,7 +207,7 @@ aq_fw1x_set_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state mode,
 	state.mode = mpi_mode_to_fw1x(mode);
 	state.speed = link_speed_mask_to_fw1x(speed);
 
-	trace(dbg_init, "fw1x> set mode %d, rate mask = %#x; raw = %#x",
+	trace(hw, dbg_init, "fw1x> set mode %d, rate mask = %#x; raw = %#x",
 	     state.mode, state.speed, state.val);
 
 	AQ_WRITE_REG(hw, AQ_HW_MPI_CONTROL_ADR, state.val);
@@ -220,7 +221,7 @@ aq_fw1x_get_mode(struct aq_hw* hw, enum aq_hw_fw_mpi_state* mode,
 {
 	union aq_fw1x_state_reg state = { .val = AQ_READ_REG(hw, AQ_HW_MPI_STATE_ADR) };
 
-	trace(dbg_init, "fw1x> get_mode(): 0x36c -> %x, 0x368 -> %x",
+	trace(hw, dbg_init, "fw1x> get_mode(): 0x36c -> %x, 0x368 -> %x",
 	    state.val, AQ_READ_REG(hw, AQ_HW_MPI_CONTROL_ADR));
 
 	enum aq_hw_fw_mpi_state md = MPI_DEINIT;
@@ -263,7 +264,7 @@ aq_fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 
 	uint32_t efuse_shadow_addr = AQ_READ_REG(hw, 0x374);
 	if (efuse_shadow_addr == 0) {
-		trace_error(dbg_init, "couldn't read eFUSE Shadow Address");
+		trace_error(hw, dbg_init, "couldn't read eFUSE Shadow Address");
 		AQ_DBG_EXIT(EFAULT);
 		return (EFAULT);
 	}
@@ -282,7 +283,7 @@ aq_fw1x_get_mac_addr(struct aq_hw* hw, uint8_t* mac)
 
 	memcpy(mac, (uint8_t*)mac_addr, ETHER_ADDR_LEN);
 
-	trace(dbg_init, "fw1x> eFUSE MAC addr -> %02x-%02x-%02x-%02x-%02x-%02x",
+	trace(hw, dbg_init, "fw1x> eFUSE MAC addr -> %02x-%02x-%02x-%02x-%02x-%02x",
 	    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
 	AQ_DBG_EXIT(0);
