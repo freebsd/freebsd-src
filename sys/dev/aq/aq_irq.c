@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "aq_dbg.h"
 #include "aq_hw.h"
 #include "aq_hw_llh.h"
+#include "aq_fw.h"
 
 int
 aq_update_hw_stats(struct aq_dev *aq_dev)
@@ -63,9 +64,7 @@ aq_update_hw_stats(struct aq_dev *aq_dev)
 		return (0);
 
 #define AQ_SDELTA(_N_) do { \
-	int32_t _d = (int32_t)(stats._N_ - aq_dev->last_stats._N_); \
-	if (_d > 0) \
-		aq_dev->curr_stats._N_ += _d; \
+	aq_dev->curr_stats._N_ += stats._N_ - aq_dev->last_stats._N_; \
 } while (0)
 	if (aq_dev->linkup) {
 		AQ_SDELTA(uprc);
@@ -115,6 +114,100 @@ aq_update_hw_stats(struct aq_dev *aq_dev)
 }
 
 
+#define	AQ_THERMAL_HYSTERESIS_MC	18000	/* recover this far below the limit */
+#define	AQ_THERMAL_RECOVER_MC	90000	/* fallback when the limit is unreadable */
+#define	AQ_THERMAL_SETTLE_POLLS	5	/* ~5 s for the PHY reset to settle */
+#define	AQ_THERMAL_RETRY_SECS	60	/* minimum spacing between recoveries */
+
+/* Temperature here is post-trip; the PHY is already dropping to low power. */
+static void
+aq_thermal_report_shutdown(struct aq_dev *aq_dev)
+{
+	struct aq_hw *hw = &aq_dev->hw;
+	int temp_mc, limit_mc;
+	bool have_temp, have_limit;
+
+	have_temp = hw->fw_ops->get_temp(hw, &temp_mc) == 0;
+	have_limit = hw->fw_ops->get_thermal_limit(hw, &limit_mc) == 0;
+	if (have_temp)
+		aq_dev->thermal_temp_mc = temp_mc;
+	/* The F/W also exposes a cold_temperature hysteresis point. */
+	aq_dev->thermal_recover_mc = have_limit ?
+	    limit_mc - AQ_THERMAL_HYSTERESIS_MC : AQ_THERMAL_RECOVER_MC;
+
+	if (have_temp && have_limit)
+		device_printf(aq_dev->dev, "PHY thermal shutdown; "
+		    "limit %d C, temp %d C; holding link down until it cools\n",
+		    limit_mc / 1000, temp_mc / 1000);
+	else if (have_temp)
+		device_printf(aq_dev->dev, "PHY thermal shutdown; "
+		    "temp %d C; holding link down until it cools\n",
+		    temp_mc / 1000);
+	else
+		device_printf(aq_dev->dev, "PHY thermal shutdown; "
+		    "holding link down until it cools\n");
+}
+
+/* Recover after cooldown: A1 needs a PHY reset then re-init, A2 re-inits alone. */
+static void
+aq_thermal_poll(struct aq_dev *aq_dev)
+{
+	struct aq_hw *hw = &aq_dev->hw;
+	uint16_t fault;
+	int temp_mc;
+
+	switch (aq_dev->thermal_state) {
+	case AQ_THERMAL_NORMAL:
+		if (aq_dev->linkup)
+			return;
+		/* The F/W raises the fault a poll after it drops the link. */
+		if (hw->fw_ops->get_phy_fault(hw, &fault) != 0 || fault == 0)
+			return;
+		/* Report each code once; do not mask a later shutdown. */
+		if (fault == aq_dev->phy_fault_last)
+			return;
+		aq_dev->phy_fault_last = fault;
+		if (fault != AQ_PHY_FAULT_THERMAL_SHUTDOWN) {
+			device_printf(aq_dev->dev,
+			    "PHY fault 0x%04x\n", fault);
+			return;
+		}
+		aq_thermal_report_shutdown(aq_dev);
+		aq_dev->thermal_state = AQ_THERMAL_COOLING;
+		return;
+
+	case AQ_THERMAL_COOLING:
+		if (hw->fw_ops->get_temp(hw, &temp_mc) != 0 ||
+		    temp_mc > aq_dev->thermal_recover_mc)
+			return;
+		aq_dev->thermal_temp_mc = temp_mc;
+		if (hw->fw_ops->phy_reset != NULL) {
+			hw->fw_ops->phy_reset(hw);
+			aq_dev->thermal_settle = 0;
+			aq_dev->thermal_state = AQ_THERMAL_SETTLING;
+			return;
+		}
+		/* No PHY reset needed (A2): re-init below restores the link. */
+		break;
+
+	case AQ_THERMAL_SETTLING:
+		if (++aq_dev->thermal_settle < AQ_THERMAL_SETTLE_POLLS)
+			return;
+		break;
+	}
+
+	/* Space attempts out: recovery costs a re-init and a renegotiation. */
+	if ((int)(ticks - aq_dev->thermal_retry_ticks) < 0)
+		return;
+	aq_dev->thermal_retry_ticks = ticks + AQ_THERMAL_RETRY_SECS * hz;
+
+	device_printf(aq_dev->dev, "PHY cooled to %d C; restoring "
+	    "link\n", aq_dev->thermal_temp_mc / 1000);
+	aq_dev->thermal_state = AQ_THERMAL_NORMAL;
+	iflib_request_reset(aq_dev->ctx);
+	iflib_admin_intr_deferred(aq_dev->ctx);
+}
+
 void
 aq_if_update_admin_status(if_ctx_t ctx)
 {
@@ -129,6 +222,7 @@ aq_if_update_admin_status(if_ctx_t ctx)
 		device_printf(aq_dev->dev, "atlantic: link UP: speed=%d\n", link_speed);
 
 		aq_dev->linkup = 1;
+		aq_dev->phy_fault_last = 0;
 
 		/* turn on/off RX Pause in RPB */
 		rpb_rx_xoff_en_per_tc_set(hw, fc_neg.fc_rx, 0);
@@ -150,6 +244,9 @@ aq_if_update_admin_status(if_ctx_t ctx)
 		iflib_link_state_change(ctx, LINK_STATE_DOWN,  0);
 		aq_mediastatus_update(aq_dev, link_speed, &fc_neg);
 	}
+
+	if (hw->fw_ops->get_phy_fault != NULL)
+		aq_thermal_poll(aq_dev);
 
 	aq_update_hw_stats(aq_dev);
 }

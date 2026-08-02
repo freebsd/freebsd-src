@@ -71,8 +71,23 @@ struct aq_firmware_ops
 	/* Reports millidegrees Celsius. */
 	int (*get_temp)(struct aq_hw* hw, int* temp_mc);
 
+	/* Reports the PHY global fault code; zero means no fault. */
+	int (*get_phy_fault)(struct aq_hw* hw, uint16_t* fault);
+
+	/* Resets the PHY (clears a latched thermal shutdown). */
+	int (*phy_reset)(struct aq_hw* hw);
+
+	/* Arms the firmware autonomous thermal shutdown (A2 ships armed). */
+	int (*thermal_arm)(struct aq_hw* hw);
+
+	/* Reports the PHY high-temperature shutdown threshold (millidegrees C). */
+	int (*get_thermal_limit)(struct aq_hw* hw, int* limit_mc);
+
 	int (*led_control)(struct aq_hw* hw, uint32_t mode);
 };
+
+/* PHY global fault codes, register 1E.C850. */
+#define	AQ_PHY_FAULT_THERMAL_SHUTDOWN	0x8007
 
 /* aq_fw1x/aq_fw2x: Atlantic 1 firmware ABIs; aq2_fw: Atlantic 2 (AQC11x). */
 extern const struct aq_firmware_ops aq_fw1x_ops;

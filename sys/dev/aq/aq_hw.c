@@ -598,13 +598,20 @@ static int
 aq2_art_filter_set(struct aq_hw *hw, uint32_t idx, uint32_t tag,
     uint32_t mask, uint32_t action)
 {
+	idx += hw->art_filter_base_index;
+	if (idx >= AQ2_ART_TABLE_SIZE) {
+		device_printf(hw->dev,
+		    "ART index %u out of range (firmware base %u)\n", idx,
+		    hw->art_filter_base_index);
+		return (EINVAL);
+	}
+
 	if (AQ_HW_WAIT_FOR(reg_glb_cpu_sem_get(hw, AQ2_ART_SEM_INDEX) == 1U,
 	    10U, 1000U) != 0) {
 		device_printf(hw->dev, "ART semaphore timeout, idx %u\n", idx);
 		return (EBUSY);
 	}
 
-	idx += hw->art_filter_base_index;
 	AQ_WRITE_REG(hw, AQ2_RPF_ACT_ART_REQ_TAG_REG(idx), tag);
 	AQ_WRITE_REG(hw, AQ2_RPF_ACT_ART_REQ_MASK_REG(idx), mask);
 	AQ_WRITE_REG(hw, AQ2_RPF_ACT_ART_REQ_ACTION_REG(idx), action);
@@ -736,6 +743,10 @@ aq_hw_mac_addr_set(struct aq_hw *hw, uint8_t *mac_addr, uint8_t index)
 
 	AQ_DBG_ENTER();
 	if (!mac_addr) {
+		err = EINVAL;
+		goto err_exit;
+	}
+	if (index >= AQ_HW_MAC_MAX) {
 		err = EINVAL;
 		goto err_exit;
 	}

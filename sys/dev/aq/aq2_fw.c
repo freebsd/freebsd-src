@@ -42,6 +42,7 @@ static int aq2_fw_get_mode(struct aq_hw *hw, enum aq_hw_fw_mpi_state *mode,
 static int aq2_fw_get_mac_addr(struct aq_hw *hw, uint8_t *mac);
 static int aq2_fw_get_stats(struct aq_hw *hw, struct aq_hw_stats *stats);
 static int aq2_fw_get_temp(struct aq_hw *hw, int *temp_mc);
+static int aq2_fw_get_thermal_limit(struct aq_hw *hw, int *limit_mc);
 
 /* Coherent OUT-window read, bracketed by the transaction id. */
 static int
@@ -490,10 +491,54 @@ aq2_fw_get_temp(struct aq_hw *hw, int *temp_mc)
 		return (ENXIO);
 	}
 
-	/* F/W reports whole degrees Celsius. */
+	/* F/W reports whole degrees Celsius, signed. */
 	*temp_mc = (int)(int8_t)((raw &
 	    AQ2_FW_INTERFACE_OUT_PHY_TEMPERATURE) >>
 	    AQ2_FW_INTERFACE_OUT_PHY_TEMPERATURE_S) * 1000;
+
+	return (0);
+}
+
+/* interface-in thermal_shutdown.shutdown_temperature, whole degC. */
+static int
+aq2_fw_get_thermal_limit(struct aq_hw *hw, int *limit_mc)
+{
+	uint32_t v;
+	int temp_c;
+
+	v = AQ_READ_REG(hw, AQ2_FW_INTERFACE_IN_THERMAL_SHUTDOWN_REG);
+	temp_c = (v & AQ2_FW_INTERFACE_IN_THERMAL_SHUTDOWN_TEMP) >>
+	    AQ2_FW_INTERFACE_IN_THERMAL_SHUTDOWN_TEMP_S;
+	if (temp_c == 0 || temp_c == 0xff)
+		return (ENXIO);
+	*limit_mc = temp_c * 1000;
+
+	return (0);
+}
+
+static int
+aq2_fw_get_phy_fault(struct aq_hw *hw, uint16_t *fault)
+{
+	uint32_t health, code;
+	int err;
+
+	err = aq2_fw_interface_buffer_read(hw,
+	    AQ2_FW_INTERFACE_OUT_PHY_HEALTH_MONITOR_REG, &health,
+	    sizeof(health));
+	if (err != 0)
+		return (err);
+
+	if ((health & AQ2_FW_INTERFACE_OUT_PHY_HEALTH_MONITOR_FAULT) == 0) {
+		*fault = 0;
+		return (0);
+	}
+
+	err = aq2_fw_interface_buffer_read(hw,
+	    AQ2_FW_INTERFACE_OUT_PHY_FAULT_CODE_REG, &code, sizeof(code));
+	if (err != 0)
+		return (err);
+
+	*fault = (uint16_t)(code & AQ2_FW_INTERFACE_OUT_PHY_FAULT_CODE);
 
 	return (0);
 }
@@ -505,5 +550,9 @@ const struct aq_firmware_ops aq2_fw_ops = {
 	.get_mac_addr = aq2_fw_get_mac_addr,
 	.get_stats = aq2_fw_get_stats,
 	.get_temp = aq2_fw_get_temp,
+	.get_phy_fault = aq2_fw_get_phy_fault,
+	.phy_reset = NULL,	/* A2 clears thermal shutdown on its own reset */
+	.thermal_arm = NULL,	/* A2 firmware ships thermal shutdown armed */
+	.get_thermal_limit = aq2_fw_get_thermal_limit,
 	.led_control = NULL,
 };
