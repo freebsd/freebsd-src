@@ -118,6 +118,7 @@ aq_update_hw_stats(struct aq_dev *aq_dev)
 #define	AQ_THERMAL_RECOVER_MC	90000	/* fallback when the limit is unreadable */
 #define	AQ_THERMAL_SETTLE_POLLS	5	/* ~5 s for the PHY reset to settle */
 #define	AQ_THERMAL_RETRY_SECS	60	/* minimum spacing between recoveries */
+#define	AQ_INIT_MAX_RETRIES	5	/* re-init attempts after a failed init */
 
 /* Temperature here is post-trip; the PHY is already dropping to low power. */
 static void
@@ -182,7 +183,8 @@ aq_thermal_poll(struct aq_dev *aq_dev)
 			return;
 		aq_dev->thermal_temp_mc = temp_mc;
 		if (hw->fw_ops->phy_reset != NULL) {
-			hw->fw_ops->phy_reset(hw);
+			if (hw->fw_ops->phy_reset(hw) != 0)
+				return;
 			aq_dev->thermal_settle = 0;
 			aq_dev->thermal_state = AQ_THERMAL_SETTLING;
 			return;
@@ -204,6 +206,7 @@ aq_thermal_poll(struct aq_dev *aq_dev)
 	device_printf(aq_dev->dev, "PHY cooled to %d C; restoring "
 	    "link\n", aq_dev->thermal_temp_mc / 1000);
 	aq_dev->thermal_state = AQ_THERMAL_NORMAL;
+	aq_dev->reset_pending = true;
 	iflib_request_reset(aq_dev->ctx);
 	iflib_admin_intr_deferred(aq_dev->ctx);
 }
@@ -218,6 +221,11 @@ aq_if_update_admin_status(if_ctx_t ctx)
 
 	struct aq_hw_fc_info fc_neg;
 	aq_hw_get_link_state(hw, &link_speed, &fc_neg);
+
+	/* An interface whose initialization did not complete has no link. */
+	if (aq_dev->init_failed)
+		link_speed = 0;
+
 	if (link_speed && !aq_dev->linkup) { /* link was DOWN */
 		device_printf(aq_dev->dev, "link UP: speed=%d\n", link_speed);
 
@@ -243,6 +251,23 @@ aq_if_update_admin_status(if_ctx_t ctx)
 
 		iflib_link_state_change(ctx, LINK_STATE_DOWN,  0);
 		aq_mediastatus_update(aq_dev, link_speed, &fc_neg);
+	}
+
+	/* Re-arming while a reset is queued would re-init once too often. */
+	if (aq_dev->init_failed) {
+		if (aq_dev->reset_pending)
+			return;
+		if (aq_dev->init_retries < AQ_INIT_MAX_RETRIES) {
+			aq_dev->init_retries++;
+			aq_dev->reset_pending = true;
+			iflib_request_reset(ctx);
+		} else if (aq_dev->init_retries == AQ_INIT_MAX_RETRIES) {
+			aq_dev->init_retries++;
+			device_printf(aq_dev->dev, "initialization failed; "
+			    "giving up after %d retries, link held down\n",
+			    AQ_INIT_MAX_RETRIES);
+		}
+		return;
 	}
 
 	if (hw->fw_ops->get_phy_fault != NULL)

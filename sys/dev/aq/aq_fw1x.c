@@ -167,12 +167,18 @@ aq_fw1x_reset(struct aq_hw* hw)
 	uint32_t tid0 = ~0u; /*< Initial value of MBOX transactionId. */
 	struct aq_hw_fw_mbox mbox;
 	const int retryCount = 1000;
+	int err;
 
 	for (int i = 0; i < retryCount; ++i) {
 		// Read the beginning of Statistics structure to capture the
 		// Transaction ID.
-		aq_hw_fw_downld_dwords(hw, hw->mbox_addr, (uint32_t*)&mbox,
+		err = aq_hw_fw_downld_dwords(hw, hw->mbox_addr, (uint32_t*)&mbox,
 		    (uint32_t)((char*)&mbox.stats - (char*)&mbox) / sizeof(uint32_t));
+		/* The MCP is still cold-starting; that is what we wait for. */
+		if (err != 0) {
+			DELAY(10);
+			continue;
+		}
 
 		// Successfully read the stats.
 		if (tid0 == ~0U) {

@@ -109,6 +109,7 @@ aq_hw_fw_downld_dwords(struct aq_hw *hw, uint32_t a, uint32_t *p, uint32_t cnt)
 			err = ETIMEDOUT;
 			goto err_exit;
 		}
+		err = 0;
 	}
 
 	mif_mcp_up_mailbox_addr_set(hw, a);
@@ -124,6 +125,7 @@ aq_hw_fw_downld_dwords(struct aq_hw *hw, uint32_t a, uint32_t *p, uint32_t cnt)
 			     1000U);
 
 		*(p++) = mif_mcp_up_mailbox_data_get(hw);
+		a += 4;
 	}
 
 	reg_glb_cpu_sem_set(hw, 1U, AQ_HW_FW_SM_RAM);
@@ -311,6 +313,12 @@ aq_hw_get_mac_permanent(struct aq_hw *hw,  uint8_t *mac)
 	AQ_DBG_ENTER();
 
 	err = hw->fw_ops->get_mac_addr(hw, mac);
+	if (err != 0) {
+		/* A transient mailbox failure must not fail the attach. */
+		device_printf(hw->dev, "could not read the MAC address: %d\n",
+		    err);
+		memset(mac, 0, ETHER_ADDR_LEN);
+	}
 
 	/* Couldn't get MAC address from HW. Use auto-generated one. */
 	if ((mac[0] & 1) || ((mac[0] | mac[1] | mac[2]) == 0)) {
@@ -815,7 +823,10 @@ aq_hw_init(struct aq_hw *hw, uint8_t *mac_addr, uint8_t adm_irq, bool msix)
 
 	aq_hw_mac_addr_set(hw, mac_addr, AQ_HW_MAC);
 
-	aq_hw_mpi_set(hw, MPI_INIT, hw->link_rate);
+	/* A lost ack must not skip the setup that follows. */
+	err = aq_hw_mpi_set(hw, MPI_INIT, hw->link_rate);
+	if (err != 0)
+		device_printf(hw->dev, "could not set F/W link mode: %d\n", err);
 
 	aq_hw_qos_set(hw);
 
