@@ -1936,9 +1936,6 @@ out:
 /*
  * Join an IPv6 multicast group, possibly with a source.
  *
- * FIXME: The KAME use of the unspecified address (::)
- * to join *all* multicast groups is currently unsupported.
- *
  * XXXGL: this function multiple times uses ifnet_byindex() without
  * proper protection - staying in epoch, or putting reference on ifnet.
  */
