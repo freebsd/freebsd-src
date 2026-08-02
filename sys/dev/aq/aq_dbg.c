@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 		(BIT(BIT_BEGIN - BIT_END + 1) -1))
 
 #define __field(TYPE, VAR) TYPE VAR;
+
+#if AQ_CFG_DEBUG_LVL > 2
 void
 trace_aq_tx_descr(struct aq_hw *hw, int ring_idx, unsigned int pointer,
     volatile uint64_t descr[2])
@@ -192,3 +194,4 @@ trace_aq_tx_context_descr(struct aq_hw *hw, int ring_idx, unsigned int pointer,
 		  __entry->des_typ);
 #endif
 }
+#endif

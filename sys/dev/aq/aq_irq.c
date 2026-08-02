@@ -219,7 +219,7 @@ aq_if_update_admin_status(if_ctx_t ctx)
 	struct aq_hw_fc_info fc_neg;
 	aq_hw_get_link_state(hw, &link_speed, &fc_neg);
 	if (link_speed && !aq_dev->linkup) { /* link was DOWN */
-		device_printf(aq_dev->dev, "atlantic: link UP: speed=%d\n", link_speed);
+		device_printf(aq_dev->dev, "link UP: speed=%d\n", link_speed);
 
 		aq_dev->linkup = 1;
 		aq_dev->phy_fault_last = 0;
@@ -234,7 +234,7 @@ aq_if_update_admin_status(if_ctx_t ctx)
 		/* update ITR settings according new link speed */
 		aq_hw_interrupt_moderation_set(hw);
 	} else if (link_speed == 0U && aq_dev->linkup) { /* link was UP */
-		device_printf(aq_dev->dev, "atlantic: link DOWN\n");
+		device_printf(aq_dev->dev, "link DOWN\n");
 
 		aq_dev->linkup = 0;
 

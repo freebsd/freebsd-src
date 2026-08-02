@@ -92,24 +92,6 @@ struct aq_stats {
 	uint64_t bbtc;
 };
 
-enum aq_dev_state {
-	AQ_DEV_STATE_UNLOAD,
-	AQ_DEV_STATE_PCI_STOP,
-	AQ_DEV_STATE_DOWN,
-	AQ_DEV_STATE_UP,
-};
-
-struct aq_rx_filters {
-	unsigned int rule_cnt;
-	struct aq_rx_filter_vlan vlan_filters[AQ_HW_VLAN_MAX_FILTERS];
-	struct aq_rx_filter_l2 etype_filters[AQ_HW_ETYPE_MAX_FILTERS];
-};
-
-struct aq_vlan_tag {
-	SLIST_ENTRY(aq_vlan_tag) next;
-	uint16_t	tag;
-};
-
 struct aq_dev {
 	device_t		dev;
 	if_ctx_t		ctx;
