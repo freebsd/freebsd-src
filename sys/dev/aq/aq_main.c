@@ -338,6 +338,8 @@ aq_if_attach_pre(if_ctx_t ctx)
 	softc = iflib_get_softc(ctx);
 	rc = 0;
 
+	sysctl_ctx_init(&softc->aq_sysctl_ctx);
+
 	softc->ctx = ctx;
 	softc->dev = iflib_get_dev(ctx);
 	softc->media = iflib_get_media(ctx);
@@ -374,6 +376,8 @@ aq_if_attach_pre(if_ctx_t ctx)
 	hw->fc.fc_rx = 1;
 	hw->fc.fc_tx = 1;
 	softc->linkup = 0U;
+	/* Set here, not in aq_if_init(): a recovery re-init must not reset it. */
+	softc->thermal_retry_ticks = ticks;
 
 	softc->dbg_level = AQ_DBG_LEVEL_DEFAULT;
 	softc->dbg_categories = AQ_DBG_CATEGORIES_DEFAULT;
@@ -745,6 +749,8 @@ aq_if_init(if_ctx_t ctx)
 
 	atomic_store_rel_long(&hw->flags, 0);
 
+	softc->phy_fault_last = 0;
+	softc->thermal_state = AQ_THERMAL_NORMAL;
 	hw->tx_rings_count = softc->tx_rings_count;
 
 	err = aq_hw_init(&softc->hw, softc->hw.mac_addr, softc->msix,
@@ -754,6 +760,10 @@ aq_if_init(if_ctx_t ctx)
 		AQ_DBG_EXIT(err);
 		return;
 	}
+
+	/* aq_hw_init reloads the PHY, resetting the thermal-shutdown arming. */
+	if (hw->fw_ops->thermal_arm != NULL)
+		hw->fw_ops->thermal_arm(hw);
 
 	aq_if_media_status(ctx, &ifmr);
 
@@ -864,7 +874,7 @@ aq_mc_filter_apply(void *arg, struct sockaddr_dl *dl, u_int count)
 	struct aq_hw *hw = &softc->hw;
 	uint8_t *mac_addr = NULL;
 
-	if (count == AQ_HW_MAC_MAX)
+	if (count >= AQ_HW_MAC_MAX - 1)
 		return (0);
 
 	mac_addr = LLADDR(dl);
@@ -1425,8 +1435,6 @@ aq_add_stats_sysctls(struct aq_dev *softc)
 #define QUEUE_NAME_LEN 32
 	char                    namebuf[QUEUE_NAME_LEN];
 
-	/* Own these oids so aq_if_detach can drain and free them in order. */
-	sysctl_ctx_init(ctx);
 	/* RSS configuration */
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "print_rss_config",
 	    CTLTYPE_STRING | CTLFLAG_RD, softc, 0,

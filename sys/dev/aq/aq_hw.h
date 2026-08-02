@@ -195,6 +195,10 @@ struct aq_hw {
 	uint32_t chip_features;
 	uint64_t fw_caps;
 
+	/* Atlantic 1: MDIO port address of the PHY, discovered once. */
+	uint8_t phy_id;
+	bool phy_id_valid;
+
 	bool lro_enabled;
 
 	uint32_t mbox_addr;

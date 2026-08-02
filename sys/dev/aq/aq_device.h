@@ -139,6 +139,16 @@ struct aq_dev {
 	uint32_t          tx_rings_count;
 	uint32_t          rx_rings_count;
 	bool              linkup;
+	uint16_t          phy_fault_last;	/* last fault code reported */
+	enum aq_thermal_state {
+		AQ_THERMAL_NORMAL = 0,	/* no thermal shutdown pending */
+		AQ_THERMAL_COOLING,	/* shut down; waiting to cool */
+		AQ_THERMAL_SETTLING,	/* PHY reset; waiting to re-init */
+	}                 thermal_state;
+	int               thermal_settle;
+	int               thermal_retry_ticks;	/* earliest tick to retry at */
+	int               thermal_temp_mc;	/* temp at the last shutdown/cool */
+	int               thermal_recover_mc;	/* recover once cooled to here */
 	int               media_active;
 
 	struct aq_hw_stats  last_stats;

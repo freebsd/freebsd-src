@@ -88,7 +88,7 @@ enum aq_fw2x_caps_hi {
 	CAPS_HI_TEMPERATURE,
 	CAPS_HI_DOWNSHIFT,
 	CAPS_HI_PTP_AVB_EN,
-	CAPS_HI_MEDIA_DETECT,
+	CAPS_HI_THERMAL_SHUTDOWN,
 	CAPS_HI_LINK_DROP,
 	CAPS_HI_SLEEP_PROXY,
 	CAPS_HI_WOL,
@@ -500,6 +500,167 @@ aq_fw2x_get_temp(struct aq_hw* hw, int* temp_mc)
 }
 
 static int
+aq_fw2x_get_phy_fault(struct aq_hw* hw, uint16_t* fault)
+{
+	uint32_t raw;
+	int err;
+
+	mtx_lock(&hw->fw_mtx);
+	err = aq_hw_fw_downld_dwords(hw, hw->mbox_addr +
+	    offsetof(struct aq_fw2x_mailbox, phy_h_bit), &raw, 1);
+	mtx_unlock(&hw->fw_mtx);
+
+	if (err != 0)
+		return (err);
+
+	*fault = (uint16_t)(raw >> 16);
+
+	return (0);
+}
+
+/* PHY MDIO access: MMD register read/write via the MAC's MDIO controller. */
+#define AQ_MDIO_IFACE(n)	(0x280 + (((n) - 1) * 4))
+#define AQ_MDIO_BUSY		0x80000000u	/* iface2 bit 31 */
+#define AQ_MDIO_EXECUTE		0x00008000u	/* iface2 bit 15 */
+#define AQ_MDIO_OP_S		12		/* iface2 bits 13:12 */
+#define AQ_MDIO_OP_ADDR		3
+#define AQ_MDIO_OP_READ		1
+#define AQ_MDIO_OP_WRITE	2
+#define AQ_MDIO_PHYADDR_MSK	0x3ffu
+#define AQ_FW_SM_MDIO		0		/* cpu semaphore index */
+
+#define AQ_PHY_ID_MAX		32		/* MDIO port addresses to scan */
+#define AQ_MDIO_MMD_PMAPMD	0x01		/* PMA/PMD MMD */
+#define AQ_PHY_ID2_REG		0x0003		/* PMA/PMD Device Identifier 2 */
+
+#define AQ_PHY_MMD_GLOBAL	0x1e
+#define AQ_PHY_RESET_REG	0x2681		/* 1E.2681.0 = PHY hard reset */
+#define  AQ_PHY_RESET		0x0001
+#define AQ_PHY_THERMAL_CTRL_REG	0xc478		/* 1E.C478 thermal control */
+#define  AQ_PHY_THERMAL_SD_EN	0x0400		/* .A thermalShutdownEnable */
+
+static uint16_t
+aq_fw2x_mdio_op(struct aq_hw* hw, uint16_t mmd, uint16_t addr, int write,
+    uint16_t data)
+{
+	uint32_t pa = (((uint32_t)hw->phy_id & 0x1f) << 5) | (mmd & 0x1f);
+
+	AQ_WRITE_REG(hw, AQ_MDIO_IFACE(4), addr);
+	AQ_WRITE_REG(hw, AQ_MDIO_IFACE(2),
+	    AQ_MDIO_EXECUTE | (AQ_MDIO_OP_ADDR << AQ_MDIO_OP_S) | pa);
+	AQ_HW_WAIT_FOR((AQ_READ_REG(hw, AQ_MDIO_IFACE(2)) & AQ_MDIO_BUSY) == 0,
+	    10, 10000);
+	if (write) {
+		AQ_WRITE_REG(hw, AQ_MDIO_IFACE(3), data);
+		AQ_WRITE_REG(hw, AQ_MDIO_IFACE(2),
+		    AQ_MDIO_EXECUTE | (AQ_MDIO_OP_WRITE << AQ_MDIO_OP_S) | pa);
+	} else {
+		AQ_WRITE_REG(hw, AQ_MDIO_IFACE(2),
+		    AQ_MDIO_EXECUTE | (AQ_MDIO_OP_READ << AQ_MDIO_OP_S) | pa);
+	}
+	AQ_HW_WAIT_FOR((AQ_READ_REG(hw, AQ_MDIO_IFACE(2)) & AQ_MDIO_BUSY) == 0,
+	    10, 10000);
+	return ((uint16_t)AQ_READ_REG(hw, AQ_MDIO_IFACE(5)));
+}
+
+/* MDIO is serialized against the F/W by cpu semaphore 0. */
+static void
+aq_fw2x_phy_write(struct aq_hw* hw, uint16_t mmd, uint16_t addr, uint16_t data)
+{
+	if (AQ_HW_WAIT_FOR(reg_glb_cpu_sem_get(hw, AQ_FW_SM_MDIO) == 1U,
+	    10, 10000) != 0)
+		return;
+	aq_fw2x_mdio_op(hw, mmd, addr, 1, data);
+	reg_glb_cpu_sem_set(hw, 1U, AQ_FW_SM_MDIO);
+}
+
+static int
+aq_fw2x_phy_read(struct aq_hw* hw, uint16_t mmd, uint16_t addr, uint16_t* val)
+{
+	if (AQ_HW_WAIT_FOR(reg_glb_cpu_sem_get(hw, AQ_FW_SM_MDIO) == 1U,
+	    10, 10000) != 0)
+		return (ETIMEDOUT);
+	*val = aq_fw2x_mdio_op(hw, mmd, addr, 0, 0);
+	reg_glb_cpu_sem_set(hw, 1U, AQ_FW_SM_MDIO);
+
+	return (0);
+}
+
+/* Discover the PHY's MDIO port address; it is strap-selectable, not fixed at 0. */
+static bool
+aq_fw2x_init_phy_id(struct aq_hw* hw)
+{
+	uint16_t val;
+	uint8_t id;
+
+	for (id = 0; id < AQ_PHY_ID_MAX; id++) {
+		hw->phy_id = id;
+		if (aq_fw2x_phy_read(hw, AQ_MDIO_MMD_PMAPMD, AQ_PHY_ID2_REG,
+		    &val) == 0 && val != 0xffff)
+			return (true);
+	}
+	hw->phy_id = 0;
+	return (false);
+}
+
+/* Called with fw_mtx held; the port address is needed by every MDIO caller. */
+static void
+aq_fw2x_phy_id_probe(struct aq_hw* hw)
+{
+	if (!hw->phy_id_valid && aq_fw2x_init_phy_id(hw))
+		hw->phy_id_valid = true;
+}
+
+/* PHY hard reset (1E.2681.0): clears a latched thermal shutdown a MAC reset cannot. */
+static int
+aq_fw2x_phy_reset(struct aq_hw* hw)
+{
+	mtx_lock(&hw->fw_mtx);
+	aq_fw2x_phy_id_probe(hw);
+	aq_fw2x_phy_write(hw, AQ_PHY_MMD_GLOBAL, AQ_PHY_RESET_REG, AQ_PHY_RESET);
+	mtx_unlock(&hw->fw_mtx);
+
+	return (0);
+}
+
+/* Arm autonomous thermal shutdown (1E.C478.A), cleared by any PHY reset. */
+static int
+aq_fw2x_thermal_arm(struct aq_hw* hw)
+{
+	uint16_t ctrl;
+
+	mtx_lock(&hw->fw_mtx);
+	aq_fw2x_phy_id_probe(hw);
+	if (aq_fw2x_phy_read(hw, AQ_PHY_MMD_GLOBAL, AQ_PHY_THERMAL_CTRL_REG,
+	    &ctrl) == 0 && ctrl != 0xffff && (ctrl & AQ_PHY_THERMAL_SD_EN) == 0)
+		aq_fw2x_phy_write(hw, AQ_PHY_MMD_GLOBAL,
+		    AQ_PHY_THERMAL_CTRL_REG, ctrl | AQ_PHY_THERMAL_SD_EN);
+	mtx_unlock(&hw->fw_mtx);
+
+	return (0);
+}
+
+/* 1E.C421 high-temp shutdown threshold, degrees C in Q8.8 fixed point. */
+#define AQ_PHY_THERMAL_HIGH_REG	0xc421
+static int
+aq_fw2x_get_thermal_limit(struct aq_hw* hw, int* limit_mc)
+{
+	uint16_t raw;
+	int err;
+
+	mtx_lock(&hw->fw_mtx);
+	aq_fw2x_phy_id_probe(hw);
+	err = aq_fw2x_phy_read(hw, AQ_PHY_MMD_GLOBAL, AQ_PHY_THERMAL_HIGH_REG,
+	    &raw);
+	mtx_unlock(&hw->fw_mtx);
+	if (err != 0 || raw == 0 || raw == 0xffff)
+		return (ENXIO);
+	*limit_mc = (int)(int16_t)raw * 1000 / 256;
+
+	return (0);
+}
+
+static int
 aq_fw2x_led_control(struct aq_hw* hw, uint32_t onoff)
 {
 	int err = 0;
@@ -526,6 +687,10 @@ const struct aq_firmware_ops aq_fw2x_ops =
 	.get_mac_addr = aq_fw2x_get_mac_addr,
 	.get_stats = aq_fw2x_get_stats,
 	.get_temp = aq_fw2x_get_temp,
+	.get_phy_fault = aq_fw2x_get_phy_fault,
+	.phy_reset = aq_fw2x_phy_reset,
+	.thermal_arm = aq_fw2x_thermal_arm,
+	.get_thermal_limit = aq_fw2x_get_thermal_limit,
 
 	.led_control = aq_fw2x_led_control,
 };
