@@ -104,6 +104,10 @@ typedef union mrequnion mrequnion_t;
 #ifdef INET
 static int	__ifindex_to_primary_ip(const uint32_t, struct in_addr *);
 #endif
+#if defined(INET) && defined(INET6)
+static struct in6_addr *
+		__in6_v4_to_v4mapped(struct in6_addr *, struct in_addr *);
+#endif
 static uint32_t	parse_cmd_args(sockunion_t *, sockunion_t *,
 		    const char *, const char *, const char *);
 static void	process_file(char *, int, int);
@@ -142,6 +146,23 @@ su_cmp(const void *a, const void *b)
 	assert(sua->sa.sa_len == sub->sa.sa_len);
 	return (memcmp(sua, sub, sua->sa.sa_len));
 }
+
+#if defined(INET) && defined(INET6)
+/*
+ * Internal: Express an IPv4 address within IPv6 as IPv4-mapped.
+ * Converse of IN6_IS_ADDR_V4MAPPED(a).
+ */
+static struct in6_addr *
+__in6_v4_to_v4mapped(struct in6_addr *a6 , struct in_addr *a4)
+{
+
+	a6->s6_addr32[0] = 0;
+	a6->s6_addr32[1] = 0;
+	a6->s6_addr32[2] = ntohl(0x0000ffff);
+	a6->s6_addr32[3] = a4->s_addr;
+	return (a6);
+}
+#endif /* defined(INET) && defined(INET6) */
 
 #ifdef INET
 /*
@@ -519,6 +540,55 @@ process_cmd(char *cmd, int s, int s6, FILE *fp __unused)
 		break;
 
 	/*
+	 * Exercise the non-IETF-ratified extension to RFC 3493 to
+	 * join IPv4 groups as IPv4 mapped addresses on IPv6 sockets.
+	 * Only ASM joins are supported; further use of the full-state API
+	 * may result in undefined behaviour.
+	 */
+	case 'u':
+	case 'v':
+		toptname = "";
+		sscanf(line, "%s %s", str1, str2);
+		ifindex = parse_cmd_args(&su, NULL, str1, str2, NULL);
+		if (ifindex == 0) {
+			printf("-1\n");
+			break;
+		}
+		af = su.sa.sa_family;
+#if defined(INET) && defined(INET6)
+		if (af == AF_INET) {
+			struct in_addr	gaddr;
+
+			gaddr = su.sin.sin_addr;
+			__in6_v4_to_v4mapped(&su.sin6.sin6_addr, &gaddr);
+			mr.mr6.ipv6mr_multiaddr = su.sin6.sin6_addr;
+			mr.mr6.ipv6mr_interface = ifindex;
+			optname = (*cmd == 'u') ?
+			    IPV6_JOIN_GROUP :
+			    IPV6_LEAVE_GROUP;
+			toptname = (*cmd == 'u') ?
+			    "IPV6_JOIN_GROUP" :
+			    "IPV6_LEAVE_GROUP";
+			level = IPPROTO_IPV6;
+			optval = (void *)&mr.mr6;
+			optlen = sizeof(mr.mr6);
+			if (s6 < 0) {
+				warnc(EPROTONOSUPPORT, "setsockopt %s",
+				    toptname);
+			} else if (setsockopt(s6, level, optname, optval,
+			    optlen) == 0) {
+				printf("ok\n");
+				break;
+			} else {
+				warn("setsockopt %s", toptname);
+			}
+		}
+#endif /* defined(INET) && defined(INET6) */
+		/* FALLTHROUGH */
+		printf("-1\n");
+		break;
+
+	/*
 	 * Set the socket to include or exclude filter mode, and
 	 * add some sources to the filterlist, using the full-state API.
 	 */
@@ -833,6 +903,8 @@ usage(void)
 
 	printf("j mcast-addr ifname [src-addr] - join IP multicast group\n");
 	printf("l mcast-addr ifname [src-addr] - leave IP multicast group\n");
+	printf("u mcast-addr ifname - join IPv4-mapped group on IPv6 socket\n");
+	printf("v mcast-addr ifname - leave IPv4-mapped group on IPv6 socket\n");
 	printf(
 "i mcast-addr ifname n          - set n include mode src filter\n");
 	printf(
