@@ -486,7 +486,8 @@ aq_if_attach_post(if_ctx_t ctx)
 	goto exit;
 		break;
 	case IFLIB_INTR_MSI:
-		break;
+		rc = EOPNOTSUPP;
+		goto exit;
 	case IFLIB_INTR_MSIX:
 		break;
 	default:
@@ -751,19 +752,25 @@ aq_if_init(if_ctx_t ctx)
 
 	softc->phy_fault_last = 0;
 	softc->thermal_state = AQ_THERMAL_NORMAL;
+	softc->reset_pending = false;
 	hw->tx_rings_count = softc->tx_rings_count;
 
 	err = aq_hw_init(&softc->hw, softc->hw.mac_addr, softc->msix,
 	    softc->scctx->isc_intr == IFLIB_INTR_MSIX);
 	if (err != 0) {
 		device_printf(softc->dev, "aq_hw_init: %d\n", err);
+		softc->init_failed = true;
 		AQ_DBG_EXIT(err);
 		return;
 	}
+	softc->init_failed = false;
+	softc->init_retries = 0;
 
 	/* aq_hw_init reloads the PHY, resetting the thermal-shutdown arming. */
-	if (hw->fw_ops->thermal_arm != NULL)
-		hw->fw_ops->thermal_arm(hw);
+	if (hw->fw_ops->thermal_arm != NULL &&
+	    hw->fw_ops->thermal_arm(hw) != 0)
+		device_printf(softc->dev,
+		    "could not arm PHY thermal shutdown\n");
 
 	aq_if_media_status(ctx, &ifmr);
 
@@ -807,7 +814,9 @@ aq_if_init(if_ctx_t ctx)
 		aq_hw_udp_rss_enable(hw, (aq_rss_hashconfig() &
 		    (RSS_HASHTYPE_RSS_UDP_IPV4 | RSS_HASHTYPE_RSS_UDP_IPV6 |
 		    RSS_HASHTYPE_RSS_UDP_IPV6_EX)) != 0);
-	aq_hw_set_link_speed(hw, hw->link_rate);
+	err = aq_hw_set_link_speed(hw, hw->link_rate);
+	if (err != 0)
+		device_printf(softc->dev, "could not set link speed: %d\n", err);
 
 	/* iflib does not replay filter state after init; aq_hw_init() clears it. */
 	aq_if_multi_set(ctx);
@@ -844,6 +853,8 @@ aq_if_stop(if_ctx_t ctx)
 
 	aq_hw_reset(&softc->hw, true);
 	memset(&softc->last_stats, 0, sizeof(softc->last_stats));
+	/* Each bring-up gets its own budget of re-init attempts. */
+	softc->init_retries = 0;
 	softc->linkup = false;
 	aq_if_update_admin_status(ctx);
 	AQ_DBG_EXIT(0);
