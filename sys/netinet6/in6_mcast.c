@@ -1924,7 +1924,7 @@ in6_v6_mreq_to_v4(struct ipv6_mreq *mreq, struct ip_mreq *mreq_v4)
 		error = EADDRNOTAVAIL;
 		goto out;
 	}
-	mreq_v4->imr_interface.s_addr = IA_SIN(ia)->sin_addr.s_addr;
+	mreq_v4->imr_interface.s_addr = ia->ia_addr.sin_addr.s_addr;
 	error = 0;
 
 out:
@@ -1991,12 +1991,11 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 				.sopt_name    = IP_ADD_MEMBERSHIP,
 				.sopt_val     = &mreq_v4,
 				.sopt_valsize = sizeof(mreq_v4),
-				.sopt_rights  = sopt->sopt_rights,
-				.sopt_td      = sopt->sopt_td
+				.sopt_rights  = sopt->sopt_rights
 			};
 
 			mreq_v4.imr_multiaddr.s_addr =
-			    mreq.ipv6mr_multiaddr.s6_addr32[3];
+			    htonl(mreq.ipv6mr_multiaddr.s6_addr32[3]);
 			if (mreq.ipv6mr_interface == 0)
 				mreq_v4.imr_interface.s_addr = INADDR_ANY;
 			else
@@ -2333,12 +2332,11 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 				.sopt_name    = IP_DROP_MEMBERSHIP,
 				.sopt_val     = &mreq_v4,
 				.sopt_valsize = sizeof(mreq_v4),
-				.sopt_rights  = sopt->sopt_rights,
-				.sopt_td      = sopt->sopt_td
+				.sopt_rights  = sopt->sopt_rights
 			};
 
 			mreq_v4.imr_multiaddr.s_addr =
-			    mreq.ipv6mr_multiaddr.s6_addr32[3];
+			    htonl(mreq.ipv6mr_multiaddr.s6_addr32[3]);
 			if (mreq.ipv6mr_interface == 0)
 				mreq_v4.imr_interface.s_addr = INADDR_ANY;
 			else
