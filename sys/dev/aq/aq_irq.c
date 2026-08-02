@@ -217,20 +217,31 @@ aq_if_update_admin_status(if_ctx_t ctx)
 	struct aq_dev *aq_dev = iflib_get_softc(ctx);
 	struct aq_hw *hw = &aq_dev->hw;
 	uint32_t link_speed;
+	bool running;
 
 
 	struct aq_hw_fc_info fc_neg;
 	aq_hw_get_link_state(hw, &link_speed, &fc_neg);
 
-	/* An interface whose initialization did not complete has no link. */
-	if (aq_dev->init_failed)
+	/* A stopped or half-initialized interface has no link. */
+	running = (if_getdrvflags(iflib_get_ifp(ctx)) & IFF_DRV_RUNNING) != 0;
+	if (!running || aq_dev->init_failed)
 		link_speed = 0;
 
-	if (link_speed && !aq_dev->linkup) { /* link was DOWN */
-		device_printf(aq_dev->dev, "link UP: speed=%d\n", link_speed);
+	/* A retrain can change the speed without ever dropping the link. */
+	if (link_speed != 0U &&
+	    (!aq_dev->linkup || link_speed != aq_dev->link_speed)) {
+		if (!aq_dev->linkup) {
+			if (bootverbose)
+				device_printf(aq_dev->dev,
+				    "link UP: speed=%d\n", link_speed);
+			aq_dev->phy_fault_last = 0;
+		} else
+			device_printf(aq_dev->dev, "link speed=%d\n",
+			    link_speed);
 
 		aq_dev->linkup = 1;
-		aq_dev->phy_fault_last = 0;
+		aq_dev->link_speed = link_speed;
 
 		/* turn on/off RX Pause in RPB */
 		rpb_rx_xoff_en_per_tc_set(hw, fc_neg.fc_rx, 0);
@@ -242,9 +253,11 @@ aq_if_update_admin_status(if_ctx_t ctx)
 		/* update ITR settings according new link speed */
 		aq_hw_interrupt_moderation_set(hw);
 	} else if (link_speed == 0U && aq_dev->linkup) { /* link was UP */
-		device_printf(aq_dev->dev, "link DOWN\n");
+		if (bootverbose)
+			device_printf(aq_dev->dev, "link DOWN\n");
 
 		aq_dev->linkup = 0;
+		aq_dev->link_speed = 0;
 
 		/* turn off RX Pause in RPB */
 		rpb_rx_xoff_en_per_tc_set(hw, 0, 0);
@@ -252,6 +265,10 @@ aq_if_update_admin_status(if_ctx_t ctx)
 		iflib_link_state_change(ctx, LINK_STATE_DOWN,  0);
 		aq_mediastatus_update(aq_dev, link_speed, &fc_neg);
 	}
+
+	/* A stopped interface must not be re-initialized behind the operator. */
+	if (!running)
+		return;
 
 	/* Re-arming while a reset is queued would re-init once too often. */
 	if (aq_dev->init_failed) {
