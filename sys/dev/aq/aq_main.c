@@ -559,6 +559,8 @@ aq_if_suspend(if_ctx_t ctx)
 
 	aq_if_stop(ctx);
 	aq_hw_deinit(&softc->hw);
+	/* iflib_device_suspend() does not stop the interface for us. */
+	if_setdrvflagbits(iflib_get_ifp(ctx), IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
 
 	AQ_DBG_EXIT(0);
 	return (0);
@@ -755,6 +757,9 @@ aq_if_init(if_ctx_t ctx)
 	softc->reset_pending = false;
 	hw->tx_rings_count = softc->tx_rings_count;
 
+	/* Pick up a locally administered address set since the last init. */
+	bcopy(if_getlladdr(iflib_get_ifp(ctx)), hw->mac_addr, ETHER_ADDR_LEN);
+
 	err = aq_hw_init(&softc->hw, softc->hw.mac_addr, softc->msix,
 	    softc->scctx->isc_intr == IFLIB_INTR_MSIX);
 	if (err != 0) {
@@ -855,8 +860,11 @@ aq_if_stop(if_ctx_t ctx)
 	memset(&softc->last_stats, 0, sizeof(softc->last_stats));
 	/* Each bring-up gets its own budget of re-init attempts. */
 	softc->init_retries = 0;
-	softc->linkup = false;
-	aq_if_update_admin_status(ctx);
+	if (softc->linkup) {
+		softc->linkup = false;
+		softc->link_speed = 0;
+		iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
+	}
 	AQ_DBG_EXIT(0);
 }
 

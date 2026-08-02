@@ -121,6 +121,7 @@ struct aq_dev {
 	uint32_t          tx_rings_count;
 	uint32_t          rx_rings_count;
 	bool              linkup;
+	uint32_t          link_speed;	/* Mbit/s last announced to the stack */
 	uint16_t          phy_fault_last;	/* last fault code reported */
 	enum aq_thermal_state {
 		AQ_THERMAL_NORMAL = 0,	/* no thermal shutdown pending */
