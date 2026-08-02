@@ -263,9 +263,19 @@ File size in bytes.
 .It Va st_blksize
 Optimal I/O block size for the file.
 .It Va st_blocks
-Actual number of blocks allocated for the file in 512-byte units.
+Actual number of blocks allocated for the file.
+.Pp
+For files located on non-synthetic filesystems, the block size is 512 bytes.
 As short symbolic links are stored in the inode, this number may
 be zero.
+.Pp
+For file descriptors referencing specific non-file objects,
+the field is type-specific.
+For POSIX shared memory segments
+.Pq see Xr shm_open 2 ,
+the block size is equal to
+the platform page size
+.Pq Xr getpagesize 2 .
 .El
 .Pp
 The access-related fields of
