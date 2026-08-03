@@ -5378,67 +5378,33 @@ vm_page_bits(int base, int size)
 void
 vm_page_bits_set(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t set)
 {
-
 #if PAGE_SIZE == 32768
 	atomic_set_64((uint64_t *)bits, set);
 #elif PAGE_SIZE == 16384
 	atomic_set_32((uint32_t *)bits, set);
-#elif (PAGE_SIZE == 8192) && defined(atomic_set_16)
+#elif PAGE_SIZE == 8192
 	atomic_set_16((uint16_t *)bits, set);
-#elif (PAGE_SIZE == 4096) && defined(atomic_set_8)
+#elif PAGE_SIZE == 4096
 	atomic_set_8((uint8_t *)bits, set);
-#else		/* PAGE_SIZE <= 8192 */
-	uintptr_t addr;
-	int shift;
-
-	addr = (uintptr_t)bits;
-	/*
-	 * Use a trick to perform a 32-bit atomic on the
-	 * containing aligned word, to not depend on the existence
-	 * of atomic_{set, clear}_{8, 16}.
-	 */
-	shift = addr & (sizeof(uint32_t) - 1);
-#if BYTE_ORDER == BIG_ENDIAN
-	shift = (sizeof(uint32_t) - sizeof(vm_page_bits_t) - shift) * NBBY;
 #else
-	shift *= NBBY;
+#error unhandled page size
 #endif
-	addr &= ~(sizeof(uint32_t) - 1);
-	atomic_set_32((uint32_t *)addr, set << shift);
-#endif		/* PAGE_SIZE */
 }
 
 static inline void
 vm_page_bits_clear(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t clear)
 {
-
 #if PAGE_SIZE == 32768
 	atomic_clear_64((uint64_t *)bits, clear);
 #elif PAGE_SIZE == 16384
 	atomic_clear_32((uint32_t *)bits, clear);
-#elif (PAGE_SIZE == 8192) && defined(atomic_clear_16)
+#elif PAGE_SIZE == 8192
 	atomic_clear_16((uint16_t *)bits, clear);
-#elif (PAGE_SIZE == 4096) && defined(atomic_clear_8)
+#elif PAGE_SIZE == 4096
 	atomic_clear_8((uint8_t *)bits, clear);
-#else		/* PAGE_SIZE <= 8192 */
-	uintptr_t addr;
-	int shift;
-
-	addr = (uintptr_t)bits;
-	/*
-	 * Use a trick to perform a 32-bit atomic on the
-	 * containing aligned word, to not depend on the existence
-	 * of atomic_{set, clear}_{8, 16}.
-	 */
-	shift = addr & (sizeof(uint32_t) - 1);
-#if BYTE_ORDER == BIG_ENDIAN
-	shift = (sizeof(uint32_t) - sizeof(vm_page_bits_t) - shift) * NBBY;
 #else
-	shift *= NBBY;
+#error unhandled page size
 #endif
-	addr &= ~(sizeof(uint32_t) - 1);
-	atomic_clear_32((uint32_t *)addr, clear << shift);
-#endif		/* PAGE_SIZE */
 }
 
 static inline vm_page_bits_t
@@ -5456,45 +5422,21 @@ vm_page_bits_swap(vm_page_t m, vm_page_bits_t *bits, vm_page_bits_t newbits)
 	old = *bits;
 	while (atomic_fcmpset_32(bits, &old, newbits) == 0);
 	return (old);
-#elif (PAGE_SIZE == 8192) && defined(atomic_fcmpset_16)
+#elif PAGE_SIZE == 8192
 	uint16_t old;
 
 	old = *bits;
 	while (atomic_fcmpset_16(bits, &old, newbits) == 0);
 	return (old);
-#elif (PAGE_SIZE == 4096) && defined(atomic_fcmpset_8)
+#elif PAGE_SIZE == 4096
 	uint8_t old;
 
 	old = *bits;
 	while (atomic_fcmpset_8(bits, &old, newbits) == 0);
 	return (old);
-#else		/* PAGE_SIZE <= 4096*/
-	uintptr_t addr;
-	uint32_t old, new, mask;
-	int shift;
-
-	addr = (uintptr_t)bits;
-	/*
-	 * Use a trick to perform a 32-bit atomic on the
-	 * containing aligned word, to not depend on the existence
-	 * of atomic_{set, swap, clear}_{8, 16}.
-	 */
-	shift = addr & (sizeof(uint32_t) - 1);
-#if BYTE_ORDER == BIG_ENDIAN
-	shift = (sizeof(uint32_t) - sizeof(vm_page_bits_t) - shift) * NBBY;
 #else
-	shift *= NBBY;
+#error unhandled page size
 #endif
-	addr &= ~(sizeof(uint32_t) - 1);
-	mask = VM_PAGE_BITS_ALL << shift;
-
-	old = *bits;
-	do {
-		new = old & ~mask;
-		new |= newbits << shift;
-	} while (atomic_fcmpset_32((uint32_t *)addr, &old, new) == 0);
-	return (old >> shift);
-#endif		/* PAGE_SIZE */
 }
 
 /*
