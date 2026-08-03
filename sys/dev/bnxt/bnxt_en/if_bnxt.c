@@ -1722,7 +1722,7 @@ bnxt_thor2_db_rx(void *db_ptr, uint16_t idx)
 				((uint64_t)ring->phys_id << DBR_XID_SFT));
 
 	/* Add the PI index */
-	db_val |= DB_RING_IDX(ring, idx, ring->epoch_arr[idx]);
+	db_val |= DB_RING_IDX(ring, idx, ring->epoch_bit);
 
 	bus_space_barrier(db_bar->tag, db_bar->handle, ring->doorbell, 8,
 			BUS_SPACE_BARRIER_WRITE);
@@ -1746,7 +1746,7 @@ bnxt_thor2_db_tx(void *db_ptr, uint16_t idx)
 				((uint64_t)ring->phys_id << DBR_XID_SFT));
 
 	/* Add the PI index */
-	db_val |= DB_RING_IDX(ring, idx, ring->epoch_arr[idx]);
+	db_val |= DB_RING_IDX(ring, idx, ring->epoch_bit);
 
 	bus_space_barrier(db_bar->tag, db_bar->handle, ring->doorbell, 8,
 			BUS_SPACE_BARRIER_WRITE);

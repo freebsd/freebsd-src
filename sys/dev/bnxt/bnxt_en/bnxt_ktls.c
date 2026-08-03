@@ -1655,6 +1655,8 @@ static int bnxt_ktls_submit_mbuf(struct bnxt_softc *softc, struct bnxt_ring *txr
 	}
 
 	prod = RING_NEXT(txr, prod);
+	if (prod == 0)
+		txr->epoch_bit = !txr->epoch_bit;
 
 	if (pi->ipi_tso_segsz != 0) {
 		/* Preserve the connection's actual negotiated MSS. */
@@ -1711,6 +1713,8 @@ static int bnxt_ktls_submit_mbuf(struct bnxt_softc *softc, struct bnxt_ring *txr
 		tbd->flags_type = htole16(flags_type);
 
 		prod = RING_NEXT(txr, prod);
+		if (prod == 0)
+			txr->epoch_bit = !txr->epoch_bit;
 
 		tbd = &((struct tx_bd_long *)txr->vaddr)[prod];
 		tbd->len = htole16(segs[seg].ds_len);
@@ -1722,6 +1726,8 @@ static int bnxt_ktls_submit_mbuf(struct bnxt_softc *softc, struct bnxt_ring *txr
 	tbd->flags_type = htole16(flags_type);
 
 	prod = RING_NEXT(txr, prod);
+	if (prod == 0)
+		txr->epoch_bit = !txr->epoch_bit;
 
 	txr->prod = prod;
 
@@ -1773,6 +1779,8 @@ static void bnxt_ktls_pre_xmit(struct bnxt_softc *bp, struct bnxt_ring *txr,
 	}
 
 	prod = RING_NEXT(txr, prod);
+	if (prod == 0)
+		txr->epoch_bit = !txr->epoch_bit;
 
 	/* Copy pre-cmd to TX desc ring*/
 	pcmd1 = &((struct tx_bd *)txr->vaddr)[prod];
@@ -1785,6 +1793,7 @@ static void bnxt_ktls_pre_xmit(struct bnxt_softc *bp, struct bnxt_ring *txr,
 	} else {
 		memcpy(pcmd, pre_cmd, space);
 		prod = 0;
+		txr->epoch_bit = !txr->epoch_bit;
 		pcmd1 = &((struct tx_bd *)txr->vaddr)[prod];
 		pcmd = (uint8_t *)pcmd1;
 		memcpy((uint8_t *)pcmd, (uint8_t *)pre_cmd + space,
@@ -1793,6 +1802,8 @@ static void bnxt_ktls_pre_xmit(struct bnxt_softc *bp, struct bnxt_ring *txr,
 	}
 
 	prod = RING_NEXT(txr, prod);
+	if (prod == 0)
+		txr->epoch_bit = !txr->epoch_bit;
 	tx_buf->inline_bds = CRYPTO_PREFIX_CMD_BDS - 1;
 	txr->prod = prod;
 }
@@ -1952,6 +1963,7 @@ static int bnxt_ktls_tx_ooo(struct bnxt_softc *bp, struct bnxt_ring *txr,
 	bool update_inorder = false;
 	uint32_t tx_prod;
 	uint16_t running_bds;
+	bool epoch_bit;
 
 	ktls = bp->ktls_info;
 
@@ -2031,13 +2043,12 @@ static int bnxt_ktls_tx_ooo(struct bnxt_softc *bp, struct bnxt_ring *txr,
 	pcmd.flags = htole32(presync_flags);
 
 	/*
-	 * Save tx ring producer index and running_bds accumulator before
-	 * writing presync command, it will be used to move the producer
-	 * index backwards to discard presync command and restore running_bds
-	 * to the state of before sending presync command, if replay packet fails.
+	 * Save producer/running_bds/epoch_bit before the presync command so
+	 * they can be rolled back if the replay packet fails to post.
 	 */
 	tx_prod = txr->prod;
 	running_bds = txr->running_bds;
+	epoch_bit = txr->epoch_bit;
 
 	bnxt_ktls_pre_xmit(bp, txr, kctx_tx->kid, &pcmd);
 
@@ -2047,12 +2058,13 @@ static int bnxt_ktls_tx_ooo(struct bnxt_softc *bp, struct bnxt_ring *txr,
 		if (fwd)
 			counter_u64_add(ktls->counters[BNXT_KTLS_TX_SEQ_FWD_REPLAY], 1);
 		/*
-		 * If replay failed, discard presync BD by rolling back both the
-		 * producer index and restore running_bds accumulator.
+		 * If replay failed, discard presync BD by rolling back the
+		 * producer index, running_bds accumulator, and epoch_bit.
 		 */
 		if (rc) {
 			txr->prod = tx_prod;
 			txr->running_bds = running_bds;
+			txr->epoch_bit = epoch_bit;
 		}
 	}
 

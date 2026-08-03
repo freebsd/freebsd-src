@@ -103,7 +103,6 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 	uint16_t lflags = 0;
 	uint32_t cfa_meta;
 	int seg = 0;
-	uint8_t wrap = 0;
 	struct tx_bd_opaque *opq;
 
 	txr->prod = pi->ipi_pidx;
@@ -170,17 +169,9 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 	if (need_hi) {
 		flags_type |= TX_BD_LONG_TYPE_TX_BD_LONG;
 
-		/* Handle wrapping */
-		if (pi->ipi_new_pidx == txr->ring_size - 1)
-			wrap = 1;
-
 		pi->ipi_new_pidx = RING_NEXT(txr, pi->ipi_new_pidx);
-
-		/* Toggle epoch bit on wrap */
-		if (wrap && pi->ipi_new_pidx == 0)
+		if (pi->ipi_new_pidx == 0)
 			txr->epoch_bit = !txr->epoch_bit;
-		if (pi->ipi_new_pidx < EPOCH_ARR_SZ)
-			txr->epoch_arr[pi->ipi_new_pidx] = txr->epoch_bit;
 
 		tbdh = &((struct tx_bd_long_hi *)txr->vaddr)[pi->ipi_new_pidx];
 #ifdef KTLS_IFLIB_SUPPORT
@@ -236,13 +227,9 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 	for (; seg < pi->ipi_nsegs; seg++) {
 		tbd->flags_type = htole16(flags_type);
 
-		if (pi->ipi_new_pidx == txr->ring_size - 1)
-			wrap = 1;
 		pi->ipi_new_pidx = RING_NEXT(txr, pi->ipi_new_pidx);
-		if (wrap && pi->ipi_new_pidx == 0)
+		if (pi->ipi_new_pidx == 0)
 			txr->epoch_bit = !txr->epoch_bit;
-		if (pi->ipi_new_pidx < EPOCH_ARR_SZ)
-			txr->epoch_arr[pi->ipi_new_pidx] = txr->epoch_bit;
 
 		tbd = &((struct tx_bd_long *)txr->vaddr)[pi->ipi_new_pidx];
 		tbd->len = htole16(pi->ipi_segs[seg].ds_len);
@@ -251,13 +238,10 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 	}
 	flags_type |= TX_BD_SHORT_FLAGS_PACKET_END;
 	tbd->flags_type = htole16(flags_type);
-	if (pi->ipi_new_pidx == txr->ring_size - 1)
-		wrap = 1;
+
 	pi->ipi_new_pidx = RING_NEXT(txr, pi->ipi_new_pidx);
-	if (wrap && pi->ipi_new_pidx == 0)
+	if (pi->ipi_new_pidx == 0)
 		txr->epoch_bit = !txr->epoch_bit;
-	if (pi->ipi_new_pidx < EPOCH_ARR_SZ)
-		txr->epoch_arr[pi->ipi_new_pidx] = txr->epoch_bit;
 
 	txr->prod = pi->ipi_new_pidx;
 	return 0;
@@ -451,8 +435,6 @@ bnxt_isc_rxd_refill(void *sc, if_rxd_update_t iru)
 			pidx = 0;
 			rx_ring->epoch_bit = !rx_ring->epoch_bit;
 		}
-		if (pidx < EPOCH_ARR_SZ)
-			rx_ring->epoch_arr[pidx] = rx_ring->epoch_bit;
 	}
 
 	return;
