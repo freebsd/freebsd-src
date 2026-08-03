@@ -465,7 +465,7 @@ static bool	em_if_vlan_filter_capable(if_ctx_t);
 static bool	em_if_vlan_filter_used(if_ctx_t);
 static void	em_if_vlan_filter_enable(struct e1000_softc *);
 static void	em_if_vlan_filter_disable(struct e1000_softc *);
-static void	em_if_vlan_filter_write(struct e1000_softc *);
+static void	em_if_vlan_filter_write(struct e1000_softc *, int);
 static void	em_setup_vlan_hw_support(if_ctx_t ctx);
 static int	em_sysctl_nvm_info(SYSCTL_HANDLER_ARGS);
 static void	em_print_nvm_info(struct e1000_softc *);
@@ -4631,7 +4631,7 @@ em_if_vlan_register(if_ctx_t ctx, u16 vtag)
 		if (igb_iov_enabled(sc))
 			igb_iov_rebuild_vlan(sc);
 		else
-			em_if_vlan_filter_write(sc);
+			em_if_vlan_filter_write(sc, index);
 	}
 }
 
@@ -4666,7 +4666,7 @@ em_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
 		if (igb_iov_enabled(sc))
 			igb_iov_rebuild_vlan(sc);
 		else
-			em_if_vlan_filter_write(sc);
+			em_if_vlan_filter_write(sc, index);
 	}
 }
 
@@ -4721,7 +4721,7 @@ em_if_vlan_filter_disable(struct e1000_softc *sc)
 }
 
 static void
-em_if_vlan_filter_write(struct e1000_softc *sc)
+em_if_vlan_filter_write(struct e1000_softc *sc, int changed_index)
 {
 	struct e1000_hw *hw = &sc->hw;
 
@@ -4731,8 +4731,13 @@ em_if_vlan_filter_write(struct e1000_softc *sc)
 	if (hw->mac.type < em_mac_min)
 		em_if_intr_disable(sc->ctx);
 
+	/*
+	 * Restore every retained VLAN after reset.  Also write the changed
+	 * word when its final VLAN was removed so stale hardware membership
+	 * does not survive a zero shadow value.
+	 */
 	for (int i = 0; i < EM_VFTA_SIZE; i++)
-		if (sc->shadow_vfta[i] != 0)
+		if (sc->shadow_vfta[i] != 0 || i == changed_index)
 			e1000_write_vfta(hw, i, sc->shadow_vfta[i]);
 
 	/* Re-enable interrupts for lem-class devices */
