@@ -1261,9 +1261,15 @@ tryagain:
 				}
 				sep = NFSMNT_MDSSESSION(nmp);
 				if (bcmp(sep->nfsess_sessionid,
-				    nd->nd_sessionid, NFSX_V4SESSIONID) == 0 &&
-				    sep->nfsess_defunct == 0) {
-					/* Initiate recovery. */
+				    nd->nd_sessionid, NFSX_V4SESSIONID) == 0) {
+					/*
+					 * Initiate recovery.  Even if
+					 * nfsess_defunct is already set,
+					 * another recovery may be needed.
+					 * NFSCLFLAGS_RECVRINPRG |
+					 * NFSCLFLAGS_RECOVER should avoid
+					 * recovery storms.
+					 */
 					sep->nfsess_defunct = 1;
 					NFSCL_DEBUG(1, "Marked defunct\n");
 					if (nmp->nm_clp != NULL &&
