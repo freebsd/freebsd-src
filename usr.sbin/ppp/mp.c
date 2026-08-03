@@ -931,10 +931,10 @@ mp_Enddisc(u_char c, const char *address, size_t len)
     case ENDDISC_MAGIC:
       sprintf(result, "Magic: 0x");
       header = strlen(result);
-      if (len + header + 1 > sizeof result)
-        len = sizeof result - header - 1;
+      if (2 * len + header + 1 > sizeof result)
+        len = (sizeof result - header - 1) / 2;
       for (f = 0; f < len; f++)
-        sprintf(result + header + 2 * f, "%02x", address[f]);
+        sprintf(result + header + 2 * f, "%02x", (unsigned char)address[f]);
       break;
 
     case ENDDISC_PSN:
@@ -944,10 +944,10 @@ mp_Enddisc(u_char c, const char *address, size_t len)
     default:
       sprintf(result, "%d: ", (int)c);
       header = strlen(result);
-      if (len + header + 1 > sizeof result)
-        len = sizeof result - header - 1;
+      if (2 * len + header + 1 > sizeof result)
+        len = (sizeof result - header - 1) / 2;
       for (f = 0; f < len; f++)
-        sprintf(result + header + 2 * f, "%02x", address[f]);
+        sprintf(result + header + 2 * f, "%02x", (unsigned char)address[f]);
       break;
   }
   return result;
