@@ -147,6 +147,9 @@ ofw_pcibus_attach(device_t dev)
 	if (!ofw_devices_only)
 		ofw_pcibus_enum_bus(dev, domain, busno);
 
+#ifdef PCI_IOV
+	pci_reserve_iov_buses(dev, busno);
+#endif
 	pcie_reconcile_link_mps(dev);
 	bus_attach_children(dev);
 	return (0);
