@@ -1088,7 +1088,7 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 	bool res;
 	struct ucl_chunk *chunk;
 	unsigned char *buf = NULL;
-	char *old_curfile, *ext;
+	char *old_curfile, *ext, *tmp;
 	size_t buflen = 0;
 	char filebuf[PATH_MAX], realbuf[PATH_MAX];
 	int prev_state;
@@ -1200,12 +1200,13 @@ ucl_include_file_single(const unsigned char *data, size_t len,
 
 	if (params->use_prefix && params->prefix == NULL) {
 		/* Auto generate a key name based on the included filename */
-		params->prefix = basename(realbuf);
-		ext = strrchr(params->prefix, '.');
+		tmp = basename(realbuf);
+		ext = strrchr(tmp, '.');
 		if (ext != NULL && (strcmp(ext, ".conf") == 0 || strcmp(ext, ".ucl") == 0)) {
 			/* Strip off .conf or .ucl */
 			*ext = '\0';
 		}
+		params->prefix = tmp;
 	}
 	if (params->prefix != NULL) {
 		/* This is a prefixed include */
