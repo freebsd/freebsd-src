@@ -3351,27 +3351,53 @@ kern_proc_kqueues_out1(struct thread *td, struct proc *p, struct sbuf *s,
 	return (fget_remote_foreach(td, p, kern_proc_kqueues_out1_cb, &a));
 }
 
+struct kern_proc_kqueues_drain_ctx {
+	struct sbuf	*sb;
+	size_t		 remaining;
+	bool		 full;
+};
+
+static int
+kern_proc_kqueues_drain(void *arg, const char *data, int len)
+{
+	struct kern_proc_kqueues_drain_ctx *c;
+	size_t n;
+
+	c = arg;
+	n = MIN((size_t)len, c->remaining);
+	if (n != 0) {
+		if (sbuf_bcat(c->sb, data, n) != 0)
+			return (-ENOMEM);
+		c->remaining -= n;
+	}
+	if (c->remaining == 0) {
+		c->full = true;
+		return (-ENOSPC);
+	}
+	return (len);
+}
+
 int
 kern_proc_kqueues_out(struct proc *p, struct sbuf *sb, size_t maxlen,
     bool compat32)
 {
+	struct kern_proc_kqueues_drain_ctx c;
 	struct sbuf *s, sm;
-	size_t sb_len;
 	int error;
 
 	if (maxlen == -1)
 		return (kern_proc_kqueues_out1(curthread, p, sb, compat32));
 
-	if (maxlen == 0)
-		sb_len = 128;
-	else
-		sb_len = maxlen;
-	s = sbuf_new(&sm, NULL, sb_len + 1, SBUF_FIXEDLEN);
+	c.sb = sb;
+	c.remaining = maxlen;
+	c.full = false;
+	s = sbuf_new(&sm, NULL, PAGE_SIZE, SBUF_FIXEDLEN);
+	sbuf_set_drain(s, kern_proc_kqueues_drain, &c);
 	error = kern_proc_kqueues_out1(curthread, p, s, compat32);
 	sbuf_finish(s);
-	if (error == 0)
-		sbuf_bcat(sb, sbuf_data(s), MIN(sbuf_len(s), maxlen));
 	sbuf_delete(s);
+	if (c.full)
+		error = 0;
 	return (error);
 }
 
