@@ -263,7 +263,7 @@ p9fs_vget_common(struct mount *mp, struct p9fs_node *np, int flags,
 	struct p9fs_node *node;
 	struct thread *td;
 	uint32_t hash;
-	int error, error_reload = 0;
+	int error;
 	struct p9fs_inode *inode;
 
 	td = curthread;
@@ -352,57 +352,31 @@ p9fs_vget_common(struct mount *mp, struct p9fs_node *np, int flags,
 	if (vp->v_type != VFIFO)
 		VN_LOCK_ASHARE(vp);
 	error = insmntque(vp, mp);
-	if (error != 0) {
-		/*
-		 * vput(vp) is already called from insmntque_stddtr().
-		 * Just goto 'out' to dispose the node.
-		 */
-		goto out;
-	}
+	if (error != 0)
+		return (error);
 
 	/* Init the vnode with the disk info*/
 	error = p9fs_reload_stats_dotl(vp, curthread->td_ucred);
 	if (error != 0) {
-		error_reload = 1;
-		goto out;
+		P9FS_NODE_SETF(np, P9FS_NODE_DELETED);
+		vgone(vp);
+		vput(vp);
+		return (error);
 	}
 
 	error = vfs_hash_insert(vp, hash, flags, td, vpp,
 	    p9fs_node_cmp, &fid->qid);
-	if (error != 0) {
-		goto out;
-	}
+	if (error != 0 || *vpp != NULL)
+		return (error);
 
-	if (*vpp == NULL) {
-		P9FS_LOCK(vses);
-		STAILQ_INSERT_TAIL(&vses->virt_node_list, np, p9fs_node_next);
-		P9FS_NODE_SETF(np, P9FS_NODE_IN_SESSION);
-		P9FS_UNLOCK(vses);
-		vn_set_state(vp, VSTATE_CONSTRUCTED);
-		*vpp = vp;
-	} else {
-		/*
-		 * Returning matching vp found in hashlist.
-		 * So cleanup the np allocated above in this context.
-		 */
-		if (!IS_ROOT(np)) {
-			p9fs_destroy_node(&np);
-		}
-	}
+	P9FS_LOCK(vses);
+	STAILQ_INSERT_TAIL(&vses->virt_node_list, np, p9fs_node_next);
+	P9FS_NODE_SETF(np, P9FS_NODE_IN_SESSION);
+	P9FS_UNLOCK(vses);
+	vn_set_state(vp, VSTATE_CONSTRUCTED);
+	*vpp = vp;
 
 	return (0);
-out:
-	/* Something went wrong, dispose the node */
-	if (!IS_ROOT(np)) {
-		p9fs_destroy_node(&np);
-	}
-
-	if (error_reload) {
-		vput(vp);
-	}
-
-	*vpp = NULL;
-	return (error);
 }
 
 /* Main mount function for 9pfs */

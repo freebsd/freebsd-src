@@ -115,9 +115,6 @@ p9fs_cleanup(struct p9fs_node *np)
 	if ((np->flags & P9FS_NODE_IN_SESSION) != 0) {
 		P9FS_NODE_CLRF(np, P9FS_NODE_IN_SESSION);
 		STAILQ_REMOVE(&vses->virt_node_list, np, p9fs_node, p9fs_node_next);
-	} else {
-		P9FS_UNLOCK(vses);
-		return;
 	}
 	P9FS_UNLOCK(vses);
 
