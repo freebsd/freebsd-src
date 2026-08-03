@@ -1278,6 +1278,8 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 	if (BNXT_PF(softc) &&
 	    (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_VF_CFG_ASYNC_FOR_PF_SUPPORTED))
 		softc->fw_cap |= BNXT_FW_CAP_VF_CFG_FOR_PF;
+	if (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_TX_COAL_CMPL_CAP)
+		softc->fw_cap |= BNXT_FLAG_TX_COAL_CMPL;
 
 	flags_ext2 = htole32(resp->flags_ext2);
 	if (flags_ext2 & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT2_RX_ALL_PKTS_TIMESTAMPS_SUPPORTED)
@@ -1984,6 +1986,8 @@ bnxt_hwrm_ring_alloc(struct bnxt_softc *softc, uint8_t type,
 		req.stat_ctx_id = htole32(cp_ring->stats_ctx_id);
 		req.enables |= htole32(
 		    HWRM_RING_ALLOC_INPUT_ENABLES_STAT_CTX_ID_VALID);
+		if (softc->fw_cap & BNXT_FLAG_TX_COAL_CMPL)
+			req.cmpl_coal_cnt = softc->tx_hw_coal_cnt;
 		break;
 	case HWRM_RING_ALLOC_INPUT_RING_TYPE_RX:
 		if (!BNXT_CHIP_P5_PLUS(softc))

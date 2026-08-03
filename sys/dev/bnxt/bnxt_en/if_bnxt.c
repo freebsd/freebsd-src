@@ -3512,6 +3512,7 @@ skip_def_cp_ring:
 				HWRM_RING_ALLOC_INPUT_RING_TYPE_TX);
 		if (rc)
 			goto fail;
+		softc->tx_rings[i].free_flow_cons = 0;
 		softc->db_ops.bnxt_db_tx(&softc->tx_rings[i], 0);
 	}
 

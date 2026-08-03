@@ -1580,6 +1580,30 @@ bnxt_set_cagr_tick_res(SYSCTL_HANDLER_ARGS) {
 	return rc;
 }
 
+static int
+bnxt_set_tx_hw_coal_cnt(SYSCTL_HANDLER_ARGS)
+{
+	struct bnxt_softc *softc = arg1;
+	uint32_t val;
+	int rc;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->tx_hw_coal_cnt;
+
+	rc = sysctl_handle_int(oidp, (int *)&val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	if (val > HWRM_RING_ALLOC_INPUT_CMPL_COAL_CNT_LAST)
+		return EINVAL;
+
+	softc->tx_hw_coal_cnt = (uint8_t)val;
+
+	return 0;
+}
+
 static
 void simulate_reset(struct bnxt_softc *bp, char *fwcli_string)
 {
@@ -1675,6 +1699,15 @@ bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cagr_tick_res",
 	    CTLTYPE_INT | CTLFLAG_RDTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_cagr_tick_res, "I", "CAGR tick resolution");
+
+	softc->tx_hw_coal_cnt = BNXT_TX_HW_COAL_CNT_DEFAULT;
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tx_hw_coal_cnt",
+	    CTLTYPE_INT | CTLFLAG_RDTUN | CTLFLAG_MPSAFE, softc, 0,
+	    bnxt_set_tx_hw_coal_cnt, "I",
+	    "HW-driven TX coalesced-completion packet count code for ring_alloc "
+	    "(0=off 1=4 2=8 3=12 4=16 5=24 6=32 7=48 8=64[default] "
+	    "9=96 10=128 11=192 12=256 13=320 14=384 15=MAX; "
+	    "requires BNXT_FLAG_TX_COAL_CMPL firmware capability)");
 	SYSCTL_ADD_U32(ctx, children, OID_AUTO, "flags", CTLFLAG_RD,
 		&softc->flags, 0, "flags");
 	SYSCTL_ADD_U64(ctx, children, OID_AUTO, "fw_cap", CTLFLAG_RD,

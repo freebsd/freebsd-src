@@ -615,6 +615,7 @@ struct bnxt_ring {
 		u32             db_key32;
 	};
 	uint32_t                db_ring_mask;
+	uint32_t		free_flow_cons;	/* HW TX-completion-coalescing SQ consumer */
 	uint32_t                db_epoch_mask;
 	uint8_t                 db_epoch_shift;
 
@@ -1321,6 +1322,7 @@ struct bnxt_softc {
 	#define BNXT_FW_CAP_CFA_NTUPLE_RX_EXT_IP_PROTO	BIT_ULL(47)
 	#define BNXT_FW_CAP_ENABLE_RDMA_SRIOV		BIT_ULL(48)
 	#define BNXT_FW_CAP_RSS_TCAM			BIT_ULL(49)
+	#define BNXT_FLAG_TX_COAL_CMPL			BIT_ULL(51)
 
 	#define BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS      BIT_ULL(61)
 	#define BNXT_SW_RES_LMT(bp) ((bp)->fw_cap & BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS)
@@ -1431,6 +1433,12 @@ struct bnxt_softc {
 #define BNXT_CAGR_TICK_RES_MAX			0x4
 #define BNXT_CAGR_TICK_RES_OFFSET		16
 	uint32_t		cagr_tick_res;
+	/* Firmware coalesces completions autonomously based on cmpl_coal_cnt
+	 * (only valid when BNXT_FLAG_TX_COAL_CMPL is set); raw codes map to
+	 * counts 4,8,12,16,24,32,48,64,96,128,192,256,320,384,MAX. */
+#define BNXT_TX_HW_COAL_CNT_DEFAULT	\
+	HWRM_RING_ALLOC_INPUT_CMPL_COAL_CNT_COAL_64	/* code 8 = up to 64 pkts */
+	uint8_t			tx_hw_coal_cnt;
 };
 
 struct bnxt_filter_info {
