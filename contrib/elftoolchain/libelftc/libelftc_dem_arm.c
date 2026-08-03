@@ -404,8 +404,7 @@ static bool
 read_func(struct demangle_data *d)
 {
 	size_t len;
-	const char *name;
-	char *delim;
+	const char *name, *delim;
 
 	if (d == NULL)
 		return (false);
