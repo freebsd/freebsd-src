@@ -70,7 +70,7 @@ unsigned char *endpbb;			/* end of push-back buffer     */
 ptrdiff_t
 doindex(const char *s1, const char *s2)
 {
-	char *t;
+	const char *t;
 
 	t = strstr(s1, s2);
 	if (t == NULL)
