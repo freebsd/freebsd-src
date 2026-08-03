@@ -1602,21 +1602,46 @@ bnxt_vlan_strip_sysctl(SYSCTL_HANDLER_ARGS) {
 	return rc;
 }
 
+/*
+ * sysctl_handle_int() allows any int-sized value; reject anything that
+ * would truncate/overflow when narrowed into the uint16_t coal field.
+ */
+static int
+bnxt_sysctl_check_u16_range(struct bnxt_softc *softc, const char *what,
+    int val, uint16_t mult)
+{
+	int max = mult ? (UINT16_MAX / mult) : UINT16_MAX;
+
+	if (val < 0 || val > max) {
+		device_printf(softc->dev,
+		    "%s: value %d out of range [0, %d]\n", what, val, max);
+		return EINVAL;
+	}
+	return 0;
+}
+
 static int
 bnxt_set_coal_rx_usecs(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->rx_coal_usecs;
+	hw_coal = &softc->rx_coal;
+	val = hw_coal->coal_ticks;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->rx_coal_usecs = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, 0);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_ticks = val;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
@@ -1625,18 +1650,33 @@ bnxt_set_coal_rx_usecs(SYSCTL_HANDLER_ARGS) {
 static int
 bnxt_set_coal_rx_frames(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
+	uint16_t mult;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->rx_coal_frames;
+	hw_coal = &softc->rx_coal;
+	mult = hw_coal->bufs_per_record;
+	if (!mult) {
+		device_printf(softc->dev,
+		    "%s: bufs_per_record is zero which is invalid\n", __func__);
+		return EINVAL;
+	}
+
+	val = hw_coal->coal_bufs / mult;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->rx_coal_frames = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, mult);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_bufs = val * mult;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
@@ -1645,18 +1685,25 @@ bnxt_set_coal_rx_frames(SYSCTL_HANDLER_ARGS) {
 static int
 bnxt_set_coal_rx_usecs_irq(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->rx_coal_usecs_irq;
+	hw_coal = &softc->rx_coal;
+	val = hw_coal->coal_ticks_irq;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->rx_coal_usecs_irq = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, 0);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_ticks_irq = val;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
@@ -1665,38 +1712,111 @@ bnxt_set_coal_rx_usecs_irq(SYSCTL_HANDLER_ARGS) {
 static int
 bnxt_set_coal_rx_frames_irq(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
+	uint16_t mult;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->rx_coal_frames_irq;
+	hw_coal = &softc->rx_coal;
+	mult = hw_coal->bufs_per_record;
+	if (!mult) {
+		device_printf(softc->dev,
+		    "%s: bufs_per_record is zero which is invalid\n", __func__);
+		return EINVAL;
+	}
+
+	val = hw_coal->coal_bufs_irq / mult;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->rx_coal_frames_irq = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, mult);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_bufs_irq = val * mult;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
 }
 
 static int
+bnxt_set_rx_coalesce_mode(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal_cap *coal_cap;
+	struct bnxt_coal *hw_coal;
+	uint16_t flags;
+	int val;
+	int rc;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	coal_cap = &softc->coal_cap;
+
+	if (coal_cap->cmpl_params &
+	    HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_TIMER_RESET) {
+		hw_coal = &softc->rx_coal;
+		flags = hw_coal->flags;
+
+		val = flags & HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_FLAGS_TIMER_RESET;
+		rc = sysctl_handle_int(oidp, &val, 0, req);
+		if (rc || !req->newptr)
+			return rc;
+
+		if (val)
+			flags |= HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_FLAGS_TIMER_RESET;
+		else
+			flags &= ~HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_FLAGS_TIMER_RESET;
+
+		hw_coal->flags = flags;
+		rc = bnxt_hwrm_set_coal(softc);
+		return rc;
+	}
+
+	if (coal_cap->cmpl_params &
+	    HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_TMR_RESET_ON_ALLOC) {
+		hw_coal = &softc->rx_coal;
+		val = hw_coal->timer_reset_during_ring_alloc;
+		rc = sysctl_handle_int(oidp, &val, 0, req);
+		if (rc || !req->newptr)
+			return rc;
+
+		/* Takes effect on next ring (re)alloc, so no bnxt_hwrm_set_coal() call needed here. */
+		hw_coal->timer_reset_during_ring_alloc = val ? 1 : 0;
+
+		return rc;
+	}
+
+	return EOPNOTSUPP;
+}
+
+static int
 bnxt_set_coal_tx_usecs(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->tx_coal_usecs;
+	hw_coal = &softc->tx_coal;
+	val = hw_coal->coal_ticks;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->tx_coal_usecs = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, 0);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_ticks = val;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
@@ -1705,18 +1825,33 @@ bnxt_set_coal_tx_usecs(SYSCTL_HANDLER_ARGS) {
 static int
 bnxt_set_coal_tx_frames(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
+	uint16_t mult;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->tx_coal_frames;
+	hw_coal = &softc->tx_coal;
+	mult = hw_coal->bufs_per_record;
+	if (!mult) {
+		device_printf(softc->dev,
+		    "%s: bufs_per_record is zero which is invalid\n", __func__);
+		return EINVAL;
+	}
+
+	val = hw_coal->coal_bufs / mult;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->tx_coal_frames = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, mult);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_bufs = val * mult;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
@@ -1725,18 +1860,25 @@ bnxt_set_coal_tx_frames(SYSCTL_HANDLER_ARGS) {
 static int
 bnxt_set_coal_tx_usecs_irq(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->tx_coal_usecs_irq;
+	hw_coal = &softc->tx_coal;
+	val = hw_coal->coal_ticks_irq;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->tx_coal_usecs_irq = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, 0);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_ticks_irq = val;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
@@ -1745,21 +1887,60 @@ bnxt_set_coal_tx_usecs_irq(SYSCTL_HANDLER_ARGS) {
 static int
 bnxt_set_coal_tx_frames_irq(SYSCTL_HANDLER_ARGS) {
 	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
+	uint16_t mult;
 	int rc;
 	int val;
 
 	if (softc == NULL)
 		return EBUSY;
 
-	val = softc->tx_coal_frames_irq;
+	hw_coal = &softc->tx_coal;
+	mult = hw_coal->bufs_per_record;
+	if (!mult) {
+		device_printf(softc->dev,
+		    "%s: bufs_per_record is zero which is invalid\n", __func__);
+		return EINVAL;
+	}
+
+	val = hw_coal->coal_bufs_irq / mult;
+
 	rc = sysctl_handle_int(oidp, &val, 0, req);
 	if (rc || !req->newptr)
 		return rc;
 
-	softc->tx_coal_frames_irq = val;
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, mult);
+	if (rc)
+		return rc;
+
+	hw_coal->coal_bufs_irq = val * mult;
 	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
+}
+
+static int
+bnxt_set_stats_coal_ticks(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->stats_coal_ticks;
+
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	softc->stats_coal_ticks = val;
+	/*
+	 * Stats DMA period is set once at HWRM_STAT_CTX_ALLOC time; there's no
+	 * HWRM_STAT_CTX_CFG to reprogram it, so nothing to apply this to yet.
+	 */
+
+	return 0;
 }
 
 static int
@@ -1782,6 +1963,34 @@ bnxt_set_cagr_tick_res(SYSCTL_HANDLER_ARGS) {
 		return EINVAL;
 
 	softc->cagr_tick_res = val;
+
+	return rc;
+}
+
+static int
+bnxt_set_rx_coal_budget(SYSCTL_HANDLER_ARGS) {
+	struct bnxt_softc *softc = arg1;
+	struct bnxt_coal *hw_coal;
+	int rc;
+	int val;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	hw_coal = &softc->rx_coal;
+
+	val = hw_coal->budget;
+
+	rc = sysctl_handle_int(oidp, &val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	rc = bnxt_sysctl_check_u16_range(softc, __func__, val, 0);
+	if (rc)
+		return rc;
+
+	hw_coal->budget = val;
+	rc = bnxt_hwrm_set_coal(softc);
 
 	return rc;
 }
@@ -1912,6 +2121,10 @@ bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_coal_rx_frames_irq, "I",
 	    "interrupt coalescing Rx Frames IRQ");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "rx_coalesce_mode",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
+	    bnxt_set_rx_coalesce_mode, "I",
+	    "set rx_coalesce_mode 0/1");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_coal_tx_usecs",
 	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_coal_tx_usecs, "I", "interrupt coalescing Tx Usces");
@@ -1926,9 +2139,17 @@ bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_coal_tx_frames_irq, "I",
 	    "interrupt coalescing Tx Frames IRQ");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_stats_coal_ticks",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
+	    bnxt_set_stats_coal_ticks, "I",
+	    "interrupt coalescing stats coal ticks");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cagr_tick_res",
 	    CTLTYPE_INT | CTLFLAG_RDTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_cagr_tick_res, "I", "CAGR tick resolution");
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "intr_rx_coal_budget",
+	    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE, softc, 0,
+	    bnxt_set_rx_coal_budget, "I",
+	    "Rx interrupt coalescing budget");
 
 	/*
 	 * Default coal_bds to half the Tx ring depth, clamped between
