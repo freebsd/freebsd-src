@@ -23,8 +23,10 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/param.h>
 #include <sys/exterrvar.h>
 #include <sys/mman.h>
+#include <sys/sysctl.h>
 
 #include <atf-c.h>
 #include <errno.h>
@@ -121,11 +123,36 @@ ATF_TC_BODY(gettext_noextended_after_extended, tc)
 	ATF_CHECK_STREQ(exterr, "");
 }
 
+ATF_TC(exterr_dynamic_categories);
+ATF_TC_HEAD(exterr_dynamic_categories, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "directly check there is at least one registered category");
+}
+ATF_TC_BODY(exterr_dynamic_categories, tc)
+{
+        int mib[4];
+        size_t len;
+        char filename_buf[128];
+
+        len = nitems(mib);
+        ATF_REQUIRE_EQ(sysctlnametomib("kern.exterr.categories", mib, &len),
+	     0);
+        mib[3] = 1;
+        len = sizeof(filename_buf);
+        ATF_REQUIRE_EQ(sysctl(mib, nitems(mib), filename_buf, &len, NULL, 0),
+	     0);
+        printf("%s\n", filename_buf);
+	/* We can't know what it is, but make sure it's non-empty */
+	ATF_REQUIRE(strlen(filename_buf) > 1);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, gettext_extended);
 	ATF_TP_ADD_TC(tp, gettext_noextended);
 	ATF_TP_ADD_TC(tp, gettext_noextended_after_extended);
+	ATF_TP_ADD_TC(tp, exterr_dynamic_categories);
 
 	return (atf_no_error());
 }

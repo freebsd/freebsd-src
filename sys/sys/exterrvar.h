@@ -14,6 +14,9 @@
 #include <sys/_exterr.h>
 #include <sys/_uexterror.h>
 #include <sys/exterr_cat.h>
+#ifdef EXTERR_CATEGORY_DYNAMIC
+#include <sys/linker_set.h>
+#endif
 
 #define	UEXTERROR_MAXLEN	256
 
@@ -27,7 +30,22 @@
 
 #ifdef _KERNEL
 
+struct exterr_cat {
+	unsigned int	cat;
+	const char	*file;
+};
+
 struct thread;
+
+#ifdef EXTERR_CATEGORY_DYNAMIC
+#ifdef EXTERR_STRINGS
+static struct exterr_cat __dynamic_cat = { .file = EXTERR_CATEGORY_DYNAMIC };
+DATA_WSET(exterr_cats, __dynamic_cat);
+#define	EXTERR_CATEGORY	(__dynamic_cat.cat | EXTERR_CAT_SRC_KERN_DYNAMIC)
+#else
+#define	EXTERR_CATEGORY	EXTERR_CAT_NONE
+#endif
+#endif
 
 #ifndef EXTERR_CATEGORY
 #error "Specify error category before including sys/exterrvar.h"
@@ -78,6 +96,10 @@ int exterr_set(int eerror, int category, const char *mmsg, uint64ptr_t pp1,
     uint64ptr_t pp2, int line);
 int exterr_to_ue(struct thread *td, struct uexterror *ue);
 void ktrexterr(struct thread *td);
+void exterr_cat_register_module(struct exterr_cat **start,
+    struct exterr_cat **stop);
+void exterr_cat_unregister_module(struct exterr_cat **start,
+    struct exterr_cat **stop);
 
 #else	/* !_KERNEL */
 
