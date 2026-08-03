@@ -387,6 +387,9 @@ struct igc_softc {
 	/* Multicast array memory */
 	u8		*mta;
 
+	/* Retained across resets to restore the hardware VLAN filter table. */
+	u32		shadow_vfta[IGC_VFTA_SIZE];
+
 	/* Info about the interface */
 	u16		link_active;
 	u16		fc;

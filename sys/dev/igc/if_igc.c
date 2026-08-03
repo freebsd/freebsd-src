@@ -108,6 +108,8 @@ static void	igc_if_media_status(if_ctx_t, struct ifmediareq *);
 static int	igc_if_media_change(if_ctx_t);
 static int	igc_if_mtu_set(if_ctx_t, uint32_t);
 static void	igc_if_timer(if_ctx_t, uint16_t);
+static void	igc_if_vlan_register(if_ctx_t, u16);
+static void	igc_if_vlan_unregister(if_ctx_t, u16);
 static void	igc_if_watchdog_reset(if_ctx_t);
 static bool	igc_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 
@@ -133,6 +135,10 @@ static void	igc_if_debug(if_ctx_t);
 static void	igc_update_stats_counters(struct igc_softc *);
 static void	igc_add_hw_stats(struct igc_softc *);
 static int	igc_if_set_promisc(if_ctx_t, int);
+static bool	igc_if_vlan_filter_capable(if_ctx_t);
+static bool	igc_if_vlan_filter_used(if_ctx_t);
+static void	igc_if_vlan_filter_enable(struct igc_softc *);
+static void	igc_if_vlan_filter_disable(struct igc_softc *);
 static void	igc_setup_vlan_hw_support(if_ctx_t);
 static void	igc_fw_version(struct igc_softc *);
 static void	igc_sbuf_fw_version(struct igc_fw_version *, struct sbuf *);
@@ -220,6 +226,8 @@ static device_method_t igc_if_methods[] = {
 	DEVMETHOD(ifdi_promisc_set, igc_if_set_promisc),
 	DEVMETHOD(ifdi_timer, igc_if_timer),
 	DEVMETHOD(ifdi_watchdog_reset, igc_if_watchdog_reset),
+	DEVMETHOD(ifdi_vlan_register, igc_if_vlan_register),
+	DEVMETHOD(ifdi_vlan_unregister, igc_if_vlan_unregister),
 	DEVMETHOD(ifdi_get_counter, igc_if_get_counter),
 	DEVMETHOD(ifdi_rx_queue_intr_enable, igc_if_rx_queue_intr_enable),
 	DEVMETHOD(ifdi_tx_queue_intr_enable, igc_if_tx_queue_intr_enable),
@@ -447,8 +455,9 @@ igc_set_num_queues(if_ctx_t ctx)
 
 #define	IGC_CAPS							\
     IFCAP_HWCSUM | IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |		\
-    IFCAP_VLAN_HWCSUM | IFCAP_WOL | IFCAP_TSO4 | IFCAP_LRO |		\
-    IFCAP_VLAN_HWTSO | IFCAP_JUMBO_MTU | IFCAP_HWCSUM_IPV6 | IFCAP_TSO6
+    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWFILTER | IFCAP_WOL | IFCAP_TSO4 |	\
+    IFCAP_LRO | IFCAP_VLAN_HWTSO | IFCAP_JUMBO_MTU |			\
+    IFCAP_HWCSUM_IPV6 | IFCAP_TSO6
 
 /*********************************************************************
  *  Device initialization routine
@@ -1310,20 +1319,24 @@ igc_if_set_promisc(if_ctx_t ctx, int flags)
 
 	/* Don't disable if in MAX groups */
 	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
-		reg_rctl &=  (~IGC_RCTL_MPE);
-	IGC_WRITE_REG(&sc->hw, IGC_RCTL, reg_rctl);
+		reg_rctl &= ~IGC_RCTL_MPE;
 
 	if (flags & IFF_PROMISC) {
 		reg_rctl |= (IGC_RCTL_UPE | IGC_RCTL_MPE);
 		/* Turn this on if you want to see bad packets */
 		if (igc_debug_sbp)
 			reg_rctl |= IGC_RCTL_SBP;
-		IGC_WRITE_REG(&sc->hw, IGC_RCTL, reg_rctl);
 	} else if (flags & IFF_ALLMULTI) {
 		reg_rctl |= IGC_RCTL_MPE;
 		reg_rctl &= ~IGC_RCTL_UPE;
-		IGC_WRITE_REG(&sc->hw, IGC_RCTL, reg_rctl);
 	}
+
+	if ((flags & IFF_PROMISC) || !igc_if_vlan_filter_used(ctx))
+		reg_rctl &= ~IGC_RCTL_VFE;
+	else
+		reg_rctl |= IGC_RCTL_VFE;
+	IGC_WRITE_REG(&sc->hw, IGC_RCTL, reg_rctl);
+
 	return (0);
 }
 
@@ -2416,14 +2429,85 @@ igc_initialize_receive_unit(if_ctx_t ctx)
 }
 
 static void
+igc_if_vlan_register(if_ctx_t ctx, u16 vtag)
+{
+	struct igc_softc *sc = iflib_get_softc(ctx);
+	u32 index, mask;
+
+	index = (vtag >> 5) & 0x7f;
+	mask = 1U << (vtag & 0x1f);
+	if ((sc->shadow_vfta[index] & mask) != 0)
+		return;
+	sc->shadow_vfta[index] |= mask;
+	igc_write_vfta(&sc->hw, index, sc->shadow_vfta[index]);
+}
+
+static void
+igc_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
+{
+	struct igc_softc *sc = iflib_get_softc(ctx);
+	u32 index, mask;
+
+	index = (vtag >> 5) & 0x7f;
+	mask = 1U << (vtag & 0x1f);
+	if ((sc->shadow_vfta[index] & mask) == 0)
+		return;
+	sc->shadow_vfta[index] &= ~mask;
+	igc_write_vfta(&sc->hw, index, sc->shadow_vfta[index]);
+}
+
+static bool
+igc_if_vlan_filter_capable(if_ctx_t ctx)
+{
+	if_t ifp = iflib_get_ifp(ctx);
+
+	return ((if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER) != 0 &&
+	    !igc_disable_crc_stripping);
+}
+
+static bool
+igc_if_vlan_filter_used(if_ctx_t ctx)
+{
+	struct igc_softc *sc = iflib_get_softc(ctx);
+
+	if (!igc_if_vlan_filter_capable(ctx))
+		return (false);
+
+	for (int i = 0; i < IGC_VFTA_SIZE; i++)
+		if (sc->shadow_vfta[i] != 0)
+			return (true);
+
+	return (false);
+}
+
+static void
+igc_if_vlan_filter_enable(struct igc_softc *sc)
+{
+	u32 reg;
+
+	reg = IGC_READ_REG(&sc->hw, IGC_RCTL);
+	reg &= ~IGC_RCTL_CFIEN;
+	reg |= IGC_RCTL_VFE;
+	IGC_WRITE_REG(&sc->hw, IGC_RCTL, reg);
+}
+
+static void
+igc_if_vlan_filter_disable(struct igc_softc *sc)
+{
+	u32 reg;
+
+	reg = IGC_READ_REG(&sc->hw, IGC_RCTL);
+	reg &= ~(IGC_RCTL_VFE | IGC_RCTL_CFIEN);
+	IGC_WRITE_REG(&sc->hw, IGC_RCTL, reg);
+}
+
+static void
 igc_setup_vlan_hw_support(if_ctx_t ctx)
 {
 	struct igc_softc *sc = iflib_get_softc(ctx);
 	struct igc_hw *hw = &sc->hw;
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	u32 reg;
-
-	/* igc hardware doesn't seem to implement VFTA for HWFILTER */
 
 	if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING &&
 	    !igc_disable_crc_stripping) {
@@ -2435,6 +2519,20 @@ igc_setup_vlan_hw_support(if_ctx_t ctx)
 		reg &= ~IGC_CTRL_VME;
 		IGC_WRITE_REG(hw, IGC_CTRL, reg);
 	}
+
+	if (!igc_if_vlan_filter_capable(ctx)) {
+		igc_if_vlan_filter_disable(sc);
+		return;
+	}
+
+	/* Always admit priority-tagged frames. */
+	sc->shadow_vfta[0] |= 1U;
+
+	/* A reset may clear the VFTA, so restore the complete desired table. */
+	for (int i = 0; i < IGC_VFTA_SIZE; i++)
+		igc_write_vfta(hw, i, sc->shadow_vfta[i]);
+
+	igc_if_vlan_filter_enable(sc);
 }
 
 static void
