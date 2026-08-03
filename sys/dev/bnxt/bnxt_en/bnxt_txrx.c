@@ -225,6 +225,7 @@ bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, bool clear)
 	struct bnxt_softc *softc = (struct bnxt_softc *)sc;
 	struct bnxt_cp_ring *cpr = &softc->tx_cp_rings[txqid];
 	struct tx_cmpl *cmpl = (struct tx_cmpl *)cpr->ring.vaddr;
+	struct bnxt_ring *txr;
 	int avail = 0;
 	uint32_t cons = cpr->cons;
 	uint32_t raw_cons = cpr->raw_cons;
@@ -266,6 +267,36 @@ bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, bool clear)
 			if (!clear)
 				goto done;
 			break;
+		case TX_CMPL_COAL_TYPE_TX_L2_COAL:
+			if (softc->fw_cap & BNXT_FLAG_TX_COAL_CMPL) {
+				tx_cmpl_coal_t *cmpl_coal = (tx_cmpl_coal_t *)cmpl;
+				uint32_t sq_cons;
+
+				err = (le16toh(cmpl_coal[cons].errors_v) &
+				    TX_CMPL_COAL_ERRORS_BUFFER_ERROR_MASK) >>
+				    TX_CMPL_COAL_ERRORS_BUFFER_ERROR_SFT;
+				if (err)
+					device_printf(softc->dev,
+					    "TX completion error %u\n", err);
+
+				sq_cons = le32toh(cmpl_coal[cons].sq_cons_idx) &
+				    TX_CMPL_COAL_SQ_CONS_IDX_MASK;
+
+				txr = &softc->tx_rings[txqid];
+				avail += (sq_cons - txr->free_flow_cons) &
+				    txr->db_ring_mask;
+
+				/*
+				 * Only the consuming (clear) pass advances free_flow_cons;
+				 * peek calls must not claim unreclaimed SQ entries. Gating
+				 * on clear also means only gtaskq writes it, so no atomics.
+				 */
+				if (!clear)
+					goto done;
+				txr->free_flow_cons = sq_cons;
+				break;
+			}
+			/* FALLTHROUGH */
 		default:
 			if (type & 1) {
 				NEXT_CP_CONS_V(&cpr->ring, cons, v_bit);
