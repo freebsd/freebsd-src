@@ -610,6 +610,7 @@ struct e1000_softc {
 	u32			iov_mdd_cause;
 	u32			iov_pending;
 	u32			iov_spoof_pending;
+	u32			iov_blocked_pending;
 	u32			iov_teardown;
 	struct timeval		iov_last_mdd_log;
 	u16			num_vfs;

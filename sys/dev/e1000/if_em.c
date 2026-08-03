@@ -1109,6 +1109,7 @@ em_set_num_queues(if_ctx_t ctx)
 		maxqueues = 2;
 		break;
 	case e1000_vfadapt:
+		/* Keep 82576 VFs at one RX/TX queue for mixed-driver safety. */
 	case e1000_vfadapt_i350:
 		maxqueues = 1;
 		break;

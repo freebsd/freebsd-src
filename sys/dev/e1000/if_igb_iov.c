@@ -111,6 +111,8 @@ SDT_PROBE_DEFINE3(igb_iov, vlan, rebuild, vfta_set,
     "struct e1000_softc *", "u_int", "uint32_t");
 SDT_PROBE_DEFINE3(igb_iov, vlan, rebuild, state,
     "struct e1000_softc *", "uint32_t *", "uint32_t *");
+SDT_PROBE_DEFINE4(igb_iov, mdd, sample, wvbr,
+    "struct e1000_softc *", "uint32_t", "uint32_t", "uint32_t");
 
 static const struct timeval igb_iov_nack_interval = { 2, 0 };
 static const struct timeval igb_iov_mbx_log_interval = { 2, 0 };
@@ -647,6 +649,7 @@ igb_iov_reset_prepare(struct e1000_softc *sc)
 	atomic_readandclear_32(&sc->iov_mdd_cause);
 	atomic_readandclear_32(&sc->iov_pending);
 	atomic_readandclear_32(&sc->iov_spoof_pending);
+	atomic_readandclear_32(&sc->iov_blocked_pending);
 }
 
 void
@@ -1546,19 +1549,19 @@ void
 igb_iov_handle_mdd(struct e1000_softc *sc)
 {
 	struct igb_vf *vf;
-	u32 blocked, blocked_queues, cleared, handled, lvmmc, queue;
+	u32 blocked, cleared, handled, lvmmc;
 	u32 readback, spoofed;
-	u32 spoof_queues;
-	u32 wvbr;
 	bool mdfb_valid, pending;
 	int i;
 
 	pending = atomic_readandclear_32(&sc->iov_pending) != 0;
 	lvmmc = pending ?
 	    atomic_readandclear_32(&sc->iov_mdd_cause) : 0;
-	spoofed = atomic_readandclear_32(&sc->iov_spoof_pending);
-	if (!sc->iov_hw_active)
+	if (!sc->iov_hw_active) {
+		atomic_readandclear_32(&sc->iov_spoof_pending);
+		atomic_readandclear_32(&sc->iov_blocked_pending);
 		return;
+	}
 
 	blocked = 0;
 	handled = 0;
@@ -1566,6 +1569,7 @@ igb_iov_handle_mdd(struct e1000_softc *sc)
 	if (sc->hw.mac.type == e1000_i350) {
 		u32 mdfb;
 
+		spoofed = atomic_readandclear_32(&sc->iov_spoof_pending);
 		/*
 		 * I350 reports ordinary MAC/VLAN spoofing through the
 		 * interrupt-time LVMMC snapshot rather than WVBR.  The
@@ -1611,20 +1615,15 @@ igb_iov_handle_mdd(struct e1000_softc *sc)
 	} else {
 		if (!pending)
 			return;
-		wvbr = E1000_READ_REG(&sc->hw, E1000_WVBR);
-		if (__predict_false(wvbr == 0xffffffff))
-			wvbr = 0;
-		spoof_queues = wvbr & IGB_82576_QUEUE_MASK;
-		blocked_queues = (wvbr >> 16) & IGB_82576_QUEUE_MASK;
-		spoofed = (spoof_queues & 0xff) |
-		    (spoof_queues >> IGB_82576_STAGGERED_QUEUE_SHIFT);
-		blocked = (blocked_queues & 0xff) |
-		    (blocked_queues >> IGB_82576_STAGGERED_QUEUE_SHIFT);
-		if (blocked == 0 &&
-		    (lvmmc & IGB_82576_LVMMC_BLOCK_MASK) != 0) {
-			queue = (lvmmc >> 16) & 0xf;
-			blocked = 1U << (queue & 0x7);
-		}
+		/*
+		 * WVBR is read-clear and does not preserve every queue across
+		 * multiple MDDET interrupts.  The interrupt filter snapshots and
+		 * accumulates its pool bitmaps before this deferred admin pass.
+		 */
+		spoofed = atomic_readandclear_32(&sc->iov_spoof_pending);
+		blocked = atomic_readandclear_32(&sc->iov_blocked_pending);
+		/* A blocked-queue classification dominates its WVBR low bit. */
+		spoofed &= ~blocked;
 	}
 
 	for (i = 0; i < sc->num_vfs; i++) {
@@ -1713,7 +1712,7 @@ igb_iov_handle_mdd(struct e1000_softc *sc)
 void
 igb_iov_mdd_event(struct e1000_softc *sc)
 {
-	u32 cause, queue;
+	u32 blocked, cause, queues, queue, spoofed, wvbr;
 
 	/*
 	 * LVMMC is clear-on-read.  Preserve it in the interrupt filter, as
@@ -1722,6 +1721,49 @@ igb_iov_mdd_event(struct e1000_softc *sc)
 	cause = E1000_READ_REG(&sc->hw, E1000_LVMMC);
 	if (__predict_false(cause == 0xffffffff))
 		return;
+	if (sc->hw.mac.type == e1000_82576) {
+		/*
+		 * Snapshot WVBR in the interrupt filter.  Waiting for the admin
+		 * task loses all but the last of back-to-back VF MDD events on
+		 * 82576.  Convert the staggered queue map into pool bits and OR
+		 * each observation into software latches for deferred recovery.
+		 */
+		wvbr = E1000_READ_REG(&sc->hw, E1000_WVBR);
+		if (__predict_false(wvbr == 0xffffffff)) {
+			spoofed = 0;
+			blocked = 0;
+		} else {
+			queues = wvbr & IGB_82576_QUEUE_MASK;
+			spoofed = (queues & 0xff) |
+			    (queues >> IGB_82576_STAGGERED_QUEUE_SHIFT);
+			queues = (wvbr >> 16) & IGB_82576_QUEUE_MASK;
+			blocked = (queues & 0xff) |
+			    (queues >> IGB_82576_STAGGERED_QUEUE_SHIFT);
+		}
+		SDT_PROBE4(igb_iov, mdd, sample, wvbr, sc, wvbr, spoofed,
+		    blocked);
+		/*
+		 * 82576 can report a coalesced block-class event with all affected
+		 * queues in WVBR's low half and no high-half blocked bits.  If an
+		 * ordinary spoof shares that snapshot, the register has no per-queue
+		 * cause information.  Deliberately fail closed by recovering every
+		 * low-half queue; this can reset a spoof-only sibling, but avoids
+		 * stranding a blocked VF.  LVMMC.Last_Q identifies only the final
+		 * event and lost simultaneous blocked VFs on tested silicon.
+		 */
+		if (blocked == 0 &&
+		    (cause & IGB_82576_LVMMC_BLOCK_MASK) != 0) {
+			blocked = spoofed;
+			if (blocked == 0) {
+				queue = (cause >> 16) & 0xf;
+				blocked = 1U << (queue & 0x7);
+			}
+		}
+		if (spoofed != 0)
+			atomic_set_32(&sc->iov_spoof_pending, spoofed);
+		if (blocked != 0)
+			atomic_set_32(&sc->iov_blocked_pending, blocked);
+	}
 	if (sc->hw.mac.type == e1000_i350 &&
 	    (cause & IGB_I350_LVMMC_MAC_VLAN_SPOOF) != 0) {
 		queue = (cause >> IGB_I350_LVMMC_LAST_Q_SHIFT) &
@@ -1775,6 +1817,8 @@ igb_iov_initialize(struct e1000_softc *sc)
 	atomic_readandclear_32(&sc->iov_mdd_cause);
 	atomic_readandclear_32(&sc->iov_pending);
 	atomic_readandclear_32(&sc->iov_spoof_pending);
+	atomic_readandclear_32(&sc->iov_blocked_pending);
+	/* Plain VMDq keeps every 82576 PF/VF pool on queue zero. */
 	E1000_WRITE_REG(hw, E1000_MRQC, E1000_MRQC_ENABLE_VMDQ);
 
 	vt_ctl = E1000_READ_REG(hw, E1000_VT_CTL);
@@ -1982,6 +2026,7 @@ igb_if_iov_uninit(if_ctx_t ctx)
 	atomic_readandclear_32(&sc->iov_mdd_cause);
 	atomic_readandclear_32(&sc->iov_pending);
 	atomic_readandclear_32(&sc->iov_spoof_pending);
+	atomic_readandclear_32(&sc->iov_blocked_pending);
 	atomic_store_rel_32(&sc->iov_teardown, 0);
 }
 
