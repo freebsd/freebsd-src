@@ -221,6 +221,7 @@ static int bnxt_detach(if_ctx_t ctx);
 /* Device configuration */
 static void bnxt_init(if_ctx_t ctx);
 static int bnxt_init_hw(if_ctx_t ctx);
+static void bnxt_init_dflt_coal(struct bnxt_softc *softc);
 static void bnxt_stop(if_ctx_t ctx);
 static void bnxt_if_led_func(if_ctx_t ctx, int onoff);
 static bool bnxt_if_led_supported(if_ctx_t ctx);
@@ -2989,6 +2990,9 @@ bnxt_attach_pre(if_ctx_t ctx)
 	scctx->isc_min_frame_size = BNXT_MIN_FRAME_SIZE;
 	scctx->isc_txrx = &bnxt_txrx;
 
+	bnxt_hwrm_coal_params_qcaps(softc);
+	bnxt_init_dflt_coal(softc);
+
 	if (scctx->isc_nrxd[0] <
 	    ((scctx->isc_nrxd[1] * 4) + scctx->isc_nrxd[2]))
 		device_printf(softc->dev,
@@ -3627,6 +3631,49 @@ skip_aux_init:
 	return;
 }
 
+static void
+bnxt_init_dflt_coal(struct bnxt_softc *softc)
+{
+	struct bnxt_coal_cap *coal_cap = &softc->coal_cap;
+	struct bnxt_coal *coal;
+	uint16_t flags = 0;
+
+	if (coal_cap->cmpl_params &
+	    HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_TIMER_RESET)
+		flags |= HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_FLAGS_TIMER_RESET;
+
+	coal = &softc->rx_coal;
+	if (coal_cap->cmpl_params &
+	    HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_TMR_RESET_ON_ALLOC)
+		coal->timer_reset_during_ring_alloc = 1;
+
+	/*
+	 * Tick values in microseconds.
+	 * 1 coal_buf x bufs_per_record = 1 completion record.
+	 */
+	coal->coal_ticks = 6;
+	coal->coal_bufs = 12;
+	coal->coal_ticks_irq = 1;
+	if (BNXT_CHIP_P7(softc))
+		coal->coal_bufs_irq = 4;
+	else
+		coal->coal_bufs_irq = 2;
+	coal->idle_thresh = 50;
+	coal->bufs_per_record = 2;
+	coal->budget = 64;
+	coal->flags = flags;
+
+	coal = &softc->tx_coal;
+	coal->coal_ticks = 28;
+	coal->coal_bufs = 30;
+	coal->coal_ticks_irq = 2;
+	coal->coal_bufs_irq = 2;
+	coal->bufs_per_record = 1;
+	coal->flags = flags;
+
+	softc->stats_coal_ticks = BNXT_MIN_STATS_COAL_TICKS;
+}
+
 /* Device configuration */
 static void
 bnxt_init(if_ctx_t ctx)
@@ -3850,6 +3897,8 @@ skip_def_cp_ring:
 	bnxt_get_port_module_status(softc);
 	bnxt_media_status(softc->ctx, &ifmr);
 	bnxt_hwrm_cfa_l2_set_rx_mask(softc, &softc->vnic_info);
+	set_bit(BNXT_STATE_UP, &softc->state);
+	bnxt_hwrm_set_coal(softc);
 	return (0);
 
 fail:
@@ -3869,6 +3918,7 @@ bnxt_stop(if_ctx_t ctx)
 		bnxt_ptp_stop_calibration(softc->ptp_cfg);
 		softc->rx_ts_enabled = false;
 	}
+	clear_bit(BNXT_STATE_UP, &softc->state);
 	softc->is_dev_init = false;
 	bnxt_do_disable_intr(&softc->def_cp_ring);
 	bnxt_func_reset(softc);

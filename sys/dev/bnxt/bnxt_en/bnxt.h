@@ -813,6 +813,56 @@ struct bnxt_hw_lro {
 	uint32_t min_agg_len;
 };
 
+#define BNXT_LEGACY_COAL_CMPL_PARAMS					\
+	(HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_INT_LAT_TMR_MIN |		\
+	 HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_INT_LAT_TMR_MAX |		\
+	 HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_TIMER_RESET |		\
+	 HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_RING_IDLE |			\
+	 HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_NUM_CMPL_DMA_AGGR |		\
+	 HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_NUM_CMPL_DMA_AGGR_DURING_INT | \
+	 HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_CMPL_AGGR_DMA_TMR |		\
+	 HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_CMPL_AGGR_DMA_TMR_DURING_INT | \
+	 HWRM_RING_AGGINT_QCAPS_OUTPUT_CMPL_PARAMS_NUM_CMPL_AGGR_INT)
+
+#define BNXT_COAL_CMPL_ENABLES						\
+	(HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_ENABLES_NUM_CMPL_DMA_AGGR | \
+	 HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_ENABLES_CMPL_AGGR_DMA_TMR | \
+	 HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_ENABLES_INT_LAT_TMR_MAX | \
+	 HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_ENABLES_NUM_CMPL_AGGR_INT)
+
+#define BNXT_COAL_CMPL_MIN_TMR_ENABLE					\
+	HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_ENABLES_INT_LAT_TMR_MIN
+
+/* Gates cmpl_aggr_dma_tmr_during_int, but reuses num_cmpl_dma_aggr_during_int's
+ * enable bit - there's no separate bit for the timer field. */
+#define BNXT_COAL_CMPL_AGGR_TMR_DURING_INT_ENABLE			\
+	HWRM_RING_CMPL_RING_CFG_AGGINT_PARAMS_INPUT_ENABLES_NUM_CMPL_DMA_AGGR_DURING_INT
+
+struct bnxt_coal_cap {
+	uint32_t			cmpl_params;
+	uint32_t			nq_params;
+	uint16_t			num_cmpl_dma_aggr_max;
+	uint16_t			num_cmpl_dma_aggr_during_int_max;
+	uint16_t			cmpl_aggr_dma_tmr_max;
+	uint16_t			cmpl_aggr_dma_tmr_during_int_max;
+	uint16_t			int_lat_tmr_min_max;
+	uint16_t			int_lat_tmr_max_max;
+	uint16_t			num_cmpl_aggr_int_max;
+	uint16_t			timer_units;
+};
+
+struct bnxt_coal {
+	uint16_t			coal_ticks;
+	uint16_t			coal_ticks_irq;
+	uint16_t			coal_bufs;
+	uint16_t			coal_bufs_irq;
+	uint16_t			idle_thresh; /* RING_IDLE enabled when coal ticks < idle_thresh  */
+	uint8_t				bufs_per_record;
+	uint16_t			budget;
+	uint16_t			flags;
+	uint8_t				timer_reset_during_ring_alloc;
+};
+
 /* The hardware supports certain page sizes.  Use the supported page sizes
  * to allocate the rings.
  */
@@ -1367,15 +1417,12 @@ struct bnxt_softc {
 	volatile int detached;
 	struct bnxt_hw_lro	hw_lro;
 	uint8_t wol_filter_id;
-	uint16_t		rx_coal_usecs;
-	uint16_t		rx_coal_usecs_irq;
-	uint16_t               	rx_coal_frames;
-	uint16_t               	rx_coal_frames_irq;
-	uint16_t               	tx_coal_usecs;
-	uint16_t               	tx_coal_usecs_irq;
-	uint16_t               	tx_coal_frames;
-	uint16_t		tx_coal_frames_irq;
 
+	struct bnxt_coal_cap	coal_cap;
+	struct bnxt_coal	rx_coal;
+	struct bnxt_coal	tx_coal;
+
+	uint32_t		stats_coal_ticks;
 #define BNXT_USEC_TO_COAL_TIMER(x)      ((x) * 25 / 2)
 #define BNXT_DEF_STATS_COAL_TICKS        1000000
 #define BNXT_MIN_STATS_COAL_TICKS         250000
@@ -1476,6 +1523,7 @@ struct bnxt_softc {
 #define BNXT_STATE_FW_NON_FATAL_COND	13
 #define BNXT_STATE_FW_ACTIVATE_RESET	14
 #define BNXT_STATE_HALF_OPEN		15
+#define BNXT_STATE_UP			16
 #define BNXT_NO_FW_ACCESS(bp)		\
 	test_bit(BNXT_STATE_FW_FATAL_COND, &(bp)->state)
 	struct pci_dev			*pdev;
