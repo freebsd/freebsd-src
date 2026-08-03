@@ -186,6 +186,35 @@ void igc_rx_fifo_flush_base(struct igc_hw *hw)
 }
 
 /**
+ *  igc_is_device_id_i225 - Check whether the device is I225 silicon
+ *  @hw: pointer to the HW structure
+ *
+ *  I225 and I226 share the same mac.type, so this checks the PCI
+ *  device ID directly to distinguish I225 parts, e.g. for erratum
+ *  workarounds that apply only to that silicon.
+ *
+ *  I225_BLANK_NVM is absent from the equivalent Linux helper.  I220 is
+ *  kept separate because Intel's I225 specification update does not
+ *  identify it as affected.
+ **/
+bool igc_is_device_id_i225(struct igc_hw *hw)
+{
+	switch (hw->device_id) {
+	case IGC_DEV_ID_I225_LM:
+	case IGC_DEV_ID_I225_V:
+	case IGC_DEV_ID_I225_K:
+	case IGC_DEV_ID_I225_I:
+	case IGC_DEV_ID_I225_K2:
+	case IGC_DEV_ID_I225_LMVP:
+	case IGC_DEV_ID_I225_IT:
+	case IGC_DEV_ID_I225_BLANK_NVM:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/**
  *  igc_is_device_id_i226 - Check whether the device is I226 silicon
  *  @hw: pointer to the HW structure
  *
