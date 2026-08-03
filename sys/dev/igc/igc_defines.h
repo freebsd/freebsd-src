@@ -364,6 +364,7 @@
 /* Default values for the transmit IPG register */
 #define DEFAULT_82543_TIPG_IPGT_FIBER	9
 #define DEFAULT_82543_TIPG_IPGT_COPPER	8
+#define IGC_I225_TIPG_IPGT_2P5		0xB
 
 #define IGC_TIPG_IPGT_MASK		0x000003FF
 
