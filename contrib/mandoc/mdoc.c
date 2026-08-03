@@ -165,8 +165,7 @@ static int
 mdoc_ptext(struct roff_man *mdoc, int line, char *buf, int offs)
 {
 	struct roff_node *n;
-	const char	 *cp, *sp;
-	char		 *c, *ws, *end;
+	char		 *c, *ws, *end, *cp, *sp;
 
 	n = mdoc->last;
 

@@ -628,7 +628,7 @@ mparse_readfd(struct mparse *curp, int fd, const char *filename)
 int
 mparse_open(struct mparse *curp, const char *file)
 {
-	char		 *cp;
+	const char	 *cp;
 	int		  fd, save_errno;
 
 	cp = strrchr(file, '.');
@@ -645,10 +645,12 @@ mparse_open(struct mparse *curp, const char *file)
 	 */
 
 	if ( ! curp->gzip) {
+		char	*fn;
+
 		save_errno = errno;
-		mandoc_asprintf(&cp, "%s.gz", file);
-		fd = open(cp, O_RDONLY);
-		free(cp);
+		mandoc_asprintf(&fn, "%s.gz", file);
+		fd = open(fn, O_RDONLY);
+		free(fn);
 		errno = save_errno;
 		if (fd != -1) {
 			curp->gzip = 1;
