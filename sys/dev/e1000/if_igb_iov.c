@@ -677,7 +677,15 @@ igb_iov_reset_prepare(struct e1000_softc *sc)
 	atomic_readandclear_32(&sc->iov_pending);
 	atomic_readandclear_32(&sc->iov_spoof_pending);
 	atomic_readandclear_32(&sc->iov_blocked_pending);
-	atomic_readandclear_32(&sc->iov_intr_drain_pending);
+	/*
+	 * Normal iflib initialization prepares the reset before
+	 * igb_iov_initialize() requests this drain.  Preserve a still-pending
+	 * I350 request across a later stop or repeated preparation so the next
+	 * interrupt arm consumes it.  Other families retain the ordinary
+	 * stop-time cleanup.
+	 */
+	if (sc->hw.mac.type != e1000_i350)
+		atomic_readandclear_32(&sc->iov_intr_drain_pending);
 }
 
 void
@@ -1735,6 +1743,17 @@ igb_iov_handle_mdd(struct e1000_softc *sc)
 		if ((cleared & (1U << sc->pool)) != 0)
 			sc->iov_pf_mdd_blocked = false;
 	}
+	if (sc->hw.mac.type == e1000_i350) {
+		/*
+		 * I350 can retain EICR.OTHER without delivering the admin MSI-X
+		 * even though its EIMS and legacy IMS bits remain enabled.  Kick
+		 * the already-enabled vector on each admin pass so its filter
+		 * consumes any retained ICR/LVMMC cause.  A synthetic interrupt
+		 * with no legacy cause is handled entirely by the filter.
+		 */
+		E1000_WRITE_REG(&sc->hw, E1000_EICS, sc->link_mask);
+		E1000_WRITE_FLUSH(&sc->hw);
+	}
 }
 
 void
@@ -1928,11 +1947,20 @@ igb_iov_initialize(struct e1000_softc *sc)
 	 * active state.  Mailbox requests are also serviced by the periodic
 	 * admin pass, and ping_all_vfs() below supplies a fresh notification.
 	 */
+	/*
+	 * Clear the setup-time interrupt latch before its diagnostic state.
+	 * I350 does not reliably generate the next MDDET edge when LVMMC is
+	 * consumed while ICR.MDDET remains latched.  This differs deliberately
+	 * from the final arm-time drain, where ICR is read last so a later event
+	 * remains pending for the unmask.
+	 */
+	if (hw->mac.type == e1000_i350)
+		(void)E1000_READ_REG(hw, E1000_ICR);
 	(void)E1000_READ_REG(hw, E1000_LVMMC);
 	if (hw->mac.type == e1000_82576)
 		(void)E1000_READ_REG(hw, E1000_WVBR);
-	/* Read ICR last so a later event remains pending for the arm below. */
-	(void)E1000_READ_REG(hw, E1000_ICR);
+	if (hw->mac.type != e1000_i350)
+		(void)E1000_READ_REG(hw, E1000_ICR);
 	atomic_readandclear_32(&sc->iov_mdd_cause);
 	atomic_readandclear_32(&sc->iov_pending);
 	atomic_readandclear_32(&sc->iov_spoof_pending);
