@@ -2913,6 +2913,13 @@ bnxt_attach_pre(if_ctx_t ctx)
 	    HWRM_VNIC_RSS_CFG_INPUT_HASH_TYPE_TCP_IPV6 |
 	    HWRM_VNIC_RSS_CFG_INPUT_HASH_TYPE_UDP_IPV6;
 
+	/*
+	 * Cache the Tx BD ring size so sysctl validators (e.g.
+	 * tx_host_coal_bds) can compare against it before per-queue
+	 * tx_rings[i].ring_size has been populated.
+	 */
+	softc->tx_ring_size = scctx->isc_ntxd[1];
+
 	if (BNXT_CHIP_P7(softc))
 		softc->cagr_tick_res = BNXT_CAGR_TICK_RES_DEFAULT;
 

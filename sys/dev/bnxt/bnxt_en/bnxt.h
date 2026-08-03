@@ -600,6 +600,14 @@ struct bnxt_grp_info {
 
 #define	EPOCH_ARR_SZ	4096
 
+struct tx_bd_opaque {
+	uint16_t idx;
+	uint16_t bds:15,
+		 ktls_replay:1;
+} __packed;
+
+#define TX_RING_MASK(txr) ((txr)->ring_size - 1)
+
 struct bnxt_ring {
 	uint64_t		paddr;
 	vm_offset_t		doorbell;
@@ -609,6 +617,7 @@ struct bnxt_ring {
 	uint16_t		id;		/* Logical ID */
 	uint16_t		phys_id;
 	uint16_t		idx;
+	uint16_t		running_bds;	/* host TX-completion-coalescing accumulator */
 	struct bnxt_full_tpa_start *tpa_start;
 	union {
 		u64             db_key64;
@@ -1433,6 +1442,19 @@ struct bnxt_softc {
 #define BNXT_CAGR_TICK_RES_MAX			0x4
 #define BNXT_CAGR_TICK_RES_OFFSET		16
 	uint32_t		cagr_tick_res;
+
+	/* Matches this branch's scctx->isc_tx_nsegments; cached for the
+	 * tx_host_coal_bds underflow guard below. */
+#define BNXT_MAX_NUM_SEGS	31
+	uint32_t		tx_ring_size;	/* cached scctx->isc_ntxd[1] */
+	/*
+	 * Host-based TX coalescing: driver suppresses per-BD completions by
+	 * setting TX_BD_LONG_FLAGS_NO_CMPL / TX_BD_LONG_FLAGS_COAL_NOW on BDs.
+	 */
+#define BNXT_TX_HOST_COAL_BDS_MIN	33	/* must be > BNXT_MAX_NUM_SEGS+1 to avoid uint underflow */
+#define BNXT_TX_HOST_COAL_BDS_DEFAULT	256	/* cap for large rings; halved for small rings */
+	uint32_t		tx_host_coal_bds;    /* max BDs before forcing completion */
+	bool			tx_host_coal_enable; /* enable host-driven TX coalescing */
 	/* Firmware coalesces completions autonomously based on cmpl_coal_cnt
 	 * (only valid when BNXT_FLAG_TX_COAL_CMPL is set); raw codes map to
 	 * counts 4,8,12,16,24,32,48,64,96,128,192,256,320,384,MAX. */

@@ -1581,6 +1581,30 @@ bnxt_set_cagr_tick_res(SYSCTL_HANDLER_ARGS) {
 }
 
 static int
+bnxt_set_tx_host_coal_bds(SYSCTL_HANDLER_ARGS)
+{
+	struct bnxt_softc *softc = arg1;
+	uint32_t val;
+	int rc;
+
+	if (softc == NULL)
+		return EBUSY;
+
+	val = softc->tx_host_coal_bds;
+
+	rc = sysctl_handle_int(oidp, (int *)&val, 0, req);
+	if (rc || !req->newptr)
+		return rc;
+
+	if (val < BNXT_TX_HOST_COAL_BDS_MIN || val > softc->tx_ring_size)
+		return EINVAL;
+
+	softc->tx_host_coal_bds = val;
+
+	return 0;
+}
+
+static int
 bnxt_set_tx_hw_coal_cnt(SYSCTL_HANDLER_ARGS)
 {
 	struct bnxt_softc *softc = arg1;
@@ -1700,7 +1724,27 @@ bnxt_create_config_sysctls_pre(struct bnxt_softc *softc)
 	    CTLTYPE_INT | CTLFLAG_RDTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_cagr_tick_res, "I", "CAGR tick resolution");
 
+	/*
+	 * Default coal_bds to half the Tx ring depth, clamped between
+	 * BNXT_TX_HOST_COAL_BDS_MIN and DEFAULT; disable below the floor to
+	 * avoid uint underflow in (coal_bds - (BNXT_MAX_NUM_SEGS+1)).
+	 */
+	softc->tx_host_coal_bds = min(softc->tx_ring_size,
+	    max(BNXT_TX_HOST_COAL_BDS_MIN,
+		min(BNXT_TX_HOST_COAL_BDS_DEFAULT, softc->tx_ring_size / 2)));
+	softc->tx_host_coal_enable =
+	    (softc->tx_ring_size >= BNXT_TX_HOST_COAL_BDS_MIN);
 	softc->tx_hw_coal_cnt = BNXT_TX_HW_COAL_CNT_DEFAULT;
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tx_host_coal_bds",
+	    CTLTYPE_INT | CTLFLAG_RDTUN | CTLFLAG_MPSAFE, softc, 0,
+	    bnxt_set_tx_host_coal_bds, "I",
+	    "host-driven TX coalescing: max BDs before forcing completion "
+	    "(33 to Tx ring size, default max(33, min(256, ring_size/2)) "
+	    "clamped to ring_size; feature auto-disabled if ring_size < 33)");
+	SYSCTL_ADD_BOOL(ctx, children, OID_AUTO, "tx_host_coal_enable", CTLFLAG_RDTUN,
+	    &softc->tx_host_coal_enable, 0,
+	    "enable host-driven TX coalescing via NO_CMPL/COAL_NOW BD flags "
+	    "(default enabled)");
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tx_hw_coal_cnt",
 	    CTLTYPE_INT | CTLFLAG_RDTUN | CTLFLAG_MPSAFE, softc, 0,
 	    bnxt_set_tx_hw_coal_cnt, "I",
