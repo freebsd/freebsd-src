@@ -868,7 +868,8 @@ static void mkfile_output(struct commandline *cmd)
 {
 	const char *mkfilename, *clientname, *clntname, *xdrname, *hdrname;
 	const char *servername, *svcname, *servprogname, *clntprogname;
-	char *temp, *mkftemp;
+	const char *temp;
+	char *mkftemp;
 
 	svcname = file_name(cmd->infile, "_svc.c");
 	clntname = file_name(cmd->infile, "_clnt.c");

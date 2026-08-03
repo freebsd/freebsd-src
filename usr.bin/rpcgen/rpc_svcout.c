@@ -31,6 +31,7 @@
  * rpc_svcout.c, Server-skeleton outputter for the RPC protocol compiler
  * Copyright (C) 1987, Sun Microsystems, Inc.
  */
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include "rpc_parse.h"
@@ -931,14 +932,20 @@ write_rpc_svc_fg(const char *infile, const char *sp)
 static void
 open_log_file(const char *infile, const char *sp)
 {
-	char *s;
+	const char *s;
 
 	s = strrchr(infile, '.');
-	if (s)
-		*s = '\0';
-	f_print(fout, "%sopenlog(\"%s\", LOG_PID, LOG_DAEMON);\n", sp, infile);
-	if (s)
-		*s = '.';
+	if (s) {
+		size_t len;
+
+		len = s - infile;
+		if (len > INT_MAX)
+			len = INT_MAX;
+		f_print(fout, "%sopenlog(\"%.*s\", LOG_PID, LOG_DAEMON);\n",
+		    sp, (int)len, infile);
+	} else
+		f_print(fout, "%sopenlog(\"%s\", LOG_PID, LOG_DAEMON);\n",
+		    sp, infile);
 }
 
 
