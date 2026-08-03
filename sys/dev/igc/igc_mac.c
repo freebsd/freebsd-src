@@ -408,6 +408,7 @@ void igc_clear_hw_cntrs_base_generic(struct igc_hw *hw)
 	DEBUGFUNC("igc_clear_hw_cntrs_base_generic");
 
 	IGC_READ_REG(hw, IGC_CRCERRS);
+	IGC_READ_REG(hw, IGC_RXERRC);
 	IGC_READ_REG(hw, IGC_MPC);
 	IGC_READ_REG(hw, IGC_SCC);
 	IGC_READ_REG(hw, IGC_ECOL);

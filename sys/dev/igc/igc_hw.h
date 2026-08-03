@@ -275,6 +275,7 @@ struct igc_hw_stats {
 	u64 mcc;
 	u64 latecol;
 	u64 colc;
+	u64 rerc;
 	u64 dc;
 	u64 tncrs;
 	u64 sec;

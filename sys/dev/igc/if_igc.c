@@ -2599,6 +2599,7 @@ igc_update_stats_counters(struct igc_softc *sc)
 	u64 prev_xoffrxc = sc->stats.xoffrxc;
 
 	sc->stats.crcerrs += IGC_READ_REG(&sc->hw, IGC_CRCERRS);
+	sc->stats.rxerrc += IGC_READ_REG(&sc->hw, IGC_RXERRC);
 	sc->stats.mpc += IGC_READ_REG(&sc->hw, IGC_MPC);
 	sc->stats.scc += IGC_READ_REG(&sc->hw, IGC_SCC);
 	sc->stats.ecol += IGC_READ_REG(&sc->hw, IGC_ECOL);
@@ -2606,7 +2607,7 @@ igc_update_stats_counters(struct igc_softc *sc)
 	sc->stats.mcc += IGC_READ_REG(&sc->hw, IGC_MCC);
 	sc->stats.latecol += IGC_READ_REG(&sc->hw, IGC_LATECOL);
 	sc->stats.colc += IGC_READ_REG(&sc->hw, IGC_COLC);
-	sc->stats.colc += IGC_READ_REG(&sc->hw, IGC_RERC);
+	sc->stats.rerc += IGC_READ_REG(&sc->hw, IGC_RERC);
 	sc->stats.dc += IGC_READ_REG(&sc->hw, IGC_DC);
 	sc->stats.rlec += IGC_READ_REG(&sc->hw, IGC_RLEC);
 	sc->stats.xonrxc += IGC_READ_REG(&sc->hw, IGC_XONRXC);
@@ -2685,10 +2686,14 @@ igc_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 	case IFCOUNTER_COLLISIONS:
 		return (sc->stats.colc);
 	case IFCOUNTER_IERRORS:
+		/*
+		 * RERC overlaps the counters below and, on I225, omits length
+		 * errors.  RFC covers bad-CRC runts that CRCERRS does not count.
+		 */
 		return (sc->dropped_pkts + sc->stats.rxerrc +
 		    sc->stats.crcerrs + sc->stats.algnerrc +
-		    sc->stats.ruc + sc->stats.roc +
-		    sc->stats.mpc + sc->stats.htdpmc);
+		    sc->stats.ruc + sc->stats.rfc + sc->stats.roc +
+		    sc->stats.mpc);
 	case IFCOUNTER_OERRORS:
 		return (if_get_counter_default(ifp, cnt) +
 		    sc->stats.ecol + sc->stats.latecol + sc->watchdog_events);
@@ -2911,6 +2916,9 @@ igc_add_hw_stats(struct igc_softc *sc)
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_errs",
 	    CTLFLAG_RD, &sc->stats.rxerrc,
 	    "Receive Errors");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_error_count",
+	    CTLFLAG_RD, &sc->stats.rerc,
+	    "Receive Error Count (RERC)");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "crc_errs",
 	    CTLFLAG_RD, &sc->stats.crcerrs,
 	    "CRC errors");
@@ -2987,6 +2995,9 @@ igc_add_hw_stats(struct igc_softc *sc)
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_pkts_txd",
 	    CTLFLAG_RD, &sc->stats.gptc,
 	    "Good Packets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "host_tx_discarded",
+	    CTLFLAG_RD, &sc->stats.htdpmc,
+	    "Host Packets Discarded by Transmit MAC");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_txd",
 	    CTLFLAG_RD, &sc->stats.bptc,
 	    "Broadcast Packets Transmitted");
