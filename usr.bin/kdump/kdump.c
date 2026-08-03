@@ -2448,12 +2448,31 @@ static const char * const cat_to_filenames[] = {
 };
 
 static const char *
+cat_to_file_prefix(int category)
+{
+	switch (EXTERR_CAT_SRC(category)) {
+	case EXTERR_CAT_SRC_KERN_STATIC:
+		return ("sys/");
+	default:
+		return ("");
+	}
+}
+
+static const char *
 cat_to_filename(int category)
 {
-	if (category < 0 || (unsigned)category >= nitems(cat_to_filenames) ||
-	    cat_to_filenames[category] == NULL)
+	switch (EXTERR_CAT_SRC(category)) {
+	case EXTERR_CAT_SRC_KERN_STATIC:
+		if (category < 0 ||
+		    (unsigned)category >= nitems(cat_to_filenames) ||
+		    cat_to_filenames[category] == NULL)
+			return ("unknown");
+		return (cat_to_filenames[category]);
+	case EXTERR_CAT_SRC_KERN_DYNAMIC:
+		return ("kern:dynamic");
+	default:
 		return ("unknown");
-	return (cat_to_filenames[category]);
+	}
 }
 
 static void
@@ -2464,9 +2483,10 @@ ktrexterr(struct ktr_exterr *ke)
 
 	ue = &ke->ue;
 	asprintf(&msg, ue->msg, (uintmax_t)ue->p1, (uintmax_t)ue->p2);
-	printf("{ errno %d sys/%s:%u \"%s\" (category %u p1 %#jx p2 %#jx) }\n",
-	    ue->error, cat_to_filename(ue->cat), ue->src_line, msg,
-	    ue->cat, (uintmax_t)ue->p1, (uintmax_t)ue->p2);
+	printf("{ errno %d %s%s:%u \"%s\" (category %u p1 %#jx p2 %#jx) }\n",
+	    ue->error, cat_to_file_prefix(ue->cat), cat_to_filename(ue->cat),
+	    ue->src_line, msg, ue->cat,
+	    (uintmax_t)ue->p1, (uintmax_t)ue->p2);
 	free(msg);
 }
 
