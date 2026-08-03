@@ -16,6 +16,7 @@
 	[EXTERR_CAT_FORK] = "kern/kern_fork.c",
 	[EXTERR_CAT_LINKER] = "kern/kern_linker.c",
 	[EXTERR_CAT_GENIO] = "kern/sys_generic.c",
+	[EXTERR_CAT_TTY] = "kern/tty.c",
 	[EXTERR_CAT_VFSBIO] = "kern/vfs_bio.c",
 	[EXTERR_CAT_INOTIFY] = "kern/vfs_inotify.c",
 	[EXTERR_CAT_VFSSYSCALL] = "kern/vfs_syscalls.c",

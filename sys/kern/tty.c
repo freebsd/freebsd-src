@@ -66,6 +66,8 @@
 #undef TTYDEFCHARS
 #include <sys/ucred.h>
 #include <sys/vnode.h>
+#define EXTERR_CATEGORY EXTERR_CAT_TTY
+#include <sys/exterrvar.h>
 
 #include <fs/devfs/devfs.h>
 
@@ -222,7 +224,7 @@ ttydev_enter(struct tty *tp)
 	if (tty_gone(tp) || !tty_opened(tp)) {
 		/* Device is already gone. */
 		tty_unlock(tp);
-		return (ENXIO);
+		return (EXTERROR(ENXIO, "ttydev_enter: device is gone"));
 	}
 
 	return (0);
@@ -281,7 +283,7 @@ ttydev_open(struct cdev *dev, int oflags, int devtype __unused,
 	if (tty_gone(tp)) {
 		/* Device is already gone. */
 		tty_unlock(tp);
-		return (ENXIO);
+		return (EXTERROR(ENXIO, "ttydev_open: device is gone"));
 	}
 
 	/*
@@ -477,7 +479,7 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 			/* Don't allow the action to happen. */
 			PROC_UNLOCK(p);
 			PGRP_UNLOCK(pg);
-			return (EIO);
+			return (EXTERROR(EIO, "cannot wait in background"));
 		}
 		PROC_UNLOCK(p);
 
@@ -858,7 +860,7 @@ ttyil_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 
 	tty_lock(tp);
 	if (tty_gone(tp)) {
-		error = ENODEV;
+		error = (EXTERROR(ENODEV, "ttyil_ioctl: device is gone"));
 		goto done;
 	}
 
@@ -1240,23 +1242,23 @@ tty_drop_ctty(struct tty *tp, struct proc *p)
 	tty_lock(tp);
 	if (tty_gone(tp)) {
 		sx_xunlock(&proctree_lock);
-		return (ENODEV);
+		return (EXTERROR(ENODEV, "tty_drop_ctty: device is gone"));
 	}
 
 	/*
 	 * If the session doesn't have a controlling TTY, or if we weren't
-	 * invoked on the controlling TTY, we'll return ENOIOCTL as we've
+	 * invoked on the controlling TTY, we'll return ENOTTY as we've
 	 * historically done.
 	 */
 	session = p->p_session;
 	if (session->s_ttyp == NULL || session->s_ttyp != tp) {
 		sx_xunlock(&proctree_lock);
-		return (ENOTTY);
+		return (EXTERROR(ENOTTY, "no controlling tty"));
 	}
 
 	if (!SESS_LEADER(p)) {
 		sx_xunlock(&proctree_lock);
-		return (EPERM);
+		return (EXTERROR(EPERM, "not a session leader"));
 	}
 
 	PROC_LOCK(p);
@@ -1587,7 +1589,7 @@ tty_wait(struct tty *tp, struct cv *cv)
 
 	/* Bail out when the device slipped away. */
 	if (tty_gone(tp))
-		return (ENXIO);
+		return (EXTERROR(ENXIO, "tty_wait: device is gone"));
 
 	/* Restart the system call when we may have been revoked. */
 	if (tp->t_revokecnt != revokecnt)
@@ -1609,7 +1611,7 @@ tty_timedwait(struct tty *tp, struct cv *cv, int hz)
 
 	/* Bail out when the device slipped away. */
 	if (tty_gone(tp))
-		return (ENXIO);
+		return (EXTERROR(ENXIO, "tty_timedwait: device is gone"));
 
 	/* Restart the system call when we may have been revoked. */
 	if (tp->t_revokecnt != revokecnt)
@@ -1657,7 +1659,7 @@ tty_sti_check(struct tty *tp, int fflag, struct thread *td)
 {
 	/* Check for global disable. */
 	if (!tty_tiocsti)
-		return (EPERM);
+		return (EXTERROR(EPERM, "security.bsd.allow_tiocsti"));
 
 	/* Root can bypass all of our constraints. */
 	if (priv_check(td, PRIV_TTY_STI) == 0)
@@ -1665,11 +1667,11 @@ tty_sti_check(struct tty *tp, int fflag, struct thread *td)
 
 	/* Unprivileged users must have it opened for read. */
 	if ((fflag & FREAD) == 0)
-		return (EPERM);
+		return (EXTERROR(EPERM, "opened read-only"));
 
 	/* It must also be their controlling tty. */
 	if (!tty_is_ctty(tp, td->td_proc))
-		return (EACCES);
+		return (EXTERROR(EACCES, "not a controlling tty"));
 
 	return (0);
 }
@@ -1856,7 +1858,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		return (0);
 	case TIOCGPGRP:
 		if (!tty_is_ctty(tp, td->td_proc))
-			return (ENOTTY);
+			return (EXTERROR(ENOTTY, "not a controlling tty"));
 
 		if (tp->t_pgrp != NULL)
 			*(int *)data = tp->t_pgrp->pg_id;
@@ -1865,7 +1867,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		return (0);
 	case TIOCGSID:
 		if (!tty_is_ctty(tp, td->td_proc))
-			return (ENOTTY);
+			return (EXTERROR(ENOTTY, "not a controlling tty"));
 
 		MPASS(tp->t_session);
 		*(int *)data = tp->t_session->s_sid;
@@ -1883,7 +1885,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		if (!SESS_LEADER(p)) {
 			/* Only the session leader may do this. */
 			sx_xunlock(&proctree_lock);
-			return (EPERM);
+			return (EXTERROR(EPERM, "not a session leader"));
 		}
 
 		if (tp->t_session != NULL && tp->t_session == p->p_session) {
@@ -1907,7 +1909,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 			 * killed or the TTY revoked.
 			 */
 			sx_xunlock(&proctree_lock);
-			return (EPERM);
+			return (EXTERROR(EPERM, "session already has CTTY"));
 		}
 
 		/* Connect the session to the TTY. */
@@ -1940,7 +1942,10 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		if (pg == NULL || pg->pg_session != td->td_proc->p_session) {
 			sx_sunlock(&proctree_lock);
 			tty_lock(tp);
-			return (EPERM);
+			return (EXTERROR(EPERM,
+			    "pgrp %jd belongs to other session %jd",
+			    pg != NULL ? pg->pg_id : -1,
+			    td->td_proc->p_session->s_sid));
 		}
 		tty_lock(tp);
 
@@ -1950,7 +1955,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		 */
 		if (!tty_is_ctty(tp, td->td_proc)) {
 			sx_sunlock(&proctree_lock);
-			return (ENOTTY);
+			return (EXTERROR(ENOTTY, "not a controlling tty"));
 		}
 		tp->t_pgrp = pg;
 		sx_sunlock(&proctree_lock);
@@ -2042,7 +2047,7 @@ tty_ioctl(struct tty *tp, u_long cmd, void *data, int fflag, struct thread *td)
 	tty_assert_locked(tp);
 
 	if (tty_gone(tp))
-		return (ENXIO);
+		return (EXTERROR(ENXIO, "tty_ioctl: device is gone"));
 
 	error = ttydevsw_ioctl(tp, cmd, data, td);
 	if (error == ENOIOCTL)
@@ -2240,7 +2245,7 @@ ttyconsdev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	/* System has no console device. */
 	if (dev_console_filename == NULL)
-		return (ENXIO);
+		return (EXTERROR(ENXIO, "system has no console device"));
 
 	/* Look up corresponding TTY by device name. */
 	sx_slock(&tty_list_sx);
@@ -2254,7 +2259,7 @@ ttyconsdev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	/* System console has no TTY associated. */
 	if (dev_console->si_drv1 == NULL)
-		return (ENXIO);
+		return (EXTERROR(ENXIO, "system console has no TTY attached"));
 
 	return (ttydev_open(dev, oflags, devtype, td));
 }
