@@ -248,7 +248,8 @@ static int
 parse_part(const char *spec)
 {
 	struct part *part;
-	char *sep;
+	const char *sep;
+	char *asep;
 	size_t len;
 	int error;
 
@@ -301,15 +302,14 @@ parse_part(const char *spec)
 		goto errout;
 	}
 
-	spec = part->alias;
-	sep = strchr(spec, '/');
-	if (sep != NULL) {
-		*sep++ = '\0';
-		if (strlen(part->alias) == 0 || strlen(sep) == 0) {
+	asep = strchr(part->alias, '/');
+	if (asep != NULL) {
+		*asep++ = '\0';
+		if (strlen(part->alias) == 0 || strlen(asep) == 0) {
 			error = EINVAL;
 			goto errout;
 		}
-		part->label = strdup(sep);
+		part->label = strdup(asep);
 		if (part->label == NULL) {
 			error = ENOMEM;
 			goto errout;
