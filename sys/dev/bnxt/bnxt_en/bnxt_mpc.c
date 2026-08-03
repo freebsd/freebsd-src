@@ -564,6 +564,7 @@ int bnxt_hwrm_mpc_ring_alloc(struct bnxt_softc *softc)
 
 			txr->prod = 0;
 			txr->cons = 0;
+			txr->epoch_bit = false;
 			memset(txr->tx_mpc_buf_ring, 0,
 			    txr->ring_size * sizeof(struct bnxt_sw_mpc_tx_bd));
 
@@ -874,6 +875,10 @@ int bnxt_start_xmit_mpc(struct bnxt_softc *softc, struct bnxt_ring *txr,
 		return EBUSY;
 
 	prod = txr->prod;
+	/* Wraps the ring at most once since total_bds < ring_size; toggle
+	 * epoch_bit to match, as prod advances directly here, not per-BD. */
+	if ((uint32_t)prod + total_bds >= txr->ring_size)
+		txr->epoch_bit = !txr->epoch_bit;
 	txbd = &((struct tx_bd_long *)txr->vaddr)[prod];
 
 	tx_buf = &txr->tx_mpc_buf_ring[prod];

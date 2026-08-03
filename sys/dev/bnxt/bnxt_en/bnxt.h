@@ -606,8 +606,6 @@ struct bnxt_grp_info {
 	uint16_t	ag_ring_id;
 };
 
-#define	EPOCH_ARR_SZ	4096
-
 struct tx_bd_opaque {
 	uint16_t idx;
 	uint16_t bds:15,
@@ -690,7 +688,6 @@ struct bnxt_ring {
 	uint32_t                db_epoch_mask;
 	uint8_t                 db_epoch_shift;
 
-	uint64_t		epoch_arr[EPOCH_ARR_SZ];
 	bool                    epoch_bit;
 
 };
