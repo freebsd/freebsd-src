@@ -31,6 +31,7 @@ void	igb_iov_mdd_event(struct e1000_softc *);
 void	igb_iov_ping_all_vfs(struct e1000_softc *);
 void	igb_iov_reset_prepare(struct e1000_softc *);
 u32	igb_iov_intr_mask(const struct e1000_softc *);
+void	igb_iov_intr_drain_stale(struct e1000_softc *);
 void	igb_iov_rebuild_mta(struct e1000_softc *);
 void	igb_iov_rebuild_vlan(struct e1000_softc *);
 void	igb_iov_update_pf_vmolr(struct e1000_softc *);
@@ -48,6 +49,7 @@ void	igb_iov_update_pf_vmolr(struct e1000_softc *);
 #define	igb_iov_ping_all_vfs(_sc)
 #define	igb_iov_reset_prepare(_sc)
 #define	igb_iov_intr_mask(_sc)			(0)
+#define	igb_iov_intr_drain_stale(_sc)		((void)(_sc))
 #define	igb_iov_rebuild_mta(_sc)
 #define	igb_iov_rebuild_vlan(_sc)
 #define	igb_iov_update_pf_vmolr(_sc)

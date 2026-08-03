@@ -4877,6 +4877,7 @@ igb_if_intr_enable(if_ctx_t ctx)
 		E1000_WRITE_REG(hw, E1000_EIAC, reg | mask);
 		reg = E1000_READ_REG(hw, E1000_EIAM);
 		E1000_WRITE_REG(hw, E1000_EIAM, reg | mask);
+		igb_iov_intr_drain_stale(sc);
 		E1000_WRITE_REG(hw, E1000_EIMS, mask);
 		E1000_WRITE_REG(hw, E1000_IMS,
 		    E1000_IMS_LSC | igb_iov_intr_mask(sc));

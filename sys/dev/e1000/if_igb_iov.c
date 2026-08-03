@@ -534,6 +534,33 @@ igb_iov_intr_mask(const struct e1000_softc *sc)
 	return (E1000_IMS_VMMB | E1000_IMS_MDDET);
 }
 
+void
+igb_iov_intr_drain_stale(struct e1000_softc *sc)
+{
+	struct e1000_hw *hw;
+	u32 icr;
+
+	if (atomic_readandclear_32(&sc->iov_intr_drain_pending) == 0)
+		return;
+	hw = &sc->hw;
+	/*
+	 * Consume setup-time diagnostic state at the actual transition from
+	 * masked to armed.  Read ICR last so an event arriving after the drain
+	 * remains pending and is delivered when the caller enables MDDET.
+	 */
+	(void)E1000_READ_REG(hw, E1000_LVMMC);
+	if (hw->mac.type == e1000_82576)
+		(void)E1000_READ_REG(hw, E1000_WVBR);
+	icr = E1000_READ_REG(hw, E1000_ICR);
+	/*
+	 * em_if_init() injects LSC after IOV setup to close the post-reset
+	 * link race.  Preserve that cause across this MDDET-specific drain.
+	 */
+	if (__predict_true(icr != 0xffffffff) &&
+	    (icr & E1000_ICR_LSC) != 0)
+		E1000_WRITE_REG(hw, E1000_ICS, E1000_ICS_LSC);
+}
+
 static void
 igb_iov_vfta_shadow_invalidate(struct e1000_softc *sc)
 {
@@ -650,6 +677,7 @@ igb_iov_reset_prepare(struct e1000_softc *sc)
 	atomic_readandclear_32(&sc->iov_pending);
 	atomic_readandclear_32(&sc->iov_spoof_pending);
 	atomic_readandclear_32(&sc->iov_blocked_pending);
+	atomic_readandclear_32(&sc->iov_intr_drain_pending);
 }
 
 void
@@ -1889,6 +1917,27 @@ igb_iov_initialize(struct e1000_softc *sc)
 	E1000_WRITE_REG(hw, E1000_CTRL_EXT,
 	    ctrl_ext | E1000_CTRL_EXT_PFRSTD);
 	E1000_WRITE_FLUSH(hw);
+	/*
+	 * MDDET remains masked until iov_hw_active is published and iflib
+	 * rearms the admin vector.  Programming the per-pool policy above can
+	 * leave a setup-time MDDET observation in the read-clear registers.
+	 * If that stale cause is carried across the unmask, a later ordinary
+	 * spoof can update LVMMC without generating a new interrupt edge.
+	 *
+	 * Drain only after all IOV policy is installed and before exposing the
+	 * active state.  Mailbox requests are also serviced by the periodic
+	 * admin pass, and ping_all_vfs() below supplies a fresh notification.
+	 */
+	(void)E1000_READ_REG(hw, E1000_LVMMC);
+	if (hw->mac.type == e1000_82576)
+		(void)E1000_READ_REG(hw, E1000_WVBR);
+	/* Read ICR last so a later event remains pending for the arm below. */
+	(void)E1000_READ_REG(hw, E1000_ICR);
+	atomic_readandclear_32(&sc->iov_mdd_cause);
+	atomic_readandclear_32(&sc->iov_pending);
+	atomic_readandclear_32(&sc->iov_spoof_pending);
+	atomic_readandclear_32(&sc->iov_blocked_pending);
+	atomic_store_rel_32(&sc->iov_intr_drain_pending, 1);
 	sc->iov_hw_active = true;
 	igb_iov_ping_all_vfs(sc);
 }
@@ -2027,6 +2076,7 @@ igb_if_iov_uninit(if_ctx_t ctx)
 	atomic_readandclear_32(&sc->iov_pending);
 	atomic_readandclear_32(&sc->iov_spoof_pending);
 	atomic_readandclear_32(&sc->iov_blocked_pending);
+	atomic_readandclear_32(&sc->iov_intr_drain_pending);
 	atomic_store_rel_32(&sc->iov_teardown, 0);
 }
 
