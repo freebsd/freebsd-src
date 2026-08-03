@@ -94,12 +94,24 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 	struct bnxt_ring *txr = &softc->tx_rings[pi->ipi_qsidx];
 	struct tx_bd_long *tbd;
 	struct tx_bd_long_hi *tbdh;
+	bool need_cpl = false;
 	bool need_hi = false;
 	uint16_t flags_type;
 	uint16_t lflags;
 	uint32_t cfa_meta;
 	int seg = 0;
 	uint8_t wrap = 0;
+	struct tx_bd_opaque *opq;
+
+	if ((pi->ipi_flags & IPI_TX_INTR) != 0)
+		need_cpl = true;
+
+	if (softc->tx_host_coal_enable) {
+		/* BD field of opaque is only 15 bits; respect tx_host_coal_bds threshold */
+		if (txr->running_bds >
+		    (softc->tx_host_coal_bds - (BNXT_MAX_NUM_SEGS + 1)))
+			need_cpl = true;
+	}
 
 	/* If we have offloads enabled, we need to use two BDs. */
 	if ((pi->ipi_csum_flags & (CSUM_OFFLOAD | CSUM_TSO | CSUM_IP)) ||
@@ -112,12 +124,26 @@ bnxt_isc_txd_encap(void *sc, if_pkt_info_t pi)
 	pi->ipi_new_pidx = pi->ipi_pidx;
 	tbd = &((struct tx_bd_long *)txr->vaddr)[pi->ipi_new_pidx];
 	pi->ipi_ndescs = 0;
+	opq = (struct tx_bd_opaque *)&tbd->opaque;
 	/* No need to byte-swap the opaque value */
-	tbd->opaque = ((pi->ipi_nsegs + need_hi) << 24) | pi->ipi_new_pidx;
+	opq->ktls_replay = 0;
+	opq->idx = pi->ipi_new_pidx & TX_RING_MASK(txr);
+	opq->bds = txr->running_bds + pi->ipi_nsegs + need_hi;
 	tbd->len = htole16(pi->ipi_segs[seg].ds_len);
 	tbd->addr = htole64(pi->ipi_segs[seg++].ds_addr);
 	flags_type = ((pi->ipi_nsegs + need_hi) <<
 	    TX_BD_SHORT_FLAGS_BD_CNT_SFT) & TX_BD_SHORT_FLAGS_BD_CNT_MASK;
+
+	if (softc->tx_host_coal_enable) {
+		flags_type |= TX_BD_LONG_FLAGS_COAL_NOW;
+		if (need_cpl)
+			txr->running_bds = 0;
+		else {
+			txr->running_bds += (pi->ipi_nsegs + 1);
+			flags_type |= TX_BD_LONG_FLAGS_NO_CMPL;
+		}
+	}
+
 	if (pi->ipi_len >= 2048)
 		flags_type |= TX_BD_SHORT_FLAGS_LHINT_GTE2K;
 	else
@@ -235,6 +261,7 @@ bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, bool clear)
 	uint32_t last_raw_cons;
 	uint16_t type;
 	uint16_t err;
+	struct tx_bd_opaque *opq;
 
 	for (;;) {
 		last_cons = cons;
@@ -258,7 +285,8 @@ bnxt_isc_txd_credits_update(void *sc, uint16_t txqid, bool clear)
 				device_printf(softc->dev,
 				    "TX completion error %u\n", err);
 			/* No need to byte-swap the opaque value */
-			avail += cmpl[cons].opaque >> 24;
+			opq = (struct tx_bd_opaque *)&cmpl[cons].opaque;
+			avail += opq->bds;
 			/*
 			 * If we're not clearing, iflib only cares if there's
 			 * at least one buffer.  Don't scan the whole ring in
