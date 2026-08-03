@@ -2152,20 +2152,26 @@ tcp_do_segment(struct tcpcb *tp, struct mbuf *m, struct tcphdr *th,
 		 * - RST drops connection only if SEG.SEQ == RCV.NXT.
 		 * - If RST is in window, we send challenge ACK.
 		 *
-		 * Note: to take into account delayed ACKs, we should
-		 *   test against last_ack_sent instead of rcv_nxt.
+		 * Note 1: to take into account delayed ACKs, we should
+		 *   test against last_ack_sent in addition to rcv_nxt.
 		 * Note 2: we handle special case of closed window, not
 		 *   covered by the RFC.
+		 * Note 3 (XXXMT): check against rcv_adv instead of
+		 *   tp->rcv_nxt + tp->rcv_wnd.
 		 */
-		if ((SEQ_GEQ(th->th_seq, tp->last_ack_sent) &&
-		    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) ||
-		    (tp->rcv_wnd == 0 && tp->last_ack_sent == th->th_seq)) {
+		if ((tp->rcv_wnd > 0 &&
+		     SEQ_GEQ(th->th_seq, tp->last_ack_sent) &&
+		     SEQ_LT(th->th_seq, tp->rcv_nxt + tp->rcv_wnd)) ||
+		    (tp->rcv_wnd == 0 &&
+		     (tp->last_ack_sent == th->th_seq ||
+		      tp->rcv_nxt == th->th_seq))) {
 			KASSERT(tp->t_state != TCPS_SYN_SENT,
 			    ("%s: TH_RST for TCPS_SYN_SENT th %p tp %p",
 			    __func__, th, tp));
 
 			if (V_tcp_insecure_rst ||
-			    tp->last_ack_sent == th->th_seq) {
+			    tp->last_ack_sent == th->th_seq ||
+			    tp->rcv_nxt == th->th_seq) {
 				TCPSTAT_INC(tcps_drops);
 				/* Drop the connection. */
 				switch (tp->t_state) {
