@@ -3366,7 +3366,7 @@ kern_proc_kqueues_out(struct proc *p, struct sbuf *sb, size_t maxlen,
 		sb_len = 128;
 	else
 		sb_len = maxlen;
-	s = sbuf_new(&sm, NULL, sb_len, SBUF_FIXEDLEN);
+	s = sbuf_new(&sm, NULL, sb_len + 1, SBUF_FIXEDLEN);
 	error = kern_proc_kqueues_out1(curthread, p, s, compat32);
 	sbuf_finish(s);
 	if (error == 0)
