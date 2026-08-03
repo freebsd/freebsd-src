@@ -128,6 +128,7 @@ static int	igc_if_rx_queue_intr_enable(if_ctx_t, uint16_t);
 static int	igc_if_tx_queue_intr_enable(if_ctx_t, uint16_t);
 static void	igc_if_multi_set(if_ctx_t);
 static void	igc_if_update_admin_status(if_ctx_t);
+static void	igc_apply_i225_ipg_workaround(struct igc_softc *);
 static void	igc_if_debug(if_ctx_t);
 static void	igc_update_stats_counters(struct igc_softc *);
 static void	igc_add_hw_stats(struct igc_softc *);
@@ -1401,6 +1402,33 @@ igc_if_timer(if_ctx_t ctx, uint16_t qid)
 }
 
 static void
+igc_apply_i225_ipg_workaround(struct igc_softc *sc)
+{
+	struct igc_hw *hw = &sc->hw;
+	u32 ipgt, tipg;
+
+	/*
+	 * I225 v1 cannot receive the minimum IPG required at 2.5 Gb/s.
+	 * Intel's documented back-to-back workaround is for the transmitter
+	 * to use a 15-byte IPG instead of 12 bytes.  I225 v2 and later have
+	 * the receive-side fix and should retain the standard IPG.
+	 */
+	if (!igc_is_device_id_i225(hw) ||
+	    hw->revision_id >= IGC_REVISION_2)
+		return;
+
+	ipgt = sc->link_speed == SPEED_2500 ? IGC_I225_TIPG_IPGT_2P5 :
+	    DEFAULT_82543_TIPG_IPGT_COPPER;
+	tipg = IGC_READ_REG(hw, IGC_TIPG);
+	if ((tipg & IGC_TIPG_IPGT_MASK) == ipgt)
+		return;
+
+	tipg &= ~IGC_TIPG_IPGT_MASK;
+	tipg |= ipgt;
+	IGC_WRITE_REG(hw, IGC_TIPG, tipg);
+}
+
+static void
 igc_if_update_admin_status(if_ctx_t ctx)
 {
 	struct igc_softc *sc = iflib_get_softc(ctx);
@@ -1445,6 +1473,7 @@ igc_if_update_admin_status(if_ctx_t ctx)
 		sc->link_active = 0;
 		iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
 	}
+	igc_apply_i225_ipg_workaround(sc);
 	igc_update_stats_counters(sc);
 }
 
