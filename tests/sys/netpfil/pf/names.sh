@@ -134,9 +134,32 @@ start_number_cleanup()
 	pft_cleanup
 }
 
+atf_test_case "overlap" "cleanup"
+overlap_head()
+{
+	atf_set descr 'Create a group and an interface with the same name'
+	atf_set require.user root
+}
+
+overlap_body()
+{
+	pft_init
+
+	epair=$(vnet_mkepair)
+	# Overlap with the implicit 'epair' group.
+	# See PR 297220, this can panic.
+	ifconfig ${epair}a name epair
+}
+
+overlap_cleanup()
+{
+	pft_cleanup
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case "names"
 	atf_add_test_case "group"
 	atf_add_test_case "start_number"
+	atf_add_test_case "overlap"
 }

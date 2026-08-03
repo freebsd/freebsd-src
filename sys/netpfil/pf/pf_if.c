@@ -664,12 +664,19 @@ pfi_kkif_update(struct pfi_kkif *kif)
 	}
 
 	/* again for all groups kif is member of */
-	if (kif->pfik_ifp != NULL) {
-		CK_STAILQ_FOREACH(ifgl, &kif->pfik_ifp->if_groups, ifgl_next)
-			if (ifgl->ifgl_group->ifg_pf_kif) {
-				pfi_kkif_update((struct pfi_kkif *)
-				    ifgl->ifgl_group->ifg_pf_kif);
-			}
+	if (kif->pfik_ifp == NULL)
+		return;
+
+	CK_STAILQ_FOREACH(ifgl, &kif->pfik_ifp->if_groups, ifgl_next) {
+		if (strcmp(ifgl->ifgl_group->ifg_group, kif->pfik_name) == 0) {
+			printf("pf: WARNING conflicting group / interface name %s\n",
+			    kif->pfik_name);
+			continue;
+		}
+		if (ifgl->ifgl_group->ifg_pf_kif) {
+			pfi_kkif_update((struct pfi_kkif *)
+			    ifgl->ifgl_group->ifg_pf_kif);
+		}
 	}
 }
 
