@@ -383,6 +383,8 @@ mfc_find(const struct mfctable *mfct, const struct in_addr *o,
 
 	MRW_LOCK_ASSERT();
 
+	if (mfct->mfchashtbl == NULL)
+		return (NULL);
 	LIST_FOREACH(rt, &mfct->mfchashtbl[MFCHASH(*o, *g)], mfc_hash) {
 		if (in_hosteq(rt->mfc_origin, *o) &&
 		    in_hosteq(rt->mfc_mcastgrp, *g) &&
