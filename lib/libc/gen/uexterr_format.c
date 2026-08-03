@@ -25,10 +25,22 @@ static const char * const cat_to_filenames[] = {
 static const char *
 cat_to_filename(int category)
 {
-	if (category < 0 || category >= nitems(cat_to_filenames) ||
-	    cat_to_filenames[category] == NULL)
+	switch (EXTERR_CAT_SRC(category)) {
+	case EXTERR_CAT_SRC_KERN_STATIC:
+		if (category < 0 || category >= nitems(cat_to_filenames) ||
+		    cat_to_filenames[category] == NULL)
+			return ("unknown:kern");
+		return (cat_to_filenames[category]);
+
+	case EXTERR_CAT_SRC_KERN_DYNAMIC:
+		return ("unknown:kern");
+
+	case EXTERR_CAT_SRC_USER:
+		return ("unknown:user");
+
+	default:
 		return ("unknown");
-	return (cat_to_filenames[category]);
+	}
 }
 
 static const char exterror_verbose_name[] = "EXTERROR_VERBOSE";
