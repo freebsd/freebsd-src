@@ -819,7 +819,8 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	char backup[MAXPATHLEN], pathbuf[MAXPATHLEN], tempfile[MAXPATHLEN];
 	struct stat from_sb, temp_sb, to_sb;
 	struct timespec tsb[2];
-	char *digestresult, *p;
+	char *digestresult;
+	const char *p;
 	int from_fd, temp_fd, to_fd, serrno;
 	bool devnull, exists, files_match, ispipe, stripped;
 
