@@ -11,20 +11,75 @@
 #include <sys/param.h>
 #include <sys/exterr_cat.h>
 #include <sys/exterrvar.h>
+#include <sys/sysctl.h>
 #include <exterr.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include "libc_private.h"
+
 static const char * const cat_to_filenames[] = {
 #include "exterr_cat_filenames.h"
 };
 
+_Thread_local char filename_buf[128];
+
+#define	MIB_SIZE	4
+static int mib_template[MIB_SIZE];
+pthread_once_t mib_template_once_control = PTHREAD_ONCE_INIT;
+
+static void
+mib_template_init(void)
+{
+	size_t len;
+
+	len = nitems(mib_template);
+	(void)sysctlnametomib("kern.exterr.categories", mib_template, &len);
+	/* failure handled in kern_dynamic_cat_to_filename() */
+}
+
+static const char *
+kern_dynamic_cat_to_filename(int category)
+{
+	int mib[MIB_SIZE];
+	size_t len;
+
+	if (_once(&mib_template_once_control, mib_template_init) != 0)
+		return (NULL);
+	if (__predict_false(mib_template[0] != CTL_KERN)) {
+		filename_buf[0] = '\0';
+		return (filename_buf);
+	}
+
+	memcpy(mib, mib_template, MIB_SIZE);
+	mib[MIB_SIZE - 1] = category;
+	len = sizeof(filename_buf);
+	if (sysctl(mib, nitems(mib), filename_buf, &len, NULL, 0) != 0)
+		return (NULL);
+	return (filename_buf);
+}
+
+static const char *
+cat_to_file_prefix(int category)
+{
+	switch (EXTERR_CAT_SRC(category)) {
+	case EXTERR_CAT_SRC_KERN_STATIC:
+	case EXTERR_CAT_SRC_KERN_DYNAMIC:
+		return ("sys/");
+	default:
+		return ("");
+	}
+}
+
 static const char *
 cat_to_filename(int category)
 {
+	const char *path;
+
 	switch (EXTERR_CAT_SRC(category)) {
 	case EXTERR_CAT_SRC_KERN_STATIC:
 		if (category < 0 || category >= nitems(cat_to_filenames) ||
@@ -33,7 +88,10 @@ cat_to_filename(int category)
 		return (cat_to_filenames[category]);
 
 	case EXTERR_CAT_SRC_KERN_DYNAMIC:
-		return ("unknown:kern");
+		path = kern_dynamic_cat_to_filename(EXTERR_CAT(category));
+		if (path == NULL)
+			return ("unknown:kern");
+		return (path);
 
 	case EXTERR_CAT_SRC_USER:
 		return ("unknown:user");
@@ -97,16 +155,18 @@ __uexterr_format(const struct uexterror *ue, char *buf, size_t bufsz)
 	if (exterror_verbose > EXTERR_VERBOSE_DEFAULT || !has_msg) {
 		char lbuf[128];
 
-#define	SRC_FMT "(src sys/%s:%u)"
+#define	SRC_FMT "(src %s%s:%u)"
 		if (exterror_verbose == EXTERR_VERBOSE_ALLOW_BRIEF) {
 			snprintf(lbuf, sizeof(lbuf), SRC_FMT,
+			    cat_to_file_prefix(ue->cat),
                             cat_to_filename(ue->cat), ue->src_line);
 		} else if (!has_msg ||
 		    exterror_verbose == EXTERR_VERBOSE_ALLOW_FULL) {
 			snprintf(lbuf, sizeof(lbuf),
 			    "errno %d category %u " SRC_FMT " p1 %#jx p2 %#jx",
-			    ue->error, ue->cat, cat_to_filename(ue->cat),
-			    ue->src_line, (uintmax_t)ue->p1, (uintmax_t)ue->p2);
+			    ue->error, ue->cat, cat_to_file_prefix(ue->cat),
+			    cat_to_filename(ue->cat), ue->src_line,
+			    (uintmax_t)ue->p1, (uintmax_t)ue->p2);
 		}
 #undef SRC_FMT
 		if (has_msg)
