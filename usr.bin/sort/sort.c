@@ -735,7 +735,7 @@ parse_k(const char *s, struct key_specs *ks)
 	    { false, false, false, false, false, false };
 
 	if (s && *s) {
-		char *sptr;
+		const char *sptr;
 
 		sptr = strchr(s, ',');
 		if (sptr) {
