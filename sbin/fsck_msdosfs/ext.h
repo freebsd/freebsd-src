@@ -109,6 +109,7 @@ bool fat_is_valid_cl(struct fat_descriptor *, cl_t);
  * descriptor of it.
  */
 int readfat(int, struct bootblock *, struct fat_descriptor **);
+void releasefat(struct fat_descriptor *);
 
 /*
  * Write back FAT entries
