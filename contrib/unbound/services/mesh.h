@@ -70,6 +70,13 @@ struct respip_client_info;
 #define MESH_MAX_ACTIVATION 10000
 
 /**
+ * Maximum number of mesh state run items. These are different modules
+ * activated during a mesh run. Any more is likely an infinite loop
+ * in the module. It is then terminated, and states are deleted.
+ */
+#define MESH_MAX_RUN_ITER 10000
+
+/**
  * Max number of references-to-references-to-references.. search size.
  * Any more is treated like 'too large', and the creation of a new
  * dependency is failed (so that no loops can be created).
@@ -342,11 +349,14 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
  * @param cb_arg: callback user arg.
  * @param rpz_passthru: if true, the rpz passthru was previously found and
  * 	further rpz processing is stopped.
+ * @param unique_info: if nonnull, unique info is passed back to be used
+ *	for the callback remove call. It does not need to be deallocated.
  * @return 0 on error.
  */
 int mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
 	uint16_t qflags, struct edns_data* edns, struct sldns_buffer* buf, 
-	uint16_t qid, mesh_cb_func_type cb, void* cb_arg, int rpz_passthru);
+	uint16_t qid, mesh_cb_func_type cb, void* cb_arg, int rpz_passthru,
+	void** unique_info);
 
 /**
  * New prefetch message. Create new query state if needed.
@@ -544,6 +554,23 @@ struct mesh_state* mesh_area_find(struct mesh_area* mesh,
 	uint16_t qflags, int prime, int valrec);
 
 /**
+ * Find a unique mesh state in the mesh area. Pass relevant flags.
+ *
+ * @param mesh: the mesh area to look in.
+ * @param cinfo: if non-NULL client specific info that may affect IP-based
+ * 	actions that apply to the query result.
+ * @param qinfo: what query
+ * @param qflags: if RD / CD bit is set or not.
+ * @param prime: if it is a priming query.
+ * @param valrec: if it is a validation-recursion query.
+ * @param unique_info: the unique info for the state. NULL can be passed.
+ * @return: mesh state or NULL if not found.
+ */
+struct mesh_state* mesh_area_find_unique(struct mesh_area* mesh,
+	struct respip_client_info* cinfo, struct query_info* qinfo,
+	uint16_t qflags, int prime, int valrec, void* unique_info);
+
+/**
  * Setup attachment super/sub relation between super and sub mesh state.
  * The relation must not be present when calling the function.
  * Does not update stat items in mesh_area.
@@ -562,11 +589,12 @@ int mesh_state_attachment(struct mesh_state* super, struct mesh_state* sub);
  * @param qid: ID of reply.
  * @param qflags: original query flags.
  * @param qinfo: original query info.
+ * @param result: the allocated reply structure, for rollback.
  * @return: 0 on alloc error.
  */
 int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
 	struct comm_reply* rep, uint16_t qid, uint16_t qflags,
-	const struct query_info* qinfo);
+	const struct query_info* qinfo, struct mesh_reply** result);
 
 /**
  * Create new callback structure and attach it to a mesh state.
@@ -578,11 +606,12 @@ int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
  * @param cb_arg: callback user arg.
  * @param qid: ID of reply.
  * @param qflags: original query flags.
+ * @param result: the allocated callback structure, for rollback.
  * @return: 0 on alloc error.
  */
 int mesh_state_add_cb(struct mesh_state* s, struct edns_data* edns,
         struct sldns_buffer* buf, mesh_cb_func_type cb, void* cb_arg,
-	uint16_t qid, uint16_t qflags);
+	uint16_t qid, uint16_t qflags, struct mesh_cb** result);
 
 /**
  * Run the mesh. Run all runnable mesh states. Which can create new
@@ -683,11 +712,14 @@ void mesh_list_remove(struct mesh_state* m, struct mesh_state** fp,
  * @param mesh: to update the counters.
  * @param m: the mesh state.
  * @param cp: the comm_point to remove from the list.
+ * @param h2_stream: if not NULL, it specifies the h2_stream to match
+ *	for the delete.
  * @param doq_stream: if not NULL, it specifies the doq_stream to match
  *	for the delete.
  */
 void mesh_state_remove_reply(struct mesh_area* mesh, struct mesh_state* m,
-	struct comm_point* cp, struct doq_stream* doq_stream);
+	struct comm_point* cp, struct http2_stream* h2_stream,
+	struct doq_stream* doq_stream);
 
 /** Callback for when the serve expired client timer has run out.  Tries to
  * find an expired answer in the cache and reply that to the client.
@@ -734,9 +766,10 @@ void mesh_respond_serve_expired(struct mesh_state* mstate);
  * @param qflags: flags from client query.
  * @param cb: callback function.
  * @param cb_arg: callback user arg.
+ * @param unique_info: if not NULL, used to find a unique state for removal.
  */
 void mesh_remove_callback(struct mesh_area* mesh, struct query_info* qinfo,
-	uint16_t qflags, mesh_cb_func_type cb, void* cb_arg);
+	uint16_t qflags, mesh_cb_func_type cb, void* cb_arg, void* unique_info);
 
 /** Copy the client info to the query region. */
 struct respip_client_info* mesh_copy_client_info(struct regional* region,

@@ -534,7 +534,10 @@ readkeyword_bindfile(FILE* in, sldns_buffer* buf, int* line, int comments)
 	while((c = getc(in)) != EOF ) {
 		if(comments && c == '#') {	/*   # blabla   */
 			skip_to_eol(in, &c);
-			if(c == EOF) return 0;
+			if(c == EOF) {
+				log_err("trusted-keys, %d, got EOF", *line);
+				return 0;
+			}
 			(*line)++;
 			continue;
 		} else if(comments && c=='/' && numdone>0 && /* /_/ bla*/
@@ -543,7 +546,10 @@ readkeyword_bindfile(FILE* in, sldns_buffer* buf, int* line, int comments)
 			sldns_buffer_skip(buf, -1);
 			numdone--;
 			skip_to_eol(in, &c);
-			if(c == EOF) return 0;
+			if(c == EOF) {
+				log_err("trusted-keys, %d, got EOF", *line);
+				return 0;
+			}
 			(*line)++;
 			continue;
 		} else if(comments && c=='*' && numdone>0 && /* /_* bla *_/ */
@@ -560,7 +566,10 @@ readkeyword_bindfile(FILE* in, sldns_buffer* buf, int* line, int comments)
 				if(c == '\n')
 					(*line)++;
 			}
-			if(c == EOF) return 0;
+			if(c == EOF) {
+				log_err("trusted-keys, %d, got EOF", *line);
+				return 0;
+			}
 			continue;
 		}
 		/* not a comment, complete the keyword */
@@ -581,7 +590,8 @@ readkeyword_bindfile(FILE* in, sldns_buffer* buf, int* line, int comments)
 		}
 		/* space for 1 char + 0 string terminator */
 		if(sldns_buffer_remaining(buf) < 2) {
-			fatal_exit("trusted-keys, %d, string too long", *line);
+			log_err("trusted-keys, %d, string too long", *line);
+			return 0;
 		}
 		sldns_buffer_write_u8(buf, (uint8_t)c);
 		numdone++;
@@ -595,7 +605,10 @@ readkeyword_bindfile(FILE* in, sldns_buffer* buf, int* line, int comments)
 					break;
 				}
 			}
-			if(c == EOF) return 0;
+			if(c == EOF) {
+				log_err("trusted-keys, %d, got EOF", *line);
+				return 0;
+			}
 			return numdone;
 		}
 		if(is_bind_special(c))
@@ -623,7 +636,7 @@ skip_to_special(FILE* in, sldns_buffer* buf, int* line, int spec)
 		}
 		return 1;
 	}
-	log_err("trusted-keys, line %d, expected %c got EOF", *line, spec);
+	log_err("trusted-keys, line %d, expected %c, read failed", *line, spec);
 	return 0;
 }
 
