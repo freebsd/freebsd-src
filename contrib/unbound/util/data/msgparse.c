@@ -1033,8 +1033,11 @@ parse_edns_options_from_query(uint8_t* rdata_ptr, size_t rdata_len,
 			break;
 
 		case LDNS_EDNS_PADDING:
-			if(!cfg || !cfg->pad_responses ||
-					!c || c->type != comm_tcp ||!c->ssl || padding_seen)
+			if(!cfg || !cfg->pad_responses || !c || padding_seen)
+				break;
+			if(!((c->type == comm_tcp && c->ssl) ||
+				(c->type == comm_http && c->ssl) ||
+				c->type == comm_doq))
 				break;
 			padding_seen = 1;
 			if(!edns_opt_list_append(&edns->opt_list_out,

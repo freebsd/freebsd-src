@@ -459,6 +459,7 @@ addrtree_insert(struct addrtree *tree, const addrkey_t *addr,
 			/* Data is stored in other leafnode */
 			node = newnode;
 			newnode = node_create(tree, elem, scope, ttl);
+			if (!newnode) return;
 			if (!edge_create(newnode, addr, sourcemask, node,
 				index^1)) {
 				clean_node(tree, newnode);

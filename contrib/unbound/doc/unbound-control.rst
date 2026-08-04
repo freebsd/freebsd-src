@@ -347,6 +347,8 @@ There are several commands that the server understands.
     Often results in NXDOMAIN for the name (in a static zone), but if the name
     has become an empty nonterminal (there is still data in domain names below
     the removed name), NOERROR nodata answers are the result for that name.
+    With a specific RR instead of a domain name, that specific record is
+    removed from the local data, and not all the RR data.
 
 
 @@UAHL@unbound-control.commands@local_zones@@

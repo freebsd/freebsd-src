@@ -185,14 +185,23 @@ pp2_read_header(uint8_t* buf, size_t buflen)
 		(header->ver_cmd & 0xF) != PP2_CMD_PROXY) {
 		return PP_PARSE_UNKNOWN_CMD;
 	}
-	/* Check for supported family and protocol */
-	if(header->fam_prot != PP2_UNSPEC_UNSPEC &&
-		header->fam_prot != PP2_INET_STREAM &&
-		header->fam_prot != PP2_INET_DGRAM &&
-		header->fam_prot != PP2_INET6_STREAM &&
-		header->fam_prot != PP2_INET6_DGRAM &&
-		header->fam_prot != PP2_UNIX_STREAM &&
-		header->fam_prot != PP2_UNIX_DGRAM) {
+	/* Check for supported family and protocol, and that len covers
+	 * the per-family address block (proxy-protocol.txt s2.2). */
+	switch(header->fam_prot) {
+	case PP2_UNSPEC_UNSPEC:
+		break;
+	case PP2_INET_STREAM:
+	case PP2_INET_DGRAM:
+		if(ntohs(header->len) < PP2_HEADER_LEN_INET)
+			return PP_PARSE_SIZE;
+		break;
+	case PP2_INET6_STREAM:
+	case PP2_INET6_DGRAM:
+		if(ntohs(header->len) < PP2_HEADER_LEN_INET6)
+			return PP_PARSE_SIZE;
+		break;
+	default:
+		/* PP2_UNIX_STREAM, PP2_UNIX_DGRAM, others. */
 		return PP_PARSE_UNKNOWN_FAM_PROT;
 	}
 	/* We have a correct header */

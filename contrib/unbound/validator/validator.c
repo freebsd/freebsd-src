@@ -68,6 +68,9 @@
 #define MAX_VALIDATE_AT_ONCE 8
 /** Max number of validation suspends allowed, error out otherwise. */
 #define MAX_VALIDATION_SUSPENDS 16
+/** Max answer RRsets for qtype ANY that are validated. The lists is
+ * shortened to fit this limit. */
+#define MAX_RRSETS_ANY_VALIDATED 24
 
 /* forward decl for cache response and normal super inform calls of a DS */
 static void process_ds_response(struct module_qstate* qstate, 
@@ -921,10 +924,10 @@ validate_suspend_setup_timer(struct module_qstate* qstate,
 		slack += 2;
 	else if(qstate->env->mesh->all.count >= qstate->env->mesh->max_reply_states/4)
 		slack += 1;
-	if(vq->suspend_count > 3)
-		slack += 3;
-	else if(vq->suspend_count > 0)
-		slack += vq->suspend_count;
+	/* One step of back-off after the first suspend so a single bad
+	 * message still yields, but does not grow exponentially on its own. */
+	if(vq->suspend_count > 0)
+		slack += 1;
 	if(slack != 0 && slack <= 12 /* No numeric overflow. */) {
 		usec = usec << slack;
 	}
@@ -1022,6 +1025,29 @@ remove_spurious_authority(struct reply_info* chase_reply,
 	}
 	/* remove rrset from chase_reply */
 	val_reply_remove_auth(chase_reply, found);
+}
+
+/**
+ * Cap the number of answer RRsets for validation of type ANY.
+ * This limits the number of RRSIG validations performed.
+ * It is allowed to return a subset of available RRsets when processing
+ * ANY query.
+ * @param chase_reply: the chased reply, shorten if if too long.
+ * @param orig_reply: original reply, remove the records here as well,
+ *	so it can be marked as DNSSEC valid.
+ * @param skip: the number of rrsets skipped in the answer section due to
+ *	CNAME chain that is followed.
+ * @param max_rrsets: the number allowed.
+ */
+static void
+shorten_answer_any(struct reply_info* chase_reply,
+	struct reply_info* orig_reply, size_t skip, size_t max_rrsets)
+{
+	if(chase_reply->an_numrrsets > max_rrsets) {
+		size_t to_rem = chase_reply->an_numrrsets - max_rrsets;
+		val_reply_remove_answers(chase_reply, max_rrsets, to_rem);
+		val_reply_remove_answers(orig_reply, skip+max_rrsets, to_rem);
+	}
 }
 
 /**
@@ -2306,6 +2332,9 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 		&vq->qchase, vq->orig_msg->rep, vq->rrset_skip);
 	if(subtype != VAL_CLASS_REFERRAL)
 		remove_spurious_authority(vq->chase_reply, vq->orig_msg->rep);
+	if(subtype == VAL_CLASS_ANY)
+		shorten_answer_any(vq->chase_reply, vq->orig_msg->rep,
+			vq->rrset_skip, MAX_RRSETS_ANY_VALIDATED);
 
 	/* check signatures in the message; 
 	 * answer and authority must be valid, additional is only checked. */

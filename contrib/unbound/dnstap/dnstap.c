@@ -176,26 +176,29 @@ dt_create(struct config_file* cfg)
 	env->dtio = dt_io_thread_create();
 	if(!env->dtio) {
 		log_err("malloc failure");
-		free(env);
+		dt_delete(env);
 		return NULL;
 	}
 	if(!dt_io_thread_apply_cfg(env->dtio, cfg)) {
-		dt_io_thread_delete(env->dtio);
-		free(env);
+		dt_delete(env);
 		return NULL;
 	}
-	dt_apply_cfg(env, cfg);
+	if(!dt_apply_cfg(env, cfg)) {
+		dt_delete(env);
+		return NULL;
+	}
 	return env;
 }
 
-static void
+static int
 dt_apply_identity(struct dt_env *env, struct config_file *cfg)
 {
 	char buf[MAXHOSTNAMELEN+1];
 	if (!cfg->dnstap_send_identity) {
 		free(env->identity);
 		env->identity = NULL;
-		return;
+		env->len_identity = 0;
+		return 1;
 	}
 	free(env->identity);
 	if (cfg->dnstap_identity == NULL || cfg->dnstap_identity[0] == 0) {
@@ -203,36 +206,49 @@ dt_apply_identity(struct dt_env *env, struct config_file *cfg)
 			buf[MAXHOSTNAMELEN] = 0;
 			env->identity = strdup(buf);
 		} else {
-			fatal_exit("dt_apply_identity: gethostname() failed");
+			log_err("dt_apply_identity: gethostname() failed: %s",
+				strerror(errno));
+			env->identity = NULL;
+			env->len_identity = 0;
+			return 0;
 		}
 	} else {
 		env->identity = strdup(cfg->dnstap_identity);
 	}
-	if (env->identity == NULL)
-		fatal_exit("dt_apply_identity: strdup() failed");
+	if (env->identity == NULL) {
+		log_err("dt_apply_identity: strdup() failed");
+		env->len_identity = 0;
+		return 0;
+	}
 	env->len_identity = (unsigned int)strlen(env->identity);
 	verbose(VERB_OPS, "dnstap identity field set to \"%s\"",
 		env->identity);
+	return 1;
 }
 
-static void
+static int
 dt_apply_version(struct dt_env *env, struct config_file *cfg)
 {
 	if (!cfg->dnstap_send_version) {
 		free(env->version);
 		env->version = NULL;
-		return;
+		env->len_version = 0;
+		return 1;
 	}
 	free(env->version);
 	if (cfg->dnstap_version == NULL || cfg->dnstap_version[0] == 0)
 		env->version = strdup(PACKAGE_STRING);
 	else
 		env->version = strdup(cfg->dnstap_version);
-	if (env->version == NULL)
-		fatal_exit("dt_apply_version: strdup() failed");
+	if (env->version == NULL) {
+		log_err("dt_apply_version: strdup() failed");
+		env->len_version = 0;
+		return 0;
+	}
 	env->len_version = (unsigned int)strlen(env->version);
 	verbose(VERB_OPS, "dnstap version field set to \"%s\"",
 		env->version);
+	return 1;
 }
 
 void
@@ -276,15 +292,18 @@ dt_apply_logcfg(struct dt_env *env, struct config_file *cfg)
 	lock_basic_unlock(&env->sample_lock);
 }
 
-void
+int
 dt_apply_cfg(struct dt_env *env, struct config_file *cfg)
 {
 	if (!cfg->dnstap)
-		return;
+		return 1;
 
-	dt_apply_identity(env, cfg);
-	dt_apply_version(env, cfg);
 	dt_apply_logcfg(env, cfg);
+	if(!dt_apply_identity(env, cfg))
+		return 0;
+	if(!dt_apply_version(env, cfg))
+		return 0;
+	return 1;
 }
 
 int

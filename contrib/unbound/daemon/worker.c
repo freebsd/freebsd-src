@@ -501,7 +501,9 @@ worker_handle_control_cmd(struct tube* ATTR_UNUSED(tube), uint8_t* msg,
 		return;
 	}
 	if(len != sizeof(uint32_t)) {
-		fatal_exit("bad control msg length %d", (int)len);
+		verbose(VERB_ALGO, "bad control msg length %d", (int)len);
+		free(msg);
+		return;
 	}
 	cmd = sldns_read_uint32(msg);
 	free(msg);
@@ -714,7 +716,8 @@ apply_respip_action(struct worker* worker, const struct query_info* qinfo,
 	struct respip_client_info* cinfo, struct reply_info* rep,
 	struct sockaddr_storage* addr, socklen_t addrlen,
 	struct ub_packed_rrset_key** alias_rrset,
-	struct reply_info** encode_repp, struct auth_zones* az)
+	struct reply_info** encode_repp, struct auth_zones* az,
+	int* rpz_passthru)
 {
 	struct respip_action_info actinfo = {0, 0, 0, 0, NULL, 0, NULL};
 	actinfo.action = respip_none;
@@ -725,7 +728,7 @@ apply_respip_action(struct worker* worker, const struct query_info* qinfo,
 		return 1;
 
 	if(!respip_rewrite_reply(qinfo, cinfo, rep, encode_repp, &actinfo,
-		alias_rrset, 0, worker->scratchpad, az, NULL,
+		alias_rrset, 0, worker->scratchpad, az, rpz_passthru,
 		worker->env.views, worker->env.respip_set))
 		return 0;
 
@@ -772,7 +775,7 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 	int* is_secure_answer, struct ub_packed_rrset_key** alias_rrset,
 	struct reply_info** partial_repp,
 	struct reply_info* rep, uint16_t id, uint16_t flags,
-	struct comm_reply* repinfo, struct edns_data* edns)
+	struct comm_reply* repinfo, struct edns_data* edns, int* rpz_passthru)
 {
 	time_t timenow = *worker->env.now;
 	uint16_t udpsize = edns->udp_size;
@@ -882,7 +885,7 @@ answer_from_cache(struct worker* worker, struct query_info* qinfo,
 	if((worker->daemon->use_response_ip || worker->daemon->use_rpz) &&
 		!partial_rep && !apply_respip_action(worker, qinfo, cinfo, rep,
 		&repinfo->client_addr, repinfo->client_addrlen, alias_rrset,
-		&encode_rep, worker->env.auth_zones)) {
+		&encode_rep, worker->env.auth_zones, rpz_passthru)) {
 		goto bail_out;
 	} else if(partial_rep &&
 		!respip_merge_cname(partial_rep, qinfo, rep, cinfo,
@@ -1494,6 +1497,8 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	struct reply_info* partial_rep = NULL;
 	struct query_info* lookup_qinfo = &qinfo;
 	struct query_info qinfo_tmp; /* placeholder for lookup_qinfo */
+	uint8_t* alias_orig_qname = NULL; /* original qname for logs, if
+		a local_alias is used to change the qname. */
 	struct respip_client_info* cinfo = NULL, cinfo_tmp;
 	struct timeval wait_time;
 	struct check_request_result check_result = {0,0};
@@ -1511,7 +1516,7 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 		if (worker->stats.max_query_time_us < wait_queue_time)
 			worker->stats.max_query_time_us = wait_queue_time;
 		if(wait_queue_time >
-			(long long)(worker->env.cfg->sock_queue_timeout * 1000000)) {
+			(long long)worker->env.cfg->sock_queue_timeout * 1000000) {
 			/* count and drop queries that were sitting in the socket queue too long */
 			worker->stats.num_queries_timed_out++;
 			return 0;
@@ -1936,6 +1941,11 @@ worker_handle_request(struct comm_point* c, void* arg, int error,
 	/* If we've found a local alias, replace the qname with the alias
 	 * target before resolving it. */
 	if(qinfo.local_alias) {
+		if(qinfo.local_alias->rrset &&
+			qinfo.local_alias->rrset->rk.dname)
+			/* Store the original qname, used for logs, since
+			 * local_alias can be removed by region_free_all. */
+			alias_orig_qname = qinfo.local_alias->rrset->rk.dname;
 		if(!local_alias_shallow_copy_qname(qinfo.local_alias, &qinfo.qname,
 			&qinfo.qname_len)) {
 			regional_free_all(worker->scratchpad);
@@ -1983,7 +1993,7 @@ lookup_cache:
 				&alias_rrset, &partial_rep, rep,
 				*(uint16_t*)(void *)sldns_buffer_begin(c->buffer),
 				sldns_buffer_read_u16_at(c->buffer, 2), repinfo,
-				&edns)) {
+				&edns, &rpz_passthru)) {
 				/* prefetch it if the prefetch TTL expired.
 				 * Note that if there is more than one pass
 				 * its qname must be that used for cache
@@ -2101,11 +2111,10 @@ send_reply_rc:
 	{
 		struct timeval tv;
 		memset(&tv, 0, sizeof(tv));
-		if(qinfo.local_alias && qinfo.local_alias->rrset &&
-			qinfo.local_alias->rrset->rk.dname) {
+		if(alias_orig_qname) {
 			/* log original qname, before the local alias was
 			 * used to resolve that CNAME to something else */
-			qinfo.qname = qinfo.local_alias->rrset->rk.dname;
+			qinfo.qname = alias_orig_qname;
 			log_reply_info(NO_VERBOSE, &qinfo,
 				&repinfo->client_addr, repinfo->client_addrlen,
 				tv, 1, c->buffer,
@@ -2374,6 +2383,8 @@ worker_init(struct worker* worker, struct config_file *cfg,
 		worker_stat_timer_cb, worker);
 	if(!worker->stat_timer) {
 		log_err("could not create statistics timer");
+		worker_delete(worker);
+		return 0;
 	}
 
 	/* we use the msg_buffer_size as a good estimate for what the
@@ -2526,6 +2537,8 @@ worker_delete(struct worker* worker)
 	/* don't touch worker->alloc, as it's maintained in daemon */
 	regional_destroy(worker->env.scratch);
 	regional_destroy(worker->scratchpad);
+	/* The thread id can reference this worker's id value, so clear it. */
+	log_thread_set(NULL);
 	free(worker);
 }
 
@@ -2534,7 +2547,8 @@ worker_send_query(struct query_info* qinfo, uint16_t flags, int dnssec,
 	int want_dnssec, int nocaps, int check_ratelimit,
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
 	size_t zonelen, int tcp_upstream, int ssl_upstream, char* tls_auth_name,
-	struct module_qstate* q, int* was_ratelimited)
+	struct module_qstate* q, int* was_ratelimited,
+	int* ratelimit_incremented)
 {
 	struct worker* worker = q->env->worker;
 	struct outbound_entry* e = (struct outbound_entry*)regional_alloc(
@@ -2546,7 +2560,7 @@ worker_send_query(struct query_info* qinfo, uint16_t flags, int dnssec,
 		want_dnssec, nocaps, check_ratelimit, tcp_upstream,
 		ssl_upstream, tls_auth_name, addr, addrlen, zone, zonelen, q,
 		worker_handle_service_reply, e, worker->back->udp_buff, q->env,
-		was_ratelimited);
+		was_ratelimited, ratelimit_incremented);
 	if(!e->qsent) {
 		return NULL;
 	}
@@ -2595,7 +2609,8 @@ struct outbound_entry* libworker_send_query(
 	struct sockaddr_storage* ATTR_UNUSED(addr), socklen_t ATTR_UNUSED(addrlen),
 	uint8_t* ATTR_UNUSED(zone), size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(tcp_upstream),
 	int ATTR_UNUSED(ssl_upstream), char* ATTR_UNUSED(tls_auth_name),
-	struct module_qstate* ATTR_UNUSED(q), int* ATTR_UNUSED(was_ratelimited))
+	struct module_qstate* ATTR_UNUSED(q), int* ATTR_UNUSED(was_ratelimited),
+	int* ATTR_UNUSED(ratelimit_incremented))
 {
 	log_assert(0);
 	return 0;

@@ -167,6 +167,8 @@ struct ctx_query {
         ub_event_callback_type cb_event;
 	/** for async query, the callback user arg */
 	void* cb_arg;
+	/** for async query the unique info */
+	void* unique_info;
 
 	/** answer message, result from resolver lookup. */
 	uint8_t* msg;

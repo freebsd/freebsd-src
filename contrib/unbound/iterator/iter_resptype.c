@@ -107,7 +107,7 @@ response_type_from_cache(struct dns_msg* msg,
 enum response_type 
 response_type_from_server(int rdset,
 	struct dns_msg* msg, struct query_info* request, struct delegpt* dp,
-	int* empty_nodata_found)
+	int* empty_nodata_found, int msg_lame_empty, int msg_lame_referral)
 {
 	uint8_t* origzone = (uint8_t*)"\000"; /* the default */
 	struct ub_packed_rrset_key* s;
@@ -122,6 +122,10 @@ response_type_from_server(int rdset,
 
 	/* If the message is NXDOMAIN, then it answers the question. */
 	if(FLAGS_GET_RCODE(msg->rep->flags) == LDNS_RCODE_NXDOMAIN) {
+		if(msg->rep->an_numrrsets == 0 &&
+			msg->rep->ns_numrrsets == 0 &&
+			msg_lame_empty)
+			return RESPONSE_TYPE_LAME;
 		/* make sure its not recursive when we don't want it to */
 		if( (msg->rep->flags&BIT_RA) &&
 			!(msg->rep->flags&BIT_AA) && !rdset)
@@ -142,6 +146,10 @@ response_type_from_server(int rdset,
 	 * meaningless and move on to the next nameserver. */
 	if(FLAGS_GET_RCODE(msg->rep->flags) != LDNS_RCODE_NOERROR)
 		return RESPONSE_TYPE_THROWAWAY;
+
+	if(msg->rep->an_numrrsets == 0 && msg->rep->ns_numrrsets == 0 &&
+		msg_lame_empty)
+		return RESPONSE_TYPE_LAME;
 
 	/* Note: TC bit has already been handled */
 
@@ -249,13 +257,16 @@ response_type_from_server(int rdset,
 				 * which gives ns==zone delegation from cache 
 				 * without AA bit as well, with nodata nosoa*/
 				/* real answer must be +AA and SOA RFC(2308),
-				 * so this is wrong, and we SERVFAIL it if
-				 * this is the only possible reply, if it
-				 * is misdeployed the THROWAWAY makes us pick
-				 * the next server from the selection */
-				if(msg->rep->an_numrrsets==0 &&
+				 * this is picked up as lame_referral by the
+				 * sanitize step, so it can spot if there
+				 * was data in the answer section before
+				 * removal. If such data is then removed we
+				 * do not want to turn that answer into lame.
+				 * But if it was not there, it can be lame. */
+				if(msg_lame_referral &&
+					msg->rep->an_numrrsets==0 &&
 					!(msg->rep->flags&BIT_AA) && !rdset)
-					return RESPONSE_TYPE_THROWAWAY;
+					return RESPONSE_TYPE_LAME;
 				return RESPONSE_TYPE_ANSWER;
 			}
 			/* If we are getting a referral upwards (or to 

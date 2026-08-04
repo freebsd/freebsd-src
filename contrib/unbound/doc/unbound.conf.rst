@@ -642,7 +642,7 @@ These options are part of the ``server:`` section.
 
 @@UAHL@unbound.conf@so-sndbuf@@: *<number>*
     If not 0, then set the SO_SNDBUF socket option to get more buffer space on
-    UDP port 53 outgoing queries.
+    UDP port 53 outgoing responses.
     This for very busy servers handles spikes in answer traffic, otherwise:
 
     .. code-block:: text
@@ -2107,6 +2107,8 @@ These options are part of the ``server:`` section.
     If disabled, Unbound responds with a short list of resource records if some
     can be found in the cache and makes the upstream type ANY query if there
     are none.
+    The option stops the DNSSEC validation from processing, possibly lengthy,
+    ANY responses, when the option is enabled.
 
     Default: no
 
@@ -2590,6 +2592,9 @@ These options are part of the ``server:`` section.
     :ref:`inform_redirect<unbound.conf.local-zone.type.inform_redirect>`,
     :ref:`always_transparent<unbound.conf.local-zone.type.always_transparent>`,
     :ref:`block_a<unbound.conf.local-zone.type.block_a>`,
+    :ref:`block_aaaa<unbound.conf.local-zone.type.block_aaaa>`,
+    :ref:`block_a_wdata<unbound.conf.local-zone.type.block_a_wdata>`,
+    :ref:`block_aaaa_wdata<unbound.conf.local-zone.type.block_aaaa_wdata>`,
     :ref:`always_refuse<unbound.conf.local-zone.type.always_refuse>`,
     :ref:`always_nxdomain<unbound.conf.local-zone.type.always_nxdomain>`,
     :ref:`always_null<unbound.conf.local-zone.type.always_null>`,
@@ -2738,6 +2743,26 @@ These options are part of the ``server:`` section.
         For A queries it unconditionally returns NODATA.
         Useful in cases when there is a need to explicitly force all apps to
         use IPv6 protocol and avoid any queries to IPv4.
+
+    @@UAHL@unbound.conf.local-zone.type@block_aaaa@@
+        Like :ref:`transparent<unbound.conf.local-zone.type.transparent>` or
+        :ref:`block_a<unbound.conf.local-zone.type.block_a>`, but
+        ignores local data and resolves normally all query types excluding AAAA.
+        For AAAA queries it unconditionally returns NODATA.
+        Useful in cases when there is a need to explicitly force all apps to
+        use IPv4 protocol and avoid any queries to IPv6.
+
+    @@UAHL@unbound.conf.local-zone.type@block_a_wdata@@
+        Like :ref:`block_a<unbound.conf.local-zone.type.block_a>`, but
+        uses local data if present.
+        If there is local data that is returned, and it acts like transparent.
+        For A queries it returns NODATA.
+
+    @@UAHL@unbound.conf.local-zone.type@block_aaaa_wdata@@
+        Like :ref:`block_aaaa<unbound.conf.local-zone.type.block_aaaa>`, but
+        uses local data if present.
+        If there is local data that is returned, and it acts like transparent.
+        For AAAA queries it returns NODATA.
 
     @@UAHL@unbound.conf.local-zone.type@always_refuse@@
         Like :ref:`refuse<unbound.conf.local-zone.type.refuse>`, but ignores
@@ -3084,6 +3109,18 @@ These options are part of the ``server:`` section.
     For example, 1000 may be a suitable value to stop the server from being
     overloaded with random names, and keeps unbound from sending traffic to the
     nameservers for those zones.
+
+    It is intended to count the number of queries towards the nameservers
+    for the zone, and keep those queries limited.
+    When there is a delegation that needs a lot of lookups, those are
+    charged in the counters for the destination, the target name, of
+    the NS records.
+    Since that is where the nameserver lookup queries are sent to.
+    That keeps the target, the victim domain, from having many queries.
+    With the :ref:`ratelimit-factor<unbound.conf.ratelimit-factor>`, some
+    genuine queries that are also made to the target zone, can filter
+    through, and then end up in cache, where the genuine answers have
+    a chance to collect, keeping up service to some extent.
 
     .. note:: Configured forwarders are excluded from ratelimiting.
 
@@ -4017,6 +4054,31 @@ fallback activates to fetch from the upstream instead of the SERVFAIL.
     If not given then no zonefile is used.
     If the file does not exist or is empty, Unbound will attempt to fetch zone
     data (eg. from the primary servers).
+
+
+@@UAHL@unbound.conf.auth@max-transfer-size@@: *<number>*
+    Number of bytes size of the maximum zone transfer size.
+    Larger transfers, over AXFR, IXFR and HTTP, are not allowed.
+    A plain number is in bytes, append 'k', 'm' or 'g' for kilobytes, megabytes
+    or gigabytes (1024*1024 bytes in a megabyte).
+    The value ``0`` disables the feature.
+
+    Only consider for untrusted/misbehaving primaries that could hog resources
+    and bring down the resolver.
+
+    Default: 0
+
+
+@@UAHL@unbound.conf.auth@max-transfer-time@@: *<msec>*
+    Maximum time in milliseconds that a zone transfer is allowed to take from
+    the start.
+    The value ``0`` disables the feature.
+
+    Only consider for untrusted/misbehaving primaries that could hog resources
+    and bring down the resolver.
+
+    Default: 0
+
 
 .. _unbound.conf.view:
 
@@ -5098,6 +5160,10 @@ answer queries with that content.
     because it may not have that when retrieving that data, instead use a plain
     IP address to avoid a circular dependency on retrieving that IP address.
 
+    Every number of IXFR transfers, a full AXFR is performed.
+    This is to consolidate the rpz memory, that would otherwise grow.
+    The fixed value is after 5 IXFR transfers.
+
 
 @@UAHL@unbound.conf.rpz@master@@: *<IP address or host name>*
     Alternate syntax for :ref:`primary<unbound.conf.rpz.primary>`.
@@ -5197,6 +5263,31 @@ answer queries with that content.
 
     If no tags are specified the policies from this section will be applied for
     all clients.
+
+
+@@UAHL@unbound.conf.rpz@max-transfer-size@@: *<number>*
+    Number of bytes size of the maximum zone transfer size.
+    Larger transfers, over AXFR, IXFR and HTTP, are not allowed.
+    A plain number is in bytes, append 'k', 'm' or 'g' for kilobytes, megabytes
+    or gigabytes (1024*1024 bytes in a megabyte).
+    The value ``0`` disables the feature.
+
+    Only consider for untrusted/misbehaving primaries that could hog resources
+    and bring down the resolver.
+
+    Default: 0
+
+
+@@UAHL@unbound.conf.rpz@max-transfer-time@@: *<msec>*
+    Maximum time in milliseconds that a zone transfer is allowed to take from
+    the start.
+    The value ``0`` disables the feature.
+
+    Only consider for untrusted/misbehaving primaries that could hog resources
+    and bring down the resolver.
+
+    Default: 0
+
 
 Memory Control Example
 ----------------------

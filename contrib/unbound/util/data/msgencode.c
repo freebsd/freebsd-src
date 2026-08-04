@@ -634,7 +634,7 @@ insert_query(struct query_info* qinfo, struct compress_tree_node** tree,
 	size_t qname_len = qinfo->local_alias ?
 		qinfo->local_alias->rrset->rk.dname_len : qinfo->qname_len;
 	if(sldns_buffer_remaining(buffer) < 
-		qinfo->qname_len+sizeof(uint16_t)*2)
+		qname_len+sizeof(uint16_t)*2)
 		return RETVAL_TRUNC; /* buffer too small */
 	/* the query is the first name inserted into the tree */
 	if(!compress_tree_store(qname, dname_count_labels(qname),
@@ -1129,9 +1129,11 @@ extended_error_encode(sldns_buffer* buf, uint16_t rcode,
 	sldns_buffer_write(buf, &flags, sizeof(uint16_t));
 	sldns_buffer_write(buf, &flags, sizeof(uint16_t));
 	if(qinfo) {
-		const uint8_t* qname = qinfo->local_alias ?
+		const uint8_t* qname =
+			(qinfo->local_alias && qinfo->local_alias->rrset) ?
 			qinfo->local_alias->rrset->rk.dname : qinfo->qname;
-		size_t qname_len = qinfo->local_alias ?
+		size_t qname_len =
+			(qinfo->local_alias && qinfo->local_alias->rrset) ?
 			qinfo->local_alias->rrset->rk.dname_len :
 			qinfo->qname_len;
 		if(sldns_buffer_current(buf) == qname)

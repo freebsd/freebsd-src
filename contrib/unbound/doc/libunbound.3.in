@@ -27,9 +27,9 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "LIBUNBOUND" "3" "Jul 22, 2026" "1.25.2" "Unbound"
+.TH "LIBUNBOUND" "3" "Aug  4, 2026" "1.26.0" "Unbound"
 .SH NAME
-libunbound \- Unbound DNS validating resolver 1.25.2 functions.
+libunbound \- Unbound DNS validating resolver 1.26.0 functions.
 .SH SYNOPSIS
 .sp
 \fB#include <unbound.h>\fP

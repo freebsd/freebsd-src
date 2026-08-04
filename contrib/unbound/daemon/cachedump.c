@@ -99,7 +99,7 @@ static void
 dump_rrset_line(struct config_strlist_head* txt, struct ub_packed_rrset_key* k,
 	time_t now, size_t i)
 {
-	char s[65535];
+	char s[65535*4+2048];
 	if(!packed_rr_to_string(k, i, now, s, sizeof(s))) {
 		spool_txt_string(txt, "BADRR\n");
 		return;
@@ -455,7 +455,7 @@ load_rr(RES* ssl, sldns_buffer* buf, struct regional* region,
 	/* read the line */
 	if(!ssl_read_buf(ssl, buf))
 		return 0;
-	if(strncmp((char*)sldns_buffer_begin(buf), "BADRR\n", 6) == 0) {
+	if(strcmp((char*)sldns_buffer_begin(buf), "BADRR") == 0) {
 		*go_on = 0;
 		return 1;
 	}

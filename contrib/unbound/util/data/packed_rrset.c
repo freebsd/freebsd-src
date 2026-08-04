@@ -297,7 +297,7 @@ int packed_rr_to_string(struct ub_packed_rrset_key* rrset, size_t i,
 	wlen = (size_t)sldns_wire2str_rr_buf(rr, rlen, dest, dest_len);
 	if(wlen >= dest_len) {
 		/* the output string was truncated */
-		log_info("rrbuf failure %d %s", (int)d->rr_len[i], dest);
+		verbose(VERB_ALGO, "rrbuf failure %d %s", (int)d->rr_len[i], dest);
 		dest[0] = 0;
 		return 0;
 	} 
@@ -363,8 +363,11 @@ packed_rrset_copy_region(struct ub_packed_rrset_key* key,
 		 * of the novel ghost attack mitigation i.e., using the
 		 * qstarttime for NS RRSets. In that case make sure that the
 		 * returned TTL is not higher than the original one. */
-		log_assert(d->ttl_add <= now ||
-			(ntohs(key->rk.type) == LDNS_RR_TYPE_NS));
+		/* For types other than type NS, auth zone and rpz code
+		 * can have ttl_add values. Also time could conceivably move
+		 * in reverse, due to operator action, and it is prudent
+		 * to not assert on that here.
+		 * So there is no assertion d->ttl_add <= now || type==NS */
 		now_control = SERVE_ORIGINAL_TTL ? data->ttl_add
 			: (d->ttl_add > now ? d->ttl_add : now );
 		for(i=0; i<d->count + d->rrsig_count; i++) {

@@ -215,6 +215,13 @@ rrset_cache_update(struct rrset_cache* r, struct rrset_ref* ref,
 	int equal = 0;
 	log_assert(ref->id != 0 && k->id != 0);
 	log_assert(k->rk.dname != NULL);
+	if((k->rk.flags&PACKED_RRSET_0TTL_GRACE) !=0) {
+		log_nametypeclass(VERB_ALGO, "rrset store of PACKED_RRSET_0TTL_GRACE rrset skipped", k->rk.dname, rrset_type, ntohs(k->rk.rrset_class));
+		ub_packed_rrset_parsedelete(k, alloc);
+		return 0; /* Do not store 0TTL items after apply of
+			the grace ttl amount.
+			This means the ref was not changed by the call. */
+	}
 	/* looks up item with a readlock - no editing! */
 	if((e=slabhash_lookup(&r->table, h, k, 0)) != 0) {
 		/* return id and key as they will be used in the cache
@@ -291,6 +298,8 @@ void rrset_cache_update_wildcard(struct rrset_cache* rrset_cache,
 {
 	struct rrset_ref ref;
 	uint8_t wc_dname[LDNS_MAX_DOMAINLEN+3];
+	uint8_t* new_dname;
+	size_t new_dname_len;
 
 	/* See if the RRSIG signer name allows this wildcard,
 	 * the new rrset should fall within the zone of the RRSIG signer(s). */
@@ -310,14 +319,16 @@ void rrset_cache_update_wildcard(struct rrset_cache* rrset_cache,
 	wc_dname[1] = (uint8_t)'*';
 	memmove(wc_dname+2, ce, ce_len);
 
-	free(rrset->rk.dname);
-	rrset->rk.dname_len = ce_len + 2;
-	rrset->rk.dname = (uint8_t*)memdup(wc_dname, rrset->rk.dname_len);
-	if(!rrset->rk.dname) {
-		alloc_special_release(alloc, rrset);
+	new_dname_len = ce_len + 2;
+	new_dname = (uint8_t*)memdup(wc_dname, new_dname_len);
+	if(!new_dname) {
+		ub_packed_rrset_parsedelete(rrset, alloc);
 		log_err("memdup failure in rrset_cache_update_wildcard");
 		return;
 	}
+	free(rrset->rk.dname);
+	rrset->rk.dname = new_dname;
+	rrset->rk.dname_len = new_dname_len;
 
 	rrset->entry.hash = rrset_key_hash(&rrset->rk);
 	ref.key = rrset;

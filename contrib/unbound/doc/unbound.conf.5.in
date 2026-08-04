@@ -27,9 +27,9 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "UNBOUND.CONF" "5" "Jul 22, 2026" "1.25.2" "Unbound"
+.TH "UNBOUND.CONF" "5" "Aug  4, 2026" "1.26.0" "Unbound"
 .SH NAME
-unbound.conf \- Unbound 1.25.2 configuration file.
+unbound.conf \- Unbound 1.26.0 configuration file.
 .SH SYNOPSIS
 .sp
 \fBunbound.conf\fP
@@ -691,7 +691,7 @@ Default: 0 (use system value)
 .TP
 .B so\-sndbuf: \fI<number>\fP 
 If not 0, then set the SO_SNDBUF socket option to get more buffer space on
-UDP port 53 outgoing queries.
+UDP port 53 outgoing responses.
 This for very busy servers handles spikes in answer traffic, otherwise:
 .INDENT 7.0
 .INDENT 3.5
@@ -2312,6 +2312,13 @@ The defensive action is to clear the rrset and message caches, hopefully
 flushing away any poison.
 A value of 10 million is suggested.
 .sp
+It is useful to add 0.0.0.0/8 and \(aq::\(aq to the
+\fI\%do\-not\-query\-address\fP list.
+Otherwise they may be answered, from localhost, and the different source
+makes an unwanted reply that unnecessarily ticks up.
+The \fI\%do\-not\-query\-localhost\fP
+option includes them, the zero subnets, when it is enabled.
+.sp
 Default: 0 (disabled)
 .UNINDENT
 .INDENT 0.0
@@ -2362,6 +2369,8 @@ If yes, deny queries of type ANY with an empty response.
 If disabled, Unbound responds with a short list of resource records if some
 can be found in the cache and makes the upstream type ANY query if there
 are none.
+The option stops the DNSSEC validation from processing, possibly lengthy,
+ANY responses, when the option is enabled.
 .sp
 Default: no
 .UNINDENT
@@ -2910,6 +2919,9 @@ The types are
 \fI\%inform_redirect\fP,
 \fI\%always_transparent\fP,
 \fI\%block_a\fP,
+\fI\%block_aaaa\fP,
+\fI\%block_a_wdata\fP,
+\fI\%block_aaaa_wdata\fP,
 \fI\%always_refuse\fP,
 \fI\%always_nxdomain\fP,
 \fI\%always_null\fP,
@@ -3097,6 +3109,32 @@ ignores local data and resolves normally all query types excluding A.
 For A queries it unconditionally returns NODATA.
 Useful in cases when there is a need to explicitly force all apps to
 use IPv6 protocol and avoid any queries to IPv4.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B block_aaaa 
+Like \fI\%transparent\fP or
+\fI\%block_a\fP, but
+ignores local data and resolves normally all query types excluding AAAA.
+For AAAA queries it unconditionally returns NODATA.
+Useful in cases when there is a need to explicitly force all apps to
+use IPv4 protocol and avoid any queries to IPv6.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B block_a_wdata 
+Like \fI\%block_a\fP, but
+uses local data if present.
+If there is local data that is returned, and it acts like transparent.
+For A queries it returns NODATA.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B block_aaaa_wdata 
+Like \fI\%block_aaaa\fP, but
+uses local data if present.
+If there is local data that is returned, and it acts like transparent.
+For AAAA queries it returns NODATA.
 .UNINDENT
 .INDENT 7.0
 .TP
@@ -3566,6 +3604,18 @@ the zone name is used to keep track of the rate.
 For example, 1000 may be a suitable value to stop the server from being
 overloaded with random names, and keeps unbound from sending traffic to the
 nameservers for those zones.
+.sp
+It is intended to count the number of queries towards the nameservers
+for the zone, and keep those queries limited.
+When there is a delegation that needs a lot of lookups, those are
+charged in the counters for the destination, the target name, of
+the NS records.
+Since that is where the nameserver lookup queries are sent to.
+That keeps the target, the victim domain, from having many queries.
+With the \fI\%ratelimit\-factor\fP, some
+genuine queries that are also made to the target zone, can filter
+through, and then end up in cache, where the genuine answers have
+a chance to collect, keeping up service to some extent.
 .sp
 \fBNOTE:\fP
 .INDENT 7.0
@@ -4593,6 +4643,32 @@ The filename where the zone is stored.
 If not given then no zonefile is used.
 If the file does not exist or is empty, Unbound will attempt to fetch zone
 data (eg. from the primary servers).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B max\-transfer\-size: \fI<number>\fP 
+Number of bytes size of the maximum zone transfer size.
+Larger transfers, over AXFR, IXFR and HTTP, are not allowed.
+A plain number is in bytes, append \(aqk\(aq, \(aqm\(aq or \(aqg\(aq for kilobytes, megabytes
+or gigabytes (1024*1024 bytes in a megabyte).
+The value \fB0\fP disables the feature.
+.sp
+Only consider for untrusted/misbehaving primaries that could hog resources
+and bring down the resolver.
+.sp
+Default: 0
+.UNINDENT
+.INDENT 0.0
+.TP
+.B max\-transfer\-time: \fI<msec>\fP 
+Maximum time in milliseconds that a zone transfer is allowed to take from
+the start.
+The value \fB0\fP disables the feature.
+.sp
+Only consider for untrusted/misbehaving primaries that could hog resources
+and bring down the resolver.
+.sp
+Default: 0
 .UNINDENT
 .SH VIEW OPTIONS
 .sp
@@ -5806,6 +5882,10 @@ from a webserver that would work.
 If you specify the hostname, you cannot use the domain from the zonefile,
 because it may not have that when retrieving that data, instead use a plain
 IP address to avoid a circular dependency on retrieving that IP address.
+.sp
+Every number of IXFR transfers, a full AXFR is performed.
+This is to consolidate the rpz memory, that would otherwise grow.
+The fixed value is after 5 IXFR transfers.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -5927,6 +6007,32 @@ Enclose list of tags in quotes (\fB\(dq\(dq\fP) and put spaces between tags.
 .sp
 If no tags are specified the policies from this section will be applied for
 all clients.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B max\-transfer\-size: \fI<number>\fP 
+Number of bytes size of the maximum zone transfer size.
+Larger transfers, over AXFR, IXFR and HTTP, are not allowed.
+A plain number is in bytes, append \(aqk\(aq, \(aqm\(aq or \(aqg\(aq for kilobytes, megabytes
+or gigabytes (1024*1024 bytes in a megabyte).
+The value \fB0\fP disables the feature.
+.sp
+Only consider for untrusted/misbehaving primaries that could hog resources
+and bring down the resolver.
+.sp
+Default: 0
+.UNINDENT
+.INDENT 0.0
+.TP
+.B max\-transfer\-time: \fI<msec>\fP 
+Maximum time in milliseconds that a zone transfer is allowed to take from
+the start.
+The value \fB0\fP disables the feature.
+.sp
+Only consider for untrusted/misbehaving primaries that could hog resources
+and bring down the resolver.
+.sp
+Default: 0
 .UNINDENT
 .SH MEMORY CONTROL EXAMPLE
 .sp
