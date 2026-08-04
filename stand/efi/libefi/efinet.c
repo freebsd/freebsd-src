@@ -570,6 +570,24 @@ efinet_dev_init(void)
 	int err, i, nifs;
 	extern struct devsw netdev;
 
+	/*
+	 * Advertise our DHCP Client-System Architecture (RFC 4578).  Many
+	 * x86_64 UEFI firmwares report themselves as "EFI BC" (0x0007)
+	 * rather than "EFI x86-64" (0x0009); match that convention for
+	 * best DHCP-server config compatibility.
+	 */
+#if defined(__amd64__)
+	bootp_client_arch = 0x0007;	/* EFI BC */
+#elif defined(__i386__)
+	bootp_client_arch = 0x0006;	/* EFI IA32 */
+#elif defined(__aarch64__)
+	bootp_client_arch = 0x000b;	/* EFI 64-bit ARM */
+#elif defined(__arm__)
+	bootp_client_arch = 0x000a;	/* EFI 32-bit ARM */
+#elif defined(__riscv)
+	bootp_client_arch = 0x001b;	/* EFI 64-bit RISC-V */
+#endif
+
 	sz = 0;
 	handles = NULL;
 	status = BS->LocateHandle(ByProtocol, &sn_guid, NULL, &sz, NULL);

@@ -87,33 +87,74 @@ struct in_addr dhcp_serverip;
 struct bootp *bootp_response;
 size_t bootp_response_size;
 
+/*
+ * DHCP Client-System Architecture per RFC 4578 (option 93).  Each netif
+ * driver that has a spec-defined value for what it is sets this from
+ * its own init path (e.g. efinet_dev_init on UEFI, pxe_init on legacy
+ * BIOS PXE).  BOOTP_ARCH_UNSET means the loader has no honest value to
+ * report (e.g. U-Boot or OpenFirmware, for which RFC 4578 has no
+ * assignment), and the option is omitted from the DHCP request rather
+ * than misrepresenting the client.
+ */
+#define	BOOTP_ARCH_UNSET	0xFFFF
+uint16_t bootp_client_arch = BOOTP_ARCH_UNSET;
+
 static void
 bootp_fill_request(unsigned char *bp_vend)
 {
+	int off = 0;
+
 	/*
 	 * We are booting from PXE, we want to send the string
 	 * 'PXEClient' to the DHCP server so you have the option of
 	 * only responding to PXE aware dhcp requests.
 	 */
-	bp_vend[0] = TAG_CLASSID;
-	bp_vend[1] = 9;
-	bcopy("PXEClient", &bp_vend[2], 9);
-	bp_vend[11] = TAG_USER_CLASS;
+	bp_vend[off++] = TAG_CLASSID;
+	bp_vend[off++] = 9;
+	bcopy("PXEClient", &bp_vend[off], 9);
+	off += 9;
+
+	bp_vend[off++] = TAG_USER_CLASS;
 	/* len of each user class + number of user class */
-	bp_vend[12] = 8;
+	bp_vend[off++] = 8;
 	/* len of the first user class */
-	bp_vend[13] = 7;
-	bcopy("FreeBSD", &bp_vend[14], 7);
-	bp_vend[21] = TAG_PARAM_REQ;
-	bp_vend[22] = 7;
-	bp_vend[23] = TAG_ROOTPATH;
-	bp_vend[24] = TAG_HOSTNAME;
-	bp_vend[25] = TAG_SWAPSERVER;
-	bp_vend[26] = TAG_GATEWAY;
-	bp_vend[27] = TAG_SUBNET_MASK;
-	bp_vend[28] = TAG_INTF_MTU;
-	bp_vend[29] = TAG_SERVERID;
-	bp_vend[30] = TAG_END;
+	bp_vend[off++] = 7;
+	bcopy("FreeBSD", &bp_vend[off], 7);
+	off += 7;
+
+	/*
+	 * Client architecture (RFC 4578).  Value is 2 bytes big-endian.
+	 * Omit entirely for loaders that don't have a spec-defined value.
+	 */
+	if (bootp_client_arch != BOOTP_ARCH_UNSET) {
+		bp_vend[off++] = TAG_CLIENT_ARCH;
+		bp_vend[off++] = 2;
+		bp_vend[off++] = (bootp_client_arch >> 8) & 0xff;
+		bp_vend[off++] = bootp_client_arch & 0xff;
+	}
+
+	/*
+	 * Maximum DHCP message size we can accept (RFC 2132).  The loader's
+	 * UDP read path allocates dynamically per packet up to the interface
+	 * MTU, so advertise ~MTU to unlock large option payloads that some
+	 * servers would otherwise trim to the RFC 2131 § 4.4.1 576-byte
+	 * default.
+	 */
+	bp_vend[off++] = TAG_MAXSIZE;
+	bp_vend[off++] = 2;
+	bp_vend[off++] = (1472 >> 8) & 0xff;
+	bp_vend[off++] = 1472 & 0xff;
+
+	bp_vend[off++] = TAG_PARAM_REQ;
+	bp_vend[off++] = 7;
+	bp_vend[off++] = TAG_ROOTPATH;
+	bp_vend[off++] = TAG_HOSTNAME;
+	bp_vend[off++] = TAG_SWAPSERVER;
+	bp_vend[off++] = TAG_GATEWAY;
+	bp_vend[off++] = TAG_SUBNET_MASK;
+	bp_vend[off++] = TAG_INTF_MTU;
+	bp_vend[off++] = TAG_SERVERID;
+	bp_vend[off] = TAG_END;
 }
 
 /* Fetch required bootp infomation */
