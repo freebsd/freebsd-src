@@ -102,9 +102,9 @@ dt_create(struct config_file* cfg);
  * Apply config settings.
  * @param env: dnstap environment object.
  * @param cfg: new config settings.
+ * @return false on failure.
  */
-void
-dt_apply_cfg(struct dt_env *env, struct config_file *cfg);
+int dt_apply_cfg(struct dt_env *env, struct config_file *cfg);
 
 /**
  * Apply config settings for log enable for message types.

@@ -1313,7 +1313,8 @@ iter_lookup_parent_NS_from_cache(struct module_env* env, struct delegpt* dp,
 		log_rrset_key(VERB_ALGO, "found parent-side NS in cache", akey);
 		dp->has_parent_side_NS = 1;
 		/* and mark the new names as lame */
-		if(!delegpt_rrset_add_ns(dp, region, akey, 1)) {
+		if(!delegpt_rrset_add_ns(dp, region, akey, 1,
+			deleg_port_number(env))) {
 			lock_rw_unlock(&akey->entry.lock);
 			return 0;
 		}
@@ -1702,4 +1703,12 @@ iter_make_minimal(struct reply_info* rep)
 	rep->ns_numrrsets = 0;
 	rep->ar_numrrsets = 0;
 	rep->rrset_count -= rem;
+}
+
+int
+deleg_port_number(struct module_env* env)
+{
+	if(env->cfg->ssl_upstream)
+		return env->cfg->ssl_port;
+	return -1;
 }

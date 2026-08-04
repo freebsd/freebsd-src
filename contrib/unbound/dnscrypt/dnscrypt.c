@@ -842,7 +842,14 @@ dnsc_parse_keys(struct dnsc_env *env, struct config_file *cfg)
 			if(memcmp(current_keypair->crypt_publickey,
 				env->signed_certs[c].server_publickey,
 				crypto_box_PUBLICKEYBYTES) == 0) {
-				dnsccert *current_cert = &env->certs[cert_id++];
+				dnsccert* current_cert;
+				if(cert_id >= env->signed_certs_count) {
+					log_err("dnscrypt: secret key %s matches a cert that "
+						"is already bound to another key (duplicate "
+						"dnscrypt-secret-key?)", head->str);
+					return -1;
+				}
+				current_cert = &env->certs[cert_id++];
 				found_cert = 1;
 				current_cert->keypair = current_keypair;
 				memcpy(current_cert->magic_query,

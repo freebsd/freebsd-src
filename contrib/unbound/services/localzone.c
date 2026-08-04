@@ -386,8 +386,6 @@ new_local_rrset(struct regional* region, struct local_data* node,
 		log_err("out of memory");
 		return NULL;
 	}
-	rrset->next = node->rrsets;
-	node->rrsets = rrset;
 	rrset->rrset = (struct ub_packed_rrset_key*)
 		regional_alloc_zero(region, sizeof(*rrset->rrset));
 	if(!rrset->rrset) {
@@ -408,6 +406,8 @@ new_local_rrset(struct regional* region, struct local_data* node,
 	rrset->rrset->rk.dname_len = node->namelen;
 	rrset->rrset->rk.type = htons(rrtype);
 	rrset->rrset->rk.rrset_class = htons(rrclass);
+	rrset->next = node->rrsets;
+	node->rrsets = rrset;
 	return rrset;
 }
 
@@ -431,6 +431,10 @@ rrset_insert_rr(struct regional* region, struct packed_rrset_data* pd,
 	pd->rr_ttl = regional_alloc(region, sizeof(*pd->rr_ttl)*pd->count);
 	pd->rr_data = regional_alloc(region, sizeof(*pd->rr_data)*pd->count);
 	if(!pd->rr_len || !pd->rr_ttl || !pd->rr_data) {
+		pd->count--;
+		pd->rr_len = oldlen;
+		pd->rr_ttl = oldttl;
+		pd->rr_data = olddata;
 		log_err("out of memory");
 		return 0;
 	}
@@ -446,6 +450,10 @@ rrset_insert_rr(struct regional* region, struct packed_rrset_data* pd,
 	pd->rr_ttl[0] = ttl;
 	pd->rr_data[0] = regional_alloc_init(region, rdata, rdata_len);
 	if(!pd->rr_data[0]) {
+		pd->count--;
+		pd->rr_len = oldlen;
+		pd->rr_ttl = oldttl;
+		pd->rr_data = olddata;
 		log_err("out of memory");
 		return 0;
 	}
@@ -671,7 +679,9 @@ lz_enter_rr_str(struct local_zones* zones, const char* rr)
 	z = local_zones_lookup(zones, rr_name, len, labs, rr_class, rr_type, 1);
 	if(!z) {
 		lock_rw_unlock(&zones->lock);
-		fatal_exit("internal error: no zone for rr %s", rr);
+		log_err("internal error: no zone for rr %s", rr);
+		free(rr_name);
+		return 0;
 	}
 	lock_rw_wrlock(&z->lock);
 	lock_rw_unlock(&zones->lock);
@@ -1500,8 +1510,10 @@ find_tag_datas(struct query_info* qinfo, struct config_strlist* list,
 			return 0; /* out of memory */
 		qinfo->local_alias->rrset =
 			regional_alloc_init(temp, r, sizeof(*r));
-		if(!qinfo->local_alias->rrset)
+		if(!qinfo->local_alias->rrset) {
+			qinfo->local_alias = NULL;
 			return 0; /* out of memory */
+		}
 	}
 	return result;
 }
@@ -1567,13 +1579,17 @@ local_data_answer(struct local_zone* z, struct module_env* env,
 			return 0; /* out of memory */
 		qinfo->local_alias->rrset = regional_alloc_init(
 			temp, lr->rrset, sizeof(*lr->rrset));
-		if(!qinfo->local_alias->rrset)
+		if(!qinfo->local_alias->rrset) {
+			qinfo->local_alias = NULL;
 			return 0; /* out of memory */
+		}
 		qinfo->local_alias->rrset->rk.dname = qinfo->qname;
 		qinfo->local_alias->rrset->rk.dname_len = qinfo->qname_len;
 		get_cname_target(lr->rrset, &ctarget, &ctargetlen);
-		if(!ctargetlen)
+		if(!ctargetlen) {
+			qinfo->local_alias = NULL;
 			return 0; /* invalid cname */
+		}
 		if(dname_is_wild(ctarget)) {
 			/* synthesize cname target */
 			struct packed_rrset_data* d, *lr_d;
@@ -1602,8 +1618,10 @@ local_data_answer(struct local_zone* z, struct module_env* env,
 				sizeof(struct packed_rrset_data) + sizeof(size_t) +
 				sizeof(uint8_t*) + sizeof(time_t) + sizeof(uint16_t)
 				+ newtargetlen);
-			if(!d)
+			if(!d) {
+				qinfo->local_alias = NULL;
 				return 0; /* out of memory */
+			}
 			lr_d = (struct packed_rrset_data*)lr->rrset->entry.data;
 			qinfo->local_alias->rrset->entry.data = d;
 			d->ttl = lr_d->rr_ttl[0]; /* RFC6672-like behavior:
@@ -1650,7 +1668,7 @@ local_zone_does_not_cover(struct local_zone* z, struct query_info* qinfo,
 	struct local_data key;
 	struct local_data* ld = NULL;
 	struct local_rrset* lr = NULL;
-	if(z->type == local_zone_always_transparent || z->type == local_zone_block_a)
+	if(z->type == local_zone_always_transparent || z->type == local_zone_block_a || z->type == local_zone_block_aaaa)
 		return 1;
 	if(z->type != local_zone_transparent
 		&& z->type != local_zone_typetransparent
@@ -1661,7 +1679,9 @@ local_zone_does_not_cover(struct local_zone* z, struct query_info* qinfo,
 	key.namelen = qinfo->qname_len;
 	key.namelabs = labs;
 	ld = (struct local_data*)rbtree_search(&z->data, &key.node);
-	if(z->type == local_zone_transparent || z->type == local_zone_inform)
+	if(z->type == local_zone_transparent || z->type == local_zone_inform
+		|| z->type == local_zone_block_a_wdata
+		|| z->type == local_zone_block_aaaa_wdata)
 		return (ld == NULL);
 	if(ld)
 		lr = local_data_find_type(ld, qinfo->qtype, 1);
@@ -1727,9 +1747,21 @@ local_zones_zone_answer(struct local_zone* z, struct module_env* env,
 		|| lz_type == local_zone_always_transparent) {
 		/* no NODATA or NXDOMAINS for this zone type */
 		return 0;
-	} else if(lz_type == local_zone_block_a) {
+	} else if(lz_type == local_zone_block_a ||
+		lz_type == local_zone_block_a_wdata) {
 		/* Return NODATA for all A queries */
 		if(qinfo->qtype == LDNS_RR_TYPE_A) {
+			local_error_encode(qinfo, env, edns, repinfo, buf, temp,
+				LDNS_RCODE_NOERROR, (LDNS_RCODE_NOERROR|BIT_AA),
+				LDNS_EDE_NONE, NULL);
+				return 1;
+		}
+
+		return 0;
+	} else if(lz_type == local_zone_block_aaaa ||
+		lz_type == local_zone_block_aaaa_wdata) {
+		/* Return NODATA for all AAAA queries */
+		if(qinfo->qtype == LDNS_RR_TYPE_AAAA) {
 			local_error_encode(qinfo, env, edns, repinfo, buf, temp,
 				LDNS_RCODE_NOERROR, (LDNS_RCODE_NOERROR|BIT_AA),
 				LDNS_EDE_NONE, NULL);
@@ -1904,7 +1936,10 @@ local_zones_answer(struct local_zones* zones, struct module_env* env,
 			lzt == local_zone_typetransparent ||
 			lzt == local_zone_inform ||
 			lzt == local_zone_always_transparent ||
-			lzt == local_zone_block_a) &&
+			lzt == local_zone_block_a ||
+			lzt == local_zone_block_aaaa ||
+			lzt == local_zone_block_a_wdata ||
+			lzt == local_zone_block_aaaa_wdata) &&
 			local_zone_does_not_cover(z, qinfo, labs)) {
 			lock_rw_unlock(&z->lock);
 			z = NULL;
@@ -1953,6 +1988,7 @@ local_zones_answer(struct local_zones* zones, struct module_env* env,
 	if(lzt != local_zone_always_refuse
 		&& lzt != local_zone_always_transparent
 		&& lzt != local_zone_block_a
+		&& lzt != local_zone_block_aaaa
 		&& lzt != local_zone_always_nxdomain
 		&& lzt != local_zone_always_nodata
 		&& lzt != local_zone_always_deny
@@ -1984,6 +2020,9 @@ const char* local_zone_type2str(enum localzone_type t)
 		case local_zone_inform_redirect: return "inform_redirect";
 		case local_zone_always_transparent: return "always_transparent";
 		case local_zone_block_a: return "block_a";
+		case local_zone_block_aaaa: return "block_aaaa";
+		case local_zone_block_a_wdata: return "block_a_wdata";
+		case local_zone_block_aaaa_wdata: return "block_aaaa_wdata";
 		case local_zone_always_refuse: return "always_refuse";
 		case local_zone_always_nxdomain: return "always_nxdomain";
 		case local_zone_always_nodata: return "always_nodata";
@@ -2020,6 +2059,12 @@ int local_zone_str2type(const char* type, enum localzone_type* t)
 		*t = local_zone_always_transparent;
 	else if(strcmp(type, "block_a") == 0)
 		*t = local_zone_block_a;
+	else if(strcmp(type, "block_aaaa") == 0)
+		*t = local_zone_block_aaaa;
+	else if(strcmp(type, "block_a_wdata") == 0)
+		*t = local_zone_block_a_wdata;
+	else if(strcmp(type, "block_aaaa_wdata") == 0)
+		*t = local_zone_block_aaaa_wdata;
 	else if(strcmp(type, "always_refuse") == 0)
 		*t = local_zone_always_refuse;
 	else if(strcmp(type, "always_nxdomain") == 0)

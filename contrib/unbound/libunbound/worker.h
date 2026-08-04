@@ -70,6 +70,8 @@ struct query_info;
  * @param q: which query state to reactivate upon return.
  * @param was_ratelimited: it will signal back if the query failed to pass the
  *	ratelimit check.
+ * @param ratelimit_incremented: set to true if the ratelimit counter
+ *	was increased.
  * @return: false on failure (memory or socket related). no query was
  *      sent.
  */
@@ -78,7 +80,8 @@ struct outbound_entry* libworker_send_query(struct query_info* qinfo,
 	int check_ratelimit,
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
 	size_t zonelen, int tcp_upstream, int ssl_upstream, char* tls_auth_name,
-	struct module_qstate* q, int* was_ratelimited);
+	struct module_qstate* q, int* was_ratelimited,
+	int* ratelimit_incremented);
 
 /** process incoming serviced query replies from the network */
 int libworker_handle_service_reply(struct comm_point* c, void* arg, int error,
@@ -126,6 +129,8 @@ void worker_sighandler(int sig, void* arg);
  * @param q: which query state to reactivate upon return.
  * @param was_ratelimited: it will signal back if the query failed to pass the
  *	ratelimit check.
+ * @param ratelimit_incremented: set to true if the ratelimit counter
+ *	was increased.
  * @return: false on failure (memory or socket related). no query was
  *      sent.
  */
@@ -134,7 +139,8 @@ struct outbound_entry* worker_send_query(struct query_info* qinfo,
 	int check_ratelimit,
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
 	size_t zonelen, int tcp_upstream, int ssl_upstream, char* tls_auth_name,
-	struct module_qstate* q, int* was_ratelimited);
+	struct module_qstate* q, int* was_ratelimited,
+	int* ratelimit_incremented);
 
 /** 
  * process control messages from the main thread. Frees the control 
@@ -170,14 +176,5 @@ void worker_start_accept(void* arg);
 
 /** stop accept callback handler */
 void worker_stop_accept(void* arg);
-
-/** handle remote control accept callbacks */
-int remote_accept_callback(struct comm_point*, void*, int, struct comm_reply*);
-
-/** handle remote control data callbacks */
-int remote_control_callback(struct comm_point*, void*, int, struct comm_reply*);
-
-/** routine to printout option values over SSL */
-void  remote_get_opt_ssl(char* line, void* arg);
 
 #endif /* LIBUNBOUND_WORKER_H */

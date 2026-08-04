@@ -2144,7 +2144,7 @@ static void* dnstap_io(void* arg)
 #endif
 		log_thread_set(&dtio->threadnum);
 
-	ub_thread_setname(dtio->tid, name);
+	ub_thread_setname(ub_thread_self(), name);
 
 	/* setup */
 	verbose(VERB_ALGO, "start dnstap io thread");

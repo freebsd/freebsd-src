@@ -316,6 +316,20 @@ synth_cname_rrset(uint8_t** sname, size_t* snamelen, uint8_t* alias,
 	return cn;
 }
 
+/** Check if the packet has type NS in answer or authority section */
+static int
+pkt_contains_ns(struct msg_parse* msg)
+{
+	struct rrset_parse* rrset;
+	for(rrset = msg->rrset_first; rrset; rrset = rrset->rrset_all_next) {
+		if(rrset->type == LDNS_RR_TYPE_NS &&
+			(rrset->section == LDNS_SECTION_ANSWER ||
+			rrset->section == LDNS_SECTION_AUTHORITY))
+			return 1;
+	}
+	return 0;
+}
+
 /** check if DNAME applies to a name */
 static int
 pkt_strict_sub(sldns_buffer* pkt, uint8_t* sname, uint8_t* dr)
@@ -394,6 +408,8 @@ shorten_rrset(sldns_buffer* pkt, struct rrset_parse* rrset, int count)
 	struct rr_parse* rr = rrset->rr_first, *prev = NULL;
 	if(!rr)
 		return;
+	if(count < 1)
+		return; /* cannot leave a still-linked rrset_parse with rr_count == 0 */
 	for(i=0; i<count; i++) {
 		prev = rr;
 		rr = rr->next;
@@ -478,6 +494,7 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 	size_t snamelen = qinfo->qname_len;
 	struct rrset_parse* rrset, *prev, *nsset=NULL;
 	int cname_length = 0; /* number of CNAMEs, or DNAMEs */
+	int has_answer = 0; /* if answer section contains nonCNAME,nonDNAME */
 
 	if(FLAGS_GET_RCODE(msg->flags) != LDNS_RCODE_NOERROR &&
 		FLAGS_GET_RCODE(msg->flags) != LDNS_RCODE_NXDOMAIN &&
@@ -518,6 +535,11 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 					"size > 1: %u", 
 					(unsigned)rrset->rr_count);
 				return 0;
+			}
+			if(has_answer) {
+				remove_rrset("normalize: removing DNAME redirection after answer:",
+					pkt, msg, prev, &rrset);
+				continue;
 			}
 			if(!synth_cname(sname, snamelen, rrset, alias, 
 				&aliaslen, pkt)) {
@@ -569,6 +591,11 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 		if(rrset->type == LDNS_RR_TYPE_CNAME) {
 			struct rrset_parse* nx = rrset->rrset_all_next;
 			uint8_t* oldsname = sname;
+			if(has_answer) {
+				remove_rrset("normalize: removing redirection after answer:",
+					pkt, msg, prev, &rrset);
+				continue;
+			}
 			cname_length++;
 			/* see if the next one is a DNAME, if so, swap them */
 			if(nx && nx->section == LDNS_SECTION_ANSWER &&
@@ -647,6 +674,7 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 		 * will be removed by sanitize, so no additional for them */
 		if(dname_pkt_compare(pkt, qinfo->qname, rrset->dname) == 0)
 			mark_additional_rrset(pkt, msg, rrset);
+		has_answer = 1;
 		
 		prev = rrset;
 		rrset = rrset->rrset_all_next;
@@ -729,6 +757,11 @@ scrub_normalize(sldns_buffer* pkt, struct msg_parse* msg,
 				     zonename) != 0 && !soa_in_auth(msg))
 				&& env->cfg->iter_scrub_promiscuous) {
 				remove_rrset("normalize: removing promiscuous "
+					"RRset:", pkt, msg, prev, &rrset);
+				continue;
+			}
+			if(ntohs(rrset->rrset_class) != qinfo->qclass) {
+				remove_rrset("normalize: removing other class "
 					"RRset:", pkt, msg, prev, &rrset);
 				continue;
 			}
@@ -968,12 +1001,20 @@ scrub_sanitize_rr_length(sldns_buffer* pkt, struct msg_parse* msg,
  * @param env: module environment with config and cache.
  * @param ie: iterator environment with private address data.
  * @param qstate: for setting errinf for EDE error messages.
+ * @param pkt_before_NS: if the packet had type NS before scrub. If that
+ *	is removed now, that indicates this may have been lame.
+ * @param msg_lame_empty: returned true if the empty packet is lame.
+ * @param msg_lame_referral: returned true if the reply has a referral before
+ *	scrub.
+ * @param rdset: if RD bit was sent in query sent by unbound.
  * @return 0 on error.
  */
 static int
 scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg, 
 	struct query_info* qinfo, uint8_t* zonename, struct module_env* env,
-	struct iter_env* ie, struct module_qstate* qstate)
+	struct iter_env* ie, struct module_qstate* qstate,
+	int pkt_before_NS, int* msg_lame_empty, int* msg_lame_referral,
+	int rdset)
 {
 	int del_addi = 0; /* if additional-holding rrsets are deleted, we
 		do not trust the normalized additional-A-AAAA any more */
@@ -1130,6 +1171,21 @@ scrub_sanitize(sldns_buffer* pkt, struct msg_parse* msg,
 		prev = rrset;
 		rrset = rrset->rrset_all_next;
 	}
+
+	/* If the packet is empty now, but it was not before. And there
+	 * was type NS in authority, then that indicates the answer is lame. */
+	if(msg->rrset_first == NULL && pkt_before_NS) {
+		*msg_lame_empty = 1;
+		verbose(VERB_ALGO, "sanitize: empty message had referral to NS before, marked as lame");
+	} else if(pkt_before_NS && msg->an_rrsets==0 &&
+		!(msg->flags&BIT_AA) && !rdset) {
+		/* If the packet is now a referral, not really a nodata,
+		 * then if it was also with an empty answer section before,
+		 * it is also lame. */
+		*msg_lame_referral = 1;
+		verbose(VERB_ALGO, "sanitize: message has referral not answer, marked as lame");
+	}
+
 	return 1;
 }
 
@@ -1137,11 +1193,15 @@ int
 scrub_message(sldns_buffer* pkt, struct msg_parse* msg, 
 	struct query_info* qinfo, uint8_t* zonename, struct regional* region,
 	struct module_env* env, struct module_qstate* qstate,
-	struct iter_env* ie)
+	struct iter_env* ie, int* msg_lame_empty, int* msg_lame_referral,
+	int rdset)
 {
+	int pkt_before_NS;
 	/* basic sanity checks */
 	log_nametypeclass(VERB_ALGO, "scrub for", zonename, LDNS_RR_TYPE_NS, 
 		qinfo->qclass);
+	*msg_lame_empty = 0;
+	*msg_lame_referral = 0;
 	if(msg->qdcount > 1)
 		return 0;
 	if( !(msg->flags&BIT_QR) )
@@ -1166,11 +1226,21 @@ scrub_message(sldns_buffer* pkt, struct msg_parse* msg,
 			return 0;
 	}
 
+	/* If the packet contains type NS in authority before scrub,
+	 * like a self referral. With the answer section empty, it
+	 * was not AA, the query was not sent with RD, with NS in auth,
+	 * and no SOA in auth. For a negative answer, type SOA is present.
+	 * This detects certain lameness if after has removed that. */
+	pkt_before_NS = msg->an_rrsets == 0 &&
+		!(msg->flags&BIT_AA) && !rdset &&
+		pkt_contains_ns(msg) && !soa_in_auth(msg);
+
 	/* normalize the response, this cleans up the additional.  */
 	if(!scrub_normalize(pkt, msg, qinfo, region, env, zonename))
 		return 0;
 	/* delete all out-of-zone information */
-	if(!scrub_sanitize(pkt, msg, qinfo, zonename, env, ie, qstate))
+	if(!scrub_sanitize(pkt, msg, qinfo, zonename, env, ie, qstate,
+		pkt_before_NS, msg_lame_empty, msg_lame_referral, rdset))
 		return 0;
 	return 1;
 }
