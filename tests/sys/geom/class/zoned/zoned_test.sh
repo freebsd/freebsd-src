@@ -595,8 +595,8 @@ max_open_limit_body()
 	atf_check zonectl -d /dev/${md}.zoned -c open -l 0x80000
 	atf_check_equal "2" "$(zone_count exp_open)"
 
-  # Explicitly open zones cannot be implicitly closed. A third open exceeds the
-  # limit until one of them is closed.
+	# Explicitly open zones cannot be implicitly closed. A third open
+	# exceeds the limit until one of them is closed.
 	atf_check -s not-exit:0 -e ignore \
 	    zonectl -d /dev/${md}.zoned -c open -l 0x100000
 	atf_check zonectl -d /dev/${md}.zoned -c close -l 0

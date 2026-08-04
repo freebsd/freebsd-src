@@ -7,4 +7,3 @@ ATF_TESTS_SH+=	zoned_test
 ${PACKAGE}FILES+=	conf.sh
 
 .include <bsd.test.mk>
-

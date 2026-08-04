@@ -83,6 +83,7 @@ static struct g_class g_zoned_class = {
 static __inline uint32_t
 g_zoned_zoneno(struct g_zoned_softc *sc, uint64_t lba)
 {
+
 	return ((uint32_t)(lba / sc->sc_zonesecs));
 }
 
@@ -124,6 +125,7 @@ g_zoned_mark_dirty(struct g_zoned_softc *sc, uint32_t zno)
 static bool
 g_zoned_cond_is_open(uint8_t cond)
 {
+
 	return (cond == DISK_ZONE_COND_IMPLICIT_OPEN ||
 	    cond == DISK_ZONE_COND_EXPLICIT_OPEN);
 }
@@ -536,6 +538,7 @@ g_zoned_flush_sync(struct g_zoned_softc *sc, struct g_consumer *cp)
 static bool
 g_zoned_rep_match(const struct disk_zone_rep_entry *z, uint8_t rep_option)
 {
+
 	switch (rep_option) {
 	case DISK_ZONE_REP_ALL:
 		return (true);
@@ -567,6 +570,7 @@ g_zoned_rep_match(const struct disk_zone_rep_entry *z, uint8_t rep_option)
 static bool
 g_zoned_rep_option_valid(uint8_t rep_option)
 {
+
 	return (rep_option <= DISK_ZONE_REP_OFFLINE ||
 	    rep_option == DISK_ZONE_REP_RWP ||
 	    rep_option == DISK_ZONE_REP_NON_SEQ ||
@@ -1320,6 +1324,7 @@ g_zoned_destroy_geom(struct gctl_req *req __unused,
 static void
 g_zoned_orphan(struct g_consumer *cp)
 {
+
 	g_topology_assert();
 	g_zoned_destroy(cp->geom, 1);
 }

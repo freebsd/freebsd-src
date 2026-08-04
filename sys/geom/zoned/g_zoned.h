@@ -45,7 +45,7 @@ struct g_zoned_table_hdr {
 _Static_assert(sizeof(struct g_zoned_table_hdr) == 24,
     "on-disk zone table header layout changed");
 
-/* On-disk zone-state table entry */
+/* On-disk zone-state table entry. */
 struct g_zoned_disk_entry {
 	uint8_t		de_type;		/* Zone type. */
 	uint8_t		de_condition;		/* Zone condition. */
@@ -53,7 +53,7 @@ struct g_zoned_disk_entry {
 	uint8_t		de_reserved;
 	uint32_t	de_write_pointer;	/* WP offset in the zone. */
 };
-#define	G_ZONED_ENTRY_SIZE	sizeof(struct g_zoned_disk_entry)
+#define	G_ZONED_ENTRY_SIZE	(sizeof(struct g_zoned_disk_entry))
 _Static_assert(G_ZONED_ENTRY_SIZE == 8, "on-disk zone entry layout changed");
 
 /*
