@@ -973,7 +973,7 @@ rtnl_handle_newroute(struct nlmsghdr *hdr, struct nlpcb *nlp,
 	/* pre-2.6.19 Linux API compatibility */
 	if (attrs.rtm_table > 0 && attrs.rta_table == 0)
 		attrs.rta_table = attrs.rtm_table;
-	if (attrs.rta_table >= V_rt_numfibs || attrs.rtm_family > AF_MAX) {
+	if (attrs.rta_table >= V_rt_numfibs || attrs.rtm_family >= AF_MAX) {
 		NLMSG_REPORT_ERR_MSG(npt, "invalid fib");
 		return (EINVAL);
 	}
@@ -1036,7 +1036,7 @@ rtnl_handle_delroute(struct nlmsghdr *hdr, struct nlpcb *nlp,
 		return (ESRCH);
 	}
 
-	if (attrs.rta_table >= V_rt_numfibs || attrs.rtm_family > AF_MAX) {
+	if (attrs.rta_table >= V_rt_numfibs || attrs.rtm_family >= AF_MAX) {
 		NLMSG_REPORT_ERR_MSG(npt, "invalid fib");
 		return (EINVAL);
 	}
@@ -1059,7 +1059,7 @@ rtnl_handle_getroute(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *
 	if (error != 0)
 		return (error);
 
-	if (attrs.rta_table >= V_rt_numfibs || attrs.rtm_family > AF_MAX) {
+	if (attrs.rta_table >= V_rt_numfibs || attrs.rtm_family >= AF_MAX) {
 		NLMSG_REPORT_ERR_MSG(npt, "invalid fib");
 		return (EINVAL);
 	}

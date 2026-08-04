@@ -78,7 +78,7 @@ int
 ifconfig_socket(ifconfig_handle_t *h, const int addressfamily, int *s)
 {
 
-	if (addressfamily > AF_MAX) {
+	if (addressfamily >= AF_MAX) {
 		h->error.errtype = SOCKET;
 		h->error.errcode = EINVAL;
 		return (-1);

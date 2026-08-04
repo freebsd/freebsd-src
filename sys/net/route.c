@@ -520,7 +520,7 @@ rt_updatemtu(struct ifnet *ifp)
 	 * Unfortunately the only way to do this is to traverse all
 	 * routing tables in all fibs/domains.
 	 */
-	for (i = 1; i <= AF_MAX; i++) {
+	for (i = 1; i < AF_MAX; i++) {
 		mtu = if_getmtu_family(ifp, i);
 		for (j = 0; j < rt_numfibs; j++) {
 			rnh = rt_tables_get_rnh(j, i);

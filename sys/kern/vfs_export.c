@@ -160,7 +160,7 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 	saddr = (struct sockaddr *) (np + 1);
 	if ((error = copyin(argp->ex_addr, saddr, argp->ex_addrlen)))
 		goto out;
-	if (saddr->sa_family == AF_UNSPEC || saddr->sa_family > AF_MAX) {
+	if (saddr->sa_family == AF_UNSPEC || saddr->sa_family >= AF_MAX) {
 		error = EINVAL;
 		vfs_mount_error(mp, "Invalid saddr->sa_family: %d");
 		goto out;
