@@ -642,6 +642,8 @@ int	acpi_iort_map_named_smmuv3(const char *devname, u_int rid,
 	    uint64_t *xref, u_int *devid);
 int	acpi_iort_lookup_its_from_iwb(device_t dev, int *its_id);
 device_t	acpi_iort_get_iwb_dev(int iwb_id);
+int	acpi_iort_lookup_pci_id(device_t bus, device_t child, uintptr_t *devid);
+int	acpi_iort_alloc_msi(device_t bus, device_t child, int *count);
 #endif
 #endif /* _KERNEL */
 #endif /* !_ACPIVAR_H_ */

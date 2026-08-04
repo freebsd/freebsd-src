@@ -158,6 +158,9 @@ static acpi_scan_children_t	acpi_device_scan_children;
 
 static isa_pnp_probe_t		acpi_isa_pnp_probe;
 
+static pci_get_id_t		acpi_pci_get_id;
+static pci_alloc_msi_t		acpi_pci_alloc_msi;
+
 static void	acpi_reserve_resources(device_t dev);
 static int	acpi_sysres_alloc(device_t dev);
 static uint32_t	acpi_isa_get_logicalid(device_t dev);
@@ -250,6 +253,10 @@ static device_method_t acpi_methods[] = {
 
     /* ISA emulation */
     DEVMETHOD(isa_pnp_probe,		acpi_isa_pnp_probe),
+
+    /* PCI emulation */
+    DEVMETHOD(pci_get_id,		acpi_pci_get_id),
+    DEVMETHOD(pci_alloc_msi,		acpi_pci_alloc_msi),
 
     DEVMETHOD_END
 };
@@ -2362,6 +2369,38 @@ acpi_isa_pnp_probe(device_t bus, device_t child, struct isa_pnp_id *ids)
 	device_set_desc(child, ids->ip_desc);
 
     return_VALUE (result);
+}
+
+static int
+acpi_pci_get_id(device_t dev, device_t child, enum pci_id_type type,
+    uintptr_t *id)
+{
+	if (dev != device_get_parent(child))
+		return (EINVAL);
+
+        if (type != PCI_ID_MSI)
+                return (EINVAL);
+
+#ifdef __aarch64__
+	if (acpi_iort_lookup_pci_id(dev, child, id) == 0)
+		return (0);
+#endif
+
+	return (ENXIO);
+}
+
+static int
+acpi_pci_alloc_msi(device_t bus, device_t child, int *count)
+{
+	if (bus != device_get_parent(child))
+		return (EINVAL);
+
+#ifdef __aarch64__
+	if (acpi_iort_alloc_msi(bus, child, count) == 0)
+		return (0);
+#endif
+
+	return (ENXIO);
 }
 
 /*
