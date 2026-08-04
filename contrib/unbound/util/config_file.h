@@ -884,6 +884,10 @@ struct config_auth {
 	int zonemd_check;
 	/** Reject absence of ZONEMD records, zone must have one */
 	int zonemd_reject_absence;
+	/** The maximum auth zone transfer size, in bytes. */
+	size_t max_transfer_size;
+	/** The maximum auth zone transfer time taken, in msec. */
+	int max_transfer_time;
 };
 
 /**

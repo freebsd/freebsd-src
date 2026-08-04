@@ -1511,6 +1511,7 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
 		verbose(VERB_ALGO, "no-cache set, going to the network");
 		qstate->no_cache_lookup = 1;
 		qstate->no_cache_store = 1;
+		qstate->fwd_stub_no_cache = 1;
 		msg = NULL;
 	} else if(qstate->blacklist) {
 		/* if cache, or anything else, was blacklisted then
@@ -1530,7 +1531,7 @@ processInitRequest(struct module_qstate* qstate, struct iter_qstate* iq,
 			msg = val_neg_getmsg(qstate->env->neg_cache, &iq->qchase,
 				qstate->region, qstate->env->rrset_cache,
 				qstate->env->scratch_buffer, 
-				*qstate->env->now, 1/*add SOA*/, NULL, 
+				*qstate->env->now, 1/*add SOA*/, dpname,
 				qstate->env->cfg);
 		}
 		/* item taken from cache does not match our query name, thus
@@ -2391,6 +2392,12 @@ processDSNSFind(struct module_qstate* qstate, struct iter_qstate* iq, int id)
 
 	/* go up one (more) step, until we hit the dp, if so, end */
 	dname_remove_label(&iq->dsns_point, &iq->dsns_point_len);
+	if(++iq->dsns_count > MAX_DSNS_FIND_COUNT) {
+		verbose(VERB_QUERY, "DS NS search exceeded %d labels",
+			MAX_DSNS_FIND_COUNT);
+		errinf(qstate, "DS NS search exceeded label limit");
+		return error_response_cache(qstate, id, LDNS_RCODE_SERVFAIL);
+	}
 	if(query_dname_compare(iq->dsns_point, iq->dp->name) == 0) {
 		/* there was no inbetween nameserver, use the old delegation
 		 * point again.  And this time, because dsns_point is nonNULL
@@ -3073,7 +3080,9 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 
 	/* Do not check ratelimit for forwarding queries or if we already got a
 	 * pass. */
-	sq_check_ratelimit = (!(iq->chase_flags & BIT_RD) && !iq->ratelimit_ok);
+	sq_check_ratelimit = ((!(iq->chase_flags & BIT_RD) &&
+		!iq->ratelimit_ok));
+	iq->ratelimit_incremented = 0;
 	/* We have a valid target. */
 	if(verbosity >= VERB_QUERY) {
 		log_query_info(VERB_QUERY, "sending query:", &iq->qinfo_out);
@@ -3099,7 +3108,8 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		iq->dp->name, iq->dp->namelen,
 		(iq->dp->tcp_upstream || qstate->env->cfg->tcp_upstream),
 		(iq->dp->ssl_upstream || qstate->env->cfg->ssl_upstream),
-		target->tls_auth_name, qstate, &sq_was_ratelimited);
+		target->tls_auth_name, qstate, &sq_was_ratelimited,
+		&iq->ratelimit_incremented);
 	if(!outq) {
 		if(sq_was_ratelimited) {
 			lock_basic_lock(&ie->queries_ratelimit_lock);
@@ -3136,7 +3146,6 @@ find_NS(struct reply_info* rep, size_t from, size_t to)
 	}
 	return NULL;
 }
-
 
 /** 
  * Process the query response. All queries end up at this state first. This
@@ -3179,7 +3188,8 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 	orig_empty_nodata_found = iq->empty_nodata_found;
 	type = response_type_from_server(
 		(int)((iq->chase_flags&BIT_RD) || iq->chase_to_rd),
-		iq->response, &iq->qinfo_out, iq->dp, &iq->empty_nodata_found);
+		iq->response, &iq->qinfo_out, iq->dp, &iq->empty_nodata_found,
+		iq->msg_lame_empty, iq->msg_lame_referral);
 	iq->chase_to_rd = 0;
 	/* remove TC flag, if this is erroneously set by TCP upstream */
 	iq->response->rep->flags &= ~BIT_TC;
@@ -3457,7 +3467,14 @@ processQueryResponse(struct module_qstate* qstate, struct iter_qstate* iq,
 		iq->deleg_msg = iq->response;
 		/* Keep current delegation point for label comparison */
 		old_dp = iq->dp;
-		iq->dp = delegpt_from_message(iq->response, qstate->region);
+		/* A referral reply is "pleasant", refund the
+		 * parent dp's rate charge before descending to the child. */
+		if(iq->ratelimit_incremented)
+			infra_ratelimit_dec(qstate->env->infra_cache,
+				old_dp->name, old_dp->namelen,
+				*qstate->env->now);
+		iq->dp = delegpt_from_message(iq->response, qstate->region,
+			deleg_port_number(qstate->env));
 		if (qstate->env->cfg->qname_minimisation)
 			iq->minimisation_state = INIT_MINIMISE_STATE;
 		if(!iq->dp) {
@@ -3734,7 +3751,8 @@ prime_supers(struct module_qstate* qstate, int id, struct module_qstate* forq)
 	log_assert(qstate->is_priming || foriq->wait_priming_stub);
 	log_assert(qstate->return_rcode == LDNS_RCODE_NOERROR);
 	/* Convert our response to a delegation point */
-	dp = delegpt_from_message(qstate->return_msg, forq->region);
+	dp = delegpt_from_message(qstate->return_msg, forq->region,
+		deleg_port_number(forq->env));
 	if(!dp) {
 		/* if there is no convertible delegation point, then 
 		 * the ANSWER type was (presumably) a negative answer. */
@@ -3785,7 +3803,8 @@ processPrimeResponse(struct module_qstate* qstate, int id)
 	iq->response->rep->flags &= ~(BIT_RD|BIT_RA); /* ignore rec-lame */
 	type = response_type_from_server(
 		(int)((iq->chase_flags&BIT_RD) || iq->chase_to_rd), 
-		iq->response, &iq->qchase, iq->dp, NULL);
+		iq->response, &iq->qchase, iq->dp, NULL, iq->msg_lame_empty,
+		iq->msg_lame_referral);
 	if(type == RESPONSE_TYPE_ANSWER) {
 		qstate->return_rcode = LDNS_RCODE_NOERROR;
 		qstate->return_msg = iq->response;
@@ -3949,7 +3968,8 @@ processDSNSResponse(struct module_qstate* qstate, int id,
 
 	/* else, store as DP and continue at querytargets */
 	foriq->state = QUERYTARGETS_STATE;
-	foriq->dp = delegpt_from_message(qstate->return_msg, forq->region);
+	foriq->dp = delegpt_from_message(qstate->return_msg, forq->region,
+		deleg_port_number(forq->env));
 	if(!foriq->dp) {
 		log_err("out of memory in dsns dp alloc");
 		errinf(qstate, "malloc failure, in DS search");
@@ -3998,7 +4018,7 @@ processClassResponse(struct module_qstate* qstate, int id,
 		/* if there are records, copy RCODE */
 		/* lower sec_state if this message is lower */
 		if(from->rep->rrset_count != 0) {
-			size_t n = from->rep->rrset_count+to->rep->rrset_count;
+			size_t i, n = from->rep->rrset_count+to->rep->rrset_count;
 			struct ub_packed_rrset_key** dest, **d;
 			/* copy appropriate rcode */
 			to->rep->flags = from->rep->flags;
@@ -4020,24 +4040,49 @@ processClassResponse(struct module_qstate* qstate, int id,
 			memcpy(dest, to->rep->rrsets, to->rep->an_numrrsets
 				* sizeof(dest[0]));
 			dest += to->rep->an_numrrsets;
-			memcpy(dest, from->rep->rrsets, from->rep->an_numrrsets
-				* sizeof(dest[0]));
+			for(i=0; i<from->rep->an_numrrsets; i++) {
+				dest[i] = packed_rrset_copy_region(
+					from->rep->rrsets[i], forq->region, 0);
+				if(!dest[i]) {
+					log_err("malloc failed in collect ANY");
+					foriq->state = FINISHED_STATE;
+					return;
+				}
+			}
 			dest += from->rep->an_numrrsets;
 			/* copy NS */
 			memcpy(dest, to->rep->rrsets+to->rep->an_numrrsets,
 				to->rep->ns_numrrsets * sizeof(dest[0]));
 			dest += to->rep->ns_numrrsets;
-			memcpy(dest, from->rep->rrsets+from->rep->an_numrrsets,
-				from->rep->ns_numrrsets * sizeof(dest[0]));
+			for(i=0; i<from->rep->ns_numrrsets; i++) {
+				dest[i] = packed_rrset_copy_region(
+					from->rep->rrsets[
+					from->rep->an_numrrsets+i],
+					forq->region, 0);
+				if(!dest[i]) {
+					log_err("malloc failed in collect ANY");
+					foriq->state = FINISHED_STATE;
+					return;
+				}
+			}
 			dest += from->rep->ns_numrrsets;
 			/* copy AR */
 			memcpy(dest, to->rep->rrsets+to->rep->an_numrrsets+
 				to->rep->ns_numrrsets,
 				to->rep->ar_numrrsets * sizeof(dest[0]));
 			dest += to->rep->ar_numrrsets;
-			memcpy(dest, from->rep->rrsets+from->rep->an_numrrsets+
-				from->rep->ns_numrrsets,
-				from->rep->ar_numrrsets * sizeof(dest[0]));
+			for(i=0; i<from->rep->ar_numrrsets; i++) {
+				dest[i] = packed_rrset_copy_region(
+					from->rep->rrsets[
+					from->rep->an_numrrsets+
+					from->rep->ns_numrrsets+i],
+					forq->region, 0);
+				if(!dest[i]) {
+					log_err("malloc failed in collect ANY");
+					foriq->state = FINISHED_STATE;
+					return;
+				}
+			}
 			/* update counts */
 			to->rep->rrsets = d;
 			to->rep->an_numrrsets += from->rep->an_numrrsets;
@@ -4395,7 +4440,10 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 
 	/* normalize and sanitize: easy to delete items from linked lists */
 	if(!scrub_message(pkt, prs, &iq->qinfo_out, iq->dp->name, 
-		qstate->env->scratch, qstate->env, qstate, ie)) {
+		qstate->env->scratch, qstate->env, qstate, ie,
+		&iq->msg_lame_empty, &iq->msg_lame_referral,
+		(int)((iq->chase_flags&BIT_RD) || iq->chase_to_rd)
+		)) {
 		/* if 0x20 enabled, start fallback, but we have no message */
 		if(event == module_event_capsfail && !iq->caps_fallback) {
 			iq->caps_fallback = 1;

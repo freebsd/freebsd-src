@@ -217,7 +217,8 @@ setup_listen_sslctx(void** ctx, int is_dot, int is_doh,
 		(cfg->tls_session_ticket_keys.first &&
 		cfg->tls_session_ticket_keys.first->str[0] != 0),
 		is_dot, is_doh, cfg->tls_protocols))) {
-		fatal_exit("could not set up listen SSL_CTX");
+		log_err("could not set up listen SSL_CTX");
+		*ctx = NULL;
 	}
 }
 #endif /* HAVE_SSL */
@@ -259,7 +260,8 @@ void* daemon_setup_listen_quic_sslctx(struct daemon* daemon,
 		pem += strlen(chroot);
 
 	if(!(ctx = quic_sslctx_create(key, pem, NULL))) {
-		fatal_exit("could not set up quic SSL_CTX");
+		log_err("could not set up quic SSL_CTX");
+		return NULL;
 	}
 	return ctx;
 }
@@ -277,8 +279,10 @@ void* daemon_setup_connect_dot_sslctx(struct daemon* daemon,
 		bundle += strlen(chroot);
 
 	if(!(ctx = connect_sslctx_create(NULL, NULL, bundle,
-		cfg->tls_win_cert)))
-		fatal_exit("could not set up connect SSL_CTX");
+		cfg->tls_win_cert))) {
+		log_err("could not set up connect SSL_CTX");
+		return NULL;
+	}
 	return ctx;
 }
 #endif /* HAVE_SSL */
@@ -308,16 +312,22 @@ daemon_setup_sslctxs(struct daemon* daemon, struct config_file* cfg)
 		}
 		daemon->listen_dot_sslctx = daemon_setup_listen_dot_sslctx(
 			daemon, cfg);
+		if(!daemon->listen_dot_sslctx)
+			fatal_exit("Could not set up listen dot sslctx");
 #ifdef HAVE_NGHTTP2_NGHTTP2_H
 		if(cfg_has_https(cfg)) {
 			daemon->listen_doh_sslctx =
 				daemon_setup_listen_doh_sslctx(daemon, cfg);
+			if(!daemon->listen_doh_sslctx)
+				fatal_exit("Could not set up listen doh sslctx");
 		}
 #endif
 #ifdef HAVE_NGTCP2
 		if(cfg_has_quic(cfg)) {
 			daemon->listen_quic_sslctx =
 				daemon_setup_listen_quic_sslctx(daemon, cfg);
+			if(!daemon->listen_quic_sslctx)
+				fatal_exit("Could not set up listen quic sslctx");
 		}
 #endif /* HAVE_NGTCP2 */
 
@@ -350,6 +360,8 @@ daemon_setup_sslctxs(struct daemon* daemon, struct config_file* cfg)
 	}
 	daemon->connect_dot_sslctx = daemon_setup_connect_dot_sslctx(
 		daemon, cfg);
+	if(!daemon->connect_dot_sslctx)
+		fatal_exit("could not setup connect dot sslctx");
 #else /* HAVE_SSL */
 	(void)daemon;(void)cfg;
 #endif /* HAVE_SSL */
@@ -921,13 +933,14 @@ thread_start(void* arg)
 {
 	struct worker* worker = (struct worker*)arg;
 	int port_num = 0;
-	log_assert(worker->thr_id);
 	set_log_thread_id(worker, worker->daemon->cfg);
 	{
 		char name[16]; /* seems to be the safest size between
 				  different OSes */
 		snprintf(name, sizeof(name), "unbound/%u", worker->thread_num);
-		ub_thread_setname(worker->thr_id, name);
+		/* worker->thr_id can be written to after the thread was made
+		 * by the creating thread, so this uses pthread_self. */
+		ub_thread_setname(ub_thread_self(), name);
 	}
 	ub_thread_blocksigs();
 #ifdef THREADS_DISABLED
@@ -942,8 +955,9 @@ thread_start(void* arg)
 		port_num = 0;
 #endif
 	if(!worker_init(worker, worker->daemon->cfg,
-			worker->daemon->ports[port_num], 0))
+			worker->daemon->ports[port_num], 0)) {
 		fatal_exit("Could not initialize thread");
+	}
 
 	worker_work(worker);
 	return NULL;
@@ -1105,8 +1119,9 @@ daemon_fork(struct daemon* daemon)
 
 #if defined(HAVE_EV_LOOP) || defined(HAVE_EV_DEFAULT_LOOP)
 	/* in libev the first inited base gets signals */
-	if(!worker_init(daemon->workers[0], daemon->cfg, daemon->ports[0], 1))
+	if(!worker_init(daemon->workers[0], daemon->cfg, daemon->ports[0], 1)) {
 		fatal_exit("Could not initialize main thread");
+	}
 #endif
 	
 	/* Now create the threads and init the workers.
@@ -1119,8 +1134,9 @@ daemon_fork(struct daemon* daemon)
 	 */
 #if !(defined(HAVE_EV_LOOP) || defined(HAVE_EV_DEFAULT_LOOP))
 	/* libevent has the last inited base get signals (or any base) */
-	if(!worker_init(daemon->workers[0], daemon->cfg, daemon->ports[0], 1))
+	if(!worker_init(daemon->workers[0], daemon->cfg, daemon->ports[0], 1)) {
 		fatal_exit("Could not initialize main thread");
+	}
 #endif
 	signal_handling_playback(daemon->workers[0]);
 
@@ -1164,7 +1180,6 @@ daemon_cleanup(struct daemon* daemon)
 	/* before stopping main worker, handle signals ourselves, so we
 	   don't die on multiple reload signals for example. */
 	signal_handling_record();
-	log_thread_set(NULL);
 	/* clean up caches because
 	 * a) RRset IDs will be recycled after a reload, causing collisions
 	 * b) validation config can change, thus rrset, msg, keycache clear
@@ -1270,7 +1285,7 @@ daemon_delete(struct daemon* daemon)
 #  if HAVE_DECL_SSL_COMP_GET_COMPRESSION_METHODS && HAVE_DECL_SK_SSL_COMP_POP_FREE
 #    ifndef S_SPLINT_S
 #      if OPENSSL_VERSION_NUMBER < 0x10100000
-	sk_SSL_COMP_pop_free(comp_meth, (void(*)())CRYPTO_free);
+	sk_SSL_COMP_pop_free(comp_meth, (void(*)(SSL_COMP*))CRYPTO_free);
 #      endif
 #    endif
 #  endif
@@ -1293,6 +1308,9 @@ daemon_delete(struct daemon* daemon)
 #  if defined(HAVE_SSL) && defined(OPENSSL_THREADS) && !defined(THREADS_DISABLED)
 	ub_openssl_lock_delete();
 #  endif
+#ifdef HAVE_OPENSSL_CLEANUP
+	OPENSSL_cleanup();
+#endif
 #ifndef HAVE_ARC4RANDOM
 	_ARC4_LOCK_DESTROY();
 #endif

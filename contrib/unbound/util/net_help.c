@@ -242,7 +242,7 @@ int
 extstrtoaddr(const char* str, struct sockaddr_storage* addr,
 	socklen_t* addrlen, int port)
 {
-	char* s;
+	const char* s;
 	if((s=strchr(str, '@'))) {
 		char buf[MAX_ADDR_STRLEN];
 		if(s-str >= MAX_ADDR_STRLEN) {
@@ -268,7 +268,7 @@ ipstrtoaddr(const char* ip, int port, struct sockaddr_storage* addr,
 	p = (uint16_t) port;
 	if(str_is_ip6(ip)) {
 		char buf[MAX_ADDR_STRLEN];
-		char* s;
+		const char* s;
 		struct sockaddr_in6* sa = (struct sockaddr_in6*)addr;
 		*addrlen = (socklen_t)sizeof(struct sockaddr_in6);
 		memset(sa, 0, *addrlen);
@@ -304,8 +304,9 @@ ipstrtoaddr(const char* ip, int port, struct sockaddr_storage* addr,
 int netblockstrtoaddr(const char* str, int port, struct sockaddr_storage* addr,
         socklen_t* addrlen, int* net)
 {
+	const char* s;
 	char buf[64];
-	char* s;
+	char* b = NULL;
 	*net = (str_is_ip6(str)?128:32);
 	if((s=strchr(str, '/'))) {
 		if(atoi(s+1) > *net) {
@@ -323,15 +324,15 @@ int netblockstrtoaddr(const char* str, int port, struct sockaddr_storage* addr,
 			return 0;
 		}
 		strlcpy(buf, str, sizeof(buf));
-		s = strchr(buf, '/');
-		if(s) *s = 0;
-		s = buf;
+		b = strchr(buf, '/');
+		if(b) *b = 0;
+		b = buf;
 	}
-	if(!ipstrtoaddr(s?s:str, port, addr, addrlen)) {
+	if(!ipstrtoaddr(b?b:str, port, addr, addrlen)) {
 		log_err("cannot parse ip address: '%s'", str);
 		return 0;
 	}
-	if(s) {
+	if(b) {
 		addr_mask(addr, *addrlen, *net);
 	}
 	return 1;
@@ -1445,6 +1446,8 @@ void* listen_sslctx_create(const char* key, const char* pem,
 		SSL_CTX_set_alpn_select_cb(ctx, doh_alpn_select_cb, NULL);
 #endif
 	}
+#else /* HAVE_SSL_CTX_SET_ALPN_SELECT_CB */
+	(void)is_dot; (void)is_doh;
 #endif /* HAVE_SSL_CTX_SET_ALPN_SELECT_CB */
 	return ctx;
 #else
@@ -1704,6 +1707,10 @@ int check_auth_name_for_ssl(char* auth_name)
 /** set the authname on an SSL structure, SSL* ssl */
 int set_auth_name_on_ssl(void* ssl, char* auth_name, int use_sni)
 {
+#ifdef HAVE_SSL_SET1_DNSNAME
+	struct sockaddr_storage tmpaddr;
+	socklen_t tmpaddrlen = (socklen_t)sizeof(tmpaddr);
+#endif
 	if(!auth_name) return 1;
 #ifdef HAVE_SSL
 	if(use_sni) {
@@ -1713,7 +1720,20 @@ int set_auth_name_on_ssl(void* ssl, char* auth_name, int use_sni)
 	(void)ssl;
 	(void)use_sni;
 #endif
-#ifdef HAVE_SSL_SET1_HOST
+#ifdef HAVE_SSL_SET1_DNSNAME
+	SSL_set_verify(ssl, SSL_VERIFY_PEER, NULL);
+	if(ipstrtoaddr(auth_name, UNBOUND_DNS_PORT, &tmpaddr, &tmpaddrlen)) {
+		if(!SSL_set1_ipaddr(ssl, auth_name)) {
+			log_err("SSL_set1_ipaddr failed");
+			return 0;
+		}
+	} else {
+		if(!SSL_set1_dnsname(ssl, auth_name)) {
+			log_err("SSL_set1_dnsname failed");
+			return 0;
+		}
+	}
+#elif defined(HAVE_SSL_SET1_HOST)
 	SSL_set_verify(ssl, SSL_VERIFY_PEER, NULL);
 	/* setting the hostname makes openssl verify the
 	 * host name in the x509 certificate in the

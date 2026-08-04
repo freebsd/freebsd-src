@@ -307,7 +307,7 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 #endif
 		}
 	} else {
-		char* s = strchr(ip, '@');
+		const char* s = strchr(ip, '@');
 		char newif[128];
 		if(s) {
 			/* override port with ifspec@port */
@@ -1533,18 +1533,95 @@ do_datas_add(struct daemon_remote* rc, RES* ssl, struct worker* worker)
 	(void)ssl_printf(ssl, "added %d datas\n", num);
 }
 
+static int
+perform_data_remove_rr(RES* ssl, struct local_zones* local_zones,
+	uint8_t* rr, size_t len, size_t dname_len, char *arg)
+{
+	uint16_t rr_class, rr_type;
+	int labs;
+	struct local_zone* z;
+	struct local_data* ld;
+	uint8_t *rdata;
+	size_t rdata_len, index;
+	struct packed_rrset_data* d;
+	struct local_rrset* p;
+
+	rdata = sldns_wirerr_get_rdatawl(rr, len, dname_len);
+	rdata_len = ((size_t)sldns_wirerr_get_rdatalen(rr, len, dname_len))+2;
+
+	labs = dname_count_labels(rr);
+
+	rr_class = sldns_wirerr_get_class(rr, len, dname_len);
+	rr_type = sldns_wirerr_get_type(rr, len, dname_len);
+
+	z = local_zones_lookup(local_zones, rr, dname_len,
+			labs, rr_class, rr_type, 1);
+	if (!z) {
+		ssl_printf(ssl, "error no zone for rr %s\n", arg);
+		return 0;
+	}
+
+	ld = local_zone_find_data(z, rr, dname_len, labs);
+	if (!ld) {
+		ssl_printf(ssl, "error no local data for rr %s\n", arg);
+		return 0;
+	}
+
+	p = ld->rrsets;
+	while (p && ntohs(p->rrset->rk.type) != rr_type) {
+		p = p->next;
+	}
+
+	if (!p) {
+		ssl_printf(ssl, "error no rrset for rr %s\n", arg);
+		return 0;
+	}
+
+	d = (struct packed_rrset_data*)p->rrset->entry.data;
+	if (!packed_rrset_find_rr(d, rdata, rdata_len, &index)) {
+		ssl_printf(ssl, "error rr %s not found in rrset\n", arg);
+		return 0;
+	}
+
+	if (!local_rrset_remove_rr(d, index)) {
+		ssl_printf(ssl, "error unable to delete rr %s\n", arg);
+		return 0;
+	}
+
+	return 1;
+}
+
 /** Remove RR data */
 static int
 perform_data_remove(RES* ssl, struct local_zones* zones, char* arg)
 {
-	uint8_t* nm;
-	int nmlabs;
-	size_t nmlen;
-	if(!parse_arg_name(ssl, arg, &nm, &nmlen, &nmlabs))
+	uint8_t rr[LDNS_RR_BUF_SIZE], *nm;
+	size_t len = sizeof(rr);
+	int status, nmlabs;
+	size_t nmlen, dname_len;
+
+	/* try to parse as a rr first */
+	status = sldns_str2wire_rr_buf(arg, rr, &len, &dname_len, 3600,
+				NULL, 0, NULL, 0);
+
+	/* try to parse as a domain name second */
+	if (status != 0) {
+		if (parse_arg_name(ssl, arg, &nm, &nmlen, &nmlabs)) {
+			local_zones_del_data(zones, nm,
+				nmlen, nmlabs, LDNS_RR_CLASS_IN);
+			free(nm);
+			return 1;
+		}
+		ssl_printf(ssl, "error cannot parse rr %s at %d: %s\n", arg,
+			LDNS_WIREPARSE_OFFSET(status),
+			sldns_get_errorstr_parse(status));
 		return 0;
-	local_zones_del_data(zones, nm,
-		nmlen, nmlabs, LDNS_RR_CLASS_IN);
-	free(nm);
+	}
+
+	/* handle the rr case */
+	if (!perform_data_remove_rr(ssl, zones, rr, len, dname_len, arg))
+		return 0;
+
 	return 1;
 }
 
@@ -2315,6 +2392,9 @@ zone_del_rrset(struct lruhash_entry* e, void* arg)
 			(struct packed_rrset_data*)e->data;
 		if(d->ttl > inf->expired) {
 			d->ttl = inf->expired;
+			if(d->ttl_add > inf->expired)
+				d->ttl_add = inf->expired; /* for 0TTL rrsets,
+					means that d->ttl_add <= d->ttl */
 			inf->num_rrsets++;
 		}
 	}
@@ -3238,6 +3318,10 @@ do_auth_zone_reload(RES* ssl, struct worker* worker, char* arg)
 		return;
 	}
 	if(!auth_zone_read_zonefile(z, worker->env.cfg)) {
+		/* The old tree was already cleared. Do not answer from the
+		 * failed load. */
+		z->zone_expired = 1;
+		auth_zone_clear_data(z);
 		lock_rw_unlock(&z->lock);
 		if(xfr) {
 			lock_basic_unlock(&xfr->lock);
@@ -3249,6 +3333,7 @@ do_auth_zone_reload(RES* ssl, struct worker* worker, char* arg)
 	z->zone_expired = 0;
 	if(xfr) {
 		xfr->zone_expired = 0;
+		xfr->num_ixfrs = 0;
 		if(!xfr_find_soa(z, xfr)) {
 			if(z->data.count == 0) {
 				lock_rw_unlock(&z->lock);
@@ -4941,6 +5026,74 @@ fr_check_changed_cfg_str2list(struct config_str2list* cmp1,
 	}
 }
 
+/** fast reload thread, check if config str3list has changed. */
+#define FR_CHECK_CHANGED_CFG_STR3LIST(desc, var, buff) do {		\
+	fr_check_changed_cfg_str3list(cfg->var, newcfg->var, desc, buff,\
+		sizeof(buff));						\
+	} while(0);
+static void
+fr_check_changed_cfg_str3list(struct config_str3list* cmp1,
+	struct config_str3list* cmp2, const char* desc, char* str, size_t len)
+{
+	struct config_str3list* p1 = cmp1, *p2 = cmp2;
+	while(p1 && p2) {
+		if((!p1->str && p2->str) ||
+			(p1->str && !p2->str) ||
+			(p1->str && p2->str && strcmp(p1->str, p2->str) != 0)) {
+			/* The str3list is different. */
+			fr_add_incompatible_option(desc, str, len);
+			return;
+		}
+		if((!p1->str2 && p2->str2) ||
+			(p1->str2 && !p2->str2) ||
+			(p1->str2 && p2->str2 &&
+			strcmp(p1->str2, p2->str2) != 0)) {
+			/* The str3list is different. */
+			fr_add_incompatible_option(desc, str, len);
+			return;
+		}
+		if((!p1->str3 && p2->str3) ||
+			(p1->str3 && !p2->str3) ||
+			(p1->str3 && p2->str3 &&
+			strcmp(p1->str3, p2->str3) != 0)) {
+			/* The str3list is different. */
+			fr_add_incompatible_option(desc, str, len);
+			return;
+		}
+		p1 = p1->next;
+		p2 = p2->next;
+	}
+	if((!p1 && p2) || (p1 && !p2)) {
+		fr_add_incompatible_option(desc, str, len);
+	}
+}
+
+/** fast reload thread, check tag datas. */
+static int
+fr_check_tag_datas(struct fast_reload_thread* fr, struct config_file* newcfg)
+{
+	char changed_str[1024];
+	struct config_file* cfg = fr->worker->env.cfg;
+	changed_str[0]=0;
+
+	/* Check for tag_datas in acl_addr. */
+	FR_CHECK_CHANGED_CFG_STR3LIST("interface-tag-data", interface_tag_datas, changed_str);
+	FR_CHECK_CHANGED_CFG_STR3LIST("access-control-tag-data", acl_tag_datas, changed_str);
+
+	if(changed_str[0] != 0) {
+		if(fr->fr_drop_mesh)
+			return 1; /* already dropping queries */
+		fr->fr_drop_mesh = 1;
+		fr->worker->daemon->fast_reload_drop_mesh = fr->fr_drop_mesh;
+		if(!fr_output_printf(fr, "recursion referenced data has changed, with: '%s"
+			"', and the queries have to be dropped"
+			", setting '+d'\n", changed_str))
+			return 0;
+		fr_send_notification(fr, fast_reload_notification_printout);
+	}
+	return 1;
+}
+
 /** fast reload thread, check compatible config items */
 static int
 fr_check_compat_cfg(struct fast_reload_thread* fr, struct config_file* newcfg)
@@ -5477,6 +5630,23 @@ xfr_masterlist_equal(struct auth_master* list1, struct auth_master* list2)
 	return 0;
 }
 
+/** See if configuration has changed. */
+static int
+xfr_config_equal(struct auth_xfer* xfr1, struct auth_xfer* xfr2)
+{
+	if(xfr1 == NULL && xfr2 == NULL)
+		return 1;
+	if(xfr1 == NULL && xfr2 != NULL)
+		return 0;
+	if(xfr1 != NULL && xfr2 == NULL)
+		return 0;
+	if(xfr1->max_transfer_size != xfr2->max_transfer_size)
+		return 0;
+	if(xfr1->max_transfer_time != xfr2->max_transfer_time)
+		return 0;
+	return 1;
+}
+
 /** See if the list of masters has changed. */
 static int
 xfr_masters_equal(struct auth_xfer* xfr1, struct auth_xfer* xfr2)
@@ -5565,8 +5735,31 @@ auth_zones_check_changes(struct fast_reload_thread* fr,
 				&old_serial)!=0);
 			have_new = (auth_zone_get_serial(new_z,
 				&new_serial)!=0);
+			/* A change in primaries, also means it is different
+			 * and the change makes it fire new transfers, from
+			 * the new primaries. */
+			/* Treat as changed when the old zone has an
+			 * outstanding ZONEMD DS/DNSKEY mesh callback.
+			 * This will make the worker pickup change code
+			 * remove the mesh callback, before the old zone is
+			 * deleted. Also it makes a new zonemd lookup.
+			 * The new lookup is needed, because the new zone
+			 * entry needs to have a valid zonemd result,
+			 * and if that is bad, needs to be invalidated.
+			 * Also if there is a race event where the
+			 * outstanding callback makes the zone invalid,
+			 * before fast-reload completes, the change makes
+			 * the new zone entry have a new zonemd lookup,
+			 * to then invalidate that new zone.
+			 * There is also a brief operational window at
+			 * program start when a zonemd has to be looked
+			 * up on-line, where the zone is operational.
+			 * And this copies that for such a race event.
+			 */
 			if(have_old != have_new || old_serial != new_serial
-				|| !xfr_masters_equal(old_xfr, new_xfr)) {
+				|| !xfr_masters_equal(old_xfr, new_xfr)
+				|| !xfr_config_equal(old_xfr, new_xfr)
+				|| old_z->zonemd_callback_env != NULL) {
 				/* The zone has been changed. */
 				if(!fr_add_auth_zone_change(fr, old_z, new_z,
 					0, 0, 1)) {
@@ -5639,6 +5832,8 @@ ct_create_sslctxs(struct fast_reload_construct* ct,
 		/* Leave listen ctxs and file str at NULL */
 		ct->connect_dot_sslctx = daemon_setup_connect_dot_sslctx(
 			daemon, newcfg);
+		if(!ct->connect_dot_sslctx)
+			return 0;
 		return 1;
 	}
 
@@ -5648,20 +5843,28 @@ ct_create_sslctxs(struct fast_reload_construct* ct,
 		pem += strlen(chroot);
 
 	ct->listen_dot_sslctx = daemon_setup_listen_dot_sslctx(daemon, newcfg);
+	if(!ct->listen_dot_sslctx)
+		return 0;
 #ifdef HAVE_NGHTTP2_NGHTTP2_H
 	if(cfg_has_https(newcfg)) {
 		ct->listen_doh_sslctx = daemon_setup_listen_doh_sslctx(
 			daemon, newcfg);
+		if(!ct->listen_doh_sslctx)
+			return 0;
 	}
 #endif
 #ifdef HAVE_NGTCP2
 	if(cfg_has_quic(newcfg)) {
 		ct->listen_quic_sslctx = daemon_setup_listen_quic_sslctx(
 			daemon, newcfg);
+		if(!ct->listen_quic_sslctx)
+			return 0;
 	}
 #endif /* HAVE_NGTCP2 */
 	ct->connect_dot_sslctx = daemon_setup_connect_dot_sslctx(daemon,
 		newcfg);
+	if(!ct->connect_dot_sslctx)
+		return 0;
 
 	/* Store mtime and names */
 	ct->ssl_service_key = strdup(newcfg->ssl_service_key);
@@ -6631,9 +6834,12 @@ fr_reload_config(struct fast_reload_thread* fr, struct config_file* newcfg,
 	}
 #ifdef USE_DNSTAP
 	if(env->cfg->dnstap) {
-		if(!fr->fr_nopause)
-			dt_apply_cfg(daemon->dtenv, env->cfg);
-		else dt_apply_logcfg(daemon->dtenv, env->cfg);
+		if(!fr->fr_nopause) {
+			if(!dt_apply_cfg(daemon->dtenv, env->cfg))
+				log_warn("fast_reload: dnstap identity/version metadata not updated due to allocation failure");
+		} else {
+			dt_apply_logcfg(daemon->dtenv, env->cfg);
+		}
 	}
 #endif
 	fr_adjust_cache(env, ct->oldcfg);
@@ -6773,6 +6979,10 @@ fr_load_config(struct fast_reload_thread* fr, struct timeval* time_read,
 		config_delete(newcfg);
 		return 0;
 	}
+	if(!fr_check_tag_datas(fr, newcfg)) {
+		config_delete(newcfg);
+		return 0;
+	}
 	if(!fr_check_compat_cfg(fr, newcfg)) {
 		config_delete(newcfg);
 		return 0;
@@ -6864,7 +7074,7 @@ static void* fast_reload_thread_main(void* arg)
 #endif
 		log_thread_set(&fast_reload_thread->threadnum);
 
-	ub_thread_setname(fast_reload_thread->tid, name);
+	ub_thread_setname(ub_thread_self(), name);
 	(void)name; /* When setname is not defined, ignore the name variable. */
 
 	verbose(VERB_ALGO, "start fast reload thread");
@@ -7587,7 +7797,8 @@ auth_zone_zonemd_stop_lookup(struct auth_zone* z, struct mesh_area* mesh)
 	qinfo.local_alias = NULL;
 
 	mesh_remove_callback(mesh, &qinfo, qflags,
-		&auth_zonemd_dnskey_lookup_callback, z);
+		&auth_zonemd_dnskey_lookup_callback, z,
+		z->zonemd_callback_unique_info);
 }
 
 /** Pick up the auth zone locks. */
@@ -7696,6 +7907,9 @@ auth_xfr_pickup_config(struct auth_xfer* loadxfr, struct auth_xfer* xfr)
 	log_assert(loadxfr->namelabs == xfr->namelabs);
 	log_assert(loadxfr->dclass == xfr->dclass);
 
+	xfr->max_transfer_size = loadxfr->max_transfer_size;
+	xfr->max_transfer_time =  loadxfr->max_transfer_time;
+
 	/* The lists can be swapped in, the other xfr struct will be deleted
 	 * afterwards. */
 	probe_masters = xfr->task_probe->masters;
@@ -7720,6 +7934,16 @@ fr_worker_auth_add(struct worker* worker, struct fast_reload_auth_change* item,
 		/* The xfr item needs to be created. The auth zones lock
 		 * is held to make this possible. */
 		xfr = auth_xfer_create(worker->env.auth_zones, item->new_z);
+		if(!xfr) {
+			log_err("out of memory in fr_worker_auth_add");
+			lock_rw_unlock(&item->new_z->lock);
+			lock_rw_unlock(&worker->env.auth_zones->lock);
+			lock_rw_unlock(&worker->daemon->fast_reload_thread->old_auth_zones->lock);
+			if(loadxfr) {
+				lock_basic_unlock(&loadxfr->lock);
+			}
+			return;
+		}
 		auth_xfr_pickup_config(loadxfr, xfr);
 		/* Serial information is copied into the xfr struct. */
 		if(!xfr_find_soa(item->new_z, xfr)) {
@@ -7789,6 +8013,17 @@ fr_worker_auth_cha(struct worker* worker, struct fast_reload_auth_change* item)
 	} else if(loadxfr && !xfr) {
 		/* Create the xfr. */
 		xfr = auth_xfer_create(worker->env.auth_zones, item->new_z);
+		if(!xfr) {
+			log_err("out of memory in fr_worker_auth_cha");
+			lock_rw_unlock(&item->new_z->lock);
+			lock_rw_unlock(&item->old_z->lock);
+			lock_rw_unlock(&worker->daemon->fast_reload_thread->old_auth_zones->lock);
+			lock_rw_unlock(&worker->env.auth_zones->lock);
+			if(loadxfr) {
+				lock_basic_unlock(&loadxfr->lock);
+			}
+			return;
+		}
 		auth_xfr_pickup_config(loadxfr, xfr);
 		item->new_z->zone_is_slave = 1;
 	}

@@ -214,7 +214,7 @@ int fptr_whitelist_modenv_send_query(struct outbound_entry* (*fptr)(
 	int nocaps, int check_ratelimit, struct sockaddr_storage* addr,
 	socklen_t addrlen, uint8_t* zone, size_t zonelen, int tcp_upstream,
 	int ssl_upstream, char* tls_auth_name, struct module_qstate* q,
-	int* was_ratelimited));
+	int* was_ratelimited, int* ratelimit_incremented));
 
 /**
  * Check function pointer whitelist for module_env detach_subs callback values.

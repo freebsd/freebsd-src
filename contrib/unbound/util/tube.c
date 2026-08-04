@@ -145,6 +145,20 @@ void tube_remove_bg_write(struct tube* tube)
 	}
 }
 
+/** Drain the pipe of bytes. */
+static void
+fd_drain(int fd, uint32_t len)
+{
+	uint8_t discard[256];
+	uint32_t remaining = len;
+	while(remaining > 0) {
+		ssize_t n = read(fd, discard,
+			remaining < sizeof(discard) ? remaining : sizeof(discard));
+		if(n <= 0) break;
+		remaining -= (uint32_t)n;
+	}
+}
+
 int
 tube_handle_listen(struct comm_point* c, void* arg, int error,
         struct comm_reply* ATTR_UNUSED(reply_info))
@@ -184,6 +198,9 @@ tube_handle_listen(struct comm_point* c, void* arg, int error,
 		tube->cmd_msg = (uint8_t*)calloc(1, tube->cmd_len);
 		if(!tube->cmd_msg) {
 			log_err("malloc failure");
+			/* Drain the remaining bytes, since they belong to this
+			 * message. The next message starts after it. */
+			fd_drain(c->fd, tube->cmd_len);
 			tube->cmd_read = 0;
 			return 0;
 		}
@@ -374,6 +391,9 @@ int tube_read_msg(struct tube* tube, uint8_t** buf, uint32_t* len,
 	*buf = (uint8_t*)malloc(*len);
 	if(!*buf) {
 		log_err("tube read out of memory");
+		/* Drain the remaining bytes, since they belong to this
+		 * message. The next message starts after it. */
+		fd_drain(fd, *len);
 		(void)fd_set_nonblock(fd);
 		return 0;
 	}

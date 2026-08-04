@@ -483,9 +483,12 @@ parse_copy_decompress_rrset(sldns_buffer* pkt, struct msg_parse* msg,
 	}
 	pk->entry.data = (void*)data;
 	pk->entry.key = (void*)pk;
-	pk->entry.hash = pset->hash;
-	data->trust = get_rrset_trust(msg, pset);
 	pk->rk.flags |= (data->ttl == 0) ? PACKED_RRSET_UPSTREAM_0TTL : 0;
+	if( (pk->rk.flags & PACKED_RRSET_UPSTREAM_0TTL) != 0)
+		pk->entry.hash = rrset_key_hash(&pk->rk);
+	else
+		pk->entry.hash = pset->hash;
+	data->trust = get_rrset_trust(msg, pset);
 	return 1;
 }
 
@@ -1503,8 +1506,12 @@ struct edns_option* edns_opt_list_find(struct edns_option* list, uint16_t code)
 int local_alias_shallow_copy_qname(struct local_rrset* local_alias, uint8_t** qname,
 	size_t* qname_len)
 {
-	struct ub_packed_rrset_key* rrset = local_alias->rrset;
-	struct packed_rrset_data* d = rrset->entry.data;
+	struct ub_packed_rrset_key* rrset;
+	struct packed_rrset_data* d;
+	rrset = local_alias->rrset;
+	if(!rrset) return 0;
+	d = rrset->entry.data;
+	if(!d) return 0;
 
 	/* Sanity check: our current implementation only supports
 	    * a single CNAME RRset as a local alias. */

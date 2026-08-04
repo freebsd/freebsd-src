@@ -1702,6 +1702,12 @@ static int setup_if(struct port_if* pif, const char* addrstr, size_t numfd,
 	   !netblockstrtoaddr(addrstr, UNBOUND_DNS_PORT,
 			      &pif->addr, &pif->addrlen, &pif->pfxlen))
 		return 0;
+#ifdef INT_MAX
+	if(numfd > (size_t)INT_MAX) {
+		log_err("num_ports exceeds INT_MAX");
+		return 0;
+	}
+#endif
 #ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
 	pif->shpif = shared_ports_find_if(shp, &pif->addr, pif->addrlen,
 		pif->pfxlen);
@@ -1777,6 +1783,13 @@ outside_network_create(struct comm_base *base, size_t bufsize,
 		outside_network_delete(outnet);
 		return NULL;
 	}
+#ifdef INT_MAX
+	if(num_ports > (size_t)INT_MAX) {
+		log_err("outgoing num_ports exceeds INT_MAX");
+		outside_network_delete(outnet);
+		return NULL;
+	}
+#endif
 #ifndef INET6
 	do_ip6 = 0;
 #endif
@@ -3349,9 +3362,9 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 	if(error == NETEVENT_TIMEOUT) {
 		if(sq->status == serviced_query_UDP_EDNS && sq->last_rtt < 5000 &&
 		   (serviced_query_udp_size(sq, serviced_query_UDP_EDNS_FRAG) < serviced_query_udp_size(sq, serviced_query_UDP_EDNS))) {
-			/* fallback to 1480/1280 */
+			/* fallback to 1472/1232 */
 			sq->status = serviced_query_UDP_EDNS_FRAG;
-			log_name_addr(VERB_ALGO, "try edns1xx0", sq->qbuf+10,
+			log_name_addr(VERB_ALGO, "try edns1xx2", sq->qbuf+10,
 				&sq->addr, sq->addrlen);
 			if(!serviced_udp_send(sq, c->buffer)) {
 				serviced_callbacks(sq, NETEVENT_CLOSED, c, rep);
@@ -3488,7 +3501,8 @@ outnet_serviced_query(struct outside_network* outnet,
 	char* tls_auth_name, struct sockaddr_storage* addr, socklen_t addrlen,
 	uint8_t* zone, size_t zonelen, struct module_qstate* qstate,
 	comm_point_callback_type* callback, void* callback_arg,
-	sldns_buffer* buff, struct module_env* env, int* was_ratelimited)
+	sldns_buffer* buff, struct module_env* env, int* was_ratelimited,
+	int* ratelimit_incremented)
 {
 	struct serviced_query* sq;
 	struct service_callback* cb;
@@ -3560,6 +3574,7 @@ outnet_serviced_query(struct outside_network* outnet,
 					"delegation point", zone,
 					LDNS_RR_TYPE_NS, LDNS_RR_CLASS_IN);
 			}
+			*ratelimit_incremented = 1;
 		}
 		/* make new serviced query entry */
 		sq = serviced_create(outnet, buff, dnssec, want_dnssec, nocaps,
@@ -3765,7 +3780,33 @@ setup_comm_ssl(struct comm_point* cp, struct outside_network* outnet,
 		(void)SSL_set_tlsext_host_name(cp->ssl, host);
 	}
 #endif
-#ifdef HAVE_SSL_SET1_HOST
+#ifdef HAVE_SSL_SET1_DNSNAME
+	if((SSL_CTX_get_verify_mode(outnet->sslctx)&SSL_VERIFY_PEER)) {
+		/* because we set SSL_VERIFY_PEER, in netevent in
+		 * ssl_handshake, it'll check if the certificate
+		 * verification has succeeded */
+		/* SSL_VERIFY_PEER is set on the sslctx */
+		/* and the certificates to verify with are loaded into
+		 * it with SSL_load_verify_locations or
+		 * SSL_CTX_set_default_verify_paths */
+		/* setting the hostname makes openssl verify the
+		 * host name in the x509 certificate in the
+		 * SSL connection*/
+		struct sockaddr_storage tmpaddr;
+		socklen_t tmpaddrlen = (socklen_t)sizeof(tmpaddr);
+		if(ipstrtoaddr(host, UNBOUND_DNS_PORT, &tmpaddr, &tmpaddrlen)) {
+			if(!SSL_set1_ipaddr(cp->ssl, host)) {
+				log_err("SSL_set1_ipaddr failed");
+				return 0;
+			}
+		} else {
+			if(!SSL_set1_dnsname(cp->ssl, host)) {
+				log_err("SSL_set1_dnsname failed");
+				return 0;
+			}
+		}
+	}
+#elif defined(HAVE_SSL_SET1_HOST)
 	if((SSL_CTX_get_verify_mode(outnet->sslctx)&SSL_VERIFY_PEER)) {
 		/* because we set SSL_VERIFY_PEER, in netevent in
 		 * ssl_handshake, it'll check if the certificate
@@ -3894,7 +3935,8 @@ outnet_comm_point_for_http(struct outside_network* outnet,
 		/* outnet_tcp_connect has closed fd on error for us */
 		return 0;
 	}
-	cp = comm_point_create_http_out(outnet->base, 65552, cb, cb_arg,
+	cp = comm_point_create_http_out(outnet->base,
+		sldns_buffer_capacity(outnet->udp_buff), cb, cb_arg,
 		outnet->udp_buff);
 	if(!cp) {
 		log_err("malloc failure");
@@ -4085,13 +4127,15 @@ static int shared_ports_alloc_ifs(struct shared_ports* shp, char** ifs,
 		size_t done_4 = 0, done_6 = 0;
 		int i;
 		for(i=0; i<num_ifs; i++) {
-			if(str_is_ip6(ifs[i]) && do_ip6) {
+			if(str_is_ip6(ifs[i]) && do_ip6 &&
+				(int)done_6 < shp->num_ip6) {
 				if(!shared_ports_setup_if(&shp->ip6_ifs[done_6],
 					ifs[i], availports, numavailports))
 					return 0;
 				done_6++;
 			}
-			if(!str_is_ip6(ifs[i]) && do_ip4) {
+			if(!str_is_ip6(ifs[i]) && do_ip4 &&
+				(int)done_4 < shp->num_ip4) {
 				if(!shared_ports_setup_if(&shp->ip4_ifs[done_4],
 					ifs[i], availports, numavailports))
 					return 0;
@@ -4112,16 +4156,21 @@ struct shared_ports* shared_ports_create(char** ifs, int num_ifs, int do_ip4,
 		return NULL;
 	}
 	lock_basic_init(&shp->lock);
-	lock_protect(&shp->lock, shp, sizeof(*shp));
+	lock_protect(&shp->lock, &shp->ip4_ifs, sizeof(shp->ip4_ifs));
+	lock_protect(&shp->lock, &shp->num_ip4, sizeof(shp->num_ip4));
+	lock_protect(&shp->lock, &shp->ip6_ifs, sizeof(shp->ip6_ifs));
+	lock_protect(&shp->lock, &shp->num_ip6, sizeof(shp->num_ip6));
 
 #ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
 	/* Allocate interfaces */
+	lock_basic_lock(&shp->lock);
 	if(!shared_ports_alloc_ifs(shp, ifs, num_ifs, do_ip4, do_ip6,
 		availports, numavailports)) {
 		log_err("malloc failed");
 		shared_ports_delete(shp);
 		return NULL;
 	}
+	lock_basic_unlock(&shp->lock);
 #else
 	(void)ifs; (void)num_ifs; (void)do_ip4; (void)do_ip6;
 	(void)availports; (void)numavailports;
@@ -4199,6 +4248,9 @@ int shared_ports_fetch_random(struct shared_ports* shp,
 	int portno = 0, my_port = 0;
 	if(!shpif)
 		return 0;
+#  ifdef THREADS_DISABLED
+	(void)shp;
+#  endif
 	lock_basic_lock(&shp->lock);
 	if(udp_connect) {
 		/* if we connect() we cannot reuse fds for a port. */
@@ -4256,6 +4308,9 @@ void shared_ports_return_port(struct shared_ports* shp,
 #ifndef DISABLE_EXPLICIT_PORT_RANDOMISATION
 	if(!shpif)
 		return;
+#  ifdef THREADS_DISABLED
+	(void)shp;
+#  endif
 	lock_basic_lock(&shp->lock);
 	log_assert(shpif->inuse > 0);
 	shpif->avail_ports[shpif->avail_total - shpif->inuse] = port;
