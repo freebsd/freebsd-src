@@ -2605,7 +2605,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	} else if (namelen != 3)
 		return ((namelen < 3) ? EISDIR : ENOTDIR);
 	af = name[0];
-	if (af > AF_MAX)
+	if (af >= AF_MAX)
 		return (EINVAL);
 	bzero(&w, sizeof(w));
 	w.w_op = name[1];
@@ -2629,7 +2629,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	case NET_RT_FLAGS:
 		if (af == 0) {			/* dump all tables */
 			i = 1;
-			lim = AF_MAX;
+			lim = AF_MAX - 1;
 		} else				/* dump only one table */
 			i = lim = af;
 
