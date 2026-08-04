@@ -1069,4 +1069,19 @@
 #define	GICV5_PRI_HIGHEST		0x0
 #define	GICV5_PRI_LOWEST		0x1f
 
+#define	GSI_INT_TYPE_SHIFT		29
+#define	GSI_INT_TYPE_MASK		(UL(7) << GSI_INT_TYPE_SHIFT)
+#define	GSI_INT_TYPE_PPI		(UL(1) << GSI_INT_TYPE_SHIFT)
+#define	GSI_INT_TYPE_LPI		(UL(2) << GSI_INT_TYPE_SHIFT)
+#define	GSI_INT_TYPE_SPI		(UL(3) << GSI_INT_TYPE_SHIFT)
+#define	GSI_INT_TYPE_IWB		(UL(7) << GSI_INT_TYPE_SHIFT)
+/* Only valid when GSI_INT_TYPE == GSI_INT_TYPE_IWB */
+#define	GSI_IWB_ID_SHIFT		16
+#define	GSI_IWB_ID_MASK			(UL(0xfff) << GSI_IWB_ID_SHIFT)
+#define	GSI_IWB_INT_ID_SHIFT		0
+#define	GSI_IWB_INT_ID_MASK		(UL(0xffff) << GSI_IWB_INT_ID_SHIFT)
+/* Only valid when GSI_INT_TYPE != GSI_INT_TYPE_IWB */
+#define	GSI_INT_ID_SHIFT		0
+#define	GSI_INT_ID_MASK			(UL(0xffffff) << GSI_INT_ID_SHIFT)
+
 #endif
