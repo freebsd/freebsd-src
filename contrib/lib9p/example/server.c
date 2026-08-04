@@ -39,8 +39,8 @@ main(int argc, char **argv)
 {
 	struct l9p_backend *fs_backend;
 	struct l9p_server *server;
-	char *host = "0.0.0.0";
-	char *port = "564";
+	const char *host = "0.0.0.0";
+	const char *port = "564";
 	char *path;
 	bool ro = false;
 	int rootfd;
