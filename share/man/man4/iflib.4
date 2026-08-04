@@ -1,4 +1,4 @@
-.Dd January 7, 2026
+.Dd August 4, 2026
 .Dt IFLIB 4
 .Os
 .Sh NAME
@@ -128,6 +128,15 @@ Some NICs allow processing completed transmit descriptors in batches.
 Doing so usually increases the transmit throughput by reducing the number of
 transmit interrupts.
 Setting this to a non-zero value will disable the use of this feature.
+.It Va net.iflib.tx_watchdog_periods
+Number of consecutive
+.Va net.iflib.timer_default
+intervals for which a transmit queue must stay frozen,
+that is, hold descriptors the hardware has not reported as completed
+while none are reclaimed,
+before iflib asks the hardware whether it has completions pending.
+If it reports none, the interface is reset.
+Setting this to zero disables the check.
 .El
 .Pp
 These
