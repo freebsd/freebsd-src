@@ -56,6 +56,11 @@
 #include <dev/ofw/ofw_subr.h>
 #endif
 
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
+#endif
+
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
@@ -1237,3 +1242,136 @@ gicv5_its_fdt_attach(device_t dev)
 	return (gicv5_its_attach(dev));
 }
 #endif /* FDT */
+
+#ifdef DEV_ACPI
+static int
+gicv5_its_acpi_probe(device_t dev);
+static int
+gicv5_its_acpi_attach(device_t dev);
+
+static device_method_t gicv5_its_acpi_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,			gicv5_its_acpi_probe),
+	DEVMETHOD(device_attach,		gicv5_its_acpi_attach),
+
+	/* End */
+	DEVMETHOD_END
+};
+
+#define its_baseclasses itsv5_acpi_baseclasses
+DEFINE_CLASS_1(its, gicv5_its_acpi_driver, gicv5_its_acpi_methods,
+    sizeof(struct gicv5_its_softc), gicv5_its_driver);
+#undef its_baseclasses
+
+EARLY_DRIVER_MODULE(itsv5_acpi, gic, gicv5_its_acpi_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+
+static int
+gicv5_its_acpi_probe(device_t dev)
+{
+	device_t parent = device_get_parent(dev);
+
+	if (!parent)
+		return (ENXIO);
+
+	if (strcmp(device_get_name(parent), "gic"))
+		return (ENXIO);
+
+	device_set_desc(dev, "ARM GICv5 Interrupt Translation Service");
+	return (BUS_PROBE_DEFAULT);
+}
+
+struct find_its_translate_data {
+	bus_addr_t its_frame_paddr;
+	uint8_t flags;
+	int its_found;
+	int its_translate_found;
+	u_int its_translate_xref;
+	int its_translate_pxm;
+};
+
+static void
+find_its_translate(ACPI_SUBTABLE_HEADER *entry, void *arg)
+{
+	ACPI_MADT_GICv5_ITS_TRANSLATE *its_translate;
+	ACPI_MADT_GICv5_ITS *its;
+	struct find_its_translate_data *find_data;
+	int err;
+
+	find_data = (struct find_its_translate_data *)arg;
+
+	switch (entry->Type) {
+	case ACPI_MADT_TYPE_GICV5_ITS:
+		its = (ACPI_MADT_GICv5_ITS *)entry;
+
+		find_data->its_found++;
+		find_data->flags = its->Flags;
+		break;
+
+	case ACPI_MADT_TYPE_GICV5_ITS_TRANSLATE:
+		its_translate = (ACPI_MADT_GICv5_ITS_TRANSLATE *)entry;
+
+		err = acpi_iort_its_lookup(its_translate->TranslateFrameId,
+		    &find_data->its_translate_xref,
+		    &find_data->its_translate_pxm);
+		if (err != 0)
+			break;
+
+		find_data->its_translate_found++;
+		find_data->its_frame_paddr = its_translate->BaseAddress;
+		break;
+	}
+}
+
+static int
+gicv5_its_acpi_attach(device_t dev)
+{
+	struct find_its_translate_data find_data;
+	struct gicv5_its_softc *sc;
+	ACPI_TABLE_MADT *madt;
+	vm_paddr_t physaddr;
+
+	sc = device_get_softc(dev);
+
+	physaddr = acpi_find_table(ACPI_SIG_MADT);
+	if (physaddr == 0)
+		return (ENODEV);
+
+	madt = acpi_map_table(physaddr, ACPI_SIG_MADT);
+	if (madt == NULL) {
+		device_printf(dev, "gicv5_its: Unable to map the MADT\n");
+		return (ENODEV);
+	}
+
+	find_data.its_found = 0;
+	find_data.its_translate_found = 0;
+
+	acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
+	    find_its_translate, &find_data);
+
+	if (!find_data.its_found) {
+		device_printf(dev, "No valid ITS found\n");
+		return (EINVAL);
+	}
+	if (find_data.its_found > 1) {
+		device_printf(dev, "Multiple ITS found\n");
+		return (EINVAL);
+	}
+	if (!find_data.its_translate_found) {
+		device_printf(dev, "No valid ITS frame found\n");
+		return (EINVAL);
+	}
+	if (find_data.its_translate_found > 1) {
+		device_printf(dev, "Multiple ITS frames found\n");
+		return (EINVAL);
+	}
+
+	sc->its_frame.its_frame_paddr = find_data.its_frame_paddr;
+	sc->its_frame.its_pic = NULL;
+	sc->its_frame.its_xref = find_data.its_translate_xref;
+	sc->its_coherent = !(find_data.flags &
+	    ACPI_MADT_GICV5_ITS_NON_COHERENT);
+
+	return (gicv5_its_attach(dev));
+}
+#endif /* DEV_ACPI */

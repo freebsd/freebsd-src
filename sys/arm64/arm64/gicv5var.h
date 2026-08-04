@@ -68,4 +68,6 @@ int gicv5_intr(void *);
 void gicv5_irs_init(device_t, u_int, cpuset_t *);
 void gicv5_irs_extend_ist(device_t, device_t, u_int);
 
+void gicv5_attach_iwb(device_t, device_t);
+
 #endif /* _ARM64_GICV5VAR_H_ */

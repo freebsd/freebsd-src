@@ -139,6 +139,9 @@ gic_acpi_identify(driver_t *driver, device_t parent)
 	acpi_walk_subtables(madt + 1, (char *)madt + madt->Header.Length,
 	    madt_handler, &madt_data);
 
+	if (!madt_data.dist)
+		return;
+
 	/* Check the version of the GIC we have */
 	switch (madt_data.dist->Version) {
 	case ACPI_MADT_GIC_VERSION_NONE:

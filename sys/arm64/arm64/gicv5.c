@@ -55,6 +55,11 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
 
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
+#endif
+
 #include "pic_if.h"
 
 #include <arm/arm/gic_common.h>
@@ -1166,6 +1171,26 @@ gic_map_fdt(device_t dev, u_int ncells, pcell_t *cells, bool *ppi, u_int *irqp,
 }
 #endif
 
+#ifdef DEV_ACPI
+static int
+do_gicv5_map_iwb_intr(struct intr_map_data *data,
+    struct intr_irqsrc **isrcp)
+{
+	struct intr_map_data_acpi *daa;
+	device_t iwb;
+	int iwb_id;
+
+	daa = (struct intr_map_data_acpi *)data;
+	iwb_id = (daa->irq & GSI_IWB_ID_MASK) >> GSI_IWB_ID_SHIFT;
+	iwb = acpi_iort_get_iwb_dev(iwb_id);
+
+	if (iwb == NULL)
+		return (ENODEV);
+
+	return (PIC_MAP_INTR(iwb, data, isrcp));
+}
+#endif
+
 static int
 do_gicv5_map_intr(device_t dev, struct intr_map_data *data, bool *ppip,
     u_int *irqp, enum intr_polarity *polp, enum intr_trigger *trigp)
@@ -1175,6 +1200,9 @@ do_gicv5_map_intr(device_t dev, struct intr_map_data *data, bool *ppip,
 	enum intr_trigger trig;
 #ifdef FDT
 	struct intr_map_data_fdt *daf;
+#endif
+#ifdef DEV_ACPI
+	struct intr_map_data_acpi *daa;
 #endif
 	u_int irq;
 	bool ppi;
@@ -1188,6 +1216,17 @@ do_gicv5_map_intr(device_t dev, struct intr_map_data *data, bool *ppip,
 		if (gic_map_fdt(dev, daf->ncells, daf->cells, &ppi, &irq, &pol,
 		    &trig) != 0)
 			return (EINVAL);
+		break;
+#endif
+#ifdef DEV_ACPI
+	case INTR_MAP_DATA_ACPI:
+		daa = (struct intr_map_data_acpi *)data;
+		if ((daa->irq & GSI_INT_TYPE_MASK) == GSI_INT_TYPE_IWB)
+			return (EINVAL);
+		irq = daa->irq & GSI_INT_ID_MASK;
+		pol = daa->pol;
+		trig = daa->trig;
+		ppi = ((daa->irq & GSI_INT_TYPE_MASK) == GSI_INT_TYPE_PPI);
 		break;
 #endif
 	default:
@@ -1231,10 +1270,21 @@ static int
 gicv5_map_intr(device_t dev, struct intr_map_data *data,
     struct intr_irqsrc **isrcp)
 {
+#ifdef DEV_ACPI
+	struct intr_map_data_acpi *daa;
+#endif
 	struct gicv5_softc *sc;
 	u_int irq;
 	int error;
 	bool ppi;
+
+#ifdef DEV_ACPI
+	if (data->type == INTR_MAP_DATA_ACPI) {
+		daa = (struct intr_map_data_acpi *)data;
+		if ((daa->irq & GSI_INT_TYPE_MASK) == GSI_INT_TYPE_IWB)
+			return (do_gicv5_map_iwb_intr(data, isrcp));
+	}
+#endif
 
 	error = do_gicv5_map_intr(dev, data, &ppi, &irq, NULL, NULL);
 	if (error == 0) {

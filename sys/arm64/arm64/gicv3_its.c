@@ -2399,7 +2399,7 @@ gicv3_its_acpi_probe(device_t dev)
 	if (gic_get_bus(dev) != GIC_BUS_ACPI)
 		return (EINVAL);
 
-	if (gic_get_hw_rev(dev) < 3)
+	if (gic_get_hw_rev(dev) < 3 || gic_get_hw_rev(dev) > 4)
 		return (EINVAL);
 
 	if (!gic_get_support_lpis(dev))

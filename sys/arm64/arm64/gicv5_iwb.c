@@ -47,8 +47,16 @@
 #include <dev/ofw/ofw_bus_subr.h>
 #endif
 
+#ifdef DEV_ACPI
+#include <contrib/dev/acpica/include/acpi.h>
+#include <dev/acpica/acpivar.h>
+#endif
+
 #include "pci_if.h"
 #include "pic_if.h"
+
+#include "gicv5reg.h"
+#include "gicv5var.h"
 
 #define	IWB_IDR0		0x0000
 #define	 IDR0_IW_RANGE_SHIFT	0
@@ -207,6 +215,8 @@ gicv5_iwb_attach(device_t dev)
 	error = PCI_ALLOC_MSI(device_get_parent(dev), dev, &count);
 	if (error != 0) {
 		device_printf(dev, "Unable to allocate MSI interrupts\n");
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_mem_rid,
+		    sc->sc_mem);
 		return (error);
 	}
 
@@ -363,6 +373,9 @@ do_gicv5_iwb_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 #ifdef FDT
 	struct intr_map_data_fdt *daf;
 #endif
+#ifdef DEV_ACPI
+	struct intr_map_data_acpi *daa;
+#endif
 	u_int irq;
 
 	sc = device_get_softc(dev);
@@ -374,6 +387,14 @@ do_gicv5_iwb_map_intr(device_t dev, struct intr_map_data *data, u_int *irqp,
 		if (gicv5_iwb_map_fdt(dev, daf->ncells, daf->cells, &irq, &pol,
 		    &trig) != 0)
 			return (EINVAL);
+		break;
+#endif
+#ifdef DEV_ACPI
+	case INTR_MAP_DATA_ACPI:
+		daa = (struct intr_map_data_acpi *)data;
+		irq = daa->irq & GSI_IWB_INT_ID_MASK;
+		pol = daa->pol;
+		trig = daa->trig;
 		break;
 #endif
 	default:
@@ -559,3 +580,75 @@ gicv5_iwb_fdt_attach(device_t dev)
 	return (0);
 }
 #endif /* FDT */
+
+#ifdef DEV_ACPI
+struct gicv5_iwb_acpi_softc {
+	struct gicv5_iwb_softc sc_base;
+};
+
+static device_probe_t gicv5_iwb_acpi_probe;
+static device_attach_t gicv5_iwb_acpi_attach;
+
+static device_method_t gicv5_iwb_acpi_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,			gicv5_iwb_acpi_probe),
+	DEVMETHOD(device_attach,		gicv5_iwb_acpi_attach),
+
+	/* End */
+	DEVMETHOD_END
+};
+
+#define iwb_baseclasses iwbv5_acpi_baseclasses
+DEFINE_CLASS_1(iwb, gicv5_iwb_acpi_driver, gicv5_iwb_acpi_methods,
+    sizeof(struct gicv5_iwb_acpi_softc), gicv5_iwb_driver);
+#undef iwb_baseclasses
+
+/* This needs to be after the ITS as it sends MSI messages there */
+EARLY_DRIVER_MODULE(gicv5_iwb_acpi, acpi, gicv5_iwb_acpi_driver, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_LATE);
+
+static int
+gicv5_iwb_acpi_probe(device_t dev)
+{
+	ACPI_HANDLE h;
+
+	if ((h = acpi_get_handle(dev)) == NULL)
+		return (ENXIO);
+
+	if (!acpi_MatchHid(h, "ARMH0003"))
+		return (ENXIO);
+
+	device_set_desc(dev, "ARM GICv5 Interrupt Wire Bridge");
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+gicv5_iwb_acpi_attach(device_t dev)
+{
+	struct gicv5_iwb_acpi_softc *sc;
+	u_int xref;
+	int its_id;
+	int error;
+	int pxm;
+
+	sc = device_get_softc(dev);
+
+	error = acpi_iort_lookup_its_from_iwb(dev, &its_id);
+	if (error != 0)
+		return (error);
+
+	error = acpi_iort_its_lookup(its_id, &xref, &pxm);
+	if (error != 0)
+		return (error);
+
+	error = gicv5_iwb_attach(dev);
+	if (error != 0)
+		return (error);
+
+	sc->sc_base.sc_pic = intr_pic_register(dev, xref);
+	if (sc->sc_base.sc_pic == NULL)
+		return (ENXIO);
+
+	return (0);
+}
+#endif /* ACPI */
