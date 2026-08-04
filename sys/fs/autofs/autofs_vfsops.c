@@ -109,6 +109,33 @@ autofs_mount(struct mount *mp)
 	return (0);
 }
 
+/*
+ * Try to abort any requests currently in flight.  This is not
+ * strictly necessary, the strong pass is done after all vnodes are
+ * reclaimed, and does not prevent new requests from queueing.  But
+ * doing it now should practically avoid waiting for timeouts because
+ * each in-flight requests busies the mount point, which makes
+ * unmount() to wait for it to drain.
+ */
+static void
+autofs_purge(struct mount *mp)
+{
+	struct autofs_mount *amp;
+	struct autofs_request *ar;
+
+	amp = VFSTOAUTOFS(mp);
+	sx_xlock(&autofs_softc->sc_lock);
+	TAILQ_FOREACH(ar, &autofs_softc->sc_requests, ar_next) {
+		if (ar->ar_mount != amp)
+			continue;
+		ar->ar_error = ENXIO;
+		ar->ar_done = true;
+		ar->ar_in_progress = false;
+	}
+	sx_xunlock(&autofs_softc->sc_lock);
+	cv_broadcast(&autofs_softc->sc_cv);
+}
+
 static int
 autofs_unmount(struct mount *mp, int mntflags)
 {
@@ -208,6 +235,7 @@ static struct vfsops autofs_vfsops = {
 	.vfs_fhtovp =		NULL, /* XXX */
 	.vfs_mount =		autofs_mount,
 	.vfs_unmount =		autofs_unmount,
+	.vfs_purge =		autofs_purge,
 	.vfs_root =		autofs_root,
 	.vfs_statfs =		autofs_statfs,
 	.vfs_init =		autofs_init,
