@@ -649,12 +649,15 @@ create_on_zoned_body()
 
 	alloc_zoned_md
 	atf_check gzoned create -s 256m ${md}
-	# The metadata of the second device cannot land in the sequential
-	# zones of the first; creation must fail and leave it intact.
-	atf_check -s not-exit:0 -e ignore gzoned create -s 256m ${md}.zoned
+	# The metadata of the second device cannot land in the sequential zones
+	# of the first; creation must be refused and leave the first device
+	# intact, with all zones still empty.
+	atf_check -s not-exit:0 -e match:"host-managed" \
+	    gzoned create -s 256m ${md}.zoned
 	atf_check test -c /dev/${md}.zoned
 	atf_check -o match:"^4 zones," \
 	    zonectl -d /dev/${md}.zoned -c rz -P summary
+	atf_check_equal "4" "$(zone_count empty)"
 }
 create_on_zoned_cleanup()
 {
