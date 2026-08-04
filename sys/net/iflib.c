@@ -312,9 +312,6 @@ typedef struct iflib_sw_tx_desc_array {
 /* The minimum descriptors per second before we start coalescing */
 #define IFLIB_MIN_DESC_SEC		16384
 #define IFLIB_DEFAULT_TX_UPDATE_FREQ	16
-#define IFLIB_QUEUE_IDLE		0
-#define IFLIB_QUEUE_HUNG		1
-#define IFLIB_QUEUE_WORKING		2
 /* maximum number of txqs that can share an rx interrupt */
 #define IFLIB_MAX_TX_SHARED_INTR	4
 
@@ -414,10 +411,9 @@ struct iflib_txq {
 	 */
 	qidx_t		ift_outstanding_prev;
 	uint16_t	ift_wdog_armed;
-	uint8_t		ift_qstatus;
 	uint8_t		ift_closed;
 	uint8_t		ift_update_freq;
-	uint8_t		ift_spare0;	/* pad to the next pointer boundary */
+	uint8_t		ift_spare0[2];	/* pad to the next pointer boundary */
 	struct iflib_filter_info ift_filter_info;
 	bus_dma_tag_t	ift_buf_tag;
 	bus_dma_tag_t	ift_tso_buf_tag;
@@ -1931,8 +1927,6 @@ iflib_txq_setup(iflib_txq_t txq)
 	iflib_dma_info_t di;
 	int i;
 
-	/* Set number of descriptors available */
-	txq->ift_qstatus = IFLIB_QUEUE_IDLE;
 	/* XXX make configurable */
 	txq->ift_update_freq = IFLIB_DEFAULT_TX_UPDATE_FREQ;
 
@@ -3978,7 +3972,6 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 	}
 
 	if (__predict_false(if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_OACTIVE)) {
-		txq->ift_qstatus = IFLIB_QUEUE_IDLE;
 		CALLOUT_LOCK(txq);
 		callout_stop(&txq->ift_timer);
 		CALLOUT_UNLOCK(txq);
@@ -3986,11 +3979,6 @@ iflib_txq_drain(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 		return (0);
 	}
 
-	/*
-	 * If we've reclaimed any packets this queue cannot be hung.
-	 */
-	if (reclaimed)
-		txq->ift_qstatus = IFLIB_QUEUE_IDLE;
 	consumed = mcast_sent = bytes_sent = pkt_sent = 0;
 	count = MIN(avail, TX_BATCH_SIZE);
 #ifdef INVARIANTS
@@ -4066,7 +4054,6 @@ iflib_txq_drain_free(struct ifmp_ring *r, uint32_t cidx, uint32_t pidx)
 
 	txq = r->cookie;
 
-	txq->ift_qstatus = IFLIB_QUEUE_IDLE;
 	CALLOUT_LOCK(txq);
 	callout_stop(&txq->ift_timer);
 	CALLOUT_UNLOCK(txq);
@@ -6562,18 +6549,12 @@ void
 iflib_link_state_change(if_ctx_t ctx, int link_state, uint64_t baudrate)
 {
 	if_t ifp = ctx->ifc_ifp;
-	iflib_txq_t txq = ctx->ifc_txqs;
 
 	if_setbaudrate(ifp, baudrate);
 	if (baudrate >= IF_Gbps(10)) {
 		STATE_LOCK(ctx);
 		ctx->ifc_flags |= IFC_PREFETCH;
 		STATE_UNLOCK(ctx);
-	}
-	/* If link down, disable watchdog */
-	if ((ctx->ifc_link_state == LINK_STATE_UP) && (link_state == LINK_STATE_DOWN)) {
-		for (int i = 0; i < ctx->ifc_softc_ctx.isc_ntxqsets; i++, txq++)
-			txq->ift_qstatus = IFLIB_QUEUE_IDLE;
 	}
 	ctx->ifc_link_state = link_state;
 	if_link_state_change(ifp, link_state);
