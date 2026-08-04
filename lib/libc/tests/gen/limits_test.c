@@ -27,6 +27,9 @@
 		__XSTRING(TYPE) "_MAX wrongly defined");
 
 /* primitive types */
+static_assert(BOOL_WIDTH == 1, "BOOL_WIDTH wrongly defined");
+static_assert(BOOL_MAX == 1, "BOOL_MAX wrongly defined");
+
 #ifdef __CHAR_UNSIGNED__
 CHECK_UTYPE(char, CHAR);
 #else
@@ -91,6 +94,9 @@ CHECK_STYPE(sig_atomic_t, SIG_ATOMIC);
 CHECK_UTYPE(uintmax_t, UINTMAX);
 CHECK_UTYPE(uintptr_t, UINTPTR);
 CHECK_UTYPE(size_t, SIZE);
+
+static_assert(BITINT_MAXWIDTH >= ULLONG_WIDTH,
+	"BITINT_MAXWIDTH wrongly defined");
 
 /* dummy */
 ATF_TC_WITHOUT_HEAD(dummy);
