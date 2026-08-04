@@ -33,6 +33,7 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/sbuf.h>
 
 #include <machine/intr.h>
 
@@ -82,6 +83,15 @@ struct iort_named_component
 	char                    DeviceName[32]; /* Path of namespace object */
 };
 
+struct iort_iwb
+{
+    UINT64 BaseAddress;
+    /* Unique IWB identifier matching with the IWB GSI namespace. */
+    UINT16 IwbIndex;
+    /* Path of the IWB namespace object */
+    char   DeviceName[32];
+};
+
 /*
  * IORT node. Each node has some device specific data depending on the
  * type of the node. The node can also have a set of mappings, OR in
@@ -104,6 +114,7 @@ struct iort_node {
 		ACPI_IORT_SMMU			smmu;
 		ACPI_IORT_SMMU_V3		smmu_v3;
 		struct iort_named_component	named_comp;
+		struct iort_iwb			iwb;
 	} data;
 };
 
@@ -112,6 +123,7 @@ static TAILQ_HEAD(, iort_node) pci_nodes = TAILQ_HEAD_INITIALIZER(pci_nodes);
 static TAILQ_HEAD(, iort_node) smmu_nodes = TAILQ_HEAD_INITIALIZER(smmu_nodes);
 static TAILQ_HEAD(, iort_node) its_groups = TAILQ_HEAD_INITIALIZER(its_groups);
 static TAILQ_HEAD(, iort_node) named_nodes = TAILQ_HEAD_INITIALIZER(named_nodes);
+static TAILQ_HEAD(, iort_node) iwb_nodes = TAILQ_HEAD_INITIALIZER(iwb_nodes);
 
 static int
 iort_entry_get_id_mapping_index(struct iort_node *node)
@@ -325,6 +337,7 @@ iort_add_nodes(ACPI_IORT_NODE *node_entry, u_int node_offset)
 	ACPI_IORT_SMMU_V3 *smmu_v3;
 	ACPI_IORT_NAMED_COMPONENT *named_comp;
 	struct iort_node *node;
+	ACPI_IORT_IWB *iwb;
 
 	node = malloc(sizeof(*node), M_DEVBUF, M_WAITOK | M_ZERO);
 	node->type =  node_entry->Type;
@@ -367,6 +380,19 @@ iort_add_nodes(ACPI_IORT_NODE *node_entry, u_int node_offset)
 
 		iort_copy_data(node, node_entry);
 		TAILQ_INSERT_TAIL(&named_nodes, node, next);
+		break;
+	case ACPI_IORT_NODE_IWB:
+		iwb = (ACPI_IORT_IWB *)node_entry->NodeData;
+		memcpy(&node->data.iwb, iwb, sizeof(*iwb));
+
+		/* Copy name of the node separately. */
+		strncpy(node->data.iwb.DeviceName,
+		    iwb->DeviceName,
+		    sizeof(node->data.iwb.DeviceName));
+		node->data.iwb.DeviceName[31] = 0;
+
+		iort_copy_data(node, node_entry);
+		TAILQ_INSERT_TAIL(&iwb_nodes, node, next);
 		break;
 	default:
 		printf("ACPI: IORT: Dropping unhandled type %u\n",
@@ -429,6 +455,9 @@ iort_post_process_mappings(void)
 	TAILQ_FOREACH(node, &named_nodes, next)
 		for (i = 0; i < node->nentries; i++)
 			iort_resolve_node(&node->entries.mappings[i], TRUE);
+	TAILQ_FOREACH(node, &iwb_nodes, next)
+		for (i = 0; i < node->nentries; i++)
+			iort_resolve_node(&node->entries.mappings[i], FALSE);
 }
 
 /*
@@ -438,29 +467,50 @@ static void
 madt_resolve_its_xref(ACPI_SUBTABLE_HEADER *entry, void *arg)
 {
 	ACPI_MADT_GENERIC_TRANSLATOR *gict;
+	ACPI_MADT_GICv5_ITS *gicv5_its;
 	struct iort_node *its_node;
 	struct iort_its_entry *its_entry;
 	u_int xref;
 	int i, matches;
 
-        if (entry->Type != ACPI_MADT_TYPE_GENERIC_TRANSLATOR)
-		return;
-
-	gict = (ACPI_MADT_GENERIC_TRANSLATOR *)entry;
-	matches = 0;
-	xref = acpi_its_xref++;
-	TAILQ_FOREACH(its_node, &its_groups, next) {
-		its_entry = its_node->entries.its;
-		for (i = 0; i < its_node->nentries; i++, its_entry++) {
-			if (its_entry->its_id == gict->TranslationId) {
-				its_entry->xref = xref;
-				matches++;
+	switch (entry->Type) {
+	case ACPI_MADT_TYPE_GENERIC_TRANSLATOR:
+		gict = (ACPI_MADT_GENERIC_TRANSLATOR *)entry;
+		matches = 0;
+		xref = acpi_its_xref++;
+		TAILQ_FOREACH(its_node, &its_groups, next) {
+			its_entry = its_node->entries.its;
+			for (i = 0; i < its_node->nentries; i++, its_entry++) {
+				if (its_entry->its_id == gict->TranslationId) {
+					its_entry->xref = xref;
+					matches++;
+				}
 			}
 		}
+		if (matches == 0)
+			printf("ACPI: IORT: Unused ITS block, ID %u\n",
+			    gict->TranslationId);
+		break;
+
+	case ACPI_MADT_TYPE_GICV5_ITS:
+		gicv5_its = (ACPI_MADT_GICv5_ITS *)entry;
+		matches = 0;
+		xref = acpi_its_xref++;
+		TAILQ_FOREACH(its_node, &its_groups, next) {
+			its_entry = its_node->entries.its;
+			for (i = 0; i < its_node->nentries; i++, its_entry++) {
+				if (its_entry->its_id ==
+				    gicv5_its->TranslatorId) {
+					its_entry->xref = xref;
+					matches++;
+				}
+			}
+		}
+		if (matches == 0)
+			printf("ACPI: IORT: Unused ITSv5 block, ID %u\n",
+			    gicv5_its->TranslatorId);
+		break;
 	}
-	if (matches == 0)
-		printf("ACPI: IORT: Unused ITS block, ID %u\n",
-		    gict->TranslationId);
 }
 
 /*
@@ -689,4 +739,68 @@ acpi_iort_map_named_smmuv3(const char *devname, u_int rid, uint64_t *xref,
 	*xref = smmu->BaseAddress;
 
 	return (0);
+}
+
+static struct iort_node *
+acpi_iort_lookup_iwb_node(device_t bus, device_t child)
+{
+	struct iort_node *node;
+	struct sbuf *sb = sbuf_new_auto();
+
+	if (acpi_get_acpi_device_path(bus, child, BUS_LOCATOR_ACPI, sb))
+		return (NULL);
+
+	sbuf_finish(sb);
+
+	TAILQ_FOREACH(node, &iwb_nodes, next) {
+		if (!strcmp(sbuf_data(sb), node->data.iwb.DeviceName)) {
+			sbuf_delete(sb);
+			return (node);
+		}
+	}
+
+	sbuf_delete(sb);
+	return (NULL);
+}
+
+int
+acpi_iort_lookup_its_from_iwb(device_t dev, int *its_id)
+{
+	struct iort_node *node;
+	struct iort_node *out_node;
+	device_t bus = device_get_parent(dev);
+	int i;
+
+	node = acpi_iort_lookup_iwb_node(bus, dev);
+	if (!node)
+		return (ENODEV);
+
+	for (i = 0; i < node->nentries; i++) {
+		out_node = node->entries.mappings[i].out_node;
+		if (out_node->type == ACPI_IORT_NODE_ITS_GROUP) {
+			*its_id = out_node->entries.its[0].its_id;
+			return (0);
+		}
+	}
+
+	return (ENODEV);
+}
+
+device_t
+acpi_iort_get_iwb_dev(int iwb_id)
+{
+	struct iort_node *node;
+	ACPI_HANDLE iwb_handle;
+
+	TAILQ_FOREACH(node, &iwb_nodes, next) {
+		if (node->data.iwb.IwbIndex == iwb_id) {
+			if (ACPI_FAILURE(AcpiGetHandle(ACPI_ROOT_OBJECT,
+			    node->data.iwb.DeviceName, &iwb_handle)))
+				panic("Can't get IWB ACPI handle\n");
+
+			return (acpi_get_device(iwb_handle));
+		}
+	}
+
+	return (NULL);
 }

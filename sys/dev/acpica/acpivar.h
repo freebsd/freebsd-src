@@ -640,6 +640,8 @@ int	acpi_iort_map_named_msi(const char *devname, u_int rid, u_int *xref,
 	    u_int *devid);
 int	acpi_iort_map_named_smmuv3(const char *devname, u_int rid,
 	    uint64_t *xref, u_int *devid);
+int	acpi_iort_lookup_its_from_iwb(device_t dev, int *its_id);
+device_t	acpi_iort_get_iwb_dev(int iwb_id);
 #endif
 #endif /* _KERNEL */
 #endif /* !_ACPIVAR_H_ */
