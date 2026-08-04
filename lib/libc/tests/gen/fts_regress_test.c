@@ -303,6 +303,66 @@ ATF_TC_BODY(concurrent_modification, tc)
 	pthread_join(thr, NULL);
 }
 
+/*
+ * Regression test for fts_safe_changedir() being passed fts_dirfd instead
+ * of -1 when descending into subdirectories. With the bug, fts fchdir'd to
+ * the parent directory instead of the child, causing the contents of
+ * subdirectories at depth 3 to be silently skipped.
+ *
+ */
+ATF_TC(accpath_correct_after_descent);
+ATF_TC_HEAD(accpath_correct_after_descent, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "fts correctly descends into 3-level directory trees");
+}
+
+ATF_TC_BODY(accpath_correct_after_descent, tc)
+{
+	char *paths[] = { ".", NULL };
+	FTS *fts;
+	FTSENT *ent, *children;
+	bool saw_deep_file = false;
+
+	/*
+	 * Create a 3-level directory tree, mirroring the structure used
+	 * by nmtree_test:mtree_create which triggered this bug.
+	 */
+	ATF_REQUIRE_EQ(0, mkdir("a", 0755));
+	ATF_REQUIRE_EQ(0, mkdir("a/1", 0755));
+	ATF_REQUIRE_EQ(0, mkdir("a/2", 0755));
+	ATF_REQUIRE_EQ(0, mkdir("b", 0755));
+	ATF_REQUIRE_EQ(0, close(creat("a/1/file", 0644)));
+
+	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL, NULL)) != NULL);
+
+	while ((ent = fts_read(fts)) != NULL) {
+		if (ent->fts_info == FTS_D) {
+			/*
+			 * Call fts_children() to set sp->fts_child.
+			 * This triggers the bug — when fts_read() then
+			 * descends into the directory, it calls
+			 * fts_safe_changedir(sp, p, p->fts_dirfd, p->fts_name)
+			 * instead of fts_safe_changedir(sp, p, -1, p->fts_name).
+			 * With fts_dirfd pointing to the parent, it fchdir's
+			 * to the wrong directory and contents are skipped.
+			 */
+			children = fts_children(fts, 0);
+			(void)children;
+		}
+
+		if (strcmp(ent->fts_name, "file") == 0 &&
+		    ent->fts_info == FTS_F)
+			saw_deep_file = true;
+	}
+
+	ATF_CHECK_MSG(saw_deep_file,
+	    "did not visit 'a/1/file' at depth 3 — "
+	    "fts_safe_changedir used wrong fd after fts_children()");
+
+	ATF_REQUIRE_EQ_MSG(0, fts_close(fts), "fts_close(): %m");
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, read_no_exec_dir);
@@ -310,6 +370,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, readdir_error_detected);
 	ATF_TP_ADD_TC(tp, odirectory_changedir);
 	ATF_TP_ADD_TC(tp, concurrent_modification);
+	ATF_TP_ADD_TC(tp, accpath_correct_after_descent);
 
 	return (atf_no_error());
 }

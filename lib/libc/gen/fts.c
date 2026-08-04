@@ -489,8 +489,7 @@ fts_read(FTS *sp)
 		 * FTS_STOP or the fts_info field of the node.
 		 */
 		if (sp->fts_child != NULL) {
-			if (fts_safe_changedir(sp, p,
-			    p->fts_dirfd, p->fts_name)) {
+			if (fts_safe_changedir(sp, p, -1, p->fts_name)) {
 				p->fts_errno = errno;
 				p->fts_flags |= FTS_DONTCHDIR;
 				for (p = sp->fts_child; p != NULL;
