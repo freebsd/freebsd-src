@@ -69,6 +69,7 @@
 #endif
 
 #if __ISO_C_VISIBLE >= 2023
+#define BOOL_MAX	1		/* max value for a bool */
 #define BOOL_WIDTH	1		/* number of bits in a bool */
 
 #define CHAR_WIDTH	__CHAR_BIT	/* number of bits in a char */
@@ -86,6 +87,12 @@
 
 #define LLONG_WIDTH	__LLONG_BIT	/* number of bits in a long long */
 #define ULLONG_WIDTH	__LLONG_BIT	/* number of bits in an unsigned long long */
+
+#ifdef __BITINT_MAXWIDTH__
+#define BITINT_MAXWIDTH	__BITINT_MAXWIDTH__
+#else
+#define BITINT_MAXWIDTH	ULLONG_WIDTH
+#endif
 #endif
 
 #if __POSIX_VISIBLE || __XSI_VISIBLE
