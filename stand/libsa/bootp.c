@@ -280,13 +280,7 @@ restart:
 #endif
 
 	myip = d->myip = rbootp->bp_yiaddr;
-	/*
-	 * Preserve a pre-set servip (e.g. seeded by PXE-consuming code
-	 * from a ProxyDHCP offer) when the ACK's siaddr is zero, which is
-	 * typical for non-PXE-aware primary DHCP servers.
-	 */
-	if (rbootp->bp_siaddr.s_addr != INADDR_ANY)
-		servip = rbootp->bp_siaddr;
+	servip = rbootp->bp_siaddr;
 	if (rootip.s_addr == INADDR_ANY)
 		rootip = servip;
 	bcopy(rbootp->bp_file, bootfile, sizeof(bootfile));

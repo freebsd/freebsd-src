@@ -33,14 +33,40 @@
 #include <stand.h>
 #include <net.h>
 #include <netif.h>
+#include <bootp.h>
 
 #include <efi.h>
 #include <efilib.h>
 #include <Protocol/SimpleNetwork.h>
+#include <Protocol/PxeBaseCode.h>
 
 #include "dev_net.h"
 
 static EFI_GUID sn_guid = EFI_SIMPLE_NETWORK_PROTOCOL_GUID;
+static EFI_GUID pxe_guid = EFI_PXE_BASE_CODE_PROTOCOL_GUID;
+
+/*
+ * Snapshot of the UEFI PXE Base Code Protocol's cached DhcpAck taken
+ * at device enumeration time, before efinet_probe() opens the Simple
+ * Network Protocol with EFI_OPEN_PROTOCOL_EXCLUSIVE.  The EXCLUSIVE
+ * open forces the firmware to disconnect any driver holding the SNP
+ * handle BY_DRIVER (including the UEFI PXE stack), which uninstalls
+ * the PXE Base Code Protocol from that handle.  We capture the ACK
+ * here so it survives that disconnect.
+ *
+ * Per PXE 2.1, ProxyOffer's siaddr is the authoritative PXE boot
+ * server and overrides any siaddr in the primary DhcpAck.  We splice
+ * it into dhcp_ack.Dhcpv4.BootpSiAddr at snapshot time, so downstream
+ * only sees one merged packet — no need to store ProxyOffer separately.
+ *
+ * Indexed by netif unit; allocated in efi_pxe_snapshot_all().
+ */
+struct pxe_cache_entry {
+	bool				valid;
+	EFI_PXE_BASE_CODE_PACKET	dhcp_ack;
+};
+
+static struct pxe_cache_entry *pxe_cache;
 
 static void efinet_end(struct netif *);
 static ssize_t efinet_get(struct iodesc *, void **, time_t);
@@ -199,6 +225,184 @@ efinet_get(struct iodesc *desc, void **pkt, time_t timeout)
 }
 
 /*
+ * Snapshot the UEFI PXE Base Code Protocol's cached DhcpAck for handle
+ * h (which must carry EFI_PXE_BASE_CODE_PROTOCOL) into pce, splicing
+ * ProxyOffer's siaddr into it if present (per PXE 2.1, ProxyOffer's
+ * siaddr is the authoritative boot server and overrides DhcpAck's).
+ *
+ * Silently leaves pce->valid = false if the protocol is absent, the
+ * PXE base code is not Started on this handle (i.e. it wasn't the
+ * interface used to network-boot), or no DhcpAck was received.
+ */
+static void
+efi_pxe_snapshot(EFI_HANDLE h, struct pxe_cache_entry *pce)
+{
+	EFI_PXE_BASE_CODE_PROTOCOL *pxe;
+	EFI_PXE_BASE_CODE_MODE *mode;
+	EFI_STATUS status;
+
+	status = BS->OpenProtocol(h, &pxe_guid, (void **)&pxe,
+	    IH, NULL, EFI_OPEN_PROTOCOL_GET_PROTOCOL);
+	if (EFI_ERROR(status))
+		return;
+
+	mode = pxe->Mode;
+	if (mode->Started && mode->DhcpAckReceived) {
+		memcpy(&pce->dhcp_ack, &mode->DhcpAck, sizeof(pce->dhcp_ack));
+
+		if (mode->ProxyOfferReceived) {
+			uint32_t proxy_siaddr = 0;
+
+			memcpy(&proxy_siaddr,
+			    mode->ProxyOffer.Dhcpv4.BootpSiAddr, 4);
+			if (proxy_siaddr != 0)
+				memcpy(pce->dhcp_ack.Dhcpv4.BootpSiAddr,
+				    &proxy_siaddr, 4);
+		}
+		pce->valid = true;
+	}
+
+	BS->CloseProtocol(h, &pxe_guid, IH, NULL);
+}
+
+/*
+ * Walk a device path looking for the first MSG_MAC_ADDR_DP node and
+ * copy its 6-byte Ethernet MAC into out.  Returns true on success.
+ * Used to correlate a PXE Base Code Protocol handle back to an SNP
+ * unit when the two protocols live on different handles (typical for
+ * UEFI: PXE Base Code is installed on a child handle whose device
+ * path ends in Ipv4()/Ipv6(), extending the SNP's MAC-terminated path).
+ */
+static bool
+efi_devpath_get_mac(EFI_DEVICE_PATH *dp, uint8_t out[6])
+{
+	MAC_ADDR_DEVICE_PATH *mac;
+
+	if (dp == NULL)
+		return (false);
+	while (!IsDevicePathEnd(dp)) {
+		if (DevicePathType(dp) == MESSAGING_DEVICE_PATH &&
+		    DevicePathSubType(dp) == MSG_MAC_ADDR_DP) {
+			mac = (MAC_ADDR_DEVICE_PATH *)dp;
+			memcpy(out, &mac->MacAddress, 6);
+			return (true);
+		}
+		dp = NextDevicePathNode(dp);
+	}
+	return (false);
+}
+
+/*
+ * Populate the pxe_cache[] array for all nifs SNP units.  Runs during
+ * efinet_dev_init() before any SNP is opened EXCLUSIVE, so the UEFI
+ * PXE driver is still bound and its Mode data is intact.
+ *
+ * Per the UEFI 2.x network-stack architecture, EFI_PXE_BASE_CODE_PROTOCOL
+ * lives on an upper-layer child handle whose device path extends the
+ * SNP's MAC-terminated path with Ipv4()/Ipv6() nodes.  Enumerate all
+ * handles carrying PXE Base Code Protocol via LocateHandle() and match
+ * each back to an SNP unit by MAC address extracted from the handle's
+ * device path.  This also transparently covers the legacy single-handle
+ * case where PXE Base Code is installed on the SNP handle itself:
+ * LocateHandle() returns that handle, whose device path ends in a MAC
+ * node that trivially matches the same SNP unit.
+ */
+static void
+efi_pxe_snapshot_all(int nifs)
+{
+	EFI_HANDLE *pxe_handles;
+	EFI_STATUS status;
+	UINTN sz;
+	int i, j, npxe;
+
+	sz = 0;
+	status = BS->LocateHandle(ByProtocol, &pxe_guid, NULL, &sz, NULL);
+	if (status != EFI_BUFFER_TOO_SMALL)
+		return;
+	pxe_handles = malloc(sz);
+	if (pxe_handles == NULL)
+		return;
+	status = BS->LocateHandle(ByProtocol, &pxe_guid, NULL, &sz,
+	    pxe_handles);
+	if (EFI_ERROR(status)) {
+		free(pxe_handles);
+		return;
+	}
+	npxe = sz / sizeof(EFI_HANDLE);
+
+	/*
+	 * PXE is present on this system; allocate the per-unit cache
+	 * only now.  Non-PXE UEFI boots pay nothing for this feature.
+	 */
+	pxe_cache = calloc(nifs, sizeof(struct pxe_cache_entry));
+	if (pxe_cache == NULL) {
+		free(pxe_handles);
+		return;
+	}
+
+	for (i = 0; i < npxe; i++) {
+		EFI_DEVICE_PATH *dp;
+		uint8_t pxe_mac[6];
+
+		dp = efi_lookup_devpath(pxe_handles[i]);
+		if (!efi_devpath_get_mac(dp, pxe_mac))
+			continue;
+
+		for (j = 0; j < nifs; j++) {
+			EFI_DEVICE_PATH *snp_dp, *node;
+			MAC_ADDR_DEVICE_PATH *snp_mac;
+
+			if (pxe_cache[j].valid)
+				continue;
+			snp_dp = efi_lookup_devpath(
+			    efinetif.netif_ifs[j].dif_private);
+			if ((node = efi_devpath_last_node(snp_dp)) == NULL)
+				continue;
+			snp_mac = (MAC_ADDR_DEVICE_PATH *)node;
+			if (memcmp(&snp_mac->MacAddress, pxe_mac, 6) != 0)
+				continue;
+			efi_pxe_snapshot(pxe_handles[i], &pxe_cache[j]);
+			break;
+		}
+	}
+
+	free(pxe_handles);
+}
+
+/*
+ * Publish the UEFI PXE Base Code snapshot to the shared bootp_response
+ * global so that the loader's DHCP client (stand/libsa/bootp.c) can
+ * pick it up and enter RFC 2131 INIT-REBOOT instead of running a full
+ * DISCOVER/OFFER/REQUEST/ACK cycle.  Also seed servip from the
+ * ProxyOffer's siaddr, which is the authoritative PXE boot server on
+ * setups where the primary DHCP is not PXE-aware (its DhcpAck siaddr
+ * is zero).  bootp()'s post-processing preserves this pre-set servip
+ * when the INIT-REBOOT ACK arrives with siaddr == 0.
+ */
+static void
+efi_pxe_publish_cache(int unit)
+{
+	const struct pxe_cache_entry *pce;
+
+	if (pxe_cache == NULL)
+		return;
+	pce = &pxe_cache[unit];
+	if (!pce->valid)
+		return;
+
+	free(bootp_response);
+	bootp_response_size = 0;
+	bootp_response = malloc(sizeof(pce->dhcp_ack));
+	if (bootp_response == NULL)
+		return;
+	memcpy(bootp_response, &pce->dhcp_ack, sizeof(pce->dhcp_ack));
+	bootp_response_size = sizeof(pce->dhcp_ack);
+
+	DEBUG_PRINTF(1, ("%s: bootp_response=%p size=%zu\n",
+	    __func__, bootp_response, bootp_response_size));
+}
+
+/*
  * Loader uses BOOTP/DHCP and also uses RARP as a fallback to populate
  * network parameters and problems with DHCP servers can cause the loader
  * to fail to populate them. Allow the device to ask about the basic
@@ -285,6 +489,8 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 	}
 
 	h = nif->nif_driver->netif_ifs[nif->nif_unit].dif_private;
+	if (rootip.s_addr == 0)
+		efi_pxe_publish_cache(nif->nif_unit);
 	status = OpenProtocolByHandle(h, &sn_guid, (void **)&nif->nif_devdata);
 	if (status != EFI_SUCCESS) {
 		printf("net%d: cannot fetch interface data (status=%lu)\n",
@@ -427,6 +633,15 @@ efinet_dev_init(void)
 		dif->dif_stats = &stats[i];
 		dif->dif_private = handles2[i];
 	}
+
+	/*
+	 * Snapshot the PXE Base Code cache now, before any code path
+	 * opens the SNP with EFI_OPEN_PROTOCOL_EXCLUSIVE (efinet_probe()).
+	 * An EXCLUSIVE open causes the firmware to disconnect the UEFI
+	 * PXE driver, which uninstalls the PXE Base Code Protocol and
+	 * loses the cached DhcpAck/ProxyOffer packets.
+	 */
+	efi_pxe_snapshot_all(nifs);
 
 	efinet_dev.dv_cleanup = netdev.dv_cleanup;
 	efinet_dev.dv_open = netdev.dv_open;
