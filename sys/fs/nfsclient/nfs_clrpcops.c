@@ -727,33 +727,6 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 		else
 		    op->nfso_posixlock = 0;
 
-		/*
-		 * If the server is handing out delegations, but we didn't
-		 * get one because an OpenConfirm was required, try the
-		 * Open again, to get a delegation. This is a harmless no-op,
-		 * from a server's point of view.
-		 */
-		if (!reclaim && (rflags & NFSV4OPEN_RESULTCONFIRM) &&
-		    (op->nfso_own->nfsow_clp->nfsc_flags & NFSCLFLAGS_GOTDELEG)
-		    && !error && dp == NULL && ndp == NULL && !recursed) {
-		    do {
-			ret = nfsrpc_openrpc(nmp, vp, nfhp, fhlen, newfhp,
-			    newfhlen, mode, op, name, namelen, &ndp, 0, 0x0,
-			    cred, p, syscred, 1);
-			if (ret == NFSERR_DELAY)
-			    (void) nfs_catnap(PZERO, ret, "nfs_open2");
-		    } while (ret == NFSERR_DELAY);
-		    if (ret) {
-			if (ndp != NULL) {
-				free(ndp, M_NFSCLDELEG);
-				ndp = NULL;
-			}
-			if (ret == NFSERR_STALECLIENTID ||
-			    ret == NFSERR_STALEDONTRECOVER ||
-			    ret == NFSERR_BADSESSION)
-				error = ret;
-		    }
-		}
 	}
 	if (nd->nd_repstat != 0 && error == 0)
 		error = nd->nd_repstat;
