@@ -51,6 +51,9 @@
 #include "util/config_file.h"
 #include "services/cache/dns.h"
 #include "sldns/wire2str.h"
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
 
 /** Apply configuration to ipsecmod module 'global' state. */
 static int
@@ -58,6 +61,11 @@ ipsecmod_apply_cfg(struct ipsecmod_env* ipsecmod_env, struct config_file* cfg)
 {
 	if(!cfg->ipsecmod_hook || (cfg->ipsecmod_hook && !cfg->ipsecmod_hook[0])) {
 		log_err("ipsecmod: missing ipsecmod-hook.");
+		return 0;
+	}
+	if(access(cfg->ipsecmod_hook, X_OK) != 0) {
+		log_err("ipsecmod: ipsecmod-hook '%s' is not an executable file: %s",
+			cfg->ipsecmod_hook, strerror(errno));
 		return 0;
 	}
 	if(cfg->ipsecmod_whitelist &&
@@ -250,27 +258,16 @@ call_hook(struct module_qstate* qstate, struct ipsecmod_qstate* iq,
 	struct ipsecmod_env* ATTR_UNUSED(ie))
 {
 	size_t slen, tempdata_len, tempstring_len, i;
-	char str[65535], *s, *tempstring;
+	char qname_s[LDNS_MAX_DOMAINLEN*5+16], ttl_s[32], a_s[32768], k_s[32768];
+	char *s, *tempstring;
 	int w = 0, w_temp, qtype;
 	struct ub_packed_rrset_key* rrset_key;
 	struct packed_rrset_data* rrset_data;
 	uint8_t *tempdata;
+	pid_t pid;
+	int st;
+	char* argv[6];
 
-	/* Check if a shell is available */
-	if(system(NULL) == 0) {
-		log_err("ipsecmod: no shell available for ipsecmod-hook");
-		return 0;
-	}
-
-	/* Zero the buffer. */
-	s = str;
-	slen = sizeof(str);
-	memset(s, 0, slen);
-
-	/* Copy the hook into the buffer. */
-	w += sldns_str_print(&s, &slen, "%s", qstate->env->cfg->ipsecmod_hook);
-	/* Put space into the buffer. */
-	w += sldns_str_print(&s, &slen, " ");
 	/* Copy the qname into the buffer. */
 	tempstring = sldns_wire2str_dname(qstate->qinfo.qname,
 		qstate->qinfo.qname_len);
@@ -283,17 +280,24 @@ call_hook(struct module_qstate* qstate, struct ipsecmod_qstate* iq,
 		free(tempstring);
 		return 0;
 	}
-	w += sldns_str_print(&s, &slen, "\"%s\"", tempstring);
+	if(strlen(tempstring)+1 > sizeof(qname_s)) {
+		log_err("ipsecmod: string too long");
+		free(tempstring);
+		return 0;
+	}
+	snprintf(qname_s, sizeof(qname_s), "%s", tempstring);
 	free(tempstring);
-	/* Put space into the buffer. */
-	w += sldns_str_print(&s, &slen, " ");
+
 	/* Copy the IPSECKEY TTL into the buffer. */
 	rrset_data = (struct packed_rrset_data*)iq->ipseckey_rrset->entry.data;
-	w += sldns_str_print(&s, &slen, "\"%ld\"", (long)rrset_data->ttl);
-	/* Put space into the buffer. */
-	w += sldns_str_print(&s, &slen, " ");
+	snprintf(ttl_s, sizeof(ttl_s), "%ld", (long)rrset_data->ttl);
+
 	rrset_key = reply_find_answer_rrset(&qstate->return_msg->qinfo,
 		qstate->return_msg->rep);
+	if(!rrset_key) {
+		log_err("ipsecmod: could not find answer rrset for A/AAAA");
+		return 0;
+	}
 	/* Double check that the records are indeed A/AAAA.
 	 * This should never happen as this function is only executed for A/AAAA
 	 * queries but make sure we don't pass anything other than A/AAAA to the
@@ -304,9 +308,15 @@ call_hook(struct module_qstate* qstate, struct ipsecmod_qstate* iq,
 		return 0;
 	}
 	rrset_data = (struct packed_rrset_data*)rrset_key->entry.data;
-	/* Copy the A/AAAA record(s) into the buffer. Start and end this section
-	 * with a double quote. */
-	w += sldns_str_print(&s, &slen, "\"");
+	if(!rrset_data) {
+		log_err("ipsecmod: Answer has no data");
+		return 0;
+	}
+	/* Copy the A/AAAA record(s) into the buffer. */
+	w = 0;
+	s = a_s;
+	slen = sizeof(a_s);
+	memset(s, 0, slen);
 	for(i=0; i<rrset_data->count; i++) {
 		if(i > 0) {
 			/* Put space into the buffer. */
@@ -322,7 +332,7 @@ call_hook(struct module_qstate* qstate, struct ipsecmod_qstate* iq,
 		} else if((size_t)w_temp >= slen) {
 			s = NULL; /* We do not want str to point outside of buffer. */
 			slen = 0;
-			log_err("ipsecmod: shell command too long");
+			log_err("ipsecmod: command addr argument too long");
 			return 0;
 		} else {
 			s += w_temp;
@@ -330,12 +340,17 @@ call_hook(struct module_qstate* qstate, struct ipsecmod_qstate* iq,
 			w += w_temp;
 		}
 	}
-	w += sldns_str_print(&s, &slen, "\"");
-	/* Put space into the buffer. */
-	w += sldns_str_print(&s, &slen, " ");
+	if(w >= (int)sizeof(a_s)) {
+		log_err("ipsecmod: command addr argument too long");
+		return 0;
+	}
+
 	/* Copy the IPSECKEY record(s) into the buffer. Start and end this section
 	 * with a double quote. */
-	w += sldns_str_print(&s, &slen, "\"");
+	w = 0;
+	s = k_s;
+	slen = sizeof(k_s);
+	memset(s, 0, slen);
 	rrset_data = (struct packed_rrset_data*)iq->ipseckey_rrset->entry.data;
 	for(i=0; i<rrset_data->count; i++) {
 		if(i > 0) {
@@ -362,15 +377,44 @@ call_hook(struct module_qstate* qstate, struct ipsecmod_qstate* iq,
 			w += w_temp;
 		}
 	}
-	w += sldns_str_print(&s, &slen, "\"");
-	if(w >= (int)sizeof(str)) {
-		log_err("ipsecmod: shell command too long");
+	if(w >= (int)sizeof(k_s)) {
+		log_err("ipsecmod: command ipseckey argument too long");
 		return 0;
 	}
-	verbose(VERB_ALGO, "ipsecmod: shell command: '%s'", str);
+
 	/* ipsecmod-hook should return 0 on success. */
-	if(system(str) != 0)
+	/* exec the ipsecmod-hook */
+	argv[0] = qstate->env->cfg->ipsecmod_hook;
+	argv[1] = qname_s;
+	argv[2] = ttl_s;
+	argv[3] = a_s;
+	argv[4] = k_s;
+	argv[5] = NULL;
+	verbose(VERB_ALGO, "ipsecmod: exec %s \"%s\" %s \"%s\" \"%s\"",
+		argv[0], argv[1], argv[2], argv[3], argv[4]);
+	if((pid = fork()) < 0) {
+		log_err("ipsecmod: for exec, can not fork: %s",
+			strerror(errno));
 		return 0;
+	}
+	if(pid == 0) {
+		if(execv(argv[0], argv) < 0)
+			fprintf(stderr, "ipsecmod: execv: %s\n",
+				strerror(errno));
+		_exit(127);
+	}
+	while(1) {
+		if(waitpid(pid, &st, 0) < 0) {
+			if(errno == EINTR)
+				continue;
+			log_err("ipsecmod: wait_pid: %s", strerror(errno));
+		}
+		break;
+	}
+	if(!(WIFEXITED(st) && WEXITSTATUS(st) == 0)) {
+		/* the command failed */
+		return 0;
+	}
 	return 1;
 }
 
@@ -435,6 +479,12 @@ ipsecmod_handle_query(struct module_qstate* qstate,
 			 * ipsecmod_max_ttl. */
 			rrset_key = reply_find_answer_rrset(&qstate->return_msg->qinfo,
 				qstate->return_msg->rep);
+			if(!rrset_key) {
+				log_err("ipsecmod: reply-find-answer failed");
+				errinf(qstate, "ipsecmod: reply-find-answer failed");
+				ipsecmod_error(qstate, id);
+				return;
+			}
 			rrset_data = (struct packed_rrset_data*)rrset_key->entry.data;
 			if(rrset_data->ttl > (time_t)qstate->env->cfg->ipsecmod_max_ttl) {
 				/* Update TTL for rrset to fixed value. */

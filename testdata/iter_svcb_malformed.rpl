@@ -151,7 +151,14 @@ REPLY QR RD RA NOERROR
 SECTION QUESTION
 www.example.com. IN HTTPS
 SECTION ANSWER
-www.example.com.        0       IN      HTTPS   1 . alpn="h2" alpn="h3"
+; www.example.com.        0       IN      HTTPS   1 . alpn="h2" alpn="h3"
+; in unknown record format, otherwise the zonefile format reader converts
+; the svcb and sorts the svcbparams, and puts them in-order. That qsort is
+; not stable, on some systems(windows), and that would put the identical
+; key elements in a different order. With the unknown record format this
+; conversion is ommitted, and the bad svcb record with duplicate keys stays
+; in the same byte format.
+www.example.com. IN HTTPS \# 17 00 01 00 00 01 00 03 02 68 32 00 01 00 03 02 68 33
 ENTRY_END
 
 STEP 20 QUERY

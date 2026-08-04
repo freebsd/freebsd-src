@@ -141,6 +141,7 @@ static addrlen_t randomkey(addrkey_t **k, int maxlen)
 	int bits = rand() % maxlen;
 	int bytes = bits/8 + (bits%8>0); /*ceil*/
 	*k = (addrkey_t *) malloc(bytes * sizeof(addrkey_t));
+	if(!*k) fatal_exit("out of memory");
 	for (byte = 0; byte < bytes; byte++) {
 		(*k)[byte] = (addrkey_t)(rand() & 0xFF);
 	}

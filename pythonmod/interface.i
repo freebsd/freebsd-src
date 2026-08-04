@@ -729,7 +729,8 @@ struct module_env {
         int check_ratelimit,
         struct sockaddr_storage* addr, socklen_t addrlen,
         uint8_t* zone, size_t zonelen, int tcp_upstream, int ssl_upstream,
-        char* tls_auth_name, struct module_qstate* q, int* was_ratelimited);
+        char* tls_auth_name, struct module_qstate* q, int* was_ratelimited,
+        int* ratelimit_incremented);
     void (*detach_subs)(struct module_qstate* qstate);
     int (*attach_sub)(struct module_qstate* qstate,
         struct query_info* qinfo, struct respip_client_info* cinfo,

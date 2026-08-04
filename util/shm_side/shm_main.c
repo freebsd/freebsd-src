@@ -351,6 +351,8 @@ void shm_main_run(struct worker *worker)
 	int offset;
 	double total_mesh_time_median;
 	struct shm_main_info* shm_info = worker->daemon->shm_info;
+	if(!shm_info)
+		return;
 
 #ifndef S_SPLINT_S
 	verbose(VERB_DETAIL, "SHM run - worker [%d] - daemon [%p] - timenow(%u) - timeboot(%u)",

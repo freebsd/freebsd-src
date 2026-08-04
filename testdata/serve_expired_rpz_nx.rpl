@@ -1,0 +1,319 @@
+; config options
+; The island of trust is at test.
+server:
+	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
+	fake-sha1: yes
+	trust-anchor-signaling: no
+	minimal-responses: no
+	iter-scrub-promiscuous: no
+	aggressive-nsec: no
+	local-zone: test. nodefault
+	log-servfail: yes
+	discard-timeout: 0
+	module-config: "respip iterator"
+	serve-expired: yes
+	serve-expired-client-timeout: 500
+	serve-expired-ttl: 3600
+	serve-expired-reply-ttl: 30
+
+rpz:
+	name: "rpz.example.com."
+	rpz-log: yes
+	rpz-log-name: "rpz.example.com"
+	zonefile:
+TEMPFILE_NAME rpz.example.com
+TEMPFILE_CONTENTS rpz.example.com
+$ORIGIN example.com.
+rpz	3600	IN	SOA	ns1.rpz.example.com. hostmaster.rpz.example.com. (
+		1379078166 28800 7200 604800 7200 )
+	3600	IN	NS	ns1.rpz.example.com.
+	3600	IN	NS	ns2.rpz.example.com.
+$ORIGIN rpz.example.com.
+24.0.2.0.192.rpz-ip CNAME .
+TEMPFILE_END
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test expired response RPZ rewrite
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+test. IN NS
+SECTION AUTHORITY
+test.	IN NS	ns.test.
+SECTION ADDITIONAL
+ns.test. IN A 1.2.3.5
+ENTRY_END
+RANGE_END
+
+; ns.test
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.5
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+test. IN NS
+SECTION ANSWER
+test.    IN NS   ns.test
+SECTION ADDITIONAL
+ns.test. IN A 1.2.3.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.test. IN A
+SECTION ANSWER
+ns.test. IN A 1.2.3.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.test. IN AAAA
+SECTION AUTHORITY
+test. 3600 IN SOA ns.test. host.test. 20201 3600 1800 604800 3600
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.test. IN NS
+SECTION AUTHORITY
+example.test.    IN NS   ns.example.test.
+SECTION ADDITIONAL
+ns.example.test. IN A 1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+far.test. IN NS
+SECTION AUTHORITY
+far.test.    IN NS   ns.far.test.
+SECTION ADDITIONAL
+ns.far.test. IN A 1.2.3.6
+ENTRY_END
+RANGE_END
+
+; ns.example.test.
+RANGE_BEGIN 0 20
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.test. IN NS
+SECTION ANSWER
+example.test.    IN NS   ns.example.test.
+SECTION ADDITIONAL
+ns.example.test.         IN      A       1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.test. IN A
+SECTION ANSWER
+ns.example.test.         IN      A       1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.test. IN AAAA
+SECTION AUTHORITY
+example.test. 3600 IN SOA ns.example.test. host.example.test. 20301 3600 1800 604800 3600
+ENTRY_END
+
+; response to query of interest
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.example.test. IN A
+SECTION ANSWER
+www.example.test. 1 IN A 192.0.2.1
+ENTRY_END
+RANGE_END
+
+; ns.example.test.
+RANGE_BEGIN 20 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.test. IN A
+SECTION ANSWER
+ns.example.test.         IN      A       1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.test. IN AAAA
+SECTION AUTHORITY
+example.test. 3600 IN SOA ns.example.test. host.example.test. 20301 3600 1800 604800 3600
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR SERVFAIL
+SECTION QUESTION
+www.example.test. IN A
+SECTION ANSWER
+ENTRY_END
+RANGE_END
+
+; ns.far.test.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.6
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+far.test. IN NS
+SECTION ANSWER
+far.test.    IN NS   ns.far.test.
+SECTION ADDITIONAL
+ns.far.test.         IN      A       1.2.3.6
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.far.test. IN A
+SECTION ANSWER
+ns.far.test.         IN      A       1.2.3.6
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.far.test. IN AAAA
+SECTION AUTHORITY
+far.test. 3600 IN SOA ns.far.test. host.far.test. 20301 3600 1800 604800 3600
+ENTRY_END
+
+; response to query of interest
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+tgt.far.test. IN A
+SECTION ANSWER
+tgt.far.test. 1 IN A 10.20.30.40
+ENTRY_END
+RANGE_END
+
+; Put items with TTL 1 in cache.
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+tgt.far.test. IN A
+ENTRY_END
+
+STEP 2 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA DO NOERROR
+SECTION QUESTION
+tgt.far.test. IN A
+SECTION ANSWER
+tgt.far.test. 1 IN A 10.20.30.40
+ENTRY_END
+
+STEP 10 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.test. IN A
+ENTRY_END
+
+STEP 11 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA DO NXDOMAIN
+SECTION QUESTION
+www.example.test. IN A
+SECTION ANSWER
+ENTRY_END
+
+; Move time to expire the cache entries.
+STEP 20 TIME_PASSES ELAPSE 2
+
+; the upstream RANGE is removed, so serve-expired has to act.
+
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.test. IN A
+ENTRY_END
+
+; for serve expired callback.
+STEP 31 TIME_PASSES ELAPSE 2
+
+STEP 40 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA DO NXDOMAIN
+SECTION QUESTION
+www.example.test. IN A
+SECTION ANSWER
+ENTRY_END
+
+; The pending lookup for the data, that was answered with expired to the client.
+STEP 50 TRAFFIC
+
+SCENARIO_END

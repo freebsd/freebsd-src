@@ -1,0 +1,47 @@
+# #-- fast_reload_authdel.test --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+# do the test
+
+# the upstream delays.
+# wait for the notify: probe of example to be in the middle of the callback,
+# and for the primary: probe of example2 to be in the middle of the callback.
+# And then fastreload to delete.
+
+echo "> wait for unbound to transfer"
+sleep 1
+
+mv ub.conf ub.conf.orig
+mv ub.conf2 ub.conf
+echo ""
+echo "> unbound-control fast_reload"
+$PRE/unbound-control -c ub.conf fast_reload +vv 2>&1 | tee output
+if test $? -ne 0; then
+	echo "wrong exit value."
+	exit 1
+else
+	echo "exit value: OK"
+fi
+
+sleep 1
+
+echo "> check log"
+if grep "removing xfr callback prim.example.net. A IN" unbound.log; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+if grep "removing xfr callback notif.example.net. A IN" unbound.log; then
+	echo "OK"
+else
+	echo "Not OK"
+	exit 1
+fi
+
+exit 0

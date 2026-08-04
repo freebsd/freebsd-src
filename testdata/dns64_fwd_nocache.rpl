@@ -1,0 +1,209 @@
+; config options go here.
+server:
+	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: no
+	minimal-responses: yes
+	module-config: "dns64 iterator"
+	dns64-prefix: 64:ff9b::0/96
+forward-zone: name: "." forward-addr: 216.0.0.1
+	forward-no-cache: yes
+CONFIG_END
+
+SCENARIO_BEGIN Test DNS64 with forward zone with forward-no-cache set.
+RANGE_BEGIN 0 15
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A 10.20.30.40
+ENTRY_END
+RANGE_END
+
+RANGE_BEGIN 15 25
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A 10.20.30.41
+ENTRY_END
+RANGE_END
+
+RANGE_BEGIN 25 35
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www2.example.com. IN A
+SECTION ANSWER
+www2.example.com. IN A 10.20.30.42
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www2.example.com. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. 300 IN SOA ns.example.com. host.example.com. 5 86400 7200 604800 300
+ENTRY_END
+RANGE_END
+
+RANGE_BEGIN 35 45
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www2.example.com. IN A
+SECTION ANSWER
+www2.example.com. IN A 10.20.30.43
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www2.example.com. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+example.com. 300 IN SOA ns.example.com. host.example.com. 5 86400 7200 604800 300
+ENTRY_END
+RANGE_END
+
+RANGE_BEGIN 45 55
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www3.example.com. IN AAAA
+SECTION ANSWER
+www3.example.com. 3600 IN AAAA 2001:db8::5
+ENTRY_END
+RANGE_END
+
+RANGE_BEGIN 55 65
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+www3.example.com. IN AAAA
+SECTION ANSWER
+www3.example.com. 3600 IN AAAA 2001:db8::6
+ENTRY_END
+RANGE_END
+
+; query for A record
+STEP 10 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+STEP 11 CHECK_ANSWER
+ENTRY_BEGIN
+REPLY QR RD RA
+MATCH opcode qname qtype all
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A 10.20.30.40
+ENTRY_END
+
+; the upstream has changed, ask for A record again
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+STEP 21 CHECK_ANSWER
+ENTRY_BEGIN
+REPLY QR RD RA
+MATCH opcode qname qtype all
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A 10.20.30.41
+ENTRY_END
+
+; query for synthesized AAAA record
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www2.example.com. IN AAAA
+ENTRY_END
+STEP 31 CHECK_ANSWER
+ENTRY_BEGIN
+REPLY QR RD RA
+MATCH opcode qname qtype all
+SECTION QUESTION
+www2.example.com. IN AAAA
+SECTION ANSWER
+www2.example.com. 3600 IN AAAA 64:ff9b::a14:1e2a
+ENTRY_END
+
+; the upstream has changed, query for synthesized AAAA again.
+STEP 40 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www2.example.com. IN AAAA
+ENTRY_END
+STEP 41 CHECK_ANSWER
+ENTRY_BEGIN
+REPLY QR RD RA
+MATCH opcode qname qtype all
+SECTION QUESTION
+www2.example.com. IN AAAA
+SECTION ANSWER
+www2.example.com. 3600 IN AAAA 64:ff9b::a14:1e2b
+ENTRY_END
+
+; query for AAAA record, that is present, no synthesis.
+STEP 50 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www3.example.com. IN AAAA
+ENTRY_END
+STEP 51 CHECK_ANSWER
+ENTRY_BEGIN
+REPLY QR RD RA
+MATCH opcode qname qtype all
+SECTION QUESTION
+www3.example.com. IN AAAA
+SECTION ANSWER
+www3.example.com. 3600 IN AAAA 2001:db8::5
+ENTRY_END
+
+; the upstream has changed, query for AAAA record again (no synthesis).
+STEP 60 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www3.example.com. IN AAAA
+ENTRY_END
+STEP 61 CHECK_ANSWER
+ENTRY_BEGIN
+REPLY QR RD RA
+MATCH opcode qname qtype all
+SECTION QUESTION
+www3.example.com. IN AAAA
+SECTION ANSWER
+www3.example.com. 3600 IN AAAA 2001:db8::6
+ENTRY_END
+
+SCENARIO_END

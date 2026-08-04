@@ -11,15 +11,15 @@ sinclude(dnscrypt/dnscrypt.m4)
 
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
-m4_define([VERSION_MINOR],[25])
-m4_define([VERSION_MICRO],[2])
+m4_define([VERSION_MINOR],[26])
+m4_define([VERSION_MICRO],[0])
 AC_INIT([unbound],m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]),[unbound-bugs@nlnetlabs.nl or https://github.com/NLnetLabs/unbound/issues],[unbound])
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
 LIBUNBOUND_CURRENT=9
-LIBUNBOUND_REVISION=38
+LIBUNBOUND_REVISION=39
 LIBUNBOUND_AGE=1
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
@@ -125,6 +125,7 @@ LIBUNBOUND_AGE=1
 # 1.25.0 had 9:36:1
 # 1.25.1 had 9:37:1
 # 1.25.2 had 9:38:1
+# 1.26.0 had 9:39:1
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -483,7 +484,7 @@ PKG_PROG_PKG_CONFIG
 fi
 
 # Checks for header files.
-AC_CHECK_HEADERS([stdarg.h stdbool.h netinet/in.h netinet/tcp.h sys/param.h sys/select.h sys/socket.h sys/un.h sys/uio.h sys/resource.h arpa/inet.h syslog.h netdb.h sys/wait.h pwd.h glob.h grp.h login_cap.h winsock2.h ws2tcpip.h endian.h sys/endian.h libkern/OSByteOrder.h sys/ipc.h sys/shm.h ifaddrs.h poll.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([stdarg.h stdbool.h netinet/in.h netinet/tcp.h sys/param.h sys/select.h sys/socket.h sys/un.h sys/uio.h sys/resource.h arpa/inet.h syslog.h netdb.h sys/wait.h pwd.h glob.h fnmatch.h grp.h login_cap.h winsock2.h ws2tcpip.h endian.h sys/endian.h libkern/OSByteOrder.h sys/ipc.h sys/shm.h ifaddrs.h poll.h],,, [AC_INCLUDES_DEFAULT])
 # net/if.h portability for Darwin see:
 # https://www.gnu.org/software/autoconf/manual/autoconf-2.69/html_node/Header-Portability.html
 AC_CHECK_HEADERS([net/if.h],,, [
@@ -1080,12 +1081,19 @@ else
 	AC_MSG_RESULT([no])
 fi
 AC_CHECK_HEADERS([openssl/conf.h openssl/engine.h openssl/bn.h openssl/dh.h openssl/dsa.h openssl/rsa.h openssl/core_names.h openssl/param_build.h],,, [AC_INCLUDES_DEFAULT])
-AC_CHECK_FUNCS([OPENSSL_config EVP_sha1 EVP_sha256 EVP_sha512 FIPS_mode EVP_default_properties_is_fips_enabled EVP_MD_CTX_new OpenSSL_add_all_digests OPENSSL_init_crypto EVP_cleanup ENGINE_cleanup ERR_load_crypto_strings CRYPTO_cleanup_all_ex_data ERR_free_strings RAND_cleanup DSA_SIG_set0 EVP_dss1 EVP_DigestVerify EVP_aes_256_cbc EVP_EncryptInit_ex HMAC_Init_ex CRYPTO_THREADID_set_callback EVP_MAC_CTX_set_params OSSL_PARAM_BLD_new BIO_set_callback_ex])
+AC_CHECK_FUNCS([OPENSSL_config EVP_sha1 EVP_sha256 EVP_sha512 FIPS_mode EVP_default_properties_is_fips_enabled EVP_MD_CTX_new OpenSSL_add_all_digests OPENSSL_init_crypto EVP_cleanup ENGINE_cleanup ERR_load_crypto_strings CRYPTO_cleanup_all_ex_data ERR_free_strings RAND_cleanup DSA_SIG_set0 EVP_dss1 EVP_DigestVerify EVP_aes_256_cbc EVP_EncryptInit_ex HMAC_Init_ex CRYPTO_THREADID_set_callback EVP_MAC_CTX_set_params OSSL_PARAM_BLD_new BIO_set_callback_ex OPENSSL_cleanup])
 
 # these check_funcs need -lssl
 BAKLIBS="$LIBS"
 LIBS="-lssl $LIBS"
-AC_CHECK_FUNCS([OPENSSL_init_ssl SSL_CTX_set_security_level SSL_set1_host SSL_get0_peername X509_VERIFY_PARAM_set1_host SSL_CTX_set_ciphersuites SSL_CTX_set_tlsext_ticket_key_evp_cb SSL_CTX_set_alpn_select_cb SSL_get0_alpn_selected SSL_CTX_set_alpn_protos SSL_get1_peer_certificate])
+AC_CHECK_FUNCS([OPENSSL_init_ssl SSL_CTX_set_security_level SSL_set1_host SSL_get0_peername SSL_set1_dnsname X509_get_key_usage ASN1_STRING_get0_data X509_VERIFY_PARAM_set1_host SSL_CTX_set_ciphersuites SSL_CTX_set_tlsext_ticket_key_evp_cb SSL_CTX_set_alpn_select_cb SSL_get0_alpn_selected SSL_CTX_set_alpn_protos SSL_get1_peer_certificate])
+AC_CHECK_FUNCS([X509_NAME_get_text_by_NID])
+if test $ac_cv_func_X509_NAME_get_text_by_NID = yes; then
+	ACX_FUNC_DEPRECATED([X509_NAME_get_text_by_NID], [
+		(void)X509_NAME_get_text_by_NID(NULL, 0, NULL, 0);], [
+#include "openssl/x509.h"
+])
+fi
 LIBS="$BAKLIBS"
 
 AC_CHECK_DECLS([SSL_COMP_get_compression_methods,sk_SSL_COMP_pop_free,SSL_CTX_set_ecdh_auto,SSL_CTX_set_tmp_ecdh], [], [], [
@@ -1704,6 +1712,9 @@ if test x_$withval = x_yes -o x_$withval != x_no; then
     AC_CHECK_LIB([ngtcp2_crypto_ossl], [ngtcp2_crypto_encrypt_cb], [
 	LIBS="$LIBS -lngtcp2_crypto_ossl"
 	AC_DEFINE(USE_NGTCP2_CRYPTO_OSSL, 1, [Define this to use ngtcp2_crypto_ossl.])
+	    AC_CHECK_DECLS([ngtcp2_crypto_ossl_ctx_new], [], [AC_MSG_ERROR([No declaration of ngtcp2_crypto_ossl_ctx_new in the ngtcp2_crypto_ossl header file. Perhaps the ngtcp2_crypto_ossl devel header files need to be installed.])], [AC_INCLUDES_DEFAULT
+	    #include <ngtcp2/ngtcp2_crypto_ossl.h>
+	    ])
     ], [
         AC_CHECK_LIB([ngtcp2_crypto_openssl], [ngtcp2_crypto_encrypt_cb], [ LIBS="$LIBS -lngtcp2_crypto_openssl" ], [
             AC_CHECK_LIB([ngtcp2_crypto_quictls], [ngtcp2_crypto_encrypt_cb], [ LIBS="$LIBS -lngtcp2_crypto_quictls" ])
@@ -1715,6 +1726,7 @@ if test x_$withval = x_yes -o x_$withval != x_no; then
     BAKLIBS="$LIBS"
     LIBS="-lssl $LIBS"
     AC_CHECK_FUNCS([SSL_is_quic], [], [AC_MSG_ERROR([No QUIC support detected in OpenSSL. Need OpenSSL version with QUIC support to enable DNS over QUIC with libngtcp2.])])
+    AC_CHECK_FUNCS([SSL_set_quic_tls_early_data_enabled])
     LIBS="$BAKLIBS"
 
     AC_CHECK_TYPES([struct ngtcp2_version_cid, ngtcp2_encryption_level],,,[AC_INCLUDES_DEFAULT
@@ -1928,7 +1940,7 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([
   AC_MSG_RESULT(no))
 
 AC_SEARCH_LIBS([setusercontext], [util])
-AC_CHECK_FUNCS([tzset sigprocmask fcntl getpwnam endpwent getrlimit setrlimit setsid chroot kill chown sleep usleep random srandom recvmsg sendmsg writev socketpair glob initgroups strftime localtime_r setusercontext _beginthreadex endservent endprotoent fsync shmget accept4 getifaddrs if_nametoindex poll gettid])
+AC_CHECK_FUNCS([tzset sigprocmask fcntl getpwnam endpwent getrlimit setrlimit setsid chroot kill chown sleep usleep random srandom recvmsg sendmsg writev socketpair glob fnmatch initgroups strftime localtime_r setusercontext _beginthreadex endservent endprotoent fsync shmget accept4 getifaddrs if_nametoindex poll gettid])
 AC_CHECK_FUNCS([setresuid],,[AC_CHECK_FUNCS([setreuid])])
 AC_CHECK_FUNCS([setresgid],,[AC_CHECK_FUNCS([setregid])])
 

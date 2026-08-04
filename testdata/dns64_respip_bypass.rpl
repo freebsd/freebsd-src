@@ -1,0 +1,288 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: no
+	minimal-responses: yes
+	log-servfail: yes
+	module-config: "dns64 respip iterator"
+	; or
+	; module-config: "respip dns64 iterator"
+	dns64-prefix: 64:ff9b::/96
+	; possibly as well:
+	; response-ip: 192.0.2.66/32 always_nxdomain
+
+rpz:
+	name: "rpz.example.com."
+	rpz-log: yes
+	rpz-log-name: "rpz.example.com"
+	zonefile:
+TEMPFILE_NAME rpz.example.com
+TEMPFILE_CONTENTS rpz.example.com
+$ORIGIN example.com.
+rpz	3600	IN	SOA	ns1.rpz.gotham.com. hostmaster.rpz.example.com. (
+		1379078166 28800 7200 604800 7200 )
+	3600	IN	NS	ns1.rpz.example.com.
+	3600	IN	NS	ns2.rpz.example.com.
+$ORIGIN rpz.example.com.
+; block 192.0.2.66/32
+32.66.2.0.192.rpz-ip IN CNAME .
+TEMPFILE_END
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test RPZ filtered query with DNS64 enabled.
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+tld. IN NS
+SECTION AUTHORITY
+tld.	IN NS	ns.tld.
+SECTION ADDITIONAL
+ns.tld. IN A 1.2.3.5
+ENTRY_END
+RANGE_END
+
+; ns.tld
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.5
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+tld. IN NS
+SECTION ANSWER
+tld.    IN NS   ns.tld
+SECTION ADDITIONAL
+ns.tld. IN A 1.2.3.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.tld. IN A
+SECTION ANSWER
+ns.tld. IN A 1.2.3.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.tld. IN AAAA
+SECTION AUTHORITY
+tld. 3600 IN SOA ns.tld. host.tld. 20201 3600 1800 604800 3600
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.tld. IN NS
+SECTION AUTHORITY
+example.tld.    5 IN NS   ns.example.tld.
+SECTION ADDITIONAL
+ns.example.tld. 5 IN A 1.2.3.4
+ENTRY_END
+RANGE_END
+
+; ns.example.tld.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.tld. IN NS
+SECTION ANSWER
+example.tld. 86400 IN NS ns.example.tld.
+SECTION ADDITIONAL
+ns.example.tld. 86400 IN A 1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.tld. IN A
+SECTION ANSWER
+ns.example.tld.         IN      A       1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.tld. IN AAAA
+SECTION AUTHORITY
+example.tld. 3600 IN SOA ns.example.tld. host.example.tld. 20301 3600 1800 604800 3600
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+bad.example.tld. IN A
+SECTION ANSWER
+bad.example.tld. IN A 192.0.2.66
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+bad.example.tld. IN AAAA
+SECTION AUTHORITY
+example.tld. 3600 IN SOA ns.example.tld. host.example.tld. 20301 3600 1800 604800 3600
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+synth.example.tld. IN A
+SECTION ANSWER
+synth.example.tld. IN A 203.0.113.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+synth.example.tld. IN AAAA
+SECTION AUTHORITY
+example.tld. 3600 IN SOA ns.example.tld. host.example.tld. 20301 3600 1800 604800 3600
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+clean.example.tld. IN A
+SECTION ANSWER
+clean.example.tld. IN A 203.0.113.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+clean.example.tld. IN AAAA
+SECTION AUTHORITY
+example.tld. 3600 IN SOA ns.example.tld. host.example.tld. 20301 3600 1800 604800 3600
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD NOERROR
+SECTION QUESTION
+bad.example.tld. IN A
+ENTRY_END
+
+; RPZ works on A query
+STEP 2 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NXDOMAIN
+SECTION QUESTION
+bad.example.tld. IN A
+SECTION ANSWER
+ENTRY_END
+
+STEP 10 QUERY
+ENTRY_BEGIN
+REPLY RD NOERROR
+SECTION QUESTION
+synth.example.tld. IN AAAA
+ENTRY_END
+
+; DNS64 synthesizes an unblocked address.
+STEP 11 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+synth.example.tld. IN AAAA
+SECTION ANSWER
+synth.example.tld. 3600 IN AAAA 64:ff9b::cb00:7105
+ENTRY_END
+
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD NOERROR
+SECTION QUESTION
+bad.example.tld. IN AAAA
+ENTRY_END
+
+; synthesized AAAA for A that is blocked by RPZ.
+STEP 21 CHECK_ANSWER
+;ENTRY_BEGIN
+;MATCH all
+;REPLY QR RD RA NXDOMAIN
+;SECTION QUESTION
+;bad.example.tld. IN AAAA
+;SECTION ANSWER
+;ENTRY_END
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+bad.example.tld. IN AAAA
+SECTION AUTHORITY
+example.tld.    3600    IN      SOA     ns.example.tld. host.example.tld. 20301 3600 1800 604800 3600
+ENTRY_END
+
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD NOERROR
+SECTION QUESTION
+bad.example.tld. IN AAAA
+ENTRY_END
+
+; same from cache.
+STEP 31 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+bad.example.tld. IN AAAA
+SECTION AUTHORITY
+example.tld.    3600    IN      SOA     ns.example.tld. host.example.tld. 20301 3600 1800 604800 3600
+ENTRY_END
+
+SCENARIO_END

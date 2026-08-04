@@ -160,10 +160,12 @@ verbose_key(struct autr_ta* ta, enum verbosity_value level,
  * Parse comments 
  * @param str: to parse
  * @param ta: trust key autotrust metadata
+ * @param header_seen: if an autotrust file header was seen.
+ *	Without such a header it is a list of resource records.
  * @return false on failure.
  */
 static int
-parse_comments(char* str, struct autr_ta* ta)
+parse_comments(char* str, struct autr_ta* ta, int header_seen)
 {
         int len = (int)strlen(str), pos = 0, timestamp = 0;
         char* comment = (char*) malloc(sizeof(char)*len+1);
@@ -196,10 +198,18 @@ parse_comments(char* str, struct autr_ta* ta)
                 free(comment);
                 return 0;
         }
-        if (pos <= 0)
-                ta->s = AUTR_STATE_VALID;
-        else
-        {
+        if (pos <= 0) {
+		if(header_seen) {
+			/* There was an autotrust trust anchor file header,
+			 * with a ;; id=.. line, so the entries
+			 * have to have ;;state= annotations. */
+			log_err("trust anchor in state file has no ;;state= "
+				"annotation, ignoring");
+			free(comment);
+			return 0;
+		}
+		ta->s = AUTR_STATE_VALID;
+        } else {
                 int s = (int) comments[pos] - '0';
                 switch(s)
                 {
@@ -391,6 +401,15 @@ autr_rrset_delete(struct ub_packed_rrset_key* r)
 	}
 }
 
+/** delete autotrust key data */
+static void
+autr_ta_delete(struct autr_ta* ta)
+{
+	if(!ta) return;
+	free(ta->rr);
+	free(ta);
+}
+
 void autr_point_delete(struct trust_anchor* tp)
 {
 	if(!tp)
@@ -404,8 +423,7 @@ void autr_point_delete(struct trust_anchor* tp)
 		struct autr_ta* p = tp->autr->keys, *np;
 		while(p) {
 			np = p->next;
-			free(p->rr);
-			free(p);
+			autr_ta_delete(p);
 			p = np;
 		}
 		free(tp->autr->file);
@@ -449,8 +467,7 @@ add_trustanchor_frm_rr(struct val_anchors* anchors, uint8_t* rr, size_t rr_len,
 		return NULL;
 	*tp = find_add_tp(anchors, rr, rr_len, dname_len);
 	if(!*tp) {
-		free(ta->rr);
-		free(ta);
+		autr_ta_delete(ta);
 		return NULL;
 	}
 	/* add ta to tp */
@@ -523,12 +540,14 @@ add_trustanchor_frm_str(struct val_anchors* anchors, char* str,
  * @param prev: passed to ldns.
  * @param prev_len: length of prev
  * @param skip: if true, the result is NULL, but not an error, skip it.
+ * @param header_seen: if an autotrust file header was seen.
+ *	Without such a header it is a list of resource records.
  * @return false on failure, otherwise the tp read.
  */
 static struct trust_anchor*
 load_trustanchor(struct val_anchors* anchors, char* str, const char* fname,
 	uint8_t* origin, size_t origin_len, uint8_t** prev, size_t* prev_len,
-	int* skip)
+	int* skip, int header_seen)
 {
 	struct autr_ta* ta = NULL;
 	struct trust_anchor* tp = NULL;
@@ -538,7 +557,11 @@ load_trustanchor(struct val_anchors* anchors, char* str, const char* fname,
 	if(!ta)
 		return NULL;
 	lock_basic_lock(&tp->lock);
-	if(!parse_comments(str, ta)) {
+	if(!parse_comments(str, ta, header_seen)) {
+		/* ta was already linked into the list of keys, unlink it */
+		log_assert(tp->autr->keys == ta);
+		tp->autr->keys = ta->next;
+		autr_ta_delete(ta);
 		lock_basic_unlock(&tp->lock);
 		return NULL;
 	}
@@ -846,19 +869,32 @@ parse_id(struct val_anchors* anchors, char* line)
  * @param anchors: the anchor is added to this, if "id:" is seen.
  * @param anchor: the anchor as result value or previously returned anchor
  * 	value to read the variable lines into.
+ * @param header_seen: if a header ';;id: example.com.' was seen.
+ * @param nm: file name.
  * @return: 0 no match, -1 failed syntax error, +1 success line read.
  * 	+2 revoked trust anchor file.
  */
 static int
 parse_var_line(char* line, struct val_anchors* anchors, 
-	struct trust_anchor** anchor)
+	struct trust_anchor** anchor, int* header_seen, const char* nm)
 {
 	struct trust_anchor* tp = *anchor;
 	int r = 0;
 	if(strncmp(line, ";;id: ", 6) == 0) {
+		*header_seen = 1;
 		*anchor = parse_id(anchors, line+6);
 		if(!*anchor) return -1;
-		else return 1;
+		lock_basic_lock(&(*anchor)->lock);
+		if(*anchor && !(*anchor)->autr->file) {
+			(*anchor)->autr->file = strdup(nm);
+			if(!(*anchor)->autr->file) {
+				lock_basic_unlock(&(*anchor)->lock);
+				log_err("malloc failure");
+				return -1;
+			}
+		}
+		lock_basic_unlock(&(*anchor)->lock);
+		if(*anchor) return 1;
 	} else if(strncmp(line, ";;REVOKED", 9) == 0) {
 		if(tp) {
 			log_err("REVOKED statement must be at start of file");
@@ -992,14 +1028,15 @@ int autr_read_file(struct val_anchors* anchors, const char* nm)
         FILE* fd;
         /* keep track of line numbers */
         int line_nr = 0;
-        /* single line */
-        char line[10240];
+        /* single line, enough space for large DNSKEY, 64K, in hex and dname */
+        char line[10240+65536*2];
 	/* trust point being read */
 	struct trust_anchor *tp = NULL, *tp2;
 	int r;
 	/* for $ORIGIN parsing */
 	uint8_t *origin=NULL, *prev=NULL;
 	size_t origin_len=0, prev_len=0;
+	int header_seen = 0;
 
         if (!(fd = fopen(nm, "r"))) {
                 log_err("unable to open %s for reading: %s", 
@@ -1008,7 +1045,7 @@ int autr_read_file(struct val_anchors* anchors, const char* nm)
         }
         verbose(VERB_ALGO, "reading autotrust anchor file %s", nm);
         while ( (r=read_multiline(line, sizeof(line), fd, &line_nr)) != 0) {
-		if(r == -1 || (r = parse_var_line(line, anchors, &tp)) == -1) {
+		if(r == -1 || (r = parse_var_line(line, anchors, &tp, &header_seen, nm)) == -1) {
 			log_err("could not parse auto-trust-anchor-file "
 				"%s line %d", nm, line_nr);
 			fclose(fd);
@@ -1030,7 +1067,7 @@ int autr_read_file(struct val_anchors* anchors, const char* nm)
 			continue;
 		r = 0;
                 if(!(tp2=load_trustanchor(anchors, line, nm, origin,
-			origin_len, &prev, &prev_len, &r))) {
+			origin_len, &prev, &prev_len, &r, header_seen))) {
 			if(!r) log_err("failed to load trust anchor from %s "
 				"at line %i, skipping", nm, line_nr);
                         /* try to do the rest */
@@ -1194,6 +1231,11 @@ void autr_write_file(struct module_env* env, struct trust_anchor* tp)
 #endif
 	char tempf[2048];
 	log_assert(tp->autr);
+	if(!fname) {
+		log_err("autotrust: trust point has no backing file, "
+			"skipping write");
+		return;
+	}
 	if(!env) {
 		log_err("autr_write_file: Module environment is NULL.");
 		return;
@@ -1992,8 +2034,7 @@ autr_cleanup_keys(struct trust_anchor* tp)
 			!= LDNS_RR_TYPE_DNSKEY) {
 			struct autr_ta* np = p->next;
 			/* remove */
-			free(p->rr);
-			free(p);
+			autr_ta_delete(p);
 			/* snip and go to next item */
 			*prevp = np;
 			p = np;
@@ -2318,7 +2359,7 @@ autr_debug_print_tp(struct trust_anchor* tp)
 	if(tp->dnskey_rrset) {
 		log_packed_rrset(NO_VERBOSE, "DNSKEY:", tp->dnskey_rrset);
 	}
-	log_info("file %s", tp->autr->file);
+	log_info("file %s", (tp->autr->file?tp->autr->file:"null"));
 	(void)autr_ctime_r(&tp->autr->last_queried, buf);
 	if(buf[0]) buf[strlen(buf)-1]=0; /* remove newline */
 	log_info("last_queried: %u %s", (unsigned)tp->autr->last_queried, buf);
@@ -2416,7 +2457,7 @@ probe_anchor(struct module_env* env, struct trust_anchor* tp)
 		qinfo.qclass);
 
 	if(!mesh_new_callback(env->mesh, &qinfo, qflags, &edns, buf, 0, 
-		&probe_answer_cb, env, 0)) {
+		&probe_answer_cb, env, 0, NULL)) {
 		log_err("out of memory making 5011 probe");
 	}
 }

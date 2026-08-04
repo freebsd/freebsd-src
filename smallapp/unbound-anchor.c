@@ -156,7 +156,7 @@ char* wsa_strerror(int err);
 #endif
 
 static const char ICANN_UPDATE_CA[] =
-	/* The ICANN CA fetched at 24 Sep 2010.  Valid to 2028 */
+	/* The ICANN CA fetched at 29 May 2026. Valid to 20 Mar 2045 */
 	"-----BEGIN CERTIFICATE-----\n"
 	"MIIDdzCCAl+gAwIBAgIBATANBgkqhkiG9w0BAQsFADBdMQ4wDAYDVQQKEwVJQ0FO\n"
 	"TjEmMCQGA1UECxMdSUNBTk4gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkxFjAUBgNV\n"
@@ -177,6 +177,40 @@ static const char ICANN_UPDATE_CA[] =
 	"15nu5JBSewrCkYqYYmaxyOC3WrVGfHZxVI7MpIFcGdvSb2a1uyuua8l0BKgk3ujF\n"
 	"0/wsHNeP22qNyVO+XVBzrM8fk8BSUFuiT/6tZTYXRtEt5aKQZgXbKU5dUF3jT9qg\n"
 	"j/Br5BZw3X/zd325TvnswzMC1+ljLzHnQGGk\n"
+	"-----END CERTIFICATE-----\n"
+	"\n"
+	"-----BEGIN CERTIFICATE-----\n"
+	"MIIFsTCCA5mgAwIBAgIUQFsYkgroBoe69HKQPy8/DQuiLwgwDQYJKoZIhvcNAQEN\n"
+	"BQAwYDELMAkGA1UEBhMCVVMxDjAMBgNVBAoMBUlDQU5OMSYwJAYDVQQLDB1JQ0FO\n"
+	"TiBDZXJ0aWZpY2F0aW9uIEF1dGhvcml0eTEZMBcGA1UEAwwQSUNBTk4gUm9vdCBD\n"
+	"QSB2MjAeFw0yNTAzMjAyMTA0MjZaFw00NTAzMjAyMTA0MjZaMGAxCzAJBgNVBAYT\n"
+	"AlVTMQ4wDAYDVQQKDAVJQ0FOTjEmMCQGA1UECwwdSUNBTk4gQ2VydGlmaWNhdGlv\n"
+	"biBBdXRob3JpdHkxGTAXBgNVBAMMEElDQU5OIFJvb3QgQ0EgdjIwggIiMA0GCSqG\n"
+	"SIb3DQEBAQUAA4ICDwAwggIKAoICAQCepDjrubjR7en/uZWo7MAnzFIIvUPYEc7b\n"
+	"+AlefdlEDQ1JEmpfrvt/4CX9lJ9ShIBR6zwrQeDvrj5XZ2kEjbJ8Nnc6sM/ojdyr\n"
+	"5jSLqcDPH9fJg7jCW02KF8CtqWsnqcW6jjTIZcCWkg9lEixdF8QAjIEgJtZte+Yh\n"
+	"XeyN0KD2EaO8U5Id0bLvMyphuO1OCGKzDtetcX8K7SvoshdJx3lPIlYzqXl0nVAY\n"
+	"iCeNdeDzTNjEOHYJOP6dYoZI8nKRJltMkZcCCjBE2vQuSMY2w4pOlWk1skHjMWXj\n"
+	"QsZzngXuNG56zialL0TPEDVWjWRjzOnruHUAs4KUY8Zs+Nt8JdSlXMi825PKoKpp\n"
+	"ESs7/ZG1mPjVOYp7Z7ntrRjJFgnUBjWzVPOx4yHiJj1ur+OpqP18oP5YfqY+tKmz\n"
+	"7vlfRGGOEd08a0XgZISDNKpMAovn5pRUHTWPCCjc28tns9ODPvr1cQi+QSwTv+v8\n"
+	"wnA5etGrsead88Rv/ieaq5ikMJTRDfW4d9SY2uPcMGvfU6VdQLRhQkzEVTQNAJ1R\n"
+	"i2lOoJbbjwnK+OU9OhST/OqdjJDJAhTAstdUnrr8WBU80xM75MIaaTjSBCvZ1wro\n"
+	"pAi2hYb0tedTH6WarSW3MH9HcEoGGzs2GD3hDB0a2eCp+TdAs8Up944SjY7UV4Jx\n"
+	"sOC7TxbmkQIDAQABo2MwYTAdBgNVHQ4EFgQU+1EuMRuOZ/ecsfYzNQ+yGZsxZrMw\n"
+	"HwYDVR0jBBgwFoAU+1EuMRuOZ/ecsfYzNQ+yGZsxZrMwDwYDVR0TAQH/BAUwAwEB\n"
+	"/zAOBgNVHQ8BAf8EBAMCAf4wDQYJKoZIhvcNAQENBQADggIBACz38SkKR1WsEZnX\n"
+	"x1BKaS5/oQPw+7quDQCKGoD2Vz7CR7yQh4zQn/Hh0173vKvRWcwN2io0iLJ1ysv5\n"
+	"jXBLeWZh3djiQlXP3iWp4s01SiUwmFssxi3SD1IT2jNosk1xcVWthle9zth7Y8Mp\n"
+	"iUJYnHobP7tX7H2g+I8Rqw2sEX/yPSYMYcdH5a1xRMPOLHTyOaCgevRBBBtXkiAJ\n"
+	"Ob9QKZTaFaXntPXBKNSGkVb2d+2qKyJMrwd0KNI+SVSoIgNDAxkNOdi9x6X6ETW2\n"
+	"4aYFsytohFVkNUXx2eFYRim4yjnD8PHIvDQSofLfSAC5TOERtwUFd+Mw3/di+HCm\n"
+	"50OJPyoxZLjWQCCfNUZzgZZOe+zT6lgBiV3KB0UuuAdq7jGUeH/328HJDi30BvNj\n"
+	"+TNb9Hmpm+ZDguM+f8p7GxapX8AVNu/xErtl4msYiVJrr1qqV+qLLEMwIz0raujG\n"
+	"FFDd6N43wgduffbU20pThry0Y7rku5+RZjUZe/T7ZL+NUKiqXAPufrkqVkjX/8T+\n"
+	"wyNZz8KkiQwkJthojpppa79FDxn/A2M8tt+FQqIONAUPR2m5nurVgftQH0z5ZtDB\n"
+	"YykUlkUiPOJNXoDOIkbpA7lW2wezeY4te+EiSeUZSE541N5QBwaItaonIZsIgn6C\n"
+	"pMnwChV9468oRE20bdqq9+Go7g4E\n"
 	"-----END CERTIFICATE-----\n";
 
 static const char DS_TRUST_ANCHOR[] =
@@ -1674,17 +1708,115 @@ static unsigned long
 get_usage_of_ex(X509* cert)
 {
 	unsigned long val = 0;
+#ifdef HAVE_X509_GET_KEY_USAGE
+	val = X509_get_key_usage(cert);
+	if (val == UINT32_MAX)
+		return 0;
+#else
 	ASN1_BIT_STRING* s;
 	if((s=X509_get_ext_d2i(cert, NID_key_usage, NULL, NULL))) {
-		if(s->length > 0) {
-			val = s->data[0];
-			if(s->length > 1)
-				val |= s->data[1] << 8;
+#  ifdef HAVE_ASN1_STRING_GET0_DATA
+		const unsigned char *data = ASN1_STRING_get0_data(s);
+#  else
+		const unsigned char *data = ASN1_STRING_data(s);
+#  endif
+		int len = ASN1_STRING_length(s);
+		if(len > 0) {
+			val = data[0];
+			if(len > 1)
+				val |= data[1] << 8;
 		}
 		ASN1_BIT_STRING_free(s);
 	}
+#endif
 	return val;
 }
+
+#if !defined(HAVE_X509_NAME_GET_TEXT_BY_NID) || defined(DEPRECATED_X509_NAME_GET_TEXT_BY_NID)
+/** print verbose output about name extension data. */
+static void
+print_name_ext(
+#if OPENSSL_VERSION_NUMBER >= 0x40000000
+	const
+#endif
+	X509_NAME* nm, int nid, const char* str)
+{
+	int lastpos = -1;
+	for(;;) {
+#if OPENSSL_VERSION_NUMBER >= 0x40000000
+		const
+#endif
+		X509_NAME_ENTRY* ne;
+#if OPENSSL_VERSION_NUMBER >= 0x40000000
+		const
+#endif
+		ASN1_STRING *asn;
+		const unsigned char *data;
+		char buf[1024];
+
+		lastpos = X509_NAME_get_index_by_NID(nm, nid, lastpos);
+		if(lastpos == -1 || lastpos == -2)
+			break;
+		ne = X509_NAME_get_entry(nm, lastpos);
+		if(!ne) continue;
+		asn = X509_NAME_ENTRY_get_data(ne);
+		if(!asn) continue;
+#  ifdef HAVE_ASN1_STRING_GET0_DATA
+		data = ASN1_STRING_get0_data(asn);
+#  else
+		data = ASN1_STRING_data(asn);
+#  endif
+		if(!data) continue;
+		if(ASN1_STRING_length(asn) > (int)sizeof(buf)-1) continue;
+		memcpy(buf, data, ASN1_STRING_length(asn));
+		buf[ASN1_STRING_length(asn)]=0;
+		printf("%s: %s\n", str, buf);
+	}
+}
+#endif /* X509_NAME_GET_TEXT_BY_NID */
+
+#if !defined(HAVE_X509_NAME_GET_TEXT_BY_NID) || defined(DEPRECATED_X509_NAME_GET_TEXT_BY_NID)
+/** see if the valid emailaddr is present. */
+static int
+has_valid_emailaddr(
+#if OPENSSL_VERSION_NUMBER >= 0x40000000
+	const
+#endif
+	X509_NAME* nm, const char* p7signer)
+{
+	int lastpos = -1;
+	for(;;) {
+#if OPENSSL_VERSION_NUMBER >= 0x40000000
+		const
+#endif
+		X509_NAME_ENTRY* ne;
+#if OPENSSL_VERSION_NUMBER >= 0x40000000
+		const
+#endif
+		ASN1_STRING *asn;
+		const unsigned char *data;
+
+		lastpos = X509_NAME_get_index_by_NID(nm,
+			NID_pkcs9_emailAddress, lastpos);
+		if(lastpos == -1 || lastpos == -2)
+			break;
+		ne = X509_NAME_get_entry(nm, lastpos);
+		if(!ne) continue;
+		asn = X509_NAME_ENTRY_get_data(ne);
+		if(!asn) continue;
+#  ifdef HAVE_ASN1_STRING_GET0_DATA
+		data = ASN1_STRING_get0_data(asn);
+#  else
+		data = ASN1_STRING_data(asn);
+#  endif
+		if(!data) continue;
+		if(ASN1_STRING_length(asn) == (int)strlen(p7signer) &&
+			strncmp((char*)data, p7signer, strlen(p7signer)) == 0)
+			return 1; /* match */
+	}
+	return 0;
+}
+#endif /* X509_NAME_GET_TEXT_BY_NID */
 
 /** get valid signers from the list of signers in the signature */
 static STACK_OF(X509)*
@@ -1705,6 +1837,9 @@ get_valid_signers(PKCS7* p7, const char* p7signer)
 		return NULL;
 	}
 	for(i=0; i<sk_X509_num(signers); i++) {
+#if OPENSSL_VERSION_NUMBER >= 0x40000000
+		const
+#endif
 		X509_NAME* nm = X509_get_subject_name(
 			sk_X509_value(signers, i));
 		char buf[1024];
@@ -1717,17 +1852,29 @@ get_valid_signers(PKCS7* p7, const char* p7signer)
 				(int)sizeof(buf));
 			printf("signer %d: Subject: %s\n", i,
 				nmline?nmline:"no subject");
+#if !defined(HAVE_X509_NAME_GET_TEXT_BY_NID) || defined(DEPRECATED_X509_NAME_GET_TEXT_BY_NID)
+			if(verb >= 3) {
+				print_name_ext(nm, NID_commonName,
+					"commonName");
+				print_name_ext(nm, NID_pkcs9_emailAddress,
+					"emailAddress");
+			}
+#else
 			if(verb >= 3 && X509_NAME_get_text_by_NID(nm,
-				NID_commonName, buf, (int)sizeof(buf)))
+				NID_commonName, buf, (int)sizeof(buf)) > 0)
 				printf("commonName: %s\n", buf);
 			if(verb >= 3 && X509_NAME_get_text_by_NID(nm,
-				NID_pkcs9_emailAddress, buf, (int)sizeof(buf)))
+				NID_pkcs9_emailAddress, buf, (int)sizeof(buf)) > 0)
 				printf("emailAddress: %s\n", buf);
+#endif
 		}
 		if(verb) {
 			int ku_loc = X509_get_ext_by_NID(
 				sk_X509_value(signers, i), NID_key_usage, -1);
 			if(verb >= 3 && ku_loc >= 0) {
+#if OPENSSL_VERSION_NUMBER >= 0x40000000
+				const
+#endif
 				X509_EXTENSION *ex = X509_get_ext(
 					sk_X509_value(signers, i), ku_loc);
 				if(ex) {
@@ -1741,16 +1888,23 @@ get_valid_signers(PKCS7* p7, const char* p7signer)
 			/* there is no name to check, return all records */
 			if(verb) printf("did not check commonName of signer\n");
 		} else {
-			if(!X509_NAME_get_text_by_NID(nm,
+#if !defined(HAVE_X509_NAME_GET_TEXT_BY_NID) || defined(DEPRECATED_X509_NAME_GET_TEXT_BY_NID)
+			if(!has_valid_emailaddr(nm, p7signer)) {
+				if(verb) printf("removed cert with wrong emailaddress\n");
+				continue; /* wrong name, skip it */
+			}
+#else
+			if(X509_NAME_get_text_by_NID(nm,
 				NID_pkcs9_emailAddress,
-				buf, (int)sizeof(buf))) {
-				if(verb) printf("removed cert with no name\n");
+				buf, (int)sizeof(buf)) <= 0) {
+				if(verb) printf("removed cert with no emailaddress\n");
 				continue; /* no name, no use */
 			}
 			if(strcmp(buf, p7signer) != 0) {
-				if(verb) printf("removed cert with wrong name\n");
+				if(verb) printf("removed cert with wrong emailaddress\n");
 				continue; /* wrong name, skip it */
 			}
+#endif
 		}
 
 		/* check that the key usage allows digital signatures

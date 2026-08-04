@@ -226,21 +226,27 @@ val_nsec_prove_nodata_dsreply(struct module_env* env, struct val_env* ve,
 				"referral did not verify.");
 			return sec_status_bogus;
 		}
-		sec = val_nsec_proves_no_ds(nsec, qinfo);
-		if(sec == sec_status_bogus) {
-			/* something was wrong. */
-			*reason = "NSEC does not prove absence of DS";
-			*reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
-			return sec;
-		} else if(sec == sec_status_insecure) {
-			/* this wasn't a delegation point. */
-			return sec;
-		} else if(sec == sec_status_secure) {
-			/* this proved no DS. */
-			*proof_ttl = ub_packed_rrset_ttl(nsec);
-			return sec;
+		/* If the NSEC was a wildcard, the verify rewrites the
+		 * owner to '*.zone'. Check the NSEC owner matches. */
+		if(query_dname_compare(nsec->rk.dname, qinfo->qname) == 0) {
+			sec = val_nsec_proves_no_ds(nsec, qinfo);
+			if(sec == sec_status_bogus) {
+				/* something was wrong. */
+				*reason = "NSEC does not prove absence of DS";
+				*reason_bogus = LDNS_EDE_DNSSEC_BOGUS;
+				return sec;
+			} else if(sec == sec_status_insecure) {
+				/* this wasn't a delegation point. */
+				return sec;
+			} else if(sec == sec_status_secure) {
+				/* this proved no DS. */
+				*proof_ttl = ub_packed_rrset_ttl(nsec);
+				return sec;
+			}
 		}
 		/* if unchecked, fall through to next proof */
+		/* For *.closest-encloser NSEC, there is a closer-match
+		 * check for the wildcard below. */
 	}
 
 	/* Otherwise, there is no NSEC at qname. This could be an ENT. 

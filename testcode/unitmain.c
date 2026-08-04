@@ -1445,6 +1445,9 @@ main(int argc, char* argv[])
 #  ifdef HAVE_RAND_CLEANUP
 	RAND_cleanup();
 #  endif
+#ifdef HAVE_OPENSSL_CLEANUP
+	OPENSSL_cleanup();
+#endif
 #elif defined(HAVE_NSS)
 	if(NSS_Shutdown() != SECSuccess)
 		fatal_exit("could not shutdown NSS");

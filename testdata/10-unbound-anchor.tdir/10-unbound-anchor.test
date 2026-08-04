@@ -35,11 +35,13 @@ function check_insecure() {
 # test with good start key, and must do 5011 (no URL possible)
 echo "*** TEST 1 ***"
 echo $DS > root.key
-$PRE/unbound-anchor -x "notexist.xml" -s "notexist.p7s" $OPTS
+cat root.key
+$PRE/unbound-anchor -x "notexist.xml" -s "notexist.p7s" $OPTS -vvvv
 if test $? != 0; then
 	echo "Exitcode not OK"
 	exit 1
 fi
+cat root.key
 check_works
 # save for test 5
 cp root.key root.key.probed

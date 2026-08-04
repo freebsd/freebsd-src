@@ -282,7 +282,7 @@ if grep "192.0.2.1" outfile; then
 else
 	end 1
 fi
-sleep 1  # make sure the outgoing UDP (and no edns1xx0 retry because not a smaller buffer size) are accounted for.
+sleep 1  # make sure the outgoing UDP (and no edns1xx2 retry because not a smaller buffer size) are accounted for.
 check_stats "\
 total.num.queries=1
 total.num.expired=1

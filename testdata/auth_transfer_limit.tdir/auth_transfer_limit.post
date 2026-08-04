@@ -1,0 +1,16 @@
+# #-- auth_transfer_limit.post --#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# source the test var file when it's there
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+#
+# do your teardown here
+. ../common.sh
+kill_pid $FWD_PID
+kill_pid $FWD2_PID
+kill_pid $UNBOUND_PID
+rm -f $CONTROL_PATH/controlpipe.$CONTROL_PID
+echo "> cat logfiles"
+cat fwd.log
+cat fwd2.log
+cat unbound.log

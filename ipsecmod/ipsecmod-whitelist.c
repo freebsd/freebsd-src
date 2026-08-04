@@ -100,6 +100,8 @@ ipsecmod_whitelist_apply_cfg(struct ipsecmod_env* ie,
 	struct config_file* cfg)
 {
 	ie->whitelist = rbtree_create(name_tree_compare);
+	if (!ie->whitelist)
+		return 0;
 	if(!read_whitelist(ie->whitelist, cfg))
 		return 0;
 	name_tree_init_parents(ie->whitelist);

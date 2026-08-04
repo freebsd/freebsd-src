@@ -1,0 +1,109 @@
+; config options
+server:
+	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: no
+	iter-scrub-promiscuous: yes
+
+stub-zone:
+	name: "."
+	stub-addr: 1.2.3.0 # ns.root
+CONFIG_END
+
+SCENARIO_BEGIN Test iterator with self glue response that becomes empty.
+
+; ns.root
+RANGE_BEGIN 0 400
+	ADDRESS 1.2.3.0
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS NS.ROOT.
+SECTION ADDITIONAL
+NS.ROOT. IN A 1.2.3.0
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+mesa. IN NS
+SECTION AUTHORITY
+mesa. IN NS ns.mesa.
+SECTION ADDITIONAL
+ns.mesa. IN A 1.2.7.7
+ENTRY_END
+RANGE_END
+
+; ns.mesa
+RANGE_BEGIN 0 400
+	ADDRESS 1.2.7.7
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.mesa. IN NS
+SECTION AUTHORITY
+example.mesa. IN NS ns.example.mesa.
+SECTION ADDITIONAL
+ns.example.mesa. IN A 1.2.4.3
+ENTRY_END
+RANGE_END
+
+; ns.example.mesa
+RANGE_BEGIN 0 400
+	ADDRESS 1.2.4.3
+
+; This answer contains an NS record that points to itself.
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+sub.example.mesa. IN NS
+SECTION AUTHORITY
+sub.example.mesa. IN NS ns.nonce1.sub.example.mesa.
+SECTION ADDITIONAL
+ns.nonce1.sub.example.mesa. IN A 1.2.4.3
+ENTRY_END
+RANGE_END
+
+; Test query with authority section MX glue.
+STEP 10 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+test1.sub.example.mesa. IN A
+ENTRY_END
+
+STEP 20 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+test1.sub.example.mesa. IN A
+SECTION ANSWER
+ENTRY_END
+
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+test2.sub.example.mesa. IN A
+ENTRY_END
+
+STEP 40 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA SERVFAIL
+SECTION QUESTION
+test2.sub.example.mesa. IN A
+SECTION ANSWER
+ENTRY_END
+
+SCENARIO_END

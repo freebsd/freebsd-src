@@ -72,6 +72,8 @@ typedef uint64_t rrset_id_type;
 #define PACKED_RRSET_UNVERIFIED_GLUE 0x10
 /** this rrset has a 0TTL from upstream */
 #define PACKED_RRSET_UPSTREAM_0TTL 0x20
+/** this rrset has 0TTL from upstream and also has had grace TTL applied */
+#define PACKED_RRSET_0TTL_GRACE 0x40
 
 /** number of rrs and rrsets for integer overflow protection.  More than
  * this is not really possible (64K packet has much less RRs and RRsets) in

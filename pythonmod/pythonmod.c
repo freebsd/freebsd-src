@@ -487,10 +487,23 @@ int pythonmod_init(struct module_env* env, int id)
       /* for python 3.9 and newer */
       char* fstr = NULL;
       size_t flen = 0;
+      long pos = 0;
       log_err("pythonmod: can't parse Python script %s", pe->fname);
       /* print the error to logs too, run it again */
       fseek(script_py, 0, SEEK_END);
-      flen = (size_t)ftell(script_py);
+      pos = ftell(script_py);
+      if (pos == -1L) {
+         log_err("ftell failed to print parse error: %s: %s",
+            pe->fname, strerror(errno));
+         goto fail_close_file;
+      }
+      flen = (size_t)pos;
+#ifdef SIZE_MAX
+      if(flen > SIZE_MAX-2) {
+		log_err("script file too large");
+		goto fail_close_file;
+      }
+#endif
       fstr = malloc(flen+1);
       if(!fstr) {
 		log_err("malloc failure to print parse error");

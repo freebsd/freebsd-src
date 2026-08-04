@@ -424,6 +424,44 @@ mesh_serve_expired_init(struct mesh_state* mstate, int timeout)
 	return 1;
 }
 
+/** remove a reply without accounting, rollback the add reply. */
+static void
+mesh_remove_reply_without_accounting(struct mesh_state* s,
+	struct mesh_reply* todel)
+{
+	struct mesh_reply* r, *prev = NULL;
+	for(r = s->reply_list; r; r = r->next) {
+		if(r == todel) {
+			if(prev)
+				prev->next = r->next;
+			else	s->reply_list = r->next;
+			r->next = NULL;
+			/* todel is allocated in region */
+			return;
+		}
+		prev = r;
+	}
+}
+
+/** remove a callback without accounting, rollback the add reply. */
+static void
+mesh_remove_callback_without_accounting(struct mesh_state* s,
+	struct mesh_cb* todel)
+{
+	struct mesh_cb* r, *prev = NULL;
+	for(r = s->cb_list; r; r = r->next) {
+		if(r == todel) {
+			if(prev)
+				prev->next = r->next;
+			else	s->cb_list = r->next;
+			r->next = NULL;
+			/* todel is allocated in region */
+			return;
+		}
+		prev = r;
+	}
+}
+
 void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 	struct respip_client_info* cinfo, uint16_t qflags,
 	struct edns_data* edns, struct comm_reply* rep, uint16_t qid,
@@ -433,7 +471,8 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 	int unique = unique_mesh_state(edns->opt_list_in, mesh->env);
 	int was_detached = 0;
 	int was_noreply = 0;
-	int added = 0;
+	int added = 0, added_reply_without_accounting = 0, added_tcp = 0;
+	struct mesh_reply* repadded = NULL;
 	int timeout = mesh->env->cfg->serve_expired?
 		mesh->env->cfg->serve_expired_client_timeout:0;
 	struct sldns_buffer* r_buffer = rep->c->buffer;
@@ -544,16 +583,18 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 		}
 	}
 	/* add reply to s */
-	if(!mesh_state_add_reply(s, edns, rep, qid, qflags, qinfo)) {
+	if(!mesh_state_add_reply(s, edns, rep, qid, qflags, qinfo, &repadded)) {
 		log_err("mesh_new_client: out of memory; SERVFAIL");
 		goto servfail_mem;
 	}
+	added_reply_without_accounting = 1;
 	if(rep->c->tcp_req_info) {
 		if(!tcp_req_info_add_meshstate(rep->c->tcp_req_info, mesh, s)) {
 			log_err("mesh_new_client: out of memory add tcpreqinfo");
 			goto servfail_mem;
 		}
 	}
+	added_tcp = 1;
 	if(rep->c->use_h2) {
 		http2_stream_add_meshstate(rep->c->h2_stream, mesh, s);
 	} else if(rep->c->type == comm_doq && rep->doq_stream) {
@@ -575,6 +616,8 @@ void mesh_new_client(struct mesh_area* mesh, struct query_info* qinfo,
 		}
 	}
 #endif
+	/* Since the acccounting now happens,
+	 * added_reply_without_accounting = 0;   but that is not used. */
 	infra_wait_limit_inc(mesh->env->infra_cache, rep, *mesh->env->now,
 		mesh->env->cfg);
 	/* update statistics */
@@ -614,6 +657,11 @@ servfail_mem:
 	else if(rep->c->type == comm_doq && rep->doq_stream)
 		doq_stream_remove_mesh_state(rep->doq_stream);
 	comm_point_send_reply(rep);
+	if(added_reply_without_accounting) {
+		mesh_remove_reply_without_accounting(s, repadded);
+		if(added_tcp && rep->c->tcp_req_info)
+			tcp_req_info_remove_mesh_state(rep->c->tcp_req_info, s);
+	}
 	if(added)
 		mesh_state_delete(&s->s);
 	return;
@@ -622,7 +670,8 @@ servfail_mem:
 int
 mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
 	uint16_t qflags, struct edns_data* edns, sldns_buffer* buf,
-	uint16_t qid, mesh_cb_func_type cb, void* cb_arg, int rpz_passthru)
+	uint16_t qid, mesh_cb_func_type cb, void* cb_arg, int rpz_passthru,
+	void** unique_info)
 {
 	struct mesh_state* s = NULL;
 	int unique = unique_mesh_state(edns->opt_list_in, mesh->env);
@@ -631,6 +680,7 @@ mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
 	int was_detached = 0;
 	int was_noreply = 0;
 	int added = 0;
+	struct mesh_cb* add_cb = NULL;
 	uint16_t mesh_flags = qflags&(BIT_RD|BIT_CD);
 	if(!unique)
 		s = mesh_area_find(mesh, NULL, qinfo, mesh_flags, 0, 0);
@@ -676,13 +726,14 @@ mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
 		}
 	}
 	/* add reply to s */
-	if(!mesh_state_add_cb(s, edns, buf, cb, cb_arg, qid, qflags)) {
+	if(!mesh_state_add_cb(s, edns, buf, cb, cb_arg, qid, qflags, &add_cb)) {
 		if(added)
 			mesh_state_delete(&s->s);
 		return 0;
 	}
 	/* add serve expired timer if not already there */
 	if(timeout && !mesh_serve_expired_init(s, timeout)) {
+		mesh_remove_callback_without_accounting(s, add_cb);
 		if(added)
 			mesh_state_delete(&s->s);
 		return 0;
@@ -693,6 +744,7 @@ mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
 		(mesh->env->cachedb_enabled &&
 		 mesh->env->cfg->cachedb_check_when_serve_expired)) {
 		if(!mesh_serve_expired_init(s, -1)) {
+			mesh_remove_callback_without_accounting(s, add_cb);
 			if(added)
 				mesh_state_delete(&s->s);
 			return 0;
@@ -708,6 +760,8 @@ mesh_new_callback(struct mesh_area* mesh, struct query_info* qinfo,
 		mesh->num_reply_states ++;
 	}
 	mesh->num_reply_addrs++;
+	if(unique_info)
+		*unique_info = s->unique;
 	if(added)
 		mesh_run(mesh, s, module_event_new, NULL);
 	return 1;
@@ -911,32 +965,9 @@ void mesh_report_reply(struct mesh_area* mesh, struct outbound_entry* e,
 	mesh_run(mesh, e->qstate->mesh_info, event, e);
 }
 
-/** copy strlist to region */
-static struct config_strlist*
-cfg_region_strlist_copy(struct regional* region, struct config_strlist* list)
-{
-	struct config_strlist* result = NULL, *last = NULL, *s = list;
-	while(s) {
-		struct config_strlist* n = regional_alloc_zero(region,
-			sizeof(*n));
-		if(!n)
-			return NULL;
-		n->str = regional_strdup(region, s->str);
-		if(!n->str)
-			return NULL;
-		if(last)
-			last->next = n;
-		else	result = n;
-		last = n;
-		s = s->next;
-	}
-	return result;
-}
-
 struct respip_client_info*
 mesh_copy_client_info(struct regional* region, struct respip_client_info* cinfo)
 {
-	size_t i;
 	struct respip_client_info* client_info;
 	client_info = regional_alloc_init(region, cinfo, sizeof(*cinfo));
 	if(!client_info)
@@ -955,20 +986,13 @@ mesh_copy_client_info(struct regional* region, struct respip_client_info* cinfo)
 		if(!client_info->tag_actions)
 			return NULL;
 	}
-	if(cinfo->tag_datas) {
-		client_info->tag_datas = regional_alloc_zero(region,
-			sizeof(struct config_strlist*)*cinfo->tag_datas_size);
-		if(!client_info->tag_datas)
-			return NULL;
-		for(i=0; i<cinfo->tag_datas_size; i++) {
-			if(cinfo->tag_datas[i]) {
-				client_info->tag_datas[i] = cfg_region_strlist_copy(
-					region, cinfo->tag_datas[i]);
-				if(!client_info->tag_datas[i])
-					return NULL;
-			}
-		}
-	}
+	/* tag_datas is owned by the matched acl_addr in config_file; its
+	 * lifetime is until config reload, which tears down all mesh states
+	 * first. Keep the original pointer so client_info_compare()
+	 * can recognise two states from the same ACL entry. */
+	/* fast reload insists on dropping the queries when interface-tag-data
+	 * or access-control-tag-data are changed. */
+	/* client_info->tag_datas already copied by regional_alloc_init above */
 	if(cinfo->view) {
 		/* Do not copy the view pointer but store a name instead.
 		 * The name is looked up later when done, this means that
@@ -1090,14 +1114,6 @@ mesh_state_cleanup(struct mesh_state* mstate)
 	if(!mstate->replies_sent) {
 		struct mesh_reply* rep = mstate->reply_list;
 		struct mesh_cb* cb;
-		/* One http2 stream could bring down its comm_point along with
-		 * the other streams which could share the same query. Do all
-		 * the http2 stream bookkeeping upfront. */
-		for(; rep; rep=rep->next) {
-			if(rep->query_reply.c->use_h2)
-				http2_stream_remove_mesh_state(rep->h2_stream);
-		}
-		rep = mstate->reply_list;
 		/* in tcp_req_info, the mstates linked are removed, but
 		 * the reply_list is now NULL, so the remove-from-empty-list
 		 * takes no time and also it does not do the mesh accounting */
@@ -1241,6 +1257,9 @@ int mesh_add_sub(struct module_qstate* qstate, struct query_info* qinfo,
 			log_err("mesh_attach_sub: out of memory");
 			return 0;
 		}
+		/* inherit RPZ passthru from the parent so respip on the sub
+		 * sees the same client-IP/qname PASSTHRU decision */
+		(*sub)->s.rpz_passthru = qstate->rpz_passthru;
 #ifdef UNBOUND_DEBUG
 		n =
 #else
@@ -1763,7 +1782,8 @@ void mesh_query_done(struct mesh_state* mstate)
 		}
 	}
 
-	if(mstate->reply_list && mstate->s.env->cfg->dns_error_reporting)
+	if(mstate->reply_list && mstate->s.env->cfg->dns_error_reporting
+		&& (!rep || rep->security != sec_status_secure))
 		dns_error_reporting(&mstate->s, rep);
 
 	for(r = mstate->reply_list; r; r = r->next) {
@@ -1946,6 +1966,25 @@ struct mesh_state* mesh_area_find(struct mesh_area* mesh,
 	return result;
 }
 
+struct mesh_state* mesh_area_find_unique(struct mesh_area* mesh,
+	struct respip_client_info* cinfo, struct query_info* qinfo,
+	uint16_t qflags, int prime, int valrec, void* unique_info)
+{
+	struct mesh_state key;
+	struct mesh_state* result;
+
+	key.node.key = &key;
+	key.s.is_priming = prime;
+	key.s.is_valrec = valrec;
+	key.s.qinfo = *qinfo;
+	key.s.query_flags = qflags;
+	key.unique = (struct mesh_state*)unique_info;
+	key.s.client_info = cinfo;
+
+	result = (struct mesh_state*)rbtree_search(&mesh->all, &key);
+	return result;
+}
+
 /** remove mesh state callback */
 int mesh_state_del_cb(struct mesh_state* s, mesh_cb_func_type cb, void* cb_arg)
 {
@@ -1967,7 +2006,7 @@ int mesh_state_del_cb(struct mesh_state* s, mesh_cb_func_type cb, void* cb_arg)
 
 int mesh_state_add_cb(struct mesh_state* s, struct edns_data* edns,
         sldns_buffer* buf, mesh_cb_func_type cb, void* cb_arg,
-	uint16_t qid, uint16_t qflags)
+	uint16_t qid, uint16_t qflags, struct mesh_cb** result)
 {
 	struct mesh_cb* r = regional_alloc(s->s.region,
 		sizeof(struct mesh_cb));
@@ -1991,13 +2030,14 @@ int mesh_state_add_cb(struct mesh_state* s, struct edns_data* edns,
 	r->qflags = qflags;
 	r->next = s->cb_list;
 	s->cb_list = r;
+	*result = r;
 	return 1;
 
 }
 
 int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
         struct comm_reply* rep, uint16_t qid, uint16_t qflags,
-        const struct query_info* qinfo)
+        const struct query_info* qinfo, struct mesh_reply** result)
 {
 	struct mesh_reply* r = regional_alloc(s->s.region,
 		sizeof(struct mesh_reply));
@@ -2078,6 +2118,7 @@ int mesh_state_add_reply(struct mesh_state* s, struct edns_data* edns,
 		r->local_alias = NULL;
 
 	s->reply_list = r;
+	*result = r;
 	return 1;
 }
 
@@ -2235,8 +2276,29 @@ void mesh_run(struct mesh_area* mesh, struct mesh_state* mstate,
 	enum module_ev ev, struct outbound_entry* e)
 {
 	enum module_ext_state s;
+	int numrun = 0;
 	verbose(VERB_ALGO, "mesh_run: start");
 	while(mstate) {
+		if(numrun++ > MESH_MAX_RUN_ITER) {
+			/* These modules are too much to activate, stop them.*/
+			log_err("Too many module run iterations, deleting");
+			while(mstate) {
+				/* notify supers */
+				if(mstate->super_set.count > 0) {
+					verbose(VERB_ALGO, "notify supers of failure");
+					mstate->s.return_msg = NULL;
+					mstate->s.return_rcode = LDNS_RCODE_SERVFAIL;
+					mesh_walk_supers(mesh, mstate);
+				}
+				mesh_state_delete(&mstate->s);
+				if(mesh->run.count > 0) {
+					/* pop random element off the runnable tree */
+					mstate = (struct mesh_state*)mesh->run.root->key;
+					(void)rbtree_delete(&mesh->run, mstate);
+				} else mstate = NULL;
+			}
+			break;
+		}
 		/* run the module */
 		fptr_ok(fptr_whitelist_mod_operate(
 			mesh->mods.mod[mstate->s.curmod]->operate));
@@ -2388,7 +2450,8 @@ void mesh_list_remove(struct mesh_state* m, struct mesh_state** fp,
 }
 
 void mesh_state_remove_reply(struct mesh_area* mesh, struct mesh_state* m,
-	struct comm_point* cp, struct doq_stream* doq_stream)
+	struct comm_point* cp, struct http2_stream* h2_stream,
+	struct doq_stream* doq_stream)
 {
 	struct mesh_reply* n, *prev = NULL;
 	n = m->reply_list;
@@ -2397,6 +2460,7 @@ void mesh_state_remove_reply(struct mesh_area* mesh, struct mesh_state* m,
 	if(!n) return; /* nothing to remove, also no accounting needed */
 	while(n) {
 		if(n->query_reply.c == cp
+			&& (!h2_stream || n->h2_stream == h2_stream)
 			&& (!doq_stream || n->query_reply.doq_stream == doq_stream)) {
 			/* unlink it */
 			if(prev) prev->next = n->next;
@@ -2692,13 +2756,30 @@ int mesh_jostle_exceeded(struct mesh_area* mesh)
 }
 
 void mesh_remove_callback(struct mesh_area* mesh, struct query_info* qinfo,
-	uint16_t qflags, mesh_cb_func_type cb, void* cb_arg)
+	uint16_t qflags, mesh_cb_func_type cb, void* cb_arg, void* unique_info)
 {
 	struct mesh_state* s = NULL;
 	s = mesh_area_find(mesh, NULL, qinfo, qflags&(BIT_RD|BIT_CD), 0, 0);
-	if(!s) return;
-	if(!mesh_state_del_cb(s, cb, cb_arg)) return;
+	if(s && mesh_state_del_cb(s, cb, cb_arg))
+		goto removed;
+	if(unique_info) {
+		s = mesh_area_find_unique(mesh, NULL, qinfo,
+			qflags&(BIT_RD|BIT_CD), 0, 0, unique_info);
+		if(s && mesh_state_del_cb(s, cb, cb_arg))
+			goto removed;
+	}
+	/* mesh_area_find builds key.unique=NULL and cannot match a state
+	 * created with mesh_state_make_unique (e.g. subnetcache sets
+	 * env->unique_mesh). Fall back to a linear scan; cb+cb_arg is an
+	 * exact key (mesh_state_del_cb compares both).
+	 * This works for both lookups for zonemd and for hostname authzone. */
+	RBTREE_FOR(s, struct mesh_state*, &mesh->all) {
+		if(s->cb_list && mesh_state_del_cb(s, cb, cb_arg))
+			goto removed;
+	}
+	return;
 
+removed:
 	/* It was in the list and removed. */
 	log_assert(mesh->num_reply_addrs > 0);
 	mesh->num_reply_addrs--;

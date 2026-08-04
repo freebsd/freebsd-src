@@ -216,6 +216,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_LOG_DESTADDR VAR_CACHEDB_CHECK_WHEN_SERVE_EXPIRED
 %token VAR_COOKIE_SECRET_FILE VAR_ITER_SCRUB_NS VAR_ITER_SCRUB_CNAME
 %token VAR_ITER_SCRUB_RRSIG
+%token VAR_MAX_TRANSFER_SIZE VAR_MAX_TRANSFER_TIME
 %token VAR_MAX_GLOBAL_QUOTA VAR_HARDEN_UNVERIFIED_GLUE VAR_LOG_TIME_ISO
 %token VAR_ITER_SCRUB_PROMISCUOUS VAR_LOG_THREAD_ID
 
@@ -459,6 +460,8 @@ authstart: VAR_AUTH_ZONE
 			s->zonemd_check = 0;
 			s->zonemd_reject_absence = 0;
 			s->isrpz = 0;
+			s->max_transfer_size = 0;
+			s->max_transfer_time = 0;
 		} else {
 			yyerror("out of memory");
 		}
@@ -468,7 +471,8 @@ contents_auth: contents_auth content_auth
 	| ;
 content_auth: auth_name | auth_zonefile | auth_master | auth_url |
 	auth_for_downstream | auth_for_upstream | auth_fallback_enabled |
-	auth_allow_notify | auth_zonemd_check | auth_zonemd_reject_absence
+	auth_allow_notify | auth_zonemd_check | auth_zonemd_reject_absence |
+	auth_max_transfer_size | auth_max_transfer_time
 	;
 
 rpz_tag: VAR_TAGS STRING_ARG
@@ -556,6 +560,8 @@ rpzstart: VAR_RPZ
 			s->for_upstream = 0;
 			s->fallback_enabled = 0;
 			s->isrpz = 1;
+			s->max_transfer_size = 0;
+			s->max_transfer_time = 0;
 		} else {
 			yyerror("out of memory");
 		}
@@ -565,7 +571,8 @@ contents_rpz: contents_rpz content_rpz
 	| ;
 content_rpz: auth_name | auth_zonefile | rpz_tag | auth_master | auth_url |
 	   auth_allow_notify | rpz_action_override | rpz_cname_override |
-	   rpz_log | rpz_log_name | rpz_signal_nxdomain_ra | auth_for_downstream
+	   rpz_log | rpz_log_name | rpz_signal_nxdomain_ra | auth_for_downstream |
+	   auth_max_transfer_size | auth_max_transfer_time
 	;
 server_num_threads: VAR_NUM_THREADS STRING_ARG
 	{
@@ -657,7 +664,7 @@ server_send_client_subnet: VAR_SEND_CLIENT_SUBNET STRING_ARG
 	#ifdef CLIENT_SUBNET
 		OUTYY(("P(server_send_client_subnet:%s)\n", $2));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->client_subnet, $2))
-			fatal_exit("out of memory adding client-subnet");
+			yyerror("out of memory");
 	#else
 		OUTYY(("P(Compiled without edns subnet option, ignoring)\n"));
 		free($2);
@@ -670,7 +677,7 @@ server_client_subnet_zone: VAR_CLIENT_SUBNET_ZONE STRING_ARG
 		OUTYY(("P(server_client_subnet_zone:%s)\n", $2));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->client_subnet_zone,
 			$2))
-			fatal_exit("out of memory adding client-subnet-zone");
+			yyerror("out of memory");
 	#else
 		OUTYY(("P(Compiled without edns subnet option, ignoring)\n"));
 		free($2);
@@ -2029,7 +2036,7 @@ server_access_control: VAR_ACCESS_CONTROL STRING_ARG STRING_ARG
 		OUTYY(("P(server_access_control:%s %s)\n", $2, $3));
 		validate_acl_action($3);
 		if(!cfg_str2list_insert(&cfg_parser->cfg->acls, $2, $3))
-			fatal_exit("out of memory adding acl");
+			yyerror("out of memory");
 	}
 	;
 server_interface_action: VAR_INTERFACE_ACTION STRING_ARG STRING_ARG
@@ -2038,7 +2045,7 @@ server_interface_action: VAR_INTERFACE_ACTION STRING_ARG STRING_ARG
 		validate_acl_action($3);
 		if(!cfg_str2list_insert(
 			&cfg_parser->cfg->interface_actions, $2, $3))
-			fatal_exit("out of memory adding acl");
+			yyerror("out of memory");
 	}
 	;
 server_module_conf: VAR_MODULE_CONF STRING_ARG
@@ -2388,6 +2395,9 @@ server_local_zone: VAR_LOCAL_ZONE STRING_ARG STRING_ARG
 		   && strcmp($3, "typetransparent")!=0
 		   && strcmp($3, "always_transparent")!=0
 		   && strcmp($3, "block_a")!=0
+		   && strcmp($3, "block_aaaa")!=0
+		   && strcmp($3, "block_a_wdata")!=0
+		   && strcmp($3, "block_aaaa_wdata")!=0
 		   && strcmp($3, "always_refuse")!=0
 		   && strcmp($3, "always_nxdomain")!=0
 		   && strcmp($3, "always_nodata")!=0
@@ -2400,7 +2410,9 @@ server_local_zone: VAR_LOCAL_ZONE STRING_ARG STRING_ARG
 			yyerror("local-zone type: expected static, deny, "
 				"refuse, redirect, transparent, "
 				"typetransparent, inform, inform_deny, "
-				"inform_redirect, always_transparent, block_a, "
+				"inform_redirect, always_transparent, "
+				"block_a, block_aaaa, "
+				"block_a_wdata, block_aaaa_wdata, "
 				"always_refuse, always_nxdomain, "
 				"always_nodata, always_deny, always_null, "
 				"noview, nodefault or ipset");
@@ -2409,7 +2421,7 @@ server_local_zone: VAR_LOCAL_ZONE STRING_ARG STRING_ARG
 		} else if(strcmp($3, "nodefault")==0) {
 			if(!cfg_strlist_insert(&cfg_parser->cfg->
 				local_zones_nodefault, $2))
-				fatal_exit("out of memory adding local-zone");
+				yyerror("out of memory");
 			free($3);
 #ifdef USE_IPSET
 		} else if(strcmp($3, "ipset")==0) {
@@ -2417,21 +2429,24 @@ server_local_zone: VAR_LOCAL_ZONE STRING_ARG STRING_ARG
 			/* Make sure to add the trailing dot.
 			 * These are str compared to domain names. */
 			if($2[len-1] != '.') {
+				char* prev = $2;
 				if(!($2 = realloc($2, len+2))) {
-					fatal_exit("out of memory adding local-zone");
+					yyerror("out of memory");
+					free(prev);
+				} else {
+					$2[len] = '.';
+					$2[len+1] = 0;
 				}
-				$2[len] = '.';
-				$2[len+1] = 0;
 			}
 			if(!cfg_strlist_insert(&cfg_parser->cfg->
 				local_zones_ipset, $2))
-				fatal_exit("out of memory adding local-zone");
+				yyerror("out of memory");
 			free($3);
 #endif
 		} else {
 			if(!cfg_str2list_insert(&cfg_parser->cfg->local_zones,
 				$2, $3))
-				fatal_exit("out of memory adding local-zone");
+				yyerror("out of memory");
 		}
 	}
 	;
@@ -2439,7 +2454,7 @@ server_local_data: VAR_LOCAL_DATA STRING_ARG
 	{
 		OUTYY(("P(server_local_data:%s)\n", $2));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->local_data, $2))
-			fatal_exit("out of memory adding local-data");
+			yyerror("out of memory");
 	}
 	;
 server_local_data_ptr: VAR_LOCAL_DATA_PTR STRING_ARG
@@ -2451,7 +2466,7 @@ server_local_data_ptr: VAR_LOCAL_DATA_PTR STRING_ARG
 		if(ptr) {
 			if(!cfg_strlist_insert(&cfg_parser->cfg->
 				local_data, ptr))
-				fatal_exit("out of memory adding local-data");
+				yyerror("out of memory");
 		} else {
 			yyerror("local-data-ptr could not be reversed");
 		}
@@ -2515,8 +2530,7 @@ server_wait_limit_netblock: VAR_WAIT_LIMIT_NETBLOCK STRING_ARG STRING_ARG
 		} else {
 			if(!cfg_str2list_insert(&cfg_parser->cfg->
 				wait_limit_netblock, $2, $3))
-				fatal_exit("out of memory adding "
-					"wait-limit-netblock");
+				yyerror("out of memory");
 		}
 	}
 	;
@@ -2530,8 +2544,7 @@ server_wait_limit_cookie_netblock: VAR_WAIT_LIMIT_COOKIE_NETBLOCK STRING_ARG STR
 		} else {
 			if(!cfg_str2list_insert(&cfg_parser->cfg->
 				wait_limit_cookie_netblock, $2, $3))
-				fatal_exit("out of memory adding "
-					"wait-limit-cookie-netblock");
+				yyerror("out of memory");
 		}
 	}
 	;
@@ -2563,7 +2576,7 @@ server_dns64_ignore_aaaa: VAR_DNS64_IGNORE_AAAA STRING_ARG
 		OUTYY(("P(dns64_ignore_aaaa:%s)\n", $2));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->dns64_ignore_aaaa,
 			$2))
-			fatal_exit("out of memory adding dns64-ignore-aaaa");
+			yyerror("out of memory");
 	}
 	;
 server_nat64_prefix: VAR_NAT64_PREFIX STRING_ARG
@@ -2828,8 +2841,7 @@ server_ratelimit_for_domain: VAR_RATELIMIT_FOR_DOMAIN STRING_ARG STRING_ARG
 		} else {
 			if(!cfg_str2list_insert(&cfg_parser->cfg->
 				ratelimit_for_domain, $2, $3))
-				fatal_exit("out of memory adding "
-					"ratelimit-for-domain");
+				yyerror("out of memory");
 		}
 	}
 	;
@@ -2843,8 +2855,7 @@ server_ratelimit_below_domain: VAR_RATELIMIT_BELOW_DOMAIN STRING_ARG STRING_ARG
 		} else {
 			if(!cfg_str2list_insert(&cfg_parser->cfg->
 				ratelimit_below_domain, $2, $3))
-				fatal_exit("out of memory adding "
-					"ratelimit-below-domain");
+				yyerror("out of memory");
 		}
 	}
 	;
@@ -3078,8 +3089,7 @@ server_edns_client_string: VAR_EDNS_CLIENT_STRING STRING_ARG STRING_ARG
 		OUTYY(("P(server_edns_client_string:%s %s)\n", $2, $3));
 		if(!cfg_str2list_insert(
 			&cfg_parser->cfg->edns_client_strings, $2, $3))
-			fatal_exit("out of memory adding "
-				"edns-client-string");
+			yyerror("out of memory");
 	}
 	;
 server_edns_client_string_opcode: VAR_EDNS_CLIENT_STRING_OPCODE STRING_ARG
@@ -3341,6 +3351,23 @@ auth_fallback_enabled: VAR_FALLBACK_ENABLED STRING_ARG
 		free($2);
 	}
 	;
+auth_max_transfer_size: VAR_MAX_TRANSFER_SIZE STRING_ARG
+	{
+		OUTYY(("P(max-transfer-size:%s)\n", $2));
+		if(!cfg_parse_memsize($2, &cfg_parser->cfg->auths->max_transfer_size))
+			yyerror("memory size expected");
+		free($2);
+	}
+	;
+auth_max_transfer_time: VAR_MAX_TRANSFER_TIME STRING_ARG
+	{
+		OUTYY(("P(max-transfer-time:%s)\n", $2));
+		if(atoi($2) == 0 && strcmp($2, "0") != 0)
+			yyerror("number expected");
+		else cfg_parser->cfg->auths->max_transfer_time = atoi($2);
+		free($2);
+	}
+	;
 view_name: VAR_NAME STRING_ARG
 	{
 		OUTYY(("P(name:%s)\n", $2));
@@ -3380,7 +3407,7 @@ view_local_zone: VAR_LOCAL_ZONE STRING_ARG STRING_ARG
 		} else if(strcmp($3, "nodefault")==0) {
 			if(!cfg_strlist_insert(&cfg_parser->cfg->views->
 				local_zones_nodefault, $2))
-				fatal_exit("out of memory adding local-zone");
+				yyerror("out of memory");
 			free($3);
 #ifdef USE_IPSET
 		} else if(strcmp($3, "ipset")==0) {
@@ -3388,22 +3415,25 @@ view_local_zone: VAR_LOCAL_ZONE STRING_ARG STRING_ARG
 			/* Make sure to add the trailing dot.
 			 * These are str compared to domain names. */
 			if($2[len-1] != '.') {
+				char* prev = $2;
 				if(!($2 = realloc($2, len+2))) {
-					fatal_exit("out of memory adding local-zone");
+					yyerror("out of memory");
+					free(prev);
+				} else {
+					$2[len] = '.';
+					$2[len+1] = 0;
 				}
-				$2[len] = '.';
-				$2[len+1] = 0;
 			}
 			if(!cfg_strlist_insert(&cfg_parser->cfg->views->
 				local_zones_ipset, $2))
-				fatal_exit("out of memory adding local-zone");
+				yyerror("out of memory");
 			free($3);
 #endif
 		} else {
 			if(!cfg_str2list_insert(
 				&cfg_parser->cfg->views->local_zones,
 				$2, $3))
-				fatal_exit("out of memory adding local-zone");
+				yyerror("out of memory");
 		}
 	}
 	;
@@ -3413,8 +3443,7 @@ view_response_ip: VAR_RESPONSE_IP STRING_ARG STRING_ARG
 		validate_respip_action($3);
 		if(!cfg_str2list_insert(
 			&cfg_parser->cfg->views->respip_actions, $2, $3))
-			fatal_exit("out of memory adding per-view "
-				"response-ip action");
+			yyerror("out of memory");
 	}
 	;
 view_response_ip_data: VAR_RESPONSE_IP_DATA STRING_ARG STRING_ARG
@@ -3422,14 +3451,14 @@ view_response_ip_data: VAR_RESPONSE_IP_DATA STRING_ARG STRING_ARG
 		OUTYY(("P(view_response_ip_data:%s)\n", $2));
 		if(!cfg_str2list_insert(
 			&cfg_parser->cfg->views->respip_data, $2, $3))
-			fatal_exit("out of memory adding response-ip-data");
+			yyerror("out of memory");
 	}
 	;
 view_local_data: VAR_LOCAL_DATA STRING_ARG
 	{
 		OUTYY(("P(view_local_data:%s)\n", $2));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->views->local_data, $2)) {
-			fatal_exit("out of memory adding local-data");
+			yyerror("out of memory");
 		}
 	}
 	;
@@ -3442,7 +3471,7 @@ view_local_data_ptr: VAR_LOCAL_DATA_PTR STRING_ARG
 		if(ptr) {
 			if(!cfg_strlist_insert(&cfg_parser->cfg->views->
 				local_data, ptr))
-				fatal_exit("out of memory adding local-data");
+				yyerror("out of memory");
 		} else {
 			yyerror("local-data-ptr could not be reversed");
 		}
@@ -3782,7 +3811,7 @@ server_response_ip: VAR_RESPONSE_IP STRING_ARG STRING_ARG
 		validate_respip_action($3);
 		if(!cfg_str2list_insert(&cfg_parser->cfg->respip_actions,
 			$2, $3))
-			fatal_exit("out of memory adding response-ip");
+			yyerror("out of memory");
 	}
 	;
 server_response_ip_data: VAR_RESPONSE_IP_DATA STRING_ARG STRING_ARG
@@ -3790,7 +3819,7 @@ server_response_ip_data: VAR_RESPONSE_IP_DATA STRING_ARG STRING_ARG
 		OUTYY(("P(server_response_ip_data:%s)\n", $2));
 		if(!cfg_str2list_insert(&cfg_parser->cfg->respip_data,
 			$2, $3))
-			fatal_exit("out of memory adding response-ip-data");
+			yyerror("out of memory");
 	}
 	;
 dnscstart: VAR_DNSCRYPT
@@ -3838,26 +3867,30 @@ dnsc_dnscrypt_provider: VAR_DNSCRYPT_PROVIDER STRING_ARG
 dnsc_dnscrypt_provider_cert: VAR_DNSCRYPT_PROVIDER_CERT STRING_ARG
 	{
 		OUTYY(("P(dnsc_dnscrypt_provider_cert:%s)\n", $2));
-		if(cfg_strlist_find(cfg_parser->cfg->dnscrypt_provider_cert, $2))
+		if(cfg_strlist_find(cfg_parser->cfg->dnscrypt_provider_cert, $2)) {
 			log_warn("dnscrypt-provider-cert %s is a duplicate", $2);
-		if(!cfg_strlist_insert(&cfg_parser->cfg->dnscrypt_provider_cert, $2))
-			fatal_exit("out of memory adding dnscrypt-provider-cert");
+			free($2);
+		} else if(!cfg_strlist_insert(&cfg_parser->cfg->dnscrypt_provider_cert, $2)) {
+			yyerror("out of memory");
+		}
 	}
 	;
 dnsc_dnscrypt_provider_cert_rotated: VAR_DNSCRYPT_PROVIDER_CERT_ROTATED STRING_ARG
 	{
 		OUTYY(("P(dnsc_dnscrypt_provider_cert_rotated:%s)\n", $2));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->dnscrypt_provider_cert_rotated, $2))
-			fatal_exit("out of memory adding dnscrypt-provider-cert-rotated");
+			yyerror("out of memory");
 	}
 	;
 dnsc_dnscrypt_secret_key: VAR_DNSCRYPT_SECRET_KEY STRING_ARG
 	{
 		OUTYY(("P(dnsc_dnscrypt_secret_key:%s)\n", $2));
-		if(cfg_strlist_find(cfg_parser->cfg->dnscrypt_secret_key, $2))
+		if(cfg_strlist_find(cfg_parser->cfg->dnscrypt_secret_key, $2)) {
 			log_warn("dnscrypt-secret-key: %s is a duplicate", $2);
-		if(!cfg_strlist_insert(&cfg_parser->cfg->dnscrypt_secret_key, $2))
-			fatal_exit("out of memory adding dnscrypt-secret-key");
+			free($2);
+		} else if(!cfg_strlist_insert(&cfg_parser->cfg->dnscrypt_secret_key, $2)) {
+			yyerror("out of memory");
+		}
 	}
 	;
 dnsc_dnscrypt_shared_secret_cache_size: VAR_DNSCRYPT_SHARED_SECRET_CACHE_SIZE STRING_ARG
@@ -4202,7 +4235,7 @@ server_tcp_connection_limit: VAR_TCP_CONNECTION_LIMIT STRING_ARG STRING_ARG
 			yyerror("positive number expected");
 		else {
 			if(!cfg_str2list_insert(&cfg_parser->cfg->tcp_connection_limits, $2, $3))
-				fatal_exit("out of memory adding tcp connection limit");
+				yyerror("out of memory");
 		}
 	}
 	;
@@ -4241,8 +4274,8 @@ server_cookie_secret_file: VAR_COOKIE_SECRET_FILE STRING_ARG
 server_iter_scrub_ns: VAR_ITER_SCRUB_NS STRING_ARG
 	{
 		OUTYY(("P(server_iter_scrub_ns:%s)\n", $2));
-		if(atoi($2) == 0 && strcmp($2, "0") != 0)
-			yyerror("number expected");
+		if(atoi($2) < 1)
+			yyerror("number >= 1 expected");
 		else cfg_parser->cfg->iter_scrub_ns = atoi($2);
 		free($2);
 	}

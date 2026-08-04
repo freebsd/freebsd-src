@@ -1,0 +1,292 @@
+; config options
+; The island of trust is at test.
+server:
+	trust-anchor: "test. DS 1444 8 2 8a87d067fd09a5965244fe2e317dd26d182c468e0a7f26ecc4c7b479bf89db9b"
+	val-override-date: "20201020135527"
+	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: "no"
+	fake-sha1: yes
+	trust-anchor-signaling: no
+	minimal-responses: no
+	iter-scrub-promiscuous: no
+	aggressive-nsec: no
+	local-zone: test. nodefault
+	log-servfail: yes
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test NS wildcard with NSEC that has DS denial.
+; The NS wildcard NSEC should not be used to deny the DS.
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+test. IN NS
+SECTION AUTHORITY
+test.	IN NS	ns.test.
+SECTION ADDITIONAL
+ns.test. IN A 1.2.3.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id 
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.other. IN A
+SECTION ANSWER
+ns.other. IN A 1.2.3.6
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id 
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.other. IN AAAA
+SECTION AUTHORITY
+. IN SOA ns.example.com. host.example.com. 1 86400 7200 86400 3600
+ENTRY_END
+RANGE_END
+
+; ns.test
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.5
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+test. IN NS
+SECTION ANSWER
+test.    IN NS   ns.test
+test.	3600	IN	RRSIG	NS 8 1 3600 20201116135527 20201019135527 1444 test. RGCxIO32TbbLTk6xZmTr+fjYPH50hntBxeOQ2DIj2pDsmjALcHYtVkOfpfk2EhOhHZd+9PLuoJPbJh6a9NqLSFeBvr0XZoCZoQ2g0tCHUNHcH5EVjA2TuYBQem6DVYnPLJ3914aRx0uA1j42b8dC2xsam/XkOo7U+dLbUW2Os1s=
+SECTION ADDITIONAL
+ns.test. IN A 1.2.3.5
+ns.test.	3600	IN	RRSIG	A 8 2 3600 20201116135527 20201019135527 1444 test. GskCc4/k6GjH9V9Jz2V5L2XLiizbOeWkB0feSbf+aN859S3vxVvtuqkvIgwY4LafUO1QAn/pUcv9zA7rcFO++rlg+8t6gvZTo9p3v0bfeIv2uJDsfSBD5jDh0WXlxjekfnrKrQp7zE+GiA93tWwKUWKPvxXDgP+n886e6WcbHJw=
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.test. IN A
+SECTION ANSWER
+ns.test. IN A 1.2.3.5
+ns.test.	3600	IN	RRSIG	A 8 2 3600 20201116135527 20201019135527 1444 test. GskCc4/k6GjH9V9Jz2V5L2XLiizbOeWkB0feSbf+aN859S3vxVvtuqkvIgwY4LafUO1QAn/pUcv9zA7rcFO++rlg+8t6gvZTo9p3v0bfeIv2uJDsfSBD5jDh0WXlxjekfnrKrQp7zE+GiA93tWwKUWKPvxXDgP+n886e6WcbHJw=
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.test. IN AAAA
+SECTION AUTHORITY
+test. 3600 IN SOA ns.test. host.test. 20201 3600 1800 604800 3600
+test.	3600	IN	RRSIG	SOA 8 1 3600 20201116135527 20201019135527 1444 test. IZJIDmEgf0W7A5G7hvvZ2hUqJ9Trbv1/i7ySapDmPbYV9lVCmHHobySxO01yDhI2/Pvpsvxqrm1Tiv3BxH8uzZ4keKgiQjBsSy4htAsFct9I4E7ly2glPj/Fm3oun3PsjJDv5QYhx0KS7w4IQKU7Nc9pfJc92uoUI5bdoC1pRGw=
+ns.test. 3600 IN NSEC nz.test. A RRSIG
+ns.test.	3600	IN	RRSIG	NSEC 8 2 3600 20201116135527 20201019135527 1444 test. PElArVB3KPg8KHAP7lzcNbhFuXNxTsHNTn1dZVncB5qmWRdIaeKpaXDjpH0JSXMaelGFS+/QhuQ6Hmw9+4VyZFRqMzGhw4agUR/2bxABHcDIG4ZpUwyeSP61ATTfHUkQVxaH2wjCWI/tfmesdP2xVE4GXyUvCIBxU914MkZbULU=
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+test. IN DNSKEY
+SECTION ANSWER
+test.    3600    IN      DNSKEY  257 3 8 AwEAAbd9WqjzE2Pynz21OG5doSf9hFzMr5dhzz2waZ3vTa+0o5r7AjTAqmA1yH/B3+aAMihUm5ucZSfVqo7+kOaRE8yFj9aivOmA1n1+JLevJq/oyvQyjxQN2Qb89LyaNUT5oKZIiL+uyyhNW3KDR3SSbQ/GBwQNDHVcZi+JDR3RC0r7 ;{id = 1444 (ksk), size = 1024b}
+test.	3600	IN	RRSIG	DNSKEY 8 1 3600 20201116135527 20201019135527 1444 test. UmRMS4iG9NBBHZYOtpwFFcJgbEb5SfHSgHd9XRe/8pTWM31WSDayn5ViPOBMqI1T5TXg2amc13dDI574xIM2oKMus3b5cBW72jJLW13jprBtslO6P8BMWb4HNnvLrJtQjwf3ErRirtTxinLmywQtmyr1cdthyG3Gp4N7i90fHSc=
+SECTION ADDITIONAL
+ENTRY_END
+
+; The actual example.test delegation.
+;ENTRY_BEGIN
+;MATCH opcode qname qtype
+;ADJUST copy_id
+;REPLY QR AA NOERROR
+;SECTION QUESTION
+;example.test. IN DS
+;SECTION ANSWER
+;example.test.	3600	IN	DS	55567 8 2 a2d578906330a10a57d40462257b6ce038bad3f7bf4a45c46c46086e20a94b39
+;;example.test.	3600	IN	RRSIG	DS 8 2 3600 20201116135527 20201019135527 1444 test. P7+FTYW2qHuJ4I1YbuvseEz5X1lOYAraGEHB3C5y0OOCQFmhmSiFRdquNi2NlpcS6FXLdsE0EU+Bo1+0atTG4EkMWXbpF21lrtbB51BdsnlX4Mzc/o375fvjiOMwmF6wPCUaOUN62jrVrhsE/hedaVyDphDToqL17ETohwgUO2I=
+;ENTRY_END
+;
+;ENTRY_BEGIN
+;MATCH opcode subdomain
+;ADJUST copy_id copy_query
+;REPLY QR NOERROR
+;SECTION QUESTION
+;example.test. IN NS
+;SECTION AUTHORITY
+;example.test.    IN NS   ns.example.test.
+;example.test.	3600	IN	DS	55567 8 2 a2d578906330a10a57d40462257b6ce038bad3f7bf4a45c46c46086e20a94b39
+;example.test.	3600	IN	RRSIG	DS 8 2 3600 20201116135527 20201019135527 1444 test. P7+FTYW2qHuJ4I1YbuvseEz5X1lOYAraGEHB3C5y0OOCQFmhmSiFRdquNi2NlpcS6FXLdsE0EU+Bo1+0atTG4EkMWXbpF21lrtbB51BdsnlX4Mzc/o375fvjiOMwmF6wPCUaOUN62jrVrhsE/hedaVyDphDToqL17ETohwgUO2I=
+;SECTION ADDITIONAL
+;ns.example.test. IN A 1.2.3.4
+;ENTRY_END
+;
+; The following wildcard exists in the parent zone, 
+; *.test. IN NS ns.service.test.
+; this creates an NSEC record
+; *.test. IN NSEC aa.test. NS RRSIG NSEC
+; this is used in the replay reply for the delegation,
+; changing the owner name to example.test.
+;
+; *.test.	3600	IN	NS	ns.service.test.
+; *.test.	3600	IN	RRSIG	NS 8 1 3600 20201116135527 20201019135527 1444 test. G+b6EsP49+D/r8JZznWUNbf5QVTP/JcH/0mifzdCPB4c19sNQ8R52/RESMREilB3u2mnZUBpiZRozIOOjv8ZNgVvPmALslYPX1qPVT1qmYzLDl0NTN+ebLpf69V/XXLHi9aG5SgtOcTJHN3M4R3HMt1s9po1oTKMMwv1Ss+EtcE=
+;
+; *.test.	3600	IN	NSEC	aa.test. NS RRSIG NSEC 
+; *.test.	3600	IN	RRSIG	NSEC 8 1 3600 20201116135527 20201019135527 1444 test. nIB5+xRH8rMdECAL5TDfujWe/BiWHyN3Y2P1iBG3Z+6JcA/FwBEMxNzcjA08FQc3Eu9uh/7sB+9NJN7bOEZoMzL2mETGaR5uM7HfUx6JpfK4RpoG66MnzbXbWjDOH+sF8Ei4ziR3p2AoWKg8wBzh6wP2YlLun0v4f6+fU8A5Yh8=
+;
+; and also for the DS lookup
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.test. IN DS
+SECTION AUTHORITY
+; note the labelcount of 1 in the RRSIG, it is a wildcard.
+example.test.	3600	IN	NSEC	aa.test. NS RRSIG NSEC 
+example.test.	3600	IN	RRSIG	NSEC 8 1 3600 20201116135527 20201019135527 1444 test. nIB5+xRH8rMdECAL5TDfujWe/BiWHyN3Y2P1iBG3Z+6JcA/FwBEMxNzcjA08FQc3Eu9uh/7sB+9NJN7bOEZoMzL2mETGaR5uM7HfUx6JpfK4RpoG66MnzbXbWjDOH+sF8Ei4ziR3p2AoWKg8wBzh6wP2YlLun0v4f6+fU8A5Yh8=
+; there is no next closer denial NSEC. The example.test delegation exists,
+; so the parent has not signed that.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.test. IN NS
+SECTION AUTHORITY
+; note the labelcount of 1 in the RRSIG, it is a wildcard.
+example.test.	3600	IN	NSEC	aa.test. NS RRSIG NSEC 
+example.test.	3600	IN	RRSIG	NSEC 8 1 3600 20201116135527 20201019135527 1444 test. nIB5+xRH8rMdECAL5TDfujWe/BiWHyN3Y2P1iBG3Z+6JcA/FwBEMxNzcjA08FQc3Eu9uh/7sB+9NJN7bOEZoMzL2mETGaR5uM7HfUx6JpfK4RpoG66MnzbXbWjDOH+sF8Ei4ziR3p2AoWKg8wBzh6wP2YlLun0v4f6+fU8A5Yh8=
+; there is no next closer denial NSEC. The example.test delegation exists,
+; so the parent has not signed that.
+example.test. IN NS ns.other.
+SECTION ADDITIONAL
+ns.other. IN A 1.2.3.6
+ENTRY_END
+RANGE_END
+
+; ns.example.test.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.test. IN NS
+SECTION ANSWER
+example.test.    IN NS   ns.example.test.
+example.test.	3600	IN	RRSIG	NS 8 2 3600 20201116135527 20201019135527 55567 example.test. l1JT0wMlK0YI7/CWHzexf/k0iafUhCgN+BdgjBXIRXmSQNf4HDTiAkbcWL2/15qtnp12nQy9JeiTdSQ3vtPoHAJX4C5uTWaze4ms+Wrrf+n92sLCjacP9x50uuicH3URT6cKb1QCAPwlvlWxIlZjAMYFScSns7+C441NMJT8aE4=
+SECTION ADDITIONAL
+ns.example.test.         IN      A       1.2.3.4
+ns.example.test.	3600	IN	RRSIG	A 8 3 3600 20201116135527 20201019135527 55567 example.test. 2PWaVaccZFQgfPKXNsdEGYUVaashCAj1ZhBo9XRt5eQKUFvZcauBjMnXIuxZFyWeootn1fZGw6GuPI5W48Y0FDx38H6adprkFgQikso2Y64jDdDMWznSo38Z/XqP+U0+kq4vmwonvmEMpm7hKnNEXvhqGKyGzyBwb+CZVJ2L8Eo=
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.test. IN A
+SECTION ANSWER
+ns.example.test.         IN      A       1.2.3.4
+ns.example.test.	3600	IN	RRSIG	A 8 3 3600 20201116135527 20201019135527 55567 example.test. 2PWaVaccZFQgfPKXNsdEGYUVaashCAj1ZhBo9XRt5eQKUFvZcauBjMnXIuxZFyWeootn1fZGw6GuPI5W48Y0FDx38H6adprkFgQikso2Y64jDdDMWznSo38Z/XqP+U0+kq4vmwonvmEMpm7hKnNEXvhqGKyGzyBwb+CZVJ2L8Eo=
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.test. IN AAAA
+SECTION AUTHORITY
+example.test. 3600 IN SOA ns.example.test. host.example.test. 20301 3600 1800 604800 3600
+example.test.	3600	IN	RRSIG	SOA 8 2 3600 20201116135527 20201019135527 55567 example.test. 2UUkScBAN37fJpSrelhE8DotKvmOzj3q9wicaanCIaCv95DE4nQnePih5B+ek3FIRjB/Uv2+z4Ro5Uxy94XAnlK0rCkDLSa0U9U7KP0ytc88sevO0x1SCPAMoZoJO6JqHkv42pdh54WSz+Zb/D8npY0j/tksHe/uX+VQnMymgb8=
+ns.example.test. 3600 IN NSEC nz.example.test. A RRSIG
+ENTRY_END
+
+; response to DNSKEY priming query
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.test. IN DNSKEY
+SECTION ANSWER
+example.test.	3600	IN	DNSKEY	257 3 8 AwEAAdug/L739i0mgN2nuK/bhxu3wFn5Ud9nK2+XUmZQlPUEZUC5YZvm1rfMmEWTGBn87fFxEu/kjFZHJ55JLzqsbbpVHLbmKCTT2gYR2FV2WDKROGKuYbVkJIXdKAjJ0ONuK507NinYvlWXIoxHn22KAWOd9wKgSTNHBlmGkX+ts3hh ;{id = 55567 (ksk), size = 1024b}
+example.test.	3600	IN	RRSIG	DNSKEY 8 2 3600 20201116135527 20201019135527 55567 example.test. IbWMC6quOuZFNPAVxQLqCJ9nLhindBo826rnLcg5yMgs9dGUSPOCXAfHTmbgJAUNs9HTFfrJWNvasnETs0UOpmEuifGwWdH1OlME7Gny4RL2QmITUFeMW81Jz1tiVQxFXl6yxT0jxOxvz+bqMHlrz+8IeWQXcO+GZTPu8ueq30g=
+ENTRY_END
+
+; response to query of interest
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.example.test. IN A
+SECTION ANSWER
+www.example.test. IN A 10.20.30.40
+ENTRY_END
+RANGE_END
+
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.6
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.example.test. IN A
+SECTION ANSWER
+www.example.test. IN A 10.20.30.66
+ENTRY_END
+RANGE_END
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.test. IN A
+ENTRY_END
+
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA DO SERVFAIL
+SECTION QUESTION
+www.example.test. IN A
+SECTION ANSWER
+ENTRY_END
+
+; to resolve pending lookups
+STEP 20 TRAFFIC
+SCENARIO_END

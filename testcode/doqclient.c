@@ -1137,8 +1137,11 @@ static struct ngtcp2_conn* conn_client_setup(struct doq_client_data* data)
 		client_chosen_version, &cbs, &settings, &params,
 		NULL, /* ngtcp2_mem allocator, use default */
 		data /* callback argument */);
-	if(!conn) fatal_exit("could not ngtcp2_conn_client_new: %s",
-		ngtcp2_strerror(rv));
+	if(rv!=0) {
+		conn = NULL;
+		fatal_exit("could not ngtcp2_conn_client_new: %s",
+			ngtcp2_strerror(rv));
+	}
 	data->cc_algo = settings.cc_algo;
 	return conn;
 }
@@ -2098,7 +2101,7 @@ early_data_setup_session(struct doq_client_data* data)
 		SSL_SESSION_free(session);
 		return 0;
 	}
-#ifdef USE_NGTCP2_CRYPTO_OSSL
+#ifdef HAVE_SSL_SET_QUIC_TLS_EARLY_DATA_ENABLED
 	SSL_set_quic_tls_early_data_enabled(data->ssl, 1);
 #else
 	SSL_set_quic_early_data_enabled(data->ssl, 1);
@@ -2595,7 +2598,8 @@ struct outbound_entry* worker_send_query(
 	socklen_t ATTR_UNUSED(addrlen), uint8_t* ATTR_UNUSED(zone),
 	size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(tcp_upstream),
 	int ATTR_UNUSED(ssl_upstream), char* ATTR_UNUSED(tls_auth_name),
-	struct module_qstate* ATTR_UNUSED(q), int* ATTR_UNUSED(was_ratelimited))
+	struct module_qstate* ATTR_UNUSED(q), int* ATTR_UNUSED(was_ratelimited),
+	int* ATTR_UNUSED(ratelimit_incremented))
 {
 	log_assert(0);
 	return 0;
@@ -2629,7 +2633,8 @@ struct outbound_entry* libworker_send_query(
 	socklen_t ATTR_UNUSED(addrlen), uint8_t* ATTR_UNUSED(zone),
 	size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(tcp_upstream),
 	int ATTR_UNUSED(ssl_upstream), char* ATTR_UNUSED(tls_auth_name),
-	struct module_qstate* ATTR_UNUSED(q), int* ATTR_UNUSED(was_ratelimited))
+	struct module_qstate* ATTR_UNUSED(q), int* ATTR_UNUSED(was_ratelimited),
+	int* ATTR_UNUSED(ratelimit_incremented))
 {
 	log_assert(0);
 	return 0;

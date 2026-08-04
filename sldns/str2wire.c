@@ -842,7 +842,8 @@ rrinternal_parse_rdata(sldns_buffer* strbuf, char* token, size_t token_len,
 	sldns_write_uint16(rr+dname_len+8, (uint16_t)(rr_cur_len-dname_len-10));
 	*rr_len = rr_cur_len;
 	/* SVCB/HTTPS handling  */
-	if (rr_type == LDNS_RR_TYPE_SVCB || rr_type == LDNS_RR_TYPE_HTTPS) {
+	if ((rr_type == LDNS_RR_TYPE_SVCB || rr_type == LDNS_RR_TYPE_HTTPS)
+		&& !was_unknown_rr_format) {
 		size_t rdata_len = rr_cur_len - dname_len - 10;
 		uint8_t *rdata = rr+dname_len + 10;
 
@@ -1201,7 +1202,7 @@ sldns_str2wire_svcbparam_ipv4hint(const char* val, uint8_t* rd, size_t* rd_len)
 {
 	size_t count;
 	char ip_str[INET_ADDRSTRLEN+1];
-	char *next_ip_str;
+	const char *next_ip_str;
 	size_t i;
 
 	for (i = 0, count = 1; val[i]; i++) {
@@ -1256,7 +1257,7 @@ sldns_str2wire_svcbparam_ipv6hint(const char* val, uint8_t* rd, size_t* rd_len)
 {
 	size_t count;
 	char ip_str[INET6_ADDRSTRLEN+1];
-	char *next_ip_str;
+	const char *next_ip_str;
 	size_t i;
 
 	for (i = 0, count = 1; val[i]; i++) {
@@ -1317,7 +1318,7 @@ static int
 sldns_str2wire_svcbparam_mandatory(const char* val, uint8_t* rd, size_t* rd_len)
 {
 	size_t i, count, val_len;
-	char* next_key;
+	const char* next_key;
 
 	val_len = strlen(val);
 
@@ -1410,6 +1411,7 @@ sldns_str2wire_svcbparam_ech_value(const char* val, uint8_t* rd, size_t* rd_len)
 			return LDNS_WIREPARSE_ERR_BUFFER_TOO_SMALL;
 		sldns_write_uint16(rd, SVCB_KEY_ECH);
 		sldns_write_uint16(rd + 2, 0);
+		*rd_len = 4;
 
 		return LDNS_WIREPARSE_ERR_OK;
 	}

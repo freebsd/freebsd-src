@@ -7,6 +7,7 @@ server:
 	val-override-date: "20070916134226"
 	fake-sha1: yes
 	trust-anchor-signaling: no
+	domain-insecure: "anotherexample.local"
 
 stub-zone:
 	name: "."
@@ -69,7 +70,7 @@ REPLY QR AA NOERROR
 SECTION QUESTION
 anotherexample.local. IN TXT
 SECTION ANSWER
-anotherexample.local.	86400	IN	TXT	"should not resolve this"
+anotherexample.local.	86400	IN	TXT	"stub works"
 ENTRY_END
 RANGE_END
 
@@ -95,7 +96,7 @@ STEP 20 QUERY
 ENTRY_BEGIN
 REPLY RD
 SECTION QUESTION
-anotherexample.local. IN TXT
+anotherexample2.local. IN TXT
 ENTRY_END
 
 ; query should be answered using NXDOMAIN for local in cache
@@ -104,9 +105,27 @@ ENTRY_BEGIN
 MATCH all
 REPLY QR RD RA NXDOMAIN
 SECTION QUESTION
-anotherexample.local. IN TXT
+anotherexample2.local. IN TXT
 SECTION AUTHORITY
 .	86400	IN	SOA	a.root-servers.net. nstld.verisign-grs.com. 2010111601 1800 900 604800 86400
+ENTRY_END
+
+STEP 40 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+anotherexample.local. IN TXT
+ENTRY_END
+
+; The stub stops going higher in the negative cache.
+STEP 50 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA NOERROR
+SECTION QUESTION
+anotherexample.local. IN TXT
+SECTION ANSWER
+anotherexample.local.	86400	IN	TXT	"stub works"
 ENTRY_END
 
 SCENARIO_END

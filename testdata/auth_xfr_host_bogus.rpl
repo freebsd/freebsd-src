@@ -1,0 +1,294 @@
+; config options
+server:
+	trust-anchor: "example.net.	3600	IN	DS	29332 8 2 fe9d2d1f797b8dbe717febca0b7ff2125e0bdc819eb529008aad5630e61d4d99"
+	val-override-date: "20201020135527"
+	target-fetch-policy: "0 0 0 0 0"
+	fake-sha1: yes
+	trust-anchor-signaling: no
+	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: no
+
+auth-zone:
+	name: "example.com."
+	master: ns.example.net.
+	for-downstream: yes
+	for-upstream: yes
+	## fallback-enabled: no
+	## this line generates zonefile: \n"/tmp/xxx.example.com"\n
+	zonefile:
+TEMPFILE_NAME example.com
+	## this is the inline file /tmp/xxx.example.com
+	## the tempfiles are deleted when the testrun is over.
+TEMPFILE_CONTENTS example.com
+TEMPFILE_END
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test authority zone with bogus host name lookup
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION AUTHORITY
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.net. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+example.net. IN NS ns2.example.net.
+SECTION ADDITIONAL
+ns2.example.net. IN A	1.2.3.45
+ENTRY_END
+RANGE_END
+
+; a.gtld-servers.net.
+RANGE_BEGIN 0 100
+	ADDRESS 192.5.6.30
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+com. IN NS
+SECTION ANSWER
+com.	IN NS	a.gtld-servers.net.
+SECTION ADDITIONAL
+a.gtld-servers.net.	IN 	A	192.5.6.30
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com. IN A 1.2.3.44
+ENTRY_END
+RANGE_END
+
+; ns.example.com.
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.44
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+ns.example.com.		IN 	A	1.2.3.44
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.com. IN A
+SECTION ANSWER
+ns.example.com. IN A	1.2.3.44
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+ns.example.com. IN AAAA
+SECTION AUTHORITY
+example.com.	IN NS	ns.example.com.
+SECTION ADDITIONAL
+www.example.com. IN A	1.2.3.44
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN NS
+SECTION ANSWER
+example.com.	IN NS	ns.example.com.
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+www.example.com. IN A	10.20.30.40
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.com. IN SOA
+SECTION ANSWER
+; serial, refresh, retry, expire, minimum
+example.com. IN SOA ns.example.com. hostmaster.example.com. 1 3600 900 86400 3600
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+example.com. IN AXFR
+SECTION ANSWER
+example.com. IN SOA ns.example.com. hostmaster.example.com. 1 3600 900 86400 3600
+example.com.	IN NS	ns.example.com.
+www.example.com. IN A	1.2.3.4
+example.com. IN SOA ns.example.com. hostmaster.example.com. 1 3600 900 86400 3600
+ENTRY_END
+RANGE_END
+
+; ns2.example.net
+RANGE_BEGIN 0 100
+	ADDRESS 1.2.3.45
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns2.example.net. IN A
+SECTION ANSWER
+ns2.example.net.	3600	IN	A	1.2.3.45
+ns2.example.net.	3600	IN	RRSIG	A 8 3 3600 20201116135527 20201019135527 29332 example.net. ttH0qGYFJp0zfoqb6h9cDGhkosucRPI64gd3+i7gwAcbOtfGJhHR7+NQ7uH+gRRv4lzPEiWP6zM7IiSeC1o+gW/Y2u6J1a330KzikT1YxIWGQJ825NU3PJ5ifTC8IgrN8HFwBuof3K4x/ftdA9VRcyCbFicazOD4RLlbhffMpoVQKyRa/NqHT8mSWLPry9q9skgdyRk17f65i0sdSCEyCXv8+vX6vBxaMF3in+zQxvnA9nyB4omwLLJZx3jaF0+lSiBcx3u20DTbCC/cyjxJArhLlv1N5U3GRUpFXl1d7k0FmacQCP4H5UXSzy6vf6XoQwtfIgNzwYgFN5RuCdJ71w==
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns2.example.net. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+example.net.	3600	IN	SOA	ns.example.com. root.example.com. 4 14400 3600 604800 3600
+example.net.	3600	IN	RRSIG	SOA 8 2 3600 20201116135527 20201019135527 29332 example.net. OWDPS0sJQOhZlqKUbdL8OVwT0u1e1asbjW+9dMRxIF/VoxxRaYIqD/lsn1U+irRrbIPDp9wxDdFu7ChddB1n2/do/by9xuIMLD00mkxSJduxMjRl/8hWvhBV6j8jqU0pbsxS3Oolcju8imrobEqqCDi1YVD6OQuBzwnQ7trF9mfANv208pDA4chWXWUimFETKzpc3aLarcm3qVnb53AQhggyLow/ZLG1egbwaGn3pcf+kPHw+G4MSOR1TtS0mWKiPgdYRiqSS+AqrZUu/ZuAKAGweKeIypDgm6RZC5M4FmRA+f8gZg2rI2Xog6TLt0qrjD8ARwXkyBq8wL3G0Ihkew==
+ns2.example.net.	3600	IN	NSEC	ns3.example.net. A RRSIG NSEC
+ns2.example.net.	3600	IN	RRSIG	NSEC 8 3 3600 20201116135527 20201019135527 29332 example.net. MMDdm3yz6Ocreg8HE7Cf9EnIJ5NFCVzEv+I9zBeUR90pFBlrBY4LqmMxC5GXoEEc1iql5XpPkIspsWTkCUSWutoiDh4Vlg54HrZ4ONy8GzVzg5ePcuXT51nYq1xjfDx4Yi124GT/QKx4+B7HFoyFfoRT1Kf+uP3c7F7qK+VB3FrBBQpl7f6dX87qO23Bb+Vp+L0RPCmuLkhdnrM34bB6jT1lGwgsD4upDy81XKSH6uces8D/fvl0+Evzcy3gkKlxY6uzV53cUD0FM9AVg7/ZWXwQe5n7PIU9gzQ3xtnH5MA8fG6iUyVQJixjqzEqjJdh2PMJA31qTT2X6LQO95ZM2w==
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+example.net. IN DNSKEY
+SECTION ANSWER
+example.net.	3600	IN	DNSKEY	257 3 8 AwEAAb4WMOTBLTFvmBra5m6SK4VfViOzmvyUAU0qv861ZQXeEFvwlndqNU9rwRsMxrSWAYs5nHErKDn49usC/HyxxW1477iGFHhfgL4mjNreJm9zft2QFB1VLbRbEPYdDMLCn4co0qnG7/KG8W2i8Pym1L7f+aREwbLo+/716AS2PbaKMhfWLKLiq5wnBcUClQMNzCiwhqxDJp1oePqfkVdeUgXOtgi0dYRIKyQFhJ5VWJ22npoi/Gif0XLCADAlAwRLKc8o/yJkCxskzgpHpw5Cki1lclg0aq4ssOuPRQ+ne6IHYCz9D2mwzulblhLFamKdq7aHzNt4NlyxhpANVFiKLD8= ;{id = 29332 (ksk), size = 2048b}
+example.net.	3600	IN	RRSIG	DNSKEY 8 2 3600 20201116135527 20201019135527 29332 example.net. a0AqvyBN1Dr1Try1RBjbWjhaaTj3WGpSBywSxLu09bElAFinC3kUgk/WTjfsIIxruUHmzVgPssYeb5g79rdaz7YanSi06LQsnEjMS+hexSU6TXBCtJnhA8taKPlPj+qBRQL/Ptju72upty6Mw8eMG05QOQOa2WC5mPLgo2k6PmgsBMyW3Rhn+lldlmz1NZIZ3udDHs6xxX6Gjio67ogGm0MUbWRZo68oGt/xYv6JzZAVzZROlWvs5D+pf1Mrfzn3yOMJ0jh2XTXJAiw3vX+i2k/P/Yfscm7BWULJ7fBx+0JcDuYccd2mj9ijmD7KuM/laFSIUvxAixu7gV2TDrKEjw==
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.net. IN A
+SECTION ANSWER
+ns.example.net. IN A	1.2.3.44
+; bad RRSIG
+ns.example.net.	3600	IN	RRSIG	A 8 2 3600 20201116135527 20201019135527 29332 example.net. a0AqvyBN1Dr1Try1RBjbWjhaaTj3WGpSBywSxLu09bElAFinC3kUgk/WTjfsIIxruUHmzVgPssYeb5g79rdaz7YanSi06LQsnEjMS+hexSU6TXBCtJnhA8taKPlPj+qBRQL/Ptju72upty6Mw8eMG05QOQOa2WC5mPLgo2k6PmgsBMyW3Rhn+lldlmz1NZIZ3udDHs6xxX6Gjio67ogGm0MUbWRZo68oGt/xYv6JzZAVzZROlWvs5D+pf1Mrfzn3yOMJ0jh2XTXJAiw3vX+i2k/P/Yfscm7BWULJ7fBx+0JcDuYccd2mj9ijmD7KuM/laFSIUvxAixu7gV2TDrKEjw==
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.net. IN AAAA
+SECTION ANSWER
+SECTION AUTHORITY
+example.net.	3600	IN	SOA	ns.example.com. root.example.com. 4 14400 3600 604800 3600
+example.net.	3600	IN	RRSIG	SOA 8 2 3600 20201116135527 20201019135527 29332 example.net. OWDPS0sJQOhZlqKUbdL8OVwT0u1e1asbjW+9dMRxIF/VoxxRaYIqD/lsn1U+irRrbIPDp9wxDdFu7ChddB1n2/do/by9xuIMLD00mkxSJduxMjRl/8hWvhBV6j8jqU0pbsxS3Oolcju8imrobEqqCDi1YVD6OQuBzwnQ7trF9mfANv208pDA4chWXWUimFETKzpc3aLarcm3qVnb53AQhggyLow/ZLG1egbwaGn3pcf+kPHw+G4MSOR1TtS0mWKiPgdYRiqSS+AqrZUu/ZuAKAGweKeIypDgm6RZC5M4FmRA+f8gZg2rI2Xog6TLt0qrjD8ARwXkyBq8wL3G0Ihkew==
+ns.example.net.	3600	IN	NSEC	ns2.example.net. A RRSIG NSEC
+ns.example.net.	3600	IN	RRSIG	NSEC 8 3 3600 20201116135527 20201019135527 29332 example.net. bwmn1nX0amfcIK6+NXdX7i3VvebPGpVLd0Ry0P+5JbiLCO3lI8kbXxpQh2jpIAKAdfSq+WZPGAhwOSOTVak1mEcYf5xLvmiKWmGz0LH8RTCzQTAlcQTnuybmQWuwBjIXaetVQ1ADiJZK57M41d5lOE0KqWe5xfAHE+UhMOQ6JhQwLFK/QfQJB7ke1itM/qfsJHgdb/rbT7v7G8Nd342NMCZEgzP/wFyZ3JRP0XY5D7K71IuFZd9NfxXkKRMn5UM/lMDITqE3MknzXnsKJcH9SpoykKMya9SsrwI+IuOxpQkyiyd+N33H3di4uWI1MiWdayQnR2D3HhHi1Vdp42CDxQ==
+ENTRY_END
+RANGE_END
+
+
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; recursion happens here.
+STEP 20 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA SERVFAIL
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+ENTRY_END
+
+STEP 30 TIME_PASSES ELAPSE 10
+STEP 40 TRAFFIC
+
+STEP 50 QUERY
+ENTRY_BEGIN
+REPLY RD
+SECTION QUESTION
+www.example.com. IN A
+ENTRY_END
+
+; The bogus host was not used.
+STEP 60 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA SERVFAIL
+SECTION QUESTION
+www.example.com. IN A
+SECTION ANSWER
+ENTRY_END
+
+; the zonefile was updated with new contents
+STEP 70 CHECK_TEMPFILE example.com
+FILE_BEGIN
+FILE_END
+
+SCENARIO_END

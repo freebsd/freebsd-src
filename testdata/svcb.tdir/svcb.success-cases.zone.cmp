@@ -16,3 +16,5 @@ _dns.doh.example.	7200	IN	SVCB	1 doh.example. alpn="h2" dohpath="/dns-query{?dns
 _dns.doh.example.	7200	IN	SVCB	1 doh.example. alpn="h2" dohpath="/dns-query{?abcd}{!abcd}{?dns}"
 _dns.doh.example.	7200	IN	SVCB	1 doh.example. alpn="h2" dohpath="/dns-query{?abcdabcd?dns?defedf}"
 _dns.doh.example.	7200	IN	SVCB	1 doh.example. alpn="h2" dohpath="/dns-query\195\169\195\168{?dns}"
+echempty.success-cases.	7200	IN	SVCB	0 . ech
+echempty.success-cases.	7200	IN	SVCB	0 h2. ech

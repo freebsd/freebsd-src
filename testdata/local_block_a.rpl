@@ -1,0 +1,334 @@
+; config options
+; The island of trust is at example.com
+server:
+	qname-minimisation: no
+	local-zone: "example1.com." block_a
+	local-zone: "example2.com." block_aaaa
+	local-zone: "example3.com." block_a_wdata
+	local-data: "b.example3.com. A 1.2.3.5"
+	local-data: "b.example3.com. AAAA 1:2:3::5"
+	local-zone: "example4.com." block_aaaa_wdata
+	local-data: "b.example4.com. A 1.2.3.5"
+	local-data: "b.example4.com. AAAA 1:2:3::5"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129         # K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN test local data with block_a and block_aaaa
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 400
+	ADDRESS 193.0.14.129
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.     IN      A       193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+a.example1.com. IN A
+SECTION ANSWER
+a.example1.com. IN A 1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+a.example1.com. IN AAAA
+SECTION ANSWER
+a.example1.com. IN AAAA 1:2:3::4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+a.example2.com. IN A
+SECTION ANSWER
+a.example2.com. IN A 1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+a.example2.com. IN AAAA
+SECTION ANSWER
+a.example2.com. IN AAAA 1:2:3::4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+a.example3.com. IN A
+SECTION ANSWER
+a.example3.com. IN A 1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+a.example3.com. IN AAAA
+SECTION ANSWER
+a.example3.com. IN AAAA 1:2:3::4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+a.example4.com. IN A
+SECTION ANSWER
+a.example4.com. IN A 1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+a.example4.com. IN AAAA
+SECTION ANSWER
+a.example4.com. IN AAAA 1:2:3::4
+ENTRY_END
+RANGE_END
+
+; block_a for example1.com
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+a.example1.com. IN A
+ENTRY_END
+
+; block_a blocks A
+STEP 10 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA DO NOERROR
+SECTION QUESTION
+a.example1.com. IN A
+SECTION ANSWER
+SECTION AUTHORITY
+ENTRY_END
+
+STEP 20 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+a.example1.com. IN AAAA
+ENTRY_END
+
+; block_a allows AAAA from upstream
+STEP 30 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA DO NOERROR
+SECTION QUESTION
+a.example1.com. IN AAAA
+SECTION ANSWER
+a.example1.com. IN AAAA 1:2:3::4
+ENTRY_END
+
+; block_aaaa for example2.com
+STEP 40 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+a.example2.com. IN A
+ENTRY_END
+
+; block_aaaa allows A from upstream
+STEP 50 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA DO NOERROR
+SECTION QUESTION
+a.example2.com. IN A
+SECTION ANSWER
+a.example2.com. IN A 1.2.3.4
+ENTRY_END
+
+STEP 60 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+a.example2.com. IN AAAA
+ENTRY_END
+
+; block_aaaa blocks AAAA
+STEP 70 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA DO NOERROR
+SECTION QUESTION
+a.example2.com. IN AAAA
+SECTION ANSWER
+ENTRY_END
+
+; block_a_wdata for example3.com
+STEP 80 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+a.example3.com. IN A
+ENTRY_END
+
+; block_a_wdata blocks A
+STEP 90 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA DO NOERROR
+SECTION QUESTION
+a.example3.com. IN A
+SECTION ANSWER
+ENTRY_END
+
+STEP 100 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+a.example3.com. IN AAAA
+ENTRY_END
+
+; block_a_wdata allows AAAA from upstream
+STEP 110 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA DO NOERROR
+SECTION QUESTION
+a.example3.com. IN AAAA
+SECTION ANSWER
+a.example3.com. IN AAAA 1:2:3::4
+ENTRY_END
+
+STEP 120 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+b.example3.com. IN A
+ENTRY_END
+
+; block_a_wdata allows local-data A
+STEP 130 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA DO NOERROR
+SECTION QUESTION
+b.example3.com. IN A
+SECTION ANSWER
+b.example3.com. A 1.2.3.5
+ENTRY_END
+
+STEP 140 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+b.example3.com. IN AAAA
+ENTRY_END
+
+; block_a_wdata allows local-data AAAA
+STEP 150 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA DO NOERROR
+SECTION QUESTION
+b.example3.com. IN AAAA
+SECTION ANSWER
+b.example3.com. AAAA 1:2:3::5
+ENTRY_END
+
+; block_aaaa_wdata for example4.com
+STEP 160 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+a.example4.com. IN A
+ENTRY_END
+
+; block_aaaa_wdata allows A from upstream
+STEP 170 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR RD RA DO NOERROR
+SECTION QUESTION
+a.example4.com. IN A
+SECTION ANSWER
+a.example4.com. IN A 1.2.3.4
+ENTRY_END
+
+STEP 180 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+a.example4.com. IN AAAA
+ENTRY_END
+
+; block_aaaa_wdata blocks AAAA
+STEP 190 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA DO NOERROR
+SECTION QUESTION
+a.example4.com. IN AAAA
+SECTION ANSWER
+ENTRY_END
+
+STEP 200 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+b.example4.com. IN A
+ENTRY_END
+
+; block_aaaa_wdata allows local-data A
+STEP 210 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA DO NOERROR
+SECTION QUESTION
+b.example4.com. IN A
+SECTION ANSWER
+b.example4.com. A 1.2.3.5
+ENTRY_END
+
+STEP 220 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+b.example4.com. IN AAAA
+ENTRY_END
+
+; block_aaaa_wdata allows local-data AAAA
+STEP 230 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all
+REPLY QR AA RD RA DO NOERROR
+SECTION QUESTION
+b.example4.com. IN AAAA
+SECTION ANSWER
+b.example4.com. AAAA 1:2:3::5
+ENTRY_END
+
+SCENARIO_END

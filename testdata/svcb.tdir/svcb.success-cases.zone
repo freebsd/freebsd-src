@@ -59,3 +59,7 @@ _dns.doh.example. 7200 IN SVCB 1 doh.example. alpn=h2 dohpath="/dns-query{?dns}"
 _dns.doh.example. 7200 IN SVCB 1 doh.example. alpn=h2 dohpath=/dns-query{?abcd}{!abcd}{?dns}
 _dns.doh.example. 7200 IN SVCB 1 doh.example. alpn=h2 dohpath=/dns-query{?abcdabcd?dns?defedf}
 _dns.doh.example. 7200 IN SVCB 1 doh.example. alpn=h2 dohpath=/dns-queryéè{?dns}
+
+; The ech=0 convenience entry for empty ech list
+echempty SVCB 0 . ech=0
+echempty SVCB 0 h2. ech

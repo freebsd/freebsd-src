@@ -43,6 +43,7 @@
 #include "config.h"
 #include "libunbound/context.h"
 #include "libunbound/worker.h"
+#include "libunbound/remote.h"
 #include "util/fptr_wlist.h"
 #include "util/log.h"
 #include "services/mesh.h"
@@ -102,7 +103,7 @@ struct outbound_entry* worker_send_query(
 	socklen_t ATTR_UNUSED(addrlen), uint8_t* ATTR_UNUSED(zone),
 	size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(tcp_upstream), int ATTR_UNUSED(ssl_upstream),
 	char* ATTR_UNUSED(tls_auth_name), struct module_qstate* ATTR_UNUSED(q),
-	int* ATTR_UNUSED(was_ratelimited))
+	int* ATTR_UNUSED(was_ratelimited), int* ATTR_UNUSED(ratelimit_incremented))
 {
 	log_assert(0);
 	return 0;
@@ -142,7 +143,7 @@ struct outbound_entry* libworker_send_query(
 	socklen_t ATTR_UNUSED(addrlen), uint8_t* ATTR_UNUSED(zone),
 	size_t ATTR_UNUSED(zonelen), int ATTR_UNUSED(tcp_upstream), int ATTR_UNUSED(ssl_upstream),
 	char* ATTR_UNUSED(tls_auth_name), struct module_qstate* ATTR_UNUSED(q),
-	int* ATTR_UNUSED(was_ratelimited))
+	int* ATTR_UNUSED(was_ratelimited), int* ATTR_UNUSED(ratelimit_incremented))
 {
 	log_assert(0);
 	return 0;

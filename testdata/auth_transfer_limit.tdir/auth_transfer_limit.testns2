@@ -1,0 +1,35 @@
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+example2.com. IN SOA
+SECTION ANSWER
+example2.com. IN SOA ns.example2.com. hostmaster.example2.com. 1 3600 900 86400 3600
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+example2.com. IN AXFR
+SECTION ANSWER
+example2.com. IN SOA ns.example2.com. hostmaster.example2.com. 1 3600 900 86400 3600
+example2.com.	IN NS	ns.example2.net.
+EXTRA_PACKET
+REPLY QR AA NOERROR
+; too slow
+ADJUST packet_sleep=3
+SECTION QUESTION
+example2.com. IN AXFR
+SECTION ANSWER
+extra.example2.com. IN A 1.2.3.5
+EXTRA_PACKET
+REPLY QR AA NOERROR
+SECTION QUESTION
+example2.com. IN AXFR
+SECTION ANSWER
+www.example2.com. IN A	1.2.3.4
+example2.com. IN SOA ns.example2.com. hostmaster.example2.com. 1 3600 900 86400 3600
+ENTRY_END

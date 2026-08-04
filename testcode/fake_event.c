@@ -1276,7 +1276,8 @@ struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
 	socklen_t addrlen, uint8_t* zone, size_t zonelen,
 	struct module_qstate* qstate, comm_point_callback_type* callback,
 	void* callback_arg, sldns_buffer* ATTR_UNUSED(buff),
-	struct module_env* env, int* ATTR_UNUSED(was_ratelimited))
+	struct module_env* env, int* ATTR_UNUSED(was_ratelimited),
+	int* ATTR_UNUSED(ratelimit_incremented))
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)outnet->base;
 	struct fake_pending* pend = (struct fake_pending*)calloc(1,

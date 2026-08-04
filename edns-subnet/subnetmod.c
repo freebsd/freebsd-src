@@ -1015,6 +1015,7 @@ subnetmod_operate(struct module_qstate *qstate, enum module_ev event,
 			subnet_ecs_opt_list_append(&sq->ecs_client_out,
 				&qstate->edns_opts_front_out, qstate,
 				qstate->region);
+			qstate->is_subnet_answer = 1;
 		}
 		sq->wait_subquery_done = 0;
 		qstate->ext_state[id] = module_finished;
@@ -1094,6 +1095,7 @@ subnetmod_operate(struct module_qstate *qstate, enum module_ev event,
 				qstate->env->cfg->prefetch)) {
 				sne->num_msg_cache++;
 				lock_rw_unlock(&sne->biglock);
+				qstate->is_subnet_answer = 1;
 				verbose(VERB_QUERY, "subnetcache: answered from cache");
 				qstate->ext_state[id] = module_finished;
 
@@ -1165,6 +1167,7 @@ subnetmod_operate(struct module_qstate *qstate, enum module_ev event,
 			subnet_ecs_opt_list_append(&sq->ecs_client_out,
 				&qstate->edns_opts_front_out, qstate,
 				qstate->region);
+			qstate->is_subnet_answer = 1;
 			if(verbosity >= VERB_ALGO) {
 				subnet_log_print("reply has edns subnet",
 					edns_opt_list_find(

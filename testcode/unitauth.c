@@ -1027,6 +1027,38 @@ authzone_query_test(void)
 	check_queries("example.com", zone_example_com, example_com_queries);
 }
 
+/** Test chunkline_count_parens output */
+static void
+authzone_chunkline_count_parens_test(void)
+{
+	sldns_buffer* buf;
+	if(vbmp) printf("Testing chunkline_count_parens\n");
+	buf = sldns_buffer_new(1024);
+	if(!buf) fatal_exit("out of memory");
+
+	/* Check that escaped characters are handled, '\x', and in quotes. */
+	sldns_buffer_printf(buf, "TXT \"x\" \\(");
+	unit_assert(chunkline_count_parens(buf, 0) == 0);
+
+	sldns_buffer_clear(buf);
+	sldns_buffer_printf(buf, "TXT ';x' (");
+	unit_assert(chunkline_count_parens(buf, 0) == 0);
+
+	sldns_buffer_clear(buf);
+	sldns_buffer_printf(buf, "TXT \"a;b\" (");
+	unit_assert(chunkline_count_parens(buf, 0) == 1);
+
+	sldns_buffer_clear(buf);
+	sldns_buffer_printf(buf, "TXT \\) )");
+	unit_assert(chunkline_count_parens(buf, 0) == -1);
+
+	sldns_buffer_clear(buf);
+	sldns_buffer_printf(buf, "TXT \"a\\\\\" \"(\" ");
+	unit_assert(chunkline_count_parens(buf, 0) == 0);
+
+	sldns_buffer_free(buf);
+}
+
 /** test authzone code */
 void 
 authzone_test(void)
@@ -1036,4 +1068,5 @@ authzone_test(void)
 	authzone_compare_serial();
 	authzone_read_test();
 	authzone_query_test();
+	authzone_chunkline_count_parens_test();
 }

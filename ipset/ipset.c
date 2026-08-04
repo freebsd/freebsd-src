@@ -143,7 +143,7 @@ static int add_to_ipset(filter_dev dev, const char *setname, const void *ipaddr,
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfg;
 	struct nlattr *nested[2];
-	static char buffer[BUFF_LEN];
+	char buffer[BUFF_LEN];
 
 	if (strlen(setname) >= IPSET_MAXNAMELEN) {
 		errno = ENAMETOOLONG;
@@ -208,13 +208,6 @@ ipset_add_rrset_data(struct ipset_env *ie,
 			ret = add_to_ipset((filter_dev)ie->dev, setname, rr_data + 2, af);
 			if (ret < 0) {
 				log_err("ipset: could not add %s into %s", dname, setname);
-
-#if HAVE_NET_PFVAR_H
-				/* don't close as we might not be able to open again due to dropped privs */
-#else
-				mnl_socket_close((filter_dev)ie->dev);
-				ie->dev = NULL;
-#endif
 				break;
 			}
 		}
@@ -226,15 +219,15 @@ ipset_check_zones_for_rrset(struct module_env *env, struct ipset_env *ie,
 	struct ub_packed_rrset_key *rrset, const char *qname, int qlen,
 	const char *setname, int af)
 {
-	static char dname[BUFF_LEN];
+	char dname[LDNS_MAX_DOMAINLEN*4+16];
 	const char *ds, *qs;
 	int dlen, plen;
 
 	struct config_strlist *p;
 	struct packed_rrset_data *d;
 
-	dlen = sldns_wire2str_dname_buf(rrset->rk.dname, rrset->rk.dname_len, dname, BUFF_LEN);
-	if (dlen == 0) {
+	dlen = sldns_wire2str_dname_buf(rrset->rk.dname, rrset->rk.dname_len, dname, sizeof(dname));
+	if (dlen == 0 || dlen >= (int)sizeof(dname)) {
 		log_err("bad domain name");
 		return -1;
 	}
@@ -276,7 +269,7 @@ static int ipset_update(struct module_env *env, struct dns_msg *return_msg,
 	const char *setname;
 	struct ub_packed_rrset_key *rrset;
 	int af;
-	static char qname[BUFF_LEN];
+	char qname[LDNS_MAX_DOMAINLEN*4+16];
 	int qlen;
 
 #ifdef HAVE_NET_PFVAR_H
@@ -292,8 +285,8 @@ static int ipset_update(struct module_env *env, struct dns_msg *return_msg,
 #endif
 
 	qlen = sldns_wire2str_dname_buf(qinfo.qname, qinfo.qname_len,
-		qname, BUFF_LEN);
-	if(qlen == 0) {
+		qname, sizeof(qname));
+	if(qlen == 0 || qlen >= (int)sizeof(qname)) {
 		log_err("bad domain name");
 		return -1;
 	}
@@ -372,6 +365,16 @@ int ipset_init(struct module_env* env, int id) {
 
 	ipset_env->name_v4 = env->cfg->ipset_name_v4;
 	ipset_env->name_v6 = env->cfg->ipset_name_v6;
+#ifndef HAVE_NET_PFVAR_H
+	if (ipset_env->name_v4 && strlen(ipset_env->name_v4) >= IPSET_MAXNAMELEN) {
+		log_err("ipset: name-v4 exceeds IPSET_MAXNAMELEN (%d)", IPSET_MAXNAMELEN);
+		return 0;
+	}
+	if (ipset_env->name_v6 && strlen(ipset_env->name_v6) >= IPSET_MAXNAMELEN) {
+		log_err("ipset: name-v6 exceeds IPSET_MAXNAMELEN (%d)", IPSET_MAXNAMELEN);
+		return 0;
+	}
+#endif
 
 	ipset_env->v4_enabled = !ipset_env->name_v4 || (strlen(ipset_env->name_v4) == 0) ? 0 : 1;
 	ipset_env->v6_enabled = !ipset_env->name_v6 || (strlen(ipset_env->name_v6) == 0) ? 0 : 1;

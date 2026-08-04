@@ -1,0 +1,365 @@
+; config options
+; The island of trust is at test.
+server:
+	target-fetch-policy: "0 0 0 0 0"
+	qname-minimisation: no
+	minimal-responses: yes
+	iter-scrub-promiscuous: yes
+	aggressive-nsec: no
+	local-zone: test. nodefault
+	log-servfail: yes
+	module-config: "iterator"
+
+stub-zone:
+	name: "."
+	stub-addr: 193.0.14.129 	# K.ROOT-SERVERS.NET.
+CONFIG_END
+
+SCENARIO_BEGIN Test ghost domain glue TTL extension
+; for A and AAAA records.
+
+; K.ROOT-SERVERS.NET.
+RANGE_BEGIN 0 100
+	ADDRESS 193.0.14.129 
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+. IN NS
+SECTION ANSWER
+. IN NS	K.ROOT-SERVERS.NET.
+SECTION ADDITIONAL
+K.ROOT-SERVERS.NET.	IN	A	193.0.14.129
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+test. IN NS
+SECTION AUTHORITY
+test.	IN NS	ns.test.
+SECTION ADDITIONAL
+ns.test. IN A 1.2.3.5
+ENTRY_END
+RANGE_END
+
+; ns.test
+RANGE_BEGIN 0 20
+	ADDRESS 1.2.3.5
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+test. IN NS
+SECTION ANSWER
+test.    IN NS   ns.test
+SECTION ADDITIONAL
+ns.test. IN A 1.2.3.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.test. IN A
+SECTION ANSWER
+ns.test. IN A 1.2.3.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.test. IN AAAA
+SECTION AUTHORITY
+test. 3600 IN SOA ns.test. host.test. 20201 3600 1800 604800 3600
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.test. IN NS
+SECTION AUTHORITY
+example.test.    4 IN NS   ns.example.test.
+SECTION ADDITIONAL
+ns.example.test. 4 IN A 1.2.3.4
+ENTRY_END
+RANGE_END
+
+; ns.test
+RANGE_BEGIN 25 100
+	ADDRESS 1.2.3.5
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+test. IN NS
+SECTION ANSWER
+test.    IN NS   ns.test
+SECTION ADDITIONAL
+ns.test. IN A 1.2.3.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.test. IN A
+SECTION ANSWER
+ns.test. IN A 1.2.3.5
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.test. IN AAAA
+SECTION AUTHORITY
+test. 3600 IN SOA ns.test. host.test. 20201 3600 1800 604800 3600
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode subdomain
+ADJUST copy_id copy_query
+REPLY QR NOERROR
+SECTION QUESTION
+example.test. IN NS
+SECTION AUTHORITY
+example.test.    4 IN NS   ns.example.test.
+SECTION ADDITIONAL
+ns.example.test. 4 IN A 1.2.3.7
+ENTRY_END
+RANGE_END
+
+; ns.example.test.
+RANGE_BEGIN 0 20
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR NOERROR
+SECTION QUESTION
+example.test. IN NS
+SECTION ANSWER
+example.test. 7200 IN NS   ns.example.test.
+SECTION ADDITIONAL
+ns.example.test. 7200 IN      A       1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.test. IN A
+SECTION ANSWER
+ns.example.test. 7200 IN      A       1.2.3.4
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.test. IN AAAA
+SECTION AUTHORITY
+example.test. 3600 IN SOA ns.example.test. host.example.test. 20301 3600 1800 604800 3600
+ENTRY_END
+
+; response to query of interest
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www.example.test. IN A
+SECTION ANSWER
+www.example.test. 1 IN A 192.0.2.1
+ENTRY_END
+RANGE_END
+
+; ns.example.test.
+; after the delegation change, the old hoster.
+RANGE_BEGIN 20 100
+	ADDRESS 1.2.3.4
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www3.example.test. IN A
+SECTION ANSWER
+www3.example.test. IN A 10.20.30.46
+ENTRY_END
+RANGE_END
+
+; ns.example.test.
+; the new hoster
+RANGE_BEGIN 20 100
+	ADDRESS 1.2.3.7
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.test. IN A
+SECTION ANSWER
+ns.example.test. IN A 1.2.3.7
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+ns.example.test. IN AAAA
+SECTION AUTHORITY
+example.test. 3600 IN SOA ns.example.test. host.example.test. 20301 3600 1800 604800 3600
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA NOERROR
+SECTION QUESTION
+www2.example.test. IN A
+SECTION ANSWER
+www2.example.test. IN A 10.20.30.47
+ENTRY_END
+
+ENTRY_BEGIN
+MATCH opcode qtype qname
+ADJUST copy_id
+REPLY QR AA SERVFAIL
+SECTION QUESTION
+www3.example.test. IN A
+SECTION ANSWER
+ENTRY_END
+RANGE_END
+
+; The TTL of the NS and glue is 4 for example.test.
+STEP 1 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www.example.test. IN A
+ENTRY_END
+
+STEP 2 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA DO NOERROR
+SECTION QUESTION
+www.example.test. IN A
+SECTION ANSWER
+www.example.test. 1 IN A 192.0.2.1
+ENTRY_END
+
+; query for the NS record
+STEP 8 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+example.test. IN NS
+ENTRY_END
+
+STEP 9 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA DO NOERROR
+SECTION QUESTION
+example.test. IN NS
+SECTION ANSWER
+example.test. 7200 IN NS   ns.example.test.
+SECTION ADDITIONAL
+ns.example.test. 4 IN A 1.2.3.4
+ENTRY_END
+
+; query for glue specifically
+STEP 10 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+ns.example.test. IN A
+ENTRY_END
+
+STEP 11 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA DO NOERROR
+SECTION QUESTION
+ns.example.test. IN A
+SECTION ANSWER
+ns.example.test. 7200 IN A 1.2.3.4
+ENTRY_END
+
+; query for glue from cache again
+STEP 12 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+ns.example.test. IN A
+ENTRY_END
+
+STEP 13 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA DO NOERROR
+SECTION QUESTION
+ns.example.test. IN A
+SECTION ANSWER
+ns.example.test. 4 IN A 1.2.3.4
+ENTRY_END
+
+; Move time to expire the delegation
+STEP 20 TIME_PASSES ELAPSE 6
+
+; The upstream changes to delegate to another server.
+STEP 30 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www2.example.test. IN A
+ENTRY_END
+
+STEP 31 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA DO NOERROR
+SECTION QUESTION
+www2.example.test. IN A
+SECTION ANSWER
+www2.example.test. IN A 10.20.30.47
+ENTRY_END
+
+; the new server, 1.2.3.7 is not responsive (SERVFAILs), it
+; should not have the old one 1.2.3.4 now.
+STEP 40 QUERY
+ENTRY_BEGIN
+REPLY RD DO
+SECTION QUESTION
+www3.example.test. IN A
+ENTRY_END
+
+STEP 50 CHECK_ANSWER
+ENTRY_BEGIN
+MATCH all ttl
+REPLY QR RD RA DO SERVFAIL
+SECTION QUESTION
+www3.example.test. IN A
+SECTION ANSWER
+ENTRY_END
+
+
+SCENARIO_END

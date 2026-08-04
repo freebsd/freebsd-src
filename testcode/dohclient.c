@@ -146,7 +146,9 @@ submit_query(struct http2_session* h2_session, struct sldns_buffer* buf)
 {
 	int32_t stream_id;
 	struct http2_stream* h2_stream;
-	nghttp2_nv headers[5];
+	nghttp2_nv headers[6];
+	size_t num_headers = 5;
+	char clen[16];
 	char* qb64;
 	size_t qb64_size;
 	size_t qb64_expected_size;
@@ -194,9 +196,16 @@ submit_query(struct http2_session* h2_session, struct sldns_buffer* buf)
 	headers[3].value = (uint8_t*)h2_session->authority;
 	headers[4].name = (uint8_t*)"content-type";
 	headers[4].value = (uint8_t*)h2_session->content_type;
+	if(h2_session->post) {
+		snprintf(clen, sizeof(clen), "%u",
+			(unsigned)sldns_buffer_remaining(buf));
+		headers[5].name = (uint8_t*)"content-length";
+		headers[5].value = (uint8_t*)clen;
+		num_headers = 6;
+	}
 
 	printf("Request headers\n");
-	for(i=0; i<sizeof(headers)/sizeof(headers[0]); i++) {
+	for(i=0; i<num_headers; i++) {
 		headers[i].namelen = strlen((char*)headers[i].name);
 		headers[i].valuelen = strlen((char*)headers[i].value);
 		headers[i].flags = NGHTTP2_NV_FLAG_NONE;
@@ -204,7 +213,7 @@ submit_query(struct http2_session* h2_session, struct sldns_buffer* buf)
 	}
 
 	stream_id = nghttp2_submit_request(h2_session->session, NULL, headers,
-		sizeof(headers)/sizeof(headers[0]),
+		num_headers,
 		(h2_session->post) ? &data_prd : NULL, h2_stream);
 	if(stream_id < 0) {
 		printf("Failed to submit nghttp2 request");

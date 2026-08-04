@@ -1,0 +1,46 @@
+# #-- fast_reload_authdel.pre--#
+# source the master var file when it's there
+[ -f ../.tpkg.var.master ] && source ../.tpkg.var.master
+# use .tpkg.var.test for in test variable passing
+[ -f .tpkg.var.test ] && source .tpkg.var.test
+
+PRE="../.."
+. ../common.sh
+# if no threads; exit
+if grep -e "define HAVE_PTHREAD 1" -e "define HAVE_SOLARIS_THREADS 1" -e "define HAVE_WINDOWS_THREADS 1" $PRE/config.h; then
+	echo "have threads"
+else
+	skip_test "no threads"
+fi
+
+get_random_port 2
+UNBOUND_PORT=$RND_PORT
+FWD_PORT=$(($RND_PORT + 1))
+echo "UNBOUND_PORT=$UNBOUND_PORT" >> .tpkg.var.test
+echo "FWD_PORT=$FWD_PORT" >> .tpkg.var.test
+
+# start forwarder
+get_ldns_testns
+$LDNS_TESTNS -p $FWD_PORT fast_reload_authdel.testns >fwd.log 2>&1 &
+FWD_PID=$!
+echo "FWD_PID=$FWD_PID" >> .tpkg.var.test
+
+# make config files
+CONTROL_PATH=/tmp
+CONTROL_PID=$$
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@TOPORT\@/'$FWD_PORT'/' -e 's?@CONTROL_PATH\@?'$CONTROL_PATH'?' -e 's/@CONTROL_PID@/'$CONTROL_PID'/' < fast_reload_authdel.conf > ub.conf
+sed -e 's/@PORT\@/'$UNBOUND_PORT'/' -e 's/@TOPORT\@/'$FWD_PORT'/' -e 's?@CONTROL_PATH\@?'$CONTROL_PATH'?' -e 's/@CONTROL_PID@/'$CONTROL_PID'/' < fast_reload_authdel.conf2 > ub.conf2
+
+# make config file
+# start unbound in the background
+PRE="../.."
+$PRE/unbound -d -c ub.conf >unbound.log 2>&1 &
+UNBOUND_PID=$!
+echo "UNBOUND_PID=$UNBOUND_PID" >> .tpkg.var.test
+echo "CONTROL_PATH=$CONTROL_PATH" >> .tpkg.var.test
+echo "CONTROL_PID=$CONTROL_PID" >> .tpkg.var.test
+
+cat .tpkg.var.test
+wait_ldns_testns_up fwd.log
+wait_unbound_up unbound.log
+

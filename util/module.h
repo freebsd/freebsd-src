@@ -375,6 +375,8 @@ struct module_env {
 	 * @param q: which query state to reactivate upon return.
 	 * @param was_ratelimited: it will signal back if the query failed to pass the
 	 *	ratelimit check.
+	 * @param ratelimit_incremented: set to true if the ratelimit counter
+	 *	was increased.
 	 * @return: false on failure (memory or socket related). no query was
 	 *	sent. Or returns an outbound entry with qsent and qstate set.
 	 *	This outbound_entry will be used on later module invocations
@@ -385,7 +387,8 @@ struct module_env {
 		int check_ratelimit,
 		struct sockaddr_storage* addr, socklen_t addrlen,
 		uint8_t* zone, size_t zonelen, int tcp_upstream, int ssl_upstream,
-		char* tls_auth_name, struct module_qstate* q, int* was_ratelimited);
+		char* tls_auth_name, struct module_qstate* q, int* was_ratelimited,
+		int* ratelimit_incremented);
 
 	/**
 	 * Detach-subqueries.
@@ -698,10 +701,16 @@ struct module_qstate {
 	time_t qstarttime;
 	/** whether a message from cachedb will be used for the reply */
 	int is_cachedb_answer;
+	/** whether the reply is subnet specific */
+	int is_subnet_answer;
 	/** if the response as error is from error_response_cache, and is
 	 * suitable for caching (briefly) the error response. Set by the
 	 * iterator when no_cache_store is enabled, and there is an error. */
 	int error_response_cache;
+	/** if the iterator sees that the forward/stub has no_cache set.
+	 * to signal to calling modules that their setting of no_cache for
+	 * other reasons, has to take into account the fwd/stub no_cache. */
+	int fwd_stub_no_cache;
 
 	/**
 	 * Attributes of clients that share the qstate that may affect IP-based

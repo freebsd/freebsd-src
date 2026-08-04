@@ -118,10 +118,10 @@ delegpt_add_ns(struct delegpt* dp, struct regional* region, uint8_t* name,
 		sizeof(struct delegpt_ns));
 	if(!ns)
 		return 0;
-	ns->next = dp->nslist;
 	ns->namelen = len;
-	dp->nslist = ns;
 	ns->name = regional_alloc_init(region, name, ns->namelen);
+	if(!ns->name)
+		return 0;
 	ns->cache_lookup_count = 0;
 	ns->resolved = 0;
 	ns->got4 = 0;
@@ -137,7 +137,9 @@ delegpt_add_ns(struct delegpt* dp, struct regional* region, uint8_t* name,
 	} else {
 		ns->tls_auth_name = NULL;
 	}
-	return ns->name != 0;
+	ns->next = dp->nslist;
+	dp->nslist = ns;
+	return 1;
 }
 
 struct delegpt_ns*
@@ -223,11 +225,7 @@ delegpt_add_addr(struct delegpt* dp, struct regional* region,
 		sizeof(struct delegpt_addr));
 	if(!a)
 		return 0;
-	a->next_target = dp->target_list;
-	dp->target_list = a;
 	a->next_result = 0;
-	a->next_usable = dp->usable_list;
-	dp->usable_list = a;
 	memcpy(&a->addr, addr, addrlen);
 	a->addrlen = addrlen;
 	a->attempts = 0;
@@ -241,6 +239,10 @@ delegpt_add_addr(struct delegpt* dp, struct regional* region,
 	} else {
 		a->tls_auth_name = NULL;
 	}
+	a->next_target = dp->target_list;
+	dp->target_list = a;
+	a->next_usable = dp->usable_list;
+	dp->usable_list = a;
 	return 1;
 }
 
@@ -398,30 +400,33 @@ delegpt_count_missing_targets(struct delegpt* dp, int* alllame)
 
 /** find NS rrset in given list */
 static struct ub_packed_rrset_key*
-find_NS(struct reply_info* rep, size_t from, size_t to)
+find_NS(struct reply_info* rep, size_t from, size_t to, uint16_t qclass)
 {
 	size_t i;
 	for(i=from; i<to; i++) {
-		if(ntohs(rep->rrsets[i]->rk.type) == LDNS_RR_TYPE_NS)
+		if(ntohs(rep->rrsets[i]->rk.type) == LDNS_RR_TYPE_NS &&
+			ntohs(rep->rrsets[i]->rk.rrset_class) == qclass)
 			return rep->rrsets[i];
 	}
 	return NULL;
 }
 
 struct delegpt* 
-delegpt_from_message(struct dns_msg* msg, struct regional* region)
+delegpt_from_message(struct dns_msg* msg, struct regional* region, int port)
 {
 	struct ub_packed_rrset_key* ns_rrset = NULL;
 	struct delegpt* dp;
 	size_t i;
 	/* look for NS records in the authority section... */
 	ns_rrset = find_NS(msg->rep, msg->rep->an_numrrsets, 
-		msg->rep->an_numrrsets+msg->rep->ns_numrrsets);
+		msg->rep->an_numrrsets+msg->rep->ns_numrrsets,
+		msg->qinfo.qclass);
 
 	/* In some cases (even legitimate, perfectly legal cases), the 
 	 * NS set for the "referral" might be in the answer section. */
 	if(!ns_rrset)
-		ns_rrset = find_NS(msg->rep, 0, msg->rep->an_numrrsets);
+		ns_rrset = find_NS(msg->rep, 0, msg->rep->an_numrrsets,
+			msg->qinfo.qclass);
 	
 	/* If there was no NS rrset in the authority section, then this 
 	 * wasn't a referral message. (It might not actually be a 
@@ -436,7 +441,7 @@ delegpt_from_message(struct dns_msg* msg, struct regional* region)
 	dp->has_parent_side_NS = 1; /* created from message */
 	if(!delegpt_set_name(dp, region, ns_rrset->rk.dname))
 		return NULL;
-	if(!delegpt_rrset_add_ns(dp, region, ns_rrset, 0))
+	if(!delegpt_rrset_add_ns(dp, region, ns_rrset, 0, port))
 		return NULL;
 
 	/* add glue, A and AAAA in answer and additional section */
@@ -447,10 +452,12 @@ delegpt_from_message(struct dns_msg* msg, struct regional* region)
 			i < (msg->rep->an_numrrsets+msg->rep->ns_numrrsets))
 			continue;
 
-		if(ntohs(s->rk.type) == LDNS_RR_TYPE_A) {
+		if(ntohs(s->rk.type) == LDNS_RR_TYPE_A &&
+			ntohs(s->rk.rrset_class) == msg->qinfo.qclass) {
 			if(!delegpt_add_rrset_A(dp, region, s, 0, NULL))
 				return NULL;
-		} else if(ntohs(s->rk.type) == LDNS_RR_TYPE_AAAA) {
+		} else if(ntohs(s->rk.type) == LDNS_RR_TYPE_AAAA &&
+			ntohs(s->rk.rrset_class) == msg->qinfo.qclass) {
 			if(!delegpt_add_rrset_AAAA(dp, region, s, 0, NULL))
 				return NULL;
 		}
@@ -460,7 +467,7 @@ delegpt_from_message(struct dns_msg* msg, struct regional* region)
 
 int 
 delegpt_rrset_add_ns(struct delegpt* dp, struct regional* region,
-        struct ub_packed_rrset_key* ns_rrset, uint8_t lame)
+        struct ub_packed_rrset_key* ns_rrset, uint8_t lame, int port)
 {
 	struct packed_rrset_data* nsdata = (struct packed_rrset_data*)
 		ns_rrset->entry.data;
@@ -475,7 +482,7 @@ delegpt_rrset_add_ns(struct delegpt* dp, struct regional* region,
 			continue; /* bad format */
 		/* add rdata of NS (= wirefmt dname), skip rdatalen bytes */
 		if(!delegpt_add_ns(dp, region, nsdata->rr_data[i]+2, lame,
-			NULL, UNBOUND_DNS_PORT))
+			NULL, (port==-1?UNBOUND_DNS_PORT:port)))
 			return 0;
 	}
 	return 1;
@@ -534,7 +541,7 @@ delegpt_add_rrset(struct delegpt* dp, struct regional* region,
 	if(!rrset)
 		return 1;
 	if(ntohs(rrset->rk.type) == LDNS_RR_TYPE_NS)
-		return delegpt_rrset_add_ns(dp, region, rrset, lame);
+		return delegpt_rrset_add_ns(dp, region, rrset, lame, -1);
 	else if(ntohs(rrset->rk.type) == LDNS_RR_TYPE_A)
 		return delegpt_add_rrset_A(dp, region, rrset, lame, additions);
 	else if(ntohs(rrset->rk.type) == LDNS_RR_TYPE_AAAA)
@@ -659,8 +666,6 @@ int delegpt_add_ns_mlc(struct delegpt* dp, uint8_t* name, uint8_t lame,
 		free(ns);
 		return 0;
 	}
-	ns->next = dp->nslist;
-	dp->nslist = ns;
 	ns->cache_lookup_count = 0;
 	ns->resolved = 0;
 	ns->got4 = 0;
@@ -679,6 +684,8 @@ int delegpt_add_ns_mlc(struct delegpt* dp, uint8_t* name, uint8_t lame,
 	} else {
 		ns->tls_auth_name = NULL;
 	}
+	ns->next = dp->nslist;
+	dp->nslist = ns;
 	return 1;
 }
 
@@ -704,11 +711,7 @@ int delegpt_add_addr_mlc(struct delegpt* dp, struct sockaddr_storage* addr,
 	a = (struct delegpt_addr*)malloc(sizeof(struct delegpt_addr));
 	if(!a)
 		return 0;
-	a->next_target = dp->target_list;
-	dp->target_list = a;
 	a->next_result = 0;
-	a->next_usable = dp->usable_list;
-	dp->usable_list = a;
 	memcpy(&a->addr, addr, addrlen);
 	a->addrlen = addrlen;
 	a->attempts = 0;
@@ -724,6 +727,10 @@ int delegpt_add_addr_mlc(struct delegpt* dp, struct sockaddr_storage* addr,
 	} else {
 		a->tls_auth_name = NULL;
 	}
+	a->next_target = dp->target_list;
+	dp->target_list = a;
+	a->next_usable = dp->usable_list;
+	dp->usable_list = a;
 	return 1;
 }
 

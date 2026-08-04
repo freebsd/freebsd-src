@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.25.2.
+# See unbound.conf(5) man page, version 1.26.0.
 #
 # this is a comment.
 
@@ -899,6 +899,10 @@ server:
 	#   that name
 	# o block_a resolves all records normally but returns
 	#   NODATA for A queries and ignores local data for that name
+	# o block_aaaa similarly to block_a, resolves all records normally but
+	#   returns NODATA for AAAA queries and ignores local data for that name
+	# o block_a_wdata like block_a but uses local data if present.
+	# o block_aaaa_wdata like block_aaaa but uses local data if present.
 	# o always_null returns 0.0.0.0 or ::0 for any name in the zone.
 	# o noview breaks out of that view towards global local-zones.
 	#
@@ -1287,6 +1291,9 @@ remote-control:
 #	zonemd-check: no
 #	zonemd-reject-absence: no
 #	zonefile: "example.org.zone"
+#	max-transfer-size: 0
+#	max-transfer-time: 0
+
 
 # Views
 # Create named views. Name must be unique.
@@ -1453,3 +1460,5 @@ remote-control:
 #     rpz-signal-nxdomain-ra: no
 #     for-downstream: no
 #     tags: "example"
+#     max-transfer-size: 0
+#     max-transfer-time: 0
