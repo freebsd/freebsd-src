@@ -2701,6 +2701,8 @@ iflib_stop(if_ctx_t ctx)
 		txq->ift_outstanding_prev = 0;
 		txq->ift_wdog_armed = 0;
 		txq->ift_in_use = txq->ift_gen = txq->ift_no_desc_avail = 0;
+		txq->ift_npending = txq->ift_db_pending = 0;
+		txq->ift_rs_pending = 0;
 		if (sctx->isc_flags & IFLIB_PRESERVE_TX_INDICES)
 			txq->ift_cidx = txq->ift_pidx;
 		else
