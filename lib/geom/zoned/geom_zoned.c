@@ -188,6 +188,12 @@ zoned_create(struct gctl_req *req)
 		    strerror(errno));
 		return;
 	}
+	if (g_provider_is_host_managed(dev)) {
+		gctl_error(req, "Cannot create a zoned device on %s: the tail "
+		    "of a host-managed zoned device cannot hold the metadata "
+		    "and zone state table.", dev);
+		return;
+	}
 	if (zonesize <= 0 || (zonesize % secsize) != 0) {
 		gctl_error(req, "Zone size must be a positive multiple of %u.",
 		    secsize);

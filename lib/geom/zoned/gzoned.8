@@ -2,7 +2,7 @@
 .\"
 .\" Copyright (c) 2026 voidanix <voidanix@FreeBSD.org>
 .\"
-.Dd July 13, 2026
+.Dd August 4, 2026
 .Dt GZONED 8
 .Os
 .Sh NAME
@@ -103,6 +103,9 @@ a small reservation at the tail of
 .Ar dev
 holds the zone metadata; any trailing space that does not make up a full zone
 is not exposed.
+Host-managed zoned providers are refused: their tail normally lies in a
+sequential-write-required zone and cannot hold the metadata and zone state
+table.
 .It Cm fault
 Inject a zone fault into the running device
 .Ar name .
