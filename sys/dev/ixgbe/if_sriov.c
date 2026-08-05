@@ -491,6 +491,9 @@ ixgbe_vf_clear_mac_filters(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
 static boolean_t
 ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 {
+	if_t ifp;
+	bool pf_jumbo;
+
 	/*
 	 * Frame size compatibility between PF and VF is only a problem on
 	 * 82599-based cards.  X540 and later support any combination of jumbo
@@ -499,6 +502,10 @@ ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	if (sc->hw.mac.type != ixgbe_mac_82599EB)
 		return (true);
 
+	/* sc->max_frame_size includes VF requests; use the PF's actual MTU. */
+	ifp = iflib_get_ifp(sc->ctx);
+	pf_jumbo = if_getmtu(ifp) > ETHERMTU;
+
 	switch (vf->api_ver) {
 	case IXGBE_API_VER_1_0:
 	case IXGBE_API_VER_UNKNOWN:
@@ -506,8 +513,7 @@ ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 		 * On legacy (1.0 and older) VF versions, we don't support
 		 * jumbo frames on either the PF or the VF.
 		 */
-		if (sc->max_frame_size > ETHER_MAX_LEN ||
-		    vf->maximum_frame_size > ETHER_MAX_LEN)
+		if (pf_jumbo || vf->maximum_frame_size > ETHER_MAX_LEN)
 			return (false);
 
 		return (true);
@@ -526,10 +532,7 @@ ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 		 * Jumbo frames only work with VFs if the PF is also using
 		 * jumbo frames.
 		 */
-		if (sc->max_frame_size <= ETHER_MAX_LEN)
-			return (true);
-
-		return (false);
+		return (pf_jumbo);
 	}
 } /* ixgbe_vf_frame_size_compatible */
 
