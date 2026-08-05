@@ -1,0 +1,36 @@
+.\"
+.\" Copyright (c) 2026 João Bonifácio <joaoboni017@gmail.com>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 5, 2026
+.Dt POWEROF2 9
+.Os
+.Sh NAME
+.Nm powerof2
+.Nd test whether a value is a power of two
+.Sh SYNOPSIS
+.In sys/param.h
+.Fn powerof2 "x"
+.Sh DESCRIPTION
+The
+.Fn powerof2
+macro evaluates to a non-zero value if
+.Fa x
+is a power of two, and to zero otherwise.
+It is equivalent to
+.Li (((x) - 1) & (x)) == 0 .
+.Pp
+Note that
+.Fn powerof2
+also yields a non-zero value for
+.Fa x
+equal to zero.
+.Sh EXAMPLES
+.Bd -literal
+if (!powerof2(size))
+    return (EINVAL);
+.Ed
+.Sh AUTHORS
+This manual page was written by
+.An João Bonifácio Aq Mt joaoboni017@gmail.com .
