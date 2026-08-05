@@ -547,8 +547,9 @@ struct bnxt_pf_info {
 	uint32_t	max_tx_wm_flows;
 	uint32_t	max_rx_em_flows;
 	uint32_t	max_rx_wm_flows;
-	unsigned long	*vf_event_bmap;
+	bitstr_t	*vf_event_bmap;
 	uint16_t	hwrm_cmd_req_pages;
+	struct iflib_dma_info	hwrm_cmd_req_mem[4];
 	void		*hwrm_cmd_req_addr[4];
 	bus_addr_t	hwrm_cmd_req_dma_addr[4];
 	uint16_t	fw_fid;

@@ -1,5 +1,12 @@
-#include <linux/delay.h>
-#include <linux/etherdevice.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <sys/param.h>
+#include <sys/endian.h>
+#include <sys/systm.h>
+#include <sys/malloc.h>
+#include <sys/errno.h>
+#include <net/ethernet.h>
 
 #include "opt_global.h"
 #include "bnxt.h"
@@ -8,6 +15,25 @@
 #include "bnxt_sriov.h"
 
 #ifdef PCI_IOV
+
+static inline bool
+bnxt_eth_addr_valid(const uint8_t *addr)
+{
+	return !ETHER_IS_MULTICAST(addr) &&
+		!ETHER_IS_ZERO(addr);
+}
+
+static inline bool
+bnxt_eth_addr_equal(const uint8_t *a, const uint8_t *b)
+{
+	return (memcmp(a, b, ETHER_ADDR_LEN) == 0);
+}
+
+static inline void
+bnxt_eth_addr_copy(uint8_t *dst, const uint8_t *src)
+{
+	memcpy(dst, src, ETHER_ADDR_LEN);
+}
 
 static int
 bnxt_set_vf_admin_mac(struct bnxt_softc *softc, struct bnxt_vf_info *vf,
@@ -58,7 +84,7 @@ bnxt_vf_parse_schema(struct bnxt_softc *softc, struct bnxt_vf_info *vf,
 	if (maclen != ETHER_ADDR_LEN)
 		return (false);
 
-	if (!is_valid_ether_addr(mac))
+	if (!bnxt_eth_addr_valid(mac))
 		return (false);
 
 	memcpy(vf->mac_addr, mac, ETHER_ADDR_LEN);
@@ -97,24 +123,22 @@ bnxt_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 void bnxt_free_vf_resources(struct bnxt_softc *softc)
 {
 	int i;
-	size_t page_size = 1UL << softc->pf.vf_hwrm_cmd_req_page_shift;
 
 	softc->pf.active_vfs = 0;
 
 	if (softc->pf.vf) {
-		kfree(softc->pf.vf);
+		free(softc->pf.vf, M_DEVBUF);
 		softc->pf.vf = NULL;
 	}
 	if (softc->pf.vf_event_bmap) {
-		kfree(softc->pf.vf_event_bmap);
+		free(softc->pf.vf_event_bmap, M_DEVBUF);
 		softc->pf.vf_event_bmap = NULL;
 	}
 	for (i = 0; i < softc->pf.hwrm_cmd_req_pages; i++) {
-		if (softc->pf.hwrm_cmd_req_addr[i]) {
-			dma_free_coherent(&softc->pdev->dev, page_size,
-			    softc->pf.hwrm_cmd_req_addr[i],
-			    softc->pf.hwrm_cmd_req_dma_addr[i]);
+		if (softc->pf.hwrm_cmd_req_mem[i].idi_vaddr != NULL) {
+			iflib_dma_free(&softc->pf.hwrm_cmd_req_mem[i]);
 			softc->pf.hwrm_cmd_req_addr[i] = NULL;
+			softc->pf.hwrm_cmd_req_dma_addr[i] = 0;
 		}
 	}
 }
@@ -134,7 +158,7 @@ bnxt_hwrm_func_vf_resource_free(struct bnxt_softc *softc, int num_vfs)
 
 	BNXT_HWRM_LOCK(softc);
 	for (i = first_vf_id; i <= last_vf_id; i++) {
-		req.vf_id = cpu_to_le16(i);
+		req.vf_id = htole16(i);
 		rc = _hwrm_send_message(softc, &req, sizeof(req));
 		if (rc)
 			break;
@@ -174,12 +198,12 @@ bnxt_set_vf_resc_field(uint16_t *min_field, uint16_t *max_field,
 	uint16_t val = 0;
 
 	if (num_vfs <= 0)
-		return -EINVAL;
+		return (EINVAL);
 
 	if (hw_max > pf_alloc)
 		val = (hw_max - pf_alloc) / num_vfs;
 
-	*min_field = *max_field = cpu_to_le16(val);
+	*min_field = *max_field = htole16(val);
 
 	return 0;
 }
@@ -193,21 +217,21 @@ static int bnxt_set_vf_params(struct bnxt_softc *softc, int vf_id)
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_CFG);
 
 	vf = &softc->pf.vf[vf_id];
-	req.fid = cpu_to_le16(vf->fw_fid);
+	req.fid = htole16(vf->fw_fid);
 
 
-	if (is_valid_ether_addr(vf->mac_addr)) {
-		req.enables |= cpu_to_le32(HWRM_FUNC_CFG_INPUT_ENABLES_DFLT_MAC_ADDR);
+	if (bnxt_eth_addr_valid(vf->mac_addr)) {
+		req.enables |= htole32(HWRM_FUNC_CFG_INPUT_ENABLES_DFLT_MAC_ADDR);
 		memcpy(req.dflt_mac_addr, vf->mac_addr, ETHER_ADDR_LEN);
 	}
 
 	if (vf->vlan) {
-		req.enables |= cpu_to_le32(HWRM_FUNC_CFG_INPUT_ENABLES_DFLT_VLAN);
-		req.dflt_vlan = cpu_to_le16(vf->vlan);
+		req.enables |= htole32(HWRM_FUNC_CFG_INPUT_ENABLES_DFLT_VLAN);
+		req.dflt_vlan = htole16(vf->vlan);
 	}
 
 	if (vf->flags & BNXT_VF_TRUST)
-		req.flags = cpu_to_le32(HWRM_FUNC_CFG_INPUT_FLAGS_TRUSTED_VF_ENABLE);
+		req.flags = htole32(HWRM_FUNC_CFG_INPUT_FLAGS_TRUSTED_VF_ENABLE);
 
 	BNXT_HWRM_LOCK(softc);
 	rc = _hwrm_send_message(softc, &req, sizeof(req));
@@ -223,7 +247,7 @@ int bnxt_approve_mac(struct bnxt_softc *sc)
 
 	struct hwrm_func_vf_cfg_input req = (struct hwrm_func_vf_cfg_input){0};
 	struct bnxt_vf_info *vf = &sc->vf;
-	u8 *mac = vf->mac_addr;
+	uint8_t *mac = vf->mac_addr;
 	int rc = 0;
 
 	if (!BNXT_VF(sc))
@@ -263,13 +287,13 @@ bnxt_update_vf_mac(struct bnxt_softc *sc)
 	if (rc)
 		goto update_vf_mac_exit;
 
-	if (!ether_addr_equal(resp->mac_address, sc->vf.mac_addr)) {
+	if (!bnxt_eth_addr_equal(resp->mac_address, sc->vf.mac_addr)) {
 		memcpy(sc->vf.mac_addr, resp->mac_address, ETHER_ADDR_LEN);
-		if (!is_valid_ether_addr(sc->vf.mac_addr))
+		if (!bnxt_eth_addr_valid(sc->vf.mac_addr))
 			inform_pf = true;
 	}
 
-	if (is_valid_ether_addr(sc->vf.mac_addr)) {
+	if (bnxt_eth_addr_valid(sc->vf.mac_addr)) {
 		iflib_set_mac(sc->ctx, sc->vf.mac_addr);
 		memcpy(sc->func.mac_addr, sc->vf.mac_addr, ETHER_ADDR_LEN);
 	}
@@ -291,8 +315,8 @@ bnxt_hwrm_fwd_err_resp(struct bnxt_softc *softc, struct bnxt_vf_info *vf,
 	if (msg_size > sizeof(req.encap_request))
 		msg_size = sizeof(req.encap_request);
 
-	req.target_id = cpu_to_le16(vf->fw_fid);
-	req.encap_resp_target_id = cpu_to_le16(vf->fw_fid);
+	req.target_id = htole16(vf->fw_fid);
+	req.encap_resp_target_id = htole16(vf->fw_fid);
 	memcpy(&req.encap_request, vf->hwrm_cmd_req_addr, msg_size);
 
 	BNXT_HWRM_LOCK(softc);
@@ -315,8 +339,8 @@ bnxt_hwrm_exec_fwd_resp(struct bnxt_softc *softc, struct bnxt_vf_info *vf,
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_EXEC_FWD_RESP);
 
-	req.target_id = cpu_to_le16(vf->fw_fid);
-	req.encap_resp_target_id = cpu_to_le16(vf->fw_fid);
+	req.target_id = htole16(vf->fw_fid);
+	req.encap_resp_target_id = htole16(vf->fw_fid);
 	memcpy(&req.encap_request, vf->hwrm_cmd_req_addr, msg_size);
 
 	BNXT_HWRM_LOCK(softc);
@@ -337,13 +361,13 @@ bnxt_hwrm_func_qcfg_flags(struct bnxt_softc *softc, struct bnxt_vf_info *vf)
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_QCFG);
 
-	req.fid = cpu_to_le16(BNXT_PF(softc) ? vf->fw_fid : 0xffff);
+	req.fid = htole16(BNXT_PF(softc) ? vf->fw_fid : 0xffff);
 
 	BNXT_HWRM_LOCK(softc);
 	int rc = _hwrm_send_message(softc, &req, sizeof(req));
 	BNXT_HWRM_UNLOCK(softc);
 	if (!rc)
-		vf->func_qcfg_flags = cpu_to_le16(resp->flags);
+		vf->func_qcfg_flags = le16toh(resp->flags);
 
 	return rc;
 }
@@ -376,9 +400,9 @@ bnxt_hwrm_set_trusted_vf(struct bnxt_softc *softc, struct bnxt_vf_info *vf)
 	req.fid = htole16(vf->fw_fid);
 
 	if (vf->flags & BNXT_VF_TRUST)
-		req.flags = cpu_to_le32(HWRM_FUNC_CFG_INPUT_FLAGS_TRUSTED_VF_ENABLE);
+		req.flags = htole32(HWRM_FUNC_CFG_INPUT_FLAGS_TRUSTED_VF_ENABLE);
 	else
-		req.flags = cpu_to_le32(HWRM_FUNC_CFG_INPUT_FLAGS_TRUSTED_VF_DISABLE);
+		req.flags = htole32(HWRM_FUNC_CFG_INPUT_FLAGS_TRUSTED_VF_DISABLE);
 
 	BNXT_HWRM_LOCK(softc);
 	rc = _hwrm_send_message(softc, &req, sizeof(req));
@@ -435,13 +459,13 @@ bnxt_vf_configure_mac(struct bnxt_softc *softc, struct bnxt_vf_info *vf)
 	 * if the PF assigned MAC address is zero
 	 */
 	if (req->enables &
-	    cpu_to_le32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_DFLT_MAC_ADDR)) {
+	    htole32(HWRM_FUNC_VF_CFG_INPUT_ENABLES_DFLT_MAC_ADDR)) {
 		bool trust = bnxt_is_trusted_vf(softc, vf);
 
-		if (is_valid_ether_addr(req->dflt_mac_addr) &&
-		    (trust || !is_valid_ether_addr(vf->mac_addr) ||
-		     ether_addr_equal(req->dflt_mac_addr, vf->mac_addr))) {
-			ether_addr_copy(vf->vf_mac_addr, req->dflt_mac_addr);
+		if (bnxt_eth_addr_valid(req->dflt_mac_addr) &&
+		    (trust || !bnxt_eth_addr_valid(vf->mac_addr) ||
+		     bnxt_eth_addr_equal(req->dflt_mac_addr, vf->mac_addr))) {
+			bnxt_eth_addr_copy(vf->vf_mac_addr, req->dflt_mac_addr);
 			return bnxt_hwrm_exec_fwd_resp(softc, vf, msg_size);
 		}
 		return bnxt_hwrm_fwd_err_resp(softc, vf, msg_size);
@@ -456,7 +480,7 @@ static int bnxt_vf_validate_set_mac(struct bnxt_softc *softc, struct bnxt_vf_inf
 		(struct hwrm_cfa_l2_filter_alloc_input *)vf->hwrm_cmd_req_addr;
 	bool mac_ok = false;
 
-	if (!is_valid_ether_addr((const u8 *)req->l2_addr))
+	if (!bnxt_eth_addr_valid((const uint8_t *)req->l2_addr))
 		return bnxt_hwrm_fwd_err_resp(softc, vf, msg_size);
 
 	/* Allow VF to set a valid MAC address, if trust is set to on.
@@ -466,11 +490,11 @@ static int bnxt_vf_validate_set_mac(struct bnxt_softc *softc, struct bnxt_vf_inf
 	 */
 	if (bnxt_is_trusted_vf(softc, vf)) {
 		mac_ok = true;
-	} else if (is_valid_ether_addr(vf->mac_addr)) {
-		if (ether_addr_equal((const u8 *)req->l2_addr, vf->mac_addr))
+	} else if (bnxt_eth_addr_valid(vf->mac_addr)) {
+		if (bnxt_eth_addr_equal((const uint8_t *)req->l2_addr, vf->mac_addr))
 			mac_ok = true;
-	} else if (is_valid_ether_addr(vf->vf_mac_addr)) {
-		if (ether_addr_equal((const u8 *)req->l2_addr, vf->vf_mac_addr))
+	} else if (bnxt_eth_addr_valid(vf->vf_mac_addr)) {
+		if (bnxt_eth_addr_equal((const uint8_t *)req->l2_addr, vf->vf_mac_addr))
 			mac_ok = true;
 	} else {
 		mac_ok = true;
@@ -485,7 +509,7 @@ static int bnxt_vf_req_validate_snd(struct bnxt_softc *softc, struct bnxt_vf_inf
 {
 	int rc = 0;
 	struct input *encap_req = vf->hwrm_cmd_req_addr;
-	u32 req_type = le16_to_cpu(encap_req->req_type);
+	uint16_t req_type = le16toh(encap_req->req_type);
 
 	switch (req_type) {
 	case HWRM_FUNC_VF_CFG:
@@ -513,17 +537,19 @@ static int bnxt_vf_req_validate_snd(struct bnxt_softc *softc, struct bnxt_vf_inf
 
 void bnxt_hwrm_exec_fwd_req(struct bnxt_softc *softc)
 {
-	u32 i = 0, active_vfs = softc->pf.active_vfs, vf_id;
+	int active_vfs = softc->pf.active_vfs;
+	int i = 0;
+	ssize_t vf_idx;
 
 	/* Scan through VF's and process commands */
 	while (1) {
-		vf_id = find_next_bit(softc->pf.vf_event_bmap, active_vfs, i);
-		if (vf_id >= active_vfs)
+		bit_ffs_at(softc->pf.vf_event_bmap, i, active_vfs, &vf_idx);
+		if (vf_idx == -1)
 			break;
 
-		clear_bit(vf_id, softc->pf.vf_event_bmap);
-		bnxt_vf_req_validate_snd(softc, &softc->pf.vf[vf_id]);
-		i = vf_id + 1;
+		bit_clear(softc->pf.vf_event_bmap, vf_idx);
+		bnxt_vf_req_validate_snd(softc, &softc->pf.vf[vf_idx]);
+		i = vf_idx + 1;
 	}
 }
 
@@ -742,7 +768,7 @@ bnxt_hwrm_func_vf_resc_cfg(struct bnxt_softc *softc, int num_vfs, bool reset)
 	if (hw_resc->max_irqs > fn_qcfg->alloc_msix && num_vfs > 0)
 		msix_val = (hw_resc->max_irqs - fn_qcfg->alloc_msix) / num_vfs;
 
-	req.max_msix = cpu_to_le16(msix_val);
+	req.max_msix = htole16(msix_val);
 
 	for (i = 0; i < num_vfs; i++) {
 		struct bnxt_vf_info *vf = &pf->vf[i];
@@ -754,7 +780,7 @@ bnxt_hwrm_func_vf_resc_cfg(struct bnxt_softc *softc, int num_vfs, bool reset)
 				break;
 		}
 
-		req.vf_id = cpu_to_le16(vf->fw_fid);
+		req.vf_id = htole16(vf->fw_fid);
 
 		BNXT_HWRM_LOCK(softc);
 		rc = _hwrm_send_message(softc, &req, sizeof(req));
@@ -767,12 +793,12 @@ bnxt_hwrm_func_vf_resc_cfg(struct bnxt_softc *softc, int num_vfs, bool reset)
 
 		pf->active_vfs = i + 1;
 
-		vf->min_tx_rings    = le16_to_cpu(req.min_tx_rings);
-		vf->min_rx_rings    = le16_to_cpu(req.min_rx_rings);
-		vf->min_cp_rings    = le16_to_cpu(req.min_cmpl_rings);
-		vf->min_stat_ctxs   = le16_to_cpu(req.min_stat_ctx);
-		vf->min_ring_grps   = le16_to_cpu(req.min_hw_ring_grps);
-		vf->min_vnics       = le16_to_cpu(req.min_vnics);
+		vf->min_tx_rings    = le16toh(req.min_tx_rings);
+		vf->min_rx_rings    = le16toh(req.min_rx_rings);
+		vf->min_cp_rings    = le16toh(req.min_cmpl_rings);
+		vf->min_stat_ctxs   = le16toh(req.min_stat_ctx);
+		vf->min_ring_grps   = le16toh(req.min_hw_ring_grps);
+		vf->min_vnics       = le16toh(req.min_vnics);
 	}
 
 	if (pf->active_vfs)
@@ -790,13 +816,13 @@ bnxt_hwrm_func_buf_rgtr(struct bnxt_softc *softc)
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req, HWRM_FUNC_BUF_RGTR);
 
-	req.req_buf_num_pages = cpu_to_le16(softc->pf.hwrm_cmd_req_pages);
-	req.req_buf_page_size = cpu_to_le16(softc->pf.vf_hwrm_cmd_req_page_shift);
-	req.req_buf_len = cpu_to_le16(BNXT_HWRM_REQ_MAX_SIZE);
-	req.req_buf_page_addr0 = cpu_to_le64(softc->pf.hwrm_cmd_req_dma_addr[0]);
-	req.req_buf_page_addr1 = cpu_to_le64(softc->pf.hwrm_cmd_req_dma_addr[1]);
-	req.req_buf_page_addr2 = cpu_to_le64(softc->pf.hwrm_cmd_req_dma_addr[2]);
-	req.req_buf_page_addr3 = cpu_to_le64(softc->pf.hwrm_cmd_req_dma_addr[3]);
+	req.req_buf_num_pages = htole16(softc->pf.hwrm_cmd_req_pages);
+	req.req_buf_page_size = htole16(softc->pf.vf_hwrm_cmd_req_page_shift);
+	req.req_buf_len = htole16(BNXT_HWRM_REQ_MAX_SIZE);
+	req.req_buf_page_addr0 = htole64(softc->pf.hwrm_cmd_req_dma_addr[0]);
+	req.req_buf_page_addr1 = htole64(softc->pf.hwrm_cmd_req_dma_addr[1]);
+	req.req_buf_page_addr2 = htole64(softc->pf.hwrm_cmd_req_dma_addr[2]);
+	req.req_buf_page_addr3 = htole64(softc->pf.hwrm_cmd_req_dma_addr[3]);
 
 	BNXT_HWRM_LOCK(softc);
 	rc = _hwrm_send_message(softc, &req, sizeof(req));
@@ -820,16 +846,17 @@ bnxt_set_vf_attr(struct bnxt_softc *softc, int num_vfs)
 static int
 bnxt_alloc_vf_resources(struct bnxt_softc *softc, int num_vfs)
 {
-	struct pci_dev *pdev = softc->pdev;
 	u32 nr_pages, size, i, j, k = 0;
 	u32 page_size, reqs_per_page;
 	void *p;
+	int rc;
 
-	p = kcalloc(num_vfs, sizeof(struct bnxt_vf_info), GFP_KERNEL);
-	if (!p)
-		return ENOMEM;
+	p = malloc((size_t)num_vfs * sizeof(struct bnxt_vf_info), M_DEVBUF,
+	    M_WAITOK | M_ZERO);
+	if (p == NULL)
+		return (ENOMEM);
 
-	rcu_assign_pointer(softc->pf.vf, p);
+	softc->pf.vf = p;
 	bnxt_set_vf_attr(softc, num_vfs);
 
 	size = num_vfs * BNXT_HWRM_REQ_MAX_SIZE;
@@ -839,17 +866,28 @@ bnxt_alloc_vf_resources(struct bnxt_softc *softc, int num_vfs)
 		page_size *= 2;
 		softc->pf.vf_hwrm_cmd_req_page_shift++;
 	}
-	nr_pages = DIV_ROUND_UP(size, page_size);
+	nr_pages = howmany(size, page_size);
 	reqs_per_page = page_size / BNXT_HWRM_REQ_MAX_SIZE;
 
 	for (i = 0; i < nr_pages; i++) {
+		memset(&softc->pf.hwrm_cmd_req_mem[i], 0,
+		    sizeof(softc->pf.hwrm_cmd_req_mem[i]));
+		rc = iflib_dma_alloc(softc->ctx, page_size,
+		    &softc->pf.hwrm_cmd_req_mem[i], 0);
+		if (rc != 0) {
+			for (j = 0; j < i; j++) {
+				iflib_dma_free(&softc->pf.hwrm_cmd_req_mem[j]);
+				softc->pf.hwrm_cmd_req_addr[j] = NULL;
+				softc->pf.hwrm_cmd_req_dma_addr[j] = 0;
+			}
+			free(softc->pf.vf, M_DEVBUF);
+			softc->pf.vf = NULL;
+			return (ENOMEM);
+		}
 		softc->pf.hwrm_cmd_req_addr[i] =
-			dma_alloc_coherent(&pdev->dev, page_size,
-					   &softc->pf.hwrm_cmd_req_dma_addr[i],
-					   GFP_ATOMIC);
-
-		if (!softc->pf.hwrm_cmd_req_addr[i])
-			return ENOMEM;
+		    softc->pf.hwrm_cmd_req_mem[i].idi_vaddr;
+		softc->pf.hwrm_cmd_req_dma_addr[i] =
+		    softc->pf.hwrm_cmd_req_mem[i].idi_paddr;
 
 		for (j = 0; j < reqs_per_page && k < num_vfs; j++) {
 			struct bnxt_vf_info *vf = &softc->pf.vf[k];
@@ -863,14 +901,21 @@ bnxt_alloc_vf_resources(struct bnxt_softc *softc, int num_vfs)
 		}
 	}
 
-	softc->pf.vf_event_bmap = kzalloc(ALIGN(DIV_ROUND_UP(num_vfs, 8),
-					  sizeof(long)), GFP_ATOMIC);
-	if (!softc->pf.vf_event_bmap)
-		return ENOMEM;
+	softc->pf.vf_event_bmap = bit_alloc(num_vfs, M_DEVBUF, M_WAITOK);
+	if (softc->pf.vf_event_bmap == NULL) {
+		for (i = 0; i < nr_pages; i++) {
+			iflib_dma_free(&softc->pf.hwrm_cmd_req_mem[i]);
+			softc->pf.hwrm_cmd_req_addr[i] = NULL;
+			softc->pf.hwrm_cmd_req_dma_addr[i] = 0;
+		}
+		free(softc->pf.vf, M_DEVBUF);
+		softc->pf.vf = NULL;
+		return (ENOMEM);
+	}
 
 	softc->pf.hwrm_cmd_req_pages = nr_pages;
 
-	return 0;
+	return (0);
 }
 
 int bnxt_cfg_hw_sriov(struct bnxt_softc *softc, uint16_t *num_vfs, bool reset)

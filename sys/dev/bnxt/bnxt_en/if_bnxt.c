@@ -4509,7 +4509,8 @@ bnxt_process_async_msg(struct bnxt_cp_ring *cpr, tx_cmpl_t *cmpl)
 		    (vf_id >= softc->pf.first_vf_id + softc->pf.active_vfs))
 			return;
 
-		set_bit(vf_id - softc->pf.first_vf_id, softc->pf.vf_event_bmap);
+		bit_set(softc->pf.vf_event_bmap,
+		    vf_id - softc->pf.first_vf_id);
 		set_bit(BNXT_HWRM_EXEC_FWD_REQ_SP_EVENT, &softc->sp_event);
 		bnxt_queue_sp_work(softc);
 		break;
