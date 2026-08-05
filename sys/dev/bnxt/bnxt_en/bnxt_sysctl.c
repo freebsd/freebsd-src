@@ -29,7 +29,6 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/ctype.h>
-#include <linux/delay.h>
 
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
@@ -112,7 +111,6 @@ static const struct bnxt_mpc_cmp_time_counters_list mpc_cmp_counters[] = {
 };
 static const int mpc_cmp_counters_count = sizeof(mpc_cmp_counters) / sizeof(mpc_cmp_counters[0]);
 
-DEFINE_MUTEX(tmp_mutex); /* mutex lock for driver */
 extern void bnxt_fw_reset(struct bnxt_softc *bp);
 extern void bnxt_queue_sp_work(struct bnxt_softc *bp);
 extern bool
