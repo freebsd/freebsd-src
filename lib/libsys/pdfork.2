@@ -391,14 +391,14 @@ returns the following errors:
 The
 .Fa flags
 argument is not zero.
+.It Bq Er EINVAL
+The file descriptor
+.Fa fd
+is not a process file descriptor.
 .It Bq Er ESRCH
 The process specified by the file descriptor
 .Fa fd
 exited.
-.It Bq Er EBADF
-The file descriptor
-.Fa fd
-is not a process file descriptor.
 .It Bq Er EBADF
 The file descriptor
 .Fa remotefd
