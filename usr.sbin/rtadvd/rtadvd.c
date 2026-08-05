@@ -1138,9 +1138,9 @@ ra_input(int len, struct nd_router_advert *nra,
 		syslog(LOG_NOTICE,
 		    "M flag inconsistent on %s:"
 		    " %s from %s, %s from us",
-		    ifi->ifi_ifname, on_off[!rai->rai_managedflg],
+		    ifi->ifi_ifname, on_off[rai->rai_managedflg == 0],
 		    inet_ntop(AF_INET6, &from->sin6_addr, ntopbuf,
-			sizeof(ntopbuf)), on_off[rai->rai_managedflg]);
+			sizeof(ntopbuf)), on_off[rai->rai_managedflg != 0]);
 		inconsistent++;
 	}
 	/* O flag */
@@ -1149,9 +1149,9 @@ ra_input(int len, struct nd_router_advert *nra,
 		syslog(LOG_NOTICE,
 		    "O flag inconsistent on %s:"
 		    " %s from %s, %s from us",
-		    ifi->ifi_ifname, on_off[!rai->rai_otherflg],
+		    ifi->ifi_ifname, on_off[rai->rai_otherflg == 0],
 		    inet_ntop(AF_INET6, &from->sin6_addr, ntopbuf,
-			sizeof(ntopbuf)), on_off[rai->rai_otherflg]);
+			sizeof(ntopbuf)), on_off[rai->rai_otherflg != 0]);
 		inconsistent++;
 	}
 	/* Reachable Time */
