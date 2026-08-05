@@ -3788,6 +3788,10 @@ ixgbe_setup_low_power_mode(if_ctx_t ctx)
 		ixgbe_if_stop(ctx);
 	}
 
+	/* Disable the 82599 link only when actually entering D3. */
+	if (hw->mac.type == ixgbe_mac_82599EB)
+		ixgbe_stop_mac_link_on_d3_82599(hw);
+
 	return error;
 } /* ixgbe_setup_low_power_mode */
 
@@ -4758,8 +4762,6 @@ ixgbe_if_stop(if_ctx_t ctx)
 	ixgbe_reset_hw(hw);
 	hw->adapter_stopped = false;
 	ixgbe_stop_adapter(hw);
-	if (hw->mac.type == ixgbe_mac_82599EB)
-		ixgbe_stop_mac_link_on_d3_82599(hw);
 	/* Turn off the laser - noop with no optics */
 	ixgbe_disable_tx_laser(hw);
 
