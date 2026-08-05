@@ -31,8 +31,8 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/list.h>
-#include <linux/delay.h>
 
+#include "bnxt_compat.h"
 #include "bnxt_auxbus_compat.h"
 
 static struct list_head bnxt_aux_bus_dev_list = LINUX_LIST_HEAD_INIT(bnxt_aux_bus_dev_list);
@@ -92,7 +92,7 @@ int auxiliary_device_add(struct auxiliary_device *auxdev)
 	mutex_lock(&bnxt_auxbus_lock);
 	list_for_each_entry(auxdrv, &bnxt_aux_bus_drv_list, list) {
 		if (auxdrv) {
-			msleep(2 * 1000);
+			pause_sbt("bxtms", SBT_1MS * 2 * 1000, 0, C_HARDCLOCK);
 
 			id = auxiliary_match_id(auxdrv->id_table, auxdev);
 			if (id) {

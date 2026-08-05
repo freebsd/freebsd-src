@@ -90,7 +90,7 @@ __bnxt_refclk_read(struct bnxt_softc *bp, uint64_t *ns)
 	struct bnxt_ptp_cfg *ptp = bp->ptp_cfg;
 	uint32_t high_before, high_now, low;
 
-	if (test_bit(BNXT_STATE_IN_FW_RESET, &bp->state))
+	if (bnxt_drv_state_test(bp, BNXT_STATE_IN_FW_RESET))
 		return (EIO);
 
 	/* Refclk registers live in the HWRM BAR, not the doorbell BAR. */
