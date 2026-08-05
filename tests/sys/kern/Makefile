@@ -154,6 +154,8 @@ CFLAGS.subr_unit.c+=	-Wno-missing-prototypes
 SRCS.subr_unit_test+=	subr_unit.c
 
 CFLAGS.exterr_test+=	-I${SRCTOP}/tests
+CFLAGS.pdwait+=		-I${SRCTOP}/tests
+CFLAGS.procdesc+=	-I${SRCTOP}/tests
 
 WARNS?=	3
 

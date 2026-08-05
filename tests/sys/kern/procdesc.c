@@ -49,6 +49,8 @@
 #include <atf-c.h>
 #include <kvm.h>
 
+#include "freebsd_test_suite/macros.h"
+
 /* Tests for procdesc(4) that aren't specific to any one syscall */
 
 /*
@@ -347,6 +349,8 @@ ATF_TC_WITHOUT_HEAD(pdopenpid_capmode);
 ATF_TC_BODY(pdopenpid_capmode, tc)
 {
 	pid_t child, parent;
+
+	ATF_REQUIRE_FEATURE("security_capability_mode");
 
 	parent = getpid();
 	child = fork();
