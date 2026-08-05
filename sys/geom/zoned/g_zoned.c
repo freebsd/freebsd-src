@@ -235,17 +235,6 @@ g_zoned_load_table(struct g_zoned_softc *sc, struct g_consumer *cp)
 	bool valid;
 
 	g_topology_assert();
-
-	error = g_access(cp, 1, 0, 0);
-	if (error != 0) {
-		G_ZONED_DEBUG(0,
-		    "Cannot open %s to read zone table (error=%d);"
-		    " assuming empty.",
-		    cp->provider->name, error);
-		g_zoned_reset_zones(sc);
-		g_zoned_dirty_table(sc);
-		return;
-	}
 	g_topology_unlock();
 
 	valid = false;
@@ -285,7 +274,6 @@ g_zoned_load_table(struct g_zoned_softc *sc, struct g_consumer *cp)
 	}
 
 	g_topology_lock();
-	g_access(cp, -1, 0, 0);
 
 	if (!valid) {
 		G_ZONED_DEBUG(1, "No valid zone table on %s; initialising.",
@@ -501,17 +489,14 @@ g_zoned_flush_sync(struct g_zoned_softc *sc, struct g_consumer *cp)
 
 	g_topology_assert();
 
-	if (cp == NULL || cp->provider == NULL)
-		return;
-	if (g_access(cp, 0, 1, 0) != 0)
+	/* A provider that went away takes the table's location with it. */
+	if (cp == NULL || cp->provider == NULL || cp->provider->error != 0)
 		return;
 	mtx_lock(&sc->sc_lock);
 	buf = g_zoned_encode_dirty(sc, &off, &total);
 	mtx_unlock(&sc->sc_lock);
-	if (buf == NULL) {
-		g_access(cp, 0, -1, 0);
+	if (buf == NULL)
 		return;
-	}
 	g_topology_unlock();
 	error = 0;
 	for (done = 0; done < total; done += chunk) {
@@ -529,7 +514,6 @@ g_zoned_flush_sync(struct g_zoned_softc *sc, struct g_consumer *cp)
 		    cp->provider->name, error);
 	g_free(buf);
 	g_topology_lock();
-	g_access(cp, 0, -1, 0);
 }
 
 /*
@@ -1083,14 +1067,11 @@ g_zoned_start(struct bio *bp)
 }
 
 static int
-g_zoned_access(struct g_provider *pp, int dr, int dw, int de)
+g_zoned_access(struct g_provider *pp __unused, int dr __unused,
+    int dw __unused, int de __unused)
 {
-	struct g_geom *gp;
-	struct g_consumer *cp;
 
-	gp = pp->geom;
-	cp = LIST_FIRST(&gp->consumer);
-	return (g_access(cp, dr, dw, de));
+	return (0);
 }
 
 static struct g_geom *
@@ -1174,6 +1155,12 @@ g_zoned_create(struct g_class *mp, const struct g_zoned_metadata *md,
 	error = g_attach(cp, pp);
 	if (error != 0) {
 		G_ZONED_DEBUG(0, "Cannot attach to provider %s.", pp->name);
+		goto fail;
+	}
+	/* Hold the backing provider open as long as the device exists. */
+	error = g_access(cp, 1, 1, 1);
+	if (error != 0) {
+		G_ZONED_DEBUG(0, "Cannot access provider %s.", pp->name);
 		goto fail;
 	}
 
@@ -1290,6 +1277,9 @@ g_zoned_destroy(struct g_geom *gp, boolean_t force)
 	sc = gp->softc;
 	if (sc == NULL)
 		return (ENXIO);
+	/* An orphaned provider and a stop request can both land here. */
+	if ((gp->flags & G_GEOM_WITHER) != 0)
+		return (ENXIO);
 	pp = LIST_FIRST(&gp->provider);
 	if (pp != NULL && (pp->acr != 0 || pp->acw != 0 || pp->ace != 0)) {
 		if (force) {
@@ -1309,7 +1299,11 @@ g_zoned_destroy(struct g_geom *gp, boolean_t force)
 	/* Commit unflushed zone state to survive the stop. */
 	g_zoned_flush_sync(sc, LIST_FIRST(&gp->consumer));
 
-	g_wither_geom(gp, ENXIO);
+	/*
+	 * Give up the reference taken when the device was created, so that
+	 * withering can reap the consumer.
+	 */
+	g_wither_geom_close(gp, ENXIO);
 	return (0);
 }
 

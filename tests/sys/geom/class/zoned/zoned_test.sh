@@ -534,8 +534,12 @@ clear_clears_metadata_body()
 
 	alloc_zoned_md
 	atf_check gzoned create -s 256m ${md}
-	atf_check gzoned clear /dev/${md}
+	# The backing provider is held open for as long as the device exists,
+	# so its metadata can only be cleared once the device is gone.
+	atf_check -s not-exit:0 -e ignore gzoned clear /dev/${md}
+	atf_check gzoned stop ${md}.zoned
 	wait_dev_gone /dev/${md}.zoned
+	atf_check gzoned clear /dev/${md}
 	true > /dev/${md}
 	sleep 1
 	atf_check test ! -c /dev/${md}.zoned

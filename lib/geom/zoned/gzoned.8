@@ -126,7 +126,10 @@ the fault persists with the rest of the zone state until cleared.
 .It Cm clear
 Permanently un-zone the given backing device(s) by clearing the on-disk
 metadata.
-The live zoned device, if any, is torn down.
+A backing device carrying a live zoned device is held open and cannot be
+cleared: tear the device down with
+.Cm stop
+first.
 .It Cm stop
 Tear down the given zoned device(s) without touching the on-disk metadata.
 .Ar name
