@@ -66,6 +66,7 @@ MAN=	accept_filter.9 \
 	cd.9 \
 	cdefs.9 \
 	cnv.9 \
+	cold.9 \
 	condvar.9 \
 	config_intrhook.9 \
 	contigmalloc.9 \
