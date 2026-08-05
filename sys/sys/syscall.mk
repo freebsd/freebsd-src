@@ -432,4 +432,6 @@ MIASM =  \
 	timerfd_settime.o \
 	kcmp.o \
 	getrlimitusage.o \
-	setcred.o
+	setcred.o \
+	inotify_add_watch_at.o \
+	inotify_rm_watch.o
