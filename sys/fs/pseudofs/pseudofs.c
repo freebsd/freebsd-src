@@ -532,7 +532,6 @@ pfs_modevent(module_t mod, int evt, void *arg)
 		pfs_vncache_load();
 		break;
 	case MOD_UNLOAD:
-	case MOD_SHUTDOWN:
 		pfs_vncache_unload();
 		break;
 	default:
