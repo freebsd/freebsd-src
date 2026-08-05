@@ -29,13 +29,11 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/ctype.h>
-#include <linux/delay.h>
 
 #include "bnxt.h"
 #include "bnxt_hwrm.h"
 #include "bnxt_sysctl.h"
 
-DEFINE_MUTEX(tmp_mutex); /* mutex lock for driver */
 extern void bnxt_fw_reset(struct bnxt_softc *bp);
 extern void bnxt_queue_sp_work(struct bnxt_softc *bp);
 extern bool
