@@ -1739,8 +1739,6 @@ em_if_resume(if_ctx_t ctx)
 
 	if (sc->hw.mac.type == e1000_pch2lan)
 		e1000_resume_workarounds_pchlan(&sc->hw);
-	em_if_init(ctx);
-	em_init_manageability(sc);
 
 	return(0);
 }
@@ -2440,8 +2438,6 @@ em_if_media_change(if_ctx_t ctx)
 	default:
 		device_printf(sc->dev, "Unsupported media type\n");
 	}
-
-	em_if_init(ctx);
 
 	return (0);
 }
@@ -6406,6 +6402,16 @@ em_set_flowcntl(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+static void
+em_sysctl_request_reinit(struct e1000_softc *sc)
+{
+	if ((if_getflags(iflib_get_ifp(sc->ctx)) & IFF_UP) == 0)
+		return;
+
+	iflib_request_reset(sc->ctx);
+	iflib_admin_intr_deferred(sc->ctx);
+}
+
 /*
  * Manage DMA Coalesce:
  * Control values:
@@ -6451,7 +6457,7 @@ igb_sysctl_dmac(SYSCTL_HANDLER_ARGS)
 			return (EINVAL);
 	}
 	/* Reinit the interface */
-	em_if_init(sc->ctx);
+	em_sysctl_request_reinit(sc);
 	return (error);
 }
 
@@ -6477,7 +6483,7 @@ em_sysctl_eee(SYSCTL_HANDLER_ARGS)
 		sc->hw.dev_spec.ich8lan.eee_disable = (value != 0);
 	else
 		sc->hw.dev_spec._82575.eee_disable = (value != 0);
-	em_if_init(sc->ctx);
+	em_sysctl_request_reinit(sc);
 
 	return (0);
 }
