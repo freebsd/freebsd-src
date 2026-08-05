@@ -4554,7 +4554,7 @@ bnxt_process_async_msg(struct bnxt_cp_ring *cpr, tx_cmpl_t *cmpl)
 		break;
 #ifdef PCI_IOV
 	case CMPL_BASE_TYPE_HWRM_FWD_REQ:
-		vf_id = le16_to_cpu(fwd_req_cmpl->source_id);
+		vf_id = le16toh(fwd_req_cmpl->source_id);
 
 		if ((vf_id < softc->pf.first_vf_id) ||
 		    (vf_id >= softc->pf.first_vf_id + softc->pf.active_vfs))
@@ -5926,8 +5926,8 @@ bnxt_handle_async_event(struct bnxt_softc *softc, struct cmpl_base *cmpl)
 		}
 		fw_health->primary = EVENT_DATA1_RECOVERY_MASTER_FUNC(data1);
 		fw_health->tmr_multiplier =
-			DIV_ROUND_UP(fw_health->polling_dsecs * HZ,
-				     HZ * 10);
+			howmany(fw_health->polling_dsecs * hz,
+				     hz * 10);
 		fw_health->tmr_counter = fw_health->tmr_multiplier;
 		if (!fw_health->enabled)
 			fw_health->last_fw_heartbeat =

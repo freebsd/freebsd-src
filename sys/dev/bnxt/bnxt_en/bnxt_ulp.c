@@ -376,7 +376,7 @@ EXPORT_SYMBOL(bnxt_ulp_log_live);
 
 void bnxt_ulp_async_events(struct bnxt_softc *bp, struct hwrm_async_event_cmpl *cmpl)
 {
-	u16 event_id = le16_to_cpu(cmpl->event_id);
+	u16 event_id = le16toh(cmpl->event_id);
 	struct bnxt_en_dev *edev = bp->edev;
 	struct bnxt_ulp_ops *ops;
 	int i;
@@ -396,7 +396,7 @@ void bnxt_ulp_async_events(struct bnxt_softc *bp, struct hwrm_async_event_cmpl *
 			continue;
 
 		/* Read max_async_event_id first before testing the bitmap. */
-		rmb();
+		atomic_thread_fence_acq();
 		if (edev->flags & BNXT_EN_FLAG_ULP_STOPPED)
 			continue;
 
@@ -418,7 +418,7 @@ static int bnxt_register_async_events(struct bnxt_en_dev *edev, int ulp_id,
 	mtx_lock(&bp->en_ops_lock);
 	ulp = &edev->ulp_tbl[ulp_id];
 	ulp->async_events_bmap = events_bmap;
-	wmb();
+	atomic_thread_fence_rel();
 	ulp->max_async_event_id = max_id;
 	bnxt_hwrm_func_drv_rgtr(bp, events_bmap, max_id + 1, true);
 	mtx_unlock(&bp->en_ops_lock);
