@@ -71,8 +71,8 @@ split_iov(struct iovec *iov, size_t *niov1, size_t offset, size_t *niov2)
 	}
 
 	/* The entry iov[count] needs to be split. */
-	*niov1 = count + 1;
 	*niov2 = *niov1 - count;
+	*niov1 = count + 1;
 	memmove(&iov[count + 1], &iov[count], sizeof(struct iovec) * (*niov2));
 	iov[count].iov_len = resid;
 	iov[count + 1].iov_base = (char *)iov[count].iov_base + resid;
