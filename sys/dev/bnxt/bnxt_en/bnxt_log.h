@@ -47,6 +47,10 @@ struct bnxt_logger {
 	uint32_t max_live_buff_size;
 	uint32_t live_msgs_len;
 	void (*log_live_op)(void *dev);
+	/* Pin count held while log_lock is dropped for log_live_op(). */
+	u_int refcnt;
+	/* Set by bnxt_unregister_logger() when refcnt > 0; defers the free. */
+	bool unregister_pending;
 };
 
 struct bnxt_coredump_segment_hdr {

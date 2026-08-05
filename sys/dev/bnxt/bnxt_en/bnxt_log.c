@@ -99,21 +99,30 @@ void
 bnxt_unregister_logger(struct bnxt_softc *bp, int logger_id)
 {
 	struct bnxt_logger *l = NULL, *tmp;
+	bool found = false, defer = false;
 
 	mtx_lock(&bp->log_lock);
 	TAILQ_FOREACH_SAFE(l, &bp->loggers_list, list, tmp) {
 		if (l->logger_id == logger_id) {
 			TAILQ_REMOVE(&bp->loggers_list, l, list);
+			found = true;
 			break;
 		}
 	}
+	if (found && l->refcnt > 0) {
+		/* Pinned by coredump collection; defer the free. */
+		l->unregister_pending = true;
+		defer = true;
+	}
 	mtx_unlock(&bp->log_lock);
 
-	if (!l) {
+	if (!found) {
 		device_printf(bp->dev, "logger id %d not registered\n",
 			      logger_id);
 		return;
 	}
+	if (defer)
+		return;
 
 	free(l->msgs, M_BNXT_LOG);
 	free(l, M_BNXT_LOG);
@@ -137,9 +146,11 @@ bnxt_log_info(char *buf, size_t max_len, const char *format, va_list args)
 	else if (text[text_len] == '\0')
 		text[text_len] = '\n';
 
-	if (text_len > max_len) {
-		/* Truncate */
-		text_len = max_len;
+	/* memcpy() below writes text_len + 1 bytes; leave room for it. */
+	if (max_len == 0)
+		return (0);
+	if (text_len >= max_len) {
+		text_len = max_len - 1;
 		text[text_len] = '\n';
 	}
 
@@ -192,17 +203,22 @@ void
 bnxt_log_live(struct bnxt_softc *bp, uint16_t logger_id,
     const char *format, ...)
 {
-	struct bnxt_logger *logger = NULL, *tmp;
+	struct bnxt_logger *logger = NULL;
 	va_list args;
 	int len;
 
-	TAILQ_FOREACH_SAFE(logger, &bp->loggers_list, list, tmp) {
+	mtx_lock(&bp->log_lock);
+	/* log_lock stays held for this traversal, so plain TAILQ_FOREACH is safe here. */
+	TAILQ_FOREACH(logger, &bp->loggers_list, list) {
 		if (logger->logger_id == logger_id)
 			break;
 	}
 
-	if (!logger || !logger->live_msgs)
+	if (!logger || !logger->live_msgs ||
+	    logger->live_msgs_len >= logger->max_live_buff_size) {
+		mtx_unlock(&bp->log_lock);
 		return;
+	}
 
 	va_start(args, format);
 	len = bnxt_log_info(
@@ -212,6 +228,7 @@ bnxt_log_live(struct bnxt_softc *bp, uint16_t logger_id,
 	va_end(args);
 
 	logger->live_msgs_len += len;
+	mtx_unlock(&bp->log_lock);
 }
 
 static size_t
@@ -269,7 +286,7 @@ bnxt_get_loggers_coredump_size(struct bnxt_softc *bp)
 int
 bnxt_start_logging_driver_coredump(struct bnxt_softc *bp, char *dest_buf)
 {
-	struct bnxt_logger *logger, *tmp;
+	struct bnxt_logger *logger;
 	size_t offset = 0;
 	uint32_t seg_id = 0;
 
@@ -277,27 +294,64 @@ bnxt_start_logging_driver_coredump(struct bnxt_softc *bp, char *dest_buf)
 		return (0);
 
 	mtx_lock(&bp->log_lock);
-	TAILQ_FOREACH_SAFE(logger, &bp->loggers_list, list, tmp) {
+	logger = TAILQ_FIRST(&bp->loggers_list);
+	while (logger != NULL) {
 		struct bnxt_coredump_segment_hdr seg_hdr;
 		void *seg_hdr_dest = dest_buf + offset;
-		size_t len;
+		struct bnxt_logger *next;
+		uint16_t next_id = 0;
+		bool have_next;
+		size_t len, live_len;
 
 		offset += sizeof(seg_hdr);
 		/* First collect logs from buffer */
 		len = bnxt_collect_logs_buffer(logger, dest_buf + offset);
 		offset += len;
-		/* Let logger to collect live messages */
+
+		/* Pin logger and remember successor by id; log_lock drops below. */
+		logger->refcnt++;
+		next = TAILQ_NEXT(logger, list);
+		have_next = (next != NULL);
+		if (have_next)
+			next_id = next->logger_id;
+
+		/* log_live_op() calls bnxt_log_live(), which takes log_lock itself. */
 		logger->live_msgs = dest_buf + offset;
 		logger->live_msgs_len = 0;
+		mtx_unlock(&bp->log_lock);
+
 		logger->log_live_op(bp);
 
-		len += logger->buffer_size;
-		offset += logger->buffer_size;
+		mtx_lock(&bp->log_lock);
+		logger->live_msgs = NULL;
+		/* Actual bytes written, not buffer_size, or offset desyncs. */
+		live_len = logger->live_msgs_len;
+		logger->live_msgs_len = 0;
+
+		len += live_len;
+		offset += live_len;
 
 		bnxt_fill_coredump_seg_hdr(bp, &seg_hdr, NULL, len,
 					   0, 0, 0, 13, seg_id);
 		memcpy(seg_hdr_dest, &seg_hdr, sizeof(seg_hdr));
 		seg_id++;
+
+		logger->refcnt--;
+		if (logger->refcnt == 0 && logger->unregister_pending) {
+			free(logger->msgs, M_BNXT_LOG);
+			free(logger, M_BNXT_LOG);
+		}
+
+		/* Re-find successor by id; stop if it was unregistered meanwhile. */
+		logger = NULL;
+		if (have_next) {
+			TAILQ_FOREACH(next, &bp->loggers_list, list) {
+				if (next->logger_id == next_id) {
+					logger = next;
+					break;
+				}
+			}
+		}
 	}
 	mtx_unlock(&bp->log_lock);
 	return (offset);
