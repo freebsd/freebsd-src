@@ -33,7 +33,6 @@
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/bitops.h>
-#include <linux/delay.h>
 #include <asm/byteorder.h>
 #include <linux/bitmap.h>
 #include <linux/rcupdate.h>
@@ -76,7 +75,7 @@ static int bnxt_register_dev(struct bnxt_en_dev *edev, int ulp_id,
 	rcu_assign_pointer(ulp->ulp_ops, ulp_ops);
 
 	if (ulp_id == BNXT_ROCE_ULP) {
-		if (test_bit(BNXT_STATE_OPEN, &bp->state) && bp->is_dev_init)
+		if (bnxt_drv_state_test(bp, BNXT_STATE_OPEN) && bp->is_dev_init)
 			bnxt_hwrm_vnic_cfg(bp, &bp->vnic_info);
 	}
 
@@ -111,7 +110,7 @@ static int bnxt_unregister_dev(struct bnxt_en_dev *edev, int ulp_id)
 	ulp->async_events_bmap = NULL;
 	mtx_unlock(&bp->en_ops_lock);
 	while (atomic_read(&ulp->ref_count) != 0 && i < 10) {
-		msleep(100);
+		pause_sbt("bxtms", SBT_1MS * 100, 0, C_HARDCLOCK);
 		i++;
 	}
 	/* Tell the caller a ULP consumer may still hold a reference into torn-down state. */

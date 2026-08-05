@@ -177,7 +177,7 @@ int bnxt_tls_snd_tag_alloc(if_t ifp, union if_snd_tag_alloc_params* params,
 	priv = iflib_get_softc(ctx);
 	ktls = priv->ktls_info;
 
-	if (!test_bit(BNXT_STATE_OPEN, &priv->state))
+	if (!bnxt_drv_state_test(priv, BNXT_STATE_OPEN))
 		return (EPROTONOSUPPORT);
 
 	if (atomic_load_acq_int(&priv->detached))
@@ -999,8 +999,8 @@ static int bnxt_crypto_del(struct bnxt_softc* softc,
 	uint32_t data;
 	uint32_t kid;
 
-	if (test_bit(BNXT_STATE_IN_FW_RESET, &softc->state) &&
-	    test_bit(BNXT_STATE_FW_FATAL_COND, &softc->state))
+	if (bnxt_drv_state_test(softc, BNXT_STATE_IN_FW_RESET) &&
+	    bnxt_drv_state_test(softc, BNXT_STATE_FW_FATAL_COND))
 		return 0;
 
 	kid = kctx_tx->kid;
@@ -1026,7 +1026,7 @@ static int bnxt_ktls_dev_add(struct bnxt_softc* softc,
 	atomic_add_32(&ktls->pending, 1);
 
 	atomic_thread_fence_seq_cst();
-	if (!test_bit(BNXT_STATE_OPEN, &softc->state)) {
+	if (!bnxt_drv_state_test(softc, BNXT_STATE_OPEN)) {
 		BNXT_DEBUG(softc->dev, "kTLS dev_add: device not open\n");
 		rc = ENODEV;
 		goto exit;
@@ -1082,7 +1082,7 @@ static void bnxt_ktls_dev_del(struct bnxt_softc* softc,
 	 * BNXT_STATE_OPEN is cleared (and MPC rings freed) in bnxt_stop();
 	 * bail out here to avoid MPC command timeouts while unloading.
 	 */
-	if (!test_bit(BNXT_STATE_OPEN, &softc->state)) {
+	if (!bnxt_drv_state_test(softc, BNXT_STATE_OPEN)) {
 		BNXT_DEBUG(softc->dev, "[KID:%u]: KTLS dev_del: device not up, freeing KID\n", kid);
 		bnxt_free_one_kctx(kctx, kid, softc->dev);
 		counter_u64_add(ktls->counters[BNXT_KTLS_TX_DEL], 1);
@@ -1095,7 +1095,7 @@ retry:
 	 * BNXT_STATE_OPEN flag.
 	 */
 	atomic_thread_fence_seq_cst();
-	while (!test_bit(BNXT_STATE_OPEN, &softc->state)) {
+	while (!bnxt_drv_state_test(softc, BNXT_STATE_OPEN)) {
 		atomic_subtract_32(&ktls->pending, 1);
 		if (retry_cnt > BNXT_RETRY_MAX) {
 			device_printf(softc->dev,

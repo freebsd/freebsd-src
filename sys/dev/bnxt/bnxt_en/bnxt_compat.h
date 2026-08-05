@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/socket.h>
+#include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <sys/bitstring.h>
@@ -45,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_var.h>
 #include <net/iflib.h>
 #include <linux/types.h>
-
 
 #if (__FreeBSD_version < 1500000)
 

@@ -3630,7 +3630,7 @@ int bnxt_hwrm_set_coal(struct bnxt_softc *softc)
 	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input req = {0};
 	int i, rc = 0;
 
-	if (!test_bit(BNXT_STATE_UP, &softc->state))
+	if (!bnxt_drv_state_test(softc, BNXT_STATE_UP))
 		return (rc);
 
 	bnxt_hwrm_cmd_hdr_init(softc, &req,

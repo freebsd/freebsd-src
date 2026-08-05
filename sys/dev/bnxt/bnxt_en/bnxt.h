@@ -35,6 +35,7 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/taskqueue.h>
+#include <sys/callout.h>
 #include <sys/bitstring.h>
 
 #include <machine/bus.h>
@@ -1150,7 +1151,7 @@ struct bnxt_fw_health {
 	u32 echo_req_data1;
 	u32 echo_req_data2;
 	struct devlink_health_reporter	*fw_reporter;
-	struct mutex lock;
+	struct mtx lock;
 	enum bnxt_health_severity severity;
 	enum bnxt_health_remedy remedy;
 	u32 arrests;
@@ -1526,10 +1527,10 @@ struct bnxt_softc {
 #define BNXT_STATE_HALF_OPEN		15
 #define BNXT_STATE_UP			16
 #define BNXT_NO_FW_ACCESS(bp)		\
-	test_bit(BNXT_STATE_FW_FATAL_COND, &(bp)->state)
+	bnxt_drv_state_test((bp), BNXT_STATE_FW_FATAL_COND)
 	struct pci_dev			*pdev;
 
-	struct work_struct	sp_task;
+	struct task		sp_task;
 	unsigned long		sp_event;
 #define BNXT_RX_MASK_SP_EVENT		0
 #define BNXT_RX_NTP_FLTR_SP_EVENT	1
@@ -1557,7 +1558,7 @@ struct bnxt_softc {
 #define BNXT_FW_ECHO_REQUEST_SP_EVENT	23
 #define BNXT_VF_CFG_CHNG_SP_EVENT	24
 
-	struct delayed_work	fw_reset_task;
+	struct timeout_task	fw_reset_tmo;
 	int			fw_reset_state;
 #define BNXT_FW_RESET_STATE_POLL_VF	1
 #define BNXT_FW_RESET_STATE_RESET_FW	2
@@ -1622,6 +1623,45 @@ struct bnxt_softc {
 	HWRM_RING_ALLOC_INPUT_CMPL_COAL_CNT_COAL_64	/* code 8 = up to 64 pkts */
 	uint8_t			tx_hw_coal_cnt;
 };
+
+/* softc->state helpers */
+static __inline bool
+bnxt_drv_state_test(const struct bnxt_softc *sc, unsigned int bit)
+{
+	/* Paired with the atomic RMWs the write-side helpers below use. */
+	return (atomic_load_acq_long(&sc->state) & (1UL << bit)) != 0;
+}
+
+static __inline void
+bnxt_drv_state_set(struct bnxt_softc *sc, unsigned int bit)
+{
+	atomic_testandset_long(&sc->state, bit);
+}
+
+static __inline void
+bnxt_drv_state_clear(struct bnxt_softc *sc, unsigned int bit)
+{
+	atomic_testandclear_long(&sc->state, bit);
+}
+
+static __inline bool
+bnxt_drv_state_test_and_clear(struct bnxt_softc *sc, unsigned int bit)
+{
+	return atomic_testandclear_long(&sc->state, bit);
+}
+
+/* softc->sp_event helpers */
+static __inline void
+bnxt_sp_event_set(struct bnxt_softc *sc, unsigned int bit)
+{
+	atomic_testandset_long(&sc->sp_event, bit);
+}
+
+static __inline bool
+bnxt_sp_event_test_and_clear(struct bnxt_softc *sc, unsigned int bit)
+{
+	return atomic_testandclear_long(&sc->sp_event, bit);
+}
 
 struct bnxt_filter_info {
 	STAILQ_ENTRY(bnxt_filter_info) next;
