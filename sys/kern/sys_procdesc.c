@@ -142,7 +142,7 @@ kern_pdgetpid(struct thread *td, int fd, const cap_rights_t *rightsp,
 	struct file *fp;
 	int error;
 
-	error = fget_procdesc(td, fd, rightsp, &fp, NULL, NULL);
+	error = fget_procdesc(td, fd, rightsp, EBADF, &fp, NULL, NULL);
 	if (error == 0)
 		*pidp = procdesc_pid(fp);
 	if (fp != NULL)
@@ -753,7 +753,8 @@ sys_pdopenpid(struct thread *td, struct pdopenpid_args *args)
  */
 int
 fget_procdesc(struct thread *td, int pdfd, const cap_rights_t *cap_rights,
-    struct file **pfp, struct procdesc **pdp, struct proc **pp)
+    int wrong_type_error, struct file **pfp, struct procdesc **pdp,
+    struct proc **pp)
 {
 	struct file *fp;
 	struct procdesc *pd;
@@ -769,7 +770,7 @@ fget_procdesc(struct thread *td, int pdfd, const cap_rights_t *cap_rights,
 		return (error);
 	*pfp = fp;
 	if (fp->f_type != DTYPE_PROCDESC)
-		return (EINVAL);
+		return (wrong_type_error);
 	pd = fp->f_data;
 	if (pp != NULL) {
 		p = pd->pd_proc;
@@ -795,7 +796,8 @@ kern_pddupfd(struct thread *td, int pdfd, int fd, int flags)
 	int error, fdr;
 
 	sx_slock(&proctree_lock);
-	error = fget_procdesc(td, pdfd, &cap_pddupfd_rights, &pfp, NULL, &p);
+	error = fget_procdesc(td, pdfd, &cap_pddupfd_rights, EINVAL, &pfp,
+	    NULL, &p);
 	if (error == 0) {
 		if ((p->p_flag & P_WEXIT) != 0) {
 			error = ESRCH;

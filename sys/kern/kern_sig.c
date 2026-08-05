@@ -1965,7 +1965,8 @@ sys_pdkill(struct thread *td, struct pdkill_args *uap)
 		return (EINVAL);
 
 	sx_slock(&proctree_lock);
-	error = fget_procdesc(td, uap->fd, &cap_pdkill_rights, &fp, NULL, &p);
+	error = fget_procdesc(td, uap->fd, &cap_pdkill_rights, EBADF, &fp,
+	    NULL, &p);
 	sx_sunlock(&proctree_lock);
 	if (error != 0)
 		goto out;

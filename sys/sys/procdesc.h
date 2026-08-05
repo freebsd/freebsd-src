@@ -122,8 +122,8 @@ void	 procdesc_fill_winfo(struct procdesc *pd, bool proc_locked);
 int	 procdesc_falloc(struct thread *, struct file **, int *, int,
 	    struct filecaps *);
 int	 fget_procdesc(struct thread *td, int pfd,
-	    const cap_rights_t *cap_rights, struct file **pfp,
-	    struct procdesc **pdp, struct proc **pp);
+	    const cap_rights_t *cap_rights, int wrong_type_error,
+	    struct file **pfp, struct procdesc **pdp, struct proc **pp);
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>
