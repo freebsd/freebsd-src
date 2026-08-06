@@ -164,6 +164,7 @@ syscon_generic_attach(device_t dev)
 {
 	struct syscon_generic_softc *sc;
 	int rid, rv;
+	bool is_simple_bus = false;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -184,7 +185,12 @@ syscon_generic_attach(device_t dev)
 		syscon_generic_detach(dev);
 		return (ENXIO);
 	}
-	if (ofw_bus_is_compatible(dev, "simple-bus")) {
+
+	is_simple_bus = ofw_bus_is_compatible(dev, "simple-bus");
+#ifdef FORCE_SIMPLE_PM_BUS
+	is_simple_bus = is_simple_bus || ofw_bus_is_compatible(dev, "simple-pm-bus");
+#endif
+	if (is_simple_bus) {
 		rv = simplebus_attach_impl(sc->dev);
 		if (rv != 0) {
 			device_printf(dev, "Failed to create simplebus\n");

@@ -28,6 +28,8 @@
 #ifndef TI_GPIO_H
 #define	TI_GPIO_H
 
+#include <sys/intr.h>
+
 /* The maximum number of banks for any SoC */
 #define	MAX_GPIO_BANKS			6
 

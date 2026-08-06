@@ -185,7 +185,7 @@ ti_gate_attach(device_t dev)
 	if (err) {
 		/* free_clkdef will be called in ti_gate_new_pass */
 		DPRINTF(sc->sc_dev, "find_parent_clock_names failed\n");
-		bus_attach_children(sc->dev);
+		bus_attach_children(sc->sc_dev);
 		return (0);
 	}
 
@@ -194,7 +194,7 @@ ti_gate_attach(device_t dev)
 	if (err) {
 		/* free_clkdef will be called in ti_gate_new_pass */
 		DPRINTF(sc->sc_dev, "register_clk failed\n");
-		bus_attach_children(sc->dev);
+		bus_attach_children(sc->sc_dev);
 		return (0);
 	}
 
@@ -202,7 +202,7 @@ ti_gate_attach(device_t dev)
 
 	free_clkdef(&sc->gate_def.clkdef);
 
-	bus_attach_children(sc->dev);
+	bus_attach_children(sc->sc_dev);
 	return (0);
 }
 
