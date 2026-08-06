@@ -337,6 +337,9 @@ fail_point_swap_settings(struct fail_point *fp,
 	fp_setting_old = fp->fp_setting;
 	fp->fp_setting = fp_setting_new;
 
+	if (fp->fp_enabled)
+		*fp->fp_enabled = fp->fp_setting != NULL;
+
 	return (fp_setting_old);
 }
 
@@ -482,6 +485,7 @@ fail_point_init(struct fail_point *fp, const char *fmt, ...)
 
 	fp->fp_name = name;
 	fp->fp_location = "";
+	fp->fp_enabled = NULL;
 	fp->fp_flags |= FAIL_POINT_DYNAMIC_NAME;
 	fp->fp_pre_sleep_fn = NULL;
 	fp->fp_pre_sleep_arg = NULL;
@@ -520,6 +524,8 @@ fail_point_destroy(struct fail_point *fp)
 		fp->fp_name = NULL;
 	}
 	fp->fp_flags = 0;
+	if (fp->fp_enabled)
+		*fp->fp_enabled = false;
 	if (fp->fp_callout) {
 		fp_free(fp->fp_callout);
 		fp->fp_callout = NULL;
