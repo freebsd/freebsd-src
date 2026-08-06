@@ -89,6 +89,9 @@ int	kern_abort2(struct thread *td, const char *why, int nargs,
 	    void **uargs);
 int	kern_accept(struct thread *td, int s, struct sockaddr *sa,
 	    struct file **fp);
+int	kern_accept4_fp(struct thread *td, struct file *headfp,
+	    struct filecaps *fcaps, struct sockaddr *sa, int flags,
+	    struct file **fp);
 int	kern_accept4(struct thread *td, int s, struct sockaddr *sa,
 	    int flags, struct file **fp);
 int	kern_accessat(struct thread *td, int fd, const char *path,
