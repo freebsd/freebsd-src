@@ -1387,7 +1387,6 @@ xgbe_default_config(struct xgbe_prv_data *pdata)
         pdata->pause_autoneg = 1;
         pdata->phy_speed = SPEED_UNKNOWN;
         pdata->power_down = 0;
-        pdata->enable_rss = 1;
 }
 
 static int
