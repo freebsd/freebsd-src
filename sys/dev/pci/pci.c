@@ -4297,6 +4297,7 @@ pci_add_children(device_t dev, int domain, int busno)
 		for (f = first_func; f <= pcifunchigh; f++)
 			pci_identify_function(pcib, dev, domain, busno, s, f);
 	}
+	pcie_reconcile_link_mps(dev);
 #undef REG
 }
 
@@ -4426,16 +4427,154 @@ pci_create_iov_child_method(device_t bus, device_t pf, uint16_t rid,
 }
 #endif
 
+static int
+pcie_mps_bytes(uint16_t mps)
+{
+
+	return (128 << (mps >> 5));
+}
+
+/* Return the smallest configured MPS above dev, if the walk reaches a root. */
+static bool
+pcie_path_mps(device_t dev, uint16_t *mpsp)
+{
+	struct pci_devinfo *dinfo;
+	device_t bus, pcib, start;
+	uint16_t mps;
+	bool found;
+
+	start = dev;
+	found = false;
+	for (;;) {
+		bus = device_get_parent(dev);
+		if (bus == NULL)
+			break;
+		pcib = device_get_parent(bus);
+		if (pcib == NULL || !is_pci_device(pcib))
+			break;
+		dinfo = device_get_ivars(pcib);
+		if (dinfo->cfg.pcie.pcie_location != 0) {
+			mps = pcie_read_config(pcib, PCIER_DEVICE_CTL, 2) &
+			    PCIEM_CTL_MAX_PAYLOAD;
+			if (!found || mps < *mpsp)
+				*mpsp = mps;
+			found = true;
+			if (dinfo->cfg.pcie.pcie_type == PCIEM_TYPE_ROOT_PORT)
+				return (true);
+		}
+		dev = pcib;
+	}
+	if (found && bootverbose)
+		device_printf(start,
+		    "PCIe MPS path walk did not reach a Root Port\n");
+	return (false);
+}
+
+static bool
+pcie_mps_first_warning(device_t dev)
+{
+	struct pci_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	if ((dinfo->cfg.flags & PCICFG_MPS_WARNED) != 0)
+		return (false);
+	dinfo->cfg.flags |= PCICFG_MPS_WARNED;
+	return (true);
+}
+
+static void
+pcie_mps_conflict(device_t dev, uint16_t path_mps, uint16_t max_mps)
+{
+
+	if (!pcie_mps_first_warning(dev))
+		return;
+	device_printf(dev,
+	    "maximum supported MPS %d is below configured path MPS %d; "
+	    "cannot safely retune the shared ancestor hierarchy\n",
+	    pcie_mps_bytes(max_mps), pcie_mps_bytes(path_mps));
+}
+
+static void
+pcie_mps_active_conflict(device_t dev, uint16_t path_mps,
+    uint16_t device_mps)
+{
+
+	if (!pcie_mps_first_warning(dev))
+		return;
+	device_printf(dev,
+	    "configured MPS %d does not match path MPS %d while bus "
+	    "mastering is enabled; leaving device unchanged\n",
+	    pcie_mps_bytes(device_mps), pcie_mps_bytes(path_mps));
+}
+
+static void
+pcie_mps_mark_unreconciled(device_t dev)
+{
+	struct pci_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	dinfo->cfg.flags |= PCICFG_MPS_UNRECONCILED;
+}
+
+static void
+pcie_mps_unreconciled(device_t dev, uint16_t path_mps, uint16_t max_mps)
+{
+
+	pcie_mps_conflict(dev, path_mps, max_mps);
+	pcie_mps_mark_unreconciled(dev);
+}
+
+static void
+pcie_mps_active_unreconciled(device_t dev, uint16_t path_mps,
+    uint16_t device_mps)
+{
+
+	pcie_mps_active_conflict(dev, path_mps, device_mps);
+	pcie_mps_mark_unreconciled(dev);
+}
+
+static void
+pcie_mps_mark_link_unreconciled(device_t *devlist, int count,
+    uint16_t path_mps,
+    bool all)
+{
+	struct pci_devinfo *dinfo;
+	device_t child;
+	uint16_t mmps;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		child = devlist[i];
+		dinfo = device_get_ivars(child);
+		if ((dinfo->cfg.flags & (PCICFG_VF |
+		    PCICFG_MPS_UNRECONCILED)) != 0 ||
+		    dinfo->cfg.pcie.pcie_location == 0)
+			continue;
+		if (all) {
+			pcie_mps_mark_unreconciled(child);
+			continue;
+		}
+		mmps = (pcie_read_config(child, PCIER_DEVICE_CAP, 2) &
+		    PCIEM_CAP_MAX_PAYLOAD) << 5;
+		if (mmps < path_mps)
+			pcie_mps_unreconciled(child, path_mps, mmps);
+	}
+}
+
 /*
- * For PCIe device set Max_Payload_Size to match PCIe root's.
+ * Tune a function discovered by rescan or hot-add against the established
+ * path.  Never change a shared upstream port here: doing so requires
+ * quiescing every driver and draining all outstanding transactions in the
+ * hierarchy.  Cold enumeration is reconciled by pcie_reconcile_link_mps().
  */
 static void
 pcie_setup_mps(device_t dev)
 {
-	struct pci_devinfo *dinfo = device_get_ivars(dev);
-	device_t root;
-	uint16_t rmps, mmps, mps;
+	struct pci_devinfo *dinfo;
+	device_t bus;
+	uint16_t mmps, mps, path_mps;
 
+	dinfo = device_get_ivars(dev);
 	/*
 	 * PCIe r4.0, sec 9.3.5.4 defines the VF MPS and MRRS fields as
 	 * Reserved and Preserved, with the PF settings applying to the VF.
@@ -4445,31 +4584,139 @@ pcie_setup_mps(device_t dev)
 		return;
 	if (dinfo->cfg.pcie.pcie_location == 0)
 		return;
-	root = pci_find_pcie_root_port(dev);
-	if (root == NULL)
+
+	/* Cold enumeration is reconciled one complete link at a time. */
+	bus = device_get_parent(dev);
+	if (!device_is_attached(bus))
 		return;
-	/* Check whether the MPS is already configured. */
-	rmps = pcie_read_config(root, PCIER_DEVICE_CTL, 2) &
-	    PCIEM_CTL_MAX_PAYLOAD;
-	mps = pcie_read_config(dev, PCIER_DEVICE_CTL, 2) &
-	    PCIEM_CTL_MAX_PAYLOAD;
-	if (mps == rmps)
+	path_mps = 0;
+	if (!pcie_path_mps(dev, &path_mps))
 		return;
-	/* Check whether the device is capable of the root's MPS. */
+
 	mmps = (pcie_read_config(dev, PCIER_DEVICE_CAP, 2) &
 	    PCIEM_CAP_MAX_PAYLOAD) << 5;
-	if (rmps > mmps) {
-		/*
-		 * The device is unable to handle root's MPS.  Limit root.
-		 * XXX: We should traverse through all the tree, applying
-		 * it to all the devices.
-		 */
-		pcie_adjust_config(root, PCIER_DEVICE_CTL,
-		    PCIEM_CTL_MAX_PAYLOAD, mmps, 2);
-	} else {
-		pcie_adjust_config(dev, PCIER_DEVICE_CTL,
-		    PCIEM_CTL_MAX_PAYLOAD, rmps, 2);
+	if (path_mps > mmps) {
+		pcie_mps_unreconciled(dev, path_mps, mmps);
+		return;
 	}
+	mps = pcie_read_config(dev, PCIER_DEVICE_CTL, 2) &
+	    PCIEM_CTL_MAX_PAYLOAD;
+	if (mps == path_mps)
+		return;
+	if ((pci_read_config(dev, PCIR_COMMAND, 2) &
+	    PCIM_CMD_BUSMASTEREN) != 0) {
+		pcie_mps_active_unreconciled(dev, path_mps, mps);
+		return;
+	}
+	pcie_adjust_config(dev, PCIER_DEVICE_CTL, PCIEM_CTL_MAX_PAYLOAD,
+	    path_mps, 2);
+}
+
+/*
+ * Reconcile a newly enumerated link before attaching any child drivers.  A
+ * Root Port may be lowered because its complete downstream hierarchy is still
+ * idle.  A late reduction below a switch is not propagated through ancestors,
+ * since sibling subtrees may already be active.
+ */
+void
+pcie_reconcile_link_mps(device_t bus)
+{
+	struct pci_devinfo *dinfo, *upinfo;
+	device_t child, limiting, pcib, *devlist;
+	uint16_t mmps, mps, target, up_mmps, up_mps;
+	int count, error, i;
+
+	if (!pci_enable_mps_tune)
+		return;
+	/* Shared-path tuning is only safe before this bus attaches children. */
+	if (device_is_attached(bus))
+		return;
+	pcib = device_get_parent(bus);
+	if (!is_pci_device(pcib))
+		return;
+	upinfo = device_get_ivars(pcib);
+	if (upinfo->cfg.pcie.pcie_location == 0)
+		return;
+	error = device_get_children(bus, &devlist, &count);
+	if (error != 0)
+		return;
+
+	up_mps = pcie_read_config(pcib, PCIER_DEVICE_CTL, 2) &
+	    PCIEM_CTL_MAX_PAYLOAD;
+	target = up_mps;
+	limiting = NULL;
+	up_mmps = (pcie_read_config(pcib, PCIER_DEVICE_CAP, 2) &
+	    PCIEM_CAP_MAX_PAYLOAD) << 5;
+	if (target > up_mmps) {
+		target = up_mmps;
+		limiting = pcib;
+	}
+	/*
+	 * Firmware may leave Bus Master Enable set after handoff.  Since no
+	 * child driver has attached during this cold pass, it is not a proxy
+	 * for a live FreeBSD consumer.
+	 */
+	for (i = 0; i < count; i++) {
+		child = devlist[i];
+		dinfo = device_get_ivars(child);
+		if ((dinfo->cfg.flags & (PCICFG_VF |
+		    PCICFG_MPS_UNRECONCILED)) != 0 ||
+		    dinfo->cfg.pcie.pcie_location == 0)
+			continue;
+		mmps = (pcie_read_config(child, PCIER_DEVICE_CAP, 2) &
+		    PCIEM_CAP_MAX_PAYLOAD) << 5;
+		if (target > mmps) {
+			target = mmps;
+			limiting = child;
+		}
+	}
+
+	/*
+	 * Do not lower one link below a switch without also reconciling every
+	 * ancestor and sibling subtree.  Recursive newbus attachment may already
+	 * have made another subtree live, so leave the established path intact.
+	 */
+	if (target < up_mps &&
+	    upinfo->cfg.pcie.pcie_type != PCIEM_TYPE_ROOT_PORT) {
+		pcie_mps_conflict(limiting, up_mps, target);
+		pcie_mps_mark_link_unreconciled(devlist, count, up_mps,
+		    up_mps > up_mmps);
+		/* Keep compatible functions at the established path MPS. */
+		target = up_mps;
+	}
+	/* Lower downstream producers before lowering the shared Root Port. */
+	for (i = 0; i < count; i++) {
+		child = devlist[i];
+		dinfo = device_get_ivars(child);
+		if ((dinfo->cfg.flags & (PCICFG_VF |
+		    PCICFG_MPS_UNRECONCILED)) != 0 ||
+		    dinfo->cfg.pcie.pcie_location == 0)
+			continue;
+		mps = pcie_read_config(child, PCIER_DEVICE_CTL, 2) &
+		    PCIEM_CTL_MAX_PAYLOAD;
+		if (mps > target)
+			pcie_adjust_config(child, PCIER_DEVICE_CTL,
+			    PCIEM_CTL_MAX_PAYLOAD, target, 2);
+	}
+	if (up_mps > target)
+		pcie_adjust_config(pcib, PCIER_DEVICE_CTL,
+		    PCIEM_CTL_MAX_PAYLOAD, target, 2);
+
+	/* Raise idle children only after the upstream port is configured. */
+	for (i = 0; i < count; i++) {
+		child = devlist[i];
+		dinfo = device_get_ivars(child);
+		if ((dinfo->cfg.flags & (PCICFG_VF |
+		    PCICFG_MPS_UNRECONCILED)) != 0 ||
+		    dinfo->cfg.pcie.pcie_location == 0)
+			continue;
+		mps = pcie_read_config(child, PCIER_DEVICE_CTL, 2) &
+		    PCIEM_CTL_MAX_PAYLOAD;
+		if (mps < target)
+			pcie_adjust_config(child, PCIER_DEVICE_CTL,
+			    PCIEM_CTL_MAX_PAYLOAD, target, 2);
+	}
+	free(devlist, M_TEMP);
 }
 
 static void

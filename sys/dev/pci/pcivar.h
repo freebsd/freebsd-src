@@ -171,7 +171,9 @@ struct pcicfg_ea {
     STAILQ_HEAD(, pci_ea_entry) ea_entries;	/* EA entries */
 };
 
-#define	PCICFG_VF	0x0001 /* Device is an SR-IOV Virtual Function */
+#define	PCICFG_VF		0x0001 /* Device is an SR-IOV Virtual Function */
+#define	PCICFG_MPS_WARNED	0x0002 /* MPS conflict already reported */
+#define	PCICFG_MPS_UNRECONCILED	0x0004 /* MPS conflict left unchanged */
 
 /* config header information common to all header types */
 typedef struct pcicfg {

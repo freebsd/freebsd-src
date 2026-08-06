@@ -145,6 +145,7 @@ ofw_pcibus_attach(device_t dev)
 	if (!ofw_devices_only)
 		ofw_pcibus_enum_bus(dev, domain, busno);
 
+	pcie_reconcile_link_mps(dev);
 	bus_attach_children(dev);
 	return (0);
 }
