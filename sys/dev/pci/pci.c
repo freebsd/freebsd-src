@@ -2312,10 +2312,9 @@ pci_set_max_read_req(device_t dev, int size)
 	if (size > 4096)
 		size = 4096;
 	size = (1 << (fls(size) - 1));
-	val = pci_read_config(dev, cap + PCIER_DEVICE_CTL, 2);
-	val &= ~PCIEM_CTL_MAX_READ_REQUEST;
-	val |= (fls(size) - 8) << 12;
-	pci_write_config(dev, cap + PCIER_DEVICE_CTL, val, 2);
+	val = (fls(size) - 8) << 12;
+	pcie_adjust_config(dev, PCIER_DEVICE_CTL,
+	    PCIEM_CTL_MAX_READ_REQUEST, val, 2);
 	return (size);
 }
 
@@ -2359,6 +2358,7 @@ pcie_adjust_config(device_t dev, int reg, uint32_t mask, uint32_t value,
     int width)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	uint16_t *saved;
 	uint32_t old, new;
 	int cap;
 
@@ -2373,6 +2373,22 @@ pcie_adjust_config(device_t dev, int reg, uint32_t mask, uint32_t value,
 	new = old & ~mask;
 	new |= (value & mask);
 	pci_write_config(dev, cap + reg, new, width);
+	/* Apply only the requested policy bits to the saved restore image. */
+	if (width == 2) {
+		saved = NULL;
+		switch (reg) {
+		case PCIER_DEVICE_CTL:
+			saved = &dinfo->cfg.pcie.pcie_device_ctl;
+			break;
+		case PCIER_ROOT_CTL:
+			saved = &dinfo->cfg.pcie.pcie_root_ctl;
+			break;
+		}
+		if (saved != NULL) {
+			*saved &= ~(uint16_t)mask;
+			*saved |= (uint16_t)(value & mask);
+		}
+	}
 	return (old);
 }
 
@@ -4461,16 +4477,12 @@ pci_add_child_clear_aer(device_t dev, struct pci_devinfo *dinfo)
 {
 	int aer;
 	uint32_t r;
-	uint16_t r2;
 
 	if (dinfo->cfg.pcie.pcie_location != 0 &&
 	    dinfo->cfg.pcie.pcie_type == PCIEM_TYPE_ROOT_PORT) {
-		r2 = pci_read_config(dev, dinfo->cfg.pcie.pcie_location +
-		    PCIER_ROOT_CTL, 2);
-		r2 &= ~(PCIEM_ROOT_CTL_SERR_CORR |
-		    PCIEM_ROOT_CTL_SERR_NONFATAL | PCIEM_ROOT_CTL_SERR_FATAL);
-		pci_write_config(dev, dinfo->cfg.pcie.pcie_location +
-		    PCIER_ROOT_CTL, r2, 2);
+		r = PCIEM_ROOT_CTL_SERR_CORR |
+		    PCIEM_ROOT_CTL_SERR_NONFATAL | PCIEM_ROOT_CTL_SERR_FATAL;
+		pcie_adjust_config(dev, PCIER_ROOT_CTL, r, 0, 2);
 	}
 	if (pci_find_extcap(dev, PCIZ_AER, &aer) == 0) {
 		r = pci_read_config(dev, aer + PCIR_AER_UC_STATUS, 4);
@@ -4522,12 +4534,9 @@ pci_add_child_clear_aer(device_t dev, struct pci_devinfo *dinfo)
 		    PCIM_AER_COR_HEADER_LOG_OVFLOW);
 		pci_write_config(dev, aer + PCIR_AER_COR_MASK, r, 4);
 
-		r = pci_read_config(dev, dinfo->cfg.pcie.pcie_location +
-		    PCIER_DEVICE_CTL, 2);
-		r |=  PCIEM_CTL_COR_ENABLE | PCIEM_CTL_NFER_ENABLE |
+		r = PCIEM_CTL_COR_ENABLE | PCIEM_CTL_NFER_ENABLE |
 		    PCIEM_CTL_FER_ENABLE | PCIEM_CTL_URR_ENABLE;
-		pci_write_config(dev, dinfo->cfg.pcie.pcie_location +
-		    PCIER_DEVICE_CTL, r, 2);
+		pcie_adjust_config(dev, PCIER_DEVICE_CTL, r, r, 2);
 	}
 }
 

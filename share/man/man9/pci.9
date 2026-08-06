@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 18, 2026
+.Dd August 6, 2026
 .Dt PCI 9
 .Os
 .Sh NAME
@@ -253,6 +253,15 @@ to the value in
 Any bits not specified in
 .Fa mask
 are preserved.
+For 16-bit accesses to
+.Dv PCIER_DEVICE_CTL
+or
+.Dv PCIER_ROOT_CTL ,
+the corresponding bits in the saved PCI configuration state are also updated
+so the adjustment persists across configuration restores.
+Use
+.Fn pcie_write_config
+for transient changes that must not be saved.
 The previous value of the register is returned.
 .Pp
 The
