@@ -975,6 +975,13 @@ startmsg()
 #
 #	${name}_prepend	n	Command added before ${command}.
 #
+#	${name}_pre_start n	Command executed during start
+#				after ${name}_setup and before
+#				${rc_arg}_precmd is run.
+#
+#	${name}_post_stop n	Command executed during stop
+#				after ${rc_arg}_postcmd is run.
+#
 #	${name}_setup	n	Command executed during start, restart and
 #				reload before ${rc_arg}_precmd is run.
 #
@@ -1209,7 +1216,8 @@ run_rc_command()
 	    _nice=\$${name}_nice	_user=\$${name}_user \
 	    _group=\$${name}_group	_groups=\$${name}_groups \
 	    _fib=\$${name}_fib		_env=\$${name}_env \
-	    _prepend=\$${name}_prepend	_login_class=\${${name}_login_class:-daemon} \
+	    _prepend=\$${name}_prepend	_pre_start=\$${name}_pre_start \
+	    _post_stop=\$${name}_post_stop	_login_class=\${${name}_login_class:-daemon} \
 	    _limits=\$${name}_limits	_oomprotect=\$${name}_oomprotect \
 	    _setup=\$${name}_setup	_env_file=\$${name}_env_file \
 	    _umask=\$${name}_umask	_svcj_options=\$${name}_svcj_options \
@@ -1385,6 +1393,9 @@ run_rc_command()
 					_run_rc_setup || \
 					    warn "failed to setup ${name}"
 				fi
+				if [ "$rc_arg" = 'start' ]; then
+					_run_rc_pre_start || return 1
+				fi
 				_run_rc_precmd || return 1
 			fi
 			if ! checkyesno ${name}_svcj; then
@@ -1442,6 +1453,9 @@ run_rc_command()
 			fi
 			if [ "${_rc_svcj}" != jailing ]; then
 				_run_rc_postcmd
+				if [ "$rc_arg" = 'stop' ]; then
+					_run_rc_post_stop
+				fi
 			fi
 			return $_return
 		fi
@@ -1484,18 +1498,22 @@ run_rc_command()
 			;;
 
 		start)
-			if [ ! -x "${_chroot}${_chroot:+/}${command}" ]; then
-				warn "run_rc_command: cannot run $command"
-				return 1
-			fi
-
 			if [ "${_rc_svcj}" != jailing ]; then
 				_run_rc_setup || warn "failed to setup ${name}"
 
+				if ! _run_rc_pre_start; then
+					warn "failed pre_startcmd routine for ${name}"
+					return 1
+				fi
 				if ! _run_rc_precmd; then
 					warn "failed precmd routine for ${name}"
 					return 1
 				fi
+			fi
+
+			if [ ! -x "${_chroot}${_chroot:+/}${command}" ]; then
+				warn "run_rc_command: cannot run $command"
+				return 1
 			fi
 
 			if checkyesno ${name}_svcj; then
@@ -1606,6 +1624,7 @@ $command $rc_flags $command_args"
 			fi
 
 			_run_rc_postcmd
+			_run_rc_post_stop
 			;;
 
 		reload)
@@ -1742,6 +1761,8 @@ $command $rc_flags $command_args"
 #	_offcmd		R
 #	_precmd		R
 #	_postcmd	R
+#	_pre_start	R
+#	_post_stop	R
 #	_return		W
 #	_setup		R
 #
@@ -1754,6 +1775,29 @@ _run_rc_offcmd()
 		fi
 		debug "run_rc_command: ${name}_offcmd: $_offcmd $rc_extra_args"
 		eval "$_offcmd $rc_extra_args"
+		_return=$?
+	fi
+	return 0
+}
+
+_run_rc_pre_start()
+{
+	if [ -n "$_pre_start" ]; then
+		debug "run_rc_command: ${name}_pre_start: $_pre_start"
+		eval "$_pre_start"
+		_return=$?
+		if [ $_return -ne 0 ]; then
+			return 1
+		fi
+	fi
+	return 0
+}
+
+_run_rc_post_stop()
+{
+	if [ -n "$_post_stop" ]; then
+		debug "run_rc_command: ${name}_post_stop: $_post_stop"
+		eval "$_post_stop"
 		_return=$?
 	fi
 	return 0
@@ -1793,7 +1837,7 @@ _run_rc_setup()
 {
 	# prevent multiple execution on restart => stop/start split
 	if ! ${_rc_restart_done:-false} && [ -n "$_setup" ]; then
-		debug "run_rc_command: ${rc_arg}_setup: $_setup"
+		debug "run_rc_command: ${name}_setup: $_setup"
 		eval "$_setup"
 		_return=$?
 		if [ $_return -ne 0 ]; then
