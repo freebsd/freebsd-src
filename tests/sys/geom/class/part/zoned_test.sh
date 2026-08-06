@@ -140,7 +140,7 @@ seq_head_refused_body()
 
 	# No conventional zones at all: even the primary has no home.
 	alloc_zoned_md
-	atf_check -s not-exit:0 -e match:"non-conventional" \
+	atf_check -s not-exit:0 -e match:"not randomly writable" \
 	    gpart create -s gpt ${md}.zoned
 	atf_check_equal "4" "$(zone_count /dev/${md}.zoned empty)"
 }
