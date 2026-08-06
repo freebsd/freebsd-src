@@ -916,10 +916,17 @@ g_part_zoned_prepare(struct gctl_req *req, struct g_consumer *cp,
 		    &flags);
 		if (error == ENOENT)
 			break;
+		if (error == EOPNOTSUPP) {
+			gctl_error(req, "%d %s: partition scheme %s does not "
+			    "describe its metadata layout, which is required "
+			    "on host-managed zoned providers", error, pp->name,
+			    table->gpt_scheme->name);
+			return (error);
+		}
 		if (error != 0) {
-			gctl_error(req, "%d %s: partition scheme %s is not "
-			    "supported on host-managed zoned providers",
-			    error, pp->name, table->gpt_scheme->name);
+			gctl_error(req, "%d %s: cannot determine the %s "
+			    "metadata layout", error, pp->name,
+			    table->gpt_scheme->name);
 			return (error);
 		}
 		error = g_zone_range_random_writable(cp, start, length,
