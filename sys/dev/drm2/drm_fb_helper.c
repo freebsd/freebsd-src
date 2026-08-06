@@ -1464,14 +1464,26 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	}
 
 	if (bound < crtcs_bound) {
-		fb_helper->delayed_hotplug = true;
-		sx_xunlock(&dev->mode_config.mutex);
-		return 0;
+		/*
+		 * Permit the hotplug reprobe to continue even if runtime fb/CRTC
+		 * bindings are in transition. On RK3399 USB-C DP, the initial
+		 * safe fallback modeset and the later EDID-driven reprobe happen
+		 * back-to-back; deferring here can strand the system in the
+		 * fallback mode forever.
+		 */
+		DRM_DEBUG_KMS("forcing hotplug reprobe with bound=%d crtcs_bound=%d\n",
+		    bound, crtcs_bound);
 	}
 	DRM_DEBUG_KMS("\n");
 
-	max_width = fb_helper->fb->width;
-	max_height = fb_helper->fb->height;
+	/*
+	 * Reprobe against the device limits, not the current fb size.
+	 * Otherwise a safe fallback fb (for example 1024x768 before DP
+	 * EDID is ready) permanently constrains later hotplug reprobes
+	 * and prevents the preferred mode from ever being selected.
+	 */
+	max_width = dev->mode_config.max_width;
+	max_height = dev->mode_config.max_height;
 	bpp_sel = fb_helper->fb->bits_per_pixel;
 
 	drm_fb_helper_probe_connector_modes(fb_helper, max_width,
