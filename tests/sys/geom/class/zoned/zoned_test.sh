@@ -15,7 +15,7 @@ create_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m ${md}
 	atf_check test -c /dev/${md}.zoned
 }
@@ -34,7 +34,7 @@ is_zoned_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create ${md}
 	atf_check_equal "Host Managed" \
 	    "$(zonectl -d /dev/${md}.zoned -c params | \
@@ -55,7 +55,7 @@ conventional_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m -c 1,3 ${md}
 	atf_check_equal "2" "$(zone_count nonwp)"
 }
@@ -74,7 +74,7 @@ conventional_single_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m -c 2 ${md}
 	atf_check_equal "1" "$(zone_count nonwp)"
 	# The conventional zone is zone 2. At LBA 512m / 512 = 0x100000.
@@ -97,7 +97,7 @@ conventional_range_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m -c 0-2 ${md}
 	atf_check_equal "3" "$(zone_count nonwp)"
 }
@@ -116,7 +116,7 @@ all_zones_same_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m -c 0-3 ${md}
 	atf_check -o match:"^4 zones," \
 	    -o match:"Zone lengths and types are all the same" \
@@ -137,7 +137,7 @@ conventional_ranges_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m -c 0,2-3 ${md}
 	atf_check_equal "3" "$(zone_count nonwp)"
 	# Zone 1 alone stays sequential: the second conventional zone
@@ -161,7 +161,7 @@ zone_size_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 128m ${md}
 	# 1024m of zone space now holds eight 128m zones instead of four.
 	atf_check -o match:"^8 zones," \
@@ -185,7 +185,7 @@ reset_wp_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m ${md}
 
 	# Advance the write pointer of zone 0 by 1m (2048 512-byte LBAs).
@@ -212,7 +212,7 @@ reset_wp_conv_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m -c 0 ${md}
 	atf_check -s not-exit:0 -e ignore \
 	    zonectl -d /dev/${md}.zoned -c rwp -l 0
@@ -233,7 +233,7 @@ reset_wp_empty_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m ${md}
 	atf_check_equal "0" "$(zone_wp 0)"
 	atf_check zonectl -d /dev/${md}.zoned -c rwp -l 0
@@ -255,7 +255,7 @@ reset_wp_finished_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m ${md}
 	atf_check zonectl -d /dev/${md}.zoned -c finish -l 0
 	atf_check_equal "1" "$(zone_count full)"
@@ -281,7 +281,7 @@ unrestricted_reads_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m ${md}
 	atf_check -o match:"URSWRZ.*: Yes" \
 	    zonectl -d /dev/${md}.zoned -c params
@@ -305,7 +305,7 @@ restricted_reads_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m -u ${md}
 	atf_check -o match:"URSWRZ.*: No" \
 	    zonectl -d /dev/${md}.zoned -c params
@@ -336,7 +336,7 @@ write_at_wp_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m ${md}
 	atf_check -e ignore dd if=/dev/zero of=/dev/${md}.zoned bs=1m count=1
 	atf_check_equal "0x800" "$(zone_wp 0)"
@@ -360,7 +360,7 @@ write_out_of_order_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m ${md}
 	# Zone 0 write pointer is at LBA 0; writing at 1m shall fail.
 	atf_check -s not-exit:0 -e ignore \
@@ -382,7 +382,7 @@ write_boundary_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m -c 0 ${md}
 	# One 768k write straddling the 256m mark (768k does not divide
 	# 256m, so the request reaches the kernel as a single bio going
@@ -409,7 +409,7 @@ write_conv_boundary_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m -c 0-1 ${md}
 	# The same straddling write rejected in write_boundary is fine
 	# when the zones on both sides are conventional.
@@ -431,7 +431,7 @@ write_conv_anywhere_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m -c 0 ${md}
 	# No write pointer: writing far into the zone and then again before
 	# the previous write must both succeed, and the zone never opens.
@@ -456,7 +456,7 @@ write_full_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m ${md}
 	atf_check zonectl -d /dev/${md}.zoned -c finish -l 0
 	atf_check_equal "1" "$(zone_count full)"
@@ -478,7 +478,7 @@ write_closed_zone_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m ${md}
 	atf_check -e ignore dd if=/dev/zero of=/dev/${md}.zoned bs=1m count=1
 	atf_check zonectl -d /dev/${md}.zoned -c close -l 0
@@ -504,7 +504,7 @@ persistence_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m ${md}
 	atf_check -e ignore dd if=/dev/zero of=/dev/${md}.zoned bs=1m count=1
 	atf_check_equal "0x800" "$(zone_wp 0)"
@@ -532,7 +532,7 @@ clear_clears_metadata_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m ${md}
 	# The backing provider is held open for as long as the device exists,
 	# so its metadata can only be cleared once the device is gone.
@@ -559,7 +559,7 @@ max_open_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m -m 1 ${md}
 	atf_check -o match:"Open Sequential Write Required Zones: 1" \
 	    zonectl -d /dev/${md}.zoned -c params
@@ -593,7 +593,7 @@ max_open_limit_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m -m 2 ${md}
 	atf_check zonectl -d /dev/${md}.zoned -c open -l 0
 	atf_check zonectl -d /dev/${md}.zoned -c open -l 0x80000
@@ -622,7 +622,7 @@ stop_force_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m ${md}
 
 	# Keep the device open; a plain stop must fail, a forced one work.
@@ -651,7 +651,7 @@ create_on_zoned_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m ${md}
 	# The metadata of the second device cannot land in the sequential zones
 	# of the first; creation must be refused and leave the first device
@@ -678,7 +678,7 @@ fault_injection_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m ${md}
 
 	atf_check gzoned fault -z 1 -s ro ${md}.zoned
@@ -711,7 +711,7 @@ delete_rejected_body()
 {
 	gzoned_test_setup
 
-	alloc_zoned_md
+	zoned_backing_md
 	atf_check gzoned create -s 256m ${md}
 	atf_check_equal "No" \
 	    "$(diskinfo -v /dev/${md}.zoned | \
