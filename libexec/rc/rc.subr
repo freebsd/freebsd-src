@@ -1715,10 +1715,14 @@ $command $rc_flags $command_args"
 				[ -z "${rc_pid}" ] && eval $_pidcmd
 				case $_oomprotect in
 				[Aa][Ll][Ll])
-					${PROTECT} -d -i -p ${rc_pid}
+					for _v in ${rc_pid}; do
+						${PROTECT} -d -i -p ${_v}
+					done
 					;;
 				[Yy][Ee][Ss])
-					${PROTECT} -p ${rc_pid}
+					for _v in ${rc_pid}; do
+						${PROTECT} -p ${_v}
+					done
 					;;
 				esac
 			fi
