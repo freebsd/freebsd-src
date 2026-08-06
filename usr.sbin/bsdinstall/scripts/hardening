@@ -49,6 +49,7 @@ FEATURES=$( bsddialog --backtitle "$OSNAME Installer" \
 	"7 disable_syslogd" "Disable opening Syslogd network socket (disables remote logging)" ${disable_syslogd:-off} \
 	"8 secure_console" "Enable console password prompt" ${secure_console:-off} \
 	"9 disable_ddtrace" "Disallow DTrace destructive-mode" ${disable_ddtrace:-off} \
+	"10 disable_unpriv_kenv" "Disable unprivileged reading of kenv" ${disable_unpriv_kenv:-off} \
 2>&1 1>&5 )
 retval=$?
 exec 5>&-
@@ -88,6 +89,9 @@ for feature in $FEATURES; do
 		;;
 	disable_ddtrace)
 		echo 'security.bsd.allow_destructive_dtrace=0' >> $BSDINSTALL_TMPBOOT/loader.conf.hardening
+		;;
+	disable_unpriv_kenv)
+		echo 'security.bsd.unprivileged_kenv_read=0' >> $BSDINSTALL_TMPBOOT/loader.conf.hardening
 		;;
 	esac
 done
