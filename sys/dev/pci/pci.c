@@ -442,6 +442,11 @@ SYSCTL_INT(_hw_pci, OID_AUTO, mps_limit, CTLFLAG_RDTUN, &pci_mps_limit, 0,
     "Limit PCIe MPS to this many bytes (power of two from 128 to 4096)");
 static bool pci_mps_limit_warned;
 
+static bool pci_mps_enforce;
+SYSCTL_BOOL(_hw_pci, OID_AUTO, mps_enforce, CTLFLAG_RDTUN,
+    &pci_mps_enforce, 0,
+    "Disable PCIe endpoints with an MPS incompatible with their shared path");
+
 static bool pci_intx_reroute = true;
 SYSCTL_BOOL(_hw_pci, OID_AUTO, intx_reroute, CTLFLAG_RWTUN,
     &pci_intx_reroute, 0, "Re-route INTx interrupts when scanning devices");
@@ -4518,26 +4523,60 @@ pcie_mps_conflict(device_t dev, uint16_t path_mps, uint16_t max_mps)
 	    pcie_mps_bytes(max_mps), pcie_mps_bytes(path_mps));
 }
 
+static bool
+pcie_mps_is_bridge(struct pci_devinfo *dinfo)
+{
+	uint8_t hdrtype;
+
+	hdrtype = dinfo->cfg.hdrtype & PCIM_HDRTYPE;
+	return (hdrtype == PCIM_HDRTYPE_BRIDGE ||
+	    hdrtype == PCIM_HDRTYPE_CARDBUS);
+}
+
 static void
 pcie_mps_active_conflict(device_t dev, uint16_t path_mps,
     uint16_t device_mps)
 {
+	struct pci_devinfo *dinfo;
+	const char *action;
 
 	if (!pcie_mps_first_warning(dev))
 		return;
+	dinfo = device_get_ivars(dev);
+	if (pci_mps_enforce && !pcie_mps_is_bridge(dinfo))
+		action = "disabling device";
+	else
+		action = "leaving device unchanged";
 	device_printf(dev,
 	    "configured MPS %d does not match path MPS %d while bus "
-	    "mastering is enabled; leaving device unchanged\n",
-	    pcie_mps_bytes(device_mps), pcie_mps_bytes(path_mps));
+	    "mastering is enabled; %s\n", pcie_mps_bytes(device_mps),
+	    pcie_mps_bytes(path_mps), action);
 }
 
 static void
 pcie_mps_mark_unreconciled(device_t dev)
 {
 	struct pci_devinfo *dinfo;
+	uint16_t cmd;
 
 	dinfo = device_get_ivars(dev);
+	if ((dinfo->cfg.flags & PCICFG_MPS_UNRECONCILED) != 0)
+		return;
 	dinfo->cfg.flags |= PCICFG_MPS_UNRECONCILED;
+	if (!pci_mps_enforce)
+		return;
+	if (pcie_mps_is_bridge(dinfo)) {
+		device_printf(dev,
+		    "not disabled by hw.pci.mps_enforce because it is a bridge\n");
+		return;
+	}
+	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
+	cmd &= ~(PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
+	pci_write_config(dev, PCIR_COMMAND, cmd, 2);
+	dinfo->cfg.cmdreg = cmd;
+	device_disable(dev);
+	device_printf(dev,
+	    "disabled because its MPS cannot be safely configured\n");
 }
 
 static void
