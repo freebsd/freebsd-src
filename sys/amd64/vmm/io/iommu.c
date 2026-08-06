@@ -194,7 +194,7 @@ iommu_init(void)
 	if (error)
 		return;
 
-	iommu_avail = 1;
+	atomic_store_rel_int(&iommu_avail, 1);
 
 	/*
 	 * Create a domain for the devices owned by the host
@@ -205,7 +205,7 @@ iommu_init(void)
 		printf("iommu_init: unable to create a host domain");
 		IOMMU_CLEANUP();
 		ops = NULL;
-		iommu_avail = 0;
+		atomic_store_rel_int(&iommu_avail, 0);
 		return;
 	}
 
@@ -268,12 +268,20 @@ iommu_cleanup_int(bool iommu_disable)
 	IOMMU_DESTROY_DOMAIN(host_domain);
 	host_domain = NULL;
 	IOMMU_CLEANUP();
+	atomic_store_rel_int(&iommu_avail, 0);
 }
 
 void
 iommu_cleanup(void)
 {
 	iommu_cleanup_int(true);
+}
+
+bool
+iommu_is_initialized(void)
+{
+
+	return (atomic_load_acq_int(&iommu_avail) != 0);
 }
 
 void *

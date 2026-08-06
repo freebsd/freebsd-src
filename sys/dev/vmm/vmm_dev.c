@@ -1301,9 +1301,15 @@ static moduledata_t vmm_kmod = {
  *
  * - Initialization requires smp_rendezvous() and therefore must happen
  *   after SMP is fully functional (after SI_SUB_SMP).
- * - vmm device initialization requires an initialized devfs.
+ * - vmm device initialization requires an initialized devfs
+ *   (SI_SUB_DRIVERS is after SI_SUB_DEVFS).
+ * - On amd64, vmm.ko also contains device drivers such as ppt and AMD-Vi/IVHD.
+ *   Load this module handler after SI_SUB_DRIVERS so reverse-order unload runs
+ *   iommu_cleanup() before those drivers detach.  AMD-Vi disable still needs
+ *   the IVHD softcs, and ivhd_detach() refuses while the IOMMU is initialized.
  */
-DECLARE_MODULE(vmm, vmm_kmod, MAX(SI_SUB_SMP, SI_SUB_DEVFS) + 1, SI_ORDER_ANY);
+DECLARE_MODULE(vmm, vmm_kmod, MAX(SI_SUB_DRIVERS, SI_SUB_SMP) + 1,
+    SI_ORDER_ANY);
 MODULE_VERSION(vmm, 1);
 
 static int
