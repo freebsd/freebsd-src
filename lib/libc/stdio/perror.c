@@ -65,7 +65,7 @@ perror(const char *s)
 	v->iov_len = 1;
 	FLOCKFILE_CANCELSAFE(stderr);
 	__sflush(stderr);
-	(void)_writev(stderr->_file, iov, (v - iov) + 1);
+	(void)_writev(__sfileno(stderr), iov, (v - iov) + 1);
 	stderr->_flags &= ~__SOFF;
 	FUNLOCKFILE_CANCELSAFE();
 }

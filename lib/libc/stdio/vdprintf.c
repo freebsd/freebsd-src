@@ -33,6 +33,7 @@
 
 #include "namespace.h"
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -47,17 +48,26 @@ vdprintf(int fd, const char * __restrict fmt, va_list ap)
 	FILE f = FAKE_FILE;
 	unsigned char buf[BUFSIZ];
 	int serrno = errno;
-	int ret;
+	int fdflags, ret;
 
-	if (fd > SHRT_MAX) {
-		errno = EMFILE;
-		return (EOF);
+	if (fd < 0) {
+		errno = EBADF;
+		return (-1);
+	}
+
+	/* Ensure descriptor has been opened for writing */
+	if ((fdflags = _fcntl(fd, F_GETFL, 0)) == -1)
+		return (-1);
+	fdflags &= (O_ACCMODE | O_EXEC);
+	if (fdflags != O_RDWR && fdflags != O_WRONLY) {
+		errno = EINVAL;
+		return (-1);
 	}
 
 	f._p = buf;
 	f._w = sizeof(buf);
 	f._flags = __SWR;
-	f._file = fd;
+	__sfileno_set(&f, fd);
 	f._cookie = &f;
 	f._write = __swrite;
 	f._bf._base = buf;
