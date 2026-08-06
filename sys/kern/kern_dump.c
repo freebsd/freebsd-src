@@ -396,17 +396,18 @@ static struct {
 	const int min_per;
 	const int max_per;
 	bool visited;
-} progress_track[10] = {
-	{  0,  10, false},
-	{ 10,  20, false},
-	{ 20,  30, false},
-	{ 30,  40, false},
-	{ 40,  50, false},
-	{ 50,  60, false},
-	{ 60,  70, false},
-	{ 70,  80, false},
-	{ 80,  90, false},
-	{ 90, 100, false}
+} progress_track[11] = {
+	{   0,   9, false},
+	{  10,  19, false},
+	{  20,  29, false},
+	{  30,  39, false},
+	{  40,  49, false},
+	{  50,  59, false},
+	{  60,  69, false},
+	{  70,  79, false},
+	{  80,  89, false},
+	{  90,  99, false},
+	{ 100, 100, false},
 };
 
 static uint64_t dumpsys_pb_size;
