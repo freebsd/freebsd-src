@@ -85,6 +85,7 @@ struct fs_ops zfs_fsops = {
 struct file {
 	off_t		f_seekp;	/* seek pointer */
 	dnode_phys_t	f_dnode;
+	uint64_t	f_objnum;	/* object number (st_ino) */
 	uint64_t	f_zap_type;	/* zap type for readdir */
 	uint64_t	f_num_leafs;	/* number of fzap leaf blocks */
 	zap_leaf_phys_t	*f_zap_leaf;	/* zap leaf buffer */
@@ -120,7 +121,7 @@ zfs_open(const char *upath, struct open_file *f)
 		return (ENOMEM);
 	f->f_fsdata = fp;
 
-	rc = zfs_lookup(mount, upath, &fp->f_dnode);
+	rc = zfs_lookup(mount, upath, &fp->f_dnode, &fp->f_objnum);
 	fp->f_seekp = 0;
 	if (rc) {
 		f->f_fsdata = NULL;
@@ -214,10 +215,11 @@ static int
 zfs_stat(struct open_file *f, struct stat *sb)
 {
 	struct devdesc *dev = f->f_devdata;
-	const spa_t *spa = ((struct zfsmount *)dev->d_opendata)->spa;
+	struct zfsmount *zm = dev->d_opendata;
 	struct file *fp = (struct file *)f->f_fsdata;
 
-	return (zfs_dnode_stat(spa, &fp->f_dnode, sb));
+	return (zfs_dnode_stat(zm->spa, &fp->f_dnode, sb, zm->fsid_guid,
+	    fp->f_objnum));
 }
 
 static int

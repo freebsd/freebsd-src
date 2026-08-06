@@ -143,6 +143,7 @@ load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 	dnode_phys_t dn;
 	struct stat st;
 	uint64_t rootobj;
+	uint64_t objnum;
 	int err;
 	void *buf;
 
@@ -205,7 +206,7 @@ load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 		return (EFI_NOT_FOUND);
 	}
 
-	if ((err = zfs_lookup(&zmount, filepath, &dn)) != 0) {
+	if ((err = zfs_lookup(&zmount, filepath, &dn, &objnum)) != 0) {
 		if (err == ENOENT) {
 			DPRINTF("Failed to find '%s' on pool '%s' (%d)\n",
 			    filepath, spa->spa_name, err);
@@ -216,7 +217,9 @@ load(const char *filepath, dev_info_t *devinfo, void **bufp, size_t *bufsize)
 		return (EFI_INVALID_PARAMETER);
 	}
 
-	if ((err = zfs_dnode_stat(spa, &dn, &st)) != 0) {
+	/* zmount.fsid_guid was set by zfs_mount_impl() above. */
+	if ((err = zfs_dnode_stat(spa, &dn, &st, zmount.fsid_guid,
+	    objnum)) != 0) {
 		printf("Failed to stat '%s' on pool '%s' (%d)\n", filepath,
 		    spa->spa_name, err);
 		return (EFI_INVALID_PARAMETER);
