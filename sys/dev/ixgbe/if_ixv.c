@@ -1020,7 +1020,8 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 	if (status != IXGBE_SUCCESS && sc->hw.adapter_stopped == false) {
 		/* Mailbox's Clear To Send status is lost or timeout occurred.
 		 * We need reinitialization. */
-		if_init(ifp, ctx);
+		iflib_request_reset(ctx);
+		iflib_admin_intr_deferred(ctx);
 	}
 
 	if (sc->link_up && sc->link_enabled) {
