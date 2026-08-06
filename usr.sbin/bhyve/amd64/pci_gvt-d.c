@@ -187,6 +187,7 @@ static const struct igd_device igd_devices[] = {
 	INTEL_RPLS_IDS(IGD_DEVICE, &igd_ops_gen11),
 	INTEL_RPLU_IDS(IGD_DEVICE, &igd_ops_gen11),
 	INTEL_RPLP_IDS(IGD_DEVICE, &igd_ops_gen11),
+	INTEL_ARL_IDS(IGD_DEVICE, &igd_ops_gen11),
 };
 
 static const struct igd_ops *
