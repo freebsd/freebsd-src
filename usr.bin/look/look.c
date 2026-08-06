@@ -41,9 +41,11 @@
  */
 
 #include <sys/types.h>
+#include <sys/capsicum.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -85,19 +87,26 @@ static struct option longopts[] = {
 	{ NULL,		0,		NULL, 0 },
 };
 
+struct files {
+	int fd;
+	int err;
+	const char *path;
+};
+
 int
 main(int argc, char *argv[])
 {
 	struct stat sb;
-	int ch, fd, match;
+	int ch, match;
+	size_t nfiles;
 	wchar_t termchar;
+	cap_rights_t rights;
+	struct files *files;
 	unsigned char *back, *front;
-	unsigned const char *file;
 	wchar_t *key;
 
 	(void) setlocale(LC_CTYPE, "");
 
-	file = _path_words;
 	termchar = L'\0';
 	while ((ch = getopt_long(argc, argv, "+adft:", longopts, NULL)) != -1)
 		switch(ch) {
@@ -127,27 +136,48 @@ main(int argc, char *argv[])
 	if (argc == 1) 			/* But set -df by default. */
 		dflag = fflag = 1;
 	key = prepkey(*argv++, termchar);
-	if (argc >= 2)
-		file = *argv++;
+	argc--;
 
 	match = 1;
 
-	do {
-		if ((fd = open(file, O_RDONLY, 0)) < 0 || fstat(fd, &sb))
-			err(2, "%s", file);
-		if ((uintmax_t)sb.st_size > (uintmax_t)SIZE_T_MAX)
-			errx(2, "%s: %s", file, strerror(EFBIG));
-		if (sb.st_size == 0) {
-			close(fd);
+	cap_rights_init(&rights, CAP_MMAP_R, CAP_READ, CAP_FSTAT);
+	nfiles = !argc ? 1 : argc;
+	if ((files = malloc(nfiles * sizeof(struct files))) == NULL)
+		err(2, NULL);
+	for (size_t idx = 0; idx < nfiles; idx++) {
+		files[idx].path = !argc ? _path_words : argv[idx];
+		if ((files[idx].fd = open(files[idx].path, O_RDONLY, 0)) < 0) {
+			files[idx].err = errno;
 			continue;
 		}
-		if ((front = mmap(NULL, (size_t)sb.st_size, PROT_READ, MAP_SHARED, fd, (off_t)0)) == MAP_FAILED)
-			err(2, "%s", file);
+		if (caph_rights_limit(files[idx].fd, &rights) != 0)
+			err(2, "unable to limit rights for %s", files[idx].path);
+	}
+
+	caph_cache_catpages();
+	if (caph_enter() != 0)
+		err(EXIT_FAILURE, "failed to enter capability mode");
+
+	for (size_t idx = 0; idx < nfiles; idx++) {
+		if (files[idx].err)
+			errc(2, files[idx].err, "%s", files[idx].path);
+		if (fstat(files[idx].fd, &sb))
+			err(2, "%s", files[idx].path);
+		if ((uintmax_t)sb.st_size > (uintmax_t)SIZE_T_MAX)
+			errx(2, "%s: %s", files[idx].path, strerror(EFBIG));
+		if (sb.st_size == 0) {
+			close(files[idx].fd);
+			continue;
+		}
+		if ((front = mmap(NULL, (size_t)sb.st_size, PROT_READ,
+		    MAP_SHARED, files[idx].fd, (off_t)0)) == MAP_FAILED)
+			err(2, "%s", files[idx].path);
 		back = front + sb.st_size;
 		match *= (look(key, front, back));
-		close(fd);
-	} while (argc-- > 2 && (file = *argv++));
+		close(files[idx].fd);
+	}
 
+	free(files);
 	exit(match);
 }
 
