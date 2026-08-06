@@ -53,6 +53,7 @@
 typedef std::unordered_map<std::string, std::string>	env_map;
 
 static char *tail(char *);
+static bool is_rs_file(const char *);
 static void do_clean(FILE *);
 static void do_rules(FILE *);
 static void do_xxfiles(char *, FILE *);
@@ -671,6 +672,19 @@ do_objs(FILE *fp)
 	STAILQ_FOREACH(tp, &ftab, f_next) {
 		if (tp->f_flags & NO_OBJ)
 			continue;
+		if (is_rs_file(tp->f_fn)) {
+			sp = tail(tp->f_fn);
+			len = strlen(sp) - 3 + strlen("_rs.o") +
+			    strlen(tp->f_objprefix);
+			if (len + lpos > 72) {
+				lpos = 8;
+				fprintf(fp, "\\\n\t");
+			}
+			fprintf(fp, "%s%.*s_rs.o ", tp->f_objprefix,
+			    (int)(strlen(sp) - 3), sp);
+			lpos += len + 1;
+			continue;
+		}
 		sp = tail(tp->f_fn);
 		cp = sp + (len = strlen(sp)) - 1;
 		och = *cp;
@@ -735,6 +749,15 @@ tail(char *fn)
 	return (cp+1);
 }
 
+static bool
+is_rs_file(const char *fn)
+{
+	size_t len;
+
+	len = strlen(fn);
+	return (len > 3 && strcmp(fn + len - 3, ".rs") == 0);
+}
+
 /*
  * Create the makerules for each file
  * which is part of the system.
@@ -746,10 +769,46 @@ do_rules(FILE *f)
 	struct file_list *ftp;
 	char *compilewith;
 	char cmd[128];
+	char rust_cmd[] = "${NORMAL_RS}";
 
 	STAILQ_FOREACH(ftp, &ftab, f_next) {
 		if (ftp->f_warn)
 			fprintf(stderr, "WARNING: %s\n", ftp->f_warn);
+		if (is_rs_file(ftp->f_fn)) {
+			np = ftp->f_fn;
+			char *base = tail(np);
+			size_t baselen = strlen(base) - 3;
+
+			if (ftp->f_flags & NO_IMPLCT_RULE) {
+				if (ftp->f_depends)
+					fprintf(f, "%s%.*s_rs.o: %s\n",
+					    ftp->f_objprefix, (int)baselen,
+					    base, ftp->f_depends);
+				else
+					fprintf(f, "%s%.*s_rs.o: \n",
+					    ftp->f_objprefix, (int)baselen,
+					    base);
+			} else if (ftp->f_depends) {
+				fprintf(f, "%s%.*s_rs.o: %s%s %s\n",
+				    ftp->f_objprefix, (int)baselen, base,
+				    ftp->f_srcprefix, np, ftp->f_depends);
+			} else {
+				fprintf(f, "%s%.*s_rs.o: %s%s\n",
+				    ftp->f_objprefix, (int)baselen, base,
+				    ftp->f_srcprefix, np);
+			}
+			compilewith = ftp->f_compilewith;
+			if (compilewith == NULL)
+				compilewith = rust_cmd;
+			if (strlen(ftp->f_objprefix))
+				fprintf(f, "\t%s %s%s\n", compilewith,
+				    ftp->f_srcprefix, np);
+			else
+				fprintf(f, "\t%s\n", compilewith);
+
+			fprintf(f, "\n");
+			continue;
+		}
 		cp = (np = ftp->f_fn) + strlen(ftp->f_fn) - 1;
 		och = *cp;
 		if (ftp->f_flags & NO_IMPLCT_RULE) {
