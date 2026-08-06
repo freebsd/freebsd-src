@@ -40,6 +40,7 @@
 #include "opt_hwpmc_hooks.h"
 #include "opt_ntp.h"
 #include "opt_watchdog.h"
+#include "opt_acpi.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -87,6 +88,10 @@ static struct mtx time_lock;
 
 SDT_PROVIDER_DECLARE(sched);
 SDT_PROBE_DEFINE2(sched, , , tick, "struct thread *", "struct proc *");
+
+#ifdef DEV_ACPI
+struct	intr_event *clk_intr_event;
+#endif
 
 static int
 sysctl_kern_cp_time(SYSCTL_HANDLER_ARGS)
@@ -530,7 +535,10 @@ hardclock(int cnt, int usermode)
 			if (left > 0 && left <= newticks)
 				watchdog_fire();
 		}
-		intr_event_handle(clk_intr_event, NULL);
+#ifdef DEV_ACPI
+		if (!CK_SLIST_EMPTY(&clk_intr_event->ie_handlers))
+			intr_event_handle(clk_intr_event, NULL);
+#endif
 	}
 	if (curcpu == CPU_FIRST())
 		cpu_tick_calibration();
@@ -548,6 +556,25 @@ hardclock_sync(int cpu)
 	t = DPCPU_ID_PTR(cpu, pcputicks);
 	*t = ticksl;
 }
+
+/*
+ * Start standard software interrupt threads
+ */
+#ifdef DEV_ACPI
+static void
+start_softintr(void *dummy)
+{
+
+	KASSERT(clk_intr_event == NULL, ("clk_intr_event non-NULL at %s()",
+	    __func__));
+
+	if (swi_add(&clk_intr_event, "clk", NULL, NULL, SWI_CLOCK,
+	    INTR_MPSAFE | INTR_MULTIPROC, NULL))
+		panic("died while creating clk swi ithread");
+}
+SYSINIT(start_softintr, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softintr,
+    NULL);
+#endif
 
 /*
  * Regular integer scaling formula without losing precision:
