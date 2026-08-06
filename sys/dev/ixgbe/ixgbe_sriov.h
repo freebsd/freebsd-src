@@ -79,7 +79,6 @@ void ixgbe_initialize_iov(struct ixgbe_softc *);
 void ixgbe_recalculate_max_frame(struct ixgbe_softc *);
 void ixgbe_ping_all_vfs(struct ixgbe_softc *);
 u_int ixgbe_iov_rebuild_mta(struct ixgbe_softc *);
-int  ixgbe_pci_iov_detach(device_t);
 void ixgbe_define_iov_schemas(device_t, int *);
 void ixgbe_align_all_queue_indices(struct ixgbe_softc *);
 int  ixgbe_vf_que_index(int, int, int);
@@ -96,7 +95,6 @@ u32  ixgbe_get_mrqc(int);
 #define ixgbe_initialize_iov(_a)
 #define ixgbe_recalculate_max_frame(_a)
 #define ixgbe_ping_all_vfs(_a)
-#define ixgbe_pci_iov_detach(_a) 0
 #define ixgbe_define_iov_schemas(_a,_b)
 #define ixgbe_align_all_queue_indices(_a)
 #define ixgbe_vf_que_index(_a, _b, _c) (_c)
