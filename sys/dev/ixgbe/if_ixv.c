@@ -406,6 +406,7 @@ ixv_if_attach_pre(if_ctx_t ctx)
 	device_t dev;
 	if_softc_ctx_t scctx;
 	struct ixgbe_hw *hw;
+	bool mailbox_ready;
 	int error = 0;
 
 	INIT_DEBUGOUT("ixv_attach: begin");
@@ -448,36 +449,40 @@ ixv_if_attach_pre(if_ctx_t ctx)
 	/* Setup the mailbox */
 	ixgbe_init_mbx_params_vf(hw);
 
+	mailbox_ready = false;
 	error = hw->mac.ops.reset_hw(hw);
-	if (error == IXGBE_ERR_RESET_FAILED)
-		device_printf(dev, "...reset_hw() failure: Reset Failed!\n");
-	else if (error)
-		device_printf(dev, "...reset_hw() failed with error %d\n",
-		    error);
-	if (error) {
-		error = EIO;
-		goto err_out;
-	}
-
-	error = hw->mac.ops.init_hw(hw);
-	if (error) {
-		device_printf(dev, "...init_hw() failed with error %d\n",
-		    error);
-		error = EIO;
-		goto err_out;
-	}
-
-	/* Negotiate mailbox API version */
-	error = ixv_negotiate_api(sc);
-	if (error) {
+	if (error != IXGBE_SUCCESS) {
+		/*
+		 * A PF may be resetting or servicing a slow link event while its
+		 * VFs are enumerated.  Keep the VF attached so a later if_init can
+		 * retry the mailbox handshake.
+		 */
 		device_printf(dev,
-		    "Mailbox API negotiation failed during attach!\n");
-		goto err_out;
+		    "PF did not respond to the reset handshake: %d; "
+		    "continuing attach\n", error);
+	} else {
+		error = hw->mac.ops.init_hw(hw);
+		if (error != IXGBE_SUCCESS) {
+			device_printf(dev, "...init_hw() failed with error %d\n",
+			    error);
+			error = EIO;
+			goto err_out;
+		}
+
+		/* Negotiate mailbox API version. */
+		error = ixv_negotiate_api(sc);
+		if (error != 0) {
+			device_printf(dev,
+			    "Mailbox API negotiation failed during attach; "
+			    "continuing attach\n");
+			hw->mac.ops.stop_adapter(hw);
+		} else
+			mailbox_ready = true;
 	}
 
-	/* Check if VF was disabled by PF */
-	error = hw->mac.ops.get_link_state(hw, &sc->link_enabled);
-	if (error) {
+	/* Check if VF was disabled by PF. */
+	if (!mailbox_ready ||
+	    hw->mac.ops.get_link_state(hw, &sc->link_enabled) != 0) {
 		/* PF is not capable of controlling VF state. Enable link. */
 		sc->link_enabled = true;
 	}
@@ -654,8 +659,13 @@ ixv_if_init(if_ctx_t ctx)
 	bcopy(if_getlladdr(ifp), hw->mac.addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
 	hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0, 1);
 
-	/* Reset VF and renegotiate mailbox API version */
-	hw->mac.ops.reset_hw(hw);
+	/* Reset VF and renegotiate mailbox API version. */
+	error = hw->mac.ops.reset_hw(hw);
+	if (error != IXGBE_SUCCESS) {
+		device_printf(dev,
+		    "PF did not respond to the reset handshake: %d\n", error);
+		return;
+	}
 	hw->mac.ops.start_hw(hw);
 	hw->mac.ops.get_mac_addr(hw, hw->mac.addr);
 	ixv_reconcile_mac(sc, ifp);
@@ -663,6 +673,14 @@ ixv_if_init(if_ctx_t ctx)
 	if (error) {
 		device_printf(dev,
 		    "Mailbox API negotiation failed in if_init!\n");
+		/*
+		 * Leave the adapter stopped until an explicit or deferred retry.
+		 * Otherwise the admin-status callback immediately requests another
+		 * reset and can keep its taskqueue in a tight loop while the PF is
+		 * deliberately withholding mailbox CTS (for example, when the VF is
+		 * quarantined).
+		 */
+		hw->mac.ops.stop_adapter(hw);
 		return;
 	}
 
@@ -1864,6 +1882,9 @@ ixv_if_enable_intr(if_ctx_t ctx)
 	struct ixgbe_hw *hw = &sc->hw;
 	struct ix_rx_queue *que = sc->rx_queues;
 	u32 mask = (IXGBE_EIMS_ENABLE_MASK & ~IXGBE_EIMS_RTX_QUEUE);
+
+	if (hw->adapter_stopped)
+		return;
 
 	IXGBE_WRITE_REG(hw, IXGBE_VTEIMS, mask);
 
