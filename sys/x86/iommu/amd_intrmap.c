@@ -254,7 +254,7 @@ amdiommu_ir_find(device_t src, uint16_t *ridp, bool *is_iommu)
 	} else {
 		error = amdiommu_find_unit(src, &unit, &rid, &dte, &edte,
 		    bootverbose);
-		if (error == 0) {
+		if (error == 0 && unit->irte_enabled) {
 			ioctx = iommu_instantiate_ctx(AMD2IOMMU(unit), src, false);
 			if (ioctx != NULL)
 				ctx = IOCTX2CTX(ioctx);
