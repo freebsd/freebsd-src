@@ -593,6 +593,9 @@ MSI-X interrupts can be disabled by setting this tunable to 0.
 Configure PCI-express Maximum Payload Size
 .Pq MPS
 during device enumeration.
+A reduction required below a PCI-express switch is reported but not applied,
+because recursively attached sibling subtrees may already be active and the
+complete shared ancestor hierarchy cannot be safely retuned.
 SR-IOV Virtual Functions are excluded because their MPS fields are reserved
 and the Physical Function setting applies to them.
 Configuration-space tools may therefore display a Virtual Function's
