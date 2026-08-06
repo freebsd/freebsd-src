@@ -1560,51 +1560,54 @@ ixgbe_handle_mbx(void *context)
 	for (i = 0; i < sc->num_vfs; i++) {
 		vf = &sc->vfs[i];
 		mbx_activity = false;
+		reset_seen = hw->mbx.ops[i].check_for_rst(hw, i) == 0;
 
-		if (vf->flags & IXGBE_VF_ACTIVE) {
-			reset_seen = hw->mbx.ops[vf->pool].check_for_rst(hw,
-			    vf->pool) == 0;
-			if (reset_seen) {
-				/* A reset does not prove recovery succeeded. */
-				recovering = (vf->flags &
-				    IXGBE_VF_DMA_ABORT_PENDING) != 0;
-				vf->flags |= IXGBE_VF_MBX_CLEANUP;
-				vf->mbx_cleanup_deadline = getsbinuptime() +
-				    IXGBE_VF_MBX_CLEANUP_GRACE;
-				ixgbe_process_vf_reset(sc, vf);
-				if (!recovering) {
-					vf->flags &= ~(IXGBE_VF_DMA_ABORT_PENDING |
-					    IXGBE_VF_PCI_STATE_SAVED);
-					vf->pci_saved_command = 0;
-				}
-			}
-			reset_pending =
-			    (vf->flags & IXGBE_VF_MBX_CLEANUP) != 0;
-
-			if (hw->mbx.ops[vf->pool].check_for_msg(hw,
-			    vf->pool) == 0) {
-				mbx_activity = true;
-				if (ixgbe_process_vf_msg(ctx, vf, reset_pending))
-					vf->flags &= ~IXGBE_VF_MBX_CLEANUP;
-			}
-			if (reset_pending &&
-			    (vf->flags & IXGBE_VF_MBX_CLEANUP) != 0)
-				ixgbe_cleanup_vf_mbx(sc, vf);
-
-			if (hw->mbx.ops[vf->pool].check_for_ack(hw,
-			    vf->pool) == 0) {
-				mbx_activity = true;
-				ixgbe_process_vf_ack(sc, vf);
-			}
-
-			/* Do not overwrite a response from this mailbox pass. */
-			if (!mbx_activity &&
-			    (vf->flags & IXGBE_VF_MDD_NOTIFY_PENDING) != 0)
-				ixgbe_notify_vf_mdd_reset(sc, vf);
-
-			if (vf->flags & IXGBE_VF_MBX_CLEANUP)
-				cleanup_pending = true;
+		if (!(vf->flags & IXGBE_VF_ACTIVE)) {
+			if (hw->mbx.ops[i].check_for_msg(hw, i) == 0 ||
+			    reset_seen)
+				ixgbe_clear_mbx(hw, i);
+			(void)hw->mbx.ops[i].check_for_ack(hw, i);
+			continue;
 		}
+
+		if (reset_seen) {
+			/* A reset does not prove recovery succeeded. */
+			recovering = (vf->flags &
+			    IXGBE_VF_DMA_ABORT_PENDING) != 0;
+			vf->flags |= IXGBE_VF_MBX_CLEANUP;
+			vf->mbx_cleanup_deadline = getsbinuptime() +
+			    IXGBE_VF_MBX_CLEANUP_GRACE;
+			ixgbe_process_vf_reset(sc, vf);
+			if (!recovering) {
+				vf->flags &= ~(IXGBE_VF_DMA_ABORT_PENDING |
+				    IXGBE_VF_PCI_STATE_SAVED);
+				vf->pci_saved_command = 0;
+			}
+		}
+		reset_pending = (vf->flags & IXGBE_VF_MBX_CLEANUP) != 0;
+
+		if (hw->mbx.ops[vf->pool].check_for_msg(hw,
+		    vf->pool) == 0) {
+			mbx_activity = true;
+			if (ixgbe_process_vf_msg(ctx, vf, reset_pending))
+				vf->flags &= ~IXGBE_VF_MBX_CLEANUP;
+		}
+		if (reset_pending &&
+		    (vf->flags & IXGBE_VF_MBX_CLEANUP) != 0)
+			ixgbe_cleanup_vf_mbx(sc, vf);
+
+		if (hw->mbx.ops[vf->pool].check_for_ack(hw, vf->pool) == 0) {
+			mbx_activity = true;
+			ixgbe_process_vf_ack(sc, vf);
+		}
+
+		/* Do not overwrite a response produced by this mailbox pass. */
+		if (!mbx_activity &&
+		    (vf->flags & IXGBE_VF_MDD_NOTIFY_PENDING) != 0)
+			ixgbe_notify_vf_mdd_reset(sc, vf);
+
+		if (vf->flags & IXGBE_VF_MBX_CLEANUP)
+			cleanup_pending = true;
 	}
 	sc->iov_mbx_cleanup_pending = cleanup_pending;
 } /* ixgbe_handle_mbx */
@@ -1620,41 +1623,38 @@ bool
 ixgbe_mbx_pending(struct ixgbe_softc *sc)
 {
 	struct ixgbe_hw *hw;
-	uint32_t active_mbx[4], active_rst[2], events, vf_mdd[2];
+	uint32_t events, vf_mbx[4], vf_mdd[2], vf_rst[2];
 	int i, index;
 
 	if (sc->num_vfs == 0)
 		return (false);
 
-	bzero(active_mbx, sizeof(active_mbx));
-	bzero(active_rst, sizeof(active_rst));
+	bzero(vf_mbx, sizeof(vf_mbx));
 	bzero(vf_mdd, sizeof(vf_mdd));
+	bzero(vf_rst, sizeof(vf_rst));
 	for (i = 0; i < sc->num_vfs; i++) {
-		if ((sc->vfs[i].flags & IXGBE_VF_ACTIVE) == 0)
-			continue;
 		if ((sc->vfs[i].flags & IXGBE_VF_MDD_NOTIFY_PENDING) != 0)
 			return (true);
-		index = IXGBE_PFMBICR_INDEX(sc->vfs[i].pool);
-		active_mbx[index] |=
+		index = IXGBE_PFMBICR_INDEX(i);
+		vf_mbx[index] |=
 		    IXGBE_PFMBICR_VFREQ_VF1 <<
-		    IXGBE_PFMBICR_SHIFT(sc->vfs[i].pool);
-		active_mbx[index] |=
+		    IXGBE_PFMBICR_SHIFT(i);
+		vf_mbx[index] |=
 		    IXGBE_PFMBICR_VFACK_VF1 <<
-		    IXGBE_PFMBICR_SHIFT(sc->vfs[i].pool);
-		index = IXGBE_PFVFLRE_INDEX(sc->vfs[i].pool);
-		active_rst[index] |=
-		    1U << IXGBE_PFVFLRE_SHIFT(sc->vfs[i].pool);
+		    IXGBE_PFMBICR_SHIFT(i);
+		index = IXGBE_PFVFLRE_INDEX(i);
+		vf_rst[index] |= 1U << IXGBE_PFVFLRE_SHIFT(i);
 	}
 
 	hw = &sc->hw;
-	for (index = 0; index < nitems(active_mbx); index++) {
-		if (active_mbx[index] != 0 &&
+	for (index = 0; index < nitems(vf_mbx); index++) {
+		if (vf_mbx[index] != 0 &&
 		    (IXGBE_READ_REG(hw, IXGBE_PFMBICR(index)) &
-		    active_mbx[index]) != 0)
+		    vf_mbx[index]) != 0)
 			return (true);
 	}
-	for (index = 0; index < nitems(active_rst); index++) {
-		if (active_rst[index] == 0)
+	for (index = 0; index < nitems(vf_rst); index++) {
+		if (vf_rst[index] == 0)
 			continue;
 		switch (hw->mac.type) {
 		case ixgbe_mac_82599EB:
@@ -1664,12 +1664,13 @@ ixgbe_mbx_pending(struct ixgbe_softc *sc)
 		case ixgbe_mac_X550:
 		case ixgbe_mac_X550EM_x:
 		case ixgbe_mac_X550EM_a:
+		case ixgbe_mac_E610:
 			events = IXGBE_READ_REG(hw, IXGBE_PFVFLREC(index));
 			break;
 		default:
 			return (false);
 		}
-		if ((events & active_rst[index]) != 0)
+		if ((events & vf_rst[index]) != 0)
 			return (true);
 	}
 	ixgbe_mdd_event(hw, vf_mdd);
