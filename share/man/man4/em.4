@@ -32,7 +32,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd July 29, 2026
+.Dd August 7, 2026
 .Dt EM 4
 .Os
 .Sh NAME
@@ -188,8 +188,10 @@ The supported SR-IOV configuration uses one PF transmit and receive queue and
 requires MSI-X.
 I350 requires this layout; 82576 hardware can combine VMDq with per-pool RSS,
 but that mode is not implemented by this driver.
-The PF must be administratively up and running when VFs are created and must
-remain up for VF mailbox and datapath service.
+The PF may be administratively down when VFs are created and remains down
+afterward.
+VF mailbox and datapath service begin when the PF is brought up, and the PF
+must remain up to provide those services.
 Creating or destroying VFs temporarily stops and restarts a running PF.
 Set the following per-device
 .Xr iflib 4
