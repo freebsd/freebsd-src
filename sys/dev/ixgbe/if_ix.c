@@ -1836,6 +1836,8 @@ ixgbe_config_link(if_ctx_t ctx)
 	sfp = ixgbe_is_sfp(hw);
 
 	if (sfp) {
+		/* ixgbe_if_stop() disables it on every 82599 SFP port. */
+		ixgbe_enable_tx_laser(hw);
 		sc->task_requests |= IXGBE_REQUEST_TASK_MOD;
 		iflib_admin_intr_deferred(ctx);
 	} else {
