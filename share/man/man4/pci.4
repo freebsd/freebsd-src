@@ -617,6 +617,19 @@ The maximum amount of memory permitted for the configuration parameters
 used when creating Virtual Functions via SR-IOV.
 This tunable can also be changed at runtime via
 .Xr sysctl 8 .
+.It Va hw.pci.mps_enforce Pq Defaults to 0
+Disable a newly discovered PCI-express endpoint if its MPS cannot be safely
+reconciled with the active hierarchy.
+The default behavior reports the conflict and leaves the device enabled.
+When enforcement is enabled, an under-capable endpoint below a PCI-express
+switch is disabled rather than retuning the shared path.
+PCI bridge functions are never disabled by this policy because doing so could
+disconnect otherwise compatible devices in their downstream subtrees.
+An administrator can explicitly override the policy with the
+.Cm enable
+command of
+.Xr devctl 8 ;
+the device is then attached without repeating the MPS safety check.
 .It Va hw.pci.mps_limit Pq Defaults to 0
 Limit the MPS selected while reconciling a PCI-express hierarchy during
 cold enumeration.
