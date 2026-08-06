@@ -6,6 +6,7 @@
 
 class=part
 . $(atf_get_srcdir)/../geom_subr.sh
+. $(atf_get_srcdir)/../zoned_subr.sh
 
 zoned_part_test_setup()
 {
@@ -13,22 +14,6 @@ zoned_part_test_setup()
 	if ! error_message=$(geom_load_class_if_needed zoned); then
 		atf_skip "$error_message"
 	fi
-}
-
-# Zones given in the optional first argument are conventional.
-alloc_zoned_md()
-{
-	local conv=$1
-
-	atf_check truncate -s 1025m backing_file
-	attach_md md -t vnode -f backing_file
-	atf_check gzoned create -s 256m ${conv:+-c ${conv}} ${md}
-}
-
-# Print number of zones matching a report option on the given device.
-zone_count()
-{
-	zonectl -d $1 -c rz -o $2 -P summary | awk '/zones,/ {print $1}'
 }
 
 # Wait until gpart knows a table on the given provider, surviving the
@@ -68,13 +53,13 @@ create_body()
 	zoned_part_test_setup
 
 	# Common layout: conventional zones at the head only.
-	alloc_zoned_md 0
+	zoned_attach_md 0
 	atf_check -o ignore gpart create -s gpt ${md}.zoned
 	atf_check -o ignore gpart add -t freebsd-ufs ${md}.zoned
 	atf_check test -c /dev/${md}.zonedp1
 	# Omitted backup table: the three sequential zones, including the one
 	# holding the last LBA, are still empty.
-	atf_check_equal "3" "$(zone_count /dev/${md}.zoned empty)"
+	atf_check_equal "3" "$(zoned_zone_count /dev/${md}.zoned empty)"
 }
 create_cleanup()
 {
@@ -92,7 +77,7 @@ retaste_body()
 {
 	zoned_part_test_setup
 
-	alloc_zoned_md 0
+	zoned_attach_md 0
 	atf_check -o ignore gpart create -s gpt ${md}.zoned
 	# Spoil the consumer, forcing the table to be re-read from disk.
 	atf_check sh -c "true > /dev/${md}.zoned"
@@ -115,12 +100,12 @@ scheme_refused_body()
 {
 	zoned_part_test_setup
 
-	alloc_zoned_md 0
+	zoned_attach_md 0
 	atf_check -s not-exit:0 -e match:"host-managed" \
 	    gpart create -s mbr ${md}.zoned
 	# The refusal must happen before anything is written: the
 	# sequential zones are still empty.
-	atf_check_equal "3" "$(zone_count /dev/${md}.zoned empty)"
+	atf_check_equal "3" "$(zoned_zone_count /dev/${md}.zoned empty)"
 }
 scheme_refused_cleanup()
 {
@@ -139,10 +124,10 @@ seq_head_refused_body()
 	zoned_part_test_setup
 
 	# No conventional zones at all: even the primary has no home.
-	alloc_zoned_md
+	zoned_attach_md
 	atf_check -s not-exit:0 -e match:"not randomly writable" \
 	    gpart create -s gpt ${md}.zoned
-	atf_check_equal "4" "$(zone_count /dev/${md}.zoned empty)"
+	atf_check_equal "4" "$(zoned_zone_count /dev/${md}.zoned empty)"
 }
 seq_head_refused_cleanup()
 {
@@ -162,7 +147,7 @@ conv_backup_body()
 
 	zoned_part_test_setup
 
-	alloc_zoned_md 0-3
+	zoned_attach_md 0-3
 	atf_check -o ignore gpart create -s gpt ${md}.zoned
 	lbas=$(diskinfo /dev/${md}.zoned | awk '{print $4}')
 	atf_check -o match:"EFI PART" sh -c \
@@ -185,11 +170,11 @@ destroy_body()
 {
 	zoned_part_test_setup
 
-	alloc_zoned_md 0
+	zoned_attach_md 0
 	atf_check -o ignore gpart create -s gpt ${md}.zoned
 	atf_check -o ignore gpart destroy ${md}.zoned
 	atf_check -s not-exit:0 -o ignore -e ignore gpart show ${md}.zoned
-	atf_check_equal "3" "$(zone_count /dev/${md}.zoned empty)"
+	atf_check_equal "3" "$(zoned_zone_count /dev/${md}.zoned empty)"
 }
 destroy_cleanup()
 {
