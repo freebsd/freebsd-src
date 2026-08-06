@@ -1,0 +1,6 @@
+#
+# REQUIRE: setup
+# PROVIDE: routing
+# BEFORE: services
+#
+# meta class - adds no rules

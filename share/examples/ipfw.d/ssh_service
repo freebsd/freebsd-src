@@ -1,0 +1,7 @@
+# REQUIRE: services
+# PROVIDE: ssh_service ssh_clients
+# BEFORE: outbound
+
+table ssh_clients create
+
+add allow tcp from table(ssh_clients) to me 22 in setup	        // inbound SSH
