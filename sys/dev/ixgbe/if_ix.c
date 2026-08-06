@@ -169,6 +169,9 @@ static int  ixgbe_if_detach(if_ctx_t);
 static int  ixgbe_if_shutdown(if_ctx_t);
 static int  ixgbe_if_suspend(if_ctx_t);
 static int  ixgbe_if_resume(if_ctx_t);
+#ifdef PCI_IOV
+static int  ixgbe_device_iov_init(device_t, uint16_t, const nvlist_t *);
+#endif
 
 static void ixgbe_if_stop(if_ctx_t);
 void ixgbe_if_enable_intr(if_ctx_t);
@@ -297,7 +300,7 @@ static device_method_t ix_methods[] = {
 	DEVMETHOD(device_suspend, iflib_device_suspend),
 	DEVMETHOD(device_resume, iflib_device_resume),
 #ifdef PCI_IOV
-	DEVMETHOD(pci_iov_init, iflib_device_iov_init_restart),
+	DEVMETHOD(pci_iov_init, ixgbe_device_iov_init),
 	DEVMETHOD(pci_iov_uninit, iflib_device_iov_uninit_restart),
 	DEVMETHOD(pci_iov_add_vf, iflib_device_iov_add_vf),
 #endif /* PCI_IOV */
@@ -319,6 +322,24 @@ MODULE_DEPEND(ix, pci, 1, 1, 1);
 MODULE_DEPEND(ix, ether, 1, 1, 1);
 MODULE_DEPEND(ix, iflib, 1, 1, 1);
 MODULE_DEPEND(ix, mdio, 1, 1, 1);
+
+#ifdef PCI_IOV
+static int
+ixgbe_device_iov_init(device_t dev, uint16_t num_vfs,
+    const nvlist_t *params)
+{
+	struct ixgbe_softc *sc;
+	if_ctx_t ctx;
+	int error;
+
+	ctx = device_get_softc(dev);
+	sc = iflib_get_softc(ctx);
+	error = ixgbe_iov_validate(sc, num_vfs);
+	if (error != 0)
+		return (error);
+	return (iflib_device_iov_init_restart(dev, num_vfs, params));
+}
+#endif
 
 static device_method_t ixgbe_if_methods[] = {
 	DEVMETHOD(ifdi_attach_pre, ixgbe_if_attach_pre),

@@ -74,6 +74,7 @@
 
 int  ixgbe_if_iov_vf_add(if_ctx_t, u16, const nvlist_t *);
 int  ixgbe_if_iov_init(if_ctx_t, u16, const nvlist_t *);
+int  ixgbe_iov_validate(struct ixgbe_softc *, u16);
 void ixgbe_if_iov_uninit(if_ctx_t);
 void ixgbe_initialize_iov(struct ixgbe_softc *);
 void ixgbe_recalculate_max_frame(struct ixgbe_softc *);

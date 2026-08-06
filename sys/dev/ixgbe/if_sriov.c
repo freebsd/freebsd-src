@@ -1028,18 +1028,20 @@ ixgbe_handle_mbx(void *context)
 } /* ixgbe_handle_mbx */
 
 int
-ixgbe_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
+ixgbe_iov_validate(struct ixgbe_softc *sc, u16 num_vfs)
 {
-	struct ixgbe_softc *sc;
-	int i, num_filters, retval = 0;
+	int mode, pool, queue_count;
 
-	sc = iflib_get_softc(ctx);
-	sc->iov_mode = IXGBE_NO_VM;
-
-	if (num_vfs == 0) {
-		/* Would we ever get num_vfs = 0? */
-		retval = EINVAL;
-		goto err_init_iov;
+	if (!(sc->feat_cap & IXGBE_FEATURE_SRIOV))
+		return (ENXIO);
+	if (num_vfs == 0)
+		return (EINVAL);
+	if (sc->vfs != NULL || sc->vf_mac_filters != NULL ||
+	    (sc->feat_en & IXGBE_FEATURE_SRIOV))
+		return (EBUSY);
+	if (sc->intr_type != IFLIB_INTR_MSIX) {
+		device_printf(sc->dev, "SR-IOV requires MSI-X\n");
+		return (ENOTSUP);
 	}
 
 	/*
@@ -1049,17 +1051,43 @@ ixgbe_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
 	 * With 32 VFs, you can have up to four queues per VF.
 	 */
 	if (num_vfs >= IXGBE_32_VM)
+		mode = IXGBE_64_VM;
+	else
+		mode = IXGBE_32_VM;
+	queue_count = ixgbe_vf_queues(mode);
+	if (sc->num_rx_queues > queue_count ||
+	    sc->num_tx_queues > queue_count) {
+		device_printf(sc->dev,
+		    "SR-IOV mode supports %d PF queues, but %d RX and %d TX "
+		    "queues are allocated\n", queue_count, sc->num_rx_queues,
+		    sc->num_tx_queues);
+		return (ENOSPC);
+	}
+
+	/* Again, reserving 1 VM's worth of queues for the PF */
+	pool = mode - 1;
+	if (num_vfs > pool || num_vfs >= IXGBE_64_VM)
+		return (ENOSPC);
+	return (0);
+}
+
+int
+ixgbe_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
+{
+	struct ixgbe_softc *sc;
+	int i, num_filters, retval;
+
+	(void)config;
+	sc = iflib_get_softc(ctx);
+	retval = ixgbe_iov_validate(sc, num_vfs);
+	if (retval != 0)
+		return (retval);
+
+	if (num_vfs >= IXGBE_32_VM)
 		sc->iov_mode = IXGBE_64_VM;
 	else
 		sc->iov_mode = IXGBE_32_VM;
-
-	/* Again, reserving 1 VM's worth of queues for the PF */
 	sc->pool = sc->iov_mode - 1;
-
-	if ((num_vfs > sc->pool) || (num_vfs >= IXGBE_64_VM)) {
-		retval = ENOSPC;
-		goto err_init_iov;
-	}
 
 	sc->vfs = malloc(sizeof(*sc->vfs) * num_vfs, M_IXGBE_SRIOV,
 	    M_NOWAIT | M_ZERO);
@@ -1093,6 +1121,11 @@ ixgbe_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
 	return (retval);
 
 err_init_iov:
+	free(sc->vf_mac_filters, M_IXGBE_SRIOV);
+	sc->vf_mac_filters = NULL;
+	sc->num_vf_mac_filters = 0;
+	free(sc->vfs, M_IXGBE_SRIOV);
+	sc->vfs = NULL;
 	sc->num_vfs = 0;
 	sc->pool = 0;
 	sc->iov_mode = IXGBE_NO_VM;
