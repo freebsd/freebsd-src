@@ -1258,6 +1258,7 @@ checklost(struct fat_descriptor *fat)
 	cl_t head;
 	int mod = FSOK;
 	int dosfs, ret;
+	bool reconnect_failed;
 	size_t chains, chainlength;
 	struct bootblock *boot;
 
@@ -1283,19 +1284,32 @@ checklost(struct fat_descriptor *fat)
 			continue;
 		}
 		if (fat_is_cl_head(fat, head)) {
+			reconnect_failed = false;
 			ret = checkchain(fat, head, &chainlength);
 			if (ret != FSERROR && chainlength > 0) {
 				pwarn("Lost cluster chain at cluster %u\n"
 				    "%zd Cluster(s) lost\n",
 				    head, chainlength);
-				mod |= ret = reconnect(fat, head,
+				ret = reconnect(fat, head,
 				    chainlength);
+				/*
+				 * Defer folding a reconnect() failure into
+				 * mod: if the lost chain is cleared below, it
+				 * has been resolved and must not be reported as
+				 * an unrecovered error (FSERROR).
+				 */
+				if (ret == FSERROR)
+					reconnect_failed = true;
+				else
+					mod |= ret;
 			}
 			if (mod & FSFATAL)
 				break;
 			if (ret == FSERROR && ask(0, "Clear")) {
 				clearchain(fat, head);
 				mod |= FSFATMOD;
+			} else if (reconnect_failed) {
+				mod |= FSERROR;
 			}
 			chains--;
 		}
