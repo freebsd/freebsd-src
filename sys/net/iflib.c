@@ -5585,6 +5585,37 @@ iflib_device_iov_init(device_t dev, uint16_t num_vfs, const nvlist_t *params)
 	return (error);
 }
 
+int
+iflib_device_iov_init_restart(device_t dev, uint16_t num_vfs,
+    const nvlist_t *params)
+{
+	if_ctx_t ctx;
+	if_t ifp;
+	bool restart, running;
+	int error;
+
+	ctx = device_get_softc(dev);
+	ifp = ctx->ifc_ifp;
+
+	CTX_LOCK(ctx);
+	/*
+	 * Drivers which change the PF queue layout need the complete iflib
+	 * stop/init sequence around their IOV callback when the interface is
+	 * active.  An administratively-down interface has no live queues to
+	 * quiesce, and must remain down after the new layout is installed.
+	 * Keep the transition within one context-lock critical section.
+	 */
+	restart = (if_getflags(ifp) & IFF_UP) != 0;
+	running = (if_getdrvflags(ifp) & IFF_DRV_RUNNING) != 0;
+	if (restart || running)
+		iflib_stop(ctx);
+	error = IFDI_IOV_INIT(ctx, num_vfs, params);
+	if (restart)
+		iflib_init_locked(ctx);
+	CTX_UNLOCK(ctx);
+	return (error);
+}
+
 void
 iflib_device_iov_uninit(device_t dev)
 {
