@@ -1171,12 +1171,15 @@ vfs_domount_first(
 	if (error == 0)
 		error = vinvalbuf(vp, V_SAVE, 0, 0);
 	if (vfsp->vfc_flags & VFCF_FILEMOUNT) {
-		if (error == 0 && vp->v_type != VDIR && vp->v_type != VREG)
+		if (error == 0 && vp->v_type != VDIR && vp->v_type != VREG &&
+		    vp->v_type != VSOCK)
 			error = EINVAL;
 		/*
-		 * For file mounts, ensure that there is only one hardlink to the file.
+		 * For file and socket mounts, ensure that there is only one
+		 * hardlink to the file or socket.
 		 */
-		if (error == 0 && vp->v_type == VREG && va.va_nlink != 1)
+		if (error == 0 && (vp->v_type == VREG ||
+		    vp->v_type == VSOCK) && va.va_nlink != 1)
 			error = EINVAL;
 	} else {
 		if (error == 0 && vp->v_type != VDIR)
@@ -1697,10 +1700,10 @@ vfs_domount(
 		return (error);
 	vp = nd.ni_vp;
 	/*
-	 * Don't allow stacking file mounts to work around problems with the way
-	 * that namei sets nd.ni_dvp to vp_crossmp for these.
+	 * Don't allow stacking file or socket mounts to work around problems
+	 * with the way that namei sets nd.ni_dvp to vp_crossmp for these.
 	 */
-	if (vp->v_type == VREG)
+	if (vp->v_type == VREG || vp->v_type == VSOCK)
 		fsflags |= MNT_NOCOVER;
 	if ((fsflags & MNT_UPDATE) == 0) {
 		if ((vp->v_vflag & VV_ROOT) != 0 &&
