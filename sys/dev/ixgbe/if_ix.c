@@ -51,6 +51,9 @@
  ************************************************************************/
 static const char ixgbe_driver_version[] = "5.0.1-k";
 
+/* Bound one admin-task invocation while still coalescing new requests. */
+#define IXGBE_ADMIN_TASK_BUDGET	8
+
 /************************************************************************
  * PCI Device ID Table
  *
@@ -280,9 +283,9 @@ static int  ixgbe_sysctl_dump_debug_dump(SYSCTL_HANDLER_ARGS);
 
 /* Deferred interrupt tasklets */
 static void ixgbe_handle_msf(void *);
-static void ixgbe_handle_mod(void *);
+static bool ixgbe_handle_mod(void *);
 static void ixgbe_handle_phy(void *);
-static void ixgbe_handle_fw_event(void *);
+static u32  ixgbe_handle_fw_event(void *);
 
 static int ixgbe_enable_lse(struct ixgbe_softc *sc);
 static int ixgbe_disable_lse(struct ixgbe_softc *sc);
@@ -1838,7 +1841,7 @@ ixgbe_config_link(if_ctx_t ctx)
 	if (sfp) {
 		/* ixgbe_if_stop() disables it on every 82599 SFP port. */
 		ixgbe_enable_tx_laser(hw);
-		sc->task_requests |= IXGBE_REQUEST_TASK_MOD;
+		atomic_set_32(&sc->task_requests, IXGBE_REQUEST_TASK_MOD);
 		iflib_admin_intr_deferred(ctx);
 	} else {
 		if (hw->mac.ops.check_link)
@@ -3123,12 +3126,12 @@ ixgbe_msix_link(void *arg)
 	/* Link status change */
 	if (eicr & IXGBE_EICR_LSC) {
 		IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EIMC_LSC);
-		sc->task_requests |= IXGBE_REQUEST_TASK_LSC;
+		atomic_set_32(&sc->task_requests, IXGBE_REQUEST_TASK_LSC);
 	}
 
 	if (eicr & IXGBE_EICR_FW_EVENT) {
 		IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EICR_FW_EVENT);
-		sc->task_requests |= IXGBE_REQUEST_TASK_FWEVENT;
+		atomic_set_32(&sc->task_requests, IXGBE_REQUEST_TASK_FWEVENT);
 	}
 
 	if (sc->hw.mac.type != ixgbe_mac_82598EB) {
@@ -3139,7 +3142,7 @@ ixgbe_msix_link(void *arg)
 				return (FILTER_HANDLED);
 			/* Disable the interrupt */
 			IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EICR_FLOW_DIR);
-			sc->task_requests |= IXGBE_REQUEST_TASK_FDIR;
+			atomic_set_32(&sc->task_requests, IXGBE_REQUEST_TASK_FDIR);
 		} else
 			if (eicr & IXGBE_EICR_ECC) {
 				device_printf(iflib_get_dev(sc->ctx),
@@ -3190,7 +3193,7 @@ ixgbe_msix_link(void *arg)
 		/* Check for VF message */
 		if ((sc->feat_en & IXGBE_FEATURE_SRIOV) &&
 		    (eicr & IXGBE_EICR_MAILBOX)) {
-			sc->task_requests |= IXGBE_REQUEST_TASK_MBX;
+			atomic_set_32(&sc->task_requests, IXGBE_REQUEST_TASK_MBX);
 		}
 	}
 
@@ -3207,14 +3210,14 @@ ixgbe_msix_link(void *arg)
 
 		if (eicr & eicr_mask) {
 			IXGBE_WRITE_REG(hw, IXGBE_EICR, eicr_mask);
-			sc->task_requests |= IXGBE_REQUEST_TASK_MOD;
+			atomic_set_32(&sc->task_requests, IXGBE_REQUEST_TASK_MOD);
 		}
 
 		if ((hw->mac.type == ixgbe_mac_82599EB) &&
 		    (eicr & IXGBE_EICR_GPI_SDP1_BY_MAC(hw))) {
 			IXGBE_WRITE_REG(hw, IXGBE_EICR,
 			    IXGBE_EICR_GPI_SDP1_BY_MAC(hw));
-			sc->task_requests |= IXGBE_REQUEST_TASK_MSF;
+			atomic_set_32(&sc->task_requests, IXGBE_REQUEST_TASK_MSF);
 		}
 	}
 
@@ -3229,10 +3232,10 @@ ixgbe_msix_link(void *arg)
 	if ((hw->phy.type == ixgbe_phy_x550em_ext_t) &&
 	    (eicr & IXGBE_EICR_GPI_SDP0_X540)) {
 		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP0_X540);
-		sc->task_requests |= IXGBE_REQUEST_TASK_PHY;
+		atomic_set_32(&sc->task_requests, IXGBE_REQUEST_TASK_PHY);
 	}
 
-	return (sc->task_requests != 0) ?
+	return (atomic_load_acq_32(&sc->task_requests) != 0) ?
 	    FILTER_SCHEDULE_THREAD : FILTER_HANDLED;
 } /* ixgbe_msix_link */
 
@@ -3986,10 +3989,9 @@ ixgbe_if_init(if_ctx_t ctx)
 	ixgbe_initialize_receive_units(ctx);
 
 	/*
-	 * Initialize variable holding task enqueue requests
-	 * from MSI-X interrupts
+	 * Initialize the deferred administrative request mask.
 	 */
-	sc->task_requests = 0;
+	atomic_store_rel_32(&sc->task_requests, 0);
 
 	/* Enable SDP & MSI-X interrupts based on adapter */
 	ixgbe_config_gpie(sc);
@@ -4548,7 +4550,7 @@ out:
 /************************************************************************
  * ixgbe_handle_mod - Tasklet for SFP module interrupts
  ************************************************************************/
-static void
+static bool
 ixgbe_handle_mod(void *context)
 {
 	if_ctx_t ctx = context;
@@ -4593,11 +4595,10 @@ ixgbe_handle_mod(void *context)
 		    "Setup failure - unsupported SFP+ module type.\n");
 		goto handle_mod_out;
 	}
-	sc->task_requests |= IXGBE_REQUEST_TASK_MSF;
-	return;
+	return (true);
 
 handle_mod_out:
-	sc->task_requests &= ~(IXGBE_REQUEST_TASK_MSF);
+	return (false);
 } /* ixgbe_handle_mod */
 
 
@@ -4689,7 +4690,7 @@ s32 ixgbe_disable_lse(struct ixgbe_softc *sc)
 /************************************************************************
  * ixgbe_handle_fw_event - Tasklet for MSI-X Link Status Event interrupts
  ************************************************************************/
-static void
+static u32
 ixgbe_handle_fw_event(void *context)
 {
 	if_ctx_t ctx = context;
@@ -4698,13 +4699,14 @@ ixgbe_handle_fw_event(void *context)
 	struct ixgbe_aci_event event;
 	bool pending = false;
 	s32 error;
+	u32 requests = 0;
 
 	event.buf_len = IXGBE_ACI_MAX_BUFFER_SIZE;
 	event.msg_buf = malloc(event.buf_len, M_IXGBE, M_ZERO | M_NOWAIT);
 	if (!event.msg_buf) {
 		device_printf(sc->dev, "Can not allocate buffer for "
 		    "event message\n");
-		return;
+		return (0);
 	}
 
 	do {
@@ -4717,7 +4719,7 @@ ixgbe_handle_fw_event(void *context)
 
 		switch (le16toh(event.desc.opcode)) {
 		case ixgbe_aci_opc_get_link_status:
-			sc->task_requests |= IXGBE_REQUEST_TASK_LSC;
+			requests |= IXGBE_REQUEST_TASK_LSC;
 			break;
 
 		case ixgbe_aci_opc_fw_logs_event:
@@ -4741,6 +4743,7 @@ ixgbe_handle_fw_event(void *context)
 	} while (pending);
 
 	free(event.msg_buf, M_IXGBE);
+	return (requests);
 } /* ixgbe_handle_fw_event */
 
 /************************************************************************
@@ -4812,15 +4815,61 @@ ixgbe_link_speed_to_str(u32 link_speed)
 /************************************************************************
  * ixgbe_update_link_status - Update OS on link state
  *
- * Note: Only updates the OS on the cached link state.
- *       The real check of the hardware only happens with
- *       a link interrupt.
+ * Process deferred administrative requests and update the OS link state.
  ************************************************************************/
 static void
 ixgbe_if_update_admin_status(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	device_t dev = iflib_get_dev(ctx);
+	u32 requests;
+	u_int pass;
+	bool check_link = false;
+
+	/*
+	 * The interrupt filter and other producers can run concurrently with
+	 * this task.  Claim each batch atomically so a request posted while the
+	 * task is running remains pending for this or the next invocation.
+	 *
+	 * MOD and firmware events can produce dependent requests.  Fold those
+	 * into the claimed batch so link state is sampled after any link setup.
+	 */
+	if ((if_getdrvflags(iflib_get_ifp(ctx)) & IFF_DRV_RUNNING) != 0 &&
+	    (sc->iov_mbx_cleanup_pending || ixgbe_mbx_pending(sc)))
+		atomic_set_32(&sc->task_requests, IXGBE_REQUEST_TASK_MBX);
+	for (pass = 0; pass < IXGBE_ADMIN_TASK_BUDGET; pass++) {
+		requests = atomic_readandclear_32(&sc->task_requests);
+		if (requests == 0)
+			break;
+		if (requests & IXGBE_REQUEST_TASK_FWEVENT)
+			requests |= ixgbe_handle_fw_event(ctx);
+		if (requests & IXGBE_REQUEST_TASK_MOD) {
+			if (ixgbe_handle_mod(ctx))
+				requests |= IXGBE_REQUEST_TASK_MSF;
+			else
+				requests &= ~IXGBE_REQUEST_TASK_MSF;
+		}
+		if (requests & IXGBE_REQUEST_TASK_MSF)
+			ixgbe_handle_msf(ctx);
+		/* A reset request can re-enable VF traffic; skip it while stopped. */
+		if ((requests & IXGBE_REQUEST_TASK_MBX) != 0 &&
+		    (if_getdrvflags(iflib_get_ifp(ctx)) & IFF_DRV_RUNNING) != 0)
+			ixgbe_handle_mbx(ctx);
+		if (requests & IXGBE_REQUEST_TASK_FDIR)
+			ixgbe_reinit_fdir(ctx);
+		if (requests & IXGBE_REQUEST_TASK_PHY)
+			ixgbe_handle_phy(ctx);
+		if (requests & IXGBE_REQUEST_TASK_LSC)
+			check_link = true;
+	}
+
+	/* Do not let a continuous producer monopolize the admin taskqueue. */
+	if (atomic_load_acq_32(&sc->task_requests) != 0)
+		iflib_admin_intr_deferred(ctx);
+
+	if (check_link)
+		ixgbe_check_link(&sc->hw, &sc->link_speed, &sc->link_up,
+		    false);
 
 	if (sc->link_up) {
 		if (sc->link_active == false) {
@@ -4864,27 +4913,6 @@ ixgbe_if_update_admin_status(if_ctx_t ctx)
 		}
 	}
 
-	/* Handle task requests from msix_link() */
-	if (sc->task_requests & IXGBE_REQUEST_TASK_FWEVENT)
-		ixgbe_handle_fw_event(ctx);
-	if (sc->task_requests & IXGBE_REQUEST_TASK_MOD)
-		ixgbe_handle_mod(ctx);
-	if (sc->task_requests & IXGBE_REQUEST_TASK_MSF)
-		ixgbe_handle_msf(ctx);
-	/*
-	 * A reset request re-enables VF traffic, so do not service mailboxes
-	 * while the PF is stopped.  VFREQ, VFACK, and VFLR are hardware-latched
-	 * and ixgbe_mbx_pending() resamples them after the PF is running again.
-	 */
-	if ((if_getdrvflags(iflib_get_ifp(ctx)) & IFF_DRV_RUNNING) != 0 &&
-	    ((sc->task_requests & IXGBE_REQUEST_TASK_MBX) != 0 ||
-	    sc->iov_mbx_cleanup_pending || ixgbe_mbx_pending(sc)))
-		ixgbe_handle_mbx(ctx);
-	if (sc->task_requests & IXGBE_REQUEST_TASK_FDIR)
-		ixgbe_reinit_fdir(ctx);
-	if (sc->task_requests & IXGBE_REQUEST_TASK_PHY)
-		ixgbe_handle_phy(ctx);
-	sc->task_requests = 0;
 	ixgbe_schedule_iov_recovery(sc);
 
 	ixgbe_update_stats_counters(sc);
@@ -5109,9 +5137,10 @@ ixgbe_intr(void *arg)
 	struct ix_rx_queue *que = sc->rx_queues;
 	struct ixgbe_hw *hw = &sc->hw;
 	if_ctx_t ctx = sc->ctx;
-	u32 eicr, eicr_mask;
+	u32 eicr, eicr_mask, requests;
 
 	eicr = IXGBE_READ_REG(hw, IXGBE_EICR);
+	requests = 0;
 
 	++que->irqs;
 	if (eicr == 0) {
@@ -5131,7 +5160,7 @@ ixgbe_intr(void *arg)
 	/* Link status change */
 	if (eicr & IXGBE_EICR_LSC) {
 		IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EIMC_LSC);
-		iflib_admin_intr_deferred(ctx);
+		requests |= IXGBE_REQUEST_TASK_LSC;
 	}
 
 	if (ixgbe_is_sfp(hw)) {
@@ -5143,21 +5172,25 @@ ixgbe_intr(void *arg)
 
 		if (eicr & eicr_mask) {
 			IXGBE_WRITE_REG(hw, IXGBE_EICR, eicr_mask);
-			sc->task_requests |= IXGBE_REQUEST_TASK_MOD;
+			requests |= IXGBE_REQUEST_TASK_MOD;
 		}
 
 		if ((hw->mac.type == ixgbe_mac_82599EB) &&
 		    (eicr & IXGBE_EICR_GPI_SDP1_BY_MAC(hw))) {
 			IXGBE_WRITE_REG(hw, IXGBE_EICR,
 			    IXGBE_EICR_GPI_SDP1_BY_MAC(hw));
-			sc->task_requests |= IXGBE_REQUEST_TASK_MSF;
+			requests |= IXGBE_REQUEST_TASK_MSF;
 		}
 	}
 
 	/* External PHY interrupt */
 	if ((hw->phy.type == ixgbe_phy_x550em_ext_t) &&
 	    (eicr & IXGBE_EICR_GPI_SDP0_X540)) {
-		sc->task_requests |= IXGBE_REQUEST_TASK_PHY;
+		requests |= IXGBE_REQUEST_TASK_PHY;
+	}
+	if (requests != 0) {
+		atomic_set_32(&sc->task_requests, requests);
+		iflib_admin_intr_deferred(ctx);
 	}
 
 	return (FILTER_SCHEDULE_THREAD);
