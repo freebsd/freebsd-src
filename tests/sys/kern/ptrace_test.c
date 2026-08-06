@@ -53,6 +53,8 @@
 #include <unistd.h>
 #include <atf-c.h>
 
+#include "freebsd_test_suite/macros.h"
+
 /*
  * Architectures with a user-visible breakpoint().
  */
@@ -4751,6 +4753,8 @@ ATF_TC_BODY(ptrace__PT_ATTACH_no_EINTR, tc)
 	struct timespec rqt, now, wake;
 	pid_t debuggee;
 	int status;
+
+	ATF_REQUIRE_SYSCTL_INT("debug.ptrace_attach_transparent", 1);
 
 	shm = mmap(NULL, sizeof(*shm), PROT_READ | PROT_WRITE,
 	    MAP_SHARED | MAP_ANON, -1, 0);
