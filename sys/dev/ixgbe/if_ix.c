@@ -297,8 +297,8 @@ static device_method_t ix_methods[] = {
 	DEVMETHOD(device_suspend, iflib_device_suspend),
 	DEVMETHOD(device_resume, iflib_device_resume),
 #ifdef PCI_IOV
-	DEVMETHOD(pci_iov_init, iflib_device_iov_init),
-	DEVMETHOD(pci_iov_uninit, iflib_device_iov_uninit),
+	DEVMETHOD(pci_iov_init, iflib_device_iov_init_restart),
+	DEVMETHOD(pci_iov_uninit, iflib_device_iov_uninit_restart),
 	DEVMETHOD(pci_iov_add_vf, iflib_device_iov_add_vf),
 #endif /* PCI_IOV */
 	DEVMETHOD(bus_add_child, device_add_child_ordered),
@@ -3665,15 +3665,9 @@ static int
 ixgbe_if_detach(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
-	device_t dev = iflib_get_dev(ctx);
 	u32 ctrl_ext;
 
 	INIT_DEBUGOUT("ixgbe_detach: begin");
-
-	if (ixgbe_pci_iov_detach(dev) != 0) {
-		device_printf(dev, "SR-IOV in use; detach first.\n");
-		return (EBUSY);
-	}
 
 	ixgbe_setup_low_power_mode(ctx);
 
