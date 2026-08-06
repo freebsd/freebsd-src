@@ -283,6 +283,40 @@ ixgbe_ping_all_vfs(struct ixgbe_softc *sc)
 	}
 } /* ixgbe_ping_all_vfs */
 
+/*
+ * Stop VF DMA before resetting the PF.  A PF reset invalidates the VF queue
+ * state, so allowing an active VF to resume with its old rings can strand
+ * descriptors in both the VF and PF.  Clearing CTS makes a cooperative VF
+ * renegotiate its state after the PF comes back; it is deliberately separate
+ * from IXGBE_VF_IO_DISABLED, which records a persistent administrative or
+ * recovery decision.
+ */
+void
+ixgbe_quiesce_vfs(struct ixgbe_softc *sc)
+{
+	struct ixgbe_hw *hw;
+	struct ixgbe_vf *vf;
+	uint32_t index, mask, vfre, vfte;
+	int i;
+
+	hw = &sc->hw;
+	for (i = 0; i < sc->num_vfs; i++) {
+		vf = &sc->vfs[i];
+		if (!(vf->flags & IXGBE_VF_ACTIVE))
+			continue;
+
+		vf->flags &= ~IXGBE_VF_CTS;
+		index = IXGBE_VF_INDEX(vf->pool);
+		mask = IXGBE_VF_BIT(vf->pool);
+		vfte = IXGBE_READ_REG(hw, IXGBE_VFTE(index));
+		vfre = IXGBE_READ_REG(hw, IXGBE_VFRE(index));
+		IXGBE_WRITE_REG(hw, IXGBE_VFTE(index), vfte & ~mask);
+		IXGBE_WRITE_REG(hw, IXGBE_VFRE(index), vfre & ~mask);
+		ixgbe_send_vf_msg(hw, vf, IXGBE_PF_CONTROL_MSG);
+	}
+	IXGBE_WRITE_FLUSH(hw);
+} /* ixgbe_quiesce_vfs */
+
 
 static bool
 ixgbe_pf_owns_vlan(struct ixgbe_softc *sc, uint16_t tag)

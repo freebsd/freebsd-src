@@ -4757,8 +4757,10 @@ ixgbe_if_stop(if_ctx_t ctx)
 
 	INIT_DEBUGOUT("ixgbe_if_stop: begin\n");
 
-	if (sc->feat_en & IXGBE_FEATURE_SRIOV)
+	if (sc->feat_en & IXGBE_FEATURE_SRIOV) {
 		ixgbe_disable_mdd(hw);
+		ixgbe_quiesce_vfs(sc);
+	}
 	ixgbe_reset_hw(hw);
 	hw->adapter_stopped = false;
 	ixgbe_stop_adapter(hw);
@@ -4767,7 +4769,12 @@ ixgbe_if_stop(if_ctx_t ctx)
 
 	/* Update the stack */
 	sc->link_up = false;
-	ixgbe_if_update_admin_status(ctx);
+	if (sc->link_active) {
+		if (bootverbose)
+			device_printf(sc->dev, "Link is Down\n");
+		iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
+		sc->link_active = false;
+	}
 
 	/* reprogram the RAR[0] in case user changed it. */
 	ixgbe_set_rar(&sc->hw, 0, sc->hw.mac.addr, 0, IXGBE_RAH_AV);

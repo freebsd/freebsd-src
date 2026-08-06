@@ -89,6 +89,7 @@ int  ixgbe_iov_validate(struct ixgbe_softc *, u16);
 void ixgbe_if_iov_uninit(if_ctx_t);
 void ixgbe_initialize_iov(struct ixgbe_softc *);
 void ixgbe_activate_vfs(struct ixgbe_softc *);
+void ixgbe_quiesce_vfs(struct ixgbe_softc *);
 void ixgbe_recalculate_max_frame(struct ixgbe_softc *);
 void ixgbe_ping_all_vfs(struct ixgbe_softc *);
 void ixgbe_init_iov_recovery(struct ixgbe_softc *);
@@ -109,6 +110,7 @@ u32  ixgbe_get_mrqc(int);
 #define ixgbe_uninit_iov(_a)
 #define ixgbe_initialize_iov(_a)
 #define ixgbe_activate_vfs(_a)
+#define ixgbe_quiesce_vfs(_a)
 #define ixgbe_recalculate_max_frame(_a)
 #define ixgbe_ping_all_vfs(_a)
 #define ixgbe_init_iov_recovery(_a)
