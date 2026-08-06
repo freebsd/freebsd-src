@@ -776,20 +776,20 @@ static struct rk_clk rk3568_clks[] = {
 	CDIV(0, "clk_cpll_div_500m_div", "cpll", 0, 78, 8, 5),
 
 	/*  CRU_CLKSEL_CON79 */
-	CDIV(0, "clk_cpll_div_333m_div", "cpll", 0, 79, 0, 6),
+	CDIV(0, "clk_cpll_div_333m_div", "cpll", 0, 79, 0, 5),
 	CDIV(0, "clk_cpll_div_250m_div", "cpll", 0, 79, 8, 5),
 
 	/*  CRU_CLKSEL_CON80 */
-	CDIV(0, "clk_cpll_div_125m_div", "cpll", 0, 80, 0, 6),
+	CDIV(0, "clk_cpll_div_125m_div", "cpll", 0, 80, 0, 5),
 	CDIV(0, "clk_cpll_div_62P5m_div", "cpll", 0, 80, 8, 5),
 
 	/*  CRU_CLKSEL_CON81 */
-	CDIV(0, "clk_cpll_div_50m_div", "cpll", 0, 81, 0, 6),
-	CDIV(0, "clk_cpll_div_25m_div", "cpll", 0, 81, 8, 5),
+	CDIV(0, "clk_cpll_div_50m_div", "cpll", 0, 81, 0, 5),
+	CDIV(0, "clk_cpll_div_25m_div", "cpll", 0, 81, 8, 6),
 
 	/*  CRU_CLKSEL_CON82 */
-	CDIV(0, "clk_cpll_div_100m_div", "cpll", 0, 82, 0, 6),
-	CDIV(0, "clk_osc0_div_750k_div", "xin24m", 0, 82, 8, 5),
+	CDIV(0, "clk_cpll_div_100m_div", "cpll", 0, 82, 0, 5),
+	CDIV(0, "clk_osc0_div_750k_div", "xin24m", 0, 82, 8, 6),
 
 	/*  CRU_CLKSEL_CON83 */
 	CDIV(0, "clk_i2s3_2ch_rx_src_div", "clk_i2s3_2ch_rx_src_sel", 0, 83, 0, 7),
