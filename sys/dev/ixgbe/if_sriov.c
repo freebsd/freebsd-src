@@ -408,8 +408,10 @@ ixgbe_vf_reset_vlan(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
 	s32 error;
 
 	ixgbe_vf_clear_vlans(sc, vf, clear_hw);
-	error = IXGBE_SUCCESS;
-	if (vf->default_vlan != 0) {
+	if (vf->default_vlan == 0) {
+		/* VLAN 0 membership is implicit and not VF-removable. */
+		error = ixgbe_vf_vlan_hw_update(sc, vf, 0, true);
+	} else {
 		error = ixgbe_vf_vlan_hw_update(sc, vf, vf->default_vlan, true);
 		if (error == IXGBE_SUCCESS)
 			ixgbe_vf_vlan_record(vf, vf->default_vlan, true);
