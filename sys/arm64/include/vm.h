@@ -61,8 +61,6 @@ vm_memattr_name(vm_memattr_t memattr)
 		return ("write-through");
 	case VM_MEMATTR_DEVICE_nGnRE:
 		return ("device-nGnRE");
-	case VM_MEMATTR_TAGGED:
-		return ("tagged");
 	default:
 		return (NULL);
 	}
