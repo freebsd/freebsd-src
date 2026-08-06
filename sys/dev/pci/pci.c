@@ -437,6 +437,11 @@ SYSCTL_BOOL(_hw_pci, OID_AUTO, enable_mps_tune, CTLFLAG_RWTUN,
     &pci_enable_mps_tune, 1,
     "Enable tuning of MPS(maximum payload size)." );
 
+static int pci_mps_limit;
+SYSCTL_INT(_hw_pci, OID_AUTO, mps_limit, CTLFLAG_RDTUN, &pci_mps_limit, 0,
+    "Limit PCIe MPS to this many bytes (power of two from 128 to 4096)");
+static bool pci_mps_limit_warned;
+
 static bool pci_intx_reroute = true;
 SYSCTL_BOOL(_hw_pci, OID_AUTO, intx_reroute, CTLFLAG_RWTUN,
     &pci_intx_reroute, 0, "Re-route INTx interrupts when scanning devices");
@@ -4434,6 +4439,25 @@ pcie_mps_bytes(uint16_t mps)
 	return (128 << (mps >> 5));
 }
 
+static bool
+pcie_mps_limit_value(uint16_t *mps)
+{
+
+	if (pci_mps_limit == 0)
+		return (false);
+	if (pci_mps_limit < 128 || pci_mps_limit > 4096 ||
+	    !powerof2(pci_mps_limit)) {
+		if (!pci_mps_limit_warned) {
+			printf("pci: invalid hw.pci.mps_limit=%d; ignoring\n",
+			    pci_mps_limit);
+			pci_mps_limit_warned = true;
+		}
+		return (false);
+	}
+	*mps = (fls(pci_mps_limit) - 8) << 5;
+	return (true);
+}
+
 /* Return the smallest configured MPS above dev, if the walk reaches a root. */
 static bool
 pcie_path_mps(device_t dev, uint16_t *mpsp)
@@ -4623,8 +4647,9 @@ pcie_reconcile_link_mps(device_t bus)
 {
 	struct pci_devinfo *dinfo, *upinfo;
 	device_t child, limiting, pcib, *devlist;
-	uint16_t mmps, mps, target, up_mmps, up_mps;
+	uint16_t cap_target, lmps, mmps, mps, target, up_mmps, up_mps;
 	int count, error, i;
+	bool limit_requested;
 
 	if (!pci_enable_mps_tune)
 		return;
@@ -4643,12 +4668,12 @@ pcie_reconcile_link_mps(device_t bus)
 
 	up_mps = pcie_read_config(pcib, PCIER_DEVICE_CTL, 2) &
 	    PCIEM_CTL_MAX_PAYLOAD;
-	target = up_mps;
+	cap_target = up_mps;
 	limiting = NULL;
 	up_mmps = (pcie_read_config(pcib, PCIER_DEVICE_CAP, 2) &
 	    PCIEM_CAP_MAX_PAYLOAD) << 5;
-	if (target > up_mmps) {
-		target = up_mmps;
+	if (cap_target > up_mmps) {
+		cap_target = up_mmps;
 		limiting = pcib;
 	}
 	/*
@@ -4665,11 +4690,15 @@ pcie_reconcile_link_mps(device_t bus)
 			continue;
 		mmps = (pcie_read_config(child, PCIER_DEVICE_CAP, 2) &
 		    PCIEM_CAP_MAX_PAYLOAD) << 5;
-		if (target > mmps) {
-			target = mmps;
+		if (cap_target > mmps) {
+			cap_target = mmps;
 			limiting = child;
 		}
 	}
+	target = cap_target;
+	limit_requested = pcie_mps_limit_value(&lmps) && up_mps > lmps;
+	if (limit_requested && target > lmps)
+		target = lmps;
 
 	/*
 	 * Do not lower one link below a switch without also reconciling every
@@ -4678,7 +4707,15 @@ pcie_reconcile_link_mps(device_t bus)
 	 */
 	if (target < up_mps &&
 	    upinfo->cfg.pcie.pcie_type != PCIEM_TYPE_ROOT_PORT) {
-		pcie_mps_conflict(limiting, up_mps, target);
+		if (cap_target < up_mps)
+			pcie_mps_conflict(limiting, up_mps, cap_target);
+		if (limit_requested) {
+			device_printf(pcib,
+			    "cannot apply hw.pci.mps_limit=%d below a switch "
+			    "without retuning the shared ancestor hierarchy; "
+			    "leaving path MPS %d unchanged\n",
+			    pci_mps_limit, pcie_mps_bytes(up_mps));
+		}
 		pcie_mps_mark_link_unreconciled(devlist, count, up_mps,
 		    up_mps > up_mmps);
 		/* Keep compatible functions at the established path MPS. */

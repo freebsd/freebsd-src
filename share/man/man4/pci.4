@@ -617,6 +617,21 @@ The maximum amount of memory permitted for the configuration parameters
 used when creating Virtual Functions via SR-IOV.
 This tunable can also be changed at runtime via
 .Xr sysctl 8 .
+.It Va hw.pci.mps_limit Pq Defaults to 0
+Limit the MPS selected while reconciling a PCI-express hierarchy during
+cold enumeration.
+Valid non-zero values are powers of two from 128 through 4096 bytes.
+A value of zero imposes no additional limit: reconciliation starts with the
+MPS established by firmware and lowers it only when required by the
+enumerated hierarchy.
+The tunable is a ceiling and never raises MPS above the firmware-established
+value.
+Other values are ignored with a warning.
+The limit has no effect when
+.Va hw.pci.enable_mps_tune
+is disabled.
+The limit does not override the established path MPS when a device is added
+to an active bus.
 .It Va hw.pci.realloc_bars Pq Defaults to 0
 Attempt to allocate a new resource range during the initial device scan
 for any memory or I/O port resources with firmware-assigned ranges that
