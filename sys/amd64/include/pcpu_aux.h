@@ -44,7 +44,11 @@
 #endif
 
 /* Required for counters(9) to work on x86. */
-_Static_assert(sizeof(struct pcpu) == UMA_PCPU_ALLOC_SIZE, "fix pcpu size");
+_Static_assert(sizeof(struct pcpu) == UMA_PCPU_ALLOC_SIZE,
+	"pcpu size should be equal to UMA_PCPU_ALLOC_SIZE");
+_Static_assert(offsetof(struct pcpu, __pad) +
+	sizeof(((struct pcpu *)0)->__pad) == sizeof(struct pcpu),
+	"pcpu padding should be the last field in pcpu");
 
 extern struct pcpu *__pcpu;
 extern struct pcpu temp_bsp_pcpu;
