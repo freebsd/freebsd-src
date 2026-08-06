@@ -597,9 +597,10 @@ mrsas_get_seq_num(struct mrsas_softc *sc,
 	 * Copy the data back into callers buffer
 	 */
 	memcpy(eli, sc->el_info_mem, sizeof(struct mrsas_evt_log_info));
-	mrsas_free_evt_log_info_cmd(sc);
 
 dcmd_timeout:
+	mrsas_free_evt_log_info_cmd(sc);
+
 	if (do_ocr)
 		sc->do_timedout_reset = MFI_DCMD_TIMEOUT_OCR;
 	else
