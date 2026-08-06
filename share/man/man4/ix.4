@@ -112,6 +112,13 @@ receive paths disabled until the VF completes a new reset handshake.
 On 82599 and X540 devices, the driver instead watches for transmit stalls
 caused by an invalid VF DMA target and resets the VF identified by its PCIe
 error status.
+After five such events from the same VF, the driver quarantines that VF and
+keeps its transmit, receive, and mailbox clear-to-send state disabled.
+Quarantine persists across PF reinitialization and is cleared when the SR-IOV
+configuration is destroyed and recreated.
+The read-only
+.Va dev.ix.N.iov_quarantined_vfs
+sysctl reports quarantined VF pools as a bitmap.
 .Sh HARDWARE
 The
 .Nm

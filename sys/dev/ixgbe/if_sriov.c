@@ -42,6 +42,7 @@
 MALLOC_DEFINE(M_IXGBE_SRIOV, "ix_sriov", "ix SR-IOV allocations");
 
 #define IXGBE_VF_MBX_CLEANUP_GRACE	(2 * SBT_1S)
+#define IXGBE_PRIMARY_ABORT_LIMIT 5
 
 static const struct timeval ixgbe_mdd_log_interval = { 2, 0 };
 static const struct timeval ixgbe_dma_abort_log_interval = { 10, 0 };
@@ -729,7 +730,7 @@ ixgbe_iov_recovery_task(void *context, int pending __unused)
 	struct ixgbe_softc *sc;
 	struct ixgbe_vf *vf;
 	struct sx *ctx_lock;
-	bool new_event, report, scan, success;
+	bool new_event, quarantined, report, scan, success;
 	u16 command, status;
 	u32 tx_good;
 	u64 recovery_vfs, stalled_vfs;
@@ -759,6 +760,7 @@ ixgbe_iov_recovery_task(void *context, int pending __unused)
 	stalled_vfs = 0;
 	recovery_vf = -1;
 	new_event = false;
+	quarantined = false;
 	for (i = 0; i < num_vfs; i++) {
 		if (sc->vfs[i].flags & IXGBE_VF_DMA_ABORT_PENDING)
 			recovery_vfs |= 1ULL << i;
@@ -804,6 +806,14 @@ ixgbe_iov_recovery_task(void *context, int pending __unused)
 			ixgbe_vf_tx_sample_reset(vf);
 			vf->flags |= IXGBE_VF_DMA_ABORT_PENDING;
 			vf->flags &= ~IXGBE_VF_CTS;
+			vf->primary_abort_count++;
+			if (vf->primary_abort_count ==
+			    IXGBE_PRIMARY_ABORT_LIMIT) {
+				vf->flags |= IXGBE_VF_QUARANTINED;
+				sc->iov_dma_abort_quarantines++;
+				sc->iov_quarantined_vfs |= 1ULL << i;
+				quarantined = true;
+			}
 			ixgbe_vf_enable_transmit(sc, vf);
 			ixgbe_vf_enable_receive(sc, vf);
 			IXGBE_WRITE_FLUSH(&sc->hw);
@@ -844,11 +854,30 @@ ixgbe_iov_recovery_task(void *context, int pending __unused)
 		success = pcie_flr(vfdev[i], flr_delay, true);
 	} else
 		success = false;
-	if (success) {
+	if (success && !(vf->flags & IXGBE_VF_QUARANTINED)) {
 		/* Restore and verify the complete state for a usable VF. */
 		pci_restore_state(vfdev[i]);
 		command = pci_read_config(vfdev[i], PCIR_COMMAND, 2);
 		success = command == vf->pci_saved_command;
+	} else if (success) {
+		/*
+		 * Leave the function in post-FLR configuration.  Ensure that
+		 * decode and bus mastering remain disabled, then refresh the
+		 * PCI layer's cached Command state so a later restore cannot
+		 * re-enable them.
+		 */
+		command = pci_read_config(vfdev[i], PCIR_COMMAND, 2);
+		if (command != UINT16_MAX) {
+			command &= ~(PCIM_CMD_PORTEN | PCIM_CMD_MEMEN |
+			    PCIM_CMD_BUSMASTEREN);
+			pci_write_config(vfdev[i], PCIR_COMMAND, command, 2);
+			command = pci_read_config(vfdev[i], PCIR_COMMAND, 2);
+		}
+		success = command != UINT16_MAX &&
+		    (command & (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN |
+		    PCIM_CMD_BUSMASTEREN)) == 0;
+		if (success)
+			pci_save_state(vfdev[i]);
 	}
 	if (success) {
 		vf->flags &= ~(IXGBE_VF_DMA_ABORT_PENDING |
@@ -856,17 +885,24 @@ ixgbe_iov_recovery_task(void *context, int pending __unused)
 		vf->pci_saved_command = 0;
 	} else
 		sc->iov_dma_abort_flr_failures++;
-	report = ratecheck(&vf->last_dma_abort_log,
-	    &ixgbe_dma_abort_log_interval) != 0;
-	if (report && (new_event || !success)) {
-		if (success)
-			device_printf(sc->dev,
-			    "invalid DMA target from VF %u; reset VF\n",
-			    vf->pool);
-		else
-			device_printf(sc->dev,
-			    "could not reset VF %u after an invalid DMA "
-			    "target; VF remains disabled\n", vf->pool);
+	if (quarantined) {
+		device_printf(sc->dev,
+		    "quarantined VF %u after %u invalid DMA targets%s\n",
+		    vf->pool, IXGBE_PRIMARY_ABORT_LIMIT,
+		    success ? "" : "; function-level reset failed");
+	} else {
+		report = ratecheck(&vf->last_dma_abort_log,
+		    &ixgbe_dma_abort_log_interval) != 0;
+		if (report && (new_event || !success)) {
+			if (success)
+				device_printf(sc->dev,
+				    "invalid DMA target from VF %u; reset VF\n",
+				    vf->pool);
+			else
+				device_printf(sc->dev,
+				    "could not reset VF %u after an invalid DMA "
+				    "target; VF remains disabled\n", vf->pool);
+		}
 	}
 	sx_xunlock(ctx_lock);
 	for (i = 0; i < num_vfs; i++) {
@@ -1703,6 +1739,7 @@ ixgbe_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
 	sc->iov_pf_mdd_reset_pending = false;
 	sc->iov_recovery_time = 0;
 	sc->iov_recovery_cursor = 0;
+	sc->iov_quarantined_vfs = 0;
 	ixgbe_init_mbx_params_pf(&sc->hw);
 
 	sc->feat_en |= IXGBE_FEATURE_SRIOV;
@@ -1720,6 +1757,7 @@ err_init_iov:
 	sc->iov_mode = IXGBE_NO_VM;
 	sc->iov_mbx_cleanup_pending = false;
 	sc->iov_pf_mdd_reset_pending = false;
+	sc->iov_quarantined_vfs = 0;
 
 	return (retval);
 } /* ixgbe_if_iov_init */
@@ -1792,6 +1830,7 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 	free(sc->vfs, M_IXGBE_SRIOV);
 	sc->vfs = NULL;
 	sc->feat_en &= ~IXGBE_FEATURE_SRIOV;
+	sc->iov_quarantined_vfs = 0;
 	sc->pool = 0;
 	sc->iov_mode = IXGBE_NO_VM;
 	ixgbe_align_all_queue_indices(sc);
@@ -1811,7 +1850,7 @@ ixgbe_init_vf(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	s32 error;
 
 	hw = &sc->hw;
-	/* Discard stale recovery state after PF initialization. */
+	/* Preserve quarantine until the SR-IOV configuration is destroyed. */
 	vf->flags &= ~(IXGBE_VF_INIT_DONE | IXGBE_VF_DMA_ABORT_PENDING |
 	    IXGBE_VF_PCI_STATE_SAVED | IXGBE_VF_MDD_BLOCKED |
 	    IXGBE_VF_MDD_NOTIFY_PENDING);
@@ -1820,6 +1859,11 @@ ixgbe_init_vf(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 
 	if (!(vf->flags & IXGBE_VF_ACTIVE))
 		return (IXGBE_SUCCESS);
+	if (vf->flags & IXGBE_VF_QUARANTINED) {
+		vf->flags &= ~IXGBE_VF_CTS;
+		return (IXGBE_SUCCESS);
+	}
+
 	vf_index = IXGBE_VF_INDEX(vf->pool);
 	pfmbimr = IXGBE_READ_REG(hw, IXGBE_PFMBIMR(vf_index));
 	pfmbimr |= IXGBE_VF_BIT(vf->pool);

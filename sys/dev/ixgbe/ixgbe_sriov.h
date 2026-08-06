@@ -53,9 +53,11 @@
 #define IXGBE_VF_INIT_DONE      (1U << 7) /* Hardware state is ready. */
 #define IXGBE_VF_DMA_ABORT_PENDING (1U << 8) /* VF awaits a forced FLR. */
 #define IXGBE_VF_PCI_STATE_SAVED (1U << 9) /* Preserve state for retry. */
-#define IXGBE_VF_IO_DISABLED    IXGBE_VF_DMA_ABORT_PENDING
+#define IXGBE_VF_QUARANTINED    (1U << 10) /* VF exceeded fault limit. */
 #define IXGBE_VF_MDD_BLOCKED    (1U << 11) /* VF is gated after MDD. */
 #define IXGBE_VF_MDD_NOTIFY_PENDING (1U << 12) /* Retry reset notice. */
+#define IXGBE_VF_IO_DISABLED    \
+	(IXGBE_VF_DMA_ABORT_PENDING | IXGBE_VF_QUARANTINED)
 #define IXGBE_VF_TRAFFIC_DISABLED \
 	(IXGBE_VF_IO_DISABLED | IXGBE_VF_MDD_BLOCKED)
 #define IXGBE_VF_INDEX(vmdq)    ((vmdq) / 32)

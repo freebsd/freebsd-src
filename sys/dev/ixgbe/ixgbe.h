@@ -370,6 +370,7 @@ struct ixgbe_vf {
 	uint16_t	pci_saved_command;
 	uint32_t	recovery_tx_head[IXGBE_VF_MAX_TX_QUEUES];
 	uint8_t		xcast_mode;
+	uint8_t		primary_abort_count;
 	uint8_t		recovery_tx_pending;
 	sbintime_t	mbx_cleanup_deadline;
 };
@@ -476,6 +477,8 @@ struct ixgbe_softc {
 	uint8_t			iov_recovery_cursor;
 	uint64_t		iov_dma_abort_events;
 	uint64_t		iov_dma_abort_flr_failures;
+	uint64_t		iov_dma_abort_quarantines;
+	uint64_t		iov_quarantined_vfs;
 
 	/* Bypass */
 	struct ixgbe_bp_data	bypass;

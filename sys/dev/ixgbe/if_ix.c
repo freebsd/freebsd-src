@@ -3565,6 +3565,14 @@ ixgbe_add_device_sysctls(if_ctx_t ctx)
 		    "iov_dma_abort_flr_failures", CTLFLAG_RD,
 		    &sc->iov_dma_abort_flr_failures, 0,
 		    "Failed VF reset attempts after invalid-DMA events");
+		SYSCTL_ADD_U64(ctx_list, child, OID_AUTO,
+		    "iov_dma_abort_quarantines", CTLFLAG_RD,
+		    &sc->iov_dma_abort_quarantines, 0,
+		    "VFs quarantined after repeated invalid-DMA events");
+		SYSCTL_ADD_U64(ctx_list, child, OID_AUTO,
+		    "iov_quarantined_vfs", CTLFLAG_RD,
+		    &sc->iov_quarantined_vfs, 0,
+		    "Bitmap of quarantined VF pools");
 	}
 
 	sc->enable_aim = ixgbe_enable_aim;
