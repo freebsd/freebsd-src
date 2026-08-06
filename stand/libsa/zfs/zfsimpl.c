@@ -34,6 +34,8 @@
 #include <sys/stdint.h>
 #include <sys/list.h>
 #include <sys/zfs_bootenv.h>
+#include <sys/tslog.h>
+
 #include <machine/_inttypes.h>
 
 #include "zfsimpl.h"
@@ -165,11 +167,14 @@ vdev_indirect_mapping_entry_phys_t *
 static void
 zfs_init(void)
 {
+	TSENTER();
 	STAILQ_INIT(&zfs_pools);
 
 	dnode_cache_buf = malloc(SPA_MAXBLOCKSIZE);
 
 	zfs_init_crc();
+	TSEXIT();
+
 #ifdef HAS_ZSTD_ZFS
 	zstd_init();
 #endif
