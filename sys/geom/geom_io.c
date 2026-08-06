@@ -387,26 +387,30 @@ g_zone_host_managed(struct g_consumer *cp)
 }
 
 /*
- * Determine whether the sector range [start, start + length) is backed
- * entirely by conventional zones.
+ * Determine whether the sector range [start, start + length) may be written
+ * without regard to a write pointer.
  */
 int
-g_zone_range_conventional(struct g_consumer *cp, uint64_t start,
-    uint64_t length, bool *conv)
+g_zone_range_random_writable(struct g_consumer *cp, uint64_t start,
+    uint64_t length, bool *writable)
 {
 	struct disk_zone_rep_entry entry;
 	uint64_t end, lba;
 	int error;
 
-	*conv = true;
+	*writable = true;
 	end = start + length;
 	for (lba = start; lba < end;
 	    lba = entry.zone_start_lba + entry.zone_length) {
 		error = g_zone_lookup(cp, lba, &entry);
 		if (error != 0)
 			return (error);
-		if (entry.zone_type != DISK_ZONE_TYPE_CONVENTIONAL) {
-			*conv = false;
+		switch (entry.zone_type) {
+		case DISK_ZONE_TYPE_CONVENTIONAL:
+		case DISK_ZONE_TYPE_SEQ_PREFERRED:
+			break;
+		default:
+			*writable = false;
 			return (0);
 		}
 	}

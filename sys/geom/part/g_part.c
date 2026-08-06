@@ -896,7 +896,7 @@ g_part_zoned_prepare(struct gctl_req *req, struct g_consumer *cp,
 	struct g_provider *pp;
 	quad_t length, start;
 	int error, flags, idx;
-	bool conv, pri_only, was_pri_only;
+	bool pri_only, was_pri_only, writable;
 
 	was_pri_only = table->gpt_primary_only;
 	table->gpt_primary_only = 0;
@@ -922,33 +922,35 @@ g_part_zoned_prepare(struct gctl_req *req, struct g_consumer *cp,
 			    error, pp->name, table->gpt_scheme->name);
 			return (error);
 		}
-		error = g_zone_range_conventional(cp, start, length, &conv);
+		error = g_zone_range_random_writable(cp, start, length,
+		    &writable);
 		if (error != 0)
 			goto repfail;
-		if (conv)
+		if (writable)
 			continue;
 		if ((flags & G_PART_MDR_OPTIONAL) != 0) {
 			pri_only = true;
 			continue;
 		}
 		gctl_error(req, "%d %s: partition table metadata would land "
-		    "in non-conventional zones", EOPNOTSUPP, pp->name);
+		    "in zones that are not randomly writable", EOPNOTSUPP,
+		    pp->name);
 		return (EOPNOTSUPP);
 	}
 
 	/*
 	 * A stale backup GPT in the tail scrub map cannot be scrubbed when
 	 * it lies in a sequential zone, which is the norm; drop it so that
-	 * the table can still be destroyed. Conventional tails scrub
+	 * the table can still be destroyed. Randomly writable tails scrub
 	 * normally.
 	 */
 	if (table->gpt_smtail != 0) {
-		error = g_zone_range_conventional(cp,
+		error = g_zone_range_random_writable(cp,
 		    (quad_t)(pp->mediasize / pp->sectorsize) -
-		    fls(table->gpt_smtail), fls(table->gpt_smtail), &conv);
+		    fls(table->gpt_smtail), fls(table->gpt_smtail), &writable);
 		if (error != 0)
 			goto repfail;
-		if (!conv)
+		if (!writable)
 			table->gpt_smtail = 0;
 	}
 

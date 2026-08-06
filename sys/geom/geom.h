@@ -338,8 +338,8 @@ void g_io_deliver(struct bio *bp, int error);
 int g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr);
 int g_io_zonecmd(struct disk_zone_args *zone_args, struct g_consumer *cp);
 bool g_zone_host_managed(struct g_consumer *cp);
-int g_zone_range_conventional(struct g_consumer *cp, uint64_t start,
-    uint64_t length, bool *conv);
+int g_zone_range_random_writable(struct g_consumer *cp, uint64_t start,
+    uint64_t length, bool *writable);
 int g_io_flush(struct g_consumer *cp);
 int g_io_speedup(off_t shortage, u_int flags, size_t *resid,
     struct g_consumer *cp);

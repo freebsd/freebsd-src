@@ -957,10 +957,11 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 static bool
 gpt_seczone_unwritable(struct g_consumer *cp, uint64_t last)
 {
-	bool conv;
+	bool writable;
 
 	return (g_zone_host_managed(cp) &&
-	    g_zone_range_conventional(cp, last, 1, &conv) == 0 && !conv);
+	    g_zone_range_random_writable(cp, last, 1, &writable) == 0 &&
+	    !writable);
 }
 
 static int
