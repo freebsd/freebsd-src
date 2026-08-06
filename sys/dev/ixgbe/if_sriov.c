@@ -42,15 +42,6 @@
 MALLOC_DEFINE(M_IXGBE_SRIOV, "ix_sriov", "ix SR-IOV allocations");
 
 /************************************************************************
- * ixgbe_pci_iov_detach
- ************************************************************************/
-int
-ixgbe_pci_iov_detach(device_t dev)
-{
-	return pci_iov_detach(dev);
-}
-
-/************************************************************************
  * ixgbe_define_iov_schemas
  ************************************************************************/
 void
@@ -1098,7 +1089,6 @@ ixgbe_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
 	ixgbe_init_mbx_params_pf(&sc->hw);
 
 	sc->feat_en |= IXGBE_FEATURE_SRIOV;
-	ixgbe_if_init(sc->ctx);
 
 	return (retval);
 
@@ -1116,7 +1106,8 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 	struct ixgbe_hw *hw;
 	struct ixgbe_softc *sc;
 	uint32_t pf_reg, vf_reg;
-	int i;
+	int error, i, iov_pos;
+	u16 iov_ctl;
 
 	sc = iflib_get_softc(ctx);
 	hw = &sc->hw;
@@ -1132,6 +1123,26 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 		vf_reg = 0;
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(vf_reg), 0);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(vf_reg), 0);
+	IXGBE_WRITE_FLUSH(hw);
+
+	/*
+	 * pci_iov(4) normally clears VF Enable after this callback returns,
+	 * but iflib's restart transaction reuses the PF queues first.  Disable
+	 * the VFs here and allow outstanding transactions to drain before the
+	 * queue layout changes.
+	 */
+	error = pci_find_extcap(sc->dev, PCIZ_SRIOV, &iov_pos);
+	if (error == 0) {
+		iov_ctl = pci_read_config(sc->dev,
+		    iov_pos + PCIR_SRIOV_CTL, 2);
+		iov_ctl &= ~(PCIM_SRIOV_VF_EN | PCIM_SRIOV_VF_MSE);
+		pci_write_config(sc->dev, iov_pos + PCIR_SRIOV_CTL,
+		    iov_ctl, 2);
+		pause("ixiov", MAX(1, howmany(hz, 10)));
+	} else
+		device_printf(sc->dev,
+		    "could not disable PCI SR-IOV before queue reuse: %d\n",
+		    error);
 
 	for (i = 0; i < sc->num_vfs; i++) {
 		if (!(sc->vfs[i].flags & IXGBE_VF_ACTIVE))
@@ -1155,6 +1166,9 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 	free(sc->vfs, M_IXGBE_SRIOV);
 	sc->vfs = NULL;
 	sc->feat_en &= ~IXGBE_FEATURE_SRIOV;
+	sc->pool = 0;
+	sc->iov_mode = IXGBE_NO_VM;
+	ixgbe_align_all_queue_indices(sc);
 	sc->iov_vfta_valid = false;
 	sc->iov_vlan_promisc = false;
 	(void)ixgbe_clear_vfta(hw);
