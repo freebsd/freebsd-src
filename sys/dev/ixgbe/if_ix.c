@@ -2396,6 +2396,10 @@ ixgbe_iov_vlan_rebuild(struct ixgbe_softc *sc, bool promisc)
 		vf = &sc->vfs[i];
 		if ((vf->flags & IXGBE_VF_ACTIVE) == 0)
 			continue;
+		if (vf->default_vlan == 0 &&
+		    ixgbe_set_vfta(hw, 0, vf->pool, true, false) !=
+		    IXGBE_SUCCESS)
+			failures++;
 		for (word = 0; word < IXGBE_VFTA_SIZE; word++) {
 			bits = vf->vlans[word];
 			while (bits != 0) {
@@ -2410,6 +2414,8 @@ ixgbe_iov_vlan_rebuild(struct ixgbe_softc *sc, bool promisc)
 			}
 		}
 	}
+	if (ixgbe_set_vfta(hw, 0, sc->pool, true, false) != IXGBE_SUCCESS)
+		failures++;
 
 	/* Add the PF to shared entries, or every entry in promiscuous mode. */
 	for (i = 1; i < IXGBE_VLVF_ENTRIES; i++) {
@@ -2428,7 +2434,7 @@ ixgbe_iov_vlan_rebuild(struct ixgbe_softc *sc, bool promisc)
 		IXGBE_WRITE_REG(hw, IXGBE_VFTA(i), vfta[i]);
 	if (failures != 0)
 		device_printf(sc->dev,
-		    "VF VLAN restore failed for %d memberships\n", failures);
+		    "VLAN pool restore failed for %d memberships\n", failures);
 }
 
 static void
@@ -2480,6 +2486,9 @@ ixgbe_setup_vlan_hw_support(if_ctx_t ctx)
 		else
 			ctrl &= ~IXGBE_VLNCTRL_VME;
 	}
+
+	/* Always admit priority-tagged frames. */
+	sc->shadow_vfta[0] |= 1U;
 
 #ifdef PCI_IOV
 	if ((sc->feat_en & IXGBE_FEATURE_SRIOV) != 0) {

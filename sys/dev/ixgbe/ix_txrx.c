@@ -469,9 +469,10 @@ ixgbe_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		 * A PF-assigned port VLAN is stripped before a VF receives the
 		 * frame, but it is not one of the VLANs registered by the VF.
 		 * Do not expose that administrative tag to the VF's network
-		 * stack.  Locally registered trunk VLANs retain M_VLANTAG.
+		 * stack.  Priority tags and locally registered trunk VLANs retain
+		 * M_VLANTAG.
 		 */
-		if ((sc->feat_en & IXGBE_FEATURE_VF) == 0 ||
+		if ((sc->feat_en & IXGBE_FEATURE_VF) == 0 || vid == 0 ||
 		    (sc->shadow_vfta[vid >> 5] &
 		    (1U << (vid & 0x1f))) != 0) {
 			ri->iri_vtag = vtag;
