@@ -4420,6 +4420,13 @@ pcie_setup_mps(device_t dev)
 	device_t root;
 	uint16_t rmps, mmps, mps;
 
+	/*
+	 * PCIe r4.0, sec 9.3.5.4 defines the VF MPS and MRRS fields as
+	 * Reserved and Preserved, with the PF settings applying to the VF.
+	 * Do not use the VF's hardwired value to configure the shared path.
+	 */
+	if ((dinfo->cfg.flags & PCICFG_VF) != 0)
+		return;
 	if (dinfo->cfg.pcie.pcie_location == 0)
 		return;
 	root = pci_find_pcie_root_port(dev);
