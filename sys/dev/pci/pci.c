@@ -241,6 +241,7 @@ struct pci_quirk {
 #define	PCI_QUIRK_MSI_INTX_BUG	6 /* PCIM_CMD_INTxDIS disables MSI */
 #define	PCI_QUIRK_REALLOC_BAR	7 /* Can't allocate memory at the default address */
 #define	PCI_QUIRK_DISABLE_FLR	8 /* Function-Level Reset (FLR) not working. */
+#define	PCI_QUIRK_ENABLE_FLR	9 /* FLR works but is not advertised. */
 	int	arg1;
 	int	arg2;
 };
@@ -320,6 +321,12 @@ static const struct pci_quirk pci_quirks[] = {
 	 * expected place.
 	 */
 	{ 0x98741002, PCI_QUIRK_REALLOC_BAR,	0, 	0 },
+
+	/*
+	 * The Intel 82599 VF implements FLR without advertising it; see
+	 * 82599 Specification Update, erratum 35.
+	 */
+	{ 0x10ed8086, PCI_QUIRK_ENABLE_FLR,	0,	0 },
 
 	/*
 	 * With some MediaTek mt76 WiFi FLR does not work despite advertised.
@@ -7061,8 +7068,8 @@ pcie_apei_error(device_t dev, int sev, uint8_t *aerp)
  * still pending, the function will return false without attempting a
  * reset.
  *
- * If dev is not a PCI-express function or does not support FLR, this
- * function returns false.
+ * If dev is not a PCI-express function, or neither advertises FLR nor
+ * has a quirk enabling FLR, this function returns false.
  *
  * Note that no registers are saved or restored.  The caller is
  * responsible for saving and restoring any registers including
@@ -7081,7 +7088,8 @@ pcie_flr(device_t dev, u_int max_delay, bool force)
 	if (cap == 0)
 		return (false);
 
-	if (!(pci_read_config(dev, cap + PCIER_DEVICE_CAP, 4) & PCIEM_CAP_FLR))
+	if (!(pci_read_config(dev, cap + PCIER_DEVICE_CAP, 4) & PCIEM_CAP_FLR) &&
+	    !pci_has_quirk(pci_get_devid(dev), PCI_QUIRK_ENABLE_FLR))
 		return (false);
 	if (pci_has_quirk(pci_get_devid(dev), PCI_QUIRK_DISABLE_FLR))
 		return (false);
