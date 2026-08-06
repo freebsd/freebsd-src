@@ -358,6 +358,7 @@ struct ixgbe_vf {
 	u_int		maximum_frame_size;
 	uint32_t	flags;
 	struct timeval	last_mdd_log;
+	struct timeval	last_dma_abort_log;
 	uint8_t		ether_addr[ETHER_ADDR_LEN];
 	uint16_t	mc_hash[IXGBE_MAX_VF_MC];
 	uint32_t	vlans[IXGBE_VFTA_SIZE];
@@ -366,7 +367,10 @@ struct ixgbe_vf {
 	uint16_t	num_vlans;
 	uint16_t	default_vlan;
 	uint16_t	api_ver;
+	uint16_t	pci_saved_command;
+	uint32_t	recovery_tx_head[IXGBE_VF_MAX_TX_QUEUES];
 	uint8_t		xcast_mode;
+	uint8_t		recovery_tx_pending;
 	sbintime_t	mbx_cleanup_deadline;
 };
 
@@ -466,6 +470,12 @@ struct ixgbe_softc {
 	bool			iov_mbx_cleanup_pending;
 	bool			iov_pf_mdd_reset_pending;
 	struct timeval		iov_last_mdd_log;
+	struct task		iov_recovery_task;
+	sbintime_t		iov_recovery_time;
+	bool			iov_recovery_stop;
+	uint8_t			iov_recovery_cursor;
+	uint64_t		iov_dma_abort_events;
+	uint64_t		iov_dma_abort_flr_failures;
 
 	/* Bypass */
 	struct ixgbe_bp_data	bypass;

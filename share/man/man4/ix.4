@@ -108,6 +108,10 @@ The driver cannot enable those hardware protections on earlier devices such
 as 82599.
 After a malicious-driver event, the PF keeps the offending VF's transmit and
 receive paths disabled until the VF completes a new reset handshake.
+.Pp
+On 82599 and X540 devices, the driver instead watches for transmit stalls
+caused by an invalid VF DMA target and resets the VF identified by its PCIe
+error status.
 .Sh HARDWARE
 The
 .Nm

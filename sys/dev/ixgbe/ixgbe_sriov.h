@@ -51,9 +51,13 @@
 #define IXGBE_VF_ALLOW_PROMISC  (1U << 5) /* VF may request promiscuity. */
 #define IXGBE_VF_MBX_CLEANUP    (1U << 6) /* Reset cleanup pending. */
 #define IXGBE_VF_INIT_DONE      (1U << 7) /* Hardware state is ready. */
+#define IXGBE_VF_DMA_ABORT_PENDING (1U << 8) /* VF awaits a forced FLR. */
+#define IXGBE_VF_PCI_STATE_SAVED (1U << 9) /* Preserve state for retry. */
+#define IXGBE_VF_IO_DISABLED    IXGBE_VF_DMA_ABORT_PENDING
 #define IXGBE_VF_MDD_BLOCKED    (1U << 11) /* VF is gated after MDD. */
 #define IXGBE_VF_MDD_NOTIFY_PENDING (1U << 12) /* Retry reset notice. */
-#define IXGBE_VF_TRAFFIC_DISABLED IXGBE_VF_MDD_BLOCKED
+#define IXGBE_VF_TRAFFIC_DISABLED \
+	(IXGBE_VF_IO_DISABLED | IXGBE_VF_MDD_BLOCKED)
 #define IXGBE_VF_INDEX(vmdq)    ((vmdq) / 32)
 #define IXGBE_VF_BIT(vmdq)      (1U << ((vmdq) % 32))
 
@@ -85,6 +89,8 @@ void ixgbe_initialize_iov(struct ixgbe_softc *);
 void ixgbe_activate_vfs(struct ixgbe_softc *);
 void ixgbe_recalculate_max_frame(struct ixgbe_softc *);
 void ixgbe_ping_all_vfs(struct ixgbe_softc *);
+void ixgbe_init_iov_recovery(struct ixgbe_softc *);
+void ixgbe_schedule_iov_recovery(struct ixgbe_softc *);
 u_int ixgbe_iov_rebuild_mta(struct ixgbe_softc *);
 void ixgbe_define_iov_schemas(device_t, int *);
 void ixgbe_align_all_queue_indices(struct ixgbe_softc *);
@@ -103,6 +109,8 @@ u32  ixgbe_get_mrqc(int);
 #define ixgbe_activate_vfs(_a)
 #define ixgbe_recalculate_max_frame(_a)
 #define ixgbe_ping_all_vfs(_a)
+#define ixgbe_init_iov_recovery(_a)
+#define ixgbe_schedule_iov_recovery(_a)
 #define ixgbe_define_iov_schemas(_a,_b)
 #define ixgbe_align_all_queue_indices(_a)
 #define ixgbe_vf_que_index(_a, _b, _c) (_c)

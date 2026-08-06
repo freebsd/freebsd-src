@@ -1240,6 +1240,7 @@ ixgbe_if_attach_post(if_ctx_t ctx)
 	dev = iflib_get_dev(ctx);
 	sc = iflib_get_softc(ctx);
 	hw = &sc->hw;
+	ixgbe_init_iov_recovery(sc);
 
 	if (sc->intr_type == IFLIB_INTR_LEGACY &&
 		(sc->feat_cap & IXGBE_FEATURE_LEGACY_IRQ) == 0) {
@@ -3554,6 +3555,17 @@ ixgbe_add_device_sysctls(if_ctx_t ctx)
 	    CTLTYPE_INT | CTLFLAG_RW,
 	    sc, 0, ixgbe_sysctl_advertise, "I",
 	    IXGBE_SYSCTL_DESC_ADV_SPEED);
+	if (hw->mac.type == ixgbe_mac_82599EB ||
+	    hw->mac.type == ixgbe_mac_X540) {
+		SYSCTL_ADD_U64(ctx_list, child, OID_AUTO,
+		    "iov_dma_abort_events", CTLFLAG_RD,
+		    &sc->iov_dma_abort_events, 0,
+		    "VF invalid-DMA events");
+		SYSCTL_ADD_U64(ctx_list, child, OID_AUTO,
+		    "iov_dma_abort_flr_failures", CTLFLAG_RD,
+		    &sc->iov_dma_abort_flr_failures, 0,
+		    "Failed VF reset attempts after invalid-DMA events");
+	}
 
 	sc->enable_aim = ixgbe_enable_aim;
 	SYSCTL_ADD_INT(ctx_list, child, OID_AUTO, "enable_aim", CTLFLAG_RW,
@@ -3689,6 +3701,8 @@ ixgbe_if_detach(if_ctx_t ctx)
 	u32 ctrl_ext;
 
 	INIT_DEBUGOUT("ixgbe_detach: begin");
+
+	sc->iov_recovery_stop = true;
 
 	ixgbe_setup_low_power_mode(ctx);
 
@@ -4852,6 +4866,7 @@ ixgbe_if_update_admin_status(if_ctx_t ctx)
 	if (sc->task_requests & IXGBE_REQUEST_TASK_PHY)
 		ixgbe_handle_phy(ctx);
 	sc->task_requests = 0;
+	ixgbe_schedule_iov_recovery(sc);
 
 	ixgbe_update_stats_counters(sc);
 } /* ixgbe_if_update_admin_status */

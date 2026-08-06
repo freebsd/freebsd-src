@@ -44,6 +44,15 @@ MALLOC_DEFINE(M_IXGBE_SRIOV, "ix_sriov", "ix SR-IOV allocations");
 #define IXGBE_VF_MBX_CLEANUP_GRACE	(2 * SBT_1S)
 
 static const struct timeval ixgbe_mdd_log_interval = { 2, 0 };
+static const struct timeval ixgbe_dma_abort_log_interval = { 10, 0 };
+
+static bool
+ixgbe_has_legacy_iov_recovery(const struct ixgbe_hw *hw)
+{
+
+	return (hw->mac.type == ixgbe_mac_82599EB ||
+	    hw->mac.type == ixgbe_mac_X540);
+}
 
 /************************************************************************
  * ixgbe_define_iov_schemas
@@ -566,6 +575,7 @@ ixgbe_process_vf_reset(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	vf->flags &= ~(IXGBE_VF_INIT_DONE | IXGBE_VF_MDD_BLOCKED |
 	    IXGBE_VF_MDD_NOTIFY_PENDING);
 	vf->api_ver = IXGBE_API_VER_UNKNOWN;
+	vf->recovery_tx_pending = 0;
 } /* ixgbe_process_vf_reset */
 
 
@@ -634,6 +644,284 @@ ixgbe_vf_enable_receive(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 
 
 static void
+ixgbe_find_vf_devices(struct ixgbe_softc *sc, int iov_pos,
+    device_t *vfdev, int num_vfs)
+{
+	device_t *children;
+	u16 first_rid, rid_offset, rid_stride, vf_device_id;
+	int child_count, i, vfnum;
+
+	rid_offset = pci_read_config(sc->dev,
+	    iov_pos + PCIR_SRIOV_VF_OFF, 2);
+	rid_stride = pci_read_config(sc->dev,
+	    iov_pos + PCIR_SRIOV_VF_STRIDE, 2);
+	vf_device_id = pci_read_config(sc->dev,
+	    iov_pos + PCIR_SRIOV_VF_DID, 2);
+	first_rid = pci_get_rid(sc->dev) + rid_offset;
+	if (device_get_children(device_get_parent(sc->dev), &children,
+	    &child_count) != 0)
+		return;
+	for (i = 0; i < child_count; i++) {
+		if (pci_get_vendor(children[i]) != IXGBE_INTEL_VENDOR_ID ||
+		    pci_get_device(children[i]) != vf_device_id)
+			continue;
+		for (vfnum = 0; vfnum < num_vfs; vfnum++) {
+			if (pci_get_rid(children[i]) ==
+			    first_rid + vfnum * rid_stride) {
+				vfdev[vfnum] = children[i];
+				break;
+			}
+		}
+	}
+	free(children, M_TEMP);
+}
+
+static void
+ixgbe_vf_tx_sample_reset(struct ixgbe_vf *vf)
+{
+
+	vf->recovery_tx_pending = 0;
+}
+
+/*
+ * TXDGPC is a clear-on-read, PF-wide counter.  A zero sample says only that
+ * no packet completed during the interval; it does not distinguish an idle
+ * VF from a stalled one.  Require a VF queue to have outstanding descriptors
+ * and an unchanged head across two consecutive zero-completion samples.
+ */
+static bool
+ixgbe_vf_tx_stalled(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
+{
+	u32 head, pending, previous, tail;
+	int i, queue_count;
+	bool stalled;
+
+	queue_count = ixgbe_vf_queues(sc->iov_mode);
+	previous = vf->recovery_tx_pending;
+	pending = 0;
+	stalled = false;
+	for (i = 0; i < queue_count; i++) {
+		head = IXGBE_READ_REG(&sc->hw,
+		    IXGBE_PVFTDHn(queue_count, vf->pool, i));
+		tail = IXGBE_READ_REG(&sc->hw,
+		    IXGBE_PVFTDTn(queue_count, vf->pool, i));
+		if (head == UINT32_MAX || tail == UINT32_MAX) {
+			ixgbe_vf_tx_sample_reset(vf);
+			return (false);
+		}
+		if (head != tail) {
+			pending |= 1U << i;
+			if ((previous & (1U << i)) != 0 &&
+			    vf->recovery_tx_head[i] == head)
+				stalled = true;
+		}
+		vf->recovery_tx_head[i] = head;
+	}
+	vf->recovery_tx_pending = pending;
+	return (stalled);
+}
+
+static void
+ixgbe_iov_recovery_task(void *context, int pending __unused)
+{
+	if_ctx_t ctx;
+	device_t vfdev[IXGBE_64_VM] = {};
+	struct ixgbe_softc *sc;
+	struct ixgbe_vf *vf;
+	struct sx *ctx_lock;
+	bool new_event, report, scan, success;
+	u16 command, status;
+	u32 tx_good;
+	u64 recovery_vfs, stalled_vfs;
+	u_int flr_delay;
+	int i, iov_pos, n, num_vfs = 0, recovery_vf;
+
+	ctx = context;
+	sc = iflib_get_softc(ctx);
+	ctx_lock = iflib_ctx_lock_get(ctx);
+
+	/* Match PCI-IOV's topology-before-driver lock order. */
+	bus_topo_lock();
+	sx_xlock(ctx_lock);
+	if (sc->iov_recovery_stop ||
+	    !(sc->feat_en & IXGBE_FEATURE_SRIOV) ||
+	    !ixgbe_has_legacy_iov_recovery(&sc->hw) ||
+	    pci_find_extcap(sc->dev, PCIZ_SRIOV, &iov_pos) != 0)
+		goto out_unlock;
+	num_vfs = sc->num_vfs;
+	ixgbe_find_vf_devices(sc, iov_pos, vfdev, num_vfs);
+	for (i = 0; i < num_vfs; i++) {
+		if (vfdev[i] != NULL)
+			device_busy(vfdev[i]);
+	}
+
+	recovery_vfs = 0;
+	stalled_vfs = 0;
+	recovery_vf = -1;
+	new_event = false;
+	for (i = 0; i < num_vfs; i++) {
+		if (sc->vfs[i].flags & IXGBE_VF_DMA_ABORT_PENDING)
+			recovery_vfs |= 1ULL << i;
+	}
+	scan = false;
+	if (sc->link_up) {
+		tx_good = IXGBE_READ_REG(&sc->hw, IXGBE_TXDGPC);
+		scan = tx_good == 0;
+		if (tx_good == UINT32_MAX)
+			scan = false;
+	}
+	if (scan) {
+		for (i = 0; i < num_vfs; i++) {
+			vf = &sc->vfs[i];
+			if (vfdev[i] == NULL ||
+			    !(vf->flags & IXGBE_VF_ACTIVE) ||
+			    (vf->flags & IXGBE_VF_IO_DISABLED)) {
+				ixgbe_vf_tx_sample_reset(vf);
+				continue;
+			}
+			if (ixgbe_vf_tx_stalled(sc, vf))
+				stalled_vfs |= 1ULL << i;
+		}
+	} else {
+		for (i = 0; i < num_vfs; i++)
+			ixgbe_vf_tx_sample_reset(&sc->vfs[i]);
+	}
+
+	if (scan) {
+		for (n = 0; n < num_vfs; n++) {
+			i = (sc->iov_recovery_cursor + n) % num_vfs;
+			vf = &sc->vfs[i];
+			if ((stalled_vfs & (1ULL << i)) == 0)
+				continue;
+			status = pci_read_config(vfdev[i], PCIR_STATUS, 2);
+			if (status == UINT16_MAX ||
+			    !(status & PCIM_STATUS_RMABORT))
+				continue;
+
+			/* PCI status error bits are write-one-to-clear. */
+			pci_write_config(vfdev[i], PCIR_STATUS,
+			    PCIM_STATUS_RMABORT, 2);
+			ixgbe_vf_tx_sample_reset(vf);
+			vf->flags |= IXGBE_VF_DMA_ABORT_PENDING;
+			vf->flags &= ~IXGBE_VF_CTS;
+			ixgbe_vf_enable_transmit(sc, vf);
+			ixgbe_vf_enable_receive(sc, vf);
+			IXGBE_WRITE_FLUSH(&sc->hw);
+			sc->iov_dma_abort_events++;
+			recovery_vfs |= 1ULL << i;
+			recovery_vf = i;
+			new_event = true;
+			break;
+		}
+	}
+	if (recovery_vf == -1) {
+		for (n = 0; n < num_vfs; n++) {
+			i = (sc->iov_recovery_cursor + n) % num_vfs;
+			if ((recovery_vfs & (1ULL << i)) != 0 &&
+			    vfdev[i] != NULL) {
+				recovery_vf = i;
+				break;
+			}
+		}
+	}
+	if (recovery_vf == -1)
+		goto out_unlock;
+	/* Bound latency to one VF FLR per pass without starving other VFs. */
+	sc->iov_recovery_cursor = (recovery_vf + 1) % num_vfs;
+
+	/* Busy references keep every VF child stable while Giant is dropped. */
+	bus_topo_unlock();
+	i = recovery_vf;
+	vf = &sc->vfs[i];
+	flr_delay = MAX(pcie_get_max_completion_timeout(vfdev[i]) / 1000, 10);
+	command = pci_read_config(vfdev[i], PCIR_COMMAND, 2);
+	if (command != UINT16_MAX) {
+		if (!(vf->flags & IXGBE_VF_PCI_STATE_SAVED)) {
+			pci_save_state(vfdev[i]);
+			vf->pci_saved_command = command;
+			vf->flags |= IXGBE_VF_PCI_STATE_SAVED;
+		}
+		success = pcie_flr(vfdev[i], flr_delay, true);
+	} else
+		success = false;
+	if (success) {
+		/* Restore and verify the complete state for a usable VF. */
+		pci_restore_state(vfdev[i]);
+		command = pci_read_config(vfdev[i], PCIR_COMMAND, 2);
+		success = command == vf->pci_saved_command;
+	}
+	if (success) {
+		vf->flags &= ~(IXGBE_VF_DMA_ABORT_PENDING |
+		    IXGBE_VF_PCI_STATE_SAVED);
+		vf->pci_saved_command = 0;
+	} else
+		sc->iov_dma_abort_flr_failures++;
+	report = ratecheck(&vf->last_dma_abort_log,
+	    &ixgbe_dma_abort_log_interval) != 0;
+	if (report && (new_event || !success)) {
+		if (success)
+			device_printf(sc->dev,
+			    "invalid DMA target from VF %u; reset VF\n",
+			    vf->pool);
+		else
+			device_printf(sc->dev,
+			    "could not reset VF %u after an invalid DMA "
+			    "target; VF remains disabled\n", vf->pool);
+	}
+	sx_xunlock(ctx_lock);
+	for (i = 0; i < num_vfs; i++) {
+		if (vfdev[i] != NULL)
+			device_unbusy(vfdev[i]);
+	}
+	return;
+
+out_unlock:
+	for (i = 0; i < num_vfs; i++) {
+		if (vfdev[i] != NULL)
+			device_unbusy(vfdev[i]);
+	}
+	sx_xunlock(ctx_lock);
+	bus_topo_unlock();
+}
+
+void
+ixgbe_init_iov_recovery(struct ixgbe_softc *sc)
+{
+
+	sc->iov_recovery_stop = false;
+	iflib_config_task_init(sc->ctx, &sc->iov_recovery_task,
+	    ixgbe_iov_recovery_task);
+}
+
+void
+ixgbe_schedule_iov_recovery(struct ixgbe_softc *sc)
+{
+	bool pending;
+	sbintime_t now;
+	int i;
+
+	if (sc->iov_recovery_stop ||
+	    !(sc->feat_en & IXGBE_FEATURE_SRIOV) ||
+	    !ixgbe_has_legacy_iov_recovery(&sc->hw))
+		return;
+	pending = false;
+	for (i = 0; i < sc->num_vfs; i++) {
+		if (sc->vfs[i].flags & IXGBE_VF_DMA_ABORT_PENDING) {
+			pending = true;
+			break;
+		}
+	}
+	if (!sc->link_up && !pending)
+		return;
+	now = sbinuptime();
+	if (now < sc->iov_recovery_time)
+		return;
+	sc->iov_recovery_time = now + 2 * SBT_1S;
+	iflib_config_task_enqueue(sc->ctx, &sc->iov_recovery_task);
+}
+
+
+static void
 ixgbe_vf_reset_msg(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 {
 	struct ixgbe_hw *hw;
@@ -641,6 +929,10 @@ ixgbe_vf_reset_msg(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 	uint32_t resp[IXGBE_VF_PERMADDR_MSG_LEN];
 
 	hw = &sc->hw;
+	if (vf->flags & IXGBE_VF_IO_DISABLED) {
+		ixgbe_send_vf_failure(sc, vf, msg[0]);
+		return;
+	}
 
 	ixgbe_process_vf_reset(sc, vf);
 
@@ -1184,7 +1476,8 @@ ixgbe_handle_mbx(void *context)
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw;
 	struct ixgbe_vf *vf;
-	bool cleanup_pending, mbx_activity, reset_pending, reset_seen;
+	bool cleanup_pending, mbx_activity, recovering, reset_pending;
+	bool reset_seen;
 	int i;
 
 	hw = &sc->hw;
@@ -1199,10 +1492,18 @@ ixgbe_handle_mbx(void *context)
 			reset_seen = hw->mbx.ops[vf->pool].check_for_rst(hw,
 			    vf->pool) == 0;
 			if (reset_seen) {
+				/* A reset does not prove recovery succeeded. */
+				recovering = (vf->flags &
+				    IXGBE_VF_DMA_ABORT_PENDING) != 0;
 				vf->flags |= IXGBE_VF_MBX_CLEANUP;
 				vf->mbx_cleanup_deadline = getsbinuptime() +
 				    IXGBE_VF_MBX_CLEANUP_GRACE;
 				ixgbe_process_vf_reset(sc, vf);
+				if (!recovering) {
+					vf->flags &= ~(IXGBE_VF_DMA_ABORT_PENDING |
+					    IXGBE_VF_PCI_STATE_SAVED);
+					vf->pci_saved_command = 0;
+				}
 			}
 			reset_pending =
 			    (vf->flags & IXGBE_VF_MBX_CLEANUP) != 0;
@@ -1400,6 +1701,8 @@ ixgbe_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
 	sc->num_vfs = num_vfs;
 	sc->iov_mbx_cleanup_pending = false;
 	sc->iov_pf_mdd_reset_pending = false;
+	sc->iov_recovery_time = 0;
+	sc->iov_recovery_cursor = 0;
 	ixgbe_init_mbx_params_pf(&sc->hw);
 
 	sc->feat_en |= IXGBE_FEATURE_SRIOV;
@@ -1508,12 +1811,15 @@ ixgbe_init_vf(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	s32 error;
 
 	hw = &sc->hw;
-	vf->flags &= ~(IXGBE_VF_INIT_DONE | IXGBE_VF_MDD_BLOCKED |
+	/* Discard stale recovery state after PF initialization. */
+	vf->flags &= ~(IXGBE_VF_INIT_DONE | IXGBE_VF_DMA_ABORT_PENDING |
+	    IXGBE_VF_PCI_STATE_SAVED | IXGBE_VF_MDD_BLOCKED |
 	    IXGBE_VF_MDD_NOTIFY_PENDING);
+	vf->pci_saved_command = 0;
+	vf->recovery_tx_pending = 0;
 
 	if (!(vf->flags & IXGBE_VF_ACTIVE))
 		return (IXGBE_SUCCESS);
-
 	vf_index = IXGBE_VF_INDEX(vf->pool);
 	pfmbimr = IXGBE_READ_REG(hw, IXGBE_PFMBIMR(vf_index));
 	pfmbimr |= IXGBE_VF_BIT(vf->pool);
