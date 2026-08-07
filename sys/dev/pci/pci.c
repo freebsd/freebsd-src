@@ -6691,7 +6691,9 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 		pci_resume_msix(dev);
 
 #ifdef PCI_IOV
-	if (dinfo->cfg.iov != NULL)
+	/* The SR-IOV capability is implemented only by PFs. */
+	if (dinfo->cfg.iov != NULL &&
+	    (dinfo->cfg.flags & PCICFG_VF) == 0)
 		pci_iov_cfg_restore(dev, dinfo);
 #endif
 }
@@ -6807,7 +6809,9 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 		pci_cfg_save_pcix(dev, dinfo);
 
 #ifdef PCI_IOV
-	if (dinfo->cfg.iov != NULL)
+	/* The SR-IOV capability is implemented only by PFs. */
+	if (dinfo->cfg.iov != NULL &&
+	    (dinfo->cfg.flags & PCICFG_VF) == 0)
 		pci_iov_cfg_save(dev, dinfo);
 #endif
 
