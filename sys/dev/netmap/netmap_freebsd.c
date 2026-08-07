@@ -1452,24 +1452,24 @@ netmap_kqfilter(struct cdev *dev, struct knote *kn)
 
 	if (ev != EVFILT_READ && ev != EVFILT_WRITE) {
 		nm_prerr("bad filter request %d", ev);
-		return 1;
+		return EINVAL;
 	}
 	error = devfs_get_cdevpriv((void**)&priv);
 	if (error) {
 		nm_prerr("device not yet setup");
-		return 1;
+		return error;
 	}
+	NMG_LOCK();
 	na = priv->np_na;
 	if (na == NULL) {
+		NMG_UNLOCK();
 		nm_prerr("no netmap adapter for this file descriptor");
-		return 1;
+		return ENOENT;
 	}
 	/* the si is indicated in the priv */
 	si = priv->np_si[(ev == EVFILT_WRITE) ? NR_TX : NR_RX];
-	kn->kn_fop = (ev == EVFILT_WRITE) ?
-		&netmap_wfiltops : &netmap_rfiltops;
+	kn->kn_fop = (ev == EVFILT_WRITE) ? &netmap_wfiltops : &netmap_rfiltops;
 	kn->kn_hook = priv;
-	NMG_LOCK();
 	si->kqueue_users++;
 	nm_prinf("kqueue users for %s: %d", si->mtxname, si->kqueue_users);
 	NMG_UNLOCK();
