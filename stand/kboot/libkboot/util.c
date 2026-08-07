@@ -26,7 +26,7 @@ file2str(const char *fn, char *buffer, size_t buflen)
 	/*
 	 * Trim trailing white space
 	 */
-	while (isspace(buffer[len - 1]))
+	while (len > 0 && isspace(buffer[len - 1]))
 		buffer[--len] = '\0';
 	host_close(fd);
 	return true;
