@@ -39,6 +39,7 @@
 #ifdef __FreeBSD__
 #include <sys/types.h>
 #include <sys/domainset.h>
+#include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>		/* MALLOC_DEFINE */
 #include <sys/proc.h>
@@ -1992,6 +1993,7 @@ static int
 netmap_mem2_rings_create(struct netmap_mem_d *nmd, struct netmap_adapter *na)
 {
 	enum txrx t;
+	int error;
 
 	for_rx_tx(t) {
 		u_int i;
@@ -2011,11 +2013,20 @@ netmap_mem2_rings_create(struct netmap_mem_d *nmd, struct netmap_adapter *na)
 			if (netmap_debug & NM_DEBUG_MEM)
 				nm_prinf("creating %s", kring->name);
 			ndesc = kring->nkr_num_slots;
-			len = sizeof(struct netmap_ring) +
-				  ndesc * sizeof(struct netmap_slot);
+			if (ndesc >= UINT_MAX / sizeof(struct netmap_slot)) {
+				error = EINVAL;
+				goto cleanup;
+			}
+			len = ndesc * sizeof(struct netmap_slot);
+			if (len + sizeof(struct netmap_ring) < len) {
+				error = EINVAL;
+				goto cleanup;
+			}
+			len += sizeof(struct netmap_ring);
 			ring = netmap_ring_malloc(nmd, len);
 			if (ring == NULL) {
 				nm_prerr("Cannot allocate %s_ring", nm_txrx2str(t));
+				error = ENOMEM;
 				goto cleanup;
 			}
 			nm_prdis("txring at %p", ring);
@@ -2040,7 +2051,10 @@ netmap_mem2_rings_create(struct netmap_mem_d *nmd, struct netmap_adapter *na)
 				if (netmap_debug & NM_DEBUG_MEM)
 					nm_prinf("allocating buffers for %s", kring->name);
 				if (netmap_new_bufs(nmd, ring->slot, ndesc)) {
-					nm_prerr("Cannot allocate buffers for %s_ring", nm_txrx2str(t));
+					nm_prerr(
+					    "Cannot allocate buffers for %s_ring",
+					    nm_txrx2str(t));
+					error = ENOMEM;
 					goto cleanup;
 				}
 			} else {
@@ -2064,7 +2078,7 @@ cleanup:
 	 * to do the cleanup
 	 */
 
-	return ENOMEM;
+	return error;
 }
 
 static void
