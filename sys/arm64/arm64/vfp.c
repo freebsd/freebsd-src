@@ -797,15 +797,17 @@ sve_restore_state(struct thread *td)
 
 		critical_exit();
 	} else {
+		critical_enter();
+
 		vfp_restore_state_common(td, curpcb->pcb_fpflags);
 
 		/* Enable SVE if it wasn't previously enabled */
 		if ((curpcb->pcb_fpflags & PCB_FP_SVEVALID) == 0) {
-			critical_enter();
+			MPASS(PCPU_GET(fpcurthread) == td);
 			sve_enable();
 			curpcb->pcb_fpflags |= PCB_FP_SVEVALID;
-			critical_exit();
 		}
+		critical_exit();
 	}
 
 	return (true);
