@@ -321,7 +321,7 @@ tpm_crb_mem_handler(struct vcpu *vcpu __unused, const int dir,
 	crb = arg1;
 
 	off = addr - TPM_CRB_ADDRESS;
-	if (off > TPM_CRB_REGS_SIZE || off + size >= TPM_CRB_REGS_SIZE) {
+	if (off > TPM_CRB_REGS_SIZE || off + size > TPM_CRB_REGS_SIZE) {
 		return (EINVAL);
 	}
 
