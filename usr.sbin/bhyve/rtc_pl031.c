@@ -236,13 +236,13 @@ rtc_pl031_read(struct rtc_pl031_softc *sc, int offset)
 	case RTCPeriphID1:
 	case RTCPeriphID2:
 	case RTCPeriphID3:
-		reg = RTCPeriphID_VAL(offset - RTCPeriphID0);
+		reg = RTCPeriphID_VAL((offset - RTCPeriphID0) >> 2);
 		break;
 	case RTCCellID0:
 	case RTCCellID1:
 	case RTCCellID2:
 	case RTCCellID3:
-		reg = RTCCellID_VAL(offset - RTCCellID0);
+		reg = RTCCellID_VAL((offset - RTCCellID0) >> 2);
 		break;
 	default:
 		/* Return 0 in reads from unasigned registers */
