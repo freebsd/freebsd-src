@@ -516,7 +516,9 @@ rt_updatemtu(struct ifnet *ifp)
 #ifdef INET6
 	uint32_t in6mtu;
 
-	in6mtu = in6_ifmtu(ifp);
+	/* For IFT_PFSYNC */
+	if (ifp->if_inet6 != NULL)
+		in6mtu = in6_ifmtu(ifp);
 #endif
 
 	for (u_int j = 0; j < rt_numfibs; j++) {
