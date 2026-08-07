@@ -212,13 +212,14 @@ bulk_body()
 
 	# pfsync interface
 	jexec one ifconfig ${epair_sync}a 192.0.2.1/24 up
+	jexec one ifconfig ${epair_sync}a mtu 9000
 	jexec one ifconfig ${epair_one}a 198.51.100.1/24 up
 	jexec one ifconfig pfsync0 \
 		syncdev ${epair_sync}a \
-		maxupd 1\
-		up
+		up mtu 9000
 	jexec two ifconfig ${epair_two}a 198.51.100.2/24 up
 	jexec two ifconfig ${epair_sync}b 192.0.2.2/24 up
+	jexec two ifconfig ${epair_sync}b mtu 9000
 
 	# Enable pf
 	jexec one pfctl -e
@@ -232,7 +233,11 @@ bulk_body()
 
 	ifconfig ${epair_one}b 198.51.100.254/24 up
 
-	# Create state prior to setting up pfsync
+	# Create states prior to setting up pfsync
+	${common_dir}/pft_synflood.py \
+		--sendif ${epair_one}b \
+		--to 198.51.100.1 \
+		--count 2500
 	ping -c 1 -S 198.51.100.254 198.51.100.1
 
 	# Wait before setting up pfsync on two, so we don't accidentally catch
