@@ -12209,7 +12209,7 @@ ocs_hw_set_persistent_topology(ocs_hw_t *hw, uint32_t topology, uint32_t opts)
 
 	default:
 		ocs_log_err(hw->os, "unsupported topology %#x\n", topology);
-		return -1;
+		return OCS_HW_RTN_ERROR;
 	}
 
 	ocs_sem_init(&request.semaphore, 0, "set_persistent_topo");
@@ -12235,12 +12235,12 @@ ocs_hw_set_persistent_topology(ocs_hw_t *hw, uint32_t topology, uint32_t opts)
 
 		if (ocs_sem_p(&request.semaphore, OCS_SEM_FOREVER)) {
 			ocs_log_err(hw->os, "ocs_sem_p failed\n");
-			return -ENXIO;
+			return OCS_HW_RTN_ERROR;
 		}
 
 		if (request.status) {
 			ocs_log_err(hw->os, "set persistent topology failed; status: %d\n", request.status);
-			return -EFAULT;
+			return OCS_HW_RTN_ERROR;
 		}
 	}
 
