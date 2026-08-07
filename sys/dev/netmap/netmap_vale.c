@@ -1352,6 +1352,7 @@ nm_vi_destroy(const char *name)
 {
 	if_t ifp;
 	struct netmap_vp_adapter *vpna;
+	char *viname;
 	int error;
 
 	ifp = ifunit_ref(name);
@@ -1386,9 +1387,12 @@ nm_vi_destroy(const char *name)
 	/* Linux requires all the references are released
 	 * before unregister
 	 */
+	viname = vpna->name;
+	vpna->name = NULL;
 	netmap_detach(ifp);
 	if_rele(ifp);
 	nm_os_vi_detach(ifp);
+	nm_os_free(viname);
 	return 0;
 
 err:
@@ -1420,6 +1424,7 @@ netmap_vi_create(struct nmreq_header *hdr, int autodelete)
 	if_t ifp;
 	struct netmap_vp_adapter *vpna;
 	struct netmap_mem_d *nmd = NULL;
+	char *name;
 	int error;
 
 	if (hdr->nr_reqtype != NETMAP_REQ_REGISTER) {
@@ -1429,10 +1434,14 @@ netmap_vi_create(struct nmreq_header *hdr, int autodelete)
 	/* don't include VALE prefix */
 	if (!strncmp(hdr->nr_name, NM_BDG_NAME, strlen(NM_BDG_NAME)))
 		return EINVAL;
-	if (strlen(hdr->nr_name) >= IFNAMSIZ) {
+	if (strnlen(hdr->nr_name, sizeof(hdr->nr_name)) >= IFNAMSIZ)
 		return EINVAL;
-	}
-	ifp = ifunit_ref(hdr->nr_name);
+	name = nm_os_malloc(strlen(hdr->nr_name) + 1);
+	if (name == NULL)
+		return ENOMEM;
+	strlcpy(name, hdr->nr_name, strlen(hdr->nr_name) + 1);
+
+	ifp = ifunit_ref(name);
 	if (ifp) { /* already exist, cannot create new one */
 		error = EEXIST;
 		NMG_LOCK();
@@ -1443,11 +1452,11 @@ netmap_vi_create(struct nmreq_header *hdr, int autodelete)
 		}
 		NMG_UNLOCK();
 		if_rele(ifp);
-		return error;
+		goto err_0;
 	}
-	error = nm_os_vi_persist(hdr->nr_name, &ifp);
+	error = nm_os_vi_persist(name, &ifp);
 	if (error)
-		return error;
+		goto err_0;
 
 	NMG_LOCK();
 	if (req->nr_mem_id) {
@@ -1464,6 +1473,7 @@ netmap_vi_create(struct nmreq_header *hdr, int autodelete)
 			nm_prerr("error %d", error);
 		goto err_1;
 	}
+	vpna->name = name;
 	/* persist-specific routines */
 	vpna->up.nm_bdg_ctl = netmap_vp_bdg_ctl;
 	if (!autodelete) {
@@ -1491,6 +1501,8 @@ err_1:
 		netmap_mem_put(nmd);
 	NMG_UNLOCK();
 	nm_os_vi_detach(ifp);
+err_0:
+	nm_os_free(name);
 
 	return error;
 }

@@ -1015,6 +1015,9 @@ struct netmap_vp_adapter {	/* VALE software port */
 	u_int mfs;
 	/* Last source MAC on this port */
 	uint64_t last_smac;
+
+	/* Buffer for ifnet driver name */
+	char *name;
 };
 
 
