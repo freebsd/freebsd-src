@@ -371,13 +371,13 @@ pmu_parse_event(struct pmu_event_desc *ped, const char *eventin)
 		else if (strcmp(key, "l3_slice_mask") == 0)
 			ped->ped_l3_slice = strtol(value, NULL, 16);
 		else if (strcmp(key, "sourceid") == 0)
-			ped->ped_sourceid = strtol(value, NULL, 16);
+			ped->ped_sourceid = strtol(value, NULL, 0);
 		else if (strcmp(key, "coreid") == 0)
-			ped->ped_coreid = strtol(value, NULL, 16);
+			ped->ped_coreid = strtol(value, NULL, 0);
 		else if (strcmp(key, "allcores") == 0)
-			ped->ped_allcores = strtol(value, NULL, 10);
+			ped->ped_allcores = strtol(value, NULL, 0);
 		else if (strcmp(key, "allsources") == 0)
-			ped->ped_allsources = strtol(value, NULL, 10);
+			ped->ped_allsources = strtol(value, NULL, 0);
 		else if (strcmp(key, "pebs") == 0)
 			ped->ped_pebs = strtol(value, NULL, 10);
 		else {
