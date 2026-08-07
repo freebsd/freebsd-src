@@ -87,6 +87,7 @@ struct tty {
 #define	TF_BUSY_IN	0x20000	/* Process busy in read() -- not supported. */
 #define	TF_BUSY_OUT	0x40000	/* Process busy in write(). */
 #define	TF_BUSY		(TF_BUSY_IN|TF_BUSY_OUT)
+#define	TF_INDEVCLOSE	0x80000	/* In ttydev_close() */
 	unsigned int	t_revokecnt;	/* (t) revoke() count. */
 
 	/* Buffering mechanisms. */

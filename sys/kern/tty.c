@@ -73,7 +73,7 @@
 
 static MALLOC_DEFINE(M_TTY, "tty", "tty device");
 
-static void tty_rel_free(struct tty *tp);
+static void tty_rel_free(struct tty *tp, bool inttydevclose);
 
 static TAILQ_HEAD(, tty) tty_list = TAILQ_HEAD_INITIALIZER(tty_list);
 static struct sx tty_list_sx;
@@ -231,13 +231,15 @@ ttydev_enter(struct tty *tp)
 }
 
 static void
-ttydev_leave(struct tty *tp)
+ttydev_leave(struct tty *tp, bool inttydevclose)
 {
 
 	tty_assert_locked(tp);
 
 	if (tty_opened(tp) || tp->t_flags & TF_OPENCLOSE) {
 		/* Device is still opened somewhere. */
+		if (inttydevclose)
+			tp->t_flags &= ~TF_INDEVCLOSE;
 		tty_unlock(tp);
 		return;
 	}
@@ -264,7 +266,7 @@ ttydev_leave(struct tty *tp)
 
 	tp->t_flags &= ~TF_OPENCLOSE;
 	cv_broadcast(&tp->t_dcdwait);
-	tty_rel_free(tp);
+	tty_rel_free(tp, inttydevclose);
 }
 
 /*
@@ -365,7 +367,7 @@ ttydev_open(struct cdev *dev, int oflags, int devtype __unused,
 
 done:	tp->t_flags &= ~TF_OPENCLOSE;
 	cv_broadcast(&tp->t_dcdwait);
-	ttydev_leave(tp);
+	ttydev_leave(tp, false);
 
 	return (error);
 }
@@ -377,6 +379,11 @@ ttydev_close(struct cdev *dev, int fflag, int devtype __unused,
 	struct tty *tp = dev->si_drv1;
 
 	tty_lock(tp);
+	if ((tp->t_flags & TF_INDEVCLOSE) != 0) {
+		tty_unlock(tp);
+		return (0);
+	}
+	tp->t_flags |= TF_INDEVCLOSE;
 
 	/*
 	 * Don't actually close the device if it is being used as the
@@ -390,6 +397,7 @@ ttydev_close(struct cdev *dev, int fflag, int devtype __unused,
 		tp->t_flags &= ~(TF_OPENED_IN|TF_OPENED_OUT);
 
 	if (tp->t_flags & TF_OPENED) {
+		tp->t_flags &= ~TF_INDEVCLOSE;
 		tty_unlock(tp);
 		return (0);
 	}
@@ -409,7 +417,7 @@ ttydev_close(struct cdev *dev, int fflag, int devtype __unused,
 	cv_broadcast(&tp->t_bgwait);
 	cv_broadcast(&tp->t_dcdwait);
 
-	ttydev_leave(tp);
+	ttydev_leave(tp, true);
 
 	return (0);
 }
@@ -1146,7 +1154,7 @@ tty_dealloc(void *arg)
 }
 
 static void
-tty_rel_free(struct tty *tp)
+tty_rel_free(struct tty *tp, bool inttydevclose)
 {
 	struct cdev *dev;
 
@@ -1155,6 +1163,8 @@ tty_rel_free(struct tty *tp)
 #define	TF_ACTIVITY	(TF_GONE|TF_OPENED|TF_HOOK|TF_OPENCLOSE)
 	if (tp->t_sessioncnt != 0 || (tp->t_flags & TF_ACTIVITY) != TF_GONE) {
 		/* TTY is still in use. */
+		if (inttydevclose)
+			tp->t_flags &= ~TF_INDEVCLOSE;
 		tty_unlock(tp);
 		return;
 	}
@@ -1165,6 +1175,8 @@ tty_rel_free(struct tty *tp)
 	/* TTY can be deallocated. */
 	dev = tp->t_dev;
 	tp->t_dev = NULL;
+	if (inttydevclose)
+		tp->t_flags &= ~TF_INDEVCLOSE;
 	tty_unlock(tp);
 
 	if (dev != NULL) {
@@ -1201,7 +1213,7 @@ tty_rel_sess(struct tty *tp, struct session *sess)
 		MPASS(tp->t_pgrp == NULL);
 	}
 	tp->t_sessioncnt--;
-	tty_rel_free(tp);
+	tty_rel_free(tp, false);
 }
 
 void
@@ -1220,7 +1232,7 @@ tty_rel_gone(struct tty *tp)
 	cv_broadcast(&tp->t_dcdwait);
 
 	tp->t_flags |= TF_GONE;
-	tty_rel_free(tp);
+	tty_rel_free(tp, false);
 }
 
 static int
@@ -2231,7 +2243,7 @@ ttyhook_unregister(struct tty *tp)
 	ttydisc_optimize(tp);
 
 	/* Maybe deallocate the TTY as well. */
-	tty_rel_free(tp);
+	tty_rel_free(tp, false);
 }
 
 /*
