@@ -371,8 +371,14 @@ oid_get_name(const struct oid *o, struct oidname *on)
 	on->oid = *o;
 }
 
-/* Populates the name and labels of an OID to a buffer. */
-static void
+/*
+ * Populates the name and labels of an OID to a buffer.  If an invalid label is
+ * encountered, we'll skip the metric entirely to avoid outputting ambiguous
+ * metrics and emit the relevant details to stderr for correction.
+ *
+ * Returns true if the metric is valid, false otherwise.
+ */
+static bool
 oid_get_metric(const struct oidname *on, const struct oidformat *of,
     char *metric, size_t mlen)
 {
@@ -409,10 +415,15 @@ oid_get_metric(const struct oidname *on, const struct oidformat *of,
 	separator = '{';
 	for (i = 0; i < on->oid.len; ++i) {
 		if (*label != '\0') {
-			assert(label[strspn(label,
+			if (label[strspn(label,
 			    "abcdefghijklmnopqrstuvwxyz"
 			    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-			    "0123456789_")] == '\0');
+			    "0123456789_")] != '\0') {
+				warnx("bad label for metric '%s': %s",
+				    metric, label);
+				return (false);
+			}
+
 			snprintf(buf, sizeof(buf), "%c%s=\"", separator, label);
 			strlcat(metric, buf, mlen);
 			while (*name != '\0') {
@@ -430,6 +441,8 @@ oid_get_metric(const struct oidname *on, const struct oidformat *of,
 	}
 	if (separator != '{')
 		strlcat(metric, "}", mlen);
+
+	return (true);
 }
 
 /* Returns whether the OID name has any labels associated to it. */
@@ -486,7 +499,14 @@ oiddescription_print(const struct oiddescription *od, FILE *fp)
 	fprintf(fp, "%s", od->description);
 }
 
-static void
+/*
+ * Print the given oid, subject to include/exclude rules.  Returns true if the
+ * oid was skipped or printed, false if an error was encountered.
+ *
+ * For the purposes of the exporter, we don't consider it an error to be unable
+ * to fetch format/value information.
+ */
+static bool
 oid_print(const struct oid *o, struct oidname *on, bool print_description,
     bool exclude, bool include, FILE *fp)
 {
@@ -497,16 +517,17 @@ oid_print(const struct oid *o, struct oidname *on, bool print_description,
 	bool has_desc;
 
 	if (!oid_get_format(o, &of) || !oid_get_value(o, &of, &ov))
-		return;
+		return (true);
 	oid_get_name(o, on);
 
-	oid_get_metric(on, &of, metric, sizeof(metric));
+	if (!oid_get_metric(on, &of, metric, sizeof(metric)))
+		return (false);
 
 	if (exclude && regexec(&exc_regex, metric, 0, NULL, 0) == 0)
-		return;
+		return (true);
 
 	if (include && regexec(&inc_regex, metric, 0, NULL, 0) != 0)
-		return;
+		return (true);
 
 	has_desc = oid_get_description(o, &od);
 	/*
@@ -514,7 +535,7 @@ oid_print(const struct oid *o, struct oidname *on, bool print_description,
 	 * redundant ZFS sysctls whose names alias with the non-legacy versions.
 	 */
 	if (has_desc && strnstr(od.description, "(LEGACY)", BUFSIZ) != NULL)
-		return;
+		return (true);
 	/*
 	 * Print the line with the description. Prometheus expects a
 	 * single unique description for every metric, which cannot be
@@ -534,6 +555,7 @@ oid_print(const struct oid *o, struct oidname *on, bool print_description,
 	fputc(' ', fp);
 	oidvalue_print(&ov, fp);
 	fputc('\n', fp);
+	return (true);
 }
 
 /* Gzip compresses a buffer of memory. */
@@ -573,7 +595,7 @@ main(int argc, char *argv[])
 	char *http_buf;
 	FILE *fp;
 	size_t http_buflen;
-	int ch, error;
+	int ch, error, failed = 0;
 	bool exclude, include, gzip_mode, http_mode, print_descriptions;
 	char errbuf[BUFSIZ];
 
@@ -631,7 +653,9 @@ main(int argc, char *argv[])
 		/* Print all OIDs. */
 		oid_get_root(&o);
 		do {
-			oid_print(&o, &on, print_descriptions, exclude, include, fp);
+			if (!oid_print(&o, &on, print_descriptions, exclude,
+			    include, fp))
+				failed++;
 		} while (oid_get_next(&o, &o));
 	} else {
 		int i;
@@ -651,7 +675,9 @@ main(int argc, char *argv[])
 			}
 			o = root;
 			do {
-				oid_print(&o, &on, print_descriptions, exclude, include, fp);
+				if (!oid_print(&o, &on, print_descriptions,
+				    exclude, include, fp))
+					failed++;
 			} while (oid_get_next(&o, &o) &&
 			    oid_is_beneath(&o, &root));
 		}
@@ -702,5 +728,5 @@ main(int argc, char *argv[])
 			}
 		}
 	}
-	return (0);
+	return (failed != 0 ? 1 : 0);
 }
