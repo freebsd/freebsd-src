@@ -1,0 +1,35 @@
+.\" Copyright (c) 2026 João Bonifácio <joaoboni017@gmail.com>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 4, 2026
+.Dt COLD 9
+.Os
+.Sh NAME
+.Nm cold
+.Nd indicate that the system is still booting
+.Sh SYNOPSIS
+.In sys/systm.h
+.Vt extern int cold;
+.Sh DESCRIPTION
+The global variable
+.Va cold
+is non-zero while the kernel is still performing early boot
+and device configuration.
+It is initialized to
+.Dv 1
+during machine-dependent startup and is set to
+.Dv 0
+when autoconfiguration has finished.
+.Pp
+Kernel code uses
+.Va cold
+to decide whether the system is still in the early boot phase,
+when sleeping or relying on fully configured devices may not be
+appropriate.
+.Sh SEE ALSO
+.Xr config_intrhook 9 ,
+.Xr kern_reboot 9
+.Sh AUTHORS
+This manual page was written by
+.An João Bonifácio Aq Mt joaoboni017@gmail.com .

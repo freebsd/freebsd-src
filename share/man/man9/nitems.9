@@ -1,0 +1,38 @@
+.\"
+.\" Copyright (c) 2026 João Bonifácio <joaoboni017@gmail.com>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd August 5, 2026
+.Dt NITEMS 9
+.Os
+.Sh NAME
+.Nm nitems
+.Nd number of elements in an array
+.Sh SYNOPSIS
+.In sys/param.h
+.Fn nitems "array"
+.Sh DESCRIPTION
+The
+.Fn nitems
+macro expands to the number of elements in
+.Fa array .
+It is equivalent to
+.Pq sizeof(array) / sizeof((array)[0]) .
+.Pp
+.Fa array
+must be a true array object.
+If
+.Fa array
+is a pointer, the result is wrong because
+.Li sizeof
+yields the size of the pointer, not the size of the pointed-to object.
+.Sh EXAMPLES
+.Bd -literal
+static const int table[] = {1, 2, 3, 4};
+for (size_t i = 0; i < nitems(table); i++)
+    printf("%d\en", table[i]);
+.Ed
+.Sh AUTHORS
+This manual page was written by
+.An João Bonifácio Aq Mt joaoboni017@gmail.com .

@@ -66,6 +66,7 @@ MAN=	accept_filter.9 \
 	cd.9 \
 	cdefs.9 \
 	cnv.9 \
+	cold.9 \
 	condvar.9 \
 	config_intrhook.9 \
 	contigmalloc.9 \
@@ -245,6 +246,7 @@ MAN=	accept_filter.9 \
 	mutex.9 \
 	namei.9 \
 	netisr.9 \
+	nitems.9 \
 	nv.9 \
 	nvmem.9 \
 	OF_child.9 \
@@ -298,6 +300,7 @@ MAN=	accept_filter.9 \
 	pmap_resident_count.9 \
 	pmap_unwire.9 \
 	pmap_zero_page.9 \
+	powerof2.9 \
 	printf.9 \
 	prison_check.9 \
 	priv.9 \
