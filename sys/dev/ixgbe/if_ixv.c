@@ -498,7 +498,8 @@ ixv_if_attach_pre(if_ctx_t ctx)
 	    DBA_ALIGN);
 	/* XXX */
 	scctx->isc_tx_csum_flags = CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_TSO |
-	    CSUM_IP6_TCP | CSUM_IP6_UDP | CSUM_IP6_TSO;
+	    CSUM_IP6_TCP | CSUM_IP6_UDP | CSUM_IP6_TSO | CSUM_SCTP |
+	    CSUM_IP6_SCTP;
 	scctx->isc_tx_nsegments = IXGBE_82599_SCATTER;
 	scctx->isc_msix_bar = pci_msix_table_bar(dev);
 	scctx->isc_tx_tso_segments_max = scctx->isc_tx_nsegments;
