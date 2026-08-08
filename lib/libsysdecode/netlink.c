@@ -237,6 +237,15 @@ nl_decode_attrs_raw(FILE *fp, const struct nlattr *nla_head, size_t len,
 	fprintf(fp, "}");
 }
 
+static const struct nlattr_decoder nla_d_getrules[] = {
+	{ .type = PF_GR_ANCHOR, .attr_name = "anchor", .cb = nlattr_decode_string },
+	{ .type = PF_GR_ACTION, .attr_name = "action", .cb = nlattr_decode_uint8 },
+	{ .type = PF_GR_NR, .attr_name = "nr", .cb = nlattr_decode_uint32 },
+	{ .type = PF_GR_TICKET, .attr_name = "ticket", .cb = nlattr_decode_uint32 },
+	{ .type = PF_GR_CLEAR, .attr_name = "clear", .cb = nlattr_decode_uint8 },
+};
+NL_DECLARE_ATTR_DECODER(getrules_decoder, nla_d_getrules);
+
 static const struct nlattr_decoder nla_d_set_limit[] = {
 	{ .type = PF_LI_INDEX, .attr_name = "index", .cb = nlattr_decode_uint32 },
 	{ .type = PF_LI_LIMIT, .attr_name = "limit", .cb = nlattr_decode_uint32 },
@@ -313,6 +322,10 @@ sysdecode_netlink_pf(FILE *fp, const struct genlmsghdr *genl, size_t nlm_len)
 	    ((const char *)genl + sizeof(struct genlmsghdr));
 
 	switch (cmd) {
+	case PFNL_CMD_GETRULES:
+			nl_decode_attrs_raw(fp, nla, nlm_len,
+			    getrules_decoder.decoders, getrules_decoder.count);
+		break;
 	case PFNL_CMD_GET_LIMIT:
 			nl_decode_attrs_raw(fp, nla, nlm_len,
 			    set_limit_decoder.decoders, set_limit_decoder.count);
