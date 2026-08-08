@@ -302,6 +302,13 @@ struct tx_sched_params {
 	struct tx_cl_rl_params cl_rl[];
 };
 
+struct t4_vf_info {
+	uint8_t mac[ETHER_ADDR_LEN];
+	uint16_t vlan;
+	bool configured;
+	bool access_vlan;
+};
+
 struct port_info {
 	device_t dev;
 	struct adapter *adapter;
@@ -338,6 +345,11 @@ struct port_info {
 	uint64_t fcs_base;
 
 	struct sysctl_ctx_list ctx;
+
+	/* Keep existing member offsets for stable/15 module consumers. */
+	struct t4_vf_info *iov_vfs;
+	uint16_t iov_num_vfs;
+	bool iov_status_supported;
 };
 
 #define	IS_MAIN_VI(vi)		((vi) == &((vi)->pi->vi[0]))
