@@ -541,6 +541,7 @@ struct bnxt_pf_info {
 	uint16_t	active_vfs;
 	uint16_t	registered_vfs;
 	uint16_t	max_vfs;
+	bool		iov_attached;
 	uint16_t	max_msix_vfs;
 	uint32_t	max_encap_records;
 	uint32_t	max_decap_records;
