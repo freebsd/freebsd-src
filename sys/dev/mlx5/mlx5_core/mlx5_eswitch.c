@@ -130,7 +130,7 @@ static int query_esw_vport_context_cmd(struct mlx5_core_dev *mdev, u32 vport,
 }
 
 static int query_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
-				 u16 *vlan, u8 *qos)
+				 u16 *vlan, u8 *qos, bool *enabled)
 {
 	u32 out[MLX5_ST_SZ_DW(query_esw_vport_context_out)] = {0};
 	int err;
@@ -139,6 +139,7 @@ static int query_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
 
 	*vlan = 0;
 	*qos = 0;
+	*enabled = false;
 
 	if (!MLX5_CAP_ESW(dev, vport_cvlan_strip) ||
 	    !MLX5_CAP_ESW(dev, vport_cvlan_insert_if_not_exist))
@@ -154,7 +155,8 @@ static int query_esw_vport_cvlan(struct mlx5_core_dev *dev, u32 vport,
 	cvlan_insert = MLX5_GET(query_esw_vport_context_out, out,
 				esw_vport_context.vport_cvlan_insert);
 
-	if (cvlan_strip || cvlan_insert) {
+	*enabled = cvlan_strip || cvlan_insert;
+	if (*enabled) {
 		*vlan = MLX5_GET(query_esw_vport_context_out, out,
 				 esw_vport_context.cvlan_id);
 		*qos = MLX5_GET(query_esw_vport_context_out, out,
@@ -1220,7 +1222,8 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 				  int vport, struct mlx5_esw_vport_info *ivi)
 {
 	u16 vlan;
-	u8 qos;
+	u8 linkstate, qos;
+	int err;
 
 	if (!ESW_ALLOWED(esw))
 		return -EPERM;
@@ -1230,11 +1233,19 @@ int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 	memset(ivi, 0, sizeof(*ivi));
 	ivi->vf = vport - 1;
 
-	mlx5_query_nic_vport_mac_address(esw->dev, vport, ivi->mac);
-	ivi->linkstate = mlx5_query_vport_admin_state(esw->dev,
-						      MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT,
-						      vport);
-	query_esw_vport_cvlan(esw->dev, vport, &vlan, &qos);
+	err = mlx5_query_nic_vport_mac_address(esw->dev, vport, ivi->mac);
+	if (err != 0)
+		return err;
+	err = mlx5_query_vport_admin_state_checked(esw->dev,
+	    MLX5_QUERY_VPORT_STATE_IN_OP_MOD_ESW_VPORT, vport,
+	    &linkstate);
+	if (err != 0)
+		return err;
+	ivi->linkstate = linkstate;
+	err = query_esw_vport_cvlan(esw->dev, vport, &vlan, &qos,
+				    &ivi->cvlan_enabled);
+	if (err != 0 && err != -ENOTSUPP)
+		return err;
 	ivi->vlan = vlan;
 	ivi->qos = qos;
 	ivi->spoofchk = 0;
@@ -1273,4 +1284,3 @@ int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 	mutex_unlock(&evport->state_lock);
 	return err;
 }
-

@@ -37,13 +37,18 @@
 #include <machine/atomic.h>
 
 #include <net/debugnet.h>
+#include <net/if_vf_status.h>
 #include <netinet/tcp_ratelimit.h>
 #include <netipsec/keydb.h>
 #include <netipsec/ipsec_offload.h>
 
+#include <dev/mlx5/mlx5_core/eswitch.h>
+
 static int mlx5e_get_wqe_sz(struct mlx5e_priv *priv, u32 *wqe_sz, u32 *nsegs);
 static if_snd_tag_query_t mlx5e_ul_snd_tag_query;
 static if_snd_tag_free_t mlx5e_ul_snd_tag_free;
+
+static int mlx5e_vf_status(if_t, struct if_vf_status **);
 
 struct mlx5e_channel_param {
 	struct mlx5e_rq_param rq;
@@ -3522,6 +3527,127 @@ mlx5e_is_tlsrx_capable(struct mlx5_core_dev *mdev)
 }
 
 static int
+mlx5e_vf_status(if_t ifp, struct if_vf_status **statusp)
+{
+	struct mlx5e_vf_status {
+		u8 mac[ETH_ALEN];
+		u16 vlan;
+		u8 qos;
+		bool cvlan_enabled;
+		u32 vf;
+		u32 linkstate;
+	} *snapshot;
+	struct mlx5_esw_vport_info info;
+	struct mlx5_eswitch *esw;
+	struct mlx5_vport *vport;
+	struct if_vf_info *vf;
+	struct if_vf_status *status;
+	struct mlx5e_priv *priv;
+	int error, i, num_vfs;
+
+	priv = if_getsoftc(ifp);
+	PRIV_LOCK(priv);
+	if (priv->gone != 0) {
+		PRIV_UNLOCK(priv);
+		return (EOPNOTSUPP);
+	}
+	esw = priv->mdev->priv.eswitch;
+	if (!priv->mdev->iov_pf || esw == NULL || esw->total_vports <= 1) {
+		PRIV_UNLOCK(priv);
+		return (EOPNOTSUPP);
+	}
+	snapshot = mallocarray(esw->total_vports - 1, sizeof(*snapshot),
+	    M_DEVBUF, M_WAITOK | M_ZERO);
+	num_vfs = 0;
+	for (i = 1; i < esw->total_vports; i++) {
+		vport = &esw->vports[i];
+		mutex_lock(&vport->state_lock);
+		if (!vport->enabled) {
+			mutex_unlock(&vport->state_lock);
+			continue;
+		}
+		/*
+		 * The eswitch does not cache all effective vport policy.  Query
+		 * firmware while the vport is stable and return errors rather than
+		 * publishing a partial snapshot.
+		 */
+		error = mlx5_eswitch_get_vport_config(esw, i, &info);
+		mutex_unlock(&vport->state_lock);
+		if (error != 0) {
+			PRIV_UNLOCK(priv);
+			free(snapshot, M_DEVBUF);
+			return (-error);
+		}
+		snapshot[num_vfs].vf = info.vf;
+		snapshot[num_vfs].vlan = info.vlan;
+		snapshot[num_vfs].qos = info.qos;
+		snapshot[num_vfs].cvlan_enabled = info.cvlan_enabled;
+		snapshot[num_vfs].linkstate = info.linkstate;
+		memcpy(snapshot[num_vfs].mac, info.mac, ETH_ALEN);
+		num_vfs++;
+	}
+	PRIV_UNLOCK(priv);
+	if (num_vfs == 0) {
+		free(snapshot, M_DEVBUF);
+		status = if_vf_status_alloc(0);
+		if (status == NULL)
+			return (ENOMEM);
+		*statusp = status;
+		return (0);
+	}
+
+	status = if_vf_status_alloc(num_vfs);
+	if (status == NULL) {
+		free(snapshot, M_DEVBUF);
+		return (ENOMEM);
+	}
+	for (i = 0; i < num_vfs; i++) {
+		vf = &status->vfs[i];
+		vf->fields = IFVF_F_CONFIGURED | IFVF_F_VLAN_MODE;
+		vf->index = snapshot[i].vf;
+		vf->configured = true;
+		/* An active priority policy may have both VID and PCP zero. */
+		if (snapshot[i].cvlan_enabled) {
+			vf->vlan_pcp = snapshot[i].qos;
+			vf->fields |= IFVF_F_VLAN_PCP;
+		}
+		if (!ETHER_IS_ZERO(snapshot[i].mac)) {
+			memcpy(vf->mac, snapshot[i].mac, sizeof(vf->mac));
+			vf->fields |= IFVF_F_MAC;
+		}
+		/* A priority-only tag does not impose an access VLAN. */
+		if (snapshot[i].vlan == 0)
+			vf->vlan_mode = IFVF_VLAN_TRUNK;
+		else {
+			vf->vlan_mode = IFVF_VLAN_ACCESS;
+			vf->vlan = snapshot[i].vlan;
+			vf->vlan_proto = ETHERTYPE_VLAN;
+			vf->vlan_count = 1;
+			vf->fields |= IFVF_F_VLAN | IFVF_F_VLAN_PROTO |
+			    IFVF_F_VLAN_COUNT;
+		}
+		switch (snapshot[i].linkstate) {
+		case MLX5_ESW_VPORT_ADMIN_STATE_DOWN:
+			vf->link_state_policy = IFVF_LINK_DOWN;
+			break;
+		case MLX5_ESW_VPORT_ADMIN_STATE_UP:
+			vf->link_state_policy = IFVF_LINK_UP;
+			break;
+		case MLX5_ESW_VPORT_ADMIN_STATE_AUTO:
+			vf->link_state_policy = IFVF_LINK_AUTO;
+			break;
+		default:
+			vf->link_state_policy = IFVF_LINK_UNKNOWN;
+			break;
+		}
+		vf->fields |= IFVF_F_LINK_STATE_POLICY;
+	}
+	free(snapshot, M_DEVBUF);
+	*statusp = status;
+	return (0);
+}
+
+static int
 mlx5e_ioctl(if_t ifp, u_long command, caddr_t data)
 {
 	struct mlx5e_priv *priv;
@@ -4661,6 +4787,7 @@ mlx5e_create_ifp(struct mlx5_core_dev *mdev)
 	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST |
 	    IFF_ALLMULTI);
 	if_setioctlfn(ifp, mlx5e_ioctl);
+	if_setvfstatusfn(ifp, mlx5e_vf_status);
 	if_settransmitfn(ifp, mlx5e_xmit);
 	if_setqflushfn(ifp, if_qflush);
 	if_setgetcounterfn(ifp, mlx5e_get_counter);
