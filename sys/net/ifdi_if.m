@@ -113,8 +113,7 @@ CODE {
 	}
 
 	static int
-	null_vfstat_ioctl(if_ctx_t _ctx __unused,
-	    struct ifvfstatus *_ifvfs __unused)
+	null_vf_status(if_ctx_t _ctx __unused, nvlist_t *_status __unused)
 	{
 		return (ENOTSUP);
 	}
@@ -383,7 +382,7 @@ METHOD int get_downreason {
 	struct ifdownreason *_ifdr;
 } DEFAULT null_get_downreason;
 
-METHOD int vfstat_ioctl {
+METHOD int vf_status {
 	if_ctx_t _ctx;
-	struct ifvfstatus *_ifvfs;
-} DEFAULT null_vfstat_ioctl;
+	nvlist_t *_status;
+} DEFAULT null_vf_status;

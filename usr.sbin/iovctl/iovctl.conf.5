@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd May 30, 2024
+.Dd August 8, 2026
 .Dt IOVCTL.CONF 5
 .Os
 .Sh NAME
@@ -140,6 +140,15 @@ The default value of this parameter is false.
 .Pp
 See the PF driver manual page for configuration parameters specific to
 particular hardware.
+.Pp
+For network devices, display VF initialization, resources, and policy state
+with:
+.Bd -literal -offset indent
+ifconfig -v ix0
+.Ed
+See
+.Xr ifconfig 8
+for the meaning of the reported fields.
 .Sh EXAMPLES
 This sample file will create 3 VFs as children of the ix0 device.
 VF-1 and VF-2 are set as
@@ -166,6 +175,7 @@ VF-0 {
 .Ed
 .Sh SEE ALSO
 .Xr rc.conf 5 ,
+.Xr ifconfig 8 ,
 .Xr iovctl 8
 .Sh AUTHORS
 This manual page was written by

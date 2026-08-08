@@ -397,6 +397,7 @@ ixl_reinit_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 	int i, error;
 
 	hw = &pf->hw;
+	vf->vf_flags &= ~VF_FLAG_INITIALIZED;
 
 	error = ixl_flush_pcie(pf, vf);
 	if (error != 0)
@@ -550,6 +551,7 @@ ixl_vf_get_resources_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 
 	ixl_send_vf_msg(pf, vf, VIRTCHNL_OP_GET_VF_RESOURCES,
 	    I40E_SUCCESS, &reply, sizeof(reply));
+	vf->vf_flags |= VF_FLAG_INITIALIZED;
 }
 
 static int

@@ -763,6 +763,7 @@ void *ifr_buffer_get_buffer(void *data);
 size_t ifr_buffer_get_length(void *data);
 
 int ifhwioctl(u_long, if_t, caddr_t, struct thread *);
+int if_get_vf_status(if_t, struct nvlist **);
 
 #ifdef DEVICE_POLLING
 enum poll_cmd { POLL_ONLY, POLL_AND_CHECK_STATUS };

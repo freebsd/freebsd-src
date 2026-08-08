@@ -124,6 +124,12 @@ struct ifreq_buffer32 {
 	uint32_t	buffer;		/* (void *) */
 };
 
+struct ifreq_nv_req32 {
+	u_int		buf_length;
+	u_int		length;
+	uint32_t	buffer;		/* (void *) */
+};
+
 /*
  * Interface request structure used for socket
  * ioctl's.  All interface ioctl's must have parameter
@@ -148,6 +154,7 @@ struct ifreq32 {
 		int		ifru_cap[2];
 		u_int		ifru_fib;
 		u_char		ifru_vlan_pcp;
+		struct ifreq_nv_req32 ifru_nv;
 	} ifr_ifru;
 };
 CTASSERT(sizeof(struct ifreq) == sizeof(struct ifreq32));
@@ -2237,6 +2244,74 @@ ifr_buffer_set_length(void *data, size_t len)
 		ifrup->ifr.ifr_ifru.ifru_buffer.length = len;
 }
 
+static void *
+ifr_nv_get_buffer(void *data)
+{
+	union ifreq_union *ifrup;
+
+	ifrup = data;
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		return ((void *)(uintptr_t)
+		    ifrup->ifr32.ifr_ifru.ifru_nv.buffer);
+#endif
+	return (ifrup->ifr.ifr_ifru.ifru_nv.buffer);
+}
+
+static void
+ifr_nv_set_buffer_null(void *data)
+{
+	union ifreq_union *ifrup;
+
+	ifrup = data;
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		ifrup->ifr32.ifr_ifru.ifru_nv.buffer = 0;
+	else
+#endif
+		ifrup->ifr.ifr_ifru.ifru_nv.buffer = NULL;
+}
+
+static u_int
+ifr_nv_get_buf_length(void *data)
+{
+	union ifreq_union *ifrup;
+
+	ifrup = data;
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		return (ifrup->ifr32.ifr_ifru.ifru_nv.buf_length);
+#endif
+	return (ifrup->ifr.ifr_ifru.ifru_nv.buf_length);
+}
+
+static u_int
+ifr_nv_get_length(void *data)
+{
+	union ifreq_union *ifrup;
+
+	ifrup = data;
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		return (ifrup->ifr32.ifr_ifru.ifru_nv.length);
+#endif
+	return (ifrup->ifr.ifr_ifru.ifru_nv.length);
+}
+
+static void
+ifr_nv_set_length(void *data, u_int len)
+{
+	union ifreq_union *ifrup;
+
+	ifrup = data;
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		ifrup->ifr32.ifr_ifru.ifru_nv.length = len;
+	else
+#endif
+		ifrup->ifr.ifr_ifru.ifru_nv.length = len;
+}
+
 void *
 ifr_data_get_ptr(void *ifrp)
 {
@@ -2336,6 +2411,53 @@ if_capint_to_capnv(nvlist_t *nv, const struct ifcap_nv_bit_name *nn,
 	}
 }
 
+int
+if_get_vf_status(if_t ifp, nvlist_t **statusp)
+{
+	nvlist_t *status;
+	uint64_t baudrate;
+	int error;
+
+	*statusp = NULL;
+	if (ifp->if_ioctl == NULL)
+		return (EOPNOTSUPP);
+
+	status = nvlist_create(0);
+	nvlist_add_number(status, IFVF_STATUS_VERSION_KEY,
+	    IFVF_STATUS_VERSION);
+	error = (*ifp->if_ioctl)(ifp, SIOCGIFVFSTATUS,
+	    __DECONST(caddr_t, status));
+	if (error != 0)
+		goto out;
+
+	switch (if_getlinkstate(ifp)) {
+	case LINK_STATE_DOWN:
+		nvlist_add_string(status, IFVF_STATUS_PF_LINK_STATE,
+		    IFVF_LINK_STATE_DOWN);
+		break;
+	case LINK_STATE_UP:
+		nvlist_add_string(status, IFVF_STATUS_PF_LINK_STATE,
+		    IFVF_LINK_STATE_UP);
+		break;
+	default:
+		nvlist_add_string(status, IFVF_STATUS_PF_LINK_STATE,
+		    IFVF_LINK_STATE_UNKNOWN);
+		break;
+	}
+	baudrate = if_getbaudrate(ifp);
+	if (baudrate != 0)
+		nvlist_add_number(status, IFVF_STATUS_PF_LINK_SPEED, baudrate);
+	error = nvlist_error(status);
+	if (error == 0) {
+		*statusp = status;
+		return (0);
+	}
+
+out:
+	nvlist_destroy(status);
+	return (error);
+}
+
 /*
  * Hardware specific interface ioctls.
  */
@@ -2349,7 +2471,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	char *descrbuf;
 	char new_name[IFNAMSIZ];
 	void *buf;
-	nvlist_t *nvcap;
+	nvlist_t *nvcap, *nvstatus;
 	struct siocsifcapnv_driver_data drv_ioctl_data;
 
 	ifr = (struct ifreq *)data;
@@ -2396,18 +2518,48 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 					error = EDOOFUS;
 				break;
 			}
-			if (nvbuflen > ifr->ifr_cap_nv.buf_length) {
-				ifr->ifr_cap_nv.length = nvbuflen;
-				ifr->ifr_cap_nv.buffer = NULL;
+			if (nvbuflen > ifr_nv_get_buf_length(data)) {
+				ifr_nv_set_length(data, nvbuflen);
+				ifr_nv_set_buffer_null(data);
 				error = EFBIG;
 				break;
 			}
-			ifr->ifr_cap_nv.length = nvbuflen;
-			error = copyout(buf, ifr->ifr_cap_nv.buffer, nvbuflen);
+			ifr_nv_set_length(data, nvbuflen);
+			error = copyout(buf, ifr_nv_get_buffer(data), nvbuflen);
 			break;
 		}
 		free(buf, M_NVLIST);
 		nvlist_destroy(nvcap);
+		break;
+
+	case SIOCGIFVFSTATUS:
+		buf = NULL;
+		nvstatus = NULL;
+		for (;;) {
+			error = if_get_vf_status(ifp, &nvstatus);
+			if (error != 0)
+				break;
+			buf = nvlist_pack(nvstatus, &nvbuflen);
+			if (buf == NULL) {
+				error = nvlist_error(nvstatus);
+				if (error == 0)
+					error = EDOOFUS;
+				break;
+			}
+			if (nvbuflen > IFR_VF_STATUS_NV_MAXBUFSIZE) {
+				error = E2BIG;
+				break;
+			}
+			ifr_nv_set_length(data, nvbuflen);
+			if (nvbuflen > ifr_nv_get_buf_length(data)) {
+				error = EFBIG;
+				break;
+			}
+			error = copyout(buf, ifr_nv_get_buffer(data), nvbuflen);
+			break;
+		}
+		free(buf, M_NVLIST);
+		nvlist_destroy(nvstatus);
 		break;
 
 	case SIOCGIFDATA:
@@ -2563,16 +2715,16 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (EOPNOTSUPP);
 		if ((ifp->if_capabilities & IFCAP_NV) == 0)
 			return (EINVAL);
-		if (ifr->ifr_cap_nv.length > IFR_CAP_NV_MAXBUFSIZE)
+		if (ifr_nv_get_length(data) > IFR_CAP_NV_MAXBUFSIZE)
 			return (EINVAL);
 		nvcap = NULL;
-		buf = malloc(ifr->ifr_cap_nv.length, M_TEMP, M_WAITOK);
+		buf = malloc(ifr_nv_get_length(data), M_TEMP, M_WAITOK);
 		for (;;) {
-			error = copyin(ifr->ifr_cap_nv.buffer, buf,
-			    ifr->ifr_cap_nv.length);
+			error = copyin(ifr_nv_get_buffer(data), buf,
+			    ifr_nv_get_length(data));
 			if (error != 0)
 				break;
-			nvcap = nvlist_unpack(buf, ifr->ifr_cap_nv.length, 0);
+			nvcap = nvlist_unpack(buf, ifr_nv_get_length(data), 0);
 			if (nvcap == NULL) {
 				error = EINVAL;
 				break;
