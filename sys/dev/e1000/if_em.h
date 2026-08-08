@@ -296,6 +296,9 @@ struct igb_vf_mac_filter;
 #define PCICFG_DESC_RING_STATUS	0xe4
 #define FLUSH_DESC_REQUIRED	0x100
 
+#define EM_TX_PTHRESH		31
+#define EM_TX_HTHRESH		1
+#define EM_TX_WTHRESH		1
 
 #define IGB_RX_PTHRESH	((hw->mac.type == e1000_i354) ? 12 : \
 			    ((hw->mac.type <= e1000_82576) ? 16 : 8))

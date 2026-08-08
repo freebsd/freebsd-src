@@ -4137,6 +4137,74 @@ em_if_queues_free(if_ctx_t ctx)
 	}
 }
 
+static u32
+em_legacy_txdctl(struct e1000_hw *hw)
+{
+	u32 txdctl;
+
+	/*
+	 * Start with the established full-descriptor writeback policy.
+	 * Several generations have descriptor-queue errata for which it is
+	 * a documented workaround.  The unsafe early controllers are
+	 * overridden below.
+	 */
+	txdctl = EM_TX_PTHRESH | (EM_TX_HTHRESH << 8) |
+	    (EM_TX_WTHRESH << 16) | E1000_TXDCTL_GRAN;
+
+	switch (hw->mac.type) {
+	case e1000_82571:
+	case e1000_82572:
+	case e1000_82573:
+	case e1000_82574:
+	case e1000_82583:
+	case e1000_80003es2lan:
+		/* Match the Intel shared-code policy for these families. */
+		txdctl |= E1000_TXDCTL_COUNT_DESC;
+		break;
+	case e1000_ich8lan:
+	case e1000_ich9lan:
+	case e1000_ich10lan:
+	case e1000_pchlan:
+	case e1000_pch2lan:
+	case e1000_pch_lpt:
+	case e1000_pch_spt:
+	case e1000_pch_cnp:
+	case e1000_pch_tgp:
+	case e1000_pch_adp:
+	case e1000_pch_mtp:
+	case e1000_pch_ptp:
+		/* Preserve the required bit set by the integrated shared code. */
+		txdctl |= (1U << 22);
+		break;
+	case e1000_82542:
+	case e1000_82543:
+	case e1000_82544:
+		/*
+		 * 82543 erratum 35 and 82544 erratum 20 require
+		 * WTHRESH=0.  Leave all descriptor-control thresholds at
+		 * their reset values on these early controllers.
+		 */
+		txdctl = 0;
+		break;
+	case e1000_82540:
+	case e1000_82545:
+	case e1000_82545_rev_3:
+	case e1000_82546:
+	case e1000_82546_rev_3:
+	case e1000_82541:
+	case e1000_82541_rev_2:
+	case e1000_82547:
+	case e1000_82547_rev_2:
+		break;
+	default:
+		KASSERT(0, ("%s: unsupported MAC type %d", __func__,
+		    hw->mac.type));
+		break;
+	}
+
+	return (txdctl);
+}
+
 /*********************************************************************
  *
  *  Enable transmit unit.
@@ -4187,16 +4255,15 @@ em_initialize_transmit_rings(if_ctx_t ctx)
 		    E1000_READ_REG(hw, E1000_TDBAL(qid)),
 		    E1000_READ_REG(hw, E1000_TDLEN(qid)));
 
-		txdctl = 0; /* clear txdctl */
-		txdctl |= 0x1f; /* PTHRESH */
-		txdctl |= 1 << 8; /* HTHRESH */
-		txdctl |= 1 << 16;/* WTHRESH */
 		if (hw->mac.type < igb_mac_min) {
-			txdctl |= 1 << 22; /* Reserved bit must always be 1 */
-			txdctl |= E1000_TXDCTL_GRAN;
-			txdctl |= 1 << 25; /* LWTHRESH */
-		} else
+			txdctl = em_legacy_txdctl(hw);
+		} else {
+			txdctl = 0;
+			txdctl |= 0x1f; /* PTHRESH */
+			txdctl |= 1 << 8; /* HTHRESH */
+			txdctl |= 1 << 16; /* WTHRESH */
 			txdctl |= E1000_TXDCTL_QUEUE_ENABLE;
+		}
 
 		E1000_WRITE_REG(hw, E1000_TXDCTL(qid), txdctl);
 	}
