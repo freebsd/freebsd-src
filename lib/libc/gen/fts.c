@@ -509,6 +509,10 @@ fts_read(FTS *sp)
 
 	/* Move to the next node on this level. */
 next:	tmp = p;
+	if (tmp->fts_dirfd >= 0 && tmp->fts_info != FTS_D) {
+		(void)_close(tmp->fts_dirfd);
+		tmp->fts_dirfd = -1;
+	}
 	if ((p = p->fts_link) != NULL) {
 		/*
 		 * If reached the top, return to the original directory (or
