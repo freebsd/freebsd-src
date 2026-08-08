@@ -350,17 +350,21 @@ A pointer to
 .Xr stat 2
 information for the file.
 .It Fa fts_dirfd
-A file descriptor open on the parent directory of this entry.
-It may be used with
+A file descriptor open on this directory entry.
+It is set only for directory entries
+.Pq Dv FTS_D
+and is \-1 for all other entry types.
+To access a file using fd-relative operations without relying
+on path-based syscalls, which is required in
+.Xr capsicum 4
+capability mode, use
+.Fa fts_parent->fts_dirfd
+with
 .Xr openat 2
 and
-.Fa fts_name
-to access the file without relying on path-based operations,
-which is required in
-.Xr capsicum 4
-capability mode.
-The descriptor is valid only until the next call to
-.Fn fts_read
+.Fa fts_name .
+The descriptor is valid until the directory's post-order visit
+.Pq Dv FTS_DP
 and must not be closed by the caller.
 For root-level entries,
 .Fa fts_dirfd
