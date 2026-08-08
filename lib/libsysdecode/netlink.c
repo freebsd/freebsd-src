@@ -79,6 +79,20 @@ nlattr_decode_in6_addr(FILE *fp, const struct nlattr *attr,
 }
 
 static void
+nlattr_decode_uint64(FILE *fp, const struct nlattr *attr, const char *attr_name,
+    const void *args __unused)
+{
+	uint64_t target;
+
+	if (NLA_DATA_LEN(attr) < (int)sizeof(target))
+		return;
+
+	memcpy(&target, NLA_DATA_CONST(attr), sizeof(uint64_t));
+
+	fprintf(fp, "%s=%ju", attr_name, target);
+}
+
+static void
 nlattr_decode_uint32(FILE *fp, const struct nlattr *attr, const char *attr_name,
     const void *args)
 {
@@ -90,6 +104,20 @@ nlattr_decode_uint32(FILE *fp, const struct nlattr *attr, const char *attr_name,
 		return;
 
 	memcpy(&target, NLA_DATA_CONST(attr), sizeof(uint32_t));
+
+	fprintf(fp, "%s=%u", attr_name, target);
+}
+
+static void
+nlattr_decode_uint16(FILE *fp, const struct nlattr *attr, const char *attr_name,
+    const void *args __unused)
+{
+	uint16_t target;
+
+	if (NLA_DATA_LEN(attr) < (int)sizeof(target))
+		return;
+
+	memcpy(&target, NLA_DATA_CONST(attr), sizeof(uint16_t));
 
 	fprintf(fp, "%s=%u", attr_name, target);
 }
@@ -108,6 +136,25 @@ nlattr_decode_uint8(FILE *fp, const struct nlattr *attr, const char *attr_name,
 	memcpy(&target, NLA_DATA_CONST(attr), sizeof(uint8_t));
 
 	fprintf(fp, "%s=%u", attr_name, target);
+}
+
+static void
+nlattr_decode_bool(FILE *fp, const struct nlattr *attr, const char *attr_name,
+    const void *args __unused)
+{
+	bool target;
+
+	if (NLA_DATA_LEN(attr) < (int)sizeof(target))
+		return;
+
+	memcpy(&target, NLA_DATA_CONST(attr), sizeof(bool));
+
+	fprintf(fp, "%s=", attr_name);
+
+	if (target)
+		fprintf(fp, "TRUE");
+	else
+		fprintf(fp, "FALSE");
 }
 
 static void
@@ -218,8 +265,32 @@ static const struct nlattr_decoder nla_d_add_addr[] = {
 	{ .type = PF_AA_ADDR, .attr_name = "addr", .cb = nlattr_decode_nested , .args = &pool_addr_decoder},
 	{ .type = PF_AA_WHICH, .attr_name = "which", .cb = nlattr_decode_uint32 },
 };
-NL_DECLARE_ATTR_DECODER(addr_parser, nla_d_add_addr);
+NL_DECLARE_ATTR_DECODER(addr_decoder, nla_d_add_addr);
 
+static const struct nlattr_decoder nla_d_ruleaddr[] = {
+	{ .type = PF_RAT_ADDR, .attr_name = "addr", .cb = nlattr_decode_nested, .args = &addr_wrap_decoder },
+	{ .type = PF_RAT_SRC_PORT, .attr_name = "src_port", .cb = nlattr_decode_uint16 },
+	{ .type = PF_RAT_DST_PORT, .attr_name = "dst_port", .cb = nlattr_decode_uint16 },
+	{ .type = PF_RAT_NEG, .attr_name = "neg", .cb = nlattr_decode_uint8 },
+	{ .type = PF_RAT_OP, .attr_name = "op", .cb = nlattr_decode_uint8 },
+};
+NL_DECLARE_ATTR_DECODER(rule_addr_decoder, nla_d_ruleaddr);
+
+static const struct nlattr_decoder nla_d_clear_states[] = {
+	{ .type = PF_CS_CMP_ID, .attr_name = "cmp_id", .cb = nlattr_decode_uint64 },
+	{ .type = PF_CS_CMP_CREATORID, .attr_name = "cmp_creatorid", .cb = nlattr_decode_uint32 },
+	{ .type = PF_CS_CMP_DIR, .attr_name = "cmp_dir", .cb = nlattr_decode_uint8 },
+	{ .type = PF_CS_AF, .attr_name = "af", .cb = nlattr_decode_uint8 },
+	{ .type = PF_CS_PROTO, .attr_name = "proto", .cb = nlattr_decode_uint8 },
+	{ .type = PF_CS_SRC, .attr_name = "src", .cb = nlattr_decode_nested, .args = &rule_addr_decoder },
+	{ .type = PF_CS_DST, .attr_name = "dst", .cb = nlattr_decode_nested, .args = &rule_addr_decoder },
+	{ .type = PF_CS_RT_ADDR, .attr_name = "rt_addr", .cb = nlattr_decode_nested, .args = &rule_addr_decoder },
+	{ .type = PF_CS_IFNAME, .attr_name = "ifname", .cb = nlattr_decode_string },
+	{ .type = PF_CS_LABEL, .attr_name = "label", .cb = nlattr_decode_string },
+	{ .type = PF_CS_KILL_MATCH, .attr_name = "kill_match", .cb = nlattr_decode_bool },
+	{ .type = PF_CS_NAT, .attr_name = "nat", .cb = nlattr_decode_bool },
+};
+NL_DECLARE_ATTR_DECODER(killclear_states_decoder, nla_d_clear_states);
 
 static void
 sysdecode_netlink_pf(FILE *fp, const struct genlmsghdr *genl, size_t nlm_len)
@@ -238,11 +309,16 @@ sysdecode_netlink_pf(FILE *fp, const struct genlmsghdr *genl, size_t nlm_len)
 	switch (cmd) {
 	case PFNL_CMD_GET_ADDR:
 			nl_decode_attrs_raw(fp, nla, nlm_len,
-			    addr_parser.decoders, addr_parser.count);
+			    addr_decoder.decoders, addr_decoder.count);
 		break;
 	case PFNL_CMD_GET_ADDRS:
 			nl_decode_attrs_raw(fp, nla, nlm_len,
-			    addr_parser.decoders, addr_parser.count);
+			    addr_decoder.decoders, addr_decoder.count);
+		break;
+	case PFNL_CMD_KILLSTATES:
+			nl_decode_attrs_raw(fp, nla, nlm_len,
+			    killclear_states_decoder.decoders,
+			    killclear_states_decoder.count);
 		break;
 	default:
 		break;
