@@ -256,13 +256,14 @@ nl_decode_attrs_raw(FILE *fp, const struct nlattr *nla_head, size_t len,
 	fprintf(fp, "{");
 
 	NLA_FOREACH_CONST(nla, nla_head, len) {
-		if (!first)
-			fprintf(fp, ",");
-
 		s = search_decoders(ps, pslen, nla->nla_type & NLA_TYPE_MASK);
-		if (s != NULL && s->cb != NULL)
-			s->cb(fp, nla, s->attr_name, s->args);
 
+		if (s != NULL && s->cb != NULL) {
+			if (!first)
+				fprintf(fp, ",");
+
+			s->cb(fp, nla, s->attr_name, s->args);
+		}
 		first = false;
 	}
 
