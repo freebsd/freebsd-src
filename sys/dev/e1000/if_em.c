@@ -4205,6 +4205,36 @@ em_legacy_txdctl(struct e1000_hw *hw)
 	return (txdctl);
 }
 
+static u32
+igb_txdctl(struct e1000_hw *hw)
+{
+	u32 pthresh;
+
+	switch (hw->mac.type) {
+	case e1000_i354:
+		pthresh = I354_TX_PTHRESH;
+		break;
+	case e1000_82575:
+	case e1000_82576:
+	case e1000_82580:
+	case e1000_i350:
+	case e1000_i210:
+	case e1000_i211:
+	case e1000_vfadapt:
+	case e1000_vfadapt_i350:
+		pthresh = IGB_TX_PTHRESH;
+		break;
+	default:
+		KASSERT(0, ("%s: unsupported MAC type %d", __func__,
+		    hw->mac.type));
+		pthresh = IGB_TX_PTHRESH;
+		break;
+	}
+
+	return (pthresh | (IGB_TX_HTHRESH << 8) |
+	    E1000_TXDCTL_QUEUE_ENABLE);
+}
+
 /*********************************************************************
  *
  *  Enable transmit unit.
@@ -4255,15 +4285,10 @@ em_initialize_transmit_rings(if_ctx_t ctx)
 		    E1000_READ_REG(hw, E1000_TDBAL(qid)),
 		    E1000_READ_REG(hw, E1000_TDLEN(qid)));
 
-		if (hw->mac.type < igb_mac_min) {
+		if (hw->mac.type < igb_mac_min)
 			txdctl = em_legacy_txdctl(hw);
-		} else {
-			txdctl = 0;
-			txdctl |= 0x1f; /* PTHRESH */
-			txdctl |= 1 << 8; /* HTHRESH */
-			txdctl |= 1 << 16; /* WTHRESH */
-			txdctl |= E1000_TXDCTL_QUEUE_ENABLE;
-		}
+		else
+			txdctl = igb_txdctl(hw);
 
 		E1000_WRITE_REG(hw, E1000_TXDCTL(qid), txdctl);
 	}

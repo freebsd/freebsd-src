@@ -319,10 +319,9 @@ struct igb_vf_mac_filter;
 #define IGB_RX_WTHRESH	((hw->mac.type == e1000_82576 && \
 			    (sc->intr_type == IFLIB_INTR_MSIX)) ? 1 : 4)
 
-#define IGB_TX_PTHRESH	((hw->mac.type == e1000_i354) ? 20 : 8)
-#define IGB_TX_HTHRESH	1
-#define IGB_TX_WTHRESH	((hw->mac.type != e1000_82575 && \
-			    sc->intr_type == IFLIB_INTR_MSIX) ? 1 : 16)
+#define IGB_TX_PTHRESH		8
+#define I354_TX_PTHRESH	20
+#define IGB_TX_HTHRESH		1
 
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
