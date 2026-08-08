@@ -326,6 +326,8 @@ typedef struct _qlnx_mcast {
 
 typedef struct _qlnx_vf_attr {
 	uint8_t		mac_addr[ETHER_ADDR_LEN];
+	bool		configured;
+	bool		queues_valid;
 	uint32_t	num_rings;
 } qlnx_vf_attr_t;
 
