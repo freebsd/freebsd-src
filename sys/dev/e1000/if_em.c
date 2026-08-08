@@ -4419,6 +4419,27 @@ igb_initialize_receive_rings(if_ctx_t ctx, bool drop)
 	}
 }
 
+static bool
+em_integrated_jumbo_rx(struct e1000_hw *hw)
+{
+	switch (hw->mac.type) {
+	case e1000_ich9lan:
+	case e1000_ich10lan:
+	case e1000_pchlan:
+	case e1000_pch2lan:
+	case e1000_pch_lpt:
+	case e1000_pch_spt:
+	case e1000_pch_cnp:
+	case e1000_pch_tgp:
+	case e1000_pch_adp:
+	case e1000_pch_mtp:
+	case e1000_pch_ptp:
+		return (true);
+	default:
+		return (false);
+	}
+}
+
 static void
 em_initialize_receive_unit(if_ctx_t ctx)
 {
@@ -4562,24 +4583,25 @@ em_initialize_receive_unit(if_ctx_t ctx)
 		E1000_WRITE_REG(hw, E1000_RDT(qid), 0);
 	}
 
-	/*
-	 * Set PTHRESH for improved jumbo performance
-	 * According to 10.2.5.11 of Intel 82574 Datasheet,
-	 * RXDCTL(1) is written whenever RXDCTL(0) is written.
-	 * Only write to RXDCTL(1) if there is a need for different
-	 * settings.
-	 */
-	if ((hw->mac.type == e1000_ich9lan || hw->mac.type == e1000_pch2lan ||
-	    hw->mac.type == e1000_ich10lan) && if_getmtu(ifp) > ETHERMTU) {
+	/* Increase receive-descriptor prefetching for integrated jumbo MACs. */
+	if (em_integrated_jumbo_rx(hw) && if_getmtu(ifp) > ETHERMTU) {
 		u32 rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(0));
-		E1000_WRITE_REG(hw, E1000_RXDCTL(0), rxdctl | 3);
+
+		rxdctl &= ~(EM_RXDCTL_PTHRESH_MASK |
+		    EM_RXDCTL_HTHRESH_MASK);
+		rxdctl |= EM_JUMBO_RX_PTHRESH |
+		    (EM_JUMBO_RX_HTHRESH << 8);
+		E1000_WRITE_REG(hw, E1000_RXDCTL(0), rxdctl);
 	} else if (hw->mac.type == e1000_82574) {
+		/* RXDCTL(0) writes are mirrored to RXDCTL(1) on 82574. */
 		for (int i = 0; i < sc->rx_num_queues; i++) {
 			u32 rxdctl = E1000_READ_REG(hw, E1000_RXDCTL(i));
-			rxdctl |= 0x20; /* PTHRESH */
-			rxdctl |= 4 << 8; /* HTHRESH */
-			rxdctl |= 4 << 16;/* WTHRESH */
-			rxdctl |= 1 << 24; /* Switch to granularity */
+
+			rxdctl &= ~EM_RXDCTL_THRESH_MASK;
+			rxdctl |= EM_82574_RX_PTHRESH |
+			    (EM_82574_RX_HTHRESH << 8) |
+			    (EM_82574_RX_WTHRESH << 16) |
+			    E1000_RXDCTL_THRESH_UNIT_DESC;
 			E1000_WRITE_REG(hw, E1000_RXDCTL(i), rxdctl);
 		}
 	} else if (hw->mac.type >= igb_mac_min) {

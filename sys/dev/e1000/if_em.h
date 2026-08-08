@@ -300,6 +300,19 @@ struct igb_vf_mac_filter;
 #define EM_TX_HTHRESH		1
 #define EM_TX_WTHRESH		1
 
+#define EM_RXDCTL_PTHRESH_MASK	0x0000003F
+#define EM_RXDCTL_HTHRESH_MASK	0x00003F00
+#define EM_RXDCTL_WTHRESH_MASK	0x003F0000
+#define EM_RXDCTL_THRESH_MASK	(EM_RXDCTL_PTHRESH_MASK | \
+				 EM_RXDCTL_HTHRESH_MASK | \
+				 EM_RXDCTL_WTHRESH_MASK)
+
+#define EM_JUMBO_RX_PTHRESH	3
+#define EM_JUMBO_RX_HTHRESH	1
+#define EM_82574_RX_PTHRESH	32
+#define EM_82574_RX_HTHRESH	4
+#define EM_82574_RX_WTHRESH	4
+
 #define IGB_RX_PTHRESH	((hw->mac.type == e1000_i354) ? 12 : \
 			    ((hw->mac.type <= e1000_82576) ? 16 : 8))
 #define IGB_RX_HTHRESH	8
