@@ -42,6 +42,7 @@
 #include <sys/eventhandler.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/nv.h>
 #include <sys/queue.h>
 #include <sys/taskqueue.h>
 #include <dev/pci/pcireg.h>
@@ -57,6 +58,7 @@
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/if_vlan_var.h>
+#include <net/if_vf_status.h>
 #include <net/rss_config.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -280,6 +282,7 @@ static driver_t vche_driver = {
 /* ifnet interface */
 static void cxgbe_init(void *);
 static int cxgbe_ioctl(if_t, unsigned long, caddr_t);
+static int cxgbe_vf_status(if_t, struct if_vf_status **);
 static int cxgbe_transmit(if_t, struct mbuf *);
 static void cxgbe_qflush(if_t);
 #if defined(KERN_TLS) || defined(RATELIMIT)
@@ -2868,6 +2871,7 @@ cxgbe_vi_attach(device_t dev, struct vi_info *vi)
 
 	if_setinitfn(ifp, cxgbe_init);
 	if_setioctlfn(ifp, cxgbe_ioctl);
+	if_setvfstatusfn(ifp, cxgbe_vf_status);
 	if_settransmitfn(ifp, cxgbe_transmit);
 	if_setqflushfn(ifp, cxgbe_qflush);
 	if (vi->pi->nvi > 1 || sc->flags & IS_VF)
@@ -3056,6 +3060,68 @@ cxgbe_init(void *arg)
 		return;
 	cxgbe_init_synchronized(vi);
 	end_synchronized_op(sc, 0);
+}
+
+static int
+cxgbe_vf_status(if_t ifp, struct if_vf_status **statusp)
+{
+	struct port_info *pi;
+	struct adapter *sc;
+	struct t4_vf_info *snapshot;
+	struct if_vf_info *vf;
+	struct if_vf_status *status;
+	struct vi_info *vi;
+	uint16_t num_vfs;
+	int error, i;
+
+	vi = if_getsoftc(ifp);
+	pi = vi->pi;
+	sc = pi->adapter;
+	if (!IS_MAIN_VI(vi))
+		return (EOPNOTSUPP);
+	error = begin_synchronized_op(sc, vi, SLEEP_OK | INTR_OK,
+	    "t4vfstat");
+	if (error != 0)
+		return (error);
+	if (!pi->iov_status_supported) {
+		end_synchronized_op(sc, 0);
+		return (EOPNOTSUPP);
+	}
+	num_vfs = pi->iov_num_vfs;
+	snapshot = NULL;
+	if (num_vfs != 0) {
+		snapshot = mallocarray(num_vfs, sizeof(*snapshot), M_CXGBE,
+		    M_WAITOK);
+		memcpy(snapshot, pi->iov_vfs, num_vfs * sizeof(*snapshot));
+	}
+	end_synchronized_op(sc, 0);
+
+	status = if_vf_status_alloc(num_vfs);
+	for (i = 0; i < num_vfs; i++) {
+		vf = &status->vfs[i];
+		vf->fields = IFVF_F_CONFIGURED;
+		vf->index = i;
+		vf->configured = snapshot[i].configured;
+		if (!vf->configured)
+			continue;
+		vf->fields |= IFVF_F_VLAN_MODE;
+		if (!ETHER_IS_ZERO(snapshot[i].mac)) {
+			memcpy(vf->mac, snapshot[i].mac, sizeof(vf->mac));
+			vf->fields |= IFVF_F_MAC;
+		}
+		if (snapshot[i].access_vlan) {
+			vf->vlan_mode = IFVF_VLAN_ACCESS;
+			vf->vlan = snapshot[i].vlan;
+			vf->vlan_proto = ETHERTYPE_VLAN;
+			vf->vlan_count = 1;
+			vf->fields |= IFVF_F_VLAN | IFVF_F_VLAN_PROTO |
+			    IFVF_F_VLAN_COUNT;
+		} else
+			vf->vlan_mode = IFVF_VLAN_TRUNK;
+	}
+	free(snapshot, M_CXGBE);
+	*statusp = status;
+	return (0);
 }
 
 static int
