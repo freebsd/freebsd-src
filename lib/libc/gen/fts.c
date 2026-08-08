@@ -167,6 +167,8 @@ __fts_open(FTS *sp, char * const *argv, int rootfd)
 		p->fts_level = FTS_ROOTLEVEL;
 		p->fts_parent = parent;
 		p->fts_accpath = p->fts_name;
+		if (rootfd != AT_FDCWD)
+			p->fts_dirfd = _dup(rootfd);
 		p->fts_info = fts_stat(sp, p,
 		    ISSET(FTS_COMFOLLOWDIR) ? -1 : ISSET(FTS_COMFOLLOW),
 		    -1);
@@ -213,10 +215,14 @@ __fts_open(FTS *sp, char * const *argv, int rootfd)
 	 * descriptor we run anyway, just more slowly.  We use _openat rather
 	 * than _dup because rootfd may be AT_FDCWD, not a real descriptor.
 	 */
-	if (!ISSET(FTS_NOCHDIR) &&
-	    (sp->fts_rfd = _openat(rootfd, ".", O_RDONLY |
-	    O_CLOEXEC, 0)) < 0)
-		SET(FTS_NOCHDIR);
+
+	if (!ISSET(FTS_NOCHDIR)) {
+		if (rootfd != AT_FDCWD)
+			sp->fts_rfd = rootfd;
+		else if ((sp->fts_rfd =
+			_open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
+			SET(FTS_NOCHDIR);
+	}
 	return (sp);
 
 mem3:	fts_lfree(root);
@@ -230,8 +236,16 @@ FTS *
 fts_open(char * const *argv, int options,
     int (*compar)(const FTSENT * const *, const FTSENT * const *))
 {
+	return (fts_openat(AT_FDCWD, argv, options, compar));
+}
+
+FTS *
+fts_openat(int dirfd, char * const *argv, int options,
+    int (*compar)(const FTSENT * const *, const FTSENT * const *))
+{
 	struct _fts_private *priv;
 	FTS *sp;
+	int rootfd;
 
 	/* Options check. */
 	if (options & ~FTS_OPTIONMASK) {
@@ -239,7 +253,7 @@ fts_open(char * const *argv, int options,
 		return (NULL);
 	}
 
-	/* fts_open() requires at least one path */
+	/* fts_openat() requires at least one path */
 	if (*argv == NULL) {
 		errno = EINVAL;
 		return (NULL);
@@ -251,8 +265,14 @@ fts_open(char * const *argv, int options,
 	sp = &priv->ftsp_fts;
 	sp->fts_compar = compar;
 	sp->fts_options = options;
+	if (dirfd == AT_FDCWD)
+		rootfd = AT_FDCWD;
+	else if ((rootfd = _dup(dirfd)) < 0) {
+		free(priv);
+		return (NULL);
+	}
 
-	return (__fts_open(sp, argv, AT_FDCWD));
+	return (__fts_open(sp, argv, rootfd));
 }
 
 #ifdef __BLOCKS__
@@ -443,8 +463,8 @@ fts_read(FTS *sp)
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE)) {
 		p->fts_info = fts_stat(sp, p, 1, -1);
 		if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
-			if ((p->fts_symfd = p->fts_dirfd >= 0 ?
-			    _dup(p->fts_dirfd) :
+			if ((p->fts_symfd = p->fts_parent->fts_dirfd >= 0 ?
+			    _dup(p->fts_parent->fts_dirfd) :
 			    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0) {
 				p->fts_errno = errno;
 				p->fts_info = FTS_ERR;
@@ -509,6 +529,10 @@ fts_read(FTS *sp)
 
 	/* Move to the next node on this level. */
 next:	tmp = p;
+	if (tmp->fts_dirfd >= 0 && tmp->fts_info == FTS_DP) {
+		(void)_close(tmp->fts_dirfd);
+		tmp->fts_dirfd = -1;
+	}
 	if ((p = p->fts_link) != NULL) {
 		/*
 		 * If reached the top, return to the original directory (or
@@ -537,8 +561,8 @@ next:	tmp = p;
 			p->fts_info = fts_stat(sp, p, 1, -1);
 			if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
 				if ((p->fts_symfd =
-				    p->fts_dirfd >= 0 ?
-				    _dup(p->fts_dirfd) :
+				    p->fts_parent->fts_dirfd >= 0 ?
+				    _dup(p->fts_parent->fts_dirfd) :
 				    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0) {
 					p->fts_errno = errno;
 					p->fts_info = FTS_ERR;
@@ -680,8 +704,8 @@ fts_children(FTS *sp, int instr)
 	    ISSET(FTS_NOCHDIR))
 		return (sp->fts_child = fts_build(sp, instr));
 
-	if ((fd = sp->fts_cur->fts_dirfd >= 0 ?
-	    _dup(sp->fts_cur->fts_dirfd) :
+	if ((fd = sp->fts_cur->fts_parent->fts_dirfd >= 0 ?
+	    _dup(sp->fts_cur->fts_parent->fts_dirfd) :
 	    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (NULL);
 	sp->fts_child = fts_build(sp, instr);
@@ -918,10 +942,13 @@ mem1:				saved_errno = errno;
 		}
 
 		p->fts_level = level;
-		p->fts_dirfd = _dup(_dirfd(dirp));
 		p->fts_parent = sp->fts_cur;
+		if (dp->d_type == DT_DIR) {
+			p->fts_dirfd = _openat(_dirfd(dirp),
+			p->fts_name,
+			O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		}
 		p->fts_pathlen = len + dnamlen;
-
 		if (dp->d_type == DT_WHT)
 			p->fts_flags |= FTS_ISW;
 
@@ -1337,8 +1364,8 @@ fts_ufslinks(FTS *sp, const FTSENT *ent)
 	 * avoidance.
 	 */
 	if (priv->ftsp_dev != ent->fts_dev) {
-		if ((ent->fts_dirfd >= 0 ?
-		    _fstatfs(ent->fts_dirfd, &priv->ftsp_statfs) :
+		if ((ent->fts_parent->fts_dirfd >= 0 ?
+		    _fstatfs(ent->fts_parent->fts_dirfd, &priv->ftsp_statfs) :
                     statfs(ent->fts_path, &priv->ftsp_statfs)) != -1) {
 			priv->ftsp_dev = ent->fts_dev;
 			priv->ftsp_linksreliable = 0;
