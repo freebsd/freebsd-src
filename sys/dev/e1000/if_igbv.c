@@ -365,7 +365,10 @@ igbv_if_update_admin_status(if_ctx_t ctx)
 	    atomic_readandclear_32(&sc->stats_pending) != 0;
 	if (timer_tick) {
 		em_update_stats_counters(sc);
-		igbv_vlan_retry_tick(sc);
+		/* iflib clears RUNNING before stop; do not replay after reset. */
+		if ((if_getdrvflags(iflib_get_ifp(ctx)) &
+		    IFF_DRV_RUNNING) != 0)
+			igbv_vlan_retry_tick(sc);
 	}
 }
 
