@@ -537,6 +537,12 @@ SYSCTL_STRING(_debug_fail_point_iflib, OID_AUTO, register_device,
     iflib_register_fail_device, sizeof(iflib_register_fail_device),
     "device name eligible for registration fail points");
 
+static char iflib_admin_task_fail_device[32];
+SYSCTL_STRING(_debug_fail_point_iflib, OID_AUTO, admin_task_device,
+    CTLFLAG_RW | CTLFLAG_MPSAFE,
+    iflib_admin_task_fail_device, sizeof(iflib_admin_task_fail_device),
+    "device name eligible for admin task fail points");
+
 /*
  * XXX need to ensure that this can't accidentally cause the head to be moved backwards
  */
@@ -4169,6 +4175,11 @@ _task_fn_admin(void *context, int pending)
 		return;
 	if (in_detach)
 		return;
+	KFAIL_POINT_CODE_COND(_debug_fail_point_iflib,
+	    admin_task_after_detach_check,
+	    iflib_admin_task_fail_device[0] != '\0' &&
+	    strcmp(device_get_nameunit(ctx->ifc_dev),
+	    iflib_admin_task_fail_device) == 0, FAIL_POINT_NONSLEEPABLE, {});
 
 	CTX_LOCK(ctx);
 	if (!do_reset && do_reset_if_up &&
