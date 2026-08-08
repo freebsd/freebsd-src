@@ -266,6 +266,25 @@ devctl attach pci0:4:0:0       # succeeds
 .Pp
 After detach, a device may no longer have its former name.
 Use a bus-specific address, as shown in the PCI example above, to reprobe it.
+.Pp
+The normal detach path can be synchronized with an in-flight admin task to
+test taskqueue teardown.
+Set
+.Va debug.fail_point.iflib.admin_task_device
+to the exact device name, bring the interface up, and set
+.Va debug.fail_point.iflib.admin_task_after_detach_check
+to a one-shot bounded delay, such as
+.Ql 1*print(1)->1*delay(5000000) .
+The delay keeps the admin task active long enough for detach to begin and
+remain blocked in the taskqueue drain.
+As a safety backstop, this fail point is marked nonsleepable and converts a
+configured
+.Sy sleep
+action to a delay.
+Once the execution message appears in the system log,
+detach should wait for the delay to finish.
+This exercises the case where an admin task has passed its detach check but
+has not yet acquired the context lock.
 .Sh SEE ALSO
 .Xr devctl 8 ,
 .Xr fail 9 ,
