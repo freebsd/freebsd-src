@@ -165,5 +165,7 @@ int mlx5_eswitch_set_vport_vlan(struct mlx5_eswitch *esw,
 				int vport, u16 vlan, u8 qos);
 int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 				  int vport, struct mlx5_esw_vport_info *evi);
+int mlx5_eswitch_get_vport_config_cvlan(struct mlx5_eswitch *esw,
+	int vport, struct mlx5_esw_vport_info *evi, bool *cvlan_enabled);
 
 #endif /* __MLX5_ESWITCH_H__ */

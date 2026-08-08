@@ -61,6 +61,8 @@ int mlx5_nic_vport_modify_local_lb(struct mlx5_core_dev *mdev,
 u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod, u16 vport);
 u8 mlx5_query_vport_admin_state(struct mlx5_core_dev *mdev, u8 opmod,
 				u16 vport);
+int mlx5_query_vport_admin_state_checked(struct mlx5_core_dev *mdev,
+				u8 opmod, u16 vport, u8 *state);
 int mlx5_modify_vport_admin_state(struct mlx5_core_dev *mdev, u8 opmod,
 				  u16 vport, u8 state);
 

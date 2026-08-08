@@ -64,13 +64,27 @@ u8 mlx5_query_vport_state(struct mlx5_core_dev *mdev, u8 opmod, u16 vport)
 }
 EXPORT_SYMBOL_GPL(mlx5_query_vport_state);
 
-u8 mlx5_query_vport_admin_state(struct mlx5_core_dev *mdev, u8 opmod, u16 vport)
+int
+mlx5_query_vport_admin_state_checked(struct mlx5_core_dev *mdev, u8 opmod,
+				     u16 vport, u8 *state)
 {
 	u32 out[MLX5_ST_SZ_DW(query_vport_state_out)] = {0};
+	int err;
 
-	_mlx5_query_vport_state(mdev, opmod, vport, out, sizeof(out));
+	err = _mlx5_query_vport_state(mdev, opmod, vport, out, sizeof(out));
+	if (err != 0)
+		return err;
+	*state = MLX5_GET(query_vport_state_out, out, admin_state);
+	return 0;
+}
 
-	return MLX5_GET(query_vport_state_out, out, admin_state);
+u8 mlx5_query_vport_admin_state(struct mlx5_core_dev *mdev, u8 opmod, u16 vport)
+{
+	u8 state;
+
+	state = 0;
+	(void)mlx5_query_vport_admin_state_checked(mdev, opmod, vport, &state);
+	return (state);
 }
 EXPORT_SYMBOL(mlx5_query_vport_admin_state);
 
