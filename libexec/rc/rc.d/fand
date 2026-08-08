@@ -1,0 +1,161 @@
+#!/bin/sh
+#
+# Copyright (c) 2003 The FreeBSD Project. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE PROJECT ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+# OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE PROJECT BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+# NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+# THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#
+
+# PROVIDE: fand
+# REQUIRE: DAEMON devfs sysctl
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="fand"
+desc="System fan control"
+rcvar="${name}_enable"
+
+load_rc_config $name
+: ${fand_enable:=NO}
+: ${fand_list:=""}
+
+# Defaults (matching fand(8))
+fand_default_flags=
+fand_default_hi_duty=
+fand_default_hi_period=0
+fand_default_hi_temp=
+fand_default_invpol=NO
+fand_default_kelvin=YES
+fand_default_lo_duty=
+fand_default_lo_period=0
+fand_default_lo_temp=50
+fand_default_multiplier=1.0
+fand_default_off_temp=50
+fand_default_pollint=60
+fand_default_profile=
+
+command="/usr/sbin/${name}"
+start_precmd="fand_prestart"
+start_cmd="fand_start"
+status_cmd="fand_status"
+stop_cmd="fand_stop"
+
+fand_start_config()
+{
+	local name="$1"
+	local prefix="fand_${name}_"
+
+	for option_name in device sensor lo_temp hi_temp off_temp lo_period hi_period lo_duty hi_duty kelvin multiplier profile pollint invpol flags; do
+		eval "local default=\${fand_default_${option_name}}"
+		eval "local ${option_name}=\${${prefix}${option_name}:-$default}"
+	done
+	if [ -z "$device" ] || [ -z "$sensor" ]; then
+		warn "fand_${name}_sensor and fand_${name}_device are required to start a fand instance!"
+		return
+	fi
+
+	local pidfile="/var/run/fand/$name.pid"
+	local cmdline="$command"
+	cmdline="$cmdline -r $pidfile"
+	if [ -n "$profile" ]; then
+		if [ $(echo $profile | cut -c1) != '/' ]; then
+			profile="/etc/fand/$profile"
+		fi
+		cmdline="$cmdline -c $profile"
+	else
+		if [ -n "$lo_duty" ]; then
+			warn "fand_${fan}_lo_duty is required to start a fand instance!"
+			continue
+		fi
+		cmdline="${cmdline}${lo_temp:+ -t $lo_temp}${lo_period:+ -p $lo_period}${lo_duty:+ -d $lo_duty}"
+		cmdline="${cmdline}${hi_temp:+ -T $hi_temp}${hi_period:+ -P $hi_period}${hi_duty:+ -D $hi_duty}"
+		cmdline="${cmdline}${off_temp:+ -o $off_temp}"
+	fi
+	checkyesno kelvin && cmdline="$cmdline -K"
+	checkyesno invpol && cmdline="$cmdline -I"
+	cmdline="${cmdline}${multiplier:+ -m $multiplier}${pollint:+ -i $pollint}"
+	cmdline="$cmdline $sensor $device"
+
+	$cmdline
+	startmsg -n " $name"
+}
+
+fand_prestart()
+{
+	[ -d /var/run/fand ] || install -do root -g wheel -m 755 /var/run/fand
+}
+
+fand_start()
+{
+	local list=$*
+	[ -n "$list" ] || list=$fand_list
+	[ -n "$list" ] || err 1 "configuration names are required to start fand instances"
+
+	startmsg -n "Starting ${desc}:"
+	for name in $list; do
+		fand_start_config "$name"
+	done
+	startmsg '.'
+}
+
+fand_status()
+{
+	local list=$*
+	[ -n "$list" ] || list=$fand_list
+
+	local status=''
+	local pidlist=''
+	for name in $list; do
+		local pidfile="/var/run/fand/$name.pid"
+		local pid=$(check_pidfile $pidfile $command)
+		[ -n "$pid" ] && pidlist="$pidlist $pid"
+		[ -n "$pid" ] || continue
+		status="$status $name"
+	done
+	if [ -n "$status" ]; then
+		echo "Running ${desc}:$status."
+	else
+		echo "No running ${desc}."
+	fi
+}
+
+fand_stop()
+{
+	local list=$*
+	[ -n "$list" ] || list=$fand_list
+
+	local pidlist=''
+	startmsg -n "Stopping ${desc}:"
+	for name in $list; do
+		local sig_stop=${sig_stop:-TERM}
+		local pidfile="/var/run/fand/$name.pid"
+		local pid=$(check_pidfile $pidfile $command)
+		[ -n "$pid" ] && pidlist="$pidlist $pid"
+		[ -n "$pid" ] || continue
+		startmsg -n " $name"
+		kill -$sig_stop $pid
+	done
+	startmsg '.'
+	wait_for_pids $pidlist
+}
+
+run_rc_command $*
