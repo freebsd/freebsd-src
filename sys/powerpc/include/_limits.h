@@ -42,7 +42,7 @@
  */
 
 #define	__CHAR_BIT	8		/* number of bits in a char */
-#define __SHRT_BIT	16		/* number of bits in an short */
+#define __SHRT_BIT	16		/* number of bits in a short */
 #define __INT_BIT	32		/* number of bits in an int */
 #define __LLONG_BIT	64		/* number of bits in a long long */
 
