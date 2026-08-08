@@ -110,7 +110,6 @@ static int	igc_if_mtu_set(if_ctx_t, uint32_t);
 static void	igc_if_timer(if_ctx_t, uint16_t);
 static void	igc_if_vlan_register(if_ctx_t, u16);
 static void	igc_if_vlan_unregister(if_ctx_t, u16);
-static void	igc_if_watchdog_reset(if_ctx_t);
 static bool	igc_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 
 static void	igc_identify_hardware(if_ctx_t);
@@ -225,7 +224,6 @@ static device_method_t igc_if_methods[] = {
 	DEVMETHOD(ifdi_mtu_set, igc_if_mtu_set),
 	DEVMETHOD(ifdi_promisc_set, igc_if_set_promisc),
 	DEVMETHOD(ifdi_timer, igc_if_timer),
-	DEVMETHOD(ifdi_watchdog_reset, igc_if_watchdog_reset),
 	DEVMETHOD(ifdi_vlan_register, igc_if_vlan_register),
 	DEVMETHOD(ifdi_vlan_unregister, igc_if_vlan_unregister),
 	DEVMETHOD(ifdi_get_counter, igc_if_get_counter),
@@ -1484,18 +1482,6 @@ igc_if_update_admin_status(if_ctx_t ctx)
 	}
 	igc_apply_i225_ipg_workaround(sc);
 	igc_update_stats_counters(sc);
-}
-
-static void
-igc_if_watchdog_reset(if_ctx_t ctx)
-{
-	struct igc_softc *sc = iflib_get_softc(ctx);
-
-	/*
-	 * Just count the event; iflib(4) will already trigger a
-	 * sufficient reset of the controller.
-	 */
-	sc->watchdog_events++;
 }
 
 /*********************************************************************
@@ -2790,7 +2776,7 @@ igc_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 		    sc->stats.mpc);
 	case IFCOUNTER_OERRORS:
 		return (if_get_counter_default(ifp, cnt) +
-		    sc->stats.ecol + sc->stats.latecol + sc->watchdog_events);
+		    sc->stats.ecol + sc->stats.latecol);
 	default:
 		return (if_get_counter_default(ifp, cnt));
 	}
@@ -2891,9 +2877,6 @@ igc_add_hw_stats(struct igc_softc *sc)
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "rx_overruns",
 	    CTLFLAG_RD, &sc->rx_overruns,
 	    "RX overruns");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "watchdog_timeouts",
-	    CTLFLAG_RD, &sc->watchdog_events,
-	    "Watchdog timeouts");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "device_control",
 	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    sc, IGC_CTRL, igc_sysctl_reg_handler, "IU",

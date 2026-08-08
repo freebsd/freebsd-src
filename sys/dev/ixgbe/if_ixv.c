@@ -2100,8 +2100,6 @@ ixv_add_stats_sysctls(struct ixgbe_softc *sc)
 	char namebuf[QUEUE_NAME_LEN];
 
 	/* Driver Statistics */
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "watchdog_events",
-	    CTLFLAG_RD, &sc->watchdog_events, "Watchdog timeouts");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "link_irq",
 	    CTLFLAG_RD, &sc->link_irq, "Link MSI-X IRQ Handled");
 

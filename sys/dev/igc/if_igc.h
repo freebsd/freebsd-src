@@ -414,8 +414,6 @@ struct igc_softc {
 	unsigned long	dropped_pkts;
 	unsigned long	link_irq;
 	unsigned long	rx_overruns;
-	unsigned long	watchdog_events;
-
 	struct igc_hw_stats stats;
 	u16		vf_ifp;
 };

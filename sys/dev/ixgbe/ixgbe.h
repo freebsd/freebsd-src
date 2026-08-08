@@ -491,7 +491,6 @@ struct ixgbe_softc {
 	unsigned long		dropped_pkts;
 	unsigned long		mbuf_header_failed;
 	unsigned long		mbuf_packet_failed;
-	unsigned long		watchdog_events;
 	unsigned long		link_irq;
 	union {
 		struct ixgbe_hw_stats pf;

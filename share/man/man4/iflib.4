@@ -1,4 +1,4 @@
-.Dd August 4, 2026
+.Dd August 8, 2026
 .Dt IFLIB 4
 .Os
 .Sh NAME
@@ -145,6 +145,11 @@ variables are read-only:
 .Bl -tag -width indent
 .It Va driver_version
 A string indicating the internal version of the driver.
+.It Va tx_watchdog_events
+Number of transmit watchdog resets initiated by
+.Nm .
+This counts recovery events, not failed packets, and is not included in the
+interface output error counter.
 .El
 .Pp
 There are a number of queue state

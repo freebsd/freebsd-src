@@ -2067,8 +2067,6 @@ ixgbe_add_hw_stats(struct ixgbe_softc *sc)
 	/* Driver Statistics */
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "dropped",
 	    CTLFLAG_RD, &sc->dropped_pkts, "Driver dropped packets");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "watchdog_events",
-	    CTLFLAG_RD, &sc->watchdog_events, "Watchdog timeouts");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "link_irq",
 	    CTLFLAG_RD, &sc->link_irq, "Link MSI-X IRQ Handled");
 
