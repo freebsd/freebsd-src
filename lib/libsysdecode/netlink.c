@@ -237,6 +237,12 @@ nl_decode_attrs_raw(FILE *fp, const struct nlattr *nla_head, size_t len,
 	fprintf(fp, "}");
 }
 
+static const struct nlattr_decoder nla_d_set_limit[] = {
+	{ .type = PF_LI_INDEX, .attr_name = "index", .cb = nlattr_decode_uint32 },
+	{ .type = PF_LI_LIMIT, .attr_name = "limit", .cb = nlattr_decode_uint32 },
+};
+NL_DECLARE_ATTR_DECODER(set_limit_decoder, nla_d_set_limit);
+
 static const struct nlattr_decoder nla_d_addr_wrap[] = {
 	{ .type = PF_AT_ADDR, .attr_name = "addr", .cb = nlattr_decode_in6_addr },
 	{ .type = PF_AT_MASK, .attr_name = "mask", .cb = nlattr_decode_in6_addr },
@@ -307,6 +313,10 @@ sysdecode_netlink_pf(FILE *fp, const struct genlmsghdr *genl, size_t nlm_len)
 	    ((const char *)genl + sizeof(struct genlmsghdr));
 
 	switch (cmd) {
+	case PFNL_CMD_GET_LIMIT:
+			nl_decode_attrs_raw(fp, nla, nlm_len,
+			    set_limit_decoder.decoders, set_limit_decoder.count);
+		break;
 	case PFNL_CMD_GET_ADDR:
 			nl_decode_attrs_raw(fp, nla, nlm_len,
 			    addr_decoder.decoders, addr_decoder.count);
