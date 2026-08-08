@@ -30,7 +30,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd October 11, 2001
+.Dd June 21, 2026
 .Dt STRSTR 3
 .Os
 .Sh NAME
@@ -40,16 +40,16 @@
 .Lb libc
 .Sh SYNOPSIS
 .In string.h
-.Ft char *
-.Fn strstr "const char *big" "const char *little"
-.Ft char *
-.Fn strcasestr "const char *big" "const char *little"
-.Ft char *
-.Fn strnstr "const char *big" "const char *little" "size_t len"
+.Ft "QChar *"
+.Fn strstr "QChar *big" "const char *little"
+.Ft "QChar *"
+.Fn strcasestr "QChar *big" "const char *little"
+.Ft "QChar *"
+.Fn strnstr "QChar *big" "const char *little" "size_t len"
 .In string.h
 .In xlocale.h
-.Ft char *
-.Fn strcasestr_l "const char *big" "const char *little" "locale_t loc"
+.Ft "QChar *"
+.Fn strcasestr_l "QChar *big" "const char *little" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn strstr
@@ -147,9 +147,22 @@ ptr = strnstr(largestring, smallstring, 4);
 .Sh STANDARDS
 The
 .Fn strstr
-function
-conforms to
-.St -isoC .
+function conforms to
+.St -isoC-2023 ,
+where it is specified as a qualifier-preserving function.
+.Pp
+The
+.Fn strcasestr
+function is a
+.Tn GNU
+extension, and the
+.Fn strnstr
+function is a
+.Bx
+extension.
+Like the qualifier-preserving functions in
+.St -isoC-2023 ,
+.Fx implements them as qualifier-preserving as well.
 .Sh HISTORY
 The
 .Fn strnstr
