@@ -1349,9 +1349,9 @@ ixv_initialize_transmit_units(if_ctx_t ctx)
 		u32 txctrl, txdctl;
 		int j = txr->me;
 
-		/* Set WTHRESH to 8, burst writeback */
 		txdctl = IXGBE_READ_REG(hw, IXGBE_VFTXDCTL(j));
-		txdctl |= (8 << 16);
+		txdctl &= ~IXGBE_TXDCTL_THRESH_MASK;
+		txdctl |= IXGBE_TXDCTL_THRESH_DEFAULT;
 		IXGBE_WRITE_REG(hw, IXGBE_VFTXDCTL(j), txdctl);
 
 		/* Set the HW Tx Head and Tail indices */

@@ -122,6 +122,14 @@
 #define DBA_ALIGN		128
 
 /*
+ * iflib uses the RS bit to select the descriptors whose status it polls.
+ * Keep WTHRESH zero so the hardware honors RS, and retain the driver's
+ * established descriptor-prefetch settings.
+ */
+#define IXGBE_TXDCTL_THRESH_MASK		0x007f7f7f
+#define IXGBE_TXDCTL_THRESH_DEFAULT	((32 << 0) | (1 << 8))
+
+/*
  * This is the max watchdog interval, ie. the time that can
  * pass between any two TX clean operations, such only happening
  * when the TX hardware is functioning.
