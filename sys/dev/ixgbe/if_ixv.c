@@ -195,23 +195,6 @@ static driver_t ixv_if_driver = {
   "ixv_if", ixv_if_methods, sizeof(struct ixgbe_softc)
 };
 
-/*
- * TUNEABLE PARAMETERS:
- */
-
-/* Flow control setting, default to full */
-static int ixv_flow_control = ixgbe_fc_full;
-TUNABLE_INT("hw.ixv.flow_control", &ixv_flow_control);
-
-/*
- * Header split: this causes the hardware to DMA
- * the header into a separate mbuf from the payload,
- * it can be a performance win in some workloads, but
- * in others it actually hurts, its off by default.
- */
-static int ixv_header_split = false;
-TUNABLE_INT("hw.ixv.hdr_split", &ixv_header_split);
-
 #define	IXV_VLAN_RETRY_BATCH	4
 #define	IXV_VLAN_RETRY_WINDOW	(8 * SBT_1S)
 
