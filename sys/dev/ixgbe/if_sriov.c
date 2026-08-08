@@ -1698,6 +1698,11 @@ ixgbe_iov_validate(struct ixgbe_softc *sc, u16 num_vfs)
 	if (sc->vfs != NULL || sc->vf_mac_filters != NULL ||
 	    (sc->feat_en & IXGBE_FEATURE_SRIOV))
 		return (EBUSY);
+	if (sc->feat_en & IXGBE_FEATURE_FDIR) {
+		device_printf(sc->dev,
+		    "Flow Director is not supported with SR-IOV\n");
+		return (ENOTSUP);
+	}
 	if (sc->intr_type != IFLIB_INTR_MSIX) {
 		device_printf(sc->dev, "SR-IOV requires MSI-X\n");
 		return (ENOTSUP);

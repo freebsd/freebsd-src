@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 7, 2026
+.Dd August 8, 2026
 .Dt IX 4
 .Os
 .Sh NAME
@@ -168,6 +168,7 @@ Enable Flow Director.
 Flow Director directs Ethernet packets to the core where the
 packet consuming process, application, container,
 or microservice is running.
+SR-IOV configuration is rejected when Flow Director is enabled.
 .It Va hw.ix.enable_rss
 Enable Receive-Side Scaling (RSS).
 When RSS is enabled, all of the receive data processing for
