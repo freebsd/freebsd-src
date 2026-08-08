@@ -181,7 +181,10 @@ checkfilesys(const char *fname)
     out:
 	if (finish_dosdirsection)
 		finishDosDirSection();
-	free(fat);
+	if (fat) {
+		releasefat(fat);
+		free(fat);
+	}
 	close(dosfs);
 
 	if (mod & (FSFATMOD|FSDIRMOD))
