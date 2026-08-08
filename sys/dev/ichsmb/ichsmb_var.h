@@ -80,6 +80,7 @@ extern smbus_readw_t	ichsmb_readw;
 extern smbus_pcall_t	ichsmb_pcall;	
 extern smbus_bwrite_t	ichsmb_bwrite;	
 extern smbus_bread_t	ichsmb_bread;	
+extern smbus_bpcall_t	ichsmb_bpcall;
 
 /* Other functions */
 extern void	ichsmb_device_intr(void *cookie);
