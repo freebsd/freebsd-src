@@ -4009,17 +4009,15 @@ ixgbe_if_init(if_ctx_t ctx)
 		struct tx_ring *txr = &tx_que->txr;
 
 		txdctl = IXGBE_READ_REG(hw, IXGBE_TXDCTL(txr->me));
-		txdctl |= IXGBE_TXDCTL_ENABLE;
-		/* Set WTHRESH to 8, burst writeback */
-		txdctl |= (8 << 16);
+		txdctl &= ~IXGBE_TXDCTL_THRESH_MASK;
+		txdctl |= IXGBE_TXDCTL_ENABLE | IXGBE_TXDCTL_THRESH_DEFAULT;
 		/*
 		 * When the internal queue falls below PTHRESH (32),
 		 * start prefetching as long as there are at least
-		 * HTHRESH (1) buffers ready. The values are taken
-		 * from the Intel linux driver 3.8.21.
+		 * HTHRESH (1) buffers ready.  Leave WTHRESH at zero
+		 * so that writeback follows iflib's sparse RS bits.
 		 * Prefetching enables tx line rate even with 1 queue.
 		 */
-		txdctl |= (32 << 0) | (1 << 8);
 		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(txr->me), txdctl);
 	}
 
