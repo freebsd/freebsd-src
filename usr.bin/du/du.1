@@ -27,7 +27,7 @@
 .\"
 .\"	@(#)du.1	8.2 (Berkeley) 4/1/94
 .\"
-.Dd August 1, 2019
+.Dd August 7, 2026
 .Dt DU 1
 .Os
 .Sh NAME
@@ -176,6 +176,16 @@ and
 .Fl Fl si
 options all override each other; the last one specified determines
 the block counts used.
+.Pp
+If
+.Nm
+receives a
+.Dv SIGINFO
+(see the
+.Cm status
+argument for
+.Xr stty 1 )
+signal, the current file will be written to the standard error output.
 .Sh ENVIRONMENT
 .Bl -tag -width BLOCKSIZE
 .It Ev BLOCKSIZE

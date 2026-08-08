@@ -267,6 +267,10 @@ main(int argc, char *argv[])
 		err(1, "fts_open");
 
 	while (errno = 0, (p = fts_read(fts)) != NULL) {
+		if (info) {
+			info = 0;
+			(void)fprintf(stderr, "\t%s\n", p->fts_path);
+		}
 		switch (p->fts_info) {
 		case FTS_D:			/* Ignore. */
 			if (ignorep(p))
@@ -294,10 +298,6 @@ main(int argc, char *argv[])
 					    cblocksize, blocksize),
 					    p->fts_path);
 				}
-			}
-			if (info) {
-				info = 0;
-				(void)printf("\t%s\n", p->fts_path);
 			}
 			break;
 		case FTS_DC:			/* Ignore. */
