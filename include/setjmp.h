@@ -34,8 +34,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _SETJMP_H_
-#define _SETJMP_H_
+#ifndef __STDC_VERSION_SETJMP_H__
+#define __STDC_VERSION_SETJMP_H__ 202311L
 
 #include <sys/cdefs.h>
 
@@ -58,4 +58,4 @@ int	sigsetjmp(sigjmp_buf, int) __returns_twice;
 #endif
 __END_DECLS
 
-#endif /* !_SETJMP_H_ */
+#endif /* !__STDC_VERSION_SETJMP_H__ */

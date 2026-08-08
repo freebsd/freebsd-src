@@ -29,8 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _STDDEF_H_
-#define _STDDEF_H_
+#ifndef __STDC_VERSION_STDDEF_H__
+#define __STDC_VERSION_STDDEF_H__ 202311L
 
 #include <sys/_null.h>
 #include <sys/_offsetof.h>
@@ -77,4 +77,4 @@ typedef size_t rsize_t;
 #endif
 #endif /* __EXT1_VISIBLE */
 
-#endif /* _STDDEF_H_ */
+#endif /* !__STDC_VERSION_STDDEF_H__ */

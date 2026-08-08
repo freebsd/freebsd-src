@@ -29,8 +29,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _LIMITS_H_
-#define	_LIMITS_H_
+#ifndef __STDC_VERSION_LIMITS_H__
+#define __STDC_VERSION_LIMITS_H__ 202311L
 
 #include <sys/cdefs.h>
 
@@ -148,4 +148,4 @@
 #include <sys/syslimits.h>
 #endif
 
-#endif /* !_LIMITS_H_ */
+#endif /* !__STDC_VERSION_LIMITS_H__ */

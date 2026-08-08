@@ -29,6 +29,8 @@
 #ifndef _SYS_STDINT_H_
 #define _SYS_STDINT_H_
 
+#define __STDC_VERSION_STDINT_H__ 202311L
+
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 

@@ -28,9 +28,10 @@
 #ifndef _GELIBOOT_INTERNAL_H_
 #define _GELIBOOT_INTERNAL_H_
 
-#define _STRING_H_
+/* XXX: Perhaps we could do better for the _STANDALONE branch in g_eli.h? */
+#define __STDC_VERSION_STRING_H__	202311L
+#define __STDC_VERSION_STDIO_H__	202311L
 #define _STRINGS_H_
-#define _STDIO_H_
 
 #include <sys/endian.h>
 #include <sys/queue.h>
