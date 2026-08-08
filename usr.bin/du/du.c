@@ -270,6 +270,10 @@ main(int argc, char *argv[])
 	xo_open_container("disk-usage-information");
 	xo_open_list("paths");
 	for (errno = 0; (p = fts_read(fts)) != NULL; errno = 0) {
+		if (info) {
+			info = 0;
+			(void)fprintf(stderr, "\t%s\n", p->fts_path);
+		}
 		switch (p->fts_info) {
 		case FTS_D:			/* Ignore. */
 			if (ignorep(p))
@@ -284,10 +288,6 @@ main(int argc, char *argv[])
 			if (p->fts_level <= depth && check_threshold(p))
 				print_file_size(p);
 
-			if (info) {
-				info = 0;
-				(void)printf("\t%s\n", p->fts_path);
-			}
 			break;
 		case FTS_DC:			/* Ignore. */
 			break;
