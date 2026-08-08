@@ -549,13 +549,6 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 	/* Initialize IFLIB if_softc_ctx_t */
 	axgbe_init_iflib_softc_ctx(sc);
 
-	/* Alloc channels */
-	if (axgbe_alloc_channels(ctx)) {
-		axgbe_error("Unable to allocate channel memory\n");
-		ret = ENOMEM;
-		goto release_bus_resource;
-        }
-
 	TASK_INIT(&pdata->service_work, 0, xgbe_service, pdata);
 
 	/* create the workqueue */
@@ -576,13 +569,16 @@ axgbe_if_attach_pre(if_ctx_t ctx)
 
 free_task_queue:
 	taskqueue_free(pdata->dev_workqueue);
-	axgbe_free_channels(sc);
 
 release_bus_resource:
         bus_release_resources(dev, axgbe_pci_mac_spec, mac_res);
 
 free_vlans:
 	free(pdata->active_vlans, M_AXGBE);
+	pdata->active_vlans = NULL;
+	mtx_destroy(&pdata->xpcs_lock);
+	mtx_destroy(&pdata->rss_mutex);
+	mtx_destroy(&pdata->mdio_mutex);
 
 	return (ret);
 } /* axgbe_if_attach_pre */
@@ -1547,6 +1543,8 @@ axgbe_interrupts_free(if_ctx_t ctx)
 	for (i = 0; i < scctx->isc_nrxqsets; i++) {
 
 		channel = pdata->channel[i];
+		if (channel == NULL)
+			continue;
 		axgbe_printf(2, "%s: rid %d\n", __func__, channel->dma_irq_rid);
 		irq.ii_res = channel->dma_irq_res;
 		irq.ii_tag = channel->dma_irq_tag;
@@ -1565,22 +1563,31 @@ axgbe_if_detach(if_ctx_t ctx)
 	mac_res[0] = pdata->xgmac_res;
 	mac_res[1] = pdata->xpcs_res;
 
-	phy_if->phy_stop(pdata);
-	phy_if->phy_exit(pdata);
+	if (pdata->phy_data != NULL) {
+		phy_if->phy_stop(pdata);
+		phy_if->phy_exit(pdata);
+		pdata->phy_data = NULL;
+	}
 
 	/* Free Interrupts */
 	axgbe_interrupts_free(ctx);
 
 	/* Free workqueues */
 	taskqueue_free(pdata->dev_workqueue);
+	pdata->dev_workqueue = NULL;
 
 	/* Release bus resources */
 	bus_release_resources(iflib_get_dev(ctx), axgbe_pci_mac_spec, mac_res);
 
 	/* Free VLAN bitmap */
 	free(pdata->active_vlans, M_AXGBE);
+	pdata->active_vlans = NULL;
 
 	axgbe_sysctl_exit(pdata);
+	pdata->sys_op = NULL;
+	mtx_destroy(&pdata->xpcs_lock);
+	mtx_destroy(&pdata->rss_mutex);
+	mtx_destroy(&pdata->mdio_mutex);
 
 	return (0);
 } /* axgbe_if_detach */
@@ -1685,7 +1692,7 @@ axgbe_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *va, uint64_t *pa, int ntxqs,
 	if_softc_ctx_t		scctx = sc->scctx;
 	struct xgbe_channel	*channel;
 	struct xgbe_ring	*tx_ring;
-	int			i, j, k;
+	int			i, j;
 
 	MPASS(scctx->isc_ntxqsets > 0);
 	MPASS(scctx->isc_ntxqsets == ntxqsets);
@@ -1693,6 +1700,10 @@ axgbe_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *va, uint64_t *pa, int ntxqs,
 
 	axgbe_printf(1, "%s: txqsets %d/%d txqs %d\n", __func__,
 	    scctx->isc_ntxqsets, ntxqsets, ntxqs);	
+	if (axgbe_alloc_channels(ctx) != 0) {
+		axgbe_error("Unable to allocate channel memory\n");
+		return (ENOMEM);
+	}
 
 	for (i = 0 ; i < ntxqsets; i++) {
 
@@ -1712,6 +1723,10 @@ axgbe_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *va, uint64_t *pa, int ntxqs,
 			tx_ring->rdata =
 			    (struct xgbe_ring_data*)malloc(scctx->isc_ntxd[j] *
 			    sizeof(struct xgbe_ring_data), M_AXGBE, M_NOWAIT);
+			if (tx_ring->rdata == NULL) {
+				axgbe_error("Unable to allocate TX ring data\n");
+				goto tx_ring_fail;
+			}
 
 			/* Get the virtual & physical address of hw queues */
 			tx_ring->rdesc = (struct xgbe_ring_desc *)va[i*ntxqs + j];
@@ -1726,21 +1741,7 @@ axgbe_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *va, uint64_t *pa, int ntxqs,
 	return (0);
 
 tx_ring_fail:
-
-	for (j = 0; j < i ; j++) {
-
-		channel = pdata->channel[j];
-
-		tx_ring = channel->tx_ring;
-		for (k = 0; k < ntxqs ; k++, tx_ring++) {
-			if (tx_ring && tx_ring->rdata)
-				free(tx_ring->rdata, M_AXGBE);
-		}
-		free(channel->tx_ring, M_AXGBE);
-
-		channel->tx_ring = NULL;
-	}
-
+	axgbe_if_queues_free(ctx);
 	return (ENOMEM);
 
 } /* axgbe_if_tx_queues_alloc */
@@ -1754,7 +1755,7 @@ axgbe_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *va, uint64_t *pa, int nrxqs,
 	if_softc_ctx_t		scctx = sc->scctx;
 	struct xgbe_channel	*channel;
 	struct xgbe_ring	*rx_ring;
-	int			i, j, k;
+	int			i, j;
 
 	MPASS(scctx->isc_nrxqsets > 0);
 	MPASS(scctx->isc_nrxqsets == nrxqsets);
@@ -1785,6 +1786,10 @@ axgbe_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *va, uint64_t *pa, int nrxqs,
 			rx_ring->rdata =
 			    (struct xgbe_ring_data*)malloc(scctx->isc_nrxd[j] *
 			    sizeof(struct xgbe_ring_data), M_AXGBE, M_NOWAIT);
+			if (rx_ring->rdata == NULL) {
+				axgbe_error("Unable to allocate RX ring data\n");
+				goto rx_ring_fail;
+			}
 
 			/* Get the virtual and physical address of the hw queues */
 			rx_ring->rdesc = (struct xgbe_ring_desc *)va[i*nrxqs + j];
@@ -1799,21 +1804,7 @@ axgbe_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *va, uint64_t *pa, int nrxqs,
 	return (0);
 
 rx_ring_fail:
-
-	for (j = 0 ; j < i ; j++) {
-
-		channel = pdata->channel[j];
-
-		rx_ring = channel->rx_ring;
-		for (k = 0; k < nrxqs ; k++, rx_ring++) {
-			if (rx_ring && rx_ring->rdata)
-				free(rx_ring->rdata, M_AXGBE);
-		}
-		free(channel->rx_ring, M_AXGBE);
-
-		channel->rx_ring = NULL;
-	}
-
+	axgbe_if_queues_free(ctx);
 	return (ENOMEM);
 
 } /* axgbe_if_rx_queues_alloc */
@@ -1833,6 +1824,8 @@ axgbe_if_queues_free(if_ctx_t ctx)
 	for (i = 0 ; i < scctx->isc_ntxqsets; i++) {
 
 		channel = pdata->channel[i];
+		if (channel == NULL || channel->tx_ring == NULL)
+			continue;
 
 		tx_ring = channel->tx_ring;
 		for (j = 0; j < sctx->isc_ntxqs ; j++, tx_ring++) {
@@ -1846,6 +1839,8 @@ axgbe_if_queues_free(if_ctx_t ctx)
 	for (i = 0 ; i < scctx->isc_nrxqsets; i++) {
 
 		channel = pdata->channel[i];
+		if (channel == NULL || channel->rx_ring == NULL)
+			continue;
 
 		rx_ring = channel->rx_ring;
 		for (j = 0; j < sctx->isc_nrxqs ; j++, rx_ring++) {
