@@ -48,6 +48,11 @@ struct nlattr_decoder_set {
 	size_t				count;		/*Attribute Count*/
 };
 
+struct pfnl_cmd_decoder {
+	int				cmd_num;	/* PFNL CMD */
+	const struct nlattr_decoder_set	*ds;		/* PFNL CMD Decoder set */
+};
+
 #define	NL_DECLARE_ATTR_DECODER(_name, _np)			\
 static const struct nlattr_decoder_set _name = {			\
 	.decoders = &((_np)[0]),					\
@@ -213,6 +218,33 @@ search_decoders(const struct nlattr_decoder *ps, size_t pslen, int key)
 	return (NULL);
 }
 
+static const struct pfnl_cmd_decoder *
+search_cmd_decoders(const struct pfnl_cmd_decoder *ps, size_t pslen, int key)
+{
+	size_t left_i = 0, right_i = pslen - 1;
+
+	if (pslen == 0)
+		return (NULL);
+
+	if (key < ps[0].cmd_num || key > ps[pslen - 1].cmd_num)
+		return (NULL);
+
+	while (left_i + 1 < right_i) {
+		size_t mid_i = (left_i + right_i) / 2;
+		if (key < ps[mid_i].cmd_num)
+			right_i = mid_i;
+		else if (key > ps[mid_i].cmd_num)
+			left_i = mid_i + 1;
+		else
+			return (&ps[mid_i]);
+	}
+	if (ps[left_i].cmd_num == key)
+		return (&ps[left_i]);
+	else if (ps[right_i].cmd_num == key)
+		return (&ps[right_i]);
+	return (NULL);
+}
+
 static void
 nl_decode_attrs_raw(FILE *fp, const struct nlattr *nla_head, size_t len,
     const struct nlattr_decoder *ps, size_t pslen)
@@ -307,6 +339,14 @@ static const struct nlattr_decoder nla_d_clear_states[] = {
 };
 NL_DECLARE_ATTR_DECODER(killclear_states_decoder, nla_d_clear_states);
 
+static const struct pfnl_cmd_decoder cmd_decoder[] = {
+	{ .cmd_num = PFNL_CMD_GETRULES, .ds = &getrules_decoder },
+	{ .cmd_num = PFNL_CMD_KILLSTATES, .ds = &killclear_states_decoder },
+	{ .cmd_num = PFNL_CMD_GET_LIMIT, .ds = &set_limit_decoder },
+	{ .cmd_num = PFNL_CMD_GET_ADDRS, .ds = &addr_decoder },
+	{ .cmd_num = PFNL_CMD_GET_ADDR, .ds = &addr_decoder },
+};
+
 static void
 sysdecode_netlink_pf(FILE *fp, const struct genlmsghdr *genl, size_t nlm_len)
 {
@@ -321,30 +361,12 @@ sysdecode_netlink_pf(FILE *fp, const struct genlmsghdr *genl, size_t nlm_len)
 	const struct nlattr *nla = (const struct nlattr *)(const void *)
 	    ((const char *)genl + sizeof(struct genlmsghdr));
 
-	switch (cmd) {
-	case PFNL_CMD_GETRULES:
-			nl_decode_attrs_raw(fp, nla, nlm_len,
-			    getrules_decoder.decoders, getrules_decoder.count);
-		break;
-	case PFNL_CMD_GET_LIMIT:
-			nl_decode_attrs_raw(fp, nla, nlm_len,
-			    set_limit_decoder.decoders, set_limit_decoder.count);
-		break;
-	case PFNL_CMD_GET_ADDR:
-			nl_decode_attrs_raw(fp, nla, nlm_len,
-			    addr_decoder.decoders, addr_decoder.count);
-		break;
-	case PFNL_CMD_GET_ADDRS:
-			nl_decode_attrs_raw(fp, nla, nlm_len,
-			    addr_decoder.decoders, addr_decoder.count);
-		break;
-	case PFNL_CMD_KILLSTATES:
-			nl_decode_attrs_raw(fp, nla, nlm_len,
-			    killclear_states_decoder.decoders,
-			    killclear_states_decoder.count);
-		break;
-	default:
-		break;
+	const struct pfnl_cmd_decoder *d;
+
+	d = search_cmd_decoders(cmd_decoder, nitems(cmd_decoder), cmd);
+	if (d != NULL) {
+		nl_decode_attrs_raw(fp, nla, nlm_len,
+			d->ds->decoders, d->ds->count);
 	}
 }
 
