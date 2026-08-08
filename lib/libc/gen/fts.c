@@ -443,8 +443,8 @@ fts_read(FTS *sp)
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE)) {
 		p->fts_info = fts_stat(sp, p, 1, -1);
 		if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
-			if ((p->fts_symfd = p->fts_dirfd >= 0 ?
-			    _dup(p->fts_dirfd) :
+			if ((p->fts_symfd = p->fts_parent->fts_dirfd >= 0 ?
+			    _dup(p->fts_parent->fts_dirfd) :
 			    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0) {
 				p->fts_errno = errno;
 				p->fts_info = FTS_ERR;
@@ -509,6 +509,10 @@ fts_read(FTS *sp)
 
 	/* Move to the next node on this level. */
 next:	tmp = p;
+	if (tmp->fts_dirfd >= 0 && tmp->fts_info == FTS_DP) {
+		(void)_close(tmp->fts_dirfd);
+		tmp->fts_dirfd = -1;
+	}
 	if ((p = p->fts_link) != NULL) {
 		/*
 		 * If reached the top, return to the original directory (or
@@ -537,8 +541,8 @@ next:	tmp = p;
 			p->fts_info = fts_stat(sp, p, 1, -1);
 			if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
 				if ((p->fts_symfd =
-				    p->fts_dirfd >= 0 ?
-				    _dup(p->fts_dirfd) :
+				    p->fts_parent->fts_dirfd >= 0 ?
+				    _dup(p->fts_parent->fts_dirfd) :
 				    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0) {
 					p->fts_errno = errno;
 					p->fts_info = FTS_ERR;
@@ -680,8 +684,8 @@ fts_children(FTS *sp, int instr)
 	    ISSET(FTS_NOCHDIR))
 		return (sp->fts_child = fts_build(sp, instr));
 
-	if ((fd = sp->fts_cur->fts_dirfd >= 0 ?
-	    _dup(sp->fts_cur->fts_dirfd) :
+	if ((fd = sp->fts_cur->fts_parent->fts_dirfd >= 0 ?
+	    _dup(sp->fts_cur->fts_parent->fts_dirfd) :
 	    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (NULL);
 	sp->fts_child = fts_build(sp, instr);
@@ -782,6 +786,8 @@ fts_build(FTS *sp, int type)
 		}
 		return (NULL);
 	}
+
+	cur->fts_dirfd = _dup(_dirfd(dirp));
 
 	/*
 	 * In the FTS_PHYSICAL | FTS_NOSTAT case, we want to avoid calling
@@ -918,7 +924,6 @@ mem1:				saved_errno = errno;
 		}
 
 		p->fts_level = level;
-		p->fts_dirfd = _dup(_dirfd(dirp));
 		p->fts_parent = sp->fts_cur;
 		p->fts_pathlen = len + dnamlen;
 
@@ -1337,8 +1342,8 @@ fts_ufslinks(FTS *sp, const FTSENT *ent)
 	 * avoidance.
 	 */
 	if (priv->ftsp_dev != ent->fts_dev) {
-		if ((ent->fts_dirfd >= 0 ?
-		    _fstatfs(ent->fts_dirfd, &priv->ftsp_statfs) :
+		if ((ent->fts_parent->fts_dirfd >= 0 ?
+		    _fstatfs(ent->fts_parent->fts_dirfd, &priv->ftsp_statfs) :
                     statfs(ent->fts_path, &priv->ftsp_statfs)) != -1) {
 			priv->ftsp_dev = ent->fts_dev;
 			priv->ftsp_linksreliable = 0;
