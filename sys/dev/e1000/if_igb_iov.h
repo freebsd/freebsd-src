@@ -24,6 +24,7 @@ int	igb_iov_validate(struct e1000_softc *, u16);
 int	igb_if_iov_init(if_ctx_t, u16, const nvlist_t *);
 void	igb_if_iov_uninit(if_ctx_t);
 int	igb_if_iov_vf_add(if_ctx_t, u16, const nvlist_t *);
+int	igb_if_vf_status(if_ctx_t, nvlist_t *);
 void	igb_iov_initialize(struct e1000_softc *);
 void	igb_iov_handle_mbx(struct e1000_softc *);
 void	igb_iov_handle_mdd(struct e1000_softc *);

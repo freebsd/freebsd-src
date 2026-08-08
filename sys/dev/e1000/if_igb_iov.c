@@ -1996,6 +1996,64 @@ igb_iov_validate(struct e1000_softc *sc, u16 num_vfs)
 }
 
 int
+igb_if_vf_status(if_ctx_t ctx, nvlist_t *status)
+{
+	struct e1000_softc *sc;
+	struct igb_vf *vf;
+	nvlist_t **vfs;
+	u_int num_queues;
+	int error, i;
+
+	sc = iflib_get_softc(ctx);
+	if (sc->num_vfs == 0)
+		return (ENXIO);
+	num_queues = sc->hw.mac.type == e1000_82576 ?
+	    IGB_82576_VF_QUEUES : IGB_I350_VF_QUEUES;
+	vfs = mallocarray(sc->num_vfs, sizeof(*vfs), M_IGB_IOV,
+	    M_WAITOK | M_ZERO);
+	for (i = 0; i < sc->num_vfs; i++) {
+		vf = &sc->vfs[i];
+		vfs[i] = nvlist_create(0);
+		nvlist_add_number(vfs[i], IFVF_STATUS_INDEX, i);
+		nvlist_add_bool(vfs[i], IFVF_STATUS_CONFIGURED,
+		    (vf->flags & IGB_VF_ACTIVE) != 0);
+		nvlist_add_bool(vfs[i], IFVF_STATUS_INITIALIZED,
+		    (vf->flags & IGB_VF_CTS) != 0);
+		nvlist_add_binary(vfs[i], IFVF_STATUS_MAC, vf->mac,
+		    ETHER_ADDR_LEN);
+		if (vf->default_vlan == 0)
+			nvlist_add_string(vfs[i], IFVF_STATUS_VLAN_MODE,
+			    IFVF_VLAN_MODE_TRUNK);
+		else {
+			nvlist_add_string(vfs[i], IFVF_STATUS_VLAN_MODE,
+			    IFVF_VLAN_MODE_ACCESS);
+			nvlist_add_number(vfs[i], IFVF_STATUS_VLAN,
+			    vf->default_vlan);
+		}
+		nvlist_add_number(vfs[i], IFVF_STATUS_VLAN_COUNT,
+		    vf->vlan_count);
+		nvlist_add_number(vfs[i], IFVF_STATUS_NUM_QUEUES, num_queues);
+		nvlist_add_bool(vfs[i], IFVF_STATUS_ALLOW_SET_MAC,
+		    (vf->flags & IGB_VF_CAP_MAC) != 0);
+		nvlist_add_bool(vfs[i], IFVF_STATUS_ALLOW_SET_VLAN,
+		    vf->default_vlan == 0);
+		nvlist_add_bool(vfs[i], IFVF_STATUS_MAC_ANTI_SPOOF,
+		    (vf->flags & IGB_VF_MAC_ANTI_SPOOF) != 0);
+		nvlist_add_bool(vfs[i], IFVF_STATUS_ALLOW_PROMISC,
+		    (vf->flags & IGB_VF_ALLOW_PROMISC) != 0);
+		nvlist_add_bool(vfs[i], IFVF_STATUS_MDD_BLOCKED,
+		    (vf->flags & IGB_VF_MDD_BLOCKED) != 0);
+	}
+	nvlist_add_nvlist_array(status, IFVF_STATUS_VFS,
+	    (const nvlist_t * const *)vfs, sc->num_vfs);
+	error = nvlist_error(status);
+	for (i = 0; i < sc->num_vfs; i++)
+		nvlist_destroy(vfs[i]);
+	free(vfs, M_IGB_IOV);
+	return (error);
+}
+
+int
 igb_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
 {
 	struct e1000_softc *sc;
