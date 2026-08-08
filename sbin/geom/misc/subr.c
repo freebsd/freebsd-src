@@ -28,7 +28,9 @@
 
 #include <sys/param.h>
 #include <sys/disk.h>
+#include <sys/disk_zone.h>
 #include <sys/endian.h>
+#include <sys/ioctl.h>
 #include <sys/uio.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -216,6 +218,24 @@ g_get_sectorsize(const char *name)
 		sectorsize = 0;
 	(void)g_close(fd);
 	return ((unsigned int)sectorsize);
+}
+
+int
+g_provider_is_host_managed(const char *name)
+{
+	struct disk_zone_args zone_args;
+	int error, fd;
+
+	bzero(&zone_args, sizeof(zone_args));
+	zone_args.zone_cmd = DISK_ZONE_GET_PARAMS;
+	fd = g_open(name, 0);
+	if (fd == -1)
+		return (0);
+	error = ioctl(fd, DIOCZONECMD, &zone_args);
+	(void)g_close(fd);
+	return (error == 0 &&
+	    zone_args.zone_params.disk_params.zone_mode ==
+	    DISK_ZONE_MODE_HOST_MANAGED);
 }
 
 int

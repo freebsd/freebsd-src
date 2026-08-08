@@ -874,6 +874,105 @@ g_part_ctl_bootcode(struct gctl_req *req, struct g_part_parms *gpp)
 	return (error);
 }
 
+/*
+ * On host-managed zoned providers, partition metadata can only be written
+ * in conventional zones.
+ *
+ * Establish whether the table can be written before committing anything:
+ *  - Schemes that do not describe their metadata ranges (everything but
+ *    GPT) are refused outright.
+ *  - Metadata in conventional zones needs no special care.
+ *  - A range flagged G_PART_MDR_OPTIONAL (e.g. backup GPT) is omitted when
+ *    its location is not conventional.
+ *
+ * Anything else is refused before a single sector is written. A stale
+ * backup GPT at the tail is dropped from the scrub map when its zones
+ * cannot be overwritten.
+ */
+static int
+g_part_zoned_prepare(struct gctl_req *req, struct g_consumer *cp,
+    struct g_part_table *table)
+{
+	struct g_provider *pp;
+	quad_t length, start;
+	int error, flags, idx;
+	bool pri_only, was_pri_only, writable;
+
+	was_pri_only = table->gpt_primary_only;
+	table->gpt_primary_only = 0;
+	if (!g_zone_host_managed(cp))
+		return (0);
+
+	pp = cp->provider;
+	pri_only = false;
+
+	/*
+	 * The ranges in which the scheme keeps its metadata. The null
+	 * scheme (a table being destroyed) writes no metadata; only the
+	 * scrub maps matter for it.
+	 */
+	for (idx = 0; table->gpt_scheme != &g_part_null_scheme; idx++) {
+		error = G_PART_GETMDRANGE(table, pp, idx, &start, &length,
+		    &flags);
+		if (error == ENOENT)
+			break;
+		if (error == EOPNOTSUPP) {
+			gctl_error(req, "%d %s: partition scheme %s does not "
+			    "describe its metadata layout, which is required "
+			    "on host-managed zoned providers", error, pp->name,
+			    table->gpt_scheme->name);
+			return (error);
+		}
+		if (error != 0) {
+			gctl_error(req, "%d %s: cannot determine the %s "
+			    "metadata layout", error, pp->name,
+			    table->gpt_scheme->name);
+			return (error);
+		}
+		error = g_zone_range_random_writable(cp, start, length,
+		    &writable);
+		if (error != 0)
+			goto repfail;
+		if (writable)
+			continue;
+		if ((flags & G_PART_MDR_OPTIONAL) != 0) {
+			pri_only = true;
+			continue;
+		}
+		gctl_error(req, "%d %s: partition table metadata would land "
+		    "in zones that are not randomly writable", EOPNOTSUPP,
+		    pp->name);
+		return (EOPNOTSUPP);
+	}
+
+	/*
+	 * A stale backup GPT in the tail scrub map cannot be scrubbed when
+	 * it lies in a sequential zone, which is the norm; drop it so that
+	 * the table can still be destroyed. Randomly writable tails scrub
+	 * normally.
+	 */
+	if (table->gpt_smtail != 0) {
+		error = g_zone_range_random_writable(cp,
+		    (quad_t)(pp->mediasize / pp->sectorsize) -
+		    fls(table->gpt_smtail), fls(table->gpt_smtail), &writable);
+		if (error != 0)
+			goto repfail;
+		if (!writable)
+			table->gpt_smtail = 0;
+	}
+
+	/* Committing re-runs this check: do not repeat the message. */
+	if (pri_only && !was_pri_only)
+		printf("GEOM_PART: %s: backup table omitted: its location "
+		    "is not randomly writable\n", pp->name);
+	table->gpt_primary_only = pri_only;
+	return (0);
+
+repfail:
+	gctl_error(req, "%d %s: zone report failed", error, pp->name);
+	return (error);
+}
+
 static int
 g_part_ctl_commit(struct gctl_req *req, struct g_part_parms *gpp)
 {
@@ -898,6 +997,13 @@ g_part_ctl_commit(struct gctl_req *req, struct g_part_parms *gpp)
 	g_topology_unlock();
 
 	cp = LIST_FIRST(&gp->consumer);
+
+	error = g_part_zoned_prepare(req, cp, table);
+	if (error != 0) {
+		g_topology_lock();
+		return (error);
+	}
+
 	if ((table->gpt_smhead | table->gpt_smtail) != 0) {
 		pp = cp->provider;
 		buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);
@@ -1051,6 +1157,10 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	g_part_geometry(table, cp, pp->mediasize / pp->sectorsize);
 
 	error = G_PART_CREATE(table, gpp);
+	if (error)
+		goto fail;
+
+	error = g_part_zoned_prepare(req, cp, table);
 	if (error)
 		goto fail;
 

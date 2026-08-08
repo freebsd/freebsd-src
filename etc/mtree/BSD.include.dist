@@ -333,6 +333,8 @@
         ..
         virstor
         ..
+        zoned
+        ..
     ..
     gssapi              tags=package=kerberos-dev
     ..
