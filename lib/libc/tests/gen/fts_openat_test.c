@@ -170,9 +170,71 @@ ATF_TC_BODY(openat_capsicum, tc)
 	ATF_REQUIRE_EQ_MSG(0, fts_close(fts), "fts_close(): %m");
 }
 
+/*
+ * Demonstrate the intended use of fts_dirfd: use
+ * fts_parent->fts_dirfd + fts_name to access files without
+ * relying on path-based operations.
+ */
+ATF_TC(fts_dirfd_openat);
+ATF_TC_HEAD(fts_dirfd_openat, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "fts_parent->fts_dirfd + fts_name can be used with openat(2)");
+}
+ATF_TC_BODY(fts_dirfd_openat, tc)
+{
+	char *paths[] = { "dir", NULL };
+	FTS *fts;
+	FTSENT *ent;
+	struct stat sb_path, sb_dirfd;
+	bool saw_file = false;
+
+	ATF_REQUIRE_EQ(0, mkdir("dir", 0755));
+	ATF_REQUIRE_EQ(0, mkdir("dir/sub", 0755));
+	ATF_REQUIRE_EQ(0, close(creat("dir/sub/file", 0644)));
+
+	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL, NULL)) != NULL);
+
+	while ((ent = fts_read(fts)) != NULL) {
+		if (ent->fts_info != FTS_F)
+			continue;
+		if (strcmp(ent->fts_name, "file") != 0)
+			continue;
+
+		saw_file = true;
+
+		/*
+		 * fts_dirfd is set only on directory entries.
+		 * Use fts_parent->fts_dirfd + fts_name to access
+		 * the file via openat(2) without path-based operations.
+		 */
+		ATF_REQUIRE_MSG(ent->fts_parent->fts_dirfd >= 0,
+		    "fts_parent->fts_dirfd must be valid for '%s'",
+		    ent->fts_name);
+
+		ATF_REQUIRE_EQ_MSG(0,
+		    fstatat(ent->fts_parent->fts_dirfd, ent->fts_name,
+		    &sb_dirfd, AT_SYMLINK_NOFOLLOW),
+		    "fstatat(fts_parent->fts_dirfd, fts_name) failed: %m");
+
+		ATF_REQUIRE_EQ_MSG(0,
+		    lstat(ent->fts_accpath, &sb_path),
+		    "lstat(fts_accpath) failed: %m");
+
+		ATF_CHECK_EQ_MSG(sb_path.st_ino, sb_dirfd.st_ino,
+		    "inode mismatch: fts_accpath=%ju fts_parent->fts_dirfd=%ju",
+		    (uintmax_t)sb_path.st_ino,
+		    (uintmax_t)sb_dirfd.st_ino);
+	}
+
+	ATF_CHECK_MSG(saw_file, "did not visit 'file'");
+	ATF_REQUIRE_EQ_MSG(0, fts_close(fts), "fts_close(): %m");
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, atfdcwd_matches_fts_open);
 	ATF_TP_ADD_TC(tp, openat_capsicum);
+	ATF_TP_ADD_TC(tp, fts_dirfd_openat);
 	return (atf_no_error());
 }

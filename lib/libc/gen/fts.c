@@ -807,8 +807,6 @@ fts_build(FTS *sp, int type)
 		return (NULL);
 	}
 
-	cur->fts_dirfd = _dup(_dirfd(dirp));
-
 	/*
 	 * In the FTS_PHYSICAL | FTS_NOSTAT case, we want to avoid calling
 	 * fstat() unnecessarily, but we still need to call it for
@@ -945,8 +943,12 @@ mem1:				saved_errno = errno;
 
 		p->fts_level = level;
 		p->fts_parent = sp->fts_cur;
+		if (dp->d_type == DT_DIR) {
+			p->fts_dirfd = _openat(_dirfd(dirp),
+			p->fts_name,
+			O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		}
 		p->fts_pathlen = len + dnamlen;
-
 		if (dp->d_type == DT_WHT)
 			p->fts_flags |= FTS_ISW;
 
