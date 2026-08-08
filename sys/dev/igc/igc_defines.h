@@ -551,15 +551,15 @@
 /* IGC_EITR_CNT_IGNR is only for 82576 and newer */
 #define IGC_EITR_CNT_IGNR	0x80000000 /* Don't reset counters on write */
 
+/* Receive Descriptor Control */
+#define IGC_RXDCTL_PTHRESH	0x0000001F /* RXDCTL Prefetch Threshold */
+#define IGC_RXDCTL_HTHRESH	0x00001F00 /* RXDCTL Host Threshold */
+#define IGC_RXDCTL_WTHRESH	0x001F0000 /* RXDCTL Writeback Threshold */
+
 /* Transmit Descriptor Control */
-#define IGC_TXDCTL_PTHRESH	0x0000003F /* TXDCTL Prefetch Threshold */
-#define IGC_TXDCTL_HTHRESH	0x00003F00 /* TXDCTL Host Threshold */
-#define IGC_TXDCTL_WTHRESH	0x003F0000 /* TXDCTL Writeback Threshold */
-#define IGC_TXDCTL_GRAN		0x01000000 /* TXDCTL Granularity */
-#define IGC_TXDCTL_FULL_TX_DESC_WB	0x01010000 /* GRAN=1, WTHRESH=1 */
-#define IGC_TXDCTL_MAX_TX_DESC_PREFETCH 0x0100001F /* GRAN=1, PTHRESH=31 */
-/* Enable the counting of descriptors still to be processed. */
-#define IGC_TXDCTL_COUNT_DESC	0x00400000
+#define IGC_TXDCTL_PTHRESH	0x0000001F /* TXDCTL Prefetch Threshold */
+#define IGC_TXDCTL_HTHRESH	0x00001F00 /* TXDCTL Host Threshold */
+#define IGC_TXDCTL_WTHRESH	0x001F0000 /* TXDCTL Writeback Threshold */
 
 /* Flow Control Constants */
 #define FLOW_CONTROL_ADDRESS_LOW	0x00C28001

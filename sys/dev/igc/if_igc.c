@@ -2259,13 +2259,9 @@ igc_initialize_transmit_unit(if_ctx_t ctx)
 		    IGC_READ_REG(&sc->hw, IGC_TDBAL(i)),
 		    IGC_READ_REG(&sc->hw, IGC_TDLEN(i)));
 
-		txdctl = 0; /* clear txdctl */
-		txdctl |= 0x1f; /* PTHRESH */
-		txdctl |= 1 << 8; /* HTHRESH */
-		txdctl |= 1 << 16;/* WTHRESH */
-		txdctl |= 1 << 22; /* Reserved bit 22 must always be 1 */
-		txdctl |= IGC_TXDCTL_GRAN;
-		txdctl |= 1 << 25; /* LWTHRESH */
+		/* WTHRESH must be zero when iflib uses sparse RS. */
+		txdctl = IGC_TX_PTHRESH | (IGC_TX_HTHRESH << 8) |
+		    IGC_TXDCTL_QUEUE_ENABLE;
 
 		IGC_WRITE_REG(hw, IGC_TXDCTL(i), txdctl);
 	}
@@ -2393,11 +2389,10 @@ igc_initialize_receive_unit(if_ctx_t ctx)
 		IGC_WRITE_REG(hw, IGC_RDT(i), 0);
 		/* Enable this Queue */
 		rxdctl = IGC_READ_REG(hw, IGC_RXDCTL(i));
-		rxdctl |= IGC_RXDCTL_QUEUE_ENABLE;
-		rxdctl &= 0xFFF00000;
-		rxdctl |= IGC_RX_PTHRESH;
-		rxdctl |= IGC_RX_HTHRESH << 8;
-		rxdctl |= IGC_RX_WTHRESH << 16;
+		rxdctl &= ~(IGC_RXDCTL_PTHRESH | IGC_RXDCTL_HTHRESH |
+		    IGC_RXDCTL_WTHRESH);
+		rxdctl |= IGC_RX_PTHRESH | (IGC_RX_HTHRESH << 8) |
+		    (IGC_RX_WTHRESH << 16) | IGC_RXDCTL_QUEUE_ENABLE;
 		IGC_WRITE_REG(hw, IGC_RXDCTL(i), rxdctl);
 	}
 
