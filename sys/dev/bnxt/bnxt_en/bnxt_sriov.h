@@ -79,6 +79,7 @@ struct bnxt_vf_info {
 	struct		iflib_dma_info	hwrm_cmd_req;
 	uint16_t	trusted;
 	bool		spoofchk;
+	bool		configured;
 };
 
 struct bnxt_resc_map {
@@ -94,6 +95,8 @@ void bnxt_sriov_attach(struct bnxt_softc *softc);
 int bnxt_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params);
 void bnxt_iov_uninit(if_ctx_t ctx);
 int bnxt_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params);
+struct if_vf_status;
+int bnxt_vf_status(if_ctx_t ctx, struct if_vf_status **statusp);
 int bnxt_hwrm_func_vf_resource_free(struct bnxt_softc *softc, int num_vfs);
 void bnxt_free_vf_resources(struct bnxt_softc *softc);
 int bnxt_create_trusted_vf_sysctls(struct bnxt_softc *softc, uint16_t num_vfs);

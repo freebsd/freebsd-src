@@ -537,6 +537,7 @@ struct bnxt_pf_info {
 #define BNXT_FIRST_PF_FID	1
 #define BNXT_FIRST_VF_FID	128
 	uint8_t		port_id;
+	bool		iov_attached;
 	uint32_t	first_vf_id;
 	uint16_t	active_vfs;
 	uint16_t	registered_vfs;
