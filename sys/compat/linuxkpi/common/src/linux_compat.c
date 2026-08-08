@@ -170,6 +170,16 @@ const guid_t guid_null;
 
 enum system_states system_state = SYSTEM_RUNNING;
 
+struct task_struct *
+__lkpi_current(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	linux_set_current(td);
+	return ((struct task_struct *)td->td_lkpi_task);
+}
+
 int
 panic_cmp(struct rb_node *one, struct rb_node *two)
 {
