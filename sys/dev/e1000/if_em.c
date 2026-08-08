@@ -4395,6 +4395,56 @@ em_initialize_transmit_unit(if_ctx_t ctx)
  **********************************************************************/
 #define BSIZEPKT_ROUNDUP ((1<<E1000_SRRCTL_BSIZEPKT_SHIFT)-1)
 
+static u32
+igb_rxdctl(struct e1000_softc *sc, u32 rxdctl)
+{
+	struct e1000_hw *hw;
+	u32 mask, pthresh, wthresh;
+
+	hw = &sc->hw;
+	mask = IGB_RXDCTL_THRESH_MASK;
+	switch (hw->mac.type) {
+	case e1000_82575:
+		mask = IGB_82575_RXDCTL_THRESH_MASK;
+		pthresh = IGB_RX_PTHRESH;
+		wthresh = IGB_RX_WTHRESH;
+		break;
+	case e1000_82576:
+		pthresh = IGB_RX_PTHRESH;
+		wthresh = sc->intr_type == IFLIB_INTR_MSIX ?
+		    IGB_82576_RX_WTHRESH : IGB_RX_WTHRESH;
+		break;
+	case e1000_vfadapt:
+		/* 82576 VFs always need the MSI-X writeback workaround. */
+		pthresh = IGB_RX_PTHRESH;
+		wthresh = IGB_82576_RX_WTHRESH;
+		break;
+	case e1000_i354:
+		pthresh = I354_RX_PTHRESH;
+		wthresh = IGB_RX_WTHRESH;
+		break;
+	case e1000_82580:
+	case e1000_i350:
+	case e1000_i210:
+	case e1000_i211:
+	case e1000_vfadapt_i350:
+		pthresh = IGB_RX_PTHRESH;
+		wthresh = IGB_RX_WTHRESH;
+		break;
+	default:
+		KASSERT(0, ("%s: unsupported MAC type %d", __func__,
+		    hw->mac.type));
+		pthresh = IGB_RX_PTHRESH;
+		wthresh = IGB_RX_WTHRESH;
+		break;
+	}
+
+	rxdctl &= ~mask;
+	rxdctl |= pthresh | (IGB_RX_HTHRESH << 8) |
+	    (wthresh << 16) | E1000_RXDCTL_QUEUE_ENABLE;
+	return (rxdctl);
+}
+
 void
 igb_initialize_receive_rings(if_ctx_t ctx, bool drop)
 {
@@ -4435,11 +4485,7 @@ igb_initialize_receive_rings(if_ctx_t ctx, bool drop)
 		E1000_WRITE_REG(hw, E1000_RDT(qid), 0);
 		E1000_WRITE_REG(hw, E1000_SRRCTL(qid), srrctl);
 
-		rxdctl |= E1000_RXDCTL_QUEUE_ENABLE;
-		rxdctl &= 0xFFF00000;
-		rxdctl |= IGB_RX_PTHRESH;
-		rxdctl |= IGB_RX_HTHRESH << 8;
-		rxdctl |= IGB_RX_WTHRESH << 16;
+		rxdctl = igb_rxdctl(sc, rxdctl);
 		E1000_WRITE_REG(hw, E1000_RXDCTL(qid), rxdctl);
 	}
 }
