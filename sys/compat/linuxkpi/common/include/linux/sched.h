@@ -92,11 +92,8 @@ struct task_struct {
 	unsigned int fpu_ctx_level;
 };
 
-#define	current	({ \
-	struct thread *__td = curthread; \
-	linux_set_current(__td); \
-	((struct task_struct *)__td->td_lkpi_task); \
-})
+struct task_struct *__lkpi_current(void);
+#define	current	(__lkpi_current())
 
 #define	task_pid_group_leader(task) (task)->task_thread->td_proc->p_pid
 #define	task_pid(task)		((task)->pid)
