@@ -5202,11 +5202,16 @@ bnxt_def_cp_task(void *context, int pending)
 
 	/* Handle completions on the default completion ring */
 	struct cmpl_base *cmpl;
-	uint32_t cons = cpr->cons;
-	bool v_bit = cpr->v_bit;
+	uint32_t cons;
+	bool v_bit;
 	bool last_v_bit;
 	uint32_t last_cons;
 	uint16_t type;
+
+	if (iflib_in_detach(ctx))
+		return;
+	cons = cpr->cons;
+	v_bit = cpr->v_bit;
 
 	for (;;) {
 		last_cons = cons;
