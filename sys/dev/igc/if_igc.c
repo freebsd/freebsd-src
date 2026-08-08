@@ -1988,8 +1988,9 @@ igc_free_pci_resources(if_ctx_t ctx)
 	if (sc->intr_type == IFLIB_INTR_MSIX)
 		iflib_irq_free(ctx, &sc->irq);
 
-	for (int i = 0; i < sc->rx_num_queues; i++, que++) {
-		iflib_irq_free(ctx, &que->que_irq);
+	if (que != NULL) {
+		for (int i = 0; i < sc->rx_num_queues; i++, que++)
+			iflib_irq_free(ctx, &que->que_irq);
 	}
 
 	if (sc->memory != NULL) {

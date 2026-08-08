@@ -456,14 +456,18 @@ enetc_detach(if_ctx_t ctx)
 
 	sc = iflib_get_softc(ctx);
 
-	for (i = 0; i < sc->rx_num_queues; i++)
-		iflib_irq_free(ctx, &sc->rx_queues[i].irq);
+	if (sc->rx_queues != NULL) {
+		for (i = 0; i < sc->rx_num_queues; i++)
+			iflib_irq_free(ctx, &sc->rx_queues[i].irq);
+	}
 
 	bus_generic_detach(sc->dev);
 
-	if (sc->regs != NULL)
+	if (sc->regs != NULL) {
 		error = bus_release_resource(sc->dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->regs), sc->regs);
+		sc->regs = NULL;
+	}
 
 	if (sc->ctrl_queue.dma.idi_size != 0)
 		iflib_dma_free(&sc->ctrl_queue.dma);

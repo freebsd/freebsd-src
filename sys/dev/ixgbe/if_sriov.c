@@ -775,6 +775,8 @@ ixgbe_iov_recovery_task(void *context, int pending __unused)
 	int i, iov_pos, n, num_vfs = 0, recovery_vf;
 
 	ctx = context;
+	if (iflib_in_detach(ctx))
+		return;
 	sc = iflib_get_softc(ctx);
 	ctx_lock = iflib_ctx_lock_get(ctx);
 
