@@ -20,7 +20,9 @@ TESTS_SUBDIRS+=	stripe
 TESTS_SUBDIRS+=	union
 TESTS_SUBDIRS+=	uzip
 TESTS_SUBDIRS+=	virstor
+TESTS_SUBDIRS+=	zoned
 
 ${PACKAGE}FILES+=	geom_subr.sh
+${PACKAGE}FILES+=	zoned_subr.sh
 
 .include <bsd.test.mk>

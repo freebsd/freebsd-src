@@ -21,7 +21,8 @@ SUBDIR=	geom_cache \
 	geom_union \
 	geom_uzip \
 	geom_virstor \
-	geom_zero
+	geom_zero \
+	geom_zoned
 
 .if ${MK_CCD} != "no" || defined(ALL_MODULES)
 SUBDIR+=	geom_ccd
