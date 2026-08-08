@@ -206,7 +206,47 @@ Current receive ring producer index.
 .Pp
 Additional OIDs useful for driver and iflib development are exposed when the
 INVARIANTS and/or WITNESS options are enabled in the kernel.
+.Ss FAILURE INJECTION
+Registration failures can be injected for one selected device through the
+.Xr fail 9
+framework.
+Set
+.Va debug.fail_point.iflib.register_device
+to the exact device name and configure one of these fail points:
+.Bl -tag -width "register_before_attach_pre"
+.It Va register_before_attach_pre
+Before the driver's pre-attach method.
+.It Va register_after_attach_pre
+After the driver's pre-attach method succeeds.
+.It Va register_after_taskqueue
+After the private taskqueue is started.
+.It Va register_after_interrupts
+After interrupt resources are allocated.
+.It Va register_after_queues
+After queue setup and core-offset allocation.
+.It Va register_after_attach_post
+After the interface is attached and the driver's post-attach method succeeds.
+.El
+.Pp
+The fail points are under
+.Va debug.fail_point.iflib
+and accept the syntax described by
+.Xr fail 9 .
+A one-shot failure is safest because it permits the next probe to recover the
+device:
+.Bd -literal -offset indent
+sysctl debug.fail_point.iflib.register_device=igc1
+sysctl debug.fail_point.iflib.register_after_attach_pre='1*return(5)'
+devctl detach igc1
+devctl attach pci0:4:0:0       # returns EIO
+devctl attach pci0:4:0:0       # succeeds
+.Ed
+.Pp
+After detach, a device may no longer have its former name.
+Use a bus-specific address, as shown in the PCI example above, to reprobe it.
 .Sh SEE ALSO
+.Xr devctl 8 ,
+.Xr fail 9 ,
 .Xr iflib 9
 .Sh HISTORY
 This framework was introduced in
