@@ -405,7 +405,12 @@ aq_if_attach_pre(if_ctx_t ctx)
 		    __func__, rc);
 		goto fail;
 	}
-	aq_hw_capabilities(softc);
+	rc = aq_hw_capabilities(softc);
+	if (rc != 0) {
+		device_printf(softc->dev, "unsupported device %04x:%04x\n",
+		    pci_get_vendor(softc->dev), pci_get_device(softc->dev));
+		goto fail;
+	}
 
 	rc = aq_hw_get_mac_permanent(hw, hw->mac_addr);
 	if (rc != 0) {
@@ -525,7 +530,8 @@ aq_if_detach(if_ctx_t ctx)
 
 	sysctl_ctx_free(&softc->aq_sysctl_ctx);
 
-	aq_hw_deinit(&softc->hw);
+	if (aq_hw_deinit(&softc->hw) != 0)
+		device_printf(softc->dev, "could not shut the hardware down\n");
 
 	for (i = 0; i < softc->rx_rings_count; i++)
 		iflib_irq_free(ctx, &softc->rx_rings[i]->irq);
@@ -558,7 +564,9 @@ aq_if_suspend(if_ctx_t ctx)
 	AQ_DBG_ENTER();
 
 	aq_if_stop(ctx);
-	aq_hw_deinit(&softc->hw);
+	if (aq_hw_deinit(&softc->hw) != 0)
+		device_printf(softc->dev,
+		    "could not shut the hardware down for suspend\n");
 	/* iflib_device_suspend() does not stop the interface for us. */
 	if_setdrvflagbits(iflib_get_ifp(ctx), IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
 
@@ -810,15 +818,28 @@ aq_if_init(if_ctx_t ctx)
 		aq_if_rx_queue_intr_enable(ctx, i);
 	}
 
-	aq_hw_start(hw);
+	err = aq_hw_start(hw);
+	if (err != 0)
+		device_printf(softc->dev, "could not start the datapath: %d\n",
+		    err);
 	aq_if_enable_intr(ctx);
-	aq_hw_rss_hash_set(&softc->hw, softc->rss_key);
-	aq_hw_rss_set(&softc->hw, softc->rss_table);
+	err = aq_hw_rss_hash_set(&softc->hw, softc->rss_key);
+	if (err != 0)
+		device_printf(softc->dev, "could not set the RSS key: %d\n",
+		    err);
+	err = aq_hw_rss_set(&softc->hw, softc->rss_table);
+	if (err != 0)
+		device_printf(softc->dev,
+		    "could not set the RSS indirection table: %d\n", err);
 	/* A2 selects UDP hashing per-protocol in REDIR2; A1 uses the filter. */
-	if (!IS_CHIP_FEATURE(hw, ATLANTIC2))
-		aq_hw_udp_rss_enable(hw, (aq_rss_hashconfig() &
+	if (!IS_CHIP_FEATURE(hw, ATLANTIC2)) {
+		err = aq_hw_udp_rss_enable(hw, (aq_rss_hashconfig() &
 		    (RSS_HASHTYPE_RSS_UDP_IPV4 | RSS_HASHTYPE_RSS_UDP_IPV6 |
 		    RSS_HASHTYPE_RSS_UDP_IPV6_EX)) != 0);
+		if (err != 0)
+			device_printf(softc->dev,
+			    "could not configure UDP RSS hashing: %d\n", err);
+	}
 	err = aq_hw_set_link_speed(hw, hw->link_rate);
 	if (err != 0)
 		device_printf(softc->dev, "could not set link speed: %d\n", err);
@@ -848,15 +869,20 @@ aq_if_stop(if_ctx_t ctx)
 	aq_if_disable_intr(ctx);
 
 	for (i = 0; i < softc->tx_rings_count; i++) {
-		aq_ring_tx_stop(hw, softc->tx_rings[i]);
+		if (aq_ring_tx_stop(hw, softc->tx_rings[i]) != 0)
+			device_printf(softc->dev,
+			    "could not stop TX ring %d\n", i);
 		softc->tx_rings[i]->tx_head = 0;
 		softc->tx_rings[i]->tx_tail = 0;
 	}
 	for (i = 0; i < softc->rx_rings_count; i++) {
-		aq_ring_rx_stop(hw, softc->rx_rings[i]);
+		if (aq_ring_rx_stop(hw, softc->rx_rings[i]) != 0)
+			device_printf(softc->dev,
+			    "could not stop RX ring %d\n", i);
 	}
 
-	aq_hw_reset(&softc->hw, true);
+	if (aq_hw_reset(&softc->hw, true) != 0)
+		device_printf(softc->dev, "could not reset the MAC on stop\n");
 	memset(&softc->last_stats, 0, sizeof(softc->last_stats));
 	/* Each bring-up gets its own budget of re-init attempts. */
 	softc->init_retries = 0;
@@ -897,7 +923,11 @@ aq_mc_filter_apply(void *arg, struct sockaddr_dl *dl, u_int count)
 		return (0);
 
 	mac_addr = LLADDR(dl);
-	aq_hw_mac_addr_set(hw, mac_addr, count + 1);
+	if (aq_hw_mac_addr_set(hw, mac_addr, count + 1) != 0) {
+		device_printf(softc->dev,
+		    "could not program multicast address %6D\n", mac_addr, ":");
+		return (0);
+	}
 
 	aq_log_detail(hw, "set %d mc address %6D", count + 1, mac_addr, ":");
 	return (1);
@@ -1171,7 +1201,9 @@ aq_update_vlan_filters(struct aq_dev *softc)
 	int vlan_tag = -1;
 	int i;
 
-	hw_atl_b0_hw_vlan_promisc_set(hw, true);
+	if (hw_atl_b0_hw_vlan_promisc_set(hw, true) != 0)
+		device_printf(softc->dev,
+		    "could not open the VLAN filter for update\n");
 	for (i = 0; i < AQ_HW_VLAN_MAX_FILTERS; i++) {
 		bit_ffs_at(softc->vlan_tags, bit_pos, 4096, &vlan_tag);
 		if (vlan_tag != -1) {
@@ -1185,7 +1217,9 @@ aq_update_vlan_filters(struct aq_dev *softc)
 		}
 	}
 
-	hw_atl_b0_hw_vlan_set(hw, aq_vlans);
+	if (hw_atl_b0_hw_vlan_set(hw, aq_vlans) != 0)
+		device_printf(softc->dev,
+		    "could not program the VLAN filter table\n");
 	if (hw_atl_b0_hw_vlan_promisc_set(hw,
 	    aq_is_vlan_promisc_required(softc) ||
 	    (if_getflags(iflib_get_ifp(softc->ctx)) & IFF_PROMISC) != 0) != 0)
@@ -1397,6 +1431,25 @@ aq_sysctl_temperature(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_int(oidp, &val, 0, req));
 }
 
+/* arg2 selects the counter: 0 = link up, 1 = link down. */
+static int
+aq_sysctl_fw_link_counter(SYSCTL_HANDLER_ARGS)
+{
+	struct aq_dev   *softc = arg1;
+	uint32_t        up, down;
+	int             error;
+
+	if (softc->hw.fw_ops == NULL ||
+	    softc->hw.fw_ops->get_link_counters == NULL)
+		return (ENOTSUP);
+
+	error = softc->hw.fw_ops->get_link_counters(&softc->hw, &up, &down);
+	if (error != 0)
+		return (error);
+
+	return (sysctl_handle_32(oidp, arg2 == 0 ? &up : &down, 0, req));
+}
+
 static void
 aq_add_stats_sysctls(struct aq_dev *softc)
 {
@@ -1407,6 +1460,7 @@ aq_add_stats_sysctls(struct aq_dev *softc)
 	struct aq_stats *stats = &softc->curr_stats;
 	struct sysctl_oid       *stat_node, *queue_node;
 	struct sysctl_oid_list  *stat_list, *queue_list;
+	uint32_t                link_up, link_down;
 	int                     temp_mc;
 
 #define QUEUE_NAME_LEN 32
@@ -1430,6 +1484,21 @@ aq_add_stats_sysctls(struct aq_dev *softc)
 		SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "temperature",
 		    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, softc, 0,
 		    aq_sysctl_temperature, "IK", "PHY temperature");
+
+	/* Only some firmware interface versions count link transitions. */
+	if (softc->hw.fw_ops != NULL &&
+	    softc->hw.fw_ops->get_link_counters != NULL &&
+	    softc->hw.fw_ops->get_link_counters(&softc->hw, &link_up,
+	    &link_down) != ENOTSUP) {
+		SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "fw_link_up",
+		    CTLTYPE_U32 | CTLFLAG_RD | CTLFLAG_MPSAFE, softc, 0,
+		    aq_sysctl_fw_link_counter, "IU",
+		    "Link up transitions counted by the firmware");
+		SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "fw_link_down",
+		    CTLTYPE_U32 | CTLFLAG_RD | CTLFLAG_MPSAFE, softc, 1,
+		    aq_sysctl_fw_link_counter, "IU",
+		    "Link down transitions counted by the firmware");
+	}
 
 	/* Driver Statistics */
 	for (int i = 0; i < softc->tx_rings_count; i++) {

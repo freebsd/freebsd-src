@@ -65,14 +65,23 @@ struct aq_firmware_ops
 	int (*set_mode)(struct aq_hw* hw, enum aq_hw_fw_mpi_state mode, enum aq_fw_link_speed speed);
 	int (*get_mode)(struct aq_hw* hw, enum aq_hw_fw_mpi_state* mode, enum aq_fw_link_speed* speed, enum aq_fw_link_fc* fc);
 
+	/* Reports duplex, EEE and the firmware link state beyond the rate. */
+	int (*get_link_info)(struct aq_hw* hw, struct aq_hw_link_info* info);
+
 	int (*get_mac_addr)(struct aq_hw* hw, uint8_t* mac_addr);
 	int (*get_stats)(struct aq_hw* hw, struct aq_hw_stats* stats);
+
+	/* Reports the firmware's own link transition counters. */
+	int (*get_link_counters)(struct aq_hw* hw, uint32_t* up, uint32_t* down);
 
 	/* Reports millidegrees Celsius. */
 	int (*get_temp)(struct aq_hw* hw, int* temp_mc);
 
 	/* Reports the PHY global fault code; zero means no fault. */
 	int (*get_phy_fault)(struct aq_hw* hw, uint16_t* fault);
+
+	/* Reports the pre-shutdown PHY over-temperature warning. */
+	int (*get_phy_hot_warning)(struct aq_hw* hw, bool* hot);
 
 	/* Resets the PHY (clears a latched thermal shutdown). */
 	int (*phy_reset)(struct aq_hw* hw);
