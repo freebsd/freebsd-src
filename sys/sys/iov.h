@@ -165,6 +165,51 @@ struct pci_iov_schema
 };
 
 /*
+ * IOV_GET_STATUS schema contract.
+ *
+ * The top-level nvlist contains a version number, a PF nvlist, and, when VFs
+ * are configured, an array of per-VF nvlists.  The "vfs" key is omitted when
+ * "num-vfs" is zero; its absence therefore means no VFs are configured.  The
+ * PF record identifies the device, reports the live SR-IOV VF Enable state,
+ * and gives the number of VFs configured by the PCI IOV framework and the
+ * hardware limit.  When present, the array contains one VF record for each
+ * configured VF, even when its newbus child could not be attached.
+ *
+ * PCI locations use FreeBSD's native decimal pciD:B:S:F notation (for
+ * example, pci0:2:16:2).  "attached" means that newbus successfully attached
+ * a driver.  "bound-driver" is present only for an attached VF and contains
+ * the driver's nameunit.  "passthrough" means that the VF has the ppt host
+ * devclass; it does not imply that a running virtual machine currently owns
+ * the VF.
+ *
+ * Consumers must ignore unknown keys.  Additive optional keys retain the
+ * status version; incompatible type or structural changes require a new
+ * version.
+ */
+#define	IOV_STATUS_VERSION		1
+#define	IOV_STATUS_VERSION_NAME		"version"
+#define	IOV_STATUS_PF_NAME		"pf"
+#define	IOV_STATUS_VFS_NAME		"vfs"
+#define	IOV_STATUS_DEVICE_NAME		"device"
+#define	IOV_STATUS_PCI_LOCATION_NAME	"pci-location"
+#define	IOV_STATUS_ENABLED_NAME		"enabled"
+#define	IOV_STATUS_NUM_VFS_NAME		"num-vfs"
+#define	IOV_STATUS_TOTAL_VFS_NAME	"total-vfs"
+#define	IOV_STATUS_VF_INDEX_NAME	"index"
+#define	IOV_STATUS_ATTACHED_NAME	"attached"
+#define	IOV_STATUS_BOUND_DRIVER_NAME	"bound-driver"
+#define	IOV_STATUS_PASSTHROUGH_NAME	"passthrough"
+
+/* Fixed-width fields keep the ioctl ABI identical for 32-bit callers. */
+struct pci_iov_status
+{
+	uint64_t status;	/* User pointer to the packed nvlist. */
+	uint64_t len;
+	int32_t error;
+	uint32_t reserved;	/* Must be zero. */
+};
+
+/*
  * SR-IOV configuration is passed to the kernel as a packed nvlist.  See nv(3)
  * for the details of the nvlist API.  The expected format of the nvlist is:
  *
@@ -254,5 +299,6 @@ struct pci_iov_arg
 #define	IOV_CONFIG	_IOW('p', 10, struct pci_iov_arg)
 #define	IOV_DELETE	_IO('p', 11)
 #define	IOV_GET_SCHEMA	_IOWR('p', 12, struct pci_iov_schema)
+#define	IOV_GET_STATUS	_IOWR('p', 13, struct pci_iov_status)
 
 #endif
