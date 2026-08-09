@@ -125,6 +125,8 @@ ATF_TC_BODY(sbuf_drain_ret0_test, tc)
 	    "required to return error when drain func returns 0");
 	ATF_CHECK_EQ_MSG(EDEADLK, errno,
 	    "errno required to be EDEADLK when drain func returns 0");
+	
+	sbuf_delete(sb);
 }
 
 ATF_TC_WITHOUT_HEAD(sbuf_len_test);
