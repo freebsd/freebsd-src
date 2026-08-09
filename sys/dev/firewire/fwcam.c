@@ -534,6 +534,9 @@ fwcam_iso_start(struct fwcam_softc *sc)
 	return (0);
 
 fail:
+	if (xferq->flag & FWXFERQ_RUNNING)
+		fc->irx_disable(fc, dma_ch);
+
 	fw_iso_free_chunks(xferq, M_FWCAM);
 	xferq->flag &= ~(FWXFERQ_MODEMASK | FWXFERQ_OPEN | FWXFERQ_STREAM |
 	    FWXFERQ_EXTBUF | FWXFERQ_HANDLER | FWXFERQ_CHTAGMASK);
