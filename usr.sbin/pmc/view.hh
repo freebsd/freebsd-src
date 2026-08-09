@@ -65,13 +65,13 @@ struct pmcinfo
 };
 
 /*
- * Extended pmcinfo structure stores the complete event description passed to 
+ * Extended pmcinfo structure stores the complete event description passed to
  * libpmc.
  */
 struct pmcinfox
 {
 	pmcinfox() : rate(0), event() { }
-	pmcinfox(uint32_t rate, std::string event) : rate(rate), event(event) { }
+	pmcinfox(uint32_t rate_, std::string &event_) : rate(rate_), event(event_) { }
 	~pmcinfox() { }
 	uint32_t			rate;
 	std::string			event;
@@ -103,7 +103,7 @@ struct vmmap
 struct threadinfo
 {
 	threadinfo() : name("") { }
-	threadinfo(const std::string &name) : name(name) { }
+	threadinfo(const std::string &name_) : name(name_) { }
 	~threadinfo() { }
 	std::string			name;
 };
@@ -197,7 +197,7 @@ struct pmcfilter
 	std::unordered_set<std::string>	events;
 	cpuset_t			cpus;
 	/*
-	 * Advanced filters for AMD IBS but should be generalized to support 
+	 * Advanced filters for AMD IBS but should be generalized to support
 	 * other processors.
 	 */
 	uint64_t			ibs_ldlat;
@@ -388,8 +388,8 @@ protected:
 	// Fields available to views
 	uint64_t				tscfreq;
 	std::unordered_map<uint32_t, uint32_t>	pmcid;
-	std::unordered_map<uint32_t, pmcinfo>	pmcinfo;
-	std::unordered_map<pid_t, procinfo>	procs;
+	std::unordered_map<uint32_t, struct pmcinfo> pmcinfo;
+	std::unordered_map<pid_t, struct procinfo> procs;
 	std::unordered_map<pid_t, pid_t>	tidtopid;
 	std::unordered_map<std::string, image>	images;
 	std::string				sysroot;
@@ -399,8 +399,8 @@ protected:
 	std::string				cpumodel;
 	std::string				osrelease;
 	std::string				buildid;
-	std::vector<pmcinfox>			extpmcinfo;
-	std::map<uint32_t, cpuidleaf>		cpuid; // x86 Only
+	std::vector<struct pmcinfox>		extpmcinfo;
+	std::map<uint32_t, struct cpuidleaf>	cpuid; // x86 Only
 private:
 	image loadimage(const std::string &path);
 	void mapimage(pid_t pid, const image &im, uint64_t linkaddr);
