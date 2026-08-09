@@ -2043,16 +2043,16 @@ ice_if_init(if_ctx_t ctx)
 		return;
 
 	if (ice_test_state(&sc->state, ICE_STATE_RECOVERY_MODE))
-		return;
+		goto err_init_failed;
 
 	if (ice_test_state(&sc->state, ICE_STATE_RESET_FAILED)) {
 		device_printf(sc->dev, "request to start interface cannot be completed as the device failed to reset\n");
-		return;
+		goto err_init_failed;
 	}
 
 	if (ice_test_state(&sc->state, ICE_STATE_PREPARED_FOR_RESET)) {
 		device_printf(sc->dev, "request to start interface while device is prepared for impending reset\n");
-		return;
+		goto err_init_failed;
 	}
 
 	ice_update_rx_mbuf_sz(sc);
@@ -2063,7 +2063,7 @@ ice_if_init(if_ctx_t ctx)
 		device_printf(dev,
 			      "LAA address change failed, err %s\n",
 			      ice_err_str(err));
-		return;
+		goto err_init_failed;
 	}
 
 	/* Initialize software Tx tracking values */
@@ -2074,7 +2074,7 @@ ice_if_init(if_ctx_t ctx)
 		device_printf(dev,
 			      "Unable to configure the main VSI for Tx: %s\n",
 			      ice_err_str(err));
-		return;
+		goto err_init_failed;
 	}
 
 	err = ice_cfg_vsi_for_rx(&sc->pf_vsi);
@@ -2131,6 +2131,8 @@ err_stop_rx:
 	ice_control_all_rx_queues(&sc->pf_vsi, false);
 err_cleanup_tx:
 	ice_vsi_disable_tx(&sc->pf_vsi);
+err_init_failed:
+	iflib_init_failed(ctx);
 }
 
 /**
@@ -4274,20 +4276,20 @@ ice_subif_if_init(if_ctx_t ctx)
 		return;
 
 	if (ice_test_state(&sc->state, ICE_STATE_RECOVERY_MODE))
-		return;
+		goto err_init_failed;
 
 	if (ice_test_state(&sc->state, ICE_STATE_RESET_FAILED)) {
 		device_printf(dev,
 		    "request to start interface cannot be completed as the parent device %s failed to reset\n",
 		    device_get_nameunit(sc->dev));
-		return;
+		goto err_init_failed;
 	}
 
 	if (ice_test_state(&sc->state, ICE_STATE_PREPARED_FOR_RESET)) {
 		device_printf(dev,
 		    "request to start interface cannot be completed while parent device %s is prepared for impending reset\n",
 		    device_get_nameunit(sc->dev));
-		return;
+		goto err_init_failed;
 	}
 
 	/* XXX: Equiv to ice_update_rx_mbuf_sz */
@@ -4301,7 +4303,7 @@ ice_subif_if_init(if_ctx_t ctx)
 		device_printf(dev,
 			      "Unable to configure subif VSI for Tx: %s\n",
 			      ice_err_str(err));
-		return;
+		goto err_init_failed;
 	}
 
 	err = ice_cfg_vsi_for_rx(vsi);
@@ -4328,6 +4330,8 @@ ice_subif_if_init(if_ctx_t ctx)
 
 err_cleanup_tx:
 	ice_vsi_disable_tx(vsi);
+err_init_failed:
+	iflib_init_failed(ctx);
 }
 
 /**
