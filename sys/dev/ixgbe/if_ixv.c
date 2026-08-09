@@ -47,6 +47,15 @@
  ************************************************************************/
 static const char ixv_driver_version[] = "2.0.1-k";
 
+static const sbintime_t ixv_mbx_retry_delay[] = {
+	250 * SBT_1MS,
+	1 * SBT_1S,
+	4 * SBT_1S,
+	8 * SBT_1S,
+};
+
+static const struct timeval ixv_mbx_log_interval = { 60, 0 };
+
 /************************************************************************
  * PCI Device ID Table
  *
@@ -103,6 +112,13 @@ static void     ixv_reconcile_mac(struct ixgbe_softc *, if_t);
 static void     ixv_if_init(if_ctx_t);
 static void     ixv_if_local_timer(if_ctx_t, uint16_t);
 static void     ixv_if_stop(if_ctx_t);
+static void     ixv_log_negotiate_failure(struct ixgbe_softc *, bool);
+static void     ixv_log_reset_failure(struct ixgbe_softc *, s32, bool);
+static void     ixv_mbx_retry_detach(struct ixgbe_softc *);
+static void     ixv_mbx_retry_failed(if_ctx_t);
+static void     ixv_mbx_retry_prepare(struct ixgbe_softc *);
+static void     ixv_mbx_retry_stop(struct ixgbe_softc *);
+static void     ixv_mbx_retry_succeeded(struct ixgbe_softc *);
 static int      ixv_negotiate_api(struct ixgbe_softc *);
 static int      ixv_queue_limit(struct ixgbe_softc *, bool);
 
@@ -441,9 +457,7 @@ ixv_if_attach_pre(if_ctx_t ctx)
 		 * VFs are enumerated.  Keep the VF attached so a later if_init can
 		 * retry the mailbox handshake.
 		 */
-		device_printf(dev,
-		    "PF did not respond to the reset handshake: %d; "
-		    "continuing attach\n", error);
+		ixv_log_reset_failure(sc, error, true);
 	} else {
 		error = hw->mac.ops.init_hw(hw);
 		if (error != IXGBE_SUCCESS) {
@@ -456,9 +470,7 @@ ixv_if_attach_pre(if_ctx_t ctx)
 		/* Negotiate mailbox API version. */
 		error = ixv_negotiate_api(sc);
 		if (error != 0) {
-			device_printf(dev,
-			    "Mailbox API negotiation failed during attach; "
-			    "continuing attach\n");
+			ixv_log_negotiate_failure(sc, true);
 			hw->mac.ops.stop_adapter(hw);
 		} else
 			mailbox_ready = true;
@@ -510,6 +522,9 @@ ixv_if_attach_pre(if_ctx_t ctx)
 	scctx->isc_capabilities = IXGBE_CAPS;
 	scctx->isc_capabilities ^= IFCAP_WOL;
 	scctx->isc_capenable = scctx->isc_capabilities;
+	atomic_store_rel_32(&sc->vf_mbx_ready, mailbox_ready);
+	callout_init(&sc->vf_mbx_retry, 1);
+	sc->vf_mbx_retry_initialized = true;
 
 	INIT_DEBUGOUT("ixv_if_attach_pre: end");
 
@@ -556,8 +571,12 @@ end:
 static int
 ixv_if_detach(if_ctx_t ctx)
 {
+	struct ixgbe_softc *sc;
+
 	INIT_DEBUGOUT("ixv_detach: begin");
 
+	sc = iflib_get_softc(ctx);
+	ixv_mbx_retry_detach(sc);
 	ixv_free_pci_resources(ctx);
 
 	return (0);
@@ -624,33 +643,28 @@ ixv_if_init(if_ctx_t ctx)
 	if_t ifp = iflib_get_ifp(ctx);
 	device_t dev = iflib_get_dev(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
+	u8 requested_addr[IXGBE_ETH_LENGTH_OF_ADDRESS];
 	int error = 0;
 
 	INIT_DEBUGOUT("ixv_if_init: begin");
+	ixv_mbx_retry_prepare(sc);
 	hw->adapter_stopped = false;
 	hw->mac.ops.stop_adapter(hw);
 
-	/* reprogram the RAR[0] in case user changed it. */
-	hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0, IXGBE_RAH_AV);
-
-	/* Get the latest mac address, User can use a LAA */
-	bcopy(if_getlladdr(ifp), hw->mac.addr, IXGBE_ETH_LENGTH_OF_ADDRESS);
-	hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0, 1);
+	/* Preserve a requested LAA across the reset handshake. */
+	bcopy(if_getlladdr(ifp), requested_addr, sizeof(requested_addr));
 
 	/* Reset VF and renegotiate mailbox API version. */
 	error = hw->mac.ops.reset_hw(hw);
 	if (error != IXGBE_SUCCESS) {
-		device_printf(dev,
-		    "PF did not respond to the reset handshake: %d\n", error);
+		ixv_log_reset_failure(sc, error, false);
+		hw->mac.ops.stop_adapter(hw);
+		ixv_mbx_retry_failed(ctx);
 		return;
 	}
 	hw->mac.ops.start_hw(hw);
-	hw->mac.ops.get_mac_addr(hw, hw->mac.addr);
-	ixv_reconcile_mac(sc, ifp);
 	error = ixv_negotiate_api(sc);
 	if (error) {
-		device_printf(dev,
-		    "Mailbox API negotiation failed in if_init!\n");
 		/*
 		 * Leave the adapter stopped until an explicit or deferred retry.
 		 * Otherwise the admin-status callback immediately requests another
@@ -658,9 +672,19 @@ ixv_if_init(if_ctx_t ctx)
 		 * deliberately withholding mailbox CTS (for example, when the VF is
 		 * quarantined).
 		 */
+		ixv_log_negotiate_failure(sc, false);
 		hw->mac.ops.stop_adapter(hw);
+		ixv_mbx_retry_failed(ctx);
 		return;
 	}
+	/* Program the address only after the PF mailbox is responsive. */
+	error = hw->mac.ops.set_rar(hw, 0, requested_addr, 0, 1);
+	if (error == IXGBE_SUCCESS)
+		bcopy(requested_addr, hw->mac.addr, sizeof(requested_addr));
+	else
+		hw->mac.ops.get_mac_addr(hw, hw->mac.addr);
+	ixv_reconcile_mac(sc, ifp);
+	ixv_mbx_retry_succeeded(sc);
 
 	ixv_initialize_transmit_units(ctx);
 
@@ -703,6 +727,167 @@ ixv_if_init(if_ctx_t ctx)
 
 	return;
 } /* ixv_if_init */
+
+static const char *
+ixv_reset_error_desc(s32 error)
+{
+
+	switch (error) {
+	case IXGBE_ERR_RESET_FAILED:
+		return ("PF reset acknowledgement timed out");
+	case IXGBE_ERR_INVALID_MAC_ADDR:
+		/*
+		 * The shared VF reset code historically uses this error for an
+		 * unexpected reset reply, before it validates or copies the MAC.
+		 */
+		return ("PF returned an invalid VF reset response");
+	case IXGBE_ERR_MBX:
+	case IXGBE_ERR_MBX_NOMSG:
+	case IXGBE_ERR_TIMEOUT:
+		return ("PF mailbox reset exchange failed");
+	default:
+		return ("VF reset handshake failed");
+	}
+}
+
+/*
+ * Report each backoff stage, then limit the steady eight-second retry so a
+ * persistent PF outage does not spam the console.
+ */
+static bool
+ixv_mbx_log_allowed(struct ixgbe_softc *sc)
+{
+
+	if (sc->vf_mbx_retry_stage == nitems(ixv_mbx_retry_delay) - 1 &&
+	    !ratecheck(&sc->vf_mbx_last_log, &ixv_mbx_log_interval))
+		return (false);
+	return (true);
+}
+
+static void
+ixv_log_negotiate_failure(struct ixgbe_softc *sc, bool attaching)
+{
+
+	if (!ixv_mbx_log_allowed(sc))
+		return;
+	device_printf(sc->dev, "Mailbox API negotiation failed%s\n",
+	    attaching ? "; continuing attach" : "");
+}
+
+static void
+ixv_log_reset_failure(struct ixgbe_softc *sc, s32 error, bool attaching)
+{
+
+	if (!ixv_mbx_log_allowed(sc))
+		return;
+	device_printf(sc->dev, "%s (%d)%s\n", ixv_reset_error_desc(error),
+	    error, attaching ? "; continuing attach" : "");
+}
+
+/*
+ * A missing PF can make the posted reset handshake wait for a full mailbox
+ * timeout.  Keep that work out of stopped status paths.  An administratively
+ * up VF retries complete initialization with an exponential delay capped at
+ * eight seconds, so it recovers without creating a tight mailbox poller.
+ */
+static void
+ixv_mbx_retry_callout(void *arg)
+{
+	struct ixgbe_softc *sc;
+	if_t ifp;
+
+	sc = arg;
+	if (atomic_readandclear_32(&sc->vf_mbx_retry_pending) == 0 ||
+	    atomic_load_acq_32(&sc->vf_mbx_ready) != 0 ||
+	    iflib_in_detach(sc->ctx))
+		return;
+	ifp = iflib_get_ifp(sc->ctx);
+	if ((if_getflags(ifp) & IFF_UP) == 0)
+		return;
+
+	iflib_request_reset_if_up(sc->ctx);
+	iflib_admin_intr_deferred(sc->ctx);
+}
+
+static void
+ixv_mbx_retry_detach(struct ixgbe_softc *sc)
+{
+
+	if (!sc->vf_mbx_retry_initialized)
+		return;
+	atomic_readandclear_32(&sc->vf_mbx_retry_pending);
+	callout_drain(&sc->vf_mbx_retry);
+	sc->vf_mbx_retry_initialized = false;
+}
+
+static void
+ixv_mbx_retry_prepare(struct ixgbe_softc *sc)
+{
+
+	if (!sc->vf_mbx_retry_initialized)
+		return;
+	atomic_readandclear_32(&sc->vf_mbx_retry_pending);
+	callout_drain(&sc->vf_mbx_retry);
+}
+
+static void
+ixv_mbx_retry_stop(struct ixgbe_softc *sc)
+{
+	if_t ifp;
+
+	if (!sc->vf_mbx_retry_initialized)
+		return;
+	atomic_readandclear_32(&sc->vf_mbx_retry_pending);
+	callout_drain(&sc->vf_mbx_retry);
+	ifp = iflib_get_ifp(sc->ctx);
+	if ((if_getflags(ifp) & IFF_UP) == 0)
+		sc->vf_mbx_retry_stage = 0;
+}
+
+static void
+ixv_mbx_retry_failed(if_ctx_t ctx)
+{
+	struct ixgbe_softc *sc;
+	if_t ifp;
+	sbintime_t delay;
+	u_int stage;
+
+	sc = iflib_get_softc(ctx);
+	atomic_store_rel_32(&sc->vf_mbx_ready, 0);
+	sc->link_up = false;
+	if (sc->link_active) {
+		sc->link_active = false;
+		iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
+	}
+	iflib_init_failed(ctx);
+
+	ifp = iflib_get_ifp(ctx);
+	if (!sc->vf_mbx_retry_initialized ||
+	    (if_getflags(ifp) & IFF_UP) == 0)
+		return;
+	stage = sc->vf_mbx_retry_stage;
+	if (stage >= nitems(ixv_mbx_retry_delay))
+		stage = nitems(ixv_mbx_retry_delay) - 1;
+	delay = ixv_mbx_retry_delay[stage];
+	if (sc->vf_mbx_retry_stage + 1 < nitems(ixv_mbx_retry_delay))
+		sc->vf_mbx_retry_stage++;
+	atomic_set_32(&sc->vf_mbx_retry_pending, 1);
+	callout_reset_sbt(&sc->vf_mbx_retry, delay, 0,
+	    ixv_mbx_retry_callout, sc, C_PREL(1));
+}
+
+static void
+ixv_mbx_retry_succeeded(struct ixgbe_softc *sc)
+{
+
+	atomic_store_rel_32(&sc->vf_mbx_ready, 1);
+	atomic_readandclear_32(&sc->vf_mbx_retry_pending);
+	if (sc->vf_mbx_retry_initialized)
+		callout_stop(&sc->vf_mbx_retry);
+	sc->vf_mbx_retry_stage = 0;
+	sc->vf_mbx_last_log.tv_sec = 0;
+	sc->vf_mbx_last_log.tv_usec = 0;
+}
 
 /************************************************************************
  * ixv_enable_queue
@@ -1066,6 +1251,15 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 	if_t ifp = iflib_get_ifp(ctx);
 	s32 status;
 
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0 ||
+	    atomic_load_acq_32(&sc->vf_mbx_ready) == 0) {
+		if (sc->link_active) {
+			sc->link_active = false;
+			iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
+		}
+		return;
+	}
+
 	sc->hw.mac.get_link_status = true;
 
 	status = ixgbe_check_link(&sc->hw, &sc->link_speed,
@@ -1118,21 +1312,27 @@ ixv_if_stop(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
+	if_t ifp = iflib_get_ifp(ctx);
+	bool mailbox_ready;
 
 	INIT_DEBUGOUT("ixv_stop: begin\n");
 
+	ixv_mbx_retry_stop(sc);
 	ixv_if_disable_intr(ctx);
 
-	hw->mac.ops.reset_hw(hw);
+	mailbox_ready = atomic_load_acq_32(&sc->vf_mbx_ready) != 0;
+	if (mailbox_ready && (if_getflags(ifp) & IFF_UP) == 0)
+		hw->mac.ops.reset_hw(hw);
+	atomic_store_rel_32(&sc->vf_mbx_ready, 0);
 	sc->hw.adapter_stopped = false;
 	hw->mac.ops.stop_adapter(hw);
 
-	/* Update the stack */
+	/* Publish the stopped state without touching the PF mailbox. */
 	sc->link_up = false;
-	ixv_if_update_admin_status(ctx);
-
-	/* reprogram the RAR[0] in case user changed it. */
-	hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0, IXGBE_RAH_AV);
+	if (sc->link_active) {
+		sc->link_active = false;
+		iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
+	}
 } /* ixv_if_stop */
 
 
@@ -1919,7 +2119,8 @@ ixv_if_enable_intr(if_ctx_t ctx)
 	struct ix_rx_queue *que = sc->rx_queues;
 	u32 mask = (IXGBE_EIMS_ENABLE_MASK & ~IXGBE_EIMS_RTX_QUEUE);
 
-	if (hw->adapter_stopped)
+	if (hw->adapter_stopped ||
+	    atomic_load_acq_32(&sc->vf_mbx_ready) == 0)
 		return;
 
 	IXGBE_WRITE_REG(hw, IXGBE_VTEIMS, mask);
