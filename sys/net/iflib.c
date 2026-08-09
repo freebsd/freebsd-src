@@ -4658,10 +4658,27 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		CTX_UNLOCK(ctx);
 		break;
 	case SIOCGIFVFSTATUS:
+	{
+		kobjop_desc_t kobj_desc;
+		kobj_method_t *kobj_method;
+
+		/* VF status describes children of an SR-IOV PF. */
+		if (CTX_IS_VF(ctx)) {
+			err = ENOTSUP;
+			break;
+		}
+		kobj_desc = &ifdi_vf_status_desc;
+		kobj_method = kobj_lookup_method(((kobj_t)ctx)->ops->cls,
+		    NULL, kobj_desc);
+		if (kobj_method == &kobj_desc->deflt) {
+			err = ENOTSUP;
+			break;
+		}
 		CTX_LOCK(ctx);
 		err = IFDI_VF_STATUS(ctx, (nvlist_t *)data);
 		CTX_UNLOCK(ctx);
 		break;
+	}
 	default:
 		err = ether_ioctl(ifp, command, data);
 		break;
