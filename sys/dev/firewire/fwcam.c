@@ -16,23 +16,23 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/conf.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <sys/fcntl.h>
-#include <sys/poll.h>
-#include <sys/selinfo.h>
-#include <sys/uio.h>
 #include <sys/mbuf.h>
+#include <sys/videoio.h>
 
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/iec13213.h>
 #include <dev/firewire/fwcam.h>
 #include <dev/firewire/fw_helpers.h>
+
+#include <dev/video/video.h>
+
+#include "video_if.h"
 
 static MALLOC_DEFINE(M_FWCAM, "fwcam", "IIDC FireWire Camera");
 
@@ -59,23 +59,53 @@ static void	fwcam_probe_task(void *, int);
 static int	fwcam_iso_start(struct fwcam_softc *);
 static void	fwcam_iso_stop(struct fwcam_softc *);
 static void	fwcam_iso_input(struct fw_xferq *);
+static void	fwcam_frame_done(struct fwcam_softc *);
 
-static d_open_t		fwcam_cdev_open;
-static d_close_t	fwcam_cdev_close;
-static d_read_t		fwcam_cdev_read;
-static d_poll_t		fwcam_cdev_poll;
-static d_ioctl_t	fwcam_cdev_ioctl;
+static int	fwcam_hw_open(device_t);
+static int	fwcam_hw_querycap(device_t, struct video_caps *);
+static int	fwcam_hw_enum_format(device_t, uint32_t, struct video_format *);
+static int	fwcam_hw_get_format(device_t, struct video_format *);
+static int	fwcam_hw_try_format(device_t, struct video_format *);
+static int	fwcam_hw_set_format(device_t, const struct video_format *);
+static int	fwcam_hw_enum_framesizes(device_t, struct video_frmsizeenum *);
+static int	fwcam_hw_enum_input(device_t, uint32_t, struct video_input *);
+static int	fwcam_hw_get_input(device_t, uint32_t *);
+static int	fwcam_hw_set_input(device_t, uint32_t);
+static int	fwcam_hw_query_control(device_t, struct video_control_desc *);
+static int	fwcam_hw_get_control(device_t, struct video_control *);
+static int	fwcam_hw_set_control(device_t, const struct video_control *);
+static int	fwcam_hw_start_stream(device_t);
+static void	fwcam_hw_stop_stream(device_t);
 
-static struct cdevsw fwcam_cdevsw = {
-	.d_version =	D_VERSION,
-	.d_flags =	D_TRACKCLOSE,
-	.d_open =	fwcam_cdev_open,
-	.d_close =	fwcam_cdev_close,
-	.d_read =	fwcam_cdev_read,
-	.d_poll =	fwcam_cdev_poll,
-	.d_ioctl =	fwcam_cdev_ioctl,
-	.d_name =	"fwcam",
+/*
+ * Format_0 (VGA) mode descriptors for V4L2 mapping.
+ */
+struct fwcam_v4l2_mode {
+	uint32_t	pixelformat;	/* V4L2 fourcc */
+	uint32_t	width;
+	uint32_t	height;
+	uint32_t	bytesperline;
+	uint32_t	sizeimage;
 };
+
+static const struct fwcam_v4l2_mode fwcam_fmt0_v4l2[] = {
+	/* mode 0: 160x120 YUV444 (24bpp packed) */
+	{ V4L2_PIX_FMT_YUV444, 160, 120, 160 * 3, 160 * 120 * 3 },
+	/* mode 1: 320x240 YUV422 (UYVY, 16bpp packed) */
+	{ V4L2_PIX_FMT_UYVY,   320, 240, 320 * 2, 320 * 240 * 2 },
+	/* mode 2: 640x480 YUV411 (12bpp) */
+	{ V4L2_PIX_FMT_Y41P,   640, 480, 640 * 3 / 2, 640 * 480 * 3 / 2 },
+	/* mode 3: 640x480 YUV422 (UYVY, 16bpp packed) */
+	{ V4L2_PIX_FMT_UYVY,   640, 480, 640 * 2, 640 * 480 * 2 },
+	/* mode 4: 640x480 RGB8 (24bpp) */
+	{ V4L2_PIX_FMT_RGB24,  640, 480, 640 * 3, 640 * 480 * 3 },
+	/* mode 5: 640x480 Mono8 */
+	{ V4L2_PIX_FMT_GREY,   640, 480, 640, 640 * 480 },
+	/* mode 6: 640x480 Mono16 */
+	{ V4L2_PIX_FMT_Y16,    640, 480, 640 * 2, 640 * 480 * 2 },
+};
+
+#define	FWCAM_FMT0_V4L2_NMODES	nitems(fwcam_fmt0_v4l2)
 
 /*
  * Search a CSR directory for the IIDC command base register (key 0x40).
@@ -347,17 +377,10 @@ fwcam_probe_task(void *arg, int pending __unused)
 static uint32_t
 fwcam_frame_size(struct fwcam_softc *sc)
 {
-	static const uint32_t fmt0_sizes[] = {
-		160 * 120 * 3,		/* mode 0: YUV444 */
-		320 * 240 * 2,		/* mode 1: YUV422 */
-		640 * 480 * 3 / 2,	/* mode 2: YUV411 */
-		640 * 480 * 2,		/* mode 3: YUV422 */
-		640 * 480 * 3,		/* mode 4: RGB8 */
-		640 * 480,		/* mode 5: Mono8 */
-	};
 
-	if (sc->cur_format == IIDC_FMT_VGA && sc->cur_mode < nitems(fmt0_sizes))
-		return (fmt0_sizes[sc->cur_mode]);
+	if (sc->cur_format == IIDC_FMT_VGA &&
+	    sc->cur_mode < FWCAM_FMT0_V4L2_NMODES)
+		return (fwcam_fmt0_v4l2[sc->cur_mode].sizeimage);
 
 	/* Default to largest VGA mode */
 	return (FWCAM_MAX_FRAME_SIZE);
@@ -420,9 +443,7 @@ fwcam_iso_start(struct fwcam_softc *sc)
 
 	sc->frame_size = fwcam_frame_size(sc);
 	sc->frame_buf = malloc(sc->frame_size, M_FWCAM, M_WAITOK | M_ZERO);
-	sc->read_buf = malloc(sc->frame_size, M_FWCAM, M_WAITOK | M_ZERO);
 	sc->frame_offset = 0;
-	sc->frame_ready = 0;
 	sc->frame_dropped = 0;
 
 	/* IIDC spec s3.1: set video mode registers before ISO enable */
@@ -519,9 +540,7 @@ fail:
 	xferq->hand = NULL;
 
 	free(sc->frame_buf, M_FWCAM);
-	free(sc->read_buf, M_FWCAM);
 	sc->frame_buf = NULL;
-	sc->read_buf = NULL;
 	sc->dma_ch = -1;
 
 	return (err);
@@ -553,9 +572,6 @@ fwcam_iso_stop(struct fwcam_softc *sc)
 
 	FWCAM_LOCK(sc);
 	fw_iso_wait_inactive_locked(&sc->mtx, &sc->iso_active, "fwcamis");
-	sc->frame_ready = 0;
-	while (sc->read_in_progress)
-		msleep(&sc->read_in_progress, &sc->mtx, PWAIT, "fwcamst", hz);
 	FWCAM_UNLOCK(sc);
 
 	xferq->flag &= ~(FWXFERQ_MODEMASK | FWXFERQ_OPEN | FWXFERQ_STREAM |
@@ -565,9 +581,23 @@ fwcam_iso_stop(struct fwcam_softc *sc)
 	fw_iso_free_chunks(xferq, M_FWCAM);
 
 	free(sc->frame_buf, M_FWCAM);
-	free(sc->read_buf, M_FWCAM);
 	sc->frame_buf = NULL;
-	sc->read_buf = NULL;
+}
+
+static void
+fwcam_frame_done(struct fwcam_softc *sc)
+{
+	struct video_buf *vb;
+
+	vb = video_buf_acquire(sc->sc_vd);
+	if (vb == NULL)
+		return;
+
+	if (video_buf_write(vb, 0, sc->frame_buf, sc->frame_offset) != 0) {
+		video_buf_error(vb);
+		return;
+	}
+	video_buf_done(vb, sc->frame_offset, sc->sc_sequence++);
 }
 
 static void
@@ -579,7 +609,6 @@ fwcam_iso_input(struct fw_xferq *xferq)
 	struct mbuf *m;
 	uint8_t *payload;
 	uint32_t plen;
-	uint8_t *tmp;
 	int dma_ch;
 
 	FWCAM_LOCK(sc);
@@ -606,25 +635,16 @@ fwcam_iso_input(struct fw_xferq *xferq)
 		}
 
 		if (fp->mode.stream.sy == 1) {
-			if (sc->frame_offset > 0) {
-				if (sc->frame_offset == sc->frame_size) {
-					FWCAM_LOCK(sc);
-					if (sc->read_in_progress) {
-						sc->frame_dropped++;
-					} else {
-						if (sc->frame_ready)
-							sc->frame_dropped++;
-						tmp = sc->read_buf;
-						sc->read_buf = sc->frame_buf;
-						sc->frame_buf = tmp;
-						sc->frame_ready = 1;
-						wakeup(sc);
-						selwakeup(&sc->rsel);
-					}
-					FWCAM_UNLOCK(sc);
-				} else {
-					sc->frame_dropped++;
-				}
+			if (sc->frame_offset > 0 &&
+			    sc->frame_offset == sc->frame_size) {
+				fwcam_frame_done(sc);
+			} else if (sc->frame_offset > 0) {
+				struct video_buf *vb;
+
+				vb = video_buf_acquire(sc->sc_vd);
+				if (vb != NULL)
+					video_buf_error(vb);
+				sc->frame_dropped++;
 			}
 			sc->frame_offset = 0;
 		}
@@ -641,6 +661,11 @@ fwcam_iso_input(struct fw_xferq *xferq)
 			memcpy(sc->frame_buf + sc->frame_offset, payload, plen);
 			sc->frame_offset += plen;
 		} else {
+			struct video_buf *vb;
+
+			vb = video_buf_acquire(sc->sc_vd);
+			if (vb != NULL)
+				video_buf_error(vb);
 			sc->frame_dropped++;
 			sc->frame_offset = 0;
 		}
@@ -650,131 +675,6 @@ fwcam_iso_input(struct fw_xferq *xferq)
 
 	fw_iso_rearm_done(xferq, sc->fd.fc, &sc->mtx, &sc->iso_active,
 	    &sc->dma_ch, dma_ch);
-}
-
-static int
-fwcam_cdev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
-{
-	struct fwcam_softc *sc = dev->si_drv1;
-	int err;
-
-	FWCAM_LOCK(sc);
-	if (sc->state == FWCAM_STATE_DETACHING) {
-		FWCAM_UNLOCK(sc);
-		return (ENXIO);
-	}
-
-	if (sc->state == FWCAM_STATE_IDLE) {
-		sc->state = FWCAM_STATE_PROBING;
-		FWCAM_UNLOCK(sc);
-		taskqueue_enqueue(taskqueue_thread, &sc->probe_task);
-		FWCAM_LOCK(sc);
-	}
-
-	while (sc->state == FWCAM_STATE_PROBING) {
-		err = msleep(sc, &sc->mtx, PCATCH, "fwcampr", 10 * hz);
-		if (err) {
-			FWCAM_UNLOCK(sc);
-			return (err == EWOULDBLOCK ? ETIMEDOUT : err);
-		}
-	}
-
-	if (sc->state != FWCAM_STATE_PROBED &&
-	    sc->state != FWCAM_STATE_STREAMING) {
-		FWCAM_UNLOCK(sc);
-		return (ENXIO);
-	}
-
-	sc->open_count++;
-	FWCAM_UNLOCK(sc);
-	return (0);
-}
-
-static int
-fwcam_cdev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
-{
-	struct fwcam_softc *sc = dev->si_drv1;
-
-	FWCAM_LOCK(sc);
-	sc->open_count--;
-	if (sc->open_count <= 0) {
-		sc->open_count = 0;
-		if (sc->state == FWCAM_STATE_STREAMING) {
-			FWCAM_UNLOCK(sc);
-			fwcam_iso_stop(sc);
-			FWCAM_LOCK(sc);
-			if (sc->state != FWCAM_STATE_DETACHING)
-				sc->state = FWCAM_STATE_PROBED;
-		}
-	}
-	FWCAM_UNLOCK(sc);
-	return (0);
-}
-
-static int
-fwcam_cdev_read(struct cdev *dev, struct uio *uio, int ioflag)
-{
-	struct fwcam_softc *sc = dev->si_drv1;
-	int err;
-
-	FWCAM_LOCK(sc);
-	if (sc->state == FWCAM_STATE_PROBED) {
-		FWCAM_UNLOCK(sc);
-		err = fwcam_iso_start(sc);
-		if (err)
-			return (err);
-		FWCAM_LOCK(sc);
-	}
-	while (!sc->frame_ready) {
-		if (sc->state != FWCAM_STATE_STREAMING) {
-			FWCAM_UNLOCK(sc);
-			return (ENXIO);
-		}
-		if (ioflag & FNONBLOCK) {
-			FWCAM_UNLOCK(sc);
-			return (EAGAIN);
-		}
-		err = msleep(sc, &sc->mtx, PCATCH, "fwcamrd", 5 * hz);
-		if (err) {
-			FWCAM_UNLOCK(sc);
-			return (err);
-		}
-	}
-
-	sc->frame_ready = 0;
-	if (sc->read_buf == NULL) {
-		FWCAM_UNLOCK(sc);
-		return (ENXIO);
-	}
-	sc->read_in_progress = 1;
-	FWCAM_UNLOCK(sc);
-
-	err = uiomove(sc->read_buf,
-	    MIN(uio->uio_resid, sc->frame_size), uio);
-
-	FWCAM_LOCK(sc);
-	sc->read_in_progress = 0;
-	wakeup(&sc->read_in_progress);
-	FWCAM_UNLOCK(sc);
-
-	return (err);
-}
-
-static int
-fwcam_cdev_poll(struct cdev *dev, int events, struct thread *td)
-{
-	struct fwcam_softc *sc = dev->si_drv1;
-	int revents = 0;
-
-	FWCAM_LOCK(sc);
-	if (events & (POLLIN | POLLRDNORM)) {
-		if (sc->frame_ready)
-			revents |= events & (POLLIN | POLLRDNORM);
-		else
-			selrecord(td, &sc->rsel);
-	}
-	FWCAM_UNLOCK(sc);
-	return (revents);
 }
 
 static const uint32_t fwcam_feat_inq[] = {
@@ -811,6 +711,40 @@ static const uint32_t fwcam_feat_ctrl[] = {
 	[FWCAM_FEAT_PAN]         = IIDC_PAN,
 	[FWCAM_FEAT_TILT]        = IIDC_TILT,
 };
+
+/*
+ * Map IIDC feature IDs to V4L2 control IDs.
+ */
+static const uint32_t fwcam_feat_v4l2[] = {
+	[FWCAM_FEAT_BRIGHTNESS]    = V4L2_CID_BRIGHTNESS,
+	[FWCAM_FEAT_AUTO_EXPOSURE] = V4L2_CID_EXPOSURE_AUTO,
+	[FWCAM_FEAT_SHARPNESS]     = V4L2_CID_SHARPNESS,
+	[FWCAM_FEAT_WHITE_BALANCE] = V4L2_CID_AUTO_WHITE_BALANCE,
+	[FWCAM_FEAT_HUE]          = V4L2_CID_HUE,
+	[FWCAM_FEAT_SATURATION]   = V4L2_CID_SATURATION,
+	[FWCAM_FEAT_GAMMA]        = V4L2_CID_GAMMA,
+	[FWCAM_FEAT_SHUTTER]      = V4L2_CID_EXPOSURE_ABSOLUTE,
+	[FWCAM_FEAT_GAIN]         = V4L2_CID_GAIN,
+	[FWCAM_FEAT_FOCUS]        = V4L2_CID_FOCUS_ABSOLUTE,
+};
+
+#define	FWCAM_V4L2_CTRL_COUNT	nitems(fwcam_feat_v4l2)
+
+/*
+ * Find the IIDC feature ID for a V4L2 control ID.
+ * Returns -1 if not found.
+ */
+static int
+fwcam_find_feat_by_v4l2(uint32_t v4l2_id)
+{
+	int i;
+
+	for (i = 0; i < (int)FWCAM_V4L2_CTRL_COUNT; i++) {
+		if (fwcam_feat_v4l2[i] == v4l2_id)
+			return (i);
+	}
+	return (-1);
+}
 
 static int
 fwcam_get_feature(struct fwcam_softc *sc, struct fwcam_feature *feat)
@@ -889,111 +823,392 @@ fwcam_set_feature(struct fwcam_softc *sc, struct fwcam_feature *feat)
 	return (fwcam_write_quadlet(sc, fwcam_feat_ctrl[feat->id], val));
 }
 
+/*
+ * Ensure the camera has been probed (powered on, capabilities read).
+ * Called from hw callbacks that need device state.
+ */
 static int
-fwcam_cdev_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
-    int fflag, struct thread *td)
+fwcam_ensure_probed(struct fwcam_softc *sc)
 {
-	struct fwcam_softc *sc = dev->si_drv1;
-	struct fwcam_mode *mode;
-	struct fwcam_feature *feat;
-	struct fwcam_info *info;
 	int err;
 
-	if (sc->fwdev == NULL)
-		return (ENXIO);
-
-	switch (cmd) {
-	case FWCAM_GMODE:
-		mode = (struct fwcam_mode *)data;
-		mode->format = sc->cur_format;
-		mode->mode = sc->cur_mode;
-		mode->framerate = sc->cur_framerate;
-		mode->frame_size = sc->frame_size ?
-		    sc->frame_size : fwcam_frame_size(sc);
-		return (0);
-
-	case FWCAM_SMODE:
-	    {
-		int was_streaming = 0;
-
-		mode = (struct fwcam_mode *)data;
-		if (mode->format > 7 || mode->mode > 7 || mode->framerate > 7)
-			return (EINVAL);
-
-		if (!(sc->formats & (1 << (31 - mode->format))))
-			return (EINVAL);
-		if (!(sc->modes[mode->format] & (1 << (31 - mode->mode))))
-			return (EINVAL);
-		if (!(sc->rates[mode->format][mode->mode] &
-		    (1 << (31 - mode->framerate))))
-			return (EINVAL);
-
-		FWCAM_LOCK(sc);
-		if (sc->state == FWCAM_STATE_DETACHING) {
-			FWCAM_UNLOCK(sc);
-			return (ENXIO);
-		}
-		if (sc->state == FWCAM_STATE_STREAMING) {
-			was_streaming = 1;
-			FWCAM_UNLOCK(sc);
-			fwcam_iso_stop(sc);
-			FWCAM_LOCK(sc);
-			if (sc->state != FWCAM_STATE_DETACHING)
-				sc->state = FWCAM_STATE_PROBED;
-		}
+	FWCAM_LOCK(sc);
+	if (sc->state == FWCAM_STATE_DETACHING) {
 		FWCAM_UNLOCK(sc);
-
-		err = fwcam_write_quadlet(sc, IIDC_CUR_V_FORMAT,
-		    (uint32_t)mode->format << IIDC_CUR_V_SHIFT);
-		if (err == 0)
-			err = fwcam_write_quadlet(sc, IIDC_CUR_V_MODE,
-			    (uint32_t)mode->mode << IIDC_CUR_V_SHIFT);
-		if (err == 0)
-			err = fwcam_write_quadlet(sc, IIDC_CUR_V_FRM_RATE,
-			    (uint32_t)mode->framerate << IIDC_CUR_V_SHIFT);
-
-		if (err == 0) {
-			sc->cur_format = mode->format;
-			sc->cur_mode = mode->mode;
-			sc->cur_framerate = mode->framerate;
-			mode->frame_size = fwcam_frame_size(sc);
-		}
-
-		if (was_streaming)
-			fwcam_iso_start(sc);
-		return (err);
-	    }
-
-	case FWCAM_GFEAT:
-		feat = (struct fwcam_feature *)data;
-		return (fwcam_get_feature(sc, feat));
-
-	case FWCAM_SFEAT:
-		feat = (struct fwcam_feature *)data;
-		return (fwcam_set_feature(sc, feat));
-
-	case FWCAM_GINFO:
-		info = (struct fwcam_info *)data;
-		info->formats = sc->formats;
-		info->basic_func = sc->basic_func;
-		info->features_hi = sc->features_hi;
-		info->features_lo = sc->features_lo;
-		info->cur_format = sc->cur_format;
-		info->cur_mode = sc->cur_mode;
-		info->cur_framerate = sc->cur_framerate;
-		info->state = sc->state;
-		info->frame_size = sc->frame_size ?
-		    sc->frame_size : fwcam_frame_size(sc);
-		info->frame_dropped = sc->frame_dropped;
-		info->iso_channel = sc->iso_channel;
-		info->_pad[0] = info->_pad[1] = info->_pad[2] = 0;
-		return (0);
-
-	default:
-		return (ENOTTY);
+		return (ENXIO);
 	}
+
+	if (sc->state == FWCAM_STATE_IDLE) {
+		sc->state = FWCAM_STATE_PROBING;
+		FWCAM_UNLOCK(sc);
+		taskqueue_enqueue(taskqueue_thread, &sc->probe_task);
+		FWCAM_LOCK(sc);
+	}
+
+	while (sc->state == FWCAM_STATE_PROBING) {
+		err = msleep(sc, &sc->mtx, PCATCH, "fwcampr", 10 * hz);
+		if (err) {
+			FWCAM_UNLOCK(sc);
+			return (err == EWOULDBLOCK ? ETIMEDOUT : err);
+		}
+	}
+
+	if (sc->state != FWCAM_STATE_PROBED &&
+	    sc->state != FWCAM_STATE_STREAMING) {
+		FWCAM_UNLOCK(sc);
+		return (ENXIO);
+	}
+
+	FWCAM_UNLOCK(sc);
+	return (0);
 }
 
+static int
+fwcam_hw_open(device_t dev)
+{
+	struct fwcam_softc *sc = device_get_softc(dev);
+
+	return (fwcam_ensure_probed(sc));
+}
+
+static int
+fwcam_hw_querycap(device_t dev, struct video_caps *caps)
+{
+
+	bzero(caps, sizeof(*caps));
+	strlcpy(caps->driver, "fwcam", sizeof(caps->driver));
+	strlcpy(caps->card, "IIDC FireWire Camera", sizeof(caps->card));
+	strlcpy(caps->bus_info, "firewire", sizeof(caps->bus_info));
+	caps->version = (1 << 16) | (0 << 8) | 0;	/* 1.0.0 */
+	caps->capabilities = VIDEO_CAP_CAPTURE |
+	    VIDEO_CAP_READWRITE | VIDEO_CAP_STREAMING;
+
+	return (0);
+}
+
+/*
+ * Map a sequential enum index to an IIDC mode number.
+ * Returns -1 if index is out of range.
+ */
+static int
+fwcam_index_to_mode(struct fwcam_softc *sc, uint32_t index)
+{
+	int m;
+	uint32_t count = 0;
+
+	if (!(sc->formats & IIDC_FORMAT_VGA))
+		return (-1);
+
+	for (m = 0; m < (int)FWCAM_FMT0_V4L2_NMODES; m++) {
+		if (sc->modes[IIDC_FMT_VGA] & (1 << (31 - m))) {
+			if (count == index)
+				return (m);
+			count++;
+		}
+	}
+	return (-1);
+}
+
+static int
+fwcam_hw_enum_format(device_t dev, uint32_t index, struct video_format *fmt)
+{
+	struct fwcam_softc *sc = device_get_softc(dev);
+	const struct fwcam_v4l2_mode *vm;
+	int m;
+
+	m = fwcam_index_to_mode(sc, index);
+	if (m < 0)
+		return (EINVAL);
+
+	vm = &fwcam_fmt0_v4l2[m];
+
+	bzero(fmt, sizeof(*fmt));
+	fmt->pixelformat = vm->pixelformat;
+	fmt->width = vm->width;
+	fmt->height = vm->height;
+	fmt->bytesperline = vm->bytesperline;
+	fmt->sizeimage = vm->sizeimage;
+	fmt->field = V4L2_FIELD_NONE;
+
+	return (0);
+}
+
+static int
+fwcam_hw_get_format(device_t dev, struct video_format *fmt)
+{
+	struct fwcam_softc *sc = device_get_softc(dev);
+	const struct fwcam_v4l2_mode *vm;
+
+	if (sc->cur_format != IIDC_FMT_VGA ||
+	    sc->cur_mode >= FWCAM_FMT0_V4L2_NMODES)
+		return (EIO);
+
+	vm = &fwcam_fmt0_v4l2[sc->cur_mode];
+
+	bzero(fmt, sizeof(*fmt));
+	fmt->pixelformat = vm->pixelformat;
+	fmt->width = vm->width;
+	fmt->height = vm->height;
+	fmt->bytesperline = vm->bytesperline;
+	fmt->sizeimage = vm->sizeimage;
+	fmt->field = V4L2_FIELD_NONE;
+
+	return (0);
+}
+
+/*
+ * Find the IIDC mode that best matches a V4L2 format request.
+ * Returns -1 if no match.
+ */
+static int
+fwcam_find_mode_for_format(struct fwcam_softc *sc,
+    const struct video_format *fmt)
+{
+	int m, best = -1;
+
+	if (!(sc->formats & IIDC_FORMAT_VGA))
+		return (-1);
+
+	for (m = 0; m < (int)FWCAM_FMT0_V4L2_NMODES; m++) {
+		if (!(sc->modes[IIDC_FMT_VGA] & (1 << (31 - m))))
+			continue;
+		if (fwcam_fmt0_v4l2[m].pixelformat == fmt->pixelformat &&
+		    fwcam_fmt0_v4l2[m].width == fmt->width &&
+		    fwcam_fmt0_v4l2[m].height == fmt->height) {
+			best = m;
+			break;
+		}
+	}
+
+	/* If exact match failed, try matching just pixelformat */
+	if (best < 0) {
+		for (m = 0; m < (int)FWCAM_FMT0_V4L2_NMODES; m++) {
+			if (!(sc->modes[IIDC_FMT_VGA] & (1 << (31 - m))))
+				continue;
+			if (fwcam_fmt0_v4l2[m].pixelformat ==
+			    fmt->pixelformat) {
+				best = m;
+				break;
+			}
+		}
+	}
+
+	return (best);
+}
+
+static int
+fwcam_hw_try_format(device_t dev, struct video_format *fmt)
+{
+	struct fwcam_softc *sc = device_get_softc(dev);
+	const struct fwcam_v4l2_mode *vm;
+	int m;
+
+	m = fwcam_find_mode_for_format(sc, fmt);
+	if (m < 0)
+		return (EINVAL);
+
+	vm = &fwcam_fmt0_v4l2[m];
+
+	fmt->pixelformat = vm->pixelformat;
+	fmt->width = vm->width;
+	fmt->height = vm->height;
+	fmt->bytesperline = vm->bytesperline;
+	fmt->sizeimage = vm->sizeimage;
+	fmt->field = V4L2_FIELD_NONE;
+
+	return (0);
+}
+
+static int
+fwcam_hw_set_format(device_t dev, const struct video_format *fmt)
+{
+	struct fwcam_softc *sc = device_get_softc(dev);
+	int m, err;
+
+	m = fwcam_find_mode_for_format(sc, fmt);
+	if (m < 0)
+		return (EINVAL);
+
+	if (!(sc->rates[IIDC_FMT_VGA][m] &
+	    (1 << (31 - sc->cur_framerate)))) {
+		/* Current framerate not supported in new mode, pick first */
+		int r;
+		for (r = 0; r < 8; r++) {
+			if (sc->rates[IIDC_FMT_VGA][m] & (1 << (31 - r))) {
+				sc->cur_framerate = r;
+				break;
+			}
+		}
+	}
+
+	err = fwcam_write_quadlet(sc, IIDC_CUR_V_FORMAT,
+	    (uint32_t)IIDC_FMT_VGA << IIDC_CUR_V_SHIFT);
+	if (err == 0)
+		err = fwcam_write_quadlet(sc, IIDC_CUR_V_MODE,
+		    (uint32_t)m << IIDC_CUR_V_SHIFT);
+	if (err == 0)
+		err = fwcam_write_quadlet(sc, IIDC_CUR_V_FRM_RATE,
+		    (uint32_t)sc->cur_framerate << IIDC_CUR_V_SHIFT);
+
+	if (err == 0) {
+		sc->cur_format = IIDC_FMT_VGA;
+		sc->cur_mode = m;
+	}
+
+	return (err);
+}
+
+static int
+fwcam_hw_enum_framesizes(device_t dev, struct video_frmsizeenum *fse)
+{
+	struct fwcam_softc *sc = device_get_softc(dev);
+	int m;
+	uint32_t count = 0;
+
+	if (!(sc->formats & IIDC_FORMAT_VGA))
+		return (EINVAL);
+
+	for (m = 0; m < (int)FWCAM_FMT0_V4L2_NMODES; m++) {
+		if (!(sc->modes[IIDC_FMT_VGA] & (1 << (31 - m))))
+			continue;
+		if (fwcam_fmt0_v4l2[m].pixelformat != fse->pixelformat)
+			continue;
+		if (count == fse->index) {
+			fse->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+			fse->discrete.width = fwcam_fmt0_v4l2[m].width;
+			fse->discrete.height = fwcam_fmt0_v4l2[m].height;
+			return (0);
+		}
+		count++;
+	}
+
+	return (EINVAL);
+}
+
+static int
+fwcam_hw_enum_input(device_t dev, uint32_t index, struct video_input *inp)
+{
+
+	if (index != 0)
+		return (EINVAL);
+
+	bzero(inp, sizeof(*inp));
+	inp->index = 0;
+	strlcpy(inp->name, "IIDC Camera", sizeof(inp->name));
+	inp->type = VIDEO_INPUT_TYPE_CAMERA;
+
+	return (0);
+}
+
+static int
+fwcam_hw_get_input(device_t dev, uint32_t *index)
+{
+
+	*index = 0;
+	return (0);
+}
+
+static int
+fwcam_hw_set_input(device_t dev, uint32_t index)
+{
+
+	if (index != 0)
+		return (EINVAL);
+	return (0);
+}
+
+static int
+fwcam_hw_query_control(device_t dev, struct video_control_desc *qc)
+{
+	struct fwcam_softc *sc = device_get_softc(dev);
+	struct fwcam_feature feat;
+	int fid;
+
+	fid = fwcam_find_feat_by_v4l2(qc->id);
+	if (fid < 0)
+		return (EINVAL);
+
+	feat.id = fid;
+	if (fwcam_get_feature(sc, &feat) != 0)
+		return (EINVAL);
+
+	if (!(feat.flags & FWCAM_FEATF_PRESENT))
+		return (EINVAL);
+
+	qc->type = V4L2_CTRL_TYPE_INTEGER;
+	strlcpy(qc->name, fwcam_feat_names[fid], sizeof(qc->name));
+	qc->minimum = feat.min;
+	qc->maximum = feat.max;
+	qc->step = 1;
+	qc->default_value = feat.min;
+	qc->flags = 0;
+
+	return (0);
+}
+
+static int
+fwcam_hw_get_control(device_t dev, struct video_control *ctrl)
+{
+	struct fwcam_softc *sc = device_get_softc(dev);
+	struct fwcam_feature feat;
+	int fid;
+
+	fid = fwcam_find_feat_by_v4l2(ctrl->id);
+	if (fid < 0)
+		return (EINVAL);
+
+	feat.id = fid;
+	if (fwcam_get_feature(sc, &feat) != 0)
+		return (EINVAL);
+
+	ctrl->value = feat.value;
+	return (0);
+}
+
+static int
+fwcam_hw_set_control(device_t dev, const struct video_control *ctrl)
+{
+	struct fwcam_softc *sc = device_get_softc(dev);
+	struct fwcam_feature feat;
+	int fid;
+
+	fid = fwcam_find_feat_by_v4l2(ctrl->id);
+	if (fid < 0)
+		return (EINVAL);
+
+	feat.id = fid;
+	feat.value = ctrl->value;
+	feat.value2 = 0;
+	return (fwcam_set_feature(sc, &feat));
+}
+
+static int
+fwcam_hw_start_stream(device_t dev)
+{
+	struct fwcam_softc *sc = device_get_softc(dev);
+	int err;
+
+	err = fwcam_ensure_probed(sc);
+	if (err)
+		return (err);
+
+	sc->sc_sequence = 0;
+
+	return (fwcam_iso_start(sc));
+}
+
+static void
+fwcam_hw_stop_stream(device_t dev)
+{
+	struct fwcam_softc *sc = device_get_softc(dev);
+
+	fwcam_iso_stop(sc);
+
+	FWCAM_LOCK(sc);
+	if (sc->state != FWCAM_STATE_DETACHING)
+		sc->state = FWCAM_STATE_PROBED;
+	FWCAM_UNLOCK(sc);
+}
 
 static int
 fwcam_probe(device_t dev)
@@ -1021,6 +1236,7 @@ fwcam_attach(device_t dev)
 	struct fwcam_softc *sc;
 	struct fw_unit *unit;
 	uint32_t cmd_base;
+	int err;
 
 	unit = fw_get_unit(dev);
 	if (unit == NULL || unit->fwdev == NULL)
@@ -1044,13 +1260,15 @@ fwcam_attach(device_t dev)
 	sc->state = FWCAM_STATE_IDLE;
 	sc->dma_ch = -1;
 	sc->iso_active = 0;
-	sc->open_count = 0;
-	knlist_init_mtx(&sc->rsel.si_note, &sc->mtx);
+	sc->sc_sequence = 0;
 	TASK_INIT(&sc->probe_task, 0, fwcam_probe_task, sc);
 
-	sc->cdev = make_dev(&fwcam_cdevsw, device_get_unit(dev),
-	    UID_ROOT, GID_OPERATOR, 0660, "fwcam%d", device_get_unit(dev));
-	sc->cdev->si_drv1 = sc;
+	err = video_register(dev, &sc->sc_vd);
+	if (err != 0) {
+		device_printf(dev, "failed to register video device\n");
+		mtx_destroy(&sc->mtx);
+		return (err);
+	}
 
 	return (0);
 }
@@ -1062,19 +1280,16 @@ fwcam_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
+	if (sc->sc_vd != NULL)
+		video_unregister(sc->sc_vd);
+
 	FWCAM_LOCK(sc);
 	sc->state = FWCAM_STATE_DETACHING;
-	wakeup(sc);	/* wake any sleeping readers */
+	wakeup(sc);
 	FWCAM_UNLOCK(sc);
 
 	taskqueue_drain(taskqueue_thread, &sc->probe_task);
 	fwcam_iso_stop(sc);
-
-	if (sc->cdev != NULL)
-		destroy_dev(sc->cdev);
-
-	seldrain(&sc->rsel);
-	knlist_destroy(&sc->rsel.si_note);
 
 	FWCAM_LOCK(sc);
 	sc->fwdev = NULL;
@@ -1090,6 +1305,23 @@ static device_method_t fwcam_methods[] = {
 	DEVMETHOD(device_attach,	fwcam_attach),
 	DEVMETHOD(device_detach,	fwcam_detach),
 
+	/* video(4) interface */
+	DEVMETHOD(video_open,		fwcam_hw_open),
+	DEVMETHOD(video_querycap,	fwcam_hw_querycap),
+	DEVMETHOD(video_enum_format,	fwcam_hw_enum_format),
+	DEVMETHOD(video_get_format,	fwcam_hw_get_format),
+	DEVMETHOD(video_try_format,	fwcam_hw_try_format),
+	DEVMETHOD(video_set_format,	fwcam_hw_set_format),
+	DEVMETHOD(video_enum_framesizes, fwcam_hw_enum_framesizes),
+	DEVMETHOD(video_enum_input,	fwcam_hw_enum_input),
+	DEVMETHOD(video_get_input,	fwcam_hw_get_input),
+	DEVMETHOD(video_set_input,	fwcam_hw_set_input),
+	DEVMETHOD(video_query_control,	fwcam_hw_query_control),
+	DEVMETHOD(video_get_control,	fwcam_hw_get_control),
+	DEVMETHOD(video_set_control,	fwcam_hw_set_control),
+	DEVMETHOD(video_start_stream,	fwcam_hw_start_stream),
+	DEVMETHOD(video_stop_stream,	fwcam_hw_stop_stream),
+
 	DEVMETHOD_END
 };
 
@@ -1102,3 +1334,4 @@ static driver_t fwcam_driver = {
 DRIVER_MODULE(fwcam, firewire, fwcam_driver, 0, 0);
 MODULE_VERSION(fwcam, 1);
 MODULE_DEPEND(fwcam, firewire, 1, 1, 1);
+MODULE_DEPEND(fwcam, video, 1, 1, 1);

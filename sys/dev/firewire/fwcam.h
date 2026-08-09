@@ -281,10 +281,16 @@ static const struct fwcam_fmt0_mode fwcam_fmt0_modes[FWCAM_FMT0_NMODES] = {
 #define FWCAM_ISO_PKTSIZE	2048	/* max iso packet size (MCLBYTES) */
 
 #ifdef _KERNEL
+
+struct video_device;
+
 struct fwcam_softc {
 	struct firewire_dev_comm fd;	/* must be first */
 	struct mtx		mtx;
-	struct cdev		*cdev;
+
+	/* video(4) framework handle */
+	struct video_device	*sc_vd;
+	uint32_t		sc_sequence;
 
 	/* Remote camera node */
 	struct fw_device	*fwdev;
@@ -315,16 +321,11 @@ struct fwcam_softc {
 	int			dma_ch;		/* IR DMA channel, -1 if none */
 	int			iso_active;	/* iso_input running */
 
-	/* Frame assembly (double buffer) */
+	/* Frame assembly */
 	uint8_t			*frame_buf;	/* frame being assembled */
-	uint8_t			*read_buf;	/* completed frame for read() */
 	uint32_t		frame_size;	/* expected frame size (bytes) */
 	uint32_t		frame_offset;	/* write position in frame_buf */
-	int			frame_ready;	/* read_buf has valid frame */
-	int			read_in_progress; /* uiomove active on read_buf */
 	int			frame_dropped;	/* dropped frame count */
-	int			open_count;	/* cdev open count */
-	struct selinfo		rsel;		/* poll/select/kqueue */
 
 	/* State: one of FWCAM_STATE_* */
 	int			state;
