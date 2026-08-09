@@ -100,15 +100,14 @@ get_status(int fd)
 	buflen = 0;
 	for (;;) {
 		memset(&arg, 0, sizeof(arg));
-		arg.status = (uintptr_t)buf;
+		arg.status = buf;
 		arg.len = buflen;
 		error = ioctl(fd, IOV_GET_STATUS, &arg);
 		if (error != 0)
 			err(1, "Could not fetch SR-IOV status");
 		if (arg.error == 0)
 			break;
-		if (arg.error != EMSGSIZE || arg.len <= buflen ||
-		    arg.len > SIZE_MAX) {
+		if (arg.error != EMSGSIZE || arg.len <= buflen) {
 			errno = arg.error;
 			err(1, "Could not fetch SR-IOV status");
 		}

@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 #include "opt_bus.h"
 
-#include <sys/abi_compat.h>
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
@@ -1109,8 +1108,7 @@ pci_iov_get_schema_ioctl(struct cdev *cdev, struct pci_iov_schema *output)
 {
 	struct pci_devinfo *dinfo;
 	void *packed;
-	size_t size;
-	uint64_t output_len;
+	size_t output_len, size;
 	int error;
 
 	packed = NULL;
@@ -1161,8 +1159,6 @@ pci_iov_get_status_ioctl(struct cdev *cdev, struct pci_iov_status *output)
 
 	status = NULL;
 	packed = NULL;
-	if (output->reserved != 0)
-		return (EINVAL);
 	mtx_lock(&Giant);
 	dinfo = cdev->si_drv1;
 	error = pci_iov_build_status(dinfo, &status);
@@ -1179,7 +1175,7 @@ pci_iov_get_status_ioctl(struct cdev *cdev, struct pci_iov_status *output)
 	output_len = output->len;
 	output->len = size;
 	if (size <= output_len) {
-		error = copyout(packed, PTRIN(output->status), size);
+		error = copyout(packed, output->status, size);
 		if (error != 0)
 			goto out;
 		output->error = 0;

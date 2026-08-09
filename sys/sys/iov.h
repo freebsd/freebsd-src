@@ -200,13 +200,11 @@ struct pci_iov_schema
 #define	IOV_STATUS_BOUND_DRIVER_NAME	"bound-driver"
 #define	IOV_STATUS_PASSTHROUGH_NAME	"passthrough"
 
-/* Fixed-width fields keep the ioctl ABI identical for 32-bit callers. */
 struct pci_iov_status
 {
-	uint64_t status;	/* User pointer to the packed nvlist. */
-	uint64_t len;
-	int32_t error;
-	uint32_t reserved;	/* Must be zero. */
+	void *status;		/* Packed nvlist. */
+	size_t len;
+	int error;
 };
 
 /*
