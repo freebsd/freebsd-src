@@ -42,9 +42,16 @@
 #define	IGBV_VLAN_RETRY_WINDOW	(8 * SBT_1S)
 
 static const struct timeval igbv_queue_log_interval = { 2, 0 };
+static const struct timeval igbv_mbx_log_interval = { 60, 0 };
 static const sbintime_t igbv_queue_retry_delay[] = {
 	100 * SBT_1MS,
 	500 * SBT_1MS,
+};
+static const sbintime_t igbv_mbx_retry_delay[] = {
+	250 * SBT_1MS,
+	1 * SBT_1S,
+	4 * SBT_1S,
+	8 * SBT_1S,
 };
 _Static_assert(nitems(igbv_queue_retry_delay) + 1 ==
     IGBV_QUEUE_SANITIZE_ATTEMPTS, "missing queue retry delay");
@@ -72,8 +79,142 @@ igbv_queue_retry_callout(void *arg)
 		atomic_set_32(&sc->vf_queue_retry_new_epoch, 1);
 		return;
 	}
-	iflib_request_reset(sc->ctx);
+	iflib_request_reset_if_up(sc->ctx);
 	iflib_admin_intr_deferred(sc->ctx);
+}
+
+/*
+ * A missing PF can make the posted reset handshake wait for a full mailbox
+ * timeout.  Keep that work out of stopped status paths.  An administratively
+ * up VF retries complete initialization with an exponential delay capped at
+ * eight seconds, so it recovers without creating a tight mailbox poller.
+ */
+static void
+igbv_mbx_retry_callout(void *arg)
+{
+	struct e1000_softc *sc;
+	if_t ifp;
+
+	sc = arg;
+	if (atomic_readandclear_32(&sc->vf_mbx_retry_pending) == 0 ||
+	    atomic_load_acq_32(&sc->vf_mbx_ready) != 0 ||
+	    iflib_in_detach(sc->ctx))
+		return;
+	ifp = iflib_get_ifp(sc->ctx);
+	if ((if_getflags(ifp) & IFF_UP) == 0)
+		return;
+
+	iflib_request_reset_if_up(sc->ctx);
+	iflib_admin_intr_deferred(sc->ctx);
+}
+
+static const char *
+igbv_reset_error_desc(s32 error)
+{
+
+	switch (error) {
+	case -E1000_ERR_RESET:
+		return ("PF reset acknowledgement timed out");
+	case -E1000_ERR_MAC_INIT:
+		return ("PF returned an invalid VF reset response");
+	case -E1000_ERR_MBX:
+		return ("PF mailbox reset exchange failed");
+	default:
+		return ("VF reset handshake failed");
+	}
+}
+
+void
+igbv_log_reset_failure(struct e1000_softc *sc, s32 error, bool attaching)
+{
+
+	/* Report each backoff stage, then limit the steady eight-second retry. */
+	if (sc->vf_mbx_retry_stage == nitems(igbv_mbx_retry_delay) - 1 &&
+	    !ratecheck(&sc->vf_last_mbx_log, &igbv_mbx_log_interval))
+		return;
+	device_printf(sc->dev, "%s (%d)%s\n", igbv_reset_error_desc(error),
+	    error, attaching ? "; continuing attach" : "");
+}
+
+void
+igbv_mbx_retry_detach(struct e1000_softc *sc)
+{
+
+	if (!sc->vf_mbx_retry_initialized)
+		return;
+	atomic_readandclear_32(&sc->vf_mbx_retry_pending);
+	callout_drain(&sc->vf_mbx_retry);
+	sc->vf_mbx_retry_initialized = false;
+}
+
+void
+igbv_mbx_retry_prepare(struct e1000_softc *sc)
+{
+
+	if (!sc->vf_mbx_retry_initialized)
+		return;
+	atomic_readandclear_32(&sc->vf_mbx_retry_pending);
+	callout_drain(&sc->vf_mbx_retry);
+}
+
+void
+igbv_mbx_retry_stop(struct e1000_softc *sc)
+{
+	if_t ifp;
+
+	if (!sc->vf_mbx_retry_initialized)
+		return;
+	atomic_readandclear_32(&sc->vf_mbx_retry_pending);
+	callout_drain(&sc->vf_mbx_retry);
+	ifp = iflib_get_ifp(sc->ctx);
+	if ((if_getflags(ifp) & IFF_UP) == 0)
+		sc->vf_mbx_retry_stage = 0;
+}
+
+void
+igbv_mbx_retry_failed(if_ctx_t ctx)
+{
+	struct e1000_softc *sc;
+	if_t ifp;
+	sbintime_t delay;
+	u_int stage;
+
+	sc = iflib_get_softc(ctx);
+	atomic_store_rel_32(&sc->vf_mbx_ready, 0);
+	sc->link_speed = 0;
+	sc->link_duplex = 0;
+	if (sc->link_state != EM_LINK_STATE_DOWN) {
+		sc->link_state = EM_LINK_STATE_DOWN;
+		iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
+	}
+	iflib_init_failed(ctx);
+
+	ifp = iflib_get_ifp(ctx);
+	if (!sc->vf_mbx_retry_initialized ||
+	    (if_getflags(ifp) & IFF_UP) == 0)
+		return;
+	stage = sc->vf_mbx_retry_stage;
+	if (stage >= nitems(igbv_mbx_retry_delay))
+		stage = nitems(igbv_mbx_retry_delay) - 1;
+	delay = igbv_mbx_retry_delay[stage];
+	if (sc->vf_mbx_retry_stage + 1 < nitems(igbv_mbx_retry_delay))
+		sc->vf_mbx_retry_stage++;
+	atomic_set_32(&sc->vf_mbx_retry_pending, 1);
+	callout_reset_sbt(&sc->vf_mbx_retry, delay, 0,
+	    igbv_mbx_retry_callout, sc, C_PREL(1));
+}
+
+static void
+igbv_mbx_retry_succeeded(struct e1000_softc *sc)
+{
+
+	atomic_store_rel_32(&sc->vf_mbx_ready, 1);
+	atomic_readandclear_32(&sc->vf_mbx_retry_pending);
+	if (sc->vf_mbx_retry_initialized)
+		callout_stop(&sc->vf_mbx_retry);
+	sc->vf_mbx_retry_stage = 0;
+	sc->vf_last_mbx_log.tv_sec = 0;
+	sc->vf_last_mbx_log.tv_usec = 0;
 }
 
 void
@@ -150,7 +291,7 @@ igbv_queue_retry_failed(if_ctx_t ctx)
 	}
 
 	iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
-	iflib_admin_intr_deferred(ctx);
+	iflib_init_failed(ctx);
 }
 
 void
@@ -251,6 +392,8 @@ igbv_if_attach_pre(if_ctx_t ctx)
 	sc = iflib_get_softc(ctx);
 	callout_init(&sc->vf_queue_retry, 1);
 	sc->vf_queue_retry_initialized = true;
+	callout_init(&sc->vf_mbx_retry, 1);
+	sc->vf_mbx_retry_initialized = true;
 
 	KASSERT(sc->vf_ifp &&
 	    (iflib_get_sctx(ctx)->isc_flags & IFLIB_IS_VF) != 0,
@@ -303,15 +446,15 @@ igbv_if_update_admin_status(if_ctx_t ctx)
 	dev = iflib_get_dev(ctx);
 	KASSERT(sc->vf_ifp, ("%s called for a PF", __func__));
 
-	/*
-	 * iflib's init callback cannot report failure and marks the interface
-	 * running after it returns.  Complete the failed-init transition from
-	 * this deferred task, after iflib has set its driver flags.
-	 */
-	if (!sc->vf_queues_sanitized) {
-		igbv_if_intr_disable(ctx);
-		if_setdrvflagbits(iflib_get_ifp(ctx), IFF_DRV_OACTIVE,
-		    IFF_DRV_RUNNING);
+	if ((if_getdrvflags(iflib_get_ifp(ctx)) & IFF_DRV_RUNNING) == 0 ||
+	    !sc->vf_queues_sanitized ||
+	    atomic_load_acq_32(&sc->vf_mbx_ready) == 0) {
+		if (sc->link_state != EM_LINK_STATE_DOWN) {
+			sc->link_speed = 0;
+			sc->link_duplex = 0;
+			sc->link_state = EM_LINK_STATE_DOWN;
+			iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
+		}
 		return;
 	}
 
@@ -485,14 +628,14 @@ igbv_reset(if_ctx_t ctx)
 	};
 
 	error = e1000_reset_hw(hw);
+	atomic_store_rel_32(&sc->vf_mbx_ready, 0);
 	sc->vf_queues_sanitized = igbv_sanitize_queues(sc);
 	if (!sc->vf_queues_sanitized) {
-		e1000_check_for_link(hw);
 		return (false);
 	}
 	igbv_queue_retry_succeeded(sc);
 	if (error != E1000_SUCCESS) {
-		e1000_check_for_link(hw);
+		igbv_log_reset_failure(sc, error, false);
 		return (false);
 	}
 	memset(sc->vf_vfta_stale, 0, sizeof(sc->vf_vfta_stale));
@@ -504,6 +647,7 @@ igbv_reset(if_ctx_t ctx)
 		return (false);
 	}
 	e1000_check_for_link(hw);
+	igbv_mbx_retry_succeeded(sc);
 	return (true);
 }
 
@@ -535,7 +679,8 @@ igbv_if_intr_enable(if_ctx_t ctx)
 	sc = iflib_get_softc(ctx);
 	hw = &sc->hw;
 	KASSERT(sc->vf_ifp, ("%s called for a PF", __func__));
-	if (!sc->vf_queues_sanitized)
+	if (!sc->vf_queues_sanitized ||
+	    atomic_load_acq_32(&sc->vf_mbx_ready) == 0)
 		return;
 	mask = sc->que_mask | sc->link_mask;
 

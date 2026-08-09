@@ -1547,9 +1547,13 @@ em_if_attach_pre(if_ctx_t ctx)
 	** important in reading the nvm and
 	** mac from that.
 	*/
-	if (e1000_reset_hw(hw) != E1000_SUCCESS && sc->vf_ifp)
-		device_printf(dev,
-		    "PF is not ready; VF mailbox initialization deferred\n");
+	error = e1000_reset_hw(hw);
+	if (sc->vf_ifp) {
+		atomic_store_rel_32(&sc->vf_mbx_ready,
+		    error == E1000_SUCCESS);
+		if (error != E1000_SUCCESS)
+			igbv_log_reset_failure(sc, error, true);
+	}
 
 	/* Make sure a PF has a good EEPROM before we read from it. */
 	if (!sc->vf_ifp && e1000_validate_nvm_checksum(hw) < 0) {
@@ -1687,10 +1691,12 @@ em_if_detach(if_ctx_t ctx)
 	INIT_DEBUGOUT("em_if_detach: begin");
 
 	igb_iov_detach(sc);
-	if (sc->vf_ifp)
+	if (sc->vf_ifp) {
 		igbv_queue_retry_detach(sc);
-	if (!sc->vf_ifp)
+		igbv_mbx_retry_detach(sc);
+	} else {
 		e1000_phy_hw_reset(&sc->hw);
+	}
 
 	em_release_manageability(sc);
 	em_release_hw_control(sc);
@@ -1721,8 +1727,10 @@ em_if_suspend(if_ctx_t ctx)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 
-	if (sc->vf_ifp)
+	if (sc->vf_ifp) {
 		igbv_queue_retry_stop(sc);
+		igbv_mbx_retry_stop(sc);
+	}
 	em_release_manageability(sc);
 	em_release_hw_control(sc);
 	em_enable_wakeup(ctx);
@@ -1807,13 +1815,12 @@ em_if_init(if_ctx_t ctx)
 	if_softc_ctx_t scctx = sc->shared;
 	if_t ifp = iflib_get_ifp(ctx);
 	struct em_tx_queue *tx_que;
-	bool vf_mbx_ready;
 	int i;
 
 	INIT_DEBUGOUT("em_if_init: begin");
-	vf_mbx_ready = !sc->vf_ifp;
 	if (sc->vf_ifp) {
 		igbv_queue_retry_prepare(sc);
+		igbv_mbx_retry_prepare(sc);
 		sc->vf_reset_pending = true;
 	}
 
@@ -1842,7 +1849,7 @@ em_if_init(if_ctx_t ctx)
 	/* Initialize the hardware */
 	igb_iov_reset_prepare(sc);
 	if (sc->vf_ifp) {
-		vf_mbx_ready = igbv_reset(ctx);
+		(void)igbv_reset(ctx);
 		em_rebase_vf_stats(sc);
 	} else {
 		em_reset(ctx);
@@ -1851,13 +1858,18 @@ em_if_init(if_ctx_t ctx)
 		/*
 		 * Do not program or enable rings while retained queue state
 		 * might still contain a previous VF owner's DMA address.  A
-		 * bounded callout retries initialization after iflib returns;
-		 * the deferred admin task clears its optimistic RUNNING flag.
+		 * bounded callout retries initialization after iflib leaves the
+		 * failed initialization stopped.
 		 */
 		igbv_queue_retry_failed(ctx);
 		return;
 	}
-	if (sc->vf_ifp && vf_mbx_ready)
+	if (sc->vf_ifp &&
+	    atomic_load_acq_32(&sc->vf_mbx_ready) == 0) {
+		igbv_mbx_retry_failed(ctx);
+		return;
+	}
+	if (sc->vf_ifp)
 		igbv_reconcile_mac(sc, ifp);
 	/* Re-arm a link-up transition deferred for this reset. */
 	if (sc->link_state == EM_LINK_STATE_DOWN_RESET_PENDING ||
@@ -1904,8 +1916,7 @@ em_if_init(if_ctx_t ctx)
 	 * state.  The reset detector schedules another complete init, which
 	 * replays these interface-owned lists after the handshake succeeds.
 	 */
-	if (vf_mbx_ready)
-		em_if_multi_set(ctx);
+	em_if_multi_set(ctx);
 
 	sc->rx_mbuf_sz = iflib_get_rx_mbuf_sz(ctx);
 	if (sc->vf_ifp)
@@ -1913,13 +1924,11 @@ em_if_init(if_ctx_t ctx)
 	else
 		em_initialize_receive_unit(ctx);
 
-	if (vf_mbx_ready) {
-		/* Set up VLAN support and filter. */
-		em_setup_vlan_hw_support(ctx);
+	/* Set up VLAN support and filter. */
+	em_setup_vlan_hw_support(ctx);
 
-		/* Don't lose promiscuous settings. */
-		em_if_set_promisc_impl(ctx, if_getflags(ifp));
-	}
+	/* Don't lose promiscuous settings. */
+	em_if_set_promisc_impl(ctx, if_getflags(ifp));
 	atomic_readandclear_32(&sc->promisc_pending);
 
 	/* Restore PF/VF pool configuration after the global reset. */
@@ -2801,21 +2810,35 @@ em_if_stop(if_ctx_t ctx)
 
 	INIT_DEBUGOUT("em_if_stop: begin");
 
-	if (sc->vf_ifp)
+	if (sc->vf_ifp) {
 		igbv_queue_retry_stop(sc);
+		igbv_mbx_retry_stop(sc);
+	}
 
 	/* I219 needs special flushing to avoid hangs */
 	if (sc->hw.mac.type >= e1000_pch_spt && sc->hw.mac.type < igb_mac_min)
 		em_flush_desc_rings(sc);
 
 	igb_iov_reset_prepare(sc);
-	e1000_reset_hw(&sc->hw);
+	if (!sc->vf_ifp ||
+	    (atomic_load_acq_32(&sc->vf_mbx_ready) != 0 &&
+	    (if_getflags(iflib_get_ifp(ctx)) & IFF_UP) == 0))
+		e1000_reset_hw(&sc->hw);
+	if (sc->vf_ifp)
+		atomic_store_rel_32(&sc->vf_mbx_ready, 0);
 	if (sc->hw.mac.type >= e1000_82544 && !sc->vf_ifp)
 		E1000_WRITE_REG(&sc->hw, E1000_WUFC, 0);
 
 	if (!sc->vf_ifp) {
 		e1000_led_off(&sc->hw);
 		e1000_cleanup_led(&sc->hw);
+	} else {
+		sc->link_speed = 0;
+		sc->link_duplex = 0;
+		if (sc->link_state != EM_LINK_STATE_DOWN) {
+			sc->link_state = EM_LINK_STATE_DOWN;
+			iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
+		}
 	}
 }
 

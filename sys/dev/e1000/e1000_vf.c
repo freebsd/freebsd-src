@@ -275,24 +275,26 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
 		usec_delay(5);
 	}
 
-	if (timeout) {
-		/* mailbox timeout can now become active */
-		mbx->timeout = E1000_VF_MBX_INIT_TIMEOUT;
+	if (!timeout)
+		return -E1000_ERR_RESET;
 
-		msgbuf[0] = E1000_VF_RESET;
-		mbx->ops.write_posted(hw, msgbuf, 1, 0);
+	/* mailbox timeout can now become active */
+	mbx->timeout = E1000_VF_MBX_INIT_TIMEOUT;
 
-		msec_delay(10);
+	msgbuf[0] = E1000_VF_RESET;
+	ret_val = mbx->ops.write_posted(hw, msgbuf, 1, 0);
+	if (ret_val)
+		return ret_val;
 
-		/* set our "perm_addr" based on info provided by PF */
-		ret_val = mbx->ops.read_posted(hw, msgbuf, 3, 0);
-		if (!ret_val) {
-			if (msgbuf[0] == (E1000_VF_RESET |
-			    E1000_VT_MSGTYPE_ACK))
-				memcpy(hw->mac.perm_addr, addr, 6);
-			else
-				ret_val = -E1000_ERR_MAC_INIT;
-		}
+	msec_delay(10);
+
+	/* set our "perm_addr" based on info provided by PF */
+	ret_val = mbx->ops.read_posted(hw, msgbuf, 3, 0);
+	if (!ret_val) {
+		if (msgbuf[0] == (E1000_VF_RESET | E1000_VT_MSGTYPE_ACK))
+			memcpy(hw->mac.perm_addr, addr, 6);
+		else
+			ret_val = -E1000_ERR_MAC_INIT;
 	}
 
 	return ret_val;
