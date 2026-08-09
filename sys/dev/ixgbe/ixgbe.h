@@ -423,8 +423,14 @@ struct ixgbe_softc {
 	u32			shadow_vfta[IXGBE_VFTA_SIZE];
 	u32			vf_vfta_retry[IXGBE_VFTA_SIZE];
 	sbintime_t		vf_vlan_retry_deadline;
+	struct callout		vf_mbx_retry;
+	struct timeval		vf_mbx_last_log;
+	u32			vf_mbx_ready;
+	u32			vf_mbx_retry_pending;
 	u32			vf_vlan_retry_tick;
 	u16			vf_vlan_retry_cursor;
+	u8			vf_mbx_retry_stage;
+	bool			vf_mbx_retry_initialized;
 	bool			vf_mcast_overflow_warned;
 
 	/* Info about the interface */
