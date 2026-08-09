@@ -123,6 +123,8 @@ struct aq_dev {
 	bool              linkup;
 	uint32_t          link_speed;	/* Mbit/s last announced to the stack */
 	uint16_t          phy_fault_last;	/* last fault code reported */
+	bool              phy_hot_last;		/* last over-temperature warning */
+	bool              link_read_failed;	/* link state read is failing */
 	enum aq_thermal_state {
 		AQ_THERMAL_NORMAL = 0,	/* no thermal shutdown pending */
 		AQ_THERMAL_COOLING,	/* shut down; waiting to cool */

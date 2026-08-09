@@ -162,6 +162,12 @@ struct aq_hw_fc_info {
 	bool fc_tx;
 };
 
+struct aq_hw_link_info {
+	bool full_duplex;
+	bool eee;
+	uint8_t state;
+};
+
 struct aq_hw {
 	void *aq_dev;
 	device_t dev;

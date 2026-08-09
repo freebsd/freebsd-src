@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd July 9, 2026
+.Dd August 6, 2026
 .Dt AQ 4
 .Os
 .Sh NAME
@@ -78,6 +78,35 @@ Marvell AQC114CS (10Mb/100Mb/1Gb/2.5Gb/5Gb RJ45)
 Marvell AQC115C (10Mb/100Mb/1Gb/2.5Gb RJ45)
 .It
 Marvell AQC116C (10Mb/100Mb/1Gb RJ45)
+.El
+.Sh SYSCTL VARIABLES
+The following read-only variables are available per interface as
+.Va dev.aq.%d.%s ,
+where
+.Ar %d
+is the interface number.
+Each is present only when the adapter's firmware supports it.
+.Bl -tag -width indent
+.It Va temperature
+The PHY die temperature.
+.It Va fw_link_up
+The number of link up transitions counted by the firmware.
+.It Va fw_link_down
+The number of link down transitions counted by the firmware.
+Comparing this against the transitions logged by the driver
+distinguishes a single link event from a flapping link.
+.El
+.Pp
+The following variables tune the driver's own tracing:
+.Bl -tag -width indent
+.It Va debug
+Trace verbosity: 0 disables tracing, 3 reports errors, 4 adds warnings,
+5 adds traces and 6 adds detail.
+The default is 3.
+.It Va debug_categories
+Bit mask selecting the traced categories: init 1, config 2, tx 4, rx 8,
+intr 16 and fw 32.
+All categories are enabled by default.
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
