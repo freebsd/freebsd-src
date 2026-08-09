@@ -33,6 +33,7 @@
 #include <sys/kernel.h>
 #include <sys/jail.h>
 #include <sys/malloc.h>
+#include <sys/nv.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/syslog.h>
@@ -65,6 +66,7 @@ struct netlink_walkargs {
 	struct nlpcb *so;
 	struct ucred *cred;
 	uint32_t fibnum;
+	uint32_t ext_mask;
 	int family;
 	int error;
 	int count;
@@ -279,6 +281,245 @@ dump_iface_caps(struct nl_writer *nw, struct ifnet *ifp)
 	return (true);
 }
 
+static uint8_t
+vf_link_state(const char *state)
+{
+
+	if (strcmp(state, IFVF_LINK_STATE_DOWN) == 0)
+		return (IFLAF_VF_LINK_DOWN);
+	if (strcmp(state, IFVF_LINK_STATE_UP) == 0)
+		return (IFLAF_VF_LINK_UP);
+	if (strcmp(state, IFVF_LINK_STATE_AUTO) == 0)
+		return (IFLAF_VF_LINK_AUTO);
+	return (IFLAF_VF_LINK_UNKNOWN);
+}
+
+static bool
+dump_vf_bool(struct nl_writer *nw, const nvlist_t *vf, const char *name,
+    uint16_t attr)
+{
+
+	if (!nvlist_exists_bool(vf, name))
+		return (true);
+	return (nlattr_add_u8(nw, attr, nvlist_get_bool(vf, name) ? 1 : 0));
+}
+
+static bool
+dump_vf_u16(struct nl_writer *nw, const nvlist_t *vf, const char *name,
+    uint16_t attr)
+{
+	uint64_t value;
+
+	if (!nvlist_exists_number(vf, name))
+		return (true);
+	value = nvlist_get_number(vf, name);
+	if (value > UINT16_MAX)
+		return (false);
+	return (nlattr_add_u16(nw, attr, (uint16_t)value));
+}
+
+static bool
+dump_vf_u32(struct nl_writer *nw, const nvlist_t *vf, const char *name,
+    uint16_t attr)
+{
+	uint64_t value;
+
+	if (!nvlist_exists_number(vf, name))
+		return (true);
+	value = nvlist_get_number(vf, name);
+	if (value > UINT32_MAX)
+		return (false);
+	return (nlattr_add_u32(nw, attr, (uint32_t)value));
+}
+
+static bool
+dump_vf_string(struct nl_writer *nw, const nvlist_t *vf, const char *name,
+    uint16_t attr)
+{
+
+	if (!nvlist_exists_string(vf, name))
+		return (true);
+	return (nlattr_add_string(nw, attr, nvlist_get_string(vf, name)));
+}
+
+static bool
+dump_vf_extensions(struct nl_writer *nw, const nvlist_t *vf)
+{
+	const nvlist_t *extension, *extensions;
+	const char *name;
+	void *buf, *cookie;
+	size_t buflen;
+	int entry_off, extensions_off, type;
+	bool ok;
+
+	if (!nvlist_exists(vf, IFVF_STATUS_EXTENSIONS))
+		return (true);
+	if (!nvlist_exists_nvlist(vf, IFVF_STATUS_EXTENSIONS))
+		return (false);
+
+	extensions = nvlist_get_nvlist(vf, IFVF_STATUS_EXTENSIONS);
+	extensions_off = nlattr_add_nested(nw, IFLAF_VF_EXTENSIONS);
+	if (extensions_off == 0)
+		return (false);
+	cookie = NULL;
+	while ((name = nvlist_next(extensions, &type, &cookie)) != NULL) {
+		if (type != NV_TYPE_NVLIST)
+			return (false);
+		extension = nvlist_get_nvlist(extensions, name);
+		if (!nvlist_exists_number(extension,
+		    IFVF_STATUS_EXT_VERSION))
+			return (false);
+		buf = nvlist_pack(extension, &buflen);
+		if (buf == NULL)
+			return (false);
+		if (buflen > UINT16_MAX - sizeof(struct nlattr)) {
+			free(buf, M_NVLIST);
+			return (false);
+		}
+		entry_off = nlattr_add_nested(nw,
+		    IFLAF_VF_EXT_LIST_ENTRY);
+		if (entry_off == 0) {
+			free(buf, M_NVLIST);
+			return (false);
+		}
+		ok = nlattr_add_string(nw, IFLAF_VF_EXT_NAME, name) &&
+		    nlattr_add(nw, IFLAF_VF_EXT_DATA, (uint16_t)buflen, buf);
+		free(buf, M_NVLIST);
+		if (!ok)
+			return (false);
+		nlattr_set_len(nw, entry_off);
+	}
+	nlattr_set_len(nw, extensions_off);
+	return (true);
+}
+
+static bool
+dump_vf_entry(struct nl_writer *nw, const nvlist_t *vf)
+{
+	const void *mac;
+	const char *mode, *policy;
+	size_t maclen;
+	uint8_t vlan_mode;
+	int off;
+	bool ok;
+
+	off = nlattr_add_nested(nw, IFLAF_VF_LIST_ENTRY);
+	if (off == 0)
+		return (false);
+	ok = dump_vf_u32(nw, vf, IFVF_STATUS_INDEX, IFLAF_VF_INDEX) &&
+	    dump_vf_bool(nw, vf, IFVF_STATUS_CONFIGURED,
+	    IFLAF_VF_CONFIGURED) &&
+	    dump_vf_bool(nw, vf, IFVF_STATUS_INITIALIZED,
+	    IFLAF_VF_INITIALIZED);
+	if (!ok)
+		return (false);
+
+	if (nvlist_exists_binary(vf, IFVF_STATUS_MAC)) {
+		mac = nvlist_get_binary(vf, IFVF_STATUS_MAC, &maclen);
+		if (maclen > UINT16_MAX - sizeof(struct nlattr) ||
+		    !nlattr_add(nw, IFLAF_VF_MAC, (uint16_t)maclen, mac))
+			return (false);
+	}
+	if (nvlist_exists_string(vf, IFVF_STATUS_VLAN_MODE)) {
+		mode = nvlist_get_string(vf, IFVF_STATUS_VLAN_MODE);
+		if (strcmp(mode, IFVF_VLAN_MODE_ACCESS) == 0)
+			vlan_mode = IFLAF_VF_VLAN_ACCESS;
+		else if (strcmp(mode, IFVF_VLAN_MODE_TRUNK) == 0)
+			vlan_mode = IFLAF_VF_VLAN_TRUNK;
+		else
+			vlan_mode = IFLAF_VF_VLAN_UNKNOWN;
+		if (!nlattr_add_u8(nw, IFLAF_VF_VLAN_MODE, vlan_mode))
+			return (false);
+	}
+	ok = dump_vf_u16(nw, vf, IFVF_STATUS_VLAN, IFLAF_VF_VLAN) &&
+	    dump_vf_u32(nw, vf, IFVF_STATUS_VLAN_COUNT,
+	    IFLAF_VF_VLAN_COUNT) &&
+	    dump_vf_u32(nw, vf, IFVF_STATUS_VLAN_LIMIT,
+	    IFLAF_VF_VLAN_LIMIT) &&
+	    dump_vf_u32(nw, vf, IFVF_STATUS_NUM_QUEUES,
+	    IFLAF_VF_NUM_QUEUES) &&
+	    dump_vf_bool(nw, vf, IFVF_STATUS_ALLOW_SET_MAC,
+	    IFLAF_VF_ALLOW_SET_MAC) &&
+	    dump_vf_bool(nw, vf, IFVF_STATUS_ALLOW_SET_VLAN,
+	    IFLAF_VF_ALLOW_SET_VLAN) &&
+	    dump_vf_bool(nw, vf, IFVF_STATUS_MAC_ANTI_SPOOF,
+	    IFLAF_VF_MAC_ANTI_SPOOF) &&
+	    dump_vf_bool(nw, vf, IFVF_STATUS_ALLOW_PROMISC,
+	    IFLAF_VF_ALLOW_PROMISC) &&
+	    dump_vf_bool(nw, vf, IFVF_STATUS_TRAFFIC_ENABLED,
+	    IFLAF_VF_TRAFFIC_ENABLED) &&
+	    dump_vf_bool(nw, vf, IFVF_STATUS_MDD_BLOCKED,
+	    IFLAF_VF_MDD_BLOCKED) &&
+	    dump_vf_bool(nw, vf, IFVF_STATUS_QUARANTINED,
+	    IFLAF_VF_QUARANTINED) &&
+	    dump_vf_string(nw, vf, IFVF_STATUS_API_VERSION,
+	    IFLAF_VF_API_VERSION);
+	if (!ok)
+		return (false);
+	if (nvlist_exists_string(vf, IFVF_STATUS_LINK_STATE_POLICY)) {
+		policy = nvlist_get_string(vf,
+		    IFVF_STATUS_LINK_STATE_POLICY);
+		if (!nlattr_add_u8(nw, IFLAF_VF_LINK_STATE_POLICY,
+		    vf_link_state(policy)))
+			return (false);
+	}
+	if (!dump_vf_extensions(nw, vf))
+		return (false);
+	nlattr_set_len(nw, off);
+	return (true);
+}
+
+static bool
+dump_vf_status(struct nl_writer *nw, const nvlist_t *status, int error)
+{
+	const nvlist_t * const *vfs;
+	const char *state;
+	size_t i, num_vfs;
+	uint64_t version;
+	int list_off, off;
+
+	off = nlattr_add_nested(nw, IFLAF_VF_STATUS);
+	if (off == 0)
+		return (false);
+	if (error != 0) {
+		if (!nlattr_add_u32(nw, IFLAF_VFS_ERROR, (uint32_t)error))
+			return (false);
+		nlattr_set_len(nw, off);
+		return (true);
+	}
+
+	if (!nvlist_exists_number(status, IFVF_STATUS_VERSION_KEY))
+		return (false);
+	version = nvlist_get_number(status, IFVF_STATUS_VERSION_KEY);
+	if (version > UINT32_MAX ||
+	    !nlattr_add_u32(nw, IFLAF_VFS_VERSION, (uint32_t)version))
+		return (false);
+	if (nvlist_exists_string(status, IFVF_STATUS_PF_LINK_STATE)) {
+		state = nvlist_get_string(status, IFVF_STATUS_PF_LINK_STATE);
+		if (!nlattr_add_u8(nw, IFLAF_VFS_PF_LINK_STATE,
+		    vf_link_state(state)))
+			return (false);
+	}
+	if (nvlist_exists_number(status, IFVF_STATUS_PF_LINK_SPEED) &&
+	    !nlattr_add_u64(nw, IFLAF_VFS_PF_LINK_SPEED,
+	    nvlist_get_number(status, IFVF_STATUS_PF_LINK_SPEED)))
+		return (false);
+	if (!nvlist_exists_nvlist_array(status, IFVF_STATUS_VFS))
+		return (false);
+
+	vfs = nvlist_get_nvlist_array(status, IFVF_STATUS_VFS, &num_vfs);
+	list_off = nlattr_add_nested(nw, IFLAF_VFS_LIST);
+	if (list_off == 0)
+		return (false);
+	for (i = 0; i < num_vfs; i++) {
+		if (!dump_vf_entry(nw, vfs[i]))
+			return (false);
+	}
+	nlattr_set_len(nw, list_off);
+	nlattr_set_len(nw, off);
+	return (true);
+}
+
 /*
  * Dumps interface state, properties and metrics.
  * @nw: message writer
@@ -290,12 +531,26 @@ dump_iface_caps(struct nl_writer *nw, struct ifnet *ifp)
  */
 static bool
 dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
-    int if_flags_mask, const char *ifname)
+    int if_flags_mask, const char *ifname, uint32_t ext_mask)
 {
 	struct epoch_tracker et;
+	nvlist_t *vf_status;
+	size_t num_vfs;
         struct ifinfomsg *ifinfo;
+	bool include_vf_status;
+	int vf_error;
 
         NL_LOG(LOG_DEBUG3, "dumping interface %s data", if_name(ifp));
+	vf_status = NULL;
+	vf_error = 0;
+	include_vf_status = (ext_mask & RTEXT_FILTER_VF) != 0;
+	if (include_vf_status) {
+		vf_error = if_get_vf_status(ifp, &vf_status);
+		if (vf_error == EINVAL || vf_error == ENOTTY ||
+		    vf_error == ENXIO || vf_error == ENOTSUP ||
+		    vf_error == EOPNOTSUPP)
+			include_vf_status = false;
+	}
 
 	if (!nlmsg_reply(nw, hdr, sizeof(struct ifinfomsg)))
 		goto enomem;
@@ -341,6 +596,14 @@ dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
         }
 
         nlattr_add_u32(nw, IFLA_MTU, if_getmtu(ifp));
+	if (vf_status != NULL &&
+	    nvlist_exists_nvlist_array(vf_status, IFVF_STATUS_VFS)) {
+		(void)nvlist_get_nvlist_array(vf_status, IFVF_STATUS_VFS,
+		    &num_vfs);
+		if (num_vfs > UINT32_MAX ||
+		    !nlattr_add_u32(nw, IFLA_NUM_VF, (uint32_t)num_vfs))
+			goto enomem;
+	}
 /*
         nlattr_add_u32(nw, IFLA_MIN_MTU, 60);
         nlattr_add_u32(nw, IFLA_MAX_MTU, 9000);
@@ -355,6 +618,9 @@ dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
 	if (off != 0) {
 		get_hwaddr(nw, ifp);
 		dump_iface_caps(nw, ifp);
+		if (include_vf_status &&
+		    !dump_vf_status(nw, vf_status, vf_error))
+			goto enomem;
 
 		nlattr_set_len(nw, off);
 	}
@@ -368,11 +634,14 @@ dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
 
 	nw->ifp = ifp;
 
-        if (nlmsg_end(nw))
+	if (nlmsg_end(nw)) {
+		nvlist_destroy(vf_status);
 		return (true);
+	}
 
 enomem:
-        NL_LOG(LOG_DEBUG, "unable to dump interface %s state (ENOMEM)", if_name(ifp));
+	nvlist_destroy(vf_status);
+	NL_LOG(LOG_DEBUG, "unable to dump interface %s state", if_name(ifp));
         nlmsg_abort(nw);
         return (false);
 }
@@ -415,6 +684,7 @@ static const struct nlattr_parser nla_p_if[] = {
 	{ .type = IFLA_LINKINFO, .arg = &linfo_parser, .cb = nlattr_get_nested },
 	{ .type = IFLA_IFALIAS, .off = _OUT(ifla_ifalias), .cb = nlattr_get_string },
 	{ .type = IFLA_GROUP, .off = _OUT(ifla_group), .cb = nlattr_get_string },
+	{ .type = IFLA_EXT_MASK, .off = _OUT(ifla_ext_mask), .cb = nlattr_get_uint32 },
 	{ .type = IFLA_ALT_IFNAME, .off = _OUT(ifla_ifname), .cb = nlattr_get_string },
 };
 #undef _IN
@@ -441,7 +711,7 @@ static int
 dump_cb(if_t ifp, void *_arg)
 {
 	struct netlink_walkargs *wa = (struct netlink_walkargs *)_arg;
-	if (!dump_iface(wa->nw, ifp, &wa->hdr, 0, NULL))
+	if (!dump_iface(wa->nw, ifp, &wa->hdr, 0, NULL, wa->ext_mask))
 		return (ENOMEM);
 	return (0);
 }
@@ -473,6 +743,7 @@ rtnl_handle_getlink(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *n
 		.hdr.nlmsg_seq = hdr->nlmsg_seq,
 		.hdr.nlmsg_flags = hdr->nlmsg_flags,
 		.hdr.nlmsg_type = NL_RTM_NEWLINK,
+		.ext_mask = attrs.ifla_ext_mask,
 	};
 
 	/* Fast track for an interface w/ explicit name or index match */
@@ -491,7 +762,8 @@ rtnl_handle_getlink(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *n
 
 		if (ifp != NULL) {
 			if (match_iface(ifp, &attrs)) {
-				if (!dump_iface(wa.nw, ifp, &wa.hdr, 0, NULL))
+				if (!dump_iface(wa.nw, ifp, &wa.hdr, 0, NULL,
+				    wa.ext_mask))
 					error = ENOMEM;
 			} else
 				error = ENODEV;
@@ -1418,7 +1690,7 @@ rtnl_handle_ifevent(if_t ifp, int nlmsg_type, int if_flags_mask,
 		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;
 	}
-	dump_iface(&nw, ifp, &hdr, if_flags_mask, ifname);
+	dump_iface(&nw, ifp, &hdr, if_flags_mask, ifname, 0);
         nlmsg_flush(&nw);
 }
 

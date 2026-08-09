@@ -178,6 +178,113 @@ SNL_DECLARE_PARSER_EXT(snl_rtm_route_parser, sizeof(struct rtmsg),
 		_cb_p_route);
 
 /* RTM_<NEW|DEL|GET>LINK message parser */
+struct snl_parsed_vf_extension {
+	char			*name;
+	struct nlattr		*data;
+};
+
+#define	_OUT(_field)	offsetof(struct snl_parsed_vf_extension, _field)
+static const struct snl_attr_parser _nla_p_vf_extension[] = {
+	{ .type = IFLAF_VF_EXT_NAME, .off = _OUT(name),
+	    .cb = snl_attr_dup_string },
+	{ .type = IFLAF_VF_EXT_DATA, .off = _OUT(data),
+	    .cb = snl_attr_dup_nla },
+};
+#undef _OUT
+SNL_DECLARE_ATTR_PARSER_EXT(_vf_extension_parser,
+	    sizeof(struct snl_parsed_vf_extension), _nla_p_vf_extension, NULL);
+
+struct snl_parsed_vf {
+	uint32_t		index;
+	uint32_t		vlan_count;
+	uint32_t		vlan_limit;
+	uint32_t		num_queues;
+	uint16_t		vlan;
+	uint8_t			configured;
+	uint8_t			initialized;
+	uint8_t			vlan_mode;
+	uint8_t			allow_set_mac;
+	uint8_t			allow_set_vlan;
+	uint8_t			mac_anti_spoof;
+	uint8_t			allow_promisc;
+	uint8_t			traffic_enabled;
+	uint8_t			mdd_blocked;
+	uint8_t			quarantined;
+	uint8_t			link_state_policy;
+	char			*api_version;
+	struct nlattr		*mac;
+	struct snl_parray	extensions;
+};
+
+#define	_OUT(_field)	offsetof(struct snl_parsed_vf, _field)
+static const struct snl_attr_parser _nla_p_vf[] = {
+	{ .type = IFLAF_VF_INDEX, .off = _OUT(index),
+	    .cb = snl_attr_get_uint32 },
+	{ .type = IFLAF_VF_CONFIGURED, .off = _OUT(configured),
+	    .cb = snl_attr_get_uint8 },
+	{ .type = IFLAF_VF_INITIALIZED, .off = _OUT(initialized),
+	    .cb = snl_attr_get_uint8 },
+	{ .type = IFLAF_VF_MAC, .off = _OUT(mac), .cb = snl_attr_dup_nla },
+	{ .type = IFLAF_VF_VLAN_MODE, .off = _OUT(vlan_mode),
+	    .cb = snl_attr_get_uint8 },
+	{ .type = IFLAF_VF_VLAN, .off = _OUT(vlan),
+	    .cb = snl_attr_get_uint16 },
+	{ .type = IFLAF_VF_VLAN_COUNT, .off = _OUT(vlan_count),
+	    .cb = snl_attr_get_uint32 },
+	{ .type = IFLAF_VF_VLAN_LIMIT, .off = _OUT(vlan_limit),
+	    .cb = snl_attr_get_uint32 },
+	{ .type = IFLAF_VF_NUM_QUEUES, .off = _OUT(num_queues),
+	    .cb = snl_attr_get_uint32 },
+	{ .type = IFLAF_VF_ALLOW_SET_MAC, .off = _OUT(allow_set_mac),
+	    .cb = snl_attr_get_uint8 },
+	{ .type = IFLAF_VF_ALLOW_SET_VLAN, .off = _OUT(allow_set_vlan),
+	    .cb = snl_attr_get_uint8 },
+	{ .type = IFLAF_VF_MAC_ANTI_SPOOF, .off = _OUT(mac_anti_spoof),
+	    .cb = snl_attr_get_uint8 },
+	{ .type = IFLAF_VF_ALLOW_PROMISC, .off = _OUT(allow_promisc),
+	    .cb = snl_attr_get_uint8 },
+	{ .type = IFLAF_VF_TRAFFIC_ENABLED, .off = _OUT(traffic_enabled),
+	    .cb = snl_attr_get_uint8 },
+	{ .type = IFLAF_VF_MDD_BLOCKED, .off = _OUT(mdd_blocked),
+	    .cb = snl_attr_get_uint8 },
+	{ .type = IFLAF_VF_QUARANTINED, .off = _OUT(quarantined),
+	    .cb = snl_attr_get_uint8 },
+	{ .type = IFLAF_VF_API_VERSION, .off = _OUT(api_version),
+	    .cb = snl_attr_dup_string },
+	{ .type = IFLAF_VF_LINK_STATE_POLICY,
+	    .off = _OUT(link_state_policy), .cb = snl_attr_get_uint8 },
+	{ .type = IFLAF_VF_EXTENSIONS, .off = _OUT(extensions),
+	    .arg = &_vf_extension_parser, .cb = snl_attr_get_parray },
+};
+#undef _OUT
+SNL_DECLARE_ATTR_PARSER_EXT(_vf_parser, sizeof(struct snl_parsed_vf),
+	    _nla_p_vf, NULL);
+
+struct snl_parsed_vf_status {
+	uint64_t		pf_link_speed;
+	uint32_t		version;
+	uint32_t		error;
+	uint8_t			pf_link_state;
+	struct snl_parray	vfs;
+};
+
+#define	_OUT(_field)	offsetof(struct snl_parsed_vf_status, _field)
+static const struct snl_attr_parser _nla_p_vf_status[] = {
+	{ .type = IFLAF_VFS_VERSION, .off = _OUT(version),
+	    .cb = snl_attr_get_uint32 },
+	{ .type = IFLAF_VFS_ERROR, .off = _OUT(error),
+	    .cb = snl_attr_get_uint32 },
+	{ .type = IFLAF_VFS_PF_LINK_STATE, .off = _OUT(pf_link_state),
+	    .cb = snl_attr_get_uint8 },
+	{ .type = IFLAF_VFS_PF_LINK_SPEED, .off = _OUT(pf_link_speed),
+	    .cb = snl_attr_get_uint64 },
+	{ .type = IFLAF_VFS_LIST, .off = _OUT(vfs),
+	    .arg = &_vf_parser, .cb = snl_attr_get_parray },
+};
+#undef _OUT
+SNL_DECLARE_ATTR_PARSER_EXT(_vf_status_parser,
+	    sizeof(struct snl_parsed_vf_status), _nla_p_vf_status, NULL);
+
 struct snl_parsed_link {
 	uint32_t			ifi_index;
 	uint32_t			ifi_flags;
@@ -191,9 +298,11 @@ struct snl_parsed_link {
 	struct nlattr			*ifla_broadcast;
 	char				*ifla_ifalias;
 	uint32_t			ifla_promiscuity;
+	uint32_t			ifla_num_vf;
 	struct rtnl_link_stats64	*ifla_stats64;
 	struct nlattr			*iflaf_orig_hwaddr;
 	struct snl_attr_bitset		iflaf_caps;
+	struct snl_parsed_vf_status	iflaf_vf_status;
 };
 
 #define	_IN(_field)	offsetof(struct ifinfomsg, _field)
@@ -201,6 +310,8 @@ struct snl_parsed_link {
 static const struct snl_attr_parser _nla_p_link_fbsd[] = {
 	{ .type = IFLAF_ORIG_HWADDR, .off = _OUT(iflaf_orig_hwaddr), .cb = snl_attr_dup_nla },
 	{ .type = IFLAF_CAPS, .off = _OUT(iflaf_caps), .cb = snl_attr_get_bitset_c },
+	{ .type = IFLAF_VF_STATUS, .off = _OUT(iflaf_vf_status),
+	    .arg = &_vf_status_parser, .cb = snl_attr_get_nested },
 };
 SNL_DECLARE_ATTR_PARSER(_link_fbsd_parser, _nla_p_link_fbsd);
 
@@ -211,6 +322,7 @@ static const struct snl_attr_parser _nla_p_link[] = {
 	{ .type = IFLA_MTU, .off = _OUT(ifla_mtu), .cb = snl_attr_get_uint32 },
 	{ .type = IFLA_OPERSTATE, .off = _OUT(ifla_operstate), .cb = snl_attr_get_uint8 },
 	{ .type = IFLA_IFALIAS, .off = _OUT(ifla_ifalias), .cb = snl_attr_dup_string },
+	{ .type = IFLA_NUM_VF, .off = _OUT(ifla_num_vf), .cb = snl_attr_get_uint32 },
 	{ .type = IFLA_STATS64, .off = _OUT(ifla_stats64), .cb = snl_attr_dup_struct },
 	{ .type = IFLA_PROMISCUITY, .off = _OUT(ifla_promiscuity), .cb = snl_attr_get_uint32 },
 	{ .type = IFLA_CARRIER, .off = _OUT(ifla_carrier), .cb = snl_attr_get_uint8 },
