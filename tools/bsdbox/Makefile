@@ -71,6 +71,7 @@ CRUNCH_SRCDIRS+= sbin
 CRUNCH_LIBS+= -l80211 -lalias -lcam -lcursesw -ldevstat -lipsec
 # Don't forget this - ifconfig, etc -adrian
 CRUNCH_LIBS+= ${OBJTOP}/lib/libifconfig/libifconfig.a
+CRUNCH_LIBS+= -lnv
 CRUNCH_LIBS+= -lgeom -lbsdxml -ljail -lkiconv -lmd -lsbuf -lufs
 CRUNCH_BUILDOPTS+= CRUNCH_CFLAGS+=-I${OBJTOP}/lib/libifconfig
 
