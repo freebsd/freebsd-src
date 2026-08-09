@@ -43,6 +43,7 @@
 #include <unistd.h>
 
 #include <cxxabi.h>
+#include <cstring>
 #include <iostream>
 #include <map>
 #include <set>

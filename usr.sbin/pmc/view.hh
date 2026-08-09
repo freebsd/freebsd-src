@@ -36,6 +36,8 @@
 #include <libutil.h>
 #include <gelf.h>
 
+#include <vector>
+
 #include "headers.hh"
 #include "util.hh"
 
