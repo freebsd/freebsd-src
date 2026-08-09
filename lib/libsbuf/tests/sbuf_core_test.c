@@ -242,6 +242,26 @@ ATF_TC_BODY(sbuf_setpos_test, tc)
 	sbuf_delete(sb);
 }
 
+ATF_TC_WITHOUT_HEAD(sbuf_get_flags_test);
+ATF_TC_BODY(sbuf_get_flags_test, tc)
+{
+	struct sbuf *sb;
+	int flags;
+
+	sb = sbuf_new(NULL, NULL, 0, 
+		SBUF_AUTOEXTEND | SBUF_INCLUDENUL);
+
+	ATF_REQUIRE_MSG(sb != NULL, 
+		"sbuf_new failed: %s", strerror(errno));
+
+	flags = sbuf_get_flags(sb);
+		
+	ATF_CHECK((flags & SBUF_AUTOEXTEND) != 0);
+	ATF_CHECK((flags & SBUF_INCLUDENUL) != 0);
+
+	sbuf_delete(sb);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, sbuf_clear_test);
@@ -249,6 +269,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, sbuf_drain_ret0_test);
 	ATF_TP_ADD_TC(tp, sbuf_len_test);
 	ATF_TP_ADD_TC(tp, sbuf_new_fixedlen);
+	ATF_TP_ADD_TC(tp, sbuf_get_flags_test);
 #if 0
 	/* TODO */
 #ifdef HAVE_SBUF_CLEAR_FLAGS
