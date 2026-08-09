@@ -43,6 +43,7 @@
 static void	config_action(const char *filename, int dryrun);
 static void	delete_action(const char *device, int dryrun);
 static void	print_schema(const char *device);
+static void	print_status(const char *device);
 
 /*
  * Fetch the config schema from the kernel via ioctl.  This function has to
@@ -83,6 +84,49 @@ get_schema(int fd)
 
 	free(arg.schema);
 	return (schema);
+}
+
+/* Fetch and unpack the current PCI SR-IOV status. */
+static nvlist_t *
+get_status(int fd)
+{
+	struct pci_iov_status arg;
+	nvlist_t *status;
+	void *buf, *newbuf;
+	size_t buflen;
+	int error;
+
+	buf = NULL;
+	buflen = 0;
+	for (;;) {
+		memset(&arg, 0, sizeof(arg));
+		arg.status = (uintptr_t)buf;
+		arg.len = buflen;
+		error = ioctl(fd, IOV_GET_STATUS, &arg);
+		if (error != 0)
+			err(1, "Could not fetch SR-IOV status");
+		if (arg.error == 0)
+			break;
+		if (arg.error != EMSGSIZE || arg.len <= buflen ||
+		    arg.len > SIZE_MAX) {
+			errno = arg.error;
+			err(1, "Could not fetch SR-IOV status");
+		}
+		newbuf = realloc(buf, arg.len);
+		if (newbuf == NULL)
+			err(1, "Could not allocate %zu bytes for SR-IOV status",
+			    arg.len);
+		buf = newbuf;
+		buflen = arg.len;
+	}
+	if (arg.len == 0 || arg.len > buflen)
+		errx(1, "Kernel returned an invalid SR-IOV status length");
+
+	status = nvlist_unpack(buf, arg.len, 0);
+	if (status == NULL)
+		err(1, "Could not unpack SR-IOV status");
+	free(buf);
+	return (status);
 }
 
 /*
@@ -155,6 +199,7 @@ usage(void)
 
 	warnx("Usage: iovctl -C -f <config file> [-n]");
 	warnx("       iovctl -D [-d <PF device> | -f <config file>] [-n]");
+	warnx("       iovctl -L [-d <PF device> | -f <config file>]");
 	warnx("       iovctl -S [-d <PF device> | -f <config file>]");
 	exit(1);
 
@@ -164,6 +209,7 @@ enum main_action {
 	NONE,
 	CONFIG,
 	DELETE,
+	PRINT_STATUS,
 	PRINT_SCHEMA,
 };
 
@@ -180,12 +226,11 @@ main(int argc, char **argv)
 	dryrun = 0;
 	action = NONE;
 
-	while ((ch = getopt(argc, argv, "Cd:Df:nS")) != -1) {
+	while ((ch = getopt(argc, argv, "Cd:Df:LnS")) != -1) {
 		switch (ch) {
 		case 'C':
 			if (action != NONE) {
-				warnx(
-				   "Only one of -C, -D or -S may be specified");
+				warnx("Only one action may be specified");
 				usage();
 			}
 			action = CONFIG;
@@ -195,8 +240,7 @@ main(int argc, char **argv)
 			break;
 		case 'D':
 			if (action != NONE) {
-				warnx(
-				   "Only one of -C, -D or -S may be specified");
+				warnx("Only one action may be specified");
 				usage();
 			}
 			action = DELETE;
@@ -207,10 +251,16 @@ main(int argc, char **argv)
 		case 'n':
 			dryrun = 1;
 			break;
+		case 'L':
+			if (action != NONE) {
+				warnx("Only one action may be specified");
+				usage();
+			}
+			action = PRINT_STATUS;
+			break;
 		case 'S':
 			if (action != NONE) {
-				warnx(
-				   "Only one of -C, -D or -S may be specified");
+				warnx("Only one action may be specified");
 				usage();
 			}
 			action = PRINT_SCHEMA;
@@ -258,6 +308,16 @@ main(int argc, char **argv)
 		if (device == NULL)
 			device = find_device(filename);
 		print_schema(device);
+		free(device);
+		break;
+	case PRINT_STATUS:
+		if (dryrun) {
+			warnx("-n flag cannot be used with the -L flag");
+			usage();
+		}
+		if (device == NULL)
+			device = find_device(filename);
+		print_status(device);
 		free(device);
 		break;
 	default:
@@ -309,6 +369,106 @@ delete_action(const char *dev_name, int dryrun)
 			err(1, "Failed to delete VFs");
 	}
 
+	close(fd);
+}
+
+static void
+validate_status(const nvlist_t *status)
+{
+	const nvlist_t *pf;
+	const nvlist_t * const *vfs;
+	size_t i, num_vfs;
+	uint64_t configured_vfs, index, total_vfs, version;
+
+	if (!nvlist_exists_number(status, IOV_STATUS_VERSION_NAME) ||
+	    !nvlist_exists_nvlist(status, IOV_STATUS_PF_NAME))
+		errx(1, "Kernel returned an invalid SR-IOV status");
+	version = nvlist_get_number(status, IOV_STATUS_VERSION_NAME);
+	if (version != IOV_STATUS_VERSION)
+		errx(1, "Unsupported SR-IOV status version %ju",
+		    (uintmax_t)version);
+
+	pf = nvlist_get_nvlist(status, IOV_STATUS_PF_NAME);
+	if (!nvlist_exists_string(pf, IOV_STATUS_DEVICE_NAME) ||
+	    !nvlist_exists_string(pf, IOV_STATUS_PCI_LOCATION_NAME) ||
+	    !nvlist_exists_bool(pf, IOV_STATUS_ENABLED_NAME) ||
+	    !nvlist_exists_number(pf, IOV_STATUS_NUM_VFS_NAME) ||
+	    !nvlist_exists_number(pf, IOV_STATUS_TOTAL_VFS_NAME))
+		errx(1, "Kernel returned an invalid SR-IOV PF status");
+	configured_vfs = nvlist_get_number(pf, IOV_STATUS_NUM_VFS_NAME);
+	total_vfs = nvlist_get_number(pf, IOV_STATUS_TOTAL_VFS_NAME);
+	if (configured_vfs > total_vfs)
+		errx(1, "Kernel returned inconsistent SR-IOV VF counts");
+	if (configured_vfs == 0) {
+		if (nvlist_exists(status, IOV_STATUS_VFS_NAME))
+			errx(1, "Kernel returned inconsistent SR-IOV VF counts");
+		return;
+	}
+	if (!nvlist_exists_nvlist_array(status, IOV_STATUS_VFS_NAME))
+		errx(1, "Kernel returned an invalid SR-IOV status");
+	vfs = nvlist_get_nvlist_array(status, IOV_STATUS_VFS_NAME, &num_vfs);
+	if (configured_vfs != num_vfs)
+		errx(1, "Kernel returned inconsistent SR-IOV VF counts");
+	for (i = 0; i < num_vfs; i++) {
+		if (!nvlist_exists_number(vfs[i], IOV_STATUS_VF_INDEX_NAME) ||
+		    !nvlist_exists_string(vfs[i],
+		    IOV_STATUS_PCI_LOCATION_NAME) ||
+		    !nvlist_exists_bool(vfs[i], IOV_STATUS_ATTACHED_NAME) ||
+		    !nvlist_exists_bool(vfs[i], IOV_STATUS_PASSTHROUGH_NAME) ||
+		    (nvlist_exists(vfs[i], IOV_STATUS_BOUND_DRIVER_NAME) &&
+		    !nvlist_exists_string(vfs[i],
+		    IOV_STATUS_BOUND_DRIVER_NAME)))
+			errx(1, "Kernel returned an invalid SR-IOV VF status");
+		index = nvlist_get_number(vfs[i], IOV_STATUS_VF_INDEX_NAME);
+		if (index >= configured_vfs)
+			errx(1, "Kernel returned an invalid SR-IOV VF index");
+	}
+}
+
+static void
+print_status(const char *dev_name)
+{
+	const nvlist_t *pf, *vf;
+	const nvlist_t * const *vfs;
+	nvlist_t *status;
+	size_t i, num_vfs;
+	int fd;
+
+	fd = open_device(dev_name);
+	status = get_status(fd);
+	validate_status(status);
+	pf = nvlist_get_nvlist(status, IOV_STATUS_PF_NAME);
+	vfs = NULL;
+	num_vfs = 0;
+	if (nvlist_exists_nvlist_array(status, IOV_STATUS_VFS_NAME))
+		vfs = nvlist_get_nvlist_array(status, IOV_STATUS_VFS_NAME,
+		    &num_vfs);
+
+	printf("%s:\n", nvlist_get_string(pf, IOV_STATUS_DEVICE_NAME));
+	printf("\tidentity: pci-location=%s\n",
+	    nvlist_get_string(pf, IOV_STATUS_PCI_LOCATION_NAME));
+	printf("\tsriov: enabled=%s vfs=%ju/%ju\n",
+	    nvlist_get_bool(pf, IOV_STATUS_ENABLED_NAME) ? "yes" : "no",
+	    (uintmax_t)nvlist_get_number(pf, IOV_STATUS_NUM_VFS_NAME),
+	    (uintmax_t)nvlist_get_number(pf, IOV_STATUS_TOTAL_VFS_NAME));
+	for (i = 0; i < num_vfs; i++) {
+		vf = vfs[i];
+		printf("\t\tvf %3ju:\n", (uintmax_t)nvlist_get_number(vf,
+		    IOV_STATUS_VF_INDEX_NAME));
+		printf("\t\t\tidentity: pci-location=%s\n",
+		    nvlist_get_string(vf, IOV_STATUS_PCI_LOCATION_NAME));
+		printf("\t\t\thost: attached=%s",
+		    nvlist_get_bool(vf, IOV_STATUS_ATTACHED_NAME) ? "yes" :
+		    "no");
+		if (nvlist_exists_string(vf, IOV_STATUS_BOUND_DRIVER_NAME))
+			printf(" driver=%s", nvlist_get_string(vf,
+			    IOV_STATUS_BOUND_DRIVER_NAME));
+		printf(" passthrough=%s\n",
+		    nvlist_get_bool(vf, IOV_STATUS_PASSTHROUGH_NAME) ? "yes" :
+		    "no");
+	}
+
+	nvlist_destroy(status);
 	close(fd);
 }
 

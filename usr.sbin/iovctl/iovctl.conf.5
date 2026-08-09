@@ -141,13 +141,19 @@ The default value of this parameter is false.
 See the PF driver manual page for configuration parameters specific to
 particular hardware.
 .Pp
-For network devices, display VF initialization, resources, and policy state
-with:
+After creating VFs, display their PCI attachment and passthrough state with:
+.Bd -literal -offset indent
+iovctl -L -d ix0
+.Ed
+For network devices, display NIC-specific initialization, resources, and
+policy state with:
 .Bd -literal -offset indent
 ifconfig -v ix0
 .Ed
 See
 .Xr ifconfig 8
+and
+.Xr iovctl 8
 for the meaning of the reported fields.
 .Sh EXAMPLES
 This sample file will create 3 VFs as children of the ix0 device.

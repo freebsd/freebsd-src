@@ -39,12 +39,15 @@
 .Op Fl f Ar config-file | Fl d Ar device
 .Op Fl n
 .Nm
+.Fl L
+.Op Fl f Ar config-file | Fl d Ar device
+.Nm
 .Fl S
 .Op Fl f Ar config-file | Fl d Ar device
 .Sh DESCRIPTION
 The
 .Nm
-utility creates or destroys PCI Single-Root I/O Virtualization
+utility configures and inspects PCI Single-Root I/O Virtualization
 .Pq SR-IOV
 Virtual Functions
 .Pq VFs .
@@ -89,7 +92,8 @@ For the
 .Fl C
 option, this file will be used to specify all configuration values.
 For the
-.Fl D
+.Fl D ,
+.Fl L ,
 and
 .Fl S
 options, this file will only be used to specify the name of the PF device.
@@ -105,8 +109,22 @@ Perform a dry-run.
 Perform all validation of the specified action and print what would be done,
 but do not perform the actual creation or destruction of VFs.
 This option may not be used with the
+.Fl L
+or
 .Fl S
 flag.
+.It Fl L
+Report the current PCI SR-IOV topology of the specified PF.
+The output identifies the PF and each configured VF by PCI location, reports
+whether each VF is attached to a host driver, and identifies bindings to
+.Va ppt .
+An unconfigured PF reports its enable state and VF capacity without any
+per-VF records.
+A passthrough binding does not imply that a running virtual machine currently
+owns the VF.
+See
+.Xr vmm 4
+for passthrough-device configuration.
 .It Fl S
 Read the configuration schema from the specified device and print its contents
 to stdout.
@@ -114,13 +132,14 @@ This action may be used to discover the configuration parameters supported on
 a given PF device.
 .El
 .Pp
-After creating VFs, use
+For network devices, use
 .Xr ifconfig 8
 with the
 .Fl v
 option on the PF interface to display NIC-specific VF initialization,
 resource, and policy state.
 .Sh SEE ALSO
+.Xr vmm 4 ,
 .Xr iovctl.conf 5 ,
 .Xr rc.conf 5 ,
 .Xr ifconfig 8
