@@ -529,6 +529,135 @@ ifconfig_get_ifstatus(ifconfig_handle_t *h, const char *name,
 	return (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCGIFSTATUS, ifs));
 }
 
+static int
+ifconfig_vf_status_validate(const nvlist_t *status)
+{
+	const nvlist_t * const *vfs;
+	const nvlist_t *extensions, *vf;
+	const char *name;
+	void *cookie;
+	size_t i, num_vfs;
+	int type;
+
+	if (!nvlist_exists_number(status, IFVF_STATUS_VERSION_KEY))
+		return (EBADMSG);
+	if (nvlist_get_number(status, IFVF_STATUS_VERSION_KEY) !=
+	    IFVF_STATUS_VERSION)
+		return (EPROTONOSUPPORT);
+	if (!nvlist_exists_nvlist_array(status, IFVF_STATUS_VFS))
+		return (EBADMSG);
+
+	vfs = nvlist_get_nvlist_array(status, IFVF_STATUS_VFS, &num_vfs);
+	for (i = 0; i < num_vfs; i++) {
+		vf = vfs[i];
+		if (!nvlist_exists_number(vf, IFVF_STATUS_INDEX))
+			return (EBADMSG);
+		if (!nvlist_exists(vf, IFVF_STATUS_EXTENSIONS))
+			continue;
+		if (!nvlist_exists_nvlist(vf, IFVF_STATUS_EXTENSIONS))
+			return (EBADMSG);
+		extensions = nvlist_get_nvlist(vf, IFVF_STATUS_EXTENSIONS);
+		cookie = NULL;
+		while ((name = nvlist_next(extensions, &type, &cookie)) != NULL) {
+			if (type != NV_TYPE_NVLIST)
+				return (EBADMSG);
+			if (!nvlist_exists_number(nvlist_get_nvlist(extensions,
+			    name), IFVF_STATUS_EXT_VERSION))
+				return (EBADMSG);
+		}
+	}
+	return (0);
+}
+
+int
+ifconfig_get_vf_status(ifconfig_handle_t *h, const char *name,
+    nvlist_t **statusp)
+{
+	struct ifreq ifr;
+	nvlist_t *status;
+	void *buf, *newbuf;
+	size_t namelen;
+	u_int buflen, nextlen;
+	int error;
+
+	if (h == NULL || name == NULL || statusp == NULL) {
+		if (h != NULL)
+			ifconfig_error(h, OTHER, EINVAL);
+		return (-1);
+	}
+	*statusp = NULL;
+	namelen = strnlen(name, IFNAMSIZ);
+	if (namelen == IFNAMSIZ) {
+		ifconfig_error(h, OTHER, ENAMETOOLONG);
+		return (-1);
+	}
+
+	/*
+	 * ioctl(2) does not copy an _IOWR argument back to userspace when the
+	 * command returns EFBIG, so the kernel's required length is not
+	 * observable on a short-buffer error.  Start with enough space for the
+	 * common case and grow geometrically instead of relying on length.
+	 */
+	buflen = 16 * 1024;
+	buf = malloc(buflen);
+	if (buf == NULL) {
+		ifconfig_error(h, OTHER, ENOMEM);
+		return (-1);
+	}
+	for (;;) {
+		memset(&ifr, 0, sizeof(ifr));
+		memcpy(ifr.ifr_name, name, namelen + 1);
+		ifr.ifr_vf_status_nv.buffer = buf;
+		ifr.ifr_vf_status_nv.buf_length = buflen;
+		if (ifconfig_ioctlwrap(h, AF_LOCAL, SIOCGIFVFSTATUS, &ifr) == 0)
+			break;
+		if (ifconfig_err_errno(h) != EFBIG ||
+		    buflen == IFR_VF_STATUS_NV_MAXBUFSIZE ||
+		    ifr.ifr_vf_status_nv.length >
+		    IFR_VF_STATUS_NV_MAXBUFSIZE) {
+			free(buf);
+			return (-1);
+		}
+		if (ifr.ifr_vf_status_nv.length > buflen)
+			nextlen = ifr.ifr_vf_status_nv.length;
+		else if (buflen > IFR_VF_STATUS_NV_MAXBUFSIZE / 2)
+			nextlen = IFR_VF_STATUS_NV_MAXBUFSIZE;
+		else
+			nextlen = buflen * 2;
+		newbuf = realloc(buf, nextlen);
+		if (newbuf == NULL) {
+			free(buf);
+			ifconfig_error(h, OTHER, ENOMEM);
+			return (-1);
+		}
+		buf = newbuf;
+		buflen = nextlen;
+	}
+
+	if (ifr.ifr_vf_status_nv.length == 0 ||
+	    ifr.ifr_vf_status_nv.length > buflen) {
+		free(buf);
+		ifconfig_error(h, OTHER, EBADMSG);
+		return (-1);
+	}
+	status = nvlist_unpack(buf, ifr.ifr_vf_status_nv.length, 0);
+	free(buf);
+	if (status == NULL) {
+		ifconfig_error(h, OTHER, EBADMSG);
+		return (-1);
+	}
+	error = ifconfig_vf_status_validate(status);
+	if (error != 0) {
+		nvlist_destroy(status);
+		ifconfig_error(h, OTHER, error);
+		return (-1);
+	}
+
+	ifconfig_error_clear(h);
+	*statusp = status;
+	return (0);
+}
+
 int
 ifconfig_destroy_interface(ifconfig_handle_t *h, const char *name)
 {

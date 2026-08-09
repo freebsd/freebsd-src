@@ -27,9 +27,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/ioctl.h>
 #include <sys/nv.h>
-#include <sys/socket.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -37,7 +35,6 @@
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "ifconfig.h"
@@ -63,64 +60,21 @@ vf_status(if_ctx *ctx)
 {
 	const nvlist_t * const *vfs;
 	const nvlist_t *vf;
-	struct ifreq ifr;
 	const void *mac;
 	nvlist_t *status;
 	const char *mode, *state;
 	size_t maclen, num_vfs;
 	uint64_t speed;
-	void *buf, *newbuf;
-	u_int buflen, nextlen;
 	bool printed;
+	int error;
 
-	buflen = 16 * 1024;
-	buf = malloc(buflen);
-	if (buf == NULL)
-		err(1, "malloc");
-	for (;;) {
-		memset(&ifr, 0, sizeof(ifr));
-		strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
-		ifr.ifr_vf_status_nv.buffer = buf;
-		ifr.ifr_vf_status_nv.buf_length = buflen;
-		if (ioctl_ctx(ctx, SIOCGIFVFSTATUS, &ifr) == 0)
-			break;
-		if (errno == EINVAL || errno == ENOTTY || errno == ENXIO ||
-		    errno == ENOTSUP || errno == EOPNOTSUPP) {
-			free(buf);
+	if (ifconfig_get_vf_status(lifh, ctx->ifname, &status) != 0) {
+		error = ifconfig_err_errno(lifh);
+		if (error == EINVAL || error == ENOTTY || error == ENXIO ||
+		    error == ENOTSUP || error == EOPNOTSUPP)
 			return;
-		}
-		if (errno != EFBIG ||
-		    buflen == IFR_VF_STATUS_NV_MAXBUFSIZE ||
-		    ifr.ifr_vf_status_nv.length >
-		    IFR_VF_STATUS_NV_MAXBUFSIZE) {
-			free(buf);
-			warn("SIOCGIFVFSTATUS");
-			return;
-		}
-		if (ifr.ifr_vf_status_nv.length > buflen)
-			nextlen = ifr.ifr_vf_status_nv.length;
-		else if (buflen > IFR_VF_STATUS_NV_MAXBUFSIZE / 2)
-			nextlen = IFR_VF_STATUS_NV_MAXBUFSIZE;
-		else
-			nextlen = buflen * 2;
-		newbuf = realloc(buf, nextlen);
-		if (newbuf == NULL) {
-			free(buf);
-			err(1, "realloc");
-		}
-		buf = newbuf;
-		buflen = nextlen;
-	}
-
-	status = nvlist_unpack(buf, ifr.ifr_vf_status_nv.length, 0);
-	free(buf);
-	if (status == NULL ||
-	    !nvlist_exists_number(status, IFVF_STATUS_VERSION_KEY) ||
-	    nvlist_get_number(status, IFVF_STATUS_VERSION_KEY) !=
-	    IFVF_STATUS_VERSION ||
-	    !nvlist_exists_nvlist_array(status, IFVF_STATUS_VFS)) {
-		warnx("SIOCGIFVFSTATUS returned an unsupported format");
-		nvlist_destroy(status);
+		errno = error;
+		warn("SIOCGIFVFSTATUS");
 		return;
 	}
 

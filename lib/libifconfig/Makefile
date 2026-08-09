@@ -1,7 +1,7 @@
 LIB=		ifconfig
 INTERNALLIB=	true
 
-LIBADD=		m
+LIBADD=		m nv
 
 SHLIBDIR?=	/lib
 SHLIB_MAJOR=	2

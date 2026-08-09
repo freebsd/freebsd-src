@@ -26,6 +26,7 @@
 
 #pragma once
 
+#include <sys/nv.h>
 #include <sys/types.h>
 
 #include <net/if.h>
@@ -197,6 +198,16 @@ int ifconfig_get_groups(ifconfig_handle_t *h, const char *name,
     struct ifgroupreq *ifgr);
 int ifconfig_get_ifstatus(ifconfig_handle_t *h, const char *name,
     struct ifstat *stat);
+
+/** Retrieve structured SR-IOV VF status for an interface.
+ * @param h	An open ifconfig state object
+ * @param name	The PF interface name
+ * @param statusp Return argument.  The caller owns the returned nvlist and
+ *                must destroy it with nvlist_destroy().
+ * @return	0 on success, -1 on failure
+ */
+int ifconfig_get_vf_status(ifconfig_handle_t *h, const char *name,
+    nvlist_t **statusp);
 
 /** Retrieve the interface media information
  * @param h	An open ifconfig state object

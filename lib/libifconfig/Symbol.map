@@ -84,3 +84,7 @@ FBSD_1.6 {
 	ifconfig_sfp_rev_description;
 	ifconfig_sfp_rev_symbol;
 };
+
+FBSD_1.9 {
+	ifconfig_get_vf_status;
+};
