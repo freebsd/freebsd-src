@@ -150,6 +150,9 @@ static int	uvideo_hw_querycap(device_t, struct video_caps *);
 static int	uvideo_hw_enum_format(device_t, uint32_t, struct video_format *);
 static int	uvideo_hw_get_format(device_t, struct video_format *);
 static int	uvideo_hw_try_format(device_t, struct video_format *);
+static int	uvideo_select_fmtgrp(struct uvideo_softc *, uint32_t);
+static uint32_t	uvideo_bytesperline(struct uvideo_format_group *, uint32_t);
+static uint32_t	uvideo_frame_sizeimage(struct usb_video_frame_desc *);
 static int	uvideo_hw_set_format(device_t, const struct video_format *);
 static int	uvideo_hw_enum_framesizes(device_t, struct video_frmsizeenum *);
 static int	uvideo_hw_enum_frameintervals(device_t,
@@ -2754,6 +2757,8 @@ uvideo_hw_get_format(device_t dev, struct video_format *fmt)
 	if (frame != NULL) {
 		fmt->width = UGETW(UVIDEO_FRAME_FIELD(frame, wWidth));
 		fmt->height = UGETW(UVIDEO_FRAME_FIELD(frame, wHeight));
+		fmt->bytesperline = uvideo_bytesperline(sc->sc_fmtgrp_cur,
+		    fmt->width);
 	}
 	fmt->sizeimage = UGETDW(sc->sc_desc_probe.dwMaxVideoFrameSize);
 
@@ -2766,31 +2771,78 @@ uvideo_hw_get_format(device_t dev, struct video_format *fmt)
 	return (0);
 }
 
+/*
+ * VIDIOC_TRY_FMT and VIDIOC_S_FMT must not fail on an unsupported
+ * pixel format; they substitute one the device does support.
+ */
+static int
+uvideo_select_fmtgrp(struct uvideo_softc *sc, uint32_t pixelformat)
+{
+	int i;
+
+	for (i = 0; i < sc->sc_fmtgrp_num; i++) {
+		if (pixelformat == sc->sc_fmtgrp[i].pixelformat)
+			return (i);
+	}
+	if (sc->sc_fmtgrp_cur != NULL)
+		return (sc->sc_fmtgrp_cur - sc->sc_fmtgrp);
+	return (0);
+}
+
+static uint32_t
+uvideo_bytesperline(struct uvideo_format_group *fmtgrp, uint32_t width)
+{
+	uint8_t bpp;
+
+	switch (fmtgrp->format->bDescriptorSubtype) {
+	case UDESCSUB_VS_FORMAT_UNCOMPRESSED:
+		bpp = fmtgrp->format->u.uc.bBitsPerPixel;
+		break;
+	case UDESCSUB_VS_FORMAT_FRAME_BASED:
+		bpp = fmtgrp->format->u.fb.bBitsPerPixel;
+		break;
+	default:
+		return (0);	/* compressed */
+	}
+	return (width * bpp / 8);
+}
+
+static uint32_t
+uvideo_frame_sizeimage(struct usb_video_frame_desc *frame)
+{
+
+	switch (frame->bDescriptorSubtype) {
+	case UDESCSUB_VS_FRAME_UNCOMPRESSED:
+	case UDESCSUB_VS_FRAME_MJPEG:
+		return (UGETDW(frame->u.uc.dwMaxVideoFrameBufferSize));
+	default:
+		return (0);
+	}
+}
+
 static int
 uvideo_hw_try_format(device_t dev, struct video_format *fmt)
 {
 	struct uvideo_softc *sc = device_get_softc(dev);
+	struct usb_video_frame_desc *frame;
 	struct uvideo_res r;
-	int found, i;
+	int i;
 
-	for (found = 0, i = 0; i < sc->sc_fmtgrp_num; i++) {
-		if (fmt->pixelformat == sc->sc_fmtgrp[i].pixelformat) {
-			found = 1;
-			break;
-		}
-	}
-	if (found == 0)
-		return (EINVAL);
-
-	if (sc->sc_fmtgrp[i].frame_num == 0)
+	i = uvideo_select_fmtgrp(sc, fmt->pixelformat);
+	if (i >= sc->sc_fmtgrp_num || sc->sc_fmtgrp[i].frame_num == 0)
 		return (EINVAL);
 
 	uvideo_find_res(sc, i, fmt->width, fmt->height, &r);
+	frame = sc->sc_fmtgrp[i].frame[r.fidx];
 
+	fmt->pixelformat = sc->sc_fmtgrp[i].pixelformat;
 	fmt->width = r.width;
 	fmt->height = r.height;
 	fmt->field = V4L2_FIELD_NONE;
-	fmt->sizeimage = UGETDW(sc->sc_desc_probe.dwMaxVideoFrameSize);
+	fmt->bytesperline = uvideo_bytesperline(&sc->sc_fmtgrp[i], r.width);
+	fmt->sizeimage = uvideo_frame_sizeimage(frame);
+	if (fmt->sizeimage == 0)
+		fmt->sizeimage = UGETDW(sc->sc_desc_probe.dwMaxVideoFrameSize);
 
 	if (sc->sc_fmtgrp[i].has_colorformat) {
 		fmt->colorspace = sc->sc_fmtgrp[i].colorspace;
@@ -2808,19 +2860,11 @@ uvideo_hw_set_format(device_t dev, const struct video_format *fmt)
 	struct uvideo_format_group *fmtgrp_save;
 	struct usb_video_frame_desc *frame_save;
 	struct uvideo_res r;
-	int found, i;
+	int i;
 	usb_error_t error;
 
-	for (found = 0, i = 0; i < sc->sc_fmtgrp_num; i++) {
-		if (fmt->pixelformat == sc->sc_fmtgrp[i].pixelformat) {
-			found = 1;
-			break;
-		}
-	}
-	if (found == 0)
-		return (EINVAL);
-
-	if (sc->sc_fmtgrp[i].frame_num == 0)
+	i = uvideo_select_fmtgrp(sc, fmt->pixelformat);
+	if (i >= sc->sc_fmtgrp_num || sc->sc_fmtgrp[i].frame_num == 0)
 		return (EINVAL);
 
 	uvideo_find_res(sc, i, fmt->width, fmt->height, &r);
