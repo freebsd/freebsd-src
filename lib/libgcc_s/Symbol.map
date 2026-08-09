@@ -162,6 +162,10 @@ GCC_4.0.0 {
 #if defined(__amd64__) || defined(__i386__)
 	__mulxc3;
 #endif
+#if defined(__LONG_DOUBLE_IEEE128__)
+	__divtc3;
+	__multc3;
+#endif
 	__powidf2;
 	__powisf2;
 #if defined(__amd64__) || defined(__i386__)
@@ -232,5 +236,35 @@ GCC_4.6.0 {
 GCC_7.0.0 {
 #ifdef __i386__
 	__divmoddi4;
+#endif
+#if defined(__LONG_DOUBLE_IEEE128__)
+	__addkf3;
+	__subkf3;
+	__mulkf3;
+	__divkf3;
+	__eqkf2;
+	__gekf2;
+	__gtkf2;
+	__lekf2;
+	__ltkf2;
+	__nekf2;
+	__unordkf2;
+	__extendsfkf2;
+	__extenddfkf2;
+	__trunckfsf2;
+	__trunckfdf2;
+	__fixkfsi;
+	__fixkfdi;
+	__fixkfti;
+	__fixunskfsi;
+	__fixunskfdi;
+	__fixunskfti;
+	__floatsikf;
+	__floatdikf;
+	__floattikf;
+	__floatunsikf;
+	__floatundikf;
+	__floatuntikf;
+	__powikf2;
 #endif
 };
