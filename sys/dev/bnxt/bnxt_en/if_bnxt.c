@@ -215,6 +215,7 @@ static int bnxt_detach(if_ctx_t ctx);
 
 /* Device configuration */
 static void bnxt_init(if_ctx_t ctx);
+static int bnxt_init_hw(if_ctx_t ctx);
 static void bnxt_stop(if_ctx_t ctx);
 static void bnxt_multi_set(if_ctx_t ctx);
 static int bnxt_mtu_set(if_ctx_t ctx, uint32_t mtu);
@@ -2272,7 +2273,9 @@ static int bnxt_open(struct bnxt_softc *bp)
 	}
 
 	bnxt_msix_intr_assign(bp->ctx, 0);
-	bnxt_init(bp->ctx);
+	rc = bnxt_init_hw(bp->ctx);
+	if (rc != 0)
+		return (rc);
 	bnxt_intr_enable(bp->ctx);
 
 	if (test_and_clear_bit(BNXT_STATE_FW_RESET_DET, &bp->state)) {
@@ -3278,6 +3281,14 @@ skip_aux_init:
 static void
 bnxt_init(if_ctx_t ctx)
 {
+
+	if (bnxt_init_hw(ctx) != 0)
+		iflib_init_failed(ctx);
+}
+
+static int
+bnxt_init_hw(if_ctx_t ctx)
+{
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 	struct ifmediareq ifmr;
 	int i;
@@ -3286,7 +3297,7 @@ bnxt_init(if_ctx_t ctx)
 	if (!BNXT_CHIP_P5_PLUS(softc)) {
 		rc = bnxt_hwrm_func_reset(softc);
 		if (rc)
-			return;
+			return (rc);
 	} else if (softc->is_dev_init) {
 		bnxt_stop(ctx);
 	}
@@ -3461,12 +3472,13 @@ skip_def_cp_ring:
 	bnxt_get_port_module_status(softc);
 	bnxt_media_status(softc->ctx, &ifmr);
 	bnxt_hwrm_cfa_l2_set_rx_mask(softc, &softc->vnic_info);
-	return;
+	return (0);
 
 fail:
 	bnxt_func_reset(softc);
 	bnxt_clear_ids(softc);
-	return;
+	softc->is_dev_init = false;
+	return (rc);
 }
 
 static void
