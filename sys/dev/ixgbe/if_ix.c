@@ -858,7 +858,21 @@ ixgbe_initialize_receive_units(if_ctx_t ctx)
 		    IXGBE_PSRTYPE_UDPHDR |
 		    IXGBE_PSRTYPE_IPV4HDR |
 		    IXGBE_PSRTYPE_IPV6HDR;
-		IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(0), psrtype);
+
+		/*
+		 * In VMDq+RSS mode PSRTYPE is per pool, and RQPL controls
+		 * how many receive queues RSS may select within that pool.
+		 * The PF occupies the last pool rather than pool zero.
+		 */
+#ifdef PCI_IOV
+		if (sc->iov_mode != IXGBE_NO_VM) {
+			if (sc->num_rx_queues > 3)
+				psrtype |= 2u << IXGBE_PSRTYPE_RQPL_SHIFT;
+			else if (sc->num_rx_queues > 1)
+				psrtype |= 1u << IXGBE_PSRTYPE_RQPL_SHIFT;
+		}
+#endif
+		IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(sc->pool), psrtype);
 	}
 
 	rxcsum = IXGBE_READ_REG(hw, IXGBE_RXCSUM);
