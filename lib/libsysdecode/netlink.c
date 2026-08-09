@@ -340,6 +340,28 @@ static const struct nlattr_decoder nla_d_clear_states[] = {
 };
 NL_DECLARE_ATTR_DECODER(killclear_states_decoder, nla_d_clear_states);
 
+static inline void
+nl_verify_decoders(const struct nlattr_decoder_set **decoder, size_t count)
+{
+	for (size_t i = 0; i < count; i++) {
+		const struct nlattr_decoder_set *p = decoder[i];
+		for (size_t j = 1; j < p->count; j++) {
+			assert(p->decoders[j].type > p->decoders[j-1].type);
+		}
+	}
+}
+#define	NL_VERIFY_DECODERS(_p)	nl_verify_decoders((_p), nitems(_p))
+
+static const struct nlattr_decoder_set *all_decoders[] = {
+	&getrules_decoder,
+	&set_limit_decoder,
+	&addr_wrap_decoder,
+	&pool_addr_decoder,
+	&addr_decoder,
+	&rule_addr_decoder,
+	&killclear_states_decoder,
+};
+
 static const struct pfnl_cmd_decoder cmd_decoder[] = {
 	{ .cmd_num = PFNL_CMD_GETRULES, .ds = &getrules_decoder },
 	{ .cmd_num = PFNL_CMD_KILLSTATES, .ds = &killclear_states_decoder },
@@ -390,6 +412,8 @@ sysdecode_netlink(FILE *fp, const void *buf, size_t len, int protocol)
 		return (false);
 
 	if (family_table == NULL) {
+		NL_VERIFY_DECODERS(all_decoders);
+
 		family_table = malloc((num_family + 1) *
 		    sizeof(struct name_table));
 		family_table[num_family] = (struct name_table){0, NULL};
