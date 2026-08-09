@@ -44,6 +44,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf_ring.h>
+#include <sys/callout.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -375,6 +376,13 @@ struct iavf_sc {
 	u32			queues_enabled;
 	u8			enable_queues_chan;
 	u8			disable_queues_chan;
+	u32			mbx_ready;
+	u32			vc_reinit_required;
+	u32			mbx_retry_pending;
+	struct callout		mbx_retry;
+	struct timeval		mbx_last_log;
+	u8			mbx_retry_stage;
+	bool			mbx_retry_initialized;
 
 	/* For virtchnl message processing task */
 	struct task		vc_task;

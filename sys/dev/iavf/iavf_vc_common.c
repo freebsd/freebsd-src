@@ -74,7 +74,7 @@ iavf_send_pf_msg(struct iavf_sc *sc,
 		if (op != VIRTCHNL_OP_GET_STATS)
 			device_printf(dev, "Unable to send opcode %s to PF, "
 			    "ASQ is not alive\n", iavf_vc_opcode_str(op));
-		return (0);
+		return (IAVF_ERR_ADMIN_QUEUE_ERROR);
 	}
 
 	if (op != VIRTCHNL_OP_GET_STATS)
@@ -122,11 +122,32 @@ iavf_send_api_ver(struct iavf_sc *sc)
  * Compare API versions with the PF. Must be called after admin queue is
  * initialized.
  *
- * @returns 0 if API versions match, EIO if they do not, or
- * IAVF_ERR_ADMIN_QUEUE_NO_WORK if the admin queue is empty.
+ * @returns 0 if API versions match, ETIMEDOUT if the PF does not reply,
+ * or EIO if the versions do not match.
  */
 int
 iavf_verify_api_ver(struct iavf_sc *sc)
+{
+	int error;
+
+	error = iavf_verify_api_ver_retries(sc, IAVF_AQ_MAX_ERR);
+	if (error == 0)
+		device_printf(sc->dev, "PF API %d.%d / VF API %d.%d\n",
+		    sc->version.major, sc->version.minor,
+		    VIRTCHNL_VERSION_MAJOR, VIRTCHNL_VERSION_MINOR);
+	return (error);
+}
+
+/**
+ * iavf_verify_api_ver_retries - Verify the PF API version with a retry limit
+ * @sc: device softc
+ * @max_retries: maximum number of Admin Receive Queue polls
+ *
+ * @returns 0 if API versions match, ETIMEDOUT if the PF does not reply,
+ * or EIO for an invalid response or API version.
+ */
+int
+iavf_verify_api_ver_retries(struct iavf_sc *sc, u32 max_retries)
 {
 	struct virtchnl_version_info *pf_vvi;
 	struct iavf_hw *hw = &sc->hw;
@@ -134,14 +155,16 @@ iavf_verify_api_ver(struct iavf_sc *sc)
 	enum iavf_status status;
 	device_t dev = sc->dev;
 	int error = 0;
-	int retries = 0;
+	u32 retries = 0;
 
 	event.buf_len = IAVF_AQ_BUF_SZ;
 	event.msg_buf = (u8 *)malloc(event.buf_len, M_IAVF, M_WAITOK);
 
 	for (;;) {
-		if (++retries > IAVF_AQ_MAX_ERR)
+		if (++retries > max_retries) {
+			error = ETIMEDOUT;
 			goto out_alloc;
+		}
 
 		/* Initial delay here is necessary */
 		iavf_msec_pause(100);
@@ -179,11 +202,6 @@ iavf_verify_api_ver(struct iavf_sc *sc)
 		sc->version.major = pf_vvi->major;
 		sc->version.minor = pf_vvi->minor;
 	}
-
-	/* Log PF/VF api versions */
-	device_printf(dev, "PF API %d.%d / VF API %d.%d\n",
-	    pf_vvi->major, pf_vvi->minor,
-	    VIRTCHNL_VERSION_MAJOR, VIRTCHNL_VERSION_MINOR);
 
 out_alloc:
 	free(event.msg_buf, M_IAVF);
@@ -236,6 +254,21 @@ iavf_send_vf_config_msg(struct iavf_sc *sc)
 int
 iavf_get_vf_config(struct iavf_sc *sc)
 {
+
+	return (iavf_get_vf_config_retries(sc, IAVF_AQ_MAX_ERR));
+}
+
+/**
+ * iavf_get_vf_config_retries - Get VF configuration with a retry limit
+ * @sc: device softc
+ * @max_retries: maximum number of Admin Receive Queue polls
+ *
+ * @returns zero on success, ETIMEDOUT if the PF does not reply, or an error
+ * for an invalid response.
+ */
+int
+iavf_get_vf_config_retries(struct iavf_sc *sc, u32 max_retries)
+{
 	struct iavf_hw	*hw = &sc->hw;
 	device_t	dev = sc->dev;
 	enum iavf_status status = IAVF_SUCCESS;
@@ -253,7 +286,7 @@ iavf_get_vf_config(struct iavf_sc *sc)
 	for (;;) {
 		status = iavf_clean_arq_element(hw, &event, NULL);
 		if (status == IAVF_ERR_ADMIN_QUEUE_NO_WORK) {
-			if (++retries <= IAVF_AQ_MAX_ERR)
+			if (++retries <= max_retries)
 				iavf_msec_pause(10);
 		} else if ((enum virtchnl_ops)le32toh(event.desc.cookie_high) !=
 		    VIRTCHNL_OP_GET_VF_RESOURCES) {
@@ -278,7 +311,7 @@ iavf_get_vf_config(struct iavf_sc *sc)
 			break;
 		}
 
-		if (retries > IAVF_AQ_MAX_ERR) {
+		if (retries > max_retries) {
 			iavf_dbg_vc(sc,
 			    "%s: Did not receive response after %d tries.",
 			    __func__, retries);
@@ -287,6 +320,8 @@ iavf_get_vf_config(struct iavf_sc *sc)
 		}
 	}
 
+	bzero(sc->vf_res, sizeof(struct virtchnl_vf_resource) +
+	    IAVF_MAX_VF_VSI * sizeof(struct virtchnl_vsi_resource));
 	memcpy(sc->vf_res, event.msg_buf, min(event.msg_len, len));
 	iavf_vf_parse_hw_config(hw, sc->vf_res);
 
@@ -303,7 +338,7 @@ out_alloc:
  *
  * @remark the reply from the PF is not checked by this function.
  *
- * @returns zero
+ * @returns zero on success, or an error code on failure.
  */
 int
 iavf_enable_queues(struct iavf_sc *sc)
@@ -314,9 +349,8 @@ iavf_enable_queues(struct iavf_sc *sc)
 	vqs.vsi_id = sc->vsi_res->vsi_id;
 	vqs.tx_queues = (1 << IAVF_NTXQS(vsi)) - 1;
 	vqs.rx_queues = vqs.tx_queues;
-	iavf_send_pf_msg(sc, VIRTCHNL_OP_ENABLE_QUEUES,
-			   (u8 *)&vqs, sizeof(vqs));
-	return (0);
+	return (iavf_send_pf_msg(sc, VIRTCHNL_OP_ENABLE_QUEUES,
+	    (u8 *)&vqs, sizeof(vqs)));
 }
 
 /**
@@ -327,7 +361,7 @@ iavf_enable_queues(struct iavf_sc *sc)
  *
  * @remark the reply from the PF is not checked by this function.
  *
- * @returns zero
+ * @returns zero on success, or an error code on failure.
  */
 int
 iavf_disable_queues(struct iavf_sc *sc)
@@ -338,9 +372,8 @@ iavf_disable_queues(struct iavf_sc *sc)
 	vqs.vsi_id = sc->vsi_res->vsi_id;
 	vqs.tx_queues = (1 << IAVF_NTXQS(vsi)) - 1;
 	vqs.rx_queues = vqs.tx_queues;
-	iavf_send_pf_msg(sc, VIRTCHNL_OP_DISABLE_QUEUES,
-			   (u8 *)&vqs, sizeof(vqs));
-	return (0);
+	return (iavf_send_pf_msg(sc, VIRTCHNL_OP_DISABLE_QUEUES,
+	    (u8 *)&vqs, sizeof(vqs)));
 }
 
 /**
