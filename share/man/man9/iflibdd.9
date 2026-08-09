@@ -1,4 +1,4 @@
-.Dd May 3, 2018
+.Dd August 8, 2026
 .Dt IFLIBDD 9
 .Os
 .Sh NAME
@@ -245,9 +245,12 @@ Optional function that resumes a driver.
 .It Fn ifdi_init
 Mandatory function that will initialize and bring up the hardware.
 For example, it will reset the chip and enable the receiver unit.
-It should mark the interface running, but not active (
-.Dv IFF_DRV_RUNNING ,
-.Dv ~IIF_DRV_OACTIVE ).
+Iflib marks the interface running after the callback returns successfully;
+the driver must not modify the driver flags itself.
+If initialization cannot complete, the driver must leave the hardware stopped
+and call
+.Fn iflib_init_failed
+before returning.
 .It Fn ifdi_stop
 Mandatory function that should disable all traffic on the interface by issuing
 a global reset on the MAC and deallocating the TX and RX buffers.

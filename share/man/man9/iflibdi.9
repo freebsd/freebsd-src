@@ -6,6 +6,7 @@
 .Nd Device Independent Configuration Functions
 .Sh SYNOPSIS
 .In "ifdi_if.h"
+.In "net/iflib.h"
 .Ss "Device Independent Functions"
 .Ft int
 .Fo iflib_device_attach
@@ -78,6 +79,18 @@
 .Fo iflib_link_state_change
 .Fa "if_ctx_t ctx"
 .Fa "int linkstate"
+.Fc
+.Ft void
+.Fo iflib_request_reset
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft void
+.Fo iflib_request_reset_if_up
+.Fa "if_ctx_t ctx"
+.Fc
+.Ft void
+.Fo iflib_init_failed
+.Fa "if_ctx_t ctx"
 .Fc
 .Ft void
 .Fo iflib_add_int_delay_sysctl
@@ -225,6 +238,28 @@ The following link states are currently defined:
 The link is up.
 .It Dv LINK_STATE_DOWN
 The link is down.
+.It Fn iflib_request_reset
+Request that the admin task stop and reinitialize the interface.
+.It Fn iflib_request_reset_if_up
+Request that the admin task stop and reinitialize the interface only if it
+remains administratively up when the task runs.
+This form is suitable for asynchronous recovery work that must not restart an
+interface after an intervening administrative down operation.
+Like
+.Fn iflib_request_reset ,
+this function only records the request; the caller must schedule the admin
+task, normally with
+.Fn iflib_admin_intr_deferred .
+.It Fn iflib_init_failed
+Report that the current
+.Fn ifdi_init
+callback could not initialize the hardware.
+The driver must leave the hardware stopped and call this function while the
+callback holds the iflib context lock.
+Iflib then leaves
+.Dv IFF_DRV_RUNNING
+clear and does not enable interrupts or periodic timers.
+Output remains blocked so explicitly scheduled admin recovery work can run.
 .It Fn iflib_add_int_delay_sysctl
 Modifies settings to user defined values for a given set of variables.
 .El

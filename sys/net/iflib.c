@@ -337,13 +337,13 @@ typedef struct iflib_sw_tx_desc_array {
 #define	IFC_LEGACY		0x001
 #define	IFC_QFLUSH		0x002
 #define	IFC_MULTISEG		0x004
-#define	IFC_SPARE1		0x008
+#define	IFC_INIT_FAILED		0x008
 #define	IFC_SC_ALLOCATED	0x010
 #define	IFC_INIT_DONE		0x020
 #define	IFC_PREFETCH		0x040
 #define	IFC_DO_RESET		0x080
 #define	IFC_DO_WATCHDOG		0x100
-#define	IFC_SPARE0		0x200
+#define	IFC_DO_RESET_IF_UP	0x200
 #define	IFC_SPARE2		0x400
 #define	IFC_IN_DETACH		0x800
 
@@ -2555,6 +2555,7 @@ iflib_init_locked(if_ctx_t ctx)
 	iflib_txq_t txq;
 	iflib_rxq_t rxq;
 	int i, j, tx_ip_csum_flags, tx_ip6_csum_flags;
+	bool init_failed;
 
 	if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
 	IFDI_INTR_DISABLE(ctx);
@@ -2598,8 +2599,16 @@ iflib_init_locked(if_ctx_t ctx)
 #ifdef INVARIANTS
 	i = if_getdrvflags(ifp);
 #endif
+	STATE_LOCK(ctx);
+	ctx->ifc_flags &= ~IFC_INIT_FAILED;
+	STATE_UNLOCK(ctx);
 	IFDI_INIT(ctx);
 	MPASS(if_getdrvflags(ifp) == i);
+	STATE_LOCK(ctx);
+	init_failed = (ctx->ifc_flags & IFC_INIT_FAILED) != 0;
+	STATE_UNLOCK(ctx);
+	if (init_failed)
+		return;
 	for (i = 0, rxq = ctx->ifc_rxqs; i < scctx->isc_nrxqsets; i++, rxq++) {
 		if (iflib_netmap_rxq_init(ctx, rxq) > 0) {
 			/* This rxq is in netmap mode. Skip normal init. */
@@ -4187,15 +4196,18 @@ _task_fn_admin(void *context, int pending)
 	if_softc_ctx_t sctx = &ctx->ifc_softc_ctx;
 	iflib_txq_t txq;
 	int i;
-	bool oactive, running, do_reset, do_watchdog, in_detach;
+	bool oactive, running, do_reset, do_reset_if_up, do_watchdog;
+	bool in_detach;
 
 	STATE_LOCK(ctx);
 	running = (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_RUNNING);
 	oactive = (if_getdrvflags(ctx->ifc_ifp) & IFF_DRV_OACTIVE);
 	do_reset = (ctx->ifc_flags & IFC_DO_RESET);
+	do_reset_if_up = (ctx->ifc_flags & IFC_DO_RESET_IF_UP);
 	do_watchdog = (ctx->ifc_flags & IFC_DO_WATCHDOG);
 	in_detach = (ctx->ifc_flags & IFC_IN_DETACH);
-	ctx->ifc_flags &= ~(IFC_DO_RESET | IFC_DO_WATCHDOG);
+	ctx->ifc_flags &= ~(IFC_DO_RESET | IFC_DO_RESET_IF_UP |
+	    IFC_DO_WATCHDOG);
 	STATE_UNLOCK(ctx);
 
 	if ((!running && !oactive) && !(ctx->ifc_sctx->isc_flags & IFLIB_ADMIN_ALWAYS_RUN))
@@ -4204,6 +4216,9 @@ _task_fn_admin(void *context, int pending)
 		return;
 
 	CTX_LOCK(ctx);
+	if (!do_reset && do_reset_if_up &&
+	    (if_getflags(ctx->ifc_ifp) & IFF_UP) != 0)
+		do_reset = true;
 	for (txq = ctx->ifc_txqs, i = 0; i < sctx->isc_ntxqsets; i++, txq++) {
 		CALLOUT_LOCK(txq);
 		callout_stop(&txq->ift_timer);
@@ -4529,7 +4544,9 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 		}
 		iflib_init_locked(ctx);
 		STATE_LOCK(ctx);
-		if_setdrvflags(ifp, bits);
+		/* Preserve the stopped state reported by iflib_init_failed(). */
+		if ((ctx->ifc_flags & IFC_INIT_FAILED) == 0)
+			if_setdrvflags(ifp, bits);
 		STATE_UNLOCK(ctx);
 		CTX_UNLOCK(ctx);
 		break;
@@ -4638,7 +4655,8 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 			if (bits & IFF_DRV_RUNNING && setmask & ~IFCAP_WOL)
 				iflib_init_locked(ctx);
 			STATE_LOCK(ctx);
-			if_setdrvflags(ifp, bits);
+			if ((ctx->ifc_flags & IFC_INIT_FAILED) == 0)
+				if_setdrvflags(ifp, bits);
 			STATE_UNLOCK(ctx);
 			CTX_UNLOCK(ctx);
 		}
@@ -7217,6 +7235,25 @@ iflib_request_reset(if_ctx_t ctx)
 
 	STATE_LOCK(ctx);
 	ctx->ifc_flags |= IFC_DO_RESET;
+	STATE_UNLOCK(ctx);
+}
+
+void
+iflib_request_reset_if_up(if_ctx_t ctx)
+{
+
+	STATE_LOCK(ctx);
+	ctx->ifc_flags |= IFC_DO_RESET_IF_UP;
+	STATE_UNLOCK(ctx);
+}
+
+void
+iflib_init_failed(if_ctx_t ctx)
+{
+
+	sx_assert(&ctx->ifc_ctx_sx, SA_XLOCKED);
+	STATE_LOCK(ctx);
+	ctx->ifc_flags |= IFC_INIT_FAILED;
 	STATE_UNLOCK(ctx);
 }
 

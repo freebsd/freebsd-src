@@ -428,6 +428,11 @@ if_shared_ctx_t iflib_get_sctx(if_ctx_t ctx);
 
 void iflib_set_mac(if_ctx_t ctx, uint8_t mac[ETHER_ADDR_LEN]);
 void iflib_request_reset(if_ctx_t ctx);
+/* Defer a reset, but discard it if the interface is administratively down. */
+void iflib_request_reset_if_up(if_ctx_t ctx);
+
+/* Report an error from the otherwise void ifdi_init method while it runs. */
+void iflib_init_failed(if_ctx_t ctx);
 uint8_t iflib_in_detach(if_ctx_t ctx);
 
 uint32_t iflib_get_rx_mbuf_sz(if_ctx_t ctx);
