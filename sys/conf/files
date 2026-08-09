@@ -1740,7 +1740,7 @@ dev/filemon/filemon.c		optional filemon
 dev/firewire/firewire.c		optional firewire
 dev/firewire/fwcrom.c		optional firewire
 dev/firewire/fwdev.c		optional firewire
-dev/firewire/fwcam.c		optional fwcam
+dev/firewire/fwcam.c		optional fwcam video
 dev/firewire/fwdma.c		optional firewire
 dev/firewire/fwdv.c		optional fwdv
 dev/firewire/fwisound.c		optional fwisound sound
@@ -3514,10 +3514,12 @@ dev/usb/template/usb_template_cdceem.c	optional usb_template
 # USB video drivers
 #
 dev/usb/video/udl.c			optional udl
-dev/usb/video/uvideo.c			optional uvideo
+dev/usb/video/uvideo.c			optional uvideo video
 #
 # USB END
 #
+dev/video/video.c			optional video
+dev/video/video_if.m			optional video
 dev/videomode/videomode.c		optional videomode
 dev/videomode/edid.c			optional videomode
 dev/videomode/pickmode.c		optional videomode

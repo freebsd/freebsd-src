@@ -1,0 +1,101 @@
+.\"
+.\" Copyright (c) 2026 Abdelkader Boudih <freebsd@seuros.com>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd July 28, 2026
+.Dt VIDEO 4
+.Os
+.Sh NAME
+.Nm video
+.Nd video capture framework
+.Sh SYNOPSIS
+.Cd device video
+.Pp
+.In sys/videoio.h
+.Sh DESCRIPTION
+The
+.Nm
+framework provides a common interface for video capture devices.
+It creates
+.Pa /dev/video%d
+device nodes and handles buffer management, memory mapping, and
+ioctl dispatch on behalf of hardware drivers.
+.Pp
+Userland applications access capture devices through the
+.Sy Video4Linux2
+.Pq V4L2
+ioctl interface.
+The framework translates V4L2 requests into driver callbacks,
+so hardware drivers do not implement ioctls directly.
+.Pp
+The following V4L2 ioctls are supported:
+.Bl -bullet -compact
+.It
+.Dv VIDIOC_QUERYCAP
+.It
+.Dv VIDIOC_ENUM_FMT ,
+.Dv VIDIOC_G_FMT ,
+.Dv VIDIOC_S_FMT ,
+.Dv VIDIOC_TRY_FMT
+.It
+.Dv VIDIOC_ENUM_FRAMESIZES ,
+.Dv VIDIOC_ENUM_FRAMEINTERVALS
+.It
+.Dv VIDIOC_G_PARM ,
+.Dv VIDIOC_S_PARM
+.It
+.Dv VIDIOC_ENUMINPUT ,
+.Dv VIDIOC_G_INPUT ,
+.Dv VIDIOC_S_INPUT
+.It
+.Dv VIDIOC_QUERYCTRL ,
+.Dv VIDIOC_G_CTRL ,
+.Dv VIDIOC_S_CTRL
+.It
+.Dv VIDIOC_REQBUFS ,
+.Dv VIDIOC_QUERYBUF ,
+.Dv VIDIOC_QBUF ,
+.Dv VIDIOC_DQBUF
+.It
+.Dv VIDIOC_STREAMON ,
+.Dv VIDIOC_STREAMOFF
+.El
+.Pp
+Two capture modes are supported:
+.Bl -tag -width 6n
+.It Cm read
+Frames are obtained by calling
+.Xr read 2
+on the device node.
+Streaming starts automatically on the first read.
+.It Cm mmap
+Buffers are allocated with
+.Dv VIDIOC_REQBUFS ,
+mapped with
+.Xr mmap 2 ,
+and cycled with
+.Dv VIDIOC_QBUF
+and
+.Dv VIDIOC_DQBUF .
+Streaming is started and stopped with
+.Dv VIDIOC_STREAMON
+and
+.Dv VIDIOC_STREAMOFF .
+.El
+.Pp
+Up to 8 buffers may be allocated per device.
+Buffer memory remains valid until the last mapping is unmapped,
+even if the device is closed or detached.
+.Sh SEE ALSO
+.Xr mmap 2 ,
+.Xr read 2 ,
+.Xr fwcam 4 ,
+.Xr uvideo 4
+.Sh HISTORY
+The
+.Nm
+framework first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Abdelkader Boudih Aq Mt freebsd@seuros.com

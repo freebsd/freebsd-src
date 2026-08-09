@@ -32,12 +32,12 @@
  *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  Minimal V4L2 definitions for the FreeBSD UVC driver.
+ *  Minimal V4L2 definitions for the video(4) framework.
  *  Extracted from OpenBSD sys/videoio.h.
  */
 
-#ifndef _UVIDEO_V4L2_H_
-#define _UVIDEO_V4L2_H_
+#ifndef _SYS_VIDEOIO_H_
+#define _SYS_VIDEOIO_H_
 
 #include <sys/types.h>
 #include <sys/ioccom.h>
@@ -193,18 +193,11 @@ struct v4l2_pix_format {
 	u_int32_t		xfer_func;	/* enum v4l2_xfer_func */
 };
 
-/*
- * v4l2_format: the system header (v4l_compat) includes struct v4l2_window
- * (which contains a pointer) in the fmt union, forcing 8-byte alignment.
- * This creates 4 bytes of implicit padding after 'type' on LP64.
- * We must match this layout for ioctl ABI compatibility.
- * Total size: 4 (type) + 4 (pad) + 200 (union) = 208.
- */
 struct v4l2_format {
 	u_int32_t	type;
-	u_int32_t	_pad;
 	union {
 		struct v4l2_pix_format	pix;
+		void			*_align;
 		u_int8_t		raw_data[200];
 	} fmt;
 };
@@ -365,6 +358,8 @@ struct v4l2_frmivalenum {
 /* Luminance+Chrominance formats */
 #define V4L2_PIX_FMT_YUYV	v4l2_fourcc('Y', 'U', 'Y', 'V')
 #define V4L2_PIX_FMT_UYVY	v4l2_fourcc('U', 'Y', 'V', 'Y')
+#define V4L2_PIX_FMT_YUV444	v4l2_fourcc('Y', '4', '4', '4')
+#define V4L2_PIX_FMT_Y41P	v4l2_fourcc('Y', '4', '1', 'P')
 #define V4L2_PIX_FMT_NV12	v4l2_fourcc('N', 'V', '1', '2')
 #define V4L2_PIX_FMT_NV21	v4l2_fourcc('N', 'V', '2', '1')
 #define V4L2_PIX_FMT_M420	v4l2_fourcc('M', '4', '2', '0')
@@ -383,6 +378,7 @@ struct v4l2_frmivalenum {
 #define V4L2_PIX_FMT_Y16	v4l2_fourcc('Y', '1', '6', ' ')
 
 /* RGB formats */
+#define V4L2_PIX_FMT_RGB24	v4l2_fourcc('R', 'G', 'B', '3')
 #define V4L2_PIX_FMT_RGB565	v4l2_fourcc('R', 'G', 'B', 'P')
 #define V4L2_PIX_FMT_BGR24	v4l2_fourcc('B', 'G', 'R', '3')
 #define V4L2_PIX_FMT_XBGR32	v4l2_fourcc('X', 'R', '2', '4')
@@ -499,4 +495,18 @@ struct v4l2_frmivalenum {
 #define VIDIOC_ENUM_FRAMESIZES	_IOWR('V', 74, struct v4l2_frmsizeenum)
 #define VIDIOC_ENUM_FRAMEINTERVALS _IOWR('V', 75, struct v4l2_frmivalenum)
 
-#endif /* _UVIDEO_V4L2_H_ */
+_Static_assert(sizeof(struct v4l2_pix_format) == 48, "v4l2_pix_format layout");
+_Static_assert(sizeof(struct v4l2_capability) == 104, "v4l2_capability layout");
+_Static_assert(sizeof(struct v4l2_requestbuffers) == 20,
+    "v4l2_requestbuffers layout");
+#ifdef __LP64__
+_Static_assert(__offsetof(struct v4l2_format, fmt) == 8, "v4l2_format layout");
+_Static_assert(sizeof(struct v4l2_format) == 208, "v4l2_format layout");
+_Static_assert(sizeof(struct v4l2_buffer) == 88, "v4l2_buffer layout");
+#else
+_Static_assert(__offsetof(struct v4l2_format, fmt) == 4, "v4l2_format layout");
+_Static_assert(sizeof(struct v4l2_format) == 204, "v4l2_format layout");
+_Static_assert(sizeof(struct v4l2_buffer) == 68, "v4l2_buffer layout");
+#endif
+
+#endif /* _SYS_VIDEOIO_H_ */

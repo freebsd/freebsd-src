@@ -1148,6 +1148,7 @@ MAN+=	\
 	uvisor.4 \
 	uvscom.4 \
 	veriexec.4 \
+	video.4 \
 	zyd.4
 
 MLINKS+=geom_zero.4 gzero.4

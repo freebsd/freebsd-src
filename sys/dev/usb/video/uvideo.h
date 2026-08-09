@@ -21,7 +21,7 @@
 #define _UVIDEO_H_
 
 #include <sys/queue.h>
-#include "uvideo_v4l2.h"
+#include <sys/videoio.h>
 
 /*
  * USB Video Class
