@@ -640,7 +640,7 @@ struct usb_video_format_desc {
 /*
  * Driver specific private definitions.
  */
-#define UVIDEO_NFRAMES_MAX	128
+#define UVIDEO_NFRAMES_MAX	32
 
 #define UVIDEO_IXFERS		5
 struct uvideo_vs_iface {
