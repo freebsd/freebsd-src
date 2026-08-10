@@ -14,6 +14,8 @@
 #include <sys/sdt.h>
 #include <sys/time.h>
 
+#include <net/if_vf_status.h>
+
 #define	IGB_IOV_RAH_POOLSEL_SHIFT	18
 #define	IGB_IOV_RAH_POOLSEL_MASK	(0xffU << IGB_IOV_RAH_POOLSEL_SHIFT)
 #define	IGB_IOV_MAX_MAC_FILTERS		3
@@ -1990,6 +1992,71 @@ igb_iov_validate(struct e1000_softc *sc, u16 num_vfs)
 		    device_get_unit(sc->dev), device_get_unit(sc->dev));
 		return (EINVAL);
 	}
+	return (0);
+}
+
+int
+igb_if_vf_status(if_ctx_t ctx, struct if_vf_status **statusp)
+{
+	struct e1000_softc *sc;
+	struct igb_vf *vf;
+	struct if_vf_info *info;
+	struct if_vf_status *status;
+	u_int num_queues;
+	int i;
+
+	sc = iflib_get_softc(ctx);
+	if (!sc->iov_mbx_retry_initialized)
+		return (EOPNOTSUPP);
+	num_queues = sc->hw.mac.type == e1000_82576 ?
+	    IGB_82576_VF_QUEUES : IGB_I350_VF_QUEUES;
+	status = if_vf_status_alloc(sc->num_vfs);
+	if (status == NULL)
+		return (ENOMEM);
+	for (i = 0; i < sc->num_vfs; i++) {
+		vf = &sc->vfs[i];
+		info = &status->vfs[i];
+		info->fields = IFVF_F_CONFIGURED | IFVF_F_INITIALIZED |
+		    IFVF_F_VLAN_MODE | IFVF_F_VLAN_COUNT |
+		    IFVF_F_NUM_TX_QUEUES | IFVF_F_NUM_RX_QUEUES |
+		    IFVF_F_ALLOW_SET_MAC |
+		    IFVF_F_ALLOW_SET_VLAN | IFVF_F_MAC_ANTI_SPOOF |
+		    IFVF_F_ALLOW_PROMISC | IFVF_F_TRAFFIC_ALLOWED |
+		    IFVF_F_FAULT_BLOCKED;
+		info->index = i;
+		info->configured = (vf->flags & IGB_VF_ACTIVE) != 0;
+		info->initialized = sc->iov_hw_active &&
+		    (vf->flags & IGB_VF_CTS) != 0;
+		if (!ETHER_IS_ZERO(vf->mac)) {
+			memcpy(info->mac, vf->mac, sizeof(info->mac));
+			info->fields |= IFVF_F_MAC;
+		}
+		if (vf->default_vlan == 0)
+			info->vlan_mode = IFVF_VLAN_TRUNK;
+		else {
+			info->vlan_mode = IFVF_VLAN_ACCESS;
+			info->vlan = vf->default_vlan;
+			info->vlan_pcp = 0;
+			info->vlan_proto = ETHERTYPE_VLAN;
+			info->fields |= IFVF_F_VLAN | IFVF_F_VLAN_PCP |
+			    IFVF_F_VLAN_PROTO;
+		}
+		info->vlan_count = vf->vlan_count;
+		info->tx_queue_count = num_queues;
+		info->rx_queue_count = num_queues;
+		info->allow_set_mac = (vf->flags & IGB_VF_CAP_MAC) != 0;
+		/* Access VFs cannot manage VLAN membership through the mailbox. */
+		info->allow_set_vlan = vf->default_vlan == 0;
+		info->mac_anti_spoof =
+		    (vf->flags & IGB_VF_MAC_ANTI_SPOOF) != 0;
+		info->allow_promisc =
+		    (vf->flags & IGB_VF_ALLOW_PROMISC) != 0;
+		info->fault_blocked =
+		    (vf->flags & IGB_VF_MDD_BLOCKED) != 0;
+		info->traffic_allowed = info->configured &&
+		    !info->fault_blocked;
+	}
+	*statusp = status;
 	return (0);
 }
 
