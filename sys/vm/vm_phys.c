@@ -212,9 +212,6 @@ static inline int
 vm_phys_fictitious_in_range(struct vm_phys_fictitious_seg *p,
     struct vm_phys_fictitious_seg *range)
 {
-
-	KASSERT(range->start != 0 && range->end != 0,
-	    ("Invalid range passed on search for vm_fictitious page"));
 	if (p->start >= range->end)
 		return (1);
 	if (p->start < range->start)
