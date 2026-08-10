@@ -462,6 +462,12 @@ ATF_TC_BODY(multibind, tc)
 		{ SOCK_STREAM,   LB, x, ADDR, x, F, F },
 		{ SOCK_STREAM,   LB, x, PORT, x, F, F },
 		{ SOCK_STREAM,   LB, x,   LB, x, R, F },
+		{ SOCK_STREAM,    0, x,    0, o, F, F },
+		{ SOCK_STREAM,    0, x, ADDR, o, R, F },
+		{ SOCK_STREAM,    0, x, PORT, o, R, F }, /* bug? */
+		{ SOCK_STREAM,    0, o,    0, x, F, F },
+		{ SOCK_STREAM,    0, o, ADDR, x, R, F }, /* too strict? */
+		{ SOCK_STREAM,    0, o, PORT, x, R, F }, /* bug? */
 		/*
 		 * ATM, expected result for SOCK_DGRAM is the same as for
 		 * SOCK_STREAM.  Thus the below is copy-and-paste of the above.
@@ -498,6 +504,12 @@ ATF_TC_BODY(multibind, tc)
 		{ SOCK_DGRAM,   LB, x, ADDR, x, F, F },
 		{ SOCK_DGRAM,   LB, x, PORT, x, F, F },
 		{ SOCK_DGRAM,   LB, x,   LB, x, R, F },
+		{ SOCK_DGRAM,    0, x,    0, o, F, F },
+		{ SOCK_DGRAM,    0, x, ADDR, o, R, F },
+		{ SOCK_DGRAM,    0, x, PORT, o, R, F }, /* bug? */
+		{ SOCK_DGRAM,    0, o,    0, x, F, F },
+		{ SOCK_DGRAM,    0, o, ADDR, x, R, F }, /* too strict? */
+		{ SOCK_DGRAM,    0, o, PORT, x, R, F }, /* bug? */
 #undef F
 #undef R
 #undef x
