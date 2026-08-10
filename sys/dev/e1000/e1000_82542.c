@@ -317,18 +317,43 @@ static s32 e1000_init_hw_82542(struct e1000_hw *hw)
 static s32 e1000_setup_link_82542(struct e1000_hw *hw)
 {
 	struct e1000_mac_info *mac = &hw->mac;
-	s32 ret_val;
+	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_setup_link_82542");
 
-	ret_val = e1000_set_default_fc_generic(hw);
-	if (ret_val)
-		goto out;
+	if (hw->fc.requested_mode == e1000_fc_default) {
+		ret_val = e1000_set_default_fc_generic(hw);
+		if (ret_val)
+			goto out;
+	}
 
-	hw->fc.requested_mode &= ~e1000_fc_tx_pause;
+	/* 82542 rev 2.0 cannot transmit PAUSE frames. */
+	if (hw->revision_id == E1000_REVISION_2) {
+		switch (hw->fc.requested_mode) {
+		case e1000_fc_tx_pause:
+			hw->fc.requested_mode = e1000_fc_none;
+			break;
+		case e1000_fc_full:
+			hw->fc.requested_mode = e1000_fc_rx_pause;
+			break;
+		default:
+			break;
+		}
+	}
 
-	if (mac->report_tx_early)
-		hw->fc.requested_mode &= ~e1000_fc_rx_pause;
+	/* Early transmit reporting is incompatible with receiving PAUSE. */
+	if (mac->report_tx_early) {
+		switch (hw->fc.requested_mode) {
+		case e1000_fc_rx_pause:
+			hw->fc.requested_mode = e1000_fc_none;
+			break;
+		case e1000_fc_full:
+			hw->fc.requested_mode = e1000_fc_tx_pause;
+			break;
+		default:
+			break;
+		}
+	}
 
 	/*
 	 * Save off the requested flow control mode for use later.  Depending
