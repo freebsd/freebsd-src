@@ -1933,9 +1933,10 @@ linker_preload_finish(void *arg)
 /*
  * Attempt to run after all DECLARE_MODULE SYSINITs.  Unfortunately they can be
  * scheduled at any subsystem and order, so run this as late as possible.  init
- * becomes runnable in SI_SUB_KTHREAD_INIT, so go slightly before that.
+ * becomes runnable in SI_SUB_KTHREAD_INIT / SI_ORDER_MIDDLE, so go slightly
+ * before that.
  */
-SYSINIT(preload_finish, SI_SUB_KTHREAD_INIT - 100, SI_ORDER_MIDDLE,
+SYSINIT(preload_finish, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST,
     linker_preload_finish, NULL);
 
 /*
