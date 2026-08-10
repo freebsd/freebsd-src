@@ -371,8 +371,9 @@ ufshci_sim_attach(struct ufshci_controller *ctrlr)
 
 	mtx_lock(&ctrlr->sc_mtx);
 	if (xpt_bus_register(ctrlr->ufshci_sim, ctrlr->dev, 0) != CAM_SUCCESS) {
+		/* cam_sim_free() with free_devq also frees the devq. */
 		cam_sim_free(ctrlr->ufshci_sim, /*free_devq*/ TRUE);
-		cam_simq_free(devq);
+		ctrlr->ufshci_sim = NULL;
 		mtx_unlock(&ctrlr->sc_mtx);
 		printf("Failed to create a bus\n");
 		return (ENOMEM);
@@ -383,7 +384,7 @@ ufshci_sim_attach(struct ufshci_controller *ctrlr)
 		CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_bus_deregister(cam_sim_path(ctrlr->ufshci_sim));
 		cam_sim_free(ctrlr->ufshci_sim, /*free_devq*/ TRUE);
-		cam_simq_free(devq);
+		ctrlr->ufshci_sim = NULL;
 		mtx_unlock(&ctrlr->sc_mtx);
 		printf("Failed to create a path\n");
 		return (ENOMEM);
