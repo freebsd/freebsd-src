@@ -632,11 +632,17 @@ ufshci_req_queue_timeout(void *arg)
 				ufshci_printf(ctrlr,
 				    "Recovery step 1: Timeout occurred. aborting the task(%d).\n",
 				    tr->req->request_upiu.header.task_tag);
-				ufshci_ctrlr_cmd_send_task_mgmt_request(ctrlr,
-				    ufshci_abort_complete, tr,
-				    UFSHCI_TASK_MGMT_FUNCTION_ABORT_TASK,
-				    tr->req->request_upiu.header.lun,
-				    tr->req->request_upiu.header.task_tag, 0);
+				if (ufshci_ctrlr_cmd_send_task_mgmt_request(ctrlr,
+					ufshci_abort_complete, tr,
+					UFSHCI_TASK_MGMT_FUNCTION_ABORT_TASK,
+					tr->req->request_upiu.header.lun,
+					tr->req->request_upiu.header.task_tag,
+					0) != 0) {
+					ufshci_req_queue_timeout_recovery(ctrlr,
+					    hwq);
+					idle = false;
+					break;
+				}
 			} else {
 				/* Recovery Step 2-5 */
 				ufshci_req_queue_timeout_recovery(ctrlr, hwq);
