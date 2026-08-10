@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 1, 2023
+.Dd August 9, 2026
 .Dt IXL 4
 .Os
 .Sh NAME
@@ -264,6 +264,16 @@ that does not match its own.
 Allow the VF to set its own Ethernet MAC address
 .It allow-promisc Pq bool
 Allow the VF to inspect all of the traffic sent to the port.
+.It vlan Pq vlan
+Set an access VLAN for the VF.
+Untagged frames sent by the VF are assigned to this VLAN, and the
+administrative VLAN tag is not presented to the VF on receive.
+The VF cannot change VLAN membership in access mode.
+The default value
+.Dq trunk
+allows the VF to register up to 16 VLANs through the virtual channel.
+VLAN 0 is always admitted in trunk mode so that priority-tagged traffic
+retains its priority information.
 .It num-queues Pq uint16_t
 Specify the number of queues the VF will have.
 By default, this is set to the number of MSI-X vectors supported by the VF

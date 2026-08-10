@@ -41,6 +41,11 @@ static void	ixl_vf_unregister_intr(struct i40e_hw *hw, uint32_t vpint_reg);
 static int	ixl_vc_opcode_level(uint16_t opcode);
 
 static int	ixl_vf_mac_valid(struct ixl_vf *vf, const uint8_t *addr);
+static int	ixl_vf_mac_index(struct ixl_vf *vf, const uint8_t *addr);
+static int	ixl_vf_program_mac(struct ixl_vf *vf, const uint8_t *addr);
+static void	ixl_vf_remove_mac(struct ixl_vf *vf, int index);
+static int	ixl_vf_set_vlan_filter(struct ixl_pf *pf, struct ixl_vf *vf,
+		    uint16_t vlan, bool add);
 
 static int	ixl_vf_alloc_vsi(struct ixl_pf *pf, struct ixl_vf *vf);
 static int	ixl_vf_setup_vsi(struct ixl_pf *pf, struct ixl_vf *vf);
@@ -106,6 +111,8 @@ ixl_initialize_sriov(struct ixl_pf *pf)
 	    IOV_SCHEMA_HASDEFAULT, FALSE);
 	pci_iov_schema_add_bool(vf_schema, "allow-promisc",
 	    IOV_SCHEMA_HASDEFAULT, FALSE);
+	pci_iov_schema_add_vlan(vf_schema, "vlan", IOV_SCHEMA_HASDEFAULT,
+	    VF_VLAN_TRUNK);
 	pci_iov_schema_add_uint16(vf_schema, "num-queues",
 	    IOV_SCHEMA_HASDEFAULT,
 	    max(1, min(hw->func_caps.num_msix_vectors_vf - 1, IAVF_MAX_QUEUES)));
@@ -150,13 +157,20 @@ ixl_vf_alloc_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 		   htole16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
 
 	vsi_ctx.info.valid_sections |= htole16(I40E_AQ_VSI_PROP_SECURITY_VALID);
-	vsi_ctx.info.sec_flags = 0;
+	vsi_ctx.info.sec_flags = I40E_AQ_VSI_SEC_FLAG_ENABLE_VLAN_CHK;
 	if (vf->vf_flags & VF_FLAG_MAC_ANTI_SPOOF)
 		vsi_ctx.info.sec_flags |= I40E_AQ_VSI_SEC_FLAG_ENABLE_MAC_CHK;
 
 	vsi_ctx.info.valid_sections |= htole16(I40E_AQ_VSI_PROP_VLAN_VALID);
-	vsi_ctx.info.port_vlan_flags = I40E_AQ_VSI_PVLAN_MODE_ALL |
-	    I40E_AQ_VSI_PVLAN_EMOD_NOTHING;
+	if (vf->default_vlan != 0) {
+		vsi_ctx.info.pvid = htole16(vf->default_vlan);
+		vsi_ctx.info.port_vlan_flags = I40E_AQ_VSI_PVLAN_MODE_TAGGED |
+		    I40E_AQ_VSI_PVLAN_INSERT_PVID |
+		    I40E_AQ_VSI_PVLAN_EMOD_STR;
+	} else {
+		vsi_ctx.info.port_vlan_flags = I40E_AQ_VSI_PVLAN_MODE_ALL |
+		    I40E_AQ_VSI_PVLAN_EMOD_NOTHING;
+	}
 
 	vsi_ctx.info.valid_sections |=
 	    htole16(I40E_AQ_VSI_PROP_QUEUE_MAP_VALID);
@@ -218,6 +232,19 @@ ixl_vf_setup_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 	vf->vsi.dev = pf->dev;
 
 	ixl_init_filters(&vf->vsi);
+	/*
+	 * For a trunk VSI, VLAN anti-spoofing requires an explicit VLAN 0
+	 * membership for untagged and priority-tagged traffic.
+	 */
+	error = ixl_vf_set_vlan_filter(pf, vf, vf->default_vlan, true);
+	if (error != 0) {
+		ixl_free_filters(&vf->vsi.ftl);
+		vf->vsi.num_hw_filters = 0;
+		i40e_aq_delete_element(&pf->hw, vf->vsi.seid, NULL);
+		vf->vsi.seid = 0;
+		vf->vsi.vsi_num = 0;
+		return (error);
+	}
 	return (0);
 }
 
@@ -461,6 +488,7 @@ ixl_reinit_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 	vf->vsi.num_macs = 0;
 	vf->vsi.num_vlans = 0;
 	bit_nclear(vf->vsi.vlans_map, 0, IXL_VLANS_MAP_LEN - 1);
+	vf->num_mac_filters = 0;
 
 	error = ixl_vf_setup_vsi(pf, vf);
 	if (error != 0)
@@ -1121,6 +1149,82 @@ ixl_vf_mac_valid(struct ixl_vf *vf, const uint8_t *addr)
 	return (0);
 }
 
+static int
+ixl_vf_mac_index(struct ixl_vf *vf, const uint8_t *addr)
+{
+	int i;
+
+	for (i = 0; i < vf->num_mac_filters; i++) {
+		if (ixl_ether_is_equal(vf->mac_filters[i], addr))
+			return (i);
+	}
+	return (-1);
+}
+
+static int
+ixl_vf_program_mac(struct ixl_vf *vf, const uint8_t *addr)
+{
+	struct ixl_vsi *vsi;
+	int vlan;
+
+	vsi = &vf->vsi;
+	if (vf->default_vlan != 0) {
+		ixl_add_filter(vsi, addr, vf->default_vlan);
+		if (ixl_find_filter(&vsi->ftl, addr, vf->default_vlan) == NULL)
+			return (ENOMEM);
+		return (0);
+	}
+	if (vsi->num_vlans == 0) {
+		ixl_add_filter(vsi, addr, IXL_VLAN_ANY);
+		if (ixl_find_filter(&vsi->ftl, addr, IXL_VLAN_ANY) == NULL)
+			return (ENOMEM);
+		return (0);
+	}
+
+	ixl_add_vlan_filters(vsi, addr);
+	if (ixl_find_filter(&vsi->ftl, addr, 0) == NULL)
+		return (ENOMEM);
+	for (vlan = 1; vlan < IXL_VLANS_MAP_LEN; vlan++) {
+		if (bit_test(vsi->vlans_map, vlan) &&
+		    ixl_find_filter(&vsi->ftl, addr, vlan) == NULL)
+			return (ENOMEM);
+	}
+	return (0);
+}
+
+static void
+ixl_vf_remove_mac(struct ixl_vf *vf, int index)
+{
+
+	ixl_del_all_vlan_filters(&vf->vsi, vf->mac_filters[index]);
+	if (index + 1 < vf->num_mac_filters) {
+		memmove(vf->mac_filters[index], vf->mac_filters[index + 1],
+		    (vf->num_mac_filters - index - 1) * ETHER_ADDR_LEN);
+	}
+	vf->num_mac_filters--;
+	vf->vsi.num_macs = vf->num_mac_filters;
+}
+
+static int
+ixl_vf_set_vlan_filter(struct ixl_pf *pf, struct ixl_vf *vf,
+    uint16_t vlan, bool add)
+{
+	struct i40e_aqc_add_remove_vlan_element_data element;
+	enum i40e_status_code status;
+
+	bzero(&element, sizeof(element));
+	element.vlan_tag = htole16(vlan);
+	if (add)
+		status = i40e_aq_add_vlan(&pf->hw, vf->vsi.seid, &element,
+		    1, NULL);
+	else
+		status = i40e_aq_remove_vlan(&pf->hw, vf->vsi.seid, &element,
+		    1, NULL);
+	if (status != I40E_SUCCESS)
+		return (ixl_adminq_err_to_errno(pf->hw.aq.asq_last_status));
+	return (0);
+}
+
 static void
 ixl_vf_add_mac_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
     uint16_t msg_size)
@@ -1128,7 +1232,7 @@ ixl_vf_add_mac_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 	struct virtchnl_ether_addr_list *addr_list;
 	struct virtchnl_ether_addr *addr;
 	struct ixl_vsi *vsi;
-	int i;
+	int i, j, new_total, old_num;
 
 	vsi = &vf->vsi;
 	addr_list = msg;
@@ -1139,20 +1243,50 @@ ixl_vf_add_mac_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 		return;
 	}
 
+	new_total = vf->num_mac_filters;
 	for (i = 0; i < addr_list->num_elements; i++) {
 		if (ixl_vf_mac_valid(vf, addr_list->list[i].addr) != 0) {
 			i40e_send_vf_nack(pf, vf,
 			    VIRTCHNL_OP_ADD_ETH_ADDR, I40E_ERR_PARAM);
 			return;
 		}
+		for (j = 0; j < i; j++) {
+			if (ixl_ether_is_equal(addr_list->list[i].addr,
+			    addr_list->list[j].addr))
+				break;
+		}
+		if (j == i && ixl_vf_mac_index(vf,
+		    addr_list->list[i].addr) < 0)
+			new_total++;
+	}
+	if (new_total > IXL_VF_MAX_MAC_FILTERS) {
+		i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ADD_ETH_ADDR,
+		    I40E_ERR_NO_MEMORY);
+		return;
 	}
 
+	old_num = vf->num_mac_filters;
 	for (i = 0; i < addr_list->num_elements; i++) {
 		addr = &addr_list->list[i];
-		ixl_add_filter(vsi, addr->addr, IXL_VLAN_ANY);
+		if (ixl_vf_mac_index(vf, addr->addr) >= 0)
+			continue;
+		if (ixl_vf_program_mac(vf, addr->addr) != 0)
+			goto fail;
+		bcopy(addr->addr, vf->mac_filters[vf->num_mac_filters],
+		    ETHER_ADDR_LEN);
+		vf->num_mac_filters++;
 	}
+	vsi->num_macs = vf->num_mac_filters;
 
 	ixl_send_vf_ack(pf, vf, VIRTCHNL_OP_ADD_ETH_ADDR);
+	return;
+
+fail:
+	ixl_del_all_vlan_filters(vsi, addr->addr);
+	while (vf->num_mac_filters > old_num)
+		ixl_vf_remove_mac(vf, vf->num_mac_filters - 1);
+	i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ADD_ETH_ADDR,
+	    I40E_ERR_NO_MEMORY);
 }
 
 static void
@@ -1162,7 +1296,7 @@ ixl_vf_del_mac_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 	struct virtchnl_ether_addr_list *addr_list;
 	struct virtchnl_ether_addr *addr;
 	struct ixl_vsi *vsi;
-	int i;
+	int i, j;
 
 	vsi = &vf->vsi;
 	addr_list = msg;
@@ -1180,11 +1314,24 @@ ixl_vf_del_mac_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 			    VIRTCHNL_OP_DEL_ETH_ADDR, I40E_ERR_PARAM);
 			return;
 		}
+		if (ixl_vf_mac_index(vf, addr->addr) < 0) {
+			i40e_send_vf_nack(pf, vf,
+			    VIRTCHNL_OP_DEL_ETH_ADDR, I40E_ERR_PARAM);
+			return;
+		}
+		for (j = 0; j < i; j++) {
+			if (ixl_ether_is_equal(addr->addr,
+			    addr_list->list[j].addr)) {
+				i40e_send_vf_nack(pf, vf,
+				    VIRTCHNL_OP_DEL_ETH_ADDR, I40E_ERR_PARAM);
+				return;
+			}
+		}
 	}
 
 	for (i = 0; i < addr_list->num_elements; i++) {
 		addr = &addr_list->list[i];
-		ixl_del_filter(&vf->vsi, addr->addr, IXL_VLAN_ANY);
+		ixl_vf_remove_mac(vf, ixl_vf_mac_index(vf, addr->addr));
 	}
 
 	ixl_send_vf_ack(pf, vf, VIRTCHNL_OP_DEL_ETH_ADDR);
@@ -1210,7 +1357,8 @@ ixl_vf_add_vlan_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 {
 	struct virtchnl_vlan_filter_list *filter_list;
 	enum i40e_status_code code;
-	int i;
+	uint16_t added[IXL_VF_MAX_VLAN_FILTERS];
+	int i, j, nadded;
 
 	filter_list = msg;
 
@@ -1226,12 +1374,32 @@ ixl_vf_add_vlan_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 		return;
 	}
 
+	nadded = 0;
 	for (i = 0; i < filter_list->num_elements; i++) {
 		if (filter_list->vlan_id[i] > EVL_VLID_MASK) {
 			i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ADD_VLAN,
 			    I40E_ERR_PARAM);
 			return;
 		}
+		if (filter_list->vlan_id[i] == 0 ||
+		    bit_test(vf->vsi.vlans_map, filter_list->vlan_id[i]))
+			continue;
+		for (j = 0; j < nadded; j++) {
+			if (added[j] == filter_list->vlan_id[i])
+				break;
+		}
+		if (j == nadded && nadded == IXL_VF_MAX_VLAN_FILTERS) {
+			i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ADD_VLAN,
+			    I40E_ERR_NO_MEMORY);
+			return;
+		}
+		if (j == nadded)
+			added[nadded++] = filter_list->vlan_id[i];
+	}
+	if (vf->vsi.num_vlans + nadded > IXL_VF_MAX_VLAN_FILTERS) {
+		i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ADD_VLAN,
+		    I40E_ERR_NO_MEMORY);
+		return;
 	}
 
 	code = ixl_vf_enable_vlan_strip(pf, vf);
@@ -1241,10 +1409,39 @@ ixl_vf_add_vlan_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 		return;
 	}
 
-	for (i = 0; i < filter_list->num_elements; i++)
-		ixl_add_filter(&vf->vsi, vf->mac, filter_list->vlan_id[i]);
+	for (i = 0; i < nadded; i++) {
+		if (ixl_vf_set_vlan_filter(pf, vf, added[i], true) != 0)
+			goto fail_vlan;
+	}
+	for (i = 0; i < nadded; i++) {
+		vf->vsi.num_vlans++;
+		bit_set(vf->vsi.vlans_map, added[i]);
+		for (j = 0; j < vf->num_mac_filters; j++) {
+			ixl_add_filter(&vf->vsi, vf->mac_filters[j], added[i]);
+			if (ixl_find_filter(&vf->vsi.ftl,
+			    vf->mac_filters[j], added[i]) == NULL)
+				goto fail_filters;
+		}
+	}
 
 	ixl_send_vf_ack(pf, vf, VIRTCHNL_OP_ADD_VLAN);
+	return;
+
+fail_filters:
+	for (j = 0; j < vf->num_mac_filters; j++)
+		ixl_del_all_vlan_filters(&vf->vsi, vf->mac_filters[j]);
+	for (j = 0; j <= i; j++) {
+		bit_clear(vf->vsi.vlans_map, added[j]);
+		vf->vsi.num_vlans--;
+	}
+	for (j = 0; j < vf->num_mac_filters; j++)
+		(void)ixl_vf_program_mac(vf, vf->mac_filters[j]);
+	i = nadded;
+fail_vlan:
+	while (i-- > 0)
+		(void)ixl_vf_set_vlan_filter(pf, vf, added[i], false);
+	i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ADD_VLAN,
+	    I40E_ERR_ADMIN_QUEUE_ERROR);
 }
 
 static void
@@ -1252,7 +1449,8 @@ ixl_vf_del_vlan_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
     uint16_t msg_size)
 {
 	struct virtchnl_vlan_filter_list *filter_list;
-	int i;
+	uint16_t removed[IXL_VF_MAX_VLAN_FILTERS];
+	int i, j, nremoved;
 
 	filter_list = msg;
 
@@ -1262,12 +1460,29 @@ ixl_vf_del_vlan_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 		return;
 	}
 
+	nremoved = 0;
 	for (i = 0; i < filter_list->num_elements; i++) {
 		if (filter_list->vlan_id[i] > EVL_VLID_MASK) {
 			i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_DEL_VLAN,
 			    I40E_ERR_PARAM);
 			return;
 		}
+		if (filter_list->vlan_id[i] == 0)
+			continue;
+		if (!bit_test(vf->vsi.vlans_map,
+		    filter_list->vlan_id[i])) {
+			i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_DEL_VLAN,
+			    I40E_ERR_PARAM);
+			return;
+		}
+		for (j = 0; j < nremoved; j++) {
+			if (removed[j] == filter_list->vlan_id[i]) {
+				i40e_send_vf_nack(pf, vf,
+				    VIRTCHNL_OP_DEL_VLAN, I40E_ERR_PARAM);
+				return;
+			}
+		}
+		removed[nremoved++] = filter_list->vlan_id[i];
 	}
 
 	if (!(vf->vf_flags & VF_FLAG_VLAN_CAP)) {
@@ -1276,10 +1491,25 @@ ixl_vf_del_vlan_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 		return;
 	}
 
-	for (i = 0; i < filter_list->num_elements; i++)
-		ixl_del_filter(&vf->vsi, vf->mac, filter_list->vlan_id[i]);
+	for (i = 0; i < nremoved; i++) {
+		if (ixl_vf_set_vlan_filter(pf, vf, removed[i], false) != 0)
+			goto fail;
+	}
+	for (i = 0; i < nremoved; i++) {
+		bit_clear(vf->vsi.vlans_map, removed[i]);
+		vf->vsi.num_vlans--;
+		for (j = 0; j < vf->num_mac_filters; j++)
+			ixl_del_filter(&vf->vsi, vf->mac_filters[j], removed[i]);
+	}
 
 	ixl_send_vf_ack(pf, vf, VIRTCHNL_OP_DEL_VLAN);
+	return;
+
+fail:
+	while (i-- > 0)
+		(void)ixl_vf_set_vlan_filter(pf, vf, removed[i], true);
+	i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_DEL_VLAN,
+	    I40E_ERR_ADMIN_QUEUE_ERROR);
 }
 
 static void
@@ -1888,11 +2118,17 @@ ixl_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 	char sysctl_name[IXL_QUEUE_NAME_LEN];
 	struct sysctl_ctx_list sysctl_ctx;
 	struct ixl_vf *vf;
-	const void *mac;
+	const uint8_t *mac;
 	size_t size;
 	int cleanup_error, error;
 	int vf_num_queues;
+	uint64_t configured_vlan;
 
+	if (vfnum >= pf->num_vfs)
+		return (EINVAL);
+	configured_vlan = nvlist_get_number(params, "vlan");
+	if (configured_vlan == 0 || configured_vlan > VF_VLAN_TRUNK)
+		return (EINVAL);
 	vf = &pf->vfs[vfnum];
 	if (vf->vf_flags & VF_FLAG_ENABLED)
 		return (EBUSY);
@@ -1903,6 +2139,8 @@ ixl_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 	vf->vf_num = vfnum;
 	vf->vsi.back = pf;
 	vf->vf_flags = VF_FLAG_ENABLED;
+	vf->default_vlan = configured_vlan == VF_VLAN_TRUNK ? 0 :
+	    (uint16_t)configured_vlan;
 
 	/* Reserve queue allocation from PF */
 	vf_num_queues = nvlist_get_number(params, "num-queues");
@@ -1912,6 +2150,11 @@ ixl_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 
 	if (nvlist_exists_binary(params, "mac-addr")) {
 		mac = nvlist_get_binary(params, "mac-addr", &size);
+		if (size != ETHER_ADDR_LEN || ETHER_IS_ZERO(mac) ||
+		    ETHER_IS_MULTICAST(mac)) {
+			error = EINVAL;
+			goto out;
+		}
 		bcopy(mac, vf->mac, ETHER_ADDR_LEN);
 
 		if (nvlist_get_bool(params, "allow-set-mac"))
@@ -1929,7 +2172,8 @@ ixl_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 	if (nvlist_get_bool(params, "allow-promisc"))
 		vf->vf_flags |= VF_FLAG_PROMISC_CAP;
 
-	vf->vf_flags |= VF_FLAG_VLAN_CAP;
+	if (vf->default_vlan == 0)
+		vf->vf_flags |= VF_FLAG_VLAN_CAP;
 
 	/* VF needs to be reset before it can be used */
 	error = ixl_reset_vf(pf, vf);

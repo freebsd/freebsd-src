@@ -1934,8 +1934,20 @@ ixl_if_vf_status(if_ctx_t ctx, nvlist_t *status)
 		    (vf->vf_flags & VF_FLAG_INITIALIZED) != 0);
 		nvlist_add_binary(vfs[i], IFVF_STATUS_MAC, vf->mac,
 		    ETHER_ADDR_LEN);
-		nvlist_add_string(vfs[i], IFVF_STATUS_VLAN_MODE,
-		    IFVF_VLAN_MODE_TRUNK);
+		if (vf->default_vlan == 0) {
+			nvlist_add_string(vfs[i], IFVF_STATUS_VLAN_MODE,
+			    IFVF_VLAN_MODE_TRUNK);
+			nvlist_add_number(vfs[i], IFVF_STATUS_VLAN_COUNT,
+			    vf->vsi.num_vlans);
+			nvlist_add_number(vfs[i], IFVF_STATUS_VLAN_LIMIT,
+			    IXL_VF_MAX_VLAN_FILTERS);
+		} else {
+			nvlist_add_string(vfs[i], IFVF_STATUS_VLAN_MODE,
+			    IFVF_VLAN_MODE_ACCESS);
+			nvlist_add_number(vfs[i], IFVF_STATUS_VLAN,
+			    vf->default_vlan);
+			nvlist_add_number(vfs[i], IFVF_STATUS_VLAN_COUNT, 1);
+		}
 		nvlist_add_number(vfs[i], IFVF_STATUS_NUM_QUEUES,
 		    vf->qtag.num_active);
 		nvlist_add_bool(vfs[i], IFVF_STATUS_ALLOW_SET_MAC,
