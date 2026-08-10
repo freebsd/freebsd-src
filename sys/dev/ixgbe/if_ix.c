@@ -389,6 +389,7 @@ static device_method_t ixgbe_if_methods[] = {
 	DEVMETHOD(ifdi_iov_init, ixgbe_if_iov_init),
 	DEVMETHOD(ifdi_iov_uninit, ixgbe_if_iov_uninit),
 	DEVMETHOD(ifdi_iov_vf_add, ixgbe_if_iov_vf_add),
+	DEVMETHOD(ifdi_vf_status, ixgbe_if_vf_status),
 #endif /* PCI_IOV */
 	DEVMETHOD_END
 };
@@ -1379,7 +1380,7 @@ ixgbe_if_attach_post(if_ctx_t ctx)
 	sc->advertise = ixgbe_get_default_advertise(sc);
 
 	if (sc->feat_cap & IXGBE_FEATURE_SRIOV)
-		ixgbe_define_iov_schemas(dev, &error);
+		ixgbe_define_iov_schemas(sc, &error);
 
 	/* Add sysctls */
 	ixgbe_add_device_sysctls(ctx);

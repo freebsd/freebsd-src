@@ -497,6 +497,7 @@ struct ixgbe_softc {
 	sbintime_t		iov_recovery_time;
 	bool			iov_recovery_stop;
 	uint8_t			iov_recovery_cursor;
+	bool			iov_attached;
 	uint64_t		iov_dma_abort_events;
 	uint64_t		iov_dma_abort_flr_failures;
 	uint64_t		iov_dma_abort_quarantines;
