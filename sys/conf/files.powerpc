@@ -96,6 +96,7 @@ dev/dpaa/dpaa_eth.c		optional	dpaa
 dev/dpaa/fman.c			optional	dpaa fdt
 dev/dpaa/fman_fdt.c		optional	dpaa fdt
 dev/dpaa/fman_if.m		optional	dpaa
+dev/dpaa/fman_keygen.c		optional	dpaa
 dev/dpaa/fman_mdio.c		optional	dpaa fdt
 dev/dpaa/fman_port_if.m		optional	dpaa
 dev/dpaa/fman_port.c		optional	dpaa

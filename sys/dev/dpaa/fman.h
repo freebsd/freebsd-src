@@ -46,6 +46,19 @@
 #define	FM_FD_ERR_PHE		0x00000020
 #define	FM_FD_ERR_BLE		0x00000008
 
+/* Common defines (Next Invoked Action) */
+#define	NIA_ORDER_RESTORE	0x00800000
+#define	NIA_ENG_BMI		0x00500000
+#define	NIA_ENG_QMI_DEQ		0x00580000
+#define	NIA_ENG_QMI_ENQ		0x00540000
+#define	NIA_ENG_HWP		0x00440000
+#define	NIA_ENG_HWK		0x00480000
+#define	NIA_BMI_AC_TX_RELEASE	0x000002c0
+#define	NIA_BMI_AC_TX		0x00000274
+#define	NIA_BMI_AC_RELEASE	0x000000c0
+#define	NIA_BMI_AC_ENQ_FRAME	0x00000002
+#define	NIA_BMI_AC_FETCH_ALLFRAME	0x0000020c
+
 /**
  * FMan driver instance data.
  */
@@ -89,6 +102,15 @@ struct fman_softc {
 
 	uint32_t qman_channel_base;
 	uint32_t qman_channels;
+
+	/*
+	 * FMan KeyGen (Parse-Classify-Distribute) state.  See
+	 * fman_keygen.c.  32 KG schemes fit in a u32 bitmap; the
+	 * port->scheme table is sized to the KG hardware limit of
+	 * 64 possible port IDs.
+	 */
+	uint32_t sc_kg_schemes_used;
+	int8_t	 sc_kg_port_scheme[64];
 };
 
 struct fman_port_init_params {
