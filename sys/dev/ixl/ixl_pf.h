@@ -392,6 +392,7 @@ int	ixl_pf_reset(struct ixl_pf *);
 
 #ifdef PCI_IOV
 void	ixl_notify_vfs_reset(struct ixl_pf *);
+int	ixl_quiesce_vfs_for_reset(struct ixl_pf *);
 int	ixl_rebuild_vfs_after_reset(struct ixl_pf *);
 int	ixl_reset_vf_on_mdd(struct ixl_pf *, uint16_t);
 #endif

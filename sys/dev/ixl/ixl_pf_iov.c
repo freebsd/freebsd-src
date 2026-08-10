@@ -2065,6 +2065,117 @@ ixl_reset_vf_on_mdd(struct ixl_pf *pf, uint16_t vfnum)
 	return (ixl_reset_vf(pf, vf));
 }
 
+/*
+ * Hold every configured VF in reset and drain its PCIe transactions.
+ * Starting all VF resets before polling amortizes the hardware reset delay
+ * across the set.  This is used both before the device reset and while its
+ * replacement firmware topology is constructed.
+ */
+static int
+ixl_hold_vfs_in_reset(struct ixl_pf *pf)
+{
+	struct i40e_hw *hw;
+	struct ixl_vf *vf;
+	uint32_t vfrstat, vfrtrig;
+	int error, first_error, i, retry;
+	bool all_done;
+
+	hw = &pf->hw;
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (!(vf->vf_flags & VF_FLAG_ENABLED))
+			continue;
+		vf->vf_flags &= ~VF_FLAG_INITIALIZED;
+		vfrtrig = rd32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num));
+		vfrtrig |= I40E_VPGEN_VFRTRIG_VFSWR_MASK;
+		wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num), vfrtrig);
+	}
+	ixl_flush(hw);
+
+	first_error = 0;
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (!(vf->vf_flags & VF_FLAG_ENABLED))
+			continue;
+		error = ixl_flush_pcie(pf, vf);
+		if (error != 0) {
+			device_printf(pf->dev,
+			    "Timed out draining PCIe transactions on VF-%d\n", i);
+			if (first_error == 0)
+				first_error = error;
+		}
+	}
+
+	for (retry = 0; retry < IXL_VF_RESET_TIMEOUT; retry++) {
+		DELAY(1000);
+		all_done = true;
+		for (i = 0; i < pf->num_vfs; i++) {
+			vf = &pf->vfs[i];
+			if (!(vf->vf_flags & VF_FLAG_ENABLED))
+				continue;
+			vfrstat = rd32(hw, I40E_VPGEN_VFRSTAT(vf->vf_num));
+			if (!(vfrstat & I40E_VPGEN_VFRSTAT_VFRD_MASK)) {
+				all_done = false;
+				break;
+			}
+		}
+		if (all_done)
+			return (first_error);
+	}
+
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (!(vf->vf_flags & VF_FLAG_ENABLED))
+			continue;
+		vfrstat = rd32(hw, I40E_VPGEN_VFRSTAT(vf->vf_num));
+		if (!(vfrstat & I40E_VPGEN_VFRSTAT_VFRD_MASK))
+			device_printf(pf->dev,
+			    "VF-%d failed to enter reset\n", i);
+	}
+	return (first_error != 0 ? first_error : ETIMEDOUT);
+}
+
+/*
+ * Stop VF DMA during the reset-warning interval, before VF drivers may
+ * release their buffers.  Holding VFR also prevents an uncooperative VF
+ * from re-enabling a queue before the device reset begins.
+ */
+int
+ixl_quiesce_vfs_for_reset(struct ixl_pf *pf)
+{
+	struct ixl_vf *vf;
+	int error, first_error, i;
+
+	if (pf->num_vfs == 0)
+		return (0);
+	first_error = ixl_hold_vfs_in_reset(pf);
+
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (!(vf->vf_flags & VF_FLAG_ENABLED))
+			continue;
+		error = ixl_disable_rings(pf, &vf->vsi, &vf->qtag);
+		if (error != 0 && first_error == 0)
+			first_error = error;
+	}
+	/* Hardware may need up to 50 ms to finish disabling RX queues. */
+	DELAY(50000);
+
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (!(vf->vf_flags & VF_FLAG_ENABLED))
+			continue;
+		error = ixl_flush_pcie(pf, vf);
+		if (error != 0) {
+			device_printf(pf->dev,
+			    "PCIe transactions remain pending on VF-%d\n", i);
+			if (first_error == 0)
+				first_error = error;
+		}
+	}
+	return (first_error);
+}
+
 int
 ixl_rebuild_vfs_after_reset(struct ixl_pf *pf)
 {
@@ -2075,6 +2186,8 @@ ixl_rebuild_vfs_after_reset(struct ixl_pf *pf)
 
 	hw = &pf->hw;
 	pf->veb_seid = 0;
+	/* The reset-warning path already stopped and drained the old rings. */
+	error = ixl_hold_vfs_in_reset(pf);
 	for (i = 0; i < pf->num_vfs; i++) {
 		vf = &pf->vfs[i];
 		if (!(vf->vf_flags & VF_FLAG_ENABLED))
@@ -2098,6 +2211,8 @@ ixl_rebuild_vfs_after_reset(struct ixl_pf *pf)
 		vf->mdd_event_pending = false;
 		vf->mdd_reset_pending = false;
 	}
+	if (error != 0)
+		return (error);
 
 	error = ixl_setup_iov_switch(pf);
 	if (error != 0)
@@ -2109,6 +2224,11 @@ ixl_rebuild_vfs_after_reset(struct ixl_pf *pf)
 		if (!(vf->vf_flags & VF_FLAG_ENABLED))
 			continue;
 
+		/*
+		 * VFR resets the VF queue-mapping registers.  Release it before
+		 * programming the replacement VSI and mappings, but do not publish
+		 * VFACTIVE until reconstruction is complete.
+		 */
 		wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_num),
 		    VIRTCHNL_VFR_COMPLETED);
 		vfrtrig = rd32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num));
@@ -2119,6 +2239,8 @@ ixl_rebuild_vfs_after_reset(struct ixl_pf *pf)
 		if (error != 0) {
 			device_printf(pf->dev,
 			    "Failed to rebuild VF-%d: %d\n", i, error);
+			vfrtrig |= I40E_VPGEN_VFRTRIG_VFSWR_MASK;
+			wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num), vfrtrig);
 			if (first_error == 0)
 				first_error = error;
 			continue;

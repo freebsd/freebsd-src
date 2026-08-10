@@ -941,10 +941,17 @@ ixl_prepare_for_reset(struct ixl_pf *pf, bool is_up)
 {
 	struct i40e_hw *hw = &pf->hw;
 	device_t dev = pf->dev;
-	int error = 0;
+	int error, first_error;
 
+	first_error = 0;
 #ifdef PCI_IOV
 	ixl_notify_vfs_reset(pf);
+	error = ixl_quiesce_vfs_for_reset(pf);
+	if (error != 0) {
+		device_printf(dev, "Failed to quiesce one or more VFs: %d\n",
+		    error);
+		first_error = error;
+	}
 #endif
 	if (is_up)
 		ixl_if_stop(pf->vsi.ctx);
@@ -954,12 +961,15 @@ ixl_prepare_for_reset(struct ixl_pf *pf, bool is_up)
 	ixl_disable_intr0(hw);
 
 	error = i40e_shutdown_adminq(hw);
-	if (error)
+	if (error) {
 		device_printf(dev,
 		    "Shutdown Admin queue failed with code %d\n", error);
+		if (first_error == 0)
+			first_error = error;
+	}
 
 	ixl_pf_qmgr_release(&pf->qmgr, &pf->qtag);
-	return (error);
+	return (first_error);
 }
 
 int
