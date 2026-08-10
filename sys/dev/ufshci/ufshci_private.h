@@ -434,6 +434,7 @@ uint8_t ufshci_sim_translate_scsi_to_ufs_lun(lun_id_t scsi_lun);
 uint64_t ufshci_sim_translate_ufs_to_scsi_lun(uint8_t ufs_lun);
 int ufshci_sim_attach(struct ufshci_controller *ctrlr);
 void ufshci_sim_detach(struct ufshci_controller *ctrlr);
+void ufshci_sim_release_wlun_periph(struct ufshci_controller *ctrlr);
 struct cam_periph *ufshci_sim_find_periph(struct ufshci_controller *ctrlr,
     uint8_t wlun);
 int ufshci_sim_send_ssu(struct ufshci_controller *ctrlr, bool start,

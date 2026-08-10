@@ -393,6 +393,20 @@ ufshci_sim_attach(struct ufshci_controller *ctrlr)
 	return (0);
 }
 
+/*
+ * Drop the cached WLUN periph reference. cam_periph_release() takes the
+ * CAM device lock itself, so call this without sc_mtx held: CAM takes
+ * the device lock before the SIM lock, not the other way around.
+ */
+void
+ufshci_sim_release_wlun_periph(struct ufshci_controller *ctrlr)
+{
+	if (ctrlr->ufs_device_wlun_periph != NULL) {
+		cam_periph_release(ctrlr->ufs_device_wlun_periph);
+		ctrlr->ufs_device_wlun_periph = NULL;
+	}
+}
+
 void
 ufshci_sim_detach(struct ufshci_controller *ctrlr)
 {
@@ -425,6 +439,10 @@ ufshci_sim_detach(struct ufshci_controller *ctrlr)
 	}
 }
 
+/*
+ * On success this returns a referenced periph; the caller is responsible
+ * for dropping the reference with cam_periph_release().
+ */
 struct cam_periph *
 ufshci_sim_find_periph(struct ufshci_controller *ctrlr, uint8_t wlun)
 {
@@ -446,6 +464,8 @@ ufshci_sim_find_periph(struct ufshci_controller *ctrlr, uint8_t wlun)
 	while (1) {
 		xpt_path_lock(path);
 		periph = cam_periph_find(path, "pass");
+		if (periph != NULL && cam_periph_acquire(periph) != 0)
+			periph = NULL;
 		xpt_path_unlock(path);
 
 		if (periph)
@@ -474,17 +494,23 @@ ufshci_sim_send_ssu(struct ufshci_controller *ctrlr, bool start,
 	union ccb *ccb;
 	int err;
 
-	/* Acquire periph reference */
-	if (periph && cam_periph_acquire(periph) != 0) {
+	/* Acquire a periph reference for the duration of this call. */
+	if (periph != NULL && cam_periph_acquire(periph) != 0) {
+		/* The cached periph is going away; drop its reference. */
+		cam_periph_release(periph);
+		ctrlr->ufs_device_wlun_periph = NULL;
 		periph = NULL;
 	}
 
 	if (periph == NULL) {
-		/* If the periph device does not exist, it will try to find it
-		 * again */
+		/*
+		 * If the periph device does not exist, try to find it again.
+		 * The reference returned by ufshci_sim_find_periph() is used
+		 * for this call; take an extra one for the cached pointer.
+		 */
 		periph = ufshci_sim_find_periph(ctrlr,
 		    (uint8_t)UFSHCI_WLUN_UFS_DEVICE);
-		if (periph)
+		if (periph != NULL && cam_periph_acquire(periph) == 0)
 			ctrlr->ufs_device_wlun_periph = periph;
 	}
 
