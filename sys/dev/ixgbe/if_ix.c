@@ -227,7 +227,7 @@ static void ixgbe_enable_queue(struct ixgbe_softc *, u32);
 static void ixgbe_disable_queue(struct ixgbe_softc *, u32);
 static void ixgbe_add_device_sysctls(if_ctx_t);
 static int  ixgbe_allocate_pci_resources(if_ctx_t);
-static int  ixgbe_setup_low_power_mode(if_ctx_t);
+static int  ixgbe_setup_low_power_mode(if_ctx_t, bool);
 
 static void ixgbe_config_dmac(struct ixgbe_softc *);
 static void ixgbe_configure_ivars(struct ixgbe_softc *);
@@ -253,7 +253,9 @@ static void ixgbe_update_stats_counters(struct ixgbe_softc *);
 static void ixgbe_config_link(if_ctx_t);
 static void ixgbe_get_slot_info(struct ixgbe_softc *);
 static void ixgbe_fw_mode_timer(void *);
-static void ixgbe_check_wol_support(struct ixgbe_softc *);
+static void ixgbe_configure_wakeup(if_ctx_t);
+static void ixgbe_configure_wakeup_mta(if_ctx_t);
+static void ixgbe_prepare_wakeup(if_ctx_t, bool);
 static void ixgbe_enable_rx_drop(struct ixgbe_softc *);
 static void ixgbe_disable_rx_drop(struct ixgbe_softc *);
 
@@ -288,8 +290,6 @@ static int  ixgbe_sysctl_rdt_handler(SYSCTL_HANDLER_ARGS);
 static int  ixgbe_sysctl_tdt_handler(SYSCTL_HANDLER_ARGS);
 static int  ixgbe_sysctl_tdh_handler(SYSCTL_HANDLER_ARGS);
 static int  ixgbe_sysctl_eee_state(SYSCTL_HANDLER_ARGS);
-static int  ixgbe_sysctl_wol_enable(SYSCTL_HANDLER_ARGS);
-static int  ixgbe_sysctl_wufc(SYSCTL_HANDLER_ARGS);
 static int  ixgbe_sysctl_tso_tcp_flags_mask(SYSCTL_HANDLER_ARGS);
 
 static int  ixgbe_sysctl_debug_dump_set_clusters(SYSCTL_HANDLER_ARGS);
@@ -1177,9 +1177,6 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 
 	ixgbe_init_device_features(sc);
 
-	/* Enable WoL (if supported) */
-	ixgbe_check_wol_support(sc);
-
 	/* Verify adapter fan is still functional (if applicable) */
 	if (sc->feat_en & IXGBE_FEATURE_FAN_FAIL) {
 		u32 esdp = IXGBE_READ_REG(hw, IXGBE_ESDP);
@@ -1298,6 +1295,7 @@ ixgbe_if_attach_pre(if_ctx_t ctx)
 	scctx->isc_txrx = &ixgbe_txrx;
 
 	scctx->isc_capabilities = scctx->isc_capenable = IXGBE_CAPS;
+	ixgbe_configure_wakeup(ctx);
 
 	return (0);
 
@@ -1418,33 +1416,93 @@ err:
 } /* ixgbe_if_attach_post */
 
 /************************************************************************
- * ixgbe_check_wol_support
+ * ixgbe_configure_wakeup
  *
- *   Checks whether the adapter's ports are capable of
- *   Wake On LAN by reading the adapter's NVM.
- *
- *   Sets each port's hw->wol_enabled value depending
- *   on the value read here.
+ *   Advertise the wake modes supported by this board and port.  The NVM
+ *   APME setting selects the initial magic-packet policy.
  ************************************************************************/
 static void
-ixgbe_check_wol_support(struct ixgbe_softc *sc)
+ixgbe_configure_wakeup(if_ctx_t ctx)
 {
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
+	if_softc_ctx_t scctx = iflib_get_softc_ctx(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
+	device_t dev = iflib_get_dev(ctx);
 	u16 dev_caps = 0;
+	u16 subdevice_id;
+	u16 wol_cap;
+	bool apme, supported;
 
-	/* Find out WoL support for port */
-	sc->wol_support = hw->wol_enabled = 0;
-	ixgbe_get_device_caps(hw, &dev_caps);
-	if ((dev_caps & IXGBE_DEVICE_CAPS_WOL_PORT0_1) ||
-	    ((dev_caps & IXGBE_DEVICE_CAPS_WOL_PORT0) &&
-	     hw->bus.func == 0))
-		sc->wol_support = hw->wol_enabled = 1;
+	supported = false;
+	subdevice_id = hw->subsystem_device_id;
+	if (hw->mac.ops.set_lan_id != NULL)
+		hw->mac.ops.set_lan_id(hw);
 
-	/* Save initial wake up filter configuration */
-	sc->wufc = IXGBE_READ_REG(hw, IXGBE_WUFC);
+	/* X540 and newer advertise per-port WoL support in the NVM. */
+	if (hw->mac.type >= ixgbe_mac_X540) {
+		if (ixgbe_get_device_caps(hw, &dev_caps) == IXGBE_SUCCESS) {
+			wol_cap = dev_caps & IXGBE_DEVICE_CAPS_WOL_MASK;
+			if (wol_cap == IXGBE_DEVICE_CAPS_WOL_PORT0_1 ||
+			    (wol_cap == IXGBE_DEVICE_CAPS_WOL_PORT0 &&
+			    hw->bus.func == 0))
+				supported = true;
+		}
+	} else if (hw->mac.type == ixgbe_mac_82599EB) {
+		/* 82599 WoL support is board and, in some cases, port specific. */
+		switch (hw->device_id) {
+		case IXGBE_DEV_ID_82599_SFP:
+			switch (subdevice_id) {
+			case IXGBE_SUBDEV_ID_82599_560FLR:
+			case IXGBE_SUBDEV_ID_82599_LOM_SNAP6:
+			case IXGBE_SUBDEV_ID_82599_SFP_WOL0:
+			case IXGBE_SUBDEV_ID_82599_SFP_2OCP:
+				supported = hw->bus.func == 0;
+				break;
+			case IXGBE_SUBDEV_ID_82599_SP_560FLR:
+			case IXGBE_SUBDEV_ID_82599_SFP:
+			case IXGBE_SUBDEV_ID_82599_RNDC:
+			case IXGBE_SUBDEV_ID_82599_ECNA_DP:
+			case IXGBE_SUBDEV_ID_82599_SFP_1OCP:
+			case IXGBE_SUBDEV_ID_82599_SFP_LOM_OEM1:
+			case IXGBE_SUBDEV_ID_82599_SFP_LOM_OEM2:
+				supported = true;
+				break;
+			default:
+				break;
+			}
+			break;
+		case IXGBE_DEV_ID_82599EN_SFP:
+			supported =
+			    subdevice_id == IXGBE_SUBDEV_ID_82599EN_SFP_OCP1;
+			break;
+		case IXGBE_DEV_ID_82599_COMBO_BACKPLANE:
+			supported =
+			    subdevice_id != IXGBE_SUBDEV_ID_82599_KX4_KR_MEZZ;
+			break;
+		case IXGBE_DEV_ID_82599_KX4:
+			supported = true;
+			break;
+		default:
+			break;
+		}
+	}
+	if (!pci_has_pme(dev, PCI_POWERSTATE_D3_HOT))
+		supported = false;
+	apme = supported &&
+	    (IXGBE_READ_REG(hw, IXGBE_GRC_BY_MAC(hw)) & IXGBE_GRC_APME) != 0;
 
-	return;
-} /* ixgbe_check_wol_support */
+	scctx->isc_capabilities &= ~IFCAP_WOL;
+	scctx->isc_capenable &= ~IFCAP_WOL;
+	if (supported) {
+		scctx->isc_capabilities |= IFCAP_WOL;
+		if (apme)
+			scctx->isc_capenable |= IFCAP_WOL_MAGIC;
+	}
+
+	/* hw->wol_enabled describes the policy active in hardware, not support. */
+	hw->wol_enabled = false;
+	sc->wol_filters = 0;
+} /* ixgbe_configure_wakeup */
 
 /************************************************************************
  * ixgbe_setup_interface
@@ -3764,19 +3822,6 @@ ixgbe_add_device_sysctls(if_ctx_t ctx)
 		    sc, 0, ixgbe_sysctl_dmac,
 		    "I", "DMA Coalesce");
 
-	/* for WoL-capable devices */
-	if (hw->device_id == IXGBE_DEV_ID_X550EM_X_10G_T) {
-		SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "wol_enable",
-		    CTLTYPE_INT | CTLFLAG_RW, sc, 0,
-		    ixgbe_sysctl_wol_enable, "I",
-		    "Enable/Disable Wake on LAN");
-
-		SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "wufc",
-		    CTLTYPE_U32 | CTLFLAG_RW,
-		    sc, 0, ixgbe_sysctl_wufc,
-		    "I", "Enable/Disable Wake Up Filters");
-	}
-
 	/* for X552/X557-AT devices */
 	if (hw->device_id == IXGBE_DEV_ID_X550EM_X_10G_T) {
 		struct sysctl_oid *phy_node;
@@ -3869,7 +3914,7 @@ ixgbe_if_detach(if_ctx_t ctx)
 
 	sc->iov_recovery_stop = true;
 
-	ixgbe_setup_low_power_mode(ctx);
+	ixgbe_setup_low_power_mode(ctx, false);
 
 	/* let hardware know driver is unloading */
 	ctrl_ext = IXGBE_READ_REG(&sc->hw, IXGBE_CTRL_EXT);
@@ -3890,64 +3935,144 @@ ixgbe_if_detach(if_ctx_t ctx)
 	return (0);
 } /* ixgbe_if_detach */
 
+static void
+ixgbe_prepare_wakeup(if_ctx_t ctx, bool arm_wake)
+{
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
+	struct ixgbe_hw *hw = &sc->hw;
+	if_t ifp = iflib_get_ifp(ctx);
+	int enabled;
+	u32 wufc;
+
+	enabled = arm_wake ?
+	    if_getcapenable(ifp) & if_getcapabilities(ifp) & IFCAP_WOL : 0;
+	wufc = 0;
+	if ((enabled & IFCAP_WOL_MAGIC) != 0)
+		wufc |= IXGBE_WUFC_MAG;
+	if ((enabled & IFCAP_WOL_UCAST) != 0)
+		wufc |= IXGBE_WUFC_EX;
+	if ((enabled & IFCAP_WOL_MCAST) != 0)
+		wufc |= IXGBE_WUFC_MC;
+	sc->wol_filters = wufc;
+	hw->wol_enabled = wufc != 0;
+
+	/* X550EM 10GBASE-T requires PHY reset suppression during the stop. */
+	if (hw->device_id == IXGBE_DEV_ID_X550EM_X_10G_T &&
+	    hw->phy.ops.enter_lplu != NULL)
+		hw->phy.reset_disable = true;
+}
+
+static u_int
+ixgbe_wakeup_mta_apply(void *arg, struct sockaddr_dl *sdl, u_int idx __unused)
+{
+	struct ixgbe_hw *hw = arg;
+
+	ixgbe_set_mta(hw, LLADDR(sdl));
+	return (1);
+}
+
+/* Restore multicast hashes needed by directed and multicast-magic wake. */
+static void
+ixgbe_configure_wakeup_mta(if_ctx_t ctx)
+{
+	struct ixgbe_softc *sc = iflib_get_softc(ctx);
+	struct ixgbe_hw *hw = &sc->hw;
+	u_int i, mcnt;
+
+	bzero(hw->mac.mta_shadow, sizeof(hw->mac.mta_shadow));
+	hw->addr_ctrl.mta_in_use = 0;
+	mcnt = if_foreach_llmaddr(iflib_get_ifp(ctx),
+	    ixgbe_wakeup_mta_apply, hw);
+	hw->addr_ctrl.num_mc_addrs = mcnt;
+	for (i = 0; i < hw->mac.mcft_size; i++)
+		IXGBE_WRITE_REG_ARRAY(hw, IXGBE_MTA(0), i,
+		    hw->mac.mta_shadow[i]);
+	IXGBE_WRITE_REG(hw, IXGBE_MCSTCTRL,
+	    (hw->addr_ctrl.mta_in_use != 0 ? IXGBE_MCSTCTRL_MFE : 0) |
+	    hw->mac.mc_filter_type);
+}
+
 /************************************************************************
  * ixgbe_setup_low_power_mode - LPLU/WoL preparation
  *
  *   Prepare the adapter/port for LPLU and/or WoL
  ************************************************************************/
 static int
-ixgbe_setup_low_power_mode(if_ctx_t ctx)
+ixgbe_setup_low_power_mode(if_ctx_t ctx, bool arm_wake)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
 	device_t dev = iflib_get_dev(ctx);
+	u32 fctrl, grc, wufc;
 	s32 error = 0;
 
-	if (!hw->wol_enabled)
-		ixgbe_set_phy_power(hw, false);
+	/* Snapshot wake policy before the terminal stop clears hardware state. */
+	ixgbe_prepare_wakeup(ctx, arm_wake);
+	wufc = sc->wol_filters;
+	ixgbe_if_stop(ctx);
 
 	/* Limit power management flow to X550EM baseT */
 	if (hw->device_id == IXGBE_DEV_ID_X550EM_X_10G_T &&
 	    hw->phy.ops.enter_lplu) {
-		/* Turn off support for APM wakeup. (Using ACPI instead) */
-		IXGBE_WRITE_REG(hw, IXGBE_GRC_BY_MAC(hw),
-		    IXGBE_READ_REG(hw, IXGBE_GRC_BY_MAC(hw)) & ~(u32)2);
-
-		/*
-		 * Clear Wake Up Status register to prevent any previous
-		 * wakeup events from waking us up immediately after we
-		 * suspend.
-		 */
-		IXGBE_WRITE_REG(hw, IXGBE_WUS, 0xffffffff);
-
-		/*
-		 * Program the Wakeup Filter Control register with user filter
-		 * settings
-		 */
-		IXGBE_WRITE_REG(hw, IXGBE_WUFC, sc->wufc);
-
-		/* Enable wakeups and power management in Wakeup Control */
-		IXGBE_WRITE_REG(hw, IXGBE_WUC,
-		    IXGBE_WUC_WKEN | IXGBE_WUC_PME_EN);
-
-		/* X550EM baseT adapters need a special LPLU flow */
-		hw->phy.reset_disable = true;
-		ixgbe_if_stop(ctx);
+		/* X550EM baseT adapters need a special LPLU flow. */
 		error = hw->phy.ops.enter_lplu(hw);
 		if (error)
 			device_printf(dev, "Error entering LPLU: %d\n",
 			    error);
 		hw->phy.reset_disable = false;
-	} else {
-		/* Just stop for other adapters */
-		ixgbe_if_stop(ctx);
+		error = 0;
 	}
 
 	/* Disable the 82599 link only when actually entering D3. */
 	if (hw->mac.type == ixgbe_mac_82599EB)
 		ixgbe_stop_mac_link_on_d3_82599(hw);
 
-	return error;
+	/*
+	 * Make ifconfig's ACPI policy authoritative.  All supported families,
+	 * including E610, implement the standard filters in WUFC; leaving the
+	 * NVM-selected APM path enabled would permit an unrequested magic wake.
+	 */
+	if (hw->mac.type != ixgbe_mac_82598EB) {
+		grc = IXGBE_READ_REG(hw, IXGBE_GRC_BY_MAC(hw));
+		IXGBE_WRITE_REG(hw, IXGBE_GRC_BY_MAC(hw),
+		    grc & ~IXGBE_GRC_APME);
+	}
+	IXGBE_WRITE_REG(hw, IXGBE_WUFC, 0);
+	IXGBE_WRITE_REG(hw, IXGBE_WUC, 0);
+	IXGBE_WRITE_REG(hw, IXGBE_WUS, 0xffffffff);
+	pci_clear_pme(dev);
+	if (wufc != 0) {
+		bcopy(if_getlladdr(iflib_get_ifp(ctx)), hw->mac.addr,
+		    IXGBE_ETH_LENGTH_OF_ADDRESS);
+		error = ixgbe_set_rar(hw, 0, hw->mac.addr, sc->pool,
+		    IXGBE_RAH_AV);
+		if (error != IXGBE_SUCCESS) {
+			device_printf(dev,
+			    "Could not restore unicast wake address: %d\n", error);
+			sc->wol_filters = 0;
+			hw->wol_enabled = false;
+			goto no_wake;
+		}
+
+		/* 82599 SFP+ ports need the laser for an optical wake packet. */
+		ixgbe_enable_tx_laser(hw);
+
+		/* Rebuild address filtering erased by the terminal reset. */
+		ixgbe_configure_wakeup_mta(ctx);
+		fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
+		fctrl |= IXGBE_FCTRL_BAM | IXGBE_FCTRL_MPE;
+		IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
+
+		IXGBE_WRITE_REG(hw, IXGBE_WUFC, wufc);
+		IXGBE_WRITE_REG(hw, IXGBE_WUC,
+		    IXGBE_WUC_WKEN | IXGBE_WUC_PME_EN);
+		pci_enable_pme(dev);
+		return (0);
+	}
+
+no_wake:
+	ixgbe_set_phy_power(hw, false);
+	return (error == IXGBE_SUCCESS ? 0 : EIO);
 } /* ixgbe_setup_low_power_mode */
 
 /************************************************************************
@@ -3960,9 +4085,11 @@ ixgbe_if_shutdown(if_ctx_t ctx)
 
 	INIT_DEBUGOUT("ixgbe_shutdown: begin");
 
-	error = ixgbe_setup_low_power_mode(ctx);
-
-	return (error);
+	error = ixgbe_setup_low_power_mode(ctx, true);
+	if (error != 0)
+		device_printf(iflib_get_dev(ctx),
+		    "Wake configuration failed during shutdown: %d\n", error);
+	return (0);
 } /* ixgbe_if_shutdown */
 
 /************************************************************************
@@ -3977,7 +4104,7 @@ ixgbe_if_suspend(if_ctx_t ctx)
 
 	INIT_DEBUGOUT("ixgbe_suspend: begin");
 
-	error = ixgbe_setup_low_power_mode(ctx);
+	error = ixgbe_setup_low_power_mode(ctx, true);
 
 	return (error);
 } /* ixgbe_if_suspend */
@@ -4002,10 +4129,18 @@ ixgbe_if_resume(if_ctx_t ctx)
 	wus = IXGBE_READ_REG(hw, IXGBE_WUS);
 	if (wus)
 		device_printf(dev, "Woken up by (WUS): %#010x\n",
-		    IXGBE_READ_REG(hw, IXGBE_WUS));
-	IXGBE_WRITE_REG(hw, IXGBE_WUS, 0xffffffff);
-	/* And clear WUFC until next low-power transition */
+		    wus);
+	/* Remove every device wake source before clearing PCI PME. */
 	IXGBE_WRITE_REG(hw, IXGBE_WUFC, 0);
+	if (hw->mac.type != ixgbe_mac_82598EB)
+		IXGBE_WRITE_REG(hw, IXGBE_GRC_BY_MAC(hw),
+		    IXGBE_READ_REG(hw, IXGBE_GRC_BY_MAC(hw)) &
+		    ~IXGBE_GRC_APME);
+	IXGBE_WRITE_REG(hw, IXGBE_WUC, 0);
+	IXGBE_WRITE_REG(hw, IXGBE_WUS, 0xffffffff);
+	pci_clear_pme(dev);
+	hw->wol_enabled = false;
+	sc->wol_filters = 0;
 
 	/*
 	 * Required after D3->D0 transition;
@@ -5879,82 +6014,6 @@ ixgbe_sysctl_power_state(SYSCTL_HANDLER_ARGS)
 	return (error);
 } /* ixgbe_sysctl_power_state */
 #endif
-
-/************************************************************************
- * ixgbe_sysctl_wol_enable
- *
- *   Sysctl to enable/disable the WoL capability,
- *   if supported by the adapter.
- *
- *   Values:
- *     0 - disabled
- *     1 - enabled
- ************************************************************************/
-static int
-ixgbe_sysctl_wol_enable(SYSCTL_HANDLER_ARGS)
-{
-	struct ixgbe_softc  *sc = (struct ixgbe_softc *)arg1;
-	struct ixgbe_hw *hw = &sc->hw;
-	int new_wol_enabled;
-	int error = 0;
-
-	new_wol_enabled = hw->wol_enabled;
-	error = sysctl_handle_int(oidp, &new_wol_enabled, 0, req);
-	if ((error) || (req->newptr == NULL))
-		return (error);
-	new_wol_enabled = !!(new_wol_enabled);
-	if (new_wol_enabled == hw->wol_enabled)
-		return (0);
-
-	if (new_wol_enabled > 0 && !sc->wol_support)
-		return (ENODEV);
-	else
-		hw->wol_enabled = new_wol_enabled;
-
-	return (0);
-} /* ixgbe_sysctl_wol_enable */
-
-/************************************************************************
- * ixgbe_sysctl_wufc - Wake Up Filter Control
- *
- *   Sysctl to enable/disable the types of packets that the
- *   adapter will wake up on upon receipt.
- *   Flags:
- *     0x1  - Link Status Change
- *     0x2  - Magic Packet
- *     0x4  - Direct Exact
- *     0x8  - Directed Multicast
- *     0x10 - Broadcast
- *     0x20 - ARP/IPv4 Request Packet
- *     0x40 - Direct IPv4 Packet
- *     0x80 - Direct IPv6 Packet
- *
- *   Settings not listed above will cause the sysctl to return an error.
- ************************************************************************/
-static int
-ixgbe_sysctl_wufc(SYSCTL_HANDLER_ARGS)
-{
-	struct ixgbe_softc *sc = (struct ixgbe_softc *)arg1;
-	int error = 0;
-	u32 new_wufc;
-
-	new_wufc = sc->wufc;
-
-	error = sysctl_handle_32(oidp, &new_wufc, 0, req);
-	if ((error) || (req->newptr == NULL))
-		return (error);
-	if (new_wufc == sc->wufc)
-		return (0);
-
-	if (new_wufc & 0xffffff00)
-		return (EINVAL);
-
-	new_wufc &= 0xff;
-	new_wufc |= (0xffffff & sc->wufc);
-	sc->wufc = new_wufc;
-
-	return (0);
-} /* ixgbe_sysctl_wufc */
 
 #ifdef IXGBE_DEBUG
 /************************************************************************

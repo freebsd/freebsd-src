@@ -532,13 +532,8 @@ ixv_if_attach_pre(if_ctx_t ctx)
 
 	scctx->isc_txrx = &ixgbe_txrx;
 
-	/*
-	 * Tell the upper layer(s) we support everything the PF
-	 * driver does except...
-	 *   Wake-on-LAN
-	 */
+	/* We support everything the PF does; VFs do not do WoL. */
 	scctx->isc_capabilities = IXGBE_CAPS;
-	scctx->isc_capabilities ^= IFCAP_WOL;
 	scctx->isc_capenable = scctx->isc_capabilities;
 	atomic_store_rel_32(&sc->vf_mbx_ready, mailbox_ready);
 	callout_init(&sc->vf_mbx_retry, 1);

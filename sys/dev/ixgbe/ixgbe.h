@@ -217,7 +217,7 @@
 #define IXGBE_CAPS (IFCAP_HWCSUM | IFCAP_HWCSUM_IPV6 | IFCAP_TSO | \
 		    IFCAP_LRO | IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWTSO | \
 		    IFCAP_VLAN_HWCSUM | IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU | \
-		    IFCAP_VLAN_HWFILTER | IFCAP_WOL)
+		    IFCAP_VLAN_HWFILTER)
 
 #ifndef DEVMETHOD_END
 #define DEVMETHOD_END	{ NULL, NULL }
@@ -451,8 +451,7 @@ struct ixgbe_softc {
 	u32			ledctl_default;
 
 	/* Power management-related */
-	bool			wol_support;
-	u32			wufc;
+	u32			wol_filters;
 
 	/* Mbuf cluster size */
 	u32			rx_mbuf_sz;

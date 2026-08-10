@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 28, 2026
+.Dd September 2, 2026
 .Dt IX 4
 .Os
 .Sh NAME
@@ -72,6 +72,24 @@ The driver supports Jumbo Frames, MSIX, TSO, and RSS.
 The identification LED for each port is controlled through its
 .Pa /dev/led/ix*
 device node.
+.Pp
+On adapters and ports that expose PCI power-management wake, the driver
+supports the
+.Cm wol_magic ,
+.Cm wol_ucast ,
+and
+.Cm wol_mcast
+capabilities shown by
+.Xr ifconfig 8 .
+The NVM APME setting selects whether magic-packet wake is enabled by default
+without hiding wake modes that the hardware and board support.
+Waking the system from an ACPI sleep state also requires enabling the
+corresponding device wake source when it is exposed, for example:
+.Bd -literal -offset indent
+sysctl dev.ix.0.wake=1
+.Ed
+The interface wake capabilities select the controller packet filters; they do
+not enable the ACPI wake source.
 .Pp
 For questions related to hardware requirements,
 refer to the documentation supplied with your Intel 10GbE adapter.
