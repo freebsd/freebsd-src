@@ -584,16 +584,23 @@ ufshci_req_sdb_process_cpl(struct ufshci_req_queue *req_queue)
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 	for (slot = 0; slot < req_queue->num_entries; slot++) {
+		bool completed;
+
 		tr = hwq->act_tr[slot];
 
 		KASSERT(tr, ("there is no tracker assigned to the slot"));
 		/*
 		 * When the response is delivered from the device, the doorbell
-		 * is cleared.
+		 * is cleared. Check it under qlock so that a slot whose
+		 * doorbell write is still in flight in the submit path is not
+		 * mistaken for a completed one.
 		 */
-		if (tr->slot_state == UFSHCI_SLOT_STATE_SCHEDULED &&
+		mtx_lock(&hwq->qlock);
+		completed = tr->slot_state == UFSHCI_SLOT_STATE_SCHEDULED &&
 		    req_queue->qops.is_doorbell_cleared(req_queue->ctrlr,
-			slot)) {
+			slot);
+		mtx_unlock(&hwq->qlock);
+		if (completed) {
 			ufshci_req_queue_complete_tracker(tr);
 			done = true;
 		}
