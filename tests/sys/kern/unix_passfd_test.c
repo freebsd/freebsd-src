@@ -1095,6 +1095,125 @@ ATF_TC_BODY(copyout_rights_error, tc)
 }
 
 /*
+ * Exercise handling of errors from unp_externalize().
+ */
+ATF_TC_WITHOUT_HEAD(externalize_error_partial_read);
+ATF_TC_BODY(externalize_error_partial_read, tc)
+{
+	struct iovec iovec;
+	struct msghdr msghdr;
+	struct rlimit rl, orl;
+	struct stat sb;
+	char cmsgbuf[CMSG_SPACE(sizeof(int))];
+	char msg1[16];
+	char *fill, *rbuf;
+	size_t fillsz;
+#if TEST_PROTO == SOCK_STREAM
+	size_t got;
+#endif
+	ssize_t len;
+	int fd[2], nfds, putfd;
+
+	memset(msg1, 'A', sizeof(msg1));
+
+	domainsocketpair(fd);
+	devnull(&putfd);
+	dofstat(putfd, &sb);
+	nfds = getnfds();
+
+#if TEST_PROTO == SOCK_STREAM
+	fillsz = (size_t)getrecvspace() * 3 / 5;
+#elif TEST_PROTO == SOCK_DGRAM
+	fillsz = 128;
+#endif
+
+	fill = malloc(fillsz);
+	ATF_REQUIRE(fill != NULL);
+	memset(fill, 'B', fillsz);
+	rbuf = malloc(sizeof(msg1) + fillsz);
+	ATF_REQUIRE(rbuf != NULL);
+
+	/*
+	 * The first message carries the rights and a small payload; the second
+	 * queues more data behind it, so that the read below leaves the receive
+	 * buffer non-empty.
+	 */
+	len = sendfd_payload(fd[0], putfd, msg1, sizeof(msg1));
+	ATF_REQUIRE_MSG(len == (ssize_t)sizeof(msg1),
+	    "sendmsg: %zd bytes sent; expected %zu: %s", len, sizeof(msg1),
+	    strerror(errno));
+	len = send(fd[0], fill, fillsz, 0);
+	ATF_REQUIRE_MSG(len == (ssize_t)fillsz,
+	    "send: %zd bytes sent; expected %zu: %s", len, fillsz,
+	    strerror(errno));
+
+	/*
+	 * Use fd limits to force receive to fail.
+	 */
+	ATF_REQUIRE_MSG(getrlimit(RLIMIT_NOFILE, &orl) == 0,
+	    "getrlimit failed: %s", strerror(errno));
+	rl = orl;
+	rl.rlim_cur = 1;
+	ATF_REQUIRE_MSG(setrlimit(RLIMIT_NOFILE, &rl) == 0,
+	    "setrlimit failed: %s", strerror(errno));
+
+	bzero(&msghdr, sizeof(msghdr));
+	iovec.iov_base = rbuf;
+	iovec.iov_len = sizeof(msg1);
+	msghdr.msg_iov = &iovec;
+	msghdr.msg_iovlen = 1;
+	msghdr.msg_control = cmsgbuf;
+	msghdr.msg_controllen = sizeof(cmsgbuf);
+
+	ATF_REQUIRE_ERRNO(EMFILE, recvmsg(fd[1], &msghdr, 0) == -1);
+
+	ATF_REQUIRE_MSG(setrlimit(RLIMIT_NOFILE, &orl) == 0,
+	    "setrlimit failed: %s", strerror(errno));
+
+	/* The rights must have been disposed of rather than installed. */
+	ATF_REQUIRE_MSG(getnfds() == nfds, "descriptor leaked");
+
+	/*
+	 * The failed read must leave the socket usable with both payloads still
+	 * queued.
+	 */
+#if TEST_PROTO == SOCK_STREAM
+	for (got = 0; got < sizeof(msg1) + fillsz; got += (size_t)len) {
+		len = recv(fd[1], rbuf + got, sizeof(msg1) + fillsz - got, 0);
+		if (len <= 0)
+			break;
+	}
+	ATF_REQUIRE_MSG(got == sizeof(msg1) + fillsz,
+	    "recovered %zu of %zu bytes after the failed read: %s", got,
+	    sizeof(msg1) + fillsz, strerror(errno));
+	ATF_REQUIRE_MSG(memcmp(rbuf, msg1, sizeof(msg1)) == 0,
+	    "first payload corrupted");
+	ATF_REQUIRE_MSG(memcmp(rbuf + sizeof(msg1), fill, fillsz) == 0,
+	    "second payload corrupted");
+#elif TEST_PROTO == SOCK_DGRAM
+	/*
+	 * For datagrams, soreceive_dgram() dequeues the record before
+	 * processing control messages, so the first datagram's payload is
+	 * consumed even when externalize fails.  Only the second datagram
+	 * should remain queued.
+	 */
+	len = recv(fd[1], rbuf, fillsz, 0);
+	ATF_REQUIRE_MSG(len == (ssize_t)fillsz,
+	    "second datagram: got %zd bytes, expected %zu: %s", len, fillsz,
+	    strerror(errno));
+	ATF_REQUIRE_MSG(memcmp(rbuf, fill, fillsz) == 0,
+	    "second payload corrupted");
+#endif
+
+	dofstat(putfd, &sb);
+
+	free(rbuf);
+	free(fill);
+	close(putfd);
+	closesocketpair(fd);
+}
+
+/*
  * Verify that we can handle empty rights messages.
  */
 ATF_TC_WITHOUT_HEAD(empty_rights_message);
@@ -1424,6 +1543,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, rights_creds_payload);
 	ATF_TP_ADD_TC(tp, truncated_rights);
 	ATF_TP_ADD_TC(tp, copyout_rights_error);
+	ATF_TP_ADD_TC(tp, externalize_error_partial_read);
 	ATF_TP_ADD_TC(tp, empty_rights_message);
 	ATF_TP_ADD_TC(tp, control_creates_records);
 	ATF_TP_ADD_TC(tp, cross_jail_dirfd);

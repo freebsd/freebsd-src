@@ -1451,14 +1451,26 @@ restart:
 	ctl = 0;
 	first = STAILQ_FIRST(&sb->uxst_mbq);
 	if (first->m_type == MT_CONTROL) {
+		struct mbuf *prev;
+
 		control = first;
+		prev = NULL;
+
+		/*
+		 * Unlink control messages from the socket buffer.  The head of
+		 * the socket buffer queue is updated below.
+		 */
 		STAILQ_FOREACH_FROM(first, &sb->uxst_mbq, m_stailq) {
-			if (first->m_type != MT_CONTROL)
+			if (first->m_type != MT_CONTROL) {
+				if (!peek && prev != NULL)
+					STAILQ_NEXT(prev, m_stailq) = NULL;
 				break;
+			}
 			ctl += first->m_len;
 			mbcnt += MSIZE;
 			if (first->m_flags & M_EXT)
 				mbcnt += first->m_ext.ext_size;
+			prev = first;
 		}
 	} else
 		control = NULL;
@@ -1553,10 +1565,25 @@ restart:
 			 */
 			error = unp_externalize(so, control, controlp, flags);
 			control = m_free(control);
-			if (__predict_false(error && control != NULL)) {
+			if (__predict_false(error != 0)) {
 				struct mchain cmc;
 
-				mc_init_m(&cmc, control);
+				/*
+				 * Build an mbuf chain containing the remainder
+				 * of the control messages and the subsequent
+				 * data, to be prepended back to the socket
+				 * buffer.
+				 */
+				if (control != NULL)
+					mc_init_m(&cmc, control);
+				else
+					mc_init(&cmc);
+				for (m = first; datalen > 0 && m != part;
+				    m = next) {
+					datalen -= m->m_len;
+					next = STAILQ_NEXT(m, m_stailq);
+					mc_append(&cmc, m);
+				}
 
 				SOCK_RECVBUF_LOCK(so);
 				if (__predict_false(
@@ -1566,7 +1593,7 @@ restart:
 					/*
 					 * While the lock was dropped and we
 					 * were failing in unp_externalize(),
-					 * the peer could has a) disconnected,
+					 * the peer could have a) disconnected,
 					 * b) filled the buffer so that we
 					 * can't prepend data back.
 					 * These are two edge conditions that
@@ -1590,6 +1617,10 @@ restart:
 				    sb->sb_mbcnt = 0;
 				STAILQ_FOREACH(m, &sb->uxst_mbq, m_stailq) {
 					if (m->m_type == MT_DATA) {
+						if (m == part) {
+							m->m_len += partlen;
+							m->m_data -= partlen;
+						}
 						sb->sb_acc += m->m_len;
 						sb->sb_ccc += m->m_len;
 					} else {
