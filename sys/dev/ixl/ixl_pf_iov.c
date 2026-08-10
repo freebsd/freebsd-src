@@ -123,8 +123,10 @@ ixl_initialize_sriov(struct ixl_pf *pf)
 		device_printf(dev,
 		    "Failed to initialize SR-IOV (error=%d)\n",
 		    iov_error);
-	} else
+	} else {
+		pf->iov_attached = true;
 		device_printf(dev, "SR-IOV ready\n");
+	}
 
 	pf->vc_debug_lvl = 1;
 }

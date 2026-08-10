@@ -187,6 +187,7 @@ struct ixl_pf {
 	/* SR-IOV */
 	struct ixl_vf		*vfs;
 	int			num_vfs;
+	bool			iov_attached;
 	uint16_t		veb_seid;
 	int			vc_debug_lvl;
 

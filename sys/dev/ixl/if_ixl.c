@@ -34,6 +34,8 @@
 #include "ixl.h"
 #include "ixl_pf.h"
 
+#include <net/if_vf_status.h>
+
 #ifdef IXL_IW
 #include "ixl_iw.h"
 #include "ixl_iw_int.h"
@@ -54,6 +56,20 @@
     __XSTRING(IXL_DRIVER_VERSION_MAJOR) "."		\
     __XSTRING(IXL_DRIVER_VERSION_MINOR) "."		\
     __XSTRING(IXL_DRIVER_VERSION_BUILD) "-k"
+
+/* Version 1 driver.ixl extension schema; documented in ixl(4). */
+#define	IXL_VF_STATUS_NAMESPACE		"driver.ixl"
+#define	IXL_VF_STATUS_VERSION		1
+#define	IXL_VF_STATUS_MDD_BLOCKED	"mdd-blocked"
+#define	IXL_VF_STATUS_MDD_TX_EVENTS	"mdd-tx-events"
+#define	IXL_VF_STATUS_MDD_RX_EVENTS	"mdd-rx-events"
+
+enum ixl_vf_status_field {
+	IXL_VF_STATUS_FIELD_MDD_BLOCKED,
+	IXL_VF_STATUS_FIELD_MDD_TX_EVENTS,
+	IXL_VF_STATUS_FIELD_MDD_RX_EVENTS,
+	IXL_VF_STATUS_NUM_FIELDS
+};
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -123,6 +139,8 @@ static int	 ixl_if_i2c_req(if_ctx_t ctx, struct ifi2creq *req);
 static int	 ixl_if_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data);
 static bool	 ixl_if_needs_restart(if_ctx_t ctx, enum iflib_restart_event event);
 static void	 ixl_if_led_func(if_ctx_t ctx, int onoff);
+static int	 ixl_if_vf_status(if_ctx_t ctx,
+		     struct if_vf_status **statusp);
 #ifdef PCI_IOV
 static void	 ixl_if_vflr_handle(if_ctx_t ctx);
 #endif
@@ -197,6 +215,7 @@ static device_method_t ixl_if_methods[] = {
 	DEVMETHOD(ifdi_priv_ioctl, ixl_if_priv_ioctl),
 	DEVMETHOD(ifdi_needs_restart, ixl_if_needs_restart),
 	DEVMETHOD(ifdi_led_func, ixl_if_led_func),
+	DEVMETHOD(ifdi_vf_status, ixl_if_vf_status),
 #ifdef PCI_IOV
 	DEVMETHOD(ifdi_iov_init, ixl_if_iov_init),
 	DEVMETHOD(ifdi_iov_uninit, ixl_if_iov_uninit),
@@ -1995,6 +2014,92 @@ ixl_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
 	default:
 		return (false);
 	}
+}
+
+static int
+ixl_if_vf_status(if_ctx_t ctx, struct if_vf_status **statusp)
+{
+	struct ixl_pf *pf;
+	struct if_vf_extension *extension;
+	struct if_vf_info *info;
+	struct if_vf_status *status;
+	struct ixl_vf *vf;
+
+	pf = iflib_get_softc(ctx);
+	if (!pf->iov_attached)
+		return (EOPNOTSUPP);
+
+	status = if_vf_status_alloc(pf->num_vfs);
+	if (status == NULL)
+		return (ENOMEM);
+	for (int i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		info = &status->vfs[i];
+		info->fields = IFVF_F_CONFIGURED | IFVF_F_INITIALIZED |
+		    IFVF_F_VLAN_MODE | IFVF_F_VLAN_COUNT |
+		    IFVF_F_NUM_TX_QUEUES | IFVF_F_NUM_RX_QUEUES |
+		    IFVF_F_ALLOW_SET_MAC |
+		    IFVF_F_ALLOW_SET_VLAN | IFVF_F_MAC_ANTI_SPOOF |
+		    IFVF_F_ALLOW_PROMISC | IFVF_F_TRAFFIC_ALLOWED |
+		    IFVF_F_FAULT_BLOCKED;
+		info->index = i;
+		info->configured = (vf->vf_flags & VF_FLAG_ENABLED) != 0;
+		info->initialized = (vf->vf_flags & VF_FLAG_INITIALIZED) != 0;
+		if (info->initialized) {
+			snprintf(info->api_version, sizeof(info->api_version),
+			    "%u.%u", vf->version.major, vf->version.minor);
+			info->fields |= IFVF_F_API_VERSION;
+		}
+		if (!ETHER_IS_ZERO(vf->mac)) {
+			memcpy(info->mac, vf->mac, sizeof(info->mac));
+			info->fields |= IFVF_F_MAC;
+		}
+		if (vf->default_vlan == 0) {
+			info->vlan_mode = IFVF_VLAN_TRUNK;
+			info->vlan_count = vf->vsi.num_vlans;
+			info->vlan_limit = IXL_VF_MAX_VLAN_FILTERS;
+			info->fields |= IFVF_F_VLAN_LIMIT;
+		} else {
+			info->vlan_mode = IFVF_VLAN_ACCESS;
+			info->vlan = vf->default_vlan;
+			info->vlan_pcp = 0;
+			info->vlan_proto = ETHERTYPE_VLAN;
+			info->vlan_count = 1;
+			info->fields |= IFVF_F_VLAN | IFVF_F_VLAN_PCP |
+			    IFVF_F_VLAN_PROTO;
+		}
+		info->tx_queue_count = vf->qtag.num_active;
+		info->rx_queue_count = vf->qtag.num_active;
+		info->allow_set_mac =
+		    (vf->vf_flags & VF_FLAG_SET_MAC_CAP) != 0;
+		info->allow_set_vlan =
+		    (vf->vf_flags & VF_FLAG_VLAN_CAP) != 0;
+		info->mac_anti_spoof =
+		    (vf->vf_flags & VF_FLAG_MAC_ANTI_SPOOF) != 0;
+		info->allow_promisc =
+		    (vf->vf_flags & VF_FLAG_PROMISC_CAP) != 0;
+		info->traffic_allowed = info->configured && !vf->mdd_blocked;
+		info->fault_blocked = vf->mdd_blocked;
+
+		extension = if_vf_status_add_extension(info,
+		    IXL_VF_STATUS_NAMESPACE, IXL_VF_STATUS_VERSION,
+		    IXL_VF_STATUS_NUM_FIELDS);
+		if (extension == NULL) {
+			if_vf_status_free(status);
+			return (ENOMEM);
+		}
+		if_vf_extension_set_bool(extension,
+		    IXL_VF_STATUS_FIELD_MDD_BLOCKED,
+		    IXL_VF_STATUS_MDD_BLOCKED, vf->mdd_blocked);
+		if_vf_extension_set_number(extension,
+		    IXL_VF_STATUS_FIELD_MDD_TX_EVENTS,
+		    IXL_VF_STATUS_MDD_TX_EVENTS, vf->mdd_tx_events);
+		if_vf_extension_set_number(extension,
+		    IXL_VF_STATUS_FIELD_MDD_RX_EVENTS,
+		    IXL_VF_STATUS_MDD_RX_EVENTS, vf->mdd_rx_events);
+	}
+	*statusp = status;
+	return (0);
 }
 
 /*
