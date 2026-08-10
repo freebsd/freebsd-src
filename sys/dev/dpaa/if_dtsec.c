@@ -244,6 +244,7 @@ dtsec_if_ioctl(if_t ifp, u_long command, caddr_t data)
 {
 	struct dtsec_softc *sc;
 	struct ifreq *ifr;
+	uint32_t changed;
 	int error;
 
 	sc = if_getsoftc(ifp);
@@ -270,6 +271,20 @@ dtsec_if_ioctl(if_t ifp, u_long command, caddr_t data)
 			error = dtsec_if_disable_locked(sc);
 
 		DTSEC_UNLOCK(sc);
+		break;
+
+	case SIOCSIFCAP:
+		changed = if_getcapenable(ifp) ^ ifr->ifr_reqcap;
+		if ((changed & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6)) != 0)
+			if_togglecapenable(ifp,
+			    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
+		if ((changed & (IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6)) != 0) {
+			if_togglecapenable(ifp,
+			    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
+			if_togglehwassist(ifp, DPAA_CSUM_TX_OFFLOAD);
+		}
+		if ((changed & IFCAP_LRO) != 0)
+			if_togglecapenable(ifp, IFCAP_LRO);
 		break;
 
 	case SIOCGIFMEDIA:
@@ -515,8 +530,11 @@ dtsec_attach(device_t dev)
 	if_setsendqready(ifp);
 #endif
 
-	if_setcapabilities(ifp, IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU);
+	if_setcapabilities(ifp, IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU |
+	    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 |
+	    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
 	if_setcapenable(ifp, if_getcapabilities(ifp));
+	if_sethwassist(ifp, DPAA_CSUM_TX_OFFLOAD);
 
 	/* Attach PHY(s) */
 	error = mii_attach(sc->sc_base.sc_dev, &sc->sc_base.sc_mii_dev,

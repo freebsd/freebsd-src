@@ -89,8 +89,6 @@
 
 #define	DEFAULT_PAUSE_QUANTA	0xf000
 
-#define	DPAA_CSUM_TX_OFFLOAD	(CSUM_IP | CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6)
-
 
 /**
  * @group FMan MAC routines.

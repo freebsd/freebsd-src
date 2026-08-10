@@ -27,6 +27,10 @@
 #ifndef DPAA_ETH_H_
 #define DPAA_ETH_H_
 
+/* * TX csum-offload hwassist mask for dTSEC and mEMAC. */
+#define	DPAA_CSUM_TX_OFFLOAD	\
+	(CSUM_IP | CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6)
+
 struct dpaa_pcpu_cnt {
 	u_int	cnt;
 } __aligned(CACHE_LINE_SIZE);
