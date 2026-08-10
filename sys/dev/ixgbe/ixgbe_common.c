@@ -2221,7 +2221,8 @@ static void ixgbe_release_eeprom(struct ixgbe_hw *hw)
 s32 ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw)
 {
 	u16 i;
-	u16 j;
+	u32 j;
+	u32 word_end;
 	u16 checksum = 0;
 	u16 length = 0;
 	u16 pointer = 0;
@@ -2248,6 +2249,10 @@ s32 ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw)
 		/* If the pointer seems invalid */
 		if (pointer == 0xFFFF || pointer == 0)
 			continue;
+		if (pointer >= hw->eeprom.word_size) {
+			DEBUGOUT("EEPROM pointer outside word range\n");
+			return IXGBE_ERR_EEPROM;
+		}
 
 		if (hw->eeprom.ops.read(hw, pointer, &length)) {
 			DEBUGOUT("EEPROM read failed\n");
@@ -2256,9 +2261,14 @@ s32 ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw)
 
 		if (length == 0xFFFF || length == 0)
 			continue;
+		if (length >= hw->eeprom.word_size - pointer) {
+			DEBUGOUT("EEPROM section outside word range\n");
+			return IXGBE_ERR_EEPROM;
+		}
 
-		for (j = pointer + 1; j <= pointer + length; j++) {
-			if (hw->eeprom.ops.read(hw, j, &word)) {
+		word_end = (u32)pointer + length;
+		for (j = (u32)pointer + 1; j <= word_end; j++) {
+			if (hw->eeprom.ops.read(hw, (u16)j, &word)) {
 				DEBUGOUT("EEPROM read failed\n");
 				return IXGBE_ERR_EEPROM;
 			}
