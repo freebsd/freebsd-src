@@ -563,10 +563,35 @@ common:
 	return (0);
 }
 
+/*
+ * Validate a bind/connect address as AF_UNIX and hand back its sun_path
+ * and the path length.
+ *
+ * Rejects a wrong family (EAFNOSUPPORT) or a malformed sa_len (EINVAL).
+ */
+static int
+unp_sun_path(const struct sockaddr *nam, const char **pathp, int *lenp)
+{
+	const struct sockaddr_un *soun;
+	int len;
+
+	if (nam->sa_family != AF_UNIX)
+		return (EAFNOSUPPORT);
+	if (nam->sa_len > sizeof(struct sockaddr_un))
+		return (EINVAL);
+	len = nam->sa_len - offsetof(struct sockaddr_un, sun_path);
+	if (len < 0)
+		return (EINVAL);
+	soun = (const struct sockaddr_un *)nam;
+	*pathp = soun->sun_path;
+	*lenp = len;
+	return (0);
+}
+
 static int
 uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	struct sockaddr_un *soun = (struct sockaddr_un *)nam;
+	struct sockaddr_un *soun;
 	struct vattr vattr;
 	int error, namelen;
 	struct nameidata nd;
@@ -574,20 +599,18 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 	struct vnode *vp;
 	struct mount *mp;
 	cap_rights_t rights;
+	const char *path;
 	char *buf;
 	mode_t mode;
 
-	if (nam->sa_family != AF_UNIX)
-		return (EAFNOSUPPORT);
+	error = unp_sun_path(nam, &path, &namelen);
+	if (error != 0)
+		return (error);
+	if (namelen == 0)
+		return (EINVAL);
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_bind: unp == NULL"));
-
-	if (soun->sun_len > sizeof(struct sockaddr_un))
-		return (EINVAL);
-	namelen = soun->sun_len - offsetof(struct sockaddr_un, sun_path);
-	if (namelen <= 0)
-		return (EINVAL);
 
 	/*
 	 * We don't allow simultaneous bind() calls on a single UNIX domain
@@ -612,7 +635,7 @@ uipc_bindat(int fd, struct socket *so, struct sockaddr *nam, struct thread *td)
 	UNP_PCB_UNLOCK(unp);
 
 	buf = malloc(namelen + 1, M_TEMP, M_WAITOK);
-	bcopy(soun->sun_path, buf, namelen);
+	bcopy(path, buf, namelen);
 	buf[namelen] = 0;
 
 restart:
@@ -2889,27 +2912,24 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
     struct thread *td, bool return_locked)
 {
 	struct mtx *vplock;
-	struct sockaddr_un *soun;
 	struct vnode *vp;
 	struct unpcb *unp, *unp2;
 	struct nameidata nd;
 	char buf[SOCK_MAXADDRLEN];
 	struct sockaddr *sa;
 	cap_rights_t rights;
+	const char *path;
 	int error, len;
 	bool connreq;
 
 	CURVNET_ASSERT_SET();
 
-	if (nam->sa_family != AF_UNIX)
-		return (EAFNOSUPPORT);
-	if (nam->sa_len > sizeof(struct sockaddr_un))
+	error = unp_sun_path(nam, &path, &len);
+	if (error != 0)
+		return (error);
+	if (len == 0)
 		return (EINVAL);
-	len = nam->sa_len - offsetof(struct sockaddr_un, sun_path);
-	if (len <= 0)
-		return (EINVAL);
-	soun = (struct sockaddr_un *)nam;
-	bcopy(soun->sun_path, buf, len);
+	bcopy(path, buf, len);
 	buf[len] = 0;
 
 	error = 0;
