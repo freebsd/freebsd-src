@@ -48,6 +48,12 @@ struct dpaa_eth_rx_fq {
 	uint32_t			 fqid;
 	int				 cpu;	/* CPU pin, or -1 if unpinned */
 	struct dpaa_eth_softc		*sc;
+	/*
+	 * Frame count.  Written by the RX callback which is affine to
+	 * one CPU per FQ, so plain uint64 without atomics is safe.
+	 * Sysctl readers get advisory (torn on 32-bit hosts) values.
+	 */
+	uint64_t			 frames_in;
 };
 
 struct dpaa_eth_softc {

@@ -462,13 +462,14 @@ qman_percpu_channel(int cpu)
 }
 
 int
-qman_alloc_fqid_range(uint32_t count, uint32_t *basep)
+qman_alloc_fqid_range(uint32_t count, uint32_t align, uint32_t *basep)
 {
 	struct qman_softc *sc = qman_sc;
 	vmem_addr_t base;
 	int error;
 
-	error = vmem_alloc(sc->sc_fqalloc, count, M_BESTFIT | M_NOWAIT, &base);
+	error = vmem_xalloc(sc->sc_fqalloc, count, align, 0, 0,
+	    VMEM_ADDR_MIN, VMEM_ADDR_MAX, M_BESTFIT | M_NOWAIT, &base);
 	if (error != 0)
 		return (error);
 	*basep = base;

@@ -667,6 +667,29 @@ fman_port_enable(device_t dev)
 	return (0);
 }
 
+int
+fman_port_get_id(device_t dev)
+{
+	struct fman_port_softc *sc = device_get_softc(dev);
+
+	return (sc->sc_port_id);
+}
+
+/*
+ * Runtime toggle for whether the praser sends frames to KeyGen (HWK)
+ * or straight to BMI-enqueue.  Called by dpaa_eth after successfully
+ * binding a KG scheme to this port -- flipping this without a bound scheme
+ * drops all Rx traffic on the port.
+ */
+void
+fman_port_rx_use_kg(device_t dev, bool enable)
+{
+	struct fman_port_softc *sc = device_get_softc(dev);
+
+	bus_write_4(sc->sc_mem, FMBM_RFPNE,
+	    enable ? NIA_ENG_HWK : (NIA_ENG_BMI | NIA_BMI_AC_ENQ_FRAME));
+}
+
 static device_method_t fman_port_methods[] = {
 	DEVMETHOD(device_probe,		fman_port_probe),
 	DEVMETHOD(device_attach,	fman_port_attach),

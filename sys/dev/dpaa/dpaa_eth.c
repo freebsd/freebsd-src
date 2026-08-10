@@ -59,6 +59,7 @@
 #include "dpaa_common.h"
 #include "dpaa_eth.h"
 #include "fman.h"
+#include "fman_keygen.h"
 #include "fman_parser.h"
 #include "fman_port.h"
 #include "fman_if.h"
@@ -112,6 +113,19 @@ struct dpaa_eth_frame_info {
 	struct dpaa_sgte		fi_sgt[DPAA_NUM_OF_SG_TABLE_ENTRY];
 };
 
+/*
+ * Loader-tunable override for the per-port RX FQ count.  0 (default)
+ * means "auto".  Otherwise must be a power of two.
+ */
+static int dpaa_eth_nrxfqs_tunable = 0;
+SYSCTL_NODE(_hw, OID_AUTO, dpaa, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "DPAA driver tunables");
+static SYSCTL_NODE(_hw_dpaa, OID_AUTO, eth, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "DPAA Ethernet driver");
+SYSCTL_INT(_hw_dpaa_eth, OID_AUTO, nrxfqs, CTLFLAG_RDTUN,
+    &dpaa_eth_nrxfqs_tunable, 0,
+    "Per-port RX FQ count override (0=auto, else power-of-2 in [1,8])");
+
 enum dpaa_eth_pool_params {
 	DTSEC_RM_POOL_RX_LOW_MARK	= 16,
 	DTSEC_RM_POOL_RX_HIGH_MARK	= 64,
@@ -129,8 +143,6 @@ enum dpaa_eth_pool_params {
 	DTSEC_RM_POOL_FI_MAX_SIZE	= 256,
 };
 
-#define	DTSEC_RM_FQR_RX_CHANNEL		0x401
-#define	DTSEC_RM_FQR_TX_CONF_CHANNEL	0
 enum dpaa_eth_fq_params {
 	DTSEC_RM_FQR_RX_WQ		= 1,
 	DTSEC_RM_FQR_TX_WQ		= 1,
@@ -194,6 +206,10 @@ dpaa_eth_fm_port_rx_init(struct dpaa_eth_softc *sc)
 	struct fman_port_params params;
 	int error;
 
+	/*
+	 * dflt/err FQID is the base of the RSS range: non-hashable
+	 * frames (ARP, IP fragments, non-IP) fall through to FQ #0.
+	 */
 	params.dflt_fqid = sc->sc_rx_fqid_base;
 	params.err_fqid = sc->sc_rx_fqid_base;
 	params.rx_params.num_pools = 1;
@@ -204,6 +220,43 @@ dpaa_eth_fm_port_rx_init(struct dpaa_eth_softc *sc)
 	if (error != 0) {
 		device_printf(sc->sc_dev, "couldn't initialize FM Port RX.\n");
 		return (ENXIO);
+	}
+
+	/*
+	 * The RX port's own FMan hardware port ID (cell-index in the
+	 * OFW node) is the index KG uses for scheme-binding.  It was
+	 * previously left at zero, which made every port fight for KG
+	 * port 0 -- only the first attach won, the rest got EBUSY.
+	 */
+	sc->sc_port_rx_hw_id = fman_port_get_id(sc->sc_rx_port);
+
+	/*
+	 * Wire up FMan KeyGen 5-tuple hashing across the sc_nrxfqs FQs
+	 * created in dpaa_eth_fq_rx_init.  Skipped for the trivial N=1
+	 * case (single-core system or forced fallback): with one FQ
+	 * there's nothing to distribute.  Only flip the port's parser
+	 * output to KG on success -- routing to KG with no bound scheme
+	 * drops frames.
+	 */
+	if (sc->sc_nrxfqs > 1) {
+		struct fman_softc *fman_sc =
+		    device_get_softc(device_get_parent(sc->sc_rx_port));
+
+		error = fman_kg_alloc_hash_scheme(fman_sc,
+		    sc->sc_port_rx_hw_id, sc->sc_rx_fqid_base,
+		    sc->sc_nrxfqs);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "fman_kg_alloc_hash_scheme failed: %d\n", error);
+			/*
+			 * Non-fatal: FMan port still delivers to
+			 * dflt_fqid == sc_rx_fqid_base (FQ #0), which is
+			 * a valid single-queue fallback.  Leave RFPNE at
+			 * the BMI-enqueue default.
+			 */
+		} else {
+			fman_port_rx_use_kg(sc->sc_rx_port, true);
+		}
 	}
 
 	return (0);
@@ -407,6 +460,7 @@ dpaa_eth_fq_rx_callback(device_t portal, struct qman_fq *fq,
 	m = NULL;
 	rxfq = app;
 	sc = rxfq->sc;
+	rxfq->frames_in++;
 
 	frame_va = DPAA_FD_GET_ADDR(frame);
 	frame_ic = frame_va;	/* internal context at head of the frame */
@@ -516,7 +570,23 @@ dpaa_eth_fq_tx_confirm_callback(device_t portal, struct qman_fq *fq,
 void
 dpaa_eth_fq_rx_free(struct dpaa_eth_softc *sc)
 {
-	int cpu, i;
+	int i;
+
+	/*
+	 * Tear down the KG scheme first so no new frames land on FQs
+	 * about to be retired.  Point the parser output back at BMI-
+	 * enqueue before freeing the scheme so the port keeps
+	 * delivering to dflt_fqid instead of dropping through an
+	 * emptied KG.
+	 */
+	if (sc->sc_nrxfqs > 1 && sc->sc_rx_port != NULL) {
+		struct fman_softc *fman_sc =
+		    device_get_softc(device_get_parent(sc->sc_rx_port));
+
+		fman_port_rx_use_kg(sc->sc_rx_port, false);
+		(void)fman_kg_free_hash_scheme(fman_sc,
+		    sc->sc_port_rx_hw_id);
+	}
 
 	if (sc->sc_rx_fqs != NULL) {
 		for (i = 0; i < sc->sc_nrxfqs; i++) {
@@ -525,15 +595,11 @@ dpaa_eth_fq_rx_free(struct dpaa_eth_softc *sc)
 		}
 		free(sc->sc_rx_fqs, M_DEVBUF);
 		sc->sc_rx_fqs = NULL;
-		sc->sc_nrxfqs = 0;
 	}
-	if (sc->sc_rx_channel != 0) {
-		CPU_FOREACH(cpu) {
-			device_t portal = DPCPU_ID_GET(cpu, qman_affine_portal);
-			QMAN_PORTAL_STATIC_DEQUEUE_RM_CHANNEL(portal,
-			    sc->sc_rx_channel);
-		}
-		qman_free_channel(sc->sc_rx_channel);
+	if (sc->sc_nrxfqs > 0) {
+		qman_free_fqid_range(sc->sc_rx_fqid_base, sc->sc_nrxfqs);
+		sc->sc_nrxfqs = 0;
+		sc->sc_rx_fqid_base = 0;
 	}
 }
 
@@ -541,65 +607,157 @@ int
 dpaa_eth_fq_rx_init(struct dpaa_eth_softc *sc)
 {
 	struct qman_fq *fq;
-	int error;
-	int cpu;
+	uint32_t base_fqid;
+	int align, nfqs;
+	int error, i;
 
-	/* Default Frame Queue */
-	if (sc->sc_rx_channel == 0)
-		sc->sc_rx_channel = qman_alloc_channel();
-	/*
-	 * Stash 1 cacheline of frame annotation (parse result / IC) and
-	 * 1 of frame data head into the destination core's cache when
-	 * QMan dequeues an RX frame -- the RX callback reads both.
-	 */
-	fq = qman_fq_create(1, sc->sc_rx_channel, DTSEC_RM_FQR_RX_WQ,
-	    false, 0, false, false, true, false, 0, 0, 0, 1, 1);
-	if (fq == NULL) {
-		device_printf(sc->sc_dev,
-		    "could not create default RX queue\n");
-		return (EIO);
-	}
+	if (dpaa_eth_nrxfqs_tunable > 0)
+		nfqs = dpaa_eth_nrxfqs_tunable;
+	else
+		nfqs = mp_ncpus;
 
-	CPU_FOREACH(cpu) {
-		device_t portal = DPCPU_ID_GET(cpu, qman_affine_portal);
-		QMAN_PORTAL_STATIC_DEQUEUE_CHANNEL(portal, sc->sc_rx_channel);
-	}
-
-	sc->sc_nrxfqs = 1;
-	sc->sc_rx_fqs = malloc(sc->sc_nrxfqs * sizeof(*sc->sc_rx_fqs),
-	    M_DEVBUF, M_WAITOK | M_ZERO);
-	sc->sc_rx_fqs[0].fq = fq;
-	sc->sc_rx_fqs[0].fqid = qman_fq_get_fqid(fq);
-	sc->sc_rx_fqs[0].cpu = -1;	/* not pinned; any portal may drain */
-	sc->sc_rx_fqs[0].sc = sc;
-	sc->sc_rx_fqid_base = sc->sc_rx_fqs[0].fqid;
-
-	error = qman_fq_register_cb(fq, dpaa_eth_fq_rx_callback,
-	    &sc->sc_rx_fqs[0]);
+	align = 1 << ilog2(nfqs);
+	error = qman_alloc_fqid_range(nfqs, align, &base_fqid);
 	if (error != 0) {
-		device_printf(sc->sc_dev, "could not register RX callback\n");
-		dpaa_eth_fq_rx_free(sc);
+		device_printf(sc->sc_dev,
+		    "could not reserve %d contiguous FQIDs (aligned): %d\n",
+		    nfqs, error);
 		return (EIO);
+	}
+
+	sc->sc_nrxfqs = nfqs;
+	sc->sc_rx_fqid_base = base_fqid;
+	sc->sc_rx_fqs = malloc(nfqs * sizeof(*sc->sc_rx_fqs),
+	    M_DEVBUF, M_WAITOK | M_ZERO);
+
+	/*
+	 * Create the N RX FQs, one per per-CPU channel.  QMan portal
+	 * attach has already subscribed each portal to its own
+	 * per-CPU channel, so frames land on the right core without
+	 * per-driver static-dequeue plumbing.
+	 *
+	 * Stash 1 cacheline of frame annotation (parse result / IC)
+	 * and 1 of frame data head into the destination core's cache
+	 * when QMan dequeues an RX frame -- the RX callback reads
+	 * both.
+	 */
+	for (i = 0; i < nfqs; i++) {
+		int chan = qman_percpu_channel(i);
+
+		if (chan == -1) {
+			device_printf(sc->sc_dev,
+			    "no per-CPU QMan channel for CPU %d\n", i);
+			error = EIO;
+			goto err;
+		}
+		fq = qman_fq_create(1, chan, DTSEC_RM_FQR_RX_WQ,
+		    /*force_fqid=*/true, base_fqid + i,
+		    false, false, true, false, 0, 0, 0, 1, 1);
+		if (fq == NULL) {
+			device_printf(sc->sc_dev,
+			    "could not create RX FQ %d (fqid 0x%x)\n",
+			    i, base_fqid + i);
+			error = EIO;
+			goto err;
+		}
+		sc->sc_rx_fqs[i].fq = fq;
+		sc->sc_rx_fqs[i].fqid = base_fqid + i;
+		sc->sc_rx_fqs[i].cpu = i;
+		sc->sc_rx_fqs[i].sc = sc;
+
+		error = qman_fq_register_cb(fq, dpaa_eth_fq_rx_callback,
+		    &sc->sc_rx_fqs[i]);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "could not register RX callback for FQ %d\n", i);
+			goto err;
+		}
+	}
+
+	/*
+	 * Expose per-FQ observability under dev.<port>.rx_fq.<i>.{cpu,
+	 * fqid, frames}.  The sysctl_ctx owned by sc_dev handles all
+	 * teardown at device detach, so nothing to unwind on the free
+	 * path.
+	 */
+	{
+		struct sysctl_ctx_list *ctx =
+		    device_get_sysctl_ctx(sc->sc_dev);
+		struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+		struct sysctl_oid *rxnode = SYSCTL_ADD_NODE(ctx,
+		    SYSCTL_CHILDREN(tree), OID_AUTO, "rx_fq",
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+		    "Per-FQ RX statistics");
+
+		for (i = 0; i < nfqs; i++) {
+			char name[8];
+			struct sysctl_oid *fqnode;
+
+			snprintf(name, sizeof(name), "%d", i);
+			fqnode = SYSCTL_ADD_NODE(ctx,
+			    SYSCTL_CHILDREN(rxnode), OID_AUTO, name,
+			    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL, "");
+			SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(fqnode),
+			    OID_AUTO, "fqid", CTLFLAG_RD,
+			    &sc->sc_rx_fqs[i].fqid, 0, "FQID");
+			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(fqnode),
+			    OID_AUTO, "cpu", CTLFLAG_RD,
+			    &sc->sc_rx_fqs[i].cpu, 0,
+			    "CPU affine to this FQ");
+			SYSCTL_ADD_UQUAD(ctx, SYSCTL_CHILDREN(fqnode),
+			    OID_AUTO, "frames", CTLFLAG_RD,
+			    &sc->sc_rx_fqs[i].frames_in,
+			    "Frames dispatched to the RX callback");
+		}
+	}
+
+	if (bootverbose) {
+		device_printf(sc->sc_dev,
+		    "RSS: %d RX FQ%s starting at fqid 0x%x, %s\n",
+		    nfqs, nfqs == 1 ? "" : "s", base_fqid,
+		    nfqs == 1 ? "no distribution" :
+		    "IP 5-tuple hash via KeyGen");
 	}
 
 	return (0);
+
+err:
+	dpaa_eth_fq_rx_free(sc);
+	return (error);
 }
 
 void
 dpaa_eth_fq_tx_free(struct dpaa_eth_softc *sc)
 {
+	int cpu;
 
 	if (sc->sc_tx_fq)
 		qman_fq_free(sc->sc_tx_fq);
 
 	if (sc->sc_tx_conf_fq)
 		qman_fq_free(sc->sc_tx_conf_fq);
+
+	/*
+	 * The port's pool channel now hosts only TX confirms (RX has
+	 * moved to per-CPU pool channels).  Unsubscribe every portal
+	 * and release the channel here rather than in fq_rx_free.
+	 */
+	if (sc->sc_rx_channel != 0) {
+		CPU_FOREACH(cpu) {
+			device_t portal = DPCPU_ID_GET(cpu, qman_affine_portal);
+			QMAN_PORTAL_STATIC_DEQUEUE_RM_CHANNEL(portal,
+			    sc->sc_rx_channel);
+		}
+		qman_free_channel(sc->sc_rx_channel);
+		sc->sc_rx_channel = 0;
+	}
 }
 
 int
 dpaa_eth_fq_tx_init(struct dpaa_eth_softc *sc)
 {
 	int error;
+	int cpu;
 	void *fq;
 
 	/* TX Frame Queue */
@@ -614,8 +772,24 @@ dpaa_eth_fq_tx_init(struct dpaa_eth_softc *sc)
 
 	sc->sc_tx_fq = fq;
 
-	if (sc->sc_rx_channel == 0)
+	/*
+	 * TX confirms need a pool channel with at least one subscriber.
+	 * Historically the RX path allocated and subscribed sc_rx_channel
+	 * for both RX and TX confirms; now RX uses per-CPU channels, so
+	 * this path is the sole owner.  Allocate + subscribe here.
+	 * (Confirm handling doesn't benefit from CPU pinning today; a
+	 * follow-on could route TX confirms to the enqueue CPU via the
+	 * same per-CPU channel infrastructure.)
+	 */
+	if (sc->sc_rx_channel == 0) {
 		sc->sc_rx_channel = qman_alloc_channel();
+		CPU_FOREACH(cpu) {
+			device_t portal = DPCPU_ID_GET(cpu, qman_affine_portal);
+			QMAN_PORTAL_STATIC_DEQUEUE_CHANNEL(portal,
+			    sc->sc_rx_channel);
+		}
+	}
+
 	/* TX Confirmation Frame Queue */
 	fq = qman_fq_create(1, sc->sc_rx_channel,
 	    DTSEC_RM_FQR_TX_CONF_WQ, false, 0, false, false, true, false, 0, 0,

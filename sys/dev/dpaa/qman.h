@@ -323,10 +323,12 @@ int qman_percpu_channel(int cpu);
 /*
  * Reserve a contiguous range of @count FQIDs (needed by callers that
  * program a KeyGen-style base+mask distribution and then create the
- * individual FQs one-by-one with force_fqid=true).  Returns 0 on
- * success and writes the base FQID to *basep.
+ * individual FQs one-by-one with force_fqid=true).  @align is the
+ * required base alignment in FQIDs (0 for no requirement, or the
+ * range size for the power-of-two-aligned base FMan KeyGen wants).
+ * Returns 0 on success and writes the base FQID to *basep.
  */
-int qman_alloc_fqid_range(uint32_t count, uint32_t *basep);
+int qman_alloc_fqid_range(uint32_t count, uint32_t align, uint32_t *basep);
 void qman_free_fqid_range(uint32_t base, uint32_t count);
 
 /**
