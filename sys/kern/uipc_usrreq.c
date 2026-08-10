@@ -1170,8 +1170,10 @@ uipc_sosend_stream_or_seqpacket(struct socket *so, struct sockaddr *addr,
 		    eor ? M_EOR : 0);
 		if (__predict_false(error))
 			goto out2;
-	} else
+	} else {
+		uio = NULL;
 		uipc_reset_kernel_mbuf(m, &mc);
+	}
 
 	error = SOCK_IO_SEND_LOCK(so, SBLOCKWAIT(flags));
 	if (error)
