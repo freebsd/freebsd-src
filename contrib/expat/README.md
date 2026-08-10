@@ -6,12 +6,18 @@
 
 > [!CAUTION]
 >
-> Expat is **understaffed** and without funding.
-> There is a [call for help with details](https://github.com/libexpat/libexpat/blob/master/expat/Changes)
-> at the top of the `Changes` file.
+> Expat has **unfixed security issues**!
+> Please see https://github.com/libexpat/libexpat/issues/1160 for details.
+
+> [!NOTE]
+>
+> Starting 2026-08-01, for up to six months my work maintaining libexpat
+> will be funded by the [City of Munich](https://en.wikipedia.org/wiki/Munich)
+> as part of their [Open Source Sabbatical](https://opensource.muenchen.de/software/libexpat.html#open-source-sabbatical).
+> Thank you! :heart: :pray:
 
 
-# Expat, Release 2.8.2
+# Expat, Release 2.8.3
 
 This is Expat, a C99 library for parsing
 [XML 1.0 Fourth Edition](https://www.w3.org/TR/2006/REC-xml-20060816/), started by
