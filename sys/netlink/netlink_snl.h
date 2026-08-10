@@ -325,6 +325,32 @@ snl_send_message(struct snl_state *ss, struct nlmsghdr *hdr)
 	return (send(ss->fd, hdr, sz, 0) == sz);
 }
 
+/* Ensure the receive buffer can hold the next complete Netlink message. */
+static inline int
+snl_grow_rxbuf_to_next_message(struct snl_state *ss)
+{
+	char *buf;
+	ssize_t len;
+
+	if (ss->off != ss->datalen)
+		return (0);
+	do {
+		len = recv(ss->fd, NULL, 0, MSG_PEEK | MSG_TRUNC);
+	} while (len < 0 && errno == EINTR);
+	if (len < 0)
+		return (errno);
+	if (len == 0)
+		return (EIO);
+	if ((size_t)len <= ss->bufsize)
+		return (0);
+	buf = realloc(ss->buf, (size_t)len);
+	if (buf == NULL)
+		return (ENOMEM);
+	ss->buf = buf;
+	ss->bufsize = (size_t)len;
+	return (0);
+}
+
 static inline uint32_t
 snl_get_seq(struct snl_state *ss)
 {

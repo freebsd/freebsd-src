@@ -180,6 +180,352 @@ static const struct snl_attr_parser _nla_p_ifgroups[] = {
 SNL_DECLARE_ATTR_PARSER_EXT(_ifgroups_parser, sizeof(char[IFNAMSIZ]), _nla_p_ifgroups, NULL);
 
 /* RTM_<NEW|DEL|GET>LINK message parser */
+_Static_assert(IFLAF_VF_MAX < 64,
+    "VF attribute numbers must fit the presence mask");
+
+enum snl_vf_driver_field_type {
+	SNL_VFDF_NONE = 0,
+	SNL_VFDF_BOOL,
+	SNL_VFDF_NUMBER,
+	SNL_VFDF_STRING,
+	SNL_VFDF_BINARY,
+};
+
+struct snl_parsed_vf_driver_field {
+	char			*name;
+	enum snl_vf_driver_field_type type;
+	bool			boolean;
+	uint64_t		number;
+	char			*string;
+	struct nlattr		*binary;
+};
+
+struct snl_parsed_vf_driver {
+	char			*name;
+	uint32_t		version;
+	bool			version_present;
+	struct snl_parray	fields;
+};
+
+struct snl_parsed_vf {
+	uint64_t		attrs;	/* Bits indexed by IFLAF_VF_*. */
+	uint64_t		min_tx_rate_bps;
+	uint64_t		max_tx_rate_bps;
+	uint32_t		index;
+	bool			index_present;
+	uint32_t		vlan_count;
+	uint32_t		vlan_limit;
+	uint16_t		tx_queue_count;
+	uint16_t		rx_queue_count;
+	uint16_t		vlan;
+	uint16_t		vlan_proto;
+	uint8_t			vlan_pcp;
+	bool			configured;
+	bool			initialized;
+	uint8_t			vlan_mode;
+	bool			allow_set_mac;
+	bool			allow_set_vlan;
+	bool			mac_anti_spoof;
+	bool			allow_promisc;
+	bool			traffic_allowed;
+	bool			fault_blocked;
+	bool			quarantined;
+	uint8_t			link_state_policy;
+	char			*api_version;
+	struct nlattr		*mac;
+	struct snl_parray	drivers;
+};
+
+static inline bool
+_snl_vf_get_index(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	struct snl_parsed_vf *vf = target;
+
+	if (!snl_attr_get_uint32(ss, nla, NULL, &vf->index))
+		return (false);
+	vf->index_present = true;
+	return (true);
+}
+
+static inline bool
+_cb_p_vf(struct snl_state *ss __unused, void *target)
+{
+	struct snl_parsed_vf *vf = target;
+
+	return (vf->index_present);
+}
+
+#define	_SNL_VF_ARG(_attr, _field)	((const void *)(uintptr_t)(	\
+	((uint32_t)(_attr) << 16) | offsetof(struct snl_parsed_vf, _field)))
+#define	_SNL_VF_ATTR(_arg)		((uintptr_t)(_arg) >> 16)
+#define	_SNL_VF_OFF(_arg)		((uintptr_t)(_arg) & 0xffff)
+
+#define	_SNL_VF_GETTER(_name, _getter)					\
+static inline bool							\
+_name(struct snl_state *ss, struct nlattr *nla, const void *arg,	\
+    void *target)							\
+{									\
+	struct snl_parsed_vf *vf = target;				\
+	void *value = (char *)target + _SNL_VF_OFF(arg);			\
+									\
+	if (!_getter(ss, nla, NULL, value))				\
+		return (false);						\
+	vf->attrs |= 1ULL << _SNL_VF_ATTR(arg);				\
+	return (true);							\
+}
+
+_SNL_VF_GETTER(_snl_vf_get_bool, snl_attr_get_bool)
+_SNL_VF_GETTER(_snl_vf_get_u8, snl_attr_get_uint8)
+_SNL_VF_GETTER(_snl_vf_get_u16, snl_attr_get_uint16)
+_SNL_VF_GETTER(_snl_vf_get_u32, snl_attr_get_uint32)
+_SNL_VF_GETTER(_snl_vf_get_u64, snl_attr_get_uint64)
+_SNL_VF_GETTER(_snl_vf_get_string, snl_attr_dup_string)
+_SNL_VF_GETTER(_snl_vf_get_nla, snl_attr_dup_nla)
+
+#undef _SNL_VF_GETTER
+
+#define	_SNL_VFDF_GETTER(_name, _getter, _type, _field)		\
+static inline bool							\
+_name(struct snl_state *ss, struct nlattr *nla, const void *arg,	\
+    void *target)							\
+{									\
+	struct snl_parsed_vf_driver_field *field = target;		\
+									\
+	if (field->type != SNL_VFDF_NONE ||				\
+	    !_getter(ss, nla, arg, &field->_field))			\
+		return (false);						\
+	field->type = _type;						\
+	return (true);							\
+}
+
+_SNL_VFDF_GETTER(_snl_vfdf_get_bool, snl_attr_get_bool, SNL_VFDF_BOOL,
+    boolean)
+_SNL_VFDF_GETTER(_snl_vfdf_get_number, snl_attr_get_uint64,
+    SNL_VFDF_NUMBER, number)
+_SNL_VFDF_GETTER(_snl_vfdf_get_string, snl_attr_dup_string,
+    SNL_VFDF_STRING, string)
+_SNL_VFDF_GETTER(_snl_vfdf_get_binary, snl_attr_dup_nla,
+    SNL_VFDF_BINARY, binary)
+
+#undef _SNL_VFDF_GETTER
+
+static inline bool
+_cb_p_vf_driver_field(struct snl_state *ss __unused, void *target)
+{
+	struct snl_parsed_vf_driver_field *field = target;
+
+	return (field->name != NULL);
+}
+
+#define	_OUT(_field)	offsetof(struct snl_parsed_vf_driver_field, _field)
+static const struct snl_attr_parser _nla_p_vf_driver_field[] = {
+	{ .type = IFLAF_VFDF_NAME, .off = _OUT(name),
+	    .cb = snl_attr_dup_string },
+	{ .type = IFLAF_VFDF_BOOL, .off = 0, .cb = _snl_vfdf_get_bool },
+	{ .type = IFLAF_VFDF_NUMBER, .off = 0,
+	    .cb = _snl_vfdf_get_number },
+	{ .type = IFLAF_VFDF_STRING, .off = 0,
+	    .cb = _snl_vfdf_get_string },
+	{ .type = IFLAF_VFDF_BINARY, .off = 0,
+	    .cb = _snl_vfdf_get_binary },
+};
+#undef _OUT
+SNL_DECLARE_ATTR_PARSER_EXT(_vf_driver_field_parser,
+    sizeof(struct snl_parsed_vf_driver_field), _nla_p_vf_driver_field,
+    _cb_p_vf_driver_field);
+
+static inline bool
+_snl_vfd_get_field_multi(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	struct snl_parsed_vf_driver_field *field;
+	struct snl_parray *fields = target;
+	struct nlattr *field_nla;
+	bool unknown_value;
+
+	field = snl_allocz(ss, sizeof(*field));
+	if (field == NULL ||
+	    !snl_parse_header(ss, NLA_DATA(nla), NLA_DATA_LEN(nla),
+	    &_vf_driver_field_parser, field))
+		return (false);
+	if (field->type != SNL_VFDF_NONE)
+		return (snl_parray_append(ss, fields, field, 8));
+
+	/* Ignore a field whose value type was added by a newer kernel. */
+	unknown_value = false;
+	NLA_FOREACH(field_nla, NLA_DATA(nla), NLA_DATA_LEN(nla)) {
+		if (NLA_TYPE(field_nla) > IFLAF_VFDF_MAX) {
+			unknown_value = true;
+			break;
+		}
+	}
+	return (unknown_value);
+}
+
+static inline bool
+_snl_vfd_get_version(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	struct snl_parsed_vf_driver *driver = target;
+
+	if (!snl_attr_get_uint32(ss, nla, NULL, &driver->version))
+		return (false);
+	driver->version_present = true;
+	return (true);
+}
+
+static inline bool
+_cb_p_vf_driver(struct snl_state *ss __unused, void *target)
+{
+	struct snl_parsed_vf_driver *driver = target;
+
+	return (driver->name != NULL && driver->version_present);
+}
+
+#define	_OUT(_field)	offsetof(struct snl_parsed_vf_driver, _field)
+static const struct snl_attr_parser _nla_p_vf_driver[] = {
+	{ .type = IFLAF_VFD_NAME, .off = _OUT(name),
+	    .cb = snl_attr_dup_string },
+	{ .type = IFLAF_VFD_VERSION, .off = 0,
+	    .cb = _snl_vfd_get_version },
+	{ .type = IFLAF_VFD_FIELD, .off = _OUT(fields),
+	    .cb = _snl_vfd_get_field_multi },
+};
+#undef _OUT
+SNL_DECLARE_ATTR_PARSER_EXT(_vf_driver_parser,
+    sizeof(struct snl_parsed_vf_driver), _nla_p_vf_driver,
+    _cb_p_vf_driver);
+
+#define	_OUT(_field)	offsetof(struct snl_parsed_vf, _field)
+static const struct snl_attr_parser _nla_p_vf[] = {
+	{ .type = IFLAF_VF_INDEX, .off = 0, .cb = _snl_vf_get_index },
+	{ .type = IFLAF_VF_CONFIGURED, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_CONFIGURED, configured),
+	    .cb = _snl_vf_get_bool },
+	{ .type = IFLAF_VF_INITIALIZED, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_INITIALIZED, initialized),
+	    .cb = _snl_vf_get_bool },
+	{ .type = IFLAF_VF_MAC, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_MAC, mac), .cb = _snl_vf_get_nla },
+	{ .type = IFLAF_VF_VLAN_MODE, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_VLAN_MODE, vlan_mode),
+	    .cb = _snl_vf_get_u8 },
+	{ .type = IFLAF_VF_VLAN, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_VLAN, vlan), .cb = _snl_vf_get_u16 },
+	{ .type = IFLAF_VF_VLAN_PCP, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_VLAN_PCP, vlan_pcp),
+	    .cb = _snl_vf_get_u8 },
+	{ .type = IFLAF_VF_VLAN_PROTO, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_VLAN_PROTO, vlan_proto),
+	    .cb = _snl_vf_get_u16 },
+	{ .type = IFLAF_VF_VLAN_COUNT, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_VLAN_COUNT, vlan_count),
+	    .cb = _snl_vf_get_u32 },
+	{ .type = IFLAF_VF_VLAN_LIMIT, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_VLAN_LIMIT, vlan_limit),
+	    .cb = _snl_vf_get_u32 },
+	{ .type = IFLAF_VF_NUM_TX_QUEUES, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_NUM_TX_QUEUES, tx_queue_count),
+	    .cb = _snl_vf_get_u16 },
+	{ .type = IFLAF_VF_NUM_RX_QUEUES, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_NUM_RX_QUEUES, rx_queue_count),
+	    .cb = _snl_vf_get_u16 },
+	{ .type = IFLAF_VF_MIN_TX_RATE, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_MIN_TX_RATE, min_tx_rate_bps),
+	    .cb = _snl_vf_get_u64 },
+	{ .type = IFLAF_VF_MAX_TX_RATE, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_MAX_TX_RATE, max_tx_rate_bps),
+	    .cb = _snl_vf_get_u64 },
+	{ .type = IFLAF_VF_ALLOW_SET_MAC, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_ALLOW_SET_MAC, allow_set_mac),
+	    .cb = _snl_vf_get_bool },
+	{ .type = IFLAF_VF_ALLOW_SET_VLAN, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_ALLOW_SET_VLAN, allow_set_vlan),
+	    .cb = _snl_vf_get_bool },
+	{ .type = IFLAF_VF_MAC_ANTI_SPOOF, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_MAC_ANTI_SPOOF, mac_anti_spoof),
+	    .cb = _snl_vf_get_bool },
+	{ .type = IFLAF_VF_ALLOW_PROMISC, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_ALLOW_PROMISC, allow_promisc),
+	    .cb = _snl_vf_get_bool },
+	{ .type = IFLAF_VF_TRAFFIC_ALLOWED, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_TRAFFIC_ALLOWED, traffic_allowed),
+	    .cb = _snl_vf_get_bool },
+	{ .type = IFLAF_VF_FAULT_BLOCKED, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_FAULT_BLOCKED, fault_blocked),
+	    .cb = _snl_vf_get_bool },
+	{ .type = IFLAF_VF_QUARANTINED, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_QUARANTINED, quarantined),
+	    .cb = _snl_vf_get_bool },
+	{ .type = IFLAF_VF_API_VERSION, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_API_VERSION, api_version),
+	    .cb = _snl_vf_get_string },
+	{ .type = IFLAF_VF_LINK_STATE_POLICY, .off = 0,
+	    .arg = _SNL_VF_ARG(IFLAF_VF_LINK_STATE_POLICY, link_state_policy),
+	    .cb = _snl_vf_get_u8 },
+	{ .type = IFLAF_VF_DRIVER, .off = _OUT(drivers),
+	    .arg = &_vf_driver_parser, .cb = snl_attr_get_multi },
+};
+#undef _OUT
+SNL_DECLARE_ATTR_PARSER_EXT(_vf_parser, sizeof(struct snl_parsed_vf),
+	    _nla_p_vf, _cb_p_vf);
+
+struct snl_parsed_vf_status {
+	uint64_t		pf_link_speed;
+	uint32_t		error;
+	uint8_t			pf_link_state;
+	bool			present;
+	bool			pf_link_state_present;
+	struct snl_parray	vfs;
+};
+
+static inline bool
+_snl_vfs_get_link_state(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	struct snl_parsed_vf_status *status = target;
+
+	if (!snl_attr_get_uint8(ss, nla, NULL, &status->pf_link_state))
+		return (false);
+	status->pf_link_state_present = true;
+	return (true);
+}
+
+static inline bool
+_cb_p_vf_status(struct snl_state *ss __unused, void *target)
+{
+	struct snl_parsed_vf_status *status = target;
+
+	return (status->error != 0 || status->pf_link_state_present);
+}
+
+#define	_OUT(_field)	offsetof(struct snl_parsed_vf_status, _field)
+static const struct snl_attr_parser _nla_p_vf_status[] = {
+	{ .type = IFLAF_VFS_ERROR, .off = _OUT(error),
+	    .cb = snl_attr_get_uint32 },
+	{ .type = IFLAF_VFS_PF_LINK_STATE, .off = 0,
+	    .cb = _snl_vfs_get_link_state },
+	{ .type = IFLAF_VFS_PF_LINK_SPEED, .off = _OUT(pf_link_speed),
+	    .cb = snl_attr_get_uint64 },
+};
+#undef _OUT
+SNL_DECLARE_ATTR_PARSER_EXT(_vf_status_parser,
+	    sizeof(struct snl_parsed_vf_status), _nla_p_vf_status,
+	    _cb_p_vf_status);
+
+static inline bool
+_snl_get_vf_status(struct snl_state *ss, struct nlattr *nla,
+    const void *arg __unused, void *target)
+{
+	struct snl_parsed_vf_status *status = target;
+
+	if (!snl_attr_get_nested(ss, nla, &_vf_status_parser, status))
+		return (false);
+	status->present = true;
+	return (true);
+}
+
 struct snl_parsed_link {
 	uint32_t			ifi_index;
 	uint32_t			ifi_flags;
@@ -193,10 +539,12 @@ struct snl_parsed_link {
 	struct nlattr			*ifla_broadcast;
 	char				*ifla_ifalias;
 	uint32_t			ifla_promiscuity;
+	uint32_t			ifla_num_vf;
 	struct rtnl_link_stats64	*ifla_stats64;
 	struct nlattr			*iflaf_orig_hwaddr;
 	struct snl_attr_bitset		iflaf_caps;
 	struct snl_parray		iflaf_groups;
+	struct snl_parsed_vf_status	iflaf_vf_status;
 };
 
 #define	_IN(_field)	offsetof(struct ifinfomsg, _field)
@@ -206,6 +554,8 @@ static const struct snl_attr_parser _nla_p_link_fbsd[] = {
 	{ .type = IFLAF_CAPS, .off = _OUT(iflaf_caps), .cb = snl_attr_get_bitset_c },
 	{ .type = IFLAF_GROUP, .off = _OUT(iflaf_groups), .cb = snl_attr_get_parray,
 		.arg = &_ifgroups_parser },
+	{ .type = IFLAF_VF_STATUS, .off = _OUT(iflaf_vf_status),
+	    .cb = _snl_get_vf_status },
 };
 SNL_DECLARE_ATTR_PARSER(_link_fbsd_parser, _nla_p_link_fbsd);
 
@@ -216,10 +566,15 @@ static const struct snl_attr_parser _nla_p_link[] = {
 	{ .type = IFLA_MTU, .off = _OUT(ifla_mtu), .cb = snl_attr_get_uint32 },
 	{ .type = IFLA_OPERSTATE, .off = _OUT(ifla_operstate), .cb = snl_attr_get_uint8 },
 	{ .type = IFLA_IFALIAS, .off = _OUT(ifla_ifalias), .cb = snl_attr_dup_string },
+	{ .type = IFLA_NUM_VF, .off = _OUT(ifla_num_vf), .cb = snl_attr_get_uint32 },
 	{ .type = IFLA_STATS64, .off = _OUT(ifla_stats64), .cb = snl_attr_dup_struct },
 	{ .type = IFLA_PROMISCUITY, .off = _OUT(ifla_promiscuity), .cb = snl_attr_get_uint32 },
 	{ .type = IFLA_CARRIER, .off = _OUT(ifla_carrier), .cb = snl_attr_get_uint8 },
 	{ .type = IFLA_FREEBSD, .arg = &_link_fbsd_parser, .cb = snl_attr_get_nested },
+	{ .type = IFLA_FREEBSD_VF,
+	    .off = _OUT(iflaf_vf_status) +
+	    offsetof(struct snl_parsed_vf_status, vfs),
+	    .arg = &_vf_parser, .cb = snl_attr_get_multi },
 };
 static const struct snl_field_parser _fp_p_link[] = {
 	{.off_in = _IN(ifi_index), .off_out = _OUT(ifi_index), .cb = snl_field_get_uint32 },

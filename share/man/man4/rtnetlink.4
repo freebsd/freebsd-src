@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 28, 2026
+.Dd September 6, 2026
 .Dt RTNETLINK 4
 .Os
 .Sh NAME
@@ -325,7 +325,17 @@ The following filters are recognised by the kernel:
 ifi_index	interface index
 IFLA_IFNAME	interface name
 IFLA_ALT_IFNAME	interface name
+IFLA_EXT_MASK	extended information selection bitmap
 .Ed
+.Pp
+Setting the
+.Dv RTEXT_FILTER_VF
+bit in
+.Dv IFLA_EXT_MASK
+requests SR-IOV VF status.
+The query is opt-in because obtaining status can require entering the PF
+driver.
+VF status is not included in unsolicited link notifications.
 .Ss TLVs
 .Bl -tag -width indent
 .It Dv IFLA_ADDRESS
@@ -340,6 +350,182 @@ IFLA_ALT_IFNAME	interface name
 (uint32_t) (readonly) Interface index.
 .It Dv IFLA_MASTER
 (uint32_t) Parent interface index.
+.It Dv IFLA_NUM_VF
+(uint32_t) (readonly) Number of VF records returned.
+This attribute is returned with a successful
+.Dv RTEXT_FILTER_VF
+query.
+.It Dv IFLA_FREEBSD
+(nested) Local interface attributes.
+When requested,
+.Dv IFLAF_VF_STATUS
+contains the following nested attributes:
+.Bd -literal -offset indent -compact
+IFLAF_VFS_ERROR		(uint32_t) errno if the PF query failed
+IFLAF_VFS_PF_LINK_STATE	(uint8_t) IFLAF_VF_LINK_*
+IFLAF_VFS_PF_LINK_SPEED	(uint64_t) bits per second
+.Ed
+.Pp
+If the PF status provider does not implement this query, the status block is
+omitted.
+If an implemented PF status query fails,
+.Dv IFLAF_VFS_ERROR
+contains the errno value and the other status attributes are omitted.
+An empty status snapshot reports
+.Dv IFLA_NUM_VF
+as zero and contains no
+.Dv IFLA_FREEBSD_VF
+attributes.
+.Pp
+Invalid or oversized data returned by a provider is reported through
+.Dv IFLAF_VFS_ERROR .
+Allocation failures while encoding the reply terminate the requested
+.Dv RTM_GETLINK
+operation with an error.
+For a multipart dump, valid interface records may precede the terminating
+error.
+.It Dv IFLA_FREEBSD_VF
+(nested) (readonly) One VF record containing
+.Dv IFLAF_VF_*
+attributes.
+The attribute is repeated once for every VF in a successful status snapshot.
+Keeping each VF in an independent attribute permits the complete Netlink
+message to exceed the 16-bit length limit of an individual attribute.
+Each
+.Dv IFLA_FREEBSD_VF
+may contain the following attributes:
+.Bd -literal -offset indent -compact
+IFLAF_VF_INDEX			(uint32_t) PF-local VF index
+IFLAF_VF_CONFIGURED		(bool) PF accepted configuration
+IFLAF_VF_INITIALIZED		(bool) VF handshake completed
+IFLAF_VF_MAC			(binary) PF-known primary MAC address
+IFLAF_VF_VLAN_MODE		(uint8_t) IFLAF_VF_VLAN_*
+IFLAF_VF_VLAN			(uint16_t) access VLAN identifier
+IFLAF_VF_VLAN_PCP		(uint8_t) access VLAN priority code point
+IFLAF_VF_VLAN_PROTO		(uint16_t) host-order access VLAN EtherType
+IFLAF_VF_VLAN_COUNT		(uint32_t) explicit VLAN filters
+IFLAF_VF_VLAN_LIMIT		(uint32_t) explicit VLAN-filter limit
+IFLAF_VF_NUM_TX_QUEUES		(uint16_t) allocated transmit queues
+IFLAF_VF_NUM_RX_QUEUES		(uint16_t) allocated receive queues
+IFLAF_VF_MIN_TX_RATE		(uint64_t) minimum transmit bits per second
+IFLAF_VF_MAX_TX_RATE		(uint64_t) maximum transmit bits per second
+IFLAF_VF_ALLOW_SET_MAC		(bool) administrative permission
+IFLAF_VF_ALLOW_SET_VLAN		(bool) administrative permission
+IFLAF_VF_MAC_ANTI_SPOOF		(bool) MAC anti-spoofing enabled
+IFLAF_VF_ALLOW_PROMISC		(bool) administrative permission
+IFLAF_VF_TRAFFIC_ALLOWED	(bool) PF permits VF data traffic
+IFLAF_VF_FAULT_BLOCKED		(bool) fault-containment block active
+IFLAF_VF_QUARANTINED		(bool) persistent quarantine active
+IFLAF_VF_API_VERSION		(string) negotiated mailbox API
+IFLAF_VF_LINK_STATE_POLICY	(uint8_t) IFLAF_VF_LINK_*
+IFLAF_VF_DRIVER			(nested) driver namespace; repeated
+.Ed
+.Pp
+.Dv IFLAF_VF_INDEX
+is required in every list entry.
+Other fields are optional and are omitted when the PF driver cannot observe
+them; omission does not mean false or zero.
+Boolean attributes contain a native Netlink boolean value.
+.Dv IFLAF_VF_CONFIGURED
+means that the PF accepted the VF configuration, while
+.Dv IFLAF_VF_INITIALIZED
+means that the VF completed its driver or mailbox handshake since its last
+reset.
+.Pp
+.Dv IFLAF_VF_TRAFFIC_ALLOWED
+means that the PF currently permits the VF to send and receive data traffic.
+It does not imply that the VF completed initialization, enabled queues, has
+link, or is actively passing packets.
+.Dv IFLAF_VF_FAULT_BLOCKED
+means that the PF isolated the VF because of a detected fault or abusive
+behavior.
+It does not include ordinary unconfigured, reset, or link-down states.
+The driver namespace describes the particular cause and recovery policy.
+When both fields are present, a fault block implies that traffic is not
+allowed.
+.Dv IFLAF_VF_QUARANTINED
+describes a persistent form of containment and, when both fields are present,
+implies that a fault block is active.
+.Pp
+.Dv IFLAF_VF_NUM_TX_QUEUES
+and
+.Dv IFLAF_VF_NUM_RX_QUEUES
+are the numbers of transmit and receive queues allocated to the VF, not
+necessarily the numbers currently used by its driver.
+The transmit-rate attributes describe configured aggregate VF policy.
+A present zero minimum means no guaranteed allocation; a present zero maximum
+means no rate limit.
+When both are present and the maximum is nonzero, the minimum does not exceed
+the maximum.
+Access VLAN mode means that the PF imposes a single port VLAN policy.
+The optional
+.Dv IFLAF_VF_VLAN ,
+.Dv IFLAF_VF_VLAN_PCP ,
+and
+.Dv IFLAF_VF_VLAN_PROTO
+attributes describe its VLAN identifier, IEEE 802.1p priority code point, and
+host-order tag EtherType, respectively.
+A present zero VLAN identifier can represent a priority-only access tag, and a
+present zero priority is distinct from an omitted priority.
+These attributes do not describe the VF's trunk filters.
+Trunk mode means that no access VLAN is imposed and does not promise unlimited
+filter capacity.
+.Dv IFLAF_VF_VLAN_COUNT
+counts explicit filters recorded by the PF and excludes implicit untagged and
+priority-tag membership.
+The permission attributes describe requests the VF may make, not requests it
+has made.
+The top-level PF link state and speed are values normally advertised to VFs,
+not evidence that a VF driver is operational.
+.Pp
+Link-state values are:
+.Bd -literal -offset indent -compact
+IFLAF_VF_LINK_UNKNOWN	state is unavailable
+IFLAF_VF_LINK_DOWN	link is forced or observed down
+IFLAF_VF_LINK_UP	link is forced or observed up
+IFLAF_VF_LINK_AUTO	VF follows PF link state
+.Ed
+.Pp
+VLAN-mode values are:
+.Bd -literal -offset indent -compact
+IFLAF_VF_VLAN_UNKNOWN	mode is unavailable
+IFLAF_VF_VLAN_ACCESS	PF imposes an access VLAN
+IFLAF_VF_VLAN_TRUNK	no access VLAN is imposed
+.Ed
+.Pp
+Driver-specific data is returned under
+.Dv IFLAF_VF_DRIVER ,
+which may be repeated directly in a VF record.
+Each driver object contains:
+.Bd -literal -offset indent -compact
+IFLAF_VFD_NAME		(string) stable namespace name
+IFLAF_VFD_VERSION	(uint32_t) namespace schema version
+IFLAF_VFD_FIELD		(nested) namespace field; repeated
+.Ed
+.Pp
+Each field contains its namespace-local name in
+.Dv IFLAF_VFDF_NAME
+and exactly one of
+.Dv IFLAF_VFDF_BOOL ,
+.Dv IFLAF_VFDF_NUMBER ,
+.Dv IFLAF_VFDF_STRING ,
+or
+.Dv IFLAF_VFDF_BINARY .
+The namespace defines the types and meanings of its fields.
+The named, typed form permits generic consumers to carry or display an
+extension without knowing its driver-specific schema.
+Consumers that interpret extensions must ignore unknown namespaces and
+fields.
+Each attribute, including each containing nested attribute, is limited to
+65535 bytes by the Netlink encoding.
+If an individual VF record, driver extension, or field cannot be encoded
+within that limit,
+.Dv IFLAF_VFS_ERROR
+reports
+.Er EMSGSIZE .
+The enclosing
+.Dv RTM_NEWLINK
+message may exceed 65535 bytes.
 .It Dv IFLA_LINKINFO
 (nested) Interface type-specific attributes:
 .Bd -literal -offset indent -compact

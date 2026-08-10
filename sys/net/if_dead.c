@@ -107,6 +107,13 @@ ifdead_snd_tag_alloc(struct ifnet *ifp, union if_snd_tag_alloc_params *params,
 	return (EOPNOTSUPP);
 }
 
+static int
+ifdead_vf_status(struct ifnet *ifp __unused,
+    struct if_vf_status **statusp __unused)
+{
+	return (EOPNOTSUPP);
+}
+
 static void
 ifdead_ratelimit_query(struct ifnet *ifp __unused,
       struct if_ratelimit_query_results *q)
@@ -138,4 +145,5 @@ if_dead(struct ifnet *ifp)
 	ifp->if_get_counter = ifdead_get_counter;
 	ifp->if_snd_tag_alloc = ifdead_snd_tag_alloc;
 	ifp->if_ratelimit_query = ifdead_ratelimit_query;
+	ifp->if_vf_status = ifdead_vf_status;
 }

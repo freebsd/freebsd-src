@@ -88,6 +88,7 @@
 #include <dev/pci/pci_private.h>
 
 #include <net/iflib.h>
+#include <net/if_vf_status.h>
 
 #include "ifdi_if.h"
 
@@ -4741,6 +4742,19 @@ iflib_if_ioctl(if_t ifp, u_long command, caddr_t data)
 	return (err);
 }
 
+static int
+iflib_if_vf_status(if_t ifp, struct if_vf_status **statusp)
+{
+	if_ctx_t ctx;
+	int error;
+
+	ctx = if_getsoftc(ifp);
+	CTX_LOCK(ctx);
+	error = IFDI_VF_STATUS(ctx, statusp);
+	CTX_UNLOCK(ctx);
+	return (error);
+}
+
 static uint64_t
 iflib_if_get_counter(if_t ifp, ift_counter cnt)
 {
@@ -6020,6 +6034,9 @@ iflib_register(if_ctx_t ctx)
 	if_setdev(ifp, dev);
 	if_setinitfn(ifp, iflib_if_init);
 	if_setioctlfn(ifp, iflib_if_ioctl);
+	/* VF status describes children of an SR-IOV PF. */
+	if (!CTX_IS_VF(ctx))
+		if_setvfstatusfn(ifp, iflib_if_vf_status);
 #ifdef ALTQ
 	if_setstartfn(ifp, iflib_altq_if_start);
 	if_settransmitfn(ifp, iflib_altq_if_transmit);

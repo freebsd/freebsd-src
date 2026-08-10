@@ -42,6 +42,7 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_var.h>
+#include <net/if_vf_status.h>
 #include <net/if_clone.h>
 #include <net/route.h>
 #include <net/route/nhop.h>
@@ -65,6 +66,7 @@ struct netlink_walkargs {
 	struct nlpcb *so;
 	struct ucred *cred;
 	uint32_t fibnum;
+	uint32_t ext_mask;
 	int family;
 	int error;
 	int count;
@@ -311,6 +313,529 @@ dump_iface_caps(struct nl_writer *nw, struct ifnet *ifp)
 	return (true);
 }
 
+static bool
+dump_vf_bool(struct nl_writer *nw, const struct if_vf_info *vf,
+    uint64_t field, uint16_t attr, bool value)
+{
+
+	if ((vf->fields & field) == 0)
+		return (true);
+	return (nlattr_add_bool(nw, attr, value));
+}
+
+static bool
+dump_vf_u8(struct nl_writer *nw, const struct if_vf_info *vf,
+    uint64_t field, uint16_t attr, uint8_t value)
+{
+
+	if ((vf->fields & field) == 0)
+		return (true);
+	return (nlattr_add_u8(nw, attr, value));
+}
+
+static bool
+dump_vf_u16(struct nl_writer *nw, const struct if_vf_info *vf,
+    uint64_t field, uint16_t attr, uint16_t value)
+{
+
+	if ((vf->fields & field) == 0)
+		return (true);
+	return (nlattr_add_u16(nw, attr, value));
+}
+
+static bool
+dump_vf_u32(struct nl_writer *nw, const struct if_vf_info *vf,
+    uint64_t field, uint16_t attr, uint32_t value)
+{
+
+	if ((vf->fields & field) == 0)
+		return (true);
+	return (nlattr_add_u32(nw, attr, value));
+}
+
+static bool
+dump_vf_u64(struct nl_writer *nw, const struct if_vf_info *vf,
+    uint64_t field, uint16_t attr, uint64_t value)
+{
+
+	if ((vf->fields & field) == 0)
+		return (true);
+	return (nlattr_add_u64(nw, attr, value));
+}
+
+static int
+dump_vf_string(struct nl_writer *nw, uint16_t attr, const char *value)
+{
+	size_t length;
+
+	if (value == NULL)
+		return (EINVAL);
+	length = strnlen(value, UINT16_MAX - sizeof(struct nlattr));
+	if (length == UINT16_MAX - sizeof(struct nlattr))
+		return (EMSGSIZE);
+	if (!nlattr_add(nw, attr, (uint16_t)length + 1, value))
+		return (ENOMEM);
+	return (0);
+}
+
+static int
+nlattr_set_len_checked(struct nl_writer *nw, int off)
+{
+	u_int end;
+
+	end = nlattr_save_offset(nw);
+	MPASS(off >= 0 && (u_int)off <= end);
+	if (end - (u_int)off > UINT16_MAX)
+		return (EMSGSIZE);
+	nlattr_set_len(nw, off);
+	return (0);
+}
+
+static int
+vf_add_encoded_size(size_t *size, size_t encoded_size)
+{
+
+	if (encoded_size > UINT16_MAX || *size > UINT16_MAX - encoded_size)
+		return (EMSGSIZE);
+	*size += encoded_size;
+	return (0);
+}
+
+static int
+vf_add_attr_size(size_t *size, size_t payload_size)
+{
+
+	if (payload_size > UINT16_MAX - sizeof(struct nlattr))
+		return (EMSGSIZE);
+	return (vf_add_encoded_size(size,
+	    NLA_ALIGN(sizeof(struct nlattr) + payload_size)));
+}
+
+static int
+vf_add_string_size(size_t *size, const char *value)
+{
+	size_t length;
+
+	if (value == NULL)
+		return (EINVAL);
+	length = strnlen(value, UINT16_MAX - sizeof(struct nlattr));
+	if (length == UINT16_MAX - sizeof(struct nlattr))
+		return (EMSGSIZE);
+	return (vf_add_attr_size(size, length + 1));
+}
+
+static int
+validate_vf_extension_field(const struct if_vf_ext_field *field,
+    size_t *encoded_size)
+{
+	size_t size;
+	int error;
+
+	size = NLA_ALIGN(sizeof(struct nlattr));
+	error = vf_add_string_size(&size, field->name);
+	if (error != 0)
+		return (error);
+	switch (field->type) {
+	case IFVF_EXT_BOOL:
+		error = vf_add_attr_size(&size, sizeof(bool));
+		break;
+	case IFVF_EXT_NUMBER:
+		error = vf_add_attr_size(&size, sizeof(uint64_t));
+		break;
+	case IFVF_EXT_STRING:
+		error = vf_add_string_size(&size, field->value.string);
+		break;
+	case IFVF_EXT_BINARY:
+		if (field->value.binary.data == NULL ||
+		    field->value.binary.length == 0)
+			return (EINVAL);
+		error = vf_add_attr_size(&size, field->value.binary.length);
+		break;
+	default:
+		return (EINVAL);
+	}
+	if (error != 0)
+		return (error);
+	*encoded_size = size;
+	return (0);
+}
+
+static int
+validate_vf_extension(const struct if_vf_extension *extension,
+    size_t *encoded_size)
+{
+	size_t field_size, size;
+	uint32_t i;
+	int error;
+
+	if (extension->name == NULL || extension->num_fields == 0 ||
+	    extension->num_fields > IFVF_MAX_EXTENSION_FIELDS ||
+	    extension->fields == NULL)
+		return (EINVAL);
+	size = NLA_ALIGN(sizeof(struct nlattr));
+	error = vf_add_string_size(&size, extension->name);
+	if (error == 0)
+		error = vf_add_attr_size(&size, sizeof(uint32_t));
+	for (i = 0; error == 0 && i < extension->num_fields; i++) {
+		error = validate_vf_extension_field(&extension->fields[i],
+		    &field_size);
+		if (error == 0)
+			error = vf_add_encoded_size(&size, field_size);
+	}
+	if (error != 0)
+		return (error);
+	*encoded_size = size;
+	return (0);
+}
+
+static int
+validate_vf_entry(const struct if_vf_info *vf, size_t *encoded_size)
+{
+	const uint64_t access_fields = IFVF_F_VLAN | IFVF_F_VLAN_PCP |
+	    IFVF_F_VLAN_PROTO;
+	const uint64_t rate_fields = IFVF_F_MIN_TX_RATE |
+	    IFVF_F_MAX_TX_RATE;
+	const uint64_t bool_fields = IFVF_F_CONFIGURED | IFVF_F_INITIALIZED |
+	    IFVF_F_ALLOW_SET_MAC | IFVF_F_ALLOW_SET_VLAN |
+	    IFVF_F_MAC_ANTI_SPOOF | IFVF_F_ALLOW_PROMISC |
+	    IFVF_F_TRAFFIC_ALLOWED | IFVF_F_FAULT_BLOCKED |
+	    IFVF_F_QUARANTINED;
+	size_t extension_size, size;
+	uint32_t i;
+	int error;
+
+	if ((vf->fields & IFVF_F_VLAN) != 0 && vf->vlan > EVL_VLID_MASK)
+		return (EINVAL);
+	if ((vf->fields & IFVF_F_VLAN_PCP) != 0 && vf->vlan_pcp > 7)
+		return (EINVAL);
+	if ((vf->fields & IFVF_F_VLAN_PROTO) != 0 && vf->vlan_proto == 0)
+		return (EINVAL);
+	if ((vf->fields & access_fields) != 0 &&
+	    ((vf->fields & IFVF_F_VLAN_MODE) == 0 ||
+	    vf->vlan_mode != IFVF_VLAN_ACCESS))
+		return (EINVAL);
+	if ((vf->fields & rate_fields) == rate_fields &&
+	    vf->max_tx_rate_bps != 0 &&
+	    vf->min_tx_rate_bps > vf->max_tx_rate_bps)
+		return (EINVAL);
+	if ((vf->fields & (IFVF_F_TRAFFIC_ALLOWED | IFVF_F_FAULT_BLOCKED)) ==
+	    (IFVF_F_TRAFFIC_ALLOWED | IFVF_F_FAULT_BLOCKED) &&
+	    vf->traffic_allowed && vf->fault_blocked)
+		return (EINVAL);
+	if ((vf->fields & (IFVF_F_FAULT_BLOCKED | IFVF_F_QUARANTINED)) ==
+	    (IFVF_F_FAULT_BLOCKED | IFVF_F_QUARANTINED) &&
+	    vf->quarantined && !vf->fault_blocked)
+		return (EINVAL);
+	if ((vf->fields & IFVF_F_VLAN_MODE) != 0 &&
+	    vf->vlan_mode > IFVF_VLAN_TRUNK)
+		return (EINVAL);
+	if ((vf->fields & IFVF_F_LINK_STATE_POLICY) != 0 &&
+	    vf->link_state_policy > IFVF_LINK_AUTO)
+		return (EINVAL);
+	if ((vf->fields & IFVF_F_API_VERSION) != 0 &&
+	    strnlen(vf->api_version, sizeof(vf->api_version)) ==
+	    sizeof(vf->api_version))
+		return (EINVAL);
+	if (vf->num_extensions > IFVF_MAX_EXTENSIONS ||
+	    (vf->num_extensions != 0 && vf->extensions == NULL))
+		return (EINVAL);
+
+	size = NLA_ALIGN(sizeof(struct nlattr));
+	error = vf_add_attr_size(&size, sizeof(uint32_t));
+	for (uint64_t field = 1; error == 0 && field <= IFVF_F_QUARANTINED;
+	    field <<= 1) {
+		if ((bool_fields & field) != 0 && (vf->fields & field) != 0)
+			error = vf_add_attr_size(&size, sizeof(bool));
+	}
+	if (error == 0 && (vf->fields & IFVF_F_MAC) != 0)
+		error = vf_add_attr_size(&size, sizeof(vf->mac));
+	if (error == 0 && (vf->fields & IFVF_F_VLAN_MODE) != 0)
+		error = vf_add_attr_size(&size, sizeof(uint8_t));
+	if (error == 0 && (vf->fields & IFVF_F_VLAN) != 0)
+		error = vf_add_attr_size(&size, sizeof(uint16_t));
+	if (error == 0 && (vf->fields & IFVF_F_VLAN_PCP) != 0)
+		error = vf_add_attr_size(&size, sizeof(uint8_t));
+	if (error == 0 && (vf->fields & IFVF_F_VLAN_PROTO) != 0)
+		error = vf_add_attr_size(&size, sizeof(uint16_t));
+	if (error == 0 && (vf->fields & IFVF_F_VLAN_COUNT) != 0)
+		error = vf_add_attr_size(&size, sizeof(uint32_t));
+	if (error == 0 && (vf->fields & IFVF_F_VLAN_LIMIT) != 0)
+		error = vf_add_attr_size(&size, sizeof(uint32_t));
+	if (error == 0 && (vf->fields & IFVF_F_NUM_TX_QUEUES) != 0)
+		error = vf_add_attr_size(&size, sizeof(uint16_t));
+	if (error == 0 && (vf->fields & IFVF_F_NUM_RX_QUEUES) != 0)
+		error = vf_add_attr_size(&size, sizeof(uint16_t));
+	if (error == 0 && (vf->fields & IFVF_F_MIN_TX_RATE) != 0)
+		error = vf_add_attr_size(&size, sizeof(uint64_t));
+	if (error == 0 && (vf->fields & IFVF_F_MAX_TX_RATE) != 0)
+		error = vf_add_attr_size(&size, sizeof(uint64_t));
+	if (error == 0 && (vf->fields & IFVF_F_API_VERSION) != 0)
+		error = vf_add_string_size(&size, vf->api_version);
+	if (error == 0 && (vf->fields & IFVF_F_LINK_STATE_POLICY) != 0)
+		error = vf_add_attr_size(&size, sizeof(uint8_t));
+	for (i = 0; error == 0 && i < vf->num_extensions; i++) {
+		error = validate_vf_extension(&vf->extensions[i],
+		    &extension_size);
+		if (error == 0)
+			error = vf_add_encoded_size(&size, extension_size);
+	}
+	if (error != 0)
+		return (error);
+	*encoded_size = size;
+	return (0);
+}
+
+static int
+validate_vf_status(const struct if_vf_status *status)
+{
+	size_t encoded_size;
+	uint32_t i;
+	int error;
+
+	if (status == NULL || status->num_vfs > IFVF_MAX_VFS)
+		return (EINVAL);
+	for (i = 0; i < status->num_vfs; i++) {
+		error = validate_vf_entry(&status->vfs[i], &encoded_size);
+		if (error != 0)
+			return (error);
+	}
+	return (0);
+}
+
+static int
+dump_vf_extension_field(struct nl_writer *nw,
+    const struct if_vf_ext_field *field)
+{
+	int error, off;
+
+	if (field->name == NULL)
+		return (EINVAL);
+	off = nlattr_add_nested(nw, IFLAF_VFD_FIELD);
+	if (off == 0)
+		return (ENOMEM);
+	error = dump_vf_string(nw, IFLAF_VFDF_NAME, field->name);
+	if (error != 0)
+		return (error);
+	switch (field->type) {
+	case IFVF_EXT_BOOL:
+		error = nlattr_add_bool(nw, IFLAF_VFDF_BOOL,
+		    field->value.boolean) ? 0 : ENOMEM;
+		break;
+	case IFVF_EXT_NUMBER:
+		error = nlattr_add_u64(nw, IFLAF_VFDF_NUMBER,
+		    field->value.number) ? 0 : ENOMEM;
+		break;
+	case IFVF_EXT_STRING:
+		error = dump_vf_string(nw, IFLAF_VFDF_STRING,
+		    field->value.string);
+		break;
+	case IFVF_EXT_BINARY:
+		if (field->value.binary.data == NULL ||
+		    field->value.binary.length == 0) {
+			error = EINVAL;
+			break;
+		}
+		if (field->value.binary.length >
+		    UINT16_MAX - sizeof(struct nlattr)) {
+			error = EMSGSIZE;
+			break;
+		}
+		error = nlattr_add(nw, IFLAF_VFDF_BINARY,
+		    (uint16_t)field->value.binary.length,
+		    field->value.binary.data) ? 0 : ENOMEM;
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	if (error != 0)
+		return (error);
+	return (nlattr_set_len_checked(nw, off));
+}
+
+static int
+dump_vf_extensions(struct nl_writer *nw, const struct if_vf_info *vf)
+{
+	const struct if_vf_extension *extension;
+	uint32_t i, j;
+	int error, off;
+
+	if (vf->num_extensions > IFVF_MAX_EXTENSIONS ||
+	    (vf->num_extensions != 0 && vf->extensions == NULL))
+		return (EINVAL);
+
+	for (i = 0; i < vf->num_extensions; i++) {
+		extension = &vf->extensions[i];
+		if (extension->name == NULL || extension->num_fields == 0 ||
+		    extension->num_fields > IFVF_MAX_EXTENSION_FIELDS ||
+		    extension->fields == NULL)
+			return (EINVAL);
+		off = nlattr_add_nested(nw, IFLAF_VF_DRIVER);
+		if (off == 0)
+			return (ENOMEM);
+		error = dump_vf_string(nw, IFLAF_VFD_NAME, extension->name);
+		if (error != 0)
+			return (error);
+		if (!nlattr_add_u32(nw, IFLAF_VFD_VERSION,
+		    extension->version))
+			return (ENOMEM);
+		for (j = 0; j < extension->num_fields; j++) {
+			error = dump_vf_extension_field(nw,
+			    &extension->fields[j]);
+			if (error != 0)
+				return (error);
+		}
+		error = nlattr_set_len_checked(nw, off);
+		if (error != 0)
+			return (error);
+	}
+	return (0);
+}
+
+static int
+dump_vf_entry(struct nl_writer *nw, const struct if_vf_info *vf)
+{
+	const uint64_t access_fields = IFVF_F_VLAN | IFVF_F_VLAN_PCP |
+	    IFVF_F_VLAN_PROTO;
+	const uint64_t rate_fields = IFVF_F_MIN_TX_RATE |
+	    IFVF_F_MAX_TX_RATE;
+	int error, off;
+	bool ok;
+
+	if ((vf->fields & IFVF_F_VLAN) != 0 && vf->vlan > EVL_VLID_MASK)
+		return (EINVAL);
+	if ((vf->fields & IFVF_F_VLAN_PCP) != 0 && vf->vlan_pcp > 7)
+		return (EINVAL);
+	if ((vf->fields & IFVF_F_VLAN_PROTO) != 0 && vf->vlan_proto == 0)
+		return (EINVAL);
+	if ((vf->fields & access_fields) != 0 &&
+	    ((vf->fields & IFVF_F_VLAN_MODE) == 0 ||
+	     vf->vlan_mode != IFVF_VLAN_ACCESS))
+		return (EINVAL);
+	if ((vf->fields & rate_fields) == rate_fields &&
+	    vf->max_tx_rate_bps != 0 &&
+	    vf->min_tx_rate_bps > vf->max_tx_rate_bps)
+		return (EINVAL);
+	if ((vf->fields & (IFVF_F_TRAFFIC_ALLOWED | IFVF_F_FAULT_BLOCKED)) ==
+	    (IFVF_F_TRAFFIC_ALLOWED | IFVF_F_FAULT_BLOCKED) &&
+	    vf->traffic_allowed && vf->fault_blocked)
+		return (EINVAL);
+	if ((vf->fields & (IFVF_F_FAULT_BLOCKED | IFVF_F_QUARANTINED)) ==
+	    (IFVF_F_FAULT_BLOCKED | IFVF_F_QUARANTINED) &&
+	    vf->quarantined && !vf->fault_blocked)
+		return (EINVAL);
+
+	off = nlattr_add_nested(nw, IFLA_FREEBSD_VF);
+	if (off == 0)
+		return (ENOMEM);
+	ok = nlattr_add_u32(nw, IFLAF_VF_INDEX, vf->index) &&
+	    dump_vf_bool(nw, vf, IFVF_F_CONFIGURED, IFLAF_VF_CONFIGURED,
+	    vf->configured) &&
+	    dump_vf_bool(nw, vf, IFVF_F_INITIALIZED, IFLAF_VF_INITIALIZED,
+	    vf->initialized);
+	if (!ok)
+		return (ENOMEM);
+	if ((vf->fields & IFVF_F_MAC) != 0 &&
+	    !nlattr_add(nw, IFLAF_VF_MAC, sizeof(vf->mac), vf->mac))
+		return (ENOMEM);
+	if ((vf->fields & IFVF_F_VLAN_MODE) != 0) {
+		if (vf->vlan_mode > IFVF_VLAN_TRUNK)
+			return (EINVAL);
+		if (!nlattr_add_u8(nw, IFLAF_VF_VLAN_MODE,
+		    (uint8_t)vf->vlan_mode))
+			return (ENOMEM);
+	}
+	ok = dump_vf_u16(nw, vf, IFVF_F_VLAN, IFLAF_VF_VLAN, vf->vlan) &&
+	    dump_vf_u8(nw, vf, IFVF_F_VLAN_PCP, IFLAF_VF_VLAN_PCP,
+	    vf->vlan_pcp) &&
+	    dump_vf_u16(nw, vf, IFVF_F_VLAN_PROTO, IFLAF_VF_VLAN_PROTO,
+	    vf->vlan_proto) &&
+	    dump_vf_u32(nw, vf, IFVF_F_VLAN_COUNT, IFLAF_VF_VLAN_COUNT,
+	    vf->vlan_count) &&
+	    dump_vf_u32(nw, vf, IFVF_F_VLAN_LIMIT, IFLAF_VF_VLAN_LIMIT,
+	    vf->vlan_limit) &&
+	    dump_vf_u16(nw, vf, IFVF_F_NUM_TX_QUEUES,
+	    IFLAF_VF_NUM_TX_QUEUES, vf->tx_queue_count) &&
+	    dump_vf_u16(nw, vf, IFVF_F_NUM_RX_QUEUES,
+	    IFLAF_VF_NUM_RX_QUEUES, vf->rx_queue_count) &&
+	    dump_vf_u64(nw, vf, IFVF_F_MIN_TX_RATE, IFLAF_VF_MIN_TX_RATE,
+	    vf->min_tx_rate_bps) &&
+	    dump_vf_u64(nw, vf, IFVF_F_MAX_TX_RATE, IFLAF_VF_MAX_TX_RATE,
+	    vf->max_tx_rate_bps) &&
+	    dump_vf_bool(nw, vf, IFVF_F_ALLOW_SET_MAC, IFLAF_VF_ALLOW_SET_MAC,
+	    vf->allow_set_mac) &&
+	    dump_vf_bool(nw, vf, IFVF_F_ALLOW_SET_VLAN,
+	    IFLAF_VF_ALLOW_SET_VLAN, vf->allow_set_vlan) &&
+	    dump_vf_bool(nw, vf, IFVF_F_MAC_ANTI_SPOOF,
+	    IFLAF_VF_MAC_ANTI_SPOOF, vf->mac_anti_spoof) &&
+	    dump_vf_bool(nw, vf, IFVF_F_ALLOW_PROMISC,
+	    IFLAF_VF_ALLOW_PROMISC, vf->allow_promisc) &&
+	    dump_vf_bool(nw, vf, IFVF_F_TRAFFIC_ALLOWED,
+	    IFLAF_VF_TRAFFIC_ALLOWED, vf->traffic_allowed) &&
+	    dump_vf_bool(nw, vf, IFVF_F_FAULT_BLOCKED, IFLAF_VF_FAULT_BLOCKED,
+	    vf->fault_blocked) &&
+	    dump_vf_bool(nw, vf, IFVF_F_QUARANTINED, IFLAF_VF_QUARANTINED,
+	    vf->quarantined);
+	if (!ok)
+		return (ENOMEM);
+	if ((vf->fields & IFVF_F_API_VERSION) != 0) {
+		if (strnlen(vf->api_version, sizeof(vf->api_version)) ==
+		    sizeof(vf->api_version))
+			return (EINVAL);
+		error = dump_vf_string(nw, IFLAF_VF_API_VERSION,
+		    vf->api_version);
+		if (error != 0)
+			return (error);
+	}
+	if ((vf->fields & IFVF_F_LINK_STATE_POLICY) != 0) {
+		if (vf->link_state_policy > IFVF_LINK_AUTO)
+			return (EINVAL);
+		if (!nlattr_add_u8(nw, IFLAF_VF_LINK_STATE_POLICY,
+		    (uint8_t)vf->link_state_policy))
+			return (ENOMEM);
+	}
+	error = dump_vf_extensions(nw, vf);
+	if (error != 0)
+		return (error);
+	return (nlattr_set_len_checked(nw, off));
+}
+
+static int
+dump_vf_status(struct nl_writer *nw, if_t ifp,
+    int error)
+{
+	uint64_t baudrate;
+	uint8_t link_state;
+	int off;
+
+	off = nlattr_add_nested(nw, IFLAF_VF_STATUS);
+	if (off == 0)
+		return (ENOMEM);
+	if (error != 0) {
+		if (!nlattr_add_u32(nw, IFLAF_VFS_ERROR, (uint32_t)error))
+			return (ENOMEM);
+		return (nlattr_set_len_checked(nw, off));
+	}
+	switch (if_getlinkstate(ifp)) {
+	case LINK_STATE_DOWN:
+		link_state = IFLAF_VF_LINK_DOWN;
+		break;
+	case LINK_STATE_UP:
+		link_state = IFLAF_VF_LINK_UP;
+		break;
+	default:
+		link_state = IFLAF_VF_LINK_UNKNOWN;
+		break;
+	}
+	if (!nlattr_add_u8(nw, IFLAF_VFS_PF_LINK_STATE, link_state))
+		return (ENOMEM);
+	baudrate = if_getbaudrate(ifp);
+	if (baudrate != 0 &&
+	    !nlattr_add_u64(nw, IFLAF_VFS_PF_LINK_SPEED, baudrate))
+		return (ENOMEM);
+	return (nlattr_set_len_checked(nw, off));
+}
+
 /*
  * Dumps interface state, properties and metrics.
  * @nw: message writer
@@ -320,14 +845,27 @@ dump_iface_caps(struct nl_writer *nw, struct ifnet *ifp)
  *
  * This function is called without epoch and MAY sleep.
  */
-static bool
+static int
 dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
-    int if_flags_mask, const char *ifname)
+    int if_flags_mask, const char *ifname, uint32_t ext_mask)
 {
 	struct epoch_tracker et;
+	struct if_vf_status *vf_status;
         struct ifinfomsg *ifinfo;
+	bool include_vf_status;
+	int error, vf_error;
 
         NL_LOG(LOG_DEBUG3, "dumping interface %s data", if_name(ifp));
+	vf_status = NULL;
+	vf_error = 0;
+	include_vf_status = (ext_mask & RTEXT_FILTER_VF) != 0;
+	if (include_vf_status) {
+		vf_error = if_get_vf_status(ifp, &vf_status);
+		if (vf_error == EOPNOTSUPP)
+			include_vf_status = false;
+		else if (vf_error == 0)
+			vf_error = validate_vf_status(vf_status);
+	}
 
 	if (!nlmsg_reply(nw, hdr, sizeof(struct ifinfomsg)))
 		goto enomem;
@@ -373,6 +911,10 @@ dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
         }
 
         nlattr_add_u32(nw, IFLA_MTU, if_getmtu(ifp));
+	if (vf_error == 0 && vf_status != NULL) {
+		if (!nlattr_add_u32(nw, IFLA_NUM_VF, vf_status->num_vfs))
+			goto enomem;
+	}
 /*
         nlattr_add_u32(nw, IFLA_MIN_MTU, 60);
         nlattr_add_u32(nw, IFLA_MAX_MTU, 9000);
@@ -383,13 +925,26 @@ dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
 
 	/* Store FreeBSD-specific attributes */
 	int off = nlattr_add_nested(nw, IFLA_FREEBSD);
-	if (off != 0) {
-		get_hwaddr(nw, ifp);
-		dump_iface_caps(nw, ifp);
-		if (dump_group(nw, ifp) != 0)
-			goto enomem;
-
-		nlattr_set_len(nw, off);
+	if (off == 0)
+		goto enomem;
+	get_hwaddr(nw, ifp);
+	dump_iface_caps(nw, ifp);
+	if (dump_group(nw, ifp) != 0)
+		goto enomem;
+	if (include_vf_status) {
+		error = dump_vf_status(nw, ifp, vf_error);
+		if (error != 0)
+			goto fail;
+	}
+	error = nlattr_set_len_checked(nw, off);
+	if (error != 0)
+		goto fail;
+	if (vf_error == 0 && vf_status != NULL) {
+		for (uint32_t i = 0; i < vf_status->num_vfs; i++) {
+			error = dump_vf_entry(nw, &vf_status->vfs[i]);
+			if (error != 0)
+				goto fail;
+		}
 	}
 
 	get_stats(nw, ifp);
@@ -401,13 +956,21 @@ dump_iface(struct nl_writer *nw, if_t ifp, const struct nlmsghdr *hdr,
 
 	nw->ifp = ifp;
 
-        if (nlmsg_end(nw))
-		return (true);
+	if (nlmsg_end(nw)) {
+		if (vf_status != NULL)
+			if_vf_status_free(vf_status);
+		return (0);
+	}
 
 enomem:
-        NL_LOG(LOG_DEBUG, "unable to dump interface %s state (ENOMEM)", if_name(ifp));
+	error = ENOMEM;
+fail:
+	if (vf_status != NULL)
+		if_vf_status_free(vf_status);
+	NL_LOG(LOG_DEBUG, "unable to dump interface %s state: %d",
+	    if_name(ifp), error);
         nlmsg_abort(nw);
-        return (false);
+	return (error);
 }
 
 static bool
@@ -448,6 +1011,7 @@ static const struct nlattr_parser nla_p_if[] = {
 	{ .type = IFLA_LINKINFO, .arg = &linfo_parser, .cb = nlattr_get_nested },
 	{ .type = IFLA_IFALIAS, .off = _OUT(ifla_ifalias), .cb = nlattr_get_string },
 	{ .type = IFLA_GROUP, .off = _OUT(ifla_group), .cb = nlattr_get_string },
+	{ .type = IFLA_EXT_MASK, .off = _OUT(ifla_ext_mask), .cb = nlattr_get_uint32 },
 	{ .type = IFLA_ALT_IFNAME, .off = _OUT(ifla_ifname), .cb = nlattr_get_string },
 };
 #undef _IN
@@ -474,9 +1038,8 @@ static int
 dump_cb(if_t ifp, void *_arg)
 {
 	struct netlink_walkargs *wa = (struct netlink_walkargs *)_arg;
-	if (!dump_iface(wa->nw, ifp, &wa->hdr, 0, NULL))
-		return (ENOMEM);
-	return (0);
+
+	return (dump_iface(wa->nw, ifp, &wa->hdr, 0, NULL, wa->ext_mask));
 }
 
 /*
@@ -506,6 +1069,7 @@ rtnl_handle_getlink(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *n
 		.hdr.nlmsg_seq = hdr->nlmsg_seq,
 		.hdr.nlmsg_flags = hdr->nlmsg_flags,
 		.hdr.nlmsg_type = NL_RTM_NEWLINK,
+		.ext_mask = attrs.ifla_ext_mask,
 	};
 
 	/* Fast track for an interface w/ explicit name or index match */
@@ -524,8 +1088,8 @@ rtnl_handle_getlink(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *n
 
 		if (ifp != NULL) {
 			if (match_iface(ifp, &attrs)) {
-				if (!dump_iface(wa.nw, ifp, &wa.hdr, 0, NULL))
-					error = ENOMEM;
+				error = dump_iface(wa.nw, ifp, &wa.hdr, 0,
+				    NULL, wa.ext_mask);
 			} else
 				error = ENODEV;
 			if_rele(ifp);
@@ -544,7 +1108,7 @@ rtnl_handle_getlink(struct nlmsghdr *hdr, struct nlpcb *nlp, struct nl_pstate *n
 	 */
 
 	NL_LOG(LOG_DEBUG2, "Start dump");
-	if_foreach_sleep(match_iface, &attrs, dump_cb, &wa);
+	error = if_foreach_sleep(match_iface, &attrs, dump_cb, &wa);
 	NL_LOG(LOG_DEBUG2, "End dump, iterated %d dumped %d", wa.count, wa.dumped);
 
 	if (!nlmsg_end_dump(wa.nw, error, &wa.hdr)) {
@@ -1451,7 +2015,7 @@ rtnl_handle_ifevent(if_t ifp, int nlmsg_type, int if_flags_mask,
 		NL_LOG(LOG_DEBUG, "error allocating group writer");
 		return;
 	}
-	dump_iface(&nw, ifp, &hdr, if_flags_mask, ifname);
+	dump_iface(&nw, ifp, &hdr, if_flags_mask, ifname, 0);
         nlmsg_flush(&nw);
 }
 

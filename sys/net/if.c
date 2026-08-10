@@ -81,6 +81,7 @@
 #include <net/if_strings.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
+#include <net/if_vf_status.h>
 #include <net/if_media.h>
 #include <net/if_mib.h>
 #include <net/if_private.h>
@@ -2358,6 +2359,164 @@ if_capint_to_capnv(nvlist_t *nv, const struct ifcap_nv_bit_name *nn,
 			    (nn[i].cap_bit & ifr_req) != 0);
 		}
 	}
+}
+
+struct if_vf_status *
+if_vf_status_alloc(uint32_t num_vfs)
+{
+	struct if_vf_status *status;
+	size_t size;
+
+	KASSERT(num_vfs <= IFVF_MAX_VFS,
+	    ("invalid VF count %u", num_vfs));
+	size = sizeof(struct if_vf_status) +
+	    num_vfs * sizeof(struct if_vf_info);
+	status = malloc(size, M_IFNET, M_WAITOK | M_ZERO);
+	status->num_vfs = num_vfs;
+	return (status);
+}
+
+void
+if_vf_status_free(struct if_vf_status *status)
+{
+	struct if_vf_ext_field *field;
+	struct if_vf_extension *extension;
+	uint32_t i, j;
+
+	KASSERT(status != NULL, ("NULL VF status"));
+	for (i = 0; i < status->num_vfs; i++) {
+		for (j = 0; j < status->vfs[i].num_extensions; j++) {
+			extension = &status->vfs[i].extensions[j];
+			for (uint32_t k = 0; k < extension->num_fields; k++) {
+				field = &extension->fields[k];
+				if (field->type == IFVF_EXT_STRING)
+					free(field->value.string, M_IFNET);
+				else if (field->type == IFVF_EXT_BINARY)
+					free(field->value.binary.data, M_IFNET);
+			}
+			free(extension->fields, M_IFNET);
+		}
+		free(status->vfs[i].extensions, M_IFNET);
+	}
+
+	free(status, M_IFNET);
+}
+
+struct if_vf_extension *
+if_vf_status_add_extension(struct if_vf_info *vf, const char *name,
+    uint32_t version, uint32_t num_fields)
+{
+	struct if_vf_extension *extensions, *extension;
+	uint32_t count;
+
+	KASSERT(vf != NULL, ("NULL VF information"));
+	KASSERT(name != NULL, ("VF extension without a name"));
+	KASSERT(vf->num_extensions < IFVF_MAX_EXTENSIONS,
+	    ("too many VF extensions"));
+	KASSERT(num_fields > 0 && num_fields <= IFVF_MAX_EXTENSION_FIELDS,
+	    ("invalid VF extension field count %u", num_fields));
+	count = vf->num_extensions + 1;
+	extensions = mallocarray(count, sizeof(*extensions), M_IFNET,
+	    M_WAITOK | M_ZERO);
+	if (vf->num_extensions != 0) {
+		memcpy(extensions, vf->extensions,
+		    vf->num_extensions * sizeof(*extensions));
+		free(vf->extensions, M_IFNET);
+	}
+	vf->extensions = extensions;
+	vf->num_extensions = count;
+	extension = &extensions[count - 1];
+	extension->name = name;
+	extension->version = version;
+	extension->num_fields = num_fields;
+	extension->fields = mallocarray(num_fields, sizeof(*extension->fields),
+	    M_IFNET, M_WAITOK | M_ZERO);
+	return (extension);
+}
+
+static struct if_vf_ext_field *
+if_vf_extension_field(struct if_vf_extension *extension, uint32_t index,
+    const char *name, enum if_vf_ext_type type)
+{
+	struct if_vf_ext_field *field;
+
+	KASSERT(extension != NULL && index < extension->num_fields,
+	    ("invalid VF extension field"));
+	KASSERT(name != NULL, ("VF extension field without a name"));
+	field = &extension->fields[index];
+	KASSERT(field->type == 0, ("VF extension field initialized twice"));
+	field->name = name;
+	field->type = type;
+	return (field);
+}
+
+void
+if_vf_extension_set_bool(struct if_vf_extension *extension, uint32_t index,
+    const char *name, bool value)
+{
+	struct if_vf_ext_field *field;
+
+	field = if_vf_extension_field(extension, index, name, IFVF_EXT_BOOL);
+	field->value.boolean = value;
+}
+
+void
+if_vf_extension_set_number(struct if_vf_extension *extension, uint32_t index,
+    const char *name, uint64_t value)
+{
+	struct if_vf_ext_field *field;
+
+	field = if_vf_extension_field(extension, index, name, IFVF_EXT_NUMBER);
+	field->value.number = value;
+}
+
+void
+if_vf_extension_set_string(struct if_vf_extension *extension, uint32_t index,
+    const char *name, const char *value)
+{
+	struct if_vf_ext_field *field;
+
+	KASSERT(value != NULL, ("NULL VF extension string"));
+	field = if_vf_extension_field(extension, index, name, IFVF_EXT_STRING);
+	field->value.string = strdup(value, M_IFNET);
+}
+
+void
+if_vf_extension_set_binary(struct if_vf_extension *extension, uint32_t index,
+    const char *name, const void *value, uint32_t length)
+{
+	struct if_vf_ext_field *field;
+
+	KASSERT(value != NULL && length != 0, ("empty VF extension binary"));
+	field = if_vf_extension_field(extension, index, name, IFVF_EXT_BINARY);
+	field->value.binary.data = malloc(length, M_IFNET, M_WAITOK);
+	memcpy(field->value.binary.data, value, length);
+	field->value.binary.length = length;
+}
+
+int
+if_get_vf_status(if_t ifp, struct if_vf_status **statusp)
+{
+	struct if_vf_status *status;
+	int error;
+
+	KASSERT(statusp != NULL, ("NULL VF status output"));
+	if (ifp->if_vf_status == NULL)
+		return (EOPNOTSUPP);
+	status = NULL;
+	error = ifp->if_vf_status(ifp, &status);
+	KASSERT((error == 0) == (status != NULL),
+	    ("VF status provider returned error %d with status %p", error,
+	    status));
+	if (error != 0) {
+		if (status != NULL)
+			if_vf_status_free(status);
+		return (error);
+	}
+	if (status == NULL)
+		return (EBADMSG);
+	*statusp = status;
+	return (0);
 }
 
 /*
@@ -4884,6 +5043,12 @@ void
 if_setioctlfn(if_t ifp, if_ioctl_fn_t ioctl_fn)
 {
 	ifp->if_ioctl = ioctl_fn;
+}
+
+void
+if_setvfstatusfn(if_t ifp, if_vf_status_fn_t vf_status_fn)
+{
+	ifp->if_vf_status = vf_status_fn;
 }
 
 void

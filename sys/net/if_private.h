@@ -127,6 +127,7 @@ struct ifnet {
 	void (*if_bridge_linkstate)(struct ifnet *ifp);
 	if_start_fn_t	if_start;	/* initiate output routine */
 	if_ioctl_fn_t	if_ioctl;	/* ioctl routine */
+	if_vf_status_fn_t if_vf_status;	/* snapshot SR-IOV VF state */
 	if_init_fn_t	if_init;	/* Init routine */
 	int	(*if_resolvemulti)	/* validate/resolve multicast */
 		(struct ifnet *, struct sockaddr **, struct sockaddr *);
