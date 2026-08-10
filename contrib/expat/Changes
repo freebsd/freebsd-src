@@ -6,28 +6,81 @@
                                 |_| XML parser
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!! <blink>Expat is UNDERSTAFFED and WITHOUT FUNDING.</blink>                 !!
-!!                 ~~~~~~~~~~~~                                              !!
-!! The following topics need *additional skilled C developers* to progress   !!
-!! in a timely manner or at all (loosely ordered by descending priority):    !!
-!!                            _______________________                        !!
-!! - teaming up on fixing the UNFIXED SECURITY ISSUES listed at:             !!
-!!                            """""""""""""""""""""""                        !!
-!!   https://github.com/libexpat/libexpat/issues/1160                        !!
+!! <blink>Expat has UNFIXED SECURITY ISSUES!</blink>                         !!
+!! Please see https://github.com/libexpat/libexpat/issues/1160 for details.  !!
 !!                                                                           !!
-!! - teaming up on researching and fixing future security reports and        !!
-!!   ClusterFuzz findings with few-days-max response times in communication  !!
-!!   in order to (1) have a sound fix ready before the end of a 90 days      !!
-!!   grace period and (2) in a sustainable manner,                           !!
-!!                                                                           !!
-!! - implementing and auto-testing XML 1.0r5 support                         !!
-!!   (needs discussion before pull requests),                                !!
-!!                                                                           !!
-!! For details, please reach out via e-mail to sebastian@pipping.org so we   !!
-!! can schedule a voice call on the topic, in English or German.             !!
-!!                                                                           !!
-!! THANK YOU!                        Sebastian Pipping -- Berlin, 2026-03-17 !!
+!! Starting 2026-08-01, for up to six months my work maintaining libexpat    !!
+!! will be funded by the City of Munich as part of their                     !!
+!! Open Source Sabbatical (https://opensource.muenchen.de/sabbatical.html)   !!
+!! — thank you!                                                              !!
+!!                                   Sebastian Pipping -- Berlin, 2026-08-03 !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+Release 2.8.3 Mon August 10 2026
+        Security fixes:
+           #1296  CVE-2026-72522 -- Fix an out-of-bounds read and the resulting
+                    infinite loop caused by treating low surrogates (Unicode)
+                    the same as high surrogates in functions *_toUtf16.
+                    Needs Expat compiled with 16bit character support
+                    (e.g. with Firefox and/or on Windows) to be affected.
+                    Upstream CVSS 3.1 vector:
+                    AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H (CVSS score: 7.5)
+                    (Note the "AV:N" for network/remote, the "AV:L" in NVD by
+                    Mitre is mistaken.)
+                    Original bug report from Mozilla at:
+                    https://bugzilla.mozilla.org/show_bug.cgi?id=2053153
+
+        Bug fixes:
+     #1297 #1300  lib: Fix support for 2+ GiB documents (regression from 2.8.2)
+           #1286  lib: Reject empty version in the XML declaration
+     #1305 #1306  lib: Fix printf format for AIX
+
+        Other changes:
+           #1309  CMake|AIX: Enable EXPAT_DEV_URANDOM by default for AIX
+           #1295  CMake|Windows: Add a 64bit MinGW toolchain file
+     #1287 #1289  CMake|Windows: Start invoking MSVC with /source-charset:utf-8
+           #1289  CMake|Windows: Start requiring MSVC 2015 Update 2 or later
+           #1300  Document the current wrap-around issues with functions
+                    - XML_GetCurrentByteIndex
+                    - XML_GetCurrentColumnNumber
+                    - XML_GetCurrentLineNumber
+                    - XML_GetAttributeInfo
+                    explicitly.
+           #1303  Address Clang Static Analyzer 22 warning
+                    `core.NullPointerArithm`
+     #1313 #1314  Version info bumped from 13:2:12 (libexpat*.so.1.12.2)
+                    to 13:3:12 (libexpat*.so.1.12.3); see https://verbump.de/
+                    for what these numbers do
+
+        Infrastructure:
+           #1311  CI: Limit workflow runtime and package installation runtime
+           #1310  CI: Pin Cppcheck version for a robust CI
+           #1310  CI: Migrate Cppcheck CI from macOS to Linux
+           #1312  CI: Get CFLAGS and CXXFLAGS back in sync for both Emscripten
+                    and WASI SDK
+           #1304  CI: Activate AddressSanitizer for MSVC Windows CI
+           #1308  CI: Introduce zizmor static analysis for GitHub Actions
+           #1308  CI: Start using `persist-credentials: false` with Git checkout
+           #1219  CI: Add a 7 day cooldown to Dependabot for GitHub Actions
+     #1302 #1303  CI: Bump Clang from 21 to 22
+     #1293 #1294  Update project status for 2026-08
+     #1301 #1307  Add SPDX license identifiers to the source code
+
+        Special thanks to:
+            Evgeny Kotkov
+            Henri Sivonen
+            Kartik Kenchi
+            Matthew Fernandez
+            Matthew Wozniczka
+            Stan Ulbrych
+            Tuukka Pasanen
+            William Woodruff
+                 and
+            Anthropic
+            City of Munich Open Source Sabbatical
+            Mozilla Security Team
+            Subversion
+            zizmor static analysis
 
 Release 2.8.2 Thu June 25 2026
         Security fixes:
@@ -124,6 +177,10 @@ Release 2.8.1 Sun May 10 2026
                     through moderately sized crafted XML input (CWE-407).
                     Please note that a layer of compression around XML can
                     significantly reduce the minimum attack payload size.
+                    Upstream CVSS 3.1 vector:
+                    AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H (CVSS score: 7.5)
+                    (Note the "AV:N" for network/remote and the "AC:L"
+                    for low complexity; the NVD entry from Mitre is mistaken.)
 
         Other changes:
      #1209 #1213  Drop more casts related to `void *` that C99 does not need
