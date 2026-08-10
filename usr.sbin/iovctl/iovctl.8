@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 8, 2026
+.Dd August 10, 2026
 .Dt IOVCTL 8
 .Os
 .Sh NAME
@@ -131,18 +131,10 @@ to stdout.
 This action may be used to discover the configuration parameters supported on
 a given PF device.
 .El
-.Pp
-For network devices, use
-.Xr ifconfig 8
-with the
-.Fl v
-option on the PF interface to display NIC-specific VF initialization,
-resource, and policy state.
 .Sh SEE ALSO
 .Xr vmm 4 ,
 .Xr iovctl.conf 5 ,
-.Xr rc.conf 5 ,
-.Xr ifconfig 8
+.Xr rc.conf 5
 .Sh AUTHORS
 This manual page was written by
 .An Ryan Stone Aq Mt rstone@FreeBSD.org .

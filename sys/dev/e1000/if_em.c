@@ -665,7 +665,6 @@ static device_method_t igb_if_methods[] = {
 	DEVMETHOD(ifdi_iov_init, igb_if_iov_init),
 	DEVMETHOD(ifdi_iov_uninit, igb_if_iov_uninit),
 	DEVMETHOD(ifdi_iov_vf_add, igb_if_iov_vf_add),
-	DEVMETHOD(ifdi_vf_status, igb_if_vf_status),
 #endif
 	DEVMETHOD_END
 };

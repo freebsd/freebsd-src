@@ -281,7 +281,6 @@ void	clone_setdefcallback_prefix(const char *, clone_callback_func *);
 void	clone_setdefcallback_filter(clone_match_func *, clone_callback_func *);
 
 void	sfp_status(if_ctx *ctx);
-void	vf_status(if_ctx *ctx);
 
 struct sockaddr_dl;
 bool	match_ether(const struct sockaddr_dl *sdl);

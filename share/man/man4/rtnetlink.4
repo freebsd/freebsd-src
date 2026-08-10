@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 8, 2026
+.Dd July 28, 2026
 .Dt RTNETLINK 4
 .Os
 .Sh NAME
@@ -325,17 +325,7 @@ The following filters are recognised by the kernel:
 ifi_index	interface index
 IFLA_IFNAME	interface name
 IFLA_ALT_IFNAME	interface name
-IFLA_EXT_MASK	extended information selection bitmap
 .Ed
-.Pp
-Setting the
-.Dv RTEXT_FILTER_VF
-bit in
-.Dv IFLA_EXT_MASK
-requests SR-IOV VF status.
-The query is opt-in because obtaining status can require entering the PF
-driver.
-VF status is not included in unsolicited link notifications.
 .Ss TLVs
 .Bl -tag -width indent
 .It Dv IFLA_ADDRESS
@@ -350,112 +340,6 @@ VF status is not included in unsolicited link notifications.
 (uint32_t) (readonly) Interface index.
 .It Dv IFLA_MASTER
 (uint32_t) Parent interface index.
-.It Dv IFLA_NUM_VF
-(uint32_t) (readonly) Number of active VFs.
-This attribute is returned with a successful
-.Dv RTEXT_FILTER_VF
-query.
-.It Dv IFLA_FREEBSD
-(nested) Local interface attributes.
-When requested,
-.Dv IFLAF_VF_STATUS
-contains the following nested attributes:
-.Bd -literal -offset indent -compact
-IFLAF_VFS_VERSION	(uint32_t) VF status schema version
-IFLAF_VFS_ERROR		(uint32_t) errno if the PF query failed
-IFLAF_VFS_PF_LINK_STATE	(uint8_t) IFLAF_VF_LINK_*
-IFLAF_VFS_PF_LINK_SPEED	(uint64_t) bits per second
-IFLAF_VFS_LIST		(nested) repeated IFLAF_VF_LIST_ENTRY
-.Ed
-.Pp
-On a successful query,
-.Dv IFLAF_VFS_VERSION
-and
-.Dv IFLAF_VFS_LIST
-are present.
-If the PF status query fails,
-.Dv IFLAF_VFS_ERROR
-contains the errno value and the other status attributes are omitted.
-.Pp
-Each
-.Dv IFLAF_VF_LIST_ENTRY
-may contain the following attributes:
-.Bd -literal -offset indent -compact
-IFLAF_VF_INDEX			(uint32_t) PF-local VF index
-IFLAF_VF_CONFIGURED		(uint8_t) PF accepted configuration
-IFLAF_VF_INITIALIZED		(uint8_t) VF handshake completed
-IFLAF_VF_MAC			(binary) PF-known primary MAC address
-IFLAF_VF_VLAN_MODE		(uint8_t) IFLAF_VF_VLAN_*
-IFLAF_VF_VLAN			(uint16_t) access VLAN identifier
-IFLAF_VF_VLAN_COUNT		(uint32_t) explicit VLAN filters
-IFLAF_VF_VLAN_LIMIT		(uint32_t) explicit VLAN-filter limit
-IFLAF_VF_NUM_QUEUES		(uint32_t) allocated RX/TX queue pairs
-IFLAF_VF_ALLOW_SET_MAC		(uint8_t) administrative permission
-IFLAF_VF_ALLOW_SET_VLAN		(uint8_t) administrative permission
-IFLAF_VF_MAC_ANTI_SPOOF		(uint8_t) MAC anti-spoofing enabled
-IFLAF_VF_ALLOW_PROMISC		(uint8_t) administrative permission
-IFLAF_VF_TRAFFIC_ENABLED	(uint8_t) VF traffic enabled
-IFLAF_VF_MDD_BLOCKED		(uint8_t) malicious-driver block active
-IFLAF_VF_QUARANTINED		(uint8_t) persistent quarantine active
-IFLAF_VF_API_VERSION		(string) negotiated mailbox API
-IFLAF_VF_LINK_STATE_POLICY	(uint8_t) IFLAF_VF_LINK_*
-IFLAF_VF_EXTENSIONS		(nested) driver-specific namespaces
-.Ed
-.Pp
-.Dv IFLAF_VF_INDEX
-is required in every list entry.
-Other fields are optional and are omitted when the PF driver cannot observe
-them; omission does not mean false or zero.
-Boolean attributes contain zero or one.
-.Dv IFLAF_VF_CONFIGURED
-means that the PF accepted the VF configuration, while
-.Dv IFLAF_VF_INITIALIZED
-means that the VF completed its driver or mailbox handshake since its last
-reset.
-.Pp
-.Dv IFLAF_VF_NUM_QUEUES
-is the number of allocated symmetric RX/TX queue pairs, not necessarily the
-number currently used by the VF driver.
-Access VLAN mode means that the PF imposes
-.Dv IFLAF_VF_VLAN ;
-trunk mode means that no access VLAN is imposed and does not promise unlimited
-filter capacity.
-.Dv IFLAF_VF_VLAN_COUNT
-counts explicit filters recorded by the PF and excludes implicit untagged and
-priority-tag membership.
-The permission attributes describe requests the VF may make, not requests it
-has made.
-The top-level PF link state and speed are values normally advertised to VFs,
-not evidence that a VF driver is operational.
-.Pp
-Link-state values are:
-.Bd -literal -offset indent -compact
-IFLAF_VF_LINK_UNKNOWN	state is unavailable
-IFLAF_VF_LINK_DOWN	link is forced or observed down
-IFLAF_VF_LINK_UP	link is forced or observed up
-IFLAF_VF_LINK_AUTO	VF follows PF link state
-.Ed
-.Pp
-VLAN-mode values are:
-.Bd -literal -offset indent -compact
-IFLAF_VF_VLAN_UNKNOWN	mode is unavailable
-IFLAF_VF_VLAN_ACCESS	PF imposes an access VLAN
-IFLAF_VF_VLAN_TRUNK	no access VLAN is imposed
-.Ed
-.Pp
-Driver-specific data is returned under
-.Dv IFLAF_VF_EXTENSIONS
-as repeated
-.Dv IFLAF_VF_EXT_LIST_ENTRY
-objects.
-Each object contains a stable namespace string in
-.Dv IFLAF_VF_EXT_NAME
-and its packed, versioned
-.Xr nvlist 9
-in
-.Dv IFLAF_VF_EXT_DATA .
-Each namespace contains a version number.
-Consumers must ignore unknown namespaces and fields.
 .It Dv IFLA_LINKINFO
 (nested) Interface type-specific attributes:
 .Bd -literal -offset indent -compact

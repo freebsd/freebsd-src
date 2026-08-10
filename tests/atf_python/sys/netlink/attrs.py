@@ -137,34 +137,6 @@ class NlAttrU32(NlAttr):
         return self._to_bytes(struct.pack("@I", self.u32))
 
 
-class NlAttrU64(NlAttr):
-    def __init__(self, nla_type, val):
-        self.u64 = enum_or_int(val)
-        super().__init__(nla_type, b"")
-
-    @property
-    def nla_len(self):
-        return 12
-
-    def _print_attr_value(self):
-        return " val={}".format(self.u64)
-
-    @staticmethod
-    def _validate(data):
-        assert len(data) == 12
-        nla_len, nla_type = struct.unpack("@HH", data[:4])
-        assert nla_len == 12
-
-    @classmethod
-    def _parse(cls, data):
-        nla_len, nla_type = struct.unpack("@HH", data[:4])
-        val = struct.unpack("@Q", data[4:])[0]
-        return cls(nla_type, val)
-
-    def __bytes__(self):
-        return self._to_bytes(struct.pack("@Q", self.u64))
-
-
 class NlAttrS32(NlAttr):
     def __init__(self, nla_type, val):
         self.s32 = enum_or_int(val)

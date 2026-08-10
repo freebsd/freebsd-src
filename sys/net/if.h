@@ -450,76 +450,6 @@ struct ifreq_nv_req {
 };
 
 #define	IFR_CAP_NV_MAXBUFSIZE	(2 * 1024 * 1024)
-#define	IFR_VF_STATUS_NV_MAXBUFSIZE	(2 * 1024 * 1024)
-
-/*
- * SIOCGIFVFSTATUS schema contract.
- *
- * The top-level nvlist contains a version number and an array of per-VF
- * nvlists.  Per-VF keys other than the index are optional: providers omit
- * values that are unknown or cannot be observed rather than reporting a
- * false or zero value.  "configured" means that the PF accepted the VF
- * configuration, while "initialized" means that the VF completed its
- * driver/mailbox handshake since its last reset.  The MAC address is the
- * PF's known primary address for the VF.  The queue count is the number of
- * allocated symmetric RX/TX queue pairs, not necessarily the number the
- * guest currently uses.
- *
- * An access VLAN is imposed by the PF.  Trunk mode means that no access
- * VLAN is imposed; it does not promise unlimited VLAN-filter capacity.
- * The VLAN count is the number of explicit filters recorded by the PF and
- * excludes implicit untagged or priority-tag membership.  "allow-*" values
- * are administrative permissions, not the VF's current requests, and the
- * blocked values describe current runtime state.  The top-level PF link
- * state and speed are the PF ifnet values normally advertised to VFs, not
- * evidence that a guest driver is operational; speed is in bits per second.
- * A per-VF link-state policy, when present, can override PF link visibility.
- * Driver-specific data is stored in the optional "extensions" nvlist.  Its
- * keys are stable namespace names, not runtime device names.  Each namespace
- * contains a mandatory version number and owns the types and meanings of its
- * remaining keys.  Consumers must ignore unknown namespaces and keys.  A
- * provider omits an extension value that it cannot observe, and must not
- * duplicate a field whose semantics are already represented by the common
- * schema.  Additive optional keys retain the namespace version; incompatible
- * type or structural changes require a new namespace version.
- *
- * Additive optional common keys retain the top-level version.  Change the
- * top-level version only for an incompatible type or structural change.
- */
-#define	IFVF_STATUS_VERSION		1
-#define	IFVF_STATUS_VERSION_KEY		"version"
-#define	IFVF_STATUS_VFS			"vfs"
-#define	IFVF_STATUS_PF_LINK_STATE	"pf-link-state"
-#define	IFVF_STATUS_PF_LINK_SPEED	"pf-link-speed"
-#define	IFVF_STATUS_INDEX		"index"
-#define	IFVF_STATUS_CONFIGURED		"configured"
-#define	IFVF_STATUS_INITIALIZED		"initialized"
-#define	IFVF_STATUS_MAC			"mac-address"
-#define	IFVF_STATUS_VLAN_MODE		"vlan-mode"
-#define	IFVF_STATUS_VLAN		"vlan"
-#define	IFVF_STATUS_VLAN_COUNT		"vlan-count"
-#define	IFVF_STATUS_VLAN_LIMIT		"vlan-limit"
-#define	IFVF_STATUS_NUM_QUEUES		"num-queues"
-#define	IFVF_STATUS_ALLOW_SET_MAC	"allow-set-mac"
-#define	IFVF_STATUS_ALLOW_SET_VLAN	"allow-set-vlan"
-#define	IFVF_STATUS_MAC_ANTI_SPOOF	"mac-anti-spoof"
-#define	IFVF_STATUS_ALLOW_PROMISC	"allow-promisc"
-#define	IFVF_STATUS_TRAFFIC_ENABLED	"traffic-enabled"
-#define	IFVF_STATUS_MDD_BLOCKED		"mdd-blocked"
-#define	IFVF_STATUS_QUARANTINED		"quarantined"
-#define	IFVF_STATUS_API_VERSION		"api-version"
-#define	IFVF_STATUS_LINK_STATE_POLICY	"link-state-policy"
-#define	IFVF_STATUS_EXTENSIONS		"extensions"
-
-#define	IFVF_STATUS_EXT_VERSION		"version"
-
-#define	IFVF_VLAN_MODE_ACCESS		"access"
-#define	IFVF_VLAN_MODE_TRUNK		"trunk"
-
-#define	IFVF_LINK_STATE_UNKNOWN		"unknown"
-#define	IFVF_LINK_STATE_DOWN		"down"
-#define	IFVF_LINK_STATE_UP		"up"
-#define	IFVF_LINK_STATE_AUTO		"auto"
 
 /*
  * Interface request structure used for socket
@@ -570,7 +500,6 @@ struct ifreq {
 #define	ifr_vlan_pcp	ifr_ifru.ifru_vlan_pcp	/* VLAN priority */
 #define	ifr_lan_pcp	ifr_ifru.ifru_vlan_pcp	/* VLAN priority */
 #define	ifr_cap_nv	ifr_ifru.ifru_nv	/* nv-based cap interface */
-#define	ifr_vf_status_nv	ifr_ifru.ifru_nv /* nv-based VF status */
 };
 
 #define	_SIZEOF_ADDR_IFREQ(ifr) \

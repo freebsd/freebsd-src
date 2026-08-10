@@ -379,7 +379,7 @@ _DP_gmock=	gtest
 _DP_gmock_main=	gmock
 _DP_gtest=	pthread regex
 _DP_gtest_main=	gtest
-_DP_ifconfig=	m nv
+_DP_ifconfig=	m
 _DP_ipf=	kvm
 _DP_iscsiutil=	md
 _DP_kldelf=	elf
@@ -512,7 +512,7 @@ _DP_zpool=	md pthread z icp spl nvpair avl umem
 _DP_zutil=	avl geom m
 _DP_be=		zfs spl nvpair zfsbootenv
 _DP_netmap=
-_DP_ifconfig=	m nv
+_DP_ifconfig=	m
 _DP_pfctl=	nv
 _DP_krb5ss=		edit
 

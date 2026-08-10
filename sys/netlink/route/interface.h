@@ -94,7 +94,7 @@ enum {
 #define	IFLA_NET_NS_PID IFLA_NET_NS_PID
 	IFLA_IFALIAS	= 20,	/* string: interface description */
 #define	IFLA_IFALIAS IFLA_IFALIAS
-	IFLA_NUM_VF	= 21,	/* u32: active VFs, when requested */
+	IFLA_NUM_VF	= 21,	/* not supported */
 #define	IFLA_NUM_VF IFLA_NUM_VF
 	IFLA_VFINFO_LIST= 22,	/* not supported */
 #define	IFLA_VFINFO_LIST IFLA_VFINFO_LIST
@@ -147,94 +147,14 @@ enum {
 };
 #define IFLA_MAX (__IFLA_MAX - 1)
 
-/* IFLA_EXT_MASK values. */
-#define	RTEXT_FILTER_VF		(1U << 0)
-
 enum {
 	IFLAF_UNSPEC		= 0,
 	IFLAF_ORIG_IFNAME	= 1,	/* string, original interface name at creation */
 	IFLAF_ORIG_HWADDR	= 2,	/* binary, original hardware address */
 	IFLAF_CAPS		= 3,	/* bitset, interface capabilities */
-	IFLAF_VF_STATUS		= 4,	/* nested, IFLAF_VFS_* */
 	__IFLAF_MAX
 };
 #define IFLAF_MAX (__IFLAF_MAX - 1)
-
-/* IFLAF_VF_STATUS attributes. */
-enum {
-	IFLAF_VFS_UNSPEC	= 0,
-	IFLAF_VFS_VERSION	= 1,	/* u32: IFVF_STATUS_VERSION */
-	IFLAF_VFS_ERROR		= 2,	/* u32: errno from requested query */
-	IFLAF_VFS_PF_LINK_STATE	= 3,	/* u8: IFLAF_VF_LINK_* */
-	IFLAF_VFS_PF_LINK_SPEED	= 4,	/* u64: bits per second */
-	IFLAF_VFS_LIST		= 5,	/* nested, IFLAF_VF_LIST_* */
-	__IFLAF_VFS_MAX
-};
-#define	IFLAF_VFS_MAX	(__IFLAF_VFS_MAX - 1)
-
-/* IFLAF_VFS_LIST attributes. */
-enum {
-	IFLAF_VF_LIST_UNSPEC	= 0,
-	IFLAF_VF_LIST_ENTRY	= 1,	/* nested, IFLAF_VF_*; repeated */
-	__IFLAF_VF_LIST_MAX
-};
-#define	IFLAF_VF_LIST_MAX	(__IFLAF_VF_LIST_MAX - 1)
-
-/* IFLAF_VF_LIST_ENTRY attributes. */
-enum {
-	IFLAF_VF_UNSPEC			= 0,
-	IFLAF_VF_INDEX			= 1,	/* u32 */
-	IFLAF_VF_CONFIGURED		= 2,	/* u8 boolean */
-	IFLAF_VF_INITIALIZED		= 3,	/* u8 boolean */
-	IFLAF_VF_MAC			= 4,	/* binary */
-	IFLAF_VF_VLAN_MODE		= 5,	/* u8: IFLAF_VF_VLAN_* */
-	IFLAF_VF_VLAN			= 6,	/* u16 */
-	IFLAF_VF_VLAN_COUNT		= 7,	/* u32 */
-	IFLAF_VF_VLAN_LIMIT		= 8,	/* u32 */
-	IFLAF_VF_NUM_QUEUES		= 9,	/* u32 */
-	IFLAF_VF_ALLOW_SET_MAC		= 10,	/* u8 boolean */
-	IFLAF_VF_ALLOW_SET_VLAN		= 11,	/* u8 boolean */
-	IFLAF_VF_MAC_ANTI_SPOOF		= 12,	/* u8 boolean */
-	IFLAF_VF_ALLOW_PROMISC		= 13,	/* u8 boolean */
-	IFLAF_VF_TRAFFIC_ENABLED	= 14,	/* u8 boolean */
-	IFLAF_VF_MDD_BLOCKED		= 15,	/* u8 boolean */
-	IFLAF_VF_QUARANTINED		= 16,	/* u8 boolean */
-	IFLAF_VF_API_VERSION		= 17,	/* string */
-	IFLAF_VF_LINK_STATE_POLICY	= 18,	/* u8: IFLAF_VF_LINK_* */
-	IFLAF_VF_EXTENSIONS		= 19,	/* nested, IFLAF_VF_EXT_LIST_* */
-	__IFLAF_VF_MAX
-};
-#define	IFLAF_VF_MAX	(__IFLAF_VF_MAX - 1)
-
-/* IFLAF_VF_EXTENSIONS attributes. */
-enum {
-	IFLAF_VF_EXT_LIST_UNSPEC	= 0,
-	IFLAF_VF_EXT_LIST_ENTRY		= 1,	/* nested; repeated */
-	__IFLAF_VF_EXT_LIST_MAX
-};
-#define	IFLAF_VF_EXT_LIST_MAX	(__IFLAF_VF_EXT_LIST_MAX - 1)
-
-/* IFLAF_VF_EXT_LIST_ENTRY attributes. */
-enum {
-	IFLAF_VF_EXT_UNSPEC	= 0,
-	IFLAF_VF_EXT_NAME	= 1,	/* string: stable namespace */
-	IFLAF_VF_EXT_DATA	= 2,	/* binary: packed namespace nvlist */
-	__IFLAF_VF_EXT_MAX
-};
-#define	IFLAF_VF_EXT_MAX	(__IFLAF_VF_EXT_MAX - 1)
-
-enum {
-	IFLAF_VF_LINK_UNKNOWN	= 0,
-	IFLAF_VF_LINK_DOWN	= 1,
-	IFLAF_VF_LINK_UP	= 2,
-	IFLAF_VF_LINK_AUTO	= 3,
-};
-
-enum {
-	IFLAF_VF_VLAN_UNKNOWN	= 0,
-	IFLAF_VF_VLAN_ACCESS	= 1,
-	IFLAF_VF_VLAN_TRUNK	= 2,
-};
 
 /*
  * Attributes that can be used as filters:

@@ -124,7 +124,7 @@ CRUNCH_PROGS_sbin+= ipfw
 
 .if ${MK_PF} != "no"
 CRUNCH_PROGS_sbin+= pfctl
-CRUNCH_LIBS_pfctl+= ${LIBPFCTL}
+CRUNCH_LIBS_pfctl+= ${LIBPFCTL} ${LIBNV}
 .endif
 
 .if ${MK_ROUTED} != "no"
@@ -143,7 +143,7 @@ CRUNCH_PROGS_usr.sbin+= zdb
 # CRUNCH_PROGS+= devd
 
 CRUNCH_LIBS+= -l80211 -lalias -lcam -lncursesw -ldevstat -lipsec -llzma
-CRUNCH_LIBS_camcontrol+= ${LIBNVMF}
+CRUNCH_LIBS_camcontrol+= ${LIBNVMF} ${LIBNV}
 .if ${MK_ZFS} != "no"
 CRUNCH_LIBS+= -lavl -lpthread -lumem -lspl -lrt
 CRUNCH_LIBS_zfs+=	${LIBBE} \
@@ -261,8 +261,9 @@ CRUNCH_ALIAS_chown= chgrp
 ##################################################################
 
 CRUNCH_LIBS+=		${OBJTOP}/lib/libifconfig/libifconfig.a
-CRUNCH_LIBS+=		-lnv
 CRUNCH_BUILDOPTS+=	CRUNCH_CFLAGS+=-I${OBJTOP}/lib/libifconfig
+
+CRUNCH_LIBS_ifconfig+=	${LIBNV}
 
 CRUNCH_LIBS+= -lm
 

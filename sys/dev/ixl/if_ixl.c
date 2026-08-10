@@ -122,7 +122,6 @@ static uint64_t	 ixl_if_get_counter(if_ctx_t ctx, ift_counter cnt);
 static int	 ixl_if_i2c_req(if_ctx_t ctx, struct ifi2creq *req);
 static int	 ixl_if_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data);
 static bool	 ixl_if_needs_restart(if_ctx_t ctx, enum iflib_restart_event event);
-static int	 ixl_if_vf_status(if_ctx_t ctx, nvlist_t *status);
 #ifdef PCI_IOV
 static void	 ixl_if_vflr_handle(if_ctx_t ctx);
 #endif
@@ -194,7 +193,6 @@ static device_method_t ixl_if_methods[] = {
 	DEVMETHOD(ifdi_i2c_req, ixl_if_i2c_req),
 	DEVMETHOD(ifdi_priv_ioctl, ixl_if_priv_ioctl),
 	DEVMETHOD(ifdi_needs_restart, ixl_if_needs_restart),
-	DEVMETHOD(ifdi_vf_status, ixl_if_vf_status),
 #ifdef PCI_IOV
 	DEVMETHOD(ifdi_iov_init, ixl_if_iov_init),
 	DEVMETHOD(ifdi_iov_uninit, ixl_if_iov_uninit),
@@ -364,7 +362,6 @@ ixl_register(device_t dev)
 {
 	return (&ixl_sctx_init);
 }
-
 static int
 ixl_allocate_pci_resources(struct ixl_pf *pf)
 {
@@ -1925,68 +1922,6 @@ ixl_if_needs_restart(if_ctx_t ctx __unused, enum iflib_restart_event event)
 	default:
 		return (false);
 	}
-}
-
-static int
-ixl_if_vf_status(if_ctx_t ctx, nvlist_t *status)
-{
-	struct ixl_pf *pf;
-	nvlist_t **vfs;
-	struct ixl_vf *vf;
-	int error;
-
-	pf = iflib_get_softc(ctx);
-	if (pf->num_vfs < 1)
-		return (ENXIO);
-
-	vfs = mallocarray(pf->num_vfs, sizeof(*vfs), M_IXL,
-	    M_WAITOK | M_ZERO);
-	for (int i = 0; i < pf->num_vfs; i++) {
-		vf = &pf->vfs[i];
-		vfs[i] = nvlist_create(0);
-		nvlist_add_number(vfs[i], IFVF_STATUS_INDEX, vf->vf_num);
-		nvlist_add_bool(vfs[i], IFVF_STATUS_CONFIGURED,
-		    (vf->vf_flags & VF_FLAG_ENABLED) != 0);
-		nvlist_add_bool(vfs[i], IFVF_STATUS_INITIALIZED,
-		    (vf->vf_flags & VF_FLAG_INITIALIZED) != 0);
-		nvlist_add_binary(vfs[i], IFVF_STATUS_MAC, vf->mac,
-		    ETHER_ADDR_LEN);
-		if (vf->default_vlan == 0) {
-			nvlist_add_string(vfs[i], IFVF_STATUS_VLAN_MODE,
-			    IFVF_VLAN_MODE_TRUNK);
-			nvlist_add_number(vfs[i], IFVF_STATUS_VLAN_COUNT,
-			    vf->vsi.num_vlans);
-			nvlist_add_number(vfs[i], IFVF_STATUS_VLAN_LIMIT,
-			    IXL_VF_MAX_VLAN_FILTERS);
-		} else {
-			nvlist_add_string(vfs[i], IFVF_STATUS_VLAN_MODE,
-			    IFVF_VLAN_MODE_ACCESS);
-			nvlist_add_number(vfs[i], IFVF_STATUS_VLAN,
-			    vf->default_vlan);
-			nvlist_add_number(vfs[i], IFVF_STATUS_VLAN_COUNT, 1);
-		}
-		nvlist_add_number(vfs[i], IFVF_STATUS_NUM_QUEUES,
-		    vf->qtag.num_active);
-		nvlist_add_bool(vfs[i], IFVF_STATUS_ALLOW_SET_MAC,
-		    (vf->vf_flags & VF_FLAG_SET_MAC_CAP) != 0);
-		nvlist_add_bool(vfs[i], IFVF_STATUS_ALLOW_SET_VLAN,
-		    (vf->vf_flags & VF_FLAG_VLAN_CAP) != 0);
-		nvlist_add_bool(vfs[i], IFVF_STATUS_MAC_ANTI_SPOOF,
-		    (vf->vf_flags & VF_FLAG_MAC_ANTI_SPOOF) != 0);
-		nvlist_add_bool(vfs[i], IFVF_STATUS_ALLOW_PROMISC,
-		    (vf->vf_flags & VF_FLAG_PROMISC_CAP) != 0);
-		nvlist_add_bool(vfs[i], IFVF_STATUS_TRAFFIC_ENABLED,
-		    !vf->mdd_blocked);
-		nvlist_add_bool(vfs[i], IFVF_STATUS_MDD_BLOCKED,
-		    vf->mdd_blocked);
-	}
-	nvlist_add_nvlist_array(status, IFVF_STATUS_VFS,
-	    (const nvlist_t * const *)vfs, pf->num_vfs);
-	error = nvlist_error(status);
-	for (int i = 0; i < pf->num_vfs; i++)
-		nvlist_destroy(vfs[i]);
-	free(vfs, M_IXL);
-	return (error);
 }
 
 /*

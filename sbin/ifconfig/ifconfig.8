@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 8, 2026
+.Dd August 10, 2026
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -325,60 +325,6 @@ will attempt to load it.
 Display only the interfaces that are up.
 .It Fl v
 Get more verbose status for an interface.
-When supported, this includes the status of configured SR-IOV virtual
-functions.
-Fields that the PF driver cannot observe are omitted; an omitted field does
-not mean false or zero.
-The status begins with the PF link state and speed normally advertised to
-VFs, followed by the number of VFs and one record for each VF.
-PF link status does not demonstrate that a VF driver is operational.
-.Pp
-Per-VF fields are arranged in the following groups:
-.Bl -tag -width "resources"
-.It Cm identity
-The primary MAC address known to the PF.
-.It Cm state
-.Cm configured=yes
-means that the PF accepted the VF configuration.
-.Cm initialized=yes
-means that the VF completed its driver or mailbox handshake since its last
-reset.
-When available, this group also reports whether traffic is enabled, whether
-malicious-driver detection blocked the VF, and whether it is quarantined.
-.It Cm resources
-The number of symmetric RX/TX queue pairs allocated to the VF.
-This is not necessarily the number of queue pairs currently used by its
-driver.
-.It Cm vlan
-An access VLAN is imposed by the PF; trunk mode means that no access VLAN is
-imposed and does not promise unlimited filter capacity.
-The filter count includes explicit filters recorded by the PF and excludes
-implicit untagged and priority-tag membership.
-.It Cm policy
-Administrative permissions for VF requests, MAC anti-spoofing state, and an
-optional per-VF link-state policy.
-Permissions describe what the VF may request, not its current requests.
-.It Cm protocol
-The negotiated PF/VF mailbox API version, when known.
-.El
-.Pp
-For example:
-.Bd -literal -offset indent
-VF-visible PF link: state=up speed=10000Mbps
-virtual functions: 1
-	vf   0:
-		identity: mac=02:00:00:00:00:01
-		state: configured=yes initialized=yes traffic=enabled
-		resources: queue-pairs=4
-		vlan: mode=trunk filters=0
-		policy: set-mac=denied set-vlan=allowed anti-spoof=on
-.Ed
-.Pp
-See
-.Xr iovctl.conf 5
-for VF configuration and
-.Xr iovctl 8
-for PCI attachment and passthrough status.
 .It Ar address
 For the inet family,
 the address is either a host name present in the host name data
