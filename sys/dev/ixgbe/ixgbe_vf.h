@@ -90,12 +90,6 @@
 
 
 struct ixgbevf_hw_stats {
-	u64 base_vfgprc;
-	u64 base_vfgptc;
-	u64 base_vfgorc;
-	u64 base_vfgotc;
-	u64 base_vfmprc;
-
 	u64 last_vfgprc;
 	u64 last_vfgptc;
 	u64 last_vfgorc;
@@ -107,12 +101,7 @@ struct ixgbevf_hw_stats {
 	u64 vfgorc;
 	u64 vfgotc;
 	u64 vfmprc;
-
-	u64 saved_reset_vfgprc;
-	u64 saved_reset_vfgptc;
-	u64 saved_reset_vfgorc;
-	u64 saved_reset_vfgotc;
-	u64 saved_reset_vfmprc;
+	bool initialized;
 };
 
 s32 ixgbe_init_ops_vf(struct ixgbe_hw *hw);
