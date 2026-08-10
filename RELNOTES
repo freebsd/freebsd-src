@@ -10,6 +10,10 @@ newline.  Entries should be separated by a newline.
 
 Changes to this file should not be MFCed.
 
+6563dcb6b1f5:
+	It is now possible to use connectat(2) to connect to a unix(4) socket
+	directly, i.e., without having to specify a name in the sockaddr.
+
 72e57bc26417, 3dfbbe8586bb, d8e8f9251975:
 	These patches provide improvements for the pNFS server
 	configuration.  New optional features include:
