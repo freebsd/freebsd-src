@@ -278,6 +278,7 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_800G_CR4	IFM_X(137)	/* 800GBase-CR4 */
 #define	IFM_800G_SR4	IFM_X(138)	/* 800GBase-SR4 */
 #define	IFM_800G_KR4_PAM4 IFM_X(139)	/* 800GBase-KR4 PAM4 */
+#define	IFM_10G_BX	IFM_X(140)	/* 10GBase-BX */
 
 /*
  * Please update ieee8023ad_lacp.c:lacp_compose_key()
@@ -467,6 +468,7 @@ struct ifmedia_description {
 	{ IFM_1000_T,	"1000baseT" },					\
 	{ IFM_HPNA_1,	"homePNA" },					\
 	{ IFM_10G_LR,	"10Gbase-LR" },					\
+	{ IFM_10G_BX,	"10Gbase-BX" },					\
 	{ IFM_10G_SR,	"10Gbase-SR" },					\
 	{ IFM_10G_CX4,	"10Gbase-CX4" },				\
 	{ IFM_2500_SX,	"2500BaseSX" },					\
@@ -834,6 +836,7 @@ struct ifmedia_baudrate {
 	{ IFM_ETHER | IFM_1000_T,	IF_Mbps(1000) },		\
 	{ IFM_ETHER | IFM_HPNA_1,	IF_Mbps(1) },			\
 	{ IFM_ETHER | IFM_10G_LR,	IF_Gbps(10ULL) },		\
+	{ IFM_ETHER | IFM_10G_BX,	IF_Gbps(10ULL) },		\
 	{ IFM_ETHER | IFM_10G_SR,	IF_Gbps(10ULL) },		\
 	{ IFM_ETHER | IFM_10G_CX4,	IF_Gbps(10ULL) },		\
 	{ IFM_ETHER | IFM_2500_SX,	IF_Mbps(2500ULL) },		\
