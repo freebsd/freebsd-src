@@ -369,6 +369,7 @@ qman_portal_fq_enqueue(device_t dev, struct qman_fq *fq, struct dpaa_fd *frame)
 static int
 qman_portal_loop_dqrr(struct qman_portal_softc *sc)
 {
+	SLIST_HEAD(, qman_fq) dirty_fqs = SLIST_HEAD_INITIALIZER(dirty_fqs);
 	struct qman_dqrr_entry *dqrr;
 	struct qman_dqrr_entry *base;
 	struct qman_fq *fq;
@@ -376,23 +377,44 @@ qman_portal_loop_dqrr(struct qman_portal_softc *sc)
 	    DQRR_CI_CI_M;
 	int pi = bus_read_4(sc->sc_base.sc_mres[1], QCSP_DQRR_PI_CINH) &
 	    DQRR_PI_PI_M;
+	int start_ci = ci;
 
 	base = sc->sc_dqrr.ring;
 	do {
 		dqrr = &base[ci];
 		dpaa_flush_line(dqrr);
 		dpaa_touch_line(dqrr);
-		if ((dqrr->stat & QMAN_DQRR_STAT_HAS_FRAME)) {
-			fq = qman_fq_from_index(dqrr->fqid);
-			if (fq != NULL && fq->cb.dqrr != NULL) {
-				fq->cb.dqrr(sc->sc_base.sc_dev, fq,
-				    &dqrr->fd, fq->cb.ctx);
-			}
-		} else
+		if ((dqrr->stat & QMAN_DQRR_STAT_HAS_FRAME) == 0)
 			break;
+
+		fq = qman_fq_from_index(dqrr->fqid);
+		if (fq != NULL && fq->cb.dqrr != NULL) {
+			fq->cb.dqrr(sc->sc_base.sc_dev, fq,
+			    &dqrr->fd, fq->cb.ctx);
+			/*
+			 * Track the FQ for post-poll flush.  Only need to track
+			 * once.
+			 */
+			if (fq->cb.flush != NULL && !fq->dirty) {
+				fq->dirty = true;
+				SLIST_INSERT_HEAD(&dirty_fqs, fq,
+				    dirty_next);
+			}
+		}
 		ci = (ci + 1) & DQRR_CI_CI_M;
-		bus_write_4(sc->sc_base.sc_mres[1], QCSP_DQRR_CI_CINH, ci);
 	} while (ci != pi);
+
+	/* Update CI after the loop.  CI writes are expensive. */
+	if (ci != start_ci)
+		bus_write_4(sc->sc_base.sc_mres[1], QCSP_DQRR_CI_CINH, ci);
+
+	/* Drain the dirty list, invoking the per-FQ flush hook. */
+	while (!SLIST_EMPTY(&dirty_fqs)) {
+		fq = SLIST_FIRST(&dirty_fqs);
+		SLIST_REMOVE_HEAD(&dirty_fqs, dirty_next);
+		fq->dirty = false;
+		fq->cb.flush(fq, fq->cb.ctx);
+	}
 
 	return (0);
 }

@@ -27,6 +27,8 @@
 #ifndef DPAA_ETH_H_
 #define DPAA_ETH_H_
 
+#include <netinet/tcp_lro.h>
+
 /* * TX csum-offload hwassist mask for dTSEC and mEMAC. */
 #define	DPAA_CSUM_TX_OFFLOAD	\
 	(CSUM_IP | CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6)
@@ -54,6 +56,17 @@ struct dpaa_eth_rx_fq {
 	 * Sysctl readers get advisory (torn on 32-bit hosts) values.
 	 */
 	uint64_t			 frames_in;
+
+	/*
+	 * Batched-input state.  The RX callback appends non-LRO mbufs
+	 * onto rx_head via m_nextpkt; the per-FQ flush hook hands the
+	 * whole chain to if_input() and then runs tcp_lro_flush_all().
+	 * Both fields are only touched from the affine CPU.
+	 */
+	struct mbuf			*rx_head;
+	struct mbuf			**rx_tailp;
+	struct lro_ctrl			 lro;
+	bool				 lro_inited;
 };
 
 struct dpaa_eth_softc {

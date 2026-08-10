@@ -666,6 +666,13 @@ qman_fq_register_cb(struct qman_fq *fq, qman_cb_dqrr callback,
 }
 
 int
+qman_fq_register_flush_cb(struct qman_fq *fq, qman_cb_flush flush)
+{
+	fq->cb.flush = flush;
+	return (0);
+}
+
+int
 qman_fq_enqueue(struct qman_fq *fq, struct dpaa_fd *frame)
 {
 	struct qman_softc *sc;

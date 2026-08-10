@@ -46,6 +46,7 @@
 #include <net/if_arp.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
+#include <netinet/tcp_lro.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -507,7 +508,19 @@ dpaa_eth_fq_rx_callback(device_t portal, struct qman_fq *fq,
 	m->m_len = frame->length;
 	m_fixhdr(m);
 
-	if_input(sc->sc_ifnet, m);
+	/*
+	 * Offer to LRO first.
+	 */
+	if (rxfq->lro_inited &&
+	    (if_getcapenable(sc->sc_ifnet) & IFCAP_LRO) != 0 &&
+	    (m->m_pkthdr.csum_flags & (CSUM_L4_CALC | CSUM_L4_VALID)) ==
+	     (CSUM_L4_CALC | CSUM_L4_VALID) &&
+	    tcp_lro_rx(&rxfq->lro, m, 0) == 0)
+		return (1);
+
+	m->m_nextpkt = NULL;
+	*rxfq->rx_tailp = m;
+	rxfq->rx_tailp = &m->m_nextpkt;
 
 	return (1);
 
@@ -517,6 +530,32 @@ err:
 		m_freem(m);
 
 	return (1);
+}
+
+/*
+ * Post-poll flush hook invoked once per QMan portal poll on any
+ * RX FQ that dispatched at least one frame this cycle.  Runs on
+ * the FQ's affine CPU, outside the DQRR dispatch loop.
+ */
+static void
+dpaa_eth_fq_rx_flush(struct qman_fq *fq __unused, void *ctx)
+{
+	struct dpaa_eth_rx_fq *rxfq = ctx;
+
+	if (rxfq->rx_head != NULL) {
+		struct mbuf *chain = rxfq->rx_head;
+
+		rxfq->rx_head = NULL;
+		rxfq->rx_tailp = &rxfq->rx_head;
+		if_input(rxfq->sc->sc_ifnet, chain);
+	}
+	/*
+	 * Flush LRO whenever initialised.  If the user disabled
+	 * IFCAP_LRO between the last callback and this flush, entries
+	 * queued in that window still need to be drained.
+	 */
+	if (rxfq->lro_inited)
+		tcp_lro_flush_all(&rxfq->lro);
 }
 
 static int
@@ -592,6 +631,14 @@ dpaa_eth_fq_rx_free(struct dpaa_eth_softc *sc)
 		for (i = 0; i < sc->sc_nrxfqs; i++) {
 			if (sc->sc_rx_fqs[i].fq != NULL)
 				qman_fq_free(sc->sc_rx_fqs[i].fq);
+			/*
+			 * Any pending non-LRO mbufs on the batch chain
+			 * are dropped here rather than delivered late.
+			 */
+			if (sc->sc_rx_fqs[i].rx_head != NULL)
+				m_freem(sc->sc_rx_fqs[i].rx_head);
+			if (sc->sc_rx_fqs[i].lro_inited)
+				tcp_lro_free(&sc->sc_rx_fqs[i].lro);
 		}
 		free(sc->sc_rx_fqs, M_DEVBUF);
 		sc->sc_rx_fqs = NULL;
@@ -664,6 +711,14 @@ dpaa_eth_fq_rx_init(struct dpaa_eth_softc *sc)
 		sc->sc_rx_fqs[i].fqid = base_fqid + i;
 		sc->sc_rx_fqs[i].cpu = i;
 		sc->sc_rx_fqs[i].sc = sc;
+		sc->sc_rx_fqs[i].rx_head = NULL;
+		sc->sc_rx_fqs[i].rx_tailp = &sc->sc_rx_fqs[i].rx_head;
+
+		/* Best-effort LRO per FQ. */
+		if (tcp_lro_init(&sc->sc_rx_fqs[i].lro) == 0) {
+			sc->sc_rx_fqs[i].lro.ifp = sc->sc_ifnet;
+			sc->sc_rx_fqs[i].lro_inited = true;
+		}
 
 		error = qman_fq_register_cb(fq, dpaa_eth_fq_rx_callback,
 		    &sc->sc_rx_fqs[i]);
@@ -672,6 +727,7 @@ dpaa_eth_fq_rx_init(struct dpaa_eth_softc *sc)
 			    "could not register RX callback for FQ %d\n", i);
 			goto err;
 		}
+		(void)qman_fq_register_flush_cb(fq, dpaa_eth_fq_rx_flush);
 	}
 
 	/*

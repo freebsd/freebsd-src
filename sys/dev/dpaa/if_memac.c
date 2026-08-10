@@ -354,6 +354,8 @@ memac_if_ioctl(if_t ifp, u_long command, caddr_t data)
 			    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
 			if_togglehwassist(ifp, DPAA_CSUM_TX_OFFLOAD);
 		}
+		if ((changed & IFCAP_LRO) != 0)
+			if_togglecapenable(ifp, IFCAP_LRO);
 		break;
 
 	case SIOCGIFMEDIA:
@@ -566,6 +568,9 @@ memac_attach(device_t dev)
 	/* Init callouts */
 	callout_init(&sc->sc_base.sc_tick_callout, CALLOUT_MPSAFE);
 
+	/* Create network interface for upper layers */
+	ifp = sc->sc_base.sc_ifnet = if_alloc(IFT_ETHER);
+
 	/* Create RX buffer pool */
 	error = dpaa_eth_pool_rx_init(&sc->sc_base);
 	if (error != 0)
@@ -596,8 +601,6 @@ memac_attach(device_t dev)
 	dpaa_eth_fm_port_rx_init(&sc->sc_base);
 	dpaa_eth_fm_port_tx_init(&sc->sc_base);
 
-	/* Create network interface for upper layers */
-	ifp = sc->sc_base.sc_ifnet = if_alloc(IFT_ETHER);
 	if_setsoftc(ifp, sc);
 
 	if_setflags(ifp, IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST);
@@ -618,7 +621,8 @@ memac_attach(device_t dev)
 	if_setcapabilities(ifp, IFCAP_JUMBO_MTU |
 	    IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM |
 	    IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 |
-	    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6);
+	    IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6 |
+	    IFCAP_LRO);
 	if_setcapenable(ifp, if_getcapabilities(ifp));
 	if_sethwassist(ifp, DPAA_CSUM_TX_OFFLOAD);
 
