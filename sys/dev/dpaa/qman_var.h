@@ -178,7 +178,9 @@ struct qman_mc {
 };
 
 struct qman_fq {
-	uint32_t fqid;
+	uint32_t fqid;			/* base FQID of the range */
+	uint32_t fqid_count;		/* length of the range (>=1) */
+	bool	 force_fqid;		/* caller owns the FQID allocation */
 	struct qman_cb cb;
 };
 

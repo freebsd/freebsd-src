@@ -314,6 +314,21 @@ int qman_alloc_channel(void);
  */
 void qman_free_channel(int);
 
+/*
+ * Look up the pool channel for @cpu.  Each portal has a dedicated channel, and
+ * there is one portal per CPU.
+ */
+int qman_percpu_channel(int cpu);
+
+/*
+ * Reserve a contiguous range of @count FQIDs (needed by callers that
+ * program a KeyGen-style base+mask distribution and then create the
+ * individual FQs one-by-one with force_fqid=true).  Returns 0 on
+ * success and writes the base FQID to *basep.
+ */
+int qman_alloc_fqid_range(uint32_t count, uint32_t *basep);
+void qman_free_fqid_range(uint32_t base, uint32_t count);
+
 /**
  * Poll frames from QMan.
  * This polls frames from the current software portal.
