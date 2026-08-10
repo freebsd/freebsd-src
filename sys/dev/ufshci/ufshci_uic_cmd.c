@@ -199,6 +199,14 @@ ufshci_uic_send_cmd(struct ufshci_controller *ctrlr,
 		    "Failed to send UIC command (Opcode: 0x%x"
 		    ", config result code = 0x%x)\n",
 		    uic_cmd->opcode, config_result_code);
+		/*
+		 * Reads fail here: there is no valid result to return.
+		 * Writes only log the error, so that a rejected optional
+		 * attribute does not fail bring-up.
+		 */
+		if (return_value != NULL)
+			return (ENXIO);
+		return (0);
 	}
 
 	if (return_value != NULL)
