@@ -2240,7 +2240,7 @@ ixgbe_add_hw_stats(struct ixgbe_softc *sc)
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "management_pkts_rcvd",
 	    CTLFLAG_RD, &stats->mngprc, "Management Packets Received");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "management_pkts_drpd",
-	    CTLFLAG_RD, &stats->mngptc, "Management Packets Dropped");
+	    CTLFLAG_RD, &stats->mngpdc, "Management Packets Dropped");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "checksum_errs",
 	    CTLFLAG_RD, &stats->xec, "Checksum Errors");
 
