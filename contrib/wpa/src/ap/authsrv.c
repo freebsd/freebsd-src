@@ -14,6 +14,7 @@
 #include "eap_server/eap.h"
 #include "eap_server/eap_sim_db.h"
 #include "eapol_auth/eapol_auth_sm.h"
+#include "radius/radius.h"
 #include "radius/radius_server.h"
 #include "hostapd.h"
 #include "ap_config.h"
@@ -89,7 +90,6 @@ static int hostapd_radius_get_eap_user(void *ctx, const u8 *identity,
 	user->force_version = eap_user->force_version;
 	user->macacl = eap_user->macacl;
 	user->ttls_auth = eap_user->ttls_auth;
-	user->remediation = eap_user->remediation;
 	user->accept_attr = eap_user->accept_attr;
 	user->t_c_timestamp = eap_user->t_c_timestamp;
 	rv = 0;
@@ -99,6 +99,114 @@ out:
 		wpa_printf(MSG_DEBUG, "%s: Failed to find user", __func__);
 
 	return rv;
+}
+
+
+/**
+ * hostapd_radius_log_acct_req - Callback for logging received RADIUS
+ * accounting requests
+ * @ctx: Context (struct hostapd_data)
+ * @msg: Received RADIUS accounting request
+ * @status_type: Status type from the message (parsed Acct-Status-Type
+ * attribute)
+ * Returns: 0 on success, -1 on failure
+ */
+static int hostapd_radius_log_acct_req(void *ctx, struct radius_msg *msg,
+				       u32 status_type)
+{
+	char nas_id[RADIUS_MAX_ATTR_LEN + 1] = "";
+	char session_id[RADIUS_MAX_ATTR_LEN + 1] = "";
+	char username[RADIUS_MAX_ATTR_LEN + 1] = "";
+	char calling_station_id[3 * ETH_ALEN] = "";
+	u32 session_time = 0, terminate_cause = 0,
+		bytes_in = 0, bytes_out = 0,
+		packets_in = 0, packets_out = 0,
+		gigawords_in = 0, gigawords_out = 0;
+	unsigned long long total_bytes_in = 0, total_bytes_out = 0;
+
+	/* Parse NAS identification (required by RFC 2866, section 4.1) */
+	if (radius_msg_get_attr(msg, RADIUS_ATTR_NAS_IDENTIFIER, (u8 *) nas_id,
+				sizeof(nas_id) - 1))
+		nas_id[0] = '\0';
+
+	/* Process Accounting-On and Accounting-Off messages separately */
+	if (status_type == RADIUS_ACCT_STATUS_TYPE_ACCOUNTING_ON ||
+	    status_type == RADIUS_ACCT_STATUS_TYPE_ACCOUNTING_OFF) {
+		wpa_printf(MSG_INFO, "RADIUS ACCT: NAS='%s' status='%s'",
+			   nas_id,
+			   status_type == RADIUS_ACCT_STATUS_TYPE_ACCOUNTING_ON
+			   ? "Accounting-On" : "Accounting-Off");
+		return 0;
+	}
+
+	/* Parse session ID (required by RFC 2866, section 5.5) */
+	if (radius_msg_get_attr(msg, RADIUS_ATTR_ACCT_SESSION_ID,
+				(u8 *) session_id,
+				sizeof(session_id) - 1) == 0) {
+		wpa_printf(MSG_DEBUG,
+			   "RADIUS ACCT: request doesn't include session ID");
+		return -1;
+	}
+
+	/* Parse user name */
+	radius_msg_get_attr(msg, RADIUS_ATTR_USER_NAME, (u8 *) username,
+			    sizeof(username) - 1);
+
+	/* Parse device identifier */
+	radius_msg_get_attr(msg, RADIUS_ATTR_CALLING_STATION_ID,
+			    (u8 *) calling_station_id,
+			    sizeof(calling_station_id) - 1);
+
+	switch (status_type) {
+	case RADIUS_ACCT_STATUS_TYPE_START:
+		wpa_printf(MSG_INFO,
+			   "RADIUS ACCT: NAS='%s' session='%s' status='Accounting-Start' station='%s' username='%s'",
+			   nas_id, session_id, calling_station_id, username);
+		break;
+	case RADIUS_ACCT_STATUS_TYPE_STOP:
+	case RADIUS_ACCT_STATUS_TYPE_INTERIM_UPDATE:
+		/* Parse counters */
+		radius_msg_get_attr_int32(msg, RADIUS_ATTR_ACCT_SESSION_TIME,
+					  &session_time);
+		radius_msg_get_attr_int32(msg,
+					  RADIUS_ATTR_ACCT_TERMINATE_CAUSE,
+					  &terminate_cause);
+		radius_msg_get_attr_int32(msg, RADIUS_ATTR_ACCT_INPUT_OCTETS,
+					  &bytes_in);
+		radius_msg_get_attr_int32(msg, RADIUS_ATTR_ACCT_OUTPUT_OCTETS,
+					  &bytes_out);
+		radius_msg_get_attr_int32(msg, RADIUS_ATTR_ACCT_INPUT_PACKETS,
+					  &packets_in);
+		radius_msg_get_attr_int32(msg, RADIUS_ATTR_ACCT_OUTPUT_PACKETS,
+					  &packets_out);
+		radius_msg_get_attr_int32(msg,
+					  RADIUS_ATTR_ACCT_INPUT_GIGAWORDS,
+					  &gigawords_in);
+		radius_msg_get_attr_int32(msg,
+					  RADIUS_ATTR_ACCT_OUTPUT_GIGAWORDS,
+					  &gigawords_out);
+
+		/* RFC 2869, section 5.1 and 5.2 */
+		total_bytes_in = ((u64) gigawords_in << 32) + bytes_in;
+		total_bytes_out = ((u64) gigawords_out << 32) + bytes_out;
+
+		wpa_printf(MSG_INFO,
+			   "RADIUS ACCT: NAS='%s' session='%s' status='%s' station='%s' username='%s' session_time=%u term_cause=%u pck_in=%u pck_out=%u bytes_in=%llu bytes_out=%llu",
+			   nas_id, session_id,
+			   status_type == RADIUS_ACCT_STATUS_TYPE_STOP ?
+			   "Accounting-Stop" : "Accounting-Interim-Update",
+			   calling_station_id, username, session_time,
+			   terminate_cause, packets_in, packets_out,
+			   total_bytes_in, total_bytes_out);
+		break;
+	default:
+		wpa_printf(MSG_DEBUG,
+			   "RADIUS ACCT: Unknown request status type %u",
+			   status_type);
+		return -1;
+	}
+
+	return 0;
 }
 
 
@@ -129,6 +237,8 @@ static int hostapd_setup_radius_srv(struct hostapd_data *hapd)
 	srv.conf_ctx = hapd;
 	srv.ipv6 = conf->radius_server_ipv6;
 	srv.get_eap_user = hostapd_radius_get_eap_user;
+	if (conf->radius_server_acct_log)
+		srv.acct_req_cb = hostapd_radius_log_acct_req;
 	srv.eap_req_id_text = conf->eap_req_id_text;
 	srv.eap_req_id_text_len = conf->eap_req_id_text_len;
 	srv.sqlite_file = conf->eap_user_sqlite;
@@ -136,9 +246,6 @@ static int hostapd_setup_radius_srv(struct hostapd_data *hapd)
 	srv.dump_msk_file = conf->dump_msk_file;
 #endif /* CONFIG_RADIUS_TEST */
 #ifdef CONFIG_HS20
-	srv.subscr_remediation_url = conf->subscr_remediation_url;
-	srv.subscr_remediation_method = conf->subscr_remediation_method;
-	srv.hs20_sim_provisioning_url = conf->hs20_sim_provisioning_url;
 	srv.t_c_server_url = conf->t_c_server_url;
 #endif /* CONFIG_HS20 */
 	srv.erp_domain = conf->erp_domain;
@@ -224,7 +331,6 @@ static struct eap_config * authsrv_eap_config(struct hostapd_data *hapd)
 	cfg->pac_key_lifetime = hapd->conf->pac_key_lifetime;
 	cfg->pac_key_refresh_time = hapd->conf->pac_key_refresh_time;
 	cfg->eap_teap_auth = hapd->conf->eap_teap_auth;
-	cfg->eap_teap_pac_no_inner = hapd->conf->eap_teap_pac_no_inner;
 	cfg->eap_teap_separate_result = hapd->conf->eap_teap_separate_result;
 	cfg->eap_teap_id = hapd->conf->eap_teap_id;
 	cfg->eap_teap_method_sequence = hapd->conf->eap_teap_method_sequence;

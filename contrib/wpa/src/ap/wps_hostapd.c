@@ -20,6 +20,7 @@
 #include "wps/wps_defs.h"
 #include "wps/wps_dev_attr.h"
 #include "wps/wps_attr_parse.h"
+#include "crypto/dh_group5.h"
 #include "hostapd.h"
 #include "ap_config.h"
 #include "ap_drv_ops.h"
@@ -1071,6 +1072,7 @@ static void hostapd_free_wps(struct wps_context *wps)
 	wps_device_data_free(&wps->dev);
 	bin_clear_free(wps->network_key, wps->network_key_len);
 	hostapd_wps_nfc_clear(wps);
+	dh5_free(wps->dh_ctx);
 	wpabuf_free(wps->dh_pubkey);
 	wpabuf_free(wps->dh_privkey);
 	forced_memzero(wps->psk, sizeof(wps->psk));

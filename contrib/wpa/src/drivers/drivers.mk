@@ -78,23 +78,6 @@ endif
 
 ##### PURE AP DRIVERS
 
-ifdef CONFIG_DRIVER_HOSTAP
-DRV_AP_CFLAGS += -DCONFIG_DRIVER_HOSTAP
-DRV_AP_OBJS += src/drivers/driver_hostap.c
-CONFIG_WIRELESS_EXTENSION=y
-NEED_AP_MLME=y
-NEED_NETLINK=y
-NEED_LINUX_IOCTL=y
-endif
-
-ifdef CONFIG_DRIVER_ATHEROS
-DRV_AP_CFLAGS += -DCONFIG_DRIVER_ATHEROS
-DRV_AP_OBJS += src/drivers/driver_atheros.c
-CONFIG_L2_PACKET=linux
-NEED_NETLINK=y
-NEED_LINUX_IOCTL=y
-endif
-
 ##### PURE CLIENT DRIVERS
 
 ifdef CONFIG_DRIVER_WEXT
@@ -171,6 +154,7 @@ endif
 else
   ifdef CONFIG_LIBNL_TINY
     DRV_LIBS += -lnl-tiny
+    DRV_CFLAGS += -I/usr/include/libnl-tiny
   else
     DRV_LIBS += -lnl
     DRV_LIBS += -lnl-genl

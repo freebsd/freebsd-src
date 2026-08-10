@@ -76,7 +76,7 @@ static int eap_pwd_kdf(const u8 *key, size_t keylen, const u8 *label,
 	}
 
 	/* since we're expanding to a bit length, mask off the excess */
-	if (resultbitlen % 8) {
+	if (resultbytelen > 0 && (resultbitlen % 8)) {
 		u8 mask = 0xff;
 		mask <<= (8 - (resultbitlen % 8));
 		result[resultbytelen - 1] &= mask;

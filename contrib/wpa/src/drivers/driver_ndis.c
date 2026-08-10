@@ -1037,6 +1037,9 @@ static int
 wpa_driver_ndis_set_key_wrapper(void *priv,
 				struct wpa_driver_set_key_params *params)
 {
+	if (params->key_flag & KEY_FLAG_NEXT)
+		return -1;
+
 	return wpa_driver_ndis_set_key(params->ifname, priv,
 				       params->alg, params->addr,
 				       params->key_idx, params->set_tx,

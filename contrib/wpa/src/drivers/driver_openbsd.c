@@ -77,6 +77,9 @@ wpa_driver_openbsd_set_key(void *priv, struct wpa_driver_set_key_params *params)
 	const u8 *key = params->key;
 	size_t key_len = params->key_len;
 
+	if (params->key_flag & KEY_FLAG_NEXT)
+		return -1;
+
 	if (key_len > IEEE80211_PMK_LEN ||
 	    (key_flag & KEY_FLAG_PMK_MASK) != KEY_FLAG_PMK) {
 		return -1;

@@ -416,7 +416,7 @@ static int sae_tests(void)
 		goto fail;
 
 	/* Check that output matches the test vector */
-	if (sae_write_commit(&sae, buf, NULL, NULL) < 0)
+	if (sae_write_commit(&sae, buf, NULL, NULL, 0) < 0)
 		goto fail;
 	wpa_hexdump_buf(MSG_DEBUG, "SAE: Commit message", buf);
 
@@ -449,7 +449,9 @@ static int sae_tests(void)
 
 	pt_info = sae_derive_pt(pt_groups,
 				(const u8 *) ssid, os_strlen(ssid),
-				(const u8 *) pw, os_strlen(pw), pwid);
+				(const u8 *) pw, os_strlen(pw),
+				(const u8 *) pwid,
+				os_strlen(pwid));
 	if (!pt_info)
 		goto fail;
 
@@ -608,7 +610,8 @@ static int sae_pk_tests(void)
 
 static int pasn_test_pasn_auth(void)
 {
-	/* Test vector taken from IEEE P802.11az/D2.6, J.12 */
+	/* Test vector taken from IEEE Std 802.11-2024,
+	 * J.12 (PASN Test Vectors) */
 	const u8 pmk[] = {
 		0xde, 0xf4, 0x3e, 0x55, 0x67, 0xe0, 0x1c, 0xa6,
 		0x64, 0x92, 0x65, 0xf1, 0x9a, 0x29, 0x0e, 0xef,
@@ -646,12 +649,13 @@ static int pasn_test_pasn_auth(void)
 	};
 	struct wpa_ptk ptk;
 	int ret;
+	enum rsn_hash_alg hash_alg;
 
 	ret = pasn_pmk_to_ptk(pmk, sizeof(pmk),
 			      spa_addr, bssid,
 			      dhss, sizeof(dhss),
 			      &ptk, WPA_KEY_MGMT_PASN, WPA_CIPHER_CCMP,
-			      WPA_KDK_MAX_LEN);
+			      WPA_KDK_MAX_LEN, 0, &hash_alg, false);
 
 	if (ret)
 		return ret;
@@ -680,7 +684,8 @@ static int pasn_test_pasn_auth(void)
 
 static int pasn_test_no_pasn_auth(void)
 {
-	/* Test vector taken from IEEE P802.11az/D2.6, J.13 */
+	/* Test vector taken from IEEE Std 802.11-2024,
+	 * J.13 (KDK Test Vectors when PASN authentication is not used) */
 	const u8 pmk[] = {
 		0xde, 0xf4, 0x3e, 0x55, 0x67, 0xe0, 0x1c, 0xa6,
 		0x64, 0x92, 0x65, 0xf1, 0x9a, 0x29, 0x0e, 0xef,

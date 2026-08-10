@@ -988,8 +988,14 @@ static int wpa_tdls_recv_teardown(struct wpa_sm *sm, const u8 *src_addr,
 		return 0;
 	}
 
+	if (len < sizeof(struct wpa_tdls_frame) + 2 /* Reason Code */) {
+		wpa_printf(MSG_INFO, "TDLS: Too short Teardown frame (len=%zu)",
+			   len);
+		return -1;
+	}
+
 	pos = buf;
-	pos += 1 /* pkt_type */ + 1 /* Category */ + 1 /* Action */;
+	pos += sizeof(struct wpa_tdls_frame);
 
 	reason_code = WPA_GET_LE16(pos);
 	pos += 2;
@@ -2132,13 +2138,13 @@ static int wpa_tdls_process_tpk_m1(struct wpa_sm *sm, const u8 *src_addr,
 	if (kde.rsn_ie_len > TDLS_MAX_IE_LEN) {
 		wpa_printf(MSG_INFO, "TDLS: Too long Initiator RSN IE in "
 			   "TPK M1");
-		status = WLAN_STATUS_INVALID_RSNIE;
+		status = WLAN_STATUS_INVALID_RSNE;
 		goto error;
 	}
 
 	if (wpa_parse_wpa_ie_rsn(kde.rsn_ie, kde.rsn_ie_len, &ie) < 0) {
 		wpa_printf(MSG_INFO, "TDLS: Failed to parse RSN IE in TPK M1");
-		status = WLAN_STATUS_INVALID_RSNIE;
+		status = WLAN_STATUS_INVALID_RSNE;
 		goto error;
 	}
 
@@ -2148,7 +2154,7 @@ static int wpa_tdls_process_tpk_m1(struct wpa_sm *sm, const u8 *src_addr,
 		cipher = WPA_CIPHER_CCMP;
 	} else {
 		wpa_printf(MSG_INFO, "TDLS: No acceptable cipher in TPK M1");
-		status = WLAN_STATUS_PAIRWISE_CIPHER_NOT_VALID;
+		status = WLAN_STATUS_INVALID_PAIRWISE_CIPHER;
 		goto error;
 	}
 
@@ -2157,7 +2163,7 @@ static int wpa_tdls_process_tpk_m1(struct wpa_sm *sm, const u8 *src_addr,
 	    WPA_CAPABILITY_PEERKEY_ENABLED) {
 		wpa_printf(MSG_INFO, "TDLS: Invalid RSN Capabilities in "
 			   "TPK M1");
-		status = WLAN_STATUS_INVALID_RSN_IE_CAPAB;
+		status = WLAN_STATUS_INVALID_RSNE_CAPABILITIES;
 		goto error;
 	}
 
@@ -2461,8 +2467,8 @@ static int wpa_tdls_process_tpk_m2(struct wpa_sm *sm, const u8 *src_addr,
 		    kde.lnkid, kde.lnkid_len);
 	lnkid = (struct wpa_tdls_lnkid *) kde.lnkid;
 
-	if (!ether_addr_equal(sm->bssid,
-			      wpa_tdls_get_link_bssid(sm, peer->mld_link_id))) {
+	if (!ether_addr_equal(wpa_tdls_get_link_bssid(sm, peer->mld_link_id),
+			      lnkid->bssid)) {
 		wpa_printf(MSG_INFO, "TDLS: TPK M2 from different BSS");
 		status = WLAN_STATUS_NOT_IN_SAME_BSS;
 		goto error;
@@ -2517,7 +2523,7 @@ static int wpa_tdls_process_tpk_m2(struct wpa_sm *sm, const u8 *src_addr,
 	if (kde.rsn_ie_len > TDLS_MAX_IE_LEN) {
 		wpa_printf(MSG_INFO,
 			   "TDLS: Too long Responder RSN IE in TPK M2");
-		status = WLAN_STATUS_INVALID_RSNIE;
+		status = WLAN_STATUS_INVALID_RSNE;
 		goto error;
 	}
 
@@ -2535,13 +2541,13 @@ static int wpa_tdls_process_tpk_m2(struct wpa_sm *sm, const u8 *src_addr,
 			    peer->rsnie_i, peer->rsnie_i_len);
 		wpa_hexdump(MSG_DEBUG, "TDLS: RSN IE Received from TPK M2",
 			    kde.rsn_ie, kde.rsn_ie_len);
-		status = WLAN_STATUS_INVALID_RSNIE;
+		status = WLAN_STATUS_INVALID_RSNE;
 		goto error;
 	}
 
 	if (wpa_parse_wpa_ie_rsn(kde.rsn_ie, kde.rsn_ie_len, &ie) < 0) {
 		wpa_printf(MSG_INFO, "TDLS: Failed to parse RSN IE in TPK M2");
-		status = WLAN_STATUS_INVALID_RSNIE;
+		status = WLAN_STATUS_INVALID_RSNE;
 		goto error;
 	}
 
@@ -2551,7 +2557,7 @@ static int wpa_tdls_process_tpk_m2(struct wpa_sm *sm, const u8 *src_addr,
 		cipher = WPA_CIPHER_CCMP;
 	} else {
 		wpa_printf(MSG_INFO, "TDLS: No acceptable cipher in TPK M2");
-		status = WLAN_STATUS_PAIRWISE_CIPHER_NOT_VALID;
+		status = WLAN_STATUS_INVALID_PAIRWISE_CIPHER;
 		goto error;
 	}
 

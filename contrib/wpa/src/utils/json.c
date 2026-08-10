@@ -157,24 +157,72 @@ fail:
 }
 
 
-static int json_parse_number(const char **json_pos, const char *end,
-			     int *ret_val)
+static size_t json_get_number_len(const char *json_pos, const char *end,
+				  bool *is_double)
 {
-	const char *pos = *json_pos;
+	const char *pos = json_pos;
 	size_t len;
-	char *str;
 
 	for (; pos < end; pos++) {
-		if (*pos != '-' && (*pos < '0' || *pos > '9')) {
+		switch (*pos) {
+		case '.':
+		case 'e':
+		case 'E':
+			*is_double = true;
+		case '-':
+		case '0':
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+			continue;
+		default:
 			pos--;
 			break;
 		}
+		break;
 	}
 	if (pos == end)
 		pos--;
-	if (pos < *json_pos)
+	if (pos < json_pos)
+		return 0;
+	len = pos - json_pos + 1;
+
+	return len;
+}
+
+
+static int json_parse_double(const char **json_pos, size_t len, double *ret_val)
+{
+	char *str;
+	char *endptr;
+
+	str = os_malloc(len + 1);
+	if (!str)
 		return -1;
-	len = pos - *json_pos + 1;
+	os_memcpy(str, *json_pos, len);
+	str[len] = '\0';
+
+	*ret_val = strtod(str, &endptr);
+	if (endptr == str) {
+		os_free(str);
+		return -1;
+	}
+	os_free(str);
+	*json_pos += len - 1;
+	return 0;
+}
+
+
+static int json_parse_number(const char **json_pos, size_t len, int *ret_val)
+{
+	char *str;
+
 	str = os_malloc(len + 1);
 	if (!str)
 		return -1;
@@ -183,7 +231,7 @@ static int json_parse_number(const char **json_pos, const char *end,
 
 	*ret_val = atoi(str);
 	os_free(str);
-	*json_pos = pos;
+	*json_pos += len - 1;
 	return 0;
 }
 
@@ -223,8 +271,11 @@ struct json_token * json_parse(const char *data, size_t data_len)
 	const char *pos, *end;
 	char *str;
 	int num;
+	double dnum;
+	bool is_double;
 	unsigned int depth = 0;
 	unsigned int tokens = 0;
+	size_t len;
 
 	pos = data;
 	end = data + data_len;
@@ -269,7 +320,8 @@ struct json_token * json_parse(const char *data, size_t data_len)
 		case ']': /* end array */
 		case '}': /* end object */
 			if (!curr_token || !curr_token->parent ||
-			    curr_token->parent->state != JSON_STARTED) {
+			    curr_token->parent->state != JSON_STARTED ||
+			    depth == 0) {
 				wpa_printf(MSG_DEBUG,
 					   "JSON: Invalid state for end array/object");
 				goto fail;
@@ -420,33 +472,65 @@ struct json_token * json_parse(const char *data, size_t data_len)
 		case '8':
 		case '9':
 			/* number */
-			if (json_parse_number(&pos, end, &num) < 0)
+			is_double = false;
+			len = json_get_number_len(pos, end, &is_double);
+			if (!len)
 				goto fail;
+			if (is_double) {
+				if (json_parse_double(&pos, len, &dnum) < 0)
+					goto fail;
+			} else {
+				if (json_parse_number(&pos, len, &num) < 0)
+					goto fail;
+			}
+
 			if (!curr_token) {
 				token = json_alloc_token(&tokens);
 				if (!token)
 					goto fail;
-				token->type = JSON_NUMBER;
-				token->number = num;
+				if (is_double) {
+					token->dnumber = dnum;
+					token->type = JSON_DOUBLE;
+				} else {
+					token->number = num;
+					token->type = JSON_NUMBER;
+				}
 				token->state = JSON_COMPLETED;
 			} else if (curr_token->state == JSON_WAITING_VALUE) {
-				curr_token->number = num;
 				curr_token->state = JSON_COMPLETED;
-				curr_token->type = JSON_NUMBER;
-				wpa_printf(MSG_MSGDUMP,
-					   "JSON: Number value: '%s' = '%d'",
-					   curr_token->name,
-					   curr_token->number);
+				if (is_double) {
+					curr_token->dnumber = dnum;
+					curr_token->type = JSON_DOUBLE;
+					wpa_printf(MSG_MSGDUMP,
+						   "JSON: Double value: '%s' = '%f'",
+						   curr_token->name,
+						   curr_token->dnumber);
+				} else {
+					curr_token->number = num;
+					curr_token->type = JSON_NUMBER;
+					wpa_printf(MSG_MSGDUMP,
+						   "JSON: Number value: '%s' = '%d'",
+						   curr_token->name,
+						   curr_token->number);
+				}
 			} else if (curr_token->parent &&
 				   curr_token->parent->type == JSON_ARRAY &&
 				   curr_token->parent->state == JSON_STARTED &&
 				   curr_token->state == JSON_EMPTY) {
-				curr_token->number = num;
 				curr_token->state = JSON_COMPLETED;
-				curr_token->type = JSON_NUMBER;
-				wpa_printf(MSG_MSGDUMP,
-					   "JSON: Number value: %d",
-					   curr_token->number);
+				if (is_double) {
+					curr_token->dnumber = dnum;
+					curr_token->type = JSON_DOUBLE;
+					wpa_printf(MSG_MSGDUMP,
+						   "JSON: Double value: %f",
+						   curr_token->dnumber);
+				} else {
+					curr_token->number = num;
+					curr_token->type = JSON_NUMBER;
+					wpa_printf(MSG_MSGDUMP,
+						   "JSON: Number value: %d",
+						   curr_token->number);
+				}
 			} else {
 				wpa_printf(MSG_DEBUG,
 					   "JSON: Invalid state for a number");
@@ -563,6 +647,8 @@ static const char * json_type_str(enum json_type type)
 		return "STRING";
 	case JSON_NUMBER:
 		return "NUMBER";
+	case JSON_DOUBLE:
+		return "DOUBLE";
 	case JSON_BOOLEAN:
 		return "BOOLEAN";
 	case JSON_NULL:
@@ -603,6 +689,12 @@ void json_print_tree(struct json_token *root, char *buf, size_t buflen)
 void json_add_int(struct wpabuf *json, const char *name, int val)
 {
 	wpabuf_printf(json, "\"%s\":%d", name, val);
+}
+
+
+void json_add_double(struct wpabuf *json, const char *name, double val)
+{
+	wpabuf_printf(json, "\"%s\":%f", name, val);
 }
 
 

@@ -150,6 +150,12 @@ static int supp_set_key(void *ctx, int link_id, enum wpa_alg alg,
 {
 	struct ibss_rsn_peer *peer = ctx;
 
+	if (key_flag & KEY_FLAG_NEXT) {
+		wpa_printf(MSG_DEBUG,
+			   "SUPP: Ignore set_key with KEY_FLAG_NEXT");
+		return 0;
+	}
+
 	wpa_printf(MSG_DEBUG, "SUPP: %s(alg=%d addr=" MACSTR " key_idx=%d "
 		   "set_tx=%d)",
 		   __func__, alg, MAC2STR(addr), key_idx, set_tx);
@@ -320,6 +326,12 @@ static int auth_set_key(void *ctx, int vlan_id, enum wpa_alg alg,
 	struct ibss_rsn *ibss_rsn = ctx;
 	u8 seq[6];
 
+	if (key_flag & KEY_FLAG_NEXT) {
+		wpa_printf(MSG_DEBUG,
+			   "AUTH: Ignore set_key with KEY_FLAG_NEXT");
+		return 0;
+	}
+
 	os_memset(seq, 0, sizeof(seq));
 
 	if (addr) {
@@ -485,7 +497,7 @@ static int ibss_rsn_auth_init(struct ibss_rsn *ibss_rsn,
 				"\x01\x00\x00\x0f\xac\x04"
 				"\x01\x00\x00\x0f\xac\x02"
 				"\x00\x00", 22, NULL, 0, NULL, 0, NULL, 0,
-				NULL) != WPA_IE_OK) {
+				NULL, false) != WPA_IE_OK) {
 		wpa_printf(MSG_DEBUG, "AUTH: wpa_validate_wpa_ie() failed");
 		return -1;
 	}

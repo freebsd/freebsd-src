@@ -21,158 +21,9 @@ struct xml_node_ctx {
 };
 
 
-struct str_buf {
-	char *buf;
-	size_t len;
-};
-
-#define MAX_STR 1000
-
-static void add_str(void *ctx_ptr, const char *fmt, ...)
-{
-	struct str_buf *str = ctx_ptr;
-	va_list ap;
-	char *n;
-	int len;
-
-	n = os_realloc(str->buf, str->len + MAX_STR + 2);
-	if (n == NULL)
-		return;
-	str->buf = n;
-
-	va_start(ap, fmt);
-	len = vsnprintf(str->buf + str->len, MAX_STR, fmt, ap);
-	va_end(ap);
-	if (len >= MAX_STR)
-		len = MAX_STR - 1;
-	str->len += len;
-	str->buf[str->len] = '\0';
-}
-
-
-int xml_validate(struct xml_node_ctx *ctx, xml_node_t *node,
-		 const char *xml_schema_fname, char **ret_err)
-{
-	xmlDocPtr doc;
-	xmlNodePtr n;
-	xmlSchemaParserCtxtPtr pctx;
-	xmlSchemaValidCtxtPtr vctx;
-	xmlSchemaPtr schema;
-	int ret;
-	struct str_buf errors;
-
-	if (ret_err)
-		*ret_err = NULL;
-
-	doc = xmlNewDoc((xmlChar *) "1.0");
-	if (doc == NULL)
-		return -1;
-	n = xmlDocCopyNode((xmlNodePtr) node, doc, 1);
-	if (n == NULL) {
-		xmlFreeDoc(doc);
-		return -1;
-	}
-	xmlDocSetRootElement(doc, n);
-
-	os_memset(&errors, 0, sizeof(errors));
-
-	pctx = xmlSchemaNewParserCtxt(xml_schema_fname);
-	xmlSchemaSetParserErrors(pctx, (xmlSchemaValidityErrorFunc) add_str,
-				 (xmlSchemaValidityWarningFunc) add_str,
-				 &errors);
-	schema = xmlSchemaParse(pctx);
-	xmlSchemaFreeParserCtxt(pctx);
-
-	vctx = xmlSchemaNewValidCtxt(schema);
-	xmlSchemaSetValidErrors(vctx, (xmlSchemaValidityErrorFunc) add_str,
-				(xmlSchemaValidityWarningFunc) add_str,
-				&errors);
-
-	ret = xmlSchemaValidateDoc(vctx, doc);
-	xmlSchemaFreeValidCtxt(vctx);
-	xmlFreeDoc(doc);
-	xmlSchemaFree(schema);
-
-	if (ret == 0) {
-		os_free(errors.buf);
-		return 0;
-	} else if (ret > 0) {
-		if (ret_err)
-			*ret_err = errors.buf;
-		else
-			os_free(errors.buf);
-		return -1;
-	} else {
-		if (ret_err)
-			*ret_err = errors.buf;
-		else
-			os_free(errors.buf);
-		return -1;
-	}
-}
-
-
-int xml_validate_dtd(struct xml_node_ctx *ctx, xml_node_t *node,
-		     const char *dtd_fname, char **ret_err)
-{
-	xmlDocPtr doc;
-	xmlNodePtr n;
-	xmlValidCtxt vctx;
-	xmlDtdPtr dtd;
-	int ret;
-	struct str_buf errors;
-
-	if (ret_err)
-		*ret_err = NULL;
-
-	doc = xmlNewDoc((xmlChar *) "1.0");
-	if (doc == NULL)
-		return -1;
-	n = xmlDocCopyNode((xmlNodePtr) node, doc, 1);
-	if (n == NULL) {
-		xmlFreeDoc(doc);
-		return -1;
-	}
-	xmlDocSetRootElement(doc, n);
-
-	os_memset(&errors, 0, sizeof(errors));
-
-	dtd = xmlParseDTD(NULL, (const xmlChar *) dtd_fname);
-	if (dtd == NULL) {
-		xmlFreeDoc(doc);
-		return -1;
-	}
-
-	os_memset(&vctx, 0, sizeof(vctx));
-	vctx.userData = &errors;
-	vctx.error = add_str;
-	vctx.warning = add_str;
-	ret = xmlValidateDtd(&vctx, doc, dtd);
-	xmlFreeDoc(doc);
-	xmlFreeDtd(dtd);
-
-	if (ret == 1) {
-		os_free(errors.buf);
-		return 0;
-	} else {
-		if (ret_err)
-			*ret_err = errors.buf;
-		else
-			os_free(errors.buf);
-		return -1;
-	}
-}
-
-
 void xml_node_free(struct xml_node_ctx *ctx, xml_node_t *node)
 {
 	xmlFreeNode((xmlNodePtr) node);
-}
-
-
-xml_node_t * xml_node_get_parent(struct xml_node_ctx *ctx, xml_node_t *node)
-{
-	return (xml_node_t *) ((xmlNodePtr) node)->parent;
 }
 
 
@@ -239,19 +90,6 @@ char * xml_node_to_str(struct xml_node_ctx *ctx, xml_node_t *node)
 	}
 
 	return ret;
-}
-
-
-void xml_node_detach(struct xml_node_ctx *ctx, xml_node_t *node)
-{
-	xmlUnlinkNode((xmlNodePtr) node);
-}
-
-
-void xml_node_add_child(struct xml_node_ctx *ctx, xml_node_t *parent,
-			xml_node_t *child)
-{
-	xmlAddChild((xmlNodePtr) parent, (xmlNodePtr) child);
 }
 
 
@@ -322,47 +160,6 @@ void xml_node_set_text(struct xml_node_ctx *ctx, xml_node_t *node,
 }
 
 
-int xml_node_add_attr(struct xml_node_ctx *ctx, xml_node_t *node,
-		      xml_namespace_t *ns, const char *name, const char *value)
-{
-	xmlAttrPtr attr;
-
-	if (ns) {
-		attr = xmlNewNsProp((xmlNodePtr) node, (xmlNsPtr) ns,
-				    (const xmlChar *) name,
-				    (const xmlChar *) value);
-	} else {
-		attr = xmlNewProp((xmlNodePtr) node, (const xmlChar *) name,
-				  (const xmlChar *) value);
-	}
-
-	return attr ? 0 : -1;
-}
-
-
-char * xml_node_get_attr_value(struct xml_node_ctx *ctx, xml_node_t *node,
-			       char *name)
-{
-	return (char *) xmlGetNoNsProp((xmlNodePtr) node,
-				       (const xmlChar *) name);
-}
-
-
-char * xml_node_get_attr_value_ns(struct xml_node_ctx *ctx, xml_node_t *node,
-				  const char *ns_uri, char *name)
-{
-	return (char *) xmlGetNsProp((xmlNodePtr) node, (const xmlChar *) name,
-				     (const xmlChar *) ns_uri);
-}
-
-
-void xml_node_get_attr_value_free(struct xml_node_ctx *ctx, char *val)
-{
-	if (val)
-		xmlFree((xmlChar *) val);
-}
-
-
 xml_node_t * xml_node_first_child(struct xml_node_ctx *ctx,
 				  xml_node_t *parent)
 {
@@ -422,15 +219,8 @@ char * xml_node_get_base64_text(struct xml_node_ctx *ctx, xml_node_t *node,
 	}
 	os_memcpy(txt, ret, len);
 	txt[len] = '\0';
+	os_free(ret);
 	return txt;
-}
-
-
-xml_node_t * xml_node_copy(struct xml_node_ctx *ctx, xml_node_t *node)
-{
-	if (node == NULL)
-		return NULL;
-	return (xml_node_t *) xmlCopyNode((xmlNodePtr) node, 1);
 }
 
 

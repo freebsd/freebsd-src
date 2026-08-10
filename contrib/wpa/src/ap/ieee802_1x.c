@@ -45,7 +45,7 @@ static void ieee802_1x_wnm_notif_send(void *eloop_ctx, void *timeout_ctx);
 #endif /* CONFIG_HS20 */
 static bool ieee802_1x_finished(struct hostapd_data *hapd,
 				struct sta_info *sta, int success,
-				int remediation, bool logoff);
+				bool logoff);
 
 
 static void ieee802_1x_send(struct hostapd_data *hapd, struct sta_info *sta,
@@ -149,9 +149,9 @@ static void ieee802_1x_ml_set_sta_authorized(struct hostapd_data *hapd,
 					     bool authorized)
 {
 #ifdef CONFIG_IEEE80211BE
-	unsigned int i, link_id;
+	unsigned int i;
 
-	if (!hostapd_is_mld_ap(hapd))
+	if (!hostapd_is_multiple_link_mld(hapd))
 		return;
 
 	/*
@@ -161,32 +161,35 @@ static void ieee802_1x_ml_set_sta_authorized(struct hostapd_data *hapd,
 	if (authorized && hapd->mld_link_id != sta->mld_assoc_link_id)
 		return;
 
-	for (link_id = 0; link_id < MAX_NUM_MLD_LINKS; link_id++) {
-		struct mld_link_info *link = &sta->mld_info.links[link_id];
+	for (i = 0; i < hapd->iface->interfaces->count; i++) {
+		struct sta_info *tmp_sta;
+		struct mld_link_info *link;
+		struct hostapd_data *tmp_hapd =
+			hapd->iface->interfaces->iface[i]->bss[0];
 
+		if (!hostapd_is_ml_partner(hapd, tmp_hapd))
+			continue;
+
+		link = &sta->mld_info.links[tmp_hapd->mld_link_id];
 		if (!link->valid)
 			continue;
 
-		for (i = 0; i < hapd->iface->interfaces->count; i++) {
-			struct sta_info *tmp_sta;
-			struct hostapd_data *tmp_hapd =
-				hapd->iface->interfaces->iface[i]->bss[0];
-
-			if (!hostapd_is_ml_partner(hapd, tmp_hapd))
+		for (tmp_sta = tmp_hapd->sta_list; tmp_sta;
+		     tmp_sta = tmp_sta->next) {
+			if (tmp_sta == sta ||
+			    tmp_sta->mld_assoc_link_id !=
+			    sta->mld_assoc_link_id ||
+			    tmp_sta->aid != sta->aid)
 				continue;
 
-			for (tmp_sta = tmp_hapd->sta_list; tmp_sta;
-			     tmp_sta = tmp_sta->next) {
-				if (tmp_sta == sta ||
-				    tmp_sta->mld_assoc_link_id !=
-				    sta->mld_assoc_link_id ||
-				    tmp_sta->aid != sta->aid)
-					continue;
+			if (!ether_addr_equal(
+				    tmp_sta->mld_info.common_info.mld_addr,
+				    sta->mld_info.common_info.mld_addr))
+				continue;
 
-				ieee802_1x_set_authorized(tmp_hapd, tmp_sta,
-							  authorized, true);
-				break;
-			}
+			ieee802_1x_set_authorized(tmp_hapd, tmp_sta,
+						  authorized, true);
+			break;
 		}
 	}
 #endif /* CONFIG_IEEE80211BE */
@@ -453,8 +456,7 @@ static int add_common_radius_sta_attr_rsn(struct hostapd_data *hapd,
 		return -1;
 	}
 
-	suite = wpa_cipher_to_suite(((hapd->conf->wpa & 0x2) ||
-				     hapd->conf->osen) ?
+	suite = wpa_cipher_to_suite(((hapd->conf->wpa & 0x2)) ?
 				    WPA_PROTO_RSN : WPA_PROTO_WPA,
 				    hapd->conf->wpa_group);
 	if (!hostapd_config_get_radius_attr(req_attr,
@@ -583,7 +585,7 @@ static int add_common_radius_sta_attr(struct hostapd_data *hapd,
 	}
 #endif /* CONFIG_IEEE80211R_AP */
 
-	if ((hapd->conf->wpa || hapd->conf->osen) && sta->wpa_sm &&
+	if (hapd->conf->wpa && sta->wpa_sm &&
 	    add_common_radius_sta_attr_rsn(hapd, req_attr, sta, msg) < 0)
 		return -1;
 
@@ -1125,7 +1127,7 @@ void ieee802_1x_receive(struct hostapd_data *hapd, const u8 *sa, const u8 *buf,
 	struct rsn_pmksa_cache_entry *pmksa;
 	int key_mgmt;
 
-	if (!hapd->conf->ieee802_1x && !hapd->conf->wpa && !hapd->conf->osen &&
+	if (!hapd->conf->ieee802_1x && !hapd->conf->wpa &&
 	    !hapd->conf->wps_state)
 		return;
 
@@ -1134,6 +1136,9 @@ void ieee802_1x_receive(struct hostapd_data *hapd, const u8 *sa, const u8 *buf,
 		   (unsigned long) len, MAC2STR(sa), encrypted);
 	sta = ap_get_sta(hapd, sa);
 	if (!sta || (!(sta->flags & (WLAN_STA_ASSOC | WLAN_STA_PREAUTH)) &&
+#ifdef CONFIG_IEEE8021X_AUTH
+		     !sta->epp_sta &&
+#endif /* CONFIG_IEEE8021X_AUTH */
 		     !(hapd->iface->drv_flags & WPA_DRIVER_FLAGS_WIRED))) {
 		wpa_printf(MSG_DEBUG,
 			   "IEEE 802.1X data frame from not associated/Pre-authenticating STA");
@@ -1185,7 +1190,7 @@ void ieee802_1x_receive(struct hostapd_data *hapd, const u8 *sa, const u8 *buf,
 		return;
 	}
 
-	if (!hapd->conf->ieee802_1x && !hapd->conf->osen &&
+	if (!hapd->conf->ieee802_1x &&
 	    !(sta->flags & (WLAN_STA_WPS | WLAN_STA_MAYBE_WPS))) {
 		wpa_printf(MSG_DEBUG,
 			   "IEEE 802.1X: Ignore EAPOL message - 802.1X not enabled and WPS not used");
@@ -1252,6 +1257,29 @@ void ieee802_1x_receive(struct hostapd_data *hapd, const u8 *sa, const u8 *buf,
 		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE8021X,
 			       HOSTAPD_LEVEL_DEBUG,
 			       "received EAPOL-Start from STA");
+#ifdef CONFIG_IEEE80211R_AP
+		if (hapd->conf->wpa &&
+		    wpa_key_mgmt_ft(hapd->conf->wpa_key_mgmt) && sta->wpa_sm &&
+		    ((wpa_key_mgmt_ft(wpa_auth_sta_key_mgmt(sta->wpa_sm)) &&
+		      (sta->flags & WLAN_STA_AUTHORIZED)) ||
+		     sta->auth_alg == WLAN_AUTH_FT)) {
+			/* When FT is used, reauthentication to generate a new
+			 * PMK-R0 would be complicated since the current AP
+			 * might not be the one with which the currently used
+			 * PMK-R0 was generated. IEEE Std 802.11-2020, 13.4.2
+			 * (FT initial mobility domain association in an RSN)
+			 * mandates STA to perform a new FT initial mobility
+			 * domain association whenever its Supplicant would
+			 * trigger sending of an EAPOL-Start frame. As such,
+			 * this EAPOL-Start frame should not have been sent.
+			 * Discard it to avoid unexpected behavior. */
+			hostapd_logger(hapd, sta->addr,
+				       HOSTAPD_MODULE_IEEE8021X,
+				       HOSTAPD_LEVEL_DEBUG,
+				       "discard unexpected EAPOL-Start from STA that uses FT");
+			break;
+		}
+#endif /* CONFIG_IEEE80211R_AP */
 		sta->eapol_sm->flags &= ~EAPOL_SM_WAIT_START;
 		pmksa = wpa_auth_sta_get_pmksa(sta->wpa_sm);
 		if (pmksa) {
@@ -1337,7 +1365,7 @@ void ieee802_1x_new_station(struct hostapd_data *hapd, struct sta_info *sta)
 	}
 #endif /* CONFIG_WPS */
 
-	if (!force_1x && !hapd->conf->ieee802_1x && !hapd->conf->osen) {
+	if (!force_1x && !hapd->conf->ieee802_1x) {
 		wpa_printf(MSG_DEBUG,
 			   "IEEE 802.1X: Ignore STA - 802.1X not enabled or forced for WPS");
 		/*
@@ -1347,6 +1375,19 @@ void ieee802_1x_new_station(struct hostapd_data *hapd, struct sta_info *sta)
 		ieee802_1x_free_station(hapd, sta);
 		return;
 	}
+
+#ifdef CONFIG_IEEE8021X_AUTH
+	if (sta->auth_alg == WLAN_AUTH_802_1X) {
+		wpa_printf(MSG_DEBUG,
+			   "IEEE 802.1X: Ignore STA - EAP in Authentication frames");
+		/*
+		 * Clear any possible EAPOL authenticator state to support
+		 * reassociation change from WPA-EAP to PSK.
+		 */
+		ieee802_1x_free_station(hapd, sta);
+		return;
+	}
+#endif /* CONFIG_IEEE8021X_AUTH */
 
 	key_mgmt = wpa_auth_sta_key_mgmt(sta->wpa_sm);
 	if (key_mgmt != -1 &&
@@ -1470,10 +1511,6 @@ void ieee802_1x_new_station(struct hostapd_data *hapd, struct sta_info *sta)
 void ieee802_1x_free_station(struct hostapd_data *hapd, struct sta_info *sta)
 {
 	struct eapol_state_machine *sm = sta->eapol_sm;
-
-#ifdef CONFIG_HS20
-	eloop_cancel_timeout(ieee802_1x_wnm_notif_send, hapd, sta);
-#endif /* CONFIG_HS20 */
 
 	if (sta->pending_eapol_rx) {
 		wpabuf_free(sta->pending_eapol_rx->buf);
@@ -1750,32 +1787,6 @@ static void ieee802_1x_update_sta_cui(struct hostapd_data *hapd,
 
 #ifdef CONFIG_HS20
 
-static void ieee802_1x_hs20_sub_rem(struct sta_info *sta, u8 *pos, size_t len)
-{
-	sta->remediation = 1;
-	os_free(sta->remediation_url);
-	if (len > 2) {
-		sta->remediation_url = os_malloc(len);
-		if (!sta->remediation_url)
-			return;
-		sta->remediation_method = pos[0];
-		os_memcpy(sta->remediation_url, pos + 1, len - 1);
-		sta->remediation_url[len - 1] = '\0';
-		wpa_printf(MSG_DEBUG,
-			   "HS 2.0: Subscription remediation needed for "
-			   MACSTR " - server method %u URL %s",
-			   MAC2STR(sta->addr), sta->remediation_method,
-			   sta->remediation_url);
-	} else {
-		sta->remediation_url = NULL;
-		wpa_printf(MSG_DEBUG,
-			   "HS 2.0: Subscription remediation needed for "
-			   MACSTR, MAC2STR(sta->addr));
-	}
-	/* TODO: assign the STA into remediation VLAN or add filtering */
-}
-
-
 static void ieee802_1x_hs20_deauth_req(struct hostapd_data *hapd,
 				       struct sta_info *sta, const u8 *pos,
 				       size_t len)
@@ -1891,7 +1902,6 @@ static void ieee802_1x_check_hs20(struct hostapd_data *hapd,
 	size_t len;
 
 	buf = NULL;
-	sta->remediation = 0;
 	sta->hs20_deauth_requested = 0;
 	sta->hs20_deauth_on_ack = 0;
 
@@ -1916,9 +1926,6 @@ static void ieee802_1x_check_hs20(struct hostapd_data *hapd,
 			continue; /* invalid WFA VSA */
 
 		switch (type) {
-		case RADIUS_VENDOR_ATTR_WFA_HS20_SUBSCR_REMEDIATION:
-			ieee802_1x_hs20_sub_rem(sta, pos, sublen);
-			break;
 		case RADIUS_VENDOR_ATTR_WFA_HS20_DEAUTH_REQ:
 			ieee802_1x_hs20_deauth_req(hapd, sta, pos, sublen);
 			break;
@@ -2306,8 +2313,10 @@ static void ieee802_1x_rekey(void *eloop_ctx, void *timeout_ctx)
 static void ieee802_1x_eapol_send(void *ctx, void *sta_ctx, u8 type,
 				  const u8 *data, size_t datalen)
 {
-#ifdef CONFIG_WPS
+	struct hostapd_data *hapd = ctx;
 	struct sta_info *sta = sta_ctx;
+
+#ifdef CONFIG_WPS
 
 	if ((sta->flags & (WLAN_STA_WPS | WLAN_STA_MAYBE_WPS)) ==
 	    WLAN_STA_MAYBE_WPS) {
@@ -2330,7 +2339,16 @@ static void ieee802_1x_eapol_send(void *ctx, void *sta_ctx, u8 type,
 	}
 #endif /* CONFIG_WPS */
 
-	ieee802_1x_send(ctx, sta_ctx, type, data, datalen);
+#ifdef CONFIG_IEEE8021X_AUTH
+	if (sta->epp_sta && hapd->send_eap_req) {
+		hapd->send_eap_req(hapd, sta, type,
+				   sta->eap_auth_data.auth_transaction + 1,
+				   WLAN_STATUS_SUCCESS, NULL, data, datalen);
+		return;
+	}
+#endif /* CONFIG_IEEE8021X_AUTH */
+
+	ieee802_1x_send(hapd, sta, type, data, datalen);
 }
 
 
@@ -2347,7 +2365,7 @@ static void ieee802_1x_aaa_send(void *ctx, void *sta_ctx,
 
 
 static bool _ieee802_1x_finished(void *ctx, void *sta_ctx, int success,
-				 int preauth, int remediation, bool logoff)
+				 int preauth, bool logoff)
 {
 	struct hostapd_data *hapd = ctx;
 	struct sta_info *sta = sta_ctx;
@@ -2357,7 +2375,7 @@ static bool _ieee802_1x_finished(void *ctx, void *sta_ctx, int success,
 		return false;
 	}
 
-	return ieee802_1x_finished(hapd, sta, success, remediation, logoff);
+	return ieee802_1x_finished(hapd, sta, success, logoff);
 }
 
 
@@ -2399,7 +2417,6 @@ static int ieee802_1x_get_eap_user(void *ctx, const u8 *identity,
 	user->force_version = eap_user->force_version;
 	user->macacl = eap_user->macacl;
 	user->ttls_auth = eap_user->ttls_auth;
-	user->remediation = eap_user->remediation;
 	rv = 0;
 
 out:
@@ -2556,8 +2573,6 @@ int ieee802_1x_init(struct hostapd_data *hapd)
 		return 0;
 	}
 #endif /* CONFIG_IEEE80211BE */
-
-	dl_list_init(&hapd->erp_keys);
 
 	os_memset(&conf, 0, sizeof(conf));
 	conf.eap_cfg = hapd->eap_cfg;
@@ -2987,7 +3002,11 @@ int ieee802_1x_get_mib_sta(struct hostapd_data *hapd, struct sta_info *sta,
 		id = eap_get_identity(sm->eap, &id_len);
 		if (id)
 			identity_buf = dup_binstr(id, id_len);
+	} else if (sm->eap && sm->identity) {
+		identity_buf = dup_binstr(sm->identity,
+					  sm->identity_len);
 	}
+
 	ret = os_snprintf(buf + len, buflen - len,
 			  /* TODO: dot1xAuthSessionOctetsRx */
 			  /* TODO: dot1xAuthSessionOctetsTx */
@@ -3003,8 +3022,7 @@ int ieee802_1x_get_mib_sta(struct hostapd_data *hapd, struct sta_info *sta,
 				   wpa_auth_sta_key_mgmt(sta->wpa_sm))) ?
 			  1 : 2,
 			  (unsigned int) diff.sec,
-			  sm->identity ? (char *) sm->identity :
-					 (identity_buf ? identity_buf : "N/A"));
+			  identity_buf ? identity_buf : "N/A");
 	os_free(identity_buf);
 	if (os_snprintf_error(buflen - len, ret))
 		return len;
@@ -3041,17 +3059,6 @@ static void ieee802_1x_wnm_notif_send(void *eloop_ctx, void *timeout_ctx)
 	struct hostapd_data *hapd = eloop_ctx;
 	struct sta_info *sta = timeout_ctx;
 
-	if (sta->remediation) {
-		wpa_printf(MSG_DEBUG, "HS 2.0: Send WNM-Notification to "
-			   MACSTR " to indicate Subscription Remediation",
-			   MAC2STR(sta->addr));
-		hs20_send_wnm_notification(hapd, sta->addr,
-					   sta->remediation_method,
-					   sta->remediation_url);
-		os_free(sta->remediation_url);
-		sta->remediation_url = NULL;
-	}
-
 	if (sta->hs20_deauth_req) {
 		wpa_printf(MSG_DEBUG, "HS 2.0: Send WNM-Notification to "
 			   MACSTR " to indicate imminent deauthentication",
@@ -3074,7 +3081,7 @@ static void ieee802_1x_wnm_notif_send(void *eloop_ctx, void *timeout_ctx)
 
 static bool ieee802_1x_finished(struct hostapd_data *hapd,
 				struct sta_info *sta, int success,
-				int remediation, bool logoff)
+				bool logoff)
 {
 	const u8 *key;
 	size_t len;
@@ -3084,16 +3091,7 @@ static bool ieee802_1x_finished(struct hostapd_data *hapd,
 	struct os_reltime now, remaining;
 
 #ifdef CONFIG_HS20
-	if (remediation && !sta->remediation) {
-		sta->remediation = 1;
-		os_free(sta->remediation_url);
-		sta->remediation_url =
-			os_strdup(hapd->conf->subscr_remediation_url);
-		sta->remediation_method = 1; /* SOAP-XML SPP */
-	}
-
-	if (success && (sta->remediation || sta->hs20_deauth_req ||
-			sta->hs20_t_c_filtering)) {
+	if (success && (sta->hs20_deauth_req || sta->hs20_t_c_filtering)) {
 		wpa_printf(MSG_DEBUG, "HS 2.0: Schedule WNM-Notification to "
 			   MACSTR " in 100 ms", MAC2STR(sta->addr));
 		eloop_cancel_timeout(ieee802_1x_wnm_notif_send, hapd, sta);
@@ -3114,7 +3112,7 @@ static bool ieee802_1x_finished(struct hostapd_data *hapd,
 	} else {
 		session_timeout = dot11RSNAConfigPMKLifetime;
 	}
-	if (success && key && len >= PMK_LEN && !sta->remediation &&
+	if (success && key && len >= PMK_LEN &&
 	    !sta->hs20_deauth_requested &&
 	    wpa_auth_pmksa_add(sta->wpa_sm, key, len, session_timeout,
 			       sta->eapol_sm) == 0) {
@@ -3142,3 +3140,13 @@ static bool ieee802_1x_finished(struct hostapd_data *hapd,
 
 	return false;
 }
+
+
+#ifdef CONFIG_IEEE8021X_AUTH
+void ieee802_1x_eapol_sm_set_port_enabled(struct eapol_state_machine *sm,
+					  bool value)
+{
+	if (sm && sm->eap_if)
+		sm->eap_if->portEnabled = value;
+}
+#endif /* CONFIG_IEEE8021X_AUTH */

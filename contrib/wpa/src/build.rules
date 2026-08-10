@@ -83,13 +83,16 @@ _make_dirs:
 	@mkdir -p $(sort $(_DIRS))
 
 $(BUILDDIR)/$(PROJ)/src/%.o: $(ROOTDIR)src/%.c $(CONFIG_FILE) | _make_dirs
+	@echo $(CURDIR): '$(CC) -c -o $@ $(CFLAGS) $<' >$@.cmd
 	$(Q)$(CC) -c -o $@ $(CFLAGS) $<
 	@$(E) "  CC " $<
 $(BUILDDIR)/$(PROJ)/%.o: %.c $(CONFIG_FILE) | _make_dirs
+	@echo $(CURDIR): '$(CC) -c -o $@ $(CFLAGS) $<' >$@.cmd
 	$(Q)$(CC) -c -o $@ $(CFLAGS) $<
 	@$(E) "  CC " $<
 # for the fuzzing tests
 $(BUILDDIR)/$(PROJ)/wpa_supplicant/%.o: $(ROOTDIR)wpa_supplicant/%.c $(CONFIG_FILE) | _make_dirs
+	@echo $(CURDIR): '$(CC) -c -o $@ $(CFLAGS) $<' >$@.cmd
 	$(Q)$(CC) -c -o $@ $(CFLAGS) $<
 	@$(E) "  CC " $<
 

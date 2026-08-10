@@ -12,20 +12,27 @@ INTERNALLIB=
 SRCS=	accounting.c \
 	ap_config.c \
 	ap_drv_ops.c \
+	ap_list.c \
 	ap_mlme.c \
 	authsrv.c \
 	beacon.c \
 	bss_load.c \
+	comeback_token.c \
 	ctrl_iface_ap.c \
 	dfs.c \
 	drv_callbacks.c \
 	eap_user_db.c \
 	hostapd.c \
+	hw_features.c \
+	ieee802_11.c \
 	ieee802_11_auth.c \
+	ieee802_11_eht.c \
+	ieee802_11_he.c \
 	ieee802_11_ht.c \
 	ieee802_11_shared.c \
 	ieee802_11_vht.c \
 	ieee802_1x.c \
+	interference.c \
 	mbo_ap.c \
 	neighbor_db.c \
 	pmksa_cache_auth.c \

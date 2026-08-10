@@ -124,7 +124,7 @@ static void wpas_send_action_cb(void *eloop_ctx, void *timeout_ctx)
 #endif /* CONFIG_TESTING_OPTIONS */
 			if (wpa_drv_remain_on_channel(
 				    wpa_s, wpa_s->pending_action_freq,
-				    duration) < 0) {
+				    duration, NULL) < 0) {
 				wpa_printf(MSG_DEBUG, "Off-channel: Failed to "
 					   "request driver to remain on "
 					   "channel (%u MHz) for Action Frame "
@@ -369,7 +369,7 @@ int offchannel_send_action(struct wpa_supplicant *wpa_s, unsigned int freq,
 		wait_time += wpa_s->extra_roc_dur;
 	}
 #endif /* CONFIG_TESTING_OPTIONS */
-	if (wpa_drv_remain_on_channel(wpa_s, freq, wait_time) < 0) {
+	if (wpa_drv_remain_on_channel(wpa_s, freq, wait_time, NULL) < 0) {
 		wpa_printf(MSG_DEBUG, "Off-channel: Failed to request driver "
 			   "to remain on channel (%u MHz) for Action "
 			   "Frame TX", freq);

@@ -33,9 +33,17 @@ struct rsn_pmksa_cache_entry {
 	struct radius_class_data radius_class;
 	u8 eap_type_authsrv;
 	struct vlan_description *vlan_desc;
+	int sae_vlan_id;
 	int opportunistic;
 
 	u64 acct_multi_session_id;
+#ifdef CONFIG_IEEE80211BE
+	/**
+	 * This field is used to identify whether the entry is from ml_pmksa or
+	 * pmksa.
+	 */
+	bool is_ml;
+#endif /* CONFIG_IEEE80211BE */
 };
 
 struct rsn_pmksa_cache;
@@ -45,6 +53,7 @@ struct rsn_pmksa_cache *
 pmksa_cache_auth_init(void (*free_cb)(struct rsn_pmksa_cache_entry *entry,
 				      void *ctx), void *ctx);
 void pmksa_cache_auth_deinit(struct rsn_pmksa_cache *pmksa);
+void pmksa_cache_auth_set_ctx(struct rsn_pmksa_cache *cache, void *ctx);
 struct rsn_pmksa_cache_entry *
 pmksa_cache_auth_get(struct rsn_pmksa_cache *pmksa,
 		     const u8 *spa, const u8 *pmkid);
@@ -75,9 +84,12 @@ void pmksa_cache_free_entry(struct rsn_pmksa_cache *pmksa,
 			    struct rsn_pmksa_cache_entry *entry);
 int pmksa_cache_auth_radius_das_disconnect(struct rsn_pmksa_cache *pmksa,
 					   struct radius_das_attrs *attr);
-int pmksa_cache_auth_list(struct rsn_pmksa_cache *pmksa, char *buf, size_t len);
+int pmksa_cache_auth_list(struct rsn_pmksa_cache *pmksa, char *buf, size_t len,
+			  int *index);
 void pmksa_cache_auth_flush(struct rsn_pmksa_cache *pmksa);
 int pmksa_cache_auth_list_mesh(struct rsn_pmksa_cache *pmksa, const u8 *addr,
 			       char *buf, size_t len);
+void pmksa_cache_from_eapol_data(struct rsn_pmksa_cache_entry *entry,
+				 struct eapol_state_machine *eapol);
 
 #endif /* PMKSA_CACHE_H */

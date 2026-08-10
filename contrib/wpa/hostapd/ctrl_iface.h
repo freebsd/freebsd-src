@@ -14,6 +14,8 @@ int hostapd_ctrl_iface_init(struct hostapd_data *hapd);
 void hostapd_ctrl_iface_deinit(struct hostapd_data *hapd);
 int hostapd_global_ctrl_iface_init(struct hapd_interfaces *interface);
 void hostapd_global_ctrl_iface_deinit(struct hapd_interfaces *interface);
+int hostapd_mld_ctrl_iface_init(struct hostapd_mld *mld);
+void hostapd_mld_ctrl_iface_deinit(struct hostapd_mld *mld);
 #else /* CONFIG_NO_CTRL_IFACE */
 static inline int hostapd_ctrl_iface_init(struct hostapd_data *hapd)
 {

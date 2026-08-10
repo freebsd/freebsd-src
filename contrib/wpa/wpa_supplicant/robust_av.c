@@ -1,6 +1,7 @@
 /*
  * wpa_supplicant - Robust AV procedures
  * Copyright (c) 2020, The Linux Foundation
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -205,8 +206,8 @@ skip_tclas_elem:
 			qos_elem->mask &=
 				~SCS_QOS_BIT_SERVICE_START_TIME_LINKID;
 
-		/* IEEE P802.11be/D4.0, 9.4.2.316 QoS Characteristics element,
-		 * Figure 9-1001av (Control Info field format)
+		/* IEEE Std 802.11be-2024, 9.4.2.326 QoS Characteristics
+		 * element, Figure 9-1074bd (Control Info field format)
 		 */
 		control_info = ((u32) qos_elem->direction <<
 				EHT_QOS_CONTROL_INFO_DIRECTION_OFFSET);
@@ -263,6 +264,51 @@ end:
 }
 
 
+static int populate_type10_classifier_data(const struct tclas_element *src,
+					   struct tclas_element *dst,
+					   unsigned int num_tclas_elem)
+{
+	struct type10_params *t10_param;
+	unsigned int i;
+	size_t filter_len;
+
+	if (!src)
+		return 0;
+
+	if (!dst)
+		return -1;
+
+	for (i = 0; i < num_tclas_elem; i++, src++, dst++) {
+		if (src->classifier_type != 10)
+			continue;
+
+		filter_len = src->frame_classifier.type10_param.filter_len;
+		if (!filter_len)
+			continue;
+
+		t10_param = &dst->frame_classifier.type10_param;
+		t10_param->filter_value = os_memdup(
+			src->frame_classifier.type10_param.filter_value,
+			filter_len);
+		if (!t10_param->filter_value)
+			return -1;
+
+		t10_param->filter_mask = os_memdup(
+			src->frame_classifier.type10_param.filter_mask,
+			filter_len);
+		if (!t10_param->filter_mask) {
+			os_free(t10_param->filter_value);
+			t10_param->filter_value = NULL;
+			return -1;
+		}
+
+		t10_param->filter_len = filter_len;
+	}
+
+	return 0;
+}
+
+
 int wpas_send_mscs_req(struct wpa_supplicant *wpa_s)
 {
 	struct wpabuf *buf;
@@ -275,6 +321,13 @@ int wpas_send_mscs_req(struct wpa_supplicant *wpa_s)
 	if (!wpa_bss_ext_capab(wpa_s->current_bss, WLAN_EXT_CAPAB_MSCS)) {
 		wpa_dbg(wpa_s, MSG_INFO,
 			"AP does not support MSCS - could not send MSCS Req");
+		return -1;
+	}
+
+	if (wpa_s->mscs_setup_done &&
+	    wpa_s->robust_av.request_type == SCS_REQ_ADD) {
+		wpa_msg(wpa_s, MSG_INFO,
+			"MSCS: Failed to send MSCS ADD request: MSCS session already active");
 		return -1;
 	}
 
@@ -471,6 +524,16 @@ static struct wpabuf * allocate_scs_buf(struct scs_desc_elem *desc_elem,
 }
 
 
+static void scs_cleanup_descriptors(struct active_scs_elem *scs_elem)
+{
+	if (!scs_elem)
+		return;
+	dl_list_del(&scs_elem->list);
+	free_up_tclas_elem(&scs_elem->desc_elem);
+	os_free(scs_elem);
+}
+
+
 static void scs_request_timer(void *eloop_ctx, void *timeout_ctx)
 {
 	struct wpa_supplicant *wpa_s = eloop_ctx;
@@ -497,10 +560,9 @@ static void scs_request_timer(void *eloop_ctx, void *timeout_ctx)
 			" SCSID=%u status_code=timedout", MAC2STR(src),
 			scs_desc->scs_id);
 
-		dl_list_del(&scs_desc->list);
 		wpa_printf(MSG_INFO, "%s: SCSID %d removed after timeout",
 			   __func__, scs_desc->scs_id);
-		os_free(scs_desc);
+		scs_cleanup_descriptors(scs_desc);
 	}
 
 	eloop_cancel_timeout(scs_request_timer, wpa_s, NULL);
@@ -508,17 +570,19 @@ static void scs_request_timer(void *eloop_ctx, void *timeout_ctx)
 }
 
 
-int wpas_send_scs_req(struct wpa_supplicant *wpa_s)
+static int _wpa_send_scs_req(struct wpa_supplicant *wpa_s,
+			     struct scs_desc_elem *desc_elem,
+			     unsigned int num_scs_desc)
 {
 	struct wpabuf *buf = NULL;
-	struct scs_desc_elem *desc_elem = NULL;
 	const struct ieee80211_eht_capabilities *eht;
 	const u8 *eht_ie;
 	int ret = -1;
 	unsigned int i;
 	bool allow_scs_traffic_desc = false;
 
-	if (wpa_s->wpa_state != WPA_COMPLETED || !wpa_s->current_ssid)
+	if (wpa_s->wpa_state != WPA_COMPLETED || !wpa_s->current_ssid ||
+	    !desc_elem)
 		return -1;
 
 	if (!wpa_bss_ext_capab(wpa_s->current_bss, WLAN_EXT_CAPAB_SCS)) {
@@ -526,10 +590,6 @@ int wpas_send_scs_req(struct wpa_supplicant *wpa_s)
 			"AP does not support SCS - could not send SCS Request");
 		return -1;
 	}
-
-	desc_elem = wpa_s->scs_robust_av_req.scs_desc_elems;
-	if (!desc_elem)
-		return -1;
 
 	if (wpa_is_non_eht_scs_traffic_desc_supported(wpa_s->current_bss))
 		allow_scs_traffic_desc = true;
@@ -540,7 +600,7 @@ int wpas_send_scs_req(struct wpa_supplicant *wpa_s)
 	if (wpa_s->connection_eht && eht_ie &&
 	    eht_ie[1] >= 1 + IEEE80211_EHT_CAPAB_MIN_LEN) {
 		eht = (const struct ieee80211_eht_capabilities *) &eht_ie[3];
-		if (eht->mac_cap & EHT_MACCAP_SCS_TRAFFIC_DESC)
+		if (le_to_host16(eht->mac_cap) & EHT_MACCAP_SCS_TRAFFIC_DESC)
 			allow_scs_traffic_desc = true;
 	}
 
@@ -550,9 +610,7 @@ int wpas_send_scs_req(struct wpa_supplicant *wpa_s)
 		return -1;
 	}
 
-	buf = allocate_scs_buf(desc_elem,
-			       wpa_s->scs_robust_av_req.num_scs_desc,
-			       allow_scs_traffic_desc);
+	buf = allocate_scs_buf(desc_elem, num_scs_desc, allow_scs_traffic_desc);
 	if (!buf)
 		return -1;
 
@@ -563,8 +621,7 @@ int wpas_send_scs_req(struct wpa_supplicant *wpa_s)
 		wpa_s->scs_dialog_token++;
 	wpabuf_put_u8(buf, wpa_s->scs_dialog_token);
 
-	for (i = 0; i < wpa_s->scs_robust_av_req.num_scs_desc;
-	     i++, desc_elem++) {
+	for (i = 0; i < num_scs_desc; i++, desc_elem++) {
 		/* SCS Descriptor element */
 		if (wpas_populate_scs_descriptor_ie(desc_elem, buf,
 						    allow_scs_traffic_desc) < 0)
@@ -581,22 +638,6 @@ int wpas_send_scs_req(struct wpa_supplicant *wpa_s)
 		goto end;
 	}
 
-	desc_elem = wpa_s->scs_robust_av_req.scs_desc_elems;
-	for (i = 0; i < wpa_s->scs_robust_av_req.num_scs_desc;
-	     i++, desc_elem++) {
-		struct active_scs_elem *active_scs_elem;
-
-		if (desc_elem->request_type != SCS_REQ_ADD)
-			continue;
-
-		active_scs_elem = os_malloc(sizeof(struct active_scs_elem));
-		if (!active_scs_elem)
-			break;
-		active_scs_elem->scs_id = desc_elem->scs_id;
-		active_scs_elem->status = SCS_DESC_SENT;
-		dl_list_add(&wpa_s->active_scs_ids, &active_scs_elem->list);
-	}
-
 	/*
 	 * Register a timeout after which this request will be removed from
 	 * the cache.
@@ -607,8 +648,141 @@ int wpas_send_scs_req(struct wpa_supplicant *wpa_s)
 
 end:
 	wpabuf_free(buf);
-	free_up_scs_desc(&wpa_s->scs_robust_av_req);
+	return ret;
+}
 
+
+int wpas_scs_reconfigure(struct wpa_supplicant *wpa_s)
+{
+	struct scs_desc_elem *desc_elems, *desc_data, desc_elem;
+	struct active_scs_elem *scs_desc;
+	unsigned int num_scs_desc;
+	unsigned int i;
+	unsigned int num_tclas_elem;
+	int ret = -1;
+
+	if (!wpa_s->scs_reconfigure)
+		return 0;
+
+	num_scs_desc = dl_list_len(&wpa_s->active_scs_ids);
+	if (!num_scs_desc)
+		return 0;
+
+	desc_elems = os_calloc(num_scs_desc, sizeof(struct scs_desc_elem));
+	if (!desc_elems) {
+		wpa_printf(MSG_ERROR, "SCS: Failed to allocate memory");
+		return ret;
+	}
+
+	num_scs_desc = 0;
+	dl_list_for_each(scs_desc, &wpa_s->active_scs_ids,
+			 struct active_scs_elem, list) {
+		os_memcpy(&desc_elem, &scs_desc->desc_elem, sizeof(desc_elem));
+
+		num_tclas_elem = scs_desc->desc_elem.num_tclas_elem;
+		if (num_tclas_elem) {
+			desc_elem.tclas_elems =
+				os_memdup(scs_desc->desc_elem.tclas_elems,
+					  num_tclas_elem *
+					  sizeof(struct tclas_element));
+			if (!desc_elem.tclas_elems)
+				goto end;
+
+			if (populate_type10_classifier_data(
+				    scs_desc->desc_elem.tclas_elems,
+				    desc_elem.tclas_elems,
+				    num_tclas_elem) < 0) {
+				free_up_tclas_elem(&desc_elem);
+				goto end;
+			}
+		}
+
+		os_memcpy(&desc_elems[num_scs_desc], &desc_elem,
+			  sizeof(desc_elem));
+		num_scs_desc++;
+	}
+
+	if (_wpa_send_scs_req(wpa_s, desc_elems, num_scs_desc) < 0) {
+		wpa_printf(MSG_DEBUG,
+			   "SCS: Failed to reconfigure SCS requests - retain for next roaming");
+	} else {
+		dl_list_for_each(scs_desc, &wpa_s->active_scs_ids,
+				 struct active_scs_elem, list)
+			scs_desc->status = SCS_DESC_SENT;
+	}
+	ret = 0;
+end:
+	wpa_s->scs_reconfigure = false;
+
+	if (desc_elems) {
+		desc_data = desc_elems;
+		for (i = 0; i < num_scs_desc; i++, desc_data++) {
+			if (desc_data->tclas_elems)
+				free_up_tclas_elem(desc_data);
+		}
+		os_free(desc_elems);
+	}
+
+	return ret;
+}
+
+
+int wpas_send_scs_req(struct wpa_supplicant *wpa_s)
+{
+	struct scs_desc_elem *desc_elem = NULL;
+	int ret = -1;
+	unsigned int i;
+
+	if (_wpa_send_scs_req(wpa_s, wpa_s->scs_robust_av_req.scs_desc_elems,
+			      wpa_s->scs_robust_av_req.num_scs_desc) < 0)
+		goto end;
+
+	desc_elem = wpa_s->scs_robust_av_req.scs_desc_elems;
+
+	for (i = 0; i < wpa_s->scs_robust_av_req.num_scs_desc;
+	     i++, desc_elem++) {
+		struct active_scs_elem *active_scs_elem;
+		struct tclas_element *tclas_elem;
+		unsigned int num_tclas_elem = desc_elem->num_tclas_elem;
+
+		if (desc_elem->request_type != SCS_REQ_ADD)
+			continue;
+
+		active_scs_elem = os_zalloc(sizeof(struct active_scs_elem));
+		if (!active_scs_elem)
+			break;
+
+		os_memcpy(&active_scs_elem->desc_elem, desc_elem,
+			  sizeof(struct scs_desc_elem));
+
+		if (num_tclas_elem) {
+			tclas_elem = os_memdup(desc_elem->tclas_elems,
+					       num_tclas_elem *
+					       sizeof(struct tclas_element));
+			if (!tclas_elem) {
+				os_free(active_scs_elem);
+				goto end;
+			}
+
+			active_scs_elem->desc_elem.tclas_elems = tclas_elem;
+
+			if (populate_type10_classifier_data(
+				    desc_elem->tclas_elems, tclas_elem,
+				    num_tclas_elem) < 0) {
+				free_up_tclas_elem(&active_scs_elem->desc_elem);
+				os_free(active_scs_elem);
+				goto end;
+			}
+		}
+
+		active_scs_elem->scs_id = desc_elem->scs_id;
+		active_scs_elem->status = SCS_DESC_SENT;
+		dl_list_add(&wpa_s->active_scs_ids, &active_scs_elem->list);
+	}
+	ret = 0; /* Success */
+
+end:
+	free_up_scs_desc(&wpa_s->scs_robust_av_req);
 	return ret;
 }
 
@@ -729,7 +903,8 @@ event_mscs_result:
 
 
 void wpas_handle_robust_av_recv_action(struct wpa_supplicant *wpa_s,
-				       const u8 *src, const u8 *buf, size_t len)
+				       const u8 *dst, const u8 *src,
+				       const u8 *buf, size_t len)
 {
 	u8 dialog_token;
 	u16 status_code;
@@ -752,6 +927,14 @@ void wpas_handle_robust_av_recv_action(struct wpa_supplicant *wpa_s,
 		wpa_printf(MSG_INFO,
 			   "MSCS: Drop received frame due to dialog token mismatch: received:%u expected:%u",
 			   dialog_token, wpa_s->robust_av.dialog_token);
+		return;
+	}
+
+	if (is_multicast_ether_addr(dst)) {
+		wpa_printf(MSG_DEBUG,
+			   "MSCS: Ignore group-addressed MSCS Response frame (A1="
+			   MACSTR " A2=" MACSTR ")",
+			   MAC2STR(dst), MAC2STR(src));
 		return;
 	}
 
@@ -835,8 +1018,8 @@ void wpas_handle_assoc_resp_qos_mgmt(struct wpa_supplicant *wpa_s,
 
 
 void wpas_handle_robust_av_scs_recv_action(struct wpa_supplicant *wpa_s,
-					   const u8 *src, const u8 *buf,
-					   size_t len)
+					   const u8 *dst, const u8 *src,
+					   const u8 *buf, size_t len)
 {
 	u8 dialog_token;
 	unsigned int i, count;
@@ -847,6 +1030,14 @@ void wpas_handle_robust_av_scs_recv_action(struct wpa_supplicant *wpa_s,
 	if (!wpa_s->ongoing_scs_req) {
 		wpa_printf(MSG_INFO,
 			   "SCS: Drop received response due to no ongoing request");
+		return;
+	}
+
+	if (is_multicast_ether_addr(dst)) {
+		wpa_printf(MSG_DEBUG,
+			   "SCS: Ignore group-addressed SCS Response frame (A1="
+			   MACSTR " A2=" MACSTR ")",
+			   MAC2STR(dst), MAC2STR(src));
 		return;
 	}
 
@@ -895,12 +1086,10 @@ void wpas_handle_robust_av_scs_recv_action(struct wpa_supplicant *wpa_s,
 			continue;
 		}
 
-		if (status != WLAN_STATUS_SUCCESS) {
-			dl_list_del(&scs_desc->list);
-			os_free(scs_desc);
-		} else if (status == WLAN_STATUS_SUCCESS) {
+		if (status == WLAN_STATUS_SUCCESS)
 			scs_desc->status = SCS_DESC_SUCCESS;
-		}
+		else
+			scs_cleanup_descriptors(scs_desc);
 
 		wpa_msg(wpa_s, MSG_INFO, WPA_EVENT_SCS_RESULT "bssid=" MACSTR
 			" SCSID=%u status_code=%u", MAC2STR(src), id, status);
@@ -916,8 +1105,7 @@ void wpas_handle_robust_av_scs_recv_action(struct wpa_supplicant *wpa_s,
 				WPA_EVENT_SCS_RESULT "bssid=" MACSTR
 				" SCSID=%u status_code=response_not_received",
 				MAC2STR(src), scs_desc->scs_id);
-			dl_list_del(&scs_desc->list);
-			os_free(scs_desc);
+			scs_cleanup_descriptors(scs_desc);
 		}
 	}
 }
@@ -929,8 +1117,7 @@ static void wpas_clear_active_scs_ids(struct wpa_supplicant *wpa_s)
 
 	while ((scs_elem = dl_list_first(&wpa_s->active_scs_ids,
 					 struct active_scs_elem, list))) {
-		dl_list_del(&scs_elem->list);
-		os_free(scs_elem);
+		scs_cleanup_descriptors(scs_elem);
 	}
 }
 
@@ -942,6 +1129,7 @@ void wpas_scs_deinit(struct wpa_supplicant *wpa_s)
 	wpas_clear_active_scs_ids(wpa_s);
 	eloop_cancel_timeout(scs_request_timer, wpa_s, NULL);
 	wpa_s->ongoing_scs_req = false;
+	wpa_s->scs_reconfigure = false;
 }
 
 
@@ -1469,7 +1657,7 @@ static void wpas_fill_dscp_policy(struct dscp_policy_data *policy, u8 attr_id,
 
 
 void wpas_handle_qos_mgmt_recv_action(struct wpa_supplicant *wpa_s,
-				      const u8 *src,
+				      const u8 *dst, const u8 *src,
 				      const u8 *buf, size_t len)
 {
 	int rem_len;
@@ -1501,6 +1689,14 @@ void wpas_handle_qos_mgmt_recv_action(struct wpa_supplicant *wpa_s,
 	if (buf[0] != QM_DSCP_POLICY_REQ) {
 		wpa_printf(MSG_ERROR, "QM: Received unexpected QoS action frame %d",
 			   buf[0]);
+		return;
+	}
+
+	if (is_multicast_ether_addr(dst)) {
+		wpa_printf(MSG_DEBUG,
+			   "QM: Ignore group-addressed DSCP Policy Request frame (A1="
+			   MACSTR " A2=" MACSTR ")",
+			   MAC2STR(dst), MAC2STR(src));
 		return;
 	}
 

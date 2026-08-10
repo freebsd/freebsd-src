@@ -14,6 +14,7 @@
 #include "utils/common.h"
 #include "common/ieee802_11_common.h"
 #include "common/wpa_common.h"
+#include "common/proximity_ranging.h"
 #include "common/qca-vendor.h"
 #include "common/qca-vendor-attr.h"
 #include "common/brcm_vendor.h"
@@ -36,7 +37,7 @@ static int protocol_feature_handler(struct nl_msg *msg, void *arg)
 }
 
 
-static u32 get_nl80211_protocol_features(struct wpa_driver_nl80211_data *drv)
+u32 get_nl80211_protocol_features(struct wpa_driver_nl80211_data *drv)
 {
 	u32 feat = 0;
 	struct nl_msg *msg;
@@ -62,6 +63,7 @@ struct wiphy_info_data {
 	struct wpa_driver_capa *capa;
 
 	unsigned int num_multichan_concurrent;
+	unsigned int num_multichan_concurrent_nan;
 
 	unsigned int error:1;
 	unsigned int device_ap_sme:1;
@@ -82,6 +84,11 @@ struct wiphy_info_data {
 	unsigned int update_ft_ies_supported:1;
 	unsigned int has_key_mgmt:1;
 	unsigned int has_key_mgmt_iftype:1;
+	unsigned int support_ap_scan:1;
+
+	unsigned int nan_supported:1;
+	unsigned int nan_ndp_supported:1;
+	unsigned int nan_phy_capabilities_valid:1;
 };
 
 
@@ -132,6 +139,9 @@ static void wiphy_info_supported_iftypes(struct wiphy_info_data *info,
 		case NL80211_IFTYPE_P2P_CLIENT:
 			info->p2p_client_supported = 1;
 			break;
+		case NL80211_IFTYPE_NAN:
+			info->capa->flags2 |= WPA_DRIVER_FLAGS2_SUPPORT_NAN;
+			break;
 		}
 	}
 }
@@ -157,6 +167,8 @@ static int wiphy_info_iface_comb_process(struct wiphy_info_data *info,
 		[NL80211_IFACE_LIMIT_TYPES] = { .type = NLA_NESTED },
 		[NL80211_IFACE_LIMIT_MAX] = { .type = NLA_U32 },
 	};
+	bool combination_has_nan = false, combination_has_nan_ndp = false;
+	unsigned int num_channels;
 
 	err = nla_parse_nested(tb_comb, MAX_NL80211_IFACE_COMB,
 			       nl_combi, iface_combination_policy);
@@ -184,18 +196,27 @@ static int wiphy_info_iface_comb_process(struct wiphy_info_data *info,
 				combination_has_p2p = 1;
 			if (ift == NL80211_IFTYPE_STATION)
 				combination_has_mgd = 1;
+			if (ift == NL80211_IFTYPE_NAN)
+				combination_has_nan = true;
+			if (ift == NL80211_IFTYPE_NAN_DATA)
+				combination_has_nan_ndp = true;
 		}
-		if (combination_has_p2p && combination_has_mgd)
-			break;
 	}
 
+	num_channels = nla_get_u32(tb_comb[NL80211_IFACE_COMB_NUM_CHANNELS]);
 	if (combination_has_p2p && combination_has_mgd) {
-		unsigned int num_channels =
-			nla_get_u32(tb_comb[NL80211_IFACE_COMB_NUM_CHANNELS]);
 
 		info->p2p_concurrent = 1;
 		if (info->num_multichan_concurrent < num_channels)
 			info->num_multichan_concurrent = num_channels;
+	}
+
+	if (combination_has_nan) {
+		info->nan_supported = 1;
+		info->nan_ndp_supported = combination_has_nan_ndp;
+
+		if (info->num_multichan_concurrent_nan < num_channels)
+			info->num_multichan_concurrent_nan = num_channels;
 	}
 
 	return 0;
@@ -302,9 +323,6 @@ static unsigned int get_akm_suites_info(struct nlattr *tb)
 			break;
 		case RSN_AUTH_KEY_MGMT_CCKM:
 			key_mgmt |= WPA_DRIVER_CAPA_KEY_MGMT_CCKM;
-			break;
-		case RSN_AUTH_KEY_MGMT_OSEN:
-			key_mgmt |= WPA_DRIVER_CAPA_KEY_MGMT_OSEN;
 			break;
 		case RSN_AUTH_KEY_MGMT_802_1X_SUITE_B:
 			key_mgmt |= WPA_DRIVER_CAPA_KEY_MGMT_SUITE_B;
@@ -586,6 +604,9 @@ static void wiphy_info_ext_feature_flags(struct wiphy_info_data *info,
 			      NL80211_EXT_FEATURE_MGMT_TX_RANDOM_TA_CONNECTED))
 		capa->flags |= WPA_DRIVER_FLAGS_MGMT_TX_RANDOM_TA_CONNECTED;
 	if (ext_feature_isset(ext_features, len,
+			      NL80211_EXT_FEATURE_ROC_ADDR_FILTER))
+		capa->flags2 |= WPA_DRIVER_FLAGS2_ROC_ADDR_FILTER;
+	if (ext_feature_isset(ext_features, len,
 			      NL80211_EXT_FEATURE_SCHED_SCAN_RELATIVE_RSSI))
 		capa->flags |= WPA_DRIVER_FLAGS_SCHED_SCAN_RELATIVE_RSSI;
 	if (ext_feature_isset(ext_features, len,
@@ -720,6 +741,24 @@ static void wiphy_info_ext_feature_flags(struct wiphy_info_data *info,
 	if (ext_feature_isset(ext_features, len,
 			      NL80211_EXT_FEATURE_SAE_OFFLOAD_AP))
 		capa->flags2 |= WPA_DRIVER_FLAGS2_SAE_OFFLOAD_AP;
+
+	if (ext_feature_isset(ext_features, len,
+			      NL80211_EXT_FEATURE_SPP_AMSDU_SUPPORT))
+		capa->flags2 |= WPA_DRIVER_FLAGS2_SPP_AMSDU;
+
+	if (ext_feature_isset(ext_features, len,
+			      NL80211_EXT_FEATURE_ASSOC_FRAME_ENCRYPTION))
+		capa->flags2 |= WPA_DRIVER_FLAGS2_ASSOCIATION_FRAME_ENCRYPTION;
+
+	if (ext_feature_isset(ext_features, len, NL80211_EXT_FEATURE_EPPKE) &&
+	    ext_feature_isset(ext_features, len,
+			      NL80211_EXT_FEATURE_ASSOC_FRAME_ENCRYPTION)) {
+		capa->flags2 |= WPA_DRIVER_FLAGS2_EPPKE;
+	}
+
+	if (ext_feature_isset(ext_features, len,
+			      NL80211_EXT_FEATURE_IEEE8021X_AUTH))
+		capa->flags2 |= WPA_DRIVER_FLAGS2_802_1X_AUTH;
 }
 
 
@@ -746,8 +785,10 @@ static void wiphy_info_feature_flags(struct wiphy_info_data *info,
 	if (flags & NL80211_FEATURE_NEED_OBSS_SCAN)
 		capa->flags |= WPA_DRIVER_FLAGS_OBSS_SCAN;
 
-	if (flags & NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE)
+	if (flags & NL80211_FEATURE_AP_MODE_CHAN_WIDTH_CHANGE) {
 		capa->flags |= WPA_DRIVER_FLAGS_HT_2040_COEX;
+		capa->flags2 |= WPA_DRIVER_FLAGS2_AP_CHANWIDTH_CHANGE;
+	}
 
 	if (flags & NL80211_FEATURE_TDLS_CHANNEL_SWITCH) {
 		wpa_printf(MSG_DEBUG, "nl80211: TDLS channel switch");
@@ -786,6 +827,9 @@ static void wiphy_info_feature_flags(struct wiphy_info_data *info,
 
 	if (flags & NL80211_FEATURE_FULL_AP_CLIENT_STATE)
 		capa->flags |= WPA_DRIVER_FLAGS_FULL_AP_CLIENT_STATE;
+
+	if (flags & NL80211_FEATURE_AP_SCAN)
+		info->support_ap_scan = 1;
 }
 
 
@@ -937,6 +981,352 @@ static void wiphy_info_mbssid(struct wpa_driver_capa *cap, struct nlattr *attr)
 }
 
 
+#ifdef CONFIG_NAN
+
+static void wiphy_info_nan_capa_handler(struct wpa_driver_capa *capa,
+					struct wiphy_info_data *info,
+					struct nlattr *attr)
+{
+	static struct nla_policy
+		nan_capa_policy[NL80211_NAN_CAPABILITIES_MAX + 1] = {
+		[NL80211_NAN_CAPA_CONFIGURABLE_SYNC] = { .type = NLA_FLAG },
+		[NL80211_NAN_CAPA_USERSPACE_DE] = { .type = NLA_FLAG },
+	};
+	struct nlattr *tb_nan_capa[NL80211_NAN_CAPABILITIES_MAX + 1];
+	static struct nla_policy
+		nan_capa_phy_policy[NL80211_NAN_PHY_CAP_ATTR_MAX + 1] = {
+		[NL80211_NAN_PHY_CAP_ATTR_HT_CAPA] = { .type = NLA_U16 },
+		[NL80211_NAN_PHY_CAP_ATTR_HT_AMPDU_FACTOR] = {
+			.type = NLA_U8,
+		},
+		[NL80211_NAN_PHY_CAP_ATTR_HT_AMPDU_DENSITY] = {
+			.type = NLA_U8,
+		},
+		[NL80211_NAN_PHY_CAP_ATTR_HT_MCS_SET] = {
+			.type = NLA_BINARY, .minlen = 16, .maxlen = 16,
+		},
+		[NL80211_NAN_PHY_CAP_ATTR_VHT_CAPA] = { .type = NLA_U32 },
+		[NL80211_NAN_PHY_CAP_ATTR_VHT_MCS_SET] = {
+			.type = NLA_BINARY, .minlen = 8, .maxlen = 8,
+		},
+		[NL80211_NAN_PHY_CAP_ATTR_HE_MAC] = {
+			.type = NLA_BINARY, .minlen = 6, .maxlen = 6
+		},
+		[NL80211_NAN_PHY_CAP_ATTR_HE_PHY] = {
+			.type = NLA_BINARY, .minlen = 11, .maxlen = 11
+		},
+		[NL80211_NAN_PHY_CAP_ATTR_HE_MCS_SET] = {
+			.type = NLA_BINARY, .minlen = 12, .maxlen = 12,
+		},
+		[NL80211_NAN_PHY_CAP_ATTR_HE_PPE] = {
+			.type = NLA_BINARY, .maxlen = 255,
+		},
+	};
+	struct nlattr *tb_phy[NL80211_NAN_PHY_CAP_ATTR_MAX + 1];
+
+	if (!attr)
+		return;
+
+	wpa_printf(MSG_DEBUG, "nl80211: Parsing NAN capabilities");
+
+	if (nla_parse_nested(tb_nan_capa, NL80211_NAN_CAPABILITIES_MAX, attr,
+			     nan_capa_policy)) {
+		wpa_printf(MSG_DEBUG,
+			   "nl80211: Failed to parse NAN capabilities");
+		return;
+	}
+
+	if (tb_nan_capa[NL80211_NAN_CAPA_CONFIGURABLE_SYNC]) {
+		wpa_printf(MSG_DEBUG, "nl80211: NAN sync offload supported");
+		capa->nan_capa.drv_flags |=
+			WPA_DRIVER_FLAGS_NAN_SUPPORT_SYNC_CONFIG;
+	}
+
+	if (tb_nan_capa[NL80211_NAN_CAPA_USERSPACE_DE]) {
+		wpa_printf(MSG_DEBUG,
+			   "nl80211: NAN user space DE is supported");
+		capa->nan_capa.drv_flags |=
+			WPA_DRIVER_FLAGS_NAN_SUPPORT_USERSPACE_DE;
+	}
+
+	if (tb_nan_capa[NL80211_NAN_CAPA_MAX_CHANNEL_SWITCH_TIME])
+		capa->nan_capa.max_channel_switch_time =
+			nla_get_u16(tb_nan_capa[NL80211_NAN_CAPA_MAX_CHANNEL_SWITCH_TIME]);
+
+	if (tb_nan_capa[NL80211_NAN_CAPA_NUM_ANTENNAS])
+		capa->nan_capa.num_antennas =
+			nla_get_u8(tb_nan_capa[NL80211_NAN_CAPA_NUM_ANTENNAS]);
+
+	if (tb_nan_capa[NL80211_NAN_CAPA_OP_MODE])
+		capa->nan_capa.op_modes =
+			nla_get_u8(tb_nan_capa[NL80211_NAN_CAPA_OP_MODE]);
+
+	if (tb_nan_capa[NL80211_NAN_CAPA_CAPABILITIES])
+		capa->nan_capa.dev_capa =
+			nla_get_u8(tb_nan_capa[NL80211_NAN_CAPA_CAPABILITIES]);
+
+	if (!tb_nan_capa[NL80211_NAN_CAPA_PHY])
+		return;
+
+	if (nla_parse_nested(tb_phy, NL80211_NAN_PHY_CAP_ATTR_MAX,
+			     tb_nan_capa[NL80211_NAN_CAPA_PHY],
+			     nan_capa_phy_policy)) {
+		wpa_printf(MSG_DEBUG,
+			   "nl80211: Failed to parse NAN PHY capabilities");
+		return;
+	}
+
+	/* HT Capabilities */
+	if (!tb_phy[NL80211_NAN_PHY_CAP_ATTR_HT_MCS_SET] ||
+	    !tb_phy[NL80211_NAN_PHY_CAP_ATTR_HT_CAPA] ||
+	    !tb_phy[NL80211_NAN_PHY_CAP_ATTR_HT_AMPDU_FACTOR] ||
+	    !tb_phy[NL80211_NAN_PHY_CAP_ATTR_HT_AMPDU_DENSITY])
+		return;
+
+	capa->nan_capa.ht_capab = nla_get_u16(
+		tb_phy[NL80211_NAN_PHY_CAP_ATTR_HT_CAPA]);
+	capa->nan_capa.ht_ampdu_params = nla_get_u8(
+		tb_phy[NL80211_NAN_PHY_CAP_ATTR_HT_AMPDU_FACTOR]) & 0x3;
+	capa->nan_capa.ht_ampdu_params |= (nla_get_u8(
+		tb_phy[NL80211_NAN_PHY_CAP_ATTR_HT_AMPDU_DENSITY]) & 0x7) << 2;
+	os_memcpy(capa->nan_capa.ht_mcs_set,
+		  nla_data(tb_phy[NL80211_NAN_PHY_CAP_ATTR_HT_MCS_SET]),
+		  nla_len(tb_phy[NL80211_NAN_PHY_CAP_ATTR_HT_MCS_SET]));
+
+	info->nan_phy_capabilities_valid = 1;
+
+	/* VHT Capabilities */
+	if (tb_phy[NL80211_NAN_PHY_CAP_ATTR_VHT_MCS_SET] &&
+	    tb_phy[NL80211_NAN_PHY_CAP_ATTR_VHT_CAPA]) {
+		capa->nan_capa.vht_capab = nla_get_u32(
+			tb_phy[NL80211_NAN_PHY_CAP_ATTR_VHT_CAPA]);
+		os_memcpy(capa->nan_capa.vht_mcs_set,
+			  nla_data(tb_phy[NL80211_NAN_PHY_CAP_ATTR_VHT_MCS_SET]),
+			  nla_len(tb_phy[NL80211_NAN_PHY_CAP_ATTR_VHT_MCS_SET]));
+		capa->nan_capa.vht_valid = true;
+	}
+
+	/* HE Capabilities */
+	if (!tb_phy[NL80211_NAN_PHY_CAP_ATTR_HE_MAC] ||
+	    !tb_phy[NL80211_NAN_PHY_CAP_ATTR_HE_PHY] ||
+	    !tb_phy[NL80211_NAN_PHY_CAP_ATTR_HE_MCS_SET] ||
+	    !tb_phy[NL80211_NAN_PHY_CAP_ATTR_HE_PPE])
+		goto out;
+
+	os_memcpy(capa->nan_capa.he_capab.mac_cap,
+		  nla_data(tb_phy[NL80211_NAN_PHY_CAP_ATTR_HE_MAC]),
+		  nla_len(tb_phy[NL80211_NAN_PHY_CAP_ATTR_HE_MAC]));
+	os_memcpy(capa->nan_capa.he_capab.phy_cap,
+		  nla_data(tb_phy[NL80211_NAN_PHY_CAP_ATTR_HE_PHY]),
+		  nla_len(tb_phy[NL80211_NAN_PHY_CAP_ATTR_HE_PHY]));
+
+	os_memcpy(capa->nan_capa.he_capab.mcs,
+		  nla_data(tb_phy[NL80211_NAN_PHY_CAP_ATTR_HE_MCS_SET]),
+		  nla_len(tb_phy[NL80211_NAN_PHY_CAP_ATTR_HE_MCS_SET]));
+	os_memcpy(capa->nan_capa.he_capab.ppet,
+		  nla_data(tb_phy[NL80211_NAN_PHY_CAP_ATTR_HE_PPE]),
+		  nla_len(tb_phy[NL80211_NAN_PHY_CAP_ATTR_HE_PPE]));
+
+	capa->nan_capa.he_valid = true;
+out:
+	wpa_printf(MSG_DEBUG,
+		   "nl80211: NAN PHY capabilities vht_valid=%u, he_valid=%u",
+		   capa->nan_capa.vht_valid, capa->nan_capa.he_valid);
+}
+
+#endif /* CONFIG_NAN */
+
+
+#ifdef CONFIG_PR
+
+static u32 nl80211_to_pd_bw_bitmap(u32 nl_bitmap)
+{
+	u32 bandwidths = 0;
+
+	if (nl_bitmap & BIT(NL80211_CHAN_WIDTH_20))
+		bandwidths |= BIT(WPA_PR_CHAN_WIDTH_20);
+	if (nl_bitmap & BIT(NL80211_CHAN_WIDTH_40))
+		bandwidths |= BIT(WPA_PR_CHAN_WIDTH_40);
+	if (nl_bitmap & BIT(NL80211_CHAN_WIDTH_80))
+		bandwidths |= BIT(WPA_PR_CHAN_WIDTH_80);
+	if (nl_bitmap & BIT(NL80211_CHAN_WIDTH_80P80))
+		bandwidths |= BIT(WPA_PR_CHAN_WIDTH_80P80);
+	if (nl_bitmap & BIT(NL80211_CHAN_WIDTH_160))
+		bandwidths |= BIT(WPA_PR_CHAN_WIDTH_160);
+	return bandwidths;
+}
+
+
+static u32 nl80211_to_pd_preamble_bitmap(u32 nl_bitmap)
+{
+	u32 preambles = 0;
+
+	if (nl_bitmap & BIT(NL80211_PREAMBLE_HT))
+		preambles |= BIT(WPA_PR_PREAMBLE_HT);
+	if (nl_bitmap & BIT(NL80211_PREAMBLE_VHT))
+		preambles |= BIT(WPA_PR_PREAMBLE_VHT);
+	if (nl_bitmap & BIT(NL80211_PREAMBLE_HE))
+		preambles |= BIT(WPA_PR_PREAMBLE_HE);
+	return preambles;
+}
+
+
+static void pmsr_type_ftm_handler(struct wpa_driver_nl80211_data *drv,
+				  struct nlattr *capa)
+{
+	u32 max_rx_sts, max_tx_sts;
+	struct nlattr *tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX + 1];
+	struct nlattr *ista_caps[NL80211_PMSR_FTM_CAPA_ATTR_MAX + 1];
+	struct nlattr *type_caps[NL80211_PMSR_FTM_TYPE_CAPA_ATTR_MAX + 1];
+	struct nlattr *rsta_caps[NL80211_PMSR_FTM_CAPA_ATTR_MAX + 1];
+
+	if (nla_parse_nested(tb, NL80211_PMSR_FTM_CAPA_ATTR_MAX, capa, NULL))
+		return;
+
+	/* Parse ISTA capabilities */
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_ISTA_CAPS] &&
+	    nla_parse_nested(ista_caps, NL80211_PMSR_FTM_CAPA_ATTR_MAX,
+			     tb[NL80211_PMSR_FTM_CAPA_ATTR_ISTA_CAPS],
+			     NULL) == 0) {
+		drv->capa.ista.support_ntb =
+			!!ista_caps[NL80211_PMSR_FTM_CAPA_ATTR_SUPPORT_NTB];
+		drv->capa.ista.support_tb =
+			!!ista_caps[NL80211_PMSR_FTM_CAPA_ATTR_SUPPORT_TB];
+		drv->capa.ista.support_edca =
+			!!ista_caps[NL80211_PMSR_FTM_CAPA_ATTR_SUPPORT_EDCA];
+		if (ista_caps[NL80211_PMSR_ATTR_MAX_PEER_ISTA_ROLE])
+			drv->capa.ista.max_peers =
+				nla_get_u32(ista_caps[NL80211_PMSR_ATTR_MAX_PEER_ISTA_ROLE]);
+	}
+
+	/* Parse ranging type capabilities */
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_TYPE_CAPS] &&
+	    !nla_parse_nested(type_caps, NL80211_PMSR_FTM_TYPE_CAPA_ATTR_MAX,
+			      tb[NL80211_PMSR_FTM_CAPA_ATTR_TYPE_CAPS],
+			      NULL)) {
+		drv->capa.ranging_type.infra_support =
+			!!type_caps[NL80211_PMSR_FTM_TYPE_CAPA_ATTR_INFRA_SUPPORT];
+		drv->capa.ranging_type.pd_support =
+			!!type_caps[NL80211_PMSR_FTM_TYPE_CAPA_ATTR_PD_SUPPORT];
+	}
+
+	drv->capa.concurrent_ista_rsta =
+		!!tb[NL80211_PMSR_FTM_CAPA_ATTR_CONCURRENT_ISTA_RSTA_SUPPORT];
+
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_TX_LTF_REP])
+		drv->capa.max_tx_ltf_repetations =
+			nla_get_u32(tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_TX_LTF_REP]);
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_RX_LTF_REP])
+		drv->capa.max_rx_ltf_repetations =
+			nla_get_u32(tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_RX_LTF_REP]);
+
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_RX_STS]) {
+		max_rx_sts = nla_get_u32(tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_RX_STS]);
+		drv->capa.max_rx_sts_le_80 = max_rx_sts;
+		drv->capa.max_rx_sts_gt_80 = max_rx_sts;
+	}
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_TX_STS]) {
+		max_tx_sts = nla_get_u32(tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_TX_STS]);
+		drv->capa.max_tx_sts_le_80 = max_tx_sts;
+		drv->capa.max_tx_sts_gt_80 = max_tx_sts;
+	}
+
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_TX])
+		drv->capa.max_tx_ltf_total =
+			nla_get_u32(tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_TX]);
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_RX])
+		drv->capa.max_rx_ltf_total =
+			nla_get_u32(tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_TOTAL_LTF_RX]);
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_FTMS_PER_BURST])
+		drv->capa.max_ftms_per_burst =
+			nla_get_u8(tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_FTMS_PER_BURST]);
+
+	/* Parse RSTA capabilities */
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_RSTA_SUPPORT] &&
+	    tb[NL80211_PMSR_FTM_CAPA_ATTR_RSTA_CAPS] &&
+	    !nla_parse_nested(rsta_caps, NL80211_PMSR_FTM_CAPA_ATTR_MAX,
+			      tb[NL80211_PMSR_FTM_CAPA_ATTR_RSTA_CAPS],
+			      NULL)) {
+		drv->capa.rsta.support_ntb =
+			!!rsta_caps[NL80211_PMSR_FTM_CAPA_ATTR_SUPPORT_NTB];
+		drv->capa.rsta.support_tb =
+			!!rsta_caps[NL80211_PMSR_FTM_CAPA_ATTR_SUPPORT_TB];
+		drv->capa.rsta.support_edca =
+			!!rsta_caps[NL80211_PMSR_FTM_CAPA_ATTR_SUPPORT_EDCA];
+		if (rsta_caps[NL80211_PMSR_ATTR_MAX_PEER_RSTA_ROLE])
+			drv->capa.rsta.max_peers =
+				nla_get_u32(rsta_caps[NL80211_PMSR_ATTR_MAX_PEER_RSTA_ROLE]);
+	}
+
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_NUM_TX_ANTENNAS])
+		drv->capa.max_tx_antenna =
+			nla_get_u8(tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_NUM_TX_ANTENNAS]);
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_NUM_RX_ANTENNAS])
+		drv->capa.max_rx_antenna =
+			nla_get_u8(tb[NL80211_PMSR_FTM_CAPA_ATTR_MAX_NUM_RX_ANTENNAS]);
+
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_MIN_INTERVAL_EDCA])
+		drv->capa.edca_min_ranging_interval =
+			nla_get_u32(tb[NL80211_PMSR_FTM_CAPA_ATTR_MIN_INTERVAL_EDCA]);
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_MIN_INTERVAL_NTB])
+		drv->capa.ntb_min_ranging_interval =
+			nla_get_u32(tb[NL80211_PMSR_FTM_CAPA_ATTR_MIN_INTERVAL_NTB]);
+
+	/* Parse additional ranging capabilities */
+	drv->capa.support_6ghz = !!tb[NL80211_PMSR_FTM_CAPA_ATTR_6GHZ_SUPPORT];
+
+	drv->capa.asap_support = !!tb[NL80211_PMSR_FTM_CAPA_ATTR_ASAP];
+
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_PD_PREAMBLES])
+		drv->capa.pd_preambles = nl80211_to_pd_preamble_bitmap(
+			nla_get_u32(tb[NL80211_PMSR_FTM_CAPA_ATTR_PD_PREAMBLES]));
+	if (tb[NL80211_PMSR_FTM_CAPA_ATTR_PD_BANDWIDTHS])
+		drv->capa.pd_bandwidths = nl80211_to_pd_bw_bitmap(
+			nla_get_u32(tb[NL80211_PMSR_FTM_CAPA_ATTR_PD_BANDWIDTHS]));
+}
+
+
+static void wiphy_info_pmsr_type_capa(struct wpa_driver_nl80211_data *drv,
+				      struct nlattr *attr)
+{
+	struct nlattr *pos;
+	int rem;
+
+	nla_for_each_nested(pos, attr, rem) {
+		if (nla_type(pos) == NL80211_PMSR_TYPE_FTM)
+			pmsr_type_ftm_handler(drv, pos);
+	}
+}
+
+
+static void wiphy_info_pmsr_capa(struct wpa_driver_nl80211_data *drv,
+				 struct nlattr *tb[])
+{
+	struct nlattr *pmsr_capa[NL80211_PMSR_ATTR_MAX + 1];
+	static struct nla_policy
+	pmsr_policy[NL80211_PMSR_ATTR_MAX + 1] = {
+		[NL80211_PMSR_ATTR_MAX_PEERS] = { .type = NLA_U32 },
+		[NL80211_PMSR_ATTR_TYPE_CAPA] = { .type = NLA_NESTED },
+	};
+
+	if (nla_parse_nested(pmsr_capa, NL80211_PMSR_ATTR_MAX,
+			     tb[NL80211_ATTR_PEER_MEASUREMENTS],
+			     pmsr_policy)) {
+		wpa_printf(MSG_DEBUG, "nl80211: Failed to parse PMSR capabilities");
+		return;
+	}
+
+	if (pmsr_capa[NL80211_PMSR_ATTR_MAX_PEERS])
+		drv->capa.pmsr_max_peers =
+			nla_get_u32(pmsr_capa[NL80211_PMSR_ATTR_MAX_PEERS]);
+	if (pmsr_capa[NL80211_PMSR_ATTR_TYPE_CAPA])
+		wiphy_info_pmsr_type_capa(drv,
+					  pmsr_capa[NL80211_PMSR_ATTR_TYPE_CAPA]);
+}
+
+#endif /* CONFIG_PR */
+
+
 static int wiphy_info_handler(struct nl_msg *msg, void *arg)
 {
 	struct nlattr *tb[NL80211_ATTR_MAX + 1];
@@ -958,6 +1348,10 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
 	if (tb[NL80211_ATTR_MAX_NUM_SCAN_SSIDS])
 		capa->max_scan_ssids =
 			nla_get_u8(tb[NL80211_ATTR_MAX_NUM_SCAN_SSIDS]);
+
+	if (tb[NL80211_ATTR_MAX_SCAN_IE_LEN])
+		capa->max_probe_req_ie_len =
+			nla_get_u16(tb[NL80211_ATTR_MAX_SCAN_IE_LEN]);
 
 	if (tb[NL80211_ATTR_MAX_NUM_SCHED_SCAN_SSIDS])
 		capa->max_sched_scan_ssids =
@@ -1059,6 +1453,11 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
 
 	wiphy_info_extended_capab(drv, tb[NL80211_ATTR_IFTYPE_EXT_CAPA]);
 
+#ifdef CONFIG_PR
+	if (tb[NL80211_ATTR_PEER_MEASUREMENTS])
+		wiphy_info_pmsr_capa(drv, tb);
+#endif /* CONFIG_PR */
+
 	if (tb[NL80211_ATTR_VENDOR_DATA]) {
 		struct nlattr *nl;
 		int rem;
@@ -1119,6 +1518,9 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
 					break;
 				case QCA_NL80211_VENDOR_SUBCMD_SECURE_RANGING_CONTEXT:
 					drv->secure_ranging_ctx_vendor_cmd_avail = 1;
+					break;
+				case QCA_NL80211_VENDOR_SUBCMD_CONNECT_EXT:
+					drv->connect_ext_vendor_cmd_avail = 1;
 					break;
 #endif /* CONFIG_DRIVER_NL80211_QCA */
 				}
@@ -1181,6 +1583,23 @@ static int wiphy_info_handler(struct nl_msg *msg, void *arg)
 	if (tb[NL80211_ATTR_MLO_SUPPORT])
 		capa->flags2 |= WPA_DRIVER_FLAGS2_MLO;
 
+#ifdef CONFIG_NAN
+	if (tb[NL80211_ATTR_BANDS]) {
+		u32 bands;
+
+		bands = nla_get_u32(tb[NL80211_ATTR_BANDS]);
+		wpa_printf(MSG_DEBUG, "nl80211: NAN supported bands 0x%x",
+			   bands);
+		if ((bands & BIT(NL80211_BAND_2GHZ)) &&
+		    (bands & BIT(NL80211_BAND_5GHZ)))
+			capa->nan_capa.drv_flags |=
+				WPA_DRIVER_FLAGS_NAN_SUPPORT_DUAL_BAND;
+	}
+
+	wiphy_info_nan_capa_handler(capa, info,
+				    tb[NL80211_ATTR_NAN_CAPABILITIES]);
+#endif /* CONFIG_NAN */
+
 	return NL_SKIP;
 }
 
@@ -1195,6 +1614,10 @@ static int wpa_driver_nl80211_get_info(struct wpa_driver_nl80211_data *drv,
 	os_memset(info, 0, sizeof(*info));
 	info->capa = &drv->capa;
 	info->drv = drv;
+
+	/* Default to large buffer of extra IE(s) to maintain previous behavior
+	 * if the driver does not support reporting an accurate limit. */
+	info->capa->max_probe_req_ie_len = 1500;
 
 	feat = get_nl80211_protocol_features(drv);
 	if (feat & NL80211_PROTOCOL_FEATURE_SPLIT_WIPHY_DUMP)
@@ -1261,6 +1684,49 @@ static int wpa_driver_nl80211_get_info(struct wpa_driver_nl80211_data *drv,
 
 	if (!drv->capa.max_num_akms)
 		drv->capa.max_num_akms = NL80211_MAX_NR_AKM_SUITES;
+
+#ifdef CONFIG_NAN
+	if (info->nan_supported) {
+		if (info->nan_ndp_supported) {
+			if (info->nan_phy_capabilities_valid) {
+				wpa_printf(MSG_DEBUG, "nl80211: NAN supported");
+				drv->capa.nan_capa.drv_flags |=
+					WPA_DRIVER_FLAGS_NAN_SUPPORT_NDP;
+			} else {
+				wpa_printf(MSG_DEBUG,
+					   "nl80211: NAN NDP supported but NAN PHY capabilities not valid");
+			}
+		}
+
+		/* TODO: Currently support only a single radio */
+		drv->capa.nan_capa.num_radios = 1;
+		drv->capa.nan_capa.sched_chans =
+			info->num_multichan_concurrent_nan;
+
+		/*
+		 * nl80211 supports only a single configuration that uses 16 TU
+		 * slots and a period of 512 TUs.
+		 */
+		drv->capa.nan_capa.slot_duration = 16;
+		drv->capa.nan_capa.schedule_period = 512;
+
+		/*
+		 * Support NAN beacon protection only if at least one of the NAN
+		 * management group ciphers is supported and the driver supports
+		 * beacon protection.
+		 */
+		if ((info->capa->enc & (WPA_DRIVER_CAPA_ENC_BIP |
+					WPA_DRIVER_CAPA_ENC_BIP_GMAC_256)) &&
+		    (drv->capa.flags & WPA_DRIVER_FLAGS_BEACON_PROTECTION))
+			drv->capa.nan_capa.drv_flags |=
+				WPA_DRIVER_FLAGS_NAN_SUPPORT_BEACON_PROT;
+
+		if (drv->capa.nan_capa.drv_flags &
+		    WPA_DRIVER_FLAGS_NAN_SUPPORT_BEACON_PROT)
+			wpa_printf(MSG_DEBUG,
+				   "nl80211: NAN: beacon protection supported");
+	}
+#endif /* CONFIG_NAN */
 
 	return 0;
 }
@@ -1443,6 +1909,28 @@ static void qca_nl80211_get_features(struct wpa_driver_nl80211_data *drv)
 		drv->qca_ap_allowed_freqs = 1;
 	if (check_feature(QCA_WLAN_VENDOR_FEATURE_HT_VHT_TWT_RESPONDER, &info))
 		drv->capa.flags2 |= WPA_DRIVER_FLAGS2_HT_VHT_TWT_RESPONDER;
+	if (check_feature(QCA_WLAN_VENDOR_FEATURE_RSN_OVERRIDE_STA, &info)) {
+		wpa_printf(MSG_DEBUG,
+			   "The driver supports RSN overriding in STA mode");
+		drv->capa.flags2 |= WPA_DRIVER_FLAGS2_RSN_OVERRIDE_STA;
+	}
+	if (check_feature(QCA_WLAN_VENDOR_FEATURE_NAN_USD_OFFLOAD, &info))
+		drv->capa.flags2 |= WPA_DRIVER_FLAGS2_NAN_USD_OFFLOAD;
+
+	if (check_feature(QCA_WLAN_VENDOR_FEATURE_P2P_V2, &info))
+		drv->capa.flags2 |= WPA_DRIVER_FLAGS2_P2P_FEATURE_V2;
+
+	if (check_feature(QCA_WLAN_VENDOR_FEATURE_PCC_MODE, &info))
+		drv->capa.flags2 |= WPA_DRIVER_FLAGS2_P2P_FEATURE_PCC_MODE;
+
+	if (check_feature(QCA_WLAN_VENDOR_FEATURE_SUPPORT_P2P_ASSISTED_DFS,
+			  &info))
+		drv->capa.flags2 |= WPA_DRIVER_FLAGS2_P2P_ASSISTED_DFS;
+
+	if (check_feature(QCA_WLAN_VENDOR_FEATURE_SUPPORT_PMKSA_CACHING_PRIVACY,
+			  &info))
+		drv->capa.flags2 |= WPA_DRIVER_FLAGS2_PMKSA_PRIVACY;
+
 	os_free(info.flags);
 }
 
@@ -1470,6 +1958,7 @@ int wpa_driver_nl80211_capa(struct wpa_driver_nl80211_data *drv)
 			WPA_DRIVER_CAPA_KEY_MGMT_WPA_PSK |
 			WPA_DRIVER_CAPA_KEY_MGMT_WPA2 |
 			WPA_DRIVER_CAPA_KEY_MGMT_WPA2_PSK |
+			WPA_DRIVER_CAPA_KEY_MGMT_PSK_SHA256 |
 			WPA_DRIVER_CAPA_KEY_MGMT_SUITE_B |
 			WPA_DRIVER_CAPA_KEY_MGMT_OWE |
 			WPA_DRIVER_CAPA_KEY_MGMT_DPP;
@@ -1485,6 +1974,7 @@ int wpa_driver_nl80211_capa(struct wpa_driver_nl80211_data *drv)
 				WPA_DRIVER_CAPA_KEY_MGMT_FILS_SHA384 |
 				WPA_DRIVER_CAPA_KEY_MGMT_FT_FILS_SHA256 |
 				WPA_DRIVER_CAPA_KEY_MGMT_FT_FILS_SHA384 |
+				WPA_DRIVER_CAPA_KEY_MGMT_SAE_EXT_KEY |
 				WPA_DRIVER_CAPA_KEY_MGMT_SAE;
 		else if (drv->capa.flags & WPA_DRIVER_FLAGS_FILS_SK_OFFLOAD)
 			drv->capa.key_mgmt |=
@@ -1553,21 +2043,22 @@ int wpa_driver_nl80211_capa(struct wpa_driver_nl80211_data *drv)
 	if (info.set_qos_map_supported)
 		drv->capa.flags |= WPA_DRIVER_FLAGS_QOS_MAPPING;
 	drv->have_low_prio_scan = info.have_low_prio_scan;
+	drv->support_ap_scan = info.support_ap_scan;
 
 	/*
-	 * If poll command and tx status are supported, mac80211 is new enough
-	 * to have everything we need to not need monitor interfaces.
-	 */
-	drv->use_monitor = !info.device_ap_sme &&
-		(!info.poll_command_supported || !info.data_tx_status);
-
-	/*
-	 * If we aren't going to use monitor interfaces, but the
-	 * driver doesn't support data TX status, we won't get TX
+	 * If the driver doesn't support data TX status, we won't get TX
 	 * status for EAPOL frames.
 	 */
-	if (!drv->use_monitor && !info.data_tx_status)
+	if (!info.data_tx_status)
 		drv->capa.flags &= ~WPA_DRIVER_FLAGS_EAPOL_TX_STATUS;
+
+	/* Enable P2P2 and PCC mode capabilities by default for the drivers
+	 * for which SME runs in wpa_supplicant
+	 */
+	if (drv->capa.flags & WPA_DRIVER_FLAGS_SME) {
+		drv->capa.flags2 |= WPA_DRIVER_FLAGS2_P2P_FEATURE_V2;
+		drv->capa.flags2 |= WPA_DRIVER_FLAGS2_P2P_FEATURE_PCC_MODE;
+	}
 
 #ifdef CONFIG_DRIVER_NL80211_QCA
 	if (!(info.capa->flags & WPA_DRIVER_FLAGS_DFS_OFFLOAD))
@@ -1602,6 +2093,7 @@ struct phy_info_arg {
 	int last_mode, last_chan_idx;
 	int failed;
 	u8 dfs_domain;
+	char alpha2[3]; /* Country code from NL80211_ATTR_REG_ALPHA2 */
 };
 
 static void phy_info_ht_capa(struct hostapd_hw_modes *mode, struct nlattr *capa,
@@ -1713,6 +2205,8 @@ static void phy_info_freq(struct hostapd_hw_modes *mode,
 		chan->allowed_bw &= ~HOSTAPD_CHAN_WIDTH_80;
 	if (tb_freq[NL80211_FREQUENCY_ATTR_NO_160MHZ])
 		chan->allowed_bw &= ~HOSTAPD_CHAN_WIDTH_160;
+	if (tb_freq[NL80211_FREQUENCY_ATTR_NO_320MHZ])
+		chan->allowed_bw &= ~HOSTAPD_CHAN_WIDTH_320;
 
 	if (tb_freq[NL80211_FREQUENCY_ATTR_DFS_STATE]) {
 		enum nl80211_dfs_state state =
@@ -1814,6 +2308,8 @@ static int phy_info_freqs(struct phy_info_arg *phy_info,
 		[NL80211_FREQUENCY_ATTR_NO_HT40_MINUS] = { .type = NLA_FLAG },
 		[NL80211_FREQUENCY_ATTR_NO_80MHZ] = { .type = NLA_FLAG },
 		[NL80211_FREQUENCY_ATTR_NO_160MHZ] = { .type = NLA_FLAG },
+		[NL80211_FREQUENCY_ATTR_NO_320MHZ] = { .type = NLA_FLAG },
+
 	};
 	int new_channels = 0;
 	struct hostapd_channel_data *channel;
@@ -1972,12 +2468,10 @@ static void phy_info_iftype_copy(struct hostapd_hw_modes *mode,
 			  len);
 	}
 
-	if (tb[NL80211_BAND_IFTYPE_ATTR_HE_6GHZ_CAPA]) {
-		u16 capa;
-
-		capa = nla_get_u16(tb[NL80211_BAND_IFTYPE_ATTR_HE_6GHZ_CAPA]);
-		he_capab->he_6ghz_capa = le_to_host16(capa);
-	}
+	if (tb[NL80211_BAND_IFTYPE_ATTR_HE_6GHZ_CAPA] &&
+	    nla_len(tb[NL80211_BAND_IFTYPE_ATTR_HE_6GHZ_CAPA]) >= 2)
+		he_capab->he_6ghz_capa = WPA_GET_LE16(
+			nla_data(tb[NL80211_BAND_IFTYPE_ATTR_HE_6GHZ_CAPA]));
 
 	if (!tb[NL80211_BAND_IFTYPE_ATTR_EHT_CAP_MAC] ||
 	    !tb[NL80211_BAND_IFTYPE_ATTR_EHT_CAP_PHY])
@@ -2067,7 +2561,8 @@ static int phy_info_band(struct phy_info_arg *phy_info, struct nlattr *nl_band)
 		mode->mode = NUM_HOSTAPD_MODES;
 		mode->flags = HOSTAPD_MODE_FLAG_HT_INFO_KNOWN |
 			HOSTAPD_MODE_FLAG_VHT_INFO_KNOWN |
-			HOSTAPD_MODE_FLAG_HE_INFO_KNOWN;
+			HOSTAPD_MODE_FLAG_HE_INFO_KNOWN |
+			HOSTAPD_MODE_FLAG_EHT_INFO_KNOWN;
 
 		/*
 		 * Unsupported VHT MCS stream is defined as value 3, so the VHT
@@ -2361,7 +2856,7 @@ static void nl80211_reg_rule_sec(struct nlattr *tb[],
 
 
 static void nl80211_set_vht_mode(struct hostapd_hw_modes *mode, int start,
-				 int end, int max_bw)
+				 int end, int max_bw, u32 flags)
 {
 	int c;
 
@@ -2376,6 +2871,9 @@ static void nl80211_set_vht_mode(struct hostapd_hw_modes *mode, int start,
 
 		if (max_bw >= 160)
 			chan->flag |= HOSTAPD_CHAN_VHT_160MHZ_SUBCHANNEL;
+
+		if (flags & NL80211_RRF_AUTO_BW)
+			chan->flag |= HOSTAPD_CHAN_AUTO_BW;
 	}
 }
 
@@ -2383,7 +2881,7 @@ static void nl80211_set_vht_mode(struct hostapd_hw_modes *mode, int start,
 static void nl80211_reg_rule_vht(struct nlattr *tb[],
 				 struct phy_info_arg *results)
 {
-	u32 start, end, max_bw;
+	u32 start, end, max_bw, flags = 0;
 	u16 m;
 
 	if (tb[NL80211_ATTR_FREQ_RANGE_START] == NULL ||
@@ -2394,6 +2892,9 @@ static void nl80211_reg_rule_vht(struct nlattr *tb[],
 	start = nla_get_u32(tb[NL80211_ATTR_FREQ_RANGE_START]) / 1000;
 	end = nla_get_u32(tb[NL80211_ATTR_FREQ_RANGE_END]) / 1000;
 	max_bw = nla_get_u32(tb[NL80211_ATTR_FREQ_RANGE_MAX_BW]) / 1000;
+
+	if (tb[NL80211_ATTR_REG_RULE_FLAGS])
+		flags = nla_get_u32(tb[NL80211_ATTR_REG_RULE_FLAGS]);
 
 	if (max_bw < 80)
 		return;
@@ -2406,7 +2907,8 @@ static void nl80211_reg_rule_vht(struct nlattr *tb[],
 		if (!results->modes[m].vht_capab)
 			continue;
 
-		nl80211_set_vht_mode(&results->modes[m], start, end, max_bw);
+		nl80211_set_vht_mode(&results->modes[m], start, end,
+				     max_bw, flags);
 	}
 }
 
@@ -2530,6 +3032,11 @@ static int nl80211_get_reg(struct nl_msg *msg, void *arg)
 		wpa_printf(MSG_DEBUG, "nl80211: Regulatory information - country=%s",
 			   (char *) nla_data(tb_msg[NL80211_ATTR_REG_ALPHA2]));
 	}
+
+	/* Store the alpha2 country code for the caller */
+	os_strlcpy(results->alpha2,
+		   (const char *) nla_data(tb_msg[NL80211_ATTR_REG_ALPHA2]),
+		   sizeof(results->alpha2));
 
 	nla_for_each_nested(nl_rule, tb_msg[NL80211_ATTR_REG_RULES], rem_rule)
 	{
@@ -2674,7 +3181,7 @@ static void nl80211_dump_chan_list(struct wpa_driver_nl80211_data *drv,
 
 struct hostapd_hw_modes *
 nl80211_get_hw_feature_data(void *priv, u16 *num_modes, u16 *flags,
-			    u8 *dfs_domain)
+			    u8 *dfs_domain, char *alpha2, size_t alpha2_len)
 {
 	u32 feat;
 	struct i802_bss *bss = priv;
@@ -2687,11 +3194,14 @@ nl80211_get_hw_feature_data(void *priv, u16 *num_modes, u16 *flags,
 		.last_mode = -1,
 		.failed = 0,
 		.dfs_domain = 0,
+		.alpha2 = "",
 	};
 
 	*num_modes = 0;
 	*flags = 0;
 	*dfs_domain = 0;
+	if (alpha2 && alpha2_len)
+		alpha2[0] = '\0';
 
 	feat = get_nl80211_protocol_features(drv);
 	if (feat & NL80211_PROTOCOL_FEATURE_SPLIT_WIPHY_DUMP)
@@ -2719,11 +3229,142 @@ nl80211_get_hw_feature_data(void *priv, u16 *num_modes, u16 *flags,
 		}
 
 		*dfs_domain = result.dfs_domain;
+		if (alpha2 && alpha2_len)
+			os_strlcpy(alpha2, result.alpha2, alpha2_len);
 
 		modes = wpa_driver_nl80211_postprocess_modes(result.modes,
 							     num_modes);
 		nl80211_dump_chan_list(drv, modes, *num_modes);
 		return modes;
+	}
+
+	return NULL;
+}
+
+
+static int phy_multi_hw_info_parse(struct hostapd_multi_hw_info *hw_info,
+				   struct nlattr *radio_attr)
+{
+	struct nlattr *tb_freq[NL80211_WIPHY_RADIO_FREQ_ATTR_MAX + 1];
+	int start_freq, end_freq;
+
+	switch (nla_type(radio_attr)) {
+	case NL80211_WIPHY_RADIO_ATTR_INDEX:
+		hw_info->hw_idx = nla_get_u32(radio_attr);
+		return NL_OK;
+	case NL80211_WIPHY_RADIO_ATTR_FREQ_RANGE:
+		if (nla_parse_nested(tb_freq, NL80211_WIPHY_RADIO_FREQ_ATTR_MAX,
+				     radio_attr, NULL) ||
+		    !tb_freq[NL80211_WIPHY_RADIO_FREQ_ATTR_START] ||
+		    !tb_freq[NL80211_WIPHY_RADIO_FREQ_ATTR_END])
+			return NL_STOP;
+
+		start_freq = nla_get_u32(
+			tb_freq[NL80211_WIPHY_RADIO_FREQ_ATTR_START]);
+		end_freq = nla_get_u32(
+			tb_freq[NL80211_WIPHY_RADIO_FREQ_ATTR_END]);
+
+		/* Convert to MHz and store */
+		hw_info->start_freq = start_freq / 1000;
+		hw_info->end_freq = end_freq / 1000;
+		return NL_OK;
+	default:
+		return NL_OK;
+	}
+}
+
+
+struct phy_multi_hw_info_arg {
+	bool failed;
+	unsigned int *num_multi_hws;
+	struct hostapd_multi_hw_info *multi_hws;
+};
+
+
+static int phy_multi_hw_info_handler(struct nl_msg *msg, void *arg)
+{
+	struct genlmsghdr *gnlh = nlmsg_data(nlmsg_hdr(msg));
+	struct phy_multi_hw_info_arg *multi_hw_info = arg;
+	struct hostapd_multi_hw_info *multi_hws, hw_info;
+	struct nlattr *tb_msg[NL80211_ATTR_MAX + 1];
+	struct nlattr *nl_hw, *radio_attr;
+	int rem_hw, rem_radio_prop, res;
+
+	nla_parse(tb_msg, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0),
+		  genlmsg_attrlen(gnlh, 0), NULL);
+
+	if (!tb_msg[NL80211_ATTR_WIPHY_RADIOS])
+		return NL_SKIP;
+
+	*multi_hw_info->num_multi_hws = 0;
+
+	nla_for_each_nested(nl_hw, tb_msg[NL80211_ATTR_WIPHY_RADIOS], rem_hw) {
+		os_memset(&hw_info, 0, sizeof(hw_info));
+
+		nla_for_each_nested(radio_attr, nl_hw, rem_radio_prop) {
+			res = phy_multi_hw_info_parse(&hw_info, radio_attr);
+			if (res != NL_OK)
+				goto out;
+		}
+
+		if (hw_info.start_freq == 0 || hw_info.end_freq == 0)
+			goto out;
+
+		multi_hws = os_realloc_array(multi_hw_info->multi_hws,
+					     *multi_hw_info->num_multi_hws + 1,
+					     sizeof(*multi_hws));
+		if (!multi_hws)
+			goto out;
+
+		multi_hw_info->multi_hws = multi_hws;
+		os_memcpy(&multi_hws[*(multi_hw_info->num_multi_hws)],
+			  &hw_info, sizeof(struct hostapd_multi_hw_info));
+		*(multi_hw_info->num_multi_hws) += 1;
+	}
+
+	return NL_OK;
+out:
+	multi_hw_info->failed = true;
+	return NL_STOP;
+}
+
+
+struct hostapd_multi_hw_info *
+nl80211_get_multi_hw_info(struct i802_bss *bss, unsigned int *num_multi_hws)
+{
+	u32 feat;
+	struct wpa_driver_nl80211_data *drv = bss->drv;
+	int nl_flags = 0;
+	struct nl_msg *msg;
+	struct phy_multi_hw_info_arg result = {
+		.failed = false,
+		.num_multi_hws = num_multi_hws,
+		.multi_hws = NULL,
+	};
+
+	*num_multi_hws = 0;
+
+	if (!drv->has_capability || !(drv->capa.flags2 & WPA_DRIVER_FLAGS2_MLO))
+		return NULL;
+
+	feat = get_nl80211_protocol_features(drv);
+	if (feat & NL80211_PROTOCOL_FEATURE_SPLIT_WIPHY_DUMP)
+		nl_flags = NLM_F_DUMP;
+	if (!(msg = nl80211_cmd_msg(bss, nl_flags, NL80211_CMD_GET_WIPHY)) ||
+	    nla_put_flag(msg, NL80211_ATTR_SPLIT_WIPHY_DUMP)) {
+		nlmsg_free(msg);
+		return NULL;
+	}
+
+	if (send_and_recv_resp(drv, msg, phy_multi_hw_info_handler,
+			       &result) == 0) {
+		if (result.failed) {
+			os_free(result.multi_hws);
+			*num_multi_hws = 0;
+			return NULL;
+		}
+
+		return result.multi_hws;
 	}
 
 	return NULL;

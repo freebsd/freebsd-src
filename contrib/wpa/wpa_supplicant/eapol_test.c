@@ -1529,8 +1529,11 @@ int main(int argc, char *argv[])
 	eapol_test.wpa_s = &wpa_s;
 	dl_list_init(&wpa_s.bss);
 	dl_list_init(&wpa_s.bss_id);
+#ifndef CONFIG_NO_ROBUST_AV
+	dl_list_init(&wpa_s.active_scs_ids);
+#endif /* CONFIG_NO_ROBUST_AV */
 	if (conf)
-		wpa_s.conf = wpa_config_read(conf, NULL, false);
+		wpa_s.conf = wpa_config_read(conf, NULL, false, true);
 	else
 		wpa_s.conf = wpa_config_alloc_empty(ctrl_iface, NULL);
 	if (wpa_s.conf == NULL) {

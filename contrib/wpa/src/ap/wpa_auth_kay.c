@@ -331,6 +331,7 @@ int ieee802_1x_alloc_kay_sm_hapd(struct hostapd_data *hapd,
 				  hapd->conf->macsec_port,
 				  hapd->conf->mka_priority,
 				  hapd->conf->macsec_csindex,
+				  hapd->conf->macsec_icv_indicator,
 				  hapd->conf->iface,
 				  hapd->own_addr);
 	/* ieee802_1x_kay_init() frees kay_ctx on failure */
@@ -477,7 +478,7 @@ void * ieee802_1x_create_preshared_mka_hapd(struct hostapd_data *hapd,
 	cak->len = hapd->conf->mka_cak_len;
 	os_memcpy(cak->key, hapd->conf->mka_cak, cak->len);
 
-	ckn->len = hapd->conf->mka_ckn_len;;
+	ckn->len = hapd->conf->mka_ckn_len;
 	os_memcpy(ckn->name, hapd->conf->mka_ckn, ckn->len);
 
 	res = ieee802_1x_kay_create_mka(hapd->kay, ckn, cak, 0, PSK, true);

@@ -1,5 +1,37 @@
 ChangeLog for wpa_supplicant
 
+2026-08-07 - v2.12
+	* support RSN overriding (e.g., WPA3-Personal Compatibility Mode)
+	* improve BSS transition management support
+	* EHT/IEEE 802.11be/Wi-Fi 7
+	  - more complete support
+	  - fix message validation issues that could enable DoS attacks
+	* support Wi-Fi Direct R2
+	* support Wi-Fi Aware (add synchronized NAN; extend USD support)
+	* support Proximity Ranging
+	* support SPP A-MSDU negotiation
+	* support IEEE 802.11bi functionality
+	  - changing SAE password identifiers
+	  - EPPKE
+	  - IEEE 802.1X/EAP in Authentication frames
+	  - Association frame encryption
+	  - PMKID privacy
+	* enable layer 2/Wi-Fi multicast filtering for all networks (not
+	  just some Passpoint networks which enabled this before)
+	* wpa_gui: port to Qt6
+	* support OpenSSL 3.0 API changes
+	* EAP-TEAP: protocol changes based on RFC 9930; this is not compatible
+	  with previous versions
+	* maintain configuration file permissions when writing updated
+	  configuration
+	* add option to validate PKCS#11/OpenSC engine and module paths
+	* fix PMKSA caching to enforce network context to avoid misuse of
+	  unexpected PMKSA cache entries
+	* fix a potential DoS attack in SAE processing of an unexpected element
+	* fix incomplete bounds checking of mesh AMPE messages that could have
+	  resulted in DoS attacks and memory corruption
+	* a large number of other fixes, cleanup, and extensions
+
 2024-07-20 - v2.11
 	* Wi-Fi Easy Connect
 	  - add support for DPP release 3

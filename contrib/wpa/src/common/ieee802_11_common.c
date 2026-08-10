@@ -111,11 +111,6 @@ static int ieee802_11_parse_vendor_specific(const u8 *pos, size_t elen,
 			elems->hs20 = pos;
 			elems->hs20_len = elen;
 			break;
-		case HS20_OSEN_OUI_TYPE:
-			/* Hotspot 2.0 OSEN */
-			elems->osen = pos;
-			elems->osen_len = elen;
-			break;
 		case MBO_OUI_TYPE:
 			/* MBO-OCE */
 			elems->mbo = pos;
@@ -139,6 +134,46 @@ static int ieee802_11_parse_vendor_specific(const u8 *pos, size_t elen,
 		case SAE_PK_OUI_TYPE:
 			elems->sae_pk = pos + 4;
 			elems->sae_pk_len = elen - 4;
+			break;
+		case WFA_CAPA_OUI_TYPE:
+			elems->wfa_capab = pos + 4;
+			elems->wfa_capab_len = elen - 4;
+			break;
+		case WFA_RSNE_OVERRIDE_OUI_TYPE:
+			elems->rsne_override = pos;
+			elems->rsne_override_len = elen;
+			break;
+		case WFA_RSNE_OVERRIDE_2_OUI_TYPE:
+			elems->rsne_override_2 = pos;
+			elems->rsne_override_2_len = elen;
+			break;
+		case WFA_RSNXE_OVERRIDE_OUI_TYPE:
+			elems->rsnxe_override = pos;
+			elems->rsnxe_override_len = elen;
+			break;
+		case WFA_RSN_SELECTION_OUI_TYPE:
+			if (elen < 4 + 1) {
+				wpa_printf(MSG_DEBUG,
+					   "Too short RSN Selection element ignored");
+				return -1;
+			}
+			elems->rsn_selection = pos + 4;
+			elems->rsn_selection_len = elen - 4;
+			break;
+		case P2P2_OUI_TYPE:
+			/* Wi-Fi Alliance - P2P2 IE */
+			elems->p2p2_ie = pos;
+			elems->p2p2_ie_len = elen;
+			break;
+		case PR_OUI_TYPE:
+			/* Wi-Fi Alliance - Proximity Ranging element */
+			elems->proximity_ranging = pos;
+			elems->proximity_ranging_len = elen;
+			break;
+		case NAN_SDF_OUI_TYPE:
+			/* Wi-Fi Alliance - NAN IE */
+			elems->nan_ie = pos;
+			elems->nan_len = elen;
 			break;
 		default:
 			wpa_printf(MSG_MSGDUMP, "Unknown WFA "
@@ -320,6 +355,7 @@ static int ieee802_11_parse_extension(const u8 *pos, size_t elen,
 			break;
 		elems->key_delivery = pos;
 		elems->key_delivery_len = elen;
+		total_len = &elems->key_delivery_len;
 		break;
 	case WLAN_EID_EXT_WRAPPED_DATA:
 		elems->wrapped_data = pos;
@@ -332,10 +368,11 @@ static int ieee802_11_parse_extension(const u8 *pos, size_t elen,
 		elems->fils_pk = pos;
 		elems->fils_pk_len = elen;
 		break;
-	case WLAN_EID_EXT_FILS_NONCE:
-		if (elen != FILS_NONCE_LEN)
+	case WLAN_EID_EXT_NONCE:
+		if (elen < NONCE_LEN)
 			break;
-		elems->fils_nonce = pos;
+		elems->nonce = pos;
+		elems->nonce_len = elen;
 		break;
 	case WLAN_EID_EXT_OWE_DH_PARAM:
 		if (elen < 2)
@@ -348,10 +385,14 @@ static int ieee802_11_parse_extension(const u8 *pos, size_t elen,
 		elems->password_id_len = elen;
 		break;
 	case WLAN_EID_EXT_HE_CAPABILITIES:
+		if (elen < HE_CAPABILITIES_ELEM_MIN_LEN)
+			break;
 		elems->he_capabilities = pos;
 		elems->he_capabilities_len = elen;
 		break;
 	case WLAN_EID_EXT_HE_OPERATION:
+		if (elen < HE_OPERATION_ELEM_MIN_LEN)
+			break;
 		elems->he_operation = pos;
 		elems->he_operation_len = elen;
 		break;
@@ -373,10 +414,14 @@ static int ieee802_11_parse_extension(const u8 *pos, size_t elen,
 		elems->pasn_params_len = elen;
 		break;
 	case WLAN_EID_EXT_EHT_CAPABILITIES:
+		if (elen < EHT_CAPABILITIES_ELEM_MIN_LEN)
+			break;
 		elems->eht_capabilities = pos;
 		elems->eht_capabilities_len = elen;
 		break;
 	case WLAN_EID_EXT_EHT_OPERATION:
+		if (elen < EHT_OPERATION_ELEM_MIN_LEN)
+			break;
 		elems->eht_operation = pos;
 		elems->eht_operation_len = elen;
 		break;
@@ -390,6 +435,22 @@ static int ieee802_11_parse_extension(const u8 *pos, size_t elen,
 	case WLAN_EID_EXT_KNOWN_BSSID:
 		elems->mbssid_known_bss = pos;
 		elems->mbssid_known_bss_len = elen;
+		break;
+	case WLAN_EID_EXT_PASN_ENCRYPTED_DATA:
+		elems->pasn_encrypted_data = pos;
+		elems->pasn_encrypted_data_len = elen;
+		break;
+	case WLAN_EID_EXT_AKM_SUITE_SELECTOR:
+		if (elen < RSN_SELECTOR_LEN)
+			break;
+		elems->akm_suite_selector = pos;
+		elems->akm_suite_selector_len = elen;
+		break;
+	case WLAN_EID_EXT_SUPPORTED_GROUPS:
+		if (elen < 2 || elen % 2 != 0)
+			break;
+		elems->supported_groups = pos;
+		elems->supported_groups_len = elen;
 		break;
 	default:
 		if (show_errors) {
@@ -585,8 +646,12 @@ static ParseRes __ieee802_11_parse_elems(const u8 *start, size_t len,
 		case WLAN_EID_MIC:
 			elems->mic = pos;
 			elems->mic_len = elen;
-			/* after mic everything is encrypted, so stop. */
-			goto done;
+			if (elems->stop_at_mic) {
+				/* After MIC everything is encrypted, so stop.
+				 */
+				goto done;
+			}
+			break;
 		case WLAN_EID_MULTI_BAND:
 			if (elems->mb_ies.nof_ies >= MAX_NOF_MB_IES_SUPPORTED) {
 				wpa_printf(MSG_MSGDUMP,
@@ -696,6 +761,13 @@ ParseRes ieee802_11_parse_elems(const u8 *start, size_t len,
 	os_memset(elems, 0, sizeof(*elems));
 
 	return __ieee802_11_parse_elems(start, len, elems, show_errors);
+}
+
+
+ParseRes ieee802_11_parse_elems_ctrl(const u8 *start, size_t len,
+				     struct ieee802_11_elems *elems)
+{
+	return __ieee802_11_parse_elems(start, len, elems, elems->show_errors);
 }
 
 
@@ -899,8 +971,8 @@ void ieee802_11_elems_clear_ext_ids(struct ieee802_11_elems *elems,
 			elems->fils_pk = NULL;
 			elems->fils_pk_len = 0;
 			break;
-		case WLAN_EID_EXT_FILS_NONCE:
-			elems->fils_nonce = NULL;
+		case WLAN_EID_EXT_NONCE:
+			elems->nonce = NULL;
 			break;
 		case WLAN_EID_EXT_OWE_DH_PARAM:
 			elems->owe_dh = NULL;
@@ -959,14 +1031,15 @@ void ieee802_11_elems_clear_ext_ids(struct ieee802_11_elems *elems,
 }
 
 
-ParseRes ieee802_11_parse_link_assoc_req(const u8 *start, size_t len,
-					 struct ieee802_11_elems *elems,
-					 struct wpabuf *mlbuf,
-					 u8 link_id, bool show_errors)
+static ParseRes ieee802_11_parse_link_profile(struct ieee802_11_elems *elems,
+					      struct wpabuf *mlbuf,
+					      u8 link_id, bool show_errors,
+					      bool is_assoc_resp)
 {
 	const struct ieee80211_eht_ml *ml;
 	const u8 *pos;
 	ParseRes res = ParseFailed;
+	size_t len;
 
 	pos = wpabuf_head(mlbuf);
 	len = wpabuf_len(mlbuf);
@@ -987,14 +1060,26 @@ ParseRes ieee802_11_parse_link_assoc_req(const u8 *start, size_t len,
 	pos += sizeof(*ml) + pos[sizeof(*ml)];
 
 	while (len > 2) {
-		size_t sub_elem_len = *(pos + 1);
-		size_t sta_info_len;
+		size_t sub_elem_len, sta_info_len;
 		u16 link_info_control;
 		const u8 *non_inherit;
+		int num_frag_subelems;
+
+		num_frag_subelems =
+			ieee802_11_defrag_mle_subelem(mlbuf, pos,
+						      &sub_elem_len);
+		if (num_frag_subelems < 0) {
+			wpa_printf(MSG_DEBUG,
+				   "MLD: Failed to parse MLE subelem");
+			goto out;
+		}
+		if ((size_t) num_frag_subelems * 2 > len)
+			goto out;
+		len -= num_frag_subelems * 2;
 
 		wpa_printf(MSG_DEBUG,
-			   "MLD: sub element: len=%zu, sub_elem_len=%zu",
-			   len, sub_elem_len);
+			   "MLD: sub element: len=%zu, sub_elem_len=%zu, Fragment subelems=%u",
+			   len, sub_elem_len, num_frag_subelems);
 
 		if (2 + sub_elem_len > len) {
 			if (show_errors)
@@ -1047,6 +1132,28 @@ ParseRes ieee802_11_parse_link_assoc_req(const u8 *start, size_t len,
 
 		pos += 2;
 		sub_elem_len -= 2;
+
+		/* For association response, check status code */
+		if (is_assoc_resp) {
+			u16 status_code;
+
+			if (sub_elem_len < 2) {
+				if (show_errors)
+					wpa_printf(MSG_DEBUG,
+						   "MLD: missing status code");
+				goto out;
+			}
+
+			status_code = WPA_GET_LE16(pos);
+			if (status_code != WLAN_STATUS_SUCCESS) {
+				wpa_printf(MSG_DEBUG,
+					   "MLD: status code %u", status_code);
+				goto out;
+			}
+
+			pos += 2;
+			sub_elem_len -= 2;
+		}
 
 		/* Handle non-inheritance */
 		non_inherit = get_ie_ext(pos, sub_elem_len,
@@ -1104,6 +1211,26 @@ ParseRes ieee802_11_parse_link_assoc_req(const u8 *start, size_t len,
 
 out:
 	return res;
+}
+
+
+ParseRes ieee802_11_parse_link_assoc_req(struct ieee802_11_elems *elems,
+					 struct wpabuf *mlbuf,
+					 u8 link_id, bool show_errors)
+{
+	return ieee802_11_parse_link_profile(elems, mlbuf, link_id,
+					     show_errors, false);
+}
+
+
+ParseRes ieee802_11_parse_link_assoc_resp(struct ieee802_11_elems *elems,
+				  struct wpabuf *mlbuf,
+					  u8 link_id, bool show_errors)
+{
+	/* ieee802_11_defrag_mle_subelem() handles subelement defragmentation
+	 * in-place within mlbuf */
+	return ieee802_11_parse_link_profile(elems, mlbuf, link_id,
+					     show_errors, true);
 }
 
 
@@ -1524,7 +1651,11 @@ ieee80211_freq_to_channel_ext(unsigned int freq, int sec_channel,
 		if ((freq - 5000) % 5)
 			return NUM_HOSTAPD_MODES;
 		*channel = (freq - 5000) / 5;
-		*op_class = 0; /* TODO */
+		if (vht_opclass)
+			*op_class = vht_opclass;
+		else
+			*op_class = 0;
+
 		return HOSTAPD_MODE_IEEE80211A;
 	}
 
@@ -2249,13 +2380,13 @@ const char * status2str(u16 status)
 	S2S(REQUEST_DECLINED)
 	S2S(INVALID_PARAMETERS)
 	S2S(REJECTED_WITH_SUGGESTED_CHANGES)
-	S2S(INVALID_IE)
-	S2S(GROUP_CIPHER_NOT_VALID)
-	S2S(PAIRWISE_CIPHER_NOT_VALID)
-	S2S(AKMP_NOT_VALID)
-	S2S(UNSUPPORTED_RSN_IE_VERSION)
-	S2S(INVALID_RSN_IE_CAPAB)
-	S2S(CIPHER_REJECTED_PER_POLICY)
+	S2S(INVALID_ELEMENT)
+	S2S(INVALID_GROUP_CIPHER)
+	S2S(INVALID_PAIRWISE_CIPHER)
+	S2S(INVALID_AKMP)
+	S2S(UNSUPPORTED_RSNE_VERSION)
+	S2S(INVALID_RSNE_CAPABILITIES)
+	S2S(CIPHER_OUT_OF_POLICY)
 	S2S(TS_NOT_CREATED)
 	S2S(DIRECT_LINK_NOT_ALLOWED)
 	S2S(DEST_STA_NOT_PRESENT)
@@ -2263,8 +2394,8 @@ const char * status2str(u16 status)
 	S2S(ASSOC_DENIED_LISTEN_INT_TOO_LARGE)
 	S2S(INVALID_FT_ACTION_FRAME_COUNT)
 	S2S(INVALID_PMKID)
-	S2S(INVALID_MDIE)
-	S2S(INVALID_FTIE)
+	S2S(INVALID_MDE)
+	S2S(INVALID_FTE)
 	S2S(REQUESTED_TCLAS_NOT_SUPPORTED)
 	S2S(INSUFFICIENT_TCLAS_PROCESSING_RESOURCES)
 	S2S(TRY_ANOTHER_BSS)
@@ -2277,7 +2408,7 @@ const char * status2str(u16 status)
 	S2S(ADV_SRV_UNREACHABLE)
 	S2S(REQ_REFUSED_SSPN)
 	S2S(REQ_REFUSED_UNAUTH_ACCESS)
-	S2S(INVALID_RSNIE)
+	S2S(INVALID_RSNE)
 	S2S(U_APSD_COEX_NOT_SUPPORTED)
 	S2S(U_APSD_COEX_MODE_NOT_SUPPORTED)
 	S2S(BAD_INTERVAL_WITH_U_APSD_COEX)
@@ -2435,7 +2566,7 @@ const struct oper_class_map global_op_class[] = {
 	{ HOSTAPD_MODE_IEEE80211A, 135, 1, 233, 16, BW80P80, NO_P2P_SUPP },
 	{ HOSTAPD_MODE_IEEE80211A, 136, 2, 2, 4, BW20, NO_P2P_SUPP },
 
-	/* IEEE P802.11be/D5.0, Table E-4 (Global operating classes) */
+	/* IEEE Std 802.11be-2024, Table E-4 (Global operating classes) */
 	{ HOSTAPD_MODE_IEEE80211A, 137, 31, 191, 32, BW320, NO_P2P_SUPP },
 
 	/*
@@ -2475,8 +2606,10 @@ static enum phy_type ieee80211_phy_type_by_freq(int freq)
 
 
 /* ieee80211_get_phy_type - Derive the phy type by freq and bandwidth */
-enum phy_type ieee80211_get_phy_type(int freq, int ht, int vht)
+enum phy_type ieee80211_get_phy_type(int freq, bool ht, bool vht, bool he)
 {
+	if (he)
+		return PHY_TYPE_HE;
 	if (vht)
 		return PHY_TYPE_VHT;
 	if (ht)
@@ -2541,6 +2674,9 @@ const u8 * get_vendor_ie(const u8 *ies, size_t len, u32 vendor_type)
 {
 	const struct element *elem;
 
+	if (!ies)
+		return NULL;
+
 	for_each_element_id(elem, WLAN_EID_VENDOR_SPECIFIC, ies, len) {
 		if (elem->datalen >= 4 &&
 		    vendor_type == WPA_GET_BE32(elem->data))
@@ -2600,14 +2736,14 @@ u16 check_multi_ap_ie(const u8 *multi_ap_ie, size_t multi_ap_len,
 			} else {
 				wpa_printf(MSG_DEBUG,
 					   "Multi-AP invalid Multi-AP subelement");
-				return WLAN_STATUS_INVALID_IE;
+				return WLAN_STATUS_INVALID_ELEMENT;
 			}
 			break;
 		case MULTI_AP_PROFILE_SUB_ELEM_TYPE:
 			if (elen < 1) {
 				wpa_printf(MSG_DEBUG,
 					   "Multi-AP IE invalid Multi-AP profile subelement");
-				return WLAN_STATUS_INVALID_IE;
+				return WLAN_STATUS_INVALID_ELEMENT;
 			}
 
 			multi_ap->profile = *pos;
@@ -2622,12 +2758,12 @@ u16 check_multi_ap_ie(const u8 *multi_ap_ie, size_t multi_ap_len,
 			if (multi_ap->profile < MULTI_AP_PROFILE_2) {
 				wpa_printf(MSG_DEBUG,
 					   "Multi-AP IE invalid profile to read VLAN IE");
-				return WLAN_STATUS_INVALID_IE;
+				return WLAN_STATUS_INVALID_ELEMENT;
 			}
 			if (elen < 2) {
 				wpa_printf(MSG_DEBUG,
 					   "Multi-AP IE invalid Multi-AP VLAN subelement");
-				return WLAN_STATUS_INVALID_IE;
+				return WLAN_STATUS_INVALID_ELEMENT;
 			}
 
 			vlan_id = WPA_GET_LE16(pos);
@@ -2635,7 +2771,7 @@ u16 check_multi_ap_ie(const u8 *multi_ap_ie, size_t multi_ap_len,
 				wpa_printf(MSG_INFO,
 					   "Multi-AP IE invalid Multi-AP VLAN ID %d",
 					   vlan_id);
-				return WLAN_STATUS_INVALID_IE;
+				return WLAN_STATUS_INVALID_ELEMENT;
 			}
 			multi_ap->vlanid = vlan_id;
 			break;
@@ -2657,7 +2793,7 @@ u16 check_multi_ap_ie(const u8 *multi_ap_ie, size_t multi_ap_len,
 	if (!ext_present) {
 		wpa_printf(MSG_DEBUG,
 			   "Multi-AP element without Multi-AP Extension subelement");
-		return WLAN_STATUS_INVALID_IE;
+		return WLAN_STATUS_INVALID_ELEMENT;
 	}
 
 	return WLAN_STATUS_SUCCESS;
@@ -2884,6 +3020,18 @@ int oper_class_bw_to_int(const struct oper_class_map *map)
 }
 
 
+bool is_24ghz_freq(int freq)
+{
+	return freq >= 2400 && freq <= 2484;
+}
+
+
+bool is_5ghz_freq(int freq)
+{
+	return freq >= 5150 && freq <= 5885;
+}
+
+
 int center_idx_to_bw_6ghz(u8 idx)
 {
 	/* Channel: 2 */
@@ -3104,27 +3252,38 @@ bool ieee802_11_rsnx_capab_len(const u8 *rsnxe, size_t rsnxe_len,
 {
 	const u8 *end;
 	size_t flen, i;
-	u32 capabs = 0;
+	u64 capabs = 0;
 
 	if (!rsnxe || rsnxe_len == 0)
 		return false;
+
+	if (capab > 63) {
+		wpa_printf(MSG_INFO, "%s: Unsupported capab=%u",
+			   __func__, capab);
+		return false;
+	}
+
 	end = rsnxe + rsnxe_len;
 	flen = (rsnxe[0] & 0x0f) + 1;
 	if (rsnxe + flen > end)
 		return false;
-	if (flen > 4)
-		flen = 4;
+	if (flen > 8)
+		flen = 8;
 	for (i = 0; i < flen; i++)
-		capabs |= rsnxe[i] << (8 * i);
+		capabs |= (u64) rsnxe[i] << (8 * i);
 
-	return !!(capabs & BIT(capab));
+	return !!(capabs & BIT_ULL(capab));
 }
 
 
 bool ieee802_11_rsnx_capab(const u8 *rsnxe, unsigned int capab)
 {
-	return ieee802_11_rsnx_capab_len(rsnxe ? rsnxe + 2 : NULL,
-					 rsnxe ? rsnxe[1] : 0, capab);
+	if (!rsnxe)
+		return false;
+	if (rsnxe[0] == WLAN_EID_VENDOR_SPECIFIC && rsnxe[1] >= 4 + 1)
+		return ieee802_11_rsnx_capab_len(rsnxe + 2 + 4, rsnxe[1] - 4,
+						 capab);
+	return ieee802_11_rsnx_capab_len(rsnxe + 2, rsnxe[1], capab);
 }
 
 
@@ -3359,10 +3518,31 @@ int chwidth_freq2_to_ch_width(int chwidth, int freq2)
 }
 
 
+enum oper_chan_width chan_width_to_oper_chwidth(enum chan_width chan_width)
+{
+	switch (chan_width) {
+	case CHAN_WIDTH_20_NOHT:
+	case CHAN_WIDTH_20:
+	case CHAN_WIDTH_40:
+		return CONF_OPER_CHWIDTH_USE_HT;
+	case CHAN_WIDTH_80:
+		return CONF_OPER_CHWIDTH_80MHZ;
+	case CHAN_WIDTH_80P80:
+		return CONF_OPER_CHWIDTH_80P80MHZ;
+	case CHAN_WIDTH_160:
+		return CONF_OPER_CHWIDTH_160MHZ;
+	case CHAN_WIDTH_320:
+		return CONF_OPER_CHWIDTH_320MHZ;
+	default:
+		return CONF_OPER_CHWIDTH_USE_HT;
+	}
+}
+
+
 struct wpabuf * ieee802_11_defrag(const u8 *data, size_t len, bool ext_elem)
 {
 	struct wpabuf *buf;
-	const u8 *pos, *end = data + len;
+	const u8 *pos, *end;
 	size_t min_defrag_len = ext_elem ? 255 : 256;
 
 	if (!data || !len)
@@ -3376,6 +3556,7 @@ struct wpabuf * ieee802_11_defrag(const u8 *data, size_t len, bool ext_elem)
 		return NULL;
 
 	pos = &data[min_defrag_len - 1];
+	end = data + len;
 	len -= min_defrag_len - 1;
 	while (len > 2 && pos[0] == WLAN_EID_FRAGMENT && pos[1]) {
 		int ret;
@@ -3396,6 +3577,72 @@ struct wpabuf * ieee802_11_defrag(const u8 *data, size_t len, bool ext_elem)
 	}
 
 	return buf;
+}
+
+
+/**
+ * ieee802_11_defrag_mle_subelem - Defragment Multi-Link element subelements
+ * @mlbuf: Defragmented mlbuf (defragmented using ieee802_11_defrag())
+ * @parent_subelem: Pointer to the subelement which may be fragmented
+ * @defrag_len: Defragmented length of the subelement
+ * Returns: Number of Fragment subelements parsed on success, -1 otherwise
+ *
+ * This function defragments a subelement present inside an Multi-Link element.
+ * It should be called individually for each subelement.
+ *
+ * Subelements can use the Fragment subelement if they pack more than 255 bytes
+ * of data, see IEEE Std 802.11be-2024, Figure 35-4 - Per-STA Profile subelement
+ * fragmentation within a fragmented Multi-Link element.
+ */
+ssize_t ieee802_11_defrag_mle_subelem(struct wpabuf *mlbuf,
+				      const u8 *parent_subelem,
+				      size_t *defrag_len)
+{
+	u8 *buf, *pos, *end;
+	size_t len, subelem_len;
+	const size_t min_defrag_len = 255;
+	int num_frag_subelems = 0;
+
+	if (!mlbuf || !parent_subelem)
+		return -1;
+
+	buf = wpabuf_mhead_u8(mlbuf);
+	len = wpabuf_len(mlbuf);
+	end = buf + len;
+
+	*defrag_len = parent_subelem[1];
+	if (parent_subelem[1] < min_defrag_len)
+		return 0;
+
+	pos = (u8 *) parent_subelem;
+	if (2 + parent_subelem[1] > end - pos)
+		return -1;
+	pos += 2 + parent_subelem[1];
+	subelem_len = parent_subelem[1];
+
+	while (end - pos > 2 &&
+	       pos[0] == MULTI_LINK_SUB_ELEM_ID_FRAGMENT && pos[1]) {
+		size_t elen = 2 + pos[1];
+
+		/* This Multi-Link parent subelement has more data and is
+		 * fragmented. */
+		num_frag_subelems++;
+
+		if (elen > (size_t) (end - pos))
+			return -1;
+
+		os_memmove(pos, pos + 2, end - (pos + 2));
+		end -= 2;
+		mlbuf->used -= 2;
+		pos += elen - 2;
+		subelem_len += elen - 2;
+
+		/* Deduct Fragment subelement header */
+		len -= 2;
+	}
+
+	*defrag_len = subelem_len;
+	return num_frag_subelems;
 }
 
 
@@ -3432,4 +3679,638 @@ const u8 * get_basic_mle_mld_addr(const u8 *buf, size_t len)
 		return NULL;
 
 	return &buf[mld_addr_pos];
+}
+
+
+const u8 * get_basic_mle_eml_capa(const u8 *buf, size_t len)
+{
+	const struct ieee80211_eht_ml *ml =
+		(const struct ieee80211_eht_ml *) buf;
+	u16 ctrl;
+	size_t eml_capa_pos =
+		MULTI_LINK_CONTROL_LEN + /* Multi-Link Control field */
+		1 + /* Common Info Length field (Basic) */
+		ETH_ALEN; /* MLD MAC Address field (Basic) */
+	size_t common_info_limit;
+	u8 common_info_len;
+
+	if (len < MULTI_LINK_CONTROL_LEN)
+		return NULL;
+
+	ctrl = le_to_host16(ml->ml_control);
+	if ((ctrl & MULTI_LINK_CONTROL_TYPE_MASK) !=
+	    MULTI_LINK_CONTROL_TYPE_BASIC)
+		return NULL;
+	if (!(ctrl & BASIC_MULTI_LINK_CTRL_PRES_EML_CAPA))
+		return NULL;
+
+	/* Validate Common Info Length against available data */
+	common_info_len = buf[MULTI_LINK_CONTROL_LEN];
+	if (len < (size_t) MULTI_LINK_CONTROL_LEN + common_info_len)
+		return NULL;
+	common_info_limit = MULTI_LINK_CONTROL_LEN + common_info_len;
+
+	if (ctrl & BASIC_MULTI_LINK_CTRL_PRES_LINK_ID)
+		eml_capa_pos += EHT_ML_LINK_ID_LEN;
+
+	if (ctrl & BASIC_MULTI_LINK_CTRL_PRES_BSS_PARAM_CH_COUNT)
+		eml_capa_pos++;
+
+	if (ctrl & BASIC_MULTI_LINK_CTRL_PRES_MSD_INFO)
+		eml_capa_pos += 2;
+
+	/* Ensure EML Capabilities field fits within the declared Common Info */
+	if (eml_capa_pos + EHT_ML_EML_CAPA_LEN > common_info_limit)
+		return NULL;
+
+	return &buf[eml_capa_pos];
+}
+
+
+int get_basic_mle_link_id(const u8 *buf, size_t len)
+{
+	struct ieee80211_eht_ml *ml = (struct ieee80211_eht_ml *) buf;
+	u16 ctrl;
+	size_t link_id_pos =
+		MULTI_LINK_CONTROL_LEN + /* Multi-Link Control field */
+		1 + /* Common Info Length field (Basic) */
+		ETH_ALEN; /* MLD MAC Address field (Basic) */
+	size_t common_info_limit;
+	u8 common_info_len;
+	u8 link_id;
+
+	if (len < MULTI_LINK_CONTROL_LEN)
+		return -1;
+
+	ctrl = le_to_host16(ml->ml_control);
+	if ((ctrl & MULTI_LINK_CONTROL_TYPE_MASK) !=
+	    MULTI_LINK_CONTROL_TYPE_BASIC)
+		return -1;
+
+	/* Validate Common Info Length against available data */
+	common_info_len = buf[MULTI_LINK_CONTROL_LEN];
+	if (len < (size_t) MULTI_LINK_CONTROL_LEN + common_info_len)
+		return -1;
+	common_info_limit = MULTI_LINK_CONTROL_LEN + common_info_len;
+
+	if (!(ctrl & BASIC_MULTI_LINK_CTRL_PRES_LINK_ID))
+		return -1;
+
+	if (link_id_pos + EHT_ML_LINK_ID_LEN > common_info_limit)
+		return -1;
+
+	link_id = buf[link_id_pos] & BASIC_MLE_STA_CTRL_LINK_ID_MASK;
+	if (link_id >= MAX_NUM_MLD_LINKS)
+		return -1;
+
+	return link_id;
+}
+
+
+/* Parse HT capabilities to get maximum number of supported spatial streams */
+static int
+parse_ht_mcs_set_for_max_nss(const struct ieee80211_ht_capabilities *htcaps,
+			     bool parse_for_rx)
+{
+	int i, max_nss_rx = 1;
+	u8 supported_tx_mcs_set, tx_mcs_set_defined, tx_rx_mcs_set_not_equal;
+
+	if (!htcaps)
+		return max_nss_rx;
+
+	for (i = 4; i >= 1; i--) {
+		if (htcaps->supported_mcs_set[i - 1] > 0) {
+			max_nss_rx = i;
+			break;
+		}
+	}
+	if (parse_for_rx)
+		return max_nss_rx;
+
+	supported_tx_mcs_set = htcaps->supported_mcs_set[12];
+	tx_mcs_set_defined = supported_tx_mcs_set & 0x1;
+	tx_rx_mcs_set_not_equal = (supported_tx_mcs_set >> 1) & 0x1;
+	if (tx_mcs_set_defined && tx_rx_mcs_set_not_equal) {
+		u8 max_nss_tx_field_value = (supported_tx_mcs_set >> 2) & 0x3;
+
+		/*
+		 * The maximum number of Tx streams is 1 more than the field
+		 * value.
+		 */
+		return max_nss_tx_field_value + 1;
+	}
+
+	return max_nss_rx;
+}
+
+
+/* Parse MCS map to get maximum number of supported spatial streams */
+static unsigned int parse_mcs_map_for_max_nss(u16 mcs_map,
+					      unsigned int max_streams_allowed)
+{
+	unsigned int i, max_nss = 1;
+
+	for (i = max_streams_allowed; i >= 1; i--) {
+		unsigned int stream_map = (mcs_map >> ((i - 1) * 2)) & 0x3;
+
+		/* 3 means unsupported */
+		if (stream_map != 3) {
+			max_nss = i;
+			break;
+		}
+	}
+
+	return max_nss;
+}
+
+
+/* Parse capabilities elements to get maximum number of supported spatial
+ * streams */
+unsigned int get_max_nss_capability(struct ieee802_11_elems *elems,
+				    bool parse_for_rx, enum chan_width bw)
+{
+	unsigned int max_nss = 1;
+	struct ieee80211_ht_capabilities *htcaps =
+		(struct ieee80211_ht_capabilities *) elems->ht_capabilities;
+	struct ieee80211_vht_capabilities *vhtcaps =
+		(struct ieee80211_vht_capabilities *) elems->vht_capabilities;
+	struct ieee80211_he_capabilities *hecaps =
+		(struct ieee80211_he_capabilities *) elems->he_capabilities;
+	le16 mcs_map;
+
+	if (hecaps) {
+		unsigned int max_nss_he;
+		const u8 *optional = hecaps->optional;
+
+		if (bw == CHAN_WIDTH_160) {
+			mcs_map = host_to_le16(
+				WPA_GET_LE16(parse_for_rx ?
+					     &optional[0] : &optional[2]));
+		} else if (bw == CHAN_WIDTH_80P80) {
+			mcs_map = host_to_le16(
+				WPA_GET_LE16(parse_for_rx ?
+					     &optional[4] : &optional[6]));
+		} else {
+			mcs_map = parse_for_rx ?
+				hecaps->he_basic_supported_mcs_set.rx_map :
+				hecaps->he_basic_supported_mcs_set.tx_map;
+		}
+
+		max_nss_he = parse_mcs_map_for_max_nss(
+			le_to_host16(mcs_map), HE_NSS_MAX_STREAMS);
+		if (max_nss_he > max_nss)
+			max_nss = max_nss_he;
+	} else if (vhtcaps) {
+		unsigned int max_nss_vht;
+
+		mcs_map = parse_for_rx ?
+			vhtcaps->vht_supported_mcs_set.rx_map :
+			vhtcaps->vht_supported_mcs_set.tx_map;
+		max_nss_vht = parse_mcs_map_for_max_nss(
+			le_to_host16(mcs_map), VHT_RX_NSS_MAX_STREAMS);
+		if (max_nss_vht > max_nss)
+			max_nss = max_nss_vht;
+	} else if (htcaps) {
+		unsigned int max_nss_ht;
+
+		max_nss_ht = parse_ht_mcs_set_for_max_nss(htcaps, parse_for_rx);
+		if (max_nss_ht > max_nss)
+			max_nss = max_nss_ht;
+	}
+
+	return max_nss;
+}
+
+
+/* Parse VHT/HE capabilities elements to get supported channel width */
+struct supported_chan_width
+get_supported_channel_width(struct ieee802_11_elems *elems, int freq)
+{
+	struct supported_chan_width supported_width;
+	struct ieee80211_ht_capabilities *htcaps;
+	struct ieee80211_vht_capabilities *vhtcaps;
+	struct ieee80211_he_capabilities *hecaps;
+	struct ieee80211_eht_capabilities *ehtcaps;
+
+	supported_width.is_40_supported = false;
+	supported_width.is_160_supported = false;
+	supported_width.is_80p80_supported = false;
+	supported_width.is_320_supported = false;
+	if (!elems)
+		return supported_width;
+
+	htcaps = (struct ieee80211_ht_capabilities *) elems->ht_capabilities;
+	vhtcaps = (struct ieee80211_vht_capabilities *) elems->vht_capabilities;
+	hecaps = (struct ieee80211_he_capabilities *) elems->he_capabilities;
+	ehtcaps = (struct ieee80211_eht_capabilities *) elems->eht_capabilities;
+
+	if (htcaps &&
+	    (le_to_host16(htcaps->ht_capabilities_info) &
+	     HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET))
+		supported_width.is_40_supported = true;
+
+	if (vhtcaps) {
+		u32 vht_capabilities_info =
+			le_to_host32(vhtcaps->vht_capabilities_info);
+
+		if (vht_capabilities_info & VHT_CAP_SUPP_CHAN_WIDTH_160MHZ)
+			supported_width.is_160_supported = true;
+		if (vht_capabilities_info &
+		    VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ) {
+			supported_width.is_160_supported = true;
+			supported_width.is_80p80_supported = true;
+		}
+	}
+
+	if (hecaps) {
+		u8 channel_width_set = hecaps->he_phy_capab_info[
+			HE_PHYCAP_CHANNEL_WIDTH_SET_IDX];
+
+		/*
+		 * The 40 MHz capability is band specific in HE: a bit for 2.4
+		 * GHz vs. the shared 40/80 MHz bit for 5 GHz.
+		 */
+		if (is_24ghz_freq(freq)) {
+			if (channel_width_set &
+			    HE_PHYCAP_CHANNEL_WIDTH_SET_40MHZ_IN_2G)
+				supported_width.is_40_supported = true;
+		} else if (channel_width_set &
+			   HE_PHYCAP_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G) {
+			supported_width.is_40_supported = true;
+		}
+
+		if (channel_width_set &
+		    HE_PHYCAP_CHANNEL_WIDTH_SET_160MHZ_IN_5G)
+			supported_width.is_160_supported = true;
+		if (channel_width_set &
+		    HE_PHYCAP_CHANNEL_WIDTH_SET_80PLUS80MHZ_IN_5G)
+			supported_width.is_80p80_supported = true;
+	}
+
+	if (ehtcaps) {
+		if (ehtcaps->phy_cap[EHT_PHYCAP_320MHZ_IN_6GHZ_SUPPORT_IDX] &
+		    EHT_PHYCAP_320MHZ_IN_6GHZ_SUPPORT_MASK)
+			supported_width.is_320_supported = true;
+	}
+
+	return supported_width;
+}
+
+
+/*
+ * Parse VHT operation info fields to get operation channel width
+ * note that VHT operation info fields could come from the VHT Operation element
+ * or from the HE Operation element.
+ */
+static enum chan_width get_vht_operation_channel_width(
+	const struct ieee80211_vht_operation *vht_oper_info)
+{
+	enum chan_width channel_width = CHAN_WIDTH_UNKNOWN;
+	u8 seg0, seg1;
+
+	switch (vht_oper_info->vht_op_info_chwidth) {
+	case 1:
+		seg0 = vht_oper_info->vht_op_info_chan_center_freq_seg0_idx;
+		seg1 = vht_oper_info->vht_op_info_chan_center_freq_seg1_idx;
+		if (seg1 && abs(seg1 - seg0) == 8)
+			channel_width = CHAN_WIDTH_160;
+		else if (seg1)
+			channel_width = CHAN_WIDTH_80P80;
+		else
+			channel_width = CHAN_WIDTH_80;
+		break;
+	case 2:
+		channel_width = CHAN_WIDTH_160;
+		break;
+	case 3:
+		channel_width = CHAN_WIDTH_80P80;
+		break;
+	}
+
+	return channel_width;
+}
+
+
+/* Parse 6 GHz operation info fields to get operation channel width */
+static enum chan_width get_6ghz_operation_channel_width(
+	const struct ieee80211_he_6ghz_oper_info *six_ghz_oper_info)
+{
+	enum chan_width channel_width = CHAN_WIDTH_UNKNOWN;
+	u8 seg0, seg1;
+
+	switch (six_ghz_oper_info->control &
+		HE_6GHZ_OPER_INFO_CTRL_CHAN_WIDTH_MASK) {
+	case 0:
+		channel_width = CHAN_WIDTH_20;
+		break;
+	case 1:
+		channel_width = CHAN_WIDTH_40;
+		break;
+	case 2:
+		channel_width = CHAN_WIDTH_80;
+		break;
+	case 3:
+		seg0 = six_ghz_oper_info->chan_center_freq_seg0;
+		seg1 = six_ghz_oper_info->chan_center_freq_seg1;
+		if (abs(seg1 - seg0) == 8)
+			channel_width = CHAN_WIDTH_160;
+		else
+			channel_width = CHAN_WIDTH_80P80;
+		break;
+	}
+
+	return channel_width;
+}
+
+
+/* Parse HE Operation element to get HE operation channel width */
+static enum chan_width get_he_operation_channel_width(
+	const struct ieee80211_he_operation *he_oper, size_t he_oper_len)
+{
+	enum chan_width channel_width = CHAN_WIDTH_UNKNOWN;
+	const u8 *he_oper_u8 = (const u8 *) he_oper;
+	bool is_6ghz_info_present, is_vht_info_present, is_cohosted_bss_present;
+	size_t expected_len;
+
+	if (he_oper_len < HE_OPERATION_ELEM_MIN_LEN)
+		return channel_width;
+
+	is_6ghz_info_present =
+		he_oper->he_oper_params & HE_OPERATION_6GHZ_OPER_INFO;
+	is_vht_info_present =
+		he_oper->he_oper_params & HE_OPERATION_VHT_OPER_INFO;
+	is_cohosted_bss_present =
+		he_oper->he_oper_params & HE_OPERATION_COHOSTED_BSS;
+	expected_len = HE_OPERATION_ELEM_MIN_LEN +
+		(is_6ghz_info_present ? HE_OPERATION_6GHZ_OPER_INFO_LEN : 0) +
+		(is_vht_info_present ? HE_OPERATION_VHT_OPER_INFO_LEN : 0) +
+		(is_cohosted_bss_present ?
+		 HE_OPERATION_COHOSTED_BSSID_INDICATOR_LEN : 0);
+
+	if (he_oper_len < expected_len)
+		return channel_width;
+
+	if (is_6ghz_info_present) {
+		struct ieee80211_he_6ghz_oper_info *six_ghz_oper_info =
+			(struct ieee80211_he_6ghz_oper_info *)
+			(he_oper_u8 + HE_OPERATION_ELEM_MIN_LEN +
+			 (is_vht_info_present ?
+			  HE_OPERATION_VHT_OPER_INFO_LEN : 0) +
+			 (is_cohosted_bss_present ?
+			  HE_OPERATION_COHOSTED_BSSID_INDICATOR_LEN : 0));
+
+		channel_width =
+			get_6ghz_operation_channel_width(six_ghz_oper_info);
+	}
+
+	if (channel_width == CHAN_WIDTH_UNKNOWN && is_vht_info_present) {
+		struct ieee80211_vht_operation *vht_oper_info =
+			(struct ieee80211_vht_operation *)
+			(he_oper_u8 + HE_OPERATION_ELEM_MIN_LEN);
+
+		channel_width = get_vht_operation_channel_width(vht_oper_info);
+	}
+
+	return channel_width;
+}
+
+
+/* Parse EHT Operation element to get EHT operation channel width */
+static enum chan_width get_eht_operation_channel_width(
+	const struct ieee80211_eht_operation *eht_oper, size_t eht_oper_len)
+{
+	if (eht_oper_len < EHT_OPERATION_ELEM_MIN_LEN + EHT_OPER_INFO_MIN_LEN ||
+	    !(eht_oper->oper_params & EHT_OPER_INFO_PRESENT))
+		return CHAN_WIDTH_UNKNOWN;
+
+	switch (eht_oper->oper_info.control & EHT_OPER_CHANNEL_WIDTH_MASK) {
+	case EHT_OPER_CHANNEL_WIDTH_20MHZ:
+		return CHAN_WIDTH_20;
+	case EHT_OPER_CHANNEL_WIDTH_40MHZ:
+		return CHAN_WIDTH_40;
+	case EHT_OPER_CHANNEL_WIDTH_80MHZ:
+		return CHAN_WIDTH_80;
+	case EHT_OPER_CHANNEL_WIDTH_160MHZ:
+		return CHAN_WIDTH_160;
+	case EHT_OPER_CHANNEL_WIDTH_320MHZ:
+		return CHAN_WIDTH_320;
+	default:
+		return CHAN_WIDTH_UNKNOWN;
+	}
+}
+
+
+/* Parse HT/VHT/HE operation elements to get operation channel width */
+enum chan_width get_operation_channel_width(struct ieee802_11_elems *elems)
+{
+	enum chan_width channel_width = CHAN_WIDTH_UNKNOWN;
+	struct ieee80211_ht_operation *ht_oper;
+	struct ieee80211_vht_operation *vht_oper_info;
+	struct ieee80211_he_operation *he_oper;
+	struct ieee80211_eht_operation *eht_oper;
+
+	if (!elems)
+		return channel_width;
+
+	ht_oper = (struct ieee80211_ht_operation *) elems->ht_operation;
+	vht_oper_info = (struct ieee80211_vht_operation *) elems->vht_operation;
+	he_oper = (struct ieee80211_he_operation *) elems->he_operation;
+	eht_oper = (struct ieee80211_eht_operation *) elems->eht_operation;
+
+	if (eht_oper)
+		channel_width = get_eht_operation_channel_width(
+			eht_oper, elems->eht_operation_len);
+
+	if (channel_width == CHAN_WIDTH_UNKNOWN && he_oper)
+		channel_width = get_he_operation_channel_width(
+			he_oper, elems->he_operation_len);
+
+	if (channel_width == CHAN_WIDTH_UNKNOWN && vht_oper_info)
+		channel_width = get_vht_operation_channel_width(vht_oper_info);
+
+	if (channel_width == CHAN_WIDTH_UNKNOWN && ht_oper) {
+		u8 sec_chan_offset = ht_oper->ht_param &
+			HT_INFO_HT_PARAM_SECONDARY_CHNL_OFF_MASK;
+
+		channel_width = sec_chan_offset == 0 ?
+			CHAN_WIDTH_20 : CHAN_WIDTH_40;
+	}
+
+	return channel_width;
+}
+
+
+/*
+ * Get STA operation channel width from AP's operation channel width and
+ * STA's supported channel width
+ */
+enum chan_width get_sta_operation_chan_width(
+	enum chan_width ap_operation_chan_width,
+	struct supported_chan_width sta_supported_chan_width)
+{
+	if (ap_operation_chan_width == CHAN_WIDTH_320 &&
+	    sta_supported_chan_width.is_320_supported)
+		return CHAN_WIDTH_320;
+
+	if (ap_operation_chan_width == CHAN_WIDTH_160 ||
+	    ap_operation_chan_width == CHAN_WIDTH_320)
+		return sta_supported_chan_width.is_160_supported ?
+			CHAN_WIDTH_160 : CHAN_WIDTH_80;
+
+	if (ap_operation_chan_width == CHAN_WIDTH_80P80)
+		return sta_supported_chan_width.is_80p80_supported ?
+			CHAN_WIDTH_80P80 : CHAN_WIDTH_80;
+
+	if (ap_operation_chan_width == CHAN_WIDTH_40)
+		return sta_supported_chan_width.is_40_supported ?
+			CHAN_WIDTH_40 : CHAN_WIDTH_20;
+
+	return ap_operation_chan_width;
+}
+
+
+static const u8 channels_80mhz[] = { 42, 58, 106, 122, 138, 155 };
+static const u8 channels_160mhz[] = { 50, 114, 163 };
+
+
+static u8 op_class_idx_to_chan_vht(u8 op_class, u8 idx)
+{
+	const u8 *chans_array;
+	unsigned int size;
+
+	if (op_class == 128 || op_class == 130) {
+		chans_array = channels_80mhz;
+		size = ARRAY_SIZE(channels_80mhz);
+	} else if (op_class == 129) {
+		chans_array = channels_160mhz;
+		size = ARRAY_SIZE(channels_160mhz);
+	} else {
+		return 0;
+	}
+
+	if (idx >= size)
+		return 0;
+
+	return chans_array[idx];
+}
+
+
+/**
+ * op_class_idx_to_chan - Channel index in the operating class to channel number
+ * @op: A pointer to the operating class object
+ * @idx: The channel index within the operating class. The channels are ordered
+ *	from the lowest number to the highest, index starting from 0.
+ */
+u8 op_class_idx_to_chan(const struct oper_class_map *op, u8 idx)
+{
+	u8 chan;
+
+	if (op->bw == BW80 || op->bw == BW80P80 || op->bw == BW160)
+		return op_class_idx_to_chan_vht(op->op_class, idx);
+
+	chan = op->min_chan + idx * op->inc;
+	if (chan > op->max_chan)
+		return 0;
+
+	return chan;
+}
+
+
+static int op_class_chan_to_idx_vht(u8 op_class, u8 chan)
+{
+	const u8 *chans_array;
+	unsigned int i, size;
+
+	if (op_class == 128 || op_class == 130) {
+		chans_array = channels_80mhz;
+		size = ARRAY_SIZE(channels_80mhz);
+	} else if (op_class == 129) {
+		chans_array = channels_160mhz;
+		size = ARRAY_SIZE(channels_160mhz);
+	} else {
+		return -1;
+	}
+
+	for (i = 0; i < size; i++)
+		if (chan == chans_array[i])
+			return i;
+
+	return -1;
+}
+
+
+/**
+ * op_class_chan_to_idx - Channel number to channel index in the operating class
+ * @op: A pointer to the operating class object
+ * @chan: The channel number
+ * Returns: Channel index or -1 if channel not found
+ */
+int op_class_chan_to_idx(const struct oper_class_map *op, u8 chan)
+{
+	if (op->bw == BW80 || op->bw == BW80P80 || op->bw == BW160)
+		return op_class_chan_to_idx_vht(op->op_class, chan);
+
+	if (chan < op->min_chan || chan > op->max_chan ||
+	    (chan - op->min_chan) % op->inc)
+		return -1;
+
+	return (chan - op->min_chan) / op->inc;
+}
+
+
+static int get_center_freq_80mhz(int ctrl_freq)
+{
+	static const int center_freqs[] =
+		{ 5210, 5290, 5530, 5610, 5690, 5775 };
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(center_freqs); i++) {
+		if (ctrl_freq >= center_freqs[i] - 30 &&
+		    ctrl_freq <= center_freqs[i] + 30)
+			return center_freqs[i];
+	}
+
+	return 0;
+}
+
+
+static int get_center_freq_160mhz(int ctrl_freq)
+{
+	static const int center_freqs[] = { 5250, 5570 };
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(center_freqs); i++) {
+		if (ctrl_freq >= center_freqs[i] - 70 &&
+		    ctrl_freq <= center_freqs[i] + 70)
+			return center_freqs[i];
+	}
+
+	return 0;
+}
+
+
+/**
+ * ieee80211_get_center_freq - Get center frequency based on control
+ *     frequency and operating class information
+ *
+ * @ctrl_freq: Control frequency in MHz
+ * @bw: The bandwidth as defined in struct oper_class_map
+ */
+int ieee80211_get_center_freq(int ctrl_freq, u32 bw)
+{
+	switch (bw) {
+	case BW20:
+		return ctrl_freq;
+	case BW40PLUS:
+		return ctrl_freq + 10;
+	case BW40MINUS:
+		return ctrl_freq - 10;
+	case BW80:
+	case BW80P80:
+		return get_center_freq_80mhz(ctrl_freq);
+	case BW160:
+		return get_center_freq_160mhz(ctrl_freq);
+	default:
+		return -1;
+	}
 }

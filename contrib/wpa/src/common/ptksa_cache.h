@@ -27,6 +27,7 @@ struct ptksa_cache_entry {
 	void (*cb)(struct ptksa_cache_entry *e);
 	void *ctx;
 	u32 akmp;
+	u16 auth_alg;
 };
 
 
@@ -44,7 +45,8 @@ struct ptksa_cache_entry * ptksa_cache_add(struct ptksa_cache *ptksa,
 					   const struct wpa_ptk *ptk,
 					   void (*cb)
 					   (struct ptksa_cache_entry *e),
-					   void *ctx, u32 akmp);
+					   void *ctx, u32 akmp,
+					   u16 auth_alg);
 void ptksa_cache_flush(struct ptksa_cache *ptksa, const u8 *addr, u32 cipher);
 
 #endif /* PTKSA_CACHE_H */

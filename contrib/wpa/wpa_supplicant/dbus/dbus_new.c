@@ -1159,6 +1159,29 @@ void wpas_dbus_signal_psk_mismatch(struct wpa_supplicant *wpa_s)
 }
 
 
+void wpas_dbus_signal_sae_password_mismatch(struct wpa_supplicant *wpa_s)
+{
+	struct wpas_dbus_priv *iface;
+	DBusMessage *msg;
+
+	iface = wpa_s->global->dbus;
+
+	/* Do nothing if the control interface is not turned on */
+	if (!iface || !wpa_s->dbus_new_path)
+		return;
+
+	msg = dbus_message_new_signal(wpa_s->dbus_new_path,
+				      WPAS_DBUS_NEW_IFACE_INTERFACE,
+				      "SaePasswordMismatch");
+	if (!msg)
+		return;
+
+	dbus_connection_send(iface->con, msg, NULL);
+
+	dbus_message_unref(msg);
+}
+
+
 /**
  * wpas_dbus_signal_sta - Send a station related event signal
  * @wpa_s: %wpa_supplicant network interface data
@@ -2332,6 +2355,116 @@ void wpas_dbus_signal_p2p_invitation_received(struct wpa_supplicant *wpa_s,
 }
 
 
+/**
+ * wpas_dbus_signal_p2p_bootstrap_req - Signals BootstrappingRequest event
+ * @wpa_s: %wpa_supplicant network interface data
+ * @src: Source address of the message triggering this notification
+ * @bootstrap_method: Peer's bootstrap method
+ *
+ * Sends a signal to notify that a peer P2P Device is requesting bootstrapping
+ * negotiation with us.
+ */
+void wpas_dbus_signal_p2p_bootstrap_req(struct wpa_supplicant *wpa_s,
+					const u8 *src, u16 bootstrap_method)
+{
+	DBusMessage *msg;
+	DBusMessageIter iter;
+	struct wpas_dbus_priv *iface;
+	char peer_obj_path[WPAS_DBUS_OBJECT_PATH_MAX], *path;
+
+	iface = wpa_s->global->dbus;
+
+	/* Do nothing if the control interface is not turned on */
+	if (!iface)
+		return;
+
+	if (wpa_s->p2p_mgmt)
+		wpa_s = wpa_s->parent;
+	if (!wpa_s->dbus_new_path)
+		return;
+
+	os_snprintf(peer_obj_path, WPAS_DBUS_OBJECT_PATH_MAX,
+		    "%s/" WPAS_DBUS_NEW_P2P_PEERS_PART "/" COMPACT_MACSTR,
+		    wpa_s->dbus_new_path, MAC2STR(src));
+	path = peer_obj_path;
+
+	msg = dbus_message_new_signal(wpa_s->dbus_new_path,
+				      WPAS_DBUS_NEW_IFACE_P2PDEVICE,
+				      "BootstrappingRequest");
+	if (!msg)
+		return;
+
+	dbus_message_iter_init_append(msg, &iter);
+
+	if (!dbus_message_iter_append_basic(&iter, DBUS_TYPE_OBJECT_PATH,
+					    &path) ||
+	    !dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT16,
+					    &bootstrap_method))
+		wpa_printf(MSG_ERROR, "dbus: Failed to construct signal");
+	else
+		dbus_connection_send(iface->con, msg, NULL);
+
+	dbus_message_unref(msg);
+}
+
+
+/**
+ * wpas_dbus_signal_p2p_bootstrap_rsp - Signals BootstrappingResponse event
+ * @wpa_s: %wpa_supplicant network interface data
+ * @src: Source address of the peer with which bootstrapping is done
+ * @status: Status of Bootstrapping handshake
+ * @bootstrap_method: Local device requested bootstrap method
+ *
+ * Sends a signal to notify that a peer P2P Device is requesting bootstrapping
+ * negotiation with us.
+ */
+void wpas_dbus_signal_p2p_bootstrap_rsp(struct wpa_supplicant *wpa_s,
+					const u8 *src, int status,
+					u16 bootstrap_method)
+{
+	DBusMessage *msg;
+	DBusMessageIter iter;
+	struct wpas_dbus_priv *iface;
+	char peer_obj_path[WPAS_DBUS_OBJECT_PATH_MAX], *path;
+
+	iface = wpa_s->global->dbus;
+
+	/* Do nothing if the control interface is not turned on */
+	if (!iface)
+		return;
+
+	if (wpa_s->p2p_mgmt)
+		wpa_s = wpa_s->parent;
+	if (!wpa_s->dbus_new_path)
+		return;
+
+	os_snprintf(peer_obj_path, WPAS_DBUS_OBJECT_PATH_MAX,
+		    "%s/" WPAS_DBUS_NEW_P2P_PEERS_PART "/" COMPACT_MACSTR,
+		    wpa_s->dbus_new_path, MAC2STR(src));
+	path = peer_obj_path;
+
+	msg = dbus_message_new_signal(wpa_s->dbus_new_path,
+				      WPAS_DBUS_NEW_IFACE_P2PDEVICE,
+				      "BootstrappingCompleted");
+	if (!msg)
+		return;
+
+	dbus_message_iter_init_append(msg, &iter);
+
+	if (!dbus_message_iter_append_basic(&iter, DBUS_TYPE_OBJECT_PATH,
+					    &path) ||
+	    !dbus_message_iter_append_basic(&iter, DBUS_TYPE_INT32,
+					    &status) ||
+	    !dbus_message_iter_append_basic(&iter, DBUS_TYPE_UINT16,
+					    &bootstrap_method))
+		wpa_printf(MSG_ERROR, "dbus: Failed to construct signal");
+	else
+		dbus_connection_send(iface->con, msg, NULL);
+
+	dbus_message_unref(msg);
+}
+
+
 #endif /* CONFIG_P2P */
 
 
@@ -2395,6 +2528,10 @@ void wpas_dbus_signal_prop_changed(struct wpa_supplicant *wpa_s,
 		break;
 	case WPAS_DBUS_PROP_ROAM_COMPLETE:
 		prop = "RoamComplete";
+		break;
+	case WPAS_DBUS_PROP_SCAN_IN_PROGRESS_6GHZ:
+		prop = "ScanInProgress6GHz";
+		flush = TRUE;
 		break;
 	case WPAS_DBUS_PROP_SESSION_LENGTH:
 		prop = "SessionLength";
@@ -2489,41 +2626,6 @@ void wpas_dbus_bss_signal_prop_changed(struct wpa_supplicant *wpa_s,
 
 	wpa_dbus_mark_property_changed(wpa_s->global->dbus, path,
 				       WPAS_DBUS_NEW_IFACE_BSS, prop);
-}
-
-
-/**
- * wpas_dbus_sta_signal_prop_changed - Signals change of STA property
- * @wpa_s: %wpa_supplicant network interface data
- * @property: indicates which property has changed
- * @address: unique BSS identifier
- *
- * Sends PropertyChanged signals with path, interface, and arguments depending
- * on which property has changed.
- */
-void wpas_dbus_sta_signal_prop_changed(struct wpa_supplicant *wpa_s,
-				       enum wpas_dbus_bss_prop property,
-				       u8 address[ETH_ALEN])
-{
-	char path[WPAS_DBUS_OBJECT_PATH_MAX];
-	char *prop;
-
-	switch (property) {
-	case WPAS_DBUS_STA_PROP_ADDRESS:
-		prop = "Address";
-		break;
-	default:
-		wpa_printf(MSG_ERROR, "dbus: %s: Unknown Property value %d",
-			   __func__, property);
-		return;
-	}
-
-	os_snprintf(path, WPAS_DBUS_OBJECT_PATH_MAX,
-		    "%s/" WPAS_DBUS_NEW_STAS_PART "/" COMPACT_MACSTR,
-		    wpa_s->dbus_new_path, MAC2STR(address));
-
-	wpa_dbus_mark_property_changed(wpa_s->global->dbus, path,
-				       WPAS_DBUS_NEW_IFACE_STA, prop);
 }
 
 
@@ -3767,6 +3869,66 @@ static const struct wpa_dbus_method_desc wpas_dbus_interface_methods[] = {
 	  },
 	},
 #endif /* CONFIG_INTERWORKING */
+#ifdef CONFIG_NAN_USD
+	{ "NANPublish", WPAS_DBUS_NEW_IFACE_INTERFACE,
+	  (WPADBusMethodHandler) wpas_dbus_handler_nan_publish,
+	  {
+		  { "args", "a{sv}", ARG_IN },
+		  { "publish_id", "u", ARG_OUT },
+		  END_ARGS
+	  }
+	},
+	{ "NANCancelPublish", WPAS_DBUS_NEW_IFACE_INTERFACE,
+	  (WPADBusMethodHandler) wpas_dbus_handler_nan_cancel_publish,
+	  {
+		  { "publish_id", "u", ARG_IN },
+		  END_ARGS
+	  }
+	},
+	{ "NANUpdatePublish", WPAS_DBUS_NEW_IFACE_INTERFACE,
+	  (WPADBusMethodHandler) wpas_dbus_handler_nan_update_publish,
+	  {
+		  { "args", "a{sv}", ARG_IN },
+		  END_ARGS
+	  }
+	},
+	{ "NANPublishStopListen", WPAS_DBUS_NEW_IFACE_INTERFACE,
+	  (WPADBusMethodHandler) wpas_dbus_handler_nan_publish_stop_listen,
+	  {
+		  { "publish_id", "u", ARG_IN },
+		  END_ARGS
+	  }
+	},
+	{ "NANSubscribe", WPAS_DBUS_NEW_IFACE_INTERFACE,
+	  (WPADBusMethodHandler) wpas_dbus_handler_nan_subscribe,
+	  {
+		  { "args", "a{sv}", ARG_IN },
+		  { "subscribe_id", "u", ARG_OUT },
+		  END_ARGS
+	  }
+	},
+	{ "NANCancelSubscribe", WPAS_DBUS_NEW_IFACE_INTERFACE,
+	  (WPADBusMethodHandler) wpas_dbus_handler_nan_cancel_subscribe,
+	  {
+		  { "subscribe_id", "u", ARG_IN },
+		  END_ARGS
+	  }
+	},
+	{ "NANSubscribeStopListen", WPAS_DBUS_NEW_IFACE_INTERFACE,
+	  (WPADBusMethodHandler) wpas_dbus_handler_nan_subscribe_stop_listen,
+	  {
+		  { "subscribe_id", "u", ARG_IN },
+		  END_ARGS
+	  }
+	},
+	{ "NANTransmit", WPAS_DBUS_NEW_IFACE_INTERFACE,
+	  (WPADBusMethodHandler) wpas_dbus_handler_nan_transmit,
+	  {
+		  { "args", "a{sv}", ARG_IN },
+		  END_ARGS
+	  }
+	},
+#endif /* CONFIG_NAN_USD */
 	{ NULL, NULL, NULL, { END_ARGS } }
 };
 
@@ -3930,6 +4092,11 @@ static const struct wpa_dbus_property_desc wpas_dbus_interface_properties[] = {
 	  wpas_dbus_setter_p2p_device_config,
 	  NULL
 	},
+	{ "DeviceAddress", WPAS_DBUS_NEW_IFACE_P2PDEVICE, "ay",
+	  wpas_dbus_getter_p2p_device_address,
+	  NULL,
+	  NULL
+	},
 	{ "Peers", WPAS_DBUS_NEW_IFACE_P2PDEVICE, "ao",
 	  wpas_dbus_getter_p2p_peers,
 	  NULL,
@@ -3980,6 +4147,12 @@ static const struct wpa_dbus_property_desc wpas_dbus_interface_properties[] = {
 	{
 	  "RoamComplete", WPAS_DBUS_NEW_IFACE_INTERFACE, "b",
 	  wpas_dbus_getter_roam_complete,
+	  NULL,
+	  NULL
+	},
+	{
+	  "ScanInProgress6GHz", WPAS_DBUS_NEW_IFACE_INTERFACE, "b",
+	  wpas_dbus_getter_scan_in_progress_6ghz,
 	  NULL,
 	  NULL
 	},
@@ -4263,6 +4436,20 @@ static const struct wpa_dbus_signal_desc wpas_dbus_interface_signals[] = {
 		  END_ARGS
 	  }
 	},
+	{ "BootstrappingRequest", WPAS_DBUS_NEW_IFACE_P2PDEVICE,
+	  {
+		  { "path", "o", ARG_OUT },
+		  { "bootstrap_method", "q", ARG_OUT },
+		  END_ARGS
+	  }
+	},
+	{ "BootstrappingCompleted", WPAS_DBUS_NEW_IFACE_P2PDEVICE,
+	  {
+		  { "path", "o", ARG_OUT },
+		  { "status", "i", ARG_OUT },
+		  END_ARGS
+	  }
+	},
 #endif /* CONFIG_P2P */
 #ifdef CONFIG_AP
 	{ "ProbeRequest", WPAS_DBUS_NEW_IFACE_INTERFACE,
@@ -4374,6 +4561,40 @@ static const struct wpa_dbus_signal_desc wpas_dbus_interface_signals[] = {
 	  }
 	},
 #endif /* CONFIG_HS20 */
+#ifdef CONFIG_NAN_USD
+	{ "NANDiscoveryResult", WPAS_DBUS_NEW_IFACE_INTERFACE,
+	  {
+		  { "args", "a{sv}", ARG_OUT },
+		  END_ARGS
+	  }
+	},
+	{ "NANReplied", WPAS_DBUS_NEW_IFACE_INTERFACE,
+	  {
+		  { "args", "a{sv}", ARG_OUT },
+		  END_ARGS
+	  }
+	},
+	{ "NANReceive", WPAS_DBUS_NEW_IFACE_INTERFACE,
+	  {
+		  { "args", "a{sv}", ARG_OUT },
+		  END_ARGS
+	  }
+	},
+	{ "NANPublishTerminated", WPAS_DBUS_NEW_IFACE_INTERFACE,
+	  {
+		  { "publish_id", "u", ARG_OUT },
+		  { "reason", "s", ARG_OUT },
+		  END_ARGS
+	  }
+	},
+	{ "NANSubscribeTerminated", WPAS_DBUS_NEW_IFACE_INTERFACE,
+	  {
+		  { "subscribe_id", "u", ARG_OUT },
+		  { "reason", "s", ARG_OUT },
+		  END_ARGS
+	  }
+	},
+#endif /* CONFIG_NAN_USD */
 	{ NULL, NULL, { END_ARGS } }
 };
 
@@ -4940,6 +5161,11 @@ static const struct wpa_dbus_property_desc wpas_dbus_p2p_group_properties[] = {
 	  wpas_dbus_setter_p2p_group_vendor_ext,
 	  NULL
 	},
+	{ "GODeviceAddress", WPAS_DBUS_NEW_IFACE_P2P_GROUP, "o",
+	  wpas_dbus_getter_p2p_group_go_device_address,
+	  NULL,
+	  NULL
+	},
 	{ NULL, NULL, NULL, NULL, NULL, NULL }
 };
 
@@ -5243,3 +5469,259 @@ void wpas_dbus_signal_hs20_t_c_acceptance(struct wpa_supplicant *wpa_s,
 	dbus_message_unref(msg);
 }
 #endif /* CONFIG_HS20 */
+
+
+#ifdef CONFIG_NAN_USD
+
+/**
+ * wpas_dbus_signal_nan_discovery_result - Send NANDiscoveryResult signal
+ * @wpa_s: %wpa_supplicant network interface data
+ * @srv_proto_type: Service Protocol Type
+ * @subscribe_id: Subscribe ID of the session
+ * @peer_publish_id: Publish ID of the sender
+ * @peer_addr: MAC address of the peer device
+ * @ssi: Service specific information payload
+ * @ssi_len: Length of the SSI field
+ *
+ * This is used to indicate the NAN DE DiscoveryResult event.
+ */
+void wpas_dbus_signal_nan_discovery_result(struct wpa_supplicant *wpa_s,
+					   enum nan_service_protocol_type
+					   srv_proto_type,
+					   int subscribe_id,
+					   int peer_publish_id,
+					   const u8 *peer_addr,
+					   bool fsd, bool fsd_gas,
+					   const u8 *ssi, size_t ssi_len)
+{
+	struct wpas_dbus_priv *iface;
+	DBusMessage *msg;
+	DBusMessageIter iter, dict_iter;
+	char addr_str[20];
+
+	iface = wpa_s->global->dbus;
+	/* Do nothing if the interface is not turned on */
+	if (!iface || !wpa_s->dbus_new_path)
+		return;
+	msg = dbus_message_new_signal(wpa_s->dbus_new_path,
+				      WPAS_DBUS_NEW_IFACE_INTERFACE,
+				      "NANDiscoveryResult");
+	if (!msg)
+		return;
+
+	snprintf(addr_str, sizeof(addr_str), MACSTR, MAC2STR(peer_addr));
+
+	dbus_message_iter_init_append(msg, &iter);
+
+	if (!wpa_dbus_dict_open_write(&iter, &dict_iter) ||
+	    !wpa_dbus_dict_append_uint32(&dict_iter, "subscribe_id",
+					 subscribe_id) ||
+	    !wpa_dbus_dict_append_uint32(&dict_iter, "publish_id",
+					 peer_publish_id) ||
+	    !wpa_dbus_dict_append_string(&dict_iter, "peer_addr", addr_str) ||
+	    !wpa_dbus_dict_append_bool(&dict_iter, "fsd", fsd) ||
+	    !wpa_dbus_dict_append_bool(&dict_iter, "fsd_gas", fsd_gas) ||
+	    !wpa_dbus_dict_append_uint32(&dict_iter, "srv_proto_type",
+					 srv_proto_type) ||
+	    (ssi &&
+	     !wpa_dbus_dict_append_byte_array(&dict_iter,
+					      "ssi",
+					      (const char *) ssi,
+					      ssi_len)) ||
+	    !wpa_dbus_dict_close_write(&iter, &dict_iter))
+		wpa_printf(MSG_ERROR, "dbus: Failed to construct signal");
+	else
+		dbus_connection_send(iface->con, msg, NULL);
+	dbus_message_unref(msg);
+}
+
+
+/**
+ * wpas_dbus_signal_nan_replied - Send NANReplied signal
+ * @wpa_s: %wpa_supplicant network interface data
+ * @srv_proto_type: Service Protocol Type
+ * @publish_id: Publish id of the session
+ * @peer_subscribe_id: Subscribe id of the sender
+ * @peer_addr: MAC address of the peer device
+ * @ssi: Service specific information payload
+ * @ssi_len: Length of the SSI field
+ *
+ * This is used to indicate the NAN DE Replied event.
+ */
+void wpas_dbus_signal_nan_replied(struct wpa_supplicant *wpa_s,
+				  enum nan_service_protocol_type srv_proto_type,
+				  int publish_id,
+				  int peer_subscribe_id,
+				  const u8 *peer_addr,
+				  const u8 *ssi, size_t ssi_len)
+{
+	struct wpas_dbus_priv *iface;
+	DBusMessage *msg;
+	DBusMessageIter iter, dict_iter;
+	char addr_str[20];
+
+	iface = wpa_s->global->dbus;
+	/* Do nothing if the interface is not turned on */
+	if (!iface || !wpa_s->dbus_new_path)
+		return;
+
+	msg = dbus_message_new_signal(wpa_s->dbus_new_path,
+				      WPAS_DBUS_NEW_IFACE_INTERFACE,
+				      "NANReplied");
+	if (!msg)
+		return;
+
+	snprintf(addr_str, sizeof(addr_str), MACSTR, MAC2STR(peer_addr));
+
+	dbus_message_iter_init_append(msg, &iter);
+
+	if (!wpa_dbus_dict_open_write(&iter, &dict_iter) ||
+	    !wpa_dbus_dict_append_uint32(&dict_iter, "publish_id",
+					 publish_id) ||
+	    !wpa_dbus_dict_append_uint32(&dict_iter, "subscribe_id",
+					 peer_subscribe_id) ||
+	    !wpa_dbus_dict_append_string(&dict_iter, "peer_addr", addr_str) ||
+	    !wpa_dbus_dict_append_uint32(&dict_iter, "srv_proto_type",
+					 srv_proto_type) ||
+	    (ssi &&
+	     !wpa_dbus_dict_append_byte_array(&dict_iter, "ssi",
+					      (const char *) ssi,
+					      ssi_len)) ||
+	    !wpa_dbus_dict_close_write(&iter, &dict_iter))
+		wpa_printf(MSG_ERROR, "dbus: Failed to construct signal");
+	else
+		dbus_connection_send(iface->con, msg, NULL);
+	dbus_message_unref(msg);
+}
+
+
+/**
+ * wpas_dbus_signal_nan_receive - Send NANReceive signal
+ * @wpa_s: %wpa_supplicant network interface data
+ * @id: The original publish_id or subscribe_id
+ * @peer_id: Peer instance identifier
+ * @peer_addr: Address of the sender
+ * @ssi: Service specific information payload
+ * @ssi_len: Length of the SSI
+ *
+ * This is used to indicate the NAN DE Receive event to notify reception of a
+ * follow-up frame.
+ */
+void wpas_dbus_signal_nan_receive(struct wpa_supplicant *wpa_s,
+				  int id, int peer_id, const u8 *peer_addr,
+				  const u8 *ssi, size_t ssi_len)
+{
+	struct wpas_dbus_priv *iface;
+	DBusMessage *msg;
+	DBusMessageIter iter, dict_iter;
+	char addr_str[20];
+
+	iface = wpa_s->global->dbus;
+	/* Do nothing if the interface is not turned on */
+	if (!iface || !wpa_s->dbus_new_path)
+		return;
+
+	msg = dbus_message_new_signal(wpa_s->dbus_new_path,
+				      WPAS_DBUS_NEW_IFACE_INTERFACE,
+				      "NANReceive");
+	if (!msg)
+		return;
+
+	snprintf(addr_str, sizeof(addr_str), MACSTR, MAC2STR(peer_addr));
+
+	dbus_message_iter_init_append(msg, &iter);
+
+	if (!wpa_dbus_dict_open_write(&iter, &dict_iter) ||
+	    !wpa_dbus_dict_append_uint32(&dict_iter, "id", id) ||
+	    !wpa_dbus_dict_append_uint32(&dict_iter, "peer_id", peer_id) ||
+	    !wpa_dbus_dict_append_string(&dict_iter, "peer_addr", addr_str) ||
+	    (ssi &&
+	     !wpa_dbus_dict_append_byte_array(&dict_iter, "ssi",
+					      (const char *) ssi,
+					      ssi_len)) ||
+	    !wpa_dbus_dict_close_write(&iter, &dict_iter))
+		wpa_printf(MSG_ERROR, "dbus: Failed to construct signal");
+	else
+		dbus_connection_send(iface->con, msg, NULL);
+	dbus_message_unref(msg);
+}
+
+
+/**
+ * wpas_dbus_signal_nan_publish_terminated - Send NANPublishTerminated signal
+ * @wpa_s: %wpa_supplicant network interface data
+ * @publish_id: The publish_id of the session
+ * @reason: The reason of the termination
+ *
+ * This is used to indicate the NAN DE PublishTerminated event to notify when
+ * the session has expired.
+ */
+void wpas_dbus_signal_nan_publish_terminated(struct wpa_supplicant *wpa_s,
+					     int publish_id,
+					     const char *reason)
+{
+	struct wpas_dbus_priv *iface;
+	DBusMessage *msg;
+	dbus_uint32_t pub_id = publish_id;
+
+	iface = wpa_s->global->dbus;
+	/* Do nothing if the interface is not turned on */
+	if (!iface || !wpa_s->dbus_new_path)
+		return;
+
+	msg = dbus_message_new_signal(wpa_s->dbus_new_path,
+				      WPAS_DBUS_NEW_IFACE_INTERFACE,
+				      "NANPublishTerminated");
+	if (!msg)
+		return;
+
+	if (!dbus_message_append_args(msg, DBUS_TYPE_UINT32, &pub_id,
+				      DBUS_TYPE_INVALID) ||
+	    !dbus_message_append_args(msg, DBUS_TYPE_STRING, &reason,
+				      DBUS_TYPE_INVALID))
+		wpa_printf(MSG_ERROR, "dbus: Failed to construct signal");
+	else
+		dbus_connection_send(iface->con, msg, NULL);
+	dbus_message_unref(msg);
+}
+
+
+/**
+ * wpas_dbus_signal_nan_subscribe_terminated - Send NANSubscribeTerminated signal
+ * @wpa_s: %wpa_supplicant network interface data
+ * @subscribe_id: The subscribe_id of the session
+ * @reason: The reason of the termination
+ *
+ * This is used to indicate the NAN DE SubscribeTerminated event to notify when
+ * the session has expired.
+ */
+void wpas_dbus_signal_nan_subscribe_terminated(struct wpa_supplicant *wpa_s,
+					       int subscribe_id,
+					       const char *reason)
+{
+	struct wpas_dbus_priv *iface;
+	DBusMessage *msg;
+	dbus_uint32_t sub_id = subscribe_id;
+
+	iface = wpa_s->global->dbus;
+	/* Do nothing if the interface is not turned on */
+	if (!iface || !wpa_s->dbus_new_path)
+		return;
+
+	msg = dbus_message_new_signal(wpa_s->dbus_new_path,
+				      WPAS_DBUS_NEW_IFACE_INTERFACE,
+				      "NANSubscribeTerminated");
+	if (!msg)
+		return;
+
+	if (!dbus_message_append_args(msg, DBUS_TYPE_UINT32, &sub_id,
+				      DBUS_TYPE_INVALID) ||
+	    !dbus_message_append_args(msg, DBUS_TYPE_STRING, &reason,
+				      DBUS_TYPE_INVALID))
+		wpa_printf(MSG_ERROR, "dbus: Failed to construct signal");
+	else
+		dbus_connection_send(iface->con, msg, NULL);
+	dbus_message_unref(msg);
+}
+
+#endif /* CONFIG_NAN_USD */

@@ -148,6 +148,7 @@ static int wpa_supplicant_eapol_send(void *ctx, int type, const u8 *buf,
 {
 	struct wpa_supplicant *wpa_s = ctx;
 	u8 *msg, *dst, bssid[ETH_ALEN];
+	struct driver_sta_mlo_info drv_mlo;
 	size_t msglen;
 	int res;
 
@@ -197,11 +198,16 @@ static int wpa_supplicant_eapol_send(void *ctx, int type, const u8 *buf,
 	if (is_zero_ether_addr(wpa_s->bssid)) {
 		wpa_printf(MSG_DEBUG, "BSSID not set when trying to send an "
 			   "EAPOL frame");
+		os_memset(&drv_mlo, 0, sizeof(drv_mlo));
 		if (wpa_drv_get_bssid(wpa_s, bssid) == 0 &&
+		    (!wpa_s->valid_links ||
+		     wpas_drv_get_sta_mlo_info(wpa_s, &drv_mlo) == 0) &&
 		    !is_zero_ether_addr(bssid)) {
-			dst = bssid;
-			wpa_printf(MSG_DEBUG, "Using current BSSID " MACSTR
+			dst = drv_mlo.valid_links ? drv_mlo.ap_mld_addr : bssid;
+			wpa_printf(MSG_DEBUG, "Using current %s " MACSTR
 				   " from the driver as the EAPOL destination",
+				   drv_mlo.valid_links ? "AP MLD MAC address" :
+				   "BSSID",
 				   MAC2STR(dst));
 		} else {
 			dst = wpa_s->last_eapol_src;
@@ -211,9 +217,10 @@ static int wpa_supplicant_eapol_send(void *ctx, int type, const u8 *buf,
 				   MAC2STR(dst));
 		}
 	} else {
-		/* BSSID was already set (from (Re)Assoc event, so use it as
-		 * the EAPOL destination. */
-		dst = wpa_s->bssid;
+		/* BSSID was already set (from (Re)Assoc event, so use BSSID or
+		 * AP MLD MAC address (in the case of MLO connection) as the
+		 * EAPOL destination. */
+		dst = wpa_s->valid_links ? wpa_s->ap_mld_addr : wpa_s->bssid;
 	}
 
 	msg = wpa_alloc_eapol(wpa_s, type, buf, len, &msglen, NULL);
@@ -338,7 +345,10 @@ static void wpa_supplicant_eapol_cb(struct eapol_sm *eapol,
 			   "driver-based 4-way hs and FT");
 		res = eapol_sm_get_key(eapol, buf, 2 * PMK_LEN);
 		if (res == 0) {
-			os_memcpy(pmk, buf + PMK_LEN, PMK_LEN);
+			if (wpa_key_mgmt_sha384(wpa_s->key_mgmt))
+				os_memcpy(pmk, buf, pmk_len);
+			else
+				os_memcpy(pmk, buf + PMK_LEN, PMK_LEN);
 			os_memset(buf, 0, sizeof(buf));
 		}
 #else /* CONFIG_IEEE80211R */
@@ -431,6 +441,22 @@ static int wpa_get_beacon_ie(struct wpa_supplicant *wpa_s)
 
 		ie = wpa_bss_get_ie(curr, WLAN_EID_RSNX);
 		if (wpa_sm_set_ap_rsnxe(wpa_s->wpa, ie, ie ? 2 + ie[1] : 0))
+			ret = -1;
+
+		ie = wpa_bss_get_vendor_ie(curr, RSNE_OVERRIDE_IE_VENDOR_TYPE);
+		if (wpa_sm_set_ap_rsne_override(wpa_s->wpa, ie,
+						ie ? 2 + ie[1] : 0))
+			ret = -1;
+
+		ie = wpa_bss_get_vendor_ie(curr,
+					   RSNE_OVERRIDE_2_IE_VENDOR_TYPE);
+		if (wpa_sm_set_ap_rsne_override_2(wpa_s->wpa, ie,
+						  ie ? 2 + ie[1] : 0))
+			ret = -1;
+
+		ie = wpa_bss_get_vendor_ie(curr, RSNXE_OVERRIDE_IE_VENDOR_TYPE);
+		if (wpa_sm_set_ap_rsnxe_override(wpa_s->wpa, ie,
+						 ie ? 2 + ie[1] : 0))
 			ret = -1;
 	} else {
 		ret = -1;
@@ -1386,10 +1412,8 @@ static void wpa_supplicant_store_ptk(void *ctx, const u8 *addr, int cipher,
 	struct wpa_supplicant *wpa_s = ctx;
 
 	ptksa_cache_add(wpa_s->ptksa, wpa_s->own_addr, addr, cipher, life_time,
-			ptk, NULL, NULL, 0);
+			ptk, NULL, NULL, 0, 0);
 }
-
-#endif /* CONFIG_NO_WPA */
 
 
 #ifdef CONFIG_PASN
@@ -1424,6 +1448,32 @@ static void wpa_supplicant_ssid_verified(void *_wpa_s)
 	wpa_s->ssid_verified = true;
 	wpa_msg(wpa_s, MSG_INFO, "RSN: SSID matched expected value");
 }
+
+
+static void wpa_supplicant_sae_pw_id_change(void *_wpa_s,
+					    struct wpabuf_array *wa)
+{
+	struct wpa_supplicant *wpa_s = _wpa_s;
+	struct wpa_ssid *ssid = wpa_s->current_ssid;
+
+	wpa_msg(wpa_s, MSG_INFO, "RSN: Received %u SAE Password Identifier(s)",
+		wa->num);
+	if (!ssid) {
+		wpabuf_array_free(wa);
+		return;
+	}
+
+	wpabuf_array_free(ssid->alt_sae_password_ids);
+	ssid->alt_sae_password_ids = wa;
+
+#ifndef CONFIG_NO_CONFIG_WRITE
+	if (wpa_s->conf->update_config &&
+	    wpa_config_write(wpa_s->confname, wpa_s->conf))
+		wpa_printf(MSG_DEBUG, "SAE: Failed to update configuration");
+#endif /* CONFIG_NO_CONFIG_WRITE */
+}
+
+#endif /* CONFIG_NO_WPA */
 
 
 int wpa_supplicant_init_wpa(struct wpa_supplicant *wpa_s)
@@ -1493,6 +1543,7 @@ int wpa_supplicant_init_wpa(struct wpa_supplicant *wpa_s)
 #endif /* CONFIG_PASN */
 	ctx->notify_pmksa_cache_entry = wpa_supplicant_notify_pmksa_cache_entry;
 	ctx->ssid_verified = wpa_supplicant_ssid_verified;
+	ctx->sae_pw_id_change = wpa_supplicant_sae_pw_id_change;
 
 	wpa_s->wpa = wpa_sm_init(ctx);
 	if (wpa_s->wpa == NULL) {
