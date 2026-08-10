@@ -63,6 +63,7 @@ LIBADD.timerfd+=	pthread
 # One test modifies the system time.
 TEST_METADATA.timerfd+=	is_exclusive="true"
 ATF_TESTS_C+=	tty_pts
+ATF_TESTS_C+=	unix_connectat
 ATF_TESTS_C+=	unix_dgram
 ATF_TESTS_C+=	unix_passfd_dgram
 TEST_METADATA.unix_passfd_dgram+=	is_exclusive="true"
@@ -105,6 +106,7 @@ LIBADD.sys_getrandom+=			zstd
 LIBADD.sys_getrandom+=			c
 LIBADD.sys_getrandom+=			pthread
 LIBADD.ptrace_test+=			pthread
+LIBADD.unix_connectat+=			util
 LIBADD.unix_seqpacket_test+=		pthread
 LIBADD.inotify_test+=			util
 LIBADD.kcov+=				pthread
