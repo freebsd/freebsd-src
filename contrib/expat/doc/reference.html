@@ -53,7 +53,7 @@
   <body>
     <div>
       <h1>
-        The Expat XML Parser <small>Release 2.8.2</small>
+        The Expat XML Parser <small>Release 2.8.3</small>
       </h1>
     </div>
 
@@ -2917,6 +2917,13 @@ XML_GetCurrentByteIndex(XML_Parser p);
         <code><a href="#XML_GetCurrentColumnNumber">XML_GetCurrentColumnNumber</a></code>.
       </div>
 
+      <p>
+        <strong>Note:</strong> Type <code>XML_Index</code> is known to wrap around on
+        32bit platforms and 64bit Windows unless Expat has been compiled with
+        (non-default and uncommon) macro <code><a href=
+        "#XML_LARGE_SIZE">XML_LARGE_SIZE</a></code>.
+      </p>
+
       <h4 id="XML_GetCurrentLineNumber">
         XML_GetCurrentLineNumber
       </h4>
@@ -2930,6 +2937,13 @@ XML_GetCurrentLineNumber(XML_Parser p);
         <code>1</code>.
       </div>
 
+      <p>
+        <strong>Note:</strong> Type <code>XML_Size</code> is known to wrap around on
+        32bit platforms and 64bit Windows unless Expat has been compiled with
+        (non-default and uncommon) macro <code><a href=
+        "#XML_LARGE_SIZE">XML_LARGE_SIZE</a></code>.
+      </p>
+
       <h4 id="XML_GetCurrentColumnNumber">
         XML_GetCurrentColumnNumber
       </h4>
@@ -2942,6 +2956,13 @@ XML_GetCurrentColumnNumber(XML_Parser p);
         Return the <em>offset</em>, from the beginning of the current line, of the
         position. The first column is reported as <code>0</code>.
       </div>
+
+      <p>
+        <strong>Note:</strong> Type <code>XML_Size</code> is known to wrap around on
+        32bit platforms and 64bit Windows unless Expat has been compiled with
+        (non-default and uncommon) macro <code><a href=
+        "#XML_LARGE_SIZE">XML_LARGE_SIZE</a></code>.
+      </p>
 
       <h4 id="XML_GetCurrentByteCount">
         XML_GetCurrentByteCount
@@ -3404,6 +3425,13 @@ typedef struct {
         counts as 1; thus the number of entries in the array is
         <code>XML_GetSpecifiedAttributeCount(parser) / 2</code>.
       </div>
+
+      <p>
+        <strong>Note:</strong> Type <code>XML_Index</code> is known to wrap around on
+        32bit platforms and 64bit Windows unless Expat has been compiled with
+        (non-default and uncommon) macro <code><a href=
+        "#XML_LARGE_SIZE">XML_LARGE_SIZE</a></code>.
+      </p>
 
       <h4 id="XML_SetEncoding">
         XML_SetEncoding
