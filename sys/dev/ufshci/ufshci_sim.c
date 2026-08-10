@@ -448,10 +448,8 @@ ufshci_sim_find_periph(struct ufshci_controller *ctrlr, uint8_t wlun)
 		periph = cam_periph_find(path, "pass");
 		xpt_path_unlock(path);
 
-		if (periph) {
-			xpt_free_path(path);
+		if (periph)
 			break;
-		}
 
 		if (timeout - ticks < 0) {
 			ufshci_printf(ctrlr,
@@ -461,6 +459,8 @@ ufshci_sim_find_periph(struct ufshci_controller *ctrlr, uint8_t wlun)
 
 		pause_sbt("ufshci_find_periph", ustosbt(100), 0, C_PREL(1));
 	}
+
+	xpt_free_path(path);
 
 	return periph;
 }
