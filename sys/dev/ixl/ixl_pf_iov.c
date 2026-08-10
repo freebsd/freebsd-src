@@ -1654,7 +1654,7 @@ ixl_if_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params)
 	struct i40e_hw *hw;
 	struct ixl_vsi *pf_vsi;
 	enum i40e_status_code ret;
-	int error;
+	int error, i;
 
 	hw = &pf->hw;
 	pf_vsi = &pf->vsi;
@@ -1665,6 +1665,8 @@ ixl_if_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params)
 		error = ENOMEM;
 		goto fail;
 	}
+	for (i = 0; i < num_vfs; i++)
+		sysctl_ctx_init(&pf->vfs[i].vsi.sysctl_ctx);
 
 	/*
 	 * Add the VEB and ...
