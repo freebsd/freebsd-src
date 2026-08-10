@@ -5264,7 +5264,7 @@ ixgbe_sysctl_flowcntl(SYSCTL_HANDLER_ARGS)
 	/* Serialize the live register update with the administrative task. */
 	ctx_lock = iflib_ctx_lock_get(sc->ctx);
 	sx_xlock(ctx_lock);
-	if (fc == sc->hw.fc.current_mode)
+	if (fc == sc->hw.fc.requested_mode)
 		error = 0;
 	else
 		error = ixgbe_set_flowcntl(sc, fc);
