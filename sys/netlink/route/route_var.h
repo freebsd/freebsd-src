@@ -76,6 +76,7 @@ struct nl_parsed_link {
 	uint32_t	ifla_mtu;
 	uint32_t	ifi_flags;
 	uint32_t	ifi_change;
+	uint32_t	ifla_ext_mask;
 };
 
 #if defined(NETLINK) || defined(NETLINK_MODULE)

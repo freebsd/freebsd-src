@@ -184,12 +184,14 @@ struct ifnet {
 	struct debugnet_methods *if_debugnet_methods;
 	struct epoch_context	if_epoch_ctx;
 
+	if_vf_status_fn_t if_vf_status;	/* snapshot SR-IOV VF state */
+
 	/*
 	 * Spare fields to be added before branching a stable branch, so
 	 * that structure can be enhanced without changing the kernel
 	 * binary interface.
 	 */
-	int	if_ispare[4];		/* general use */
+	int if_ispare[4 - sizeof(if_vf_status_fn_t) / sizeof(int)];
 };
 
 #define	IF_AFDATA_LOCK_INIT(ifp)	\

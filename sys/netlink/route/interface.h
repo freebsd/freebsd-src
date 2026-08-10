@@ -94,7 +94,7 @@ enum {
 #define	IFLA_NET_NS_PID IFLA_NET_NS_PID
 	IFLA_IFALIAS	= 20,	/* string: interface description */
 #define	IFLA_IFALIAS IFLA_IFALIAS
-	IFLA_NUM_VF	= 21,	/* not supported */
+	IFLA_NUM_VF	= 21,	/* u32: VF records, when requested */
 #define	IFLA_NUM_VF IFLA_NUM_VF
 	IFLA_VFINFO_LIST= 22,	/* not supported */
 #define	IFLA_VFINFO_LIST IFLA_VFINFO_LIST
@@ -143,9 +143,13 @@ enum {
 	IFLA_GSO_IPV4_MAX_SIZE,
 	IFLA_GRO_IPV4_MAX_SIZE,
 	IFLA_FREEBSD,
+	IFLA_FREEBSD_VF,	/* nested, IFLAF_VF_*; repeated */
 	__IFLA_MAX
 };
 #define IFLA_MAX (__IFLA_MAX - 1)
+
+/* IFLA_EXT_MASK values. */
+#define	RTEXT_FILTER_VF		(1U << 0)
 
 enum {
 	IFLAF_UNSPEC		= 0,
@@ -153,9 +157,86 @@ enum {
 	IFLAF_ORIG_HWADDR	= 2,	/* binary, original hardware address */
 	IFLAF_CAPS		= 3,	/* bitset, interface capabilities */
 	IFLAF_GROUP		= 4,	/* string, interface group name (multi-attr) */
+	IFLAF_VF_STATUS		= 5,	/* nested, IFLAF_VFS_* */
 	__IFLAF_MAX
 };
 #define IFLAF_MAX (__IFLAF_MAX - 1)
+
+/* IFLAF_VF_STATUS attributes. */
+enum {
+	IFLAF_VFS_UNSPEC	= 0,
+	IFLAF_VFS_ERROR		= 1,	/* u32: errno from requested query */
+	IFLAF_VFS_PF_LINK_STATE	= 2,	/* u8: IFLAF_VF_LINK_* */
+	IFLAF_VFS_PF_LINK_SPEED	= 3,	/* u64: bits per second */
+	__IFLAF_VFS_MAX
+};
+#define	IFLAF_VFS_MAX	(__IFLAF_VFS_MAX - 1)
+
+/* IFLA_FREEBSD_VF attributes. */
+enum {
+	IFLAF_VF_UNSPEC			= 0,
+	IFLAF_VF_INDEX			= 1,	/* u32 */
+	IFLAF_VF_CONFIGURED		= 2,	/* bool */
+	IFLAF_VF_INITIALIZED		= 3,	/* bool */
+	IFLAF_VF_MAC			= 4,	/* binary */
+	IFLAF_VF_VLAN_MODE		= 5,	/* u8: IFLAF_VF_VLAN_* */
+	IFLAF_VF_VLAN			= 6,	/* u16 */
+	IFLAF_VF_VLAN_PCP		= 7,	/* u8: IEEE 802.1p PCP */
+	IFLAF_VF_VLAN_PROTO		= 8,	/* u16: host-order EtherType */
+	IFLAF_VF_VLAN_COUNT		= 9,	/* u32 */
+	IFLAF_VF_VLAN_LIMIT		= 10,	/* u32 */
+	IFLAF_VF_NUM_TX_QUEUES		= 11,	/* u16 */
+	IFLAF_VF_NUM_RX_QUEUES		= 12,	/* u16 */
+	IFLAF_VF_MIN_TX_RATE		= 13,	/* u64: minimum bits per second */
+	IFLAF_VF_MAX_TX_RATE		= 14,	/* u64: maximum bits per second */
+	IFLAF_VF_ALLOW_SET_MAC		= 15,	/* bool */
+	IFLAF_VF_ALLOW_SET_VLAN		= 16,	/* bool */
+	IFLAF_VF_MAC_ANTI_SPOOF		= 17,	/* bool */
+	IFLAF_VF_ALLOW_PROMISC		= 18,	/* bool */
+	IFLAF_VF_TRAFFIC_ALLOWED	= 19,	/* bool */
+	IFLAF_VF_FAULT_BLOCKED		= 20,	/* bool */
+	IFLAF_VF_QUARANTINED		= 21,	/* bool */
+	IFLAF_VF_API_VERSION		= 22,	/* string */
+	IFLAF_VF_LINK_STATE_POLICY	= 23,	/* u8: IFLAF_VF_LINK_* */
+	IFLAF_VF_DRIVER			= 24,	/* nested; repeated */
+	__IFLAF_VF_MAX
+};
+#define	IFLAF_VF_MAX	(__IFLAF_VF_MAX - 1)
+
+/* IFLAF_VF_DRIVER attributes. */
+enum {
+	IFLAF_VFD_UNSPEC	= 0,
+	IFLAF_VFD_NAME		= 1,	/* string: stable namespace */
+	IFLAF_VFD_VERSION	= 2,	/* u32: namespace version */
+	IFLAF_VFD_FIELD		= 3,	/* nested, IFLAF_VFDF_*; repeated */
+	__IFLAF_VFD_MAX
+};
+#define	IFLAF_VFD_MAX	(__IFLAF_VFD_MAX - 1)
+
+/* IFLAF_VFD_FIELD attributes; exactly one value attribute is present. */
+enum {
+	IFLAF_VFDF_UNSPEC	= 0,
+	IFLAF_VFDF_NAME		= 1,	/* string: namespace-local name */
+	IFLAF_VFDF_BOOL		= 2,	/* bool */
+	IFLAF_VFDF_NUMBER	= 3,	/* u64 */
+	IFLAF_VFDF_STRING	= 4,	/* string */
+	IFLAF_VFDF_BINARY	= 5,	/* binary */
+	__IFLAF_VFDF_MAX
+};
+#define	IFLAF_VFDF_MAX	(__IFLAF_VFDF_MAX - 1)
+
+enum {
+	IFLAF_VF_LINK_UNKNOWN	= 0,
+	IFLAF_VF_LINK_DOWN	= 1,
+	IFLAF_VF_LINK_UP	= 2,
+	IFLAF_VF_LINK_AUTO	= 3,
+};
+
+enum {
+	IFLAF_VF_VLAN_UNKNOWN	= 0,
+	IFLAF_VF_VLAN_ACCESS	= 1,
+	IFLAF_VF_VLAN_TRUNK	= 2,
+};
 
 /*
  * Attributes that can be used as filters:

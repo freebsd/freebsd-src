@@ -3,6 +3,7 @@ import socket
 
 import pytest
 from atf_python.sys.netlink.netlink_route import IflattrType
+from atf_python.sys.netlink.netlink_route import IflafAttrType
 from atf_python.sys.netlink.netlink_route import IflinkInfo
 from atf_python.sys.netlink.netlink_route import IfLinkInfoDataVlan
 from atf_python.sys.netlink.netlink_route import NetlinkIflaMessage
@@ -27,12 +28,14 @@ class TestRtNlIface(NetlinkTestTemplate, SingleVnetTestTemplate):
         super().setup_method(method)
         self.setup_netlink(NlConst.NETLINK_ROUTE)
 
-    def get_interface_byname(self, ifname):
+    def get_interface_byname(self, ifname, ext_mask=0):
         msg = NetlinkIflaMessage(self.helper, NlRtMsgType.RTM_GETLINK.value)
         msg.nl_hdr.nlmsg_flags = (
             NlmBaseFlags.NLM_F_ACK.value | NlmBaseFlags.NLM_F_REQUEST.value
         )
         msg.add_nla(NlAttrStr(IflattrType.IFLA_IFNAME, ifname))
+        if ext_mask != 0:
+            msg.add_nla(NlAttrU32(IflattrType.IFLA_EXT_MASK, ext_mask))
         self.write_message(msg)
         while True:
             rx_msg = self.read_message()
@@ -68,6 +71,14 @@ class TestRtNlIface(NetlinkTestTemplate, SingleVnetTestTemplate):
         rx_msg = self.get_reply(msg)
         assert rx_msg.is_type(NlMsgType.NLMSG_ERROR)
         assert rx_msg.error_code == errno.ENODEV
+
+    def test_get_iface_vf_filter_unsupported(self):
+        """Tests that the VF filter is accepted on a non-SR-IOV interface"""
+        rx_msg = self.get_interface_byname("lo0", 1)
+        assert rx_msg.get_nla(IflattrType.IFLA_NUM_VF) is None
+        fbsd = rx_msg.get_nla(IflattrType.IFLA_FREEBSD)
+        assert fbsd is not None
+        assert fbsd.get_nla(IflafAttrType.IFLAF_VF_STATUS) is None
 
     @pytest.mark.require_user("root")
     def test_create_iface_plain(self):

@@ -13,7 +13,9 @@ from atf_python.sys.netlink.attrs import NlAttr
 from atf_python.sys.netlink.attrs import NlAttrIp
 from atf_python.sys.netlink.attrs import NlAttrNested
 from atf_python.sys.netlink.attrs import NlAttrStr
+from atf_python.sys.netlink.attrs import NlAttrU16
 from atf_python.sys.netlink.attrs import NlAttrU32
+from atf_python.sys.netlink.attrs import NlAttrU64
 from atf_python.sys.netlink.attrs import NlAttrU8
 from atf_python.sys.netlink.message import StdNetlinkMessage
 from atf_python.sys.netlink.message import NlMsgProps
@@ -355,12 +357,66 @@ class IflattrType(Enum):
     IFLA_GSO_IPV4_MAX_SIZE = 62
     IFLA_GRO_IPV4_MAX_SIZE = 63
     IFLA_FREEBSD = 64
+    IFLA_FREEBSD_VF = 65
 
 
 class IflafAttrType(Enum):
     IFLAF_UNSPEC = 0
     IFLAF_ORIG_IFNAME = 1
     IFLAF_ORIG_HWADDR = 2
+    IFLAF_CAPS = 3
+    IFLAF_VF_STATUS = 5
+
+
+class IflafVfStatusType(Enum):
+    IFLAF_VFS_UNSPEC = 0
+    IFLAF_VFS_ERROR = 1
+    IFLAF_VFS_PF_LINK_STATE = 2
+    IFLAF_VFS_PF_LINK_SPEED = 3
+
+
+class IflafVfType(Enum):
+    IFLAF_VF_UNSPEC = 0
+    IFLAF_VF_INDEX = 1
+    IFLAF_VF_CONFIGURED = 2
+    IFLAF_VF_INITIALIZED = 3
+    IFLAF_VF_MAC = 4
+    IFLAF_VF_VLAN_MODE = 5
+    IFLAF_VF_VLAN = 6
+    IFLAF_VF_VLAN_PCP = 7
+    IFLAF_VF_VLAN_PROTO = 8
+    IFLAF_VF_VLAN_COUNT = 9
+    IFLAF_VF_VLAN_LIMIT = 10
+    IFLAF_VF_NUM_TX_QUEUES = 11
+    IFLAF_VF_NUM_RX_QUEUES = 12
+    IFLAF_VF_MIN_TX_RATE = 13
+    IFLAF_VF_MAX_TX_RATE = 14
+    IFLAF_VF_ALLOW_SET_MAC = 15
+    IFLAF_VF_ALLOW_SET_VLAN = 16
+    IFLAF_VF_MAC_ANTI_SPOOF = 17
+    IFLAF_VF_ALLOW_PROMISC = 18
+    IFLAF_VF_TRAFFIC_ALLOWED = 19
+    IFLAF_VF_FAULT_BLOCKED = 20
+    IFLAF_VF_QUARANTINED = 21
+    IFLAF_VF_API_VERSION = 22
+    IFLAF_VF_LINK_STATE_POLICY = 23
+    IFLAF_VF_DRIVER = 24
+
+
+class IflafVfDriverType(Enum):
+    IFLAF_VFD_UNSPEC = 0
+    IFLAF_VFD_NAME = 1
+    IFLAF_VFD_VERSION = 2
+    IFLAF_VFD_FIELD = 3
+
+
+class IflafVfDriverFieldType(Enum):
+    IFLAF_VFDF_UNSPEC = 0
+    IFLAF_VFDF_NAME = 1
+    IFLAF_VFDF_BOOL = 2
+    IFLAF_VFDF_NUMBER = 3
+    IFLAF_VFDF_STRING = 4
+    IFLAF_VFDF_BINARY = 5
 
 
 class IflinkInfo(Enum):
@@ -621,6 +677,61 @@ rtnl_route_attrs = prepare_attrs_map(
     ]
 )
 
+rtnl_iflaf_vf_driver_field_attrs = [
+    AttrDescr(IflafVfDriverFieldType.IFLAF_VFDF_NAME, NlAttrStr),
+    AttrDescr(IflafVfDriverFieldType.IFLAF_VFDF_BOOL, NlAttrU8),
+    AttrDescr(IflafVfDriverFieldType.IFLAF_VFDF_NUMBER, NlAttrU64),
+    AttrDescr(IflafVfDriverFieldType.IFLAF_VFDF_STRING, NlAttrStr),
+    AttrDescr(IflafVfDriverFieldType.IFLAF_VFDF_BINARY, NlAttr),
+]
+
+rtnl_iflaf_vf_driver_attrs = [
+    AttrDescr(IflafVfDriverType.IFLAF_VFD_NAME, NlAttrStr),
+    AttrDescr(IflafVfDriverType.IFLAF_VFD_VERSION, NlAttrU32),
+    AttrDescr(
+        IflafVfDriverType.IFLAF_VFD_FIELD,
+        NlAttrNested,
+        rtnl_iflaf_vf_driver_field_attrs,
+    ),
+]
+
+rtnl_iflaf_vf_attrs = [
+    AttrDescr(IflafVfType.IFLAF_VF_INDEX, NlAttrU32),
+    AttrDescr(IflafVfType.IFLAF_VF_CONFIGURED, NlAttrU8),
+    AttrDescr(IflafVfType.IFLAF_VF_INITIALIZED, NlAttrU8),
+    AttrDescr(IflafVfType.IFLAF_VF_MAC, NlAttrMac),
+    AttrDescr(IflafVfType.IFLAF_VF_VLAN_MODE, NlAttrU8),
+    AttrDescr(IflafVfType.IFLAF_VF_VLAN, NlAttrU16),
+    AttrDescr(IflafVfType.IFLAF_VF_VLAN_PCP, NlAttrU8),
+    AttrDescr(IflafVfType.IFLAF_VF_VLAN_PROTO, NlAttrU16),
+    AttrDescr(IflafVfType.IFLAF_VF_VLAN_COUNT, NlAttrU32),
+    AttrDescr(IflafVfType.IFLAF_VF_VLAN_LIMIT, NlAttrU32),
+    AttrDescr(IflafVfType.IFLAF_VF_NUM_TX_QUEUES, NlAttrU16),
+    AttrDescr(IflafVfType.IFLAF_VF_NUM_RX_QUEUES, NlAttrU16),
+    AttrDescr(IflafVfType.IFLAF_VF_MIN_TX_RATE, NlAttrU64),
+    AttrDescr(IflafVfType.IFLAF_VF_MAX_TX_RATE, NlAttrU64),
+    AttrDescr(IflafVfType.IFLAF_VF_ALLOW_SET_MAC, NlAttrU8),
+    AttrDescr(IflafVfType.IFLAF_VF_ALLOW_SET_VLAN, NlAttrU8),
+    AttrDescr(IflafVfType.IFLAF_VF_MAC_ANTI_SPOOF, NlAttrU8),
+    AttrDescr(IflafVfType.IFLAF_VF_ALLOW_PROMISC, NlAttrU8),
+    AttrDescr(IflafVfType.IFLAF_VF_TRAFFIC_ALLOWED, NlAttrU8),
+    AttrDescr(IflafVfType.IFLAF_VF_FAULT_BLOCKED, NlAttrU8),
+    AttrDescr(IflafVfType.IFLAF_VF_QUARANTINED, NlAttrU8),
+    AttrDescr(IflafVfType.IFLAF_VF_API_VERSION, NlAttrStr),
+    AttrDescr(IflafVfType.IFLAF_VF_LINK_STATE_POLICY, NlAttrU8),
+    AttrDescr(
+        IflafVfType.IFLAF_VF_DRIVER,
+        NlAttrNested,
+        rtnl_iflaf_vf_driver_attrs,
+    ),
+]
+
+rtnl_iflaf_vf_status_attrs = [
+    AttrDescr(IflafVfStatusType.IFLAF_VFS_ERROR, NlAttrU32),
+    AttrDescr(IflafVfStatusType.IFLAF_VFS_PF_LINK_STATE, NlAttrU8),
+    AttrDescr(IflafVfStatusType.IFLAF_VFS_PF_LINK_SPEED, NlAttrU64),
+]
+
 rtnl_ifla_attrs = prepare_attrs_map(
     [
         AttrDescr(IflattrType.IFLA_ADDRESS, NlAttrMac),
@@ -632,6 +743,7 @@ rtnl_ifla_attrs = prepare_attrs_map(
         AttrDescr(IflattrType.IFLA_OPERSTATE, NlAttrU8),
         AttrDescr(IflattrType.IFLA_CARRIER, NlAttrU8),
         AttrDescr(IflattrType.IFLA_IFALIAS, NlAttrStr),
+        AttrDescr(IflattrType.IFLA_NUM_VF, NlAttrU32),
         AttrDescr(IflattrType.IFLA_STATS64, NlAttrIfStats),
         AttrDescr(IflattrType.IFLA_NEW_IFINDEX, NlAttrU32),
         AttrDescr(
@@ -647,7 +759,17 @@ rtnl_ifla_attrs = prepare_attrs_map(
             NlAttrNested,
             [
                 AttrDescr(IflafAttrType.IFLAF_ORIG_HWADDR, NlAttrMac),
+                AttrDescr(
+                    IflafAttrType.IFLAF_VF_STATUS,
+                    NlAttrNested,
+                    rtnl_iflaf_vf_status_attrs,
+                ),
             ],
+        ),
+        AttrDescr(
+            IflattrType.IFLA_FREEBSD_VF,
+            NlAttrNested,
+            rtnl_iflaf_vf_attrs,
         ),
     ]
 )

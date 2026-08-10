@@ -36,6 +36,7 @@
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_var.h>
+#include <net/if_vf_status.h>
 #include <net/if_media.h>
 #include <net/iflib.h>
 #include <net/if_private.h>
@@ -135,6 +136,13 @@ CODE {
 	null_get_rss_hash(if_ctx_t _ctx __unused, struct ifrsshash *_hash __unused)
 	{
 		return (EOPNOTSUPP);
+	}
+
+	static int
+	null_vf_status(if_ctx_t _ctx __unused,
+	    struct if_vf_status **_status __unused)
+	{
+		return (ENOTSUP);
 	}
 
 	static bool
@@ -428,3 +436,8 @@ METHOD int get_downreason {
 	if_ctx_t _ctx;
 	struct ifdownreason *_ifdr;
 } DEFAULT null_get_downreason;
+
+METHOD int vf_status {
+	if_ctx_t _ctx;
+	struct if_vf_status **_status;
+} DEFAULT null_vf_status;
