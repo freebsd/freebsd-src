@@ -661,7 +661,7 @@ ixgbe_initialize_rss_mapping(struct ixgbe_softc *sc)
 {
 	struct ixgbe_hw *hw = &sc->hw;
 	u32 reta = 0, mrqc, rss_key[10];
-	int queue_id, table_size, index_mult;
+	int queue_id, reta_queues, table_size, index_mult;
 	int i, j;
 	u32 rss_hash_config;
 
@@ -690,19 +690,31 @@ ixgbe_initialize_rss_mapping(struct ixgbe_softc *sc)
 		break;
 	}
 
+	/*
+	 * The global RETA is shared by the PF and VFs on 82599 and X540.
+	 * Program all four queue indices while SR-IOV is active so a VF can
+	 * use its full queue grant even when the PF uses fewer queues.
+	 * PSRTYPE.RQPL limits the subset selected within each pool.
+	 */
+	reta_queues = sc->num_rx_queues;
+#ifdef PCI_IOV
+	if (sc->iov_mode != IXGBE_NO_VM)
+		reta_queues = MAX(reta_queues, 4);
+#endif
+
 	/* Set up the redirection table */
 	for (i = 0, j = 0; i < table_size; i++, j++) {
-		if (j == sc->num_rx_queues)
+		if (j == reta_queues)
 			j = 0;
 
 		if (sc->feat_en & IXGBE_FEATURE_RSS) {
 			/*
 			 * Fetch the RSS bucket id for the given indirection
-			 * entry. Cap it at the number of configured buckets
-			 * (which is num_rx_queues.)
+			 * entry.  Cap it at the number of queue indices that must
+			 * be represented in the shared table.
 			 */
 			queue_id = rss_get_indirection_to_bucket(i);
-			queue_id = queue_id % sc->num_rx_queues;
+			queue_id = queue_id % reta_queues;
 		} else
 			queue_id = (j * index_mult);
 
