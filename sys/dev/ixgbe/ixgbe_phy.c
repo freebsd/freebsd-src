@@ -1299,8 +1299,12 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 	u8 oui_bytes[3] = {0, 0, 0};
 	u8 cable_tech = 0;
 	u8 cable_spec = 0;
+	u8 bitrate_nominal = 0;
+	u8 sm_length_100m = 0;
+	u8 sm_length_km = 0;
 	u8 retries;
 	u16 enforce_sfp = 0;
+	bool is_10g_bx = false;
 	static bool warned_once = false;
 
 	DEBUGFUNC("ixgbe_identify_sfp_module_generic");
@@ -1357,6 +1361,37 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 
 		if (status != IXGBE_SUCCESS)
 			goto err_read_i2c_eeprom;
+
+		/*
+		 * SFF-8472 identifies 10G-BX by an empty 10G compliance
+		 * byte, a nominal 10.3 GBd rate, and at least 1 km of
+		 * single-mode fiber reach.  Resolve that strong signature
+		 * before falling back to the permissive 1G-BX check below.
+		 */
+		if (hw->mac.type != ixgbe_mac_82598EB &&
+		    comp_codes_10g == 0 &&
+		    (comp_codes_1g & (IXGBE_SFF_1GBASET_CAPABLE |
+		    IXGBE_SFF_1GBASESX_CAPABLE |
+		    IXGBE_SFF_1GBASELX_CAPABLE)) == 0 &&
+		    (cable_tech & (IXGBE_SFF_DA_PASSIVE_CABLE |
+		    IXGBE_SFF_DA_ACTIVE_CABLE)) == 0) {
+			status = hw->phy.ops.read_i2c_eeprom(hw,
+			    IXGBE_SFF_BITRATE_NOMINAL, &bitrate_nominal);
+			if (status != IXGBE_SUCCESS)
+				goto err_read_i2c_eeprom;
+			if (bitrate_nominal == IXGBE_SFF_10G_BX_BITRATE) {
+				status = hw->phy.ops.read_i2c_eeprom(hw,
+				    IXGBE_SFF_SM_LENGTH_KM, &sm_length_km);
+				if (status != IXGBE_SUCCESS)
+					goto err_read_i2c_eeprom;
+				status = hw->phy.ops.read_i2c_eeprom(hw,
+				    IXGBE_SFF_SM_LENGTH_100M, &sm_length_100m);
+				if (status != IXGBE_SUCCESS)
+					goto err_read_i2c_eeprom;
+			}
+			is_10g_bx = bitrate_nominal == IXGBE_SFF_10G_BX_BITRATE &&
+			    (sm_length_km > 0 || sm_length_100m >= 10);
+		}
 
 		 /* ID Module
 		  * =========
@@ -1437,6 +1472,13 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 				else
 					hw->phy.sfp_type =
 						ixgbe_sfp_type_1g_lx_core1;
+			} else if (is_10g_bx) {
+				if (hw->bus.lan_id == 0)
+					hw->phy.sfp_type =
+					    ixgbe_sfp_type_10g_bx_core0;
+				else
+					hw->phy.sfp_type =
+					    ixgbe_sfp_type_10g_bx_core1;
 			} else if (comp_codes_1g & IXGBE_SFF_BASEBX10_CAPABLE) {
 				if (hw->bus.lan_id == 0)
 					hw->phy.sfp_type =
@@ -1536,7 +1578,9 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 		      hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core0 ||
 		      hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core1 ||
 		      hw->phy.sfp_type == ixgbe_sfp_type_1g_bx_core0 ||
-		      hw->phy.sfp_type == ixgbe_sfp_type_1g_bx_core1)) {
+		      hw->phy.sfp_type == ixgbe_sfp_type_1g_bx_core1 ||
+		      hw->phy.sfp_type == ixgbe_sfp_type_10g_bx_core0 ||
+		      hw->phy.sfp_type == ixgbe_sfp_type_10g_bx_core1)) {
 			hw->phy.type = ixgbe_phy_sfp_unsupported;
 			status = IXGBE_ERR_SFP_NOT_SUPPORTED;
 			goto out;
@@ -1557,7 +1601,9 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 		      hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core0 ||
 		      hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core1 ||
 		      hw->phy.sfp_type == ixgbe_sfp_type_1g_bx_core0 ||
-		      hw->phy.sfp_type == ixgbe_sfp_type_1g_bx_core1)) {
+		      hw->phy.sfp_type == ixgbe_sfp_type_1g_bx_core1 ||
+		      hw->phy.sfp_type == ixgbe_sfp_type_10g_bx_core0 ||
+		      hw->phy.sfp_type == ixgbe_sfp_type_10g_bx_core1)) {
 			/* Make sure we're a supported PHY type */
 			if (hw->phy.type == ixgbe_phy_sfp_intel) {
 				status = IXGBE_SUCCESS;
@@ -1612,6 +1658,9 @@ u64 ixgbe_get_supported_phy_sfp_layer_generic(struct ixgbe_hw *hw)
 	hw->phy.ops.identify_sfp(hw);
 	if (hw->phy.sfp_type == ixgbe_sfp_type_not_present)
 		return physical_layer;
+	if (hw->phy.sfp_type == ixgbe_sfp_type_10g_bx_core0 ||
+	    hw->phy.sfp_type == ixgbe_sfp_type_10g_bx_core1)
+		return IXGBE_PHYSICAL_LAYER_10GBASE_BX;
 
 	switch (hw->phy.type) {
 	case ixgbe_phy_sfp_passive_tyco:
@@ -1884,20 +1933,22 @@ s32 ixgbe_get_sfp_init_sequence_offsets(struct ixgbe_hw *hw,
 		return IXGBE_ERR_SFP_NOT_SUPPORTED;
 
 	/*
-	 * Limiting active cables and 1G Phys must be initialized as
+	 * Limiting active cables, 10G-BX, and 1G PHYs must be initialized as
 	 * SR modules
 	 */
 	if (sfp_type == ixgbe_sfp_type_da_act_lmt_core0 ||
 	    sfp_type == ixgbe_sfp_type_1g_lx_core0 ||
 	    sfp_type == ixgbe_sfp_type_1g_cu_core0 ||
 	    sfp_type == ixgbe_sfp_type_1g_sx_core0 ||
-	    sfp_type == ixgbe_sfp_type_1g_bx_core0)
+	    sfp_type == ixgbe_sfp_type_1g_bx_core0 ||
+	    sfp_type == ixgbe_sfp_type_10g_bx_core0)
 		sfp_type = ixgbe_sfp_type_srlr_core0;
 	else if (sfp_type == ixgbe_sfp_type_da_act_lmt_core1 ||
 		 sfp_type == ixgbe_sfp_type_1g_lx_core1 ||
 		 sfp_type == ixgbe_sfp_type_1g_cu_core1 ||
 		 sfp_type == ixgbe_sfp_type_1g_sx_core1 ||
-		 sfp_type == ixgbe_sfp_type_1g_bx_core1)
+		 sfp_type == ixgbe_sfp_type_1g_bx_core1 ||
+		 sfp_type == ixgbe_sfp_type_10g_bx_core1)
 		sfp_type = ixgbe_sfp_type_srlr_core1;
 
 	/* Read offset to PHY init contents */

@@ -3551,6 +3551,7 @@ typedef u64 ixgbe_physical_layer;
 #define IXGBE_PHYSICAL_LAYER_2500BASE_KX	0x10000
 #define IXGBE_PHYSICAL_LAYER_2500BASE_T		0x20000
 #define IXGBE_PHYSICAL_LAYER_5000BASE_T		0x40000
+#define IXGBE_PHYSICAL_LAYER_10GBASE_BX		0x80000
 
 /* Flow Control Data Sheet defined values
  * Calculation and defines taken from 802.1bb Annex O
@@ -3827,6 +3828,8 @@ enum ixgbe_sfp_type {
 	ixgbe_sfp_type_1g_lx_core1 = 14,
 	ixgbe_sfp_type_1g_bx_core0 = 15,
 	ixgbe_sfp_type_1g_bx_core1 = 16,
+	ixgbe_sfp_type_10g_bx_core0 = 17,
+	ixgbe_sfp_type_10g_bx_core1 = 18,
 	ixgbe_sfp_type_not_present = 0xFFFE,
 	ixgbe_sfp_type_unknown = 0xFFFF
 };
