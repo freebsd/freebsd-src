@@ -479,12 +479,12 @@ int ufshci_dev_link_state_transition(struct ufshci_controller *ctrlr,
     enum ufshci_uic_link_state target_state);
 
 /* Controller Command */
-void ufshci_ctrlr_cmd_send_task_mgmt_request(struct ufshci_controller *ctrlr,
+int ufshci_ctrlr_cmd_send_task_mgmt_request(struct ufshci_controller *ctrlr,
     ufshci_cb_fn_t cb_fn, void *cb_arg, uint8_t function, uint8_t lun,
     uint8_t task_tag, uint8_t iid);
-void ufshci_ctrlr_cmd_send_nop(struct ufshci_controller *ctrlr,
+int ufshci_ctrlr_cmd_send_nop(struct ufshci_controller *ctrlr,
     ufshci_cb_fn_t cb_fn, void *cb_arg);
-void ufshci_ctrlr_cmd_send_query_request(struct ufshci_controller *ctrlr,
+int ufshci_ctrlr_cmd_send_query_request(struct ufshci_controller *ctrlr,
     ufshci_cb_fn_t cb_fn, void *cb_arg, struct ufshci_query_param param);
 void ufshci_ctrlr_cmd_send_scsi_command(struct ufshci_controller *ctrlr,
     ufshci_cb_fn_t cb_fn, void *cb_arg, uint8_t *cmd_ptr, uint8_t cmd_len,

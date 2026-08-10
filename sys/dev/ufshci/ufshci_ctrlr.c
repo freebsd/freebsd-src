@@ -494,9 +494,14 @@ int
 ufshci_ctrlr_send_nop(struct ufshci_controller *ctrlr)
 {
 	struct ufshci_completion_poll_status status;
+	int error;
 
 	status.done = 0;
-	ufshci_ctrlr_cmd_send_nop(ctrlr, ufshci_completion_poll_cb, &status);
+	error = ufshci_ctrlr_cmd_send_nop(ctrlr, ufshci_completion_poll_cb,
+	    &status);
+	if (error)
+		return (error);
+
 	ufshci_completion_poll(&status);
 	if (status.error) {
 		ufshci_printf(ctrlr, "ufshci_ctrlr_send_nop failed!\n");
