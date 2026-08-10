@@ -29,9 +29,9 @@ ufshci_ctrlr_cmd_send_task_mgmt_request(struct ufshci_controller *ctrlr,
 	    UFSHCI_UPIU_TRANSACTION_CODE_TASK_MANAGEMENT_REQUEST;
 	upiu->header.lun = lun;
 	upiu->header.ext_iid_or_function = function;
-	upiu->input_param1 = lun;
-	upiu->input_param2 = task_tag;
-	upiu->input_param3 = iid;
+	upiu->input_param1 = htobe32(lun);
+	upiu->input_param2 = htobe32(task_tag);
+	upiu->input_param3 = htobe32(iid);
 
 	error = ufshci_ctrlr_submit_task_mgmt_request(ctrlr, req);
 	if (error)
@@ -87,8 +87,8 @@ ufshci_ctrlr_cmd_send_query_request(struct ufshci_controller *ctrlr,
 	upiu->idn = param.type;
 	upiu->index = param.index;
 	upiu->selector = param.selector;
-	upiu->value_64 = param.value;
-	upiu->length = param.desc_size;
+	upiu->value_64 = htobe64(param.value);
+	upiu->length = htobe16(param.desc_size);
 
 	error = ufshci_ctrlr_submit_transfer_request(ctrlr, req);
 	if (error)
