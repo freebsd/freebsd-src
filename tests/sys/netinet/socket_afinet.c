@@ -446,27 +446,22 @@ ATF_TC_BODY(multibind, tc)
 		{ SOCK_STREAM,   LB, o, ADDR, o, F, F },
 		{ SOCK_STREAM,   LB, o, PORT, o, F, F },
 		{ SOCK_STREAM,   LB, o,   LB, o, R, F },
-		/*
-		 * ATM, expected result with wildcard first bind(2) is the same
-		 * as the result for the specified first bind(2).  Thus, the
-		 * below block is copy-and-paste of the above with wild1 set.
-		 */
-		{ SOCK_STREAM,    0, x,    0, o, F, F },
-		{ SOCK_STREAM,    0, x, ADDR, o, F, F },
-		{ SOCK_STREAM,    0, x, PORT, o, F, F },
-		{ SOCK_STREAM,    0, x,   LB, o, F, F },
-		{ SOCK_STREAM, ADDR, x,    0, o, F, F },
-		{ SOCK_STREAM, ADDR, x, ADDR, o, F, F },
-		{ SOCK_STREAM, ADDR, x, PORT, o, F, F },
-		{ SOCK_STREAM, ADDR, x,   LB, o, F, F },
-		{ SOCK_STREAM, PORT, x,    0, o, F, F },
-		{ SOCK_STREAM, PORT, x, ADDR, o, F, F },
-		{ SOCK_STREAM, PORT, x, PORT, o, R, F },
-		{ SOCK_STREAM, PORT, x,   LB, o, F, F },
-		{ SOCK_STREAM,   LB, x,    0, o, F, F },
-		{ SOCK_STREAM,   LB, x, ADDR, o, F, F },
-		{ SOCK_STREAM,   LB, x, PORT, o, F, F },
-		{ SOCK_STREAM,   LB, x,   LB, o, R, F },
+		{ SOCK_STREAM,    0, x,    0, x, F, F },
+		{ SOCK_STREAM,    0, x, ADDR, x, F, F },
+		{ SOCK_STREAM,    0, x, PORT, x, F, F },
+		{ SOCK_STREAM,    0, x,   LB, x, F, F },
+		{ SOCK_STREAM, ADDR, x,    0, x, F, F },
+		{ SOCK_STREAM, ADDR, x, ADDR, x, F, F },
+		{ SOCK_STREAM, ADDR, x, PORT, x, F, F },
+		{ SOCK_STREAM, ADDR, x,   LB, x, F, F },
+		{ SOCK_STREAM, PORT, x,    0, x, F, F },
+		{ SOCK_STREAM, PORT, x, ADDR, x, F, F },
+		{ SOCK_STREAM, PORT, x, PORT, x, R, F },
+		{ SOCK_STREAM, PORT, x,   LB, x, F, F },
+		{ SOCK_STREAM,   LB, x,    0, x, F, F },
+		{ SOCK_STREAM,   LB, x, ADDR, x, F, F },
+		{ SOCK_STREAM,   LB, x, PORT, x, F, F },
+		{ SOCK_STREAM,   LB, x,   LB, x, R, F },
 		/*
 		 * ATM, expected result for SOCK_DGRAM is the same as for
 		 * SOCK_STREAM.  Thus the below is copy-and-paste of the above.
@@ -487,23 +482,22 @@ ATF_TC_BODY(multibind, tc)
 		{ SOCK_DGRAM,   LB, o, ADDR, o, F, F },
 		{ SOCK_DGRAM,   LB, o, PORT, o, F, F },
 		{ SOCK_DGRAM,   LB, o,   LB, o, R, F },
-		/* wild1 -> true */
-		{ SOCK_DGRAM,    0, x,    0, o, F, F },
-		{ SOCK_DGRAM,    0, x, ADDR, o, F, F },
-		{ SOCK_DGRAM,    0, x, PORT, o, F, F },
-		{ SOCK_DGRAM,    0, x,   LB, o, F, F },
-		{ SOCK_DGRAM, ADDR, x,    0, o, F, F },
-		{ SOCK_DGRAM, ADDR, x, ADDR, o, F, F },
-		{ SOCK_DGRAM, ADDR, x, PORT, o, F, F },
-		{ SOCK_DGRAM, ADDR, x,   LB, o, F, F },
-		{ SOCK_DGRAM, PORT, x,    0, o, F, F },
-		{ SOCK_DGRAM, PORT, x, ADDR, o, F, F },
-		{ SOCK_DGRAM, PORT, x, PORT, o, R, F },
-		{ SOCK_DGRAM, PORT, x,   LB, o, F, F },
-		{ SOCK_DGRAM,   LB, x,    0, o, F, F },
-		{ SOCK_DGRAM,   LB, x, ADDR, o, F, F },
-		{ SOCK_DGRAM,   LB, x, PORT, o, F, F },
-		{ SOCK_DGRAM,   LB, x,   LB, o, R, F },
+		{ SOCK_DGRAM,    0, x,    0, x, F, F },
+		{ SOCK_DGRAM,    0, x, ADDR, x, F, F },
+		{ SOCK_DGRAM,    0, x, PORT, x, F, F },
+		{ SOCK_DGRAM,    0, x,   LB, x, F, F },
+		{ SOCK_DGRAM, ADDR, x,    0, x, F, F },
+		{ SOCK_DGRAM, ADDR, x, ADDR, x, F, F },
+		{ SOCK_DGRAM, ADDR, x, PORT, x, F, F },
+		{ SOCK_DGRAM, ADDR, x,   LB, x, F, F },
+		{ SOCK_DGRAM, PORT, x,    0, x, F, F },
+		{ SOCK_DGRAM, PORT, x, ADDR, x, F, F },
+		{ SOCK_DGRAM, PORT, x, PORT, x, R, F },
+		{ SOCK_DGRAM, PORT, x,   LB, x, F, F },
+		{ SOCK_DGRAM,   LB, x,    0, x, F, F },
+		{ SOCK_DGRAM,   LB, x, ADDR, x, F, F },
+		{ SOCK_DGRAM,   LB, x, PORT, x, F, F },
+		{ SOCK_DGRAM,   LB, x,   LB, x, R, F },
 #undef F
 #undef R
 #undef x
@@ -550,6 +544,7 @@ ATF_TC_BODY(multibind, tc)
 			socklen_t slen;
 			enum bind_res res;
 			int s;
+			in_port_t port;
 
 			s = socket(wild[af].sa.sa_family, tests[i].type, 0);
 			ATF_REQUIRE(s >= 0);
@@ -561,7 +556,13 @@ ATF_TC_BODY(multibind, tc)
 				    tests[i].opt1, &(int){1}, sizeof(int)) ==
 				    0);
 			ATF_REQUIRE(getsockname(s, &su.sa, &slen) == 0);
-
+			_Static_assert(offsetof(struct sockaddr_in, sin_port)
+			    == offsetof(struct sockaddr_in6, sin6_port),
+			    "EDOOFUS");
+			port = su.sin.sin_port;
+			memcpy(&su, tests[i].wild2 ? &wild[af] : &loop[af],
+			    sizeof(su));
+			su.sin.sin_port = port;
 			sa = &su.sa;
 			res = child_bind(tc, tests[i].type, sa, tests[i].opt2,
 			    false);
