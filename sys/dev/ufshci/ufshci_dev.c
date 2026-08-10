@@ -192,7 +192,7 @@ ufshci_dev_read_attribute(struct ufshci_controller *ctrlr,
 		return (ENXIO);
 	}
 
-	*value = status.cpl.response_upiu.query_response_upiu.value_64;
+	*value = be64toh(status.cpl.response_upiu.query_response_upiu.value_64);
 
 	return (0);
 }

@@ -484,6 +484,7 @@ ufshci_abort_complete(void *arg, const struct ufshci_completion *status,
     bool error)
 {
 	struct ufshci_tracker *tr = arg;
+	uint32_t output_param1;
 
 	/*
 	 * We still need to check the active tracker array, to cover race where
@@ -508,12 +509,12 @@ ufshci_abort_complete(void *arg, const struct ufshci_completion *status,
 		ufshci_req_queue_manual_complete_tracker(tr,
 		    UFSHCI_DESC_ABORTED, UFSHCI_RESPONSE_CODE_GENERAL_FAILURE);
 
-		if ((status->response_upiu.task_mgmt_response_upiu
-			    .output_param1 ==
-			UFSHCI_TASK_MGMT_SERVICE_RESPONSE_FUNCTION_COMPLETE) ||
-		    (status->response_upiu.task_mgmt_response_upiu
-			    .output_param1 ==
-			UFSHCI_TASK_MGMT_SERVICE_RESPONSE_FUNCTION_SUCCEEDED)) {
+		output_param1 = be32toh(
+		    status->response_upiu.task_mgmt_response_upiu.output_param1);
+		if (output_param1 ==
+			UFSHCI_TASK_MGMT_SERVICE_RESPONSE_FUNCTION_COMPLETE ||
+		    output_param1 ==
+			UFSHCI_TASK_MGMT_SERVICE_RESPONSE_FUNCTION_SUCCEEDED) {
 			ufshci_printf(tr->hwq->ctrlr,
 			    "Warning: the abort task request completed \
 			    successfully, but the original task is still incomplete.");
