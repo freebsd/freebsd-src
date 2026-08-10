@@ -288,13 +288,14 @@ ufshci_cam_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 	case XPT_RESET_BUS:
-		ccb->ccb_h.status = CAM_REQ_CMP;
-		break;
 	case XPT_RESET_DEV:
-		if (ufshci_dev_reset(ctrlr))
-			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-		else
-			ccb->ccb_h.status = CAM_REQ_CMP;
+		/*
+		 * This callback cannot sleep: CAM calls it with the SIM
+		 * lock and the CAM device lock held. It cannot reset the
+		 * device here. Report success so CAM keeps going, like
+		 * nvme_sim(4) does.
+		 */
+		ccb->ccb_h.status = CAM_REQ_CMP;
 		break;
 	case XPT_ABORT:
 		ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
