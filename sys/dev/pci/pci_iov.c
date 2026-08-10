@@ -619,16 +619,16 @@ pci_iov_setup_bars(struct pci_devinfo *dinfo)
 	return (0);
 }
 
-static void
+static int
 pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
     uint16_t first_rid, uint16_t rid_stride)
 {
 	char device_name[VF_MAX_NAME];
 	const nvlist_t *device, *driver_config, *iov_config;
-	device_t bus, dev, vf;
+	device_t bus, dev, vf, *vfs;
 	struct pcicfg_iov *iov;
 	struct pci_devinfo *vfinfo;
-	int i, error;
+	int error, i, ncreated;
 	uint16_t vid, did, next_rid;
 
 	iov = dinfo->cfg.iov;
@@ -637,6 +637,9 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 	next_rid = first_rid;
 	vid = pci_get_vendor(dev);
 	did = IOV_READ(dinfo, PCIR_SRIOV_VF_DID, 2);
+	vfs = mallocarray(iov->iov_num_vfs, sizeof(*vfs), M_SRIOV,
+	    M_WAITOK | M_ZERO);
+	ncreated = 0;
 
 	for (i = 0; i < iov->iov_num_vfs; i++, next_rid += rid_stride) {
 		snprintf(device_name, sizeof(device_name), VF_PREFIX"%d", i);
@@ -645,8 +648,11 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 		driver_config = nvlist_get_nvlist(device, DRIVER_CONFIG_NAME);
 
 		vf = PCI_CREATE_IOV_CHILD(bus, dev, next_rid, vid, did);
-		if (vf == NULL)
-			break;
+		if (vf == NULL) {
+			error = ENXIO;
+			goto fail;
+		}
+		vfs[ncreated++] = vf;
 
 		/*
 		 * If we are creating passthrough devices then force the ppt
@@ -666,11 +672,19 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 		error = PCI_IOV_ADD_VF(dev, i, driver_config);
 		if (error != 0) {
 			device_printf(dev, "Failed to add VF %d\n", i);
-			device_delete_child(bus, vf);
+			goto fail;
 		}
 	}
 
 	bus_attach_children(bus);
+	free(vfs, M_SRIOV);
+	return (0);
+
+fail:
+	for (i = 0; i < ncreated; i++)
+		device_delete_child(bus, vfs[i]);
+	free(vfs, M_SRIOV);
+	return (error);
 }
 
 static int
@@ -799,7 +813,9 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 
 	/* Per specification, we must wait 100ms before accessing VFs. */
 	pause("iov", roundup(hz, 10));
-	pci_iov_enumerate_vfs(dinfo, config, first_rid, rid_stride);
+	error = pci_iov_enumerate_vfs(dinfo, config, first_rid, rid_stride);
+	if (error != 0)
+		goto out;
 
 	nvlist_destroy(config);
 	iov->iov_flags &= ~IOV_BUSY;
@@ -809,6 +825,9 @@ pci_iov_config(struct cdev *cdev, struct pci_iov_arg *arg)
 out:
 	if (iov_inited) {
 		PCI_IOV_UNINIT(dev);
+		iov_ctl = IOV_READ(dinfo, PCIR_SRIOV_CTL, 2);
+		iov_ctl &= ~(PCIM_SRIOV_VF_EN | PCIM_SRIOV_VF_MSE);
+		IOV_WRITE(dinfo, PCIR_SRIOV_CTL, iov_ctl, 2);
 		IOV_WRITE(dinfo, PCIR_SRIOV_NUM_VFS, 0, 2);
 	}
 
