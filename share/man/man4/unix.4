@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 3, 2026
+.Dd July 25, 2026
 .Dt UNIX 4
 .Os
 .Sh NAME
@@ -125,6 +125,95 @@ of a
 or
 .Xr sendto 2
 must be writable.
+.Ss Naming a peer
+A peer can be named either by a pathname or, using
+.Xr connectat 2 ,
+directly by a descriptor.
+Across these two forms a peer can be named five ways, all of which reach the
+same socket:
+.Bl -column "A bound socket's file" "an O_PATH descriptor" "an ordinary pathname" -offset indent
+.It Em Target Ta Em "By descriptor" Ta Em "By pathname"
+.It "The peer socket" Ta "the socket's fd" Ta "(none)"
+.It "A bound socket's file" Ta "an O_PATH descriptor" Ta "an ordinary pathname"
+.It "A /dev/fd/N node" Ta "an O_PATH descriptor" Ta Pa /dev/fd/N
+.El
+.Pp
+A pathname, accepted by both
+.Xr connect 2
+and
+.Xr connectat 2 ,
+names either a bound socket's file created by
+.Xr bind 2 ,
+or the
+.Pa /dev/fd/N
+node that
+.Xr fdescfs 5
+provides for descriptor
+.Ar N .
+In the latter case the
+.Pa /dev/fd/N
+node must name the socket descriptor itself; the named descriptor is resolved a
+single level and not chased further.
+With a standard
+.Xr fdescfs 5
+mount this means a node naming a traditional socket file, or another
+.Pa /dev/fd/N
+node, does not resolve to a peer; a
+.Cm nodup
+mount, however, dereferences such a descriptor before the lookup completes.
+.Pp
+.Xr connectat 2
+also supports both of the above cases.
+The path is allowed to be empty
+\(em that is, a
+.Fa namelen
+equal to
+.Li offsetof(struct sockaddr_un, sun_path)
+\(em
+in which case the given file descriptor will be used directly, like with most
+.Sy *at
+system calls.
+(Note:
+.Pa /dev/fd/N
+nodes are not recommended to be used for the
+.Xr connectat 2 ,
+since the descriptor can just be named directly, and this is both more
+efficient and less userland code, but since
+.Xr connect 2
+is implemented in terms of
+.Xr connectat 2
+this is provided for free.)
+.Pp
+Besides supporting cases that
+.Xr connect 2
+also supports,
+.Xr connectat 2
+additionally supports directly naming the peer by the
+.Fa fd
+descriptor (and an empty path).
+The descriptor may be the peer socket itself.
+In all cases, the descriptor passed must carry the
+.Dv CAP_CONNECTAT
+capability right, and in the
+.Pa /dev/fd/N
+form the target descriptor must
+.Em also
+carry that capability.
+A descriptor limited to
+.Dv CAP_CONNECTAT
+alone is thus a pure
+.Dq connect-to-me
+token, usable as a connection target but not listened on, accepted from, or
+read.
+.Pp
+For the descriptor forms, possession of the descriptor is the authorization,
+as with descriptor passing over
+.Dv SCM_RIGHTS ;
+the file system access-control and
+.Xr mac 4
+checks that apply to the pathname forms are not repeated.
+Because a descriptor alone suffices, a datagram socket may connect to an
+unbound peer, which no pathname could name.
 .Sh CONTROL MESSAGES
 The
 .Ux Ns -domain
@@ -460,6 +549,7 @@ chronological order they were sent.
 The order is preserved for writes coming through a particular connection.
 .Sh SEE ALSO
 .Xr connect 2 ,
+.Xr connectat 2 ,
 .Xr dup 2 ,
 .Xr fchmod 2 ,
 .Xr fcntl 2 ,
@@ -471,6 +561,8 @@ The order is preserved for writes coming through a particular connection.
 .Xr socket 2 ,
 .Xr CMSG_DATA 3 ,
 .Xr intro 4 ,
+.Xr mac 4 ,
+.Xr fdescfs 5 ,
 .Xr sysctl 8
 .Rs
 .%T "An Introductory 4.3 BSD Interprocess Communication Tutorial"

@@ -290,9 +290,7 @@ static struct mtx	unp_defers_lock;
 
 static int	uipc_connect2(struct socket *, struct socket *);
 static int	uipc_ctloutput(struct socket *, struct sockopt *);
-static int	unp_connect(struct socket *, struct sockaddr *,
-		    struct thread *);
-static int	unp_connectat(int, struct socket *, struct sockaddr *,
+static int	unp_connectat(int, struct socket *, const char *, int,
 		    struct thread *, struct socket **);
 static int	unp_connect_peer(struct socket *, struct unpcb *,
 		    struct sockaddr **, struct thread *, bool);
@@ -728,22 +726,38 @@ uipc_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 static int
 uipc_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	int error;
+	const char *path;
+	int error, len;
 
 	KASSERT(td == curthread, ("uipc_connect: td != curthread"));
-	error = unp_connect(so, nam, td);
-	return (error);
+
+	error = unp_sun_path(nam, &path, &len);
+	if (error != 0)
+		return (error);
+	/*
+	 * unp_connectat() does not early exit on empty paths, because that is
+	 * explicitly supported when naming the peer by file descriptor, but
+	 * connect(2) only ever passes AT_FDCWD, so reject it here. This
+	 * preserves historical behavior.
+	 */
+	if (len == 0)
+		return (EINVAL);
+	return (unp_connectat(AT_FDCWD, so, path, len, td, NULL));
 }
 
 static int
 uipc_connectat(int fd, struct socket *so, struct sockaddr *nam,
     struct thread *td)
 {
-	int error;
+	const char *path;
+	int error, len;
 
 	KASSERT(td == curthread, ("uipc_connectat: td != curthread"));
-	error = unp_connectat(fd, so, nam, td, NULL);
-	return (error);
+
+	error = unp_sun_path(nam, &path, &len);
+	if (error != 0)
+		return (error);
+	return (unp_connectat(fd, so, path, len, td, NULL));
 }
 
 static void
@@ -2086,7 +2100,12 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	SOCK_SENDBUF_UNLOCK(so);
 
 	if (addr != NULL) {
-		if ((error = unp_connectat(AT_FDCWD, so, addr, td, &peer)))
+		const char *path;
+		int len;
+
+		if ((error = unp_sun_path(addr, &path, &len)))
+			goto out3;
+		if ((error = unp_connectat(AT_FDCWD, so, path, len, td, &peer)))
 			goto out3;
 		UNP_PCB_LOCK_ASSERT(unp);
 		unp2 = unp->unp_conn;
@@ -2905,16 +2924,10 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 	return (error);
 }
 
-static int
-unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
-{
-
-	return (unp_connectat(AT_FDCWD, so, nam, td, NULL));
-}
-
 /*
- * Connect socket 'so' to the unix-domain peer named by 'nam', resolved
- * relative to descriptor 'fd' (AT_FDCWD for connect(2)).
+ * Connect socket 'so' to the unix-domain peer named by the 'len'-byte 'path'
+ * (an empty path names the peer directly by descriptor), resolved relative to
+ * descriptor 'fd' (AT_FDCWD for connect(2)).
  *
  * 'referenced_peerp' selects how the peer is returned.  If NULL, on exit the
  * peer's PCB is unlocked and the peer is unreferenced, symmetrically releasing
@@ -2931,24 +2944,18 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
  * path, which enqueues under the peer's PCB lock.
  */
 static int
-unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
+unp_connectat(int fd, struct socket *so, const char *path, int len,
     struct thread *td, struct socket **referenced_peerp)
 {
 	struct socket *so2;
 	struct unpcb *unp;
 	char buf[SOCK_MAXADDRLEN];
 	struct sockaddr *sa;
-	const char *path;
-	int error, len;
+	int error;
 	bool connreq;
 
 	CURVNET_ASSERT_SET();
 
-	error = unp_sun_path(nam, &path, &len);
-	if (error != 0)
-		return (error);
-	if (len == 0)
-		return (EINVAL);
 	bcopy(path, buf, len);
 	buf[len] = 0;
 
@@ -2994,6 +3001,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 		sa = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
 	else
 		sa = NULL;
+
 	error = unp_connectat_peer(td, fd, buf, &so2);
 	if (error != 0)
 		goto out;
@@ -3017,9 +3025,77 @@ out:
 }
 
 /*
- * Resolve a connectat(2) target -- descriptor 'fd' and the pathname in 'buf' --
- * to a referenced peer unix socket in '*so2p'.  The caller must release it with
- * sorele().
+ * Resolve descriptor 'fd' to the referenced unix-domain socket it *is* (as
+ * opposed to one it names through the file system) in '*so2p'.  Returns
+ * ENOTSOCK if 'fd' is not a socket -- letting an empty-path caller fall back to
+ * a vnode lookup -- or EPROTOTYPE if it is a socket of another domain.  The
+ * caller must release the returned socket with sorele().
+ */
+static int
+unp_socket_fd_peer(struct thread *td, int fd, struct socket **so2p)
+{
+	struct socket *so2;
+	struct file *fp;
+	cap_rights_t rights;
+	int error;
+
+	error = getsock(td, fd, cap_rights_init_one(&rights, CAP_CONNECTAT),
+	    &fp);
+	if (error != 0)
+		return (error);
+	so2 = fp->f_data;
+	if (so2->so_proto->pr_domain->dom_family != AF_UNIX)
+		error = EPROTOTYPE;
+	else {
+		soref(so2);
+		*so2p = so2;
+	}
+	fdrop(fp, td);
+	return (error);
+}
+
+/*
+ * Resolve a synthetic descriptor vnode -- as fdescfs fabricates for a /dev/fd/N
+ * path -- to the peer socket named by the descriptor it stands for.
+ *
+ * Such a node has no object of its own; VOP_OPEN reports the underlying
+ * descriptor in td_dupfd and fails with ENODEV, the same convention open(2)
+ * follows via dupfdopen() for /dev/fd.  We honour it here and resolve that
+ * descriptor as the peer, so a plain connect(2) to /dev/fd/N reaches the
+ * socket.  Does not consume 'vp'.
+ */
+static int
+unp_dupfd_peer(struct vnode *vp, struct thread *td, struct socket **so2p)
+{
+	int dupfd, error;
+
+	ASSERT_VOP_LOCKED(vp, __func__);
+
+	td->td_dupfd = -1;
+	error = VOP_OPEN(vp, FREAD, td->td_ucred, td, NULL);
+	dupfd = td->td_dupfd;
+	td->td_dupfd = 0;
+	if (error == ENODEV && dupfd >= 0)
+		return (unp_socket_fd_peer(td, dupfd, so2p));
+	if (error == 0) {
+		/* Not the dupfd convention: an openable node is not a peer. */
+		(void)VOP_CLOSE(vp, FREAD, td->td_ucred, td);
+		error = ECONNREFUSED;
+	}
+	return (error);
+}
+
+/*
+ * Resolve a connectat(2) target -- descriptor 'fd' together with the pathname
+ * in 'buf' (null when len == 0) -- to a referenced peer unix socket in
+ * '*so2p', covering all four ways a peer can be named:
+ *
+ *	empty path + socket fd		the descriptor is the peer socket
+ *	empty path + O_PATH vnode	EMPTYPATH resolves the socket's vnode
+ *	/dev/fd/N pathname		fdescfs names a descriptor
+ *	ordinary pathname		a bound socket looked up by path
+ *
+ * The caller must release the returned socket with sorele().
  */
 static int
 unp_connectat_peer(struct thread *td, int fd, const char *buf,
@@ -3029,6 +3105,19 @@ unp_connectat_peer(struct thread *td, int fd, const char *buf,
 	cap_rights_t rights;
 	int error;
 
+	/*
+	 * An empty sun_path means 'fd' names the peer directly.  If it is a
+	 * socket, it is the peer, so return success (or its error) with no
+	 * fallback; if not, it may be an O_PATH handle for a bound socket's
+	 * vnode, so fall through to an EMPTYPATH lookup.
+	 */
+	if (*buf == '\0') {
+		error = unp_socket_fd_peer(td, fd, so2p);
+		if (error != ENOTSOCK)
+			return (error);
+	}
+
+	/* Resolve the path to a vnode. */
 	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF |
 	    (fd == AT_FDCWD ? 0 : EMPTYPATH), UIO_SYSSPACE, buf, fd,
 	    cap_rights_init_one(&rights, CAP_CONNECTAT));
@@ -3038,12 +3127,25 @@ unp_connectat_peer(struct thread *td, int fd, const char *buf,
 	NDFREE_PNBUF(&nd);
 
 	/*
-	 * Resolve the vnode to a referenced peer socket and drop the vnode
-	 * before connecting: the reference keeps the peer stable, so no vnode
-	 * lock is held across unp_connect_peer() (which matters for the
-	 * return_locked datagram fast path).
+	 * Dispatch on the resolved vnode, then drop it: for the socket cases the
+	 * returned reference keeps the peer stable, so the caller holds no vnode
+	 * lock across unp_connect_peer() (which matters for the return_locked
+	 * datagram fast path).
+	 *
+	 * A synthetic descriptor node -- as fdescfs fabricates for a /dev/fd/N
+	 * path -- carries no type of its own (VNON); opening it yields the
+	 * descriptor it stands for, which we resolve as the peer socket.
+	 * Otherwise the path must name a bound socket's vnode (VSOCK), which
+	 * unp_vnode_peer() connects to, rejecting any other type with ENOTSOCK.
+	 *
+	 * unp_dupfd_peer() resolves that descriptor exactly once: if it is not
+	 * a socket the connect fails, so this does *not* recur through a chain
+	 * of O_PATH handles of /dev/fd nodes, which could be arbitrarily long.
 	 */
-	error = unp_vnode_peer(nd.ni_vp, td, so2p);
+	if (nd.ni_vp->v_type == VNON)
+		error = unp_dupfd_peer(nd.ni_vp, td, so2p);
+	else
+		error = unp_vnode_peer(nd.ni_vp, td, so2p);
 	vput(nd.ni_vp);
 	return (error);
 }
