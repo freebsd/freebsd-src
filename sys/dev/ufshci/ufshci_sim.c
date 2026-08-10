@@ -12,6 +12,7 @@
 #include <cam/cam_debug.h>
 #include <cam/cam_periph.h>
 #include <cam/cam_sim.h>
+#include <cam/cam_xpt_periph.h>
 #include <cam/cam_xpt_sim.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
@@ -541,6 +542,8 @@ ufshci_sim_send_ssu(struct ufshci_controller *ctrlr, bool start,
 	ccb->ccb_h.flags |= CAM_DIR_NONE | CAM_DEV_QFRZDIS;
 
 	err = cam_periph_runccb(ccb, NULL, 0, SF_RETRY_UA, NULL);
+
+	xpt_release_ccb(ccb);
 
 	cam_periph_unlock(periph);
 	/* Release periph reference */
