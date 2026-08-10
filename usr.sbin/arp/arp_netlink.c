@@ -132,7 +132,7 @@ guess_ifindex(struct snl_state *ss, uint32_t fibnum, struct in_addr addr)
 	if (!snl_parse_nlmsg(ss, hdr, &snl_rtm_route_parser, &r))
 		return (0);
 
-	if (r.rta_multipath.num_nhops > 0 || (r.rta_rtflags & RTF_GATEWAY))
+	if (r.rta_multipath.count > 0 || (r.rta_rtflags & RTF_GATEWAY))
 		return (0);
 
 	/* Check if the interface is of supported type */
@@ -448,4 +448,3 @@ set_nl(struct sockaddr_in *dst, struct sockaddr_dl *sdl, char *host)
 
 	return (e.error != 0);
 }
-
