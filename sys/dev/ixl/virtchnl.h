@@ -594,6 +594,28 @@ enum virtchnl_vfr_states {
 	VIRTCHNL_VFR_VFACTIVE,
 };
 
+/*
+ * Since VF messages are limited by u16 size, bound the number of nested
+ * elements that can be described by a single virtual channel message.
+ */
+enum virtchnl_vector_limits {
+	VIRTCHNL_OP_CONFIG_VSI_QUEUES_MAX =
+	    ((u16)(~0) - sizeof(struct virtchnl_vsi_queue_config_info)) /
+	    sizeof(struct virtchnl_queue_pair_info),
+	VIRTCHNL_OP_CONFIG_IRQ_MAP_MAX =
+	    ((u16)(~0) - sizeof(struct virtchnl_irq_map_info)) /
+	    sizeof(struct virtchnl_vector_map),
+	VIRTCHNL_OP_ADD_DEL_ETH_ADDR_MAX =
+	    ((u16)(~0) - sizeof(struct virtchnl_ether_addr_list)) /
+	    sizeof(struct virtchnl_ether_addr),
+	VIRTCHNL_OP_ADD_DEL_VLAN_MAX =
+	    ((u16)(~0) - sizeof(struct virtchnl_vlan_filter_list)) /
+	    sizeof(u16),
+	VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP_MAX =
+	    ((u16)(~0) - sizeof(struct virtchnl_iwarp_qvlist_info)) /
+	    sizeof(struct virtchnl_iwarp_qv_info),
+};
+
 /**
  * virtchnl_vc_validate_vf_msg
  * @ver: Virtchnl version info
@@ -608,7 +630,7 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 			    u8 *msg, u16 msglen)
 {
 	bool err_msg_format = FALSE;
-	int valid_len = 0;
+	u32 valid_len = 0;
 
 	/* Validate message length. */
 	switch (v_opcode) {
@@ -632,11 +654,15 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_vsi_queue_config_info *vqc =
 			    (struct virtchnl_vsi_queue_config_info *)msg;
-			valid_len += (vqc->num_queue_pairs *
-				      sizeof(struct
-					     virtchnl_queue_pair_info));
-			if (vqc->num_queue_pairs == 0)
+			if (vqc->num_queue_pairs == 0 ||
+			    vqc->num_queue_pairs >
+			    VIRTCHNL_OP_CONFIG_VSI_QUEUES_MAX) {
 				err_msg_format = TRUE;
+				break;
+			}
+
+			valid_len += vqc->num_queue_pairs *
+			    sizeof(struct virtchnl_queue_pair_info);
 		}
 		break;
 	case VIRTCHNL_OP_CONFIG_IRQ_MAP:
@@ -644,10 +670,14 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_irq_map_info *vimi =
 			    (struct virtchnl_irq_map_info *)msg;
-			valid_len += (vimi->num_vectors *
-				      sizeof(struct virtchnl_vector_map));
-			if (vimi->num_vectors == 0)
+			if (vimi->num_vectors == 0 ||
+			    vimi->num_vectors > VIRTCHNL_OP_CONFIG_IRQ_MAP_MAX) {
 				err_msg_format = TRUE;
+				break;
+			}
+
+			valid_len += vimi->num_vectors *
+			    sizeof(struct virtchnl_vector_map);
 		}
 		break;
 	case VIRTCHNL_OP_ENABLE_QUEUES:
@@ -660,10 +690,15 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_ether_addr_list *veal =
 			    (struct virtchnl_ether_addr_list *)msg;
+			if (veal->num_elements == 0 ||
+			    veal->num_elements >
+			    VIRTCHNL_OP_ADD_DEL_ETH_ADDR_MAX) {
+				err_msg_format = TRUE;
+				break;
+			}
+
 			valid_len += veal->num_elements *
 			    sizeof(struct virtchnl_ether_addr);
-			if (veal->num_elements == 0)
-				err_msg_format = TRUE;
 		}
 		break;
 	case VIRTCHNL_OP_ADD_VLAN:
@@ -672,9 +707,13 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_vlan_filter_list *vfl =
 			    (struct virtchnl_vlan_filter_list *)msg;
-			valid_len += vfl->num_elements * sizeof(u16);
-			if (vfl->num_elements == 0)
+			if (vfl->num_elements == 0 ||
+			    vfl->num_elements > VIRTCHNL_OP_ADD_DEL_VLAN_MAX) {
 				err_msg_format = TRUE;
+				break;
+			}
+
+			valid_len += vfl->num_elements * sizeof(u16);
 		}
 		break;
 	case VIRTCHNL_OP_CONFIG_PROMISCUOUS_MODE:
@@ -700,7 +739,8 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_iwarp_qvlist_info *qv =
 				(struct virtchnl_iwarp_qvlist_info *)msg;
-			if (qv->num_vectors == 0) {
+			if (qv->num_vectors == 0 || qv->num_vectors >
+			    VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP_MAX) {
 				err_msg_format = TRUE;
 				break;
 			}
@@ -713,6 +753,8 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_rss_key *vrk =
 				(struct virtchnl_rss_key *)msg;
+			if (vrk->key_len == 0)
+				break;
 			valid_len += vrk->key_len - 1;
 		}
 		break;
@@ -721,6 +763,8 @@ virtchnl_vc_validate_vf_msg(struct virtchnl_version_info *ver, u32 v_opcode,
 		if (msglen >= valid_len) {
 			struct virtchnl_rss_lut *vrl =
 				(struct virtchnl_rss_lut *)msg;
+			if (vrl->lut_entries == 0)
+				break;
 			valid_len += vrl->lut_entries - 1;
 		}
 		break;
