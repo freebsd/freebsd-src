@@ -670,7 +670,7 @@ dpaa_eth_tx_add_csum(struct dpaa_eth_frame_info *fi)
 void
 dpaa_eth_if_start_locked(struct dpaa_eth_softc *sc)
 {
-	vm_size_t dsize, psize, ssize;
+	vm_size_t psize, ssize;
 	struct dpaa_eth_frame_info *fi;
 	unsigned int i;
 	struct mbuf *m0, *m;
@@ -710,44 +710,71 @@ dpaa_eth_if_start_locked(struct dpaa_eth_softc *sc)
 		}
 
 		i = 0;
-		m = m0;
 		psize = 0;
-		dsize = 0;
 		fi->fi_mbuf = m0;
 
-		while (m && i < DPAA_NUM_OF_SG_TABLE_ENTRY) {
+		for (m = m0; m != NULL && i < DPAA_NUM_OF_SG_TABLE_ENTRY;
+		    m = m->m_next) {
+			vm_size_t rem;
+
 			if (m->m_len == 0)
 				continue;
 
-			dsize = m->m_len;
 			vaddr = (vm_offset_t)m->m_data;
-			while (dsize > 0 && i < DPAA_NUM_OF_SG_TABLE_ENTRY) {
+			rem = m->m_len;
+
+			/*
+			 * Fast path: the whole segment lives inside one
+			 * page.  Covers every default-cluster mbuf
+			 * (MCLBYTES < PAGE_SIZE) and skips the split loop
+			 * in the common case.
+			 */
+			if ((vaddr & PAGE_MASK) + rem <= PAGE_SIZE) {
+				fi->fi_sgt[i].addr = dpaa_eth_va_to_phys(vaddr);
+				fi->fi_sgt[i].length = rem;
+				fi->fi_sgt[i].extension = 0;
+				fi->fi_sgt[i].final = 0;
+				fi->fi_sgt[i].bpid = 0;
+				fi->fi_sgt[i].offset = 0;
+				psize += rem;
+				i++;
+				continue;
+			}
+
+			/*
+			 * Slow path: mbuf crosses at least one page
+			 * boundary (jumbo cluster, or an unusually-offset
+			 * external buffer).  Emit one SGT entry per
+			 * contiguous physical span.
+			 */
+			while (rem > 0 && i < DPAA_NUM_OF_SG_TABLE_ENTRY) {
 				ssize = PAGE_SIZE - (vaddr & PAGE_MASK);
-				if (m->m_len < ssize)
-					ssize = m->m_len;
+				if (rem < ssize)
+					ssize = rem;
 
 				fi->fi_sgt[i].addr = dpaa_eth_va_to_phys(vaddr);
 				fi->fi_sgt[i].length = ssize;
-
 				fi->fi_sgt[i].extension = 0;
 				fi->fi_sgt[i].final = 0;
 				fi->fi_sgt[i].bpid = 0;
 				fi->fi_sgt[i].offset = 0;
 
-				dsize -= ssize;
+				rem -= ssize;
 				vaddr += ssize;
 				psize += ssize;
 				i++;
 			}
 
-			if (dsize > 0)
+			if (rem > 0)		/* SGT full mid-mbuf */
 				break;
-
-			m = m->m_next;
 		}
 
-		/* Check if SG table was constructed properly */
-		if (m != NULL || dsize != 0) {
+		/*
+		 * Reject the frame if we didn't consume the whole chain
+		 * (SGT full mid-frame) or if the chain produced no SGT
+		 * entries at all (all-zero-length mbufs).
+		 */
+		if (m != NULL || i == 0) {
 			dpaa_eth_fi_free(sc, fi);
 			m_freem(m0);
 			continue;
