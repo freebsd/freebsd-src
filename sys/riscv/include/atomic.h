@@ -106,6 +106,7 @@ atomic_fcmpset_rel_##WIDTH(__volatile uint##WIDTH##_t *p,		\
 ATOMIC_CMPSET_ACQ_REL(8);
 ATOMIC_FCMPSET_ACQ_REL(8);
 
+#define	atomic_load_acq_char		atomic_load_acq_8
 #define	atomic_cmpset_char		atomic_cmpset_8
 #define	atomic_cmpset_acq_char		atomic_cmpset_acq_8
 #define	atomic_cmpset_rel_char		atomic_cmpset_rel_8
@@ -302,6 +303,8 @@ atomic_testandset_32(volatile uint32_t *p, u_int val)
 #define	atomic_readandclear_int	atomic_readandclear_32
 #define	atomic_set_int		atomic_set_32
 #define	atomic_subtract_int	atomic_subtract_32
+#define	atomic_testandclear_int	atomic_testandclear_32
+#define	atomic_testandset_int	atomic_testandset_32
 
 ATOMIC_ACQ_REL(set, 32)
 ATOMIC_ACQ_REL(clear, 32)
