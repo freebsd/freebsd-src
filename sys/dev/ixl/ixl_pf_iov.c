@@ -81,6 +81,7 @@ static void	ixl_vf_config_promisc_msg(struct ixl_pf *pf, struct ixl_vf *vf, void
 static void	ixl_vf_get_stats_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg, uint16_t msg_size);
 static int	ixl_vf_reserve_queues(struct ixl_pf *pf, struct ixl_vf *vf, int num_queues);
 static int	ixl_config_pf_vsi_loopback(struct ixl_pf *pf, bool enable);
+static int	ixl_setup_iov_switch(struct ixl_pf *pf);
 
 static int	ixl_adminq_err_to_errno(enum i40e_admin_queue_err err);
 
@@ -1979,18 +1980,132 @@ ixl_config_pf_vsi_loopback(struct ixl_pf *pf, bool enable)
 	return (error);
 }
 
+static int
+ixl_setup_iov_switch(struct ixl_pf *pf)
+{
+	struct i40e_hw *hw;
+	struct ixl_vsi *pf_vsi;
+	enum i40e_status_code status;
+	int error;
+
+	hw = &pf->hw;
+	pf_vsi = &pf->vsi;
+	status = i40e_aq_add_veb(hw, pf_vsi->uplink_seid, pf_vsi->seid,
+	    1, false, &pf->veb_seid, false, NULL);
+	if (status != I40E_SUCCESS) {
+		error = ixl_adminq_err_to_errno(hw->aq.asq_last_status);
+		device_printf(pf->dev,
+		    "i40e_aq_add_veb failed; status %s error %s\n",
+		    i40e_stat_str(hw, status),
+		    i40e_aq_str(hw, hw->aq.asq_last_status));
+		return (error);
+	}
+	if (pf->enable_vf_loopback) {
+		error = ixl_config_pf_vsi_loopback(pf, true);
+		if (error != 0)
+			goto fail;
+	}
+
+	/* Adding a VEB reinstalls the firmware's default PF filters. */
+	ixl_del_default_hw_filters(pf_vsi);
+	ixl_reconfigure_filters(pf_vsi);
+	return (0);
+
+fail:
+	i40e_aq_delete_element(hw, pf->veb_seid, NULL);
+	pf->veb_seid = 0;
+	return (error);
+}
+
+void
+ixl_notify_vfs_reset(struct ixl_pf *pf)
+{
+	struct virtchnl_pf_event event;
+	struct ixl_vf *vf;
+	int i;
+
+	if (pf->num_vfs == 0 || !i40e_check_asq_alive(&pf->hw))
+		return;
+	bzero(&event, sizeof(event));
+	event.event = VIRTCHNL_EVENT_RESET_IMPENDING;
+	event.severity = PF_EVENT_SEVERITY_CERTAIN_DOOM;
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (vf->vf_flags & VF_FLAG_ENABLED) {
+			ixl_send_vf_msg(pf, vf, VIRTCHNL_OP_EVENT,
+			    I40E_SUCCESS, &event, sizeof(event));
+		}
+	}
+}
+
+int
+ixl_rebuild_vfs_after_reset(struct ixl_pf *pf)
+{
+	struct i40e_hw *hw;
+	struct ixl_vf *vf;
+	uint32_t vfrtrig;
+	int error, first_error, i;
+
+	hw = &pf->hw;
+	pf->veb_seid = 0;
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (!(vf->vf_flags & VF_FLAG_ENABLED))
+			continue;
+
+		vf->vf_flags &= ~VF_FLAG_INITIALIZED;
+		vf->vsi.seid = 0;
+		vf->vsi.vsi_num = 0;
+		vf->vsi.num_tx_queues = 0;
+		vf->vsi.num_rx_queues = 0;
+		bzero(&vf->vsi.info, sizeof(vf->vsi.info));
+		ixl_pf_qmgr_clear_queue_flags(&vf->qtag);
+		ixl_free_filters(&vf->vsi.ftl);
+		vf->vsi.num_hw_filters = 0;
+		vf->vsi.num_macs = 0;
+		vf->vsi.num_vlans = 0;
+		bit_nclear(vf->vsi.vlans_map, 0,
+		    IXL_VLANS_MAP_LEN - 1);
+		vf->num_mac_filters = 0;
+	}
+
+	error = ixl_setup_iov_switch(pf);
+	if (error != 0)
+		return (error);
+
+	first_error = 0;
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (!(vf->vf_flags & VF_FLAG_ENABLED))
+			continue;
+
+		wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_num),
+		    VIRTCHNL_VFR_COMPLETED);
+		vfrtrig = rd32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num));
+		vfrtrig &= ~I40E_VPGEN_VFRTRIG_VFSWR_MASK;
+		wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num), vfrtrig);
+
+		error = ixl_vf_setup_vsi(pf, vf);
+		if (error != 0) {
+			device_printf(pf->dev,
+			    "Failed to rebuild VF-%d: %d\n", i, error);
+			if (first_error == 0)
+				first_error = error;
+			continue;
+		}
+		ixl_vf_map_queues(pf, vf);
+		wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_num),
+		    VIRTCHNL_VFR_VFACTIVE);
+	}
+	ixl_flush(hw);
+	return (first_error);
+}
+
 int
 ixl_if_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params)
 {
 	struct ixl_pf *pf = iflib_get_softc(ctx);
-	device_t dev = iflib_get_dev(ctx);
-	struct i40e_hw *hw;
-	struct ixl_vsi *pf_vsi;
-	enum i40e_status_code ret;
 	int error, i;
-
-	hw = &pf->hw;
-	pf_vsi = &pf->vsi;
 
 	pf->vfs = malloc(sizeof(struct ixl_vf) * num_vfs, M_IXL, M_NOWAIT |
 	    M_ZERO);
@@ -2001,28 +2116,9 @@ ixl_if_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params)
 	for (i = 0; i < num_vfs; i++)
 		sysctl_ctx_init(&pf->vfs[i].vsi.sysctl_ctx);
 
-	/*
-	 * Add the VEB and ...
-	 * - do nothing: VEPA mode
-	 * - enable loopback mode on connected VSIs: VEB mode
-	 */
-	ret = i40e_aq_add_veb(hw, pf_vsi->uplink_seid, pf_vsi->seid,
-	    1, FALSE, &pf->veb_seid, FALSE, NULL);
-	if (ret != I40E_SUCCESS) {
-		error = hw->aq.asq_last_status;
-		device_printf(dev, "i40e_aq_add_veb failed; status %s error %s",
-		    i40e_stat_str(hw, ret), i40e_aq_str(hw, error));
+	error = ixl_setup_iov_switch(pf);
+	if (error != 0)
 		goto fail;
-	}
-	if (pf->enable_vf_loopback)
-		ixl_config_pf_vsi_loopback(pf, true);
-
-	/*
-	 * Adding a VEB brings back the default MAC filter(s). Remove them,
-	 * and let the driver add the proper filters back.
-	 */
-	ixl_del_default_hw_filters(pf_vsi);
-	ixl_reconfigure_filters(pf_vsi);
 
 	pf->num_vfs = num_vfs;
 	return (0);

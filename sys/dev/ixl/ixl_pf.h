@@ -384,6 +384,11 @@ int	ixl_prepare_for_reset(struct ixl_pf *pf, bool is_up);
 int	ixl_rebuild_hw_structs_after_reset(struct ixl_pf *, bool is_up);
 int	ixl_pf_reset(struct ixl_pf *);
 
+#ifdef PCI_IOV
+void	ixl_notify_vfs_reset(struct ixl_pf *);
+int	ixl_rebuild_vfs_after_reset(struct ixl_pf *);
+#endif
+
 void	ixl_set_queue_rx_itr(struct ixl_rx_queue *);
 void	ixl_set_queue_tx_itr(struct ixl_tx_queue *);
 

@@ -937,6 +937,9 @@ ixl_prepare_for_reset(struct ixl_pf *pf, bool is_up)
 	device_t dev = pf->dev;
 	int error = 0;
 
+#ifdef PCI_IOV
+	ixl_notify_vfs_reset(pf);
+#endif
 	if (is_up)
 		ixl_if_stop(pf->vsi.ctx);
 
@@ -999,6 +1002,7 @@ ixl_rebuild_hw_structs_after_reset(struct ixl_pf *pf, bool is_up)
 	if (error) {
 		device_printf(dev, "Failed to reserve queues for PF LAN VSI, error %d\n",
 		    error);
+		goto ixl_rebuild_hw_structs_after_reset_err;
 	}
 
 	error = ixl_switch_config(pf);
@@ -1032,6 +1036,15 @@ ixl_rebuild_hw_structs_after_reset(struct ixl_pf *pf, bool is_up)
 
 	/* Receive broadcast Ethernet frames */
 	i40e_aq_set_vsi_broadcast(&pf->hw, vsi->seid, TRUE, NULL);
+
+#ifdef PCI_IOV
+	if (pf->num_vfs != 0) {
+		error = ixl_rebuild_vfs_after_reset(pf);
+		if (error != 0)
+			device_printf(dev,
+			    "Failed to rebuild one or more VFs: %d\n", error);
+	}
+#endif
 
 	/* Determine link state */
 	ixl_attach_get_link_status(pf);
