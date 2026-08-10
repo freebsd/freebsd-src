@@ -45,11 +45,11 @@ static int	ixl_vf_mac_valid(struct ixl_vf *vf, const uint8_t *addr);
 static int	ixl_vf_alloc_vsi(struct ixl_pf *pf, struct ixl_vf *vf);
 static int	ixl_vf_setup_vsi(struct ixl_pf *pf, struct ixl_vf *vf);
 static void	ixl_vf_map_queues(struct ixl_pf *pf, struct ixl_vf *vf);
-static void	ixl_vf_vsi_release(struct ixl_pf *pf, struct ixl_vsi *vsi);
-static void	ixl_vf_release_resources(struct ixl_pf *pf, struct ixl_vf *vf);
+static int	ixl_vf_vsi_release(struct ixl_pf *pf, struct ixl_vsi *vsi);
+static int	ixl_vf_release_resources(struct ixl_pf *pf, struct ixl_vf *vf);
 static int	ixl_flush_pcie(struct ixl_pf *pf, struct ixl_vf *vf);
-static void	ixl_reset_vf(struct ixl_pf *pf, struct ixl_vf *vf);
-static void	ixl_reinit_vf(struct ixl_pf *pf, struct ixl_vf *vf);
+static int	ixl_reset_vf(struct ixl_pf *pf, struct ixl_vf *vf);
+static int	ixl_reinit_vf(struct ixl_pf *pf, struct ixl_vf *vf);
 static void	ixl_send_vf_msg(struct ixl_pf *pf, struct ixl_vf *vf, uint16_t op, enum i40e_status_code status, void *msg, uint16_t len);
 static void	ixl_send_vf_ack(struct ixl_pf *pf, struct ixl_vf *vf, uint16_t op);
 static void	ixl_send_vf_nack_msg(struct ixl_pf *pf, struct ixl_vf *vf, uint16_t op, enum i40e_status_code status, const char *file, int line);
@@ -130,7 +130,7 @@ ixl_vf_alloc_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 	device_t dev;
 	struct i40e_hw *hw;
 	struct i40e_vsi_context vsi_ctx;
-	int i;
+	int error, i;
 	enum i40e_status_code code;
 
 	hw = &pf->hw;
@@ -181,27 +181,34 @@ ixl_vf_alloc_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 	vf->vsi.num_tx_queues = vf->qtag.num_active;
 
 	code = i40e_aq_get_vsi_params(hw, &vsi_ctx, NULL);
-	if (code != I40E_SUCCESS)
-		return (ixl_adminq_err_to_errno(hw->aq.asq_last_status));
+	if (code != I40E_SUCCESS) {
+		error = ixl_adminq_err_to_errno(hw->aq.asq_last_status);
+		goto fail;
+	}
 
 	code = i40e_aq_config_vsi_bw_limit(hw, vf->vsi.seid, 0, 0, NULL);
 	if (code != I40E_SUCCESS) {
+		error = ixl_adminq_err_to_errno(hw->aq.asq_last_status);
 		device_printf(dev, "Failed to disable BW limit: %d\n",
-		    ixl_adminq_err_to_errno(hw->aq.asq_last_status));
-		return (ixl_adminq_err_to_errno(hw->aq.asq_last_status));
+		    error);
+		goto fail;
 	}
 
 	memcpy(&vf->vsi.info, &vsi_ctx.info, sizeof(vf->vsi.info));
 	return (0);
+
+fail:
+	i40e_aq_delete_element(hw, vf->vsi.seid, NULL);
+	vf->vsi.seid = 0;
+	vf->vsi.vsi_num = 0;
+	return (error);
 }
 
 static int
 ixl_vf_setup_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 {
-	struct i40e_hw *hw;
 	int error;
 
-	hw = &pf->hw;
 	vf->vsi.flags |= IXL_FLAGS_IS_VF;
 
 	error = ixl_vf_alloc_vsi(pf, vf);
@@ -211,13 +218,6 @@ ixl_vf_setup_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 	vf->vsi.dev = pf->dev;
 
 	ixl_init_filters(&vf->vsi);
-	/* Let VF receive broadcast Ethernet frames */
-	error = i40e_aq_set_vsi_broadcast(hw, vf->vsi.seid, TRUE, NULL);
-	if (error)
-		device_printf(pf->dev, "Error configuring VF VSI for broadcast promiscuous\n");
-	/* Re-add VF's MAC/VLAN filters to its VSI */
-	ixl_reconfigure_filters(&vf->vsi);
-
 	return (0);
 }
 
@@ -289,17 +289,28 @@ ixl_vf_map_queues(struct ixl_pf *pf, struct ixl_vf *vf)
 	ixl_flush(hw);
 }
 
-static void
+static int
 ixl_vf_vsi_release(struct ixl_pf *pf, struct ixl_vsi *vsi)
 {
 	struct i40e_hw *hw;
+	enum i40e_status_code status;
+	int error;
 
 	hw = &pf->hw;
 
 	if (vsi->seid == 0)
-		return;
+		return (0);
 
-	i40e_aq_delete_element(hw, vsi->seid, NULL);
+	status = i40e_aq_delete_element(hw, vsi->seid, NULL);
+	if (status != I40E_SUCCESS) {
+		error = ixl_adminq_err_to_errno(hw->aq.asq_last_status);
+		device_printf(pf->dev, "Failed to release VF VSI %u: %d\n",
+		    vsi->seid, error);
+		return (error);
+	}
+	vsi->seid = 0;
+	vsi->vsi_num = 0;
+	return (0);
 }
 
 static void
@@ -319,16 +330,16 @@ ixl_vf_unregister_intr(struct i40e_hw *hw, uint32_t vpint_reg)
 	ixl_flush(hw);
 }
 
-static void
+static int
 ixl_vf_release_resources(struct ixl_pf *pf, struct ixl_vf *vf)
 {
 	struct i40e_hw *hw;
 	uint32_t vfint_reg, vpint_reg;
-	int i;
+	int error, i;
 
 	hw = &pf->hw;
 
-	ixl_vf_vsi_release(pf, &vf->vsi);
+	error = ixl_vf_vsi_release(pf, &vf->vsi);
 
 	/* Index 0 has a special register. */
 	ixl_vf_disable_queue_intr(hw, I40E_VFINT_DYN_CTL0(vf->vf_num));
@@ -348,6 +359,7 @@ ixl_vf_release_resources(struct ixl_pf *pf, struct ixl_vf *vf)
 
 	vf->vsi.num_tx_queues = 0;
 	vf->vsi.num_rx_queues = 0;
+	return (error);
 }
 
 static int
@@ -373,11 +385,12 @@ ixl_flush_pcie(struct ixl_pf *pf, struct ixl_vf *vf)
 	return (ETIMEDOUT);
 }
 
-static void
+static int
 ixl_reset_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 {
 	struct i40e_hw *hw;
 	uint32_t vfrtrig;
+	int error;
 
 	hw = &pf->hw;
 
@@ -388,12 +401,15 @@ ixl_reset_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 	wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num), vfrtrig);
 	ixl_flush(hw);
 
-	ixl_reinit_vf(pf, vf);
+	error = ixl_reinit_vf(pf, vf);
+	if (error != 0)
+		return (error);
 
 	ixl_dbg_iov(pf, "Resetting VF-%d done.\n", vf->vf_num);
+	return (0);
 }
 
-static void
+static int
 ixl_reinit_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 {
 	struct i40e_hw *hw;
@@ -403,12 +419,6 @@ ixl_reinit_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 	hw = &pf->hw;
 	vf->vf_flags &= ~VF_FLAG_INITIALIZED;
 
-	error = ixl_flush_pcie(pf, vf);
-	if (error != 0)
-		device_printf(pf->dev,
-		    "Timed out waiting for PCIe activity to stop on VF-%d\n",
-		    vf->vf_num);
-
 	for (i = 0; i < IXL_VF_RESET_TIMEOUT; i++) {
 		DELAY(10);
 
@@ -417,25 +427,49 @@ ixl_reinit_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 			break;
 	}
 
-	if (i == IXL_VF_RESET_TIMEOUT)
+	if (i == IXL_VF_RESET_TIMEOUT) {
 		device_printf(pf->dev, "VF %d failed to reset\n", vf->vf_num);
+		return (ETIMEDOUT);
+	}
+
+	if (vf->vsi.seid != 0) {
+		error = ixl_disable_rings(pf, &vf->vsi, &vf->qtag);
+		if (error != 0)
+			return (error);
+	}
+	ixl_pf_qmgr_clear_queue_flags(&vf->qtag);
+
+	error = ixl_vf_release_resources(pf, vf);
+	if (error != 0)
+		return (error);
+
+	error = ixl_flush_pcie(pf, vf);
+	if (error != 0) {
+		device_printf(pf->dev,
+		    "Timed out waiting for PCIe activity to stop on VF-%d\n",
+		    vf->vf_num);
+		return (error);
+	}
 
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_num), VIRTCHNL_VFR_COMPLETED);
-
 	vfrtrig = rd32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num));
 	vfrtrig &= ~I40E_VPGEN_VFRTRIG_VFSWR_MASK;
 	wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num), vfrtrig);
 
-	if (vf->vsi.seid != 0)
-		ixl_disable_rings(pf, &vf->vsi, &vf->qtag);
-	ixl_pf_qmgr_clear_queue_flags(&vf->qtag);
+	ixl_free_filters(&vf->vsi.ftl);
+	vf->vsi.num_hw_filters = 0;
+	vf->vsi.num_macs = 0;
+	vf->vsi.num_vlans = 0;
+	bit_nclear(vf->vsi.vlans_map, 0, IXL_VLANS_MAP_LEN - 1);
 
-	ixl_vf_release_resources(pf, vf);
-	ixl_vf_setup_vsi(pf, vf);
+	error = ixl_vf_setup_vsi(pf, vf);
+	if (error != 0)
+		return (error);
 	ixl_vf_map_queues(pf, vf);
 
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_num), VIRTCHNL_VFR_VFACTIVE);
 	ixl_flush(hw);
+	return (0);
 }
 
 static int
@@ -519,7 +553,12 @@ static void
 ixl_vf_reset_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
     uint16_t msg_size)
 {
-	ixl_reset_vf(pf, vf);
+	int error;
+
+	error = ixl_reset_vf(pf, vf);
+	if (error != 0)
+		device_printf(pf->dev, "Failed to reset VF-%d: %d\n",
+		    vf->vf_num, error);
 
 	/* No response to a reset message. */
 }
@@ -1614,8 +1653,12 @@ ixl_handle_vflr(struct ixl_pf *pf)
 			    vflrstat_mask);
 
 			ixl_dbg_iov(pf, "Reinitializing VF-%d\n", i);
-			ixl_reinit_vf(pf, vf);
-			ixl_dbg_iov(pf, "Reinitializing VF-%d done\n", i);
+			if (ixl_reinit_vf(pf, vf) != 0)
+				device_printf(pf->dev,
+				    "Failed to reinitialize VF-%d\n", i);
+			else
+				ixl_dbg_iov(pf,
+				    "Reinitializing VF-%d done\n", i);
 		}
 	}
 
@@ -1766,17 +1809,24 @@ ixl_if_iov_uninit(if_ctx_t ctx)
 	struct ixl_pf *pf = iflib_get_softc(ctx);
 	struct i40e_hw *hw;
 	struct ixl_vf *vfs;
-	int i, num_vfs;
+	int error, i, num_vfs;
 
 	hw = &pf->hw;
 
 	for (i = 0; i < pf->num_vfs; i++) {
-		if (pf->vfs[i].vsi.seid != 0)
-			i40e_aq_delete_element(hw, pf->vfs[i].vsi.seid, NULL);
-		ixl_pf_qmgr_release(&pf->qmgr, &pf->vfs[i].qtag);
+		error = ixl_vf_release_resources(pf, &pf->vfs[i]);
+		if (error == 0) {
+			if (pf->vfs[i].qtag.qmgr != NULL)
+				ixl_pf_qmgr_release(&pf->qmgr,
+				    &pf->vfs[i].qtag);
+			ixl_dbg_iov(pf, "VF %d: %d released\n", i,
+			    pf->vfs[i].qtag.num_allocated);
+		} else {
+			device_printf(pf->dev,
+			    "retaining VF-%d queue allocation after failed "
+			    "VSI release\n", i);
+		}
 		ixl_free_filters(&pf->vfs[i].vsi.ftl);
-		ixl_dbg_iov(pf, "VF %d: %d released\n",
-		    i, pf->vfs[i].qtag.num_allocated);
 		ixl_dbg_iov(pf, "Unallocated total: %d\n", ixl_pf_qmgr_get_num_free(&pf->qmgr));
 	}
 
@@ -1836,13 +1886,20 @@ ixl_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 {
 	struct ixl_pf *pf = iflib_get_softc(ctx);
 	char sysctl_name[IXL_QUEUE_NAME_LEN];
+	struct sysctl_ctx_list sysctl_ctx;
 	struct ixl_vf *vf;
 	const void *mac;
 	size_t size;
-	int error;
+	int cleanup_error, error;
 	int vf_num_queues;
 
 	vf = &pf->vfs[vfnum];
+	if (vf->vf_flags & VF_FLAG_ENABLED)
+		return (EBUSY);
+	/* Preserve the context initialized for every VF slot in iov_init. */
+	sysctl_ctx = vf->vsi.sysctl_ctx;
+	bzero(vf, sizeof(*vf));
+	vf->vsi.sysctl_ctx = sysctl_ctx;
 	vf->vf_num = vfnum;
 	vf->vsi.back = pf;
 	vf->vf_flags = VF_FLAG_ENABLED;
@@ -1850,10 +1907,6 @@ ixl_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 	/* Reserve queue allocation from PF */
 	vf_num_queues = nvlist_get_number(params, "num-queues");
 	error = ixl_vf_reserve_queues(pf, vf, vf_num_queues);
-	if (error != 0)
-		goto out;
-
-	error = ixl_vf_setup_vsi(pf, vf);
 	if (error != 0)
 		goto out;
 
@@ -1879,11 +1932,21 @@ ixl_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 	vf->vf_flags |= VF_FLAG_VLAN_CAP;
 
 	/* VF needs to be reset before it can be used */
-	ixl_reset_vf(pf, vf);
+	error = ixl_reset_vf(pf, vf);
 out:
 	if (error == 0) {
 		snprintf(sysctl_name, sizeof(sysctl_name), "vf%d", vfnum);
 		ixl_vsi_add_sysctls(&vf->vsi, sysctl_name, false);
+	} else {
+		cleanup_error = ixl_vf_release_resources(pf, vf);
+		ixl_free_filters(&vf->vsi.ftl);
+		if (cleanup_error == 0 && vf->qtag.qmgr != NULL)
+			ixl_pf_qmgr_release(&pf->qmgr, &vf->qtag);
+		else if (cleanup_error != 0)
+			device_printf(pf->dev,
+			    "retaining VF-%u queue allocation after failed "
+			    "VSI release\n", vfnum);
+		vf->vf_flags = 0;
 	}
 
 	return (error);
