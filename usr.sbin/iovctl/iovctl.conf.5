@@ -145,7 +145,14 @@ After creating VFs, display their PCI attachment and passthrough state with:
 .Bd -literal -offset indent
 iovctl -L -d ix0
 .Ed
+For network devices, display NIC-specific initialization, resources, and
+policy state with:
+.Bd -literal -offset indent
+ifconfig -v ix0
+.Ed
 See
+.Xr ifconfig 8
+and
 .Xr iovctl 8
 for the meaning of the reported fields.
 .Sh EXAMPLES
@@ -174,6 +181,7 @@ VF-0 {
 .Ed
 .Sh SEE ALSO
 .Xr rc.conf 5 ,
+.Xr ifconfig 8 ,
 .Xr iovctl 8
 .Sh AUTHORS
 This manual page was written by

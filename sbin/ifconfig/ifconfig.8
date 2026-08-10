@@ -28,7 +28,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 10, 2026
+.Dd September 6, 2026
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -325,6 +325,74 @@ will attempt to load it.
 Display only the interfaces that are up.
 .It Fl v
 Get more verbose status for an interface.
+When supported, this includes the status of configured SR-IOV virtual
+functions.
+Fields that the PF driver cannot observe are omitted; an omitted field does
+not mean false or zero.
+The status begins with the PF link state and speed normally advertised to
+VFs, followed by the number of VFs and one record for each VF.
+PF link status does not demonstrate that a VF driver is operational.
+.Pp
+Per-VF fields are arranged in the following groups:
+.Bl -tag -width "driver.*"
+.It Cm identity
+The primary MAC address known to the PF.
+.It Cm state
+.Cm configured=yes
+means that the PF accepted the VF configuration.
+.Cm initialized=yes
+means that the VF completed its driver or mailbox handshake since its last
+reset.
+When available, this group also reports whether the PF permits traffic,
+whether fault containment blocked the VF, and whether it is quarantined.
+Traffic permission does not imply that the VF has enabled queues, has link,
+or is actively passing packets.
+.It Cm resources
+The numbers of transmit and receive queues allocated to the VF.
+These are not necessarily the numbers of queues currently used by its driver.
+When available, configured minimum and maximum aggregate transmit rates are
+also shown.
+A zero minimum is displayed as
+.Cm min-tx-rate=none
+(no guaranteed allocation), while a zero maximum is displayed as
+.Cm max-tx-rate=unlimited .
+.It Cm vlan
+An access VLAN is imposed by the PF; trunk mode means that no access VLAN is
+imposed and does not promise unlimited filter capacity.
+Access mode may also report the priority code point and VLAN protocol.
+The VLAN identifier can be zero when the PF imposes priority tagging only.
+The filter count includes explicit filters recorded by the PF and excludes
+implicit untagged and priority-tag membership.
+.It Cm policy
+Administrative permissions for VF requests, MAC anti-spoofing state, and an
+optional per-VF link-state policy.
+Permissions describe what the VF may request, not its current requests.
+.It Cm protocol
+The negotiated PF/VF mailbox API version, when known.
+.It Cm driver.*
+Driver-specific extension namespaces.
+The namespace version and scalar boolean, numeric, string, and binary fields
+are displayed using their stable schema names.
+See the PF driver's manual page for their meanings.
+.El
+.Pp
+For example:
+.Bd -literal -offset indent
+VF-visible PF link: state=up speed=10000Mbps
+virtual functions: 1
+	vf   0:
+		identity: mac=02:00:00:00:00:01
+		state: configured=yes initialized=yes traffic=allowed
+		resources: tx-queues=4 rx-queues=4
+		vlan: mode=trunk filters=0
+		policy: set-mac=denied set-vlan=allowed anti-spoof=on
+.Ed
+.Pp
+See
+.Xr iovctl.conf 5
+for VF configuration and
+.Xr iovctl 8
+for PCI attachment and passthrough status.
 .It Ar address
 For the inet family,
 the address is either a host name present in the host name data

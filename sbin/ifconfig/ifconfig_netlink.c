@@ -150,8 +150,8 @@ prepare_ifmap(struct snl_state *ss, const char *ifname)
 	struct nlmsghdr *hdr = snl_create_msg_request(&nw, RTM_GETLINK);
 	hdr->nlmsg_flags |= NLM_F_DUMP;
 	snl_reserve_msg_object(&nw, struct ifinfomsg);
-       if (ifname != NULL)
-               snl_add_msg_attr_string(&nw, IFLA_IFNAME, ifname);
+	if (ifname != NULL)
+		snl_add_msg_attr_string(&nw, IFLA_IFNAME, ifname);
 
 	if (! (hdr = snl_finalize_msg(&nw)) || !snl_send_message(ss, hdr))
 		return (NULL);
@@ -450,6 +450,8 @@ status_nl(if_ctx *ctx, struct iface *iface)
 		args->afp->af_other_status(ctx);
 
 	print_ifstatus(ctx);
+	if (args->verbose > 0)
+		vf_status(ctx);
 	if (args->drivername || args->verbose) {
 		if (ifconfig_get_orig_name(lifh, link->ifla_ifname,
 		    &drivername) != 0) {
@@ -493,7 +495,7 @@ list_interfaces_nl(struct ifconfig_args *args)
 
 	nl_init_socket(&ss);
 
-       struct ifmap *ifmap = prepare_ifmap(&ss, args->ifname);
+	struct ifmap *ifmap = prepare_ifmap(&ss, args->ifname);
 	struct iface **sorted_ifaces = snl_allocz(&ss, ifmap->count * sizeof(void *));
 	for (uint32_t i = 0, num = 0; i < ifmap->size; i++) {
 		if (ifmap->ifaces[i] != NULL) {
