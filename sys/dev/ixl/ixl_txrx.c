@@ -332,8 +332,6 @@ ixl_tso_setup(struct tx_ring *txr, if_pkt_info_t pi)
  *  	- return 0 on success, positive on failure
   *
   **********************************************************************/
-#define IXL_TXD_CMD (I40E_TX_DESC_CMD_EOP | I40E_TX_DESC_CMD_RS)
-
 static int
 ixl_isc_txd_encap(void *arg, if_pkt_info_t pi)
 {
@@ -345,12 +343,15 @@ ixl_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	bus_dma_segment_t *segs = pi->ipi_segs;
 	struct i40e_tx_desc	*txd = NULL;
 	int             	i, j, mask, pidx_last;
-	u32			cmd, off, tx_intr;
+	u32			cmd, off, tx_intr, txd_cmd;
 
 	cmd = off = 0;
 	i = pi->ipi_pidx;
 
 	tx_intr = (pi->ipi_flags & IPI_TX_INTR);
+	txd_cmd = I40E_TX_DESC_CMD_EOP;
+	if (tx_intr)
+		txd_cmd |= I40E_TX_DESC_CMD_RS;
 
 	/* Set up the TSO/CSUM offload */
 	if (pi->ipi_csum_flags & CSUM_OFFLOAD) {
@@ -397,7 +398,7 @@ ixl_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	}
 	/* Set the last descriptor for report */
 	txd->cmd_type_offset_bsz |=
-	    htole64(((u64)IXL_TXD_CMD << I40E_TXD_QW1_CMD_SHIFT));
+	    htole64((u64)txd_cmd << I40E_TXD_QW1_CMD_SHIFT);
 	/* Add to report status array (if using TX interrupts) */
 	if (!vsi->enable_head_writeback && tx_intr) {
 		txr->tx_rsq[txr->tx_rs_pidx] = pidx_last;
