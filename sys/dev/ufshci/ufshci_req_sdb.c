@@ -112,7 +112,7 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
 	if (bus_dmamap_load(req_queue->dma_tag_ucd, req_queue->ucdmem_map,
 		ucdmem, ucd_allocsz, ufshci_ucd_map, hwq, 0) != 0) {
 		ufshci_printf(ctrlr, "failed to load cmd desc memory\n");
-		bus_dmamem_free(req_queue->dma_tag_ucd, req_queue->ucd,
+		bus_dmamem_free(req_queue->dma_tag_ucd, ucdmem,
 		    req_queue->ucdmem_map);
 		goto out;
 	}
@@ -222,7 +222,7 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 	if (bus_dmamap_load(hwq->dma_tag_queue, hwq->queuemem_map, queuemem,
 		alloc_size, ufshci_single_map, &queuemem_phys, 0) != 0) {
 		ufshci_printf(ctrlr, "failed to load request queue memory\n");
-		bus_dmamem_free(hwq->dma_tag_queue, hwq->utrd,
+		bus_dmamem_free(hwq->dma_tag_queue, queuemem,
 		    hwq->queuemem_map);
 		goto out;
 	}
