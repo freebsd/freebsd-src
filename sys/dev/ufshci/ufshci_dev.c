@@ -86,6 +86,7 @@ ufshci_dev_read_flag(struct ufshci_controller *ctrlr,
 	param.index = 0;
 	param.selector = 0;
 	param.value = 0;
+	param.desc_size = 0;
 
 	status.done = 0;
 	error = ufshci_ctrlr_cmd_send_query_request(ctrlr,
@@ -118,6 +119,7 @@ ufshci_dev_set_flag(struct ufshci_controller *ctrlr,
 	param.index = 0;
 	param.selector = 0;
 	param.value = 0;
+	param.desc_size = 0;
 
 	status.done = 0;
 	error = ufshci_ctrlr_cmd_send_query_request(ctrlr,
@@ -148,6 +150,7 @@ ufshci_dev_clear_flag(struct ufshci_controller *ctrlr,
 	param.index = 0;
 	param.selector = 0;
 	param.value = 0;
+	param.desc_size = 0;
 
 	status.done = 0;
 	error = ufshci_ctrlr_cmd_send_query_request(ctrlr,
@@ -179,6 +182,7 @@ ufshci_dev_read_attribute(struct ufshci_controller *ctrlr,
 	param.index = index;
 	param.selector = selector;
 	param.value = 0;
+	param.desc_size = 0;
 
 	status.done = 0;
 	error = ufshci_ctrlr_cmd_send_query_request(ctrlr,
@@ -212,6 +216,7 @@ ufshci_dev_write_attribute(struct ufshci_controller *ctrlr,
 	param.index = index;
 	param.selector = selector;
 	param.value = value;
+	param.desc_size = 0;
 
 	status.done = 0;
 	error = ufshci_ctrlr_cmd_send_query_request(ctrlr,
