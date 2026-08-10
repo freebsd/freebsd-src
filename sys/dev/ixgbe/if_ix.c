@@ -1923,7 +1923,7 @@ ixgbe_update_stats_counters(struct ixgbe_softc *sc)
 {
 	struct ixgbe_hw *hw = &sc->hw;
 	struct ixgbe_hw_stats *stats = &sc->stats.pf;
-	u32 missed_rx = 0, bprc, lxon, lxoff;
+	u32 missed_rx = 0, mpc, bprc, lxon, lxoff;
 	u32 lxoffrxc;
 	u64 total_missed_rx = 0, total;
 
@@ -1931,7 +1931,13 @@ ixgbe_update_stats_counters(struct ixgbe_softc *sc)
 	stats->illerrc += IXGBE_READ_REG(hw, IXGBE_ILLERRC);
 	stats->errbc += IXGBE_READ_REG(hw, IXGBE_ERRBC);
 	stats->mspdc += IXGBE_READ_REG(hw, IXGBE_MSPDC);
-	stats->mpc[0] += IXGBE_READ_REG(hw, IXGBE_MPC(0));
+	for (int i = 0; i < nitems(stats->mpc); i++) {
+		mpc = IXGBE_READ_REG(hw, IXGBE_MPC(i));
+		missed_rx += mpc;
+		stats->mpc[i] += mpc;
+		total_missed_rx += stats->mpc[i];
+	}
+	stats->mpctotal = total_missed_rx;
 
 	for (int i = 0; i < 16; i++) {
 		stats->qprc[i] += IXGBE_READ_REG(hw, IXGBE_QPRC(i));
@@ -2053,7 +2059,7 @@ ixgbe_update_stats_counters(struct ixgbe_softc *sc)
 	 * - jabber count.
 	 */
 	IXGBE_SET_IERRORS(sc, stats->crcerrs + stats->illerrc +
-	    stats->mpc[0] + stats->rlec + stats->ruc + stats->rfc +
+	    stats->mpctotal + stats->rlec + stats->ruc + stats->rfc +
 	    stats->roc + stats->rjc);
 } /* ixgbe_update_stats_counters */
 
@@ -2164,7 +2170,7 @@ ixgbe_add_hw_stats(struct ixgbe_softc *sc)
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rec_len_errs",
 	    CTLFLAG_RD, &stats->rlec, "Receive Length Errors");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rx_missed_packets",
-	    CTLFLAG_RD, &stats->mpc[0], "RX Missed Packet Count");
+	    CTLFLAG_RD, &stats->mpctotal, "RX Missed Packet Count");
 
 	/* Flow Control stats */
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "xon_txd",
