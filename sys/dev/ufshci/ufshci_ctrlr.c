@@ -448,6 +448,8 @@ ufshci_ctrlr_destruct(struct ufshci_controller *ctrlr, device_t dev)
 		bus_release_resource(ctrlr->dev, SYS_RES_IRQ,
 		    rman_get_rid(ctrlr->res), ctrlr->res);
 
+	ufshci_sim_release_wlun_periph(ctrlr);
+
 	mtx_lock(&ctrlr->sc_mtx);
 
 	ufshci_sim_detach(ctrlr);
