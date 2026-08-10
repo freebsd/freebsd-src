@@ -194,8 +194,8 @@ dpaa_eth_fm_port_rx_init(struct dpaa_eth_softc *sc)
 	struct fman_port_params params;
 	int error;
 
-	params.dflt_fqid = sc->sc_rx_fqid;
-	params.err_fqid = sc->sc_rx_fqid;
+	params.dflt_fqid = sc->sc_rx_fqid_base;
+	params.err_fqid = sc->sc_rx_fqid_base;
 	params.rx_params.num_pools = 1;
 	params.rx_params.bpools[0].bpid = bman_get_bpid(sc->sc_rx_pool);
 	params.rx_params.bpools[0].size = MCLBYTES;
@@ -398,13 +398,15 @@ static int
 dpaa_eth_fq_rx_callback(device_t portal, struct qman_fq *fq,
     struct qman_fd *frame, void *app)
 {
+	struct dpaa_eth_rx_fq *rxfq;
 	struct dpaa_eth_softc *sc;
 	struct mbuf *m;
 	struct fman_internal_context *frame_ic;
 	void *frame_va;
 
 	m = NULL;
-	sc = app;
+	rxfq = app;
+	sc = rxfq->sc;
 
 	frame_va = DPAA_FD_GET_ADDR(frame);
 	frame_ic = frame_va;	/* internal context at head of the frame */
@@ -514,10 +516,17 @@ dpaa_eth_fq_tx_confirm_callback(device_t portal, struct qman_fq *fq,
 void
 dpaa_eth_fq_rx_free(struct dpaa_eth_softc *sc)
 {
-	int cpu;
+	int cpu, i;
 
-	if (sc->sc_rx_fq)
-		qman_fq_free(sc->sc_rx_fq);
+	if (sc->sc_rx_fqs != NULL) {
+		for (i = 0; i < sc->sc_nrxfqs; i++) {
+			if (sc->sc_rx_fqs[i].fq != NULL)
+				qman_fq_free(sc->sc_rx_fqs[i].fq);
+		}
+		free(sc->sc_rx_fqs, M_DEVBUF);
+		sc->sc_rx_fqs = NULL;
+		sc->sc_nrxfqs = 0;
+	}
 	if (sc->sc_rx_channel != 0) {
 		CPU_FOREACH(cpu) {
 			device_t portal = DPCPU_ID_GET(cpu, qman_affine_portal);
@@ -531,7 +540,7 @@ dpaa_eth_fq_rx_free(struct dpaa_eth_softc *sc)
 int
 dpaa_eth_fq_rx_init(struct dpaa_eth_softc *sc)
 {
-	void *fq;
+	struct qman_fq *fq;
 	int error;
 	int cpu;
 
@@ -556,10 +565,17 @@ dpaa_eth_fq_rx_init(struct dpaa_eth_softc *sc)
 		QMAN_PORTAL_STATIC_DEQUEUE_CHANNEL(portal, sc->sc_rx_channel);
 	}
 
-	sc->sc_rx_fq = fq;
-	sc->sc_rx_fqid = qman_fq_get_fqid(fq);
+	sc->sc_nrxfqs = 1;
+	sc->sc_rx_fqs = malloc(sc->sc_nrxfqs * sizeof(*sc->sc_rx_fqs),
+	    M_DEVBUF, M_WAITOK | M_ZERO);
+	sc->sc_rx_fqs[0].fq = fq;
+	sc->sc_rx_fqs[0].fqid = qman_fq_get_fqid(fq);
+	sc->sc_rx_fqs[0].cpu = -1;	/* not pinned; any portal may drain */
+	sc->sc_rx_fqs[0].sc = sc;
+	sc->sc_rx_fqid_base = sc->sc_rx_fqs[0].fqid;
 
-	error = qman_fq_register_cb(fq, dpaa_eth_fq_rx_callback, sc);
+	error = qman_fq_register_cb(fq, dpaa_eth_fq_rx_callback,
+	    &sc->sc_rx_fqs[0]);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not register RX callback\n");
 		dpaa_eth_fq_rx_free(sc);
