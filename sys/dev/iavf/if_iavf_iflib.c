@@ -2065,7 +2065,17 @@ void
 iavf_update_link_status(struct iavf_sc *sc)
 {
 	struct iavf_vsi *vsi = &sc->vsi;
+	if_t ifp;
 	u64 baudrate;
+
+	ifp = iflib_get_ifp(vsi->ctx);
+	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
+		if (vsi->link_active) {
+			vsi->link_active = false;
+			iflib_link_state_change(vsi->ctx, LINK_STATE_DOWN, 0);
+		}
+		return;
+	}
 
 	if (sc->link_up){
 		if (vsi->link_active == FALSE) {
