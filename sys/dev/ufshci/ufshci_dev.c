@@ -745,7 +745,7 @@ ufshci_dev_config_write_booster(struct ufshci_controller *ctrlr)
 {
 	struct ufshci_device *dev = &ctrlr->ufs_dev;
 	uint32_t extended_ufs_feature_support;
-	uint32_t alloc_units;
+	uint32_t alloc_units = 0;
 	struct ufshci_unit_descriptor unit_desc;
 	uint8_t lun;
 	bool is_life_time_left;
