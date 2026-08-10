@@ -875,15 +875,21 @@ int
 ixl_enable_rings(struct ixl_vsi *vsi)
 {
 	struct ixl_pf	*pf = vsi->back;
-	int		error = 0;
+	int		error;
 
-	for (int i = 0; i < vsi->num_tx_queues; i++)
+	for (int i = 0; i < vsi->num_tx_queues; i++) {
 		error = ixl_enable_tx_ring(pf, &pf->qtag, i);
+		if (error != 0)
+			return (error);
+	}
 
-	for (int i = 0; i < vsi->num_rx_queues; i++)
+	for (int i = 0; i < vsi->num_rx_queues; i++) {
 		error = ixl_enable_rx_ring(pf, &pf->qtag, i);
+		if (error != 0)
+			return (error);
+	}
 
-	return (error);
+	return (0);
 }
 
 int
