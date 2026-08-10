@@ -22,10 +22,16 @@ ufshci_req_sdb_cmd_desc_destroy(struct ufshci_req_queue *req_queue)
 	struct ufshci_tracker *tr;
 	int i;
 
-	for (i = 0; i < req_queue->num_trackers; i++) {
-		tr = hwq->act_tr[i];
-		bus_dmamap_destroy(req_queue->dma_tag_payload,
-		    tr->payload_dma_map);
+	if (req_queue->dma_tag_payload != NULL) {
+		for (i = 0; i < req_queue->num_trackers; i++) {
+			tr = hwq->act_tr[i];
+			if (tr->payload_dma_map != NULL)
+				bus_dmamap_destroy(req_queue->dma_tag_payload,
+				    tr->payload_dma_map);
+		}
+
+		bus_dma_tag_destroy(req_queue->dma_tag_payload);
+		req_queue->dma_tag_payload = NULL;
 	}
 
 	if (req_queue->ucd) {
@@ -42,6 +48,7 @@ ufshci_req_sdb_cmd_desc_destroy(struct ufshci_req_queue *req_queue)
 	}
 
 	free(req_queue->hwq->ucd_bus_addr, M_UFSHCI);
+	req_queue->hwq->ucd_bus_addr = NULL;
 }
 
 static void
@@ -145,7 +152,6 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
 
 	return (0);
 out:
-	ufshci_req_sdb_cmd_desc_destroy(req_queue);
 	return (ENOMEM);
 }
 
@@ -297,24 +303,27 @@ void
 ufshci_req_sdb_destroy(struct ufshci_controller *ctrlr,
     struct ufshci_req_queue *req_queue)
 {
-	struct ufshci_hw_queue *hwq = &req_queue->hwq[UFSHCI_SDB_Q];
-	struct ufshci_tracker *tr;
+	struct ufshci_hw_queue *hwq;
 	int i;
+
+	if (req_queue->hwq == NULL)
+		return;
+
+	hwq = &req_queue->hwq[UFSHCI_SDB_Q];
 
 	mtx_lock(&hwq->recovery_lock);
 	hwq->timer_armed = false;
 	mtx_unlock(&hwq->recovery_lock);
 	callout_drain(&hwq->timer);
 
-	if (!req_queue->is_task_mgmt)
-		ufshci_req_sdb_cmd_desc_destroy(&ctrlr->transfer_req_queue);
+	if (hwq->act_tr != NULL) {
+		if (!req_queue->is_task_mgmt)
+			ufshci_req_sdb_cmd_desc_destroy(
+			    &ctrlr->transfer_req_queue);
 
-	for (i = 0; i < req_queue->num_trackers; i++) {
-		tr = hwq->act_tr[i];
-		free(tr, M_UFSHCI);
-	}
+		for (i = 0; i < req_queue->num_trackers; i++)
+			free(hwq->act_tr[i], M_UFSHCI);
 
-	if (hwq->act_tr) {
 		free(hwq->act_tr, M_UFSHCI);
 		hwq->act_tr = NULL;
 	}
@@ -331,12 +340,11 @@ ufshci_req_sdb_destroy(struct ufshci_controller *ctrlr,
 		hwq->dma_tag_queue = NULL;
 	}
 
-	if (mtx_initialized(&hwq->recovery_lock))
-		mtx_destroy(&hwq->recovery_lock);
-	if (mtx_initialized(&hwq->qlock))
-		mtx_destroy(&hwq->qlock);
+	mtx_destroy(&hwq->recovery_lock);
+	mtx_destroy(&hwq->qlock);
 
 	free(req_queue->hwq, M_UFSHCI);
+	req_queue->hwq = NULL;
 }
 
 struct ufshci_hw_queue *
