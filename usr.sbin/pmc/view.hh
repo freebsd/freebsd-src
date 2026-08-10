@@ -73,7 +73,7 @@ struct pmcinfo
 struct pmcinfox
 {
 	pmcinfox() : rate(0), event() { }
-	pmcinfox(uint32_t rate_, std::string &event_) : rate(rate_), event(event_) { }
+	pmcinfox(uint32_t rate_, std::string event_) : rate(rate_), event(event_) { }
 	~pmcinfox() { }
 	uint32_t			rate;
 	std::string			event;
