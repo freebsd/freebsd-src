@@ -28,8 +28,10 @@
 
 #include <sys/types.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_bridgevar.h> /* for ifbvlan_set_t */
+#include <netlink/route/interface.h>
 
 #include <netinet/in.h>
 #include <netinet/ip_carp.h>
@@ -197,6 +199,113 @@ int ifconfig_get_groups(ifconfig_handle_t *h, const char *name,
     struct ifgroupreq *ifgr);
 int ifconfig_get_ifstatus(ifconfig_handle_t *h, const char *name,
     struct ifstat *stat);
+
+/*
+ * SR-IOV VF status schema contract.
+ *
+ * Bits in the presence mask are indexed by IFLAF_VF_* and distinguish an
+ * omitted fact from false or zero.  Driver-specific facts remain owned by a
+ * stable, versioned driver namespace: that driver defines the names, types,
+ * and meanings of its fields.  Their named, typed form lets generic consumers
+ * carry or display extensions without knowing each driver's schema.  Consumers
+ * that interpret extensions must ignore unknown namespaces and fields.
+ * Additive optional fields retain a namespace version; an incompatible type or
+ * semantic change requires a new version.  All pointed-to storage belongs to
+ * the returned status object and is released by ifconfig_free_vf_status().
+ * VF records are returned through a pointer vector so append-only growth of
+ * struct ifconfig_vf_info does not change the array stride seen by existing
+ * consumers.  VLAN PCP and protocol describe the PF-administered access VLAN;
+ * they do not describe trunk-filter entries.
+ */
+
+enum ifconfig_vf_vlan_mode {
+	IFCONFIG_VF_VLAN_UNKNOWN = IFLAF_VF_VLAN_UNKNOWN,
+	IFCONFIG_VF_VLAN_ACCESS = IFLAF_VF_VLAN_ACCESS,
+	IFCONFIG_VF_VLAN_TRUNK = IFLAF_VF_VLAN_TRUNK,
+};
+
+enum ifconfig_vf_link_state {
+	IFCONFIG_VF_LINK_UNKNOWN = IFLAF_VF_LINK_UNKNOWN,
+	IFCONFIG_VF_LINK_DOWN = IFLAF_VF_LINK_DOWN,
+	IFCONFIG_VF_LINK_UP = IFLAF_VF_LINK_UP,
+	IFCONFIG_VF_LINK_AUTO = IFLAF_VF_LINK_AUTO,
+};
+
+enum ifconfig_vf_extension_type {
+	IFCONFIG_VF_EXT_BOOL = 1,
+	IFCONFIG_VF_EXT_NUMBER,
+	IFCONFIG_VF_EXT_STRING,
+	IFCONFIG_VF_EXT_BINARY,
+};
+
+struct ifconfig_vf_extension_field {
+	char *name;
+	enum ifconfig_vf_extension_type type;
+	union {
+		bool boolean;
+		uint64_t number;
+		char *string;
+		struct {
+			void *data;
+			size_t length;
+		} binary;
+	} value;
+};
+
+struct ifconfig_vf_extension {
+	char *name;
+	uint32_t version;
+	size_t num_fields;
+	struct ifconfig_vf_extension_field *fields;
+};
+
+struct ifconfig_vf_info {
+	uint64_t fields;
+	uint64_t min_tx_rate_bps;	/* Zero means no guaranteed allocation. */
+	uint64_t max_tx_rate_bps;	/* Zero means unlimited. */
+	uint32_t index;
+	uint32_t vlan_count;
+	uint32_t vlan_limit;
+	uint16_t tx_queue_count;
+	uint16_t rx_queue_count;
+	uint16_t vlan;
+	uint16_t vlan_proto;		/* Host-order Ethernet type. */
+	uint8_t vlan_pcp;
+	uint8_t mac[ETHER_ADDR_LEN];
+	enum ifconfig_vf_vlan_mode vlan_mode;
+	enum ifconfig_vf_link_state link_state_policy;
+	bool configured;
+	bool initialized;
+	bool allow_set_mac;
+	bool allow_set_vlan;
+	bool mac_anti_spoof;
+	bool allow_promisc;
+	bool traffic_allowed;
+	bool fault_blocked;
+	bool quarantined;
+	char *api_version;
+	size_t num_extensions;
+	struct ifconfig_vf_extension *extensions;
+};
+
+struct ifconfig_vf_status {
+	uint64_t pf_link_speed;
+	enum ifconfig_vf_link_state pf_link_state;
+	bool pf_link_state_present;
+	bool pf_link_speed_present;
+	size_t num_vfs;
+	struct ifconfig_vf_info **vfs;
+};
+
+/** Retrieve structured SR-IOV VF status for an interface through rtnetlink.
+ * @param h	An open ifconfig state object
+ * @param name	The PF interface name
+ * @param statusp Return argument.  Free it with ifconfig_free_vf_status().
+ * @return	0 on success, -1 on failure
+ */
+int ifconfig_get_vf_status(ifconfig_handle_t *h, const char *name,
+    struct ifconfig_vf_status **statusp);
+void ifconfig_free_vf_status(struct ifconfig_vf_status *status);
 
 /** Retrieve the interface media information
  * @param h	An open ifconfig state object
