@@ -149,7 +149,6 @@ static void     ixv_if_unregister_vlan(if_ctx_t, u16);
 static uint64_t ixv_if_get_counter(if_ctx_t, ift_counter);
 static bool	ixv_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 
-static void     ixv_save_stats(struct ixgbe_softc *);
 static void     ixv_init_stats(struct ixgbe_softc *);
 static void     ixv_update_stats(struct ixgbe_softc *);
 static void     ixv_add_stats_sysctls(struct ixgbe_softc *);
@@ -568,8 +567,8 @@ ixv_if_attach_post(if_ctx_t ctx)
 	}
 
 	/* Do the stats setup */
-	ixv_save_stats(sc);
-	ixv_init_stats(sc);
+	if (atomic_load_acq_32(&sc->vf_mbx_ready) != 0)
+		ixv_init_stats(sc);
 	ixv_add_stats_sysctls(sc);
 
 end:
@@ -674,12 +673,14 @@ ixv_if_init(if_ctx_t ctx)
 	/* Reset VF and renegotiate mailbox API version. */
 	error = hw->mac.ops.reset_hw(hw);
 	if (error != IXGBE_SUCCESS) {
+		sc->stats.vf.initialized = false;
 		ixv_log_reset_failure(sc, error, false);
 		hw->mac.ops.stop_adapter(hw);
 		ixv_mbx_retry_failed(ctx);
 		return;
 	}
 	hw->mac.ops.start_hw(hw);
+	ixv_init_stats(sc);
 	error = ixv_negotiate_api(sc);
 	if (error) {
 		/*
@@ -724,9 +725,6 @@ ixv_if_init(if_ctx_t ctx)
 
 	/* Set moderation on the Link interrupt */
 	IXGBE_WRITE_REG(hw, IXGBE_VTEITR(sc->vector), IXGBE_LINK_ITR);
-
-	/* Stats init */
-	ixv_init_stats(sc);
 
 	/* Config/Enable Link */
 	error = hw->mac.ops.get_link_state(hw, &sc->link_enabled);
@@ -1294,7 +1292,7 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	device_t dev = iflib_get_dev(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
-	bool check_link;
+	bool check_link, reset_seen;
 	s32 status;
 	uint64_t baudrate;
 
@@ -1311,13 +1309,13 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 	if (sc->hw.mac.type != ixgbe_mac_E610_vf ||
 	    sc->hw.api_version != ixgbe_mbox_api_16)
 		check_link = true;
+	reset_seen = ixgbe_check_for_rst(&sc->hw, 0) == IXGBE_SUCCESS;
+	if (reset_seen)
+		sc->hw.mac.get_link_status = true;
 	if (check_link) {
 		sc->hw.mac.get_link_status = true;
 		status = ixgbe_check_link(&sc->hw, &sc->link_speed,
 		    &sc->link_up, false);
-	} else if (ixgbe_check_for_rst(&sc->hw, 0) == IXGBE_SUCCESS) {
-		/* Process an unsolicited PF reset without issuing another query. */
-		status = IXGBE_ERR_MBX;
 	} else
 		status = IXGBE_SUCCESS;
 	if (sc->hw.mac.type == ixgbe_mac_E610_vf &&
@@ -1335,6 +1333,9 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 		status = IXGBE_SUCCESS;
 	} else if (status == IXGBE_SUCCESS)
 		sc->vf_link_mbx_failures = 0;
+	/* Reinitialize after an unsolicited reset, even while link is down. */
+	if (reset_seen)
+		status = IXGBE_ERR_MBX;
 
 	if (status != IXGBE_SUCCESS && sc->hw.adapter_stopped == false) {
 		/* Mailbox's Clear To Send status is lost or timeout occurred.
@@ -1370,8 +1371,11 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 	    atomic_readandclear_32(&sc->vf_vlan_retry_tick) != 0)
 		ixv_vlan_retry_tick(sc);
 
-	/* Stats Update */
-	ixv_update_stats(sc);
+	/* Do not treat a PF reset as a hardware-counter wrap. */
+	if (status == IXGBE_SUCCESS)
+		ixv_update_stats(sc);
+	else
+		sc->stats.vf.initialized = false;
 } /* ixv_if_update_admin_status */
 
 
@@ -1387,7 +1391,7 @@ ixv_if_stop(if_ctx_t ctx)
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
 	if_t ifp = iflib_get_ifp(ctx);
-	bool mailbox_ready;
+	bool mailbox_ready, reset_seen;
 
 	INIT_DEBUGOUT("ixv_stop: begin\n");
 
@@ -1395,8 +1399,18 @@ ixv_if_stop(if_ctx_t ctx)
 	ixv_if_disable_intr(ctx);
 
 	mailbox_ready = atomic_load_acq_32(&sc->vf_mbx_ready) != 0;
-	if (mailbox_ready && (if_getflags(ifp) & IFF_UP) == 0)
-		hw->mac.ops.reset_hw(hw);
+	reset_seen = mailbox_ready &&
+	    ixgbe_check_for_rst(hw, 0) == IXGBE_SUCCESS;
+	if (reset_seen)
+		sc->stats.vf.initialized = false;
+	else if (mailbox_ready && sc->stats.vf.initialized)
+		ixv_update_stats(sc);
+	if (mailbox_ready && (if_getflags(ifp) & IFF_UP) == 0) {
+		if (hw->mac.ops.reset_hw(hw) == IXGBE_SUCCESS)
+			ixv_init_stats(sc);
+		else
+			sc->stats.vf.initialized = false;
+	}
 	atomic_store_rel_32(&sc->vf_mbx_ready, 0);
 	sc->vf_link_mbx_failures = 0;
 	sc->hw.adapter_stopped = false;
@@ -2291,33 +2305,10 @@ ixv_configure_ivars(struct ixgbe_softc *sc)
 } /* ixv_configure_ivars */
 
 /************************************************************************
- * ixv_save_stats
- *
- *   The VF stats registers never have a truly virgin
- *   starting point, so this routine tries to make an
- *   artificial one, marking ground zero on attach as
- *   it were.
- ************************************************************************/
-static void
-ixv_save_stats(struct ixgbe_softc *sc)
-{
-	if (sc->stats.vf.vfgprc || sc->stats.vf.vfgptc) {
-		sc->stats.vf.saved_reset_vfgprc +=
-		    sc->stats.vf.vfgprc - sc->stats.vf.base_vfgprc;
-		sc->stats.vf.saved_reset_vfgptc +=
-		    sc->stats.vf.vfgptc - sc->stats.vf.base_vfgptc;
-		sc->stats.vf.saved_reset_vfgorc +=
-		    sc->stats.vf.vfgorc - sc->stats.vf.base_vfgorc;
-		sc->stats.vf.saved_reset_vfgotc +=
-		    sc->stats.vf.vfgotc - sc->stats.vf.base_vfgotc;
-		sc->stats.vf.saved_reset_vfmprc +=
-		    sc->stats.vf.vfmprc - sc->stats.vf.base_vfmprc;
-	}
-} /* ixv_save_stats */
-
-/************************************************************************
  * ixv_init_stats
  ************************************************************************/
+#define IXV_STAT_36_MASK	0xFFFFFFFFFULL
+
 static void
 ixv_init_stats(struct ixgbe_softc *sc)
 {
@@ -2327,42 +2318,31 @@ ixv_init_stats(struct ixgbe_softc *sc)
 	sc->stats.vf.last_vfgorc = IXGBE_READ_REG(hw, IXGBE_VFGORC_LSB);
 	sc->stats.vf.last_vfgorc |=
 	    (((u64)(IXGBE_READ_REG(hw, IXGBE_VFGORC_MSB))) << 32);
+	sc->stats.vf.last_vfgorc &= IXV_STAT_36_MASK;
 
 	sc->stats.vf.last_vfgptc = IXGBE_READ_REG(hw, IXGBE_VFGPTC);
 	sc->stats.vf.last_vfgotc = IXGBE_READ_REG(hw, IXGBE_VFGOTC_LSB);
 	sc->stats.vf.last_vfgotc |=
 	    (((u64)(IXGBE_READ_REG(hw, IXGBE_VFGOTC_MSB))) << 32);
+	sc->stats.vf.last_vfgotc &= IXV_STAT_36_MASK;
 
 	sc->stats.vf.last_vfmprc = IXGBE_READ_REG(hw, IXGBE_VFMPRC);
-
-	sc->stats.vf.base_vfgprc = sc->stats.vf.last_vfgprc;
-	sc->stats.vf.base_vfgorc = sc->stats.vf.last_vfgorc;
-	sc->stats.vf.base_vfgptc = sc->stats.vf.last_vfgptc;
-	sc->stats.vf.base_vfgotc = sc->stats.vf.last_vfgotc;
-	sc->stats.vf.base_vfmprc = sc->stats.vf.last_vfmprc;
+	sc->stats.vf.initialized = true;
 } /* ixv_init_stats */
 
-#define UPDATE_STAT_32(reg, last, count)                \
-{                                                       \
-	u32 current = IXGBE_READ_REG(hw, reg);          \
-	if (current < last)                             \
-		count += 0x100000000LL;                 \
-	last = current;                                 \
-	count &= 0xFFFFFFFF00000000LL;                  \
-	count |= current;                               \
-}
+#define UPDATE_STAT_32(reg, last, count) do {                         \
+	u32 current = IXGBE_READ_REG(hw, reg);                         \
+	count += (u32)(current - (u32)last);                            \
+	last = current;                                                 \
+} while (0)
 
-#define UPDATE_STAT_36(lsb, msb, last, count)           \
-{                                                       \
-	u64 cur_lsb = IXGBE_READ_REG(hw, lsb);          \
-	u64 cur_msb = IXGBE_READ_REG(hw, msb);          \
-	u64 current = ((cur_msb << 32) | cur_lsb);      \
-	if (current < last)                             \
-		count += 0x1000000000LL;                \
-	last = current;                                 \
-	count &= 0xFFFFFFF000000000LL;                  \
-	count |= current;                               \
-}
+#define UPDATE_STAT_36(lsb, msb, last, count) do {                    \
+	u64 current = IXGBE_READ_REG(hw, lsb);                         \
+	current |= (u64)IXGBE_READ_REG(hw, msb) << 32;                 \
+	current &= IXV_STAT_36_MASK;                                   \
+	count += (current - last) & IXV_STAT_36_MASK;                  \
+	last = current;                                                 \
+} while (0)
 
 /************************************************************************
  * ixv_update_stats - Update the board statistics counters.
@@ -2372,6 +2352,9 @@ ixv_update_stats(struct ixgbe_softc *sc)
 {
 	struct ixgbe_hw *hw = &sc->hw;
 	struct ixgbevf_hw_stats *stats = &sc->stats.vf;
+
+	if (!stats->initialized)
+		return;
 
 	UPDATE_STAT_32(IXGBE_VFGPRC, sc->stats.vf.last_vfgprc,
 	    sc->stats.vf.vfgprc);
