@@ -213,6 +213,12 @@ use a value written to memory by the hardware instead of scanning the
 descriptor ring for completed descriptors.
 Enabled by default; disable to mimic the TX behavior found in
 .Xr ix 4 .
+.It Va hw.ixl.mdd_auto_reset_vf
+Automatically reset a VF after malicious-driver detection blocks it.
+This is disabled by default so a non-cooperative VF remains unable to issue
+traffic until it performs an FLR or the SR-IOV configuration is recreated.
+Enabling this tunable favors availability but allows a persistently faulty or
+hostile VF to resume after each reset.
 .El
 .Sh SYSCTL PROCEDURES
 .Bl -tag -width indent

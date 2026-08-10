@@ -251,6 +251,12 @@ SYSCTL_INT(_hw_ixl, OID_AUTO, enable_vf_loopback, CTLFLAG_RDTUN,
     &ixl_enable_vf_loopback, 0,
     IXL_SYSCTL_HELP_VF_LOOPBACK);
 
+static int ixl_mdd_auto_reset_vf;
+TUNABLE_INT("hw.ixl.mdd_auto_reset_vf", &ixl_mdd_auto_reset_vf);
+SYSCTL_INT(_hw_ixl, OID_AUTO, mdd_auto_reset_vf, CTLFLAG_RDTUN,
+    &ixl_mdd_auto_reset_vf, 0,
+    "Automatically reset VFs blocked by malicious-driver detection");
+
 /*
  * Different method for processing TX descriptor
  * completion.
@@ -1938,6 +1944,7 @@ ixl_save_pf_tunables(struct ixl_pf *pf)
 	pf->hw.debug_mask = ixl_shared_debug_mask;
 	pf->vsi.enable_head_writeback = !!(ixl_enable_head_writeback);
 	pf->enable_vf_loopback = !!(ixl_enable_vf_loopback);
+	pf->mdd_auto_reset_vf = !!(ixl_mdd_auto_reset_vf);
 #if 0
 	pf->dynamic_rx_itr = ixl_dynamic_rx_itr;
 	pf->dynamic_tx_itr = ixl_dynamic_tx_itr;
@@ -1987,4 +1994,3 @@ ixl_save_pf_tunables(struct ixl_pf *pf)
 			pf->fc = ixl_flow_control;
 	}
 }
-
