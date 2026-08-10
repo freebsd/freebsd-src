@@ -293,7 +293,7 @@ static int	uipc_ctloutput(struct socket *, struct sockopt *);
 static int	unp_connect(struct socket *, struct sockaddr *,
 		    struct thread *);
 static int	unp_connectat(int, struct socket *, struct sockaddr *,
-		    struct thread *, bool);
+		    struct thread *, struct socket **);
 static int	unp_connect_peer(struct socket *, struct unpcb *,
 		    struct sockaddr **, struct thread *, bool);
 static void	unp_connect2(struct socket *, struct socket *, bool);
@@ -738,7 +738,7 @@ uipc_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	int error;
 
 	KASSERT(td == curthread, ("uipc_connectat: td != curthread"));
-	error = unp_connectat(fd, so, nam, td, false);
+	error = unp_connectat(fd, so, nam, td, NULL);
 	return (error);
 }
 
@@ -2000,7 +2000,7 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 {
 	struct unpcb *unp, *unp2;
 	const struct sockaddr *from;
-	struct socket *so2;
+	struct socket *so2, *peer;
 	struct sockbuf *sb;
 	struct mchain cmc = MCHAIN_INITIALIZER(&cmc);
 	struct mbuf *f;
@@ -2082,7 +2082,7 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	SOCK_SENDBUF_UNLOCK(so);
 
 	if (addr != NULL) {
-		if ((error = unp_connectat(AT_FDCWD, so, addr, td, true)))
+		if ((error = unp_connectat(AT_FDCWD, so, addr, td, &peer)))
 			goto out3;
 		UNP_PCB_LOCK_ASSERT(unp);
 		unp2 = unp->unp_conn;
@@ -2198,9 +2198,10 @@ uipc_sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
 	}
 
 out4:
-	if (addr != NULL)
+	if (addr != NULL) {
 		unp_disconnect(unp, unp2);
-	else
+		sorele(peer);
+	} else
 		unp_pcb_unlock_pair(unp, unp2);
 
 	td->td_ru.ru_msgsnd++;
@@ -2904,14 +2905,33 @@ static int
 unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
 
-	return (unp_connectat(AT_FDCWD, so, nam, td, false));
+	return (unp_connectat(AT_FDCWD, so, nam, td, NULL));
 }
 
+/*
+ * Connect socket 'so' to the unix-domain peer named by 'nam', resolved
+ * relative to descriptor 'fd' (AT_FDCWD for connect(2)).
+ *
+ * 'referenced_peerp' selects how the peer is returned.  If NULL, on exit the
+ * peer's PCB is unlocked and the peer is unreferenced, symmetrically releasing
+ * the resources acquired within the function.  If non-NULL, the peer's PCB is
+ * returned locked and '*referenced_peerp' receives the referenced peer socket;
+ * the caller is then responsible for first unlocking the peer's PCB and
+ * afterwards releasing the socket.
+ *
+ * The reference is handed back rather than released in the return-unlocked
+ * case, because releasing the last one under the PCB lock could cause
+ * uipc_close() to try to re-acquire that lock.
+ *
+ * Note: the referenced_peerp mechanism is here only for the datagram fast-send
+ * path, which enqueues under the peer's PCB lock.
+ */
 static int
 unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
-    struct thread *td, bool return_locked)
+    struct thread *td, struct socket **referenced_peerp)
 {
 	struct mtx *vplock;
+	struct socket *so2;
 	struct vnode *vp;
 	struct unpcb *unp, *unp2;
 	struct nameidata nd;
@@ -2979,26 +2999,31 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	    cap_rights_init_one(&rights, CAP_CONNECTAT));
 	error = namei(&nd);
 	if (error)
-		vp = NULL;
-	else
-		vp = nd.ni_vp;
-	ASSERT_VOP_LOCKED(vp, "unp_connect");
-	if (error)
-		goto bad;
+		goto out;
 	NDFREE_PNBUF(&nd);
+	vp = nd.ni_vp;
+	ASSERT_VOP_LOCKED(vp, "unp_connect");
 
+	/*
+	 * Resolve the vnode to a referenced peer socket, then drop the vnode
+	 * before connecting.  Holding a reference on the peer keeps it stable
+	 * in place of the per-vnode unp_vp_mtxpool lock, so no vnode lock is
+	 * held across unp_connect_peer() -- which is what the return_locked
+	 * datagram fast path needs, since vput() must not sleep while the peer
+	 * is locked.
+	 */
 	if (vp->v_type != VSOCK) {
 		error = ENOTSOCK;
-		goto bad;
+		goto drop_vp;
 	}
 #ifdef MAC
 	error = mac_vnode_check_open(td->td_ucred, vp, VWRITE | VREAD);
 	if (error)
-		goto bad;
+		goto drop_vp;
 #endif
 	error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td);
 	if (error)
-		goto bad;
+		goto drop_vp;
 
 	vplock = mtx_pool_find(unp_vp_mtxpool, vp);
 	mtx_lock(vplock);
@@ -3006,19 +3031,20 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	if (unp2 == NULL)
 		error = ECONNREFUSED;
 	else
-		error = unp_connect_peer(so, unp2, &sa, td, return_locked);
+		soref(so2 = unp2->unp_socket);
 	mtx_unlock(vplock);
-bad:
-	if (vp != NULL) {
-		/*
-		 * If we are returning locked (called via uipc_sosend_dgram()),
-		 * we need to be sure that vput() won't sleep.  This is
-		 * guaranteed by VOP_UNP_CONNECT() call above and unp2 lock.
-		 * SOCK_STREAM/SEQPACKET can't request return_locked (yet).
-		 */
-		MPASS(!(return_locked && connreq));
-		vput(vp);
-	}
+drop_vp:
+	vput(vp);
+	if (error != 0)
+		goto out;
+	error = unp_connect_peer(so, sotounpcb(so2), &sa, td,
+	    referenced_peerp != NULL);
+	/* Transfer the reference; the caller releases it after unlocking. */
+	if (error == 0 && referenced_peerp != NULL)
+		*referenced_peerp = so2;
+	else
+		sorele(so2);
+out:
 	free(sa, M_SONAME);
 	if (__predict_false(error)) {
 		UNP_PCB_LOCK(unp);
