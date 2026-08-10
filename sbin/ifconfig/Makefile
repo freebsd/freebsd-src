@@ -70,6 +70,7 @@ LIBADD+=	nv
 
 .if ${MK_NETLINK_SUPPORT} != "no"
 SRCS+=	ifconfig_netlink.c
+SRCS+=	ifvfstatus.c		# VF status information
 .else
 CFLAGS+=-DWITHOUT_NETLINK
 .endif
