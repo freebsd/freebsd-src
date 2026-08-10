@@ -481,7 +481,8 @@ _EXTRA_DIST_CMAKE = \
     cmake/autotools/expat-noconfig__macos.cmake.in \
     cmake/autotools/expat-noconfig__windows.cmake.in \
     cmake/autotools/expat-package-init.cmake \
-    cmake/mingw-toolchain.cmake \
+    cmake/mingw-toolchain-win32.cmake \
+    cmake/mingw-toolchain-win64.cmake \
     \
     CMakeLists.txt \
     CMake.README \
