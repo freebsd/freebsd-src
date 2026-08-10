@@ -1745,6 +1745,13 @@ mc_dec(struct mchain *mc, struct mbuf *m)
 	}
 }
 
+static inline void
+mc_init(struct mchain *mc)
+{
+	STAILQ_INIT(&mc->mc_q);
+	mc->mc_len = mc->mc_mlen = 0;
+}
+
 /*
  * Get mchain from a classic mbuf chain linked by m_next.  Two hacks here:
  * we use the fact that m_next is alias to m_stailq, we use internal queue(3)
