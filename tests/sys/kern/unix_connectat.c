@@ -78,10 +78,7 @@ static const struct sockaddr_un empty_sun = {
 	.sun_len = offsetof(struct sockaddr_un, sun_path),
 };
 
-/*
- * Make a bound, listening stream socket.  Binding is not optional:
- * uipc_listen() refuses unbound sockets with EDESTADDRREQ.
- */
+/* Make a bound, listening stream socket. */
 static int
 mklistener(const char *path)
 {
@@ -228,6 +225,108 @@ ATF_TC_BODY(stream_bound, tc)
 
 	ATF_REQUIRE_EQ(0, close(s));
 	ATF_REQUIRE_EQ(0, close(l));
+}
+
+/*
+ * A socket may listen while unbound, and connectat(2) reaches it by
+ * descriptor: with no pathname there is nothing else that could name it.
+ * mklistener() cannot be used, as it binds first.
+ */
+ATF_TC_WITHOUT_HEAD(listen_unbound);
+ATF_TC_BODY(listen_unbound, tc)
+{
+	char buf[8];
+	int l, s, a;
+
+	ATF_REQUIRE((l = socket(PF_UNIX, SOCK_STREAM, 0)) >= 0);
+	ATF_REQUIRE_MSG(listen(l, 1) == 0, "listen: %s", strerror(errno));
+
+	ATF_REQUIRE((s = socket(PF_UNIX, SOCK_STREAM, 0)) >= 0);
+	ATF_REQUIRE_EQ(0, fdconnect(l, s));
+	ATF_REQUIRE((a = accept(l, NULL, NULL)) >= 0);
+
+	/* A real connection, not just an accepted descriptor. */
+	ATF_REQUIRE_EQ(5, write(s, "hello", 5));
+	ATF_REQUIRE_EQ(5, read(a, buf, sizeof(buf)));
+	ATF_REQUIRE_EQ(0, memcmp(buf, "hello", 5));
+
+	ATF_REQUIRE_EQ(0, close(a));
+	ATF_REQUIRE_EQ(0, close(s));
+	ATF_REQUIRE_EQ(0, close(l));
+}
+
+/*
+ * A socket may be bound after it listens, so a listener can be published only
+ * once it is ready to accept, rather than leaving a window in which the socket
+ * file exists but connections to it are refused.  The late-bound name behaves
+ * like any other.  mklistener() cannot be used: it binds first.
+ */
+ATF_TC_WITHOUT_HEAD(bind_after_listen);
+ATF_TC_BODY(bind_after_listen, tc)
+{
+	struct sockaddr_un sun = { .sun_family = AF_UNIX };
+	struct sockaddr_un peer;
+	socklen_t len;
+	int l, s, a;
+
+	ATF_REQUIRE((l = socket(PF_UNIX, SOCK_STREAM, 0)) >= 0);
+	ATF_REQUIRE_MSG(listen(l, 1) == 0, "listen: %s", strerror(errno));
+
+	strlcpy(sun.sun_path, "late.sock", sizeof(sun.sun_path));
+	sun.sun_len = SUN_LEN(&sun);
+	ATF_REQUIRE_MSG(bind(l, (struct sockaddr *)&sun, sun.sun_len) == 0,
+	    "bind after listen: %s", strerror(errno));
+
+	ATF_REQUIRE((s = socket(PF_UNIX, SOCK_STREAM, 0)) >= 0);
+	ATF_REQUIRE_EQ(0, pathconnect(AT_FDCWD, s, "late.sock"));
+	ATF_REQUIRE((a = accept(l, NULL, NULL)) >= 0);
+
+	/* The name bound after listen(2) is reported to the peer. */
+	memset(&peer, 0, sizeof(peer));
+	len = sizeof(peer);
+	ATF_REQUIRE_EQ(0, getpeername(s, (struct sockaddr *)&peer, &len));
+	ATF_REQUIRE_EQ(0, strcmp(peer.sun_path, "late.sock"));
+
+	ATF_REQUIRE_EQ(0, close(a));
+	ATF_REQUIRE_EQ(0, close(s));
+	ATF_REQUIRE_EQ(0, close(l));
+}
+
+/*
+ * A socket whose connection has gone away may become a listener in its own
+ * right: unp_soisdisconnected() leaves only SS_ISDISCONNECTED set, which
+ * solisten_proto_check() does not reject, and unp_disconnect() has already
+ * cleared unp_conn.  Only the bind requirement stood in the way, and then only
+ * for the usual client socket, which has no name.
+ *
+ * Note: this case is here only to document the current behavior and to catch
+ * it changing in the future.  Such socket reuse is not covered by the
+ * specification, and is discouraged and should not be utilized in real-world
+ * programs.
+ */
+ATF_TC_WITHOUT_HEAD(listen_after_disconnect);
+ATF_TC_BODY(listen_after_disconnect, tc)
+{
+	int l, c, s, a;
+
+	/* Connect a pair, then drop the accepted end to disconnect 'c'. */
+	ATF_REQUIRE((l = socket(PF_UNIX, SOCK_STREAM, 0)) >= 0);
+	ATF_REQUIRE_MSG(listen(l, 1) == 0, "listen: %s", strerror(errno));
+	ATF_REQUIRE((c = socket(PF_UNIX, SOCK_STREAM, 0)) >= 0);
+	ATF_REQUIRE_EQ(0, fdconnect(l, c));
+	ATF_REQUIRE((a = accept(l, NULL, NULL)) >= 0);
+	ATF_REQUIRE_EQ(0, close(a));
+	ATF_REQUIRE_EQ(0, close(l));
+
+	/* The survivor listens, and takes a connection of its own. */
+	ATF_REQUIRE_MSG(listen(c, 1) == 0, "listen: %s", strerror(errno));
+	ATF_REQUIRE((s = socket(PF_UNIX, SOCK_STREAM, 0)) >= 0);
+	ATF_REQUIRE_EQ(0, fdconnect(c, s));
+	ATF_REQUIRE((a = accept(c, NULL, NULL)) >= 0);
+
+	ATF_REQUIRE_EQ(0, close(a));
+	ATF_REQUIRE_EQ(0, close(s));
+	ATF_REQUIRE_EQ(0, close(c));
 }
 
 /* Connect a datagram socket to an unbound peer by its fd. */
@@ -646,6 +745,9 @@ ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, stream);
 	ATF_TP_ADD_TC(tp, stream_bound);
+	ATF_TP_ADD_TC(tp, listen_unbound);
+	ATF_TP_ADD_TC(tp, bind_after_listen);
+	ATF_TP_ADD_TC(tp, listen_after_disconnect);
 	ATF_TP_ADD_TC(tp, dgram);
 	ATF_TP_ADD_TC(tp, empty_path_vnode);
 	ATF_TP_ADD_TC(tp, path);

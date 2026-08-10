@@ -951,14 +951,18 @@ uipc_listen(struct socket *so, int backlog, struct thread *td)
 
 	/*
 	 * Synchronize with concurrent connection attempts.
+	 *
+	 * An unbound socket may listen: connectat(2) can name it by descriptor,
+	 * so it is reachable without a pathname.  It may also be bound
+	 * afterwards, which lets a listener be published only once it is ready
+	 * to accept, rather than leaving a window where the pathname exists but
+	 * connections are refused.
 	 */
 	error = 0;
 	unp = sotounpcb(so);
 	UNP_PCB_LOCK(unp);
 	if (unp->unp_conn != NULL || (unp->unp_flags & UNP_CONNECTING) != 0)
 		error = EINVAL;
-	else if (unp->unp_vnode == NULL)
-		error = EDESTADDRREQ;
 	if (error != 0) {
 		UNP_PCB_UNLOCK(unp);
 		return (error);
