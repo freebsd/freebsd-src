@@ -3973,6 +3973,10 @@ ixgbe_if_init(if_ctx_t ctx)
 
 	INIT_DEBUGOUT("ixgbe_if_init: begin");
 
+	/* Preserve the largest frame requested by the PF or an active VF. */
+	sc->max_frame_size = if_getmtu(ifp) + IXGBE_MTU_HDR;
+	ixgbe_recalculate_max_frame(sc);
+
 	/* Queue indices may change with IOV mode */
 	ixgbe_align_all_queue_indices(sc);
 
@@ -4010,7 +4014,7 @@ ixgbe_if_init(if_ctx_t ctx)
 	ixgbe_config_gpie(sc);
 
 	/* Set MTU size */
-	if (if_getmtu(ifp) > ETHERMTU) {
+	if (sc->max_frame_size > ETHER_MAX_LEN) {
 		/* aka IXGBE_MAXFRS on 82599 and newer */
 		mhadd = IXGBE_READ_REG(hw, IXGBE_MHADD);
 		mhadd &= ~IXGBE_MHADD_MFS_MASK;

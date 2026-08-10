@@ -1150,7 +1150,7 @@ ixgbe_vf_set_lpe(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 	}
 
 	vf->maximum_frame_size = vf_max_size;
-	ixgbe_update_max_frame(sc, vf->maximum_frame_size);
+	ixgbe_recalculate_max_frame(sc);
 
 	/*
 	 * We might have to disable reception to this VF if the frame size is
@@ -1161,7 +1161,7 @@ ixgbe_vf_set_lpe(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 	mhadd = IXGBE_READ_REG(hw, IXGBE_MHADD);
 	pf_max_size = (mhadd & IXGBE_MHADD_MFS_MASK) >> IXGBE_MHADD_MFS_SHIFT;
 
-	if (pf_max_size < sc->max_frame_size) {
+	if (pf_max_size != sc->max_frame_size) {
 		mhadd &= ~IXGBE_MHADD_MFS_MASK;
 		mhadd |= sc->max_frame_size << IXGBE_MHADD_MFS_SHIFT;
 		IXGBE_WRITE_REG(hw, IXGBE_MHADD, mhadd);
@@ -2107,12 +2107,13 @@ ixgbe_activate_vfs(struct ixgbe_softc *sc)
 } /* ixgbe_activate_vfs */
 
 
-/* Check the max frame setting of all active VF's */
+/* Recompute the maximum frame setting of the PF and all active VFs. */
 void
 ixgbe_recalculate_max_frame(struct ixgbe_softc *sc)
 {
 	struct ixgbe_vf *vf;
 
+	sc->max_frame_size = if_getmtu(iflib_get_ifp(sc->ctx)) + IXGBE_MTU_HDR;
 	for (int i = 0; i < sc->num_vfs; i++) {
 		vf = &sc->vfs[i];
 		if (vf->flags & IXGBE_VF_ACTIVE)
