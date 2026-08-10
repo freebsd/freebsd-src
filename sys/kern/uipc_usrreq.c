@@ -294,6 +294,8 @@ static int	unp_connect(struct socket *, struct sockaddr *,
 		    struct thread *);
 static int	unp_connectat(int, struct socket *, struct sockaddr *,
 		    struct thread *, bool);
+static int	unp_connect_peer(struct socket *, struct unpcb *,
+		    struct sockaddr **, struct thread *, bool);
 static void	unp_connect2(struct socket *, struct socket *, bool);
 static void	unp_disconnect(struct unpcb *unp, struct unpcb *unp2);
 static void	unp_dispose(struct socket *so);
@@ -2889,8 +2891,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	struct mtx *vplock;
 	struct sockaddr_un *soun;
 	struct vnode *vp;
-	struct socket *so2;
-	struct unpcb *unp, *unp2, *unp3;
+	struct unpcb *unp, *unp2;
 	struct nameidata nd;
 	char buf[SOCK_MAXADDRLEN];
 	struct sockaddr *sa;
@@ -2979,40 +2980,80 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	if (error)
 		goto bad;
 
-	unp = sotounpcb(so);
-	KASSERT(unp != NULL, ("unp_connect: unp == NULL"));
-
 	vplock = mtx_pool_find(unp_vp_mtxpool, vp);
 	mtx_lock(vplock);
 	VOP_UNP_CONNECT(vp, &unp2);
-	if (unp2 == NULL) {
+	if (unp2 == NULL)
 		error = ECONNREFUSED;
-		goto bad2;
+	else
+		error = unp_connect_peer(so, unp2, &sa, td, return_locked);
+	mtx_unlock(vplock);
+bad:
+	if (vp != NULL) {
+		/*
+		 * If we are returning locked (called via uipc_sosend_dgram()),
+		 * we need to be sure that vput() won't sleep.  This is
+		 * guaranteed by VOP_UNP_CONNECT() call above and unp2 lock.
+		 * SOCK_STREAM/SEQPACKET can't request return_locked (yet).
+		 */
+		MPASS(!(return_locked && connreq));
+		vput(vp);
 	}
+	free(sa, M_SONAME);
+	if (__predict_false(error)) {
+		UNP_PCB_LOCK(unp);
+		KASSERT((unp->unp_flags & UNP_CONNECTING) != 0,
+		    ("%s: unp %p has UNP_CONNECTING clear", __func__, unp));
+		unp->unp_flags &= ~UNP_CONNECTING;
+		UNP_PCB_UNLOCK(unp);
+	}
+	return (error);
+}
+
+/*
+ * Second half of connecting a unix socket: 'so' is our connecting socket,
+ * with UNP_CONNECTING set, and 'unp2' is the PCB of the peer named by the
+ * caller, which must guarantee its stability (by holding a reference on the
+ * peer socket, or the vnode lock plus unp_vp_mtxpool lock for a peer found
+ * via VOP_UNP_CONNECT()).
+ *
+ * For connection-oriented sockets '*sap' points to a buffer to hold the
+ * listener's address; it is consumed (set to NULL) if used.  On success
+ * UNP_CONNECTING is cleared; on error the caller must clear it.
+ */
+static int
+unp_connect_peer(struct socket *so, struct unpcb *unp2, struct sockaddr **sap,
+    struct thread *td, bool return_locked)
+{
+	struct socket *so2;
+	struct unpcb *unp, *unp3;
+	int error;
+	bool connreq;
+
+	unp = sotounpcb(so);
+	KASSERT(unp != NULL, ("%s: unp == NULL", __func__));
+	connreq = (so->so_proto->pr_flags & PR_CONNREQUIRED) != 0;
+
 	so2 = unp2->unp_socket;
-	if (so->so_type != so2->so_type) {
-		error = EPROTOTYPE;
-		goto bad2;
-	}
+	if (so->so_type != so2->so_type)
+		return (EPROTOTYPE);
 	if (connreq) {
 		if (SOLISTENING(so2))
 			so2 = solisten_clone(so2);
 		else
 			so2 = NULL;
-		if (so2 == NULL) {
-			error = ECONNREFUSED;
-			goto bad2;
-		}
+		if (so2 == NULL)
+			return (ECONNREFUSED);
 		if ((error = uipc_attach(so2, 0, NULL)) != 0) {
 			sodealloc(so2);
-			goto bad2;
+			return (error);
 		}
 		unp3 = sotounpcb(so2);
 		unp_pcb_lock_pair(unp2, unp3);
 		if (unp2->unp_addr != NULL) {
-			bcopy(unp2->unp_addr, sa, unp2->unp_addr->sun_len);
-			unp3->unp_addr = (struct sockaddr_un *) sa;
-			sa = NULL;
+			bcopy(unp2->unp_addr, *sap, unp2->unp_addr->sun_len);
+			unp3->unp_addr = (struct sockaddr_un *)*sap;
+			*sap = NULL;
 		}
 
 		unp_copy_peercred(td, unp3, unp, unp2);
@@ -3043,28 +3084,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	unp->unp_flags &= ~UNP_CONNECTING;
 	if (!return_locked)
 		unp_pcb_unlock_pair(unp, unp2);
-bad2:
-	mtx_unlock(vplock);
-bad:
-	if (vp != NULL) {
-		/*
-		 * If we are returning locked (called via uipc_sosend_dgram()),
-		 * we need to be sure that vput() won't sleep.  This is
-		 * guaranteed by VOP_UNP_CONNECT() call above and unp2 lock.
-		 * SOCK_STREAM/SEQPACKET can't request return_locked (yet).
-		 */
-		MPASS(!(return_locked && connreq));
-		vput(vp);
-	}
-	free(sa, M_SONAME);
-	if (__predict_false(error)) {
-		UNP_PCB_LOCK(unp);
-		KASSERT((unp->unp_flags & UNP_CONNECTING) != 0,
-		    ("%s: unp %p has UNP_CONNECTING clear", __func__, unp));
-		unp->unp_flags &= ~UNP_CONNECTING;
-		UNP_PCB_UNLOCK(unp);
-	}
-	return (error);
+	return (0);
 }
 
 /*
