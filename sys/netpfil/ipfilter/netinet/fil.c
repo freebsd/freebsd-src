@@ -4423,7 +4423,7 @@ ipf_rule_compare(frentry_t *fr1, frentry_t *fr2)
 /* Returns:     int - 0 == success, > 0 == errno value                      */
 /* Parameters:  unit(I)     - device for which this is for                  */
 /*              req(I)      - ioctl command (SIOC*)                         */
-/*              data(I)     - pointr to ioctl data                          */
+/*              data(I)     - pointer to ioctl data                         */
 /*              set(I)      - 1 or 0 (filter set)                           */
 /*              makecopy(I) - flag indicating whether data points to a rule */
 /*                            in kernel space & hence doesn't need copying. */
