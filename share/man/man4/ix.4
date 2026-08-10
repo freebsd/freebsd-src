@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 8, 2026
+.Dd August 10, 2026
 .Dt IX 4
 .Os
 .Sh NAME
@@ -242,6 +242,12 @@ Enable firmware logging during driver initialization when set via
 .Xr kenv 1 .
 .Pp
 This feature is only supported on E610 devices.
+.It Va dev.ix.?.eee_state
+Enable or disable Energy Efficient Ethernet on supported devices.
+.It Va dev.ix.?.eee.tx_lpi_count
+Count transmit Low Power Idle events.
+.It Va dev.ix.?.eee.rx_lpi_count
+Count receive Low Power Idle events.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag

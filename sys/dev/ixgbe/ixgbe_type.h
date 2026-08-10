@@ -3943,6 +3943,8 @@ struct ixgbe_hw_stats {
 	u64 mlfc;
 	u64 mrfc;
 	u64 rlec;
+	u64 tlpic;
+	u64 rlpic;
 	u64 lxontxc;
 	u64 lxonrxc;
 	u64 lxofftxc;

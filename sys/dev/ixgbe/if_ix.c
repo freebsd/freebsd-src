@@ -2037,6 +2037,12 @@ ixgbe_update_stats_counters(struct ixgbe_softc *sc)
 		stats->fcoedwtc += IXGBE_READ_REG(hw, IXGBE_FCOEDWTC);
 	}
 
+	/* TLPIC and RLPIC are clear-on-read. */
+	if (sc->feat_cap & IXGBE_FEATURE_EEE) {
+		stats->tlpic += IXGBE_READ_REG(hw, IXGBE_TLPIC);
+		stats->rlpic += IXGBE_READ_REG(hw, IXGBE_RLPIC);
+	}
+
 	/* Fill out the OS statistics structure */
 	IXGBE_SET_IPACKETS(sc, stats->gprc);
 	IXGBE_SET_OPACKETS(sc, stats->gptc);
@@ -3679,9 +3685,21 @@ ixgbe_add_device_sysctls(if_ctx_t ctx)
 	}
 
 	if (sc->feat_cap & IXGBE_FEATURE_EEE) {
+		struct sysctl_oid *eee_node;
+		struct sysctl_oid_list *eee_list;
+
 		SYSCTL_ADD_PROC(ctx_list, child, OID_AUTO, "eee_state",
 		    CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		    ixgbe_sysctl_eee_state, "I", "EEE Power Save State");
+
+		eee_node = SYSCTL_ADD_NODE(ctx_list, child, OID_AUTO, "eee",
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+		    "Energy Efficient Ethernet statistics");
+		eee_list = SYSCTL_CHILDREN(eee_node);
+		SYSCTL_ADD_UQUAD(ctx_list, eee_list, OID_AUTO, "tx_lpi_count",
+		    CTLFLAG_RD, &sc->stats.pf.tlpic, "TX LPI event count");
+		SYSCTL_ADD_UQUAD(ctx_list, eee_list, OID_AUTO, "rx_lpi_count",
+		    CTLFLAG_RD, &sc->stats.pf.rlpic, "RX LPI event count");
 	}
 
 	ixgbe_add_debug_sysctls(sc);
