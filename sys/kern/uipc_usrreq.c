@@ -296,6 +296,8 @@ static int	unp_connectat(int, struct socket *, struct sockaddr *,
 		    struct thread *, struct socket **);
 static int	unp_connect_peer(struct socket *, struct unpcb *,
 		    struct sockaddr **, struct thread *, bool);
+static int	unp_connectat_peer(struct thread *, int, const char *,
+		    struct socket **);
 static int	unp_vnode_peer(struct vnode *, struct thread *,
 		    struct socket **);
 static void	unp_connect2(struct socket *, struct socket *, bool);
@@ -2934,10 +2936,8 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 {
 	struct socket *so2;
 	struct unpcb *unp;
-	struct nameidata nd;
 	char buf[SOCK_MAXADDRLEN];
 	struct sockaddr *sa;
-	cap_rights_t rights;
 	const char *path;
 	int error, len;
 	bool connreq;
@@ -2994,22 +2994,7 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 		sa = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
 	else
 		sa = NULL;
-	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF |
-	    (fd == AT_FDCWD ? 0 : EMPTYPATH), UIO_SYSSPACE, buf, fd,
-	    cap_rights_init_one(&rights, CAP_CONNECTAT));
-	error = namei(&nd);
-	if (error)
-		goto out;
-	NDFREE_PNBUF(&nd);
-
-	/*
-	 * Resolve the vnode to a referenced peer socket and drop the vnode
-	 * before connecting: the reference keeps the peer stable, so no vnode
-	 * lock is held across unp_connect_peer() (which matters for the
-	 * return_locked datagram fast path).
-	 */
-	error = unp_vnode_peer(nd.ni_vp, td, &so2);
-	vput(nd.ni_vp);
+	error = unp_connectat_peer(td, fd, buf, &so2);
 	if (error != 0)
 		goto out;
 	error = unp_connect_peer(so, sotounpcb(so2), &sa, td,
@@ -3028,6 +3013,38 @@ out:
 		unp->unp_flags &= ~UNP_CONNECTING;
 		UNP_PCB_UNLOCK(unp);
 	}
+	return (error);
+}
+
+/*
+ * Resolve a connectat(2) target -- descriptor 'fd' and the pathname in 'buf' --
+ * to a referenced peer unix socket in '*so2p'.  The caller must release it with
+ * sorele().
+ */
+static int
+unp_connectat_peer(struct thread *td, int fd, const char *buf,
+    struct socket **so2p)
+{
+	struct nameidata nd;
+	cap_rights_t rights;
+	int error;
+
+	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF |
+	    (fd == AT_FDCWD ? 0 : EMPTYPATH), UIO_SYSSPACE, buf, fd,
+	    cap_rights_init_one(&rights, CAP_CONNECTAT));
+	error = namei(&nd);
+	if (error != 0)
+		return (error);
+	NDFREE_PNBUF(&nd);
+
+	/*
+	 * Resolve the vnode to a referenced peer socket and drop the vnode
+	 * before connecting: the reference keeps the peer stable, so no vnode
+	 * lock is held across unp_connect_peer() (which matters for the
+	 * return_locked datagram fast path).
+	 */
+	error = unp_vnode_peer(nd.ni_vp, td, so2p);
+	vput(nd.ni_vp);
 	return (error);
 }
 
