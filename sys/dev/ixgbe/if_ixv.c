@@ -982,6 +982,12 @@ ixv_if_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 	ifmr->ifm_status |= IFM_ACTIVE;
 
 	switch (sc->link_speed) {
+		case IXGBE_LINK_SPEED_5GB_FULL:
+			ifmr->ifm_active |= IFM_5000_T | IFM_FDX;
+			break;
+		case IXGBE_LINK_SPEED_2_5GB_FULL:
+			ifmr->ifm_active |= IFM_2500_T | IFM_FDX;
+			break;
 		case IXGBE_LINK_SPEED_1GB_FULL:
 			ifmr->ifm_active |= IFM_1000_T | IFM_FDX;
 			break;
@@ -1250,6 +1256,7 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 	device_t dev = iflib_get_dev(ctx);
 	if_t ifp = iflib_get_ifp(ctx);
 	s32 status;
+	uint64_t baudrate;
 
 	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0 ||
 	    atomic_load_acq_32(&sc->vf_mbx_ready) == 0) {
@@ -1274,10 +1281,13 @@ ixv_if_update_admin_status(if_ctx_t ctx)
 
 	if (sc->link_up && sc->link_enabled) {
 		if (sc->link_active == false) {
-			if (bootverbose)
-				device_printf(dev, "Link is up %d Gbps %s \n",
-				    ((sc->link_speed == 128) ? 10 : 1),
-				    "Full Duplex");
+			if (bootverbose) {
+				baudrate = ixgbe_link_speed_to_baudrate(
+				    sc->link_speed);
+				device_printf(dev,
+				    "Link is up %ju Mbps Full Duplex\n",
+				    (uintmax_t)(baudrate / IF_Mbps(1)));
+			}
 			sc->link_active = true;
 			iflib_link_state_change(ctx, LINK_STATE_UP,
 			    ixgbe_link_speed_to_baudrate(sc->link_speed));
