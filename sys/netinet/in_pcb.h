@@ -176,7 +176,7 @@ struct xinpgen {
 #define	IN6P_RTHDRDSTOPTS	0x00200000 /* receive dstoptions before rthdr */
 #define	IN6P_TCLASS		0x00400000 /* receive traffic class value */
 #define	IN6P_AUTOFLOWLABEL	0x00800000 /* attach flowlabel automatically */
-/*	INP_INLBGROUP		0x01000000 private to in_pcb.c */
+/*	INP_INLBGROUP		0x01000000 private to in_pcb.c/in6_pcb.c */
 #define	INP_ONESBCAST		0x02000000 /* send all-ones broadcast */
 /*	INP_UNCONNECTED		0x04000000 private to in_pcb.c/in6_pcb.c */
 #define	INP_SOCKREF		0x08000000 /* strong socket reference */
@@ -285,17 +285,6 @@ struct xktls_session {
 #include <sys/sysctl.h>
 #include <vm/uma.h>
 #include <sys/ck.h>
-
-/*
- * struct inpcb is the common protocol control block structure used in most
- * IP transport protocols.
- *
- * Pointers to local and foreign host table entries, local and foreign socket
- * numbers, and pointers up (to a socket structure) and down (to a
- * protocol-specific control block) are stored here.
- */
-CK_LIST_HEAD(inpcbhead, inpcb);
-CK_LIST_HEAD(inpcblbgrouphead, inpcblbgroup);
 
 /*
  * struct inpcb captures the network layer state for TCP, UDP, and raw IPv4 and
@@ -412,11 +401,9 @@ struct inpcb {
  *
  * (c) Constant or nearly constant after initialisation
  * (e) Protected by SMR section
- * (h) Locked by ipi_hash_lock
+ * (h) Locked by ipi_list_unconn.lock
  */
 struct inpcbinfo {
-	u_int			 ipi_count;		/* (h) */
-
 	/*
 	 * Generation count -- incremented each time a connection is allocated
 	 * or freed.
@@ -426,9 +413,11 @@ struct inpcbinfo {
 	/*
 	 * Fields associated with port lookup and allocation.
 	 */
-	u_short			 ipi_lastport;		/* (h) */
-	u_short			 ipi_lastlow;		/* (h) */
-	u_short			 ipi_lasthi;		/* (h) */
+	u_int			 ipi_lastport;		/* (h) */
+	u_int			 ipi_lastlow;		/* (h) */
+	u_int			 ipi_lasthi;		/* (h) */
+
+	u_int			 ipi_count;		/* (h) */
 
 	/*
 	 * UMA zone from which inpcbs are allocated for this protocol.
@@ -442,10 +431,12 @@ struct inpcbinfo {
 	 * port numbers.  The "exact" hash holds PCBs connected to a foreign
 	 * address, and "wild" holds the rest.
 	 */
-	struct mtx		 ipi_hash_lock;
-	struct inpcbhead	 ipi_list_unconn;	/* (r:e/w:h) */
-	struct inpcbhead 	*ipi_hash_exact;	/* (r:e/w:h) */
-	struct inpcbhead 	*ipi_hash_wild;		/* (r:e/w:h) */
+	struct inpbucket {
+		CK_LIST_HEAD(, inpcb)	head;
+		struct mtx		lock;
+	}			ipi_list_unconn;	/* (r:e/w:h) */
+	struct inpbucket 	*ipi_hash_exact;	/* (r:e/w:h) */
+	struct inpbucket 	*ipi_hash_wild;		/* (r:e/w:h) */
 	u_long			 ipi_hashmask;		/* (c) */
 	u_long			 ipi_porthashmask;	/* (c) */
 	u_long			 ipi_lbgrouphashmask;	/* (c) */
@@ -453,13 +444,16 @@ struct inpcbinfo {
 	/*
 	 * Global hash of inpcbs, hashed by only local port number.
 	 */
-	struct inpcbhead	*ipi_porthashbase;	/* (h) */
+	struct inpbucket	*ipi_porthash;	/* (h) */
 
 	/*
 	 * Load balance groups used for the SO_REUSEPORT_LB option,
 	 * hashed by local port.
 	 */
-	struct	inpcblbgrouphead *ipi_lbgrouphashbase;	/* (r:e/w:h) */
+	struct lbgroupbucket {
+		CK_LIST_HEAD(, inpcblbgroup)	head;
+		struct mtx			lock;
+	}			*ipi_lbgrouphashbase;	/* (r:e/w:h) */
 };
 
 /*
@@ -534,13 +528,6 @@ struct socket *
 	inp_inpcbtosocket(struct inpcb *inp);
 void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 		uint32_t *faddr, uint16_t *fp);
-
-#define	INP_HASH_WLOCK(ipi)		mtx_lock(&(ipi)->ipi_hash_lock)
-#define	INP_HASH_WUNLOCK(ipi)		mtx_unlock(&(ipi)->ipi_hash_lock)
-#define	INP_HASH_LOCK_ASSERT(ipi)	MPASS(SMR_ENTERED((ipi)->ipi_smr) || \
-					mtx_owned(&(ipi)->ipi_hash_lock))
-#define	INP_HASH_WLOCK_ASSERT(ipi)	mtx_assert(&(ipi)->ipi_hash_lock, \
-					MA_OWNED)
 
 VNET_DECLARE(uint32_t, in_pcbhashseed);
 #define	V_in_pcbhashseed	VNET(in_pcbhashseed)

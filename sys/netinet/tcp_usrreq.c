@@ -2939,16 +2939,24 @@ DB_SHOW_ALL_COMMAND(tcpcbs, db_show_all_tcpcbs)
 	show_inpcb = strchr(modif, 'i') != NULL;
 	VNET_FOREACH(vnet_iter) {
 		CURVNET_SET(vnet_iter);
-		for (u_int i = 0; i <= V_tcbinfo.ipi_porthashmask; i++)
-			CK_LIST_FOREACH(inp, &V_tcbinfo.ipi_porthashbase[i],
-			    inp_portlist) {
+		for (u_int i = 0; i <= V_tcbinfo.ipi_hashmask; i++)
+			CK_LIST_FOREACH(inp, &V_tcbinfo.ipi_hash_exact[i].head,
+			    inp_hash_exact) {
+				db_print_tcpcb(intotcpcb(inp), "tcpcb", 0,
+				    show_bblog, show_inpcb, only_locked);
+				if (db_pager_quit)
+					goto break_hash;
+			}
+		for (u_int i = 0; i <= V_tcbinfo.ipi_hashmask; i++)
+			CK_LIST_FOREACH(inp, &V_tcbinfo.ipi_hash_wild[i].head,
+			    inp_hash_wild) {
 				db_print_tcpcb(intotcpcb(inp), "tcpcb", 0,
 				    show_bblog, show_inpcb, only_locked);
 				if (db_pager_quit)
 					goto break_hash;
 			}
 break_hash:
-		CK_LIST_FOREACH(inp, &V_tcbinfo.ipi_list_unconn,
+		CK_LIST_FOREACH(inp, &V_tcbinfo.ipi_list_unconn.head,
 		    inp_unconn_list) {
 			db_print_tcpcb(intotcpcb(inp), "tcpcb", 0,
 			    show_bblog, show_inpcb, only_locked);
