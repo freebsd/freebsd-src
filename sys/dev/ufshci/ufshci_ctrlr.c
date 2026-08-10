@@ -448,6 +448,15 @@ ufshci_ctrlr_destruct(struct ufshci_controller *ctrlr, device_t dev)
 		bus_release_resource(ctrlr->dev, SYS_RES_IRQ,
 		    rman_get_rid(ctrlr->res), ctrlr->res);
 
+	/*
+	 * The interrupt and the timers are gone, so nothing enqueues new
+	 * tasks. Free the taskqueue before the SIM teardown below.
+	 */
+	if (ctrlr->taskqueue != NULL) {
+		taskqueue_free(ctrlr->taskqueue);
+		ctrlr->taskqueue = NULL;
+	}
+
 	ufshci_sim_release_wlun_periph(ctrlr);
 
 	mtx_lock(&ctrlr->sc_mtx);
