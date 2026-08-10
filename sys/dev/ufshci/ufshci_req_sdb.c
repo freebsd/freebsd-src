@@ -86,6 +86,8 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
 	req_queue->hwq->ucd_bus_addr = malloc(sizeof(bus_addr_t) *
 		req_queue->num_trackers,
 	    M_UFSHCI, M_ZERO | M_NOWAIT);
+	if (req_queue->hwq->ucd_bus_addr == NULL)
+		return (ENOMEM);
 
 	/*
 	 * Each component must be page aligned, and individual PRP lists
@@ -141,8 +143,13 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
 	}
 
 	for (i = 0; i < req_queue->num_trackers; i++) {
-		bus_dmamap_create(req_queue->dma_tag_payload, 0,
+		error = bus_dmamap_create(req_queue->dma_tag_payload, 0,
 		    &hwq->act_tr[i]->payload_dma_map);
+		if (error != 0) {
+			ufshci_printf(ctrlr,
+			    "request payload map create failed %d\n", error);
+			goto out;
+		}
 
 		hwq->act_tr[i]->ucd = (struct ufshci_utp_cmd_desc *)ucdmem;
 		hwq->act_tr[i]->ucd_bus_addr = hwq->ucd_bus_addr[i];
@@ -181,6 +188,8 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 	/* Single Doorbell mode uses only one queue. (UFSHCI_SDB_Q = 0) */
 	req_queue->hwq = malloc(sizeof(struct ufshci_hw_queue), M_UFSHCI,
 	    M_ZERO | M_NOWAIT);
+	if (req_queue->hwq == NULL)
+		return (ENOMEM);
 	hwq = &req_queue->hwq[UFSHCI_SDB_Q];
 	hwq->num_entries = req_queue->num_entries;
 	hwq->num_trackers = req_queue->num_trackers;
