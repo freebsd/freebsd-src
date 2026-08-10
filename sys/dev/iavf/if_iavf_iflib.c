@@ -959,6 +959,14 @@ iavf_reestablish_vc(struct iavf_sc *sc)
 		goto fail;
 	}
 
+	/*
+	 * RESET_PENDING prevents the ordinary AdminQ task from consuming
+	 * messages while the queue may still belong to the pre-reset device.
+	 * The successful VERSION and GET_VF_RESOURCES exchange above proves
+	 * that the reset has completed and this is the replacement AdminQ.
+	 * Clear the stale indication before normal virtchnl requests resume.
+	 */
+	iavf_clear_state(&sc->state, IAVF_STATE_RESET_PENDING);
 	iavf_enable_adminq_irq(hw);
 	return (0);
 
