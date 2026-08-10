@@ -1755,6 +1755,10 @@ ixgbe_add_media_types(if_ctx_t ctx)
 			ifmedia_add(sc->media, IFM_ETHER | IFM_1000_LX, 0,
 			    NULL);
 	}
+	if (layer & IXGBE_PHYSICAL_LAYER_10GBASE_BX) {
+		device_printf(dev, "Media supported: 10Gbase-BX\n");
+		ifmedia_add(sc->media, IFM_ETHER | IFM_10G_BX, 0, NULL);
+	}
 	if (layer & IXGBE_PHYSICAL_LAYER_10GBASE_SR) {
 		ifmedia_add(sc->media, IFM_ETHER | IFM_10G_SR, 0, NULL);
 		if (hw->phy.multispeed_fiber)
@@ -2896,6 +2900,9 @@ ixgbe_if_media_status(if_ctx_t ctx, struct ifmediareq * ifmr)
 			ifmr->ifm_active |= IFM_1000_LX | IFM_FDX;
 			break;
 		}
+	if (layer & IXGBE_PHYSICAL_LAYER_10GBASE_BX &&
+	    sc->link_speed == IXGBE_LINK_SPEED_10GB_FULL)
+		ifmr->ifm_active |= IFM_10G_BX | IFM_FDX;
 	if (layer & IXGBE_PHYSICAL_LAYER_10GBASE_LRM)
 		switch (sc->link_speed) {
 		case IXGBE_LINK_SPEED_10GB_FULL:
@@ -3026,6 +3033,9 @@ ixgbe_if_media_change(if_ctx_t ctx)
 	case IFM_10G_T:
 		speed |= IXGBE_LINK_SPEED_100_FULL;
 		speed |= IXGBE_LINK_SPEED_1GB_FULL;
+		speed |= IXGBE_LINK_SPEED_10GB_FULL;
+		break;
+	case IFM_10G_BX:
 		speed |= IXGBE_LINK_SPEED_10GB_FULL;
 		break;
 	case IFM_10G_LRM:

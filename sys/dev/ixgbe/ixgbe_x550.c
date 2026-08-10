@@ -1508,6 +1508,8 @@ static s32 ixgbe_supported_sfp_modules_X550em(struct ixgbe_hw *hw, bool *linear)
 	case ixgbe_sfp_type_1g_lx_core1:
 	case ixgbe_sfp_type_1g_bx_core0:
 	case ixgbe_sfp_type_1g_bx_core1:
+	case ixgbe_sfp_type_10g_bx_core0:
+	case ixgbe_sfp_type_10g_bx_core1:
 		*linear = false;
 		break;
 	case ixgbe_sfp_type_unknown:
