@@ -150,6 +150,11 @@ ufshchi_sim_scsiio(struct cam_sim *sim, union ccb *ccb)
 	else
 		req = ufshci_allocate_request_vaddr(payload, payload_len,
 		    M_NOWAIT, ufshci_sim_scsiio_done, ccb);
+	if (req == NULL) {
+		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
+		xpt_done(ccb);
+		return;
+	}
 
 	req->request_size = sizeof(struct ufshci_cmd_command_upiu);
 	req->response_size = sizeof(struct ufshci_cmd_response_upiu);
@@ -178,8 +183,6 @@ ufshchi_sim_scsiio(struct cam_sim *sim, union ccb *ccb)
 
 	upiu->expected_data_transfer_length = htobe32(payload_len);
 
-	ccb->ccb_h.status |= CAM_SIM_QUEUED;
-
 	if (csio->ccb_h.flags & CAM_CDB_POINTER)
 		cdb = csio->cdb_io.cdb_ptr;
 	else
@@ -187,18 +190,22 @@ ufshchi_sim_scsiio(struct cam_sim *sim, union ccb *ccb)
 
 	if (cdb == NULL || csio->cdb_len > sizeof(upiu->cdb)) {
 		ccb->ccb_h.status = CAM_REQ_INVALID;
+		ufshci_free_request(req);
 		xpt_done(ccb);
 		return;
 	}
 	memcpy(upiu->cdb, cdb, csio->cdb_len);
 
+	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	error = ufshci_ctrlr_submit_transfer_request(ctrlr, req);
 	if (error == EBUSY) {
 		ccb->ccb_h.status = CAM_SCSI_BUSY;
+		ufshci_free_request(req);
 		xpt_done(ccb);
 		return;
 	} else if (error) {
 		ccb->ccb_h.status = CAM_REQ_INVALID;
+		ufshci_free_request(req);
 		xpt_done(ccb);
 		return;
 	}
