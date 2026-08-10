@@ -20,7 +20,7 @@ class ScanResults : public QDialog, public Ui::ScanResults
 
 public:
 	ScanResults(QWidget *parent = 0, const char *name = 0,
-		    bool modal = false, Qt::WindowFlags fl = 0);
+		    bool modal = false, Qt::WindowFlags fl = Qt::Widget);
 	~ScanResults();
 
 public slots:

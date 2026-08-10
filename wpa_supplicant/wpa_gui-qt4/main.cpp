@@ -40,10 +40,10 @@ int main(int argc, char *argv[])
 	int ret;
 
 	locale = QLocale::system().name();
-	resourceDir = QLibraryInfo::location(QLibraryInfo::TranslationsPath);
-	if (!translator.load("wpa_gui_" + locale, resourceDir))
-		translator.load("wpa_gui_" + locale, "lang");
-	app.installTranslator(&translator);
+	resourceDir = QLibraryInfo::path(QLibraryInfo::TranslationsPath);
+	if (translator.load("wpa_gui_" + locale, resourceDir) ||
+	    translator.load("wpa_gui_" + locale, "lang"))
+		app.installTranslator(&translator);
 
 	WpaGui w(&app);
 

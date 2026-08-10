@@ -1,6 +1,6 @@
 /*
  * HLR/AuC testing gateway for hostapd EAP-SIM/AKA database/authenticator
- * Copyright (c) 2005-2007, 2012-2017, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2005-2007, 2012-2024, Jouni Malinen <j@w1.fi>
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -66,6 +66,7 @@ static int update_milenage = 0;
 static int sqn_changes = 0;
 static int ind_len = 5;
 static int stdout_debug = 1;
+static bool stop = false;
 
 /* GSM triplets */
 struct gsm_triplet {
@@ -877,6 +878,12 @@ static int process_cmd(char *cmd, char *resp, size_t resp_len)
 	if (os_strncmp(cmd, "AKA-AUTS ", 9) == 0)
 		return aka_auts(cmd + 9, resp, resp_len);
 
+	if (strncmp(cmd, "TERMINATE", 9) == 0) {
+		stop = true;
+		resp[0] = '\0';
+		return 0;
+	}
+
 	printf("Unknown request: %s\n", cmd);
 	return -1;
 }
@@ -931,10 +938,13 @@ static void cleanup(void)
 	struct gsm_triplet *g, *gprev;
 	struct milenage_parameters *m, *prev;
 
-	if (update_milenage && milenage_file && sqn_changes)
+	if (update_milenage && milenage_file && sqn_changes) {
+		sqn_changes = 0;
 		update_milenage_file(milenage_file);
+	}
 
 	g = gsm_db;
+	gsm_db = NULL;
 	while (g) {
 		gprev = g;
 		g = g->next;
@@ -942,16 +952,21 @@ static void cleanup(void)
 	}
 
 	m = milenage_db;
+	milenage_db = NULL;
 	while (m) {
 		prev = m;
 		m = m->next;
 		os_free(prev);
 	}
 
-	if (serv_sock >= 0)
+	if (serv_sock >= 0) {
 		close(serv_sock);
-	if (socket_path)
+		serv_sock = -1;
+	}
+	if (socket_path) {
 		unlink(socket_path);
+		socket_path = NULL;
+	}
 
 #ifdef CONFIG_SQLITE
 	if (sqlite_db) {
@@ -965,6 +980,7 @@ static void cleanup(void)
 static void handle_term(int sig)
 {
 	printf("Signal %d - terminate\n", sig);
+	cleanup();
 	exit(0);
 }
 
@@ -973,7 +989,7 @@ static void usage(void)
 {
 	printf("HLR/AuC testing gateway for hostapd EAP-SIM/AKA "
 	       "database/authenticator\n"
-	       "Copyright (c) 2005-2017, Jouni Malinen <j@w1.fi>\n"
+	       "Copyright (c) 2005-2024, Jouni Malinen <j@w1.fi>\n"
 	       "\n"
 	       "usage:\n"
 	       "hlr_auc_gw [-hu] [-s<socket path>] [-g<triplet file>] "
@@ -1081,8 +1097,9 @@ int main(int argc, char *argv[])
 		signal(SIGTERM, handle_term);
 		signal(SIGINT, handle_term);
 
-		for (;;)
+		while (!stop)
 			process(serv_sock);
+		cleanup();
 	} else {
 		char buf[1000];
 		socket_path = NULL;

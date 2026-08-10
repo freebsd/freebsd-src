@@ -40,13 +40,6 @@ int eap_register_methods(void)
 		ret = eap_peer_unauth_tls_register();
 #endif /* EAP_UNAUTH_TLS */
 
-#ifdef EAP_TLS
-#ifdef CONFIG_HS20
-	if (ret == 0)
-		ret = eap_peer_wfa_unauth_tls_register();
-#endif /* CONFIG_HS20 */
-#endif /* EAP_TLS */
-
 #ifdef EAP_MSCHAPv2
 	if (ret == 0)
 		ret = eap_peer_mschapv2_register();

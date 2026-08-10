@@ -37,7 +37,7 @@ NetworkConfig::NetworkConfig(QWidget *parent, const char *, bool,
 		SLOT(authChanged(int)));
 	connect(cancelButton, SIGNAL(clicked()), this, SLOT(close()));
 	connect(addButton, SIGNAL(clicked()), this, SLOT(addNetwork()));
-	connect(encrSelect, SIGNAL(activated(const QString &)), this,
+	connect(encrSelect, SIGNAL(textActivated(const QString &)), this,
 		SLOT(encrChanged(const QString &)));
 	connect(removeButton, SIGNAL(clicked()), this, SLOT(removeNetwork()));
 	connect(eapSelect, SIGNAL(activated(int)), this,
@@ -204,8 +204,8 @@ void NetworkConfig::addNetwork()
 	}
 
 	if (idstrEdit->isEnabled() && !idstrEdit->text().isEmpty()) {
-		QRegExp rx("^(\\w|-)+$");
-		if (rx.indexIn(idstrEdit->text()) < 0) {
+		QRegularExpression rx("^(\\w|-)+$");
+		if (!rx.match(idstrEdit->text()).hasMatch()) {
 			QMessageBox::warning(
 				this, tr("Network ID Error"),
 				tr("Network ID String contains non-word "
@@ -797,7 +797,7 @@ void NetworkConfig::removeNetwork()
 		    tr("This will permanently remove the network\n"
 		       "from the configuration. Do you really want\n"
 		       "to remove this network?"),
-		    tr("Yes"), tr("No")) != 0)
+		    QMessageBox::Yes, QMessageBox::No) != 0)
 		return;
 
 	snprintf(cmd, sizeof(cmd), "REMOVE_NETWORK %d", edit_network_id);

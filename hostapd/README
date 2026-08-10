@@ -2,7 +2,7 @@ hostapd - user space IEEE 802.11 AP and IEEE 802.1X/WPA/WPA2/EAP
 	  Authenticator and RADIUS authentication server
 ================================================================
 
-Copyright (c) 2002-2024, Jouni Malinen <j@w1.fi> and contributors
+Copyright (c) 2002-2026, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
 This program is licensed under the BSD license (the one with
@@ -69,11 +69,6 @@ Requirements
 
 Current hardware/software requirements:
 - drivers:
-	Host AP driver for Prism2/2.5/3.
-	(http://w1.fi/hostap-driver.html)
-	Please note that station firmware version needs to be 1.7.0 or newer
-	to work in WPA mode.
-
 	mac80211-based drivers that support AP mode (with driver=nl80211).
 	This includes drivers for Atheros (ath9k) and Broadcom (b43)
 	chipsets.
@@ -125,7 +120,7 @@ use an external Authentication Server and encapsulate EAP frame in the
 frames used by that server. RADIUS is suitable for this, but IEEE
 802.1X would also allow other mechanisms.
 
-Host AP driver includes PAE functionality in the kernel driver. It
+Drivers include PAE functionality in the kernel driver. It
 is a relatively simple mechanism for denying normal frames going to
 or coming from an unauthorized port. PAE allows IEEE 802.1X related
 frames to be passed between the Supplicant and the Authenticator even
@@ -156,7 +151,7 @@ with the Authentication Server. After this is completed successfully,
 the virtual port is set to Authorized state and frames from and to the
 station are accepted.
 
-Host AP configuration for IEEE 802.1X
+hostapd configuration for IEEE 802.1X
 -------------------------------------
 
 The user space daemon has its own configuration file that can be used to

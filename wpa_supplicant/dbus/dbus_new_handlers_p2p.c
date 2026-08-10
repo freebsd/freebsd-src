@@ -473,11 +473,13 @@ DBusMessage * wpas_dbus_handler_p2p_group_add(DBusMessage *message,
 		if (ssid == NULL || ssid->disabled != 2)
 			goto inv_args;
 
-		if (wpas_p2p_group_add_persistent(wpa_s, ssid, 0, freq, 0,
+		if (wpas_p2p_group_add_persistent(wpa_s, ssid, 0, freq, freq,
 						  freq2, ht40, vht,
 						  max_oper_chwidth, he, edmg,
 						  NULL, 0, 0, allow_6ghz,
-						  retry_limit, go_bssid)) {
+						  retry_limit, go_bssid, NULL,
+						  NULL, NULL, 0, false,
+						  false)) {
 			reply = wpas_dbus_error_unknown_error(
 				message,
 				"Failed to reinvoke a persistent group");
@@ -485,7 +487,7 @@ DBusMessage * wpas_dbus_handler_p2p_group_add(DBusMessage *message,
 		}
 	} else if (wpas_p2p_group_add(wpa_s, persistent_group, freq, freq2,
 				      ht40, vht, max_oper_chwidth, he, edmg,
-				      allow_6ghz))
+				      allow_6ghz, wpa_s->p2p2, wpa_s->p2p_mode))
 		goto inv_args;
 
 out:
@@ -623,6 +625,7 @@ DBusMessage * wpas_dbus_handler_p2p_connect(DBusMessage *message,
 	struct wpa_dbus_dict_entry entry;
 	char *peer_object_path = NULL;
 	int persistent_group = 0;
+	int auto_join = 0;
 	int join = 0;
 	int authorize_only = 0;
 	int go_intent = -1;
@@ -656,6 +659,9 @@ DBusMessage * wpas_dbus_handler_p2p_connect(DBusMessage *message,
 		} else if (os_strcmp(entry.key, "join") == 0 &&
 			   entry.type == DBUS_TYPE_BOOLEAN) {
 			join = entry.bool_value;
+		} else if (os_strcmp(entry.key, "auto_join") == 0 &&
+			   entry.type == DBUS_TYPE_BOOLEAN) {
+			auto_join = entry.bool_value;
 		} else if (os_strcmp(entry.key, "authorize_only") == 0 &&
 			   entry.type == DBUS_TYPE_BOOLEAN) {
 			authorize_only = entry.bool_value;
@@ -704,9 +710,10 @@ DBusMessage * wpas_dbus_handler_p2p_connect(DBusMessage *message,
 	wpa_s = wpa_s->global->p2p_init_wpa_s;
 
 	new_pin = wpas_p2p_connect(wpa_s, addr, pin, wps_method,
-				   persistent_group, 0, join, authorize_only,
+				   persistent_group, auto_join, join,
+				   authorize_only,
 				   go_intent, freq, 0, -1, 0, 0, 0, 0, 0, 0,
-				   NULL, 0, false);
+				   NULL, 0, false, 0, 0, NULL, false);
 
 	if (new_pin >= 0) {
 		char npin[9];
@@ -866,7 +873,7 @@ DBusMessage * wpas_dbus_handler_p2p_invite(DBusMessage *message,
 			goto err;
 
 		if (wpas_p2p_invite(wpa_s, peer_addr, ssid, NULL, 0, 0, 0, 0, 0,
-				    0, 0, 0, false) < 0) {
+				    0, 0, 0, false, false) < 0) {
 			reply = wpas_dbus_error_unknown_error(
 				message,
 				"Failed to reinvoke a persistent group");
@@ -928,7 +935,7 @@ DBusMessage * wpas_dbus_handler_p2p_prov_disc_req(DBusMessage *message,
 	if (!wpa_s)
 		return wpas_dbus_error_no_p2p_mgmt_iface(message);
 
-	if (wpas_p2p_prov_disc(wpa_s, peer_addr, config_method,
+	if (wpas_p2p_prov_disc(wpa_s, peer_addr, config_method, 0,
 			       WPAS_P2P_PD_FOR_GO_NEG, NULL) < 0)
 		return wpas_dbus_error_unknown_error(message,
 				"Failed to send provision discovery request");
@@ -1454,6 +1461,21 @@ dbus_bool_t wpas_dbus_getter_p2p_peergo(
 						&path, error);
 }
 
+dbus_bool_t wpas_dbus_getter_p2p_device_address(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+
+	if (!wpa_dbus_p2p_check_enabled(wpa_s, NULL, NULL, error))
+		return FALSE;
+
+	wpa_s = wpa_s->global->p2p_init_wpa_s;
+
+	return wpas_dbus_simple_array_property_getter(
+		iter, DBUS_TYPE_BYTE, (char *) wpa_s->own_addr,
+		ETH_ALEN, error);
+}
 
 /*
  * Peer object properties accessor methods
@@ -2571,6 +2593,17 @@ dbus_bool_t wpas_dbus_getter_p2p_group_vendor_ext(
 							    vendor_ext,
 							    num_vendor_ext,
 							    error);
+}
+
+
+dbus_bool_t wpas_dbus_getter_p2p_group_go_device_address(
+	const struct wpa_dbus_property_desc *property_desc,
+	DBusMessageIter *iter, DBusError *error, void *user_data)
+{
+	struct wpa_supplicant *wpa_s = user_data;
+	return wpas_dbus_simple_array_property_getter(
+		iter, DBUS_TYPE_BYTE, wpa_s->go_dev_addr,
+		ETH_ALEN, error);
 }
 
 

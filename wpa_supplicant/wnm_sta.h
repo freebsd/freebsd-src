@@ -23,6 +23,8 @@ struct multiple_bssid {
 
 struct neighbor_report {
 	u8 bssid[ETH_ALEN];
+	u8 mld_addr[ETH_ALEN];
+	u16 mld_links; /* may be zero if no link IDs were specified */
 	u32 bssid_info;
 	u8 regulatory_class;
 	u8 channel_number;
@@ -44,9 +46,8 @@ struct neighbor_report {
 	unsigned int rm_capab_present:1;
 	unsigned int bearing_present:1;
 	unsigned int bss_term_present:1;
-	unsigned int acceptable:1;
 #ifdef CONFIG_MBO
-	unsigned int is_first:1;
+	unsigned int drv_mbo_reject:1;
 #endif /* CONFIG_MBO */
 	struct measurement_pilot *meas_pilot;
 	struct multiple_bssid *mul_bssid;

@@ -56,13 +56,24 @@ void wpas_rrm_reset(struct wpa_supplicant *wpa_s)
 /*
  * wpas_rrm_process_neighbor_rep - Handle incoming neighbor report
  * @wpa_s: Pointer to wpa_supplicant
+ * @da: DA of the received frame
+ * @sa: SA of the received frame
  * @report: Neighbor report buffer, prefixed by a 1-byte dialog token
  * @report_len: Length of neighbor report buffer
  */
 void wpas_rrm_process_neighbor_rep(struct wpa_supplicant *wpa_s,
+				   const u8 *da, const u8 *sa,
 				   const u8 *report, size_t report_len)
 {
 	struct wpabuf *neighbor_rep;
+
+	if (is_multicast_ether_addr(da)) {
+		wpa_printf(MSG_DEBUG,
+			   "RRM: Ignore group-addressed Neighbor Report Response frame (A1="
+			   MACSTR " A2=" MACSTR ")",
+			   MAC2STR(da), MAC2STR(sa));
+		return;
+	}
 
 	wpa_hexdump(MSG_DEBUG, "RRM: New Neighbor Report", report, report_len);
 	if (report_len < 1)
@@ -160,6 +171,7 @@ int wpas_rrm_send_neighbor_rep_request(struct wpa_supplicant *wpa_s,
 	rrm_ie = wpa_bss_get_ie(wpa_s->current_bss,
 				WLAN_EID_RRM_ENABLED_CAPABILITIES);
 	if (!rrm_ie || !(wpa_s->current_bss->caps & IEEE80211_CAP_RRM) ||
+	    rrm_ie[1] < 1 ||
 	    !(rrm_ie[2] & WLAN_RRM_CAPS_NEIGHBOR_REPORT)) {
 		wpa_dbg(wpa_s, MSG_DEBUG,
 			"RRM: No network support for Neighbor Report.");
@@ -188,6 +200,24 @@ int wpas_rrm_send_neighbor_rep_request(struct wpa_supplicant *wpa_s,
 		(ssid ? wpa_ssid_txt(ssid->ssid, ssid->ssid_len) : ""),
 		wpa_s->rrm.next_neighbor_rep_token);
 
+	/*
+	 * According to IEEE Std 802.11-2024, 11.10.10.2 (Requesting a neighbor
+	 * report) LCI and civic requests depend on FTM responder support.
+	 */
+	if (lci || civic) {
+		const u8 *ext_capab;
+
+		ext_capab = wpa_bss_get_ie(wpa_s->current_bss,
+					   WLAN_EID_EXT_CAPAB);
+		if (!ieee802_11_ext_capab(ext_capab,
+					  WLAN_EXT_CAPAB_FTM_RESPONDER)) {
+			wpa_printf(MSG_DEBUG,
+				   "AP doesn't support FTM responder, can't request LCI and civic");
+			lci = 0;
+			civic = 0;
+		}
+	}
+
 	wpabuf_put_u8(buf, WLAN_ACTION_RADIO_MEASUREMENT);
 	wpabuf_put_u8(buf, WLAN_RRM_NEIGHBOR_REPORT_REQUEST);
 	wpabuf_put_u8(buf, wpa_s->rrm.next_neighbor_rep_token);
@@ -197,8 +227,10 @@ int wpas_rrm_send_neighbor_rep_request(struct wpa_supplicant *wpa_s,
 		wpabuf_put_data(buf, ssid->ssid, ssid->ssid_len);
 	}
 
-	if (lci) {
-		/* IEEE P802.11-REVmc/D5.0 9.4.2.21 */
+	if (lci && rrm_ie[1] >= 2 &&
+	    (rrm_ie[3] & WLAN_RRM_CAPS_LCI_MEASUREMENT)) {
+		/* IEEE Std 802.11-2024, 9.4.2.19 (Measurement Request element)
+		 */
 		wpabuf_put_u8(buf, WLAN_EID_MEASURE_REQUEST);
 		wpabuf_put_u8(buf, MEASURE_REQUEST_LCI_LEN);
 
@@ -215,13 +247,14 @@ int wpas_rrm_send_neighbor_rep_request(struct wpa_supplicant *wpa_s,
 		wpabuf_put_u8(buf, 0); /* Measurement Request Mode */
 		wpabuf_put_u8(buf, MEASURE_TYPE_LCI); /* Measurement Type */
 
-		/* IEEE P802.11-REVmc/D5.0 9.4.2.21.10 - LCI request */
+		/* IEEE Std 802.11-2024, 9.4.2.19.10 (LCI request) */
 		/* Location Subject */
 		wpabuf_put_u8(buf, LOCATION_SUBJECT_REMOTE);
 
 		/* Optional Subelements */
 		/*
-		 * IEEE P802.11-REVmc/D5.0 Figure 9-170
+		 * IEEE Std 802.11-2024, Figure 9-265 (Maximum Age subelement
+		 * format)
 		 * The Maximum Age subelement is required, otherwise the AP can
 		 * send only data that was determined after receiving the
 		 * request. Setting it here to unlimited age.
@@ -229,10 +262,14 @@ int wpas_rrm_send_neighbor_rep_request(struct wpa_supplicant *wpa_s,
 		wpabuf_put_u8(buf, LCI_REQ_SUBELEM_MAX_AGE);
 		wpabuf_put_u8(buf, 2);
 		wpabuf_put_le16(buf, 0xffff);
+	} else if (lci) {
+		wpa_printf(MSG_DEBUG, "RRM: LCI request isn't supported by AP");
 	}
 
-	if (civic) {
-		/* IEEE P802.11-REVmc/D5.0 9.4.2.21 */
+	if (civic && rrm_ie[1] >= 5 &&
+	    (rrm_ie[6] & WLAN_RRM_CAPS_CIVIC_LOCATION_MEASUREMENT)) {
+		/* IEEE Std 802.11-2024, 9.4.2.19 (Measurement Request element)
+		 */
 		wpabuf_put_u8(buf, WLAN_EID_MEASURE_REQUEST);
 		wpabuf_put_u8(buf, MEASURE_REQUEST_CIVIC_LEN);
 
@@ -250,8 +287,7 @@ int wpas_rrm_send_neighbor_rep_request(struct wpa_supplicant *wpa_s,
 		/* Measurement Type */
 		wpabuf_put_u8(buf, MEASURE_TYPE_LOCATION_CIVIC);
 
-		/* IEEE P802.11-REVmc/D5.0 9.4.2.21.14:
-		 * Location Civic request */
+		/* IEEE Std 802.11-2024, 9.4.2.19.14 (Location Civic request) */
 		/* Location Subject */
 		wpabuf_put_u8(buf, LOCATION_SUBJECT_REMOTE);
 		wpabuf_put_u8(buf, 0); /* Civic Location Type: IETF RFC 4776 */
@@ -261,6 +297,9 @@ int wpas_rrm_send_neighbor_rep_request(struct wpa_supplicant *wpa_s,
 		 */
 		wpabuf_put_le16(buf, 0);
 		/* No optional subelements */
+	} else if (civic) {
+		wpa_printf(MSG_DEBUG,
+			   "RRM: Civic request isn't supported by AP");
 	}
 
 	wpa_s->rrm.next_neighbor_rep_token++;
@@ -712,18 +751,22 @@ static int * wpas_beacon_request_freqs(struct wpa_supplicant *wpa_s,
 int wpas_get_op_chan_phy(int freq, const u8 *ies, size_t ies_len,
 			 u8 *op_class, u8 *chan, u8 *phy_type)
 {
-	const u8 *ie;
-	int sec_chan = 0, vht = 0;
-	struct ieee80211_ht_operation *ht_oper = NULL;
-	struct ieee80211_vht_operation *vht_oper = NULL;
-	u8 seg0, seg1;
+	int sec_chan = 0, chanwidth = 0;
+	struct ieee802_11_elems elems;
+	struct ieee80211_ht_operation *ht_oper;
 
-	ie = get_ie(ies, ies_len, WLAN_EID_HT_OPERATION);
-	if (ie && ie[1] >= sizeof(struct ieee80211_ht_operation)) {
-		u8 sec_chan_offset;
+	if (ieee802_11_parse_elems(ies, ies_len, &elems, 1) == ParseFailed)
+		return -1;
 
-		ht_oper = (struct ieee80211_ht_operation *) (ie + 2);
-		sec_chan_offset = ht_oper->ht_param &
+	chanwidth = get_operation_channel_width(&elems);
+	if (chanwidth == CHAN_WIDTH_UNKNOWN) {
+		wpa_printf(MSG_DEBUG, "Cannot determine channel width");
+		return -1;
+	}
+
+	ht_oper = (struct ieee80211_ht_operation *) elems.ht_operation;
+	if (ht_oper) {
+		u8 sec_chan_offset = ht_oper->ht_param &
 			HT_INFO_HT_PARAM_SECONDARY_CHNL_OFF_MASK;
 		if (sec_chan_offset == HT_INFO_HT_PARAM_SECONDARY_CHNL_ABOVE)
 			sec_chan = 1;
@@ -732,42 +775,16 @@ int wpas_get_op_chan_phy(int freq, const u8 *ies, size_t ies_len,
 			sec_chan = -1;
 	}
 
-	ie = get_ie(ies, ies_len, WLAN_EID_VHT_OPERATION);
-	if (ie && ie[1] >= sizeof(struct ieee80211_vht_operation)) {
-		vht_oper = (struct ieee80211_vht_operation *) (ie + 2);
-
-		switch (vht_oper->vht_op_info_chwidth) {
-		case CHANWIDTH_80MHZ:
-			seg0 = vht_oper->vht_op_info_chan_center_freq_seg0_idx;
-			seg1 = vht_oper->vht_op_info_chan_center_freq_seg1_idx;
-			if (seg1 && abs(seg1 - seg0) == 8)
-				vht = CONF_OPER_CHWIDTH_160MHZ;
-			else if (seg1)
-				vht = CONF_OPER_CHWIDTH_80P80MHZ;
-			else
-				vht = CONF_OPER_CHWIDTH_80MHZ;
-			break;
-		case CHANWIDTH_160MHZ:
-			vht = CONF_OPER_CHWIDTH_160MHZ;
-			break;
-		case CHANWIDTH_80P80MHZ:
-			vht = CONF_OPER_CHWIDTH_80P80MHZ;
-			break;
-		default:
-			vht = CONF_OPER_CHWIDTH_USE_HT;
-			break;
-		}
-	}
-
-	if (ieee80211_freq_to_channel_ext(freq, sec_chan, vht, op_class,
+	if (ieee80211_chaninfo_to_channel(freq, chanwidth, sec_chan, op_class,
 					  chan) == NUM_HOSTAPD_MODES) {
 		wpa_printf(MSG_DEBUG,
 			   "Cannot determine operating class and channel");
 		return -1;
 	}
 
-	*phy_type = ieee80211_get_phy_type(freq, ht_oper != NULL,
-					   vht_oper != NULL);
+	*phy_type = ieee80211_get_phy_type(freq, elems.ht_operation != NULL,
+					   elems.vht_operation != NULL,
+					   elems.he_operation != NULL);
 	if (*phy_type == PHY_TYPE_UNSPECIFIED) {
 		wpa_printf(MSG_DEBUG, "Cannot determine phy type");
 		return -1;
@@ -1553,7 +1570,7 @@ int wpas_beacon_rep_scan_process(struct wpa_supplicant *wpa_s,
 
 	/* If the measurement was aborted, don't report partial results */
 	if (info->aborted)
-		goto out;
+		goto out_refuse;
 
 	wpa_printf(MSG_DEBUG, "RRM: TSF BSSID: " MACSTR " current BSS: " MACSTR,
 		   MAC2STR(info->scan_start_tsf_bssid),
@@ -1562,7 +1579,7 @@ int wpas_beacon_rep_scan_process(struct wpa_supplicant *wpa_s,
 	    !wpas_beacon_rep_scan_match(wpa_s, info->scan_start_tsf_bssid)) {
 		wpa_printf(MSG_DEBUG,
 			   "RRM: Ignore scan results due to mismatching TSF BSSID");
-		goto out;
+		goto out_refuse;
 	}
 
 	for (i = 0; i < scan_res->num; i++) {
@@ -1632,6 +1649,10 @@ int wpas_beacon_rep_scan_process(struct wpa_supplicant *wpa_s,
 	wpas_rrm_send_msr_report(wpa_s, buf);
 	wpabuf_free(buf);
 
+	goto out;
+
+out_refuse:
+	wpas_rrm_refuse_request(wpa_s);
 out:
 	wpas_clear_beacon_rep_data(wpa_s);
 	return 1;

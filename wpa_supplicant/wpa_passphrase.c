@@ -33,10 +33,14 @@ int main(int argc, char *argv[])
 	if (argc > 2) {
 		passphrase = argv[2];
 	} else {
-		bool ctrl_echo;
+		bool ctrl_echo, notty = false;
 
 		fprintf(stderr, "# reading passphrase from stdin\n");
 		if (tcgetattr(STDIN_FILENO, &term) < 0) {
+			if (errno == ENOTTY) {
+				notty = true;
+				goto read_pw;
+			}
 			perror("tcgetattr");
 			return 1;
 		}
@@ -46,12 +50,14 @@ int main(int argc, char *argv[])
 			perror("tcsetattr:error disabling echo");
 			return 1;
 		}
+	read_pw:
 		if (fgets(buf, sizeof(buf), stdin) == NULL) {
 			fprintf(stderr, "Failed to read passphrase\n");
 			return 1;
 		}
 		term.c_lflag |= ECHO;
-		if (ctrl_echo && tcsetattr(STDIN_FILENO, TCSANOW, &term) < 0) {
+		if (!notty &&
+		    ctrl_echo && tcsetattr(STDIN_FILENO, TCSANOW, &term) < 0) {
 			perror("tcsetattr:error enabling echo");
 			return 1;
 		}

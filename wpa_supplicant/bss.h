@@ -61,9 +61,6 @@ struct wpa_bss_anqp {
 	struct wpabuf *hs20_wan_metrics;
 	struct wpabuf *hs20_connection_capability;
 	struct wpabuf *hs20_operating_class;
-	struct wpabuf *hs20_osu_providers_list;
-	struct wpabuf *hs20_operator_icon_metadata;
-	struct wpabuf *hs20_osu_providers_nai_list;
 #endif /* CONFIG_HS20 */
 };
 
@@ -128,8 +125,17 @@ struct wpa_bss {
 	u8 mld_addr[ETH_ALEN];
 	/** Link ID of this affiliated AP of the AP MLD */
 	u8 mld_link_id;
+	/** For MLD, denotes whether the BSS is a non-transmitted one; useful
+	 * for ML probe */
+	bool mld_bss_non_transmitted;
+	/** MLD Capabilities And Operations */
+	u16 mld_capa;
+	/** Extended MLD Capabilities And Operations */
+	u16 ext_mld_capa;
+	/** EML Capabilities */
+	u16 eml_capa;
 
-	/** An array of MLD links */
+	/** An array of MLD links, any link found in the RNR is "valid" */
 	u16 valid_links;
 	struct mld_link {
 		u8 bssid[ETH_ALEN];
@@ -165,6 +171,9 @@ void wpa_bss_flush(struct wpa_supplicant *wpa_s);
 void wpa_bss_flush_by_age(struct wpa_supplicant *wpa_s, int age);
 struct wpa_bss * wpa_bss_get(struct wpa_supplicant *wpa_s, const u8 *bssid,
 			     const u8 *ssid, size_t ssid_len);
+struct wpa_bss * wpa_bss_get_connection(struct wpa_supplicant *wpa_s,
+					const u8 *bssid,
+					const u8 *ssid, size_t ssid_len);
 struct wpa_bss * wpa_bss_get_bssid(struct wpa_supplicant *wpa_s,
 				   const u8 *bssid);
 struct wpa_bss * wpa_bss_get_bssid_latest(struct wpa_supplicant *wpa_s,
@@ -217,13 +226,18 @@ void calculate_update_time(const struct os_reltime *fetch_time,
 			   unsigned int age_ms,
 			   struct os_reltime *update_time);
 
-int wpa_bss_parse_basic_ml_element(struct wpa_supplicant *wpa_s,
-				   struct wpa_bss *bss,
-				   u8 *ap_mld_addr,
-				   u16 *missing_links,
-				   struct wpa_ssid *ssid,
-				   u8 *ap_mld_id);
+u16 wpa_bss_get_usable_links(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
+			     struct wpa_ssid *ssid, u16 *missing_links);
+void wpa_bss_parse_basic_ml_element(struct wpa_supplicant *wpa_s,
+				    struct wpa_bss *bss);
 u16 wpa_bss_parse_reconf_ml_element(struct wpa_supplicant *wpa_s,
 				    struct wpa_bss *bss);
+
+const u8 * wpa_bss_get_rsne(struct wpa_supplicant *wpa_s,
+			    const struct wpa_bss *bss, struct wpa_ssid *ssid,
+			    bool mlo);
+const u8 * wpa_bss_get_rsnxe(struct wpa_supplicant *wpa_s,
+			     const struct wpa_bss *bss, struct wpa_ssid *ssid,
+			     bool mlo);
 
 #endif /* BSS_H */

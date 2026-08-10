@@ -469,8 +469,10 @@ int radius_msg_finish(struct radius_msg *msg, const u8 *secret,
 			return -1;
 		msg->hdr->length = host_to_be16(wpabuf_len(msg->buf));
 		if (hmac_md5(secret, secret_len, wpabuf_head(msg->buf),
-			     wpabuf_len(msg->buf), pos) < 0)
+			     wpabuf_len(msg->buf), pos) < 0) {
+			wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
 			return -1;
+		}
 	} else
 		msg->hdr->length = host_to_be16(wpabuf_len(msg->buf));
 
@@ -497,8 +499,10 @@ int radius_msg_finish_srv(struct radius_msg *msg, const u8 *secret,
 	os_memcpy(msg->hdr->authenticator, req_authenticator,
 		  sizeof(msg->hdr->authenticator));
 	if (hmac_md5(secret, secret_len, wpabuf_head(msg->buf),
-		     wpabuf_len(msg->buf), pos) < 0)
+		     wpabuf_len(msg->buf), pos) < 0) {
+		wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
 		return -1;
+	}
 
 	/* ResponseAuth = MD5(Code+ID+Length+RequestAuth+Attributes+Secret) */
 	addr[0] = (u8 *) msg->hdr;
@@ -509,7 +513,10 @@ int radius_msg_finish_srv(struct radius_msg *msg, const u8 *secret,
 	len[2] = wpabuf_len(msg->buf) - sizeof(struct radius_hdr);
 	addr[3] = secret;
 	len[3] = secret_len;
-	md5_vector(4, addr, len, msg->hdr->authenticator);
+	if (md5_vector(4, addr, len, msg->hdr->authenticator) < 0) {
+		wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
+		return -1;
+	}
 
 	if (wpabuf_len(msg->buf) > 0xffff) {
 		wpa_printf(MSG_WARNING, "RADIUS: Too long message (%lu)",
@@ -535,16 +542,20 @@ int radius_msg_finish_das_resp(struct radius_msg *msg, const u8 *secret,
 	msg->hdr->length = host_to_be16(wpabuf_len(msg->buf));
 	os_memcpy(msg->hdr->authenticator, req_hdr->authenticator, 16);
 	if (hmac_md5(secret, secret_len, wpabuf_head(msg->buf),
-		     wpabuf_len(msg->buf), pos) < 0)
+		     wpabuf_len(msg->buf), pos) < 0) {
+		wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
 		return -1;
+	}
 
 	/* ResponseAuth = MD5(Code+ID+Length+RequestAuth+Attributes+Secret) */
 	addr[0] = wpabuf_head_u8(msg->buf);
 	len[0] = wpabuf_len(msg->buf);
 	addr[1] = secret;
 	len[1] = secret_len;
-	if (md5_vector(2, addr, len, msg->hdr->authenticator) < 0)
+	if (md5_vector(2, addr, len, msg->hdr->authenticator) < 0) {
+		wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
 		return -1;
+	}
 
 	if (wpabuf_len(msg->buf) > 0xffff) {
 		wpa_printf(MSG_WARNING, "RADIUS: Too long message (%lu)",
@@ -555,8 +566,8 @@ int radius_msg_finish_das_resp(struct radius_msg *msg, const u8 *secret,
 }
 
 
-void radius_msg_finish_acct(struct radius_msg *msg, const u8 *secret,
-			    size_t secret_len)
+int radius_msg_finish_acct(struct radius_msg *msg, const u8 *secret,
+			   size_t secret_len)
 {
 	const u8 *addr[2];
 	size_t len[2];
@@ -567,17 +578,22 @@ void radius_msg_finish_acct(struct radius_msg *msg, const u8 *secret,
 	len[0] = wpabuf_len(msg->buf);
 	addr[1] = secret;
 	len[1] = secret_len;
-	md5_vector(2, addr, len, msg->hdr->authenticator);
+	if (md5_vector(2, addr, len, msg->hdr->authenticator) < 0) {
+		wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
+		return -1;
+	}
 
 	if (wpabuf_len(msg->buf) > 0xffff) {
 		wpa_printf(MSG_WARNING, "RADIUS: Too long messages (%lu)",
 			   (unsigned long) wpabuf_len(msg->buf));
+		return -1;
 	}
+	return 0;
 }
 
 
-void radius_msg_finish_acct_resp(struct radius_msg *msg, const u8 *secret,
-				 size_t secret_len, const u8 *req_authenticator)
+int radius_msg_finish_acct_resp(struct radius_msg *msg, const u8 *secret,
+				size_t secret_len, const u8 *req_authenticator)
 {
 	const u8 *addr[2];
 	size_t len[2];
@@ -588,12 +604,17 @@ void radius_msg_finish_acct_resp(struct radius_msg *msg, const u8 *secret,
 	len[0] = wpabuf_len(msg->buf);
 	addr[1] = secret;
 	len[1] = secret_len;
-	md5_vector(2, addr, len, msg->hdr->authenticator);
+	if (md5_vector(2, addr, len, msg->hdr->authenticator) < 0) {
+		wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
+		return -1;
+	}
 
 	if (wpabuf_len(msg->buf) > 0xffff) {
 		wpa_printf(MSG_WARNING, "RADIUS: Too long messages (%lu)",
 			   (unsigned long) wpabuf_len(msg->buf));
+		return -1;
 	}
+	return 0;
 }
 
 
@@ -614,7 +635,10 @@ int radius_msg_verify_acct_req(struct radius_msg *msg, const u8 *secret,
 	len[2] = wpabuf_len(msg->buf) - sizeof(struct radius_hdr);
 	addr[3] = secret;
 	len[3] = secret_len;
-	md5_vector(4, addr, len, hash);
+	if (md5_vector(4, addr, len, hash) < 0) {
+		wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
+		return 1;
+	}
 	return os_memcmp_const(msg->hdr->authenticator, hash, MD5_MAC_LEN) != 0;
 }
 
@@ -642,7 +666,10 @@ int radius_msg_verify_das_req(struct radius_msg *msg, const u8 *secret,
 	len[2] = wpabuf_len(msg->buf) - sizeof(struct radius_hdr);
 	addr[3] = secret;
 	len[3] = secret_len;
-	md5_vector(4, addr, len, hash);
+	if (md5_vector(4, addr, len, hash) < 0) {
+		wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
+		return 1;
+	}
 	if (os_memcmp_const(msg->hdr->authenticator, hash, MD5_MAC_LEN) != 0)
 		return 1;
 
@@ -674,8 +701,11 @@ int radius_msg_verify_das_req(struct radius_msg *msg, const u8 *secret,
 		  sizeof(orig_authenticator));
 	os_memset(msg->hdr->authenticator, 0,
 		  sizeof(msg->hdr->authenticator));
-	hmac_md5(secret, secret_len, wpabuf_head(msg->buf),
-		 wpabuf_len(msg->buf), auth);
+	if (hmac_md5(secret, secret_len, wpabuf_head(msg->buf),
+		     wpabuf_len(msg->buf), auth) < 0) {
+		wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
+		return 1;
+	}
 	os_memcpy(attr + 1, orig, MD5_MAC_LEN);
 	os_memcpy(msg->hdr->authenticator, orig_authenticator,
 		  sizeof(orig_authenticator));
@@ -777,7 +807,7 @@ struct radius_attr_hdr * radius_msg_add_attr(struct radius_msg *msg, u16 type,
 			ext->length = sizeof(*ext) + 1 + alen;
 			ext->ext_type = ext_type;
 			wpabuf_put_u8(msg->buf, data_len > alen ? 0x80 : 0);
-			wpabuf_put_data(msg->buf, data, data_len);
+			wpabuf_put_data(msg->buf, data, alen);
 			data += alen;
 			data_len -= alen;
 			if (radius_msg_add_attr_to_array(
@@ -972,8 +1002,10 @@ int radius_msg_verify_msg_auth(struct radius_msg *msg, const u8 *secret,
 			  sizeof(msg->hdr->authenticator));
 	}
 	if (hmac_md5(secret, secret_len, wpabuf_head(msg->buf),
-		     wpabuf_len(msg->buf), auth) < 0)
+		     wpabuf_len(msg->buf), auth) < 0) {
+		wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
 		return 1;
+	}
 	os_memcpy(attr + 1, orig, MD5_MAC_LEN);
 	if (req_auth) {
 		os_memcpy(msg->hdr->authenticator, orig_authenticator,
@@ -1185,6 +1217,7 @@ static u8 * decrypt_ms_key(const u8 *key, size_t len,
 			elen[1] = MD5_MAC_LEN;
 		}
 		if (md5_vector(first ? 3 : 2, addr, elen, hash) < 0) {
+			wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
 			os_free(plain);
 			return NULL;
 		}
@@ -1213,10 +1246,10 @@ static u8 * decrypt_ms_key(const u8 *key, size_t len,
 }
 
 
-static void encrypt_ms_key(const u8 *key, size_t key_len, u16 salt,
-			   const u8 *req_authenticator,
-			   const u8 *secret, size_t secret_len,
-			   u8 *ebuf, size_t *elen)
+static int encrypt_ms_key(const u8 *key, size_t key_len, u16 salt,
+			  const u8 *req_authenticator,
+			  const u8 *secret, size_t secret_len,
+			  u8 *ebuf, size_t *elen)
 {
 	int i, len, first = 1;
 	u8 hash[MD5_MAC_LEN], saltbuf[2], *pos;
@@ -1250,7 +1283,10 @@ static void encrypt_ms_key(const u8 *key, size_t key_len, u16 salt,
 			addr[1] = pos - MD5_MAC_LEN;
 			_len[1] = MD5_MAC_LEN;
 		}
-		md5_vector(first ? 3 : 2, addr, _len, hash);
+		if (md5_vector(first ? 3 : 2, addr, _len, hash) < 0) {
+			wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
+			return -1;
+		}
 		first = 0;
 
 		for (i = 0; i < MD5_MAC_LEN; i++)
@@ -1258,6 +1294,8 @@ static void encrypt_ms_key(const u8 *key, size_t key_len, u16 salt,
 
 		len -= MD5_MAC_LEN;
 	}
+
+	return 0;
 }
 
 
@@ -1375,8 +1413,9 @@ int radius_msg_add_mppe_keys(struct radius_msg *msg,
 	salt |= 0x8000;
 	WPA_PUT_BE16(pos, salt);
 	pos += 2;
-	encrypt_ms_key(send_key, send_key_len, salt, req_authenticator, secret,
-		       secret_len, pos, &elen);
+	if (encrypt_ms_key(send_key, send_key_len, salt, req_authenticator,
+			   secret, secret_len, pos, &elen) < 0)
+		return 0;
 	vhdr->vendor_length = hlen + elen - sizeof(vendor_id);
 
 	attr = radius_msg_add_attr(msg, RADIUS_ATTR_VENDOR_SPECIFIC,
@@ -1400,8 +1439,9 @@ int radius_msg_add_mppe_keys(struct radius_msg *msg,
 	salt ^= 1;
 	WPA_PUT_BE16(pos, salt);
 	pos += 2;
-	encrypt_ms_key(recv_key, recv_key_len, salt, req_authenticator, secret,
-		       secret_len, pos, &elen);
+	if (encrypt_ms_key(recv_key, recv_key_len, salt, req_authenticator,
+			   secret, secret_len, pos, &elen) < 0)
+		return 0;
 	vhdr->vendor_length = hlen + elen - sizeof(vendor_id);
 
 	attr = radius_msg_add_attr(msg, RADIUS_ATTR_VENDOR_SPECIFIC,
@@ -1492,7 +1532,10 @@ int radius_user_password_hide(struct radius_msg *msg,
 	len[0] = secret_len;
 	addr[1] = msg->hdr->authenticator;
 	len[1] = 16;
-	md5_vector(2, addr, len, hash);
+	if (md5_vector(2, addr, len, hash) < 0) {
+		wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
+		return -1;
+	}
 
 	for (i = 0; i < 16; i++)
 		buf[i] ^= hash[i];
@@ -1503,7 +1546,10 @@ int radius_user_password_hide(struct radius_msg *msg,
 		len[0] = secret_len;
 		addr[1] = &buf[pos - 16];
 		len[1] = 16;
-		md5_vector(2, addr, len, hash);
+		if (md5_vector(2, addr, len, hash) < 0) {
+			wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
+			return -1;
+		}
 
 		for (i = 0; i < 16; i++)
 			buf[pos + i] ^= hash[i];
@@ -1792,7 +1838,10 @@ char * radius_msg_get_tunnel_password(struct radius_msg *msg, int *keylen,
 		len[0] = secret_len;
 		addr[1] = pos - 16;
 		len[1] = 16;
-		md5_vector(2, addr, len, hash);
+		if (md5_vector(2, addr, len, hash) < 0) {
+			wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
+			goto out;
+		}
 
 		for (i = 0; i < 16; i++)
 			pos[i] ^= hash[i];
@@ -1809,7 +1858,10 @@ char * radius_msg_get_tunnel_password(struct radius_msg *msg, int *keylen,
 	len[1] = 16;
 	addr[2] = salt;
 	len[2] = 2;
-	md5_vector(3, addr, len, hash);
+	if (md5_vector(3, addr, len, hash) < 0) {
+		wpa_printf(MSG_INFO, "RADIUS: MD5 not available");
+		goto out;
+	}
 
 	for (i = 0; i < 16; i++)
 		pos[i] ^= hash[i];

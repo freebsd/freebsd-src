@@ -38,6 +38,11 @@ struct multi_ap_params {
 
 /* Parsed Information Elements */
 struct ieee802_11_elems {
+	/* Control of parsing operations */
+	bool show_errors;
+	bool stop_at_mic; /* Whether to stop parsing after MIC element */
+
+	/* Parsed data */
 	const u8 *ssid;
 	const u8 *supp_rates;
 	const u8 *ds_params;
@@ -65,6 +70,8 @@ struct ieee802_11_elems {
 	const u8 *vendor_ht_cap;
 	const u8 *vendor_vht;
 	const u8 *p2p;
+	const u8 *p2p2_ie;
+	const u8 *pasn_encrypted_data;
 	const u8 *wfd;
 	const u8 *link_id;
 	const u8 *interworking;
@@ -73,7 +80,6 @@ struct ieee802_11_elems {
 	const u8 *ext_capab;
 	const u8 *bss_max_idle_period;
 	const u8 *ssid_list;
-	const u8 *osen;
 	const u8 *mbo;
 	const u8 *ampe;
 	const u8 *mic;
@@ -93,7 +99,7 @@ struct ieee802_11_elems {
 	const u8 *key_delivery;
 	const u8 *wrapped_data;
 	const u8 *fils_pk;
-	const u8 *fils_nonce;
+	const u8 *nonce;
 	const u8 *owe_dh;
 	const u8 *power_capab;
 	const u8 *roaming_cons_sel;
@@ -116,6 +122,15 @@ struct ieee802_11_elems {
 	const u8 *prior_access_mle;
 	const u8 *mbssid_known_bss;
 	const u8 *mbssid;
+	const u8 *rsne_override;
+	const u8 *rsne_override_2;
+	const u8 *rsnxe_override;
+	const u8 *rsn_selection;
+	const u8 *wfa_capab;
+	const u8 *proximity_ranging;
+	const u8 *akm_suite_selector;
+	const u8 *supported_groups;
+	const u8 *nan_ie;
 
 	u8 ssid_len;
 	u8 supp_rates_len;
@@ -136,13 +151,14 @@ struct ieee802_11_elems {
 	u8 vendor_ht_cap_len;
 	u8 vendor_vht_len;
 	u8 p2p_len;
+	u8 p2p2_ie_len;
+	u8 pasn_encrypted_data_len;
 	u8 wfd_len;
 	u8 interworking_len;
 	u8 qos_map_set_len;
 	u8 hs20_len;
 	u8 ext_capab_len;
 	u8 ssid_list_len;
-	u8 osen_len;
 	u8 mbo_len;
 	u8 ampe_len;
 	u8 mic_len;
@@ -156,9 +172,10 @@ struct ieee802_11_elems {
 	u8 fils_key_confirm_len;
 	size_t fils_hlp_len;
 	u8 fils_ip_addr_assign_len;
-	u8 key_delivery_len;
+	size_t key_delivery_len;
 	size_t wrapped_data_len;
 	u8 fils_pk_len;
+	u8 nonce_len;
 	u8 owe_dh_len;
 	u8 power_capab_len;
 	u8 roaming_cons_sel_len;
@@ -179,6 +196,15 @@ struct ieee802_11_elems {
 	size_t prior_access_mle_len;
 	u8 mbssid_known_bss_len;
 	u8 mbssid_len;
+	size_t rsne_override_len;
+	size_t rsne_override_2_len;
+	size_t rsnxe_override_len;
+	size_t rsn_selection_len;
+	u8 wfa_capab_len;
+	size_t proximity_ranging_len;
+	u8 akm_suite_selector_len;
+	u8 supported_groups_len;
+	size_t nan_len;
 
 	struct mb_ies_info mb_ies;
 
@@ -196,14 +222,18 @@ typedef enum { ParseOK = 0, ParseUnknown = 1, ParseFailed = -1 } ParseRes;
 ParseRes ieee802_11_parse_elems(const u8 *start, size_t len,
 				struct ieee802_11_elems *elems,
 				int show_errors);
+ParseRes ieee802_11_parse_elems_ctrl(const u8 *start, size_t len,
+				     struct ieee802_11_elems *elems);
 void ieee802_11_elems_clear_ids(struct ieee802_11_elems *elems,
 				const u8 *ids, size_t num);
 void ieee802_11_elems_clear_ext_ids(struct ieee802_11_elems *elems,
 				    const u8 *ids, size_t num);
-ParseRes ieee802_11_parse_link_assoc_req(const u8 *start, size_t len,
-					 struct ieee802_11_elems *elems,
+ParseRes ieee802_11_parse_link_assoc_req(struct ieee802_11_elems *elems,
 					 struct wpabuf *mlbuf,
 					 u8 link_id, bool show_errors);
+ParseRes ieee802_11_parse_link_assoc_resp(struct ieee802_11_elems *elems,
+					  struct wpabuf *mlbuf,
+					  u8 link_id, bool show_errors);
 int ieee802_11_ie_count(const u8 *ies, size_t ies_len);
 struct wpabuf * ieee802_11_vendor_ie_concat(const u8 *ies, size_t ies_len,
 					    u32 oui_type);
@@ -244,7 +274,7 @@ int ieee80211_is_dfs(int freq, const struct hostapd_hw_modes *modes,
 		     u16 num_modes);
 int is_dfs_global_op_class(u8 op_class);
 bool is_80plus_op_class(u8 op_class);
-enum phy_type ieee80211_get_phy_type(int freq, int ht, int vht);
+enum phy_type ieee80211_get_phy_type(int freq, bool ht, bool vht, bool he);
 
 int supp_rates_11b_only(struct ieee802_11_elems *elems);
 int mb_ies_info_by_ies(struct mb_ies_info *info, const u8 *ies_buf,
@@ -289,6 +319,8 @@ u8 country_to_global_op_class(const char *country, u8 op_class);
 
 const struct oper_class_map * get_oper_class(const char *country, u8 op_class);
 int oper_class_bw_to_int(const struct oper_class_map *map);
+bool is_24ghz_freq(int freq);
+bool is_5ghz_freq(int freq);
 int center_idx_to_bw_6ghz(u8 idx);
 bool is_6ghz_freq(int freq);
 bool is_6ghz_op_class(u8 op_class);
@@ -298,6 +330,10 @@ int get_6ghz_sec_channel(int channel);
 bool is_same_band(int freq1, int freq2);
 #define IS_2P4GHZ(n) (n >= 2412 && n <= 2484)
 #define IS_5GHZ(n) (n > 4000 && n < 5895)
+
+u8 op_class_idx_to_chan(const struct oper_class_map *op, u8 idx);
+int op_class_chan_to_idx(const struct oper_class_map *op, u8 chan);
+int ieee80211_get_center_freq(int ctrl_freq, u32 bw);
 
 int ieee802_11_parse_candidate_list(const char *pos, u8 *nei_rep,
 				    size_t nei_rep_len);
@@ -309,6 +345,7 @@ bool ieee802_11_rsnx_capab(const u8 *rsnxe, unsigned int capab);
 int op_class_to_bandwidth(u8 op_class);
 enum oper_chan_width op_class_to_ch_width(u8 op_class);
 int chwidth_freq2_to_ch_width(int chwidth, int freq2);
+enum oper_chan_width chan_width_to_oper_chwidth(enum chan_width chan_width);
 
 /* element iteration helpers */
 #define for_each_element(_elem, _data, _datalen)			\
@@ -367,7 +404,31 @@ int ieee802_edmg_is_allowed(struct ieee80211_edmg_config allowed,
 			    struct ieee80211_edmg_config requested);
 
 struct wpabuf * ieee802_11_defrag(const u8 *data, size_t len, bool ext_elem);
+ssize_t ieee802_11_defrag_mle_subelem(struct wpabuf *mlbuf,
+				      const u8 *parent_subelem,
+				      size_t *defrag_len);
 const u8 * get_ml_ie(const u8 *ies, size_t len, u8 type);
 const u8 * get_basic_mle_mld_addr(const u8 *buf, size_t len);
+const u8 * get_basic_mle_eml_capa(const u8 *buf, size_t len);
+int get_basic_mle_link_id(const u8 *buf, size_t len);
+
+unsigned int get_max_nss_capability(struct ieee802_11_elems *elems,
+				    bool parse_for_rx, enum chan_width bw);
+
+struct supported_chan_width {
+	bool is_40_supported;
+	bool is_160_supported;
+	bool is_80p80_supported;
+	bool is_320_supported;
+};
+
+struct supported_chan_width
+get_supported_channel_width(struct ieee802_11_elems *elems, int freq);
+
+enum chan_width get_operation_channel_width(struct ieee802_11_elems *elems);
+
+enum chan_width get_sta_operation_chan_width(
+	enum chan_width ap_operation_chan_width,
+	struct supported_chan_width sta_supported_width);
 
 #endif /* IEEE802_11_COMMON_H */

@@ -21,7 +21,7 @@
 
 static const char *const hostapd_cli_version =
 "hostapd_cli v" VERSION_STR "\n"
-"Copyright (c) 2004-2024, Jouni Malinen <j@w1.fi> and contributors";
+"Copyright (c) 2004-2026, Jouni Malinen <j@w1.fi> and contributors";
 
 static struct wpa_ctrl *ctrl_conn;
 static int hostapd_cli_quit = 0;
@@ -54,7 +54,11 @@ static void usage(void)
 	fprintf(stderr, "%s\n", hostapd_cli_version);
 	fprintf(stderr,
 		"\n"
-		"usage: hostapd_cli [-p<path>] [-i<ifname>] [-hvBr] "
+		"usage: hostapd_cli [-p<path>] [-i<ifname>] "
+#ifdef CONFIG_IEEE80211BE
+		"[-l<link_id>] "
+#endif /* CONFIG_IEEE80211BE */
+		"[-hvBr] "
 		"[-a<path>] \\\n"
 		"                   [-P<pid file>] [-G<ping interval>] [command..]\n"
 		"\n"
@@ -74,7 +78,11 @@ static void usage(void)
 		"   -B           run a daemon in the background\n"
 		"   -i<ifname>   Interface to listen on (default: first "
 		"interface found in the\n"
-		"                socket path)\n\n");
+		"                socket path)\n"
+#ifdef CONFIG_IEEE80211BE
+		"   -l<link_id>  Link ID of the interface in case of Multi-Link Operation\n"
+#endif /* CONFIG_IEEE80211BE */
+		"\n");
 	print_help(stderr, NULL);
 }
 
@@ -192,7 +200,7 @@ static void hostapd_cli_msg_cb(char *msg, size_t len)
 
 static int _wpa_ctrl_command(struct wpa_ctrl *ctrl, const char *cmd, int print)
 {
-	char buf[4096];
+	char buf[8192];
 	size_t len;
 	int ret;
 
@@ -213,6 +221,8 @@ static int _wpa_ctrl_command(struct wpa_ctrl *ctrl, const char *cmd, int print)
 	if (print) {
 		buf[len] = '\0';
 		printf("%s", buf);
+		if (interactive && len > 0 && buf[len - 1] != '\n')
+			printf("\n");
 	}
 	return 0;
 }
@@ -1223,6 +1233,13 @@ static int hostapd_cli_cmd_notify_cw_change(struct wpa_ctrl *ctrl,
 }
 
 
+static int hostapd_cli_cmd_set_bw(struct wpa_ctrl *ctrl,
+				  int argc, char *argv[])
+{
+	return hostapd_cli_cmd(ctrl, "SET_BW", 0, argc, argv);
+}
+
+
 static int hostapd_cli_cmd_enable(struct wpa_ctrl *ctrl, int argc,
 				  char *argv[])
 {
@@ -1263,6 +1280,29 @@ static int hostapd_cli_cmd_enable_mld(struct wpa_ctrl *ctrl, int argc,
 {
 	return wpa_ctrl_command(ctrl, "ENABLE_MLD");
 }
+
+
+#ifdef CONFIG_TESTING_OPTIONS
+
+static int hostapd_cli_cmd_remove_link(struct wpa_ctrl *ctrl, int argc,
+				       char *argv[])
+{
+	unsigned int count = (argc && atoi(argv[0]) > 0) ? atoi(argv[0]) : 1;
+	char buf[64];
+
+	snprintf(buf, sizeof(buf), "LINK_REMOVE %u", count);
+
+	return wpa_ctrl_command(ctrl, buf);
+}
+
+
+static int hostapd_cli_cmd_link_enable(struct wpa_ctrl *ctrl, int argc,
+				    char *argv[])
+{
+	return hostapd_cli_cmd(ctrl, "LINK_ENABLE", 1, argc, argv);
+}
+
+#endif /* CONFIG_TESTING_OPTIONS */
 
 
 static int hostapd_cli_cmd_disable_mld(struct wpa_ctrl *ctrl, int argc,
@@ -1654,6 +1694,31 @@ static int hostapd_cli_cmd_driver(struct wpa_ctrl *ctrl, int argc, char *argv[])
 #endif /* ANDROID */
 
 
+#ifdef CONFIG_AFC
+
+static int hostapd_cli_cmd_afc_get_request(struct wpa_ctrl *ctrl, int argc,
+					   char *argv[])
+{
+	return hostapd_cli_cmd(ctrl, "AFC_GET_REQUEST", 0, 0, NULL);
+}
+
+
+static int hostapd_cli_cmd_afc_get_response(struct wpa_ctrl *ctrl, int argc,
+					    char *argv[])
+{
+	return hostapd_cli_cmd(ctrl, "AFC_GET_RESPONSE", 0, 0, NULL);
+}
+
+
+static int hostapd_cli_cmd_afc_send_request(struct wpa_ctrl *ctrl, int argc,
+					    char *argv[])
+{
+	return hostapd_cli_cmd(ctrl, "AFC_SEND_REQUEST", 0, 0, NULL);
+}
+
+#endif /* CONFIG_AFC */
+
+
 struct hostapd_cli_cmd {
 	const char *cmd;
 	int (*handler)(struct wpa_ctrl *ctrl, int argc, char *argv[]);
@@ -1762,6 +1827,10 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
 #endif /* CONFIG_IEEE80211AX */
 	{ "notify_cw_change", hostapd_cli_cmd_notify_cw_change, NULL,
 	  "<channel_width> = 0 - 20 MHz, 1 - 40 MHz, 2 - 80 MHz, 3 - 160 MHz" },
+	{ "set_bw", hostapd_cli_cmd_set_bw, NULL,
+	  "[sec_channel_offset=] [center_freq1=]\n"
+	  "  [center_freq2=] [bandwidth=] [ht|vht]\n"
+	  "  = change channel bandwidth" },
 	{ "hs20_wnm_notif", hostapd_cli_cmd_hs20_wnm_notif, NULL,
 	  "<addr> <url>\n"
 	  "  = send WNM-Notification Subscription Remediation Request" },
@@ -1783,6 +1852,13 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
 	  "= disable hostapd on current interface" },
 	{ "enable_mld", hostapd_cli_cmd_enable_mld, NULL,
 	  "= enable AP MLD to which the interface is affiliated" },
+#ifdef CONFIG_TESTING_OPTIONS
+	{ "remove_link", hostapd_cli_cmd_remove_link, NULL,
+	  "<count> = remove MLO link and send Reconfiguration MLE" },
+	{ "link_enable", hostapd_cli_cmd_link_enable, NULL,
+	  " bss_config=<phy>:<config file>\n"
+	  " = Enable a link previously removed from the MLD AP" },
+#endif /* CONFIG_TESTING_OPTIONS */
 	{ "disable_mld", hostapd_cli_cmd_disable_mld, NULL,
 	  "= disable AP MLD to which the interface is affiliated" },
 	{ "update_beacon", hostapd_cli_cmd_update_beacon, NULL,
@@ -1882,6 +1958,14 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
 	{ "driver", hostapd_cli_cmd_driver, NULL,
 	  "<driver sub command> [<hex formatted data>] = send driver command data" },
 #endif /* ANDROID */
+#ifdef CONFIG_AFC
+	{ "afc_get_request", hostapd_cli_cmd_afc_get_request, NULL,
+	  " = Show latest AFC request data"},
+	{ "afc_get_response", hostapd_cli_cmd_afc_get_response, NULL,
+	  " = Show latest AFC response data"},
+	{ "afc_send_request", hostapd_cli_cmd_afc_send_request, NULL,
+	  " = Send another AFC request and upadte the timeout"},
+#endif /* CONFIG_AFC */
 	{ NULL, NULL, NULL, NULL }
 };
 
@@ -2174,9 +2258,13 @@ static void hostapd_cli_action_ping(void *eloop_ctx, void *timeout_ctx)
 	if (wpa_ctrl_request(ctrl, "PING", 4, buf, &len,
 			     hostapd_cli_action_cb) < 0 ||
 	    len < 4 || os_memcmp(buf, "PONG", 4) != 0) {
-		printf("hostapd did not reply to PING command - exiting\n");
-		eloop_terminate();
-		return;
+		printf("hostapd did not reply to PING command - open a new connection\n");
+		hostapd_cli_close_connection();
+		if (hostapd_cli_reconnect(ctrl_ifname)) {
+			printf("Failed to establish new connection - exit\n");
+			eloop_terminate();
+			return;
+		}
 	}
 	eloop_register_timeout(ping_interval, 0, hostapd_cli_action_ping,
 			       ctrl, NULL);
@@ -2212,12 +2300,15 @@ int main(int argc, char *argv[])
 	int c;
 	int daemonize = 0;
 	int reconnect = 0;
+#ifdef CONFIG_IEEE80211BE
+	int link_id = -1;
+#endif /* CONFIG_IEEE80211BE */
 
 	if (os_program_init())
 		return -1;
 
 	for (;;) {
-		c = getopt(argc, argv, "a:BhG:i:p:P:rs:v");
+		c = getopt(argc, argv, "a:BhG:i:l:p:P:rs:v");
 		if (c < 0)
 			break;
 		switch (c) {
@@ -2252,6 +2343,11 @@ int main(int argc, char *argv[])
 		case 's':
 			client_socket_dir = optarg;
 			break;
+#ifdef CONFIG_IEEE80211BE
+		case 'l':
+			link_id = atoi(optarg);
+			break;
+#endif /* CONFIG_IEEE80211BE */
 		default:
 			usage();
 			return -1;
@@ -2285,6 +2381,24 @@ int main(int argc, char *argv[])
 				closedir(dir);
 			}
 		}
+
+#ifdef CONFIG_IEEE80211BE
+		if (link_id >= 0 && ctrl_ifname) {
+			int ret;
+			char buf[300];
+
+			ret = os_snprintf(buf, sizeof(buf), "%s_%s%d",
+					  ctrl_ifname, WPA_CTRL_IFACE_LINK_NAME,
+					  link_id);
+			if (os_snprintf_error(sizeof(buf), ret))
+				return -1;
+
+			os_free(ctrl_ifname);
+			ctrl_ifname = os_strdup(buf);
+			link_id = -1;
+		}
+#endif /* CONFIG_IEEE80211BE */
+
 		hostapd_cli_reconnect(ctrl_ifname);
 		if (ctrl_conn) {
 			if (warning_displayed)

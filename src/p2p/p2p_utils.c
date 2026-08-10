@@ -589,7 +589,8 @@ void p2p_pref_channel_filter(const struct p2p_channels *p2p_chan,
 
 	for (i = 0; i < p2p_chan->reg_classes; i++) {
 		const struct p2p_reg_class *reg = &p2p_chan->reg_class[i];
-		struct p2p_reg_class *res_reg = &res->reg_class[i];
+		struct p2p_reg_class *res_reg =
+			&res->reg_class[res->reg_classes];
 
 		if (num_channels > 0) {
 			for (j = 0; j < reg->channels; j++) {
@@ -603,6 +604,74 @@ void p2p_pref_channel_filter(const struct p2p_channels *p2p_chan,
 				res_reg->channel[res_reg->channels++] =
 					reg->channel[j];
 			}
+		}
+
+		if (res_reg->channels == 0)
+			continue;
+		res->reg_classes++;
+		res_reg->reg_class = reg->reg_class;
+	}
+}
+
+
+bool is_dfs_freq_allowed(struct p2p_data *p2p, bool go, int freq)
+{
+	if (!go)
+		return true;
+	else if (!p2p->dfs_ap_connected)
+		return false;
+
+	return freq == p2p->sta_connected_freq;
+}
+
+
+static int p2p_check_dfs_channel(struct p2p_data *p2p, u8 channel, u8 op_class)
+{
+	u8 dfs_op_class, dfs_op_chan;
+
+	if (!p2p->dfs_ap_connected)
+		return -1;
+
+	if (ieee80211_chaninfo_to_channel(p2p->sta_connected_freq,
+					  p2p->sta_connected_chan_width,
+					  0, &dfs_op_class, &dfs_op_chan) < 0) {
+		p2p_info(p2p,
+			 "P2P: Frequency to channel conversion failed (%d MHz)",
+			 p2p->sta_connected_freq);
+		return -1;
+	}
+
+	if (op_class == dfs_op_class && channel == dfs_op_chan)
+		return 0;
+
+	return -1;
+}
+
+
+void p2p_dfs_channel_filter(struct p2p_data *p2p,
+			    const struct p2p_channels *p2p_chan,
+			    struct p2p_channels *res, bool go)
+{
+	size_t i, j;
+	bool is_dfs;
+
+	os_memset(res, 0, sizeof(*res));
+
+	for (i = 0; i < p2p_chan->reg_classes; i++) {
+		const struct p2p_reg_class *reg = &p2p_chan->reg_class[i];
+		struct p2p_reg_class *res_reg =
+			&res->reg_class[res->reg_classes];
+
+		for (j = 0; j < reg->channels; j++) {
+			is_dfs = p2p->cfg->is_p2p_dfs_chan(p2p->cfg->cb_ctx, 0,
+							   reg->reg_class,
+							   reg->channel[j]);
+			if (is_dfs && go &&
+			    p2p_check_dfs_channel(p2p, reg->channel[j],
+						  reg->reg_class) < 0)
+				continue;
+
+			res_reg->channel[res_reg->channels++] = reg->channel[j];
 		}
 
 		if (res_reg->channels == 0)

@@ -128,9 +128,10 @@ static int syslog_priority(int level)
 int wpa_debug_open_linux_tracing(void)
 {
 	int mounts, trace_fd;
+	char path[128] = {};
 	char buf[4096] = {};
 	ssize_t buflen;
-	char *line, *tmp1, *path = NULL;
+	char *line, *tmp1;
 
 	mounts = open("/proc/mounts", O_RDONLY);
 	if (mounts < 0) {
@@ -146,29 +147,42 @@ int wpa_debug_open_linux_tracing(void)
 	}
 	buf[buflen] = '\0';
 
-	line = strtok_r(buf, "\n", &tmp1);
-	while (line) {
+	for (line = strtok_r(buf, "\n", &tmp1);
+	     line;
+	     line = strtok_r(NULL, "\n", &tmp1)) {
 		char *tmp2, *tmp_path, *fstype;
 		/* "<dev> <mountpoint> <fs type> ..." */
 		strtok_r(line, " ", &tmp2);
 		tmp_path = strtok_r(NULL, " ", &tmp2);
 		fstype = strtok_r(NULL, " ", &tmp2);
-		if (fstype && strcmp(fstype, "debugfs") == 0) {
-			path = tmp_path;
-			break;
+
+		if (!line[0] || !tmp_path || !fstype)
+			continue;
+
+		if (os_strcmp(fstype, "debugfs") == 0) {
+			os_snprintf(path, sizeof(path) - 1,
+				    "%s/tracing/trace_marker",
+				    tmp_path);
+			/*
+			 * Don't break to prefer tracefs, which if present may
+			 * mean debugfs doesn't have tracing/ (depending on the
+			 * kernel version).
+			 */
 		}
 
-		line = strtok_r(NULL, "\n", &tmp1);
+		if (os_strcmp(fstype, "tracefs") == 0) {
+			os_snprintf(path, sizeof(path) - 1, "%s/trace_marker",
+				    tmp_path);
+			break;
+		}
 	}
 
-	if (path == NULL) {
-		printf("debugfs mountpoint not found\n");
+	if (!path[0]) {
+		printf("tracefs/debugfs not found\n");
 		return -1;
 	}
 
-	snprintf(buf, sizeof(buf) - 1, "%s/tracing/trace_marker", path);
-
-	trace_fd = open(buf, O_WRONLY);
+	trace_fd = open(path, O_WRONLY);
 	if (trace_fd < 0) {
 		printf("failed to open trace_marker file\n");
 		return -1;

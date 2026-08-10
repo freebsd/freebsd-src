@@ -77,7 +77,7 @@ void ScanResults::updateResults()
 
 		QString ssid, bssid, freq, signal, flags;
 
-		QStringList lines = bss.split(QRegExp("\\n"));
+		QStringList lines = bss.split(QRegularExpression("\\n"));
 		for (QStringList::Iterator it = lines.begin();
 		     it != lines.end(); it++) {
 			int pos = (*it).indexOf('=') + 1;

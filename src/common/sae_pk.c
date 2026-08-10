@@ -384,6 +384,12 @@ int sae_pk_set_password(struct sae_data *sae, const char *password)
 	tmp->fingerprint_bits = 8 * tmp->sec + 19 * tmp->lambda / 4 - 5;
 	wpa_printf(MSG_DEBUG, "SAE-PK: Sec=%u Lambda=%zu fingerprint_bits=%zu",
 		   tmp->sec, tmp->lambda, tmp->fingerprint_bits);
+	if (tmp->fingerprint_bits > 8 * SAE_MAX_HASH_LEN) {
+		wpa_printf(MSG_INFO,
+			"SAE-PK: fingerprint_bits exceeds SAE_MAX_HASH_LEN");
+		bin_clear_free(pw, pw_len);
+		return -1;
+	}
 
 	/* Construct Fingerprint from PasswordBase by prefixing with Sec zero
 	 * octets and skipping the Sec_1b bits */

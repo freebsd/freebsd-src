@@ -49,7 +49,7 @@ public:
 	};
 
 	WpaGui(QApplication *app, QWidget *parent = 0, const char *name = 0,
-	       Qt::WindowFlags fl = 0);
+	       Qt::WindowFlags fl = Qt::Widget);
 	~WpaGui();
 
 	virtual int ctrlRequest(const char *cmd, char *buf, size_t *buflen);

@@ -15,6 +15,7 @@
 #include "common/ieee802_11_common.h"
 #include "wpa_supplicant_i.h"
 #include "bss.h"
+#include "config.h"
 
 
 static enum chan_allowed allow_channel(struct hostapd_hw_modes *mode,
@@ -172,7 +173,8 @@ static enum chan_allowed verify_160mhz(struct hostapd_hw_modes *mode,
 			return NOT_ALLOWED;
 
 		if (!(flags & HOSTAPD_CHAN_VHT_80MHZ_SUBCHANNEL) ||
-		    !(flags & HOSTAPD_CHAN_VHT_160MHZ_SUBCHANNEL))
+		    (!(flags & HOSTAPD_CHAN_VHT_160MHZ_SUBCHANNEL) &&
+		     !(flags & HOSTAPD_CHAN_AUTO_BW)))
 			return NOT_ALLOWED;
 
 		if (flags & HOSTAPD_CHAN_NO_IR)
@@ -529,6 +531,8 @@ size_t wpas_supp_op_class_ie(struct wpa_supplicant *wpa_s,
 	u8 *ie_len;
 	size_t res;
 	bool op128 = false, op130 = false, op133 = false, op135 = false;
+	bool disable_op_classes_80_80_mhz = wpa_s->conf ?
+		wpa_s->conf->disable_op_classes_80_80_mhz : false;
 
 	/*
 	 * Determine the current operating class correct mode based on
@@ -585,7 +589,8 @@ size_t wpas_supp_op_class_ie(struct wpa_supplicant *wpa_s,
 	}
 
 	/* Add the 2-octet operating classes (i.e., 80+80 MHz cases), if any */
-	if ((op128 && op130) || (op133 && op135)) {
+	if (!disable_op_classes_80_80_mhz &&
+	    ((op128 && op130) || (op133 && op135))) {
 		/* Operating Class Duple Sequence field */
 
 		/* Zero Delimiter */

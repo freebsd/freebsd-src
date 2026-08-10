@@ -221,6 +221,7 @@ static void pmksa_cache_set_expiration(struct rsn_pmksa_cache *pmksa)
  * @network_ctx: Network configuration context for this PMK
  * @akmp: WPA_KEY_MGMT_* used in key derivation
  * @cache_id: Pointer to FILS Cache Identifier or %NULL if not advertised
+ * @auth_alg: Authentication algorithm used for PMK derivation
  * Returns: Pointer to the added PMKSA cache entry or %NULL on error
  *
  * This function create a PMKSA entry for a new PMK and adds it to the PMKSA
@@ -232,7 +233,7 @@ struct rsn_pmksa_cache_entry *
 pmksa_cache_add(struct rsn_pmksa_cache *pmksa, const u8 *pmk, size_t pmk_len,
 		const u8 *pmkid, const u8 *kck, size_t kck_len,
 		const u8 *aa, const u8 *spa, void *network_ctx, int akmp,
-		const u8 *cache_id)
+		const u8 *cache_id, u16 auth_alg)
 {
 	struct rsn_pmksa_cache_entry *entry;
 	struct os_reltime now;
@@ -274,6 +275,7 @@ pmksa_cache_add(struct rsn_pmksa_cache *pmksa, const u8 *pmk, size_t pmk_len,
 	entry->reauth_time = now.sec +
 		pmk_lifetime * pmk_reauth_threshold / 100;
 	entry->akmp = akmp;
+	entry->auth_alg = auth_alg;
 	if (cache_id) {
 		entry->fils_cache_id_set = 1;
 		os_memcpy(entry->fils_cache_id, cache_id, FILS_CACHE_ID_LEN);
@@ -283,6 +285,49 @@ pmksa_cache_add(struct rsn_pmksa_cache *pmksa, const u8 *pmk, size_t pmk_len,
 	entry->network_ctx = network_ctx;
 
 	return pmksa_cache_add_entry(pmksa, entry);
+}
+
+
+/**
+ * pmksa_cache_add_to_driver - Add PMKSA entry to driver with remaining lifetime
+ * @pmksa: Pointer to PMKSA cache data
+ * @entry: PMKSA cache entry
+ *
+ * Calculate the remaining PMK lifetime and reauthentication threshold based
+ * on the entry's expiration and reauthentication times relative to the current
+ * time, and configure the PMKSA entry to the driver with the current values.
+ */
+static void pmksa_cache_add_to_driver(struct rsn_pmksa_cache *pmksa,
+				      struct rsn_pmksa_cache_entry *entry)
+{
+	struct os_reltime now;
+	u32 remaining_lifetime;
+	u8 remaining_reauth_threshold;
+
+	if (!pmksa->sm)
+		return;
+
+	os_get_reltime(&now);
+
+	 /* Do not configure entries that have expired or require immediate
+	  * reauthentication. */
+	if (entry->expiration - now.sec < 1 ||
+	    entry->reauth_time - now.sec < 1)
+		return;
+
+	remaining_lifetime = entry->expiration - now.sec;
+	remaining_reauth_threshold = ((entry->reauth_time - now.sec) * 100) /
+				      remaining_lifetime;
+
+	/* Do not configure entries that have already reached reauthentication
+	 * threshold. */
+	if (!remaining_reauth_threshold)
+		return;
+
+	wpa_sm_add_pmkid(pmksa->sm, entry->network_ctx, entry->aa, entry->pmkid,
+			 entry->fils_cache_id_set ? entry->fils_cache_id : NULL,
+			 entry->pmk, entry->pmk_len, remaining_lifetime,
+			 remaining_reauth_threshold, entry->akmp);
 }
 
 
@@ -329,7 +374,7 @@ pmksa_cache_add_entry(struct rsn_pmksa_cache *pmksa,
 			if (!pos->opportunistic)
 				pmksa_cache_flush(pmksa, entry->network_ctx,
 						  pos->pmk, pos->pmk_len,
-						  false);
+						  false, NULL);
 			pmksa_cache_free_entry(pmksa, pos, PMKSA_REPLACE);
 			break;
 		}
@@ -390,12 +435,7 @@ pmksa_cache_add_entry(struct rsn_pmksa_cache *pmksa,
 	if (pmksa->notify_cb)
 		pmksa->notify_cb(entry, pmksa->ctx);
 
-	wpa_sm_add_pmkid(pmksa->sm, entry->network_ctx, entry->aa, entry->pmkid,
-			 entry->fils_cache_id_set ? entry->fils_cache_id : NULL,
-			 entry->pmk, entry->pmk_len,
-			 pmksa->sm->dot11RSNAConfigPMKLifetime,
-			 pmksa->sm->dot11RSNAConfigPMKReauthThreshold,
-			 entry->akmp);
+	pmksa_cache_add_to_driver(pmksa, entry);
 
 	return entry;
 }
@@ -409,9 +449,11 @@ pmksa_cache_add_entry(struct rsn_pmksa_cache *pmksa,
  * @pmk_len: PMK length
  * @external_only: Flush only PMKSA cache entries configured by external
  * applications
+ * @addr: AA to match or %NULL to match all addresses
  */
 void pmksa_cache_flush(struct rsn_pmksa_cache *pmksa, void *network_ctx,
-		       const u8 *pmk, size_t pmk_len, bool external_only)
+		       const u8 *pmk, size_t pmk_len, bool external_only,
+		       const u8 *addr)
 {
 	struct rsn_pmksa_cache_entry *entry, *prev = NULL, *tmp;
 	int removed = 0;
@@ -518,7 +560,8 @@ pmksa_cache_clone_entry(struct rsn_pmksa_cache *pmksa,
 				    aa, pmksa->sm->own_addr,
 				    old_entry->network_ctx, old_entry->akmp,
 				    old_entry->fils_cache_id_set ?
-				    old_entry->fils_cache_id : NULL);
+				    old_entry->fils_cache_id : NULL,
+				    old_entry->auth_alg);
 	if (new_entry == NULL)
 		return NULL;
 
@@ -637,6 +680,7 @@ void pmksa_cache_clear_current(struct wpa_sm *sm)
  * @network_ctx: Network configuration context
  * @try_opportunistic: Whether to allow opportunistic PMKSA caching
  * @fils_cache_id: Pointer to FILS Cache Identifier or %NULL if not used
+ * @akmp: Specific AKMP to search for or 0 for any
  * @associated: Whether the device is associated
  * Returns: 0 if PMKSA was found or -1 if no matching entry was found
  */
@@ -823,33 +867,12 @@ pmksa_cache_init(void (*free_cb)(struct rsn_pmksa_cache_entry *entry,
 void pmksa_cache_reconfig(struct rsn_pmksa_cache *pmksa)
 {
 	struct rsn_pmksa_cache_entry *entry;
-	struct os_reltime now;
 
 	if (!pmksa || !pmksa->pmksa)
 		return;
 
-	os_get_reltime(&now);
-	for (entry = pmksa->pmksa; entry; entry = entry->next) {
-		u32 life_time;
-		u8 reauth_threshold;
-
-		if (entry->expiration - now.sec < 1 ||
-		    entry->reauth_time - now.sec < 1)
-			continue;
-
-		life_time = entry->expiration - now.sec;
-		reauth_threshold = (entry->reauth_time - now.sec) * 100 /
-			life_time;
-		if (!reauth_threshold)
-			continue;
-
-		wpa_sm_add_pmkid(pmksa->sm, entry->network_ctx, entry->aa,
-				 entry->pmkid,
-				 entry->fils_cache_id_set ?
-				 entry->fils_cache_id : NULL,
-				 entry->pmk, entry->pmk_len, life_time,
-				 reauth_threshold, entry->akmp);
-	}
+	for (entry = pmksa->pmksa; entry; entry = entry->next)
+		pmksa_cache_add_to_driver(pmksa, entry);
 }
 
 #else /* IEEE8021X_EAPOL */
@@ -912,7 +935,7 @@ struct rsn_pmksa_cache_entry *
 pmksa_cache_add(struct rsn_pmksa_cache *pmksa, const u8 *pmk, size_t pmk_len,
 		const u8 *pmkid, const u8 *kck, size_t kck_len,
 		const u8 *aa, const u8 *spa, void *network_ctx, int akmp,
-		const u8 *cache_id)
+		const u8 *cache_id, u16 auth_alg)
 {
 	return NULL;
 }
@@ -932,7 +955,8 @@ int pmksa_cache_set_current(struct wpa_sm *sm, const u8 *pmkid, const u8 *bssid,
 
 
 void pmksa_cache_flush(struct rsn_pmksa_cache *pmksa, void *network_ctx,
-		       const u8 *pmk, size_t pmk_len, bool external_only)
+		       const u8 *pmk, size_t pmk_len, bool external_only,
+		       const u8 *addr)
 {
 }
 

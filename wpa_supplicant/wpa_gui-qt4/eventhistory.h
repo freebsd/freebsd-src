@@ -40,7 +40,7 @@ class EventHistory : public QDialog, public Ui::EventHistory
 
 public:
 	EventHistory(QWidget *parent = 0, const char *name = 0,
-		     bool modal = false, Qt::WindowFlags fl = 0);
+		     bool modal = false, Qt::WindowFlags fl = Qt::Widget);
 	~EventHistory();
 
 public slots:

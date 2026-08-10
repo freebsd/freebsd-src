@@ -2,7 +2,7 @@
  * Generic advertisement service (GAS) server
  * Copyright (c) 2017, Qualcomm Atheros, Inc.
  * Copyright (c) 2020, The Linux Foundation
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -44,6 +44,7 @@ struct gas_server_response {
 	struct gas_server_handler *handler;
 	u16 comeback_delay;
 	bool initial_resp_sent;
+	bool timeout_extended;
 };
 
 struct gas_server {
@@ -60,6 +61,17 @@ static void gas_server_free_response(struct gas_server_response *response);
 static void gas_server_response_timeout(void *eloop_ctx, void *user_ctx)
 {
 	struct gas_server_response *response = eloop_ctx;
+
+	if (!response->resp && response->comeback_delay &&
+	    !response->timeout_extended) {
+		wpa_printf(MSG_DEBUG,
+			   "GAS: Extend timeout while waiting for response");
+		response->timeout_extended = true;
+		eloop_register_timeout(GAS_QUERY_TIMEOUT, 0,
+				       gas_server_response_timeout,
+				       response, user_ctx);
+		return;
+	}
 
 	wpa_printf(MSG_DEBUG, "GAS: Response @%p timeout for " MACSTR
 		   " (dialog_token=%u freq=%d frag_id=%u sent=%lu/%lu) - drop pending data",

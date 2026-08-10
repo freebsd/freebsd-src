@@ -106,33 +106,6 @@ static void * eap_unauth_tls_init(struct eap_sm *sm)
 #endif /* EAP_UNAUTH_TLS */
 
 
-#ifdef CONFIG_HS20
-static void * eap_wfa_unauth_tls_init(struct eap_sm *sm)
-{
-	struct eap_tls_data *data;
-	struct eap_peer_config *config = eap_get_config(sm);
-
-	data = os_zalloc(sizeof(*data));
-	if (data == NULL)
-		return NULL;
-
-	data->ssl_ctx = sm->init_phase2 && sm->ssl_ctx2 ? sm->ssl_ctx2 :
-		sm->ssl_ctx;
-
-	if (eap_peer_tls_ssl_init(sm, &data->ssl, config,
-				  EAP_WFA_UNAUTH_TLS_TYPE)) {
-		wpa_printf(MSG_INFO, "EAP-TLS: Failed to initialize SSL.");
-		eap_tls_deinit(sm, data);
-		return NULL;
-	}
-
-	data->eap_type = EAP_WFA_UNAUTH_TLS_TYPE;
-
-	return data;
-}
-#endif /* CONFIG_HS20 */
-
-
 static void eap_tls_free_key(struct eap_tls_data *data)
 {
 	if (data->key_data) {
@@ -478,31 +451,3 @@ int eap_peer_unauth_tls_register(void)
 	return eap_peer_method_register(eap);
 }
 #endif /* EAP_UNAUTH_TLS */
-
-
-#ifdef CONFIG_HS20
-int eap_peer_wfa_unauth_tls_register(void)
-{
-	struct eap_method *eap;
-
-	eap = eap_peer_method_alloc(EAP_PEER_METHOD_INTERFACE_VERSION,
-				    EAP_VENDOR_WFA_NEW,
-				    EAP_VENDOR_WFA_UNAUTH_TLS,
-				    "WFA-UNAUTH-TLS");
-	if (eap == NULL)
-		return -1;
-
-	eap->init = eap_wfa_unauth_tls_init;
-	eap->deinit = eap_tls_deinit;
-	eap->process = eap_tls_process;
-	eap->isKeyAvailable = eap_tls_isKeyAvailable;
-	eap->getKey = eap_tls_getKey;
-	eap->get_status = eap_tls_get_status;
-	eap->has_reauth_data = eap_tls_has_reauth_data;
-	eap->deinit_for_reauth = eap_tls_deinit_for_reauth;
-	eap->init_for_reauth = eap_tls_init_for_reauth;
-	eap->get_emsk = eap_tls_get_emsk;
-
-	return eap_peer_method_register(eap);
-}
-#endif /* CONFIG_HS20 */

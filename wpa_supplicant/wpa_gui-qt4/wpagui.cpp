@@ -99,9 +99,9 @@ WpaGui::WpaGui(QApplication *_app, QWidget *parent, const char *,
 	connect(disconnectButton, SIGNAL(clicked()), this, SLOT(disconnect()));
 	connect(scanButton, SIGNAL(clicked()), this, SLOT(scan()));
 	connect(connectButton, SIGNAL(clicked()), this, SLOT(connectB()));
-	connect(adapterSelect, SIGNAL(activated(const QString&)), this,
+	connect(adapterSelect, SIGNAL(textActivated(const QString&)), this,
 		SLOT(selectAdapter(const QString&)));
-	connect(networkSelect, SIGNAL(activated(const QString&)), this,
+	connect(networkSelect, SIGNAL(textActivated(const QString&)), this,
 		SLOT(selectNetwork(const QString&)));
 	connect(addNetworkButton, SIGNAL(clicked()), this, SLOT(addNetwork()));
 	connect(editNetworkButton, SIGNAL(clicked()), this,
@@ -1078,7 +1078,7 @@ void WpaGui::selectNetwork( const QString &sel )
 	char reply[10];
 	size_t reply_len = sizeof(reply);
 
-	if (cmd.contains(QRegExp("^\\d+:")))
+	if (cmd.contains(QRegularExpression("^\\d+:")))
 		cmd.truncate(cmd.indexOf(':'));
 	else
 		cmd = "any";
@@ -1095,7 +1095,7 @@ void WpaGui::enableNetwork(const QString &sel)
 	char reply[10];
 	size_t reply_len = sizeof(reply);
 
-	if (cmd.contains(QRegExp("^\\d+:")))
+	if (cmd.contains(QRegularExpression("^\\d+:")))
 		cmd.truncate(cmd.indexOf(':'));
 	else if (!cmd.startsWith("all")) {
 		debug("Invalid editNetwork '%s'",
@@ -1114,7 +1114,7 @@ void WpaGui::disableNetwork(const QString &sel)
 	char reply[10];
 	size_t reply_len = sizeof(reply);
 
-	if (cmd.contains(QRegExp("^\\d+:")))
+	if (cmd.contains(QRegularExpression("^\\d+:")))
 		cmd.truncate(cmd.indexOf(':'));
 	else if (!cmd.startsWith("all")) {
 		debug("Invalid editNetwork '%s'",
@@ -1132,7 +1132,7 @@ void WpaGui::editNetwork(const QString &sel)
 	QString cmd(sel);
 	int id = -1;
 
-	if (cmd.contains(QRegExp("^\\d+:"))) {
+	if (cmd.contains(QRegularExpression("^\\d+:"))) {
 		cmd.truncate(cmd.indexOf(':'));
 		id = cmd.toInt();
 	}
@@ -1204,7 +1204,7 @@ void WpaGui::removeNetwork(const QString &sel)
 	char reply[10];
 	size_t reply_len = sizeof(reply);
 
-	if (cmd.contains(QRegExp("^\\d+:")))
+	if (cmd.contains(QRegularExpression("^\\d+:")))
 		cmd.truncate(cmd.indexOf(':'));
 	else if (!cmd.startsWith("all")) {
 		debug("Invalid editNetwork '%s'",
@@ -1476,7 +1476,7 @@ void WpaGui::showTrayStatus()
 
 	QString msg, status(buf);
 
-	QStringList lines = status.split(QRegExp("\\n"));
+	QStringList lines = status.split(QRegularExpression("\\n"));
 	for (QStringList::Iterator it = lines.begin();
 	     it != lines.end(); it++) {
 		int pos = (*it).indexOf('=') + 1;

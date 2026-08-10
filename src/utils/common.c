@@ -990,7 +990,7 @@ void int_array_add_unique(int **res, int a)
 }
 
 
-bool int_array_includes(int *arr, int val)
+bool int_array_includes(const int *arr, int val)
 {
 	int i;
 
@@ -1000,6 +1000,36 @@ bool int_array_includes(int *arr, int val)
 	}
 
 	return false;
+}
+
+
+bool int_array_equal(const int *a, const int *b)
+{
+	size_t alen, blen, i;
+
+	if (!a || !b)
+		return false;
+
+	alen = int_array_len(a);
+	blen = int_array_len(b);
+
+	if (alen != blen)
+		return false;
+
+	for (i = 0; i < alen; i++) {
+		if (!int_array_includes(b, a[i]))
+			return false;
+	}
+
+	return true;
+}
+
+
+int * int_array_dup(const int *a)
+{
+	if (!a)
+		return NULL;
+	return os_memdup(a, (int_array_len(a) + 1) * sizeof(int));
 }
 
 

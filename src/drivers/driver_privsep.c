@@ -219,6 +219,9 @@ static int wpa_driver_privsep_set_key(void *priv,
 	const u8 *key = params->key;
 	size_t key_len = params->key_len;
 
+	if (params->key_flag & KEY_FLAG_NEXT)
+		return -1;
+
 	wpa_printf(MSG_DEBUG, "%s: priv=%p alg=%d key_idx=%d set_tx=%d",
 		   __func__, priv, alg, key_idx, set_tx);
 

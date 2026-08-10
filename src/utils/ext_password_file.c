@@ -9,7 +9,6 @@
 #include "includes.h"
 
 #include "utils/common.h"
-#include "utils/config.h"
 #include "ext_password_i.h"
 
 
@@ -84,6 +83,7 @@ static struct wpabuf * ext_password_file_get(void *ctx, const char *name)
 	struct ext_password_file_data *data = ctx;
 	struct wpabuf *password = NULL;
 	char buf[512], *pos;
+	size_t name_len;
 	int line = 0;
 	FILE *f;
 
@@ -95,11 +95,23 @@ static struct wpabuf * ext_password_file_get(void *ctx, const char *name)
 		return NULL;
 	}
 
+	name_len = os_strlen(name);
+
 	wpa_printf(MSG_DEBUG, "EXT PW FILE: get(%s)", name);
 
-	while (wpa_config_get_line(buf, sizeof(buf), f, &line, &pos)) {
-		char *sep = os_strchr(pos, '=');
+	while ((pos = fgets(buf, sizeof(buf), f))) {
+		char *sep;
 
+		line++;
+
+		/* Strip newline characters */
+		pos[strcspn(pos, "\r\n")] = 0;
+
+		/* Skip comments and empty lines */
+		if (*pos == '#' || *pos == '\0')
+			continue;
+
+		sep = os_strchr(pos, '=');
 		if (!sep) {
 			wpa_printf(MSG_ERROR, "Invalid password line %d.",
 				   line);
@@ -112,7 +124,8 @@ static struct wpabuf * ext_password_file_get(void *ctx, const char *name)
 
 		}
 
-		if (os_strncmp(name, pos, sep - pos) != 0)
+		if (name_len != (size_t) (sep - pos) ||
+		    os_strncmp(name, pos, sep - pos) != 0)
 			continue;
 
 		password = wpabuf_alloc_copy(sep + 1, os_strlen(sep + 1));

@@ -303,10 +303,6 @@ static int interworking_anqp_send_req(struct wpa_supplicant *wpa_s,
 			wpabuf_put_u8(extra, HS20_STYPE_CONNECTION_CAPABILITY);
 		if (all)
 			wpabuf_put_u8(extra, HS20_STYPE_OPERATING_CLASS);
-		if (all) {
-			wpabuf_put_u8(extra, HS20_STYPE_OSU_PROVIDERS_LIST);
-			wpabuf_put_u8(extra, HS20_STYPE_OSU_PROVIDERS_NAI_LIST);
-		}
 		gas_anqp_set_element_len(extra, len_pos);
 	}
 #endif /* CONFIG_HS20 */
@@ -903,7 +899,7 @@ static int already_connected(struct wpa_supplicant *wpa_s,
 		return 0;
 
 	sel_ssid = NULL;
-	selected = wpa_supplicant_pick_network(wpa_s, &sel_ssid);
+	selected = wpa_supplicant_pick_network(wpa_s, &sel_ssid, true);
 	if (selected && sel_ssid && sel_ssid->priority > ssid->priority)
 		return 0; /* higher priority network in scan results */
 
@@ -1496,18 +1492,18 @@ static int interworking_set_eap_params(struct wpa_ssid *ssid,
 		char *anon;
 		/* Use anonymous NAI in Phase 1 */
 		pos = os_strchr(cred->username, '@');
-		if (pos) {
-			size_t buflen = 9 + os_strlen(pos) + 1;
-			anon = os_malloc(buflen);
-			if (anon == NULL)
-				return -1;
-			os_snprintf(anon, buflen, "anonymous%s", pos);
-		} else if (cred->realm) {
+		if (cred->realm) {
 			size_t buflen = 10 + os_strlen(cred->realm) + 1;
 			anon = os_malloc(buflen);
 			if (anon == NULL)
 				return -1;
 			os_snprintf(anon, buflen, "anonymous@%s", cred->realm);
+		} else if (pos) {
+			size_t buflen = 9 + os_strlen(pos) + 1;
+			anon = os_malloc(buflen);
+			if (anon == NULL)
+				return -1;
+			os_snprintf(anon, buflen, "anonymous%s", pos);
 		} else {
 			anon = os_strdup("anonymous");
 			if (anon == NULL)
@@ -1726,7 +1722,7 @@ int interworking_connect(struct wpa_supplicant *wpa_s, struct wpa_bss *bss,
 		   " for connection",
 		   MAC2STR(bss->bssid));
 
-	if (!wpa_bss_get_ie(bss, WLAN_EID_RSN)) {
+	if (!wpa_bss_get_rsne(wpa_s, bss, NULL, false)) {
 		/*
 		 * We currently support only HS 2.0 networks and those are
 		 * required to use WPA2-Enterprise.
@@ -2459,7 +2455,7 @@ static struct wpa_bss * pick_best_roaming_partner(struct wpa_supplicant *wpa_s,
 		cred2 = interworking_credentials_available(wpa_s, bss, NULL);
 		if (!cred2)
 			continue;
-		if (!wpa_bss_get_ie(bss, WLAN_EID_RSN))
+		if (!wpa_bss_get_rsne(wpa_s, bss, NULL, false))
 			continue;
 		prio = roaming_prio(wpa_s, cred2, bss);
 		wpa_printf(MSG_DEBUG, "Interworking: roaming_prio=%u for BSS "
@@ -2511,7 +2507,7 @@ static void interworking_select_network(struct wpa_supplicant *wpa_s)
 		if (!cred)
 			continue;
 
-		if (!wpa_bss_get_ie(bss, WLAN_EID_RSN)) {
+		if (!wpa_bss_get_rsne(wpa_s, bss, NULL, false)) {
 			/*
 			 * We currently support only HS 2.0 networks and those
 			 * are required to use WPA2-Enterprise.
@@ -2690,22 +2686,13 @@ static void interworking_next_anqp_fetch(struct wpa_supplicant *wpa_s)
 	int found = 0;
 
 	wpa_printf(MSG_DEBUG, "Interworking: next_anqp_fetch - "
-		   "fetch_anqp_in_progress=%d fetch_osu_icon_in_progress=%d",
-		   wpa_s->fetch_anqp_in_progress,
-		   wpa_s->fetch_osu_icon_in_progress);
+		   "fetch_anqp_in_progress=%d",
+		   wpa_s->fetch_anqp_in_progress);
 
 	if (eloop_terminated() || !wpa_s->fetch_anqp_in_progress) {
 		wpa_printf(MSG_DEBUG, "Interworking: Stop next-ANQP-fetch");
 		return;
 	}
-
-#ifdef CONFIG_HS20
-	if (wpa_s->fetch_osu_icon_in_progress) {
-		wpa_printf(MSG_DEBUG, "Interworking: Next icon (in progress)");
-		hs20_next_osu_icon(wpa_s);
-		return;
-	}
-#endif /* CONFIG_HS20 */
 
 	dl_list_for_each(bss, &wpa_s->bss, struct wpa_bss, list) {
 		if (!(bss->caps & IEEE80211_CAP_ESS))
@@ -2739,20 +2726,6 @@ static void interworking_next_anqp_fetch(struct wpa_supplicant *wpa_s)
 	}
 
 	if (found == 0) {
-#ifdef CONFIG_HS20
-		if (wpa_s->fetch_osu_info) {
-			if (wpa_s->num_prov_found == 0 &&
-			    wpa_s->fetch_osu_waiting_scan &&
-			    wpa_s->num_osu_scans < 3) {
-				wpa_printf(MSG_DEBUG, "HS 2.0: No OSU providers seen - try to scan again");
-				hs20_start_osu_scan(wpa_s);
-				return;
-			}
-			wpa_printf(MSG_DEBUG, "Interworking: Next icon");
-			hs20_osu_icon_fetch(wpa_s);
-			return;
-		}
-#endif /* CONFIG_HS20 */
 		wpa_msg(wpa_s, MSG_INFO, "ANQP fetch completed");
 		wpa_s->fetch_anqp_in_progress = 0;
 		if (wpa_s->network_select)
@@ -2785,7 +2758,6 @@ int interworking_fetch_anqp(struct wpa_supplicant *wpa_s)
 
 	wpa_s->network_select = 0;
 	wpa_s->fetch_all_anqp = 1;
-	wpa_s->fetch_osu_info = 0;
 
 	interworking_start_fetch_anqp(wpa_s);
 
@@ -3133,10 +3105,6 @@ void anqp_resp_cb(void *ctx, const u8 *dst, u8 dialog_token,
 		   " dialog_token=%u result=%d status_code=%u",
 		   MAC2STR(dst), dialog_token, result, status_code);
 	if (result != GAS_QUERY_SUCCESS) {
-#ifdef CONFIG_HS20
-		if (wpa_s->fetch_osu_icon_in_progress)
-			hs20_icon_fetch_failed(wpa_s);
-#endif /* CONFIG_HS20 */
 		anqp_result = "FAILURE";
 		goto out;
 	}
@@ -3146,10 +3114,6 @@ void anqp_resp_cb(void *ctx, const u8 *dst, u8 dialog_token,
 	    pos[1] < 2 || pos[3] != ACCESS_NETWORK_QUERY_PROTOCOL) {
 		wpa_msg(wpa_s, MSG_DEBUG,
 			"ANQP: Unexpected Advertisement Protocol in response");
-#ifdef CONFIG_HS20
-		if (wpa_s->fetch_osu_icon_in_progress)
-			hs20_icon_fetch_failed(wpa_s);
-#endif /* CONFIG_HS20 */
 		anqp_result = "INVALID_FRAME";
 		goto out;
 	}
@@ -3200,9 +3164,6 @@ void anqp_resp_cb(void *ctx, const u8 *dst, u8 dialog_token,
 out_parse_done:
 	if (bss)
 		wpas_notify_bss_anqp_changed(wpa_s, bss->id);
-#ifdef CONFIG_HS20
-	hs20_notify_parse_done(wpa_s);
-#endif /* CONFIG_HS20 */
 out:
 	wpas_notify_anqp_query_done(wpa_s, dst, anqp_result);
 }
@@ -3225,7 +3186,6 @@ int interworking_select(struct wpa_supplicant *wpa_s, int auto_select,
 	wpa_s->auto_network_select = 0;
 	wpa_s->auto_select = !!auto_select;
 	wpa_s->fetch_all_anqp = 0;
-	wpa_s->fetch_osu_info = 0;
 	wpa_msg(wpa_s, MSG_DEBUG,
 		"Interworking: Start scan for network selection");
 	wpa_s->scan_res_handler = interworking_scan_res_handler;
