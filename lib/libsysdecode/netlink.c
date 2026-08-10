@@ -61,6 +61,7 @@ static const struct nlattr_decoder_set _name = {			\
 
 static void nl_decode_attrs_raw(FILE *fp, const struct nlattr *nla_head,
     size_t len, const struct nlattr_decoder *ps, size_t pslen);
+static void sysdecode_netlink_pf_constructor(void) __attribute__ ((__constructor__));
 
 static void
 nlattr_decode_in6_addr(FILE *fp, const struct nlattr *attr,
@@ -370,6 +371,18 @@ static const struct pfnl_cmd_decoder cmd_decoder[] = {
 	{ .cmd_num = PFNL_CMD_GET_ADDR, .ds = &addr_decoder },
 };
 
+static inline void
+pfnl_verify_cmd_decoders(const struct pfnl_cmd_decoder *cmds, size_t count)
+{
+	int num = cmds[0].cmd_num;
+
+	for (size_t i = 1; i < count; i++) {
+		const struct pfnl_cmd_decoder *p = &cmds[i];
+		assert(p->cmd_num > num);
+		num = p->cmd_num;
+	}
+}
+
 static void
 sysdecode_netlink_pf(FILE *fp, const struct genlmsghdr *genl, size_t nlm_len)
 {
@@ -412,8 +425,6 @@ sysdecode_netlink(FILE *fp, const void *buf, size_t len, int protocol)
 		return (false);
 
 	if (family_table == NULL) {
-		NL_VERIFY_DECODERS(all_decoders);
-
 		family_table = malloc((num_family + 1) *
 		    sizeof(struct name_table));
 		family_table[num_family] = (struct name_table){0, NULL};
@@ -553,4 +564,11 @@ sysdecode_netlink(FILE *fp, const void *buf, size_t len, int protocol)
 
 	fprintf(fp, "}");
 	return (true);
+}
+
+static void
+sysdecode_netlink_pf_constructor(void)
+{
+	NL_VERIFY_DECODERS(all_decoders);
+	pfnl_verify_cmd_decoders(cmd_decoder, nitems(cmd_decoder));
 }
