@@ -90,9 +90,10 @@ ATF_TC_BODY(test_snl_get_genl_family_groups, tc)
 	struct _getfamily_attrs attrs = {};
 
 	ATF_CHECK(snl_parse_nlmsg(&ss, hdr, &_genl_ctrl_getfam_parser, &attrs));
-	ATF_CHECK_EQ(attrs.mcast_groups.num_groups, 1);
+	ATF_CHECK_EQ(attrs.mcast_groups.count, 1);
 
-	struct _snl_genl_ctrl_mcast_group *group = attrs.mcast_groups.groups[0];
+	struct _snl_genl_ctrl_mcast_group *group =
+	    attrs.mcast_groups.items[0];
 
 	ATF_CHECK(group->mcast_grp_id > 0);
 	ATF_CHECK(!strcmp(group->mcast_grp_name, "notify"));
@@ -107,4 +108,3 @@ ATF_TP_ADD_TCS(tp)
 
 	return (atf_no_error());
 }
-

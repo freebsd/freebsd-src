@@ -129,7 +129,7 @@ ATF_TC_BODY(rtnl_nhgrp, tc)
 	ATF_REQUIRE((rx_hdr = snl_read_reply(&ss, hdr->nlmsg_seq)) != NULL);
 	ATF_CHECK(snl_parse_nlmsg(&ss, rx_hdr, &snl_rtm_route_parser, &r));
 	ATF_CHECK(r.rta_knh_id != 0);
-	ATF_CHECK_INTEQ(r.rta_multipath.num_nhops, 2);
+	ATF_CHECK_INTEQ(r.rta_multipath.count, 2);
 
 	cleanup_route_by_dst(&ss, &nw, "192.0.2.0");
 }
@@ -179,7 +179,7 @@ ATF_TC_BODY(rtnl_nhop_merge, tc)
 	ATF_REQUIRE((rx_hdr = snl_read_reply(&ss, hdr->nlmsg_seq)) != NULL);
 	ATF_CHECK(snl_parse_nlmsg(&ss, rx_hdr, &snl_rtm_route_parser, &r));
 	ATF_CHECK(r.rta_knh_id != 0);
-	ATF_CHECK_INTEQ(r.rta_multipath.num_nhops, 0);
+	ATF_CHECK_INTEQ(r.rta_multipath.count, 0);
 
 	/* Append anoher nhop */
 	snl_init_writer(&ss, &nw);
@@ -202,7 +202,7 @@ ATF_TC_BODY(rtnl_nhop_merge, tc)
 	ATF_REQUIRE((rx_hdr = snl_read_reply(&ss, hdr->nlmsg_seq)) != NULL);
 	ATF_CHECK(snl_parse_nlmsg(&ss, rx_hdr, &snl_rtm_route_parser, &r));
 	ATF_CHECK(r.rta_knh_id != 0);
-	ATF_CHECK_INTEQ(r.rta_multipath.num_nhops, 2);
+	ATF_CHECK_INTEQ(r.rta_multipath.count, 2);
 
 	cleanup_route_by_dst(&ss, &nw, "198.51.100.0");
 }
@@ -293,7 +293,7 @@ ATF_TC_BODY(rtnl_nhgrp_expire, tc)
 	ATF_REQUIRE((rx_hdr = snl_read_reply(&ss, hdr->nlmsg_seq)) != NULL);
 	ATF_CHECK(snl_parse_nlmsg(&ss, rx_hdr, &snl_rtm_route_parser, &r));
 	ATF_CHECK(r.rta_knh_id != 0);
-	ATF_CHECK_INTEQ(r.rta_multipath.num_nhops, 3);
+	ATF_CHECK_INTEQ(r.rta_multipath.count, 3);
 
 	/* wait for 2 seconds and try again */
 	sleep(2);
@@ -306,7 +306,7 @@ ATF_TC_BODY(rtnl_nhgrp_expire, tc)
 	ATF_REQUIRE(snl_send_message(&ss, hdr));
 	ATF_REQUIRE((rx_hdr = snl_read_reply(&ss, hdr->nlmsg_seq)) != NULL);
 	ATF_CHECK(snl_parse_nlmsg(&ss, rx_hdr, &snl_rtm_route_parser, &r));
-	ATF_CHECK_INTEQ(r.rta_multipath.num_nhops, 2);
+	ATF_CHECK_INTEQ(r.rta_multipath.count, 2);
 
 	cleanup_route_by_dst(&ss, &nw, "203.0.113.0");
 }
