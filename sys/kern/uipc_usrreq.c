@@ -802,14 +802,9 @@ static void
 uipc_detach(struct socket *so)
 {
 	struct unpcb *unp, *unp2;
-	struct mtx *vplock;
-	struct vnode *vp;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_detach: unp == NULL"));
-
-	vp = NULL;
-	vplock = NULL;
 
 	if (!SOLISTENING(so))
 		unp_dispose(so);
@@ -822,23 +817,9 @@ uipc_detach(struct socket *so)
 	--unp_count;
 	UNP_LINK_WUNLOCK();
 
-	UNP_PCB_UNLOCK_ASSERT(unp);
- restart:
-	if ((vp = unp->unp_vnode) != NULL) {
-		vplock = mtx_pool_find(unp_vp_mtxpool, vp);
-		mtx_lock(vplock);
-	}
 	UNP_PCB_LOCK(unp);
-	if (unp->unp_vnode != vp && unp->unp_vnode != NULL) {
-		if (vplock)
-			mtx_unlock(vplock);
-		UNP_PCB_UNLOCK(unp);
-		goto restart;
-	}
-	if ((vp = unp->unp_vnode) != NULL) {
-		VOP_UNP_DETACH(vp);
-		unp->unp_vnode = NULL;
-	}
+	KASSERT(unp->unp_vnode == NULL,
+	    ("%s: unp %p has vnode", __func__, unp));
 	if ((unp2 = unp_pcb_lock_peer(unp)) != NULL)
 		unp_disconnect(unp, unp2);
 	else
@@ -865,10 +846,7 @@ uipc_detach(struct socket *so)
 	unp->unp_addr = NULL;
 	if (!unp_pcb_rele(unp))
 		UNP_PCB_UNLOCK(unp);
-	if (vp) {
-		mtx_unlock(vplock);
-		vrele(vp);
-	}
+
 	maybe_schedule_gc();
 
 	switch (so->so_type) {
