@@ -23,10 +23,6 @@ static struct wpabuf * eap_tls_msg_alloc(enum eap_type type, size_t payload_len,
 		return eap_msg_alloc(EAP_VENDOR_UNAUTH_TLS,
 				     EAP_VENDOR_TYPE_UNAUTH_TLS, payload_len,
 				     code, identifier);
-	if (type == EAP_WFA_UNAUTH_TLS_TYPE)
-		return eap_msg_alloc(EAP_VENDOR_WFA_NEW,
-				     EAP_VENDOR_WFA_UNAUTH_TLS, payload_len,
-				     code, identifier);
 	return eap_msg_alloc(EAP_VENDOR_IETF, type, payload_len, code,
 			     identifier);
 }
@@ -184,8 +180,6 @@ static int eap_tls_params_from_conf(struct eap_sm *sm,
 		/* RFC 7170 requires TLS v1.2 or newer to be used with TEAP */
 		params->flags |= TLS_CONN_DISABLE_TLSv1_0 |
 			TLS_CONN_DISABLE_TLSv1_1;
-		if (config->teap_anon_dh)
-			params->flags |= TLS_CONN_TEAP_ANON_DH;
 	}
 	if (data->eap_type == EAP_TYPE_FAST ||
 	    data->eap_type == EAP_TYPE_TEAP ||
@@ -197,8 +191,7 @@ static int eap_tls_params_from_conf(struct eap_sm *sm,
 	}
 #ifndef EAP_TLSV1_3
 	if (data->eap_type == EAP_TYPE_TLS ||
-	    data->eap_type == EAP_UNAUTH_TLS_TYPE ||
-	    data->eap_type == EAP_WFA_UNAUTH_TLS_TYPE) {
+	    data->eap_type == EAP_UNAUTH_TLS_TYPE) {
 		/* While the current EAP-TLS implementation is more or less
 		 * complete for TLS v1.3, there has been only minimal
 		 * interoperability testing with other implementations, so
@@ -929,10 +922,6 @@ const u8 * eap_peer_tls_process_init(struct eap_sm *sm,
 	if (eap_type == EAP_UNAUTH_TLS_TYPE)
 		pos = eap_hdr_validate(EAP_VENDOR_UNAUTH_TLS,
 				       EAP_VENDOR_TYPE_UNAUTH_TLS, reqData,
-				       &left);
-	else if (eap_type == EAP_WFA_UNAUTH_TLS_TYPE)
-		pos = eap_hdr_validate(EAP_VENDOR_WFA_NEW,
-				       EAP_VENDOR_WFA_UNAUTH_TLS, reqData,
 				       &left);
 	else
 		pos = eap_hdr_validate(EAP_VENDOR_IETF, eap_type, reqData,

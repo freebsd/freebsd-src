@@ -31,10 +31,14 @@ int wpa_parse_wpa_ie(const u8 *wpa_ie, size_t wpa_ie_len,
 	if (wpa_ie_len >= 1 && wpa_ie[0] == WLAN_EID_RSN)
 		return wpa_parse_wpa_ie_rsn(wpa_ie, wpa_ie_len, data);
 	if (wpa_ie_len >= 6 && wpa_ie[0] == WLAN_EID_VENDOR_SPECIFIC &&
-	    wpa_ie[1] >= 4 && WPA_GET_BE32(&wpa_ie[2]) == OSEN_IE_VENDOR_TYPE)
+	    wpa_ie[1] >= 4 &&
+	    WPA_GET_BE32(&wpa_ie[2]) == RSNE_OVERRIDE_IE_VENDOR_TYPE)
 		return wpa_parse_wpa_ie_rsn(wpa_ie, wpa_ie_len, data);
-	else
-		return wpa_parse_wpa_ie_wpa(wpa_ie, wpa_ie_len, data);
+	if (wpa_ie_len >= 6 && wpa_ie[0] == WLAN_EID_VENDOR_SPECIFIC &&
+	    wpa_ie[1] >= 4 &&
+	    WPA_GET_BE32(&wpa_ie[2]) == RSNE_OVERRIDE_2_IE_VENDOR_TYPE)
+		return wpa_parse_wpa_ie_rsn(wpa_ie, wpa_ie_len, data);
+	return wpa_parse_wpa_ie_wpa(wpa_ie, wpa_ie_len, data);
 }
 
 
@@ -126,10 +130,10 @@ u16 rsn_supp_capab(struct wpa_sm *sm)
 }
 
 
-static int wpa_gen_wpa_ie_rsn(u8 *rsn_ie, size_t rsn_ie_len,
-			      int pairwise_cipher, int group_cipher,
-			      int key_mgmt, int mgmt_group_cipher,
-			      struct wpa_sm *sm)
+int wpa_gen_wpa_ie_rsn(u8 *rsn_ie, size_t rsn_ie_len,
+		       int pairwise_cipher, int group_cipher,
+		       int key_mgmt, int mgmt_group_cipher,
+		       struct wpa_sm *sm)
 {
 	u8 *pos;
 	struct rsn_ie_hdr *hdr;
@@ -226,14 +230,14 @@ static int wpa_gen_wpa_ie_rsn(u8 *rsn_ie, size_t rsn_ie_len,
 	} else if (key_mgmt & WPA_KEY_MGMT_DPP) {
 		RSN_SELECTOR_PUT(pos, RSN_AUTH_KEY_MGMT_DPP);
 #endif /* CONFIG_DPP */
-#ifdef CONFIG_HS20
-	} else if (key_mgmt & WPA_KEY_MGMT_OSEN) {
-		RSN_SELECTOR_PUT(pos, RSN_AUTH_KEY_MGMT_OSEN);
-#endif /* CONFIG_HS20 */
 #ifdef CONFIG_SHA384
 	} else if (key_mgmt == WPA_KEY_MGMT_IEEE8021X_SHA384) {
 		RSN_SELECTOR_PUT(pos, RSN_AUTH_KEY_MGMT_802_1X_SHA384);
 #endif /* CONFIG_SHA384 */
+#ifdef CONFIG_ENC_ASSOC
+	} else if (key_mgmt == WPA_KEY_MGMT_EPPKE) {
+		RSN_SELECTOR_PUT(pos, RSN_AUTH_KEY_MGMT_EPPKE);
+#endif /* CONFIG_ENC_ASSOC */
 	} else {
 		wpa_printf(MSG_WARNING, "Invalid key management type (%d).",
 			   key_mgmt);
@@ -275,64 +279,6 @@ static int wpa_gen_wpa_ie_rsn(u8 *rsn_ie, size_t rsn_ie_len,
 }
 
 
-#ifdef CONFIG_HS20
-static int wpa_gen_wpa_ie_osen(u8 *wpa_ie, size_t wpa_ie_len,
-			       int pairwise_cipher, int group_cipher,
-			       int key_mgmt)
-{
-	u8 *pos, *len;
-	u32 suite;
-
-	if (wpa_ie_len < 2 + 4 + RSN_SELECTOR_LEN +
-	    2 + RSN_SELECTOR_LEN + 2 + RSN_SELECTOR_LEN)
-		return -1;
-
-	pos = wpa_ie;
-	*pos++ = WLAN_EID_VENDOR_SPECIFIC;
-	len = pos++; /* to be filled */
-	WPA_PUT_BE24(pos, OUI_WFA);
-	pos += 3;
-	*pos++ = HS20_OSEN_OUI_TYPE;
-
-	/* Group Data Cipher Suite */
-	suite = wpa_cipher_to_suite(WPA_PROTO_RSN, group_cipher);
-	if (suite == 0) {
-		wpa_printf(MSG_WARNING, "Invalid group cipher (%d).",
-			   group_cipher);
-		return -1;
-	}
-	RSN_SELECTOR_PUT(pos, suite);
-	pos += RSN_SELECTOR_LEN;
-
-	/* Pairwise Cipher Suite Count and List */
-	WPA_PUT_LE16(pos, 1);
-	pos += 2;
-	suite = wpa_cipher_to_suite(WPA_PROTO_RSN, pairwise_cipher);
-	if (suite == 0 ||
-	    (!wpa_cipher_valid_pairwise(pairwise_cipher) &&
-	     pairwise_cipher != WPA_CIPHER_NONE)) {
-		wpa_printf(MSG_WARNING, "Invalid pairwise cipher (%d).",
-			   pairwise_cipher);
-		return -1;
-	}
-	RSN_SELECTOR_PUT(pos, suite);
-	pos += RSN_SELECTOR_LEN;
-
-	/* AKM Suite Count and List */
-	WPA_PUT_LE16(pos, 1);
-	pos += 2;
-	RSN_SELECTOR_PUT(pos, RSN_AUTH_KEY_MGMT_OSEN);
-	pos += RSN_SELECTOR_LEN;
-
-	*len = pos - len - 1;
-
-	WPA_ASSERT((size_t) (pos - wpa_ie) <= wpa_ie_len);
-
-	return pos - wpa_ie;
-}
-#endif /* CONFIG_HS20 */
-
-
 /**
  * wpa_gen_wpa_ie - Generate WPA/RSN IE based on current security policy
  * @sm: Pointer to WPA state machine data from wpa_sm_init()
@@ -348,13 +294,6 @@ int wpa_gen_wpa_ie(struct wpa_sm *sm, u8 *wpa_ie, size_t wpa_ie_len)
 					  sm->group_cipher,
 					  sm->key_mgmt, sm->mgmt_group_cipher,
 					  sm);
-#ifdef CONFIG_HS20
-	else if (sm->proto == WPA_PROTO_OSEN)
-		return wpa_gen_wpa_ie_osen(wpa_ie, wpa_ie_len,
-					   sm->pairwise_cipher,
-					   sm->group_cipher,
-					   sm->key_mgmt);
-#endif /* CONFIG_HS20 */
 	else
 		return wpa_gen_wpa_ie_wpa(wpa_ie, wpa_ie_len,
 					  sm->pairwise_cipher,
@@ -363,10 +302,121 @@ int wpa_gen_wpa_ie(struct wpa_sm *sm, u8 *wpa_ie, size_t wpa_ie_len)
 }
 
 
+/*
+ * wpa_external_auth_add_rsne - Build an RSNE for external authentication
+ * @rsne: Buffer in which the RSNE will be written
+ * @rsne_len: Length of the RSNE buffer
+ * @akmp: Authentication and key management protocol
+ * @pairwise_cipher: The pairwise cipher suite
+ * @group_cipher: The group addressed data cipher suite
+ * @group_mgmt_cipher: The group addressed management cipher suite
+ * @rsn_capab: RSN capabilities field
+ * @pmkid: PMKID to include in the RSNE, or %NULL if no PMKID
+ * Returns: Length of the RSNE or -1 on failure
+ */
+int wpa_external_auth_add_rsne(u8 *rsne, size_t rsne_len, int akmp,
+			       int pairwise_cipher, int group_cipher,
+			       int group_mgmt_cipher, u16 rsn_capab,
+			       const u8 *pmkid)
+{
+	struct rsn_ie_hdr *hdr;
+	u32 suite;
+	u8 *pos;
+
+	wpa_printf(MSG_DEBUG, "RSN: Ext-Auth: Build RSNE");
+
+	if (rsne_len < sizeof(*hdr) + RSN_SELECTOR_LEN +
+	    2 + RSN_SELECTOR_LEN + 2 + RSN_SELECTOR_LEN + 2 +
+	    (pmkid ? 2 + PMKID_LEN : 0) +
+	    (wpa_cipher_valid_mgmt_group(group_mgmt_cipher) ?
+	    (RSN_SELECTOR_LEN + (!pmkid ? 2 : 0)) : 0)) {
+		wpa_printf(MSG_DEBUG, "Ext-Auth: Too short RSNE buffer (%lu bytes)",
+			   (unsigned long) rsne_len);
+		return -1;
+	}
+
+	hdr = (struct rsn_ie_hdr *) rsne;
+	hdr->elem_id = WLAN_EID_RSN;
+	WPA_PUT_LE16(hdr->version, RSN_VERSION);
+	pos = (u8 *) (hdr + 1);
+
+	/* Group cipher */
+	suite = wpa_cipher_to_suite(WPA_PROTO_RSN, group_cipher);
+	if (!suite || !wpa_cipher_valid_group(group_cipher)) {
+		wpa_printf(MSG_INFO,
+			   "RSN: Ext-Auth: Invalid group cipher 0x%x",
+			   group_cipher);
+		return -1;
+	}
+	RSN_SELECTOR_PUT(pos, suite);
+	pos += RSN_SELECTOR_LEN;
+
+	/* Pairwise cipher */
+	WPA_PUT_LE16(pos, 1);
+	pos += 2;
+	suite = wpa_cipher_to_suite(WPA_PROTO_RSN, pairwise_cipher);
+	if (!suite ||
+	    (!wpa_cipher_valid_pairwise(pairwise_cipher) &&
+	     pairwise_cipher != WPA_CIPHER_NONE)) {
+		wpa_printf(MSG_INFO,
+			   "RSN: Ext-Auth: Invalid pairwise cipher 0x%x",
+			   pairwise_cipher);
+		return -1;
+	}
+	RSN_SELECTOR_PUT(pos, suite);
+	pos += RSN_SELECTOR_LEN;
+
+	/* AKM suite */
+	WPA_PUT_LE16(pos, 1);
+	pos += 2;
+	suite = wpa_akm_to_suite(akmp);
+	if (!suite) {
+		wpa_printf(MSG_INFO, "RSN: Ext-Auth: Invalid AKMP 0x%x", akmp);
+		return -1;
+	}
+	RSN_SELECTOR_PUT(pos, suite);
+	pos += RSN_SELECTOR_LEN;
+
+	/* RSN Capabilities */
+	WPA_PUT_LE16(pos, rsn_capab);
+	pos += 2;
+
+	if (pmkid) {
+		wpa_printf(MSG_DEBUG, "RSN: Ext-Auth: Adding PMKID");
+		/* PMKID Count (2 octets, little endian) */
+		WPA_PUT_LE16(pos, 1);
+		pos += 2;
+		/* PMKID */
+		os_memcpy(pos, pmkid, PMKID_LEN);
+		pos += PMKID_LEN;
+	}
+
+	/* Group Management Cipher Suite */
+	if (wpa_cipher_valid_mgmt_group(group_mgmt_cipher)) {
+		if (!pmkid) {
+			/* PMKID Count */
+			WPA_PUT_LE16(pos, 0);
+			pos += 2;
+		}
+
+		/* Management Group Cipher Suite */
+		RSN_SELECTOR_PUT(pos, wpa_cipher_to_suite(WPA_PROTO_RSN,
+							  group_mgmt_cipher));
+		pos += RSN_SELECTOR_LEN;
+	}
+
+	hdr->len = (pos - rsne) - 2;
+
+	WPA_ASSERT((size_t) (pos - rsne) <= rsne_len);
+
+	return pos - rsne;
+}
+
+
 int wpa_gen_rsnxe(struct wpa_sm *sm, u8 *rsnxe, size_t rsnxe_len)
 {
 	u8 *pos = rsnxe;
-	u32 capab = 0, tmp;
+	u64 capab = 0, tmp;
 	size_t flen;
 
 	if (wpa_key_mgmt_sae(sm->key_mgmt) &&
@@ -385,8 +435,29 @@ int wpa_gen_rsnxe(struct wpa_sm *sm, u8 *rsnxe, size_t rsnxe_len)
 		capab |= BIT(WLAN_RSNX_CAPAB_SECURE_RTT);
 	if (sm->prot_range_neg)
 		capab |= BIT(WLAN_RSNX_CAPAB_URNM_MFPR);
+	if (sm->prot_range_neg_x20)
+		capab |= BIT(WLAN_RSNX_CAPAB_URNM_MFPR_X20);
 	if (sm->ssid_protection)
 		capab |= BIT(WLAN_RSNX_CAPAB_SSID_PROTECTION);
+	if (sm->spp_amsdu)
+		capab |= BIT(WLAN_RSNX_CAPAB_SPP_A_MSDU);
+	if (sm->sae_pw_id_change)
+		capab |= BIT_ULL(WLAN_RSNX_CAPAB_SAE_PW_ID_CHANGE);
+#ifdef CONFIG_ENC_ASSOC
+	if (sm->assoc_encryption)
+		capab |= BIT(WLAN_RSNX_CAPAB_ASSOC_FRAME_ENCRYPTION) |
+			BIT(WLAN_RSNX_CAPAB_KEK_IN_PASN);
+#endif /* CONFIG_ENC_ASSOC */
+#ifdef CONFIG_PMKSA_PRIVACY
+	if (sm->pmksa_privacy)
+		capab |= BIT(WLAN_RSNX_CAPAB_PMKSA_CACHING_PRIVACY);
+#endif /* CONFIG_PMKSA_PRIVACY */
+#ifdef CONFIG_IEEE8021X_AUTH
+	if (wpa_key_mgmt_wpa_ieee8021x(sm->key_mgmt &
+				       ~WPA_KEY_MGMT_IEEE8021X) &&
+	     sm->eap_over_auth_frame)
+		capab |= BIT(WLAN_RSNX_CAPAB_802_1X_IN_AUTH_FRAMES);
+#endif /* CONFIG_IEEE8021X_AUTH */
 
 	if (!capab)
 		return 0; /* no supported extended RSN capabilities */

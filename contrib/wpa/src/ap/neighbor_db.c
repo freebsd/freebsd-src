@@ -203,16 +203,15 @@ void hostapd_free_neighbor_db(struct hostapd_data *hapd)
 
 
 #ifdef NEED_AP_MLME
-static enum nr_chan_width hostapd_get_nr_chan_width(struct hostapd_data *hapd,
-						    int ht, int vht, int he)
+static enum nr_chan_width
+hostapd_get_nr_chan_width(struct hostapd_data *hapd,
+			  int ht, int vht, int he,
+			  enum oper_chan_width oper_chwidth,
+			  int secondary_channel)
 {
-	enum oper_chan_width oper_chwidth;
-
-	oper_chwidth = hostapd_get_oper_chwidth(hapd->iconf);
-
 	if (!ht && !vht && !he)
 		return NR_CHAN_WIDTH_20;
-	if (!hapd->iconf->secondary_channel)
+	if (!secondary_channel)
 		return NR_CHAN_WIDTH_20;
 	if ((!vht && !he) || oper_chwidth == CONF_OPER_CHWIDTH_USE_HT)
 		return NR_CHAN_WIDTH_40;
@@ -231,14 +230,16 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
 {
 #ifdef NEED_AP_MLME
 	u16 capab = hostapd_own_capab_info(hapd);
-	int ht = hapd->iconf->ieee80211n && !hapd->conf->disable_11n;
-	int vht = hapd->iconf->ieee80211ac && !hapd->conf->disable_11ac;
-	int he = hapd->iconf->ieee80211ax && !hapd->conf->disable_11ax;
-	bool eht = he && hapd->iconf->ieee80211be && !hapd->conf->disable_11be;
+	int ht = hostapd_is_ht_enabled(hapd);
+	int vht = hostapd_is_vht_enabled(hapd);
+	int he = hostapd_is_he_enabled(hapd);
+	bool eht = he && hostapd_is_eht_enabled(hapd);
 	struct wpa_ssid_value ssid;
 	u8 channel, op_class;
 	u8 center_freq1_idx = 0, center_freq2_idx = 0;
+	enum oper_chan_width oper_chwidth;
 	enum nr_chan_width width;
+	int secondary_channel;
 	u32 bssid_info;
 	struct wpabuf *nr;
 
@@ -264,10 +265,7 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
 	}
 
 	if (ht) {
-		bssid_info |= NEI_REP_BSSID_INFO_HT |
-			NEI_REP_BSSID_INFO_DELAYED_BA;
-
-		/* VHT bit added in IEEE P802.11-REVmc/D4.3 */
+		bssid_info |= NEI_REP_BSSID_INFO_HT;
 		if (vht)
 			bssid_info |= NEI_REP_BSSID_INFO_VHT;
 	}
@@ -278,23 +276,30 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
 		bssid_info |= NEI_REP_BSSID_INFO_EHT;
 	/* TODO: Set NEI_REP_BSSID_INFO_MOBILITY_DOMAIN if MDE is set */
 
+	hostapd_get_oper_chan_info_of_bss(hapd, &oper_chwidth,
+					  &center_freq1_idx, &center_freq2_idx);
+	secondary_channel = hapd->iconf->secondary_channel;
+
+	if (center_freq1_idx == hapd->iconf->channel &&
+	    oper_chwidth == CONF_OPER_CHWIDTH_USE_HT)
+		secondary_channel = 0;
+
 	if (ieee80211_freq_to_channel_ext(hapd->iface->freq,
-					  hapd->iconf->secondary_channel,
-					  hostapd_get_oper_chwidth(hapd->iconf),
+					  secondary_channel,
+					  oper_chwidth,
 					  &op_class, &channel) ==
 	    NUM_HOSTAPD_MODES)
 		return;
-	width = hostapd_get_nr_chan_width(hapd, ht, vht, he);
-	if (vht) {
-		center_freq1_idx = hostapd_get_oper_centr_freq_seg0_idx(
-			hapd->iconf);
-		if (width == NR_CHAN_WIDTH_80P80)
-			center_freq2_idx =
-				hostapd_get_oper_centr_freq_seg1_idx(
-					hapd->iconf);
-	} else if (ht) {
+	width = hostapd_get_nr_chan_width(hapd, ht, vht, he, oper_chwidth,
+					  secondary_channel);
+
+	if (width != NR_CHAN_WIDTH_80P80)
+		center_freq2_idx = 0;
+
+	if (!vht && ht) {
+		center_freq1_idx = 0;
 		ieee80211_freq_to_chan(hapd->iface->freq +
-				       10 * hapd->iconf->secondary_channel,
+				       10 * secondary_channel,
 				       &center_freq1_idx);
 	}
 
@@ -313,12 +318,13 @@ void hostapd_neighbor_set_own_report(struct hostapd_data *hapd)
 	wpabuf_put_le32(nr, bssid_info);
 	wpabuf_put_u8(nr, op_class);
 	wpabuf_put_u8(nr, channel);
-	wpabuf_put_u8(nr, ieee80211_get_phy_type(hapd->iface->freq, ht, vht));
+	wpabuf_put_u8(nr, ieee80211_get_phy_type(hapd->iface->freq, ht, vht,
+						 he));
 
 	/*
 	 * Wide Bandwidth Channel subelement may be needed to allow the
-	 * receiving STA to send packets to the AP. See IEEE P802.11-REVmc/D5.0
-	 * Figure 9-301.
+	 * receiving STA to send packets to the AP. See IEEE Std 802.11-2024,
+	 * Figure 9-423 (Wide Bandwidth Channel subelement format).
 	 */
 	wpabuf_put_u8(nr, WNM_NEIGHBOR_WIDE_BW_CHAN);
 	wpabuf_put_u8(nr, 3);

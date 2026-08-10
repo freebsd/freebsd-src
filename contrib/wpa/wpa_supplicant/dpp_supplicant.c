@@ -2,7 +2,7 @@
  * wpa_supplicant - DPP
  * Copyright (c) 2017, Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2020, The Linux Foundation
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -58,6 +58,9 @@ static int wpas_dpp_process_conf_obj(void *ctx,
 				     struct dpp_authentication *auth);
 static bool wpas_dpp_tcp_msg_sent(void *ctx, struct dpp_authentication *auth);
 #endif /* CONFIG_DPP2 */
+#ifdef CONFIG_DPP3
+static void wpas_dpp_pb_next(void *eloop_ctx, void *timeout_ctx);
+#endif /* CONFIG_DPP3 */
 
 static const u8 broadcast[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -331,17 +334,17 @@ static char * wpas_dpp_scan_channel_list(struct wpa_supplicant *wpa_s)
 	u8 last_op_class = 0;
 	int res;
 
-	if (!wpa_s->last_scan_freqs || !wpa_s->num_last_scan_freqs)
+	len = int_array_len(wpa_s->last_scan_freqs);
+	if (!len)
 		return NULL;
 
-	len = wpa_s->num_last_scan_freqs * 8;
-	str = os_zalloc(len);
+	str = os_zalloc(len * 8);
 	if (!str)
 		return NULL;
 	end = str + len;
 	pos = str;
 
-	for (i = 0; i < wpa_s->num_last_scan_freqs; i++) {
+	for (i = 0; wpa_s->last_scan_freqs[i]; i++) {
 		enum hostapd_hw_mode mode;
 		u8 op_class, channel;
 
@@ -1031,7 +1034,7 @@ static void dpp_start_listen_cb(struct wpa_radio_work *work, int deinit)
 	wpa_s->dpp_pending_listen_freq = lwork->freq;
 
 	if (wpa_drv_remain_on_channel(wpa_s, lwork->freq,
-				      wpa_s->max_remain_on_chan) < 0) {
+				      wpa_s->max_remain_on_chan, NULL) < 0) {
 		wpa_printf(MSG_DEBUG,
 			   "DPP: Failed to request the driver to remain on channel (%u MHz) for listen",
 			   lwork->freq);
@@ -1068,8 +1071,8 @@ static int wpas_dpp_listen_start(struct wpa_supplicant *wpa_s,
 		return -1;
 	lwork->freq = freq;
 
-	if (radio_add_work(wpa_s, freq, "dpp-listen", 0, dpp_start_listen_cb,
-			   lwork) < 0) {
+	if (!radio_add_work(wpa_s, freq, "dpp-listen", 0, dpp_start_listen_cb,
+			    lwork)) {
 		wpas_dpp_listen_work_free(lwork);
 		return -1;
 	}
@@ -1332,6 +1335,16 @@ void wpas_dpp_tx_wait_expire(struct wpa_supplicant *wpa_s)
 	struct dpp_authentication *auth = wpa_s->dpp_auth;
 	int freq;
 
+#ifdef CONFIG_DPP3
+	if (wpa_s->dpp_pb_announcement && wpa_s->dpp_pb_discovery_done) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Failed to send push button announcement");
+		if (eloop_register_timeout(0, 0, wpas_dpp_pb_next,
+					   wpa_s, NULL) < 0)
+			wpas_dpp_push_button_stop(wpa_s);
+	}
+#endif /* CONFIG_DPP3 */
+
 	if (wpa_s->dpp_listen_on_tx_expire && auth && auth->neg_freq) {
 		wpa_printf(MSG_DEBUG,
 			   "DPP: Start listen on neg_freq %u MHz based on TX wait expiration on the previous channel",
@@ -1393,7 +1406,8 @@ static struct wpa_ssid * wpas_dpp_add_network(struct wpa_supplicant *wpa_s,
 		if (res == 0 &&
 		    !(capa.key_mgmt_iftype[WPA_IF_STATION] &
 		      WPA_DRIVER_CAPA_KEY_MGMT_SAE) &&
-		    !(wpa_s->drv_flags & WPA_DRIVER_FLAGS_SAE)) {
+		    !(wpa_s->drv_flags & WPA_DRIVER_FLAGS_SAE) &&
+		    !(wpa_s->drv_flags2 & WPA_DRIVER_FLAGS2_SAE_OFFLOAD_STA)) {
 			wpa_printf(MSG_DEBUG,
 				   "DPP: SAE not supported by the driver");
 			return NULL;
@@ -1410,6 +1424,21 @@ static struct wpa_ssid * wpas_dpp_add_network(struct wpa_supplicant *wpa_s,
 		return NULL;
 	wpas_notify_network_added(wpa_s, ssid);
 	wpa_config_set_network_defaults(ssid);
+	if (wpa_s->drv_capa_known &&
+	    (wpa_s->drv_enc & WPA_DRIVER_CAPA_ENC_GCMP)) {
+		ssid->pairwise_cipher |= WPA_CIPHER_GCMP;
+		ssid->group_cipher |= WPA_CIPHER_GCMP;
+	}
+	if (wpa_s->drv_capa_known &&
+	    (wpa_s->drv_enc & WPA_DRIVER_CAPA_ENC_GCMP_256)) {
+		ssid->pairwise_cipher |= WPA_CIPHER_GCMP_256;
+		ssid->group_cipher |= WPA_CIPHER_GCMP_256;
+	}
+	if (wpa_s->drv_capa_known &&
+	    (wpa_s->drv_enc & WPA_DRIVER_CAPA_ENC_CCMP_256)) {
+		ssid->pairwise_cipher |= WPA_CIPHER_CCMP_256;
+		ssid->group_cipher |= WPA_CIPHER_CCMP_256;
+	}
 	ssid->disabled = 1;
 
 	ssid->ssid = os_malloc(conf->ssid_len);
@@ -1417,6 +1446,20 @@ static struct wpa_ssid * wpas_dpp_add_network(struct wpa_supplicant *wpa_s,
 		goto fail;
 	os_memcpy(ssid->ssid, conf->ssid, conf->ssid_len);
 	ssid->ssid_len = conf->ssid_len;
+
+	if (!wpa_bss_get(wpa_s, NULL, conf->ssid, conf->ssid_len))
+		ssid->scan_ssid = 1;
+
+#ifdef CONFIG_DPP3
+	if (conf->akm == DPP_AKM_SAE && conf->password_id[0]) {
+		size_t len = os_strlen(conf->password_id);
+
+		ssid->sae_password_id = os_zalloc(len + 1);
+		if (!ssid->sae_password_id)
+			goto fail;
+		os_memcpy(ssid->sae_password_id, conf->password_id, len);
+	}
+#endif /* CONFIG_DPP3 */
 
 	if (conf->connector) {
 		if (dpp_akm_dpp(conf->akm)) {
@@ -1475,11 +1518,16 @@ static struct wpa_ssid * wpas_dpp_add_network(struct wpa_supplicant *wpa_s,
 			ssid->ieee80211w = MGMT_FRAME_PROTECTION_OPTIONAL;
 		else
 			ssid->ieee80211w = MGMT_FRAME_PROTECTION_REQUIRED;
-		if (conf->passphrase[0]) {
+		if (conf->passphrase[0] && dpp_akm_psk(conf->akm)) {
 			if (wpa_config_set_quoted(ssid, "psk",
 						  conf->passphrase) < 0)
 				goto fail;
 			wpa_config_update_psk(ssid);
+			ssid->export_keys = 1;
+		} else if (conf->passphrase[0] && dpp_akm_sae(conf->akm)) {
+			if (wpa_config_set_quoted(ssid, "sae_password",
+						  conf->passphrase) < 0)
+				goto fail;
 			ssid->export_keys = 1;
 		} else {
 			ssid->psk_set = conf->psk_set;
@@ -1691,6 +1739,12 @@ static int wpas_dpp_handle_config_obj(struct wpa_supplicant *wpa_s,
 		wpa_msg(wpa_s, MSG_INFO, DPP_EVENT_CONFOBJ_PSK "%s",
 			hex);
 	}
+#ifdef CONFIG_DPP3
+	if (conf->password_id[0]) {
+		wpa_msg(wpa_s, MSG_INFO, DPP_EVENT_CONFOBJ_IDPASS "%s",
+			conf->password_id);
+	}
+#endif /* CONFIG_DPP3 */
 	if (conf->c_sign_key) {
 		char *hex;
 		size_t hexlen;
@@ -1772,6 +1826,7 @@ static int wpas_dpp_handle_config_obj(struct wpa_supplicant *wpa_s,
 	if (!wpa_s->dpp_pb_result_indicated) {
 		wpa_msg(wpa_s, MSG_INFO, DPP_EVENT_PB_RESULT "success");
 		wpa_s->dpp_pb_result_indicated = true;
+		wpas_dpp_push_button_stop(wpa_s);
 	}
 
 #endif /* CONFIG_DPP3 */
@@ -4500,7 +4555,7 @@ int wpas_dpp_check_connect(struct wpa_supplicant *wpa_s, struct wpa_ssid *ssid,
 
 	if (!(ssid->key_mgmt & WPA_KEY_MGMT_DPP) || !bss)
 		return 0; /* Not using DPP AKM - continue */
-	rsn = wpa_bss_get_ie(bss, WLAN_EID_RSN);
+	rsn = wpa_bss_get_rsne(wpa_s, bss, ssid, false);
 	if (rsn && wpa_parse_wpa_ie(rsn, 2 + rsn[1], &ied) == 0 &&
 	    !(ied.key_mgmt & WPA_KEY_MGMT_DPP))
 		return 0; /* AP does not support DPP AKM - continue */
@@ -5485,7 +5540,6 @@ int wpas_dpp_ca_set(struct wpa_supplicant *wpa_s, const char *cmd)
 #define DPP_PB_ANNOUNCE_PER_CHAN 3
 
 static int wpas_dpp_pb_announce(struct wpa_supplicant *wpa_s, int freq);
-static void wpas_dpp_pb_next(void *eloop_ctx, void *timeout_ctx);
 
 
 static void wpas_dpp_pb_tx_status(struct wpa_supplicant *wpa_s,
@@ -5733,6 +5787,8 @@ int wpas_dpp_push_button(struct wpa_supplicant *wpa_s, const char *cmd)
 		   "DPP: Scan to create channel list for PB discovery");
 	wpa_s->scan_req = MANUAL_SCAN_REQ;
 	wpa_s->scan_res_handler = wpas_dpp_pb_scan_res_handler;
+	wpa_supplicant_cancel_sched_scan(wpa_s);
+	wpa_drv_dpp_listen(wpa_s, true);
 	wpa_supplicant_req_scan(wpa_s, 0, 0);
 	wpa_msg(wpa_s, MSG_INFO, DPP_EVENT_PB_STATUS "started");
 	return 0;
@@ -5749,6 +5805,8 @@ void wpas_dpp_push_button_stop(struct wpa_supplicant *wpa_s)
 	wpa_s->dpp_pb_announcement = NULL;
 	if (wpa_s->dpp_pb_bi) {
 		char id[20];
+
+		wpa_drv_dpp_listen(wpa_s, false);
 
 		if (wpa_s->dpp_pb_bi == wpa_s->dpp_pkex_bi)
 			wpa_s->dpp_pkex_bi = NULL;
@@ -5790,6 +5848,8 @@ void wpas_dpp_push_button_stop(struct wpa_supplicant *wpa_s)
 		wpas_abort_ongoing_scan(wpa_s);
 		wpa_s->scan_res_handler = NULL;
 	}
+
+	offchannel_send_action_done(wpa_s);
 }
 
 #endif /* CONFIG_DPP3 */

@@ -81,10 +81,21 @@ static int wpas_wps_in_use(struct wpa_supplicant *wpa_s,
 #endif /* CONFIG_WPS */
 
 
-static int wpa_setup_mac_addr_rand_params(struct wpa_driver_scan_params *params,
+static int wpa_setup_mac_addr_rand_params(struct wpa_supplicant *wpa_s,
+					  struct wpa_driver_scan_params *params,
 					  const u8 *mac_addr)
 {
 	u8 *tmp;
+
+	/* If we are connected, there is no point in randomization */
+	if (wpa_s && wpa_s->wpa_state > WPA_SCANNING)
+		return 0;
+
+#ifdef CONFIG_P2P
+	/* The P2P GO might ignore our probe requests otherwise */
+	if (wpa_s && wpa_s->p2p_in_provisioning)
+		return 0;
+#endif /* CONFIG_P2P */
 
 	if (params->mac_addr) {
 		params->mac_addr_mask = NULL;
@@ -198,9 +209,9 @@ static void wpas_trigger_scan_cb(struct wpa_radio_work *work, int deinit)
 		return;
 	}
 
-	if ((wpa_s->mac_addr_rand_enable & MAC_ADDR_RAND_SCAN) &&
-	    wpa_s->wpa_state <= WPA_SCANNING)
-		wpa_setup_mac_addr_rand_params(params, wpa_s->mac_addr_scan);
+	if (wpa_s->mac_addr_rand_enable & MAC_ADDR_RAND_SCAN)
+		wpa_setup_mac_addr_rand_params(wpa_s, params,
+					       wpa_s->mac_addr_scan);
 
 	if (wpas_update_random_addr_disassoc(wpa_s) < 0) {
 		wpa_msg(wpa_s, MSG_INFO,
@@ -329,8 +340,8 @@ int wpa_supplicant_trigger_scan(struct wpa_supplicant *wpa_s,
 	}
 
 	if (!ctx ||
-	    radio_add_work(wpa_s, 0, "scan", next, wpas_trigger_scan_cb,
-			   ctx) < 0) {
+	    !radio_add_work(wpa_s, 0, "scan", next, wpas_trigger_scan_cb,
+			    ctx)) {
 		wpa_scan_free_params(ctx);
 		wpa_msg(wpa_s, MSG_INFO, WPA_EVENT_SCAN_FAILED "ret=-1");
 		return -1;
@@ -705,12 +716,12 @@ static struct wpabuf * wpa_supplicant_ml_probe_ie(int mld_id, u16 links)
 		wpa_printf(MSG_DEBUG, "MLD: Probing links 0x%04x", links);
 
 	for_each_link(links, link_id) {
-		wpabuf_put_u8(extra_ie, EHT_ML_SUB_ELEM_PER_STA_PROFILE);
+		wpabuf_put_u8(extra_ie, MULTI_LINK_SUB_ELEM_ID_PER_STA_PROFILE);
 
 		/* Subelement length includes only the control */
 		wpabuf_put_u8(extra_ie, 2);
 
-		control = link_id | EHT_PER_STA_CTRL_COMPLETE_PROFILE_MSK;
+		control = link_id | BASIC_MLE_STA_CTRL_COMPLETE_PROFILE;
 
 		wpabuf_put_le16(extra_ie, control);
 	}
@@ -750,17 +761,20 @@ static struct wpabuf * wpa_supplicant_extra_ies(struct wpa_supplicant *wpa_s)
 	ext_capab_len = wpas_build_ext_capab(wpa_s, ext_capab,
 					     sizeof(ext_capab), NULL);
 	if (ext_capab_len > 0 &&
+	    (size_t) ext_capab_len < wpa_s->drv_max_probe_req_ie_len &&
 	    wpabuf_resize(&extra_ie, ext_capab_len) == 0)
 		wpabuf_put_data(extra_ie, ext_capab, ext_capab_len);
 
 #ifdef CONFIG_INTERWORKING
 	if (wpa_s->conf->interworking &&
+	    wpa_s->drv_max_probe_req_ie_len >= 2 &&
 	    wpabuf_resize(&extra_ie, 100) == 0)
 		wpas_add_interworking_elements(wpa_s, extra_ie);
 #endif /* CONFIG_INTERWORKING */
 
 #ifdef CONFIG_MBO
-	if (wpa_s->enable_oce & OCE_STA)
+	if ((wpa_s->enable_oce & OCE_STA) &&
+	    wpa_s->drv_max_probe_req_ie_len >= 5)
 		wpas_fils_req_param_add_max_channel(wpa_s, &extra_ie);
 #endif /* CONFIG_MBO */
 
@@ -774,17 +788,19 @@ static struct wpabuf * wpa_supplicant_extra_ies(struct wpa_supplicant *wpa_s)
 						&wpa_s->wps->dev,
 						wpa_s->wps->uuid, req_type,
 						0, NULL);
-		if (wps_ie) {
-			if (wpabuf_resize(&extra_ie, wpabuf_len(wps_ie)) == 0)
-				wpabuf_put_buf(extra_ie, wps_ie);
-			wpabuf_free(wps_ie);
-		}
+		if (wps_ie &&
+		    wpabuf_len(wps_ie) <= wpa_s->drv_max_probe_req_ie_len &&
+		    wpabuf_resize(&extra_ie, wpabuf_len(wps_ie)) == 0)
+			wpabuf_put_buf(extra_ie, wps_ie);
+		wpabuf_free(wps_ie);
 	}
 
 #ifdef CONFIG_P2P
 	if (wps) {
 		size_t ielen = p2p_scan_ie_buf_len(wpa_s->global->p2p);
-		if (wpabuf_resize(&extra_ie, ielen) == 0)
+
+		if (ielen <= wpa_s->drv_max_probe_req_ie_len &&
+		    wpabuf_resize(&extra_ie, ielen) == 0)
 			wpas_p2p_scan_ie(wpa_s, extra_ie);
 	}
 #endif /* CONFIG_P2P */
@@ -794,12 +810,14 @@ static struct wpabuf * wpa_supplicant_extra_ies(struct wpa_supplicant *wpa_s)
 #endif /* CONFIG_WPS */
 
 #ifdef CONFIG_HS20
-	if (wpa_s->conf->hs20 && wpabuf_resize(&extra_ie, 9) == 0)
+	if (wpa_s->conf->hs20 && wpa_s->drv_max_probe_req_ie_len >= 9 &&
+	    wpabuf_resize(&extra_ie, 9) == 0)
 		wpas_hs20_add_indication(extra_ie, -1, 0);
 #endif /* CONFIG_HS20 */
 
 #ifdef CONFIG_FST
 	if (wpa_s->fst_ies &&
+	    wpa_s->drv_max_probe_req_ie_len >= wpabuf_len(wpa_s->fst_ies) &&
 	    wpabuf_resize(&extra_ie, wpabuf_len(wpa_s->fst_ies)) == 0)
 		wpabuf_put_buf(extra_ie, wpa_s->fst_ies);
 #endif /* CONFIG_FST */
@@ -813,7 +831,8 @@ static struct wpabuf * wpa_supplicant_extra_ies(struct wpa_supplicant *wpa_s)
 	if (wpa_s->vendor_elem[VENDOR_ELEM_PROBE_REQ]) {
 		struct wpabuf *buf = wpa_s->vendor_elem[VENDOR_ELEM_PROBE_REQ];
 
-		if (wpabuf_resize(&extra_ie, wpabuf_len(buf)) == 0)
+		if (wpa_s->drv_max_probe_req_ie_len >= wpabuf_len(buf) &&
+		    wpabuf_resize(&extra_ie, wpabuf_len(buf)) == 0)
 			wpabuf_put_buf(extra_ie, buf);
 	}
 
@@ -940,9 +959,9 @@ static void wpa_add_scan_ssid(struct wpa_supplicant *wpa_s,
 }
 
 
-static void wpa_add_owe_scan_ssid(struct wpa_supplicant *wpa_s,
-				  struct wpa_driver_scan_params *params,
-				  struct wpa_ssid *ssid, size_t max_ssids)
+void wpa_add_owe_scan_ssid(struct wpa_supplicant *wpa_s,
+			   struct wpa_driver_scan_params *params,
+			   const struct wpa_ssid *ssid, size_t max_ssids)
 {
 #ifdef CONFIG_OWE
 	struct wpa_bss *bss;
@@ -954,8 +973,7 @@ static void wpa_add_owe_scan_ssid(struct wpa_supplicant *wpa_s,
 		   wpa_ssid_txt(ssid->ssid, ssid->ssid_len));
 
 	dl_list_for_each(bss, &wpa_s->bss, struct wpa_bss, list) {
-		const u8 *owe, *pos, *end;
-		const u8 *owe_ssid;
+		const u8 *owe, *owe_bssid, *owe_ssid;
 		size_t owe_ssid_len;
 
 		if (bss->ssid_len != ssid->ssid_len ||
@@ -966,21 +984,9 @@ static void wpa_add_owe_scan_ssid(struct wpa_supplicant *wpa_s,
 		if (!owe || owe[1] < 4)
 			continue;
 
-		pos = owe + 6;
-		end = owe + 2 + owe[1];
-
-		/* Must include BSSID and ssid_len */
-		if (end - pos < ETH_ALEN + 1)
-			return;
-
-		/* Skip BSSID */
-		pos += ETH_ALEN;
-		owe_ssid_len = *pos++;
-		owe_ssid = pos;
-
-		if ((size_t) (end - pos) < owe_ssid_len ||
-		    owe_ssid_len > SSID_MAX_LEN)
-			return;
+		if (wpas_get_owe_trans_network(owe, &owe_bssid, &owe_ssid,
+					       &owe_ssid_len))
+			continue;
 
 		wpa_printf(MSG_DEBUG,
 			   "OWE: scan_ssids: transition mode OWE ssid=%s",
@@ -1464,9 +1470,9 @@ ssid_list_set:
 	}
 #endif /* CONFIG_P2P */
 
-	if ((wpa_s->mac_addr_rand_enable & MAC_ADDR_RAND_SCAN) &&
-	    wpa_s->wpa_state <= WPA_SCANNING)
-		wpa_setup_mac_addr_rand_params(&params, wpa_s->mac_addr_scan);
+	if (wpa_s->mac_addr_rand_enable & MAC_ADDR_RAND_SCAN)
+		wpa_setup_mac_addr_rand_params(wpa_s, &params,
+					       wpa_s->mac_addr_scan);
 
 	if (!is_zero_ether_addr(wpa_s->next_scan_bssid)) {
 		struct wpa_bss *bss;
@@ -1490,7 +1496,14 @@ ssid_list_set:
 		}
 	} else if (!is_zero_ether_addr(wpa_s->ml_probe_bssid)) {
 		wpa_printf(MSG_DEBUG, "Scanning for ML probe request");
-		params.bssid = wpa_s->ml_probe_bssid;
+		/*
+		 * When the scan visits the channels of the missing links in
+		 * addition to the association link's channel, use the wildcard
+		 * BSSID so that the affiliated APs on those channels respond
+		 * to the probe requests, too.
+		 */
+		if (!params.freqs || !params.freqs[0] || !params.freqs[1])
+			params.bssid = wpa_s->ml_probe_bssid;
 		params.min_probe_req_content = true;
 	}
 
@@ -1940,9 +1953,8 @@ scan:
 
 	wpa_setband_scan_freqs(wpa_s, scan_params);
 
-	if ((wpa_s->mac_addr_rand_enable & MAC_ADDR_RAND_SCHED_SCAN) &&
-	    wpa_s->wpa_state <= WPA_SCANNING)
-		wpa_setup_mac_addr_rand_params(&params,
+	if (wpa_s->mac_addr_rand_enable & MAC_ADDR_RAND_SCHED_SCAN)
+		wpa_setup_mac_addr_rand_params(wpa_s, &params,
 					       wpa_s->mac_addr_sched_scan);
 
 	wpa_scan_set_relative_rssi_params(wpa_s, scan_params);
@@ -2381,7 +2393,9 @@ static int wpa_scan_result_compar(const void *a, const void *b)
 	int wpa_a, wpa_b;
 	int snr_a, snr_b, snr_a_full, snr_b_full;
 	size_t ies_len;
+#ifndef CONFIG_NO_WPA
 	const u8 *rsne_a, *rsne_b;
+#endif /* CONFIG_NO_WPA */
 
 	/* WPA/WPA2 support preferred */
 	wpa_a = wpa_scan_get_vendor_ie(wa, WPA_IE_VENDOR_TYPE) != NULL ||
@@ -2425,6 +2439,7 @@ static int wpa_scan_result_compar(const void *a, const void *b)
 		snr_b = snr_b_full = wb->level;
 	}
 
+#ifndef CONFIG_NO_WPA
 	/* If SNR of a SAE BSS is good or at least as high as the PSK BSS,
 	 * prefer SAE over PSK for mixed WPA3-Personal transition mode and
 	 * WPA2-Personal deployments */
@@ -2450,6 +2465,7 @@ static int wpa_scan_result_compar(const void *a, const void *b)
 		    (snr_b >= GREAT_SNR || snr_b >= snr_a))
 			return 1;
 	}
+#endif /* CONFIG_NO_WPA */
 
 	/* If SNR is close, decide by max rate or frequency band. For cases
 	 * involving the 6 GHz band, use the throughput estimate irrespective
@@ -2803,7 +2819,140 @@ static const struct minsnr_bitrate_entry he160_table[] = {
 	{ -1, 1441200 }  /* SNR > 51 */
 };
 
-/* See IEEE P802.11be/D2.0, Table 36-86: EHT-MCSs for 4x996-tone RU, NSS,u = 1
+/* See IEEE Std 802.11be-2024, Table 36-78 - EHT-MCSs for 484+242-tone MRU,
+ * NSS,u = 1
+ */
+static const struct minsnr_bitrate_entry eht60_table[] = {
+	{ 0, 0 },
+	{ 8, 25800 },   /* EHT80 with 20 MHz punctured MCS0 */
+	{ 11, 51600 },  /* EHT80 with 20 MHz punctured MCS1 */
+	{ 15, 77400 },  /* EHT80 with 20 MHz punctured MCS2 */
+	{ 17, 103200 }, /* EHT80 with 20 MHz punctured MCS3 */
+	{ 21, 154900 }, /* EHT80 with 20 MHz punctured MCS4 */
+	{ 24, 206500 }, /* EHT80 with 20 MHz punctured MCS5 */
+	{ 26, 232300 }, /* EHT80 with 20 MHz punctured MCS6 */
+	{ 31, 258100 }, /* EHT80 with 20 MHz punctured MCS7 */
+	{ 35, 309700 }, /* EHT80 with 20 MHz punctured MCS8 */
+	{ 37, 344100 }, /* EHT80 with 20 MHz punctured MCS9 */
+	{ 40, 387100 }, /* EHT80 with 20 MHz punctured MCS10 */
+	{ 42, 430100 }, /* EHT80 with 20 MHz punctured MCS11 */
+	{ 45, 464600 }, /* EHT80 with 20 MHz punctured MCS12 */
+	{ 48, 516200 }, /* EHT80 with 20 MHz punctured MCS13 */
+	{ -1, 516200 }  /* SNR > 48 */
+};
+
+/* See IEEE Std 802.11be-2024, Table 36-80 - EHT-MCSs for 996+484-tone MRU,
+ * NSS,u = 1
+ */
+static const struct minsnr_bitrate_entry eht120_table[] = {
+	{ 0, 0 },
+	{ 11, 53200 },   /* EHT160 with 40 MHz punctured MCS0 */
+	{ 14, 106500 },  /* EHT160 with 40 MHz punctured MCS1 */
+	{ 18, 159700 },  /* EHT160 with 40 MHz punctured MCS2 */
+	{ 20, 212900 },  /* EHT160 with 40 MHz punctured MCS3 */
+	{ 24, 319400 },  /* EHT160 with 40 MHz punctured MCS4 */
+	{ 27, 425900 },  /* EHT160 with 40 MHz punctured MCS5 */
+	{ 29, 479100 },  /* EHT160 with 40 MHz punctured MCS6 */
+	{ 34, 532400 },  /* EHT160 with 40 MHz punctured MCS7 */
+	{ 38, 638800 },  /* EHT160 with 40 MHz punctured MCS8 */
+	{ 40, 709800 },  /* EHT160 with 40 MHz punctured MCS9 */
+	{ 43, 798500 },  /* EHT160 with 40 MHz punctured MCS10 */
+	{ 45, 887200 },  /* EHT160 with 40 MHz punctured MCS11 */
+	{ 48, 958200 },  /* EHT160 with 40 MHz punctured MCS12 */
+	{ 51, 1064700 }, /* EHT160 with 40 MHz punctured MCS13 */
+	{ -1, 1064700 }  /* SNR > 51 */
+};
+
+/* See IEEE Std 802.11be-2024, Table 36-81 - EHT-MCSs for 996+484+242-tone MRU,
+ * NSS,u = 1
+ */
+static const struct minsnr_bitrate_entry eht140_table[] = {
+	{ 0, 0 },
+	{ 11, 61800 },   /* EHT160 with 20 MHz punctured MCS0 */
+	{ 14, 123700 },  /* EHT160 with 20 MHz punctured MCS1 */
+	{ 18, 185500 },  /* EHT160 with 20 MHz punctured MCS2 */
+	{ 20, 247400 },  /* EHT160 with 20 MHz punctured MCS3 */
+	{ 24, 371000 },  /* EHT160 with 20 MHz punctured MCS4 */
+	{ 27, 494700 },  /* EHT160 with 20 MHz punctured MCS5 */
+	{ 29, 556500 },  /* EHT160 with 20 MHz punctured MCS6 */
+	{ 34, 618400 },  /* EHT160 with 20 MHz punctured MCS7 */
+	{ 38, 742100 },  /* EHT160 with 20 MHz punctured MCS8 */
+	{ 40, 824500 },  /* EHT160 with 20 MHz punctured MCS9 */
+	{ 43, 927600 },  /* EHT160 with 20 MHz punctured MCS10 */
+	{ 45, 1030600 }, /* EHT160 with 20 MHz punctured MCS11 */
+	{ 48, 1113100 }, /* EHT160 with 20 MHz punctured MCS12 */
+	{ 51, 1236800 }, /* EHT160 with 20 MHz punctured MCS13 */
+	{ -1, 1236800 }  /* SNR > 51 */
+};
+
+/* See IEEE Std 802.11be-2024, Table 36-83 - EHT-MCSs for 2x996+484-tone NRU,
+ * NSS,u = 1
+ */
+static const struct minsnr_bitrate_entry eht200_table[] = {
+	{ 0, 0 },
+	{ 14, 89300 },    /* EHT320 with 120 MHz punctured MCS0 */
+	{ 17, 178500 },   /* EHT320 with 120 MHz punctured MCS1 */
+	{ 21, 267800 },   /* EHT320 with 120 MHz punctured MCS2 */
+	{ 23, 357100 },   /* EHT320 with 120 MHz punctured MCS3 */
+	{ 27, 535600 },   /* EHT320 with 120 MHz punctured MCS4 */
+	{ 30, 714100 },   /* EHT320 with 120 MHz punctured MCS5 */
+	{ 32, 803400 },   /* EHT320 with 120 MHz punctured MCS6 */
+	{ 37, 892600 },   /* EHT320 with 120 MHz punctured MCS7 */
+	{ 41, 1071200 },  /* EHT320 with 120 MHz punctured MCS8 */
+	{ 43, 1190100 },  /* EHT320 with 120 MHz punctured MCS9 */
+	{ 46, 1339000 },  /* EHT320 with 120 MHz punctured MCS10 */
+	{ 48, 1487700 },  /* EHT320 with 120 MHz punctured MCS11 */
+	{ 51, 1606800 },  /* EHT320 with 120 MHz punctured MCS12 */
+	{ 54, 1785300 },  /* EHT320 with 120 MHz punctured MCS13 */
+	{ -1, 1785300 }   /* SNR > 54 */
+};
+
+/* See IEEE Std 802.11be-2024, Table 36-84 - EHT-MCSs for 3x996-tone MRU,
+ * NSS,u = 1
+ */
+static const struct minsnr_bitrate_entry eht240_table[] = {
+	{ 0, 0 },
+	{ 14, 108100 },   /* EHT320 with 80 MHz punctured MCS0 */
+	{ 17, 216200 },   /* EHT320 with 80 MHz punctured MCS1 */
+	{ 21, 324300 },   /* EHT320 with 80 MHz punctured MCS2 */
+	{ 23, 432400 },   /* EHT320 with 80 MHz punctured MCS3 */
+	{ 27, 648500 },   /* EHT320 with 80 MHz punctured MCS4 */
+	{ 30, 864700 },   /* EHT320 with 80 MHz punctured MCS5 */
+	{ 32, 972800 },   /* EHT320 with 80 MHz punctured MCS6 */
+	{ 37, 1080900 },  /* EHT320 with 80 MHz punctured MCS7 */
+	{ 41, 1297100 },  /* EHT320 with 80 MHz punctured MCS8 */
+	{ 43, 1441200 },  /* EHT320 with 80 MHz punctured MCS9 */
+	{ 46, 1621300 },  /* EHT320 with 80 MHz punctured MCS10 */
+	{ 48, 1801500 },  /* EHT320 with 80 MHz punctured MCS11 */
+	{ 51, 1945600 },  /* EHT320 with 80 MHz punctured MCS12 */
+	{ 54, 2161800 },  /* EHT320 with 80 MHz punctured MCS13 */
+	{ -1, 2161800 }   /* SNR > 54 */
+};
+
+/* See IEEE Std 802.11be-2024, Table 36-85: EHT-MCSs for 3x996+484-tone MRU,
+ * NSS,u = 1
+ */
+static const struct minsnr_bitrate_entry eht280_table[] = {
+	{ 0, 0 },
+	{ 14, 125300 },   /* EHT320 with 40 MHz punctured MCS0 */
+	{ 17, 250600 },   /* EHT320 with 40 MHz punctured MCS1 */
+	{ 21, 375900 },   /* EHT320 with 40 MHz punctured MCS2 */
+	{ 23, 501200 },   /* EHT320 with 40 MHz punctured MCS3 */
+	{ 27, 751800 },   /* EHT320 with 40 MHz punctured MCS4 */
+	{ 30, 1002400 },  /* EHT320 with 40 MHz punctured MCS5 */
+	{ 32, 1127600 },  /* EHT320 with 40 MHz punctured MCS6 */
+	{ 37, 1252900 },  /* EHT320 with 40 MHz punctured MCS7 */
+	{ 41, 1503500 },  /* EHT320 with 40 MHz punctured MCS8 */
+	{ 43, 1670600 },  /* EHT320 with 40 MHz punctured MCS9 */
+	{ 46, 1879400 },  /* EHT320 with 40 MHz punctured MCS10 */
+	{ 48, 2088200 },  /* EHT320 with 40 MHz punctured MCS11 */
+	{ 51, 2255300 },  /* EHT320 with 40 MHz punctured MCS12 */
+	{ 54, 2505900 },  /* EHT320 with 40 MHz punctured MCS13 */
+	{ -1, 2505900 }   /* SNR > 54 */
+};
+
+/* See IEEE Std 802.11be-2024, Table 36-86: EHT-MCSs for 4x996-tone RU,
+ * NSS,u = 1
  */
 static const struct minsnr_bitrate_entry eht320_table[] = {
 	{ 0, 0 },
@@ -2889,6 +3038,96 @@ static unsigned int max_he_eht_rate(const struct minsnr_bitrate_entry table[],
 		return prev->bitrate;
 	return interpolate_rate(snr, prev->minsnr, entry->minsnr,
 				prev->bitrate, entry->bitrate);
+}
+
+
+static unsigned int get_eht_punctured_rate(enum chan_width cw,
+					   u8 num_punct_bits, int adjusted_snr,
+					   u8 boost)
+{
+	const struct minsnr_bitrate_entry *eht_table;
+
+	switch (cw) {
+	case CHAN_WIDTH_80:
+		switch (num_punct_bits) {
+		case 1:
+			/* EHT80 with 20 MHz punctured */
+			eht_table = eht60_table;
+			break;
+		default:
+			eht_table = he80_table;
+			break;
+		}
+		break;
+	case CHAN_WIDTH_160:
+		switch (num_punct_bits) {
+		case 2:
+			/* EHT160 with 40 MHz punctured */
+			eht_table = eht120_table;
+			break;
+		case 1:
+			/* EHT160 with 20 MHz punctured */
+			eht_table = eht140_table;
+			break;
+		default:
+			eht_table = he160_table;
+			break;
+		}
+		break;
+	case CHAN_WIDTH_320:
+		switch (num_punct_bits) {
+		case 6:
+			/* EHT320 with 120 MHz punctured */
+			eht_table = eht200_table;
+			break;
+		case 4:
+			/* EHT320 with 80 MHz punctured */
+			eht_table = eht240_table;
+			break;
+		case 2:
+			/* EHT320 with 40 MHz punctured */
+			eht_table = eht280_table;
+			break;
+		default:
+			eht_table = eht320_table;
+			break;
+		}
+		break;
+	default:
+		/* Puncturing is not supported for the channel width */
+		return 0;
+	}
+
+	return max_he_eht_rate(eht_table, adjusted_snr, true) + boost;
+}
+
+
+static u8 get_eht_num_punct_bits(const u8 *ies, size_t ies_len)
+{
+	const u8 *eht_ie;
+
+	eht_ie = get_ie_ext(ies, ies_len, WLAN_EID_EXT_EHT_OPERATION);
+	if (eht_ie && eht_ie[1] >= 1 + sizeof(struct ieee80211_eht_operation)) {
+		struct ieee80211_eht_operation *eht_op;
+
+		eht_op = (struct ieee80211_eht_operation *) &eht_ie[3];
+
+		if (eht_op->oper_params &
+		    EHT_OPER_DISABLED_SUBCHAN_BITMAP_PRESENT) {
+			u16 punct_bitmap;
+			u8 count = 0;
+
+			punct_bitmap = le_to_host16(
+				eht_op->oper_info.disabled_chan_bitmap);
+			while (punct_bitmap) {
+				count += punct_bitmap & 1;
+				punct_bitmap >>= 1;
+			}
+			return count;
+		}
+	}
+
+	return 0;
 }
 
 
@@ -3049,8 +3288,9 @@ unsigned int wpas_get_est_tpt(const struct wpa_supplicant *wpa_s,
 		struct ieee80211_eht_capabilities *eht;
 		struct he_capabilities *own_he;
 		u8 cw, boost = 2;
-		const u8 *eht_ie;
+		const u8 *eht_ie = NULL;
 		bool is_eht = false;
+		u8 num_punct_bits;
 
 		ie = get_ie_ext(ies, ies_len, WLAN_EID_EXT_HE_CAPABILITIES);
 		if (!ie || (ie[1] < 1 + IEEE80211_HE_CAPAB_MIN_LEN))
@@ -3100,8 +3340,17 @@ unsigned int wpas_get_est_tpt(const struct wpa_supplicant *wpa_s,
 				*max_cw = CHAN_WIDTH_80;
 			adjusted_snr = snr + wpas_channel_width_rssi_bump(
 				ies, ies_len, CHAN_WIDTH_80);
-			tmp = max_he_eht_rate(he80_table, adjusted_snr,
-					      is_eht) + boost;
+
+			num_punct_bits = get_eht_num_punct_bits(ies, ies_len);
+			if (is_eht && num_punct_bits)
+				tmp = get_eht_punctured_rate(CHAN_WIDTH_80,
+							     num_punct_bits,
+							     adjusted_snr,
+							     boost);
+			else
+				tmp = max_he_eht_rate(he80_table, adjusted_snr,
+						      is_eht) + boost;
+
 			if (tmp > est)
 				est = tmp;
 		}
@@ -3115,13 +3364,21 @@ unsigned int wpas_get_est_tpt(const struct wpa_supplicant *wpa_s,
 				*max_cw = CHAN_WIDTH_160;
 			adjusted_snr = snr + wpas_channel_width_rssi_bump(
 				ies, ies_len, CHAN_WIDTH_160);
-			tmp = max_he_eht_rate(he160_table, adjusted_snr,
-					      is_eht) + boost;
+
+			num_punct_bits = get_eht_num_punct_bits(ies, ies_len);
+			if (is_eht && num_punct_bits)
+				tmp = get_eht_punctured_rate(CHAN_WIDTH_160,
+							     num_punct_bits,
+							     adjusted_snr,
+							     boost);
+			else
+				tmp = max_he_eht_rate(he160_table, adjusted_snr,
+						      is_eht) + boost;
 			if (tmp > est)
 				est = tmp;
 		}
 
-		if (!is_eht)
+		if (!is_eht || !eht_ie)
 			return est;
 
 		eht = (struct ieee80211_eht_capabilities *) &eht_ie[3];
@@ -3134,7 +3391,16 @@ unsigned int wpas_get_est_tpt(const struct wpa_supplicant *wpa_s,
 				*max_cw = CHAN_WIDTH_320;
 			adjusted_snr = snr + wpas_channel_width_rssi_bump(
 				ies, ies_len, CHAN_WIDTH_320);
-			tmp = max_he_eht_rate(eht320_table, adjusted_snr, true);
+
+			num_punct_bits = get_eht_num_punct_bits(ies, ies_len);
+			if (num_punct_bits)
+				tmp = get_eht_punctured_rate(CHAN_WIDTH_320,
+							     num_punct_bits,
+							     adjusted_snr,
+							     0);
+			else
+				tmp = max_he_eht_rate(eht320_table, adjusted_snr,
+						      true);
 			if (tmp > est)
 				est = tmp;
 		}
@@ -3165,6 +3431,231 @@ void scan_est_throughput(struct wpa_supplicant *wpa_s,
 
 	/* TODO: channel utilization and AP load (e.g., from AP Beacon) */
 }
+
+
+#ifdef CONFIG_IEEE80211BE
+
+static struct wpa_scan_res *
+wpa_scan_get_bssid(struct wpa_scan_results *scan_res, const u8 *bssid)
+{
+	size_t i;
+
+	for (i = 0; i < scan_res->num; i++) {
+		struct wpa_scan_res *scan_res_item = scan_res->res[i];
+
+		if (ether_addr_equal(scan_res_item->bssid, bssid))
+			return scan_res_item;
+	}
+
+	return NULL;
+}
+
+
+static unsigned int
+get_partner_est_tput(struct wpa_supplicant *wpa_s,
+		     struct wpa_scan_results *scan_res,
+		     struct wpa_scan_res *res, u8 mbssid_idx,
+		     const struct ieee80211_neighbor_ap_info *ap_info,
+		     size_t len, u16 *seen)
+{
+	const u8 *pos, *end;
+	const u8 *mld_params;
+	u8 count, mld_params_offset;
+	u8 i, type, link_id;
+	unsigned int total_partner_tput = 0;
+
+	if (len < sizeof(*ap_info))
+		return 0;
+
+	count = RNR_TBTT_INFO_COUNT_VAL(ap_info->tbtt_info_hdr) + 1;
+	type = ap_info->tbtt_info_hdr & RNR_TBTT_INFO_HDR_TYPE_MSK;
+
+	if (type != 0 || ap_info->tbtt_info_len < RNR_TBTT_INFO_MLD_LEN)
+		return 0;
+
+	mld_params_offset = RNR_TBTT_INFO_LEN;
+
+	pos = (const u8 *) ap_info;
+	end = pos + len;
+	pos += sizeof(*ap_info);
+	for (i = 0; i < count; i++) {
+		if (end - pos < ap_info->tbtt_info_len)
+			break;
+
+		mld_params = pos + mld_params_offset;
+		if (mld_params_offset + 2 > ap_info->tbtt_info_len)
+			break;
+
+		link_id = *(mld_params + 1) & EHT_ML_LINK_ID_MSK;
+		if (link_id < MAX_NUM_MLD_LINKS &&
+		    *mld_params == mbssid_idx &&
+		    ((*seen & BIT(link_id)) == 0)) {
+			struct wpa_scan_res *neigh_scan_res;
+
+			neigh_scan_res = wpa_scan_get_bssid(scan_res, pos + 1);
+			if (!neigh_scan_res)
+				continue;
+
+			*seen |= BIT(link_id);
+			if (neigh_scan_res->mlo_tput_accumulated) {
+				res->mlo_tput_accumulated = true;
+				return neigh_scan_res->est_throughput;
+			}
+
+			total_partner_tput += neigh_scan_res->est_throughput;
+		}
+		pos += ap_info->tbtt_info_len;
+	}
+
+	return total_partner_tput;
+}
+
+
+static void mlo_scan_est_throughput(struct wpa_supplicant *wpa_s,
+				    struct wpa_scan_results *scan_res,
+				    struct wpa_scan_res *res,
+				    bool sta_emlsr_support)
+{
+	const u8 *ies = (const u8 *) (res + 1);
+	size_t ie_len = res->ie_len;
+	u8 mbssid_idx = 0;
+	const struct element *elem;
+	const u8 *mle;
+	u8 mle_len;
+	const u8 *ap_eml_capa;
+	bool ap_emlsr_support = false;
+	u16 seen;
+	unsigned int mlo_est_throughput = res->est_throughput;
+	unsigned int partner_est_throughput = 0;
+	int link_id;
+
+	if (!(wpa_s->drv_flags2 & WPA_DRIVER_FLAGS2_MLO))
+		return;
+
+	if (!ie_len)
+		ie_len = res->beacon_ie_len;
+
+	mle = wpa_scan_get_ml_ie(res, MULTI_LINK_CONTROL_TYPE_BASIC);
+	if (!mle)
+		return;
+	mle_len = mle[1];
+	if (mle_len < 2)
+		return;
+	mle += 3;
+	mle_len--;
+
+	ap_eml_capa = get_basic_mle_eml_capa(mle, mle_len);
+	if (ap_eml_capa) {
+		u16 eml_capa = WPA_GET_LE16(ap_eml_capa);
+
+		if (eml_capa & EHT_ML_EML_CAPA_EMLSR_SUPP)
+			ap_emlsr_support = true;
+	}
+
+	link_id = get_basic_mle_link_id(mle, mle_len);
+	if (link_id < 0)
+		return;
+
+	seen = BIT(link_id);
+	elem = (const struct element *)
+		wpa_scan_get_ie(res, WLAN_EID_MULTIPLE_BSSID_INDEX);
+	if (elem && elem->datalen >= 1)
+		mbssid_idx = elem->data[0];
+
+	/*
+	 * The following three scenarios need to be considered when estimating
+	 * throughput for ML cases:
+	 * 1. Non-AP MLD is MLSR and finds an AP MLD that does not support MLSR
+	 * 2. Non-AP MLD is MLSR and finds an AP MLD that supports MLSR
+	 * 3. Non-AP MLD is MLMR and finds an AP MLD that may or may not
+	 * support MLSR
+	 *
+	 * In the first case, since the non-AP MLD is in MLSR mode and detects
+	 * an AP MLD that doesn't support MLSR, keep the AP MLD's original
+	 * throughput unchanged.
+	 *
+	 * In the second case, since the non-AP MLD is in MLSR mode, select the
+	 * partner link with the highest throughput and update the scan result
+	 * accordingly.
+	 *
+	 * In the third case, since the non-AP MLD is in MLMR mode, sum the
+	 * throughput of all links, including partners, regardless of AP MLD
+	 * support.
+	 */
+
+	for_each_element_id(elem, WLAN_EID_REDUCED_NEIGHBOR_REPORT,
+			    ies, ie_len) {
+		const struct ieee80211_neighbor_ap_info *ap_info;
+		const u8 *pos = elem->data;
+		size_t len = elem->datalen;
+
+		/* RNR element may contain more than one Neighbor AP Info */
+		while (sizeof(*ap_info) <= len) {
+			size_t ap_info_len = sizeof(*ap_info);
+			u8 count;
+
+			ap_info =
+				(const struct ieee80211_neighbor_ap_info *) pos;
+			count =
+				RNR_TBTT_INFO_COUNT_VAL(ap_info->tbtt_info_hdr)
+				+ 1;
+			ap_info_len += count * ap_info->tbtt_info_len;
+
+			if (ap_info_len > len)
+				return;
+
+			partner_est_throughput =
+				get_partner_est_tput(wpa_s, scan_res, res,
+						     mbssid_idx, ap_info,
+						     len, &seen);
+
+			if (sta_emlsr_support && !ap_emlsr_support)
+				return;
+
+			if (sta_emlsr_support && ap_emlsr_support) {
+				if (partner_est_throughput >
+				    mlo_est_throughput)
+					mlo_est_throughput =
+						partner_est_throughput;
+			} else {
+				/*
+				 * The following additional scenarios need to
+				 * be handled here:
+				 *
+				 * 1. The current scan result is the first scan
+				 * result with its partners unseen:
+				 * Loop through all partners, accumulate
+				 * their estimated throughput and update
+				 * its own bss->est_throughput to the new
+				 * accumulated throughput.
+				 *
+				 * 2. Scan result with one of its partners
+				 * already seen:
+				 * Iterator returns the partner's
+				 * est_throughput. Once it sees the partner
+				 * who has an accumulated throughput, it
+				 * marks self as seen and overrides its
+				 * bss->est_throughput with the same.
+				 */
+				if (!res->mlo_tput_accumulated) {
+					mlo_est_throughput +=
+						partner_est_throughput;
+				} else {
+					res->est_throughput =
+						partner_est_throughput;
+					return;
+				}
+			}
+
+			pos += ap_info_len;
+			len -= ap_info_len;
+		}
+	}
+	res->mlo_tput_accumulated = true;
+	res->est_throughput = mlo_est_throughput;
+}
+
+#endif /* CONFIG_IEEE80211BE */
 
 
 /**
@@ -3216,6 +3707,14 @@ wpa_supplicant_get_scan_results(struct wpa_supplicant *wpa_s,
 		compar = wpa_scan_result_wps_compar;
 	}
 #endif /* CONFIG_WPS */
+
+#ifdef CONFIG_IEEE80211BE
+	for (i = 0; i < scan_res->num; i++) {
+		mlo_scan_est_throughput(wpa_s, scan_res, scan_res->res[i],
+					wpa_s->eml_capa &
+					EHT_ML_EML_CAPA_EMLSR_SUPP);
+	}
+#endif /* CONFIG_IEEE80211BE */
 
 	if (scan_res->res) {
 		qsort(scan_res->res, scan_res->num,
@@ -3371,7 +3870,7 @@ wpa_scan_clone_params(const struct wpa_driver_scan_params *src)
 	}
 
 	if (src->mac_addr_rand &&
-	    wpa_setup_mac_addr_rand_params(params, src->mac_addr))
+	    wpa_setup_mac_addr_rand_params(NULL, params, src->mac_addr))
 		goto failed;
 
 	if (src->bssid) {
@@ -3561,9 +4060,9 @@ int wpas_start_pno(struct wpa_supplicant *wpa_s)
 		params.freqs = wpa_s->manual_sched_scan_freqs;
 	}
 
-	if ((wpa_s->mac_addr_rand_enable & MAC_ADDR_RAND_PNO) &&
-	    wpa_s->wpa_state <= WPA_SCANNING)
-		wpa_setup_mac_addr_rand_params(&params, wpa_s->mac_addr_pno);
+	if (wpa_s->mac_addr_rand_enable & MAC_ADDR_RAND_PNO)
+		wpa_setup_mac_addr_rand_params(wpa_s, &params,
+					       wpa_s->mac_addr_pno);
 
 	wpa_scan_set_relative_rssi_params(wpa_s, &params);
 

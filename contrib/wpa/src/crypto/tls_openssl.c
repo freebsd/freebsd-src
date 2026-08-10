@@ -7,6 +7,10 @@
  */
 
 #include "includes.h"
+#ifdef CONFIG_TLS_ENGINE_TRUSTED_PATH
+#include <sys/stat.h>
+#include <limits.h>
+#endif /* CONFIG_TLS_ENGINE_TRUSTED_PATH */
 #ifdef CONFIG_TESTING_OPTIONS
 #include <fcntl.h>
 #endif /* CONFIG_TESTING_OPTIONS */
@@ -33,6 +37,8 @@
 #include <openssl/core_names.h>
 #include <openssl/decoder.h>
 #include <openssl/param_build.h>
+#include <openssl/store.h>
+#include <openssl/provider.h>
 #else /* OpenSSL version >= 3.0 */
 #ifndef OPENSSL_NO_DSA
 #include <openssl/dsa.h>
@@ -244,8 +250,8 @@ struct tls_connection {
 	BIO *ssl_in, *ssl_out;
 #if defined(ANDROID) || !defined(OPENSSL_NO_ENGINE)
 	ENGINE *engine;        /* functional reference to the engine */
-	EVP_PKEY *private_key; /* the private key if using engine */
 #endif /* OPENSSL_NO_ENGINE */
+	EVP_PKEY *private_key; /* the private key if using engine/provider */
 	char *subject_match, *altsubject_match, *suffix_match, *domain_match;
 	char *check_cert_subject;
 	int read_alerts, write_alerts, failed;
@@ -355,6 +361,161 @@ static X509_STORE * tls_crl_cert_reload(const char *ca_cert, int check_crl)
 
 	return store;
 }
+
+
+#ifndef ANDROID
+#ifdef OPENSSL_NO_ENGINE
+
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+static OSSL_PROVIDER *openssl_pkcs11_provider = NULL;
+#endif /* OpenSSL version >= 3.0 */
+
+static void openssl_load_pkcs11_provider(void)
+{
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	if (openssl_pkcs11_provider)
+		return;
+
+	openssl_pkcs11_provider = OSSL_PROVIDER_try_load(NULL, "pkcs11", 1);
+	if (!openssl_pkcs11_provider)
+		wpa_printf(MSG_WARNING, "PKCS11 provider not present");
+#endif /* OpenSSL version >= 3.0 */
+}
+
+
+static void openssl_unload_pkcs11_provider(void)
+{
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	if (openssl_pkcs11_provider) {
+		OSSL_PROVIDER_unload(openssl_pkcs11_provider);
+		openssl_pkcs11_provider = NULL;
+	}
+#endif /* OpenSSL version >= 3.0 */
+}
+
+
+static bool openssl_can_use_provider(const char *engine_id, const char *req)
+{
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	if (!os_strcmp(engine_id, "pkcs11") && openssl_pkcs11_provider)
+		return true;
+
+	wpa_printf(MSG_ERROR,
+		   "Cannot find OpenSSL provider for '%s' (missing '%s')",
+		   req, engine_id);
+#endif /* OpenSSL version >= 3.0 */
+	return false;
+}
+
+
+static EVP_PKEY * provider_load_key(const char *uri)
+{
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	OSSL_STORE_CTX *store;
+	OSSL_STORE_INFO *info;
+	EVP_PKEY *key = NULL;
+
+	if (!uri) {
+		tls_show_errors(MSG_ERROR, __func__,
+				"Invalid NULL uri for key");
+		goto err_key;
+	}
+
+	store = OSSL_STORE_open(uri, NULL, NULL, NULL, NULL);
+	if (!store) {
+		wpa_printf(MSG_DEBUG, "Bad uri for private key:%s", uri);
+
+		tls_show_errors(MSG_ERROR, __func__,
+				"Failed to open key store");
+		goto err_key;
+	}
+
+	if (os_strncmp(uri, "pkcs11:", 7) &&
+	    os_strstr(uri, "type=private") == NULL) {
+		/* This is a workaround for OpenSSL < 3.2.0 where the code fails
+		 * to correctly source public keys unless explicitly requested
+		 * via an expect hint. */
+		if (OSSL_STORE_expect(store, OSSL_STORE_INFO_PUBKEY) != 1) {
+			tls_show_errors(MSG_ERROR, __func__,
+					"Failed to expect Public Key File");
+			goto err_store;
+		}
+	}
+
+	while (!OSSL_STORE_eof(store)) {
+		info = OSSL_STORE_load(store);
+		if (!info) {
+			if (OSSL_STORE_error(store))
+				break;
+			continue;
+		}
+		if ((OSSL_STORE_INFO_get_type(info)) == OSSL_STORE_INFO_PKEY)
+			key = OSSL_STORE_INFO_get1_PKEY(info);
+
+		OSSL_STORE_INFO_free(info);
+		if (key)
+			break;
+	}
+
+err_store:
+	OSSL_STORE_close(store);
+err_key:
+	if (!key)
+		wpa_printf(MSG_ERROR, "OpenSSL: Failed to load key from URI");
+
+	return key;
+#else /* OpenSSL version >= 3.0 */
+	return NULL;
+#endif /* OpenSSL version >= 3.0 */
+}
+
+
+static X509 * provider_load_cert(const char *cert_id)
+{
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+	OSSL_STORE_CTX *store;
+	OSSL_STORE_INFO *info;
+	X509 *cert = NULL;
+
+	if (!cert_id) {
+		tls_show_errors(MSG_ERROR, __func__, "Invalid NULL uri");
+		goto err_cert;
+	}
+
+	store = OSSL_STORE_open(cert_id, NULL, NULL, NULL, NULL);
+	if (!store) {
+		tls_show_errors(MSG_ERROR, __func__, "Failed to open store");
+		goto err_cert;
+	}
+
+	while (!OSSL_STORE_eof(store)) {
+		info = OSSL_STORE_load(store);
+		if (!info) {
+			if (OSSL_STORE_error(store))
+				break;
+			continue;
+		}
+		if ((OSSL_STORE_INFO_get_type(info)) == OSSL_STORE_INFO_CERT)
+			cert = OSSL_STORE_INFO_get1_CERT(info);
+
+		OSSL_STORE_INFO_free(info);
+		if (cert)
+			break;
+	}
+	OSSL_STORE_close(store);
+
+err_cert:
+	if (!cert)
+		tls_show_errors(MSG_ERROR, __func__,
+				"Failed to load cert from URI");
+	return cert;
+#else /* OpenSSL version >= 3.0 */
+	return NULL;
+#endif /* OpenSSL version >= 3.0 */
+}
+
+#endif /* OPENSSL_NO_ENGINE */
+#endif /* !ANDROID */
 
 
 #ifdef CONFIG_NATIVE_WINDOWS
@@ -871,6 +1032,79 @@ static int tls_engine_load_dynamic_generic(const char *pre[],
 }
 
 
+#ifdef CONFIG_TLS_ENGINE_TRUSTED_PATH
+
+#define TRUSTED_PATH "/usr/lib/"
+
+/**
+ * tls_engine_path_trusted - Verify engine .so path is trusted for loading
+ * @path: Engine/module path supplied via configuration or D-Bus
+ * @real_path: Buffer for the canonical path (PATH_MAX bytes)
+ * Returns: 0 if trusted (real_path filled), -1 otherwise
+ *
+ * The PKCS#11/OpenSC engine and module shared object paths are loaded with
+ * dlopen() within this process, which may be running with elevated
+ * privileges. Verify that the supplied path cannot be used to load an
+ * attacker-controlled shared library by requiring, in addition to being
+ * located under the trusted path, that the target is a regular file owned by
+ * root, not writable by group or others, and that every ancestor directory up
+ * to the file is itself a directory, owned by root and not writable by group
+ * or others (otherwise a root-owned file could be swapped by whoever controls
+ * such a directory). lstat() is used for the file check so that a symlink is
+ * never followed, even though realpath() has already canonicalised the path.
+ */
+static int tls_engine_path_trusted(const char *path, char *real_path)
+{
+	struct stat st;
+	char dir[PATH_MAX];
+	char *slash, *next;
+
+	if (!path)
+		return -1;
+
+	if (!realpath(path, real_path)) {
+		wpa_printf(MSG_INFO,
+			   "ENGINE: Refusing to load %s: realpath: %s",
+			   path, strerror(errno));
+		return -1;
+	}
+
+	if (os_strncmp(TRUSTED_PATH, real_path, os_strlen(TRUSTED_PATH)) != 0) {
+		wpa_printf(MSG_INFO,
+			   "ENGINE: Refusing to load %s: not in trusted path %s",
+			   real_path, TRUSTED_PATH);
+		return -1;
+	}
+
+	if (lstat(real_path, &st) != 0 || !S_ISREG(st.st_mode) ||
+	    st.st_uid != 0 || (st.st_mode & (S_IWGRP | S_IWOTH))) {
+		wpa_printf(MSG_INFO,
+			   "ENGINE: Refusing to load %s: not a root-owned, non-writable regular file",
+			   real_path);
+		return -1;
+	}
+
+	os_strlcpy(dir, real_path, sizeof(dir));
+	slash = dir;
+	while ((next = os_strchr(slash + 1, '/')) {
+		*next = '\0';
+		if (stat(dir, &st) != 0 || !S_ISDIR(st.st_mode) ||
+		    st.st_uid != 0 || (st.st_mode & (S_IWGRP | S_IWOTH))) {
+			wpa_printf(MSG_INFO,
+				   "ENGINE: Refusing to load %s: insecure ancestor directory %s",
+				   real_path, dir);
+			return -1;
+		}
+		*next = '/';
+		slash = next;
+	}
+
+	return 0;
+}
+
+#endif /* CONFIG_TLS_ENGINE_TRUSTED_PATH */
+
+
 /**
  * tls_engine_load_dynamic_pkcs11 - load the pkcs11 engine provided by opensc
  * @pkcs11_so_path: pksc11_so_path from the configuration
@@ -880,6 +1114,10 @@ static int tls_engine_load_dynamic_pkcs11(const char *pkcs11_so_path,
 					  const char *pkcs11_module_path)
 {
 	char *engine_id = "pkcs11";
+#ifdef CONFIG_TLS_ENGINE_TRUSTED_PATH
+	char real_pkcs11_so_path[PATH_MAX];
+	char real_pkcs11_module_path[PATH_MAX];
+#endif /* CONFIG_TLS_ENGINE_TRUSTED_PATH */
 	const char *pre_cmd[] = {
 		"SO_PATH", NULL /* pkcs11_so_path */,
 		"ID", NULL /* engine_id */,
@@ -896,12 +1134,29 @@ static int tls_engine_load_dynamic_pkcs11(const char *pkcs11_so_path,
 	if (!pkcs11_so_path)
 		return 0;
 
+#ifdef CONFIG_TLS_ENGINE_TRUSTED_PATH
+	if (tls_engine_path_trusted(pkcs11_so_path, real_pkcs11_so_path) < 0)
+		return -1;
+	pre_cmd[1] = real_pkcs11_so_path;
+#else /* CONFIG_TLS_ENGINE_TRUSTED_PATH */
 	pre_cmd[1] = pkcs11_so_path;
+#endif /* CONFIG_TLS_ENGINE_TRUSTED_PATH */
 	pre_cmd[3] = engine_id;
+#ifdef CONFIG_TLS_ENGINE_TRUSTED_PATH
+	if (pkcs11_module_path) {
+		if (tls_engine_path_trusted(pkcs11_module_path,
+					    real_pkcs11_module_path) < 0)
+			return -1;
+		post_cmd[1] = real_pkcs11_module_path;
+	} else {
+		post_cmd[0] = NULL;
+	}
+#else /* CONFIG_TLS_ENGINE_TRUSTED_PATH */
 	if (pkcs11_module_path)
 		post_cmd[1] = pkcs11_module_path;
 	else
 		post_cmd[0] = NULL;
+#endif /* CONFIG_TLS_ENGINE_TRUSTED_PATH */
 
 	wpa_printf(MSG_DEBUG, "ENGINE: Loading pkcs11 Engine from %s",
 		   pkcs11_so_path);
@@ -917,6 +1172,9 @@ static int tls_engine_load_dynamic_pkcs11(const char *pkcs11_so_path,
 static int tls_engine_load_dynamic_opensc(const char *opensc_so_path)
 {
 	char *engine_id = "opensc";
+#ifdef CONFIG_TLS_ENGINE_TRUSTED_PATH
+	char real_opensc_so_path[PATH_MAX];
+#endif /* CONFIG_TLS_ENGINE_TRUSTED_PATH */
 	const char *pre_cmd[] = {
 		"SO_PATH", NULL /* opensc_so_path */,
 		"ID", NULL /* engine_id */,
@@ -928,7 +1186,13 @@ static int tls_engine_load_dynamic_opensc(const char *opensc_so_path)
 	if (!opensc_so_path)
 		return 0;
 
+#ifdef CONFIG_TLS_ENGINE_TRUSTED_PATH
+	if (tls_engine_path_trusted(opensc_so_path, real_opensc_so_path) < 0)
+		return -1;
+	pre_cmd[1] = real_opensc_so_path;
+#else /* CONFIG_TLS_ENGINE_TRUSTED_PATH */
 	pre_cmd[1] = opensc_so_path;
+#endif /* CONFIG_TLS_ENGINE_TRUSTED_PATH */
 	pre_cmd[3] = engine_id;
 
 	wpa_printf(MSG_DEBUG, "ENGINE: Loading OpenSC Engine from %s",
@@ -1020,6 +1284,9 @@ void * tls_init(const struct tls_config *conf)
 		void openssl_load_legacy_provider(void);
 
 		openssl_load_legacy_provider();
+#if !defined(ANDROID) && defined(OPENSSL_NO_ENGINE)
+		openssl_load_pkcs11_provider();
+#endif /* !ANDROID && OPENSSL_NO_ENGINE */
 
 		tls_global = context = tls_context_new(conf);
 		if (context == NULL)
@@ -1088,6 +1355,7 @@ void * tls_init(const struct tls_config *conf)
 	else
 		ssl = NULL;
 	if (ssl == NULL) {
+		tls_show_errors(MSG_INFO, "SSL_CTX_new", "init");
 		tls_openssl_ref_count--;
 		if (context != tls_global)
 			os_free(context);
@@ -1192,7 +1460,13 @@ void tls_deinit(void *ssl_ctx)
 
 	if (data->tls_session_lifetime > 0) {
 		wpa_printf(MSG_DEBUG, "OpenSSL: Flush sessions");
+#if OPENSSL_VERSION_NUMBER >= 0x30400000L && \
+	!defined(LIBRESSL_VERSION_NUMBER) && \
+	!defined(OPENSSL_IS_BORINGSSL)
+		SSL_CTX_flush_sessions_ex(ssl, 0);
+#else /* OpenSSL version >= 3.4 */
 		SSL_CTX_flush_sessions(ssl, 0);
+#endif /* OpenSSL version >= 3.4 */
 		wpa_printf(MSG_DEBUG, "OpenSSL: Flush sessions - done");
 	}
 	while ((sess_data = dl_list_first(&context->sessions,
@@ -1211,6 +1485,9 @@ void tls_deinit(void *ssl_ctx)
 
 	tls_openssl_ref_count--;
 	if (tls_openssl_ref_count == 0) {
+#if !defined(ANDROID) && defined(OPENSSL_NO_ENGINE)
+		openssl_unload_pkcs11_provider();
+#endif /* !ANDROID && OPENSSL_NO_ENGINE */
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 #ifndef OPENSSL_NO_ENGINE
 		ENGINE_cleanup();
@@ -1369,6 +1646,12 @@ err:
 
 	return ret;
 #else /* OPENSSL_NO_ENGINE */
+#ifndef ANDROID
+	conn->private_key = provider_load_key(key_id);
+	if (!conn->private_key)
+		return -1;
+#endif /* !ANDROID */
+
 	return 0;
 #endif /* OPENSSL_NO_ENGINE */
 }
@@ -1376,12 +1659,12 @@ err:
 
 static void tls_engine_deinit(struct tls_connection *conn)
 {
-#if defined(ANDROID) || !defined(OPENSSL_NO_ENGINE)
-	wpa_printf(MSG_DEBUG, "ENGINE: engine deinit");
 	if (conn->private_key) {
 		EVP_PKEY_free(conn->private_key);
 		conn->private_key = NULL;
 	}
+#if defined(ANDROID) || !defined(OPENSSL_NO_ENGINE)
+	wpa_printf(MSG_DEBUG, "ENGINE: engine deinit");
 	if (conn->engine) {
 #if !defined(OPENSSL_IS_BORINGSSL)
 		ENGINE_finish(conn->engine);
@@ -1854,8 +2137,9 @@ static int tls_match_altsubject_component(X509 *cert, int type,
 		gen = sk_GENERAL_NAME_value(ext, i);
 		if (gen->type != type)
 			continue;
-		if (os_strlen((char *) gen->d.ia5->data) == len &&
-		    os_memcmp(value, gen->d.ia5->data, len) == 0)
+		if ((size_t) ASN1_STRING_length(gen->d.ia5) == len &&
+		    os_memcmp(value, ASN1_STRING_get0_data(gen->d.ia5), len) ==
+		    0)
 			found++;
 	}
 
@@ -1901,6 +2185,8 @@ static int tls_match_altsubject(X509 *cert, const char *match)
 			len = os_strlen(pos);
 		if (tls_match_altsubject_component(cert, type, pos, len) > 0)
 			return 1;
+		if (!end)
+			break;
 		pos = end + 1;
 	} while (end);
 
@@ -1994,7 +2280,7 @@ static int match_dn_field(const X509 *cert, int nid, const char *field,
 			  const struct tls_dn_field_order_cnt *dn_cnt)
 {
 	int i, ret = 0, len, config_dn_field_index, match_index = 0;
-	X509_NAME *name;
+	const X509_NAME *name;
 
 	len = os_strlen(value);
 	name = X509_get_subject_name((X509 *) cert);
@@ -2006,9 +2292,10 @@ static int match_dn_field(const X509 *cert, int nid, const char *field,
 		return 0;
 
 	/* Fetch value based on NID */
-	for (i = -1; (i = X509_NAME_get_index_by_NID(name, nid, i)) > -1;) {
-		X509_NAME_ENTRY *e;
-		ASN1_STRING *cn;
+	for (i = -1; (i = X509_NAME_get_index_by_NID((X509_NAME *) name, nid,
+						     i)) > -1;) {
+		const X509_NAME_ENTRY *e;
+		const ASN1_STRING *cn;
 
 		e = X509_NAME_get_entry(name, i);
 		if (!e)
@@ -2163,7 +2450,7 @@ static int tls_match_suffix_helper(X509 *cert, const char *match,
 	int i;
 	stack_index_t j;
 	int dns_name = 0;
-	X509_NAME *name;
+	const X509_NAME *name;
 
 	wpa_printf(MSG_DEBUG, "TLS: Match domain against %s%s",
 		   full ? "": "suffix ", match);
@@ -2176,10 +2463,10 @@ static int tls_match_suffix_helper(X509 *cert, const char *match,
 			continue;
 		dns_name++;
 		wpa_hexdump_ascii(MSG_DEBUG, "TLS: Certificate dNSName",
-				  gen->d.dNSName->data,
-				  gen->d.dNSName->length);
-		if (domain_suffix_match(gen->d.dNSName->data,
-					gen->d.dNSName->length,
+				  ASN1_STRING_get0_data(gen->d.dNSName),
+				  ASN1_STRING_length(gen->d.dNSName));
+		if (domain_suffix_match(ASN1_STRING_get0_data(gen->d.dNSName),
+					ASN1_STRING_length(gen->d.dNSName),
 					match, match_len, full) == 1) {
 			wpa_printf(MSG_DEBUG, "TLS: %s in dNSName found",
 				   full ? "Match" : "Suffix match");
@@ -2197,10 +2484,11 @@ static int tls_match_suffix_helper(X509 *cert, const char *match,
 	name = X509_get_subject_name(cert);
 	i = -1;
 	for (;;) {
-		X509_NAME_ENTRY *e;
-		ASN1_STRING *cn;
+		const X509_NAME_ENTRY *e;
+		const ASN1_STRING *cn;
 
-		i = X509_NAME_get_index_by_NID(name, NID_commonName, i);
+		i = X509_NAME_get_index_by_NID((X509_NAME *) name,
+					       NID_commonName, i);
 		if (i == -1)
 			break;
 		e = X509_NAME_get_entry(name, i);
@@ -2210,8 +2498,10 @@ static int tls_match_suffix_helper(X509 *cert, const char *match,
 		if (cn == NULL)
 			continue;
 		wpa_hexdump_ascii(MSG_DEBUG, "TLS: Certificate commonName",
-				  cn->data, cn->length);
-		if (domain_suffix_match(cn->data, cn->length,
+				  ASN1_STRING_get0_data(cn),
+				  ASN1_STRING_length(cn));
+		if (domain_suffix_match(ASN1_STRING_get0_data(cn),
+					ASN1_STRING_length(cn),
 					match, match_len, full) == 1) {
 			wpa_printf(MSG_DEBUG, "TLS: %s in commonName found",
 				   full ? "Match" : "Suffix match");
@@ -2420,7 +2710,7 @@ static void openssl_tls_cert_event(struct tls_connection *conn,
 		    gen->type != GEN_URI)
 			continue;
 
-		pos = os_malloc(10 + gen->d.ia5->length + 1);
+		pos = os_malloc(10 + ASN1_STRING_length(gen->d.ia5) + 1);
 		if (pos == NULL)
 			break;
 		altsubject[num_altsubject++] = pos;
@@ -2440,8 +2730,9 @@ static void openssl_tls_cert_event(struct tls_connection *conn,
 			break;
 		}
 
-		os_memcpy(pos, gen->d.ia5->data, gen->d.ia5->length);
-		pos += gen->d.ia5->length;
+		os_memcpy(pos, ASN1_STRING_get0_data(gen->d.ia5),
+			  ASN1_STRING_length(gen->d.ia5));
+		pos += ASN1_STRING_length(gen->d.ia5);
 		*pos = '\0';
 	}
 	sk_GENERAL_NAME_pop_free(ext, GENERAL_NAME_free);
@@ -2532,7 +2823,27 @@ static int tls_verify_cb(int preverify_ok, X509_STORE_CTX *x509_ctx)
 	suffix_match = conn->suffix_match;
 	domain_match = conn->domain_match;
 
-	if (!preverify_ok && !conn->ca_cert_verify)
+	if (!conn->ca_cert_verify && depth == 0 &&
+	    !(conn->flags & TLS_CONN_DISABLE_TIME_CHECKS)) {
+		if (X509_cmp_current_time(X509_get_notBefore(err_cert)) > 0) {
+			wpa_printf(MSG_INFO,
+				   "OpenSSL: Server certificate is not valid at the current time");
+			err = X509_V_ERR_CERT_NOT_YET_VALID;
+			X509_STORE_CTX_set_error(x509_ctx, err);
+			preverify_ok = 0;
+		} else if (X509_cmp_current_time(X509_get_notAfter(err_cert)) <
+			   0) {
+			wpa_printf(MSG_INFO,
+				   "TLS: Server certificate has expired");
+			err = X509_V_ERR_CERT_HAS_EXPIRED;
+			X509_STORE_CTX_set_error(x509_ctx, err);
+			preverify_ok = 0;
+		}
+	}
+
+	if (!preverify_ok && !conn->ca_cert_verify &&
+	    !(err == X509_V_ERR_CERT_HAS_EXPIRED ||
+	      err == X509_V_ERR_CERT_NOT_YET_VALID))
 		preverify_ok = 1;
 	if (!preverify_ok && depth > 0 && conn->server_cert_only)
 		preverify_ok = 1;
@@ -2576,7 +2887,9 @@ static int tls_verify_cb(int preverify_ok, X509_STORE_CTX *x509_ctx)
 				err_str = "Server certificate mismatch";
 				err = X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN;
 				preverify_ok = 0;
-			} else if (!preverify_ok) {
+			} else if (!preverify_ok &&
+				   err != X509_V_ERR_CERT_HAS_EXPIRED &&
+				   err != X509_V_ERR_CERT_NOT_YET_VALID) {
 				/*
 				 * Certificate matches pinned certificate, allow
 				 * regardless of other problems.
@@ -2778,6 +3091,31 @@ static int tls_load_ca_der(struct tls_data *data, const char *ca_cert)
 #endif /* OPENSSL_NO_STDIO */
 
 
+static int tls_add_ca_cert(SSL_CTX *ssl_ctx, X509 *cert)
+{
+	unsigned long err;
+
+	if (X509_STORE_add_cert(SSL_CTX_get_cert_store(ssl_ctx), cert) == 1)
+		return 0;
+
+	err = ERR_peek_error();
+
+	if (ERR_GET_LIB(err) == ERR_LIB_X509 &&
+	    ERR_GET_REASON(err) == X509_R_CERT_ALREADY_IN_HASH_TABLE) {
+		ERR_get_error();
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: %s - ignoring cert already in hash table error",
+			   __func__);
+		return 0;
+	}
+
+	tls_show_errors(MSG_WARNING, __func__,
+			"Failed to add ca_cert_blob to certificate store");
+
+	return -1;
+}
+
+
 static int tls_connection_ca_cert(struct tls_data *data,
 				  struct tls_connection *conn,
 				  const char *ca_cert, const u8 *ca_cert_blob,
@@ -2840,49 +3178,69 @@ static int tls_connection_ca_cert(struct tls_data *data,
 	}
 
 	if (ca_cert_blob) {
-		X509 *cert = d2i_X509(NULL,
-				      (const unsigned char **) &ca_cert_blob,
-				      ca_cert_blob_len);
-		if (cert == NULL) {
-			BIO *bio = BIO_new_mem_buf(ca_cert_blob,
-						   ca_cert_blob_len);
+		unsigned long err;
+		X509 *cert;
+		int count;
+		BIO *bio;
 
-			if (bio) {
-				cert = PEM_read_bio_X509(bio, NULL, NULL, NULL);
-				BIO_free(bio);
-			}
-
-			if (!cert) {
-				tls_show_errors(MSG_WARNING, __func__,
-						"Failed to parse ca_cert_blob");
-				return -1;
-			}
-
-			while (ERR_get_error()) {
-				/* Ignore errors from DER conversion. */
-			}
-		}
-
-		if (!X509_STORE_add_cert(SSL_CTX_get_cert_store(ssl_ctx),
-					 cert)) {
-			unsigned long err = ERR_peek_error();
-			tls_show_errors(MSG_WARNING, __func__,
-					"Failed to add ca_cert_blob to "
-					"certificate store");
-			if (ERR_GET_LIB(err) == ERR_LIB_X509 &&
-			    ERR_GET_REASON(err) ==
-			    X509_R_CERT_ALREADY_IN_HASH_TABLE) {
-				wpa_printf(MSG_DEBUG, "OpenSSL: %s - ignoring "
-					   "cert already in hash table error",
-					   __func__);
-			} else {
+		cert = d2i_X509(NULL,
+				(const unsigned char **) &ca_cert_blob,
+				ca_cert_blob_len);
+		if (cert) {
+			if (tls_add_ca_cert(ssl_ctx, cert) < 0) {
 				X509_free(cert);
 				return -1;
 			}
+
+			wpa_printf(MSG_DEBUG,
+				   "OpenSSL: %s - added ca_cert_blob to certificate store",
+				   __func__);
+			X509_free(cert);
+			return 0;
 		}
-		X509_free(cert);
-		wpa_printf(MSG_DEBUG, "OpenSSL: %s - added ca_cert_blob "
-			   "to certificate store", __func__);
+
+		count = 0;
+		bio = BIO_new_mem_buf(ca_cert_blob, ca_cert_blob_len);
+		if (bio) {
+			while ((cert = PEM_read_bio_X509(bio, NULL, NULL,
+							 NULL))) {
+				if (count == 0) {
+					/* Ignore errors from DER conversion
+					 * if we detect a certificate in PEM
+					 * format. */
+					ERR_clear_error();
+				}
+				count++;
+				if (tls_add_ca_cert(ssl_ctx, cert) < 0) {
+					X509_free(cert);
+					BIO_free(bio);
+					return -1;
+				}
+				X509_free(cert);
+			}
+			BIO_free(bio);
+		}
+
+		if (count == 0) {
+			tls_show_errors(MSG_WARNING, __func__,
+					"Failed to parse ca_cert_blob");
+			return -1;
+		}
+
+		/* When the loop ends successfully, it's because of EOF */
+		err = ERR_peek_last_error();
+		if (ERR_GET_LIB(err) != ERR_LIB_PEM ||
+		    ERR_GET_REASON(err) != PEM_R_NO_START_LINE) {
+			tls_show_errors(MSG_WARNING, __func__,
+					"Failed to parse ca_cert_blob bundle");
+			return -1;
+		}
+
+		ERR_clear_error();
+
+		wpa_printf(MSG_DEBUG,
+			   "OpenSSL: %s - added %d ca_cert_blob certificates to certificate store",
+			   __func__, count);
 		return 0;
 	}
 
@@ -3799,11 +4157,17 @@ static int tls_engine_get_cert(struct tls_connection *conn,
 static int tls_connection_engine_client_cert(struct tls_connection *conn,
 					     const char *cert_id)
 {
-#ifndef OPENSSL_NO_ENGINE
+#ifndef ANDROID
 	X509 *cert;
 
+#ifndef OPENSSL_NO_ENGINE
 	if (tls_engine_get_cert(conn, cert_id, &cert))
 		return -1;
+#else /* OPENSSL_NO_ENGINE */
+	cert = provider_load_cert(cert_id);
+	if (!cert)
+		return -1;
+#endif /* OPENSSL_NO_ENGINE */
 
 	if (!SSL_use_certificate(conn->ssl, cert)) {
 		tls_show_errors(MSG_ERROR, __func__,
@@ -3812,13 +4176,12 @@ static int tls_connection_engine_client_cert(struct tls_connection *conn,
 		return -1;
 	}
 	X509_free(cert);
-	wpa_printf(MSG_DEBUG, "ENGINE: SSL_use_certificate --> "
+	wpa_printf(MSG_DEBUG, "ENGINE/provider: SSL_use_certificate --> "
 		   "OK");
 	return 0;
-
-#else /* OPENSSL_NO_ENGINE */
+#else /* ANDROID */
 	return -1;
-#endif /* OPENSSL_NO_ENGINE */
+#endif /* ANDROID */
 }
 
 
@@ -3826,13 +4189,19 @@ static int tls_connection_engine_ca_cert(struct tls_data *data,
 					 struct tls_connection *conn,
 					 const char *ca_cert_id)
 {
-#ifndef OPENSSL_NO_ENGINE
+#ifndef ANDROID
 	X509 *cert;
 	SSL_CTX *ssl_ctx = data->ssl;
 	X509_STORE *store;
 
+#ifndef OPENSSL_NO_ENGINE
 	if (tls_engine_get_cert(conn, ca_cert_id, &cert))
 		return -1;
+#else /* OPENSSL_NO_ENGINE */
+	cert = provider_load_cert(ca_cert_id);
+	if (!cert)
+		return -1;
+#endif /* OPENSSL_NO_ENGINE */
 
 	/* start off the same as tls_connection_ca_cert */
 	store = X509_STORE_new();
@@ -3846,7 +4215,7 @@ static int tls_connection_engine_ca_cert(struct tls_data *data,
 	if (!X509_STORE_add_cert(store, cert)) {
 		unsigned long err = ERR_peek_error();
 		tls_show_errors(MSG_WARNING, __func__,
-				"Failed to add CA certificate from engine "
+				"Failed to add CA certificate from engine/provider "
 				"to certificate store");
 		if (ERR_GET_LIB(err) == ERR_LIB_X509 &&
 		    ERR_GET_REASON(err) == X509_R_CERT_ALREADY_IN_HASH_TABLE) {
@@ -3859,25 +4228,24 @@ static int tls_connection_engine_ca_cert(struct tls_data *data,
 		}
 	}
 	X509_free(cert);
-	wpa_printf(MSG_DEBUG, "OpenSSL: %s - added CA certificate from engine "
-		   "to certificate store", __func__);
+	wpa_printf(MSG_DEBUG,
+		   "OpenSSL: %s - added CA certificate from engine/provider to certificate store",
+		   __func__);
 	SSL_set_verify(conn->ssl, SSL_VERIFY_PEER, tls_verify_cb);
 	conn->ca_cert_verify = 1;
 
 	return 0;
-
-#else /* OPENSSL_NO_ENGINE */
+#else /* ANDROID */
 	return -1;
-#endif /* OPENSSL_NO_ENGINE */
+#endif /* ANDROID */
 }
 
 
 static int tls_connection_engine_private_key(struct tls_connection *conn)
 {
-#if defined(ANDROID) || !defined(OPENSSL_NO_ENGINE)
 	if (SSL_use_PrivateKey(conn->ssl, conn->private_key) != 1) {
 		tls_show_errors(MSG_ERROR, __func__,
-				"ENGINE: cannot use private key for TLS");
+				"ENGINE/provider: cannot use private key for TLS");
 		return -1;
 	}
 	if (!SSL_check_private_key(conn->ssl)) {
@@ -3886,11 +4254,6 @@ static int tls_connection_engine_private_key(struct tls_connection *conn)
 		return -1;
 	}
 	return 0;
-#else /* OPENSSL_NO_ENGINE */
-	wpa_printf(MSG_ERROR, "SSL: Configuration uses engine, but "
-		   "engine support was not compiled in");
-	return -1;
-#endif /* OPENSSL_NO_ENGINE */
 }
 
 
@@ -5437,6 +5800,10 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 		return -1;
 
 	if (engine_id && ca_cert_id) {
+#if !defined(ANDROID) && defined(OPENSSL_NO_ENGINE)
+		if (!openssl_can_use_provider(engine_id, ca_cert_id))
+			return TLS_SET_PARAMS_ENGINE_PRV_INIT_FAILED;
+#endif /* !ANDROID && OPENSSL_NO_ENGINE */
 		if (tls_connection_engine_ca_cert(data, conn, ca_cert_id))
 			return TLS_SET_PARAMS_ENGINE_PRV_VERIFY_FAILED;
 	} else if (tls_connection_ca_cert(data, conn, params->ca_cert,
@@ -5446,6 +5813,10 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 		return -1;
 
 	if (engine_id && cert_id) {
+#if !defined(ANDROID) && defined(OPENSSL_NO_ENGINE)
+		if (!openssl_can_use_provider(engine_id, cert_id))
+			return TLS_SET_PARAMS_ENGINE_PRV_INIT_FAILED;
+#endif /* !ANDROID && OPENSSL_NO_ENGINE */
 		if (tls_connection_engine_client_cert(conn, cert_id))
 			return TLS_SET_PARAMS_ENGINE_PRV_VERIFY_FAILED;
 	} else if (tls_connection_client_cert(conn, params->client_cert,
@@ -5454,7 +5825,12 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 		return -1;
 
 	if (engine_id && key_id) {
-		wpa_printf(MSG_DEBUG, "TLS: Using private key from engine");
+#if !defined(ANDROID) && defined(OPENSSL_NO_ENGINE)
+		if (!openssl_can_use_provider(engine_id, key_id))
+			return TLS_SET_PARAMS_ENGINE_PRV_INIT_FAILED;
+#endif /* !ANDROID && OPENSSL_NO_ENGINE */
+		wpa_printf(MSG_DEBUG,
+			   "TLS: Using private key from engine/provider");
 		if (tls_connection_engine_private_key(conn))
 			return TLS_SET_PARAMS_ENGINE_PRV_VERIFY_FAILED;
 	} else if (tls_connection_private_key(data, conn,
@@ -5778,7 +6154,9 @@ int tls_global_set_params(void *tls_ctx,
  * commented out unless explicitly needed for EAP-FAST in order to be able to
  * build this file with unmodified openssl. */
 
-#if (defined(OPENSSL_IS_BORINGSSL) || OPENSSL_VERSION_NUMBER >= 0x10100000L) && !defined(LIBRESSL_VERSION_NUMBER)
+#if (defined(OPENSSL_IS_BORINGSSL) || \
+     (OPENSSL_VERSION_NUMBER >= 0x10100000L && !defined(LIBRESSL_VERSION_NUMBER)) || \
+     LIBRESSL_VERSION_NUMBER >= 0x4020000fL)
 static int tls_sess_sec_cb(SSL *s, void *secret, int *secret_len,
 			   STACK_OF(SSL_CIPHER) *peer_ciphers,
 			   const SSL_CIPHER **cipher, void *arg)

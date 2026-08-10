@@ -685,16 +685,19 @@ int os_exec(const char *program, const char *arg, int wait_completion);
 #define strcpy OS_DO_NOT_USE_strcpy
 #endif /* OS_REJECT_C_LIB_FUNCTIONS */
 
-
-#if defined(WPA_TRACE_BFD) && defined(CONFIG_TESTING_OPTIONS)
 #define TEST_FAIL() testing_test_fail(NULL, false)
 #define TEST_FAIL_TAG(tag) testing_test_fail(tag, false)
+
+#if defined(WPA_TRACE_BFD) && defined(CONFIG_TESTING_OPTIONS)
 int testing_test_fail(const char *tag, bool is_alloc);
 int testing_set_fail_pattern(bool is_alloc, char *patterns);
 int testing_get_fail_pattern(bool is_alloc, char *buf, size_t buflen);
 #else
-#define TEST_FAIL() 0
-#define TEST_FAIL_TAG(tag) 0
+static inline int testing_test_fail(const char *tag, bool is_alloc)
+{
+	return 0;
+}
+
 static inline int testing_set_fail_pattern(bool is_alloc, char *patterns)
 {
 	return -1;

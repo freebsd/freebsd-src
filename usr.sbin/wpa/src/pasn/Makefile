@@ -10,7 +10,8 @@ INTERNALLIB=
 .PATH:	${WPA_DISTDIR}/src/pasn
 
 SRCS=	pasn_common.c \
-	pasn_initiator.c
+	pasn_initiator.c \
+	pasn_responder.c
 
 CFLAGS+=	-I${WPA_DISTDIR}/src/pasn -I${WPA_DISTDIR}/src
 

@@ -146,6 +146,11 @@ struct eapol_sm {
 	bool use_eap_proxy;
 	struct eap_proxy_sm *eap_proxy;
 #endif /* CONFIG_EAP_PROXY */
+
+#ifdef CONFIG_IEEE8021X_AUTH
+	bool eap_over_auth_frame;
+	struct wpabuf *eapRespData;
+#endif /* CONFIG_IEEE8021X_AUTH */
 };
 
 
@@ -258,6 +263,17 @@ SM_STATE(SUPP_PAE, CONNECTING)
 	int send_start = sm->SUPP_PAE_state == SUPP_PAE_CONNECTING ||
 		sm->SUPP_PAE_state == SUPP_PAE_HELD;
 	SM_ENTRY(SUPP_PAE, CONNECTING);
+
+#ifdef CONFIG_IEEE8021X_AUTH
+	if (sm->eap_over_auth_frame) {
+		sm->eapTriggerStart = false;
+		sm->eapolEap = false;
+
+		if (sm->startWhen == 0)
+			sm->startWhen = 1;
+		return;
+	}
+#endif /* CONFIG_IEEE8021X_AUTH */
 
 	if (sm->eapTriggerStart)
 		send_start = 1;
@@ -884,6 +900,7 @@ static void eapol_sm_getSuppRsp(struct eapol_sm *sm)
 static void eapol_sm_txSuppRsp(struct eapol_sm *sm)
 {
 	struct wpabuf *resp;
+	bool use_eapol_send = true;
 
 	wpa_printf(MSG_DEBUG, "EAPOL: txSuppRsp");
 
@@ -906,13 +923,25 @@ static void eapol_sm_txSuppRsp(struct eapol_sm *sm)
 		return;
 	}
 
-	/* Send EAP-Packet from the EAP layer to the Authenticator */
-	sm->ctx->eapol_send(sm->ctx->eapol_send_ctx,
-			    IEEE802_1X_TYPE_EAP_PACKET, wpabuf_head(resp),
-			    wpabuf_len(resp));
+#ifdef CONFIG_IEEE8021X_AUTH
+	if (sm->eap_over_auth_frame)
+		use_eapol_send = false;
+#endif /* CONFIG_IEEE8021X_AUTH */
 
-	/* eapRespData is not used anymore, so free it here */
-	wpabuf_free(resp);
+	if (use_eapol_send) {
+		/* Send EAP-Packet from the EAP layer to the Authenticator */
+		sm->ctx->eapol_send(sm->ctx->eapol_send_ctx,
+				    IEEE802_1X_TYPE_EAP_PACKET,
+				    wpabuf_head(resp), wpabuf_len(resp));
+
+		/* eapRespData is not used anymore, so free it here */
+		wpabuf_free(resp);
+	} else {
+#ifdef CONFIG_IEEE8021X_AUTH
+		wpabuf_free(sm->eapRespData);
+		sm->eapRespData = resp;
+#endif /* CONFIG_IEEE8021X_AUTH */
+	}
 
 	if (sm->initial_req)
 		sm->dot1xSuppEapolReqIdFramesRx++;
@@ -931,6 +960,10 @@ static void eapol_sm_abortSupp(struct eapol_sm *sm)
 	sm->last_rx_key = NULL;
 	wpabuf_free(sm->eapReqData);
 	sm->eapReqData = NULL;
+#ifdef CONFIG_IEEE8021X_AUTH
+	wpabuf_free(sm->eapRespData);
+	sm->eapRespData = NULL;
+#endif /* CONFIG_IEEE8021X_AUTH */
 	eap_sm_abort(sm->eap);
 #ifdef CONFIG_EAP_PROXY
 	eap_proxy_sm_abort(sm->eap_proxy);
@@ -2195,6 +2228,9 @@ void eapol_sm_deinit(struct eapol_sm *sm)
 #endif /* CONFIG_EAP_PROXY */
 	os_free(sm->last_rx_key);
 	wpabuf_free(sm->eapReqData);
+#ifdef CONFIG_IEEE8021X_AUTH
+	wpabuf_free(sm->eapRespData);
+#endif /* CONFIG_IEEE8021X_AUTH */
 	os_free(sm->ctx);
 	os_free(sm);
 }
@@ -2286,3 +2322,90 @@ int eapol_sm_get_erp_info(struct eapol_sm *sm, struct eap_peer_config *config,
 	return -1;
 #endif /* CONFIG_ERP */
 }
+
+
+#ifdef CONFIG_IEEE8021X_AUTH
+
+void eapol_sm_set_eap_over_auth_frame(struct eapol_sm *sm, bool active)
+{
+	if (!sm)
+		return;
+
+	sm->eap_over_auth_frame = active;
+	if (!active) {
+		wpabuf_free(sm->eapRespData);
+		sm->eapRespData = NULL;
+	}
+}
+
+
+bool eapol_sm_get_eap_over_auth_frame(struct eapol_sm *sm)
+{
+	if (!sm)
+		return false;
+	return sm->eap_over_auth_frame;
+}
+
+
+struct wpabuf * eapol_sm_get_eapol_pdu(struct eapol_sm *sm, u8 type)
+{
+	struct wpabuf *buf = NULL, *out = NULL;
+	struct ieee802_1x_hdr *hdr;
+
+	if (!sm)
+		return NULL;
+
+	switch (type) {
+	case IEEE802_1X_TYPE_EAP_PACKET:
+		if (!sm->eapRespData) {
+			wpa_printf(MSG_INFO,
+				   "EAPOL: EAP-Packet requested but no response data");
+			return NULL;
+		}
+
+		buf = sm->eapRespData;
+		sm->eapRespData = NULL;
+		break;
+	case IEEE802_1X_TYPE_EAPOL_START:
+		buf = wpabuf_alloc(0);
+		if (!buf)
+			return NULL;
+		break;
+	default:
+		return NULL;
+	}
+
+	out = wpabuf_alloc(sizeof(*hdr) + wpabuf_len(buf));
+	if (!out) {
+		wpabuf_free(buf);
+		return NULL;
+	}
+
+	hdr = (struct ieee802_1x_hdr *) wpabuf_put(out, sizeof(*hdr));
+	hdr->version = EAPOL_VERSION;
+	hdr->type = type;
+	hdr->length = host_to_be16(wpabuf_len(buf));
+
+	wpabuf_put_buf(out, buf);
+	wpabuf_free(buf);
+
+	return out;
+}
+
+
+bool eapol_sm_get_success(struct eapol_sm *sm)
+{
+	if (!sm)
+		return false;
+	return sm->eapSuccess;
+}
+
+
+bool eapol_sm_get_failure(struct eapol_sm *sm)
+{
+	if (!sm)
+		return false;
+	return sm->eapFail;
+}
+
+#endif /* CONFIG_IEEE8021X_AUTH */

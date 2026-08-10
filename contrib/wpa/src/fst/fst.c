@@ -166,6 +166,14 @@ void fst_global_del_ctrl(struct fst_ctrl_handle *h)
 void fst_rx_action(struct fst_iface *iface, const struct ieee80211_mgmt *mgmt,
 		   size_t len)
 {
+	if (is_multicast_ether_addr(mgmt->da)) {
+		wpa_printf(MSG_DEBUG,
+			   "FST: Ignore group-addressed FST Action frame (A1="
+			   MACSTR " A2=" MACSTR ")",
+			   MAC2STR(mgmt->da), MAC2STR(mgmt->sa));
+		return;
+	}
+
 	if (fst_iface_is_connected(iface, mgmt->sa, false))
 		fst_session_on_action_rx(iface, mgmt, len);
 	else

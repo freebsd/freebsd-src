@@ -24,10 +24,7 @@ LIBS += $(GTKLIBS)
 endif
 endif
 
-OBJS=spp_client.o
-OBJS += oma_dm_client.o
-OBJS += osu_client.o
-OBJS += est.o
+OBJS = osu_client.o
 OBJS += ../../src/utils/xml-utils.o
 CFLAGS += -DCONFIG_CTRL_IFACE
 CFLAGS += -DCONFIG_CTRL_IFACE_UNIX

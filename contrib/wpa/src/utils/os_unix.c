@@ -95,26 +95,42 @@ int os_get_reltime(struct os_reltime *t)
 			t->usec = ts.tv_nsec / 1000;
 			return 0;
 		}
-		switch (clock_id) {
-#ifdef CLOCK_BOOTTIME
-		case CLOCK_BOOTTIME:
-			clock_id = CLOCK_MONOTONIC;
-			break;
-#endif
-#ifdef CLOCK_MONOTONIC
-/*
- * FreeBSD has both BOOTTIME and MONOTONIC defined to the same value, since they
- * mean the same thing. FreeBSD 14.1 and ealier don't, so need this case.
- */
-#if !(defined(CLOCK_BOOTTIME) && CLOCK_BOOTTIME == CLOCK_MONOTONIC)
-		case CLOCK_MONOTONIC:
+
+		/* Try to fall back to alternative clockid_t values, if any */
+
+#if defined(CLOCK_BOOTTIME) && defined(CLOCK_MONOTONIC)
+		/* Some systems (e.g., FreeBSD 15.0) define both CLOCK_BOOTTIME
+		 * and CLOCK_MONOTONIC to have the same value, so handle that
+		 * as a special case. */
+		if (CLOCK_BOOTTIME == CLOCK_MONOTONIC &&
+		    clock_id == CLOCK_BOOTTIME) {
 			clock_id = CLOCK_REALTIME;
-			break;
-#endif
-#endif
-		case CLOCK_REALTIME:
-			return -1;
+			continue;
 		}
+
+		if (clock_id == CLOCK_BOOTTIME) {
+			clock_id = CLOCK_MONOTONIC;
+			continue;
+		}
+#elif CLOCK_BOOTTIME
+		/* CLOCK_MONOTONIC is not defined. Unknown whether such cases
+		 * exists, but it is safe to fall back to CLOCK_REALTIME.
+		 */
+		if (clock_id == CLOCK_BOOTTIME) {
+			clock_id = CLOCK_REALTIME;
+			continue;
+		}
+#endif
+
+#ifdef CLOCK_MONOTONIC
+		if (clock_id == CLOCK_MONOTONIC) {
+			clock_id = CLOCK_REALTIME;
+			continue;
+		}
+#endif
+
+		/* No additional clockid_t values to fall back to */
+		return -1;
 	}
 #else /* __MACH__ */
 	uint64_t abstime, nano;
@@ -547,10 +563,11 @@ void * os_memdup(const void *src, size_t len)
 #ifdef WPA_TRACE
 
 #if defined(WPA_TRACE_BFD) && defined(CONFIG_TESTING_OPTIONS)
-struct wpa_trace_test_fail {
+static struct wpa_trace_test_fail {
 	unsigned int fail_after;
 	char pattern[256];
-} wpa_trace_test_fail[5][2];
+	bool uses_tag;
+} wpa_trace_test_fail[2][5];
 
 int testing_test_fail(const char *tag, bool is_alloc)
 {
@@ -564,6 +581,9 @@ int testing_test_fail(const char *tag, bool is_alloc)
 	int match;
 
 	is_alloc = !!is_alloc;
+
+	if (wpa_trace_test_fail[is_alloc][0].uses_tag && !tag)
+		return 0;
 
 	for (idx = 0; idx < ARRAY_SIZE(wpa_trace_test_fail[is_alloc]); idx++) {
 		if (wpa_trace_test_fail[is_alloc][idx].fail_after != 0)
@@ -681,6 +701,15 @@ int testing_set_fail_pattern(bool is_alloc, char *patterns)
 			return -1;
 		}
 
+		if (idx == 0) {
+			const char *p1, *p2;
+
+			p1 = os_strchr(token, '-');
+			p2 = os_strchr(token, ';');
+			if (p1 && p2 && p1 < p2)
+				wpa_trace_test_fail[is_alloc][0].uses_tag =
+					true;
+		}
 		os_strlcpy(wpa_trace_test_fail[is_alloc][idx].pattern,
 			   token + 1,
 			   sizeof(wpa_trace_test_fail[is_alloc][0].pattern));
@@ -721,15 +750,7 @@ int testing_get_fail_pattern(bool is_alloc, char *buf, size_t buflen)
 	return -1;
 #endif /* WPA_TRACE_BFD */
 }
-
-#else /* defined(WPA_TRACE_BFD) && defined(CONFIG_TESTING_OPTIONS) */
-
-static inline int testing_test_fail(const char *tag, bool is_alloc)
-{
-	return 0;
-}
-
-#endif
+#endif /* defined(WPA_TRACE_BFD) && defined(CONFIG_TESTING_OPTIONS) */
 
 void * os_malloc(size_t size)
 {
@@ -838,7 +859,7 @@ int os_exec(const char *program, const char *arg, int wait_completion)
 
 	if (pid == 0) {
 		/* run the external command in the child process */
-		const int MAX_ARG = 30;
+#define MAX_ARG 30
 		char *_program, *_arg, *pos;
 		char *argv[MAX_ARG + 1];
 		int i;

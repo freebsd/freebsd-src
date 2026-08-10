@@ -18,7 +18,7 @@
 
 
 struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp,
-				    bool ro)
+				    bool ro, bool show_details)
 {
 	struct wpa_config *config;
 

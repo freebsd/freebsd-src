@@ -26,7 +26,7 @@ int hostapd_dfs_nop_finished(struct hostapd_iface *iface, int freq,
 			     int chan_offset, int chan_width, int cf1, int cf2);
 int hostapd_is_dfs_required(struct hostapd_iface *iface);
 int hostapd_is_dfs_chan_available(struct hostapd_iface *iface);
-int hostapd_dfs_start_cac(struct hostapd_iface *iface, int freq,
+int hostapd_dfs_start_cac(struct hostapd_data *hapd, int freq,
 			  int ht_enabled, int chan_offset, int chan_width,
 			  int cf1, int cf2);
 int hostapd_handle_dfs_offload(struct hostapd_iface *iface);

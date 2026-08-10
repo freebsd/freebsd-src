@@ -62,6 +62,8 @@ struct tls_connection {
 	char *suffix_match;
 	char *domain_match;
 	unsigned int flags;
+
+	char *prio_str;
 };
 
 
@@ -213,7 +215,9 @@ static int tls_gnutls_init_session(struct tls_global *global,
 	if (ret < 0)
 		goto fail;
 
-	ret = gnutls_priority_set_direct(conn->session, "NORMAL:-VERS-SSL3.0",
+	ret = gnutls_priority_set_direct(conn->session,
+					 conn->prio_str ? conn->prio_str :
+					 "NORMAL:-VERS-SSL3.0",
 					 &err);
 	if (ret < 0) {
 		wpa_printf(MSG_ERROR, "GnuTLS: Priority string failure at "
@@ -285,6 +289,7 @@ void tls_connection_deinit(void *ssl_ctx, struct tls_connection *conn)
 	wpabuf_free(conn->pull_buf);
 	os_free(conn->suffix_match);
 	os_free(conn->domain_match);
+	os_free(conn->prio_str);
 	os_free(conn);
 }
 
@@ -410,15 +415,18 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 
 	if (params->flags & (TLS_CONN_DISABLE_TLSv1_0 |
 			     TLS_CONN_DISABLE_TLSv1_1 |
-			     TLS_CONN_DISABLE_TLSv1_2)) {
+			     TLS_CONN_DISABLE_TLSv1_2 |
+			     TLS_CONN_DISABLE_TLSv1_3)) {
 		os_snprintf(prio_buf, sizeof(prio_buf),
-			    "NORMAL:-VERS-SSL3.0%s%s%s",
+			    "NORMAL:-VERS-SSL3.0%s%s%s%s",
 			    params->flags & TLS_CONN_DISABLE_TLSv1_0 ?
 			    ":-VERS-TLS1.0" : "",
 			    params->flags & TLS_CONN_DISABLE_TLSv1_1 ?
 			    ":-VERS-TLS1.1" : "",
 			    params->flags & TLS_CONN_DISABLE_TLSv1_2 ?
-			    ":-VERS-TLS1.2" : "");
+			    ":-VERS-TLS1.2" : "",
+			    params->flags & TLS_CONN_DISABLE_TLSv1_3 ?
+			    ":-VERS-TLS1.3" : "");
 		prio = prio_buf;
 	}
 
@@ -459,6 +467,8 @@ int tls_connection_set_params(void *tls_ctx, struct tls_connection *conn,
 				   err);
 			return -1;
 		}
+		os_free(conn->prio_str);
+		conn->prio_str = os_strdup(prio);
 	}
 
 	if (params->openssl_ecdh_curves) {
@@ -1513,7 +1523,7 @@ struct wpabuf * tls_connection_handshake(void *tls_ctx,
 				conn->global->event_cb(conn->global->cb_ctx,
 						       TLS_ALERT, &ev);
 			}
-			/* continue */
+			/* fallthrough */
 		default:
 			wpa_printf(MSG_DEBUG, "%s - gnutls_handshake failed "
 				   "-> %s", __func__, gnutls_strerror(ret));

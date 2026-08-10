@@ -318,7 +318,7 @@ int main(int argc, char *argv[])
 	}
 
 	os_memset(&wpa_s, 0, sizeof(wpa_s));
-	wpa_s.conf = wpa_config_read(argv[1], NULL, false);
+	wpa_s.conf = wpa_config_read(argv[1], NULL, false, true);
 	if (wpa_s.conf == NULL) {
 		printf("Failed to parse configuration file '%s'.\n", argv[1]);
 		return -1;

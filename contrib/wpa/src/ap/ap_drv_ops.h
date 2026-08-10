@@ -49,7 +49,8 @@ int hostapd_sta_add(struct hostapd_data *hapd,
 		    size_t eht_capab_len,
 		    const struct ieee80211_he_6ghz_band_cap *he_6ghz_capab,
 		    u32 flags, u8 qosinfo, u8 vht_opmode, int supp_p2p_ps,
-		    int set, const u8 *link_addr, bool mld_link_sta);
+		    int set, const u8 *link_addr, bool mld_link_sta,
+		    u16 eml_cap, bool epp_sta);
 int hostapd_set_privacy(struct hostapd_data *hapd, int enabled);
 int hostapd_set_generic_elem(struct hostapd_data *hapd, const u8 *elem,
 			     size_t elem_len);
@@ -86,7 +87,6 @@ int hostapd_set_tx_queue_params(struct hostapd_data *hapd, int queue, int aifs,
 struct hostapd_hw_modes *
 hostapd_get_hw_feature_data(struct hostapd_data *hapd, u16 *num_modes,
 			    u16 *flags, u8 *dfs_domain);
-int hostapd_driver_commit(struct hostapd_data *hapd);
 int hostapd_drv_none(struct hostapd_data *hapd);
 bool hostapd_drv_nl80211(struct hostapd_data *hapd);
 int hostapd_driver_scan(struct hostapd_data *hapd,
@@ -116,6 +116,11 @@ int hostapd_drv_send_action_addr3_ap(struct hostapd_data *hapd,
 				     unsigned int freq,
 				     unsigned int wait, const u8 *dst,
 				     const u8 *data, size_t len);
+int hostapd_drv_send_action_forced_addr3(struct hostapd_data *hapd,
+					 unsigned int freq,
+					 unsigned int wait, const u8 *dst,
+					 const u8 *a3,
+					 const u8 *data, size_t len);
 static inline void
 hostapd_drv_send_action_cancel_wait(struct hostapd_data *hapd)
 {
@@ -130,8 +135,6 @@ int hostapd_sta_auth(struct hostapd_data *hapd, const u8 *addr,
 		     u16 seq, u16 status, const u8 *ie, size_t len);
 int hostapd_sta_assoc(struct hostapd_data *hapd, const u8 *addr,
 		      int reassoc, u16 status, const u8 *ie, size_t len);
-int hostapd_add_tspec(struct hostapd_data *hapd, const u8 *addr,
-		      u8 *tspec_ie, size_t tspec_ielen);
 int hostapd_start_dfs_cac(struct hostapd_iface *iface,
 			  enum hostapd_hw_mode mode, int freq,
 			  int channel, int ht_enabled, int vht_enabled,
@@ -267,14 +270,6 @@ static inline int hostapd_drv_set_radius_acl_expire(struct hostapd_data *hapd,
 	return hapd->driver->set_radius_acl_expire(hapd->drv_priv, mac);
 }
 
-static inline int hostapd_drv_set_authmode(struct hostapd_data *hapd,
-					   int auth_algs)
-{
-	if (hapd->driver == NULL || hapd->driver->set_authmode == NULL)
-		return 0;
-	return hapd->driver->set_authmode(hapd->drv_priv, auth_algs);
-}
-
 static inline void hostapd_drv_poll_client(struct hostapd_data *hapd,
 					   const u8 *own_addr, const u8 *addr,
 					   int qos)
@@ -393,7 +388,7 @@ static inline int hostapd_drv_vendor_cmd(struct hostapd_data *hapd,
 
 static inline int hostapd_drv_stop_ap(struct hostapd_data *hapd)
 {
-	int link_id = -1;
+	int link_id = -1, ret;
 
 	if (!hapd->driver || !hapd->driver->stop_ap || !hapd->drv_priv)
 		return 0;
@@ -401,7 +396,13 @@ static inline int hostapd_drv_stop_ap(struct hostapd_data *hapd)
 	if (hapd->conf->mld_ap)
 		link_id = hapd->mld_link_id;
 #endif /* CONFIG_IEEE80211BE */
-	return hapd->driver->stop_ap(hapd->drv_priv, link_id);
+
+	ret = hapd->driver->stop_ap(hapd->drv_priv, link_id);
+	if (ret)
+		return ret;
+
+	hapd->beacon_set_done = 0;
+	return 0;
 }
 
 static inline int hostapd_drv_channel_info(struct hostapd_data *hapd,
@@ -477,5 +478,16 @@ static inline int hostapd_drv_link_sta_remove(struct hostapd_data *hapd,
 }
 
 #endif /* CONFIG_IEEE80211BE */
+
+struct hostapd_multi_hw_info *
+hostapd_get_multi_hw_info(struct hostapd_data *hapd,
+			  unsigned int *num_multi_hws);
+
+int hostapd_drv_add_pmkid(struct hostapd_data *hapd,
+			  struct wpa_pmkid_params *params);
+int hostapd_add_pmkid(struct hostapd_data *hapd, const u8 *bssid, const u8 *pmk,
+		      size_t pmk_len, const u8 *pmkid, int akmp);
+int hostapd_remove_pmkid(struct hostapd_data *hapd, const u8 *sta_addr,
+			 const u8 *pmkid);
 
 #endif /* AP_DRV_OPS */

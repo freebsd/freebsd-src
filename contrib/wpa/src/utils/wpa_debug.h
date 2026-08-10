@@ -27,16 +27,46 @@ enum {
 
 #define wpa_debug_print_timestamp() do { } while (0)
 #define wpa_printf(args...) do { } while (0)
-#define wpa_hexdump(l,t,b,le) do { } while (0)
-#define wpa_hexdump_buf(l,t,b) do { } while (0)
-#define wpa_hexdump_key(l,t,b,le) do { } while (0)
-#define wpa_hexdump_buf_key(l,t,b) do { } while (0)
-#define wpa_hexdump_ascii(l,t,b,le) do { } while (0)
-#define wpa_hexdump_ascii_key(l,t,b,le) do { } while (0)
 #define wpa_debug_open_file(p) do { } while (0)
 #define wpa_debug_close_file() do { } while (0)
 #define wpa_debug_setup_stdout() do { } while (0)
+#define wpa_debug_stop_log() do { } while (0)
 #define wpa_dbg(args...) do { } while (0)
+
+static inline void wpa_hexdump(int level, const char *title,
+			       const void *buf, size_t len)
+{
+}
+
+static inline void wpa_hexdump_buf(int level, const char *title,
+				   const struct wpabuf *buf)
+{
+}
+
+static inline void wpa_hexdump_key(int level, const char *title,
+				   const void *buf, size_t len)
+{
+}
+
+static inline void wpa_hexdump_buf_key(int level, const char *title,
+				       const struct wpabuf *buf)
+{
+}
+
+static inline void wpa_hexdump_ascii(int level, const char *title,
+				     const void *buf, size_t len)
+{
+}
+
+static inline void wpa_hexdump_ascii_buf(int level, const char *title,
+					 const struct wpabuf *buf)
+{
+}
+
+static inline void wpa_hexdump_ascii_key(int level, const char *title,
+					 const void *buf, size_t len)
+{
+}
 
 static inline int wpa_debug_reopen_file(void)
 {
@@ -131,6 +161,13 @@ static inline void wpa_hexdump_buf_key(int level, const char *title,
  */
 void wpa_hexdump_ascii(int level, const char *title, const void *buf,
 		       size_t len);
+
+static inline void wpa_hexdump_ascii_buf(int level, const char *title,
+					 const struct wpabuf *buf)
+{
+	wpa_hexdump_ascii(level, title, buf ? wpabuf_head(buf) : NULL,
+			  buf ? wpabuf_len(buf) : 0);
+}
 
 /**
  * wpa_hexdump_ascii_key - conditional hex dump, hide keys

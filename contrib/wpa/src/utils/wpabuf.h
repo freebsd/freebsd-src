@@ -194,4 +194,15 @@ static inline void wpabuf_put_str(struct wpabuf *dst, const char *str)
 	wpabuf_put_data(dst, str, os_strlen(str));
 }
 
+
+struct wpabuf_array {
+	unsigned int num;
+	struct wpabuf **buf;
+};
+
+struct wpabuf_array * wpabuf_array_alloc(void);
+void wpabuf_array_free(struct wpabuf_array *wa);
+int wpabuf_array_add(struct wpabuf_array *wa, struct wpabuf *buf);
+void wpabuf_array_remove(struct wpabuf_array *wa, unsigned int idx);
+
 #endif /* WPABUF_H */

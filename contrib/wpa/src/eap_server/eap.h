@@ -35,7 +35,6 @@ struct eap_user {
 	size_t salt_len;
 	int phase2;
 	int force_version;
-	unsigned int remediation:1;
 	unsigned int macacl:1;
 	int ttls_auth; /* bitfield of
 			* EAP_TTLS_AUTH_{PAP,CHAP,MSCHAP,MSCHAPV2} */
@@ -199,7 +198,6 @@ struct eap_config {
 	 */
 	int pac_key_refresh_time;
 	int eap_teap_auth;
-	int eap_teap_pac_no_inner;
 	int eap_teap_separate_result;
 	enum eap_teap_id {
 		EAP_TEAP_ID_ALLOW_ANY = 0,

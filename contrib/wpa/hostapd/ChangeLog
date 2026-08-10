@@ -1,5 +1,35 @@
 ChangeLog for hostapd
 
+2026-08-07 - v2.12
+	* support RSN overriding (e.g., WPA3-Personal Compatibility Mode)
+	* EHT/IEEE 802.11be/Wi-Fi 7
+	  - more complete support
+	  - fix message validation issues that could enable DoS attacks
+	  - fix group key rekeying
+	* enable SAE group 20 by default if SAE-EXT-KEY is enabled
+	* reject unexpected SAE password identifier to avoid DoS attack against
+	  a specific STA
+	* mandate use of SAE H2E when using password identifiers
+	* assign VLAN when using SAE with PMKSA caching
+	* support SPP A-MSDU negotiation
+	* support IEEE 802.11bi functionality
+	  - changing SAE password identifiers
+	  - EPPKE
+	  - IEEE 802.1X/EAP in Authentication frames
+	  - Association frame encryption
+	  - PMKID privacy
+	* remove the driver interface for now obsolete Host AP driver
+	* remove the driver interface for now obsolete Atheros WEXT interface
+	* move supported, basic, and Beacon TX rate configuration to be at BSS
+	  level instead of per-radio for all BSSs
+	* fix various issues in Multiple-BSSID functionality
+	* support OpenSSL 3.0 API changes
+	* EAP-TEAP: protocol changes based on RFC 9930; this is not compatible
+	  with previous versions
+	* support Automated Frequency Coordination (AFC) on the 6 GHz band
+	* improve GAS/ANQP processing to support larger ANQP responses
+	* a large number of other fixes, cleanup, and extensions
+
 2024-07-20 - v2.11
 	* Wi-Fi Easy Connect
 	  - add support for DPP release 3
