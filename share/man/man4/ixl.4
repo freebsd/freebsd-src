@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 12, 2026
+.Dd September 6, 2026
 .Dt IXL 4
 .Os
 .Sh NAME
@@ -293,6 +293,35 @@ minus one.
 An up to date list of parameters and their defaults can be found by using
 .Xr iovctl 8
 with the -S option.
+.Pp
+For each configured VF,
+.Xr ifconfig 8
+with the
+.Fl v
+option displays cached PF state, including the negotiated virtual-channel
+API after the VF completes its resource handshake following the last reset.
+The generic traffic and fault fields describe whether PF policy currently
+permits the VF to issue data traffic; they do not describe link or queue
+state.
+.Pp
+Structured status consumers also receive MDD diagnostics in the version 1
+.Cm driver.ixl
+namespace of the
+.Xr rtnetlink 4
+VF status response:
+.Bl -tag -width "mdd-tx-events"
+.It Cm version
+Namespace version number, currently 1.
+.It Cm mdd-blocked
+Boolean indicating that malicious-driver detection has isolated the VF.
+.It Cm mdd-tx-events
+Cumulative number of transmit malicious-driver latches attributed to the VF.
+.It Cm mdd-rx-events
+Cumulative number of receive malicious-driver latches attributed to the VF.
+.El
+.Pp
+The status query uses driver-cached state and does not issue AdminQ commands
+or read device registers.
 .Sh SUPPORT
 For general information and support,
 go to the Intel support website at:
@@ -307,6 +336,7 @@ email all the specific information related to the issue to
 .Xr iflib 4 ,
 .Xr led 4 ,
 .Xr netintro 4 ,
+.Xr rtnetlink 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8 ,
 .Xr iovctl 8

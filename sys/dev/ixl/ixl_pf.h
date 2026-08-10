@@ -45,6 +45,7 @@
 #define	VF_FLAG_VLAN_CAP		0x04
 #define	VF_FLAG_PROMISC_CAP		0x08
 #define	VF_FLAG_MAC_ANTI_SPOOF		0x10
+#define	VF_FLAG_INITIALIZED		0x20
 
 #define	IXL_VF_MAX_MAC_FILTERS		18
 #define	IXL_VF_MAX_VLAN_FILTERS		16
@@ -188,6 +189,7 @@ struct ixl_pf {
 	struct ixl_vf		*vfs;
 	int			num_vfs;
 	uint16_t		veb_seid;
+	bool			iov_attached;
 	int			vc_debug_lvl;
 
 	sbintime_t		link_poll_start;
