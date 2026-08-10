@@ -494,7 +494,7 @@ ixl_set_initial_advertised_speeds(struct ixl_pf *pf)
 int
 ixl_teardown_hw_structs(struct ixl_pf *pf)
 {
-	enum i40e_status_code status = 0;
+	enum i40e_status_code error, status = I40E_SUCCESS;
 	struct i40e_hw *hw = &pf->hw;
 	device_t dev = pf->dev;
 
@@ -505,20 +505,21 @@ ixl_teardown_hw_structs(struct ixl_pf *pf)
 			device_printf(dev,
 			    "init: LAN HMC shutdown failure; status %s\n",
 			    i40e_stat_str(hw, status));
-			goto err_out;
 		}
 	}
 
 	/* Shutdown admin queue */
 	ixl_disable_intr0(hw);
-	status = i40e_shutdown_adminq(hw);
-	if (status)
+	error = i40e_shutdown_adminq(hw);
+	if (error) {
 		device_printf(dev,
 		    "init: Admin Queue shutdown failure; status %s\n",
-		    i40e_stat_str(hw, status));
+		    i40e_stat_str(hw, error));
+		if (status == I40E_SUCCESS)
+			status = error;
+	}
 
 	ixl_pf_qmgr_release(&pf->qmgr, &pf->qtag);
-err_out:
 	return (status);
 }
 
