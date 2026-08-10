@@ -46,6 +46,9 @@
 #define	VF_FLAG_PROMISC_CAP		0x08
 #define	VF_FLAG_MAC_ANTI_SPOOF		0x10
 
+#define	IXL_VF_MAX_MAC_FILTERS		18
+#define	IXL_VF_MAX_VLAN_FILTERS		16
+
 #define IXL_ICR0_CRIT_ERR_MASK 			\
     (I40E_PFINT_ICR0_PCI_EXCEPTION_MASK | 	\
      I40E_PFINT_ICR0_ECC_ERR_MASK | 		\
@@ -103,6 +106,9 @@ struct ixl_vf {
 	u32			num_mdd_events;
 
 	u8			mac[ETHER_ADDR_LEN];
+	u8			mac_filters[IXL_VF_MAX_MAC_FILTERS][ETHER_ADDR_LEN];
+	u16			num_mac_filters;
+	u16			default_vlan;
 	u16			vf_num;
 	struct virtchnl_version_info version;
 
