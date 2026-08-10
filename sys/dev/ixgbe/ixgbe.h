@@ -484,6 +484,7 @@ struct ixgbe_softc {
 	struct ixgbe_vf		*vfs;
 	struct ixgbe_vf_mac_filter *vf_mac_filters;
 	int			num_vf_mac_filters;
+	bool			iov_attached;
 	bool			iov_mta_valid;
 	bool			iov_vfta_valid;
 	bool			iov_vlan_promisc;
