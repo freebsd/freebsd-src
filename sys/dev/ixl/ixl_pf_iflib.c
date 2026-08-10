@@ -889,15 +889,22 @@ ixl_enable_rings(struct ixl_vsi *vsi)
 int
 ixl_disable_rings(struct ixl_pf *pf, struct ixl_vsi *vsi, struct ixl_pf_qtag *qtag)
 {
-	int error = 0;
+	int error, first_error;
 
-	for (int i = 0; i < vsi->num_tx_queues; i++)
+	first_error = 0;
+	for (int i = 0; i < vsi->num_tx_queues; i++) {
 		error = ixl_disable_tx_ring(pf, qtag, i);
+		if (error != 0 && first_error == 0)
+			first_error = error;
+	}
 
-	for (int i = 0; i < vsi->num_rx_queues; i++)
+	for (int i = 0; i < vsi->num_rx_queues; i++) {
 		error = ixl_disable_rx_ring(pf, qtag, i);
+		if (error != 0 && first_error == 0)
+			first_error = error;
+	}
 
-	return (error);
+	return (first_error);
 }
 
 void
