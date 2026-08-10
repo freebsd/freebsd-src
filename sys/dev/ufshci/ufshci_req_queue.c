@@ -72,6 +72,10 @@ ufshci_utmr_req_queue_construct(struct ufshci_controller *ctrlr)
 void
 ufshci_utmr_req_queue_destroy(struct ufshci_controller *ctrlr)
 {
+	/* Attach may fail before the queue ops are set up. */
+	if (ctrlr->task_mgmt_req_queue.qops.destroy == NULL)
+		return;
+
 	ctrlr->task_mgmt_req_queue.qops.destroy(ctrlr,
 	    &ctrlr->task_mgmt_req_queue);
 }
@@ -114,6 +118,10 @@ ufshci_utr_req_queue_construct(struct ufshci_controller *ctrlr)
 void
 ufshci_utr_req_queue_destroy(struct ufshci_controller *ctrlr)
 {
+	/* Attach may fail before the queue ops are set up. */
+	if (ctrlr->transfer_req_queue.qops.destroy == NULL)
+		return;
+
 	ctrlr->transfer_req_queue.qops.destroy(ctrlr,
 	    &ctrlr->transfer_req_queue);
 }
