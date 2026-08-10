@@ -498,6 +498,9 @@ ixl_reinit_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_num), VIRTCHNL_VFR_VFACTIVE);
 	ixl_flush(hw);
+	vf->mdd_blocked = false;
+	vf->mdd_event_pending = false;
+	vf->mdd_reset_pending = false;
 	return (0);
 }
 
@@ -1768,6 +1771,10 @@ ixl_handle_vf_msg(struct ixl_pf *pf, struct i40e_arq_event_info *event)
 	    (vf->vf_flags & VF_FLAG_ENABLED) ? " " : " disabled ",
 	    vf_num, msg_size);
 
+	/* Only a reset outside the virtchnl dispatcher may unblock the VF. */
+	if (vf->mdd_blocked)
+		return;
+
 	/* Perform basic checks on the msg */
 	err = virtchnl_vc_validate_vf_msg(&vf->version, opcode, msg, msg_size);
 	if (err) {
@@ -2039,6 +2046,26 @@ ixl_notify_vfs_reset(struct ixl_pf *pf)
 }
 
 int
+ixl_reset_vf_on_mdd(struct ixl_pf *pf, uint16_t vfnum)
+{
+	struct virtchnl_pf_event event;
+	struct ixl_vf *vf;
+
+	if (vfnum >= pf->num_vfs)
+		return (EINVAL);
+	vf = &pf->vfs[vfnum];
+	if (!(vf->vf_flags & VF_FLAG_ENABLED))
+		return (ENXIO);
+
+	bzero(&event, sizeof(event));
+	event.event = VIRTCHNL_EVENT_RESET_IMPENDING;
+	event.severity = PF_EVENT_SEVERITY_CERTAIN_DOOM;
+	ixl_send_vf_msg(pf, vf, VIRTCHNL_OP_EVENT, I40E_SUCCESS,
+	    &event, sizeof(event));
+	return (ixl_reset_vf(pf, vf));
+}
+
+int
 ixl_rebuild_vfs_after_reset(struct ixl_pf *pf)
 {
 	struct i40e_hw *hw;
@@ -2067,6 +2094,9 @@ ixl_rebuild_vfs_after_reset(struct ixl_pf *pf)
 		bit_nclear(vf->vsi.vlans_map, 0,
 		    IXL_VLANS_MAP_LEN - 1);
 		vf->num_mac_filters = 0;
+		vf->mdd_blocked = false;
+		vf->mdd_event_pending = false;
+		vf->mdd_reset_pending = false;
 	}
 
 	error = ixl_setup_iov_switch(pf);

@@ -1843,12 +1843,8 @@ ixl_handle_tx_mdd_event(struct ixl_pf *pf)
 	struct i40e_hw *hw = &pf->hw;
 	device_t dev = pf->dev;
 	struct ixl_vf *vf;
-	bool mdd_detected = false;
-	bool pf_mdd_detected = false;
-	bool vf_mdd_detected = false;
 	u16 vf_num, queue;
 	u8 pf_num, event;
-	u8 pf_mdet_num, vp_mdet_num;
 	u32 reg;
 
 	/* find what triggered the MDD event */
@@ -1862,18 +1858,20 @@ ixl_handle_tx_mdd_event(struct ixl_pf *pf)
 		    I40E_GL_MDET_TX_EVENT_SHIFT;
 		queue = (reg & I40E_GL_MDET_TX_QUEUE_MASK) >>
 		    I40E_GL_MDET_TX_QUEUE_SHIFT;
+		if (queue >= hw->func_caps.base_queue)
+			queue -= hw->func_caps.base_queue;
+		device_printf(dev,
+		    "last TX malicious-driver cause %#x on queue %u, "
+		    "PF %#x, VF %#x\n", event, queue, pf_num, vf_num);
 		wr32(hw, I40E_GL_MDET_TX, 0xffffffff);
-		mdd_detected = true;
 	}
-
-	if (!mdd_detected)
-		return;
 
 	reg = rd32(hw, I40E_PF_MDET_TX);
 	if (reg & I40E_PF_MDET_TX_VALID_MASK) {
 		wr32(hw, I40E_PF_MDET_TX, 0xFFFF);
-		pf_mdet_num = hw->pf_id;
-		pf_mdd_detected = true;
+		device_printf(dev,
+		    "TX malicious-driver issue detected on PF-%u\n",
+		    hw->pf_id);
 	}
 
 	/* Check if MDD was caused by a VF */
@@ -1882,32 +1880,16 @@ ixl_handle_tx_mdd_event(struct ixl_pf *pf)
 		reg = rd32(hw, I40E_VP_MDET_TX(i));
 		if (reg & I40E_VP_MDET_TX_VALID_MASK) {
 			wr32(hw, I40E_VP_MDET_TX(i), 0xFFFF);
-			vp_mdet_num = i;
-			vf->num_mdd_events++;
-			vf_mdd_detected = true;
+			if (!(vf->vf_flags & VF_FLAG_ENABLED))
+				continue;
+			vf->mdd_tx_events++;
+			vf->mdd_event_pending = true;
+			if (!vf->mdd_blocked) {
+				vf->mdd_blocked = true;
+				vf->mdd_reset_pending = true;
+			}
 		}
 	}
-
-	/* Print out an error message */
-	if (vf_mdd_detected && pf_mdd_detected)
-		device_printf(dev,
-		    "Malicious Driver Detection event %d"
-		    " on TX queue %d, pf number %d (PF-%d), vf number %d (VF-%d)\n",
-		    event, queue, pf_num, pf_mdet_num, vf_num, vp_mdet_num);
-	else if (vf_mdd_detected && !pf_mdd_detected)
-		device_printf(dev,
-		    "Malicious Driver Detection event %d"
-		    " on TX queue %d, pf number %d, vf number %d (VF-%d)\n",
-		    event, queue, pf_num, vf_num, vp_mdet_num);
-	else if (!vf_mdd_detected && pf_mdd_detected)
-		device_printf(dev,
-		    "Malicious Driver Detection event %d"
-		    " on TX queue %d, pf number %d (PF-%d)\n",
-		    event, queue, pf_num, pf_mdet_num);
-	/* Theoretically shouldn't happen */
-	else
-		device_printf(dev,
-		    "TX Malicious Driver Detection event (unknown)\n");
 }
 
 static void
@@ -1916,12 +1898,8 @@ ixl_handle_rx_mdd_event(struct ixl_pf *pf)
 	struct i40e_hw *hw = &pf->hw;
 	device_t dev = pf->dev;
 	struct ixl_vf *vf;
-	bool mdd_detected = false;
-	bool pf_mdd_detected = false;
-	bool vf_mdd_detected = false;
 	u16 queue;
 	u8 pf_num, event;
-	u8 pf_mdet_num, vp_mdet_num;
 	u32 reg;
 
 	/*
@@ -1936,18 +1914,20 @@ ixl_handle_rx_mdd_event(struct ixl_pf *pf)
 		    I40E_GL_MDET_RX_EVENT_SHIFT;
 		queue = (reg & I40E_GL_MDET_RX_QUEUE_MASK) >>
 		    I40E_GL_MDET_RX_QUEUE_SHIFT;
+		if (queue >= hw->func_caps.base_queue)
+			queue -= hw->func_caps.base_queue;
+		device_printf(dev,
+		    "last RX malicious-driver cause %#x on queue %u, "
+		    "function %#x\n", event, queue, pf_num);
 		wr32(hw, I40E_GL_MDET_RX, 0xffffffff);
-		mdd_detected = true;
 	}
-
-	if (!mdd_detected)
-		return;
 
 	reg = rd32(hw, I40E_PF_MDET_RX);
 	if (reg & I40E_PF_MDET_RX_VALID_MASK) {
 		wr32(hw, I40E_PF_MDET_RX, 0xFFFF);
-		pf_mdet_num = hw->pf_id;
-		pf_mdd_detected = true;
+		device_printf(dev,
+		    "RX malicious-driver issue detected on PF-%u\n",
+		    hw->pf_id);
 	}
 
 	/* Check if MDD was caused by a VF */
@@ -1956,32 +1936,16 @@ ixl_handle_rx_mdd_event(struct ixl_pf *pf)
 		reg = rd32(hw, I40E_VP_MDET_RX(i));
 		if (reg & I40E_VP_MDET_RX_VALID_MASK) {
 			wr32(hw, I40E_VP_MDET_RX(i), 0xFFFF);
-			vp_mdet_num = i;
-			vf->num_mdd_events++;
-			vf_mdd_detected = true;
+			if (!(vf->vf_flags & VF_FLAG_ENABLED))
+				continue;
+			vf->mdd_rx_events++;
+			vf->mdd_event_pending = true;
+			if (!vf->mdd_blocked) {
+				vf->mdd_blocked = true;
+				vf->mdd_reset_pending = true;
+			}
 		}
 	}
-
-	/* Print out an error message */
-	if (vf_mdd_detected && pf_mdd_detected)
-		device_printf(dev,
-		    "Malicious Driver Detection event %d"
-		    " on RX queue %d, pf number %d (PF-%d), (VF-%d)\n",
-		    event, queue, pf_num, pf_mdet_num, vp_mdet_num);
-	else if (vf_mdd_detected && !pf_mdd_detected)
-		device_printf(dev,
-		    "Malicious Driver Detection event %d"
-		    " on RX queue %d, pf number %d, (VF-%d)\n",
-		    event, queue, pf_num, vp_mdet_num);
-	else if (!vf_mdd_detected && pf_mdd_detected)
-		device_printf(dev,
-		    "Malicious Driver Detection event %d"
-		    " on RX queue %d, pf number %d (PF-%d)\n",
-		    event, queue, pf_num, pf_mdet_num);
-	/* Theoretically shouldn't happen */
-	else
-		device_printf(dev,
-		    "RX Malicious Driver Detection event (unknown)\n");
 }
 
 /**
@@ -1994,6 +1958,10 @@ void
 ixl_handle_mdd_event(struct ixl_pf *pf)
 {
 	struct i40e_hw *hw = &pf->hw;
+	struct ixl_vf *vf;
+	static const struct timeval log_interval = { 2, 0 };
+	bool reset;
+	int i;
 	u32 reg;
 
 	/*
@@ -2002,6 +1970,34 @@ ixl_handle_mdd_event(struct ixl_pf *pf)
 	 */
 	ixl_handle_tx_mdd_event(pf);
 	ixl_handle_rx_mdd_event(pf);
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (!vf->mdd_event_pending)
+			continue;
+		vf->mdd_event_pending = false;
+		reset = vf->mdd_reset_pending;
+		vf->mdd_reset_pending = false;
+		if (ratecheck(&vf->last_mdd_log, &log_interval)) {
+			device_printf(pf->dev,
+			    "malicious-driver event from VF-%d "
+			    "(tx %ju, rx %ju); %s\n", i,
+			    (uintmax_t)vf->mdd_tx_events,
+			    (uintmax_t)vf->mdd_rx_events,
+			    pf->mdd_auto_reset_vf && reset ?
+			    "resetting VF" : "VF remains blocked");
+		}
+#ifdef PCI_IOV
+		if (pf->mdd_auto_reset_vf && reset) {
+			int error;
+
+			error = ixl_reset_vf_on_mdd(pf, i);
+			if (error != 0)
+				device_printf(pf->dev,
+				    "failed to reset MDD-blocked VF-%d: %d\n",
+				    i, error);
+		}
+#endif
+	}
 
 	ixl_clear_state(&pf->state, IXL_STATE_MDD_PENDING);
 

@@ -104,7 +104,12 @@ enum ixl_state {
 struct ixl_vf {
 	struct ixl_vsi		vsi;
 	u32			vf_flags;
-	u32			num_mdd_events;
+	u64			mdd_tx_events;
+	u64			mdd_rx_events;
+	struct timeval		last_mdd_log;
+	bool			mdd_blocked;
+	bool			mdd_event_pending;
+	bool			mdd_reset_pending;
 
 	u8			mac[ETHER_ADDR_LEN];
 	u8			mac_filters[IXL_VF_MAX_MAC_FILTERS][ETHER_ADDR_LEN];
@@ -152,6 +157,7 @@ struct ixl_pf {
 	int			tx_itr;
 	int			rx_itr;
 	int			enable_vf_loopback;
+	int			mdd_auto_reset_vf;
 
 	bool			link_up;
 	int			advertised_speed;
@@ -387,6 +393,7 @@ int	ixl_pf_reset(struct ixl_pf *);
 #ifdef PCI_IOV
 void	ixl_notify_vfs_reset(struct ixl_pf *);
 int	ixl_rebuild_vfs_after_reset(struct ixl_pf *);
+int	ixl_reset_vf_on_mdd(struct ixl_pf *, uint16_t);
 #endif
 
 void	ixl_set_queue_rx_itr(struct ixl_rx_queue *);
