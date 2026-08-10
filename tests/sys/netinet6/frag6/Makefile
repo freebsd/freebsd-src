@@ -7,7 +7,6 @@ FILESDIR=	${TESTSDIR}
 # Seems kyua is not running the test cases from one file in parallel.
 # Otherwise we could cat the files together into one shell file.
 ATF_TESTS_SH=			\
-				frag6_01 \
 				frag6_02 \
 				frag6_03 \
 				frag6_04 \
@@ -32,7 +31,6 @@ TEST_METADATA+=	is_exclusive=true
 
 ${PACKAGE}FILES+=		frag6.subr
 ${PACKAGE}FILES+=		sniffer.py
-${PACKAGE}FILES+=		frag6_01.py
 ${PACKAGE}FILES+=		frag6_02.py
 ${PACKAGE}FILES+=		frag6_03.py
 ${PACKAGE}FILES+=		frag6_04.py
@@ -55,7 +53,6 @@ ${PACKAGE}FILES+=		frag6_20.py
 
 ${PACKAGE}FILESMODE_frag6.subr=		0444
 ${PACKAGE}FILESMODE_sniffer.py=		0555
-${PACKAGE}FILESMODE_frag6_01.py=	0555
 ${PACKAGE}FILESMODE_frag6_02.py=	0555
 ${PACKAGE}FILESMODE_frag6_03.py=	0555
 ${PACKAGE}FILESMODE_frag6_04.py=	0555
