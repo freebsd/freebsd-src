@@ -296,6 +296,8 @@ static int	unp_connectat(int, struct socket *, struct sockaddr *,
 		    struct thread *, struct socket **);
 static int	unp_connect_peer(struct socket *, struct unpcb *,
 		    struct sockaddr **, struct thread *, bool);
+static int	unp_vnode_peer(struct vnode *, struct thread *,
+		    struct socket **);
 static void	unp_connect2(struct socket *, struct socket *, bool);
 static void	unp_disconnect(struct unpcb *unp, struct unpcb *unp2);
 static void	unp_dispose(struct socket *so);
@@ -2930,10 +2932,8 @@ static int
 unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
     struct thread *td, struct socket **referenced_peerp)
 {
-	struct mtx *vplock;
 	struct socket *so2;
-	struct vnode *vp;
-	struct unpcb *unp, *unp2;
+	struct unpcb *unp;
 	struct nameidata nd;
 	char buf[SOCK_MAXADDRLEN];
 	struct sockaddr *sa;
@@ -3001,40 +3001,15 @@ unp_connectat(int fd, struct socket *so, struct sockaddr *nam,
 	if (error)
 		goto out;
 	NDFREE_PNBUF(&nd);
-	vp = nd.ni_vp;
-	ASSERT_VOP_LOCKED(vp, "unp_connect");
 
 	/*
-	 * Resolve the vnode to a referenced peer socket, then drop the vnode
-	 * before connecting.  Holding a reference on the peer keeps it stable
-	 * in place of the per-vnode unp_vp_mtxpool lock, so no vnode lock is
-	 * held across unp_connect_peer() -- which is what the return_locked
-	 * datagram fast path needs, since vput() must not sleep while the peer
-	 * is locked.
+	 * Resolve the vnode to a referenced peer socket and drop the vnode
+	 * before connecting: the reference keeps the peer stable, so no vnode
+	 * lock is held across unp_connect_peer() (which matters for the
+	 * return_locked datagram fast path).
 	 */
-	if (vp->v_type != VSOCK) {
-		error = ENOTSOCK;
-		goto drop_vp;
-	}
-#ifdef MAC
-	error = mac_vnode_check_open(td->td_ucred, vp, VWRITE | VREAD);
-	if (error)
-		goto drop_vp;
-#endif
-	error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td);
-	if (error)
-		goto drop_vp;
-
-	vplock = mtx_pool_find(unp_vp_mtxpool, vp);
-	mtx_lock(vplock);
-	VOP_UNP_CONNECT(vp, &unp2);
-	if (unp2 == NULL)
-		error = ECONNREFUSED;
-	else
-		soref(so2 = unp2->unp_socket);
-	mtx_unlock(vplock);
-drop_vp:
-	vput(vp);
+	error = unp_vnode_peer(nd.ni_vp, td, &so2);
+	vput(nd.ni_vp);
 	if (error != 0)
 		goto out;
 	error = unp_connect_peer(so, sotounpcb(so2), &sa, td,
@@ -3053,6 +3028,48 @@ out:
 		unp->unp_flags &= ~UNP_CONNECTING;
 		UNP_PCB_UNLOCK(unp);
 	}
+	return (error);
+}
+
+/*
+ * Resolve locked vnode 'vp' to the unix-domain socket it names and return a
+ * referenced peer socket in '*so2p'.  As the connect(2)-time resolution, this
+ * enforces the caller's authorization to reach the socket -- filesystem
+ * permission (VOP_ACCESS) and MAC (mac_vnode_check_open) -- which bare readers
+ * of the vnode->pcb binding, such as vfs_unp_reclaim(), deliberately skip.
+ *
+ * The returned reference keeps the peer stable for unp_connect_peer() once vp's
+ * per-vnode binding lock is dropped, so the caller must release it with
+ * sorele().  Does not consume 'vp'.
+ */
+static int
+unp_vnode_peer(struct vnode *vp, struct thread *td, struct socket **so2p)
+{
+	struct mtx *vplock;
+	struct unpcb *unp2;
+	int error;
+
+	ASSERT_VOP_LOCKED(vp, __func__);
+
+	if (vp->v_type != VSOCK)
+		return (ENOTSOCK);
+#ifdef MAC
+	error = mac_vnode_check_open(td->td_ucred, vp, VWRITE | VREAD);
+	if (error != 0)
+		return (error);
+#endif
+	error = VOP_ACCESS(vp, VWRITE, td->td_ucred, td);
+	if (error != 0)
+		return (error);
+
+	vplock = mtx_pool_find(unp_vp_mtxpool, vp);
+	mtx_lock(vplock);
+	VOP_UNP_CONNECT(vp, &unp2);
+	if (unp2 == NULL)
+		error = ECONNREFUSED;
+	else
+		soref(*so2p = unp2->unp_socket);
+	mtx_unlock(vplock);
 	return (error);
 }
 
