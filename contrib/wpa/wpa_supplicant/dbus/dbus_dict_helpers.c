@@ -1159,3 +1159,38 @@ void wpa_dbus_dict_entry_clear(struct wpa_dbus_dict_entry *entry)
 
 	os_memset(entry, 0, sizeof(struct wpa_dbus_dict_entry));
 }
+
+
+dbus_bool_t wpa_dbus_dict_entry_is_int(const struct wpa_dbus_dict_entry *entry)
+{
+	return entry->type == DBUS_TYPE_BYTE ||
+		entry->type == DBUS_TYPE_INT16 ||
+		entry->type == DBUS_TYPE_UINT16 ||
+		entry->type == DBUS_TYPE_INT32 ||
+		entry->type == DBUS_TYPE_UINT32 ||
+		entry->type == DBUS_TYPE_INT64 ||
+		entry->type == DBUS_TYPE_UINT64;
+}
+
+
+int wpa_dbus_dict_entry_get_int(const struct wpa_dbus_dict_entry *entry)
+{
+	switch (entry->type) {
+	case DBUS_TYPE_BYTE:
+		return entry->byte_value;
+	case DBUS_TYPE_INT16:
+		return entry->int16_value;
+	case DBUS_TYPE_UINT16:
+		return entry->uint16_value;
+	case DBUS_TYPE_INT32:
+		return entry->int32_value;
+	case DBUS_TYPE_UINT32:
+		return entry->uint32_value;
+	case DBUS_TYPE_INT64:
+		return entry->int64_value;
+	case DBUS_TYPE_UINT64:
+		return entry->uint64_value;
+	}
+
+	return -1;
+}

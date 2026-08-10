@@ -19,6 +19,7 @@
 #include <netlink/route/link.h>
 #include <netlink/route/link/macsec.h>
 #include <linux/if_macsec.h>
+#include <linux/version.h>
 #include <inttypes.h>
 
 #include "utils/common.h"
@@ -32,7 +33,8 @@
 
 #define UNUSED_SCI 0xffffffffffffffff
 
-#if LIBNL_VER_NUM >= LIBNL_VER(3, 6)
+#if (LIBNL_VER_NUM >= LIBNL_VER(3, 6) && \
+     LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
 #define LIBNL_HAS_OFFLOAD
 #endif
 
@@ -1198,6 +1200,7 @@ static int macsec_drv_create_transmit_sc(
 		rtnl_link_put(link);
 		wpa_printf(MSG_ERROR, DRV_PREFIX "couldn't create link: err %d",
 			   err);
+		drv->created_link = false;
 		return err;
 	}
 
@@ -1221,6 +1224,7 @@ static int macsec_drv_create_transmit_sc(
 	drv->link = rtnl_link_macsec_alloc();
 	if (!drv->link) {
 		wpa_printf(MSG_ERROR, DRV_PREFIX "couldn't allocate link");
+		drv->created_link = false;
 		return -1;
 	}
 
@@ -1255,6 +1259,11 @@ static int macsec_drv_delete_transmit_sc(void *priv, struct transmit_sc *sc)
 		wpa_printf(MSG_DEBUG, DRV_PREFIX
 			   "we didn't create the link, leave it alone");
 		return 0;
+	}
+
+	if (!drv->link) {
+		wpa_printf(MSG_ERROR, DRV_PREFIX "no link to delete");
+		return -1;
 	}
 
 	err = rtnl_link_delete(drv->sk, drv->link);

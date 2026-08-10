@@ -13,6 +13,8 @@
 extern "C" {
 #endif
 
+#define WPA_CTRL_IFACE_LINK_NAME	"link"
+
 /* wpa_supplicant control interface - fixed message prefixes */
 
 /** Interactive request for identity/password/pin */
@@ -116,6 +118,10 @@ extern "C" {
 #define WPA_EVENT_T2LM_UPDATE "CTRL-EVENT-T2LM-UPDATE "
 /** MLO link reconfiguration event */
 #define WPA_EVENT_LINK_RECONFIG "CTRL-EVENT-LINK-RECONFIG "
+/** MLO link STA removed through link reconfiguration */
+#define WPA_EVENT_LINK_STA_REMOVED "CTRL-EVENT-LINK-STA-REMOVED "
+/** MLO link STA added through link reconfiguration */
+#define WPA_EVENT_LINK_STA_ADDED "CTRL-EVENT-LINK-STA-ADDED "
 
 /** IP subnet status change notification
  *
@@ -204,6 +210,7 @@ extern "C" {
 #define DPP_EVENT_CONFOBJ_SSID "DPP-CONFOBJ-SSID "
 #define DPP_EVENT_CONFOBJ_SSID_CHARSET "DPP-CONFOBJ-SSID-CHARSET "
 #define DPP_EVENT_CONFOBJ_PASS "DPP-CONFOBJ-PASS "
+#define DPP_EVENT_CONFOBJ_IDPASS "DPP-CONFOBJ-IDPASS "
 #define DPP_EVENT_CONFOBJ_PSK "DPP-CONFOBJ-PSK "
 #define DPP_EVENT_CONNECTOR "DPP-CONNECTOR "
 #define DPP_EVENT_C_SIGN_KEY "DPP-C-SIGN-KEY "
@@ -225,6 +232,7 @@ extern "C" {
 #define DPP_EVENT_CHIRP_STOPPED "DPP-CHIRP-STOPPED "
 #define DPP_EVENT_MUD_URL "DPP-MUD-URL "
 #define DPP_EVENT_BAND_SUPPORT "DPP-BAND-SUPPORT "
+#define DPP_EVENT_ENROLLEE_CAPABILITY "DPP-ENROLLEE-CAPABILITY "
 #define DPP_EVENT_CSR "DPP-CSR "
 #define DPP_EVENT_CHIRP_RX "DPP-CHIRP-RX "
 #define DPP_EVENT_CONF_NEEDED "DPP-CONF-NEEDED "
@@ -232,12 +240,37 @@ extern "C" {
 #define DPP_EVENT_PB_RESULT "DPP-PB-RESULT "
 #define DPP_EVENT_RELAY_NEEDS_CONTROLLER "DPP-RELAY-NEEDS-CONTROLLER "
 
-/* Wi-Fi Aware (NAN USD) events */
+/* Wi-Fi Aware (NAN) events */
 #define NAN_DISCOVERY_RESULT "NAN-DISCOVERY-RESULT "
 #define NAN_REPLIED "NAN-REPLIED "
 #define NAN_PUBLISH_TERMINATED "NAN-PUBLISH-TERMINATED "
 #define NAN_SUBSCRIBE_TERMINATED "NAN-SUBSCRIBE-TERMINATED "
 #define NAN_RECEIVE "NAN-RECEIVE "
+#define NAN_TRANSMIT_STATUS "NAN-TRANSMIT-STATUS "
+#define NAN_CLUSTER_JOIN "NAN-CLUSTER-JOIN "
+#define NAN_NDP_REQUEST "NAN-NDP-REQUEST "
+#define NAN_NDP_COUNTER_REQUEST "NAN-NDP-COUNTER-REQUEST "
+#define NAN_NDP_CONNECTED "NAN-NDP-CONNECTED "
+#define NAN_NDP_DISCONNECTED "NAN-NDP-DISCONNECTED "
+#define NAN_BOOTSTRAP_REQUEST "NAN-BOOTSTRAP-REQUEST "
+#define NAN_BOOTSTRAP_SUCCESS "NAN-BOOTSTRAP-SUCCESS "
+#define NAN_BOOTSTRAP_FAILURE "NAN-BOOTSTRAP-FAILURE "
+#define NAN_NIK_RECEIVED "NAN-NIK-RECEIVED "
+#define NAN_PAIRING_REQUEST "NAN-PAIRING-REQUEST "
+#define NAN_PEER_SCHEDULE_CHANGED "NAN-PEER-SCHEDULE-CHANGED "
+#define NAN_SCHEDULE_UPDATE_DONE "NAN-SCHEDULE-UPDATE-DONE "
+
+/* NAN Pairing status
+ * addr=<peer address> akmp=<SAE|PASN> cipher=<CCMP|GCMP-256>
+ * status=<success|failure> [nd_pmk=<hex>]
+ */
+#define NAN_PAIRING_STATUS "NAN-PAIRING-STATUS "
+
+/* NAN local schedule channel evacuation.
+ * parameters: map_id=<map_id> freq=<freq>
+ */
+#define NAN_CHAN_EVACUATION "NAN-CHAN-EVACUATION "
+#define NAN_STOPPED "NAN-STOPPED "
 
 /* MESH events */
 #define MESH_GROUP_STARTED "MESH-GROUP-STARTED "
@@ -304,6 +337,10 @@ extern "C" {
 #define P2P_EVENT_P2PS_PROVISION_START "P2PS-PROV-START "
 #define P2P_EVENT_P2PS_PROVISION_DONE "P2PS-PROV-DONE "
 
+#define P2P_EVENT_BOOTSTRAP_REQUEST "P2P-BOOTSTRAP-REQUEST "
+#define P2P_EVENT_BOOTSTRAP_SUCCESS "P2P-BOOTSTRAP-SUCCESS "
+#define P2P_EVENT_BOOTSTRAP_FAILURE "P2P-BOOTSTRAP-FAILURE "
+
 #define INTERWORKING_AP "INTERWORKING-AP "
 #define INTERWORKING_EXCLUDED "INTERWORKING-BLACKLISTED "
 #define INTERWORKING_NO_MATCH "INTERWORKING-NO-MATCH "
@@ -335,7 +372,6 @@ extern "C" {
 /* parameters: <Venue Number> <Venue URL> */
 #define RX_VENUE_URL "RX-VENUE-URL "
 
-#define HS20_SUBSCRIPTION_REMEDIATION "HS20-SUBSCRIPTION-REMEDIATION "
 #define HS20_DEAUTH_IMMINENT_NOTICE "HS20-DEAUTH-IMMINENT-NOTICE "
 #define HS20_T_C_ACCEPTANCE "HS20-T-C-ACCEPTANCE "
 
@@ -448,12 +484,48 @@ extern "C" {
 /* Event triggered for received management frame */
 #define AP_MGMT_FRAME_RECEIVED "AP-MGMT-FRAME-RECEIVED "
 
+/* Event triggerred on AP receiving Wi-Fi Alliance Generational Capabilities
+ * indication.
+ * Parameters: <STA addr> <Generational Capabilities Indication body> */
+#define WFA_GEN_CAPAB_RX "WFA-GEN-CAPAB "
+
 #ifndef BIT
 #define BIT(x) (1U << (x))
 #endif
 
 /* PASN authentication status */
 #define PASN_AUTH_STATUS "PASN-AUTH-STATUS "
+
+/* Proximity Ranging PASN negotiation started
+ * peer_addr=<MAC> role=<role> protocol=<protocol type>
+ */
+#define PR_PASN_NEGOTIATION_STARTED "PR-PASN-NEGOTIATION-STARTED "
+
+/* Result of PASN performed for Proximity Ranging
+ * <result> role=<role> protocol=<protocol type> opclass=<op class> channel=<op channel> cc=<country>
+ */
+#define PR_PASN_RESULT "PR-PASN-RESULT "
+#define PR_RANGING_TERMINATED "PR-RANGING-TERMINATED "
+
+/* Proximity Ranging parameters to use in ranging */
+#define PR_RANGING_PARAMS "PR-RANGING-PARAMS "
+
+/* Proximity Ranging measurement result */
+#define PR_EVENT_PEER_MEASUREMENT "PR-PEER-MEASUREMENT "
+
+/* Proximity Ranging measurement session complete */
+#define PR_EVENT_RANGING_COMPLETE "PR-RANGING-COMPLETE "
+
+/* Proximity Ranging capable peer discovered via USD
+ * peer_addr=<MAC> pasn_type=0x<hex> name=<string>
+ * edca=<0|1> edca_ista=<0|1> edca_rsta=<0|1>
+ * ntb=<0|1> ntb_ista=<0|1> ntb_rsta=<0|1>
+ * secure_ltf=<0|1> 6ghz=<0|1> freq=<MHz> dik_valid=<0|1>
+ */
+#define PR_PEER_FOUND "PR-PEER-FOUND "
+
+#define AFC_EVENT_RECEIVED "AFC-EVENT-RECEIVED "
+#define AFC_EVENT_COMPLETE "AFC-EVENT-COMPLETE "
 
 /* BSS command information masks */
 

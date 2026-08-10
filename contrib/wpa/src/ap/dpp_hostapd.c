@@ -2,7 +2,7 @@
  * hostapd / DPP integration
  * Copyright (c) 2017, Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2020, The Linux Foundation
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -934,6 +934,7 @@ int hostapd_dpp_auth_init(struct hostapd_data *hapd, const char *cmd)
 #endif /* CONFIG_DPP2 */
 		hostapd_drv_send_action_cancel_wait(hapd);
 		dpp_auth_deinit(hapd->dpp_auth);
+		hapd->dpp_auth = NULL;
 	}
 
 	auth = dpp_auth_init(hapd->iface->interfaces->dpp, hapd->msg_ctx,
@@ -1382,6 +1383,21 @@ static void hostapd_dpp_start_gas_client(struct hostapd_data *hapd)
 }
 
 
+static void hostapd_gas_req_wait(void *eloop_ctx, void *timeout_ctx)
+{
+	struct hostapd_data *hapd = eloop_ctx;
+	struct dpp_authentication *auth = hapd->dpp_auth;
+
+	if (!auth)
+		return;
+
+	wpa_printf(MSG_DEBUG, "DPP: Timeout while waiting for Config Request");
+	wpa_msg(hapd->msg_ctx, MSG_INFO, DPP_EVENT_CONF_FAILED);
+	dpp_auth_deinit(auth);
+	hapd->dpp_auth = NULL;
+}
+
+
 static void hostapd_dpp_auth_success(struct hostapd_data *hapd, int initiator)
 {
 	wpa_printf(MSG_DEBUG, "DPP: Authentication succeeded");
@@ -1400,6 +1416,9 @@ static void hostapd_dpp_auth_success(struct hostapd_data *hapd, int initiator)
 
 	if (!hapd->dpp_auth->configurator)
 		hostapd_dpp_start_gas_client(hapd);
+	else
+		eloop_register_timeout(10, 0, hostapd_gas_req_wait,
+				       hapd, NULL);
 }
 
 
@@ -2142,10 +2161,21 @@ static void hostapd_dpp_rx_peer_disc_req(struct hostapd_data *hapd,
 
 	if (wpa_auth_pmksa_add2(hapd->wpa_auth, src, intro.pmk, intro.pmk_len,
 				intro.pmkid, expiration,
-				WPA_KEY_MGMT_DPP, pkhash) < 0) {
+				WPA_KEY_MGMT_DPP, pkhash, false) < 0) {
 		wpa_printf(MSG_ERROR, "DPP: Failed to add PMKSA cache entry");
 		goto done;
 	}
+
+#ifdef CONFIG_IEEE80211BE
+	if (hapd->conf->mld_ap &&
+	    wpa_auth_pmksa_add2(hapd->wpa_auth, src, intro.pmk, intro.pmk_len,
+				intro.pmkid, expiration,
+				WPA_KEY_MGMT_DPP, pkhash, true) < 0) {
+		wpa_printf(MSG_ERROR,
+			   "DPP: Failed to add PMKSA cache entry (MLD)");
+		goto done;
+	}
+#endif /* CONFIG_IEEE80211BE */
 
 	hostapd_dpp_send_peer_disc_resp(hapd, src, freq, trans_id[0],
 					DPP_STATUS_OK);
@@ -2916,10 +2946,21 @@ hostapd_dpp_rx_priv_peer_intro_update(struct hostapd_data *hapd, const u8 *src,
 
 	if (wpa_auth_pmksa_add2(hapd->wpa_auth, src, intro.pmk, intro.pmk_len,
 				intro.pmkid, expiration,
-				WPA_KEY_MGMT_DPP, pkhash) < 0) {
+				WPA_KEY_MGMT_DPP, pkhash, false) < 0) {
 		wpa_printf(MSG_ERROR, "DPP: Failed to add PMKSA cache entry");
 		goto done;
 	}
+
+#ifdef CONFIG_IEEE80211BE
+	if (hapd->conf->mld_ap &&
+	    wpa_auth_pmksa_add2(hapd->wpa_auth, src, intro.pmk, intro.pmk_len,
+				intro.pmkid, expiration,
+				WPA_KEY_MGMT_DPP, pkhash, true) < 0) {
+		wpa_printf(MSG_ERROR,
+			   "DPP: Failed to add PMKSA cache entry (MLD)");
+		goto done;
+	}
+#endif /* CONFIG_IEEE80211BE */
 
 	wpa_printf(MSG_DEBUG, "DPP: Private Peer Introduction completed with "
 		   MACSTR, MAC2STR(src));
@@ -2939,6 +2980,10 @@ void hostapd_dpp_rx_action(struct hostapd_data *hapd, const u8 *src,
 	enum dpp_public_action_frame_type type;
 	const u8 *hdr;
 	unsigned int pkex_t;
+
+	/* Discard DPP Action frames if there is no global DPP context */
+	if (!hapd->iface->interfaces || !hapd->iface->interfaces->dpp)
+		return;
 
 	if (len < DPP_HDR_LEN)
 		return;
@@ -3079,6 +3124,7 @@ hostapd_dpp_gas_req_handler(struct hostapd_data *hapd, const u8 *sa,
 	struct wpabuf *resp;
 
 	wpa_printf(MSG_DEBUG, "DPP: GAS request from " MACSTR, MAC2STR(sa));
+	eloop_cancel_timeout(hostapd_gas_req_wait, hapd, NULL);
 	if (!auth || (!auth->auth_success && !auth->reconfig_success) ||
 	    !ether_addr_equal(sa, auth->peer_mac_addr)) {
 #ifdef CONFIG_DPP2
@@ -3359,6 +3405,7 @@ void hostapd_dpp_stop(struct hostapd_data *hapd)
 #ifdef CONFIG_DPP3
 	hostapd_dpp_push_button_stop(hapd);
 #endif /* CONFIG_DPP3 */
+	eloop_cancel_timeout(hostapd_gas_req_wait, hapd, NULL);
 }
 
 
@@ -3512,6 +3559,7 @@ void hostapd_dpp_deinit(struct hostapd_data *hapd)
 	eloop_cancel_timeout(hostapd_dpp_auth_conf_wait_timeout, hapd, NULL);
 	eloop_cancel_timeout(hostapd_dpp_init_timeout, hapd, NULL);
 	eloop_cancel_timeout(hostapd_dpp_auth_resp_retry_timeout, hapd, NULL);
+	eloop_cancel_timeout(hostapd_gas_req_wait, hapd, NULL);
 #ifdef CONFIG_DPP2
 	eloop_cancel_timeout(hostapd_dpp_reconfig_reply_wait_timeout,
 			     hapd, NULL);
@@ -3940,6 +3988,7 @@ int hostapd_dpp_push_button(struct hostapd_data *hapd, const char *cmd)
 	}
 	eloop_register_timeout(100, 0, hostapd_dpp_push_button_expire,
 			       hapd, NULL);
+	hostapd_drv_dpp_listen(hapd, true);
 
 	wpa_msg(hapd->msg_ctx, MSG_INFO, DPP_EVENT_PB_STATUS "started");
 	return 0;
@@ -3955,6 +4004,7 @@ void hostapd_dpp_push_button_stop(struct hostapd_data *hapd)
 	eloop_cancel_timeout(hostapd_dpp_push_button_expire, hapd, NULL);
 	if (hostapd_dpp_pb_active(hapd)) {
 		wpa_printf(MSG_DEBUG, "DPP: Stop active push button mode");
+		hostapd_drv_dpp_listen(hapd, false);
 		if (!ifaces->dpp_pb_result_indicated)
 			wpa_msg(hapd->msg_ctx, MSG_INFO,
 				DPP_EVENT_PB_RESULT "failed");

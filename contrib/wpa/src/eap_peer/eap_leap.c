@@ -386,7 +386,10 @@ static u8 * eap_leap_getKey(struct eap_sm *sm, void *priv, size_t *len)
 	elen[3] = LEAP_CHALLENGE_LEN;
 	addr[4] = data->peer_response;
 	elen[4] = LEAP_RESPONSE_LEN;
-	md5_vector(5, addr, elen, key);
+	if (md5_vector(5, addr, elen, key)) {
+		os_free(key);
+		return NULL;
+	}
 	wpa_hexdump_key(MSG_DEBUG, "EAP-LEAP: master key", key, LEAP_KEY_LEN);
 	*len = LEAP_KEY_LEN;
 

@@ -16,7 +16,12 @@
 
 #include "list.h"
 
-#define WPA_TRACE_INFO void *btrace[WPA_TRACE_LEN]; int btrace_num;
+extern const char *current_btrace_ctx;
+
+#define WPA_TRACE_INFO			\
+	void *btrace[WPA_TRACE_LEN];	\
+	int btrace_num;			\
+	const char *btrace_ctx;
 
 struct wpa_trace_ref {
 	struct dl_list list;
@@ -26,10 +31,15 @@ struct wpa_trace_ref {
 #define WPA_TRACE_REF(name) struct wpa_trace_ref wpa_trace_ref_##name
 
 #define wpa_trace_dump(title, ptr) \
-	wpa_trace_dump_func((title), (ptr)->btrace, (ptr)->btrace_num)
-void wpa_trace_dump_func(const char *title, void **btrace, int btrace_num);
-#define wpa_trace_record(ptr) \
-	(ptr)->btrace_num = backtrace((ptr)->btrace, WPA_TRACE_LEN)
+	wpa_trace_dump_func((title), (ptr)->btrace, (ptr)->btrace_num,	\
+			    (ptr)->btrace_ctx)
+void wpa_trace_dump_func(const char *title, void **btrace, int btrace_num,
+			 const char *btrace_ctx);
+#define wpa_trace_record(ptr)						\
+	do {								\
+		(ptr)->btrace_num = backtrace((ptr)->btrace, WPA_TRACE_LEN); \
+		(ptr)->btrace_ctx = current_btrace_ctx;			\
+	} while (0)
 void wpa_trace_show(const char *title);
 #define wpa_trace_add_ref(ptr, name, addr) \
 	wpa_trace_add_ref_func(&(ptr)->wpa_trace_ref_##name, (addr))
@@ -41,6 +51,7 @@ void wpa_trace_add_ref_func(struct wpa_trace_ref *ref, const void *addr);
 	} while (0)
 void wpa_trace_check_ref(const void *addr);
 size_t wpa_trace_calling_func(const char *buf[], size_t len);
+void wpa_trace_set_context(const char *ctx);
 
 #else /* WPA_TRACE */
 
@@ -52,6 +63,10 @@ size_t wpa_trace_calling_func(const char *buf[], size_t len);
 #define wpa_trace_add_ref(ptr, name, addr) do { } while (0)
 #define wpa_trace_remove_ref(ptr, name, addr) do { } while (0)
 #define wpa_trace_check_ref(addr) do { } while (0)
+
+static inline void wpa_trace_set_context(const char *ctx)
+{
+}
 
 #endif /* WPA_TRACE */
 

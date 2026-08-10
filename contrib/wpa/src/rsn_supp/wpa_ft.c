@@ -215,7 +215,7 @@ static u8 * wpa_ft_gen_req_ies(struct wpa_sm *sm, size_t *len,
 	struct rsn_mdie *mdie;
 	struct rsn_ie_hdr *rsnie;
 	int mdie_len;
-	u8 rsnxe[10];
+	u8 rsnxe[257];
 	size_t rsnxe_len;
 	int rsnxe_used;
 	int res;
@@ -695,6 +695,12 @@ int wpa_ft_process_response(struct wpa_sm *sm, const u8 *ies, size_t ies_len,
 			      sm->pmk_r1_name) < 0)
 		goto fail;
 	sm->pmk_r1_len = sm->pmk_r0_len;
+	if (sm->pmk_r1_len == SHA512_MAC_LEN)
+		sm->hash_alg = RSN_HASH_SHA512;
+	else if (sm->pmk_r1_len == SHA384_MAC_LEN)
+		sm->hash_alg = RSN_HASH_SHA384;
+	else
+		sm->hash_alg = RSN_HASH_SHA256;
 
 	bssid = target_ap;
 

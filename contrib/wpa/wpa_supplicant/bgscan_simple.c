@@ -89,6 +89,10 @@ static void bgscan_simple_timeout(void *eloop_ctx, void *timeout_ctx)
 	params.ssids[0].ssid_len = data->ssid->ssid_len;
 	params.freqs = data->ssid->scan_freq;
 
+	/* Add OWE transition mode SSID of the current network */
+	wpa_add_owe_scan_ssid(wpa_s, &params, data->ssid,
+			      wpa_s->max_scan_ssids - params.num_ssids);
+
 	/*
 	 * A more advanced bgscan module would learn about most like channels
 	 * over time and request scans only for some channels (probing others

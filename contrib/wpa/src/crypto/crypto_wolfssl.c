@@ -18,6 +18,7 @@
 #include <wolfssl/openssl/bn.h>
 #include <wolfssl/wolfcrypt/aes.h>
 #include <wolfssl/wolfcrypt/arc4.h>
+#include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
 #include <wolfssl/wolfcrypt/cmac.h>
 #include <wolfssl/wolfcrypt/des3.h>
@@ -29,6 +30,7 @@
 #include <wolfssl/wolfcrypt/md5.h>
 #include <wolfssl/wolfcrypt/pkcs7.h>
 #include <wolfssl/wolfcrypt/pwdbased.h>
+#include <wolfssl/wolfcrypt/rsa.h>
 #include <wolfssl/wolfcrypt/sha.h>
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/sha512.h>
@@ -514,8 +516,10 @@ int pbkdf2_sha1(const char *passphrase, const u8 *ssid, size_t ssid_len,
 {
 	int ret;
 
+	PRIVATE_KEY_UNLOCK();
 	ret = wc_PBKDF2(buf, (const byte *) passphrase, os_strlen(passphrase),
 			ssid, ssid_len, iterations, buflen, WC_SHA);
+	PRIVATE_KEY_LOCK();
 	if (ret != 0) {
 		if (ret == HMAC_MIN_KEYLEN_E) {
 			LOG_WOLF_ERROR_VA("wolfSSL: Password is too short. Make sure your password is at least %d characters long. This is a requirement for FIPS builds.",
@@ -818,7 +822,6 @@ struct crypto_cipher * crypto_cipher_init(enum crypto_cipher_alg alg,
 		}
 		break;
 #endif /* NO_DES3 */
-	case CRYPTO_CIPHER_ALG_RC2:
 	case CRYPTO_CIPHER_ALG_DES:
 	default:
 		os_free(ctx);
@@ -3412,7 +3415,7 @@ const u8 * crypto_csr_get_attribute(struct crypto_csr *csr,
 {
 	if (!csr || !len || !type) {
 		LOG_INVALID_PARAMETERS();
-		return NULL;;
+		return NULL;
 	}
 
 	switch (attr) {
@@ -3553,6 +3556,284 @@ fail:
 /* END Certificate Signing Request (CSR) APIs */
 
 #endif /* CONFIG_DPP */
+
+
+struct crypto_rsa_key {
+	RsaKey key;
+	WC_RNG *rng;
+};
+
+static struct crypto_rsa_key * crypto_rsa_key_init(void)
+{
+	struct crypto_rsa_key *ret;
+	int err;
+
+	ret = os_zalloc(sizeof(*ret));
+	if (!ret)
+		return NULL;
+
+	err = wc_InitRsaKey(&ret->key, NULL);
+	if (err != MP_OKAY) {
+		LOG_WOLF_ERROR_FUNC(wc_InitRsaKey, err);
+		goto fail;
+	}
+
+	ret->rng = wc_rng_init();
+	if (!ret->rng) {
+		LOG_WOLF_ERROR_FUNC_NULL(wc_rng_init);
+		goto fail;
+	}
+
+	err = wc_RsaSetRNG(&ret->key, ret->rng);
+	if (err != 0) {
+		LOG_WOLF_ERROR_FUNC(wc_RsaSetRNG, err);
+		goto fail;
+	}
+
+	return ret;
+fail:
+	crypto_rsa_key_free(ret);
+	return NULL;
+}
+
+
+void crypto_rsa_key_free(struct crypto_rsa_key *key)
+{
+	if (key) {
+		int err;
+
+		err = wc_FreeRsaKey(&key->key);
+		if (err != 0)
+			LOG_WOLF_ERROR_FUNC(wc_FreeRsaKey, err);
+		wc_rng_free(key->rng);
+		os_free(key);
+	}
+}
+
+
+static void read_rsa_key_from_x509(unsigned char *key_pem, size_t key_pem_len,
+				   DerBuffer **key_der)
+{
+	struct DecodedCert cert;
+	DerBuffer *cert_der = NULL;
+	word32 der_key_sz = 0;
+	int err;
+
+	err = wc_PemToDer(key_pem, (long) key_pem_len, CERT_TYPE, &cert_der,
+			NULL, NULL, NULL);
+	if (err != 0) {
+		LOG_WOLF_ERROR_FUNC(wc_PemToDer, err);
+		goto fail;
+	}
+
+	wc_InitDecodedCert(&cert, cert_der->buffer, cert_der->length, NULL);
+	err = wc_ParseCert(&cert, CERT_TYPE, NO_VERIFY, NULL);
+	if (err != 0) {
+		LOG_WOLF_ERROR_FUNC(wc_PemToDer, err);
+		goto fail;
+	}
+
+	err = wc_GetPubKeyDerFromCert(&cert, NULL, &der_key_sz);
+	if (err != LENGTH_ONLY_E) {
+		LOG_WOLF_ERROR_FUNC(wc_GetPubKeyDerFromCert, err);
+		goto fail;
+	}
+
+	if (*key_der)
+		wc_FreeDer(key_der);
+	*key_der = NULL;
+
+	err = wc_AllocDer(key_der, der_key_sz, PUBLICKEY_TYPE, NULL);
+	if (err != 0) {
+		LOG_WOLF_ERROR_FUNC(wc_AllocDer, err);
+		goto fail;
+	}
+
+	err = wc_GetPubKeyDerFromCert(&cert, (*key_der)->buffer,
+				      &(*key_der)->length);
+	if (err != 0) {
+		LOG_WOLF_ERROR_FUNC(wc_GetPubKeyDerFromCert, err);
+		goto fail;
+	}
+
+fail:
+	if (cert_der) {
+		wc_FreeDecodedCert(&cert);
+		wc_FreeDer(&cert_der);
+	}
+
+	/* caller is responsible for free'ing key_der */
+}
+
+
+struct crypto_rsa_key * crypto_rsa_key_read(const char *file, bool private_key)
+{
+	struct crypto_rsa_key *ret = NULL;
+	unsigned char *key_pem = NULL;
+	size_t key_pem_len = 0;
+	DerBuffer *key_der = NULL;
+	int key_format = 0;
+	int err;
+	int success = 0;
+	word32 idx = 0;
+
+	key_pem = (unsigned char *) os_readfile(file, &key_pem_len);
+	if (!key_pem) {
+		LOG_WOLF_ERROR_FUNC_NULL(os_readfile);
+		goto fail;
+	}
+
+	err = wc_PemToDer(key_pem, (long) key_pem_len,
+			  private_key ? PRIVATEKEY_TYPE : PUBLICKEY_TYPE,
+			  &key_der, NULL, NULL, &key_format);
+	if (err != 0) {
+		if (private_key) {
+			LOG_WOLF_ERROR_FUNC(wc_PemToDer, err);
+			goto fail;
+		}
+
+		/* Input file might be public key or x509 cert we want to
+		 *extract the key from */
+		wpa_printf(MSG_DEBUG,
+			   "wolfSSL: Trying to extract key from x509 cert");
+		read_rsa_key_from_x509(key_pem, key_pem_len, &key_der);
+		if (!key_der) {
+			LOG_WOLF_ERROR_FUNC(wc_PemToDer, err);
+			LOG_WOLF_ERROR_FUNC_NULL(read_rsa_key_from_x509);
+			goto fail;
+		}
+	}
+
+	if (private_key && key_format != RSAk) {
+		LOG_WOLF_ERROR("Private key is not RSA key");
+		goto fail;
+	}
+
+	/* No longer needed so let's free the memory early */
+	os_free(key_pem);
+	key_pem = NULL;
+
+	ret = crypto_rsa_key_init();
+	if (!ret) {
+		LOG_WOLF_ERROR_FUNC_NULL(crypto_rsa_key_init);
+		goto fail;
+	}
+
+	if (private_key)
+		err = wc_RsaPrivateKeyDecode(key_der->buffer, &idx, &ret->key,
+					     key_der->length);
+	else
+		err = wc_RsaPublicKeyDecode(key_der->buffer, &idx, &ret->key,
+					    key_der->length);
+
+	if (err != 0) {
+		if (private_key)
+			LOG_WOLF_ERROR_FUNC(wc_RsaPrivateKeyDecode, err);
+		else
+			LOG_WOLF_ERROR_FUNC(wc_RsaPublicKeyDecode, err);
+		goto fail;
+	}
+
+	success = 1;
+fail:
+	os_free(key_pem);
+	if (key_der)
+		wc_FreeDer(&key_der);
+	if (!success && ret) {
+		crypto_rsa_key_free(ret);
+		ret = NULL;
+	}
+
+	return ret;
+}
+
+
+struct wpabuf * crypto_rsa_oaep_sha256_encrypt(struct crypto_rsa_key *key,
+					       const struct wpabuf *in)
+{
+	int err;
+	int success = 0;
+	struct wpabuf *ret = NULL;
+
+	if (!key || !in) {
+		LOG_INVALID_PARAMETERS();
+		return NULL;
+	}
+
+	ret = wpabuf_alloc(wc_RsaEncryptSize(&key->key));
+	if (!ret) {
+		LOG_WOLF_ERROR_FUNC_NULL(wpabuf_alloc);
+		goto fail;
+	}
+
+	wpa_printf(MSG_DEBUG,
+		   "wolfSSL: crypto_rsa_oaep_sha256_encrypt: wpabuf_len(in) %ld  wc_RsaEncryptSize(key->key) %d",
+		   wpabuf_len(in), wc_RsaEncryptSize(&key->key));
+
+	err = wc_RsaPublicEncrypt_ex(wpabuf_head_u8(in), wpabuf_len(in),
+				     wpabuf_mhead_u8(ret), wpabuf_size(ret),
+				     &key->key, key->rng,
+				     WC_RSA_OAEP_PAD, WC_HASH_TYPE_SHA256,
+				     WC_MGF1SHA256, NULL, 0);
+	if (err <= 0) {
+		LOG_WOLF_ERROR_FUNC(wc_RsaPublicEncrypt_ex, err);
+		goto fail;
+	}
+	wpabuf_put(ret, err);
+
+	success = 1;
+fail:
+	if (!success && ret) {
+		wpabuf_free(ret);
+		ret = NULL;
+	}
+
+	return ret;
+}
+
+
+struct wpabuf * crypto_rsa_oaep_sha256_decrypt(struct crypto_rsa_key *key,
+					       const struct wpabuf *in)
+{
+	int err;
+	int success = 0;
+	struct wpabuf *ret = NULL;
+
+	if (!key || !in) {
+		LOG_INVALID_PARAMETERS();
+		return NULL;
+	}
+
+	ret = wpabuf_alloc(wc_RsaEncryptSize(&key->key));
+	if (!ret) {
+		LOG_WOLF_ERROR_FUNC_NULL(wpabuf_alloc);
+		goto fail;
+	}
+
+	wpa_printf(MSG_DEBUG,
+		   "wolfSSL: crypto_rsa_oaep_sha256_decrypt: wpabuf_len(in) %ld wc_RsaEncryptSize(key->key) %d",
+		   wpabuf_len(in), wc_RsaEncryptSize(&key->key));
+
+	err = wc_RsaPrivateDecrypt_ex(wpabuf_head_u8(in), wpabuf_len(in),
+				      wpabuf_mhead_u8(ret), wpabuf_size(ret),
+				      &key->key, WC_RSA_OAEP_PAD,
+				      WC_HASH_TYPE_SHA256, WC_MGF1SHA256,
+				      NULL, 0);
+	if (err <= 0) {
+		LOG_WOLF_ERROR_FUNC(wc_RsaPublicEncrypt_ex, err);
+		goto fail;
+	}
+	wpabuf_put(ret, err);
+
+	success = 1;
+fail:
+	if (!success && ret) {
+		wpabuf_free(ret);
+		ret = NULL;
+	}
+
+	return ret;
+}
 
 
 void crypto_unload(void)

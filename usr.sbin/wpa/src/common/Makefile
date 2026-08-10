@@ -17,6 +17,7 @@ SRCS=	cli.c \
 	hw_features_common.c \
 	ieee802_11_common.c \
 	ptksa_cache.c \
+	sae.c \
 	wpa_common.c \
 	wpa_ctrl.c
 

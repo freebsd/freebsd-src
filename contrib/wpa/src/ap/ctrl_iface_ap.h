@@ -26,7 +26,11 @@ int hostapd_ctrl_iface_poll_sta(struct hostapd_data *hapd,
 				const char *txtaddr);
 int hostapd_ctrl_iface_status(struct hostapd_data *hapd, char *buf,
 			      size_t buflen);
-int hostapd_parse_csa_settings(const char *pos,
+int hostapd_parse_freq_params(const char *pos,
+			      struct hostapd_freq_params *params,
+			      unsigned int freq);
+int hostapd_parse_csa_settings(struct hostapd_iface *iface,
+			       const char *pos,
 			       struct csa_settings *settings);
 int hostapd_ctrl_iface_stop_ap(struct hostapd_data *hapd);
 int hostapd_ctrl_iface_pmksa_list(struct hostapd_data *hapd, char *buf,

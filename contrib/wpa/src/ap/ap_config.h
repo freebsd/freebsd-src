@@ -93,7 +93,6 @@ typedef enum hostap_security_policy {
 	SECURITY_IEEE_802_1X = 2,
 	SECURITY_WPA_PSK = 3,
 	SECURITY_WPA = 4,
-	SECURITY_OSEN = 5
 } secpolicy;
 
 struct hostapd_ssid {
@@ -189,7 +188,6 @@ struct hostapd_eap_user {
 	unsigned int wildcard_prefix:1;
 	unsigned int password_hash:1; /* whether password is hashed with
 				       * nt_password_hash() */
-	unsigned int remediation:1;
 	unsigned int macacl:1;
 	int ttls_auth; /* EAP_TTLS_AUTH_* bitfield */
 	struct hostapd_radius_attr *accept_attr;
@@ -260,6 +258,10 @@ struct sae_password_entry {
 	int vlan_id;
 	struct sae_pt *pt;
 	struct sae_pk *pk;
+	u8 *success_mac;
+	unsigned int num_success_mac, next_success_mac;
+	u8 *fail_mac;
+	unsigned int num_fail_mac, next_fail_mac;
 };
 
 struct dpp_controller_conf {
@@ -293,6 +295,9 @@ struct hostapd_bss_config {
 
 	int max_num_sta; /* maximum number of STAs in station table */
 
+	enum beacon_rate_type rate_type;
+	unsigned int beacon_rate;
+
 	int dtim_period;
 	unsigned int bss_load_update_period;
 	unsigned int chan_util_avg_period;
@@ -324,6 +329,9 @@ struct hostapd_bss_config {
 	size_t radius_das_shared_secret_len;
 
 	struct hostapd_ssid ssid;
+
+	int *supported_rates;
+	int *basic_rates;
 
 	char *eap_req_id_text; /* optional displayable message sent with
 				* EAP Request-Identity */
@@ -358,7 +366,11 @@ struct hostapd_bss_config {
 	int wpa; /* bitfield of WPA_PROTO_WPA, WPA_PROTO_RSN */
 	int extended_key_id;
 	int wpa_key_mgmt;
+	int rsn_override_key_mgmt;
+	int rsn_override_key_mgmt_2;
 	enum mfp_options ieee80211w;
+	enum mfp_options rsn_override_mfp;
+	enum mfp_options rsn_override_mfp_2;
 	int group_mgmt_cipher;
 	int beacon_prot;
 	/* dot11AssociationSAQueryMaximumTimeout (in TUs) */
@@ -387,8 +399,13 @@ struct hostapd_bss_config {
 	u32 wpa_pairwise_update_count;
 	int wpa_disable_eapol_key_retries;
 	int rsn_pairwise;
+	int rsn_override_pairwise;
+	int rsn_override_pairwise_2;
 	int rsn_preauth;
 	char *rsn_preauth_interfaces;
+
+	int rsn_override_omit_rsnxe;
+	int rsn_override_mlo_compat;
 
 #ifdef CONFIG_IEEE80211R_AP
 	/* IEEE 802.11r - Fast BSS Transition */
@@ -443,7 +460,6 @@ struct hostapd_bss_config {
 	int pac_key_lifetime;
 	int pac_key_refresh_time;
 	int eap_teap_auth;
-	int eap_teap_pac_no_inner;
 	int eap_teap_separate_result;
 	int eap_teap_id;
 	int eap_teap_method_sequence;
@@ -458,6 +474,7 @@ struct hostapd_bss_config {
 	char *radius_server_clients;
 	int radius_server_auth_port;
 	int radius_server_acct_port;
+	int radius_server_acct_log;
 	int radius_server_ipv6;
 
 	int use_pae_group_addr; /* Whether to send EAPOL frames to PAE group
@@ -554,6 +571,10 @@ struct hostapd_bss_config {
 	bool disable_11ax;
 	bool disable_11be;
 
+#ifdef CONFIG_IEEE80211BE
+	bool bss_require_eht;
+#endif /* CONFIG_IEEE80211BE */
+
 	/* IEEE 802.11v */
 	int time_advertisement;
 	char *time_zone;
@@ -613,7 +634,6 @@ struct hostapd_bss_config {
 	u8 qos_map_set[16 + 2 * 21];
 	unsigned int qos_map_set_len;
 
-	int osen;
 	int proxy_arp;
 	int na_mcast_to_ucast;
 
@@ -629,37 +649,7 @@ struct hostapd_bss_config {
 	size_t hs20_connection_capability_len;
 	u8 *hs20_operating_class;
 	u8 hs20_operating_class_len;
-	struct hs20_icon {
-		u16 width;
-		u16 height;
-		char language[3];
-		char type[256];
-		char name[256];
-		char file[256];
-	} *hs20_icons;
-	size_t hs20_icons_count;
-	u8 osu_ssid[SSID_MAX_LEN];
-	size_t osu_ssid_len;
-	struct hs20_osu_provider {
-		unsigned int friendly_name_count;
-		struct hostapd_lang_string *friendly_name;
-		char *server_uri;
-		int *method_list;
-		char **icons;
-		size_t icons_count;
-		char *osu_nai;
-		char *osu_nai2;
-		unsigned int service_desc_count;
-		struct hostapd_lang_string *service_desc;
-	} *hs20_osu_providers, *last_osu;
-	size_t hs20_osu_providers_count;
-	size_t hs20_osu_providers_nai_count;
-	char **hs20_operator_icon;
-	size_t hs20_operator_icon_count;
 	unsigned int hs20_deauth_req_timeout;
-	char *subscr_remediation_url;
-	u8 subscr_remediation_method;
-	char *hs20_sim_provisioning_url;
 	char *t_c_filename;
 	u32 t_c_timestamp;
 	char *t_c_server_url;
@@ -679,8 +669,18 @@ struct hostapd_bss_config {
 	int sae_require_mfp;
 	int sae_confirm_immediate;
 	enum sae_pwe sae_pwe;
+	/* Accept an SAE association even when the STA advertises SAE H2E
+	 * support in the RSNXE but authenticated using hunting-and-pecking.
+	 * This is a workaround for WPA3-Personal Compatibility Mode and
+	 * RSNXE-override interoperability (e.g., some MLO STAs that add only
+	 * the RSNXE Override element and do not use H2E on 2.4/5 GHz) */
+	bool sae_accept_h2e_without_use;
 	int *sae_groups;
 	struct sae_password_entry *sae_passwords;
+	int sae_password_psk;
+	int sae_track_password;
+	struct wpabuf *sae_pw_id_key;
+	unsigned int sae_pw_id_num;
 
 	char *wowlan_triggers; /* Wake-on-WLAN triggers */
 
@@ -688,6 +688,11 @@ struct hostapd_bss_config {
 	u8 bss_load_test[5];
 	u8 bss_load_test_set;
 	struct wpabuf *own_ie_override;
+	struct wpabuf *rsne_override;
+	struct wpabuf *rsnoe_override;
+	struct wpabuf *rsno2e_override;
+	struct wpabuf *rsnxe_override;
+	struct wpabuf *rsnxoe_override;
 	int sae_reflection_attack;
 	int sae_commit_status;
 	int sae_pk_omit;
@@ -712,8 +717,10 @@ struct hostapd_bss_config {
 	struct wpabuf *eapol_m1_elements;
 	struct wpabuf *eapol_m3_elements;
 	bool eapol_m3_no_encrypt;
+	bool eapol_key_reserved_random;
 	int test_assoc_comeback_type;
 	struct wpabuf *presp_elements;
+	int association_response_status_code;
 
 #ifdef CONFIG_IEEE80211BE
 	u16 eht_oper_puncturing_override;
@@ -906,6 +913,14 @@ struct hostapd_bss_config {
 	int macsec_csindex;
 
 	/**
+	 * macsec_icv_indicator - Always include ICV Indicator
+	 * (for compatibility with older MACsec switches)
+	 *
+	 * Range: 0-1 (default: 0)
+	 */
+	int macsec_icv_indicator;
+
+	/**
 	 * mka_ckn - MKA pre-shared CKN
 	 */
 #define MACSEC_CKN_MAX_LEN 32
@@ -932,6 +947,11 @@ struct hostapd_bss_config {
 	/* Whether to allow PASN-UNAUTH */
 	int pasn_noauth;
 
+#ifdef CONFIG_ENC_ASSOC
+	/* Whether to allow unauthenticated EPPKE (EPPKE without base AKM) */
+	bool eppke_unauth;
+#endif /* CONFIG_ENC_ASSOC */
+
 #ifdef CONFIG_TESTING_OPTIONS
 	/*
 	 * Normally, KDK should be derived if and only if both sides support
@@ -941,6 +961,12 @@ struct hostapd_bss_config {
 
 	/* If set, corrupt the MIC in the 2nd Authentication frame of PASN */
 	int pasn_corrupt_mic;
+
+	/*
+	 * If set, override Supported Groups element in the 2nd Authentication
+	 * frame of PASN for group negotiation testing.
+	 */
+	int *pasn_test_groups;
 #endif /* CONFIG_TESTING_OPTIONS */
 
 	int *pasn_groups;
@@ -952,6 +978,9 @@ struct hostapd_bss_config {
 	u16 pasn_comeback_after;
 #endif /* CONFIG_PASN */
 
+	int urnm_mfpr_x20;
+	int urnm_mfpr;
+
 	unsigned int unsol_bcast_probe_resp_interval;
 
 	u8 ext_capa_mask[EXT_CAPA_MAX_LEN];
@@ -959,9 +988,9 @@ struct hostapd_bss_config {
 
 	u8 rnr;
 	char *config_id;
-	bool xrates_supported;
 
 	bool ssid_protection;
+	bool known_sta_identification;
 
 #ifdef CONFIG_IEEE80211BE
 	/* The AP is part of an AP MLD */
@@ -981,6 +1010,14 @@ struct hostapd_bss_config {
 	bool mld_indicate_disabled;
 #endif /* CONFIG_TESTING_OPTIONS */
 #endif /* CONFIG_IEEE80211BE */
+	int mbssid_index;
+
+	bool spp_amsdu;
+#ifdef CONFIG_ENC_ASSOC
+	unsigned int assoc_frame_encryption:1;
+	unsigned int pmksa_caching_privacy:1;
+	unsigned int eap_using_authentication_frames:1;
+#endif /* CONFIG_ENC_ASSOC  */
 };
 
 /**
@@ -1056,11 +1093,6 @@ struct hostapd_config {
 		LONG_PREAMBLE = 0,
 		SHORT_PREAMBLE = 1
 	} preamble;
-
-	int *supported_rates;
-	int *basic_rates;
-	unsigned int beacon_rate;
-	enum beacon_rate_type rate_type;
 
 	const struct wpa_driver_ops *driver;
 	char *driver_params;
@@ -1139,6 +1171,7 @@ struct hostapd_config {
 	double ignore_reassoc_probability;
 	double corrupt_gtk_rekey_mic_probability;
 	int ecsa_ie_only;
+	int csa_ie_only;
 	bool delay_eapol_tx;
 #endif /* CONFIG_TESTING_OPTIONS */
 
@@ -1220,6 +1253,7 @@ struct hostapd_config {
 	u8 punct_acs_threshold;
 	u8 eht_default_pe_duration;
 	u8 eht_bw320_offset;
+	bool require_eht;
 #endif /* CONFIG_IEEE80211BE */
 
 	/* EHT enable/disable config from CHAN_SWITCH */
@@ -1232,9 +1266,60 @@ struct hostapd_config {
 		MBSSID_ENABLED = 1,
 		ENHANCED_MBSSID_ENABLED = 2,
 	} mbssid;
+	unsigned int mbssid_max;
 
 	/* Whether to enable TWT responder in HT and VHT modes */
 	bool ht_vht_twt_responder;
+
+	bool channel_usage;
+	bool peer_to_peer_twt;
+
+	/* Set I2R LMR policy to allow LMR response from ISTA */
+	bool i2r_lmr_policy;
+
+	/* Disable MCS15 Subfield in EHT operation element */
+	bool disable_mcs15_rx;
+
+#ifdef CONFIG_AFC
+	struct {
+		char *socket;
+		struct {
+			char *version;
+			char *sn;
+		} request;
+		unsigned int n_cert_ids;
+		struct afc_cert_id {
+			char *ruleset;
+			char *id;
+		} *cert_ids;
+		struct {
+			enum afc_location_type {
+				AFC_ELLIPSE,
+				AFC_LINEAR_POLYGON,
+				AFC_RADIAL_POLYGON,
+			} type;
+			unsigned int n_linear_polygon_data;
+			struct afc_linear_polygon {
+				double longitude;
+				double latitude;
+			} *linear_polygon_data;
+			unsigned int n_radial_polygon_data;
+			struct afc_radial_polygon {
+				double length;
+				double angle;
+			} *radial_polygon_data;
+			int major_axis;
+			int minor_axis;
+			int orientation;
+			double height;
+			char *height_type;
+			int vertical_tolerance;
+		} location;
+		struct wpa_freq_range_list freqs;
+		int *op_class; /* int array */
+		int min_power;
+	} afc;
+#endif /* CONFIG_AFC */
 };
 
 
@@ -1373,7 +1458,6 @@ void hostapd_config_free_bss(struct hostapd_bss_config *conf);
 void hostapd_config_free(struct hostapd_config *conf);
 int hostapd_maclist_found(struct mac_acl_entry *list, int num_entries,
 			  const u8 *addr, struct vlan_description *vlan_id);
-int hostapd_rate_found(int *list, int rate);
 const u8 * hostapd_get_psk(const struct hostapd_bss_config *conf,
 			   const u8 *addr, const u8 *p2p_dev_addr,
 			   const u8 *prev_psk, int *vlan_id);
@@ -1397,5 +1481,7 @@ int hostapd_add_acl_maclist(struct mac_acl_entry **acl, int *num,
 			    int vlan_id, const u8 *addr);
 void hostapd_remove_acl_mac(struct mac_acl_entry **acl, int *num,
 			    const u8 *addr);
+bool hostapd_config_check_bss_6g(struct hostapd_bss_config *bss);
+void hostapd_config_free_afc_cert_ids(struct hostapd_config *conf);
 
 #endif /* HOSTAPD_CONFIG_H */

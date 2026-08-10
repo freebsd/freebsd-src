@@ -315,9 +315,6 @@ struct crypto_cipher * crypto_cipher_init(enum crypto_cipher_alg alg,
 	case CRYPTO_CIPHER_ALG_DES:
 		idx = find_cipher("des");
 		break;
-	case CRYPTO_CIPHER_ALG_RC2:
-		idx = find_cipher("rc2");
-		break;
 	case CRYPTO_CIPHER_ALG_RC4:
 		idx = -1;
 		rc4 = 1;

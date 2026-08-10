@@ -237,7 +237,7 @@ SM_STATE(AUTH_PAE, DISCONNECTED)
 	if (!from_initialize && !pre_auth_logoff) {
 		if (sm->eapol->cb.finished(sm->eapol->conf.ctx, sm->sta, 0,
 					   sm->flags & EAPOL_SM_PREAUTH,
-					   sm->remediation, logoff)) {
+					   logoff)) {
 			wpa_printf(MSG_DEBUG,
 				   "EAPOL: Do not restart since lower layers will disconnect the port after EAPOL-Logoff");
 			sm->stopped = true;
@@ -298,8 +298,7 @@ SM_STATE(AUTH_PAE, HELD)
 				   eap_server_get_name(0, sm->eap_type_supp));
 	}
 	sm->eapol->cb.finished(sm->eapol->conf.ctx, sm->sta, 0,
-			       sm->flags & EAPOL_SM_PREAUTH, sm->remediation,
-			       false);
+			       sm->flags & EAPOL_SM_PREAUTH, false);
 }
 
 
@@ -315,6 +314,7 @@ SM_STATE(AUTH_PAE, AUTHENTICATED)
 	sm->authPortStatus = Authorized;
 	setPortAuthorized();
 	sm->reAuthCount = 0;
+	sm->reAuthenticate = false;
 	if (sm->flags & EAPOL_SM_PREAUTH)
 		extra = " (pre-authentication)";
 	else if (sm->flags & EAPOL_SM_FROM_PMKSA_CACHE)
@@ -327,8 +327,7 @@ SM_STATE(AUTH_PAE, AUTHENTICATED)
 	if (sm->authSuccess)
 		sm->authenticated++;
 	sm->eapol->cb.finished(sm->eapol->conf.ctx, sm->sta, 1,
-			       sm->flags & EAPOL_SM_PREAUTH, sm->remediation,
-			       false);
+			       sm->flags & EAPOL_SM_PREAUTH, false);
 }
 
 
@@ -1029,13 +1028,9 @@ static int eapol_sm_get_eap_user(void *ctx, const u8 *identity,
 				 struct eap_user *user)
 {
 	struct eapol_state_machine *sm = ctx;
-	int ret;
 
-	ret = sm->eapol->cb.get_eap_user(sm->eapol->conf.ctx, identity,
-					 identity_len, phase2, user);
-	if (user->remediation)
-		sm->remediation = 1;
-	return ret;
+	return sm->eapol->cb.get_eap_user(sm->eapol->conf.ctx, identity,
+					  identity_len, phase2, user);
 }
 
 

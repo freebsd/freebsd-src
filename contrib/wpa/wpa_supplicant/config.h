@@ -29,7 +29,7 @@
 #define DEFAULT_P2P_INTRA_BSS 1
 #define DEFAULT_P2P_GO_MAX_INACTIVITY (5 * 60)
 #define DEFAULT_P2P_OPTIMIZE_LISTEN_CHAN 0
-#define DEFAULT_BSS_MAX_COUNT 200
+#define DEFAULT_BSS_MAX_COUNT 1000
 #define DEFAULT_BSS_EXPIRATION_AGE 180
 #define DEFAULT_BSS_EXPIRATION_SCAN_COUNT 2
 #define DEFAULT_MAX_NUM_STA 128
@@ -417,6 +417,52 @@ struct wpa_cred {
 	int sim_num;
 };
 
+struct wpa_dev_ik {
+	/**
+	 * next - Next device identity in the list
+	 *
+	 * This pointer can be used to iterate over all device identity keys.
+	 * The head of this list is stored in the dev_ik field of struct
+	 * wpa_config.
+	 */
+	struct wpa_dev_ik *next;
+
+	/**
+	 * id - Unique id for the identity
+	 *
+	 * This identifier is used as a unique identifier for each identity
+	 * block when using the control interface. Each identity is allocated
+	 * an id when it is being created, either when reading the
+	 * configuration file or when a new identity is added.
+	 */
+	int id;
+
+	/**
+	 * dik_cipher - Device identity key cipher version
+	 */
+	int dik_cipher;
+
+	/**
+	 * dik - Device identity key which is unique for the device
+	 */
+	struct wpabuf *dik;
+
+	/**
+	 * pmk - PMK associated with the previous connection with the device
+	 */
+	struct wpabuf *pmk;
+
+	/**
+	 * pmkid - PMKID used in the previous connection with the device
+	 */
+	struct wpabuf *pmkid;
+
+	/**
+	 * akmp - AKMP suite used in the previous connection with the device
+	 */
+	int akmp;
+};
+
 
 #define CFG_CHANGED_DEVICE_NAME BIT(0)
 #define CFG_CHANGED_CONFIG_METHODS BIT(1)
@@ -440,6 +486,7 @@ struct wpa_cred {
 #define CFG_CHANGED_DISABLE_BTM BIT(19)
 #define CFG_CHANGED_BGSCAN BIT(20)
 #define CFG_CHANGED_FT_PREPEND_PMKID BIT(21)
+#define CFG_CHANGED_P2P_DISABLED BIT(22)
 
 /**
  * struct wpa_config - wpa_supplicant configuration data
@@ -858,6 +905,21 @@ struct wpa_config {
 	int p2p_optimize_listen_chan;
 
 	int p2p_6ghz_disable;
+	int p2p_bootstrap_methods;
+	int p2p_pasn_type;
+	int p2p_comeback_after;
+	bool p2p_twt_power_mgmt;
+	bool p2p_chan_switch_req_enable;
+	int p2p_reg_info;
+
+	/**
+	 * p2p_assisted_dfs_chan_enable - Enable DFS channels for assisted DFS
+	 *
+	 * Enables DFS channels for AP assisted P2P DFS operations when the
+	 * underlying driver provides assisted P2P DFS support.
+	 * By default: 0 (disabled)
+	 */
+	bool p2p_assisted_dfs_chan_enable;
 
 	struct wpabuf *wps_vendor_ext_m1;
 
@@ -1387,15 +1449,6 @@ struct wpa_config {
 	u8 ip_addr_end[4];
 
 	/**
-	 * osu_dir - OSU provider information directory
-	 *
-	 * If set, allow FETCH_OSU control interface command to be used to fetch
-	 * OSU provider information into all APs and store the results in this
-	 * directory.
-	 */
-	char *osu_dir;
-
-	/**
 	 * wowlan_triggers - Wake-on-WLAN triggers
 	 *
 	 * If set, these wowlan triggers will be configured.
@@ -1774,7 +1827,27 @@ struct wpa_config {
 	 */
 	int wowlan_disconnect_on_deinit;
 
+	/**
+	 * rsn_overriding - RSN overriding (default behavior)
+	 */
+	enum wpas_rsn_overriding rsn_overriding;
+
 #ifdef CONFIG_PASN
+	/**
+	 * pasn_groups - Preference list of enabled groups for PASN
+	 *
+	 * As per IEEE Std 802.11-2024, 12.13.1, both STAs must have at least
+	 * one cyclic group in common from the dot11RSNAConfigDLCGroupTable for
+	 * ephemeral key exchange. For interoperability, a STA shall support
+	 * group 19 (ECC group defined over a 256-bit prime order field), which
+	 * is used as the default if this parameter is not set. Only suitable
+	 * ECC groups (e.g., 19, 20, 21) are accepted.
+	 *
+	 * If a per-network parameter is configured, it is used. If not, this
+	 * global parameter is used. If neither is set, group 19 is used.
+	 */
+	int *pasn_groups;
+
 #ifdef CONFIG_TESTING_OPTIONS
 	/*
 	 * Normally, KDK should be derived if and only if both sides support
@@ -1798,9 +1871,74 @@ struct wpa_config {
 	}  mld_connect_band_pref;
 
 	u8 mld_connect_bssid_pref[ETH_ALEN];
+#endif /* CONFIG_TESTING_OPTIONS */
 
 	int mld_force_single_link;
-#endif /* CONFIG_TESTING_OPTIONS */
+
+	/* Cipher version type */
+	int dik_cipher;
+
+	/* DevIK */
+	struct wpabuf *dik;
+
+	/**
+	 * identity - P2P2 peer device identities
+	 *
+	 * This is the head for the list of all the paired devices.
+	 */
+	struct wpa_dev_ik *identity;
+
+	/**
+	 * twt_requester - Whether TWT Requester Support is enabled
+	 *
+	 * This is for setting the bit 77 of the Extended Capabilities element.
+	 */
+	bool twt_requester;
+
+	/**
+	 * wfa_gen_capa: Whether to indicate Wi-Fi generational capability to
+	 *	the AP
+	 *
+	 * 0 = do not indicate (default)
+	 * 1 = indicate in protected Action frame
+	 * 2 = indicate in unprotected (Re)Association Request frame
+	 */
+	enum {
+		WFA_GEN_CAPA_DISABLED = 0,
+		WFA_GEN_CAPA_PROTECTED = 1,
+		WFA_GEN_CAPA_UNPROTECTED = 2,
+	} wfa_gen_capa;
+
+	/**
+	 * wfa_gen_capa_supp: Supported Generations (hexdump of a bit field)
+	 *
+	 * A bit field of supported Wi-Fi generations. This is encoded as an
+	 * little endian octt string.
+	 * bit 0: Wi-Fi 4
+	 * bit 1: Wi-Fi 5
+	 * bit 2: Wi-Fi 6
+	 * bit 3: Wi-Fi 7
+	 */
+	struct wpabuf *wfa_gen_capa_supp;
+
+	/**
+	 * disable_op_classes_80_80_mhz - Disable advertisement of 80+80 MHz
+	 * channel capabilities in the Supported Operating Classes element
+	 *
+	 * By default, %wpa_supplicant tries to advertise 80+80 MHz channel
+	 * capabilities in the Supported Operating Classes element if the driver
+	 * supports this.
+	*/
+	bool disable_op_classes_80_80_mhz;
+
+	/* Indicates the types of PASN supported for Proximity Ranging */
+	int pr_pasn_type;
+
+	/* Indicates the preferred Proximity Ranging Role
+	 * 0: Prefer ranging initiator role (default)
+	 * 1: Prefer ranging responder role
+	 */
+	int pr_preferred_role;
 };
 
 
@@ -1812,6 +1950,8 @@ void wpa_config_foreach_network(struct wpa_config *config,
 				void (*func)(void *, struct wpa_ssid *),
 				void *arg);
 struct wpa_ssid * wpa_config_get_network(struct wpa_config *config, int id);
+struct wpa_ssid * wpa_config_get_network_with_dik_id(struct wpa_config *config,
+						     int dik_id);
 struct wpa_ssid * wpa_config_add_network(struct wpa_config *config);
 int wpa_config_remove_network(struct wpa_config *config, int id);
 void wpa_config_set_network_defaults(struct wpa_ssid *ssid);
@@ -1847,6 +1987,12 @@ int wpa_config_set_cred(struct wpa_cred *cred, const char *var,
 			const char *value, int line);
 char * wpa_config_get_cred_no_key(struct wpa_cred *cred, const char *var);
 
+int wpa_config_set_identity(struct wpa_dev_ik *identity, const char *var,
+			    const char *value, int line);
+void wpa_config_free_identity(struct wpa_dev_ik *identity);
+struct wpa_dev_ik * wpa_config_add_identity(struct wpa_config *config);
+int wpa_config_remove_identity(struct wpa_config *config, int id);
+
 struct wpa_config * wpa_config_alloc_empty(const char *ctrl_interface,
 					   const char *driver_param);
 #ifndef CONFIG_NO_STDOUT_DEBUG
@@ -1857,7 +2003,8 @@ void wpa_config_debug_dump_networks(struct wpa_config *config);
 
 
 /* Prototypes for common functions from config.c */
-int wpa_config_process_global(struct wpa_config *config, char *pos, int line);
+int wpa_config_process_global(struct wpa_config *config, char *pos, int line,
+			      bool show_details);
 
 int wpa_config_get_num_global_field_names(void);
 
@@ -1871,6 +2018,7 @@ const char * wpa_config_get_global_field_name(unsigned int i, int *no_var);
  * configuration file)
  * @cfgp: Pointer to previously allocated configuration data or %NULL if none
  * @ro: Whether to mark networks from this configuration as read-only
+ * @show_details: Whether to show parsing errors and other details in debug log
  * Returns: Pointer to allocated configuration data or %NULL on failure
  *
  * This function reads configuration data, parses its contents, and allocates
@@ -1880,7 +2028,7 @@ const char * wpa_config_get_global_field_name(unsigned int i, int *no_var);
  * Each configuration backend needs to implement this function.
  */
 struct wpa_config * wpa_config_read(const char *name, struct wpa_config *cfgp,
-				    bool ro);
+				    bool ro, bool show_details);
 
 /**
  * wpa_config_write - Write or update configuration data

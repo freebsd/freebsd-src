@@ -168,7 +168,11 @@ struct wpabuf * wpabuf_alloc_copy(const void *data, size_t len)
 
 struct wpabuf * wpabuf_dup(const struct wpabuf *src)
 {
-	struct wpabuf *buf = wpabuf_alloc(wpabuf_len(src));
+	struct wpabuf *buf;
+
+	if (!src)
+		return NULL;
+	buf = wpabuf_alloc(wpabuf_len(src));
 	if (buf)
 		wpabuf_put_data(buf, wpabuf_head(src), wpabuf_len(src));
 	return buf;
@@ -337,4 +341,55 @@ struct wpabuf * wpabuf_parse_bin(const char *buf)
 	}
 
 	return ret;
+}
+
+
+struct wpabuf_array * wpabuf_array_alloc(void)
+{
+	struct wpabuf_array *wa;
+
+	wa = os_zalloc(sizeof(*wa));
+	return wa;
+}
+
+
+void wpabuf_array_free(struct wpabuf_array *wa)
+{
+	unsigned int idx;
+
+	if (!wa)
+		return;
+	for (idx = 0; idx < wa->num; idx++)
+		wpabuf_free(wa->buf[idx]);
+	os_free(wa->buf);
+	os_free(wa);
+}
+
+
+int wpabuf_array_add(struct wpabuf_array *wa, struct wpabuf *buf)
+{
+	struct wpabuf **n;
+
+	if (!wa || !buf)
+		return -1;
+	n = os_realloc(wa->buf, (wa->num + 1) * sizeof(struct wpabuf *));
+	if (!n)
+		return -1;
+	wa->buf = n;
+	wa->buf[wa->num++] = buf;
+	return 0;
+}
+
+
+void wpabuf_array_remove(struct wpabuf_array *wa, unsigned int idx)
+{
+	if (!wa || wa->num == 0 || idx >= wa->num)
+		return;
+	wpabuf_free(wa->buf[idx]);
+	while (idx + 1 < wa->num) {
+		wa->buf[idx] = wa->buf[idx + 1];
+		idx++;
+	}
+	wa->num--;
+	wa->buf[wa->num] = NULL;
 }

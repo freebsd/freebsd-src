@@ -9,9 +9,6 @@
 # be modified from here. In most cass, these lines should use += in order not
 # to override previous values of the variables.
 
-# Driver interface for Host AP driver
-CONFIG_DRIVER_HOSTAP=y
-
 # Driver interface for wired authenticator
 #CONFIG_DRIVER_WIRED=y
 
@@ -152,7 +149,6 @@ CONFIG_IPV6=y
 #CONFIG_DRIVER_RADIUS_ACL=y
 
 # Wireless Network Management (IEEE Std 802.11v-2011)
-# Note: This is experimental and not complete implementation.
 #CONFIG_WNM=y
 
 # IEEE 802.11ac (Very High Throughput) support
@@ -163,9 +159,6 @@ CONFIG_IPV6=y
 
 # IEEE 802.11be EHT support
 # CONFIG_IEEE80211AX is mandatory for setting CONFIG_IEEE80211BE.
-# Note: This is experimental and work in progress. The definitions are still
-# subject to change and this should not be expected to interoperate with the
-# final IEEE 802.11be version.
 #CONFIG_IEEE80211BE=y
 
 # Simultaneous Authentication of Equals (SAE), WPA3-Personal
@@ -384,8 +377,7 @@ CONFIG_IPV6=y
 #CONFIG_WPA_CLI_EDIT=y
 
 # Opportunistic Wireless Encryption (OWE)
-# Experimental implementation of draft-harkins-owe-07.txt
-#CONFIG_OWE=y
+CONFIG_OWE=y
 
 # Airtime policy support
 #CONFIG_AIRTIME_POLICY=y
@@ -410,18 +402,32 @@ CONFIG_IPV6=y
 #CONFIG_NO_TKIP=y
 
 # Pre-Association Security Negotiation (PASN)
-# Experimental implementation based on IEEE P802.11z/D2.6 and the protocol
-# design is still subject to change. As such, this should not yet be enabled in
-# production use.
 #CONFIG_PASN=y
 
 # Device Provisioning Protocol (DPP) (also known as Wi-Fi Easy Connect)
 CONFIG_DPP=y
 # DPP version 2 support
 CONFIG_DPP2=y
-# DPP version 3 support (experimental and still changing; do not enable for
-# production use)
+# DPP version 3 support
 #CONFIG_DPP3=y
 
 # Wi-Fi Aware unsynchronized service discovery (NAN USD)
 #CONFIG_NAN_USD=y
+
+# Enhanced Privacy Protection (IEEE P802.11bi)
+# Note: These features are experimental and still changing; do not enable for
+# production use.
+# Encrypted association frame support (needed for EPPKE and EAP in
+# Authentication frames)
+#CONFIG_ENC_ASSOC=y
+#
+# PMKSA caching privacy support
+#CONFIG_PMKSA_PRIVACY=y
+#
+# IEEE 802.1X (EAP) authentication in Authentication frames
+# IEEE P802.11bi/D4.0, 12.16.5 (IEEE 802.1X authentication utilizing
+# Authentication frames)
+#CONFIG_IEEE8021X_AUTH=y
+
+# Automated Frequency Coordination for 6 GHz outdoor
+#CONFIG_AFC=y

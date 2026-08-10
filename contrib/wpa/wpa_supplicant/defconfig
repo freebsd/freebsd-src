@@ -507,13 +507,9 @@ CONFIG_IEEE80211AX=y
 
 # IEEE 802.11be EHT support (mainly for AP mode)
 # CONFIG_IEEE80211AX is mandatory for setting CONFIG_IEEE80211BE.
-# Note: This is experimental and work in progress. The definitions are still
-# subject to change and this should not be expected to interoperate with the
-# final IEEE 802.11be version.
-#CONFIG_IEEE80211BE=y
+CONFIG_IEEE80211BE=y
 
 # Wireless Network Management (IEEE Std 802.11v-2011)
-# Note: This is experimental and not complete implementation.
 #CONFIG_WNM=y
 
 # Interworking (IEEE 802.11u)
@@ -638,15 +634,13 @@ CONFIG_BGSCAN_SIMPLE=y
 #CONFIG_BGSCAN_LEARN=y
 
 # Opportunistic Wireless Encryption (OWE)
-# Experimental implementation of draft-harkins-owe-07.txt
-#CONFIG_OWE=y
+CONFIG_OWE=y
 
 # Device Provisioning Protocol (DPP) (also known as Wi-Fi Easy Connect)
 CONFIG_DPP=y
 # DPP version 2 support
 CONFIG_DPP2=y
-# DPP version 3 support (experimental and still changing; do not enable for
-# production use)
+# DPP version 3 support
 #CONFIG_DPP3=y
 
 # Wired equivalent privacy (WEP)
@@ -667,9 +661,6 @@ CONFIG_DPP2=y
 #CONFIG_NO_TKIP=y
 
 # Pre-Association Security Negotiation (PASN)
-# Experimental implementation based on IEEE P802.11z/D2.6 and the protocol
-# design is still subject to change. As such, this should not yet be enabled in
-# production use.
 #CONFIG_PASN=y
 
 # Disable support for Radio Measurement (IEEE 802.11k) and supported operating
@@ -686,3 +677,32 @@ CONFIG_DPP2=y
 
 # Wi-Fi Aware unsynchronized service discovery (NAN USD)
 #CONFIG_NAN_USD=y
+
+# Wi-Fi Aware (NAN) support
+#CONFIG_NAN=y
+
+# Proximity Ranging (PR) support
+#CONFIG_PR=y
+
+# Enhanced Privacy Protection (IEEE P802.11bi)
+# Note: These features are experimental and still changing; do not enable for
+# production use.
+# Encrypted association frame support (needed for EPPKE and EAP in
+# Authentication frames)
+#CONFIG_ENC_ASSOC=y
+#
+# PMKSA caching privacy support
+#CONFIG_PMKSA_PRIVACY=y
+#
+# IEEE 802.1X (EAP) authentication in Authentication frames
+# IEEE P802.11bi/D4.0, 12.16.5 (IEEE 802.1X authentication utilizing
+# Authentication frames)
+#CONFIG_IEEE8021X_AUTH=y
+
+# OpenSSL PKCS#11/OpenSC engine and module trusted-path validation
+# Validate PKCS#11 engine, PKCS#11 module, and OpenSC engine shared library
+# paths (root-owned, non-writable regular file under /usr/lib with root-owned
+# ancestor directories) before dlopen()ing them. Disabled by default to avoid
+# affecting deployments that run wpa_supplicant as a non-root user with shared
+# libraries in a custom directory owned by that user.
+#CONFIG_TLS_ENGINE_TRUSTED_PATH=y

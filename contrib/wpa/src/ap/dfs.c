@@ -2,6 +2,7 @@
  * DFS - Dynamic Frequency Selection
  * Copyright (c) 2002-2013, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2013-2017, Qualcomm Atheros, Inc.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -252,6 +253,13 @@ static int dfs_find_channel(struct hostapd_iface *iface,
 	wpa_printf(MSG_DEBUG, "DFS new chan checking %d channels", n_chans);
 	for (i = 0; i < mode->num_channels; i++) {
 		chan = &mode->channels[i];
+
+		if (!chan_in_current_hw_info(iface->current_hw_info, chan)) {
+			wpa_printf(MSG_DEBUG,
+				   "DFS: channel %d (%d) is not under current hardware index",
+				   chan->freq, chan->chan);
+			continue;
+		}
 
 		/* Skip HT40/VHT incompatible channels */
 		if (iface->conf->ieee80211n &&
@@ -974,6 +982,7 @@ static int hostapd_dfs_request_channel_switch(struct hostapd_iface *iface,
 	u8 new_vht_oper_chwidth;
 	unsigned int i;
 	unsigned int num_err = 0;
+	u8 op_class, chan;
 
 	wpa_printf(MSG_DEBUG, "DFS will switch to a new channel %d", channel);
 	wpa_msg(iface->bss[0]->msg_ctx, MSG_INFO, DFS_EVENT_NEW_CHANNEL
@@ -982,6 +991,13 @@ static int hostapd_dfs_request_channel_switch(struct hostapd_iface *iface,
 
 	new_vht_oper_chwidth = hostapd_get_oper_chwidth(iface->conf);
 	hostapd_set_oper_chwidth(iface->conf, current_vht_oper_chwidth);
+	if (ieee80211_freq_to_channel_ext(freq, secondary_channel,
+					  new_vht_oper_chwidth, &op_class,
+					  &chan) != NUM_HOSTAPD_MODES) {
+		wpa_printf(MSG_DEBUG, "Update op_class %d->%d",
+			   iface->conf->op_class, op_class);
+		iface->conf->op_class = op_class;
+	}
 
 	/* Setup CSA request */
 	os_memset(&csa_settings, 0, sizeof(csa_settings));
@@ -1039,6 +1055,14 @@ static int hostapd_dfs_request_channel_switch(struct hostapd_iface *iface,
 						     oper_centr_freq_seg0_idx);
 		hostapd_set_oper_centr_freq_seg1_idx(iface->conf,
 						     oper_centr_freq_seg1_idx);
+		if (ieee80211_freq_to_channel_ext(freq, secondary_channel,
+						  new_vht_oper_chwidth,
+						  &op_class, &chan) !=
+		    NUM_HOSTAPD_MODES) {
+			wpa_printf(MSG_DEBUG, "Update op_class %d->%d",
+				   iface->conf->op_class, op_class);
+			iface->conf->op_class = op_class;
+		}
 
 		hostapd_disable_iface(iface);
 		hostapd_enable_iface(iface);
@@ -1107,6 +1131,25 @@ static void hostapd_dfs_update_background_chain(struct hostapd_iface *iface)
 
 
 static bool
+hostapd_is_freq_in_current_hw_info(struct hostapd_iface *iface, int freq)
+{
+	struct hostapd_channel_data *chan;
+
+	if (!iface->current_mode)
+		return false;
+
+	chan = hw_mode_get_channel(iface->current_mode, freq, NULL);
+
+	/* If channel data is not found for the given frequency, consider it is
+	 * out of the current hardware info. */
+	if (!chan)
+		return false;
+
+	return chan_in_current_hw_info(iface->current_hw_info, chan);
+}
+
+
+static bool
 hostapd_dfs_is_background_event(struct hostapd_iface *iface, int freq)
 {
 	return dfs_use_radar_background(iface) &&
@@ -1143,6 +1186,14 @@ int hostapd_dfs_complete_cac(struct hostapd_iface *iface, int success, int freq,
 			     int ht_enabled, int chan_offset, int chan_width,
 			     int cf1, int cf2)
 {
+	if (!hostapd_is_freq_in_current_hw_info(iface, freq)) {
+		wpa_msg(iface->bss[0]->msg_ctx, MSG_INFO,
+			DFS_EVENT_CAC_COMPLETED
+			"Ignoring since freq=%d info is out of own range",
+			freq);
+		return 0;
+	}
+
 	wpa_msg(iface->bss[0]->msg_ctx, MSG_INFO, DFS_EVENT_CAC_COMPLETED
 		"success=%d freq=%d ht_enabled=%d chan_offset=%d chan_width=%d cf1=%d cf2=%d radar_detected=%d",
 		success, freq, ht_enabled, chan_offset, chan_width, cf1, cf2,
@@ -1214,6 +1265,14 @@ int hostapd_dfs_pre_cac_expired(struct hostapd_iface *iface, int freq,
 				int ht_enabled, int chan_offset, int chan_width,
 				int cf1, int cf2)
 {
+	if (!hostapd_is_freq_in_current_hw_info(iface, freq)) {
+		wpa_msg(iface->bss[0]->msg_ctx, MSG_INFO,
+			DFS_EVENT_PRE_CAC_EXPIRED
+			"Ignoring since freq=%d info is out of own range",
+			freq);
+		return 0;
+	}
+
 	wpa_msg(iface->bss[0]->msg_ctx, MSG_INFO, DFS_EVENT_PRE_CAC_EXPIRED
 		"freq=%d ht_enabled=%d chan_offset=%d chan_width=%d cf1=%d cf2=%d",
 		freq, ht_enabled, chan_offset, chan_width, cf1, cf2);
@@ -1276,6 +1335,7 @@ static int hostapd_dfs_start_channel_switch_cac(struct hostapd_iface *iface)
 	u8 oper_centr_freq_seg1_idx = 0;
 	enum dfs_channel_type channel_type = DFS_ANY_CHANNEL;
 	int err = 1;
+	u8 op_class, chan;
 
 	/* Radar detected during active CAC */
 	iface->cac_started = 0;
@@ -1308,6 +1368,14 @@ static int hostapd_dfs_start_channel_switch_cac(struct hostapd_iface *iface)
 					     oper_centr_freq_seg0_idx);
 	hostapd_set_oper_centr_freq_seg1_idx(iface->conf,
 					     oper_centr_freq_seg1_idx);
+	if (ieee80211_freq_to_channel_ext(channel->freq, secondary_channel,
+					  hostapd_get_oper_chwidth(iface->conf),
+					  &op_class, &chan) !=
+	    NUM_HOSTAPD_MODES) {
+		wpa_printf(MSG_DEBUG, "Update op_class %d->%d",
+			   iface->conf->op_class, op_class);
+		iface->conf->op_class = op_class;
+	}
 	err = 0;
 
 	hostapd_setup_interface_complete(iface, err);
@@ -1445,6 +1513,14 @@ int hostapd_dfs_radar_detected(struct hostapd_iface *iface, int freq,
 			       int ht_enabled, int chan_offset, int chan_width,
 			       int cf1, int cf2)
 {
+	if (!hostapd_is_freq_in_current_hw_info(iface, freq)) {
+		wpa_msg(iface->bss[0]->msg_ctx, MSG_INFO,
+			DFS_EVENT_RADAR_DETECTED
+			"Ignoring since freq=%d info is out of own range",
+			freq);
+		return 0;
+	}
+
 	wpa_msg(iface->bss[0]->msg_ctx, MSG_INFO, DFS_EVENT_RADAR_DETECTED
 		"freq=%d ht_enabled=%d chan_offset=%d chan_width=%d cf1=%d cf2=%d",
 		freq, ht_enabled, chan_offset, chan_width, cf1, cf2);
@@ -1483,6 +1559,14 @@ int hostapd_dfs_nop_finished(struct hostapd_iface *iface, int freq,
 			     int ht_enabled, int chan_offset, int chan_width,
 			     int cf1, int cf2)
 {
+	if (!hostapd_is_freq_in_current_hw_info(iface, freq)) {
+		wpa_msg(iface->bss[0]->msg_ctx, MSG_INFO,
+			DFS_EVENT_NOP_FINISHED
+			"Ignoring since freq=%d info is out of own range",
+			freq);
+		return 0;
+	}
+
 	wpa_msg(iface->bss[0]->msg_ctx, MSG_INFO, DFS_EVENT_NOP_FINISHED
 		"freq=%d ht_enabled=%d chan_offset=%d chan_width=%d cf1=%d cf2=%d",
 		freq, ht_enabled, chan_offset, chan_width, cf1, cf2);
@@ -1536,10 +1620,19 @@ int hostapd_is_dfs_required(struct hostapd_iface *iface)
 }
 
 
-int hostapd_dfs_start_cac(struct hostapd_iface *iface, int freq,
+int hostapd_dfs_start_cac(struct hostapd_data *hapd, int freq,
 			  int ht_enabled, int chan_offset, int chan_width,
 			  int cf1, int cf2)
 {
+	struct hostapd_iface *iface = hapd->iface;
+
+	if (!hostapd_is_freq_in_current_hw_info(iface, freq)) {
+		wpa_msg(iface->bss[0]->msg_ctx, MSG_INFO, DFS_EVENT_CAC_START
+			"Ignoring since freq=%d info is out of own range",
+			freq);
+		return 0;
+	}
+
 	if (hostapd_dfs_is_background_event(iface, freq)) {
 		iface->radar_background.cac_started = 1;
 	} else {
@@ -1558,7 +1651,7 @@ int hostapd_dfs_start_cac(struct hostapd_iface *iface, int freq,
 	}
 	/* TODO: How to check CAC time for ETSI weather channels? */
 	iface->dfs_cac_ms = 60000;
-	wpa_msg(iface->bss[0]->msg_ctx, MSG_INFO, DFS_EVENT_CAC_START
+	wpa_msg(hapd->msg_ctx, MSG_INFO, DFS_EVENT_CAC_START
 		"freq=%d chan=%d chan_offset=%d width=%d seg0=%d "
 		"seg1=%d cac_time=%ds%s",
 		freq, (freq - 5000) / 5, chan_offset, chan_width, cf1, cf2,

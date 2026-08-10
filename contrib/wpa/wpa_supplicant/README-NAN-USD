@@ -56,6 +56,14 @@ NAN_UPDATE_PUBLISH publish_id=<id from NAN_PUBLISH> [ssi=<service specific infor
 This command maps to the UpdatePublish() method in the NAN Discovery
 Engine.
 
+NAN_PUBLISH_STOP_LISTEN publish_id=<id from NAN_PUBLISH>
+
+This command is an implementation specific mechanism to allow a service
+to stop driver listen operation during an ongoing SDF exchange, e.g., to
+allow optimized radio use for parallel operations during provisioning
+sequence when no SDF is expected to be received from the peer during the
+other operations. NAN_TRANSMIT can used to re-enable listen operations.
+
 NAN_SUBSCRIBE service_name=<name> [active=1] [ttl=<time-to-live-in-sec>] [freq=<in MHz>] [srv_proto_type=<type>] [ssi=<service specific information (hexdump)>]
 
 If ttl=0 or the parameter is not included, operation is terminated once
@@ -74,6 +82,14 @@ This command maps to the Subscribe() method in the NAN Discovery Engine.
 NAN_CANCEL_SUBSCRIBE subscribe_id=<id from NAN_SUBSCRIBE>
 
 This command maps to the CancelSubscribe() method in the NAN Discovery Engine.
+
+NAN_SUBSCRIBE_STOP_LISTEN subscribe_id=<id from NAN_SUBSCRIBE>
+
+This command is an implementation specific mechanism to allow a service
+to stop driver listen operation during an ongoing SDF exchange, e.g., to
+allow optimized radio use for parallel operations during provisioning
+sequence when no SDF is expected to be received from the peer during the
+other operations. NAN_TRANSMIT can used to re-enable listen operations.
 
 NAN_TRANSMIT handle=<id from NAN_PUBLISH or NAN_SUBSCRIBE> req_instance_id=<peer's id> address=<peer's MAC address> [ssi=<service specific information (hexdump)>]
 

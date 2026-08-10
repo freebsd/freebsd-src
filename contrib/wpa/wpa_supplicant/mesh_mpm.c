@@ -1203,7 +1203,9 @@ void mesh_mpm_action_rx(struct wpa_supplicant *wpa_s,
 	}
 
 	/* check for mesh peering, mesh id and mesh config IEs */
-	if (ieee802_11_parse_elems(ies, ie_len, &elems, 0) == ParseFailed) {
+	os_memset(&elems, 0, sizeof(elems));
+	elems.stop_at_mic = true;
+	if (ieee802_11_parse_elems_ctrl(ies, ie_len, &elems) == ParseFailed) {
 		wpa_printf(MSG_DEBUG, "MPM: Failed to parse PLINK IEs");
 		return;
 	}

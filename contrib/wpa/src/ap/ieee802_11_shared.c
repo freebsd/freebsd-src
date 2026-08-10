@@ -381,6 +381,10 @@ static void hostapd_ext_capab_byte(struct hostapd_data *hapd, u8 *pos, int idx,
 			/* Bit 13 - Collocated Interference Reporting */
 			*pos |= 0x20;
 		}
+		if (hapd->iface->conf->civic)
+			*pos |= 0x40; /* Bit 14 - Civic Location */
+		if (hapd->iface->conf->lci)
+			*pos |= 0x80; /* Bit 15 - Geospatial Location */
 		break;
 	case 2: /* Bits 16-23 */
 		if (hapd->conf->wnm_sleep_mode)
@@ -475,6 +479,19 @@ static void hostapd_ext_capab_byte(struct hostapd_data *hapd, u8 *pos, int idx,
 		    hostapd_sae_pk_exclusively(hapd->conf))
 			*pos |= 0x01; /* Bit 88 - SAE PK Exclusively */
 #endif /* CONFIG_SAE_PK */
+		break;
+	case 12: /* Bits 96-103 */
+		if (hapd->iconf->i2r_lmr_policy)
+			*pos |= 0x02; /* Bit 97 - I2R LMR Feedback Policy */
+		if (hapd->iconf->peer_to_peer_twt)
+			*pos |= 0x10; /* Bit 100 - Peer to Peer TWT */
+		if (hapd->conf->known_sta_identification)
+			*pos |= 0x40; /* Bit 102 - Known STA Identification
+				       * Enabled */
+		break;
+	case 13: /* Bits 104-111 */
+		if (hapd->iconf->channel_usage)
+			*pos |= 0x01; /* Bit 104 - Channel Usage support */
 		break;
 	}
 }
@@ -1034,7 +1051,8 @@ int get_tx_parameters(struct sta_info *sta, int ap_max_chanwidth,
 	int requested_bw;
 
 	if (sta->ht_capabilities)
-		ht_40mhz = !!(sta->ht_capabilities->ht_capabilities_info &
+		ht_40mhz = !!(le_to_host16(sta->ht_capabilities->
+					   ht_capabilities_info) &
 			      HT_CAP_INFO_SUPP_CHANNEL_WIDTH_SET);
 
 	if (sta->vht_operation) {
@@ -1070,9 +1088,9 @@ int get_tx_parameters(struct sta_info *sta, int ap_max_chanwidth,
 		 * normal clients), use it to determine the supported channel
 		 * bandwidth.
 		 */
-		vht_chanwidth = capab->vht_capabilities_info &
+		vht_chanwidth = le_to_host32(capab->vht_capabilities_info) &
 			VHT_CAP_SUPP_CHAN_WIDTH_MASK;
-		vht_80p80 = capab->vht_capabilities_info &
+		vht_80p80 = le_to_host32(capab->vht_capabilities_info) &
 			VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ;
 
 		/* TODO: Also take into account Extended NSS BW Support field */
@@ -1097,7 +1115,7 @@ u8 * hostapd_eid_rsnxe(struct hostapd_data *hapd, u8 *eid, size_t len)
 {
 	u8 *pos = eid;
 	bool sae_pk = false;
-	u32 capab = 0, tmp;
+	u64 capab = 0, tmp;
 	size_t flen;
 
 	if (!(hapd->conf->wpa & WPA_PROTO_RSN))
@@ -1124,10 +1142,37 @@ u8 * hostapd_eid_rsnxe(struct hostapd_data *hapd, u8 *eid, size_t len)
 		capab |= BIT(WLAN_RSNX_CAPAB_SECURE_LTF);
 	if (hapd->iface->drv_flags2 & WPA_DRIVER_FLAGS2_SEC_RTT_AP)
 		capab |= BIT(WLAN_RSNX_CAPAB_SECURE_RTT);
-	if (hapd->iface->drv_flags2 & WPA_DRIVER_FLAGS2_PROT_RANGE_NEG_AP)
-		capab |= BIT(WLAN_RSNX_CAPAB_URNM_MFPR);
+	if (hapd->iface->drv_flags2 & WPA_DRIVER_FLAGS2_PROT_RANGE_NEG_AP) {
+		if (hapd->conf->urnm_mfpr != 0)
+			capab |= BIT(WLAN_RSNX_CAPAB_URNM_MFPR);
+		if (hapd->conf->urnm_mfpr_x20 == 1)
+			capab |= BIT(WLAN_RSNX_CAPAB_URNM_MFPR_X20);
+	}
 	if (hapd->conf->ssid_protection)
 		capab |= BIT(WLAN_RSNX_CAPAB_SSID_PROTECTION);
+	if ((hapd->iface->drv_flags2 & WPA_DRIVER_FLAGS2_SPP_AMSDU) &&
+	    hapd->conf->spp_amsdu)
+		capab |= BIT(WLAN_RSNX_CAPAB_SPP_A_MSDU);
+#ifdef CONFIG_ENC_ASSOC
+	/* Per IEEE 802.11bi/D4.0, 12.16.7 (PMKSA caching privacy)
+	 * a STA that sets the PMKSA Caching Privacy Support
+	 * field in the RSNXE to 1 shall set the (Re)Association
+	 * Frame Encryption Support field in the RSNXE to 1.
+	 */
+	if ((hapd->iface->drv_flags2 &
+	     WPA_DRIVER_FLAGS2_ASSOCIATION_FRAME_ENCRYPTION) &&
+	    (hapd->conf->assoc_frame_encryption ||
+	    hapd->conf->pmksa_caching_privacy))
+		capab |= BIT(WLAN_RSNX_CAPAB_ASSOC_FRAME_ENCRYPTION);
+	if (hapd->conf->wpa_key_mgmt & WPA_KEY_MGMT_EPPKE)
+		capab |= BIT(WLAN_RSNX_CAPAB_KEK_IN_PASN);
+	if (hapd->conf->pmksa_caching_privacy)
+		capab |= BIT(WLAN_RSNX_CAPAB_PMKSA_CACHING_PRIVACY);
+	if (hapd->conf->eap_using_authentication_frames)
+		capab |= BIT(WLAN_RSNX_CAPAB_802_1X_IN_AUTH_FRAMES);
+	if (hapd->conf->eppke_unauth)
+		capab |= BIT_ULL(WLAN_RSNX_CAPAB_UNAUTH_EPPKE);
+#endif /* CONFIG_ENC_ASSOC */
 
 	if (!capab)
 		return eid; /* no supported extended RSN capabilities */
@@ -1221,8 +1266,52 @@ struct sta_info * hostapd_ml_get_assoc_sta(struct hostapd_data *hapd,
 bool hostapd_get_ht_vht_twt_responder(struct hostapd_data *hapd)
 {
 	return hapd->iconf->ht_vht_twt_responder &&
-		((hapd->iconf->ieee80211n && !hapd->conf->disable_11n) ||
-		 (hapd->iconf->ieee80211ac && !hapd->conf->disable_11ac)) &&
+		(hostapd_is_ht_enabled(hapd) ||
+		 hostapd_is_vht_enabled(hapd)) &&
 		(hapd->iface->drv_flags2 &
 		 WPA_DRIVER_FLAGS2_HT_VHT_TWT_RESPONDER);
+}
+
+
+static void hostapd_wfa_gen_capab(struct hostapd_data *hapd,
+				  struct sta_info *sta,
+				  const u8 *capab, size_t len)
+{
+	char *hex;
+	size_t buflen;
+
+	wpa_printf(MSG_DEBUG,
+		   "WFA: Received indication of generational capabilities from "
+		   MACSTR, MAC2STR(sta->addr));
+	wpa_hexdump(MSG_DEBUG, "WFA: Generational Capabilities", capab, len);
+
+	buflen = 2 * len + 1;
+	hex = os_zalloc(buflen);
+	if (!hex)
+		return;
+	wpa_snprintf_hex(hex, buflen, capab, len);
+	wpa_msg(hapd->msg_ctx, MSG_INFO, WFA_GEN_CAPAB_RX MACSTR " %s",
+		MAC2STR(sta->addr), hex);
+	os_free(hex);
+}
+
+
+void hostapd_wfa_capab(struct hostapd_data *hapd, struct sta_info *sta,
+		       const u8 *pos, const u8 *end)
+{
+	u8 capab_len;
+	const u8 *gen_capa;
+
+	if (end - pos < 1)
+		return;
+	capab_len = *pos++;
+	if (capab_len > end - pos)
+		return;
+	pos += capab_len; /* skip the Capabilities field */
+
+	/* Wi-Fi Alliance Capabilities attributes use a header that is similar
+	 * to the one used in Information Elements. */
+	gen_capa = get_ie(pos, end - pos, WFA_CAPA_ATTR_GENERATIONAL_CAPAB);
+	if (gen_capa)
+		hostapd_wfa_gen_capab(hapd, sta, gen_capa + 2, gen_capa[1]);
 }
