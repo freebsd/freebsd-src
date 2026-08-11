@@ -51,6 +51,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260811: libusb symbol versioning, shared library bumped to version 4
+OLD_LIBS+=usr/lib/libusb.so.3
+
 # 20260810: test removed
 OLD_FILES+=usr/tests/sys/netinet6/frag6/frag6_01
 OLD_FILES+=usr/tests/sys/netinet6/frag6/frag6_01.py
