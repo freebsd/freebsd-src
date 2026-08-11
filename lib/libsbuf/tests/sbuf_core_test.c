@@ -268,17 +268,18 @@ ATF_TC_WITHOUT_HEAD(sbuf_set_flags_test);
 ATF_TC_BODY(sbuf_set_flags_test, tc)
 {
 	struct sbuf *sb;
-	int flags;
+
 	sb = sbuf_new_auto();
 
 	ATF_REQUIRE_MSG(sb != NULL, 
 		"sbuf_new_auto failed: %s", strerror(errno));
- 
-	flags = sbuf_set_flags(sb, SBUF_INCLUDENUL);
-	sbuf_len(flags);
 
+	ATF_REQUIRE_EQ_MSG(0,
+		sbuf_set_flags(sb, SBUF_INCLUDENUL),
+		"sbuf_set_flags failed");
+ 
 	ATF_REQUIRE_MSG(sbuf_cat(sb, test_string) == 0,
-		"sbuf_cat failed");
+		"sbuf_cat failed");	
 
 	ATF_REQUIRE_EQ_MSG(0, 
 		sbuf_finish(sb),
