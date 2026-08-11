@@ -342,8 +342,11 @@ rtnl_if_flags_to_linux(unsigned int if_flags)
 		case IFF_DYING:
 			/* No Linux analogue */
 			break;
+		case IFF_LOWER_UP:	/* IFF_NETLINK_1 */
+			result |= LINUX_IFF_LOWER_UP;
+			break;
 		case IFF_MULTICAST:
-			result |= 1 << 12;
+			result |= LINUX_IFF_MULTICAST;
 		}
 	}
 	return (result);

@@ -124,6 +124,9 @@ struct l_sockaddr {
 #define	LINUX_IFF_PORTSEL	0x2000
 #define	LINUX_IFF_AUTOMEDIA	0x4000
 #define	LINUX_IFF_DYNAMIC	0x8000
+/* Volatile (netlink / ifinfomsg); not representable in ifr_flags short */
+#define	LINUX_IFF_LOWER_UP	0x10000
+#define	LINUX_IFF_DORMANT	0x20000
 
 /* sigaltstack */
 #define	LINUX_SS_ONSTACK	1
