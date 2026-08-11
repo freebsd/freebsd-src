@@ -1025,7 +1025,7 @@ s32 ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 
 	/* Set the nibble for VMD queue index */
 	bits = IXGBE_READ_REG(hw, IXGBE_VFTAVIND(vftabyte, regindex));
-	bits &= (~(0x0F << bitindex));
+	bits &= ~(0x0FU << bitindex);
 	bits |= (vind << bitindex);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTAVIND(vftabyte, regindex), bits);
 
@@ -1035,10 +1035,10 @@ s32 ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	bits = IXGBE_READ_REG(hw, IXGBE_VFTA(regindex));
 	if (vlan_on)
 		/* Turn on this VLAN id */
-		bits |= (1 << bitindex);
+		bits |= 1U << bitindex;
 	else
 		/* Turn off this VLAN id */
-		bits &= ~(1 << bitindex);
+		bits &= ~(1U << bitindex);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTA(regindex), bits);
 
 	return IXGBE_SUCCESS;

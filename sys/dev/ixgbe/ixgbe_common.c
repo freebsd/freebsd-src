@@ -3841,10 +3841,10 @@ s32 ixgbe_clear_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 			mpsar_hi = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
 		}
 	} else if (vmdq < 32) {
-		mpsar_lo &= ~(1 << vmdq);
+		mpsar_lo &= ~(1U << vmdq);
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar_lo);
 	} else {
-		mpsar_hi &= ~(1 << (vmdq - 32));
+		mpsar_hi &= ~(1U << (vmdq - 32));
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar_hi);
 	}
 
@@ -3878,11 +3878,11 @@ s32 ixgbe_set_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 
 	if (vmdq < 32) {
 		mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
-		mpsar |= 1 << vmdq;
+		mpsar |= 1U << vmdq;
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar);
 	} else {
 		mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
-		mpsar |= 1 << (vmdq - 32);
+		mpsar |= 1U << (vmdq - 32);
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar);
 	}
 	return IXGBE_SUCCESS;
@@ -3906,11 +3906,11 @@ s32 ixgbe_set_vmdq_san_mac_generic(struct ixgbe_hw *hw, u32 vmdq)
 	DEBUGFUNC("ixgbe_set_vmdq_san_mac");
 
 	if (vmdq < 32) {
-		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), 1 << vmdq);
+		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), 1U << vmdq);
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), 0);
 	} else {
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), 1 << (vmdq - 32));
+		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), 1U << (vmdq - 32));
 	}
 
 	return IXGBE_SUCCESS;
@@ -4018,7 +4018,7 @@ s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	 *    bits[4-0]:  which bit in the register
 	 */
 	regidx = vlan / 32;
-	vfta_delta = 1 << (vlan % 32);
+	vfta_delta = 1U << (vlan % 32);
 	vfta = IXGBE_READ_REG(hw, IXGBE_VFTA(regidx));
 
 	/*
@@ -4090,12 +4090,12 @@ s32 ixgbe_set_vlvf_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	bits = IXGBE_READ_REG(hw, IXGBE_VLVFB(vlvf_index * 2 + vind / 32));
 
 	/* set the pool bit */
-	bits |= 1 << (vind % 32);
+	bits |= 1U << (vind % 32);
 	if (vlan_on)
 		goto vlvf_update;
 
 	/* clear the pool bit */
-	bits ^= 1 << (vind % 32);
+	bits ^= 1U << (vind % 32);
 
 	if (!bits &&
 	    !IXGBE_READ_REG(hw, IXGBE_VLVFB(vlvf_index * 2 + 1 - vind / 32))) {
