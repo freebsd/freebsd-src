@@ -1504,7 +1504,7 @@ out:
 s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 {
 	s32 ret_val = E1000_SUCCESS;
-	u8 ulp_exit_timeout = 30;
+	u16 ulp_exit_timeout = 250;
 	u32 mac_reg;
 	u32 phy_retries;
 	u16 phy_reg;
@@ -1526,9 +1526,6 @@ s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 			mac_reg |= E1000_H2ME_ENFORCE_SETTINGS;
 			E1000_WRITE_REG(hw, E1000_H2ME, mac_reg);
 		}
-
-		if (hw->mac.type == e1000_pch_cnp)
-			ulp_exit_timeout = 100;
 
 		while (E1000_READ_REG(hw, E1000_FWSM) &
 		       E1000_FWSM_ULP_CFG_DONE) {
