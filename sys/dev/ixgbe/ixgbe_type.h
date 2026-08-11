@@ -2228,7 +2228,7 @@ enum {
 #define IXGBE_LED_IVRT_BASE		0x00000040
 #define IXGBE_LED_BLINK_BASE		0x00000080
 #define IXGBE_LED_MODE_MASK_BASE	0x0000000F
-#define IXGBE_LED_OFFSET(_base, _i)	(_base << (8 * (_i)))
+#define IXGBE_LED_OFFSET(_base, _i)	((u32)(_base) << (8 * (_i)))
 #define IXGBE_LED_MODE_SHIFT(_i)	(8*(_i))
 #define IXGBE_LED_IVRT(_i)	IXGBE_LED_OFFSET(IXGBE_LED_IVRT_BASE, _i)
 #define IXGBE_LED_BLINK(_i)	IXGBE_LED_OFFSET(IXGBE_LED_BLINK_BASE, _i)
