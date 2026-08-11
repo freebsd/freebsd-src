@@ -211,7 +211,7 @@ static bool e1000_phy_is_accessible_pchlan(struct e1000_hw *hw)
 		ret_val = hw->phy.ops.read_reg_locked(hw, PHY_ID1, &phy_reg);
 		if (ret_val || (phy_reg == 0xFFFF))
 			continue;
-		phy_id = (u32)(phy_reg << 16);
+		phy_id = (u32)phy_reg << 16;
 
 		ret_val = hw->phy.ops.read_reg_locked(hw, PHY_ID2, &phy_reg);
 		if (ret_val || (phy_reg == 0xFFFF)) {
