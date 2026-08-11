@@ -438,7 +438,7 @@ local function addgroup(grp)
 	return true
 end
 
-local function addsshkey(homedir, key)
+local function addsshkey(homedir, key, options)
 	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
 	if root then
 		homedir = root .. "/" .. homedir
@@ -471,7 +471,11 @@ local function addsshkey(homedir, key)
 		warnmsg("impossible to open " .. ak_path)
 		return
 	end
-	f:write(key .. "\n")
+	if options and options ~= "" then
+		f:write(options .. " " .. key .. "\n")
+	else
+		f:write(key .. "\n")
+	end
 	f:close()
 
 	-- Set permissions and ownership on newly created files/dirs
