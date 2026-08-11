@@ -127,7 +127,7 @@ static int	vtballoon_sleep(struct vtballoon_softc *);
 static void	vtballoon_thread(void *);
 static void	vtballoon_guest_lowmem(void *, int);
 static void	vtballoon_setup_sysctl(struct vtballoon_softc *);
-static uint64_t	vtballoon_mem_available(struct vtballoon_softc *);
+static uint64_t	vtballoon_mem_available(void);
 static uint64_t	vtballoon_mem_caches(void);
 
 #define vtballoon_modern(_sc) \
@@ -722,27 +722,31 @@ vtballoon_thread(void *xsc)
  * the scope of this virtio driver estimate.
  */
 static uint64_t
-vtballoon_mem_available(struct vtballoon_softc *sc __unused)
+vtballoon_mem_available(void)
 {
-	int64_t available;
-	int64_t inactive;
+	u_long available;
+	u_int count, target;
 
-	available = ((int64_t)vm_free_count() - vm_cnt.v_free_target) * PAGE_SIZE;
-	inactive = ((int64_t)vm_inactive_count() - vm_cnt.v_inactive_target) *
-	    PAGE_SIZE;
-	if (inactive > 0)
-		available += inactive;
+	available = 0;
 
-	if (available < 0)
-		available = 0;
-	return ((uint64_t)available);
+	count = vm_free_count();
+	target = vm_cnt.v_free_target;
+	if (count > target)
+		available += count - target;
+
+	count = vm_inactive_count();
+	target = vm_cnt.v_inactive_target;
+	if (count > target)
+		available += count - target;
+
+	return (ptoa((uint64_t)available));
 }
 
 static uint64_t
 vtballoon_mem_caches(void)
 {
 
-	return ((uint64_t)vm_inactive_count() * PAGE_SIZE);
+	return (ptoa((uint64_t)vm_inactive_count()));
 }
 
 static int
@@ -763,15 +767,15 @@ vtballoon_update_stats(struct vtballoon_softc *sc)
 } while (0)
 
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_MEMTOT,
-	    (uint64_t)vm_cnt.v_page_count * PAGE_SIZE);
+	    ptoa((uint64_t)vm_cnt.v_page_count));
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_MEMFREE,
-	    (uint64_t)vm_free_count() * PAGE_SIZE);
+	    ptoa((uint64_t)vm_free_count()));
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_AVAIL,
-	    vtballoon_mem_available(sc));
+	    vtballoon_mem_available());
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_SWAP_IN,
-	    VM_CNT_FETCH(v_swappgsin) * PAGE_SIZE);
+	    ptoa(VM_CNT_FETCH(v_swappgsin)));
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_SWAP_OUT,
-	    VM_CNT_FETCH(v_swappgsout) * PAGE_SIZE);
+	    ptoa(VM_CNT_FETCH(v_swappgsout)));
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_MINFLT,
 	    VM_CNT_FETCH(v_vm_faults));
 	VTBALLOON_SET_STAT(VIRTIO_BALLOON_S_MAJFLT,
