@@ -58,13 +58,13 @@ void csa_clearserialfifos(csa_res *resp);
 
 /* Common functions for csa. */
 struct csa_card *csa_findsubcard(device_t dev);
-int csa_readcodec(csa_res *resp, u_long offset, uint32_t *data);
-int csa_writecodec(csa_res *resp, u_long offset, uint32_t data);
+int csa_readcodec(csa_res *resp, unsigned long offset, uint32_t *data);
+int csa_writecodec(csa_res *resp, unsigned long offset, uint32_t data);
 
-uint32_t csa_readio(csa_res *resp, u_long offset);
-void csa_writeio(csa_res *resp, u_long offset, uint32_t data);
-uint32_t csa_readmem(csa_res *resp, u_long offset);
-void csa_writemem(csa_res *resp, u_long offset, uint32_t data);
+uint32_t csa_readio(csa_res *resp, unsigned long offset);
+void csa_writeio(csa_res *resp, unsigned long offset, uint32_t data);
+uint32_t csa_readmem(csa_res *resp, unsigned long offset);
+void csa_writemem(csa_res *resp, unsigned long offset, uint32_t data);
 
 void csa_resetdsp(csa_res *resp);
 #endif /* _CSA_VAR_H */

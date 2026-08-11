@@ -956,7 +956,7 @@ mixer_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 }
 
 static int
-mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
+mixer_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
     struct thread *td)
 {
 	struct snddev_info *d;
@@ -994,7 +994,7 @@ mixer_mixerinfo(struct snd_mixer *m, mixer_info *mi)
  *     function, be it through Giant, PCM_*, etc !
  */
 int
-mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
+mixer_ioctl_cmd(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
     struct thread *td)
 {
 	struct snd_mixer *m;

@@ -1045,8 +1045,8 @@ sndstat_flush_user_devs(struct sndstat_file *pf)
 }
 
 static int
-sndstat_ioctl(
-    struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+sndstat_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
+    struct thread *td)
 {
 	int err;
 	struct sndstat_file *pf;

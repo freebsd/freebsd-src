@@ -483,7 +483,7 @@ err0:	return retval;
 }
 
 int
-midi_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
+midi_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
     struct thread *td)
 {
 	return ENXIO;

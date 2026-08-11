@@ -68,9 +68,9 @@ struct csa_info {
 
 	int active;
 	/* Contents of board's registers */
-	u_long		pfie;
-	u_long		pctl;
-	u_long		cctl;
+	unsigned long	pfie;
+	unsigned long	pctl;
+	unsigned long	cctl;
 	struct csa_chinfo pch, rch;
 	uint32_t	ac97[CS461x_AC97_NUMBER_RESTORE_REGS];
 	uint32_t	ac97_powerdown;
@@ -82,8 +82,9 @@ struct csa_info {
 /* prototypes */
 static int      csa_init(struct csa_info *);
 static void     csa_intr(void *);
-static void	csa_setplaysamplerate(csa_res *resp, u_long ulInRate);
-static void	csa_setcapturesamplerate(csa_res *resp, u_long ulOutRate);
+static void	csa_setplaysamplerate(csa_res *resp, unsigned long ulInRate);
+static void	csa_setcapturesamplerate(csa_res *resp,
+		    unsigned long ulOutRate);
 static void	csa_startplaydma(struct csa_info *csa);
 static void	csa_startcapturedma(struct csa_info *csa);
 static void	csa_stopplaydma(struct csa_info *csa);
@@ -170,12 +171,12 @@ static kobj_method_t csa_ac97_methods[] = {
 AC97_DECLARE(csa_ac97);
 
 static void
-csa_setplaysamplerate(csa_res *resp, u_long ulInRate)
+csa_setplaysamplerate(csa_res *resp, unsigned long ulInRate)
 {
-	u_long ulTemp1, ulTemp2;
-	u_long ulPhiIncr;
-	u_long ulCorrectionPerGOF, ulCorrectionPerSec;
-	u_long ulOutRate;
+	unsigned long ulTemp1, ulTemp2;
+	unsigned long ulPhiIncr;
+	unsigned long ulCorrectionPerGOF, ulCorrectionPerSec;
+	unsigned long ulOutRate;
 
 	ulOutRate = 48000;
 
@@ -216,12 +217,12 @@ csa_setplaysamplerate(csa_res *resp, u_long ulInRate)
 }
 
 static void
-csa_setcapturesamplerate(csa_res *resp, u_long ulOutRate)
+csa_setcapturesamplerate(csa_res *resp, unsigned long ulOutRate)
 {
-	u_long ulPhiIncr, ulCoeffIncr, ulTemp1, ulTemp2;
-	u_long ulCorrectionPerGOF, ulCorrectionPerSec, ulInitialDelay;
-	u_long dwFrameGroupLength, dwCnt;
-	u_long ulInRate;
+	unsigned long ulPhiIncr, ulCoeffIncr, ulTemp1, ulTemp2;
+	unsigned long ulCorrectionPerGOF, ulCorrectionPerSec, ulInitialDelay;
+	unsigned long dwFrameGroupLength, dwCnt;
+	unsigned long ulInRate;
 
 	ulInRate = 48000;
 
@@ -333,7 +334,7 @@ static void
 csa_startplaydma(struct csa_info *csa)
 {
 	csa_res *resp;
-	u_long ul;
+	unsigned long ul;
 
 	if (!csa->pch.dma) {
 		resp = &csa->res;
@@ -349,7 +350,7 @@ static void
 csa_startcapturedma(struct csa_info *csa)
 {
 	csa_res *resp;
-	u_long ul;
+	unsigned long ul;
 
 	if (!csa->rch.dma) {
 		resp = &csa->res;
@@ -365,7 +366,7 @@ static void
 csa_stopplaydma(struct csa_info *csa)
 {
 	csa_res *resp;
-	u_long ul;
+	unsigned long ul;
 
 	if (csa->pch.dma) {
 		resp = &csa->res;
@@ -392,7 +393,7 @@ static void
 csa_stopcapturedma(struct csa_info *csa)
 {
 	csa_res *resp;
-	u_long ul;
+	unsigned long ul;
 
 	if (csa->rch.dma) {
 		resp = &csa->res;
@@ -419,7 +420,7 @@ static int
 csa_startdsp(csa_res *resp)
 {
 	int i;
-	u_long ul;
+	unsigned long ul;
 
 	/*
 	 * Set the frame timer to reflect the number of cycles per frame.
@@ -479,7 +480,7 @@ csa_setupchan(struct csa_chinfo *ch)
 {
 	struct csa_info *csa = ch->parent;
 	csa_res *resp = &csa->res;
-	u_long pdtc, tmp;
+	unsigned long pdtc, tmp;
 
 	if (ch->dir == PCMDIR_PLAY) {
 		/* direction */
