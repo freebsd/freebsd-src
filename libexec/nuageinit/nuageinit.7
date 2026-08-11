@@ -323,6 +323,16 @@ being the actual content of the files in
 Append each entry of the array to
 .Nm
 default user which will be created.
+.It Ic allow_public_ssh_keys
+Boolean which determines if the public SSH keys from the datasource
+metadata are imported to the default user and root.
+If set to
+.Ar false ,
+only the keys specified in
+.Ic ssh_authorized_keys
+are used.
+Defaults to
+.Ar true .
 .It Ic ssh_pwauth
 boolean which determines the value of the
 .Qq Ic PasswordAuthentication

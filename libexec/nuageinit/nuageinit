@@ -18,7 +18,8 @@ local citype = arg[2]
 
 local function default_user(obj, metadata)
 	local ssh_authorized_keys = {}
-	if type(metadata.public_keys) == "table" then
+	if (not obj or obj.allow_public_ssh_keys ~= false) and
+	    type(metadata.public_keys) == "table" then
 		for _, k in pairs(metadata.public_keys) do
 			table.insert(ssh_authorized_keys, k)
 		end
@@ -604,7 +605,8 @@ local function disable_root(obj, metadata)
 		opts = opts:gsub("%$DISABLE_USER", "root")
 	end
 	local keys = {}
-	if type(metadata.public_keys) == "table" then
+	if obj.allow_public_ssh_keys ~= false and
+	    type(metadata.public_keys) == "table" then
 		for _, k in pairs(metadata.public_keys) do
 			table.insert(keys, k)
 		end

@@ -385,6 +385,46 @@ EOF
 	atf_check -o inline:"ssh-ed25519 my_key_id tdb@host\n" cat home/freebsd/.ssh/authorized_keys
 }
 
+config2_pubkeys_allow_public_ssh_keys_head()
+{
+	atf_set "require.user" root
+}
+config2_pubkeys_allow_public_ssh_keys_body()
+{
+	here=$(pwd)
+	export NUAGE_FAKE_ROOTDIR=$(pwd)
+	if [ $(id -u) -ne 0 ]; then
+		atf_skip "root required"
+	fi
+	mkdir -p media/nuageinit
+	cat > media/nuageinit/meta_data.json << EOF
+{
+    "uuid": "uuid_for_this_instance",
+    "public_keys": {
+        "tdb": "ssh-ed25519 my_key_id tdb@host"
+    }
+}
+EOF
+	cat > media/nuageinit/user_data << EOF
+#cloud-config
+allow_public_ssh_keys: false
+EOF
+	mkdir -p etc
+	mkdir -p root
+	cat > etc/master.passwd << EOF
+root:*:0:0::0:0:Charlie &:/root:/bin/csh
+sys:*:1:0::0:0:Sys:/home/sys:/bin/csh
+EOF
+	pwd_mkdb -d etc ${here}/etc/master.passwd
+	cat > etc/group << EOF
+wheel:*:0:root
+users:*:1:
+EOF
+	atf_check /usr/libexec/nuageinit ${here}/media/nuageinit config-2
+	# no public key should be imported
+	atf_check -s exit:1 test -e home/freebsd/.ssh/authorized_keys
+}
+
 config2_network_body()
 {
 	mkdir -p media/nuageinit
@@ -1509,6 +1549,7 @@ atf_init_test_cases()
 	atf_add_test_case config2_pubkeys
 	atf_add_test_case config2_pubkeys_user_data
 	atf_add_test_case config2_pubkeys_meta_data
+	atf_add_test_case config2_pubkeys_allow_public_ssh_keys
 	atf_add_test_case config2_network
 	atf_add_test_case config2_network_static_v4
 	atf_add_test_case config2_network_dns
