@@ -91,7 +91,7 @@ void e1000_set_pcie_no_snoop_generic(struct e1000_hw *hw, u32 no_snoop);
 void e1000_update_adaptive_generic(struct e1000_hw *hw);
 void e1000_write_vfta_generic(struct e1000_hw *hw, u32 offset, u32 value);
 
-s32  e1000_get_hw_semaphore(struct e1000_hw *hw);
+s32  e1000_get_hw_semaphore_generic(struct e1000_hw *hw);
 void e1000_put_hw_semaphore(struct e1000_hw *hw);
 s32 e1000_acquire_swfw_sync(struct e1000_hw *hw, u16 mask);
 void e1000_release_swfw_sync(struct e1000_hw *hw, u16 mask);

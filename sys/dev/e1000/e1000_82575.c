@@ -426,6 +426,10 @@ static s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
 	mac->ops.acquire_swfw_sync = e1000_acquire_swfw_sync;
 	/* release SW_FW sync */
 	mac->ops.release_swfw_sync = e1000_release_swfw_sync;
+	if (mac->type == e1000_i210 || mac->type == e1000_i211) {
+		mac->ops.acquire_swfw_sync = e1000_acquire_swfw_sync_i210;
+		mac->ops.release_swfw_sync = e1000_release_swfw_sync_i210;
+	}
 
 	/* set lan id for port to determine which phy lock to use */
 	hw->mac.ops.set_lan_id(hw);
@@ -3532,4 +3536,3 @@ void e1000_i2c_bus_clear(struct e1000_hw *hw)
 	/* Put the i2c bus back to default state */
 	e1000_i2c_stop(hw);
 }
-
