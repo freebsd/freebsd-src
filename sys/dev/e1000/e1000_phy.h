@@ -70,6 +70,10 @@ s32  e1000_phy_sw_reset_generic(struct e1000_hw *hw);
 void e1000_phy_force_speed_duplex_setup(struct e1000_hw *hw, u16 *phy_ctrl);
 s32  e1000_phy_hw_reset_generic(struct e1000_hw *hw);
 s32  e1000_phy_reset_dsp_generic(struct e1000_hw *hw);
+void e1000_disable_phy_retry_mechanism(struct e1000_hw *hw,
+    u32 *phy_retries_original);
+void e1000_enable_phy_retry_mechanism(struct e1000_hw *hw,
+    u32 phy_retries_original);
 s32  e1000_read_kmrn_reg_generic(struct e1000_hw *hw, u32 offset, u16 *data);
 s32  e1000_read_kmrn_reg_locked(struct e1000_hw *hw, u32 offset, u16 *data);
 s32  e1000_set_page_igp(struct e1000_hw *hw, u16 page);

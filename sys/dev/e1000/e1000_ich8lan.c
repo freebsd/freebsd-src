@@ -202,6 +202,7 @@ static bool e1000_phy_is_accessible_pchlan(struct e1000_hw *hw)
 {
 	u16 phy_reg = 0;
 	u32 phy_id = 0;
+	u32 phy_retries;
 	s32 ret_val = 0;
 	u16 retry_count;
 	u32 mac_reg = 0;
@@ -248,10 +249,17 @@ out:
 		/* Only unforce SMBus if ME is not active */
 		if (!(E1000_READ_REG(hw, E1000_FWSM) &
 		    E1000_ICH_FWSM_FW_VALID)) {
+			/* Switching the PHY interface returns an expected MDI
+			 * error.  Do not retry that transaction.
+			 */
+			e1000_disable_phy_retry_mechanism(hw, &phy_retries);
+
 			/* Unforce SMBus mode in PHY */
 			hw->phy.ops.read_reg_locked(hw, CV_SMB_CTRL, &phy_reg);
 			phy_reg &= ~CV_SMB_CTRL_FORCE_SMBUS;
 			hw->phy.ops.write_reg_locked(hw, CV_SMB_CTRL, phy_reg);
+
+			e1000_enable_phy_retry_mechanism(hw, phy_retries);
 
 			/* Unforce SMBus mode in MAC */
 			mac_reg = E1000_READ_REG(hw, E1000_CTRL_EXT);
@@ -317,6 +325,7 @@ static void e1000_toggle_lanphypc_pch_lpt(struct e1000_hw *hw)
 static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 {
 	u32 mac_reg, fwsm = E1000_READ_REG(hw, E1000_FWSM);
+	u32 phy_retries;
 	s32 ret_val;
 
 	DEBUGFUNC("e1000_init_phy_workarounds_pchlan");
@@ -339,6 +348,9 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 		DEBUGOUT("Failed to initialize PHY flow\n");
 		goto out;
 	}
+
+	/* The PHY might be inaccessible while its interface is changing. */
+	e1000_disable_phy_retry_mechanism(hw, &phy_retries);
 
 	/* The MAC-PHY interconnect may be in SMBus mode.  If the PHY is
 	 * inaccessible and resetting the PHY is not blocked, toggle the
@@ -409,6 +421,7 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 		break;
 	}
 
+	e1000_enable_phy_retry_mechanism(hw, phy_retries);
 	hw->phy.ops.release(hw);
 	if (!ret_val) {
 
@@ -484,6 +497,9 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	phy->autoneg_mask	= AUTONEG_ADVERTISE_SPEED_DEFAULT;
 
 	phy->id = e1000_phy_unknown;
+	if (hw->mac.type >= e1000_pch_mtp &&
+	    hw->mac.type < e1000_82575)
+		phy->current_retry_counter = 2;
 
 	ret_val = e1000_init_phy_workarounds_pchlan(hw);
 	if (ret_val)
@@ -1275,6 +1291,7 @@ static s32 e1000_set_obff_timer_pch_lpt(struct e1000_hw *hw, u32 itr)
 s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 {
 	u32 mac_reg;
+	u32 phy_retries;
 	s32 ret_val = E1000_SUCCESS;
 	u16 phy_reg;
 	u16 oem_reg = 0;
@@ -1321,6 +1338,9 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		goto out;
+
+	/* Switching the PHY interface returns an expected MDI error. */
+	e1000_disable_phy_retry_mechanism(hw, &phy_retries);
 
 	/* Force SMBus mode in PHY */
 	ret_val = e1000_read_phy_reg_hv_locked(hw, CV_SMB_CTRL, &phy_reg);
@@ -1394,6 +1414,7 @@ s32 e1000_enable_ulp_lpt_lp(struct e1000_hw *hw, bool to_sx)
 	}
 
 release:
+	e1000_enable_phy_retry_mechanism(hw, phy_retries);
 	hw->phy.ops.release(hw);
 out:
 	if (ret_val)
@@ -1424,6 +1445,7 @@ s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 	s32 ret_val = E1000_SUCCESS;
 	u8 ulp_exit_timeout = 30;
 	u32 mac_reg;
+	u32 phy_retries;
 	u16 phy_reg;
 	int i = 0;
 
@@ -1479,6 +1501,9 @@ s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 	if (force)
 		/* Toggle LANPHYPC Value bit */
 		e1000_toggle_lanphypc_pch_lpt(hw);
+
+	/* Switching the PHY interface returns an expected MDI error. */
+	e1000_disable_phy_retry_mechanism(hw, &phy_retries);
 
 	/* Unforce SMBus mode in PHY */
 	ret_val = e1000_read_phy_reg_hv_locked(hw, CV_SMB_CTRL, &phy_reg);
@@ -1538,6 +1563,7 @@ s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 	E1000_WRITE_REG(hw, E1000_FEXTNVM7, mac_reg);
 
 release:
+	e1000_enable_phy_retry_mechanism(hw, phy_retries);
 	hw->phy.ops.release(hw);
 	if (force) {
 		hw->phy.ops.reset(hw);
