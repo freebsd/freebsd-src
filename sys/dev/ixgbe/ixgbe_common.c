@@ -2729,7 +2729,7 @@ void ixgbe_set_mta(struct ixgbe_hw *hw, u8 *mc_addr)
 	 */
 	vector_reg = (vector >> 5) & 0x7F;
 	vector_bit = vector & 0x1F;
-	hw->mac.mta_shadow[vector_reg] |= (1 << vector_bit);
+	hw->mac.mta_shadow[vector_reg] |= 1U << vector_bit;
 }
 
 /**
