@@ -316,6 +316,46 @@ static void e1000_toggle_lanphypc_pch_lpt(struct e1000_hw *hw)
 }
 
 /**
+ *  e1000_reconfigure_k1_exit_timeout - Reconfigure K1 parameters
+ *  @hw: pointer to the HW structure
+ *
+ *  Reconfigure the PHY power-down state and K1 exit timeout to avoid a
+ *  MAC/PHY clock synchronization problem on Meteor Lake and newer PCH.
+ *  The caller must hold the PHY semaphore.
+ **/
+static s32
+e1000_reconfigure_k1_exit_timeout(struct e1000_hw *hw)
+{
+	u32 fextnvm12;
+	u16 phy_timeout;
+	s32 ret_val;
+
+	DEBUGFUNC("e1000_reconfigure_k1_exit_timeout");
+
+	if (hw->mac.type < e1000_pch_mtp ||
+	    hw->mac.type >= e1000_82575)
+		return E1000_SUCCESS;
+
+	/* Change the K1 power-down state from P0s to P1. */
+	fextnvm12 = E1000_READ_REG(hw, E1000_FEXTNVM12);
+	fextnvm12 &= ~E1000_FEXTNVM12_PHYPD_CTRL_MASK;
+	fextnvm12 |= E1000_FEXTNVM12_PHYPD_CTRL_P1;
+	E1000_WRITE_REG(hw, E1000_FEXTNVM12, fextnvm12);
+
+	msec_delay_irq(1);
+
+	ret_val = hw->phy.ops.read_reg_locked(hw, E1000_PHY_TIMEOUTS_REG,
+	    &phy_timeout);
+	if (ret_val)
+		return ret_val;
+
+	phy_timeout &= ~E1000_PHY_TIMEOUTS_K1_EXIT_TO_MASK;
+	phy_timeout |= 0xF00;
+	return hw->phy.ops.write_reg_locked(hw, E1000_PHY_TIMEOUTS_REG,
+	    phy_timeout);
+}
+
+/**
  *  e1000_init_phy_workarounds_pchlan - PHY initialization workarounds
  *  @hw: pointer to the HW structure
  *
@@ -357,14 +397,20 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	 * LANPHYPC Value bit to force the interconnect to PCIe mode.
 	 */
 	switch (hw->mac.type) {
+	case e1000_pch_mtp:
+	case e1000_pch_ptp:
+	case e1000_pch_nvp:
+		/* The PHY might be inaccessible here, so do not propagate a
+		 * failure from this preliminary programming attempt.
+		 */
+		if (e1000_reconfigure_k1_exit_timeout(hw))
+			DEBUGOUT("Failed to reconfigure K1 exit timeout\n");
+		/* FALLTHROUGH */
 	case e1000_pch_lpt:
 	case e1000_pch_spt:
 	case e1000_pch_cnp:
 	case e1000_pch_tgp:
 	case e1000_pch_adp:
-	case e1000_pch_mtp:
-	case e1000_pch_ptp:
-	case e1000_pch_nvp:
 		if (e1000_phy_is_accessible_pchlan(hw))
 			break;
 
@@ -447,8 +493,21 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 		 *  the PHY is in.
 		 */
 		ret_val = hw->phy.ops.check_reset_block(hw);
-		if (ret_val)
+		if (ret_val) {
 			ERROR_REPORT("ME blocked access to PHY after reset\n");
+			goto out;
+		}
+
+		if (hw->mac.type >= e1000_pch_mtp &&
+		    hw->mac.type < e1000_82575) {
+			ret_val = hw->phy.ops.acquire(hw);
+			if (ret_val) {
+				DEBUGOUT("Failed to acquire PHY for K1 setup\n");
+				goto out;
+			}
+			ret_val = e1000_reconfigure_k1_exit_timeout(hw);
+			hw->phy.ops.release(hw);
+		}
 	}
 
 out:
@@ -1662,6 +1721,9 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 			phy_reg &= ~I217_PLL_CLOCK_GATE_MASK;
 			if (speed == SPEED_100 || speed == SPEED_10)
 				phy_reg |= 0x3E8;
+			else if (hw->mac.type >= e1000_pch_mtp &&
+			    hw->mac.type < e1000_82575)
+				phy_reg |= 0x1D5;
 			else
 				phy_reg |= 0xFA;
 			hw->phy.ops.write_reg_locked(hw,
@@ -5167,6 +5229,20 @@ static s32 e1000_init_hw_ich8lan(struct e1000_hw *hw)
 	DEBUGFUNC("e1000_init_hw_ich8lan");
 
 	e1000_initialize_hw_bits_ich8lan(hw);
+
+	if (hw->mac.type >= e1000_pch_mtp &&
+	    hw->mac.type < e1000_82575) {
+		ret_val = hw->phy.ops.acquire(hw);
+		if (ret_val)
+			return ret_val;
+
+		ret_val = e1000_reconfigure_k1_exit_timeout(hw);
+		hw->phy.ops.release(hw);
+		if (ret_val) {
+			DEBUGOUT("Failed to reconfigure K1 exit timeout\n");
+			return ret_val;
+		}
+	}
 
 	/* Initialize identification LED */
 	ret_val = mac->ops.id_led_init(hw);
