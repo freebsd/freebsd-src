@@ -266,16 +266,8 @@ bhyve_optparse(int argc, char **argv)
 	}
 
 	/* Handle backwards compatibility aliases in config options. */
-	if (get_config_value("lpc.bootrom") != NULL &&
-	    get_config_value("bootrom") == NULL) {
-		warnx("lpc.bootrom is deprecated, use '-o bootrom' instead");
-		set_config_value("bootrom", get_config_value("lpc.bootrom"));
-	}
-	if (get_config_value("lpc.bootvars") != NULL &&
-	    get_config_value("bootvars") == NULL) {
-		warnx("lpc.bootvars is deprecated, use '-o bootvars' instead");
-		set_config_value("bootvars", get_config_value("lpc.bootvars"));
-	}
+	bhyve_cfg_warn("lpc.bootrom", "bootrom");
+	bhyve_cfg_warn("lpc.bootvars", "bootvars");
 }
 
 void
