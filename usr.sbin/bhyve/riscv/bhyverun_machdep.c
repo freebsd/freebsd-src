@@ -174,7 +174,7 @@ bhyve_optparse(int argc, char **argv)
 			set_config_value("uuid", optarg);
 			break;
 		case 'W':
-			set_config_bool("virtio_msix", false);
+			set_config_bool("virtio.msix", false);
 			break;
 		case 'h':
 			bhyve_usage(0);
@@ -182,6 +182,9 @@ bhyve_optparse(int argc, char **argv)
 			bhyve_usage(1);
 		}
 	}
+
+	/* Handle backwards compatibility aliases in config options. */
+	bhyve_cfg_warn("virtio_msix", "virtio.msix");
 }
 
 void
