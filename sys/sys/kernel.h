@@ -194,7 +194,8 @@ enum sysinit_elem_order {
 	SI_ORDER_SEVENTH	= 0x0000006,	/* seventh */
 	SI_ORDER_EIGHTH		= 0x0000007,	/* eighth */
 	SI_ORDER_MIDDLE		= 0x1000000,	/* somewhere in the middle */
-	SI_ORDER_ANY		= 0xfffffff	/* last */
+	SI_ORDER_ANY		= 0xf000000,	/* default */
+	SI_ORDER_LAST		= 0xfffffff	/* last */
 };
 
 /*

@@ -1790,5 +1790,5 @@ tcp_rs_init(void *st __unused)
 	printf("TCP_ratelimit: Is now initialized\n");
 }
 
-SYSINIT(tcp_rl_init, SI_SUB_SMP + 1, SI_ORDER_ANY, tcp_rs_init, NULL);
+SYSINIT(tcp_rl_init, SI_SUB_SMP, SI_ORDER_LAST, tcp_rs_init, NULL);
 #endif

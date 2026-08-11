@@ -511,7 +511,7 @@ init_dynamic_kenv(void *data __unused)
 	mtx_init(&kenv_lock, "kernel environment", NULL, MTX_DEF);
 	dynamic_kenv = true;
 }
-SYSINIT(kenv, SI_SUB_KMEM + 1, SI_ORDER_FIRST, init_dynamic_kenv, NULL);
+SYSINIT(kenv, SI_SUB_KMEM, SI_ORDER_LAST, init_dynamic_kenv, NULL);
 
 void
 freeenv(char *env)

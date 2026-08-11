@@ -165,7 +165,7 @@ fetch_loader_passphrase(void * dummy)
 		kern_unsetenv("kern.geom.eli.passphrase");
 	}
 }
-SYSINIT(geli_fetch_loader_passphrase, SI_SUB_KMEM + 1, SI_ORDER_ANY,
+SYSINIT(geli_fetch_loader_passphrase, SI_SUB_KMEM, SI_ORDER_LAST,
     fetch_loader_passphrase, NULL);
 
 static void

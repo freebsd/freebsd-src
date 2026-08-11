@@ -134,12 +134,6 @@ fxrng_brng_reseed(const void *entr, size_t sz)
 	FXRNG_BRNG_UNLOCK(rng);
 }
 
-/*
- * Sysentvec and VDSO are initialized much later than SI_SUB_RANDOM.  When
- * they're online, go ahead and push an initial root seed version.
- * INIT_SYSENTVEC runs at SI_SUB_EXEC:SI_ORDER_ANY, and SI_ORDER_ANY is the
- * maximum value, so we must run at SI_SUB_EXEC+1.
- */
 static void
 fxrng_vdso_sysinit(void *dummy __unused)
 {
@@ -147,7 +141,7 @@ fxrng_vdso_sysinit(void *dummy __unused)
 	fxrng_push_seed_generation(fxrng_root.brng_generation);
 	FXRNG_BRNG_UNLOCK(&fxrng_root);
 }
-SYSINIT(fxrng_vdso, SI_SUB_EXEC + 1, SI_ORDER_ANY, fxrng_vdso_sysinit, NULL);
+SYSINIT(fxrng_vdso, SI_SUB_EXEC, SI_ORDER_LAST, fxrng_vdso_sysinit, NULL);
 
 /*
  * Grab some bytes off an initialized, current generation RNG.

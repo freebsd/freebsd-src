@@ -917,7 +917,7 @@ dn_evh_init(void *ctx __unused)
 	dn_attach_cookie = EVENTHANDLER_REGISTER(ifnet_link_event,
 	    dn_ifnet_event, NULL, EVENTHANDLER_PRI_ANY);
 }
-SYSINIT(dn_evh_init, SI_SUB_EVENTHANDLER + 1, SI_ORDER_ANY, dn_evh_init, NULL);
+SYSINIT(dn_evh_init, SI_SUB_EVENTHANDLER, SI_ORDER_LAST, dn_evh_init, NULL);
 
 /*
  * DDB parsing helpers for debugnet(4) consumers.
