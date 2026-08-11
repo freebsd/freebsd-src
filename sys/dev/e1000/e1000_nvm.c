@@ -1215,6 +1215,13 @@ s32 e1000_validate_nvm_checksum_generic(struct e1000_hw *hw)
 		checksum += nvm_data;
 	}
 
+	/* Some transitional TGP systems shipped with an empty checksum word. */
+	if (hw->mac.type == e1000_pch_tgp &&
+	    nvm_data == NVM_CHECKSUM_UNINITIALIZED) {
+		DEBUGOUT("Uninitialized NVM checksum on TGP; ignoring\n");
+		return E1000_SUCCESS;
+	}
+
 	if (checksum != (u16) NVM_SUM) {
 		DEBUGOUT("NVM Checksum Invalid\n");
 		return -E1000_ERR_NVM;
