@@ -260,7 +260,7 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
 	struct e1000_mbx_info *mbx = &hw->mbx;
 	u32 timeout = E1000_VF_INIT_TIMEOUT;
 	s32 ret_val = -E1000_ERR_MAC_INIT;
-	u32 ctrl, msgbuf[3];
+	u32 ctrl, msgbuf[3] = { E1000_VF_RESET, ~0U, ~0U };
 	u8 *addr = (u8 *)(&msgbuf[1]);
 
 	DEBUGFUNC("e1000_reset_hw_vf");
@@ -281,8 +281,13 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
 	/* mailbox timeout can now become active */
 	mbx->timeout = E1000_VF_MBX_INIT_TIMEOUT;
 
-	msgbuf[0] = E1000_VF_RESET;
-	ret_val = mbx->ops.write_posted(hw, msgbuf, 1, 0);
+	/*
+	 * Linux PFs return a three-dword, zero-filled NACK when the reset
+	 * completed without an assigned MAC address.  FreeBSD PFs also use a
+	 * one-dword NACK while retained queues are still being sanitized.  Seed
+	 * the unused request payload so the two responses remain distinguishable.
+	 */
+	ret_val = mbx->ops.write_posted(hw, msgbuf, 3, 0);
 	if (ret_val)
 		return ret_val;
 
@@ -291,10 +296,20 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
 	/* set our "perm_addr" based on info provided by PF */
 	ret_val = mbx->ops.read_posted(hw, msgbuf, 3, 0);
 	if (!ret_val) {
-		if (msgbuf[0] == (E1000_VF_RESET | E1000_VT_MSGTYPE_ACK))
-			memcpy(hw->mac.perm_addr, addr, 6);
-		else
+		switch (msgbuf[0]) {
+		case E1000_VF_RESET | E1000_VT_MSGTYPE_ACK:
+			memcpy(hw->mac.perm_addr, addr, ETHER_ADDR_LEN);
+			break;
+		case E1000_VF_RESET | E1000_VT_MSGTYPE_NACK:
+			if (msgbuf[1] == 0 && msgbuf[2] == 0)
+				memset(hw->mac.perm_addr, 0, ETHER_ADDR_LEN);
+			else
+				ret_val = -E1000_ERR_MAC_INIT;
+			break;
+		default:
 			ret_val = -E1000_ERR_MAC_INIT;
+			break;
+		}
 	}
 
 	return ret_val;
