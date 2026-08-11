@@ -485,7 +485,7 @@ static s32 e1000_get_phy_id_82571(struct e1000_hw *hw)
 		if (ret_val)
 			return ret_val;
 
-		phy->id = (u32)(phy_id << 16);
+		phy->id = (u32)phy_id << 16;
 		usec_delay(20);
 		ret_val = phy->ops.read_reg(hw, PHY_ID2, &phy_id);
 		if (ret_val)
