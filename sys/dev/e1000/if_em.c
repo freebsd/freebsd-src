@@ -462,6 +462,7 @@ static void	em_initialize_vf_stats(struct e1000_softc *);
 static void	em_rebase_vf_stats(struct e1000_softc *);
 static void	em_update_vf_stats_counters(struct e1000_softc *);
 static void	em_add_hw_stats(struct e1000_softc *);
+static bool	em_mac_has_eee(enum e1000_mac_type);
 static int	em_if_set_promisc(if_ctx_t, int);
 static bool	em_if_defer_promisc(struct e1000_softc *);
 static bool	em_if_vlan_filter_capable(if_ctx_t);
@@ -5642,6 +5643,12 @@ em_update_stats_counters(struct e1000_softc *sc)
 	stats->mptc += E1000_READ_REG(&sc->hw, E1000_MPTC);
 	stats->bptc += E1000_READ_REG(&sc->hw, E1000_BPTC);
 
+	/* TLPIC and RLPIC are clear-on-read. */
+	if (em_mac_has_eee(sc->hw.mac.type)) {
+		stats->tlpic += E1000_READ_REG(&sc->hw, E1000_TLPIC);
+		stats->rlpic += E1000_READ_REG(&sc->hw, E1000_RLPIC);
+	}
+
 	/* Interrupt Counts */
 
 	stats->iac += E1000_READ_REG(&sc->hw, E1000_IAC);
@@ -5668,6 +5675,14 @@ em_update_stats_counters(struct e1000_softc *sc)
 		stats->tsctfc +=
 		E1000_READ_REG(&sc->hw, E1000_TSCTFC);
 	}
+}
+
+static bool
+em_mac_has_eee(enum e1000_mac_type type)
+{
+
+	return ((type >= e1000_pch2lan && type < e1000_82575) ||
+	    (type >= e1000_i350 && type <= e1000_i211));
 }
 
 static void
@@ -6059,6 +6074,19 @@ em_add_hw_stats(struct e1000_softc *sc)
 	}
 
 	stats = &sc->ustats.stats;
+	if (em_mac_has_eee(sc->hw.mac.type)) {
+		struct sysctl_oid *eee_node;
+		struct sysctl_oid_list *eee_list;
+
+		eee_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "eee",
+		    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+		    "Energy Efficient Ethernet statistics");
+		eee_list = SYSCTL_CHILDREN(eee_node);
+		SYSCTL_ADD_UQUAD(ctx, eee_list, OID_AUTO, "tx_lpi_count",
+		    CTLFLAG_RD, &stats->tlpic, "TX LPI event count");
+		SYSCTL_ADD_UQUAD(ctx, eee_list, OID_AUTO, "rx_lpi_count",
+		    CTLFLAG_RD, &stats->rlpic, "RX LPI event count");
+	}
 
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "excess_coll",
 	    CTLFLAG_RD, &stats->ecol,
