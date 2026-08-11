@@ -1218,6 +1218,7 @@ static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
 		u16 speed, duplex, scale = 0;
 		u16 max_snoop, max_nosnoop;
 		u16 max_ltr_enc;	/* max LTR latency encoded */
+		u64 max_ltr_ns;
 		s64 lat_ns;
 		s64 value;
 		u32 rxa;
@@ -1266,10 +1267,11 @@ static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
 		e1000_read_pci_cfg(hw, E1000_PCI_LTR_CAP_LPT, &max_snoop);
 		e1000_read_pci_cfg(hw, E1000_PCI_LTR_CAP_LPT + 2, &max_nosnoop);
 		max_ltr_enc = E1000_MAX(max_snoop, max_nosnoop);
+		max_ltr_ns = e1000_ltr2ns(max_ltr_enc);
 
-		if (lat_enc > max_ltr_enc) {
+		if (e1000_ltr2ns(lat_enc) > max_ltr_ns) {
 			lat_enc = max_ltr_enc;
-			lat_ns = e1000_ltr2ns(max_ltr_enc);
+			lat_ns = max_ltr_ns;
 		}
 
 		if (lat_ns) {
