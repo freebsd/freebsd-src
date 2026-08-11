@@ -51,7 +51,7 @@ parse_acpi_tables(void *dummy)
 	acpi_pxm_parse_tables();
 	acpi_pxm_set_mem_locality();
 }
-SYSINIT(parse_acpi_tables, SI_SUB_VM - 1, SI_ORDER_FIRST, parse_acpi_tables,
+SYSINIT(parse_acpi_tables, SI_SUB_NUMA, SI_ORDER_FIRST, parse_acpi_tables,
     NULL);
 
 #endif /* MAXMEMDOM > 1 */

@@ -97,6 +97,7 @@ enum sysinit_sub_id {
 	SI_SUB_FIRST		= 0x0600000,	/* mp_maxid, etc... */
 	SI_SUB_TUNABLES		= 0x0700000,	/* establish tunable values */
 	SI_SUB_COPYRIGHT	= 0x0800001,	/* first use of console */
+	SI_SUB_NUMA		= 0x0810000,	/* initialize NUMA topology */
 	SI_SUB_VM		= 0x1000000,	/* virtual memory system init */
 	SI_SUB_COUNTER		= 0x1100000,	/* counter(9) is initialized */
 	SI_SUB_KMEM		= 0x1800000,	/* kernel memory */
