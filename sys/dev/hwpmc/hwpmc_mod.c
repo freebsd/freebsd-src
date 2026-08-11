@@ -4983,7 +4983,7 @@ pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 	pass = 0;
 	start_ticks = ticks;
 
-	KASSERT(td->td_pflags & TDP_CALLCHAIN,
+	KASSERT(ring == PMC_UR || (td->td_pflags & TDP_CALLCHAIN) != 0,
 	    ("[pmc,%d] Retrieving callchain for thread that doesn't want it",
 	    __LINE__));
 restart:
