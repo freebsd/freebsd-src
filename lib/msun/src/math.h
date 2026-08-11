@@ -12,8 +12,8 @@
 /*
  */
 
-#ifndef _MATH_H_
-#define	_MATH_H_
+#ifndef __STDC_VERSION_MATH_H__
+#define __STDC_VERSION_MATH_H__ 202311L
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
@@ -560,4 +560,4 @@ long double	rsqrtl(long double);
 
 __END_DECLS
 
-#endif /* !_MATH_H_ */
+#endif /* !__STDC_VERSION_MATH_H__ */

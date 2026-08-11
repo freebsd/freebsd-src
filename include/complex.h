@@ -26,8 +26,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _COMPLEX_H
-#define	_COMPLEX_H
+#ifndef __STDC_VERSION_COMPLEX_H__
+#define __STDC_VERSION_COMPLEX_H__ 202311L
 
 #include <sys/cdefs.h>
 
@@ -135,4 +135,4 @@ float complex	ctanhf(float complex);
 
 __END_DECLS
 
-#endif /* _COMPLEX_H */
+#endif /* !__STDC_VERSION_COMPLEX_H__ */

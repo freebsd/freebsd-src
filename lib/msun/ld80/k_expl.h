@@ -267,7 +267,7 @@ hexpl(long double x)
 	return (lo + hi) * 2 * twopkm2;
 }
 
-#ifdef _COMPLEX_H
+#ifdef __STDC_VERSION_COMPLEX_H__
 /*
  * See ../src/k_exp.c for details.
  */
@@ -295,4 +295,4 @@ __ldexp_cexpl(long double complex z, int expt)
 	return (CMPLXL(c * exp_x * scale1 * scale2,
 	    s * exp_x * scale1 * scale2));
 }
-#endif /* _COMPLEX_H */
+#endif /* __STDC_VERSION_COMPLEX_H__ */

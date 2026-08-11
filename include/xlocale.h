@@ -35,11 +35,11 @@
 __BEGIN_DECLS
 #include <xlocale/_locale.h>
 
-#ifdef _STRING_H_
+#ifdef __STDC_VERSION_STRING_H__
 #include <xlocale/_string.h>
 #endif
 
-#ifdef _INTTYPES_H_
+#ifdef __STDC_VERSION_INTTYPES_H__
 #include <xlocale/_inttypes.h>
 #endif
 
@@ -47,11 +47,11 @@ __BEGIN_DECLS
 #include <xlocale/_monetary.h>
 #endif
 
-#ifdef _STDLIB_H_
+#ifdef __STDC_VERSION_STDLIB_H__
 #include <xlocale/_stdlib.h>
 #endif
 
-#ifdef _TIME_H_
+#ifdef __STDC_VERSION_TIME_H__
 #include <xlocale/_time.h>
 #endif
 
@@ -68,11 +68,11 @@ __BEGIN_DECLS
 #include <xlocale/_ctype.h>
 #endif
 
-#ifdef _STDIO_H_
+#ifdef __STDC_VERSION_STDIO_H__
 #include <xlocale/_stdio.h>
 #endif
 
-#ifdef _WCHAR_H_
+#ifdef __STDC_VERSION_WCHAR_H__
 #include <xlocale/_wchar.h>
 #endif
 

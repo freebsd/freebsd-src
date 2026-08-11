@@ -37,8 +37,8 @@
 /*
  */
 
-#ifndef _TIME_H_
-#define	_TIME_H_
+#ifndef __STDC_VERSION_TIME_H__
+#define __STDC_VERSION_TIME_H__ 202311L
 
 #include <sys/cdefs.h>
 #include <sys/_null.h>
@@ -198,4 +198,4 @@ time_t timegm(struct tm * const);
 
 __END_DECLS
 
-#endif /* !_TIME_H_ */
+#endif /* !__STDC_VERSION_TIME_H__ */

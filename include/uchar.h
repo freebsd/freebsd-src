@@ -26,8 +26,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _UCHAR_H_
-#define	_UCHAR_H_
+#ifndef __STDC_VERSION_UCHAR_H__
+#define __STDC_VERSION_UCHAR_H__ 202311L
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
@@ -69,4 +69,4 @@ size_t	mbrtoc32(char32_t * __restrict, const char * __restrict, size_t,
 #endif
 __END_DECLS
 
-#endif /* !_UCHAR_H_ */
+#endif /* !__STDC_VERSION_UCHAR_H__ */

@@ -890,7 +890,7 @@ int	__sys_sigwaitinfo(const sigset_t *set, siginfo_t *info);
 #endif /* _SYS_FCNTL_H_ */
 
 /* #include <time.h> */
-#ifdef	_TIME_H_
+#ifdef __STDC_VERSION_TIME_H__
 #ifndef _LIBC_PRIVATE_H_
 int	__sys_clock_nanosleep(clockid_t, int, const struct timespec *,
 	    struct timespec *);
