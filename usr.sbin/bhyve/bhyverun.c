@@ -54,9 +54,7 @@
 #include <string.h>
 #include <err.h>
 #include <errno.h>
-#ifdef BHYVE_SNAPSHOT
 #include <fcntl.h>
-#endif
 #include <libgen.h>
 #include <libutil.h>
 #include <unistd.h>
@@ -126,6 +124,29 @@ static struct vcpu_info {
 } *vcpu_info;
 
 static cpuset_t **vcpumap;
+
+static void
+monitor_pipe_handler(int fd __unused, enum ev_type type __unused,
+    void *param __unused)
+{
+
+	exit(BHYVE_EXIT_ERROR);
+}
+
+static void
+monitor_pipe_init(int fd)
+{
+#ifndef WITHOUT_CAPSICUM
+	cap_rights_t rights;
+
+	cap_rights_init(&rights, CAP_EVENT);
+	if (caph_rights_limit(fd, &rights) == -1)
+		err(BHYVE_EXIT_ERROR, "Unable to apply rights to monitor pipe");
+#endif
+
+	if (mevent_add(fd, EVF_READ, monitor_pipe_handler, NULL) == NULL)
+		errx(BHYVE_EXIT_ERROR, "Unable to register parent exit event");
+}
 
 /*
  * XXX This parser is known to have the following issues:
@@ -922,17 +943,29 @@ main(int argc, char *argv[])
 	init_bootrom(ctx);
 
 	if (get_config_bool_default("monitor", false)) {
+		int monitor_pipe[2];
+		pid_t child;
+
 		while (1) {
-			pid_t child = fork();
+			if (pipe2(monitor_pipe, O_CLOEXEC) == -1)
+				err(BHYVE_EXIT_ERROR, "pipe2");
+
+			child = fork();
 			if (child == -1) {
 				EPRINTLN("Monitor mode fork failed: %s",
 				    strerror(errno));
 				exit(BHYVE_EXIT_ERROR);
 			}
-			if (child == 0)
+			if (child == 0) {
+				close(monitor_pipe[1]);
+				monitor_pipe_init(monitor_pipe[0]);
 				break;
+			}
+
+			close(monitor_pipe[0]);
 			while ((error = waitpid(child, &status, 0)) == -1 && errno == EINTR)
 			    ;
+			close(monitor_pipe[1]);
 			if (error == -1) {
 				EPRINTLN("Monitor mode wait failed: %s",
 				    strerror(errno));
