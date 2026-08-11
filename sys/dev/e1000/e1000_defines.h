@@ -66,6 +66,7 @@
 
 /* Extended Device Control */
 #define E1000_CTRL_EXT_LPCD		0x00000004 /* LCD Power Cycle Done */
+#define E1000_CTRL_EXT_DPG_EN		0x00000008 /* Dynamic Power Gating */
 #define E1000_CTRL_EXT_SDP4_DATA	0x00000010 /* SW Definable Pin 4 data */
 #define E1000_CTRL_EXT_SDP6_DATA	0x00000040 /* SW Definable Pin 6 data */
 #define E1000_CTRL_EXT_SDP3_DATA	0x00000080 /* SW Definable Pin 3 data */
