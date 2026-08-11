@@ -143,7 +143,7 @@ s32 igc_get_phy_id(struct igc_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	phy->id = (u32)(phy_id << 16);
+	phy->id = (u32)phy_id << 16;
 	usec_delay(200);
 	ret_val = phy->ops.read_reg(hw, PHY_ID2, &phy_id);
 	if (ret_val)
