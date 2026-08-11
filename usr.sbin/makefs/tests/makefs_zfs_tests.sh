@@ -647,7 +647,7 @@ multi_dataset_4_body()
 	    zfs list -H -o mountpoint ${ZFS_POOL_NAME}/dir1
 
 	# dir1/a should be part of the root dataset, not dir1.
-	atf_check -s not-exit:0 -e not-empty stat ${TEST_MOUNT_DIR}dir1/a
+	atf_check -s not-exit:0 -e not-empty stat ${TEST_MOUNT_DIR}/dir1/a
 }
 multi_dataset_4_cleanup()
 {
