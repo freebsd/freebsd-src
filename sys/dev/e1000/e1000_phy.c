@@ -3541,10 +3541,15 @@ static s32 e1000_access_phy_wakeup_reg_bm(struct e1000_hw *hw, u32 offset,
  **/
 void e1000_power_up_phy_copper(struct e1000_hw *hw)
 {
+	s32 ret_val;
 	u16 mii_reg = 0;
 
 	/* The PHY will retain its settings across a power down/up cycle */
-	hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
+	ret_val = hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
+	if (ret_val) {
+		DEBUGOUT("Error reading PHY control register\n");
+		return;
+	}
 	mii_reg &= ~MII_CR_POWER_DOWN;
 	hw->phy.ops.write_reg(hw, PHY_CONTROL, mii_reg);
 }
@@ -3559,10 +3564,15 @@ void e1000_power_up_phy_copper(struct e1000_hw *hw)
  **/
 void e1000_power_down_phy_copper(struct e1000_hw *hw)
 {
+	s32 ret_val;
 	u16 mii_reg = 0;
 
 	/* The PHY will retain its settings across a power down/up cycle */
-	hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
+	ret_val = hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
+	if (ret_val) {
+		DEBUGOUT("Error reading PHY control register\n");
+		return;
+	}
 	mii_reg |= MII_CR_POWER_DOWN;
 	hw->phy.ops.write_reg(hw, PHY_CONTROL, mii_reg);
 	msec_delay(1);
@@ -3889,7 +3899,11 @@ s32 e1000_link_stall_workaround_hv(struct e1000_hw *hw)
 		return E1000_SUCCESS;
 
 	/* Do not apply workaround if in PHY loopback bit 14 set */
-	hw->phy.ops.read_reg(hw, PHY_CONTROL, &data);
+	ret_val = hw->phy.ops.read_reg(hw, PHY_CONTROL, &data);
+	if (ret_val) {
+		DEBUGOUT("Error reading PHY control register\n");
+		return ret_val;
+	}
 	if (data & PHY_CONTROL_LB)
 		return E1000_SUCCESS;
 
