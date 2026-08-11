@@ -478,9 +478,25 @@ end
 local function ssh_pwauth(obj)
 	if obj.ssh_pwauth == nil then return end
 
-	local value = "no"
-	if obj.ssh_pwauth then
-		value = "yes"
+	local value
+	if type(obj.ssh_pwauth) == "boolean" then
+		value = obj.ssh_pwauth and "yes" or "no"
+	elseif type(obj.ssh_pwauth) == "string" then
+		local s = obj.ssh_pwauth:lower()
+		if s == "yes" or s == "true" or s == "1" or s == "on" then
+			value = "yes"
+		elseif s == "no" or s == "false" or s == "0" or s == "off" then
+			value = "no"
+		elseif s == "unchanged" then
+			return
+		else
+			nuage.warn("ssh_pwauth: unrecognized value '" ..
+			    obj.ssh_pwauth .. "', leaving unchanged")
+			return
+		end
+	else
+		nuage.warn("ssh_pwauth: invalid type " .. type(obj.ssh_pwauth))
+		return
 	end
 	nuage.update_sshd_config("PasswordAuthentication", value)
 end

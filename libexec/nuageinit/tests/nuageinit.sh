@@ -632,6 +632,24 @@ EOF
 	printf "   PasswordAuthentication yes # Should change\n" > etc/ssh/sshd_config
 	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
 	atf_check -o inline:"PasswordAuthentication no\n" cat etc/ssh/sshd_config
+
+	cat > media/nuageinit/user-data << 'EOF'
+#cloud-config
+ssh_pwauth: "no"
+EOF
+
+	printf "   PasswordAuthentication yes # Should change\n" > etc/ssh/sshd_config
+	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o inline:"PasswordAuthentication no\n" cat etc/ssh/sshd_config
+
+	cat > media/nuageinit/user-data << 'EOF'
+#cloud-config
+ssh_pwauth: "unchanged"
+EOF
+
+	printf "   PasswordAuthentication yes # keep\n" > etc/ssh/sshd_config
+	atf_check -o empty -e empty /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check -o inline:"   PasswordAuthentication yes # keep\n" cat etc/ssh/sshd_config
 }
 
 nocloud_userdata_cloudconfig_chpasswd_head()
