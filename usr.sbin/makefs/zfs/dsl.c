@@ -103,7 +103,8 @@ dsl_dir_get_mountpoint(zfs_opt_t *zfs, zfs_dsl_dir_t *dir)
 	char *mountpoint;
 
 	if (nvlist_find_string(dir->propsnv, "mountpoint", &mountpoint) == 0) {
-		if (strcmp(mountpoint, "none") == 0)
+		if (strcmp(mountpoint, "none") == 0 ||
+		    strcmp(mountpoint, "legacy") == 0)
 			return (NULL);
 	} else {
 		/*
@@ -165,7 +166,7 @@ dsl_dir_set_prop(zfs_opt_t *zfs, zfs_dsl_dir_t *dir, const char *key,
 		errx(1, "property `%s' already set", key);
 
 	if (strcmp(key, "mountpoint") == 0) {
-		if (strcmp(val, "none") != 0) {
+		if (strcmp(val, "none") != 0 && strcmp(val, "legacy") != 0) {
 			if (val[0] != '/')
 				errx(1, "mountpoint `%s' is not absolute", val);
 			if (strcmp(val, zfs->rootpath) != 0 &&

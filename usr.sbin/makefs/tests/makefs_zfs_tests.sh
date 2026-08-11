@@ -655,6 +655,44 @@ multi_dataset_4_cleanup()
 }
 
 #
+# Create a legacy dataset.
+#
+atf_test_case multi_dataset_5 cleanup
+multi_dataset_5_body()
+{
+	create_test_dirs
+	cd $TEST_INPUTS_DIR
+
+	mkdir dir1
+	echo a > dir1/a
+
+	cd -
+
+	atf_check $MAKEFS -s 1g -o rootpath=/ -o poolname=$ZFS_POOL_NAME \
+	    -o fs=${ZFS_POOL_NAME}/dir1\;canmount=noauto\;mountpoint=legacy \
+	    $TEST_IMAGE $TEST_INPUTS_DIR
+
+	import_image
+
+	atf_check -o inline:legacy\\n \
+	    zfs list -H -o mountpoint ${ZFS_POOL_NAME}/dir1
+
+	check_image_contents
+
+	atf_check zfs set mountpoint=/dir1 ${ZFS_POOL_NAME}/dir1
+	atf_check zfs mount ${ZFS_POOL_NAME}/dir1
+	atf_check -o inline:${TEST_MOUNT_DIR}/dir1\\n \
+	    zfs list -H -o mountpoint ${ZFS_POOL_NAME}/dir1
+
+	# dir1/a should be part of the root dataset, not dir1.
+	atf_check -s not-exit:0 -e not-empty stat ${TEST_MOUNT_DIR}/dir1/a
+}
+multi_dataset_5_cleanup()
+{
+	common_cleanup
+}
+
+#
 # Validate handling of multiple staging directories.
 #
 atf_test_case multi_staging_1 cleanup
@@ -1043,6 +1081,7 @@ atf_init_test_cases()
 	atf_add_test_case multi_dataset_2
 	atf_add_test_case multi_dataset_3
 	atf_add_test_case multi_dataset_4
+	atf_add_test_case multi_dataset_5
 	atf_add_test_case multi_staging_1
 	atf_add_test_case multi_staging_2
 	atf_add_test_case reproducible
