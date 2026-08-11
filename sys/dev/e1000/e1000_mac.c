@@ -585,6 +585,37 @@ u32 e1000_hash_mc_addr_generic(struct e1000_hw *hw, u8 *mc_addr)
 }
 
 /**
+ *  e1000_i21x_check_mta - Verify MTA writes on i210 and i211
+ *  @hw: pointer to the HW structure
+ *
+ *  The i210 and i211 can occasionally fail to accept MTA writes.  Read the
+ *  table back and rewrite mismatched entries, with a bounded retry count.
+ **/
+static void
+e1000_i21x_check_mta(struct e1000_hw *hw)
+{
+	bool failed;
+	int i, retries = 3;
+
+	do {
+		failed = false;
+		for (i = hw->mac.mta_reg_count - 1; i >= 0; i--) {
+			if (E1000_READ_REG_ARRAY(hw, E1000_MTA, i) ==
+			    hw->mac.mta_shadow[i])
+				continue;
+			failed = true;
+			E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i,
+			    hw->mac.mta_shadow[i]);
+			E1000_WRITE_FLUSH(hw);
+		}
+		if (failed && --retries == 0) {
+			DEBUGOUT("Failed to update MTA after retries\n");
+			break;
+		}
+	} while (failed);
+}
+
+/**
  *  e1000_update_mc_addr_list_generic - Update Multicast addresses
  *  @hw: pointer to the HW structure
  *  @mc_addr_list: array of multicast addresses to program
@@ -619,6 +650,8 @@ void e1000_update_mc_addr_list_generic(struct e1000_hw *hw,
 	for (i = hw->mac.mta_reg_count - 1; i >= 0; i--)
 		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, hw->mac.mta_shadow[i]);
 	E1000_WRITE_FLUSH(hw);
+	if (hw->mac.type == e1000_i210 || hw->mac.type == e1000_i211)
+		e1000_i21x_check_mta(hw);
 }
 
 /**
