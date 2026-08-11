@@ -315,6 +315,10 @@ static const pci_vendor_info_t em_vendor_info_array[] =
 	    "Intel(R) I219-LM PTP(27)"),
 	PVID(0x8086, E1000_DEV_ID_PCH_PTP_I219_V27,
 	    "Intel(R) I219-V PTP(27)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_NVL_I219_LM29,
+	    "Intel(R) I219-LM NVL(29)"),
+	PVID(0x8086, E1000_DEV_ID_PCH_NVL_I219_V29,
+	    "Intel(R) I219-V NVL(29)"),
 	/* required last entry */
 	PVID_END
 };
@@ -1513,6 +1517,7 @@ em_if_mtu_set(if_ctx_t ctx, uint32_t mtu)
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
 	case e1000_pch_ptp:
+	case e1000_pch_nvp:
 	case e1000_82574:
 	case e1000_82583:
 	case e1000_80003es2lan:
@@ -3164,6 +3169,7 @@ em_reset(if_ctx_t ctx)
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
 	case e1000_pch_ptp:
+	case e1000_pch_nvp:
 		pba = E1000_PBA_26K;
 		break;
 	case e1000_82575:
@@ -3279,6 +3285,7 @@ em_reset(if_ctx_t ctx)
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
 	case e1000_pch_ptp:
+	case e1000_pch_nvp:
 		hw->fc.high_water = 0x5C20;
 		hw->fc.low_water = 0x5048;
 		hw->fc.pause_time = 0xFFFF;
@@ -3715,6 +3722,7 @@ em_legacy_txdctl(struct e1000_hw *hw)
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
 	case e1000_pch_ptp:
+	case e1000_pch_nvp:
 		/* Preserve the required bit set by the integrated shared code. */
 		txdctl |= (1U << 22);
 		break;
@@ -3989,6 +3997,7 @@ em_integrated_jumbo_rx(struct e1000_hw *hw)
 	case e1000_pch_adp:
 	case e1000_pch_mtp:
 	case e1000_pch_ptp:
+	case e1000_pch_nvp:
 		return (true);
 	default:
 		return (false);
