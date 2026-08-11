@@ -562,7 +562,7 @@ int
 fbsdrun_virtio_msix(void)
 {
 
-	return (get_config_bool_default("virtio_msix", true));
+	return (get_config_bool_default("virtio.msix", true));
 }
 
 struct vcpu *
