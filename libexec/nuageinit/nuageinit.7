@@ -331,25 +331,34 @@ configuration in
 .It Ic disable_root
 Boolean which determines if root login via SSH should be disabled.
 If set to
-.Ar true ,
-sets
-.Qq Ic PermitRootLogin
-to
-.Ar no
-.Pq or the value specified in Ic disable_root_opts
-in
-.Pa /etc/ssh/sshd_config .
+.Ar true
+.Pq the default ,
+the public SSH keys are written to
+.Pa /root/.ssh/authorized_keys
+with the options specified in
+.Ic disable_root_opts ,
+which by default redirects the login to the default user.
+If set to
+.Ar false ,
+the public SSH keys are written to
+.Pa /root/.ssh/authorized_keys
+without any restriction.
 .It Ic disable_root_opts
-String or array of options used to set the value of
-.Qq Ic PermitRootLogin
-in
-.Pa /etc/ssh/sshd_config ,
+String or array of options used to prefix the public SSH keys in
+.Pa /root/.ssh/authorized_keys
 when
 .Ic disable_root
 is set to
 .Ar true .
+The
+.Ar $USER
+and
+.Ar $DISABLE_USER
+placeholders are replaced with the default user name and
+.Ar root
+respectively.
 If not specified, defaults to
-.Ar no .
+.Ar no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo 'Please login as the user "$USER" rather than the user "$DISABLE_USER".';echo;sleep 10;exit 142" .
 .Pp
 Only the first value is used when an array is provided.
 .It Ic network
