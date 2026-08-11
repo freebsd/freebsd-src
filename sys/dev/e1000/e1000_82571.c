@@ -72,6 +72,7 @@ static s32  e1000_valid_led_default_82571(struct e1000_hw *hw, u16 *data);
 static void e1000_clear_hw_cntrs_82571(struct e1000_hw *hw);
 static s32  e1000_fix_nvm_checksum_82571(struct e1000_hw *hw);
 static s32  e1000_get_phy_id_82571(struct e1000_hw *hw);
+static s32  e1000_get_hw_semaphore_82571(struct e1000_hw *hw);
 static s32  e1000_get_hw_semaphore_82574(struct e1000_hw *hw);
 static void e1000_put_hw_semaphore_82574(struct e1000_hw *hw);
 static s32  e1000_set_d0_lplu_state_82574(struct e1000_hw *hw,
@@ -122,7 +123,7 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 		phy->ops.get_cable_length = e1000_get_cable_length_igp_2;
 		phy->ops.read_reg	= e1000_read_phy_reg_igp;
 		phy->ops.write_reg	= e1000_write_phy_reg_igp;
-		phy->ops.acquire	= e1000_get_hw_semaphore;
+		phy->ops.acquire	= e1000_get_hw_semaphore_82571;
 		phy->ops.release	= e1000_put_hw_semaphore;
 		break;
 	case e1000_82573:
@@ -135,7 +136,7 @@ static s32 e1000_init_phy_params_82571(struct e1000_hw *hw)
 		phy->ops.get_cable_length = e1000_get_cable_length_m88;
 		phy->ops.read_reg	= e1000_read_phy_reg_m88;
 		phy->ops.write_reg	= e1000_write_phy_reg_m88;
-		phy->ops.acquire	= e1000_get_hw_semaphore;
+		phy->ops.acquire	= e1000_get_hw_semaphore_82571;
 		phy->ops.release	= e1000_put_hw_semaphore;
 		break;
 	case e1000_82574:
@@ -616,6 +617,61 @@ static s32 e1000_set_d3_lplu_state_82574(struct e1000_hw *hw, bool active)
 }
 
 /**
+ *  e1000_get_hw_semaphore_82571 - Acquire hardware semaphore
+ *  @hw: pointer to the HW structure
+ *
+ *  Acquire the hardware semaphore while preserving the 82571 inter-port
+ *  compatibility policy.
+ **/
+static s32
+e1000_get_hw_semaphore_82571(struct e1000_hw *hw)
+{
+	u32 swsm;
+	s32 sw_timeout = hw->nvm.word_size + 1;
+	s32 fw_timeout = hw->nvm.word_size + 1;
+	s32 i = 0;
+
+	DEBUGFUNC("e1000_get_hw_semaphore_82571");
+
+	/*
+	 * After three SMBI timeouts, minimize interference with an older
+	 * peer driver which may not release the inter-port semaphore.
+	 */
+	if (hw->dev_spec._82571.smb_counter > 2)
+		sw_timeout = 1;
+
+	while (i < sw_timeout) {
+		swsm = E1000_READ_REG(hw, E1000_SWSM);
+		if (!(swsm & E1000_SWSM_SMBI))
+			break;
+		usec_delay(50);
+		i++;
+	}
+
+	if (i == sw_timeout) {
+		DEBUGOUT("Driver can't access device - SMBI bit is set.\n");
+		hw->dev_spec._82571.smb_counter++;
+	}
+
+	for (i = 0; i < fw_timeout; i++) {
+		swsm = E1000_READ_REG(hw, E1000_SWSM);
+		E1000_WRITE_REG(hw, E1000_SWSM,
+		    swsm | E1000_SWSM_SWESMBI);
+		if (E1000_READ_REG(hw, E1000_SWSM) & E1000_SWSM_SWESMBI)
+			break;
+		usec_delay(50);
+	}
+
+	if (i == fw_timeout) {
+		e1000_put_hw_semaphore(hw);
+		DEBUGOUT("Driver can't access the NVM\n");
+		return -E1000_ERR_NVM;
+	}
+
+	return E1000_SUCCESS;
+}
+
+/**
  *  e1000_acquire_nvm_82571 - Request for access to the EEPROM
  *  @hw: pointer to the HW structure
  *
@@ -630,7 +686,7 @@ static s32 e1000_acquire_nvm_82571(struct e1000_hw *hw)
 
 	DEBUGFUNC("e1000_acquire_nvm_82571");
 
-	ret_val = e1000_get_hw_semaphore(hw);
+	ret_val = e1000_get_hw_semaphore_82571(hw);
 	if (ret_val)
 		return ret_val;
 
