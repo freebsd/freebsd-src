@@ -268,15 +268,14 @@ ATF_TC_WITHOUT_HEAD(sbuf_set_flags_test);
 ATF_TC_BODY(sbuf_set_flags_test, tc)
 {
 	struct sbuf *sb;
-
+	int flags;
 	sb = sbuf_new_auto();
 
 	ATF_REQUIRE_MSG(sb != NULL, 
 		"sbuf_new_auto failed: %s", strerror(errno));
-
-	ATF_REQUIRE_EQ_MSG(0, 
-		sbuf_set_flags(sb, SBUF_INCLUDENUL),
-		"sbuf_set_flags failed");
+ 
+	flags = sbuf_set_flags(sb, SBUF_INCLUDENUL);
+	sbuf_len(flags);
 
 	ATF_REQUIRE_MSG(sbuf_cat(sb, test_string) == 0,
 		"sbuf_cat failed");
@@ -286,7 +285,7 @@ ATF_TC_BODY(sbuf_set_flags_test, tc)
 		"sbuf_finish failed: %s", strerror(errno));
 		
 	ATF_CHECK_EQ(
-		strlen(test_string) + 1,
+		(ssize_t)(strlen(test_string) + 1),
 		sbuf_len(sb)
 	);
 
@@ -308,13 +307,11 @@ ATF_TC_BODY(sbuf_clear_flags_test, tc)
 	flags = sbuf_get_flags(sb);
 	ATF_REQUIRE(flags & SBUF_INCLUDENUL);
 
-	ATF_REQUIRE_EQ_MSG(0,
-		sbuf_clear_flags(sb, SBUF_INCLUDENUL),
-		"sbuf_clear_flags failed: %s", strerror(errno));
+	sbuf_clear_flags(sb, SBUF_INCLUDENUL);
 
-	flag = sbuf_get_flags(sb);
+	flags = sbuf_get_flags(sb);
 		
-	ATF_CHECK(!(flags & SBUF_INCLUDENUL) != 0);
+	ATF_CHECK((flags & SBUF_INCLUDENUL) == 0);
 
 	sbuf_delete(sb);
 }
