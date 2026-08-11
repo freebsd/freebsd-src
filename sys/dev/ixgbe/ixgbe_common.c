@@ -770,7 +770,7 @@ s32 ixgbe_read_pba_num_generic(struct ixgbe_hw *hw, u32 *pba_num)
 		DEBUGOUT("NVM Not supported\n");
 		return IXGBE_NOT_IMPLEMENTED;
 	}
-	*pba_num = (u32)(data << 16);
+	*pba_num = (u32)data << 16;
 
 	ret_val = hw->eeprom.ops.read(hw, IXGBE_PBANUM1_PTR, &data);
 	if (ret_val) {
