@@ -861,9 +861,9 @@ static s32 ixgbe_check_for_rst_pf(struct ixgbe_hw *hw, u16 vf_id)
 		break;
 	}
 
-	if (vflre & (1 << vf_shift)) {
+	if (vflre & (1U << vf_shift)) {
 		ret_val = IXGBE_SUCCESS;
-		IXGBE_WRITE_REG(hw, IXGBE_PFVFLREC(index), (1 << vf_shift));
+		IXGBE_WRITE_REG(hw, IXGBE_PFVFLREC(index), 1U << vf_shift);
 		hw->mbx.stats.rsts++;
 	}
 
