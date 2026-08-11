@@ -1363,7 +1363,7 @@ static void e1000_clear_vfta_82571(struct e1000_hw *hw)
 				       E1000_VFTA_ENTRY_SHIFT) &
 			    E1000_VFTA_ENTRY_MASK;
 			vfta_bit_in_reg =
-			    1 << (hw->mng_cookie.vlan_id &
+			    1U << (hw->mng_cookie.vlan_id &
 				  E1000_VFTA_ENTRY_BIT_SHIFT_MASK);
 		}
 		break;
