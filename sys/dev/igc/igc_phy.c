@@ -906,10 +906,15 @@ s32 igc_phy_hw_reset_generic(struct igc_hw *hw)
  **/
 void igc_power_up_phy_copper(struct igc_hw *hw)
 {
+	s32 ret_val;
 	u16 mii_reg = 0;
 
 	/* The PHY will retain its settings across a power down/up cycle */
-	hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
+	ret_val = hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
+	if (ret_val) {
+		DEBUGOUT("Error reading PHY control register\n");
+		return;
+	}
 	mii_reg &= ~MII_CR_POWER_DOWN;
 	hw->phy.ops.write_reg(hw, PHY_CONTROL, mii_reg);
 	usec_delay(300);
@@ -925,10 +930,15 @@ void igc_power_up_phy_copper(struct igc_hw *hw)
  **/
 void igc_power_down_phy_copper(struct igc_hw *hw)
 {
+	s32 ret_val;
 	u16 mii_reg = 0;
 
 	/* The PHY will retain its settings across a power down/up cycle */
-	hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
+	ret_val = hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
+	if (ret_val) {
+		DEBUGOUT("Error reading PHY control register\n");
+		return;
+	}
 	mii_reg |= MII_CR_POWER_DOWN;
 	hw->phy.ops.write_reg(hw, PHY_CONTROL, mii_reg);
 	msec_delay(1);
