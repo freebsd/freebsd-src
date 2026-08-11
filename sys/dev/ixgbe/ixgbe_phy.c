@@ -434,7 +434,7 @@ s32 ixgbe_get_phy_id(struct ixgbe_hw *hw)
 				      &phy_id_high);
 
 	if (status == IXGBE_SUCCESS) {
-		hw->phy.id = (u32)(phy_id_high << 16);
+		hw->phy.id = (u32)phy_id_high << 16;
 		status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_PHY_ID_LOW,
 					      IXGBE_MDIO_PMA_PMD_DEV_TYPE,
 					      &phy_id_low);
