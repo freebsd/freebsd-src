@@ -454,6 +454,7 @@ int fill_ext6hdr(struct _ipfw_insn *cmd, char *av);
 void bp_flush(struct buf_pr *b);
 void fill_table(struct _ipfw_insn *cmd, char *av, uint8_t opcode,
     struct tidx *tstate);
+int ipfw_detect_u32_kbi(void);
 
 /* tables.c */
 struct _ipfw_obj_ctlv;

@@ -33,6 +33,7 @@
 #include <jail.h>
 #include <netdb.h>
 #include <pwd.h>
+#include <osreldate.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -5827,6 +5828,107 @@ ipfw_internal_handler(int ac, char *av[])
 		ipfw_list_values(ac, av);
 		break;
 	}
+}
+
+/*
+ * Detect 32 bit ipfw KBI by presence of XGET v=1.
+ *
+ * 32-bit KBI was introduced in 1500034. Report 32-bit KBI for osreldate equal
+ * or greater than 1500034. For lower values, jailed status must be checked to
+ * make sure getosreldate() returned a real value as jail init can be
+ * instructed to override this value (see jail(8)). In case we're in a jail,
+ * use ipfw socket to detect 32-bit KBI using ophandler probes.
+ *
+ * Return:
+ *	 2 - 32-bit opcode KBI detected despite of getosreldate() retval
+ *	 1 - 32-bit opcode KBI detected
+ *	 0 - 16-bit opcode KBI detected
+ *	-1 - an error occurred
+ */
+
+int
+ipfw_detect_u32_kbi(void)
+{
+	ipfw_obj_lheader *hdr = NULL;
+	ipfw_sopt_info *info;
+	socklen_t len;
+	size_t need;
+	uint32_t i;
+	int s, opver, ret = -1;
+
+	if (getosreldate() >= 1500034)
+		return (1);
+
+	/* Make more checks for lower osreldate values */
+	s = 0;
+	need = sizeof(s);
+	sysctlbyname("security.jail.jailed", &s, &need, NULL, 0);
+
+	/* We're not in a jail, value from getosreldate() is real */
+	if (s == 0)
+		return (0);
+
+	/*
+	 * We're in a jail, osreldate may be altered. Use ipfw socket to
+	 * decide.
+	 */
+	s = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+	if (s < 0)
+		return (-1);
+
+	/*
+	 * ipfw code @ RELENG_15 can register 61 sockopt handlers.
+	 * Pre-allocate enough to evade realloc()
+	 */
+	need = sizeof(ipfw_obj_lheader) + (64 * sizeof(ipfw_sopt_info));
+
+	opver = 0;
+	for (i = 4; i >= 0; i--) {
+		hdr = realloc(hdr, need);
+		memset(hdr, 0, need);
+		if (hdr == NULL)
+			break;
+
+		hdr->opheader.opcode  = IP_FW_DUMP_SOPTCODES;
+		hdr->opheader.version = opver;
+		hdr->size = need;
+
+		/* Check DUMP_SOPTCODES v=1 existance */
+		len = need;
+		if (getsockopt(s, IPPROTO_IP, IP_FW3, hdr, &len) != 0) {
+			if (errno == ENOMEM) {
+				need = hdr->size;
+				continue;
+			}
+			/* Does not exist. 32-bit KBI? */
+			if (errno == EINVAL && opver == 0) {
+				opver = 1;
+				continue;
+			}
+			/* Report an error */
+			ret = -1;
+			break;
+		}
+		/* Fetched soptcodes successfully */
+		info = (ipfw_sopt_info *)(hdr + 1);
+		for (i = 0; i < hdr->count; i++) {
+			if (info[i].opcode != IP_FW_XGET)
+				continue;
+			if (info[i].version == 0) {
+				ret = 0;
+				break;
+			}
+			if (info[i].version == 1) {
+				ret = 2;
+				break;
+			}
+		}
+		break;
+	}
+
+	free(hdr);
+	close(s);
+	return (ret);
 }
 
 static int

@@ -18,7 +18,6 @@
  * Command line interface for IP firewall facility
  */
 
-#include <sys/stat.h>
 #include <sys/wait.h>
 #include <ctype.h>
 #include <err.h>
@@ -30,8 +29,6 @@
 #include <sysexits.h>
 #include <unistd.h>
 #include <libgen.h>
-
-#include <osreldate.h>
 
 #include "ipfw2.h"
 
@@ -673,6 +670,7 @@ ipfw_readfile(int ac, char *av[])
 int
 main(int ac, char *av[])
 {
+	int ret;
 #if defined(_WIN32) && defined(TCC)
 	{
 		WSADATA wsaData;
@@ -697,17 +695,19 @@ main(int ac, char *av[])
 	 * KBI-incompatibility detected, check for availability of ipfw/dnctl15
 	 * binaries and run them instead
 	 */
-	if (getosreldate() >= 1500000) {
+	ret = ipfw_detect_u32_kbi();
+	if (ret > 0) {
 		const char *releng15_progname;
-		int ret;
 
 		if (g_co.prog == cmdline_prog_ipfw)
 			releng15_progname = "/sbin/ipfw15";
 		else
 			releng15_progname = "/sbin/dnctl15";
 
-		printf("WARNING! KBI incompatibility for ipfw is detected,"
-		    " trying to run %s.\n", releng15_progname);
+		if (ret == 1)
+			printf("WARNING! KBI incompatibility for ipfw is"
+			    " detected, trying to run %s.\n",
+			    releng15_progname);
 
 		if ((ret = execv(releng15_progname, av)) < 0) {
 			printf("execv(%s) error: %s\n", releng15_progname,
