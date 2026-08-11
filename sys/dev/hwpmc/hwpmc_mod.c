@@ -4809,9 +4809,6 @@ restart:
 		KASSERT(pm->pm_flags & PMC_F_CALLCHAIN,
 		    ("[pmc,%d] Retrieving callchain for PMC that doesn't "
 		    "want it", __LINE__));
-		KASSERT(counter_u64_fetch(pm->pm_runcount) > 0,
-		    ("[pmc,%d] runcount %ju", __LINE__,
-		    (uintmax_t)counter_u64_fetch(pm->pm_runcount)));
 
 		if (ring == PMC_UR) {
 			nsamples = ps->ps_nsamples_actual;
@@ -4838,6 +4835,10 @@ restart:
 		 * Verify that the sample hasn't been dropped in the meantime.
 		 */
 		if (ps->ps_nsamples == PMC_USER_CALLCHAIN_PENDING) {
+			KASSERT(counter_u64_fetch(pm->pm_runcount) > 0,
+			    ("[pmc,%d] runcount %ju", __LINE__,
+			    (uintmax_t)counter_u64_fetch(pm->pm_runcount)));
+
 			ps->ps_nsamples = nsamples;
 			/*
 			 * If we couldn't get a sample, simply drop the
