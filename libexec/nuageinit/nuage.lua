@@ -388,7 +388,7 @@ local function adduser(pwd)
 		warnmsg(cmd)
 		return nil
 	end
-	if pwd.locked then
+	if pwd.lock_passwd or pwd.locked then
 		cmd = "pw "
 		if root then
 			cmd = cmd .. "-R " .. root .. " "

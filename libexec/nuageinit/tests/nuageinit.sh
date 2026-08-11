@@ -181,6 +181,35 @@ EOF
 	atf_check -o inline:"permit persist foobar as root\ndeny bla as foobar\npermit persist bla as root cmd whoami\n" cat "${PWD}/${localbase}/etc/doas.conf"
 }
 
+nocloud_userdata_cloudconfig_users_lock_passwd_head()
+{
+	atf_set "require.user" root
+}
+nocloud_userdata_cloudconfig_users_lock_passwd_body()
+{
+	mkdir -p media/nuageinit
+	printf "instance-id: iid-local01\n" > "${PWD}"/media/nuageinit/meta-data
+	mkdir -p etc
+	cat > etc/master.passwd << EOF
+root:*:0:0::0:0:Charlie &:/root:/bin/sh
+sys:*:1:0::0:0:Sys:/home/sys:/bin/sh
+EOF
+	pwd_mkdb -d etc "${PWD}"/etc/master.passwd
+	cat > etc/group << EOF
+wheel:*:0:root
+users:*:1:
+EOF
+	cat > media/nuageinit/user-data << 'EOF'
+#cloud-config
+users:
+  - name: lockeduser
+    lock_passwd: true
+EOF
+	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit nocloud
+	atf_check /usr/libexec/nuageinit "${PWD}"/media/nuageinit postnet
+	atf_check -o match:'lockeduser:\*LOCKED\*:' cat "${PWD}"/etc/master.passwd
+}
+
 nocloud_network_head()
 {
 	atf_set "require.user" root
@@ -1474,6 +1503,7 @@ atf_init_test_cases()
 	atf_add_test_case nocloud_userdata_script
 	atf_add_test_case nocloud_user_data_script
 	atf_add_test_case nocloud_userdata_cloudconfig_users
+	atf_add_test_case nocloud_userdata_cloudconfig_users_lock_passwd
 	atf_add_test_case nocloud_network
 	atf_add_test_case config2
 	atf_add_test_case config2_pubkeys

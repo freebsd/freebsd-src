@@ -555,8 +555,11 @@ The encrypted password for the user.
 .It Ic plain_text_passwd
 The password in plain text for the user.
 Ignored if an encrypted password is already provided.
-.It Ic locked
+.It Ic lock_passwd
 Boolean to determine if the user account should be locked.
+The legacy
+.Ic locked
+key is also accepted.
 .It Ic sudo
 A string or an array of strings which should be appended to
 .Pa ${LOCALBASE}/etc/sudoers.d/90-nuageinit-users
