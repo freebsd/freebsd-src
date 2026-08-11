@@ -179,7 +179,7 @@ mp_setmaxid(void *dummy)
 
 	cpusetsizemin = howmany(mp_maxid + 1, NBBY);
 }
-SYSINIT(cpu_mp_setmaxid, SI_SUB_TUNABLES, SI_ORDER_FIRST, mp_setmaxid, NULL);
+SYSINIT(cpu_mp_setmaxid, SI_SUB_FIRST, SI_ORDER_ANY, mp_setmaxid, NULL);
 
 /*
  * Call the MD SMP initialization code.

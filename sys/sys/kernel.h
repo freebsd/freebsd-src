@@ -94,6 +94,7 @@ extern volatile long ticksl;
  */
 enum sysinit_sub_id {
 	SI_SUB_DUMMY		= 0x0000000,	/* not executed; for linker */
+	SI_SUB_FIRST		= 0x0600000,	/* mp_maxid, etc... */
 	SI_SUB_TUNABLES		= 0x0700000,	/* establish tunable values */
 	SI_SUB_COPYRIGHT	= 0x0800001,	/* first use of console */
 	SI_SUB_VM		= 0x1000000,	/* virtual memory system init */

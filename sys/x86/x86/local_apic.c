@@ -2142,7 +2142,7 @@ apic_init(void *dummy __unused)
 		    best_enum->apic_name, retval);
 
 }
-SYSINIT(apic_init, SI_SUB_TUNABLES - 1, SI_ORDER_SECOND, apic_init, NULL);
+SYSINIT(apic_init, SI_SUB_FIRST, SI_ORDER_SECOND, apic_init, NULL);
 
 /*
  * Setup the local APIC.  We have to do this prior to starting up the APs
