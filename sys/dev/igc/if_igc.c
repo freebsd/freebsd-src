@@ -2856,8 +2856,8 @@ igc_add_hw_stats(struct igc_softc *sc)
 	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
 	struct igc_hw_stats *stats = &sc->stats;
 
-	struct sysctl_oid *stat_node, *queue_node, *int_node;
-	struct sysctl_oid_list *stat_list, *queue_list, *int_list;
+	struct sysctl_oid *eee_node, *stat_node, *queue_node, *int_node;
+	struct sysctl_oid_list *eee_list, *stat_list, *queue_list, *int_list;
 
 #define QUEUE_NAME_LEN 32
 	char namebuf[QUEUE_NAME_LEN];
@@ -2886,6 +2886,14 @@ igc_add_hw_stats(struct igc_softc *sc)
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "fc_low_water",
 	    CTLFLAG_RD, &sc->hw.fc.low_water, 0,
 	    "Flow Control Low Watermark");
+	eee_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "eee",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    "Energy Efficient Ethernet statistics");
+	eee_list = SYSCTL_CHILDREN(eee_node);
+	SYSCTL_ADD_UQUAD(ctx, eee_list, OID_AUTO, "tx_lpi_count",
+	    CTLFLAG_RD, &stats->tlpic, "TX LPI event count");
+	SYSCTL_ADD_UQUAD(ctx, eee_list, OID_AUTO, "rx_lpi_count",
+	    CTLFLAG_RD, &stats->rlpic, "RX LPI event count");
 
 	for (int i = 0; i < sc->tx_num_queues; i++, tx_que++) {
 		struct tx_ring *txr = &tx_que->txr;
