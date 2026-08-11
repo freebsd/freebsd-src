@@ -92,7 +92,8 @@ static int csa_teardown_intr(device_t bus, device_t child,
 static driver_intr_t csa_intr;
 static int csa_initialize(sc_p scp);
 static int csa_downloadimage(csa_res *resp);
-static int csa_transferimage(csa_res *resp, uint32_t *src, u_long dest, u_long len);
+static int csa_transferimage(csa_res *resp, uint32_t *src, unsigned long dest,
+    unsigned long len);
 
 static void
 amp_none(void)
@@ -807,7 +808,7 @@ static int
 csa_downloadimage(csa_res *resp)
 {
 	int ret;
-	u_long ul, offset;
+	unsigned long ul, offset;
 
 	for (ul = 0, offset = 0 ; ul < INKY_MEMORY_COUNT ; ul++) {
 	        /*
@@ -826,9 +827,10 @@ csa_downloadimage(csa_res *resp)
 }
 
 static int
-csa_transferimage(csa_res *resp, uint32_t *src, u_long dest, u_long len)
+csa_transferimage(csa_res *resp, uint32_t *src, unsigned long dest,
+    unsigned long len)
 {
-	u_long ul;
+	unsigned long ul;
 
 	/*
 	 * We do not allow DMAs from host memory to host memory (although the DMA
@@ -850,7 +852,7 @@ csa_transferimage(csa_res *resp, uint32_t *src, u_long dest, u_long len)
 }
 
 int
-csa_readcodec(csa_res *resp, u_long offset, uint32_t *data)
+csa_readcodec(csa_res *resp, unsigned long offset, uint32_t *data)
 {
 	int i;
 	uint32_t acctl, acsts;
@@ -944,7 +946,7 @@ csa_readcodec(csa_res *resp, u_long offset, uint32_t *data)
 }
 
 int
-csa_writecodec(csa_res *resp, u_long offset, uint32_t data)
+csa_writecodec(csa_res *resp, unsigned long offset, uint32_t data)
 {
 	int i;
 	uint32_t acctl;
@@ -997,7 +999,7 @@ csa_writecodec(csa_res *resp, u_long offset, uint32_t data)
 }
 
 uint32_t
-csa_readio(csa_res *resp, u_long offset)
+csa_readio(csa_res *resp, unsigned long offset)
 {
 	uint32_t ul;
 
@@ -1011,7 +1013,7 @@ csa_readio(csa_res *resp, u_long offset)
 }
 
 void
-csa_writeio(csa_res *resp, u_long offset, uint32_t data)
+csa_writeio(csa_res *resp, unsigned long offset, uint32_t data)
 {
 	if (offset < BA0_AC97_RESET)
 		bus_space_write_4(rman_get_bustag(resp->io), rman_get_bushandle(resp->io), offset, data);
@@ -1020,13 +1022,13 @@ csa_writeio(csa_res *resp, u_long offset, uint32_t data)
 }
 
 uint32_t
-csa_readmem(csa_res *resp, u_long offset)
+csa_readmem(csa_res *resp, unsigned long offset)
 {
 	return bus_space_read_4(rman_get_bustag(resp->mem), rman_get_bushandle(resp->mem), offset);
 }
 
 void
-csa_writemem(csa_res *resp, u_long offset, uint32_t data)
+csa_writemem(csa_res *resp, unsigned long offset, uint32_t data)
 {
 	bus_space_write_4(rman_get_bustag(resp->mem), rman_get_bushandle(resp->mem), offset, data);
 }

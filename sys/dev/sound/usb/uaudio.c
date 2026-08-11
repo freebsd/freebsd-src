@@ -551,7 +551,8 @@ static void	umidi_stop_read(struct usb_fifo *);
 static void	umidi_start_write(struct usb_fifo *);
 static void	umidi_stop_write(struct usb_fifo *);
 static int	umidi_open(struct usb_fifo *, int);
-static int	umidi_ioctl(struct usb_fifo *, u_long cmd, void *, int);
+static int	umidi_ioctl(struct usb_fifo *, unsigned long cmd, void *,
+		    int);
 static void	umidi_close(struct usb_fifo *, int);
 static void	umidi_init(device_t dev);
 static int	umidi_attach(device_t dev);
@@ -6050,7 +6051,7 @@ umidi_close(struct usb_fifo *fifo, int fflags)
 }
 
 static int
-umidi_ioctl(struct usb_fifo *fifo, u_long cmd, void *data,
+umidi_ioctl(struct usb_fifo *fifo, unsigned long cmd, void *data,
     int fflags)
 {
 	return (ENODEV);
