@@ -621,6 +621,8 @@ struct e1000_softc {
 	u32			fatal_error_state;
 	u32			fatal_error_pbeccsts;
 	u64			fatal_error_reset_count;
+	u64			corrected_error_packet_buffer_count;
+	u64			uncorrected_error_packet_buffer_count;
 
 	u64			que_mask;
 
