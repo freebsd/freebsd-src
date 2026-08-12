@@ -618,6 +618,9 @@ struct e1000_softc {
 	u32			pba;
 	int			link_mask;
 	int			tso_automasked;
+	u32			fatal_error_state;
+	u32			fatal_error_pbeccsts;
+	u64			fatal_error_reset_count;
 
 	u64			que_mask;
 
