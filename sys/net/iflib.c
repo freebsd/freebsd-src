@@ -5436,6 +5436,13 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	CTX_UNLOCK(ctx);
 	IFNET_WUNLOCK();
 
+	/* Create led(4) devices if the driver defined the method */
+	kobj_desc = &ifdi_led_func_desc;
+	kobj_method = kobj_lookup_method(((kobj_t)ctx)->ops->cls, NULL,
+	    kobj_desc);
+	if (kobj_method != &kobj_desc->deflt)
+		iflib_led_create(ctx);
+
 	return (0);
 
 fail_detach:
