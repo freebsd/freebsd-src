@@ -944,6 +944,8 @@ ixl_prepare_for_reset(struct ixl_pf *pf, bool is_up)
 	int error, first_error;
 
 	first_error = 0;
+	/* Restore identification before the reset tears down AdminQ access. */
+	ixl_led_restore(pf);
 #ifdef PCI_IOV
 	ixl_notify_vfs_reset(pf);
 	error = ixl_quiesce_vfs_for_reset(pf);
