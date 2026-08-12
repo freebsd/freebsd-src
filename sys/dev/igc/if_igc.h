@@ -414,8 +414,17 @@ struct igc_softc {
 	unsigned long	dropped_pkts;
 	unsigned long	link_irq;
 	unsigned long	rx_overruns;
-	unsigned long	watchdog_events;
 
+	u32		fatal_error_state;
+	u32		fatal_error_peind;
+	u32		fatal_error_pcie;
+	u32		fatal_error_lan;
+	u32		fatal_error_mng;
+	uint64_t	fatal_error_lan_count;
+	uint64_t	fatal_error_mng_count;
+	uint64_t	fatal_error_pcie_count;
+	uint64_t	fatal_error_dma_count;
+	uint64_t	fatal_error_unknown_count;
 	struct igc_hw_stats stats;
 	u16		vf_ifp;
 };
