@@ -180,10 +180,12 @@ struct iflib_ctx {
 	int ifc_link_state;
 	uint32_t ifc_tx_watchdog_events;
 	struct cdev *ifc_led_dev;
+	int ifc_led_state;
 	struct resource *ifc_msix_mem;
 
 	struct if_irq ifc_legacy_irq;
 	struct task ifc_admin_task;
+	struct task ifc_led_task;
 	struct task ifc_vflr_task;
 	struct taskqueue *ifc_tq;
 	struct iflib_filter_info ifc_filter_info;
@@ -4746,13 +4748,37 @@ iflib_vlan_unregister(void *arg, if_t ifp, uint16_t vtag)
 }
 
 static void
-iflib_led_func(void *arg, int onoff)
+_task_fn_led(void *context, int pending __unused)
 {
-	if_ctx_t ctx = arg;
+	if_ctx_t ctx = context;
+	bool in_detach;
+	int onoff;
+
+	STATE_LOCK(ctx);
+	in_detach = (ctx->ifc_flags & IFC_IN_DETACH) != 0;
+	onoff = ctx->ifc_led_state;
+	STATE_UNLOCK(ctx);
+	if (in_detach)
+		return;
 
 	CTX_LOCK(ctx);
 	IFDI_LED_FUNC(ctx, onoff);
 	CTX_UNLOCK(ctx);
+}
+
+static void
+iflib_led_func(void *arg, int onoff)
+{
+	if_ctx_t ctx = arg;
+	bool in_detach;
+
+	/* led(4) may invoke this callback from a non-sleepable callout. */
+	STATE_LOCK(ctx);
+	ctx->ifc_led_state = onoff;
+	in_detach = (ctx->ifc_flags & IFC_IN_DETACH) != 0;
+	STATE_UNLOCK(ctx);
+	if (!in_detach)
+		taskqueue_enqueue(ctx->ifc_tq, &ctx->ifc_led_task);
 }
 
 /*********************************************************************
@@ -5279,6 +5305,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	}
 
 	TASK_INIT(&ctx->ifc_admin_task, 0, _task_fn_admin, ctx);
+	TASK_INIT(&ctx->ifc_led_task, 0, _task_fn_led, ctx);
 
 	/* Set up cpu set.  If it fails, use the set of all CPUs. */
 	if (bus_get_cpus(dev, INTR_CPUS, sizeof(ctx->ifc_cpus), &ctx->ifc_cpus) != 0) {
@@ -5502,8 +5529,10 @@ iflib_device_deregister(if_ctx_t ctx)
 	CTX_UNLOCK(ctx);
 
 	iflib_rem_pfil(ctx);
-	if (ctx->ifc_led_dev != NULL)
+	if (ctx->ifc_led_dev != NULL) {
 		led_destroy(ctx->ifc_led_dev);
+		taskqueue_drain(ctx->ifc_tq, &ctx->ifc_led_task);
+	}
 
 	iflib_tqg_detach(ctx);
 	iflib_tx_structures_free(ctx);
