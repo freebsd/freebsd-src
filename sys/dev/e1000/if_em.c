@@ -2187,6 +2187,17 @@ em_fatal_error_intr_mask(struct e1000_softc *sc)
 	return (0);
 }
 
+static void
+em_update_pch_ecc_stats(struct e1000_softc *sc, u32 pbeccsts)
+{
+
+	sc->corrected_error_packet_buffer_count +=
+	    pbeccsts & E1000_PBECCSTS_CORR_ERR_CNT_MASK;
+	sc->uncorrected_error_packet_buffer_count +=
+	    (pbeccsts & E1000_PBECCSTS_UNCORR_ERR_CNT_MASK) >>
+	    E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT;
+}
+
 /*
  * Descriptor-memory ECC errors stop the PCH MAC.  Capture the read-clear
  * status before handing recovery to the iflib admin task.
@@ -2220,6 +2231,7 @@ em_handle_fatal_error_admin(struct e1000_softc *sc)
 		return (atomic_load_acq_32(&sc->fatal_error_state) !=
 		    EM_FATAL_ERROR_NONE);
 
+	em_update_pch_ecc_stats(sc, sc->fatal_error_pbeccsts);
 	device_printf(sc->dev,
 	    "uncorrectable packet-buffer ECC error: PBECCSTS %#x; "
 	    "requesting reset\n", sc->fatal_error_pbeccsts);
@@ -5772,6 +5784,10 @@ em_update_stats_counters(struct e1000_softc *sc)
 		stats->tsctfc +=
 		E1000_READ_REG(&sc->hw, E1000_TSCTFC);
 	}
+
+	if (em_has_pch_ecc(&sc->hw))
+		em_update_pch_ecc_stats(sc,
+		    E1000_READ_REG(&sc->hw, E1000_PBECCSTS));
 }
 
 static bool
@@ -6183,6 +6199,26 @@ em_add_hw_stats(struct e1000_softc *sc)
 		    CTLFLAG_RD, &stats->tlpic, "TX LPI event count");
 		SYSCTL_ADD_UQUAD(ctx, eee_list, OID_AUTO, "rx_lpi_count",
 		    CTLFLAG_RD, &stats->rlpic, "RX LPI event count");
+	}
+	if (em_has_pch_ecc(&sc->hw)) {
+		struct sysctl_oid *memerr_node;
+		struct sysctl_oid_list *memerr_list;
+
+		memerr_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO,
+		    "memory_errors", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+		    "Internal memory error indications");
+		memerr_list = SYSCTL_CHILDREN(memerr_node);
+		SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO, "fatal_resets",
+		    CTLFLAG_RD, &sc->fatal_error_reset_count,
+		    "Resets requested for fatal packet-buffer ECC errors");
+		SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+		    "corrected_packet_buffer", CTLFLAG_RD,
+		    &sc->corrected_error_packet_buffer_count,
+		    "Corrected packet-buffer ECC errors");
+		SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+		    "uncorrected_packet_buffer", CTLFLAG_RD,
+		    &sc->uncorrected_error_packet_buffer_count,
+		    "Uncorrected packet-buffer ECC errors");
 	}
 
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "excess_coll",
