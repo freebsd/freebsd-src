@@ -132,7 +132,7 @@ local function main()
 	local url = exec_command("git remote get-url freebsd 2>/dev/null")
 	local freebsd_repo
 	if url and url ~= "" then
-		freebsd_repo = string.match(url, "[^/]+$")
+		freebsd_repo = string.match(url, "[^:/]+$")
 		freebsd_repo = string.gsub(freebsd_repo, "%.git$", "")
 	end
 	if freebsd_repo == "ports" or freebsd_repo == "freebsd-ports" then
