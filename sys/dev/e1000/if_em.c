@@ -6749,9 +6749,6 @@ em_print_debug_info(struct e1000_softc *sc)
 		device_printf(dev, "queue state is unavailable\n");
 		return;
 	}
-	txr = &sc->tx_queues->txr;
-	rxr = &sc->rx_queues->rxr;
-
 	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		printf("Interface is RUNNING ");
 	else
@@ -6762,14 +6759,16 @@ em_print_debug_info(struct e1000_softc *sc)
 	else
 		printf("and ACTIVE\n");
 
-	for (int i = 0; i < sc->tx_num_queues; i++, txr++) {
+	for (int i = 0; i < sc->tx_num_queues; i++) {
+		txr = &sc->tx_queues[i].txr;
 		device_printf(dev, "TX Queue %d ------\n", i);
 		device_printf(dev, "hw tdh = %d, hw tdt = %d\n",
 		    E1000_READ_REG(&sc->hw, E1000_TDH(txr->me)),
 		    E1000_READ_REG(&sc->hw, E1000_TDT(txr->me)));
 
 	}
-	for (int j=0; j < sc->rx_num_queues; j++, rxr++) {
+	for (int j = 0; j < sc->rx_num_queues; j++) {
+		rxr = &sc->rx_queues[j].rxr;
 		device_printf(dev, "RX Queue %d ------\n", j);
 		device_printf(dev, "hw rdh = %d, hw rdt = %d\n",
 		    E1000_READ_REG(&sc->hw, E1000_RDH(rxr->me)),
