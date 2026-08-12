@@ -63,7 +63,11 @@ static void router_free_cmd(struct router_softc *, struct router_command *);
 static int _tb_router_attach(struct router_softc *);
 static void router_prepare_read(struct router_softc *, struct router_command *,
     int);
+static void router_prepare_write(struct router_softc *, struct router_command *,
+    int);
 static int _tb_config_read(struct router_softc *, u_int, u_int, u_int, u_int,
+    uint32_t *, void *, struct router_command **);
+static int _tb_config_write(struct router_softc *, u_int, u_int, u_int, u_int,
     uint32_t *, void *, struct router_command **);
 static int router_schedule(struct router_softc *, struct router_command *);
 static int router_schedule_locked(struct router_softc *,
@@ -492,8 +496,64 @@ int
 tb_config_write(struct router_softc *sc, u_int space, u_int adapter,
     u_int offset, u_int dwlen, uint32_t *buf)
 {
+	struct router_command *cmd;
+	int error, retries;
 
-	return(0);
+	if ((error = _tb_config_write(sc, space, adapter, offset, dwlen, buf,
+	    router_get_config_cb, &cmd)) != 0)
+		return (error);
+
+	retries = cmd->retries;
+	mtx_lock(&sc->mtx);
+	while (retries-- >= 0) {
+		error = router_schedule_locked(sc, cmd);
+		if (error)
+			break;
+
+		error = msleep(cmd, &sc->mtx, 0, "tbtcfg", cmd->timeout * hz);
+		if (error != EWOULDBLOCK)
+			break;
+		sc->inflight_cmd = NULL;
+		tb_debug(sc, DBG_ROUTER, "Config command timed out, "
+		    "retries=%d\n", retries);
+	}
+
+	if (cmd->ev != 0)
+		error = EINVAL;
+	router_free_cmd(sc, cmd);
+	mtx_unlock(&sc->mtx);
+	return (error);
+}
+
+static int
+_tb_config_write(struct router_softc *sc, u_int space, u_int adapter,
+    u_int offset, u_int dwlen, uint32_t *buf, void *cb,
+    struct router_command **rcmd)
+{
+	struct router_command *cmd;
+	struct tb_cfg_write *msg;
+	size_t msglen = sizeof(*msg) + dwlen * 4;
+	int error;
+
+	if ((error = router_alloc_cmd(sc, &cmd)) != 0)
+		return (error);
+
+	msg = router_get_frame_data(cmd);
+	bzero(msg, msglen);
+	msg->route.hi = sc->route.hi;
+	msg->route.lo = sc->route.lo;
+	msg->addr_attrs = TB_CONFIG_ADDR(0, space, adapter, dwlen, offset);
+	for (size_t i = 0; i < dwlen; i++)
+		msg->data[i] = buf[i];
+	cmd->callback = cb;
+	cmd->callback_arg = buf;
+	cmd->dwlen = dwlen;
+	router_prepare_write(sc, cmd, msglen);
+
+	if (rcmd != NULL)
+		*rcmd = cmd;
+
+	return (0);
 }
 
 static int
@@ -564,6 +624,41 @@ router_prepare_read(struct router_softc *sc, struct router_command *cmd,
 	msg[msglen] = htobe32(tb_calc_crc(nhicmd->data, len-4));
 
 	nhicmd->pdf = PDF_READ;
+	nhicmd->req_len = len;
+
+	nhicmd->timeout = NHI_CMD_TIMEOUT;
+	nhicmd->retries = 0;
+	nhicmd->resp_buffer = (uint32_t *)cmd->resp_buffer;
+	nhicmd->resp_len = (cmd->dwlen + 3) * 4;
+	nhicmd->context = cmd;
+
+	cmd->retries = CFG_DEFAULT_RETRIES;
+	cmd->timeout = CFG_DEFAULT_TIMEOUT;
+
+	return;
+}
+
+static void
+router_prepare_write(struct router_softc *sc, struct router_command *cmd,
+    int len)
+{
+	struct nhi_cmd_frame *nhicmd;
+	uint32_t *msg;
+	int msglen, i;
+
+	KASSERT(cmd != NULL, ("cmd cannot be NULL\n"));
+	KASSERT(len != 0, ("Invalid zero-length command\n"));
+	KASSERT(len % 4 == 0, ("Message must be 32bit padded\n"));
+
+	nhicmd = cmd->nhicmd;
+	msglen = (len - 4) / 4;
+	for (i = 0; i < msglen; i++)
+		nhicmd->data[i] = htobe32(nhicmd->data[i]);
+
+	msg = (uint32_t *)nhicmd->data;
+	msg[msglen] = htobe32(tb_calc_crc(nhicmd->data, len - 4));
+
+	nhicmd->pdf = PDF_WRITE;
 	nhicmd->req_len = len;
 
 	nhicmd->timeout = NHI_CMD_TIMEOUT;
