@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2020-2026 The FreeBSD Foundation
- * Copyright (c) 2020-2025 Bjoern A. Zeeb
+ * Copyright (c) 2020-2026 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -1359,6 +1359,8 @@ lkpi_cipher_suite_to_name(uint32_t wlan_cipher_suite)
 		return ("BIP_GMAC_128");
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
 		return ("BIP_GMAC_256");
+	case WLAN_CIPHER_SUITE_SMS4:
+		return ("WPI-SMS4");
 	default:
 		return ("??");
 	}
@@ -1392,7 +1394,7 @@ lkpi_l80211_to_net80211_cyphers(struct ieee80211com *ic,
 	case WLAN_CIPHER_SUITE_BIP_GMAC_256:
 		return (IEEE80211_CRYPTO_BIP_GMAC_256);
 	default:
-		ic_printf(ic, "%s: unknown WLAN Cipher Suite %#08x | %u (%s)\n",
+		ic_printf(ic, "%s: unknown/unsupported WLAN Cipher Suite %#08x | %u (%s)\n",
 		    __func__,
 		    wlan_cipher_suite >> 8, wlan_cipher_suite & 0xff,
 		    lkpi_cipher_suite_to_name(wlan_cipher_suite));
@@ -4355,9 +4357,18 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	vif->p2p = false;
 	vif->probe_req_reg = false;
 	vif->type = lkpi_opmode_to_vif_type(opmode);
+	lvif->wdev.wiphy = hw->wiphy;
 	lvif->wdev.iftype = vif->type;
+	wiphy_lock(hw->wiphy);
+	list_add_rcu(&lvif->wdev.list, &hw->wiphy->wdev_list);
+	wiphy_unlock(hw->wiphy);
+	memcpy(lvif->wdev.address, mac, IEEE80211_ADDR_LEN);
+#if 0
 	/* Need to fill in other fields as well. */
-	IMPROVE();
+	struct net_device			*netdev;	/* When do we create this? */
+	uint32_t				radio_mask;
+#endif
+	IMPROVE("wdev");
 
 	/* Create a chanctx to be used later. */
 	IMPROVE("lkpi_alloc_lchanctx reserved as many as can be");
@@ -4596,6 +4607,10 @@ lkpi_ic_vap_delete(struct ieee80211vap *vap)
 	LKPI_80211_LHW_LVIF_LOCK(lhw);
 	TAILQ_REMOVE(&lhw->lvif_head, lvif, lvif_entry);
 	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
+
+	wiphy_lock(hw->wiphy);
+	list_del_rcu(&lvif->wdev.list);
+	wiphy_unlock(hw->wiphy);
 
 	ieee80211_ratectl_deinit(vap);
 	ieee80211_vap_detach(vap);
@@ -5087,12 +5102,14 @@ lkpi_ic_scan_start(struct ieee80211com *ic)
 			    common_ie_len, hw->wiphy->max_scan_ie_len);
 		}
 
+		lvif = VAP_TO_LVIF(vap);
+
 		hw_req = malloc(sizeof(*hw_req) + ssids_len +
 		    s6ghzlen + chan_len + lhw->supbands * lhw->scan_ie_len +
 		    common_ie_len, M_LKPI80211, M_WAITOK | M_ZERO);
 
 		hw_req->req.flags = 0;			/* XXX ??? */
-		/* hw_req->req.wdev */
+		hw_req->req.wdev = &lvif->wdev;
 		hw_req->req.wiphy = hw->wiphy;
 		hw_req->req.no_cck = false;		/* XXX */
 
@@ -5218,7 +5235,6 @@ lkpi_ic_scan_start(struct ieee80211com *ic)
 		hw_req->req.ie_len = ieend - ie;
 		hw_req->req.scan_start = jiffies;
 
-		lvif = VAP_TO_LVIF(vap);
 		vif = LVIF_TO_VIF(lvif);
 
 		LKPI_80211_LHW_SCAN_LOCK(lhw);
@@ -8099,6 +8115,8 @@ lkpi_convert_rx_status(struct ieee80211_hw *hw, struct lkpi_sta *lsta,
 			 rx_stats->r_flags |= (IEEE80211_R_C_NF | IEEE80211_R_C_RSSI);
 	}
 
+	/* rx_status->antenna */
+
 	/* XXX-NET80211 We are not going to populate c_phytype! */
 
 	switch (rx_status->encoding) {
@@ -8719,6 +8737,7 @@ linuxkpi_wiphy_new(const struct cfg80211_ops *ops, size_t priv_len)
 
 	wiphy = LWIPHY_TO_WIPHY(lwiphy);
 
+	INIT_LIST_HEAD(&wiphy->wdev_list);
 	mutex_init(&wiphy->mtx);
 	TODO();
 
