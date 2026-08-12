@@ -114,6 +114,9 @@
 #define E1000_PBA	0x01000  /* Packet Buffer Allocation - RW */
 #define E1000_PBS	0x01008  /* Packet Buffer Size */
 #define E1000_PBECCSTS	0x0100C  /* Packet Buffer ECC Status - RW */
+#define E1000_PEIND	0x01084  /* Parity and ECC Indication - RC */
+#define E1000_PEINDM	0x01088  /* Parity and ECC Indication Mask - RW */
+#define E1000_PBECCSTS_I210 0x0245C /* I210 Packet Buffer ECC Status */
 #define E1000_IOSFPC	0x00F28  /* TX corrupted data  */
 #define E1000_EEMNGCTL	0x01010  /* MNG EEprom Control */
 #define E1000_EEMNGCTL_I210	0x01010  /* i210 MNG EEprom Mode Control */
@@ -690,8 +693,10 @@
 #define E1000_FCRTC	0x02170 /* Flow Control Rx high watermark */
 #define E1000_PCIEMISC	0x05BB8 /* PCIE misc config register */
 
-/* PCIe Parity Status Register */
-#define E1000_PCIEERRSTS	0x05BA8
+/* Memory error status registers */
+#define E1000_PCIEERRSTS	0x05BA8 /* PCIe Parity Status - RW1C */
+#define E1000_PCIEECCSTS 0x05BAC /* PCIe ECC Status - RW1C */
+#define E1000_LANPERRSTS 0x05F58 /* LAN Port Parity Status - RW1C */
 
 #define E1000_PROXYS	0x5F64 /* Proxying Status */
 #define E1000_PROXYFC	0x5F60 /* Proxying Filter Control */

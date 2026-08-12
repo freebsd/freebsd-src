@@ -620,7 +620,15 @@ struct e1000_softc {
 	int			tso_automasked;
 	u32			fatal_error_state;
 	u32			fatal_error_pbeccsts;
+	u32			fatal_error_peind;
+	u32			fatal_error_pcie;
+	u32			fatal_error_lan;
 	u64			fatal_error_reset_count;
+	u64			fatal_error_lan_count;
+	u64			fatal_error_mng_count;
+	u64			fatal_error_pcie_count;
+	u64			fatal_error_dma_count;
+	u64			fatal_error_unknown_count;
 	u64			corrected_error_packet_buffer_count;
 	u64			uncorrected_error_packet_buffer_count;
 
