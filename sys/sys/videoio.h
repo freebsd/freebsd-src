@@ -495,11 +495,6 @@ struct v4l2_frmivalenum {
 #define VIDIOC_ENUM_FRAMESIZES	_IOWR('V', 74, struct v4l2_frmsizeenum)
 #define VIDIOC_ENUM_FRAMEINTERVALS _IOWR('V', 75, struct v4l2_frmivalenum)
 
-/*
- * These are commented out as there are currently some issues building
- * some compatibility interfaces.
- */
-#if 0
 _Static_assert(sizeof(struct v4l2_pix_format) == 48, "v4l2_pix_format layout");
 _Static_assert(sizeof(struct v4l2_capability) == 104, "v4l2_capability layout");
 _Static_assert(sizeof(struct v4l2_requestbuffers) == 20,
@@ -508,11 +503,16 @@ _Static_assert(sizeof(struct v4l2_requestbuffers) == 20,
 _Static_assert(__offsetof(struct v4l2_format, fmt) == 8, "v4l2_format layout");
 _Static_assert(sizeof(struct v4l2_format) == 208, "v4l2_format layout");
 _Static_assert(sizeof(struct v4l2_buffer) == 88, "v4l2_buffer layout");
-#else
+#elif defined(__i386__)
+/* i386 is the only 32-bit port with a 32-bit time_t. */
 _Static_assert(__offsetof(struct v4l2_format, fmt) == 4, "v4l2_format layout");
 _Static_assert(sizeof(struct v4l2_format) == 204, "v4l2_format layout");
 _Static_assert(sizeof(struct v4l2_buffer) == 68, "v4l2_buffer layout");
-#endif
+#else
+/* ILP32 with a 64-bit time_t: arm, powerpc, mips, riscv32. */
+_Static_assert(__offsetof(struct v4l2_format, fmt) == 4, "v4l2_format layout");
+_Static_assert(sizeof(struct v4l2_format) == 204, "v4l2_format layout");
+_Static_assert(sizeof(struct v4l2_buffer) == 80, "v4l2_buffer layout");
 #endif
 
 #endif /* _SYS_VIDEOIO_H_ */
