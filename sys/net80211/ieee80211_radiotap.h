@@ -500,6 +500,7 @@ struct ieee80211_radiotap_he {
 #define	IEEE80211_RADIOTAP_HE_DATA6_TB_PPDU_BW_80MHZ		0x2
 #define	IEEE80211_RADIOTAP_HE_DATA6_TB_PPDU_BW_160MHZ		0x3
 #define	IEEE80211_RADIOTAP_HE_DATA6_TXOP			0x7F00
+#define	IEEE80211_RADIOTAP_HE_DATA6_MIDAMBLE_PDCTY		0x8000
 
 /* https://www.radiotap.org/fields/HE-MU.html */
 struct ieee80211_radiotap_he_mu {
