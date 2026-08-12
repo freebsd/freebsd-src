@@ -5517,7 +5517,10 @@ em_if_led_func(if_ctx_t ctx, int onoff)
 
 	if (onoff) {
 		e1000_setup_led(&sc->hw);
-		e1000_led_on(&sc->hw);
+		if (sc->hw.phy.media_type == e1000_media_type_internal_serdes)
+			e1000_blink_led(&sc->hw);
+		else
+			e1000_led_on(&sc->hw);
 	} else {
 		e1000_led_off(&sc->hw);
 		e1000_cleanup_led(&sc->hw);
