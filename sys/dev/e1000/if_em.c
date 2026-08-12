@@ -2229,6 +2229,32 @@ em_update_pch_ecc_stats(struct e1000_softc *sc, u32 pbeccsts)
 	    E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT;
 }
 
+static void
+em_update_i210_ecc_stats(struct e1000_softc *sc)
+{
+	struct e1000_hw *hw;
+	u32 pbeccsts, pcieeccsts;
+
+	hw = &sc->hw;
+	pbeccsts = E1000_READ_REG(hw, E1000_PBECCSTS_I210);
+	if (pbeccsts & E1000_PBECCSTS_I210_CORR_ERR) {
+		sc->corrected_error_dma_count++;
+		/* Preserve the enable bit while clearing the RW1C status. */
+		E1000_WRITE_REG(hw, E1000_PBECCSTS_I210,
+		    pbeccsts & (E1000_PBECCSTS_I210_ECC_ENABLE |
+		    E1000_PBECCSTS_I210_CORR_ERR));
+	}
+
+	pcieeccsts = E1000_READ_REG(hw, E1000_PCIEECCSTS) &
+	    E1000_PCIEECCSTS_CORR_MASK;
+	if (pcieeccsts & E1000_PCIEECCSTS_TX_WR_DATA)
+		sc->corrected_error_pcie_tx_data_count++;
+	if (pcieeccsts & E1000_PCIEECCSTS_RETRY_BUF)
+		sc->corrected_error_pcie_retry_count++;
+	if (pcieeccsts != 0)
+		E1000_WRITE_REG(hw, E1000_PCIEECCSTS, pcieeccsts);
+}
+
 /*
  * Fatal internal-memory errors stop part or all of the MAC.  Capture the
  * read-clear indication before handing recovery to the iflib admin task.
@@ -5957,6 +5983,8 @@ em_update_stats_counters(struct e1000_softc *sc)
 	if (em_has_pch_ecc(&sc->hw))
 		em_update_pch_ecc_stats(sc,
 		    E1000_READ_REG(&sc->hw, E1000_PBECCSTS));
+	else if (em_has_i210_memory_errors(&sc->hw))
+		em_update_i210_ecc_stats(sc);
 }
 
 static bool
@@ -6412,6 +6440,18 @@ em_add_hw_stats(struct e1000_softc *sc)
 			    "fatal_unknown", CTLFLAG_RD,
 			    &sc->fatal_error_unknown_count,
 			    "Fatal memory errors without a reported region");
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "corrected_dma", CTLFLAG_RD,
+			    &sc->corrected_error_dma_count,
+			    "Corrected DMA memory error indications");
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "corrected_pcie_tx_data", CTLFLAG_RD,
+			    &sc->corrected_error_pcie_tx_data_count,
+			    "Corrected PCIe transmit-data memory indications");
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "corrected_pcie_retry", CTLFLAG_RD,
+			    &sc->corrected_error_pcie_retry_count,
+			    "Corrected PCIe retry-buffer memory indications");
 		}
 	}
 
