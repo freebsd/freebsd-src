@@ -32,7 +32,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 7, 2026
+.Dd August 11, 2026
 .Dt EM 4
 .Os
 .Sh NAME
@@ -455,8 +455,8 @@ Maximum number of received packets to process at a time, -1 means unlimited.
 The default value is 100.
 .El
 .Sh FILES
-.Bl -tag -width /dev/led/em*
-.It Pa /dev/led/em*
+.Bl -tag -width "/dev/led/igb*"
+.It Pa /dev/led/em* , Pa /dev/led/igb*
 identification LED device nodes
 .El
 .Sh EXAMPLES
