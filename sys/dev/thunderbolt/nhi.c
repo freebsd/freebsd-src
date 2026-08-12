@@ -26,6 +26,12 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * Spec references are to the Universal Serial Bus 4 (USB4®) Specification
+ * version 2.0, September 2024:
+ * https://usb.org/document-library/usb4r-specification-v20
+ */
+
 #include "opt_thunderbolt.h"
 
 /* PCIe interface for Thunderbolt Native Host Interface (nhi) */
@@ -1089,6 +1095,16 @@ nhi_intr(void *data)
 	    trkr->vector);
 	if ((r = trkr->ring) == NULL)
 		return;
+
+	/*
+	 * Need to read this necessarily to clear it; see 12.6.3.4.1.  Disable
+	 * ISR Auto-Clear must be set to 0.
+	 *
+	 * XXX This might not be necessary on all platforms.  It is on Pink
+	 * Sardine, but this was not being done previously so it might have
+	 * been working without this on whatever scottl@ was testing on.
+	 */
+	nhi_read_reg(sc, NHI_ISR0);
 
 	/*
 	 * Process TX completions from the adapter.  Only go through
