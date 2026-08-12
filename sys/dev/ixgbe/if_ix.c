@@ -4035,6 +4035,10 @@ ixgbe_if_init(if_ctx_t ctx)
 	int i, j, err;
 
 	INIT_DEBUGOUT("ixgbe_if_init: begin");
+	if (atomic_load_acq_int(&sc->recovery_mode)) {
+		iflib_init_failed(ctx);
+		return;
+	}
 
 	/* Preserve the largest frame requested by the PF or an active VF. */
 	sc->max_frame_size = if_getmtu(ifp) + IXGBE_MTU_HDR;
@@ -4578,11 +4582,15 @@ ixgbe_fw_mode_timer(void *arg)
 			    " Adapters and Devices User Guide for details on"
 			    " firmware recovery mode.\n");
 
-			if (hw->adapter_stopped == FALSE)
-				ixgbe_if_stop(sc->ctx);
+			/* Stop and publish the failure from the iflib taskqueue. */
+			iflib_request_reset_if_up(sc->ctx);
+			iflib_admin_intr_deferred(sc->ctx);
 		}
-	} else
-		atomic_cmpset_acq_int(&sc->recovery_mode, 1, 0);
+	} else if (atomic_cmpset_acq_int(&sc->recovery_mode, 1, 0)) {
+		/* Reinitialize an interface which was up when recovery began. */
+		iflib_request_reset_if_up(sc->ctx);
+		iflib_admin_intr_deferred(sc->ctx);
+	}
 
 
 	callout_reset(&sc->fw_mode_timer, hz,
