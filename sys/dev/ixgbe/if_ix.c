@@ -200,6 +200,8 @@ static void ixgbe_if_vlan_register(if_ctx_t, u16);
 static void ixgbe_if_vlan_unregister(if_ctx_t, u16);
 static int  ixgbe_if_i2c_req(if_ctx_t, struct ifi2creq *);
 static bool ixgbe_if_needs_restart(if_ctx_t, enum iflib_restart_event);
+static void ixgbe_if_led_func(if_ctx_t, int);
+static void ixgbe_led_restore(struct ixgbe_softc *);
 int ixgbe_intr(void *);
 
 static int ixgbe_if_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data);
@@ -376,6 +378,7 @@ static device_method_t ixgbe_if_methods[] = {
 	DEVMETHOD(ifdi_i2c_req, ixgbe_if_i2c_req),
 	DEVMETHOD(ifdi_needs_restart, ixgbe_if_needs_restart),
 	DEVMETHOD(ifdi_priv_ioctl, ixgbe_if_priv_ioctl),
+	DEVMETHOD(ifdi_led_func, ixgbe_if_led_func),
 #ifdef PCI_IOV
 	DEVMETHOD(ifdi_iov_init, ixgbe_if_iov_init),
 	DEVMETHOD(ifdi_iov_uninit, ixgbe_if_iov_uninit),
@@ -4820,6 +4823,7 @@ ixgbe_if_stop(if_ctx_t ctx)
 
 	INIT_DEBUGOUT("ixgbe_if_stop: begin\n");
 
+	ixgbe_led_restore(sc);
 	if (sc->feat_en & IXGBE_FEATURE_SRIOV) {
 		ixgbe_disable_mdd(hw);
 		ixgbe_quiesce_vfs(sc);
@@ -4844,6 +4848,56 @@ ixgbe_if_stop(if_ctx_t ctx)
 
 	return;
 } /* ixgbe_if_stop */
+
+/*
+ * Identify the physical port while retaining the NVM-selected LED mode.
+ * E610 exposes identification through firmware rather than LEDCTL.
+ */
+static void
+ixgbe_if_led_func(if_ctx_t ctx, int onoff)
+{
+	struct ixgbe_softc *sc;
+	struct ixgbe_hw *hw;
+
+	sc = iflib_get_softc(ctx);
+	hw = &sc->hw;
+	if (!onoff) {
+		ixgbe_led_restore(sc);
+		return;
+	}
+	if (sc->led_active)
+		return;
+
+	if (hw->mac.type == ixgbe_mac_E610) {
+		if (ixgbe_aci_set_port_id_led(hw, false) == IXGBE_SUCCESS)
+			sc->led_active = true;
+		return;
+	}
+
+	sc->ledctl_default = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
+	if (ixgbe_led_on(hw, hw->mac.led_link_act) == IXGBE_SUCCESS)
+		sc->led_active = true;
+}
+
+static void
+ixgbe_led_restore(struct ixgbe_softc *sc)
+{
+	struct ixgbe_hw *hw;
+
+	if (!sc->led_active)
+		return;
+
+	hw = &sc->hw;
+	if (hw->mac.type == ixgbe_mac_E610) {
+		(void)ixgbe_aci_set_port_id_led(hw, true);
+	} else {
+		/* Clear any PHY manual override before restoring LEDCTL. */
+		(void)ixgbe_led_off(hw, hw->mac.led_link_act);
+		IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, sc->ledctl_default);
+		IXGBE_WRITE_FLUSH(hw);
+	}
+	sc->led_active = false;
+}
 
 /************************************************************************
  * ixgbe_link_speed_to_str - Convert link speed to string
