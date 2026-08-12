@@ -4039,6 +4039,12 @@ ixgbe_if_init(if_ctx_t ctx)
 		iflib_init_failed(ctx);
 		return;
 	}
+	/* Leave an overheated adapter stopped until an operator retries. */
+	if (sc->overtemp_shutdown_pending) {
+		sc->overtemp_shutdown_pending = false;
+		iflib_init_failed(ctx);
+		return;
+	}
 
 	/* Preserve the largest frame requested by the PF or an active VF. */
 	sc->max_frame_size = if_getmtu(ifp) + IXGBE_MTU_HDR;
@@ -4813,11 +4819,14 @@ ixgbe_handle_fw_event(void *context)
 			break;
 
 		case ixgbe_aci_opc_temp_tca_event:
-			if (hw->adapter_stopped == FALSE)
-				ixgbe_if_stop(ctx);
-			device_printf(sc->dev,
-			    "CRITICAL: OVER TEMP!! PHY IS SHUT DOWN!!\n");
-			device_printf(sc->dev, "System shutdown required!\n");
+			if (!sc->overtemp_shutdown_pending) {
+				sc->overtemp_shutdown_pending = true;
+				requests |= IXGBE_REQUEST_TASK_RESET;
+				device_printf(sc->dev,
+				    "CRITICAL: OVER TEMP!! PHY IS SHUT DOWN!!\n");
+				device_printf(sc->dev,
+				    "System shutdown required!\n");
+			}
 			break;
 
 		default:
