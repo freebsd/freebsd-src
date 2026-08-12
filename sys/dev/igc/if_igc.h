@@ -81,7 +81,6 @@
 #include <netinet/udp.h>
 
 #include <machine/in_cksum.h>
-#include <dev/led/led.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
@@ -350,7 +349,8 @@ struct igc_softc {
 	/* FreeBSD operating-system-specific structures. */
 	struct igc_osdep osdep;
 	device_t	dev;
-	struct cdev	*led_dev;
+	u32		ledctl_default;
+	bool		led_active;
 
         struct igc_tx_queue *tx_queues;
         struct igc_rx_queue *rx_queues;

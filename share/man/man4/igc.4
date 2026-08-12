@@ -3,7 +3,7 @@
 .\" Copyright 2021 Rubicon Communications, LLC (Netgate)
 .\" SPDX-License-Identifier: BSD-3-Clause
 .\"
-.Dd August 3, 2026
+.Dd August 11, 2026
 .Dt IGC 4
 .Os
 .Sh NAME
@@ -43,6 +43,13 @@ This driver version supports VLAN hardware insertion / extraction,
 VLAN checksum offload, and VLAN hardware filtering.
 For information on enabling VLANs, see
 .Xr ifconfig 8 .
+.Pp
+The identification LED of an adapter supported by the
+.Nm
+driver can be controlled via the
+.Xr led 4
+interface at
+.Pa /dev/led/igc* .
 The
 .Nm
 driver supports the following media types:
@@ -154,6 +161,7 @@ address.
 .Xr altq 4 ,
 .Xr arp 4 ,
 .Xr iflib 4 ,
+.Xr led 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr vlan 4 ,

@@ -139,6 +139,8 @@ static bool	igc_if_vlan_filter_used(if_ctx_t);
 static void	igc_if_vlan_filter_enable(struct igc_softc *);
 static void	igc_if_vlan_filter_disable(struct igc_softc *);
 static void	igc_setup_vlan_hw_support(if_ctx_t);
+static void	igc_if_led_func(if_ctx_t, int);
+static void	igc_led_restore(struct igc_softc *);
 static void	igc_fw_version(struct igc_softc *);
 static void	igc_sbuf_fw_version(struct igc_fw_version *, struct sbuf *);
 static void	igc_print_fw_version(struct igc_softc *);
@@ -231,6 +233,7 @@ static device_method_t igc_if_methods[] = {
 	DEVMETHOD(ifdi_tx_queue_intr_enable, igc_if_tx_queue_intr_enable),
 	DEVMETHOD(ifdi_debug, igc_if_debug),
 	DEVMETHOD(ifdi_needs_restart, igc_if_needs_restart),
+	DEVMETHOD(ifdi_led_func, igc_if_led_func),
 	DEVMETHOD_END
 };
 
@@ -1497,8 +1500,49 @@ igc_if_stop(if_ctx_t ctx)
 
 	INIT_DEBUGOUT("igc_if_stop: begin");
 
+	igc_led_restore(sc);
 	igc_reset_hw(&sc->hw);
 	IGC_WRITE_REG(&sc->hw, IGC_WUC, 0);
+}
+
+/*
+ * I225/I226 have three configurable LED outputs.  DPDK uses LED1 for
+ * adapter identification; retain that convention and preserve the OEM's
+ * configuration for normal link and activity indication.
+ */
+static void
+igc_if_led_func(if_ctx_t ctx, int onoff)
+{
+	struct igc_softc *sc;
+	struct igc_hw *hw;
+	u32 ledctl;
+
+	sc = iflib_get_softc(ctx);
+	hw = &sc->hw;
+	if (onoff) {
+		if (!sc->led_active) {
+			sc->ledctl_default = IGC_READ_REG(hw, IGC_LEDCTL);
+			sc->led_active = true;
+		}
+		ledctl = sc->ledctl_default;
+		ledctl &= ~(IGC_LEDCTL_LED1_MODE_MASK |
+		    IGC_LEDCTL_LED1_BLINK);
+		ledctl |= IGC_LEDCTL_MODE_LED_ON <<
+		    IGC_LEDCTL_LED1_MODE_SHIFT;
+		IGC_WRITE_REG(hw, IGC_LEDCTL, ledctl);
+	} else {
+		igc_led_restore(sc);
+	}
+}
+
+static void
+igc_led_restore(struct igc_softc *sc)
+{
+
+	if (!sc->led_active)
+		return;
+	IGC_WRITE_REG(&sc->hw, IGC_LEDCTL, sc->ledctl_default);
+	sc->led_active = false;
 }
 
 /*********************************************************************
@@ -1888,6 +1932,7 @@ igc_reset(if_ctx_t ctx)
 	u32 pba;
 
 	INIT_DEBUGOUT("igc_reset: begin");
+	igc_led_restore(sc);
 	/* Let the firmware know the OS is in control */
 	igc_get_hw_control(sc);
 
