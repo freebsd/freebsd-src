@@ -455,6 +455,9 @@ static int	em_if_rx_queue_intr_enable(if_ctx_t, uint16_t);
 static int	em_if_tx_queue_intr_enable(if_ctx_t, uint16_t);
 static int	igb_if_rx_queue_intr_enable(if_ctx_t, uint16_t);
 static int	igb_if_tx_queue_intr_enable(if_ctx_t, uint16_t);
+static void	em_handle_fatal_error_intr(struct e1000_softc *, u32);
+static bool	em_handle_fatal_error_admin(struct e1000_softc *);
+static void	em_finish_fatal_error_reset(struct e1000_softc *);
 static void	em_if_multi_set(if_ctx_t);
 static void	em_if_update_admin_status(if_ctx_t);
 static void	em_if_debug(if_ctx_t);
@@ -498,6 +501,13 @@ static int	em_enable_phy_wakeup(struct e1000_softc *);
 static void	em_disable_aspm(struct e1000_softc *);
 
 int		em_intr(void *);
+
+enum em_fatal_error_state {
+	EM_FATAL_ERROR_NONE,
+	EM_FATAL_ERROR_CAPTURING,
+	EM_FATAL_ERROR_DETECTED,
+	EM_FATAL_ERROR_RESET_REQUESTED,
+};
 
 /* MSI-X handlers */
 static int	em_if_msix_intr_assign(if_ctx_t, int);
@@ -2158,6 +2168,80 @@ em_newitr(struct e1000_softc *sc, struct em_rx_queue *que,
 	}
 }
 
+static bool
+em_has_pch_ecc(const struct e1000_hw *hw)
+{
+
+	return (hw->mac.type >= e1000_pch_lpt &&
+	    hw->mac.type < e1000_82575);
+}
+
+static u32
+em_fatal_error_intr_mask(struct e1000_softc *sc)
+{
+
+	if (em_has_pch_ecc(&sc->hw) &&
+	    atomic_load_acq_32(&sc->fatal_error_state) ==
+	    EM_FATAL_ERROR_NONE)
+		return (E1000_IMS_ECCER);
+	return (0);
+}
+
+/*
+ * Descriptor-memory ECC errors stop the PCH MAC.  Capture the read-clear
+ * status before handing recovery to the iflib admin task.
+ */
+static void
+em_handle_fatal_error_intr(struct e1000_softc *sc, u32 icr)
+{
+	struct e1000_hw *hw;
+
+	if (!em_has_pch_ecc(&sc->hw) || (icr & E1000_ICR_ECCER) == 0)
+		return;
+
+	hw = &sc->hw;
+	E1000_WRITE_REG(hw, E1000_IMC, E1000_IMS_ECCER);
+	if (!atomic_cmpset_32(&sc->fatal_error_state,
+	    EM_FATAL_ERROR_NONE, EM_FATAL_ERROR_CAPTURING))
+		return;
+
+	sc->fatal_error_pbeccsts = E1000_READ_REG(hw, E1000_PBECCSTS);
+	atomic_store_rel_32(&sc->fatal_error_state,
+	    EM_FATAL_ERROR_DETECTED);
+	iflib_admin_intr_deferred(sc->ctx);
+}
+
+static bool
+em_handle_fatal_error_admin(struct e1000_softc *sc)
+{
+
+	if (!atomic_cmpset_acq_32(&sc->fatal_error_state,
+	    EM_FATAL_ERROR_DETECTED, EM_FATAL_ERROR_RESET_REQUESTED))
+		return (atomic_load_acq_32(&sc->fatal_error_state) !=
+		    EM_FATAL_ERROR_NONE);
+
+	device_printf(sc->dev,
+	    "uncorrectable packet-buffer ECC error: PBECCSTS %#x; "
+	    "requesting reset\n", sc->fatal_error_pbeccsts);
+	sc->fatal_error_reset_count++;
+	iflib_request_reset(sc->ctx);
+	/* Re-enter the admin task so it observes the reset request. */
+	iflib_admin_intr_deferred(sc->ctx);
+	return (true);
+}
+
+static void
+em_finish_fatal_error_reset(struct e1000_softc *sc)
+{
+
+	if (atomic_load_acq_32(&sc->fatal_error_state) ==
+	    EM_FATAL_ERROR_NONE)
+		return;
+
+	sc->fatal_error_pbeccsts = 0;
+	atomic_store_rel_32(&sc->fatal_error_state, EM_FATAL_ERROR_NONE);
+}
+
 /*********************************************************************
  *
  *  Fast Legacy/MSI Combined Interrupt Service routine
@@ -2205,6 +2289,8 @@ em_intr(void *arg)
 
 	if (reg_icr & E1000_ICR_RXO)
 		sc->rx_overruns++;
+
+	em_handle_fatal_error_intr(sc, reg_icr);
 
 	if (hw->mac.type >= e1000_82540)
 		em_newitr(sc, que, rxr);
@@ -2315,12 +2401,14 @@ em_msix_link(void *arg)
 		igb_iov_mdd_event(sc);
 	if (reg_icr & E1000_ICR_VMMB)
 		iflib_admin_intr_deferred(sc->ctx);
+	em_handle_fatal_error_intr(sc, reg_icr);
 
 rearm:
 	/* Re-arm unconditionally */
 	if (sc->hw.mac.type >= igb_mac_min) {
 		E1000_WRITE_REG(&sc->hw, E1000_IMS,
-		    E1000_IMS_LSC | igb_iov_intr_mask(sc));
+		    E1000_IMS_LSC | igb_iov_intr_mask(sc) |
+		    em_fatal_error_intr_mask(sc));
 		E1000_WRITE_REG(&sc->hw, E1000_EIMS, sc->link_mask);
 	} else if (sc->hw.mac.type == e1000_82574) {
 		E1000_WRITE_REG(&sc->hw, E1000_IMS,
@@ -2333,7 +2421,8 @@ rearm:
 		if (reg_icr)
 			E1000_WRITE_REG(&sc->hw, E1000_ICS, sc->ims);
 	} else
-		E1000_WRITE_REG(&sc->hw, E1000_IMS, E1000_IMS_LSC);
+		E1000_WRITE_REG(&sc->hw, E1000_IMS,
+		    E1000_IMS_LSC | em_fatal_error_intr_mask(sc));
 
 	return (FILTER_HANDLED);
 }
@@ -2662,6 +2751,8 @@ em_if_update_admin_status(if_ctx_t ctx)
 	bool reset_requested = false;
 
 	KASSERT(!sc->vf_ifp, ("%s called for a VF", __func__));
+	if (em_handle_fatal_error_admin(sc))
+		return;
 
 	if (atomic_readandclear_32(&sc->promisc_pending) != 0)
 		(void)em_if_set_promisc_impl(ctx,
@@ -3828,6 +3919,7 @@ em_reset(if_ctx_t ctx)
 		device_printf(dev, "Hardware Initialization Failed\n");
 		return;
 	}
+	em_finish_fatal_error_reset(sc);
 	if (hw->mac.type >= igb_mac_min)
 		igb_init_dmac(sc, pba);
 
@@ -5010,7 +5102,7 @@ em_if_intr_enable(if_ctx_t ctx)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
 	struct e1000_hw *hw = &sc->hw;
-	u32 ims_mask = IMS_ENABLE_MASK;
+	u32 ims_mask = IMS_ENABLE_MASK | em_fatal_error_intr_mask(sc);
 
 	if (sc->intr_type == IFLIB_INTR_MSIX) {
 		E1000_WRITE_REG(hw, EM_EIAC, sc->ims);
@@ -5053,9 +5145,11 @@ igb_if_intr_enable(if_ctx_t ctx)
 		igb_iov_intr_drain_stale(sc);
 		E1000_WRITE_REG(hw, E1000_EIMS, mask);
 		E1000_WRITE_REG(hw, E1000_IMS,
-		    E1000_IMS_LSC | igb_iov_intr_mask(sc));
+		    E1000_IMS_LSC | igb_iov_intr_mask(sc) |
+		    em_fatal_error_intr_mask(sc));
 	} else
-		E1000_WRITE_REG(hw, E1000_IMS, IMS_ENABLE_MASK);
+		E1000_WRITE_REG(hw, E1000_IMS,
+		    IMS_ENABLE_MASK | em_fatal_error_intr_mask(sc));
 	E1000_WRITE_FLUSH(hw);
 }
 

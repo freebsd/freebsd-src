@@ -624,6 +624,9 @@ struct e1000_softc {
 	int			tso_automasked;
 	u32			promisc_pending;
 	u32			stats_pending;
+	u32			fatal_error_state;
+	u32			fatal_error_pbeccsts;
+	u64			fatal_error_reset_count;
 
 #ifdef PCI_IOV
 	struct igb_vf		*vfs;
