@@ -132,6 +132,16 @@ option_shell() {
 	/bin/sh
 }
 
+#
+# option netconfig
+#
+netconfig_name="netconfig"
+netconfig_desc="configure network in live environment"
+option_netconfig() {
+	BSDINSTALL_CONFIGCURRENT=1 bsdinstall netconfig
+	mount -t unionfs /tmp/bsdinstall_etc /etc
+}
+
 while :; do
 	#
 	# Initialize by grepping ufs partitions and zfs pools on the system
@@ -195,6 +205,7 @@ while :; do
 		set --
 		[ "$mounted" = yes ] && set -- "$@" "$chroot_name" "$chroot_desc"
 		set -- "$@" "$shell_name" "$shell_desc"
+		set -- "$@" "$netconfig_name" "$netconfig_desc"
 
 		exec 5>&1
 		action=$(bsddialog --backtitle "$OSNAME Installer" --title 'Inspect selected partition' \
@@ -244,6 +255,9 @@ while :; do
 			;;
 		$shell_name)
 			option_shell
+			;;
+		$netconfig_name)
+			option_netconfig
 			;;
 		esac
 	done
