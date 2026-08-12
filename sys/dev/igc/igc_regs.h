@@ -376,8 +376,13 @@
 #define IGC_FCRTC		0x02170 /* Flow Control Rx high watermark */
 #define IGC_PCIEMISC		0x05BB8 /* PCIE misc config register */
 
-/* PCIe Parity Status Register */
-#define IGC_PCIEERRSTS		0x05BA8
+/* Memory error detection registers */
+#define IGC_PEIND		0x01084 /* Parity and ECC Indication - RC */
+#define IGC_PBECCSTS		0x0245C /* Packet Buffer ECC Status */
+#define IGC_PCIEERRSTS		0x05BA8 /* PCIe Parity Status - RW1C */
+#define IGC_PCIEECCSTS		0x05BAC /* PCIe ECC Status - RW1C */
+#define IGC_LANPERRSTS		0x05F58 /* LAN Port Parity Status - RW1C */
+#define IGC_MNGPARSTS		0x08F24 /* Management Parity Status */
 
 #define IGC_PROXYS		0x5F64 /* Proxying Status */
 #define IGC_PROXYFC		0x5F60 /* Proxying Filter Control */
