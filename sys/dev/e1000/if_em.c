@@ -2283,6 +2283,62 @@ em_update_i210_ecc_stats(struct e1000_softc *sc)
 		E1000_WRITE_REG(hw, E1000_PCIEECCSTS, pcieeccsts);
 }
 
+static void
+em_update_i350_ecc_stats(struct e1000_softc *sc)
+{
+	struct e1000_hw *hw;
+	u32 pbeccsts, status;
+
+	hw = &sc->hw;
+	status = E1000_READ_REG(hw, E1000_DTPARS) &
+	    E1000_DTPARS_CORR_MASK;
+	if (status != 0) {
+		sc->corrected_error_dma_count += bitcount32(status);
+		E1000_WRITE_REG(hw, E1000_DTPARS, status);
+	}
+	status = E1000_READ_REG(hw, E1000_DRPARS) &
+	    E1000_DRPARS_CORR_MASK;
+	if (status != 0) {
+		sc->corrected_error_dma_count += bitcount32(status);
+		E1000_WRITE_REG(hw, E1000_DRPARS, status);
+	}
+	status = E1000_READ_REG(hw, E1000_DDECCS) &
+	    E1000_DDECCS_CORR_MASK;
+	if (status != 0) {
+		sc->corrected_error_dma_count += bitcount32(status);
+		E1000_WRITE_REG(hw, E1000_DDECCS, status);
+	}
+
+	pbeccsts = E1000_READ_REG(hw, E1000_RPBECCSTS);
+	status = pbeccsts & E1000_PBECCSTS_I350_CORR_MASK;
+	if (status != 0) {
+		sc->corrected_error_packet_buffer_count += bitcount32(status);
+		/* Preserve the enable bits while clearing RW1C status. */
+		E1000_WRITE_REG(hw, E1000_RPBECCSTS,
+		    pbeccsts & (E1000_PBECCSTS_I350_ENABLE_MASK |
+		    E1000_PBECCSTS_I350_CORR_MASK));
+	}
+	pbeccsts = E1000_READ_REG(hw, E1000_TPBECCSTS);
+	status = pbeccsts & E1000_PBECCSTS_I350_CORR_MASK;
+	if (status != 0) {
+		sc->corrected_error_packet_buffer_count += bitcount32(status);
+		E1000_WRITE_REG(hw, E1000_TPBECCSTS,
+		    pbeccsts & (E1000_PBECCSTS_I350_ENABLE_MASK |
+		    E1000_PBECCSTS_I350_CORR_MASK));
+	}
+
+	status = E1000_READ_REG(hw, E1000_PCIEECCSTS) &
+	    E1000_PCIEECCSTS_I350_CORR_MASK;
+	if (status & E1000_PCIEECCSTS_TX_WR_DATA)
+		sc->corrected_error_pcie_tx_data_count++;
+	if (status & E1000_PCIEECCSTS_RETRY_BUF)
+		sc->corrected_error_pcie_retry_count++;
+	sc->corrected_error_pcie_other_count += bitcount32(status &
+	    E1000_PCIEECCSTS_I350_OTHER_MASK);
+	if (status != 0)
+		E1000_WRITE_REG(hw, E1000_PCIEECCSTS, status);
+}
+
 /*
  * Fatal internal-memory errors stop part or all of the MAC.  Capture the
  * read-clear indication before handing recovery to the iflib admin task.
@@ -6066,6 +6122,8 @@ em_update_stats_counters(struct e1000_softc *sc)
 	if (em_has_pch_ecc(&sc->hw))
 		em_update_pch_ecc_stats(sc,
 		    E1000_READ_REG(&sc->hw, E1000_PBECCSTS));
+	else if (em_has_i350_memory_errors(&sc->hw))
+		em_update_i350_ecc_stats(sc);
 	else if (em_has_i210_memory_errors(&sc->hw))
 		em_update_i210_ecc_stats(sc);
 }
@@ -6536,6 +6594,27 @@ em_add_hw_stats(struct e1000_softc *sc)
 				    "corrected_pcie_retry", CTLFLAG_RD,
 				    &sc->corrected_error_pcie_retry_count,
 				    "Corrected PCIe retry-buffer memory indications");
+			} else {
+				SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+				    "corrected_dma", CTLFLAG_RD,
+				    &sc->corrected_error_dma_count,
+				    "Corrected DMA memory indications");
+				SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+				    "corrected_packet_buffer", CTLFLAG_RD,
+				    &sc->corrected_error_packet_buffer_count,
+				    "Corrected packet-buffer memory indications");
+				SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+				    "corrected_pcie_tx_data", CTLFLAG_RD,
+				    &sc->corrected_error_pcie_tx_data_count,
+				    "Corrected PCIe transmit-data memory indications");
+				SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+				    "corrected_pcie_retry", CTLFLAG_RD,
+				    &sc->corrected_error_pcie_retry_count,
+				    "Corrected PCIe retry-buffer memory indications");
+				SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+				    "corrected_pcie_other", CTLFLAG_RD,
+				    &sc->corrected_error_pcie_other_count,
+				    "Other corrected PCIe memory indications");
 			}
 		}
 	}

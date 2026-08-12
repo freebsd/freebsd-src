@@ -695,8 +695,11 @@
 #define E1000_PCIEMISC	0x05BB8 /* PCIE misc config register */
 
 /* Memory error status registers */
+#define E1000_RPBECCSTS	0x0245C /* Rx Packet Buffer ECC Status - RW */
+#define E1000_TPBECCSTS	0x0345C /* Tx Packet Buffer ECC Status - RW */
 #define E1000_DTPARS	0x03F10 /* DMA Tx Parity and ECC Status - RW1C */
 #define E1000_DRPARS	0x03F14 /* DMA Rx Parity and ECC Status - RW1C */
+#define E1000_DDECCS	0x03F18 /* DMA Host ECC Status - RW1C */
 #define E1000_PCIEERRSTS	0x05BA8 /* PCIe Parity Status - RW1C */
 #define E1000_PCIEECCSTS 0x05BAC /* PCIe ECC Status - RW1C */
 #define E1000_LANPERRSTS 0x05F58 /* LAN Port Parity Status - RW1C */
