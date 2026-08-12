@@ -457,6 +457,18 @@ struct bnxt_link_info {
 	struct hwrm_port_phy_qcfg_output    phy_qcfg_resp;
 };
 
+#define BNXT_MAX_LED	4
+
+/* Layout of one LED capability record returned by HWRM_PORT_LED_QCAPS. */
+struct bnxt_led_info {
+	uint8_t		led_id;
+	uint8_t		led_type;
+	uint8_t		led_group_id;
+	uint8_t		unused;
+	uint16_t	led_state_caps;
+	uint16_t	led_color_caps;
+};
+
 enum bnxt_phy_type {
 	BNXT_MEDIA_CR = 0,
 	BNXT_MEDIA_LR,
@@ -1062,6 +1074,9 @@ struct bnxt_softc {
 	struct bnxt_bar_info	hwrm_bar;
 	struct bnxt_bar_info	doorbell_bar;
 	struct bnxt_link_info	link_info;
+	struct bnxt_led_info	leds[BNXT_MAX_LED];
+	uint8_t			num_leds;
+	bool			led_active;
 #define BNXT_FLAG_VF				0x0001
 #define BNXT_FLAG_NPAR				0x0002
 #define BNXT_FLAG_WOL_CAP			0x0004
