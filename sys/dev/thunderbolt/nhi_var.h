@@ -186,6 +186,11 @@ struct nhi_softc {
 
 	uint8_t			uuid[16];
 	uint8_t			lc_uuid[16];
+
+	enum {
+		NHI_VER_1_0,
+		NHI_VER_2_0,
+	}			ver;
 };
 
 struct nhi_dispatch {
