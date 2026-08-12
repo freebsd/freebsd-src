@@ -81,6 +81,7 @@ static void ice_if_multi_set(if_ctx_t ctx);
 static void ice_if_vlan_register(if_ctx_t ctx, u16 vtag);
 static void ice_if_vlan_unregister(if_ctx_t ctx, u16 vtag);
 static void ice_if_stop(if_ctx_t ctx);
+static void ice_if_led_func(if_ctx_t ctx, int onoff);
 static uint64_t ice_if_get_counter(if_ctx_t ctx, ift_counter counter);
 static int ice_if_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data);
 static int ice_if_i2c_req(if_ctx_t ctx, struct ifi2creq *req);
@@ -139,6 +140,7 @@ static void ice_rebuild_recovery_mode(struct ice_softc *sc);
 static void ice_free_irqvs(struct ice_softc *sc);
 static void ice_update_rx_mbuf_sz(struct ice_softc *sc);
 static void ice_poll_for_media_avail(struct ice_softc *sc);
+static void ice_led_restore(struct ice_softc *sc);
 static void ice_setup_scctx(struct ice_softc *sc);
 static int ice_allocate_msix(struct ice_softc *sc);
 static void ice_admin_timer(void *arg);
@@ -201,6 +203,7 @@ static device_method_t ice_iflib_methods[] = {
 	DEVMETHOD(ifdi_media_change, ice_if_media_change),
 	DEVMETHOD(ifdi_init, ice_if_init),
 	DEVMETHOD(ifdi_stop, ice_if_stop),
+	DEVMETHOD(ifdi_led_func, ice_if_led_func),
 	DEVMETHOD(ifdi_timer, ice_if_timer),
 	DEVMETHOD(ifdi_update_admin_status, ice_if_update_admin_status),
 	DEVMETHOD(ifdi_multi_set, ice_if_multi_set),
@@ -2524,6 +2527,9 @@ ice_prepare_for_reset(struct ice_softc *sc)
 	if (ice_test_state(&sc->state, ICE_STATE_RECOVERY_MODE))
 		return;
 
+	/* Restore identification while the control queues are still usable. */
+	ice_led_restore(sc);
+
 	/* inform the RDMA client */
 	ice_rdma_notify_reset(sc);
 	/* stop the RDMA client */
@@ -2717,6 +2723,9 @@ ice_rebuild(struct ice_softc *sc)
 	err = ice_send_version(sc);
 	if (err)
 		goto err_shutdown_ctrlq;
+
+	/* Retry a restore which could not complete while reset was pending. */
+	ice_led_restore(sc);
 
 	err = ice_init_link_events(sc);
 	if (err) {
@@ -3139,6 +3148,7 @@ ice_if_stop(if_ctx_t ctx)
 	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
 
 	ASSERT_CTX_LOCKED(sc);
+	ice_led_restore(sc);
 
 	/*
 	 * The iflib core may call IFDI_STOP prior to the first call to
@@ -3190,6 +3200,40 @@ ice_if_stop(if_ctx_t ctx)
 		ice_subif_if_stop(sc->mirr_if->subctx);
 		device_printf(sc->dev, "The subinterface also comes down and up after reset\n");
 	}
+}
+
+/**
+ * ice_if_led_func - Control the physical port identification LED
+ * @ctx: iflib context structure
+ * @onoff: non-zero to identify the port, zero to restore normal operation
+ *
+ * The firmware implements identification as a blinking mode and retains the
+ * netlist-selected mode so it can be restored without a register snapshot.
+ */
+static void
+ice_if_led_func(if_ctx_t ctx, int onoff)
+{
+	struct ice_softc *sc = iflib_get_softc(ctx);
+	enum ice_status status;
+	bool active;
+
+	active = onoff != 0;
+	if (active == sc->led_active)
+		return;
+
+	status = ice_aq_set_port_id_led(sc->hw.port_info, !active, NULL);
+	if (status == ICE_SUCCESS)
+		sc->led_active = active;
+}
+
+static void
+ice_led_restore(struct ice_softc *sc)
+{
+
+	if (!sc->led_active)
+		return;
+	if (ice_aq_set_port_id_led(sc->hw.port_info, true, NULL) == ICE_SUCCESS)
+		sc->led_active = false;
 }
 
 /**
