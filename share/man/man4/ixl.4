@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 9, 2026
+.Dd August 12, 2026
 .Dt IXL 4
 .Os
 .Sh NAME
@@ -88,6 +88,10 @@ and/or TSO6, and finally LRO can be set and unset.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Pp
+The identification LED for each port is controlled through its
+.Pa /dev/led/ixl*
+device node.
 .Ss Additional Utilities
 There are additional tools available from Intel to help configure and update
 the adapters covered by this driver.
@@ -301,6 +305,7 @@ email all the specific information related to the issue to
 .Xr arp 4 ,
 .Xr iavf 4 ,
 .Xr iflib 4 ,
+.Xr led 4 ,
 .Xr netintro 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8 ,
