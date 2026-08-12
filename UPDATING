@@ -27,6 +27,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20260812:
+	The new video(4) framework has landed. <sys/videoio.h> is now provided
+	as the API for communicating with it. __FreeBSD_version has been bumped
+	to 1600020 for ports that need to detect this changeover.
+
 20260728:
 	The Intel 82576 and I350 Virtual Function devices have been split from
 	the igb(4) driver into the igbv driver.  Interfaces previously exposed
