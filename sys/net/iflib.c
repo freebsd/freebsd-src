@@ -5229,6 +5229,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 
 	TASK_INIT(&ctx->ifc_admin_task, 0, _task_fn_admin, ctx);
 	TASK_INIT(&ctx->ifc_led_task, 0, _task_fn_led, ctx);
+	TASK_INIT(&ctx->ifc_vflr_task, 0, _task_fn_iov, ctx);
 	IFLIB_REGISTER_FAIL_POINT(dev, register_after_taskqueue, err,
 	    fail_cleanup);
 
@@ -6473,7 +6474,6 @@ iflib_softirq_alloc_generic(if_ctx_t ctx, if_irq_t irq, iflib_intr_type_t type,
 		NET_GROUPTASK_INIT(gtask, 0, fn, q);
 		break;
 	case IFLIB_INTR_IOV:
-		TASK_INIT(&ctx->ifc_vflr_task, 0, _task_fn_iov, ctx);
 		return;
 	default:
 		panic("unknown net intr type");
