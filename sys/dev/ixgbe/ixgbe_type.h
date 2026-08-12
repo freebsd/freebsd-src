@@ -4613,5 +4613,6 @@ struct ixgbe_bypass_eeprom {
 #define IXGBE_REQUEST_TASK_PHY		0x10
 #define IXGBE_REQUEST_TASK_LSC		0x20
 #define IXGBE_REQUEST_TASK_FWEVENT	0x40
+#define IXGBE_REQUEST_TASK_RESET		0x80
 
 #endif /* _IXGBE_TYPE_H_ */

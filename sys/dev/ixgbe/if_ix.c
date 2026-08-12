@@ -3150,6 +3150,25 @@ ixgbe_if_promisc_set(if_ctx_t ctx, int flags)
 } /* ixgbe_if_promisc_set */
 
 /************************************************************************
+ * ixgbe_handle_ecc - Defer recovery from an ECC interrupt
+ ************************************************************************/
+static bool
+ixgbe_handle_ecc(struct ixgbe_softc *sc, u32 eicr)
+{
+	struct ixgbe_hw *hw = &sc->hw;
+
+	if ((eicr & IXGBE_EICR_ECC) == 0)
+		return (false);
+
+	IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EIMC_ECC);
+	if (!atomic_cmpset_int(&sc->ecc_reset_pending, 0, 1))
+		return (false);
+
+	device_printf(sc->dev, "Received ECC Err, initiating reset\n");
+	return (true);
+}
+
+/************************************************************************
  * ixgbe_msix_link - Link status change ISR (MSI/MSI-X)
  ************************************************************************/
 static int
@@ -3187,21 +3206,17 @@ ixgbe_msix_link(void *arg)
 		if ((sc->feat_en & IXGBE_FEATURE_FDIR) &&
 		    (eicr & IXGBE_EICR_FLOW_DIR)) {
 			/* This is probably overkill :) */
-			if (!atomic_cmpset_int(&sc->fdir_reinit, 0, 1))
-				return (FILTER_HANDLED);
-			/* Disable the interrupt */
-			IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EICR_FLOW_DIR);
-			atomic_set_32(&sc->task_requests, IXGBE_REQUEST_TASK_FDIR);
-		} else
-			if (eicr & IXGBE_EICR_ECC) {
-				device_printf(iflib_get_dev(sc->ctx),
-				    "Received ECC Err, initiating reset\n");
-				hw->mac.flags |=
-				    ~IXGBE_FLAGS_DOUBLE_RESET_REQUIRED;
-				ixgbe_reset_hw(hw);
-				IXGBE_WRITE_REG(hw, IXGBE_EICR,
-				    IXGBE_EICR_ECC);
+			if (atomic_cmpset_int(&sc->fdir_reinit, 0, 1)) {
+				/* Disable the interrupt */
+				IXGBE_WRITE_REG(hw, IXGBE_EIMC,
+				    IXGBE_EICR_FLOW_DIR);
+				atomic_set_32(&sc->task_requests,
+				    IXGBE_REQUEST_TASK_FDIR);
 			}
+		}
+		if (ixgbe_handle_ecc(sc, eicr))
+			atomic_set_32(&sc->task_requests,
+			    IXGBE_REQUEST_TASK_RESET);
 
 		/* Check for over temp condition */
 		if (sc->feat_en & IXGBE_FEATURE_TEMP_SENSOR) {
@@ -4829,6 +4844,7 @@ ixgbe_if_stop(if_ctx_t ctx)
 		ixgbe_quiesce_vfs(sc);
 	}
 	ixgbe_reset_hw(hw);
+	atomic_store_rel_int(&sc->ecc_reset_pending, 0);
 	hw->adapter_stopped = false;
 	ixgbe_stop_adapter(hw);
 	/* Turn off the laser - noop with no optics */
@@ -4975,6 +4991,11 @@ ixgbe_if_update_admin_status(if_ctx_t ctx)
 			ixgbe_handle_phy(ctx);
 		if (requests & IXGBE_REQUEST_TASK_LSC)
 			check_link = true;
+		if (requests & IXGBE_REQUEST_TASK_RESET) {
+			/* Re-enter the admin task so it observes IFC_DO_RESET. */
+			iflib_request_reset(ctx);
+			iflib_admin_intr_deferred(ctx);
+		}
 	}
 
 	/* Do not let a continuous producer monopolize the admin taskqueue. */
@@ -5120,6 +5141,8 @@ ixgbe_if_enable_intr(if_ctx_t ctx)
 	/* Enable Flow Director */
 	if (sc->feat_en & IXGBE_FEATURE_FDIR)
 		mask |= IXGBE_EIMS_FLOW_DIR;
+	if (atomic_load_acq_int(&sc->ecc_reset_pending))
+		mask &= ~IXGBE_EIMS_ECC;
 
 	IXGBE_WRITE_REG(hw, IXGBE_EIMS, mask);
 
@@ -5302,6 +5325,9 @@ ixgbe_intr(void *arg)
 	    (eicr & IXGBE_EICR_GPI_SDP0_X540)) {
 		requests |= IXGBE_REQUEST_TASK_PHY;
 	}
+	if (hw->mac.type != ixgbe_mac_82598EB &&
+	    ixgbe_handle_ecc(sc, eicr))
+		requests |= IXGBE_REQUEST_TASK_RESET;
 	if (requests != 0) {
 		atomic_set_32(&sc->task_requests, requests);
 		iflib_admin_intr_deferred(ctx);

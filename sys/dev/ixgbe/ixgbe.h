@@ -459,6 +459,7 @@ struct ixgbe_softc {
 
 	/* Flow Director */
 	int			fdir_reinit;
+	u_int			ecc_reset_pending;
 
 	u32			task_requests;
 
