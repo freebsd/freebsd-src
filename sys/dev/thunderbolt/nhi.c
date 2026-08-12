@@ -235,6 +235,67 @@ nhi_outmail_cmd(struct nhi_softc *sc, uint32_t *val)
 	return (0);
 }
 
+static int
+nhi_reset_v1(struct nhi_softc *sc)
+{
+
+	/* See section 2.4 of HCM guide v2. */
+	nhi_write_reg(sc, ROUTER_HIR, 1);
+	pause_sbt("nhi", ustosbt(10 * 1000), 0, C_HARDCLOCK);
+	return (0);
+}
+
+static int
+nhi_reset_v2(struct nhi_softc *sc)
+{
+	uint32_t reg;
+
+	/*
+	 * TODO "The Connection Manager shall disable all Transmit Descriptor
+	 * Rings and wait for at least 1 millisecond prior to setting the Host
+	 * Router Reset bit to 1b. After the Connection Manager sets the Host
+	 * Router Reset bit to 1b, it shall not access the Receive Descriptor
+	 * Rings until the Host Router Reset bit is set to 0b."
+	 */
+	/* See section 3.5 of HCM guide v2. */
+	nhi_write_reg(sc, ROUTER_HRR, 1);
+	/*
+	 * "The Host Router is required to complete its reset within 500ms
+	 * after the Host Router Reset bit is set to 1b."
+	 */
+	for (size_t i = 0; i < 10 && reg; i++) {
+		/*
+		 * Wait at least 50 ms after writing before reading this
+		 * register.  If this is 1, it means that we are still
+		 * resetting.
+		 */
+		pause_sbt("nhi", ustosbt(50 * 1000), 0, 0);
+		reg = nhi_read_reg(sc, ROUTER_HRR);
+	}
+	if (reg == 0) {
+		tb_debug(sc, DBG_INIT|DBG_EXTRA,
+		    "Succeeded in resetting host router\n");
+		return (0);
+	}
+	tb_printf(sc, "Host router reset timed out\n");
+	return (ETIMEDOUT);
+}
+
+static int
+nhi_reset(struct nhi_softc *sc)
+{
+
+	tb_debug(sc, DBG_INIT, "Resetting host router\n");
+
+	switch (sc->ver) {
+	case NHI_VER_1_0:
+		return (nhi_reset_v1(sc));
+	case NHI_VER_2_0:
+		return (nhi_reset_v2(sc));
+	}
+	return (ENXIO);
+}
+
 int
 nhi_attach(struct nhi_softc *sc)
 {
@@ -271,6 +332,8 @@ nhi_attach(struct nhi_softc *sc)
 		/* return (ENXIO); */
 	}
 	sc->path_count = val;
+
+	nhi_reset(sc);
 
 	SLIST_INIT(&sc->ring_list);
 
