@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 10, 2026
+.Dd August 12, 2026
 .Dt IX 4
 .Os
 .Sh NAME
@@ -55,6 +55,10 @@ The
 .Nm
 driver provides support for Intel(R) 10Gb Ethernet PCIe adapters.
 The driver supports Jumbo Frames, MSIX, TSO, and RSS.
+.Pp
+The identification LED for each port is controlled through its
+.Pa /dev/led/ix*
+device node.
 .Pp
 For questions related to hardware requirements,
 refer to the documentation supplied with your Intel 10GbE adapter.
@@ -272,6 +276,7 @@ issue to
 .Xr altq 4 ,
 .Xr arp 4 ,
 .Xr iflib 4 ,
+.Xr led 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr polling 4 ,

@@ -441,9 +441,11 @@ struct ixgbe_softc {
 	u32			link_speed;
 	bool			link_up;
 	bool			link_enabled;
+	bool			led_active;
 	u32			vector;
 	u16			dmac;
 	u32			phy_layer;
+	u32			ledctl_default;
 
 	/* Power management-related */
 	bool			wol_support;
