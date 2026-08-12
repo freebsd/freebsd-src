@@ -132,6 +132,28 @@ option_shell() {
 	/bin/sh
 }
 
+#
+# option pkg
+#
+pkg_name="pkg"
+pkg_desc="configure pkg in live environment"
+option_pkg() {
+	BSDINSTALL_CONFIGCURRENT=1 bsdinstall netconfig
+	mount -t unionfs /tmp/bsdinstall_etc /etc
+	mount -t tmpfs tmpfs /usr/local
+	mount -t tmpfs tmpfs /var/db/pkg
+	mount -t tmpfs tmpfs /var/cache
+	pkg bootstrap -fy  || {
+                msgbox 'Error' 'pkg bootstrap failed'
+                return 1
+        }
+	TMPDIR=/usr/local pkg update  || {
+                msgbox 'Error' 'pkg update failed'
+                return 1
+        }
+	msgbox 'Bootstrap done' 'Done bootstrapping and updating pkg'
+}
+
 while :; do
 	#
 	# Initialize by grepping ufs partitions and zfs pools on the system
@@ -195,6 +217,7 @@ while :; do
 		set --
 		[ "$mounted" = yes ] && set -- "$@" "$chroot_name" "$chroot_desc"
 		set -- "$@" "$shell_name" "$shell_desc"
+		set -- "$@" "$pkg_name" "$pkg_desc"
 
 		exec 5>&1
 		action=$(bsddialog --backtitle "$OSNAME Installer" --title 'Inspect selected partition' \
@@ -244,6 +267,9 @@ while :; do
 			;;
 		$shell_name)
 			option_shell
+			;;
+		$pkg_name)
+			option_pkg
 			;;
 		esac
 	done
