@@ -424,6 +424,9 @@ struct igc_softc {
 	uint64_t	fatal_error_pcie_count;
 	uint64_t	fatal_error_dma_count;
 	uint64_t	fatal_error_unknown_count;
+	uint64_t	corrected_error_dma_count;
+	uint64_t	corrected_error_pcie_tx_data_count;
+	uint64_t	corrected_error_pcie_retry_count;
 	struct igc_hw_stats stats;
 	u16		vf_ifp;
 };

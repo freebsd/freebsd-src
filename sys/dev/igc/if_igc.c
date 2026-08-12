@@ -135,6 +135,7 @@ static void	igc_if_multi_set(if_ctx_t);
 static void	igc_if_update_admin_status(if_ctx_t);
 static void	igc_apply_i225_ipg_workaround(struct igc_softc *);
 static void	igc_if_debug(if_ctx_t);
+static void	igc_update_ecc_stats(struct igc_softc *);
 static void	igc_update_stats_counters(struct igc_softc *);
 static void	igc_add_hw_stats(struct igc_softc *);
 static int	igc_if_set_promisc(if_ctx_t, int);
@@ -2909,6 +2910,32 @@ pme:
  *
  **********************************************************************/
 static void
+igc_update_ecc_stats(struct igc_softc *sc)
+{
+	struct igc_hw *hw;
+	u32 pbeccsts, pcieeccsts;
+
+	hw = &sc->hw;
+	pbeccsts = IGC_READ_REG(hw, IGC_PBECCSTS);
+	if (pbeccsts & IGC_PBECCSTS_CORR_ERR) {
+		sc->corrected_error_dma_count++;
+		/* Preserve the enable bit while clearing the RW1C status. */
+		IGC_WRITE_REG(hw, IGC_PBECCSTS,
+		    pbeccsts & (IGC_PBECCSTS_ECC_ENABLE |
+		    IGC_PBECCSTS_CORR_ERR));
+	}
+
+	pcieeccsts = IGC_READ_REG(hw, IGC_PCIEECCSTS) &
+	    IGC_PCIEECCSTS_CORR_MASK;
+	if (pcieeccsts & IGC_PCIEECCSTS_TX_WR_DATA)
+		sc->corrected_error_pcie_tx_data_count++;
+	if (pcieeccsts & IGC_PCIEECCSTS_RETRY_BUF)
+		sc->corrected_error_pcie_retry_count++;
+	if (pcieeccsts != 0)
+		IGC_WRITE_REG(hw, IGC_PCIEECCSTS, pcieeccsts);
+}
+
+static void
 igc_update_stats_counters(struct igc_softc *sc)
 {
 	u64 prev_xoffrxc = sc->stats.xoffrxc;
@@ -2989,6 +3016,8 @@ igc_update_stats_counters(struct igc_softc *sc)
 	sc->stats.tncrs += IGC_READ_REG(&sc->hw, IGC_TNCRS);
 	sc->stats.htdpmc += IGC_READ_REG(&sc->hw, IGC_HTDPMC);
 	sc->stats.tsctc += IGC_READ_REG(&sc->hw, IGC_TSCTC);
+
+	igc_update_ecc_stats(sc);
 }
 
 static uint64_t
@@ -3147,6 +3176,17 @@ igc_add_hw_stats(struct igc_softc *sc)
 	SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO, "fatal_unknown",
 	    CTLFLAG_RD, &sc->fatal_error_unknown_count,
 	    "Fatal memory errors without a reported region");
+	SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO, "corrected_dma",
+	    CTLFLAG_RD, &sc->corrected_error_dma_count,
+	    "Corrected DMA memory error indications");
+	SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+	    "corrected_pcie_tx_data", CTLFLAG_RD,
+	    &sc->corrected_error_pcie_tx_data_count,
+	    "Corrected PCIe transmit-data memory error indications");
+	SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+	    "corrected_pcie_retry", CTLFLAG_RD,
+	    &sc->corrected_error_pcie_retry_count,
+	    "Corrected PCIe retry-buffer memory error indications");
 	eee_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "eee",
 	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
 	    "Energy Efficient Ethernet statistics");
