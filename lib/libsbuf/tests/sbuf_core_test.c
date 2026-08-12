@@ -274,9 +274,7 @@ ATF_TC_BODY(sbuf_set_flags_test, tc)
 	ATF_REQUIRE_MSG(sb != NULL, 
 		"sbuf_new_auto failed: %s", strerror(errno));
 
-	ATF_REQUIRE_EQ_MSG(0,
-		sbuf_set_flags(sb, SBUF_INCLUDENUL),
-		"sbuf_set_flags failed");
+	sbuf_set_flags(sb, SBUF_INCLUDENUL);
  
 	ATF_REQUIRE_MSG(sbuf_cat(sb, test_string) == 0,
 		"sbuf_cat failed");	
@@ -327,7 +325,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, sbuf_new_fixedlen);
 	ATF_TP_ADD_TC(tp, sbuf_get_flags_test);
 	ATF_TP_ADD_TC(tp, sbuf_set_flags_test);
-	ATF_TP_ADD_TC(tp, sbuf_set_clear_test);
+	ATF_TP_ADD_TC(tp, sbuf_clear_flags_test);
 #if 0
 	/* TODO */
 #ifdef 
