@@ -5432,7 +5432,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 	kobj_desc = &ifdi_led_func_desc;
 	kobj_method = kobj_lookup_method(((kobj_t)ctx)->ops->cls, NULL,
 	    kobj_desc);
-	if (kobj_method != &kobj_desc->deflt)
+	if (kobj_method != &kobj_desc->deflt && IFDI_LED_SUPPORTED(ctx))
 		iflib_led_create(ctx);
 
 	return (0);
