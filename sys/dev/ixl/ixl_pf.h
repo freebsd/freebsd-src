@@ -137,6 +137,10 @@ struct ixl_pf {
 #endif
 	u32			state;
 	u8			supported_speeds;
+	bool			led_active;
+	bool			led_phy_controlled;
+	u16			led_phy_addr;
+	u32			led_status;
 
 	struct ixl_pf_qmgr	qmgr;
 	struct ixl_pf_qtag	qtag;
@@ -388,6 +392,7 @@ void	ixl_shutdown_hmc(struct ixl_pf *);
 void	ixl_handle_empr_reset(struct ixl_pf *);
 int	ixl_prepare_for_reset(struct ixl_pf *pf, bool is_up);
 int	ixl_rebuild_hw_structs_after_reset(struct ixl_pf *, bool is_up);
+void	ixl_led_restore(struct ixl_pf *pf);
 int	ixl_pf_reset(struct ixl_pf *);
 
 #ifdef PCI_IOV

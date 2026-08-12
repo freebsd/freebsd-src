@@ -122,6 +122,7 @@ static uint64_t	 ixl_if_get_counter(if_ctx_t ctx, ift_counter cnt);
 static int	 ixl_if_i2c_req(if_ctx_t ctx, struct ifi2creq *req);
 static int	 ixl_if_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data);
 static bool	 ixl_if_needs_restart(if_ctx_t ctx, enum iflib_restart_event event);
+static void	 ixl_if_led_func(if_ctx_t ctx, int onoff);
 #ifdef PCI_IOV
 static void	 ixl_if_vflr_handle(if_ctx_t ctx);
 #endif
@@ -193,13 +194,13 @@ static device_method_t ixl_if_methods[] = {
 	DEVMETHOD(ifdi_i2c_req, ixl_if_i2c_req),
 	DEVMETHOD(ifdi_priv_ioctl, ixl_if_priv_ioctl),
 	DEVMETHOD(ifdi_needs_restart, ixl_if_needs_restart),
+	DEVMETHOD(ifdi_led_func, ixl_if_led_func),
 #ifdef PCI_IOV
 	DEVMETHOD(ifdi_iov_init, ixl_if_iov_init),
 	DEVMETHOD(ifdi_iov_uninit, ixl_if_iov_uninit),
 	DEVMETHOD(ifdi_iov_vf_add, ixl_if_iov_vf_add),
 	DEVMETHOD(ifdi_vflr_handle, ixl_if_vflr_handle),
 #endif
-	// ifdi_led_func
 	// ifdi_debug
 	DEVMETHOD_END
 };
@@ -1063,6 +1064,7 @@ ixl_if_stop(if_ctx_t ctx)
 
 	INIT_DEBUGOUT("ixl_if_stop: begin\n");
 
+	ixl_led_restore(pf);
 	if (IXL_PF_IN_RECOVERY_MODE(pf))
 		return;
 
@@ -1083,6 +1085,80 @@ ixl_if_stop(if_ctx_t ctx)
 	if ((if_getflags(ifp) & IFF_UP) == 0 &&
 	    !ixl_test_state(&pf->state, IXL_STATE_LINK_ACTIVE_ON_DOWN))
 		ixl_set_link(pf, false);
+}
+
+#define IXL_PHY_DEBUG_ALL					\
+	(I40E_AQ_PHY_DEBUG_DISABLE_LINK_FW |			\
+	 I40E_AQ_PHY_DEBUG_DISABLE_ALL_LINK_FW)
+
+static bool
+ixl_phy_controls_leds(const struct i40e_hw *hw)
+{
+
+	/* These external 10GBASE-T PHYs own the identification LED. */
+	return (hw->device_id == I40E_DEV_ID_10G_BASE_T ||
+	    hw->device_id == I40E_DEV_ID_10G_BASE_T4);
+}
+
+static void
+ixl_if_led_func(if_ctx_t ctx, int onoff)
+{
+	struct ixl_pf *pf;
+	struct i40e_hw *hw;
+	enum i40e_status_code status;
+	u16 phy_status;
+
+	pf = iflib_get_softc(ctx);
+	hw = &pf->hw;
+	if (!onoff) {
+		ixl_led_restore(pf);
+		return;
+	}
+	if (pf->led_active)
+		return;
+
+	pf->led_phy_controlled = ixl_phy_controls_leds(hw);
+	if (!pf->led_phy_controlled) {
+		pf->led_status = i40e_led_get(hw);
+		pf->led_active = true;
+		i40e_led_set(hw, 0xf, false);
+		return;
+	}
+
+	if ((hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE) == 0)
+		(void)i40e_aq_set_phy_debug(hw, IXL_PHY_DEBUG_ALL, NULL);
+	pf->led_phy_addr = I40E_PHY_LED_PROV_REG_1;
+	status = i40e_led_get_phy(hw, &pf->led_phy_addr, &phy_status);
+	if (status != I40E_SUCCESS) {
+		if ((hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE) == 0)
+			(void)i40e_aq_set_phy_debug(hw, 0, NULL);
+		return;
+	}
+	pf->led_status = phy_status;
+	pf->led_active = true;
+	status = i40e_led_set_phy(hw, true, pf->led_phy_addr, 0);
+	if (status != I40E_SUCCESS)
+		ixl_led_restore(pf);
+}
+
+void
+ixl_led_restore(struct ixl_pf *pf)
+{
+	struct i40e_hw *hw;
+
+	if (!pf->led_active)
+		return;
+
+	hw = &pf->hw;
+	if (pf->led_phy_controlled) {
+		(void)i40e_led_set_phy(hw, false, pf->led_phy_addr,
+		    pf->led_status | I40E_PHY_LED_MODE_ORIG);
+		if ((hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE) == 0)
+			(void)i40e_aq_set_phy_debug(hw, 0, NULL);
+	} else {
+		i40e_led_set(hw, pf->led_status, false);
+	}
+	pf->led_active = false;
 }
 
 static int
