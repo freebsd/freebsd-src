@@ -623,6 +623,8 @@ struct e1000_softc {
 	u32			fatal_error_peind;
 	u32			fatal_error_pcie;
 	u32			fatal_error_lan;
+	u32			fatal_error_dma_tx;
+	u32			fatal_error_dma_rx;
 	u64			fatal_error_reset_count;
 	u64			fatal_error_lan_count;
 	u64			fatal_error_mng_count;
