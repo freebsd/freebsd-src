@@ -117,6 +117,13 @@
 #define E1000_PEIND	0x01084  /* Parity and ECC Indication - RC */
 #define E1000_PEINDM	0x01088  /* Parity and ECC Indication Mask - RW */
 #define E1000_PBECCSTS_I210 0x0245C /* I210 Packet Buffer ECC Status */
+#define E1000_SWPBECCSTS_82576 0x0305C /* Switch Packet Buffer ECC Status */
+#define E1000_IPPBECCSTS_82576 0x0B470 /* IPsec Packet Buffer ECC Status */
+#define E1000_RDHESTS_82576 0x025C0 /* Rx Descriptor Handler ECC Status */
+#define E1000_TDHESTS_82576 0x035C0 /* Tx Descriptor Handler ECC Status */
+#define E1000_PRBESTS_82576 0x05BA0 /* PCIe Retry Buffer ECC Status */
+#define E1000_PMSIXESTS_82576 0x05BA8 /* PCIe MSI-X ECC Status */
+#define E1000_PWBESTS_82576 0x05BB0 /* PCIe Write Buffer ECC Status */
 #define E1000_IOSFPC	0x00F28  /* TX corrupted data  */
 #define E1000_EEMNGCTL	0x01010  /* MNG EEprom Control */
 #define E1000_EEMNGCTL_I210	0x01010  /* i210 MNG EEprom Mode Control */

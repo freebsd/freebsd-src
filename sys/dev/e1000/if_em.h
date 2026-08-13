@@ -638,6 +638,7 @@ struct e1000_softc {
 	u64			corrected_error_pcie_other_count;
 	u64			corrected_error_packet_buffer_count;
 	u64			uncorrected_error_packet_buffer_count;
+	u64			uncorrected_error_dma_count;
 
 	u64			que_mask;
 
