@@ -116,6 +116,26 @@ struct l_pselect6arg {
 	l_size_t	ss_len;
 };
 
+#define LINUX_SCHED_ATTR_SIZE_VER0 48
+#define LINUX_SCHED_ATTR_SIZE_VER1 56
+/**
+ * Linux struct sched_attr
+ */
+struct linux_sched_attr {
+	l_uint 		size;
+	l_uint 		sched_policy;
+	uint64_t 	sched_flags;
+	int32_t  	sched_nice;
+	l_uint 		sched_priority;
+
+	uint64_t 	sched_runtime;
+	uint64_t 	sched_deadline;
+	uint64_t 	sched_period;
+
+	l_uint 		sched_util_min;
+	l_uint 		sched_util_max;
+};
+
 static int	linux_utimensat_lts_to_ts(struct l_timespec *,
 			struct timespec *);
 #if defined(__i386__) || (defined(__amd64__) && defined(COMPAT_LINUX32))
@@ -1326,6 +1346,65 @@ linux_sched_getscheduler(struct thread *td,
 		break;
 	}
 	return (error);
+}
+
+int
+linux_sched_getattr(struct thread *td,
+    struct linux_sched_getattr_args *args)
+{
+	struct linux_sched_attr attr;
+	struct sched_param sched_param;
+	struct thread *tdt;
+	int error, policy;
+
+	if (args->attr == NULL ||
+		args->pid < 0 ||
+		args->flags != 0 ||
+		args->size < LINUX_SCHED_ATTR_SIZE_VER0 ||
+		args->size > PAGE_SIZE)
+			return (EINVAL);
+
+	tdt = linux_tdfind(td, args->pid, -1);
+	if (tdt == NULL)
+		return (ESRCH);
+
+	error = kern_sched_getscheduler(td, tdt, &policy);
+	if (error) {
+		PROC_UNLOCK(tdt->td_proc);
+		return (error);
+	}
+
+	error = kern_sched_getparam(td, tdt, &sched_param);
+	PROC_UNLOCK(tdt->td_proc);
+	if (error)
+		return (error);
+
+	memset(&attr, 0, sizeof(attr));
+
+	attr.size = MIN(args->size, sizeof(attr));
+
+	if (linux_map_sched_prio){
+		switch (policy) {
+			case SCHED_OTHER:
+				sched_param.sched_priority = 0;
+				break;
+			case SCHED_FIFO:
+			case SCHED_RR:
+				sched_param.sched_priority =
+					(sched_param.sched_priority *
+					(LINUX_MAX_RT_PRIO - 1) +
+					(RTP_PRIO_MAX - RTP_PRIO_MIN - 1)) /
+					(RTP_PRIO_MAX - RTP_PRIO_MIN) + 1;
+				break;
+			}
+			attr.sched_priority = sched_param.sched_priority;
+		} else {
+			attr.sched_priority =
+				sched_param.sched_priority;
+		}
+
+	return (copyout(&attr, args->attr,
+	    MIN(args->size, sizeof(attr))));
 }
 
 int
