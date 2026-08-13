@@ -103,7 +103,7 @@ _WITH_EXPLICIT_BZERO!= cat ${HOST_INCLUDE_ROOT}/strings.h ${HOST_INCLUDE_ROOT}/s
 # cause it to pick the file from libkern instead (which won't compile).
 # Avoid modifying .PATH by creating a copy in the build directory instead.
 explicit_bzero.c: ${SRCTOP}/sys/libkern/explicit_bzero.c
-	cp ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 CLEANFILES+=	explicit_bzero.c
 INCS+=		strings.h
 SRCS+=		explicit_bzero.c
@@ -270,7 +270,7 @@ SRCS+=	capsicum_stubs.c
 # XXX: we can't add ${SRCTOP}/sys/kern to .PATH since that will causes
 # conflicts with other files. Instead copy subr_capability to the build dir.
 subr_capability.c: ${SRCTOP}/sys/kern/subr_capability.c
-	cp ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 SRCS+=	subr_capability.c
 CLEANFILES+=	subr_capability.c
 
