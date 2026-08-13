@@ -204,7 +204,7 @@ static void
 populate_kernel_routes(struct rib_head **new_rt_tables, struct rib_head *rh)
 {
 	for (int i = 0; i < V_rt_numfibs; i++) {
-		struct rib_head *rh_src = new_rt_tables[i * (AF_MAX + 1) + rh->rib_family];
+		struct rib_head *rh_src = new_rt_tables[i * AF_MAX + rh->rib_family];
 		if ((rh_src != NULL) && (rh_src != rh))
 			rib_copy_kernel_routes(rh_src, rh);
 	}
@@ -229,7 +229,7 @@ grow_rtables(uint32_t num_tables)
 	KASSERT(num_tables >= V_rt_numfibs, ("num_tables(%u) < rt_numfibs(%u)\n",
 				num_tables, V_rt_numfibs));
 
-	new_rt_tables = mallocarray(num_tables * (AF_MAX + 1), sizeof(void *),
+	new_rt_tables = mallocarray(num_tables * AF_MAX, sizeof(void *),
 	    M_RTABLE, M_WAITOK | M_ZERO);
 
 	if (num_tables > 1 && V_rt_add_addr_allfibs == 0 && !printedonce) {
@@ -245,12 +245,12 @@ grow_rtables(uint32_t num_tables)
 
 	/*
 	 * Current rt_tables layout:
-	 * fib0[af0, af1, af2, .., AF_MAX]fib1[af0, af1, af2, .., Af_MAX]..
+	 * fib0[af0, af1, af2, .., AF_MAX-1]fib1[af0, af1, af2, .., AF_MAX-1]..
 	 * this allows to copy existing tables data by using memcpy()
 	 */
 	if (V_rt_tables != NULL)
 		memcpy(new_rt_tables, V_rt_tables,
-		    V_rt_numfibs * (AF_MAX + 1) * sizeof(void *));
+		    V_rt_numfibs * AF_MAX * sizeof(void *));
 
 	/* Populate the remainders */
 	SLIST_FOREACH(dom, &domains, dom_next) {
@@ -258,7 +258,7 @@ grow_rtables(uint32_t num_tables)
 			continue;
 		family = dom->dom_family;
 		for (int i = 0; i < num_tables; i++) {
-			prnh = &new_rt_tables[i * (AF_MAX + 1) + family];
+			prnh = &new_rt_tables[i * AF_MAX + family];
 			if (*prnh != NULL)
 				continue;
 			rh = dom->dom_rtattach(i);
@@ -380,13 +380,13 @@ rt_tables_get_rnh_ptr(uint32_t table, sa_family_t family)
 	KASSERT(table < V_rt_numfibs,
 	    ("%s: table out of bounds (%d < %d)", __func__, table,
 	     V_rt_numfibs));
-	KASSERT(family < (AF_MAX + 1),
-	    ("%s: fam out of bounds (%d < %d)", __func__, family, AF_MAX + 1));
+	KASSERT(family < AF_MAX,
+	    ("%s: fam out of bounds (%d < %d)", __func__, family, AF_MAX));
 
 	/* rnh is [fib=0][af=0]. */
 	prnh = V_rt_tables;
 	/* Get the offset to the requested table and fam. */
-	prnh += table * (AF_MAX + 1) + family;
+	prnh += table * AF_MAX + family;
 
 	return (*prnh);
 }
@@ -403,7 +403,7 @@ rt_tables_get_rnh_safe(uint32_t table, sa_family_t family)
 {
 	if (__predict_false(table >= V_rt_numfibs))
 		return (NULL);
-	if (__predict_false(family >= (AF_MAX + 1)))
+	if (__predict_false(family >= AF_MAX))
 		return (NULL);
 	return (rt_tables_get_rnh_ptr(table, family));
 }
