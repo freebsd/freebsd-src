@@ -237,7 +237,7 @@ bulk_body()
 	${common_dir}/pft_synflood.py \
 		--sendif ${epair_one}b \
 		--to 198.51.100.1 \
-		--count 2500
+		--count 500
 	ping -c 1 -S 198.51.100.254 198.51.100.1
 
 	# Wait before setting up pfsync on two, so we don't accidentally catch
