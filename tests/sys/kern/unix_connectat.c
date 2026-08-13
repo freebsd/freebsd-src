@@ -78,6 +78,13 @@ static const struct sockaddr_un empty_sun = {
 	.sun_len = offsetof(struct sockaddr_un, sun_path),
 };
 
+/* A nonempty address whose path starts with NUL, as Linux abstract names do. */
+static const struct sockaddr_un nul_sun = {
+	.sun_family = AF_UNIX,
+	.sun_len = offsetof(struct sockaddr_un, sun_path) + 2,
+	.sun_path = "\0x",
+};
+
 /* Make a bound, listening stream socket. */
 static int
 mklistener(const char *path)
@@ -657,6 +664,32 @@ ATF_TC_BODY(empty_path_at_fdcwd, tc)
 	ATF_REQUIRE_EQ(0, close(s));
 }
 
+/*
+ * A NUL-leading path with a nonzero length is not the empty-path
+ * extension: connect(2) and connectat(2) with AT_FDCWD must perform a
+ * pathname lookup and fail with ENOENT, not treat AT_FDCWD as a peer
+ * descriptor and fail with EBADF.
+ *
+ * Such addresses occur in the wild: they name Linux abstract namespace
+ * sockets, and the linuxulator passes them through with the leading NUL
+ * intact.  libxcb tries the abstract X11 socket first and falls back to
+ * the pathname socket only on ENOENT or ECONNREFUSED, so when connect(2)
+ * briefly returned EBADF here, every Linux X11 client on the linuxulator
+ * failed at startup with "Missing X server or $DISPLAY".
+ */
+ATF_TC_WITHOUT_HEAD(nul_path_at_fdcwd);
+ATF_TC_BODY(nul_path_at_fdcwd, tc)
+{
+	int s;
+
+	ATF_REQUIRE((s = socket(PF_UNIX, SOCK_STREAM, 0)) >= 0);
+	ATF_REQUIRE_ERRNO(ENOENT, connect(s,
+	    (const struct sockaddr *)&nul_sun, nul_sun.sun_len) == -1);
+	ATF_REQUIRE_ERRNO(ENOENT, connectat(AT_FDCWD, s,
+	    (const struct sockaddr *)&nul_sun, nul_sun.sun_len) == -1);
+	ATF_REQUIRE_EQ(0, close(s));
+}
+
 /* Error matrix for unsuitable descriptors and peers. */
 ATF_TC_WITHOUT_HEAD(bad_peers);
 ATF_TC_BODY(bad_peers, tc)
@@ -763,6 +796,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, devfd_mode_rdlnk);
 	ATF_TP_ADD_TC(tp, devfd_mode_nodup_rdlnk);
 	ATF_TP_ADD_TC(tp, empty_path_at_fdcwd);
+	ATF_TP_ADD_TC(tp, nul_path_at_fdcwd);
 	ATF_TP_ADD_TC(tp, bad_peers);
 	ATF_TP_ADD_TC(tp, cap_connectat);
 	ATF_TP_ADD_TC(tp, cap_connectat_denied);

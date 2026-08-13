@@ -3115,7 +3115,7 @@ unp_connectat_peer(struct thread *td, int fd, const char *buf,
 	 * fallback; if not, it may be an O_PATH handle for a bound socket's
 	 * vnode, so fall through to an EMPTYPATH lookup.
 	 */
-	if (*buf == '\0') {
+	if (*buf == '\0' && fd != AT_FDCWD) {
 		error = unp_socket_fd_peer(td, fd, so2p);
 		if (error != ENOTSOCK)
 			return (error);
