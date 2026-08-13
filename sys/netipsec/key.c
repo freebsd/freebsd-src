@@ -567,6 +567,9 @@ MALLOC_DEFINE(M_IPSEC_SPDCACHE, "ipsec-spdcache", "ipsec SPD cache");
 
 static uma_zone_t __read_mostly ipsec_key_lft_zone;
 
+static int key_checksockaddrs(const struct sockaddr *src,
+    const struct sockaddr *dst);
+
 /*
  * set parameters into secpolicyindex buffer.
  * Must allocate secpolicyindex buffer passed to this function.
@@ -882,7 +885,7 @@ key_bumpspgen(void)
 }
 
 static int
-key_checksockaddrs(struct sockaddr *src, struct sockaddr *dst)
+key_checksockaddrs(const struct sockaddr *src, const struct sockaddr *dst)
 {
 
 	/* family match */
