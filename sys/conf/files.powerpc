@@ -100,6 +100,8 @@ dev/dpaa/fman_keygen.c		optional	dpaa
 dev/dpaa/fman_mdio.c		optional	dpaa fdt
 dev/dpaa/fman_port_if.m		optional	dpaa
 dev/dpaa/fman_port.c		optional	dpaa
+dev/dpaa/fman_port_rx.c		optional	dpaa
+dev/dpaa/fman_port_tx.c		optional	dpaa
 dev/dpaa/fman_xmdio.c		optional	dpaa fdt mdio miibus
 dev/dpaa/dpaa_common.c		optional	dpaa
 dev/dpaa/if_dtsec.c		optional	dpaa
