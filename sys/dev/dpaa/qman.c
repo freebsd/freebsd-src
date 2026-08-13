@@ -311,7 +311,6 @@ qman_attach(device_t dev)
 	 */
 	nfqd = fqd_sz / 64;
 	qman_total_fqids = nfqd;
-	qman_channel_base = qman_channel_pool1;
 	qman_fq_list = malloc(nfqd * sizeof(struct qman_fq *), M_QMAN,
 	    M_WAITOK);
 
@@ -340,15 +339,16 @@ qman_attach(device_t dev)
 
 	if (qman3)
 		qman_channel_pool1 = QMAN_CHANNEL_POOL1_REV3;
+	qman_channel_base = qman_channel_pool1;
 
 	sc->sc_qman_base_channel = qman_channel_pool1;
 
 	sc->sc_fqalloc =
 	    vmem_create("qman-fqalloc", 1, nfqd - 1, 1, 0, M_WAITOK);
 	sc->sc_qpalloc =
-	    vmem_create("qman-fqalloc", qman_channel_pool1,
+	    vmem_create("qman-qpalloc", qman_channel_pool1,
 	    QMAN_POOL_CHANNELS, 1, 0, M_WAITOK);
-	sc->sc_cgalloc = vmem_create("qman->cgalloc", 0, QMAN_CGRS,
+	sc->sc_cgalloc = vmem_create("qman-cgalloc", 0, QMAN_CGRS,
 	    1, 0, M_WAITOK);
 
 	if (bus_setup_intr(dev, sc->sc_ires, INTR_TYPE_NET, NULL, qman_isr,

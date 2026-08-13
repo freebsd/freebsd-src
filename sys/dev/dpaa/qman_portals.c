@@ -246,8 +246,7 @@ qman_dqrr_init(struct qman_portal_softc *sc)
 	/* Dequeue from the direct-connect channel and pool 0, up to 3 frames */
 	bus_write_4(regs, QCSP_DQRR_SDQCR,
 	    SDQCR_FC | SDQCR_DP | SDQCR_DCT_PRI_PREC |
-	    (DEF_SDQCR_TOKEN << SDQCR_TOKEN_S) |
-	    DQRR_DQ_SRC_DCP | SDQCR_DQ_SRC_CHAN(0));
+	    (DEF_SDQCR_TOKEN << SDQCR_TOKEN_S) | DQRR_DQ_SRC_DCP);
 	bus_write_4(regs, QCSP_DQRR_VDQCR, 0);
 	bus_write_4(regs, QCSP_DQRR_PDQCR, 0);
 
@@ -462,7 +461,7 @@ qman_portal_static_dequeue_channel(device_t dev, int channel)
 	uint32_t reg;
 
 	reg = bus_read_4(sc->sc_base.sc_mres[1], QCSP_DQRR_SDQCR);
-	reg |= (1 << (15 - (channel - qman_channel_base)));
+	reg |= (1 << (14 - (channel - qman_channel_base)));
 	bus_write_4(sc->sc_base.sc_mres[1], QCSP_DQRR_SDQCR, reg);
 }
 
@@ -473,7 +472,7 @@ qman_portal_static_dequeue_rm_channel(device_t dev, int channel)
 	uint32_t reg;
 
 	reg = bus_read_4(sc->sc_base.sc_mres[1], QCSP_DQRR_SDQCR);
-	reg &= ~(1 << (15 - (channel - qman_channel_base)));
+	reg &= ~(1 << (14 - (channel - qman_channel_base)));
 	bus_write_4(sc->sc_base.sc_mres[1], QCSP_DQRR_SDQCR, reg);
 }
 
