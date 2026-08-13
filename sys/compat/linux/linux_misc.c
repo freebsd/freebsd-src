@@ -118,19 +118,22 @@ struct l_pselect6arg {
 
 #define LINUX_SCHED_ATTR_SIZE_VER0 48
 #define LINUX_SCHED_ATTR_SIZE_VER1 56
+/**
+ * Linux struct sched_attr
+ */
 struct linux_sched_attr {
-	uint32_t size;
-	uint32_t sched_policy;
-	uint64_t sched_flags;
-	int32_t  sched_nice;
-	uint32_t sched_priority;
+	l_uint 		size;
+	l_uint 		sched_policy;
+	uint64_t 	sched_flags;
+	int32_t  	sched_nice;
+	l_uint 		sched_priority;
 
-	uint64_t sched_runtime;
-	uint64_t sched_deadline;
-	uint64_t sched_period;
+	uint64_t 	sched_runtime;
+	uint64_t 	sched_deadline;
+	uint64_t 	sched_period;
 
-	uint32_t sched_util_min;
-	uint32_t sched_util_max;
+	l_uint 		sched_util_min;
+	l_uint 		sched_util_max;
 };
 
 static int	linux_utimensat_lts_to_ts(struct l_timespec *,
