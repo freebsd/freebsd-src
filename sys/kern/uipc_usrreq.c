@@ -1227,8 +1227,8 @@ restart:
 		if (space == 0) {
 			/* There is space only to send control. */
 			MPASS(!STAILQ_EMPTY(&cmc.mc_q));
-			mcnext = mc;
-			mc = MCHAIN_INITIALIZER(&mc);
+			mc_init(&mcnext);
+			mc_concat(&mcnext, &mc);
 		} else if (space < mc.mc_len) {
 			/* Not enough space. */
 			if (__predict_false(mc_split(&mc, &mcnext, space,

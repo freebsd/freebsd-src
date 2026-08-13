@@ -1149,6 +1149,92 @@ ATF_TC_BODY(empty_rights_message, tc)
 }
 
 /*
+ * Exercise a corner case where the receiving socket buffer has exactly enough
+ * space for a single fd cmsg.
+ */
+ATF_TC_WITHOUT_HEAD(nonblocking_passfd_ctl_space);
+ATF_TC_BODY(nonblocking_passfd_ctl_space, tc)
+{
+	static char chunk[65536];
+	size_t chunksz, room;
+	ssize_t n;
+	int delivered, fd[2], putfd;
+
+	devnull(&putfd);
+	chunksz = getsendspace();
+	ATF_REQUIRE(chunksz <= sizeof(chunk));
+
+	/*
+	 * How much space does a single internalized fd take?
+	 */
+	domainsocketpair(fd);
+	ATF_REQUIRE_MSG(sendfd_payload(fd[0], putfd, chunk, 0) == 0,
+	    "sendmsg: %s", strerror(errno));
+	ATF_REQUIRE_MSG(fcntl(fd[0], F_SETFL, O_NONBLOCK) != -1,
+	    "fcntl: %s", strerror(errno));
+	for (room = 0; (n = send(fd[0], chunk, chunksz, 0)) > 0; )
+		room += (size_t)n;
+	ATF_REQUIRE(errno == EAGAIN || errno == ENOBUFS);
+	closesocketpair(fd);
+
+	/*
+	 * Fill the socket buffer, leaving exactly enough room for a single fd
+	 * cmsg.
+	 */
+	domainsocketpair(fd);
+	for (size_t sofar = 0; sofar < room; sofar += (size_t)n) {
+		size_t req;
+
+		req = room - sofar;
+		if (req > chunksz)
+			req = chunksz;
+		n = send(fd[0], chunk, (size_t)req, 0);
+		ATF_REQUIRE_MSG(n > 0, "fill send: %s", strerror(errno));
+	}
+	ATF_REQUIRE_MSG(fcntl(fd[0], F_SETFL, O_NONBLOCK) != -1,
+	    "fcntl: %s", strerror(errno));
+	ATF_REQUIRE_MSG(sendfd_payload(fd[0], putfd, chunk, 0) == 0,
+	    "zero-length sendmsg with SCM_RIGHTS failed: %s", strerror(errno));
+
+	/* Drain receiver and verify the fd was delivered. */
+	delivered = 0;
+	{
+		static char buf[1 << 20];
+		char cmsgbuf[CMSG_SPACE(sizeof(int) * 8)];
+		struct iovec iov;
+		struct msghdr msghdr;
+
+		memset(&msghdr, 0, sizeof(msghdr));
+		iov.iov_base = buf;
+		iov.iov_len = sizeof(buf);
+		msghdr.msg_iov = &iov;
+		msghdr.msg_iovlen = 1;
+		msghdr.msg_control = cmsgbuf;
+		msghdr.msg_controllen = sizeof(cmsgbuf);
+		while ((n = recvmsg(fd[1], &msghdr, MSG_DONTWAIT)) >= 0) {
+			for (struct cmsghdr *cm = CMSG_FIRSTHDR(&msghdr);
+			    cm != NULL; cm = CMSG_NXTHDR(&msghdr, cm)) {
+				if (cm->cmsg_level == SOL_SOCKET &&
+				    cm->cmsg_type == SCM_RIGHTS) {
+					int rxfd;
+
+					memcpy(&rxfd, CMSG_DATA(cm),
+					    sizeof(rxfd));
+					ATF_CHECK(close(rxfd) == 0);
+					delivered++;
+				}
+			}
+			msghdr.msg_controllen = sizeof(cmsgbuf);
+		}
+	}
+	ATF_CHECK_MSG(delivered == 1, "expected 1 fd delivered, got %d",
+	    delivered);
+
+	closesocketpair(fd);
+	ATF_CHECK(close(putfd) == 0);
+}
+
+/*
  * Check that sending control creates records in a stream socket, making it
  * behave like a seqpacket socket.  If we stack several control+data writes
  * on a stream socket, we won't be able to read them all at once, even if we
@@ -1387,6 +1473,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, copyout_rights_error);
 	ATF_TP_ADD_TC(tp, externalize_error_partial_read);
 	ATF_TP_ADD_TC(tp, empty_rights_message);
+	ATF_TP_ADD_TC(tp, nonblocking_passfd_ctl_space);
 	ATF_TP_ADD_TC(tp, control_creates_records);
 	ATF_TP_ADD_TC(tp, cross_jail_dirfd);
 	ATF_TP_ADD_TC(tp, resolve_beneath_preserved);
