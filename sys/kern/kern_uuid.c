@@ -34,6 +34,7 @@
 #include <sys/mutex.h>
 #include <sys/sbuf.h>
 #include <sys/socket.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/jail.h>
@@ -176,8 +177,13 @@ struct uuidgen_args {
 int
 sys_uuidgen(struct thread *td, struct uuidgen_args *uap)
 {
+	return (user_uuidgen(td, uap->store, uap->count));
+}
+
+int
+user_uuidgen(struct thread *td, struct uuid *ustore, int count)
+{
 	struct uuid *store;
-	size_t count;
 	int error;
 
 	/*
@@ -186,13 +192,12 @@ sys_uuidgen(struct thread *td, struct uuidgen_args *uap)
 	 * like to have some sort of upper-bound that's less than 2G :-)
 	 * XXX probably needs to be tunable.
 	 */
-	if (uap->count < 1 || uap->count > UUIDGEN_BATCH_MAX)
+	if (count < 1 || count > UUIDGEN_BATCH_MAX)
 		return (EINVAL);
 
-	count = uap->count;
 	store = malloc(count * sizeof(struct uuid), M_TEMP, M_WAITOK);
 	kern_uuidgen(store, count);
-	error = copyout(store, uap->store, count * sizeof(struct uuid));
+	error = copyout(store, ustore, count * sizeof(struct uuid));
 	free(store, M_TEMP);
 	return (error);
 }
