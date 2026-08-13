@@ -543,6 +543,11 @@
 /* 82576NS omits the IPsec key, FIFO, and packet-buffer memories. */
 #define E1000_PEIND_82576_IPSEC_MASK	0x40700600
 
+/* The 82576 clear-on-read ECC status registers share this count layout. */
+#define E1000_ECC_82576_CORR_CNT_MASK	0x000000FF
+#define E1000_ECC_82576_UNCORR_CNT_MASK	0x0000FF00
+#define E1000_ECC_82576_UNCORR_CNT_SHIFT	8
+
 #define E1000_PBECCSTS_I210_ECC_ENABLE	0x00000001
 #define E1000_PBECCSTS_I210_CORR_ERR	0x00000004
 

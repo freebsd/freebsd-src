@@ -2292,6 +2292,58 @@ em_fatal_error_intr_mask(struct e1000_softc *sc)
 }
 
 static void
+em_update_82576_ecc_counter(struct e1000_softc *sc, u32 reg,
+    u64 *corrected, u64 *uncorrected)
+{
+	u32 status;
+
+	status = E1000_READ_REG(&sc->hw, reg);
+	*corrected += status & E1000_ECC_82576_CORR_CNT_MASK;
+	if (uncorrected != NULL)
+		*uncorrected +=
+		    (status & E1000_ECC_82576_UNCORR_CNT_MASK) >>
+		    E1000_ECC_82576_UNCORR_CNT_SHIFT;
+}
+
+static void
+em_update_82576_ecc_stats(struct e1000_softc *sc)
+{
+
+	/*
+	 * These counters are clear-on-read.  PRBESTS and PMSIXESTS are
+	 * controller-shared, so whichever LAN port samples them first owns
+	 * the software count.
+	 */
+	em_update_82576_ecc_counter(sc, E1000_RPBECCSTS,
+	    &sc->corrected_error_packet_buffer_count,
+	    &sc->uncorrected_error_packet_buffer_count);
+	em_update_82576_ecc_counter(sc, E1000_TPBECCSTS,
+	    &sc->corrected_error_packet_buffer_count,
+	    &sc->uncorrected_error_packet_buffer_count);
+	em_update_82576_ecc_counter(sc, E1000_SWPBECCSTS_82576,
+	    &sc->corrected_error_packet_buffer_count,
+	    &sc->uncorrected_error_packet_buffer_count);
+	if (em_82576_has_ipsec(&sc->hw))
+		em_update_82576_ecc_counter(sc, E1000_IPPBECCSTS_82576,
+		    &sc->corrected_error_packet_buffer_count,
+		    &sc->uncorrected_error_packet_buffer_count);
+
+	em_update_82576_ecc_counter(sc, E1000_RDHESTS_82576,
+	    &sc->corrected_error_dma_count,
+	    &sc->uncorrected_error_dma_count);
+	em_update_82576_ecc_counter(sc, E1000_TDHESTS_82576,
+	    &sc->corrected_error_dma_count,
+	    &sc->uncorrected_error_dma_count);
+
+	em_update_82576_ecc_counter(sc, E1000_PRBESTS_82576,
+	    &sc->corrected_error_pcie_retry_count, NULL);
+	em_update_82576_ecc_counter(sc, E1000_PWBESTS_82576,
+	    &sc->corrected_error_pcie_tx_data_count, NULL);
+	em_update_82576_ecc_counter(sc, E1000_PMSIXESTS_82576,
+	    &sc->corrected_error_pcie_other_count, NULL);
+}
+
+static void
 em_update_pch_ecc_stats(struct e1000_softc *sc, u32 pbeccsts)
 {
 
@@ -2469,6 +2521,7 @@ em_handle_fatal_error_admin(struct e1000_softc *sc)
 		    sc->fatal_error_pbeccsts);
 	} else if (em_has_82576_memory_errors(&sc->hw)) {
 		peind = sc->fatal_error_peind;
+		em_update_82576_ecc_stats(sc);
 		reset_required =
 		    (sc->fatal_error_icr & E1000_ICR_FER) != 0 ||
 		    (peind & (E1000_PEIND_82576_FATAL_MASK |
@@ -6205,6 +6258,8 @@ em_update_stats_counters(struct e1000_softc *sc)
 	if (em_has_pch_ecc(&sc->hw))
 		em_update_pch_ecc_stats(sc,
 		    E1000_READ_REG(&sc->hw, E1000_PBECCSTS));
+	else if (em_has_82576_memory_errors(&sc->hw))
+		em_update_82576_ecc_stats(sc);
 	else if (em_has_i350_memory_errors(&sc->hw))
 		em_update_i350_ecc_stats(sc);
 	else if (em_has_i210_memory_errors(&sc->hw))
@@ -6649,6 +6704,34 @@ em_add_hw_stats(struct e1000_softc *sc)
 			    "fatal_unknown", CTLFLAG_RD,
 			    &sc->fatal_error_unknown_count,
 			    "Fatal memory errors without a reported source");
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "corrected_packet_buffer", CTLFLAG_RD,
+			    &sc->corrected_error_packet_buffer_count,
+			    "Corrected packet and switch-buffer ECC errors");
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "uncorrected_packet_buffer", CTLFLAG_RD,
+			    &sc->uncorrected_error_packet_buffer_count,
+			    "Uncorrected packet and switch-buffer ECC errors");
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "corrected_descriptor_handler", CTLFLAG_RD,
+			    &sc->corrected_error_dma_count,
+			    "Corrected descriptor-handler ECC errors");
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "uncorrected_descriptor_handler", CTLFLAG_RD,
+			    &sc->uncorrected_error_dma_count,
+			    "Uncorrected descriptor-handler ECC errors");
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "corrected_pcie_write_buffer", CTLFLAG_RD,
+			    &sc->corrected_error_pcie_tx_data_count,
+			    "Corrected PCIe write-buffer ECC errors");
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "corrected_pcie_retry_buffer", CTLFLAG_RD,
+			    &sc->corrected_error_pcie_retry_count,
+			    "Corrected controller-shared PCIe retry-buffer errors");
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "corrected_pcie_msix", CTLFLAG_RD,
+			    &sc->corrected_error_pcie_other_count,
+			    "Corrected controller-shared PCIe MSI-X errors");
 		} else {
 			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
 			    "fatal_lan", CTLFLAG_RD,
