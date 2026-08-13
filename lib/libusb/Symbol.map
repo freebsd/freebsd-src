@@ -1,5 +1,5 @@
 
-FBSD_1.9 {
+FBSD_1.8 {
 	libusb_alloc_streams;
 	libusb_alloc_transfer;
 	libusb_attach_kernel_driver;
