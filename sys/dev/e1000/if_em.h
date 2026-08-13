@@ -619,6 +619,7 @@ struct e1000_softc {
 	int			link_mask;
 	int			tso_automasked;
 	u32			fatal_error_state;
+	u32			fatal_error_icr;
 	u32			fatal_error_pbeccsts;
 	u32			fatal_error_peind;
 	u32			fatal_error_pcie;

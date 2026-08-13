@@ -535,6 +535,14 @@
 #define E1000_PEIND_DMA_PARITY_FATAL	0x00000008
 #define E1000_PEIND_FATAL_MASK		0x0000000F
 
+/* 82576 uses PEIND directly rather than the later four-region layout. */
+#define E1000_PEIND_82576_NONFATAL_MASK	0x00000007
+#define E1000_PEIND_82576_FATAL_MASK	0x7FFFFF00
+#define E1000_PEIND_82576_MEMORY_HANG	0x80000000
+#define E1000_PEINDM_82576_PARITY_ENABLE	0x80000000
+/* 82576NS omits the IPsec key, FIFO, and packet-buffer memories. */
+#define E1000_PEIND_82576_IPSEC_MASK	0x40700600
+
 #define E1000_PBECCSTS_I210_ECC_ENABLE	0x00000001
 #define E1000_PBECCSTS_I210_CORR_ERR	0x00000004
 
@@ -591,6 +599,7 @@
 #define E1000_ICR_TXD_LOW	0x00008000
 #define E1000_ICR_MNG		0x00040000 /* Manageability event */
 #define E1000_ICR_ECCER		0x00400000 /* Uncorrectable ECC Error */
+#define E1000_ICR_NFER		0x00800000 /* Non-Fatal Error (82576) */
 #define E1000_ICR_TS		0x00080000 /* Time Sync Interrupt */
 #define E1000_ICR_DRSTA		0x40000000 /* Device Reset Asserted */
 /* If this bit asserted, the driver should claim the interrupt */
@@ -659,6 +668,7 @@
 #define E1000_IMS_RXT0		E1000_ICR_RXT0    /* Rx timer intr */
 #define E1000_IMS_TXD_LOW	E1000_ICR_TXD_LOW
 #define E1000_IMS_ECCER		E1000_ICR_ECCER   /* Uncorrectable ECC Error */
+#define E1000_IMS_NFER		E1000_ICR_NFER /* Non-Fatal Error (82576) */
 #define E1000_IMS_TS		E1000_ICR_TS      /* Time Sync Interrupt */
 #define E1000_IMS_DRSTA		E1000_ICR_DRSTA   /* Device Reset Asserted */
 #define E1000_IMS_DOUTSYNC	E1000_ICR_DOUTSYNC /* NIC DMA out of sync */

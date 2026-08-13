@@ -1877,6 +1877,44 @@ em_has_pch_ecc(const struct e1000_hw *hw)
 }
 
 static bool
+em_has_82576_memory_errors(const struct e1000_hw *hw)
+{
+
+	return (hw->mac.type == e1000_82576);
+}
+
+static bool
+em_82576_has_ipsec(const struct e1000_hw *hw)
+{
+
+	return (hw->device_id != E1000_DEV_ID_82576_NS &&
+	    hw->device_id != E1000_DEV_ID_82576_NS_SERDES);
+}
+
+static void
+em_configure_82576_memory_errors(struct e1000_softc *sc)
+{
+	struct e1000_hw *hw;
+	u32 peindm, reactions;
+
+	hw = &sc->hw;
+	if (!em_has_82576_memory_errors(hw))
+		return;
+
+	reactions = E1000_PEIND_82576_NONFATAL_MASK |
+	    E1000_PEIND_82576_FATAL_MASK |
+	    E1000_PEINDM_82576_PARITY_ENABLE;
+	if (!em_82576_has_ipsec(hw))
+		reactions &= ~E1000_PEIND_82576_IPSEC_MASK;
+
+	/* Discard indications left by firmware before enabling reactions. */
+	(void)E1000_READ_REG(hw, E1000_PEIND);
+	peindm = E1000_READ_REG(hw, E1000_PEINDM);
+	E1000_WRITE_REG(hw, E1000_PEINDM, peindm | reactions);
+	E1000_WRITE_FLUSH(hw);
+}
+
+static bool
 em_has_i210_memory_errors(const struct e1000_hw *hw)
 {
 
@@ -1933,13 +1971,20 @@ em_pcie_fatal_error_mask(const struct e1000_hw *hw)
 static u32
 em_fatal_error_intr_mask(struct e1000_softc *sc)
 {
+	u32 mask;
 
-	if ((em_has_pch_ecc(&sc->hw) ||
-	    em_has_i210_i350_memory_errors(&sc->hw)) &&
-	    atomic_load_acq_32(&sc->fatal_error_state) ==
+	if (!em_has_pch_ecc(&sc->hw) &&
+	    !em_has_82576_memory_errors(&sc->hw) &&
+	    !em_has_i210_i350_memory_errors(&sc->hw))
+		return (0);
+	if (atomic_load_acq_32(&sc->fatal_error_state) !=
 	    EM_FATAL_ERROR_NONE)
-		return (E1000_IMS_FER);
-	return (0);
+		return (0);
+
+	mask = E1000_IMS_FER;
+	if (em_has_82576_memory_errors(&sc->hw))
+		mask |= E1000_IMS_NFER;
+	return (mask);
 }
 
 static void
@@ -2036,29 +2081,36 @@ em_update_i350_ecc_stats(struct e1000_softc *sc)
 }
 
 /*
- * Fatal internal-memory errors stop part or all of the MAC.  Capture the
- * read-clear indication before handing recovery to the iflib admin task.
+ * Internal-memory error causes are read-clear.  Capture them before handing
+ * fatal recovery or 82576 non-fatal acknowledgement to the iflib admin task.
  */
 static void
 em_handle_fatal_error_intr(struct e1000_softc *sc, u32 icr)
 {
 	struct e1000_hw *hw;
-	u32 dma_rx, dma_tx, lanerr, pcieerr, peind;
+	u32 dma_rx, dma_tx, error_mask, lanerr, pcieerr, peind;
 
+	error_mask = E1000_ICR_FER;
+	if (em_has_82576_memory_errors(&sc->hw))
+		error_mask |= E1000_ICR_NFER;
 	if ((!em_has_pch_ecc(&sc->hw) &&
+	    !em_has_82576_memory_errors(&sc->hw) &&
 	    !em_has_i210_i350_memory_errors(&sc->hw)) ||
-	    (icr & E1000_ICR_FER) == 0)
+	    (icr & error_mask) == 0)
 		return;
 
 	hw = &sc->hw;
-	E1000_WRITE_REG(hw, E1000_IMC, E1000_IMS_FER);
+	E1000_WRITE_REG(hw, E1000_IMC, error_mask);
 	if (!atomic_cmpset_32(&sc->fatal_error_state,
 	    EM_FATAL_ERROR_NONE, EM_FATAL_ERROR_CAPTURING))
 		return;
 
+	sc->fatal_error_icr = icr & error_mask;
 	if (em_has_pch_ecc(hw)) {
 		sc->fatal_error_pbeccsts =
 		    E1000_READ_REG(hw, E1000_PBECCSTS);
+	} else if (em_has_82576_memory_errors(hw)) {
+		sc->fatal_error_peind = E1000_READ_REG(hw, E1000_PEIND);
 	} else {
 		peind = E1000_READ_REG(hw, E1000_PEIND) &
 		    E1000_PEIND_FATAL_MASK;
@@ -2097,7 +2149,7 @@ em_handle_fatal_error_intr(struct e1000_softc *sc, u32 icr)
 static bool
 em_handle_fatal_error_admin(struct e1000_softc *sc)
 {
-	u32 peind;
+	u32 error_mask, peind;
 	bool reset_required;
 
 	if (!atomic_cmpset_acq_32(&sc->fatal_error_state,
@@ -2111,6 +2163,31 @@ em_handle_fatal_error_admin(struct e1000_softc *sc)
 		    "uncorrectable packet-buffer ECC error: "
 		    "PBECCSTS %#x; requesting reset\n",
 		    sc->fatal_error_pbeccsts);
+	} else if (em_has_82576_memory_errors(&sc->hw)) {
+		peind = sc->fatal_error_peind;
+		reset_required =
+		    (sc->fatal_error_icr & E1000_ICR_FER) != 0 ||
+		    (peind & (E1000_PEIND_82576_FATAL_MASK |
+		    E1000_PEIND_82576_MEMORY_HANG)) != 0;
+		if (!reset_required) {
+			device_printf(sc->dev,
+			    "non-fatal internal memory error: PEIND %#x\n",
+			    peind);
+			sc->fatal_error_icr = 0;
+			sc->fatal_error_peind = 0;
+			atomic_store_rel_32(&sc->fatal_error_state,
+			    EM_FATAL_ERROR_NONE);
+			error_mask = E1000_IMS_FER | E1000_IMS_NFER;
+			E1000_WRITE_REG(&sc->hw, E1000_IMS, error_mask);
+			E1000_WRITE_FLUSH(&sc->hw);
+			return (true);
+		}
+		if ((peind & (E1000_PEIND_82576_FATAL_MASK |
+		    E1000_PEIND_82576_MEMORY_HANG)) == 0)
+			sc->fatal_error_unknown_count++;
+		device_printf(sc->dev,
+		    "fatal internal memory error: PEIND %#x; "
+		    "requesting reset\n", peind);
 	} else {
 		peind = sc->fatal_error_peind;
 		if (peind & E1000_PEIND_LANPORT_PARITY_FATAL)
@@ -2238,7 +2315,11 @@ em_finish_fatal_error_reset(struct e1000_softc *sc)
 		return;
 
 	hw = &sc->hw;
-	if (em_has_i210_i350_memory_errors(hw)) {
+	if (em_has_82576_memory_errors(hw)) {
+		/* Drain any indication relatched while the port was resetting. */
+		(void)E1000_READ_REG(hw, E1000_PEIND);
+		sc->fatal_error_peind = 0;
+	} else if (em_has_i210_i350_memory_errors(hw)) {
 		pcieerr = sc->fatal_error_pcie |
 		    (E1000_READ_REG(hw, E1000_PCIEERRSTS) &
 		    em_pcie_fatal_error_mask(hw));
@@ -2277,6 +2358,7 @@ em_finish_fatal_error_reset(struct e1000_softc *sc)
 		sc->fatal_error_dma_tx = 0;
 		sc->fatal_error_dma_rx = 0;
 	}
+	sc->fatal_error_icr = 0;
 	sc->fatal_error_pbeccsts = 0;
 	atomic_store_rel_32(&sc->fatal_error_state, EM_FATAL_ERROR_NONE);
 }
@@ -3794,6 +3876,7 @@ em_reset(if_ctx_t ctx)
 		device_printf(dev, "Hardware Initialization Failed\n");
 		return;
 	}
+	em_configure_82576_memory_errors(sc);
 	em_finish_fatal_error_reset(sc);
 	if (hw->mac.type >= igb_mac_min)
 		igb_init_dmac(sc, pba);
@@ -5844,6 +5927,7 @@ em_add_hw_stats(struct e1000_softc *sc)
 		    CTLFLAG_RD, &stats->rlpic, "RX LPI event count");
 	}
 	if (em_has_pch_ecc(&sc->hw) ||
+	    em_has_82576_memory_errors(&sc->hw) ||
 	    em_has_i210_i350_memory_errors(&sc->hw)) {
 		struct sysctl_oid *memerr_node;
 		struct sysctl_oid_list *memerr_list;
@@ -5865,6 +5949,11 @@ em_add_hw_stats(struct e1000_softc *sc)
 			    "uncorrected_packet_buffer", CTLFLAG_RD,
 			    &sc->uncorrected_error_packet_buffer_count,
 			    "Uncorrected packet-buffer ECC errors");
+		} else if (em_has_82576_memory_errors(&sc->hw)) {
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "fatal_unknown", CTLFLAG_RD,
+			    &sc->fatal_error_unknown_count,
+			    "Fatal memory errors without a reported source");
 		} else {
 			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
 			    "fatal_lan", CTLFLAG_RD,
