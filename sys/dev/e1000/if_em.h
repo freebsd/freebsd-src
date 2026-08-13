@@ -625,6 +625,7 @@ struct e1000_softc {
 	u32			promisc_pending;
 	u32			stats_pending;
 	u32			fatal_error_state;
+	u32			fatal_error_icr;
 	u32			fatal_error_pbeccsts;
 	u32			fatal_error_peind;
 	u32			fatal_error_pcie;
