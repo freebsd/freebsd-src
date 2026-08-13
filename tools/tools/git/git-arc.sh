@@ -4,6 +4,7 @@
 #
 # Copyright (c) 2019-2021 Mark Johnston <markj@FreeBSD.org>
 # Copyright (c) 2021 John Baldwin <jhb@FreeBSD.org>
+# Copyright (c) 2026 Devin Teske <dteske@FreeBSD.org>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -58,6 +59,7 @@ Usage: git arc [-vy] <command> <arguments>
 
 Commands:
   create [-dl] [-r <reviewer1>[,<reviewer2>...]] [-s subscriber[,...]] [<commit>|<commit range>]
+  diff <commit>|<commit range>
   list <commit>|<commit range>
   patch [-bcrs] <diff1> [<diff2> ...]
   stage [-b branch] [<commit>|<commit range>]
@@ -426,6 +428,41 @@ gitarc__create()
         else
             prev=""
         fi
+    done
+}
+
+#
+# Show the differences between local commits and their associated
+# Phabricator reviews, i.e., what "git arc update" would upload.  The
+# review's tree is reconstructed by applying its current raw diff to the
+# local commit's parent in a temporary index, and is then compared
+# against the local commit.
+#
+gitarc__diff()
+{
+    local commit commits diff rawdiff rtree
+
+    commits=$(build_commit_list "$@")
+
+    for commit in $commits; do
+        diff=$(commit2diff "$commit")
+
+        rawdiff=$(xmktemp)
+        fetch -q -o "$rawdiff" "https://reviews.freebsd.org/$diff.diff" ||
+            err "could not fetch ${diff}.diff"
+
+        rtree=$(
+            export GIT_INDEX_FILE="$(xmktemp)"
+            git read-tree --quiet "$commit~" &&
+                git -C "$(git rev-parse --show-toplevel)" apply \
+                    --cached "$rawdiff" &&
+                git write-tree
+        ) || err "cannot apply $diff to $commit~ (rebased since last update?)"
+
+	echo "Comparing $diff against" \
+		"$( git rev-parse --short "$commit" )..." >&2
+
+        git diff "$rtree" "$commit"
     done
 }
 
@@ -837,7 +874,7 @@ else
 fi
 
 case "$1" in
-create|list|patch|stage|update)
+create|diff|list|patch|stage|update)
     ;;
 *)
     err_usage
@@ -869,10 +906,10 @@ if [ -n "$GIT_PAGER" ]; then
     PAGER=$GIT_PAGER
 fi
 
-# Bail if the working tree is unclean, except for "list" and "patch"
-# operations.
+# Bail if the working tree is unclean, except for "diff", "list" and
+# "patch" operations.
 case $verb in
-list|patch)
+diff|list|patch)
     ;;
 *)
     require_clean_work_tree "$verb"
