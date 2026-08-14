@@ -1123,7 +1123,7 @@ if_detach_internal(struct ifnet *ifp, bool vmove)
 	struct ifaddr *ifa;
 	int i;
 	struct domain *dp;
-	void *if_afdata[AF_MAX];
+	void *if_afdata[nitems(ifp->if_afdata)];
 #ifdef VIMAGE
 	bool shutdown;
 
