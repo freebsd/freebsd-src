@@ -1360,7 +1360,7 @@ linux_sched_getattr(struct thread *td,
 	if (args->attr == NULL ||
 		args->pid < 0 ||
 		args->flags != 0 ||
-		args->size < SCHED_ATTR_SIZE_VER0 ||
+		args->size < LINUX_SCHED_ATTR_SIZE_VER0 ||
 		args->size > PAGE_SIZE)
 			return (EINVAL);
 
@@ -1397,6 +1397,7 @@ linux_sched_getattr(struct thread *td,
 					(RTP_PRIO_MAX - RTP_PRIO_MIN) + 1;
 				break;
 			}
+			attr.sched_priority = sched_param.sched_priority
 		} else {
 			attr.sched_priority =
 				sched_param.sched_priority;
