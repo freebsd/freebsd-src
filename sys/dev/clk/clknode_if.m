@@ -32,7 +32,7 @@ HEADER {
 }
 
 #
-# Initialize clock node, get shanpshot of cached values
+# Initialize clock node, get a snapshot of cached values
 #
 METHOD int init {
 	struct clknode	*clk;
@@ -41,7 +41,7 @@ METHOD int init {
 
 #
 # Recalculate frequency
-#     req - in/out recalulated frequency
+#     freq - in/out recalulated frequency
 #
 METHOD int recalc_freq {
 	struct clknode	*clk;
