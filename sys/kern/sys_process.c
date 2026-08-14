@@ -451,6 +451,7 @@ vmspace_rwmem(struct vmspace *vm, struct uio *uio)
 	vm_map_t map;
 	vm_offset_t pageno;		/* page number */
 	vm_prot_t reqprot;
+	ssize_t orig_resid;
 	int error, fault_flags, page_offset, writing;
 
 	map = &vm->vm_map;
@@ -464,10 +465,12 @@ vmspace_rwmem(struct vmspace *vm, struct uio *uio)
 	reqprot = writing ? VM_PROT_COPY | VM_PROT_READ : VM_PROT_READ;
 	fault_flags = writing ? VM_FAULT_DIRTY : VM_FAULT_NORMAL;
 
+	orig_resid = uio->uio_resid;
+
 	if (writing) {
 		error = priv_check(curthread, PRIV_PROC_MEM_WRITE);
 		if (error != 0)
-			goto out;
+			return (error);
 	}
 
 	/*
@@ -524,9 +527,7 @@ vmspace_rwmem(struct vmspace *vm, struct uio *uio)
 		vm_page_unwire(m, PQ_ACTIVE);
 
 	} while (error == 0 && uio->uio_resid > 0);
-
-out:
-	return (error);
+	return (uio->uio_resid == orig_resid ? error : 0);
 }
 
 int
