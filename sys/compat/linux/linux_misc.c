@@ -1397,7 +1397,7 @@ linux_sched_getattr(struct thread *td,
 					(RTP_PRIO_MAX - RTP_PRIO_MIN) + 1;
 				break;
 			}
-			attr.sched_priority = sched_param.sched_priority
+			attr.sched_priority = sched_param.sched_priority;
 		} else {
 			attr.sched_priority =
 				sched_param.sched_priority;
