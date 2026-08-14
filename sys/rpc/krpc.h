@@ -42,6 +42,10 @@ enum clnt_stat clnt_bck_call(CLIENT *, struct rpc_callextra *, rpcproc_t,
     struct mbuf *, struct mbuf **, struct timeval, SVCXPRT *);
 struct mbuf *_rpc_copym_into_ext_pgs(struct mbuf *, int);
 
+/* Callback function for server side RDMA. */
+typedef int	clnt_bck_rdma_send_ftype(SVCXPRT *xprt, struct mbuf *m);
+extern clnt_bck_rdma_send_ftype *clnt_bck_rdma_send;
+
 /*
  * A pending RPC request which awaits a reply. Requests which have
  * received their reply will have cr_xid set to zero and cr_mrep to
@@ -135,6 +139,29 @@ struct cf_conn {  /* kept in xprt->xp_p1 for actual connection */
 };
 
 void rpcnl_init(void);
+
+/* RDMA procedures. */
+enum rdma_proc {
+	RDMA_MSG = 0,
+	RDMA_NOMSG = 1,
+	RDMA_MSGP = 2,	/* Not used. */
+	RDMA_DONE = 3,	/* Not used. */
+	RDMA_ERROR = 4
+};
+
+enum rdma_errcode {
+	RDMA_ERR_VERS = 1,
+	RDMA_ERR_CHUNK = 2
+};
+
+/* Structure use by both client and server RDMA for reductions (RFC8166). */
+struct rpcrdma_reduce {
+	struct iovec	*iov;
+	uint32_t	xid;
+	uint32_t	off;
+	uint32_t	len;
+	uint8_t		into_mem;
+};
 
 #endif	/* _KERNEL */
 

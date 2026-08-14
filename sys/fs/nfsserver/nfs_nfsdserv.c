@@ -49,6 +49,7 @@
 #include <fs/nfs/nfsport.h>
 #include <sys/extattr.h>
 #include <sys/filio.h>
+#include <rpc/krpc.h>
 
 /* Global vars */
 extern u_int32_t newnfs_false, newnfs_true;
@@ -1076,6 +1077,20 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 	*tl = txdr_unsigned(cnt);
 	if (m3) {
+		/*
+		 * For RDMA, inform the server side rdma the reduction's
+		 * position.
+		 */
+		if ((nd->nd_flag & ND_RDMA) != 0 && nd->nd_xprt != NULL) {
+			KASSERT(cnt > 0,
+			    ("nfsrvd_read: m3 != NULL when cnt == 0"));
+			struct rpcrdma_reduce ddp;
+
+			ddp.xid = nd->nd_retxid;
+			ddp.off = (uint32_t)m_length(nd->nd_mreq, NULL);
+			ddp.len = (uint32_t)cnt;
+			(void)SVC_CONTROL(nd->nd_xprt, SVCSET_READDDP, &ddp);
+		}
 		nd->nd_mb->m_next = m3;
 		nd->nd_mb = m2;
 		if ((m2->m_flags & M_EXTPG) != 0) {
