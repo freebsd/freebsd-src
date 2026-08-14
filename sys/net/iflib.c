@@ -1073,6 +1073,13 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 			}
 
 			if (!(slot->flags & NS_MOREFRAG)) {
+				/*
+				 * Ensure a packet made only of zero-length
+				 * slots still emits one descriptor.
+				 */
+				if (seg_idx == 0)
+					seg_idx = 1;
+
 				pi.ipi_len = pkt_len;
 				pi.ipi_nsegs = seg_idx;
 				pi.ipi_pidx = nic_i_start;
@@ -1084,8 +1091,10 @@ iflib_netmap_txsync(struct netmap_kring *kring, int flags)
 				DBG_COUNTER_INC(tx_encap);
 
 				/* Update transmit counters */
-				tx_bytes += pi.ipi_len;
-				tx_pkts++;
+				if (pkt_len > 0) {
+					tx_bytes += pi.ipi_len;
+					tx_pkts++;
+				}
 
 				/* Reinit per-packet info for the next one. */
 				flags = seg_idx = pkt_len = 0;
