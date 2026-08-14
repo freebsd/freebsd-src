@@ -101,7 +101,7 @@ struct ifnet {
 	void	*if_hw_addr;		/* hardware link-level address */
 	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
 	struct	mtx if_afdata_lock;
-	void	*if_afdata[AF_MAX];
+	void	*if_afdata[AF_MAX - 1];	/* off by one for historical reasons */
 	int	if_afdata_initialized;
 
 	/* Additional features hung off the interface. */
