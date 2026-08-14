@@ -1401,8 +1401,8 @@ run_rc_command()
 						fi
 						if [ ${_do_jailing} -eq 1 ]; then
 							$JAIL_CMD -c $_svcj_generic_params $_svcj_cmd_options \
-							    exec.start="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}start $rc_extra_args" \
-							    exec.stop="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}stop $rc_extra_args" \
+							    exec.start="${SERVICE} -E _rc_svcj=jailing ${rc_service##*/} ${_rc_prefix}start $rc_extra_args" \
+							    exec.stop="${SERVICE} -E _rc_svcj=jailing ${rc_service##*/} ${_rc_prefix}stop $rc_extra_args" \
 							    exec.consolelog="/var/log/svcj_${name}_console.log" \
 							    name=svcj-${name} && _return=0
 						fi
@@ -1412,7 +1412,7 @@ run_rc_command()
 					;;
 				stop)
 					if [ "${_rc_svcj}" != jailing ]; then
-						$SERVICE -E _rc_svcj=jailing -j svcj-${name} ${name} ${_rc_prefix}stop $rc_extra_args || _return=1
+						$SERVICE -E _rc_svcj=jailing -j svcj-${name} ${rc_service##*/} ${_rc_prefix}stop $rc_extra_args || _return=1
 						$JAIL_CMD -r svcj-${name} 2>/dev/null
 					else
 						_run_rc_doit "$_cmd $rc_extra_args" || _return=1
@@ -1423,7 +1423,7 @@ run_rc_command()
 					eval _rc_svcj_extra_cmd=\$${name}_${rc_arg}_svcj_enable
 					: ${_rc_svcj_extra_cmd:=NO}
 					if checkyesno _rc_svcj_extra_cmd && [ "${_rc_svcj}" != jailing ]; then
-						$SERVICE -v -E _rc_svcj=jailing -j svcj-${name} ${name} ${_rc_prefix}${rc_arg} $rc_extra_args || _return=1
+						$SERVICE -v -E _rc_svcj=jailing -j svcj-${name} ${rc_service##*/} ${_rc_prefix}${rc_arg} $rc_extra_args || _return=1
 					else
 						_run_rc_doit "$_cmd $rc_extra_args" || _return=1
 					fi
@@ -1503,8 +1503,8 @@ run_rc_command()
 						fi
 					fi
 					$JAIL_CMD -c $_svcj_generic_params $_svcj_cmd_options\
-					    exec.start="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}start $rc_extra_args" \
-					    exec.stop="${SERVICE} -E _rc_svcj=jailing ${name} ${_rc_prefix}stop $rc_extra_args" \
+					    exec.start="${SERVICE} -E _rc_svcj=jailing ${rc_service##*/} ${_rc_prefix}start $rc_extra_args" \
+					    exec.stop="${SERVICE} -E _rc_svcj=jailing ${rc_service##*/} ${_rc_prefix}stop $rc_extra_args" \
 					    exec.consolelog="/var/log/svcj_${name}_console.log" \
 					    name=svcj-${name} || return 1
 				fi
