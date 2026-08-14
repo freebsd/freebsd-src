@@ -2064,8 +2064,11 @@ get_ps_strings(struct thread *td, struct proc *p, struct sbuf *sb,
 		for (sptr = proc_vector[i]; ; sptr += GET_PS_STRINGS_CHUNK_SZ) {
 			error = proc_read_string(td, vm, sptr, pss_string,
 			    sizeof(pss_string));
-			if (error != 0)
+			if (error != 0) {
+				if (done != 0)
+					error = 0;
 				goto done;
+			}
 			len = strnlen(pss_string, GET_PS_STRINGS_CHUNK_SZ);
 			if (done + len >= nchr)
 				len = nchr - done - 1;
