@@ -430,6 +430,7 @@ vmspace_rwmem(struct vmspace *vm, struct uio *uio)
 	vm_map_t map;
 	vm_offset_t pageno;		/* page number */
 	vm_prot_t reqprot;
+	ssize_t orig_resid;
 	int error, fault_flags, page_offset, writing;
 
 	map = &vm->vm_map;
@@ -442,6 +443,8 @@ vmspace_rwmem(struct vmspace *vm, struct uio *uio)
 	writing = uio->uio_rw == UIO_WRITE;
 	reqprot = writing ? VM_PROT_COPY | VM_PROT_READ : VM_PROT_READ;
 	fault_flags = writing ? VM_FAULT_DIRTY : VM_FAULT_NORMAL;
+
+	orig_resid = uio->uio_resid;
 
 	/*
 	 * Only map in one page at a time.  We don't have to, but it
@@ -497,8 +500,8 @@ vmspace_rwmem(struct vmspace *vm, struct uio *uio)
 		vm_page_unwire(m, PQ_ACTIVE);
 
 	} while (error == 0 && uio->uio_resid > 0);
+	return (uio->uio_resid == orig_resid ? error : 0);
 
-	return (error);
 }
 
 int
