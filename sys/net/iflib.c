@@ -5285,6 +5285,7 @@ iflib_device_register(device_t dev, void *sc, if_shared_ctx_t sctx, if_ctx_t *ct
 		device_printf(dev, "using simple if_transmit\n");
 #else
 		device_printf(dev, "ALTQ prevents using simple if_transmit\n");
+		ctx->ifc_sysctl_simple_tx = 0;
 #endif
 	}
 	iflib_reset_qvalues(ctx);
