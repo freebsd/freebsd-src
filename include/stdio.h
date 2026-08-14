@@ -220,6 +220,10 @@ __END_DECLS
 #endif
 #define	FILENAME_MAX	1024	/* must be <= PATH_MAX <sys/syslimits.h> */
 
+#if __ISO_C_VISIBLE >= 2023
+#define _PRINTF_NAN_LEN_MAX	3
+#endif
+
 /* System V/ANSI C; this is the wrong way to do this, do *not* use these. */
 #if __XSI_VISIBLE
 #define	P_tmpdir	"/tmp/"
