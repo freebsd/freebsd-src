@@ -151,7 +151,7 @@ busdma_sysctl_tree_top(struct bounce_zone *bz)
  * Returns true if the address falls within the tag's exclusion window, or
  * fails to meet its alignment requirements.
  */
-static bool
+static inline bool
 addr_needs_bounce(bus_dma_tag_t dmat, bus_addr_t paddr)
 {
 
