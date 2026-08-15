@@ -64,6 +64,9 @@
 })
 #endif
 
+unsigned long linuxkpi_int_sqrt(unsigned long val);
+#define	int_sqrt(x)	linuxkpi_int_sqrt(x)
+
 static inline uintmax_t
 mult_frac(uintmax_t x, uintmax_t multiplier, uintmax_t divisor)
 {
