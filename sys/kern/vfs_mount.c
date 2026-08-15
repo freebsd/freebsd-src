@@ -2324,11 +2324,12 @@ dounmount(struct mount *mp, uint64_t flags, struct thread *td)
 		}
 
 		/*
-		 * For some complex nullfs mount configurations, it is
-		 * possible to get the covered vnode lock for the
-		 * mount shared with some inside-mount vnode lock.
-		 * Then at unmount time, vflush() would recurse on the
-		 * covered vnode lock when reclaiming the vnode.
+		 * For stacked filesystems such as nullfs and unionfs,
+		 * it is possible for the covered vnode lock for the
+		 * mount to be shared with one of the vnodes belonging
+		 * to the mount. At unmount time, vflush() will then
+		 * recurse on the covered vnode lock when reclaiming
+		 * the vnode.
 		 *
 		 * To work around it, temprorarily allow recursion for
 		 * the covered vnode lock.
