@@ -592,7 +592,7 @@ static void _pmap_unwire_l3(pmap_t pmap, vm_offset_t va, vm_page_t m,
     struct spglist *free);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t, struct spglist *);
 static void pmap_update_entry(pmap_t pmap, pd_entry_t *pte, pd_entry_t newpte,
-    vm_offset_t va, vm_size_t size);
+    vm_offset_t va, vm_size_t size, bool final_only);
 static __inline vm_page_t pmap_remove_pt_page(pmap_t pmap, vm_offset_t va);
 
 static uma_zone_t pmap_bti_ranges_zone;
@@ -2646,7 +2646,7 @@ pmap_kenter(vm_offset_t sva, vm_size_t size, vm_paddr_t pa, int mode)
 				 */
 				pmap_update_entry(kernel_pmap, pde,
 				    PHYS_TO_PTE(pa) | attr | L2_BLOCK, va,
-				    PAGE_SIZE);
+				    PAGE_SIZE, false);
 			}
 			PMAP_UNLOCK(kernel_pmap);
 			if (error == 0) {
@@ -5081,11 +5081,15 @@ pmap_remove_pt_page(pmap_t pmap, vm_offset_t va)
 /*
  * Performs a break-before-make update of a pmap entry. This is needed when
  * either promoting or demoting pages to ensure the TLB doesn't get into an
- * inconsistent state.
+ * inconsistent state.  The caller must pass false for "final_only" when
+ * promoting, because the TLB might be caching an intermediate entry that
+ * references the L{1,2}_TABLE that is being replaced.  In contrast, when
+ * demoting or the PTE's type isn't changing, no cached intermediate entry
+ * needs to change, so the caller should pass true as an optimization.
  */
-static void
+static __always_inline void
 pmap_update_entry(pmap_t pmap, pd_entry_t *ptep, pd_entry_t newpte,
-    vm_offset_t va, vm_size_t size)
+    vm_offset_t va, vm_size_t size, bool final_only)
 {
 	register_t intr;
 
@@ -5108,11 +5112,10 @@ pmap_update_entry(pmap_t pmap, pd_entry_t *ptep, pd_entry_t newpte,
 	pmap_clear_bits(ptep, ATTR_DESCR_VALID);
 
 	/*
-	 * When promoting, the L{1,2}_TABLE entry that is being replaced might
-	 * be cached, so we invalidate intermediate entries as well as final
-	 * entries.
+	 * We always inline pmap_update_entry() so that constant propagation
+	 * and dead code elimination will specialize the following code.
 	 */
-	pmap_s1_invalidate_range(pmap, va, va + size, false);
+	pmap_s1_invalidate_range(pmap, va, va + size, final_only);
 
 	/* Create the new mapping */
 	pmap_store(ptep, newpte);
@@ -5346,7 +5349,8 @@ setl3:
 	if ((newl2 & ATTR_SW_MANAGED) != 0)
 		pmap_pv_promote_l2(pmap, va, PTE_TO_PHYS(newl2), lockp);
 
-	pmap_update_entry(pmap, l2, newl2 | L2_BLOCK, va & ~L2_OFFSET, L2_SIZE);
+	pmap_update_entry(pmap, l2, newl2 | L2_BLOCK, va & ~L2_OFFSET, L2_SIZE,
+	    false);
 
 	counter_u64_add(pmap_l2_promotions, 1);
 	CTR2(KTR_PMAP, "pmap_promote_l2: success for va %#lx in pmap %p", va,
@@ -8735,7 +8739,7 @@ pmap_change_props_locked(void *addr, vm_size_t size, vm_prot_t prot,
 				 * performed.
 				 */
 				pmap_update_entry(kernel_pmap, ptep, pte, tmpva,
-				    PAGE_SIZE);
+				    PAGE_SIZE, true);
 				break;
 			}
 
@@ -8847,7 +8851,7 @@ pmap_demote_l1(pmap_t pmap, pt_entry_t *l1, vm_offset_t va)
 		l1 = (pt_entry_t *)(tmpl1 + ((vm_offset_t)l1 & PAGE_MASK));
 	}
 
-	pmap_update_entry(pmap, l1, l2phys | L1_TABLE, va, PAGE_SIZE);
+	pmap_update_entry(pmap, l1, l2phys | L1_TABLE, va, PAGE_SIZE, true);
 
 	counter_u64_add(pmap_l1_demotions, 1);
 fail:
@@ -9057,7 +9061,7 @@ pmap_demote_l2_locked(pmap_t pmap, pt_entry_t *l2, vm_offset_t va,
 	 * Pass PAGE_SIZE so that a single TLB invalidation is performed on
 	 * the 2MB page mapping.
 	 */
-	pmap_update_entry(pmap, l2, l3phys | L2_TABLE, va, PAGE_SIZE);
+	pmap_update_entry(pmap, l2, l3phys | L2_TABLE, va, PAGE_SIZE, true);
 
 	/*
 	 * Demote the PV entry.
