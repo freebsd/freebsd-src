@@ -7079,6 +7079,28 @@ pcie_apei_error(device_t dev, int sev, uint8_t *aerp)
 }
 
 /*
+ * Return true if the device supports FLR, taking both its advertised
+ * capability and the PCI quirk policy into account.
+ */
+bool
+pcie_flr_supported(device_t dev)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
+	int cap;
+
+	cap = dinfo->cfg.pcie.pcie_location;
+	if (cap == 0)
+		return (false);
+
+	if (!(pci_read_config(dev, cap + PCIER_DEVICE_CAP, 4) & PCIEM_CAP_FLR) &&
+	    !pci_has_quirk(pci_get_devid(dev), PCI_QUIRK_ENABLE_FLR))
+		return (false);
+	if (pci_has_quirk(pci_get_devid(dev), PCI_QUIRK_DISABLE_FLR))
+		return (false);
+	return (true);
+}
+
+/*
  * Perform a Function Level Reset (FLR) on a device.
  *
  * This function first waits for any pending transactions to complete
@@ -7102,15 +7124,10 @@ pcie_flr(device_t dev, u_int max_delay, bool force)
 	int compl_delay;
 	int cap;
 
-	cap = dinfo->cfg.pcie.pcie_location;
-	if (cap == 0)
+	if (!pcie_flr_supported(dev))
 		return (false);
 
-	if (!(pci_read_config(dev, cap + PCIER_DEVICE_CAP, 4) & PCIEM_CAP_FLR) &&
-	    !pci_has_quirk(pci_get_devid(dev), PCI_QUIRK_ENABLE_FLR))
-		return (false);
-	if (pci_has_quirk(pci_get_devid(dev), PCI_QUIRK_DISABLE_FLR))
-		return (false);
+	cap = dinfo->cfg.pcie.pcie_location;
 
 	/*
 	 * Disable busmastering to prevent generation of new
