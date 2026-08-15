@@ -266,7 +266,7 @@ public int pipe_mark(char c, constant char *cmd)
 
 	if (c == '.') 
 		return (pipe_data(cmd, tpos, bpos));
-	else if (mpos <= tpos)
+	else if (mpos < tpos)
 		return (pipe_data(cmd, mpos, bpos));
 	else if (bpos == NULL_POSITION)
 		return (pipe_data(cmd, tpos, bpos));

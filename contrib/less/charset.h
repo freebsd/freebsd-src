@@ -16,3 +16,5 @@
 #define IS_UTF8_LEAD6(c)    (((c) & 0xFE) == 0xFC)
 #define IS_UTF8_INVALID(c)  (((c) & 0xFE) == 0xFE)
 #define IS_UTF8_LEAD(c)     (((c) & 0xC0) == 0xC0 && !IS_UTF8_INVALID(c))
+
+#define MAX_UNICODE         0x10FFFF

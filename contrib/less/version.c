@@ -1077,7 +1077,40 @@ v691  1/10/26   Fix mingw build.
 v692  1/29/26   Fix memory leak in setupterm; clear termio ICRNL|INLCR;
                 fix bug with negative value in -z; fix bug with empty 
                 terminfo caps; make lesstest ignore nl_langinfo;
-				revert HOME/END to g/G; add keys & cmds to lesskey parser.
+                revert HOME/END to g/G; add keys & cmds to lesskey parser.
+v693  2/14/26   Fix binary file with redirected stdout; fix error messages
+                with redirected stdout; fix buffer overrun with malformed
+                lesskey file; fix bad scrolling past EOF; fix command
+                parser bugs; fix -D bug when no color specified; add -DT;
+                make -w/-W hilite on backward movement; show pattern in
+                "not found" message.
+v694  3/24/26   | cmd pipes 1 line if mark is top line; allow numeric arg
+                on m/M cmds; support POSIX char classes with built-in regex;
+                don't retry read after error; fix crash with bad tags file;
+                add --past-eof; add --emouse; fix restore mark if not at top;
+                don't save cleared marks.
+v695  4/3/26    Fix build if tparm doesn't use varargs; fix prompt overflow
+                with & filtering; fix hilite when change -i with & filtering;
+                add --end-prompt; install lessecho in libexecdir; change mark
+                cmds to take file line number not screen line; add numeric
+                arg to ' cmd; add %O and ?o to prompts; fix
+                --show-preproc-error with some shells.
+v696  4/3/26    Doc.
+v697  4/19/26   Fix bug using PCRE2 with more than 5 parentheses; discard
+                pending keys when interrupt with ^X; fix bad display with
+                LESS_LINES.
+v698  4/23/26   Fix bad display after message in narrow terminal; replace
+                LESS_OSC8_xxx with LESS_OSC8_OPEN_xxx; add \kpe to lesskey.
+v699  4/23/26   Add less-osc8-*.bash files to distribution.
+v700  4/30/26   Add \kpe to lesskey; improve less-osc8-* scripts.
+v701  5/13/26   Replace less-osc-*.bash with less-osc8-open.sh; don't init
+                terminal if stdout is not tty; fix bug clicking OSC 8 link
+                in a long line; fix misread chars on Windows; remove %O.
+v702  5/22/26   Doc.
+v703  5/30/26   Fix handling unsafe man options in OSC 8 link; fix unsafe
+                handling of unterminated OSC seq; shell-escape expansion
+                of % and #.
+v704  5/30/26   Fix uninstall target in Makefile.
 */
 
-char version[] = "692";
+char version[] = "704";

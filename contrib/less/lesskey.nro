@@ -1,5 +1,5 @@
 '\" t
-.TH LESSKEY 1 "29 Jan 2026" "less 692"
+.TH LESSKEY 1 "30 May 2026" "less 704"
 .\" Define a string for the caret ("hat") as portably as possible.
 .ie \n(.g .ds ^ \(ha
 .el       .ds ^ ^
@@ -148,6 +148,7 @@ l l.
 \ekp+	+ on the numeric keypad
 \ekp.	. on the numeric keypad
 \ekp,	, on the numeric keypad
+\ekpe	ENTER on the numeric keypad
 .TE
 .RE
 .PP

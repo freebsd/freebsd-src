@@ -80,7 +80,7 @@ static void init_status_col(POSITION base_pos, POSITION disp_pos, POSITION edisp
  * a line.  The new position is the position of the first character
  * of the NEXT line.  The line obtained is the line starting at curr_pos.
  */
-public POSITION forw_line_seg(POSITION curr_pos, lbool skipeol, lbool rscroll, lbool nochop, POSITION *p_linepos, lbool *p_newline)
+public POSITION forw_line_seg(POSITION curr_pos, lbool skipeol, lbool rscroll, lbool nochop, lbool full_pad, lbool rforw, POSITION *p_linepos, lbool *p_newline)
 {
 	POSITION base_pos;
 	POSITION new_pos;
@@ -245,7 +245,7 @@ get_forw_line:
 				} while (c != '\n' && c != EOI);
 				new_pos = ch_tell();
 				endline = TRUE;
-				quit_if_one_screen = FALSE;
+				quit_if_one_screen = 0;
 				chopped = TRUE;
 			} else
 			{
@@ -306,7 +306,7 @@ get_forw_line:
 		pappend_b(' ', ch_tell()-1, TRUE);
 	}
 #endif
-	pdone(endline, rscroll && chopped, TRUE);
+	pdone(endline, rscroll && chopped, rforw, full_pad);
 
 #if HILITE_SEARCH
 	if (is_filtered(base_pos))
@@ -345,7 +345,7 @@ get_forw_line:
 
 public POSITION forw_line(POSITION curr_pos, POSITION *p_linepos, lbool *p_newline)
 {
-	return forw_line_seg(curr_pos, (chop_line() || hshift > 0), TRUE, FALSE, p_linepos, p_newline);
+	return forw_line_seg(curr_pos, (chop_line() || hshift > 0), TRUE, FALSE, FALSE, TRUE, p_linepos, p_newline);
 }
 
 /*
@@ -501,7 +501,7 @@ get_back_line:
 			{
 				endline = TRUE;
 				chopped = TRUE;
-				quit_if_one_screen = FALSE;
+				quit_if_one_screen = 0;
 				edisp_pos = new_pos;
 				break;
 			}
@@ -568,7 +568,7 @@ get_back_line:
 		}
 	}
 
-	pdone(endline, chopped, FALSE);
+	pdone(endline, chopped, FALSE, FALSE);
 
 #if HILITE_SEARCH
 	if (is_filtered(base_pos))
