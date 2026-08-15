@@ -418,6 +418,12 @@ unlock_page(struct page *page)
 	vm_page_xunbusy(page);
 }
 
+static inline void
+split_page(struct page *page, unsigned int order)
+{
+	pr_debug("%s: TODO\n", __func__);
+}
+
 extern int is_vmalloc_addr(const void *addr);
 void si_meminfo(struct sysinfo *si);
 
