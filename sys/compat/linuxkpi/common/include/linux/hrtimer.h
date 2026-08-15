@@ -55,10 +55,19 @@ struct hrtimer {
 #define	hrtimer_try_to_cancel(hrtimer)	linux_hrtimer_try_to_cancel(hrtimer)
 #define	hrtimer_cancel(hrtimer)	linux_hrtimer_cancel(hrtimer)
 
+/* hrtimer_init() is replaced by hrtimer_setup() in Linux 6.15. */
+#if defined(LINUXKPI_VERSION) && LINUXKPI_VERSION < 61500
 #define	hrtimer_init(hrtimer, clock, mode) do {			\
 	CTASSERT((clock) == CLOCK_MONOTONIC);			\
 	CTASSERT((mode) == HRTIMER_MODE_REL);			\
 	linux_hrtimer_init(hrtimer);				\
+} while (0)
+#endif
+
+#define	hrtimer_setup(hrtimer, restart, clock, mode) do {	\
+	CTASSERT((clock) == CLOCK_MONOTONIC);			\
+	CTASSERT((mode) == HRTIMER_MODE_REL);			\
+	linuxkpi_hrtimer_setup(hrtimer, restart);		\
 } while (0)
 
 #define	hrtimer_set_expires(hrtimer, time)			\
@@ -81,10 +90,20 @@ struct hrtimer {
 bool	linux_hrtimer_active(struct hrtimer *);
 int	linux_hrtimer_try_to_cancel(struct hrtimer *);
 int	linux_hrtimer_cancel(struct hrtimer *);
+/*
+ * The corresponding `hrtimer_init()` was dropped in Linux 6.15, thus the "#if
+ * LINUXKPI_VERSION < 61500" above. We keep this prototype here though because
+ * the underlying `linux_hrtimer_init()` is used by `linuxkpi_hrtimer_setup()`.
+ */
 void	linux_hrtimer_init(struct hrtimer *);
+void	linuxkpi_hrtimer_setup(struct hrtimer *hrtimer,
+	    enum hrtimer_restart (*function)(struct hrtimer *));
 void	linux_hrtimer_set_expires(struct hrtimer *, ktime_t);
 void	linux_hrtimer_start(struct hrtimer *, ktime_t);
 void	linux_hrtimer_start_range_ns(struct hrtimer *, ktime_t, int64_t);
 void	linux_hrtimer_forward_now(struct hrtimer *, ktime_t);
+
+enum hrtimer_restart linuxkpi_hrtimer_dummy_timeout(struct hrtimer *unused);
+#define	hrtimer_dummy_timeout(hrtimer) linuxkpi_hrtimer_dummy_timeout(hrtimer)
 
 #endif /* _LINUXKPI_LINUX_HRTIMER_H_ */
