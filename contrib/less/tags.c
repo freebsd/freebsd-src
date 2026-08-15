@@ -321,8 +321,14 @@ static enum tag_result findctag(constant char *tag)
 		 * First see if it is a line number. 
 		 */
 		tagendline = FALSE;
-		if (getnum(&p, NULL, FALSE, &n))
+		if (getnum(&p, NULL, FALSE, &n)) {
+			/*
+			 * Line numbers start from 1.
+			 */
+			if (n == 0)
+				continue;
 			taglinenum = n;
+		}
 		else
 		{
 			/*

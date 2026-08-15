@@ -34,11 +34,11 @@
 #include "lesskey.h"
 
 extern int erase_char, erase2_char, kill_char;
-extern int mousecap;
+extern int emouse;
+extern int mouse_reverse;
+extern int hshift;
 extern int sc_height;
 extern char *no_config;
-
-static constant lbool allow_drag = TRUE;
 
 #if USERFILE
 /* "content" is lesskey source, never binary. */
@@ -286,17 +286,19 @@ static unsigned char edittable[] =
 	ESC,'[','2','0','1','~',0,      A_END_PASTE,    /* close paste bracket */
 };
 
-static unsigned char dflt_vartable[] =
+/*
+ * Default environment variables.
+ * Note: "\201" is (A_EXTRA|EV_OK).
+ */
+static char dflt_vartable[] =
 {
-	'L','E','S','S','_','O','S','C','8','_','m','a','n', 0, EV_OK|A_EXTRA,
-		/* echo '%o' | sed -e "s,^man\:\\([^(]*\\)( *\\([^)]*\\)\.*,-man '\\2' '\\1'," -e"t X" -e"s,\.*,-echo Invalid man link," -e"\: X" */
-		'e','c','h','o',' ','\'','%','o','\'',' ','|',' ','s','e','d',' ','-','e',' ','"','s',',','^','m','a','n','\\',':','\\','\\','(','[','^','(',']','*','\\','\\',')','(',' ','*','\\','\\','(','[','^',')',']','*','\\','\\',')','\\','.','*',',','-','m','a','n',' ','\'','\\','\\','2','\'',' ','\'','\\','\\','1','\'',',','"',' ','-','e','"','t',' ','X','"',' ','-','e','"','s',',','\\','.','*',',','-','e','c','h','o',' ','I','n','v','a','l','i','d',' ','m','a','n',' ','l','i','n','k',',','"',' ','-','e','"','\\',':',' ','X','"',
-		0,
-
-	'L','E','S','S','_','O','S','C','8','_','f','i','l','e', 0, EV_OK|A_EXTRA,
-		/* eval `echo '%o' | sed -e "s,^file://\\([^/]*\\)\\(.*\\),_H=\\1;_P=\\2;_E=0," -e"t X" -e"s,.*,_E=1," -e": X"`; if [ "$_E" = 1 ]; then echo -echo Invalid file link; elif [ -z "$_H" -o "$_H" = localhost -o "$_H" = $HOSTNAME ]; then echo ":e $_P"; else echo -echo Cannot open remote file on "$_H"; fi */
-		'e','v','a','l',' ','`','e','c','h','o',' ','\'','%','o','\'',' ','|',' ','s','e','d',' ','-','e',' ','"','s',',','^','f','i','l','e','\\',':','/','/','\\','\\','(','[','^','/',']','*','\\','\\',')','\\','\\','(','\\','.','*','\\','\\',')',',','_','H','=','\\','\\','1',';','_','P','=','\\','\\','2',';','_','E','=','0',',','"',' ','-','e','"','t',' ','X','"',' ','-','e','"','s',',','\\','.','*',',','_','E','=','1',',','"',' ','-','e','"','\\',':',' ','X','"','`',';',' ','i','f',' ','[',' ','"','$','_','E','"',' ','=',' ','1',' ',']',';',' ','t','h','e','n',' ','e','c','h','o',' ','-','e','c','h','o',' ','I','n','v','a','l','i','d',' ','f','i','l','e',' ','l','i','n','k',';',' ','e','l','i','f',' ','[',' ','-','z',' ','"','$','_','H','"',' ','-','o',' ','"','$','_','H','"',' ','=',' ','l','o','c','a','l','h','o','s','t',' ','-','o',' ','"','$','_','H','"',' ','=',' ','$','H','O','S','T','N','A','M','E',' ',']',';',' ','t','h','e','n',' ','e','c','h','o',' ','"','\\',':','e',' ','$','_','P','"',';',' ','e','l','s','e',' ','e','c','h','o',' ','-','e','c','h','o',' ','C','a','n','n','o','t',' ','o','p','e','n',' ','r','e','m','o','t','e',' ','f','i','l','e',' ','o','n',' ','"','$','_','H','"',';',' ','f','i',
-		0,
+	"LESS_OSC8_OPEN_ANY\0\201"
+#ifdef LIBEXECDIR
+		"-" LIBEXECDIR "/less-osc8-open"
+#else
+		"-less-osc8-open"
+#endif
+		"\0"
 };
 
 /*
@@ -317,6 +319,9 @@ static struct tablelist *list_ecmd_tables = NULL;
 static struct tablelist *list_var_tables = NULL;
 static struct tablelist *list_sysvar_tables = NULL;
 
+#if USERFILE
+static struct tablelist * find_stop_table(struct tablelist *t);
+#endif
 
 /*
  * Expand special key abbreviations in a command table.
@@ -335,7 +340,7 @@ static void expand_special_keys(unsigned char *table, size_t len)
 		 * Rewrite each command in the table with any
 		 * special key abbreviations expanded.
 		 */
-		for (to = fm;  *fm != '\0'; )
+		for (to = fm;  fm < table + len && *fm != '\0'; )
 		{
 			if (*fm != SK_SPECIAL_KEY)
 			{
@@ -352,7 +357,7 @@ static void expand_special_keys(unsigned char *table, size_t len)
 			 * output by the special key on this terminal.
 			 */
 			repl = special_key_str(fm[1]);
-			klen = fm[2] & 0377;
+			klen = fm[2];
 			fm += klen;
 			if (repl == NULL || strlen(repl) > klen)
 				repl = "\377";
@@ -367,10 +372,10 @@ static void expand_special_keys(unsigned char *table, size_t len)
 		while (to <= fm)
 			*to++ = A_SKIP;
 		fm++;
-		a = *fm++ & 0377;
+		a = *fm++;
 		if (a & A_EXTRA)
 		{
-			while (*fm++ != '\0')
+			while (fm < table + len && *fm++ != '\0')
 				continue;
 		}
 	}
@@ -404,12 +409,15 @@ public void expand_cmd_tables(void)
  */
 public void init_cmds(void)
 {
+	struct tablelist *t;
+	unsigned char *udflt_vartable = (unsigned char *) dflt_vartable;
+
 	/*
 	 * Add the default command tables.
 	 */
 	add_fcmd_table(cmdtable, sizeof(cmdtable));
 	add_ecmd_table(edittable, sizeof(edittable));
-	add_sysvar_table(dflt_vartable, sizeof(dflt_vartable));
+	add_sysvar_table(udflt_vartable, sizeof(dflt_vartable));
 #if USERFILE
 #ifdef BINDIR /* For backwards compatibility */
 	/* Try to add tables in the OLD system lesskey file. */
@@ -449,6 +457,16 @@ public void init_cmds(void)
 	
 	add_content_table(lesskey_content, "LESSKEY_CONTENT_SYSTEM", TRUE);
 	add_content_table(lesskey_content, "LESSKEY_CONTENT", FALSE);
+
+	/*
+	 * If any command table contains a #stop directive, discard all other tables.
+	 */
+	t = find_stop_table(list_fcmd_tables);
+	if (t != NULL)
+	{
+		t->t_next = NULL;
+		list_fcmd_tables = t;
+	}
 #endif /* USERFILE */
 }
 
@@ -555,7 +573,9 @@ public void add_sysvar_table(unsigned char *buf, size_t len)
  */
 static int mouse_wheel_down(void)
 {
-	return ((mousecap == OPT_ONPLUS) ? A_B_MOUSE : A_F_MOUSE);
+	if (!(emouse & EMOUSE_VSCROLL))
+		return A_NOACTION;
+	return mouse_reverse ? A_B_MOUSE : A_F_MOUSE;
 }
 
 /*
@@ -563,7 +583,29 @@ static int mouse_wheel_down(void)
  */
 static int mouse_wheel_up(void)
 {
-	return ((mousecap == OPT_ONPLUS) ? A_F_MOUSE : A_B_MOUSE);
+	if (!(emouse & EMOUSE_VSCROLL))
+		return A_NOACTION;
+	return mouse_reverse ? A_F_MOUSE : A_B_MOUSE;
+}
+
+/*
+ * Return action for a mouse wheel left event.
+ */
+static int mouse_wheel_left(void)
+{
+	if (!(emouse & EMOUSE_HSCROLL))
+		return A_NOACTION;
+	return mouse_reverse ? A_R_MOUSE : A_L_MOUSE;
+}
+
+/*
+ * Return action for a mouse wheel right event.
+ */
+static int mouse_wheel_right(void)
+{
+	if (!(emouse & EMOUSE_HSCROLL))
+		return A_NOACTION;
+	return mouse_reverse ? A_L_MOUSE : A_R_MOUSE;
 }
 
 /*
@@ -571,32 +613,48 @@ static int mouse_wheel_up(void)
  */
 static int mouse_button_left(int x, int y, lbool down, lbool drag)
 {
+	static int last_drag_x = -1;
 	static int last_drag_y = -1;
 	static int last_click_y = -1;
 
 	if (down && !drag)
 	{
+		last_drag_x = x;
 		last_drag_y = last_click_y = y;
 	}
-	if (allow_drag && drag && last_drag_y >= 0)
+	if (drag)
 	{
-		/* Drag text up/down */
-		if (y > last_drag_y)
-		{
+		if ((emouse & EMOUSE_HDRAG) && last_drag_x >= 0 && x != last_drag_x) {
+			/* Drag text left/right */
+			pos_rehead(FALSE);
+			if (hshift < x - last_drag_x)
+				hshift = 0;
+			else
+				hshift -= x - last_drag_x;
+			screen_trashed();
 			cmd_exec();
-			backward(y - last_drag_y, FALSE, FALSE, FALSE);
-			last_drag_y = y;
-		} else if (y < last_drag_y)
-		{
-			cmd_exec();
-			forward(last_drag_y - y, FALSE, FALSE, FALSE);
-			last_drag_y = y;
+			last_drag_x = x;
 		}
-	} else if (!down)
+		if ((emouse & EMOUSE_VDRAG) && last_drag_y >= 0) {
+			/* Drag text up/down */
+			if (y > last_drag_y)
+			{
+				cmd_exec();
+				backward(y - last_drag_y, FALSE, FALSE, FALSE);
+				last_drag_y = y;
+			} else if (y < last_drag_y)
+			{
+				cmd_exec();
+				forward(last_drag_y - y, FALSE, FALSE, FALSE);
+				last_drag_y = y;
+			}
+		}
+	} else if ((emouse & EMOUSE_LCLICK) && !down)
 	{
 #if OSC8_LINK
 		if (secure_allow(SF_OSC8_OPEN))
 		{
+			cmd_exec();
 			if (osc8_click(y, x))
 				return (A_NOACTION);
 		}
@@ -605,7 +663,8 @@ static int mouse_button_left(int x, int y, lbool down, lbool drag)
 #endif /* OSC8_LINK */
 		if (y < sc_height-1 && y == last_click_y)
 		{
-			setmark('#', y);
+			cmd_exec();
+			setmark('#', y, 0);
 			screen_trashed();
 		}
 	}
@@ -622,9 +681,11 @@ static int mouse_button_right(int x, int y, lbool down, lbool drag)
 	 * {{ unlike mouse_button_left, we could return an action,
 	 *    but keep it near mouse_button_left for readability. }}
 	 */
+	if (!(emouse & EMOUSE_RCLICK))
+		return (A_NOACTION);
 	if (!down && y < sc_height-1)
 	{
-		gomark('#');
+		gomark('#', 0);
 		screen_trashed();
 	}
 	return (A_NOACTION);
@@ -686,6 +747,10 @@ static int x11mouse_action(lbool skip)
 		return mouse_wheel_down();
 	case X11MOUSE_WHEEL_UP:
 		return mouse_wheel_up();
+	case X11MOUSE_WHEEL_LEFT:
+		return mouse_wheel_left();
+	case X11MOUSE_WHEEL_RIGHT:
+		return mouse_wheel_right();
 	case X11MOUSE_BUTTON1:
 	case X11MOUSE_BUTTON2:
 	case X11MOUSE_BUTTON3:
@@ -720,6 +785,10 @@ static int x116mouse_action(lbool skip)
 		return mouse_wheel_down();
 	case X11MOUSE_WHEEL_UP:
 		return mouse_wheel_up();
+	case X11MOUSE_WHEEL_LEFT:
+		return mouse_wheel_left();
+	case X11MOUSE_WHEEL_RIGHT:
+		return mouse_wheel_right();
 	case X11MOUSE_BUTTON1:
 	case X11MOUSE_BUTTON2:
 	case X11MOUSE_BUTTON3: {
@@ -776,82 +845,95 @@ static constant unsigned char * cmd_next_entry(constant unsigned char *entry, mu
 }
 
 /*
- * Search a single command table for the command string in cmd.
+ * Does a command table contain a #stop directive?
  */
-static int cmd_search(constant char *cmd, constant unsigned char *table, constant unsigned char *endtable, constant unsigned char **extra, size_t *mlen)
+static lbool table_has_stop(struct tablelist *t)
 {
-	int action = A_INVALID;
-	size_t match_len = 0;
-	if (extra != NULL)
-		*extra = NULL;
-	while (table < endtable)
+	constant unsigned char *entry = t->t_start;
+
+	while (entry < t->t_end)
 	{
-		int taction;
-		constant unsigned char *textra;
-		size_t cmdlen;
-		size_t match = cmd_match((constant char *) table, cmd);
-		table = cmd_next_entry(table, &taction, &textra, &cmdlen);
-		if (taction == A_END_LIST)
-			return (-action);
-		if (match >= match_len)
-		{
-			if (match == cmdlen) /* (last chars of) cmd matches this table entry */
-			{
-				action = taction;
-				if (extra != NULL)
-					*extra = textra;
-			} else if (match > 0 && action == A_INVALID) /* cmd is a prefix of this table entry */
-			{
-				action = A_PREFIX;
-			}
-			match_len = match;
-		}
+		int action;
+		entry = cmd_next_entry(entry, &action, NULL, NULL);
+		if (action == A_END_LIST)
+			return TRUE;
 	}
-	if (mlen != NULL)
-		*mlen = match_len;
-	return (action);
+	return FALSE;
 }
 
 /*
- * Decode a command character and return the associated action.
- * The "extra" string, if any, is returned in sp.
+ * Find the first command table with a #stop directive, if any.
  */
-static int cmd_decode(struct tablelist *tlist, constant char *cmd, constant char **sp)
+static struct tablelist * find_stop_table(struct tablelist *t)
 {
-	struct tablelist *t;
+	for (;  t != NULL;  t = t->t_next)
+	{
+		if (table_has_stop(t))
+			return t;
+	}
+	return NULL;
+}
+
+/*
+ * Search a single command table for the command string in cmd.
+ */
+static int cmd_decode(struct tablelist *tlist, constant char *cmd, lbool anchored, constant char **extra)
+{
 	int action = A_INVALID;
 	size_t match_len = 0;
+	constant unsigned char *table = NULL;
+	constant unsigned char *endtable;
 
-	/*
-	 * Search for the cmd thru all the command tables.
-	 * If we find it more than once, take the last one.
-	 */
-	*sp = NULL;
-	for (t = tlist;  t != NULL;  t = t->t_next)
+	if (extra != NULL)
+		*extra = NULL;
+	while (tlist != NULL)
 	{
-		constant unsigned char *tsp;
-		size_t mlen = match_len;
-		int taction = cmd_search(cmd, t->t_start, t->t_end, &tsp, &mlen);
-		if (mlen >= match_len)
+		int taction;
+		constant unsigned char *textra;
+		size_t tcmdlen;
+		size_t tmatch;
+		if (table == NULL)
 		{
-			match_len = mlen;
-			if (taction != A_INVALID)
+			/* Beginning of table: set start/end pointers. */
+			table = tlist->t_start;
+			endtable = tlist->t_end;
+		}
+		if (anchored)
+			tmatch = (strcmp((constant char *) table, cmd) == 0) ? strlen(cmd) : 0;
+		else
+			tmatch = cmd_match((constant char *) table, cmd);
+		table = cmd_next_entry(table, &taction, &textra, &tcmdlen);
+		if (table >= endtable)
+		{
+			/* End of table; move to next table. */
+			tlist = tlist->t_next;
+			table = NULL;
+		}
+		if (taction == A_END_LIST)
+			break;
+		if (tmatch >= match_len)
+		{
+			if (tmatch == tcmdlen)
 			{
-				*sp = (constant char *) tsp;
-				if (taction < 0)
-				{
-					action = -taction;
-					break;
-				}
+				/* (Last chars of) cmd matches this table entry. */
 				action = taction;
+				if (extra != NULL)
+					*extra = (constant char *) textra;
+			} else if (tmatch > 0 && (tmatch > match_len || action == A_INVALID))
+			{
+				/* cmd is a prefix of this table entry */
+				action = A_PREFIX;
+				if (extra != NULL)
+					*extra = NULL;
 			}
+			match_len = tmatch;
 		}
 	}
 	if (action == A_X11MOUSE_IN)
 		action = x11mouse_action(FALSE);
 	else if (action == A_X116MOUSE_IN)
 		action = x116mouse_action(FALSE);
-	return (action);
+	return action;
 }
 
 /*
@@ -859,7 +941,7 @@ static int cmd_decode(struct tablelist *tlist, constant char *cmd, constant char
  */
 public int fcmd_decode(constant char *cmd, constant char **sp)
 {
-	return (cmd_decode(list_fcmd_tables, cmd, sp));
+	return (cmd_decode(list_fcmd_tables, cmd, FALSE, sp));
 }
 
 /*
@@ -867,7 +949,7 @@ public int fcmd_decode(constant char *cmd, constant char **sp)
  */
 public int ecmd_decode(constant char *cmd, constant char **sp)
 {
-	return (cmd_decode(list_ecmd_tables, cmd, sp));
+	return (cmd_decode(list_ecmd_tables, cmd, FALSE, sp));
 }
 
 /*
@@ -891,6 +973,78 @@ public lbool parse_csl(lbool (*func)(constant char *word, size_t wlen, void *arg
 		str = estr;
 	}
 	return TRUE;
+}
+
+/*
+ * Display error message for parse_csl_bitmap.
+ */
+static int csl_bitmap_error(constant char *pfx, constant char *type, size_t len, constant char *name)
+{
+	PARG parg;
+	size_t msglen = len + strlen(pfx) + strlen(type) + 32;
+	char *msg = ecalloc(msglen, sizeof(char));
+	SNPRINTF4(msg, msglen, "%s: %s name \"%.*s\"", pfx, type, (int) len, name);
+	parg.p_string = msg;
+	error("%s", &parg);
+	free(msg);
+	return 0;
+}
+
+/*
+ * Return the bit value of a csl_bitmap name.
+ */
+public int csl_bitmap_bit(constant char *name, size_t len, struct csl_bitmap_def *defs, int num_defs, constant char *pfx)
+{
+	int i;
+	int match = -1;
+
+	for (i = 0;  i < num_defs;  i++)
+	{
+		if (strncmp(defs[i].bit_name, name, len) == 0)
+		{
+			if (match >= 0) /* name is ambiguous */
+				return csl_bitmap_error(pfx, "ambiguous", len, name);
+			match = i;
+		}
+	}
+	if (match < 0)
+		return csl_bitmap_error(pfx, "invalid", len, name);
+	return defs[match].bit_value;
+}
+
+/* State for parse_csl_bitmap. */
+struct csl_bitmap_info
+{
+	int bitmap;                  /* bitmap being constructed */
+	struct csl_bitmap_def *def;  /* array of name/value pairs */
+	int num_defs;                /* length of def array */
+	constant char *pfx;          /* prefix for error messages */
+};
+
+/*
+ * Set a bit in a csl_bitmap_info based on a csl_bitmap name.
+ */
+static lbool csl_bitmap_set(constant char *word, size_t wlen, void *arg)
+{
+	struct csl_bitmap_info *info = (struct csl_bitmap_info *) arg;
+	info->bitmap |= csl_bitmap_bit(word, wlen, info->def, info->num_defs, info->pfx);
+	return TRUE;
+}
+
+/*
+ * Parse a comma-separated list of csl_bitmap names and return
+ * the combined bitmap value.
+ */
+public int parse_csl_bitmap(constant char *str, struct csl_bitmap_def *defs, int num_defs, constant char *pfx)
+{
+	struct csl_bitmap_info info;
+	info.bitmap = 0;
+	info.def = defs;
+	info.num_defs = num_defs;
+	info.pfx = pfx;
+	if (!parse_csl(csl_bitmap_set, str, &info))
+		return -1;
+	return info.bitmap;
 }
 
 /*
@@ -920,13 +1074,13 @@ public constant char * lgetenv(constant char *var)
 
 	if (ignore_env(var))
 		return (NULL);
-	a = cmd_decode(list_var_tables, var, &s);
+	a = cmd_decode(list_var_tables, var, TRUE, &s);
 	if (a == EV_OK)
 		return (s);
 	s = getenv(var);
 	if (s != NULL && *s != '\0')
 		return (s);
-	a = cmd_decode(list_sysvar_tables, var, &s);
+	a = cmd_decode(list_sysvar_tables, var, TRUE, &s);
 	if (a == EV_OK)
 		return (s);
 	return (NULL);

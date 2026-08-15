@@ -113,8 +113,8 @@ static struct mlist *curr_mlist = NULL;
 static int curr_cmdflags;
 
 static char cmd_mbc_buf[MAX_UTF_CHAR_LEN];
-static int cmd_mbc_buf_len;
-static int cmd_mbc_buf_index;
+static size_t cmd_mbc_buf_len;
+static size_t cmd_mbc_buf_index;
 
 
 /*
@@ -1330,7 +1330,7 @@ static int cmd_uchar(char c, size_t *plen)
 			goto retry;
 		}
 
-		*plen = (size_t) cmd_mbc_buf_len; /*{{type-issue}}*/
+		*plen = cmd_mbc_buf_len;
 		cmd_mbc_buf_len = 0;
 	}
 	return (CC_PASS);

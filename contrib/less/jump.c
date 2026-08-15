@@ -20,6 +20,9 @@ extern lbool squished;
 extern int sc_width, sc_height;
 extern int show_attn;
 extern int top_scroll;
+extern int quit_if_one_screen;
+extern lbool one_screen;
+extern lbool full_screen;
 extern POSITION header_start_pos;
 
 /*
@@ -188,15 +191,15 @@ static void after_header_message(void)
 {
 #if HAVE_TIME
 #define MSG_FREQ 1 /* seconds */
-    static time_type last_msg = (time_type) 0;
-    time_type now = get_time();
-    if (now < last_msg + MSG_FREQ)
-        return;
-    last_msg = now;
+	static time_type last_msg = (time_type) 0;
+	time_type now = get_time();
+	if (now < last_msg + MSG_FREQ)
+		return;
+	last_msg = now;
 #endif
-    lbell();
-    /* {{ This message displays before the file text is updated, which is not a good UX. }} */
-    /** error("Cannot display text before header; use --header=- to disable header", NULL_PARG); */
+	lbell();
+	/* {{ This message displays before the file text is updated, which is not a good UX. }} */
+	/** error("Cannot display text before header; use --header=- to disable header", NULL_PARG); */
 }
 
 /*
@@ -210,8 +213,8 @@ public POSITION after_header_pos(POSITION pos)
 {
 	if (header_start_pos != NULL_POSITION && pos < header_start_pos)
 	{
-        after_header_message();
-        pos = header_start_pos;
+		after_header_message();
+		pos = header_start_pos;
 	}
 	return pos;
 }
@@ -234,6 +237,14 @@ public void jump_loc(POSITION pos, int sline)
 	pos = after_header_pos(pos);
 	pos = next_unfiltered(pos);
 	sindex = sindex_from_sline(sline);
+
+	if (!full_screen && !(quit_if_one_screen && one_screen))
+	{
+		/* If not full screen, can't rely on scrolling logic below, since
+		 * "scrolling" may just print lines in the unused part of the screen. */
+		pos_clear();
+		lclear();
+	}
 
 	if ((nline = onscreen(pos)) >= 0)
 	{
