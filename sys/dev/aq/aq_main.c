@@ -109,6 +109,8 @@ static pci_vendor_info_t aq_vendor_info_array[] = {
 	    "Aquantia AQtion 5Gbit Network Adapter"),
 	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_D109,
 	    "Aquantia AQtion 2.5Gbit Network Adapter"),
+	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_D100,
+	    "Aquantia AQtion 10Gbit Network Adapter"),
 
 	PVID(AQUANTIA_VENDOR_ID, AQ_DEVICE_ID_AQC107,
 	    "Aquantia AQtion 10Gbit Network Adapter"),
