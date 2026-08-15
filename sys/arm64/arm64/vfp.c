@@ -679,8 +679,7 @@ vfp_restore_state_common(struct thread *td, int flags)
 
 	KASSERT(td == curthread, ("%s: Called with non-current thread",
 	    __func__));
-
-	critical_enter();
+	CRITICAL_ASSERT(td);
 
 	cpu = PCPU_GET(cpuid);
 	curpcb = td->td_pcb;
@@ -728,8 +727,6 @@ vfp_restore_state_common(struct thread *td, int flags)
 		PCPU_SET(fpcurthread, td);
 		curpcb->pcb_vfpcpu = cpu;
 	}
-
-	critical_exit();
 }
 
 void
@@ -738,7 +735,9 @@ vfp_restore_state(void)
 	struct thread *td;
 
 	td = curthread;
+	critical_enter();
 	vfp_restore_state_common(td, td->td_pcb->pcb_fpflags);
+	critical_exit();
 }
 
 bool
