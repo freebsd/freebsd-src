@@ -6,6 +6,7 @@
  */
 
 #include <sys/mount.h>
+#include <sys/sysctl.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/syslimits.h>
@@ -576,6 +577,70 @@ ATF_TC_CLEANUP(xdev, tc)
 	(void)unmount("dir/mnt", 0);
 }
 
+/*
+ * Return the number of open file descriptors in the current process
+ * via the kern.proc.nfds sysctl.
+ */
+static int
+count_open_fds(void)
+{
+	int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_NFDS, 0 };
+	int nfds;
+	size_t len = sizeof(nfds);
+
+	ATF_REQUIRE_EQ_MSG(0,
+	    sysctl(mib, nitems(mib), &nfds, &len, NULL, 0),
+	    "sysctl(kern.proc.nfds): %m");
+	return (nfds);
+}
+
+ATF_TC(no_fd_leak_on_early_close);
+ATF_TC_HEAD(no_fd_leak_on_early_close, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "fts_close must not leak directory fds when the traversal "
+	    "is abandoned before completion");
+}
+
+ATF_TC_BODY(no_fd_leak_on_early_close, tc)
+{
+	char *paths[] = { ".", NULL };
+	FTS *fts;
+	int fds_before, fds_after;
+
+	/*
+	 * Regression test for a file descriptor leak (bug 297557).
+	 * fts_build() stores a dup'd fd in each directory entry's
+	 * fts_dirfd.  If the traversal is abandoned partway through
+	 * and fts_close() is called, the cleanup loop must close
+	 * those fds; previously it freed the entries without closing
+	 * fts_dirfd, leaking one fd per pending directory.
+	 */
+	ATF_REQUIRE_EQ(0, mkdir("sub1", 0755));
+	ATF_REQUIRE_EQ(0, mkdir("sub1/deep", 0755));
+	ATF_REQUIRE_EQ(0, close(creat("sub1/deep/file", 0644)));
+
+	fds_before = count_open_fds();
+
+	/*
+	 * Open, descend a couple of levels, then abandon the traversal
+	 * and close.  The directory entries for '.' and 'sub1' hold
+	 * dup'd fds that must be released by fts_close().
+	 */
+	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL, NULL)) != NULL);
+	ATF_REQUIRE(fts_read(fts) != NULL);	/* . */
+	ATF_REQUIRE(fts_read(fts) != NULL);	/* sub1 */
+	ATF_REQUIRE(fts_read(fts) != NULL);	/* deep */
+	ATF_REQUIRE_EQ_MSG(0, fts_close(fts), "fts_close(): %m");
+
+	fds_after = count_open_fds();
+
+	ATF_CHECK_EQ_MSG(fds_before, fds_after,
+	    "fts_close leaked file descriptors: %d open before, "
+	    "%d after", fds_before, fds_after);
+}
+
+
 ATF_TP_ADD_TCS(tp)
 {
 	fts_check_debug();
@@ -592,6 +657,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, nochdir_empty_terminal_dir);
 	ATF_TP_ADD_TC(tp, ns_errno_set);
 	ATF_TP_ADD_TC(tp, xdev);
+	ATF_TP_ADD_TC(tp, no_fd_leak_on_early_close);
 
 	return (atf_no_error());
 }

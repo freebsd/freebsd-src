@@ -356,6 +356,8 @@ fts_close(FTS *sp)
 		for (p = sp->fts_cur; p->fts_level >= FTS_ROOTLEVEL;) {
 			freep = p;
 			p = p->fts_link != NULL ? p->fts_link : p->fts_parent;
+			if (freep->fts_dirfd >= 0)
+				(void)_close(freep->fts_dirfd);
 			free(freep);
 		}
 		if (p->fts_dirfd >= 0)
