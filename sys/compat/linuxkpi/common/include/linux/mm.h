@@ -42,6 +42,7 @@
 #include <linux/overflow.h>
 #include <linux/shrinker.h>
 #include <linux/page.h>
+#include <linux/page-flags.h>
 
 #include <asm/pgtable.h>
 
