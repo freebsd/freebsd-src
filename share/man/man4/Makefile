@@ -619,16 +619,20 @@ MAN=	aac.4 \
 	tun.4 \
 	tws.4 \
 	u2f.4 \
+	uart.4 \
 	udp.4 \
 	udplite.4 \
 	${_ufshci.4} \
 	unionfs.4 \
+	unix.4 \
 	ure.4 \
 	vale.4 \
+	veriexec.4 \
 	vga.4 \
 	vge.4 \
 	viapm.4 \
 	${_viawd.4} \
+	video.4 \
 	virtio.4 \
 	virtio_balloon.4 \
 	virtio_blk.4 \
@@ -744,6 +748,7 @@ MLINKS+=gem.4 if_gem.4
 MLINKS+=genet.4 if_genet.4
 MLINKS+=geneve.4 if_geneve.4
 MLINKS+=geom.4 GEOM.4
+MLINKS+=geom_zero.4 gzero.4
 MLINKS+=gif.4 if_gif.4
 MLINKS+=gpio.4 gpiobus.4
 MLINKS+=gpioths.4 dht11.4
@@ -1100,7 +1105,6 @@ MAN+=	\
 	runfw.4 \
 	u3g.4 \
 	uark.4 \
-	uart.4 \
 	uath.4 \
 	ubsa.4 \
 	ubser.4 \
@@ -1131,7 +1135,6 @@ MAN+=	\
 	umodem.4 \
 	umoscom.4 \
 	ums.4 \
-	unix.4 \
 	upgt.4 \
 	uplcom.4 \
 	ural.4 \
@@ -1147,11 +1150,8 @@ MAN+=	\
 	uvideo.4 \
 	uvisor.4 \
 	uvscom.4 \
-	veriexec.4 \
-	video.4 \
 	zyd.4
 
-MLINKS+=geom_zero.4 gzero.4
 MLINKS+=mtw.4 if_mtw.4
 MLINKS+=otus.4 if_otus.4
 MLINKS+=rsu.4 if_rsu.4
