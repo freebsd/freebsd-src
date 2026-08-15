@@ -782,10 +782,12 @@ aq_if_init(if_ctx_t ctx)
 	softc->init_retries = 0;
 
 	/* aq_hw_init reloads the PHY, resetting the thermal-shutdown arming. */
-	if (hw->fw_ops->thermal_arm != NULL &&
-	    hw->fw_ops->thermal_arm(hw) != 0)
-		device_printf(softc->dev,
-		    "could not arm PHY thermal shutdown\n");
+	if (hw->fw_ops->thermal_arm != NULL) {
+		err = hw->fw_ops->thermal_arm(hw);
+		if (err != 0 && err != ENOTSUP)
+			device_printf(softc->dev,
+			    "could not arm PHY thermal shutdown\n");
+	}
 
 	aq_if_media_status(ctx, &ifmr);
 
