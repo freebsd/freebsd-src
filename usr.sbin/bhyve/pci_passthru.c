@@ -55,6 +55,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <sysexits.h>
 #include <unistd.h>
 
@@ -99,7 +100,17 @@ struct passthru_softc {
 	struct {
 		int		capoff;
 	} psc_msix;
+	struct {
+		int		capoff;
+		uint16_t	devctl;
+		uint16_t	reset_devctl;
+		uint16_t	devctl2;
+		uint16_t	reset_devctl2;
+		bool		has_devctl2;
+	} psc_pcie;
 	struct pcisel psc_sel;
+	pthread_mutex_t	psc_io_mtx;
+	bool		psc_resetting;
 
 	struct passthru_mmio_mapping psc_mmio_map[PASSTHRU_MMIO_MAX];
 	cfgread_handler psc_pcir_rhandler[PCI_REGMAX + 1];
@@ -263,9 +274,10 @@ passthru_add_msicap(struct pci_devinst *pi, int msgnum, int nextptr)
 #endif	/* LEGACY_SUPPORT */
 
 static int
-cfginitmsi(struct passthru_softc *sc)
+cfginitcaps(struct passthru_softc *sc)
 {
 	int i, ptr, capptr, cap, sts, caplen, table_size;
+	uint16_t flags;
 	uint32_t u32;
 	struct pcisel sel;
 	struct pci_devinst *pi;
@@ -319,9 +331,30 @@ cfginitmsi(struct passthru_softc *sc)
 					capptr += 4;
 					msixcap_ptr += 4;
 				}
+			} else if (cap == PCIY_EXPRESS) {
+				sc->psc_pcie.capoff = ptr;
 			}
 			ptr = passthru_read_config(&sel, ptr + PCICAP_NEXTPTR,
 			    1);
+		}
+	}
+	if (sc->psc_pcie.capoff != 0) {
+		sc->psc_pcie.devctl = passthru_read_config(&sel,
+		    sc->psc_pcie.capoff + PCIER_DEVICE_CTL, 2);
+		/*
+		 * Use the assignment-time guest view as the virtual reset baseline.
+		 * Host firmware and the PCI bus may already have tuned Device Control,
+		 * so restoring the hardware reset defaults would expose a different
+		 * configuration after the first guest FLR.
+		 */
+		sc->psc_pcie.reset_devctl = sc->psc_pcie.devctl;
+		flags = passthru_read_config(&sel,
+		    sc->psc_pcie.capoff + PCIER_FLAGS, 2);
+		if ((flags & PCIEM_FLAGS_VERSION) >= 2) {
+			sc->psc_pcie.has_devctl2 = true;
+			sc->psc_pcie.devctl2 = passthru_read_config(&sel,
+			    sc->psc_pcie.capoff + PCIER_DEVICE_CTL2, 2);
+			sc->psc_pcie.reset_devctl2 = sc->psc_pcie.devctl2;
 		}
 	}
 
@@ -340,6 +373,8 @@ cfginitmsi(struct passthru_softc *sc)
 		/* Allocate the emulated MSI-X table array */
 		table_size = pi->pi_msix.table_count * MSIX_TABLE_ENTRY_SIZE;
 		pi->pi_msix.table = calloc(1, table_size);
+		if (pi->pi_msix.table == NULL)
+			return (-1);
 
 		/* Mask all table entries */
 		for (i = 0; i < pi->pi_msix.table_count; i++) {
@@ -691,8 +726,8 @@ cfginit(struct pci_devinst *pi, int bus, int slot, int func)
 	pci_set_cfgdata8(pi, PCIR_INTLINE, intline);
 	pci_set_cfgdata8(pi, PCIR_INTPIN, intpin);
 
-	if (cfginitmsi(sc) != 0) {
-		warnx("failed to initialize MSI for PCI %d/%d/%d",
+	if (cfginitcaps(sc) != 0) {
+		warnx("failed to initialize PCI capabilities for %d/%d/%d",
 		    bus, slot, func);
 		goto done;
 	}
@@ -998,6 +1033,9 @@ passthru_init(struct pci_devinst *pi, nvlist_t *nvl)
 	}
 
 	sc = calloc(1, sizeof(struct passthru_softc));
+	if (sc == NULL)
+		goto done;
+	pthread_mutex_init(&sc->psc_io_mtx, NULL);
 
 	pi->pi_arg = sc;
 	sc->psc_pi = pi;
@@ -1043,6 +1081,8 @@ done:
 	if (error) {
 		if (dev != NULL)
 			dev->deinit(pi);
+		if (sc != NULL)
+			pthread_mutex_destroy(&sc->psc_io_mtx);
 		free(sc);
 		vm_unassign_pptdev(pi->pi_vmctx, bus, slot, func);
 	}
@@ -1075,6 +1115,184 @@ msixcap_access(struct passthru_softc *sc, int coff)
 	        coff < sc->psc_msix.capoff + MSIX_CAPLEN);
 }
 
+#define	PASSTHRU_DEVCTL_VIRT	(PCIEM_CTL_MAX_PAYLOAD | \
+				 PCIEM_CTL_MAX_READ_REQUEST)
+#define	PASSTHRU_DEVCTL_NO_WRITE	PCIEM_CTL_PHANTHOM_FUNCS
+#define	PASSTHRU_DEVCTL2_VIRT	(PCIEM_CTL2_COMP_TIMO_VAL | \
+				 PCIEM_CTL2_COMP_TIMO_DISABLE)
+
+static uint32_t
+passthru_cfg_field_mask(int coff, int bytes, int fieldoff, uint16_t mask)
+{
+	uint32_t access_mask;
+	int i, pos;
+
+	access_mask = 0;
+	for (i = 0; i < bytes; i++) {
+		pos = coff + i;
+		if (pos >= fieldoff && pos < fieldoff + 2)
+			access_mask |= ((mask >> ((pos - fieldoff) * NBBY)) &
+			    0xff) << (i * NBBY);
+	}
+	return (access_mask);
+}
+
+static uint32_t
+passthru_cfg_field_value(int coff, int bytes, int fieldoff, uint16_t value)
+{
+	uint32_t access_value;
+	int i, pos;
+
+	access_value = 0;
+	for (i = 0; i < bytes; i++) {
+		pos = coff + i;
+		if (pos >= fieldoff && pos < fieldoff + 2)
+			access_value |= ((value >> ((pos - fieldoff) * NBBY)) &
+			    0xff) << (i * NBBY);
+	}
+	return (access_value);
+}
+
+/*
+ * Replace selected bits of a 16-bit field within an arbitrarily aligned
+ * configuration-space access.  Preserve every byte and field bit outside
+ * the supplied mask.
+ */
+static uint32_t
+passthru_cfg_overlay_field(int coff, int bytes, uint32_t access, int fieldoff,
+    uint16_t field, uint16_t field_mask)
+{
+	uint32_t access_mask;
+
+	access_mask = passthru_cfg_field_mask(coff, bytes, fieldoff,
+	    field_mask);
+	return ((access & ~access_mask) |
+	    (passthru_cfg_field_value(coff, bytes, fieldoff, field) &
+	    access_mask));
+}
+
+static void
+passthru_cfg_update_field(int coff, int bytes, uint32_t value, int fieldoff,
+    uint16_t mask, uint16_t *field)
+{
+	uint16_t byte_mask, byte_value;
+	int i, pos, shift;
+
+	for (i = 0; i < bytes; i++) {
+		pos = coff + i;
+		if (pos < fieldoff || pos >= fieldoff + 2)
+			continue;
+		shift = (pos - fieldoff) * NBBY;
+		byte_mask = mask & (0xff << shift);
+		byte_value = ((value >> (i * NBBY)) & 0xff) << shift;
+		*field = (*field & ~byte_mask) | (byte_value & byte_mask);
+	}
+}
+
+static void
+passthru_reset_interrupt_state(struct passthru_softc *sc)
+{
+	struct pci_devinst *pi;
+	uint16_t msgctrl;
+	int caplen, i;
+
+	pi = sc->psc_pi;
+	if (sc->psc_msi.capoff != 0) {
+		caplen = msi_caplen(sc->psc_msi.msgctrl);
+		msgctrl = pci_get_cfgdata16(pi, sc->psc_msi.capoff + 2);
+		msgctrl &= ~(PCIM_MSICTRL_MME_MASK | PCIM_MSICTRL_MSI_ENABLE);
+		memset(pi->pi_cfgdata + sc->psc_msi.capoff + 4, 0, caplen - 4);
+		pci_set_cfgdata16(pi, sc->psc_msi.capoff + 2, msgctrl);
+		pi->pi_msi.enabled = 0;
+		pi->pi_msi.addr = 0;
+		pi->pi_msi.msg_data = 0;
+		pi->pi_msi.maxmsgnum = 0;
+	}
+	if (sc->psc_msix.capoff != 0) {
+		msgctrl = pci_get_cfgdata16(pi, sc->psc_msix.capoff + 2);
+		msgctrl &= ~(PCIM_MSIXCTRL_MSIX_ENABLE |
+		    PCIM_MSIXCTRL_FUNCTION_MASK);
+		pci_set_cfgdata16(pi, sc->psc_msix.capoff + 2, msgctrl);
+		pi->pi_msix.enabled = 0;
+		pi->pi_msix.function_mask = 0;
+		bzero(pi->pi_msix.table, pi->pi_msix.table_count *
+		    sizeof(pi->pi_msix.table[0]));
+		for (i = 0; i < pi->pi_msix.table_count; i++)
+			pi->pi_msix.table[i].vector_control =
+			    PCIM_MSIX_VCTRL_MASK;
+	}
+}
+
+static void
+passthru_reset_capability_state(struct passthru_softc *sc)
+{
+	uint16_t devctl, guest_mps;
+	int offset;
+
+	/* MPS is explicitly preserved across FLR by the PCIe specification. */
+	guest_mps = sc->psc_pcie.devctl & PCIEM_CTL_MAX_PAYLOAD;
+	offset = sc->psc_pcie.capoff + PCIER_DEVICE_CTL;
+	devctl = passthru_read_config(&sc->psc_sel, offset, 2);
+	if (devctl != 0xffff) {
+		devctl &= ~PCIEM_CTL_MAX_READ_REQUEST;
+		devctl |= sc->psc_pcie.reset_devctl &
+		    PCIEM_CTL_MAX_READ_REQUEST;
+		passthru_write_config(&sc->psc_sel, offset, 2, devctl);
+	}
+	sc->psc_pcie.devctl =
+	    (sc->psc_pcie.reset_devctl & ~PCIEM_CTL_MAX_PAYLOAD) | guest_mps;
+	if (sc->psc_pcie.has_devctl2)
+		sc->psc_pcie.devctl2 = sc->psc_pcie.reset_devctl2;
+}
+
+static int
+passthru_reset(struct passthru_softc *sc)
+{
+	struct pci_devinst *pi;
+	uint16_t command;
+	int error;
+
+	pi = sc->psc_pi;
+	command = pci_get_cfgdata16(pi, PCIR_COMMAND);
+
+	/*
+	 * Stop trapped BAR accesses and drain any handler already touching the
+	 * device.  pci_cfgrw() holds pi_cfg_lock for this entire transaction,
+	 * so another vCPU cannot re-enable or move a BAR around the reset.
+	 */
+	pthread_mutex_lock(&sc->psc_io_mtx);
+	sc->psc_resetting = true;
+	pthread_mutex_unlock(&sc->psc_io_mtx);
+
+	if (pi->pi_lintr.pin != 0)
+		pci_lintr_deassert(pi);
+	pci_set_cfgdata16(pi, PCIR_COMMAND, 0);
+	pci_emul_cmd_changed(pi, command);
+
+	if (vm_reset_pptdev(pi->pi_vmctx, sc->psc_sel.pc_bus,
+	    sc->psc_sel.pc_dev, sc->psc_sel.pc_func) == 0)
+		error = 0;
+	else
+		error = errno;
+
+	/*
+	 * EIO means PPT crossed the destructive preparation boundary.  The FLR
+	 * either ran or failed after host interrupt resources were torn down, so
+	 * the corresponding guest state must be discarded in either case.
+	 */
+	if (error != 0 && error != EIO) {
+		pci_set_cfgdata16(pi, PCIR_COMMAND, command);
+		pci_emul_cmd_changed(pi, 0);
+	} else {
+		passthru_reset_interrupt_state(sc);
+		passthru_reset_capability_state(sc);
+	}
+	pthread_mutex_lock(&sc->psc_io_mtx);
+	sc->psc_resetting = false;
+	pthread_mutex_unlock(&sc->psc_io_mtx);
+	return (error);
+}
+
 static int
 passthru_cfgread_default(struct passthru_softc *sc,
     struct pci_devinst *pi __unused, int coff, int bytes, uint32_t *rv)
@@ -1100,8 +1318,20 @@ passthru_cfgread_default(struct passthru_softc *sc,
 		return (0);
 	}
 
-	/* Everything else just read from the device's config space */
+	/* Everything else just read from the device's config space. */
 	*rv = passthru_read_config(&sc->psc_sel, coff, bytes);
+	if (sc->psc_pcie.capoff != 0) {
+		int devctl;
+
+		devctl = sc->psc_pcie.capoff + PCIER_DEVICE_CTL;
+		*rv = passthru_cfg_overlay_field(coff, bytes, *rv, devctl,
+		    sc->psc_pcie.devctl, PASSTHRU_DEVCTL_VIRT);
+		if (sc->psc_pcie.has_devctl2) {
+			devctl = sc->psc_pcie.capoff + PCIER_DEVICE_CTL2;
+			*rv = passthru_cfg_overlay_field(coff, bytes, *rv, devctl,
+			    sc->psc_pcie.devctl2, PASSTHRU_DEVCTL2_VIRT);
+		}
+	}
 
 	return (0);
 }
@@ -1131,6 +1361,9 @@ static int
 passthru_cfgwrite_default(struct passthru_softc *sc, struct pci_devinst *pi,
     int coff, int bytes, uint32_t val)
 {
+	uint32_t flr_mask, transport_mask;
+	uint16_t physical_devctl;
+	int devctl, devctl2, host_mps, guest_mrrs;
 	int error, msix_table_entries, i;
 	uint16_t cmd_old;
 
@@ -1172,6 +1405,83 @@ passthru_cfgwrite_default(struct passthru_softc *sc, struct pci_devinst *pi,
 			if (error)
 				err(1, "vm_disable_pptdev_msix");
 		}
+		return (0);
+	}
+
+	/*
+	 * A direct FLR would clear physical Command while the guest sees its
+	 * emulated copy remain enabled.  Route FLR through ppt so it restores
+	 * host-owned state.  MPS is shared-path policy, and Phantom Functions
+	 * Enable changes IOMMU-visible requester IDs, so keep both host-owned.
+	 * Floor physical MRRS at physical MPS because the guest lacks the
+	 * hierarchy view.  ppt also applies FLR quirks for VFs such as 82599.
+	 */
+	devctl = sc->psc_pcie.capoff + PCIER_DEVICE_CTL;
+	if (sc->psc_pcie.capoff != 0 && coff < devctl + 2 &&
+	    coff + bytes > devctl) {
+		transport_mask = passthru_cfg_field_mask(coff, bytes, devctl,
+		    PASSTHRU_DEVCTL_VIRT);
+		physical_devctl = passthru_read_config(&sc->psc_sel, devctl, 2);
+		if (physical_devctl == 0xffff) {
+			warnx("configuration space unavailable for passthru "
+			    "device %d/%d/%d", sc->psc_sel.pc_bus,
+			    sc->psc_sel.pc_dev, sc->psc_sel.pc_func);
+			return (0);
+		}
+		passthru_cfg_update_field(coff, bytes, val, devctl,
+		    PASSTHRU_DEVCTL_VIRT, &sc->psc_pcie.devctl);
+		if ((transport_mask & passthru_cfg_field_mask(coff, bytes,
+		    devctl, PCIEM_CTL_MAX_READ_REQUEST)) != 0) {
+			host_mps = (physical_devctl & PCIEM_CTL_MAX_PAYLOAD) >> 5;
+			guest_mrrs = (sc->psc_pcie.devctl &
+			    PCIEM_CTL_MAX_READ_REQUEST) >> 12;
+			if (guest_mrrs <= 5) {
+				if (guest_mrrs < host_mps)
+					guest_mrrs = host_mps;
+				physical_devctl &= ~PCIEM_CTL_MAX_READ_REQUEST;
+				physical_devctl |= guest_mrrs << 12;
+			}
+		}
+		val = passthru_cfg_overlay_field(coff, bytes, val, devctl,
+		    physical_devctl,
+		    PASSTHRU_DEVCTL_VIRT | PASSTHRU_DEVCTL_NO_WRITE);
+
+		flr_mask = passthru_cfg_field_mask(coff, bytes, devctl,
+		    PCIEM_CTL_INITIATE_FLR);
+		passthru_write_config(&sc->psc_sel, coff, bytes,
+		    val & ~flr_mask);
+		if ((val & flr_mask) != 0) {
+			error = passthru_reset(sc);
+			if (error != 0)
+				warnx("failed to reset passthru device "
+				    "%d/%d/%d: %s", sc->psc_sel.pc_bus,
+				    sc->psc_sel.pc_dev, sc->psc_sel.pc_func,
+				    strerror(error));
+		}
+		return (0);
+	}
+
+	/*
+	 * Completion Timeout controls how long the host must protect against an
+	 * in-flight completion after a forced FLR.  Keep the physical policy
+	 * host-owned so a guest cannot extend the reset ioctl for tens of
+	 * seconds, but retain a guest-visible value for normal PCI semantics.
+	 */
+	devctl2 = sc->psc_pcie.capoff + PCIER_DEVICE_CTL2;
+	if (sc->psc_pcie.has_devctl2 && coff < devctl2 + 2 &&
+	    coff + bytes > devctl2) {
+		physical_devctl = passthru_read_config(&sc->psc_sel, devctl2, 2);
+		if (physical_devctl == 0xffff) {
+			warnx("configuration space unavailable for passthru "
+			    "device %d/%d/%d", sc->psc_sel.pc_bus,
+			    sc->psc_sel.pc_dev, sc->psc_sel.pc_func);
+			return (0);
+		}
+		passthru_cfg_update_field(coff, bytes, val, devctl2,
+		    PASSTHRU_DEVCTL2_VIRT, &sc->psc_pcie.devctl2);
+		val = passthru_cfg_overlay_field(coff, bytes, val, devctl2,
+		    physical_devctl, PASSTHRU_DEVCTL2_VIRT);
+		passthru_write_config(&sc->psc_sel, coff, bytes, val);
 		return (0);
 	}
 
@@ -1220,8 +1530,8 @@ passthru_cfgwrite(struct pci_devinst *pi, int coff, int bytes, uint32_t val)
 }
 
 static void
-passthru_write(struct pci_devinst *pi, int baridx, uint64_t offset, int size,
-    uint64_t value)
+passthru_write_locked(struct pci_devinst *pi, int baridx, uint64_t offset,
+    int size, uint64_t value)
 {
 	struct passthru_softc *sc;
 	struct passthru_bar_handler *handler;
@@ -1267,7 +1577,8 @@ passthru_write(struct pci_devinst *pi, int baridx, uint64_t offset, int size,
 }
 
 static uint64_t
-passthru_read(struct pci_devinst *pi, int baridx, uint64_t offset, int size)
+passthru_read_locked(struct pci_devinst *pi, int baridx, uint64_t offset,
+    int size)
 {
 	struct passthru_softc *sc;
 	struct passthru_bar_handler *handler;
@@ -1313,6 +1624,35 @@ passthru_read(struct pci_devinst *pi, int baridx, uint64_t offset, int size)
 	}
 
 	return (val);
+}
+
+static void
+passthru_write(struct pci_devinst *pi, int baridx, uint64_t offset, int size,
+    uint64_t value)
+{
+	struct passthru_softc *sc;
+
+	sc = pi->pi_arg;
+	pthread_mutex_lock(&sc->psc_io_mtx);
+	if (!sc->psc_resetting)
+		passthru_write_locked(pi, baridx, offset, size, value);
+	pthread_mutex_unlock(&sc->psc_io_mtx);
+}
+
+static uint64_t
+passthru_read(struct pci_devinst *pi, int baridx, uint64_t offset, int size)
+{
+	struct passthru_softc *sc;
+	uint64_t value;
+
+	sc = pi->pi_arg;
+	pthread_mutex_lock(&sc->psc_io_mtx);
+	if (sc->psc_resetting)
+		value = UINT64_MAX;
+	else
+		value = passthru_read_locked(pi, baridx, offset, size);
+	pthread_mutex_unlock(&sc->psc_io_mtx);
+	return (value);
 }
 
 static int

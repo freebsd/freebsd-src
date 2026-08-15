@@ -90,6 +90,7 @@ struct pptseg {
 struct pptdev {
 	device_t	dev;
 	struct vm	*vm;			/* owner of this device */
+	bool		resetting;		/* guest FLR in progress */
 	TAILQ_ENTRY(pptdev)	next;
 	struct pptseg mmio[MAX_MMIOSEGS];
 	struct {
@@ -233,19 +234,30 @@ ppt_find(struct vm *vm, int bus, int slot, int func, struct pptdev **pptp)
 
 	PPT_ASSERT_LOCKED();
 
-	TAILQ_FOREACH(ppt, &pptdev_list, next) {
-		dev = ppt->dev;
-		b = pci_get_bus(dev);
-		s = pci_get_slot(dev);
-		f = pci_get_function(dev);
-		if (bus == b && slot == s && func == f)
+	for (;;) {
+		TAILQ_FOREACH(ppt, &pptdev_list, next) {
+			dev = ppt->dev;
+			b = pci_get_bus(dev);
+			s = pci_get_slot(dev);
+			f = pci_get_function(dev);
+			if (bus == b && slot == s && func == f)
+				break;
+		}
+
+		if (ppt == NULL)
+			return (ENOENT);
+		if (ppt->vm != vm)	/* Make sure we own this device. */
+			return (EBUSY);
+		if (!ppt->resetting)
 			break;
+		/*
+		 * Once resetting is set, every exit from ppt_reset_device()
+		 * reacquires ppt_mtx, clears resetting, and wakes us.  The FLR wait
+		 * itself is bounded.
+		 */
+		sx_sleep(ppt, &ppt_mtx, 0, "pptflr", 0);
 	}
 
-	if (ppt == NULL)
-		return (ENOENT);
-	if (ppt->vm != vm)		/* Make sure we own this device */
-		return (EBUSY);
 	*pptp = ppt;
 	return (0);
 }
@@ -470,6 +482,108 @@ ppt_unassign_device(struct vm *vm, int bus, int slot, int func)
 	    pci_get_rid(ppt->dev));
 	ppt->vm = NULL;
 out:
+	PPT_UNLOCK();
+	return (error);
+}
+
+int
+ppt_reset_device(struct vm *vm, int bus, int slot, int func)
+{
+	struct pptdev *ppt;
+	uint16_t cmd, enables, original_cmd;
+	int error;
+
+	PPT_LOCK();
+	error = ppt_find(vm, bus, slot, func, &ppt);
+	if (error != 0)
+		goto out_locked;
+
+	/*
+	 * FLR takes at least 100 ms.  Reserve this function, but do not let a
+	 * guest hold the global PPT lock and delay operations on other VMs.
+	 */
+	ppt->resetting = true;
+	PPT_UNLOCK();
+
+	original_cmd = pci_read_config(ppt->dev, PCIR_COMMAND, 2);
+	if (original_cmd == 0xffff) {
+		error = ENXIO;
+		goto out;
+	}
+	if (!pcie_flr_supported(ppt->dev)) {
+		error = ENOTSUP;
+		goto out;
+	}
+
+	/*
+	 * Disable physical INTx before releasing its handler.  This also makes
+	 * an asserted Function send Deassert_INTx before FLR, as required by
+	 * PCIe.  Gate decoding and DMA before tearing down MSI or MSI-X.
+	 */
+	cmd = original_cmd | PCIM_CMD_INTxDIS;
+	cmd &= ~(PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
+	pci_write_config(ppt->dev, PCIR_COMMAND, cmd, 2);
+	ppt_teardown_msi(ppt);
+	ppt_teardown_msix(ppt);
+
+	/*
+	 * Save the host-owned state after interrupt teardown, then restore BARs
+	 * and PCIe controls after FLR.  The IOMMU domain remains intact.  bhyve
+	 * removes guest BAR mappings before this ioctl; a later guest MEMEN write
+	 * recreates them.
+	 */
+	pci_save_state(ppt->dev);
+
+	/*
+	 * A guest-requested FLR must not be escalated to a power reset.  The
+	 * support check above and force=true mean that pcie_flr() cannot fail
+	 * for a stable function.  If its support nevertheless disappears
+	 * between the two checks, destructive preparation has already torn down
+	 * host interrupt resources.  Return EIO so bhyve discards the now-stale
+	 * guest interrupt state even though the FLR was not initiated.
+	 */
+	if (!pcie_flr(ppt->dev,
+	    max(pcie_get_max_completion_timeout(ppt->dev) / 1000, 10), true)) {
+		device_printf(ppt->dev, "guest FLR could not be performed\n");
+		error = EIO;
+		goto restore;
+	}
+	error = 0;
+
+	/*
+	 * Restore the decode and DMA enables which were set before the FLR;
+	 * the guest command register is intentionally virtual.  Do not infer
+	 * writable enables from the BAR resources here.  For example, a VF can
+	 * use PF-owned BAR apertures while its own MEMEN bit is RsvdP.
+	 *
+	 * A post-reset readback failure does not undo the guest-visible reset.
+	 */
+restore:
+	pci_restore_state(ppt->dev);
+	enables = original_cmd &
+	    (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
+	cmd = pci_read_config(ppt->dev, PCIR_COMMAND, 2);
+	if (cmd == 0xffff) {
+		device_printf(ppt->dev,
+		    "config space unavailable after guest FLR\n");
+		error = EIO;
+		goto out;
+	}
+	cmd &= ~(PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN |
+	    PCIM_CMD_INTxDIS);
+	cmd |= enables | (original_cmd & PCIM_CMD_INTxDIS);
+	pci_write_config(ppt->dev, PCIR_COMMAND, cmd, 2);
+	cmd = pci_read_config(ppt->dev, PCIR_COMMAND, 2);
+	if (cmd == 0xffff || (cmd & enables) != enables) {
+		device_printf(ppt->dev,
+		    "failed to restore command register after guest FLR\n");
+		error = EIO;
+	}
+out:
+	PPT_LOCK();
+	ppt->resetting = false;
+	wakeup(ppt);
+out_locked:
 	PPT_UNLOCK();
 	return (error);
 }
