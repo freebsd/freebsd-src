@@ -11,6 +11,132 @@
 
 ======================================================================
 
+	Major changes between "less" versions 702 and 704
+
+* Fix possibly passing unsafe options to man when opening an
+  OSC 8 link (github #779).
+
+* Fix possibly sending unsafe OSC sequence to terminal when file
+  contains an unterminated OSC sequence (github #781).
+
+* In Examine and Shell commands, expand % and # to shell-escaped
+  filenames (github #784).
+
+======================================================================
+
+	Major changes between "less" versions 692 and 702
+
+* Add --hilite-target option and -DJ to color target line (github #745).
+
+* Add --past-eof option.
+
+* Add --end-prompt option.
+
+* Add --emouse and --rmouse options, and horizontal mouse scrolling
+  and dragging (github #744).
+
+* Add -DT option to format tilde lines (github #725).
+
+* Change OSC 8 link handling: replace LESS_OSC8_xxx with LESS_OSC8_OPEN_xxx.
+  Remove %O from prompt expansion as no longer needed.
+  Any use of environment variables LESS_OSC8_xxx need to be manually
+  changed to use LESS_OSC8_OPEN_xxx.
+
+* Add ?o to prompt strings, to detect whether an OSC 8 link is selected.
+
+* When scrolling past end-of-file or before beginning-of-file,
+  stop when exactly one line is left on screen.
+
+* Make -w/-W highlight lines when moving backward as well as forward
+  (github #729).
+
+* Display pattern in "Pattern not found" message (github #731).
+
+* Allow m and M commands to take a numeric argument to specify the
+  line to be marked (github #736).
+
+* Allow ' command to take a numeric argument to specify the screen
+  position on which to place the marked line.
+
+* Allow lesskey to map keypad ENTER with \kpe (github #761).
+
+* Add "noaction" as a possible action in #line-edit section
+  in a lesskey file (github #761).
+
+* Support POSIX character classes with the built-in V8 regex library
+  (github #732).
+
+* Change | command to pipe just one line if the marked line is at the
+  top of the screen (github #733).
+
+* If OSC8 handler command begins with "-", suppress command echo,
+  and if it begins with ctrl-P, suppress "done" message (github #747).
+
+* Don't ask for confirmation when input is a binary file and stdout is
+  redirected. Fixes infinite loop in that situation (github #719).
+
+* Make early error messages go to stderr if stdout is redirected
+  (github #719).
+
+* Don't retry read after read error; fixes hang when attempting to read
+  a directory or other unreadable file (github #741).
+
+* Fix incorrect restoration of saved mark if not at top of screen.
+
+* With --save-marks, don't save a mark that was cleared with ESC-m.
+
+* Fix buffer overflow when using malformed lesskey file (github #721).
+
+* Fix unexpected scrolling past end of file (github #720).
+
+* Fix bug when env var in LESSKEY_CONTENT partially matches env var
+  defined in lesskey file (github #727).
+
+* Fix bug when env var in lesskey file matches tail of env var used
+  by less (github #728).
+
+* Fix command parsing bug when one command is a substring of another.
+  Also fixes --no-paste option (github #724).
+
+* Fix incorrect display using --color to set character attributes
+  without color, such as -DS-u (github #730).
+
+* Fix crash when tags file contains invalid line number 0 (github #743).
+
+* Fix build when tparm() doesn't use varargs (github #748).
+
+* Fix prompt overflow when filtering with long prompt (github #749).
+
+* Fix incorrect highlighting when change -i while filtering (github #750).
+
+* Fix erroneous error mesage using --show-preproc-error with
+  some shells (github #753).
+
+* Fix erroneous highlighting when using a search pattern containing more
+  than 5 pairs of parentheses with PCRE2 (github #754).
+
+* When ^X interrupts F mode, discard pending keys as is done when
+  ^C interrupts it (github #757).
+
+* Fix bug in Windows where pressing any key during "waiting for data" would
+  prevent a subsequent ^X from working.
+
+* Fix erroneous display in some situations when using LESS_LINES (github #759).
+
+* Fix erroneous display after certain messages are displayed in a
+  very narrow terminal (github #760).
+
+* Don't init terminal if stdout is not a tty (github #768).
+
+* Fix bug clicking OSC 8 link that crosses a screen line boundary
+  (github #775).
+
+* Fix beeps when resizing window on Windows (github #771).
+
+* Fix beeps when paging continuously on Windows (github #772).
+
+======================================================================
+
 	Major changes between "less" versions 691 and 692
 
 * Revert HOME key to scroll to beginning of file and END key

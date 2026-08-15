@@ -29,6 +29,8 @@ extern int proc_backspace;
 extern int proc_return;
 extern int ctldisp;
 extern int status_col;
+extern int status_line;
+extern int hilite_target;
 extern void *ml_search;
 extern POSITION start_attnpos;
 extern POSITION end_attnpos;
@@ -63,7 +65,6 @@ public POSITION osc8_uri_start = NULL_POSITION;
 public POSITION osc8_uri_end = NULL_POSITION;
 public POSITION osc8_text_start = NULL_POSITION;
 public POSITION osc8_text_end = NULL_POSITION;
-char *osc8_path = NULL;
 char *osc8_uri = NULL;
 constant char *osc8_search_param = NULL;
 #endif
@@ -230,8 +231,13 @@ public int get_cvt_ops(int search_type)
 {
 	int ops = 0;
 
-	if (is_caseless && (!re_handles_caseless || (search_type & SRCH_NO_REGEX)))
+#if RE_HANDLES_CASELESS
+	if (is_caseless && (search_type & SRCH_NO_REGEX))
 		ops |= CVT_TO_LC;
+#else
+	if (is_caseless)
+		ops |= CVT_TO_LC;
+#endif
 	if (proc_backspace == OPT_ON || (bs_mode == BS_SPECIAL && proc_backspace == OPT_OFF))
 		ops |= CVT_BS;
 	if (proc_return == OPT_ON || (bs_mode != BS_CONTROL && proc_backspace == OPT_OFF))
@@ -251,6 +257,14 @@ static lbool prev_pattern(struct pattern_info *info)
 		return (!is_null_pattern(info->compiled));
 #endif
 	return (info->text != NULL);
+}
+
+/*
+ * Return text of previous search pattern.
+ */
+public constant char* prev_pattern_text(void)
+{
+	return search_info.text;
 }
 
 #if HILITE_SEARCH
@@ -300,6 +314,27 @@ public void repaint_hilite(lbool on)
 #endif
 
 /*
+ * Redraw the jump target line with the attn hilite on or off.
+ */
+public void draw_target_attn(lbool hilite)
+{
+	int sindex;
+	POSITION pos;
+
+	if (!can_goto_line) /* {{ Are there any such terminals any more? }} */
+		return;
+	if (squished)
+		return;
+	sindex = sindex_from_sline(jump_sline);
+	pos = position(sindex);
+	forw_line_seg(pos, chop_line() || hshift > 0, TRUE, FALSE, hilite && status_line, FALSE, NULL, NULL);
+	goto_line(sindex);
+	clear_eol();
+	put_line_hilite(TRUE, hilite);
+	lower_left();
+}
+
+/*
  * Clear the attn hilite.
  */
 public void clear_attn(void)
@@ -311,6 +346,9 @@ public void clear_attn(void)
 	POSITION pos;
 	POSITION epos;
 	int moved = 0;
+
+	if (hilite_target)
+		draw_target_attn(FALSE);
 
 	if (start_attnpos == NULL_POSITION)
 		return;
@@ -962,7 +1000,7 @@ static void add_hilite(struct hilite_tree *anchor, struct hilite *hl)
  */
 static void create_hilites(POSITION linepos, constant char *line, constant char *sp, constant char *ep, int attr, int *chpos)
 {
-	size_t start_index = ptr_diff(sp, line); /*{{type-issue}}*/
+	size_t start_index = ptr_diff(sp, line);
 	size_t end_index = ptr_diff(ep, line);
 	struct hilite hl;
 	size_t i;
@@ -1818,6 +1856,7 @@ public lbool osc8_click(int sindex, int col)
 	clickpos = pos_from_col(linepos, col, NULL_POSITION, -1);
 	if (clickpos == NULL_POSITION)
 		return FALSE;
+	linepos = beginning_of_line(linepos);
 	if (forw_raw_line(linepos, &line, &line_len) == NULL_POSITION)
 		return FALSE;
 	r = osc8_search_line(SRCH_FORW|SRCH_OSC8, linepos, line, line_len, NULL, clickpos, &matches);
@@ -1846,18 +1885,6 @@ static size_t scheme_length(constant char *uri, size_t uri_len)
 		if (uri[plen] == ':')
 			return plen;
 	return 0;
-}
-
-/*
- * Does a URI contain any dangerous characters?
- */
-static lbool bad_uri(constant char *uri, size_t uri_len)
-{
-	size_t i;
-	for (i = 0;  i < uri_len;  i++)
-		if (strchr("'\"", uri[i]) != NULL)
-			return TRUE;
-	return FALSE;
 }
 
 /*
@@ -1890,10 +1917,11 @@ public void osc8_open(void)
 	char env_name[64];
 	size_t scheme_len;
 	constant char *handler;
-	char *open_cmd;
+	char *cmd;
+	char *uri_q;
 	size_t uri_len;
-	FILE *hf;
-	static constant char *env_name_pfx = "LESS_OSC8_";
+	char *p;
+	static constant char *env_name_pfx = "LESS_OSC8_OPEN_";
 
 	if (osc8_linepos == NULL_POSITION)
 	{
@@ -1906,9 +1934,8 @@ public void osc8_open(void)
 		return;
 	}
 	/*
-	 * Read a "handler" shell cmd from environment variable "LESS_OSC8_scheme".
-	 * pr_expand the handler cmd (to expand %o -> osc8_path) and execute it.
-	 * Handler's stdout is an "opener" shell cmd; execute opener to open the link.
+	 * Read a "handler" shell cmd from environment variable "LESS_OSC8_OPEN_scheme".
+	 * Append the URI to the handler as an argument, and execute it.
 	 */
 	uri_len = ptr_diff(op.uri_end, op.uri_start);
 	scheme_len = scheme_length(op.uri_start, uri_len);
@@ -1923,16 +1950,19 @@ public void osc8_open(void)
 		free(param);
 		return;
 	}
-#if HAVE_POPEN
-	if (bad_uri(op.uri_start, uri_len))
+	if (scheme_len == 0)
 	{
-		error("Cannot open link containing quote characters", NULL_PARG);
-		return;
+		SNPRINTF1(env_name, sizeof(env_name), "%sNONE", env_name_pfx);
+	} else
+	{
+		SNPRINTF3(env_name, sizeof(env_name), "%s%.*s", env_name_pfx, (int) scheme_len, op.uri_start);
+		for (p = &env_name[strlen(env_name_pfx)];  *p != '\0';  p++)
+			if (ASCII_IS_UPPER(*p))
+				*p = ASCII_TO_LOWER(*p);
 	}
-	SNPRINTF3(env_name, sizeof(env_name), "%s%.*s", env_name_pfx, (int) scheme_len, op.uri_start);
 	handler = lgetenv(env_name);
 	if (isnullenv(handler) || strcmp(handler, "-") == 0)
-		handler = lgetenv("LESS_OSC8_ANY");
+		handler = lgetenv("LESS_OSC8_OPEN_ANY");
 	if (isnullenv(handler))
 	{
 		PARG parg;
@@ -1940,31 +1970,25 @@ public void osc8_open(void)
 		error("No handler for \"%s\" link type", &parg);
 		return;
 	}
-	/* {{ ugly global osc8_path }} */
-	osc8_path = saven(op.uri_start, uri_len);
-	hf = popen(pr_expand(handler), "r");
-	free(osc8_path);
-	osc8_path = NULL;
-	if (hf == NULL)
+	uri_q = shell_quoten(op.uri_start, uri_len);
+	cmd = ecalloc(strlen(handler) + strlen(uri_q) + 2, sizeof(char));
+	sprintf(cmd, "%s %s", handler, uri_q);
+	free(uri_q);
 	{
-		PARG parg;
-		parg.p_string = env_name;
-		error("Cannot execute protocol handler in %s", &parg);
-		return;
+		constant char *exec_cmd = cmd;
+		constant char *done_msg = "link done";
+		POSITION save_osc8_linepos = osc8_linepos;
+		if (*exec_cmd == CONTROL('P'))
+		{
+			done_msg = NULL;
+			exec_cmd++;
+		}
+		lsystem(exec_cmd, done_msg);
+		/* lsystem reedits the input file which clears the selected
+		 * OSC8 link, so restore it. */
+		osc8_linepos = save_osc8_linepos;
 	}
-	open_cmd = readfd(hf);
-	pclose(hf);
-	if (strncmp(open_cmd, ":e", 2) == 0)
-	{
-		edit(skipsp(&open_cmd[2]));
-	} else
-	{
-		lsystem(open_cmd, "link done");
-	}
-	free(open_cmd);
-#else
-	error("Cannot open link because your system does not support popen", NULL_PARG);
-#endif /* HAVE_POPEN */
+	free(cmd);
 }
 
 /*
@@ -2026,15 +2050,19 @@ public void chg_caseless(void)
 		 * If regex handles caseless, we need to discard 
 		 * the pattern which was compiled with the old caseless.
 		 */
-		if (!re_handles_caseless)
-			/* We handle caseless, so the pattern doesn't change. */
-			return;
+#if !RE_HANDLES_CASELESS
+		/* Less handles caseless, so the pattern doesn't change. */
+		return;
+#endif
 	}
 	/*
 	 * Regenerate the pattern using the new state.
 	 */
-	clear_pattern(&search_info);
-	(void) hist_pattern(search_info.search_type);
+	if (prev_pattern(&search_info))
+	{
+		clear_pattern(&search_info);
+		(void) hist_pattern(search_info.search_type);
+	}
 }
 
 /*

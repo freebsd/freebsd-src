@@ -52,7 +52,7 @@
   ESC-U                Clear search highlighting.
   &_p_a_t_t_e_r_n          *  Display only matching lines.
         ---------------------------------------------------
-		Search is case-sensitive unless changed with -i or -I.
+        Search is case-sensitive unless changed with -i or -I.
         A search pattern may begin with one or more of:
         ^N or !  Search for NON-matching lines.
         ^E or *  Search multiple files (pass thru END OF FILE).
@@ -81,11 +81,11 @@
         Each "find open bracket" command goes backward to the open bracket 
           matching the (_N-th) close bracket in the bottom line.
 
-  m_<_l_e_t_t_e_r_>            Mark the current top line with <letter>.
-  M_<_l_e_t_t_e_r_>            Mark the current bottom line with <letter>.
-  '_<_l_e_t_t_e_r_>            Go to a previously marked position.
-  ''                   Go to the previous position.
-  ^X^X                 Same as '.
+  m_<_l_e_t_t_e_r_>         *  Mark the top line (or line _N) with <letter>.
+  M_<_l_e_t_t_e_r_>         *  Mark the bottom line (or line _N) with <letter>.
+  '_<_l_e_t_t_e_r_>         *  Go to a previously marked position (put on position _N).
+  ''                *  Go to the previous position.
+  ^X^X              *  Same as '.
   ESC-m_<_l_e_t_t_e_r_>        Clear a mark.
         ---------------------------------------------------
         A mark is any upper-case or lower-case letter.
@@ -202,9 +202,9 @@
   -V  ........  --version
                   Display the version number of "less".
   -w  ........  --hilite-unread
-                  Highlight first new line after forward-screen.
+                  Highlight first new line after full screen movement.
   -W  ........  --HILITE-UNREAD
-                  Highlight first new line after any forward movement.
+                  Highlight first new line after any movement.
   -x [_N[,...]]  --tabs=[_N[,...]]
                   Set tab stops.
   -X  ........  --no-init
@@ -222,6 +222,10 @@
 
                 --autosave=[_m_/_!_*]
                   Actions which cause the history file to be saved.
+                --emouse=[_v_s_c_r_o_l_l,_v_d_r_a_g,_h_s_c_r_o_l_l,_h_d_r_a_g,_l_c_l_i_c_k,_r_c_l_i_c_k]
+                  Enable mouse features.
+                --end-prompt=[_s_t_r_i_n_g]
+                  String to be printed after erasing the prompt.
                 --exit-follow-on-close
                   Exit F command on a pipe when writer closes pipe.
                 --file-size
@@ -232,6 +236,8 @@
                   Stop scrolling when a form feed character is reached.
                 --header=[_L[,_C[,_N]]]
                   Use _L lines (starting at line _N) and _C columns as headers.
+                --hilite-target
+                  Highlight the target line.
                 --incsearch
                   Search file as each pattern character is typed in.
                 --intr=[_C]
@@ -247,7 +253,7 @@
                 --modelines=[_N]
                   Read _N lines from the input file and look for vim modelines.
                 --mouse
-                  Enable mouse input.
+                  Enable mouse clicking and vertical scrolling.
                 --no-edit-warn
                   Don't warn when using v command on a file opened via LESSOPEN.
                 --no-keypad
@@ -276,6 +282,8 @@
                   Set default options for every search.
                 --show-preproc-errors
                   Display a message if preprocessor exits with an error status.
+                --past-eof
+                  Scrolling commands continue past end of file.
                 --proc-backspace
                   Process backspaces for bold/underline.
                 --PROC-BACKSPACE
