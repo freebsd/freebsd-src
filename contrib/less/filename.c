@@ -319,15 +319,13 @@ static void xcpy_char(xcpy *xp, char ch)
 
 static void xcpy_filename(xcpy *xp, constant char *str)
 {
-	/* If filename contains spaces, quote it 
-	 * to prevent edit_list from splitting it. */
-	lbool quote = (strchr(str, ' ') != NULL);
-	if (quote)
-		xcpy_char(xp, openquote);
-	for (;  *str != '\0';  str++)
-		xcpy_char(xp, *str);
-	if (quote)
-		xcpy_char(xp, closequote);
+	char *qstr = shell_quote(str);
+	char *s;
+	if (qstr == NULL)
+		return;
+	for (s = qstr;  *s != '\0';  s++)
+		xcpy_char(xp, *s);
+	free(qstr);
 }
 
 static size_t fexpand_copy(constant char *fr, char *to)
@@ -733,7 +731,11 @@ public char * lglob(constant char *afilename)
 	}
 	lessecho = lgetenv("LESSECHO");
 	if (isnullenv(lessecho))
+#ifdef LIBEXECDIR
+		lessecho = LIBEXECDIR "/lessecho";
+#else
 		lessecho = "lessecho";
+#endif
 	/*
 	 * Invoke lessecho, and read its output (a globbed list of filenames).
 	 */

@@ -274,5 +274,5 @@ public int getchr(void)
 			c = '\340';
 	} while (result != 1);
 
-	return (c & 0xFF);
+	return (unsigned char) c;
 }

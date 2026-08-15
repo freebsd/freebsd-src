@@ -161,6 +161,7 @@ static struct mark * getmark(char c)
 {
 	struct mark *m;
 	static struct mark sm;
+	POSITION pos;
 
 	switch (c)
 	{
@@ -181,7 +182,13 @@ static struct mark * getmark(char c)
 			return (NULL);
 		}
 		m = &sm;
-		cmark(m, curr_ifile, ch_tell(), sc_height);
+		pos = ch_tell();
+		if (pos == NULL_POSITION)
+			return (NULL);
+		pos = back_line(pos, NULL);
+		if (pos == NULL_POSITION)
+			return (NULL);
+		cmark(m, curr_ifile, pos, sc_height-1);
 		break;
 	case '.':
 		/*
@@ -225,19 +232,35 @@ public lbool badmark(char c)
 /*
  * Set a user-defined mark.
  */
-public void setmark(char c, int where)
+public void setmark(char c, int where, LINENUM linenum)
 {
 	struct mark *m;
 	struct scrpos scrpos;
+	POSITION pos;
 
 	m = getumark(c);
 	if (m == NULL)
 		return;
-	get_scrpos(&scrpos, where);
-	if (scrpos.pos == NULL_POSITION)
+
+	if (linenum == 0)
 	{
-		lbell();
-		return;
+		get_scrpos(&scrpos, where);
+		if (scrpos.pos == NULL_POSITION)
+		{
+			lbell();
+			return;
+		}
+	} else
+	{
+		pos = find_pos(linenum);
+		if (pos == NULL_POSITION)
+		{
+			PARG parg;
+			parg.p_linenum = linenum;
+			error("Cannot find line number %n", &parg);
+			return;
+		}
+		get_scrpos_pos(&scrpos, where, pos);
 	}
 	cmark(m, curr_ifile, scrpos.pos, scrpos.ln);
 	marks_modified = TRUE;
@@ -260,7 +283,12 @@ public void clrmark(char c)
 		lbell();
 		return;
 	}
-	m->m_scrpos.pos = NULL_POSITION;
+	mark_clear(m);
+#if CMD_HISTORY
+	/* Also clear in file_marks, so save_marks doesn't save it to history file. */
+	m = &file_marks[mark_index(c)];
+	mark_clear(m);
+#endif
 	marks_modified = TRUE;
 	if (perma_marks && autosave_action('m'))
 		save_cmdhist();
@@ -285,7 +313,7 @@ public void lastmark(void)
 /*
  * Go to a mark.
  */
-public void gomark(char c)
+public void gomark(char c, int sline)
 {
 	struct mark *m;
 	struct scrpos scrpos;
@@ -293,6 +321,8 @@ public void gomark(char c)
 	m = getmark(c);
 	if (m == NULL)
 		return;
+	if (sline != 0)
+		m->m_scrpos.ln = sline;
 
 	/*
 	 * If we're trying to go to the lastmark and 
@@ -466,10 +496,6 @@ public void restore_mark(constant char *line)
 	ln = lstrtoic(line, &line, 10);
 	if (ln < 0)
 		return;
-	if (ln < 1)
-		ln = 1;
-	if (ln > sc_height)
-		ln = sc_height;
 	skip_whitespace;
 	pos = lstrtoposc(line, &line, 10);
 	if (pos < 0)

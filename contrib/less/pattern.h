@@ -25,7 +25,7 @@ extern int less_is_more;
 #endif
 #define PATTERN_TYPE             regex_t *
 #define SET_NULL_PATTERN(name)   name = NULL
-#define re_handles_caseless      TRUE
+#define RE_HANDLES_CASELESS      1
 #endif
 
 /* ---- PCRE ---- */
@@ -33,7 +33,7 @@ extern int less_is_more;
 #include <pcre.h>
 #define PATTERN_TYPE             pcre *
 #define SET_NULL_PATTERN(name)   name = NULL
-#define re_handles_caseless      TRUE
+#define RE_HANDLES_CASELESS      1
 #endif
 
 /* ---- PCRE2 ---- */
@@ -42,7 +42,7 @@ extern int less_is_more;
 #include <pcre2.h>
 #define PATTERN_TYPE             pcre2_code *
 #define SET_NULL_PATTERN(name)   name = NULL
-#define re_handles_caseless      TRUE
+#define RE_HANDLES_CASELESS      1
 #endif
 
 /* ---- RE_COMP  ---- */
@@ -76,6 +76,6 @@ extern int reg_show_error;
 #define SET_NULL_PATTERN(name)   
 #endif
 
-#ifndef re_handles_caseless
-#define re_handles_caseless      FALSE
+#ifndef RE_HANDLES_CASELESS
+#define RE_HANDLES_CASELESS      0
 #endif

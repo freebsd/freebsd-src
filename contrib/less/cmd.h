@@ -87,6 +87,8 @@
 #define A_START_PASTE          75 /* must not overlap EC_* */
 #define A_END_PASTE            76 /* must not overlap EC_* */
 #define A_F_FOREVER_BELL       77
+#define A_L_MOUSE              78
+#define A_R_MOUSE              79
 
 /* These values must not conflict with any A_* or EC_* value. */
 #define A_INVALID              100
@@ -178,5 +180,6 @@
 #define SK_CTL_END             37
 #define SK_SHIFT_LEFT_ARROW    38
 #define SK_SHIFT_RIGHT_ARROW   39
+#define SK_PAD_ENTER           41
 
 #define SK_CONTROL_K           40
