@@ -52,4 +52,4 @@
 
        Report bugs at https://github.com/gwsw/less/issues.
 
-less 692                          29 Jan 2026                      [4mLESSECHO[24m(1)
+less 704                          30 May 2026                      [4mLESSECHO[24m(1)

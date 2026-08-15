@@ -46,6 +46,7 @@ DISTFILES = \
 	pckeys.h pattern.h position.h xbuf.h \
 	install.sh defines.h.in mkinstalldirs \
 	less.nro less.man lesskey.nro lesskey.man lessecho.nro lessecho.man \
+	less-osc8-open.sh \
 	less.hlp \
 	mkhelp.pl \
 	mkhelp.py \

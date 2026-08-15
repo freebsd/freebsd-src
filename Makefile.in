@@ -31,8 +31,9 @@ LIBS = $(LIBSAN) @LIBS@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 
-# Where the installed binary goes.
+# Where the installed binaries go.
 bindir = @bindir@
+libexecdir = @libexecdir@
 binprefix = 
 
 sysconfdir = @sysconfdir@
@@ -49,7 +50,7 @@ SHELL = /bin/sh
 # This rule allows us to supply the necessary -D options
 # in addition to whatever the user asks for.
 .c.o:
-	${CC} -I. ${CFLAGS_COMPILE_ONLY} -DBINDIR=\"${bindir}\" -DSYSDIR=\"${sysconfdir}\" ${CPPFLAGS} ${CFLAGS} $<
+	${CC} -I. ${CFLAGS_COMPILE_ONLY} -DBINDIR=\"${bindir}\" -DLIBEXECDIR=\"${libexecdir}\" -DSYSDIR=\"${sysconfdir}\" ${CPPFLAGS} ${CFLAGS} $<
 
 OBJ = \
 	main.${O} screen.${O} brac.${O} ch.${O} charset.${O} cmdbuf.${O} \
@@ -83,7 +84,8 @@ screen.${O} ttyin.${O}: pckeys.h
 install: all ${srcdir}/less.nro ${srcdir}/lesskey.nro ${srcdir}/lessecho.nro installdirs
 	${INSTALL_PROGRAM} less$(EXEEXT) ${DESTDIR}${bindir}/${binprefix}less$(EXEEXT)
 	${INSTALL_PROGRAM} lesskey$(EXEEXT) ${DESTDIR}${bindir}/${binprefix}lesskey$(EXEEXT)
-	${INSTALL_PROGRAM} lessecho$(EXEEXT) ${DESTDIR}${bindir}/${binprefix}lessecho$(EXEEXT)
+	${INSTALL_PROGRAM} lessecho$(EXEEXT) ${DESTDIR}${libexecdir}/${binprefix}lessecho$(EXEEXT)
+	${INSTALL} ${srcdir}/less-osc8-open.sh ${DESTDIR}${libexecdir}/${binprefix}less-osc8-open
 	${INSTALL_DATA} ${srcdir}/less.nro ${DESTDIR}${mandir}/man${manext}/${manprefix}less.${manext}
 	${INSTALL_DATA} ${srcdir}/lesskey.nro ${DESTDIR}${mandir}/man${manext}/${manprefix}lesskey.${manext}
 	${INSTALL_DATA} ${srcdir}/lessecho.nro ${DESTDIR}${mandir}/man${manext}/${manprefix}lessecho.${manext}
@@ -92,12 +94,13 @@ install-strip:
 	${MAKE} INSTALL_PROGRAM='${INSTALL_PROGRAM} -s' install
 
 installdirs: mkinstalldirs
-	${srcdir}/mkinstalldirs ${DESTDIR}${bindir} ${DESTDIR}${mandir}/man${manext}
+	${srcdir}/mkinstalldirs ${DESTDIR}${bindir} ${DESTDIR}${libexecdir} ${DESTDIR}${mandir}/man${manext}
 
 uninstall:
 	rm -f ${DESTDIR}${bindir}/${binprefix}less$(EXEEXT)
 	rm -f ${DESTDIR}${bindir}/${binprefix}lesskey$(EXEEXT)
-	rm -f ${DESTDIR}${bindir}/${binprefix}lessecho$(EXEEXT)
+	rm -f ${DESTDIR}${libexecdir}/${binprefix}lessecho$(EXEEXT)
+	rm -f ${DESTDIR}${libexecdir}/${binprefix}less-osc8-open
 	rm -f ${DESTDIR}${mandir}/man${manext}/${manprefix}less.${manext}
 	rm -f ${DESTDIR}${mandir}/man${manext}/${manprefix}lesskey.${manext}
 	rm -f ${DESTDIR}${mandir}/man${manext}/${manprefix}lessecho.${manext}

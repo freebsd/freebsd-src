@@ -100,14 +100,6 @@ INSTALLATION (Unix & Linux systems only):
    bindir and/or mandir to the appropriate directories.
 
 
-Note to hackers: comments noting possible improvements are enclosed
-in double curly brackets {{ like this }}.
-
-(Note that the above note was originally written at a time when 
-"hackers" most commonly meant "enthusiastic and dedicated computer 
-programmers", not "persons who attempt to circumvent computer security".)
-
-
 
 =======================================================================
 INSTALLATION (Windows-95, Windows-98 and Windows-NT systems only,

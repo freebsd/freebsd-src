@@ -34,10 +34,11 @@ extern lbool plusoption;
 extern int swindow;
 extern int sc_width;
 extern int sc_height;
-extern int dohelp;
+extern lbool dohelp;
 extern char openquote;
 extern char closequote;
 extern char *prproto[];
+extern char *eprproto[];
 extern char *eqproto;
 extern char *hproto;
 extern char *wproto;
@@ -53,7 +54,9 @@ extern int match_shift;
 extern long match_shift_fraction;
 extern LWCHAR rscroll_char;
 extern int rscroll_attr;
-extern int mousecap;
+extern int emouse;
+extern int mouse_reverse;
+extern int xmouse;
 extern int wheel_lines;
 extern int less_is_more;
 extern int linenum_width;
@@ -68,6 +71,7 @@ extern int tabstops[];
 extern int ntabstops;
 extern int tabdefault;
 extern int no_paste;
+extern int hilite_target;
 extern char intr_char;
 extern int nosearch_header_lines;
 extern int nosearch_header_cols;
@@ -87,7 +91,7 @@ extern char ztags[];
 #endif
 #if LESSTEST
 extern constant char *ttyin_name;
-extern int is_tty;
+extern lbool is_tty;
 #endif /*LESSTEST*/
 #if MSDOS_COMPILER
 extern int nm_fg_color, nm_bg_color, nm_attr;
@@ -333,7 +337,7 @@ public void opt__S(int type, constant char *s)
 	switch (type)
 	{
 	case TOGGLE:
-		pos_rehead();
+		pos_rehead(TRUE);
 		break;
 	}
 }
@@ -469,7 +473,49 @@ public void opt__P(int type, constant char *s)
 		break;
 	case QUERY:
 		parg.p_string = prproto[pr_type];
-		error("%s", &parg);
+		switch (pr_type)
+		{
+		case PR_MEDIUM: error("Prompt (medium): %s", &parg);  break;
+		case PR_LONG:   error("Prompt (long): %s", &parg);    break;
+		default:        error("Prompt (short): %s", &parg);   break;
+		}
+		break;
+	}
+}
+
+/*
+ * Handler for --end-prompt option.
+ */
+public void opt_end_prompt(int type, constant char *s)
+{
+	char **pend;
+	PARG parg;
+
+	switch (type)
+	{
+	case INIT:
+	case TOGGLE:
+		switch (*s)
+		{
+		case 's':  pend = &eprproto[PR_SHORT];  s++;    break;
+		case 'm':  pend = &eprproto[PR_MEDIUM]; s++;    break;
+		case 'M':  pend = &eprproto[PR_LONG];   s++;    break;
+		default:   pend = &eprproto[PR_SHORT];          break;
+		}
+		if (*pend != NULL)
+			free(*pend);
+		*pend = (strcmp(s, "-") == 0) ? NULL : save(s);
+		break;
+	case QUERY:
+		parg.p_string = eprproto[pr_type];
+		if (parg.p_string == NULL)
+			parg.p_string = "(nothing)";
+		switch (pr_type)
+		{
+		case PR_MEDIUM: error("Print after medium prompt: %s", &parg);  break;
+		case PR_LONG:   error("Print after long prompt: %s", &parg);    break;
+		default:        error("Print after short prompt: %s", &parg);   break;
+		}
 		break;
 	}
 }
@@ -613,11 +659,13 @@ static int color_from_namechar(char namechar)
 	case 'C': return AT_COLOR_CTRL;
 	case 'E': return AT_COLOR_ERROR;
 	case 'H': return AT_COLOR_HEADER;
+	case 'J': return AT_COLOR_TARGET;
 	case 'M': return AT_COLOR_MARK;
 	case 'N': return AT_COLOR_LINENUM;
 	case 'P': return AT_COLOR_PROMPT;
 	case 'R': return AT_COLOR_RSCROLL;
 	case 'S': return AT_COLOR_SEARCH;
+	case 'T': return AT_COLOR_TILDE;
 	case 'W': case 'A': return AT_COLOR_ATTN;
 	case 'n': return AT_NORMAL;
 	case 's': return AT_STANDOUT;
@@ -648,6 +696,11 @@ public void opt_D(int type, constant char *s)
 		if (*s == 'a')
 		{
 			sgr_mode = !sgr_mode;
+			if (type == TOGGLE)
+			{
+				p.p_string = (sgr_mode) ? "on" : "off";
+				error("SGR mode is %s", &p);
+			}
 			break;
 		}
 #endif
@@ -700,12 +753,6 @@ public void opt_D(int type, constant char *s)
 			return;
 		}
 		break;
-#if MSDOS_COMPILER
-	case QUERY:
-		p.p_string = (sgr_mode) ? "on" : "off";
-		error("SGR mode is %s", &p);
-		break;
-#endif
 	}
 }
 
@@ -868,7 +915,7 @@ public void opt_query(int type, constant char *s)
 		error("Use \"h\" for help", NULL_PARG);
 		break;
 	case INIT:
-		dohelp = 1;
+		dohelp = TRUE;
 	}
 }
 
@@ -897,20 +944,99 @@ public void calc_match_shift(void)
 }
 
 /*
+ * Handler for the --emouse option.
+ */
+	/*ARGSUSED*/
+public void opt_emouse(int type, constant char *s)
+{
+	/* Order of entries matters for QUERY.
+	 * Combinations must come after their components. */
+	static struct csl_bitmap_def emouse_defs[] = {
+		{ "hscroll",   EMOUSE_HSCROLL },
+		{ "vscroll",   EMOUSE_VSCROLL },
+		{ "hdrag",     EMOUSE_HDRAG },
+		{ "vdrag",     EMOUSE_VDRAG },
+		{ "lclick",    EMOUSE_LCLICK },
+		{ "rclick",    EMOUSE_RCLICK },
+		{ "scroll",    EMOUSE_HSCROLL|EMOUSE_VSCROLL },
+		{ "drag",      EMOUSE_HDRAG|EMOUSE_VDRAG },
+		{ "hmove",     EMOUSE_HSCROLL|EMOUSE_HDRAG },
+		{ "vmove",     EMOUSE_VSCROLL|EMOUSE_VDRAG },
+		{ "move",      EMOUSE_VSCROLL|EMOUSE_VDRAG|EMOUSE_HSCROLL|EMOUSE_HDRAG },
+		{ "click",     EMOUSE_LCLICK|EMOUSE_RCLICK },
+		{ "all",       EMOUSE_VSCROLL|EMOUSE_VDRAG|EMOUSE_HSCROLL|EMOUSE_HDRAG|EMOUSE_LCLICK|EMOUSE_RCLICK },
+	};
+
+	switch (type)
+	{
+	case INIT:
+	case TOGGLE: {
+		lbool was_mouse_enabled = (emouse != 0);
+		if (s == NULL || strcmp(s, "-") == 0)
+			emouse = 0;
+		else
+			emouse = parse_csl_bitmap(s,
+			    emouse_defs, countof(emouse_defs), "--emouse");
+		if (type == TOGGLE && was_mouse_enabled != (emouse != 0))
+		{
+			if (emouse == 0)
+				deinit_mouse();
+			else
+				init_mouse();
+		}
+		break; }
+	case QUERY: {
+		char buf[128];
+		char *bp = buf;
+		char *ebuf = buf + sizeof(buf);
+		int qmouse = emouse;
+		PARG parg;
+		int i;
+
+		for (i = countof(emouse_defs)-1;  i >= 0;  i--)
+		{
+			int bit = emouse_defs[i].bit_value;
+			if ((qmouse & bit) == bit)
+			{
+				if (bp > buf && bp+1 < ebuf)
+					*bp++ = ',';
+				strncpy(bp, emouse_defs[i].bit_name, ptr_diff(ebuf, bp));
+				bp += strlen(bp);
+				qmouse &= ~bit;
+			}
+		}
+		*bp = '\0';
+		parg.p_string = buf;
+		if (buf[0] == '\0')
+			error("Ignore mouse input", NULL_PARG);
+		else
+			error("Mouse features enabled: %s", &parg);
+		break; }
+	}
+}
+
+/*
  * Handler for the --mouse option.
  */
 	/*ARGSUSED*/
-public void opt_mousecap(int type, constant char *s)
+public void opt_mouse(int type, constant char *s)
 {
 	switch (type)
 	{
-	case TOGGLE:
-		if (mousecap == OPT_OFF)
-			deinit_mouse();
-		else
-			init_mouse();
-		break;
 	case INIT:
+	case TOGGLE:
+		switch (xmouse)
+		{
+		case OPT_OFF:
+			opt_emouse(type, "-");
+			break;
+		case OPT_ON:
+		case OPT_ONPLUS:
+			opt_emouse(type, "vmove,click");
+			mouse_reverse = (xmouse == OPT_ONPLUS);
+			break;
+		}
+		break;
 	case QUERY:
 		break;
 	}
@@ -1116,13 +1242,31 @@ public void opt_header(int type, constant char *s)
 		set_header(start_pos);
 		calc_jump_sline();
 		break; }
-    case QUERY: {
-        char buf[3*INT_STRLEN_BOUND(long)+3];
-        PARG parg;
-        SNPRINTF3(buf, sizeof(buf), "%ld,%ld,%ld", (long) header_lines, (long) header_cols, (long) find_linenum(header_start_pos));
-        parg.p_string = buf;
-        error("Header (lines,columns,line-number) is %s", &parg);
-        break; }
+	case QUERY: {
+		char buf[3*INT_STRLEN_BOUND(long)+3];
+		PARG parg;
+		SNPRINTF3(buf, sizeof(buf), "%ld,%ld,%ld", (long) header_lines, (long) header_cols, (long) find_linenum(header_start_pos));
+		parg.p_string = buf;
+		error("Header (lines,columns,line-number) is %s", &parg);
+		break; }
+	}
+}
+
+/*
+ * Handler for the --hilite-target option.
+ */
+	/*ARGSUSED*/
+public void opt_hilite_target(int type, constant char *s)
+{
+	switch (type)
+	{
+	case INIT:
+		break;
+	case TOGGLE:
+		draw_target_attn(hilite_target != OPT_OFF);
+		break;
+    case QUERY:
+		break;
 	}
 }
 
@@ -1242,11 +1386,11 @@ public void opt_no_paste(int type, constant char *s)
 			init_bracketed_paste();
 		else
 			deinit_bracketed_paste();
-        break;
+		break;
 	case INIT:
 	case QUERY:
 		break;
-    }
+	}
 }
 
 #if LESSTEST
@@ -1260,7 +1404,7 @@ public void opt_ttyin_name(int type, constant char *s)
 	{
 	case INIT:
 		ttyin_name = s;
-		is_tty = 1;
+		is_tty = TRUE;
 		break;
 	}
 }

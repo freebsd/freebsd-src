@@ -3684,7 +3684,6 @@ fi
 
 
 
-
   # Find a good install program.  We prefer a C program (faster),
 # so one script is as good as another.  But avoid the broken or
 # incompatible versions:
@@ -4978,27 +4977,92 @@ cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 int
 main (void)
 {
-setupterm("",0,0); tigetflag(""); tigetnum(""); tigetstr("")
+setupterm("",0,0); tigetflag(""); tigetnum(""); tigetstr("");
   ;
   return 0;
 }
 _ACEOF
 if ac_fn_c_try_link "$LINENO"
 then :
-  { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-printf "%s\n" "yes" >&6; }; printf "%s\n" "#define HAVE_TERMINFO 1" >>confdefs.h
-
+  maybe_have_terminfo=yes
 else case e in #(
-  e) { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
-printf "%s\n" "no" >&6; } ;;
+  e) maybe_have_terminfo=no ;;
 esac
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.beam \
     conftest$ac_exeext conftest.$ac_ext
+if test $maybe_have_terminfo = yes; then
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <curses.h>
+#include <term.h>
+int
+main (void)
+{
+tparm("x",0,0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  printf "%s\n" "#define HAVE_TPARM2 1" >>confdefs.h
+ have_terminfo=yes
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <curses.h>
+#include <term.h>
+int
+main (void)
+{
+tparm("x",0,0,0,0,0,0,0,0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  printf "%s\n" "#define HAVE_TPARM8 1" >>confdefs.h
+ have_terminfo=yes
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+#include <curses.h>
+#include <term.h>
+int
+main (void)
+{
+tparm("x",0,0,0,0,0,0,0,0,0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"
+then :
+  printf "%s\n" "#define HAVE_TPARM9 1" >>confdefs.h
+ have_terminfo=yes
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+if test "$have_terminfo" = yes; then
+  printf "%s\n" "#define HAVE_TERMINFO 1" >>confdefs.h
+ { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+printf "%s\n" "yes" >&6; } ; else { printf "%s\n" "$as_me:${as_lineno-$LINENO}: result: no" >&5
+printf "%s\n" "no" >&6; }
+fi
 
 fi
 
 # Autoheader templates for symbols defined later by AC_DEFINE.
+
+
+
 
 
 

@@ -410,6 +410,18 @@
 /* Define HAVE_TIME_T if your system supports the "time_t" type. */
 #undef HAVE_TIME_T
 
+/* Define HAVE_TPARM2 if your terminfo library supports tparm with 2
+   parameters. */
+#undef HAVE_TPARM2
+
+/* Define HAVE_TPARM8 if your terminfo library supports tparm with 8
+   parameters. */
+#undef HAVE_TPARM8
+
+/* Define HAVE_TPARM9 if your terminfo library supports tparm with 9
+   parameters. */
+#undef HAVE_TPARM9
+
 /* Define to 1 if you have the 'ttyname' function. */
 #undef HAVE_TTYNAME
 

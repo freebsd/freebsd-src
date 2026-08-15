@@ -16,7 +16,6 @@ AC_CONFIG_HEADERS([defines.h])
 # Checks for programs.
 AC_PROG_CC
 AC_SEARCH_LIBS([strerror],[cposix])
-AC_PROG_GCC_TRADITIONAL
 AC_PROG_INSTALL
 
 # Checks for compilation model.
@@ -192,7 +191,21 @@ LIBS="$LIBS $TERMLIBS"
 AC_MSG_CHECKING(for terminfo)
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 #include <curses.h>
-#include <term.h>]], [[setupterm("",0,0); tigetflag(""); tigetnum(""); tigetstr("")]])],[AC_MSG_RESULT(yes); AC_DEFINE(HAVE_TERMINFO)],[AC_MSG_RESULT(no)])
+#include <term.h>]], [[setupterm("",0,0); tigetflag(""); tigetnum(""); tigetstr("");]])], [maybe_have_terminfo=yes], [maybe_have_terminfo=no])
+if test $maybe_have_terminfo = yes; then
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <curses.h>
+#include <term.h>]], [[tparm("x",0,0);]])], AC_DEFINE(HAVE_TPARM2) have_terminfo=yes, )
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <curses.h>
+#include <term.h>]], [[tparm("x",0,0,0,0,0,0,0,0);]])], AC_DEFINE(HAVE_TPARM8) have_terminfo=yes,)
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <curses.h>
+#include <term.h>]], [[tparm("x",0,0,0,0,0,0,0,0,0);]])], AC_DEFINE(HAVE_TPARM9) have_terminfo=yes, )
+fi
+if test "$have_terminfo" = yes; then
+  AC_DEFINE(HAVE_TERMINFO) AC_MSG_RESULT(yes) ; else AC_MSG_RESULT(no)
+fi
 
 fi
 
@@ -253,6 +266,12 @@ AH_TEMPLATE([HAVE_SIGSETJMP],
 	[Define HAVE_SIGSETJMP if you have sigsetjmp and siglongjmp.])
 AH_TEMPLATE([HAVE_TERMINFO],
 	[Define HAVE_TERMINFO if you have the terminfo library.])
+AH_TEMPLATE([HAVE_TPARM2],
+	[Define HAVE_TPARM2 if your terminfo library supports tparm with 2 parameters.])
+AH_TEMPLATE([HAVE_TPARM8],
+	[Define HAVE_TPARM8 if your terminfo library supports tparm with 8 parameters.])
+AH_TEMPLATE([HAVE_TPARM9],
+	[Define HAVE_TPARM9 if your terminfo library supports tparm with 9 parameters.])
 AH_TEMPLATE([EDIT_PGM],
 	[Define EDIT_PGM to your editor.])
 AH_TEMPLATE([SECURE_COMPILE],
