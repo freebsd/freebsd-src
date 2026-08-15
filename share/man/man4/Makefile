@@ -577,8 +577,10 @@ MAN=	aac.4 \
 	tty.4 \
 	tun.4 \
 	tws.4 \
+	uart.4 \
 	udp.4 \
 	udplite.4 \
+	unix.4 \
 	ure.4 \
 	vale.4 \
 	vga.4 \
@@ -696,6 +698,7 @@ MLINKS+=fxp.4 if_fxp.4
 MLINKS+=gem.4 if_gem.4
 MLINKS+=genet.4 if_genet.4
 MLINKS+=geom.4 GEOM.4
+MLINKS+=geom_zero.4 gzero.4
 MLINKS+=gif.4 if_gif.4
 MLINKS+=gpio.4 gpiobus.4
 MLINKS+=gpioths.4 dht11.4
@@ -1012,7 +1015,6 @@ MAN+=	\
 	runfw.4 \
 	u3g.4 \
 	uark.4 \
-	uart.4 \
 	uath.4 \
 	ubsa.4 \
 	ubser.4 \
@@ -1041,7 +1043,6 @@ MAN+=	\
 	umodem.4 \
 	umoscom.4 \
 	ums.4 \
-	unix.4 \
 	upgt.4 \
 	uplcom.4 \
 	ural.4 \
@@ -1058,7 +1059,6 @@ MAN+=	\
 	uvscom.4 \
 	zyd.4
 
-MLINKS+=geom_zero.4 gzero.4
 MLINKS+=otus.4 if_otus.4
 MLINKS+=rsu.4 if_rsu.4
 MLINKS+=rtwn_usb.4 if_rtwn_usb.4
