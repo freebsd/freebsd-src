@@ -36,6 +36,66 @@
 
 int e1000_use_pause_delay = 0;
 
+/*
+ * Wait while the 82579 Management Engine owns the PCIm2PCI arbiter.  DELAY
+ * is required because CSR writes also occur from interrupt and datapath
+ * contexts where sleeping is forbidden.
+ */
+static void
+e1000_pcim2pci_arbiter_wait(struct e1000_osdep *osdep)
+{
+	int i;
+
+	i = E1000_ICH_FWSM_PCIM2PCI_COUNT;
+	while ((bus_space_read_4(osdep->mem_bus_space_tag,
+	    osdep->mem_bus_space_handle, E1000_FWSM) &
+	    E1000_ICH_FWSM_PCIM2PCI) != 0 && --i != 0)
+		DELAY(50);
+}
+
+/*
+ * Serialize an 82579 MAC CSR write against the Management Engine.  The
+ * FreeBSD driver exposes one queue on this controller, so recognize its two
+ * tail registers here and verify them without imposing tail-specific APIs on
+ * the rest of the e1000 family.
+ */
+void
+e1000_pcim2pci_write(struct e1000_osdep *osdep, uint32_t reg, uint32_t value)
+{
+	uint32_t control, control_reg, enable;
+	const char *direction;
+
+	e1000_pcim2pci_arbiter_wait(osdep);
+	bus_space_write_4(osdep->mem_bus_space_tag,
+	    osdep->mem_bus_space_handle, reg, value);
+
+	if (reg == E1000_TDT(0)) {
+		control_reg = E1000_TCTL;
+		enable = E1000_TCTL_EN;
+		direction = "transmit";
+	} else if (reg == E1000_RDT(0)) {
+		control_reg = E1000_RCTL;
+		enable = E1000_RCTL_EN;
+		direction = "receive";
+	} else {
+		return;
+	}
+	if (bus_space_read_4(osdep->mem_bus_space_tag,
+	    osdep->mem_bus_space_handle, reg) == value)
+		return;
+
+	control = bus_space_read_4(osdep->mem_bus_space_tag,
+	    osdep->mem_bus_space_handle, control_reg);
+	e1000_pcim2pci_arbiter_wait(osdep);
+	bus_space_write_4(osdep->mem_bus_space_tag,
+	    osdep->mem_bus_space_handle, control_reg, control & ~enable);
+	device_printf(osdep->dev,
+	    "Management Engine caused an invalid %s tail write; "
+	    "requesting reset\n", direction);
+	iflib_request_reset(osdep->ctx);
+	iflib_admin_intr_deferred(osdep->ctx);
+}
+
 static void
 e1000_enable_pause_delay(void *use_pause_delay)
 {

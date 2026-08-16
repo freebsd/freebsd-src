@@ -1413,6 +1413,15 @@ em_if_attach_pre(if_ctx_t ctx)
 		error = ENXIO;
 		goto err_pci;
 	}
+	/*
+	 * 82579 can lose a host CSR write while the Management Engine owns
+	 * the PCIm2PCI arbiter.  Enable the OS register write interlock before
+	 * shared code initialization performs any MAC writes.
+	 */
+	if (hw->mac.type == e1000_pch2lan &&
+	    (E1000_READ_REG(hw, E1000_FWSM) &
+	    E1000_ICH_FWSM_FW_VALID) != 0)
+		sc->osdep.pcim2pci_arbiter_wa = true;
 
 	/*
 	** For ICH8 and family we need to

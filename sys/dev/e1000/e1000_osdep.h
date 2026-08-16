@@ -161,9 +161,12 @@ struct e1000_osdep
 	bus_space_handle_t flash_bus_space_handle;
 	device_t	   dev;
 	if_ctx_t	   ctx;
+	bool		   pcim2pci_arbiter_wa;
 	bool		   vf;
 	bool		   vf_82576;
 };
+
+void e1000_pcim2pci_write(struct e1000_osdep *, uint32_t, uint32_t);
 
 #ifdef INVARIANTS
 /*
@@ -276,11 +279,6 @@ e1000_vf_reg_valid(uint32_t reg, bool write, bool vf_82576)
     bus_space_read_4(((struct e1000_osdep *)(hw)->back)->mem_bus_space_tag, \
     ((struct e1000_osdep *)(hw)->back)->mem_bus_space_handle, offset)
 
-/* Write to an absolute offset in the adapter's memory space */
-#define E1000_WRITE_OFFSET(hw, offset, value) \
-    bus_space_write_4(((struct e1000_osdep *)(hw)->back)->mem_bus_space_tag, \
-    ((struct e1000_osdep *)(hw)->back)->mem_bus_space_handle, offset, value)
-
 static __inline uint32_t
 e1000_rd32(struct e1000_osdep *osdep, uint32_t reg)
 {
@@ -312,9 +310,17 @@ e1000_wr32(struct e1000_osdep *osdep, uint32_t reg, uint32_t value)
 	    ("e1000: invalid VF register write at %#x", reg));
 #endif
 
-	bus_space_write_4(osdep->mem_bus_space_tag,
-	    osdep->mem_bus_space_handle, reg, value);
+	if (__predict_true(!osdep->pcim2pci_arbiter_wa)) {
+		bus_space_write_4(osdep->mem_bus_space_tag,
+		    osdep->mem_bus_space_handle, reg, value);
+		return;
+	}
+	e1000_pcim2pci_write(osdep, reg, value);
 }
+
+/* Write to an absolute offset in the adapter's memory space. */
+#define E1000_WRITE_OFFSET(hw, offset, value) \
+	e1000_wr32((hw)->back, (offset), (value))
 
 /* Register READ/WRITE macros */
 
