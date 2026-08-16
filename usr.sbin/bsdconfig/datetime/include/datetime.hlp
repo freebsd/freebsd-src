@@ -1,0 +1,19 @@
+These screens allow you to set the system date and time on the
+running system.
+
+Date
+====
+
+Choose Date to open a calendar pre-filled with the current local
+date. Confirming applies that calendar day while preserving the
+current time-of-day.
+
+Time
+====
+
+Choose Time to open a time box pre-filled with the current local
+time. Confirming applies that time-of-day while preserving the
+current calendar date.
+
+Timezone is configured separately (bsdconfig timezone). Setting
+the clock here does not change which zone /etc/localtime names.
