@@ -32,6 +32,7 @@
 
 #include <machine/../linux/linux_emul_md.h>
 
+struct image_args;
 struct image_params;
 
 /*
