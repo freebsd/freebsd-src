@@ -345,6 +345,7 @@ static u_long max_hops = 30;
 static u_int16_t srcport;
 static u_int16_t port = 32768 + 666;	/* start udp dest port # for probe packets */
 static u_int16_t ident;
+static int fixedPort = 0;	/* Use fixed destination port for TCP/UDP/SCTP */
 static int tclass = -1;
 static int options;			/* socket options */
 static int verbose;
@@ -415,7 +416,7 @@ main(int argc, char *argv[])
 	seq = 0;
 	ident = htons(getpid() & 0xffff); /* same as ping6 */
 
-	while ((ch = getopt(argc, argv, "aA:dEf:g:Ilm:nNp:q:rs:St:TUvw:")) != -1)
+	while ((ch = getopt(argc, argv, "aA:deEf:g:Ilm:nNp:q:rs:St:TUvw:")) != -1)
 		switch (ch) {
 		case 'a':
 			as_path = 1;
@@ -426,6 +427,9 @@ main(int argc, char *argv[])
 			break;
 		case 'd':
 			options |= SO_DEBUG;
+			break;
+		case 'e':
+			fixedPort = 1;
 			break;
 		case 'E':
 			ecnflag = 1;
@@ -1146,8 +1150,8 @@ send_probe(int seq, u_long hops)
 		break;
 	case IPPROTO_UDP:
 		outudp = (struct udphdr *) outpacket;
-		outudp->uh_sport = htons(ident);
-		outudp->uh_dport = htons(port + seq);
+		outudp->uh_sport = htons(ident + (fixedPort ? seq : 0));
+		outudp->uh_dport = htons(port  + (fixedPort ? 0 : seq));
 		outudp->uh_ulen = htons(datalen);
 		outudp->uh_sum = 0;
 		outudp->uh_sum = udp_cksum(&Src, &Dst, outpacket, datalen);
@@ -1159,7 +1163,7 @@ send_probe(int seq, u_long hops)
 		sctp = (struct sctphdr *)outpacket;
 
 		sctp->src_port = htons(ident);
-		sctp->dest_port = htons(port + seq);
+		sctp->dest_port = htons(port + (fixedPort ? 0 : seq));
 		if (datalen >= (u_long)(sizeof(struct sctphdr) +
 		    sizeof(struct sctp_init_chunk))) {
 			sctp->v_tag = 0;
@@ -1225,7 +1229,7 @@ send_probe(int seq, u_long hops)
 		tcp = (struct tcphdr *)outpacket;
 
 		tcp->th_sport = htons(ident);
-		tcp->th_dport = htons(port + seq);
+		tcp->th_dport = htons(port + (fixedPort ? 0 : seq));
 		tcp->th_seq = (tcp->th_sport << 16) | tcp->th_dport;
 		tcp->th_ack = 0;
 		tcp->th_off = 5;
@@ -1433,14 +1437,14 @@ packet_ok(struct msghdr *mhdr, int cc, int seq, u_char *type, u_char *code,
 			break;
 		case IPPROTO_UDP:
 			udp = (struct udphdr *)up;
-			if (udp->uh_sport == htons(ident) &&
-			    udp->uh_dport == htons(port + seq))
+			if (ntohs(udp->uh_sport) == ident + (fixedPort ? seq : 0) &&
+			    ntohs(udp->uh_dport) == port + (fixedPort ? 0 : seq))
 				return (1);
 			break;
 		case IPPROTO_SCTP:
 			sctp = (struct sctphdr *)up;
-			if (sctp->src_port != htons(ident) ||
-			    sctp->dest_port != htons(port + seq)) {
+			if (ntohs(sctp->src_port) != ident ||
+			    ntohs(sctp->dest_port) != port + (fixedPort ? 0 : seq)) {
 				break;
 			}
 			if (datalen >= (u_long)(sizeof(struct sctphdr) +
@@ -1467,8 +1471,8 @@ packet_ok(struct msghdr *mhdr, int cc, int seq, u_char *type, u_char *code,
 			break;
 		case IPPROTO_TCP:
 			tcp = (struct tcphdr *)up;
-			if (tcp->th_sport == htons(ident) &&
-			    tcp->th_dport == htons(port + seq) &&
+			if (ntohs(tcp->th_sport) == ident &&
+			    ntohs(tcp->th_dport) == port + (fixedPort ? 0 : seq) &&
 			    tcp->th_seq ==
 			    (tcp_seq)((tcp->th_sport << 16) | tcp->th_dport))
 				return (1);
@@ -1855,7 +1859,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: traceroute6 [-adEIlnNrSTUv] [-A as_server] [-f firsthop] [-g gateway]\n"
+"usage: traceroute6 [-adeEIlnNrSTUv] [-A as_server] [-f firsthop] [-g gateway]\n"
 "       [-m hoplimit] [-p port] [-q probes] [-s src] [-w waittime] target\n"
 "       [datalen]\n");
 	exit(1);
