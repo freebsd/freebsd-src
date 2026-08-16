@@ -140,6 +140,7 @@ irq_set_affinity_hint(int vector, const cpumask_t *mask)
 	return (-error);
 }
 
+struct msi_desc *lkpi_pci_msi_desc_alloc(unsigned int);
 static inline struct msi_desc *
 irq_get_msi_desc(unsigned int irq)
 {

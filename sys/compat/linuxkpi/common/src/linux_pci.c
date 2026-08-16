@@ -1613,7 +1613,7 @@ out:
 }
 
 struct msi_desc *
-lkpi_pci_msi_desc_alloc(int irq)
+lkpi_pci_msi_desc_alloc(unsigned int irq)
 {
 	struct device *dev;
 	struct pci_dev *pdev;
