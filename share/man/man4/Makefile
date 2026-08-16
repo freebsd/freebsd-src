@@ -284,6 +284,7 @@ MAN=	aac.4 \
 	${_iwx.4} \
 	ix.4 \
 	ixl.4 \
+	ixv.4 \
 	jedec_dimm.4 \
 	jme.4 \
 	kbdmux.4 \
@@ -758,6 +759,7 @@ MLINKS+=ix.4 if_ix.4
 MLINKS+=ix.4 if_ixgbe.4
 MLINKS+=ix.4 ixgbe.4
 MLINKS+=ixl.4 if_ixl.4
+MLINKS+=ixv.4 if_ixv.4
 MLINKS+=iavf.4 if_iavf.4
 MLINKS+=jme.4 if_jme.4
 MLINKS+=kue.4 if_kue.4
