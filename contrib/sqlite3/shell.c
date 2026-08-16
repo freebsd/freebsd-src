@@ -1790,7 +1790,7 @@ static void qrfEncodeText(Qrf *p, sqlite3_str *pOut, const char *zTxt){
           sqlite3_str_append(pOut, (const char*)z, i);
         }
         switch( z[i] ){
-          case '>':   sqlite3_str_append(pOut, "&lt;", 4);   break;
+          case '>':   sqlite3_str_append(pOut, "&gt;", 4);   break;
           case '&':   sqlite3_str_append(pOut, "&amp;", 5);  break;
           case '<':   sqlite3_str_append(pOut, "&lt;", 4);   break;
           case '"':   sqlite3_str_append(pOut, "&quot;", 6); break;
@@ -2270,7 +2270,7 @@ static void qrfWrapLine(
     for(k=i-1; k>=i/2; k--){
       if( qrfSpace(z[k]) ) break;
     }
-    if( k<i/2 ){
+    if( k<i/2 && i/2>0 ){
       for(k=i; k>=i/2; k--){
         if( qrfAlnum(z[k-1])!=qrfAlnum(z[k]) && (z[k]&0xc0)!=0x80 ) break;
       }
@@ -5810,6 +5810,9 @@ static void decimal_free(Decimal *p){
 /*
 ** Allocate a new Decimal object initialized to the text in zIn[].
 ** Return NULL if any kind of error occurs.
+**
+** Note that zIn[] is not necessarily zero-terminated.  Always
+** respect the boundary imposed by the n argument.
 */
 static Decimal *decimalNewFromText(const char *zIn, int n){
   Decimal *p = 0;
@@ -5827,11 +5830,11 @@ static Decimal *decimalNewFromText(const char *zIn, int n){
   p->nFrac = 0;
   p->a = sqlite3_malloc64( n+1 );
   if( p->a==0 ) goto new_from_text_failed;
-  for(i=0; IsSpace(zIn[i]); i++){}
-  if( zIn[i]=='-' ){
+  for(i=0; i<n && IsSpace(zIn[i]); i++){}
+  if( i<n && zIn[i]=='-' ){
     p->sign = 1;
     i++;
-  }else if( zIn[i]=='+' ){
+  }else if( i<n && zIn[i]=='+' ){
     i++;
   }
   while( i<n && zIn[i]=='0' ) i++;
@@ -6042,28 +6045,37 @@ static void decimal_result(sqlite3_context *pCtx, Decimal *p){
   sqlite3_result_text(pCtx, z, i, sqlite3_free);
 }
 
+/* Forward declaration */
+static void decimal_expand(Decimal *p, int nDigit, int nFrac);
+
 /*
 ** Round a decimal value to N significant digits.  N must be positive.
 */
 static void decimal_round(Decimal *p, int N){
   int i;
-  int nZero;
+  int nZero;  /* Number of leading zeros */
   if( N<1 ) return;
   if( p==0 ) return;
   if( p->nDigit<=N ) return;
   for(nZero=0; nZero<p->nDigit && p->a[nZero]==0; nZero++){}
   N += nZero;
   if( p->nDigit<=N ) return;
-  if( p->a[N]>4 ){
+  if( p->a[N]>=5 ){
+    /* If all leading digits are 9, increase the number of digits
+    ** by adding a new 0 to the front */
+    for(i=0; i<N && p->a[i]==9; i++){}
+    if( i==N ){
+      decimal_expand(p, p->nDigit+1, p->nFrac);
+      if( p->oom ) return;
+    }
+
+    /* Do the rounding */
     p->a[N-1]++;
     for(i=N-1; i>0 && p->a[i]>9; i--){
       p->a[i] = 0;
       p->a[i-1]++;
     }
-    if( p->a[0]>9 ){
-      p->a[0] = 1;
-      p->nFrac--;
-    }
+    assert( p->a[0]<=9 );
   }
   memset(&p->a[N], 0, p->nDigit - N);
 }
@@ -6211,6 +6223,7 @@ static void decimal_expand(Decimal *p, int nDigit, int nFrac){
   signed char *a;
   if( p==0 ) return;
   nAddFrac = nFrac - p->nFrac;
+  assert( nAddFrac>=0 );
   nAddSig = (nDigit - p->nDigit) - nAddFrac;
   if( nAddFrac==0 && nAddSig==0 ) return;
   if( nDigit+1>SQLITE_DECIMAL_MAX_DIGIT ){ p->oom = 1; return; }
@@ -8219,6 +8232,16 @@ static double seriesFloor(double r){
 }
 #endif
 
+/* Convert a floating point value to its closest integer.  Do so in
+** a way that avoids 'outside the range of representable values' warnings
+** from UBSAN.
+*/
+sqlite3_int64 seriesRealToI64(double r){
+  if( r<-9223372036854774784.0 ) return SMALLEST_INT64;
+  if( r>+9223372036854774784.0 ) return LARGEST_INT64;
+  return (sqlite3_int64)r;
+}
+
 /*
 ** This method is called to "rewind" the series_cursor object back
 ** to the first row of output.  This method is always called at least
@@ -8341,7 +8364,7 @@ static int seriesFilter(
          && r>=(double)SMALLEST_INT64
          && r<=(double)LARGEST_INT64
         ){
-          iMin = iMax = (sqlite3_int64)r;
+          iMin = iMax = seriesRealToI64(r);
         }else{
           goto series_no_rows;
         }
@@ -8349,15 +8372,19 @@ static int seriesFilter(
         iMin = iMax = sqlite3_value_int64(argv[iArg++]);
       }
     }else{
-      if( idxNum & 0x0300 ){  /* value>X or value>=X */
+      if( idxNum & 0x0300 ){  /* value>X (0x200) or value>=X (0x100) */
         if( sqlite3_value_numeric_type(argv[iArg])==SQLITE_FLOAT ){
           double r = sqlite3_value_double(argv[iArg++]);
-          if( r<(double)SMALLEST_INT64 ){
+          if( r<=(double)SMALLEST_INT64 ){
             iMin = SMALLEST_INT64;
-          }else if( (idxNum & 0x0200)!=0 && r==seriesCeil(r) ){
-            iMin = (sqlite3_int64)seriesCeil(r+1.0);
+          }else if( r>(double)LARGEST_INT64 ){
+            goto series_no_rows;
           }else{
-            iMin = (sqlite3_int64)seriesCeil(r);
+            iMin = seriesRealToI64(seriesCeil(r));
+            if( (idxNum & 0x0200)!=0 && r==seriesCeil(r) ){
+              if( iMin==LARGEST_INT64 ) goto series_no_rows;
+              iMin++;
+            }
           }
         }else{
           iMin = sqlite3_value_int64(argv[iArg++]);
@@ -8370,15 +8397,19 @@ static int seriesFilter(
           }
         }
       }
-      if( idxNum & 0x3000 ){   /* value<X or value<=X */
+      if( idxNum & 0x3000 ){   /* value<X (0x2000) or value<=X (0x1000) */
         if( sqlite3_value_numeric_type(argv[iArg])==SQLITE_FLOAT ){
           double r = sqlite3_value_double(argv[iArg++]);
-          if( r>(double)LARGEST_INT64 ){
+          if( r>=(double)LARGEST_INT64 ){
             iMax = LARGEST_INT64;
-          }else if( (idxNum & 0x2000)!=0 && r==seriesFloor(r) ){
-            iMax = (sqlite3_int64)(r-1.0);
+          }else if( r<=(double)SMALLEST_INT64 ){
+            goto series_no_rows;
           }else{
-            iMax = (sqlite3_int64)seriesFloor(r);
+            iMax = seriesRealToI64(seriesFloor(r));
+            if( (idxNum & 0x2000)!=0 && r==seriesFloor(r) ){
+              if( iMax==SMALLEST_INT64 ) goto series_no_rows;
+              iMax--;
+            }
           }
         }else{
           iMax = sqlite3_value_int64(argv[iArg++]);
@@ -12618,6 +12649,7 @@ static void zipfileResetCursor(ZipfileCsr *pCsr){
     pNext = p->pNext;
     zipfileEntryFree(p);
   }
+  pCsr->pFreeEntry = 0;
 }
 
 /*
@@ -13020,7 +13052,13 @@ static int zipfileGetEntry(
 
     if( rc==SQLITE_OK ){
       u32 *pt = &pNew->mUnixTime;
-      pNew->cds.zFile = sqlite3_mprintf("%.*s", nFile, aRead); 
+      /* aRead[0..nFile-1] might contain embedded \000 characters
+      ** See Bug 2026-05-31T11:43:05Z */
+      pNew->cds.zFile = sqlite3_malloc64(nFile+1);
+      if( pNew->cds.zFile!=0 ){
+        memcpy(pNew->cds.zFile, aRead, nFile);
+        pNew->cds.zFile[nFile] = 0;
+      }
       pNew->aExtra = (u8*)&pNew[1];
       memcpy(pNew->aExtra, &aRead[nFile], nExtra);
       if( pNew->cds.zFile==0 ){
@@ -14124,10 +14162,10 @@ struct ZipfileCtx {
 };
 
 static int zipfileBufferGrow(ZipfileBuffer *pBuf, i64 nByte){
-  if( pBuf->n+nByte>pBuf->nAlloc ){
+  if( (pBuf->nAlloc-pBuf->n)<nByte ){
     u8 *aNew;
-    sqlite3_int64 nNew = pBuf->n ? pBuf->n*2 : 512;
-    int nReq = pBuf->n + nByte;
+    i64 nNew = pBuf->n ? (i64)pBuf->n*2 : 512;
+    i64 nReq = pBuf->n + nByte;
 
     while( nNew<nReq ) nNew = nNew*2;
     aNew = sqlite3_realloc64(pBuf->a, nNew);
@@ -14343,7 +14381,7 @@ static void zipfileFinal(sqlite3_context *pCtx){
     eocd.nSize = p->cds.n;
     eocd.iOffset = p->body.n;
 
-    nZip = p->body.n + p->cds.n + ZIPFILE_EOCD_FIXED_SZ;
+    nZip = (i64)p->body.n + (i64)p->cds.n + ZIPFILE_EOCD_FIXED_SZ;
     aZip = (u8*)sqlite3_malloc64(nZip);
     if( aZip==0 ){
       sqlite3_result_error_nomem(pCtx);
@@ -17470,7 +17508,7 @@ static int intckGetToken(const char *z){
     }
   }
   else if( c=='[' ){
-    while( z[iRet++]!=']' && z[iRet] );
+    while( z[iRet] && z[iRet++]!=']' ){}
   }
   else if( (c>='A' && c<='Z') || (c>='a' && c<='z') ){
     while( (z[iRet]>='A' && z[iRet]<='Z') || (z[iRet]>='a' && z[iRet]<='z') ){
@@ -29727,7 +29765,7 @@ struct ArCommand {
   u8 eCmd;                        /* An AR_CMD_* value */
   u8 bVerbose;                    /* True if --verbose */
   u8 bZip;                        /* True if the archive is a ZIP */
-  u8 bDryRun;                     /* True if --dry-run */
+  u8 bDryRun;                     /* 1 for --dry-run, 2 for --debug */
   u8 bAppend;                     /* True if --append */
   u8 bGlob;                       /* True if --glob */
   u8 fromCmdLine;                 /* Run from -A instead of .archive */
@@ -29789,6 +29827,7 @@ static int arErrorMsg(ArCommand *pAr, const char *zFmt, ...){
 #define AR_SWITCH_APPEND     11
 #define AR_SWITCH_DRYRUN     12
 #define AR_SWITCH_GLOB       13
+#define AR_SWITCH_DEBUG      14
 
 static int arProcessSwitch(ArCommand *pAr, int eSwitch, const char *zArg){
   switch( eSwitch ){
@@ -29806,7 +29845,10 @@ static int arProcessSwitch(ArCommand *pAr, int eSwitch, const char *zArg){
       break;
 
     case AR_SWITCH_DRYRUN:
-      pAr->bDryRun = 1;
+      if( pAr->bDryRun<2 ) pAr->bDryRun = 1;
+      break;
+    case AR_SWITCH_DEBUG:
+      pAr->bDryRun = 2;
       break;
     case AR_SWITCH_GLOB:
       pAr->bGlob = 1;
@@ -29857,6 +29899,7 @@ static int arParseCommand(
     { "append",    'a', AR_SWITCH_APPEND,    1 },
     { "directory", 'C', AR_SWITCH_DIRECTORY, 1 },
     { "dryrun",    'n', AR_SWITCH_DRYRUN,    0 },
+    { "debug",      0,  AR_SWITCH_DEBUG,     0 },
     { "glob",      'g', AR_SWITCH_GLOB,      0 },
   };
   int nSwitch = sizeof(aSwitch) / sizeof(struct ArSwitch);
@@ -30158,13 +30201,27 @@ static int arRemoveCommand(ArCommand *pAr){
 */
 static int arExtractCommand(ArCommand *pAr){
   const char *zSql1 =
-    "WITH dest(dpath,dlen) AS (SELECT realpath($dir),length(realpath($dir)))\n"
-    "SELECT ($dir || name),\n"
-    "       CASE WHEN $dryrun THEN 0\n"
-    "            ELSE writefile($dir||name, %s, mode, mtime) END\n"
+    "WITH dest(dpath,dlen) AS (\n"
+#ifdef _WIN32
+    "  SELECT realpath($dir) || '\\',\n"
+#else
+    "  SELECT realpath($dir) || '/',\n"
+#endif
+    "  1+length(realpath($dir))\n"
+    ")\n"
+    "SELECT\n"
+    "    ($dir || name),\n"
+    "    CASE $dryrun\n"
+    "      WHEN 0 THEN writefile($dir||name, %s, mode, mtime)\n"
+    "      WHEN 1 THEN 0\n"
+    "      ELSE shell_putsnl(format('writefile(%%Q,%%s,%%0o,%%d)',"
+                           "$dir||name,quote(%s),mode,mtime)) IS NULL\n"
+    "      END\n"
     "  FROM dest CROSS JOIN %s\n"
     " WHERE (%s)\n"
-    "   AND (data IS NULL OR $pass==0)\n"                /* Dirs both passes */
+    "   AND (CASE $pass WHEN 0 THEN (mode&0xf000)<>0xa000\n"
+    "                   WHEN 1 THEN (mode&0xf000)=0xa000\n"
+    "                   ELSE data IS NULL END)\n"
     "   AND dpath=substr(realpath($dir||name),1,dlen)\n" /* No escapes */
     "   AND name NOT GLOB '*..[/\\]*'\n";                /* No /../ in paths */
 
@@ -30195,7 +30252,7 @@ static int arExtractCommand(ArCommand *pAr){
   }
 
   shellPreparePrintf(pAr->db, &rc, &pSql, zSql1,
-      azExtraArg[pAr->bZip], pAr->zSrcTable, zWhere
+      azExtraArg[pAr->bZip], azExtraArg[pAr->bZip], pAr->zSrcTable, zWhere
   );
 
   if( rc==SQLITE_OK ){
@@ -30205,25 +30262,31 @@ static int arExtractCommand(ArCommand *pAr){
     sqlite3_bind_int(pSql, j, pAr->bDryRun);
 
     /* Run the SELECT statement twice
-    **   (0) writefile() all files and directories
-    **   (1) writefile() for directory again
-    ** The second pass is so that the timestamps for extracted directories
+    **   (0) writefile() files and directories
+    **   (1) writefile() symlinks
+    **   (2) writefile() for directory again
+    ** The third pass is so that the timestamps for extracted directories
     ** will be reset to the value in the archive, since populating them
     ** in the first pass will have changed the timestamp. */
-    for(i=0; i<2; i++){
+    for(i=0; i<3; i++){
+      if( pAr->bDryRun>=2 ){
+        cli_printf(pAr->out, "*** BEGIN PASS %d ***\n", i+1);
+      }
       j = sqlite3_bind_parameter_index(pSql, "$pass");
       sqlite3_bind_int(pSql, j, i);
-      if( pAr->bDryRun ){
+      if( pAr->bDryRun && i==0 ){
         cli_printf(pAr->out, "%s\n", sqlite3_sql(pSql));
-        if( pAr->bVerbose==0 ) break;
       }
       while( rc==SQLITE_OK && SQLITE_ROW==sqlite3_step(pSql) ){
         if( i==0 && pAr->bVerbose ){
           cli_printf(pAr->out, "%s\n", sqlite3_column_text(pSql, 0));
         }
       }
-      if( pAr->bDryRun ) break;
+      if( pAr->bDryRun==1 ) break;
       shellReset(&rc, pSql);
+      if( pAr->bDryRun>=2 ){
+        cli_printf(pAr->out, "*** END PASS %d ***\n", i+1);
+      }
     }
     shellFinalize(&rc, pSql);
   }
@@ -30738,7 +30801,7 @@ SELECT CASE WHEN (nc < 10) THEN 1 WHEN (nc < 100) THEN 2 \
 SELECT\
  '('||x'0a'\
  || group_concat(\
-  cname||' ANY',\
+  cname,\
   ','||iif((cpos-1)%4>0, ' ', x'0a'||' '))\
  ||')' AS ColsSpec \
 FROM (\
@@ -36886,8 +36949,10 @@ int SQLITE_CDECL main(int argc, char **argv){
                        cmdline_option_value(argc,argv,++i));
     }else if( cli_strcmp(z,"-header")==0 ){
       data.mode.spec.bTitles = QRF_Yes;
+      data.mode.mFlags |= MFLG_HDR;
      }else if( cli_strcmp(z,"-noheader")==0 ){
       data.mode.spec.bTitles = QRF_No;
+      data.mode.mFlags |= MFLG_HDR;
     }else if( cli_strcmp(z,"-echo")==0 ){
       data.mode.mFlags |= MFLG_ECHO;
     }else if( cli_strcmp(z,"-eqp")==0 ){
