@@ -427,7 +427,7 @@ static bool	em_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 static void	em_identify_hardware(if_ctx_t);
 static int	em_allocate_pci_resources(if_ctx_t);
 static void	em_free_pci_resources(if_ctx_t);
-static void	em_reset(if_ctx_t);
+static int	em_reset(if_ctx_t);
 static int	em_setup_interface(if_ctx_t);
 static int	em_setup_msix(if_ctx_t);
 
@@ -1346,7 +1346,12 @@ em_if_attach_pre(if_ctx_t ctx)
 	** important in reading the nvm and
 	** mac from that.
 	*/
-	e1000_reset_hw(hw);
+	error = e1000_reset_hw(hw);
+	if (!sc->vf_ifp && error != E1000_SUCCESS) {
+		device_printf(dev, "Hardware reset failed: %d\n", error);
+		error = EIO;
+		goto err_late;
+	}
 
 	/* Make sure we have a good EEPROM before we read from it */
 	if (e1000_validate_nvm_checksum(hw) < 0) {
@@ -1424,7 +1429,12 @@ em_if_attach_post(if_ctx_t ctx)
 		goto err_late;
 	}
 
-	em_reset(ctx);
+	if (sc->vf_ifp) {
+		(void)em_reset(ctx);
+	} else if (em_reset(ctx) != E1000_SUCCESS) {
+		error = EIO;
+		goto err_late;
+	}
 
 	/* Initialize statistics */
 	if (sc->vf_ifp)
@@ -1608,7 +1618,12 @@ em_if_init(if_ctx_t ctx)
 	}
 
 	/* Initialize the hardware */
-	em_reset(ctx);
+	if (sc->vf_ifp) {
+		(void)em_reset(ctx);
+	} else if (em_reset(ctx) != E1000_SUCCESS) {
+		iflib_init_failed(ctx);
+		return;
+	}
 	/* Re-arm a link-up transition deferred for this reset. */
 	if (sc->link_state == EM_LINK_STATE_DOWN_RESET_PENDING ||
 	    sc->link_state == EM_LINK_STATE_UP_RESET_PENDING)
@@ -3058,6 +3073,7 @@ static void
 em_if_stop(if_ctx_t ctx)
 {
 	struct e1000_softc *sc = iflib_get_softc(ctx);
+	s32 error;
 
 	INIT_DEBUGOUT("em_if_stop: begin");
 
@@ -3066,7 +3082,12 @@ em_if_stop(if_ctx_t ctx)
 		em_flush_desc_rings(sc);
 
 	em_prepare_fatal_error_reset(sc);
-	e1000_reset_hw(&sc->hw);
+	error = e1000_reset_hw(&sc->hw);
+	if (!sc->vf_ifp && error != E1000_SUCCESS) {
+		device_printf(sc->dev, "Hardware reset failed while "
+		    "stopping: %d\n", error);
+		return;
+	}
 	if (sc->hw.mac.type >= e1000_82544 && !sc->vf_ifp)
 		E1000_WRITE_REG(&sc->hw, E1000_WUFC, 0);
 
@@ -3755,7 +3776,7 @@ em_flush_desc_rings(struct e1000_softc *sc)
  *  sc structure.
  *
  **********************************************************************/
-static void
+static int
 em_reset(if_ctx_t ctx)
 {
 	device_t dev = iflib_get_dev(ctx);
@@ -3764,6 +3785,7 @@ em_reset(if_ctx_t ctx)
 	struct e1000_hw *hw = &sc->hw;
 	u32 rx_buffer_size;
 	u32 pba;
+	s32 error;
 
 	INIT_DEBUGOUT("em_reset: begin");
 	/* Let the firmware know the OS is in control */
@@ -3995,7 +4017,12 @@ em_reset(if_ctx_t ctx)
 
 	/* Issue a global reset */
 	em_prepare_fatal_error_reset(sc);
-	e1000_reset_hw(hw);
+	error = e1000_reset_hw(hw);
+	if (error != E1000_SUCCESS) {
+		if (!sc->vf_ifp)
+			device_printf(dev, "Hardware reset failed: %d\n", error);
+		return (error);
+	}
 	if (!sc->vf_ifp) {
 		if (hw->mac.type >= igb_mac_min) {
 			E1000_WRITE_REG(hw, E1000_WUC, 0);
@@ -4010,9 +4037,11 @@ em_reset(if_ctx_t ctx)
 		sc->flags &= ~IGB_MEDIA_RESET;
 	}
 	/* and a re-init */
-	if (e1000_init_hw(hw) < 0) {
-		device_printf(dev, "Hardware Initialization Failed\n");
-		return;
+	error = e1000_init_hw(hw);
+	if (error != E1000_SUCCESS) {
+		device_printf(dev, "Hardware initialization failed: %d\n",
+		    error);
+		return (error);
 	}
 	em_configure_82576_memory_errors(sc);
 	em_finish_fatal_error_reset(sc);
@@ -4025,6 +4054,8 @@ em_reset(if_ctx_t ctx)
 	E1000_WRITE_REG(hw, E1000_VET, ETHERTYPE_VLAN);
 	e1000_get_phy_info(hw);
 	e1000_check_for_link(hw);
+
+	return (E1000_SUCCESS);
 }
 
 /*
