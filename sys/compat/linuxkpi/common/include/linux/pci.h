@@ -437,6 +437,24 @@ pci_resource_flags(struct pci_dev *pdev, int bar)
 	return (1 << type);
 }
 
+static inline int
+pci_select_bars(struct pci_dev *pdev, unsigned long flags)
+{
+	int bars, bar;
+
+	bars = 0;
+	/* We only support BARs here; Linux may support more types. */
+	for (bar = PCIR_MAX_BAR_0; bar >= 0; bar--) {
+		int bar_flags;
+
+		bar_flags = pci_resource_flags(pdev, bar);
+		if ((bar_flags & flags) != 0)
+			bars |= (1 << bar);
+	}
+
+	return (bars);
+}
+
 static inline const char *
 pci_name(struct pci_dev *d)
 {
@@ -1567,6 +1585,17 @@ pci_irq_vector(struct pci_dev *pdev, unsigned int vector)
 	}
 
         return (-ENXIO);
+}
+
+static inline int
+pci_msix_vec_count(struct pci_dev *pdev)
+{
+	int avail;
+
+	avail = pci_msix_count(pdev->dev.bsddev);
+	if (avail == 0)
+		return (-EINVAL);
+	return (avail);
 }
 
 static inline int
