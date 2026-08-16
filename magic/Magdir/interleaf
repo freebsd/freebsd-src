@@ -1,9 +1,19 @@
 
 #------------------------------------------------------------------------------
-# $File: interleaf,v 1.10 2009/09/19 16:28:10 christos Exp $
+# $File: interleaf,v 1.11 2026/06/02 17:29:55 christos Exp $
 # interleaf:  file(1) magic for InterLeaf TPS:
 #
 0	string		=\210OPS	Interleaf saved data
 0	string		=<!OPS		Interleaf document text
 >5	string		,\ Version\ =	\b, version
 >>17	string		>\0		%.3s
+
+# Interleaf image data (ileaf img format) Used by Interleaf (later BroadVision)
+# technical publishing software.
+# Header: 0x89 "OPS" magic, BE 16-bit version, resolution, dimensions,
+# depth, compression flag, optional colormap.
+# Netpbm: leaftoppm, ppmtoleaf
+
+0	string		\x89OPS		Interleaf image data
+!:mime	image/x-interleaf
+!:ext	leaf

@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: filesystems,v 1.169 2025/12/27 15:29:44 christos Exp $
+# $File: filesystems,v 1.171 2026/05/17 17:30:59 christos Exp $
 # filesystems:  file(1) magic for different filesystems
 #
 0	name	partid
@@ -260,18 +260,6 @@
 >>(11.s-2)	uleshort	0xAA55		DOS/MBR boot sector
 # for sector sizes with 512 or more Bytes
 >0x1FE		leshort		0xAA55		DOS/MBR boot sector
-
-# ExFAT
-3		string/w	=EXFAT
->0x1FE		leshort		0xAA55
->>0x6E		ubyte		1
->>>0x6F		ubyte		0x80
->>>0		ubyte		0xEB	DOS/MBR boot sector,
->>>0x69		ubyte		x	ExFAT Filesystem version %d.
->>>0x68		ubyte		x	\b%d
->>>0x6d		ubyte		x	\b, (1<<%d) sectors per cluster
->>>0x48		ulequad		x	\b, sectors %lld
->>>0x64		ulelong		x	\b, serial number %#x
 
 # keep old DOS/MBR boot sector as dummy for mbr and bootloader displaying
 # only for sector sizes with 512 or more Bytes
@@ -1058,6 +1046,20 @@
 >>>>>>>466	ubyte	0x0F			\b, extended partition table (LBA)
 >>>>>>>466	ubyte	0x0			\b, extended partition table (last)
 
+# exFAT
+# x86 real mode relative jump followed by string "EXFAT   "
+>0		string		\xEB\x76\x90EXFAT\ \ \ 	\b, ExFAT Filesystem
+>>0x6E		ubyte		<3			\b, numer of FATs %d
+>>>0x69		ubyte		x			\b, revision %d.
+>>>0x68		ubyte		x			\b%d
+>>>0x6C		ubyte		x			\b, (1<<%d) bytes per sector
+>>>0x6D		ubyte		x			\b, (1<<%d) sectors per cluster
+>>>0x48		ulequad		x			\b, sectors %lld
+>>>0x64		ulelong		x			\b, serial number %#x
+# MS Windows compat, SD association SDXC spec part 2
+>>>0x1B8	ulelong		>0			\b, with MBR disk signature %#-.4x
+>>>>0x1C6	ulelong		0			\b, recursive partition
+
 # DOS x86 sector separated and moved from "DOS/MBR boot sector" by Joerg Jenderek at May 2011
 
 >0x200	lelong	0x82564557		\b, BSD disklabel
@@ -1640,6 +1642,11 @@
 >1112	lelong		x		pending inodes to free %d,
 >712	lequad		x		system-wide uuid %0llx,
 >60	lelong		x		minimum percentage of free blocks %d,
+>1312	lelong&0xa	0x2		soft updates,
+>1312	lelong&0xa	0xa		soft updates journaling,
+>1312	lelong&0x40	0x40		GEOM journaling,
+>1312	lelong&0x10	0x10		POSIX.1e ACLs,
+>1312	lelong&0x100	0x100		NFSv4 ACLs,
 >128	lelong		0		TIME optimization
 >128	lelong		1		SPACE optimization
 

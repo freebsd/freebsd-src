@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([file],[5.47],[christos@astron.com])
+AC_INIT([file],[5.48],[christos@astron.com])
 AM_INIT_AUTOMAKE([subdir-objects foreign])
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
@@ -69,6 +69,11 @@ AC_ARG_ENABLE([libseccomp],
 [AS_HELP_STRING([--disable-libseccomp], [disable libseccomp sandboxing @<:@default=auto@:>@])])
 AC_MSG_RESULT($enable_libseccomp)
 
+AC_MSG_CHECKING(for Landlock LSM support)
+AC_ARG_ENABLE([landlock],
+[AS_HELP_STRING([--disable-landlock], [disable Landlock filesystem sandboxing @<:@default=auto@:>@])])
+AC_MSG_RESULT($enable_landlock)
+
 AC_MSG_CHECKING(for file formats in man section 5)
 AC_ARG_ENABLE(fsect-man5,
 [  --enable-fsect-man5      enable file formats in man section 5],
@@ -115,7 +120,7 @@ dnl Checks for headers
 AC_HEADER_MAJOR
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(stdint.h fcntl.h inttypes.h unistd.h byteswap.h)
-AC_CHECK_HEADERS(spawn.h utime.h wchar.h wctype.h)
+AC_CHECK_HEADERS(spawn.h utime.h wchar.h wctype.h limits.h)
 AC_CHECK_HEADERS(getopt.h err.h xlocale.h)
 AC_CHECK_HEADERS(sys/bswap.h sys/mman.h sys/stat.h sys/types.h sys/utime.h sys/time.h sys/sysmacros.h sys/ioctl.h)
 if test "$enable_zlib" != "no"; then
@@ -228,6 +233,9 @@ fi
 
 if test "$enable_libseccomp" != "no"; then
     AC_CHECK_LIB(seccomp, seccomp_init)
+fi
+if test "$enable_landlock" != "no"; then
+    AC_CHECK_HEADERS(linux/landlock.h)
 fi
 if test "$MINGW" = 1; then
   AC_CHECK_LIB(gnurx,regexec,,AC_MSG_ERROR([libgnurx is required to build file(1) with MinGW]))

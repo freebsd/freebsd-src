@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sun,v 1.29 2024/03/31 15:06:56 christos Exp $
+# $File: sun,v 1.30 2026/06/02 17:28:15 christos Exp $
 # sun:  file(1) magic for Sun machines
 #
 # Values for big-endian Sun (MC680x0, SPARC) binaries on pre-5.x
@@ -140,3 +140,13 @@
 # New format for Sun/Cobalt boot ROMs is annoying, it stores the version code
 # at the very end where file(1) can't get it.
 0       string CRfs     COBALT boot rom data (Flat boot rom or file system)
+
+
+# Sun Icon - raster icon format from SunView/OpenWindows
+# Used on Sun workstations from the mid-1980s onwards.
+# ASCII format: C-style comment header with dimensions, followed by hex data.
+# Netpbm: sunicontopnm
+
+0	string	/*\ Format_version=1	Sun icon image data
+!:mime	image/x-sun-icon
+!:ext	icon/ico

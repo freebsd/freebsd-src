@@ -1,3 +1,29 @@
+2026-05-07  11:32  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.48
+
+2026-05-11  15:55 Christos Zoulas <christos@zoulas.com>
+
+	* add landlock support (valoq)
+
+2026-04-19  15:55 Christos Zoulas <christos@zoulas.com>
+
+	* add BE/LE GUID
+	
+2026-04-17  11:05 Christos Zoulas <christos@zoulas.com>
+
+	* multiple fixes to prevent integer overflow in 32 bits (kerwin)
+
+2026-04-15  12:40 Christos Zoulas <christos@zoulas.com>
+
+	* PR/745: streamout: Don't flush when trying to set negative offsets
+	          on pipes, just continue, fixes 'cat file.zip | file -'
+	* PR/753: vmihalko: Fix race is magic_getpath()
+
+2026-03-11  15:14 Christos Zoulas <christos@zoulas.com>
+
+	* PR/728: Anton Monroe: Reinstate regex/c
+
 2026-02-26  11:32  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.47
@@ -11,8 +37,8 @@
 
 2025-05-28  15:20  Christos Zoulas <christos@zoulas.com>
 
-	PR/622: Odd_Bloke: Handle negative offsets in file_buffer(),
-	when fd is not available.
+	* PR/622: Odd_Bloke: Handle negative offsets in file_buffer(),
+	  when fd is not available.
 
 2025-05-28  12:50  Christos Zoulas <christos@zoulas.com>
 

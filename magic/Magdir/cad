@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: cad,v 1.31 2022/12/09 15:36:23 christos Exp $
+# $File: cad,v 1.32 2026/04/16 15:06:17 christos Exp $
 # autocad:  file(1) magic for cad files
 #
 
@@ -435,3 +435,15 @@
 >20	search/1000/w	\<amf	AMF (Additive Manufacturing Format) model, XML document
 !:mime	application/x-amf
 !:ext	amf
+
+# AutoCAD Slide
+# Screen captures created by MSLIDE, viewed with VSLIDE
+# Spec: http://www.martinreddy.net/gfx/2d/SLD.txt
+# PRONOM: x-fmt/105
+
+0	string	AutoCAD\ Slide\r\n\x1a\0	AutoCAD Slide,
+!:mime	image/x-sld
+!:ext	sld
+>17	byte	0x56				version 2
+>29	leshort	0x1234				\b, little-endian
+>29	beshort	0x1234				\b, big-endian

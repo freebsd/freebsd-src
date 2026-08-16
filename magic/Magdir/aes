@@ -1,29 +1,34 @@
 
 #------------------------------------------------------------------------------
-# $File: aes,v 1.1 2020/08/18 21:20:22 christos Exp $
+# $File: aes,v 1.5 2026/05/14 02:00:00 christos Exp $
 #
 # aes: magic file for AES encrypted files
 
 # Summary:	AES Crypt Encrypted Data File
-# From:		Joerg Jenderek
+# From:		Joerg Jenderek/Paul E. Jones
 # URL:		https://en.wikipedia.org/wiki/Advanced_Encryption_Standard
 # Reference:	https://www.aescrypt.com/aes_file_format.html
 0	string		AES	
->3	ubyte		<3		AES encrypted data, version %u
+>3	ubyte		0
+>>4	ubyte		<0x10		AES encrypted data, version 0
 #!:mime	application/aes
 !:mime	application/x-aes-encrypted
 !:ext	aes
-# For Version 2 the encrypted file can have text tags
->>3	ubyte		=2
+>3	ubyte		>0
+>>4	ubyte		0
+>>>3	ubyte		x		AES encrypted data, version %u
+#!:mime	application/aes
+!:mime	application/x-aes-encrypted
+!:ext	aes
+# Since Version 2 the encrypted file can have text tags
+>>3	ubyte		>1
 # length of an extension identifier and contents like: 0 24 33 38
-#>>5	ubeshort	x		\b, tag length %u
-#>>5	pstring/H	x		'%s'
+#>>>>5	ubeshort	x		\b, tag length %u
+#>>>>5	pstring/H	x		'%s'
 # standard extension tags like CREATED_BY
 >>>7	string		CREATED_BY	\b, created by
 # software product, manufacturer like "SharpAESCrypt v1.3.3.0" "aescrypt (Windows GUI) 3.10" ...
->>>>&1	string		x		"%s"
+>>>>&1	string		x		"%.64s"
 # TODO: more other tags
 # tag CREATED_DATE like YYYY-MM-DD
 # tag CREATED_TIME like HH:MM:SS
-#
-

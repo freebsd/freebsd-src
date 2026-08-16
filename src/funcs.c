@@ -27,10 +27,11 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: funcs.c,v 1.148 2026/01/10 16:18:18 christos Exp $")
+FILE_RCSID("@(#)$File: funcs.c,v 1.153 2026/05/25 14:07:05 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
+#include "swap.h"
 #include <assert.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -50,6 +51,18 @@ FILE_RCSID("@(#)$File: funcs.c,v 1.148 2026/01/10 16:18:18 christos Exp $")
 #ifndef SIZE_MAX
 #define SIZE_MAX	((size_t)~0)
 #endif
+
+file_protected int
+file_bigendian(void)
+{
+	union {
+		unsigned short x;
+		unsigned char s[sizeof(unsigned short)];
+	} u;
+
+	u.x = 1;
+	return u.s[0] != 1;
+}
 
 file_protected char *
 file_copystr(char *buf, size_t blen, size_t width, const char *str)
@@ -77,8 +90,11 @@ file_checkfield(char *msg, size_t mlen, const char *what, const char **pp)
 	const char *p = *pp;
 	int fw = 0;
 
-	while (*p && isdigit((unsigned char)*p))
+	while (*p && isdigit((unsigned char)*p)) {
 		fw = fw * 10 + (*p++ - '0');
+		if (fw > 1024)
+			break;
+	}
 
 	*pp = p;
 
@@ -653,24 +669,23 @@ file_protected int
 file_replace(struct magic_set *ms, const char *pat, const char *rep)
 {
 	file_regex_t rx;
-	int rc, rv = -1;
+	int nm;
+	regmatch_t rm;
 
-	rc = file_regcomp(ms, &rx, pat, REG_EXTENDED);
-	if (rc == 0) {
-		regmatch_t rm;
-		int nm = 0;
-		while (file_regexec(ms, &rx, ms->o.buf, 1, &rm, 0) == 0) {
-			ms->o.buf[rm.rm_so] = '\0';
-			if (file_printf(ms, "%s%s", rep,
-			    rm.rm_eo != 0 ? ms->o.buf + rm.rm_eo : "") == -1)
-				goto out;
-			nm++;
-		}
-		rv = nm;
+	nm = file_regcomp(ms, &rx, pat, REG_EXTENDED);
+	if (nm != 0)
+		return -1;
+
+	while (file_regexec(ms, &rx, ms->o.buf, 1, &rm, 0) == 0) {
+		ms->o.buf[rm.rm_so] = '\0';
+		if (file_printf(ms, "%s%s", rep,
+		    rm.rm_eo != 0 ? ms->o.buf + rm.rm_eo : "") == -1)
+			goto out;
+		nm++;
 	}
 out:
 	file_regfree(&rx);
-	return rv;
+	return nm;
 }
 
 file_private int
@@ -931,15 +946,19 @@ file_parse_guid(const char *s, uint64_t *guid)
 	    !getxvalue(&g->data4[6], s + 8, 2) ||
 	    !getxvalue(&g->data4[7], s + 10, 2))
 		return -1;
+
+	if (file_bigendian()) {
+		g->data1 = file_swap4(g->data1);
+		g->data2 = file_swap2(g->data2);
+		g->data3 = file_swap2(g->data3);
+
+	}
 	return 0;
 }
 
-file_protected int
-file_print_guid(char *str, size_t len, const uint64_t *guid)
+file_private int
+file_print_guid(char *str, size_t len, const struct guid *g)
 {
-	const struct guid *g = CAST(const struct guid *,
-	    CAST(const void *, guid));
-
 #ifndef WIN32
 	return snprintf(str, len, "%.8X-%.4hX-%.4hX-%.2hhX%.2hhX-"
 	    "%.2hhX%.2hhX%.2hhX%.2hhX%.2hhX%.2hhX",
@@ -953,6 +972,26 @@ file_print_guid(char *str, size_t len, const uint64_t *guid)
 	    g->data4[2], g->data4[3], g->data4[4], g->data4[5],
 	    g->data4[6], g->data4[7]);
 #endif
+}
+
+file_protected int
+file_print_leguid(char *str, size_t len, const uint64_t *guid)
+{
+	const struct guid *g = CAST(const struct guid *,
+	    CAST(const void *, guid));
+	return file_print_guid(str, len, g);
+}
+
+file_protected int
+file_print_beguid(char *str, size_t len, const uint64_t *guid)
+{
+	const struct guid *g = CAST(const struct guid *,
+	    CAST(const void *, guid));
+	struct guid gg = *g;
+	gg.data1 = file_swap4(gg.data1);
+	gg.data2 = file_swap2(gg.data2);
+	gg.data3 = file_swap2(gg.data3);
+	return file_print_guid(str, len, &gg);
 }
 
 file_protected int
@@ -992,6 +1031,8 @@ file_strtrim(char *str)
 	last = str;
 	while (*last)
 		last++;
+	if (last == str)
+		return str;
 	--last;
 	while (isspace(CAST(unsigned char, *last)))
 		last--;

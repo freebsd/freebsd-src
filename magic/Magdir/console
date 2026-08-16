@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: console,v 1.81 2026/01/31 15:44:17 christos Exp $
+# $File: console,v 1.82 2026/06/02 16:59:22 christos Exp $
 # Console game magic
 # Toby Deshane <hac@shoelace.digivill.net>
 
@@ -1466,3 +1466,8 @@
 0		uleshort	0x0258	P/ECE executable
 >(0x04.s)	string		x	\b: "%s"
 !:ext	pex
+
+# Mii character data (Wii/3DS)
+0	string	RNCD	Mii character data
+# Mii database (Wii)
+0	string	RNOD	Mii database entry

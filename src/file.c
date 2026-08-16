@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: file.c,v 1.217 2024/09/29 16:49:25 christos Exp $")
+FILE_RCSID("@(#)$File: file.c,v 1.222 2026/05/14 18:54:27 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -199,7 +199,7 @@ main(int argc, char *argv[])
 	size_t i, j, wid, nw;
 	int action = 0, didsomefiles = 0, errflg = 0;
 	int flags = 0, e = 0;
-#ifdef HAVE_LIBSECCOMP
+#if defined(HAVE_LIBSECCOMP) || defined(HAVE_LINUX_LANDLOCK_H)
 	int sandbox = 1;
 #endif
 	struct magic_set *magic = NULL;
@@ -336,6 +336,9 @@ main(int argc, char *argv[])
 #ifdef HAVE_LIBSECCOMP
 			(void)fprintf(stdout, "seccomp support included\n");
 #endif
+#ifdef HAVE_LINUX_LANDLOCK_H
+			(void)fprintf(stdout, "Landlock support included\n");
+#endif
 			return 0;
 		case 'z':
 			flags |= MAGIC_COMPRESS;
@@ -364,8 +367,13 @@ main(int argc, char *argv[])
 	if (e)
 		return e;
 
+#ifdef HAVE_LINUX_LANDLOCK_H
+	if (sandbox && enable_landlock(flags, action) == -1)
+		file_err(EXIT_FAILURE, "Landlock initialisation failed");
+#endif /* HAVE_LINUX_LANDLOCK_H */
+
 #ifdef HAVE_LIBSECCOMP
-	if (sandbox && enable_sandbox() == -1)
+	if (sandbox && enable_sandbox(flags, action) == -1)
 		file_err(EXIT_FAILURE, "SECCOMP initialisation failed");
 	if (sandbox)
 		flags |= MAGIC_NO_COMPRESS_FORK;
@@ -466,6 +474,8 @@ file_private void
 setparam(const char *p)
 {
 	size_t i;
+	ssize_t mpar;
+	int par;
 	char *s;
 
 	if ((s = CCAST(char *, strchr(p, '='))) == NULL)
@@ -474,7 +484,12 @@ setparam(const char *p)
 	for (i = 0; i < __arraycount(pm); i++) {
 		if (strncmp(p, pm[i].name, s - p) != 0)
 			continue;
-		pm[i].value = atoi(s + 1);
+		par = atoi(s + 1);
+		mpar = magic_getmaxparam(pm[i].tag);
+		if (par < 0 || par > mpar)
+			file_err(EXIT_FAILURE, "Out of bounds value %d for %s",
+			    par, pm[i].name);
+		pm[i].value = par;
 		pm[i].set = 1;
 		return;
 	}
