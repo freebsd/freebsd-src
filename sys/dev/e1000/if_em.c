@@ -448,6 +448,7 @@ static void	em_prepare_fatal_error_reset(struct e1000_softc *);
 static void	em_finish_fatal_error_reset(struct e1000_softc *);
 static void	em_configure_peind_memory_errors(struct e1000_softc *);
 static void	em_configure_82575_memory_errors(struct e1000_softc *);
+static void	em_configure_82580_memory_errors(struct e1000_softc *);
 static void	em_if_multi_set(if_ctx_t);
 static void	em_if_update_admin_status(if_ctx_t);
 static void	em_if_debug(if_ctx_t);
@@ -1713,6 +1714,7 @@ em_if_init(if_ctx_t ctx)
 	}
 	em_configure_peind_memory_errors(sc);
 	em_configure_82575_memory_errors(sc);
+	em_configure_82580_memory_errors(sc);
 }
 
 /*
@@ -1981,6 +1983,75 @@ em_configure_82576_memory_errors(struct e1000_softc *sc)
 }
 
 static bool
+em_has_82580_memory_errors(const struct e1000_hw *hw)
+{
+
+	return (hw->mac.type == e1000_82580);
+}
+
+static void
+em_clear_82580_memory_error_status(struct e1000_hw *hw, u32 reg)
+{
+	u32 status;
+
+	status = E1000_READ_REG(hw, reg);
+	if (status != 0)
+		E1000_WRITE_REG(hw, reg, status);
+}
+
+static void
+em_configure_82580_memory_errors(struct e1000_softc *sc)
+{
+	struct e1000_hw *hw;
+	u32 reg;
+
+	hw = &sc->hw;
+	if (!em_has_82580_memory_errors(hw))
+		return;
+
+	/* Clear status left before the driver completed its memory tables. */
+	(void)E1000_READ_REG(hw, E1000_PEIND);
+	em_clear_82580_memory_error_status(hw, E1000_DTPARS_82580);
+	em_clear_82580_memory_error_status(hw, E1000_DRPARS_82580);
+	em_clear_82580_memory_error_status(hw, E1000_DDPARS_82580);
+	em_clear_82580_memory_error_status(hw, E1000_PCIEERRSTS);
+	em_clear_82580_memory_error_status(hw, E1000_PCIEECCSTS);
+	(void)E1000_READ_REG(hw, E1000_LANPERRSTS);
+	(void)E1000_READ_REG(hw, E1000_RPBECCSTS);
+	(void)E1000_READ_REG(hw, E1000_TPBECCSTS);
+	E1000_WRITE_REG(hw, E1000_RPBECCSTS,
+	    E1000_PBECCSTS_82580_ECC_ENABLE);
+	E1000_WRITE_REG(hw, E1000_TPBECCSTS,
+	    E1000_PBECCSTS_82580_ECC_ENABLE);
+
+	reg = E1000_READ_REG(hw, E1000_DTPARC_82580);
+	E1000_WRITE_REG(hw, E1000_DTPARC_82580,
+	    reg | E1000_DTPARC_82580_ENABLE_MASK);
+	reg = E1000_READ_REG(hw, E1000_DRPARC_82580);
+	E1000_WRITE_REG(hw, E1000_DRPARC_82580,
+	    reg | E1000_DRPARC_82580_ENABLE_MASK);
+	reg = E1000_READ_REG(hw, E1000_DDPARC_82580);
+	E1000_WRITE_REG(hw, E1000_DDPARC_82580,
+	    reg | E1000_DDPARC_82580_ENABLE_MASK);
+	reg = E1000_READ_REG(hw, E1000_PCIEERRCTL_82580);
+	E1000_WRITE_REG(hw, E1000_PCIEERRCTL_82580,
+	    reg | E1000_PCIEERRCTL_82580_ENABLE_MASK);
+	reg = E1000_READ_REG(hw, E1000_PCIEECCCTL_82580);
+	E1000_WRITE_REG(hw, E1000_PCIEECCCTL_82580,
+	    reg | E1000_PCIEECCCTL_82580_ENABLE_MASK);
+	reg = E1000_READ_REG(hw, E1000_LANPERRCTL_82580);
+	reg |= E1000_LANPERRCTL_82580_HOST_MASK;
+	/* The RSS memory is initialized only for a multiqueue layout. */
+	if (sc->rx_num_queues <= 1)
+		reg &= ~E1000_LANPERRCTL_82580_RSS_ENABLE;
+	E1000_WRITE_REG(hw, E1000_LANPERRCTL_82580, reg);
+	reg = E1000_READ_REG(hw, E1000_PEINDM);
+	E1000_WRITE_REG(hw, E1000_PEINDM,
+	    reg | E1000_PEIND_FATAL_MASK);
+	E1000_WRITE_FLUSH(hw);
+}
+
+static bool
 em_has_i210_memory_errors(const struct e1000_hw *hw)
 {
 
@@ -2016,10 +2087,11 @@ em_configure_peind_memory_errors(struct e1000_softc *sc)
 }
 
 static bool
-em_has_i210_i350_memory_errors(const struct e1000_hw *hw)
+em_has_peind_memory_errors(const struct e1000_hw *hw)
 {
 
-	return (em_has_i350_memory_errors(hw) ||
+	return (em_has_82580_memory_errors(hw) ||
+	    em_has_i350_memory_errors(hw) ||
 	    em_has_i210_memory_errors(hw));
 }
 
@@ -2027,6 +2099,8 @@ static u32
 em_pcie_fatal_error_mask(const struct e1000_hw *hw)
 {
 
+	if (em_has_82580_memory_errors(hw))
+		return (~0U);
 	if (em_has_i350_memory_errors(hw))
 		return (E1000_PCIEERRSTS_I350_FATAL_MASK);
 	if (em_has_i210_memory_errors(hw))
@@ -2042,7 +2116,7 @@ em_memory_error_intr_mask(const struct e1000_hw *hw)
 		return (E1000_IMS_82575_MEMORY_ERROR_MASK);
 	if (em_has_82576_memory_errors(hw))
 		return (E1000_IMS_FER | E1000_IMS_NFER);
-	if (em_has_pch_ecc(hw) || em_has_i210_i350_memory_errors(hw))
+	if (em_has_pch_ecc(hw) || em_has_peind_memory_errors(hw))
 		return (E1000_IMS_FER);
 	return (0);
 }
@@ -2263,7 +2337,8 @@ static void
 em_handle_fatal_error_intr(struct e1000_softc *sc, u32 icr)
 {
 	struct e1000_hw *hw;
-	u32 dma_rx, dma_tx, error_mask, lanerr, pcieerr, peind;
+	u32 dma_host, dma_rx, dma_tx, error_mask, lanerr, pcieecc;
+	u32 pcieerr, peind;
 
 	error_mask = em_memory_error_intr_mask(&sc->hw);
 	if (!em_has_memory_errors(&sc->hw) ||
@@ -2294,7 +2369,25 @@ em_handle_fatal_error_intr(struct e1000_softc *sc, u32 icr)
 		    E1000_PEIND_FATAL_MASK;
 		pcieerr = E1000_READ_REG(hw, E1000_PCIEERRSTS) &
 		    em_pcie_fatal_error_mask(hw);
-		if (em_has_i350_memory_errors(hw)) {
+		pcieecc = 0;
+		dma_host = 0;
+		if (em_has_82580_memory_errors(hw)) {
+			/*
+			 * PEIND is visible through every function.  Retain the
+			 * management indication, which has no subordinate status,
+			 * but attribute host-owned regions from this function's
+			 * status registers.
+			 */
+			peind &= E1000_PEIND_MNG_PARITY_FATAL;
+			pcieecc = E1000_READ_REG(hw, E1000_PCIEECCSTS) &
+			    E1000_PCIEECCSTS_82580_ERROR_MASK;
+			dma_tx = E1000_READ_REG(hw, E1000_DTPARS_82580);
+			dma_rx = E1000_READ_REG(hw, E1000_DRPARS_82580);
+			dma_host = E1000_READ_REG(hw,
+			    E1000_DDPARS_82580);
+			lanerr = E1000_READ_REG(hw, E1000_LANPERRSTS) &
+			    E1000_LANPERRSTS_82580_ERROR_MASK;
+		} else if (em_has_i350_memory_errors(hw)) {
 			dma_tx = E1000_READ_REG(hw, E1000_DTPARS) &
 			    E1000_DTPARS_FATAL_MASK;
 			dma_rx = E1000_READ_REG(hw, E1000_DRPARS) &
@@ -2307,17 +2400,19 @@ em_handle_fatal_error_intr(struct e1000_softc *sc, u32 icr)
 			lanerr = E1000_READ_REG(hw, E1000_LANPERRSTS) &
 			    E1000_LANPERRSTS_RETX_BUF;
 		}
-		if (pcieerr != 0)
+		if (pcieerr != 0 || pcieecc != 0)
 			peind |= E1000_PEIND_PCIE_PARITY_FATAL;
 		if (lanerr != 0)
 			peind |= E1000_PEIND_LANPORT_PARITY_FATAL;
-		if (dma_tx != 0 || dma_rx != 0)
+		if (dma_tx != 0 || dma_rx != 0 || dma_host != 0)
 			peind |= E1000_PEIND_DMA_PARITY_FATAL;
 		sc->fatal_error_peind = peind;
 		sc->fatal_error_pcie = pcieerr;
+		sc->fatal_error_pcie_ecc = pcieecc;
 		sc->fatal_error_lan = lanerr;
 		sc->fatal_error_dma_tx = dma_tx;
 		sc->fatal_error_dma_rx = dma_rx;
+		sc->fatal_error_dma_host = dma_host;
 	}
 	atomic_store_rel_32(&sc->fatal_error_state,
 	    EM_FATAL_ERROR_DETECTED);
@@ -2388,12 +2483,28 @@ em_handle_fatal_error_admin(struct e1000_softc *sc)
 			sc->fatal_error_dma_count++;
 		if (peind == 0)
 			sc->fatal_error_unknown_count++;
-		device_printf(sc->dev,
-		    "fatal internal memory error: PEIND %#x, "
-		    "PCIEERRSTS %#x, DTPARS %#x, DRPARS %#x, "
-		    "LANPERRSTS %#x\n", peind, sc->fatal_error_pcie,
-		    sc->fatal_error_dma_tx, sc->fatal_error_dma_rx,
-		    sc->fatal_error_lan);
+		if (em_has_82580_memory_errors(&sc->hw)) {
+			device_printf(sc->dev,
+			    "fatal internal memory error: PEIND %#x, "
+			    "PCIEERRSTS %#x, PCIEECCSTS %#x, "
+			    "DTPARS %#x, DRPARS %#x, DDPARS %#x, "
+			    "LANPERRSTS %#x\n", peind,
+			    sc->fatal_error_pcie,
+			    sc->fatal_error_pcie_ecc,
+			    sc->fatal_error_dma_tx,
+			    sc->fatal_error_dma_rx,
+			    sc->fatal_error_dma_host,
+			    sc->fatal_error_lan);
+		} else {
+			device_printf(sc->dev,
+			    "fatal internal memory error: PEIND %#x, "
+			    "PCIEERRSTS %#x, DTPARS %#x, DRPARS %#x, "
+			    "LANPERRSTS %#x\n", peind,
+			    sc->fatal_error_pcie,
+			    sc->fatal_error_dma_tx,
+			    sc->fatal_error_dma_rx,
+			    sc->fatal_error_lan);
+		}
 
 		reset_required = (peind &
 		    (E1000_PEIND_PCIE_PARITY_FATAL |
@@ -2416,9 +2527,11 @@ em_handle_fatal_error_admin(struct e1000_softc *sc)
 				    E1000_LANPERRSTS_I350_NO_RESET_MASK);
 			sc->fatal_error_peind = 0;
 			sc->fatal_error_pcie = 0;
+			sc->fatal_error_pcie_ecc = 0;
 			sc->fatal_error_lan = 0;
 			sc->fatal_error_dma_tx = 0;
 			sc->fatal_error_dma_rx = 0;
+			sc->fatal_error_dma_host = 0;
 			atomic_store_rel_32(&sc->fatal_error_state,
 			    EM_FATAL_ERROR_NONE);
 			E1000_WRITE_REG(&sc->hw, E1000_IMS,
@@ -2438,18 +2551,20 @@ em_handle_fatal_error_admin(struct e1000_softc *sc)
 
 /*
  * A PCIe-region parity failure stops PCIe and DMA traffic.  I350, I210, and
- * I211 require a port reset before master disable in this case, unlike the
- * normal reset path, which disables the bus master first.
+ * I211 require a port reset before master disable in this case.  82580 stops
+ * PCIe traffic for a fatal error in any host-owned region, so use the same
+ * order for every 82580 recovery.  This differs from the normal reset path,
+ * which disables the bus master first.
  */
 static void
 em_prepare_fatal_error_reset(struct e1000_softc *sc)
 {
 	struct e1000_hw *hw;
 	s32 error;
-	u32 ctrl, pcieerr;
+	u32 ctrl, pcieecc, pcieerr;
 	int i;
 
-	if (!em_has_i210_i350_memory_errors(&sc->hw) ||
+	if (!em_has_peind_memory_errors(&sc->hw) ||
 	    atomic_load_acq_32(&sc->fatal_error_state) !=
 	    EM_FATAL_ERROR_RESET_REQUESTED)
 		return;
@@ -2457,7 +2572,9 @@ em_prepare_fatal_error_reset(struct e1000_softc *sc)
 	pcieerr = sc->fatal_error_pcie |
 	    (E1000_READ_REG(&sc->hw, E1000_PCIEERRSTS) &
 	    em_pcie_fatal_error_mask(&sc->hw));
-	if ((sc->fatal_error_peind & E1000_PEIND_PCIE_PARITY_FATAL) == 0 &&
+	pcieecc = sc->fatal_error_pcie_ecc;
+	if (!em_has_82580_memory_errors(&sc->hw) &&
+	    (sc->fatal_error_peind & E1000_PEIND_PCIE_PARITY_FATAL) == 0 &&
 	    pcieerr == 0)
 		return;
 
@@ -2469,8 +2586,9 @@ em_prepare_fatal_error_reset(struct e1000_softc *sc)
 	for (i = 0; i < AUTO_READ_DONE_TIMEOUT; i++) {
 		if ((E1000_READ_REG(hw, E1000_EECD) &
 		    E1000_EECD_AUTO_RD) != 0 &&
+		    (em_has_82580_memory_errors(hw) ||
 		    (E1000_READ_REG(hw, E1000_STATUS) &
-		    E1000_STATUS_RST_DONE) != 0)
+		    E1000_STATUS_RST_DONE) != 0))
 			break;
 		msec_delay(1);
 	}
@@ -2486,6 +2604,12 @@ em_prepare_fatal_error_reset(struct e1000_softc *sc)
 	    em_pcie_fatal_error_mask(hw);
 	if (pcieerr != 0)
 		E1000_WRITE_REG(hw, E1000_PCIEERRSTS, pcieerr);
+	if (em_has_82580_memory_errors(hw)) {
+		pcieecc |= E1000_READ_REG(hw, E1000_PCIEECCSTS) &
+		    E1000_PCIEECCSTS_82580_ERROR_MASK;
+		if (pcieecc != 0)
+			E1000_WRITE_REG(hw, E1000_PCIEECCSTS, pcieecc);
+	}
 	atomic_store_rel_32(&sc->fatal_error_state,
 	    EM_FATAL_ERROR_RESET_PREPARED);
 }
@@ -2494,7 +2618,7 @@ static void
 em_finish_fatal_error_reset(struct e1000_softc *sc)
 {
 	struct e1000_hw *hw;
-	u32 dma_rx, dma_tx, lanerr, pcieerr;
+	u32 dma_host, dma_rx, dma_tx, lanerr, pcieecc, pcieerr;
 	u32 state;
 
 	state = atomic_load_acq_32(&sc->fatal_error_state);
@@ -2510,7 +2634,44 @@ em_finish_fatal_error_reset(struct e1000_softc *sc)
 		/* Drain any indication relatched while the port was resetting. */
 		(void)E1000_READ_REG(hw, E1000_PEIND);
 		sc->fatal_error_peind = 0;
-	} else if (em_has_i210_i350_memory_errors(hw)) {
+	} else if (em_has_82580_memory_errors(hw)) {
+		pcieerr = sc->fatal_error_pcie |
+		    E1000_READ_REG(hw, E1000_PCIEERRSTS);
+		if (pcieerr != 0)
+			E1000_WRITE_REG(hw, E1000_PCIEERRSTS, pcieerr);
+		pcieecc = sc->fatal_error_pcie_ecc |
+		    (E1000_READ_REG(hw, E1000_PCIEECCSTS) &
+		    E1000_PCIEECCSTS_82580_ERROR_MASK);
+		if (pcieecc != 0)
+			E1000_WRITE_REG(hw, E1000_PCIEECCSTS, pcieecc);
+		dma_tx = sc->fatal_error_dma_tx |
+		    E1000_READ_REG(hw, E1000_DTPARS_82580);
+		if (dma_tx != 0)
+			E1000_WRITE_REG(hw, E1000_DTPARS_82580, dma_tx);
+		dma_rx = sc->fatal_error_dma_rx |
+		    E1000_READ_REG(hw, E1000_DRPARS_82580);
+		if (dma_rx != 0)
+			E1000_WRITE_REG(hw, E1000_DRPARS_82580, dma_rx);
+		dma_host = sc->fatal_error_dma_host |
+		    E1000_READ_REG(hw, E1000_DDPARS_82580);
+		if (dma_host != 0)
+			E1000_WRITE_REG(hw, E1000_DDPARS_82580, dma_host);
+		/* LANPERRSTS is read-only and is cleared by the port reset. */
+		lanerr = E1000_READ_REG(hw, E1000_LANPERRSTS) &
+		    E1000_LANPERRSTS_82580_ERROR_MASK;
+		if (lanerr != 0)
+			device_printf(sc->dev,
+			    "LAN parity status remained set after reset: %#x\n",
+			    lanerr);
+		(void)E1000_READ_REG(hw, E1000_PEIND);
+		sc->fatal_error_peind = 0;
+		sc->fatal_error_pcie = 0;
+		sc->fatal_error_pcie_ecc = 0;
+		sc->fatal_error_lan = 0;
+		sc->fatal_error_dma_tx = 0;
+		sc->fatal_error_dma_rx = 0;
+		sc->fatal_error_dma_host = 0;
+	} else if (em_has_peind_memory_errors(hw)) {
 		pcieerr = sc->fatal_error_pcie |
 		    (E1000_READ_REG(hw, E1000_PCIEERRSTS) &
 		    em_pcie_fatal_error_mask(hw));
@@ -2545,9 +2706,11 @@ em_finish_fatal_error_reset(struct e1000_softc *sc)
 		(void)E1000_READ_REG(hw, E1000_PEIND);
 		sc->fatal_error_peind = 0;
 		sc->fatal_error_pcie = 0;
+		sc->fatal_error_pcie_ecc = 0;
 		sc->fatal_error_lan = 0;
 		sc->fatal_error_dma_tx = 0;
 		sc->fatal_error_dma_rx = 0;
+		sc->fatal_error_dma_host = 0;
 	}
 	sc->fatal_error_icr = 0;
 	sc->fatal_error_pbeccsts = 0;
