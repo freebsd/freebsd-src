@@ -2833,6 +2833,12 @@ device_can_wakeup(struct device *dev)
 	return (false);
 }
 
+void
+linuxkpi_device_set_wakeup_capable(struct device *dev, bool capable)
+{
+	dev->power.can_wakeup = capable;
+}
+
 static void
 devm_device_group_remove(struct device *dev, void *p)
 {
