@@ -77,6 +77,8 @@ typedef	unsigned long	kernel_ulong_t;
 
 typedef unsigned long irq_hw_number_t;
 
+typedef int clockid_t;
+
 #ifndef LIST_HEAD_DEF
 #define	LIST_HEAD_DEF
 struct list_head {
