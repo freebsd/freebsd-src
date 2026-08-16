@@ -1902,6 +1902,13 @@ em_has_pch_ecc(const struct e1000_hw *hw)
 }
 
 static bool
+em_has_82571_ecc_stats(const struct e1000_hw *hw)
+{
+
+	return (hw->mac.type == e1000_82571);
+}
+
+static bool
 em_has_82575_memory_errors(const struct e1000_hw *hw)
 {
 
@@ -2047,6 +2054,13 @@ em_has_memory_errors(const struct e1000_hw *hw)
 	return (em_memory_error_intr_mask(hw) != 0);
 }
 
+static bool
+em_has_memory_error_stats(const struct e1000_hw *hw)
+{
+
+	return (em_has_82571_ecc_stats(hw) || em_has_memory_errors(hw));
+}
+
 static u32
 em_fatal_error_intr_mask(struct e1000_softc *sc)
 {
@@ -2139,6 +2153,24 @@ em_update_pch_ecc_stats(struct e1000_softc *sc, u32 pbeccsts)
 	sc->uncorrected_error_packet_buffer_count +=
 	    (pbeccsts & E1000_PBECCSTS_UNCORR_ERR_CNT_MASK) >>
 	    E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT;
+}
+
+static void
+em_update_82571_ecc_stats(struct e1000_softc *sc)
+{
+	struct e1000_hw *hw;
+	u32 count, pba_ecc;
+
+	hw = &sc->hw;
+	pba_ecc = E1000_READ_REG(hw, E1000_PBA_ECC);
+	count = (pba_ecc & E1000_PBA_ECC_COUNTER_MASK) >>
+	    E1000_PBA_ECC_COUNTER_SHIFT;
+	if (count == 0)
+		return;
+	sc->corrected_error_packet_buffer_count += count;
+	/* Preserve correction and reserved state while clearing statistics. */
+	E1000_WRITE_REG(hw, E1000_PBA_ECC,
+	    pba_ecc | E1000_PBA_ECC_STAT_CLR);
 }
 
 static void
@@ -5828,7 +5860,9 @@ em_update_stats_counters(struct e1000_softc *sc)
 		E1000_READ_REG(&sc->hw, E1000_TSCTFC);
 	}
 
-	if (em_has_pch_ecc(&sc->hw))
+	if (em_has_82571_ecc_stats(&sc->hw))
+		em_update_82571_ecc_stats(sc);
+	else if (em_has_pch_ecc(&sc->hw))
 		em_update_pch_ecc_stats(sc,
 		    E1000_READ_REG(&sc->hw, E1000_PBECCSTS));
 	else if (em_has_82575_memory_errors(&sc->hw))
@@ -6145,7 +6179,7 @@ em_add_hw_stats(struct e1000_softc *sc)
 		SYSCTL_ADD_UQUAD(ctx, eee_list, OID_AUTO, "rx_lpi_count",
 		    CTLFLAG_RD, &stats->rlpic, "RX LPI event count");
 	}
-	if (em_has_memory_errors(&sc->hw)) {
+	if (em_has_memory_error_stats(&sc->hw)) {
 		struct sysctl_oid *memerr_node;
 		struct sysctl_oid_list *memerr_list;
 
@@ -6153,11 +6187,17 @@ em_add_hw_stats(struct e1000_softc *sc)
 		    "memory_errors", CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
 		    "Internal memory error indications");
 		memerr_list = SYSCTL_CHILDREN(memerr_node);
-		SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
-		    "fatal_resets", CTLFLAG_RD,
-		    &sc->fatal_error_reset_count,
-		    "Resets requested for fatal internal memory errors");
-		if (em_has_pch_ecc(&sc->hw)) {
+		if (em_has_memory_errors(&sc->hw))
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "fatal_resets", CTLFLAG_RD,
+			    &sc->fatal_error_reset_count,
+			    "Resets requested for fatal internal memory errors");
+		if (em_has_82571_ecc_stats(&sc->hw)) {
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "detected_packet_buffer", CTLFLAG_RD,
+			    &sc->corrected_error_packet_buffer_count,
+			    "Detected packet-buffer ECC errors");
+		} else if (em_has_pch_ecc(&sc->hw)) {
 			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
 			    "corrected_packet_buffer", CTLFLAG_RD,
 			    &sc->corrected_error_packet_buffer_count,
