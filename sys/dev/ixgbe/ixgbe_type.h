@@ -577,7 +577,7 @@ struct ixgbe_nvm_version {
 
 /* Registers for setting up RSS on X550 with SRIOV
  * _p - pool number (0..63)
- * _i - index (0..10 for PFVFRSSRK, 0..15 for PFVFRETA)
+ * _i - index (0..9 for PFVFRSSRK, 0..15 for PFVFRETA)
  */
 #define IXGBE_PFVFMRQC(_p)	(0x03400 + ((_p) * 4))
 #define IXGBE_PFVFRSSRK(_i, _p)	(0x018000 + ((_i) * 4) + ((_p) * 0x40))
