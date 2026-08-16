@@ -937,6 +937,8 @@ struct pci_error_handlers {
 	pci_ers_result_t (*link_reset)(struct pci_dev *dev);
 	pci_ers_result_t (*slot_reset)(struct pci_dev *dev);
 	void (*resume)(struct pci_dev *dev);
+	void (*reset_prepare)(struct pci_dev *);
+	void (*reset_done)(struct pci_dev *);
 };
 
 /* FreeBSD does not support SRIOV - yet */
