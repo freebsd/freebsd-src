@@ -2992,7 +2992,9 @@ em_if_update_admin_status(if_ctx_t ctx)
 		    hw->mac.type >= igb_mac_min) {
 			hw->dev_spec._82575.media_changed = false;
 			sc->flags |= IGB_MEDIA_RESET;
-			em_reset(ctx);
+			iflib_request_reset(ctx);
+			iflib_admin_intr_deferred(ctx);
+			reset_requested = true;
 		}
 		/* Only do TSO on gigabit for older chips due to errata */
 		if (hw->mac.type < igb_mac_min)
