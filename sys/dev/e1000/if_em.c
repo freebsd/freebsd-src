@@ -462,6 +462,8 @@ static void	em_finish_fatal_error_reset(struct e1000_softc *);
 static void	em_configure_peind_memory_errors(struct e1000_softc *);
 static void	em_configure_82575_memory_errors(struct e1000_softc *);
 static void	em_configure_82580_memory_errors(struct e1000_softc *);
+static void	em_update_82580_ecc_stats(struct e1000_softc *, u32, u32,
+		    u32);
 static void	em_if_multi_set(if_ctx_t);
 static void	em_if_update_admin_status(if_ctx_t);
 static void	em_if_debug(if_ctx_t);
@@ -2303,10 +2305,11 @@ em_configure_82580_memory_errors(struct e1000_softc *sc)
 	em_clear_82580_memory_error_status(hw, E1000_DRPARS_82580);
 	em_clear_82580_memory_error_status(hw, E1000_DDPARS_82580);
 	em_clear_82580_memory_error_status(hw, E1000_PCIEERRSTS);
-	em_clear_82580_memory_error_status(hw, E1000_PCIEECCSTS);
 	(void)E1000_READ_REG(hw, E1000_LANPERRSTS);
-	(void)E1000_READ_REG(hw, E1000_RPBECCSTS);
-	(void)E1000_READ_REG(hw, E1000_TPBECCSTS);
+	em_update_82580_ecc_stats(sc,
+	    E1000_READ_REG(hw, E1000_RPBECCSTS),
+	    E1000_READ_REG(hw, E1000_TPBECCSTS),
+	    E1000_READ_REG(hw, E1000_PCIEECCSTS));
 	E1000_WRITE_REG(hw, E1000_RPBECCSTS,
 	    E1000_PBECCSTS_82580_ECC_ENABLE);
 	E1000_WRITE_REG(hw, E1000_TPBECCSTS,
@@ -2432,6 +2435,21 @@ em_fatal_error_intr_mask(struct e1000_softc *sc)
 	    EM_FATAL_ERROR_NONE)
 		return (0);
 	return (em_memory_error_intr_mask(&sc->hw));
+}
+
+static void
+em_update_82580_ecc_stats(struct e1000_softc *sc, u32 rpbeccsts,
+    u32 tpbeccsts, u32 pcieeccsts)
+{
+	u32 status;
+
+	sc->corrected_error_packet_buffer_count +=
+	    (rpbeccsts & E1000_PBECCSTS_82580_CORR_CNT_MASK) +
+	    (tpbeccsts & E1000_PBECCSTS_82580_CORR_CNT_MASK);
+	status = pcieeccsts & E1000_PCIEECCSTS_82580_ERROR_MASK;
+	sc->uncorrected_error_pcie_count += bitcount32(status);
+	if (status != 0)
+		E1000_WRITE_REG(&sc->hw, E1000_PCIEECCSTS, status);
 }
 
 static void
@@ -2625,8 +2643,7 @@ static void
 em_handle_fatal_error_intr(struct e1000_softc *sc, u32 icr)
 {
 	struct e1000_hw *hw;
-	u32 dma_host, dma_rx, dma_tx, error_mask, lanerr, pcieecc;
-	u32 pcieerr, peind;
+	u32 dma_host, dma_rx, dma_tx, error_mask, lanerr, pcieerr, peind;
 
 	error_mask = em_memory_error_intr_mask(&sc->hw);
 	if (!em_has_memory_errors(&sc->hw) ||
@@ -2657,7 +2674,6 @@ em_handle_fatal_error_intr(struct e1000_softc *sc, u32 icr)
 		    E1000_PEIND_FATAL_MASK;
 		pcieerr = E1000_READ_REG(hw, E1000_PCIEERRSTS) &
 		    em_pcie_fatal_error_mask(hw);
-		pcieecc = 0;
 		dma_host = 0;
 		if (em_has_82580_memory_errors(hw)) {
 			/*
@@ -2667,8 +2683,6 @@ em_handle_fatal_error_intr(struct e1000_softc *sc, u32 icr)
 			 * status registers.
 			 */
 			peind &= E1000_PEIND_MNG_PARITY_FATAL;
-			pcieecc = E1000_READ_REG(hw, E1000_PCIEECCSTS) &
-			    E1000_PCIEECCSTS_82580_ERROR_MASK;
 			dma_tx = E1000_READ_REG(hw, E1000_DTPARS_82580);
 			dma_rx = E1000_READ_REG(hw, E1000_DRPARS_82580);
 			dma_host = E1000_READ_REG(hw,
@@ -2688,7 +2702,7 @@ em_handle_fatal_error_intr(struct e1000_softc *sc, u32 icr)
 			lanerr = E1000_READ_REG(hw, E1000_LANPERRSTS) &
 			    E1000_LANPERRSTS_RETX_BUF;
 		}
-		if (pcieerr != 0 || pcieecc != 0)
+		if (pcieerr != 0)
 			peind |= E1000_PEIND_PCIE_PARITY_FATAL;
 		if (lanerr != 0)
 			peind |= E1000_PEIND_LANPORT_PARITY_FATAL;
@@ -2696,7 +2710,6 @@ em_handle_fatal_error_intr(struct e1000_softc *sc, u32 icr)
 			peind |= E1000_PEIND_DMA_PARITY_FATAL;
 		sc->fatal_error_peind = peind;
 		sc->fatal_error_pcie = pcieerr;
-		sc->fatal_error_pcie_ecc = pcieecc;
 		sc->fatal_error_lan = lanerr;
 		sc->fatal_error_dma_tx = dma_tx;
 		sc->fatal_error_dma_rx = dma_rx;
@@ -2710,7 +2723,7 @@ em_handle_fatal_error_intr(struct e1000_softc *sc, u32 icr)
 static bool
 em_handle_fatal_error_admin(struct e1000_softc *sc)
 {
-	u32 error_mask, peind;
+	u32 error_mask, pcieecc, peind;
 	bool reset_required;
 
 	if (!atomic_cmpset_acq_32(&sc->fatal_error_state,
@@ -2761,6 +2774,20 @@ em_handle_fatal_error_admin(struct e1000_softc *sc)
 		    "requesting reset\n", peind);
 	} else {
 		peind = sc->fatal_error_peind;
+		if (em_has_82580_memory_errors(&sc->hw)) {
+			pcieecc = E1000_READ_REG(&sc->hw,
+			    E1000_PCIEECCSTS) &
+			    E1000_PCIEECCSTS_82580_ERROR_MASK;
+			sc->fatal_error_pcie_ecc |= pcieecc;
+			if (pcieecc != 0) {
+				peind |= E1000_PEIND_PCIE_PARITY_FATAL;
+				sc->fatal_error_peind = peind;
+			}
+			em_update_82580_ecc_stats(sc,
+			    E1000_READ_REG(&sc->hw, E1000_RPBECCSTS),
+			    E1000_READ_REG(&sc->hw, E1000_TPBECCSTS),
+			    pcieecc);
+		}
 		if (peind & E1000_PEIND_LANPORT_PARITY_FATAL)
 			sc->fatal_error_lan_count++;
 		if (peind & E1000_PEIND_MNG_PARITY_FATAL)
@@ -2843,6 +2870,9 @@ em_handle_fatal_error_admin(struct e1000_softc *sc)
  * PCIe traffic for a fatal error in any host-owned region, so use the same
  * order for every 82580 recovery.  This differs from the normal reset path,
  * which disables the bus master first.
+ *
+ * Indications that relatch after admin accounting are discarded during
+ * reset; sticky bits cannot distinguish them from the saved event.
  */
 static void
 em_prepare_fatal_error_reset(struct e1000_softc *sc)
@@ -6587,6 +6617,11 @@ em_update_stats_counters(struct e1000_softc *sc)
 		    E1000_READ_REG(&sc->hw, E1000_TDHESTS_82575));
 	else if (em_has_82576_memory_errors(&sc->hw))
 		em_update_82576_ecc_stats(sc);
+	else if (em_has_82580_memory_errors(&sc->hw))
+		em_update_82580_ecc_stats(sc,
+		    E1000_READ_REG(&sc->hw, E1000_RPBECCSTS),
+		    E1000_READ_REG(&sc->hw, E1000_TPBECCSTS),
+		    E1000_READ_REG(&sc->hw, E1000_PCIEECCSTS));
 	else if (em_has_i350_memory_errors(&sc->hw))
 		em_update_i350_ecc_stats(sc);
 	else if (em_has_i210_memory_errors(&sc->hw))
@@ -7101,7 +7136,16 @@ em_add_hw_stats(struct e1000_softc *sc)
 			    "fatal_unknown", CTLFLAG_RD,
 			    &sc->fatal_error_unknown_count,
 			    "Fatal memory errors without a reported region");
-			if (em_has_i210_memory_errors(&sc->hw)) {
+			if (em_has_82580_memory_errors(&sc->hw)) {
+				SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+				    "corrected_packet_buffer", CTLFLAG_RD,
+				    &sc->corrected_error_packet_buffer_count,
+				    "Corrected packet-buffer ECC errors");
+				SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+				    "uncorrected_pcie", CTLFLAG_RD,
+				    &sc->uncorrected_error_pcie_count,
+				    "Uncorrected PCIe command-memory ECC indications");
+			} else if (em_has_i210_memory_errors(&sc->hw)) {
 				SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
 				    "corrected_dma", CTLFLAG_RD,
 				    &sc->corrected_error_dma_count,
