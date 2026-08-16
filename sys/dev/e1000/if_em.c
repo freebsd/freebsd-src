@@ -3447,8 +3447,30 @@ em_if_update_admin_status(if_ctx_t ctx)
 	 * message.  Exported counters can consequently trail hardware by the
 	 * timer interval (normally 500 ms).
 	 */
-	if (atomic_readandclear_32(&sc->stats_pending) != 0)
+	if (atomic_readandclear_32(&sc->stats_pending) != 0) {
 		em_update_stats_counters(sc);
+		/*
+		 * The 82574 PHY can enter a state in which both its receive
+		 * error and idle error counters saturate.  Require two
+		 * consecutive timer samples before resetting, matching Intel's
+		 * e1000e recovery policy and avoiding a reset on a transient
+		 * register sample.
+		 */
+		if (hw->mac.type == e1000_82574) {
+			if (e1000_check_phy_82574(hw))
+				sc->phy_hang_count++;
+			else
+				sc->phy_hang_count = 0;
+			if (sc->phy_hang_count > 1) {
+				sc->phy_hang_count = 0;
+				device_printf(dev,
+				    "PHY appears hung; requesting reset\n");
+				iflib_request_reset(ctx);
+				iflib_admin_intr_deferred(ctx);
+				return;
+			}
+		}
+	}
 
 	/* Reset LAA into RAR[0] on 82571 */
 	if (hw->mac.type == e1000_82571 && e1000_get_laa_state_82571(hw))
@@ -4511,6 +4533,7 @@ em_reset(if_ctx_t ctx)
 	E1000_WRITE_REG(hw, E1000_VET, ETHERTYPE_VLAN);
 	e1000_get_phy_info(hw);
 	e1000_check_for_link(hw);
+	sc->phy_hang_count = 0;
 
 	return (E1000_SUCCESS);
 }

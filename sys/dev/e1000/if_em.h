@@ -622,6 +622,7 @@ struct e1000_softc {
 	u32			pba;
 	int			link_mask;
 	int			tso_automasked;
+	u32			phy_hang_count;
 	u32			promisc_pending;
 	u32			stats_pending;
 	u32			fatal_error_state;
