@@ -98,6 +98,14 @@ void *linuxkpi_dmam_alloc_coherent(struct device *dev, size_t size,
     dma_addr_t *dma_handle, gfp_t flag);
 void linuxkpi_dmam_free_coherent(struct device *dev, size_t size,
     void *addr, dma_addr_t dma_handle);
+void *linuxkpi_dma_alloc_noncoherent(struct device *, size_t, dma_addr_t *,
+    enum dma_data_direction, gfp_t);
+void linuxkpi_dma_free_noncoherent(struct device *, size_t, void *,
+    dma_addr_t, enum dma_data_direction);
+void *linuxkpi_dma_alloc_attrs(struct device *, size_t, dma_addr_t *,
+    gfp_t, unsigned long);
+void linuxkpi_dma_free_attrs(struct device *, size_t, void *,
+    dma_addr_t, unsigned long);
 dma_addr_t linux_dma_map_phys(struct device *dev, vm_paddr_t phys, size_t len);	/* backward compat */
 dma_addr_t lkpi_dma_map_phys(struct device *, vm_paddr_t, size_t,
     enum dma_data_direction, unsigned long);
@@ -189,6 +197,34 @@ dmam_free_coherent(struct device *dev, size_t size, void *addr,
     dma_addr_t dma_handle)
 {
 	linuxkpi_dmam_free_coherent(dev, size, addr, dma_handle);
+}
+
+static inline void *
+dma_alloc_noncoherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
+    enum dma_data_direction direction, gfp_t gfp)
+{
+	return (linuxkpi_dma_alloc_noncoherent(dev, size, dma_handle, direction, gfp));
+}
+
+static inline void
+dma_free_noncoherent(struct device *dev, size_t size, void *vaddr,
+    dma_addr_t dma_handle, enum dma_data_direction direction)
+{
+	linuxkpi_dma_free_noncoherent(dev, size, vaddr, dma_handle, direction);
+}
+
+static inline void *
+dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
+    gfp_t gfp, unsigned long attrs)
+{
+	return (linuxkpi_dma_alloc_attrs(dev, size, dma_handle, gfp, attrs));
+}
+
+static inline void
+dma_free_attrs(struct device *dev, size_t size, void *vaddr,
+    dma_addr_t dma_handle, unsigned long attrs)
+{
+	linuxkpi_dma_free_attrs(dev, size, vaddr, dma_handle, attrs);
 }
 
 static inline dma_addr_t

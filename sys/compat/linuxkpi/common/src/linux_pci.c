@@ -1989,6 +1989,56 @@ linuxkpi_dmam_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_ha
 	return (dr->mem);
 }
 
+void *
+linuxkpi_dma_alloc_noncoherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
+    enum dma_data_direction direction, gfp_t gfp)
+{
+	struct linux_dma_priv *priv;
+	size_t align;
+	void *mem;
+
+	size = PAGE_ALIGN(size);
+	align = PAGE_SIZE << get_order(size);
+	mem = kmem_alloc_contig(size, gfp & GFP_NATIVE_MASK, 0, BUS_SPACE_MAXADDR,
+	    align, 0, VM_MEMATTR_DEFAULT);
+	if (mem == NULL) {
+		*dma_handle = 0;
+		return (NULL);
+	}
+
+	priv = dev->dma_priv;
+	*dma_handle = linux_dma_map_phys_common(dev, vtophys(mem), size, priv->dmat);
+	if (*dma_handle == 0) {
+		kmem_free(mem, size);
+		mem = NULL;
+	}
+	return (mem);
+}
+
+void
+linuxkpi_dma_free_noncoherent(struct device *dev, size_t size, void *vaddr,
+    dma_addr_t dma_handle, enum dma_data_direction direction)
+{
+	lkpi_dma_unmap(dev, dma_handle, size, direction, 0);
+	kmem_free(vaddr, size);
+}
+
+void *
+linuxkpi_dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
+    gfp_t gfp, unsigned long attrs)
+{
+	return (linuxkpi_dma_alloc_noncoherent(dev, size, dma_handle,
+	    DMA_BIDIRECTIONAL, gfp));
+}
+
+void
+linuxkpi_dma_free_attrs(struct device *dev, size_t size, void *vaddr,
+    dma_addr_t dma_handle, unsigned long attrs)
+{
+	linuxkpi_dma_free_noncoherent(dev, size, vaddr, dma_handle,
+	    DMA_BIDIRECTIONAL);
+}
+
 void
 linuxkpi_dma_sync(struct device *dev, dma_addr_t dma_addr, size_t size,
     bus_dmasync_op_t op)
