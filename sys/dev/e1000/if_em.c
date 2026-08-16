@@ -2340,6 +2340,26 @@ em_fatal_error_intr_mask(struct e1000_softc *sc)
 }
 
 static void
+em_update_82575_ecc_stats(struct e1000_softc *sc, u32 pbeccsts,
+    u32 rdhests, u32 tdhests)
+{
+
+	sc->corrected_error_packet_buffer_count +=
+	    pbeccsts & E1000_ECC_82575_CORR_CNT_MASK;
+	sc->uncorrected_error_packet_buffer_count +=
+	    (pbeccsts & E1000_ECC_82575_UNCORR_CNT_MASK) >>
+	    E1000_ECC_82575_UNCORR_CNT_SHIFT;
+	sc->corrected_error_dma_count +=
+	    (rdhests & E1000_ECC_82575_CORR_CNT_MASK) +
+	    (tdhests & E1000_ECC_82575_CORR_CNT_MASK);
+	sc->uncorrected_error_dma_count +=
+	    ((rdhests & E1000_ECC_82575_UNCORR_CNT_MASK) >>
+	    E1000_ECC_82575_UNCORR_CNT_SHIFT) +
+	    ((tdhests & E1000_ECC_82575_UNCORR_CNT_MASK) >>
+	    E1000_ECC_82575_UNCORR_CNT_SHIFT);
+}
+
+static void
 em_update_82576_ecc_counter(struct e1000_softc *sc, u32 reg,
     u64 *corrected, u64 *uncorrected)
 {
@@ -2571,6 +2591,8 @@ em_handle_fatal_error_admin(struct e1000_softc *sc)
 		    "PBECCSTS %#x; requesting reset\n",
 		    sc->fatal_error_pbeccsts);
 	} else if (em_has_82575_memory_errors(&sc->hw)) {
+		em_update_82575_ecc_stats(sc, sc->fatal_error_pbeccsts,
+		    sc->fatal_error_dma_rx, sc->fatal_error_dma_tx);
 		device_printf(sc->dev,
 		    "unrecoverable internal memory ECC error: ICR %#x, "
 		    "PBECCSTS %#x, RDHESTS %#x, TDHESTS %#x; "
@@ -6319,6 +6341,11 @@ em_update_stats_counters(struct e1000_softc *sc)
 	if (em_has_pch_ecc(&sc->hw))
 		em_update_pch_ecc_stats(sc,
 		    E1000_READ_REG(&sc->hw, E1000_PBECCSTS));
+	else if (em_has_82575_memory_errors(&sc->hw))
+		em_update_82575_ecc_stats(sc,
+		    E1000_READ_REG(&sc->hw, E1000_PBECCSTS_82575),
+		    E1000_READ_REG(&sc->hw, E1000_RDHESTS_82575),
+		    E1000_READ_REG(&sc->hw, E1000_TDHESTS_82575));
 	else if (em_has_82576_memory_errors(&sc->hw))
 		em_update_82576_ecc_stats(sc);
 	else if (em_has_i350_memory_errors(&sc->hw))
@@ -6737,9 +6764,7 @@ em_add_hw_stats(struct e1000_softc *sc)
 		SYSCTL_ADD_UQUAD(ctx, eee_list, OID_AUTO, "rx_lpi_count",
 		    CTLFLAG_RD, &stats->rlpic, "RX LPI event count");
 	}
-	if (em_has_pch_ecc(&sc->hw) ||
-	    em_has_82576_memory_errors(&sc->hw) ||
-	    em_has_i210_i350_memory_errors(&sc->hw)) {
+	if (em_has_memory_errors(&sc->hw)) {
 		struct sysctl_oid *memerr_node;
 		struct sysctl_oid_list *memerr_list;
 
@@ -6760,6 +6785,23 @@ em_add_hw_stats(struct e1000_softc *sc)
 			    "uncorrected_packet_buffer", CTLFLAG_RD,
 			    &sc->uncorrected_error_packet_buffer_count,
 			    "Uncorrected packet-buffer ECC errors");
+		} else if (em_has_82575_memory_errors(&sc->hw)) {
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "corrected_packet_buffer", CTLFLAG_RD,
+			    &sc->corrected_error_packet_buffer_count,
+			    "Corrected packet-buffer ECC errors");
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "uncorrected_packet_buffer", CTLFLAG_RD,
+			    &sc->uncorrected_error_packet_buffer_count,
+			    "Uncorrected packet-buffer ECC errors");
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "corrected_descriptor_handler", CTLFLAG_RD,
+			    &sc->corrected_error_dma_count,
+			    "Corrected descriptor-handler ECC errors");
+			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+			    "uncorrected_descriptor_handler", CTLFLAG_RD,
+			    &sc->uncorrected_error_dma_count,
+			    "Uncorrected descriptor-handler ECC errors");
 		} else if (em_has_82576_memory_errors(&sc->hw)) {
 			SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
 			    "fatal_unknown", CTLFLAG_RD,
