@@ -241,6 +241,7 @@ extern const char *pci_power_names[6];
 #define	PCI_IRQ_INTX			0x01
 #define	PCI_IRQ_MSI			0x02
 #define	PCI_IRQ_MSIX			0x04
+#define	PCI_IRQ_AFFINITY		0x08
 #define	PCI_IRQ_ALL_TYPES		(PCI_IRQ_MSIX|PCI_IRQ_MSI|PCI_IRQ_INTX)
 
 #if defined(LINUXKPI_VERSION) && (LINUXKPI_VERSION <= 61000)

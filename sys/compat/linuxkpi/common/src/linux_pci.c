@@ -1580,6 +1580,9 @@ pci_alloc_irq_vectors(struct pci_dev *pdev, int minv, int maxv,
 {
 	int error;
 
+	if ((flags & PCI_IRQ_AFFINITY) != 0) {
+		pr_debug("%s: TODO PCI_IRQ_AFFINITY\n", __func__);
+	}
 	if (flags & PCI_IRQ_MSIX) {
 		struct msix_entry *entries;
 		int i;
