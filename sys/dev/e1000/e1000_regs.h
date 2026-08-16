@@ -117,6 +117,9 @@
 #define E1000_PEIND	0x01084  /* Parity and ECC Indication - RC */
 #define E1000_PEINDM	0x01088  /* Parity and ECC Indication Mask - RW */
 #define E1000_PBECCSTS_I210 0x0245C /* I210 Packet Buffer ECC Status */
+#define E1000_PBECCSTS_82575 0x0245C /* 82575 Packet Buffer ECC Status */
+#define E1000_RDHESTS_82575 0x02468 /* 82575 Rx Descriptor ECC Status */
+#define E1000_TDHESTS_82575 0x0246C /* 82575 Tx Descriptor ECC Status */
 #define E1000_SWPBECCSTS_82576 0x0305C /* Switch Packet Buffer ECC Status */
 #define E1000_IPPBECCSTS_82576 0x0B470 /* IPsec Packet Buffer ECC Status */
 #define E1000_RDHESTS_82576 0x025C0 /* Rx Descriptor Handler ECC Status */

@@ -93,6 +93,7 @@
 #define E1000_CTRL_EXT_IRCA		0x00000001
 #define E1000_CTRL_EXT_DRV_LOAD		0x10000000 /* Drv loaded bit for FW */
 #define E1000_CTRL_EXT_IAME		0x08000000 /* Int ACK Auto-mask */
+#define E1000_CTRL_EXT_MEHE		0x40000000 /* Memory error handling */
 #define E1000_CTRL_EXT_PBA_CLR		0x80000000 /* PBA Clear */
 #define E1000_CTRL_EXT_LSECCK		0x00001000
 #define E1000_CTRL_EXT_PHYPDEN		0x00100000
@@ -528,6 +529,12 @@
 #define E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT	8
 #define E1000_PBECCSTS_ECC_ENABLE		0x00010000
 
+/* 82575 packet-buffer and descriptor-handler ECC status. */
+#define E1000_ECC_82575_CORR_CNT_MASK		0x000000FF
+#define E1000_ECC_82575_UNCORR_CNT_MASK		0x0000FF00
+#define E1000_ECC_82575_UNCORR_CNT_SHIFT	8
+#define E1000_ECC_82575_ENABLE			0x00010000
+
 /* I350 and I210/I211 memory error status bits. */
 #define E1000_PEIND_LANPORT_PARITY_FATAL	0x00000001
 #define E1000_PEIND_MNG_PARITY_FATAL	0x00000002
@@ -603,6 +610,13 @@
 #define E1000_ICR_GPI_EN3	0x00004000 /* GP Int 3 */
 #define E1000_ICR_TXD_LOW	0x00008000
 #define E1000_ICR_MNG		0x00040000 /* Manageability event */
+#define E1000_ICR_82575_RX_PBUR	0x00400000 /* Rx packet buffer error */
+#define E1000_ICR_82575_TX_PBUR	0x00800000 /* Tx packet buffer error */
+#define E1000_ICR_82575_RX_DHER	0x01000000 /* Rx descriptor error */
+#define E1000_ICR_82575_TX_DHER	0x02000000 /* Tx descriptor error */
+#define E1000_ICR_82575_MEMORY_ERROR_MASK	\
+	(E1000_ICR_82575_RX_PBUR | E1000_ICR_82575_TX_PBUR | \
+	 E1000_ICR_82575_RX_DHER | E1000_ICR_82575_TX_DHER)
 #define E1000_ICR_ECCER		0x00400000 /* Uncorrectable ECC Error */
 #define E1000_ICR_NFER		0x00800000 /* Non-Fatal Error (82576) */
 #define E1000_ICR_TS		0x00080000 /* Time Sync Interrupt */
@@ -672,6 +686,7 @@
 #define E1000_IMS_RXO		E1000_ICR_RXO     /* Rx overrun */
 #define E1000_IMS_RXT0		E1000_ICR_RXT0    /* Rx timer intr */
 #define E1000_IMS_TXD_LOW	E1000_ICR_TXD_LOW
+#define E1000_IMS_82575_MEMORY_ERROR_MASK E1000_ICR_82575_MEMORY_ERROR_MASK
 #define E1000_IMS_ECCER		E1000_ICR_ECCER   /* Uncorrectable ECC Error */
 #define E1000_IMS_NFER		E1000_ICR_NFER /* Non-Fatal Error (82576) */
 #define E1000_IMS_TS		E1000_ICR_TS      /* Time Sync Interrupt */
