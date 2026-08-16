@@ -116,7 +116,7 @@ static void	igc_identify_hardware(if_ctx_t);
 static int	igc_allocate_pci_resources(if_ctx_t);
 static void	igc_free_pci_resources(if_ctx_t);
 static void	igc_disable_broken_l1_2(if_ctx_t);
-static void	igc_reset(if_ctx_t);
+static int	igc_reset(if_ctx_t);
 static int	igc_setup_interface(if_ctx_t);
 static int	igc_setup_msix(if_ctx_t);
 
@@ -675,7 +675,12 @@ igc_if_attach_pre(if_ctx_t ctx)
 	** important in reading the nvm and
 	** mac from that.
 	*/
-	igc_reset_hw(hw);
+	error = igc_reset_hw(hw);
+	if (error != IGC_SUCCESS) {
+		device_printf(dev, "Hardware reset failed: %d\n", error);
+		error = EIO;
+		goto err_late;
+	}
 
 	/* Make sure we have a good EEPROM before we read from it */
 	if (igc_validate_nvm_checksum(hw) < 0) {
@@ -743,11 +748,11 @@ igc_if_attach_post(if_ctx_t ctx)
 
 	/* Setup OS specific network interface */
 	error = igc_setup_interface(ctx);
-	if (error != 0) {
-		goto err_late;
-	}
+	if (error != 0)
+		return (error);
 
-	igc_reset(ctx);
+	if (igc_reset(ctx) != IGC_SUCCESS)
+		return (EIO);
 
 	/* Initialize statistics */
 	igc_update_stats_counters(sc);
@@ -759,14 +764,6 @@ igc_if_attach_post(if_ctx_t ctx)
 	igc_get_hw_control(sc);
 
 	INIT_DEBUGOUT("igc_if_attach_post: end");
-
-	return (error);
-
-err_late:
-	igc_release_hw_control(sc);
-	igc_free_pci_resources(ctx);
-	igc_if_queues_free(ctx);
-	free(sc->mta, M_DEVBUF);
 
 	return (error);
 }
@@ -877,11 +874,11 @@ igc_if_init(if_ctx_t ctx)
 	bcopy(if_getlladdr(ifp), sc->hw.mac.addr,
 	    ETHER_ADDR_LEN);
 
-	/* Put the address into the Receive Address Array */
-	igc_rar_set(&sc->hw, sc->hw.mac.addr, 0);
-
 	/* Initialize the hardware */
-	igc_reset(ctx);
+	if (igc_reset(ctx) != IGC_SUCCESS) {
+		iflib_init_failed(ctx);
+		return;
+	}
 	igc_if_update_admin_status(ctx);
 
 	for (i = 0, tx_que = sc->tx_queues; i < sc->tx_num_queues;
@@ -1606,12 +1603,18 @@ static void
 igc_if_stop(if_ctx_t ctx)
 {
 	struct igc_softc *sc = iflib_get_softc(ctx);
+	s32 error;
 
 	INIT_DEBUGOUT("igc_if_stop: begin");
 
 	igc_led_restore(sc);
 	igc_prepare_fatal_error_reset(sc);
-	igc_reset_hw(&sc->hw);
+	error = igc_reset_hw(&sc->hw);
+	if (error != IGC_SUCCESS) {
+		device_printf(sc->dev, "Hardware reset failed while stopping: "
+		    "%d\n", error);
+		return;
+	}
 	igc_finish_fatal_error_reset(sc);
 	IGC_WRITE_REG(&sc->hw, IGC_WUC, 0);
 }
@@ -2115,7 +2118,7 @@ igc_init_dmac(struct igc_softc *sc, u32 pba)
  *  softc structure.
  *
  **********************************************************************/
-static void
+static int
 igc_reset(if_ctx_t ctx)
 {
 	device_t dev = iflib_get_dev(ctx);
@@ -2123,6 +2126,7 @@ igc_reset(if_ctx_t ctx)
 	struct igc_hw *hw = &sc->hw;
 	u32 rx_buffer_size;
 	u32 pba;
+	s32 error;
 
 	INIT_DEBUGOUT("igc_reset: begin");
 	igc_led_restore(sc);
@@ -2169,14 +2173,21 @@ igc_reset(if_ctx_t ctx)
 	hw->fc.send_xon = true;
 
 	/* Issue a global reset */
-	igc_reset_hw(hw);
+	error = igc_reset_hw(hw);
+	if (error != IGC_SUCCESS) {
+		device_printf(dev, "Hardware reset failed: %d\n", error);
+		return (error);
+	}
 	IGC_WRITE_REG(hw, IGC_WUC, 0);
 
 	/* and a re-init */
-	if (igc_init_hw(hw) < 0) {
-		device_printf(dev, "Hardware Initialization Failed\n");
-		return;
+	error = igc_init_hw(hw);
+	if (error != IGC_SUCCESS) {
+		device_printf(dev, "Hardware initialization failed: %d\n",
+		    error);
+		return (error);
 	}
+	igc_finish_fatal_error_reset(sc);
 
 	/* Setup DMA Coalescing */
 	igc_init_dmac(sc, pba);
@@ -2187,6 +2198,8 @@ igc_reset(if_ctx_t ctx)
 	IGC_WRITE_REG(hw, IGC_VET, ETHERTYPE_VLAN);
 	igc_get_phy_info(hw);
 	igc_check_for_link(hw);
+
+	return (IGC_SUCCESS);
 }
 
 /*
@@ -2449,6 +2462,7 @@ igc_if_queues_free(if_ctx_t ctx)
 
 	if (sc->mta != NULL) {
 		free(sc->mta, M_DEVBUF);
+		sc->mta = NULL;
 	}
 }
 
