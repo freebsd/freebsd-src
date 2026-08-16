@@ -242,6 +242,9 @@ epair_prepare_mbuf(struct mbuf *m, struct ifnet *src_ifp)
 	epair_clear_mbuf(m);
 	if_setrcvif(m, src_ifp);
 	M_SETFIB(m, src_ifp->if_fib);
+	if ((if_getcapenable(src_ifp) & IFCAP_RXCSUM) == 0)
+		m->m_pkthdr.csum_flags &= ~(CSUM_L3_CALC | CSUM_L3_VALID |
+		    CSUM_L4_CALC | CSUM_L4_VALID);
 
 	MPASS(m->m_nextpkt == NULL);
 	MPASS((m->m_pkthdr.csum_flags & CSUM_SND_TAG) == 0);
@@ -455,7 +458,7 @@ epair_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct epair_softc *sc;
 	struct ifreq *ifr;
-	int error;
+	int error, cap;
 
 	ifr = (struct ifreq *)data;
 	switch (cmd) {
@@ -484,14 +487,19 @@ epair_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFCAP:
 		/*
-		 * Enable/disable capabilities as requested, besides
-		 * IFCAP_RXCSUM(_IPV6), which always remain enabled.
-		 * Incoming packets may have the mbuf flag CSUM_DATA_VALID set.
-		 * Without IFCAP_RXCSUM(_IPV6), this flag would have to be
-		 * removed, which does not seem helpful.
+		 * Enable/disable capabilities as requested, but treat
+		 * IFCAP_RXCSUM and IFCAP_RXCSUM_IPV6 special as they can only
+		 * be set or unset as pair.
 		 */
-		ifp->if_capenable = ifr->ifr_reqcap | IFCAP_RXCSUM |
-		    IFCAP_RXCSUM_IPV6;
+		cap = ifr->ifr_reqcap;
+		if (((cap & IFCAP_RXCSUM) == 0) !=
+		    ((cap & IFCAP_RXCSUM_IPV6) == 0)) {
+			if ((ifp->if_capenable & IFCAP_RXCSUM) == 0)
+				cap |= (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
+			else
+				cap &= ~(IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6);
+		}
+		ifp->if_capenable = cap;
 		epair_caps_changed(ifp);
 		VLAN_CAPABILITIES(ifp);
 		/*
