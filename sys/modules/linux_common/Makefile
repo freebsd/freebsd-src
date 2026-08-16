@@ -1,6 +1,9 @@
 .PATH: ${SRCTOP}/sys/compat/linux
 .if ${MACHINE_CPUARCH} == "amd64"
-.PATH: ${SRCTOP}/sys/x86/linux
+.PATH: ${SRCTOP}/sys/amd64/linux ${SRCTOP}/sys/x86/linux
+.endif
+.if ${MACHINE_CPUARCH} == "aarch64"
+.PATH: ${SRCTOP}/sys/arm64/linux
 .endif
 
 KMOD=	linux_common
@@ -9,7 +12,10 @@ SRCS=	linux_common.c linux_mib.c linux_mmap.c linux_util.c linux_emul.c \
 	linux.c device_if.h vnode_if.h bus_if.h opt_inet6.h opt_inet.h
 
 .if ${MACHINE_CPUARCH} == "amd64"
-SRCS+=	linux_x86.c linux_vdso_selector_x86.c
+SRCS+=	linux_pkru.c linux_x86.c linux_vdso_selector_x86.c
+.endif
+.if ${MACHINE_CPUARCH} == "aarch64"
+SRCS+=	linux_emul_md.c
 .endif
 
 EXPORT_SYMS=

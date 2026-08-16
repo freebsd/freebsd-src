@@ -30,6 +30,8 @@
 #ifndef _LINUX_EMUL_H_
 #define	_LINUX_EMUL_H_
 
+#include <machine/../linux/linux_emul_md.h>
+
 struct image_params;
 
 /*
@@ -69,6 +71,7 @@ struct linux_pemuldata {
 	uint32_t	oom_score_adj;	/* /proc/self/oom_score_adj */
 	uint32_t	so_timestamp;	/* requested timeval */
 	uint32_t	so_timestampns;	/* requested timespec */
+	struct linux_pemuldata_md pem_md; /* machine-dependent state */
 };
 
 #define	LINUX_PEM_XLOCK(p)	sx_xlock(&(p)->pem_sx)
@@ -77,5 +80,14 @@ struct linux_pemuldata {
 #define	LINUX_PEM_SUNLOCK(p)	sx_sunlock(&(p)->pem_sx)
 
 struct linux_pemuldata	*pem_find(struct proc *);
+
+/*
+ * Machine-dependent hooks for struct linux_pemuldata lifecycle
+ * events, implemented per-arch: initialization of pem_md when the
+ * emuldata is created (fork, or a process switching to the Linux
+ * ABI) and reset at exec.
+ */
+void	linux_pemuldata_init_md(struct thread *, struct linux_pemuldata *);
+void	linux_pemuldata_exec_md(struct linux_pemuldata *);
 
 #endif	/* !_LINUX_EMUL_H_ */

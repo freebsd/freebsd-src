@@ -164,6 +164,7 @@ int amd64_set_ldt(struct thread *, struct i386_ldt_args *,
     struct user_segment_descriptor *);
 int amd64_get_ioperm(struct thread *, struct i386_ioperm_args *);
 int amd64_set_ioperm(struct thread *, struct i386_ioperm_args *);
+int amd64_pkru_update(struct thread *, uintptr_t, size_t, u_int, int, bool);
 #endif
 
 #endif /* !_MACHINE_SYSARCH_H_ */
