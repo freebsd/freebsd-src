@@ -135,7 +135,7 @@
  *
  * One of the easiest ways to construct new filesystem layers is to make
  * a copy of the null layer, rename all files and variables, and
- * then begin modifing the copy.  Sed can be used to easily rename
+ * then begin modifying the copy.  Sed can be used to easily rename
  * all variables.
  *
  * The umap layer is an example of a layer descended from the
