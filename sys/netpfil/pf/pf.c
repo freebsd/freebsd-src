@@ -2690,6 +2690,43 @@ pf_icmp_mapping(struct pf_pdesc *pd, u_int8_t type,
 	return (0);  /* These types match to their own state */
 }
 
+#ifdef INET
+void
+pf_send_ip_direct(struct mbuf *m)
+{
+	if (pf_isforlocal(m, AF_INET)) {
+		KASSERT(m->m_pkthdr.rcvif == V_loif,
+		    ("%s: rcvif != loif", __func__));
+
+		m->m_flags |= M_SKIP_FIREWALL;
+		m->m_pkthdr.csum_flags |= CSUM_IP_VALID | CSUM_IP_CHECKED |
+		    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+		m->m_pkthdr.csum_data = 0xffff;
+		ip_input(m);
+	} else {
+		ip_output(m, NULL, NULL, 0, NULL, NULL);
+	}
+}
+#endif
+
+#ifdef INET6
+void
+pf_send_ip6_direct(struct mbuf *m)
+{
+	if (pf_isforlocal(m, AF_INET6)) {
+		KASSERT(m->m_pkthdr.rcvif == V_loif,
+		    ("%s: rcvif != loif", __func__));
+
+		m->m_flags |= M_SKIP_FIREWALL | M_LOOP;
+		m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+		m->m_pkthdr.csum_data = 0xffff;
+		ip6_input(m);
+	} else {
+		ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
+	}
+}
+#endif
+
 void
 pf_intr(void *v)
 {
@@ -2710,20 +2747,7 @@ pf_intr(void *v)
 		switch (pfse->pfse_type) {
 #ifdef INET
 		case PFSE_IP: {
-			if (pf_isforlocal(pfse->pfse_m, AF_INET)) {
-				KASSERT(pfse->pfse_m->m_pkthdr.rcvif == V_loif,
-				    ("%s: rcvif != loif", __func__));
-
-				pfse->pfse_m->m_flags |= M_SKIP_FIREWALL;
-				pfse->pfse_m->m_pkthdr.csum_flags |=
-				    CSUM_IP_VALID | CSUM_IP_CHECKED |
-				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-				pfse->pfse_m->m_pkthdr.csum_data = 0xffff;
-				ip_input(pfse->pfse_m);
-			} else {
-				ip_output(pfse->pfse_m, NULL, NULL, 0, NULL,
-				    NULL);
-			}
+			pf_send_ip_direct(pfse->pfse_m);
 			break;
 		}
 		case PFSE_ICMP:
@@ -2733,20 +2757,7 @@ pf_intr(void *v)
 #endif /* INET */
 #ifdef INET6
 		case PFSE_IP6:
-			if (pf_isforlocal(pfse->pfse_m, AF_INET6)) {
-				KASSERT(pfse->pfse_m->m_pkthdr.rcvif == V_loif,
-				    ("%s: rcvif != loif", __func__));
-
-				pfse->pfse_m->m_flags |= M_SKIP_FIREWALL |
-				    M_LOOP;
-				pfse->pfse_m->m_pkthdr.csum_flags |=
-				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-				pfse->pfse_m->m_pkthdr.csum_data = 0xffff;
-				ip6_input(pfse->pfse_m);
-			} else {
-				ip6_output(pfse->pfse_m, NULL, NULL, 0, NULL,
-				    NULL, NULL);
-			}
+			pf_send_ip6_direct(pfse->pfse_m);
 			break;
 		case PFSE_ICMP6:
 			icmp6_error(pfse->pfse_m, pfse->icmpopts.type,

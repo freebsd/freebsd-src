@@ -752,5 +752,12 @@ RB_PROTOTYPE(pf_anchor_global, pf_anchor, entry_global, pf_anchor_compare);
 RB_PROTOTYPE(pf_anchor_node, pf_anchor, entry_node, pf_anchor_compare);
 
 int	 pf_get_ruleset_number(u_int8_t);
-
+#ifdef _KERNEL
+#ifdef INET
+void pf_send_ip_direct(struct mbuf *m);
+#endif
+#ifdef INET6
+void pf_send_ip6_direct(struct mbuf *m);
+#endif
+#endif	/* _KERNEL */
 #endif	/* _NET_PF_H_ */
