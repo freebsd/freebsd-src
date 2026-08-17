@@ -5147,7 +5147,7 @@ ipf_nat_out(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 		ip_fillid(ip, V_ip_random_id);
 		s2 = ntohs(ip->ip_id);
 
-		s1 = ip->ip_len;
+		s1 = ntohs(ip->ip_len);
 		ip->ip_len = ntohs(ip->ip_len);
 		ip->ip_len += fin->fin_plen;
 		ip->ip_len = htons(ip->ip_len);
