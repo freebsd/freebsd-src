@@ -292,7 +292,7 @@ asmc_mmio_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	device_printf(dev, "MMIO: LDKN=%d, T2 SMC detected\n", ldkn);
+	device_printf(dev, "MMIO: LDKN=%d, MMIO-capable SMC detected\n", ldkn);
 	sc->sc_is_t2 = 1;
 
 	return (0);
