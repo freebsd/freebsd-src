@@ -102,6 +102,11 @@ struct passthru_softc {
 	} psc_msix;
 	struct {
 		int		capoff;
+		uint16_t	pmcsr;
+		uint16_t	reset_pmcsr;
+	} psc_pm;
+	struct {
+		int		capoff;
 		uint16_t	devctl;
 		uint16_t	reset_devctl;
 		uint16_t	devctl2;
@@ -331,12 +336,21 @@ cfginitcaps(struct passthru_softc *sc)
 					capptr += 4;
 					msixcap_ptr += 4;
 				}
+			} else if (cap == PCIY_PMG) {
+				sc->psc_pm.capoff = ptr;
 			} else if (cap == PCIY_EXPRESS) {
 				sc->psc_pcie.capoff = ptr;
 			}
 			ptr = passthru_read_config(&sel, ptr + PCICAP_NEXTPTR,
 			    1);
 		}
+	}
+	if (sc->psc_pm.capoff != 0) {
+		sc->psc_pm.pmcsr = passthru_read_config(&sel,
+		    sc->psc_pm.capoff + PCIR_POWER_STATUS, 2);
+		/* The physical function remains in its host-owned power state. */
+		sc->psc_pm.pmcsr |= PCIM_PSTAT_NOSOFTRESET;
+		sc->psc_pm.reset_pmcsr = sc->psc_pm.pmcsr;
 	}
 	if (sc->psc_pcie.capoff != 0) {
 		sc->psc_pcie.devctl = passthru_read_config(&sel,
@@ -1120,6 +1134,8 @@ msixcap_access(struct passthru_softc *sc, int coff)
 #define	PASSTHRU_DEVCTL_NO_WRITE	PCIEM_CTL_PHANTHOM_FUNCS
 #define	PASSTHRU_DEVCTL2_VIRT	(PCIEM_CTL2_COMP_TIMO_VAL | \
 				 PCIEM_CTL2_COMP_TIMO_DISABLE)
+#define	PASSTHRU_PMCSR_VIRT	(PCIM_PSTAT_DMASK | \
+				 PCIM_PSTAT_NOSOFTRESET)
 
 static uint32_t
 passthru_cfg_field_mask(int coff, int bytes, int fieldoff, uint16_t mask)
@@ -1243,6 +1259,8 @@ passthru_reset_capability_state(struct passthru_softc *sc)
 	    (sc->psc_pcie.reset_devctl & ~PCIEM_CTL_MAX_PAYLOAD) | guest_mps;
 	if (sc->psc_pcie.has_devctl2)
 		sc->psc_pcie.devctl2 = sc->psc_pcie.reset_devctl2;
+	if (sc->psc_pm.capoff != 0)
+		sc->psc_pm.pmcsr = sc->psc_pm.reset_pmcsr;
 }
 
 static int
@@ -1320,6 +1338,13 @@ passthru_cfgread_default(struct passthru_softc *sc,
 
 	/* Everything else just read from the device's config space. */
 	*rv = passthru_read_config(&sc->psc_sel, coff, bytes);
+	if (sc->psc_pm.capoff != 0) {
+		int pmcsr;
+
+		pmcsr = sc->psc_pm.capoff + PCIR_POWER_STATUS;
+		*rv = passthru_cfg_overlay_field(coff, bytes, *rv, pmcsr,
+		    sc->psc_pm.pmcsr, PASSTHRU_PMCSR_VIRT);
+	}
 	if (sc->psc_pcie.capoff != 0) {
 		int devctl;
 
@@ -1362,8 +1387,8 @@ passthru_cfgwrite_default(struct passthru_softc *sc, struct pci_devinst *pi,
     int coff, int bytes, uint32_t val)
 {
 	uint32_t flr_mask, transport_mask;
-	uint16_t physical_devctl;
-	int devctl, devctl2, host_mps, guest_mrrs;
+	uint16_t physical_devctl, physical_pmcsr;
+	int devctl, devctl2, host_mps, guest_mrrs, pmcsr;
 	int error, msix_table_entries, i;
 	uint16_t cmd_old;
 
@@ -1405,6 +1430,30 @@ passthru_cfgwrite_default(struct passthru_softc *sc, struct pci_devinst *pi,
 			if (error)
 				err(1, "vm_disable_pptdev_msix");
 		}
+		return (0);
+	}
+
+	/*
+	 * A physical D3hot-to-D0 transition may reset the function and clear
+	 * Command behind bhyve's emulated copy.  Keep the physical D-state
+	 * host-owned, emulate the guest D-state, and advertise No_Soft_Reset so
+	 * the guest does not rely on this cycle as a function reset.
+	 */
+	pmcsr = sc->psc_pm.capoff + PCIR_POWER_STATUS;
+	if (sc->psc_pm.capoff != 0 && coff < pmcsr + 2 &&
+	    coff + bytes > pmcsr) {
+		physical_pmcsr = passthru_read_config(&sc->psc_sel, pmcsr, 2);
+		if (physical_pmcsr == 0xffff) {
+			warnx("configuration space unavailable for passthru "
+			    "device %d/%d/%d", sc->psc_sel.pc_bus,
+			    sc->psc_sel.pc_dev, sc->psc_sel.pc_func);
+			return (0);
+		}
+		passthru_cfg_update_field(coff, bytes, val, pmcsr,
+		    PCIM_PSTAT_DMASK, &sc->psc_pm.pmcsr);
+		val = passthru_cfg_overlay_field(coff, bytes, val, pmcsr,
+		    physical_pmcsr, PASSTHRU_PMCSR_VIRT);
+		passthru_write_config(&sc->psc_sel, coff, bytes, val);
 		return (0);
 	}
 
