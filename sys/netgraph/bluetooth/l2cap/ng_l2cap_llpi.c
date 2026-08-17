@@ -740,7 +740,7 @@ ng_l2cap_lp_receive(ng_l2cap_p l2cap, struct mbuf *m)
 		l2cap_hdr = mtod(m, ng_l2cap_hdr_t *);
 
 		NG_L2CAP_INFO(
-"%s: %s - staring new L2CAP packet, con_handle=%d, length=%d\n",
+"%s: %s - starting new L2CAP packet, con_handle=%d, length=%d\n",
 			__func__, NG_NODE_NAME(l2cap->node), con_handle,
 			le16toh(l2cap_hdr->length));
 
