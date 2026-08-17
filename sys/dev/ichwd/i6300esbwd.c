@@ -71,7 +71,7 @@ i6300esbwd_lock_write(struct i6300esbwd_softc *sc, uint8_t val)
 
 /*
  * According to Intel 6300ESB I/O Controller Hub Datasheet 16.5.2,
- * the resource should be unlocked before modifing any registers.
+ * the resource should be unlocked before modifying any registers.
  * The way to unlock is by write 0x80, 0x86 to the reload register.
  */
 static void
