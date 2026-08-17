@@ -427,17 +427,13 @@ asmc_probe(device_t dev)
 }
 
 /*
- * Try PIO first; fall back to MMIO for T2 Macs.
+ * Try MMIO first; the legacy PIO range can be claimable but dead.
+ * Fall back to PIO if MMIO probe fails or the resource is absent.
  */
 static int
 asmc_try_probe(device_t dev)
 {
 	struct asmc_softc *sc = device_get_softc(dev);
-
-	sc->sc_ioport = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
-	    &sc->sc_rid_port, RF_ACTIVE);
-	if (sc->sc_ioport != NULL)
-		return (0);
 
 	sc->sc_rid_mem = 0;
 	sc->sc_iomem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -445,7 +441,8 @@ asmc_try_probe(device_t dev)
 	if (sc->sc_iomem != NULL) {
 		if (asmc_mmio_probe(dev) == 0) {
 			sc->sc_is_mmio = true;
-			device_printf(dev, "using MMIO backend (T2)\n");
+			if (bootverbose)
+				device_printf(dev, "using MMIO backend\n");
 			return (0);
 		}
 		bus_release_resource(dev, SYS_RES_MEMORY,
@@ -453,7 +450,12 @@ asmc_try_probe(device_t dev)
 		sc->sc_iomem = NULL;
 	}
 
-	device_printf(dev, "unable to allocate IO port\n");
+	sc->sc_ioport = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+	    &sc->sc_rid_port, RF_ACTIVE);
+	if (sc->sc_ioport != NULL)
+		return (0);
+
+	device_printf(dev, "unable to allocate IO port or MMIO\n");
 	return (ENOMEM);
 }
 
