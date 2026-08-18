@@ -338,6 +338,18 @@ acpi_pci_save_handle(ACPI_HANDLE handle, UINT32 level, void *context,
 void
 acpi_pci_child_added(device_t dev, device_t child)
 {
+	struct acpi_pci_devinfo *dinfo;
+
+	dinfo = device_get_ivars(child);
+
+	/*
+	 * VFs are instantiated dynamically from their PF rather than enumerated
+	 * from ACPI.  A VF's runtime slot and function can match an unrelated
+	 * _ADR below the bridge, causing the ACPI handle for that device to be
+	 * attached to the VF.
+	 */
+	if ((dinfo->ap_dinfo.cfg.flags & PCICFG_VF) != 0)
+		return;
 
 	/*
 	 * PCI devices are added via the bus scan in the normal PCI
