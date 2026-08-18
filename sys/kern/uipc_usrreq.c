@@ -3131,10 +3131,10 @@ unp_connectat_peer(struct thread *td, int fd, const char *buf,
 	NDFREE_PNBUF(&nd);
 
 	/*
-	 * Dispatch on the resolved vnode, then drop it: for the socket cases the
-	 * returned reference keeps the peer stable, so the caller holds no vnode
-	 * lock across unp_connect_peer() (which matters for the return_locked
-	 * datagram fast path).
+	 * Dispatch on the resolved vnode, then drop it: for the socket cases
+	 * the returned reference keeps the peer stable, so the caller holds
+	 * no vnode lock across unp_connect_peer() (which matters for the
+	 * return_locked * datagram fast path).
 	 *
 	 * A synthetic descriptor node -- as fdescfs fabricates for a /dev/fd/N
 	 * path -- carries no type of its own (VNON); opening it yields the
