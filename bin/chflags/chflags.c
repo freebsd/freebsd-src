@@ -39,6 +39,7 @@
 #include <fcntl.h>
 #include <fts.h>
 #include <getopt.h>
+#include <libgen.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdbool.h>
@@ -61,67 +62,55 @@ siginfo_handler(int sig __unused)
 }
 
 /*
- * A path needs its own pre-opened directory descriptor if it is absolute
- * or contains a ".." component, because those cannot be resolved relative
- * to the base directory descriptor in capability mode.
+ * A path needs its own pre-opened directory descriptor unless it is a
+ * single path component that can be resolved directly relative to the
+ * base directory descriptor.  Anything containing a '/' (an absolute
+ * path, or a relative path with a directory component) has its parent
+ * directory opened separately, so that in capability mode the final
+ * component is always reached relative to its immediate parent.
  */
 static bool
 needs_own_fd(const char *path)
 {
-	const char *p;
 
-	if (path[0] == '/')
-		return (true);
-	for (p = path; p != NULL; p = strchr(p, '/')) {
-		if (p[0] == '/')
-			p++;
-		if (p[0] == '.' && p[1] == '.' &&
-		    (p[2] == '\0' || p[2] == '/'))
-			return (true);
-	}
-	return (false);
+	return (strchr(path, '/') != NULL);
 }
 
 /*
- * Open a directory descriptor suitable for resolving "path" relative to
- * it, and rewrite "*path" to be relative to that descriptor.  For a path
- * with a directory component, open the parent directory and leave the
- * final component in "*path".  For a bare name, open ".".
+ * Open a directory descriptor for the parent of "path", and return in
+ * "*base" a pointer to the final path component (relative to that
+ * descriptor).  "*base" points into the storage of "path".
  */
 static int
-open_base(char **path)
+open_base(char *path, char **base)
 {
-	char *slash, *dir;
+	char *dir, *bn, *pathcopy;
 	int fd;
 
-	slash = strrchr(*path, '/');
-	if (slash == NULL)
-		return (open(".", O_RDONLY | O_DIRECTORY | O_CLOEXEC));
-	if (slash == *path) {
-		/* Path is directly under "/". */
-		fd = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-		*path = slash + 1;
-		return (fd);
-	}
-	dir = strndup(*path, slash - *path);
-	if (dir == NULL)
-		err(1, "strndup");
+	/*
+	 * dirname() and basename() may modify their argument and may
+	 * return a pointer to internal storage, so operate on copies and
+	 * duplicate basename()'s result for the caller.
+	 */
+	if ((pathcopy = strdup(path)) == NULL)
+		err(1, "strdup");
+	dir = dirname(pathcopy);
 	fd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-	free(dir);
-	*path = slash + 1;
+	free(pathcopy);
+
+	if ((pathcopy = strdup(path)) == NULL)
+		err(1, "strdup");
+	bn = basename(pathcopy);
+	if ((*base = strdup(bn)) == NULL)
+		err(1, "strdup");
+	free(pathcopy);
+
 	return (fd);
 }
 
-/*
- * Traverse the hierarchies in "paths", rooted at the directory descriptor
- * "dirfd", and apply the flag change to each visited file.  When "capmode"
- * is set the process has entered capability mode and files are reached
- * relative to their parent's directory descriptor; otherwise the change is
- * applied by path relative to the current directory.
- */
 static int
-chflags_fts(int dirfd, char **paths, int fts_options, bool capmode, u_long set,
-    u_long clear, int oct, int Rflag, int fflag, int vflag)
+chflags_fts(int dirfd, char **paths, int fts_options, u_long set, u_long clear,
+    int oct, int Rflag, int fflag, int vflag)
 {
 	FTS *ftsp;
 	FTSENT *p;
@@ -164,17 +153,8 @@ chflags_fts(int dirfd, char **paths, int fts_options, bool capmode, u_long set,
 			newflags = (p->fts_statp->st_flags | set) & clear;
 		if (newflags == p->fts_statp->st_flags)
 			continue;
-		/*
-		 * In capability mode the file is reached relative to its
-		 * parent's directory descriptor.  Otherwise fall back to
-		 * the accpath, which resolves relative to the current
-		 * directory.
-		 */
-		if (capmode ?
-		    chflagsat(p->fts_parent->fts_dirfd, p->fts_name, newflags,
-		    atflag) == -1 :
-		    chflagsat(AT_FDCWD, p->fts_accpath, newflags, atflag) ==
-		    -1) {
+		if (chflagsat(p->fts_parent->fts_dirfd, p->fts_name, newflags,
+		    atflag) == -1) {
 			e = errno;
 			if (!fflag) {
 				warnc(e, "%s", p->fts_path);
@@ -215,9 +195,9 @@ main(int argc, char *argv[])
 	int ch, fts_options, oct, rval;
 	int cwd_fd, i, nrel, nown;
 	int *ownfd;
-	char ***ownpath;
+	char **ownbase;
 	char *flags, *ep;
-	char **relpaths, **twopath;
+	char **relpaths, *twopath[2];
 
 	Hflag = Lflag = Rflag = fflag = hflag = vflag = xflag = unsafe = 0;
 	while ((ch = getopt_long(argc, argv, "HLPRfhvx", longopts,
@@ -297,7 +277,6 @@ main(int argc, char *argv[])
 			errx(1, "invalid flags: %s", flags);
 		set = val;
 		oct = 1;
-		clear = 0;
 	} else {
 		if (strtofflags(&flags, &set, &clear))
 			errx(1, "invalid flag: %s", flags);
@@ -309,75 +288,70 @@ main(int argc, char *argv[])
 	argc--;
 
 	/*
-	 * With --dereference-links-unsafely the traversal may follow a
-	 * symlink to a file outside the hierarchy named on the command
-	 * line, which capability mode cannot allow.  Keep the historical
-	 * path-based traversal rooted at AT_FDCWD in that case.
-	 */
-	if (unsafe) {
-		rval = chflags_fts(AT_FDCWD, argv, fts_options, false, set,
-		    clear, oct, Rflag, fflag, vflag);
-		exit(rval);
-	}
-
-	/*
-	 * Pre-open a directory descriptor for every path argument before
-	 * entering capability mode, so the traversal runs entirely through
-	 * fd-relative operations.  Plain relative arguments share a
-	 * descriptor for the current directory; absolute paths and paths
-	 * containing ".." cannot be resolved relative to another descriptor
-	 * in capability mode, so each gets its own parent descriptor.
+	 * Pre-open a directory descriptor for every path argument, so the
+	 * traversal runs through fd-relative operations.  Plain relative
+	 * arguments share a descriptor for the current directory; absolute
+	 * paths and paths containing ".." cannot be resolved relative to
+	 * another descriptor in capability mode, so each gets its own
+	 * parent descriptor.
 	 */
 	if ((cwd_fd = open(".", O_RDONLY | O_DIRECTORY | O_CLOEXEC)) < 0)
 		err(1, ".");
 
 	relpaths = calloc(argc + 1, sizeof(*relpaths));
 	ownfd = calloc(argc, sizeof(*ownfd));
-	ownpath = calloc(argc, sizeof(*ownpath));
-	if (relpaths == NULL || ownfd == NULL || ownpath == NULL)
+	ownbase = calloc(argc, sizeof(*ownbase));
+	if (relpaths == NULL || ownfd == NULL || ownbase == NULL)
 		err(1, "calloc");
 	nrel = 0;
 	nown = 0;
 	rval = 0;
 
 	for (i = 0; i < argc; i++) {
-		char *path = argv[i];
-
-		if (needs_own_fd(path)) {
-			int fd = open_base(&path);
+		if (needs_own_fd(argv[i])) {
+			int fd = open_base(argv[i], &ownbase[nown]);
 			if (fd < 0) {
 				warn("%s", argv[i]);
 				rval = 1;
 				continue;
 			}
-			twopath = calloc(2, sizeof(*twopath));
-			if (twopath == NULL)
-				err(1, "calloc");
-			twopath[0] = path;
-			twopath[1] = NULL;
 			ownfd[nown] = fd;
-			ownpath[nown] = twopath;
 			nown++;
 		} else {
-			relpaths[nrel++] = path;
+			relpaths[nrel++] = argv[i];
 		}
 	}
 	relpaths[nrel] = NULL;
 
 	if (caph_limit_stdio() < 0)
 		err(1, "caph_limit_stdio");
-	if (caph_enter() < 0)
+	/*
+	 * With --dereference-links-unsafely the traversal may follow a
+	 * symlink to a file outside the hierarchy named on the command
+	 * line, which capability mode would block, so skip cap_enter() in
+	 * that case.
+	 */
+	if (!unsafe && caph_enter() < 0)
 		err(1, "cap_enter");
 
 	/* Process all plain relative paths together under cwd_fd. */
 	if (nrel > 0)
-		rval |= chflags_fts(cwd_fd, relpaths, fts_options, true, set,
-		    clear, oct, Rflag, fflag, vflag);
+		rval |= chflags_fts(cwd_fd, relpaths, fts_options, set, clear,
+		    oct, Rflag, fflag, vflag);
 
 	/* Process each absolute / ".."-containing path under its own fd. */
+	for (i = 0; i < nown; i++) {
+		twopath[0] = ownbase[i];
+		twopath[1] = NULL;
+		rval |= chflags_fts(ownfd[i], twopath, fts_options, set,
+		    clear, oct, Rflag, fflag, vflag);
+	}
+
 	for (i = 0; i < nown; i++)
-		rval |= chflags_fts(ownfd[i], ownpath[i], fts_options, true,
-		    set, clear, oct, Rflag, fflag, vflag);
+		free(ownbase[i]);
+	free(relpaths);
+	free(ownfd);
+	free(ownbase);
 
 	exit(rval);
 }

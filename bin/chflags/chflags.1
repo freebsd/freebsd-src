@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 9, 2026
+.Dd August 21, 2026
 .Dt CHFLAGS 1
 .Os
 .Sh NAME
@@ -76,7 +76,12 @@ rather than the file to which it points.
 .It Fl L
 If the
 .Fl R
-option is specified, all symbolic links are followed.
+option is specified, symbolic links are followed.
+Symbolic links that point outside the file hierarchy being traversed
+are not followed unless the
+.Fl -dereference-links-unsafely
+option is also given;
+see the description of that option below.
 .It Fl P
 If the
 .Fl R

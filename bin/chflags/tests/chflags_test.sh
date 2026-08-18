@@ -28,15 +28,14 @@
 usage_output='usage: chflags'
 
 # Skip the calling test if the work filesystem does not support
-# setting the uchg file flag (e.g. some ZFS configurations).
+# setting the nodump file flag (e.g. some ZFS configurations).
 require_chflags()
 {
 	touch .chflags_probe
-	if ! chflags uchg .chflags_probe 2>/dev/null; then
+	if ! chflags nodump .chflags_probe 2>/dev/null; then
 		rm -f .chflags_probe
-		atf_skip "filesystem does not support the uchg flag"
+		atf_skip "filesystem does not support the nodump flag"
 	fi
-	chflags nouchg .chflags_probe
 	rm -f .chflags_probe
 }
 
@@ -77,9 +76,8 @@ relative_path_body()
 {
 	require_chflags
 	touch file
-	atf_check chflags uchg file
-	atf_check -o match:uchg stat -f "%Sf" file
-	atf_check chflags nouchg file
+	atf_check chflags nodump file
+	atf_check -o match:nodump stat -f "%Sf" file
 }
 
 atf_test_case absolute_path
@@ -91,9 +89,8 @@ absolute_path_body()
 {
 	require_chflags
 	touch file
-	atf_check chflags uchg "$(pwd)/file"
-	atf_check -o match:uchg stat -f "%Sf" file
-	atf_check chflags nouchg "$(pwd)/file"
+	atf_check chflags nodump "$(pwd)/file"
+	atf_check -o match:nodump stat -f "%Sf" file
 }
 
 atf_test_case dotdot_path
@@ -107,9 +104,8 @@ dotdot_path_body()
 	mkdir dir
 	touch file
 	cd dir
-	atf_check chflags uchg ../file
-	atf_check -o match:uchg stat -f "%Sf" ../file
-	atf_check chflags nouchg ../file
+	atf_check chflags nodump ../file
+	atf_check -o match:nodump stat -f "%Sf" ../file
 }
 
 atf_test_case recursive
@@ -122,10 +118,9 @@ recursive_body()
 	require_chflags
 	mkdir -p dir/sub
 	touch dir/file dir/sub/file
-	atf_check chflags -R uchg dir
-	atf_check -o match:uchg stat -f "%Sf" dir/file
-	atf_check -o match:uchg stat -f "%Sf" dir/sub/file
-	atf_check chflags -R nouchg dir
+	atf_check chflags -R nodump dir
+	atf_check -o match:nodump stat -f "%Sf" dir/file
+	atf_check -o match:nodump stat -f "%Sf" dir/sub/file
 }
 
 atf_test_case mixed_paths
@@ -139,11 +134,10 @@ mixed_paths_body()
 	mkdir dir
 	touch a dir/b c
 	cd dir
-	atf_check chflags uchg b "$(pwd)/../a" ../c
-	atf_check -o match:uchg stat -f "%Sf" b
-	atf_check -o match:uchg stat -f "%Sf" ../a
-	atf_check -o match:uchg stat -f "%Sf" ../c
-	atf_check chflags nouchg b "$(pwd)/../a" ../c
+	atf_check chflags nodump b "$(pwd)/../a" ../c
+	atf_check -o match:nodump stat -f "%Sf" b
+	atf_check -o match:nodump stat -f "%Sf" ../a
+	atf_check -o match:nodump stat -f "%Sf" ../c
 }
 
 atf_test_case outside_symlink_rejected
@@ -158,13 +152,8 @@ outside_symlink_rejected_body()
 	mkdir -p foo/bar/baz
 	touch target
 	ln -s ../../../target foo/bar/baz/link
-	atf_check -s not-exit:0 -e ignore chflags -RL uchg foo/bar
+	atf_check -s not-exit:0 -e ignore chflags -RL nodump foo/bar
 	atf_check -o match:"target[[:space:]]*-" stat -f "%N %Sf" target
-}
-
-outside_symlink_rejected_cleanup()
-{
-	chflags -R --dereference-links-unsafely 0 foo target 2>/dev/null || true
 }
 
 atf_test_case outside_symlink_unsafe
@@ -179,14 +168,23 @@ outside_symlink_unsafe_body()
 	mkdir -p foo/bar/baz
 	touch target
 	ln -s ../../../target foo/bar/baz/link
-	atf_check chflags -RL --dereference-links-unsafely uchg foo/bar
-	atf_check -o match:uchg stat -f "%Sf" target
-	atf_check chflags --dereference-links-unsafely nouchg target
+	atf_check chflags -RL --dereference-links-unsafely nodump foo/bar
+	atf_check -o match:nodump stat -f "%Sf" target
 }
 
-outside_symlink_unsafe_cleanup()
+atf_test_case symlink_no_h
+symlink_no_h_head()
 {
-	chflags -R --dereference-links-unsafely 0 foo target 2>/dev/null || true
+	atf_set "descr" "chflags on a symlink without -h changes the target"
+}
+symlink_no_h_body()
+{
+	require_chflags
+	touch target
+	ln -s target link
+	atf_check chflags nodump link
+	atf_check -o match:nodump stat -f "%Sf" target
+	atf_check -o match:"link[[:space:]]*-" stat -f "%N %Sf" link
 }
 
 atf_init_test_cases()
@@ -198,6 +196,7 @@ atf_init_test_cases()
 	atf_add_test_case dotdot_path
 	atf_add_test_case recursive
 	atf_add_test_case mixed_paths
+	atf_add_test_case symlink_no_h
 	atf_add_test_case outside_symlink_rejected
 	atf_add_test_case outside_symlink_unsafe
 }
