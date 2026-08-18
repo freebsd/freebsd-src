@@ -33,7 +33,7 @@
 #define _SYS_SYSLIMITS_H_
 
 #if !defined(_STANDALONE) && !defined(_KERNEL) && \
-    !defined(__STDC_VERSION_LIMITS_H__) && !defined(_SYS_PARAM_H_)
+    !defined(_LIMITS_H_) && !defined(_SYS_PARAM_H_)
 #warning "No user-serviceable parts inside."
 #endif
 

@@ -68,7 +68,7 @@ __BEGIN_DECLS
 #include <xlocale/_ctype.h>
 #endif
 
-#ifdef __STDC_VERSION_STDIO_H__
+#ifdef _STDIO_H_
 #include <xlocale/_stdio.h>
 #endif
 

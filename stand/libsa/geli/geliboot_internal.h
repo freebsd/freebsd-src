@@ -28,15 +28,9 @@
 #ifndef _GELIBOOT_INTERNAL_H_
 #define _GELIBOOT_INTERNAL_H_
 
-/*
- * XXX:
- * The following deliberate defines are to keep g_eli.h from including
- * unnecessary headers.  It would be preferable to conditionally include
- * them in a _STANDALONE branch there instead.
- */
 #define _STRING_H_
 #define _STRINGS_H_
-#define __STDC_VERSION_STDIO_H__	202311L
+#define _STDIO_H_
 
 #include <sys/endian.h>
 #include <sys/queue.h>
