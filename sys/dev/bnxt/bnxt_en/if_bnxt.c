@@ -75,6 +75,7 @@
 #include "bnxt_log.h"
 #include "bnxt_log_data.h"
 #include "bnxt_coredump.h"
+#include "bnxt_ptp.h"
 
 /*
  * PCI Device ID Table
@@ -2901,6 +2902,17 @@ bnxt_attach_pre(if_ctx_t ctx)
 	if (rc)
 		goto failed;
 
+	if (softc->fw_cap & BNXT_FW_CAP_PTP) {
+		rc = bnxt_hwrm_ptp_qcfg(softc);
+		if (!rc) {
+			scctx->isc_capabilities |= IFCAP_HWRXTSTMP;
+			scctx->isc_capenable |= IFCAP_HWRXTSTMP;
+		} else {
+			/* PTP is an optional capability; do not fail attach. */
+			rc = 0;
+		}
+	}
+
 	set_bit(BNXT_STATE_OPEN, &softc->state);
 	INIT_WORK(&softc->sp_task, bnxt_sp_task);
 	INIT_DELAYED_WORK(&softc->fw_reset_task, bnxt_fw_reset_task);
@@ -3005,6 +3017,7 @@ bnxt_detach(if_ctx_t ctx)
 	bnxt_num_pfs--;
 	bnxt_wol_config(ctx);
 	bnxt_do_disable_intr(&softc->def_cp_ring);
+	bnxt_ptp_free(softc);
 	bnxt_free_sysctl_ctx(softc);
 	bnxt_free_crash_dump_mem(softc);
 	bnxt_hwrm_func_reset(softc);
@@ -3313,6 +3326,14 @@ bnxt_init_hw(if_ctx_t ctx)
 	if (rc)
 		goto fail;
 skip_def_cp_ring:
+	if (softc->scctx->isc_capenable & IFCAP_HWRXTSTMP) {
+		if (!bnxt_ptp_cfg_tstamp_filters(softc)) {
+			softc->rx_ts_enabled = true;
+			/* tstmp_clbr is callout_init()'d in bnxt_ptp_init(). */
+			bnxt_reset_calibration_callout(softc->ptp_cfg);
+		}
+	}
+
 	for (i = 0; i < softc->nrxqsets; i++) {
 		/* Allocate the statistics context */
 		rc = bnxt_hwrm_stat_ctx_alloc(softc, &softc->rx_cp_rings[i],
@@ -3480,6 +3501,11 @@ bnxt_stop(if_ctx_t ctx)
 {
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 
+	if (softc->rx_ts_enabled) {
+		callout_drain(&softc->ptp_cfg->tstmp_clbr);
+		bnxt_ptp_stop_calibration(softc->ptp_cfg);
+		softc->rx_ts_enabled = false;
+	}
 	softc->is_dev_init = false;
 	bnxt_do_disable_intr(&softc->def_cp_ring);
 	bnxt_func_reset(softc);

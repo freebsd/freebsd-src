@@ -38,7 +38,9 @@
 #include "opt_inet6.h"
 #include "opt_rss.h"
 
+#include <machine/atomic.h>
 #include "bnxt.h"
+#include "bnxt_ptp.h"
 
 /*
  * Function prototypes
@@ -495,9 +497,11 @@ bnxt_pkt_get_l2(struct bnxt_softc *softc, if_rxd_info_t ri,
 {
 	struct rx_pkt_cmpl *rcp;
 	struct rx_pkt_cmpl_hi *rcph;
+	struct rx_pkt_v2_cmpl_hi *rcph_v2;
 	struct rx_abuf_cmpl *acp;
 	uint32_t flags2;
 	uint32_t errors;
+	uint64_t ts, ts_lo, ts_poll;
 	uint8_t	ags;
 	int i;
 
@@ -549,6 +553,24 @@ bnxt_pkt_get_l2(struct bnxt_softc *softc, if_rxd_info_t ri,
 			ri->iri_csum_flags |= CSUM_L4_VALID;
 			ri->iri_csum_data = 0xffff;
 		}
+	}
+
+	if (softc->rx_ts_enabled && softc->ptp_cfg != NULL) {
+		rcph_v2 = (struct rx_pkt_v2_cmpl_hi *)rcph;
+		ts_poll = atomic_load_acq_64(
+		    (volatile uint64_t *)&softc->ptp_cfg->old_time);
+		ts_lo = le32toh(rcph_v2->timestamp);
+		ts = (ts_poll & BNXT_HI_TIMER_MASK) | ts_lo;
+		if (ts_lo < (ts_poll & BNXT_LO_TIMER_MASK)) {
+			ts += BNXT_LO_TIMER_MASK + 1;
+		}
+		ts = bnxt_ptp_hwtstamp_to_ns(softc->ptp_cfg, ts);
+#ifdef IFLIB_IRI_VALID_FLAGS
+		if (ts != 0) {
+			ri->iri_rcv_tstmp = ts;
+			ri->iri_flags |= M_TSTMP;
+		}
+#endif
 	}
 
 	/* And finally the ag ring stuff. */

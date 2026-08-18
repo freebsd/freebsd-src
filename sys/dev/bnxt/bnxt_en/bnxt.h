@@ -1324,6 +1324,7 @@ struct bnxt_softc {
 
 	#define BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS      BIT_ULL(61)
 	#define BNXT_SW_RES_LMT(bp) ((bp)->fw_cap & BNXT_FW_CAP_SW_MAX_RESOURCE_LIMITS)
+	#define BNXT_FW_CAP_PTP				BIT_ULL(62)
 
 	uint32_t		lpi_tmr_lo;
 	uint32_t		lpi_tmr_hi;
@@ -1419,6 +1420,9 @@ struct bnxt_softc {
 
 #define MAX_NUM_DMA_INDICATIONS 10
 	struct iflib_dma_info	mgmt_dma_data[MAX_NUM_DMA_INDICATIONS];
+
+	struct bnxt_ptp_cfg	*ptp_cfg;
+	bool			rx_ts_enabled;
 };
 
 struct bnxt_filter_info {
@@ -1480,6 +1484,7 @@ int bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
 			    struct bnxt_ctx_pg_info *ctx_pg,
 			    uint32_t mem_size, uint8_t depth,
 			    struct bnxt_ctx_mem_type *ctxm);
+int bnxt_hwrm_ptp_qcfg(struct bnxt_softc *bp);
 
 static inline u32
 readl_fbsd(struct bnxt_softc *bp, u32 reg_off, u8 bar_idx)

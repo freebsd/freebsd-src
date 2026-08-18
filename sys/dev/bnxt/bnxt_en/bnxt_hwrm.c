@@ -1265,6 +1265,8 @@ bnxt_hwrm_func_qcaps(struct bnxt_softc *softc)
 		softc->fw_cap |= BNXT_FW_CAP_PTP_PTM;
 	if (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_PTP_64BIT_RTC_SUPPORTED)
 		softc->fw_cap |= BNXT_FW_CAP_PTP_RTC;
+	if (BNXT_CHIP_P7(softc) && (flags & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_PTP_SUPPORTED))
+		softc->fw_cap |= BNXT_FW_CAP_PTP;
 	if (BNXT_PF(softc) && (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_HOT_RESET_IF_SUPPORT))
 		softc->fw_cap |= BNXT_FW_CAP_HOT_RESET_IF;
 	if (BNXT_PF(softc) && (flags_ext & HWRM_FUNC_QCAPS_OUTPUT_FLAGS_EXT_FW_LIVEPATCH_SUPPORTED))
