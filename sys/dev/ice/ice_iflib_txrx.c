@@ -138,10 +138,14 @@ _ice_ift_txd_encap(struct ice_tx_queue *txq, if_pkt_info_t pi)
 	bus_dma_segment_t *segs = pi->ipi_segs;
 	struct ice_tx_desc *txd = NULL;
 	int i, j, mask, pidx_last;
-	u32 cmd, off;
+	u32 cmd, off, tx_intr, txd_cmd;
 
 	cmd = off = 0;
 	i = pi->ipi_pidx;
+	tx_intr = pi->ipi_flags & IPI_TX_INTR;
+	txd_cmd = ICE_TX_DESC_CMD_EOP;
+	if (tx_intr)
+		txd_cmd |= ICE_TX_DESC_CMD_RS;
 
 	/* Set up the TSO/CSUM offload */
 	if (pi->ipi_csum_flags & ICE_CSUM_OFFLOAD) {
@@ -177,14 +181,15 @@ _ice_ift_txd_encap(struct ice_tx_queue *txq, if_pkt_info_t pi)
 	}
 
 	/* Set the last descriptor for report */
-#define ICE_TXD_CMD (ICE_TX_DESC_CMD_EOP | ICE_TX_DESC_CMD_RS)
 	txd->cmd_type_offset_bsz |=
-	    htole64(((u64)ICE_TXD_CMD << ICE_TXD_QW1_CMD_S));
+	    htole64((u64)txd_cmd << ICE_TXD_QW1_CMD_S);
 
-	/* Add to report status array */
-	txq->tx_rsq[txq->tx_rs_pidx] = pidx_last;
-	txq->tx_rs_pidx = (txq->tx_rs_pidx+1) & mask;
-	MPASS(txq->tx_rs_pidx != txq->tx_rs_cidx);
+	/* Add to report status array if requesting descriptor writeback. */
+	if (tx_intr) {
+		txq->tx_rsq[txq->tx_rs_pidx] = pidx_last;
+		txq->tx_rs_pidx = (txq->tx_rs_pidx+1) & mask;
+		MPASS(txq->tx_rs_pidx != txq->tx_rs_cidx);
+	}
 
 	pi->ipi_new_pidx = i;
 
