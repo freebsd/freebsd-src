@@ -2696,11 +2696,17 @@ ice_rebuild(struct ice_softc *sc)
 	enum ice_ddp_state pkg_state;
 	int status;
 	int err;
+	int i;
 
 	sc->rebuild_ticks = ticks;
 
 	/* If we're rebuilding, then a reset has succeeded. */
 	ice_clear_state(&sc->state, ICE_STATE_RESET_FAILED);
+	/* The reset discarded every firmware VSI before reconstruction. */
+	for (i = 0; i < sc->num_available_vsi; i++) {
+		if (sc->all_vsi[i] != NULL)
+			sc->all_vsi[i]->hw_vsi_created = false;
+	}
 
 	/*
 	 * If the firmware is in recovery mode, only restore the limited
