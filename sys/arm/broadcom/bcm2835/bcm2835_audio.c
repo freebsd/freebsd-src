@@ -360,11 +360,11 @@ bcm2835_audio_release(struct bcm2835_audio_info *sc)
 	int success;
 
 	if (sc->vchi_handle != VCHIQ_SERVICE_HANDLE_INVALID) {
+		/* XXX vchi_service_release(sc->vchi_handle)? */
 		success = vchi_service_close(sc->vchi_handle);
 		if (success != 0)
 			BCM2835_LOG_ERROR(sc, "vchi_service_close failed: %d\n",
 			    success);
-		vchi_service_release(sc->vchi_handle);
 		sc->vchi_handle = VCHIQ_SERVICE_HANDLE_INVALID;
 	}
 
