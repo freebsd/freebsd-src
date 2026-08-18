@@ -1,5 +1,6 @@
 #
 # Copyright 2017 Shivansh Rai
+# Copyright (c) 2026 Jitendra Bhati
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -185,7 +186,7 @@ symlink_no_h_body()
 	ln -s ../target dir/link
 	atf_check chflags nodump dir/link
 	atf_check -o match:nodump stat -f "%Sf" target
-	atf_check -o match:"link[[:space:]]*-" stat -f "%N %Sf" dir/link
+	atf_check -o not-match:nodump stat -f "%Sf" dir/link
 }
 
 atf_test_case symlink_rootlevel_H
@@ -202,7 +203,21 @@ symlink_rootlevel_H_body()
 	ln -s ../realdir dir/dlink
 	atf_check chflags -RH nodump dir/dlink
 	atf_check -o match:nodump stat -f "%Sf" realdir/file
-	atf_check -o match:"dlink[[:space:]]*-" stat -f "%N %Sf" dir/dlink
+	atf_check -o not-match:nodump stat -f "%Sf" dir/dlink
+}
+
+atf_test_case symlink_rootlevel_H_dead
+symlink_rootlevel_H_dead_head()
+{
+	atf_set "descr" "chflags -RH on a broken symbolic link fails" \
+	    " gracefully"
+}
+symlink_rootlevel_H_dead_body()
+{
+	require_chflags
+	mkdir dir
+	ln -s ../nonexistent dir/dlink
+	atf_check -s not-exit:0 -e not-empty chflags -RH nodump dir/dlink
 }
 
 atf_init_test_cases()
@@ -216,6 +231,7 @@ atf_init_test_cases()
 	atf_add_test_case mixed_paths
 	atf_add_test_case symlink_no_h
 	atf_add_test_case symlink_rootlevel_H
+	atf_add_test_case symlink_rootlevel_H_dead
 	atf_add_test_case outside_symlink_rejected
 	atf_add_test_case outside_symlink_unsafe
 }

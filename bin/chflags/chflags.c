@@ -33,6 +33,7 @@
 #include <sys/capsicum.h>
 #include <sys/stat.h>
 
+#include <assert.h>
 #include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
@@ -340,7 +341,14 @@ main(int argc, char *argv[])
 			ownfd[nown] = fd;
 			nown++;
 		} else {
-			relpaths[nrel++] = arg;
+			/*
+			 * A resolved symlink is always absolute and thus
+			 * takes the branch above; only an unmodified argument
+			 * reaches this point.  Store argv[i], which outlives
+			 * the on-stack resolved[] buffer.
+			 */
+			assert(arg != resolved);
+			relpaths[nrel++] = argv[i];
 		}
 	}
 	relpaths[nrel] = NULL;

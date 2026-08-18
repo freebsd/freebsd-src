@@ -82,7 +82,9 @@ the file hierarchy being traversed is not followed unless the
 .Fl -dereference-links-unsafely
 option is also given;
 see the description of that option below.
-A symbolic link named directly on the command line is always followed.
+A symbolic link named directly on the command line is followed unless
+.Fl h
+is specified.
 .It Fl P
 If the
 .Fl R
