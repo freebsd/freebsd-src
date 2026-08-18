@@ -271,6 +271,10 @@ vt9p_detach(device_t dev)
 	struct vt9p_softc *sc;
 
 	sc = device_get_softc(dev);
+
+	if (sc->busy)
+		return (EBUSY);
+
 	VT9P_LOCK(sc);
 	vt9p_stop(sc);
 	VT9P_UNLOCK(sc);
