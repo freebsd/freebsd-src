@@ -23,11 +23,9 @@ is equivalent to
 .Pp
 .Fa array
 must be a true array object.
-If
-.Fa array
-is a pointer, the result is wrong because
+Providing a pointer quantity will result in an incorrect result because
 .Li sizeof
-yields the size of the pointer, not the size of the pointed-to object.
+for a pointer will compute size of the pointer type, not the size of the memory which the pointer refers to.
 .Sh EXAMPLES
 .Bd -literal
 static const int table[] = {1, 2, 3, 4};
