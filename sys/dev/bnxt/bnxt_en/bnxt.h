@@ -33,6 +33,7 @@
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 #include <sys/taskqueue.h>
 #include <sys/bitstring.h>
 
@@ -393,6 +394,9 @@ struct bnxt_bar_info {
 	bus_size_t		size;
 	int			rid;
 };
+
+#define BNXT_HWRM_BAR_IDX	0
+#define BNXT_DOORBELL_BAR_IDX	2
 
 struct bnxt_flow_ctrl {
 	bool rx;
@@ -1476,4 +1480,36 @@ int bnxt_alloc_ctx_pg_tbls(struct bnxt_softc *softc,
 			    struct bnxt_ctx_pg_info *ctx_pg,
 			    uint32_t mem_size, uint8_t depth,
 			    struct bnxt_ctx_mem_type *ctxm);
+
+static inline u32
+readl_fbsd(struct bnxt_softc *bp, u32 reg_off, u8 bar_idx)
+{
+	switch (bar_idx) {
+	case BNXT_HWRM_BAR_IDX:
+		return (bus_space_read_4(bp->hwrm_bar.tag,
+		    bp->hwrm_bar.handle, reg_off));
+	case BNXT_DOORBELL_BAR_IDX:
+		return (bus_space_read_4(bp->doorbell_bar.tag,
+		    bp->doorbell_bar.handle, reg_off));
+	default:
+		panic("%s: invalid bar_idx %u", __func__, bar_idx);
+	}
+}
+
+static inline void
+writel_fbsd(struct bnxt_softc *bp, u32 reg_off, u8 bar_idx, u32 val)
+{
+	switch (bar_idx) {
+	case BNXT_HWRM_BAR_IDX:
+		bus_space_write_4(bp->hwrm_bar.tag, bp->hwrm_bar.handle,
+		    reg_off, htole32(val));
+		break;
+	case BNXT_DOORBELL_BAR_IDX:
+		bus_space_write_4(bp->doorbell_bar.tag, bp->doorbell_bar.handle,
+		    reg_off, htole32(val));
+		break;
+	default:
+		panic("%s: invalid bar_idx %u", __func__, bar_idx);
+	}
+}
 #endif /* _BNXT_H */

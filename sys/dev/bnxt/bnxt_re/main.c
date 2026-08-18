@@ -115,8 +115,6 @@ static int bnxt_re_ib_init(struct bnxt_re_dev *rdev);
 static void bnxt_re_ib_init_2(struct bnxt_re_dev *rdev);
 void _bnxt_re_remove(struct auxiliary_device *adev);
 
-void writel_fbsd(struct bnxt_softc *bp, u32, u8, u32);
-u32 readl_fbsd(struct bnxt_softc *bp, u32, u8);
 static int bnxt_re_hwrm_dbr_pacing_qcfg(struct bnxt_re_dev *rdev);
 
 int bnxt_re_register_netdevice_notifier(struct notifier_block *nb)
@@ -136,23 +134,6 @@ int bnxt_re_unregister_netdevice_notifier(struct notifier_block *nb)
 void bnxt_re_set_dma_device(struct ib_device *ibdev, struct bnxt_re_dev *rdev)
 {
 	ibdev->dma_device = &rdev->en_dev->pdev->dev;
-}
-
-u32 readl_fbsd(struct bnxt_softc *bp, u32 reg_off, u8 bar_idx)
-{
-
-	if (bar_idx)
-		return bus_space_read_8(bp->doorbell_bar.tag, bp->doorbell_bar.handle, reg_off);
-	else
-		return bus_space_read_8(bp->hwrm_bar.tag, bp->hwrm_bar.handle, reg_off);
-}
-
-void writel_fbsd(struct bnxt_softc *bp, u32 reg_off, u8 bar_idx, u32 val)
-{
-	if (bar_idx)
-		bus_space_write_8(bp->doorbell_bar.tag, bp->doorbell_bar.handle, reg_off, htole32(val));
-	else
-		bus_space_write_8(bp->hwrm_bar.tag, bp->hwrm_bar.handle, reg_off, htole32(val));
 }
 
 static void bnxt_re_update_fifo_occup_slabs(struct bnxt_re_dev *rdev,
@@ -529,7 +510,8 @@ static void __wait_for_fifo_occupancy_below_th(struct bnxt_re_dev *rdev)
 	 * below pacing algo threshold as soon as pacing kicks in.
 	 */
 	while (1) {
-		read_val = readl_fbsd(rdev->en_dev->softc, rdev->dbr_db_fifo_reg_off, 0);
+		read_val = readl_fbsd(rdev->en_dev->softc, rdev->dbr_db_fifo_reg_off,
+				      BNXT_HWRM_BAR_IDX);
 		fifo_occup = pacing_data->fifo_max_depth -
 			     ((read_val & pacing_data->fifo_room_mask) >>
 			      pacing_data->fifo_room_shift);
@@ -567,7 +549,8 @@ static bool bnxt_re_check_if_dbq_intr_triggered(struct bnxt_re_dev *rdev)
 	int j;
 
 	for (j = 0; j < 10; j++) {
-		read_val = readl_fbsd(rdev->en_dev->softc, rdev->dbr_aeq_arm_reg_off, 0);
+		read_val = readl_fbsd(rdev->en_dev->softc, rdev->dbr_aeq_arm_reg_off,
+				      BNXT_HWRM_BAR_IDX);
 		dev_dbg(rdev_to_dev(rdev), "AEQ ARM status = 0x%x\n",
 			read_val);
 		if (!read_val)
@@ -587,8 +570,10 @@ int bnxt_re_set_dbq_throttling_reg(struct bnxt_re_dev *rdev, u16 nq_id, u32 thro
 	if (bnxt_qplib_dbr_pacing_ext_en(rdev->chip_ctx)) {
 		cag_ring_water_mark = (nq_id & CAG_RING_MASK) << CAG_RING_SHIFT |
 				      (throttle_val & WATERMARK_MASK);
-		writel_fbsd(rdev->en_dev->softc,  rdev->dbr_throttling_reg_off, 0, cag_ring_water_mark);
-		read_val = readl_fbsd(rdev->en_dev->softc , rdev->dbr_throttling_reg_off, 0);
+		writel_fbsd(rdev->en_dev->softc, rdev->dbr_throttling_reg_off,
+			    BNXT_HWRM_BAR_IDX, cag_ring_water_mark);
+		read_val = readl_fbsd(rdev->en_dev->softc, rdev->dbr_throttling_reg_off,
+				      BNXT_HWRM_BAR_IDX);
 		dev_dbg(rdev_to_dev(rdev),
 			"%s: dbr_throttling_reg_off read_val = 0x%x\n",
 			__func__, read_val);
@@ -599,7 +584,7 @@ int bnxt_re_set_dbq_throttling_reg(struct bnxt_re_dev *rdev, u16 nq_id, u32 thro
 			return 1;
 		}
 	}
-	writel_fbsd(rdev->en_dev->softc,  rdev->dbr_aeq_arm_reg_off, 0, 1);
+	writel_fbsd(rdev->en_dev->softc, rdev->dbr_aeq_arm_reg_off, BNXT_HWRM_BAR_IDX, 1);
 	return 0;
 }
 
@@ -644,7 +629,8 @@ static void bnxt_re_handle_dbr_nq_pacing_notification(struct bnxt_re_dev *rdev)
 		return;
 	}
 	/*Configure GRC access for Throttling and aeq_arm register */
-	writel_fbsd(rdev->en_dev->softc,  BNXT_GRCPF_REG_WINDOW_BASE_OUT + 28, 0,
+	writel_fbsd(rdev->en_dev->softc, BNXT_GRCPF_REG_WINDOW_BASE_OUT + 28,
+		    BNXT_HWRM_BAR_IDX,
 		    rdev->chip_ctx->dbr_aeq_arm_reg & BNXT_GRC_BASE_MASK);
 
 	rdev->dbr_throttling_reg_off =
@@ -848,7 +834,8 @@ static void bnxt_re_pacing_timer_exp(struct work_struct *work)
 		return;
 
 	pacing_data = rdev->qplib_res.pacing_data;
-	read_val = readl_fbsd(rdev->en_dev->softc , rdev->dbr_db_fifo_reg_off, 0);
+	read_val = readl_fbsd(rdev->en_dev->softc, rdev->dbr_db_fifo_reg_off,
+			      BNXT_HWRM_BAR_IDX);
 	fifo_occup = pacing_data->fifo_max_depth -
 		     ((read_val & pacing_data->fifo_room_mask) >>
 		      pacing_data->fifo_room_shift);
@@ -3394,7 +3381,8 @@ static int bnxt_re_initialize_dbr_pacing(struct bnxt_re_dev *rdev)
 		goto fail;
 	}
 	/* MAP grc window 2 for reading db fifo depth */
-	writel_fbsd(rdev->en_dev->softc,  BNXT_GRCPF_REG_WINDOW_BASE_OUT + 4, 0,
+	writel_fbsd(rdev->en_dev->softc, BNXT_GRCPF_REG_WINDOW_BASE_OUT + 4,
+			BNXT_HWRM_BAR_IDX,
 			rdev->chip_ctx->dbr_stat_db_fifo & BNXT_GRC_BASE_MASK);
 	rdev->dbr_db_fifo_reg_off =
 		(rdev->chip_ctx->dbr_stat_db_fifo & BNXT_GRC_OFFSET_MASK) +
@@ -3460,12 +3448,14 @@ int bnxt_re_enable_dbr_pacing(struct bnxt_re_dev *rdev)
 			return -EIO;
 		}
 		/* MAP grc window 8 for ARMing the NQ DBQ */
-		writel_fbsd(rdev->en_dev->softc, BNXT_GRCPF_REG_WINDOW_BASE_OUT + 28 , 0,
+		writel_fbsd(rdev->en_dev->softc, BNXT_GRCPF_REG_WINDOW_BASE_OUT + 28,
+			    BNXT_HWRM_BAR_IDX,
 			    rdev->chip_ctx->dbr_aeq_arm_reg & BNXT_GRC_BASE_MASK);
 		rdev->dbr_aeq_arm_reg_off =
 			(rdev->chip_ctx->dbr_aeq_arm_reg &
 			 BNXT_GRC_OFFSET_MASK) + 0x8000;
-		writel_fbsd(rdev->en_dev->softc, rdev->dbr_aeq_arm_reg_off , 0, 1);
+		writel_fbsd(rdev->en_dev->softc, rdev->dbr_aeq_arm_reg_off,
+			    BNXT_HWRM_BAR_IDX, 1);
 	}
 
 	return 0;

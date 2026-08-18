@@ -312,27 +312,6 @@ MODULE_VERSION(if_bnxt, 1);
 
 IFLIB_PNP_INFO(pci, bnxt, bnxt_vendor_info_array);
 
-void writel_fbsd(struct bnxt_softc *bp, u32, u8, u32);
-u32 readl_fbsd(struct bnxt_softc *bp, u32, u8);
-
-u32 readl_fbsd(struct bnxt_softc *bp, u32 reg_off, u8 bar_idx)
-{
-
-	if (!bar_idx)
-		return bus_space_read_4(bp->doorbell_bar.tag, bp->doorbell_bar.handle, reg_off);
-	else
-		return bus_space_read_4(bp->hwrm_bar.tag, bp->hwrm_bar.handle, reg_off);
-}
-
-void writel_fbsd(struct bnxt_softc *bp, u32 reg_off, u8 bar_idx, u32 val)
-{
-
-	if (!bar_idx)
-		bus_space_write_4(bp->doorbell_bar.tag, bp->doorbell_bar.handle, reg_off, htole32(val));
-	else
-		bus_space_write_4(bp->hwrm_bar.tag, bp->hwrm_bar.handle, reg_off, htole32(val));
-}
-
 static DEFINE_IDA(bnxt_aux_dev_ids);
 
 static device_method_t bnxt_iflib_methods[] = {
@@ -1881,10 +1860,10 @@ static u32 bnxt_fw_health_readl(struct bnxt_softc *bp, int reg_idx)
 		reg_off = fw_health->mapped_regs[reg_idx];
 		fallthrough;
 	case BNXT_FW_HEALTH_REG_TYPE_BAR0:
-		val = readl_fbsd(bp, reg_off, 0);
+		val = readl_fbsd(bp, reg_off, BNXT_HWRM_BAR_IDX);
 		break;
 	case BNXT_FW_HEALTH_REG_TYPE_BAR1:
-		val = readl_fbsd(bp, reg_off, 2);
+		val = readl_fbsd(bp, reg_off, BNXT_DOORBELL_BAR_IDX);
 		break;
 	}
 	if (reg_idx == BNXT_FW_RESET_INPROG_REG)
@@ -2002,14 +1981,15 @@ static void bnxt_fw_reset_writel(struct bnxt_softc *bp, int reg_idx)
 		pci_write_config_dword(bp->pdev, reg_off, val);
 		break;
 	case BNXT_FW_HEALTH_REG_TYPE_GRC:
-		writel_fbsd(bp, BNXT_GRCPF_REG_WINDOW_BASE_OUT + 4, 0, reg_off & BNXT_GRC_BASE_MASK);
+		writel_fbsd(bp, BNXT_GRCPF_REG_WINDOW_BASE_OUT + 4, BNXT_HWRM_BAR_IDX,
+		    reg_off & BNXT_GRC_BASE_MASK);
 		reg_off = (reg_off & BNXT_GRC_OFFSET_MASK) + 0x2000;
 		fallthrough;
 	case BNXT_FW_HEALTH_REG_TYPE_BAR0:
-		writel_fbsd(bp, reg_off, 0, val);
+		writel_fbsd(bp, reg_off, BNXT_HWRM_BAR_IDX, val);
 		break;
 	case BNXT_FW_HEALTH_REG_TYPE_BAR1:
-		writel_fbsd(bp, reg_off, 2, val);
+		writel_fbsd(bp, reg_off, BNXT_DOORBELL_BAR_IDX, val);
 		break;
 	}
 	if (delay_msecs) {
@@ -2080,7 +2060,8 @@ static int bnxt_alloc_fw_health(struct bnxt_softc *bp)
 
 static inline void __bnxt_map_fw_health_reg(struct bnxt_softc *bp, u32 reg)
 {
-	writel_fbsd(bp, BNXT_GRCPF_REG_WINDOW_BASE_OUT + BNXT_FW_HEALTH_WIN_MAP_OFF, 0, reg & BNXT_GRC_BASE_MASK);
+	writel_fbsd(bp, BNXT_GRCPF_REG_WINDOW_BASE_OUT + BNXT_FW_HEALTH_WIN_MAP_OFF,
+	    BNXT_HWRM_BAR_IDX, reg & BNXT_GRC_BASE_MASK);
 }
 
 static int bnxt_map_fw_health_regs(struct bnxt_softc *bp)
@@ -5041,11 +5022,11 @@ bnxt_pci_mapping(struct bnxt_softc *softc)
 {
 	int rc;
 
-	rc = bnxt_map_bar(softc, &softc->hwrm_bar, 0, true);
+	rc = bnxt_map_bar(softc, &softc->hwrm_bar, BNXT_HWRM_BAR_IDX, true);
 	if (rc)
 		return rc;
 
-	rc = bnxt_map_bar(softc, &softc->doorbell_bar, 2, false);
+	rc = bnxt_map_bar(softc, &softc->doorbell_bar, BNXT_DOORBELL_BAR_IDX, false);
 
 	return rc;
 }
