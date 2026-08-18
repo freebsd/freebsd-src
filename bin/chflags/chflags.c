@@ -133,14 +133,14 @@ main(int argc, char *argv[])
 		if (val < 0)
 			errno = ERANGE;
 		if (errno)
-                        err(1, "invalid flags: %s", flags);
-                if (*ep)
-                        errx(1, "invalid flags: %s", flags);
+			err(1, "invalid flags: %s", flags);
+		if (*ep)
+			errx(1, "invalid flags: %s", flags);
 		set = val;
-                oct = 1;
+		oct = 1;
 	} else {
 		if (strtofflags(&flags, &set, &clear))
-                        errx(1, "invalid flag: %s", flags);
+			errx(1, "invalid flag: %s", flags);
 		clear = ~clear;
 		oct = 0;
 	}
