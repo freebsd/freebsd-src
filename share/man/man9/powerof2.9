@@ -15,10 +15,11 @@
 .Sh DESCRIPTION
 The
 .Fn powerof2
-macro evaluates to a non-zero value if
+macro evaluates to boolean true if the quantity represented by
 .Fa x
-is a power of two, and to zero otherwise.
-It is equivalent to
+is a power of two. The macro evaluates to boolean false otherwise.
+.Fn powerof2
+is equivalent to
 .Li (((x) - 1) & (x)) == 0 .
 .Pp
 Note that
