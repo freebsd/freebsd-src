@@ -1,33 +1,13 @@
 #!/bin/sh
-#-
-# Copyright (c) 2016-2024 Devin Teske <dteske@FreeBSD.org>
-# All rights reserved.
 #
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
+# SPDX-License-Identifier: BSD-2-Clause
 #
-# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-# SUCH DAMAGE.
+# Copyright (c) 2016-2026 Devin Teske <dteske@FreeBSD.org>
 #
 ############################################################ IDENT(1)
 #
 # $Title: netgraph(4) management script for vnet jails $
-# $Version: 2.0 $
+# $Version: 9.0 $
 #
 ############################################################ INFORMATION
 #
@@ -84,6 +64,7 @@
 # ### BEGIN EXCERPT ###
 #
 # jail_enable="YES"
+# #jail_confwarn="NO" # Optional: disable warning to migrate to jail.conf(5)
 # jail_list="xxx"
 #
 # #
@@ -127,29 +108,31 @@
 # jail_{name}_devfs_ruleset="11" (rc.conf(5)).
 #
 # NB: While this tool can't create every type of desirable topology, it should
-# handle most setups, minus some which considered exotic or purpose-built.
+# handle most setups, minus some considered exotic or purpose-built.
+#
+# Uplink on ng_ether(4) `lower' (jng 7+) keeps the WAN MAC table small:
+# ng_bridge(4) does not learn on uplink hooks. The first connected hook being
+# uplink also selects restrictive unknown-unicast: frames for an unknown dest
+# go only to uplink, not to jail links. Inbound unicast to a jail therefore
+# requires that jail's MAC to live in the forwarding database (FDB) on the
+# jail's link. jng 8 pins each eiface MAC with ngctl movehost and sets
+# maxStaleness so host->staleness cannot catch it. `jng pin NAME' replants
+# after an accidental move. ng_bridge must not MOVE_HOST from learnMac=0 hooks
+# or promiscuous TX echo can steal a pinned MAC onto uplink; without that
+# kernel fix, re-run `jng pin'.
 #
 ############################################################ CONFIGURATION
 
 #
-# Netgraph node type. Can be `iface' or `eiface' and refers to whether
-# ng_iface(4) or ng_eiface(4) is used with ng_bridge(4). The advantages of
-# choosing iface over eiface is that with iface you can utilize ng_tcpmss(4)
-# to limit the TCP MSS for operating in environments that clamp down on ICMP.
+# host->staleness is uint16_t; conf.maxStaleness is uint32_t.
+# ng_bridge_timeout expires when ++staleness >= maxStaleness.
+# A threshold above 65535 is unreachable (the counter wraps).
 #
-# NB: iface/tcpmss support is EXPERIMENTAL
-#
-NG_TYPE=eiface # Can be iface or eiface
-
-#
-# Clamp TCP Maximum Segment Size to reasonably below standard MTU
-# NB: Fixes TCP hangup issue in environments where ICMP is restricted
-# NB: Be liberal about MSS (RFC 879, section 7)
-# NB: Unused unless NG_TYPE=iface
-#
-NG_TCPMSS_CONFIG='{ inHook="bridge" outHook="'$NG_TYPE'" maxMSS=1280 }'
+NG_BRIDGE_MAX_STALENESS=4294967295
 
 ############################################################ GLOBALS
+
+VERSION='$Version: 9.0 $'
 
 pgm="${0##*/}" # Program basename
 
@@ -168,22 +151,35 @@ STATS_FMT=text		# -j for JSON
 
 quietly(){ "$@" > /dev/null 2>&1; }
 
+die()
+{
+	local fmt="$1"
+	if [ "$fmt" ]; then
+		shift 1 # fmt
+		printf "%s: $fmt\n" "$pgm" "$@" >&2
+	fi
+	exit $FAILURE
+}
+
 usage()
 {
 	local fmt="$1"
+	local optfmt="\t%-5s %s\n"
 	local action usage descr
 	exec >&2
 	if [ "$fmt" ]; then
 		shift 1 # fmt
 		printf "%s: $fmt\n" "$pgm" "$@"
 	fi
-	echo "Usage: $pgm [-h] action [arguments]"
-	echo "Options:"
-	printf "\t-h    Print usage statement and exit.\n"
-	echo "Actions:"
+	printf "Usage: %s [-hv] action [arguments]\n" "$pgm"
+	printf "Options:\n"
+	printf "$optfmt" "-h" "Print this usage statement and exit."
+	printf "$optfmt" "-v" "Print version information and exit."
+	printf "Actions:\n"
 	for action in \
 		bridge		\
 		graph		\
+		pin		\
 		show		\
 		show1		\
 		shutdown	\
@@ -194,7 +190,7 @@ usage()
 		eval descr=\"\$jng_${action}_descr\"
 		printf "\t%s\n\t\t%s\n" "$usage" "$descr"
 	done
-	exit $FAILURE
+	die
 }
 
 action_usage()
@@ -206,10 +202,10 @@ action_usage()
 		printf "%s: %s: $fmt\n" "$pgm" "$action" "$@" >&2
 	fi
 	eval usage=\"\$jng_${action}_usage\"
-	echo "Usage: $pgm $usage" >&2
+	printf "Usage: %s %s\n" "$pgm" "$usage" >&2
 	eval descr=\"\$jng_${action}_descr\"
-	printf "\t%s\n" "$descr"
-	exit $FAILURE
+	printf "\t%s\n" "$descr" >&2
+	die
 }
 
 derive_mac()
@@ -235,7 +231,7 @@ derive_mac()
 	#
 	# Calculate MAC address derived from given iface.
 	#
-	# The formula I'm using is ``NP:SS:SS:II:II:II'' where:
+	# The formula used is ``NP:SS:SS:II:II:II'' where:
 	# + N denotes 4 bits used as a counter to support branching
 	#   each parent interface up to 15 times under the same jail
 	#   name (see S below).
@@ -246,7 +242,7 @@ derive_mac()
 	# + I denotes bits that are inherited from parent interface.
 	#
 	# The S bits are a CRC-16 checksum of NAME, allowing the jail
-	# to change link numbers in ng_bridge(4) without affecting the
+	# to change link numbers in ng_bridge(4) without effecting the
 	# MAC address. Meanwhile, if...
 	#   + the jail NAME changes (e.g., it was duplicated and given
 	#     a new name with no other changes)
@@ -259,7 +255,7 @@ derive_mac()
 	# ??:??:??:II:II:II
 	__new_devid=${__iface_devid#??:??:??} # => :II:II:II
 	# => :SS:SS:II:II:II
-	__num=$( set -- `echo -n "$__name" | sum` && echo $1 )
+	__num=$( set -- $( echo -n "$__name" | sum ) && echo $1 )
 	__new_devid=$( printf :%02x:%02x \
 		$(( $__num >> 8 & 255 )) $(( $__num & 255 )) )$__new_devid
 	# => P:SS:SS:II:II:II
@@ -293,10 +289,100 @@ derive_mac()
 
 mustberoot_to_continue()
 {
-	if [ "$( id -u )" -ne 0 ]; then
-		echo "Must run as root!" >&2
-		exit $FAILURE
+	[ "$( id -u )" -eq 0 ] || die "Must run as root!"
+}
+
+jng_bridge_has_uplink()
+{
+	ngctl show "$1:" 2> /dev/null | awk '
+		$1 ~ /^uplink/ { found = 1; exit }
+		END { exit !found }
+	' # END-QUOTE
+}
+
+jng_bridge_persist_hosts()
+{
+	local node="$1"
+	local debug=0 loop=60 stable=1 config
+
+	eval $( ngctl msg "$node:" getconfig 2> /dev/null | awk '
+		{
+			if (match($0, /debugLevel=[0-9]+/))
+				printf "debug=%s ",
+					substr($0, RSTART + 11, RLENGTH - 11)
+			if (match($0, /loopTimeout=[0-9]+/))
+				printf "loop=%s ",
+					substr($0, RSTART + 12, RLENGTH - 12)
+			if (match($0, /minStableAge=[0-9]+/))
+				printf "stable=%s ",
+					substr($0, RSTART + 13, RLENGTH - 13)
+		}
+	' )
+	config="debugLevel=$debug"
+	config="$config loopTimeout=$loop"
+	config="$config maxStaleness=$NG_BRIDGE_MAX_STALENESS"
+	config="$config minStableAge=$stable"
+	quietly ngctl msg "$node:" setconfig "{ $config }"
+}
+
+jng_pin_mac()
+{
+	local node="$1" mac="$2" hook="$3"
+
+	[ "$node" -a "$mac" -a "$hook" ] || return $FAILURE
+	quietly ngctl msg "$node:" movehost "{ addr=$mac hook=\"$hook\" }"
+}
+
+jng_jiface_mac()
+{
+	local __jiface="$1" __jail="$2" __var_to_set="$3"
+	local __mac
+
+	__mac=$( ifconfig "$__jiface" ether 2> /dev/null |
+		awk '/ether/ { print $2; exit }' )
+	if [ ! "$__mac" -a "$__jail" ]; then
+		#
+		# After vnet.interface takes the eiface, it is gone
+		# from the host ifconfig; netgraph node remains.
+		#
+		__mac=$( jexec "$__jail" ifconfig "$__jiface" ether \
+			2> /dev/null | awk '/ether/ { print $2; exit }' )
 	fi
+	eval $__var_to_set=\"\$__mac\"
+	[ "$__mac" ]
+}
+
+jng_pin_jiface()
+{
+	local jiface="$1" jail="$2"
+	local mac peer peerhook pbridge phook
+
+	jng_jiface_mac "$jiface" "$jail" mac || return $FAILURE
+
+	# ether <peer> bridge <id> <peerhook>
+	set -- $( ngctl show "$jiface:" 2> /dev/null | awk '
+		$3 == "bridge" { print $2, $5; exit }
+	' )
+	peer="$1" peerhook="$2"
+	[ "$peer" -a "$peerhook" ] || return $FAILURE
+
+	jng_pin_mac "$peer" "$mac" "$peerhook" || return
+	if jng_bridge_has_uplink "$peer"; then
+		jng_bridge_persist_hosts "$peer" || : persist optional
+		return
+	fi
+
+	#
+	# Secondary bridge: also pin on the parent that holds uplink
+	# (restrictive unknown-unicast lives there).
+	#
+	set -- $( ngctl show "$peer:" 2> /dev/null | awk '
+		$3 == "bridge" { print $2, $5; exit }
+	' )
+	pbridge="$1" phook="$2"
+	[ "$pbridge" -a "$phook" ] || return $SUCCESS
+	jng_pin_mac "$pbridge" "$mac" "$phook" || return
+	jng_bridge_persist_hosts "$pbridge" || : persist optional
 }
 
 jng_bridge_usage="bridge [-h] [-b BRIDGE_NAME] NAME [!|=]iface0 [[!|=]iface1 ...]"
@@ -326,7 +412,7 @@ jng_bridge()
 	mustberoot_to_continue
 
 	local iface parent jiface jiface_devid
-	local new clone_mac no_derive num quad i=0
+	local new clone_mac no_derive num quad mtu i=0
 	for iface in $*; do
 
 		clone_mac=
@@ -351,77 +437,49 @@ jng_bridge()
 		ngctl msg $iface: setautosrc 0 || return
 
 		# Make sure the interface has been bridged
+		# NB: You must connect uplinkX before linkX
+		# NB: see ng_bridge(4) for policy on first connected hook
 		if ! quietly ngctl info ${iface}bridge:; then
-			ngctl mkpeer $iface: bridge lower link0 || return
-			ngctl connect $iface: $iface:lower upper link1 ||
+			ngctl mkpeer $iface: bridge lower uplink1 || return
+			ngctl connect $iface: $iface:lower upper link0 ||
 				return
 			ngctl name $iface:lower ${iface}bridge || return
+			jng_bridge_persist_hosts ${iface}bridge ||
+				: persist optional
 		fi
 
-		mtu=$(ifconfig ${iface} | sed -n '1s/^.*mtu //p;') || return
+		mtu=$( ifconfig $iface | sed -n '1s/^.*mtu //p' ) || return
 
 		# Optionally create a secondary bridge
+		# NB: This time, you want to only connect linkX (no uplinkX)
 		if [ "$bridge" != "bridge" ] &&
 		   ! quietly ngctl info "$iface$bridge:"
 		then
-			num=2
+			num=1
 			while quietly ngctl msg ${iface}bridge: getstats $num
 			do
 				num=$(( $num + 1 ))
 			done
-			ngctl mkpeer $iface:lower bridge link$num link1 ||
+			ngctl mkpeer $iface:lower bridge link$num link0 ||
 				return
 			ngctl name ${iface}bridge:link$num "$iface$bridge" ||
 				return
 		fi
 
 		# Create a new interface to the bridge
-		num=2
+		num=1
 		while quietly ngctl msg "$iface$bridge:" getstats $num; do
 			num=$(( $num + 1 ))
 		done
-		local hook peerhook
-		case "$NG_TYPE" in
-		eiface)
-			# Hook the eiface directly to the bridge
-			hook=link$num peerhook=ether
-			ngctl mkpeer "$iface$bridge:" \
-				$NG_TYPE $hook $peerhook || return
-			;;
-		iface)
-			# Hook tcpmss<->iface to bridge
-			hook=link$num peerhook=bridge
-			ngctl mkpeer "$iface$bridge:" \
-				tcpmss $hook $peerhook || return
-			hook=iface peerhook=inet
-			ngctl mkpeer "$iface$bridge:link$num" \
-				$NG_TYPE $hook $peerhook || return
-			;;
-		*) return $FAILURE
-		esac
+		ngctl mkpeer "$iface$bridge:" eiface link$num ether || return
 
 		# Rename the new interface
 		while [ ${#jiface} -gt 15 ]; do # OS limitation
 			jiface=${jiface%?}
 		done
-		case "$NG_TYPE" in
-		eiface)
-			new=$( ngctl show -n "$iface$bridge:link$num" ) ||
-				return
-			new=$( set -- $new; echo $2 )
-			ngctl name "$iface$bridge:link$num" $jiface || return
-			;;
-		iface)
-			ngctl name "$iface$bridge:link$num" $jiface-mss ||
-				return
-			new=$( ngctl show -n "$jiface-mss:$hook" ) || return
-			new=$( set -- $new; echo $2 )
-			ngctl name $jiface-mss:$hook $jiface || return
-			ngctl msg $jiface: broadcast || return
-			ngctl msg $jiface-mss: config "$NG_TCPMSS_CONFIG" ||
-				return
-			;;
-		esac
+		new=$( ngctl show -n "$iface$bridge:link$num" ) || return
+		new=$( set -- $new; echo $2 )
+		ngctl name "$iface$bridge:link$num" $jiface || return
 		ifconfig $new name $jiface || return
 		ifconfig $jiface mtu $mtu || return
 		ifconfig $jiface up || return
@@ -439,13 +497,66 @@ jng_bridge()
 		fi
 		[ "$jiface_devid" ] &&
 			quietly ifconfig $jiface ether $jiface_devid
+		jng_pin_jiface "$jiface" "$name" || : pin optional
 
 		i=$(( $i + 1 ))
 	done # for iface
 }
 
+jng_pin_usage="pin [-h] {-a | NAME ...}"
+jng_pin_descr="Pin eiface MACs into ng_bridge forwarding database (FDB)"
+jng_pin()
+{
+	local OPTIND=1 OPTARG flag
+	local show_all= err=$SUCCESS
+	local name iface jiface
+
+	while getopts ah flag; do
+		case "$flag" in
+		a) show_all=1 ;;
+		*) action_usage pin # NOTREACHED
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+	if [ "$show_all" ]; then
+		[ $# -eq 0 ] ||
+			action_usage pin "too many arguments" # NOTREACHED
+		for iface in $( ifconfig -l ); do
+			quietly ngctl info ${iface}bridge: || continue
+			jng_bridge_persist_hosts ${iface}bridge ||
+				: persist optional
+		done
+		set -- $( jls -q name 2> /dev/null )
+		[ $# -gt 0 ] ||
+			action_usage pin "no jails" # NOTREACHED
+	else
+		[ $# -gt 0 ] ||
+			action_usage pin "too few arguments" # NOTREACHED
+	fi
+
+	mustberoot_to_continue
+
+	for name in "$@"; do
+		[ "${name:-x}" = "${name#*[!0-9a-zA-Z_]}" ] ||
+			action_usage pin "invalid name: %s" "$name"
+			# NOTREACHED
+		for jiface in $( jexec "$name" ifconfig -l 2> /dev/null )
+		do
+			case "$jiface" in
+			ng[0-9]*)
+				jng_pin_jiface "$jiface" "$name" || {
+					echo "$pgm: pin $jiface: failed" >&2
+					err=$FAILURE
+				}
+				;;
+			esac
+		done
+	done
+	return $err
+}
+
 jng_graph_usage="graph [-fh] [-T type] [-o output]"
-jng_graph_descr="Generate network graph (default output is \`jng.svg')"
+jng_graph_descr="Generate network graph (default output is 'jng.svg')"
 jng_graph()
 {
 	local OPTIND=1 OPTARG flag
@@ -465,7 +576,7 @@ jng_graph()
 	mustberoot_to_continue
 
 	if [ -e "$output" -a ! "$force" ]; then
-		echo "$output: Already exists (use \`-f' to overwrite)" >&2
+		echo "$output: Already exists (use '-f' to overwrite)" >&2
 		return $FAILURE
 	fi
 	if [ ! "$output_type" ]; then
@@ -481,7 +592,7 @@ jng_graph()
 }
 
 jng_show_usage="show [-h]"
-jng_show_descr="List possible NAME values for \`show NAME'"
+jng_show_descr="List possible NAME values for 'show NAME'"
 jng_show1_usage="show [-h] NAME ..."
 jng_show1_descr="Lists ng0_NAME [ng1_NAME ...]"
 jng_show2_usage="show [NAME ...]"
@@ -508,11 +619,9 @@ jng_show()
 	fi
 	for name in "$@"; do
 		ngctl ls | awk -v name="$name" '
-			BEGIN { N = length(name) + 1 }
-			!match(ng = $2, /^ng[[:digit:]]+_/) { next }
-			{ _name = substr(ng, S = RSTART + RLENGTH) }
-			_name != name && substr(_name, 1, N) != name "-" { next }
-			(type = $4) ~ /^(e?iface|tcpmss)$/, $0 = ng
+			match($2, /^ng[[:digit:]]+_/) &&
+				substr($2, RSTART + RLENGTH) == name &&
+				$4 == "eiface", $0 = $2
 		' | sort
 	done
 }
@@ -588,13 +697,13 @@ jng_stats()
 		if ifconfig -l | xargs -n1 2> /dev/null | fgrep -qw "$name"
 		then
 			[ "$STATS_FMT" != "text" ] ||
-				echo "${name}bridge:link0 [lower]"
-			ngctl msg ${name}bridge: getstats 0 |
+				echo "${name}bridge:uplink1 [lower]"
+			ngctl msg ${name}bridge: getstats -1 |
 				fmt_stats -n "${name}.lower" -t "$now"
 
 			[ "$STATS_FMT" != "text" ] ||
-				echo "${name}bridge:link1 [upper]"
-			ngctl msg ${name}bridge: getstats 1 |
+				echo "${name}bridge:link0 [upper]"
+			ngctl msg ${name}bridge: getstats 0 |
 				fmt_stats -n "${name}.upper" -t "$now"
 		fi
 		local jiface
@@ -672,17 +781,25 @@ action="$1"
 #
 # Validate action argument
 #
+case "$action" in
+-h) usage ;; # NOTREACHED
+-v) VERSION="${VERSION#*: }"
+	echo "${VERSION% $}"
+	exit $SUCCESS ;;
+-*) usage "unknown option: %s" "$action" ;; # NOTREACHED
+*[!a-zA-Z0-9_-]*) usage 'invalid action "%s"' "$action" ;; # NOTREACHED
+esac
 if [ "$BASH_VERSION" ]; then
-	type="$( type -t "jng_$action" )" || usage # NOTREACHED
+	type="$( type -t "jng_$action" )"
 else
-	type="$( type "jng_$action" 2> /dev/null )" || usage # NOTREACHED
-fi
+	type="$( type "jng_$action" 2> /dev/null )"
+fi || usage 'unknown action "%s"' "$action" # NOTREACHED
 case "$type" in
 *function)
 	shift 1 # action
 	eval "jng_$action" \"\$@\"
 	;;
-*) usage # NOTREACHED
+*) usage 'unknown action "%s"' "$action" # NOTREACHED
 esac
 
 ################################################################################
