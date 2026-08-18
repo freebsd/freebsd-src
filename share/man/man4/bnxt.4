@@ -54,7 +54,9 @@ For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Pp
 On physical functions whose firmware reports identification LED support,
-the LEDs for each port are controlled through its
+the LEDs for each port are controlled through the
+.Xr led 4
+interface at its
 .Pa /dev/led/bnxt*
 device node.
 .Sh HARDWARE
@@ -255,6 +257,7 @@ As of this writing, the system must be rebooted to initiate a PCI device reset.
 .Xr altq 4 ,
 .Xr arp 4 ,
 .Xr iflib 4 ,
+.Xr led 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr vlan 4 ,
