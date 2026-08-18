@@ -41,6 +41,7 @@
 #define _ICE_IOV_H_
 
 #include <sys/types.h>
+#include <sys/bitstring.h>
 #include <sys/bus.h>
 #include <sys/nv.h>
 #include <sys/iov_schema.h>
@@ -91,6 +92,8 @@ struct ice_vf {
 	u16 mac_filter_cnt;
 	u16 vlan_limit;
 	u16 vlan_cnt;
+#define ICE_VF_VLAN_MAP_LEN	(EVL_VLID_MASK + 1)
+	bitstr_t bit_decl(vlans_map, ICE_VF_VLAN_MAP_LEN);
 
 	u16 num_irq_vectors;
 	u16 *vf_imap;

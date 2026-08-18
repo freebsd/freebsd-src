@@ -5592,7 +5592,7 @@ ice_add_vlan_hw_filters(struct ice_vsi *vsi, u16 *vid, u16 length)
 	}
 
 	status = ice_add_vlan(hw, &vlan_list);
-	if (!status)
+	if (!status || status == ICE_ERR_ALREADY_EXISTS)
 		goto done;
 
 	device_printf(vsi->sc->dev, "Failed to add VLAN filters:\n");
@@ -5657,7 +5657,7 @@ ice_remove_vlan_hw_filters(struct ice_vsi *vsi, u16 *vid, u16 length)
 	}
 
 	status = ice_remove_vlan(hw, &vlan_list);
-	if (!status)
+	if (!status || status == ICE_ERR_DOES_NOT_EXIST)
 		goto done;
 
 	device_printf(vsi->sc->dev, "Failed to remove VLAN filters:\n");
