@@ -96,6 +96,11 @@ struct ice_vf {
 	u16 *vf_imap;
 	struct ice_irq_vector *tx_irqvs;
 	struct ice_irq_vector *rx_irqvs;
+
+	/* VF-relative queue state, indexed by virtchnl queue ID. */
+	u32 txq_configured;
+	u32 rxq_configured;
+	u32 rxq_enabled;
 };
 
 #define ICE_PCIE_DEV_STATUS			0xAA
