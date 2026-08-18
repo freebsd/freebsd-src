@@ -1285,7 +1285,7 @@ linprocfs_doprocenviron(PFS_FILL_ARGS)
 }
 
 static char l32_map_str[] = "%08lx-%08lx %s%s%s%s %08lx %02x:%02x %lu%s%s\n";
-static char l64_map_str[] = "%016lx-%016lx %s%s%s%s %08lx %02x:%02x %lu%s%s\n";
+static char l64_map_str[] = "%lx-%lx %s%s%s%s %08lx %02x:%02x %lu%s%s\n";
 static char vdso_str[] = "      [vdso]";
 static char stack_str[] = "      [stack]";
 
@@ -1349,7 +1349,8 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 				VM_OBJECT_RUNLOCK(lobj);
 		}
 		private = (entry->eflags & MAP_ENTRY_COW) != 0 || obj == NULL ||
-		    (obj->flags & OBJ_ANON) != 0;
+		    (obj->flags & OBJ_ANON) != 0 &&
+		    entry->inheritance != VM_INHERIT_SHARE);
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);
 		ino = 0;
