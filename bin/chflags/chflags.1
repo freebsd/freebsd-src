@@ -77,11 +77,12 @@ rather than the file to which it points.
 If the
 .Fl R
 option is specified, symbolic links are followed.
-Symbolic links that point outside the file hierarchy being traversed
-are not followed unless the
+A symbolic link encountered during the traversal that points outside
+the file hierarchy being traversed is not followed unless the
 .Fl -dereference-links-unsafely
 option is also given;
 see the description of that option below.
+A symbolic link named directly on the command line is always followed.
 .It Fl P
 If the
 .Fl R

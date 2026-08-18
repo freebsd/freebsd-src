@@ -180,11 +180,29 @@ symlink_no_h_head()
 symlink_no_h_body()
 {
 	require_chflags
+	mkdir dir
 	touch target
-	ln -s target link
-	atf_check chflags nodump link
+	ln -s ../target dir/link
+	atf_check chflags nodump dir/link
 	atf_check -o match:nodump stat -f "%Sf" target
-	atf_check -o match:"link[[:space:]]*-" stat -f "%N %Sf" link
+	atf_check -o match:"link[[:space:]]*-" stat -f "%N %Sf" dir/link
+}
+
+atf_test_case symlink_rootlevel_H
+symlink_rootlevel_H_head()
+{
+	atf_set "descr" "chflags -RH follows a symbolic link to a" \
+	    " directory named on the command line"
+}
+symlink_rootlevel_H_body()
+{
+	require_chflags
+	mkdir dir realdir
+	touch realdir/file
+	ln -s ../realdir dir/dlink
+	atf_check chflags -RH nodump dir/dlink
+	atf_check -o match:nodump stat -f "%Sf" realdir/file
+	atf_check -o match:"dlink[[:space:]]*-" stat -f "%N %Sf" dir/dlink
 }
 
 atf_init_test_cases()
@@ -197,6 +215,7 @@ atf_init_test_cases()
 	atf_add_test_case recursive
 	atf_add_test_case mixed_paths
 	atf_add_test_case symlink_no_h
+	atf_add_test_case symlink_rootlevel_H
 	atf_add_test_case outside_symlink_rejected
 	atf_add_test_case outside_symlink_unsafe
 }

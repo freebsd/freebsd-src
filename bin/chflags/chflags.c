@@ -308,8 +308,30 @@ main(int argc, char *argv[])
 	rval = 0;
 
 	for (i = 0; i < argc; i++) {
-		if (needs_own_fd(argv[i])) {
-			int fd = open_base(argv[i], &ownbase[nown]);
+		char *arg = argv[i];
+		char resolved[PATH_MAX];
+		struct stat sb;
+
+		/*
+		 * A symbolic link named on the command line is followed
+		 * unless -h was given (or a purely physical walk was
+		 * requested).  Its target may lie outside the link's parent
+		 * directory, which capability mode could not reach, so
+		 * resolve the link now and operate relative to the target's
+		 * own parent.
+		 */
+		if ((fts_options & (FTS_LOGICAL | FTS_COMFOLLOW)) &&
+		    lstat(arg, &sb) == 0 && S_ISLNK(sb.st_mode)) {
+			if (realpath(arg, resolved) == NULL) {
+				warn("%s", arg);
+				rval = 1;
+				continue;
+			}
+			arg = resolved;
+		}
+
+		if (needs_own_fd(arg)) {
+			int fd = open_base(arg, &ownbase[nown]);
 			if (fd < 0) {
 				warn("%s", argv[i]);
 				rval = 1;
@@ -318,7 +340,7 @@ main(int argc, char *argv[])
 			ownfd[nown] = fd;
 			nown++;
 		} else {
-			relpaths[nrel++] = argv[i];
+			relpaths[nrel++] = arg;
 		}
 	}
 	relpaths[nrel] = NULL;
@@ -328,11 +350,11 @@ main(int argc, char *argv[])
 	/*
 	 * With --dereference-links-unsafely the traversal may follow a
 	 * symlink to a file outside the hierarchy named on the command
-	 * line, which capability mode would block, so skip cap_enter() in
+	 * line, which capability mode would block, so skip caph_enter() in
 	 * that case.
 	 */
 	if (!unsafe && caph_enter() < 0)
-		err(1, "cap_enter");
+		err(1, "caph_enter");
 
 	/* Process all plain relative paths together under cwd_fd. */
 	if (nrel > 0)
@@ -345,14 +367,11 @@ main(int argc, char *argv[])
 		twopath[1] = NULL;
 		rval |= chflags_fts(ownfd[i], twopath, fts_options, set,
 		    clear, oct, Rflag, fflag, vflag);
-	}
-
-	for (i = 0; i < nown; i++)
 		free(ownbase[i]);
+	}
 	free(relpaths);
 	free(ownfd);
 	free(ownbase);
-
 	exit(rval);
 }
 
