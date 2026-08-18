@@ -495,6 +495,36 @@ ice_iov_handle_vflr(struct ice_softc *sc)
 }
 
 /**
+ * ice_iov_notify_vfs_reset - Notify initialized VFs of an impending reset
+ * @sc: device softc structure
+ *
+ * Give VF drivers advance notice while the mailbox control queue is still
+ * alive. Ignore individual send failures so one VF cannot prevent the PF from
+ * notifying its siblings or proceeding with the reset.
+ */
+void
+ice_iov_notify_vfs_reset(struct ice_softc *sc)
+{
+	struct virtchnl_pf_event event = {};
+	struct ice_hw *hw = &sc->hw;
+	struct ice_vf *vf;
+
+	if (!ice_check_sq_alive(hw, &hw->mailboxq))
+		return;
+
+	event.event = VIRTCHNL_EVENT_RESET_IMPENDING;
+	event.severity = PF_EVENT_SEVERITY_CERTAIN_DOOM;
+	for (int i = 0; i < sc->num_vfs; i++) {
+		vf = &sc->vfs[i];
+		if ((atomic_load_acq_32(&vf->vf_flags) &
+		    VF_FLAG_INITIALIZED) == 0)
+			continue;
+		(void)ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_EVENT,
+		    VIRTCHNL_STATUS_SUCCESS, (u8 *)&event, sizeof(event), NULL);
+	}
+}
+
+/**
  * ice_iov_ready_vf - Setup VF interrupts and mark it as ready
  * @sc: device softc structure
  * @vf: driver's VF structure for the VF to update
@@ -521,6 +551,54 @@ ice_iov_ready_vf(struct ice_softc *sc, struct ice_vf *vf)
 	wr32(hw, VFGEN_RSTAT(vf->vf_num), VIRTCHNL_VFR_VFACTIVE);
 
 	ice_flush(hw);
+}
+
+/**
+ * ice_iov_rebuild_vf - Rebuild a VF VSI after a PF or device reset
+ * @sc: device softc structure
+ * @vsi: VF VSI to rebuild
+ *
+ * PF and device resets discard the hardware VSI and interrupt state for every
+ * VF. Re-add the VSI and replay its configuration before reporting the VF as
+ * active. A failed rebuild leaves the VF inactive while allowing the PF and
+ * other VFs to recover.
+ */
+int
+ice_iov_rebuild_vf(struct ice_softc *sc, struct ice_vsi *vsi)
+{
+	struct ice_eth_stats accumulated_stats;
+	struct ice_hw *hw = &sc->hw;
+	struct ice_vf *vf;
+	int error, status;
+
+	MPASS(vsi->type == ICE_VSI_VF);
+	vf = ice_iov_get_vf(sc, vsi->vf_num);
+	atomic_clear_32(&vf->vf_flags, VF_FLAG_INITIALIZED);
+	atomic_set_32(&vf->vf_flags, VF_FLAG_REBUILD_FAILED);
+
+	/* A new hardware VSI starts a new raw statistics epoch. */
+	accumulated_stats = vsi->hw_stats.cur;
+	error = ice_initialize_vsi(vsi);
+	if (error != 0) {
+		device_printf(sc->dev,
+		    "Unable to re-initialize VF %d VSI, err %s\n",
+		    vf->vf_num, ice_err_str(error));
+		return (error);
+	}
+	vsi->hw_stats.cur = accumulated_stats;
+
+	status = ice_replay_vsi(hw, vsi->idx);
+	if (status != 0) {
+		device_printf(sc->dev,
+		    "Failed to replay VF %d VSI, err %s aq_err %s\n",
+		    vf->vf_num, ice_status_str(status),
+		    ice_aq_str(hw->adminq.sq_last_status));
+		return (EIO);
+	}
+
+	atomic_clear_32(&vf->vf_flags, VF_FLAG_REBUILD_FAILED);
+	ice_iov_ready_vf(sc, vf);
+	return (0);
 }
 
 /**
@@ -575,14 +653,14 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_vflr)
 		device_printf(sc->dev,
 			"VF-%d PCI transactions stuck\n", vf->vf_num);
 
-	/* Disable TX queues, which is required during VF reset */
-	status = ice_dis_vsi_txq(hw->port_info, vf->vsi->idx, 0, 0, NULL, NULL,
-			NULL, ICE_VF_RESET, vf->vf_num, NULL);
+	/* This zero-queue command is required to complete every VF reset. */
+	status = ice_dis_vsi_txq(hw->port_info, vf->vsi->idx, 0, 0,
+	    NULL, NULL, NULL, ICE_VF_RESET, vf->vf_num, NULL);
 	if (status)
 		device_printf(sc->dev,
-			      "%s: Failed to disable LAN Tx queues: err %s aq_err %s\n",
-			      __func__, ice_status_str(status),
-			      ice_aq_str(hw->adminq.sq_last_status));
+		    "%s: Failed to disable LAN Tx queues: err %s aq_err %s\n",
+		    __func__, ice_status_str(status),
+		    ice_aq_str(hw->adminq.sq_last_status));
 
 	/* Then check for the VF reset to finish in HW */
 	for (i = 0; i < ICE_VPGEN_VFRSTAT_WAIT_COUNT; i++) {
@@ -595,6 +673,11 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_vflr)
 	if (i == ICE_VPGEN_VFRSTAT_WAIT_COUNT)
 		device_printf(sc->dev,
 			"VF-%d Reset is stuck\n", vf->vf_num);
+
+	/* A VFR cannot recover PF-owned VSI state lost during PF rebuild. */
+	if ((atomic_load_acq_32(&vf->vf_flags) &
+	    VF_FLAG_REBUILD_FAILED) != 0)
+		return;
 
 	ice_iov_ready_vf(sc, vf);
 }
@@ -620,6 +703,7 @@ ice_vc_get_vf_res_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	struct virtchnl_vsi_resource *vsi_res;
 	u16 vf_res_len;
 	u32 vf_caps;
+	int status;
 
 	/* XXX: Only support one VSI per VF, so this size doesn't need adjusting */
 	vf_res_len = sizeof(struct virtchnl_vf_resource);
@@ -653,8 +737,15 @@ ice_vc_get_vf_res_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	if (!ETHER_IS_ZERO(vf->mac))
 		memcpy(vsi_res->default_mac_addr, vf->mac, ETHER_ADDR_LEN);
 
-	ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_GET_VF_RESOURCES,
-	    VIRTCHNL_STATUS_SUCCESS, (u8 *)vf_res, vf_res_len, NULL);
+	status = ice_aq_send_msg_to_vf(hw, vf->vf_num,
+	    VIRTCHNL_OP_GET_VF_RESOURCES, VIRTCHNL_STATUS_SUCCESS,
+	    (u8 *)vf_res, vf_res_len, NULL);
+	if (status == 0)
+		atomic_set_32(&vf->vf_flags, VF_FLAG_INITIALIZED);
+	else
+		device_printf(sc->dev,
+		    "Unable to send VF-%u resource response, err %s\n",
+		    vf->vf_num, ice_status_str(status));
 
 	free(vf_res, M_ICE);
 }
@@ -1489,6 +1580,7 @@ ice_vc_get_stats_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 		    __func__, vf->vf_num, vqs->vsi_id, vsi->idx);
 		ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_GET_STATS,
 		    VIRTCHNL_STATUS_ERR_PARAM, NULL, 0, NULL);
+		return;
 	}
 
 	ice_update_vsi_hw_stats(vf->vsi);
@@ -1667,6 +1759,7 @@ ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event)
 	device_t dev = sc->dev;
 	struct ice_vf *vf;
 	int err = 0;
+	u32 vf_flags;
 
 	u32 v_opcode = event->desc.cookie_high;
 	u16 v_id = event->desc.retval;
@@ -1687,6 +1780,19 @@ ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event)
 		device_printf(dev, "%s: Received invalid msg from VF-%d: opcode %d, len %d, error %d\n",
 		    __func__, vf->vf_num, v_opcode, msglen, err);
 		ice_aq_send_msg_to_vf(hw, v_id, v_opcode, VIRTCHNL_STATUS_ERR_PARAM, NULL, 0, NULL);
+		return;
+	}
+
+	vf_flags = atomic_load_acq_32(&vf->vf_flags);
+	if ((vf_flags & VF_FLAG_ENABLED) == 0 || vf->vsi == NULL)
+		return;
+
+	/* Only a later PF rebuild can restore an invalid firmware VSI. */
+	if ((vf_flags & VF_FLAG_REBUILD_FAILED) != 0 &&
+	    v_opcode != VIRTCHNL_OP_VERSION &&
+	    v_opcode != VIRTCHNL_OP_RESET_VF) {
+		ice_aq_send_msg_to_vf(hw, v_id, v_opcode,
+		    VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR, NULL, 0, NULL);
 		return;
 	}
 
