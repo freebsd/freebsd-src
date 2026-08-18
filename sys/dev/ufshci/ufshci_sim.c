@@ -144,6 +144,17 @@ ufshchi_sim_scsiio(struct cam_sim *sim, union ccb *ccb)
 	payload_len = csio->dxfer_len;
 	is_write = csio->ccb_h.flags & CAM_DIR_OUT;
 
+	if (csio->ccb_h.flags & CAM_CDB_POINTER)
+		cdb = csio->cdb_io.cdb_ptr;
+	else
+		cdb = csio->cdb_io.cdb_bytes;
+
+	if (cdb == NULL || csio->cdb_len > sizeof(upiu->cdb)) {
+		ccb->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		return;
+	}
+
 	/* TODO: Check other data type */
 	if ((csio->ccb_h.flags & CAM_DATA_MASK) == CAM_DATA_BIO)
 		req = ufshci_allocate_request_bio((struct bio *)payload,
@@ -184,17 +195,6 @@ ufshchi_sim_scsiio(struct cam_sim *sim, union ccb *ccb)
 
 	upiu->expected_data_transfer_length = htobe32(payload_len);
 
-	if (csio->ccb_h.flags & CAM_CDB_POINTER)
-		cdb = csio->cdb_io.cdb_ptr;
-	else
-		cdb = csio->cdb_io.cdb_bytes;
-
-	if (cdb == NULL || csio->cdb_len > sizeof(upiu->cdb)) {
-		ccb->ccb_h.status = CAM_REQ_INVALID;
-		ufshci_free_request(req);
-		xpt_done(ccb);
-		return;
-	}
 	memcpy(upiu->cdb, cdb, csio->cdb_len);
 
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
