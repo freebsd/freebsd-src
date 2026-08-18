@@ -80,7 +80,7 @@ k1_apmu_probe(device_t dev)
 		return (ENXIO);
 	if (!ofw_bus_is_compatible(dev, "spacemit,k1-syscon-apmu"))
 		return (ENXIO);
-	device_set_desc(dev, "SpacemitT K1 APMU Clock Controller");
+	device_set_desc(dev, "SpacemiT K1 APMU Clock Controller");
 
 	return (BUS_PROBE_DEFAULT);
 }
