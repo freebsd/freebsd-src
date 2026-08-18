@@ -1592,8 +1592,9 @@ ixgbe_nvm_access_ioctl(struct ixgbe_softc *sc, struct ifdrv *ifd)
 	size_t ifd_len = ifd->ifd_len;
 	size_t malloc_len;
 	device_t dev = sc->dev;
+	s32 status;
 	u8 *nvm_buffer;
-	s32 error = 0;
+	int error = 0;
 
 	/*
 	 * ifioctl forwards SIOCxDRVSPEC to iflib without conducting
@@ -1642,10 +1643,10 @@ ixgbe_nvm_access_ioctl(struct ixgbe_softc *sc, struct ifdrv *ifd)
 	    (nvm_buffer + sizeof(struct ixgbe_nvm_access_cmd));
 
 	/* Handle the NVM access request */
-	error = ixgbe_handle_nvm_access(hw, cmd, data);
-	if (error) {
+	status = ixgbe_handle_nvm_access(hw, cmd, data);
+	if (status) {
 		device_printf(dev, "%s: NVM access request failed, error %d\n",
-		    __func__, error);
+		    __func__, status);
 	}
 
 	/* Copy the possibly modified contents of the handled request out */
@@ -1655,6 +1656,20 @@ ixgbe_nvm_access_ioctl(struct ixgbe_softc *sc, struct ifdrv *ifd)
 		    "user space failed, error %d\n",
 		    __func__, error);
 		goto cleanup_free_nvm_buffer;
+	}
+
+	/* Convert private status to an error code for proper ioctl response */
+	switch (status) {
+	case IXGBE_SUCCESS:
+		error = 0;
+		break;
+	case IXGBE_ERR_OUT_OF_RANGE:
+		error = ENOTTY;
+		break;
+	case IXGBE_ERR_PARAM:
+	default:
+		error = EINVAL;
+		break;
 	}
 
 cleanup_free_nvm_buffer:
