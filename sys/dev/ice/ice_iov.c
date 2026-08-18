@@ -79,6 +79,8 @@ static void ice_vc_add_vlan_msg(struct ice_softc *sc, struct ice_vf *vf,
 				u8 *msg_buf);
 static void ice_vc_del_vlan_msg(struct ice_softc *sc, struct ice_vf *vf,
 				u8 *msg_buf);
+static int ice_vc_select_vlans(struct ice_vf *vf, u16 *vids, u16 count,
+			       bool add, u16 *selected_count);
 static enum virtchnl_status_code ice_iov_err_to_virt_err(int ice_err);
 static int ice_vf_validate_mac(struct ice_vf *vf, const uint8_t *addr);
 
@@ -960,6 +962,43 @@ ice_vc_del_eth_addr_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 }
 
 /**
+ * ice_vc_select_vlans - Compact a VF VLAN request in place
+ * @vf: VF tracking structure
+ * @vids: VLAN IDs supplied by the VF
+ * @count: number of VLAN IDs in the request
+ * @add: select absent VLANs for add, or present VLANs for delete
+ * @selected_count: returned number of VLAN IDs requiring a hardware change
+ *
+ * A VF may replay its entire VLAN configuration after a reset or retry a
+ * request whose reply was lost.  Select only unique IDs whose membership
+ * actually changes so those requests remain idempotent and filter accounting
+ * continues to enforce the configured limit.
+ */
+static int
+ice_vc_select_vlans(struct ice_vf *vf, u16 *vids, u16 count, bool add,
+    u16 *selected_count)
+{
+	bitstr_t bit_decl(seen, ICE_VF_VLAN_MAP_LEN);
+	u16 selected, vid;
+
+	bzero(seen, sizeof(seen));
+	selected = 0;
+	for (u16 i = 0; i < count; i++) {
+		vid = vids[i];
+		if (vid > EVL_VLID_MASK)
+			return (EINVAL);
+		if (bit_test(seen, vid))
+			continue;
+		bit_set(seen, vid);
+		if (bit_test(vf->vlans_map, vid) == add)
+			continue;
+		vids[selected++] = vid;
+	}
+	*selected_count = selected;
+	return (0);
+}
+
+/**
  * ice_vc_add_vlan_msg - Handle VIRTCHNL_OP_ADD_VLAN msg from VF
  * @sc: PF's softc structure
  * @vf: VF tracking structure
@@ -972,6 +1011,7 @@ ice_vc_add_vlan_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 {
 	struct ice_hw *hw = &sc->hw;
 	struct virtchnl_vlan_filter_list *vlan_list;
+	u16 selected;
 	int status = 0;
 	enum virtchnl_status_code v_status = VIRTCHNL_STATUS_SUCCESS;
 	struct ice_vsi *vsi = vf->vsi;
@@ -986,23 +1026,34 @@ ice_vc_add_vlan_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 		goto done;
 	}
 
-	if (vlan_list->num_elements > (vf->vlan_limit - vf->vlan_cnt)) {
+	status = ice_vc_select_vlans(vf, vlan_list->vlan_id,
+	    vlan_list->num_elements, true, &selected);
+	if (status != 0) {
+		v_status = VIRTCHNL_STATUS_ERR_PARAM;
+		goto done;
+	}
+
+	if ((u32)vf->vlan_cnt + selected > vf->vlan_limit) {
 		v_status = VIRTCHNL_STATUS_ERR_NO_MEMORY;
 		goto done;
 	}
-
-	status = ice_add_vlan_hw_filters(vsi, vlan_list->vlan_id,
-					vlan_list->num_elements);
-	if (status) {
-		device_printf(sc->dev,
-			      "VF-%d: Failure adding VLANs to VSI %d, err %s aq_err %s\n",
-			      vf->vf_num, vsi->idx, ice_status_str(status),
-			      ice_aq_str(sc->hw.adminq.sq_last_status));
-		v_status = ice_iov_err_to_virt_err(status);
+	if (selected == 0)
 		goto done;
-	}
 
-	vf->vlan_cnt += vlan_list->num_elements;
+	for (u16 i = 0; i < selected; i++) {
+		status = ice_add_vlan_hw_filter(vsi, vlan_list->vlan_id[i]);
+		if (status != 0 && status != ICE_ERR_ALREADY_EXISTS) {
+			device_printf(sc->dev,
+			    "VF-%d: Failure adding VLAN %d to VSI %d, err %s aq_err %s\n",
+			    vf->vf_num, vlan_list->vlan_id[i], vsi->idx,
+			    ice_status_str(status),
+			    ice_aq_str(sc->hw.adminq.sq_last_status));
+			v_status = ice_iov_err_to_virt_err(status);
+			goto done;
+		}
+		bit_set(vf->vlans_map, vlan_list->vlan_id[i]);
+		vf->vlan_cnt++;
+	}
 
 done:
 	ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_ADD_VLAN,
@@ -1022,6 +1073,7 @@ ice_vc_del_vlan_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 {
 	struct ice_hw *hw = &sc->hw;
 	struct virtchnl_vlan_filter_list *vlan_list;
+	u16 selected;
 	int status = 0;
 	enum virtchnl_status_code v_status = VIRTCHNL_STATUS_SUCCESS;
 	struct ice_vsi *vsi = vf->vsi;
@@ -1036,21 +1088,30 @@ ice_vc_del_vlan_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 		goto done;
 	}
 
-	status = ice_remove_vlan_hw_filters(vsi, vlan_list->vlan_id,
-					vlan_list->num_elements);
-	if (status) {
-		device_printf(sc->dev,
-			      "VF-%d: Failure deleting VLANs from VSI %d, err %s aq_err %s\n",
-			      vf->vf_num, vsi->idx, ice_status_str(status),
-			      ice_aq_str(sc->hw.adminq.sq_last_status));
-		v_status = ice_iov_err_to_virt_err(status);
+	status = ice_vc_select_vlans(vf, vlan_list->vlan_id,
+	    vlan_list->num_elements, false, &selected);
+	if (status != 0) {
+		v_status = VIRTCHNL_STATUS_ERR_PARAM;
 		goto done;
 	}
+	if (selected == 0)
+		goto done;
 
-	if (vlan_list->num_elements >= vf->vlan_cnt)
-		vf->vlan_cnt = 0;
-	else
-		vf->vlan_cnt -= vlan_list->num_elements;
+	for (u16 i = 0; i < selected; i++) {
+		status = ice_remove_vlan_hw_filter(vsi, vlan_list->vlan_id[i]);
+		if (status != 0 && status != ICE_ERR_DOES_NOT_EXIST) {
+			device_printf(sc->dev,
+			    "VF-%d: Failure deleting VLAN %d from VSI %d, err %s aq_err %s\n",
+			    vf->vf_num, vlan_list->vlan_id[i], vsi->idx,
+			    ice_status_str(status),
+			    ice_aq_str(sc->hw.adminq.sq_last_status));
+			v_status = ice_iov_err_to_virt_err(status);
+			goto done;
+		}
+		bit_clear(vf->vlans_map, vlan_list->vlan_id[i]);
+		MPASS(vf->vlan_cnt > 0);
+		vf->vlan_cnt--;
+	}
 
 done:
 	ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_DEL_VLAN,
