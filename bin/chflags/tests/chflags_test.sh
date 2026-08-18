@@ -217,7 +217,8 @@ symlink_rootlevel_H_dead_body()
 	require_chflags
 	mkdir dir
 	ln -s ../nonexistent dir/dlink
-	atf_check -s not-exit:0 -e not-empty chflags -RH nodump dir/dlink
+	atf_check -s not-exit:0 -e match:"No such file or directory" \
+		chflags -RH nodump dir/dlink
 }
 
 atf_init_test_cases()
