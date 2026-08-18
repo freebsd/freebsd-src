@@ -330,8 +330,7 @@ ufshci_req_sdb_destroy(struct ufshci_controller *ctrlr,
 
 	if (hwq->act_tr != NULL) {
 		if (!req_queue->is_task_mgmt)
-			ufshci_req_sdb_cmd_desc_destroy(
-			    &ctrlr->transfer_req_queue);
+			ufshci_req_sdb_cmd_desc_destroy(req_queue);
 
 		for (i = 0; i < req_queue->num_trackers; i++)
 			free(hwq->act_tr[i], M_UFSHCI);
