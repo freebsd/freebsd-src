@@ -271,7 +271,7 @@ ufshci_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_misc = need_scan_wluns | PIM_UNMAPPED | PIM_NO_6_BYTE;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 0;
-		cpi->max_lun = ctrlr->max_lun_count;
+		cpi->max_lun = ctrlr->max_lun_count - 1;
 		cpi->async_flags = 0;
 		cpi->maxio = ctrlr->max_xfer_size;
 		cpi->initiator_id = 1;
