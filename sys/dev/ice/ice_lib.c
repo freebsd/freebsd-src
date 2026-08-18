@@ -777,6 +777,7 @@ ice_initialize_vsi(struct ice_vsi *vsi)
 		    ice_aq_str(hw->adminq.sq_last_status));
 		return (EIO);
 	}
+	vsi->hw_vsi_created = true;
 	vsi->info = ctx.info;
 
 	/* Initialize VSI with just 1 TC to start */
@@ -816,6 +817,8 @@ ice_deinit_vsi(struct ice_vsi *vsi)
 
 	/* Assert that the VSI pointer matches in the list */
 	MPASS(vsi == sc->all_vsi[vsi->idx]);
+	if (!vsi->hw_vsi_created)
+		return;
 
 	ctx.info = vsi->info;
 
@@ -837,7 +840,30 @@ ice_deinit_vsi(struct ice_vsi *vsi)
 		    "Free VSI %u AQ call failed, err %s aq_err %s\n",
 		    vsi->idx, ice_status_str(status),
 		    ice_aq_str(hw->adminq.sq_last_status));
+	} else {
+		vsi->hw_vsi_created = false;
 	}
+}
+
+/*
+ * Release the queue maps and storage owned by a VSI.  Callers must remove
+ * the VSI sysctl context before reaching this helper.
+ */
+static void
+ice_free_vsi_resources(struct ice_vsi *vsi)
+{
+	struct ice_softc *sc = vsi->sc;
+	int idx = vsi->idx;
+
+	/* Assert that the VSI pointer matches in the list */
+	MPASS(vsi == sc->all_vsi[idx]);
+
+	ice_free_vsi_qmaps(vsi);
+
+	if (vsi->dynamic)
+		free(sc->all_vsi[idx], M_ICE);
+
+	sc->all_vsi[idx] = NULL;
 }
 
 /**
@@ -851,35 +877,39 @@ ice_deinit_vsi(struct ice_vsi *vsi)
 void
 ice_release_vsi(struct ice_vsi *vsi)
 {
-	struct ice_softc *sc = vsi->sc;
-	int idx = vsi->idx;
-
-	/* Assert that the VSI pointer matches in the list */
-	MPASS(vsi == sc->all_vsi[idx]);
+	MPASS(vsi == vsi->sc->all_vsi[vsi->idx]);
 
 	/* Cleanup RSS configuration */
-	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_RSS))
+	if (ice_is_bit_set(vsi->sc->feat_en, ICE_FEATURE_RSS))
 		ice_clean_vsi_rss_cfg(vsi);
 
+	/* Drain sysctl handlers before invalidating the hardware VSI. */
 	ice_del_vsi_sysctl_ctx(vsi);
 
-	/* Remove the configured mirror rule, if it exists */
-	ice_remove_vsi_mirroring(vsi);
-
-	/*
-	 * If we unload the driver after a reset fails, we do not need to do
-	 * this step.
-	 */
-	if (!ice_test_state(&sc->state, ICE_STATE_RESET_FAILED))
+	/* Do not issue firmware commands for a missing VSI or failed device. */
+	if (vsi->hw_vsi_created &&
+	    !ice_test_state(&vsi->sc->state, ICE_STATE_RESET_FAILED)) {
+		ice_remove_vsi_mirroring(vsi);
+		ice_remove_vsi_fltr(&vsi->sc->hw, vsi->idx);
 		ice_deinit_vsi(vsi);
-
-	ice_free_vsi_qmaps(vsi);
-
-	if (vsi->dynamic) {
-		free(sc->all_vsi[idx], M_ICE);
 	}
 
-	sc->all_vsi[idx] = NULL;
+	ice_free_vsi_resources(vsi);
+}
+
+/**
+ * ice_release_vsi_resources - Release software resources for a VSI
+ * @vsi: the VSI to release
+ *
+ * Release resources allocated by ice_alloc_vsi() without issuing firmware
+ * commands. This is used when setup fails before ice_initialize_vsi() has
+ * attempted to create the VSI in hardware.
+ */
+void
+ice_release_vsi_resources(struct ice_vsi *vsi)
+{
+	ice_del_vsi_sysctl_ctx(vsi);
+	ice_free_vsi_resources(vsi);
 }
 
 /**
@@ -7908,13 +7938,16 @@ ice_clean_vsi_rss_cfg(struct ice_vsi *vsi)
 	device_t dev = sc->dev;
 	int status;
 
-	status = ice_rem_vsi_rss_cfg(hw, vsi->idx);
-	if (status)
-		device_printf(dev,
-			      "Failed to remove RSS configuration for VSI %d, err %s\n",
-			      vsi->idx, ice_status_str(status));
+	if (vsi->hw_vsi_created &&
+	    !ice_test_state(&sc->state, ICE_STATE_RESET_FAILED)) {
+		status = ice_rem_vsi_rss_cfg(hw, vsi->idx);
+		if (status)
+			device_printf(dev,
+			    "Failed to remove RSS configuration for VSI %d, err %s\n",
+			    vsi->idx, ice_status_str(status));
+	}
 
-	/* Remove this VSI from the RSS list */
+	/* Remove software tracking even if the hardware VSI no longer exists. */
 	ice_rem_vsi_rss_list(hw, vsi->idx);
 }
 

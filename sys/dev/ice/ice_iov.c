@@ -227,7 +227,7 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 	int i;
 
 	vf = ice_iov_get_vf(sc, vfnum);
-	vf->vf_flags = VF_FLAG_ENABLED;
+	vf->vf_flags = 0;
 
 	/* This VF needs at least one VSI */
 	vsi = ice_alloc_vsi(sc, ICE_VSI_VF);
@@ -385,6 +385,7 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 		goto release_imap;
 	}
 
+	atomic_set_32(&vf->vf_flags, VF_FLAG_ENABLED);
 	ice_iov_ready_vf(sc, vf);
 
 	return (0);
@@ -408,8 +409,12 @@ free_txqs:
 	free(vsi->tx_queues, M_ICE);
 	vsi->tx_queues = NULL;
 release_vsi:
-	ice_release_vsi(vsi);
+	if (vsi->hw_vsi_created)
+		ice_release_vsi(vsi);
+	else
+		ice_release_vsi_resources(vsi);
 	vf->vsi = NULL;
+	atomic_store_rel_32(&vf->vf_flags, 0);
 	return (error);
 }
 
@@ -426,10 +431,13 @@ ice_iov_uninit(struct ice_softc *sc)
 	/* Release per-VF resources */
 	for (int i = 0; i < sc->num_vfs; i++) {
 		vf = &sc->vfs[i];
+		atomic_store_rel_32(&vf->vf_flags, 0);
 		vsi = vf->vsi;
 
 		/* Free VF interrupt reservation */
 		if (vf->vf_imap) {
+			ice_resmgr_release_map(&sc->dev_imgr, vf->vf_imap,
+			    vf->num_irq_vectors);
 			free(vf->vf_imap, M_ICE);
 			vf->vf_imap = NULL;
 		}
@@ -457,7 +465,10 @@ ice_iov_uninit(struct ice_softc *sc)
 			vsi->rx_queues = NULL;
 		}
 
-		ice_release_vsi(vsi);
+		if (vsi->hw_vsi_created)
+			ice_release_vsi(vsi);
+		else
+			ice_release_vsi_resources(vsi);
 		vf->vsi = NULL;
 	}
 
@@ -489,8 +500,17 @@ ice_iov_handle_vflr(struct ice_softc *sc)
 		reg_idx = (hw->func_caps.vf_base_id + vf->vf_num) / 32;
 		bit_idx = (hw->func_caps.vf_base_id + vf->vf_num) % 32;
 		reg = rd32(hw, GLGEN_VFLRSTAT(reg_idx));
-		if (reg & BIT(bit_idx))
+		if ((reg & BIT(bit_idx)) == 0)
+			continue;
+		if ((atomic_load_acq_32(&vf->vf_flags) &
+		    VF_FLAG_ENABLED) != 0 && vf->vsi != NULL) {
 			ice_reset_vf(sc, vf, false);
+			continue;
+		}
+
+		/* Consume reset events for inactive or incompletely added VFs. */
+		wr32(hw, GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
+		ice_flush(hw);
 	}
 }
 

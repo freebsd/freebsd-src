@@ -558,6 +558,7 @@ struct ice_vsi {
 	struct ice_softc	*sc;
 
 	bool dynamic;		/* if true, dynamically allocated */
+	bool hw_vsi_created;	/* firmware owns a VSI for this handle */
 
 	enum ice_vsi_type type;	/* type of this VSI */
 	u16 idx;		/* software index to sc->all_vsi[] */
@@ -935,6 +936,7 @@ int  ice_map_bar(device_t dev, struct ice_bar_info *bar, int bar_num);
 void ice_free_bar(device_t dev, struct ice_bar_info *bar);
 void ice_set_ctrlq_len(struct ice_hw *hw);
 void ice_release_vsi(struct ice_vsi *vsi);
+void ice_release_vsi_resources(struct ice_vsi *vsi);
 struct ice_vsi *ice_alloc_vsi(struct ice_softc *sc, enum ice_vsi_type type);
 void ice_alloc_vsi_qmap(struct ice_vsi *vsi, const int max_tx_queues,
 		       const int max_rx_queues);
