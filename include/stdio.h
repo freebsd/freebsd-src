@@ -32,7 +32,9 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __STDC_VERSION_STDIO_H__
+#ifndef	_STDIO_H_
+#define	_STDIO_H_
+
 #define __STDC_VERSION_STDIO_H__	202311L
 
 #include <sys/cdefs.h>
@@ -540,4 +542,4 @@ extern int __isthreaded;
 __END_DECLS
 __NULLABILITY_PRAGMA_POP
 
-#endif /* !__STDC_VERSION_STDIO_H__ */
+#endif /* !_STDIO_H_ */

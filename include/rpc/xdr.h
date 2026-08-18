@@ -332,7 +332,7 @@ __BEGIN_DECLS
 extern void   xdrmem_create(XDR *, char *, u_int, enum xdr_op);
 
 /* XDR using stdio library */
-#ifdef __STDC_VERSION_STDIO_H__
+#ifdef _STDIO_H_
 extern void   xdrstdio_create(XDR *, FILE *, enum xdr_op);
 #endif
 
