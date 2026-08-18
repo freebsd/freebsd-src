@@ -6462,6 +6462,9 @@ ice_sysctl_request_reset(SYSCTL_HANDLER_ARGS)
 	 * interrupt on all PFs. Initiate the reset now. Preparation and
 	 * rebuild logic will be handled by the admin status task.
 	 */
+#ifdef PCI_IOV
+	ice_iov_notify_vfs_reset(sc);
+#endif
 	status = ice_reset(hw, reset_type);
 
 	/*
@@ -7859,6 +7862,17 @@ ice_replay_all_vsi_cfg(struct ice_softc *sc)
 
 		if (!vsi)
 			continue;
+
+#ifdef PCI_IOV
+		if (vsi->type == ICE_VSI_VF) {
+			status = ice_iov_rebuild_vf(sc, vsi);
+			if (status != 0)
+				device_printf(sc->dev,
+				    "Failed to rebuild VF %d VSI; leaving VF disabled\n",
+				    vsi->vf_num);
+			continue;
+		}
+#endif
 
 		status = ice_replay_vsi(hw, vsi->idx);
 		if (status) {

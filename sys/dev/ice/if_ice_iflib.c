@@ -2556,6 +2556,11 @@ ice_prepare_for_reset(struct ice_softc *sc)
 	if (ice_test_state(&sc->state, ICE_STATE_RECOVERY_MODE))
 		return;
 
+#ifdef PCI_IOV
+	/* Notify initialized VFs while the mailbox queue is still available. */
+	ice_iov_notify_vfs_reset(sc);
+#endif
+
 	/* Restore identification while the control queues are still usable. */
 	ice_led_restore(sc);
 

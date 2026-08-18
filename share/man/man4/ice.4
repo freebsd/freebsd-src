@@ -32,7 +32,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 11, 2026
+.Dd August 19, 2026
 .Dt ICE 4
 .Os
 .Sh NAME
@@ -1144,6 +1144,14 @@ filter resources.
 The VF's default mac address does not count towards this limit.
 By default, this is set to 64.
 .El
+.Pp
+PF and device resets discard the hardware state of every VF.
+The driver keeps each configured VF inactive while reconstructing its VSI and
+allows it to renegotiate resources only after reconstruction succeeds.
+If one VF cannot be reconstructed, it remains configured but uninitialized
+while the PF and its sibling VFs continue recovering.
+A VF function-level reset cannot recreate this PF-owned VSI state; another PF
+or device reset, or SR-IOV configuration recreation, is required.
 .Pp
 An up to date list of parameters and their defaults can be found by using
 .Xr iovctl 8
