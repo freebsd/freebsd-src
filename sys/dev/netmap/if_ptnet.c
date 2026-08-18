@@ -1464,8 +1464,17 @@ ptnet_drain_transmit_queue(struct ptnet_queue *pq, unsigned int budget,
 			 * two 8-bytes-wide writes. */
 			memset(nmbuf, 0, PTNET_HDR_SIZE);
 			if (mhead->m_pkthdr.csum_flags & PTNET_ALL_OFFLOAD) {
-				mhead = virtio_net_tx_offload(ifp, mhead, false,
-							 vh);
+				/*
+				 * Translate the CSUM_* flags in the mbuf to the
+				 * corresponding flags in the VirtIO header.
+				 *
+				 * ptnet does not negotiate ECN and orders the
+				 * bytes in the VirtIO header as if the VirtIO
+				 * modern mode is not used. So, pass false for
+				 * both.
+				 */
+				virtio_net_tx_offload(ifp, &mhead, vh, false,
+				    false);
 				if (unlikely(!mhead)) {
 					/* Packet dropped because errors
 					 * occurred while preparing the vnet
@@ -1842,7 +1851,14 @@ host_sync:
 			}
 		}
 
-		if (unlikely(have_vnet_hdr && virtio_net_rx_csum(mhead, vh))) {
+		/*
+		 * Translate the VirtIO header flags to the corresponding
+		 * CSUM_* flags in the mbuf.
+		 */
+		if (unlikely(have_vnet_hdr &&
+		    ((vh->flags & (VIRTIO_NET_HDR_F_NEEDS_CSUM |
+		      VIRTIO_NET_HDR_F_DATA_VALID)) != 0) &&
+		    (virtio_net_rx_csum(mhead, vh) != 0))) {
 			m_freem(mhead);
 			nm_prlim(1, "Csum offload error: dropping");
 			pq->stats.iqdrops ++;

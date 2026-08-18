@@ -1882,7 +1882,16 @@ tunread(struct cdev *dev, struct uio *uio, int flag)
 
 		bzero(&vhdr, sizeof(vhdr));
 		if (m->m_pkthdr.csum_flags & TAP_ALL_OFFLOAD) {
-			m = virtio_net_tx_offload(ifp, m, false, &vhdr.hdr);
+			/*
+			 * Translate the CSUM_* flags in the mbuf to the
+			 * corresponding flags in the VirtIO header.
+			 *
+			 * Always indicate that ECN has not been negotiated
+			 * and VirtIO modern mode is not used because bhyve
+			 * does not do this.
+			 */
+			virtio_net_tx_offload(ifp, &m, &vhdr.hdr, false,
+			    false);
 		}
 
 		TUNDEBUG(ifp, "txvhdr: f %u, gt %u, hl %u, "
@@ -1927,7 +1936,13 @@ tunwrite_l2(struct tuntap_softc *tp, struct mbuf *m,
 	}
 
 	if (vhdr != NULL) {
-		if (virtio_net_rx_csum(m, &vhdr->hdr)) {
+		/*
+		 * Translate the VirtIO header flags to the corresponding
+		 * CSUM_* flags in the mbuf.
+		 */
+		if (((vhdr->hdr.flags & (VIRTIO_NET_HDR_F_NEEDS_CSUM |
+		      VIRTIO_NET_HDR_F_DATA_VALID)) != 0) &&
+		    (virtio_net_rx_csum(m, &vhdr->hdr) != 0)) {
 			m_freem(m);
 			return (0);
 		}
