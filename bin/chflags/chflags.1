@@ -38,6 +38,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl fhvx
+.Op Fl -dereference-links-unsafely
 .Oo
 .Fl R
 .Op Fl H | Fl L | Fl P
@@ -70,7 +71,8 @@ and hence unaffected by the command.
 If the
 .Ar file
 is a symbolic link,
-change the file flags of the link itself rather than the file to which it points.
+change the file flags of the link itself
+rather than the file to which it points.
 .It Fl L
 If the
 .Fl R
@@ -97,6 +99,21 @@ option is specified more than once, the old and new flags of the file
 will also be printed, in octal notation.
 .It Fl x
 Do not cross mount points.
+.It Fl -dereference-links-unsafely
+By default,
+.Nm
+runs its traversal inside a
+.Xr capsicum 4
+sandbox, which prevents it from following a symbolic link whose
+target lies outside the file hierarchy named on the command line.
+This option disables the sandbox so that such symbolic links are
+followed, restoring historical behavior.
+It is only meaningful together with
+.Fl L
+or the default logical behavior, and should be used with caution,
+as it allows a crafted symbolic link to redirect
+.Nm
+at files outside the intended hierarchy.
 .El
 .Pp
 The flags are specified as an octal number or a comma separated list

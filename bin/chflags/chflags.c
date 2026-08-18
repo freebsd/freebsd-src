@@ -30,19 +30,26 @@
  */
 
 #include <sys/types.h>
+#include <sys/capsicum.h>
 #include <sys/stat.h>
 
+#include <capsicum_helpers.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <fts.h>
+#include <getopt.h>
+#include <limits.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 static volatile sig_atomic_t siginfo;
+
+#define	OPT_DEREF_UNSAFE	(CHAR_MAX + 1)
 
 static void usage(void) __dead2;
 
@@ -53,19 +60,168 @@ siginfo_handler(int sig __unused)
 	siginfo = 1;
 }
 
-int
-main(int argc, char *argv[])
+/*
+ * A path needs its own pre-opened directory descriptor if it is absolute
+ * or contains a ".." component, because those cannot be resolved relative
+ * to the base directory descriptor in capability mode.
+ */
+static bool
+needs_own_fd(const char *path)
+{
+	const char *p;
+
+	if (path[0] == '/')
+		return (true);
+	for (p = path; p != NULL; p = strchr(p, '/')) {
+		if (p[0] == '/')
+			p++;
+		if (p[0] == '.' && p[1] == '.' &&
+		    (p[2] == '\0' || p[2] == '/'))
+			return (true);
+	}
+	return (false);
+}
+
+/*
+ * Open a directory descriptor suitable for resolving "path" relative to
+ * it, and rewrite "*path" to be relative to that descriptor.  For a path
+ * with a directory component, open the parent directory and leave the
+ * final component in "*path".  For a bare name, open ".".
+ */
+static int
+open_base(char **path)
+{
+	char *slash, *dir;
+	int fd;
+
+	slash = strrchr(*path, '/');
+	if (slash == NULL)
+		return (open(".", O_RDONLY | O_DIRECTORY | O_CLOEXEC));
+	if (slash == *path) {
+		/* Path is directly under "/". */
+		fd = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+		*path = slash + 1;
+		return (fd);
+	}
+	dir = strndup(*path, slash - *path);
+	if (dir == NULL)
+		err(1, "strndup");
+	fd = open(dir, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+	free(dir);
+	*path = slash + 1;
+	return (fd);
+}
+
+/*
+ * Traverse the hierarchies in "paths", rooted at the directory descriptor
+ * "dirfd", and apply the flag change to each visited file.  When "capmode"
+ * is set the process has entered capability mode and files are reached
+ * relative to their parent's directory descriptor; otherwise the change is
+ * applied by path relative to the current directory.
+ */
+static int
+chflags_fts(int dirfd, char **paths, int fts_options, bool capmode, u_long set,
+    u_long clear, int oct, int Rflag, int fflag, int vflag)
 {
 	FTS *ftsp;
 	FTSENT *p;
-	u_long clear, newflags, set;
-	long val;
-	int Hflag, Lflag, Rflag, fflag, hflag, vflag, xflag;
-	int ch, e, fts_options, oct, rval;
-	char *flags, *ep;
+	u_long newflags;
+	int e, rval;
 
-	Hflag = Lflag = Rflag = fflag = hflag = vflag = xflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfhvx")) != -1)
+	if ((ftsp = fts_openat(dirfd, paths, fts_options, NULL)) == NULL)
+		err(1, NULL);
+
+	for (rval = 0; errno = 0, (p = fts_read(ftsp)) != NULL;) {
+		int atflag;
+
+		if ((fts_options & FTS_LOGICAL) ||
+		    ((fts_options & FTS_COMFOLLOW) &&
+		    p->fts_level == FTS_ROOTLEVEL))
+			atflag = 0;
+		else
+			atflag = AT_SYMLINK_NOFOLLOW;
+
+		switch (p->fts_info) {
+		case FTS_D:		/* Change it at FTS_DP if we're recursive. */
+			if (!Rflag)
+				fts_set(ftsp, p, FTS_SKIP);
+			continue;
+		case FTS_DNR:			/* Warn, chflags. */
+			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
+			rval = 1;
+			break;
+		case FTS_ERR:			/* Warn, continue. */
+		case FTS_NS:
+			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
+			rval = 1;
+			continue;
+		default:
+			break;
+		}
+		if (oct)
+			newflags = set;
+		else
+			newflags = (p->fts_statp->st_flags | set) & clear;
+		if (newflags == p->fts_statp->st_flags)
+			continue;
+		/*
+		 * In capability mode the file is reached relative to its
+		 * parent's directory descriptor.  Otherwise fall back to
+		 * the accpath, which resolves relative to the current
+		 * directory.
+		 */
+		if (capmode ?
+		    chflagsat(p->fts_parent->fts_dirfd, p->fts_name, newflags,
+		    atflag) == -1 :
+		    chflagsat(AT_FDCWD, p->fts_accpath, newflags, atflag) ==
+		    -1) {
+			e = errno;
+			if (!fflag) {
+				warnc(e, "%s", p->fts_path);
+				rval = 1;
+			}
+			if (siginfo) {
+				(void)printf("%s: %s\n", p->fts_path,
+				    strerror(e));
+				siginfo = 0;
+			}
+		} else if (vflag || siginfo) {
+			(void)printf("%s", p->fts_path);
+			if (vflag > 1 || siginfo)
+				(void)printf(": 0%lo -> 0%lo",
+				    (u_long)p->fts_statp->st_flags,
+				    newflags);
+			(void)printf("\n");
+			siginfo = 0;
+		}
+	}
+	if (errno)
+		err(1, "fts_read");
+	(void)fts_close(ftsp);
+	return (rval);
+}
+
+int
+main(int argc, char *argv[])
+{
+	static const struct option longopts[] = {
+		{ "dereference-links-unsafely", no_argument, NULL,
+		    OPT_DEREF_UNSAFE },
+		{ NULL, 0, NULL, 0 }
+	};
+	u_long clear, set;
+	long val;
+	int Hflag, Lflag, Rflag, fflag, hflag, vflag, xflag, unsafe;
+	int ch, fts_options, oct, rval;
+	int cwd_fd, i, nrel, nown;
+	int *ownfd;
+	char ***ownpath;
+	char *flags, *ep;
+	char **relpaths, **twopath;
+
+	Hflag = Lflag = Rflag = fflag = hflag = vflag = xflag = unsafe = 0;
+	while ((ch = getopt_long(argc, argv, "HLPRfhvx", longopts,
+	    NULL)) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -92,6 +248,9 @@ main(int argc, char *argv[])
 			break;
 		case 'x':
 			xflag = 1;
+			break;
+		case OPT_DEREF_UNSAFE:
+			unsafe = 1;
 			break;
 		case '?':
 		default:
@@ -138,6 +297,7 @@ main(int argc, char *argv[])
 			errx(1, "invalid flags: %s", flags);
 		set = val;
 		oct = 1;
+		clear = 0;
 	} else {
 		if (strtofflags(&flags, &set, &clear))
 			errx(1, "invalid flag: %s", flags);
@@ -145,66 +305,80 @@ main(int argc, char *argv[])
 		oct = 0;
 	}
 
-	if ((ftsp = fts_open(++argv, fts_options , 0)) == NULL)
-		err(1, NULL);
+	argv++;
+	argc--;
 
-	for (rval = 0; errno = 0, (p = fts_read(ftsp)) != NULL;) {
-		int atflag;
+	/*
+	 * With --dereference-links-unsafely the traversal may follow a
+	 * symlink to a file outside the hierarchy named on the command
+	 * line, which capability mode cannot allow.  Keep the historical
+	 * path-based traversal rooted at AT_FDCWD in that case.
+	 */
+	if (unsafe) {
+		rval = chflags_fts(AT_FDCWD, argv, fts_options, false, set,
+		    clear, oct, Rflag, fflag, vflag);
+		exit(rval);
+	}
 
-		if ((fts_options & FTS_LOGICAL) ||
-		    ((fts_options & FTS_COMFOLLOW) &&
-		    p->fts_level == FTS_ROOTLEVEL))
-			atflag = 0;
-		else
-			atflag = AT_SYMLINK_NOFOLLOW;
+	/*
+	 * Pre-open a directory descriptor for every path argument before
+	 * entering capability mode, so the traversal runs entirely through
+	 * fd-relative operations.  Plain relative arguments share a
+	 * descriptor for the current directory; absolute paths and paths
+	 * containing ".." cannot be resolved relative to another descriptor
+	 * in capability mode, so each gets its own parent descriptor.
+	 */
+	if ((cwd_fd = open(".", O_RDONLY | O_DIRECTORY | O_CLOEXEC)) < 0)
+		err(1, ".");
 
-		switch (p->fts_info) {
-		case FTS_D:	/* Change it at FTS_DP if we're recursive. */
-			if (!Rflag)
-				fts_set(ftsp, p, FTS_SKIP);
-			continue;
-		case FTS_DNR:			/* Warn, chflags. */
-			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
-			rval = 1;
-			break;
-		case FTS_ERR:			/* Warn, continue. */
-		case FTS_NS:
-			warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
-			rval = 1;
-			continue;
-		default:
-			break;
-		}
-		if (oct)
-			newflags = set;
-		else
-			newflags = (p->fts_statp->st_flags | set) & clear;
-		if (newflags == p->fts_statp->st_flags)
-			continue;
-		if (chflagsat(AT_FDCWD, p->fts_accpath, newflags,
-		    atflag) == -1) {
-			e = errno;
-			if (!fflag) {
-				warnc(e, "%s", p->fts_path);
+	relpaths = calloc(argc + 1, sizeof(*relpaths));
+	ownfd = calloc(argc, sizeof(*ownfd));
+	ownpath = calloc(argc, sizeof(*ownpath));
+	if (relpaths == NULL || ownfd == NULL || ownpath == NULL)
+		err(1, "calloc");
+	nrel = 0;
+	nown = 0;
+	rval = 0;
+
+	for (i = 0; i < argc; i++) {
+		char *path = argv[i];
+
+		if (needs_own_fd(path)) {
+			int fd = open_base(&path);
+			if (fd < 0) {
+				warn("%s", argv[i]);
 				rval = 1;
+				continue;
 			}
-			if (siginfo) {
-				(void)printf("%s: %s\n", p->fts_path,
-				    strerror(e));
-				siginfo = 0;
-			}
-		} else if (vflag || siginfo) {
-			(void)printf("%s", p->fts_path);
-			if (vflag > 1 || siginfo)
-				(void)printf(": 0%lo -> 0%lo",
-				    (u_long)p->fts_statp->st_flags,
-				    newflags);
-			(void)printf("\n");
-			siginfo = 0;
+			twopath = calloc(2, sizeof(*twopath));
+			if (twopath == NULL)
+				err(1, "calloc");
+			twopath[0] = path;
+			twopath[1] = NULL;
+			ownfd[nown] = fd;
+			ownpath[nown] = twopath;
+			nown++;
+		} else {
+			relpaths[nrel++] = path;
 		}
 	}
-	if (errno)
-		err(1, "fts_read");
+	relpaths[nrel] = NULL;
+
+	if (caph_limit_stdio() < 0)
+		err(1, "caph_limit_stdio");
+	if (caph_enter() < 0)
+		err(1, "cap_enter");
+
+	/* Process all plain relative paths together under cwd_fd. */
+	if (nrel > 0)
+		rval |= chflags_fts(cwd_fd, relpaths, fts_options, true, set,
+		    clear, oct, Rflag, fflag, vflag);
+
+	/* Process each absolute / ".."-containing path under its own fd. */
+	for (i = 0; i < nown; i++)
+		rval |= chflags_fts(ownfd[i], ownpath[i], fts_options, true,
+		    set, clear, oct, Rflag, fflag, vflag);
+
 	exit(rval);
 }
 
@@ -212,6 +386,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: chflags [-fhvx] [-R [-H | -L | -P]] flags file ...\n");
+	    "usage: chflags [-fhvx] [-R [-H | -L | -P]] "
+	    "[--dereference-links-unsafely] flags file ...\n");
 	exit(1);
 }
