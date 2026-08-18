@@ -539,6 +539,11 @@ ice_iov_ready_vf(struct ice_softc *sc, struct ice_vf *vf)
 	struct ice_hw *hw = &sc->hw;
 	u32 reg;
 
+	/* A VF or PF reset discards all queue configuration and state. */
+	vf->txq_configured = 0;
+	vf->rxq_configured = 0;
+	vf->rxq_enabled = 0;
+
 	/* Clear the triggering bit */
 	reg = rd32(hw, VPGEN_VFRTRIG(vf->vf_num));
 	reg &= ~VPGEN_VFRTRIG_VFSWR_M;
@@ -1033,6 +1038,141 @@ done:
 }
 
 /**
+ * ice_vc_validate_queue_select - Validate a VF queue selection
+ * @sc: PF's softc structure
+ * @vf: VF tracking structure
+ * @vqs: queue selection from the VF
+ *
+ * Return true when the VSI ID and both queue masks are valid for the VF.
+ */
+static bool
+ice_vc_validate_queue_select(struct ice_softc *sc, struct ice_vf *vf,
+    const struct virtchnl_queue_select *vqs)
+{
+	struct ice_vsi *vsi = vf->vsi;
+	int bit;
+
+	if (vqs->vsi_id != vsi->idx) {
+		device_printf(sc->dev,
+		    "%s: VF-%d: Message has invalid VSI ID (expected %d, got %d)\n",
+		    __func__, vf->vf_num, vsi->idx, vqs->vsi_id);
+		return (false);
+	}
+	if (vqs->rx_queues == 0 && vqs->tx_queues == 0) {
+		device_printf(sc->dev,
+		    "%s: VF-%d: message queue masks are empty\n",
+		    __func__, vf->vf_num);
+		return (false);
+	}
+
+	bit = fls(vqs->rx_queues);
+	if (bit > vsi->num_rx_queues) {
+		device_printf(sc->dev,
+		    "%s: VF-%d: message's Rx queue map (0x%08x) has invalid bit set (%d)\n",
+		    __func__, vf->vf_num, vqs->rx_queues, bit);
+		return (false);
+	}
+	bit = fls(vqs->tx_queues);
+	if (bit > vsi->num_tx_queues) {
+		device_printf(sc->dev,
+		    "%s: VF-%d: message's Tx queue map (0x%08x) has invalid bit set (%d)\n",
+		    __func__, vf->vf_num, vqs->tx_queues, bit);
+		return (false);
+	}
+
+	return (true);
+}
+
+/**
+ * ice_vc_disable_tx_queue - Disable one configured VF Tx queue
+ * @sc: PF's softc structure
+ * @vf: VF tracking structure
+ * @qid: VF-relative queue ID
+ */
+static int
+ice_vc_disable_tx_queue(struct ice_softc *sc, struct ice_vf *vf, u16 qid)
+{
+	struct ice_vsi *vsi = vf->vsi;
+	struct ice_tx_queue *txq = &vsi->tx_queues[qid];
+	struct ice_hw *hw = &sc->hw;
+	u16 q_handle, q_id;
+	u32 q_teid;
+	int status;
+
+	q_handle = txq->q_handle;
+	q_id = vsi->tx_qmap[qid];
+	q_teid = txq->q_teid;
+	status = ice_dis_vsi_txq(hw->port_info, vsi->idx, txq->tc, 1,
+	    &q_handle, &q_id, &q_teid, ICE_NO_RESET, 0, NULL);
+	if (status != ICE_SUCCESS && status != ICE_ERR_DOES_NOT_EXIST &&
+	    status != ICE_ERR_RESET_ONGOING) {
+		device_printf(sc->dev,
+		    "Failed to disable VF-%d Tx queue %u, err %s aq_err %s\n",
+		    vf->vf_num, qid, ice_status_str(status),
+		    ice_aq_str(hw->adminq.sq_last_status));
+		return (EIO);
+	}
+	txq->q_handle = 0;
+	txq->q_teid = 0;
+
+	return (0);
+}
+
+/**
+ * ice_vc_disable_queues - Disable selected configured VF queues
+ * @sc: PF's softc structure
+ * @vf: VF tracking structure
+ * @tx_queues: VF-relative Tx queue bitmap
+ * @rx_queues: VF-relative Rx queue bitmap
+ *
+ * Queue disable is idempotent. Queues which are not configured or enabled
+ * have no hardware work to perform and are treated as successfully disabled.
+ * Since CONFIG_VSI_QUEUES also enables Tx, disabling a Tx queue removes its
+ * tracked configuration and the VF must configure it before enabling it again.
+ */
+static int
+ice_vc_disable_queues(struct ice_softc *sc, struct ice_vf *vf,
+    u32 tx_queues, u32 rx_queues)
+{
+	struct ice_vsi *vsi = vf->vsi;
+	u32 queues;
+	int bit, error;
+
+	queues = rx_queues & vf->rxq_enabled;
+	while (queues != 0) {
+		bit = ffs(queues) - 1;
+		error = ice_control_rx_queue(vsi, bit, false);
+		if (error != 0) {
+			device_printf(sc->dev,
+			    "Unable to disable VF-%d Rx queue %d: %s\n",
+			    vf->vf_num, bit, ice_err_str(error));
+			return (error);
+		}
+		vf->rxq_enabled &= ~BIT(bit);
+		queues &= ~BIT(bit);
+	}
+
+	queues = tx_queues & vf->txq_configured;
+	if (queues == vf->txq_configured && queues != 0) {
+		error = ice_vsi_disable_tx(vsi);
+		if (error != 0)
+			return (error);
+		vf->txq_configured = 0;
+		return (0);
+	}
+	while (queues != 0) {
+		bit = ffs(queues) - 1;
+		error = ice_vc_disable_tx_queue(sc, vf, bit);
+		if (error != 0)
+			return (error);
+		vf->txq_configured &= ~BIT(bit);
+		queues &= ~BIT(bit);
+	}
+
+	return (0);
+}
+
+/**
  * ice_vc_validate_ring_len - Check to see if a descriptor ring length is valid
  * @ring_len: length of ring
  *
@@ -1065,18 +1205,55 @@ ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	struct ice_vsi *vsi = vf->vsi;
 	struct ice_tx_queue *txq;
 	struct ice_rx_queue *rxq;
+	u32 expected_map, queue_map;
 	int i, error = 0;
 
 	vqci = (struct virtchnl_vsi_queue_config_info *)msg_buf;
 
-	if (vqci->num_queue_pairs > vf->vsi->num_tx_queues &&
-	    vqci->num_queue_pairs > vf->vsi->num_rx_queues) {
+	if (vqci->num_queue_pairs > sizeof(queue_map) * NBBY ||
+	    vqci->num_queue_pairs > vsi->num_tx_queues ||
+	    vqci->num_queue_pairs > vsi->num_rx_queues) {
 		status = VIRTCHNL_STATUS_ERR_PARAM;
 		goto done;
 	}
 
-	ice_vsi_disable_tx(vf->vsi);
-	ice_control_all_rx_queues(vf->vsi, false);
+	queue_map = 0;
+	vqpi = vqci->qpair;
+	for (i = 0; i < vqci->num_queue_pairs; i++, vqpi++) {
+		if (vqpi->txq.vsi_id != vsi->idx ||
+		    vqpi->rxq.vsi_id != vsi->idx ||
+		    vqpi->txq.queue_id != vqpi->rxq.queue_id ||
+		    vqpi->txq.queue_id >= vsi->num_tx_queues ||
+		    vqpi->rxq.queue_id >= vsi->num_rx_queues ||
+		    (queue_map & BIT(vqpi->txq.queue_id)) != 0 ||
+		    vqpi->txq.headwb_enabled ||
+		    vqpi->rxq.splithdr_enabled ||
+		    vqpi->rxq.crc_disable ||
+		    !ice_vc_isvalid_ring_len(vqpi->txq.ring_len) ||
+		    !ice_vc_isvalid_ring_len(vqpi->rxq.ring_len)) {
+			status = VIRTCHNL_STATUS_ERR_PARAM;
+			goto done;
+		}
+		queue_map |= BIT(vqpi->txq.queue_id);
+	}
+	if (vqci->num_queue_pairs == sizeof(queue_map) * NBBY)
+		expected_map = ~0U;
+	else
+		expected_map = BIT(vqci->num_queue_pairs) - 1;
+	if (queue_map != expected_map) {
+		status = VIRTCHNL_STATUS_ERR_PARAM;
+		goto done;
+	}
+
+	error = ice_vc_disable_queues(sc, vf, vf->txq_configured,
+	    vf->rxq_enabled);
+	if (error != 0) {
+		status = VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR;
+		goto done;
+	}
+	vf->txq_configured = 0;
+	vf->rxq_configured = 0;
+	vf->rxq_enabled = 0;
 
 	/*
 	 * Clear TX and RX queues config in case VF
@@ -1087,6 +1264,8 @@ ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 
 		txq->desc_count = 0;
 		txq->tx_paddr = 0;
+		txq->q_teid = 0;
+		txq->q_handle = 0;
 		txq->tc = 0;
 	}
 
@@ -1099,19 +1278,6 @@ ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 
 	vqpi = vqci->qpair;
 	for (i = 0; i < vqci->num_queue_pairs; i++, vqpi++) {
-		/* Initial parameter validation */
-		if (vqpi->txq.vsi_id != vf->vsi->idx ||
-		    vqpi->rxq.vsi_id != vf->vsi->idx ||
-		    vqpi->txq.queue_id != vqpi->rxq.queue_id ||
-		    vqpi->txq.headwb_enabled ||
-		    vqpi->rxq.splithdr_enabled ||
-		    vqpi->rxq.crc_disable ||
-		    !(ice_vc_isvalid_ring_len(vqpi->txq.ring_len)) ||
-		    !(ice_vc_isvalid_ring_len(vqpi->rxq.ring_len))) {
-			status = VIRTCHNL_STATUS_ERR_PARAM;
-			goto done;
-		}
-
 		/* Copy parameters into VF's queue/VSI structs */
 		txq = &vsi->tx_queues[vqpi->txq.queue_id];
 
@@ -1128,12 +1294,20 @@ ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	}
 
 	/* Configure TX queues in HW */
+	/*
+	 * Record the intended map before programming hardware so a partial
+	 * firmware failure remains discoverable and can be cleaned up by the
+	 * next configuration attempt.
+	 */
+	vf->txq_configured = queue_map;
 	error = ice_cfg_vsi_for_tx(vsi);
 	if (error) {
 		device_printf(dev,
 			      "VF-%d: Unable to configure VSI for Tx: %s\n",
 			      vf->vf_num, ice_err_str(error));
 		status = VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR;
+		if (ice_vsi_disable_tx(vsi) == 0)
+			vf->txq_configured = 0;
 		goto done;
 	}
 
@@ -1144,9 +1318,10 @@ ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 			      "VF-%d: Unable to configure VSI for Rx: %s\n",
 			      vf->vf_num, ice_err_str(error));
 		status = VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR;
-		ice_vsi_disable_tx(vsi);
+		(void)ice_vc_disable_queues(sc, vf, vf->txq_configured, 0);
 		goto done;
 	}
+	vf->rxq_configured = queue_map;
 
 done:
 	ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_CONFIG_VSI_QUEUES,
@@ -1327,47 +1502,41 @@ ice_vc_enable_queues_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	struct virtchnl_queue_select *vqs;
 	enum virtchnl_status_code v_status = VIRTCHNL_STATUS_SUCCESS;
 	struct ice_vsi *vsi = vf->vsi;
-	int bit, error = 0;
+	u32 queues;
+	int bit, error;
 
 	vqs = (struct virtchnl_queue_select *)msg_buf;
 
-	if (vqs->vsi_id != vsi->idx) {
+	if (!ice_vc_validate_queue_select(sc, vf, vqs)) {
+		v_status = VIRTCHNL_STATUS_ERR_PARAM;
+		goto done;
+	}
+	if ((vqs->tx_queues & ~vf->txq_configured) != 0 ||
+	    (vqs->rx_queues & ~vf->rxq_configured) != 0) {
 		device_printf(sc->dev,
-		    "%s: VF-%d: Message has invalid VSI ID (expected %d, got %d)\n",
-		    __func__, vf->vf_num, vsi->idx, vqs->vsi_id);
+		    "%s: VF-%d: cannot enable unconfigured queues "
+		    "(Tx 0x%08x, Rx 0x%08x)\n",
+		    __func__, vf->vf_num, vqs->tx_queues,
+		    vqs->rx_queues);
 		v_status = VIRTCHNL_STATUS_ERR_PARAM;
 		goto done;
 	}
 
-	if (!vqs->rx_queues && !vqs->tx_queues) {
-		device_printf(sc->dev,
-		    "%s: VF-%d: message queue masks are empty\n",
-		    __func__, vf->vf_num);
-		v_status = VIRTCHNL_STATUS_ERR_PARAM;
-		goto done;
-	}
-
-	/* Validate rx_queue mask */
-	bit = fls(vqs->rx_queues);
-	if (bit > vsi->num_rx_queues) {
-		device_printf(sc->dev,
-		    "%s: VF-%d: message's rx_queues map (0x%08x) has invalid bit set (%d)\n",
-		    __func__, vf->vf_num, vqs->rx_queues, bit);
-		v_status = VIRTCHNL_STATUS_ERR_PARAM;
-		goto done;
-	}
-
-	/* Tx ring enable is handled in an earlier message. */
-	for_each_set_bit(bit, &vqs->rx_queues, 32) {
+	queues = vqs->rx_queues & ~vf->rxq_enabled;
+	while (queues != 0) {
+		bit = ffs(queues) - 1;
 		error = ice_control_rx_queue(vsi, bit, true);
 		if (error) {
 			device_printf(sc->dev,
-				      "Unable to enable Rx ring %d for receive: %s\n",
-				      bit, ice_err_str(error));
+			    "Unable to enable VF-%d Rx queue %d: %s\n",
+			    vf->vf_num, bit, ice_err_str(error));
 			v_status = VIRTCHNL_STATUS_ERR_PARAM;
 			goto done;
 		}
+		vf->rxq_enabled |= BIT(bit);
+		queues &= ~BIT(bit);
 	}
+	/* Tx queues were enabled when their contexts were configured. */
 
 done:
 	ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_ENABLE_QUEUES,
@@ -1380,34 +1549,27 @@ done:
  * @vf: VF tracking structure
  * @msg_buf: message buffer from VF
  *
- * Disables all VF queues for the VF's VSI.
- *
- * @remark Unlike the ENABLE_QUEUES handler, this operates on both
- * Tx and Rx queues
+ * Disables the selected VF Tx and Rx queues. Repeated requests for queues
+ * which are already disabled complete successfully without touching hardware.
  */
 static void
 ice_vc_disable_queues_msg(struct ice_softc *sc, struct ice_vf *vf,
-			  u8 *msg_buf __unused)
+			  u8 *msg_buf)
 {
 	struct ice_hw *hw = &sc->hw;
+	struct virtchnl_queue_select *vqs;
 	enum virtchnl_status_code v_status = VIRTCHNL_STATUS_SUCCESS;
-	struct ice_vsi *vsi = vf->vsi;
-	int error = 0;
+	int error;
 
-	error = ice_control_all_rx_queues(vsi, false);
-	if (error) {
-		device_printf(sc->dev,
-			      "Unable to disable Rx rings for transmit: %s\n",
-			      ice_err_str(error));
+	vqs = (struct virtchnl_queue_select *)msg_buf;
+	if (!ice_vc_validate_queue_select(sc, vf, vqs)) {
 		v_status = VIRTCHNL_STATUS_ERR_PARAM;
 		goto done;
 	}
-
-	error = ice_vsi_disable_tx(vsi);
-	if (error) {
-		/* Already prints an error message */
-		v_status = VIRTCHNL_STATUS_ERR_PARAM;
-	}
+	error = ice_vc_disable_queues(sc, vf, vqs->tx_queues,
+	    vqs->rx_queues);
+	if (error != 0)
+		v_status = VIRTCHNL_STATUS_ERR_ADMIN_QUEUE_ERROR;
 
 done:
 	ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_DISABLE_QUEUES,
