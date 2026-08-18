@@ -109,21 +109,23 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
 	if (error != 0) {
 		ufshci_printf(ctrlr, "request cmd desc tag create failed %d\n",
 		    error);
-		goto out;
+		return (error);
 	}
 
-	if (bus_dmamem_alloc(req_queue->dma_tag_ucd, (void **)&ucdmem,
-		BUS_DMA_COHERENT | BUS_DMA_NOWAIT, &req_queue->ucdmem_map)) {
+	error = bus_dmamem_alloc(req_queue->dma_tag_ucd, (void **)&ucdmem,
+	    BUS_DMA_COHERENT | BUS_DMA_NOWAIT, &req_queue->ucdmem_map);
+	if (error != 0) {
 		ufshci_printf(ctrlr, "failed to allocate cmd desc memory\n");
-		goto out;
+		return (error);
 	}
 
-	if (bus_dmamap_load(req_queue->dma_tag_ucd, req_queue->ucdmem_map,
-		ucdmem, ucd_allocsz, ufshci_ucd_map, hwq, 0) != 0) {
+	error = bus_dmamap_load(req_queue->dma_tag_ucd, req_queue->ucdmem_map,
+	    ucdmem, ucd_allocsz, ufshci_ucd_map, hwq, 0);
+	if (error != 0) {
 		ufshci_printf(ctrlr, "failed to load cmd desc memory\n");
 		bus_dmamem_free(req_queue->dma_tag_ucd, ucdmem,
 		    req_queue->ucdmem_map);
-		goto out;
+		return (error);
 	}
 
 	req_queue->ucd = (struct ufshci_utp_cmd_desc *)ucdmem;
@@ -139,7 +141,7 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
 	if (error != 0) {
 		ufshci_printf(ctrlr, "request prdt tag create failed %d\n",
 		    error);
-		goto out;
+		return (error);
 	}
 
 	for (i = 0; i < req_queue->num_trackers; i++) {
@@ -148,7 +150,7 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
 		if (error != 0) {
 			ufshci_printf(ctrlr,
 			    "request payload map create failed %d\n", error);
-			goto out;
+			return (error);
 		}
 
 		hwq->act_tr[i]->ucd = (struct ufshci_utp_cmd_desc *)ucdmem;
@@ -158,8 +160,6 @@ ufshci_req_sdb_cmd_desc_construct(struct ufshci_req_queue *req_queue,
 	}
 
 	return (0);
-out:
-	return (ENOMEM);
 }
 
 int
@@ -227,15 +227,17 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 		goto out;
 	}
 
-	if (bus_dmamem_alloc(hwq->dma_tag_queue, (void **)&queuemem,
-		BUS_DMA_COHERENT | BUS_DMA_NOWAIT, &hwq->queuemem_map)) {
+	error = bus_dmamem_alloc(hwq->dma_tag_queue, (void **)&queuemem,
+	    BUS_DMA_COHERENT | BUS_DMA_NOWAIT, &hwq->queuemem_map);
+	if (error != 0) {
 		ufshci_printf(ctrlr,
 		    "failed to allocate request queue memory\n");
 		goto out;
 	}
 
-	if (bus_dmamap_load(hwq->dma_tag_queue, hwq->queuemem_map, queuemem,
-		alloc_size, ufshci_single_map, &queuemem_phys, 0) != 0) {
+	error = bus_dmamap_load(hwq->dma_tag_queue, hwq->queuemem_map, queuemem,
+	    alloc_size, ufshci_single_map, &queuemem_phys, 0);
+	if (error != 0) {
 		ufshci_printf(ctrlr, "failed to load request queue memory\n");
 		bus_dmamem_free(hwq->dma_tag_queue, queuemem,
 		    hwq->queuemem_map);
@@ -289,8 +291,9 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 		 * UTP Transfer Request (UTR) requires memory for a separate
 		 * command in addition to the queue.
 		 */
-		if (ufshci_req_sdb_cmd_desc_construct(req_queue, num_entries,
-			ctrlr) != 0) {
+		error = ufshci_req_sdb_cmd_desc_construct(req_queue,
+		    num_entries, ctrlr);
+		if (error != 0) {
 			ufshci_printf(ctrlr,
 			    "failed to construct cmd descriptor memory\n");
 			goto out;
@@ -305,7 +308,7 @@ ufshci_req_sdb_construct(struct ufshci_controller *ctrlr,
 	return (0);
 out:
 	ufshci_req_sdb_destroy(ctrlr, req_queue);
-	return (ENOMEM);
+	return (error);
 }
 
 void
