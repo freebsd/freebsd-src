@@ -885,7 +885,8 @@ ATF_TC_BODY(bitstr_large, tc)
 	ATF_REQUIRE(bitstr_size(nbits) >= nbits / 8);
 
 	/* Allocate the bit string */
-	ATF_REQUIRE(b = bit_alloc(nbits));
+	b = bit_alloc(nbits);
+	ATF_REQUIRE(b != NULL);
 
 	/* Check that we allocated enough */
 	ATF_REQUIRE(malloc_usable_size(b) >= bitstr_size(nbits));
