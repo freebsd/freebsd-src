@@ -72,6 +72,13 @@
 
 #include "ice_rss.h"
 
+enum ice_mdd_source_bits {
+	ICE_MDD_TX_PQM			= BIT(0),
+	ICE_MDD_TX_TCLAN		= BIT(1),
+	ICE_MDD_TX_TDPU			= BIT(2),
+	ICE_MDD_RX			= BIT(3),
+};
+
 /* Hide debug sysctls unless INVARIANTS is enabled */
 #ifdef INVARIANTS
 #define ICE_CTLFLAG_DEBUG 0
@@ -121,6 +128,11 @@ extern bool ice_enable_tx_lldp_filter;
 
 /* global sysctl indicating whether FW health status events should be enabled */
 extern bool ice_enable_health_events;
+
+#ifdef PCI_IOV
+/* reconstruct and release a VF automatically after an MDD reset */
+extern bool ice_mdd_auto_reset_vf;
+#endif
 
 /* global sysctl indicating whether to enable 5-layer scheduler topology */
 extern bool ice_tx_balance_en;

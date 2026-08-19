@@ -32,7 +32,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 27, 2026
+.Dd September 5, 2026
 .Dt ICE 4
 .Os
 .Sh NAME
@@ -46,6 +46,7 @@ In
 .Xr loader.conf 5 :
 .Cd if_ice_load
 .Cd hw.ice.enable_health_events
+.Cd hw.ice.mdd_auto_reset_vf
 .Cd hw.ice.irdma
 .Cd hw.ice.irdma_max_msix
 .Cd hw.ice.debug.enable_tx_fc_filter
@@ -1039,6 +1040,18 @@ Enabled by default.
 If enabled, when the driver receives a firmware health event message, it will
 print out a description of the event to the kernel message buffer and if
 applicable, possible actions to take to remedy it.
+.It Va hw.ice.mdd_auto_reset_vf
+Automatically reconstruct and release a VF after malicious-driver detection
+resets it.
+This is disabled by default so a non-cooperative VF is reset without restoring
+its queues and remains unable to issue traffic until an externally initiated
+VF function-level reset, PF reset, or SR-IOV configuration recreation
+reconstructs it.
+Enabling this tunable favors availability but allows a persistently faulty or
+hostile VF to resume after each reset.
+An individual PF can override the global setting with the
+.Va dev.ice.#.mdd_auto_reset_vf
+loader tunable.
 .It Va hw.ice.irdma
 Set to 1 to enable the RDMA client interface, required by the
 .Xr irdma 4

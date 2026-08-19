@@ -351,6 +351,7 @@ struct ice_softc {
 #ifdef PCI_IOV
 	struct ice_vf *vfs;
 	u16 num_vfs;
+	bool mdd_auto_reset_vf;
 #endif
 	struct ice_resmgr os_imgr;
 	/* For mirror interface */

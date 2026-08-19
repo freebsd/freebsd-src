@@ -59,6 +59,8 @@ static int ice_iov_configure_mac_anti_spoof(struct ice_softc *sc,
 static int ice_iov_restore_vf_host_config(struct ice_softc *sc,
     struct ice_vf *vf);
 static void ice_iov_clear_vf_queue_state(struct ice_vf *vf);
+static void ice_iov_complete_vf_reset(struct ice_softc *sc,
+    struct ice_vf *vf, bool restore_mapping);
 static void ice_iov_ready_vf(struct ice_softc *sc, struct ice_vf *vf);
 static int ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf,
 			bool trigger_reset, bool release_vf);
@@ -703,6 +705,117 @@ ice_iov_handle_vflr(struct ice_softc *sc)
 }
 
 /**
+ * ice_iov_handle_mdd - Attribute malicious-driver events to VFs
+ * @sc: device softc structure
+ *
+ * Consume every per-VF MDD latch. Block further virtchnl requests and reset a
+ * newly blocked VF without restoring its queues, so even event classes which
+ * only drop the offending packet cannot continue traffic. An optional policy
+ * reconstructs and releases the VF immediately instead.
+ *
+ * @returns a mask of enum ice_mdd_source_bits attributed to configured or
+ * unconfigured VFs of this PF.
+ */
+u32
+ice_iov_handle_mdd(struct ice_softc *sc)
+{
+	static const struct timeval log_interval = { 2, 0 };
+	struct ice_hw *hw = &sc->hw;
+	struct virtchnl_pf_event event = {};
+	struct ice_vf *vf;
+	u32 reg, sources, vf_sources, tx_events, rx_events, vf_flags;
+	bool newly_blocked;
+	int error;
+
+	event.event = VIRTCHNL_EVENT_RESET_IMPENDING;
+	event.severity = PF_EVENT_SEVERITY_CERTAIN_DOOM;
+	vf_sources = 0;
+	for (int i = 0; i < sc->num_vfs; i++) {
+		vf = &sc->vfs[i];
+		sources = 0;
+		tx_events = 0;
+		rx_events = 0;
+
+		reg = rd32(hw, VP_MDET_TX_PQM(vf->vf_num));
+		if ((reg & VP_MDET_TX_PQM_VALID_M) != 0) {
+			wr32(hw, VP_MDET_TX_PQM(vf->vf_num), 0xffff);
+			sources |= ICE_MDD_TX_PQM;
+			tx_events++;
+		}
+		reg = rd32(hw, VP_MDET_TX_TCLAN(vf->vf_num));
+		if ((reg & VP_MDET_TX_TCLAN_VALID_M) != 0) {
+			wr32(hw, VP_MDET_TX_TCLAN(vf->vf_num), 0xffff);
+			sources |= ICE_MDD_TX_TCLAN;
+			tx_events++;
+		}
+		reg = rd32(hw, VP_MDET_TX_TDPU(vf->vf_num));
+		if ((reg & VP_MDET_TX_TDPU_VALID_M) != 0) {
+			wr32(hw, VP_MDET_TX_TDPU(vf->vf_num), 0xffff);
+			sources |= ICE_MDD_TX_TDPU;
+			tx_events++;
+		}
+		reg = rd32(hw, VP_MDET_RX(vf->vf_num));
+		if ((reg & VP_MDET_RX_VALID_M) != 0) {
+			wr32(hw, VP_MDET_RX(vf->vf_num), 0xffff);
+			sources |= ICE_MDD_RX;
+			rx_events++;
+		}
+		if (tx_events == 0 && rx_events == 0)
+			continue;
+		vf_sources |= sources;
+
+		vf_flags = atomic_load_acq_32(&vf->vf_flags);
+		if ((vf_flags & VF_FLAG_ENABLED) == 0 || vf->vsi == NULL)
+			continue;
+		vf->mdd_tx_events += tx_events;
+		vf->mdd_rx_events += rx_events;
+		newly_blocked = (vf_flags & VF_FLAG_MDD_BLOCKED) == 0;
+		atomic_set_32(&vf->vf_flags, VF_FLAG_MDD_BLOCKED);
+
+		if (ratecheck(&vf->last_mdd_log, &log_interval)) {
+			device_printf(sc->dev,
+			    "malicious-driver event from VF-%d "
+			    "(tx %ju, rx %ju); %s\n", vf->vf_num,
+			    (uintmax_t)vf->mdd_tx_events,
+			    (uintmax_t)vf->mdd_rx_events,
+			    sc->mdd_auto_reset_vf && newly_blocked ?
+			    "resetting VF" : "VF remains blocked");
+		}
+		if (!newly_blocked)
+			continue;
+
+		/* Ignore notification failure; reset does not require VF help. */
+		if (sc->mdd_auto_reset_vf &&
+		    (vf_flags & VF_FLAG_INITIALIZED) != 0 &&
+		    ice_check_sq_alive(hw, &hw->mailboxq)) {
+			(void)ice_aq_send_msg_to_vf(hw, vf->vf_num,
+			    VIRTCHNL_OP_EVENT, VIRTCHNL_STATUS_SUCCESS,
+			    (u8 *)&event, sizeof(event), NULL);
+		}
+		/*
+		 * TDPU MDD drops only the offending packet. Reset the entire VF so
+		 * the software blocked state always means that traffic is actually
+		 * fenced. The opt-in policy reconstructs its queues immediately.
+		 */
+		error = ice_reset_vf(sc, vf, true, sc->mdd_auto_reset_vf);
+		if (error != 0) {
+			device_printf(sc->dev,
+			    "failed to quiesce MDD-blocked VF-%d: %d\n",
+			    vf->vf_num, error);
+		} else if (!sc->mdd_auto_reset_vf) {
+			/*
+			 * Complete VFR without restoring queues. This leaves the VF
+			 * inactive and DMA-fenced, but permits a later physical FLR to
+			 * create a new reset edge and recover it.
+			 */
+			ice_iov_complete_vf_reset(sc, vf, false);
+		}
+	}
+	ice_flush(hw);
+	return (vf_sources);
+}
+
+/**
  * ice_iov_notify_vfs_reset - Notify initialized VFs of an impending reset
  * @sc: device softc structure
  *
@@ -745,6 +858,54 @@ ice_iov_clear_vf_queue_state(struct ice_vf *vf)
 }
 
 /**
+ * ice_iov_clear_vf_mdd - Clear hardware MDD latches for a reset VF
+ * @sc: device softc structure
+ * @vf: driver's VF structure for the VF to update
+ *
+ * Function reset can generate a spurious anti-spoof MDD indication. Consume
+ * all per-VF latches before releasing reset so it cannot re-block a VF which
+ * has just been reconstructed successfully.
+ */
+static void
+ice_iov_clear_vf_mdd(struct ice_softc *sc, struct ice_vf *vf)
+{
+	struct ice_hw *hw = &sc->hw;
+
+	wr32(hw, VP_MDET_TX_PQM(vf->vf_num), 0xffff);
+	wr32(hw, VP_MDET_TX_TCLAN(vf->vf_num), 0xffff);
+	wr32(hw, VP_MDET_TX_TDPU(vf->vf_num), 0xffff);
+	wr32(hw, VP_MDET_RX(vf->vf_num), 0xffff);
+	ice_flush(hw);
+}
+
+/**
+ * ice_iov_complete_vf_reset - Complete a VF reset
+ * @sc: device softc structure
+ * @vf: driver's VF structure for the VF to update
+ * @restore_mapping: restore the VF queue and interrupt mappings
+ *
+ * Clear VFSWR after the hardware drain, optionally restore the VF mappings,
+ * and then publish VFACTIVE. The mapping registers do not retain writes made
+ * while VFSWR remains asserted. Callers may instead leave a software-blocked
+ * VF with no queue or interrupt mappings.
+ */
+static void
+ice_iov_complete_vf_reset(struct ice_softc *sc, struct ice_vf *vf,
+    bool restore_mapping)
+{
+	struct ice_hw *hw = &sc->hw;
+	u32 reg;
+
+	reg = rd32(hw, VPGEN_VFRTRIG(vf->vf_num));
+	reg &= ~VPGEN_VFRTRIG_VFSWR_M;
+	wr32(hw, VPGEN_VFRTRIG(vf->vf_num), reg);
+	if (restore_mapping)
+		ice_iov_setup_intr_mapping(sc, vf);
+	wr32(hw, VFGEN_RSTAT(vf->vf_num), VIRTCHNL_VFR_VFACTIVE);
+	ice_flush(hw);
+}
+
+/**
  * ice_iov_ready_vf - Setup VF interrupts and mark it as ready
  * @sc: device softc structure
  * @vf: driver's VF structure for the VF to update
@@ -756,24 +917,12 @@ ice_iov_clear_vf_queue_state(struct ice_vf *vf)
 static void
 ice_iov_ready_vf(struct ice_softc *sc, struct ice_vf *vf)
 {
-	struct ice_hw *hw = &sc->hw;
-	u32 reg;
-
 	/* A VF or PF reset discards all queue configuration and state. */
 	ice_iov_clear_vf_queue_state(vf);
+	ice_iov_clear_vf_mdd(sc, vf);
+	atomic_clear_32(&vf->vf_flags, VF_FLAG_MDD_BLOCKED);
 
-	/* Clear the triggering bit */
-	reg = rd32(hw, VPGEN_VFRTRIG(vf->vf_num));
-	reg &= ~VPGEN_VFRTRIG_VFSWR_M;
-	wr32(hw, VPGEN_VFRTRIG(vf->vf_num), reg);
-
-	/* Setup VF interrupt allocation and mapping */
-	ice_iov_setup_intr_mapping(sc, vf);
-
-	/* Indicate to the VF that reset is done */
-	wr32(hw, VFGEN_RSTAT(vf->vf_num), VIRTCHNL_VFR_VFACTIVE);
-
-	ice_flush(hw);
+	ice_iov_complete_vf_reset(sc, vf, true);
 }
 
 /**
@@ -983,6 +1132,8 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_reset,
 	}
 
 	if (!release_vf) {
+		/* Discard any anti-spoof MDD indication caused by the reset. */
+		ice_iov_clear_vf_mdd(sc, vf);
 		atomic_clear_32(&vf->vf_flags, VF_FLAG_RESET_FAILED);
 		return (0);
 	}
@@ -2598,6 +2749,9 @@ ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event)
 
 	vf_flags = atomic_load_acq_32(&vf->vf_flags);
 	if ((vf_flags & VF_FLAG_ENABLED) == 0 || vf->vsi == NULL)
+		return;
+	/* Only a reset outside this dispatcher may release an MDD-blocked VF. */
+	if ((vf_flags & VF_FLAG_MDD_BLOCKED) != 0)
 		return;
 
 	/*

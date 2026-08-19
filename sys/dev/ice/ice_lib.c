@@ -5968,6 +5968,13 @@ ice_add_device_tunables(struct ice_softc *sc)
 			CTLFLAG_RDTUN, &sc->enable_health_events, 0,
 			"Enable FW health event reporting for this PF");
 
+#ifdef PCI_IOV
+	sc->mdd_auto_reset_vf = ice_mdd_auto_reset_vf;
+	SYSCTL_ADD_BOOL(ctx, ctx_list, OID_AUTO, "mdd_auto_reset_vf",
+	    CTLFLAG_RDTUN, &sc->mdd_auto_reset_vf, 0,
+	    "Automatically restore VFs after an MDD reset");
+#endif
+
 	/* Add a node to track VSI sysctls. Keep track of the node in the
 	 * softc so that we can hook other sysctls into it later. This
 	 * includes both the VSI statistics, as well as potentially dynamic
@@ -8395,11 +8402,22 @@ ice_init_link_events(struct ice_softc *sc)
 	return (0);
 }
 
-#ifndef GL_MDET_TX_TCLAN
-/* Temporarily use this redefinition until the definition is fixed */
-#define GL_MDET_TX_TCLAN	E800_GL_MDET_TX_TCLAN
-#define PF_MDET_TX_TCLAN	E800_PF_MDET_TX_TCLAN
-#endif /* !defined(GL_MDET_TX_TCLAN) */
+static u32
+ice_gl_mdet_tx_tclan(struct ice_hw *hw)
+{
+
+	return (ice_is_e830(hw) ? E830_GL_MDET_TX_TCLAN :
+	    GL_MDET_TX_TCLAN);
+}
+
+static u32
+ice_pf_mdet_tx_tclan(struct ice_hw *hw)
+{
+
+	return (ice_is_e830(hw) ? E830_PF_MDET_TX_TCLAN :
+	    PF_MDET_TX_TCLAN);
+}
+
 /**
  * ice_handle_mdd_event - Handle possibly malicious events
  * @sc: the device softc
@@ -8412,98 +8430,143 @@ void
 ice_handle_mdd_event(struct ice_softc *sc)
 {
 	struct ice_hw *hw = &sc->hw;
-	bool mdd_detected = false, request_reinit = false;
 	device_t dev = sc->dev;
-	u32 reg;
+	u32 pf_sources, reg, tclan_reg, vf_sources;
+	bool request_reinit;
 
 	if (!ice_testandclear_state(&sc->state, ICE_STATE_MDD_PENDING))
 		return;
 
-	reg = rd32(hw, GL_MDET_TX_TCLAN);
+	pf_sources = 0;
+	vf_sources = 0;
+	tclan_reg = ice_gl_mdet_tx_tclan(hw);
+	reg = rd32(hw, tclan_reg);
 	if (reg & GL_MDET_TX_TCLAN_VALID_M) {
-		u8 pf_num  = (reg & GL_MDET_TX_TCLAN_PF_NUM_M) >> GL_MDET_TX_TCLAN_PF_NUM_S;
-		u16 vf_num = (reg & GL_MDET_TX_TCLAN_VF_NUM_M) >> GL_MDET_TX_TCLAN_VF_NUM_S;
-		u8 event   = (reg & GL_MDET_TX_TCLAN_MAL_TYPE_M) >> GL_MDET_TX_TCLAN_MAL_TYPE_S;
-		u16 queue  = (reg & GL_MDET_TX_TCLAN_QNUM_M) >> GL_MDET_TX_TCLAN_QNUM_S;
+		u8 pf_num = (reg & GL_MDET_TX_TCLAN_PF_NUM_M) >>
+		    GL_MDET_TX_TCLAN_PF_NUM_S;
+		u16 vf_num = (reg & GL_MDET_TX_TCLAN_VF_NUM_M) >>
+		    GL_MDET_TX_TCLAN_VF_NUM_S;
+		u8 event = (reg & GL_MDET_TX_TCLAN_MAL_TYPE_M) >>
+		    GL_MDET_TX_TCLAN_MAL_TYPE_S;
+		u16 queue = (reg & GL_MDET_TX_TCLAN_QNUM_M) >>
+		    GL_MDET_TX_TCLAN_QNUM_S;
 
-		device_printf(dev, "Malicious Driver Detection Tx Descriptor check event '%s' on Tx queue %u PF# %u VF# %u\n",
-			      ice_mdd_tx_tclan_str(event), queue, pf_num, vf_num);
+		device_printf(dev,
+		    "malicious-driver Tx descriptor event '%s' on queue %u, "
+		    "PF %u, VF %u\n", ice_mdd_tx_tclan_str(event), queue,
+		    pf_num, vf_num);
 
 		/* Only clear this event if it matches this PF, that way other
 		 * PFs can read the event and determine VF and queue number.
 		 */
 		if (pf_num == hw->pf_id)
-			wr32(hw, GL_MDET_TX_TCLAN, 0xffffffff);
-
-		mdd_detected = true;
+			wr32(hw, tclan_reg, 0xffffffff);
 	}
 
 	/* Determine what triggered the MDD event */
 	reg = rd32(hw, GL_MDET_TX_PQM);
 	if (reg & GL_MDET_TX_PQM_VALID_M) {
-		u8 pf_num  = (reg & GL_MDET_TX_PQM_PF_NUM_M) >> GL_MDET_TX_PQM_PF_NUM_S;
-		u16 vf_num = (reg & GL_MDET_TX_PQM_VF_NUM_M) >> GL_MDET_TX_PQM_VF_NUM_S;
-		u8 event   = (reg & GL_MDET_TX_PQM_MAL_TYPE_M) >> GL_MDET_TX_PQM_MAL_TYPE_S;
-		u16 queue  = (reg & GL_MDET_TX_PQM_QNUM_M) >> GL_MDET_TX_PQM_QNUM_S;
+		u8 pf_num = (reg & GL_MDET_TX_PQM_PF_NUM_M) >>
+		    GL_MDET_TX_PQM_PF_NUM_S;
+		u16 vf_num = (reg & GL_MDET_TX_PQM_VF_NUM_M) >>
+		    GL_MDET_TX_PQM_VF_NUM_S;
+		u8 event = (reg & GL_MDET_TX_PQM_MAL_TYPE_M) >>
+		    GL_MDET_TX_PQM_MAL_TYPE_S;
+		u16 queue = (reg & GL_MDET_TX_PQM_QNUM_M) >>
+		    GL_MDET_TX_PQM_QNUM_S;
 
-		device_printf(dev, "Malicious Driver Detection Tx Quanta check event '%s' on Tx queue %u PF# %u VF# %u\n",
-			      ice_mdd_tx_pqm_str(event), queue, pf_num, vf_num);
+		device_printf(dev,
+		    "malicious-driver Tx quanta event '%s' on queue %u, "
+		    "PF %u, VF %u\n", ice_mdd_tx_pqm_str(event), queue,
+		    pf_num, vf_num);
 
 		/* Only clear this event if it matches this PF, that way other
 		 * PFs can read the event and determine VF and queue number.
 		 */
 		if (pf_num == hw->pf_id)
 			wr32(hw, GL_MDET_TX_PQM, 0xffffffff);
+	}
 
-		mdd_detected = true;
+	reg = rd32(hw, GL_MDET_TX_TDPU);
+	if (reg & GL_MDET_TX_TDPU_VALID_M) {
+		u8 pf_num = (reg & GL_MDET_TX_TDPU_PF_NUM_M) >>
+		    GL_MDET_TX_TDPU_PF_NUM_S;
+		u16 vf_num = (reg & GL_MDET_TX_TDPU_VF_NUM_M) >>
+		    GL_MDET_TX_TDPU_VF_NUM_S;
+		u8 event = (reg & GL_MDET_TX_TDPU_MAL_TYPE_M) >>
+		    GL_MDET_TX_TDPU_MAL_TYPE_S;
+		u16 queue = (reg & GL_MDET_TX_TDPU_QNUM_M) >>
+		    GL_MDET_TX_TDPU_QNUM_S;
+
+		device_printf(dev,
+		    "malicious-driver Tx data event %#x on queue %u, "
+		    "PF %u, VF %u\n", event, queue, pf_num, vf_num);
+		if (pf_num == hw->pf_id)
+			wr32(hw, GL_MDET_TX_TDPU, 0xffffffff);
 	}
 
 	reg = rd32(hw, GL_MDET_RX);
 	if (reg & GL_MDET_RX_VALID_M) {
-		u8 pf_num  = (reg & GL_MDET_RX_PF_NUM_M) >> GL_MDET_RX_PF_NUM_S;
-		u16 vf_num = (reg & GL_MDET_RX_VF_NUM_M) >> GL_MDET_RX_VF_NUM_S;
-		u8 event   = (reg & GL_MDET_RX_MAL_TYPE_M) >> GL_MDET_RX_MAL_TYPE_S;
-		u16 queue  = (reg & GL_MDET_RX_QNUM_M) >> GL_MDET_RX_QNUM_S;
+		u8 pf_num = (reg & GL_MDET_RX_PF_NUM_M) >>
+		    GL_MDET_RX_PF_NUM_S;
+		u8 event = (reg & GL_MDET_RX_MAL_TYPE_M) >>
+		    GL_MDET_RX_MAL_TYPE_S;
+		u16 queue = (reg & GL_MDET_RX_QNUM_M) >>
+		    GL_MDET_RX_QNUM_S;
 
-		device_printf(dev, "Malicious Driver Detection Rx event '%s' on Rx queue %u PF# %u VF# %u\n",
-			      ice_mdd_rx_str(event), queue, pf_num, vf_num);
+		/*
+		 * E810 Datasheet section 9.2.2.2.1 says only the queue field in
+		 * GL_MDET_RX is valid.  VP_MDET_RX provides VF attribution.
+		 */
+		device_printf(dev,
+		    "malicious-driver Rx event '%s' on queue %u, PF %u\n",
+		    ice_mdd_rx_str(event), queue, pf_num);
 
 		/* Only clear this event if it matches this PF, that way other
-		 * PFs can read the event and determine VF and queue number.
+		 * PFs can read the event and determine the queue number.
 		 */
 		if (pf_num == hw->pf_id)
 			wr32(hw, GL_MDET_RX, 0xffffffff);
-
-		mdd_detected = true;
 	}
 
-	/* Now, confirm that this event actually affects this PF, by checking
-	 * the PF registers.
+	/* Per-function latches provide authoritative PF/VF attribution. */
+	tclan_reg = ice_pf_mdet_tx_tclan(hw);
+	reg = rd32(hw, tclan_reg);
+	if (reg & PF_MDET_TX_TCLAN_VALID_M) {
+		wr32(hw, tclan_reg, 0xffff);
+		sc->soft_stats.tx_mdd_count++;
+		pf_sources |= ICE_MDD_TX_TCLAN;
+	}
+	reg = rd32(hw, PF_MDET_TX_PQM);
+	if (reg & PF_MDET_TX_PQM_VALID_M) {
+		wr32(hw, PF_MDET_TX_PQM, 0xffff);
+		sc->soft_stats.tx_mdd_count++;
+		pf_sources |= ICE_MDD_TX_PQM;
+	}
+	reg = rd32(hw, PF_MDET_TX_TDPU);
+	if (reg & PF_MDET_TX_TDPU_VALID_M) {
+		wr32(hw, PF_MDET_TX_TDPU, 0xffff);
+		sc->soft_stats.tx_mdd_count++;
+		pf_sources |= ICE_MDD_TX_TDPU;
+	}
+	reg = rd32(hw, PF_MDET_RX);
+	if (reg & PF_MDET_RX_VALID_M) {
+		wr32(hw, PF_MDET_RX, 0xffff);
+		sc->soft_stats.rx_mdd_count++;
+		pf_sources |= ICE_MDD_RX;
+	}
+
+#ifdef PCI_IOV
+	vf_sources = ice_iov_handle_mdd(sc);
+#endif
+	/*
+	 * E810 sets the parent PF_MDET latch for events attributed by a
+	 * VP_MDET latch to one of its VFs. Recover the PF only for event
+	 * classes which were not attributed to a VF. TDPU drops only the
+	 * offending packet and does not stop a queue.
 	 */
-	if (mdd_detected) {
-		reg = rd32(hw, PF_MDET_TX_TCLAN);
-		if (reg & PF_MDET_TX_TCLAN_VALID_M) {
-			wr32(hw, PF_MDET_TX_TCLAN, 0xffff);
-			sc->soft_stats.tx_mdd_count++;
-			request_reinit = true;
-		}
-
-		reg = rd32(hw, PF_MDET_TX_PQM);
-		if (reg & PF_MDET_TX_PQM_VALID_M) {
-			wr32(hw, PF_MDET_TX_PQM, 0xffff);
-			sc->soft_stats.tx_mdd_count++;
-			request_reinit = true;
-		}
-
-		reg = rd32(hw, PF_MDET_RX);
-		if (reg & PF_MDET_RX_VALID_M) {
-			wr32(hw, PF_MDET_RX, 0xffff);
-			sc->soft_stats.rx_mdd_count++;
-			request_reinit = true;
-		}
-	}
-
-	/* TODO: Implement logic to detect and handle events caused by VFs. */
+	request_reinit = (pf_sources & ~vf_sources &
+	    (ICE_MDD_TX_PQM | ICE_MDD_TX_TCLAN | ICE_MDD_RX)) != 0;
 
 	/* request that the upper stack re-initialize the Tx/Rx queues */
 	if (request_reinit)
