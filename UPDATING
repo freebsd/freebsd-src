@@ -12,6 +12,35 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before updating system packages
 and/or ports.
 
+20260825:
+	15.0-RELEASE-p13 EN-26:20.microcode
+			 SA-26:56.hwpmc
+			 SA-26:57.unix
+			 SA-26:58.sound
+			 SA-26:59.mac_do
+			 SA-26:60.ppp
+			 SA-26:61.openssl
+			 SA-26:62.tty
+			 SA-26:63.posixshm
+
+	Intel CPU microcode not applied during early loading for some CPUs. [EN-26:20.microcode]
+
+	hwpmc fails to detach PMCs during exec credential transitions. [SA-26:56.hwpmc]
+
+	Use-after-free in unix SOCK_STREAM message handling. [SA-26:57.unix]
+
+	Kernel use-after-free via the SNDCTL_DSP_SYNCSTART ioctl. [SA-26:58.sound]
+
+	Unauthorized credential switching. [SA-26:59.mac_do]
+
+	Multiple vulnerabilities in ppp. [SA-26:60.ppp]
+
+	Multiple vulnerabilities in OpenSSL. [SA-26:61.openssl]
+
+	Kernel use-after-free via tty ioctls. [SA-26:62.tty]
+
+	TOCTOU in POSIX shared memory large page configuration. [SA-26:63.posixshm]
+
 20260729:
 	15.0-RELEASE-p12 EN-26:18.tzdata
 			EN-26:19.zfs
