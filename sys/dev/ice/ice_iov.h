@@ -72,6 +72,7 @@ enum ice_vf_flags {
 	VF_FLAG_MAC_ANTI_SPOOF		= BIT(4),
 	VF_FLAG_INITIALIZED		= BIT(5),
 	VF_FLAG_REBUILD_FAILED		= BIT(6),
+	VF_FLAG_RESET_FAILED		= BIT(7),
 };
 
 /**
