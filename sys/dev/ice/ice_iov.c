@@ -1421,6 +1421,41 @@ ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	int i, error = 0;
 
 	vqci = (struct virtchnl_vsi_queue_config_info *)msg_buf;
+	ICE_FAIL_POINT_CODE_COND(sc, _debug_fail_point_ice_iov,
+	    malformed_queues, ice_iov_fail_vf_matches(vf->vf_num),
+	    FAIL_POINT_NONSLEEPABLE, {
+		switch (RETURN_VALUE) {
+		case 1:
+			vqci->qpair[0].txq.dma_ring_addr |= 1;
+			break;
+		case 2:
+			vqci->qpair[0].rxq.dma_ring_addr |= 1;
+			break;
+		case 3:
+			vqci->qpair[0].rxq.databuffer_size++;
+			break;
+		case 4:
+			vqci->qpair[0].rxq.max_pkt_size = 0;
+			break;
+		case 5:
+			if (vqci->num_queue_pairs > 1) {
+				vqci->qpair[1].txq.queue_id =
+				    vqci->qpair[0].txq.queue_id;
+				vqci->qpair[1].rxq.queue_id =
+				    vqci->qpair[0].rxq.queue_id;
+			} else {
+				vqci->qpair[0].txq.queue_id++;
+			}
+			break;
+		case 6:
+			vqci->qpair[0].rxq.databuffer_size =
+			    ICE_VC_MAX_RX_BUFFER + BIT(ICE_RLAN_CTX_DBUF_S);
+			break;
+		default:
+			vqci->vsi_id++;
+			break;
+		}
+	});
 
 	if (vqci->vsi_id != vsi->idx || vqci->num_queue_pairs == 0 ||
 	    vqci->num_queue_pairs > sizeof(queue_map) * NBBY ||
@@ -1569,6 +1604,11 @@ ice_vc_cfg_rss_key_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	struct ice_vsi *vsi = vf->vsi;
 
 	vrk = (struct virtchnl_rss_key *)msg_buf;
+	ICE_FAIL_POINT_CODE_COND(sc, _debug_fail_point_ice_iov,
+	    malformed_rss_key, ice_iov_fail_vf_matches(vf->vf_num),
+	    FAIL_POINT_NONSLEEPABLE, {
+		vrk->key_len--;
+	});
 
 	if (vrk->vsi_id != vsi->idx) {
 		device_printf(sc->dev,
@@ -1619,6 +1659,14 @@ ice_vc_cfg_rss_lut_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	struct ice_vsi *vsi = vf->vsi;
 
 	vrl = (struct virtchnl_rss_lut *)msg_buf;
+	ICE_FAIL_POINT_CODE_COND(sc, _debug_fail_point_ice_iov,
+	    malformed_rss_lut, ice_iov_fail_vf_matches(vf->vf_num),
+	    FAIL_POINT_NONSLEEPABLE, {
+		if (RETURN_VALUE == 1)
+			vrl->lut_entries--;
+		else
+			vrl->lut[0] = vsi->num_rx_queues;
+	});
 
 	if (vrl->vsi_id != vsi->idx) {
 		device_printf(sc->dev,
@@ -1824,6 +1872,30 @@ ice_vc_cfg_irq_map_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	u16 rxqs_seen, txqs_seen, valid_rxqs, valid_txqs, vector;
 
 	vimi = (struct virtchnl_irq_map_info *)msg_buf;
+	ICE_FAIL_POINT_CODE_COND(sc, _debug_fail_point_ice_iov,
+	    malformed_irq_map, ice_iov_fail_vf_matches(vf->vf_num),
+	    FAIL_POINT_NONSLEEPABLE, {
+		switch (RETURN_VALUE) {
+		case 1:
+			vimi->vecmap[0].rxitr_idx = VIRTCHNL_ITR_IDX_NO_ITR + 1;
+			break;
+		case 2:
+			vimi->vecmap[0].vector_id = 0;
+			vimi->vecmap[0].rxq_map = 1;
+			break;
+		case 3:
+			if (vimi->num_vectors > 1) {
+				vimi->vecmap[1].vector_id =
+				    vimi->vecmap[0].vector_id;
+			} else {
+				vimi->vecmap[0].vsi_id++;
+			}
+			break;
+		default:
+			vimi->vecmap[0].vsi_id++;
+			break;
+		}
+	});
 
 	if (vimi->num_vectors == 0 ||
 	    vimi->num_vectors > vf->num_irq_vectors ||
