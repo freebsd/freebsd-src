@@ -607,9 +607,12 @@ static void ipoib_ah_dev_cleanup(struct ipoib_dev_priv *priv)
 	}
 }
 
-static void ipoib_ib_tx_timer_func(unsigned long ctx)
+static void ipoib_ib_tx_timer_func(struct timer_list *timer)
 {
-	drain_tx_cq((struct ipoib_dev_priv *)ctx);
+	struct ipoib_dev_priv *priv = timer_container_of(priv, timer,
+	    poll_timer);
+
+	drain_tx_cq(priv);
 }
 
 int ipoib_ib_dev_open(struct ipoib_dev_priv *priv)
@@ -865,8 +868,7 @@ int ipoib_ib_dev_init(struct ipoib_dev_priv *priv, struct ib_device *ca, int por
 		return -ENODEV;
 	}
 
-	setup_timer(&priv->poll_timer, ipoib_ib_tx_timer_func,
-		    (unsigned long) priv);
+	timer_setup(&priv->poll_timer, ipoib_ib_tx_timer_func, 0);
 
 	if (if_getflags(dev) & IFF_UP) {
 		if (ipoib_ib_dev_open(priv)) {
