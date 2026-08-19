@@ -99,8 +99,10 @@ common_init(struct ctx *c)
 	SSL_library_init();
 	OpenSSL_add_all_algorithms();
 	SSL_load_error_strings();
-	ATF_REQUIRE(c->pkey = EVP_RSA_gen(2048));
-	ATF_REQUIRE(c->cert = X509_new());
+	c->pkey = EVP_RSA_gen(2048);
+	ATF_REQUIRE(c->pkey != NULL);
+	c->cert = X509_new();
+	ATF_REQUIRE(c->cert != NULL);
 	ASN1_INTEGER_set(X509_get_serialNumber(c->cert), 1);
 	X509_set_version(c->cert, 2);
 	X509_gmtime_adj(X509_get_notBefore(c->cert), 0);
@@ -142,10 +144,12 @@ common_init(struct ctx *c)
 	/*
 	 * Connect client.
 	 */
-	ATF_REQUIRE(c->ctx = SSL_CTX_new(TLS_client_method()));
+	c->ctx = SSL_CTX_new(TLS_client_method());
+	ATF_REQUIRE(c->ctx != NULL);
 	ATF_REQUIRE(X509_STORE_add_cert(SSL_CTX_get_cert_store(c->ctx),
 	    c->cert));
-	ATF_REQUIRE(ssl = c->cln = SSL_new(c->ctx));
+	ssl = c->cln = SSL_new(c->ctx);
+	ATF_REQUIRE(c->cln != NULL);
 	ATF_REQUIRE((c->cs = socket(AF_INET, SOCK_STREAM, 0)) > 0);
 	ATF_REQUIRE(connect(c->cs, (struct sockaddr *)&(struct sockaddr_in)
 	    { .sin_family = AF_INET, .sin_len = sizeof(struct sockaddr_in),
@@ -192,7 +196,8 @@ server_thread(void *arg) {
 	};
 	int s;
 
-	ATF_REQUIRE(srv = SSL_CTX_new(TLS_server_method()));
+	srv = SSL_CTX_new(TLS_server_method());
+	ATF_REQUIRE(srv != NULL);
 	ATF_REQUIRE(SSL_CTX_set_options(srv, SSL_OP_ENABLE_KTLS) &
 	    SSL_OP_ENABLE_KTLS);
 	SSL_CTX_use_PrivateKey(srv, c->pkey);
