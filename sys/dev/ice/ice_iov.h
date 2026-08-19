@@ -75,6 +75,10 @@ enum ice_vf_flags {
 	VF_FLAG_RESET_FAILED		= BIT(7),
 };
 
+struct ice_vf_mac_filter {
+	u8 addr[ETHER_ADDR_LEN];
+};
+
 /**
  * @struct ice_vf
  * @brief PF's VF software context
@@ -91,6 +95,7 @@ struct ice_vf {
 
 	u16 mac_filter_limit;
 	u16 mac_filter_cnt;
+	struct ice_vf_mac_filter *mac_filters;
 	u16 vlan_limit;
 	u16 vlan_cnt;
 #define ICE_VF_VLAN_MAP_LEN	(EVL_VLID_MASK + 1)

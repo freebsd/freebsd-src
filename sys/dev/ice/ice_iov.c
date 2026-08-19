@@ -103,6 +103,7 @@ static void ice_vc_del_vlan_msg(struct ice_softc *sc, struct ice_vf *vf,
 static int ice_vc_select_vlans(struct ice_vf *vf, u16 *vids, u16 count,
 			       bool add, u16 *selected_count);
 static enum virtchnl_status_code ice_iov_err_to_virt_err(int ice_err);
+static int ice_vf_mac_filter_index(struct ice_vf *vf, const uint8_t *addr);
 static int ice_vf_validate_mac(struct ice_vf *vf, const uint8_t *addr);
 
 #ifdef DRIVER_FAILPOINTS
@@ -520,6 +521,19 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 
 	vf->vlan_limit = nvlist_get_number(params, "max-vlan-allowed");
 	vf->mac_filter_limit = nvlist_get_number(params, "max-mac-filters");
+	if (vf->mac_filter_limit != 0) {
+		vf->mac_filters = mallocarray(vf->mac_filter_limit,
+		    sizeof(*vf->mac_filters), M_ICE, M_NOWAIT | M_ZERO);
+		if (vf->mac_filters == NULL) {
+			device_printf(sc->dev,
+			    "Unable to allocate VF-%d MAC filter memory\n",
+			    vfnum);
+			error = ENOMEM;
+			goto release_imap;
+		}
+	}
+	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_mac_filter_memory, error,
+	    free_mac_filters);
 
 	vf->vf_flags |= VF_FLAG_VLAN_CAP;
 
@@ -528,29 +542,33 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 	if (error) {
 		device_printf(sc->dev, "Unable to initialize VF %d VSI: %s\n",
 			      vfnum, ice_err_str(error));
-		goto release_imap;
+		goto free_mac_filters;
 	}
 	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_vsi_init, error,
-	    release_imap);
+	    free_mac_filters);
 	error = ice_iov_configure_mac_anti_spoof(sc, vf);
 	if (error != 0)
-		goto release_imap;
+		goto free_mac_filters;
 
 	/* Add the broadcast address */
 	error = ice_add_vsi_mac_filter(vsi, broadcastaddr);
 	if (error) {
 		device_printf(sc->dev, "Unable to add broadcast filter VF %d VSI: %s\n",
 			      vfnum, ice_err_str(error));
-		goto release_imap;
+		goto free_mac_filters;
 	}
 	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_broadcast_filter, error,
-	    release_imap);
+	    free_mac_filters);
 
 	atomic_set_32(&vf->vf_flags, VF_FLAG_ENABLED);
 	ice_iov_ready_vf(sc, vf);
 
 	return (0);
 
+free_mac_filters:
+	free(vf->mac_filters, M_ICE);
+	vf->mac_filters = NULL;
+	vf->mac_filter_cnt = 0;
 release_imap:
 	ice_resmgr_release_map(&sc->dev_imgr, vf->vf_imap,
 			       vf->num_irq_vectors);
@@ -594,6 +612,9 @@ ice_iov_uninit(struct ice_softc *sc)
 		vf = &sc->vfs[i];
 		atomic_store_rel_32(&vf->vf_flags, 0);
 		vsi = vf->vsi;
+		free(vf->mac_filters, M_ICE);
+		vf->mac_filters = NULL;
+		vf->mac_filter_cnt = 0;
 
 		/* Free VF interrupt reservation */
 		if (vf->vf_imap) {
@@ -1181,6 +1202,25 @@ ice_vf_validate_mac(struct ice_vf *vf, const uint8_t *addr)
 }
 
 /**
+ * ice_vf_mac_filter_index - Find a VF-owned MAC filter
+ * @vf: VF tracking structure
+ * @addr: MAC address to find
+ *
+ * The administrator-assigned address does not consume the configurable VF
+ * filter quota and is therefore not stored in this array.
+ */
+static int
+ice_vf_mac_filter_index(struct ice_vf *vf, const uint8_t *addr)
+{
+
+	for (u16 i = 0; i < vf->mac_filter_cnt; i++) {
+		if (memcmp(vf->mac_filters[i].addr, addr, ETHER_ADDR_LEN) == 0)
+			return (i);
+	}
+	return (-1);
+}
+
+/**
  * ice_vc_add_eth_addr_msg - Handle VIRTCHNL_OP_ADD_ETH_ADDR msg from VF
  * @sc: device private structure
  * @vf: VF tracking structure
@@ -1195,38 +1235,50 @@ ice_vc_add_eth_addr_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	enum virtchnl_status_code v_status = VIRTCHNL_STATUS_SUCCESS;
 	struct virtchnl_ether_addr_list *addr_list;
 	struct ice_hw *hw = &sc->hw;
-	u16 added_addr_cnt = 0;
+	u16 new_filters;
 	int error = 0;
 
 	addr_list = (struct virtchnl_ether_addr_list *)msg_buf;
 
-	if (addr_list->num_elements >
-	    (vf->mac_filter_limit - vf->mac_filter_cnt)) {
+	/* Validate the entire batch and charge only unique, absent filters. */
+	new_filters = 0;
+	for (int i = 0; i < addr_list->num_elements; i++) {
+		u8 *addr = addr_list->list[i].addr;
+		int j;
+
+		error = ice_vf_validate_mac(vf, addr);
+		if (error != 0) {
+			device_printf(sc->dev,
+			    "%s: VF-%d: invalid or unauthorized MAC for VSI %d\n",
+			    __func__, vf->vf_num, vf->vsi->idx);
+			v_status = VIRTCHNL_STATUS_ERR_PARAM;
+			goto done;
+		}
+		for (j = 0; j < i; j++) {
+			if (memcmp(addr_list->list[j].addr, addr,
+			    ETHER_ADDR_LEN) == 0)
+				break;
+		}
+		if (j != i || memcmp(addr, vf->mac, ETHER_ADDR_LEN) == 0 ||
+		    ice_vf_mac_filter_index(vf, addr) >= 0)
+			continue;
+		new_filters++;
+	}
+	if ((u32)vf->mac_filter_cnt + new_filters > vf->mac_filter_limit) {
 		v_status = VIRTCHNL_STATUS_ERR_NO_MEMORY;
 		goto done;
 	}
 
 	for (int i = 0; i < addr_list->num_elements; i++) {
 		u8 *addr = addr_list->list[i].addr;
+		bool assigned;
 
 		/* The type flag is currently ignored; every MAC address is
 		 * treated as the LEGACY type
 		 */
-
-		error = ice_vf_validate_mac(vf, addr);
-		if (error == EPERM) {
-			device_printf(sc->dev,
-			    "%s: VF-%d: Not permitted to add MAC addr for VSI %d\n",
-			    __func__, vf->vf_num, vf->vsi->idx);
-			v_status = VIRTCHNL_STATUS_ERR_PARAM;
+		assigned = memcmp(addr, vf->mac, ETHER_ADDR_LEN) == 0;
+		if (!assigned && ice_vf_mac_filter_index(vf, addr) >= 0)
 			continue;
-		} else if (error) {
-			device_printf(sc->dev,
-			    "%s: VF-%d: Did not add invalid MAC addr for VSI %d\n",
-			    __func__, vf->vf_num, vf->vsi->idx);
-			v_status = VIRTCHNL_STATUS_ERR_PARAM;
-			continue;
-		}
 
 		error = ice_add_vsi_mac_filter(vf->vsi, addr);
 		if (error) {
@@ -1236,12 +1288,13 @@ ice_vc_add_eth_addr_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 			v_status = VIRTCHNL_STATUS_ERR_PARAM;
 			continue;
 		}
-		/* Don't count VF's MAC against its MAC filter limit */
-		if (memcmp(addr, vf->mac, ETHER_ADDR_LEN))
-			added_addr_cnt++;
+		if (!assigned) {
+			MPASS(vf->mac_filter_cnt < vf->mac_filter_limit);
+			memcpy(vf->mac_filters[vf->mac_filter_cnt].addr, addr,
+			    ETHER_ADDR_LEN);
+			vf->mac_filter_cnt++;
+		}
 	}
-
-	vf->mac_filter_cnt += added_addr_cnt;
 
 done:
 	ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_ADD_ETH_ADDR,
@@ -1263,13 +1316,29 @@ ice_vc_del_eth_addr_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	enum virtchnl_status_code v_status = VIRTCHNL_STATUS_SUCCESS;
 	struct virtchnl_ether_addr_list *addr_list;
 	struct ice_hw *hw = &sc->hw;
-	u16 deleted_addr_cnt = 0;
 	int error = 0;
 
 	addr_list = (struct virtchnl_ether_addr_list *)msg_buf;
 
 	for (int i = 0; i < addr_list->num_elements; i++) {
-		error = ice_remove_vsi_mac_filter(vf->vsi, addr_list->list[i].addr);
+		u8 *addr = addr_list->list[i].addr;
+		bool assigned;
+		int index;
+
+		error = ice_vf_validate_mac(vf, addr);
+		if (error != 0) {
+			v_status = VIRTCHNL_STATUS_ERR_PARAM;
+			continue;
+		}
+		assigned = memcmp(addr, vf->mac, ETHER_ADDR_LEN) == 0;
+		if (assigned &&
+		    (vf->vf_flags & VF_FLAG_SET_MAC_CAP) == 0)
+			continue;
+		index = assigned ? -1 : ice_vf_mac_filter_index(vf, addr);
+		if (!assigned && index < 0)
+			continue;
+
+		error = ice_remove_vsi_mac_filter(vf->vsi, addr);
 		if (error) {
 			device_printf(sc->dev,
 			    "%s: VF-%d: Error removing MAC addr for VSI %d\n",
@@ -1277,15 +1346,16 @@ ice_vc_del_eth_addr_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 			v_status = VIRTCHNL_STATUS_ERR_PARAM;
 			continue;
 		}
-		/* Don't count VF's MAC against its MAC filter limit */
-		if (memcmp(addr_list->list[i].addr, vf->mac, ETHER_ADDR_LEN))
-			deleted_addr_cnt++;
+		if (!assigned) {
+			if (index + 1 < vf->mac_filter_cnt) {
+				memmove(&vf->mac_filters[index],
+				    &vf->mac_filters[index + 1],
+				    (vf->mac_filter_cnt - index - 1) *
+				    sizeof(*vf->mac_filters));
+			}
+			vf->mac_filter_cnt--;
+		}
 	}
-
-	if (deleted_addr_cnt >= vf->mac_filter_cnt)
-		vf->mac_filter_cnt = 0;
-	else
-		vf->mac_filter_cnt -= deleted_addr_cnt;
 
 	ice_aq_send_msg_to_vf(hw, vf->vf_num, VIRTCHNL_OP_DEL_ETH_ADDR,
 	    v_status, NULL, 0, NULL);
