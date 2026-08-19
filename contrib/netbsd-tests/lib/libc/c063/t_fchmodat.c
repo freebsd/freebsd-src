@@ -1,4 +1,4 @@
-/*	$NetBSD: t_fchmodat.c,v 1.3 2017/01/10 15:13:56 christos Exp $ */
+/*	$NetBSD: t_fchmodat.c,v 1.7 2024/07/10 20:44:06 rillig Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_fchmodat.c,v 1.3 2017/01/10 15:13:56 christos Exp $");
+__RCSID("$NetBSD: t_fchmodat.c,v 1.7 2024/07/10 20:44:06 rillig Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -48,6 +48,11 @@ __RCSID("$NetBSD: t_fchmodat.c,v 1.3 2017/01/10 15:13:56 christos Exp $");
 #define LINK "dir/symlink"
 #define BASELINK "symlink"
 #define FILEERR "dir/fchmodaterr"
+
+#define modecheck(a, b) \
+	ATF_REQUIRE_MSG(((a) & ALLPERMS) == (b), \
+	    "Incorrect mode found %#o != expected %#o", \
+	    ((a) & ALLPERMS), (b));
 
 ATF_TC(fchmodat_fd);
 ATF_TC_HEAD(fchmodat_fd, tc)
@@ -69,7 +74,7 @@ ATF_TC_BODY(fchmodat_fd, tc)
 	ATF_REQUIRE(close(dfd) == 0);
 
 	ATF_REQUIRE(stat(FILE, &st) == 0);
-	ATF_REQUIRE(st.st_mode = 0600);
+	modecheck(st.st_mode, 0600);
 }
 
 ATF_TC(fchmodat_fdcwd);
@@ -91,7 +96,7 @@ ATF_TC_BODY(fchmodat_fdcwd, tc)
 	ATF_REQUIRE(fchmodat(AT_FDCWD, BASEFILE, 0600, 0) == 0);
 
 	ATF_REQUIRE(stat(BASEFILE, &st) == 0);
-	ATF_REQUIRE(st.st_mode = 0600);
+	modecheck(st.st_mode, 0600);
 }
 
 ATF_TC(fchmodat_fdcwderr);
@@ -173,14 +178,14 @@ ATF_TC_BODY(fchmodat_fdlink, tc)
 	ATF_REQUIRE((dfdlink = open(DIR, O_RDONLY, 0)) != -1);
 
 	ATF_REQUIRE(fchmodat(dfdlink, BASELINK, 0600, 0) == -1);
-	ATF_REQUIRE(errno = ENOENT);
+	ATF_REQUIRE(errno == ENOENT);
 
 	ATF_REQUIRE(fchmodat(dfdlink, BASELINK, 0600, AT_SYMLINK_NOFOLLOW) == 0);
 
 	ATF_REQUIRE(close(dfdlink) == 0);
 
 	ATF_REQUIRE(lstat(LINK, &st) == 0);
-	ATF_REQUIRE(st.st_mode = 0600);
+	modecheck(st.st_mode, 0600);
 }
 
 ATF_TP_ADD_TCS(tp)

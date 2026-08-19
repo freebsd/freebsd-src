@@ -1,4 +1,4 @@
-/*	$NetBSD: t_faccessat.c,v 1.3 2017/01/10 15:13:56 christos Exp $ */
+/*	$NetBSD: t_faccessat.c,v 1.5 2024/07/07 14:29:48 christos Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_faccessat.c,v 1.3 2017/01/10 15:13:56 christos Exp $");
+__RCSID("$NetBSD: t_faccessat.c,v 1.5 2024/07/07 14:29:48 christos Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -72,7 +72,7 @@ ATF_TC(faccessat_fdcwd);
 ATF_TC_HEAD(faccessat_fdcwd, tc)
 {
 	atf_tc_set_md_var(tc, "descr", 
-			  "See that faccessat works with fd as AT_FDCWD");
+	    "See that faccessat works with fd as AT_FDCWD");
 }
 ATF_TC_BODY(faccessat_fdcwd, tc)
 {
@@ -90,7 +90,7 @@ ATF_TC(faccessat_fdcwderr);
 ATF_TC_HEAD(faccessat_fdcwderr, tc)
 {
 	atf_tc_set_md_var(tc, "descr", 
-		  "See that faccessat fails with fd as AT_FDCWD and bad path");
+	    "See that faccessat fails with fd as AT_FDCWD and bad path");
 }
 ATF_TC_BODY(faccessat_fdcwderr, tc)
 {
@@ -171,6 +171,68 @@ ATF_TC_BODY(faccessat_fdlink, tc)
 	ATF_REQUIRE(close(dfd) == 0);
 }
 
+ATF_TC(faccessat_abs);
+ATF_TC_HEAD(faccessat_abs, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "See that faccessat works with invalid "
+	    "fd when absolute path is provided.");
+}
+ATF_TC_BODY(faccessat_abs, tc)
+{
+	int fd;
+	char cwd[MAXPATHLEN];
+	char abs_path[MAXPATHLEN * 2];
+
+	ATF_REQUIRE(mkdir(DIR, 0755) == 0);
+	ATF_REQUIRE((fd = open(FILE, O_CREAT|O_RDWR, 0644)) != -1);
+	ATF_REQUIRE(close(fd) == 0);
+
+	ATF_REQUIRE(getcwd(cwd, MAXPATHLEN));
+	snprintf(abs_path, sizeof(abs_path), "%s/%s", cwd, FILE);
+	ATF_REQUIRE(faccessat(-1, abs_path, W_OK, 0) == 0);
+
+}
+
+ATF_TC(faccessat_abs_fddir);
+ATF_TC_HEAD(faccessat_abs_fddir, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "See that faccessat works with "
+	    "fd of directory when absolute path is provided.");
+}
+ATF_TC_BODY(faccessat_abs_fddir, tc)
+{
+	int dfd;
+	char cwd[MAXPATHLEN];
+	char abs_path[MAXPATHLEN * 2];
+
+	ATF_REQUIRE(mkdir(DIR, 0755) == 0);
+	ATF_REQUIRE((dfd = open(DIR, O_RDONLY, 0)) != -1);
+	ATF_REQUIRE(close(dfd) == 0);
+
+	ATF_REQUIRE(getcwd(cwd, MAXPATHLEN));
+	snprintf(abs_path, sizeof(abs_path), "%s/%s", cwd, DIR);
+	ATF_REQUIRE(faccessat(dfd, abs_path, W_OK, 0) == 0);
+
+}
+
+ATF_TC(faccessat_abs_fdcwd);
+ATF_TC_HEAD(faccessat_abs_fdcwd, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "See that faccessat works with fd "
+	    "of current directory when absolute path is provided.");
+}
+ATF_TC_BODY(faccessat_abs_fdcwd, tc)
+{
+	char cwd[MAXPATHLEN];
+	char abs_path[MAXPATHLEN * 2];
+
+	ATF_REQUIRE(mkdir(DIR, 0755) == 0);
+
+	ATF_REQUIRE(getcwd(cwd, MAXPATHLEN));
+	snprintf(abs_path, sizeof(abs_path), "%s/%s", cwd, DIR);
+	ATF_REQUIRE(faccessat(AT_FDCWD, abs_path, W_OK, 0) == 0);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -181,6 +243,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, faccessat_fderr2);
 	ATF_TP_ADD_TC(tp, faccessat_fderr3);
 	ATF_TP_ADD_TC(tp, faccessat_fdlink);
+	ATF_TP_ADD_TC(tp, faccessat_abs);
+	ATF_TP_ADD_TC(tp, faccessat_abs_fddir);
+	ATF_TP_ADD_TC(tp, faccessat_abs_fdcwd);
 
 	return atf_no_error();
 }

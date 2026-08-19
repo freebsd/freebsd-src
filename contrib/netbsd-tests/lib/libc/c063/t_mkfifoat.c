@@ -1,4 +1,4 @@
-/*	$NetBSD: t_mkfifoat.c,v 1.4 2017/01/14 20:55:26 christos Exp $ */
+/*	$NetBSD: t_mkfifoat.c,v 1.5 2019/06/20 03:31:53 kamil Exp $ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.
@@ -29,7 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <sys/cdefs.h>
-__RCSID("$NetBSD: t_mkfifoat.c,v 1.4 2017/01/14 20:55:26 christos Exp $");
+__RCSID("$NetBSD: t_mkfifoat.c,v 1.5 2019/06/20 03:31:53 kamil Exp $");
 
 #include <atf-c.h>
 #include <errno.h>
@@ -108,6 +108,32 @@ ATF_TC_BODY(mkfifoat_fderr, tc)
 	ATF_REQUIRE(mkfifoat(-1, FIFO, mode) == -1);
 }
 
+ATF_TC(mknodat_s_ififo);
+ATF_TC_HEAD(mknodat_s_ififo, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test mknodat(2) with S_IFIFO");
+}
+
+ATF_TC_BODY(mknodat_s_ififo, tc)
+{
+	struct stat st;
+	int dfd;
+	mode_t mode = S_IFIFO | 0600;
+
+	(void)memset(&st, 0, sizeof(struct stat));
+
+	ATF_REQUIRE(mkdir(DIR, 0755) == 0);
+	ATF_REQUIRE((dfd = open(DIR, O_RDONLY, 0)) != -1);
+	ATF_REQUIRE(mknodat(dfd, BASEFIFO, mode, 0) != -1);
+	ATF_REQUIRE(access(FIFO, F_OK) == 0);
+	ATF_REQUIRE(stat(FIFO, &st) == 0);
+
+	if (S_ISFIFO(st.st_mode) == 0)
+		atf_tc_fail("invalid mode from mknodat(2) with S_IFIFO");
+
+	(void)close(dfd);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -115,6 +141,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, mkfifoat_fdcwd);
 	ATF_TP_ADD_TC(tp, mkfifoat_fdcwderr);
 	ATF_TP_ADD_TC(tp, mkfifoat_fderr);
+	ATF_TP_ADD_TC(tp, mknodat_s_ififo);
 
 	return atf_no_error();
 }
