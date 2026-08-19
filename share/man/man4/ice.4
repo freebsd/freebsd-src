@@ -32,7 +32,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 19, 2026
+.Dd August 27, 2026
 .Dt ICE 4
 .Os
 .Sh NAME
@@ -123,6 +123,8 @@ The following topics are covered in this manual:
 .Sx INTERRUPT STORMS
 .It
 .Sx IOVCTL OPTIONS
+.It
+.Sx FAILURE INJECTION
 .It
 .Sx SUPPORT
 .It
@@ -1161,6 +1163,45 @@ option.
 .Pp
 For more information on standard and mandatory parameters, see
 .Xr iovctl.conf 5 .
+.Sh FAILURE INJECTION
+The driver provides destructive, test-only failure injection through the
+.Xr fail 9
+interface.
+Kernels compiled with
+.Cd options DRIVER_FAILPOINTS
+expose the driver fail points beneath the
+.Va debug.fail_point.ice
+sysctl node.
+Ordinary kernels omit these controls.
+.Pp
+Set
+.Va debug.fail_point.ice.device
+to the exact PF device name before a fail point can fire.
+An empty device selector disables every ICE fail point even if an individual
+point remains armed.
+For SR-IOV tests,
+.Va debug.fail_point.ice.iov.vf
+selects a PF-local VF index, and a value of -1 selects every VF on the chosen
+PF.
+.Pp
+List the available selectors and fail points with:
+.Bd -literal -offset indent
+sysctl -aN debug.fail_point.ice
+.Ed
+.Pp
+The individual points accept the syntax described by
+.Xr fail 9 .
+For example, the following injects one
+.Er EIO
+after allocating VF 0's VSI on
+.Li ice0 :
+.Bd -literal -offset indent
+sysctl debug.fail_point.ice.device=ice0
+sysctl debug.fail_point.ice.iov.vf=0
+sysctl debug.fail_point.ice.iov.add_after_vsi_alloc='1*return(5)'
+.Ed
+.Pp
+Clear the individual point and device selector after each destructive test.
 .Sh SUPPORT
 For general information and support, go to the Intel support website at:
 .Lk https://www.intel.com/support/ .
@@ -1173,7 +1214,8 @@ email all the specific information related to the issue to
 .Xr led 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8 ,
-.Xr sysctl 8
+.Xr sysctl 8 ,
+.Xr fail 9
 .Sh HISTORY
 The
 .Nm

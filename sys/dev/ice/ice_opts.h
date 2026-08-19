@@ -43,5 +43,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_rss.h"
+#include "opt_driver_failpoints.h"
 
 #endif

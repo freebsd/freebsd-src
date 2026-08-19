@@ -42,6 +42,7 @@
 
 #include "ice_lib.h"
 #include "ice_iflib.h"
+#include "ice_fault.h"
 #ifdef PCI_IOV
 #include "ice_iov.h"
 #endif
@@ -61,6 +62,33 @@
  * ice driver.
  */
 MALLOC_DEFINE(M_ICE, "ice", "Intel(R) 100Gb Network Driver lib allocations");
+
+#ifdef DRIVER_FAILPOINTS
+
+/*
+ * ICE fail points are global, but only the selected PF may trigger them.  An
+ * empty selector disables every point even if a stale failpoint setting
+ * remains armed.
+ */
+SYSCTL_NODE(_debug_fail_point, OID_AUTO, ice,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "ice driver fail points");
+
+static char ice_fail_device[32];
+SYSCTL_STRING(_debug_fail_point_ice, OID_AUTO, device,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, ice_fail_device,
+    sizeof(ice_fail_device), "device eligible for ice fail points");
+
+bool
+ice_fail_point_device_matches(struct ice_softc *sc)
+{
+	const char *nameunit;
+
+	nameunit = device_get_nameunit(sc->dev);
+	return (ice_fail_device[0] != '\0' && nameunit != NULL &&
+	    strcmp(nameunit, ice_fail_device) == 0);
+}
+
+#endif /* DRIVER_FAILPOINTS */
 
 /*
  * Helper function prototypes
