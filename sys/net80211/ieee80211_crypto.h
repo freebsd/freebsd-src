@@ -42,6 +42,8 @@
  * IEEE80211_KEYBUF_SIZE as the key size will eventually grow.
  */
 #define	IEEE80211_KEYBUF_128_SIZE	16
+#define	IEEE80211_TX_MICBUF_128_SIZE	8
+#define	IEEE80211_RX_MICBUF_128_SIZE	8
 #define	IEEE80211_MICBUF_128_SIZE	(8+8)	/* space for both tx+rx keys */
 
 /*
@@ -308,6 +310,151 @@ void	ieee80211_notify_michael_failure(struct ieee80211vap *,
 /* AAD assembly for CCMP/GCMP. */
 uint16_t	ieee80211_crypto_init_aad(const struct ieee80211_frame *,
 		uint8_t *, int);
+
+/**
+ * @brief Set the key data.
+ *
+ * This will only set the key data and length, not the TX/RX MIC.
+ *
+ * Note: there's no locking; this needs to be called in
+ * a situation where the ieee80211_key won't disappear.
+ *
+ * @param key		key to set
+ * @param data		key contents to use
+ * @param len		key length
+ * @returns true	if the key data was copied and it fit,
+ * 			false otherwise.
+ */
+static inline bool
+ieee80211_crypto_set_key_data(struct ieee80211_key *k, const uint8_t *data,
+    uint32_t len)
+{
+	if (len > IEEE80211_KEYBUF_SIZE)
+		return (false);
+	memset(k->wk_key, '\0', IEEE80211_KEYBUF_SIZE);
+	memcpy(k->wk_key, data, len);
+	k->wk_keylen = len;
+	return (true);
+}
+
+/**
+ * @brief Set the TX MIC data.
+ *
+ * This will only set the TX MIC data, not the key.
+ *
+ * Note: there's no locking; this needs to be called in
+ * a situation where the ieee80211_key won't disappear.
+ *
+ * @param key		key to set
+ * @param data		TX MIC contents
+ * @param len		TX MIC length
+ * @returns true	if the MIC data was copied and it fit,
+ * 			false otherwise.
+ */
+static inline bool
+ieee80211_crypto_set_key_txmic_data(struct ieee80211_key *k,
+    uint8_t *data, uint32_t len)
+{
+	if (len > IEEE80211_TX_MICBUF_128_SIZE)
+		return (false);
+	memset(k->wk_key, '\0', IEEE80211_TX_MICBUF_128_SIZE);
+	memcpy(k->wk_txmic, data, len);
+	return (true);
+}
+
+/**
+ * @brief Set the RX MIC data.
+ *
+ * This will only set the RX MIC data, not the key.
+ *
+ * Note: there's no locking; this needs to be called in
+ * a situation where the ieee80211_key won't disappear.
+ *
+ * @param key		key to set
+ * @param data		RX MIC contents
+ * @param len		RX MIC length
+ * @returns true	if the MIC data was copied and it fit,
+ * 			false otherwise.
+ */
+static inline bool
+ieee80211_crypto_set_key_rxmic_data(struct ieee80211_key *k,
+    const uint8_t *data, uint32_t len)
+{
+	if (len > IEEE80211_RX_MICBUF_128_SIZE)
+		return (false);
+	memset(k->wk_key, '\0', IEEE80211_RX_MICBUF_128_SIZE);
+	memcpy(k->wk_rxmic, data, len);
+	return (true);
+}
+
+/**
+ * @brief Get the key data.
+ *
+ * This copies out the key data from the given ieee80211_key
+ * into the given buffer/length.
+ *
+ * @param key	ieee80211_key to copy from
+ * @param data	destination buffer for key
+ * @param len	destination buffer length
+ * @returns	true if copied, false if not
+ */
+static inline bool
+ieee80211_crypto_copy_key_data(const struct ieee80211_key *k,
+    uint8_t *data, uint32_t len)
+{
+	if (len < k->wk_keylen)
+		return (false);
+
+	memset(data, '\0', len);
+	memcpy(data, k->wk_key, k->wk_keylen);
+	return (true);
+}
+
+/**
+ * @brief Get the TX MIC.
+ *
+ * This copies out the TX MIC from the given ieee80211_key
+ * into the given buffer/length.
+ *
+ * @param key	ieee80211_key to copy from
+ * @param data	destination buffer for TX MIC
+ * @param len	destination buffer length
+ * @returns	true if copied, false if not
+ */
+static inline uint32_t
+ieee80211_crypto_copy_txmic_data(const struct ieee80211_key *k,
+    uint8_t *data, uint32_t len)
+{
+	if (len < k->wk_cipher->ic_miclen)
+		return (false);
+
+	memset(data, '\0', len);
+	memcpy(data, k->wk_txmic, k->wk_cipher->ic_miclen);
+	return (true);
+}
+
+/**
+ * @brief Get the RX MIC.
+ *
+ * This copies out the RX MIC from the given ieee80211_key
+ * into the given buffer/length.
+ *
+ * @param key	ieee80211_key to copy from
+ * @param data	destination buffer for RX MIC
+ * @param len	destination buffer length
+ * @returns	true if copied, false if not
+ */
+static inline uint32_t
+ieee80211_crypto_copy_rxmic_data(const struct ieee80211_key *k,
+    uint8_t *data, uint32_t len)
+{
+	if (len < k->wk_cipher->ic_miclen)
+		return (false);
+
+	memset(data, '\0', len);
+	memcpy(data, k->wk_rxmic, k->wk_cipher->ic_miclen);
+	return (true);
+}
 
 /**
  * @brief Return the key data.
