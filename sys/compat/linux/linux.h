@@ -83,6 +83,7 @@ struct l_sockaddr {
 
 #define	LINUX_ARPHRD_ETHER	1
 #define	LINUX_ARPHRD_LOOPBACK	772
+#define	LINUX_ARPHRD_SIT	776
 
 /*
  * Supported address families
