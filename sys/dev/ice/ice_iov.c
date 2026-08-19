@@ -54,6 +54,8 @@ SYSCTL_INT(_debug_fail_point_ice_iov, OID_AUTO, vf,
     "VF eligible for ice SR-IOV fail points (-1 selects every VF)");
 #endif /* DRIVER_FAILPOINTS */
 static struct ice_vf *ice_iov_get_vf(struct ice_softc *sc, int vf_num);
+static int ice_iov_configure_mac_anti_spoof(struct ice_softc *sc,
+    struct ice_vf *vf);
 static void ice_iov_ready_vf(struct ice_softc *sc, struct ice_vf *vf);
 static void ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf,
 			 bool trigger_vflr);
@@ -240,6 +242,47 @@ ice_iov_get_vf(struct ice_softc *sc, int vf_num)
 	MPASS(vf_num < sc->num_vfs);
 
 	return &sc->vfs[vf_num];
+}
+
+/**
+ * ice_iov_configure_mac_anti_spoof - Apply a VF's source-MAC policy
+ * @sc: device softc structure
+ * @vf: VF whose VSI security policy should be configured
+ *
+ * PF and device resets discard the hardware VSI context, so callers must
+ * replay this policy after creating or rebuilding the VF's VSI.
+ */
+static int
+ice_iov_configure_mac_anti_spoof(struct ice_softc *sc, struct ice_vf *vf)
+{
+	struct ice_vsi_ctx ctx = { 0 };
+	struct ice_vsi *vsi = vf->vsi;
+	struct ice_hw *hw = &sc->hw;
+	bool enable;
+	int status;
+
+	enable = (atomic_load_acq_32(&vf->vf_flags) &
+	    VF_FLAG_MAC_ANTI_SPOOF) != 0;
+	ctx.info.sec_flags = vsi->info.sec_flags;
+	ctx.info.valid_sections =
+	    CPU_TO_LE16(ICE_AQ_VSI_PROP_SECURITY_VALID);
+	if (enable)
+		ctx.info.sec_flags |= ICE_AQ_VSI_SEC_FLAG_ENA_MAC_ANTI_SPOOF;
+	else
+		ctx.info.sec_flags &= ~ICE_AQ_VSI_SEC_FLAG_ENA_MAC_ANTI_SPOOF;
+
+	status = ice_update_vsi(hw, vsi->idx, &ctx, NULL);
+	if (status != 0) {
+		device_printf(sc->dev,
+		    "Unable to configure VF %u MAC anti-spoof %s, "
+		    "err %s aq_err %s\n", vf->vf_num,
+		    enable ? "on" : "off", ice_status_str(status),
+		    ice_aq_str(hw->adminq.sq_last_status));
+		return (EIO);
+	}
+
+	vsi->info.sec_flags = ctx.info.sec_flags;
+	return (0);
 }
 
 /**
@@ -436,6 +479,9 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 	}
 	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_vsi_init, error,
 	    release_imap);
+	error = ice_iov_configure_mac_anti_spoof(sc, vf);
+	if (error != 0)
+		goto release_imap;
 
 	/* Add the broadcast address */
 	error = ice_add_vsi_mac_filter(vsi, broadcastaddr);
@@ -675,6 +721,9 @@ ice_iov_rebuild_vf(struct ice_softc *sc, struct ice_vsi *vsi)
 		return (error);
 	}
 	vsi->hw_stats.cur = accumulated_stats;
+	error = ice_iov_configure_mac_anti_spoof(sc, vf);
+	if (error != 0)
+		return (error);
 
 	status = ice_replay_vsi(hw, vsi->idx);
 	if (status != 0) {

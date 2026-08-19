@@ -1107,9 +1107,13 @@ If unspecified, the VF will use a randomly generated MAC address and
 .Dq allow-set-mac
 will be set to true.
 .It mac-anti-spoof Pq bool
-Prevent the VF from sending Ethernet frames with a source address
-that does not match its own.
+Prevent the VF from sending Ethernet frames whose source address does not
+match a MAC address installed for that VF.
 Enabled by default.
+The policy is enforced in hardware and replayed after PF and device resets.
+If firmware cannot install it during VF creation, the SR-IOV configuration
+request fails.
+If replay fails during reconstruction, the configured VF remains inactive.
 .It allow-set-mac Pq bool
 Allow the VF to set its own Ethernet MAC address.
 Disallowed by default.
