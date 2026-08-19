@@ -61,7 +61,7 @@ static int ice_iov_restore_vf_host_config(struct ice_softc *sc,
 static void ice_iov_clear_vf_queue_state(struct ice_vf *vf);
 static void ice_iov_ready_vf(struct ice_softc *sc, struct ice_vf *vf);
 static int ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf,
-			bool trigger_vflr);
+			bool trigger_reset, bool release_vf);
 static void ice_iov_setup_intr_mapping(struct ice_softc *sc, struct ice_vf *vf);
 
 static void ice_vc_version_msg(struct ice_softc *sc, struct ice_vf *vf,
@@ -643,7 +643,7 @@ ice_iov_handle_vflr(struct ice_softc *sc)
 {
 	struct ice_hw *hw = &sc->hw;
 	struct ice_vf *vf;
-	u32 reg, reg_idx, bit_idx;
+	u32 reg, reg_idx, bit_idx, vf_flags;
 
 	for (int i = 0; i < sc->num_vfs; i++) {
 		vf = &sc->vfs[i];
@@ -653,9 +653,15 @@ ice_iov_handle_vflr(struct ice_softc *sc)
 		reg = rd32(hw, GLGEN_VFLRSTAT(reg_idx));
 		if ((reg & BIT(bit_idx)) == 0)
 			continue;
-		if ((atomic_load_acq_32(&vf->vf_flags) &
-		    VF_FLAG_ENABLED) != 0 && vf->vsi != NULL) {
-			ice_reset_vf(sc, vf, false);
+		vf_flags = atomic_load_acq_32(&vf->vf_flags);
+		if ((vf_flags & VF_FLAG_ENABLED) != 0 && vf->vsi != NULL) {
+			if ((vf_flags & VF_FLAG_REBUILD_FAILED) != 0) {
+				/* Consume the event but leave the invalid VF held. */
+				wr32(hw, GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
+				ice_flush(hw);
+				continue;
+			}
+			ice_reset_vf(sc, vf, false, true);
 			continue;
 		}
 
@@ -803,56 +809,43 @@ fail:
  * ice_reset_vf - Perform a hardware reset (VFR) on a VF
  * @sc: device softc structure
  * @vf: driver's VF structure for VF to be reset
- * @trigger_vflr: trigger a reset or only handle already executed reset
+ * @trigger_reset: trigger a reset or only handle an already executed reset
+ * @release_vf: publish VFACTIVE after reset; otherwise leave the VF held
  *
  * Performs a VFR for the given VF. This function busy waits until the reset
  * completes in the HW and publishes VFACTIVE only after every mandatory
- * reset stage succeeds.
+ * reset stage succeeds. In quiesce mode, it returns with VFSWR asserted and
+ * without restoring interrupt mappings or publishing VFACTIVE.
  *
- * @remark This also sets up the PF<->VF interrupt mapping and allocations in
- * the hardware after the hardware reset is finished, via
+ * @remark Release mode also sets up the PF<->VF interrupt mapping and
+ * allocations in the hardware after the hardware reset is finished, via
  * ice_iov_setup_intr_mapping()
  */
 static int
-ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_vflr)
+ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_reset,
+    bool release_vf)
 {
 	u16 global_vf_num, reg_idx, bit_idx;
 	struct ice_hw *hw = &sc->hw;
+	bool reset_done;
 	int error, status;
 	u32 reg;
-	int i;
+	int bit, i;
+
+	/* A VFR cannot recover PF-owned VSI state lost during PF rebuild. */
+	if (release_vf && (atomic_load_acq_32(&vf->vf_flags) &
+	    VF_FLAG_REBUILD_FAILED) != 0)
+		return (EIO);
 
 	global_vf_num = vf->vf_num + hw->func_caps.vf_base_id;
 	atomic_clear_32(&vf->vf_flags, VF_FLAG_INITIALIZED);
 	error = 0;
 
-	if (trigger_vflr) {
+	if (trigger_reset) {
 		reg = rd32(hw, VPGEN_VFRTRIG(vf->vf_num));
 		reg |= VPGEN_VFRTRIG_VFSWR_M;
 		wr32(hw, VPGEN_VFRTRIG(vf->vf_num), reg);
-	}
-
-	/* clear the VFLR bit for the VF in a GLGEN_VFLRSTAT register */
-	reg_idx = (global_vf_num) / 32;
-	bit_idx = (global_vf_num) % 32;
-	wr32(hw, GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
-	ice_flush(hw);
-
-	/* Wait until there are no pending PCI transactions */
-	wr32(hw, PF_PCI_CIAA,
-	     ICE_PCIE_DEV_STATUS | (global_vf_num << PF_PCI_CIAA_VF_NUM_S));
-
-	for (i = 0; i < ICE_PCI_CIAD_WAIT_COUNT; i++) {
-		reg = rd32(hw, PF_PCI_CIAD);
-		if (!(reg & PCIEM_STA_TRANSACTION_PND))
-			break;
-
-		DELAY(ICE_PCI_CIAD_WAIT_DELAY_US);
-	}
-	if (i == ICE_PCI_CIAD_WAIT_COUNT) {
-		device_printf(sc->dev,
-			"VF-%d PCI transactions stuck\n", vf->vf_num);
-		error = ETIMEDOUT;
+		ice_flush(hw);
 	}
 
 	/*
@@ -880,17 +873,54 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_vflr)
 			error = EIO;
 	}
 
-	/* Then check for the VF reset to finish in HW */
+	/* Then check for the VF reset to finish in HW. */
+	reset_done = false;
 	for (i = 0; i < ICE_VPGEN_VFRSTAT_WAIT_COUNT; i++) {
 		reg = rd32(hw, VPGEN_VFRSTAT(vf->vf_num));
-		if ((reg & VPGEN_VFRSTAT_VFRD_M))
+		if ((reg & VPGEN_VFRSTAT_VFRD_M)) {
+			reset_done = true;
 			break;
+		}
 
 		DELAY(ICE_VPGEN_VFRSTAT_WAIT_DELAY_US);
 	}
-	if (i == ICE_VPGEN_VFRSTAT_WAIT_COUNT) {
+	if (!reset_done) {
 		device_printf(sc->dev,
 			"VF-%d Reset is stuck\n", vf->vf_num);
+		if (error == 0)
+			error = ETIMEDOUT;
+	} else {
+		/* VFLR status is W1C only after the hardware drain completes. */
+		reg_idx = global_vf_num / 32;
+		bit_idx = global_vf_num % 32;
+		wr32(hw, GLGEN_VFLRSTAT(reg_idx), BIT(bit_idx));
+		ice_flush(hw);
+
+		/* Hardware resets Tx queues; the PF must disable every Rx. */
+		for (bit = 0; bit < vf->vsi->num_rx_queues; bit++) {
+			status = ice_control_rx_queue(vf->vsi, bit, false);
+			if (status != 0) {
+				device_printf(sc->dev,
+				    "Unable to disable VF-%d Rx queue %d: %s\n",
+				    vf->vf_num, bit, ice_err_str(status));
+				if (error == 0)
+					error = status;
+			}
+		}
+	}
+
+	/* Verify that post-drain cleanup left no outstanding DMA. */
+	wr32(hw, PF_PCI_CIAA,
+	    ICE_PCIE_DEV_STATUS | (global_vf_num << PF_PCI_CIAA_VF_NUM_S));
+	for (i = 0; i < ICE_PCI_CIAD_WAIT_COUNT; i++) {
+		reg = rd32(hw, PF_PCI_CIAD);
+		if (!(reg & PCIEM_STA_TRANSACTION_PND))
+			break;
+		DELAY(ICE_PCI_CIAD_WAIT_DELAY_US);
+	}
+	if (i == ICE_PCI_CIAD_WAIT_COUNT) {
+		device_printf(sc->dev,
+		    "VF-%d PCI transactions remain after reset\n", vf->vf_num);
 		if (error == 0)
 			error = ETIMEDOUT;
 	}
@@ -900,12 +930,10 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_vflr)
 		return (error);
 	}
 
-	atomic_clear_32(&vf->vf_flags, VF_FLAG_RESET_FAILED);
-
-	/* A VFR cannot recover PF-owned VSI state lost during PF rebuild. */
-	if ((atomic_load_acq_32(&vf->vf_flags) &
-	    VF_FLAG_REBUILD_FAILED) != 0)
-		return (EIO);
+	if (!release_vf) {
+		atomic_clear_32(&vf->vf_flags, VF_FLAG_RESET_FAILED);
+		return (0);
+	}
 
 	error = ice_iov_restore_vf_host_config(sc, vf);
 	if (error != 0) {
@@ -913,8 +941,71 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_vflr)
 		return (error);
 	}
 
+	atomic_clear_32(&vf->vf_flags, VF_FLAG_RESET_FAILED);
 	ice_iov_ready_vf(sc, vf);
 	return (0);
+}
+
+/**
+ * ice_iov_quiesce_vfs_for_reset - Hold configured VFs before device reset
+ * @sc: device softc structure
+ *
+ * Gate VF master accesses, drain each VF data path, and leave VFSWR asserted.
+ * Process VFs serially to remain below the E810 limit of four concurrent
+ * VM/VF reset flows. A successful VSI rebuild releases each VF individually.
+ */
+int
+ice_iov_quiesce_vfs_for_reset(struct ice_softc *sc)
+{
+	struct virtchnl_pf_event event = {};
+	struct ice_hw *hw = &sc->hw;
+	struct ice_vf *vf;
+	int error, first_error;
+	u32 reg, vf_flags;
+	bool notify;
+
+	notify = ice_check_sq_alive(hw, &hw->mailboxq);
+	event.event = VIRTCHNL_EVENT_RESET_IMPENDING;
+	event.severity = PF_EVENT_SEVERITY_CERTAIN_DOOM;
+
+	/* Notify and then gate each VF before it can release its buffers. */
+	for (int i = 0; i < sc->num_vfs; i++) {
+		vf = &sc->vfs[i];
+		vf_flags = atomic_load_acq_32(&vf->vf_flags);
+		if ((vf_flags & VF_FLAG_ENABLED) == 0 || vf->vsi == NULL)
+			continue;
+		if (notify && (vf_flags & VF_FLAG_INITIALIZED) != 0)
+			ice_aq_send_msg_to_vf(hw, vf->vf_num,
+			    VIRTCHNL_OP_EVENT, VIRTCHNL_STATUS_SUCCESS,
+			    (u8 *)&event, sizeof(event), NULL);
+
+		/* Block mailbox reconfiguration before asserting reset. */
+		atomic_clear_32(&vf->vf_flags, VF_FLAG_INITIALIZED);
+		atomic_set_32(&vf->vf_flags, VF_FLAG_REBUILD_FAILED);
+		reg = rd32(hw, VPGEN_VFRTRIG(vf->vf_num));
+		reg |= VPGEN_VFRTRIG_VFSWR_M;
+		wr32(hw, VPGEN_VFRTRIG(vf->vf_num), reg);
+	}
+	ice_flush(hw);
+
+	/* Firmware data-path drains remain serialized below its limit. */
+	first_error = 0;
+	for (int i = 0; i < sc->num_vfs; i++) {
+		vf = &sc->vfs[i];
+		vf_flags = atomic_load_acq_32(&vf->vf_flags);
+		if ((vf_flags & VF_FLAG_ENABLED) == 0 || vf->vsi == NULL)
+			continue;
+		error = ice_reset_vf(sc, vf, false, false);
+		if (error != 0) {
+			device_printf(sc->dev,
+			    "Failed to quiesce VF-%d for device reset: %d\n",
+			    vf->vf_num, error);
+			if (first_error == 0)
+				first_error = error;
+		}
+	}
+
+	return (first_error);
 }
 
 /**
@@ -2408,7 +2499,10 @@ ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event)
 	if ((vf_flags & VF_FLAG_ENABLED) == 0 || vf->vsi == NULL)
 		return;
 
-	/* Only a later PF rebuild can restore an invalid firmware VSI. */
+	/*
+	 * Permit only reset negotiation while VF hardware state is unsafe.
+	 * A VFR can retry RESET_FAILED; REBUILD_FAILED requires a PF rebuild.
+	 */
 	if ((vf_flags & (VF_FLAG_REBUILD_FAILED | VF_FLAG_RESET_FAILED)) != 0 &&
 	    v_opcode != VIRTCHNL_OP_VERSION &&
 	    v_opcode != VIRTCHNL_OP_RESET_VF) {
@@ -2422,7 +2516,7 @@ ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event)
 		ice_vc_version_msg(sc, vf, msg);
 		break;
 	case VIRTCHNL_OP_RESET_VF:
-		ice_reset_vf(sc, vf, true);
+		ice_reset_vf(sc, vf, true, true);
 		break;
 	case VIRTCHNL_OP_GET_VF_RESOURCES:
 		ice_vc_get_vf_res_msg(sc, vf, msg);

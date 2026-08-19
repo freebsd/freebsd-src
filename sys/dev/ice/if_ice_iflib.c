@@ -2545,6 +2545,9 @@ static void
 ice_prepare_for_reset(struct ice_softc *sc)
 {
 	struct ice_hw *hw = &sc->hw;
+#ifdef PCI_IOV
+	int error;
+#endif
 
 	/* If we're already prepared, there's nothing to do */
 	if (ice_testandset_state(&sc->state, ICE_STATE_PREPARED_FOR_RESET))
@@ -2557,8 +2560,17 @@ ice_prepare_for_reset(struct ice_softc *sc)
 		return;
 
 #ifdef PCI_IOV
-	/* Notify initialized VFs while the mailbox queue is still available. */
-	ice_iov_notify_vfs_reset(sc);
+	/*
+	 * A reset already reported by OICR gates DMA in hardware and rejects
+	 * new function resets. Otherwise notify and hold VFs while AdminQ is
+	 * still usable, before releasing any firmware topology.
+	 */
+	if (!hw->reset_ongoing) {
+		error = ice_iov_quiesce_vfs_for_reset(sc);
+		if (error != 0)
+			device_printf(sc->dev,
+			    "Failed to quiesce one or more VFs: %d\n", error);
+	}
 #endif
 
 	/* Restore identification while the control queues are still usable. */
