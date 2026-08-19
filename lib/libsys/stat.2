@@ -271,10 +271,14 @@ be zero.
 .Pp
 For file descriptors referencing specific non-file objects,
 the field is type-specific.
+.Pp
 For POSIX shared memory segments
 .Pq see Xr shm_open 2 ,
-the block size is equal to
-the platform page size
+the block size is 512 bytes.
+For older versions of
+.Fx
+.Pq before 15.2 and 16.0
+the block size was equal to the platform page size
 .Pq Xr getpagesize 2 .
 .El
 .Pp

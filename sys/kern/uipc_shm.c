@@ -663,12 +663,8 @@ shm_stat(struct file *fp, struct stat *sb, struct ucred *active_cred)
 	sb->st_dev = shm_dev_ino;
 	sb->st_ino = shmfd->shm_ino;
 	sb->st_nlink = shmfd->shm_object->ref_count;
-	if (shm_largepage(shmfd)) {
-		sb->st_blocks = shmfd->shm_object->size /
-		    (pagesizes[shmfd->shm_lp_psind] >> PAGE_SHIFT);
-	} else {
-		sb->st_blocks = shmfd->shm_pages;
-	}
+	sb->st_blocks = ptoa(shm_largepage(shmfd) ? shmfd->shm_object->size :
+	    shmfd->shm_pages) / DEV_BSIZE;
 
 	return (0);
 }
