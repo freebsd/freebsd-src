@@ -1,0 +1,123 @@
+.\"
+.\" Copyright (c) 2026 Pouria Mousavizadeh Tehrani <pouria@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd July 30, 2026
+.Dt NHOP 9
+.Os
+.Sh NAME
+.Nm nhop ,
+.Nm nhop_object
+.Nd structure of a nexthop entry in the kernel routing table
+.Sh SYNOPSIS
+.In sys/types.h
+.In sys/socket.h
+.In net/route.h
+.In net/route/nhop.h
+.Sh DESCRIPTION
+The kernel provides a common mechanism by which all routes can store
+and retrieve nexthop entries from a central table of routes.
+The
+.In net/route/nhop.h
+header file defines the structures and manifest constants used in this
+facility.
+.Pp
+The data plane structure of a nexthop is defined by
+.Vt "struct nhop_object" ,
+which includes the following fields:
+.Bl -tag -offset indent -width 6n
+.It Vt "uint16_t flags" ;
+See below.
+.It Vt "uint16_t nh_mtu" ;
+MTU for this nexthop.
+.It Vt "char gw_buf[28]";
+The gateway of the nexthop.
+An storage suitable to hold AF_INET, AF_INET6, or AF_NET gateway.
+.It Vt "struct ifnet *nh_ifp" ;
+.It Vt "struct ifaddr *nh_ifa" ;
+These two fields represent the
+.Dq answer ,
+as it were, to the question posed by a route lookup; that is, they
+name the interface and interface address to be used in sending a
+packet to the destination or set of destinations which nexthop represents.
+.It Vt "struct ifnet *nh_aifp" ;
+Interface of the source address.
+It is same as
+.Va nh_ifp
+except for IPv6 loopback routes, or when the
+.Dv NHF_PREFSRC
+is set, which means the source address is borrowed from another interface.
+.It Vt "counter_u64_t nh_pksent";
+A count of packets successfully sent via this nexthop.
+.It Vt "uint8_t nh_prepend_len";
+link-level prepend length which is currently unused.
+.It Vt "uint8_t spare[3]";
+.It Vt "uint32_t spare1";
+These two fields are unused.
+.It Vt "char nh_prepend[48]";
+link-level prepend data which is currently unused.
+.It Vt "struct nhop_priv *nh_priv";
+Pointer to control plane data of nexthop.
+.El
+.Pp
+The following flag bits are defined:
+.Bl -tag -offset indent -width "NHF_BLACKHOLE" -compact
+.It Dv NHF_MULTIPATH
+The nexthop is a nexthop group.
+.It Dv NHF_REJECT
+Same as
+.Dv RTF_REJECT .
+The destination is presently unreachable.
+.It Dv NHF_BLACKHOLE
+Same as
+.Dv RTF_BLACKHOLE
+Requests that output sent via this nexthop be discarded.
+.It Dv NHF_REDIRECT
+Same as
+.Dv RTF_DYNAMIC
+and
+.Dv RTF_MODIFIED
+flags together.
+.It Dv NHF_DEFAULT
+The nexthop is used for default route.
+.It Dv NHF_BROADCAST
+Same as
+.Dv RTF_BROADCAST
+Indicates that the destination is a broadcast address.
+.It Dv NHF_GATEWAY
+Same as
+.Dv RTF_GATEWAY
+The route points to an intermediate destination and not the ultimate
+recipient; the
+.Va gw4_sa
+and
+.Va gw6_sa
+fields name that destination.
+.It Dv NHF_HOST
+Same as
+.Dv RTF_HOST
+This is a nexthop to a host route.
+This should result in an
+.Er EHOSTUNREACH
+error from output routines.
+.It Dv NHF_INVALID
+This nexthop is currently down.
+.It Dv NHF_PREFSRC
+Used only in the
+.Xr rtnetlink 4
+indicating that the source address is manually overwritten.
+.El
+.Sh SEE ALSO
+.Xr route 4 ,
+.Xr route 8 ,
+.Xr rtentry 9
+.Sh HISTORY
+The
+.Nm
+stack is a rework of routing subsystem by
+.An Alexander V. Chernikov Aq melifaro@FreeBSD.org
+.Sh AUTHORS
+.An -nosplit
+This manual page was written by
+.An Seyed Pouria Mousavizadeh Tehrani Aq pouria@FreeBSD.org

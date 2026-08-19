@@ -245,6 +245,7 @@ MAN=	accept_filter.9 \
 	mutex.9 \
 	namei.9 \
 	netisr.9 \
+	nhop.9 \
 	nv.9 \
 	nvmem.9 \
 	OF_child.9 \
@@ -1680,6 +1681,7 @@ MLINKS+=netisr.9 netisr_clearqdrops.9 \
 	netisr.9 netisr_register.9 \
 	netisr.9 netisr_setqlimit.9 \
 	netisr.9 netisr_unregister.9
+MLINKS+=nhop.9 nhop_object.9
 MLINKS+=nv.9 libnv.9 \
 	nv.9 nvlist.9 \
 	nv.9 nvlist_add_binary.9 \
