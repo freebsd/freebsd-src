@@ -518,7 +518,8 @@ ATF_TC_BODY(ourshutdown_kevent, tc)
 	int sv[2], kq;
 
 	do_socketpair(sv);
-	ATF_REQUIRE(kq = kqueue());
+	kq = kqueue();
+	ATF_REQUIRE(kq != -1);
 
 	EV_SET(&kev, sv[1], EVFILT_WRITE, EV_ADD, 0, 0, NULL);
 	ATF_REQUIRE(kevent(kq, &kev, 1, NULL, 0, NULL) == 0);
