@@ -53,7 +53,7 @@ qsort_bench(int log2n)
 	int *buf;
 
 	/* fill an array with a pathological pattern */
-	ATF_REQUIRE(buf = malloc(n * sizeof(*buf)));
+	ATF_REQUIRE((buf = malloc(n * sizeof(*buf))) != NULL);
 	buf[0] = 0;
 	buf[n / 2] = n / 2;
 	for (unsigned int i = 1; i < n / 2; i++) {
