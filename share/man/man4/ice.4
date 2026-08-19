@@ -1158,6 +1158,10 @@ If one VF cannot be reconstructed, it remains configured but uninitialized
 while the PF and its sibling VFs continue recovering.
 A VF function-level reset cannot recreate this PF-owned VSI state; another PF
 or device reset, or SR-IOV configuration recreation, is required.
+If a mandatory stage of an individual VF reset fails, the driver likewise
+leaves that VF inactive instead of publishing incomplete hardware state.
+A later VF reset can retry this recovery; a PF or device reset, or SR-IOV
+configuration recreation, can also recover the VF.
 .Pp
 An up to date list of parameters and their defaults can be found by using
 .Xr iovctl 8

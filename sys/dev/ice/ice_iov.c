@@ -56,9 +56,12 @@ SYSCTL_INT(_debug_fail_point_ice_iov, OID_AUTO, vf,
 static struct ice_vf *ice_iov_get_vf(struct ice_softc *sc, int vf_num);
 static int ice_iov_configure_mac_anti_spoof(struct ice_softc *sc,
     struct ice_vf *vf);
+static int ice_iov_restore_vf_host_config(struct ice_softc *sc,
+    struct ice_vf *vf);
+static void ice_iov_clear_vf_queue_state(struct ice_vf *vf);
 static void ice_iov_ready_vf(struct ice_softc *sc, struct ice_vf *vf);
-static void ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf,
-			 bool trigger_vflr);
+static int ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf,
+			bool trigger_vflr);
 static void ice_iov_setup_intr_mapping(struct ice_softc *sc, struct ice_vf *vf);
 
 static void ice_vc_version_msg(struct ice_softc *sc, struct ice_vf *vf,
@@ -81,6 +84,8 @@ static void ice_vc_enable_queues_msg(struct ice_softc *sc, struct ice_vf *vf,
 static void ice_vc_notify_vf_link_state(struct ice_softc *sc, struct ice_vf *vf);
 static void ice_vc_disable_queues_msg(struct ice_softc *sc, struct ice_vf *vf,
 				      u8 *msg_buf);
+static int ice_vc_disable_queues(struct ice_softc *sc, struct ice_vf *vf,
+				 u32 tx_queues, u32 rx_queues);
 static void ice_vc_cfg_irq_map_msg(struct ice_softc *sc, struct ice_vf *vf,
 				   u8 *msg_buf);
 static void ice_vc_get_stats_msg(struct ice_softc *sc, struct ice_vf *vf,
@@ -250,7 +255,8 @@ ice_iov_get_vf(struct ice_softc *sc, int vf_num)
  * @vf: VF whose VSI security policy should be configured
  *
  * PF and device resets discard the hardware VSI context, so callers must
- * replay this policy after creating or rebuilding the VF's VSI.
+ * replay this policy after creating or rebuilding the VF's VSI.  Also reapply
+ * the PF-owned policy defensively before releasing a VF after VFR.
  */
 static int
 ice_iov_configure_mac_anti_spoof(struct ice_softc *sc, struct ice_vf *vf)
@@ -282,6 +288,43 @@ ice_iov_configure_mac_anti_spoof(struct ice_softc *sc, struct ice_vf *vf)
 	}
 
 	vsi->info.sec_flags = ctx.info.sec_flags;
+	return (0);
+}
+
+/**
+ * ice_iov_restore_vf_host_config - Restore PF-owned policy after a VF reset
+ * @sc: device softc structure
+ * @vf: VF whose host configuration should be restored
+ *
+ * A VF reset discards the guest's filter configuration. Remove the matching
+ * software switch state as well so that replayed guest requests reach
+ * firmware instead of being mistaken for filters which still exist. Restore
+ * the PF-owned source-MAC policy and base filters before releasing the VF.
+ */
+static int
+ice_iov_restore_vf_host_config(struct ice_softc *sc, struct ice_vf *vf)
+{
+	struct ice_vsi *vsi = vf->vsi;
+	int error;
+
+	ice_remove_vsi_fltr(&sc->hw, vsi->idx);
+	vf->mac_filter_cnt = 0;
+	vf->vlan_cnt = 0;
+	bzero(vf->vlans_map, sizeof(vf->vlans_map));
+
+	error = ice_iov_configure_mac_anti_spoof(sc, vf);
+	if (error != 0)
+		return (error);
+
+	error = ice_add_vsi_mac_filter(vsi, broadcastaddr);
+	if (error != 0)
+		return (error);
+	if (!ETHER_IS_ZERO(vf->mac)) {
+		error = ice_add_vsi_mac_filter(vsi, vf->mac);
+		if (error != 0)
+			return (error);
+	}
+
 	return (0);
 }
 
@@ -653,6 +696,18 @@ ice_iov_notify_vfs_reset(struct ice_softc *sc)
 }
 
 /**
+ * ice_iov_clear_vf_queue_state - Clear tracked VF queue state
+ * @vf: driver's VF structure for the VF to update
+ */
+static void
+ice_iov_clear_vf_queue_state(struct ice_vf *vf)
+{
+	vf->txq_configured = 0;
+	vf->rxq_configured = 0;
+	vf->rxq_enabled = 0;
+}
+
+/**
  * ice_iov_ready_vf - Setup VF interrupts and mark it as ready
  * @sc: device softc structure
  * @vf: driver's VF structure for the VF to update
@@ -668,9 +723,7 @@ ice_iov_ready_vf(struct ice_softc *sc, struct ice_vf *vf)
 	u32 reg;
 
 	/* A VF or PF reset discards all queue configuration and state. */
-	vf->txq_configured = 0;
-	vf->rxq_configured = 0;
-	vf->rxq_enabled = 0;
+	ice_iov_clear_vf_queue_state(vf);
 
 	/* Clear the triggering bit */
 	reg = rd32(hw, VPGEN_VFRTRIG(vf->vf_num));
@@ -708,6 +761,7 @@ ice_iov_rebuild_vf(struct ice_softc *sc, struct ice_vsi *vsi)
 	vf = ice_iov_get_vf(sc, vsi->vf_num);
 	atomic_clear_32(&vf->vf_flags, VF_FLAG_INITIALIZED);
 	atomic_set_32(&vf->vf_flags, VF_FLAG_REBUILD_FAILED);
+	ice_iov_clear_vf_queue_state(vf);
 	ICE_IOV_FAIL_POINT(sc, vf->vf_num, rebuild_before_initialize, error,
 	    fail);
 
@@ -734,7 +788,8 @@ ice_iov_rebuild_vf(struct ice_softc *sc, struct ice_vsi *vsi)
 		return (EIO);
 	}
 
-	atomic_clear_32(&vf->vf_flags, VF_FLAG_REBUILD_FAILED);
+	atomic_clear_32(&vf->vf_flags,
+	    VF_FLAG_REBUILD_FAILED | VF_FLAG_RESET_FAILED);
 	ice_iov_ready_vf(sc, vf);
 	return (0);
 
@@ -750,24 +805,26 @@ fail:
  * @vf: driver's VF structure for VF to be reset
  * @trigger_vflr: trigger a reset or only handle already executed reset
  *
- * Performs a VFR for the given VF. This function busy waits until the
- * reset completes in the HW, notifies the VF that the reset is done
- * by setting a bit in a HW register, then returns.
+ * Performs a VFR for the given VF. This function busy waits until the reset
+ * completes in the HW and publishes VFACTIVE only after every mandatory
+ * reset stage succeeds.
  *
  * @remark This also sets up the PF<->VF interrupt mapping and allocations in
  * the hardware after the hardware reset is finished, via
  * ice_iov_setup_intr_mapping()
  */
-static void
+static int
 ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_vflr)
 {
 	u16 global_vf_num, reg_idx, bit_idx;
 	struct ice_hw *hw = &sc->hw;
-	int status;
+	int error, status;
 	u32 reg;
 	int i;
 
 	global_vf_num = vf->vf_num + hw->func_caps.vf_base_id;
+	atomic_clear_32(&vf->vf_flags, VF_FLAG_INITIALIZED);
+	error = 0;
 
 	if (trigger_vflr) {
 		reg = rd32(hw, VPGEN_VFRTRIG(vf->vf_num));
@@ -792,18 +849,36 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_vflr)
 
 		DELAY(ICE_PCI_CIAD_WAIT_DELAY_US);
 	}
-	if (i == ICE_PCI_CIAD_WAIT_COUNT)
+	if (i == ICE_PCI_CIAD_WAIT_COUNT) {
 		device_printf(sc->dev,
 			"VF-%d PCI transactions stuck\n", vf->vf_num);
+		error = ETIMEDOUT;
+	}
+
+	/*
+	 * Remove the tracked queue leaves from the software scheduler before
+	 * issuing the reset-only AQ command.  That command drains hardware but
+	 * does not update the shared scheduler database.  Retain unresolved queue
+	 * state if cleanup fails so a later reset can retry it.
+	 */
+	status = ice_vc_disable_queues(sc, vf, vf->txq_configured,
+	    vf->rxq_enabled);
+	if (status == 0)
+		ice_iov_clear_vf_queue_state(vf);
+	else if (error == 0)
+		error = status;
 
 	/* This zero-queue command is required to complete every VF reset. */
 	status = ice_dis_vsi_txq(hw->port_info, vf->vsi->idx, 0, 0,
 	    NULL, NULL, NULL, ICE_VF_RESET, vf->vf_num, NULL);
-	if (status)
+	if (status) {
 		device_printf(sc->dev,
 		    "%s: Failed to disable LAN Tx queues: err %s aq_err %s\n",
 		    __func__, ice_status_str(status),
 		    ice_aq_str(hw->adminq.sq_last_status));
+		if (error == 0)
+			error = EIO;
+	}
 
 	/* Then check for the VF reset to finish in HW */
 	for (i = 0; i < ICE_VPGEN_VFRSTAT_WAIT_COUNT; i++) {
@@ -813,16 +888,33 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_vflr)
 
 		DELAY(ICE_VPGEN_VFRSTAT_WAIT_DELAY_US);
 	}
-	if (i == ICE_VPGEN_VFRSTAT_WAIT_COUNT)
+	if (i == ICE_VPGEN_VFRSTAT_WAIT_COUNT) {
 		device_printf(sc->dev,
 			"VF-%d Reset is stuck\n", vf->vf_num);
+		if (error == 0)
+			error = ETIMEDOUT;
+	}
+
+	if (error != 0) {
+		atomic_set_32(&vf->vf_flags, VF_FLAG_RESET_FAILED);
+		return (error);
+	}
+
+	atomic_clear_32(&vf->vf_flags, VF_FLAG_RESET_FAILED);
 
 	/* A VFR cannot recover PF-owned VSI state lost during PF rebuild. */
 	if ((atomic_load_acq_32(&vf->vf_flags) &
 	    VF_FLAG_REBUILD_FAILED) != 0)
-		return;
+		return (EIO);
+
+	error = ice_iov_restore_vf_host_config(sc, vf);
+	if (error != 0) {
+		atomic_set_32(&vf->vf_flags, VF_FLAG_RESET_FAILED);
+		return (error);
+	}
 
 	ice_iov_ready_vf(sc, vf);
+	return (0);
 }
 
 /**
@@ -2317,7 +2409,7 @@ ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event)
 		return;
 
 	/* Only a later PF rebuild can restore an invalid firmware VSI. */
-	if ((vf_flags & VF_FLAG_REBUILD_FAILED) != 0 &&
+	if ((vf_flags & (VF_FLAG_REBUILD_FAILED | VF_FLAG_RESET_FAILED)) != 0 &&
 	    v_opcode != VIRTCHNL_OP_VERSION &&
 	    v_opcode != VIRTCHNL_OP_RESET_VF) {
 		ice_aq_send_msg_to_vf(hw, v_id, v_opcode,
