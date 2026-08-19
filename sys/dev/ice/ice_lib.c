@@ -108,7 +108,8 @@ static void ice_check_ctrlq_errors(struct ice_softc *sc, const char *qname,
 				   struct ice_ctl_q_info *cq);
 static void ice_process_link_event(struct ice_softc *sc, struct ice_rq_event_info *e);
 static void ice_process_ctrlq_event(struct ice_softc *sc, const char *qname,
-				    struct ice_rq_event_info *event);
+				    struct ice_rq_event_info *event,
+				    struct ice_mbx_data *mbx_data);
 static void ice_nvm_version_str(struct ice_hw *hw, struct sbuf *buf);
 static void ice_update_port_oversize(struct ice_softc *sc, u64 rx_errors);
 static void ice_active_pkg_version_str(struct ice_hw *hw, struct sbuf *buf);
@@ -2327,7 +2328,8 @@ ice_process_link_event(struct ice_softc *sc,
  */
 static void
 ice_process_ctrlq_event(struct ice_softc *sc, const char *qname,
-			struct ice_rq_event_info *event)
+			struct ice_rq_event_info *event,
+			struct ice_mbx_data *mbx_data)
 {
 	u16 opcode;
 
@@ -2339,7 +2341,7 @@ ice_process_ctrlq_event(struct ice_softc *sc, const char *qname,
 		break;
 #ifdef PCI_IOV
 	case ice_mbx_opc_send_msg_to_pf:
-		ice_vc_handle_vf_msg(sc, event);
+		ice_vc_handle_vf_msg(sc, event, mbx_data);
 		break;
 #endif
 	case ice_aqc_opc_fw_logs_event:
@@ -2375,6 +2377,9 @@ int
 ice_process_ctrlq(struct ice_softc *sc, enum ice_ctl_q q_type, u16 *pending)
 {
 	struct ice_rq_event_info event = { { 0 } };
+#ifdef PCI_IOV
+	struct ice_mbx_data mbx_data = { 0 };
+#endif
 	struct ice_hw *hw = &sc->hw;
 	struct ice_ctl_q_info *cq;
 	int status;
@@ -2393,6 +2398,11 @@ ice_process_ctrlq(struct ice_softc *sc, enum ice_ctl_q q_type, u16 *pending)
 	case ICE_CTL_Q_MAILBOX:
 		cq = &hw->mailboxq;
 		qname = "Mailbox";
+#ifdef PCI_IOV
+		if (!ice_is_e830(hw) && sc->num_vfs != 0)
+			hw->mbx_snapshot.mbx_buf.state =
+			    ICE_MAL_VF_DETECT_STATE_NEW_SNAPSHOT;
+#endif
 		break;
 	default:
 		device_printf(sc->dev,
@@ -2428,10 +2438,31 @@ ice_process_ctrlq(struct ice_softc *sc, enum ice_ctl_q q_type, u16 *pending)
 			return (EIO);
 		}
 		/* XXX should we separate this handler by controlq type? */
-		ice_process_ctrlq_event(sc, qname, &event);
+#ifdef PCI_IOV
+		if (q_type == ICE_CTL_Q_MAILBOX &&
+		    le16toh(event.desc.opcode) == ice_mbx_opc_send_msg_to_pf) {
+			if (ice_is_e830(hw)) {
+				ice_process_ctrlq_event(sc, qname, &event, NULL);
+				ice_e830_mbx_vf_dec_trig(hw, &event);
+			} else {
+				mbx_data.max_num_msgs_mbx = cq->num_rq_entries;
+				mbx_data.async_watermark_val =
+				    ICE_MBX_OVERFLOW_WATERMARK;
+				mbx_data.num_msg_proc = loop;
+				mbx_data.num_pending_arq = *pending;
+				ice_process_ctrlq_event(sc, qname, &event,
+				    &mbx_data);
+			}
+		} else
+#endif
+			ice_process_ctrlq_event(sc, qname, &event, NULL);
 	} while (*pending && (++loop < ICE_CTRLQ_WORK_LIMIT));
 
 	free(event.msg_buf, M_ICE);
+	ICE_FAIL_POINT_CODE_COND(sc, _debug_fail_point_ice, mailbox_pending,
+	    q_type == ICE_CTL_Q_MAILBOX, FAIL_POINT_NONSLEEPABLE, {
+		*pending = 1;
+	});
 
 	return 0;
 }
@@ -5354,6 +5385,10 @@ ice_configure_misc_interrupts(struct ice_softc *sc)
 	/* Associate the OICR interrupt with ITR 0, and enable it */
 	wr32(hw, PFINT_OICR_CTL, PFINT_OICR_CTL_CAUSE_ENA_M);
 
+#ifdef PCI_IOV
+	/* Start a fresh drain budget when restoring mailbox interrupts. */
+	sc->mbx_admin_passes = 0;
+#endif
 	/* Associate the Mailbox interrupt with ITR 0, and enable it */
 	wr32(hw, PFINT_MBX_CTL, PFINT_MBX_CTL_CAUSE_ENA_M);
 
