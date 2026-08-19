@@ -40,6 +40,10 @@
 #include "ice_iov.h"
 #include "ice_fault.h"
 
+#define	ICE_VC_MAX_RX_BUFFER			\
+	((16 * 1024) - BIT(ICE_RLAN_CTX_DBUF_S))
+#define	ICE_VIRTCHNL_QUEUE_MAP_SIZE		16
+
 #ifdef DRIVER_FAILPOINTS
 static SYSCTL_NODE(_debug_fail_point_ice, OID_AUTO, iov,
     CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "ice SR-IOV fail points");
@@ -63,7 +67,7 @@ static void ice_vc_add_eth_addr_msg(struct ice_softc *sc, struct ice_vf *vf,
 				    u8 *msg_buf);
 static void ice_vc_del_eth_addr_msg(struct ice_softc *sc, struct ice_vf *vf,
 				    u8 *msg_buf);
-static bool ice_vc_isvalid_ring_len(u16 ring_len);
+static bool ice_vc_isvalid_ring_len(u32 ring_len);
 static void ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf,
 				  u8 *msg_buf);
 static void ice_vc_cfg_rss_key_msg(struct ice_softc *sc, struct ice_vf *vf,
@@ -806,7 +810,7 @@ ice_vc_get_vf_res_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 
 	vf_res->rss_key_size = ICE_GET_SET_RSS_KEY_EXTEND_KEY_SIZE;
 	vf_res->rss_lut_size = ICE_VSIQF_HLUT_ARRAY_SIZE;
-	vf_res->max_mtu = 0;
+	vf_res->max_mtu = ICE_MAX_FRAME_SIZE;
 
 	vf_res->vf_cap_flags = VF_BASE_MODE_OFFLOADS;
 	if (msg_buf != NULL) {
@@ -1325,11 +1329,75 @@ ice_vc_disable_queues(struct ice_softc *sc, struct ice_vf *vf,
  * @returns true if given ring size is valid
  */
 static bool
-ice_vc_isvalid_ring_len(u16 ring_len)
+ice_vc_isvalid_ring_len(u32 ring_len)
 {
 	return (ring_len >= ICE_MIN_DESC_COUNT &&
 		ring_len <= ICE_MAX_DESC_COUNT &&
 		!(ring_len % ICE_DESC_COUNT_INCR));
+}
+
+/**
+ * ice_vc_isvalid_txq - Validate a VF transmit queue description
+ * @txq: VF-supplied transmit queue description
+ *
+ * Queue base addresses are encoded in the hardware context in 128-byte
+ * units. Reject values which would be truncated while building the context.
+ */
+static bool
+ice_vc_isvalid_txq(const struct virtchnl_txq_info *txq)
+{
+	u64 align;
+
+	align = BIT_ULL(ICE_TLAN_CTX_BASE_S);
+	return (ice_vc_isvalid_ring_len(txq->ring_len) &&
+	    txq->dma_ring_addr != 0 &&
+	    (txq->dma_ring_addr & (align - 1)) == 0 &&
+	    txq->headwb_enabled == 0);
+}
+
+/**
+ * ice_vc_isvalid_rxq - Validate a VF receive queue description
+ * @rxq: VF-supplied receive queue description
+ *
+ * The receive queue context stores its ring base and data buffer size in
+ * 128-byte units. It can represent data buffers from 128 through 16256
+ * bytes. The current driver supports neither header splitting nor retaining
+ * the Ethernet CRC for VFs. Some older iavf drivers request the maximum PF
+ * frame size with a buffer too small to hold it in five segments. Accept that
+ * advisory mismatch; ice_setup_rx_ctx() safely limits the hardware RXMAX to
+ * five data buffers.
+ */
+static bool
+ice_vc_isvalid_rxq(const struct virtchnl_rxq_info *rxq)
+{
+	u64 ring_align;
+	u32 buffer_align;
+
+	ring_align = BIT_ULL(ICE_RLAN_BASE_S);
+	buffer_align = BIT(ICE_RLAN_CTX_DBUF_S);
+
+	return (ice_vc_isvalid_ring_len(rxq->ring_len) &&
+	    rxq->dma_ring_addr != 0 &&
+	    (rxq->dma_ring_addr & (ring_align - 1)) == 0 &&
+	    rxq->databuffer_size >= buffer_align &&
+	    rxq->databuffer_size <= ICE_VC_MAX_RX_BUFFER &&
+	    (rxq->databuffer_size & (buffer_align - 1)) == 0 &&
+	    rxq->max_pkt_size >= ETHER_MIN_LEN &&
+	    rxq->max_pkt_size <= ICE_MAX_FRAME_SIZE &&
+	    rxq->splithdr_enabled == 0 && rxq->crc_disable == 0);
+}
+
+/**
+ * ice_vc_isvalid_itr_idx - Validate a virtchnl interrupt throttle index
+ * @itr_idx: VF-supplied ITR index
+ */
+static bool
+ice_vc_isvalid_itr_idx(u16 itr_idx)
+{
+
+	return (itr_idx == VIRTCHNL_ITR_IDX_0 ||
+	    itr_idx == VIRTCHNL_ITR_IDX_1 ||
+	    itr_idx == VIRTCHNL_ITR_IDX_NO_ITR);
 }
 
 /**
@@ -1349,12 +1417,13 @@ ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	struct ice_vsi *vsi = vf->vsi;
 	struct ice_tx_queue *txq;
 	struct ice_rx_queue *rxq;
-	u32 expected_map, queue_map;
+	u32 expected_map, max_pkt_size, queue_map, rx_buffer_size;
 	int i, error = 0;
 
 	vqci = (struct virtchnl_vsi_queue_config_info *)msg_buf;
 
-	if (vqci->num_queue_pairs > sizeof(queue_map) * NBBY ||
+	if (vqci->vsi_id != vsi->idx || vqci->num_queue_pairs == 0 ||
+	    vqci->num_queue_pairs > sizeof(queue_map) * NBBY ||
 	    vqci->num_queue_pairs > vsi->num_tx_queues ||
 	    vqci->num_queue_pairs > vsi->num_rx_queues) {
 		status = VIRTCHNL_STATUS_ERR_PARAM;
@@ -1362,6 +1431,8 @@ ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	}
 
 	queue_map = 0;
+	rx_buffer_size = 0;
+	max_pkt_size = 0;
 	vqpi = vqci->qpair;
 	for (i = 0; i < vqci->num_queue_pairs; i++, vqpi++) {
 		if (vqpi->txq.vsi_id != vsi->idx ||
@@ -1370,11 +1441,16 @@ ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 		    vqpi->txq.queue_id >= vsi->num_tx_queues ||
 		    vqpi->rxq.queue_id >= vsi->num_rx_queues ||
 		    (queue_map & BIT(vqpi->txq.queue_id)) != 0 ||
-		    vqpi->txq.headwb_enabled ||
-		    vqpi->rxq.splithdr_enabled ||
-		    vqpi->rxq.crc_disable ||
-		    !ice_vc_isvalid_ring_len(vqpi->txq.ring_len) ||
-		    !ice_vc_isvalid_ring_len(vqpi->rxq.ring_len)) {
+		    !ice_vc_isvalid_txq(&vqpi->txq) ||
+		    !ice_vc_isvalid_rxq(&vqpi->rxq)) {
+			status = VIRTCHNL_STATUS_ERR_PARAM;
+			goto done;
+		}
+		if (i == 0) {
+			rx_buffer_size = vqpi->rxq.databuffer_size;
+			max_pkt_size = vqpi->rxq.max_pkt_size;
+		} else if (vqpi->rxq.databuffer_size != rx_buffer_size ||
+		    vqpi->rxq.max_pkt_size != max_pkt_size) {
 			status = VIRTCHNL_STATUS_ERR_PARAM;
 			goto done;
 		}
@@ -1434,8 +1510,9 @@ ice_vc_cfg_vsi_qs_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 
 		rxq->desc_count = vqpi->rxq.ring_len;
 		rxq->rx_paddr = vqpi->rxq.dma_ring_addr;
-		vsi->mbuf_sz = vqpi->rxq.databuffer_size;
 	}
+	vsi->mbuf_sz = rx_buffer_size;
+	vsi->max_frame_size = max_pkt_size;
 
 	/* Configure TX queues in HW */
 	/*
@@ -1501,10 +1578,8 @@ ice_vc_cfg_rss_key_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 		goto done;
 	}
 
-	if ((vrk->key_len >
-	   (ICE_AQC_GET_SET_RSS_KEY_DATA_RSS_KEY_SIZE +
-	    ICE_AQC_GET_SET_RSS_KEY_DATA_HASH_KEY_SIZE)) ||
-	    vrk->key_len == 0) {
+	/* The VF must use the exact key size advertised by this PF. */
+	if (vrk->key_len != ICE_GET_SET_RSS_KEY_EXTEND_KEY_SIZE) {
 		v_status = VIRTCHNL_STATUS_ERR_PARAM;
 		goto done;
 	}
@@ -1538,7 +1613,7 @@ ice_vc_cfg_rss_lut_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 {
 	struct ice_hw *hw = &sc->hw;
 	struct virtchnl_rss_lut *vrl;
-	int status = 0;
+	int i, status = 0;
 	enum virtchnl_status_code v_status = VIRTCHNL_STATUS_SUCCESS;
 	struct ice_aq_get_set_rss_lut_params lut_params = {};
 	struct ice_vsi *vsi = vf->vsi;
@@ -1553,13 +1628,20 @@ ice_vc_cfg_rss_lut_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 		goto done;
 	}
 
-	if (vrl->lut_entries > ICE_VSIQF_HLUT_ARRAY_SIZE) {
+	/* The VF must use the exact LUT size advertised by this PF. */
+	if (vrl->lut_entries != vsi->rss_table_size) {
 		v_status = VIRTCHNL_STATUS_ERR_PARAM;
 		goto done;
 	}
+	for (i = 0; i < vrl->lut_entries; i++) {
+		if (vrl->lut[i] >= vsi->num_rx_queues) {
+			v_status = VIRTCHNL_STATUS_ERR_PARAM;
+			goto done;
+		}
+	}
 
 	lut_params.vsi_handle = vsi->idx;
-	lut_params.lut_size = vsi->rss_table_size;
+	lut_params.lut_size = vrl->lut_entries;
 	lut_params.lut_type = vsi->rss_lut_type;
 	lut_params.lut = vrl->lut;
 	lut_params.global_lut_id = 0;
@@ -1733,79 +1815,91 @@ done:
 static void
 ice_vc_cfg_irq_map_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 {
-#define ICE_VIRTCHNL_QUEUE_MAP_SIZE	16
 	struct ice_hw *hw = &sc->hw;
 	struct virtchnl_irq_map_info *vimi;
 	struct virtchnl_vector_map *vvm;
 	enum virtchnl_status_code v_status = VIRTCHNL_STATUS_SUCCESS;
 	struct ice_vsi *vsi = vf->vsi;
-	u16 vector;
+	u32 vectors_seen;
+	u16 rxqs_seen, txqs_seen, valid_rxqs, valid_txqs, vector;
 
 	vimi = (struct virtchnl_irq_map_info *)msg_buf;
 
-	if (vimi->num_vectors > vf->num_irq_vectors) {
+	if (vimi->num_vectors == 0 ||
+	    vimi->num_vectors > vf->num_irq_vectors ||
+	    vimi->num_vectors > sizeof(vectors_seen) * NBBY ||
+	    vsi->num_tx_queues < 1 ||
+	    vsi->num_tx_queues > ICE_VIRTCHNL_QUEUE_MAP_SIZE ||
+	    vsi->num_rx_queues < 1 ||
+	    vsi->num_rx_queues > ICE_VIRTCHNL_QUEUE_MAP_SIZE) {
 		device_printf(sc->dev,
-		    "%s: VF-%d: message has more vectors (%d) than configured for VF (%d)\n",
+		    "%s: VF-%d: invalid vector count %d (VF has %d)\n",
 		    __func__, vf->vf_num, vimi->num_vectors, vf->num_irq_vectors);
 		v_status = VIRTCHNL_STATUS_ERR_PARAM;
 		goto done;
 	}
 
+	valid_txqs = vsi->num_tx_queues == ICE_VIRTCHNL_QUEUE_MAP_SIZE ?
+	    (u16)~0U : (u16)(BIT(vsi->num_tx_queues) - 1);
+	valid_rxqs = vsi->num_rx_queues == ICE_VIRTCHNL_QUEUE_MAP_SIZE ?
+	    (u16)~0U : (u16)(BIT(vsi->num_rx_queues) - 1);
+	vectors_seen = 0;
+	txqs_seen = 0;
+	rxqs_seen = 0;
+
+	/* Validate the complete request before changing any queue state. */
 	vvm = vimi->vecmap;
-	/* Save off information from message */
+	for (int i = 0; i < vimi->num_vectors; i++, vvm++) {
+		/* vvm->vector_id is relative to VF space */
+		vector = vvm->vector_id;
+		if (vvm->vsi_id != vsi->idx ||
+		    vector >= vf->num_irq_vectors ||
+		    vector >= sizeof(vectors_seen) * NBBY ||
+		    (vectors_seen & BIT(vector)) != 0 ||
+		    !ice_vc_isvalid_itr_idx(vvm->txitr_idx) ||
+		    !ice_vc_isvalid_itr_idx(vvm->rxitr_idx) ||
+		    (vvm->txq_map & ~valid_txqs) != 0 ||
+		    (vvm->rxq_map & ~valid_rxqs) != 0 ||
+		    (txqs_seen & vvm->txq_map) != 0 ||
+		    (rxqs_seen & vvm->rxq_map) != 0 ||
+		    (vector == 0 &&
+		    (vvm->txq_map != 0 || vvm->rxq_map != 0))) {
+			device_printf(sc->dev,
+			    "%s: VF-%d: invalid queue mapping for vector %u\n",
+			    __func__, vf->vf_num, vector);
+			v_status = VIRTCHNL_STATUS_ERR_PARAM;
+			goto done;
+		}
+		vectors_seen |= BIT(vector);
+		txqs_seen |= vvm->txq_map;
+		rxqs_seen |= vvm->rxq_map;
+	}
+
+	/* Save the validated queue-to-vector mappings. */
+	vvm = vimi->vecmap;
 	for (int i = 0; i < vimi->num_vectors; i++, vvm++) {
 		struct ice_tx_queue *txq;
 		struct ice_rx_queue *rxq;
 		int bit;
 
-		if (vvm->vsi_id != vf->vsi->idx) {
-			device_printf(sc->dev,
-			    "%s: VF-%d: message's VSI ID (%d) does not match VF's (%d) for vector %d\n",
-			    __func__, vf->vf_num, vvm->vsi_id, vf->vsi->idx, i);
-			v_status = VIRTCHNL_STATUS_ERR_PARAM;
-			goto done;
-		}
-
-		/* vvm->vector_id is relative to VF space */
 		vector = vvm->vector_id;
-
-		if (vector >= vf->num_irq_vectors) {
-			device_printf(sc->dev,
-			    "%s: VF-%d: message's vector ID (%d) is greater than VF's max ID (%d)\n",
-			    __func__, vf->vf_num, vector, vf->num_irq_vectors - 1);
-			v_status = VIRTCHNL_STATUS_ERR_PARAM;
-			goto done;
-		}
 
 		/* The Misc/Admin Queue vector doesn't need mapping */
 		if (vector == 0)
 			continue;
 
-		/* coverity[address_of] */
-		for_each_set_bit(bit, &vvm->txq_map, ICE_VIRTCHNL_QUEUE_MAP_SIZE) {
-			if (bit >= vsi->num_tx_queues) {
-				device_printf(sc->dev,
-				    "%s: VF-%d: txq map has invalid bit set\n",
-				    __func__, vf->vf_num);
-				v_status = VIRTCHNL_STATUS_ERR_PARAM;
-				goto done;
-			}
-
+		for (bit = 0; bit < ICE_VIRTCHNL_QUEUE_MAP_SIZE; bit++) {
+			if ((vvm->txq_map & BIT(bit)) == 0)
+				continue;
 			vf->tx_irqvs[vector].me = vector;
 
 			txq = &vsi->tx_queues[bit];
 			txq->irqv = &vf->tx_irqvs[vector];
 			txq->itr_idx = vvm->txitr_idx;
 		}
-		/* coverity[address_of] */
-		for_each_set_bit(bit, &vvm->rxq_map, ICE_VIRTCHNL_QUEUE_MAP_SIZE) {
-			if (bit >= vsi->num_rx_queues) {
-				device_printf(sc->dev,
-				    "%s: VF-%d: rxq map has invalid bit set\n",
-				    __func__, vf->vf_num);
-				v_status = VIRTCHNL_STATUS_ERR_PARAM;
-				goto done;
-			}
+		for (bit = 0; bit < ICE_VIRTCHNL_QUEUE_MAP_SIZE; bit++) {
+			if ((vvm->rxq_map & BIT(bit)) == 0)
+				continue;
 			vf->rx_irqvs[vector].me = vector;
 
 			rxq = &vsi->rx_queues[bit];
