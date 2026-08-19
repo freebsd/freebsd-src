@@ -59,6 +59,7 @@ static int ice_iov_configure_mac_anti_spoof(struct ice_softc *sc,
 static int ice_iov_restore_vf_host_config(struct ice_softc *sc,
     struct ice_vf *vf);
 static void ice_iov_clear_vf_queue_state(struct ice_vf *vf);
+static void ice_iov_clear_vf_mbx(struct ice_softc *sc, struct ice_vf *vf);
 static void ice_iov_complete_vf_reset(struct ice_softc *sc,
     struct ice_vf *vf, bool restore_mapping);
 static void ice_iov_ready_vf(struct ice_softc *sc, struct ice_vf *vf);
@@ -176,10 +177,36 @@ ice_iov_attach(struct ice_softc *sc)
 		    "pci_iov_attach failed (error=%s)\n",
 		    ice_err_str(error));
 		ice_clear_bit(ICE_FEATURE_SRIOV, sc->feat_en);
-	} else
+	} else {
 		ice_set_bit(ICE_FEATURE_SRIOV, sc->feat_en);
+		if (ice_is_e830(&sc->hw))
+			ice_iov_reconfigure_mbx(sc);
+		else
+			ice_mbx_init_snapshot(&sc->hw);
+	}
 
 	return (error);
+}
+
+/**
+ * ice_iov_reconfigure_mbx - Restore hardware mailbox flood protection
+ * @sc: device softc structure
+ *
+ * E830 limits each VF's outstanding messages in hardware.  The threshold
+ * register is reset by a core reset and must be restored during rebuild.
+ * Older devices use the software snapshot detector instead.
+ */
+void
+ice_iov_reconfigure_mbx(struct ice_softc *sc)
+{
+	struct ice_hw *hw = &sc->hw;
+
+	if (!ice_is_e830(hw))
+		return;
+
+	wr32(hw, E830_MBX_PF_IN_FLIGHT_VF_MSGS_THRESH,
+	    ICE_MBX_OVERFLOW_WATERMARK);
+	ice_flush(hw);
 }
 
 /**
@@ -225,8 +252,13 @@ ice_iov_init(struct ice_softc *sc, uint16_t num_vfs, const nvlist_t *params __un
 		return (ENOMEM);
 
 	/* Initialize each VF with basic information */
-	for (int i = 0; i < num_vfs; i++)
+	for (int i = 0; i < num_vfs; i++) {
 		sc->vfs[i].vf_num = i;
+		if (ice_is_e830(&sc->hw))
+			ice_mbx_vf_clear_cnt_e830(&sc->hw, i);
+		else
+			ice_mbx_init_vf_info(&sc->hw, &sc->vfs[i].mbx_info);
+	}
 
 	/* Save off number of configured VFs */
 	sc->num_vfs = num_vfs;
@@ -612,6 +644,8 @@ ice_iov_uninit(struct ice_softc *sc)
 	/* Release per-VF resources */
 	for (int i = 0; i < sc->num_vfs; i++) {
 		vf = &sc->vfs[i];
+		if (!ice_is_e830(&sc->hw))
+			LIST_DEL(&vf->mbx_info.list_entry);
 		atomic_store_rel_32(&vf->vf_flags, 0);
 		vsi = vf->vsi;
 		free(vf->mac_filters, M_ICE);
@@ -921,8 +955,24 @@ ice_iov_ready_vf(struct ice_softc *sc, struct ice_vf *vf)
 	ice_iov_clear_vf_queue_state(vf);
 	ice_iov_clear_vf_mdd(sc, vf);
 	atomic_clear_32(&vf->vf_flags, VF_FLAG_MDD_BLOCKED);
+	ice_iov_clear_vf_mbx(sc, vf);
 
 	ice_iov_complete_vf_reset(sc, vf, true);
+}
+
+/**
+ * ice_iov_clear_vf_mbx - Release mailbox isolation after a completed reset
+ * @sc: device softc structure
+ * @vf: VF whose mailbox state should be cleared
+ */
+static void
+ice_iov_clear_vf_mbx(struct ice_softc *sc, struct ice_vf *vf)
+{
+	if (ice_is_e830(&sc->hw))
+		ice_mbx_vf_clear_cnt_e830(&sc->hw, vf->vf_num);
+	else
+		ice_mbx_clear_malvf(&vf->mbx_info);
+	atomic_clear_32(&vf->vf_flags, VF_FLAG_MBX_BLOCKED);
 }
 
 /**
@@ -2708,16 +2758,97 @@ ice_vc_notify_vf_link_state(struct ice_softc *sc, struct ice_vf *vf)
 }
 
 /**
+ * ice_iov_mbx_overflow - Detect and isolate a VF flooding the PF mailbox
+ * @sc: device private structure
+ * @vf: VF which sent the current message
+ * @mbx_data: software mailbox snapshot data, or NULL on E830
+ *
+ * E830 enforces the per-VF watermark in hardware.  On older devices, reset
+ * and block a VF after the Intel snapshot detector first attributes an
+ * overflow.  A later external VF reset, PF reset, or SR-IOV recreation
+ * releases it.
+ *
+ * @returns true if the current message must be discarded.
+ */
+static bool
+ice_iov_mbx_overflow(struct ice_softc *sc, struct ice_vf *vf,
+    struct ice_mbx_data *mbx_data)
+{
+	struct ice_hw *hw = &sc->hw;
+	bool report_malvf;
+	u32 reg, vf_flags;
+	int error, status;
+
+	if (mbx_data == NULL)
+		return (false);
+
+	/* Every message advances the snapshot, including a blocked VF's. */
+	report_malvf = false;
+	status = ice_mbx_vf_state_handler(hw, mbx_data, &vf->mbx_info,
+	    &report_malvf);
+	if ((atomic_load_acq_32(&vf->vf_flags) & VF_FLAG_MBX_BLOCKED) != 0)
+		return (true);
+	ICE_FAIL_POINT_CODE_COND(sc, _debug_fail_point_ice_iov,
+	    mailbox_overflow, ice_iov_fail_vf_matches(vf->vf_num),
+	    FAIL_POINT_NONSLEEPABLE, {
+		status = 0;
+		vf->mbx_info.malicious = 1;
+		report_malvf = true;
+	});
+	if (status != 0) {
+		device_printf(sc->dev,
+		    "Unable to check VF %u mailbox overflow, err %s\n",
+		    vf->vf_num, ice_status_str(status));
+		return (false);
+	}
+	if (!report_malvf)
+		return (vf->mbx_info.malicious != 0);
+
+	vf->mbx_overflow_events++;
+	atomic_set_32(&vf->vf_flags, VF_FLAG_MBX_BLOCKED);
+	device_printf(sc->dev,
+	    "VF %u exceeded the mailbox message limit; resetting and blocking it\n",
+	    vf->vf_num);
+
+	vf_flags = atomic_load_acq_32(&vf->vf_flags);
+	if ((vf_flags & VF_FLAG_ENABLED) != 0 && vf->vsi != NULL) {
+		error = ice_reset_vf(sc, vf, true, false);
+		if (error != 0) {
+			device_printf(sc->dev,
+			    "Unable to isolate VF %u after mailbox overflow: %s\n",
+			    vf->vf_num, ice_err_str(error));
+		} else {
+			/*
+			 * Leave queues and mailbox requests blocked, but complete VFR
+			 * so a later physical FLR can create a new reset edge and
+			 * recover the VF.
+			 */
+			ice_iov_complete_vf_reset(sc, vf, false);
+		}
+	} else {
+		/* An incompletely configured VF has no queues to drain. */
+		reg = rd32(hw, VPGEN_VFRTRIG(vf->vf_num));
+		reg |= VPGEN_VFRTRIG_VFSWR_M;
+		wr32(hw, VPGEN_VFRTRIG(vf->vf_num), reg);
+		ice_flush(hw);
+	}
+
+	return (true);
+}
+
+/**
  * ice_vc_handle_vf_msg - Handle a message from a VF
  * @sc: device private structure
  * @event: event received from the HW MBX queue
+ * @mbx_data: software overflow-detection data, or NULL on E830
  *
  * Called whenever an event is received from a VF on the HW mailbox queue.
  * Responsible for handling these messages as well as responding to the
  * VF afterwards, depending on the received message type.
  */
 void
-ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event)
+ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event,
+    struct ice_mbx_data *mbx_data)
 {
 	struct ice_hw *hw = &sc->hw;
 	device_t dev = sc->dev;
@@ -2737,6 +2868,8 @@ ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event)
 	}
 
 	vf = &sc->vfs[v_id];
+	if (ice_iov_mbx_overflow(sc, vf, mbx_data))
+		return;
 
 	/* Perform basic checks on the msg */
 	err = virtchnl_vc_validate_vf_msg(&vf->version, v_opcode, msg, msglen);
@@ -2750,8 +2883,8 @@ ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event)
 	vf_flags = atomic_load_acq_32(&vf->vf_flags);
 	if ((vf_flags & VF_FLAG_ENABLED) == 0 || vf->vsi == NULL)
 		return;
-	/* Only a reset outside this dispatcher may release an MDD-blocked VF. */
-	if ((vf_flags & VF_FLAG_MDD_BLOCKED) != 0)
+	/* Only a reset outside this dispatcher may release an isolated VF. */
+	if ((vf_flags & (VF_FLAG_MDD_BLOCKED | VF_FLAG_MBX_BLOCKED)) != 0)
 		return;
 
 	/*

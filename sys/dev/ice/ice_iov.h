@@ -74,6 +74,7 @@ enum ice_vf_flags {
 	VF_FLAG_REBUILD_FAILED		= BIT(6),
 	VF_FLAG_RESET_FAILED		= BIT(7),
 	VF_FLAG_MDD_BLOCKED		= BIT(8),
+	VF_FLAG_MBX_BLOCKED		= BIT(9),
 };
 
 struct ice_vf_mac_filter {
@@ -114,6 +115,8 @@ struct ice_vf {
 
 	u64 mdd_tx_events;
 	u64 mdd_rx_events;
+	struct ice_mbx_vf_info mbx_info;
+	u64 mbx_overflow_events;
 	struct timeval last_mdd_log;
 };
 
@@ -142,8 +145,10 @@ void ice_iov_handle_vflr(struct ice_softc *sc);
 u32 ice_iov_handle_mdd(struct ice_softc *sc);
 void ice_iov_notify_vfs_reset(struct ice_softc *sc);
 int ice_iov_quiesce_vfs_for_reset(struct ice_softc *sc);
+void ice_iov_reconfigure_mbx(struct ice_softc *sc);
 
-void ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event);
+void ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event,
+    struct ice_mbx_data *mbx_data);
 void ice_vc_notify_all_vfs_link_state(struct ice_softc *sc);
 
 #endif /* _ICE_IOV_H_ */

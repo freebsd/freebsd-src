@@ -1185,6 +1185,16 @@ leaves that VF inactive instead of publishing incomplete hardware state.
 A later VF reset can retry this recovery; a PF or device reset, or SR-IOV
 configuration recreation, can also recover the VF.
 .Pp
+The driver protects the shared PF mailbox from a VF which submits requests
+faster than the PF can service them.
+E830 controllers enforce a per-VF limit of 64 outstanding messages in
+hardware.
+On older controllers, the driver detects a VF responsible for at least 63
+messages in a congested mailbox snapshot, resets it with its queues disabled,
+and discards its requests so that other VFs can continue to use the mailbox.
+An externally initiated VF function-level reset, PF reset, or SR-IOV
+configuration recreation releases the VF.
+.Pp
 An up to date list of parameters and their defaults can be found by using
 .Xr iovctl 8
 with the

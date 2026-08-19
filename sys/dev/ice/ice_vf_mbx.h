@@ -44,6 +44,7 @@
   * MBX_VF_IN_FLIGHT_MSGS_AT_PF_CNT register.
   */
 #define ICE_ASYNC_VF_MSG_THRESHOLD	63
+#define ICE_MBX_OVERFLOW_WATERMARK	(ICE_ASYNC_VF_MSG_THRESHOLD + 1)
 
 int
 ice_aq_send_msg_to_pf(struct ice_hw *hw, enum virtchnl_ops v_opcode,

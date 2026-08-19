@@ -2444,8 +2444,10 @@ ice_if_update_admin_status(if_ctx_t ctx)
 {
 	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
 	enum ice_fw_modes fw_mode;
-	bool reschedule = false;
+	bool defer_mailbox = false, reschedule = false;
+	u32 reg;
 	u16 pending = 0;
+	int error;
 
 	ASSERT_CTX_LOCKED(sc);
 
@@ -2489,19 +2491,59 @@ ice_if_update_admin_status(if_ctx_t ctx)
 		 */
 		;
 	} else if (ice_testandclear_state(&sc->state, ICE_STATE_CONTROLQ_EVENT_PENDING)) {
+		pending = 0;
 		ice_process_ctrlq(sc, ICE_CTL_Q_ADMIN, &pending);
 		if (pending > 0)
 			reschedule = true;
 
 		if (ice_is_generic_mac(&sc->hw)) {
+			pending = 0;
 			ice_process_ctrlq(sc, ICE_CTL_Q_SB, &pending);
 			if (pending > 0)
 				reschedule = true;
 		}
 
-		ice_process_ctrlq(sc, ICE_CTL_Q_MAILBOX, &pending);
-		if (pending > 0)
+		pending = 0;
+		error = ice_process_ctrlq(sc, ICE_CTL_Q_MAILBOX, &pending);
+		if (error == 0 && pending == 0) {
+			reg = rd32(&sc->hw, PFINT_MBX_CTL);
+			if ((reg & PFINT_MBX_CTL_CAUSE_ENA_M) == 0) {
+				wr32(&sc->hw, PFINT_MBX_CTL,
+				    reg | PFINT_MBX_CTL_CAUSE_ENA_M);
+				ice_flush(&sc->hw);
+				/* Events received while masked may not interrupt. */
+				pending = (rd32(&sc->hw, sc->hw.mailboxq.rq.head) &
+				    sc->hw.mailboxq.rq.head_mask) !=
+				    sc->hw.mailboxq.rq.next_to_clean;
+			}
+		}
+		if (error != 0) {
+			/* Retry a failed read on the timer, not in a task loop. */
+			defer_mailbox = true;
+		} else if (pending > 0) {
+#ifdef PCI_IOV
+			/*
+			 * Two passes drain one initially full 512-entry mailbox.
+			 * If it remains nonempty, a VF is replenishing it faster
+			 * than this task can drain it. Mask only the mailbox cause
+			 * and let the periodic admin timer schedule bounded work.
+			 */
+			if (sc->mbx_admin_passes <
+			    howmany(ICE_MBXQ_LEN, ICE_CTRLQ_WORK_LIMIT))
+				sc->mbx_admin_passes++;
+			if (sc->mbx_admin_passes <
+			    howmany(ICE_MBXQ_LEN, ICE_CTRLQ_WORK_LIMIT))
+				reschedule = true;
+			else
+				defer_mailbox = true;
+#else
 			reschedule = true;
+#endif
+		} else {
+#ifdef PCI_IOV
+			sc->mbx_admin_passes = 0;
+#endif
+		}
 	}
 
 	/* Poll for link up */
@@ -2519,17 +2561,18 @@ ice_if_update_admin_status(if_ctx_t ctx)
 		iflib_iov_intr_deferred(ctx);
 #endif
 
-	/*
-	 * If there are still messages to process, we need to reschedule
-	 * ourselves. Otherwise, we can just re-enable the interrupt. We'll be
-	 * woken up at the next interrupt or timer event.
-	 */
-	if (reschedule) {
-		ice_set_state(&sc->state, ICE_STATE_CONTROLQ_EVENT_PENDING);
-		iflib_admin_intr_deferred(ctx);
-	} else {
-		ice_enable_intr(&sc->hw, sc->irqvs[0].me);
+	if (defer_mailbox) {
+		reg = rd32(&sc->hw, PFINT_MBX_CTL);
+		wr32(&sc->hw, PFINT_MBX_CTL,
+		    reg & ~PFINT_MBX_CTL_CAUSE_ENA_M);
 	}
+	if (reschedule || defer_mailbox)
+		ice_set_state(&sc->state, ICE_STATE_CONTROLQ_EVENT_PENDING);
+	if (reschedule)
+		iflib_admin_intr_deferred(ctx);
+	/* Keep OICR and the other control queues live during mailbox deferral. */
+	if (!reschedule || defer_mailbox)
+		ice_enable_intr(&sc->hw, sc->irqvs[0].me);
 }
 
 /**
@@ -2738,6 +2781,10 @@ ice_rebuild(struct ice_softc *sc)
 			      ice_status_str(status));
 		goto err_shutdown_ctrlq;
 	}
+
+#ifdef PCI_IOV
+	ice_iov_reconfigure_mbx(sc);
+#endif
 
 	/* Query the allocated resources for Tx scheduler */
 	status = ice_sched_query_res_alloc(hw);
