@@ -130,6 +130,7 @@ void ice_iov_uninit(struct ice_softc *sc);
 
 void ice_iov_handle_vflr(struct ice_softc *sc);
 void ice_iov_notify_vfs_reset(struct ice_softc *sc);
+int ice_iov_quiesce_vfs_for_reset(struct ice_softc *sc);
 
 void ice_vc_handle_vf_msg(struct ice_softc *sc, struct ice_rq_event_info *event);
 void ice_vc_notify_all_vfs_link_state(struct ice_softc *sc);
