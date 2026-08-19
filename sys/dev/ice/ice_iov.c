@@ -265,6 +265,9 @@ ice_iov_configure_mac_anti_spoof(struct ice_softc *sc, struct ice_vf *vf)
 	struct ice_vsi *vsi = vf->vsi;
 	struct ice_hw *hw = &sc->hw;
 	bool enable;
+#ifdef DRIVER_FAILPOINTS
+	int error;
+#endif
 	int status;
 
 	enable = (atomic_load_acq_32(&vf->vf_flags) &
@@ -277,6 +280,8 @@ ice_iov_configure_mac_anti_spoof(struct ice_softc *sc, struct ice_vf *vf)
 	else
 		ctx.info.sec_flags &= ~ICE_AQ_VSI_SEC_FLAG_ENA_MAC_ANTI_SPOOF;
 
+	ICE_IOV_FAIL_POINT(sc, vf->vf_num, mac_anti_spoof_update, error,
+	    fail);
 	status = ice_update_vsi(hw, vsi->idx, &ctx, NULL);
 	if (status != 0) {
 		device_printf(sc->dev,
@@ -289,6 +294,11 @@ ice_iov_configure_mac_anti_spoof(struct ice_softc *sc, struct ice_vf *vf)
 
 	vsi->info.sec_flags = ctx.info.sec_flags;
 	return (0);
+
+#ifdef DRIVER_FAILPOINTS
+fail:
+	return (error);
+#endif
 }
 
 /**
@@ -864,6 +874,11 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_reset,
 	/* This zero-queue command is required to complete every VF reset. */
 	status = ice_dis_vsi_txq(hw->port_info, vf->vsi->idx, 0, 0,
 	    NULL, NULL, NULL, ICE_VF_RESET, vf->vf_num, NULL);
+	ICE_FAIL_POINT_CODE_COND(sc, _debug_fail_point_ice_iov,
+	    vf_reset_tx_disable, ice_iov_fail_vf_matches(vf->vf_num),
+	    FAIL_POINT_NONSLEEPABLE, {
+		status = ICE_ERR_AQ_ERROR;
+	});
 	if (status) {
 		device_printf(sc->dev,
 		    "%s: Failed to disable LAN Tx queues: err %s aq_err %s\n",
@@ -884,6 +899,11 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_reset,
 
 		DELAY(ICE_VPGEN_VFRSTAT_WAIT_DELAY_US);
 	}
+	ICE_FAIL_POINT_CODE_COND(sc, _debug_fail_point_ice_iov,
+	    vf_reset_vfr_timeout, ice_iov_fail_vf_matches(vf->vf_num),
+	    FAIL_POINT_NONSLEEPABLE, {
+		reset_done = false;
+	});
 	if (!reset_done) {
 		device_printf(sc->dev,
 			"VF-%d Reset is stuck\n", vf->vf_num);
@@ -899,6 +919,12 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_reset,
 		/* Hardware resets Tx queues; the PF must disable every Rx. */
 		for (bit = 0; bit < vf->vsi->num_rx_queues; bit++) {
 			status = ice_control_rx_queue(vf->vsi, bit, false);
+			ICE_FAIL_POINT_CODE_COND(sc,
+			    _debug_fail_point_ice_iov, vf_reset_rx_disable,
+			    ice_iov_fail_vf_matches(vf->vf_num),
+			    FAIL_POINT_NONSLEEPABLE, {
+				status = EIO;
+			});
 			if (status != 0) {
 				device_printf(sc->dev,
 				    "Unable to disable VF-%d Rx queue %d: %s\n",
@@ -918,6 +944,11 @@ ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf, bool trigger_reset,
 			break;
 		DELAY(ICE_PCI_CIAD_WAIT_DELAY_US);
 	}
+	ICE_FAIL_POINT_CODE_COND(sc, _debug_fail_point_ice_iov,
+	    vf_reset_pcie_pending, ice_iov_fail_vf_matches(vf->vf_num),
+	    FAIL_POINT_NONSLEEPABLE, {
+		i = ICE_PCI_CIAD_WAIT_COUNT;
+	});
 	if (i == ICE_PCI_CIAD_WAIT_COUNT) {
 		device_printf(sc->dev,
 		    "VF-%d PCI transactions remain after reset\n", vf->vf_num);
