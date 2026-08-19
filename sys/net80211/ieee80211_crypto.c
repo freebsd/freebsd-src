@@ -675,6 +675,24 @@ ieee80211_crypto_get_txkey(struct ieee80211_node *ni, struct mbuf *m)
 	struct ieee80211_frame *wh;
 
 	/*
+	 * Explicitly check whether we're doing WEP and allow
+	 * the use of the default TX key.
+	 */
+	if ((ni->ni_authmode == IEEE80211_AUTH_OPEN) &&
+	    ((vap->iv_flags & IEEE80211_F_PRIVACY) != 0) &&
+	    (vap->iv_def_txkey != IEEE80211_KEYIX_NONE)) {
+		struct ieee80211_key *k;
+		/*
+		 * Check to see if the TX key is a WEP cipher key.
+		 * Only allow transmit using it here if it's
+		 * a WEP key.
+		 */
+		k = &vap->iv_nw_keys[vap->iv_def_txkey];
+		if (k->wk_cipher->ic_cipher == IEEE80211_CIPHER_WEP)
+			return (k);
+	}
+
+	/*
 	 * Multicast traffic always uses the multicast key.
 	 *
 	 * Historically we would fall back to the default
