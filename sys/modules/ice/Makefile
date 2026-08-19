@@ -8,6 +8,7 @@ SRCS	+= irdma_di_if.h irdma_if.h
 
 # Option headers
 SRCS    += opt_inet.h opt_inet6.h opt_rss.h opt_iflib.h
+SRCS    += opt_driver_failpoints.h
 
 # Core source
 SRCS    += ice_lib.c ice_osdep.c ice_resmgr.c ice_strings.c

@@ -38,7 +38,17 @@
  */
 
 #include "ice_iov.h"
+#include "ice_fault.h"
 
+#ifdef DRIVER_FAILPOINTS
+static SYSCTL_NODE(_debug_fail_point_ice, OID_AUTO, iov,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, 0, "ice SR-IOV fail points");
+
+static int ice_iov_fail_vf = -1;
+SYSCTL_INT(_debug_fail_point_ice_iov, OID_AUTO, vf,
+    CTLFLAG_RW | CTLFLAG_MPSAFE, &ice_iov_fail_vf, 0,
+    "VF eligible for ice SR-IOV fail points (-1 selects every VF)");
+#endif /* DRIVER_FAILPOINTS */
 static struct ice_vf *ice_iov_get_vf(struct ice_softc *sc, int vf_num);
 static void ice_iov_ready_vf(struct ice_softc *sc, struct ice_vf *vf);
 static void ice_reset_vf(struct ice_softc *sc, struct ice_vf *vf,
@@ -83,6 +93,28 @@ static int ice_vc_select_vlans(struct ice_vf *vf, u16 *vids, u16 count,
 			       bool add, u16 *selected_count);
 static enum virtchnl_status_code ice_iov_err_to_virt_err(int ice_err);
 static int ice_vf_validate_mac(struct ice_vf *vf, const uint8_t *addr);
+
+#ifdef DRIVER_FAILPOINTS
+static bool
+ice_iov_fail_vf_matches(uint16_t vfnum)
+{
+	return (ice_iov_fail_vf == -1 || ice_iov_fail_vf == vfnum);
+}
+#endif
+
+#define	ICE_IOV_FAIL_POINT(_sc, _vfnum, _name, _error, _label) do { \
+	ICE_FAIL_POINT_CODE_COND(_sc, _debug_fail_point_ice_iov, _name, \
+	    ice_iov_fail_vf_matches((_vfnum)), \
+	    FAIL_POINT_NONSLEEPABLE, { \
+		(_error) = RETURN_VALUE; \
+		if ((_error) <= 0) \
+			(_error) = EIO; \
+		device_printf((_sc)->dev, \
+		    "injecting VF %u failure at %s: %d\n", \
+		    (unsigned int)(_vfnum), #_name, (_error)); \
+		goto _label; \
+	}); \
+} while (0)
 
 /**
  * ice_iov_attach - Initialize SR-IOV PF host support
@@ -237,6 +269,8 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 		return (ENOMEM);
 	vf->vsi = vsi;
 	vsi->vf_num = vfnum;
+	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_vsi_alloc, error,
+	    release_vsi);
 
 	vf_num_queues = nvlist_get_number(params, "num-queues");
 	/* Validate and clamp value if invalid */
@@ -256,6 +290,8 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 	/* Reserve VF queue allocation from PF queues */
 	ice_alloc_vsi_qmap(vsi, vf_num_queues, vf_num_queues);
 	vsi->num_tx_queues = vsi->num_rx_queues = vf_num_queues;
+	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_queue_maps, error,
+	    release_vsi);
 
 	/* Assign Tx queues from PF space */
 	error = ice_resmgr_assign_scattered(&sc->tx_qmgr, vsi->tx_qmap,
@@ -265,6 +301,8 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 			      ice_err_str(error));
 		goto release_vsi;
 	}
+	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_tx_reservation, error,
+	    release_vsi);
 
 	/* Assign Rx queues from PF space */
 	error = ice_resmgr_assign_scattered(&sc->rx_qmgr, vsi->rx_qmap,
@@ -274,6 +312,8 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 			      ice_err_str(error));
 		goto release_vsi;
 	}
+	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_rx_reservation, error,
+	    release_vsi);
 
 	vsi->max_frame_size = ICE_MAX_FRAME_SIZE;
 
@@ -291,6 +331,8 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 		txq->me = i;
 		txq->vsi = vsi;
 	}
+	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_tx_queue_memory, error,
+	    free_txqs);
 
 	/* Allocate queue structure memory */
 	vsi->rx_queues = (struct ice_rx_queue *)
@@ -306,6 +348,8 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 		rxq->me = i;
 		rxq->vsi = vsi;
 	}
+	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_rx_queue_memory, error,
+	    free_rxqs);
 
 	/* Allocate space to store the IRQ vector data */
 	vf->num_irq_vectors = vf_num_queues + 1;
@@ -319,6 +363,8 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 		error = ENOMEM;
 		goto free_rxqs;
 	}
+	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_tx_irq_memory, error,
+	    free_txirqvs);
 	vf->rx_irqvs = (struct ice_irq_vector *)
 	    malloc(sizeof(struct ice_irq_vector) * (vf->num_irq_vectors),
 		   M_ICE, M_NOWAIT);
@@ -329,6 +375,8 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 		error = ENOMEM;
 		goto free_txirqvs;
 	}
+	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_rx_irq_memory, error,
+	    free_rxirqvs);
 
 	/* Assign VF interrupts from PF space */
 	if (!(vf->vf_imap =
@@ -338,12 +386,16 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 		error = ENOMEM;
 		goto free_rxirqvs;
 	}
+	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_imap_memory, error,
+	    free_imap);
 	error = ice_resmgr_assign_contiguous(&sc->dev_imgr, vf->vf_imap, vf->num_irq_vectors);
 	if (error) {
 		device_printf(dev, "Unable to assign VF-%d interrupt mapping: %s\n",
 			      vfnum, ice_err_str(error));
 		goto free_imap;
 	}
+	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_imap_reservation, error,
+	    release_imap);
 
 	if (nvlist_exists_binary(params, "mac-addr")) {
 		mac = nvlist_get_binary(params, "mac-addr", &size);
@@ -378,6 +430,8 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 			      vfnum, ice_err_str(error));
 		goto release_imap;
 	}
+	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_vsi_init, error,
+	    release_imap);
 
 	/* Add the broadcast address */
 	error = ice_add_vsi_mac_filter(vsi, broadcastaddr);
@@ -386,6 +440,8 @@ ice_iov_add_vf(struct ice_softc *sc, uint16_t vfnum, const nvlist_t *params)
 			      vfnum, ice_err_str(error));
 		goto release_imap;
 	}
+	ICE_IOV_FAIL_POINT(sc, vfnum, add_after_broadcast_filter, error,
+	    release_imap);
 
 	atomic_set_32(&vf->vf_flags, VF_FLAG_ENABLED);
 	ice_iov_ready_vf(sc, vf);
@@ -602,6 +658,8 @@ ice_iov_rebuild_vf(struct ice_softc *sc, struct ice_vsi *vsi)
 	vf = ice_iov_get_vf(sc, vsi->vf_num);
 	atomic_clear_32(&vf->vf_flags, VF_FLAG_INITIALIZED);
 	atomic_set_32(&vf->vf_flags, VF_FLAG_REBUILD_FAILED);
+	ICE_IOV_FAIL_POINT(sc, vf->vf_num, rebuild_before_initialize, error,
+	    fail);
 
 	/* A new hardware VSI starts a new raw statistics epoch. */
 	accumulated_stats = vsi->hw_stats.cur;
@@ -626,6 +684,11 @@ ice_iov_rebuild_vf(struct ice_softc *sc, struct ice_vsi *vsi)
 	atomic_clear_32(&vf->vf_flags, VF_FLAG_REBUILD_FAILED);
 	ice_iov_ready_vf(sc, vf);
 	return (0);
+
+#ifdef DRIVER_FAILPOINTS
+fail:
+	return (error);
+#endif /* DRIVER_FAILPOINTS */
 }
 
 /**
@@ -1816,6 +1879,14 @@ ice_vc_get_stats_msg(struct ice_softc *sc, struct ice_vf *vf, u8 *msg_buf)
 	struct ice_hw *hw = &sc->hw;
 
 	vqs = (struct virtchnl_queue_select *)msg_buf;
+	ICE_FAIL_POINT_CODE_COND(sc, _debug_fail_point_ice_iov,
+	    get_stats_bad_vsi, ice_iov_fail_vf_matches(vf->vf_num),
+	    FAIL_POINT_NONSLEEPABLE, {
+		vqs->vsi_id = vsi->idx + 1;
+		device_printf(sc->dev,
+		    "injecting invalid GET_STATS VSI ID for VF %u\n",
+		    (unsigned int)vf->vf_num);
+	});
 
 	if (vqs->vsi_id != vsi->idx) {
 		device_printf(sc->dev,
