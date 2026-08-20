@@ -93,10 +93,11 @@ public:
 	{
 		CPU_ZERO(&cpumask);
 	}
-	pmc_config(const std::string &event, uint64_t count, cpuset_t cpumask)
-	    : event(event), count(count), ids()
+	pmc_config(const std::string &_event, uint64_t _count,
+	    cpuset_t _cpumask)
+	    : event(_event), count(_count), ids()
 	{
-		CPU_COPY(&cpumask, &this->cpumask);
+		CPU_COPY(&_cpumask, &cpumask);
 	}
 	/*
 	 * Read the capabilities and fills in the cpumask for a given event 
