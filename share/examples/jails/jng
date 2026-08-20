@@ -7,14 +7,14 @@
 ############################################################ IDENT(1)
 #
 # $Title: netgraph(4) management script for vnet jails $
-# $Version: 9.0 $
+# $Version: 9.1 $
 #
 ############################################################ INFORMATION
 #
 # Use this tool with jail.conf(5) (or rc.conf(5) ``legacy'' configuration) to
 # manage `vnet' interfaces for jails. Designed to automate the creation of vnet
-# interface(s) during jail `prestart' and destroy said interface(s) during jail
-# `poststop'.
+# interface(s) during jail `prestart', return them to the host during jail
+# `prestop', and destroy said interface(s) during jail `poststop'.
 #
 # In jail.conf(5) format:
 #
@@ -37,11 +37,15 @@
 # 	exec.jail_user = "root";
 # 
 # 	#
-# 	# NB: Below 2-lines required
+# 	# NB: Below lines required
 # 	# NB: The number of arguments after `jng bridge xxx' should match
 # 	#     the number of ngN_xxx arguments in vnet.interface value.
+# 	# NB: Return each ngN_xxx to the host in prestop so the kernel does
+# 	#     not move it during jail removal (BPF race). Destroy in poststop.
 # 	#
 # 	exec.prestart += "jng bridge xxx em0 em1 ...";
+# 	exec.prestop += "ifconfig ng0_xxx -vnet xxx";
+# 	exec.prestop += "ifconfig ng1_xxx -vnet xxx";
 # 	exec.poststop += "jng shutdown xxx";
 # 
 # 	# Standard recipe
@@ -84,7 +88,9 @@
 # jail_xxx_rootdir="/vm/xxx"			# root directory
 # jail_xxx_vnet_interfaces="ng0_xxx ng1xxx ..."	# vnet interface(s)
 # jail_xxx_exec_prestart0="jng bridge xxx em0 em1 ..."	# bridge interface(s)
-# jail_xxx_exec_poststop0="jng shutdown xxx"	# destroy interface(s)
+# jail_xxx_exec_prestop0="ifconfig ng0_xxx -vnet xxx"	# return ifnet(s)
+# jail_xxx_exec_prestop1="ifconfig ng1_xxx -vnet xxx"
+# jail_xxx_exec_poststop0="jng shutdown xxx"		# destroy interface(s)
 # #jail_xxx_mount_enable="YES"			# mount /etc/fstab.xxx
 # #jail_xxx_devfs_ruleset="11"			# rule to unhide bpf for DHCP
 #
@@ -132,7 +138,7 @@ NG_BRIDGE_MAX_STALENESS=4294967295
 
 ############################################################ GLOBALS
 
-VERSION='$Version: 9.0 $'
+VERSION='$Version: 9.1 $'
 
 pgm="${0##*/}" # Program basename
 
