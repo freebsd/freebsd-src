@@ -64,7 +64,7 @@ int main(void)
 		if (socketpair(PF_UNIX, SOCK_STREAM, 0, sock) < 0)
 			err(1, "socketpair");
 
-		pid = pdfork(&child_fd, PD_CLOEXEC);
+		pid = pdfork(&child_fd, PD_CLOEXEC | PD_NOWAITPID);
 		if (pid < 0)
 			err(1, "pdfork");
 
