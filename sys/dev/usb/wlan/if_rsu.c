@@ -2885,6 +2885,9 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	 */
 	txd->txdw3 |= htole32(SM(R92S_TXDW3_SEQ, prio));
 
+	if (m0->m_pkthdr.len > RSU_TXBUFSZ - sizeof(*txd))
+		return (EMSGSIZE);
+
 	if (ieee80211_radiotap_active_vap(vap)) {
 		struct rsu_tx_radiotap_header *tap = &sc->sc_txtap;
 
@@ -2893,7 +2896,6 @@ rsu_tx_start(struct rsu_softc *sc, struct ieee80211_node *ni,
 	}
 
 	xferlen = sizeof(*txd) + m0->m_pkthdr.len;
-	KASSERT(xferlen <= RSU_TXBUFSZ, ("%s: invalid length", __func__));
 	m_copydata(m0, 0, m0->m_pkthdr.len, (caddr_t)&txd[1]);
 
 	data->buflen = xferlen;
