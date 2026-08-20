@@ -4545,6 +4545,11 @@ ice_sysctl_set_link_active(SYSCTL_HANDLER_ARGS)
 	if ((ret) || (req->newptr == NULL))
 		return (ret);
 
+	if (ice_test_state(&sc->state, ICE_STATE_TOTAL_PORT_SHUTDOWN)) {
+		device_printf(sc->dev,
+			"Setting link_active_on_if_down not supported on this port\n");
+		return (EPERM);
+	}
 	if (mode)
 		ice_set_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN);
 	else
@@ -9872,6 +9877,11 @@ ice_set_link_management_mode(struct ice_softc *sc)
 	if (sc->hw.debug_mask & ICE_DBG_LINK)
 		ice_print_ldo_tlv(sc, &tlv);
 
+	/* Cache the LDO TLV structure in the driver, since it
+	 * won't change during the driver's lifetime.
+	 */
+	sc->ldo_tlv = tlv;
+
 	/* Set lenient link mode */
 	if (ice_is_bit_set(sc->feat_cap, ICE_FEATURE_LENIENT_LINK_MODE) &&
 	    (!(tlv.options & ICE_LINK_OVERRIDE_STRICT_MODE)))
@@ -9893,11 +9903,6 @@ ice_set_link_management_mode(struct ice_softc *sc)
 	    ice_is_bit_set(sc->feat_en, ICE_FEATURE_LENIENT_LINK_MODE) &&
 	    (tlv.options & ICE_LINK_OVERRIDE_EN))
 		ice_set_bit(ICE_FEATURE_LINK_MGMT_VER_1, sc->feat_en);
-
-	/* Cache the LDO TLV structure in the driver, since it
-	 * won't change during the driver's lifetime.
-	 */
-	sc->ldo_tlv = tlv;
 }
 
 /**
