@@ -283,7 +283,7 @@ ifa_ifwithroute(int flags, const struct sockaddr *dst,
 		if (flags & RTF_HOST)
 			ifa = ifa_ifwithdstaddr(dst, fibnum);
 		if (ifa == NULL)
-			ifa = ifa_ifwithaddr(gateway);
+			ifa = ifa_ifwithaddr_fib(gateway, fibnum);
 	} else {
 		/*
 		 * If we are adding a route to a remote net
