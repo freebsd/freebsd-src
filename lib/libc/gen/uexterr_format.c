@@ -131,6 +131,170 @@ exterr_verbose_init(void)
 	}
 }
 
+static void
+uexterr_format_msg(const struct uexterror *ue, char *buf, size_t bufsz)
+{
+	char fmt[32];	/* XXX: how big? */
+	const char *msg = ue->msg;
+	int nextarg = 1, psz;
+	size_t cindex, mindex;
+
+#define	PCHAR(c) if (bufsz > 1) { *buf++ = c; bufsz--; }	/* reserve last byte */
+#define PFMT(f, a) ({							\
+		psz = snprintf(buf, bufsz, f, a);			\
+		if (psz > bufsz)					\
+			return; /* Out of space */			\
+		buf += psz;						\
+		bufsz -= psz;						\
+	    })
+#define	ARG(_n) ({							\
+		int n = (_n);						\
+		n == 1 ? ue->p1 : (n == 2 ? ue->p2 : (uint64_t)-1);	\
+	    })
+
+	while (*msg != '\0') {
+		if (*msg != '%') {
+			PCHAR(*msg++);
+			continue;
+		}
+
+		msg++;
+		/*
+		 * Find the conversion, reject unsound or nonsensical
+		 * ones, and then call snprintf to format the result
+		 * using the correct argument type cast (potentially
+		 * determined by the length modifier).
+		 */
+		/* Conversion list ordred by printf(3). */
+		cindex = strcspn(msg, "bBdiouxXDOUeEfFgGaACcSspnm%");
+
+		/* Format too large, just complain */
+		if (cindex >= sizeof(fmt)) {
+			PFMT("%s", "<format-too-large>");
+			goto format_handled;
+		}
+
+		/*
+		 * Note: msg points to one past the initial '%' and
+		 * cindex is an index to the conversion in msg.
+		 */
+		memcpy(fmt, msg - 1, cindex + 2);
+		fmt[cindex + 2] = '\0';
+
+		switch (msg[cindex]) {
+		case 'b':
+		case 'B':
+		case 'd':
+		case 'i':
+		case 'o':
+		case 'u':
+		case 'x':
+		case 'X':
+			/*
+			 * Treat longs as 64-bit in 32-bit ABIs because
+			 * that's what the kernel will do (unless we're
+			 * in some 32-bit only code).
+			 *
+			 * This isn't quite right for signed values
+			 * from 32-bit kernels unless the programmer
+			 * took care to sign extend them, but 32-bit
+			 * kernels aren't long for the world...
+			 */
+
+			/* Find the first length modifier */
+			mindex = strcspn(fmt, "hjltwz");
+
+			switch (fmt[mindex]) {
+			case '\0':	/* No length modifier */
+			case 'h':	/* h or hh modifier */
+				PFMT(fmt, (unsigned)ARG(nextarg));
+				break;
+
+			case 'l':
+#ifdef __ILP32__
+				if (fmt[mindex + 1] != 'l')
+					fmt[mindex] = 'j';
+#endif
+				PFMT(fmt, (uintmax_t)ARG(nextarg));
+				break;;
+
+			case 't':
+			case 'z':
+#ifdef __ILP32__
+				fmt[mindex] = 'j';
+				/* FALLTHROUGH */
+#endif
+			case 'j':
+				PFMT(fmt, (uintmax_t)ARG(nextarg));
+				break;;
+
+			case 'w':
+				if (fmt[mindex + 1] == 'f')
+					mindex++;
+				if (fmt[mindex + 1] == '6' && fmt[mindex + 2] == '4')
+					PFMT(fmt, (uint64_t)ARG(nextarg));
+				else
+					PFMT(fmt, (unsigned)ARG(nextarg));
+				break;
+			}
+			break;
+
+		case 'C':
+		case 'c':
+			PFMT(fmt, (unsigned)ARG(nextarg));
+			break;
+
+		case 'p':
+			PFMT(fmt, (void *)ARG(nextarg));
+			break;
+
+		case '%':
+			PCHAR('%');
+			break;
+
+		/*
+		 * %n is a write-what-where gadget
+		 */
+		case 'n':
+			PFMT("<illegal-format>:%s", fmt);
+			break;
+
+		/*
+		 * Things we don't support
+		 */
+		/* Incomplete expression */
+		case '\0':
+		/* Obsolete formats */
+		case 'D':
+		case 'O':
+		case 'U':
+		/* Floating point */
+		case 'f':
+		case 'F':
+		case 'g':
+		case 'G':
+		case 'a':
+		case 'A':
+		/* String */
+		case 'S':
+		case 's':
+		/* errno */
+		case 'm':
+		/* strcspn list out of sync with this switch. */
+		default:
+			PFMT("<unsupported-format>:%s", fmt);
+			break;
+		}
+format_handled:
+		nextarg++;
+		msg += cindex + 1;
+	}
+	*buf = '\0';
+#undef PCHAR
+#undef PFMT
+#undef ARG
+}
+
 int
 __uexterr_format(const struct uexterror *ue, char *buf, size_t bufsz)
 {
@@ -146,8 +310,7 @@ __uexterr_format(const struct uexterror *ue, char *buf, size_t bufsz)
 	has_msg = ue->msg[0] != '\0';
 
 	if (has_msg) {
-		snprintf(buf, bufsz, ue->msg, (uintmax_t)ue->p1,
-		    (uintmax_t)ue->p2);
+		uexterr_format_msg(ue, buf, bufsz);
 	} else {
 		strlcpy(buf, "", bufsz);
 	}
