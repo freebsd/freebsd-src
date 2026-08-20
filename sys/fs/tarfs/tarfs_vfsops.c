@@ -1236,6 +1236,6 @@ static struct vfsops tarfs_vfsops = {
 	.vfs_unmount =	tarfs_unmount,
 	.vfs_vget =	tarfs_vget,
 };
-VFS_SET(tarfs_vfsops, tarfs, VFCF_READONLY);
+VFS_SET(tarfs_vfsops, tarfs, VFCF_JAIL | VFCF_READONLY);
 MODULE_VERSION(tarfs, 1);
 MODULE_DEPEND(tarfs, xz, 1, 1, 1);
