@@ -108,6 +108,71 @@ ATF_TC_BODY(uexterr_set, tc)
 	ATF_CHECK_STREQ("long 0xffffffffffffffff int 4294967295", exterr);
 }
 
+static void
+check_bad_fmt(const char *fmt)
+{
+	char exterr[UEXTERROR_MAXLEN];
+	char expected[UEXTERROR_MAXLEN];
+	int r;
+
+	sprintf(expected, "<unsupported-format>:%s", fmt);
+
+	errno = 0;
+	UEXTERROR(EINVAL, fmt, 0xAAAAAAAAAAAAAAAA);
+	ATF_CHECK_EQ(errno, EINVAL);
+	r = uexterr_gettext(exterr, sizeof(exterr));
+	ATF_CHECK_EQ(0, r);
+	ATF_CHECK_STREQ(expected, exterr);
+}
+
+ATF_TC(uexterr_bad_fmt);
+ATF_TC_HEAD(uexterr_bad_fmt, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Test invalid or unsupported formats");
+}
+ATF_TC_BODY(uexterr_bad_fmt, tc)
+{
+	char exterr[UEXTERROR_MAXLEN];
+	int r;
+	int target = 0;
+
+	/* Write gadget */
+	errno = 0;
+	UEXTERROR(EINVAL, "write to %n", (uintptr_t)&target);
+	ATF_CHECK_EQ_MSG(0, target, "Write via %%n happened");
+	ATF_CHECK_EQ(errno, EINVAL);
+	r = uexterr_gettext(exterr, sizeof(exterr));
+	ATF_CHECK_EQ(0, r);
+	ATF_CHECK_STREQ("write to <illegal-format>:%n", exterr);
+
+	/* Too long */
+	errno = 0;
+	UEXTERROR(EINVAL, "%llllllllllllllllllllllllllllllllllllllllllllllld",
+	    0xAAAAAAAAAAAAAAAA);
+	ATF_CHECK_EQ(errno, EINVAL);
+	r = uexterr_gettext(exterr, sizeof(exterr));
+	ATF_CHECK_EQ(0, r);
+	ATF_CHECK_STREQ("<format-too-large>", exterr);
+
+	/* Incomplete */
+	check_bad_fmt("%");
+	check_bad_fmt("%l");
+
+	/* Obsolete or nonsensical */
+	check_bad_fmt("%D");
+	check_bad_fmt("%O");
+	check_bad_fmt("%U");
+	check_bad_fmt("%f");
+	check_bad_fmt("%F");
+	check_bad_fmt("%g");
+	check_bad_fmt("%G");
+	check_bad_fmt("%a");
+	check_bad_fmt("%A");
+	check_bad_fmt("%S");
+	check_bad_fmt("%s");
+	check_bad_fmt("%m");
+}
+
 ATF_TC(gettext_noextended);
 ATF_TC_HEAD(gettext_noextended, tc)
 {
@@ -184,6 +249,7 @@ ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, gettext_extended);
 	ATF_TP_ADD_TC(tp, uexterr_set);
+	ATF_TP_ADD_TC(tp, uexterr_bad_fmt);
 	ATF_TP_ADD_TC(tp, gettext_noextended);
 	ATF_TP_ADD_TC(tp, gettext_noextended_after_extended);
 	ATF_TP_ADD_TC(tp, exterr_dynamic_categories);
