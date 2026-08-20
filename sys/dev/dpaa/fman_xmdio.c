@@ -51,6 +51,7 @@
 static int xmdio_fdt_probe(device_t dev);
 static int xmdio_fdt_attach(device_t dev);
 static int xmdio_detach(device_t dev);
+static const struct ofw_bus_devinfo *xmdio_fdt_get_devinfo(device_t, device_t);
 static int xmdio_miibus_readreg(device_t dev, int phy, int reg);
 static int xmdio_miibus_writereg(device_t dev, int phy, int reg, int value);
 static int xmdio_mdio_readextreg(device_t dev, int phy, int devad, int reg);
@@ -85,20 +86,25 @@ static device_method_t xmdio_methods[] = {
 	DEVMETHOD(mdio_readextreg,	xmdio_mdio_readextreg),
 	DEVMETHOD(mdio_writeextreg,	xmdio_mdio_writeextreg),
 
+	/* ofw_bus interface -- expose devinfo of the FDT children we added. */
+	DEVMETHOD(ofw_bus_get_devinfo,	xmdio_fdt_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+
 	DEVMETHOD_END
 };
 
 static driver_t xmdio_driver = {
-	"xmdio",
+	"mdio",
 	xmdio_methods,
 	sizeof(struct xmdio_softc),
 };
 
-EARLY_DRIVER_MODULE(xmdio, fman, xmdio_driver, 0, 0,
-    BUS_PASS_SUPPORTDEV);
-DRIVER_MODULE(miibus, xmdio, miibus_driver, 0, 0);
-DRIVER_MODULE(mdio, xmdio, mdio_driver, 0, 0);
-MODULE_DEPEND(xmdio, miibus, 1, 1, 1);
+EARLY_DRIVER_MODULE(mdio, fman, xmdio_driver, 0, 0, BUS_PASS_SUPPORTDEV);
+MODULE_DEPEND(mdio, miibus, 1, 1, 1);
 
 static int
 xmdio_fdt_probe(device_t dev)
@@ -119,6 +125,9 @@ static int
 xmdio_fdt_attach(device_t dev)
 {
 	struct xmdio_softc *sc;
+	struct ofw_bus_devinfo *obd;
+	phandle_t node, child;
+	device_t cdev;
 
 	sc = device_get_softc(dev);
 
@@ -128,6 +137,29 @@ xmdio_fdt_attach(device_t dev)
 
 	mtx_init(&sc->sc_lock, device_get_nameunit(dev), "XMDIO lock",
 	    MTX_DEF);
+
+	node = ofw_bus_get_node(dev);
+	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
+		if (!OF_hasprop(child, "reg"))
+			continue;
+		obd = malloc(sizeof(*obd), M_DEVBUF, M_WAITOK | M_ZERO);
+		if (ofw_bus_gen_setup_devinfo(obd, child) != 0) {
+			free(obd, M_DEVBUF);
+			continue;
+		}
+		cdev = device_add_child(dev, NULL, DEVICE_UNIT_ANY);
+		if (cdev == NULL) {
+			ofw_bus_gen_destroy_devinfo(obd);
+			free(obd, M_DEVBUF);
+			continue;
+		}
+		device_set_ivars(cdev, obd);
+	}
+
+	bus_identify_children(dev);
+	bus_enumerate_hinted_children(dev);
+	bus_attach_children(dev);
+	return (0);
 
 	return (0);
 }
@@ -280,5 +312,12 @@ xmdio_mdio_writeextreg(device_t dev, int phy, int devad, int reg, int val)
 	MDIO_UNLOCK();
 
 	return (0);
+}
+
+static const struct ofw_bus_devinfo *
+xmdio_fdt_get_devinfo(device_t bus __unused, device_t child)
+{
+
+	return (device_get_ivars(child));
 }
 
