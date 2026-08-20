@@ -3464,6 +3464,15 @@ ice_init_link(struct ice_softc *sc)
 		/* Do not access PHY config while PHY FW is busy initializing */
 	} else {
 		ice_clear_state(&sc->state, ICE_STATE_PHY_FW_INIT_PENDING);
+
+		if (ice_is_e830(hw)) {
+			if (!(sc->ldo_tlv.options & ICE_LINK_OVERRIDE_PORT_DIS))
+				return;
+
+			ice_set_state(&sc->state, ICE_STATE_TOTAL_PORT_SHUTDOWN);
+			ice_clear_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN);
+		}
+
 		ice_init_link_configuration(sc);
 		ice_update_link_status(sc, true);
 	}
