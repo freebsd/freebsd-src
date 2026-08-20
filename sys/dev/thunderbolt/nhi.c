@@ -269,6 +269,7 @@ nhi_reset_v2(struct nhi_softc *sc)
 	 * "The Host Router is required to complete its reset within 500ms
 	 * after the Host Router Reset bit is set to 1b."
 	 */
+	reg = 1;
 	for (size_t i = 0; i < 10 && reg; i++) {
 		/*
 		 * Wait at least 50 ms after writing before reading this
