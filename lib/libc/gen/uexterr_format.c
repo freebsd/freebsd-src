@@ -245,7 +245,7 @@ uexterr_format_msg(const struct uexterror *ue, char *buf, size_t bufsz)
 			break;
 
 		case 'p':
-			PFMT(fmt, (void *)ARG(nextarg));
+			PFMT(fmt, (void *)(uintptr_t)ARG(nextarg));
 			break;
 
 		case '%':
