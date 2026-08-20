@@ -98,13 +98,14 @@ main(int argc, char *argv[])
 		err(EX_USAGE, "%s", target);
 	if (stat_realpath(argv[1], mountpoint, &mountpoint_stat) != 0)
 		err(EX_USAGE, "%s", mountpoint);
-	if (!S_ISDIR(target_stat.st_mode) && !S_ISREG(target_stat.st_mode))
-		errx(EX_USAGE, "%s: must be either a file or directory",
+	if (!S_ISDIR(target_stat.st_mode) && !S_ISREG(target_stat.st_mode) &&
+	    !S_ISSOCK(target_stat.st_mode))
+		errx(EX_USAGE, "%s: must be a file, directory or socket",
 		    target);
 	if ((target_stat.st_mode & S_IFMT) !=
 	    (mountpoint_stat.st_mode & S_IFMT))
 		errx(EX_USAGE,
-		    "%s: must be same type as %s (file or directory)",
+		    "%s: must be same type as %s (file, directory or socket)",
 		    mountpoint, target);
 
 	build_iovec(&iov, &iovlen, "fstype", nullfs, (size_t)-1);

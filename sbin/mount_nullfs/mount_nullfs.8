@@ -62,12 +62,26 @@ but in other respects it is indistinguishable from the original.
 .Pp
 The
 .Nm
-utility supports mounting both directories and single files.
+utility supports mounting directories, single files, and single
+.Xr unix 4
+domain sockets.
 Both
 .Ar target
 and
 .Ar mount_point
 must be the same type.
+.Pp
+Note that a socket mount refers to one specific socket, not to a name:
+if the serving daemon unlinks and re-binds its socket, as it typically does
+when restarted, the mount continues to refer to the old socket and
+.Xr connect 2
+fails.
+Mounting the containing directory does not have this limitation.
+.Pp
+When mounting a single file or socket, the
+.Ar target
+must have exactly one hard link, and the resulting mount point cannot
+itself be covered by a further mount.
 Mounting directories to files or files to
 directories is not supported.
 .Pp
@@ -109,6 +123,7 @@ to the lower (mounted-from) filesystem layer.
 .Pp
 The effect is that lower and upper (bypassed) unix sockets
 are separate.
+It makes mounted unix sockets non-functional.
 .It Cm unixbypass
 Enable the bypass of unix socket file to lower filesystem layer.
 This is default.
