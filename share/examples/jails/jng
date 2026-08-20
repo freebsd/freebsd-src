@@ -7,7 +7,7 @@
 ############################################################ IDENT(1)
 #
 # $Title: netgraph(4) management script for vnet jails $
-# $Version: 9.1 $
+# $Version: 9.2 $
 #
 ############################################################ INFORMATION
 #
@@ -22,15 +22,15 @@
 #
 # xxx {
 # 	host.hostname = "xxx.yyy";
-# 	path = "/vm/xxx";
+# 	path = "/vm/$name";
 # 
 # 	#
 # 	# NB: Below 2-lines required
-# 	# NB: The number of ngN_xxx interfaces should match the number of
-# 	#     arguments given to `jng bridge xxx' in exec.prestart value.
+# 	# NB: The number of ngN_$name interfaces should match the number of
+# 	#     arguments given to `jng bridge $name' in exec.prestart value.
 # 	#
 # 	vnet;
-# 	vnet.interface = ng0_xxx, ng1_xxx, ...;
+# 	vnet.interface = ng0_$name, ng1_$name, ...;
 # 
 # 	exec.clean;
 # 	exec.system_user = "root";
@@ -38,20 +38,20 @@
 # 
 # 	#
 # 	# NB: Below lines required
-# 	# NB: The number of arguments after `jng bridge xxx' should match
-# 	#     the number of ngN_xxx arguments in vnet.interface value.
-# 	# NB: Return each ngN_xxx to the host in prestop so the kernel does
+# 	# NB: The number of arguments after `jng bridge $name' should match
+# 	#     the number of ngN_$name arguments in vnet.interface value.
+# 	# NB: Return each ngN_$name to the host in prestop so the kernel does
 # 	#     not move it during jail removal (BPF race). Destroy in poststop.
 # 	#
-# 	exec.prestart += "jng bridge xxx em0 em1 ...";
-# 	exec.prestop += "ifconfig ng0_xxx -vnet xxx";
-# 	exec.prestop += "ifconfig ng1_xxx -vnet xxx";
-# 	exec.poststop += "jng shutdown xxx";
+# 	exec.prestart += "jng bridge $name em0 em1 ...";
+# 	exec.prestop += "ifconfig ng0_$name -vnet $name";
+# 	exec.prestop += "ifconfig ng1_$name -vnet $name";
+# 	exec.poststop += "jng shutdown $name";
 # 
 # 	# Standard recipe
 # 	exec.start += "/bin/sh /etc/rc";
 # 	exec.stop = "/bin/sh /etc/rc.shutdown jail";
-# 	exec.consolelog = "/var/log/jail_xxx_console.log";
+# 	exec.consolelog = "/var/log/jail_${name}_console.log";
 # 	mount.devfs;
 #
 # 	# Optional (default off)
@@ -138,7 +138,7 @@ NG_BRIDGE_MAX_STALENESS=4294967295
 
 ############################################################ GLOBALS
 
-VERSION='$Version: 9.1 $'
+VERSION='$Version: 9.2 $'
 
 pgm="${0##*/}" # Program basename
 
