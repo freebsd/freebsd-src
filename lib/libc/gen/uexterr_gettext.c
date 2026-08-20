@@ -8,26 +8,8 @@
  * under sponsorship from the FreeBSD Foundation.
  */
 
-#define	_WANT_P_OSREL
-#include <sys/param.h>
-#include <sys/exterrvar.h>
 #include <exterr.h>
-#include <string.h>
 #include "libc_private.h"
-
-static struct uexterror uexterr = {
-	.ver = UEXTERROR_VER,
-};
-
-int __getosreldate(void);
-
-static void uexterr_ctr(void) __attribute__((constructor));
-static void
-uexterr_ctr(void)
-{
-	if (__getosreldate() >= P_OSREL_EXTERRCTL)
-		exterrctl(EXTERRCTL_ENABLE, 0, &uexterr);
-}
 
 int
 __libc_uexterr_gettext(char *buf, size_t bufsz)
