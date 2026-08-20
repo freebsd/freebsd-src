@@ -383,6 +383,22 @@ max_num_len(int max_len, u_long num)
 	return (MAX(max_len, len));
 }
 
+static bool
+skip_ifa(const struct ifaddrs *ifa, sa_family_t af)
+{
+	if (af != AF_UNSPEC && ifa->ifa_addr->sa_family != af)
+		return (true);
+#ifndef INET6
+	/*
+	 * getifaddrs(3) may return AF_INET6 addresses even when
+	 * netstat(1) was built without INET6 support.
+	 */
+	if (ifa->ifa_addr->sa_family == AF_INET6)
+		return (true);
+#endif
+	return (false);
+}
+
 /*
  * Print a description of the network interfaces.
  */
@@ -407,7 +423,7 @@ intpr(void (*pfunc)(char *), int af)
 		if (interface != NULL &&
 		    strcmp(ifa->ifa_name, interface) != 0)
 			continue;
-		if (af != AF_UNSPEC && ifa->ifa_addr->sa_family != af)
+		if (skip_ifa(ifa, af))
 			continue;
 		ifn_len = strlen(ifa->ifa_name);
 		if ((ifa->ifa_flags & IFF_UP) == 0)
@@ -478,7 +494,7 @@ intpr(void (*pfunc)(char *), int af)
 			continue;
 		}
 
-		if (af != AF_UNSPEC && ifa->ifa_addr->sa_family != af)
+		if (skip_ifa(ifa, af))
 			continue;
 
 		xo_open_instance("interface");
