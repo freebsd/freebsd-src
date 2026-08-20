@@ -327,8 +327,8 @@ MAN+=	alarm.3 \
 	ttyname.3 \
 	ualarm.3 \
 	ucontext.3 \
-	uexterr.3 \
 	uexterr_gettext.3 \
+	uexterror.3 \
 	ulimit.3 \
 	uname.3 \
 	unvis.3 \
