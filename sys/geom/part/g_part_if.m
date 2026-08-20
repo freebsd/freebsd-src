@@ -113,6 +113,15 @@ CODE {
 	{
 		return (ENOIOCTL);
 	}
+
+	static int
+	default_getmdrange(struct g_part_table *table __unused,
+	    struct g_provider *pp __unused, int idx __unused,
+	    quad_t *start __unused, quad_t *length __unused,
+	    int *flags __unused)
+	{
+		return (EOPNOTSUPP);
+	}
 };
 
 # add() - scheme specific processing for the add verb.
@@ -170,6 +179,21 @@ METHOD void fullname {
 	struct sbuf *sb;
 	const char *pfx;
 } DEFAULT default_fullname;
+
+# getmdrange() - describe where the scheme keeps its on-disk metadata.
+# The caller enumerates the metadata ranges by calling this with idx 0..n until
+# ENOENT is returned.  Each call fills in one range of provider sectors, along
+# with its G_PART_MDR_* flags. The default implementation returns EOPNOTSUPP:
+# schemes not implementing this method cannot commit to certain providers e.g.
+# zoned drives, at all.
+METHOD int getmdrange {
+	struct g_part_table *table;
+	struct g_provider *pp;
+	int idx;
+	quad_t *start;
+	quad_t *length;
+	int *flags;
+} DEFAULT default_getmdrange;
 
 # ioctl() - implement historic ioctls, perhaps.
 METHOD int ioctl {

@@ -178,7 +178,11 @@ struct g_part_table {
 	bool		gpt_opened:1;	/* Permissions obtained. */
 	bool		gpt_fixgeom:1;	/* Geometry is fixed. */
 	bool		gpt_corrupt:1;	/* Table is corrupt. */
+	bool		gpt_primary_only:1; /* No backup metadata, if needed. */
 };
+
+/* Metadata-range properties returned by G_PART_GETMDRANGE(). */
+#define	G_PART_MDR_OPTIONAL	0x1	/* May be skipped when unwritable. */
 
 struct g_part_entry *g_part_new_entry(struct g_part_table *, int, quad_t,
     quad_t);

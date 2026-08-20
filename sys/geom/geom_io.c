@@ -333,6 +333,91 @@ g_io_zonecmd(struct disk_zone_args *zone_args, struct g_consumer *cp)
 }
 
 /*
+ * Fetch zone parameters of the provider attached to the given consumer.
+ */
+static int
+g_zone_get_params(struct g_consumer *cp, struct disk_zone_disk_params *params)
+{
+	struct disk_zone_args zone_args;
+	int error;
+
+	bzero(&zone_args, sizeof(zone_args));
+	zone_args.zone_cmd = DISK_ZONE_GET_PARAMS;
+	error = g_io_zonecmd(&zone_args, cp);
+	if (error == 0)
+		*params = zone_args.zone_params.disk_params;
+	return (error);
+}
+
+/*
+ * Look up the zone containing the given LBA.
+ */
+static int
+g_zone_lookup(struct g_consumer *cp, uint64_t lba,
+    struct disk_zone_rep_entry *entry)
+{
+	struct disk_zone_args zone_args;
+	int error;
+
+	bzero(&zone_args, sizeof(zone_args));
+	bzero(entry, sizeof(*entry));
+	zone_args.zone_cmd = DISK_ZONE_REPORT_ZONES;
+	zone_args.zone_params.report.starting_id = lba;
+	zone_args.zone_params.report.rep_options = DISK_ZONE_REP_ALL;
+	zone_args.zone_params.report.entries_allocated = 1;
+	zone_args.zone_params.report.entries = entry;
+	error = g_io_zonecmd(&zone_args, cp);
+	if (error != 0)
+		return (error);
+	/* Empty report or zone does not cover the LBA. */
+	if (zone_args.zone_params.report.entries_filled != 1 ||
+	    entry->zone_start_lba + entry->zone_length <= lba)
+		return (ENXIO);
+	return (0);
+}
+
+bool
+g_zone_host_managed(struct g_consumer *cp)
+{
+	struct disk_zone_disk_params params;
+
+	if (g_zone_get_params(cp, &params) != 0)
+		return (false);
+	return (params.zone_mode == DISK_ZONE_MODE_HOST_MANAGED);
+}
+
+/*
+ * Determine whether the sector range [start, start + length) may be written
+ * without regard to a write pointer.
+ */
+int
+g_zone_range_random_writable(struct g_consumer *cp, uint64_t start,
+    uint64_t length, bool *writable)
+{
+	struct disk_zone_rep_entry entry;
+	uint64_t end, lba;
+	int error;
+
+	*writable = true;
+	end = start + length;
+	for (lba = start; lba < end;
+	    lba = entry.zone_start_lba + entry.zone_length) {
+		error = g_zone_lookup(cp, lba, &entry);
+		if (error != 0)
+			return (error);
+		switch (entry.zone_type) {
+		case DISK_ZONE_TYPE_CONVENTIONAL:
+		case DISK_ZONE_TYPE_SEQ_PREFERRED:
+			break;
+		default:
+			*writable = false;
+			return (0);
+		}
+	}
+	return (0);
+}
+
+/*
  * Send a BIO_SPEEDUP down the stack. This is used to tell the lower layers that
  * the upper layers have detected a resource shortage. The lower layers are
  * advised to stop delaying I/O that they might be holding for performance
