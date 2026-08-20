@@ -488,6 +488,7 @@ DB_SHOW_COMMAND(fqid, qman_show_fqid)
 		return;
 
 	bzero(&cmd, sizeof(cmd));
+	cmd.query_fq_np.verb = QCSP_VERB_QUERY_FQ_NP;
 	cmd.query_fq_np.fqid = addr;
 
 	/* Ensure we have got QMan port initialized */
@@ -500,6 +501,7 @@ DB_SHOW_COMMAND(fqid, qman_show_fqid)
 	/* Dump all NP fields */
 	if (res != NULL && save_res.query_fq_np.rslt == 0xf0) {
 		db_printf("FQID: %d\n", (int)addr);
+		db_printf("  Non-programmable:\n");
 		db_printf("  State: %x\n", save_res.query_fq_np.state);
 		db_printf("  Link: %x\n", save_res.query_fq_np.fqd_link);
 		db_printf("  ODP_SEQ: %x\n", save_res.query_fq_np.odp_seq);
@@ -523,5 +525,26 @@ DB_SHOW_COMMAND(fqid, qman_show_fqid)
 		db_printf("  od1_sfdr: %x\n", save_res.query_fq_np.od1_sfdr);
 		db_printf("  od2_sfdr: %x\n", save_res.query_fq_np.od2_sfdr);
 		db_printf("  od3_sfdr: %x\n", save_res.query_fq_np.od3_sfdr);
+	}
+
+	bzero(&cmd, sizeof(cmd));
+	cmd.query_fq.verb = QCSP_VERB_QUERY_FQ;
+	cmd.query_fq.fqid = addr;
+
+	res = qman_portal_mc_send_raw(portal, &cmd);
+	if (res != NULL)
+		save_res = *res;
+
+	if (res != NULL && save_res.query_fq.rslt == 0xf0) {
+		db_printf("  Programmable:\n");
+		db_printf("  ORPC: %02x\n", save_res.query_fq.orpc);
+		db_printf("  CGID: %02x\n", save_res.query_fq.cgid);
+		db_printf("  FQ_CTRL: %04x\n", save_res.query_fq.fq_ctrl);
+		db_printf("  DEST_WQ: %04x\n", save_res.query_fq.dest_wq);
+		db_printf("  ICS_CRED: %04x\n", save_res.query_fq.ics_cred);
+		db_printf("  TD_thresh: %04x\n", save_res.query_fq.td_thresh);
+		db_printf("  Context_B: %08x\n", save_res.query_fq.context_b);
+		db_printf("  Context_A: %16lx\n", save_res.query_fq.context_a);
+		db_printf("  OAC: %04x\n", save_res.query_fq.oac);
 	}
 }

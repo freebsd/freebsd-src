@@ -133,6 +133,45 @@ union qman_mc_result {
 _Static_assert(sizeof(union qman_mc_command) == 64, "MC command mis-sized");
 _Static_assert(sizeof(union qman_mc_result) == 64, "MC result mis-sized");
 
+#define	QCSP_VERB_INIT_FQ_PARK		0x40
+#define	QCSP_VERB_INIT_FQ_SCHED		0x41
+#define	QCSP_VERB_QUERY_FQ		0x44
+#define	QCSP_VERB_QUERY_FQ_NP		0x45
+#define	QCSP_VERB_ALTER_FQ_SCHED	0x48
+#define	QCSP_VERB_ALTER_FQ_FE		0x49
+#define	QCSP_VERB_ALTER_FQ_RETIRE	0x4a
+#define	QCSP_VERB_ALTER_FQ_TAKE_OUT	0x4b
+#define	QCSP_VERB_ALTER_FQ_RETIRE_CTXB	0x4c
+#define	QCSP_VERB_ALTER_FQ_XON		0x4d
+#define	QCSP_VERB_ALTER_FQ_XOFF		0x4e
+
+/* Init FQ */
+#define	QCSP_INIT_FQ_WE_OAC		0x0100
+#define	QCSP_INIT_FQ_WE_ORPC		0x0080
+#define	QCSP_INIT_FQ_WE_CGID		0x0040
+#define	QCSP_INIT_FQ_WE_FQ_CTRL		0x0020
+#define	QCSP_INIT_FQ_WE_DEST_WQ		0x0010
+#define	QCSP_INIT_FQ_WE_ICS_CRED	0x0008
+#define	QCSP_INIT_FQ_WE_TD_THRESH	0x0004
+#define	QCSP_INIT_FQ_WE_CONTEXT_B	0x0002
+#define	QCSP_INIT_FQ_WE_CONTEXT_A	0x0001
+
+#define	QMAN_MC_RES_OK			0xf0
+
+#define	QMAN_MC_AFQS_NE			0x01
+
+/* Init FQ options */
+#define	QM_FQCTRL_CGE			0x0400
+#define	QM_FQCTRL_TDE			0x0200
+#define	QM_FQCTRL_ORP			0x0100
+#define	QM_FQCTRL_CTXASTASH		0x0080
+#define	QM_FQCTRL_CPCSTASH		0x0040
+#define	QM_FQCTRL_FORCESFDR		0x0008
+#define	QM_FQCTRL_AVOIDBLOCK		0x0004
+#define	QM_FQCTRL_HOLDACTIVE		0x0002
+#define	QM_FQCTRL_LIC			0x0001
+
+
 struct qman_mc {
 	uint8_t polarity;
 	bool busy;
