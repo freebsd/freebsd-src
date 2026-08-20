@@ -23,6 +23,8 @@
  * SUCH DAMAGE.
  */
 
+#define UEXTERR_CATEGORY "tests/sys/kern/exterr_test.c"
+
 #include <sys/param.h>
 #include <sys/exterrvar.h>
 #include <sys/mman.h>
@@ -31,9 +33,11 @@
 #include <atf-c.h>
 #include <errno.h>
 #include <exterr.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <uexterror.h>
 #include <unistd.h>
 
 #include "freebsd_test_suite/macros.h"
@@ -73,6 +77,35 @@ ATF_TC_BODY(gettext_extended, tc)
 	ATF_REQUIRE_FEATURE("exterr_strings");
 	/* Note: error string may need to be updated due to kernel changes */
 	ATF_CHECK(strstr(exterr, " is not subset of ") != NULL);
+}
+
+ATF_TC(uexterr_set);
+ATF_TC_HEAD(uexterr_set, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Set extended error message from userspace");
+}
+ATF_TC_BODY(uexterr_set, tc)
+{
+	char exterr[UEXTERROR_MAXLEN];
+	int r;
+
+	errno = 0;
+	UEXTERROR(EINVAL, "pointer %p int %d", (uintptr_t)&r, UINTMAX_MAX);
+	ATF_CHECK_EQ(errno, EINVAL);
+	r = uexterr_gettext(exterr, sizeof(exterr));
+	ATF_CHECK_EQ(0, r);
+	printf("Extended error: %s\n", exterr);
+	/* The pointer's value will change, but the rest should be stable. */
+	ATF_CHECK(strncmp("pointer 0x", exterr, strlen("pointer 0x")) == 0);
+	ATF_CHECK(strstr(exterr, " int -1") != 0);
+
+	errno = 0;
+	UEXTERROR(EINVAL, "long 0x%lx int %u", UINTMAX_MAX, UINTMAX_MAX);
+	ATF_CHECK_EQ(errno, EINVAL);
+	r = uexterr_gettext(exterr, sizeof(exterr));
+	ATF_CHECK_EQ(0, r);
+	ATF_CHECK_STREQ("long 0xffffffffffffffff int 4294967295", exterr);
 }
 
 ATF_TC(gettext_noextended);
@@ -150,6 +183,7 @@ ATF_TC_BODY(exterr_dynamic_categories, tc)
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, gettext_extended);
+	ATF_TP_ADD_TC(tp, uexterr_set);
 	ATF_TP_ADD_TC(tp, gettext_noextended);
 	ATF_TP_ADD_TC(tp, gettext_noextended_after_extended);
 	ATF_TP_ADD_TC(tp, exterr_dynamic_categories);
