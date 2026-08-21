@@ -375,6 +375,7 @@ int libusb_hotplug_register_callback(libusb_context *ctx,
 	handle->fn = cb_fn;
 	handle->user_data = user_data;
 	CTX_LOCK(ctx);
+	/* XXX This could result in duplicate callback IDs, and is UB. */
 	if ((handle->id = ctx->next_callback_id++) < 0)
 		handle->id = ctx->next_callback_id = 1;
 	CTX_UNLOCK(ctx);
