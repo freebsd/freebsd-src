@@ -115,17 +115,34 @@ static SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
 #include "../../kern/subr_busdma_bounce.c"
 
 /*
- * Returns true if the address falls within the tag's exclusion window, or
- * fails to meet its alignment requirements.
+ * Returns true if this page needs bouncing.
+ *
+ * A page needs bouncing if either:
+ *  (1) its physical address is outside the tag's allowed range, or
+ *  (2) it starts a new segment (i.e., paddr is not the direct continuation
+ *      of the previous segment's end) and doesn't satisfy the tag's
+ *      alignment constraint on that new segment's start.
+ *
+ * `seg_end` is the expected physical address of the byte immediately after
+ * the previous segment (i.e., prev_curaddr + prev_sgsize as passed to
+ * _bus_dmamap_addseg).  Callers walking a buffer page-by-page should pass
+ * ~(bus_addr_t)0 for the first page (no previous segment) and update
+ * seg_end after each iteration from the actual curaddr they added to the
+ * segment list (source paddr if not bounced, bounce paddr if bounced).
+ * A page whose paddr matches seg_end continues the previous segment via
+ * addseg's coalescer and inherits alignment from the segment head; only
+ * physically-discontiguous pages start new segments requiring alignment
+ * re-check.
  */
 static __inline bool
-must_bounce(bus_dma_tag_t dmat, bus_addr_t paddr)
+must_bounce(bus_dma_tag_t dmat, bus_addr_t paddr, bus_addr_t seg_end)
 {
 
 	if (dmat->iommu == NULL && paddr > dmat->common.lowaddr &&
 	    paddr <= dmat->common.highaddr)
 		return (true);
-	if (!vm_addr_align_ok(paddr, dmat->common.alignment))
+	if (paddr != seg_end &&
+	    !vm_addr_align_ok(paddr, dmat->common.alignment))
 		return (true);
 
 	return (false);
@@ -476,12 +493,24 @@ _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
 		 * needed in order to complete this transfer
 		 */
 		curaddr = buf;
+		/*
+		 * Track the expected end of the previous segment so we mirror
+		 * load_phys()'s decisions and don't under-count bounces.  After
+		 * a "would bounce" page, load will have replaced curaddr with a
+		 * bounce paddr that won't match the next source paddr; count
+		 * simulates that by resetting seg_end to 0 (which no source
+		 * paddr can match on modern PPC where page 0 is reserved).
+		 */
+		bus_addr_t seg_end = ~(bus_addr_t)0;
 		while (buflen != 0) {
 			sgsize = buflen;
-			if (must_bounce(dmat, curaddr)) {
+			if (must_bounce(dmat, curaddr, seg_end)) {
 				sgsize = MIN(sgsize,
 				    PAGE_SIZE - (curaddr & PAGE_MASK));
 				map->pagesneeded++;
+				seg_end = 0;
+			} else {
+				seg_end = curaddr + sgsize;
 			}
 			curaddr += sgsize;
 			buflen -= sgsize;
@@ -509,6 +538,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		 */
 		vaddr = (vm_offset_t)buf;
 		vendaddr = (vm_offset_t)buf + buflen;
+		bus_addr_t seg_end = ~(bus_addr_t)0;
 
 		while (vaddr < vendaddr) {
 			bus_size_t sg_len;
@@ -519,9 +549,12 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 				paddr = pmap_kextract(vaddr);
 			else
 				paddr = pmap_extract(pmap, vaddr);
-			if (must_bounce(dmat, paddr)) {
+			if (must_bounce(dmat, paddr, seg_end)) {
 				sg_len = roundup2(sg_len, dmat->common.alignment);
 				map->pagesneeded++;
+				seg_end = 0;
+			} else {
+				seg_end = paddr + sg_len;
 			}
 			vaddr += sg_len;
 		}
@@ -557,10 +590,12 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat,
 		}
 	}
 
+	bus_addr_t seg_end = ~(bus_addr_t)0;
 	while (buflen > 0) {
 		curaddr = buf;
 		sgsize = buflen;
-		if (map->pagesneeded != 0 && must_bounce(dmat, curaddr)) {
+		if (map->pagesneeded != 0 &&
+		    must_bounce(dmat, curaddr, seg_end)) {
 			sgsize = MIN(sgsize, PAGE_SIZE - (curaddr & PAGE_MASK));
 			curaddr = add_bounce_page(dmat, map, 0, curaddr,
 			    sgsize);
@@ -568,6 +603,13 @@ bounce_bus_dmamap_load_phys(bus_dma_tag_t dmat,
 		if (!_bus_dmamap_addsegs(dmat, map, curaddr, sgsize, segs,
 		    segp))
 			break;
+		/*
+		 * Track the added segment's end so must_bounce() on the next
+		 * iteration correctly identifies whether we're continuing a
+		 * segment (source contiguous with previous curaddr, which may
+		 * itself be a bounce paddr) or starting a new one.
+		 */
+		seg_end = curaddr + sgsize;
 		buf += sgsize;
 		buflen -= sgsize;
 	}
@@ -619,6 +661,7 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	}
 
 	vaddr = buf;
+	bus_addr_t seg_end = ~(bus_addr_t)0;
 
 	while (buflen > 0) {
 		/*
@@ -636,7 +679,8 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		 * Compute the segment size, and adjust counts.
 		 */
 		sgsize = MIN(buflen, PAGE_SIZE - (curaddr & PAGE_MASK));
-		if (map->pagesneeded != 0 && must_bounce(dmat, curaddr)) {
+		if (map->pagesneeded != 0 &&
+		    must_bounce(dmat, curaddr, seg_end)) {
 			sgsize = roundup2(sgsize, dmat->common.alignment);
 			sgsize = MIN(sgsize, buflen);
 			curaddr = add_bounce_page(dmat, map, kvaddr, curaddr,
@@ -646,6 +690,13 @@ bounce_bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		if (!_bus_dmamap_addsegs(dmat, map, curaddr, sgsize, segs,
 		    segp))
 			break;
+		/*
+		 * Track the added segment's end so must_bounce() on the next
+		 * iteration correctly identifies whether we're continuing a
+		 * segment (source contiguous with previous curaddr, which may
+		 * itself be a bounce paddr) or starting a new one.
+		 */
+		seg_end = curaddr + sgsize;
 		vaddr += sgsize;
 		buflen -= MIN(sgsize, buflen); /* avoid underflow */
 	}
