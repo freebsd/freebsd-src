@@ -827,4 +827,6 @@ FBSDprivate_1.0 {
 	__sys_pdopenpid;
 	_pddupfd;
 	__sys_pddupfd;
+	_pdptrace;
+	__sys_pdptrace;
 };

@@ -610,4 +610,5 @@ const char *syscallnames[] = {
 	"renameat2",			/* 602 = renameat2 */
 	"pdopenpid",			/* 603 = pdopenpid */
 	"pddupfd",			/* 604 = pddupfd */
+	"pdptrace",			/* 605 = pdptrace */
 };

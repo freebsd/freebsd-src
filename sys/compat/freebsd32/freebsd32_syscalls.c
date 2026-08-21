@@ -610,4 +610,5 @@ const char *freebsd32_syscallnames[] = {
 	"renameat2",			/* 602 = renameat2 */
 	"pdopenpid",			/* 603 = pdopenpid */
 	"pddupfd",			/* 604 = pddupfd */
+	"freebsd32_pdptrace",			/* 605 = freebsd32_pdptrace */
 };
