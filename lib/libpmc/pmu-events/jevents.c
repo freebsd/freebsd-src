@@ -265,6 +265,7 @@ static struct map {
 	/* AMD */
 	{ "L3PMC", "amd_l3" },
 	{ "DFPMC", "amd_df" },
+	{ "UMCPMC", "amd_umc" },
 	/* ARM HiSilicon */
 	{ "hisi_sicl,cpa", "hisi_sicl,cpa"},
 	{ "hisi_sccl,ddrc", "hisi_sccl,ddrc" },
@@ -648,7 +649,8 @@ static int json_events(const char *fn,
 				if (nz)
 					addfield(map, &cmask, "", "cmask=", val);
 			} else if (json_streq(map, field, "RdWrMask")) {
-				/* AMD UMC */
+				if (nz)
+					addfield(map, &cmask, "", "rdwrmask=", val);
 			} else if (json_streq(map, field, "Invert")) {
 				if (nz)
 					addfield(map, &inv, "", "inv=", val);
