@@ -624,7 +624,7 @@ pmcview::loadsymboltable(image *im, Elf *e, Elf_Scn *scn, GElf_Shdr *sh)
 
 		// XXX: Extra checks to make sure we don't get corrupted
 		for (int i = 0; fname[i] != 0 && i < 32; i++) {
-			if (fname[i] < 0) {
+			if (!isascii(fname[i])) {
 				printf("EEEK SYMBOL\n");
 				printf("%s\n", fname);
 				assert(false);
