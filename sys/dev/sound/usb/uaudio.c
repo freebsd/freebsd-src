@@ -5419,7 +5419,7 @@ uaudio20_set_speed(struct usb_device *udev, uint8_t iface_no,
     uint8_t clockid, uint32_t speed)
 {
 	struct usb_device_request req;
-	uint8_t data[4];
+	uDWord data;
 
 	DPRINTFN(6, "ifaceno=%d clockid=%d speed=%u\n",
 	    iface_no, clockid, speed);
@@ -5428,11 +5428,8 @@ uaudio20_set_speed(struct usb_device *udev, uint8_t iface_no,
 	req.bRequest = UA20_CS_CUR;
 	USETW2(req.wValue, UA20_CS_SAM_FREQ_CONTROL, 0);
 	USETW2(req.wIndex, clockid, iface_no);
-	USETW(req.wLength, 4);
-	data[0] = speed;
-	data[1] = speed >> 8;
-	data[2] = speed >> 16;
-	data[3] = speed >> 24;
+	USETW(req.wLength, sizeof(data));
+	USETDW(data, speed);
 
 	return (usbd_do_request(udev, NULL, &req, data));
 }
