@@ -131,17 +131,6 @@ int	 timingsafe_bcmp(const void *, const void *, size_t);
 void	*bsearch(const void *, const void *, size_t,
 	    size_t, int (*)(const void *, const void *));
 
-/*
- * MHTODO: remove the 'HAVE_INLINE_FOO' defines once use of these flags has
- * been purged everywhere. For now we provide them unconditionally.
- */
-#define	HAVE_INLINE_FFS
-#define	HAVE_INLINE_FFSL
-#define	HAVE_INLINE_FFSLL
-#define	HAVE_INLINE_FLS
-#define	HAVE_INLINE_FLSL
-#define	HAVE_INLINE_FLSLL
-
 static __inline __pure2 int
 ffs(int mask)
 {
