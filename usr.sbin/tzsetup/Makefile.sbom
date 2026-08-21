@@ -1,0 +1,7 @@
+SBOM_NAME=	${SBOMBASE}zoneinfo
+SBOM_DESC=	Timezone database
+SBOM_VERSION=	2026c
+SBOM_LICENSE=	LicenseRef-Public-Domain
+SBOM_COPYRIGHT=	Public Domain
+SBOM_URL=	https://www.iana.org/time-zones
+SBOM_SOURCE=	https://data.iana.org/time-zones/releases/tzdata-${SBOM_VERSION}.tar.gz

@@ -1,0 +1,2 @@
+SBOM_DESC=	bhyve virtual machine hypervisor
+SBOM_COPYRIGHT=	Copyright (c) 2011 NetApp, Inc.

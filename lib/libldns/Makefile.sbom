@@ -1,0 +1,6 @@
+SBOM_VERSION=	1.9.2
+SBOM_COPYRIGHT=	Copyright (c) 2005,2006, NLnetLabs
+SBOM_LICENSE=	BSD-3-Clause
+SBOM_COPYRIGHT=	Copyright (c) 2005,2006, NLnetLabs
+SBOM_URL=	https://www.nlnetlabs.nl/projects/ldns/about/
+SBOM_SOURCE=	https://github.com/NLnetLabs/ldns

@@ -1,0 +1,3 @@
+SBOM_DESC=	Compact C Type Format (CTF)
+SBOM_LICENSE=	CDDL-1.0
+SBOM_COPYRIGHT=	Copyright 2006 Sun Microsystems, Inc.

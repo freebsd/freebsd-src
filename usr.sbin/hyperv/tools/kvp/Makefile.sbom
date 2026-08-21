@@ -1,0 +1,3 @@
+SBOM_NAME=	${SBOMBASE}${PACKAGE}
+SBOM_DESC=	Microsoft Hyper-V utilities
+SBOM_COPYRIGHT=	Copyright (c) 2016 Microsoft Corp.

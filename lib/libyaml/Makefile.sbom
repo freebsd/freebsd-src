@@ -1,0 +1,6 @@
+SBOM_DESC=	Private YAML library
+SBOM_VERSION=	0.2.5
+SBOM_LICENSE=	MIT
+SBOM_COPYRIGHT=	Copyright (c) 2006-2016 Kirill Simonov
+SBOM_URL=	https://pyyaml.org/wiki/LubYAML
+SBOM_SOURCE=	https://github.com/yaml/libyaml

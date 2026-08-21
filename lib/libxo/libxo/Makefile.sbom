@@ -1,0 +1,6 @@
+SBOM_DESC=	Generate text, XML, JSON, and HTML output
+SBOM_VERSION=	1.4.0
+SBOM_LICENSE=	BSD-2-Clause
+SBOM_COPYRIGHT=	Juniper
+SBOM_URL=	https://github.com/Juniper/libxo
+SBOM_SOURCE=	https://github.com/Juniper/libxo/tree/${SBOM_VERSION}

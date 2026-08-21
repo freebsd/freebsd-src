@@ -1,0 +1,4 @@
+SBOM_NAME=	${SBOMBASE}${PACKAGE}
+SBOM_DESC=	BSD/SunOS remote status commands
+SBOM_LICENSE=	BSD-3-Clause
+SBOM_COPYRIGHT=	Copyright (c) 1983, 1993 The Regents of the University of California

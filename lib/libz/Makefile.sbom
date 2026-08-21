@@ -1,0 +1,6 @@
+SBOM_DESC=	DEFLATE (gzip) data compression library
+SBOM_VERSION=	1.3.2
+SBOM_LICENSE=	Zlib
+SBOM_COPYRIGHT=	Copyright (C) 1995-2026 Jean-loup Gailly and Mark Adler
+SBOM_URL=	https://zlib.net
+SBOM_SOURCE=	https://github.com/madler/zlib

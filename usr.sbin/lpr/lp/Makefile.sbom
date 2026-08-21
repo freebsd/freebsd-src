@@ -1,0 +1,3 @@
+SBOM_DESC=	Print spooler
+SBOM_LICENSE=	BSD-4-Clause
+SBOM_COPYRIGHT=	Copyright (c) 1983, 1989, 1993 The Regents of the University of California

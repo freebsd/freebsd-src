@@ -1,0 +1,2 @@
+.include "../../lib/libzfs/Makefile.sbom"
+SBOM_NAME=	${SBOMBASE}openzfs

@@ -1,0 +1,2 @@
+SBOM_DESC=	Library for interacting with threaded processes
+SBOM_COPYRIGHT=	Copyright (c) 2004 David Xu <davidxu@freebsd.org>

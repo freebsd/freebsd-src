@@ -1,0 +1,2 @@
+.include "../clang/Makefile.sbom"
+SBOM_DESC=	LLVM ELF link loader

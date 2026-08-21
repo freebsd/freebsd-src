@@ -1,0 +1,5 @@
+SBOM_DESC=	Testing framework for infrastructure software
+SBOM_VERSION=	0.13
+SBOM_LICENSE=	BSD-3-Clause
+SBOM_COPYRIGHT=	Copyright 2010-2015 The Kyua Authors
+SBOM_URL=	https://github.com/FreeBSD/kyua

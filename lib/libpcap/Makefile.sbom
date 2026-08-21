@@ -1,0 +1,5 @@
+SBOM_DESC=	Platform-independent network traffic capture library
+SBOM_VERSION=	1.10.5
+SBOM_LICENSE=	BSD-3-Clause
+SBOM_URL=	https://www.tcpdump.org
+SBOM_SOURCE=	${SBOM_URL}/release/${SBOM_NAME}-${SBOM_VERSION}.tar.xz

@@ -1,0 +1,6 @@
+SBOM_DESC=	NLnet Labs Unbound DNS resolver
+SBOM_VERSION=	1.26.0
+SBOM_LICENSE=	BSD-3-Clause
+SBOM_COPYRIGHT=	Copyright (c) 2007, NLnet Labs
+SBOM_URL=	https://www.nlnetlabs.nl/projects/unbound/about/
+SBOM_SOURCE=	${SBOM_URL}/tree/release-${SBOM_VERSION}

@@ -1,0 +1,6 @@
+SBOM_DESC=	Private SQLite library
+SBOM_VERSION=	3.53.1
+SBOM_LICENSE=	LicenseRef-Public-Domain
+SBOM_COPYRIGHT=	Public Domain
+SBOM_URL=	https://sqlite.org/src
+SBOM_SOURCE=	https://github.com/sqlite/sqlite
