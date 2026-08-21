@@ -3215,7 +3215,7 @@ pci_nvme_parse_config(struct pci_nvme_softc *sc, nvlist_t *nvl)
 	}
 	value = get_config_value_node(nvl, "eui64");
 	if (value != NULL)
-		sc->nvstore.eui64 = htobe64(strtoull(value, NULL, 0));
+		sc->nvstore.eui64 = strtoull(value, NULL, 0);
 	value = get_config_value_node(nvl, "dsm");
 	if (value != NULL) {
 		if (strcmp(value, "auto") == 0)

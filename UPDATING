@@ -27,6 +27,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 16.x IS SLOW:
 	world, or to merely disable the most expensive debugging functionality
 	at runtime, run "ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20260826:
+	bhyve(8) users who explicitly set the eui64 option for an NVMe
+	device may need to update their configuration.  Due to an incorrect
+	byte-order conversion, bhyve previously presented manually
+	configured EUI-64 values to the guest with their bytes reversed.
+	To preserve the identifier previously visible to the guest,
+	byte-reverse the value in the eui64 option.  Automatically
+	generated EUI-64 values, used when the option is omitted,
+	are unaffected.
+
 20260814:
 	libusb version has been upgraded to 1.0.27 compatible version.
 	All of the missing parts have been implemented.
