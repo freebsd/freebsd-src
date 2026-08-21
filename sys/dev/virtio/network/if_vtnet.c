@@ -145,6 +145,14 @@ static int	vtnet_rxq_replace_lro_nomrg_buf(struct vtnet_rxq *,
 static int	vtnet_rxq_replace_buf(struct vtnet_rxq *, struct mbuf *, int);
 static int	vtnet_rxq_enqueue_buf(struct vtnet_rxq *, struct mbuf *);
 static int	vtnet_rxq_new_buf(struct vtnet_rxq *);
+#if defined(INET) || defined(INET6)
+static void	vtnet_rxq_csum_needs_csum(struct vtnet_rxq *, struct mbuf *,
+		     bool, int, struct virtio_net_hdr *);
+static void	vtnet_rxq_csum_data_valid(struct vtnet_rxq *, struct mbuf *,
+		    int);
+static int	vtnet_rxq_csum(struct vtnet_rxq *, struct mbuf *,
+		     struct virtio_net_hdr *);
+#endif
 static void	vtnet_rxq_discard_merged_bufs(struct vtnet_rxq *, int);
 static void	vtnet_rxq_discard_buf(struct vtnet_rxq *, struct mbuf *);
 static int	vtnet_rxq_merged_eof(struct vtnet_rxq *, struct mbuf *, int);
@@ -159,6 +167,13 @@ static int	vtnet_txq_intr_threshold(struct vtnet_txq *);
 static int	vtnet_txq_below_threshold(struct vtnet_txq *);
 static int	vtnet_txq_notify(struct vtnet_txq *);
 static void	vtnet_txq_free_mbufs(struct vtnet_txq *);
+static int	vtnet_txq_offload_ctx(struct vtnet_txq *, struct mbuf *,
+		    int *, int *, int *);
+static int	vtnet_txq_offload_tso(struct vtnet_txq *, struct mbuf *, int,
+		    int, struct virtio_net_hdr *);
+static struct mbuf *
+		vtnet_txq_offload(struct vtnet_txq *, struct mbuf *,
+		    struct virtio_net_hdr *);
 static int	vtnet_txq_enqueue_buf(struct vtnet_txq *, struct mbuf **,
 		    struct vtnet_tx_header *);
 static int	vtnet_txq_encap(struct vtnet_txq *, struct mbuf **, int);
@@ -1949,6 +1964,124 @@ vtnet_rxq_new_buf(struct vtnet_rxq *rxq)
 	return (error);
 }
 
+#if defined(INET) || defined(INET6)
+static void
+vtnet_rxq_csum_needs_csum(struct vtnet_rxq *rxq, struct mbuf *m, bool isipv6,
+    int protocol, struct virtio_net_hdr *hdr)
+{
+	/*
+	 * The packet is likely from another VM on the same host or from the
+	 * host that itself performed checksum offloading so Tx/Rx is basically
+	 * a memcpy and the checksum has little value so far.
+	 */
+
+	KASSERT(protocol == IPPROTO_TCP || protocol == IPPROTO_UDP,
+	    ("%s: unsupported IP protocol %d", __func__, protocol));
+
+	/*
+	 * Just forward the order to compute the checksum by setting
+	 * the corresponding mbuf flag (e.g., CSUM_TCP).
+	 */
+	switch (protocol) {
+	case IPPROTO_TCP:
+		m->m_pkthdr.csum_flags |= (isipv6 ? CSUM_TCP_IPV6 : CSUM_TCP);
+		break;
+	case IPPROTO_UDP:
+		m->m_pkthdr.csum_flags |= (isipv6 ? CSUM_UDP_IPV6 : CSUM_UDP);
+		break;
+	}
+	m->m_pkthdr.csum_data = hdr->csum_offset;
+}
+
+static void
+vtnet_rxq_csum_data_valid(struct vtnet_rxq *rxq, struct mbuf *m, int protocol)
+{
+	KASSERT(protocol == IPPROTO_TCP || protocol == IPPROTO_UDP,
+	    ("%s: unsupported IP protocol %d", __func__, protocol));
+
+	m->m_pkthdr.csum_flags |= CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+	m->m_pkthdr.csum_data = 0xFFFF;
+}
+
+static int
+vtnet_rxq_csum(struct vtnet_rxq *rxq, struct mbuf *m,
+    struct virtio_net_hdr *hdr)
+{
+	const struct ether_header *eh;
+	struct vtnet_softc *sc;
+	int hoff, protocol;
+	uint16_t etype;
+	bool isipv6;
+
+	KASSERT(hdr->flags &
+	    (VIRTIO_NET_HDR_F_NEEDS_CSUM | VIRTIO_NET_HDR_F_DATA_VALID),
+	    ("%s: missing checksum offloading flag %x", __func__, hdr->flags));
+
+	eh = mtod(m, const struct ether_header *);
+	etype = ntohs(eh->ether_type);
+	if (etype == ETHERTYPE_VLAN) {
+		/* TODO BMV: Handle QinQ. */
+		const struct ether_vlan_header *evh =
+		    mtod(m, const struct ether_vlan_header *);
+		etype = ntohs(evh->evl_proto);
+		hoff = sizeof(struct ether_vlan_header);
+	} else
+		hoff = sizeof(struct ether_header);
+
+	sc = rxq->vtnrx_sc;
+
+	/* Check whether ethernet type is IP or IPv6, and get protocol. */
+	switch (etype) {
+#if defined(INET)
+	case ETHERTYPE_IP:
+		if (__predict_false(m->m_len < hoff + sizeof(struct ip))) {
+			sc->vtnet_stats.rx_csum_inaccessible_ipproto++;
+			return (1);
+		} else {
+			struct ip *ip = (struct ip *)(m->m_data + hoff);
+			protocol = ip->ip_p;
+		}
+		isipv6 = false;
+		break;
+#endif
+#if defined(INET6)
+	case ETHERTYPE_IPV6:
+		if (__predict_false(m->m_len < hoff + sizeof(struct ip6_hdr))
+		    || ip6_lasthdr(m, hoff, IPPROTO_IPV6, &protocol) < 0) {
+			sc->vtnet_stats.rx_csum_inaccessible_ipproto++;
+			return (1);
+		}
+		isipv6 = true;
+		break;
+#endif
+	default:
+		sc->vtnet_stats.rx_csum_bad_ethtype++;
+		return (1);
+	}
+
+	/* Check whether protocol is TCP or UDP. */
+	switch (protocol) {
+	case IPPROTO_TCP:
+	case IPPROTO_UDP:
+		break;
+	default:
+		/*
+		 * FreeBSD does not support checksum offloading of this
+		 * protocol here.
+		 */
+		sc->vtnet_stats.rx_csum_bad_ipproto++;
+		return (1);
+	}
+
+	if (hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM)
+		vtnet_rxq_csum_needs_csum(rxq, m, isipv6, protocol, hdr);
+	else /* VIRTIO_NET_HDR_F_DATA_VALID */
+		vtnet_rxq_csum_data_valid(rxq, m, protocol);
+
+	return (0);
+}
+#endif
+
 static void
 vtnet_rxq_discard_merged_bufs(struct vtnet_rxq *rxq, int nbufs)
 {
@@ -2087,29 +2220,10 @@ vtnet_rxq_input(struct vtnet_rxq *rxq, struct mbuf *m,
 	if (hdr->flags &
 	    (VIRTIO_NET_HDR_F_NEEDS_CSUM | VIRTIO_NET_HDR_F_DATA_VALID)) {
 #if defined(INET) || defined(INET6)
-		int ret;
-
-		/*
-		 * Translate the VirtIO header flags to the corresponding
-		 * CSUM_* flags in the mbuf.
-		 */
-		ret = virtio_net_rx_csum(m, hdr);
-		if (ret == 0)
+		if (vtnet_rxq_csum(rxq, m, hdr) == 0)
 			rxq->vtnrx_stats.vrxs_csum++;
-		else {
-			switch (ret) {
-			case VIRTIO_NET_RX_CSUM_INACCESSIBLE_IPPROTO:
-				sc->vtnet_stats.rx_csum_inaccessible_ipproto++;
-				break;
-			case VIRTIO_NET_RX_CSUM_BAD_ETHTYPE:
-				sc->vtnet_stats.rx_csum_bad_ethtype++;
-				break;
-			case VIRTIO_NET_RX_CSUM_BAD_IPPROTO:
-				sc->vtnet_stats.rx_csum_bad_ipproto++;
-				break;
-			}
+		else
 			rxq->vtnrx_stats.vrxs_csum_failed++;
-		}
 #else
 		sc->vtnet_stats.rx_csum_bad_ethtype++;
 		rxq->vtnrx_stats.vrxs_csum_failed++;
@@ -2473,6 +2587,166 @@ vtnet_txq_free_mbufs(struct vtnet_txq *txq)
 	    ("%s: mbufs remaining in tx queue %p", __func__, txq));
 }
 
+/*
+ * BMV: This can go away once we finally have offsets in the mbuf header.
+ */
+static int
+vtnet_txq_offload_ctx(struct vtnet_txq *txq, struct mbuf *m, int *etype,
+    int *proto, int *start)
+{
+	struct vtnet_softc *sc;
+	struct ether_vlan_header *evh;
+#if defined(INET) || defined(INET6)
+	int offset;
+#endif
+
+	sc = txq->vtntx_sc;
+
+	evh = mtod(m, struct ether_vlan_header *);
+	if (evh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+		/* BMV: We should handle nested VLAN tags too. */
+		*etype = ntohs(evh->evl_proto);
+#if defined(INET) || defined(INET6)
+		offset = sizeof(struct ether_vlan_header);
+#endif
+	} else {
+		*etype = ntohs(evh->evl_encap_proto);
+#if defined(INET) || defined(INET6)
+		offset = sizeof(struct ether_header);
+#endif
+	}
+
+	switch (*etype) {
+#if defined(INET)
+	case ETHERTYPE_IP: {
+		struct ip *ip, iphdr;
+		if (__predict_false(m->m_len < offset + sizeof(struct ip))) {
+			m_copydata(m, offset, sizeof(struct ip),
+			    (caddr_t) &iphdr);
+			ip = &iphdr;
+		} else
+			ip = (struct ip *)(m->m_data + offset);
+		*proto = ip->ip_p;
+		*start = offset + (ip->ip_hl << 2);
+		break;
+	}
+#endif
+#if defined(INET6)
+	case ETHERTYPE_IPV6:
+		*proto = -1;
+		*start = ip6_lasthdr(m, offset, IPPROTO_IPV6, proto);
+		/* Assert the network stack sent us a valid packet. */
+		KASSERT(*start > offset,
+		    ("%s: mbuf %p start %d offset %d proto %d", __func__, m,
+		    *start, offset, *proto));
+		break;
+#endif
+	default:
+		sc->vtnet_stats.tx_csum_unknown_ethtype++;
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+static int
+vtnet_txq_offload_tso(struct vtnet_txq *txq, struct mbuf *m, int eth_type,
+    int offset, struct virtio_net_hdr *hdr)
+{
+	static struct timeval lastecn;
+	static int curecn;
+	struct vtnet_softc *sc;
+	struct tcphdr *tcp, tcphdr;
+
+	sc = txq->vtntx_sc;
+
+	if (__predict_false(m->m_len < offset + sizeof(struct tcphdr))) {
+		m_copydata(m, offset, sizeof(struct tcphdr), (caddr_t) &tcphdr);
+		tcp = &tcphdr;
+	} else
+		tcp = (struct tcphdr *)(m->m_data + offset);
+
+	hdr->hdr_len = vtnet_gtoh16(sc, offset + (tcp->th_off << 2));
+	hdr->gso_size = vtnet_gtoh16(sc, m->m_pkthdr.tso_segsz);
+	hdr->gso_type = eth_type == ETHERTYPE_IP ? VIRTIO_NET_HDR_GSO_TCPV4 :
+	    VIRTIO_NET_HDR_GSO_TCPV6;
+
+	if (__predict_false(tcp_get_flags(tcp) & TH_CWR)) {
+		/*
+		 * Drop if VIRTIO_NET_F_HOST_ECN was not negotiated. In
+		 * FreeBSD, ECN support is not on a per-interface basis,
+		 * but globally via the net.inet.tcp.ecn.enable sysctl
+		 * knob. The default is off.
+		 */
+		if ((sc->vtnet_flags & VTNET_FLAG_TSO_ECN) == 0) {
+			if (ppsratecheck(&lastecn, &curecn, 1))
+				if_printf(sc->vtnet_ifp,
+				    "TSO with ECN not negotiated with host\n");
+			return (ENOTSUP);
+		}
+		hdr->gso_type |= VIRTIO_NET_HDR_GSO_ECN;
+	}
+
+	txq->vtntx_stats.vtxs_tso++;
+
+	return (0);
+}
+
+static struct mbuf *
+vtnet_txq_offload(struct vtnet_txq *txq, struct mbuf *m,
+    struct virtio_net_hdr *hdr)
+{
+	struct vtnet_softc *sc;
+	int flags, etype, csum_start, proto, error;
+
+	sc = txq->vtntx_sc;
+	flags = m->m_pkthdr.csum_flags;
+
+	error = vtnet_txq_offload_ctx(txq, m, &etype, &proto, &csum_start);
+	if (error)
+		goto drop;
+
+	if (flags & (VTNET_CSUM_OFFLOAD | VTNET_CSUM_OFFLOAD_IPV6)) {
+		/* Sanity check the parsed mbuf matches the offload flags. */
+		if (__predict_false((flags & VTNET_CSUM_OFFLOAD &&
+		    etype != ETHERTYPE_IP) || (flags & VTNET_CSUM_OFFLOAD_IPV6
+		    && etype != ETHERTYPE_IPV6))) {
+			sc->vtnet_stats.tx_csum_proto_mismatch++;
+			goto drop;
+		}
+
+		hdr->flags |= VIRTIO_NET_HDR_F_NEEDS_CSUM;
+		hdr->csum_start = vtnet_gtoh16(sc, csum_start);
+		hdr->csum_offset = vtnet_gtoh16(sc, m->m_pkthdr.csum_data);
+		txq->vtntx_stats.vtxs_csum++;
+	}
+
+	if (flags & (CSUM_IP_TSO | CSUM_IP6_TSO)) {
+		/*
+		 * Sanity check the parsed mbuf IP protocol is TCP, and
+		 * VirtIO TSO reqires the checksum offloading above.
+		 */
+		if (__predict_false(proto != IPPROTO_TCP)) {
+			sc->vtnet_stats.tx_tso_not_tcp++;
+			goto drop;
+		} else if (__predict_false((hdr->flags &
+		    VIRTIO_NET_HDR_F_NEEDS_CSUM) == 0)) {
+			sc->vtnet_stats.tx_tso_without_csum++;
+			goto drop;
+		}
+
+		error = vtnet_txq_offload_tso(txq, m, etype, csum_start, hdr);
+		if (error)
+			goto drop;
+	}
+
+	return (m);
+
+drop:
+	m_freem(m);
+	return (NULL);
+}
+
 static void
 vtnet_txq_enqueue_callback(void *arg, bus_dma_segment_t *segs,
     int nsegs, int error)
@@ -2645,38 +2919,11 @@ vtnet_txq_encap(struct vtnet_txq *txq, struct mbuf **m_head, int flags)
 	}
 
 	if (m->m_pkthdr.csum_flags & VTNET_CSUM_ALL_OFFLOAD) {
-		int ret;
-
-		/*
-		 * Translate the CSUM_* flags in the mbuf to the corresponding
-		 * flags in the VirtIO header.
-		 */
-		ret = virtio_net_tx_offload(txq->vtntx_sc->vtnet_ifp, &m, hdr,
-		    (txq->vtntx_sc->vtnet_flags & VTNET_FLAG_TSO_ECN),
-		    vtnet_modern(txq->vtntx_sc));
-		switch (ret) {
-		case VIRTIO_NET_TX_OFFLOAD_UNKNOWN_ETHTYPE:
-			txq->vtntx_sc->vtnet_stats.tx_csum_unknown_ethtype++;
-			break;
-		case VIRTIO_NET_TX_OFFLOAD_PROTO_MISMATCH:
-			txq->vtntx_sc->vtnet_stats.tx_csum_proto_mismatch++;
-			break;
-		case VIRTIO_NET_TX_OFFLOAD_TSO_NOT_TCP:
-			txq->vtntx_sc->vtnet_stats.tx_tso_not_tcp++;
-			break;
-		case VIRTIO_NET_TX_OFFLOAD_TSO_WITHOUT_CSUM:
-			txq->vtntx_sc->vtnet_stats.tx_tso_without_csum++;
-			break;
-		}
+		m = vtnet_txq_offload(txq, m, hdr);
 		if ((*m_head = m) == NULL) {
 			error = ENOBUFS;
 			goto fail;
 		}
-		if (m->m_pkthdr.csum_flags &
-		    (VTNET_CSUM_OFFLOAD | VTNET_CSUM_OFFLOAD_IPV6))
-			txq->vtntx_stats.vtxs_csum++;
-		if (m->m_pkthdr.csum_flags & (CSUM_IP_TSO | CSUM_IP6_TSO))
-			txq->vtntx_stats.vtxs_tso++;
 	}
 
 	error = vtnet_txq_enqueue_buf(txq, m_head, txhdr);
