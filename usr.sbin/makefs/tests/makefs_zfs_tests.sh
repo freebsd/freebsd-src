@@ -947,6 +947,50 @@ used_space_props_cleanup()
 	common_cleanup
 }
 
+#
+# Test setting the path of the vdev.
+#
+# The pool is associated to /dev/md0 by default, i.e., when no path is specified.
+# When the path vdevprops(7) is specified, verify it gets set.
+#
+atf_test_case path_vdev_props cleanup
+path_vdev_props_body()
+{
+	local md zdb_path
+	local vdev_path="/dev/gpt/testdisk"
+
+	create_test_inputs
+
+	atf_check $MAKEFS -s 1g -o rootpath=/ \
+	    -o poolname=$ZFS_POOL_NAME \
+	    -o path=${vdev_path} \
+	    $TEST_IMAGE $TEST_INPUTS_DIR
+
+	# Check the raw path property before import_image.
+	atf_check -o save:$TEST_MD_DEVICE_FILE mdconfig -a -f $TEST_IMAGE
+	zdb_path=$(zdb -C -e -p /dev/$(cat $TEST_MD_DEVICE_FILE) \
+	    $ZFS_POOL_NAME 2>/dev/null | awk -F"'" '/path:/ {print $2; exit}')
+	atf_check -o inline:"${vdev_path}\n" echo "$zdb_path"
+
+	# Cleanup before import_image.
+	if [ -f "$TEST_MD_DEVICE_FILE" ]; then
+		md=$(cat $TEST_MD_DEVICE_FILE)
+		if [ -c /dev/"$md" ]; then
+			mdconfig -o force -d -u "$md"
+		fi
+	fi
+
+	# Once imported, the path will be /dev/$(cat $TEST_MD_DEVICE_FILE),
+	# as /dev/gpt/testdisk does not really exist.
+	import_image
+
+	check_image_contents
+}
+path_vdev_props_cleanup()
+{
+	common_cleanup
+}
+
 # Verify that file permissions are set properly.  Make sure that non-executable
 # files can't be executed.
 atf_test_case perms cleanup
@@ -1089,6 +1133,7 @@ atf_init_test_cases()
 	atf_add_test_case soft_links
 	atf_add_test_case root_props
 	atf_add_test_case used_space_props
+	atf_add_test_case path_vdev_props
 	atf_add_test_case perms
 	atf_add_test_case T_flag_dir
 	atf_add_test_case T_flag_F_flag
