@@ -58,7 +58,7 @@
 #include <casper/cap_fileargs.h>
 #include <casper/cap_net.h>
 
-static int bflag, eflag, lflag, nflag, sflag, tflag, vflag;
+static int bflag, Eflag, lflag, nflag, sflag, Tflag, vflag;
 static int rval;
 static const char *filename;
 static fileargs_t *fa;
@@ -103,7 +103,7 @@ static int udom_open(const char *path, int flags);
 #ifdef BOOTSTRAP_CAT
 #define SUPPORTED_FLAGS "lu"
 #else
-#define SUPPORTED_FLAGS "belnstuv"
+#define SUPPORTED_FLAGS "belnstuvAET"
 #endif
 
 #ifndef NO_UDOM_SUPPORT
@@ -166,8 +166,14 @@ main(int argc, char *argv[])
 		case 'b':
 			bflag = nflag = 1;	/* -b implies -n */
 			break;
+		case 'A':
+			Eflag = Tflag = vflag = 1;	/* -A implies -v -E -T */
+			break;
 		case 'e':
-			eflag = vflag = 1;	/* -e implies -v */
+			Eflag = vflag = 1;	/* -e implies -v */
+			break;
+		case 'E':
+			Eflag = 1;
 			break;
 		case 'l':
 			lflag = 1;
@@ -179,7 +185,10 @@ main(int argc, char *argv[])
 			sflag = 1;
 			break;
 		case 't':
-			tflag = vflag = 1;	/* -t implies -v */
+			Tflag = vflag = 1;	/* -t implies -v */
+			break;
+		case 'T':
+			Tflag = 1;
 			break;
 		case 'u':
 			setbuf(stdout, NULL);
@@ -209,7 +218,7 @@ main(int argc, char *argv[])
 	if (caph_enter_casper() != 0)
 		err(EXIT_FAILURE, "capsicum");
 
-	if (bflag || eflag || nflag || sflag || tflag || vflag)
+	if (bflag || Eflag || nflag || sflag || Tflag || vflag)
 		scanfiles(argv, 1);
 	else
 		scanfiles(argv, 0);
@@ -313,7 +322,7 @@ cook_cat(FILE *fp)
 					(void)fprintf(stdout, "%6d\t", ++line);
 					if (ferror(stdout))
 						break;
-				} else if (eflag) {
+				} else if (Eflag) {
 					(void)fprintf(stdout, "%6s\t", "");
 					if (ferror(stdout))
 						break;
@@ -321,10 +330,10 @@ cook_cat(FILE *fp)
 			}
 		}
 		if (ch == '\n') {
-			if (eflag && putchar('$') == EOF)
+			if (Eflag && putchar('$') == EOF)
 				break;
 		} else if (ch == '\t') {
-			if (tflag) {
+			if (Tflag) {
 				if (putchar('^') == EOF || putchar('I') == EOF)
 					break;
 				continue;
