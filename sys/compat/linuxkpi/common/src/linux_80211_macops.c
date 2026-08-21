@@ -602,7 +602,7 @@ lkpi_80211_mo_link_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *v
 	struct lkpi_hw *lhw;
 
 	might_sleep();
-	/* XXX-FINISH all callers for lockdep_assert_wiphy(hw->wiphy); */
+	lockdep_assert_wiphy(hw->wiphy);
 
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->link_info_changed == NULL &&
@@ -634,7 +634,7 @@ lkpi_80211_mo_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vi
 {
 	struct lkpi_hw *lhw;
 
-	/* XXX-FINISH all callers for lockdep_assert_wiphy(hw->wiphy); */
+	lockdep_assert_wiphy(hw->wiphy);
 
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->bss_info_changed == NULL)
