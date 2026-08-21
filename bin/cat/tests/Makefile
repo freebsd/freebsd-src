@@ -1,5 +1,6 @@
 PACKAGE=	tests
 
+ATF_TESTS_SH=		cat_extra_test
 NETBSD_ATF_TESTS_SH=		cat_test
 
 ${PACKAGE}FILES+=		d_align.in
