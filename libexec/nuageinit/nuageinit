@@ -603,6 +603,8 @@ local function disable_root(obj, metadata)
 		end
 		opts = opts:gsub("%$USER", "freebsd")
 		opts = opts:gsub("%$DISABLE_USER", "root")
+	else
+		nuage.update_sshd_config("PermitRootLogin", "prohibit-password")
 	end
 	local keys = {}
 	if obj.allow_public_ssh_keys ~= false and
