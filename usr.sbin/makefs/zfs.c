@@ -86,6 +86,8 @@ zfs_prep_opts(fsinfo_t *fsopts)
 		  0, 0, "Bootable dataset" },
 		{ '\0', "mssize", &zfs->mssize, OPT_INT64,
 		  MINMSSIZE, MAXMSSIZE, "Metaslab size" },
+		{ '\0', "path", &zfs->vdevpath, OPT_STRPTR,
+		  0, 0, "The path to the device for this vdev" },
 		{ '\0', "poolguid", &zfs->poolguid, OPT_INT64,
 		  0, INT64_MAX, "ZFS pool GUID" },
 		{ '\0', "poolname", &zfs->poolname, OPT_STRPTR,
@@ -240,6 +242,11 @@ zfs_check_opts(fsinfo_t *fsopts)
 	if (zfs->rootpath[0] != '/')
 		errx(1, "mountpoint `%s' must be absolute", zfs->rootpath);
 
+	if (zfs->vdevpath == NULL)
+		easprintf(&zfs->vdevpath, "/dev/null");
+	if (zfs->vdevpath[0] != '/')
+		errx(1, "path `%s' must be absolute", zfs->vdevpath);
+
 	if (zfs->ashift == 0)
 		zfs->ashift = 12;
 
@@ -254,6 +261,7 @@ zfs_cleanup_opts(fsinfo_t *fsopts)
 
 	zfs = fsopts->fs_specific;
 	free(zfs->rootpath);
+	free(zfs->vdevpath);
 	free(zfs->bootfs);
 	free(__DECONST(void *, zfs->poolname));
 	STAILQ_FOREACH_SAFE(d, &zfs->datasetdescs, next, tmp) {
@@ -330,7 +338,7 @@ pool_disk_vdev_config_nvcreate(zfs_opt_t *zfs)
 	nvlist_add_uint64(diskvdevnv, ZPOOL_CONFIG_ASIZE, zfs->asize);
 	nvlist_add_uint64(diskvdevnv, ZPOOL_CONFIG_GUID, zfs->vdevguid);
 	nvlist_add_uint64(diskvdevnv, ZPOOL_CONFIG_ID, 0);
-	nvlist_add_string(diskvdevnv, ZPOOL_CONFIG_PATH, "/dev/null");
+	nvlist_add_string(diskvdevnv, ZPOOL_CONFIG_PATH, zfs->vdevpath);
 	nvlist_add_uint64(diskvdevnv, ZPOOL_CONFIG_WHOLE_DISK, 1);
 	nvlist_add_uint64(diskvdevnv, ZPOOL_CONFIG_CREATE_TXG, TXG);
 	nvlist_add_uint64(diskvdevnv, ZPOOL_CONFIG_METASLAB_ARRAY,
