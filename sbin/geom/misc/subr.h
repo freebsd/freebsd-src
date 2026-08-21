@@ -36,6 +36,7 @@ int g_parse_lba(const char *lbastr, unsigned int sectorsize, off_t *sectors);
 
 off_t g_get_mediasize(const char *name);
 unsigned int g_get_sectorsize(const char *name);
+int g_provider_is_host_managed(const char *name);
 
 int g_metadata_read(const char *name, unsigned char *md, size_t size,
     const char *magic);
