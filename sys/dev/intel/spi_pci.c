@@ -47,6 +47,9 @@ static struct intelspi_pci_device {
 	enum intelspi_vers vers;
 	const char *desc;
 } intelspi_pci_devices[] = {
+	{ 0x31c28086, SPI_SUNRISEPOINT, "Intel Gemini Lake SPI Controller-0" },
+	{ 0x31c48086, SPI_SUNRISEPOINT, "Intel Gemini Lake SPI Controller-1" },
+	{ 0x31c68086, SPI_SUNRISEPOINT, "Intel Gemini Lake SPI Controller-2" },
 	{ 0x9c658086, SPI_LYNXPOINT, "Intel Lynx Point-LP SPI Controller-0" },
 	{ 0x9c668086, SPI_LYNXPOINT, "Intel Lynx Point-LP SPI Controller-1" },
 	{ 0x9ce58086, SPI_LYNXPOINT, "Intel Wildcat Point SPI Controller-0" },
@@ -59,9 +62,6 @@ static struct intelspi_pci_device {
 	{ 0xa2aa8086, SPI_SUNRISEPOINT, "Intel Kaby Lake-H SPI Controller-1" },
 	{ 0xa3a98086, SPI_SUNRISEPOINT, "Intel Comet Lake-V SPI Controller-0" },
 	{ 0xa3aa8086, SPI_SUNRISEPOINT, "Intel Comet Lake-V SPI Controller-1" },
-	{ 0x31c28086, SPI_SUNRISEPOINT, "Intel Gemini Lake SPI Controller-0" },
-	{ 0x31c48086, SPI_SUNRISEPOINT, "Intel Gemini Lake SPI Controller-1" },
-	{ 0x31c68086, SPI_SUNRISEPOINT, "Intel Gemini Lake SPI Controller-2" },
 };
 
 static int
