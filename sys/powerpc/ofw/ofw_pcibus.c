@@ -64,6 +64,7 @@ static pci_alloc_devinfo_t ofw_pcibus_alloc_devinfo;
 static pci_assign_interrupt_t ofw_pcibus_assign_interrupt;
 static ofw_bus_get_devinfo_t ofw_pcibus_get_devinfo;
 static bus_child_deleted_t ofw_pcibus_child_deleted;
+static bus_get_dma_tag_t ofw_pcibus_get_dma_tag;
 static int ofw_pcibus_child_pnpinfo_method(device_t cbdev, device_t child,
     struct sbuf *sb);
 
@@ -80,6 +81,7 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(bus_child_pnpinfo,	ofw_pcibus_child_pnpinfo_method),
 	DEVMETHOD(bus_rescan,		bus_null_rescan),
 	DEVMETHOD(bus_get_cpus,		ofw_pcibus_get_cpus),
+	DEVMETHOD(bus_get_dma_tag,	ofw_pcibus_get_dma_tag),
 	DEVMETHOD(bus_get_domain,	ofw_pcibus_get_domain),
 
 	/* PCI interface */
@@ -293,8 +295,37 @@ ofw_pcibus_child_deleted(device_t dev, device_t child)
 	struct ofw_pcibus_devinfo *dinfo;
 
 	dinfo = device_get_ivars(child);
+	if (dinfo->opd_dma_tag != NULL)
+		bus_dma_tag_destroy(dinfo->opd_dma_tag);
 	ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
 	pci_child_deleted(dev, child);
+}
+
+static bus_dma_tag_t
+ofw_pcibus_get_dma_tag(device_t bus, device_t child)
+{
+	struct ofw_pcibus_devinfo *dinfo;
+	bus_dma_tag_t parent, tag;
+	int domain, error;
+
+	if (device_get_parent(child) != bus)
+		return (pci_get_dma_tag(bus, child));
+	dinfo = device_get_ivars(child);
+	if (dinfo->opd_dma_tag != NULL)
+		return (dinfo->opd_dma_tag);
+
+	parent = pci_get_dma_tag(bus, child);
+	if (parent == NULL)
+		return (NULL);
+	error = bus_dma_tag_create(parent, 1, 0, BUS_SPACE_MAXADDR,
+	    BUS_SPACE_MAXADDR, NULL, NULL, BUS_SPACE_MAXSIZE,
+	    BUS_SPACE_UNRESTRICTED, BUS_SPACE_MAXSIZE, 0, NULL, NULL, &tag);
+	if (error != 0)
+		return (parent);
+	if (bus_get_domain(child, &domain) == 0)
+		(void)bus_dma_tag_set_domain(tag, domain);
+	dinfo->opd_dma_tag = tag;
+	return (tag);
 }
 
 static int
