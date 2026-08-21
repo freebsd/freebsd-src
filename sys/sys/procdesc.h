@@ -151,6 +151,7 @@ int	 pdopenpid(pid_t, int);
 int	 pdwait(int, int *, int, struct __wrusage *, struct __siginfo *);
 int	 pddupfd(int, int, int);
 pid_t	 pdrfork_thread(int *, int, int, void *, int (*)(void *), void *);
+int	 pdptrace(int, int, int, void *, int);
 __END_DECLS
 
 #endif /* _KERNEL */
