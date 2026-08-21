@@ -450,6 +450,24 @@ static struct if_shared_ctx bnxt_sctx_pf_init;
 static struct if_shared_ctx bnxt_sctx_vf_init;
 static bool sctx_initialized = false;
 
+static inline bool
+bnxt_device_supports_roce(uint16_t device_id)
+{
+	switch (device_id) {
+	case BCM57508:
+	case BCM57504:
+	case BCM57504_NPAR:
+	case BCM57502:
+	case BCM57601:
+	case BCM57602:
+	case BCM57604:
+	case BCM57608:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static inline void
 bnxt_init_sctx_variants(uint16_t device_id)
 {
@@ -458,7 +476,8 @@ bnxt_init_sctx_variants(uint16_t device_id)
     else
 	bnxt_sctx_pf_init = bnxt_sctx_template;
 
-    bnxt_sctx_pf_init.isc_admin_intrcnt = BNXT_ROCE_IRQ_COUNT;
+    bnxt_sctx_pf_init.isc_admin_intrcnt = bnxt_device_supports_roce(device_id) ?
+	BNXT_ROCE_IRQ_COUNT : 1;
     if (device_id == BCM57608)
 	bnxt_sctx_pf_init.isc_admin_intrcnt += BNXT_MAX_MPC;
 
