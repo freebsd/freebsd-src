@@ -2719,6 +2719,8 @@ lkpi_bss_info_change(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct lkpi_vif *lvif;
 	enum ieee80211_bss_changed vif_cfg_bits, link_info_bits;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	if (ieee80211_vif_is_mld(vif)) {
 		TODO("This likely needs a subset only; split up into 3 parts.");
 	}
@@ -4238,8 +4240,10 @@ lkpi_iv_sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 	 * If this direct call to mo_bss_info_changed will not work due to
 	 * locking, see if queue_work() is fast enough.
 	 */
+	wiphy_lock(hw->wiphy);
 	bss_changed = lkpi_update_dtim_tsf(vif, ni, ni->ni_vap, __func__, __LINE__);
 	lkpi_bss_info_change(hw, vif, bss_changed);
+	wiphy_unlock(hw->wiphy);
 }
 
 /*
@@ -4459,13 +4463,14 @@ lkpi_ic_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	TAILQ_INSERT_TAIL(&lhw->lvif_head, lvif, lvif_entry);
 	LKPI_80211_LHW_LVIF_UNLOCK(lhw);
 
+	wiphy_lock(hw->wiphy);
+
 	/* Set bss_info. */
 	bss_changed = 0;
 	lkpi_bss_info_change(hw, vif, bss_changed);
 
 	/* Configure tx queues (conf_tx), default WME & send BSS_CHANGED_QOS. */
 	IMPROVE("Hardcoded values; to fix see 802.11-2016, 9.4.2.29 EDCA Parameter Set element");
-	wiphy_lock(hw->wiphy);
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 
 		bzero(&txqp, sizeof(txqp));
