@@ -90,7 +90,10 @@ static int	acpi_pci_set_powerstate_method(device_t dev, device_t child,
 		    int state);
 static void	acpi_pci_update_device(ACPI_HANDLE handle, device_t pci_child);
 static bus_dma_tag_t acpi_pci_get_dma_tag(device_t bus, device_t child);
+static int	acpi_pci_get_cpus(device_t dev, device_t child,
+		    enum cpu_sets op, size_t setsize, cpuset_t *cpuset);
 static int	acpi_pci_get_domain(device_t dev, device_t child, int *domain);
+static device_t acpi_pci_get_locality_device(device_t child);
 
 static device_method_t acpi_pci_methods[] = {
 	/* Device interface */
@@ -104,7 +107,7 @@ static device_method_t acpi_pci_methods[] = {
 	DEVMETHOD(bus_child_deleted,	acpi_pci_child_deleted),
 	DEVMETHOD(bus_child_location,	acpi_pci_child_location_method),
 	DEVMETHOD(bus_get_device_path,	acpi_pci_get_device_path),
-	DEVMETHOD(bus_get_cpus,		acpi_get_cpus),
+	DEVMETHOD(bus_get_cpus,		acpi_pci_get_cpus),
 	DEVMETHOD(bus_get_dma_tag,	acpi_pci_get_dma_tag),
 	DEVMETHOD(bus_get_domain,	acpi_pci_get_domain),
 
@@ -204,6 +207,25 @@ acpi_pci_get_device_path(device_t bus, device_t child, const char *locator, stru
 	return 	(pci_get_device_path_method(bus, child, locator, sb));
 }
 
+/* Use a VF's PF as the source of its ACPI locality information. */
+static device_t
+acpi_pci_get_locality_device(device_t child)
+{
+	device_t pf;
+
+	pf = pci_iov_get_pf(child);
+	return (pf != NULL ? pf : child);
+}
+
+static int
+acpi_pci_get_cpus(device_t dev, device_t child, enum cpu_sets op,
+    size_t setsize, cpuset_t *cpuset)
+{
+
+	child = acpi_pci_get_locality_device(child);
+	return (acpi_get_cpus(dev, child, op, setsize, cpuset));
+}
+
 /*
  * Fetch the NUMA domain for the given device 'dev'.
  *
@@ -217,6 +239,7 @@ acpi_pci_get_domain(device_t dev, device_t child, int *domain)
 {
 	int d;
 
+	child = acpi_pci_get_locality_device(child);
 	d = acpi_pxm_parse(child);
 	if (d >= 0) {
 		*domain = d;
