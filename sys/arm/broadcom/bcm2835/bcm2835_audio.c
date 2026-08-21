@@ -173,6 +173,16 @@ struct bcm2835_audio_info {
 /* Useful for circular buffer calcs */
 #define MOD_DIFF(front,rear,mod) (((mod) + (front) - (rear)) % (mod))
 
+static ssize_t
+bcm2835_memcpy_wrapper(void *_src, void *_dst, size_t offset, size_t size)
+{
+	uint8_t *src = _src;
+	uint8_t *dst = _dst;
+
+	memcpy(dst + offset, src + offset, size);
+
+	return (size);
+}
 
 static const char *
 dest_description(uint32_t dest)
@@ -389,8 +399,8 @@ bcm2835_audio_start(struct bcm2835_audio_chinfo *ch)
 
 	if (sc->vchi_handle != VCHIQ_SERVICE_HANDLE_INVALID) {
 		m.type = VC_AUDIO_MSG_TYPE_START;
-		ret = vchi_msg_queue(sc->vchi_handle,
-		    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
+		ret = vchi_msg_queue(sc->vchi_handle, bcm2835_memcpy_wrapper,
+		    &m, sizeof m);
 
 		if (ret != 0)
 			BCM2835_LOG_ERROR(sc,
@@ -411,8 +421,8 @@ bcm2835_audio_stop(struct bcm2835_audio_chinfo *ch)
 		m.u.stop.draining = 0;
 
 		BCM2835_LOG_INFO(sc,"sending stop\n");
-		ret = vchi_msg_queue(sc->vchi_handle,
-		    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
+		ret = vchi_msg_queue(sc->vchi_handle, bcm2835_memcpy_wrapper,
+		    &m, sizeof m);
 
 		if (ret != 0)
 			BCM2835_LOG_ERROR(sc,
@@ -429,8 +439,8 @@ bcm2835_audio_open(struct bcm2835_audio_info *sc)
 
 	if (sc->vchi_handle != VCHIQ_SERVICE_HANDLE_INVALID) {
 		m.type = VC_AUDIO_MSG_TYPE_OPEN;
-		ret = vchi_msg_queue(sc->vchi_handle,
-		    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
+		ret = vchi_msg_queue(sc->vchi_handle, bcm2835_memcpy_wrapper,
+		    &m, sizeof m);
 
 		if (ret != 0)
 			BCM2835_LOG_ERROR(sc,
@@ -453,8 +463,8 @@ bcm2835_audio_update_controls(struct bcm2835_audio_info *sc, uint32_t volume, ui
 		db = db_levels[volume/5];
 		m.u.control.volume = VCHIQ_AUDIO_VOLUME(db);
 
-		ret = vchi_msg_queue(sc->vchi_handle,
-		    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
+		ret = vchi_msg_queue(sc->vchi_handle, bcm2835_memcpy_wrapper,
+		    &m, sizeof m);
 
 		if (ret != 0)
 			BCM2835_LOG_ERROR(sc,
@@ -475,8 +485,8 @@ bcm2835_audio_update_params(struct bcm2835_audio_info *sc, uint32_t fmt, uint32_
 		m.u.config.samplerate = speed;
 		m.u.config.bps = AFMT_BIT(fmt);
 
-		ret = vchi_msg_queue(sc->vchi_handle,
-		    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
+		ret = vchi_msg_queue(sc->vchi_handle, bcm2835_memcpy_wrapper,
+		    &m, sizeof m);
 
 		if (ret != 0)
 			BCM2835_LOG_ERROR(sc,
@@ -537,8 +547,8 @@ bcm2835_audio_write_samples(struct bcm2835_audio_chinfo *ch, void *buf, uint32_t
 #endif
 	m.u.write.silence = 0;
 
-	ret = vchi_msg_queue(sc->vchi_handle,
-	    &m, sizeof m, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
+	ret = vchi_msg_queue(sc->vchi_handle, bcm2835_memcpy_wrapper,
+	    &m, sizeof m);
 
 	if (ret != 0)
 		BCM2835_LOG_ERROR(sc, "%s: vchi_msg_queue failed (err %d)\n",
@@ -546,8 +556,8 @@ bcm2835_audio_write_samples(struct bcm2835_audio_chinfo *ch, void *buf, uint32_t
 
 	while (count > 0) {
 		int bytes = MIN((int)m.u.write.max_packet, (int)count);
-		ret = vchi_msg_queue(sc->vchi_handle,
-		    buf, bytes, VCHI_FLAGS_BLOCK_UNTIL_QUEUED, NULL);
+		ret = vchi_msg_queue(sc->vchi_handle, bcm2835_memcpy_wrapper,
+		    buf, bytes);
 		if (ret != 0)
 			BCM2835_LOG_ERROR(sc, "%s: vchi_msg_queue failed: %d\n",
 			    __func__, ret);

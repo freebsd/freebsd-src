@@ -319,20 +319,6 @@ vchiq_platform_get_arm_state(VCHIQ_STATE_T *state)
 }
 
 VCHIQ_STATUS_T
-vchiq_copy_from_user(void *dst, const void *src, int size)
-{
-
-	if (((vm_offset_t)(src)) < VM_MIN_KERNEL_ADDRESS) {
-		int error = copyin(src, dst, size);
-		return error ? VCHIQ_ERROR : VCHIQ_SUCCESS;
-	}
-	else
-		bcopy(src, dst, size);
-
-	return VCHIQ_SUCCESS;
-}
-
-VCHIQ_STATUS_T
 vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, VCHI_MEM_HANDLE_T memhandle,
 	void *offset, int size, int dir)
 {
