@@ -104,7 +104,7 @@ sdhci_fdt_spacemit_attach(device_t dev)
 static int
 sdhci_fdt_spacemit_set_clock(device_t dev, struct sdhci_slot *slot, int clock)
 {
-	struct sdhci_fdt_softc *sc = device_get_softc(dev);
+	struct sdhci_fdt_softc *sc;
 	uint64_t freq;
 
 	sc = device_get_softc(dev);
