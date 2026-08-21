@@ -46,6 +46,12 @@ static struct intelspi_pci_device {
 	enum intelspi_vers vers;
 	const char *desc;
 } intelspi_pci_devices[] = {
+	{ 0x02aa8086, SPI_SUNRISEPOINT, "Intel Comet Lake SPI Controller-0" },
+	{ 0x02ab8086, SPI_SUNRISEPOINT, "Intel Comet Lake SPI Controller-1" },
+	{ 0x02fb8086, SPI_SUNRISEPOINT, "Intel Comet Lake SPI Controller-2" },
+	{ 0x06aa8086, SPI_SUNRISEPOINT, "Intel Comet Lake SPI Controller-3" },
+	{ 0x06ab8086, SPI_SUNRISEPOINT, "Intel Comet Lake SPI Controller-4" },
+	{ 0x06fb8086, SPI_SUNRISEPOINT, "Intel Comet Lake SPI Controller-5" },
 	{ 0x0ac28086, SPI_SUNRISEPOINT, "Intel Broxton SPI Controller-0" },
 	{ 0x0ac48086, SPI_SUNRISEPOINT, "Intel Broxton SPI Controller-1" },
 	{ 0x0ac68086, SPI_SUNRISEPOINT, "Intel Broxton SPI Controller-2" },
