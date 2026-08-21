@@ -48,6 +48,8 @@ atf_test_case T_flag_dir cleanup
 T_flag_dir_body()
 {
 	timestamp=1742574908 # Even value, timestamp precision is 2s.
+	# FAT directory entries don't have an access time, just a date.
+	timestamp_atime=$((timestamp - timestamp % 86400))
 
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
@@ -56,8 +58,7 @@ T_flag_dir_body()
 
 	mount_image
 	eval $(stat -s  $TEST_MOUNT_DIR/dir1)
-	# FAT directory entries don't have an access time, just a date.
-	#atf_check_equal $st_atime $timestamp
+	atf_check_equal $st_atime $timestamp_atime
 	atf_check_equal $st_mtime $timestamp
 	atf_check_equal $st_ctime $timestamp
 }
@@ -72,6 +73,9 @@ T_flag_F_flag_body()
 {
 	timestamp_F=1742574908 # Even value, timestamp precision is 2s.
 	timestamp_T=1742574910
+	# FAT directory entries don't have an access time, just a date.
+	timestamp_F_atime=$((timestamp_F - timestamp_F % 86400))
+
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
 
@@ -82,8 +86,7 @@ T_flag_F_flag_body()
 
 	mount_image
 	eval $(stat -s  $TEST_MOUNT_DIR/dir1)
-	# FAT directory entries don't have an access time, just a date.
-	#atf_check_equal $st_atime $timestamp
+	atf_check_equal $st_atime $timestamp_F_atime
 	atf_check_equal $st_mtime $timestamp_F
 	atf_check_equal $st_ctime $timestamp_F
 }
@@ -97,6 +100,8 @@ atf_test_case T_flag_mtree cleanup
 T_flag_mtree_body()
 {
 	timestamp=1742574908 # Even value, timestamp precision is 2s.
+	# FAT directory entries don't have an access time, just a date.
+	timestamp_atime=$((timestamp - timestamp % 86400))
 
 	create_test_dirs
 	mkdir -p $TEST_INPUTS_DIR/dir1
@@ -106,8 +111,7 @@ T_flag_mtree_body()
 
 	mount_image
 	eval $(stat -s  $TEST_MOUNT_DIR/dir1)
-	# FAT directory entries don't have an access time, just a date.
-	#atf_check_equal $st_atime $timestamp
+	atf_check_equal $st_atime $timestamp_atime
 	atf_check_equal $st_mtime $timestamp
 	atf_check_equal $st_ctime $timestamp
 }
