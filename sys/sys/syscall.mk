@@ -446,4 +446,5 @@ MIASM =  \
 	pdwait.o \
 	renameat2.o \
 	pdopenpid.o \
-	pddupfd.o
+	pddupfd.o \
+	pdptrace.o

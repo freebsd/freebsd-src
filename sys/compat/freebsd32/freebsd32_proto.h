@@ -706,6 +706,13 @@ struct freebsd32_pdwait_args {
 	char wrusage_l_[PADL_(struct __wrusage32 *)]; struct __wrusage32 * wrusage; char wrusage_r_[PADR_(struct __wrusage32 *)];
 	char info_l_[PADL_(struct __siginfo32 *)]; struct __siginfo32 * info; char info_r_[PADR_(struct __siginfo32 *)];
 };
+struct freebsd32_pdptrace_args {
+	char req_l_[PADL_(int)]; int req; char req_r_[PADR_(int)];
+	char pfd_l_[PADL_(int)]; int pfd; char pfd_r_[PADR_(int)];
+	char lwpid_l_[PADL_(int)]; int lwpid; char lwpid_r_[PADR_(int)];
+	char addr_l_[PADL_(void *)]; void * addr; char addr_r_[PADR_(void *)];
+	char data_l_[PADL_(int)]; int data; char data_r_[PADR_(int)];
+};
 int	freebsd32_wait4(struct thread *, struct freebsd32_wait4_args *);
 int	freebsd32_ptrace(struct thread *, struct freebsd32_ptrace_args *);
 int	freebsd32_recvmsg(struct thread *, struct freebsd32_recvmsg_args *);
@@ -825,6 +832,7 @@ int	freebsd32_timerfd_gettime(struct thread *, struct freebsd32_timerfd_gettime_
 int	freebsd32_timerfd_settime(struct thread *, struct freebsd32_timerfd_settime_args *);
 int	freebsd32_setcred(struct thread *, struct freebsd32_setcred_args *);
 int	freebsd32_pdwait(struct thread *, struct freebsd32_pdwait_args *);
+int	freebsd32_pdptrace(struct thread *, struct freebsd32_pdptrace_args *);
 
 #ifdef COMPAT_43
 
@@ -1328,6 +1336,7 @@ int	freebsd11_freebsd32_fstatat(struct thread *, struct freebsd11_freebsd32_fsta
 #define	FREEBSD32_SYS_AUE_freebsd32_timerfd_settime	AUE_TIMERFD
 #define	FREEBSD32_SYS_AUE_freebsd32_setcred	AUE_SETCRED
 #define	FREEBSD32_SYS_AUE_freebsd32_pdwait	AUE_PDWAIT
+#define	FREEBSD32_SYS_AUE_freebsd32_pdptrace	AUE_PDPTRACE
 
 #undef PAD_
 #undef PADL_
