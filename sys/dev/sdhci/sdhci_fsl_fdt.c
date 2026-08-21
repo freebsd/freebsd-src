@@ -139,6 +139,10 @@
 #define	SDHCI_FSL_ESDHC_CTRL		0x40c
 #define	SDHCI_FSL_ESDHC_CTRL_SNOOP	(1 << 6)
 #define SDHCI_FSL_ESDHC_CTRL_FAF	(1 << 18)
+/*
+ * Bit 19 is misnamed: per the T2080 RM (16.3.32) this is PCS (Peripheral
+ * Clock Select).  Set = peripheral clock / 2, clear = platform clock.
+ */
 #define	SDHCI_FSL_ESDHC_CTRL_CLK_DIV2	(1 << 19)
 
 #define SCFG_SDHCIOVSELCR		0x408
@@ -173,6 +177,19 @@
  * requires special routine including syscon registers.
  */
 #define SDHCI_FSL_MISSING_VCCQ_REG	(1 << 5)
+/*
+ * Whether to route "peripheral clock / 2" into the eSDHC via ESDHCCTL[PCS].
+ * Layerscape parts and older SoCs feed the eSDHC through the peripheral clock
+ * and want the on-chip /2; some QorIQ parts (T-series) feed the eSDHC directly
+ * from the platform clock and must leave PCS clear.
+ */
+#define SDHCI_FSL_NO_PCS_SEL		(1 << 6)
+/*
+ * Enable ESDHCCTL[SNOOP] so DMA transfers participate in cache coherence.
+ * QorIQ CoreNet hardware supports snooped DMA; set this on any SoC where we
+ * want DMA-coherent operation regardless of the DTS "dma-coherent" property.
+ */
+#define SDHCI_FSL_DMA_SNOOP		(1 << 7)
 
 /*
  * HS400 tuning is done in HS200 mode, but it has to be done using
@@ -200,6 +217,7 @@ struct sdhci_fsl_fdt_softc {
 	uint32_t				div_ratio;
 	uint8_t					vendor_ver;
 	uint32_t				flags;
+	uint32_t				buf_order;
 
 	uint32_t (* read)(struct sdhci_fsl_fdt_softc *, bus_size_t);
 	void (* write)(struct sdhci_fsl_fdt_softc *, bus_size_t, uint32_t);
@@ -208,7 +226,8 @@ struct sdhci_fsl_fdt_softc {
 struct sdhci_fsl_fdt_soc_data {
 	int quirks;
 	int baseclk_div;
-	uint8_t errata;
+	uint32_t errata;
+	uint32_t wml_value;	/* SDHC_WTMK_LVL override; 0 = 512B/512B default. */
 	char *syscon_compat;
 };
 
@@ -241,15 +260,42 @@ static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_lx2160a_soc_data = {
 	    SDHCI_FSL_HS400_LIMITED_CLK_DIV,
 };
 
-static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_gen_data = {
-	.quirks = 0,
+/*
+ * P1022: BRST_LEN fields in the watermark register are reserved and read back
+ * as 0x10; write a WML that matches to avoid a false "changed" mismatch and
+ * keep behavior consistent with the fsl_sdhci(4) legacy driver's handling.
+ */
+static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_p1022_soc_data = {
+	.quirks = SDHCI_QUIRK_DONT_SET_HISPD_BIT |
+	    SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK,
 	.baseclk_div = 1,
+	.errata = SDHCI_FSL_NO_PCS_SEL | SDHCI_FSL_DMA_SNOOP,
+	.wml_value = 0x10801080,
+};
+
+/*
+ * Generic default targets PowerPC QorIQ eSDHC (T-series, P-series, MPC85xx),
+ * which is the common case for the "fsl,esdhc" compat fallback in-tree.
+ *   - DONT_SET_HISPD_BIT: eSDHC has no HISPD bit at the SDHCI-standard offset.
+ *   - DATA_TIMEOUT_USES_SDCLK: timeout counter runs off SDCLK, not TMCLK.
+ *   - NO_PCS_SEL: eSDHC is fed directly from the platform clock; do not
+ *     enable PCS.  If a future Layerscape ARM SoC needs the /2 peripheral
+ *     clock select, add a specific compat entry for it.
+ * R1B fix (SDHCI_QUIRK_NO_BUSY_IRQ) is applied at runtime from HOST_VERSION;
+ * no soc_data flag needed.
+ */
+static const struct sdhci_fsl_fdt_soc_data sdhci_fsl_fdt_gen_data = {
+	.quirks = SDHCI_QUIRK_DONT_SET_HISPD_BIT |
+	    SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK,
+	.baseclk_div = 1,
+	.errata = SDHCI_FSL_NO_PCS_SEL | SDHCI_FSL_DMA_SNOOP,
 };
 
 static const struct ofw_compat_data sdhci_fsl_fdt_compat_data[] = {
 	{"fsl,ls1012a-esdhc",	(uintptr_t)&sdhci_fsl_fdt_ls1012a_soc_data},
 	{"fsl,ls1028a-esdhc",	(uintptr_t)&sdhci_fsl_fdt_ls1028a_soc_data},
 	{"fsl,ls1046a-esdhc",	(uintptr_t)&sdhci_fsl_fdt_ls1046a_soc_data},
+	{"fsl,p1022-esdhc",	(uintptr_t)&sdhci_fsl_fdt_p1022_soc_data},
 	{"fsl,esdhc",		(uintptr_t)&sdhci_fsl_fdt_gen_data},
 	{NULL,			0}
 };
@@ -439,8 +485,6 @@ sdhci_fsl_fdt_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 
 	if (off == SDHCI_BUFFER)
 		return (bus_read_4(sc->mem_res, off));
-	if (off == SDHCI_CAPABILITIES2)
-		off = SDHCI_FSL_CAPABILITIES2;
 
 	val32 = RD4(sc, off);
 
@@ -864,7 +908,7 @@ sdhci_fsl_fdt_attach(device_t dev)
 {
 	struct sdhci_fsl_fdt_softc *sc;
 	struct mmc_host *host;
-	uint32_t val, buf_order;
+	uint32_t val;
 	uintptr_t ocd_data;
 	uint64_t clk_hz;
 	phandle_t node;
@@ -920,16 +964,28 @@ sdhci_fsl_fdt_attach(device_t dev)
 	}
 
 	ret = clk_get_by_ofw_index(dev, node, 0, &clk);
-	if (ret != 0) {
-		device_printf(dev, "Parent clock not found\n");
-		goto err_free_irq;
-	}
+	if (ret == 0) {
+		ret = clk_get_freq(clk, &clk_hz);
+		if (ret != 0) {
+			device_printf(dev,
+			    "Could not get parent clock frequency\n");
+			goto err_free_irq;
+		}
+	} else {
+		pcell_t freq;
 
-	ret = clk_get_freq(clk, &clk_hz);
-	if (ret != 0) {
-		device_printf(dev,
-		    "Could not get parent clock frequency\n");
-		goto err_free_irq;
+		/*
+		 * No clocks phandle; fall back to the "clock-frequency" DT
+		 * property.  Boards without a clock provider (e.g. PowerPC
+		 * QorIQ) supply the eSDHC input clock this way.
+		 */
+		if (OF_getencprop(node, "clock-frequency", &freq,
+		    sizeof(freq)) <= 0) {
+			device_printf(dev, "no parent clock available\n");
+			ret = ENXIO;
+			goto err_free_irq;
+		}
+		clk_hz = freq;
 	}
 
 	sc->baseclk_hz = clk_hz / sc->soc_data->baseclk_div;
@@ -938,11 +994,11 @@ sdhci_fsl_fdt_attach(device_t dev)
 	if (OF_hasprop(node, "little-endian")) {
 		sc->read = read_le;
 		sc->write = write_le;
-		buf_order = SDHCI_FSL_PROT_CTRL_BYTE_NATIVE;
+		sc->buf_order = SDHCI_FSL_PROT_CTRL_BYTE_NATIVE;
 	} else {
 		sc->read = read_be;
 		sc->write = write_be;
-		buf_order = SDHCI_FSL_PROT_CTRL_BYTE_SWAP;
+		sc->buf_order = SDHCI_FSL_PROT_CTRL_BYTE_SWAP;
 	}
 
 	sc->vendor_ver = (RD4(sc, SDHCI_FSL_HOST_VERSION) &
@@ -961,7 +1017,7 @@ sdhci_fsl_fdt_attach(device_t dev)
 	 */
 	val = RD4(sc, SDHCI_FSL_PROT_CTRL);
 	val &= ~SDHCI_FSL_PROT_CTRL_BYTE_MASK;
-	WR4(sc, SDHCI_FSL_PROT_CTRL, val | buf_order);
+	WR4(sc, SDHCI_FSL_PROT_CTRL, val | sc->buf_order);
 
 	/*
 	 * Gate the SD clock and set its source to
@@ -971,7 +1027,18 @@ sdhci_fsl_fdt_attach(device_t dev)
 	val = RD4(sc, SDHCI_CLOCK_CONTROL);
 	WR4(sc, SDHCI_CLOCK_CONTROL, val & ~SDHCI_FSL_CLK_SDCLKEN);
 	val = RD4(sc, SDHCI_FSL_ESDHC_CTRL);
-	WR4(sc, SDHCI_FSL_ESDHC_CTRL, val | SDHCI_FSL_ESDHC_CTRL_CLK_DIV2);
+	if (!(sc->soc_data->errata & SDHCI_FSL_NO_PCS_SEL))
+		val |= SDHCI_FSL_ESDHC_CTRL_CLK_DIV2;
+	/*
+	 * Enable DMA snooping when the SoC is known to be cache-coherent
+	 * (soc_data errata bit) or the DTS explicitly declares it.  Without
+	 * snoop the CPU cache holds stale copies of DMA'd data and reads
+	 * return garbage even though bus_dmamap_sync completes cleanly.
+	 */
+	if ((sc->soc_data->errata & SDHCI_FSL_DMA_SNOOP) ||
+	    OF_hasprop(node, "dma-coherent"))
+		val |= SDHCI_FSL_ESDHC_CTRL_SNOOP;
+	WR4(sc, SDHCI_FSL_ESDHC_CTRL, val);
 	sc->slot.max_clk = sc->maxclk_hz;
 	sc->gpio = sdhci_fdt_gpio_setup(dev, &sc->slot);
 
@@ -988,8 +1055,9 @@ sdhci_fsl_fdt_attach(device_t dev)
 	 * watermark for different size blocks. However, 128 is the maximum
 	 * allowed for the watermark, so PIO is limitted to 512 byte blocks.
 	 */
-	WR4(sc, SDHCI_FSL_WTMK_LVL, SDHCI_FSL_WTMK_WR_512B |
-	    SDHCI_FSL_WTMK_RD_512B);
+	WR4(sc, SDHCI_FSL_WTMK_LVL,
+	    sc->soc_data->wml_value != 0 ? sc->soc_data->wml_value :
+	    (SDHCI_FSL_WTMK_WR_512B | SDHCI_FSL_WTMK_RD_512B));
 
 	ret = sdhci_init_slot(dev, &sc->slot, 0);
 	if (ret != 0)
@@ -1033,15 +1101,17 @@ sdhci_fsl_fdt_detach(device_t dev)
 static int
 sdhci_fsl_fdt_probe(device_t dev)
 {
+	const struct ofw_compat_data *ocd;
 
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-	if (!ofw_bus_search_compatible(dev,
-	   sdhci_fsl_fdt_compat_data)->ocd_data)
+	ocd = ofw_bus_search_compatible(dev, sdhci_fsl_fdt_compat_data);
+	if (ocd->ocd_data == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "NXP QorIQ Layerscape eSDHC controller");
+
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -1101,6 +1171,32 @@ sdhci_fsl_fdt_reset(device_t dev, struct sdhci_slot *slot, uint8_t mask)
 		return;
 
 	sc = device_get_softc(dev);
+
+	/*
+	 * RESET_ALL clears PROT_CTRL and WML.  Re-apply the byte-order
+	 * mode determined at attach and the block-size watermark so that
+	 * SDHCI_BUFFER accesses continue to match host bus endianness and
+	 * PIO reads/writes see BREN/BWEN asserted at 512-byte block
+	 * boundaries.  Neither is restored by the generic reset path.
+	 */
+	val = RD4(sc, SDHCI_FSL_PROT_CTRL);
+	val &= ~SDHCI_FSL_PROT_CTRL_BYTE_MASK;
+	WR4(sc, SDHCI_FSL_PROT_CTRL, val | sc->buf_order);
+	WR4(sc, SDHCI_FSL_WTMK_LVL,
+	    sc->soc_data->wml_value != 0 ? sc->soc_data->wml_value :
+	    (SDHCI_FSL_WTMK_WR_512B | SDHCI_FSL_WTMK_RD_512B));
+
+	/*
+	 * ESDHCCTL[SNOOP] also does not survive RESET_ALL.  Re-enable it if
+	 * the SoC needs cache-coherent DMA (see attach for the source of
+	 * truth).
+	 */
+	if ((sc->soc_data->errata & SDHCI_FSL_DMA_SNOOP) ||
+	    OF_hasprop(ofw_bus_get_node(dev), "dma-coherent")) {
+		val = RD4(sc, SDHCI_FSL_ESDHC_CTRL);
+		val |= SDHCI_FSL_ESDHC_CTRL_SNOOP;
+		WR4(sc, SDHCI_FSL_ESDHC_CTRL, val);
+	}
 
 	/* Some registers have to be cleared by hand. */
 	if (slot->version >= SDHCI_SPEC_300) {
