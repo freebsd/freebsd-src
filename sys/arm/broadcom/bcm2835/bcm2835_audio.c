@@ -840,7 +840,6 @@ bcmchan_trigger(kobj_t obj, void *data, int go)
 	switch (go) {
 	case PCMTRIG_START:
 		/* kickstart data flow */
-		chn_intr(sc->pch.channel);
 		ch->submitted_samples = 0;
 		ch->retrieved_samples = 0;
 		bcm2835_worker_play_start(sc);
