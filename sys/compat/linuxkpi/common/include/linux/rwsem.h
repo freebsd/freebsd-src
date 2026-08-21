@@ -77,7 +77,7 @@ linux_init_rwsem(struct rw_semaphore *rw, const char *name)
 {
 
 	memset(rw, 0, sizeof(*rw));
-	sx_init_flags(&rw->sx, name, SX_NOWITNESS);
+	sx_init_flags(&rw->sx, name, _LKPI_SX_NOWITNESS);
 }
 
 extern int linux_down_read_killable(struct rw_semaphore *);

@@ -132,7 +132,7 @@ ww_acquire_init(struct ww_acquire_ctx *ctx, struct ww_class *ww_class)
 static inline void
 ww_mutex_init(struct ww_mutex *lock, struct ww_class *ww_class)
 {
-	linux_mutex_init(&lock->base, ww_class->mutex_name, SX_NOWITNESS);
+	linux_mutex_init(&lock->base, ww_class->mutex_name, _LKPI_SX_NOWITNESS);
 	cv_init(&lock->condvar, "lkpi-ww");
 }
 

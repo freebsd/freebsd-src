@@ -109,10 +109,10 @@ mutex_trylock_recursive(struct mutex *lock)
 }
 
 #define	mutex_init(_m) \
-	linux_mutex_init(_m, mutex_name(#_m), SX_NOWITNESS)
+	linux_mutex_init(_m, mutex_name(#_m), _LKPI_SX_NOWITNESS)
 
 #define	__mutex_init(_m, _n, _l) \
-	linux_mutex_init(_m, _n, SX_NOWITNESS)
+	linux_mutex_init(_m, _n, _LKPI_SX_NOWITNESS)
 
 #define	mutex_init_witness(_m) \
 	linux_mutex_init(_m, mutex_name(#_m), SX_DUPOK)

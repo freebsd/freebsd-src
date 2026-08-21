@@ -119,7 +119,7 @@ seqlock_init(struct seqlock *seqlock)
 	 * seqlock has been freed. There is no seqlock destructor exists so we
 	 * can't expect automatic mtx_destroy() execution before free().
 	 */
-	mtx_init(&seqlock->seql_lock, "seqlock", NULL, MTX_DEF|MTX_NOWITNESS);
+	mtx_init(&seqlock->seql_lock, "seqlock", NULL, MTX_DEF | _LKPI_MTX_NOWITNESS);
 	seqcount_init(&seqlock->seql_count);
 }
 

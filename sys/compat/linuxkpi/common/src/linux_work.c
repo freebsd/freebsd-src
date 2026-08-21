@@ -706,7 +706,7 @@ linux_init_delayed_work(struct delayed_work *dwork, work_func_t func)
 	dwork->work.func = func;
 	TASK_INIT(&dwork->work.work_task, 0, linux_delayed_work_fn, dwork);
 	mtx_init(&dwork->timer.mtx, spin_lock_name("lkpi-dwork"), NULL,
-	    MTX_DEF | MTX_NOWITNESS);
+	    MTX_DEF | _LKPI_MTX_NOWITNESS);
 	callout_init_mtx(&dwork->timer.callout, &dwork->timer.mtx, 0);
 }
 

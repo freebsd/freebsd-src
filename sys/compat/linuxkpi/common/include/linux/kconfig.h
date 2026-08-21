@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright (c) 2020 The FreeBSD Foundation
+ * Copyright (c) 2020-2026 The FreeBSD Foundation
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -30,6 +30,33 @@
 
 #ifndef	_LINUXKPI_LINUX_KCONFIG_H_
 #define	_LINUXKPI_LINUX_KCONFIG_H_
+
+/* -------------------------------------------------------------------------- */
+#include "opt_linuxkpi.h"
+
+/*
+ * LinuxKPI internals are here as this file is globally included for everything
+ * compiled with LinuxKPI.
+ */
+
+/*
+ * Do not tell witness to ignore locks if debugging and witness are enabled.
+ * This helps debugging and hopefully also long-term code quality.
+ */
+#if defined(LINUXKPI_DEBUG) && defined(WITNESS)
+#define	_LKPI_MTX_NOWITNESS	(0)
+#define	_LKPI_RW_NOWITNESS	(0)
+#define	_LKPI_SX_NOWITNESS	(0)
+#define	WITNESS_ALL	/* Get better lock names. */
+#else
+#define	_LKPI_MTX_NOWITNESS	MTX_NOWITNESS
+#define	_LKPI_RW_NOWITNESS	RW_NOWITNESS
+#define	_LKPI_SX_NOWITNESS	SX_NOWITNESS
+#endif
+
+
+
+/* -------------------------------------------------------------------------- */
 
 /*
  * Checking if an option is defined would be easy if we could do CPP inside CPP.

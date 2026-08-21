@@ -29,6 +29,8 @@
 #ifndef	_LINUXKPI_LINUX_SPINLOCK_H_
 #define	_LINUXKPI_LINUX_SPINLOCK_H_
 
+#include "opt_linuxkpi.h"
+
 #include <asm/atomic.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -130,7 +132,7 @@ typedef struct mtx spinlock_t;
 	spin_unlock(_l);				\
 } while (0)
 
-#ifdef WITNESS_ALL
+#if defined(LINUXKPI_DEBUG) && defined(WITNESS)
 /* NOTE: the maximum WITNESS name is 64 chars */
 #define	__spin_lock_name(name, file, line)		\
 	(((const char *){file ":" #line "-" name}) +	\
@@ -142,7 +144,7 @@ typedef struct mtx spinlock_t;
 #define	spin_lock_name(name)		_spin_lock_name(name, __FILE__, __LINE__)
 
 #define	spin_lock_init(lock)	mtx_init(lock, spin_lock_name("lnxspin"), \
-				  NULL, MTX_DEF | MTX_NOWITNESS | MTX_NEW)
+				  NULL, MTX_DEF | _LKPI_MTX_NOWITNESS | MTX_NEW)
 
 #define	spin_lock_destroy(_l)	mtx_destroy(_l)
 
@@ -190,7 +192,7 @@ typedef struct raw_spinlock {
 
 #define	raw_spin_lock_init(rlock) \
 	mtx_init(&(rlock)->lock, spin_lock_name("lnxspin_raw"), \
-	    NULL, MTX_DEF | MTX_NOWITNESS | MTX_NEW)
+	    NULL, MTX_DEF | _LKPI_MTX_NOWITNESS | MTX_NEW)
 
 #define	raw_spin_lock(rl)	spin_lock(&(rl)->lock)
 #define	raw_spin_trylock(rl)	spin_trylock(&(rl)->lock)

@@ -115,7 +115,7 @@ long linux_wait_woken(wait_queue_t *wq, unsigned state, long timeout);
 
 #define	init_waitqueue_head(wqh) do {					\
 	mtx_init(&(wqh)->lock, spin_lock_name("wqhead"),		\
-	    NULL, MTX_DEF | MTX_NEW | MTX_NOWITNESS);			\
+	    NULL, MTX_DEF | MTX_NEW | _LKPI_MTX_NOWITNESS);		\
 	INIT_LIST_HEAD(&(wqh)->task_list);				\
 } while (0)
 

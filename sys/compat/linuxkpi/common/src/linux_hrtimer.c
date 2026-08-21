@@ -101,7 +101,7 @@ linux_hrtimer_init(struct hrtimer *hrtimer)
 
 	memset(hrtimer, 0, sizeof(*hrtimer));
 	mtx_init(&hrtimer->mtx, "hrtimer", NULL,
-	    MTX_DEF | MTX_RECURSE | MTX_NOWITNESS);
+	    MTX_DEF | MTX_RECURSE | _LKPI_MTX_NOWITNESS);
 	callout_init_mtx(&hrtimer->callout, &hrtimer->mtx, 0);
 }
 
