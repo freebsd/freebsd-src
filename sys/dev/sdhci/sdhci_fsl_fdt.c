@@ -891,6 +891,8 @@ sdhci_fsl_fdt_attach(device_t dev)
 		sc->soc_data = (struct sdhci_fsl_fdt_soc_data *)ocd_data;
 
 	sc->slot.quirks = sc->soc_data->quirks;
+	sc->slot.quirks &= ~sdhci_quirk_clear;
+	sc->slot.quirks |= sdhci_quirk_set;
 
 	sc->mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
