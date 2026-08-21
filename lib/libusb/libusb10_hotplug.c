@@ -374,10 +374,15 @@ int libusb_hotplug_register_callback(libusb_context *ctx,
 	handle->devclass = dev_class;
 	handle->fn = cb_fn;
 	handle->user_data = user_data;
+
 	CTX_LOCK(ctx);
-	/* XXX This could result in duplicate callback IDs, and is UB. */
-	if ((handle->id = ctx->next_callback_id++) < 0)
-		handle->id = ctx->next_callback_id = 1;
+	handle->id = ctx->next_callback_id;
+	if (ctx->next_callback_id == INT_MAX) {
+		/* XXX This could result in duplicate callback IDs. */
+		ctx->next_callback_id = 1;
+	} else {
+		ctx->next_callback_id++;
+	}
 	CTX_UNLOCK(ctx);
 
 	HOTPLUG_LOCK(ctx);
