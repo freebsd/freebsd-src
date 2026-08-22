@@ -214,7 +214,11 @@ em_tso_setup(struct e1000_softc *sc, if_pkt_info_t pi, uint32_t *txd_upper,
 	TXD->cmd_and_length = htole32(cmd_type_len |
 	    (pi->ipi_len - hdr_len)); /* Total len */
 
-	txr->tx_tso = true;
+	/*
+	 * 82540EP and 82545GM erratum 3 and 82546GB erratum 1 require
+	 * a second descriptor for the final four bytes of an LSO packet.
+	 */
+	txr->tx_tso = sc->hw.mac.type < e1000_82571;
 
 	if (++cur == scctx->isc_ntxd[0]) {
 		cur = 0;
@@ -380,7 +384,7 @@ em_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	/* Do hardware assists */
 	if (do_tso) {
 		i = em_tso_setup(sc, pi, &txd_upper, &txd_lower);
-		tso_desc = true;
+		tso_desc = txr->tx_tso;
 	} else if (csum_flags & EM_CSUM_OFFLOAD) {
 		i = em_transmit_checksum_setup(sc, pi, &txd_upper,
 		    &txd_lower);
