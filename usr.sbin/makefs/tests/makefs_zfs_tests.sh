@@ -647,9 +647,47 @@ multi_dataset_4_body()
 	    zfs list -H -o mountpoint ${ZFS_POOL_NAME}/dir1
 
 	# dir1/a should be part of the root dataset, not dir1.
-	atf_check -s not-exit:0 -e not-empty stat ${TEST_MOUNT_DIR}dir1/a
+	atf_check -s not-exit:0 -e not-empty stat ${TEST_MOUNT_DIR}/dir1/a
 }
 multi_dataset_4_cleanup()
+{
+	common_cleanup
+}
+
+#
+# Create a legacy dataset.
+#
+atf_test_case multi_dataset_5 cleanup
+multi_dataset_5_body()
+{
+	create_test_dirs
+	cd $TEST_INPUTS_DIR
+
+	mkdir dir1
+	echo a > dir1/a
+
+	cd -
+
+	atf_check $MAKEFS -s 1g -o rootpath=/ -o poolname=$ZFS_POOL_NAME \
+	    -o fs=${ZFS_POOL_NAME}/dir1\;canmount=noauto\;mountpoint=legacy \
+	    $TEST_IMAGE $TEST_INPUTS_DIR
+
+	import_image
+
+	atf_check -o inline:legacy\\n \
+	    zfs list -H -o mountpoint ${ZFS_POOL_NAME}/dir1
+
+	check_image_contents
+
+	atf_check zfs set mountpoint=/dir1 ${ZFS_POOL_NAME}/dir1
+	atf_check zfs mount ${ZFS_POOL_NAME}/dir1
+	atf_check -o inline:${TEST_MOUNT_DIR}/dir1\\n \
+	    zfs list -H -o mountpoint ${ZFS_POOL_NAME}/dir1
+
+	# dir1/a should be part of the root dataset, not dir1.
+	atf_check -s not-exit:0 -e not-empty stat ${TEST_MOUNT_DIR}/dir1/a
+}
+multi_dataset_5_cleanup()
 {
 	common_cleanup
 }
@@ -909,6 +947,50 @@ used_space_props_cleanup()
 	common_cleanup
 }
 
+#
+# Test setting the path of the vdev.
+#
+# The pool is associated to /dev/md0 by default, i.e., when no path is specified.
+# When the path vdevprops(7) is specified, verify it gets set.
+#
+atf_test_case path_vdev_props cleanup
+path_vdev_props_body()
+{
+	local md zdb_path
+	local vdev_path="/dev/gpt/testdisk"
+
+	create_test_inputs
+
+	atf_check $MAKEFS -s 1g -o rootpath=/ \
+	    -o poolname=$ZFS_POOL_NAME \
+	    -o path=${vdev_path} \
+	    $TEST_IMAGE $TEST_INPUTS_DIR
+
+	# Check the raw path property before import_image.
+	atf_check -o save:$TEST_MD_DEVICE_FILE mdconfig -a -f $TEST_IMAGE
+	zdb_path=$(zdb -C -e -p /dev/$(cat $TEST_MD_DEVICE_FILE) \
+	    $ZFS_POOL_NAME 2>/dev/null | awk -F"'" '/path:/ {print $2; exit}')
+	atf_check -o inline:"${vdev_path}\n" echo "$zdb_path"
+
+	# Cleanup before import_image.
+	if [ -f "$TEST_MD_DEVICE_FILE" ]; then
+		md=$(cat $TEST_MD_DEVICE_FILE)
+		if [ -c /dev/"$md" ]; then
+			mdconfig -o force -d -u "$md"
+		fi
+	fi
+
+	# Once imported, the path will be /dev/$(cat $TEST_MD_DEVICE_FILE),
+	# as /dev/gpt/testdisk does not really exist.
+	import_image
+
+	check_image_contents
+}
+path_vdev_props_cleanup()
+{
+	common_cleanup
+}
+
 # Verify that file permissions are set properly.  Make sure that non-executable
 # files can't be executed.
 atf_test_case perms cleanup
@@ -1043,6 +1125,7 @@ atf_init_test_cases()
 	atf_add_test_case multi_dataset_2
 	atf_add_test_case multi_dataset_3
 	atf_add_test_case multi_dataset_4
+	atf_add_test_case multi_dataset_5
 	atf_add_test_case multi_staging_1
 	atf_add_test_case multi_staging_2
 	atf_add_test_case reproducible
@@ -1050,6 +1133,7 @@ atf_init_test_cases()
 	atf_add_test_case soft_links
 	atf_add_test_case root_props
 	atf_add_test_case used_space_props
+	atf_add_test_case path_vdev_props
 	atf_add_test_case perms
 	atf_add_test_case T_flag_dir
 	atf_add_test_case T_flag_F_flag

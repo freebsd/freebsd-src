@@ -22,6 +22,7 @@
    Copyright (c) 2024-2026 Berkay Eren Ürün <berkay.ueruen@siemens.com>
    Copyright (c) 2026      Francesco Bertolaccini
    Copyright (c) 2026      Matthew Fernandez <matthew.fernandez@gmail.com>
+   Copyright (c) 2026      Kartik Kenchi <netliomax25@gmail.com>
    Licensed under the MIT license:
 
    Permission is  hereby granted,  free of charge,  to any  person obtaining
@@ -42,6 +43,8 @@
    DAMAGES OR  OTHER LIABILITY, WHETHER  IN AN  ACTION OF CONTRACT,  TORT OR
    OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
    USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+   SPDX-License-Identifier: MIT
 */
 
 #if defined(NDEBUG)
@@ -51,7 +54,7 @@
 #include "expat_config.h"
 
 #include <assert.h>
-
+#include <limits.h> // ULONG_MAX
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -66,6 +69,21 @@
 #include "handlers.h"
 #include "siphash.h"
 #include "basic_tests.h"
+
+#define EXPAT_TESTS_ASAN 1
+
+#if defined(__has_feature)
+#  if ! __has_feature(address_sanitizer)
+#    undef EXPAT_TESTS_ASAN
+#    define EXPAT_TESTS_ASAN 0
+#  endif
+#endif
+
+#if ULONG_MAX == 18446744073709551615u // 2^64-1
+#  define EXPAT_TESTS_64BIT 1
+#else
+#  define EXPAT_TESTS_64BIT 0
+#endif
 
 static void
 basic_setup(void) {
@@ -968,6 +986,14 @@ START_TEST(test_xmldecl_missing_value) {
                  "<doc/>",
                  XML_ERROR_XML_DECL,
                  "Failed to report missing attribute value");
+}
+END_TEST
+
+START_TEST(test_xmldecl_empty_version) {
+  expect_failure("<?xml version=''?>\n"
+                 "<doc/>",
+                 XML_ERROR_XML_DECL,
+                 "Failed to report empty version in XML declaration");
 }
 END_TEST
 
@@ -3429,12 +3455,16 @@ START_TEST(test_buffer_can_grow_to_max) {
     if (s != XML_STATUS_OK)
       xml_failure(parser);
 
+// Avoid running into "AddressSanitizer: out of memory" on 32bit Windows
+#if ! defined(_WIN32) || EXPAT_TESTS_ASAN == 0 || EXPAT_TESTS_64BIT == 1
     // XML_CONTEXT_BYTES of the prefix may remain in the buffer;
     // subtracting the whole prefix is easiest, and close enough.
     assert_true(XML_GetBuffer(parser, maxbuf - prefix_len) != NULL);
     // The limit should be consistent; no prefix should allow us to
     // reach above the max buffer size.
     assert_true(XML_GetBuffer(parser, maxbuf + 1) == NULL);
+#endif
+
     XML_ParserFree(parser);
   }
 }
@@ -6647,6 +6677,7 @@ make_basic_test_case(Suite *s) {
   tcase_add_test(tc_basic, test_xmldecl_invalid);
   tcase_add_test(tc_basic, test_xmldecl_missing_attr);
   tcase_add_test(tc_basic, test_xmldecl_missing_value);
+  tcase_add_test(tc_basic, test_xmldecl_empty_version);
   tcase_add_test__if_xml_ge(tc_basic, test_unknown_encoding_internal_entity);
   tcase_add_test(tc_basic, test_unrecognised_encoding_internal_entity);
   tcase_add_test__ifdef_xml_dtd(tc_basic, test_ext_entity_set_encoding);

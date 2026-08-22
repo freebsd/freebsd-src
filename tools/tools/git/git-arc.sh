@@ -4,6 +4,7 @@
 #
 # Copyright (c) 2019-2021 Mark Johnston <markj@FreeBSD.org>
 # Copyright (c) 2021 John Baldwin <jhb@FreeBSD.org>
+# Copyright (c) 2026 Devin Teske <dteske@FreeBSD.org>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -58,6 +59,7 @@ Usage: git arc [-vy] <command> <arguments>
 
 Commands:
   create [-dl] [-r <reviewer1>[,<reviewer2>...]] [-s subscriber[,...]] [<commit>|<commit range>]
+  diff <commit>|<commit range>
   list <commit>|<commit range>
   patch [-bcrs] <diff1> [<diff2> ...]
   stage [-b branch] [<commit>|<commit range>]
@@ -289,7 +291,7 @@ create_one_review()
 # Get a list of reviewers who accepted the specified diff.
 diff2reviewers()
 {
-    local diff reviewid userids
+    local diff reviewid userids tmp author username realname
 
     diff=$1
     reviewid=$(diff2phid "$diff")
@@ -301,11 +303,27 @@ diff2reviewers()
         arc_call_conduit -- differential.revision.search |
         jq '.response.data[0].attachments.reviewers.reviewers[] | select(.status == "accepted").reviewerPHID')
     if [ -n "$userids" ]; then
+        tmp=$(xmktemp)
         echo '{
         "constraints": {"phids": ['"$(echo $userids | tr '[:blank:]' ',')"']}
         }' |
         arc_call_conduit -- user.search |
-        jq -r '.response.data[].fields.username'
+        jq -r '.response.data[] | [.fields.username, .fields.realName] | @tsv' > "$tmp"
+
+        while IFS=$(printf '\t') read -r username realname; do
+            if is_freebsd_committer "$username"; then
+                # FreeBSD uses bare login names in Reviewed-by lines.
+                echo "$username"
+            else
+                # Resolve mangled phabricator usernames.
+                author=$(find_author "$username" "$realname" "" "")
+                if [ "$author" = "ABORT" ]; then
+                    warn "Skipping reviewer ${username}: uncertain author identity"
+                else
+                    echo "$author"
+                fi
+            fi
+        done < "$tmp"
     fi
 }
 
@@ -413,6 +431,41 @@ gitarc__create()
     done
 }
 
+#
+# Show the differences between local commits and their associated
+# Phabricator reviews, i.e., what "git arc update" would upload.  The
+# review's tree is reconstructed by applying its current raw diff to the
+# local commit's parent in a temporary index, and is then compared
+# against the local commit.
+#
+gitarc__diff()
+{
+    local commit commits diff rawdiff rtree
+
+    commits=$(build_commit_list "$@")
+
+    for commit in $commits; do
+        diff=$(commit2diff "$commit")
+
+        rawdiff=$(xmktemp)
+        fetch -q -o "$rawdiff" "https://reviews.freebsd.org/$diff.diff" ||
+            err "could not fetch ${diff}.diff"
+
+        rtree=$(
+            export GIT_INDEX_FILE="$(xmktemp)"
+            git read-tree --quiet "$commit~" &&
+                git -C "$(git rev-parse --show-toplevel)" apply \
+                    --cached "$rawdiff" &&
+                git write-tree
+        ) || err "cannot apply $diff to $commit~ (rebased since last update?)"
+
+	echo "Comparing $diff against" \
+		"$( git rev-parse --short "$commit" )..." >&2
+
+        git diff "$rtree" "$commit"
+    done
+}
+
 gitarc__list()
 {
     local chash commit commits diff openrevs title
@@ -448,6 +501,20 @@ gitarc__list()
     done
 }
 
+# Return true if the Phabricator username looks like a FreeBSD committer login:
+# no '.' in the name and not a guest account.
+is_freebsd_committer()
+{
+    case "$1" in
+    *.* | guest-*)
+        return 1
+        ;;
+    *)
+        return 0
+        ;;
+    esac
+}
+
 # Try to guess our way to a good author name. The DWIM is strong in this
 # function, but these heuristics seem to generally produce the right results, in
 # the sample of src commits I checked out.
@@ -468,14 +535,10 @@ find_author()
     # these people having their local config pointing at something other than
     # freebsd.org (which isn't surprising for ports committers getting src
     # commits reviewed).
-    case "${addr}" in
-    *.*) ;;             # external user
-    guest-*) ;;		# Fake email address, not a FreeBSD user
-    *)
+    if is_freebsd_committer "${addr}"; then
         echo "${name} <${addr}@FreeBSD.org>"
         return
-        ;;
-    esac
+    fi
 
     # Choice 2: author_addr and author_name were set in the bundle, so use
     # that. We may need to filter some known bogus ones, should they crop up.
@@ -811,7 +874,7 @@ else
 fi
 
 case "$1" in
-create|list|patch|stage|update)
+create|diff|list|patch|stage|update)
     ;;
 *)
     err_usage
@@ -843,10 +906,10 @@ if [ -n "$GIT_PAGER" ]; then
     PAGER=$GIT_PAGER
 fi
 
-# Bail if the working tree is unclean, except for "list" and "patch"
-# operations.
+# Bail if the working tree is unclean, except for "diff", "list" and
+# "patch" operations.
 case $verb in
-list|patch)
+diff|list|patch)
     ;;
 *)
     require_clean_work_tree "$verb"

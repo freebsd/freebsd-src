@@ -482,8 +482,11 @@ static int radius_client_retransmit(struct radius_client_data *radius,
 		wpa_printf(MSG_DEBUG,
 			   "RADIUS: Updated Acct-Delay-Time to %u for retransmission",
 			   delay_time);
-		radius_msg_finish_acct(entry->msg, entry->shared_secret,
-				       entry->shared_secret_len);
+		if (radius_msg_finish_acct(entry->msg, entry->shared_secret,
+					   entry->shared_secret_len) < 0) {
+			wpa_printf(MSG_INFO, "Failed to build RADIUS message");
+			return -1;
+		}
 		if (radius->conf->msg_dumps)
 			radius_msg_dump(entry->msg);
 	}
@@ -792,7 +795,7 @@ static void radius_close_auth_socket(struct radius_client_data *radius)
 {
 	if (radius->auth_sock >= 0) {
 #ifdef CONFIG_RADIUS_TLS
-		if (radius->conf->auth_server->tls)
+		if (radius->auth_tls)
 			eloop_unregister_sock(radius->auth_sock,
 					      EVENT_TYPE_WRITE);
 #endif /* CONFIG_RADIUS_TLS */
@@ -807,7 +810,7 @@ static void radius_close_acct_socket(struct radius_client_data *radius)
 {
 	if (radius->acct_sock >= 0) {
 #ifdef CONFIG_RADIUS_TLS
-		if (radius->conf->acct_server->tls)
+		if (radius->acct_tls)
 			eloop_unregister_sock(radius->acct_sock,
 					      EVENT_TYPE_WRITE);
 #endif /* CONFIG_RADIUS_TLS */
@@ -878,7 +881,14 @@ int radius_client_send(struct radius_client_data *radius,
 		}
 		shared_secret = conf->acct_server->shared_secret;
 		shared_secret_len = conf->acct_server->shared_secret_len;
-		radius_msg_finish_acct(msg, shared_secret, shared_secret_len);
+		if (radius_msg_finish_acct(msg, shared_secret,
+					   shared_secret_len) < 0) {
+			hostapd_logger(radius->ctx, NULL,
+				       HOSTAPD_MODULE_RADIUS,
+				       HOSTAPD_LEVEL_INFO,
+				       "Failed to build RADIUS accounting message");
+			return -1;
+		}
 		name = "accounting";
 		s = radius->acct_sock;
 		conf->acct_server->requests++;
@@ -900,7 +910,14 @@ int radius_client_send(struct radius_client_data *radius,
 		}
 		shared_secret = conf->auth_server->shared_secret;
 		shared_secret_len = conf->auth_server->shared_secret_len;
-		radius_msg_finish(msg, shared_secret, shared_secret_len);
+		if (radius_msg_finish(msg, shared_secret, shared_secret_len) <
+		    0) {
+			hostapd_logger(radius->ctx, NULL,
+				       HOSTAPD_MODULE_RADIUS,
+				       HOSTAPD_LEVEL_INFO,
+				       "Failed to build RADIUS authentication message");
+			return -1;
+		}
 		name = "authentication";
 		s = radius->auth_sock;
 		conf->auth_server->requests++;
@@ -1099,7 +1116,7 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 	struct radius_hdr *hdr;
 	struct radius_rx_handler *handlers;
 	size_t num_handlers, i;
-	struct radius_msg_list *req, *prev_req;
+	struct radius_msg_list *req, *prev_req, *r;
 	struct os_reltime now;
 	struct hostapd_radius_server *rconf;
 	int invalid_authenticator = 0;
@@ -1224,7 +1241,6 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		break;
 	}
 
-	prev_req = NULL;
 	req = radius->msgs;
 	while (req) {
 		/* TODO: also match by src addr:port of the packet when using
@@ -1236,7 +1252,6 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		    hdr->identifier)
 			break;
 
-		prev_req = req;
 		req = req->next;
 	}
 
@@ -1259,13 +1274,6 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		       roundtrip / 100, roundtrip % 100);
 	rconf->round_trip_time = roundtrip;
 
-	/* Remove ACKed RADIUS packet from retransmit list */
-	if (prev_req)
-		prev_req->next = req->next;
-	else
-		radius->msgs = req->next;
-	radius->num_msgs--;
-
 	for (i = 0; i < num_handlers; i++) {
 		RadiusRxResult res;
 		res = handlers[i].handler(msg, req->msg, req->shared_secret,
@@ -1276,6 +1284,19 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 			radius_msg_free(msg);
 			/* fall through */
 		case RADIUS_RX_QUEUED:
+			/* Remove ACKed RADIUS packet from retransmit list */
+			prev_req = NULL;
+			for (r = radius->msgs; r; r = r->next) {
+				if (r == req)
+					break;
+				prev_req = r;
+			}
+			if (prev_req)
+				prev_req->next = req->next;
+			else
+				radius->msgs = req->next;
+			radius->num_msgs--;
+
 			radius_client_msg_free(req);
 			return;
 		case RADIUS_RX_INVALID_AUTHENTICATOR:
@@ -1297,7 +1318,6 @@ static void radius_client_receive(int sock, void *eloop_ctx, void *sock_ctx)
 		       msg_type, hdr->code, hdr->identifier,
 		       invalid_authenticator ? " [INVALID AUTHENTICATOR]" :
 		       "");
-	radius_client_msg_free(req);
 
  fail:
 	radius_msg_free(msg);
@@ -1509,8 +1529,10 @@ static void radius_client_update_acct_msgs(struct radius_client_data *radius,
 		if (entry->msg_type == RADIUS_ACCT) {
 			entry->shared_secret = shared_secret;
 			entry->shared_secret_len = shared_secret_len;
-			radius_msg_finish_acct(entry->msg, shared_secret,
-					       shared_secret_len);
+			if (radius_msg_finish_acct(entry->msg, shared_secret,
+						   shared_secret_len) < 0)
+				wpa_printf(MSG_INFO,
+					   "RADIUS: Failed to update accounting message");
 		}
 	}
 }

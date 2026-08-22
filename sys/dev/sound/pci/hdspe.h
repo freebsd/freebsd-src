@@ -211,6 +211,9 @@ struct sc_pcminfo {
 	struct hdspe_channel	*hc;
 };
 
+/* Maximum number of PCM children. */
+#define	HDSPE_MAX_PCMDEV		8
+
 /* HDSPe device private data */
 struct sc_info {
 	device_t		dev;
@@ -241,6 +244,12 @@ struct sc_info {
 	uint32_t		speed;
 	uint32_t		force_period;
 	uint32_t		force_speed;
+
+	/* PCM children used for interrupt dispatch. */
+	struct sc_pcminfo	*pcms[HDSPE_MAX_PCMDEV];
+	unsigned int		pcm_refs[HDSPE_MAX_PCMDEV];
+	bool			pcm_detaching[HDSPE_MAX_PCMDEV];
+	struct cv		pcm_cv;
 };
 
 #define	hdspe_read_1(sc, regno)						\

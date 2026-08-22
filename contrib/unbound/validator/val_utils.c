@@ -1086,6 +1086,23 @@ val_fill_reply(struct reply_info* chase, struct reply_info* orig,
 		chase->ar_numrrsets;
 }
 
+void val_reply_remove_answers(struct reply_info* rep, size_t index,
+	size_t count)
+{
+	log_assert(index < rep->rrset_count);
+	log_assert(index < rep->an_numrrsets);
+	if(count == 0)
+		return; /* nothing to do */
+	log_assert(index+(count-1) < rep->rrset_count);
+	log_assert(index+(count-1) < rep->an_numrrsets);
+	if(rep->rrset_count - (count-1) - index - 1 > 0)
+	  memmove(rep->rrsets+index, rep->rrsets+index+(count-1)+1,
+		sizeof(struct ub_packed_rrset_key*)*
+		(rep->rrset_count - (count-1) - index - 1));
+	rep->an_numrrsets -= count;
+	rep->rrset_count -= count;
+}
+
 void val_reply_remove_auth(struct reply_info* rep, size_t index)
 {
 	log_assert(index < rep->rrset_count);
@@ -1319,10 +1336,11 @@ val_find_DS(struct module_env* env, uint8_t* nm, size_t nmlen, uint16_t c,
 		/* DS rrset exists. Return it to the validator immediately*/
 		struct ub_packed_rrset_key* copy = packed_rrset_copy_region(
 			rrset, region, *env->now);
-		struct packed_rrset_data* d = copy->entry.data;
+		struct packed_rrset_data* d;
 		lock_rw_unlock(&rrset->entry.lock);
 		if(!copy)
 			return NULL;
+		d = (struct packed_rrset_data*)copy->entry.data;
 		msg = dns_msg_create(nm, nmlen, LDNS_RR_TYPE_DS, c, region, 1);
 		if(!msg)
 			return NULL;
@@ -1365,4 +1383,21 @@ int derive_cname_from_dname(struct ub_packed_rrset_key* cname,
 	memmove(out, cname->rk.dname, prefix_len);
 	memmove(out+prefix_len, dname_target, dname_target_len);
 	return 1;
+}
+
+int nsec_nextowner_subdomain(struct ub_packed_rrset_key* rrset, uint8_t* name)
+{
+	struct packed_rrset_data* d;
+	uint8_t* next;
+	size_t nextlen;
+	if(ntohs(rrset->rk.type) != LDNS_RR_TYPE_NSEC)
+		return 0;
+	d = (struct packed_rrset_data*)rrset->entry.data;
+	if(!d || d->count == 0)
+		return 0;
+	next = d->rr_data[0]+2;
+	nextlen = dname_valid(next, d->rr_len[0]-2);
+	if(nextlen == 0)
+		return 0; /* malformed */
+	return dname_subdomain_c(next, name);
 }

@@ -1042,6 +1042,7 @@ in6m_merge(struct in6_multi *inm, /*const*/ struct in6_mfilter *imf)
 	 * Maintain a count of source filters whose state was
 	 * actually modified by this operation.
 	 */
+	nims = NULL;
 	RB_FOREACH(ims, ip6_msource_tree, &imf->im6f_sources) {
 		lims = (struct in6_msource *)ims;
 		if (lims->im6sl_st[0] == imf->im6f_st[0]) nsrc0++;

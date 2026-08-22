@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2020-2026 The FreeBSD Foundation
+ * Copyright (c) 2026 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -157,6 +158,13 @@ enum ieee80211_vht_max_ampdu_len_exp {
 	IEEE80211_VHT_MAX_AMPDU_256K		= 5,
 	IEEE80211_VHT_MAX_AMPDU_512K		= 6,
 	IEEE80211_VHT_MAX_AMPDU_1024K		= 7,
+};
+
+/* 802.11-2020, 9.6.22 VHT Action frame details. */
+enum ieee80211_vht_actioncode {
+	/* VHT Compressed Beamforming		= 0, */
+	WLAN_VHT_ACTION_GROUPID_MGMT		= 1,
+	/* Operating Mode Notification		= 2, */
 };
 
 #define	IEEE80211_WEP_IV_LEN			3	/* net80211: IEEE80211_WEP_IVLEN */
@@ -539,6 +547,7 @@ enum ieee80211_sa_query {
 enum ieee80211_category {
 	WLAN_CATEGORY_BACK		= 3,
 	WLAN_CATEGORY_SA_QUERY		= 8,	/* net80211::IEEE80211_ACTION_CAT_SA_QUERY */
+	WLAN_CATEGORY_VHT		= 21,
 };
 
 /* 80211-2020 9.3.3.2 Format of Management frames */
@@ -563,6 +572,14 @@ struct ieee80211_mgmt {
 			uint16_t	listen_interval;
 			uint8_t		variable[0];
 		} __packed assoc_req;
+		/* 9.3.3.6 Association Response frame format */
+		/* 9.3.3.8 Reassociation Response frame format */
+		struct {
+			uint16_t	capab_info;
+			uint16_t	status_code;
+			uint16_t	aid;
+			uint8_t		variable[0];
+		} __packed assoc_resp, reassoc_resp;
 		/* 9.3.3.10 Probe Request frame format */
 		struct {
 			uint8_t		variable[0];
@@ -681,6 +698,7 @@ enum ieee80211_eid {
 	WLAN_EID_EXT_SUPP_RATES			= 50,
 	WLAN_EID_EXT_NON_INHERITANCE		= 56,
 	WLAN_EID_EXT_CHANSWITCH_ANN		= 60,
+	WLAN_EID_HT_OPERATION			= 61,	/* IEEE80211_ELEMID_HTINFO */
 	WLAN_EID_MULTIPLE_BSSID			= 71,	/* IEEE80211_ELEMID_MULTIBSSID */
 	WLAN_EID_MULTI_BSSID_IDX		= 85,
 	WLAN_EID_EXT_CAPABILITY			= 127,
@@ -731,15 +749,15 @@ struct ieee80211_trigger {
 /* Table 9-29c-Trigger Type subfield encoding */
 enum {
 	IEEE80211_TRIGGER_TYPE_BASIC		= 0x0,
+	IEEE80211_TRIGGER_TYPE_BFRP		= 0x1,
 	IEEE80211_TRIGGER_TYPE_MU_BAR		= 0x2,
+	IEEE80211_TRIGGER_TYPE_MU_RTS		= 0x3,
+	IEEE80211_TRIGGER_TYPE_BSRP		= 0x4,
+	IEEE80211_TRIGGER_TYPE_BQRP		= 0x6,
+	IEEE80211_TRIGGER_TYPE_NFRP		= 0x7,
 #if 0
 	/* Not seen yet. */
-	BFRP					= 0x1,
-	MU-RTS					= 0x3,
-	BSRP					= 0x4,
 	GCR MU-BAR				= 0x5,
-	BQRP					= 0x6,
-	NFRP					= 0x7,
 	/* 0x8..0xf reserved */
 #endif
 	IEEE80211_TRIGGER_TYPE_MASK		= 0xf

@@ -1189,11 +1189,18 @@ and
 .It Ic \&Cd Ar line
 Kernel configuration declaration.
 This denotes strings accepted by
-.Xr config 8 .
+.Xr config 8
+or, on
+.Fx ,
+device hints,
+loader tunables,
+and sysctl nodes in
+.Em SYNOPSIS.
 It is most often used in section 4 manual pages.
 .Pp
 Examples:
 .Dl \&.Cd device le0 at scode?
+.Dl \&.Cd kern.vty=vt
 .Pp
 .Em Remarks :
 this macro is commonly abused by using quoted literals to retain

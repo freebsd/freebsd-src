@@ -724,7 +724,7 @@ sv_attach(device_t dev) {
 	rman_res_t	count, midi_start, games_start;
 	uint32_t	data;
 	char		status[SND_STATUSLEN];
-	u_long		sdmaa, sdmac, ml, mu;
+	unsigned long	sdmaa, sdmac, ml, mu;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO);
 	sc->dev = dev;
@@ -815,7 +815,8 @@ sv_attach(device_t dev) {
 	    ((mu - ml) % 0x200)) {
 		device_printf(dev, "sv_attach: resource assumptions not met "
 			      "(midi 0x%08lx, games 0x%08lx)\n",
-			      (u_long)midi_start, (u_long)games_start);
+			      (unsigned long)midi_start,
+			      (unsigned long)games_start);
 		goto fail;
 	}
 

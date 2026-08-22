@@ -101,7 +101,7 @@ ieee80211_ioctl_getkey(u_long cmd, struct ieee80211vap *vap,
 	}
 	cip = wk->wk_cipher;
 	ik.ik_type = cip->ic_cipher;
-	ik.ik_keylen = wk->wk_keylen;
+	ik.ik_keylen = ieee80211_crypto_get_key_len(wk);
 	ik.ik_flags = wk->wk_flags & (IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV);
 	if (wk->wk_keyix == vap->iv_def_txkey)
 		ik.ik_flags |= IEEE80211_KEY_DEFAULT;
@@ -109,12 +109,39 @@ ieee80211_ioctl_getkey(u_long cmd, struct ieee80211vap *vap,
 		/* NB: only root can read key data */
 		ik.ik_keyrsc = wk->wk_keyrsc[IEEE80211_NONQOS_TID];
 		ik.ik_keytsc = wk->wk_keytsc;
-		memcpy(ik.ik_keydata, wk->wk_key, wk->wk_keylen);
+
+		if (ieee80211_crypto_copy_key_data(wk, ik.ik_keydata,
+		    IEEE80211_IOCTL_KEYBUF_SIZE) == false)
+			return (EINVAL);
+
 		if (cip->ic_cipher == IEEE80211_CIPHER_TKIP) {
-			memcpy(ik.ik_keydata+wk->wk_keylen,
-				wk->wk_key + IEEE80211_KEYBUF_SIZE,
-				IEEE80211_MICBUF_SIZE);
-			ik.ik_keylen += IEEE80211_MICBUF_SIZE;
+			/*
+			 * Note: assume that we've copied up to
+			 * IEEE80211_IOCTL_KEYBUF_SIZE size, and we
+			 * have space for the TX/RX MIC.  The API
+			 * is actually asking for "how big is the
+			 * buffer" and the assumption here is
+			 * that since it's currently a static sized
+			 * buffer in ieee80211req_key, we know
+			 * that there's IEEE80211_IOCTL_TX_MICBUF_SIZE
+			 * bytes available after IEEE80211_IOCTL_KEYBUF_SIZE.
+			 */
+			if (ieee80211_crypto_copy_txmic_data(wk,
+			    ik.ik_keydata + wk->wk_keylen,
+			    IEEE80211_IOCTL_TX_MICBUF_SIZE) == false)
+				return (EINVAL);
+
+			/*
+			 * Similar assumptions here about static buffer
+			 * sizing and available space.
+			 */
+			if (ieee80211_crypto_copy_rxmic_data(wk,
+			    ik.ik_keydata + wk->wk_keylen +
+			    IEEE80211_IOCTL_TX_MICBUF_SIZE,
+			    IEEE80211_IOCTL_RX_MICBUF_SIZE) == false)
+				return (EINVAL);
+
+			ik.ik_keylen += IEEE80211_IOCTL_MICBUF_SIZE;
 		}
 	} else {
 		ik.ik_keyrsc = 0;
@@ -780,7 +807,7 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	u_int kid, len;
-	uint8_t tmpkey[IEEE80211_KEYBUF_SIZE];
+	uint8_t tmpkey[IEEE80211_IOCTL_KEYBUF_SIZE];
 	char tmpssid[IEEE80211_NWID_LEN];
 	int error = 0;
 
@@ -821,12 +848,27 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		kid = (u_int) ireq->i_val;
 		if (kid >= IEEE80211_WEP_NKID)
 			return EINVAL;
-		len = (u_int) vap->iv_nw_keys[kid].wk_keylen;
+
+		/*
+		 * Bounds-check the key length before potentially reading
+		 * the key data - reading the key data can only happen with
+		 * sufficient privileges.
+		 */
+		if (ieee80211_crypto_get_key_len(&vap->iv_nw_keys[kid]) >
+		    sizeof(tmpkey))
+			return EINVAL;
+		len = (u_int) MIN(
+		    ieee80211_crypto_get_key_len(&vap->iv_nw_keys[kid]),
+		    sizeof(tmpkey));
+		bzero(tmpkey, sizeof(tmpkey));
 		/* NB: only root can read WEP keys */
 		if (ieee80211_priv_check_vap_getkey(cmd, vap, NULL) == 0) {
-			bcopy(vap->iv_nw_keys[kid].wk_key, tmpkey, len);
-		} else {
-			bzero(tmpkey, len);
+			if (ieee80211_crypto_copy_key_data(
+			    &vap->iv_nw_keys[kid], tmpkey,
+			    IEEE80211_IOCTL_KEYBUF_SIZE) == false) {
+				error = EINVAL;
+				break;
+			}
 		}
 		ireq->i_len = len;
 		error = copyout(tmpkey, ireq->i_data, len);
@@ -1219,15 +1261,72 @@ ieee80211_ioctl_setkey(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	error = 0;
 	ieee80211_key_update_begin(vap);
 	if (ieee80211_crypto_newkey(vap, ik.ik_type, ik.ik_flags, wk)) {
-		wk->wk_keylen = ik.ik_keylen;
-		/* NB: MIC presence is implied by cipher type */
-		if (wk->wk_keylen > IEEE80211_KEYBUF_SIZE)
-			wk->wk_keylen = IEEE80211_KEYBUF_SIZE;
+		uint32_t key_len;
+
 		for (i = 0; i < IEEE80211_TID_SIZE; i++)
 			wk->wk_keyrsc[i] = ik.ik_keyrsc;
 		wk->wk_keytsc = 0;			/* new key, reset */
+
+		/* TODO: methodize */
 		memset(wk->wk_key, 0, sizeof(wk->wk_key));
-		memcpy(wk->wk_key, ik.ik_keydata, ik.ik_keylen);
+
+		/*
+		 * Set the key using the provided key contents.
+		 *
+		 * TKIP is special cased in this API because it lumps key and
+		 * MIC together with the key length spanning both.
+		 *
+		 * However the net80211 crypto key API only expects the key
+		 * length to be without the MIC.
+		 *
+		 * So, cap key_len to 128 bits here regardless of key type,
+		 * and then assume the next 128 bits are the MIC.
+		 *
+		 * When the net80211 key storage is bumped to include 256/384
+		 * bit keys this API should continue to be supported - it
+		 * copies the data from the same location and into the right
+		 * place in ieee80211_key via key/MIC set methods.
+		 */
+		key_len = ik.ik_keylen;
+		switch (ik.ik_type) {
+		case IEEE80211_CIPHER_TKIP:
+			/*
+			 * This API requires that there's enough key data
+			 * for a 128 bit TKIP key and 128 bit MIC. So, enforce
+			 * that here before we do math on the key_len.
+			 */
+			if (key_len < (IEEE80211_IOCTL_KEYBUF_SIZE +
+			    IEEE80211_IOCTL_MICBUF_SIZE)) {
+				error = EINVAL;
+				goto finish;
+			}
+
+			/* Subtract the 128 bit TX/RX MIC. */
+			key_len -= IEEE80211_IOCTL_MICBUF_SIZE;
+
+			/* Set the key with the adjusted key length. */
+			ieee80211_crypto_set_key_data(wk, ik.ik_keydata,
+			    key_len);
+
+			/* The TX and RX MIC follow the key data. */
+			ieee80211_crypto_set_key_txmic_data(wk,
+			    ik.ik_keydata + key_len,
+			    IEEE80211_IOCTL_TX_MICBUF_SIZE);
+			ieee80211_crypto_set_key_rxmic_data(wk,
+			    ik.ik_keydata + key_len +
+			      IEEE80211_IOCTL_TX_MICBUF_SIZE,
+			    IEEE80211_IOCTL_RX_MICBUF_SIZE);
+			break;
+		default:
+			/*
+			 * Non-TKIP keys don't need the special case around
+			 * key length; just use what was supplied.
+			 */
+			ieee80211_crypto_set_key_data(wk, ik.ik_keydata,
+			    key_len);
+			break;
+		}
+
 		IEEE80211_ADDR_COPY(wk->wk_macaddr,
 		    ni != NULL ?  ni->ni_macaddr : ik.ik_macaddr);
 		if (!ieee80211_crypto_setkey(vap, wk))
@@ -1244,6 +1343,7 @@ ieee80211_ioctl_setkey(struct ieee80211vap *vap, struct ieee80211req *ireq)
 			ieee80211_crypto_set_deftxkey(vap, kid);
 	} else
 		error = ENXIO;
+finish:
 	ieee80211_key_update_end(vap);
 	if (ni != NULL)
 		ieee80211_free_node(ni);
@@ -2772,7 +2872,7 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 	struct ieee80211com *ic = vap->iv_ic;
 	int error;
 	const struct ieee80211_authenticator *auth;
-	uint8_t tmpkey[IEEE80211_KEYBUF_SIZE];
+	uint8_t tmpkey[IEEE80211_IOCTL_KEYBUF_SIZE];
 	char tmpssid[IEEE80211_NWID_LEN];
 	uint8_t tmpbssid[IEEE80211_ADDR_LEN];
 	struct ieee80211_key *k;
@@ -2831,13 +2931,20 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		k->wk_keyix = kid;	/* NB: force fixed key id */
 		if (ieee80211_crypto_newkey(vap, IEEE80211_CIPHER_WEP,
 		    IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV, k)) {
-			k->wk_keylen = ireq->i_len;
-			memcpy(k->wk_key, tmpkey, sizeof(tmpkey));
-			IEEE80211_ADDR_COPY(k->wk_macaddr, vap->iv_myaddr);
-			if  (!ieee80211_crypto_setkey(vap, k))
+			if (ieee80211_crypto_set_key_data(k, tmpkey,
+			    ireq->i_len) == false) {
 				error = EINVAL;
-		} else
+				goto skip;
+			}
+			IEEE80211_ADDR_COPY(k->wk_macaddr, vap->iv_myaddr);
+			if  (!ieee80211_crypto_setkey(vap, k)) {
+				error = EINVAL;
+				goto skip;
+			}
+		} else {
 			error = EINVAL;
+		}
+skip:
 		ieee80211_key_update_end(vap);
 		break;
 	case IEEE80211_IOC_WEPTXKEY:

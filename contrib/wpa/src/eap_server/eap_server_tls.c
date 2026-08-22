@@ -114,29 +114,6 @@ static void * eap_unauth_tls_init(struct eap_sm *sm)
 #endif /* EAP_SERVER_UNAUTH_TLS */
 
 
-#ifdef CONFIG_HS20
-static void * eap_wfa_unauth_tls_init(struct eap_sm *sm)
-{
-	struct eap_tls_data *data;
-
-	data = os_zalloc(sizeof(*data));
-	if (data == NULL)
-		return NULL;
-	data->state = START;
-
-	if (eap_server_tls_ssl_init(sm, &data->ssl, 0,
-				    EAP_WFA_UNAUTH_TLS_TYPE)) {
-		wpa_printf(MSG_INFO, "EAP-TLS: Failed to initialize SSL.");
-		eap_tls_reset(sm, data);
-		return NULL;
-	}
-
-	data->eap_type = EAP_WFA_UNAUTH_TLS_TYPE;
-	return data;
-}
-#endif /* CONFIG_HS20 */
-
-
 static void eap_tls_reset(struct eap_sm *sm, void *priv)
 {
 	struct eap_tls_data *data = priv;
@@ -236,10 +213,6 @@ static bool eap_tls_check(struct eap_sm *sm, void *priv,
 	if (data->eap_type == EAP_UNAUTH_TLS_TYPE)
 		pos = eap_hdr_validate(EAP_VENDOR_UNAUTH_TLS,
 				       EAP_VENDOR_TYPE_UNAUTH_TLS, respData,
-				       &len);
-	else if (data->eap_type == EAP_WFA_UNAUTH_TLS_TYPE)
-		pos = eap_hdr_validate(EAP_VENDOR_WFA_NEW,
-				       EAP_VENDOR_WFA_UNAUTH_TLS, respData,
 				       &len);
 	else
 		pos = eap_hdr_validate(EAP_VENDOR_IETF, data->eap_type,
@@ -474,30 +447,3 @@ int eap_server_unauth_tls_register(void)
 	return eap_server_method_register(eap);
 }
 #endif /* EAP_SERVER_UNAUTH_TLS */
-
-
-#ifdef CONFIG_HS20
-int eap_server_wfa_unauth_tls_register(void)
-{
-	struct eap_method *eap;
-
-	eap = eap_server_method_alloc(EAP_SERVER_METHOD_INTERFACE_VERSION,
-				      EAP_VENDOR_WFA_NEW,
-				      EAP_VENDOR_WFA_UNAUTH_TLS,
-				      "WFA-UNAUTH-TLS");
-	if (eap == NULL)
-		return -1;
-
-	eap->init = eap_wfa_unauth_tls_init;
-	eap->reset = eap_tls_reset;
-	eap->buildReq = eap_tls_buildReq;
-	eap->check = eap_tls_check;
-	eap->process = eap_tls_process;
-	eap->isDone = eap_tls_isDone;
-	eap->getKey = eap_tls_getKey;
-	eap->isSuccess = eap_tls_isSuccess;
-	eap->get_emsk = eap_tls_get_emsk;
-
-	return eap_server_method_register(eap);
-}
-#endif /* CONFIG_HS20 */

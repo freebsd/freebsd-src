@@ -43,13 +43,13 @@
  * description.
  */
 
-#include <sys/cdefs.h>
 #include "opt_ddb.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/asan.h>
+#include <sys/ckdint.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -823,22 +823,24 @@ malloc_domainset_aligned(size_t size, size_t align,
 void *
 mallocarray(size_t nmemb, size_t size, struct malloc_type *type, int flags)
 {
+	size_t n;
 
-	if (WOULD_OVERFLOW(nmemb, size))
+	if (ckd_mul(&n, nmemb, size) != 0)
 		panic("mallocarray: %zu * %zu overflowed", nmemb, size);
 
-	return (malloc(size * nmemb, type, flags));
+	return (malloc(n, type, flags));
 }
 
 void *
 mallocarray_domainset(size_t nmemb, size_t size, struct malloc_type *type,
     struct domainset *ds, int flags)
 {
+	size_t n;
 
-	if (WOULD_OVERFLOW(nmemb, size))
+	if (ckd_mul(&n, nmemb, size) != 0)
 		panic("mallocarray_domainset: %zu * %zu overflowed", nmemb, size);
 
-	return (malloc_domainset(size * nmemb, type, ds, flags));
+	return (malloc_domainset(n, type, ds, flags));
 }
 
 #if defined(INVARIANTS) && !defined(KASAN)

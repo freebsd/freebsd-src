@@ -50,6 +50,7 @@ public int no_init;             /* Disable sending ti/te termcap strings */
 public int no_keypad;           /* Disable sending ks/ke termcap strings */
 public int twiddle;             /* Show tildes after EOF */
 public int show_attn;           /* Hilite first unread line */
+public int hilite_target;       /* Hilite target line */
 public int status_col;          /* Display a status column */
 public int use_lessopen;        /* Use the LESSOPEN filter */
 public int quit_on_intr;        /* Quit on interrupt */
@@ -59,7 +60,9 @@ public int opt_use_backslash;   /* Use backslash escaping in option parsing */
 public LWCHAR rscroll_char;     /* Char which marks chopped lines with -S */
 public int rscroll_attr;        /* Attribute of rscroll_char */
 public int no_hist_dups;        /* Remove dups from history list */
-public int mousecap;            /* Allow mouse for scrolling */
+public int emouse;              /* Enabled mouse features */
+public int mouse_reverse;       /* Reverse mouse wheel scrolling direction */
+public int xmouse;              /* Old --mouse option, replaced by --emouse */
 public int wheel_lines;         /* Number of lines to scroll on mouse wheel scroll */
 public int perma_marks;         /* Save marks in history file */
 public int linenum_width;       /* Width of line numbers */
@@ -85,10 +88,12 @@ public int match_shift;         /* Extra horizontal shift on search match */
 public int no_paste;            /* Don't accept pasted input */
 public int no_edit_warn;        /* Don't warn when editing a LESSOPENed file */
 public int stop_on_form_feed;   /* Stop scrolling on a line starting with form feed */
+public int past_eof;            /* Continue scrolling past EOF */
 public long match_shift_fraction = NUM_FRAC_DENOM/2; /* 1/2 of screen width */
 public char intr_char = CONTROL('X'); /* Char to interrupt reads */
 public char *first_cmd_at_prompt = NULL; /* Command to exec before first prompt */
 public char *autosave;          /* Actions which do autosave of history file */
+public char *end_prompt;        /* Printed after clearing the prompt */
 #if HILITE_SEARCH
 public int hilite_search;       /* Highlight matched search patterns? */
 #endif
@@ -157,7 +162,9 @@ static struct optname follow_optname = { "follow-name",          NULL };
 static struct optname use_backslash_optname = { "use-backslash", NULL };
 static struct optname rscroll_optname = { "rscroll", NULL };
 static struct optname nohistdups_optname = { "no-histdups",      NULL };
-static struct optname mousecap_optname = { "mouse",              NULL };
+static struct optname mouse_optname = { "mouse",                 NULL };
+static struct optname emouse_optname = { "emouse",               NULL };
+static struct optname mouse_reverse_optname = { "rmouse",        NULL };
 static struct optname wheel_lines_optname = { "wheel-lines",     NULL };
 static struct optname perma_marks_optname = { "save-marks",      NULL };
 static struct optname linenum_width_optname = { "line-num-width", NULL };
@@ -169,6 +176,7 @@ static struct optname status_line_optname = { "status-line",     NULL };
 static struct optname header_optname = { "header",               NULL };
 static struct optname no_paste_optname = { "no-paste",           NULL };
 static struct optname form_feed_optname = { "form-feed",         NULL };
+static struct optname past_eof_optname = { "past-eof",           NULL };
 static struct optname no_edit_warn_optname2 = { "no-warn-edit",   NULL };
 static struct optname no_edit_warn_optname = { "no-edit-warn",   &no_edit_warn_optname2 };
 static struct optname nonum_headers_optname = { "no-number-headers", NULL };
@@ -189,6 +197,8 @@ static struct optname proc_return_optname = { "proc-return", NULL };
 static struct optname match_shift_optname = { "match-shift", NULL };
 static struct optname first_cmd_at_prompt_optname = { "cmd", NULL };
 static struct optname autosave_optname = { "autosave", NULL };
+static struct optname hilite_target_optname = { "hilite-target", NULL };
+static struct optname end_prompt_optname = { "end-prompt", NULL };
 #if LESSTEST
 static struct optname ttyin_name_optname = { "tty",              NULL };
 #endif /*LESSTEST*/
@@ -439,6 +449,14 @@ static struct loption option[] =
 		O_NOVAR, 0, NULL, opt__V,
 		{ NULL, NULL, NULL }
 	},
+	{ OLETTER_NONE, &hilite_target_optname,
+		O_BOOL, OPT_OFF, &hilite_target, opt_hilite_target,
+		{
+			"Don't highlight target line",
+			"Highlight target line",
+			NULL
+		}
+	},
 	{ 'w', &w_optname,
 		O_TRIPLE|O_REPAINT, OPT_OFF, &show_attn, NULL,
 		{
@@ -530,8 +548,8 @@ static struct loption option[] =
 	{ OLETTER_NONE, &use_backslash_optname,
 		O_BOOL, OPT_OFF, &opt_use_backslash, NULL,
 		{
-			"Use backslash escaping in command line parameters",
 			"Don't use backslash escaping in command line parameters",
+			"Use backslash escaping in command line parameters",
 			NULL
 		}
 	},
@@ -547,12 +565,24 @@ static struct loption option[] =
 			NULL
 		}
 	},
-	{ OLETTER_NONE, &mousecap_optname,
-		O_TRIPLE, OPT_OFF, &mousecap, opt_mousecap,
+	{ OLETTER_NONE, &mouse_optname,
+		O_TRIPLE, OPT_OFF, &xmouse, opt_mouse,
 		{
 			"Ignore mouse input",
-			"Use the mouse for scrolling",
-			"Use the mouse for scrolling (reverse)"
+			"Use the mouse for scrolling vertically",
+			"Use the mouse for scrolling vertically (reverse)"
+		}
+	},
+	{ OLETTER_NONE, &emouse_optname,
+		O_STRING, 0, NULL, opt_emouse,
+		{ "Mouse features: ", "s", NULL }
+	},
+	{ OLETTER_NONE, &mouse_reverse_optname,
+		O_BOOL, OPT_OFF, &mouse_reverse, NULL,
+		{
+			"Normal mouse scroll direction",
+			"Reverse mouse scroll direction",
+			NULL
 		}
 	},
 	{ OLETTER_NONE, &wheel_lines_optname,
@@ -614,8 +644,8 @@ static struct loption option[] =
 	{ OLETTER_NONE, &status_line_optname,
 		O_BOOL|O_REPAINT, OPT_OFF, &status_line, NULL,
 		{
-			"Don't color each line with its status column color",
-			"Color each line with its status column color",
+			"Line highlight applies to text only",
+			"Line highlight applies to entire width of screen",
 			NULL
 		}
 	},
@@ -636,6 +666,14 @@ static struct loption option[] =
 		{
 			"Don't stop on form feed",
 			"Stop on form feed",
+			NULL
+		}
+	},
+	{ OLETTER_NONE, &past_eof_optname,
+		O_BOOL, OPT_OFF, &past_eof, NULL,
+		{
+			"Stop scrolling at end of file",
+			"Don't stop scrolling at end of file",
 			NULL
 		}
 	},
@@ -768,6 +806,10 @@ static struct loption option[] =
 	{ OLETTER_NONE, &autosave_optname,
 		O_STRING|O_INIT_HANDLER, 0, NULL, opt_autosave,
 		{ "Autosave actions: ", "s", NULL }
+	},
+	{ OLETTER_NONE, &end_prompt_optname,
+		O_STRING, 0, NULL, opt_end_prompt,
+		{ "Print after prompt: ", "s", NULL }
 	},
 #if LESSTEST
 	{ OLETTER_NONE, &ttyin_name_optname,

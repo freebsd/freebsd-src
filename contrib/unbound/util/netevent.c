@@ -951,6 +951,10 @@ static int consume_pp2_header(struct sldns_buffer* buf, struct comm_reply* rep,
 			{
 			struct sockaddr_in* addr =
 				(struct sockaddr_in*)&rep->client_addr;
+			if(ntohs(header->len) < PP2_HEADER_LEN_INET) {
+				verbose(VERB_OPS, "proxy_protocol: header too short for IPv4 address");
+				return 0;
+			}
 			addr->sin_family = AF_INET;
 			addr->sin_addr.s_addr = header->addr.addr4.src_addr;
 			addr->sin_port = header->addr.addr4.src_port;
@@ -963,6 +967,10 @@ static int consume_pp2_header(struct sldns_buffer* buf, struct comm_reply* rep,
 			{
 			struct sockaddr_in6* addr =
 				(struct sockaddr_in6*)&rep->client_addr;
+			if(ntohs(header->len) < PP2_HEADER_LEN_INET6) {
+				verbose(VERB_OPS, "proxy_protocol: header too short for IPv6 address");
+				return 0;
+			}
 			memset(addr, 0, sizeof(*addr));
 			addr->sin6_family = AF_INET6;
 			memcpy(&addr->sin6_addr,
@@ -2932,6 +2940,8 @@ setup_tcp_handler(struct comm_point* c, int fd, int cur, int max)
 	c->tcp_is_reading = 1;
 	c->tcp_byte_count = 0;
 	c->tcp_keepalive = 0;
+	/* reset to configured value before applying load-based reduction */
+	c->tcp_timeout_msec = c->tcp_parent->tcp_timeout_msec;
 	/* if more than half the tcp handlers are in use, use a shorter
 	 * timeout for this TCP connection, we need to make space for
 	 * other connections to be able to get attention */
@@ -2964,6 +2974,62 @@ void comm_base_handle_slow_accept(int ATTR_UNUSED(fd),
 		fptr_ok(fptr_whitelist_start_accept(b->start_accept));
 		(*b->start_accept)(b->cb_arg);
 		b->eb->slow_accept_enabled = 0;
+	}
+}
+
+/** out of resources in the accept path: pause all listening for
+ * NETEVENT_SLOW_ACCEPT_TIME and re-arm via comm_base_handle_slow_accept.
+ *
+ * If the routine fails, the socket is accepted and then closed, draining it
+ * from the waiting list of connections to be accepted.
+ * @param c: the comm point that is a listening socket.
+ * @param msec: if 0: uses the slow accept time. Otherwise, sets the time
+ *		to wait.
+ */
+static void
+comm_point_slow_accept(struct comm_point* c, int msec)
+{
+	struct comm_base* b = c->ev->base;
+	struct timeval tv;
+	struct ub_event* slowev;
+	if(!b->stop_accept)
+		return;
+	if(b->eb->slow_accept_enabled)
+		return;
+	/* Allocate the event */
+	slowev = ub_event_new(b->eb->base, -1, UB_EV_TIMEOUT,
+		comm_base_handle_slow_accept, b);
+	if(!slowev) {
+		/* The slow accept was not enabled yet, to handle
+		 * the allocation failure, instead drain the incoming
+		 * connection. */
+		int new_fd = accept(c->fd, NULL, NULL);
+		if(new_fd != -1) {
+			verbose(VERB_ALGO, "slow accept: event_new failed, "
+				"drop connection");
+			sock_close(new_fd);
+		}
+		return;
+	}
+	ub_comm_base_now(b);
+	if(b->eb->last_slow_log+SLOW_LOG_TIME <= b->eb->secs) {
+		b->eb->last_slow_log = b->eb->secs;
+		verbose(VERB_OPS, "out of resources on accept, "
+			"slow down accept for %d msec",
+			NETEVENT_SLOW_ACCEPT_TIME);
+	}
+	b->eb->slow_accept_enabled = 1;
+	fptr_ok(fptr_whitelist_stop_accept(b->stop_accept));
+	(*b->stop_accept)(b->cb_arg);
+	/* set timeout, no mallocs */
+	if(msec == 0)
+		msec = NETEVENT_SLOW_ACCEPT_TIME;
+	tv.tv_sec = msec/1000;
+	tv.tv_usec = (msec%1000)*1000;
+	b->eb->slow_accept = slowev;
+	if(ub_event_add(b->eb->slow_accept, &tv) != 0) {
+		/* we do not want to log here,
+		 * error: "event_add failed." */
 	}
 }
 
@@ -3000,6 +3066,14 @@ int comm_point_perform_accept(struct comm_point* c,
 			if(c->ev->base->stop_accept) {
 				struct comm_base* b = c->ev->base;
 				struct timeval tv;
+				struct ub_event* slowev = ub_event_new(
+					b->eb->base, -1, UB_EV_TIMEOUT,
+					comm_base_handle_slow_accept, b);
+				if(!slowev) {
+					verbose(VERB_ALGO, "slow accept: "
+						"event_new failed");
+					return -1;
+				}
 				verbose(VERB_ALGO, "out of file descriptors: "
 					"slow accept");
 				ub_comm_base_now(b);
@@ -3019,15 +3093,8 @@ int comm_point_perform_accept(struct comm_point* c,
 				/* set timeout, no mallocs */
 				tv.tv_sec = NETEVENT_SLOW_ACCEPT_TIME/1000;
 				tv.tv_usec = (NETEVENT_SLOW_ACCEPT_TIME%1000)*1000;
-				b->eb->slow_accept = ub_event_new(b->eb->base,
-					-1, UB_EV_TIMEOUT,
-					comm_base_handle_slow_accept, b);
-				if(b->eb->slow_accept == NULL) {
-					/* we do not want to log here, because
-					 * that would spam the logfiles.
-					 * error: "event_base_set failed." */
-				}
-				else if(ub_event_add(b->eb->slow_accept, &tv)
+				b->eb->slow_accept = slowev;
+				if(ub_event_add(b->eb->slow_accept, &tv)
 					!= 0) {
 					/* we do not want to log here,
 					 * error: "event_add failed." */
@@ -3166,7 +3233,7 @@ static void http2_stream_delete(struct http2_session* h2_session,
 {
 	if(h2_stream->mesh_state) {
 		mesh_state_remove_reply(h2_stream->mesh, h2_stream->mesh_state,
-			h2_session->c, NULL);
+			h2_session->c, h2_stream, NULL);
 		h2_stream->mesh_state = NULL;
 	}
 	http2_req_stream_clear(h2_stream);
@@ -3208,6 +3275,13 @@ comm_point_tcp_accept_callback(int fd, short event, void* arg)
 	/* find free tcp handler. */
 	if(!c->tcp_free) {
 		log_warn("accepted too many tcp, connections full");
+		/* Wait for a short moment (say 50msec) so that other
+		 * TCP connections can complete. Or timeout, at the busy
+		 * timeout of about 200msec. That stops this routine from
+		 * spinning endlessly, and gives time to complete the other
+		 * requests. But it is not as slow as the 2000msec wait
+		 * time for when the kernel is out of buffers. */
+		comm_point_slow_accept(c, NETEVENT_SLOW_ACCEPT_QUEUE_TIME);
 		return;
 	}
 	/* accept incoming connection. */
@@ -3229,6 +3303,7 @@ comm_point_tcp_accept_callback(int fd, short event, void* arg)
 		if(!c_hdl->h2_session ||
 			!http2_session_server_create(c_hdl->h2_session)) {
 			log_warn("failed to create nghttp2");
+			comm_point_slow_accept(c, 0);
 			return;
 		}
 		if(!c_hdl->h2_session ||
@@ -3236,6 +3311,7 @@ comm_point_tcp_accept_callback(int fd, short event, void* arg)
 			log_warn("failed to submit http2 settings");
 			if(c_hdl->h2_session)
 				http2_session_server_delete(c_hdl->h2_session);
+			comm_point_slow_accept(c, 0);
 			return;
 		}
 		if(!c->ssl) {
@@ -3252,11 +3328,12 @@ comm_point_tcp_accept_callback(int fd, short event, void* arg)
 			comm_point_tcp_handle_callback, c_hdl);
 	}
 	if(!c_hdl->ev->ev) {
-		log_warn("could not ub_event_new, dropped tcp");
+		log_warn("could not ub_event_new, for new tcp");
 #ifdef HAVE_NGHTTP2
 		if(c_hdl->type == comm_http && c_hdl->h2_session)
 			http2_session_server_delete(c_hdl->h2_session);
 #endif
+		comm_point_slow_accept(c, 0);
 		return;
 	}
 	log_assert(fd != -1);
@@ -3270,6 +3347,10 @@ comm_point_tcp_accept_callback(int fd, short event, void* arg)
 #endif
 		return;
 	}
+	/* move per-netblock TCP-connection-limit handle to the handler so that
+	 * comm_point_close() on the handler decrements the count on close */
+	c_hdl->tcl_addr = c->tcl_addr;
+	c->tcl_addr = NULL;
 	/* Copy remote_address to client_address.
 	 * Simplest way/time for streams to do that. */
 	c_hdl->repinfo.client_addrlen = c_hdl->repinfo.remote_addrlen;
@@ -5014,6 +5095,14 @@ http_chunked_segment(struct comm_point* c)
 		c->http_stored = 0;
 		sldns_buffer_skip(c->buffer, (ssize_t)c->tcp_byte_count);
 		sldns_buffer_clear(c->http_temp);
+		if(sldns_buffer_remaining(c->buffer) >
+			sldns_buffer_capacity(c->http_temp)) {
+			verbose(VERB_OPS, "http chunked: surplus %d exceeds "
+				"temp buffer %d", (int)sldns_buffer_remaining(
+				c->buffer), (int)sldns_buffer_capacity(
+				c->http_temp));
+			return 0;
+		}
 		sldns_buffer_write(c->http_temp,
 			sldns_buffer_current(c->buffer),
 			sldns_buffer_remaining(c->buffer));
@@ -5344,6 +5433,13 @@ comm_point_http_handle_read(int fd, struct comm_point* c)
 		if(c->http_in_headers || c->http_in_chunk_headers) {
 			/* if header is done, process the header */
 			if(!http_header_done(c->buffer)) {
+				if(sldns_buffer_limit(c->buffer) ==
+					sldns_buffer_capacity(c->buffer)) {
+					verbose(VERB_OPS, "http header line "
+						"exceeds %d bytes, transfer "
+						"failed", (int)sldns_buffer_capacity(c->buffer));
+					return 0;
+				}
 				/* copy remaining data to front of buffer
 				 * and set rest for writing into it */
 				http_moveover_buffer(c->buffer);
@@ -6584,7 +6680,10 @@ comm_point_close(struct comm_point* c)
 			c->event_added = 0;
 		}
 	}
-	tcl_close_connection(c->tcl_addr);
+	if(c->tcl_addr) {
+		tcl_close_connection(c->tcl_addr);
+		c->tcl_addr = NULL;
+	}
 	if(c->tcp_req_info)
 		tcp_req_info_clear(c->tcp_req_info);
 	if(c->h2_session)

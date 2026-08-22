@@ -1,4 +1,4 @@
-/*-
+/*
  * SPDX-License-Identifier: BSD-3-Clause
  *
  * Copyright (c) 1989, 1993
@@ -92,7 +92,7 @@ struct _ftsent {
 	char *fts_path;			/* root path */
 	int fts_errno;			/* errno for this node */
 	int fts_symfd;			/* fd for symlink */
-	int fts_dirfd;                  /* fd for parent directory */
+	int fts_dirfd;                  /* fd for this directory, if a directory */
 	int __fts_reserved[3];          /* reserved for future use */
 	__size_t fts_pathlen;		/* strlen(fts_path) */
 	__size_t fts_namelen;		/* strlen(fts_name) */
@@ -147,6 +147,8 @@ void	*fts_get_clientptr(FTS *);
 FTS	*fts_get_stream(FTSENT *);
 #define	 fts_get_stream(ftsent)	((ftsent)->fts_fts)
 FTS	*fts_open(char * const *, int,
+	    int (*)(const FTSENT * const *, const FTSENT * const *));
+FTS	*fts_openat(int, char * const *, int,
 	    int (*)(const FTSENT * const *, const FTSENT * const *));
 #ifdef __BLOCKS__
 FTS	*fts_open_b(char * const *, int,

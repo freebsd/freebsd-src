@@ -157,7 +157,7 @@ public lbool empty_lines(int s, int e)
 	int i;
 
 	for (i = s;  i <= e;  i++)
-		if (table[i] != NULL_POSITION && table[i] != 0)
+		if (table[i] != NULL_POSITION)
 			return FALSE;
 	return TRUE;
 }
@@ -170,7 +170,7 @@ public lbool empty_lines(int s, int e)
  * such that the top few lines are empty, we may have to set
  * the screen line to a number > 0.
  */
-public void get_scrpos(struct scrpos *scrpos, int where)
+public void get_scrpos_pos(struct scrpos *scrpos, int where, POSITION pos)
 {
 	int i;
 	int dir;
@@ -194,24 +194,52 @@ public void get_scrpos(struct scrpos *scrpos, int where)
 		break;
 	}
 
-	/*
-	 * Find the first line on the screen which has something on it,
-	 * and return the screen line number and the file position.
-	 */
-	for (;; i += dir)
+	if (pos != NULL_POSITION)
 	{
-		if (table[i] != NULL_POSITION)
+		scrpos->ln = i+1;
+		scrpos->pos = pos;
+	} else
+	{
+		/*
+		 * Find the first line on the screen which has something on it,
+		 * and return the screen line number and the file position.
+		 */
+		for (;; i += dir)
 		{
-			scrpos->ln = i+1;
-			scrpos->pos = table[i];
-			return;
+			if (table[i] != NULL_POSITION)
+			{
+				scrpos->ln = i+1;
+				scrpos->pos = table[i];
+				return;
+			}
+			if (i == last) break;
 		}
-		if (i == last) break;
+		/* The screen is empty. */
+		scrpos->pos = NULL_POSITION;
 	}
+}
+
+public void get_scrpos(struct scrpos *scrpos, int where)
+{
+	get_scrpos_pos(scrpos, where, NULL_POSITION);
+}
+
+/*
+ * Convert sline to sindex and clip to screen size.
+ */
+static int sindex_from_sline_clipped(int sline)
+{
 	/*
-	 * The screen is empty.
+	 * Can't be less than 1 or greater than sc_height-1.
 	 */
-	scrpos->pos = NULL_POSITION;
+	if (sline <= 0)
+		sline = 1;
+	if (sline >= sc_height)
+		sline = sc_height-1;
+	/*
+	 * Return zero-based line number, not one-based.
+	 */
+	return (sline-1);
 }
 
 /*
@@ -231,17 +259,7 @@ public int sindex_from_sline(int sline)
 	 */
 	if (sline < 0)
 		sline += sc_height;
-	/*
-	 * Can't be less than 1 or greater than sc_height-1.
-	 */
-	if (sline <= 0)
-		sline = 1;
-	if (sline >= sc_height)
-		sline = sc_height-1;
-	/*
-	 * Return zero-based line number, not one-based.
-	 */
-	return (sline-1);
+	return sindex_from_sline_clipped(sline);
 }
 
 /*
@@ -273,12 +291,14 @@ static int pos_shift(POSITION linepos, size_t choff)
  * Return the position of the first char of the line containing tpos.
  * Thus if tpos is the first char of its line, just return tpos.
  */
-static POSITION beginning_of_line(POSITION tpos)
+public POSITION beginning_of_line(POSITION tpos)
 {
 	ch_seek(tpos);
 	while (ch_tell() != ch_zero())
 	{
 		int ch = ch_back_get();
+		if (ch == EOI)
+			break; /* {{ probably unnecessary due to ch_zero() check }} */
 		if (ch == '\n')
 		{
 			(void) ch_forw_get();
@@ -291,10 +311,11 @@ static POSITION beginning_of_line(POSITION tpos)
 /*
  * When viewing long lines, it may be that the first char in the top screen
  * line is not the first char in its (file) line (the table is "beheaded").
- * This function sets that entry to the position of the first char in the line,
- * and sets hshift so that the first char in the first line is unchanged.
+ * This function sets that entry to the position of the first char in the
+ * line, and optionally sets hshift so that the first char in the first line
+ * is unchanged.
  */
-public void pos_rehead(void)
+public void pos_rehead(lbool adj_hshift)
 {
 	POSITION linepos;
 	POSITION tpos = table[TOP];
@@ -304,6 +325,7 @@ public void pos_rehead(void)
 	if (linepos == tpos)
 		return;
 	table[TOP] = linepos;
-	hshift = pos_shift(linepos, (size_t) (tpos - linepos));
+	if (adj_hshift)
+		hshift = pos_shift(linepos, (size_t) (tpos - linepos));
 	screen_trashed();
 }

@@ -42,6 +42,7 @@
 #include <unistd.h>
 
 #include <cxxabi.h>
+#include <cstring>
 #include <iomanip>
 #include <ios>
 #include <iostream>

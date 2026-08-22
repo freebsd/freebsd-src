@@ -205,10 +205,7 @@ void eap_teap_put_tlv_buf(struct wpabuf *buf, u16 type,
 struct wpabuf * eap_teap_tlv_eap_payload(struct wpabuf *buf);
 int eap_teap_derive_eap_msk(u16 tls_cs, const u8 *simck, u8 *msk);
 int eap_teap_derive_eap_emsk(u16 tls_cs, const u8 *simck, u8 *emsk);
-int eap_teap_derive_cmk_basic_pw_auth(u16 tls_cs, const u8 *s_imck_msk,
-				      u8 *cmk);
-int eap_teap_derive_imck(u16 tls_cs,
-			 const u8 *prev_s_imck_msk, const u8 *prev_s_imck_emsk,
+int eap_teap_derive_imck(u16 tls_cs, const u8 *prev_s_imck,
 			 const u8 *msk, size_t msk_len,
 			 const u8 *emsk, size_t emsk_len,
 			 u8 *s_imck_msk, u8 *cmk_msk,
@@ -224,7 +221,5 @@ struct wpabuf * eap_teap_tlv_result(int status, int intermediate);
 struct wpabuf * eap_teap_tlv_error(enum teap_error_codes error);
 struct wpabuf * eap_teap_tlv_identity_type(enum teap_identity_types id);
 enum eap_type;
-int eap_teap_allowed_anon_prov_phase2_method(int vendor, enum eap_type type);
-int eap_teap_allowed_anon_prov_cipher_suite(u16 cs);
 
 #endif /* EAP_TEAP_H */

@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bitstring.h>
 #include <sys/kernel.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -149,6 +150,34 @@ aq_thermal_report_shutdown(struct aq_dev *aq_dev)
 		    "holding link down until it cools\n");
 }
 
+/* Pre-trip warning: the PHY is hot but the firmware has not shut it down. */
+static void
+aq_thermal_report_hot(struct aq_dev *aq_dev)
+{
+	struct aq_hw *hw = &aq_dev->hw;
+	int temp_mc;
+	bool hot;
+
+	if (hw->fw_ops->get_phy_hot_warning == NULL ||
+	    hw->fw_ops->get_phy_hot_warning(hw, &hot) != 0)
+		return;
+
+	/* Report each edge once; the bit stays set for the whole excursion. */
+	if (hot == aq_dev->phy_hot_last)
+		return;
+	aq_dev->phy_hot_last = hot;
+
+	if (!hot) {
+		device_printf(aq_dev->dev, "PHY temperature normal again\n");
+		return;
+	}
+	if (hw->fw_ops->get_temp(hw, &temp_mc) == 0)
+		device_printf(aq_dev->dev, "PHY over-temperature warning, "
+		    "temp %d C\n", temp_mc / 1000);
+	else
+		device_printf(aq_dev->dev, "PHY over-temperature warning\n");
+}
+
 /* Recover after cooldown: A1 needs a PHY reset then re-init, A2 re-inits alone. */
 static void
 aq_thermal_poll(struct aq_dev *aq_dev)
@@ -159,6 +188,7 @@ aq_thermal_poll(struct aq_dev *aq_dev)
 
 	switch (aq_dev->thermal_state) {
 	case AQ_THERMAL_NORMAL:
+		aq_thermal_report_hot(aq_dev);
 		if (aq_dev->linkup)
 			return;
 		/* The F/W raises the fault a poll after it drops the link. */
@@ -211,6 +241,72 @@ aq_thermal_poll(struct aq_dev *aq_dev)
 	iflib_admin_intr_deferred(aq_dev->ctx);
 }
 
+static const char *
+aq_fc_string(const struct aq_hw_fc_info *fc)
+{
+
+	if (fc->fc_rx && fc->fc_tx)
+		return ("rx/tx");
+	if (fc->fc_rx)
+		return ("rx");
+	if (fc->fc_tx)
+		return ("tx");
+	return ("none");
+}
+
+static void
+aq_link_report_up(struct aq_dev *aq_dev, uint32_t link_speed,
+    const struct aq_hw_fc_info *fc)
+{
+	struct aq_hw *hw = &aq_dev->hw;
+	struct aq_hw_link_info info;
+
+	if (hw->fw_ops->get_link_info != NULL &&
+	    hw->fw_ops->get_link_info(hw, &info) == 0) {
+		device_printf(aq_dev->dev, "link UP: speed=%u, %s-duplex, "
+		    "flowcontrol %s, EEE %s\n", link_speed,
+		    info.full_duplex ? "full" : "half", aq_fc_string(fc),
+		    info.eee ? "on" : "off");
+		return;
+	}
+	device_printf(aq_dev->dev, "link UP: speed=%u, flowcontrol %s\n",
+	    link_speed, aq_fc_string(fc));
+}
+
+/*
+ * The firmware raises a PHY fault a poll after it drops the link, so a
+ * thermal trip usually reports only its temperature here; aq_thermal_poll()
+ * names it on the following poll.
+ */
+static void
+aq_link_report_down(struct aq_dev *aq_dev)
+{
+	struct aq_hw *hw = &aq_dev->hw;
+	struct aq_hw_link_info info;
+	struct sbuf sb;
+	char detail[96];
+	int temp_mc;
+	uint16_t fault;
+
+	sbuf_new(&sb, detail, sizeof(detail), SBUF_FIXEDLEN);
+
+	if (hw->fw_ops->get_phy_fault != NULL &&
+	    hw->fw_ops->get_phy_fault(hw, &fault) == 0 && fault != 0)
+		sbuf_printf(&sb, ", PHY fault 0x%04x", fault);
+	if (hw->fw_ops->get_link_info != NULL &&
+	    hw->fw_ops->get_link_info(hw, &info) == 0)
+		sbuf_printf(&sb, ", F/W link state %u", info.state);
+	if (hw->fw_ops->get_temp != NULL &&
+	    hw->fw_ops->get_temp(hw, &temp_mc) == 0)
+		sbuf_printf(&sb, ", temp %d C", temp_mc / 1000);
+
+	if (sbuf_finish(&sb) != 0)
+		device_printf(aq_dev->dev, "link DOWN\n");
+	else
+		device_printf(aq_dev->dev, "link DOWN%s\n", sbuf_data(&sb));
+	sbuf_delete(&sb);
+}
+
 void
 aq_if_update_admin_status(if_ctx_t ctx)
 {
@@ -221,7 +317,17 @@ aq_if_update_admin_status(if_ctx_t ctx)
 
 
 	struct aq_hw_fc_info fc_neg;
-	aq_hw_get_link_state(hw, &link_speed, &fc_neg);
+	int err;
+
+	err = aq_hw_get_link_state(hw, &link_speed, &fc_neg);
+	if (err != 0 && !aq_dev->link_read_failed) {
+		aq_dev->link_read_failed = true;
+		device_printf(aq_dev->dev, "link state read failed, error %d; "
+		    "holding the last known state\n", err);
+	} else if (err == 0 && aq_dev->link_read_failed) {
+		aq_dev->link_read_failed = false;
+		device_printf(aq_dev->dev, "link state read recovered\n");
+	}
 
 	/* A stopped or half-initialized interface has no link. */
 	running = (if_getdrvflags(iflib_get_ifp(ctx)) & IFF_DRV_RUNNING) != 0;
@@ -229,12 +335,10 @@ aq_if_update_admin_status(if_ctx_t ctx)
 		link_speed = 0;
 
 	/* A retrain can change the speed without ever dropping the link. */
-	if (link_speed != 0U &&
+	if (err == 0 && link_speed != 0U &&
 	    (!aq_dev->linkup || link_speed != aq_dev->link_speed)) {
 		if (!aq_dev->linkup) {
-			if (bootverbose)
-				device_printf(aq_dev->dev,
-				    "link UP: speed=%d\n", link_speed);
+			aq_link_report_up(aq_dev, link_speed, &fc_neg);
 			aq_dev->phy_fault_last = 0;
 		} else
 			device_printf(aq_dev->dev, "link speed=%d\n",
@@ -251,10 +355,11 @@ aq_if_update_admin_status(if_ctx_t ctx)
 		aq_mediastatus_update(aq_dev, link_speed, &fc_neg);
 
 		/* update ITR settings according new link speed */
-		aq_hw_interrupt_moderation_set(hw);
-	} else if (link_speed == 0U && aq_dev->linkup) { /* link was UP */
-		if (bootverbose)
-			device_printf(aq_dev->dev, "link DOWN\n");
+		if (aq_hw_interrupt_moderation_set(hw) != 0)
+			device_printf(aq_dev->dev,
+			    "could not update interrupt moderation\n");
+	} else if (err == 0 && link_speed == 0U && aq_dev->linkup) {
+		aq_link_report_down(aq_dev);
 
 		aq_dev->linkup = 0;
 		aq_dev->link_speed = 0;

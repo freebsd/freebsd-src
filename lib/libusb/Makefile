@@ -3,7 +3,7 @@
 #
 
 LIB=		usb
-SHLIB_MAJOR=	3
+SHLIB_MAJOR=	4
 SHLIB_MINOR=	0
 SRCS=		libusb20.c
 SRCS+=		libusb20_desc.c
@@ -17,6 +17,9 @@ NOGCCERROR=
 PTHREAD_LIBS?=	-lpthread
 
 WARNS?=		2
+
+VERSION_DEF=	${SRCTOP}/lib/libc/Versions.def
+SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 
 LIBADD=		pthread
 

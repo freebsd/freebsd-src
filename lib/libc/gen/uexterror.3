@@ -1,0 +1,135 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2025 The FreeBSD Foundation
+.\" Copyright (c) 2026 Capabilities Limited
+.\"
+.\" This documentation was written by
+.\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" This software was developed by Capabilities Limited with funding from
+.\" Innovate UK and the Department for Science, Innovation and Technology
+.\" for the adoption and diffusion of CHERI technology under project
+.\" 10168042 (“CheriBSD feature extraction, maturity, and testing”).
+.\"
+.Dd August 20, 2026
+.Dt UEXTERROR 3
+.Os
+.Sh NAME
+.Nm uexterror
+.Nd provide extended error information from user-space code
+.Sh SYNOPSIS
+.Bd -literal -offset left -compact
+#define UEXTERR_CATEGORY "path/to/this/file.c"
+.Ed
+.In uexterror.h
+.Ft void
+.Fn UEXTERROR "int error" "const char *msg" ...
+.Sh DESCRIPTION
+The
+.Nm
+framework allows user-space code to report errors using the
+same
+.Xr exterror 9
+infrastructure the kernel uses to return additional information about an
+error along with the standard
+.Xr errno 3
+error code, which is terse and often lacking context.
+.Pp
+The terseness is especially visible with commonly overloaded error codes like
+.Er EINVAL
+or
+.Er EIO ,
+which occur at many places for a given syscall, or even
+outside the context of the current call.
+Identifying the specific cause for the returned error using only the
+.Va errno
+value requires searching for all instances that the error is returned
+in user-space and the kernel and trying to guess which is the most
+likely code path to have returned the error.
+.Nm
+attaches additional data to the error itself
+and records the error category and
+the source code file line number.
+The intent of
+.Nm
+is to make it easier for a user to identify the cause of the error.
+.Sh USAGE
+Before
+.Nm
+can be used in the given source .c file, the category of extended errors
+must be defined.
+This can be done by setting the
+.Va UEXTERR_CATEGORY
+macro to a string containing the name of the file relative to
+.Pa src/sys
+directory.
+.Pp
+A typical code fragment to report an error is to set errno
+.D1 errno = EINVAL;
+An extended error can augment the error code with additional information:
+.D1 UEXTERROR(EINVAL, \[dq]Invalid length\[dq]));
+The error data and metadata is saved in the current thread storage.
+The metadata includes the category and the source file line number.
+.Pp
+Arguments to the
+.Fn UEXTERROR
+macro:
+.Bl -dash
+.It
+The first argument to
+.Fn UEXTERROR
+is the errno error code.
+.It
+The second argument is a constant string with the unbound lifetime,
+which should tersely provide enough human-readable details about
+the error.
+.It
+The
+.Fn UEXTERROR
+macro can take two optional uintptr_t or 64-bit integer arguments,
+whose meaning is specific to the subsystem.
+The format string may include up to two printf-like format
+specifiers to insert the optional argument values in the
+user output, which is done in userspace.
+.Pp
+The format specifier must be for an character, integer, or pointer type.
+Note that userspace printing assumes all
+.Dt long Ns -derived
+types such as
+.Dt size_t
+are 64-bit and prints them accordingly.
+Signed integer types should thus be cast to
+.Dt int64_t
+or similar to insure proper sign extension.
+.El
+.Pp
+Note that unlike its kernel counterpart
+.Xr EXTERROR 9
+the
+.Nm
+macro does not return a value and sets
+.Xr errno 3
+directly.
+.Pp
+The name of the file and strings passed as the second argument are
+retained in the program or library text as long as the translation unit
+was not compiled with the
+.Cd NO_UEXTERR_STRINGS
+macro defined.
+.Sh SEE ALSO
+.Xr errno 3 ,
+.Xr err 3 ,
+.Xr uexterr_gettext 3 ,
+.Xr exterror 9
+.Sh HISTORY
+The
+.Nm
+facility was introduced in
+.Fx 16.0 .
+.Sh AUTHORS
+This software and this manual page were developed by Capabilities
+Limited with funding from Innovate UK and the Department for Science,
+Innovation and Technology for the adoption and diffusion of CHERI
+technology under project 10168042
+.Pq Do CheriBSD feature extraction, maturity, and testing Dc .

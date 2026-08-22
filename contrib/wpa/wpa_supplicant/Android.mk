@@ -138,7 +138,7 @@ OBJS_c += src/utils/trace.c
 LDFLAGS += -rdynamic
 L_CFLAGS += -funwind-tables
 ifdef CONFIG_WPA_TRACE_BFD
-L_CFLAGS += -DWPA_TRACE_BFD
+L_CFLAGS += -DWPA_TRACE_BFD -fno-inline -fno-optimize-sibling-calls
 LIBS += -lbfd
 LIBS_p += -lbfd
 LIBS_c += -lbfd
@@ -242,9 +242,9 @@ L_CFLAGS += -DCONFIG_SAE
 OBJS += src/common/sae.c
 ifdef CONFIG_SAE_PK
 L_CFLAGS += -DCONFIG_SAE_PK
-NEED_AES_SIV=y
 OBJS += src/common/sae_pk.c
 endif
+NEED_AES_SIV=y
 NEED_ECC=y
 NEED_DH_GROUPS=y
 NEED_HMAC_SHA256_KDF=y
@@ -283,10 +283,36 @@ L_CFLAGS += -DCONFIG_DPP3
 endif
 endif
 
+ifdef CONFIG_NAN
+NEED_NAN=y
+L_CFLAGS += -DCONFIG_NAN
+endif
+
 ifdef CONFIG_NAN_USD
-OBJS += src/common/nan_de.c
-OBJS += nan_usd.c
+NEED_OFFCHANNEL=y
+NEED_NAN=y
 L_CFLAGS += -DCONFIG_NAN_USD
+endif
+
+ifdef CONFIG_PR
+OBJS += src/common/proximity_ranging.c
+OBJS += pr_supplicant.c
+L_CFLAGS += -DCONFIG_PR
+endif
+
+ifdef NEED_NAN
+OBJS += nan_supplicant.c
+OBJS += src/nan/nan.c
+OBJS += src/common/nan_de.c
+OBJS += src/nan/nan_util.c
+OBJS += src/nan/nan_ndp.c
+OBJS += src/nan/nan_ndl.c
+OBJS += src/nan/nan_crypto.c
+OBJS += src/nan/nan_sec.c
+OBJS += src/nan/nan_bootstrap.c
+ifdef CONFIG_PASN
+OBJS += src/nan/nan_pairing.c
+endif
 endif
 
 ifdef CONFIG_OWE
@@ -383,6 +409,21 @@ OBJS += wifi_display.c
 endif
 endif
 
+ifdef CONFIG_PMKSA_PRIVACY
+CONFIG_ENC_ASSOC=y
+L_CFLAGS += -DCONFIG_PMKSA_PRIVACY
+endif
+
+ifdef CONFIG_IEEE8021X_AUTH
+CONFIG_ENC_ASSOC=y
+L_CFLAGS += -DCONFIG_IEEE8021X_AUTH
+endif
+
+ifdef CONFIG_ENC_ASSOC
+CONFIG_PASN=y
+L_CFLAGS += -DCONFIG_ENC_ASSOC
+endif
+
 ifdef CONFIG_PASN
 L_CFLAGS += -DCONFIG_PASN
 L_CFLAGS += -DCONFIG_PTKSA_CACHE
@@ -390,6 +431,7 @@ NEED_HMAC_SHA256_KDF=y
 NEED_HMAC_SHA384_KDF=y
 NEED_SHA256=y
 NEED_SHA384=y
+NEED_DRAGONFLY=y
 OBJS += src/pasn/pasn_initiator.c
 OBJS += src/pasn/pasn_common.c
 OBJS += pasn_supplicant.c
@@ -716,7 +758,7 @@ EAPDYN += src/eap_peer/eap_teap.so
 EAPDYN += src/eap_common/eap_teap_common.c
 else
 L_CFLAGS += -DEAP_TEAP
-OBJS += src/eap_peer/eap_teap.c src/eap_peer/eap_teap_pac.c
+OBJS += src/eap_peer/eap_teap.c
 OBJS += src/eap_common/eap_teap_common.c
 endif
 TLS_FUNCS=y
@@ -772,7 +814,9 @@ OBJS += src/eap_peer/eap_pwd.c src/eap_common/eap_pwd_common.c
 CONFIG_IEEE8021X_EAPOL=y
 NEED_ECC=y
 NEED_DRAGONFLY=y
+ifndef CONFIG_FIPS
 MS_FUNCS=y
+endif
 endif
 
 ifdef CONFIG_EAP_EKE
@@ -983,6 +1027,7 @@ OBJS += src/pasn/pasn_responder.c
 OBJS += src/ap/ieee802_11.c
 OBJS += src/ap/hw_features.c
 OBJS += src/ap/dfs.c
+OBJS += src/ap/interference.c
 L_CFLAGS += -DNEED_AP_MLME
 endif
 ifdef CONFIG_WPS
@@ -1709,6 +1754,11 @@ endif
 ifdef NEED_JSON
 OBJS += src/utils/json.c
 L_CFLAGS += -DCONFIG_JSON
+endif
+
+ifdef CONFIG_PROCESS_COORDINATION
+L_CFLAGS += -DCONFIG_PROCESS_COORDINATION
+OBJS += src/common/proc_coord.c
 endif
 
 OBJS += src/drivers/driver_common.c

@@ -171,7 +171,9 @@ struct pcicfg_ea {
     STAILQ_HEAD(, pci_ea_entry) ea_entries;	/* EA entries */
 };
 
-#define	PCICFG_VF	0x0001 /* Device is an SR-IOV Virtual Function */
+#define	PCICFG_VF		0x0001 /* Device is an SR-IOV Virtual Function */
+#define	PCICFG_MPS_WARNED	0x0002 /* MPS conflict already reported */
+#define	PCICFG_MPS_UNRECONCILED	0x0004 /* MPS conflict left unchanged */
 
 /* config header information common to all header types */
 typedef struct pcicfg {
@@ -709,6 +711,7 @@ uint32_t pcie_adjust_config(device_t dev, int reg, uint32_t mask,
 	    uint32_t value, int width);
 void	pcie_apei_error(device_t dev, int sev, uint8_t *aer);
 bool	pcie_flr(device_t dev, u_int max_delay, bool force);
+bool	pcie_flr_supported(device_t dev);
 int	pcie_get_max_completion_timeout(device_t dev);
 bool	pcie_wait_for_pending_transactions(device_t dev, u_int max_delay);
 int	pcie_link_reset(device_t port, int pcie_location);

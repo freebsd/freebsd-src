@@ -128,6 +128,7 @@ static constant struct lesskey_cmdname editnames[] =
 	{ "literal",            EC_LITERAL },
 	{ "mouse",              EC_X11MOUSE },
 	{ "mouse6",             EC_X116MOUSE },
+	{ "noaction",           A_NOACTION },
 	{ "right",              EC_RIGHT },
 	{ "up",                 EC_UP },
 	{ "word-backspace",     EC_W_BACKSPACE },
@@ -295,6 +296,7 @@ static constant char * tstr(char **pp, int xlate)
 						case '+': ch = SK_PAD_PLUS; break;
 						case '.': ch = SK_PAD_DOT; break;
 						case ',': ch = SK_PAD_COMMA; break;
+						case 'e': ch = SK_PAD_ENTER; break;
 					}
 					break;
 				}

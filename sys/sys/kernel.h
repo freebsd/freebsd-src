@@ -94,11 +94,14 @@ extern volatile long ticksl;
  */
 enum sysinit_sub_id {
 	SI_SUB_DUMMY		= 0x0000000,	/* not executed; for linker */
+	SI_SUB_FIRST		= 0x0600000,	/* mp_maxid, etc... */
 	SI_SUB_TUNABLES		= 0x0700000,	/* establish tunable values */
 	SI_SUB_COPYRIGHT	= 0x0800001,	/* first use of console */
+	SI_SUB_NUMA		= 0x0810000,	/* initialize NUMA topology */
 	SI_SUB_VM		= 0x1000000,	/* virtual memory system init */
 	SI_SUB_COUNTER		= 0x1100000,	/* counter(9) is initialized */
 	SI_SUB_KMEM		= 0x1800000,	/* kernel memory */
+	SI_SUB_KENV		= 0x1900000,	/* kernel environment */
 	SI_SUB_HYPERVISOR	= 0x1A40000,	/*
 						 * Hypervisor detection and
 						 * virtualization support
@@ -194,7 +197,8 @@ enum sysinit_elem_order {
 	SI_ORDER_SEVENTH	= 0x0000006,	/* seventh */
 	SI_ORDER_EIGHTH		= 0x0000007,	/* eighth */
 	SI_ORDER_MIDDLE		= 0x1000000,	/* somewhere in the middle */
-	SI_ORDER_ANY		= 0xfffffff	/* last */
+	SI_ORDER_ANY		= 0xf000000,	/* default */
+	SI_ORDER_LAST		= 0xfffffff	/* last */
 };
 
 /*

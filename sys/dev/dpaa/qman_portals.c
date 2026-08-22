@@ -16,6 +16,8 @@
 #include <sys/proc.h>
 #include <sys/pcpu.h>
 #include <sys/sched.h>
+#include <sys/smp.h>	/* For CPU_FOREACH() */
+#include <sys/sysctl.h>
 #include <ddb/ddb.h>
 
 #include <machine/bus.h>
@@ -115,6 +117,7 @@
 #define	QCSP_IER		0x0e04
 #define	QCSP_ISDR		0x0e08
 #define	QCSP_IIR		0xe0c
+#define	QCSP_ITPR		0x0e14
 
 #define	QM_EQCR_VERB_CMD_ENQUEUE	0x01
 #define	QM_EQCR_VERB_BIT_INT		0x04
@@ -129,6 +132,85 @@ DPAA_RING(qman_eqcr, QMAN_EQCR_COUNT, QCSP_EQCR_PI_CENA, QCSP_EQCR_CI_CENA,
 		QCSP_EQCR_PI_CINH, QCSP_EQCR_CI_CINH);
 DPAA_RING(qman_dqrr, QMAN_DQRR_COUNT, QCSP_DQRR_PI_CENA, QCSP_DQRR_CI_CENA,
 		QCSP_DQRR_PI_CINH, QCSP_DQRR_CI_CINH);
+
+/*
+ *  dqrr_ithresh: fire DQRR interrupt once N (of 16) dequeues queued (1-15)
+ *  mr_ithresh:   fire MR interrupt after N messages (1-7)
+ *  iperiod:      timer bound on interrupt latency, in units of 256 QMan
+ *                clocks (~32 us on typical QorIQ platform clock at 100)
+ */
+static int qman_dqrr_ithresh = 12;
+static int qman_mr_ithresh = 4;
+static int qman_iperiod = 100;
+
+static void
+qman_portal_update_reg(bus_size_t reg, uint32_t val)
+{
+	struct qman_portal_softc *sc;
+	device_t portal;
+	int cpu;
+
+	CPU_FOREACH(cpu) {
+		portal = DPCPU_ID_GET(cpu, qman_affine_portal);
+		if (portal == NULL)
+			continue;
+		sc = device_get_softc(portal);
+		bus_write_4(sc->sc_base.sc_mres[1], reg, val);
+	}
+}
+
+static int
+qman_sysctl_reg(struct sysctl_oid *oidp, struct sysctl_req *req,
+    int *var, int min, int max, bus_size_t reg)
+{
+	int val, error;
+
+	val = *var;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (val < min || val > max)
+		return (EINVAL);
+	*var = val;
+	qman_portal_update_reg(reg, val);
+	return (0);
+}
+
+static int
+qman_sysctl_dqrr_ithresh(SYSCTL_HANDLER_ARGS)
+{
+	return (qman_sysctl_reg(oidp, req,
+	    &qman_dqrr_ithresh, 1, 15, QCSP_DQRR_ITR));
+}
+
+static int
+qman_sysctl_mr_ithresh(SYSCTL_HANDLER_ARGS)
+{
+	return (qman_sysctl_reg(oidp, req,
+	    &qman_mr_ithresh, 1, 7, QCSP_MR_ITR));
+}
+
+static int
+qman_sysctl_iperiod(SYSCTL_HANDLER_ARGS)
+{
+	return (qman_sysctl_reg(oidp, req,
+	    &qman_iperiod, 1, 65535, QCSP_ITPR));
+}
+
+SYSCTL_NODE(_hw, OID_AUTO, qman, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "QMan portal tunables");
+SYSCTL_PROC(_hw_qman, OID_AUTO, dqrr_ithresh,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+    NULL, 0, qman_sysctl_dqrr_ithresh, "I",
+    "DQRR interrupt threshold (dequeues queued before interrupt; 1-15)");
+SYSCTL_PROC(_hw_qman, OID_AUTO, mr_ithresh,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+    NULL, 0, qman_sysctl_mr_ithresh, "I",
+    "Message Ring interrupt threshold (messages queued before interrupt; 1-7)");
+SYSCTL_PROC(_hw_qman, OID_AUTO, iperiod,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+    NULL, 0, qman_sysctl_iperiod, "I",
+    "Interrupt time period (units of 256 QMan clocks)");
 
 /*
  * pmode: one of the CFG_EPM constants.
@@ -208,6 +290,12 @@ qman_portal_attach(device_t dev, int cpu)
 	}
 	sc->sc_affine_channel = cell;
 	DPCPU_ID_SET(cpu, qman_affine_portal, dev);
+
+	/* Interrupt coalescing.  See tunables above. */
+	bus_write_4(sc->sc_base.sc_mres[1], QCSP_DQRR_ITR, qman_dqrr_ithresh);
+	bus_write_4(sc->sc_base.sc_mres[1], QCSP_MR_ITR, qman_mr_ithresh);
+	bus_write_4(sc->sc_base.sc_mres[1], QCSP_ITPR, qman_iperiod);
+
 	bus_write_4(sc->sc_base.sc_mres[1], QCSP_IER,
 	    QM_PIRQ_EQCI | QM_PIRQ_EQRI | QM_PIRQ_MRI | QM_PIRQ_CSCI |
 	    QM_PIRQ_DQRI);
@@ -400,6 +488,7 @@ DB_SHOW_COMMAND(fqid, qman_show_fqid)
 		return;
 
 	bzero(&cmd, sizeof(cmd));
+	cmd.query_fq_np.verb = QCSP_VERB_QUERY_FQ_NP;
 	cmd.query_fq_np.fqid = addr;
 
 	/* Ensure we have got QMan port initialized */
@@ -412,6 +501,7 @@ DB_SHOW_COMMAND(fqid, qman_show_fqid)
 	/* Dump all NP fields */
 	if (res != NULL && save_res.query_fq_np.rslt == 0xf0) {
 		db_printf("FQID: %d\n", (int)addr);
+		db_printf("  Non-programmable:\n");
 		db_printf("  State: %x\n", save_res.query_fq_np.state);
 		db_printf("  Link: %x\n", save_res.query_fq_np.fqd_link);
 		db_printf("  ODP_SEQ: %x\n", save_res.query_fq_np.odp_seq);
@@ -435,5 +525,26 @@ DB_SHOW_COMMAND(fqid, qman_show_fqid)
 		db_printf("  od1_sfdr: %x\n", save_res.query_fq_np.od1_sfdr);
 		db_printf("  od2_sfdr: %x\n", save_res.query_fq_np.od2_sfdr);
 		db_printf("  od3_sfdr: %x\n", save_res.query_fq_np.od3_sfdr);
+	}
+
+	bzero(&cmd, sizeof(cmd));
+	cmd.query_fq.verb = QCSP_VERB_QUERY_FQ;
+	cmd.query_fq.fqid = addr;
+
+	res = qman_portal_mc_send_raw(portal, &cmd);
+	if (res != NULL)
+		save_res = *res;
+
+	if (res != NULL && save_res.query_fq.rslt == 0xf0) {
+		db_printf("  Programmable:\n");
+		db_printf("  ORPC: %02x\n", save_res.query_fq.orpc);
+		db_printf("  CGID: %02x\n", save_res.query_fq.cgid);
+		db_printf("  FQ_CTRL: %04x\n", save_res.query_fq.fq_ctrl);
+		db_printf("  DEST_WQ: %04x\n", save_res.query_fq.dest_wq);
+		db_printf("  ICS_CRED: %04x\n", save_res.query_fq.ics_cred);
+		db_printf("  TD_thresh: %04x\n", save_res.query_fq.td_thresh);
+		db_printf("  Context_B: %08x\n", save_res.query_fq.context_b);
+		db_printf("  Context_A: %16lx\n", save_res.query_fq.context_a);
+		db_printf("  OAC: %04x\n", save_res.query_fq.oac);
 	}
 }

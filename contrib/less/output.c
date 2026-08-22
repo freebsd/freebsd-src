@@ -21,17 +21,22 @@
 #endif
 
 public int errmsgs;    /* Count of messages displayed by error() */
-public int need_clr;
-public int final_attr;
+public lbool prompting = FALSE;
+static lbool need_clr = FALSE;
 
 extern int sigs;
 extern int sc_width;
 extern int so_s_width, so_e_width;
-extern int is_tty;
+extern lbool is_tty;
 extern int oldbot;
 extern int utf_mode;
+extern int status_col;
+extern int status_line;
+extern int hilite_target;
+extern int use_color;
 extern char intr_char;
 extern lbool term_init_ever;
+extern int pr_type;
 
 #if MSDOS_COMPILER==WIN32C || MSDOS_COMPILER==BORLANDC || MSDOS_COMPILER==DJGPPC
 extern int ctldisp;
@@ -49,11 +54,13 @@ extern int vt_enabled;
 /*
  * Display the line which is in the line buffer.
  */
-public void put_line(lbool forw_scroll)
+public void put_line_hilite(lbool forw_scroll, lbool target)
 {
 	int c;
 	size_t i;
 	int a;
+	lbool empty_line = TRUE;
+	constant int target_attr = use_color ? AT_COLOR_TARGET : AT_UNDERLINE;
 
 	if (ABORT_SIGS())
 	{
@@ -64,12 +71,27 @@ public void put_line(lbool forw_scroll)
 		return;
 	}
 
-	final_attr = AT_NORMAL;
-
 	for (i = 0;  (c = gline(i, &a)) != '\0';  i++)
 	{
+		if (target && a == AT_NORMAL)
+		{
+			/* We're highlighting this line as the target line. Highlight
+			 * this char if it's not already highlighted, and either we're
+			 * highlighting the whole line or we're highlighting only the
+			 * status column and this is the status column. */
+			if ((status_col && i == 0) ||
+			    (i >= line_pfx_width() && (status_line || !status_col)))
+				a = target_attr;
+		}
+		if (target && (c == '\n' || c == '\r') && empty_line)
+		{
+			/* Line is empty; add a space to carry the target hilite. */
+			at_switch(target_attr);
+			putchr(' ');
+		}
+		if (!(a & AT_ANSI))
+			empty_line = FALSE;
 		at_switch(a);
-		final_attr = a;
 		if (c == '\b')
 			putbs();
 		else
@@ -79,6 +101,11 @@ public void put_line(lbool forw_scroll)
 
 	if (forw_scroll && should_clear_after_line())
 		clear_eol();
+}
+
+public void put_line(lbool forw_scroll)
+{
+	put_line_hilite(forw_scroll, FALSE);
 }
 
 /*
@@ -466,25 +493,14 @@ public int putchr(int ch)
 	 */
 	if (!term_init_ever && outfd == 1)
 		term_init();
-
-#if 0 /* fake UTF-8 output for testing */
-	if (utf_mode)
+	if (prompting)
 	{
-		static char ubuf[MAX_UTF_CHAR_LEN];
-		static int ubuf_len = 0;
-		static int ubuf_index = 0;
-		if (ubuf_len == 0)
-		{
-			ubuf_len = utf_len(c);
-			ubuf_index = 0;
-		}
-		ubuf[ubuf_index++] = c;
-		if (ubuf_index < ubuf_len)
-			return c;
-		c = get_wchar(ubuf) & 0xFF;
-		ubuf_len = 0;
+		constant char *epr = end_pr_string();
+		prompting = FALSE;
+		if (epr != NULL)
+			putstr(epr);
 	}
-#endif
+
 	clear_bot_if_needed();
 #if MSDOS_COMPILER
 	if (c == '\n' && is_tty)
@@ -512,7 +528,7 @@ public void clear_bot_if_needed(void)
 {
 	if (!need_clr)
 		return;
-	need_clr = 0;
+	need_clr = FALSE;
 	clear_bot();
 }
 
@@ -743,7 +759,7 @@ static void ierror_suffix(constant char *fmt, constant PARG *parg, constant char
 	putstr(suffix3);
 	at_exit();
 	flush();
-	need_clr = 1;
+	need_clr = TRUE;
 }
 
 public void ierror(constant char *fmt, constant PARG *parg)

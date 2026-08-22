@@ -711,15 +711,19 @@ ivhd_detach(device_t dev)
 {
 	struct amdvi_softc *softc;
 
+	/*
+	 * amdvi_disable() and domain teardown require every IVHD softc.  The
+	 * vmm module handler normally performs that cleanup before the IVHD
+	 * driver is unloaded.  Refuse an out-of-order detach rather than leave
+	 * enabled translation hardware referring to resources freed below.
+	 */
+	if (iommu_is_initialized())
+		return (EBUSY);
+
 	softc = device_get_softc(dev);
 
 	amdvi_teardown_hw(softc);
 	free(softc->dev_cfg, M_DEVBUF);
-
-	/*
-	 * XXX: delete the device.
-	 * don't allow detach, return EBUSY.
-	 */
 	return (0);
 }
 

@@ -696,7 +696,7 @@ lookup_route(uint32_t fibnum, struct sockaddr_in6 *dst, struct route_in6 *ro,
 		 */
 		struct in6_pktinfo *pi;
 		if (opts && (pi = opts->ip6po_pktinfo) != NULL && pi->ipi6_ifindex) {
-			if (nh->nh_aifp->if_index != pi->ipi6_ifindex)
+			if (nh->nh_ifp->if_index != pi->ipi6_ifindex)
 				nh = NULL;
 		}
 	}

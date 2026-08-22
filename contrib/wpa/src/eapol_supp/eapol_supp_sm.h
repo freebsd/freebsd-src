@@ -373,6 +373,11 @@ int eapol_sm_get_erp_info(struct eapol_sm *sm, struct eap_peer_config *config,
 			  const u8 **realm, size_t *realm_len,
 			  u16 *erp_next_seq_num, const u8 **rrk,
 			  size_t *rrk_len);
+void eapol_sm_set_eap_over_auth_frame(struct eapol_sm *sm, bool active);
+bool eapol_sm_get_eap_over_auth_frame(struct eapol_sm *sm);
+struct wpabuf * eapol_sm_get_eapol_pdu(struct eapol_sm *sm, uint8_t type);
+bool eapol_sm_get_success(struct eapol_sm *sm);
+bool eapol_sm_get_failure(struct eapol_sm *sm);
 
 #else /* IEEE8021X_EAPOL */
 static inline struct eapol_sm *eapol_sm_init(struct eapol_ctx *ctx)

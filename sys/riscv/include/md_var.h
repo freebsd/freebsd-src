@@ -47,6 +47,7 @@ extern bool has_sstc;
 extern bool has_sscofpmf;
 extern bool has_svpbmt;
 extern bool has_vector;
+extern bool has_svinval;
 
 struct dumperinfo;
 struct minidumpstate;

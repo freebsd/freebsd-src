@@ -2188,6 +2188,9 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 	else
 		ret = crypto_dispatch(crp);
 	if (ret) {
+		crypto_freereq(crp);
+		ovpn_peer_release_ref(peer, false);
+		m_freem(m);
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
 		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 	}
@@ -2636,6 +2639,9 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	else
 		ret = crypto_dispatch(crp);
 	if (ret != 0) {
+		crypto_freereq(crp);
+		atomic_add_int(&sc->refcount, -1);
+		m_freem(m);
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_in, 1);
 		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 	}

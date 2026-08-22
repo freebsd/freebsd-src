@@ -303,6 +303,122 @@ ATF_TC_BODY(concurrent_modification, tc)
 	pthread_join(thr, NULL);
 }
 
+/*
+ * Regression test for a bug introduced in 4bd01d6ae01.
+ * With the bug, fts fchdir'd to the parent directory instead of the child,
+ * causing the contents of subdirectories at depth 3 to be silently skipped.
+ *
+ */
+ATF_TC(accpath_correct_after_descent);
+ATF_TC_HEAD(accpath_correct_after_descent, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "fts correctly descends into 3-level directory trees");
+}
+
+ATF_TC_BODY(accpath_correct_after_descent, tc)
+{
+	char *paths[] = { ".", NULL };
+	FTS *fts;
+	FTSENT *ent, *children;
+	bool saw_deep_file = false;
+
+	/*
+	 * Create a 3-level directory tree, mirroring the structure used
+	 * by nmtree_test:mtree_create which also triggered this bug.
+	 */
+	ATF_REQUIRE_EQ(0, mkdir("a", 0755));
+	ATF_REQUIRE_EQ(0, mkdir("a/1", 0755));
+	ATF_REQUIRE_EQ(0, mkdir("a/2", 0755));
+	ATF_REQUIRE_EQ(0, mkdir("b", 0755));
+	ATF_REQUIRE_EQ(0, close(creat("a/1/file", 0644)));
+
+	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL, NULL)) != NULL);
+
+	while ((ent = fts_read(fts)) != NULL) {
+		if (ent->fts_info == FTS_D) {
+			/*
+			 * Call fts_children() to set sp->fts_child.
+			 * This triggered the bug — when fts_read() then
+			 * descends into the directory, it calls
+			 * fts_safe_changedir(sp, p, p->fts_dirfd, p->fts_name)
+			 * instead of fts_safe_changedir(sp, p, -1, p->fts_name).
+			 * With fts_dirfd pointing to the parent, it fchdir's
+			 * to the wrong directory and contents are skipped.
+			 */
+			children = fts_children(fts, 0);
+			(void)children;
+		}
+
+		if (strcmp(ent->fts_name, "file") == 0 &&
+		    ent->fts_info == FTS_F)
+			saw_deep_file = true;
+	}
+
+	ATF_CHECK_MSG(saw_deep_file,
+	    "did not visit 'a/1/file' at depth 3 — "
+	    "fts_safe_changedir used wrong fd after fts_children()");
+
+	ATF_REQUIRE_EQ_MSG(0, fts_close(fts), "fts_close(): %m");
+}
+
+ATF_TC(trailing_slash_children);
+ATF_TC_HEAD(trailing_slash_children, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "fts_children() works for all siblings when the root path "
+	    "has a trailing slash and FTS_NOCHDIR is not set");
+}
+ATF_TC_BODY(trailing_slash_children, tc)
+{
+	char *paths[] = { "root/", NULL };
+	FTS *fts;
+	FTSENT *ent, *children;
+	int files_seen = 0;
+
+	/*
+	 * Reproduce the bug reported on freebsd-current: "ls -lR dir/"
+	 * (trailing slash, relative path) skipped the contents of all
+	 * subdirectories after the first.  It requires fts_children()
+	 * to be called on each directory (as ls -R does), FTS_PHYSICAL
+	 * without FTS_NOCHDIR, and a trailing slash on the root path.
+	 *
+	 * The root cause was that fts_read() descended into each
+	 * subdirectory using fts_safe_changedir(sp, p, -1, p->fts_name)
+	 * instead of p->fts_accpath.  With a trailing-slash root, the
+	 * bare name was resolved relative to the wrong directory, so
+	 * every sibling after the first failed with ENOENT and was
+	 * reported as FTS_DNR.
+	 */
+	ATF_REQUIRE_EQ(0, mkdir("root", 0755));
+	ATF_REQUIRE_EQ(0, mkdir("root/sub1", 0755));
+	ATF_REQUIRE_EQ(0, mkdir("root/sub2", 0755));
+	ATF_REQUIRE_EQ(0, mkdir("root/sub3", 0755));
+	ATF_REQUIRE_EQ(0, close(creat("root/sub1/file1", 0644)));
+	ATF_REQUIRE_EQ(0, close(creat("root/sub2/file2", 0644)));
+	ATF_REQUIRE_EQ(0, close(creat("root/sub3/file3", 0644)));
+
+	ATF_REQUIRE((fts = fts_open(paths, FTS_PHYSICAL, NULL)) != NULL);
+
+	while ((ent = fts_read(fts)) != NULL) {
+		if (ent->fts_info == FTS_D) {
+			children = fts_children(fts, 0);
+			(void)children;
+		}
+		if (ent->fts_info == FTS_DNR || ent->fts_info == FTS_ERR)
+			atf_tc_fail("fts entry '%s' returned info=%d "
+			    "errno=%d — subdirectory contents skipped",
+			    ent->fts_name, ent->fts_info, ent->fts_errno);
+		if (ent->fts_info == FTS_F)
+			files_seen++;
+	}
+
+	ATF_CHECK_EQ_MSG(3, files_seen,
+	    "expected to visit 3 files, saw %d — sibling directories "
+	    "were skipped after the first", files_seen);
+	ATF_REQUIRE_EQ_MSG(0, fts_close(fts), "fts_close(): %m");
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, read_no_exec_dir);
@@ -310,6 +426,8 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, readdir_error_detected);
 	ATF_TP_ADD_TC(tp, odirectory_changedir);
 	ATF_TP_ADD_TC(tp, concurrent_modification);
+	ATF_TP_ADD_TC(tp, accpath_correct_after_descent);
+	ATF_TP_ADD_TC(tp, trailing_slash_children);
 
 	return (atf_no_error());
 }

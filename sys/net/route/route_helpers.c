@@ -183,7 +183,7 @@ rib_foreach_table_walk(int family, bool wlock, rib_walktree_f_t *wa_f,
 			continue;
 		}
 
-		for (int i = 1; i <= AF_MAX; i++)
+		for (int i = 1; i < AF_MAX; i++)
 			rib_walk_ext(fibnum, i, wlock, wa_f, hook_f, arg);
 	}
 }
@@ -205,7 +205,7 @@ rib_foreach_table_walk_del(int family, rib_filter_f_t *filter_f, void *arg)
 			continue;
 		}
 
-		for (int i = 1; i <= AF_MAX; i++)
+		for (int i = 1; i < AF_MAX; i++)
 			rib_walk_del(fibnum, i, filter_f, arg, 0);
 	}
 }

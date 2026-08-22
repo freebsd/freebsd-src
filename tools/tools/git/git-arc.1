@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 27, 2026
+.Dd August 11, 2026
 .Dt GIT-ARC 1
 .Os
 .Sh NAME
@@ -38,6 +38,8 @@
 .Op Fl s Ar subscriber1 Ns Op Cm \&, Ns Ar subscriber2 ...
 .Op Fl p Ar parent
 .Ar commit-ref Op Ar commit-ref ...
+.Nm
+.Cm diff Ar commit-ref Op Ar commit-ref ...
 .Nm
 .Cm list Ar commit-ref Op Ar commit-ref ...
 .Nm
@@ -117,6 +119,19 @@ Specify the parent of the first commit in the list.
 This is useful when adding more commits on top of an already existing
 stack in Phabricator.
 .El
+.It Cm diff
+Show the differences between the specified commits and their associated
+Differential Revisions, that is, what
+.Cm update
+would upload.
+For each commit, the current raw diff of the associated revision is
+applied to the commit's parent, and the result is compared against the
+commit itself.
+An empty diff means the commit and the revision are in sync.
+.Pp
+Since the revision's diff is applied to the local commit's parent, the
+comparison may fail or show unrelated changes if the commit has been
+rebased since the revision was last updated.
 .It Cm list
 Print the associated Differential Revisions for the specified commits.
 .It Cm patch
@@ -270,6 +285,12 @@ $ git arc update b409afcfedcdda
 The title of the commit must be the same as it was when the review
 was created.
 Note that the review description is not automatically updated.
+.Pp
+Show what an update of the review corresponding to HEAD would upload,
+e.g., to check whether local amendments have diverged from the review:
+.Bd -literal -offset indent
+$ git arc diff HEAD
+.Ed
 .Pp
 Apply the patch in review D12345 to the currently checked-out tree,
 and stage it:

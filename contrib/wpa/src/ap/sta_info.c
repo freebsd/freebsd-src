@@ -77,6 +77,24 @@ struct sta_info * ap_get_sta(struct hostapd_data *hapd, const u8 *sta)
 }
 
 
+#ifdef CONFIG_IEEE80211BE
+struct sta_info * ap_get_link_sta(struct hostapd_data *hapd,
+				  const u8 *link_addr)
+{
+	struct sta_info *link_sta;
+
+	for (link_sta = hapd->sta_list; link_sta; link_sta = link_sta->next) {
+		if (link_sta->mld_info.mld_sta &&
+		    ether_addr_equal(link_sta->mld_info.links[hapd->mld_link_id].peer_addr,
+				     link_addr))
+			return link_sta;
+	}
+
+	return NULL;
+}
+#endif /* CONFIG_IEEE80211BE */
+
+
 #ifdef CONFIG_P2P
 struct sta_info * ap_get_sta_p2p(struct hostapd_data *hapd, const u8 *addr)
 {
@@ -191,9 +209,10 @@ void ap_free_sta_pasn(struct hostapd_data *hapd, struct sta_info *sta)
 static void __ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 {
 #ifdef CONFIG_IEEE80211BE
-	if (hostapd_sta_is_link_sta(hapd, sta) &&
-	    !hostapd_drv_link_sta_remove(hapd, sta->addr))
+	if (hostapd_sta_is_link_sta(hapd, sta)) {
+		hostapd_drv_link_sta_remove(hapd, sta->addr);
 		return;
+	}
 #endif /* CONFIG_IEEE80211BE */
 
 	hostapd_drv_sta_remove(hapd, sta->addr);
@@ -201,8 +220,9 @@ static void __ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 
 
 #ifdef CONFIG_IEEE80211BE
-static void clear_wpa_sm_for_each_partner_link(struct hostapd_data *hapd,
-					       struct sta_info *psta)
+
+void set_wpa_sm_for_each_partner_link(struct hostapd_data *hapd,
+				      struct sta_info *psta, void *wpa_sm)
 {
 	struct sta_info *lsta;
 	struct hostapd_data *lhapd;
@@ -215,15 +235,54 @@ static void clear_wpa_sm_for_each_partner_link(struct hostapd_data *hapd,
 			continue;
 
 		lsta = ap_get_sta(lhapd, psta->addr);
-		if (lsta)
-			lsta->wpa_sm = NULL;
+		if (lsta) {
+			if (lsta->wpa_sm && lsta->wpa_sm != wpa_sm)
+				wpa_printf(MSG_DEBUG,
+					   "AP MLD: Replacing lsta->wpa_sm %p with %p for a partner link",
+					   lsta->wpa_sm, wpa_sm);
+			lsta->wpa_sm = wpa_sm;
+		}
 	}
 }
+
+
+void clear_wpa_sm_for_each_partner_link(struct hostapd_data *hapd,
+					struct sta_info *psta)
+{
+	set_wpa_sm_for_each_partner_link(hapd, psta, NULL);
+}
+
+
+void clear_wpa_sm_for_all_sta(struct hostapd_data *hapd,
+			      struct wpa_state_machine *wpa_sm)
+{
+	struct hostapd_data *lhapd;
+
+	if (!hapd->mld)
+		return;
+
+	for_each_mld_link(lhapd, hapd) {
+		struct sta_info *sta;
+
+		for (sta = lhapd->sta_list; sta; sta = sta->next) {
+			if (sta->wpa_sm == wpa_sm) {
+				wpa_printf(MSG_DEBUG,
+					   "AP MLD: Clearing to be freed wpa_sm=%p pointer from sta=%p",
+					   sta->wpa_sm, sta);
+				sta->wpa_sm = NULL;
+			}
+		}
+	}
+}
+
 #endif /* CONFIG_IEEE80211BE */
 
 
 void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 {
+#ifndef CONFIG_NO_VLAN
+	struct hostapd_data *vlan_bss = hapd;
+#endif /* CONFIG_NO_VLAN */
 	int set_beacon = 0;
 
 	accounting_sta_stop(hapd, sta);
@@ -334,22 +393,27 @@ void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 	eloop_cancel_timeout(ap_handle_session_timer, hapd, sta);
 	eloop_cancel_timeout(ap_handle_session_warning_timer, hapd, sta);
 	ap_sta_clear_disconnect_timeouts(hapd, sta);
+	ap_sta_clear_assoc_timeout(hapd, sta);
 	sae_clear_retransmit_timer(hapd, sta);
 
 	ieee802_1x_free_station(hapd, sta);
 
 #ifdef CONFIG_IEEE80211BE
-	if (!ap_sta_is_mld(hapd, sta) ||
-	    hapd->mld_link_id == sta->mld_assoc_link_id) {
-		wpa_auth_sta_deinit(sta->wpa_sm);
-		/* Remove references from partner links. */
-		clear_wpa_sm_for_each_partner_link(hapd, sta);
-	}
-
 	/* Release group references in case non-association link STA is removed
 	 * before association link STA */
 	if (hostapd_sta_is_link_sta(hapd, sta))
-		wpa_release_link_auth_ref(sta->wpa_sm, hapd->mld_link_id);
+		wpa_release_link_auth_ref(sta->wpa_sm, hapd->mld_link_id,
+					  false);
+	if (!ap_sta_is_mld(hapd, sta) ||
+	    hapd->mld_link_id == sta->mld_assoc_link_id) {
+		struct wpa_state_machine *sm = sta->wpa_sm;
+
+		/* Remove references from partner links. */
+		clear_wpa_sm_for_each_partner_link(hapd, sta);
+
+		clear_wpa_sm_for_all_sta(hapd, sm);
+		wpa_auth_sta_deinit(sm);
+	}
 #else /* CONFIG_IEEE80211BE */
 	wpa_auth_sta_deinit(sta->wpa_sm);
 #endif /* CONFIG_IEEE80211BE */
@@ -361,13 +425,20 @@ void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 #endif /* CONFIG_NO_RADIUS */
 
 #ifndef CONFIG_NO_VLAN
+#ifdef CONFIG_IEEE80211BE
+	if (hapd->conf->mld_ap) {
+		vlan_bss = hostapd_mld_get_first_bss(hapd);
+		if (!vlan_bss)
+			vlan_bss = hapd;
+	}
+#endif /* CONFIG_IEEE80211BE */
 	/*
 	 * sta->wpa_sm->group needs to be released before so that
 	 * vlan_remove_dynamic() can check that no stations are left on the
 	 * AP_VLAN netdev.
 	 */
 	if (sta->vlan_id)
-		vlan_remove_dynamic(hapd, sta->vlan_id);
+		vlan_remove_dynamic(vlan_bss, sta->vlan_id);
 	if (sta->vlan_id_bound) {
 		/*
 		 * Need to remove the STA entry before potentially removing the
@@ -378,7 +449,7 @@ void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 			hostapd_drv_sta_remove(hapd, sta->addr);
 			sta->added_unassoc = 0;
 		}
-		vlan_remove_dynamic(hapd, sta->vlan_id_bound);
+		vlan_remove_dynamic(vlan_bss, sta->vlan_id_bound);
 	}
 #endif /* CONFIG_NO_VLAN */
 
@@ -391,7 +462,7 @@ void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 	p2p_group_notif_disassoc(hapd->p2p_group, sta->addr);
 #endif /* CONFIG_P2P */
 
-#ifdef CONFIG_INTERWORKING
+#if defined(CONFIG_INTERWORKING) || defined(CONFIG_DPP)
 	if (sta->gas_dialog) {
 		int i;
 
@@ -399,7 +470,7 @@ void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 			gas_serv_dialog_clear(&sta->gas_dialog[i]);
 		os_free(sta->gas_dialog);
 	}
-#endif /* CONFIG_INTERWORKING */
+#endif /* CONFIG_INTERWORKING || CONFIG_DPP */
 
 	wpabuf_free(sta->wps_ie);
 	wpabuf_free(sta->p2p_ie);
@@ -418,7 +489,6 @@ void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 	hostapd_free_psk_list(sta->psk);
 	os_free(sta->identity);
 	os_free(sta->radius_cui);
-	os_free(sta->remediation_url);
 	os_free(sta->t_c_url);
 	wpabuf_free(sta->hs20_deauth_req);
 	os_free(sta->hs20_session_info_url);
@@ -467,12 +537,21 @@ void ap_free_sta(struct hostapd_data *hapd, struct sta_info *sta)
 
 #ifdef CONFIG_IEEE80211BE
 	ap_sta_free_sta_profile(&sta->mld_info);
+	ml_deinit_link_reconf_req(&sta->reconf_req);
 #endif /* CONFIG_IEEE80211BE */
 
 #ifdef CONFIG_TESTING_OPTIONS
 	os_free(sta->sae_postponed_commit);
 	forced_memzero(sta->last_tk, WPA_TK_MAX_LEN);
 #endif /* CONFIG_TESTING_OPTIONS */
+
+	wpabuf_free(sta->sae_pw_id);
+
+#ifdef CONFIG_IEEE8021X_AUTH
+	crypto_ecdh_deinit(sta->eap_auth_data.ecdh);
+	wpabuf_clear_free(sta->eap_auth_data.dhss);
+	os_free(sta->eap_auth_data.rsnxe);
+#endif /* CONFIG_IEEE8021X_AUTH */
 
 	os_free(sta);
 }
@@ -580,6 +659,17 @@ void ap_handle_timer(void *eloop_ctx, void *timeout_ctx)
 			sta->timeout_next = STA_DISASSOC;
 			goto skip_poll;
 		} else if (inactive_sec < max_inactivity) {
+#ifdef CONFIG_TESTING_OPTIONS
+			if (hapd->conf->skip_inactivity_poll == -1) {
+				wpa_msg(hapd->msg_ctx, MSG_DEBUG,
+					"Force inactivity timeout for station "
+					MACSTR
+					" even though it has been active %is ago",
+					MAC2STR(sta->addr), inactive_sec);
+				sta->timeout_next = STA_DISASSOC;
+				goto skip_poll;
+			}
+#endif /* CONFIG_TESTING_OPTIONS */
 			/* station activity detected; reset timeout state */
 			wpa_msg(hapd->msg_ctx, MSG_DEBUG,
 				"Station " MACSTR " has been active %is ago",
@@ -791,6 +881,25 @@ void ap_sta_session_warning_timeout(struct hostapd_data *hapd,
 }
 
 
+static void ap_sta_assoc_timeout(void *eloop_ctx, void *timeout_ctx)
+{
+	struct hostapd_data *hapd = eloop_ctx;
+	struct sta_info *sta = timeout_ctx;
+
+	if (sta->flags & WLAN_STA_ASSOC)
+		return;
+
+	wpa_printf(MSG_DEBUG, "STA " MACSTR
+		   " did not complete association in time - remove it",
+		   MAC2STR(sta->addr));
+	if (sta->flags & WLAN_STA_AUTH)
+		ap_sta_deauthenticate(hapd, sta,
+				      WLAN_REASON_PREV_AUTH_NOT_VALID);
+	else
+		ap_free_sta(hapd, sta);
+}
+
+
 struct sta_info * ap_sta_add(struct hostapd_data *hapd, const u8 *addr)
 {
 	struct sta_info *sta;
@@ -821,11 +930,11 @@ struct sta_info * ap_sta_add(struct hostapd_data *hapd, const u8 *addr)
 	}
 
 	for (i = 0; i < WLAN_SUPP_RATES_MAX; i++) {
-		if (!hapd->iface->basic_rates)
+		if (!hapd->basic_rates)
 			break;
-		if (hapd->iface->basic_rates[i] < 0)
+		if (hapd->basic_rates[i] <= 0)
 			break;
-		sta->supported_rates[i] = hapd->iface->basic_rates[i] / 5;
+		sta->supported_rates[i] = hapd->basic_rates[i] / 5;
 	}
 	sta->supported_rates_len = i;
 
@@ -855,6 +964,9 @@ struct sta_info * ap_sta_add(struct hostapd_data *hapd, const u8 *addr)
 	sta_track_claim_taxonomy_info(hapd->iface, addr,
 				      &sta->probe_ie_taxonomy);
 #endif /* CONFIG_TAXONOMY */
+
+	if (!(hapd->conf->mesh & MESH_ENABLED))
+		eloop_register_timeout(60, 0, ap_sta_assoc_timeout, hapd, sta);
 
 	return sta;
 }
@@ -924,7 +1036,8 @@ static void ap_sta_disassoc_cb_timeout(void *eloop_ctx, void *timeout_ctx)
 
 
 static void ap_sta_disconnect_common(struct hostapd_data *hapd,
-				     struct sta_info *sta, unsigned int timeout)
+				     struct sta_info *sta, unsigned int timeout,
+				     bool free_1x)
 {
 	sta->last_seq_ctrl = WLAN_INVALID_MGMT_SEQ;
 
@@ -933,23 +1046,39 @@ static void ap_sta_disconnect_common(struct hostapd_data *hapd,
 
 	wpa_printf(MSG_DEBUG,
 		   "reschedule ap_handle_timer timeout (%u sec) for " MACSTR,
-		   MAC2STR(sta->addr), timeout);
+		   timeout, MAC2STR(sta->addr));
 
 	eloop_cancel_timeout(ap_handle_timer, hapd, sta);
 	eloop_register_timeout(timeout, 0, ap_handle_timer, hapd, sta);
 	accounting_sta_stop(hapd, sta);
-	ieee802_1x_free_station(hapd, sta);
+	if (free_1x)
+		ieee802_1x_free_station(hapd, sta);
 #ifdef CONFIG_IEEE80211BE
-	if (!hapd->conf->mld_ap ||
+	if (!ap_sta_is_mld(hapd, sta) ||
 	    hapd->mld_link_id == sta->mld_assoc_link_id) {
-		wpa_auth_sta_deinit(sta->wpa_sm);
+		struct wpa_state_machine *sm = sta->wpa_sm;
+
 		clear_wpa_sm_for_each_partner_link(hapd, sta);
+		clear_wpa_sm_for_all_sta(hapd, sm);
+		wpa_auth_sta_deinit(sm);
 	}
 #else /* CONFIG_IEEE80211BE */
 	wpa_auth_sta_deinit(sta->wpa_sm);
 #endif /* CONFIG_IEEE80211BE */
 
 	sta->wpa_sm = NULL;
+}
+
+
+static void ap_sta_disassociate_common(struct hostapd_data *hapd,
+				       struct sta_info *sta, u16 reason)
+{
+	sta->disassoc_reason = reason;
+	sta->flags |= WLAN_STA_PENDING_DISASSOC_CB;
+	eloop_cancel_timeout(ap_sta_disassoc_cb_timeout, hapd, sta);
+	eloop_register_timeout(hapd->iface->drv_flags &
+			       WPA_DRIVER_FLAGS_DEAUTH_TX_STATUS ? 2 : 0, 0,
+			       ap_sta_disassoc_cb_timeout, hapd, sta);
 }
 
 
@@ -970,14 +1099,9 @@ static void ap_sta_handle_disassociate(struct hostapd_data *hapd,
 		sta->timeout_next = STA_DEAUTH;
 	}
 
-	ap_sta_disconnect_common(hapd, sta, AP_MAX_INACTIVITY_AFTER_DISASSOC);
-
-	sta->disassoc_reason = reason;
-	sta->flags |= WLAN_STA_PENDING_DISASSOC_CB;
-	eloop_cancel_timeout(ap_sta_disassoc_cb_timeout, hapd, sta);
-	eloop_register_timeout(hapd->iface->drv_flags &
-			       WPA_DRIVER_FLAGS_DEAUTH_TX_STATUS ? 2 : 0, 0,
-			       ap_sta_disassoc_cb_timeout, hapd, sta);
+	ap_sta_disconnect_common(hapd, sta, AP_MAX_INACTIVITY_AFTER_DISASSOC,
+				 true);
+	ap_sta_disassociate_common(hapd, sta, reason);
 }
 
 
@@ -993,25 +1117,9 @@ static void ap_sta_deauth_cb_timeout(void *eloop_ctx, void *timeout_ctx)
 }
 
 
-static void ap_sta_handle_deauthenticate(struct hostapd_data *hapd,
+static void ap_sta_deauthenticate_common(struct hostapd_data *hapd,
 					 struct sta_info *sta, u16 reason)
 {
-	if (hapd->iface->current_mode &&
-	    hapd->iface->current_mode->mode == HOSTAPD_MODE_IEEE80211AD) {
-		/* Deauthentication is not used in DMG/IEEE 802.11ad;
-		 * disassociate the STA instead. */
-		ap_sta_disassociate(hapd, sta, reason);
-		return;
-	}
-
-	wpa_printf(MSG_DEBUG, "%s: deauthenticate STA " MACSTR,
-		   hapd->conf->iface, MAC2STR(sta->addr));
-
-	sta->flags &= ~(WLAN_STA_AUTH | WLAN_STA_ASSOC | WLAN_STA_ASSOC_REQ_OK);
-
-	sta->timeout_next = STA_REMOVE;
-	ap_sta_disconnect_common(hapd, sta, AP_MAX_INACTIVITY_AFTER_DEAUTH);
-
 	sta->deauth_reason = reason;
 	sta->flags |= WLAN_STA_PENDING_DEAUTH_CB;
 	eloop_cancel_timeout(ap_sta_deauth_cb_timeout, hapd, sta);
@@ -1021,9 +1129,47 @@ static void ap_sta_handle_deauthenticate(struct hostapd_data *hapd,
 }
 
 
+static void ap_sta_handle_deauthenticate(struct hostapd_data *hapd,
+					 struct sta_info *sta, u16 reason)
+{
+	wpa_printf(MSG_DEBUG, "%s: deauthenticate STA " MACSTR,
+		   hapd->conf->iface, MAC2STR(sta->addr));
+
+	sta->flags &= ~(WLAN_STA_AUTH | WLAN_STA_ASSOC | WLAN_STA_ASSOC_REQ_OK);
+
+	sta->timeout_next = STA_REMOVE;
+	ap_sta_disconnect_common(hapd, sta, AP_MAX_INACTIVITY_AFTER_DEAUTH,
+				 true);
+	ap_sta_deauthenticate_common(hapd, sta, reason);
+}
+
+
+static void ap_sta_handle_disconnect(struct hostapd_data *hapd,
+				     struct sta_info *sta, u16 reason)
+{
+	wpa_printf(MSG_DEBUG, "%s: disconnect STA " MACSTR,
+		   hapd->conf->iface, MAC2STR(sta->addr));
+
+	sta->flags &= ~(WLAN_STA_AUTH | WLAN_STA_ASSOC);
+	wpa_auth_sm_event(sta->wpa_sm, WPA_DEAUTH);
+	ieee802_1x_notify_port_enabled(sta->eapol_sm, 0);
+	sta->timeout_next = STA_REMOVE;
+
+	ap_sta_disconnect_common(hapd, sta, AP_MAX_INACTIVITY_AFTER_DEAUTH,
+				 false);
+	ap_sta_deauthenticate_common(hapd, sta, reason);
+}
+
+
+enum ap_sta_disconnect_op {
+	AP_STA_DEAUTHENTICATE,
+	AP_STA_DISASSOCIATE,
+	AP_STA_DISCONNECT
+};
+
 static bool ap_sta_ml_disconnect(struct hostapd_data *hapd,
 				 struct sta_info *sta, u16 reason,
-				 bool disassoc)
+				 enum ap_sta_disconnect_op op)
 {
 #ifdef CONFIG_IEEE80211BE
 	struct hostapd_data *assoc_hapd, *tmp_hapd;
@@ -1031,7 +1177,7 @@ static bool ap_sta_ml_disconnect(struct hostapd_data *hapd,
 	unsigned int i, link_id;
 	struct hapd_interfaces *interfaces;
 
-	if (!hostapd_is_mld_ap(hapd))
+	if (!hostapd_is_multiple_link_mld(hapd))
 		return false;
 
 	/*
@@ -1072,25 +1218,30 @@ static bool ap_sta_ml_disconnect(struct hostapd_data *hapd,
 				    tmp_sta->aid != assoc_sta->aid)
 					continue;
 
-				if (disassoc)
+				if (op == AP_STA_DISASSOCIATE)
 					ap_sta_handle_disassociate(tmp_hapd,
 								   tmp_sta,
 								   reason);
-				else
+				else if (op == AP_STA_DEAUTHENTICATE)
 					ap_sta_handle_deauthenticate(tmp_hapd,
 								     tmp_sta,
 								     reason);
-
+				else
+					ap_sta_handle_disconnect(tmp_hapd,
+								 tmp_sta,
+								 reason);
 				break;
 			}
 		}
 	}
 
 	/* Disconnect the station on which the association was performed. */
-	if (disassoc)
+	if (op == AP_STA_DISASSOCIATE)
 		ap_sta_handle_disassociate(assoc_hapd, assoc_sta, reason);
-	else
+	else if (op == AP_STA_DEAUTHENTICATE)
 		ap_sta_handle_deauthenticate(assoc_hapd, assoc_sta, reason);
+	else
+		ap_sta_handle_disconnect(assoc_hapd, assoc_sta, reason);
 
 	return true;
 #else /* CONFIG_IEEE80211BE */
@@ -1102,7 +1253,7 @@ static bool ap_sta_ml_disconnect(struct hostapd_data *hapd,
 void ap_sta_disassociate(struct hostapd_data *hapd, struct sta_info *sta,
 			 u16 reason)
 {
-	if (ap_sta_ml_disconnect(hapd, sta, reason, true))
+	if (ap_sta_ml_disconnect(hapd, sta, reason, AP_STA_DISASSOCIATE))
 		return;
 
 	ap_sta_handle_disassociate(hapd, sta, reason);
@@ -1112,7 +1263,15 @@ void ap_sta_disassociate(struct hostapd_data *hapd, struct sta_info *sta,
 void ap_sta_deauthenticate(struct hostapd_data *hapd, struct sta_info *sta,
 			   u16 reason)
 {
-	if (ap_sta_ml_disconnect(hapd, sta, reason, false))
+	if (hapd->iface->current_mode &&
+	    hapd->iface->current_mode->mode == HOSTAPD_MODE_IEEE80211AD) {
+		/* Deauthentication is not used in DMG/IEEE 802.11ad;
+		 * disassociate the STA instead. */
+		ap_sta_disassociate(hapd, sta, reason);
+		return;
+	}
+
+	if (ap_sta_ml_disconnect(hapd, sta, reason, AP_STA_DEAUTHENTICATE))
 		return;
 
 	ap_sta_handle_deauthenticate(hapd, sta, reason);
@@ -1139,10 +1298,19 @@ int ap_sta_wps_cancel(struct hostapd_data *hapd,
 static int ap_sta_get_free_vlan_id(struct hostapd_data *hapd)
 {
 	struct hostapd_vlan *vlan;
+	struct hostapd_data *vlan_bss = hapd;
 	int vlan_id = MAX_VLAN_ID + 2;
 
+#ifdef CONFIG_IEEE80211BE
+	if (hapd->conf->mld_ap) {
+		vlan_bss = hostapd_mld_get_first_bss(hapd);
+		if (!vlan_bss)
+			vlan_bss = hapd;
+	}
+#endif /* CONFIG_IEEE80211BE */
+
 retry:
-	for (vlan = hapd->conf->vlan; vlan; vlan = vlan->next) {
+	for (vlan = vlan_bss->conf->vlan; vlan; vlan = vlan->next) {
 		if (vlan->vlan_id == vlan_id) {
 			vlan_id++;
 			goto retry;
@@ -1152,11 +1320,21 @@ retry:
 }
 
 
-int ap_sta_set_vlan(struct hostapd_data *hapd, struct sta_info *sta,
-		    struct vlan_description *vlan_desc)
+static int ap_sta_set_vlan_helper(struct hostapd_data *hapd,
+				  struct sta_info *sta,
+				  struct vlan_description *vlan_desc)
 {
 	struct hostapd_vlan *vlan = NULL, *wildcard_vlan = NULL;
+	struct hostapd_data *vlan_bss = hapd;
 	int old_vlan_id, vlan_id = 0, ret = 0;
+
+#ifdef CONFIG_IEEE80211BE
+	if (hapd->conf->mld_ap) {
+		vlan_bss = hostapd_mld_get_first_bss(hapd);
+		if (!vlan_bss)
+			vlan_bss = hapd;
+	}
+#endif /* CONFIG_IEEE80211BE */
 
 	/* Check if there is something to do */
 	if (hapd->conf->ssid.per_sta_vif && !sta->vlan_id) {
@@ -1174,7 +1352,7 @@ int ap_sta_set_vlan(struct hostapd_data *hapd, struct sta_info *sta,
 		/* find a free vlan_id sufficiently big */
 		vlan_id = ap_sta_get_free_vlan_id(hapd);
 		/* Get wildcard VLAN */
-		for (vlan = hapd->conf->vlan; vlan; vlan = vlan->next) {
+		for (vlan = vlan_bss->conf->vlan; vlan; vlan = vlan->next) {
 			if (vlan->vlan_id == VLAN_ID_WILDCARD)
 				break;
 		}
@@ -1188,7 +1366,7 @@ int ap_sta_set_vlan(struct hostapd_data *hapd, struct sta_info *sta,
 			goto done;
 		}
 	} else if (vlan_desc && vlan_desc->notempty) {
-		for (vlan = hapd->conf->vlan; vlan; vlan = vlan->next) {
+		for (vlan = vlan_bss->conf->vlan; vlan; vlan = vlan->next) {
 			if (!vlan_compare(&vlan->vlan_desc, vlan_desc))
 				break;
 			if (vlan->vlan_id == VLAN_ID_WILDCARD)
@@ -1201,10 +1379,10 @@ int ap_sta_set_vlan(struct hostapd_data *hapd, struct sta_info *sta,
 			vlan_id = vlan_desc->untagged;
 			if (vlan_desc->tagged[0]) {
 				/* Tagged VLAN configuration */
-				vlan_id = ap_sta_get_free_vlan_id(hapd);
+				vlan_id = ap_sta_get_free_vlan_id(vlan_bss);
 			}
 		} else {
-			hostapd_logger(hapd, sta->addr,
+			hostapd_logger(vlan_bss, sta->addr,
 				       HOSTAPD_MODULE_IEEE80211,
 				       HOSTAPD_LEVEL_DEBUG,
 				       "missing vlan and wildcard for vlan=%d%s",
@@ -1217,9 +1395,9 @@ int ap_sta_set_vlan(struct hostapd_data *hapd, struct sta_info *sta,
 	}
 
 	if (vlan && vlan->vlan_id == VLAN_ID_WILDCARD) {
-		vlan = vlan_add_dynamic(hapd, vlan, vlan_id, vlan_desc);
+		vlan = vlan_add_dynamic(vlan_bss, vlan, vlan_id, vlan_desc);
 		if (vlan == NULL) {
-			hostapd_logger(hapd, sta->addr,
+			hostapd_logger(vlan_bss, sta->addr,
 				       HOSTAPD_MODULE_IEEE80211,
 				       HOSTAPD_LEVEL_DEBUG,
 				       "could not add dynamic VLAN interface for vlan=%d%s",
@@ -1231,13 +1409,13 @@ int ap_sta_set_vlan(struct hostapd_data *hapd, struct sta_info *sta,
 			goto done;
 		}
 
-		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
+		hostapd_logger(vlan_bss, sta->addr, HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_DEBUG,
 			       "added new dynamic VLAN interface '%s'",
 			       vlan->ifname);
 	} else if (vlan && vlan->dynamic_vlan > 0) {
 		vlan->dynamic_vlan++;
-		hostapd_logger(hapd, sta->addr,
+		hostapd_logger(vlan_bss, sta->addr,
 			       HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_DEBUG,
 			       "updated existing dynamic VLAN interface '%s'",
@@ -1249,24 +1427,63 @@ done:
 	sta->vlan_desc = vlan ? &vlan->vlan_desc : NULL;
 
 	if (vlan_id != old_vlan_id && old_vlan_id)
-		vlan_remove_dynamic(hapd, old_vlan_id);
+		vlan_remove_dynamic(vlan_bss, old_vlan_id);
 
 	return ret;
 }
 
 
-int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta)
+int ap_sta_set_vlan(struct hostapd_data *hapd, struct sta_info *sta,
+		    struct vlan_description *vlan_desc)
+{
+	int ret;
+#ifdef CONFIG_IEEE80211BE
+	size_t i;
+	struct hapd_interfaces *interfaces = hapd->iface->interfaces;
+#endif /* CONFIG_IEEE80211BE */
+
+	ret = ap_sta_set_vlan_helper(hapd, sta, vlan_desc);
+	if (ret)
+		return ret;
+#ifdef CONFIG_IEEE80211BE
+	for (i = 0; interfaces && i < interfaces->count; i++) {
+		struct sta_info *tmp_sta;
+		struct hostapd_data *tmp_hapd = interfaces->iface[i]->bss[0];
+
+		if (!tmp_hapd->conf->mld_ap ||
+		    hapd == tmp_hapd ||
+		    !hostapd_is_ml_partner(hapd, tmp_hapd))
+			continue;
+
+		tmp_sta = ap_get_sta(tmp_hapd, sta->addr);
+		if (tmp_sta)
+			ap_sta_set_vlan_helper(tmp_hapd, tmp_sta, vlan_desc);
+	}
+
+#endif /* CONFIG_IEEE80211BE */
+
+	return 0;
+}
+
+
+static int ap_sta_bind_vlan_helper(struct hostapd_data *hapd,
+				   struct sta_info *sta)
 {
 #ifndef CONFIG_NO_VLAN
 	const char *iface;
 	struct hostapd_vlan *vlan = NULL;
+	struct hostapd_data *vlan_bss = hapd;
 	int ret;
 	int old_vlanid = sta->vlan_id_bound;
 	int mld_link_id = -1;
 
 #ifdef CONFIG_IEEE80211BE
-	if (hapd->conf->mld_ap)
+	if (hapd->conf->mld_ap) {
 		mld_link_id = hapd->mld_link_id;
+		vlan_bss = hostapd_mld_get_first_bss(hapd);
+		if (!vlan_bss)
+			vlan_bss = hapd;
+	}
 #endif /* CONFIG_IEEE80211BE */
 
 	if ((sta->flags & WLAN_STA_WDS) && sta->vlan_id == 0) {
@@ -1281,7 +1498,7 @@ int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta)
 		iface = hapd->conf->ssid.vlan;
 
 	if (sta->vlan_id > 0) {
-		for (vlan = hapd->conf->vlan; vlan; vlan = vlan->next) {
+		for (vlan = vlan_bss->conf->vlan; vlan; vlan = vlan->next) {
 			if (vlan->vlan_id == sta->vlan_id)
 				break;
 		}
@@ -1299,7 +1516,7 @@ int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta)
 
 	if (sta->vlan_id > 0 && !vlan &&
 	    !(hapd->iface->drv_flags & WPA_DRIVER_FLAGS_VLAN_OFFLOAD)) {
-		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
+		hostapd_logger(vlan_bss, sta->addr, HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_DEBUG, "could not find VLAN for "
 			       "binding station to (vlan_id=%d)",
 			       sta->vlan_id);
@@ -1307,7 +1524,7 @@ int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta)
 		goto done;
 	} else if (vlan && vlan->dynamic_vlan > 0) {
 		vlan->dynamic_vlan++;
-		hostapd_logger(hapd, sta->addr,
+		hostapd_logger(vlan_bss, sta->addr,
 			       HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_DEBUG,
 			       "updated existing dynamic VLAN interface '%s'",
@@ -1318,30 +1535,85 @@ int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta)
 	sta->vlan_id_bound = sta->vlan_id;
 
 skip_counting:
-	hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
+	hostapd_logger(vlan_bss, sta->addr, HOSTAPD_MODULE_IEEE80211,
 		       HOSTAPD_LEVEL_DEBUG, "binding station to interface "
 		       "'%s'", iface);
 
-	if (wpa_auth_sta_set_vlan(sta->wpa_sm, sta->vlan_id) < 0)
+	if (wpa_auth_sta_set_vlan(sta->wpa_sm, hapd->wpa_auth,
+				  sta->vlan_id) < 0)
 		wpa_printf(MSG_INFO, "Failed to update VLAN-ID for WPA");
 
 	ret = hostapd_drv_set_sta_vlan(iface, hapd, sta->addr, sta->vlan_id,
 				       mld_link_id);
 	if (ret < 0) {
-		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
+		hostapd_logger(vlan_bss, sta->addr, HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_DEBUG, "could not bind the STA "
 			       "entry to vlan_id=%d", sta->vlan_id);
 	}
 
 	/* During 1x reauth, if the vlan id changes, then remove the old id. */
 	if (old_vlanid > 0 && old_vlanid != sta->vlan_id)
-		vlan_remove_dynamic(hapd, old_vlanid);
+		vlan_remove_dynamic(vlan_bss, old_vlanid);
 done:
 
 	return ret;
 #else /* CONFIG_NO_VLAN */
 	return 0;
 #endif /* CONFIG_NO_VLAN */
+}
+
+
+int ap_sta_bind_vlan(struct hostapd_data *hapd, struct sta_info *sta)
+{
+	int ret;
+#ifdef CONFIG_IEEE80211BE
+	size_t i;
+	struct hapd_interfaces *interfaces = hapd->iface->interfaces;
+#endif /* CONFIG_IEEE80211BE */
+
+	ret = ap_sta_bind_vlan_helper(hapd, sta);
+	if (ret)
+		return ret;
+#ifdef CONFIG_IEEE80211BE
+	for (i = 0; interfaces && i < interfaces->count; i++) {
+		struct sta_info *tmp_sta;
+		struct hostapd_data *tmp_hapd = interfaces->iface[i]->bss[0];
+
+		if (!tmp_hapd->conf->mld_ap ||
+		    hapd == tmp_hapd ||
+		    !hostapd_is_ml_partner(hapd, tmp_hapd))
+			continue;
+
+		tmp_sta = ap_get_sta(tmp_hapd, sta->addr);
+		if (tmp_sta)
+			ap_sta_bind_vlan_helper(tmp_hapd, tmp_sta);
+	}
+#endif /* CONFIG_IEEE80211BE */
+
+	return 0;
+}
+
+
+void ap_sta_set_sa_query_timeout(struct hostapd_data *hapd,
+				 struct sta_info *sta, int value)
+{
+	sta->sa_query_timed_out = value;
+#ifdef CONFIG_IEEE80211BE
+	if (ap_sta_is_mld(hapd, sta)) {
+		struct hostapd_data *lhapd;
+
+		for_each_mld_link(lhapd, hapd) {
+			struct sta_info *lsta;
+
+			if (lhapd == hapd)
+				continue;
+
+			lsta = ap_get_sta(lhapd, sta->addr);
+			if (lsta)
+				lsta->sa_query_timed_out = value;
+		}
+	}
+#endif /* CONFIG_IEEE80211BE */
 }
 
 
@@ -1357,7 +1629,7 @@ int ap_check_sa_query_timeout(struct hostapd_data *hapd, struct sta_info *sta)
 			       HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_DEBUG,
 			       "association SA Query timed out");
-		sta->sa_query_timed_out = 1;
+		ap_sta_set_sa_query_timeout(hapd, sta, 1);
 		os_free(sta->sa_query_trans_id);
 		sta->sa_query_trans_id = NULL;
 		sta->sa_query_count = 0;
@@ -1529,10 +1801,13 @@ void ap_sta_set_authorized_event(struct hostapd_data *hapd,
 		char dpp_pkhash_buf[100];
 		char keyid_buf[100];
 		char ip_addr[100];
+		char vlanid_buf[20];
 
 		dpp_pkhash_buf[0] = '\0';
 		keyid_buf[0] = '\0';
 		ip_addr[0] = '\0';
+		vlanid_buf[0] = '\0';
+
 #ifdef CONFIG_P2P
 		if (wpa_auth_get_ip_addr(sta->wpa_sm, ip_addr_buf) == 0) {
 			os_snprintf(ip_addr, sizeof(ip_addr),
@@ -1561,15 +1836,21 @@ void ap_sta_set_authorized_event(struct hostapd_data *hapd,
 					 dpp_pkhash, SHA256_MAC_LEN);
 		}
 
-		wpa_msg(hapd->msg_ctx, MSG_INFO, AP_STA_CONNECTED "%s%s%s%s",
-			buf, ip_addr, keyid_buf, dpp_pkhash_buf);
+#ifndef CONFIG_NO_VLAN
+		if (sta->vlan_id)
+			os_snprintf(vlanid_buf, sizeof(vlanid_buf),
+				    " vlanid=%u", sta->vlan_id);
+#endif /* CONFIG_NO_VLAN */
+
+		wpa_msg(hapd->msg_ctx, MSG_INFO, AP_STA_CONNECTED "%s%s%s%s%s",
+			buf, ip_addr, keyid_buf, dpp_pkhash_buf, vlanid_buf);
 
 		if (hapd->msg_ctx_parent &&
 		    hapd->msg_ctx_parent != hapd->msg_ctx)
 			wpa_msg_no_global(hapd->msg_ctx_parent, MSG_INFO,
-					  AP_STA_CONNECTED "%s%s%s%s",
+					  AP_STA_CONNECTED "%s%s%s%s%s",
 					  buf, ip_addr, keyid_buf,
-					  dpp_pkhash_buf);
+					  dpp_pkhash_buf, vlanid_buf);
 	} else {
 		wpa_msg(hapd->msg_ctx, MSG_INFO, AP_STA_DISCONNECTED "%s", buf);
 
@@ -1596,12 +1877,13 @@ void ap_sta_set_authorized_event(struct hostapd_data *hapd,
 }
 
 
-void ap_sta_set_authorized(struct hostapd_data *hapd, struct sta_info *sta,
+bool ap_sta_set_authorized(struct hostapd_data *hapd, struct sta_info *sta,
 			   int authorized)
 {
 	if (!ap_sta_set_authorized_flag(hapd, sta, authorized))
-		return;
+		return false;
 	ap_sta_set_authorized_event(hapd, sta, authorized);
+	return true;
 }
 
 
@@ -1625,41 +1907,19 @@ void ap_sta_disconnect(struct hostapd_data *hapd, struct sta_info *sta,
 
 	if (sta == NULL)
 		return;
-	ap_sta_set_authorized(hapd, sta, 0);
-	sta->flags &= ~(WLAN_STA_AUTH | WLAN_STA_ASSOC);
-	hostapd_set_sta_flags(hapd, sta);
-	wpa_auth_sm_event(sta->wpa_sm, WPA_DEAUTH);
-	ieee802_1x_notify_port_enabled(sta->eapol_sm, 0);
-	wpa_printf(MSG_DEBUG, "%s: %s: reschedule ap_handle_timer timeout "
-		   "for " MACSTR " (%d seconds - "
-		   "AP_MAX_INACTIVITY_AFTER_DEAUTH)",
-		   hapd->conf->iface, __func__, MAC2STR(sta->addr),
-		   AP_MAX_INACTIVITY_AFTER_DEAUTH);
-	eloop_cancel_timeout(ap_handle_timer, hapd, sta);
-	eloop_register_timeout(AP_MAX_INACTIVITY_AFTER_DEAUTH, 0,
-			       ap_handle_timer, hapd, sta);
-	sta->timeout_next = STA_REMOVE;
 
 	if (hapd->iface->current_mode &&
 	    hapd->iface->current_mode->mode == HOSTAPD_MODE_IEEE80211AD) {
 		/* Deauthentication is not used in DMG/IEEE 802.11ad;
 		 * disassociate the STA instead. */
-		sta->disassoc_reason = reason;
-		sta->flags |= WLAN_STA_PENDING_DISASSOC_CB;
-		eloop_cancel_timeout(ap_sta_disassoc_cb_timeout, hapd, sta);
-		eloop_register_timeout(hapd->iface->drv_flags &
-				       WPA_DRIVER_FLAGS_DEAUTH_TX_STATUS ?
-				       2 : 0, 0, ap_sta_disassoc_cb_timeout,
-				       hapd, sta);
+		ap_sta_disassociate_common(hapd, sta, reason);
 		return;
 	}
 
-	sta->deauth_reason = reason;
-	sta->flags |= WLAN_STA_PENDING_DEAUTH_CB;
-	eloop_cancel_timeout(ap_sta_deauth_cb_timeout, hapd, sta);
-	eloop_register_timeout(hapd->iface->drv_flags &
-			       WPA_DRIVER_FLAGS_DEAUTH_TX_STATUS ? 2 : 0, 0,
-			       ap_sta_deauth_cb_timeout, hapd, sta);
+	if (ap_sta_ml_disconnect(hapd, sta, reason, AP_STA_DISCONNECT))
+		return;
+
+	ap_sta_handle_disconnect(hapd, sta, reason);
 }
 
 
@@ -1712,13 +1972,20 @@ void ap_sta_clear_disconnect_timeouts(struct hostapd_data *hapd,
 }
 
 
+void ap_sta_clear_assoc_timeout(struct hostapd_data *hapd,
+				struct sta_info *sta)
+{
+	eloop_cancel_timeout(ap_sta_assoc_timeout, hapd, sta);
+}
+
+
 int ap_sta_flags_txt(u32 flags, char *buf, size_t buflen)
 {
 	int res;
 
 	buf[0] = '\0';
 	res = os_snprintf(buf, buflen,
-			  "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+			  "%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 			  (flags & WLAN_STA_AUTH ? "[AUTH]" : ""),
 			  (flags & WLAN_STA_ASSOC ? "[ASSOC]" : ""),
 			  (flags & WLAN_STA_AUTHORIZED ? "[AUTHORIZED]" : ""),
@@ -1741,6 +2008,7 @@ int ap_sta_flags_txt(u32 flags, char *buf, size_t buflen)
 			  (flags & WLAN_STA_EHT ? "[EHT]" : ""),
 			  (flags & WLAN_STA_6GHZ ? "[6GHZ]" : ""),
 			  (flags & WLAN_STA_VENDOR_VHT ? "[VENDOR_VHT]" : ""),
+			  (flags & WLAN_STA_SPP_AMSDU ? "[SPP-A-MSDU]" : ""),
 			  (flags & WLAN_STA_WNM_SLEEP_MODE ?
 			   "[WNM_SLEEP_MODE]" : ""));
 	if (os_snprintf_error(buflen, res))
@@ -1825,8 +2093,12 @@ static void ap_sta_remove_link_sta(struct hostapd_data *hapd,
 int ap_sta_re_add(struct hostapd_data *hapd, struct sta_info *sta)
 {
 	const u8 *mld_link_addr = NULL;
-	bool mld_link_sta = false;
+	bool mld_link_sta = false, epp_sta = false;
+	u16 eml_cap = 0;
 
+#ifdef CONFIG_ENC_ASSOC
+	epp_sta = sta->epp_sta;
+#endif /* CONFIG_ENC_ASSOC */
 	/*
 	 * If a station that is already associated to the AP, is trying to
 	 * authenticate again, remove the STA entry, in order to make sure the
@@ -1841,6 +2113,7 @@ int ap_sta_re_add(struct hostapd_data *hapd, struct sta_info *sta)
 
 		mld_link_sta = sta->mld_assoc_link_id != mld_link_id;
 		mld_link_addr = sta->mld_info.links[mld_link_id].peer_addr;
+		eml_cap = sta->mld_info.common_info.eml_capa;
 
 		/*
 		 * In case the AP is affiliated with an AP MLD, we need to
@@ -1859,7 +2132,7 @@ int ap_sta_re_add(struct hostapd_data *hapd, struct sta_info *sta)
 			    sta->supported_rates_len,
 			    0, NULL, NULL, NULL, 0, NULL, 0, NULL,
 			    sta->flags, 0, 0, 0, 0,
-			    mld_link_addr, mld_link_sta)) {
+			    mld_link_addr, mld_link_sta, eml_cap, epp_sta)) {
 		hostapd_logger(hapd, sta->addr,
 			       HOSTAPD_MODULE_IEEE80211,
 			       HOSTAPD_LEVEL_NOTICE,

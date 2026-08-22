@@ -1742,7 +1742,7 @@ swp_pager_async_iodone(struct buf *bp)
 	 * very serious trouble.  If it happens to be a disk error, though,
 	 * we may be able to recover by reassigning the swap later on.  So
 	 * in this case we remove the m->swapblk assignment for the page
-	 * but do not free it in the rlist.  The errornous block(s) are thus
+	 * but do not free it in the rlist.  The erroneous block(s) are thus
 	 * never reallocated as swap.  Redirty the page and continue.
 	 */
 	for (i = 0; i < bp->b_npages; ++i) {

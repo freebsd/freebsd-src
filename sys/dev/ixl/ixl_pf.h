@@ -45,6 +45,10 @@
 #define	VF_FLAG_VLAN_CAP		0x04
 #define	VF_FLAG_PROMISC_CAP		0x08
 #define	VF_FLAG_MAC_ANTI_SPOOF		0x10
+#define	VF_FLAG_INITIALIZED		0x20
+
+#define	IXL_VF_MAX_MAC_FILTERS		18
+#define	IXL_VF_MAX_VLAN_FILTERS		16
 
 #define IXL_ICR0_CRIT_ERR_MASK 			\
     (I40E_PFINT_ICR0_PCI_EXCEPTION_MASK | 	\
@@ -100,9 +104,17 @@ enum ixl_state {
 struct ixl_vf {
 	struct ixl_vsi		vsi;
 	u32			vf_flags;
-	u32			num_mdd_events;
+	u64			mdd_tx_events;
+	u64			mdd_rx_events;
+	struct timeval		last_mdd_log;
+	bool			mdd_blocked;
+	bool			mdd_event_pending;
+	bool			mdd_reset_pending;
 
 	u8			mac[ETHER_ADDR_LEN];
+	u8			mac_filters[IXL_VF_MAX_MAC_FILTERS][ETHER_ADDR_LEN];
+	u16			num_mac_filters;
+	u16			default_vlan;
 	u16			vf_num;
 	struct virtchnl_version_info version;
 
@@ -125,6 +137,10 @@ struct ixl_pf {
 #endif
 	u32			state;
 	u8			supported_speeds;
+	bool			led_active;
+	bool			led_phy_controlled;
+	u16			led_phy_addr;
+	u32			led_status;
 
 	struct ixl_pf_qmgr	qmgr;
 	struct ixl_pf_qtag	qtag;
@@ -145,6 +161,7 @@ struct ixl_pf {
 	int			tx_itr;
 	int			rx_itr;
 	int			enable_vf_loopback;
+	int			mdd_auto_reset_vf;
 
 	bool			link_up;
 	int			advertised_speed;
@@ -375,7 +392,15 @@ void	ixl_shutdown_hmc(struct ixl_pf *);
 void	ixl_handle_empr_reset(struct ixl_pf *);
 int	ixl_prepare_for_reset(struct ixl_pf *pf, bool is_up);
 int	ixl_rebuild_hw_structs_after_reset(struct ixl_pf *, bool is_up);
+void	ixl_led_restore(struct ixl_pf *pf);
 int	ixl_pf_reset(struct ixl_pf *);
+
+#ifdef PCI_IOV
+void	ixl_notify_vfs_reset(struct ixl_pf *);
+int	ixl_quiesce_vfs_for_reset(struct ixl_pf *);
+int	ixl_rebuild_vfs_after_reset(struct ixl_pf *);
+int	ixl_reset_vf_on_mdd(struct ixl_pf *, uint16_t);
+#endif
 
 void	ixl_set_queue_rx_itr(struct ixl_rx_queue *);
 void	ixl_set_queue_tx_itr(struct ixl_tx_queue *);

@@ -1399,7 +1399,7 @@ xhci_cmd_set_address(struct xhci_softc *sc, uint64_t input_ctx,
 
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 500 /* ms */));
+	return (xhci_do_command(sc, &trb, 1000 /* ms */));
 }
 
 static usb_error_t

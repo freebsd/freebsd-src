@@ -260,7 +260,7 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
 	struct e1000_mbx_info *mbx = &hw->mbx;
 	u32 timeout = E1000_VF_INIT_TIMEOUT;
 	s32 ret_val = -E1000_ERR_MAC_INIT;
-	u32 ctrl, msgbuf[3];
+	u32 ctrl, msgbuf[3] = { E1000_VF_RESET, ~0U, ~0U };
 	u8 *addr = (u8 *)(&msgbuf[1]);
 
 	DEBUGFUNC("e1000_reset_hw_vf");
@@ -275,23 +275,40 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
 		usec_delay(5);
 	}
 
-	if (timeout) {
-		/* mailbox timeout can now become active */
-		mbx->timeout = E1000_VF_MBX_INIT_TIMEOUT;
+	if (!timeout)
+		return -E1000_ERR_RESET;
 
-		msgbuf[0] = E1000_VF_RESET;
-		mbx->ops.write_posted(hw, msgbuf, 1, 0);
+	/* mailbox timeout can now become active */
+	mbx->timeout = E1000_VF_MBX_INIT_TIMEOUT;
 
-		msec_delay(10);
+	/*
+	 * Linux PFs return a three-dword, zero-filled NACK when the reset
+	 * completed without an assigned MAC address.  FreeBSD PFs also use a
+	 * one-dword NACK while retained queues are still being sanitized.  Seed
+	 * the unused request payload so the two responses remain distinguishable.
+	 */
+	ret_val = mbx->ops.write_posted(hw, msgbuf, 3, 0);
+	if (ret_val)
+		return ret_val;
 
-		/* set our "perm_addr" based on info provided by PF */
-		ret_val = mbx->ops.read_posted(hw, msgbuf, 3, 0);
-		if (!ret_val) {
-			if (msgbuf[0] == (E1000_VF_RESET |
-			    E1000_VT_MSGTYPE_ACK))
-				memcpy(hw->mac.perm_addr, addr, 6);
+	msec_delay(10);
+
+	/* set our "perm_addr" based on info provided by PF */
+	ret_val = mbx->ops.read_posted(hw, msgbuf, 3, 0);
+	if (!ret_val) {
+		switch (msgbuf[0]) {
+		case E1000_VF_RESET | E1000_VT_MSGTYPE_ACK:
+			memcpy(hw->mac.perm_addr, addr, ETHER_ADDR_LEN);
+			break;
+		case E1000_VF_RESET | E1000_VT_MSGTYPE_NACK:
+			if (msgbuf[1] == 0 && msgbuf[2] == 0)
+				memset(hw->mac.perm_addr, 0, ETHER_ADDR_LEN);
 			else
 				ret_val = -E1000_ERR_MAC_INIT;
+			break;
+		default:
+			ret_val = -E1000_ERR_MAC_INIT;
+			break;
 		}
 	}
 
@@ -357,7 +374,7 @@ static int e1000_rar_set_vf(struct e1000_hw *hw, u8 *addr,
 static u32 e1000_hash_mc_addr_vf(struct e1000_hw *hw, u8 *mc_addr)
 {
 	u32 hash_value, hash_mask;
-	u8 bit_shift = 0;
+	u8 bit_shift = 1;
 
 	DEBUGFUNC("e1000_hash_mc_addr_generic");
 
@@ -368,11 +385,13 @@ static u32 e1000_hash_mc_addr_vf(struct e1000_hw *hw, u8 *mc_addr)
 	 * The bit_shift is the number of left-shifts
 	 * where 0xFF would still fall within the hash mask.
 	 */
-	while (hash_mask >> bit_shift != 0xFF)
+	while (bit_shift < 4 && hash_mask >> bit_shift != 0xFF)
 		bit_shift++;
 
-	hash_value = hash_mask & (((mc_addr[4] >> (8 - bit_shift)) |
-				  (((u16) mc_addr[5]) << bit_shift)));
+	hash_value = (u32)mc_addr[4];
+	hash_value >>= 8 - bit_shift;
+	hash_value |= (u32)mc_addr[5] << bit_shift;
+	hash_value &= hash_mask;
 
 	return hash_value;
 }

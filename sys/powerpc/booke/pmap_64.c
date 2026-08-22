@@ -114,6 +114,13 @@ static uma_zone_t ptbl_root_zone;
 static pte_t ****kernel_ptbl_root;
 
 /*
+ * Slack space beyond the bootstrap data_end for which leaf ptbls are
+ * pre-allocated.  Must cover post-alloc growth (1MB roundup + TLB1 grow +
+ * kstack + guard pages).  Rounded up to PDIR_SIZE by the reservation code.
+ */
+#define	BOOTSTRAP_LEAF_SLACK	(2 * PDIR_SIZE)
+
+/*
  * Base of the pmap_mapdev() region.  On 32-bit it immediately follows the
  * userspace address range.  On On 64-bit it's far above, at (1 << 63), and
  * ranges up to the DMAP, giving 62 bits of PA allowed.  This is far larger than
@@ -262,14 +269,16 @@ get_pgtbl_page(pmap_t pmap, void **ptr_tbl, uint32_t index,
 	vm_page_t	m;
 
 	page = ptr_tbl[index];
-	KASSERT(page != 0 || pmap != kernel_pmap,
-	    ("NULL page table page found in kernel pmap!"));
 	if (page == NULL) {
 		page = mmu_booke_alloc_page(pmap, index, nosleep);
 		if (ptr_tbl[index] == NULL) {
 			*isnew = true;
 			ptr_tbl[index] = page;
-			if (hold_parent) {
+			/*
+			 * Kernel page-table pages are never freed, so we do
+			 * not maintain refcounts on their parents.
+			 */
+			if (hold_parent && pmap != kernel_pmap) {
 				m = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)ptr_tbl));
 				m->ref_count++;
 			}
@@ -518,7 +527,8 @@ kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr)
 {
 	pte_t		*pte;
 	vm_size_t	kva_size;
-	int		kernel_pdirs, kernel_pgtbls, pdir_l1s;
+	int		kernel_pdirs, pdir_l1s;
+	unsigned int	kernel_pgtbls;
 	vm_offset_t	va, l1_va, pdir_va, ptbl_va;
 	int		i, j, k;
 
@@ -526,7 +536,8 @@ kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr)
 	kernel_pmap->pm_root = kernel_ptbl_root;
 	pdir_l1s = howmany(kva_size, PG_ROOT_SIZE);
 	kernel_pdirs = howmany(kva_size, PDIR_L1_SIZE);
-	kernel_pgtbls = howmany(kva_size, PDIR_SIZE);
+	kernel_pgtbls = howmany(kernel_vm_end - VM_MIN_KERNEL_ADDRESS,
+	    PDIR_SIZE);
 
 	/* Initialize kernel pdir */
 	l1_va = (vm_offset_t)kernel_ptbl_root +
@@ -537,7 +548,8 @@ kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr)
 		printf("ptbl_root_va: %#lx\n", (vm_offset_t)kernel_ptbl_root);
 		printf("l1_va: %#lx (%d entries)\n", l1_va, pdir_l1s);
 		printf("pdir_va: %#lx(%d entries)\n", pdir_va, kernel_pdirs);
-		printf("ptbl_va: %#lx(%d entries)\n", ptbl_va, kernel_pgtbls);
+		printf("ptbl_va: %#lx(%u entries)\n", ptbl_va, kernel_pgtbls);
+		printf("kernel_vm_end: %#lx\n", kernel_vm_end);
 	}
 
 	va = VM_MIN_KERNEL_ADDRESS;
@@ -550,8 +562,18 @@ kernel_pte_alloc(vm_offset_t data_end, vm_offset_t addr)
 			kernel_pmap->pm_root[i][j] = (pte_t **)pdir_va;
 			for (k = 0;
 			    k < PDIR_NENTRIES && va < VM_MAX_KERNEL_ADDRESS;
-			    k++, va += PDIR_SIZE, ptbl_va += PAGE_SIZE)
-				kernel_pmap->pm_root[i][j][k] = (pte_t *)ptbl_va;
+			    k++, va += PDIR_SIZE) {
+				/*
+				 * Only wire up leaf ptbl pages for the
+				 * pre-allocated bootstrap KVA range; the rest
+				 * are populated lazily by mmu_booke_growkernel().
+				 */
+				if (va < kernel_vm_end) {
+					kernel_pmap->pm_root[i][j][k] =
+					    (pte_t *)ptbl_va;
+					ptbl_va += PAGE_SIZE;
+				}
+			}
 		}
 	}
 	/*
@@ -572,14 +594,69 @@ static vm_offset_t
 mmu_booke_alloc_kernel_pgtables(vm_offset_t data_end)
 {
 	vm_size_t kva_size = VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS;
+	unsigned int leaves;
+
 	kernel_ptbl_root = (pte_t ****)data_end;
 
 	data_end += round_page(PG_ROOT_NENTRIES * sizeof(pte_t ***));
 	data_end += howmany(kva_size, PG_ROOT_SIZE) * PAGE_SIZE;
 	data_end += howmany(kva_size, PDIR_L1_SIZE) * PAGE_SIZE;
-	data_end += howmany(kva_size, PDIR_SIZE) * PAGE_SIZE;
+	/*
+	 * Reserve leaf page-table pages only for the current bootstrap KVA
+	 * range plus a small slack for post-alloc growth (1MB TLB roundup,
+	 * kstack + guard).  Leaves for the rest of KVA are allocated on
+	 * demand by mmu_booke_growkernel().  The two-step howmany() converges
+	 * because leaves themselves add at most one extra leaf per 512 leaves.
+	 */
+	leaves = howmany(data_end - VM_MIN_KERNEL_ADDRESS +
+	    BOOTSTRAP_LEAF_SLACK, PDIR_SIZE);
+	leaves = howmany(data_end - VM_MIN_KERNEL_ADDRESS +
+	    BOOTSTRAP_LEAF_SLACK + leaves * PAGE_SIZE, PDIR_SIZE);
+	data_end += leaves * PAGE_SIZE;
+
+	kernel_vm_end = VM_MIN_KERNEL_ADDRESS + leaves * PDIR_SIZE;
 
 	return (data_end);
+}
+
+/*
+ * Grow the kernel page-table by allocating additional leaf ptbl pages so
+ * that pte_find(kernel_pmap, va) can succeed for [kernel_vm_end, addr].
+ *
+ * All upper levels (root, pdir_l1, pdir) are pre-populated for the whole
+ * KVA at bootstrap, so only the leaf level needs to be allocated here.
+ */
+static int
+mmu_booke_growkernel(vm_offset_t addr)
+{
+	pte_t		**pdir;
+	vm_page_t	m;
+	vm_offset_t	va;
+
+	if (addr <= kernel_vm_end)
+		return (KERN_SUCCESS);
+
+	addr = roundup2(addr, PDIR_SIZE);
+	if (addr - 1 >= vm_map_max(kernel_map))
+		addr = vm_map_max(kernel_map);
+
+	for (va = kernel_vm_end; va < addr; va += PDIR_SIZE) {
+		pdir = kernel_pmap->pm_root[PG_ROOT_IDX(va)][PDIR_L1_IDX(va)];
+		KASSERT(pdir != NULL,
+		    ("mmu_booke_growkernel: NULL pdir at va %#lx", va));
+		if (pdir[PDIR_IDX(va)] != NULL)
+			continue;
+		m = vm_page_alloc_noobj(VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED |
+		    VM_ALLOC_ZERO);
+		if (m == NULL) {
+			kernel_vm_end = va;
+			return (KERN_RESOURCE_SHORTAGE);
+		}
+		m->pindex = va >> PDIR_SHIFT;
+		pdir[PDIR_IDX(va)] = (pte_t *)VM_PAGE_TO_DMAP(m);
+	}
+	kernel_vm_end = addr;
+	return (KERN_SUCCESS);
 }
 
 /*

@@ -428,6 +428,11 @@ if_shared_ctx_t iflib_get_sctx(if_ctx_t ctx);
 
 void iflib_set_mac(if_ctx_t ctx, uint8_t mac[ETHER_ADDR_LEN]);
 void iflib_request_reset(if_ctx_t ctx);
+/* Defer a reset, but discard it if the interface is administratively down. */
+void iflib_request_reset_if_up(if_ctx_t ctx);
+
+/* Report an error from the otherwise void ifdi_init method while it runs. */
+void iflib_init_failed(if_ctx_t ctx);
 uint8_t iflib_in_detach(if_ctx_t ctx);
 
 uint32_t iflib_get_rx_mbuf_sz(if_ctx_t ctx);
@@ -476,6 +481,7 @@ void iflib_irq_free(if_ctx_t ctx, if_irq_t irq);
 void iflib_io_tqg_attach(struct grouptask *gt, void *uniq, int cpu,
     const char *name);
 
+/* Configuration task callbacks must return when iflib_in_detach() is true. */
 void iflib_config_task_init(if_ctx_t ctx, struct task *config_task,
     task_fn_t *fn);
 void iflib_config_task_enqueue(if_ctx_t ctx, struct task *config_task);

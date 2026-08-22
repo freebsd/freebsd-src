@@ -79,6 +79,7 @@ bool has_vector;
 bool __read_frequently has_sstc;
 bool __read_frequently has_sscofpmf;
 bool has_svpbmt;
+bool has_svinval;
 
 /* Z-extensions support. */
 bool has_zicbom;
@@ -478,6 +479,7 @@ update_global_capabilities(u_int cpu, struct cpu_desc *desc)
 	UPDATE_CAP(has_sstc, (desc->smode_extensions & SV_SSTC) != 0);
 	UPDATE_CAP(has_sscofpmf, (desc->smode_extensions & SV_SSCOFPMF) != 0);
 	UPDATE_CAP(has_svpbmt, (desc->smode_extensions & SV_SVPBMT) != 0);
+	UPDATE_CAP(has_svinval, (desc->smode_extensions & SV_SVINVAL) != 0);
 
 	/* Z extension support. */
 	UPDATE_CAP(has_zicbom, (desc->z_extensions & Z_ZICBOM) != 0);

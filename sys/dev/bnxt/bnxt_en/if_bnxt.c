@@ -215,7 +215,11 @@ static int bnxt_detach(if_ctx_t ctx);
 
 /* Device configuration */
 static void bnxt_init(if_ctx_t ctx);
+static int bnxt_init_hw(if_ctx_t ctx);
 static void bnxt_stop(if_ctx_t ctx);
+static void bnxt_if_led_func(if_ctx_t ctx, int onoff);
+static bool bnxt_if_led_supported(if_ctx_t ctx);
+static void bnxt_led_restore(struct bnxt_softc *softc);
 static void bnxt_multi_set(if_ctx_t ctx);
 static int bnxt_mtu_set(if_ctx_t ctx, uint32_t mtu);
 static void bnxt_media_status(if_ctx_t ctx, struct ifmediareq * ifmr);
@@ -341,6 +345,8 @@ static device_method_t bnxt_iflib_methods[] = {
 
 	DEVMETHOD(ifdi_init, bnxt_init),
 	DEVMETHOD(ifdi_stop, bnxt_stop),
+	DEVMETHOD(ifdi_led_func, bnxt_if_led_func),
+	DEVMETHOD(ifdi_led_supported, bnxt_if_led_supported),
 	DEVMETHOD(ifdi_multi_set, bnxt_multi_set),
 	DEVMETHOD(ifdi_mtu_set, bnxt_mtu_set),
 	DEVMETHOD(ifdi_media_status, bnxt_media_status),
@@ -2243,6 +2249,7 @@ static int bnxt_open(struct bnxt_softc *bp)
 	rc = bnxt_hwrm_func_qcaps(bp);
 	if (rc)
 		return rc;
+	(void)bnxt_hwrm_port_led_qcaps(bp);
 
 	bnxt_hwrm_dbg_qcaps(bp);
 
@@ -2250,6 +2257,8 @@ static int bnxt_open(struct bnxt_softc *bp)
 	rc = bnxt_drv_rgtr(bp);
 	if (rc)
 		return rc;
+	/* Retry a restore which could not complete before firmware reset. */
+	bnxt_led_restore(bp);
 	if (bp->hwrm_spec_code >= 0x10803) {
 		rc = bnxt_alloc_ctx_mem(bp);
 		if (rc) {
@@ -2272,7 +2281,9 @@ static int bnxt_open(struct bnxt_softc *bp)
 	}
 
 	bnxt_msix_intr_assign(bp->ctx, 0);
-	bnxt_init(bp->ctx);
+	rc = bnxt_init_hw(bp->ctx);
+	if (rc != 0)
+		return (rc);
 	bnxt_intr_enable(bp->ctx);
 
 	if (test_and_clear_bit(BNXT_STATE_FW_RESET_DET, &bp->state)) {
@@ -2725,6 +2736,7 @@ bnxt_attach_pre(if_ctx_t ctx)
 	rc = bnxt_hwrm_func_qcaps(softc);
 	if (rc)
 		goto failed;
+	(void)bnxt_hwrm_port_led_qcaps(softc);
 
 	/* Inform PF to approve MAC as default VF MAC. */
 	if (BNXT_VF(softc)) {
@@ -3148,6 +3160,7 @@ fail:
 static void
 bnxt_func_reset(struct bnxt_softc *softc)
 {
+	bnxt_led_restore(softc);
 
 	if (!BNXT_CHIP_P5_PLUS(softc)) {
 		bnxt_hwrm_func_reset(softc);
@@ -3278,6 +3291,14 @@ skip_aux_init:
 static void
 bnxt_init(if_ctx_t ctx)
 {
+
+	if (bnxt_init_hw(ctx) != 0)
+		iflib_init_failed(ctx);
+}
+
+static int
+bnxt_init_hw(if_ctx_t ctx)
+{
 	struct bnxt_softc *softc = iflib_get_softc(ctx);
 	struct ifmediareq ifmr;
 	int i;
@@ -3286,7 +3307,7 @@ bnxt_init(if_ctx_t ctx)
 	if (!BNXT_CHIP_P5_PLUS(softc)) {
 		rc = bnxt_hwrm_func_reset(softc);
 		if (rc)
-			return;
+			return (rc);
 	} else if (softc->is_dev_init) {
 		bnxt_stop(ctx);
 	}
@@ -3461,12 +3482,13 @@ skip_def_cp_ring:
 	bnxt_get_port_module_status(softc);
 	bnxt_media_status(softc->ctx, &ifmr);
 	bnxt_hwrm_cfa_l2_set_rx_mask(softc, &softc->vnic_info);
-	return;
+	return (0);
 
 fail:
 	bnxt_func_reset(softc);
 	bnxt_clear_ids(softc);
-	return;
+	softc->is_dev_init = false;
+	return (rc);
 }
 
 static void
@@ -3479,6 +3501,37 @@ bnxt_stop(if_ctx_t ctx)
 	bnxt_func_reset(softc);
 	bnxt_clear_ids(softc);
 	return;
+}
+
+static void
+bnxt_if_led_func(if_ctx_t ctx, int onoff)
+{
+	struct bnxt_softc *softc = iflib_get_softc(ctx);
+	bool active;
+
+	active = onoff != 0;
+	if (active == softc->led_active)
+		return;
+	if (bnxt_hwrm_port_led_cfg(softc, active) == 0)
+		softc->led_active = active;
+}
+
+static void
+bnxt_led_restore(struct bnxt_softc *softc)
+{
+
+	if (!softc->led_active)
+		return;
+	if (bnxt_hwrm_port_led_cfg(softc, false) == 0)
+		softc->led_active = false;
+}
+
+static bool
+bnxt_if_led_supported(if_ctx_t ctx)
+{
+	struct bnxt_softc *softc = iflib_get_softc(ctx);
+
+	return (softc->num_leds != 0);
 }
 
 static u_int
@@ -5439,11 +5492,16 @@ bnxt_def_cp_task(void *context, int pending)
 
 	/* Handle completions on the default completion ring */
 	struct cmpl_base *cmpl;
-	uint32_t cons = cpr->cons;
-	bool v_bit = cpr->v_bit;
+	uint32_t cons;
+	bool v_bit;
 	bool last_v_bit;
 	uint32_t last_cons;
 	uint16_t type;
+
+	if (iflib_in_detach(ctx))
+		return;
+	cons = cpr->cons;
+	v_bit = cpr->v_bit;
 
 	for (;;) {
 		last_cons = cons;

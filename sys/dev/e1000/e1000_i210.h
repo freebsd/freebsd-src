@@ -46,6 +46,8 @@ s32 e1000_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset,
 s32 e1000_read_invm_version(struct e1000_hw *hw,
 			    struct e1000_fw_version *invm_ver);
 s32 e1000_init_hw_i210(struct e1000_hw *hw);
+s32 e1000_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask);
+void e1000_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask);
 
 #define E1000_STM_OPCODE		0xDB00
 #define E1000_EEPROM_FLASH_SIZE_WORD	0x11

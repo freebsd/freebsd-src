@@ -27,6 +27,14 @@
 #ifndef DPAA_ETH_H_
 #define DPAA_ETH_H_
 
+/* * TX csum-offload hwassist mask for dTSEC and mEMAC. */
+#define	DPAA_CSUM_TX_OFFLOAD	\
+	(CSUM_IP | CSUM_DELAY_DATA | CSUM_DELAY_DATA_IPV6)
+
+struct dpaa_pcpu_cnt {
+	u_int	cnt;
+} __aligned(CACHE_LINE_SIZE);
+
 struct dpaa_eth_softc {
 	/* XXX MII bus requires that struct ifnet is first!!! */
 	if_t				sc_ifnet;
@@ -42,6 +50,7 @@ struct dpaa_eth_softc {
 	uint8_t				sc_rx_bpid;
 	uma_zone_t			sc_rx_zone;
 	char				sc_rx_zname[64];
+	struct dpaa_pcpu_cnt		*sc_rx_pool_check_cnt;	/* per-CPU */
 
 	/* RX Frame Queue */
 	struct qman_fq			*sc_rx_fq;
@@ -49,9 +58,11 @@ struct dpaa_eth_softc {
 
 	/* TX Frame Queue */
 	struct qman_fq			*sc_tx_fq;
-	bool				sc_tx_fq_full;
+	volatile u_int			sc_tx_fq_full;
+	u_int				sc_tx_queue_check_cnt;
 	struct qman_fq			*sc_tx_conf_fq;
 	uint32_t			sc_tx_conf_fqid;
+	u_int				sc_tx_conf_check_cnt;
 
 	/* Methods */
 	int				(*sc_port_rx_init)

@@ -56,5 +56,6 @@
 #define	EXTERR_CAT_LINKER	19
 #define	EXTERR_CAT_HWPMC_AMD	20
 #define	EXTERR_CAT_HWPMC_MOD	21
+#define	EXTERR_CAT_TTY		22
 
 #endif

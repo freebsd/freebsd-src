@@ -47,7 +47,7 @@ These System V IPC objects can be specified by their
 creation ID or any associated key.
 .Pp
 The following options are generic:
-.Bl -tag -width indent
+.Bl -tag -width "-Q msgkey"
 .It Fl v
 If specified once with -W or with -1 for an object, it will show
 all removed objects.
@@ -73,7 +73,7 @@ will require read privileges to
 .Pp
 The following options are used to specify which IPC objects will be removed.
 Any number and combination of these options can be used:
-.Bl -tag -width indent
+.Bl -tag -width "-Q msgkey"
 .It Fl q Ar msqid
 Remove the message queue associated with the ID
 .Ar msqid
@@ -110,8 +110,11 @@ If the identifier or the key is -1, it will remove all these objects.
 .Xr ipcs 1
 .Sh HISTORY
 The wiping of all System V IPC objects was first implemented in
-.Fx 6.4 No and 7.1.
+.Fx 6.4
+and
+.Fx 7.1 .
 .Sh AUTHORS
+.An -nosplit
 The original author was
 .An Adam Glass .
 The wiping of all System V IPC objects was thought up by

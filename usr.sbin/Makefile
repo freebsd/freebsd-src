@@ -27,7 +27,6 @@ SUBDIR=	adduser \
 	extattrctl \
 	fifolog \
 	fstyp \
-	fwcamctl \
 	fwcontrol \
 	fwget \
 	getfmac \

@@ -61,6 +61,7 @@
 #include <libxo/xo.h>
 #include "netstat.h"
 #include "common.h"
+#include "nl_defs.h"
 
 /* column widths; each followed by one space */
 #define WID_IF_DEFAULT		(Wflag ? IFNAMSIZ : 12)	/* width of netif column */
@@ -476,3 +477,26 @@ nhops_print(int fibnum, int af)
 	xo_close_container("route-nhop-information");
 }
 
+/*
+ * Print nexthop statistics
+ */
+void
+nhops_stats(void)
+{
+	struct rtstat rtstat;
+
+	if (fetch_stats("net.route.stats", nl[N_RTSTAT].n_value, &rtstat,
+	    sizeof(rtstat), kread_counters) != 0)
+		return;
+
+	xo_emit("{T:nexthop}:\n");
+
+#define	p(f, m) if (rtstat.f || sflag <= 1) \
+	xo_emit(m, rtstat.f, plural(rtstat.f))
+
+	p(rts_nh_idx_alloc_failure, "\t{:nh-idx-alloc-failure/%ju} "
+	    "{N:/index allocation failure%s}\n");
+	p(rts_nh_alloc_failure, "\t{:nh-alloc-failure/%ju} "
+	    "{N:/nexthop allocation failure%s}\n");
+#undef p
+}

@@ -63,6 +63,7 @@ SRCS+=	imgact_linux.c \
 	linux.c \
 	linux_dummy.c \
 	linux_emul.c \
+	linux_emul_md.c \
 	linux_errno.c \
 	linux_mib.c \
 	linux_mmap.c \

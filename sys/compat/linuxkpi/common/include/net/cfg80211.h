@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2020-2026 The FreeBSD Foundation
- * Copyright (c) 2021-2022 Bjoern A. Zeeb
+ * Copyright (c) 2021-2026 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -63,6 +63,9 @@ extern int linuxkpi_debug_80211;
 #define	IMPROVE(fmt, ...)	if (linuxkpi_debug_80211 & D80211_IMPROVE)	\
     printf("%s:%d: XXX LKPI80211 IMPROVE " fmt "\n", __func__, __LINE__, ##__VA_ARGS__)
 #endif
+
+#define	wiphy_dbg(_wiphy, _fmt, ...)						\
+    dev_dbg(&(_wiphy)->dev, _fmt, ##__VA_ARGS__)
 
 enum rfkill_hard_block_reasons {
 	RFKILL_HARD_BLOCK_NOT_OWNER		= BIT(0),
@@ -1023,12 +1026,14 @@ struct ieee80211_iface_limit {
 };
 
 struct ieee80211_iface_combination {
-	/* TODO FIXME */
 	const struct ieee80211_iface_limit	*limits;
-	int					n_limits;
-	int		max_interfaces, num_different_channels;
-	int		beacon_int_infra_match, beacon_int_min_gcd;
-	int		radar_detect_widths;
+	uint32_t				num_different_channels;
+	uint32_t				beacon_int_min_gcd;
+	uint16_t				max_interfaces;
+	uint8_t					n_limits;
+	uint8_t					radar_detect_widths;
+	uint8_t					radar_detect_regions;
+	bool					beacon_int_infra_match;
 };
 
 struct iface_combination_params {
@@ -1204,6 +1209,8 @@ struct wiphy {
 	uint8_t					nan_supported_bands;
 	struct wiphy_nan_capa			nan_capa;
 
+	struct list_head			wdev_list;
+
 	int	features, hw_version;
 	int	interface_modes, max_match_sets, max_remain_on_channel_duration, max_scan_ssids, max_sched_scan_ie_len, max_sched_scan_plan_interval, max_sched_scan_plan_iterations, max_sched_scan_plans, max_sched_scan_reqs, max_sched_scan_ssids;
 	int	num_iftype_ext_capab;
@@ -1230,11 +1237,13 @@ struct wiphy {
 
 struct wireless_dev {
 		/* XXX TODO, like ic? */
-	enum nl80211_iftype			iftype;
-	uint32_t				radio_mask;
-	uint8_t					address[ETH_ALEN];
-	struct net_device			*netdev;
 	struct wiphy				*wiphy;
+	enum nl80211_iftype			iftype;
+
+	struct net_device			*netdev;
+	struct list_head			list;
+	uint8_t					address[ETH_ALEN];
+	uint32_t				radio_mask;
 };
 
 struct cfg80211_ops {
@@ -1554,6 +1563,26 @@ cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 	return (false);
 }
 
+static inline enum nl80211_channel_type
+cfg80211_get_chandef_type(const struct cfg80211_chan_def *chandef)
+{
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+		return (NL80211_CHAN_NO_HT);
+	case NL80211_CHAN_WIDTH_20:
+		return (NL80211_CHAN_HT20);
+	case NL80211_CHAN_WIDTH_40:
+		if (chandef->center_freq1 < chandef->chan->center_freq)
+			return (NL80211_CHAN_HT40MINUS);
+		return (NL80211_CHAN_HT40PLUS);
+	default:
+		WARN_ONCE(1, "%s: invalid chandef width %d\n",
+		    __func__, chandef->width);
+		return (NL80211_CHAN_NO_HT);
+	}
+}
+
 static inline int
 cfg80211_chandef_get_width(const struct cfg80211_chan_def *chandef)
 {
@@ -1572,6 +1601,13 @@ cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy, const struct cfg80211_chan_de
 {
 	TODO();
 	return (0);
+}
+
+static inline void
+cfg80211_cac_event(struct net_device *netdev, const struct cfg80211_chan_def *chandef,
+    enum nl80211_radar_event re, gfp_t gfp, unsigned int link_id)
+{
+	TODO();
 }
 
 static __inline bool

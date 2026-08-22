@@ -37,6 +37,7 @@
 #include <grp.h>
 #include <errno.h>
 #include <ctype.h>
+#include <capsicum_helpers.h>
 #include <sys/param.h>
 
 #include <libusb20_desc.h>
@@ -568,9 +569,19 @@ main(int argc, char **argv)
 	if (argc < 1) {
 		usage(EX_USAGE);
 	}
-	pbe = libusb20_be_alloc_default();
+	pbe = libusb20_be_alloc_default(NULL);
 	if (pbe == NULL)
 		err(1, "could not access USB backend\n");
+
+	/* The USB vendor database is looked up by pathname. */
+	dump_vendors_init();
+
+	/*
+	 * The backend has cached the descriptors needed to reach the
+	 * USB devices, so the rest can run in capability mode.
+	 */
+	if (caph_enter() < 0)
+		err(1, "caph_enter() failed");
 
 	while ((ch = getopt(argc, argv, "a:d:hi:lu:v")) != -1) {
 		switch (ch) {

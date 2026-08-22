@@ -359,6 +359,9 @@ static int		mmu_booke_decode_kernel_ptr(vm_offset_t addr,
 static void		mmu_booke_page_array_startup(long);
 static bool mmu_booke_page_is_mapped(vm_page_t m);
 static bool mmu_booke_ps_enabled(pmap_t pmap);
+#ifdef __powerpc64__
+static int		mmu_booke_growkernel(vm_offset_t);
+#endif
 
 static struct pmap_funcs mmu_booke_methods = {
 	/* pmap dispatcher interface */
@@ -402,6 +405,9 @@ static struct pmap_funcs mmu_booke_methods = {
 	.page_array_startup = mmu_booke_page_array_startup,
 	.page_is_mapped = mmu_booke_page_is_mapped,
 	.ps_enabled = mmu_booke_ps_enabled,
+#ifdef __powerpc64__
+	.growkernel_nopanic = mmu_booke_growkernel,
+#endif
 
 	/* Internal interfaces */
 	.bootstrap = mmu_booke_bootstrap,
@@ -700,7 +706,6 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 	    (uintptr_t)msgbufp, data_end);
 
 	data_end = round_page(data_end);
-	data_end = round_page(mmu_booke_alloc_kernel_pgtables(data_end));
 
 	/* Retrieve phys/avail mem regions */
 	mem_regions(&physmem_regions, &physmem_regions_sz,
@@ -709,7 +714,6 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 	if (PHYS_AVAIL_ENTRIES < availmem_regions_sz)
 		panic("mmu_booke_bootstrap: phys_avail too small");
 
-	data_end = round_page(data_end);
 	vm_page_array = (vm_page_t)data_end;
 	/*
 	 * Get a rough idea (upper bound) on the size of the page array.  The
@@ -722,6 +726,14 @@ mmu_booke_bootstrap(vm_offset_t start, vm_offset_t kernelend)
 	}
 	sz = (round_page(sz) / (PAGE_SIZE + sizeof(struct vm_page)));
 	data_end += round_page(sz * sizeof(struct vm_page));
+
+	/*
+	 * Reserve kernel page-table pages last, so their reservation size can
+	 * be computed from the final bootstrap data_end (on 64-bit, only leaf
+	 * ptbls covering [VM_MIN_KERNEL_ADDRESS, data_end + slack] are
+	 * pre-allocated; the rest are added on demand by pmap_growkernel()).
+	 */
+	data_end = round_page(mmu_booke_alloc_kernel_pgtables(data_end));
 
 	/* Pre-round up to 1MB.  This wastes some space, but saves TLB entries */
 	data_end = roundup2(data_end, 1 << 20);
@@ -1216,7 +1228,7 @@ mmu_booke_kremove(vm_offset_t va)
 
 	pte = pte_find(kernel_pmap, va);
 
-	if (!PTE_ISVALID(pte)) {
+	if (pte == NULL || !PTE_ISVALID(pte)) {
 		CTR1(KTR_PMAP, "%s: invalid pte", __func__);
 
 		return;

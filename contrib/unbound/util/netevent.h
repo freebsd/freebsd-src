@@ -111,6 +111,8 @@ typedef int comm_point_callback_type(struct comm_point*, void*, int,
 
 /** timeout to slow accept calls when not possible, in msec. */
 #define NETEVENT_SLOW_ACCEPT_TIME 2000
+/** timeout to slow accept calls when tcp queue is full, in msec. */
+#define NETEVENT_SLOW_ACCEPT_QUEUE_TIME 50
 /** timeout to slow down log print, so it does not spam the logs, in sec */
 #define SLOW_LOG_TIME 10
 /** for doq, the maximum dcid length, in ngtcp2 it is 20. */

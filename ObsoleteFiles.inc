@@ -51,6 +51,13 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20260811: libusb symbol versioning, shared library bumped to version 4
+OLD_LIBS+=usr/lib/libusb.so.3
+
+# 20260810: test removed
+OLD_FILES+=usr/tests/sys/netinet6/frag6/frag6_01
+OLD_FILES+=usr/tests/sys/netinet6/frag6/frag6_01.py
+
 # 20260707: Move sendfile_helper to tests/sys/common
 OLD_FILES+=usr/tests/sys/kern/sendfile_helper
 
@@ -70,6 +77,13 @@ OLD_DIRS+=usr/tests/gnu
 # 20260707: Removed dialog, figpar, dpv
 OLD_FILES+=usr/bin/dialog
 OLD_FILES+=usr/bin/dpv
+OLD_FILES+=usr/include/dialog.h
+OLD_FILES+=usr/include/dlg_colors.h
+OLD_FILES+=usr/include/dlg_config.h
+OLD_FILES+=usr/include/dlg_keys.h
+OLD_FILES+=usr/include/dpv.h
+OLD_FILES+=usr/include/figpar.h
+OLD_FILES+=usr/include/string_m.h
 OLD_FILES+=usr/lib/libdialog.a
 OLD_FILES+=usr/lib/libdialog.so
 OLD_LIBS+=usr/lib/libdialog.so.10

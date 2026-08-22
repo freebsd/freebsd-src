@@ -75,6 +75,18 @@ extern int fd0;
 #if USE_TERMINFO
 #include <curses.h>
 #include <term.h>
+#if HAVE_TPARM2
+#define LTPARM2(s,p1,p2) tparm(s, p1, p2)
+#else
+#if HAVE_TPARM8
+#define LTPARM2(s,p1,p2) tparm(s, p1, p2, 0, 0, 0, 0, 0, 0)
+#else
+#if HAVE_TPARM9
+#define LTPARM2(s,p1,p2) tparm(s, p1, p2, 0, 0, 0, 0, 0, 0, 0)
+#else
+#endif
+#endif
+#endif
 #else
 #if HAVE_NCURSESW_TERMCAP_H
 #include <ncursesw/termcap.h>
@@ -254,6 +266,11 @@ static constant char
 	*sc_init,               /* Startup terminal initialization */
 	*sc_deinit;             /* Exit terminal de-initialization */
 
+/* attrbits is the current attribute mode of the terminal
+ * (AT_UNDERLINE, AT_BOLD, AT_STANDOUT, AT_BLINK).
+ * attrmode is the user-defined mode, which may include AT_COLOR values,
+ * and the mapping of the AT_COLOR value may include the 4 attribute bits. */
+static int attrbits = 0;
 static int attrcolor = -1;
 #endif
 
@@ -277,14 +294,15 @@ public int can_goto_line;               /* Can move cursor to any line */
 public int clear_bg;                    /* Clear fills with background color */
 public lbool missing_cap = FALSE;       /* Some capability is missing */
 public constant char *kent = NULL;      /* Keypad ENTER sequence */
+public lbool kent_mapped = FALSE;       /* Keypad ENTER is mapped to a command */
 public lbool term_addrs = FALSE;        /* "ti" has been sent to terminal */
 public lbool full_screen = TRUE;        /* We're using all lines of terminal */
 
-static int attrmode = AT_NORMAL;
+static int attrmode = AT_NORMAL; /* current attributes (AT_* bits) */
 static int termcap_debug = -1;
 static int no_alt_screen;       /* sc_init does not switch to alt screen */
 extern int binattr;
-extern int one_screen;
+extern lbool one_screen;
 extern int shell_lines;
 
 #if !MSDOS_COMPILER
@@ -295,15 +313,15 @@ static void tmodes(constant char *inti, constant char *outti, constant char *int
 
 extern int quiet;               /* If VERY_QUIET, use visual bell for bell */
 extern int no_vbell;
-extern int no_back_scroll;
+extern lbool no_back_scroll;
 extern int no_init;
 extern int no_keypad;
 extern int sigs;
 extern int top_scroll;
 extern int quit_if_one_screen;
 extern int oldbot;
-extern int mousecap;
-extern int is_tty;
+extern int emouse;
+extern lbool is_tty;
 extern int use_color;
 extern int no_paste;
 extern int wscroll;
@@ -1285,6 +1303,10 @@ public constant char * special_key_str(int key)
 	case SK_PAD_ZERO:
 		s = ltgetstr("kpZRO", NULL, &sp);
 		break;
+	case SK_PAD_ENTER:
+		s = kent;
+		kent_mapped = TRUE;
+		break;
 	case SK_DELETE:
 		s = ltgetstr("kdch1", "kD", &sp);
 		if (s == NULL)
@@ -1321,7 +1343,7 @@ public constant char * special_key_str(int key)
 static constant char *ltgoto(constant char *cap, int col, int line)
 {
 #if USE_TERMINFO
-	return tparm(cap, line, col);
+	return LTPARM2(cap, line, col);
 #else
 	return tgoto(cap, col, line);
 #endif
@@ -1352,7 +1374,7 @@ public void init_win_colors(void)
 /*
  * Get terminal capabilities via termcap.
  */
-public void get_term()
+public void get_term(void)
 {
 	termcap_debug = !isnullenv(lgetenv("LESS_TERMCAP_DEBUG"));
 #if MSDOS_COMPILER
@@ -1655,7 +1677,7 @@ public void get_term()
 		/*
 		 * Force repaint on any backward movement.
 		 */
-		no_back_scroll = 1;
+		no_back_scroll = TRUE;
 	}
 }
 #endif /* MSDOS_COMPILER */
@@ -1998,7 +2020,7 @@ public void term_init(void)
 		}
 		if (!no_keypad)
 			ltputs(sc_s_keypad, sc_height, putchr);
-		if (mousecap)
+		if (emouse != 0)
 			init_mouse();
 		if (no_paste)
 			init_bracketed_paste();
@@ -2026,7 +2048,7 @@ public void term_init(void)
 			win32_init_term();
 			term_addrs = TRUE;
 		}
-		if (mousecap)
+		if (emouse != 0)
 			init_mouse();
 
 	}
@@ -2047,7 +2069,7 @@ public void term_deinit(void)
 #if !MSDOS_COMPILER
 	if (!(quit_if_one_screen && one_screen))
 	{
-		if (mousecap)
+		if (emouse != 0)
 			deinit_mouse();
 		if (no_paste)
 			deinit_bracketed_paste();
@@ -2063,7 +2085,7 @@ public void term_deinit(void)
 	win32_deinit_vt_term();
 	if (!(quit_if_one_screen && one_screen))
 	{
-		if (mousecap)
+		if (emouse != 0)
 			deinit_mouse();
 		if (!no_init)
 			win32_deinit_term();
@@ -2858,13 +2880,25 @@ static void tput_fmt(constant char *fmt, int color, int (*f_putc)(int))
 static void tput_char_cattr(CHAR_ATTR cattr, int (*f_putc)(int))
 {
 	if (cattr & CATTR_UNDERLINE)
+	{
 		ltputs(sc_u_in, 1, f_putc);
+		attrbits |= AT_UNDERLINE;
+	}
 	if (cattr & CATTR_BOLD)
+	{
 		ltputs(sc_b_in, 1, f_putc);
+		attrbits |= AT_BOLD;
+	}
 	if (cattr & CATTR_BLINK)
+	{
 		ltputs(sc_bl_in, 1, f_putc);
+		attrbits |= AT_BLINK;
+	}
 	if (cattr & CATTR_STANDOUT)
+	{
 		ltputs(sc_s_in, 1, f_putc);
+		attrbits |= AT_STANDOUT;
+	}
 }
 
 static void tput_color(constant char *str, int (*f_putc)(int))
@@ -2909,6 +2943,7 @@ static void tput_inmode(constant char *mode_str, int attr, int attr_bit, int (*f
 	if (color_str == NULL || *color_str == '\0' || *color_str == '+')
 	{
 		ltputs(mode_str, 1, f_putc);
+		attrbits |= attr_bit;
 		if (color_str == NULL || *color_str++ != '+')
 			return;
 	}
@@ -2918,9 +2953,10 @@ static void tput_inmode(constant char *mode_str, int attr, int attr_bit, int (*f
 
 static void tput_outmode(constant char *mode_str, int attr_bit, int (*f_putc)(int))
 {
-	if ((attrmode & attr_bit) == 0)
+	if ((attrbits & attr_bit) == 0)
 		return;
 	ltputs(mode_str, 1, f_putc);
+	attrbits &= ~attr_bit;
 }
 
 #else /* MSDOS_COMPILER */
@@ -3154,7 +3190,7 @@ static lbool win32_queued_char(void)
 /*
  * Push a char onto the back of the win32_queue.
  */
-static void win32_enqueue(int ch)
+public void win32_enqueue(int ch)
 {
 	WIN32_CHAR *wch = (WIN32_CHAR *) ecalloc(1, sizeof(WIN32_CHAR));
 	wch->wc_ch = ch;
@@ -3194,6 +3230,12 @@ static int win32_get_queue(void)
 	return ch;
 }
 
+public void win32_clear_queue(void)
+{
+	while (win32_queued_char())
+		(void) win32_get_queue();
+}
+
 /*
  * Handle a mouse input event.
  */
@@ -3201,7 +3243,7 @@ static lbool win32_mouse_event(XINPUT_RECORD *xip)
 {
 	char b;
 
-	if (!mousecap || xip->ir.EventType != MOUSE_EVENT)
+	if (emouse == 0 || xip->ir.EventType != MOUSE_EVENT)
 		return (FALSE);
 
 	/* Generate an X11 mouse sequence from the mouse event. */
@@ -3358,7 +3400,7 @@ static lbool win32_scan_code(XINPUT_RECORD *xip)
 /*
  * Handle a key input event.
  */
-static lbool win32_key_event(XINPUT_RECORD *xip)
+static lbool win32_key_event(XINPUT_RECORD *xip, char *pch)
 {
 	int repeat;
 	char utf8[UTF8_MAX_LENGTH];
@@ -3379,9 +3421,19 @@ static lbool win32_key_event(XINPUT_RECORD *xip)
 		return (FALSE);
 	if (!xip->ir.Event.KeyEvent.bKeyDown)
 		return (FALSE);
-		
-	if (win32_scan_code(xip))
+
+	/*
+	 * If caller wants to see an immediate (unqueued) ASCII char from the
+	 * keyboard, return it now. Otherwise queue the char for WIN32getch to read.
+	 */
+	if (pch != NULL && xip->ichar != '\0' && is_ascii_char(xip->ichar))
+	{
+		*pch = (char) xip->ichar;
 		return (TRUE);
+	}
+
+	if (win32_scan_code(xip))
+		return (pch == NULL);
 
 	repeat = xip->ir.Event.KeyEvent.wRepeatCount;
 	if (repeat > WIN32_MAX_REPEAT)
@@ -3392,9 +3444,9 @@ static lbool win32_key_event(XINPUT_RECORD *xip)
 	{
 		constant char *p;
 		for (p = utf8; p < up; ++p)
-			 win32_enqueue(*p & 0xFF);
+			 win32_enqueue((unsigned char) *p);
 	}
-	return (TRUE);
+	return (pch == NULL);
 }
 
 /*
@@ -3411,11 +3463,11 @@ static lbool win32_window_event(XINPUT_RECORD *xip)
 /*
  * Determine whether an input character is waiting to be read.
  */
-public lbool win32_kbhit2(lbool no_queued)
+public lbool win32_kbhit2(char *pch)
 {
 	XINPUT_RECORD xip;
 
-	if (!no_queued && win32_queued_char())
+	if (pch == NULL && win32_queued_char())
 		return (TRUE);
 
 	for (;;)
@@ -3434,15 +3486,16 @@ public lbool win32_kbhit2(lbool no_queued)
 		ReadConsoleInputW(tty, &xip.ir, 1, &nread);
 		if (nread == 0)
 			return (FALSE);
-		if (win32_mouse_event(&xip) || win32_key_event(&xip) || win32_window_event(&xip))
-			break;
+		if (win32_key_event(&xip, pch))
+			return (TRUE);
+		if (win32_mouse_event(&xip) || win32_window_event(&xip))
+			return (pch == NULL);
 	}
-	return (TRUE);
 }
 
 public lbool win32_kbhit(void)
 {
-	return win32_kbhit2(FALSE);
+	return win32_kbhit2(NULL);
 }
 
 /*

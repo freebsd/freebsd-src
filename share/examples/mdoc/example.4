@@ -5,27 +5,33 @@
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
-.Dd July 31, 2015
-.Dt EXAMPLE 4 i386
+.Dd June 19, 2026
+.Dt EXAMPLE 4 amd64
 .Os
 .Sh NAME
 .Nm example
 .Nd example device driver manual page
 .Sh SYNOPSIS
-To compile the driver into the kernel,
-place the following lines in the
-kernel configuration file:
-.Bd -ragged -offset indent
-.Cd "device example"
-.Cd "options EXAMPLE_DEBUG"
-.Ed
+.Cd device example
+.Cd options EXAMPLE_DEBUG
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+In
+.Xr device.hints 5 :
+.Cd here.is.a.example.device.hint Ns Ao Ns = Ns Ar optional_value Ac
+.Pp
+In
+.Xr rc.conf 5 :
+.Cd kld_list="kernel_module_name"
+.Pp
+In
 .Xr loader.conf 5 :
-.Bd -literal -offset indent
-example_load="YES"
-.Ed
+.Cd here.is.a.example.tunable Ns Ao Ns = Ns Ar optional_value Ac
+.Pp
+In
+.Xr loader.conf 5
+or
+.Xr sysctl.conf 5 :
+.Cd here.is.a.example.sysctl Ns Ao Ns = Ns Ar optional_value Ac
 .Sh DEPRECATION NOTICE
 This driver is scheduled for removal prior to the release of
 .Fx 17.0 .
@@ -36,6 +42,10 @@ driver.
 It is intended that this example can be used as a template
 when writing a new manual page.
 .Pp
+If the kernel is compiled with the
+.Dv EXAMPLE_DEBUG
+option, then additional debugging messages will be displayed.
+.Pp
 The
 .Nm
 driver supports the following ioctls:
@@ -45,10 +55,6 @@ Example ioctl.
 .It Dv EIOCNULL
 Example ioctl.
 .El
-.Pp
-If the kernel is compiled with the
-.Dv EXAMPLE_DEBUG
-option, then additional debugging messages will be displayed.
 .Sh HARDWARE
 The
 .Nm
@@ -100,6 +106,8 @@ manual page example first appeared in
 .At v6 .
 .Sh AUTHORS
 This manual page was written by
-.An Mike Pritchard Aq Mt mpp@FreeBSD.org .
+.An Mike Pritchard Aq Mt mpp@FreeBSD.org
+and
+.An Alexander Ziaee Aq Mt ziaee@FreeBSD.org .
 .Sh BUGS
 The actual code for this device driver is vaporware.

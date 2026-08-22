@@ -1563,7 +1563,8 @@ kern_pdwait(struct thread *td, int fd, int *status,
 	if (error != 0)
 		return (error);
 
-	error = fget_procdesc(td, fd, &cap_pdwait_rights, &fp, &pd, NULL);
+	error = fget_procdesc(td, fd, &cap_pdwait_rights, EINVAL, &fp,
+	    &pd, NULL);
 	if (error != 0)
 		goto exit_unlocked;
 

@@ -1339,7 +1339,7 @@ nhops_ifnet_state_changed(struct ifnet *ifp, bool status)
 	struct nhop_iter iter = { .fibnum = ifp->if_fib, .wlock = true };
 	bool nhops_changed;
 
-	for (iter.family = 1; iter.family <= AF_MAX; iter.family++) {
+	for (iter.family = 1; iter.family < AF_MAX; iter.family++) {
 		/*
 		 * By tracking nhop changes, we avoid redundant nhgrp
 		 * recompilation triggered by multiple events.

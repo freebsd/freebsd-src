@@ -536,7 +536,7 @@ dsp_write(struct cdev *i_dev, struct uio *buf, int flag)
 
 static int
 dsp_ioctl_channel(struct dsp_cdevpriv *priv, struct pcm_channel *ch,
-    u_long cmd, caddr_t arg)
+    unsigned long cmd, caddr_t arg)
 {
 	struct snddev_info *d;
 	struct pcm_channel *rdch, *wrch;
@@ -690,13 +690,13 @@ typedef struct audio_errinfo32
 #endif
 
 static int
-dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode,
+dsp_ioctl(struct cdev *i_dev, unsigned long cmd, caddr_t arg, int mode,
     struct thread *td)
 {
 	struct dsp_cdevpriv *priv;
     	struct pcm_channel *chn, *rdch, *wrch;
 	struct snddev_info *d;
-	u_long xcmd;
+	unsigned long xcmd;
 	int *arg_i, ret, tmp, err;
 
 	if ((err = devfs_get_cdevpriv((void **)&priv)) != 0)

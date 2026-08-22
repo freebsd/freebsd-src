@@ -166,10 +166,10 @@ static int build_rdma_send(struct t4_sq *sq, union t4_wr *wqe,
 		return -EINVAL;
 	if (wr->send_flags & IBV_SEND_SOLICITED)
 		wqe->send.sendop_pkd = htobe32(
-			FW_RI_SEND_WR_SENDOP_V(FW_RI_SEND_WITH_SE));
+			V_FW_RI_SEND_WR_SENDOP(FW_RI_SEND_WITH_SE));
 	else
 		wqe->send.sendop_pkd = htobe32(
-			FW_RI_SEND_WR_SENDOP_V(FW_RI_SEND));
+			V_FW_RI_SEND_WR_SENDOP(FW_RI_SEND));
 	wqe->send.stag_inv = 0;
 	wqe->send.r3 = 0;
 	wqe->send.r4 = 0;
@@ -213,7 +213,7 @@ static int build_rdma_write(struct t4_sq *sq, union t4_wr *wqe,
 
 	if (wr->num_sge > T4_MAX_SEND_SGE)
 		return -EINVAL;
-	wqe->write.r2 = 0;
+	wqe->write.immd_data = 0;
 	wqe->write.stag_sink = htobe32(wr->wr.rdma.rkey);
 	wqe->write.to_sink = htobe64(wr->wr.rdma.remote_addr);
 	if (wr->num_sge) {

@@ -55,9 +55,9 @@
 int
 main(int argc, char **argv)
 {
-	static char buf[MAXBUF] = EXP;
-	char *end = buf + sizeof(buf), *exp, *pos = buf + EXPLEN;
-	size_t buflen, explen = EXPLEN;
+	static char buf[MAXBUF];
+	char *end = buf + sizeof(buf), *exp, *pos;
+	size_t buflen, explen;
 	ssize_t wlen = 0;
 
 	if (caph_limit_stdio() < 0 || caph_enter() < 0)
@@ -83,6 +83,10 @@ main(int argc, char **argv)
 			pos = end - 2;
 		*pos++ = '\n';
 		explen = pos - buf;
+	} else {
+		memcpy(buf, EXP, EXPLEN);
+		pos = buf + EXPLEN;
+		explen = EXPLEN;
 	}
 
 	/*

@@ -256,6 +256,7 @@ ken [label="Ken Merry\nken@FreeBSD.org\n1998/09/08"]
 kensmith [label="Ken Smith\nkensmith@FreeBSD.org\n2004/01/23"]
 kevans [label="Kyle Evans\nkevans@FreeBSD.org\n2017/06/20"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2006/07/23"]
+kfv [label="Faraz Vahedi\nkfv@FreeBSD.org\n2026/08/03"]
 kgalazka [label="Krzysztof Galazka\nkgalazka@FreeBSD.org\n2025/04/07"]
 khng [label="Ka Ho Ng\nkhng@FreeBSD.org\n2021/03/15"]
 khorben [label="Pierre Pronchery\nkhorben@FreeBSD.org\n2025/05/06"]
@@ -547,6 +548,8 @@ dg -> peter
 
 dim -> theraven
 
+dteske -> kfv
+
 dwmalone -> fanf
 dwmalone -> peadar
 dwmalone -> snb
@@ -582,6 +585,8 @@ erj -> jeb
 erj -> kgalazka
 
 fjoe -> versus
+
+fuz -> kfv
 
 gallatin -> ticso
 gallatin -> rajeshasp

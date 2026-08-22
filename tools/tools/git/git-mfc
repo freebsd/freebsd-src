@@ -61,6 +61,10 @@ def origin_branch():
         err(1, "this is a CURRENT tree, we do not MFC to CURRENT")
     if branch == "STABLE" or branch == "PRERELEASE":
         return "main"
+    if re.match(r'^BETA\d+$', branch) or re.match(r'^ALPHA\d+$', branch):
+        if revision is None:
+            err(1, f"could not determine REVISION from {newvers}")
+        return "stable/" + revision.split('.')[0]
     if re.match(r'^RELEASE(-p\d+)?$', branch):
         if revision is None:
             err(1, f"could not determine REVISION from {newvers}")
@@ -153,8 +157,9 @@ def reverts(commit):
     Look at the commit's log message and return the hash of the commit it
     reverts, or None.
     """
+    regexp = re.compile(r'^This reverts commit ([0-9a-f]{40})')
     for line in commit.message.splitlines():
-        m = re.match(r'^This reverts commit ([0-9a-f]{40})', line)
+        m = regexp.match(line)
         if m:
             return m.group(1)
     return None
@@ -263,8 +268,9 @@ def mfc_origins(repo, commit, warn=False):
         return [repo.commit(s) for s in special[commit.hexsha]]
 
     origins = []
+    regexp = re.compile(r'^\(cherry picked from commit ([0-9a-f]{40})')
     for line in commit.message.splitlines():
-        m = re.match(r'^\(cherry picked from commit ([0-9a-f]{40})', line)
+        m = regexp.match(line)
         if m:
             try:
                 origins.append(repo.commit(m.group(1)))
@@ -346,8 +352,9 @@ def mfc_after(commit):
         'week': 7, 'weeks': 7,
         'month': 30, 'months': 30,
     }
+    regexp = re.compile(r'^MFC[ -]after:\s*(\d+)\s+(\w+)', re.IGNORECASE)
     for line in commit.message.splitlines():
-        m = re.match(r'^MFC[ -]after:\s*(\d+)\s+(\w+)', line, re.IGNORECASE)
+        m = regexp.match(line)
         if m:
             count = int(m.group(1))
             unit = m.group(2).lower()
@@ -375,6 +382,8 @@ def pending(repo, upstream, author=None, committer=None, baking=False):
 
     results = {}
 
+    mfs = re.match(r'.*/stable/\d+$', upstream) is not None
+
     now = datetime.datetime.now(datetime.timezone.utc)
     revlist = list(repo.iter_commits(base.hexsha + '..' + upstream))
     revlist.reverse()
@@ -389,21 +398,27 @@ def pending(repo, upstream, author=None, committer=None, baking=False):
             # Don't report commits that have already been cherry-picked.
             continue
 
-        delta = mfc_after(commit)
-        if delta is None:
-            # Not yet eligible for MFC.
-            continue
-
         if not commit_match(commit, author, committer):
             continue
 
-        committed = datetime.datetime.fromtimestamp(
-            commit.committed_date, tz=datetime.timezone.utc)
-        ready_date = committed + delta
-        ready = now >= ready_date
+        # If this is a merge-from-stable then there's no timeout, any
+        # unmerged commit is eligible.
+        if mfs:
+            ready_date = now
+            ready = True
+        else:
+            delta = mfc_after(commit)
+            if delta is None:
+                # Not yet eligible for MFC.
+                continue
 
-        if not baking and not ready:
-            continue
+            committed = datetime.datetime.fromtimestamp(
+                commit.committed_date, tz=datetime.timezone.utc)
+            ready_date = committed + delta
+            ready = now >= ready_date
+
+            if not baking and not ready:
+                continue
 
         results[commit.hexsha] = (commit, ready_date, ready)
 

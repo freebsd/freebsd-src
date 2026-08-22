@@ -67,7 +67,8 @@ extern const char *vm_capstrmap[];
 	VM_PPTDEV_MSI,		\
 	VM_PPTDEV_MSIX,		\
 	VM_UNMAP_PPTDEV_MMIO,	\
-	VM_PPTDEV_DISABLE_MSIX
+	VM_PPTDEV_DISABLE_MSIX,	\
+	VM_RESET_PPTDEV
 
 extern const cap_ioctl_t vm_ioctl_cmds[];
 extern size_t vm_ioctl_ncmds;

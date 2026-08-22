@@ -163,7 +163,7 @@
 #define IXGBE_DEV_ID_X550EM_X_VF		0x15A8
 #define IXGBE_DEV_ID_X550EM_X_VF_HV		0x15A9
 #define IXGBE_DEV_ID_E610_VF			0x57AD
-#define IXGBE_SUBDEV_ID_E610_VF_HV		0x0001
+#define IXGBE_SUBDEV_ID_E610_VF_HV		0x00FF
 
 #define IXGBE_CAT(r, m) IXGBE_##r##m
 
@@ -577,7 +577,7 @@ struct ixgbe_nvm_version {
 
 /* Registers for setting up RSS on X550 with SRIOV
  * _p - pool number (0..63)
- * _i - index (0..10 for PFVFRSSRK, 0..15 for PFVFRETA)
+ * _i - index (0..9 for PFVFRSSRK, 0..15 for PFVFRETA)
  */
 #define IXGBE_PFVFMRQC(_p)	(0x03400 + ((_p) * 4))
 #define IXGBE_PFVFRSSRK(_i, _p)	(0x018000 + ((_i) * 4) + ((_p) * 0x40))
@@ -2228,7 +2228,7 @@ enum {
 #define IXGBE_LED_IVRT_BASE		0x00000040
 #define IXGBE_LED_BLINK_BASE		0x00000080
 #define IXGBE_LED_MODE_MASK_BASE	0x0000000F
-#define IXGBE_LED_OFFSET(_base, _i)	(_base << (8 * (_i)))
+#define IXGBE_LED_OFFSET(_base, _i)	((u32)(_base) << (8 * (_i)))
 #define IXGBE_LED_MODE_SHIFT(_i)	(8*(_i))
 #define IXGBE_LED_IVRT(_i)	IXGBE_LED_OFFSET(IXGBE_LED_IVRT_BASE, _i)
 #define IXGBE_LED_BLINK(_i)	IXGBE_LED_OFFSET(IXGBE_LED_BLINK_BASE, _i)
@@ -3551,6 +3551,7 @@ typedef u64 ixgbe_physical_layer;
 #define IXGBE_PHYSICAL_LAYER_2500BASE_KX	0x10000
 #define IXGBE_PHYSICAL_LAYER_2500BASE_T		0x20000
 #define IXGBE_PHYSICAL_LAYER_5000BASE_T		0x40000
+#define IXGBE_PHYSICAL_LAYER_10GBASE_BX		0x80000
 
 /* Flow Control Data Sheet defined values
  * Calculation and defines taken from 802.1bb Annex O
@@ -3827,6 +3828,8 @@ enum ixgbe_sfp_type {
 	ixgbe_sfp_type_1g_lx_core1 = 14,
 	ixgbe_sfp_type_1g_bx_core0 = 15,
 	ixgbe_sfp_type_1g_bx_core1 = 16,
+	ixgbe_sfp_type_10g_bx_core0 = 17,
+	ixgbe_sfp_type_10g_bx_core1 = 18,
 	ixgbe_sfp_type_not_present = 0xFFFE,
 	ixgbe_sfp_type_unknown = 0xFFFF
 };
@@ -3943,6 +3946,8 @@ struct ixgbe_hw_stats {
 	u64 mlfc;
 	u64 mrfc;
 	u64 rlec;
+	u64 tlpic;
+	u64 rlpic;
 	u64 lxontxc;
 	u64 lxonrxc;
 	u64 lxofftxc;
@@ -4608,5 +4613,6 @@ struct ixgbe_bypass_eeprom {
 #define IXGBE_REQUEST_TASK_PHY		0x10
 #define IXGBE_REQUEST_TASK_LSC		0x20
 #define IXGBE_REQUEST_TASK_FWEVENT	0x40
+#define IXGBE_REQUEST_TASK_RESET		0x80
 
 #endif /* _IXGBE_TYPE_H_ */

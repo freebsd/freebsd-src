@@ -2793,6 +2793,7 @@ knlist_cleardel(struct knlist *knl, struct thread *td, int islocked, int killkn)
 {
 	struct knote *kn, *kn2;
 	struct kqueue *kq;
+	bool dropped;
 
 	KASSERT(!knl->kl_autodestroy, ("cleardel for autodestroy %p", knl));
 	if (islocked)
@@ -2809,6 +2810,7 @@ knlist_cleardel(struct knlist *knl, struct thread *td, int islocked, int killkn)
 		 * freed or converted to one-shot, as the attached subject is
 		 * essentially disappearing.
 		 */
+		dropped = false;
 		SLIST_FOREACH_SAFE(kn, &knl->kl_list, kn_selnext, kn2) {
 			kq = kn->kn_kq;
 			KQ_LOCK(kq);
@@ -2820,7 +2822,11 @@ knlist_cleardel(struct knlist *knl, struct thread *td, int islocked, int killkn)
 			if (killkn) {
 				kn_enter_flux(kn);
 				KQ_UNLOCK(kq);
+				knl->kl_unlock(knl->kl_lockarg);
 				knote_drop_detached(kn, td);
+				knl->kl_lock(knl->kl_lockarg);
+				dropped = true;
+				break;
 			} else {
 				/* Make sure cleared knotes disappear soon */
 				kn->kn_flags |= EV_EOF | EV_ONESHOT;
@@ -2828,6 +2834,8 @@ knlist_cleardel(struct knlist *knl, struct thread *td, int islocked, int killkn)
 			}
 			kq = NULL;
 		}
+		if (dropped)
+			continue;
 
 		if (SLIST_EMPTY(&knl->kl_list))
 			break;

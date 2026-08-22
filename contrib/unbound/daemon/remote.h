@@ -49,6 +49,7 @@
 #include <openssl/ssl.h>
 #endif
 #include "util/locks.h"
+#include "libunbound/remote.h"
 struct config_file;
 struct listen_list;
 struct listen_port;
@@ -364,13 +365,6 @@ void fast_reload_thread_start(RES* ssl, struct worker* worker,
  * @param fast_reload_thread: the thread struct.
  */
 void fast_reload_thread_stop(struct fast_reload_thread* fast_reload_thread);
-
-/** fast reload thread commands to remote service thread event callback */
-void fast_reload_service_cb(int fd, short bits, void* arg);
-
-/** fast reload callback for the remote control client connection */
-int fast_reload_client_callback(struct comm_point* c, void* arg, int err,
-	struct comm_reply* rep);
 
 /** fast reload printq delete list */
 void fast_reload_printq_list_delete(struct fast_reload_printq* list);

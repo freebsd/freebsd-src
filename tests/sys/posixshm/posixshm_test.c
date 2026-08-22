@@ -1189,7 +1189,9 @@ ATF_TC_BODY(accounting, tc)
 
 	ATF_REQUIRE(shm_fill(fd, 0, shm_sz) == 0);
 	ATF_REQUIRE(fstat(fd, &st) == 0);
-	ATF_REQUIRE(st.st_blksize * st.st_blocks == (blkcnt_t)shm_sz);
+	printf("blocks %jd shm_sz %jd\n", (uintmax_t)st.st_blocks,
+	    (uintmax_t)shm_sz);
+	ATF_CHECK_EQ(DEV_BSIZE * st.st_blocks, (blkcnt_t)shm_sz);
 
 	range.r_offset = page_size;
 	range.r_len = len = (shm_max_pages - 1) * page_size -
@@ -1197,7 +1199,9 @@ ATF_TC_BODY(accounting, tc)
 	ATF_CHECK_MSG(fspacectl(fd, SPACECTL_DEALLOC, &range, 0, &range) == 0,
 	    "SPACECTL_DEALLOC failed; errno=%d", errno);
 	ATF_REQUIRE(fstat(fd, &st) == 0);
-	ATF_REQUIRE(st.st_blksize * st.st_blocks == (blkcnt_t)(shm_sz - len));
+	printf("blocks %jd shm_sz %jd len %jd\n", (uintmax_t)st.st_blocks,
+	    (uintmax_t)shm_sz, (uintmax_t)len);
+	ATF_CHECK_EQ(DEV_BSIZE * st.st_blocks, (blkcnt_t)(shm_sz - len));
 
 	ATF_REQUIRE(close(fd) == 0);
 }

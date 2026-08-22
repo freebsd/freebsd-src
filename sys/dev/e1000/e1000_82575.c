@@ -426,6 +426,10 @@ static s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
 	mac->ops.acquire_swfw_sync = e1000_acquire_swfw_sync;
 	/* release SW_FW sync */
 	mac->ops.release_swfw_sync = e1000_release_swfw_sync;
+	if (mac->type == e1000_i210 || mac->type == e1000_i211) {
+		mac->ops.acquire_swfw_sync = e1000_acquire_swfw_sync_i210;
+		mac->ops.release_swfw_sync = e1000_release_swfw_sync_i210;
+	}
 
 	/* set lan id for port to determine which phy lock to use */
 	hw->mac.ops.set_lan_id(hw);
@@ -2226,7 +2230,7 @@ static s32 e1000_reset_hw_82580(struct e1000_hw *hw)
 	s32 ret_val = E1000_SUCCESS;
 	/* BH SW mailbox bit in SW_FW_SYNC */
 	u16 swmbsw_mask = E1000_SW_SYNCH_MB;
-	u32 ctrl;
+	u32 ctrl, status;
 	bool global_device_reset = hw->dev_spec._82575.global_device_reset;
 
 	DEBUGFUNC("e1000_reset_hw_82580");
@@ -2291,7 +2295,9 @@ static s32 e1000_reset_hw_82580(struct e1000_hw *hw)
 	}
 
 	/* clear global device reset status bit */
-	E1000_WRITE_REG(hw, E1000_STATUS, E1000_STAT_DEV_RST_SET);
+	status = E1000_READ_REG(hw, E1000_STATUS);
+	E1000_WRITE_REG(hw, E1000_STATUS,
+	    status | E1000_STAT_DEV_RST_SET);
 
 	/* Clear any pending interrupt events. */
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
@@ -2348,7 +2354,7 @@ s32 e1000_validate_nvm_checksum_with_offset(struct e1000_hw *hw, u16 offset)
 
 	DEBUGFUNC("e1000_validate_nvm_checksum_with_offset");
 
-	for (i = offset; i < ((NVM_CHECKSUM_REG + offset) + 1); i++) {
+	for (i = offset; i < (u16)((NVM_CHECKSUM_REG + offset) + 1); i++) {
 		ret_val = hw->nvm.ops.read(hw, i, 1, &nvm_data);
 		if (ret_val) {
 			DEBUGOUT("NVM Read Error\n");
@@ -2385,7 +2391,7 @@ s32 e1000_update_nvm_checksum_with_offset(struct e1000_hw *hw, u16 offset)
 
 	DEBUGFUNC("e1000_update_nvm_checksum_with_offset");
 
-	for (i = offset; i < (NVM_CHECKSUM_REG + offset); i++) {
+	for (i = offset; i < (u16)(NVM_CHECKSUM_REG + offset); i++) {
 		ret_val = hw->nvm.ops.read(hw, i, 1, &nvm_data);
 		if (ret_val) {
 			DEBUGOUT("NVM Read Error while updating checksum.\n");
@@ -3532,4 +3538,3 @@ void e1000_i2c_bus_clear(struct e1000_hw *hw)
 	/* Put the i2c bus back to default state */
 	e1000_i2c_stop(hw);
 }
-

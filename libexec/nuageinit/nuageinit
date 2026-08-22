@@ -18,7 +18,8 @@ local citype = arg[2]
 
 local function default_user(obj, metadata)
 	local ssh_authorized_keys = {}
-	if type(metadata.public_keys) == "table" then
+	if (not obj or obj.allow_public_ssh_keys ~= false) and
+	    type(metadata.public_keys) == "table" then
 		for _, k in pairs(metadata.public_keys) do
 			table.insert(ssh_authorized_keys, k)
 		end
@@ -478,9 +479,25 @@ end
 local function ssh_pwauth(obj)
 	if obj.ssh_pwauth == nil then return end
 
-	local value = "no"
-	if obj.ssh_pwauth then
-		value = "yes"
+	local value
+	if type(obj.ssh_pwauth) == "boolean" then
+		value = obj.ssh_pwauth and "yes" or "no"
+	elseif type(obj.ssh_pwauth) == "string" then
+		local s = obj.ssh_pwauth:lower()
+		if s == "yes" or s == "true" or s == "1" or s == "on" then
+			value = "yes"
+		elseif s == "no" or s == "false" or s == "0" or s == "off" then
+			value = "no"
+		elseif s == "unchanged" then
+			return
+		else
+			nuage.warn("ssh_pwauth: unrecognized value '" ..
+			    obj.ssh_pwauth .. "', leaving unchanged")
+			return
+		end
+	else
+		nuage.warn("ssh_pwauth: invalid type " .. type(obj.ssh_pwauth))
+		return
 	end
 	nuage.update_sshd_config("PasswordAuthentication", value)
 end
@@ -570,18 +587,39 @@ local function ssh_deletekeys(obj)
 	end
 end
 
-local function disable_root(obj)
-	if obj.disable_root == nil then return end
-	if obj.disable_root then
-		local value = "no"
-		if obj.disable_root_opts then
-			if type(obj.disable_root_opts) == "string" then
-				value = obj.disable_root_opts
-			elseif type(obj.disable_root_opts) == "table" then
-				value = obj.disable_root_opts[1]
-			end
+local DISABLE_USER_OPTS = 'no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo \'Please login as the user \\"$USER\\" rather than the user \\"$DISABLE_USER\\".\';echo;sleep 10;exit 142"'
+
+local function disable_root(obj, metadata)
+	-- cloud-init semantics: restrict root's authorized_keys options
+	local disable = true
+	if obj.disable_root ~= nil then
+		disable = obj.disable_root
+	end
+	local opts = ""
+	if disable then
+		opts = obj.disable_root_opts or DISABLE_USER_OPTS
+		if type(opts) == "table" then
+			opts = opts[1]
 		end
-		nuage.update_sshd_config("PermitRootLogin", value)
+		opts = opts:gsub("%$USER", "freebsd")
+		opts = opts:gsub("%$DISABLE_USER", "root")
+	else
+		nuage.update_sshd_config("PermitRootLogin", "prohibit-password")
+	end
+	local keys = {}
+	if obj.allow_public_ssh_keys ~= false and
+	    type(metadata.public_keys) == "table" then
+		for _, k in pairs(metadata.public_keys) do
+			table.insert(keys, k)
+		end
+	end
+	if obj and type(obj.ssh_authorized_keys) == "table" then
+		for _, k in ipairs(obj.ssh_authorized_keys) do
+			table.insert(keys, k)
+		end
+	end
+	for _, k in ipairs(keys) do
+		nuage.addsshkey("/root", k, opts)
 	end
 end
 

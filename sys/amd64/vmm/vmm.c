@@ -592,6 +592,13 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 }
 
 int
+vm_reset_pptdev(struct vm *vm, int bus, int slot, int func)
+{
+
+	return (ppt_reset_device(vm, bus, slot, func));
+}
+
+int
 vm_get_register(struct vcpu *vcpu, int reg, uint64_t *retval)
 {
 	/* Negative values represent VM control structure fields. */

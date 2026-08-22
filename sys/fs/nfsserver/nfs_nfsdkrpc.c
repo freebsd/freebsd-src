@@ -120,6 +120,10 @@ VNET_DEFINE(struct nfsv4lock, nfsd_suspend_lock);
 
 VNET_DEFINE_STATIC(bool, nfsrvd_inited) = false;
 
+/* Server RDMA listen hook, set by nfsrdma at MOD_LOAD. */
+svc_rdma_listen_ftype *svc_rdma_listen = NULL;
+int nfsrvd_rdma_port = 0;
+
 /*
  * NFS server system calls
  */
@@ -181,7 +185,8 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	nd.nd_mreq = NULL;
 	nd.nd_cred = NULL;
 
-	if (VNET(nfs_privport) != 0) {
+	/* xp_socket is NULL for RDMA. */
+	if (VNET(nfs_privport) != 0 && xprt->xp_socket != NULL) {
 		/* Check if source port is privileged */
 		u_short port;
 		struct sockaddr *nam = nd.nd_nam;
@@ -260,6 +265,18 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			goto out;
 		}
 
+		/*
+		 * For RDMA, ND_GSSINTEGRITY and ND_GSSPRIVACY are not
+		 * supported.
+		 */
+		if ((nd.nd_flag & (ND_GSSINTEGRITY | ND_GSSPRIVACY)) != 0 &&
+		    xprt->xp_socket == NULL) {
+			svcerr_auth(rqst, AUTH_FAILED);
+			svc_freereq(rqst);
+			m_freem(nd.nd_mrep);
+			goto out;
+		}
+
 		/* Acquire the principal name for the RPCSEC_GSS cases. */
 		if ((nd.nd_flag & (ND_NFSV4 | ND_GSS)) == (ND_NFSV4 | ND_GSS)) {
 			rcredp = NULL;
@@ -332,6 +349,10 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		if ((nfsrv_mextpg || xprt->xp_extpg) && nd.nd_nam2 == NULL &&
 		    PMAP_HAS_DMAP != 0)
 			nd.nd_flag |= ND_CANEXTPG;
+
+		/* If the xprt xp_socket == NULL, this is a RDMA call. */
+		if (xprt->xp_socket == NULL)
+			nd.nd_flag |= ND_RDMA;
 #ifdef MAC
 		mac_cred_associate_nfsd(nd.nd_cred);
 #endif
@@ -620,6 +641,21 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 		VNET(nfsrv_numnfsd)++;	/* Num for this vnet. */
 
 		NFSD_UNLOCK();
+		/*
+		 * If nfsrvd_rdma_port has been set and the nfsrdma.ko module
+		 * has been loaded, start the server side RDMA.
+		 * RDMA does not work within a vnet jail.
+		 */
+		if (!jailed(curthread->td_ucred) && svc_rdma_listen != NULL &&
+		    nfsrvd_rdma_port != 0) {
+			error = svc_rdma_listen(VNET(nfsrvd_pool),
+			    nfsrvd_rdma_port);
+			if (error != 0) {
+				printf("nfsrvd_nfsd: RDMA listen failed=%d\n",
+				    error);
+				nfsrvd_rdma_port = 0;
+			}
+		}
 		error = nfsrv_createdevids(args, td);
 		if (error == 0) {
 			/* An empty string implies AUTH_SYS only. */
@@ -695,6 +731,11 @@ nfsrvd_init(int terminating)
 	if (terminating) {
 		VNET(nfsd_master_proc) = NULL;
 		NFSD_UNLOCK();
+
+		/* Turn off the RDMA listener, if enabled. */
+		if (!jailed(curthread->td_ucred) && svc_rdma_listen != NULL)
+			(void)svc_rdma_listen(VNET(nfsrvd_pool), 0);
+
 		nfsrv_freealllayoutsanddevids();
 		nfsrv_freeallbackchannel_xprts();
 		svcpool_close(VNET(nfsrvd_pool));

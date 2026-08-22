@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd June 26, 2026
+.Dd August 13, 2026
 .Dt CDEFS 9
 .Os
 .Sh NAME
@@ -205,6 +205,9 @@ except
 .Fa fmtarg
 may be
 .Dv NULL.
+.It Sy __nonstring Ta Specify that an array of
+.Vt char
+does not require a null terminator.
 .It Sy __strong_reference(sym,aliassym) Ta
 .It Sy __weak_reference(sym,alias) Ta
 .It Sy __warn_references(sym,msg) Ta

@@ -1095,6 +1095,125 @@ ATF_TC_BODY(copyout_rights_error, tc)
 }
 
 /*
+ * Exercise handling of errors from unp_externalize().
+ */
+ATF_TC_WITHOUT_HEAD(externalize_error_partial_read);
+ATF_TC_BODY(externalize_error_partial_read, tc)
+{
+	struct iovec iovec;
+	struct msghdr msghdr;
+	struct rlimit rl, orl;
+	struct stat sb;
+	char cmsgbuf[CMSG_SPACE(sizeof(int))];
+	char msg1[16];
+	char *fill, *rbuf;
+	size_t fillsz;
+#if TEST_PROTO == SOCK_STREAM
+	size_t got;
+#endif
+	ssize_t len;
+	int fd[2], nfds, putfd;
+
+	memset(msg1, 'A', sizeof(msg1));
+
+	domainsocketpair(fd);
+	devnull(&putfd);
+	dofstat(putfd, &sb);
+	nfds = getnfds();
+
+#if TEST_PROTO == SOCK_STREAM
+	fillsz = (size_t)getrecvspace() * 3 / 5;
+#elif TEST_PROTO == SOCK_DGRAM
+	fillsz = 128;
+#endif
+
+	fill = malloc(fillsz);
+	ATF_REQUIRE(fill != NULL);
+	memset(fill, 'B', fillsz);
+	rbuf = malloc(sizeof(msg1) + fillsz);
+	ATF_REQUIRE(rbuf != NULL);
+
+	/*
+	 * The first message carries the rights and a small payload; the second
+	 * queues more data behind it, so that the read below leaves the receive
+	 * buffer non-empty.
+	 */
+	len = sendfd_payload(fd[0], putfd, msg1, sizeof(msg1));
+	ATF_REQUIRE_MSG(len == (ssize_t)sizeof(msg1),
+	    "sendmsg: %zd bytes sent; expected %zu: %s", len, sizeof(msg1),
+	    strerror(errno));
+	len = send(fd[0], fill, fillsz, 0);
+	ATF_REQUIRE_MSG(len == (ssize_t)fillsz,
+	    "send: %zd bytes sent; expected %zu: %s", len, fillsz,
+	    strerror(errno));
+
+	/*
+	 * Use fd limits to force receive to fail.
+	 */
+	ATF_REQUIRE_MSG(getrlimit(RLIMIT_NOFILE, &orl) == 0,
+	    "getrlimit failed: %s", strerror(errno));
+	rl = orl;
+	rl.rlim_cur = 1;
+	ATF_REQUIRE_MSG(setrlimit(RLIMIT_NOFILE, &rl) == 0,
+	    "setrlimit failed: %s", strerror(errno));
+
+	bzero(&msghdr, sizeof(msghdr));
+	iovec.iov_base = rbuf;
+	iovec.iov_len = sizeof(msg1);
+	msghdr.msg_iov = &iovec;
+	msghdr.msg_iovlen = 1;
+	msghdr.msg_control = cmsgbuf;
+	msghdr.msg_controllen = sizeof(cmsgbuf);
+
+	ATF_REQUIRE_ERRNO(EMFILE, recvmsg(fd[1], &msghdr, 0) == -1);
+
+	ATF_REQUIRE_MSG(setrlimit(RLIMIT_NOFILE, &orl) == 0,
+	    "setrlimit failed: %s", strerror(errno));
+
+	/* The rights must have been disposed of rather than installed. */
+	ATF_REQUIRE_MSG(getnfds() == nfds, "descriptor leaked");
+
+	/*
+	 * The failed read must leave the socket usable with both payloads still
+	 * queued.
+	 */
+#if TEST_PROTO == SOCK_STREAM
+	for (got = 0; got < sizeof(msg1) + fillsz; got += (size_t)len) {
+		len = recv(fd[1], rbuf + got, sizeof(msg1) + fillsz - got, 0);
+		if (len <= 0)
+			break;
+	}
+	ATF_REQUIRE_MSG(got == sizeof(msg1) + fillsz,
+	    "recovered %zu of %zu bytes after the failed read: %s", got,
+	    sizeof(msg1) + fillsz, strerror(errno));
+	ATF_REQUIRE_MSG(memcmp(rbuf, msg1, sizeof(msg1)) == 0,
+	    "first payload corrupted");
+	ATF_REQUIRE_MSG(memcmp(rbuf + sizeof(msg1), fill, fillsz) == 0,
+	    "second payload corrupted");
+#elif TEST_PROTO == SOCK_DGRAM
+	/*
+	 * For datagrams, soreceive_dgram() dequeues the record before
+	 * processing control messages, so the first datagram's payload is
+	 * consumed even when externalize fails.  Only the second datagram
+	 * should remain queued.
+	 */
+	len = recv(fd[1], rbuf, fillsz, 0);
+	ATF_REQUIRE_MSG(len == (ssize_t)fillsz,
+	    "second datagram: got %zd bytes, expected %zu: %s", len, fillsz,
+	    strerror(errno));
+	ATF_REQUIRE_MSG(memcmp(rbuf, fill, fillsz) == 0,
+	    "second payload corrupted");
+#endif
+
+	dofstat(putfd, &sb);
+
+	free(rbuf);
+	free(fill);
+	close(putfd);
+	closesocketpair(fd);
+}
+
+/*
  * Verify that we can handle empty rights messages.
  */
 ATF_TC_WITHOUT_HEAD(empty_rights_message);
@@ -1182,6 +1301,92 @@ ATF_TC_BODY(empty_rights_message, tc)
 	ATF_REQUIRE_MSG(error == 0, "close failed: %s", strerror(errno));
 
 	(void)close(putfd);
+}
+
+/*
+ * Exercise a corner case where the receiving socket buffer has exactly enough
+ * space for a single fd cmsg.
+ */
+ATF_TC_WITHOUT_HEAD(nonblocking_passfd_ctl_space);
+ATF_TC_BODY(nonblocking_passfd_ctl_space, tc)
+{
+	static char chunk[65536];
+	size_t chunksz, room;
+	ssize_t n;
+	int delivered, fd[2], putfd;
+
+	devnull(&putfd);
+	chunksz = getsendspace();
+	ATF_REQUIRE(chunksz <= sizeof(chunk));
+
+	/*
+	 * How much space does a single internalized fd take?
+	 */
+	domainsocketpair(fd);
+	ATF_REQUIRE_MSG(sendfd_payload(fd[0], putfd, chunk, 0) == 0,
+	    "sendmsg: %s", strerror(errno));
+	ATF_REQUIRE_MSG(fcntl(fd[0], F_SETFL, O_NONBLOCK) != -1,
+	    "fcntl: %s", strerror(errno));
+	for (room = 0; (n = send(fd[0], chunk, chunksz, 0)) > 0; )
+		room += (size_t)n;
+	ATF_REQUIRE(errno == EAGAIN || errno == ENOBUFS);
+	closesocketpair(fd);
+
+	/*
+	 * Fill the socket buffer, leaving exactly enough room for a single fd
+	 * cmsg.
+	 */
+	domainsocketpair(fd);
+	for (size_t sofar = 0; sofar < room; sofar += (size_t)n) {
+		size_t req;
+
+		req = room - sofar;
+		if (req > chunksz)
+			req = chunksz;
+		n = send(fd[0], chunk, (size_t)req, 0);
+		ATF_REQUIRE_MSG(n > 0, "fill send: %s", strerror(errno));
+	}
+	ATF_REQUIRE_MSG(fcntl(fd[0], F_SETFL, O_NONBLOCK) != -1,
+	    "fcntl: %s", strerror(errno));
+	ATF_REQUIRE_MSG(sendfd_payload(fd[0], putfd, chunk, 0) == 0,
+	    "zero-length sendmsg with SCM_RIGHTS failed: %s", strerror(errno));
+
+	/* Drain receiver and verify the fd was delivered. */
+	delivered = 0;
+	{
+		static char buf[1 << 20];
+		char cmsgbuf[CMSG_SPACE(sizeof(int) * 8)];
+		struct iovec iov;
+		struct msghdr msghdr;
+
+		memset(&msghdr, 0, sizeof(msghdr));
+		iov.iov_base = buf;
+		iov.iov_len = sizeof(buf);
+		msghdr.msg_iov = &iov;
+		msghdr.msg_iovlen = 1;
+		msghdr.msg_control = cmsgbuf;
+		msghdr.msg_controllen = sizeof(cmsgbuf);
+		while ((n = recvmsg(fd[1], &msghdr, MSG_DONTWAIT)) >= 0) {
+			for (struct cmsghdr *cm = CMSG_FIRSTHDR(&msghdr);
+			    cm != NULL; cm = CMSG_NXTHDR(&msghdr, cm)) {
+				if (cm->cmsg_level == SOL_SOCKET &&
+				    cm->cmsg_type == SCM_RIGHTS) {
+					int rxfd;
+
+					memcpy(&rxfd, CMSG_DATA(cm),
+					    sizeof(rxfd));
+					ATF_CHECK(close(rxfd) == 0);
+					delivered++;
+				}
+			}
+			msghdr.msg_controllen = sizeof(cmsgbuf);
+		}
+	}
+	ATF_CHECK_MSG(delivered == 1, "expected 1 fd delivered, got %d",
+	    delivered);
+
+	closesocketpair(fd);
+	ATF_CHECK(close(putfd) == 0);
 }
 
 /*
@@ -1424,7 +1629,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, rights_creds_payload);
 	ATF_TP_ADD_TC(tp, truncated_rights);
 	ATF_TP_ADD_TC(tp, copyout_rights_error);
+	ATF_TP_ADD_TC(tp, externalize_error_partial_read);
 	ATF_TP_ADD_TC(tp, empty_rights_message);
+	ATF_TP_ADD_TC(tp, nonblocking_passfd_ctl_space);
 	ATF_TP_ADD_TC(tp, control_creates_records);
 	ATF_TP_ADD_TC(tp, cross_jail_dirfd);
 	ATF_TP_ADD_TC(tp, resolve_beneath_preserved);

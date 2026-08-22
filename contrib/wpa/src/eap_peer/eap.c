@@ -313,11 +313,27 @@ SM_STATE(EAP, RECEIVED)
 	eapReqData = eapol_get_eapReqData(sm);
 	/* parse rxReq, rxSuccess, rxFailure, reqId, reqMethod */
 	eap_sm_parseEapReq(sm, eapReqData);
-	sm->num_rounds++;
-	if (!eapReqData || wpabuf_len(eapReqData) < 20)
-		sm->num_rounds_short++;
-	else
-		sm->num_rounds_short = 0;
+
+	/*
+	 * Only increment the round counters if:
+	 * 1. The request is not an EAP-Identity (i.e., it's a specific EAP
+	 *    method).
+	 * 2. Or, an EAP method has already been selected (i.e., we are in the
+	 * middle of a negotiation session).
+	 *
+	 * This avoids incrementing counters for periodic Identity Requests used
+	 * as keep-alive mechanisms in some wired IEEE 802.1X networks. Without
+	 * this, repeated short Identity heartbeats would eventually trigger a
+	 * spurious EAP failure after exceeding EAP_MAX_AUTH_ROUNDS_SHORT.
+	 */
+	if (sm->selectedMethod != EAP_TYPE_NONE ||
+	    sm->reqMethod != EAP_TYPE_IDENTITY) {
+		sm->num_rounds++;
+		if (!eapReqData || wpabuf_len(eapReqData) < 20)
+			sm->num_rounds_short++;
+		else
+			sm->num_rounds_short = 0;
+	}
 }
 
 

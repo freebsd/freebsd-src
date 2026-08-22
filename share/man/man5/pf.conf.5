@@ -2345,17 +2345,23 @@ Used to
 packets to the given divert
 .Ar port .
 Historically
-.Ox pf has another meaning for this, and
-.Fx pf uses
-this syntax to support
-.Xr divert 4 instead. Hence,
+.Ox
+.Sy pf
+has another meaning for this, and
+.Fx
+.Sy pf
+uses this syntax to support
+.Xr divert 4
+instead.
+Hence,
 .Ar host
 has no meaning and can be set to anything like 127.0.0.1.
 If a packet is re-injected and does not change direction then it will not be
 re-diverted.
 .It Ar divert-reply
 It has no meaning in
-.Fx pf .
+.Fx
+.Sy pf .
 .It Ar probability Aq Ar number
 A probability attribute can be attached to a rule, with a value set between
 0 and 1, bounds not included.

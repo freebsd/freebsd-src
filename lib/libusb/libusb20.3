@@ -198,11 +198,15 @@ USB access library (libusb -lusb)
 .Ft int
 .Fn libusb20_be_remove_dev_quirk "struct libusb20_backend *pbe" "struct libusb20_quirk *pq"
 .Ft struct libusb20_backend *
-.Fn libusb20_be_alloc_default "void"
+.Fn libusb20_be_alloc_default "struct libusb20_be_ctx *pctx"
 .Ft struct libusb20_backend *
-.Fn libusb20_be_alloc_freebsd "void"
+.Fn libusb20_be_alloc_freebsd "struct libusb20_be_ctx *pctx"
 .Ft struct libusb20_backend *
-.Fn libusb20_be_alloc_linux "void"
+.Fn libusb20_be_alloc_linux "struct libusb20_be_ctx *pctx"
+.Ft struct libusb20_be_ctx *
+.Fn libusb20_be_ctx_alloc "void"
+.Ft void
+.Fn libusb20_be_ctx_free "struct libusb20_be_ctx *pctx"
 .Ft struct libusb20_device *
 .Fn libusb20_be_device_foreach  "struct libusb20_backend *pbe" "struct libusb20_device *pdev"
 .Ft void
@@ -994,6 +998,33 @@ returned.
 These functions are used to allocate a specific USB backend or the operating system
 default USB backend.
 Allocating a backend is a way to scan for currently present USB devices.
+The backend and the USB devices it enumerates borrow the given
+backend context, which holds the file descriptors used to reach the
+USB devices and must stay alive for as long as they are in use.
+If the
+.Fa pctx
+argument is
+.Dv NULL,
+the backend allocates its own context and releases
+it when the backend is freed.
+USB devices which have been dequeued from such a backend must not be
+used after the backend has been freed.
+.Pp
+.
+.Fn libusb20_be_ctx_alloc
+allocates a backend context, which opens and holds the file
+descriptors used to reach the USB devices.
+The context is immutable after allocation and may therefore be shared
+between threads, backends and devices without any locking.
+Sharing one context across multiple backend allocations allows
+devices to be enumerated and opened after the process has entered
+capability mode.
+.
+.Fn libusb20_be_ctx_free
+frees the given backend context.
+No backend or device allocated from the context may be used
+afterwards.
+This function is NULL safe.
 .Pp
 .
 .Fn libusb20_be_device_foreach
@@ -1086,8 +1117,36 @@ This function does not return NULL.
 .Bl -tag -width Pa
 .It Pa /dev/usb
 .El
+.Sh CAPABILITY MODE
+The backend context holds file descriptors for
+.Pa /dev/usbctl
+and the
+.Pa /dev/usb
+directory, and device nodes are opened relative to the directory
+descriptor using
+.Xr openat 2 .
+All backend operations, including enumeration of hotplugged devices,
+therefore keep working after entering capability mode, see
+.Xr capsicum 4 ,
+as long as the backend context was allocated before
+.Xr cap_enter 2
+was called.
+Applications which allocate more than one USB backend from capability
+mode must allocate a backend context with
+.Fn libusb20_be_ctx_alloc
+up front and pass it to every backend allocation.
+The file descriptors are limited with
+.Xr cap_rights_limit 2 ,
+and USB device file descriptors derived from the directory descriptor
+inherit the
+.Dv CAP_PREAD , CAP_PWRITE , CAP_EVENT
+and
+.Dv CAP_IOCTL
+rights.
 .Sh SEE ALSO
+.Xr cap_enter 2 ,
 .Xr libusb 3 ,
+.Xr capsicum 4 ,
 .Xr usb 4 ,
 .Xr usbconfig 8 ,
 .Xr usbdump 8

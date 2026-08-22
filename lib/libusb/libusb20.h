@@ -177,6 +177,7 @@ struct usb_device_info;
 struct libusb20_transfer;
 struct libusb20_backend;
 struct libusb20_backend_methods;
+struct libusb20_be_ctx;
 struct libusb20_device;
 struct libusb20_device_methods;
 struct libusb20_config;
@@ -294,11 +295,13 @@ int	libusb20_be_set_template(struct libusb20_backend *pbe, int temp);
 
 /* USB backend operations */
 
-struct libusb20_backend *libusb20_be_alloc(const struct libusb20_backend_methods *methods);
-struct libusb20_backend *libusb20_be_alloc_default(void);
-struct libusb20_backend *libusb20_be_alloc_freebsd(void);
-struct libusb20_backend *libusb20_be_alloc_linux(void);
-struct libusb20_backend *libusb20_be_alloc_ugen20(void);
+struct libusb20_backend *libusb20_be_alloc(const struct libusb20_backend_methods *methods, struct libusb20_be_ctx *pctx);
+struct libusb20_backend *libusb20_be_alloc_default(struct libusb20_be_ctx *pctx);
+struct libusb20_backend *libusb20_be_alloc_freebsd(struct libusb20_be_ctx *pctx);
+struct libusb20_backend *libusb20_be_alloc_linux(struct libusb20_be_ctx *pctx);
+struct libusb20_backend *libusb20_be_alloc_ugen20(struct libusb20_be_ctx *pctx);
+struct libusb20_be_ctx *libusb20_be_ctx_alloc(void);
+void	libusb20_be_ctx_free(struct libusb20_be_ctx *pctx);
 struct libusb20_device *libusb20_be_device_foreach(struct libusb20_backend *pbe, struct libusb20_device *pdev);
 void	libusb20_be_dequeue_device(struct libusb20_backend *pbe, struct libusb20_device *pdev);
 void	libusb20_be_enqueue_device(struct libusb20_backend *pbe, struct libusb20_device *pdev);

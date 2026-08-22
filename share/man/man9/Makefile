@@ -1358,8 +1358,11 @@ MLINKS+=iflibdi.9 iflib_add_int_delay_sysctl.9 \
 	iflibdi.9 iflib_led_create.9 \
 	iflibdi.9 iflib_irq_alloc.9 \
 	iflibdi.9 iflib_irq_alloc_generic.9 \
+	iflibdi.9 iflib_init_failed.9 \
 	iflibdi.9 iflib_link_intr_deferred.9 \
 	iflibdi.9 iflib_link_state_change.9 \
+	iflibdi.9 iflib_request_reset.9 \
+	iflibdi.9 iflib_request_reset_if_up.9 \
 	iflibdi.9 iflib_rx_intr_deferred.9 \
 	iflibdi.9 iflib_tx_intr_deferred.9
 MLINKS+=iflibtxrx.9 isc_rxd_available.9 \
@@ -1680,6 +1683,7 @@ MLINKS+=netisr.9 netisr_clearqdrops.9 \
 	netisr.9 netisr_register.9 \
 	netisr.9 netisr_setqlimit.9 \
 	netisr.9 netisr_unregister.9
+MLINKS+=nhop.9 nhop_object.9
 MLINKS+=nv.9 libnv.9 \
 	nv.9 nvlist.9 \
 	nv.9 nvlist_add_binary.9 \

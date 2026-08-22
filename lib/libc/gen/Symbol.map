@@ -476,12 +476,14 @@ FBSD_1.9 {
 	fts_read;
 	fts_set;
 	fts_set_clientptr;
+	fts_openat;
 	posix_spawn_file_actions_addchdir;
 	posix_spawn_file_actions_addfchdir;
 	posix_spawnattr_getexecfd_np;
 	posix_spawnattr_getprocdescp_np;
 	posix_spawnattr_setexecfd_np;
 	posix_spawnattr_setprocdescp_np;
+	uexterr_set;
 };
 
 FBSDprivate_1.0 {
@@ -612,4 +614,5 @@ FBSDprivate_1.0 {
 	__getcontextx_size;
 	__makecontext;
 	__uexterr_format;
+	__uexterr_set_ue;
 };

@@ -31,8 +31,12 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
+#include <capsicum_helpers.h>
+
 #include <sys/types.h>
 #include <sys/sysctl.h>
+
+#include <libusb20.h>
 
 #include <dev/usb/usb_ioctl.h>
 
@@ -44,6 +48,8 @@
 #include <g_audio.h>
 
 static uint8_t usb_ts_select[USB_TS_MAX_LEVELS];
+
+struct libusb20_be_ctx *usb_be_ctx;
 
 const char *indent[USB_TS_MAX_LEVELS] = {
 	" ",
@@ -805,7 +811,20 @@ show_mode_select(uint8_t level)
 int
 main(int argc, char **argv)
 {
+	/*
+	 * The backend context acquires the descriptors needed to
+	 * reach the USB devices before entering capability mode.
+	 */
+	usb_be_ctx = libusb20_be_ctx_alloc();
+	if (usb_be_ctx == NULL)
+		err(1, "could not allocate USB backend context");
+
+	if (caph_enter() < 0)
+		err(1, "caph_enter() failed");
+
 	show_mode_select(1);
+
+	libusb20_be_ctx_free(usb_be_ctx);
 
 	return (0);
 }

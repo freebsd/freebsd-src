@@ -33,6 +33,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <syslog.h>
@@ -61,8 +62,7 @@
 
 #include "t4_regs.h"
 #include "t4_chip_type.h"
-#include "t4fw_api.h"
-#include "t4fw_ri_api.h"
+#include "t4fw_interface.h"
 
 #ifdef DEBUG
 #define DBGLOG(s)

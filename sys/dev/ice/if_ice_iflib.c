@@ -81,6 +81,7 @@ static void ice_if_multi_set(if_ctx_t ctx);
 static void ice_if_vlan_register(if_ctx_t ctx, u16 vtag);
 static void ice_if_vlan_unregister(if_ctx_t ctx, u16 vtag);
 static void ice_if_stop(if_ctx_t ctx);
+static void ice_if_led_func(if_ctx_t ctx, int onoff);
 static uint64_t ice_if_get_counter(if_ctx_t ctx, ift_counter counter);
 static int ice_if_priv_ioctl(if_ctx_t ctx, u_long command, caddr_t data);
 static int ice_if_i2c_req(if_ctx_t ctx, struct ifi2creq *req);
@@ -139,6 +140,7 @@ static void ice_rebuild_recovery_mode(struct ice_softc *sc);
 static void ice_free_irqvs(struct ice_softc *sc);
 static void ice_update_rx_mbuf_sz(struct ice_softc *sc);
 static void ice_poll_for_media_avail(struct ice_softc *sc);
+static void ice_led_restore(struct ice_softc *sc);
 static void ice_setup_scctx(struct ice_softc *sc);
 static int ice_allocate_msix(struct ice_softc *sc);
 static void ice_admin_timer(void *arg);
@@ -201,6 +203,7 @@ static device_method_t ice_iflib_methods[] = {
 	DEVMETHOD(ifdi_media_change, ice_if_media_change),
 	DEVMETHOD(ifdi_init, ice_if_init),
 	DEVMETHOD(ifdi_stop, ice_if_stop),
+	DEVMETHOD(ifdi_led_func, ice_if_led_func),
 	DEVMETHOD(ifdi_timer, ice_if_timer),
 	DEVMETHOD(ifdi_update_admin_status, ice_if_update_admin_status),
 	DEVMETHOD(ifdi_multi_set, ice_if_multi_set),
@@ -2084,16 +2087,16 @@ ice_if_init(if_ctx_t ctx)
 		return;
 
 	if (ice_test_state(&sc->state, ICE_STATE_RECOVERY_MODE))
-		return;
+		goto err_init_failed;
 
 	if (ice_test_state(&sc->state, ICE_STATE_RESET_FAILED)) {
 		device_printf(sc->dev, "request to start interface cannot be completed as the device failed to reset\n");
-		return;
+		goto err_init_failed;
 	}
 
 	if (ice_test_state(&sc->state, ICE_STATE_PREPARED_FOR_RESET)) {
 		device_printf(sc->dev, "request to start interface while device is prepared for impending reset\n");
-		return;
+		goto err_init_failed;
 	}
 
 	ice_update_rx_mbuf_sz(sc);
@@ -2104,7 +2107,7 @@ ice_if_init(if_ctx_t ctx)
 		device_printf(dev,
 			      "LAA address change failed, err %s\n",
 			      ice_err_str(err));
-		return;
+		goto err_init_failed;
 	}
 
 	/* Initialize software Tx tracking values */
@@ -2115,7 +2118,7 @@ ice_if_init(if_ctx_t ctx)
 		device_printf(dev,
 			      "Unable to configure the main VSI for Tx: %s\n",
 			      ice_err_str(err));
-		return;
+		goto err_init_failed;
 	}
 
 	err = ice_cfg_vsi_for_rx(&sc->pf_vsi);
@@ -2172,6 +2175,8 @@ err_stop_rx:
 	ice_control_all_rx_queues(&sc->pf_vsi, false);
 err_cleanup_tx:
 	ice_vsi_disable_tx(&sc->pf_vsi);
+err_init_failed:
+	iflib_init_failed(ctx);
 }
 
 /**
@@ -2522,6 +2527,9 @@ ice_prepare_for_reset(struct ice_softc *sc)
 	if (ice_test_state(&sc->state, ICE_STATE_RECOVERY_MODE))
 		return;
 
+	/* Restore identification while the control queues are still usable. */
+	ice_led_restore(sc);
+
 	/* inform the RDMA client */
 	ice_rdma_notify_reset(sc);
 	/* stop the RDMA client */
@@ -2715,6 +2723,9 @@ ice_rebuild(struct ice_softc *sc)
 	err = ice_send_version(sc);
 	if (err)
 		goto err_shutdown_ctrlq;
+
+	/* Retry a restore which could not complete while reset was pending. */
+	ice_led_restore(sc);
 
 	err = ice_init_link_events(sc);
 	if (err) {
@@ -3137,6 +3148,7 @@ ice_if_stop(if_ctx_t ctx)
 	struct ice_softc *sc = (struct ice_softc *)iflib_get_softc(ctx);
 
 	ASSERT_CTX_LOCKED(sc);
+	ice_led_restore(sc);
 
 	/*
 	 * The iflib core may call IFDI_STOP prior to the first call to
@@ -3188,6 +3200,40 @@ ice_if_stop(if_ctx_t ctx)
 		ice_subif_if_stop(sc->mirr_if->subctx);
 		device_printf(sc->dev, "The subinterface also comes down and up after reset\n");
 	}
+}
+
+/**
+ * ice_if_led_func - Control the physical port identification LED
+ * @ctx: iflib context structure
+ * @onoff: non-zero to identify the port, zero to restore normal operation
+ *
+ * The firmware implements identification as a blinking mode and retains the
+ * netlist-selected mode so it can be restored without a register snapshot.
+ */
+static void
+ice_if_led_func(if_ctx_t ctx, int onoff)
+{
+	struct ice_softc *sc = iflib_get_softc(ctx);
+	enum ice_status status;
+	bool active;
+
+	active = onoff != 0;
+	if (active == sc->led_active)
+		return;
+
+	status = ice_aq_set_port_id_led(sc->hw.port_info, !active, NULL);
+	if (status == ICE_SUCCESS)
+		sc->led_active = active;
+}
+
+static void
+ice_led_restore(struct ice_softc *sc)
+{
+
+	if (!sc->led_active)
+		return;
+	if (ice_aq_set_port_id_led(sc->hw.port_info, true, NULL) == ICE_SUCCESS)
+		sc->led_active = false;
 }
 
 /**
@@ -3418,6 +3464,15 @@ ice_init_link(struct ice_softc *sc)
 		/* Do not access PHY config while PHY FW is busy initializing */
 	} else {
 		ice_clear_state(&sc->state, ICE_STATE_PHY_FW_INIT_PENDING);
+
+		if (ice_is_e830(hw)) {
+			if (!(sc->ldo_tlv.options & ICE_LINK_OVERRIDE_PORT_DIS))
+				return;
+
+			ice_set_state(&sc->state, ICE_STATE_TOTAL_PORT_SHUTDOWN);
+			ice_clear_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN);
+		}
+
 		ice_init_link_configuration(sc);
 		ice_update_link_status(sc, true);
 	}
@@ -4406,20 +4461,20 @@ ice_subif_if_init(if_ctx_t ctx)
 		return;
 
 	if (ice_test_state(&sc->state, ICE_STATE_RECOVERY_MODE))
-		return;
+		goto err_init_failed;
 
 	if (ice_test_state(&sc->state, ICE_STATE_RESET_FAILED)) {
 		device_printf(dev,
 		    "request to start interface cannot be completed as the parent device %s failed to reset\n",
 		    device_get_nameunit(sc->dev));
-		return;
+		goto err_init_failed;
 	}
 
 	if (ice_test_state(&sc->state, ICE_STATE_PREPARED_FOR_RESET)) {
 		device_printf(dev,
 		    "request to start interface cannot be completed while parent device %s is prepared for impending reset\n",
 		    device_get_nameunit(sc->dev));
-		return;
+		goto err_init_failed;
 	}
 
 	/* XXX: Equiv to ice_update_rx_mbuf_sz */
@@ -4433,7 +4488,7 @@ ice_subif_if_init(if_ctx_t ctx)
 		device_printf(dev,
 			      "Unable to configure subif VSI for Tx: %s\n",
 			      ice_err_str(err));
-		return;
+		goto err_init_failed;
 	}
 
 	err = ice_cfg_vsi_for_rx(vsi);
@@ -4460,6 +4515,8 @@ ice_subif_if_init(if_ctx_t ctx)
 
 err_cleanup_tx:
 	ice_vsi_disable_tx(vsi);
+err_init_failed:
+	iflib_init_failed(ctx);
 }
 
 /**

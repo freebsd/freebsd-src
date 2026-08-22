@@ -61,7 +61,7 @@ struct ufshci_registers {
 	uint8_t vendor[64]; /* Vendor Specific Registers */
 	/* Crypto (100h) */
 	uint32_t ccap; /* Crypto Capability */
-	uint32_t reserved7[511];
+	uint8_t reserved7[508];
 	/* Config (300h) */
 	uint32_t config; /* Global Configuration */
 	uint8_t reserved9[124];
@@ -73,6 +73,23 @@ struct ufshci_registers {
 	uint32_t esiuba;
 	/* TODO: Need to define SQ/CQ registers */
 };
+
+_Static_assert(__offsetof(struct ufshci_registers, is) == 0x20,
+    "operation and runtime section must start at 20h");
+_Static_assert(__offsetof(struct ufshci_registers, utrlba) == 0x50,
+    "UTP transfer section must start at 50h");
+_Static_assert(__offsetof(struct ufshci_registers, utmrlba) == 0x70,
+    "UTP task management section must start at 70h");
+_Static_assert(__offsetof(struct ufshci_registers, uiccmd) == 0x90,
+    "UIC command section must start at 90h");
+_Static_assert(__offsetof(struct ufshci_registers, vendor) == 0xC0,
+    "vendor specific section must start at C0h");
+_Static_assert(__offsetof(struct ufshci_registers, ccap) == 0x100,
+    "crypto section must start at 100h");
+_Static_assert(__offsetof(struct ufshci_registers, config) == 0x300,
+    "config section must start at 300h");
+_Static_assert(__offsetof(struct ufshci_registers, mcqconfig) == 0x380,
+    "MCQ configuration section must start at 380h");
 
 /* Register field definitions */
 #define UFSHCI__REG__SHIFT (0)
@@ -155,8 +172,8 @@ struct ufshci_registers {
  */
 #define UFSHCI_HCMID_REG_MIC_SHIFT (0)
 #define UFSHCI_HCMID_REG_MIC_MASK  (0xFFFF)
-#define UFSHCI_HCMID_REG_BI_SHIFT  (8)
-#define UFSHCI_HCMID_REG_BI_MASK   (0xFFFF)
+#define UFSHCI_HCMID_REG_BI_SHIFT  (16)
+#define UFSHCI_HCMID_REG_BI_MASK   (0xFF)
 
 /*
  * UFSHCI 4.1, section 5.2.7, Offset 18h: AHIT

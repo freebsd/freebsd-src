@@ -34,7 +34,7 @@ no_cycles_head()
 
 no_cycles_body()
 {
-	atf_check -e empty -o ignore rcorder /etc/rc.d/*
+	atf_check -s exit:0 -e ignore -o ignore rcorder /etc/rc.d/*
 }
 
 atf_test_case oomprotect_all

@@ -527,9 +527,11 @@ vmxnet3_free_irqs(struct vmxnet3_softc *sc)
 
 	scctx = sc->vmx_scctx;
 
-	for (i = 0; i < scctx->isc_nrxqsets; i++) {
-		rxq = &sc->vmx_rxq[i];
-		iflib_irq_free(sc->vmx_ctx, &rxq->vxrxq_irq);
+	if (sc->vmx_rxq != NULL) {
+		for (i = 0; i < scctx->isc_nrxqsets; i++) {
+			rxq = &sc->vmx_rxq[i];
+			iflib_irq_free(sc->vmx_ctx, &rxq->vxrxq_irq);
+		}
 	}
 
 	iflib_irq_free(sc->vmx_ctx, &sc->vmx_event_intr_irq);

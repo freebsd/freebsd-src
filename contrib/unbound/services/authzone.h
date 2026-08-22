@@ -144,6 +144,8 @@ struct auth_zone {
 	struct module_env* zonemd_callback_env;
 	/** for the zonemd callback, the type of data looked up */
 	uint16_t zonemd_callback_qtype;
+	/** for the zonemd callback, the unique info */
+	void* zonemd_callback_unique_info;
 	/** zone has been deleted */
 	int zone_deleted;
 	/** deletelist pointer, unused normally except during delete */
@@ -153,6 +155,10 @@ struct auth_zone {
 	struct auth_zone* rpz_az_next;
 	/** previous auth zone containing RPZ data, or NULL */
 	struct auth_zone* rpz_az_prev;
+	/** The maximum auth zone transfer size, in bytes. */
+	size_t max_transfer_size;
+	/** The maximum auth zone transfer time taken, in msec. */
+	int max_transfer_time;
 };
 
 /**
@@ -283,6 +289,15 @@ struct auth_xfer {
 	 * this is renewed every SOA probe and transfer.  On zone load
 	 * from zonefile it is also set (with probe set soon to check) */
 	time_t lease_time;
+
+	/** The maximum auth zone transfer size, in bytes. */
+	size_t max_transfer_size;
+	/** The maximum auth zone transfer time taken, in msec. */
+	int max_transfer_time;
+	/** the zone is an rpz zone */
+	int is_rpz;
+	/** the number of IXFRs since the last full transfer. */
+	int num_ixfrs;
 };
 
 /**
@@ -331,6 +346,8 @@ struct auth_probe {
 
 	/** for the hostname lookups, which master is current */
 	struct auth_master* lookup_target;
+	/** for the lookup, the callback unique info */
+	void* lookup_unique_info;
 	/** are we looking up A or AAAA, first A, then AAAA (if ip6 enabled) */
 	int lookup_aaaa;
 	/** we only want to do lookups for making config work (for notify),
@@ -379,12 +396,18 @@ struct auth_transfer {
 	struct auth_chunk* chunks_first;
 	/** last element in chunks list (to append new data at the end) */
 	struct auth_chunk* chunks_last;
+	/** running total of bytes held in chunks_first..chunks_last */
+	size_t chunks_total;
+	/** start time of the transfer */
+	struct timeval start_time;
 
 	/** list of upstream masters for this zone, from config */
 	struct auth_master* masters;
 
 	/** for the hostname lookups, which master is current */
 	struct auth_master* lookup_target;
+	/** for the lookup, the callback unique info */
+	void* lookup_unique_info;
 	/** are we looking up A or AAAA, first A, then AAAA (if ip6 enabled) */
 	int lookup_aaaa;
 
@@ -827,5 +850,11 @@ void auth_xfer_delete(struct auth_xfer* xfr);
  * @param worker: the worker for which to stop tasks.
  */
 void xfr_disown_tasks(struct auth_xfer* xfr, struct worker* worker);
+
+/** count number of open and closed parenthesis in a chunkline */
+int chunkline_count_parens(struct sldns_buffer* buf, size_t start);
+
+/** Clear data in auth zone */
+void auth_zone_clear_data(struct auth_zone* z);
 
 #endif /* SERVICES_AUTHZONE_H */

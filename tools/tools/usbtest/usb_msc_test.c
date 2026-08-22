@@ -870,7 +870,7 @@ show_host_device_selection(uint8_t level, struct uaddr *puaddr)
 	const char *ptr;
 
 top:
-	pbe = libusb20_be_alloc_default();
+	pbe = libusb20_be_alloc_default(usb_be_ctx);
 	pdev = NULL;
 	index = 0;
 
@@ -916,7 +916,7 @@ top:
 struct libusb20_device *
 find_usb_device(struct uaddr uaddr)
 {
-	struct libusb20_backend *pbe = libusb20_be_alloc_default();
+	struct libusb20_backend *pbe = libusb20_be_alloc_default(usb_be_ctx);
 	struct libusb20_device *pdev = NULL;
 	struct LIBUSB20_DEVICE_DESC_DECODED *ddesc;
 

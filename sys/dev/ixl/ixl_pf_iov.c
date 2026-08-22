@@ -41,15 +41,20 @@ static void	ixl_vf_unregister_intr(struct i40e_hw *hw, uint32_t vpint_reg);
 static int	ixl_vc_opcode_level(uint16_t opcode);
 
 static int	ixl_vf_mac_valid(struct ixl_vf *vf, const uint8_t *addr);
+static int	ixl_vf_mac_index(struct ixl_vf *vf, const uint8_t *addr);
+static int	ixl_vf_program_mac(struct ixl_vf *vf, const uint8_t *addr);
+static void	ixl_vf_remove_mac(struct ixl_vf *vf, int index);
+static int	ixl_vf_set_vlan_filter(struct ixl_pf *pf, struct ixl_vf *vf,
+		    uint16_t vlan, bool add);
 
 static int	ixl_vf_alloc_vsi(struct ixl_pf *pf, struct ixl_vf *vf);
 static int	ixl_vf_setup_vsi(struct ixl_pf *pf, struct ixl_vf *vf);
 static void	ixl_vf_map_queues(struct ixl_pf *pf, struct ixl_vf *vf);
-static void	ixl_vf_vsi_release(struct ixl_pf *pf, struct ixl_vsi *vsi);
-static void	ixl_vf_release_resources(struct ixl_pf *pf, struct ixl_vf *vf);
+static int	ixl_vf_vsi_release(struct ixl_pf *pf, struct ixl_vsi *vsi);
+static int	ixl_vf_release_resources(struct ixl_pf *pf, struct ixl_vf *vf);
 static int	ixl_flush_pcie(struct ixl_pf *pf, struct ixl_vf *vf);
-static void	ixl_reset_vf(struct ixl_pf *pf, struct ixl_vf *vf);
-static void	ixl_reinit_vf(struct ixl_pf *pf, struct ixl_vf *vf);
+static int	ixl_reset_vf(struct ixl_pf *pf, struct ixl_vf *vf);
+static int	ixl_reinit_vf(struct ixl_pf *pf, struct ixl_vf *vf);
 static void	ixl_send_vf_msg(struct ixl_pf *pf, struct ixl_vf *vf, uint16_t op, enum i40e_status_code status, void *msg, uint16_t len);
 static void	ixl_send_vf_ack(struct ixl_pf *pf, struct ixl_vf *vf, uint16_t op);
 static void	ixl_send_vf_nack_msg(struct ixl_pf *pf, struct ixl_vf *vf, uint16_t op, enum i40e_status_code status, const char *file, int line);
@@ -58,6 +63,8 @@ static void	ixl_vf_reset_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg, ui
 static void	ixl_vf_get_resources_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg, uint16_t msg_size);
 static int	ixl_vf_config_tx_queue(struct ixl_pf *pf, struct ixl_vf *vf, struct virtchnl_txq_info *info);
 static int	ixl_vf_config_rx_queue(struct ixl_pf *pf, struct ixl_vf *vf, struct virtchnl_rxq_info *info);
+static bool	ixl_vf_tx_queue_valid(struct ixl_pf *pf, const struct virtchnl_txq_info *info);
+static bool	ixl_vf_rx_queue_valid(struct ixl_pf *pf, const struct virtchnl_rxq_info *info);
 static void	ixl_vf_config_vsi_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg, uint16_t msg_size);
 static void	ixl_vf_set_qctl(struct ixl_pf *pf, const struct virtchnl_vector_map *vector, enum i40e_queue_type cur_type, uint16_t cur_queue,
     enum i40e_queue_type *last_type, uint16_t *last_queue);
@@ -74,8 +81,11 @@ static void	ixl_vf_config_promisc_msg(struct ixl_pf *pf, struct ixl_vf *vf, void
 static void	ixl_vf_get_stats_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg, uint16_t msg_size);
 static int	ixl_vf_reserve_queues(struct ixl_pf *pf, struct ixl_vf *vf, int num_queues);
 static int	ixl_config_pf_vsi_loopback(struct ixl_pf *pf, bool enable);
+static int	ixl_setup_iov_switch(struct ixl_pf *pf);
 
 static int	ixl_adminq_err_to_errno(enum i40e_admin_queue_err err);
+
+#define IXL_VF_MAX_RING_XL710	8160
 
 /*
  * TODO: Move pieces of this into iflib and call the rest in a handler?
@@ -102,6 +112,8 @@ ixl_initialize_sriov(struct ixl_pf *pf)
 	    IOV_SCHEMA_HASDEFAULT, FALSE);
 	pci_iov_schema_add_bool(vf_schema, "allow-promisc",
 	    IOV_SCHEMA_HASDEFAULT, FALSE);
+	pci_iov_schema_add_vlan(vf_schema, "vlan", IOV_SCHEMA_HASDEFAULT,
+	    VF_VLAN_TRUNK);
 	pci_iov_schema_add_uint16(vf_schema, "num-queues",
 	    IOV_SCHEMA_HASDEFAULT,
 	    max(1, min(hw->func_caps.num_msix_vectors_vf - 1, IAVF_MAX_QUEUES)));
@@ -126,7 +138,7 @@ ixl_vf_alloc_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 	device_t dev;
 	struct i40e_hw *hw;
 	struct i40e_vsi_context vsi_ctx;
-	int i;
+	int error, i;
 	enum i40e_status_code code;
 
 	hw = &pf->hw;
@@ -146,13 +158,20 @@ ixl_vf_alloc_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 		   htole16(I40E_AQ_VSI_SW_ID_FLAG_ALLOW_LB);
 
 	vsi_ctx.info.valid_sections |= htole16(I40E_AQ_VSI_PROP_SECURITY_VALID);
-	vsi_ctx.info.sec_flags = 0;
+	vsi_ctx.info.sec_flags = I40E_AQ_VSI_SEC_FLAG_ENABLE_VLAN_CHK;
 	if (vf->vf_flags & VF_FLAG_MAC_ANTI_SPOOF)
 		vsi_ctx.info.sec_flags |= I40E_AQ_VSI_SEC_FLAG_ENABLE_MAC_CHK;
 
 	vsi_ctx.info.valid_sections |= htole16(I40E_AQ_VSI_PROP_VLAN_VALID);
-	vsi_ctx.info.port_vlan_flags = I40E_AQ_VSI_PVLAN_MODE_ALL |
-	    I40E_AQ_VSI_PVLAN_EMOD_NOTHING;
+	if (vf->default_vlan != 0) {
+		vsi_ctx.info.pvid = htole16(vf->default_vlan);
+		vsi_ctx.info.port_vlan_flags = I40E_AQ_VSI_PVLAN_MODE_TAGGED |
+		    I40E_AQ_VSI_PVLAN_INSERT_PVID |
+		    I40E_AQ_VSI_PVLAN_EMOD_STR;
+	} else {
+		vsi_ctx.info.port_vlan_flags = I40E_AQ_VSI_PVLAN_MODE_ALL |
+		    I40E_AQ_VSI_PVLAN_EMOD_NOTHING;
+	}
 
 	vsi_ctx.info.valid_sections |=
 	    htole16(I40E_AQ_VSI_PROP_QUEUE_MAP_VALID);
@@ -177,27 +196,34 @@ ixl_vf_alloc_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 	vf->vsi.num_tx_queues = vf->qtag.num_active;
 
 	code = i40e_aq_get_vsi_params(hw, &vsi_ctx, NULL);
-	if (code != I40E_SUCCESS)
-		return (ixl_adminq_err_to_errno(hw->aq.asq_last_status));
+	if (code != I40E_SUCCESS) {
+		error = ixl_adminq_err_to_errno(hw->aq.asq_last_status);
+		goto fail;
+	}
 
 	code = i40e_aq_config_vsi_bw_limit(hw, vf->vsi.seid, 0, 0, NULL);
 	if (code != I40E_SUCCESS) {
+		error = ixl_adminq_err_to_errno(hw->aq.asq_last_status);
 		device_printf(dev, "Failed to disable BW limit: %d\n",
-		    ixl_adminq_err_to_errno(hw->aq.asq_last_status));
-		return (ixl_adminq_err_to_errno(hw->aq.asq_last_status));
+		    error);
+		goto fail;
 	}
 
 	memcpy(&vf->vsi.info, &vsi_ctx.info, sizeof(vf->vsi.info));
 	return (0);
+
+fail:
+	i40e_aq_delete_element(hw, vf->vsi.seid, NULL);
+	vf->vsi.seid = 0;
+	vf->vsi.vsi_num = 0;
+	return (error);
 }
 
 static int
 ixl_vf_setup_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 {
-	struct i40e_hw *hw;
 	int error;
 
-	hw = &pf->hw;
 	vf->vsi.flags |= IXL_FLAGS_IS_VF;
 
 	error = ixl_vf_alloc_vsi(pf, vf);
@@ -207,13 +233,19 @@ ixl_vf_setup_vsi(struct ixl_pf *pf, struct ixl_vf *vf)
 	vf->vsi.dev = pf->dev;
 
 	ixl_init_filters(&vf->vsi);
-	/* Let VF receive broadcast Ethernet frames */
-	error = i40e_aq_set_vsi_broadcast(hw, vf->vsi.seid, TRUE, NULL);
-	if (error)
-		device_printf(pf->dev, "Error configuring VF VSI for broadcast promiscuous\n");
-	/* Re-add VF's MAC/VLAN filters to its VSI */
-	ixl_reconfigure_filters(&vf->vsi);
-
+	/*
+	 * For a trunk VSI, VLAN anti-spoofing requires an explicit VLAN 0
+	 * membership for untagged and priority-tagged traffic.
+	 */
+	error = ixl_vf_set_vlan_filter(pf, vf, vf->default_vlan, true);
+	if (error != 0) {
+		ixl_free_filters(&vf->vsi.ftl);
+		vf->vsi.num_hw_filters = 0;
+		i40e_aq_delete_element(&pf->hw, vf->vsi.seid, NULL);
+		vf->vsi.seid = 0;
+		vf->vsi.vsi_num = 0;
+		return (error);
+	}
 	return (0);
 }
 
@@ -285,17 +317,28 @@ ixl_vf_map_queues(struct ixl_pf *pf, struct ixl_vf *vf)
 	ixl_flush(hw);
 }
 
-static void
+static int
 ixl_vf_vsi_release(struct ixl_pf *pf, struct ixl_vsi *vsi)
 {
 	struct i40e_hw *hw;
+	enum i40e_status_code status;
+	int error;
 
 	hw = &pf->hw;
 
 	if (vsi->seid == 0)
-		return;
+		return (0);
 
-	i40e_aq_delete_element(hw, vsi->seid, NULL);
+	status = i40e_aq_delete_element(hw, vsi->seid, NULL);
+	if (status != I40E_SUCCESS) {
+		error = ixl_adminq_err_to_errno(hw->aq.asq_last_status);
+		device_printf(pf->dev, "Failed to release VF VSI %u: %d\n",
+		    vsi->seid, error);
+		return (error);
+	}
+	vsi->seid = 0;
+	vsi->vsi_num = 0;
+	return (0);
 }
 
 static void
@@ -315,16 +358,16 @@ ixl_vf_unregister_intr(struct i40e_hw *hw, uint32_t vpint_reg)
 	ixl_flush(hw);
 }
 
-static void
+static int
 ixl_vf_release_resources(struct ixl_pf *pf, struct ixl_vf *vf)
 {
 	struct i40e_hw *hw;
 	uint32_t vfint_reg, vpint_reg;
-	int i;
+	int error, i;
 
 	hw = &pf->hw;
 
-	ixl_vf_vsi_release(pf, &vf->vsi);
+	error = ixl_vf_vsi_release(pf, &vf->vsi);
 
 	/* Index 0 has a special register. */
 	ixl_vf_disable_queue_intr(hw, I40E_VFINT_DYN_CTL0(vf->vf_num));
@@ -344,6 +387,7 @@ ixl_vf_release_resources(struct ixl_pf *pf, struct ixl_vf *vf)
 
 	vf->vsi.num_tx_queues = 0;
 	vf->vsi.num_rx_queues = 0;
+	return (error);
 }
 
 static int
@@ -369,11 +413,12 @@ ixl_flush_pcie(struct ixl_pf *pf, struct ixl_vf *vf)
 	return (ETIMEDOUT);
 }
 
-static void
+static int
 ixl_reset_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 {
 	struct i40e_hw *hw;
 	uint32_t vfrtrig;
+	int error;
 
 	hw = &pf->hw;
 
@@ -384,12 +429,15 @@ ixl_reset_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 	wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num), vfrtrig);
 	ixl_flush(hw);
 
-	ixl_reinit_vf(pf, vf);
+	error = ixl_reinit_vf(pf, vf);
+	if (error != 0)
+		return (error);
 
 	ixl_dbg_iov(pf, "Resetting VF-%d done.\n", vf->vf_num);
+	return (0);
 }
 
-static void
+static int
 ixl_reinit_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 {
 	struct i40e_hw *hw;
@@ -397,12 +445,7 @@ ixl_reinit_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 	int i, error;
 
 	hw = &pf->hw;
-
-	error = ixl_flush_pcie(pf, vf);
-	if (error != 0)
-		device_printf(pf->dev,
-		    "Timed out waiting for PCIe activity to stop on VF-%d\n",
-		    vf->vf_num);
+	vf->vf_flags &= ~VF_FLAG_INITIALIZED;
 
 	for (i = 0; i < IXL_VF_RESET_TIMEOUT; i++) {
 		DELAY(10);
@@ -412,25 +455,53 @@ ixl_reinit_vf(struct ixl_pf *pf, struct ixl_vf *vf)
 			break;
 	}
 
-	if (i == IXL_VF_RESET_TIMEOUT)
+	if (i == IXL_VF_RESET_TIMEOUT) {
 		device_printf(pf->dev, "VF %d failed to reset\n", vf->vf_num);
+		return (ETIMEDOUT);
+	}
+
+	if (vf->vsi.seid != 0) {
+		error = ixl_disable_rings(pf, &vf->vsi, &vf->qtag);
+		if (error != 0)
+			return (error);
+	}
+	ixl_pf_qmgr_clear_queue_flags(&vf->qtag);
+
+	error = ixl_vf_release_resources(pf, vf);
+	if (error != 0)
+		return (error);
+
+	error = ixl_flush_pcie(pf, vf);
+	if (error != 0) {
+		device_printf(pf->dev,
+		    "Timed out waiting for PCIe activity to stop on VF-%d\n",
+		    vf->vf_num);
+		return (error);
+	}
 
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_num), VIRTCHNL_VFR_COMPLETED);
-
 	vfrtrig = rd32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num));
 	vfrtrig &= ~I40E_VPGEN_VFRTRIG_VFSWR_MASK;
 	wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num), vfrtrig);
 
-	if (vf->vsi.seid != 0)
-		ixl_disable_rings(pf, &vf->vsi, &vf->qtag);
-	ixl_pf_qmgr_clear_queue_flags(&vf->qtag);
+	ixl_free_filters(&vf->vsi.ftl);
+	vf->vsi.num_hw_filters = 0;
+	vf->vsi.num_macs = 0;
+	vf->vsi.num_vlans = 0;
+	bit_nclear(vf->vsi.vlans_map, 0, IXL_VLANS_MAP_LEN - 1);
+	vf->num_mac_filters = 0;
 
-	ixl_vf_release_resources(pf, vf);
-	ixl_vf_setup_vsi(pf, vf);
+	error = ixl_vf_setup_vsi(pf, vf);
+	if (error != 0)
+		return (error);
 	ixl_vf_map_queues(pf, vf);
 
 	wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_num), VIRTCHNL_VFR_VFACTIVE);
 	ixl_flush(hw);
+	vf->mdd_blocked = false;
+	vf->mdd_event_pending = false;
+	vf->mdd_reset_pending = false;
+	return (0);
 }
 
 static int
@@ -514,7 +585,12 @@ static void
 ixl_vf_reset_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
     uint16_t msg_size)
 {
-	ixl_reset_vf(pf, vf);
+	int error;
+
+	error = ixl_reset_vf(pf, vf);
+	if (error != 0)
+		device_printf(pf->dev, "Failed to reset VF-%d: %d\n",
+		    vf->vf_num, error);
 
 	/* No response to a reset message. */
 }
@@ -550,6 +626,7 @@ ixl_vf_get_resources_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 
 	ixl_send_vf_msg(pf, vf, VIRTCHNL_OP_GET_VF_RESOURCES,
 	    I40E_SUCCESS, &reply, sizeof(reply));
+	vf->vf_flags |= VF_FLAG_INITIALIZED;
 }
 
 static int
@@ -595,6 +672,33 @@ ixl_vf_config_tx_queue(struct ixl_pf *pf, struct ixl_vf *vf,
 	ixl_pf_qmgr_mark_queue_configured(&vf->qtag, info->queue_id, true);
 
 	return (0);
+}
+
+static uint32_t
+ixl_vf_max_ring(const struct i40e_hw *hw)
+{
+
+	if (hw->mac.type == I40E_MAC_XL710)
+		return (IXL_VF_MAX_RING_XL710);
+	return (IXL_MAX_RING);
+}
+
+static bool
+ixl_vf_tx_queue_valid(struct ixl_pf *pf,
+    const struct virtchnl_txq_info *info)
+{
+
+	if (info->ring_len < IXL_MIN_RING ||
+	    info->ring_len > ixl_vf_max_ring(&pf->hw) ||
+	    info->ring_len % 8 != 0 ||
+	    info->dma_ring_addr == 0 ||
+	    info->dma_ring_addr % IXL_TX_CTX_BASE_UNITS != 0 ||
+	    info->headwb_enabled > 1)
+		return (false);
+	if (info->headwb_enabled != 0 &&
+	    (info->dma_headwb_addr == 0 || info->dma_headwb_addr % 4 != 0))
+		return (false);
+	return (true);
 }
 
 static int
@@ -664,6 +768,33 @@ ixl_vf_config_rx_queue(struct ixl_pf *pf, struct ixl_vf *vf,
 	return (0);
 }
 
+static bool
+ixl_vf_rx_queue_valid(struct ixl_pf *pf,
+    const struct virtchnl_rxq_info *info)
+{
+
+	if (info->ring_len < IXL_MIN_RING ||
+	    info->ring_len > ixl_vf_max_ring(&pf->hw) ||
+	    info->ring_len % IXL_RING_INCREMENT != 0 ||
+	    info->dma_ring_addr == 0 ||
+	    info->dma_ring_addr % IXL_RX_CTX_BASE_UNITS != 0)
+		return (false);
+	if (info->databuffer_size == 0 ||
+	    info->databuffer_size > IXL_VF_MAX_BUFFER ||
+	    info->databuffer_size % (1U << I40E_RXQ_CTX_DBUFF_SHIFT) != 0)
+		return (false);
+	if (info->max_pkt_size > IXL_VF_MAX_FRAME ||
+	    info->max_pkt_size < ETHER_MIN_LEN)
+		return (false);
+	if (info->splithdr_enabled > 1)
+		return (false);
+	if (info->splithdr_enabled != 0 &&
+	    (info->hdr_size == 0 || info->hdr_size > IXL_VF_MAX_HDR_BUFFER ||
+	    info->hdr_size % (1U << I40E_RXQ_CTX_HBUFF_SHIFT) != 0))
+		return (false);
+	return (true);
+}
+
 static void
 ixl_vf_config_vsi_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
     uint16_t msg_size)
@@ -695,12 +826,18 @@ ixl_vf_config_vsi_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 		if (pair->txq.vsi_id != vf->vsi.vsi_num ||
 		    pair->rxq.vsi_id != vf->vsi.vsi_num ||
 		    pair->txq.queue_id != pair->rxq.queue_id ||
-		    pair->txq.queue_id >= vf->vsi.num_tx_queues) {
+		    pair->txq.queue_id >= vf->vsi.num_tx_queues ||
+		    !ixl_vf_tx_queue_valid(pf, &pair->txq) ||
+		    !ixl_vf_rx_queue_valid(pf, &pair->rxq)) {
 
 			i40e_send_vf_nack(pf, vf,
 			    VIRTCHNL_OP_CONFIG_VSI_QUEUES, I40E_ERR_PARAM);
 			return;
 		}
+	}
+
+	for (i = 0; i < info->num_queue_pairs; i++) {
+		pair = &info->qpair[i];
 
 		if (ixl_vf_config_tx_queue(pf, vf, &pair->txq) != 0) {
 			i40e_send_vf_nack(pf, vf,
@@ -852,8 +989,10 @@ ixl_vf_config_irq_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 			return;
 		}
 
-		ixl_vf_config_vector(pf, vf, vector);
 	}
+
+	for (i = 0; i < map->num_vectors; i++)
+		ixl_vf_config_vector(pf, vf, &map->vecmap[i]);
 
 	ixl_send_vf_ack(pf, vf, VIRTCHNL_OP_CONFIG_IRQ_MAP);
 }
@@ -863,29 +1002,33 @@ ixl_vf_enable_queues_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
     uint16_t msg_size)
 {
 	struct virtchnl_queue_select *select;
+	uint32_t queue_mask;
 	int error = 0;
 
 	select = msg;
 
+	queue_mask = (1U << vf->qtag.num_active) - 1;
 	if (select->vsi_id != vf->vsi.vsi_num ||
-	    select->rx_queues == 0 || select->tx_queues == 0) {
+	    (select->rx_queues == 0 && select->tx_queues == 0) ||
+	    ((select->rx_queues | select->tx_queues) & ~queue_mask) != 0) {
 		i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ENABLE_QUEUES,
 		    I40E_ERR_PARAM);
 		return;
 	}
+	for (int i = 0; i < vf->qtag.num_active; i++) {
+		if (((select->tx_queues & (1U << i)) != 0 &&
+		    !ixl_pf_qmgr_is_queue_configured(&vf->qtag, i, true)) ||
+		    ((select->rx_queues & (1U << i)) != 0 &&
+		    !ixl_pf_qmgr_is_queue_configured(&vf->qtag, i, false))) {
+			i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ENABLE_QUEUES,
+			    I40E_ERR_PARAM);
+			return;
+		}
+	}
 
 	/* Enable TX rings selected by the VF */
-	for (int i = 0; i < 32; i++) {
-		if ((1 << i) & select->tx_queues) {
-			/* Warn if queue is out of VF allocation range */
-			if (i >= vf->vsi.num_tx_queues) {
-				device_printf(pf->dev, "VF %d: TX ring %d is outside of VF VSI allocation!\n",
-				    vf->vf_num, i);
-				break;
-			}
-			/* Skip this queue if it hasn't been configured */
-			if (!ixl_pf_qmgr_is_queue_configured(&vf->qtag, i, true))
-				continue;
+	for (int i = 0; i < vf->qtag.num_active; i++) {
+		if ((1U << i) & select->tx_queues) {
 			/* Warn if this queue is already marked as enabled */
 			if (ixl_pf_qmgr_is_queue_enabled(&vf->qtag, i, true))
 				ixl_dbg_iov(pf, "VF %d: TX ring %d is already enabled!\n",
@@ -900,17 +1043,8 @@ ixl_vf_enable_queues_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 	}
 
 	/* Enable RX rings selected by the VF */
-	for (int i = 0; i < 32; i++) {
-		if ((1 << i) & select->rx_queues) {
-			/* Warn if queue is out of VF allocation range */
-			if (i >= vf->vsi.num_rx_queues) {
-				device_printf(pf->dev, "VF %d: RX ring %d is outside of VF VSI allocation!\n",
-				    vf->vf_num, i);
-				break;
-			}
-			/* Skip this queue if it hasn't been configured */
-			if (!ixl_pf_qmgr_is_queue_configured(&vf->qtag, i, false))
-				continue;
+	for (int i = 0; i < vf->qtag.num_active; i++) {
+		if ((1U << i) & select->rx_queues) {
 			/* Warn if this queue is already marked as enabled */
 			if (ixl_pf_qmgr_is_queue_enabled(&vf->qtag, i, false))
 				ixl_dbg_iov(pf, "VF %d: RX ring %d is already enabled!\n",
@@ -937,26 +1071,23 @@ ixl_vf_disable_queues_msg(struct ixl_pf *pf, struct ixl_vf *vf,
     void *msg, uint16_t msg_size)
 {
 	struct virtchnl_queue_select *select;
+	uint32_t queue_mask;
 	int error = 0;
 
 	select = msg;
 
+	queue_mask = (1U << vf->qtag.num_active) - 1;
 	if (select->vsi_id != vf->vsi.vsi_num ||
-	    select->rx_queues == 0 || select->tx_queues == 0) {
+	    (select->rx_queues == 0 && select->tx_queues == 0) ||
+	    ((select->rx_queues | select->tx_queues) & ~queue_mask) != 0) {
 		i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_DISABLE_QUEUES,
 		    I40E_ERR_PARAM);
 		return;
 	}
 
 	/* Disable TX rings selected by the VF */
-	for (int i = 0; i < 32; i++) {
-		if ((1 << i) & select->tx_queues) {
-			/* Warn if queue is out of VF allocation range */
-			if (i >= vf->vsi.num_tx_queues) {
-				device_printf(pf->dev, "VF %d: TX ring %d is outside of VF VSI allocation!\n",
-				    vf->vf_num, i);
-				break;
-			}
+	for (int i = 0; i < vf->qtag.num_active; i++) {
+		if ((1U << i) & select->tx_queues) {
 			/* Skip this queue if it hasn't been configured */
 			if (!ixl_pf_qmgr_is_queue_configured(&vf->qtag, i, true))
 				continue;
@@ -975,14 +1106,8 @@ ixl_vf_disable_queues_msg(struct ixl_pf *pf, struct ixl_vf *vf,
 	}
 
 	/* Enable RX rings selected by the VF */
-	for (int i = 0; i < 32; i++) {
-		if ((1 << i) & select->rx_queues) {
-			/* Warn if queue is out of VF allocation range */
-			if (i >= vf->vsi.num_rx_queues) {
-				device_printf(pf->dev, "VF %d: RX ring %d is outside of VF VSI allocation!\n",
-				    vf->vf_num, i);
-				break;
-			}
+	for (int i = 0; i < vf->qtag.num_active; i++) {
+		if ((1U << i) & select->rx_queues) {
 			/* Skip this queue if it hasn't been configured */
 			if (!ixl_pf_qmgr_is_queue_configured(&vf->qtag, i, false))
 				continue;
@@ -1028,6 +1153,82 @@ ixl_vf_mac_valid(struct ixl_vf *vf, const uint8_t *addr)
 	return (0);
 }
 
+static int
+ixl_vf_mac_index(struct ixl_vf *vf, const uint8_t *addr)
+{
+	int i;
+
+	for (i = 0; i < vf->num_mac_filters; i++) {
+		if (ixl_ether_is_equal(vf->mac_filters[i], addr))
+			return (i);
+	}
+	return (-1);
+}
+
+static int
+ixl_vf_program_mac(struct ixl_vf *vf, const uint8_t *addr)
+{
+	struct ixl_vsi *vsi;
+	int vlan;
+
+	vsi = &vf->vsi;
+	if (vf->default_vlan != 0) {
+		ixl_add_filter(vsi, addr, vf->default_vlan);
+		if (ixl_find_filter(&vsi->ftl, addr, vf->default_vlan) == NULL)
+			return (ENOMEM);
+		return (0);
+	}
+	if (vsi->num_vlans == 0) {
+		ixl_add_filter(vsi, addr, IXL_VLAN_ANY);
+		if (ixl_find_filter(&vsi->ftl, addr, IXL_VLAN_ANY) == NULL)
+			return (ENOMEM);
+		return (0);
+	}
+
+	ixl_add_vlan_filters(vsi, addr);
+	if (ixl_find_filter(&vsi->ftl, addr, 0) == NULL)
+		return (ENOMEM);
+	for (vlan = 1; vlan < IXL_VLANS_MAP_LEN; vlan++) {
+		if (bit_test(vsi->vlans_map, vlan) &&
+		    ixl_find_filter(&vsi->ftl, addr, vlan) == NULL)
+			return (ENOMEM);
+	}
+	return (0);
+}
+
+static void
+ixl_vf_remove_mac(struct ixl_vf *vf, int index)
+{
+
+	ixl_del_all_vlan_filters(&vf->vsi, vf->mac_filters[index]);
+	if (index + 1 < vf->num_mac_filters) {
+		memmove(vf->mac_filters[index], vf->mac_filters[index + 1],
+		    (vf->num_mac_filters - index - 1) * ETHER_ADDR_LEN);
+	}
+	vf->num_mac_filters--;
+	vf->vsi.num_macs = vf->num_mac_filters;
+}
+
+static int
+ixl_vf_set_vlan_filter(struct ixl_pf *pf, struct ixl_vf *vf,
+    uint16_t vlan, bool add)
+{
+	struct i40e_aqc_add_remove_vlan_element_data element;
+	enum i40e_status_code status;
+
+	bzero(&element, sizeof(element));
+	element.vlan_tag = htole16(vlan);
+	if (add)
+		status = i40e_aq_add_vlan(&pf->hw, vf->vsi.seid, &element,
+		    1, NULL);
+	else
+		status = i40e_aq_remove_vlan(&pf->hw, vf->vsi.seid, &element,
+		    1, NULL);
+	if (status != I40E_SUCCESS)
+		return (ixl_adminq_err_to_errno(pf->hw.aq.asq_last_status));
+	return (0);
+}
+
 static void
 ixl_vf_add_mac_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
     uint16_t msg_size)
@@ -1035,7 +1236,7 @@ ixl_vf_add_mac_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 	struct virtchnl_ether_addr_list *addr_list;
 	struct virtchnl_ether_addr *addr;
 	struct ixl_vsi *vsi;
-	int i;
+	int i, j, new_total, old_num;
 
 	vsi = &vf->vsi;
 	addr_list = msg;
@@ -1046,20 +1247,50 @@ ixl_vf_add_mac_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 		return;
 	}
 
+	new_total = vf->num_mac_filters;
 	for (i = 0; i < addr_list->num_elements; i++) {
 		if (ixl_vf_mac_valid(vf, addr_list->list[i].addr) != 0) {
 			i40e_send_vf_nack(pf, vf,
 			    VIRTCHNL_OP_ADD_ETH_ADDR, I40E_ERR_PARAM);
 			return;
 		}
+		for (j = 0; j < i; j++) {
+			if (ixl_ether_is_equal(addr_list->list[i].addr,
+			    addr_list->list[j].addr))
+				break;
+		}
+		if (j == i && ixl_vf_mac_index(vf,
+		    addr_list->list[i].addr) < 0)
+			new_total++;
+	}
+	if (new_total > IXL_VF_MAX_MAC_FILTERS) {
+		i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ADD_ETH_ADDR,
+		    I40E_ERR_NO_MEMORY);
+		return;
 	}
 
+	old_num = vf->num_mac_filters;
 	for (i = 0; i < addr_list->num_elements; i++) {
 		addr = &addr_list->list[i];
-		ixl_add_filter(vsi, addr->addr, IXL_VLAN_ANY);
+		if (ixl_vf_mac_index(vf, addr->addr) >= 0)
+			continue;
+		if (ixl_vf_program_mac(vf, addr->addr) != 0)
+			goto fail;
+		bcopy(addr->addr, vf->mac_filters[vf->num_mac_filters],
+		    ETHER_ADDR_LEN);
+		vf->num_mac_filters++;
 	}
+	vsi->num_macs = vf->num_mac_filters;
 
 	ixl_send_vf_ack(pf, vf, VIRTCHNL_OP_ADD_ETH_ADDR);
+	return;
+
+fail:
+	ixl_del_all_vlan_filters(vsi, addr->addr);
+	while (vf->num_mac_filters > old_num)
+		ixl_vf_remove_mac(vf, vf->num_mac_filters - 1);
+	i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ADD_ETH_ADDR,
+	    I40E_ERR_NO_MEMORY);
 }
 
 static void
@@ -1069,7 +1300,7 @@ ixl_vf_del_mac_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 	struct virtchnl_ether_addr_list *addr_list;
 	struct virtchnl_ether_addr *addr;
 	struct ixl_vsi *vsi;
-	int i;
+	int i, j;
 
 	vsi = &vf->vsi;
 	addr_list = msg;
@@ -1087,11 +1318,24 @@ ixl_vf_del_mac_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 			    VIRTCHNL_OP_DEL_ETH_ADDR, I40E_ERR_PARAM);
 			return;
 		}
+		if (ixl_vf_mac_index(vf, addr->addr) < 0) {
+			i40e_send_vf_nack(pf, vf,
+			    VIRTCHNL_OP_DEL_ETH_ADDR, I40E_ERR_PARAM);
+			return;
+		}
+		for (j = 0; j < i; j++) {
+			if (ixl_ether_is_equal(addr->addr,
+			    addr_list->list[j].addr)) {
+				i40e_send_vf_nack(pf, vf,
+				    VIRTCHNL_OP_DEL_ETH_ADDR, I40E_ERR_PARAM);
+				return;
+			}
+		}
 	}
 
 	for (i = 0; i < addr_list->num_elements; i++) {
 		addr = &addr_list->list[i];
-		ixl_del_filter(&vf->vsi, addr->addr, IXL_VLAN_ANY);
+		ixl_vf_remove_mac(vf, ixl_vf_mac_index(vf, addr->addr));
 	}
 
 	ixl_send_vf_ack(pf, vf, VIRTCHNL_OP_DEL_ETH_ADDR);
@@ -1117,7 +1361,8 @@ ixl_vf_add_vlan_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 {
 	struct virtchnl_vlan_filter_list *filter_list;
 	enum i40e_status_code code;
-	int i;
+	uint16_t added[IXL_VF_MAX_VLAN_FILTERS];
+	int i, j, nadded;
 
 	filter_list = msg;
 
@@ -1133,24 +1378,74 @@ ixl_vf_add_vlan_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 		return;
 	}
 
+	nadded = 0;
 	for (i = 0; i < filter_list->num_elements; i++) {
 		if (filter_list->vlan_id[i] > EVL_VLID_MASK) {
 			i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ADD_VLAN,
 			    I40E_ERR_PARAM);
 			return;
 		}
+		if (filter_list->vlan_id[i] == 0 ||
+		    bit_test(vf->vsi.vlans_map, filter_list->vlan_id[i]))
+			continue;
+		for (j = 0; j < nadded; j++) {
+			if (added[j] == filter_list->vlan_id[i])
+				break;
+		}
+		if (j == nadded && nadded == IXL_VF_MAX_VLAN_FILTERS) {
+			i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ADD_VLAN,
+			    I40E_ERR_NO_MEMORY);
+			return;
+		}
+		if (j == nadded)
+			added[nadded++] = filter_list->vlan_id[i];
+	}
+	if (vf->vsi.num_vlans + nadded > IXL_VF_MAX_VLAN_FILTERS) {
+		i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ADD_VLAN,
+		    I40E_ERR_NO_MEMORY);
+		return;
 	}
 
 	code = ixl_vf_enable_vlan_strip(pf, vf);
 	if (code != I40E_SUCCESS) {
 		i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ADD_VLAN,
 		    I40E_ERR_PARAM);
+		return;
 	}
 
-	for (i = 0; i < filter_list->num_elements; i++)
-		ixl_add_filter(&vf->vsi, vf->mac, filter_list->vlan_id[i]);
+	for (i = 0; i < nadded; i++) {
+		if (ixl_vf_set_vlan_filter(pf, vf, added[i], true) != 0)
+			goto fail_vlan;
+	}
+	for (i = 0; i < nadded; i++) {
+		vf->vsi.num_vlans++;
+		bit_set(vf->vsi.vlans_map, added[i]);
+		for (j = 0; j < vf->num_mac_filters; j++) {
+			ixl_add_filter(&vf->vsi, vf->mac_filters[j], added[i]);
+			if (ixl_find_filter(&vf->vsi.ftl,
+			    vf->mac_filters[j], added[i]) == NULL)
+				goto fail_filters;
+		}
+	}
 
 	ixl_send_vf_ack(pf, vf, VIRTCHNL_OP_ADD_VLAN);
+	return;
+
+fail_filters:
+	for (j = 0; j < vf->num_mac_filters; j++)
+		ixl_del_all_vlan_filters(&vf->vsi, vf->mac_filters[j]);
+	for (j = 0; j <= i; j++) {
+		bit_clear(vf->vsi.vlans_map, added[j]);
+		vf->vsi.num_vlans--;
+	}
+	for (j = 0; j < vf->num_mac_filters; j++)
+		(void)ixl_vf_program_mac(vf, vf->mac_filters[j]);
+	i = nadded;
+fail_vlan:
+	while (i-- > 0)
+		(void)ixl_vf_set_vlan_filter(pf, vf, added[i], false);
+	i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ADD_VLAN,
+	    I40E_ERR_ADMIN_QUEUE_ERROR);
 }
 
 static void
@@ -1158,7 +1453,8 @@ ixl_vf_del_vlan_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
     uint16_t msg_size)
 {
 	struct virtchnl_vlan_filter_list *filter_list;
-	int i;
+	uint16_t removed[IXL_VF_MAX_VLAN_FILTERS];
+	int i, j, nremoved;
 
 	filter_list = msg;
 
@@ -1168,24 +1464,56 @@ ixl_vf_del_vlan_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 		return;
 	}
 
+	nremoved = 0;
 	for (i = 0; i < filter_list->num_elements; i++) {
 		if (filter_list->vlan_id[i] > EVL_VLID_MASK) {
-			i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ADD_VLAN,
+			i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_DEL_VLAN,
 			    I40E_ERR_PARAM);
 			return;
 		}
+		if (filter_list->vlan_id[i] == 0)
+			continue;
+		if (!bit_test(vf->vsi.vlans_map,
+		    filter_list->vlan_id[i])) {
+			i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_DEL_VLAN,
+			    I40E_ERR_PARAM);
+			return;
+		}
+		for (j = 0; j < nremoved; j++) {
+			if (removed[j] == filter_list->vlan_id[i]) {
+				i40e_send_vf_nack(pf, vf,
+				    VIRTCHNL_OP_DEL_VLAN, I40E_ERR_PARAM);
+				return;
+			}
+		}
+		removed[nremoved++] = filter_list->vlan_id[i];
 	}
 
 	if (!(vf->vf_flags & VF_FLAG_VLAN_CAP)) {
-		i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_ADD_VLAN,
+		i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_DEL_VLAN,
 		    I40E_ERR_PARAM);
 		return;
 	}
 
-	for (i = 0; i < filter_list->num_elements; i++)
-		ixl_del_filter(&vf->vsi, vf->mac, filter_list->vlan_id[i]);
+	for (i = 0; i < nremoved; i++) {
+		if (ixl_vf_set_vlan_filter(pf, vf, removed[i], false) != 0)
+			goto fail;
+	}
+	for (i = 0; i < nremoved; i++) {
+		bit_clear(vf->vsi.vlans_map, removed[i]);
+		vf->vsi.num_vlans--;
+		for (j = 0; j < vf->num_mac_filters; j++)
+			ixl_del_filter(&vf->vsi, vf->mac_filters[j], removed[i]);
+	}
 
 	ixl_send_vf_ack(pf, vf, VIRTCHNL_OP_DEL_VLAN);
+	return;
+
+fail:
+	while (i-- > 0)
+		(void)ixl_vf_set_vlan_filter(pf, vf, removed[i], true);
+	i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_DEL_VLAN,
+	    I40E_ERR_ADMIN_QUEUE_ERROR);
 }
 
 static void
@@ -1269,8 +1597,8 @@ ixl_vf_config_rss_key_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 
 	key = msg;
 
-	if (key->key_len > 52) {
-		device_printf(pf->dev, "VF %d: Key size in msg (%d) is greater than max key size (%d)\n",
+	if (key->key_len != 52) {
+		device_printf(pf->dev, "VF %d: Key size in msg (%d) does not match required size (%d)\n",
 		    vf->vf_num, key->key_len, 52);
 		i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_CONFIG_RSS_KEY,
 		    I40E_ERR_PARAM);
@@ -1325,12 +1653,19 @@ ixl_vf_config_rss_lut_msg(struct ixl_pf *pf, struct ixl_vf *vf, void *msg,
 
 	lut = msg;
 
-	if (lut->lut_entries > 64) {
-		device_printf(pf->dev, "VF %d: # of LUT entries in msg (%d) is greater than max (%d)\n",
+	if (lut->lut_entries != 64) {
+		device_printf(pf->dev, "VF %d: # of LUT entries in msg (%d) does not match required size (%d)\n",
 		    vf->vf_num, lut->lut_entries, 64);
 		i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_CONFIG_RSS_LUT,
 		    I40E_ERR_PARAM);
 		return;
+	}
+	for (int i = 0; i < lut->lut_entries; i++) {
+		if (lut->lut[i] >= vf->vsi.num_rx_queues) {
+			i40e_send_vf_nack(pf, vf, VIRTCHNL_OP_CONFIG_RSS_LUT,
+			    I40E_ERR_PARAM);
+			return;
+		}
 	}
 
 	if (lut->vsi_id != vf->vsi.vsi_num) {
@@ -1435,6 +1770,10 @@ ixl_handle_vf_msg(struct ixl_pf *pf, struct i40e_arq_event_info *event)
 	    ixl_vc_opcode_str(opcode), opcode,
 	    (vf->vf_flags & VF_FLAG_ENABLED) ? " " : " disabled ",
 	    vf_num, msg_size);
+
+	/* Only a reset outside the virtchnl dispatcher may unblock the VF. */
+	if (vf->mdd_blocked)
+		return;
 
 	/* Perform basic checks on the msg */
 	err = virtchnl_vc_validate_vf_msg(&vf->version, opcode, msg, msg_size);
@@ -1552,8 +1891,12 @@ ixl_handle_vflr(struct ixl_pf *pf)
 			    vflrstat_mask);
 
 			ixl_dbg_iov(pf, "Reinitializing VF-%d\n", i);
-			ixl_reinit_vf(pf, vf);
-			ixl_dbg_iov(pf, "Reinitializing VF-%d done\n", i);
+			if (ixl_reinit_vf(pf, vf) != 0)
+				device_printf(pf->dev,
+				    "Failed to reinitialize VF-%d\n", i);
+			else
+				ixl_dbg_iov(pf,
+				    "Reinitializing VF-%d done\n", i);
 		}
 	}
 
@@ -1644,18 +1987,277 @@ ixl_config_pf_vsi_loopback(struct ixl_pf *pf, bool enable)
 	return (error);
 }
 
-int
-ixl_if_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params)
+static int
+ixl_setup_iov_switch(struct ixl_pf *pf)
 {
-	struct ixl_pf *pf = iflib_get_softc(ctx);
-	device_t dev = iflib_get_dev(ctx);
 	struct i40e_hw *hw;
 	struct ixl_vsi *pf_vsi;
-	enum i40e_status_code ret;
+	enum i40e_status_code status;
 	int error;
 
 	hw = &pf->hw;
 	pf_vsi = &pf->vsi;
+	status = i40e_aq_add_veb(hw, pf_vsi->uplink_seid, pf_vsi->seid,
+	    1, false, &pf->veb_seid, false, NULL);
+	if (status != I40E_SUCCESS) {
+		error = ixl_adminq_err_to_errno(hw->aq.asq_last_status);
+		device_printf(pf->dev,
+		    "i40e_aq_add_veb failed; status %s error %s\n",
+		    i40e_stat_str(hw, status),
+		    i40e_aq_str(hw, hw->aq.asq_last_status));
+		return (error);
+	}
+	if (pf->enable_vf_loopback) {
+		error = ixl_config_pf_vsi_loopback(pf, true);
+		if (error != 0)
+			goto fail;
+	}
+
+	/* Adding a VEB reinstalls the firmware's default PF filters. */
+	ixl_del_default_hw_filters(pf_vsi);
+	ixl_reconfigure_filters(pf_vsi);
+	return (0);
+
+fail:
+	i40e_aq_delete_element(hw, pf->veb_seid, NULL);
+	pf->veb_seid = 0;
+	return (error);
+}
+
+void
+ixl_notify_vfs_reset(struct ixl_pf *pf)
+{
+	struct virtchnl_pf_event event;
+	struct ixl_vf *vf;
+	int i;
+
+	if (pf->num_vfs == 0 || !i40e_check_asq_alive(&pf->hw))
+		return;
+	bzero(&event, sizeof(event));
+	event.event = VIRTCHNL_EVENT_RESET_IMPENDING;
+	event.severity = PF_EVENT_SEVERITY_CERTAIN_DOOM;
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (vf->vf_flags & VF_FLAG_ENABLED) {
+			ixl_send_vf_msg(pf, vf, VIRTCHNL_OP_EVENT,
+			    I40E_SUCCESS, &event, sizeof(event));
+		}
+	}
+}
+
+int
+ixl_reset_vf_on_mdd(struct ixl_pf *pf, uint16_t vfnum)
+{
+	struct virtchnl_pf_event event;
+	struct ixl_vf *vf;
+
+	if (vfnum >= pf->num_vfs)
+		return (EINVAL);
+	vf = &pf->vfs[vfnum];
+	if (!(vf->vf_flags & VF_FLAG_ENABLED))
+		return (ENXIO);
+
+	bzero(&event, sizeof(event));
+	event.event = VIRTCHNL_EVENT_RESET_IMPENDING;
+	event.severity = PF_EVENT_SEVERITY_CERTAIN_DOOM;
+	ixl_send_vf_msg(pf, vf, VIRTCHNL_OP_EVENT, I40E_SUCCESS,
+	    &event, sizeof(event));
+	return (ixl_reset_vf(pf, vf));
+}
+
+/*
+ * Hold every configured VF in reset and drain its PCIe transactions.
+ * Starting all VF resets before polling amortizes the hardware reset delay
+ * across the set.  This is used both before the device reset and while its
+ * replacement firmware topology is constructed.
+ */
+static int
+ixl_hold_vfs_in_reset(struct ixl_pf *pf)
+{
+	struct i40e_hw *hw;
+	struct ixl_vf *vf;
+	uint32_t vfrstat, vfrtrig;
+	int error, first_error, i, retry;
+	bool all_done;
+
+	hw = &pf->hw;
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (!(vf->vf_flags & VF_FLAG_ENABLED))
+			continue;
+		vf->vf_flags &= ~VF_FLAG_INITIALIZED;
+		vfrtrig = rd32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num));
+		vfrtrig |= I40E_VPGEN_VFRTRIG_VFSWR_MASK;
+		wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num), vfrtrig);
+	}
+	ixl_flush(hw);
+
+	first_error = 0;
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (!(vf->vf_flags & VF_FLAG_ENABLED))
+			continue;
+		error = ixl_flush_pcie(pf, vf);
+		if (error != 0) {
+			device_printf(pf->dev,
+			    "Timed out draining PCIe transactions on VF-%d\n", i);
+			if (first_error == 0)
+				first_error = error;
+		}
+	}
+
+	for (retry = 0; retry < IXL_VF_RESET_TIMEOUT; retry++) {
+		DELAY(1000);
+		all_done = true;
+		for (i = 0; i < pf->num_vfs; i++) {
+			vf = &pf->vfs[i];
+			if (!(vf->vf_flags & VF_FLAG_ENABLED))
+				continue;
+			vfrstat = rd32(hw, I40E_VPGEN_VFRSTAT(vf->vf_num));
+			if (!(vfrstat & I40E_VPGEN_VFRSTAT_VFRD_MASK)) {
+				all_done = false;
+				break;
+			}
+		}
+		if (all_done)
+			return (first_error);
+	}
+
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (!(vf->vf_flags & VF_FLAG_ENABLED))
+			continue;
+		vfrstat = rd32(hw, I40E_VPGEN_VFRSTAT(vf->vf_num));
+		if (!(vfrstat & I40E_VPGEN_VFRSTAT_VFRD_MASK))
+			device_printf(pf->dev,
+			    "VF-%d failed to enter reset\n", i);
+	}
+	return (first_error != 0 ? first_error : ETIMEDOUT);
+}
+
+/*
+ * Stop VF DMA during the reset-warning interval, before VF drivers may
+ * release their buffers.  Holding VFR also prevents an uncooperative VF
+ * from re-enabling a queue before the device reset begins.
+ */
+int
+ixl_quiesce_vfs_for_reset(struct ixl_pf *pf)
+{
+	struct ixl_vf *vf;
+	int error, first_error, i;
+
+	if (pf->num_vfs == 0)
+		return (0);
+	first_error = ixl_hold_vfs_in_reset(pf);
+
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (!(vf->vf_flags & VF_FLAG_ENABLED))
+			continue;
+		error = ixl_disable_rings(pf, &vf->vsi, &vf->qtag);
+		if (error != 0 && first_error == 0)
+			first_error = error;
+	}
+	/* Hardware may need up to 50 ms to finish disabling RX queues. */
+	DELAY(50000);
+
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (!(vf->vf_flags & VF_FLAG_ENABLED))
+			continue;
+		error = ixl_flush_pcie(pf, vf);
+		if (error != 0) {
+			device_printf(pf->dev,
+			    "PCIe transactions remain pending on VF-%d\n", i);
+			if (first_error == 0)
+				first_error = error;
+		}
+	}
+	return (first_error);
+}
+
+int
+ixl_rebuild_vfs_after_reset(struct ixl_pf *pf)
+{
+	struct i40e_hw *hw;
+	struct ixl_vf *vf;
+	uint32_t vfrtrig;
+	int error, first_error, i;
+
+	hw = &pf->hw;
+	pf->veb_seid = 0;
+	/* The reset-warning path already stopped and drained the old rings. */
+	error = ixl_hold_vfs_in_reset(pf);
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (!(vf->vf_flags & VF_FLAG_ENABLED))
+			continue;
+
+		vf->vf_flags &= ~VF_FLAG_INITIALIZED;
+		vf->vsi.seid = 0;
+		vf->vsi.vsi_num = 0;
+		vf->vsi.num_tx_queues = 0;
+		vf->vsi.num_rx_queues = 0;
+		bzero(&vf->vsi.info, sizeof(vf->vsi.info));
+		ixl_pf_qmgr_clear_queue_flags(&vf->qtag);
+		ixl_free_filters(&vf->vsi.ftl);
+		vf->vsi.num_hw_filters = 0;
+		vf->vsi.num_macs = 0;
+		vf->vsi.num_vlans = 0;
+		bit_nclear(vf->vsi.vlans_map, 0,
+		    IXL_VLANS_MAP_LEN - 1);
+		vf->num_mac_filters = 0;
+		vf->mdd_blocked = false;
+		vf->mdd_event_pending = false;
+		vf->mdd_reset_pending = false;
+	}
+	if (error != 0)
+		return (error);
+
+	error = ixl_setup_iov_switch(pf);
+	if (error != 0)
+		return (error);
+
+	first_error = 0;
+	for (i = 0; i < pf->num_vfs; i++) {
+		vf = &pf->vfs[i];
+		if (!(vf->vf_flags & VF_FLAG_ENABLED))
+			continue;
+
+		/*
+		 * VFR resets the VF queue-mapping registers.  Release it before
+		 * programming the replacement VSI and mappings, but do not publish
+		 * VFACTIVE until reconstruction is complete.
+		 */
+		wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_num),
+		    VIRTCHNL_VFR_COMPLETED);
+		vfrtrig = rd32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num));
+		vfrtrig &= ~I40E_VPGEN_VFRTRIG_VFSWR_MASK;
+		wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num), vfrtrig);
+
+		error = ixl_vf_setup_vsi(pf, vf);
+		if (error != 0) {
+			device_printf(pf->dev,
+			    "Failed to rebuild VF-%d: %d\n", i, error);
+			vfrtrig |= I40E_VPGEN_VFRTRIG_VFSWR_MASK;
+			wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num), vfrtrig);
+			if (first_error == 0)
+				first_error = error;
+			continue;
+		}
+		ixl_vf_map_queues(pf, vf);
+		wr32(hw, I40E_VFGEN_RSTAT1(vf->vf_num),
+		    VIRTCHNL_VFR_VFACTIVE);
+	}
+	ixl_flush(hw);
+	return (first_error);
+}
+
+int
+ixl_if_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params)
+{
+	struct ixl_pf *pf = iflib_get_softc(ctx);
+	int error, i;
 
 	pf->vfs = malloc(sizeof(struct ixl_vf) * num_vfs, M_IXL, M_NOWAIT |
 	    M_ZERO);
@@ -1663,29 +2265,12 @@ ixl_if_iov_init(if_ctx_t ctx, uint16_t num_vfs, const nvlist_t *params)
 		error = ENOMEM;
 		goto fail;
 	}
+	for (i = 0; i < num_vfs; i++)
+		sysctl_ctx_init(&pf->vfs[i].vsi.sysctl_ctx);
 
-	/*
-	 * Add the VEB and ...
-	 * - do nothing: VEPA mode
-	 * - enable loopback mode on connected VSIs: VEB mode
-	 */
-	ret = i40e_aq_add_veb(hw, pf_vsi->uplink_seid, pf_vsi->seid,
-	    1, FALSE, &pf->veb_seid, FALSE, NULL);
-	if (ret != I40E_SUCCESS) {
-		error = hw->aq.asq_last_status;
-		device_printf(dev, "i40e_aq_add_veb failed; status %s error %s",
-		    i40e_stat_str(hw, ret), i40e_aq_str(hw, error));
+	error = ixl_setup_iov_switch(pf);
+	if (error != 0)
 		goto fail;
-	}
-	if (pf->enable_vf_loopback)
-		ixl_config_pf_vsi_loopback(pf, true);
-
-	/*
-	 * Adding a VEB brings back the default MAC filter(s). Remove them,
-	 * and let the driver add the proper filters back.
-	 */
-	ixl_del_default_hw_filters(pf_vsi);
-	ixl_reconfigure_filters(pf_vsi);
 
 	pf->num_vfs = num_vfs;
 	return (0);
@@ -1702,17 +2287,24 @@ ixl_if_iov_uninit(if_ctx_t ctx)
 	struct ixl_pf *pf = iflib_get_softc(ctx);
 	struct i40e_hw *hw;
 	struct ixl_vf *vfs;
-	int i, num_vfs;
+	int error, i, num_vfs;
 
 	hw = &pf->hw;
 
 	for (i = 0; i < pf->num_vfs; i++) {
-		if (pf->vfs[i].vsi.seid != 0)
-			i40e_aq_delete_element(hw, pf->vfs[i].vsi.seid, NULL);
-		ixl_pf_qmgr_release(&pf->qmgr, &pf->vfs[i].qtag);
+		error = ixl_vf_release_resources(pf, &pf->vfs[i]);
+		if (error == 0) {
+			if (pf->vfs[i].qtag.qmgr != NULL)
+				ixl_pf_qmgr_release(&pf->qmgr,
+				    &pf->vfs[i].qtag);
+			ixl_dbg_iov(pf, "VF %d: %d released\n", i,
+			    pf->vfs[i].qtag.num_allocated);
+		} else {
+			device_printf(pf->dev,
+			    "retaining VF-%d queue allocation after failed "
+			    "VSI release\n", i);
+		}
 		ixl_free_filters(&pf->vfs[i].vsi.ftl);
-		ixl_dbg_iov(pf, "VF %d: %d released\n",
-		    i, pf->vfs[i].qtag.num_allocated);
 		ixl_dbg_iov(pf, "Unallocated total: %d\n", ixl_pf_qmgr_get_num_free(&pf->qmgr));
 	}
 
@@ -1772,16 +2364,31 @@ ixl_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 {
 	struct ixl_pf *pf = iflib_get_softc(ctx);
 	char sysctl_name[IXL_QUEUE_NAME_LEN];
+	struct sysctl_ctx_list sysctl_ctx;
 	struct ixl_vf *vf;
-	const void *mac;
+	const uint8_t *mac;
 	size_t size;
-	int error;
+	int cleanup_error, error;
 	int vf_num_queues;
+	uint64_t configured_vlan;
 
+	if (vfnum >= pf->num_vfs)
+		return (EINVAL);
+	configured_vlan = nvlist_get_number(params, "vlan");
+	if (configured_vlan == 0 || configured_vlan > VF_VLAN_TRUNK)
+		return (EINVAL);
 	vf = &pf->vfs[vfnum];
+	if (vf->vf_flags & VF_FLAG_ENABLED)
+		return (EBUSY);
+	/* Preserve the context initialized for every VF slot in iov_init. */
+	sysctl_ctx = vf->vsi.sysctl_ctx;
+	bzero(vf, sizeof(*vf));
+	vf->vsi.sysctl_ctx = sysctl_ctx;
 	vf->vf_num = vfnum;
 	vf->vsi.back = pf;
 	vf->vf_flags = VF_FLAG_ENABLED;
+	vf->default_vlan = configured_vlan == VF_VLAN_TRUNK ? 0 :
+	    (uint16_t)configured_vlan;
 
 	/* Reserve queue allocation from PF */
 	vf_num_queues = nvlist_get_number(params, "num-queues");
@@ -1789,12 +2396,13 @@ ixl_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 	if (error != 0)
 		goto out;
 
-	error = ixl_vf_setup_vsi(pf, vf);
-	if (error != 0)
-		goto out;
-
 	if (nvlist_exists_binary(params, "mac-addr")) {
 		mac = nvlist_get_binary(params, "mac-addr", &size);
+		if (size != ETHER_ADDR_LEN || ETHER_IS_ZERO(mac) ||
+		    ETHER_IS_MULTICAST(mac)) {
+			error = EINVAL;
+			goto out;
+		}
 		bcopy(mac, vf->mac, ETHER_ADDR_LEN);
 
 		if (nvlist_get_bool(params, "allow-set-mac"))
@@ -1812,14 +2420,25 @@ ixl_if_iov_vf_add(if_ctx_t ctx, uint16_t vfnum, const nvlist_t *params)
 	if (nvlist_get_bool(params, "allow-promisc"))
 		vf->vf_flags |= VF_FLAG_PROMISC_CAP;
 
-	vf->vf_flags |= VF_FLAG_VLAN_CAP;
+	if (vf->default_vlan == 0)
+		vf->vf_flags |= VF_FLAG_VLAN_CAP;
 
 	/* VF needs to be reset before it can be used */
-	ixl_reset_vf(pf, vf);
+	error = ixl_reset_vf(pf, vf);
 out:
 	if (error == 0) {
 		snprintf(sysctl_name, sizeof(sysctl_name), "vf%d", vfnum);
 		ixl_vsi_add_sysctls(&vf->vsi, sysctl_name, false);
+	} else {
+		cleanup_error = ixl_vf_release_resources(pf, vf);
+		ixl_free_filters(&vf->vsi.ftl);
+		if (cleanup_error == 0 && vf->qtag.qmgr != NULL)
+			ixl_pf_qmgr_release(&pf->qmgr, &vf->qtag);
+		else if (cleanup_error != 0)
+			device_printf(pf->dev,
+			    "retaining VF-%u queue allocation after failed "
+			    "VSI release\n", vfnum);
+		vf->vf_flags = 0;
 	}
 
 	return (error);

@@ -129,6 +129,8 @@ const struct vmmdev_ioctl vmmdev_machdep_ioctls[] = {
 	VMMDEV_IOCTL(VM_UNBIND_PPTDEV,
 	    VMMDEV_IOCTL_XLOCK_MEMSEGS | VMMDEV_IOCTL_LOCK_ALL_VCPUS |
 	    VMMDEV_IOCTL_PPT),
+	VMMDEV_IOCTL(VM_RESET_PPTDEV, VMMDEV_IOCTL_LOCK_ALL_VCPUS |
+	    VMMDEV_IOCTL_PPT),
 
 	VMMDEV_IOCTL(VM_MAP_PPTDEV_MMIO, VMMDEV_IOCTL_LOCK_ALL_VCPUS |
 	    VMMDEV_IOCTL_PPT),
@@ -313,6 +315,14 @@ vmmdev_machdep_ioctl(struct vm *vm, struct vcpu *vcpu, u_long cmd, caddr_t data,
 
 		pptdev = (struct vm_pptdev *)data;
 		error = vm_unassign_pptdev(vm, pptdev->bus, pptdev->slot,
+		    pptdev->func);
+		break;
+	}
+	case VM_RESET_PPTDEV: {
+		struct vm_pptdev *pptdev;
+
+		pptdev = (struct vm_pptdev *)data;
+		error = vm_reset_pptdev(vm, pptdev->bus, pptdev->slot,
 		    pptdev->func);
 		break;
 	}

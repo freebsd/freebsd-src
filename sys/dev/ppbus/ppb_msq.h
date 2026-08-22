@@ -91,7 +91,7 @@
 #define MS_NULL		0
 #define MS_UNKNOWN	MS_NULL
 
-/* predifined parameters */
+/* predefined parameters */
 #define MS_ACCUM	-1	/* use accum previously set by MS_OP_SET */
 
 /* these are register numbers according to our PC-like parallel port model */

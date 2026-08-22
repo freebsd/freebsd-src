@@ -770,7 +770,7 @@ s32 ixgbe_read_pba_num_generic(struct ixgbe_hw *hw, u32 *pba_num)
 		DEBUGOUT("NVM Not supported\n");
 		return IXGBE_NOT_IMPLEMENTED;
 	}
-	*pba_num = (u32)(data << 16);
+	*pba_num = (u32)data << 16;
 
 	ret_val = hw->eeprom.ops.read(hw, IXGBE_PBANUM1_PTR, &data);
 	if (ret_val) {
@@ -2221,7 +2221,8 @@ static void ixgbe_release_eeprom(struct ixgbe_hw *hw)
 s32 ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw)
 {
 	u16 i;
-	u16 j;
+	u32 j;
+	u32 word_end;
 	u16 checksum = 0;
 	u16 length = 0;
 	u16 pointer = 0;
@@ -2248,6 +2249,10 @@ s32 ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw)
 		/* If the pointer seems invalid */
 		if (pointer == 0xFFFF || pointer == 0)
 			continue;
+		if (pointer >= hw->eeprom.word_size) {
+			DEBUGOUT("EEPROM pointer outside word range\n");
+			return IXGBE_ERR_EEPROM;
+		}
 
 		if (hw->eeprom.ops.read(hw, pointer, &length)) {
 			DEBUGOUT("EEPROM read failed\n");
@@ -2256,9 +2261,14 @@ s32 ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw)
 
 		if (length == 0xFFFF || length == 0)
 			continue;
+		if (length >= hw->eeprom.word_size - pointer) {
+			DEBUGOUT("EEPROM section outside word range\n");
+			return IXGBE_ERR_EEPROM;
+		}
 
-		for (j = pointer + 1; j <= pointer + length; j++) {
-			if (hw->eeprom.ops.read(hw, j, &word)) {
+		word_end = (u32)pointer + length;
+		for (j = (u32)pointer + 1; j <= word_end; j++) {
+			if (hw->eeprom.ops.read(hw, (u16)j, &word)) {
 				DEBUGOUT("EEPROM read failed\n");
 				return IXGBE_ERR_EEPROM;
 			}
@@ -2719,7 +2729,7 @@ void ixgbe_set_mta(struct ixgbe_hw *hw, u8 *mc_addr)
 	 */
 	vector_reg = (vector >> 5) & 0x7F;
 	vector_bit = vector & 0x1F;
-	hw->mac.mta_shadow[vector_reg] |= (1 << vector_bit);
+	hw->mac.mta_shadow[vector_reg] |= 1U << vector_bit;
 }
 
 /**
@@ -3831,10 +3841,10 @@ s32 ixgbe_clear_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 			mpsar_hi = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
 		}
 	} else if (vmdq < 32) {
-		mpsar_lo &= ~(1 << vmdq);
+		mpsar_lo &= ~(1U << vmdq);
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar_lo);
 	} else {
-		mpsar_hi &= ~(1 << (vmdq - 32));
+		mpsar_hi &= ~(1U << (vmdq - 32));
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar_hi);
 	}
 
@@ -3868,11 +3878,11 @@ s32 ixgbe_set_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 
 	if (vmdq < 32) {
 		mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
-		mpsar |= 1 << vmdq;
+		mpsar |= 1U << vmdq;
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar);
 	} else {
 		mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
-		mpsar |= 1 << (vmdq - 32);
+		mpsar |= 1U << (vmdq - 32);
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar);
 	}
 	return IXGBE_SUCCESS;
@@ -3896,11 +3906,11 @@ s32 ixgbe_set_vmdq_san_mac_generic(struct ixgbe_hw *hw, u32 vmdq)
 	DEBUGFUNC("ixgbe_set_vmdq_san_mac");
 
 	if (vmdq < 32) {
-		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), 1 << vmdq);
+		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), 1U << vmdq);
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), 0);
 	} else {
 		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), 1 << (vmdq - 32));
+		IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), 1U << (vmdq - 32));
 	}
 
 	return IXGBE_SUCCESS;
@@ -4008,7 +4018,7 @@ s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	 *    bits[4-0]:  which bit in the register
 	 */
 	regidx = vlan / 32;
-	vfta_delta = 1 << (vlan % 32);
+	vfta_delta = 1U << (vlan % 32);
 	vfta = IXGBE_READ_REG(hw, IXGBE_VFTA(regidx));
 
 	/*
@@ -4080,12 +4090,12 @@ s32 ixgbe_set_vlvf_generic(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	bits = IXGBE_READ_REG(hw, IXGBE_VLVFB(vlvf_index * 2 + vind / 32));
 
 	/* set the pool bit */
-	bits |= 1 << (vind % 32);
+	bits |= 1U << (vind % 32);
 	if (vlan_on)
 		goto vlvf_update;
 
 	/* clear the pool bit */
-	bits ^= 1 << (vind % 32);
+	bits ^= 1U << (vind % 32);
 
 	if (!bits &&
 	    !IXGBE_READ_REG(hw, IXGBE_VLVFB(vlvf_index * 2 + 1 - vind / 32))) {

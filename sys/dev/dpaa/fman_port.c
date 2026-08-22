@@ -668,8 +668,9 @@ fman_port_enable(device_t dev)
 		bus_write_4(sc->sc_mem, FMBM_TCFG, reg | BMI_PORT_CFG_EN);
 		break;
 	case FMAN_PORT_TYPE_RX:
-		reg = bus_read_4(sc->sc_mem, FMBM_RCFG);
+		reg = bus_read_4(sc->sc_mem, FMQM_PNC);
 		bus_write_4(sc->sc_mem, FMQM_PNC, reg | PNC_EN | PNC_STEN);
+		reg = bus_read_4(sc->sc_mem, FMBM_RCFG);
 		bus_write_4(sc->sc_mem, FMBM_RCFG, reg | BMI_PORT_CFG_EN);
 		bus_write_4(sc->sc_mem, FMBM_RSTC, RSTC_EN);
 		break;

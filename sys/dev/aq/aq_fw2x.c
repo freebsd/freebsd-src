@@ -657,6 +657,9 @@ aq_fw2x_thermal_arm(struct aq_hw* hw)
 	uint16_t ctrl;
 	int err;
 
+	if ((hw->fw_caps & FW2X_CAP_TEMPERATURE) == 0)
+		return (ENOTSUP);
+
 	mtx_lock(&hw->fw_mtx);
 	aq_fw2x_phy_id_probe(hw);
 	err = aq_fw2x_phy_read(hw, AQ_PHY_MMD_GLOBAL, AQ_PHY_THERMAL_CTRL_REG,

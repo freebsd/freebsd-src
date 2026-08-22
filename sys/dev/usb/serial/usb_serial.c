@@ -199,7 +199,7 @@ ucom_init(void *arg)
 	ucom_unrhdr = new_unrhdr(0, UCOM_UNIT_MAX - 1, NULL);
 	mtx_init(&ucom_mtx, "UCOM MTX", NULL, MTX_DEF);
 }
-SYSINIT(ucom_init, SI_SUB_KLD - 1, SI_ORDER_ANY, ucom_init, NULL);
+SYSINIT(ucom_init, SI_SUB_KLD, SI_ORDER_FIRST, ucom_init, NULL);
 
 static void
 ucom_uninit(void *arg)
@@ -215,7 +215,7 @@ ucom_uninit(void *arg)
 
 	mtx_destroy(&ucom_mtx);
 }
-SYSUNINIT(ucom_uninit, SI_SUB_KLD - 3, SI_ORDER_ANY, ucom_uninit, NULL);
+SYSUNINIT(ucom_uninit, SI_SUB_KLD, SI_ORDER_FIRST, ucom_uninit, NULL);
 
 /*
  * Mark a unit number (the X in cuaUX) as in use.

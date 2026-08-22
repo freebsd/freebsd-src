@@ -176,7 +176,15 @@
 
 /* Native Host Interface Control registers */
 #define NHI_HOST_CAPS			0x39640
-#define	GET_HOST_CAPS_PATHS(val)	((val) & 0x3f)
+
+/* Host Interface Capabilities, 12.6.3.1.1 */
+struct nhi_host_caps {
+	uint32_t	total_paths:11;
+	uint8_t		reserved1:5;
+	uint8_t		version_major:3;
+	uint8_t		version_minor:5;
+	uint8_t		reserved0:8;
+} __packed;
 
 /*
  * This definition comes from the Linux driver.  In the USB4 spec, this

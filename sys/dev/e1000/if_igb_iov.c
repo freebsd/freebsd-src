@@ -2003,6 +2003,10 @@ igb_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
 
 	sc = iflib_get_softc(ctx);
 	(void)config;
+	/*
+	 * This callback may run while the PF is down.  Record the software
+	 * layout here; igb_iov_initialize() programs it during interface init.
+	 */
 	atomic_store_rel_32(&sc->iov_teardown, 0);
 	error = igb_iov_validate(sc, num_vfs);
 	if (error != 0)

@@ -28,7 +28,9 @@
 #ifndef	_LINUXKPI_LINUX_PM_QOS_H
 #define	_LINUXKPI_LINUX_PM_QOS_H
 
-#include <linux/types.h>
+#include <linux/plist.h>
+#include <linux/notifier.h>
+#include <linux/device.h>
 
 #define	PM_QOS_DEFAULT_VALUE	(-1)
 

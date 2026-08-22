@@ -13,12 +13,35 @@
 #include "ufshci_reg.h"
 
 static int
+ufshci_dev_send_query(struct ufshci_controller *ctrlr,
+    struct ufshci_query_param param,
+    struct ufshci_completion_poll_status *status, const char *fail_msg)
+{
+	int error;
+
+	status->done = 0;
+	error = ufshci_ctrlr_cmd_send_query_request(ctrlr,
+	    ufshci_completion_poll_cb, status, param);
+	if (error)
+		return (error);
+
+	ufshci_completion_poll(status);
+	if (status->error) {
+		ufshci_printf(ctrlr, "%s failed!\n", fail_msg);
+		return (ENXIO);
+	}
+
+	return (0);
+}
+
+static int
 ufshci_dev_read_descriptor(struct ufshci_controller *ctrlr,
     enum ufshci_descriptor_type desc_type, uint8_t index, uint8_t selector,
     void *desc, size_t desc_size)
 {
 	struct ufshci_completion_poll_status status;
 	struct ufshci_query_param param;
+	int error;
 
 	param.function = UFSHCI_QUERY_FUNC_STANDARD_READ_REQUEST;
 	param.opcode = UFSHCI_QUERY_OPCODE_READ_DESCRIPTOR;
@@ -28,15 +51,9 @@ ufshci_dev_read_descriptor(struct ufshci_controller *ctrlr,
 	param.value = 0;
 	param.desc_size = desc_size;
 
-	status.done = 0;
-	ufshci_ctrlr_cmd_send_query_request(ctrlr, ufshci_completion_poll_cb,
-	    &status, param);
-	ufshci_completion_poll(&status);
-	if (status.error) {
-		ufshci_printf(ctrlr,
-		    "Failed to send Read Descriptor query request!\n");
-		return (ENXIO);
-	}
+	error = ufshci_dev_send_query(ctrlr, param, &status, __func__);
+	if (error)
+		return (error);
 
 	memcpy(desc, status.cpl.response_upiu.query_response_upiu.command_data,
 	    desc_size);
@@ -74,6 +91,7 @@ ufshci_dev_read_flag(struct ufshci_controller *ctrlr,
 {
 	struct ufshci_completion_poll_status status;
 	struct ufshci_query_param param;
+	int error;
 
 	param.function = UFSHCI_QUERY_FUNC_STANDARD_READ_REQUEST;
 	param.opcode = UFSHCI_QUERY_OPCODE_READ_FLAG;
@@ -81,15 +99,11 @@ ufshci_dev_read_flag(struct ufshci_controller *ctrlr,
 	param.index = 0;
 	param.selector = 0;
 	param.value = 0;
+	param.desc_size = 0;
 
-	status.done = 0;
-	ufshci_ctrlr_cmd_send_query_request(ctrlr, ufshci_completion_poll_cb,
-	    &status, param);
-	ufshci_completion_poll(&status);
-	if (status.error) {
-		ufshci_printf(ctrlr, "ufshci_dev_read_flag failed!\n");
-		return (ENXIO);
-	}
+	error = ufshci_dev_send_query(ctrlr, param, &status, __func__);
+	if (error)
+		return (error);
 
 	*flag = status.cpl.response_upiu.query_response_upiu.flag_value;
 
@@ -109,17 +123,9 @@ ufshci_dev_set_flag(struct ufshci_controller *ctrlr,
 	param.index = 0;
 	param.selector = 0;
 	param.value = 0;
+	param.desc_size = 0;
 
-	status.done = 0;
-	ufshci_ctrlr_cmd_send_query_request(ctrlr, ufshci_completion_poll_cb,
-	    &status, param);
-	ufshci_completion_poll(&status);
-	if (status.error) {
-		ufshci_printf(ctrlr, "ufshci_dev_set_flag failed!\n");
-		return (ENXIO);
-	}
-
-	return (0);
+	return (ufshci_dev_send_query(ctrlr, param, &status, __func__));
 }
 
 static int
@@ -135,17 +141,9 @@ ufshci_dev_clear_flag(struct ufshci_controller *ctrlr,
 	param.index = 0;
 	param.selector = 0;
 	param.value = 0;
+	param.desc_size = 0;
 
-	status.done = 0;
-	ufshci_ctrlr_cmd_send_query_request(ctrlr, ufshci_completion_poll_cb,
-	    &status, param);
-	ufshci_completion_poll(&status);
-	if (status.error) {
-		ufshci_printf(ctrlr, "ufshci_dev_clear_flag failed!\n");
-		return (ENXIO);
-	}
-
-	return (0);
+	return (ufshci_dev_send_query(ctrlr, param, &status, __func__));
 }
 
 static int
@@ -155,6 +153,7 @@ ufshci_dev_read_attribute(struct ufshci_controller *ctrlr,
 {
 	struct ufshci_completion_poll_status status;
 	struct ufshci_query_param param;
+	int error;
 
 	param.function = UFSHCI_QUERY_FUNC_STANDARD_READ_REQUEST;
 	param.opcode = UFSHCI_QUERY_OPCODE_READ_ATTRIBUTE;
@@ -162,17 +161,13 @@ ufshci_dev_read_attribute(struct ufshci_controller *ctrlr,
 	param.index = index;
 	param.selector = selector;
 	param.value = 0;
+	param.desc_size = 0;
 
-	status.done = 0;
-	ufshci_ctrlr_cmd_send_query_request(ctrlr, ufshci_completion_poll_cb,
-	    &status, param);
-	ufshci_completion_poll(&status);
-	if (status.error) {
-		ufshci_printf(ctrlr, "ufshci_dev_read_attribute failed!\n");
-		return (ENXIO);
-	}
+	error = ufshci_dev_send_query(ctrlr, param, &status, __func__);
+	if (error)
+		return (error);
 
-	*value = status.cpl.response_upiu.query_response_upiu.value_64;
+	*value = be64toh(status.cpl.response_upiu.query_response_upiu.value_64);
 
 	return (0);
 }
@@ -191,17 +186,9 @@ ufshci_dev_write_attribute(struct ufshci_controller *ctrlr,
 	param.index = index;
 	param.selector = selector;
 	param.value = value;
+	param.desc_size = 0;
 
-	status.done = 0;
-	ufshci_ctrlr_cmd_send_query_request(ctrlr, ufshci_completion_poll_cb,
-	    &status, param);
-	ufshci_completion_poll(&status);
-	if (status.error) {
-		ufshci_printf(ctrlr, "ufshci_dev_write_attribute failed!\n");
-		return (ENXIO);
-	}
-
-	return (0);
+	return (ufshci_dev_send_query(ctrlr, param, &status, __func__));
 }
 
 int
@@ -484,12 +471,15 @@ ufshci_dev_init_ufs_power_mode(struct ufshci_controller *ctrlr)
 	if (ctrlr->quirks & UFSHCI_QUIRK_SKIP_WELL_KNOWN_LUNS)
 		return (0);
 
-	ctrlr->ufs_device_wlun_periph = ufshci_sim_find_periph(ctrlr,
-	    UFSHCI_WLUN_UFS_DEVICE);
 	if (ctrlr->ufs_device_wlun_periph == NULL) {
-		ufshci_printf(ctrlr,
-		    "Well-known LUN `UFS Device (0x50)` not found\n");
-		return (0);
+		/* The returned reference is kept by the cached pointer. */
+		ctrlr->ufs_device_wlun_periph = ufshci_sim_find_periph(ctrlr,
+		    UFSHCI_WLUN_UFS_DEVICE);
+		if (ctrlr->ufs_device_wlun_periph == NULL) {
+			ufshci_printf(ctrlr,
+			    "Well-known LUN `UFS Device (0x50)` not found\n");
+			return (0);
+		}
 	}
 
 	ctrlr->ufs_dev.power_mode_supported = true;
@@ -718,7 +708,7 @@ ufshci_dev_config_write_booster(struct ufshci_controller *ctrlr)
 {
 	struct ufshci_device *dev = &ctrlr->ufs_dev;
 	uint32_t extended_ufs_feature_support;
-	uint32_t alloc_units;
+	uint32_t alloc_units = 0;
 	struct ufshci_unit_descriptor unit_desc;
 	uint8_t lun;
 	bool is_life_time_left;

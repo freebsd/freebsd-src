@@ -190,7 +190,8 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 	struct rip6_inp_match_ctx ctx = { .ip6 = ip6, .proto = proto };
 	struct inpcb_iterator inpi = INP_ITERATOR(&V_ripcbinfo,
 	    INPLOOKUP_RLOCKPCB, rip6_inp_match, &ctx);
-	int delivered = 0, fib;
+	int cksum, delivered = 0, fib;
+	bool cksum_computed = false;
 
 	M_ASSERTPKTHDR(m);
 	NET_EPOCH_ASSERT();
@@ -230,19 +231,22 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 			 */
 			continue;
 		if (inp->in6p_cksum != -1) {
-			RIP6STAT_INC(rip6s_isum);
-			if (m->m_pkthdr.len - (*offp + inp->in6p_cksum) < 2 ||
-			    in6_cksum(m, proto, *offp,
-			    m->m_pkthdr.len - *offp)) {
-				RIP6STAT_INC(rip6s_badsum);
+			if (m->m_pkthdr.len - (*offp + inp->in6p_cksum) < 2)
+				continue;
+			if (!cksum_computed) {
+				cksum = in6_cksum(m, proto, *offp,
+				    m->m_pkthdr.len - *offp);
+				cksum_computed = true;
+				RIP6STAT_INC(rip6s_isum);
+				if (cksum != 0)
+					RIP6STAT_INC(rip6s_badsum);
+			}
+			if (cksum != 0) {
 				/*
-				 * Drop the received message, don't send an
-				 * ICMP6 message. Set proto to IPPROTO_NONE
-				 * to achieve that.
+				 * Drop the packet, don't send an ICMP6 message.
 				 */
-				INP_RUNLOCK(inp);
 				proto = IPPROTO_NONE;
-				break;
+				continue;
 			}
 		}
 		/*

@@ -1,0 +1,11 @@
+#
+# SpacemiT SoC support
+#
+
+device	fdt
+device	sdhci_spacemit
+device	k1_ccu
+
+makeoptions	MODULES_EXTRA+="dtb/spacemit"
+
+files	"../spacemit/files.spacemit"

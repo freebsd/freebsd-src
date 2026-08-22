@@ -162,21 +162,6 @@ void *pcm_getdevinfo(device_t dev);
 int snd_setup_intr(device_t dev, struct resource *res, int flags,
 		   driver_intr_t hand, void *param, void **cookiep);
 
-/* These are the function codes assigned to the children of sound cards. */
-enum {
-	SCF_PCM,
-	SCF_MIDI,
-};
-
-/*
- * This is the device information struct, used by a bridge device to pass the
- * device function code to the children.
- */
-struct sndcard_func {
-	int func;	/* The function code. */
-	void *varinfo;	/* Bridge-specific information. */
-};
-
 /*
  * this is rather kludgey- we need to duplicate these struct def'ns from sound.c
  * so that the macro versions of pcm_{,un}lock can dereference them.

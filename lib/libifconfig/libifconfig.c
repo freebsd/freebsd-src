@@ -81,7 +81,7 @@ ifconfig_open(void)
 	if (h == NULL) {
 		return (NULL);
 	}
-	for (int i = 0; i <= AF_MAX; i++) {
+	for (int i = 0; i < AF_MAX; i++) {
 		h->sockets[i] = -1;
 	}
 
@@ -92,7 +92,7 @@ void
 ifconfig_close(ifconfig_handle_t *h)
 {
 
-	for (int i = 0; i <= AF_MAX; i++) {
+	for (int i = 0; i < AF_MAX; i++) {
 		if (h->sockets[i] != -1) {
 			(void)close(h->sockets[i]);
 		}

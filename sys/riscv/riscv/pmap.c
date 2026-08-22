@@ -159,6 +159,7 @@
 
 #include <machine/machdep.h>
 #include <machine/md_var.h>
+#include <machine/ifunc.h>
 #include <machine/pcb.h>
 #include <machine/sbi.h>
 #include <machine/thead.h>
@@ -345,6 +346,7 @@ static int pmap_unuse_pt(pmap_t, vm_offset_t, pd_entry_t, struct spglist *);
 static int pmap_change_attr_locked(void *va, vm_size_t size, int mode);
 
 static uint64_t pmap_satp_mode(void);
+static void pmap_invalidate_all(pmap_t pmap);
 
 #define	pmap_clear(pte)			pmap_store(pte, 0)
 #define	pmap_clear_bits(pte, bits)	atomic_clear_64(pte, bits)
@@ -1077,7 +1079,7 @@ pmap_init(void)
  * sfence_vma() on remote CPUs.
  */
 static void
-pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
+pmap_invalidate_page_sbi(pmap_t pmap, vm_offset_t va)
 {
 	cpuset_t mask;
 
@@ -1092,7 +1094,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 }
 
 static void
-pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+pmap_invalidate_range_sbi(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
 	cpuset_t mask;
 
@@ -1109,6 +1111,73 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	 */
 	sfence_vma();
 	sched_unpin();
+}
+
+#define PMAP_SVINVAL_THRESHOLD (2 * L2_SIZE)
+
+struct svinval_args {
+	vm_offset_t sva;
+	vm_offset_t eva;
+};
+
+static void
+pmap_invalidate_range_svinval_cb(void *arg)
+{
+	struct svinval_args *args = arg;
+	vm_offset_t va;
+
+	sfence_w_inval();
+	for (va = args->sva; va < args->eva; va += PAGE_SIZE)
+		sinval_vma_page(va);
+	sfence_inval_ir();
+}
+
+static void
+pmap_invalidate_range_svinval(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
+{
+	struct svinval_args args;
+
+	if (CPU_EMPTY(&pmap->pm_active))
+		return;
+
+	if (eva - sva >= PMAP_SVINVAL_THRESHOLD) {
+		pmap_invalidate_all(pmap);
+		return;
+	}
+
+	sched_pin();
+	args.sva = sva;
+	args.eva = eva;
+	fence();
+	if (smp_started)
+		smp_rendezvous_cpus(pmap->pm_active, smp_no_rendezvous_barrier,
+		    pmap_invalidate_range_svinval_cb,
+		    smp_no_rendezvous_barrier, &args);
+	else
+		pmap_invalidate_range_svinval_cb(&args);
+	sched_unpin();
+}
+
+static void
+pmap_invalidate_page_svinval(pmap_t pmap, vm_offset_t va)
+{
+	pmap_invalidate_range_svinval(pmap, va, va + PAGE_SIZE);
+}
+
+DEFINE_IFUNC(, void, pmap_invalidate_range,
+    (pmap_t pmap, vm_offset_t sva, vm_offset_t eva))
+{
+	if (has_svinval)
+		return (pmap_invalidate_range_svinval);
+	return (pmap_invalidate_range_sbi);
+}
+
+DEFINE_IFUNC(, void, pmap_invalidate_page,
+    (pmap_t pmap, vm_offset_t va))
+{
+	if (has_svinval)
+		return (pmap_invalidate_page_svinval);
+	return (pmap_invalidate_page_sbi);
 }
 
 static void

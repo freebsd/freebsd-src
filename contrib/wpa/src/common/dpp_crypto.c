@@ -2371,6 +2371,7 @@ struct crypto_ec_point * dpp_decrypt_e_id(struct crypto_ec_key *ppkey,
 	    crypto_ec_point_invert(ec, e_id) ||
 	    crypto_ec_point_add(ec, e_id, e_prime_id_point, e_id)) {
 		crypto_ec_point_deinit(e_id, 1);
+		e_id = NULL;
 		goto fail;
 	}
 

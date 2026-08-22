@@ -38,6 +38,8 @@
 #include <signal.h>
 #include <string.h>
 
+#include "freebsd_test_suite/macros.h"
+
 static void*
 unmapped(void) {
 	void *unmapped;
@@ -84,6 +86,8 @@ ATF_TC_BODY(capsicum, tc)
 	int fdp = -1;
 	pid_t pid;
 	int status, r;
+
+	ATF_REQUIRE_FEATURE("security_capability_mode");
 
 	pid = pdfork(&fdp, 0);
 	if (pid == 0)
@@ -194,6 +198,9 @@ ATF_TC_BODY(enotcap, tc)
 	int fdp = -1;
 	pid_t pid;
 	int status;
+
+	ATF_REQUIRE_FEATURE("security_capability_mode");
+	ATF_REQUIRE_FEATURE("security_capabilities");
 
 	/*cap_rights_init(&rights, CAP_RIGHTS_ALL);*/
 	CAP_ALL(&rights);

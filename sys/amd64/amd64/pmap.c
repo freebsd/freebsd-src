@@ -1154,7 +1154,7 @@ pmap_delayed_invl_callout_init(void *arg __unused)
 	callout_init(&pmap_invl_callout, 1);
 	pmap_invl_callout_inited = true;
 }
-SYSINIT(pmap_di_callout, SI_SUB_CPU + 1, SI_ORDER_ANY,
+SYSINIT(pmap_di_callout, SI_SUB_CPU, SI_ORDER_LAST,
     pmap_delayed_invl_callout_init, NULL);
 
 /*
@@ -11186,7 +11186,7 @@ pmap_cpu_init(void *arg __unused)
 	CPU_COPY(&all_cpus, &kernel_pmap->pm_active);
 	pmap_pti_init();
 }
-SYSINIT(pmap_cpu, SI_SUB_CPU + 1, SI_ORDER_ANY, pmap_cpu_init, NULL);
+SYSINIT(pmap_cpu, SI_SUB_CPU, SI_ORDER_LAST, pmap_cpu_init, NULL);
 
 static pdp_entry_t *
 pmap_pti_pdpe(vm_offset_t va)

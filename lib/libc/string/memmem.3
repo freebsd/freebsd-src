@@ -34,9 +34,9 @@
 .Lb libc
 .Sh SYNOPSIS
 .In string.h
-.Ft "void *"
+.Ft "QVoid *"
 .Fo memmem
-.Fa "const void *big" "size_t big_len"
+.Fa "QVoid *big" "size_t big_len"
 .Fa "const void *little" "size_t little_len"
 .Fc
 .Sh DESCRIPTION
@@ -71,6 +71,11 @@ is returned.
 .Fn memmem
 conforms to
 .St -p1003.1-2024 .
+Like the qualifier-preserving functions in
+.St -isoC-2023 ,
+.Fx implements
+.Fn memmem
+as qualifier-preserving as well.
 .Sh HISTORY
 The
 .Fn memmem

@@ -108,6 +108,8 @@ DEFINE_LINUX_IOCTL_SET(sound, SOUND);
 DEFINE_LINUX_IOCTL_SET(termio, TERMIO);
 DEFINE_LINUX_IOCTL_SET(private, PRIVATE);
 DEFINE_LINUX_IOCTL_SET(drm, DRM);
+DEFINE_LINUX_IOCTL_SET(dmabuf, DMABUF);
+DEFINE_LINUX_IOCTL_SET(syncfile, SYNCFILE);
 DEFINE_LINUX_IOCTL_SET(sg, SG);
 DEFINE_LINUX_IOCTL_SET(v4l, VIDEO);
 DEFINE_LINUX_IOCTL_SET(v4l2, VIDEO2);
@@ -2577,6 +2579,42 @@ linux_ioctl_drm(struct thread *td, struct linux_ioctl_args *args)
 {
 	args->cmd = SETDIR(args->cmd);
 	return (sys_ioctl(td, (struct ioctl_args *)args));
+}
+
+/*
+ * dma-buf ioctl handler (drm-kmod)
+ */
+static int
+linux_ioctl_dmabuf(struct thread *td, struct linux_ioctl_args *args)
+{
+
+	switch (args->cmd & 0xffff) {
+	case LINUX_DMA_BUF_IOCTL_SYNC:
+	case LINUX_DMA_BUF_IOCTL_EXPORT_SYNC_FILE:
+	case LINUX_DMA_BUF_IOCTL_IMPORT_SYNC_FILE:
+		args->cmd = SETDIR(args->cmd);
+		return (sys_ioctl(td, (struct ioctl_args *)args));
+	}
+
+	return (ENOIOCTL);
+}
+
+/*
+ * sync_file ioctl handler (drm-kmod)
+ */
+static int
+linux_ioctl_syncfile(struct thread *td, struct linux_ioctl_args *args)
+{
+
+	switch (args->cmd & 0xffff) {
+	case LINUX_SYNC_IOC_MERGE:
+	case LINUX_SYNC_IOC_FILE_INFO:
+	case LINUX_SYNC_IOC_SET_DEADLINE:
+		args->cmd = SETDIR(args->cmd);
+		return (sys_ioctl(td, (struct ioctl_args *)args));
+	}
+
+	return (ENOIOCTL);
 }
 
 #ifdef COMPAT_LINUX32

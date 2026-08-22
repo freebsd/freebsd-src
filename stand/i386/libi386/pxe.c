@@ -149,6 +149,9 @@ pxe_init(void)
 	if (pxenv_p == NULL)
 		return (0);
 
+	/* RFC 4578 § 2.1: BIOS PXE is a 32-bit "Standard PC BIOS" client. */
+	bootp_client_arch = 0x0000;
+
 	/* look for "PXENV+" */
 	if (bcmp((void *)pxenv_p->Signature, S_SIZE("PXENV+"))) {
 		pxenv_p = NULL;

@@ -44,12 +44,14 @@
 int iavf_send_pf_msg(struct iavf_sc *sc,
 	enum virtchnl_ops op, u8 *msg, u16 len);
 int iavf_verify_api_ver(struct iavf_sc *);
+int iavf_verify_api_ver_retries(struct iavf_sc *, u32);
 int iavf_send_api_ver(struct iavf_sc *sc);
 int iavf_enable_queues(struct iavf_sc *sc);
 int iavf_disable_queues(struct iavf_sc *sc);
 int iavf_add_vlans(struct iavf_sc *sc);
 int iavf_send_vf_config_msg(struct iavf_sc *sc);
 int iavf_get_vf_config(struct iavf_sc *sc);
+int iavf_get_vf_config_retries(struct iavf_sc *, u32);
 int iavf_del_vlans(struct iavf_sc *sc);
 int iavf_add_ether_filters(struct iavf_sc *sc);
 int iavf_del_ether_filters(struct iavf_sc *sc);

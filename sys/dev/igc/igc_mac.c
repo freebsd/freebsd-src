@@ -301,7 +301,7 @@ int igc_rar_set_generic(struct igc_hw *hw, u8 *addr, u32 index)
 u32 igc_hash_mc_addr_generic(struct igc_hw *hw, u8 *mc_addr)
 {
 	u32 hash_value, hash_mask;
-	u8 bit_shift = 0;
+	u8 bit_shift = 1;
 
 	DEBUGFUNC("igc_hash_mc_addr_generic");
 
@@ -311,7 +311,7 @@ u32 igc_hash_mc_addr_generic(struct igc_hw *hw, u8 *mc_addr)
 	/* For a mc_filter_type of 0, bit_shift is the number of left-shifts
 	 * where 0xFF would still fall within the hash mask.
 	 */
-	while (hash_mask >> bit_shift != 0xFF)
+	while (bit_shift < 4 && hash_mask >> bit_shift != 0xFF)
 		bit_shift++;
 
 	/* The portion of the address that is used for the hash table
@@ -354,8 +354,10 @@ u32 igc_hash_mc_addr_generic(struct igc_hw *hw, u8 *mc_addr)
 		break;
 	}
 
-	hash_value = hash_mask & (((mc_addr[4] >> (8 - bit_shift)) |
-				  (((u16) mc_addr[5]) << bit_shift)));
+	hash_value = (u32)mc_addr[4];
+	hash_value >>= 8 - bit_shift;
+	hash_value |= (u32)mc_addr[5] << bit_shift;
+	hash_value &= hash_mask;
 
 	return hash_value;
 }
@@ -387,7 +389,7 @@ void igc_update_mc_addr_list_generic(struct igc_hw *hw,
 		hash_reg = (hash_value >> 5) & (hw->mac.mta_reg_count - 1);
 		hash_bit = hash_value & 0x1F;
 
-		hw->mac.mta_shadow[hash_reg] |= (1 << hash_bit);
+		hw->mac.mta_shadow[hash_reg] |= 1U << hash_bit;
 		mc_addr_list += (ETH_ADDR_LEN);
 	}
 

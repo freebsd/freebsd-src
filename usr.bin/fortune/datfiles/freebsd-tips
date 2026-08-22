@@ -868,3 +868,7 @@ h() { fc -l -22; printf "%s\n" "`date +%H:%M` -- `apm -l`% -- `pwd`"; }
 
 		-- Alexander Ziaee <ziaee@FreeBSD.org>
 %
+To write a device driver, you do not actually need a drivers license.
+
+		-- Aymeric Wibo <obiwac@FreeBSD.org>
+%

@@ -253,6 +253,7 @@ enum {
 	INTERPOS_pdfork,
 	INTERPOS_uexterr_gettext,
 	INTERPOS_pdwait,
+	INTERPOS_uexterr_set,
 	INTERPOS_MAX
 };
 
@@ -381,7 +382,12 @@ int __strerror_rl(int errnum, char *strerrbuf, size_t buflen,
 	    struct _xlocale *locale);
 
 struct uexterror;
+extern struct uexterror uexterr;
 int __uexterr_format(const struct uexterror *ue, char *buf, size_t bufsz);
+void __uexterr_set_ue(struct uexterror *ue, int error, int category,
+    const char *mmsg, uint64ptr_t pp1, uint64ptr_t pp2, int line);
 int __libc_uexterr_gettext(char *buf, size_t bufsz);
+void __libc_uexterr_set(int eerror, int category, const char *mmsg,
+    uint64ptr_t pp1, uint64ptr_t pp2, int line);
 
 #endif /* _LIBC_PRIVATE_H_ */

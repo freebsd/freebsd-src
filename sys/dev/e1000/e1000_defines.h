@@ -66,6 +66,7 @@
 
 /* Extended Device Control */
 #define E1000_CTRL_EXT_LPCD		0x00000004 /* LCD Power Cycle Done */
+#define E1000_CTRL_EXT_DPG_EN		0x00000008 /* Dynamic Power Gating */
 #define E1000_CTRL_EXT_SDP4_DATA	0x00000010 /* SW Definable Pin 4 data */
 #define E1000_CTRL_EXT_SDP6_DATA	0x00000040 /* SW Definable Pin 6 data */
 #define E1000_CTRL_EXT_SDP3_DATA	0x00000080 /* SW Definable Pin 3 data */
@@ -92,6 +93,7 @@
 #define E1000_CTRL_EXT_IRCA		0x00000001
 #define E1000_CTRL_EXT_DRV_LOAD		0x10000000 /* Drv loaded bit for FW */
 #define E1000_CTRL_EXT_IAME		0x08000000 /* Int ACK Auto-mask */
+#define E1000_CTRL_EXT_MEHE		0x40000000 /* Memory error handling */
 #define E1000_CTRL_EXT_PBA_CLR		0x80000000 /* PBA Clear */
 #define E1000_CTRL_EXT_LSECCK		0x00001000
 #define E1000_CTRL_EXT_PHYPDEN		0x00100000
@@ -333,6 +335,7 @@
 #define E1000_STATUS_LAN_INIT_DONE	0x00000200 /* Lan Init Compltn by NVM */
 #define E1000_STATUS_PHYRA		0x00000400 /* PHY Reset Asserted */
 #define E1000_STATUS_GIO_MASTER_ENABLE	0x00080000 /* Master request status */
+#define E1000_STATUS_RST_DONE		0x00200000 /* Device reset complete */
 #define E1000_STATUS_PCI66		0x00000800 /* In 66Mhz slot */
 #define E1000_STATUS_BUS64		0x00001000 /* In 64 bit slot */
 #define E1000_STATUS_2P5_SKU		0x00001000 /* Val of 2.5GBE SKU strap */
@@ -526,6 +529,57 @@
 #define E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT	8
 #define E1000_PBECCSTS_ECC_ENABLE		0x00010000
 
+/* 82575 packet-buffer and descriptor-handler ECC status. */
+#define E1000_ECC_82575_CORR_CNT_MASK		0x000000FF
+#define E1000_ECC_82575_UNCORR_CNT_MASK		0x0000FF00
+#define E1000_ECC_82575_UNCORR_CNT_SHIFT	8
+#define E1000_ECC_82575_ENABLE			0x00010000
+
+/* I350 and I210/I211 memory error status bits. */
+#define E1000_PEIND_LANPORT_PARITY_FATAL	0x00000001
+#define E1000_PEIND_MNG_PARITY_FATAL	0x00000002
+#define E1000_PEIND_PCIE_PARITY_FATAL	0x00000004
+#define E1000_PEIND_DMA_PARITY_FATAL	0x00000008
+#define E1000_PEIND_FATAL_MASK		0x0000000F
+
+/* 82576 uses PEIND directly rather than the later four-region layout. */
+#define E1000_PEIND_82576_NONFATAL_MASK	0x00000007
+#define E1000_PEIND_82576_FATAL_MASK	0x7FFFFF00
+#define E1000_PEIND_82576_MEMORY_HANG	0x80000000
+#define E1000_PEINDM_82576_PARITY_ENABLE	0x80000000
+/* 82576NS omits the IPsec key, FIFO, and packet-buffer memories. */
+#define E1000_PEIND_82576_IPSEC_MASK	0x40700600
+
+/* The 82576 clear-on-read ECC status registers share this count layout. */
+#define E1000_ECC_82576_CORR_CNT_MASK	0x000000FF
+#define E1000_ECC_82576_UNCORR_CNT_MASK	0x0000FF00
+#define E1000_ECC_82576_UNCORR_CNT_SHIFT	8
+
+#define E1000_PBECCSTS_I210_ECC_ENABLE	0x00000001
+#define E1000_PBECCSTS_I210_CORR_ERR	0x00000004
+
+#define E1000_PCIEERRSTS_I210_FATAL_MASK	0x00000078
+#define E1000_PCIEERRSTS_I350_FATAL_MASK	0x0000007C
+#define E1000_PCIEECCSTS_TX_WR_DATA	0x00000010
+#define E1000_PCIEECCSTS_RETRY_BUF	0x00000020
+#define E1000_PCIEECCSTS_I210_CORR_MASK	0x00000030
+#define E1000_PCIEECCSTS_I350_OTHER_MASK	0x0000000F
+#define E1000_PCIEECCSTS_I350_CORR_MASK	0x0000003F
+
+#define E1000_DTPARS_CORR_MASK		0x0000005B
+#define E1000_DTPARS_FATAL_MASK		0x00000020
+#define E1000_DRPARS_CORR_MASK		0x0000000D
+#define E1000_DRPARS_FATAL_MASK		0x00000002
+#define E1000_DDECCS_CORR_MASK		0x0000000F
+
+#define E1000_PBECCSTS_I350_ENABLE_MASK	0x00030000
+#define E1000_PBECCSTS_I350_CORR_MASK	0x14000000
+
+#define E1000_LANPERRSTS_RETX_BUF		0x00000200
+#define E1000_LANPERRSTS_I350_NO_RESET_MASK	0x00008400
+#define E1000_LANPERRSTS_I350_RESET_MASK	0x00007BFE
+#define E1000_LANPERRSTS_I350_FATAL_MASK	0x0000FFFE
+
 #define IFS_MAX			80
 #define IFS_MIN			40
 #define IFS_RATIO		4
@@ -535,6 +589,7 @@
 /* SW Semaphore Register */
 #define E1000_SWSM_SMBI		0x00000001 /* Driver Semaphore bit */
 #define E1000_SWSM_SWESMBI	0x00000002 /* FW Semaphore bit */
+#define E1000_SWSM_TIMEOUT	2000       /* 100 ms at 50 us per poll */
 #define E1000_SWSM_DRV_LOAD	0x00000008 /* Driver Loaded Bit */
 
 #define E1000_SWSM2_LOCK	0x00000002 /* Secondary driver semaphore bit */
@@ -555,7 +610,15 @@
 #define E1000_ICR_GPI_EN3	0x00004000 /* GP Int 3 */
 #define E1000_ICR_TXD_LOW	0x00008000
 #define E1000_ICR_MNG		0x00040000 /* Manageability event */
+#define E1000_ICR_82575_RX_PBUR	0x00400000 /* Rx packet buffer error */
+#define E1000_ICR_82575_TX_PBUR	0x00800000 /* Tx packet buffer error */
+#define E1000_ICR_82575_RX_DHER	0x01000000 /* Rx descriptor error */
+#define E1000_ICR_82575_TX_DHER	0x02000000 /* Tx descriptor error */
+#define E1000_ICR_82575_MEMORY_ERROR_MASK	\
+	(E1000_ICR_82575_RX_PBUR | E1000_ICR_82575_TX_PBUR | \
+	 E1000_ICR_82575_RX_DHER | E1000_ICR_82575_TX_DHER)
 #define E1000_ICR_ECCER		0x00400000 /* Uncorrectable ECC Error */
+#define E1000_ICR_NFER		0x00800000 /* Non-Fatal Error (82576) */
 #define E1000_ICR_TS		0x00080000 /* Time Sync Interrupt */
 #define E1000_ICR_DRSTA		0x40000000 /* Device Reset Asserted */
 /* If this bit asserted, the driver should claim the interrupt */
@@ -623,7 +686,9 @@
 #define E1000_IMS_RXO		E1000_ICR_RXO     /* Rx overrun */
 #define E1000_IMS_RXT0		E1000_ICR_RXT0    /* Rx timer intr */
 #define E1000_IMS_TXD_LOW	E1000_ICR_TXD_LOW
+#define E1000_IMS_82575_MEMORY_ERROR_MASK E1000_ICR_82575_MEMORY_ERROR_MASK
 #define E1000_IMS_ECCER		E1000_ICR_ECCER   /* Uncorrectable ECC Error */
+#define E1000_IMS_NFER		E1000_ICR_NFER /* Non-Fatal Error (82576) */
 #define E1000_IMS_TS		E1000_ICR_TS      /* Time Sync Interrupt */
 #define E1000_IMS_DRSTA		E1000_ICR_DRSTA   /* Device Reset Asserted */
 #define E1000_IMS_DOUTSYNC	E1000_ICR_DOUTSYNC /* NIC DMA out of sync */
@@ -1176,6 +1241,7 @@
 
 /* For checksumming, the sum of all words in the NVM should equal 0xBABA. */
 #define NVM_SUM				0xBABA
+#define NVM_CHECKSUM_UNINITIALIZED	0xFFFF
 
 /* PBA (printed board assembly) number words */
 #define NVM_PBA_OFFSET_0		8

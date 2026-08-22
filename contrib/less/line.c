@@ -135,6 +135,8 @@ static struct color_map color_map[] = {
 	{ AT_COLOR_RSCROLL,        "kc" },
 	{ AT_COLOR_HEADER,         "" },
 	{ AT_COLOR_SEARCH,         "kG" },
+	{ AT_COLOR_TILDE,          "-d" },
+	{ AT_COLOR_TARGET,         "-u" },
 	{ AT_COLOR_SUBSEARCH(1),   "ky" },
 	{ AT_COLOR_SUBSEARCH(2),   "wb" },
 	{ AT_COLOR_SUBSEARCH(3),   "YM" },
@@ -446,7 +448,7 @@ public void plinestart(POSITION pos)
  * Return the width of the line prefix (status column and line number).
  * {{ Actual line number can be wider than linenum_width. }}
  */
-public int line_pfx_width(void)
+public unsigned line_pfx_width(void)
 {
 	int width = 0;
 	if (status_col)
@@ -1077,7 +1079,7 @@ static int flush_mbc_buf(POSITION pos)
  */
 public int pappend_b(char c, POSITION pos, lbool before_pendc)
 {
-	LWCHAR ch = c & 0377;
+	LWCHAR ch = (unsigned char) c;
 	int r;
 
 	if (pendc && !before_pendc)
@@ -1192,6 +1194,22 @@ static int store_control_char(LWCHAR ch, constant char *rep, POSITION pos)
 	return (0);
 }
 
+/*
+ * Remove invalid ANSI sequence.
+ */
+static void remove_ansi(void)
+{
+	constant char *start = (cshift < hshift) ? xbuf_char_data(&shifted_ansi): linebuf.buf;
+	size_t *end = (cshift < hshift) ? &shifted_ansi.end : &linebuf.end;
+	constant char *p = start + *end;
+	LWCHAR bch;
+	do {
+		bch = step_charc(&p, -1, start);
+	} while (p > start && (!IS_CSI_START(bch) || line_ansi->escs_in_seq-- > 0));
+	*end = ptr_diff(p, start);
+	xbuf_reset(&last_ansi);
+}
+
 static int store_ansi(LWCHAR ch, constant char *rep, POSITION pos)
 {
 	switch (ansi_step2(line_ansi, ch, pos != NULL_POSITION))
@@ -1215,18 +1233,7 @@ static int store_ansi(LWCHAR ch, constant char *rep, POSITION pos)
 		curr_last_ansi = (curr_last_ansi + 1) % NUM_LAST_ANSIS;
 		break;
 	case ANSI_ERR:
-		{
-			/* Remove whole unrecognized sequence.  */
-			constant char *start = (cshift < hshift) ? xbuf_char_data(&shifted_ansi): linebuf.buf;
-			size_t *end = (cshift < hshift) ? &shifted_ansi.end : &linebuf.end;
-			constant char *p = start + *end;
-			LWCHAR bch;
-			do {
-				bch = step_charc(&p, -1, start);
-			} while (p > start && (!IS_CSI_START(bch) || line_ansi->escs_in_seq-- > 0));
-			*end = ptr_diff(p, start);
-		}
-		xbuf_reset(&last_ansi);
+		remove_ansi();
 		ansi_done(line_ansi);
 		line_ansi = NULL;
 		break;
@@ -1388,13 +1395,12 @@ static void add_attr_normal(void)
 	{
 		switch (line_ansi->ostate)
 		{
-		case OSC_TYPENUM:
-		case OSC8_PARAMS:
-		case OSC8_URI:
-		case OSC_STRING:
-			addstr_linebuf("\033\\", AT_ANSI, 0);
+		case OSC_START:
+		case OSC_END:
 			break;
 		default:
+			/* We're in an unterminated OSC sequence; remove it. */
+			remove_ansi();
 			break;
 		}
 		ansi_done(line_ansi);
@@ -1410,7 +1416,7 @@ static void add_attr_normal(void)
 /*
  * Terminate the line in the line buffer.
  */
-public void pdone(lbool endline, lbool chopped, lbool forw)
+public void pdone(lbool endline, lbool chopped, lbool forw, lbool full_pad)
 {
 	(void) pflushmbc();
 	linebuf.prev_end = (!endline && !chopped) ? linebuf.end : 0;
@@ -1462,8 +1468,8 @@ public void pdone(lbool endline, lbool chopped, lbool forw)
 	/*
 	 * If we're coloring a status line, fill out the line with spaces.
 	 */
-	if (status_line && line_mark_attr != 0) {
-		while (end_column +1 < sc_width + cshift)
+	if (status_line && (line_mark_attr != 0 || full_pad)) {
+		while (end_column < sc_width + cshift)
 			add_linebuf(' ', line_mark_attr, 1);
 	}
 
@@ -1664,7 +1670,7 @@ public int gline(size_t i, int *ap)
 		{
 			if (i == 0)
 			{
-				*ap = AT_BOLD;
+				*ap = use_color ? AT_COLOR_TILDE : AT_BOLD;
 				return '~';
 			}
 			--i;
@@ -1681,7 +1687,7 @@ public int gline(size_t i, int *ap)
 	}
 	i += linebuf.print - linebuf.pfx_end;
 	*ap = linebuf.attr[i];
-	return (linebuf.buf[i] & 0xFF);
+	return (unsigned char) linebuf.buf[i];
 }
 
 /*
@@ -1878,10 +1884,10 @@ static int pappstr(constant char *str)
 
 /*
  * Load a string into the line buffer.
- * If the string is too long to fit on the screen,
+ * If the string is too long to fit on the screen (minus reserve chars),
  * truncate the beginning of the string to fit.
  */
-public void load_line(constant char *str)
+public void load_line(constant char *str, int attr, int reserve)
 {
 	int save_hshift = hshift;
 	hshift = 0;
@@ -1889,6 +1895,7 @@ public void load_line(constant char *str)
 	/* We're overwriting the line buffer, so what's in it will no longer be contiguous. */
 	set_line_contig_pos(NULL_POSITION);
 
+	sc_width -= reserve;
 	for (;;)
 	{
 		prewind(FALSE);
@@ -1903,13 +1910,14 @@ public void load_line(constant char *str)
 	}
 	set_linebuf(linebuf.end, '\0', AT_NORMAL);
 	linebuf.prev_end = 0;
+	sc_width += reserve;
 
 	/* Color the prompt unless it has ansi sequences in it. */
 	if (!ansi_in_line)
 	{
 		size_t i;
 		for (i = linebuf.print;  i < linebuf.end;  i++)
-			set_linebuf(i, linebuf.buf[i], AT_STANDOUT|AT_COLOR_PROMPT);
+			set_linebuf(i, linebuf.buf[i], attr);
 	}
 	hshift = save_hshift;
 }

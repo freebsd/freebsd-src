@@ -97,8 +97,9 @@ sndbuf_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 	if (snd_verbose > 3) {
 		printf("sndbuf_setmap %lx, %lx; ",
-		    (u_long)segs[0].ds_addr, (u_long)segs[0].ds_len);
-		printf("%p -> %lx\n", b->buf, (u_long)segs[0].ds_addr);
+		    (unsigned long)segs[0].ds_addr,
+		    (unsigned long)segs[0].ds_len);
+		printf("%p -> %lx\n", b->buf, (unsigned long)segs[0].ds_addr);
 	}
 	if (error == 0)
 		b->buf_addr = segs[0].ds_addr;

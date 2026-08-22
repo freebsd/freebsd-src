@@ -43,6 +43,21 @@ union libusb20_session_data {
 	uint32_t plugtime;
 };
 
+/*
+ * The backend context holds the file descriptors needed to reach the
+ * USB devices. It is immutable after allocation, so it can be shared
+ * between threads, backends and devices without any locking. Sharing
+ * it between backend allocations keeps enumeration working after the
+ * process has entered capability mode, see capsicum(4).
+ *
+ * The context must stay alive for as long as any backend or device
+ * allocated from it is in use.
+ */
+struct libusb20_be_ctx {
+	int	ctrl_fd;		/* /dev/usbctl */
+	int	usb_dfd;		/* /dev/usb directory */
+};
+
 /* USB backend specific */
 typedef const char *(libusb20_get_backend_name_t)(void);
 typedef int (libusb20_root_get_dev_quirk_t)(struct libusb20_backend *pbe, uint16_t index, struct libusb20_quirk *pq);
@@ -144,6 +159,10 @@ struct libusb20_device_methods {
 struct libusb20_backend {
 	TAILQ_HEAD(, libusb20_device) usb_devs;
 	const struct libusb20_backend_methods *methods;
+
+	/* borrowed backend context, owned when "be_ctx_owner" is set */
+	struct libusb20_be_ctx *be_ctx;
+	uint8_t	be_ctx_owner;
 };
 
 struct libusb20_transfer {
@@ -194,6 +213,9 @@ struct libusb20_device {
 
 	/* backend methods */
 	const struct libusb20_backend_methods *beMethods;
+
+	/* borrowed backend context */
+	struct libusb20_be_ctx *be_ctx;
 
 	/* list of USB transfers */
 	struct libusb20_transfer *pTransfer;

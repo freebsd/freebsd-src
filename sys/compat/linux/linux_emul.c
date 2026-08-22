@@ -157,6 +157,7 @@ linux_proc_init(struct thread *td, struct thread *newtd, bool init_thread)
 
 			pem = malloc(sizeof(*pem), M_LINUX, M_WAITOK | M_ZERO);
 			sx_init(&pem->pem_sx, "lpemlk");
+			linux_pemuldata_init_md(td, pem);
 			p->p_emuldata = pem;
 		}
 		newtd->td_emuldata = em;
@@ -183,6 +184,7 @@ linux_proc_init(struct thread *td, struct thread *newtd, bool init_thread)
 		KASSERT(pem != NULL, ("proc_init: proc emuldata not found.\n"));
 		pem->persona = 0;
 		pem->oom_score_adj = 0;
+		linux_pemuldata_exec_md(pem);
 	}
 }
 

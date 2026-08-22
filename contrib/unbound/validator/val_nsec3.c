@@ -1248,6 +1248,10 @@ nsec3_prove_nameerror(struct module_env* env, struct val_env* ve,
 	filter_init(&flt, list, num, qinfo); /* init RR iterator */
 	if(!flt.zone)
 		return sec_status_bogus; /* no RRs */
+	if(query_dname_compare(flt.zone, kkey->name) != 0) {
+		verbose(VERB_ALGO, "NSEC3 name is not b32.signer name");
+		return sec_status_bogus;
+	}
 	if(!param_set_same(&flt, NULL))
 		return sec_status_bogus; /* nsec3 params from distinct chains*/
 	if(nsec3_iteration_count_high(ve, &flt, kkey))
@@ -1436,6 +1440,10 @@ nsec3_prove_nodata(struct module_env* env, struct val_env* ve,
 	filter_init(&flt, list, num, qinfo); /* init RR iterator */
 	if(!flt.zone)
 		return sec_status_bogus; /* no RRs */
+	if(query_dname_compare(flt.zone, kkey->name) != 0) {
+		verbose(VERB_ALGO, "NSEC3 name is not b32.signer name");
+		return sec_status_bogus;
+	}
 	if(!param_set_same(&flt, NULL))
 		return sec_status_bogus; /* nsec3 params from distinct chains*/
 	if(nsec3_iteration_count_high(ve, &flt, kkey))
@@ -1461,6 +1469,10 @@ nsec3_prove_wildcard(struct module_env* env, struct val_env* ve,
 	filter_init(&flt, list, num, qinfo); /* init RR iterator */
 	if(!flt.zone)
 		return sec_status_bogus; /* no RRs */
+	if(query_dname_compare(flt.zone, kkey->name) != 0) {
+		verbose(VERB_ALGO, "NSEC3 name is not b32.signer name");
+		return sec_status_bogus;
+	}
 	if(!param_set_same(&flt, NULL))
 		return sec_status_bogus; /* nsec3 params from distinct chains*/
 	if(nsec3_iteration_count_high(ve, &flt, kkey))
@@ -1565,6 +1577,11 @@ nsec3_prove_nods(struct module_env* env, struct val_env* ve,
 		*reason = "no NSEC3 records";
 		return sec_status_bogus; /* no RRs */
 	}
+	if(query_dname_compare(flt.zone, kkey->name) != 0) {
+		verbose(VERB_ALGO, "NSEC3 name is not b32.signer name");
+		*reason = "NSEC3 name is not b32.signer name";
+		return sec_status_bogus;
+	}
 	if(!param_set_same(&flt, reason))
 		return sec_status_bogus; /* nsec3 params from distinct chains*/
 	if(nsec3_iteration_count_high(ve, &flt, kkey))
@@ -1660,6 +1677,10 @@ nsec3_prove_nxornodata(struct module_env* env, struct val_env* ve,
 	filter_init(&flt, list, num, qinfo); /* init RR iterator */
 	if(!flt.zone)
 		return sec_status_bogus; /* no RRs */
+	if(query_dname_compare(flt.zone, kkey->name) != 0) {
+		verbose(VERB_ALGO, "NSEC3 name is not b32.signer name");
+		return sec_status_bogus;
+	}
 	if(!param_set_same(&flt, NULL))
 		return sec_status_bogus; /* nsec3 params from distinct chains*/
 	if(nsec3_iteration_count_high(ve, &flt, kkey))

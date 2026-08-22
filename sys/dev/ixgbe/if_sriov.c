@@ -36,17 +36,23 @@
 
 #ifdef PCI_IOV
 
+#include <sys/iov.h>
 #include <sys/ktr.h>
 
 MALLOC_DEFINE(M_IXGBE_SRIOV, "ix_sriov", "ix SR-IOV allocations");
 
-/************************************************************************
- * ixgbe_pci_iov_detach
- ************************************************************************/
-int
-ixgbe_pci_iov_detach(device_t dev)
+#define IXGBE_VF_MBX_CLEANUP_GRACE	(2 * SBT_1S)
+#define IXGBE_PRIMARY_ABORT_LIMIT 5
+
+static const struct timeval ixgbe_mdd_log_interval = { 2, 0 };
+static const struct timeval ixgbe_dma_abort_log_interval = { 10, 0 };
+
+static bool
+ixgbe_has_legacy_iov_recovery(const struct ixgbe_hw *hw)
 {
-	return pci_iov_detach(dev);
+
+	return (hw->mac.type == ixgbe_mac_82599EB ||
+	    hw->mac.type == ixgbe_mac_X540);
 }
 
 /************************************************************************
@@ -66,6 +72,8 @@ ixgbe_define_iov_schemas(device_t dev, int *error)
 	    IOV_SCHEMA_HASDEFAULT, false);
 	pci_iov_schema_add_bool(vf_schema, "allow-promisc",
 	    IOV_SCHEMA_HASDEFAULT, false);
+	pci_iov_schema_add_vlan(vf_schema, "vlan", IOV_SCHEMA_HASDEFAULT,
+	    VF_VLAN_TRUNK);
 	*error = pci_iov_attach(dev, pf_schema, vf_schema);
 	if (*error != 0) {
 		device_printf(dev,
@@ -124,10 +132,69 @@ ixgbe_process_vf_ack(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 		ixgbe_send_vf_failure(sc, vf, 0);
 }
 
+static void
+ixgbe_vf_set_anti_spoof(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
+{
+	struct ixgbe_hw *hw;
+	uint32_t reg;
+	bool enable;
+
+	hw = &sc->hw;
+	enable = (vf->flags & IXGBE_VF_ANTI_SPOOF) != 0;
+	if (hw->mac.ops.set_mac_anti_spoofing != NULL)
+		hw->mac.ops.set_mac_anti_spoofing(hw, enable, vf->pool);
+	if (hw->mac.ops.set_vlan_anti_spoofing != NULL)
+		hw->mac.ops.set_vlan_anti_spoofing(hw, enable, vf->pool);
+	if (hw->mac.ops.set_ethertype_anti_spoofing != NULL) {
+		if (enable) {
+			IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_LLDP),
+			    IXGBE_ETQF_FILTER_EN | IXGBE_ETQF_TX_ANTISPOOF |
+			    ETHERTYPE_LLDP);
+			IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_FC),
+			    IXGBE_ETQF_FILTER_EN | IXGBE_ETQF_TX_ANTISPOOF |
+			    ETHERTYPE_FLOWCONTROL);
+		}
+		hw->mac.ops.set_ethertype_anti_spoofing(hw, enable,
+		    vf->pool);
+	}
+
+	reg = IXGBE_READ_REG(hw, IXGBE_VMECM(IXGBE_VF_INDEX(vf->pool)));
+	if (enable)
+		reg |= IXGBE_VF_BIT(vf->pool);
+	else
+		reg &= ~IXGBE_VF_BIT(vf->pool);
+	IXGBE_WRITE_REG(hw, IXGBE_VMECM(IXGBE_VF_INDEX(vf->pool)), reg);
+}
+
 static inline boolean_t
 ixgbe_vf_mac_changed(struct ixgbe_vf *vf, const uint8_t *mac)
 {
 	return (bcmp(mac, vf->ether_addr, ETHER_ADDR_LEN) != 0);
+}
+
+static bool
+ixgbe_rar_mac_in_use(struct ixgbe_softc *sc, const uint8_t *mac,
+    int excluded_rar)
+{
+	struct ixgbe_hw *hw;
+	uint32_t addr_high, addr_low, rah;
+	int i;
+
+	hw = &sc->hw;
+	addr_low = (uint32_t)mac[0] | ((uint32_t)mac[1] << 8) |
+	    ((uint32_t)mac[2] << 16) | ((uint32_t)mac[3] << 24);
+	addr_high = (uint32_t)mac[4] | ((uint32_t)mac[5] << 8);
+	for (i = 0; i < hw->mac.num_rar_entries; i++) {
+		if (i == excluded_rar)
+			continue;
+		rah = IXGBE_READ_REG(hw, IXGBE_RAH(i));
+		if ((rah & IXGBE_RAH_AV) != 0 &&
+		    (rah & 0xffff) == addr_high &&
+		    IXGBE_READ_REG(hw, IXGBE_RAL(i)) == addr_low)
+			return (true);
+	}
+	return (ixgbe_validate_mac_addr(hw->mac.san_addr) == IXGBE_SUCCESS &&
+	    bcmp(hw->mac.san_addr, mac, ETHER_ADDR_LEN) == 0);
 }
 
 static inline int
@@ -209,30 +276,153 @@ ixgbe_ping_all_vfs(struct ixgbe_softc *sc)
 
 	for (int i = 0; i < sc->num_vfs; i++) {
 		vf = &sc->vfs[i];
-		if (vf->flags & IXGBE_VF_ACTIVE)
+		if ((vf->flags &
+		    (IXGBE_VF_ACTIVE | IXGBE_VF_TRAFFIC_DISABLED)) ==
+		    IXGBE_VF_ACTIVE)
 			ixgbe_send_vf_msg(&sc->hw, vf, IXGBE_PF_CONTROL_MSG);
 	}
 } /* ixgbe_ping_all_vfs */
 
+/*
+ * Stop VF DMA before resetting the PF.  A PF reset invalidates the VF queue
+ * state, so allowing an active VF to resume with its old rings can strand
+ * descriptors in both the VF and PF.  Clearing CTS makes a cooperative VF
+ * renegotiate its state after the PF comes back; it is deliberately separate
+ * from IXGBE_VF_IO_DISABLED, which records a persistent administrative or
+ * recovery decision.
+ */
+void
+ixgbe_quiesce_vfs(struct ixgbe_softc *sc)
+{
+	struct ixgbe_hw *hw;
+	struct ixgbe_vf *vf;
+	uint32_t index, mask, vfre, vfte;
+	int i;
+
+	hw = &sc->hw;
+	for (i = 0; i < sc->num_vfs; i++) {
+		vf = &sc->vfs[i];
+		if (!(vf->flags & IXGBE_VF_ACTIVE))
+			continue;
+
+		vf->flags &= ~IXGBE_VF_CTS;
+		index = IXGBE_VF_INDEX(vf->pool);
+		mask = IXGBE_VF_BIT(vf->pool);
+		vfte = IXGBE_READ_REG(hw, IXGBE_VFTE(index));
+		vfre = IXGBE_READ_REG(hw, IXGBE_VFRE(index));
+		IXGBE_WRITE_REG(hw, IXGBE_VFTE(index), vfte & ~mask);
+		IXGBE_WRITE_REG(hw, IXGBE_VFRE(index), vfre & ~mask);
+		ixgbe_send_vf_msg(hw, vf, IXGBE_PF_CONTROL_MSG);
+	}
+	IXGBE_WRITE_FLUSH(hw);
+} /* ixgbe_quiesce_vfs */
+
+
+static bool
+ixgbe_pf_owns_vlan(struct ixgbe_softc *sc, uint16_t tag)
+{
+	if_t ifp;
+
+	ifp = iflib_get_ifp(sc->ctx);
+	if ((if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER) == 0)
+		return (true);
+	return ((sc->shadow_vfta[tag >> 5] &
+	    (1U << (tag & 0x1f))) != 0);
+}
+
+static bool
+ixgbe_vf_owns_vlan(const struct ixgbe_vf *vf, uint16_t tag)
+{
+
+	return ((vf->vlans[tag >> 5] & (1U << (tag & 0x1f))) != 0);
+}
 
 static void
-ixgbe_vf_set_default_vlan(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
-    uint16_t tag)
+ixgbe_vf_vlan_release_pf_only(struct ixgbe_softc *sc, uint16_t tag)
+{
+	struct ixgbe_hw *hw;
+	uint32_t bits[2];
+	s32 slot;
+
+	hw = &sc->hw;
+	slot = ixgbe_find_vlvf_slot(hw, tag, true);
+	if (slot <= 0)
+		return;
+	bits[0] = IXGBE_READ_REG(hw, IXGBE_VLVFB(slot * 2));
+	bits[1] = IXGBE_READ_REG(hw, IXGBE_VLVFB(slot * 2 + 1));
+	bits[sc->pool / 32] &= ~(1U << (sc->pool % 32));
+	if (bits[0] != 0 || bits[1] != 0)
+		return;
+
+	/* The VFTA bit still admits this VLAN to the PF's default pool. */
+	IXGBE_WRITE_REG(hw, IXGBE_VLVF(slot), 0);
+	IXGBE_WRITE_REG(hw, IXGBE_VLVFB(slot * 2), 0);
+	IXGBE_WRITE_REG(hw, IXGBE_VLVFB(slot * 2 + 1), 0);
+}
+
+static s32
+ixgbe_vf_vlan_hw_update(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    uint16_t tag, bool enable)
+{
+	struct ixgbe_hw *hw;
+	s32 error;
+
+	hw = &sc->hw;
+	if (!enable &&
+	    ixgbe_find_vlvf_slot(hw, tag, true) < IXGBE_SUCCESS)
+		return (IXGBE_SUCCESS);
+	/*
+	 * Allocate the VLVF entry with the PF first when it also owns this
+	 * VLAN.  This guarantees that adding the VF cannot hide the VLAN from
+	 * the PF when the shared VFTA bit becomes pool-selective.
+	 */
+	if (enable && ixgbe_pf_owns_vlan(sc, tag)) {
+		error = ixgbe_set_vfta(hw, tag, sc->pool, true, false);
+		if (error != IXGBE_SUCCESS)
+			return (error);
+	}
+
+	error = ixgbe_set_vfta(hw, tag, vf->pool, enable, false);
+	if (error != IXGBE_SUCCESS)
+		return (error);
+
+	/* Free a PF-only VLVF slot without removing the PF's VFTA bit. */
+	if (!enable && ixgbe_pf_owns_vlan(sc, tag))
+		ixgbe_vf_vlan_release_pf_only(sc, tag);
+	return (IXGBE_SUCCESS);
+}
+
+static void
+ixgbe_vf_vlan_record(struct ixgbe_vf *vf, uint16_t tag, bool enable)
+{
+	u32 mask;
+
+	mask = 1U << (tag & 0x1f);
+	if (enable) {
+		vf->vlans[tag >> 5] |= mask;
+		vf->num_vlans++;
+	} else {
+		vf->vlans[tag >> 5] &= ~mask;
+		vf->num_vlans--;
+	}
+}
+
+static void
+ixgbe_vf_configure_vmolr(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 {
 	struct ixgbe_hw *hw;
 	uint32_t vmolr, vmvir;
+	uint8_t xcast_mode;
+	uint16_t tag;
 
 	hw = &sc->hw;
-
-	vf->vlan_tag = tag;
+	tag = vf->default_vlan;
 
 	vmolr = IXGBE_READ_REG(hw, IXGBE_VMOLR(vf->pool));
 
-	/* Do not receive packets that pass inexact filters. */
-	vmolr &= ~(IXGBE_VMOLR_ROMPE | IXGBE_VMOLR_ROPE);
-
-	/* Disable Multicast Promicuous Mode. */
-	vmolr &= ~IXGBE_VMOLR_MPE;
+	vmolr &= ~(IXGBE_VMOLR_UPE | IXGBE_VMOLR_ROMPE |
+	    IXGBE_VMOLR_ROPE | IXGBE_VMOLR_MPE | IXGBE_VMOLR_VPE |
+	    IXGBE_VMOLR_AUPE);
 
 	/* Accept broadcasts. */
 	vmolr |= IXGBE_VMOLR_BAM;
@@ -250,13 +440,94 @@ ixgbe_vf_set_default_vlan(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
 		/* Tag all traffic with provided vlan tag. */
 		vmvir = (tag | IXGBE_VMVIR_VLANA_DEFAULT);
 	}
+
+	xcast_mode = vf->xcast_mode;
+	if ((vf->api_ver == IXGBE_API_VER_UNKNOWN ||
+	    vf->api_ver < IXGBE_API_VER_1_2) && vf->num_mc_hashes != 0)
+		xcast_mode = IXGBEVF_XCAST_MODE_MULTI;
+	switch (xcast_mode) {
+	case IXGBEVF_XCAST_MODE_PROMISC:
+		vmolr |= IXGBE_VMOLR_UPE;
+		/* FALLTHROUGH */
+	case IXGBEVF_XCAST_MODE_ALLMULTI:
+		vmolr |= IXGBE_VMOLR_MPE;
+		/* FALLTHROUGH */
+	case IXGBEVF_XCAST_MODE_MULTI:
+		vmolr |= IXGBE_VMOLR_ROMPE;
+		break;
+	case IXGBEVF_XCAST_MODE_NONE:
+	default:
+		break;
+	}
 	IXGBE_WRITE_REG(hw, IXGBE_VMOLR(vf->pool), vmolr);
 	IXGBE_WRITE_REG(hw, IXGBE_VMVIR(vf->pool), vmvir);
-} /* ixgbe_vf_set_default_vlan */
+} /* ixgbe_vf_configure_vmolr */
+
+static void
+ixgbe_vf_clear_vlans(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    bool clear_hw)
+{
+	uint32_t bits;
+	int bit, index;
+
+	for (index = 0; index < IXGBE_VFTA_SIZE; index++) {
+		bits = vf->vlans[index];
+		while (bits != 0) {
+			bit = ffs(bits) - 1;
+			if (clear_hw)
+				(void)ixgbe_vf_vlan_hw_update(sc, vf,
+				    index * 32 + bit, false);
+			bits &= ~(1U << bit);
+		}
+	}
+	bzero(vf->vlans, sizeof(vf->vlans));
+	vf->num_vlans = 0;
+}
+
+static s32
+ixgbe_vf_reset_vlan(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    bool clear_hw)
+{
+	s32 error;
+
+	ixgbe_vf_clear_vlans(sc, vf, clear_hw);
+	if (vf->default_vlan == 0) {
+		/* VLAN 0 membership is implicit and not VF-removable. */
+		error = ixgbe_vf_vlan_hw_update(sc, vf, 0, true);
+	} else {
+		error = ixgbe_vf_vlan_hw_update(sc, vf, vf->default_vlan, true);
+		if (error == IXGBE_SUCCESS)
+			ixgbe_vf_vlan_record(vf, vf->default_vlan, true);
+	}
+	ixgbe_vf_configure_vmolr(sc, vf);
+	return (error);
+}
+
+static void
+ixgbe_vf_clear_mac_filters(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    bool clear_hw)
+{
+	struct ixgbe_vf_mac_filter *filter;
+	int i;
+
+	for (i = 0; i < sc->num_vf_mac_filters; i++) {
+		filter = &sc->vf_mac_filters[i];
+		if (!filter->active || filter->pool != vf->pool)
+			continue;
+		if (clear_hw)
+			(void)ixgbe_clear_rar(&sc->hw, filter->rar_index);
+		filter->active = false;
+		bzero(filter->mac, sizeof(filter->mac));
+	}
+	vf->num_mac_filters = 0;
+}
 
 static boolean_t
 ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 {
+	if_t ifp;
+	bool pf_jumbo;
+
 	/*
 	 * Frame size compatibility between PF and VF is only a problem on
 	 * 82599-based cards.  X540 and later support any combination of jumbo
@@ -265,6 +536,10 @@ ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	if (sc->hw.mac.type != ixgbe_mac_82599EB)
 		return (true);
 
+	/* sc->max_frame_size includes VF requests; use the PF's actual MTU. */
+	ifp = iflib_get_ifp(sc->ctx);
+	pf_jumbo = if_getmtu(ifp) > ETHERMTU;
+
 	switch (vf->api_ver) {
 	case IXGBE_API_VER_1_0:
 	case IXGBE_API_VER_UNKNOWN:
@@ -272,8 +547,7 @@ ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 		 * On legacy (1.0 and older) VF versions, we don't support
 		 * jumbo frames on either the PF or the VF.
 		 */
-		if (sc->max_frame_size > ETHER_MAX_LEN ||
-		    vf->maximum_frame_size > ETHER_MAX_LEN)
+		if (pf_jumbo || vf->maximum_frame_size > ETHER_MAX_LEN)
 			return (false);
 
 		return (true);
@@ -292,10 +566,7 @@ ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 		 * Jumbo frames only work with VFs if the PF is also using
 		 * jumbo frames.
 		 */
-		if (sc->max_frame_size <= ETHER_MAX_LEN)
-			return (true);
-
-		return (false);
+		return (pf_jumbo);
 	}
 } /* ixgbe_vf_frame_size_compatible */
 
@@ -303,14 +574,46 @@ ixgbe_vf_frame_size_compatible(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 static void
 ixgbe_process_vf_reset(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 {
-	ixgbe_vf_set_default_vlan(sc, vf, vf->default_vlan);
+	struct ixgbe_hw *hw;
+	bool rebuild_mta;
+	s32 error;
+	int i, queue_count;
 
-	// XXX clear multicast addresses
+	hw = &sc->hw;
+	vf->flags &= ~IXGBE_VF_CTS;
+	rebuild_mta = vf->num_mc_hashes != 0;
+	vf->xcast_mode = IXGBEVF_XCAST_MODE_NONE;
+	vf->num_mc_hashes = 0;
+	bzero(vf->mc_hash, sizeof(vf->mc_hash));
+	error = ixgbe_vf_reset_vlan(sc, vf, true);
+	if (error != IXGBE_SUCCESS)
+		device_printf(sc->dev,
+		    "VF %u default VLAN restore failed: %d\n",
+		    vf->pool, error);
+	if (rebuild_mta)
+		ixgbe_iov_rebuild_mta(sc);
 
-	ixgbe_clear_rar(&sc->hw, vf->rar_index);
-	ixgbe_toggle_txdctl(&sc->hw, vf->pool);
+	ixgbe_vf_clear_mac_filters(sc, vf, true);
+	ixgbe_clear_rar(hw, vf->rar_index);
+	ixgbe_vf_set_anti_spoof(sc, vf);
+	ixgbe_toggle_txdctl(hw, vf->pool);
 
+	/* VFLR does not clear transmit head write-back state. */
+	queue_count = ixgbe_vf_queues(sc->iov_mode);
+	for (i = 0; i < queue_count; i++) {
+		IXGBE_WRITE_REG(hw,
+		    IXGBE_PVFTDWBAHn(queue_count, vf->pool, i), 0);
+		IXGBE_WRITE_REG(hw,
+		    IXGBE_PVFTDWBALn(queue_count, vf->pool, i), 0);
+	}
+
+	/* VFLR also leaves malicious-driver queue blocks asserted. */
+	ixgbe_restore_mdd_vf(hw, vf->pool);
+
+	vf->flags &= ~(IXGBE_VF_INIT_DONE | IXGBE_VF_MDD_BLOCKED |
+	    IXGBE_VF_MDD_NOTIFY_PENDING);
 	vf->api_ver = IXGBE_API_VER_UNKNOWN;
+	vf->recovery_tx_pending = 0;
 } /* ixgbe_process_vf_reset */
 
 
@@ -324,10 +627,38 @@ ixgbe_vf_enable_transmit(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 
 	vf_index = IXGBE_VF_INDEX(vf->pool);
 	vfte = IXGBE_READ_REG(hw, IXGBE_VFTE(vf_index));
-	vfte |= IXGBE_VF_BIT(vf->pool);
+	if (vf->flags & IXGBE_VF_TRAFFIC_DISABLED)
+		vfte &= ~IXGBE_VF_BIT(vf->pool);
+	else
+		vfte |= IXGBE_VF_BIT(vf->pool);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(vf_index), vfte);
 } /* ixgbe_vf_enable_transmit */
 
+
+static void
+ixgbe_vf_set_rx_drop(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    bool enable)
+{
+	struct ixgbe_hw *hw;
+	u32 qde;
+	int i, queue_count;
+
+	hw = &sc->hw;
+	queue_count = ixgbe_vf_queues(sc->iov_mode);
+	for (i = 0; i < queue_count; i++) {
+		qde = IXGBE_QDE_WRITE |
+		    (ixgbe_vf_que_index(sc->iov_mode, vf->pool, i) <<
+		    IXGBE_QDE_IDX_SHIFT);
+		if (enable) {
+			qde |= IXGBE_QDE_ENABLE;
+			if (vf->default_vlan != 0 &&
+			    hw->mac.type >= ixgbe_mac_X550)
+				qde |= IXGBE_QDE_HIDE_VLAN;
+		}
+		IXGBE_WRITE_REG(hw, IXGBE_QDE, qde);
+		IXGBE_WRITE_FLUSH(hw);
+	}
+}
 
 static void
 ixgbe_vf_enable_receive(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
@@ -336,10 +667,13 @@ ixgbe_vf_enable_receive(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 	uint32_t vf_index, vfre;
 
 	hw = &sc->hw;
+	/* Keep one VF without receive descriptors from blocking its peers. */
+	ixgbe_vf_set_rx_drop(sc, vf, true);
 
 	vf_index = IXGBE_VF_INDEX(vf->pool);
 	vfre = IXGBE_READ_REG(hw, IXGBE_VFRE(vf_index));
-	if (ixgbe_vf_frame_size_compatible(sc, vf))
+	if (!(vf->flags & IXGBE_VF_TRAFFIC_DISABLED) &&
+	    ixgbe_vf_frame_size_compatible(sc, vf))
 		vfre |= IXGBE_VF_BIT(vf->pool);
 	else
 		vfre &= ~IXGBE_VF_BIT(vf->pool);
@@ -348,33 +682,334 @@ ixgbe_vf_enable_receive(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 
 
 static void
+ixgbe_find_vf_devices(struct ixgbe_softc *sc, int iov_pos,
+    device_t *vfdev, int num_vfs)
+{
+	device_t *children;
+	u16 first_rid, rid_offset, rid_stride, vf_device_id;
+	int child_count, i, vfnum;
+
+	rid_offset = pci_read_config(sc->dev,
+	    iov_pos + PCIR_SRIOV_VF_OFF, 2);
+	rid_stride = pci_read_config(sc->dev,
+	    iov_pos + PCIR_SRIOV_VF_STRIDE, 2);
+	vf_device_id = pci_read_config(sc->dev,
+	    iov_pos + PCIR_SRIOV_VF_DID, 2);
+	first_rid = pci_get_rid(sc->dev) + rid_offset;
+	if (device_get_children(device_get_parent(sc->dev), &children,
+	    &child_count) != 0)
+		return;
+	for (i = 0; i < child_count; i++) {
+		if (pci_get_vendor(children[i]) != IXGBE_INTEL_VENDOR_ID ||
+		    pci_get_device(children[i]) != vf_device_id)
+			continue;
+		for (vfnum = 0; vfnum < num_vfs; vfnum++) {
+			if (pci_get_rid(children[i]) ==
+			    first_rid + vfnum * rid_stride) {
+				vfdev[vfnum] = children[i];
+				break;
+			}
+		}
+	}
+	free(children, M_TEMP);
+}
+
+static void
+ixgbe_vf_tx_sample_reset(struct ixgbe_vf *vf)
+{
+
+	vf->recovery_tx_pending = 0;
+}
+
+/*
+ * TXDGPC is a clear-on-read, PF-wide counter.  A zero sample says only that
+ * no packet completed during the interval; it does not distinguish an idle
+ * VF from a stalled one.  Require a VF queue to have outstanding descriptors
+ * and an unchanged head across two consecutive zero-completion samples.
+ */
+static bool
+ixgbe_vf_tx_stalled(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
+{
+	u32 head, pending, previous, tail;
+	int i, queue_count;
+	bool stalled;
+
+	queue_count = ixgbe_vf_queues(sc->iov_mode);
+	previous = vf->recovery_tx_pending;
+	pending = 0;
+	stalled = false;
+	for (i = 0; i < queue_count; i++) {
+		head = IXGBE_READ_REG(&sc->hw,
+		    IXGBE_PVFTDHn(queue_count, vf->pool, i));
+		tail = IXGBE_READ_REG(&sc->hw,
+		    IXGBE_PVFTDTn(queue_count, vf->pool, i));
+		if (head == UINT32_MAX || tail == UINT32_MAX) {
+			ixgbe_vf_tx_sample_reset(vf);
+			return (false);
+		}
+		if (head != tail) {
+			pending |= 1U << i;
+			if ((previous & (1U << i)) != 0 &&
+			    vf->recovery_tx_head[i] == head)
+				stalled = true;
+		}
+		vf->recovery_tx_head[i] = head;
+	}
+	vf->recovery_tx_pending = pending;
+	return (stalled);
+}
+
+static void
+ixgbe_iov_recovery_task(void *context, int pending __unused)
+{
+	if_ctx_t ctx;
+	device_t vfdev[IXGBE_64_VM] = {};
+	struct ixgbe_softc *sc;
+	struct ixgbe_vf *vf;
+	struct sx *ctx_lock;
+	bool new_event, quarantined, report, scan, success;
+	u16 command, status;
+	u32 tx_good;
+	u64 recovery_vfs, stalled_vfs;
+	u_int flr_delay;
+	int i, iov_pos, n, num_vfs = 0, recovery_vf;
+
+	ctx = context;
+	if (iflib_in_detach(ctx))
+		return;
+	sc = iflib_get_softc(ctx);
+	ctx_lock = iflib_ctx_lock_get(ctx);
+
+	/* Match PCI-IOV's topology-before-driver lock order. */
+	bus_topo_lock();
+	sx_xlock(ctx_lock);
+	if (sc->iov_recovery_stop ||
+	    !(sc->feat_en & IXGBE_FEATURE_SRIOV) ||
+	    !ixgbe_has_legacy_iov_recovery(&sc->hw) ||
+	    pci_find_extcap(sc->dev, PCIZ_SRIOV, &iov_pos) != 0)
+		goto out_unlock;
+	num_vfs = sc->num_vfs;
+	ixgbe_find_vf_devices(sc, iov_pos, vfdev, num_vfs);
+	for (i = 0; i < num_vfs; i++) {
+		if (vfdev[i] != NULL)
+			device_busy(vfdev[i]);
+	}
+
+	recovery_vfs = 0;
+	stalled_vfs = 0;
+	recovery_vf = -1;
+	new_event = false;
+	quarantined = false;
+	for (i = 0; i < num_vfs; i++) {
+		if (sc->vfs[i].flags & IXGBE_VF_DMA_ABORT_PENDING)
+			recovery_vfs |= 1ULL << i;
+	}
+	scan = false;
+	if (sc->link_up) {
+		tx_good = IXGBE_READ_REG(&sc->hw, IXGBE_TXDGPC);
+		scan = tx_good == 0;
+		if (tx_good == UINT32_MAX)
+			scan = false;
+	}
+	if (scan) {
+		for (i = 0; i < num_vfs; i++) {
+			vf = &sc->vfs[i];
+			if (vfdev[i] == NULL ||
+			    !(vf->flags & IXGBE_VF_ACTIVE) ||
+			    (vf->flags & IXGBE_VF_IO_DISABLED)) {
+				ixgbe_vf_tx_sample_reset(vf);
+				continue;
+			}
+			if (ixgbe_vf_tx_stalled(sc, vf))
+				stalled_vfs |= 1ULL << i;
+		}
+	} else {
+		for (i = 0; i < num_vfs; i++)
+			ixgbe_vf_tx_sample_reset(&sc->vfs[i]);
+	}
+
+	if (scan) {
+		for (n = 0; n < num_vfs; n++) {
+			i = (sc->iov_recovery_cursor + n) % num_vfs;
+			vf = &sc->vfs[i];
+			if ((stalled_vfs & (1ULL << i)) == 0)
+				continue;
+			status = pci_read_config(vfdev[i], PCIR_STATUS, 2);
+			if (status == UINT16_MAX ||
+			    !(status & PCIM_STATUS_RMABORT))
+				continue;
+
+			/* PCI status error bits are write-one-to-clear. */
+			pci_write_config(vfdev[i], PCIR_STATUS,
+			    PCIM_STATUS_RMABORT, 2);
+			ixgbe_vf_tx_sample_reset(vf);
+			vf->flags |= IXGBE_VF_DMA_ABORT_PENDING;
+			vf->flags &= ~IXGBE_VF_CTS;
+			vf->primary_abort_count++;
+			if (vf->primary_abort_count ==
+			    IXGBE_PRIMARY_ABORT_LIMIT) {
+				vf->flags |= IXGBE_VF_QUARANTINED;
+				sc->iov_dma_abort_quarantines++;
+				sc->iov_quarantined_vfs |= 1ULL << i;
+				quarantined = true;
+			}
+			ixgbe_vf_enable_transmit(sc, vf);
+			ixgbe_vf_enable_receive(sc, vf);
+			IXGBE_WRITE_FLUSH(&sc->hw);
+			sc->iov_dma_abort_events++;
+			recovery_vfs |= 1ULL << i;
+			recovery_vf = i;
+			new_event = true;
+			break;
+		}
+	}
+	if (recovery_vf == -1) {
+		for (n = 0; n < num_vfs; n++) {
+			i = (sc->iov_recovery_cursor + n) % num_vfs;
+			if ((recovery_vfs & (1ULL << i)) != 0 &&
+			    vfdev[i] != NULL) {
+				recovery_vf = i;
+				break;
+			}
+		}
+	}
+	if (recovery_vf == -1)
+		goto out_unlock;
+	/* Bound latency to one VF FLR per pass without starving other VFs. */
+	sc->iov_recovery_cursor = (recovery_vf + 1) % num_vfs;
+
+	/* Busy references keep every VF child stable while Giant is dropped. */
+	bus_topo_unlock();
+	i = recovery_vf;
+	vf = &sc->vfs[i];
+	flr_delay = MAX(pcie_get_max_completion_timeout(vfdev[i]) / 1000, 10);
+	command = pci_read_config(vfdev[i], PCIR_COMMAND, 2);
+	if (command != UINT16_MAX) {
+		if (!(vf->flags & IXGBE_VF_PCI_STATE_SAVED)) {
+			pci_save_state(vfdev[i]);
+			vf->pci_saved_command = command;
+			vf->flags |= IXGBE_VF_PCI_STATE_SAVED;
+		}
+		success = pcie_flr(vfdev[i], flr_delay, true);
+	} else
+		success = false;
+	if (success && !(vf->flags & IXGBE_VF_QUARANTINED)) {
+		/* Restore and verify the complete state for a usable VF. */
+		pci_restore_state(vfdev[i]);
+		command = pci_read_config(vfdev[i], PCIR_COMMAND, 2);
+		success = command == vf->pci_saved_command;
+	} else if (success) {
+		/*
+		 * Leave the function in post-FLR configuration.  Ensure that
+		 * decode and bus mastering remain disabled, then refresh the
+		 * PCI layer's cached Command state so a later restore cannot
+		 * re-enable them.
+		 */
+		command = pci_read_config(vfdev[i], PCIR_COMMAND, 2);
+		if (command != UINT16_MAX) {
+			command &= ~(PCIM_CMD_PORTEN | PCIM_CMD_MEMEN |
+			    PCIM_CMD_BUSMASTEREN);
+			pci_write_config(vfdev[i], PCIR_COMMAND, command, 2);
+			command = pci_read_config(vfdev[i], PCIR_COMMAND, 2);
+		}
+		success = command != UINT16_MAX &&
+		    (command & (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN |
+		    PCIM_CMD_BUSMASTEREN)) == 0;
+		if (success)
+			pci_save_state(vfdev[i]);
+	}
+	if (success) {
+		vf->flags &= ~(IXGBE_VF_DMA_ABORT_PENDING |
+		    IXGBE_VF_PCI_STATE_SAVED);
+		vf->pci_saved_command = 0;
+	} else
+		sc->iov_dma_abort_flr_failures++;
+	if (quarantined) {
+		device_printf(sc->dev,
+		    "quarantined VF %u after %u invalid DMA targets%s\n",
+		    vf->pool, IXGBE_PRIMARY_ABORT_LIMIT,
+		    success ? "" : "; function-level reset failed");
+	} else {
+		report = ratecheck(&vf->last_dma_abort_log,
+		    &ixgbe_dma_abort_log_interval) != 0;
+		if (report && (new_event || !success)) {
+			if (success)
+				device_printf(sc->dev,
+				    "invalid DMA target from VF %u; reset VF\n",
+				    vf->pool);
+			else
+				device_printf(sc->dev,
+				    "could not reset VF %u after an invalid DMA "
+				    "target; VF remains disabled\n", vf->pool);
+		}
+	}
+	sx_xunlock(ctx_lock);
+	for (i = 0; i < num_vfs; i++) {
+		if (vfdev[i] != NULL)
+			device_unbusy(vfdev[i]);
+	}
+	return;
+
+out_unlock:
+	for (i = 0; i < num_vfs; i++) {
+		if (vfdev[i] != NULL)
+			device_unbusy(vfdev[i]);
+	}
+	sx_xunlock(ctx_lock);
+	bus_topo_unlock();
+}
+
+void
+ixgbe_init_iov_recovery(struct ixgbe_softc *sc)
+{
+
+	sc->iov_recovery_stop = false;
+	iflib_config_task_init(sc->ctx, &sc->iov_recovery_task,
+	    ixgbe_iov_recovery_task);
+}
+
+void
+ixgbe_schedule_iov_recovery(struct ixgbe_softc *sc)
+{
+	bool pending;
+	sbintime_t now;
+	int i;
+
+	if (sc->iov_recovery_stop ||
+	    !(sc->feat_en & IXGBE_FEATURE_SRIOV) ||
+	    !ixgbe_has_legacy_iov_recovery(&sc->hw))
+		return;
+	pending = false;
+	for (i = 0; i < sc->num_vfs; i++) {
+		if (sc->vfs[i].flags & IXGBE_VF_DMA_ABORT_PENDING) {
+			pending = true;
+			break;
+		}
+	}
+	if (!sc->link_up && !pending)
+		return;
+	now = sbinuptime();
+	if (now < sc->iov_recovery_time)
+		return;
+	sc->iov_recovery_time = now + 2 * SBT_1S;
+	iflib_config_task_enqueue(sc->ctx, &sc->iov_recovery_task);
+}
+
+
+static void
 ixgbe_vf_reset_msg(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 {
 	struct ixgbe_hw *hw;
 	uint32_t ack;
 	uint32_t resp[IXGBE_VF_PERMADDR_MSG_LEN];
-	int i, queue_count;
 
 	hw = &sc->hw;
+	if (vf->flags & IXGBE_VF_IO_DISABLED) {
+		ixgbe_send_vf_failure(sc, vf, msg[0]);
+		return;
+	}
 
 	ixgbe_process_vf_reset(sc, vf);
-	/*
-	 * The reset request was consumed by ixgbe_process_vf_msg(), so it is
-	 * now safe to clear this VF's mailbox.
-	 */
-	ixgbe_clear_mbx(hw, vf->pool);
-
-	/*
-	 * VF reset does not clear the transmit head write-back addresses.
-	 * The queues were disabled by ixgbe_process_vf_reset().
-	 */
-	queue_count = ixgbe_vf_queues(sc->iov_mode);
-	for (i = 0; i < queue_count; i++) {
-		IXGBE_WRITE_REG(hw,
-		    IXGBE_PVFTDWBAHn(queue_count, vf->pool, i), 0);
-		IXGBE_WRITE_REG(hw,
-		    IXGBE_PVFTDWBALn(queue_count, vf->pool, i), 0);
-	}
 
 	if (ixgbe_validate_mac_addr(vf->ether_addr) == 0) {
 		ixgbe_set_rar(&sc->hw, vf->rar_index, vf->ether_addr,
@@ -386,7 +1021,7 @@ ixgbe_vf_reset_msg(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 	ixgbe_vf_enable_transmit(sc, vf);
 	ixgbe_vf_enable_receive(sc, vf);
 
-	vf->flags |= IXGBE_VF_CTS;
+	vf->flags |= IXGBE_VF_CTS | IXGBE_VF_INIT_DONE;
 
 	resp[0] = IXGBE_VF_RESET | ack;
 	bcopy(vf->ether_addr, &resp[1], ETHER_ADDR_LEN);
@@ -412,6 +1047,11 @@ ixgbe_vf_set_mac(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 		ixgbe_send_vf_failure(sc, vf, msg[0]);
 		return;
 	}
+	if (ixgbe_vf_mac_changed(vf, mac) &&
+	    ixgbe_rar_mac_in_use(sc, mac, vf->rar_index)) {
+		ixgbe_send_vf_failure(sc, vf, msg[0]);
+		return;
+	}
 
 	bcopy(mac, vf->ether_addr, ETHER_ADDR_LEN);
 
@@ -431,30 +1071,21 @@ ixgbe_vf_set_mc_addr(struct ixgbe_softc *sc, struct ixgbe_vf *vf, u32 *msg)
 {
 	u16	*list = (u16*)&msg[1];
 	int	entries;
-	u32	vmolr, vec_bit, vec_reg, mta_reg;
 
-	entries = (msg[0] & IXGBE_VT_MSGINFO_MASK) >> IXGBE_VT_MSGINFO_SHIFT;
+	entries = (msg[0] & IXGBE_VT_MSGINFO_MASK) >>
+	    IXGBE_VT_MSGINFO_SHIFT;
 	entries = min(entries, IXGBE_MAX_VF_MC);
 
-	vmolr = IXGBE_READ_REG(&sc->hw, IXGBE_VMOLR(vf->pool));
-
+	bzero(vf->mc_hash, sizeof(vf->mc_hash));
+	bcopy(list, vf->mc_hash, entries * sizeof(*list));
 	vf->num_mc_hashes = entries;
-
-	/* Set the appropriate MTA bit */
-	for (int i = 0; i < entries; i++) {
-		vf->mc_hash[i] = list[i];
-		vec_reg = (vf->mc_hash[i] >> 5) & 0x7F;
-		vec_bit = vf->mc_hash[i] & 0x1F;
-		mta_reg = IXGBE_READ_REG(&sc->hw, IXGBE_MTA(vec_reg));
-		mta_reg |= (1 << vec_bit);
-		IXGBE_WRITE_REG(&sc->hw, IXGBE_MTA(vec_reg), mta_reg);
-	}
-
-	if (entries == 0)
-		vmolr &= ~IXGBE_VMOLR_ROMPE;
-	else
-		vmolr |= IXGBE_VMOLR_ROMPE;
-	IXGBE_WRITE_REG(&sc->hw, IXGBE_VMOLR(vf->pool), vmolr);
+	if (entries != 0 && vf->xcast_mode == IXGBEVF_XCAST_MODE_NONE)
+		vf->xcast_mode = IXGBEVF_XCAST_MODE_MULTI;
+	else if (entries == 0 &&
+	    vf->xcast_mode == IXGBEVF_XCAST_MODE_MULTI)
+		vf->xcast_mode = IXGBEVF_XCAST_MODE_NONE;
+	ixgbe_iov_rebuild_mta(sc);
+	ixgbe_vf_configure_vmolr(sc, vf);
 	ixgbe_send_vf_success(sc, vf, msg[0]);
 } /* ixgbe_vf_set_mc_addr */
 
@@ -462,26 +1093,37 @@ ixgbe_vf_set_mc_addr(struct ixgbe_softc *sc, struct ixgbe_vf *vf, u32 *msg)
 static void
 ixgbe_vf_set_vlan(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 {
-	struct ixgbe_hw *hw;
-	int enable;
+	bool enable, present;
+	s32 error;
 	uint16_t tag;
 
-	hw = &sc->hw;
-	enable = IXGBE_VT_MSGINFO(msg[0]);
+	enable = IXGBE_VT_MSGINFO(msg[0]) != 0;
 	tag = msg[1] & IXGBE_VLVF_VLANID_MASK;
 
-	if (!(vf->flags & IXGBE_VF_CAP_VLAN)) {
+	if (!(vf->flags & IXGBE_VF_CAP_VLAN) || vf->default_vlan != 0 ||
+	    (msg[1] & ~IXGBE_VLVF_VLANID_MASK) != 0) {
 		ixgbe_send_vf_failure(sc, vf, msg[0]);
 		return;
 	}
 
 	/* It is illegal to enable vlan tag 0. */
-	if (tag == 0 && enable != 0) {
+	if (tag == 0 && enable) {
 		ixgbe_send_vf_failure(sc, vf, msg[0]);
 		return;
 	}
 
-	ixgbe_set_vfta(hw, tag, vf->pool, enable, false);
+	present = ixgbe_vf_owns_vlan(vf, tag);
+	if (enable == present) {
+		ixgbe_send_vf_success(sc, vf, msg[0]);
+		return;
+	}
+
+	error = ixgbe_vf_vlan_hw_update(sc, vf, tag, enable);
+	if (error != IXGBE_SUCCESS) {
+		ixgbe_send_vf_failure(sc, vf, msg[0]);
+		return;
+	}
+	ixgbe_vf_vlan_record(vf, tag, enable);
 	ixgbe_send_vf_success(sc, vf, msg[0]);
 } /* ixgbe_vf_set_vlan */
 
@@ -510,7 +1152,7 @@ ixgbe_vf_set_lpe(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 	}
 
 	vf->maximum_frame_size = vf_max_size;
-	ixgbe_update_max_frame(sc, vf->maximum_frame_size);
+	ixgbe_recalculate_max_frame(sc);
 
 	/*
 	 * We might have to disable reception to this VF if the frame size is
@@ -521,7 +1163,7 @@ ixgbe_vf_set_lpe(struct ixgbe_softc *sc, struct ixgbe_vf *vf, uint32_t *msg)
 	mhadd = IXGBE_READ_REG(hw, IXGBE_MHADD);
 	pf_max_size = (mhadd & IXGBE_MHADD_MFS_MASK) >> IXGBE_MHADD_MFS_SHIFT;
 
-	if (pf_max_size < sc->max_frame_size) {
+	if (pf_max_size != sc->max_frame_size) {
 		mhadd &= ~IXGBE_MHADD_MFS_MASK;
 		mhadd |= sc->max_frame_size << IXGBE_MHADD_MFS_SHIFT;
 		IXGBE_WRITE_REG(hw, IXGBE_MHADD, mhadd);
@@ -535,7 +1177,73 @@ static void
 ixgbe_vf_set_macvlan(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
     uint32_t *msg)
 {
-	//XXX implement this
+	struct ixgbe_vf_mac_filter *filter, *free_filter;
+	struct ixgbe_hw *hw;
+	uint8_t *mac;
+	int i, index;
+
+	hw = &sc->hw;
+	index = IXGBE_VT_MSGINFO(msg[0]);
+	if (index == 0) {
+		ixgbe_vf_clear_mac_filters(sc, vf, true);
+		ixgbe_vf_set_anti_spoof(sc, vf);
+		ixgbe_send_vf_success(sc, vf, msg[0]);
+		return;
+	}
+	if (!(vf->flags & IXGBE_VF_CAP_MAC))
+		goto failure;
+	/* This hardware can anti-spoof only the VF's primary source MAC. */
+	if ((vf->flags & IXGBE_VF_ANTI_SPOOF) != 0)
+		goto failure;
+
+	mac = (uint8_t *)&msg[1];
+	if (ixgbe_validate_mac_addr(mac) != IXGBE_SUCCESS)
+		goto failure;
+	if (index == 1)
+		ixgbe_vf_clear_mac_filters(sc, vf, true);
+	if (bcmp(mac, vf->ether_addr, ETHER_ADDR_LEN) == 0) {
+		ixgbe_vf_set_anti_spoof(sc, vf);
+		ixgbe_send_vf_success(sc, vf, msg[0]);
+		return;
+	}
+
+	free_filter = NULL;
+	for (i = 0; i < sc->num_vf_mac_filters; i++) {
+		filter = &sc->vf_mac_filters[i];
+		if (!filter->active) {
+			if (free_filter == NULL)
+				free_filter = filter;
+			continue;
+		}
+		if (bcmp(filter->mac, mac, ETHER_ADDR_LEN) != 0)
+			continue;
+		if (filter->pool != vf->pool)
+			goto failure;
+		ixgbe_send_vf_success(sc, vf, msg[0]);
+		return;
+	}
+	if (vf->num_mac_filters >= IXGBE_MAX_VF_MAC_FILTERS ||
+	    free_filter == NULL)
+		goto failure;
+
+	/* Reject collisions with PF, VF-primary, or other reserved RARs. */
+	if (ixgbe_rar_mac_in_use(sc, mac, -1))
+		goto failure;
+
+	if (ixgbe_set_rar(hw, free_filter->rar_index, mac, vf->pool,
+	    true) != IXGBE_SUCCESS)
+		goto failure;
+	free_filter->active = true;
+	free_filter->pool = vf->pool;
+	bcopy(mac, free_filter->mac, ETHER_ADDR_LEN);
+	vf->num_mac_filters++;
+	/* MAC anti-spoofing accepts only the primary address on this family. */
+	ixgbe_vf_set_anti_spoof(sc, vf);
+	ixgbe_send_vf_success(sc, vf, msg[0]);
+	return;
+
+failure:
+	ixgbe_vf_set_anti_spoof(sc, vf);
 	ixgbe_send_vf_failure(sc, vf, msg[0]);
 } /* ixgbe_vf_set_macvlan */
 
@@ -544,18 +1252,73 @@ static void
 ixgbe_vf_api_negotiate(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
     uint32_t *msg)
 {
+	if (msg[1] == IXGBE_API_VER_1_6) {
+		if (sc->hw.mac.type != ixgbe_mac_E610)
+			goto failure;
+		vf->api_ver = msg[1];
+		ixgbe_send_vf_success(sc, vf, msg[0]);
+		return;
+	}
+
 	switch (msg[1]) {
 	case IXGBE_API_VER_1_0:
 	case IXGBE_API_VER_1_1:
+	case IXGBE_API_VER_1_2:
+	case IXGBE_API_VER_1_3:
 		vf->api_ver = msg[1];
 		ixgbe_send_vf_success(sc, vf, msg[0]);
 		break;
 	default:
-		vf->api_ver = IXGBE_API_VER_UNKNOWN;
-		ixgbe_send_vf_failure(sc, vf, msg[0]);
-		break;
+		goto failure;
 	}
+	return;
+
+failure:
+	vf->api_ver = IXGBE_API_VER_UNKNOWN;
+	ixgbe_send_vf_failure(sc, vf, msg[0]);
 } /* ixgbe_vf_api_negotiate */
+
+static void
+ixgbe_vf_update_xcast_mode(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    uint32_t *msg)
+{
+	struct ixgbe_hw *hw;
+	uint32_t mode;
+
+	hw = &sc->hw;
+	mode = msg[1];
+	switch (vf->api_ver) {
+	case IXGBE_API_VER_1_2:
+		if (mode == IXGBEVF_XCAST_MODE_PROMISC)
+			goto failure;
+		break;
+	case IXGBE_API_VER_1_3:
+	case IXGBE_API_VER_1_6:
+		break;
+	default:
+		goto failure;
+	}
+	if (mode > IXGBEVF_XCAST_MODE_PROMISC)
+		goto failure;
+	if (mode > IXGBEVF_XCAST_MODE_MULTI &&
+	    !(vf->flags & IXGBE_VF_ALLOW_PROMISC))
+		goto failure;
+	if (mode == IXGBEVF_XCAST_MODE_PROMISC &&
+	    (hw->mac.type <= ixgbe_mac_82599EB ||
+	    !(IXGBE_READ_REG(hw, IXGBE_FCTRL) & IXGBE_FCTRL_UPE)))
+		goto failure;
+
+	vf->xcast_mode = mode;
+	ixgbe_vf_configure_vmolr(sc, vf);
+	msg[0] &= IXGBE_VT_MSG_MASK;
+	msg[0] |= IXGBE_VT_MSGTYPE_SUCCESS | IXGBE_VT_MSGTYPE_CTS;
+	msg[1] = mode;
+	ixgbe_write_mbx(hw, msg, 2, vf->pool);
+	return;
+
+failure:
+	ixgbe_send_vf_failure(sc, vf, msg[0]);
+} /* ixgbe_vf_update_xcast_mode */
 
 
 static void
@@ -588,9 +1351,46 @@ ixgbe_vf_get_queues(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
 	ixgbe_write_mbx(hw, resp, IXGBE_VF_GET_QUEUES_RESP_LEN, vf->pool);
 } /* ixgbe_vf_get_queues */
 
+static void
+ixgbe_vf_get_link_state(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    uint32_t *msg)
+{
+	switch (vf->api_ver) {
+	case IXGBE_API_VER_1_2:
+	case IXGBE_API_VER_1_3:
+	case IXGBE_API_VER_1_6:
+		break;
+	default:
+		ixgbe_send_vf_failure(sc, vf, msg[0]);
+		return;
+	}
+
+	msg[0] = IXGBE_VF_GET_LINK_STATE | IXGBE_VT_MSGTYPE_SUCCESS |
+	    IXGBE_VT_MSGTYPE_CTS;
+	msg[1] = 1;
+	ixgbe_write_mbx(&sc->hw, msg, 2, vf->pool);
+} /* ixgbe_vf_get_link_state */
 
 static void
-ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf)
+ixgbe_vf_get_pf_link_state(struct ixgbe_softc *sc, struct ixgbe_vf *vf,
+    uint32_t *msg)
+{
+	if (sc->hw.mac.type != ixgbe_mac_E610 ||
+	    vf->api_ver != IXGBE_API_VER_1_6) {
+		ixgbe_send_vf_failure(sc, vf, msg[0]);
+		return;
+	}
+
+	msg[0] = IXGBE_VF_GET_PF_LINK_STATE | IXGBE_VT_MSGTYPE_SUCCESS |
+	    IXGBE_VT_MSGTYPE_CTS;
+	msg[1] = sc->link_speed;
+	msg[2] = sc->link_up;
+	ixgbe_write_mbx(&sc->hw, msg, 3, vf->pool);
+} /* ixgbe_vf_get_pf_link_state */
+
+
+static bool
+ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf, bool reset_pending)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 #ifdef KTR
@@ -598,25 +1398,39 @@ ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf)
 #endif
 	struct ixgbe_hw *hw;
 	uint32_t msg[IXGBE_VFMAILBOX_SIZE];
+	bool cleanup_complete;
 	int error;
 
 	hw = &sc->hw;
+	cleanup_complete = true;
 
 	error = ixgbe_read_mbx(hw, msg, IXGBE_VFMAILBOX_SIZE, vf->pool);
 
 	if (error != 0)
-		return;
+		return (false);
+	/*
+	 * Some devices do not clear VFMBMEM on VFLR.  Copy a pending request
+	 * first because the VF posts its mailbox reset request after raising
+	 * the reset event.
+	 */
+	if (reset_pending || msg[0] == IXGBE_VF_RESET)
+		cleanup_complete =
+		    ixgbe_clear_mbx(hw, vf->pool) == IXGBE_SUCCESS;
+	/* The successful read ACKed the request; dispatch it even if not clear. */
 
 	CTR3(KTR_MALLOC, "%s: received msg %x from %d", if_name(ifp),
 	    msg[0], vf->pool);
 	if (msg[0] == IXGBE_VF_RESET) {
 		ixgbe_vf_reset_msg(sc, vf, msg);
-		return;
+		return (cleanup_complete);
 	}
+	/* Discard requests from the mailbox session invalidated by VFLR. */
+	if (reset_pending)
+		return (cleanup_complete);
 
 	if (!(vf->flags & IXGBE_VF_CTS)) {
 		ixgbe_send_vf_failure(sc, vf, msg[0]);
-		return;
+		return (true);
 	}
 
 	switch (msg[0] & IXGBE_VT_MSG_MASK) {
@@ -641,10 +1455,148 @@ ixgbe_process_vf_msg(if_ctx_t ctx, struct ixgbe_vf *vf)
 	case IXGBE_VF_GET_QUEUES:
 		ixgbe_vf_get_queues(sc, vf, msg);
 		break;
+	case IXGBE_VF_UPDATE_XCAST_MODE:
+		ixgbe_vf_update_xcast_mode(sc, vf, msg);
+		break;
+	case IXGBE_VF_GET_LINK_STATE:
+		ixgbe_vf_get_link_state(sc, vf, msg);
+		break;
+	case IXGBE_VF_GET_PF_LINK_STATE:
+		ixgbe_vf_get_pf_link_state(sc, vf, msg);
+		break;
 	default:
 		ixgbe_send_vf_failure(sc, vf, msg[0]);
 	}
+	return (true);
 } /* ixgbe_process_vf_msg */
+
+static void
+ixgbe_cleanup_vf_mbx(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
+{
+	struct ixgbe_hw *hw;
+	sbintime_t now;
+
+	hw = &sc->hw;
+	if (ixgbe_clear_mbx(hw, vf->pool) == IXGBE_SUCCESS) {
+		vf->flags &= ~IXGBE_VF_MBX_CLEANUP;
+		return;
+	}
+
+	now = getsbinuptime();
+	if (now < vf->mbx_cleanup_deadline)
+		return;
+
+	/*
+	 * A functioning VF posts VFREQ within the grace interval.  Ownership
+	 * still held after that interval is residue from the old reset epoch.
+	 * The force-clear helper rechecks VFREQ before asserting RVFU.
+	 */
+	if (ixgbe_force_clear_mbx_pf(hw, vf->pool) == IXGBE_SUCCESS) {
+		vf->flags &= ~IXGBE_VF_MBX_CLEANUP;
+		return;
+	}
+
+	/* A request raced the force-clear attempt; give it another interval. */
+	vf->mbx_cleanup_deadline = now + IXGBE_VF_MBX_CLEANUP_GRACE;
+}
+
+static void
+ixgbe_notify_vf_mdd_reset(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
+{
+	u32 msg;
+	int error;
+
+	msg = IXGBE_PF_CONTROL_MSG | IXGBE_VT_MSGTYPE_FAILURE;
+	error = ixgbe_write_mbx(&sc->hw, &msg, 1, vf->pool);
+	if (error == IXGBE_SUCCESS) {
+		vf->flags &= ~IXGBE_VF_MDD_NOTIFY_PENDING;
+		return;
+	}
+
+	/* The periodic admin pass retries after any mailbox collision. */
+	if (ratecheck(&vf->last_mdd_log, &ixgbe_mdd_log_interval))
+		device_printf(sc->dev,
+		    "could not notify VF %u of malicious-driver reset: %d; "
+		    "will retry\n", vf->pool, error);
+}
+
+static void
+ixgbe_handle_mdd(struct ixgbe_softc *sc)
+{
+	struct ixgbe_hw *hw;
+	struct ixgbe_vf *vf;
+	bool pf_reset;
+	u32 rx_cause, tx_cause;
+	u32 vf_bitmap[2] = {};
+	int pool;
+
+	hw = &sc->hw;
+	ixgbe_mdd_event(hw, vf_bitmap);
+	if (vf_bitmap[0] != 0 || vf_bitmap[1] != 0) {
+		tx_cause = IXGBE_READ_REG(hw, IXGBE_LVMMC_TX);
+		rx_cause = IXGBE_READ_REG(hw, IXGBE_LVMMC_RX);
+	} else {
+		tx_cause = 0;
+		rx_cause = 0;
+	}
+	pf_reset = false;
+	for (pool = 0; pool < 64; pool++) {
+		if ((vf_bitmap[pool / 32] & (1U << (pool % 32))) == 0)
+			continue;
+
+		if (pool == sc->pool) {
+			if (sc->iov_pf_mdd_reset_pending)
+				continue;
+			sc->iov_pf_mdd_reset_pending = true;
+			pf_reset = true;
+			if (ratecheck(&sc->iov_last_mdd_log,
+			    &ixgbe_mdd_log_interval))
+				device_printf(sc->dev,
+				    "malicious-driver event on PF pool "
+				    "(last tx cause %#x, last rx cause %#x); "
+				    "resetting PF\n",
+				    tx_cause, rx_cause);
+			continue;
+		}
+		if (pool >= sc->num_vfs) {
+			ixgbe_restore_mdd_vf(hw, pool);
+			continue;
+		}
+		vf = &sc->vfs[pool];
+		if (!(vf->flags & IXGBE_VF_ACTIVE)) {
+			ixgbe_restore_mdd_vf(hw, pool);
+			continue;
+		}
+
+		if ((vf->flags & IXGBE_VF_MDD_BLOCKED) != 0)
+			continue;
+		if (ratecheck(&vf->last_mdd_log, &ixgbe_mdd_log_interval))
+			device_printf(sc->dev,
+			    "malicious-driver event from VF %u "
+			    "(last tx cause %#x, last rx cause %#x); "
+			    "requesting VF reset\n",
+			    vf->pool, tx_cause, rx_cause);
+
+		/*
+		 * Keep both the pool gate and the per-queue WQBR block asserted.
+		 * PFVFTE stops packet-data fetches but can still allow descriptor
+		 * fetches into the internal queue, so releasing WQBR here would
+		 * leave a hostile VF able to retrigger MDD before it resets.
+		 * ixgbe_process_vf_reset() releases WQBR in the new reset epoch.
+		 */
+		vf->flags |= IXGBE_VF_MDD_BLOCKED;
+		vf->flags &= ~IXGBE_VF_CTS;
+		ixgbe_vf_enable_transmit(sc, vf);
+		ixgbe_vf_enable_receive(sc, vf);
+		IXGBE_WRITE_FLUSH(hw);
+		vf->flags |= IXGBE_VF_MDD_NOTIFY_PENDING;
+	}
+
+	if (pf_reset) {
+		iflib_request_reset(sc->ctx);
+		iflib_admin_intr_deferred(sc->ctx);
+	}
+}
 
 /* Tasklet for handling VF -> PF mailbox messages */
 void
@@ -654,42 +1606,163 @@ ixgbe_handle_mbx(void *context)
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw;
 	struct ixgbe_vf *vf;
+	bool cleanup_pending, mbx_activity, recovering, reset_pending;
+	bool reset_seen;
 	int i;
 
 	hw = &sc->hw;
+	cleanup_pending = false;
+	ixgbe_handle_mdd(sc);
 
 	for (i = 0; i < sc->num_vfs; i++) {
 		vf = &sc->vfs[i];
+		mbx_activity = false;
+		reset_seen = hw->mbx.ops[i].check_for_rst(hw, i) == 0;
 
-		if (vf->flags & IXGBE_VF_ACTIVE) {
-			if (hw->mbx.ops[vf->pool].check_for_rst(hw,
-			    vf->pool) == 0)
-				ixgbe_process_vf_reset(sc, vf);
-
-			if (hw->mbx.ops[vf->pool].check_for_msg(hw,
-			    vf->pool) == 0)
-				ixgbe_process_vf_msg(ctx, vf);
-
-			if (hw->mbx.ops[vf->pool].check_for_ack(hw,
-			    vf->pool) == 0)
-				ixgbe_process_vf_ack(sc, vf);
+		if (!(vf->flags & IXGBE_VF_ACTIVE)) {
+			if (hw->mbx.ops[i].check_for_msg(hw, i) == 0 ||
+			    reset_seen)
+				ixgbe_clear_mbx(hw, i);
+			(void)hw->mbx.ops[i].check_for_ack(hw, i);
+			continue;
 		}
+
+		if (reset_seen) {
+			/* A reset does not prove recovery succeeded. */
+			recovering = (vf->flags &
+			    IXGBE_VF_DMA_ABORT_PENDING) != 0;
+			vf->flags |= IXGBE_VF_MBX_CLEANUP;
+			vf->mbx_cleanup_deadline = getsbinuptime() +
+			    IXGBE_VF_MBX_CLEANUP_GRACE;
+			ixgbe_process_vf_reset(sc, vf);
+			if (!recovering) {
+				vf->flags &= ~(IXGBE_VF_DMA_ABORT_PENDING |
+				    IXGBE_VF_PCI_STATE_SAVED);
+				vf->pci_saved_command = 0;
+			}
+		}
+		reset_pending = (vf->flags & IXGBE_VF_MBX_CLEANUP) != 0;
+
+		if (hw->mbx.ops[vf->pool].check_for_msg(hw,
+		    vf->pool) == 0) {
+			mbx_activity = true;
+			if (ixgbe_process_vf_msg(ctx, vf, reset_pending))
+				vf->flags &= ~IXGBE_VF_MBX_CLEANUP;
+		}
+		if (reset_pending &&
+		    (vf->flags & IXGBE_VF_MBX_CLEANUP) != 0)
+			ixgbe_cleanup_vf_mbx(sc, vf);
+
+		if (hw->mbx.ops[vf->pool].check_for_ack(hw, vf->pool) == 0) {
+			mbx_activity = true;
+			ixgbe_process_vf_ack(sc, vf);
+		}
+
+		/* Do not overwrite a response produced by this mailbox pass. */
+		if (!mbx_activity &&
+		    (vf->flags & IXGBE_VF_MDD_NOTIFY_PENDING) != 0)
+			ixgbe_notify_vf_mdd_reset(sc, vf);
+
+		if (vf->flags & IXGBE_VF_MBX_CLEANUP)
+			cleanup_pending = true;
 	}
+	sc->iov_mbx_cleanup_pending = cleanup_pending;
 } /* ixgbe_handle_mbx */
 
-int
-ixgbe_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
+/*
+ * VFREQ, VFACK, a bare VFLR, and WQBR can remain latched without a usable
+ * shared mailbox interrupt across a PF stop/restart or an MDD mask interval.
+ * Sample their aggregate registers from the periodic admin pass so work does
+ * not depend on another edge.  Pending asynchronous MDD notifications use the
+ * same pass to retry after the VF wins a mailbox collision.
+ */
+bool
+ixgbe_mbx_pending(struct ixgbe_softc *sc)
 {
-	struct ixgbe_softc *sc;
-	int retval = 0;
+	struct ixgbe_hw *hw;
+	uint32_t events, vf_mbx[4], vf_mdd[2], vf_rst[2];
+	int i, index;
 
-	sc = iflib_get_softc(ctx);
-	sc->iov_mode = IXGBE_NO_VM;
+	if (sc->num_vfs == 0)
+		return (false);
 
-	if (num_vfs == 0) {
-		/* Would we ever get num_vfs = 0? */
-		retval = EINVAL;
-		goto err_init_iov;
+	bzero(vf_mbx, sizeof(vf_mbx));
+	bzero(vf_mdd, sizeof(vf_mdd));
+	bzero(vf_rst, sizeof(vf_rst));
+	for (i = 0; i < sc->num_vfs; i++) {
+		if ((sc->vfs[i].flags & IXGBE_VF_MDD_NOTIFY_PENDING) != 0)
+			return (true);
+		index = IXGBE_PFMBICR_INDEX(i);
+		vf_mbx[index] |=
+		    IXGBE_PFMBICR_VFREQ_VF1 <<
+		    IXGBE_PFMBICR_SHIFT(i);
+		vf_mbx[index] |=
+		    IXGBE_PFMBICR_VFACK_VF1 <<
+		    IXGBE_PFMBICR_SHIFT(i);
+		index = IXGBE_PFVFLRE_INDEX(i);
+		vf_rst[index] |= 1U << IXGBE_PFVFLRE_SHIFT(i);
+	}
+
+	hw = &sc->hw;
+	for (index = 0; index < nitems(vf_mbx); index++) {
+		if (vf_mbx[index] != 0 &&
+		    (IXGBE_READ_REG(hw, IXGBE_PFMBICR(index)) &
+		    vf_mbx[index]) != 0)
+			return (true);
+	}
+	for (index = 0; index < nitems(vf_rst); index++) {
+		if (vf_rst[index] == 0)
+			continue;
+		switch (hw->mac.type) {
+		case ixgbe_mac_82599EB:
+			events = IXGBE_READ_REG(hw, IXGBE_PFVFLRE(index));
+			break;
+		case ixgbe_mac_X540:
+		case ixgbe_mac_X550:
+		case ixgbe_mac_X550EM_x:
+		case ixgbe_mac_X550EM_a:
+		case ixgbe_mac_E610:
+			events = IXGBE_READ_REG(hw, IXGBE_PFVFLREC(index));
+			break;
+		default:
+			return (false);
+		}
+		if ((events & vf_rst[index]) != 0)
+			return (true);
+	}
+	ixgbe_mdd_event(hw, vf_mdd);
+	/* A fenced VF retains WQBR until reset; do not reschedule for it. */
+	for (i = 0; i < sc->num_vfs; i++) {
+		if ((sc->vfs[i].flags & IXGBE_VF_MDD_BLOCKED) != 0)
+			vf_mdd[i / 32] &= ~(1U << (i % 32));
+	}
+	if (sc->iov_pf_mdd_reset_pending)
+		vf_mdd[sc->pool / 32] &= ~(1U << (sc->pool % 32));
+	if (vf_mdd[0] != 0 || vf_mdd[1] != 0)
+		return (true);
+	return (false);
+}
+
+int
+ixgbe_iov_validate(struct ixgbe_softc *sc, u16 num_vfs)
+{
+	int mode, pool, queue_count;
+
+	if (!(sc->feat_cap & IXGBE_FEATURE_SRIOV))
+		return (ENXIO);
+	if (num_vfs == 0)
+		return (EINVAL);
+	if (sc->vfs != NULL || sc->vf_mac_filters != NULL ||
+	    (sc->feat_en & IXGBE_FEATURE_SRIOV))
+		return (EBUSY);
+	if (sc->feat_en & IXGBE_FEATURE_FDIR) {
+		device_printf(sc->dev,
+		    "Flow Director is not supported with SR-IOV\n");
+		return (ENOTSUP);
+	}
+	if (sc->intr_type != IFLIB_INTR_MSIX) {
+		device_printf(sc->dev, "SR-IOV requires MSI-X\n");
+		return (ENOTSUP);
 	}
 
 	/*
@@ -699,17 +1772,43 @@ ixgbe_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
 	 * With 32 VFs, you can have up to four queues per VF.
 	 */
 	if (num_vfs >= IXGBE_32_VM)
+		mode = IXGBE_64_VM;
+	else
+		mode = IXGBE_32_VM;
+	queue_count = ixgbe_vf_queues(mode);
+	if (sc->num_rx_queues > queue_count ||
+	    sc->num_tx_queues > queue_count) {
+		device_printf(sc->dev,
+		    "SR-IOV mode supports %d PF queues, but %d RX and %d TX "
+		    "queues are allocated\n", queue_count, sc->num_rx_queues,
+		    sc->num_tx_queues);
+		return (ENOSPC);
+	}
+
+	/* Again, reserving 1 VM's worth of queues for the PF */
+	pool = mode - 1;
+	if (num_vfs > pool || num_vfs >= IXGBE_64_VM)
+		return (ENOSPC);
+	return (0);
+}
+
+int
+ixgbe_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
+{
+	struct ixgbe_softc *sc;
+	int i, num_filters, retval;
+
+	(void)config;
+	sc = iflib_get_softc(ctx);
+	retval = ixgbe_iov_validate(sc, num_vfs);
+	if (retval != 0)
+		return (retval);
+
+	if (num_vfs >= IXGBE_32_VM)
 		sc->iov_mode = IXGBE_64_VM;
 	else
 		sc->iov_mode = IXGBE_32_VM;
-
-	/* Again, reserving 1 VM's worth of queues for the PF */
 	sc->pool = sc->iov_mode - 1;
-
-	if ((num_vfs > sc->pool) || (num_vfs >= IXGBE_64_VM)) {
-		retval = ENOSPC;
-		goto err_init_iov;
-	}
 
 	sc->vfs = malloc(sizeof(*sc->vfs) * num_vfs, M_IXGBE_SRIOV,
 	    M_NOWAIT | M_ZERO);
@@ -718,19 +1817,47 @@ ixgbe_if_iov_init(if_ctx_t ctx, u16 num_vfs, const nvlist_t *config)
 		retval = ENOMEM;
 		goto err_init_iov;
 	}
+	num_filters = sc->hw.mac.num_rar_entries - num_vfs - 1 -
+	    IXGBE_MAX_PF_MAC_FILTERS;
+	if (num_filters > 0) {
+		sc->vf_mac_filters = mallocarray(num_filters,
+		    sizeof(*sc->vf_mac_filters), M_IXGBE_SRIOV,
+		    M_NOWAIT | M_ZERO);
+		if (sc->vf_mac_filters != NULL) {
+			sc->num_vf_mac_filters = num_filters;
+			for (i = 0; i < num_filters; i++)
+				sc->vf_mac_filters[i].rar_index =
+				    IXGBE_MAX_PF_MAC_FILTERS + 1 + i;
+		} else
+			device_printf(sc->dev,
+			    "could not allocate VF secondary MAC filters; "
+			    "SET_MACVLAN will be unavailable\n");
+	}
 
 	sc->num_vfs = num_vfs;
+	sc->iov_mbx_cleanup_pending = false;
+	sc->iov_pf_mdd_reset_pending = false;
+	sc->iov_recovery_time = 0;
+	sc->iov_recovery_cursor = 0;
+	sc->iov_quarantined_vfs = 0;
 	ixgbe_init_mbx_params_pf(&sc->hw);
 
 	sc->feat_en |= IXGBE_FEATURE_SRIOV;
-	ixgbe_if_init(sc->ctx);
 
 	return (retval);
 
 err_init_iov:
+	free(sc->vf_mac_filters, M_IXGBE_SRIOV);
+	sc->vf_mac_filters = NULL;
+	sc->num_vf_mac_filters = 0;
+	free(sc->vfs, M_IXGBE_SRIOV);
+	sc->vfs = NULL;
 	sc->num_vfs = 0;
 	sc->pool = 0;
 	sc->iov_mode = IXGBE_NO_VM;
+	sc->iov_mbx_cleanup_pending = false;
+	sc->iov_pf_mdd_reset_pending = false;
+	sc->iov_quarantined_vfs = 0;
 
 	return (retval);
 } /* ixgbe_if_iov_init */
@@ -741,9 +1868,12 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 	struct ixgbe_hw *hw;
 	struct ixgbe_softc *sc;
 	uint32_t pf_reg, vf_reg;
+	int error, i, iov_pos;
+	u16 iov_ctl;
 
 	sc = iflib_get_softc(ctx);
 	hw = &sc->hw;
+	ixgbe_disable_mdd(hw);
 
 	/* Enable rx/tx for the PF and disable it for all VFs. */
 	pf_reg = IXGBE_VF_INDEX(sc->pool);
@@ -756,45 +1886,120 @@ ixgbe_if_iov_uninit(if_ctx_t ctx)
 		vf_reg = 0;
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(vf_reg), 0);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(vf_reg), 0);
+	IXGBE_WRITE_FLUSH(hw);
+
+	/*
+	 * pci_iov(4) normally clears VF Enable after this callback returns,
+	 * but iflib's restart transaction reuses the PF queues first.  Disable
+	 * the VFs here and allow outstanding transactions to drain before the
+	 * queue layout changes.
+	 */
+	error = pci_find_extcap(sc->dev, PCIZ_SRIOV, &iov_pos);
+	if (error == 0) {
+		iov_ctl = pci_read_config(sc->dev,
+		    iov_pos + PCIR_SRIOV_CTL, 2);
+		iov_ctl &= ~(PCIM_SRIOV_VF_EN | PCIM_SRIOV_VF_MSE);
+		pci_write_config(sc->dev, iov_pos + PCIR_SRIOV_CTL,
+		    iov_ctl, 2);
+		pause("ixiov", MAX(1, howmany(hz, 10)));
+	} else
+		device_printf(sc->dev,
+		    "could not disable PCI SR-IOV before queue reuse: %d\n",
+		    error);
+
+	for (i = 0; i < sc->num_vfs; i++) {
+		if (!(sc->vfs[i].flags & IXGBE_VF_ACTIVE))
+			continue;
+		ixgbe_vf_set_rx_drop(sc, &sc->vfs[i], false);
+		ixgbe_vf_clear_mac_filters(sc, &sc->vfs[i], true);
+		sc->vfs[i].flags &= ~IXGBE_VF_ANTI_SPOOF;
+		ixgbe_vf_set_anti_spoof(sc, &sc->vfs[i]);
+	}
+	if (hw->mac.ops.set_ethertype_anti_spoofing != NULL) {
+		IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_LLDP), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_FC), 0);
+	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_VT_CTL, 0);
 
+	sc->num_vfs = 0;
+	ixgbe_iov_rebuild_mta(sc);
+	free(sc->vf_mac_filters, M_IXGBE_SRIOV);
+	sc->vf_mac_filters = NULL;
+	sc->num_vf_mac_filters = 0;
 	free(sc->vfs, M_IXGBE_SRIOV);
 	sc->vfs = NULL;
-	sc->num_vfs = 0;
 	sc->feat_en &= ~IXGBE_FEATURE_SRIOV;
+	sc->iov_quarantined_vfs = 0;
+	sc->pool = 0;
+	sc->iov_mode = IXGBE_NO_VM;
+	ixgbe_align_all_queue_indices(sc);
+	sc->iov_vfta_valid = false;
+	sc->iov_vlan_promisc = false;
+	sc->iov_mbx_cleanup_pending = false;
+	sc->iov_pf_mdd_reset_pending = false;
+	(void)ixgbe_clear_vfta(hw);
+	ixgbe_setup_vlan_hw_support(ctx);
 } /* ixgbe_if_iov_uninit */
 
-static void
+static s32
 ixgbe_init_vf(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
 {
 	struct ixgbe_hw *hw;
 	uint32_t vf_index, pfmbimr;
+	s32 error;
 
 	hw = &sc->hw;
+	/* Preserve quarantine until the SR-IOV configuration is destroyed. */
+	vf->flags &= ~(IXGBE_VF_INIT_DONE | IXGBE_VF_DMA_ABORT_PENDING |
+	    IXGBE_VF_PCI_STATE_SAVED | IXGBE_VF_MDD_BLOCKED |
+	    IXGBE_VF_MDD_NOTIFY_PENDING);
+	vf->pci_saved_command = 0;
+	vf->recovery_tx_pending = 0;
 
 	if (!(vf->flags & IXGBE_VF_ACTIVE))
-		return;
+		return (IXGBE_SUCCESS);
+	if (vf->flags & IXGBE_VF_QUARANTINED) {
+		vf->flags &= ~IXGBE_VF_CTS;
+		return (IXGBE_SUCCESS);
+	}
 
 	vf_index = IXGBE_VF_INDEX(vf->pool);
 	pfmbimr = IXGBE_READ_REG(hw, IXGBE_PFMBIMR(vf_index));
 	pfmbimr |= IXGBE_VF_BIT(vf->pool);
 	IXGBE_WRITE_REG(hw, IXGBE_PFMBIMR(vf_index), pfmbimr);
 
-	ixgbe_vf_set_default_vlan(sc, vf, vf->vlan_tag);
-
-	// XXX multicast addresses
+	vf->xcast_mode = IXGBEVF_XCAST_MODE_NONE;
+	vf->api_ver = IXGBE_API_VER_UNKNOWN;
+	vf->num_mc_hashes = 0;
+	bzero(vf->mc_hash, sizeof(vf->mc_hash));
+	ixgbe_vf_clear_mac_filters(sc, vf, false);
+	error = ixgbe_vf_reset_vlan(sc, vf, false);
+	if (error != IXGBE_SUCCESS)
+		return (error);
 
 	if (ixgbe_validate_mac_addr(vf->ether_addr) == 0) {
 		ixgbe_set_rar(&sc->hw, vf->rar_index,
 		    vf->ether_addr, vf->pool, true);
 	}
+	ixgbe_vf_set_anti_spoof(sc, vf);
+
+	vf->flags |= IXGBE_VF_INIT_DONE;
+	return (IXGBE_SUCCESS);
+} /* ixgbe_init_vf */
+
+static void
+ixgbe_activate_vf(struct ixgbe_softc *sc, struct ixgbe_vf *vf)
+{
+	if ((vf->flags & (IXGBE_VF_ACTIVE | IXGBE_VF_INIT_DONE)) !=
+	    (IXGBE_VF_ACTIVE | IXGBE_VF_INIT_DONE) ||
+	    (vf->flags & IXGBE_VF_TRAFFIC_DISABLED))
+		return;
 
 	ixgbe_vf_enable_transmit(sc, vf);
 	ixgbe_vf_enable_receive(sc, vf);
-
 	ixgbe_send_vf_msg(&sc->hw, vf, IXGBE_PF_CONTROL_MSG);
-} /* ixgbe_init_vf */
+} /* ixgbe_activate_vf */
 
 void
 ixgbe_initialize_iov(struct ixgbe_softc *sc)
@@ -805,6 +2010,7 @@ ixgbe_initialize_iov(struct ixgbe_softc *sc)
 
 	if (sc->iov_mode == IXGBE_NO_VM)
 		return;
+	sc->iov_pf_mdd_reset_pending = false;
 
 	/* RMW appropriate registers based on IOV mode */
 	/* Read... */
@@ -851,17 +2057,30 @@ ixgbe_initialize_iov(struct ixgbe_softc *sc)
 	vt_ctl |= (sc->pool << IXGBE_VT_CTL_POOL_SHIFT);
 	IXGBE_WRITE_REG(hw, IXGBE_VT_CTL, vt_ctl);
 
-	for (i = 0; i < sc->num_vfs; i++)
-		ixgbe_init_vf(sc, &sc->vfs[i]);
+	for (i = 0; i < sc->num_vfs; i++) {
+		if (ixgbe_init_vf(sc, &sc->vfs[i]) != IXGBE_SUCCESS)
+			device_printf(sc->dev,
+			    "VF %d default VLAN restore failed\n", i);
+	}
 } /* ixgbe_initialize_iov */
 
+void
+ixgbe_activate_vfs(struct ixgbe_softc *sc)
+{
+	int i;
 
-/* Check the max frame setting of all active VF's */
+	for (i = 0; i < sc->num_vfs; i++)
+		ixgbe_activate_vf(sc, &sc->vfs[i]);
+} /* ixgbe_activate_vfs */
+
+
+/* Recompute the maximum frame setting of the PF and all active VFs. */
 void
 ixgbe_recalculate_max_frame(struct ixgbe_softc *sc)
 {
 	struct ixgbe_vf *vf;
 
+	sc->max_frame_size = if_getmtu(iflib_get_ifp(sc->ctx)) + IXGBE_MTU_HDR;
 	for (int i = 0; i < sc->num_vfs; i++) {
 		vf = &sc->vfs[i];
 		if (vf->flags & IXGBE_VF_ACTIVE)
@@ -875,6 +2094,10 @@ ixgbe_if_iov_vf_add(if_ctx_t ctx, u16 vfnum, const nvlist_t *config)
 	struct ixgbe_softc *sc;
 	struct ixgbe_vf *vf;
 	const void *mac;
+	uint8_t mac_addr[ETHER_ADDR_LEN];
+	uint64_t configured_vlan;
+	uint16_t vlan;
+	s32 error;
 
 	sc = iflib_get_softc(ctx);
 
@@ -882,17 +2105,39 @@ ixgbe_if_iov_vf_add(if_ctx_t ctx, u16 vfnum, const nvlist_t *config)
 	    vfnum, sc->num_vfs));
 
 	vf = &sc->vfs[vfnum];
-	vf->pool= vfnum;
+	if (vf->flags & IXGBE_VF_ACTIVE)
+		return (EBUSY);
+	bzero(vf, sizeof(*vf));
 
-	/* RAR[0] is used by the PF so use vfnum + 1 for VF RAR. */
-	vf->rar_index = vfnum + 1;
-	vf->default_vlan = 0;
+	configured_vlan = nvlist_get_number(config, "vlan");
+	if (configured_vlan > VF_VLAN_TRUNK)
+		return (EINVAL);
+	vlan = configured_vlan;
+	if (vlan == 0)
+		return (ENOTSUP);
+	if (vlan == VF_VLAN_TRUNK)
+		vlan = 0;
+
+	vf->pool = vfnum;
+
+	/* Allocate VF-primary RARs from the top, away from PF filters. */
+	vf->rar_index = sc->hw.mac.num_rar_entries - (vfnum + 1);
+	vf->default_vlan = vlan;
 	vf->maximum_frame_size = ETHER_MAX_LEN;
 	ixgbe_update_max_frame(sc, vf->maximum_frame_size);
+	if (nvlist_get_bool(config, "mac-anti-spoof"))
+		vf->flags |= IXGBE_VF_ANTI_SPOOF;
+	if (nvlist_get_bool(config, "allow-promisc"))
+		vf->flags |= IXGBE_VF_ALLOW_PROMISC;
 
 	if (nvlist_exists_binary(config, "mac-addr")) {
 		mac = nvlist_get_binary(config, "mac-addr", NULL);
-		bcopy(mac, vf->ether_addr, ETHER_ADDR_LEN);
+		bcopy(mac, mac_addr, sizeof(mac_addr));
+		if (ixgbe_validate_mac_addr(mac_addr) != IXGBE_SUCCESS)
+			return (EINVAL);
+		if (ixgbe_rar_mac_in_use(sc, mac_addr, vf->rar_index))
+			return (EADDRINUSE);
+		bcopy(mac_addr, vf->ether_addr, ETHER_ADDR_LEN);
 		if (nvlist_get_bool(config, "allow-set-mac"))
 			vf->flags |= IXGBE_VF_CAP_MAC;
 	} else
@@ -901,10 +2146,19 @@ ixgbe_if_iov_vf_add(if_ctx_t ctx, u16 vfnum, const nvlist_t *config)
 		 * we must allow the VF to choose one.
 		 */
 		vf->flags |= IXGBE_VF_CAP_MAC;
+	if (vf->default_vlan == 0)
+		vf->flags |= IXGBE_VF_CAP_VLAN;
 
 	vf->flags |= IXGBE_VF_ACTIVE;
 
-	ixgbe_init_vf(sc, vf);
+	error = ixgbe_init_vf(sc, vf);
+	if (error != IXGBE_SUCCESS) {
+		vf->flags &= ~IXGBE_VF_ACTIVE;
+		vf->default_vlan = 0;
+		ixgbe_vf_clear_vlans(sc, vf, true);
+		return (ENOSPC);
+	}
+	ixgbe_activate_vf(sc, vf);
 
 	return (0);
 } /* ixgbe_if_iov_vf_add */
@@ -916,5 +2170,12 @@ ixgbe_handle_mbx(void *context)
 {
 	UNREFERENCED_PARAMETER(context);
 } /* ixgbe_handle_mbx */
+
+bool
+ixgbe_mbx_pending(struct ixgbe_softc *sc)
+{
+	UNREFERENCED_PARAMETER(sc);
+	return (false);
+}
 
 #endif

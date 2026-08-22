@@ -360,6 +360,28 @@ linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
 }
 
 int
+linux_pkey_mprotect(struct thread *td, struct linux_pkey_mprotect_args *uap)
+{
+
+	return (linux_pkey_mprotect_common(td, uap->start, uap->len,
+	    uap->prot, uap->pkey));
+}
+
+int
+linux_pkey_alloc(struct thread *td, struct linux_pkey_alloc_args *uap)
+{
+
+	return (linux_pkey_alloc_common(td, uap->flags, uap->init_val));
+}
+
+int
+linux_pkey_free(struct thread *td, struct linux_pkey_free_args *uap)
+{
+
+	return (linux_pkey_free_common(td, uap->pkey));
+}
+
+int
 linux_madvise(struct thread *td, struct linux_madvise_args *uap)
 {
 

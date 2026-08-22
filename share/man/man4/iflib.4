@@ -1,4 +1,4 @@
-.Dd January 7, 2026
+.Dd August 8, 2026
 .Dt IFLIB 4
 .Os
 .Sh NAME
@@ -128,6 +128,15 @@ Some NICs allow processing completed transmit descriptors in batches.
 Doing so usually increases the transmit throughput by reducing the number of
 transmit interrupts.
 Setting this to a non-zero value will disable the use of this feature.
+.It Va net.iflib.tx_watchdog_periods
+Number of consecutive
+.Va net.iflib.timer_default
+intervals for which a transmit queue must stay frozen,
+that is, hold descriptors the hardware has not reported as completed
+while none are reclaimed,
+before iflib asks the hardware whether it has completions pending.
+If it reports none, the interface is reset.
+Setting this to zero disables the check.
 .El
 .Pp
 These
@@ -136,6 +145,11 @@ variables are read-only:
 .Bl -tag -width indent
 .It Va driver_version
 A string indicating the internal version of the driver.
+.It Va tx_watchdog_events
+Number of transmit watchdog resets initiated by
+.Nm .
+This counts recovery events, not failed packets, and is not included in the
+interface output error counter.
 .El
 .Pp
 There are a number of queue state
@@ -234,7 +248,66 @@ Current receive ring producer index.
 .Pp
 Additional OIDs useful for driver and iflib development are exposed when the
 INVARIANTS and/or WITNESS options are enabled in the kernel.
+.Ss FAILURE INJECTION
+Registration failures can be injected for one selected device through the
+.Xr fail 9
+framework.
+Set
+.Va debug.fail_point.iflib.register_device
+to the exact device name and configure one of these fail points:
+.Bl -tag -width "register_before_attach_pre"
+.It Va register_before_attach_pre
+Before the driver's pre-attach method.
+.It Va register_after_attach_pre
+After the driver's pre-attach method succeeds.
+.It Va register_after_taskqueue
+After the private taskqueue is started.
+.It Va register_after_interrupts
+After interrupt resources are allocated.
+.It Va register_after_queues
+After queue setup and core-offset allocation.
+.It Va register_after_attach_post
+After the interface is attached and the driver's post-attach method succeeds.
+.El
+.Pp
+The fail points are under
+.Va debug.fail_point.iflib
+and accept the syntax described by
+.Xr fail 9 .
+A one-shot failure is safest because it permits the next probe to recover the
+device:
+.Bd -literal -offset indent
+sysctl debug.fail_point.iflib.register_device=igc1
+sysctl debug.fail_point.iflib.register_after_attach_pre='1*return(5)'
+devctl detach igc1
+devctl attach pci0:4:0:0       # returns EIO
+devctl attach pci0:4:0:0       # succeeds
+.Ed
+.Pp
+After detach, a device may no longer have its former name.
+Use a bus-specific address, as shown in the PCI example above, to reprobe it.
+.Pp
+The normal detach path can be synchronized with an in-flight admin task to
+test taskqueue teardown.
+Set
+.Va debug.fail_point.iflib.admin_task_device
+to the exact device name, bring the interface up, and set
+.Va debug.fail_point.iflib.admin_task_after_detach_check
+to a one-shot bounded delay, such as
+.Ql 1*print(1)->1*delay(5000000) .
+The delay keeps the admin task active long enough for detach to begin and
+remain blocked in the taskqueue drain.
+As a safety backstop, this fail point is marked nonsleepable and converts a
+configured
+.Sy sleep
+action to a delay.
+Once the execution message appears in the system log,
+detach should wait for the delay to finish.
+This exercises the case where an admin task has passed its detach check but
+has not yet acquired the context lock.
 .Sh SEE ALSO
+.Xr devctl 8 ,
+.Xr fail 9 ,
 .Xr iflib 9
 .Sh HISTORY
 This framework was introduced in

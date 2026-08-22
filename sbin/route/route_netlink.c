@@ -428,11 +428,11 @@ print_nhop_getmsg(struct nl_helper *h, struct nlmsghdr *hdr, struct sockaddr *ds
 	printf("        fib: %u\n", (unsigned int)r.rta_table);
 	printf("      flags: ");
 	printb(r.rta_rtflags, routeflags);
-	printf("\n      nhops: %u\n", r.rta_multipath.num_nhops);
-	if (r.rta_multipath.num_nhops != 0) {
+	printf("\n      nhops: %u\n", r.rta_multipath.count);
+	if (r.rta_multipath.count != 0) {
 		bool first = true;
-		for (uint32_t i = 0; i < r.rta_multipath.num_nhops; i++) {
-			struct rta_mpath_nh *nh = r.rta_multipath.nhops[i];
+		for (uint32_t i = 0; i < r.rta_multipath.count; i++) {
+			struct rta_mpath_nh *nh = r.rta_multipath.items[i];
 
 			printf("\tvia ");
 			print_nlmsg_route_nhop(h, &r, nh, first);
@@ -601,14 +601,14 @@ print_nlmsg_route(struct nl_helper *h, struct nlmsghdr *hdr,
 		return;
 	}
 
-	if (r.rta_multipath.num_nhops != 0) {
+	if (r.rta_multipath.count != 0) {
 		bool first = true;
 
 		memset(buf, ' ', sizeof(buf));
 		buf[len] = '\0';
 
-		for (uint32_t i = 0; i < r.rta_multipath.num_nhops; i++) {
-			struct rta_mpath_nh *nh = r.rta_multipath.nhops[i];
+		for (uint32_t i = 0; i < r.rta_multipath.count; i++) {
+			struct rta_mpath_nh *nh = r.rta_multipath.items[i];
 
 			if (!first)
 				printf("%s", buf);
@@ -903,9 +903,10 @@ flushroute_one(struct nl_helper *h, struct snl_parsed_route *r)
 		print_nlmsg(h, hdr, &attrs);
 	}
 	else {
-		if (r->rta_multipath.num_nhops != 0) {
-			for (uint32_t i = 0; i < r->rta_multipath.num_nhops; i++) {
-				struct rta_mpath_nh *nh = r->rta_multipath.nhops[i];
+		if (r->rta_multipath.count != 0) {
+			for (uint32_t i = 0; i < r->rta_multipath.count; i++) {
+				struct rta_mpath_nh *nh =
+				    r->rta_multipath.items[i];
 
 				print_flushed_route(r, nh->gw);
 			}
@@ -975,4 +976,3 @@ flushroutes_fib_nl(int fib, int af)
 
 	return (e.error);
 }
-

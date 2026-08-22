@@ -314,6 +314,7 @@ struct ice_softc {
 
 	/* link status */
 	bool link_up;
+	bool led_active;
 
 	/* Ethertype filters enabled */
 	bool enable_tx_fc_filter;

@@ -30,10 +30,7 @@ L_CFLAGS += -DCONFIG_CTRL_IFACE
 L_CFLAGS += -DCONFIG_CTRL_IFACE_UNIX
 L_CFLAGS += -DCONFIG_CTRL_IFACE_CLIENT_DIR=\"/data/misc/wifi/sockets\"
 
-OBJS = spp_client.c
-OBJS += oma_dm_client.c
-OBJS += osu_client.c
-OBJS += est.c
+OBJS = osu_client.c
 OBJS += ../../src/common/wpa_ctrl.c
 OBJS += ../../src/common/wpa_helpers.c
 OBJS += ../../src/utils/xml-utils.c

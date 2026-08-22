@@ -35,6 +35,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/capsicum.h>
 #include <sys/queue.h>
 #include <sys/types.h>
 #endif
@@ -68,6 +69,67 @@ static libusb20_root_get_template_t ugen20_root_get_template;
 const struct libusb20_backend_methods libusb20_ugen20_backend = {
 	LIBUSB20_BACKEND(LIBUSB20_DECLARE, ugen20)
 };
+
+struct libusb20_be_ctx *
+libusb20_be_ctx_alloc(void)
+{
+	cap_rights_t rights;
+	struct libusb20_be_ctx *pctx;
+	int fd;
+
+	pctx = malloc(sizeof(*pctx));
+	if (pctx == NULL)
+		return (NULL);
+
+	/*
+	 * The context is immutable once this function returns, which
+	 * makes it safe to share between threads without any locking.
+	 * Open failures are tolerated, so that allocation also
+	 * succeeds on systems without USB support.
+	 */
+	fd = open("/dev/" USB_DEVICE_NAME, O_RDONLY | O_CLOEXEC);
+	if (fd > -1) {
+		cap_rights_init(&rights, CAP_READ, CAP_EVENT, CAP_IOCTL);
+		if (cap_rights_limit(fd, &rights) == -1 && errno != ENOSYS) {
+			close(fd);
+			fd = -1;
+		}
+	}
+	pctx->ctrl_fd = fd;
+
+	fd = open("/dev/" USB_DEVICE_DIR, O_DIRECTORY | O_PATH | O_CLOEXEC);
+	if (fd > -1) {
+		/*
+		 * Device descriptors derived through openat(2)
+		 * inherit these rights, so they must cover all
+		 * operations performed on open devices, including by
+		 * applications using libusb20_dev_get_fd().
+		 */
+		cap_rights_init(&rights, CAP_LOOKUP, CAP_PREAD, CAP_PWRITE,
+		    CAP_EVENT, CAP_IOCTL);
+		if (cap_rights_limit(fd, &rights) == -1 && errno != ENOSYS) {
+			close(fd);
+			fd = -1;
+		}
+	}
+	pctx->usb_dfd = fd;
+
+	return (pctx);
+}
+
+void
+libusb20_be_ctx_free(struct libusb20_be_ctx *pctx)
+{
+	if (pctx == NULL) {
+		/* be NULL safe */
+		return;
+	}
+	if (pctx->ctrl_fd > -1)
+		close(pctx->ctrl_fd);
+	if (pctx->usb_dfd > -1)
+		close(pctx->usb_dfd);
+	free(pctx);
+}
 
 /* USB device specific */
 static libusb20_get_config_desc_full_t ugen20_get_config_desc_full;
@@ -174,6 +236,25 @@ ugen20_path_convert_one(const char **pp)
 }
 
 static int
+ugen20_open_dev(struct libusb20_be_ctx *pctx, int bus_num, int dev_addr,
+    int flag)
+{
+	char path[48];
+	int usb_dfd;
+
+	usb_dfd = pctx->usb_dfd;
+	if (usb_dfd > -1) {
+		snprintf(path, sizeof(path), "%u.%u.0", bus_num, dev_addr);
+		return (openat(usb_dfd, path, flag));
+	}
+
+	/* fall back when the /dev/usb directory is not available */
+	snprintf(path, sizeof(path), "/dev/" USB_GENERIC_NAME "%u.%u",
+	    bus_num, dev_addr);
+	return (open(path, flag));
+}
+
+static int
 ugen20_enumerate(struct libusb20_device *pdev, const char *id)
 {
 	const char *tmp = id;
@@ -181,17 +262,14 @@ ugen20_enumerate(struct libusb20_device *pdev, const char *id)
 	struct usb_device_info devinfo;
 	struct usb_device_port_path udpp;
 	uint32_t plugtime;
-	char buf[64];
 	int f;
 	int error;
 
 	pdev->bus_number = ugen20_path_convert_one(&tmp);
 	pdev->device_address = ugen20_path_convert_one(&tmp);
 
-	snprintf(buf, sizeof(buf), "/dev/" USB_GENERIC_NAME "%u.%u",
-	    pdev->bus_number, pdev->device_address);
-
-	f = open(buf, O_RDWR);
+	f = ugen20_open_dev(pdev->be_ctx, pdev->bus_number,
+	    pdev->device_address, O_RDWR);
 	if (f < 0) {
 		return (LIBUSB20_ERROR_OTHER);
 	}
@@ -332,7 +410,7 @@ ugen20_init_backend(struct libusb20_backend *pbe)
 
 	memset(&state, 0, sizeof(state));
 
-	state.f = open("/dev/" USB_DEVICE_NAME, O_RDONLY);
+	state.f = pbe->be_ctx->ctrl_fd;
 	if (state.f < 0)
 		return (LIBUSB20_ERROR_OTHER);
 
@@ -348,6 +426,12 @@ ugen20_init_backend(struct libusb20_backend *pbe)
 		if (pdev == NULL) {
 			continue;
 		}
+		/*
+		 * The device borrows the backend context, which must
+		 * stay alive for as long as the device is in use.
+		 */
+		pdev->be_ctx = pbe->be_ctx;
+
 		if (ugen20_enumerate(pdev, state.src + 4)) {
 			libusb20_dev_free(pdev);
 			continue;
@@ -355,7 +439,6 @@ ugen20_init_backend(struct libusb20_backend *pbe)
 		/* put the device on the backend list */
 		libusb20_be_enqueue_device(pbe, pdev);
 	}
-	close(state.f);
 	return (0);			/* success */
 }
 
@@ -422,24 +505,22 @@ static int
 ugen20_open_device(struct libusb20_device *pdev, uint16_t nMaxTransfer)
 {
 	uint32_t plugtime;
-	char buf[64];
 	int f;
 	int g;
 	int error;
-
-	snprintf(buf, sizeof(buf), "/dev/" USB_GENERIC_NAME "%u.%u",
-	    pdev->bus_number, pdev->device_address);
 
 	/*
 	 * We need two file handles, one for the control endpoint and one
 	 * for BULK, INTERRUPT and ISOCHRONOUS transactions due to optimised
 	 * kernel locking.
 	 */
-	g = open(buf, O_RDWR);
+	g = ugen20_open_dev(pdev->be_ctx, pdev->bus_number,
+	    pdev->device_address, O_RDWR);
 	if (g < 0) {
 		return (LIBUSB20_ERROR_NO_DEVICE);
 	}
-	f = open(buf, O_RDWR);
+	f = ugen20_open_dev(pdev->be_ctx, pdev->bus_number,
+	    pdev->device_address, O_RDWR);
 	if (f < 0) {
 		close(g);
 		return (LIBUSB20_ERROR_NO_DEVICE);
@@ -991,12 +1072,12 @@ ugen20_tr_cancel_async(struct libusb20_transfer *xfer)
 }
 
 static int
-ugen20_be_ioctl(uint32_t cmd, void *data)
+ugen20_be_ioctl(struct libusb20_be_ctx *pctx, uint32_t cmd, void *data)
 {
 	int f;
 	int error;
 
-	f = open("/dev/" USB_DEVICE_NAME, O_RDONLY);
+	f = pctx->ctrl_fd;
 	if (f < 0)
 		return (LIBUSB20_ERROR_OTHER);
 	error = ioctl(f, cmd, data);
@@ -1007,7 +1088,6 @@ ugen20_be_ioctl(uint32_t cmd, void *data)
 			error = LIBUSB20_ERROR_OTHER;
 		}
 	}
-	close(f);
 	return (error);
 }
 
@@ -1050,7 +1130,7 @@ ugen20_root_get_dev_quirk(struct libusb20_backend *pbe,
 
 	q.index = quirk_index;
 
-	error = ugen20_be_ioctl(IOUSB(USB_DEV_QUIRK_GET), &q);
+	error = ugen20_be_ioctl(pbe->be_ctx, IOUSB(USB_DEV_QUIRK_GET), &q);
 
 	if (error) {
 		if (errno == EINVAL) {
@@ -1077,7 +1157,7 @@ ugen20_root_get_quirk_name(struct libusb20_backend *pbe, uint16_t quirk_index,
 
 	q.index = quirk_index;
 
-	error = ugen20_be_ioctl(IOUSB(USB_QUIRK_NAME_GET), &q);
+	error = ugen20_be_ioctl(pbe->be_ctx, IOUSB(USB_QUIRK_NAME_GET), &q);
 
 	if (error) {
 		if (errno == EINVAL) {
@@ -1104,7 +1184,7 @@ ugen20_root_add_dev_quirk(struct libusb20_backend *pbe,
 	q.bcdDeviceHigh = pq->bcdDeviceHigh;
 	strlcpy(q.quirkname, pq->quirkname, sizeof(q.quirkname));
 
-	error = ugen20_be_ioctl(IOUSB(USB_DEV_QUIRK_ADD), &q);
+	error = ugen20_be_ioctl(pbe->be_ctx, IOUSB(USB_DEV_QUIRK_ADD), &q);
 	if (error) {
 		if (errno == ENOMEM) {
 			return (LIBUSB20_ERROR_NO_MEM);
@@ -1128,7 +1208,7 @@ ugen20_root_remove_dev_quirk(struct libusb20_backend *pbe,
 	q.bcdDeviceHigh = pq->bcdDeviceHigh;
 	strlcpy(q.quirkname, pq->quirkname, sizeof(q.quirkname));
 
-	error = ugen20_be_ioctl(IOUSB(USB_DEV_QUIRK_REMOVE), &q);
+	error = ugen20_be_ioctl(pbe->be_ctx, IOUSB(USB_DEV_QUIRK_REMOVE), &q);
 	if (error) {
 		if (errno == EINVAL) {
 			return (LIBUSB20_ERROR_NOT_FOUND);
@@ -1140,11 +1220,11 @@ ugen20_root_remove_dev_quirk(struct libusb20_backend *pbe,
 static int
 ugen20_root_set_template(struct libusb20_backend *pbe, int temp)
 {
-	return (ugen20_be_ioctl(IOUSB(USB_SET_TEMPLATE), &temp));
+	return (ugen20_be_ioctl(pbe->be_ctx, IOUSB(USB_SET_TEMPLATE), &temp));
 }
 
 static int
 ugen20_root_get_template(struct libusb20_backend *pbe, int *ptemp)
 {
-	return (ugen20_be_ioctl(IOUSB(USB_GET_TEMPLATE), ptemp));
+	return (ugen20_be_ioctl(pbe->be_ctx, IOUSB(USB_GET_TEMPLATE), ptemp));
 }

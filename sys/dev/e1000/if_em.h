@@ -296,17 +296,40 @@ struct igb_vf_mac_filter;
 #define PCICFG_DESC_RING_STATUS	0xe4
 #define FLUSH_DESC_REQUIRED	0x100
 
+#define EM_TX_PTHRESH		31
+#define EM_TX_HTHRESH		1
+#define EM_TX_WTHRESH		1
 
-#define IGB_RX_PTHRESH	((hw->mac.type == e1000_i354) ? 12 : \
-			    ((hw->mac.type <= e1000_82576) ? 16 : 8))
-#define IGB_RX_HTHRESH	8
-#define IGB_RX_WTHRESH	((hw->mac.type == e1000_82576 && \
-			    (sc->intr_type == IFLIB_INTR_MSIX)) ? 1 : 4)
+#define EM_RXDCTL_PTHRESH_MASK	0x0000003F
+#define EM_RXDCTL_HTHRESH_MASK	0x00003F00
+#define EM_RXDCTL_WTHRESH_MASK	0x003F0000
+#define EM_RXDCTL_THRESH_MASK	(EM_RXDCTL_PTHRESH_MASK | \
+				 EM_RXDCTL_HTHRESH_MASK | \
+				 EM_RXDCTL_WTHRESH_MASK)
 
-#define IGB_TX_PTHRESH	((hw->mac.type == e1000_i354) ? 20 : 8)
-#define IGB_TX_HTHRESH	1
-#define IGB_TX_WTHRESH	((hw->mac.type != e1000_82575 && \
-			    sc->intr_type == IFLIB_INTR_MSIX) ? 1 : 16)
+#define EM_JUMBO_RX_PTHRESH	3
+#define EM_JUMBO_RX_HTHRESH	1
+#define EM_82574_RX_PTHRESH	32
+#define EM_82574_RX_HTHRESH	4
+#define EM_82574_RX_WTHRESH	4
+
+#define IGB_RXDCTL_PTHRESH_MASK	0x0000001F
+#define IGB_RXDCTL_HTHRESH_MASK	0x00001F00
+#define IGB_RXDCTL_WTHRESH_MASK	0x001F0000
+#define IGB_RXDCTL_THRESH_MASK	(IGB_RXDCTL_PTHRESH_MASK | \
+				 IGB_RXDCTL_HTHRESH_MASK | \
+				 IGB_RXDCTL_WTHRESH_MASK)
+#define IGB_82575_RXDCTL_THRESH_MASK	0x003F3F3F
+
+#define IGB_RX_PTHRESH		8
+#define I354_RX_PTHRESH		12
+#define IGB_RX_HTHRESH		8
+#define IGB_RX_WTHRESH		4
+#define IGB_82576_RX_WTHRESH	1
+
+#define IGB_TX_PTHRESH		8
+#define I354_TX_PTHRESH	20
+#define IGB_TX_HTHRESH		1
 
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
@@ -599,8 +622,30 @@ struct e1000_softc {
 	u32			pba;
 	int			link_mask;
 	int			tso_automasked;
+	u32			phy_hang_count;
 	u32			promisc_pending;
 	u32			stats_pending;
+	u32			fatal_error_state;
+	u32			fatal_error_icr;
+	u32			fatal_error_pbeccsts;
+	u32			fatal_error_peind;
+	u32			fatal_error_pcie;
+	u32			fatal_error_lan;
+	u32			fatal_error_dma_tx;
+	u32			fatal_error_dma_rx;
+	u64			fatal_error_reset_count;
+	u64			fatal_error_lan_count;
+	u64			fatal_error_mng_count;
+	u64			fatal_error_pcie_count;
+	u64			fatal_error_dma_count;
+	u64			fatal_error_unknown_count;
+	u64			corrected_error_dma_count;
+	u64			corrected_error_pcie_tx_data_count;
+	u64			corrected_error_pcie_retry_count;
+	u64			corrected_error_pcie_other_count;
+	u64			corrected_error_packet_buffer_count;
+	u64			uncorrected_error_packet_buffer_count;
+	u64			uncorrected_error_dma_count;
 
 #ifdef PCI_IOV
 	struct igb_vf		*vfs;
@@ -640,7 +685,6 @@ struct e1000_softc {
 	unsigned long		dropped_pkts;
 	unsigned long		link_irq;
 	unsigned long		rx_overruns;
-	unsigned long		watchdog_events;
 	u64			rx_csum_good;
 	u64			rx_csum_errors;
 
@@ -650,13 +694,19 @@ struct e1000_softc {
 	} ustats;
 
 	struct callout		vf_queue_retry;
+	struct callout		vf_mbx_retry;
 	struct timeval		vf_last_queue_log;
+	struct timeval		vf_last_mbx_log;
 	u32			vf_queue_retry_new_epoch;
 	u32			vf_queue_retry_pending;
+	u32			vf_mbx_ready;
+	u32			vf_mbx_retry_pending;
 	u16			vf_ifp;
 	u8			vf_queue_failures;
+	u8			vf_mbx_retry_stage;
 	bool			vf_queue_gave_up;
 	bool			vf_queue_retry_initialized;
+	bool			vf_mbx_retry_initialized;
 	bool			vf_queues_sanitized;
 	bool			vf_reset_pending;
 	/* A PF can retain auxiliary filters across a VF reset. */
@@ -685,12 +735,17 @@ void	igbv_if_intr_disable(if_ctx_t);
 void	igbv_if_update_admin_status(if_ctx_t);
 void	igbv_initialize_receive_unit(if_ctx_t);
 void	igbv_initialize_transmit_unit(if_ctx_t);
+void	igbv_mbx_retry_detach(struct e1000_softc *);
+void	igbv_mbx_retry_failed(if_ctx_t);
+void	igbv_mbx_retry_prepare(struct e1000_softc *);
+void	igbv_mbx_retry_stop(struct e1000_softc *);
 void	igbv_queue_retry_detach(struct e1000_softc *);
 void	igbv_queue_retry_failed(if_ctx_t);
 void	igbv_queue_retry_prepare(struct e1000_softc *);
 void	igbv_queue_retry_stop(struct e1000_softc *);
 void	igbv_reconcile_mac(struct e1000_softc *, if_t);
 bool	igbv_reset(if_ctx_t);
+void	igbv_log_reset_failure(struct e1000_softc *, s32, bool);
 void	igbv_update_uc_addr_list(struct e1000_softc *, if_t);
 void	igbv_vlan_retry_add(struct e1000_softc *, u16);
 void	igbv_vlan_retry_clear(struct e1000_softc *, u16);

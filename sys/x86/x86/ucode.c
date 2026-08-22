@@ -360,7 +360,7 @@ restart:
 		goto restart;
 	}
 }
-SYSINIT(ucode_release, SI_SUB_SMP + 1, SI_ORDER_ANY, ucode_release, NULL);
+SYSINIT(ucode_release, SI_SUB_SMP, SI_ORDER_LAST, ucode_release, NULL);
 
 void
 ucode_load_ap(int cpu)

@@ -136,16 +136,22 @@ autofs_trigger_vn(struct vnode *vp, const char *path, int pathlen,
     struct vnode **newvp)
 {
 	struct autofs_node *anp;
+	struct mount *mp;
 	int error, lock_flags;
 
 	anp = vp->v_data;
 
 	/*
-	 * Release the vnode lock, so that other operations, in partcular
-	 * mounting a filesystem on top of it, can proceed.  Increase use
-	 * count, to prevent the vnode from being deallocated and to prevent
-	 * filesystem from being unmounted.
+	 * Release the vnode lock, so that other operations, in
+	 * particular mounting a filesystem on top of it, can proceed.
+	 * Increase use count and busy the mount, to prevent the vnode
+	 * from being deallocated and to prevent filesystem from being
+	 * unmounted.
 	 */
+	mp = vp->v_mount;
+	error = vfs_busy(mp, MBF_NOWAIT);
+	if (error != 0)
+		return (error);
 	lock_flags = VOP_ISLOCKED(vp);
 	vref(vp);
 	VOP_UNLOCK(vp);
@@ -165,6 +171,7 @@ mounted:
 	sx_xunlock(&autofs_softc->sc_lock);
 	vn_lock(vp, lock_flags | LK_RETRY);
 	vunref(vp);
+	vfs_unbusy(mp);
 	if (VN_IS_DOOMED(vp)) {
 		AUTOFS_DEBUG("VIRF_DOOMED");
 		return (ENOENT);

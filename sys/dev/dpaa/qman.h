@@ -245,7 +245,8 @@ struct qman_fq *qman_fq_create(uint32_t fqids_num, int channel,
     uint8_t wq, bool force_fqid, uint32_t fqid_or_align, bool init_parked,
     bool hold_active, bool prefer_in_cache, bool congst_avoid_ena,
     void *congst_group, int8_t overhead_accounting_len,
-    uint32_t tail_drop_threshold);
+    uint32_t tail_drop_threshold,
+    uint8_t annotation_cl, uint8_t data_cl);
 
 /**
  * Free Frame Queue Range.

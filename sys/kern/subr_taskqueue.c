@@ -58,6 +58,7 @@ struct taskqueue_busy {
 	struct task		*tb_running;
 	u_int			 tb_seq;
 	bool			 tb_canceling;
+	bool			 tb_wanted;
 	LIST_ENTRY(taskqueue_busy) tb_link;
 };
 
@@ -135,6 +136,15 @@ TQ_SLEEP(struct taskqueue *tq, void *p, const char *wm)
 	if (tq->tq_spin)
 		return (msleep_spin(p, (struct mtx *)&tq->tq_mutex, wm, 0));
 	return (msleep(p, &tq->tq_mutex, 0, wm, 0));
+}
+
+static __inline int
+TQ_SLEEP_BUSY(struct taskqueue *tq, struct taskqueue_busy *tb, const char *wm)
+{
+
+	TQ_ASSERT_LOCKED(tq);
+	tb->tb_wanted = true;
+	return (TQ_SLEEP(tq, tb, wm));
 }
 
 static struct taskqueue_busy *
@@ -462,7 +472,7 @@ taskqueue_drain_tq_active(struct taskqueue *queue)
 restart:
 	LIST_FOREACH(tb, &queue->tq_active, tb_link) {
 		if ((int)(tb->tb_seq - seq) <= 0) {
-			TQ_SLEEP(queue, tb->tb_running, "tq_adrain");
+			TQ_SLEEP_BUSY(queue, tb, "tq_adrain");
 			goto restart;
 		}
 	}
@@ -506,6 +516,7 @@ taskqueue_run_locked(struct taskqueue *queue)
 	KASSERT(queue != NULL, ("tq is NULL"));
 	TQ_ASSERT_LOCKED(queue);
 	tb.tb_running = NULL;
+	tb.tb_wanted = false;
 	LIST_INSERT_HEAD(&queue->tq_active, &tb, tb_link);
 
 	epochtasks = 0;
@@ -534,8 +545,13 @@ taskqueue_run_locked(struct taskqueue *queue)
 			epochtasks = 0;
 		}
 
-		TQ_LOCK(queue);
 		wakeup(task);
+
+		TQ_LOCK(queue);
+		if (__predict_false(tb.tb_wanted)) {
+			tb.tb_wanted = false;
+			wakeup(&tb);
+		}
 	}
 	if (epochtasks > 0)
 		NET_EPOCH_EXIT(et);
@@ -628,13 +644,20 @@ taskqueue_cancel_timeout(struct taskqueue *queue,
 void
 taskqueue_drain(struct taskqueue *queue, struct task *task)
 {
+	struct taskqueue_busy *tb;
 
 	if (!queue->tq_spin)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
 
 	TQ_LOCK(queue);
-	while (task->ta_pending != 0 || task_get_busy(queue, task) != NULL)
-		TQ_SLEEP(queue, task, "tq_drain");
+	for (;;) {
+		if (task->ta_pending != 0)
+			TQ_SLEEP(queue, task, "tq_drain");
+		else if ((tb = task_get_busy(queue, task)) != NULL)
+			TQ_SLEEP_BUSY(queue, tb, "tq_drain");
+		else
+			break;
+	}
 	TQ_UNLOCK(queue);
 }
 
