@@ -1,5 +1,10 @@
 .include <src.opts.mk>
 
+ATF_TESTS_C+=		bsearch_test
+.if ${COMPILER_FEATURES:Mblocks}
+ATF_TESTS_C+=		bsearch_b_test
+.endif
+ATF_TESTS_C+=		bsearch_s_test
 ATF_TESTS_C+=		clearenv_test
 ATF_TESTS_C+=		cxa_atexit_test
 ATF_TESTS_C+=		dynthr_test
@@ -66,7 +71,7 @@ CFLAGS+=	-I${.CURDIR}
 LIBADD.cxa_thread_atexit_test+=		pthread
 
 # Tests that require blocks support
-.for t in qsort_b_test
+.for t in bsearch_b_test qsort_b_test
 CFLAGS.${t}.c+=		-fblocks
 LIBADD.${t}+=		BlocksRuntime
 .endfor

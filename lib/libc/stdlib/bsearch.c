@@ -32,10 +32,18 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#ifdef I_AM_BSEARCH_S
+#include <errno.h>
+#include <stdint.h>
+#include "libc_private.h"
+#endif
+
 #ifdef	I_AM_BSEARCH_B
 #include "block_abi.h"
 #define	COMPAR(x,y)	CALL_BLOCK(compar, x, y)
 typedef DECLARE_BLOCK(int, compar_block, const void *, const void *);
+#elif defined(I_AM_BSEARCH_S)
+#define	COMPAR(x,y)	compar((x), (y), context)
 #else
 #define	COMPAR(x,y)	compar(x, y)
 #endif
@@ -60,6 +68,10 @@ typedef DECLARE_BLOCK(int, compar_block, const void *, const void *);
 void *
 bsearch_b(const void *key, const void *base0, size_t nmemb, size_t size,
     compar_block compar)
+#elif defined(I_AM_BSEARCH_S)
+void *
+bsearch_s(const void *key, const void *base0, rsize_t nmemb, rsize_t size,
+    int (*compar)(const void *, const void *, void *), void *context)
 #else
 void *
 bsearch(const void *key, const void *base0, size_t nmemb, size_t size,
@@ -70,6 +82,32 @@ bsearch(const void *key, const void *base0, size_t nmemb, size_t size,
 	size_t lim;
 	int cmp;
 	const void *p;
+
+#ifdef I_AM_BSEARCH_S
+	if (nmemb > RSIZE_MAX) {
+		__throw_constraint_handler_s("bsearch_s : nmemb > RSIZE_MAX",
+		    EINVAL);
+		return (NULL);
+	} else if (size > RSIZE_MAX) {
+		__throw_constraint_handler_s("bsearch_s : size > RSIZE_MAX",
+		    EINVAL);
+		return (NULL);
+	} else if (nmemb != 0) {
+		if (key == NULL) {
+			__throw_constraint_handler_s("bsearch_s : key == NULL",
+			    EINVAL);
+			return (NULL);
+		} else if (base0 == NULL) {
+			__throw_constraint_handler_s("bsearch_s : base == NULL",
+			    EINVAL);
+			return (NULL);
+		} else if (compar == NULL) {
+			__throw_constraint_handler_s("bsearch_s : compar == NULL",
+			    EINVAL);
+			return (NULL);
+		}
+	}
+#endif
 
 	for (lim = nmemb; lim != 0; lim >>= 1) {
 		p = base + (lim >> 1) * size;

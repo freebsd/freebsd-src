@@ -13,6 +13,7 @@ MISRCS+= \
 	atoll.c \
 	bsearch.c \
 	bsearch_b.c \
+	bsearch_s.c \
 	cxa_thread_atexit.c \
 	cxa_thread_atexit_impl.c \
 	div.c \
@@ -109,6 +110,8 @@ MLINKS+=abs.3 labs.3 \
 	abs.3 llabs.3 \
 	abs.3 imaxabs.3
 MLINKS+=atol.3 atoll.3
+MLINKS+=bsearch.3 bsearch_b.3 \
+	bsearch.3 bsearch_s.3
 MLINKS+=div.3 ldiv.3 \
 	div.3 lldiv.3 \
 	div.3 imaxdiv.3

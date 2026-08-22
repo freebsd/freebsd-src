@@ -29,11 +29,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd June 21, 2026
+.Dd August 15, 2026
 .Dt BSEARCH 3
 .Os
 .Sh NAME
-.Nm bsearch
+.Nm bsearch ,
+.Nm bsearch_b ,
+.Nm bsearch_s
 .Nd binary search of a sorted table
 .Sh LIBRARY
 .Lb libc
@@ -41,6 +43,11 @@
 .In stdlib.h
 .Ft "QVoid *"
 .Fn bsearch "const void *key" "QVoid *base" "size_t nmemb" "size_t size" "int (*compar) (const void *, const void *)"
+.Ft "QVoid *"
+.Fn bsearch_b "const void *key" "QVoid *base" "size_t nmemb" "size_t size" "int (^compar) (const void *, const void *)"
+.Fd #define __STDC_WANT_LIB_EXT1__ 1
+.Ft "QVoid *"
+.Fn bsearch_s "const void *key" "QVoid *base" "rsize_t nmemb" "rsize_t size" "int (*compar) (const void *, const void *, void *)" "void *context"
 .Sh DESCRIPTION
 The
 .Fn bsearch
@@ -74,11 +81,68 @@ sample function in
 .Xr qsort 3
 for a comparison function that is also compatible with
 .Fn bsearch .
+.Pp
+The
+.Fn bsearch_b
+function behaves identically to
+.Fn bsearch ,
+except the callback
+.Fa compar
+takes a block pointer instead of a function pointer.
+.Pp
+The
+.Fn bsearch_s
+function behaves identically to
+.Fn bsearch ,
+except the callback
+.Fa compar
+is called with a third argument,
+.Fa context ,
+which is passed through from the caller.
+Runtime-constraint violation occurs if:
+.Bl -bullet
+.It
+.Fa nmemb
+or
+.Fa size
+is greater than
+.Dv RSIZE_MAX
+.It
+.Fa nmemb
+is not zero and any of
+.Fa key ,
+.Fa base ,
+or
+.Fa compar
+is a null pointer
+.El
+.Pp
+On a runtime-constraint violation, the runtime-constraint handler is
+invoked,
+.Fn bsearch_s
+does not search the array, and a null pointer is returned.
+Note that the handler is called before
+.Fn bsearch_s
+returns, and the handler function might not return.
+If
+.Fa nmemb
+is zero, the comparison function is not called, no match is found,
+and
+.Fa key ,
+.Fa base ,
+and
+.Fa compar
+may be null pointers.
 .Sh RETURN VALUES
 The
-.Fn bsearch
-function returns a pointer to a matching member of the array, or a null
+.Fn bsearch ,
+.Fn bsearch_b ,
+and
+.Fn bsearch_s
+functions return a pointer to a matching member of the array, or a null
 pointer if no match is found.
+.Fn bsearch_s
+also returns a null pointer if there is a runtime-constraint violation.
 If two members compare as equal, which member is matched is unspecified.
 .Sh EXAMPLES
 A sample program that searches people by age in a sorted array:
@@ -147,7 +211,8 @@ main(void)
 .Sh SEE ALSO
 .Xr db 3 ,
 .Xr lsearch 3 ,
-.Xr qsort 3
+.Xr qsort 3 ,
+.Xr set_constraint_handler_s 3
 .\" .Xr tsearch 3
 .Sh STANDARDS
 The
@@ -155,3 +220,36 @@ The
 function conforms to
 .St -isoC-2023 ,
 where it is specified as a qualifier-preserving function.
+.Pp
+The
+.Fn bsearch_s
+function conforms to
+.St -isoC-2023 ,
+section K.3.6.3.2.
+Like
+.Fn bsearch ,
+it is specified as a qualifier-preserving function.
+.Sh HISTORY
+The
+.Fn bsearch ,
+initially specified in the
+.St -svid1 ,
+first appeared in
+.At V.2
+and later in
+.Bx 4.3 .
+It was first standardized in
+.St -isoC .
+.Pp
+The
+.Fn bsearch_b
+function first appeared in Mac OS X and was later added to
+.Fx 11.0
+as an extension.
+.Pp
+The
+.Fn bsearch_s
+function first appeared in
+.Fx 16.0 .
+It was first standardized in
+.St -isoC-2011 .
