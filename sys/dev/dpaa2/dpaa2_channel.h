@@ -88,6 +88,7 @@ struct dpaa2_channel {
 
 int dpaa2_chan_setup(device_t, device_t, device_t, device_t,
     struct dpaa2_channel **, uint32_t, task_fn_t);
+void dpaa2_chan_free(struct dpaa2_channel *);
 int dpaa2_chan_setup_fq(device_t, struct dpaa2_channel *,
     enum dpaa2_ni_queue_type);
 int dpaa2_chan_next_frame(struct dpaa2_channel *, struct dpaa2_dq **);
