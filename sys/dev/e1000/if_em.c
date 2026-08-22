@@ -3945,27 +3945,6 @@ em_integrated_jumbo_rx(struct e1000_hw *hw)
 	}
 }
 
-static bool
-em_integrated_jumbo_rx(struct e1000_hw *hw)
-{
-	switch (hw->mac.type) {
-	case e1000_ich9lan:
-	case e1000_ich10lan:
-	case e1000_pchlan:
-	case e1000_pch2lan:
-	case e1000_pch_lpt:
-	case e1000_pch_spt:
-	case e1000_pch_cnp:
-	case e1000_pch_tgp:
-	case e1000_pch_adp:
-	case e1000_pch_mtp:
-	case e1000_pch_ptp:
-		return (true);
-	default:
-		return (false);
-	}
-}
-
 static void
 em_initialize_receive_unit(if_ctx_t ctx)
 {
