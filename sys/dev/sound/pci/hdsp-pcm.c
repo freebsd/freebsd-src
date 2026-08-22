@@ -676,10 +676,13 @@ hdspchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	struct sc_pcminfo *scp;
 	struct sc_chinfo *ch;
 	struct sc_info *sc;
+	struct pcmchan_caps *caps;
+	uint32_t *data;
 	int num;
 
 	scp = devinfo;
 	sc = scp->sc;
+	caps = malloc(sizeof(struct pcmchan_caps), M_HDSP, M_WAITOK);
 
 	mtx_lock(&sc->lock);
 	num = scp->chnum;
@@ -704,7 +707,7 @@ hdspchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	    SND_FORMAT(AFMT_S32_LE, hdsp_port_slot_count(ch->ports, 192000), 0);
 	ch->cap_fmts[3] = 0;
 
-	ch->caps = malloc(sizeof(struct pcmchan_caps), M_HDSP, M_NOWAIT);
+	ch->caps = caps;
 	*(ch->caps) = (struct pcmchan_caps) {32000, 192000, ch->cap_fmts, 0};
 
 	/* HDSP 9652 does not support quad speed sample rates. */
@@ -715,7 +718,6 @@ hdspchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 
 	/* Allocate maximum buffer size. */
 	ch->size = HDSP_CHANBUF_SIZE * hdsp_port_slot_count_max(ch->ports);
-	ch->data = malloc(ch->size, M_HDSP, M_NOWAIT);
 	ch->position = 0;
 
 	ch->buffer = b;
@@ -724,6 +726,17 @@ hdspchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 
 	ch->dir = dir;
 
+	mtx_unlock(&sc->lock);
+
+	/*
+	 * It is safe to access ch->size here without holding the lock, because
+	 * 1) as of now, ch->size is written only once, here, and 2) ch's
+	 * lifetime is equal to scp's lifetime so it cannot go away yet.
+	 */
+	data = malloc(ch->size, M_HDSP, M_WAITOK);
+
+	mtx_lock(&sc->lock);
+	ch->data = data;
 	mtx_unlock(&sc->lock);
 
 	if (sndbuf_setup(ch->buffer, ch->data, ch->size) != 0) {
