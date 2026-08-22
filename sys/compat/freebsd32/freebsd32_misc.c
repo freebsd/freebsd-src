@@ -1033,6 +1033,7 @@ freebsd32_ptrace_useraction(struct thread *td, int req, bool pd_mode, pid_t pid,
 		struct ptrace_sc_ret psr;
 		int ptevents;
 		struct ptrace_child *children;
+		char sv_name[32];
 	} r;
 	union {
 		struct ptrace_io_desc32 piod;
@@ -1171,6 +1172,13 @@ freebsd32_ptrace_useraction(struct thread *td, int req, bool pd_mode, pid_t pid,
 		else
 			addr = &r.children;
 		break;
+	case PT_GET_ABI_NAME:
+		if (udata < 0) {
+			error = EINVAL;
+			break;
+		}
+		data = sizeof(r.sv_name);
+		break;
 	case PTINTERNAL_FIRST ... PTINTERNAL_LAST:
 		error = EINVAL;
 		break;
@@ -1244,6 +1252,10 @@ freebsd32_ptrace_useraction(struct thread *td, int req, bool pd_mode, pid_t pid,
 			    td->td_retval[0] * sizeof(struct ptrace_child));
 			free(r.children, M_TEMP);
 		}
+		break;
+	case PT_GET_ABI_NAME:
+		error = udata <= strlen(r.sv_name) ? ENOMEM :
+		    copyout(&r.sv_name, uaddr, strlen(r.sv_name) + 1);
 		break;
 	}
 

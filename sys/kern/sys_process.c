@@ -703,10 +703,11 @@ ptrace_useraction(struct thread *td, int req, bool pd_mode, pid_t pid, int pfd,
 		struct ptrace_sc_ret psr;
 		int ptevents;
 		struct ptrace_child *children;
+		char sv_name[32];
 	} r;
 	syscallarg_t pscr_args[nitems(td->td_sa.args)];
 	void *addr;
-	int error;
+	int error, data;
 
 	if (!allow_ptrace)
 		return (ENOSYS);
@@ -783,6 +784,14 @@ ptrace_useraction(struct thread *td, int req, bool pd_mode, pid_t pid, int pfd,
 		else
 			addr = &r.children;
 		break;
+	case PT_GET_ABI_NAME:
+		if (udata < 0) {
+			error = EINVAL;
+			break;
+		}
+		data = udata;
+		udata = sizeof(r.sv_name);
+		break;
 	case PTINTERNAL_FIRST ... PTINTERNAL_LAST:
 		error = EINVAL;
 		break;
@@ -841,6 +850,10 @@ ptrace_useraction(struct thread *td, int req, bool pd_mode, pid_t pid, int pfd,
 			    td->td_retval[0] * sizeof(struct ptrace_child));
 			free(r.children, M_TEMP);
 		}
+		break;
+	case PT_GET_ABI_NAME:
+		error = data <= strlen(r.sv_name) ? ENOMEM :
+		    copyout(&r.sv_name, uaddr, strlen(r.sv_name) + 1);
 		break;
 	}
 
@@ -1973,6 +1986,11 @@ get_children_repeat:
 		*(struct ptrace_child **)addr = children;
 		td->td_retval[0] = num1;
 		PROC_LOCK(p);
+		break;
+
+	case PT_GET_ABI_NAME:
+		if (strlcpy(addr, p->p_sysent->sv_name, data) >= data)
+			error = ENOMEM;
 		break;
 
 	default:

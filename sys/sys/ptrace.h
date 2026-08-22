@@ -87,6 +87,7 @@
 #define	PT_SC_REMOTE	44	/* Execute a syscall */
 #define	PT_SET_SC_RET	45	/* Set (fake) syscall results */
 #define	PT_GET_CHILDREN	46	/* Report children */
+#define	PT_GET_ABI_NAME	47	/* Report ABI name */
 
 #define PT_FIRSTMACH    64	/* for machine-specific requests */
 #define	PT_LASTMACH     127
