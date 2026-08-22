@@ -127,6 +127,9 @@ static struct intelspi_pci_device {
 	{ 0xa37b8086, SPI_SUNRISEPOINT, "Intel Cannon Lake SPI Controller-5" },
 	{ 0xa3a98086, SPI_SUNRISEPOINT, "Intel Comet Lake-V SPI Controller-0" },
 	{ 0xa3aa8086, SPI_SUNRISEPOINT, "Intel Comet Lake-V SPI Controller-1" },
+	{ 0xa8278086, SPI_SUNRISEPOINT, "Intel Lunar Lake SPI Controller-0" },
+	{ 0xa8308086, SPI_SUNRISEPOINT, "Intel Lunar Lake SPI Controller-1" },
+	{ 0xa8468086, SPI_SUNRISEPOINT, "Intel Lunar Lake SPI Controller-2" },
 };
 
 static int
