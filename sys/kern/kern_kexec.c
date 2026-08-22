@@ -154,6 +154,42 @@ pa_for_pindex(struct kexec_segment_stage *segs, int count, vm_pindex_t pind)
 	panic("No segment for pindex %ju\n", (uintmax_t)pind);
 }
 
+/* Perform sanity checks on the kexec segments */
+static int
+validate_kexec_segs(struct kexec_segment *segs, u_long nseg)
+{
+	vm_paddr_t v, prev_end;
+	int i;
+
+	for (i = 0; i < nseg; i++) {
+		v = (vm_paddr_t)(uintptr_t)segs[i].mem;
+
+		if (segs[i].bufsz > 0 && segs[i].buf == NULL)
+			return (EINVAL);
+
+		if (segs[i].memsz == 0)
+			return (EINVAL);
+
+		if (segs[i].bufsz > segs[i].memsz)
+			return (EINVAL);
+
+		// Check for overflows in the mem range
+		if (v + segs[i].memsz - 1 < v)
+			return (EINVAL);
+	}
+
+	/* Check for segment overlaps in the sorted segment list */
+	for (i = 1; i < nseg; i++) {
+		prev_end = (vm_paddr_t)(uintptr_t)segs[i-1].mem + segs[i-1].memsz;
+		v = (vm_paddr_t)(uintptr_t)segs[i].mem;
+
+		if (v < prev_end)
+			return (EINVAL);
+	}
+
+	return (0);
+}
+
 /*
  * For now still tied to the system call, so assumes all memory is userspace.
  */
@@ -193,6 +229,9 @@ kern_kexec_load(struct thread *td, u_long entry, u_long nseg,
 		if (err != 0)
 			goto out;
 		qsort(segtmp, nseg, sizeof(*segtmp), seg_cmp);
+		err = validate_kexec_segs(segtmp, nseg);
+		if (err != 0)
+			goto out;
 		new_image_stage = malloc(sizeof(*new_image_stage), M_TEMP, M_WAITOK | M_ZERO);
 		/*
 		 * Sanity checking:
