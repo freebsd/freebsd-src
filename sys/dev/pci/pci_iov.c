@@ -664,7 +664,6 @@ pci_iov_enumerate_vfs(struct pci_devinfo *dinfo, const nvlist_t *config,
 
 		vfinfo = device_get_ivars(vf);
 
-		vfinfo->cfg.iov = iov;
 		vfinfo->cfg.vf.index = i;
 
 		pci_iov_add_bars(iov, vfinfo);

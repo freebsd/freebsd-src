@@ -118,6 +118,7 @@ void		pci_add_children(device_t dev, int domain, int busno);
 void		pci_add_child(device_t bus, struct pci_devinfo *dinfo);
 /* Call after cold enumeration and before attaching the bus's children. */
 void		pcie_reconcile_link_mps(device_t bus);
+device_t	pci_iov_get_pf(device_t dev);
 device_t	pci_add_iov_child(device_t bus, device_t pf, uint16_t rid,
 		    uint16_t vid, uint16_t did);
 void		pci_add_resources(device_t bus, device_t dev, int force,
