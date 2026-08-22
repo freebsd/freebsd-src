@@ -1,0 +1,93 @@
+.Dd January 16, 2026
+.Dt EFI.LUA 8
+.Os
+.Sh NAME
+.Nm efi.lua
+.Nd UEFI Lua binding module
+.Sh DESCRIPTION
+The UEFI Lua bindings provide access to handles,
+protocol enumeration, and protocol-specific interfaces
+via the loader table.
+.Pp
+These bindings are exposed via the
+.Ic efi
+table.
+.Ss Exported Functions
+.Bl -tag -width efi.protocols
+.It Fn efi.handles
+Returns a list of all handles present on the system.
+.It Fn efi.protocols handle
+Returns a list of GUIDs representing the protocols
+supported by the specified
+.Va handle .
+.It Fn efi.bind handle guid
+Binds the protocol identified by
+.Va guid
+to the specified
+.Va handle
+and returns a protocol interface object.
+.It Fn efi.to_char16 string
+Converts the Lua string
+.Va string
+into a CHAR16 buffer suitable for use with UEFI text output.
+.El
+.Ss Protocol Interfaces
+Protocol interfaces are represented as Lua userdata objects
+returned by
+.Fn efi.bind .
+Each protocol interface exposes protocol-specific methods.
+.Ss GUIDs
+EFI GUIDs are represented as Lua userdata values.
+GUID objects support comparison and name lookup.
+.Pp
+Known GUIDs are exposed via the
+.Ic efi.guid
+table.
+.Bl -tag -width guid:to_name
+.It Ic efi.guid.NAME
+Returns a GUID object corresponding to the given EFI GUID name.
+.It Fn guid:to_name
+Returns the human-readable name of the GUID, if known,
+or
+.Sy nil
+otherwise.
+.It Ic a == b
+Compares two GUID objects for equality.
+.El
+.Sh EXIT STATUS
+On success, functions return their documented values.
+On error, functions return
+.Sy nil ,
+optionally followed by an error message and EFI status code.
+.Bl -tag -width 0n
+.It Sy nil
+Indicates failure.
+.It Sy errmsg
+Human-readable error message.
+.It Sy status
+Underlying
+.Vt EFI_STATUS .
+.El
+.Sh EXAMPLES
+.Bd -literal
+.Sy Binding the Simple Text Output protocol
+
+local function find_protocol(guid)
+    for _, h in ipairs(efi.handles()) do
+        for _, g in ipairs(efi.protocols(h)) do
+            if g == guid then
+                return efi.bind(h, g)
+            end
+        end
+    end
+    return nil
+end
+
+local con = find_protocol(efi.guid.SIMPLE_TEXT_OUTPUT_PROTOCOL)
+con:clear_screen()
+.Ed
+.Sh SEE ALSO
+.Xr loader.lua 8
+.Sh AUTHORS
+Written by
+.An Aryan Arora
