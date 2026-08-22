@@ -4395,9 +4395,22 @@ pci_rescan_method(device_t dev)
 
 #ifdef PCI_IOV
 device_t
+pci_iov_get_pf(device_t dev)
+{
+	struct pci_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	if (dinfo == NULL || (dinfo->cfg.flags & PCICFG_VF) == 0 ||
+	    dinfo->cfg.iov == NULL)
+		return (NULL);
+	return (dinfo->cfg.iov->iov_pf);
+}
+
+device_t
 pci_add_iov_child(device_t bus, device_t pf, uint16_t rid, uint16_t vid,
     uint16_t did)
 {
+	struct pci_devinfo *pf_dinfo;
 	struct pci_devinfo *vf_dinfo;
 	device_t pcib;
 	int busno, slot, func;
@@ -4409,6 +4422,11 @@ pci_add_iov_child(device_t bus, device_t pf, uint16_t rid, uint16_t vid,
 	vf_dinfo = pci_fill_devinfo(pcib, bus, pci_get_domain(pcib), busno,
 	    slot, func, vid, did);
 
+	/* Make the VF-to-PF relationship available to child-added callbacks. */
+	pf_dinfo = device_get_ivars(pf);
+	KASSERT(pf_dinfo->cfg.iov != NULL,
+	    ("SR-IOV PF %s has no IOV state", device_get_nameunit(pf)));
+	vf_dinfo->cfg.iov = pf_dinfo->cfg.iov;
 	vf_dinfo->cfg.flags |= PCICFG_VF;
 	pci_add_child(bus, vf_dinfo);
 
@@ -4421,6 +4439,13 @@ pci_create_iov_child_method(device_t bus, device_t pf, uint16_t rid,
 {
 
 	return (pci_add_iov_child(bus, pf, rid, vid, did));
+}
+#else
+device_t
+pci_iov_get_pf(device_t dev __unused)
+{
+
+	return (NULL);
 }
 #endif
 
