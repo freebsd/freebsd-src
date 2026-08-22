@@ -25,6 +25,7 @@ SUBDIR=	adduser \
 	etcupdate \
 	extattr \
 	extattrctl \
+	fand \
 	fifolog \
 	fstyp \
 	fwcontrol \
