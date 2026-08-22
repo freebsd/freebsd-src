@@ -7,7 +7,7 @@
 ############################################################ IDENT(1)
 #
 # $Title: if_bridge(4) management script for vnet jails $
-# $Version: 9.0 $
+# $Version: 9.1 $
 #
 ############################################################ INFORMATION
 #
@@ -111,7 +111,7 @@
 #
 ############################################################ GLOBALS
 
-VERSION='$Version: 9.0 $'
+VERSION='$Version: 9.1 $'
 
 pgm="${0##*/}" # Program basename
 
@@ -258,7 +258,7 @@ jib_addm()
 	shift $(( $OPTIND - 1 ))
 
 	local name="$1"
-	[ "${name:-x}" = "${name#*[!0-9a-zA-Z_]}" -a $# -gt 1 ] ||
+	[ "${name:-x}" = "${name#*[![:print:]]}" -a $# -gt 1 ] ||
 		action_usage addm # NOTREACHED
 	shift 1 # name
 
@@ -368,7 +368,7 @@ jib_destroy()
 	done
 	shift $(( $OPTIND -1 ))
 	local name="$1"
-	[ "${name:-x}" = "${name#*[!0-9a-zA-Z_]}" -a $# -eq 1 ] ||
+	[ "${name:-x}" = "${name#*[![:print:]]}" -a $# -eq 1 ] ||
 		action_usage destroy # NOTREACHED
 	mustberoot_to_continue
 	jib_show "$name" | xargs -rn1 -I eiface ifconfig eiface destroy

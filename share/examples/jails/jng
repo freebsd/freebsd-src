@@ -7,7 +7,7 @@
 ############################################################ IDENT(1)
 #
 # $Title: netgraph(4) management script for vnet jails $
-# $Version: 9.2 $
+# $Version: 9.3 $
 #
 ############################################################ INFORMATION
 #
@@ -138,7 +138,7 @@ NG_BRIDGE_MAX_STALENESS=4294967295
 
 ############################################################ GLOBALS
 
-VERSION='$Version: 9.2 $'
+VERSION='$Version: 9.3 $'
 
 pgm="${0##*/}" # Program basename
 
@@ -410,7 +410,7 @@ jng_bridge()
 	[ $# -gt 0 ] || action_usage bridge "too few arguments" # NOTREACHED
 
 	local name="$1"
-	[ "${name:-x}" = "${name#*[!0-9a-zA-Z_]}" ] ||
+	[ "${name:-x}" = "${name#*[![:print:]]}" ] ||
 		action_usage bridge "invalid bridge name: %s" "$name"
 		# NOTREACHED
 	shift 1 # name
@@ -543,7 +543,7 @@ jng_pin()
 	mustberoot_to_continue
 
 	for name in "$@"; do
-		[ "${name:-x}" = "${name#*[!0-9a-zA-Z_]}" ] ||
+		[ "${name:-x}" = "${name#*[![:print:]]}" ] ||
 			action_usage pin "invalid name: %s" "$name"
 			# NOTREACHED
 		for jiface in $( jexec "$name" ifconfig -l 2> /dev/null )
@@ -650,7 +650,7 @@ jng_shutdown()
 
 	local name
 	for name in "$@"; do
-		[ "${name:-x}" = "${name#*[!0-9a-zA-Z_]}" ] ||
+		[ "${name:-x}" = "${name#*[![:print:]]}" ] ||
 			action_usage shutdown "invalid name: %s" "$name"
 			# NOTREACHED
 		jng_show "$name" | xargs -rn1 -I jiface ngctl shutdown jiface:
@@ -697,7 +697,7 @@ jng_stats()
 
 	local now="$( date +%s )"
 	for name in "$@"; do
-		[ "${name:-x}" = "${name#*[!0-9a-zA-Z_]}" ] ||
+		[ "${name:-x}" = "${name#*[![:print:]]}" ] ||
 			action_usage stats "invalid name: %s" "$name"
 			# NOTREACHED
 		if ifconfig -l | xargs -n1 2> /dev/null | fgrep -qw "$name"
