@@ -1825,7 +1825,7 @@ usbd_transfer_submit(struct usb_xfer *xfer)
 	/* compute some variables */
 
 	for (x = 0; x != xfer->nframes; x++) {
-		/* make a copy of the frlenghts[] */
+		/* make a copy of the frlengths[] */
 		xfer->frlengths[x + xfer->max_frame_count] = xfer->frlengths[x];
 		/* compute total transfer length */
 		xfer->sumlen += xfer->frlengths[x];
