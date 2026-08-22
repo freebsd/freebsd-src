@@ -10,12 +10,11 @@ PACKAGE=	bhyve
 
 MAN=	bhyvectl.8
 
-LIBADD=	vmmapi util
+LIBADD=	vmmapi util nv
 
 CFLAGS+= -I${.CURDIR} -I${SRCTOP}/sys/amd64/vmm
 
 .if ${MK_BHYVE_SNAPSHOT} != "no"
-LIBADD+= nv
 CFLAGS+= -DBHYVE_SNAPSHOT
 
 # usr.sbin/bhyve/snapshot.h needs ucl header
