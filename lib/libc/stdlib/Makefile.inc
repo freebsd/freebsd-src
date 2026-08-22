@@ -13,6 +13,7 @@ MISRCS+= \
 	atoll.c \
 	bsearch.c \
 	bsearch_b.c \
+	bsearch_s.c \
 	cxa_thread_atexit.c \
 	cxa_thread_atexit_impl.c \
 	div.c \
@@ -106,6 +107,8 @@ MAN+=	a64l.3 abort.3 abs.3 atexit.3 atof.3 \
 MLINKS+=a64l.3 l64a.3 \
 	a64l.3 l64a_r.3
 MLINKS+=atol.3 atoll.3
+MLINKS+=bsearch.3 bsearch_b.3 \
+	bsearch.3 bsearch_s.3
 MLINKS+=exit.3 _Exit.3
 MLINKS+=getenv.3 clearenv.3 \
 	getenv.3 putenv.3 \
