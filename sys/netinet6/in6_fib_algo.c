@@ -130,7 +130,7 @@ lradix6_init(uint32_t fibnum, struct fib_data *fd, void *_old_data, void **_data
 	struct rib_rtable_info rinfo;
 	uint32_t count;
 	void *mem;
- 
+
 	lr = malloc(sizeof(struct lradix6_data), M_RTABLE, M_NOWAIT | M_ZERO);
 	if (lr == NULL || !rn_inithead((void **)&lr->rnh, OFF_LEN_INET6))
 		return (FLM_REBUILD);
@@ -151,13 +151,24 @@ lradix6_init(uint32_t fibnum, struct fib_data *fd, void *_old_data, void **_data
 	return (FLM_SUCCESS);
 }
 
+static int
+lradix6_free_route(struct radix_node *rn, void *arg)
+{
+	struct radix_head *head = arg;
+
+	rn_delete(rn->rn_key, rn->rn_mask, head);
+	return (0);
+}
+
 static void
 lradix6_destroy(void *_data)
 {
 	struct lradix6_data *lr = (struct lradix6_data *)_data;
 
-	if (lr->rnh != NULL)
+	if (lr->rnh != NULL) {
+		rn_walktree(&lr->rnh->rh, lradix6_free_route, &lr->rnh->rh);
 		rn_detachhead((void **)&lr->rnh);
+	}
 	if (lr->mem != NULL)
 		free(lr->mem, M_RTABLE);
 	free(lr, M_RTABLE);
