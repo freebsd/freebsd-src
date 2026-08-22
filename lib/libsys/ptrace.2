@@ -1099,6 +1099,17 @@ The child process is exiting or is a zombie.
 The child process is currently being debugged by a process other
 than its parent process.
 .El
+.It Dv PT_GET_ABI_NAME
+Returns the string designating the Application Binary Interface (ABI)
+of the traced process.
+Among other details, the ABI defines the interpretation of system calls
+numbers and arguments.
+.Pp
+The buffer where the name is returned is pointed to by the
+.Fa addr
+argument, the size of the buffer is passed in the
+.Fa data
+argument.
 .El
 .Sh PT_COREDUMP and PT_SC_REMOTE usage
 The process must be stopped before dumping or initiating a remote system call.
