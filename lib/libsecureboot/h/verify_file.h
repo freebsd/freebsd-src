@@ -58,6 +58,9 @@ void	verify_pcr_export(void);
 int	hash_string(char *s, size_t n, char *buf, size_t bufsz);
 int	is_verified(struct stat *);
 void	add_verify_status(struct stat *, int);
+#ifdef LOADER_VERIEXEC_ELEVATED
+void	ve_verifying_set(void);
+#endif
 
 struct vectx;
 struct vectx* vectx_open(int, const char *, int, off_t, struct stat *, int *, const char *);
