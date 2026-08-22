@@ -114,6 +114,12 @@ The default directory used is
 .Pa ${.OBJDIR} ,
 but the check directory can be changed with
 .Pa ${CHECKDIR} .
+List available test cases with
+.Pa -DKYUALIST ,
+or include their metadata with
+.Pa -DKYUALIST_V .
+Run a specific test case in debug mode with
+.Pa KYUADEBUG=test_file:case_name .
 .It Cm checkworld
 Run the
 .Fx
