@@ -164,7 +164,11 @@ static int nswitch;		/* user defined switch date */
 static int nswitchb;		/* switch date for backward compatibility */
 static int highlightdate;
 static bool flag_monday;	/* user wants week starts on Monday */
+static int flag_sweden;		/* Swedish transitional calendar (1700-1712) */
+static int sweden_start;	/* day number of first day of Swedish transitional period */
+static int sweden_end;		/* day number of first day after Swedish transitional period */
 
+static int	 date_in_sweden_transitional(const date *d);
 static char	*center(char *s, char *t, int w);
 static wchar_t *wcenter(wchar_t *s, wchar_t *t, int w);
 static int	firstday(int y, int m);
@@ -243,6 +247,7 @@ main(int argc, char *argv[])
 	} else {
 		nswitch = ndaysj(&p->dt);
 		dftswitch = p;
+		flag_sweden = (strcmp(p->cc, "SE") == 0);
 	}
 
 
@@ -342,6 +347,7 @@ main(int argc, char *argv[])
 				errx(EX_USAGE,
 				    "%s: invalid country code", optarg);
 			nswitch = ndaysj(&(p->dt));
+			flag_sweden = (strcmp(p->cc, "SE") == 0);
 			break;
 		case 'w':
 			if (flag_backward)
@@ -492,6 +498,19 @@ main(int argc, char *argv[])
 		dt.d = tm1->tm_mday;
 	}
 	highlightdate = sndaysb(&dt);
+
+	/*
+	 * Initialize Sweden-specific day number boundaries for the
+	 * transitional calendar period (1700-03-01 to 1712-03-01 Swedish).
+	 * sweden_start: solar day of Swedish Mar 1, 1700 (= Julian Feb 29, 1700)
+	 * sweden_end:   solar day of Swedish Mar 1, 1712 (= Julian Mar 1, 1712)
+	 */
+	if (flag_sweden) {
+		date sw_s = {1700, 2, 29};
+		date sw_e = {1712, 3,  1};
+		sweden_start = ndaysj(&sw_s);
+		sweden_end   = ndaysj(&sw_e);
+	}
 
 	/* And now we finally start to calculate and output calendars. */
 	if (flag_easter)
@@ -1010,10 +1029,33 @@ firstday(int y, int m)
 /*
  * Compute the number of days from date, obey the local switch from
  * Julian to Gregorian if specified by the user.
+ *
+ * For Sweden (-s SE), a special transitional calendar was in use from
+ * 1700-03-01 to 1712-03-01.  Sweden omitted the Julian leap day in 1700
+ * (so Feb 29, 1700 did not exist), and added an extra day "Feb 30" in 1712
+ * to revert to the Julian calendar before finally adopting the Gregorian
+ * calendar in 1753.  During the transitional period, Swedish dates ran one
+ * day ahead of the Julian calendar.
  */
 static int
 sndaysr(struct date *d)
 {
+
+	if (flag_sweden) {
+		/* Feb 30, 1712: Sweden's unique extra day */
+		if (d->y == 1712 && d->m == 2 && d->d == 30)
+			return (sweden_end - 1);
+
+		/*
+		 * During the Swedish transitional period [1700-03-01,
+		 * 1712-03-01), Swedish dates ran 1 day ahead of Julian.
+		 * Subtract 1 from the Julian day number to get the solar day.
+		 */
+		if (date_in_sweden_transitional(d))
+			return (ndaysj(d) - 1);
+
+		/* Outside transitional period: fall through to normal logic */
+	}
 
 	if (nswitch != 0)
 		if (nswitch < ndaysj(d))
@@ -1043,10 +1085,51 @@ static struct date *
 sdater(int nd, struct date *d)
 {
 
+	if (flag_sweden) {
+		/*
+		 * Swedish Feb 30, 1712: the extra day added to revert from
+		 * the Swedish transitional calendar back to Julian.
+		 */
+		if (nd == sweden_end - 1) {
+			d->y = 1712;
+			d->m = 2;
+			d->d = 30;
+			return (d);
+		}
+
+		/*
+		 * Within the Swedish transitional period, each solar day nd
+		 * corresponds to the Julian date of nd+1 (Swedish was 1 day
+		 * ahead of Julian).
+		 */
+		if (nd >= sweden_start && nd < sweden_end)
+			return (jdate(nd + 1, d));
+
+		/* Outside transitional period: fall through to normal logic */
+	}
+
 	if (nswitch < nd)
 		return (gdate(nd, d));
 	else
 		return (jdate(nd, d));
+}
+
+/*
+ * Returns 1 if the given Swedish date falls within the Swedish transitional
+ * calendar period [1700-03-01, 1712-03-01), during which Swedish dates ran
+ * one day ahead of the Julian calendar.
+ */
+static int
+date_in_sweden_transitional(const date *d)
+{
+
+	/* Before 1700 March: not in transitional period */
+	if (d->y < 1700 || (d->y == 1700 && d->m < 3))
+		return (0);
+	/* 1712 March or later: not in transitional period */
+	if (d->y > 1712 || (d->y == 1712 && d->m >= 3))
+		return (0);
+	return (1);
 }
 
 /* Inverse of sndaysb. */
