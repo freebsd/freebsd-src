@@ -60,6 +60,8 @@ extern int stack_canary_init(void);
 extern int virtio_net_init(void);
 extern int virtio_blk_init(void);
 extern int gpu_init(void);
+extern int mobile_ui_init(void);
+extern int mobile_ui_start(void);
 
 void kernel_init(unsigned long hartid, void *dtb) {
     (void)hartid;
@@ -96,38 +98,44 @@ void kernel_init(unsigned long hartid, void *dtb) {
     CHECK(8, "gpu_init");
     if (gpu_init())     HALT("gpu_init");
 
-    CHECK(9, "vfs_init");
+    CHECK(9, "mobile_ui_init");
+    if (mobile_ui_init()) HALT("mobile_ui_init");
+
+    CHECK(10, "mobile_ui_start");
+    if (mobile_ui_start()) HALT("mobile_ui_start");
+
+    CHECK(11, "vfs_init");
     if (vfs_init())     HALT("vfs_init");
 
-    CHECK(10, "chardev_init");
+    CHECK(12, "chardev_init");
     if (chardev_init()) HALT("chardev_init");
 
-    CHECK(11, "uart_chardev");
+    CHECK(13, "uart_chardev");
     if (uart_chardev_init()) HALT("uart_chardev");
 
-    CHECK(12, "interrupt_init");
+    CHECK(14, "interrupt_init");
     if (interrupt_init()) HALT("interrupt_init");
 
-    CHECK(13, "virtio_blk");
+    CHECK(15, "virtio_blk");
     if (virtio_blk_init()) HALT("virtio_blk");
 
-    CHECK(14, "virtio_net");
+    CHECK(16, "virtio_net");
     if (virtio_net_init()) HALT("virtio_net");
 
-    uart_puts("[15] subsystems ready\n");
-    fb_puts("[15] subsystems ready\n");
+    uart_puts("[17] subsystems ready\n");
+    fb_puts("[17] subsystems ready\n");
 
-    CHECK(16, "task_init");
+    CHECK(18, "task_init");
     task_init();
 
-    CHECK(17, "ipc_init");
+    CHECK(19, "ipc_init");
     ipc_init();
 
-    CHECK(18, "scheduler_init");
+    CHECK(20, "scheduler_init");
     scheduler_init();
 
-    uart_puts("[19] entering scheduler (should not return)\n");
-    fb_puts("[19] entering scheduler\n");
+    uart_puts("[21] entering scheduler (should not return)\n");
+    fb_puts("[21] entering scheduler\n");
 
     for (;;) {
         asm volatile("wfi");

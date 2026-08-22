@@ -91,12 +91,27 @@ root@uos:~ # ls /mobile/share/applications/
 - Linux or WSL2
 - `qemu-system-riscv64`
 - `qemu-img`
-- `gcc-riscv64-unknown-elf` (optional; build falls back without it)
+- `gcc-riscv64-unknown-elf` and binutils (required for `qemu-build`)
 - `device-tree-compiler` (`dtc`, optional)
 
 ---
 
-## 3. SoC support matrix (real hardware)
+## 3. Processor support boundaries
+
+The QEMU target uses the generic RISC-V `virt` machine. The kernel is
+compiled for RV64IMAC with Sv39 virtual memory and OpenSBI boot. The current
+boot path is single-hart safe; `--cores` changes QEMU's CPU count but does not
+enable SMP scheduling. RVV, vendor extensions, ARM processors, and the phone
+SoC configurations below are not QEMU-compatible or runtime-validated by
+this target.
+
+Build the QEMU kernel explicitly with:
+
+```bash
+make -C mobile qemu-build
+```
+
+## 4. SoC support matrix (real hardware)
 
 UOS(m) ships kernel configs and flash logic for the most widely deployed
 mobile SoCs in the wild today.

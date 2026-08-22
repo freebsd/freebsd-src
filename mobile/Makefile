@@ -1,5 +1,5 @@
 # UOS(m) Mobile OS - Top-Level Build System
-.PHONY: all clean config kernel ui gfx wayland input desktop pkg services frameworks apps power sensors camera usb connectivity bluetooth audio rootfs install quick qemu test help
+.PHONY: all clean config kernel ui gfx wayland input desktop pkg services frameworks apps power sensors camera usb connectivity bluetooth audio rootfs install quick qemu-build qemu test help
 
 all: kernel ui gfx wayland input desktop pkg services frameworks apps power sensors camera usb connectivity bluetooth audio rootfs
 
@@ -109,14 +109,20 @@ clean:
 	rm -f install-staging
 	rm -f mobile/vmlinux.riscv64
 
-quick:
-	cd kernel && $(MAKE) all QEMU=1 CONFIG_QEMU=1
+qemu-build:
+	@echo "Building UOS(m) kernel for QEMU virt (RV64IMAC)..."
+	$(MAKE) -C kernel clean
+	$(MAKE) -C kernel all QEMU=1 CONFIG_QEMU=1 CONFIG_VIRTIO_BLK=1 CONFIG_VIRTIO_NET=1
+	@test -s kernel/vmlinux.riscv64
+	@echo "QEMU kernel ready: kernel/vmlinux.riscv64"
 
-qemu: quick
-	bash tools/run-uos-qemu.sh
+quick: qemu-build
 
-vm-test: quick
-	bash tools/run-uos-qemu.sh --headless --cores 4 --mem 2G
+qemu: qemu-build
+	bash ../tools/run-uos-qemu.sh
+
+vm-test: qemu-build
+	bash ../tools/run-uos-qemu.sh --headless --cores 4 --mem 2G
 
 test:
 	bash tools/run_unified_tests.sh
@@ -145,7 +151,8 @@ help:
 	@echo "  audio          - Build ALSA + Bluetooth audio"
 	@echo "  rootfs         - Prepare root filesystem"
 	@echo "  install        - Install to target"
-	@echo "  quick          - Quick RISC-V QEMU build"
+	@echo "  qemu-build     - Build the kernel for QEMU virt"
+	@echo "  quick          - Alias for qemu-build"
 	@echo "  qemu           - Build + launch QEMU"
 	@echo "  test           - Run test suite"
 	@echo "  clean          - Clean all artifacts"

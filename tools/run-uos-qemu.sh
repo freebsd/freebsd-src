@@ -17,19 +17,78 @@ FREEBSD_SRC="${FREEBSD_SRC:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 MOBILE_DIR="$FREEBSD_SRC/mobile"
 IMG_DIR="$FREEBSD_SRC/tools/riscv/images"
 IMG_FILE="$IMG_DIR/uos-riscv.img"
-KERNEL_BIN="$MOBILE_DIR/vmlinux.riscv64"
+KERNEL_BIN="$MOBILE_DIR/kernel/vmlinux.riscv64"
 NCPU="${UOS_QEMU_SMP:-4}"
 MEM="${UOS_QEMU_MEM:-2G}"
 GDB_MODE=0
+DISPLAY_MODE="auto"
+
+launch_wayland_stack() {
+    local compositor=""
+    for candidate in weston labwc phoc; do
+        if command -v "$candidate" >/dev/null 2>&1; then
+            compositor="$candidate"
+            break
+        fi
+    done
+
+    if [ -z "$compositor" ]; then
+        echo -e "${YELLOW}[WARN]${NC}  No Wayland compositor installed. Install one with: sudo apt-get install weston labwc phoc"
+        return 1
+    fi
+
+    export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp/uos-wayland}"
+    mkdir -p "$XDG_RUNTIME_DIR"
+    chmod 700 "$XDG_RUNTIME_DIR"
+
+    export WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-uos-wayland}"
+    rm -f "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY"
+
+    echo -e "${CYAN}[INFO]${NC}  Starting Wayland compositor: $compositor"
+    case "$compositor" in
+        weston)
+            weston --socket="$WAYLAND_DISPLAY" --backend=drm --xwayland=false >/tmp/uos-wayland.log 2>&1 &
+            ;;
+        labwc)
+            labwc --socket "$WAYLAND_DISPLAY" >/tmp/uos-wayland.log 2>&1 &
+            ;;
+        phoc)
+            phoc --socket "$WAYLAND_DISPLAY" --output 1280x720 --log-level error >/tmp/uos-wayland.log 2>&1 &
+            ;;
+    esac
+
+    sleep 2
+    echo -e "${GREEN}[ OK ]${NC}  Wayland display manager is active on socket: $WAYLAND_DISPLAY"
+    return 0
+}
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --cores|--smp) NCPU="$2"; shift 2 ;;
         --mem)         MEM="$2"; shift 2 ;;
         --gdb)         GDB_MODE=1; shift ;;
+        --gui)         DISPLAY_MODE="gui"; shift ;;
+        --vnc)         DISPLAY_MODE="vnc"; shift ;;
+        --headless)    DISPLAY_MODE="headless"; shift ;;
+        --wayland)     DISPLAY_MODE="wayland"; shift ;;
+        --phoc)        DISPLAY_MODE="wayland"; shift ;;
+        --help|-h)
+            echo "Usage: $0 [--gui|--vnc|--headless|--wayland] [--cores N] [--mem SIZE] [--gdb]"
+            exit 0
+            ;;
         *)             error "Unknown: $1 (use --help)" ;;
     esac
 done
+
+if [ "$DISPLAY_MODE" = "auto" ]; then
+    if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+        DISPLAY_MODE="wayland"
+    elif [ -n "${DISPLAY:-}" ]; then
+        DISPLAY_MODE="gui"
+    else
+        DISPLAY_MODE="vnc"
+    fi
+fi
 
 echo -e "${CYAN}=== UOS(m) QEMU (nographic / serial) ===${NC}"
 echo ""
@@ -66,32 +125,43 @@ echo -e "${GREEN}kernel:${NC}   $KERNEL_BIN ($(du -h "$KERNEL_BIN" | cut -f1))"
 [ -f "$IMG_FILE" ] || { info "Creating 4G image..."; qemu-img create -f raw "$IMG_FILE" 4G; }
 echo -e "${GREEN}disk:${NC}     $IMG_FILE ($(du -h "$IMG_FILE" | cut -f1))"
 echo ""
-echo "Mode:       VNC :5900 + serial on this terminal"
+case "$DISPLAY_MODE" in
+    gui)      DISPLAY_ARGS=(-display gtk,gl=off); echo "Mode:       QEMU GUI window + serial on this terminal" ;;
+    vnc)      DISPLAY_ARGS=(-display vnc=0.0.0.0:0,share=allow-exclusive); echo "Mode:       VNC :5900 + serial on this terminal" ;;
+    headless) DISPLAY_ARGS=(-display none); echo "Mode:       headless serial console" ;;
+    wayland)  DISPLAY_ARGS=(-display none); echo "Mode:       Wayland compositor mode" ;;
+esac
 echo "CPUs:       $NCPU"
 echo "Memory:     $MEM"
 echo ""
-echo -e "${YELLOW}Connect VNC viewer to localhost:5900${NC}"
+[ "$DISPLAY_MODE" = "vnc" ] && echo -e "${YELLOW}Connect VNC viewer to localhost:5900${NC}"
+[ "$DISPLAY_MODE" = "gui" ] && echo -e "${YELLOW}The QEMU GUI window is the OS preview${NC}"
+[ "$DISPLAY_MODE" = "wayland" ] && echo -e "${YELLOW}A Wayland compositor will provide the display manager and window manager${NC}"
 echo -e "${YELLOW}Ctrl+A then X = quit${NC}"
 echo ""
+
+if [ "$DISPLAY_MODE" = "wayland" ]; then
+    launch_wayland_stack || true
+fi
 
 GDB_ARGS=""
 [ "$GDB_MODE" -eq 1 ] && GDB_ARGS="-gdb tcp::1234 -S" && \
     echo -e "${YELLOW}GDB stub on :1234 (QEMU paused)${NC}"
 
-# NOTE: We use -device VGA (stdvga) instead of virtio-gpu because the
-# UOS(m) kernel writes directly to a linear framebuffer at 0x40000000.
-# virtio-gpu requires an active driver handshake; stdvga provides a plain
-# linear VRAM window the kernel can write pixels to immediately on boot.
+# QEMU ramfb presents a guest-RAM-backed framebuffer without requiring a
+# complete VirtIO-GPU command-ring implementation in the early kernel.
 exec qemu-system-riscv64 \
     -M virt -cpu rv64 -smp "$NCPU" -m "$MEM" \
     -bios "$OPENBI" \
     -kernel "$KERNEL_BIN" \
     -append "console=ttyS0 root=/dev/vda rw earlyprintk=ttyS0" \
     -drive "file=$IMG_FILE,format=raw,if=virtio" \
-    -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+    -netdev user,id=net0 \
     -device virtio-net-pci,netdev=net0 \
-    -device VGA,vgamem_mb=16 \
-    -display vnc=0.0.0.0:0,share=allow-exclusive \
+    -device ramfb \
+    -fw_cfg name=etc/ramfb/base,string=0x81000000 \
+    -fw_cfg name=etc/ramfb/size,string=1280x720x32 \
+    "${DISPLAY_ARGS[@]}" \
     -serial mon:stdio \
     -rtc base=localtime -nodefaults -device virtio-rng-pci \
     $GDB_ARGS

@@ -5,8 +5,8 @@
 
 #include <stdint.h>
 
-/* QEMU stdvga: 1280x720x32 linear framebuffer at 0x40000000 */
-#define FB_BASE        0x40000000UL
+/* QEMU ramfb: 1280x720x32 framebuffer in guest RAM at 0x81000000 */
+#define FB_BASE        0x81000000UL
 #define FB_WIDTH       1280
 #define FB_HEIGHT      720
 #define FB_PITCH       (FB_WIDTH * 4)
@@ -24,6 +24,14 @@ static const pixel_t COLOR_ACC  = 0xFF00A8FFUL;   /* sky blue accent  */
 static const pixel_t COLOR_ERR  = 0xFFFF4455UL;   /* red for errors   */
 static const pixel_t COLOR_OK   = 0xFF44DD66UL;   /* green for ok     */
 static const pixel_t COLOR_WARN = 0xFFFFBB33UL;   /* yellow for warn  */
+
+extern const uint32_t uos_logo_width;
+extern const uint32_t uos_logo_height;
+extern const uint8_t uos_logo_alpha[];
+
+extern const uint32_t uos_logo_width;
+extern const uint32_t uos_logo_height;
+extern const uint8_t uos_logo_alpha[];
 
 /* 8x16 font — minimal subset: printable ASCII 32..126 */
 static const unsigned char font_8x16[][16] = {
@@ -242,20 +250,41 @@ static void fb_draw_char(int x, int y, char c, pixel_t fg, pixel_t bg) {
     }
 }
 
+static void fb_draw_logo(void) {
+    int start_x = (FB_WIDTH - (int)uos_logo_width) / 2;
+    int start_y = 64;
+
+    for (uint32_t y = 0; y < uos_logo_height; y++) {
+        for (uint32_t x = 0; x < uos_logo_width; x++) {
+            uint8_t alpha = uos_logo_alpha[y * uos_logo_width + x];
+            if (alpha == 0) continue;
+            uint32_t background = fb[(unsigned)(start_y + (int)y) * FB_WIDTH +
+                                     (unsigned)(start_x + (int)x)];
+            uint32_t red = ((background >> 16) * (255 - alpha) + 255 * alpha) / 255;
+            uint32_t green = ((background >> 8 & 0xFF) * (255 - alpha) + 255 * alpha) / 255;
+            uint32_t blue = ((background & 0xFF) * (255 - alpha) + 255 * alpha) / 255;
+            fb_put_pixel(start_x + (int)x, start_y + (int)y,
+                         0xFF000000UL | (red << 16) | (green << 8) | blue);
+        }
+    }
+}
+
 void fb_console_init(void) {
     for (int y = 0; y < FB_HEIGHT; y++)
         for (int x = 0; x < FB_WIDTH; x++)
             fb[(unsigned)y * FB_WIDTH + (unsigned)x] = COLOR_BG;
+    fb_draw_logo();
     cursor_x = 0;
-    cursor_y = 0;
+    cursor_y = 400;
 }
 
 void fb_console_clear(void) {
     for (int y = 0; y < FB_HEIGHT; y++)
         for (int x = 0; x < FB_WIDTH; x++)
             fb[(unsigned)y * FB_WIDTH + (unsigned)x] = COLOR_BG;
+    fb_draw_logo();
     cursor_x = 0;
-    cursor_y = 0;
+    cursor_y = 400;
 }
 
 static void fb_scroll(void) {

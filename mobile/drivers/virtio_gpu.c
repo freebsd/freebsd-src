@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 
-#define GPU_FB_PHYS 0x40000000UL
+#define GPU_FB_PHYS 0x81000000UL
 #define GPU_FB_SIZE (1280 * 720 * 4)
 
 static volatile uint32_t *gpu_fb;
