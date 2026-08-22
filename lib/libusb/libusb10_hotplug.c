@@ -408,8 +408,15 @@ int libusb_hotplug_register_callback(libusb_context *ctx,
 		TAILQ_INSERT_TAIL(&ctx->hotplug_cbh, handle, entry);
 	HOTPLUG_UNLOCK(ctx);
 
+	/*
+	 * The callback may have deregistered itself during the
+	 * LIBUSB_HOTPLUG_ENUMERATE pass above, in which case handle is
+	 * already freed.  Report the reserved id 0, which is never handed
+	 * out by the allocator above and which
+	 * libusb_hotplug_deregister_callback() treats as a no-op.
+	 */
 	if (phandle != NULL)
-		*phandle = handle->id;
+		*phandle = (handle != NULL) ? handle->id : 0;
 	return (LIBUSB_SUCCESS);
 }
 
