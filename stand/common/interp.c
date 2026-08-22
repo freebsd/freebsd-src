@@ -36,6 +36,17 @@
 
 #ifdef LOADER_VERIEXEC
 #include <verify_file.h>
+
+/*
+ * Verifying a file whose name begins with "loader.ve." is what makes
+ * verify_tweak() adjust the verification mode.  This is the path offered
+ * to it before the interpreter starts; override at build time if another
+ * location suits.  Deliberately not taken from the environment: at this
+ * point the environment can still hold whatever the boot entry passed in.
+ */
+#ifndef VE_TWEAK_FILE
+#define	VE_TWEAK_FILE	"/boot/loader.ve.strict"
+#endif
 #endif
 
 #define	MAXARGS	20			/* maximum number of arguments allowed */
@@ -49,6 +60,9 @@ void
 interact(void)
 {
 	static char		input[256];		/* big enough? */
+#ifdef LOADER_VERIEXEC
+	int			fd;
+#endif
 
 	TSENTER();
 
@@ -60,6 +74,26 @@ interact(void)
 	 * we need to switch interpreters.
 	 */
 	interp_identifier = bootprog_interp;
+#ifdef LOADER_VERIEXEC
+	/*
+	 * Let a veriexec mode tweak take effect before anything is read.
+	 *
+	 * The interpreter's own scripts and every configuration file are
+	 * loaded below, so a tweak that becomes effective later cannot cover
+	 * them.  With loader_lua that includes loader.lua and everything it
+	 * requires, which is what decides whether a loader password is asked
+	 * for at all.
+	 *
+	 * Nothing happens if the file is absent, and nothing happens if it
+	 * is present but unverified: verify_file() reaches verify_tweak()
+	 * only for a file that checked out against the manifest.
+	 */
+	fd = open(VE_TWEAK_FILE, O_RDONLY);
+	if (fd >= 0) {
+		(void)verify_file(fd, VE_TWEAK_FILE, 0, VE_GUESS, __func__);
+		close(fd);
+	}
+#endif
 	interp_preinit();
 	interp_init();
 
