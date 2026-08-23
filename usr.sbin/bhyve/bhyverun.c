@@ -752,7 +752,7 @@ do_open(const char *vmname)
 	int error, flags;
 	bool romboot, monitor;
 
-	monitor = get_config_bool_default("monitor", false);
+	monitor = get_config_bool_default("monitor.enabled", false);
 	romboot = bootrom_boot();
 
 	/*
@@ -943,7 +943,7 @@ main(int argc, char *argv[])
 	init_mem(guest_ncpus);
 	init_bootrom(ctx);
 
-	if (get_config_bool_default("monitor", false)) {
+	if (get_config_bool_default("monitor.enabled", false)) {
 		int monitor_pipe[2];
 		pid_t child;
 
@@ -978,7 +978,8 @@ main(int argc, char *argv[])
 				exit(BHYVE_EXIT_ERROR);
 			} else {
 				status = WEXITSTATUS(status);
-				if (status != BHYVE_EXIT_RESET)
+				if (get_config_bool_default("monitor.no_reboot", false) ||
+				    status != BHYVE_EXIT_RESET)
 					exit(status);
 			}
 			if (vm_reinit(ctx) != 0) {
