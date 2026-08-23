@@ -312,64 +312,76 @@ defaults(void)
 			abort();
 		nele = 0;
 		decolonify(b, &sourcedirs, &nele);
-
-		if (stat(PATH_PORTS, &sb) == -1) {
-			if (errno == ENOENT)
-				/* no /usr/ports, we are done */
-				return;
-			err(EX_OSERR, "stat(" PATH_PORTS ")");
-		}
-		if ((sb.st_mode & S_IFMT) != S_IFDIR)
-			/* /usr/ports is not a directory, ignore */
-			return;
-		if (access(PATH_PORTS, R_OK | X_OK) != 0)
-			return;
-		if ((dir = opendir(PATH_PORTS)) == NULL)
-			err(EX_OSERR, "opendir" PATH_PORTS ")");
-		while ((dirp = readdir(dir)) != NULL) {
-			/*
-			 * Not everything below PATH_PORTS is of
-			 * interest.  First, all dot files and
-			 * directories (e. g. .snap) can be ignored.
-			 * Also, all subdirectories starting with a
-			 * capital letter are not going to be
-			 * examined, as they are used for internal
-			 * purposes (Mk, Tools, ...).  This also
-			 * matches a possible CVS subdirectory.
-			 * Finally, the distfiles subdirectory is also
-			 * special, and should not be considered to
-			 * avoid false matches.
-			 */
-			if (dirp->d_name[0] == '.' ||
-			    /*
-			     * isupper() not used on purpose: the
-			     * check is supposed to default to the C
-			     * locale instead of the current user's
-			     * locale.
-			     */
-			    (dirp->d_name[0] >= 'A' && dirp->d_name[0] <= 'Z') ||
-			    strcmp(dirp->d_name, "distfiles") == 0)
-				continue;
-			if ((b = malloc(sizeof PATH_PORTS + 1 + dirp->d_namlen))
-			    == NULL)
+		ccharp path_ports;
+		if ((cp = getenv("PORTSDIR")) != NULL) {
+			b = strdup(cp);
+			if (b == NULL)
 				abort();
-			strcpy(b, PATH_PORTS);
-			strcat(b, "/");
-			strcat(b, dirp->d_name);
-			if (stat(b, &sb) == -1 ||
-			    (sb.st_mode & S_IFMT) != S_IFDIR ||
-			    access(b, R_OK | X_OK) != 0) {
-				free(b);
+		}
+		ccharp ports_locations[2] = {PATH_PORTS, cp};
+		int i;
+		for (i = 0; i < 2; i++) {
+			path_ports = ports_locations[i];
+			if (!path_ports)
 				continue;
+			if (stat(path_ports, &sb) == -1) {
+				if (errno == ENOENT)
+					/* no /usr/ports, we are done */
+					continue;
+				err(EX_OSERR, "stat(%s)", path_ports);
 			}
-			sourcedirs = realloc(sourcedirs,
-					     (nele + 2) * sizeof(char *));
-			if (sourcedirs == NULL)
-				abort();
-			sourcedirs[nele++] = b;
-			sourcedirs[nele] = NULL;
+			if ((sb.st_mode & S_IFMT) != S_IFDIR)
+				/* This is not a directory, ignore */
+				continue;
+			if (access(path_ports, R_OK | X_OK) != 0)
+				continue;
+			if ((dir = opendir(path_ports)) == NULL)
+				err(EX_OSERR, "opendir %s)", path_ports);
+			while ((dirp = readdir(dir)) != NULL) {
+				/*
+				 * Not everything below path_ports is of
+				 * interest.  First, all dot files and
+				 * directories (e. g. .snap) can be ignored.
+				 * Also, all subdirectories starting with a
+				 * capital letter are not going to be
+				 * examined, as they are used for internal
+				 * purposes (Mk, Tools, ...).  This also
+				 * matches a possible CVS subdirectory.
+				 * Finally, the distfiles subdirectory is also
+				 * special, and should not be considered to
+				 * avoid false matches.
+				 */
+				if (dirp->d_name[0] == '.' ||
+				    /*
+				     * isupper() not used on purpose: the
+				     * check is supposed to default to the C
+				     * locale instead of the current user's
+				     * locale.
+				     */
+				    (dirp->d_name[0] >= 'A' && dirp->d_name[0] <= 'Z') ||
+				    strcmp(dirp->d_name, "distfiles") == 0)
+					continue;
+				if ((b = malloc(strlen(path_ports) + 1 + dirp->d_namlen))
+				    == NULL)
+					abort();
+				strcpy(b, path_ports);
+				strcat(b, "/");
+				strcat(b, dirp->d_name);
+				if (stat(b, &sb) == -1 ||
+				    (sb.st_mode & S_IFMT) != S_IFDIR ||
+				    access(b, R_OK | X_OK) != 0) {
+					free(b);
+					continue;
+				}
+				sourcedirs = realloc(sourcedirs,
+						     (nele + 2) * sizeof(char *));
+				if (sourcedirs == NULL)
+					abort();
+				sourcedirs[nele++] = b;
+				sourcedirs[nele] = NULL;
+			}
+			closedir(dir);
 		}
-		closedir(dir);
 	}
 }
 
