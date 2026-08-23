@@ -209,6 +209,7 @@ r21au_attach(struct rtwn_usb_softc *uc)
 	sc->sc_rf_write			= r12a_rf_write;
 	sc->sc_check_condition		= r21a_check_condition;
 	sc->sc_efuse_postread		= rtwn_nop_softc;
+	sc->sc_efuse_preread		= rtwn_nop_int_softc;
 	sc->sc_parse_rom		= r21a_parse_rom;
 	sc->sc_power_on			= r21a_power_on;
 	sc->sc_power_off		= r21a_power_off;

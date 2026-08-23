@@ -225,6 +225,10 @@ rtwn_efuse_read_prepare(struct rtwn_softc *sc, uint8_t *rom, uint16_t size)
 {
 	int error;
 
+	error = rtwn_efuse_preread(sc);
+	if (error != 0)
+		return (error);
+
 	error = rtwn_efuse_switch_power(sc);
 	if (error != 0)
 		goto fail;
