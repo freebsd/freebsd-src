@@ -228,6 +228,9 @@ int	pts_alloc(int fflags, struct thread *td, struct file *fp);
 int	pts_alloc_external(int fd, struct thread *td, struct file *fp,
     struct cdev *dev, const char *name);
 
+int	ttydev_ioctl_proctree(struct tty *tp, u_long cmd, caddr_t data,
+	    struct thread *td);
+
 /* Drivers and line disciplines also need to call these. */
 #include <sys/ttydisc.h>
 #include <sys/ttydevsw.h>
