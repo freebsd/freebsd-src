@@ -300,6 +300,7 @@ Supported platforms:
 .Pp
 ATF:
 .Va require.kmods
+(appends to the list declared at the Kyuafile level instead of overwriting it)
 .It Va required_memory
 Amount of physical memory that the test needs to run successfully.
 .Pp
