@@ -757,7 +757,9 @@ linux_irq_work_fn(void *context, int pending)
 {
 	struct irq_work *irqw = context;
 
+	rcu_read_lock();
 	irqw->func(irqw);
+	rcu_read_unlock();
 }
 
 static void
