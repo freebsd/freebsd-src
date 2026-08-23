@@ -348,6 +348,12 @@ int libusb_hotplug_register_callback(libusb_context *ctx,
 
 	ctx = GET_CONTEXT(ctx);
 
+	if (ctx == NULL || cb_fn == NULL || events == 0 ||
+	    vendor_id < -1 || vendor_id > 0xffff ||
+	    product_id < -1 || product_id > 0xffff ||
+	    dev_class < -1 || dev_class > 0xff)
+		return (LIBUSB_ERROR_INVALID_PARAM);
+
 	if (ctx->no_discovery)
 		return (LIBUSB_SUCCESS);
 
@@ -357,12 +363,6 @@ int libusb_hotplug_register_callback(libusb_context *ctx,
 			ctx->usb_event_mode = usb_event_scan;
 		HOTPLUG_UNLOCK(ctx);
 	}
-
-	if (ctx == NULL || cb_fn == NULL || events == 0 ||
-	    vendor_id < -1 || vendor_id > 0xffff ||
-	    product_id < -1 || product_id > 0xffff ||
-	    dev_class < -1 || dev_class > 0xff)
-		return (LIBUSB_ERROR_INVALID_PARAM);
 
 	handle = malloc(sizeof(*handle));
 	if (handle == NULL)
