@@ -579,11 +579,215 @@ done:	tty_unlock(tp);
 }
 
 static int
+tty_ioctl_cnotty(struct tty *tp, struct thread *td)
+{
+	struct session *session;
+	struct vnode *vp;
+	struct proc *p;
+	int error;
+
+	p = td->td_proc;
+	error = 0;
+
+	sx_xlock(&proctree_lock);
+	error = ttydev_enter(tp);
+	if (error != 0)
+		goto out_unlock2;
+
+	/*
+	 * If the session doesn't have a controlling TTY, or if we weren't
+	 * invoked on the controlling TTY, we'll return ENOTTY as we've
+	 * historically done.
+	 */
+	session = p->p_session;
+	if (session->s_ttyp == NULL || session->s_ttyp != tp) {
+		error = EXTERROR(ENOTTY, "no controlling tty");
+		goto out_unlock1;
+	}
+
+	if (!SESS_LEADER(p)) {
+		error = EXTERROR(EPERM, "not a session leader");
+		goto out_unlock1;
+	}
+
+	PROC_LOCK(p);
+	SESS_LOCK(session);
+	vp = session->s_ttyvp;
+	session->s_ttyp = NULL;
+	session->s_ttyvp = NULL;
+	session->s_ttydp = NULL;
+	SESS_UNLOCK(session);
+
+	if (tp->t_session == session) {
+		tp->t_session = NULL;
+		tp->t_pgrp = NULL;
+	}
+	tp->t_sessioncnt--;
+	p->p_flag &= ~P_CONTROLT;
+	PROC_UNLOCK(p);
+	sx_xunlock(&proctree_lock);
+
+	/*
+	 * If we did have a vnode, release our reference.  Ordinarily
+	 * we manage these at the devfs layer, but we can't
+	 * necessarily know that we were invoked on the vnode
+	 * referenced in the session (i.e. the vnode we hold a
+	 * reference to).  We explicitly don't check VBAD/VIRF_DOOMED
+	 * here to avoid a vnode leak -- in circumstances elsewhere
+	 * where we'd hit a VIRF_DOOMED vnode, release has been
+	 * deferred until the controlling TTY is either changed or
+	 * released.
+	 */
+	if (vp != NULL)
+		devfs_ctty_unref(vp);
+
+	tty_unlock(tp);
+	return (error);
+
+out_unlock1:
+	tty_unlock(tp);
+out_unlock2:
+	sx_xunlock(&proctree_lock);
+	return (error);
+}
+
+static int
+ttydev_ioctl_sctty(struct tty *tp, caddr_t data, struct thread *td)
+{
+	struct proc *p;
+	int error;
+
+	p = td->td_proc;
+	error = 0;
+
+	error = ttydev_enter(tp);
+	if (error != 0)
+		return (error);
+
+	error = tty_wait_background(tp, td, SIGTTOU, LA_XLOCKED);
+	if (error != 0)
+		goto out;
+
+	if (!SESS_LEADER(p)) {
+		/* Only the session leader may do this. */
+		error = EXTERROR(EPERM, "not a session leader");
+		goto out;
+	}
+
+	if (tp->t_session != NULL && tp->t_session == p->p_session) {
+		/* This is already our controlling TTY. */
+		goto out;
+	}
+
+	if (p->p_session->s_ttyp != NULL ||
+	    (tp->t_session != NULL && tp->t_session->s_ttyvp != NULL &&
+	    tp->t_session->s_ttyvp->v_type != VBAD)) {
+		/*
+		 * There is already a relation between a TTY and
+		 * a session, or the caller is not the session
+		 * leader.
+		 *
+		 * Allow the TTY to be stolen when the vnode is
+		 * invalid, but the reference to the TTY is
+		 * still active.  This allows immediate reuse of
+		 * TTYs of which the session leader has been
+		 * killed or the TTY revoked.
+		 */
+		error = EXTERROR(EPERM, "session already has CTTY");
+		goto out;
+	}
+
+	/* Connect the session to the TTY. */
+	tp->t_session = p->p_session;
+	tp->t_session->s_ttyp = tp;
+	tp->t_sessioncnt++;
+
+	/* Assign foreground process group. */
+	tp->t_pgrp = p->p_pgrp;
+	PROC_LOCK(p);
+	p->p_flag |= P_CONTROLT;
+	PROC_UNLOCK(p);
+out:
+	tty_unlock(tp);
+	return (error);
+}
+
+static int
+ttydev_ioctl_spgrp(struct tty *tp, caddr_t data, struct thread *td)
+{
+	struct pgrp *pg;
+	int error;
+
+	error = ttydev_enter(tp);
+	if (error != 0)
+		return (error);
+
+	error = tty_wait_background(tp, td, SIGTTOU, LA_SLOCKED);
+	if (error != 0)
+		goto out;
+
+	pg = pgfind(*(int *)data);
+	if (pg != NULL)
+		PGRP_UNLOCK(pg);
+	if (pg == NULL || pg->pg_session != td->td_proc->p_session) {
+		error = EXTERROR(EPERM,
+		    "pgrp %jd belongs to other session %jd",
+		    pg != NULL ? pg->pg_id : -1,
+		    td->td_proc->p_session->s_sid);
+		goto out;
+	}
+
+	/*
+	 * Determine if this TTY is the controlling TTY.
+	 */
+	if (!tty_is_ctty(tp, td->td_proc)) {
+		error = EXTERROR(ENOTTY, "not a controlling tty");
+		goto out;
+	}
+	tp->t_pgrp = pg;
+
+	/* Wake up the background process groups. */
+	cv_broadcast(&tp->t_bgwait);
+out:
+	tty_unlock(tp);
+	return (error);
+}
+
+int
+ttydev_ioctl_proctree(struct tty *tp, u_long cmd, caddr_t data,
+    struct thread *td)
+{
+	int error;
+
+	switch (cmd) {
+	case TIOCNOTTY:
+		error = tty_ioctl_cnotty(tp, td);
+		break;
+	case TIOCSCTTY:
+		sx_xlock(&proctree_lock);
+		error = ttydev_ioctl_sctty(tp, data, td);
+		sx_xunlock(&proctree_lock);
+		break;
+	case TIOCSPGRP:
+		sx_slock(&proctree_lock);
+		error = ttydev_ioctl_spgrp(tp, data, td);
+		sx_sunlock(&proctree_lock);
+		break;
+	default:
+		__unreachable();
+	}
+	return (error);
+}
+
+static int
 ttydev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
     struct thread *td)
 {
 	struct tty *tp = dev->si_drv1;
 	int error;
+
+	if (cmd == TIOCNOTTY || cmd == TIOCSCTTY || cmd == TIOCSPGRP)
+		return (ttydev_ioctl_proctree(tp, cmd, data, td));
 
 	error = ttydev_enter(tp);
 	if (error)
@@ -597,11 +801,9 @@ ttydev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 	case TIOCFLUSH:
 	case TIOCNXCL:
 	case TIOCSBRK:
-	case TIOCSCTTY:
 	case TIOCSETA:
 	case TIOCSETAF:
 	case TIOCSETAW:
-	case TIOCSPGRP:
 	case TIOCSTART:
 	case TIOCSTAT:
 	case TIOCSTI:
@@ -1243,75 +1445,6 @@ tty_rel_gone(struct tty *tp)
 	tty_rel_free(tp, false);
 }
 
-static int
-tty_drop_ctty(struct tty *tp, struct proc *p)
-{
-	struct session *session;
-	struct vnode *vp;
-
-	/*
-	 * This looks terrible, but it's generally safe as long as the tty
-	 * hasn't gone away while we had the lock dropped.  All of our sanity
-	 * checking that this operation is OK happens after we've picked it back
-	 * up, so other state changes are generally not fatal and the potential
-	 * for this particular operation to happen out-of-order in a
-	 * multithreaded scenario is likely a non-issue.
-	 */
-	tty_unlock(tp);
-	sx_xlock(&proctree_lock);
-	tty_lock(tp);
-	if (tty_gone(tp)) {
-		sx_xunlock(&proctree_lock);
-		return (EXTERROR(ENODEV, "tty_drop_ctty: device is gone"));
-	}
-
-	/*
-	 * If the session doesn't have a controlling TTY, or if we weren't
-	 * invoked on the controlling TTY, we'll return ENOTTY as we've
-	 * historically done.
-	 */
-	session = p->p_session;
-	if (session->s_ttyp == NULL || session->s_ttyp != tp) {
-		sx_xunlock(&proctree_lock);
-		return (EXTERROR(ENOTTY, "no controlling tty"));
-	}
-
-	if (!SESS_LEADER(p)) {
-		sx_xunlock(&proctree_lock);
-		return (EXTERROR(EPERM, "not a session leader"));
-	}
-
-	PROC_LOCK(p);
-	SESS_LOCK(session);
-	vp = session->s_ttyvp;
-	session->s_ttyp = NULL;
-	session->s_ttyvp = NULL;
-	session->s_ttydp = NULL;
-	SESS_UNLOCK(session);
-
-	if (tp->t_session == session) {
-		tp->t_session = NULL;
-		tp->t_pgrp = NULL;
-	}
-	tp->t_sessioncnt--;
-	p->p_flag &= ~P_CONTROLT;
-	PROC_UNLOCK(p);
-	sx_xunlock(&proctree_lock);
-
-	/*
-	 * If we did have a vnode, release our reference.  Ordinarily we manage
-	 * these at the devfs layer, but we can't necessarily know that we were
-	 * invoked on the vnode referenced in the session (i.e. the vnode we
-	 * hold a reference to).  We explicitly don't check VBAD/VIRF_DOOMED here
-	 * to avoid a vnode leak -- in circumstances elsewhere where we'd hit a
-	 * VIRF_DOOMED vnode, release has been deferred until the controlling TTY
-	 * is either changed or released.
-	 */
-	if (vp != NULL)
-		devfs_ctty_unref(vp);
-	return (0);
-}
-
 /*
  * Exposing information about current TTY's through sysctl
  */
@@ -1930,107 +2063,11 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		*(int *)data = tp->t_session->s_sid;
 		return (0);
 	case TIOCNOTTY:
-		return (tty_drop_ctty(tp, td->td_proc));
-	case TIOCSCTTY: {
-		struct proc *p = td->td_proc;
-
-		/* XXX: This looks awful. */
-		tty_unlock(tp);
-		sx_xlock(&proctree_lock);
-		error = ttydev_enter(tp);
-		if (error != 0) {
-			sx_xunlock(&proctree_lock);
-			tty_lock(tp);
-			return (error);
-		}
-
-		if (!SESS_LEADER(p)) {
-			/* Only the session leader may do this. */
-			sx_xunlock(&proctree_lock);
-			return (EXTERROR(EPERM, "not a session leader"));
-		}
-
-		if (tp->t_session != NULL && tp->t_session == p->p_session) {
-			/* This is already our controlling TTY. */
-			sx_xunlock(&proctree_lock);
-			return (0);
-		}
-
-		if (p->p_session->s_ttyp != NULL ||
-		    (tp->t_session != NULL && tp->t_session->s_ttyvp != NULL &&
-		    tp->t_session->s_ttyvp->v_type != VBAD)) {
-			/*
-			 * There is already a relation between a TTY and
-			 * a session, or the caller is not the session
-			 * leader.
-			 *
-			 * Allow the TTY to be stolen when the vnode is
-			 * invalid, but the reference to the TTY is
-			 * still active.  This allows immediate reuse of
-			 * TTYs of which the session leader has been
-			 * killed or the TTY revoked.
-			 */
-			sx_xunlock(&proctree_lock);
-			return (EXTERROR(EPERM, "session already has CTTY"));
-		}
-
-		/* Connect the session to the TTY. */
-		tp->t_session = p->p_session;
-		tp->t_session->s_ttyp = tp;
-		tp->t_sessioncnt++;
-
-		/* Assign foreground process group. */
-		tp->t_pgrp = p->p_pgrp;
-		PROC_LOCK(p);
-		p->p_flag |= P_CONTROLT;
-		PROC_UNLOCK(p);
-
-		sx_xunlock(&proctree_lock);
-		return (0);
-	}
-	case TIOCSPGRP: {
-		struct pgrp *pg;
-
-		/*
-		 * XXX: Temporarily unlock the TTY to locate the process
-		 * group. This code would be lot nicer if we would ever
-		 * decompose proctree_lock.
-		 */
-		tty_unlock(tp);
-		sx_slock(&proctree_lock);
-		pg = pgfind(*(int *)data);
-		if (pg != NULL)
-			PGRP_UNLOCK(pg);
-		if (pg == NULL || pg->pg_session != td->td_proc->p_session) {
-			sx_sunlock(&proctree_lock);
-			tty_lock(tp);
-			return (EXTERROR(EPERM,
-			    "pgrp %jd belongs to other session %jd",
-			    pg != NULL ? pg->pg_id : -1,
-			    td->td_proc->p_session->s_sid));
-		}
-		error = ttydev_enter(tp);
-		if (error != 0) {
-			sx_sunlock(&proctree_lock);
-			tty_lock(tp);
-			return (error);
-		}
-
-		/*
-		 * Determine if this TTY is the controlling TTY after
-		 * relocking the TTY.
-		 */
-		if (!tty_is_ctty(tp, td->td_proc)) {
-			sx_sunlock(&proctree_lock);
-			return (EXTERROR(ENOTTY, "not a controlling tty"));
-		}
-		tp->t_pgrp = pg;
-		sx_sunlock(&proctree_lock);
-
-		/* Wake up the background process groups. */
-		cv_broadcast(&tp->t_bgwait);
-		return (0);
-	}
+		panic("TIOCNOTTY");
+	case TIOCSCTTY:
+		panic("TIOCSCTTY");
+	case TIOCSPGRP:
+		panic("TIOCSPGRP");
 	case TIOCFLUSH: {
 		int flags = *(int *)data;
 
