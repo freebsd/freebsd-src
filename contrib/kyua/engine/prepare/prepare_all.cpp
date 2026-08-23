@@ -26,48 +26,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "os/freebsd/main.hpp"
+#include "engine/prepare/prepare_all.hpp"
 
-#include "engine/execenv/execenv.hpp"
-#include "os/freebsd/execenv_jail_manager.hpp"
+static const std::string _name = "all";
+static const std::string _description = "Run all preparations";
 
-#include "engine/requirements.hpp"
-#include "os/freebsd/reqs_checker_kmods.hpp"
-
-#include "engine/prepare/prepare.hpp"
-#include "os/freebsd/prepare_kmods.hpp"
-
-namespace execenv = engine::execenv;
 namespace prepare = engine::prepare;
 
 
-/// FreeBSD related features initialization.
-///
-/// \param argc The number of arguments passed on the command line.
-/// \param argv NULL-terminated array containing the command line arguments.
-///
-/// \return 0 on success, some other integer on error.
-///
-/// \throw std::exception This throws any uncaught exception.  Such exceptions
-///     are bugs, but we let them propagate so that the runtime will abort and
-///     dump core.
-int
-freebsd::main(const int, const char* const* const)
+const std::string&
+prepare::prepare_all::name() const
 {
-    execenv::register_execenv(
-        std::shared_ptr< execenv::manager >(new freebsd::execenv_jail_manager())
-    );
+    return _name;
+}
 
-#ifdef __FreeBSD__
-    engine::register_reqs_checker(
-        std::shared_ptr< engine::reqs_checker >(
-            new freebsd::reqs_checker_kmods()
-        )
-    );
 
-    prepare::register_handler(
-        std::shared_ptr< prepare::handler >(new freebsd::prepare_kmods()));
-#endif
+const std::string&
+prepare::prepare_all::description() const
+{
+    return _description;
+}
 
-    return 0;
+
+int
+prepare::prepare_all::exec(cmdline::ui* ui,
+                           const cmdline::parsed_cmdline& cmdline,
+                           const config::tree& user_config) const
+{
+    for (auto& handler : prepare::handlers()) {
+        if (handler->name() == this->name())
+            continue;
+
+        int error = handler->exec(ui, cmdline, user_config);
+        if (error != EXIT_SUCCESS)
+            return error;
+    }
+
+    return EXIT_SUCCESS;
 }

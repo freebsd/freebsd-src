@@ -26,48 +26,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "os/freebsd/main.hpp"
+/// \file engine/prepare/prepare_all.hpp
+/// The requirement preparation handler which runs all registered handlers.
 
-#include "engine/execenv/execenv.hpp"
-#include "os/freebsd/execenv_jail_manager.hpp"
-
-#include "engine/requirements.hpp"
-#include "os/freebsd/reqs_checker_kmods.hpp"
+#if !defined(ENGINE_PREPARE_ALL_HPP)
+#define ENGINE_PREPARE_ALL_HPP
 
 #include "engine/prepare/prepare.hpp"
-#include "os/freebsd/prepare_kmods.hpp"
 
-namespace execenv = engine::execenv;
-namespace prepare = engine::prepare;
+namespace engine {
+namespace prepare {
 
 
-/// FreeBSD related features initialization.
-///
-/// \param argc The number of arguments passed on the command line.
-/// \param argv NULL-terminated array containing the command line arguments.
-///
-/// \return 0 on success, some other integer on error.
-///
-/// \throw std::exception This throws any uncaught exception.  Such exceptions
-///     are bugs, but we let them propagate so that the runtime will abort and
-///     dump core.
-int
-freebsd::main(const int, const char* const* const)
-{
-    execenv::register_execenv(
-        std::shared_ptr< execenv::manager >(new freebsd::execenv_jail_manager())
-    );
+class prepare_all : public prepare::handler {
+public:
+    const std::string& name() const;
+    const std::string& description() const;
+    int exec(cmdline::ui*, const cmdline::parsed_cmdline&,
+             const config::tree&) const;
+};
 
-#ifdef __FreeBSD__
-    engine::register_reqs_checker(
-        std::shared_ptr< engine::reqs_checker >(
-            new freebsd::reqs_checker_kmods()
-        )
-    );
 
-    prepare::register_handler(
-        std::shared_ptr< prepare::handler >(new freebsd::prepare_kmods()));
-#endif
+}  // namespace prepare
+}  // namespace engine
 
-    return 0;
-}
+#endif  // !defined(ENGINE_PREPARE_ALL_HPP)

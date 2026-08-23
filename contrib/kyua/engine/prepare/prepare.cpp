@@ -26,48 +26,58 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "os/freebsd/main.hpp"
-
-#include "engine/execenv/execenv.hpp"
-#include "os/freebsd/execenv_jail_manager.hpp"
-
-#include "engine/requirements.hpp"
-#include "os/freebsd/reqs_checker_kmods.hpp"
-
 #include "engine/prepare/prepare.hpp"
-#include "os/freebsd/prepare_kmods.hpp"
 
-namespace execenv = engine::execenv;
+#include "engine/prepare/prepare_all.hpp"
+
 namespace prepare = engine::prepare;
 
 
-/// FreeBSD related features initialization.
+/// List of registered requirement preparation handlers.
 ///
-/// \param argc The number of arguments passed on the command line.
-/// \param argv NULL-terminated array containing the command line arguments.
-///
-/// \return 0 on success, some other integer on error.
-///
-/// \throw std::exception This throws any uncaught exception.  Such exceptions
-///     are bugs, but we let them propagate so that the runtime will abort and
-///     dump core.
-int
-freebsd::main(const int, const char* const* const)
+/// Use register_handler() to add an entry to this global list.
+static std::vector< std::shared_ptr< prepare::handler > > _handlers = {
+    std::shared_ptr< prepare::handler >(new prepare::prepare_all())
+};
+
+
+void
+prepare::register_handler(const std::shared_ptr< handler > handler)
 {
-    execenv::register_execenv(
-        std::shared_ptr< execenv::manager >(new freebsd::execenv_jail_manager())
-    );
+    _handlers.push_back(handler);
+}
 
-#ifdef __FreeBSD__
-    engine::register_reqs_checker(
-        std::shared_ptr< engine::reqs_checker >(
-            new freebsd::reqs_checker_kmods()
-        )
-    );
 
-    prepare::register_handler(
-        std::shared_ptr< prepare::handler >(new freebsd::prepare_kmods()));
-#endif
+const std::vector< std::shared_ptr< prepare::handler > >
+prepare::handlers()
+{
+    return _handlers;
+}
 
-    return 0;
+
+int
+prepare::run(const std::vector< std::string >& handler_names,
+        cmdline::ui* ui,
+        const cmdline::parsed_cmdline& cmdline,
+        const config::tree& user_config)
+{
+    for (auto& hname : handler_names) {
+        std::shared_ptr< prepare::handler > handler = nullptr;
+        for (auto& h : prepare::handlers())
+            if (h->name() == hname) {
+                handler = h;
+                break;
+            }
+
+        if (handler == nullptr) {
+            ui->out(F("Unknown requirement preparation handler: %s") % hname);
+            return EXIT_FAILURE;
+        }
+
+        if (handler->exec(ui, cmdline, user_config) != 0)
+            // suppress the actual code -- main limits possible exit codes
+            return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
 }
