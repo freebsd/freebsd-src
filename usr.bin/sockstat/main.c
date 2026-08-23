@@ -1312,12 +1312,16 @@ calculate_sock_column_widths(struct col_widths *cw, struct sock *s)
 				len = strlen(s->cc);
 				cw->cc = MAX(cw->cc, len);
 			}
+			if (opt_b && s->proto == &protos[TCP]) {
+				len = strlen(bblog_state(s->bblog_state));
+				cw->bblog_state = MAX(cw->bblog_state, len);
+			}
+			first = false;
 		}
 		if (laddr != NULL)
 			laddr = laddr->next;
 		if (faddr != NULL)
 			faddr = faddr->next;
-		first = false;
 	}
 }
 
