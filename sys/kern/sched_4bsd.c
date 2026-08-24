@@ -337,8 +337,7 @@ maybe_preempt(struct thread *td)
 			("maybe_preempt: trying to run inhibited thread"));
 	pri = td->td_priority;
 	cpri = ctd->td_priority;
-	if (KERNEL_PANICKED() || pri >= cpri /* || dumping */ ||
-	    TD_IS_INHIBITED(ctd))
+	if (KERNEL_PANICKED() || pri >= cpri || TD_IS_INHIBITED(ctd))
 		return (0);
 #ifndef FULL_PREEMPTION
 	if (pri > PRI_MAX_ITHD && cpri < PRI_MIN_IDLE)
