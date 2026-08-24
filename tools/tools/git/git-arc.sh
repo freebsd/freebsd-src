@@ -234,10 +234,40 @@ commit2diff()
     echo "$diff"
 }
 
+#
+# Convert a comma-separated tag list into Phabricator project hashtags.
+# Spaces become underscores; a leading '#' is added if missing.
+#
+tags2hashtags()
+{
+    local out rest tag
+
+    out=
+    rest=$1,
+    while [ -n "$rest" ]; do
+        tag=${rest%%,*}
+        rest=${rest#*,}
+        tag=$(printf '%s\n' "$tag" |
+            sed -e 's/^[[:space:]]*//' \
+                -e 's/[[:space:]]*$//' \
+                -e 's/[[:space:]]\{1,\}/_/g')
+        [ -n "$tag" ] || continue
+        case "$tag" in
+        \#*)
+            ;;
+        *)
+            tag="#$tag"
+            ;;
+        esac
+        out="$out, $tag"
+    done
+    printf '%s\n' "${out#, }"
+}
+
 create_one_review()
 {
     local childphid commit doprompt draft msg parent parentphid reviewers
-    local subscribers
+    local subscribers tags
 
     commit=$1
     reviewers=$2
@@ -245,6 +275,7 @@ create_one_review()
     parent=$4
     doprompt=$5
     draft=$6
+    tags=$7
 
     if [ "$doprompt" ] && ! show_and_prompt "$commit"; then
         return 1
@@ -263,6 +294,10 @@ create_one_review()
     printf "%s\n" "${reviewers}" >> "$msg"
     printf "\nSubscribers:\n" >> "$msg"
     printf "%s\n" "${subscribers}" >> "$msg"
+    if [ -n "$tags" ]; then
+        printf "\nTags:\n" >> "$msg"
+        printf "%s\n" "${tags}" >> "$msg"
+    fi
 
     yes | EDITOR=true \
         arc diff --message-file "$msg" --never-apply-patches --create \
@@ -377,6 +412,7 @@ build_commit_list()
 gitarc__create()
 {
     local commit commits doprompt draft list o prev reviewers subscribers
+    local tags
 
     list=
     prev=""
@@ -385,7 +421,7 @@ gitarc__create()
     fi
     doprompt=1
     draft=0
-    while getopts dlp:r:s: o; do
+    while getopts dlp:r:s:t: o; do
         case "$o" in
         d)
             draft=1
@@ -401,6 +437,9 @@ gitarc__create()
             ;;
         s)
             subscribers="$OPTARG"
+            ;;
+        t)
+            tags=$(tags2hashtags "$OPTARG")
             ;;
         *)
             err_usage
@@ -423,7 +462,7 @@ gitarc__create()
 
     for commit in ${commits}; do
         if create_one_review "$commit" "$reviewers" "$subscribers" "$prev" \
-            "$doprompt" "$draft"; then
+            "$doprompt" "$draft" "$tags"; then
             prev=$(commit2diff "$commit")
         else
             prev=""

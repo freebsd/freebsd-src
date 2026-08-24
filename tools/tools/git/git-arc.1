@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 11, 2026
+.Dd August 20, 2026
 .Dt GIT-ARC 1
 .Os
 .Sh NAME
@@ -36,6 +36,7 @@
 .Op Fl dl
 .Op Fl r Ar reviewer1 Ns Op Cm \&, Ns Ar reviewer2 ...
 .Op Fl s Ar subscriber1 Ns Op Cm \&, Ns Ar subscriber2 ...
+.Op Fl t Ar tag1 Ns Op Cm \&, Ns Ar tag2 ...
 .Op Fl p Ar parent
 .Ar commit-ref Op Ar commit-ref ...
 .Nm
@@ -114,6 +115,14 @@ hashtag (e.g. #jails for the "Jails" group).
 .It Fl s Ar subscriber
 Add one or more subscribers, separated by commas, to revision(s) being created.
 Each argument must be an existing Phabricator user or group.
+.It Fl t Ar tag
+Add one or more project tags, separated by commas, to revision(s) being created.
+Each argument must be an existing Phabricator project tag.
+Unlike group reviewers, a leading
+.Ql #
+is optional and is added if omitted.
+Spaces in tag names should be replaced with underscores
+.Pq e.g., Src_committers for the Do Src Committers Dc tag .
 .It Fl p Ar parent
 Specify the parent of the first commit in the list.
 This is useful when adding more commits on top of an already existing
@@ -262,6 +271,15 @@ is added as a reviewer.
 Also, the
 .Dq Jails
 reviewer group is added using its hashtag.
+.Pp
+Create a review and assign project tags so it appears in the
+corresponding Differential queries.
+Spaces in tag names are written as underscores; a leading
+.Ql #
+is optional:
+.Bd -literal -offset indent
+$ git arc create -t linuxkpi,Src_committers HEAD
+.Ed
 .Pp
 Create a series of Phabricator reviews for each of HEAD~2, HEAD~ and
 HEAD:
