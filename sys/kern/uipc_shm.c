@@ -512,8 +512,6 @@ shm_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	if (error)
 		return (error);
 #endif
-	if (shm_largepage(shmfd) && shmfd->shm_lp_psind == 0)
-		return (EINVAL);
 	foffset_lock_uio(fp, uio, flags);
 	if (uio->uio_resid > OFF_MAX - uio->uio_offset) {
 		/*
@@ -535,7 +533,9 @@ shm_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	else
 		rl_cookie = shm_rangelock_wlock(shmfd, uio->uio_offset,
 		    MAX(newsize, uio->uio_offset));
-	if ((shmfd->shm_seals & F_SEAL_WRITE) != 0) {
+	if (shm_largepage(shmfd) && shmfd->shm_lp_psind == 0) {
+		error = EINVAL;
+	} else if ((shmfd->shm_seals & F_SEAL_WRITE) != 0) {
 		error = EPERM;
 	} else {
 		error = 0;
@@ -592,18 +592,23 @@ shm_ioctl(struct file *fp, u_long com, void *data, struct ucred *active_cred,
 		if (!shm_largepage(shmfd))
 			return (ENOTTY);
 		conf = data;
+		rl_cookie = shm_rangelock_wlock(shmfd, 0, OFF_MAX);
 		if (shmfd->shm_lp_psind != 0 &&
-		    conf->psind != shmfd->shm_lp_psind)
+		    conf->psind != shmfd->shm_lp_psind) {
+			shm_rangelock_unlock(shmfd, rl_cookie);
 			return (EINVAL);
+		}
 		if (conf->psind <= 0 || conf->psind >= MAXPAGESIZES ||
-		    pagesizes[conf->psind] == 0)
+		    pagesizes[conf->psind] == 0) {
+			shm_rangelock_unlock(shmfd, rl_cookie);
 			return (EINVAL);
+		}
 		if (conf->alloc_policy != SHM_LARGEPAGE_ALLOC_DEFAULT &&
 		    conf->alloc_policy != SHM_LARGEPAGE_ALLOC_NOWAIT &&
-		    conf->alloc_policy != SHM_LARGEPAGE_ALLOC_HARD)
+		    conf->alloc_policy != SHM_LARGEPAGE_ALLOC_HARD) {
+			shm_rangelock_unlock(shmfd, rl_cookie);
 			return (EINVAL);
-
-		rl_cookie = shm_rangelock_wlock(shmfd, 0, OFF_MAX);
+		}
 		shmfd->shm_lp_psind = conf->psind;
 		shmfd->shm_lp_alloc_policy = conf->alloc_policy;
 		shmfd->shm_object->un_pager.phys.data_val = conf->psind;
@@ -1569,13 +1574,15 @@ out:
 static int
 shm_mmap_large(struct shmfd *shmfd, vm_map_t map, vm_offset_t *addr,
     vm_size_t size, vm_prot_t prot, vm_prot_t max_prot, int flags,
-    vm_ooffset_t foff, struct thread *td)
+    vm_ooffset_t foff, struct thread *td, void *rl_cookie)
 {
 	struct vmspace *vms;
 	vm_map_entry_t next_entry, prev_entry;
 	vm_offset_t align, mask, maxaddr;
 	int docow, error, rv, try;
 	bool curmap;
+
+	rangelock_cookie_assert(rl_cookie, RA_LOCKED);
 
 	if (shmfd->shm_lp_psind == 0)
 		return (EINVAL);
@@ -1752,7 +1759,7 @@ shm_mmap(struct file *fp, vm_map_t map, vm_offset_t *addr, vm_size_t objsize,
 	if (shm_largepage(shmfd)) {
 		writecnt = false;
 		error = shm_mmap_large(shmfd, map, addr, objsize, prot,
-		    maxprot, flags, foff, td);
+		    maxprot, flags, foff, td, rl_cookie);
 	} else {
 		if (writecnt) {
 			vm_pager_update_writecount(shmfd->shm_object, 0,
