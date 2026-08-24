@@ -633,7 +633,7 @@ nvme_ctrlr_construct_namespaces(struct nvme_controller *ctrlr)
 	struct nvme_namespace	*ns;
 	uint32_t 		i;
 
-	for (i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++) {
+	for (i = 0; i < nvme_ctrlr_num_namespaces(ctrlr); i++) {
 		ns = &ctrlr->ns[i];
 		nvme_ns_construct(ns, i+1, ctrlr);
 	}
@@ -1172,6 +1172,12 @@ nvme_ctrlr_start_config_hook(void *arg)
 	if (!ctrlr->is_failed) {
 		device_t child;
 
+		if (bootverbose &&
+		    (ctrlr->quirks & QUIRK_APPLE_S3X_NS1_ONLY) != 0 &&
+		    ctrlr->cdata.nn > nvme_ctrlr_num_namespaces(ctrlr))
+			nvme_printf(ctrlr,
+			    "ignoring Apple-internal namespaces above NSID 1\n");
+
 		ctrlr->is_initialized = true;
 		child = device_add_child(ctrlr->dev, NULL, DEVICE_UNIT_ANY);
 		device_set_ivars(child, ctrlr);
@@ -1180,7 +1186,7 @@ nvme_ctrlr_start_config_hook(void *arg)
 		/*
 		 * Now notify the child of all the known namepsaces
 		 */
-		for (int i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++) {
+		for (int i = 0; i < nvme_ctrlr_num_namespaces(ctrlr); i++) {
 			struct nvme_namespace	*ns = &ctrlr->ns[i];
 
 			if (ns->data.nsze == 0)
@@ -1333,6 +1339,8 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 		}
 		nsl = (struct nvme_ns_list *)aer->log_page_buffer;
 		for (int i = 0; i < nitems(nsl->ns) && nsl->ns[i] != 0; i++) {
+			if (!nvme_ctrlr_nsid_visible(ctrlr, nsl->ns[i]))
+				continue;
 			/*
 			 * I think we need to query the name space here and see
 			 * if it went away, arrived, or changed in size and call
@@ -1343,7 +1351,7 @@ nvme_ctrlr_aer_task(void *arg, int pending)
 				NVME_NS_CHANGED(children[j], nsl->ns[i]);
 		}
 		if (nsl->ns[0] == 0 && ctrlr->quirks & QUIRK_EMPTY_NAMESPACE_CHANGED_LOG) {
-			for (int i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++)
+			for (int i = 0; i < nvme_ctrlr_num_namespaces(ctrlr); i++)
 				for (int j = 0; j < n_children; j++)
 					NVME_NS_CHANGED(children[j], i + 1);
 		}

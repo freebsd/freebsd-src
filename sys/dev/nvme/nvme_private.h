@@ -234,6 +234,7 @@ struct nvme_controller {
 #define	QUIRK_APPLE_NO_ASYNC_EVENT		0x40	/* Skip NVMe async event requests */
 #define	QUIRK_APPLE_SINGLE_VECTOR		0x80	/* Single MSI vector, one IO queue */
 #define	QUIRK_EMPTY_NAMESPACE_CHANGED_LOG	0x100	/* Change Namespace List Log is always empty */
+#define	QUIRK_APPLE_S3X_NS1_ONLY		0x200	/* Ignore Apple-internal namespace 2 */
 #define	QUIRK_APPLE_128_BYTE_SQES		0x400	/* T2 uses 128-byte I/O SQEs */
 #define	QUIRK_PCIE_FLR_ON_FATAL			0x800	/* Use FLR for a fatal controller */
 #define	QUIRK_APPLE_S3X_SERIALIZE		0x1000	/* One S3X I/O at a time */
@@ -338,6 +339,23 @@ struct nvme_controller {
 	/* Statistics */
 	counter_u64_t			alignment_splits;
 };
+
+static inline uint32_t
+nvme_ctrlr_num_namespaces(const struct nvme_controller *ctrlr)
+{
+	uint32_t nn;
+
+	nn = min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES);
+	if ((ctrlr->quirks & QUIRK_APPLE_S3X_NS1_ONLY) != 0)
+		nn = min(nn, 1U);
+	return (nn);
+}
+
+static inline bool
+nvme_ctrlr_nsid_visible(const struct nvme_controller *ctrlr, uint32_t nsid)
+{
+	return (nsid >= 1 && nsid <= nvme_ctrlr_num_namespaces(ctrlr));
+}
 
 /*
  * Access the idx'th submission queue entry.
