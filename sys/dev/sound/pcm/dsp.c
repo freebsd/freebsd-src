@@ -2728,14 +2728,11 @@ dsp_oss_syncstart(int sg_id)
 	struct pcmchan_syncmember *sm, *sm_tmp;
 	struct pcmchan_syncgroup *sg;
 	struct pcm_channel *c;
-	int ret, needlocks;
+	int ret;
 
-	/* Get the synclists lock */
 	PCM_SG_LOCK();
-
 	do {
 		ret = 0;
-		needlocks = 0;
 
 		/* Search for syncgroup by ID */
 		SLIST_FOREACH(sg, &snd_pcm_syncgroups, link) {
@@ -2772,16 +2769,14 @@ dsp_oss_syncstart(int sg_id)
 				}
 
 				/** @todo Is PRIBIO correct/ */
-				ret = msleep(sm, &snd_pcm_syncgroups_mtx,
+				ret = msleep(sm, PCM_SG_LOCKPTR(),
 				    PRIBIO | PCATCH, "pcmsg", timo);
-				if (ret == EINTR || ret == ERESTART)
-					break;
-
-				needlocks = 1;
-				ret = 0; /* Assumes ret == EAGAIN... */
+				if (ret == EAGAIN)
+					ret = 0;
+				break;
 			}
 		}
-	} while (needlocks && ret == 0);
+	} while (ret == 0 && sm != NULL);
 
 	/* Proceed only if no errors encountered. */
 	if (ret == 0) {
