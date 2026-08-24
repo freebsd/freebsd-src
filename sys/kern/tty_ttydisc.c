@@ -199,7 +199,8 @@ ttydisc_read_canonical(struct tty *tp, struct uio *uio, int ioflag)
 	ttydisc_read_break(tp, &breakc[0], sizeof(breakc));
 
 	do {
-		error = tty_wait_background(tp, curthread, SIGTTIN);
+		error = tty_wait_background(tp, curthread, SIGTTIN,
+		    LA_UNLOCKED);
 		if (error)
 			return (error);
 
@@ -279,7 +280,8 @@ ttydisc_read_raw_no_timer(struct tty *tp, struct uio *uio, int ioflag)
 	 */
 
 	for (;;) {
-		error = tty_wait_background(tp, curthread, SIGTTIN);
+		error = tty_wait_background(tp, curthread, SIGTTIN,
+		    LA_UNLOCKED);
 		if (error)
 			return (error);
 
@@ -320,7 +322,8 @@ ttydisc_read_raw_read_timer(struct tty *tp, struct uio *uio, int ioflag,
 	timevaladd(&end, &now);
 
 	for (;;) {
-		error = tty_wait_background(tp, curthread, SIGTTIN);
+		error = tty_wait_background(tp, curthread, SIGTTIN,
+		    LA_UNLOCKED);
 		if (error)
 			return (error);
 
@@ -373,7 +376,8 @@ ttydisc_read_raw_interbyte_timer(struct tty *tp, struct uio *uio, int ioflag)
 	 */
 
 	for (;;) {
-		error = tty_wait_background(tp, curthread, SIGTTIN);
+		error = tty_wait_background(tp, curthread, SIGTTIN,
+		    LA_UNLOCKED);
 		if (error)
 			return (error);
 

@@ -434,7 +434,8 @@ tty_is_ctty(struct tty *tp, struct proc *p)
 }
 
 int
-tty_wait_background(struct tty *tp, struct thread *td, int sig)
+tty_wait_background(struct tty *tp, struct thread *td, int sig,
+    int proctree_lock_mode)
 {
 	struct proc *p;
 	struct pgrp *pg;
@@ -443,6 +444,9 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 
 	MPASS(sig == SIGTTIN || sig == SIGTTOU);
 	tty_assert_locked(tp);
+	MPASS(proctree_lock_mode == LA_UNLOCKED ||
+	    proctree_lock_mode == LA_SLOCKED ||
+	    proctree_lock_mode == LA_XLOCKED);
 
 	p = td->td_proc;
 	for (;;) {
@@ -507,8 +511,8 @@ tty_wait_background(struct tty *tp, struct thread *td, int sig)
 		pgsignal(pg, ksi.ksi_signo, 1, &ksi);
 		PGRP_UNLOCK(pg);
 
-		error = tty_wait(tp, &tp->t_bgwait);
-		if (error)
+		error = tty_wait_proctree(tp, &tp->t_bgwait, proctree_lock_mode);
+		if (error != 0)
 			return (error);
 	}
 }
@@ -545,7 +549,8 @@ ttydev_write(struct cdev *dev, struct uio *uio, int ioflag)
 		return (error);
 
 	if (tp->t_termios.c_lflag & TOSTOP) {
-		error = tty_wait_background(tp, curthread, SIGTTOU);
+		error = tty_wait_background(tp, curthread, SIGTTOU,
+		    LA_UNLOCKED);
 		if (error)
 			goto done;
 	}
@@ -620,7 +625,8 @@ ttydev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		 * If the ioctl() causes the TTY to be modified, let it
 		 * wait in the background.
 		 */
-		error = tty_wait_background(tp, curthread, SIGTTOU);
+		error = tty_wait_background(tp, curthread, SIGTTOU,
+		    LA_UNLOCKED);
 		if (error)
 			goto done;
 	}
