@@ -57,10 +57,11 @@ struct pcmchan_syncmember;
 extern struct mtx snd_pcm_syncgroups_mtx;
 extern SLIST_HEAD(pcm_synclist, pcmchan_syncgroup) snd_pcm_syncgroups;
 
-#define PCM_SG_LOCK()	    mtx_lock(&snd_pcm_syncgroups_mtx)
-#define PCM_SG_TRYLOCK()    mtx_trylock(&snd_pcm_syncgroups_mtx)
-#define PCM_SG_UNLOCK()	    mtx_unlock(&snd_pcm_syncgroups_mtx)
-#define PCM_SG_LOCKASSERT(arg)	mtx_assert(&snd_pcm_syncgroups_mtx, arg)
+#define PCM_SG_LOCKPTR()	(&snd_pcm_syncgroups_mtx)
+#define PCM_SG_LOCK()		mtx_lock(PCM_SG_LOCKPTR())
+#define PCM_SG_TRYLOCK()	mtx_trylock(PCM_SG_LOCKPTR())
+#define PCM_SG_UNLOCK()		mtx_unlock(PCM_SG_LOCKPTR())
+#define PCM_SG_LOCKASSERT(arg)	mtx_assert(PCM_SG_LOCKPTR(), arg)
 
 /**
  * @brief Specifies an audio device sync group
