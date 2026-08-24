@@ -258,6 +258,17 @@ enum nvme_psdt {
 #define NVME_QPRIO_MEDIUM				(2)
 #define NVME_QPRIO_LOW					(3)
 
+/* Arbitration feature, cdw11 */
+#define NVME_ARB_AB_SHIFT				(0)
+#define NVME_ARB_AB_MASK				(0x7)
+#define NVME_ARB_AB_NO_LIMIT				(0x7)
+#define NVME_ARB_LPW_SHIFT				(8)
+#define NVME_ARB_LPW_MASK				(0xFF)
+#define NVME_ARB_MPW_SHIFT				(16)
+#define NVME_ARB_MPW_MASK				(0xFF)
+#define NVME_ARB_HPW_SHIFT				(24)
+#define NVME_ARB_HPW_MASK				(0xFF)
+
 #define NVME_STATUS_P_SHIFT				(0)
 #define NVME_STATUS_P_MASK				(0x1)
 #define NVME_STATUS_SC_SHIFT				(1)

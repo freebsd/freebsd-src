@@ -249,6 +249,7 @@ struct nvme_controller {
 #define	QUIRK_APPLE_128_BYTE_SQES		0x400	/* T2 uses 128-byte I/O SQEs */
 #define	QUIRK_PCIE_FLR_ON_FATAL			0x800	/* Use FLR for a fatal controller */
 #define	QUIRK_APPLE_S3X_SERIALIZE		0x1000	/* One S3X I/O at a time */
+#define	QUIRK_IGNORE_RAB			0x2000	/* Don't configure AB from RAB */
 
 /* Values programmed into CC.IOSQES (log2 of the SQE size in bytes). */
 #define	NVME_IOSQES_64				6
@@ -411,6 +412,8 @@ void	nvme_ctrlr_cmd_set_interrupt_coalescing(struct nvme_controller *ctrlr,
 						uint32_t threshold,
 						nvme_cb_fn_t cb_fn,
 						void *cb_arg);
+void	nvme_ctrlr_cmd_set_arbitration(struct nvme_controller *ctrlr,
+	    uint32_t cdw11, nvme_cb_fn_t cb_fn, void *cb_arg);
 void	nvme_ctrlr_cmd_get_error_page(struct nvme_controller *ctrlr,
 				      struct nvme_error_information_entry *payload,
 				      uint32_t num_entries, /* 0 = max */

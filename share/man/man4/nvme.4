@@ -31,7 +31,7 @@
 .\"
 .\" Author: Jim Harris <jimharris@FreeBSD.org>
 .\"
-.Dd August 27, 2026
+.Dd September 1, 2026
 .Dt NVME 4
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@ In
 .Cd hw.nvme.min_cpus_per_ioq= Ns Aq Ar X
 .Cd hw.nvme.force_intx= Ns Ar 1
 .Cd hw.nvme.hmb_max
+.Cd hw.nvme.arb_burst= Ns Aq Ar X
 .Cd hw.nvme.apst_enable= Ns Ar 1
 .Cd hw.nvme.apst_data
 .Cd hw.nvme.use_nvd= Ns Ar 0
@@ -166,6 +167,12 @@ Note that use of INTx implies disabling of per-CPU I/O queue pairs.
 Control maximum amount of system RAM in bytes
 to use as Host Memory Buffer for capable devices.
 The default value is 5% of physical memory size per device.
+.It Va hw.nvme.arb_burst=X
+Override the arbitration burst,
+which is otherwise programmed from the controller's recommendation
+when it publishes one.
+Values 0 through 6 request a burst of 2^X commands and 7 requests no
+limit; -1, the default, follows the controller's recommendation.
 .It Va hw.nvme.apst_enable=1
 Enable Autonomous Power State Transition
 .Pq APST .

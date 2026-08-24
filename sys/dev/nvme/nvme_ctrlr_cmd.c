@@ -255,6 +255,15 @@ nvme_ctrlr_cmd_set_interrupt_coalescing(struct nvme_controller *ctrlr,
 }
 
 void
+nvme_ctrlr_cmd_set_arbitration(struct nvme_controller *ctrlr,
+    uint32_t cdw11, nvme_cb_fn_t cb_fn, void *cb_arg)
+{
+
+	nvme_ctrlr_cmd_set_feature(ctrlr, NVME_FEAT_ARBITRATION, cdw11,
+	    0, 0, 0, 0, NULL, 0, cb_fn, cb_arg);
+}
+
+void
 nvme_ctrlr_cmd_get_log_page(struct nvme_controller *ctrlr, uint8_t log_page,
     uint32_t nsid, void *payload, uint32_t payload_size, nvme_cb_fn_t cb_fn,
     void *cb_arg)
