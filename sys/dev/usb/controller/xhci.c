@@ -3796,6 +3796,11 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
  	if (epno == 0)
 		return (USB_ERR_NO_PIPE);		/* invalid */
 
+	USB_BUS_LOCK(udev->bus);
+	drop = pepext->trb_toggle_reset;
+	pepext->trb_toggle_reset = 0;
+	USB_BUS_UNLOCK(udev->bus);
+
 	XHCI_CMD_LOCK(sc);
 
 	/* configure endpoint */
@@ -3813,14 +3818,16 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 	 */
 	switch (xhci_get_endpoint_state(udev, epno)) {
 	case XHCI_EPCTX_0_EPSTATE_DISABLED:
-	case XHCI_EPCTX_0_EPSTATE_STOPPED:
 		drop = 0;
+		break;
+	case XHCI_EPCTX_0_EPSTATE_STOPPED:
 		break;
 	case XHCI_EPCTX_0_EPSTATE_HALTED:
 		err = xhci_cmd_reset_ep(sc, 0, epno, index);
-		drop = (err != 0);
-		if (drop)
+		if (err != 0) {
+			drop = 1;
 			DPRINTF("Could not reset endpoint %u\n", epno);
+		}
 		break;
 	default:
 		/*
@@ -3830,9 +3837,10 @@ xhci_configure_reset_endpoint(struct usb_xfer *xfer)
 		 * result, xHCI may refuse to receive or process the packet.
 		 */
 		err = xhci_cmd_stop_ep(sc, 0, epno, index);
-		drop = (err != 0);
-		if (drop)
+		if (err != 0) {
+			drop = 1;
 			DPRINTF("Could not stop endpoint %u\n", epno);
+		}
 		break;
 	}
 
@@ -4097,6 +4105,11 @@ xhci_ep_clear_stall(struct usb_device *udev, struct usb_endpoint *ep)
 	USB_BUS_LOCK(udev->bus);
 	pepext->trb_halted = 1;
 	pepext->trb_running = 0;
+	/*
+	 * The USB stack has cleared its own data toggle value and expects
+	 * the hardware data toggle value to be cleared as well:
+	 */
+	pepext->trb_toggle_reset = 1;
 	USB_BUS_UNLOCK(udev->bus);
 }
 
