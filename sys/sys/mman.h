@@ -293,7 +293,7 @@ struct shmfd {
 	int		shm_flags;
 	int		shm_seals;
 
-	/* largepage config */
+	/* largepage config, synchronized by the rangelock */
 	int		shm_lp_psind;
 	int		shm_lp_alloc_policy;
 };
