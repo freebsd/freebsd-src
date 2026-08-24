@@ -256,12 +256,6 @@ SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, useloop, CTLFLAG_RW,
 	   "Use a loop to find idle cpus");
 
 #endif
-#if 0
-static int sched_followon = 0;
-SYSCTL_INT(_kern_sched, OID_AUTO, followon, CTLFLAG_RW,
-	   &sched_followon, 0,
-	   "allow threads to share a quantum");
-#endif
 
 SDT_PROVIDER_DEFINE(sched);
 
