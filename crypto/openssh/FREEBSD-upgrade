@@ -69,6 +69,11 @@
     version.h, and update the default value in sshd_config and
     sshd_config.5.
 
+    $ sed -E -i "" "s/FreeBSD-202[0-9]{5}/FreeBSD-$(date +%Y%m%d)/" \
+        crypto/openssh/sshd_config \
+        crypto/openssh/sshd_config.5 \
+        crypto/openssh/version.h
+
 11) Diff against the vendor branch:
 
     $ git diff --diff-filter=M vendor/openssh/X.YpZ HEAD:crypto/openssh
