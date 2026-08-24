@@ -34,11 +34,10 @@
  * SUCH DAMAGE.
  */
 
-/*
- */
-
 #ifndef _TIME_H_
 #define	_TIME_H_
+
+#define __STDC_VERSION_TIME_H__	202311L
 
 #include <sys/cdefs.h>
 #include <sys/_null.h>
