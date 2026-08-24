@@ -29,7 +29,7 @@
  * an alignment boundary in the archive stream, so it can be reflinked out.
  */
 
-#define ALIGN 4096
+#define PAX_ALIGN 4096
 
 struct file {
 	const char *name;
@@ -46,7 +46,7 @@ static const struct file files[] = {
 	{ "small",		100,		'a', 0 },
 	{ "big1",		5000,		'b', 0 },
 	{ "adir/",		0,		0,   0 },
-	{ "big2",		ALIGN,		'c', 0 },
+	{ "big2",		PAX_ALIGN,	'c', 0 },
 	{ "tiny",		1,		'd', 0 },
 	{ "big3",		100000,		'e', 0 },
 	{ "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -197,11 +197,11 @@ verify_archive(const char *buff, size_t used, int gzip)
 		 * reflink would read from an uncompressed archive.
 		 */
 		off = archive_filter_bytes(a, 0);
-		if (archive_entry_filetype(ae) == AE_IFREG && size >= ALIGN) {
+		if (archive_entry_filetype(ae) == AE_IFREG && size >= PAX_ALIGN) {
 			failure("data for '%s' (size %jd) must start on a "
 			    "%d-byte boundary but starts at %jd",
-			    f->name, (intmax_t)size, ALIGN, (intmax_t)off);
-			assertEqualInt(0, (int)(off % ALIGN));
+			    f->name, (intmax_t)size, PAX_ALIGN, (intmax_t)off);
+			assertEqualInt(0, (int)(off % PAX_ALIGN));
 		}
 		/* Data must still round-trip intact through the padding. */
 		if (size > 0) {
