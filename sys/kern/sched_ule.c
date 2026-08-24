@@ -87,7 +87,7 @@ struct td_sched {
 	short		ts_flags;	/* TSF_* flags. */
 	int		ts_cpu;		/* CPU we are on, or were last on. */
 	u_int		ts_rltick;	/* Real last tick, for affinity. */
-	u_int		ts_slice;	/* Ticks of slice remaining. */
+	u_int		ts_slice;	/* Ticks of slice passed. */
 	u_int		ts_ftick;	/* %CPU window's first tick */
 	u_int		ts_ltick;	/* %CPU window's last tick */
 	/* All ticks count below are stored shifted by SCHED_TICK_SHIFT. */
