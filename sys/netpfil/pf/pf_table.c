@@ -446,9 +446,9 @@ pfr_set_addrs(struct pfr_table *tbl, struct pfr_addr *addr, int size,
 			}
 			p = pfr_create_kentry(&ad,
 			    (kt->pfrkt_flags & PFR_TFLAG_COUNTERS) != 0);
-			p->pfrke_mark = PFR_FB_ADDED;
 			if (p == NULL)
 				senderr(ENOMEM);
+			p->pfrke_mark = PFR_FB_ADDED;
 			if (pfr_route_kentry(tmpkt, p)) {
 				pfr_destroy_kentry(p);
 				ad.pfra_fback = PFR_FB_NONE;
