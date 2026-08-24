@@ -585,7 +585,8 @@ updatepri(struct thread *td)
 		ts->ts_estcpu = 0;
 	else {
 		newcpu = ts->ts_estcpu;
-		ts->ts_slptime--;	/* was incremented in schedcpu() */
+		/* schedcpu() performs one decay_cpu() on its own. */
+		ts->ts_slptime--;
 		while (newcpu && --ts->ts_slptime)
 			newcpu = decay_cpu(loadfac, newcpu);
 		ts->ts_estcpu = newcpu;
