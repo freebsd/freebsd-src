@@ -2083,7 +2083,6 @@ ixl_hold_vfs_in_reset(struct ixl_pf *pf)
 		vf = &pf->vfs[i];
 		if (!(vf->vf_flags & VF_FLAG_ENABLED))
 			continue;
-		vf->vf_flags &= ~VF_FLAG_INITIALIZED;
 		vfrtrig = rd32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num));
 		vfrtrig |= I40E_VPGEN_VFRTRIG_VFSWR_MASK;
 		wr32(hw, I40E_VPGEN_VFRTRIG(vf->vf_num), vfrtrig);
@@ -2191,7 +2190,6 @@ ixl_rebuild_vfs_after_reset(struct ixl_pf *pf)
 		if (!(vf->vf_flags & VF_FLAG_ENABLED))
 			continue;
 
-		vf->vf_flags &= ~VF_FLAG_INITIALIZED;
 		vf->vsi.seid = 0;
 		vf->vsi.vsi_num = 0;
 		vf->vsi.num_tx_queues = 0;
