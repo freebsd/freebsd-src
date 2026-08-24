@@ -363,7 +363,7 @@ maybe_preempt(struct thread *td)
  *          Note that, as ps(1) mentions, this can let percentages
  *          total over 100% (I've seen 137.9% for 3 processes).
  *
- * Note that schedclock() updates ts_estcpu and p_cpticks asynchronously.
+ * Note that sched_clock() updates ts_estcpu and p_cpticks asynchronously.
  *
  * We wish to decay away 90% of ts_estcpu in (5 * loadavg) seconds.
  * That is, the system wants to compute a value of decay such
