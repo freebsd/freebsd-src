@@ -1008,7 +1008,7 @@ interpret:
 	 */
 	if (PMC_SYSTEM_SAMPLING_ACTIVE() || PMC_PROC_IS_USING_PMCS(p)) {
 		VOP_UNLOCK(imgp->vp);
-		pe.pm_credentialschanged = credential_changing;
+		pe.pm_credentialschanged = imgp->credential_setid;
 		pe.pm_baseaddr = imgp->reloc_base;
 		pe.pm_dynaddr = imgp->et_dyn_addr;
 
