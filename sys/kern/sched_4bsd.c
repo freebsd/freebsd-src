@@ -79,6 +79,10 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #define	INVERSE_ESTCPU_WEIGHT	8	/* 1 / (priorities per estcpu level). */
 #endif
 #define	NICE_WEIGHT		1	/* Priorities per nice level. */
+_Static_assert(NICE_WEIGHT * (PRIO_MAX - PRIO_MIN)
+    <= PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE,
+    "Priority range accounting for nice values cannot exceed the including "
+    "timeshare span.");
 #define	ESTCPULIM(e)							\
 	min((e), INVERSE_ESTCPU_WEIGHT *				\
 	    (NICE_WEIGHT * (PRIO_MAX - PRIO_MIN) +			\
