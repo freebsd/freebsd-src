@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -1432,14 +1422,17 @@ vdev_remove_complete(spa_t *spa)
 	vdev_remove_replace_with_indirect(vd, txg);
 
 	/*
-	 * We now release the locks, allowing spa_sync to run and finish the
+	 * Release the config lock and allow spa_sync to run and finish the
 	 * removal via vdev_remove_complete_sync in syncing context.
+	 *
+	 * Retain the namespace lock to prevent the pool from being exported
+	 * or destroyed before completion of the device removal.
 	 *
 	 * Note that we hold on to the vdev_t that has been replaced.  Since
 	 * it isn't part of the vdev tree any longer, it can't be concurrently
 	 * manipulated, even while we don't have the config lock.
 	 */
-	(void) spa_vdev_exit(spa, NULL, txg, 0);
+	(void) spa_vdev_config_exit(spa, NULL, txg, 0, FTAG);
 
 	/*
 	 * Top ZAP should have been transferred to the indirect vdev in
@@ -1452,7 +1445,8 @@ vdev_remove_complete(spa_t *spa)
 	 */
 	ASSERT0(vd->vdev_leaf_zap);
 
-	txg = spa_vdev_enter(spa);
+	/* Update the vdev labels and dirty the config. */
+	txg = spa_vdev_config_enter(spa);
 	(void) vdev_label_init(vd, 0, VDEV_LABEL_REMOVE);
 	/*
 	 * Request to update the config and the config cachefile.

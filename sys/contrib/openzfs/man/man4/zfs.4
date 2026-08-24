@@ -1,25 +1,22 @@
 .\" SPDX-License-Identifier: CDDL-1.0
 .\"
+.\" This file and its contents are supplied under the terms of the
+.\" Common Development and Distribution License ("CDDL"), version 1.0.
+.\" You may only use this file in accordance with the terms of version
+.\" 1.0 of the CDDL.
+.\"
+.\" A full copy of the text of the CDDL should have accompanied this
+.\" source.  A copy of the CDDL is also available via the Internet at
+.\" https://opensource.org/license/CDDL-1.0.
+.\"
 .\" Copyright (c) 2013 by Turbo Fredriksson <turbo@bayour.com>. All rights reserved.
 .\" Copyright (c) 2019, 2021 by Delphix. All rights reserved.
 .\" Copyright (c) 2019 Datto Inc.
 .\" Copyright (c) 2023, 2024, 2025, Klara, Inc.
 .\" Copyright (c) 2026, Mateusz Piotrowski <0mp@FreeBSD.org>
+.\" Copyright (c) 2026, TrueNAS.
 .\"
-.\" The contents of this file are subject to the terms of the Common Development
-.\" and Distribution License (the "License").  You may not use this file except
-.\" in compliance with the License. You can obtain a copy of the license at
-.\" usr/src/OPENSOLARIS.LICENSE or https://opensource.org/licenses/CDDL-1.0.
-.\"
-.\" See the License for the specific language governing permissions and
-.\" limitations under the License. When distributing Covered Code, include this
-.\" CDDL HEADER in each file and include the License file at
-.\" usr/src/OPENSOLARIS.LICENSE.  If applicable, add the following below this
-.\" CDDL HEADER, with the fields enclosed by brackets "[]" replaced with your
-.\" own identifying information:
-.\" Portions Copyright [yyyy] [name of copyright owner]
-.\"
-.Dd May 8, 2026
+.Dd July 12, 2026
 .Dt ZFS 4
 .Os
 .
@@ -534,6 +531,16 @@ and are recovering a damaged label.
 .
 .It Sy zfs_vdev_ms_count_limit Ns = Ns Sy 131072 Po 128k Pc Pq uint
 Practical upper limit of total metaslabs per top-level vdev.
+.
+.It Sy zfs_vdev_dtl_sm_blksz Ns = Ns Sy 4096 Ns B Po 4 KiB Pc Pq int
+Since the DTL space map of a vdev is not expected to have a lot of
+entries, we default its block size to 4K.
+.
+.It Sy zfs_vdev_standard_sm_blksz Ns = Ns Sy 131072 Ns B Po 128 KiB Pc Pq int
+vdev-wide space maps that have lots of entries written to them at
+the end of each transaction can benefit from a higher I/O bandwidth
+.Pq e.g. Sy vdev_obsolete_sm ,
+thus we default their block size to 128K.
 .
 .It Sy metaslab_preload_enabled Ns = Ns Sy 1 Ns | Ns 0 Pq int
 Enable metaslab group preloading.
@@ -1566,6 +1573,8 @@ Note that for small files this may be slower than simply copying the file.
 When set to 0 the clone operation will immediately fail if it encounters
 any dirty blocks.
 By default waiting is enabled.
+A FIDEDUPERANGE request always waits, as it has no copy fallback that
+could absorb the failure.
 .
 .It Sy zfs_blake3_impl Ns = Ns Sy fastest Pq string
 Select a BLAKE3 implementation.
@@ -1756,6 +1765,16 @@ itself, it will be clamped.
 Setting it to zero will cause the kernel's ideal size to be used.
 This parameter only applies on Linux.
 .
+.It Sy zfs_vdev_disk_calling_thread_io Ns = Ns Sy 0 Ns | Ns 1 Pq uint
+Controls calling thread io, note that we only wait for the zio to
+complete if it bypassed the vdev queue, all this module parameter does
+is enable that capability.
+May lead to performance improvements when enabled if backing vdev devices
+are fast and low latency.
+May impact performance with certain workloads when enabled on raidz or draid
+zpool configurations.
+This parameter currently only applies on Linux.
+.
 .It Sy zfs_expire_snapshot Ns = Ns Sy 300 Ns s Pq int
 Time before expiring
 .Pa .zfs/snapshot .
@@ -1907,8 +1926,13 @@ The default value of 5 transaction groups typically provides sufficient time
 for import and mount operations to complete on most systems.
 .
 .It Sy zfs_initialize_value Ns = Ns Sy 16045690984833335022 Po 0xDEADBEEFDEADBEEE Pc Pq u64
-Pattern written to vdev free space by
-.Xr zpool-initialize 8 .
+Default pattern written to vdev free space by
+.Xr zpool-initialize 8 ,
+used unless
+.Nm zpool Cm initialize Fl z
+requests zeroes instead.
+The value in effect when a device starts initializing is recorded per device
+and reused if the run is suspended and later resumed.
 .
 .It Sy zfs_initialize_chunk_size Ns = Ns Sy 1048576 Ns B Po 1 MiB Pc Pq u64
 Size of writes used by
@@ -1997,6 +2021,12 @@ Normally disabled because these datasets may be missing key data.
 .
 .It Sy zfs_min_metaslabs_to_flush Ns = Ns Sy 1 Pq u64
 Minimum number of metaslabs to flush per dirty TXG.
+.
+.It Sy zfs_min_metaslabs_to_condense_pct Ns = Ns Sy 5 Pq u64
+Minimum number of metaslabs to flush every TXG when condensing log spacemaps,
+as a percentage of the number of unflushed metaslabs at the time the
+.Nm zpool Cm condense
+command was run.
 .
 .It Sy zfs_metaslab_fragmentation_threshold Ns = Ns Sy 77 Ns % Pq uint
 Allow metaslabs to keep their active state as long as their fragmentation
@@ -2269,7 +2299,7 @@ Error blocks to be scrubbed in one txg.
 When enabled, ZFS counts blocks by type and indirection level during a scrub.
 The counts are kept in memory for debugging and are not exposed to userspace.
 .
-.It Sy zfs_scan_checkpoint_intval Ns = Ns Sy 7200 Ns s Po 2 hour Pc Pq uint
+.It Sy zfs_scan_checkpoint_intval Ns = Ns Sy 7200 Ns s Po 2 hours Pc Pq uint
 To preserve progress across reboots, the sequential scan algorithm periodically
 needs to stop metadata scanning and issue all the verification I/O to disk.
 The frequency of this flushing is determined by this tunable.
@@ -2400,6 +2430,25 @@ This is the uncompressed size, even when receiving a compressed send stream.
 This setting will not reduce the write size below a single block.
 Capped at a maximum of
 .Sy 32 MiB .
+.
+.It Sy zfs_recv_defer_batch_size Ns = Ns Sy 33554432 Ns B Po 32 MiB Pc Pq uint
+When a non-raw incremental stream reallocates an object at a different
+dnode size,
+.Nm zfs Cm receive
+must wait for the old dnode's free to be written out before the object
+number can be reused.
+Rather than forcing one transaction group sync per reallocated object,
+affected records are parked, up to this many bytes at a time, and applied
+together behind a single sync.
+Parked records hold their payloads in memory, so a receive may use up to
+this much memory in addition to
+.Sy zfs_recv_queue_length .
+While records are parked, the saved resume state is held back at the first
+parked record, so interrupting a receive can require resending up to this
+much of the stream.
+Setting this to
+.Sy 0
+restores the previous behavior of one sync per reallocated object.
 .
 .It Sy zfs_recv_best_effort_corrective Ns = Ns Sy 0 Pq int
 When this variable is set to non-zero a corrective receive:
@@ -2892,9 +2941,9 @@ for each I/O submitter.
 When unset, requests are handled asynchronously by a thread pool.
 The number of requests which can be handled concurrently is controlled by
 .Sy zvol_threads .
-.Sy zvol_request_sync
-is ignored when running on a kernel that supports block multiqueue
-.Pq Li blk-mq .
+This parameter applies regardless of the
+.Sy zvol_use_blk_mq
+setting.
 .
 .It Sy zvol_num_taskqs Ns = Ns Sy 0 Pq uint
 Number of zvol taskqs.

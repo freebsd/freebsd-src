@@ -5,6 +5,7 @@ kernel_linux_HEADERS = \
 	%D%/kernel/linux/blkdev_compat.h \
 	%D%/kernel/linux/compiler_compat.h \
 	%D%/kernel/linux/dcache_compat.h \
+	%D%/kernel/linux/idmap_compat.h \
 	%D%/kernel/linux/kmap_compat.h \
 	%D%/kernel/linux/mm_compat.h \
 	%D%/kernel/linux/mod_compat.h \
@@ -17,6 +18,7 @@ kernel_linux_HEADERS = \
 	%D%/kernel/linux/simd_x86.h \
 	%D%/kernel/linux/utsname_compat.h \
 	%D%/kernel/linux/vfs_compat.h \
+	%D%/kernel/linux/workqueue_compat.h \
 	%D%/kernel/linux/xattr_compat.h
 
 kernel_sysdir = $(kerneldir)/sys
@@ -39,6 +41,7 @@ kernel_sys_HEADERS = \
 	%D%/zfs/sys/trace_zil.h \
 	%D%/zfs/sys/trace_zio.h \
 	%D%/zfs/sys/trace_zrlock.h \
+	%D%/zfs/sys/zfs_acl_impl.h \
 	%D%/zfs/sys/zfs_bootenv_os.h \
 	%D%/zfs/sys/zfs_context_os.h \
 	%D%/zfs/sys/zfs_ctldir.h \

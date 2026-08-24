@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -37,6 +27,7 @@
  * Copyright (c) 2023, 2024, Klara Inc.
  * Copyright (c) 2023, Rob Norris <robn@despairlabs.com>
  * Copyright (c) 2026, TrueNAS.
+ * Copyright 2026 Edgecast Cloud LLC.
  */
 
 #include <stdio.h>
@@ -937,12 +928,23 @@ dump_packed_nvlist(objset_t *os, uint64_t object, void *data, size_t size)
 	nvlist_t *nv;
 	size_t nvsize = *(uint64_t *)data;
 	char *packed = umem_alloc(nvsize, UMEM_NOFAIL);
+	int err;
 
-	VERIFY0(dmu_read(os, object, 0, nvsize, packed, DMU_READ_PREFETCH));
+	err = dmu_read(os, object, 0, nvsize, packed, DMU_READ_PREFETCH);
+	if (err != 0) {
+		(void) printf("got error %u from dmu_read\n", err);
+		umem_free(packed, nvsize);
+		return;
+	}
 
-	VERIFY0(nvlist_unpack(packed, nvsize, &nv, 0));
+	err = nvlist_unpack(packed, nvsize, &nv, 0);
 
 	umem_free(packed, nvsize);
+
+	if (err != 0) {
+		(void) printf("got error %u from nvlist_unpack\n", err);
+		return;
+	}
 
 	dump_nvlist(nv, 8);
 
@@ -1447,10 +1449,10 @@ dump_zpldir(objset_t *os, uint64_t object, void *data, size_t size)
 	zap_attribute_free(attrp);
 }
 
-static int
+static uint64_t
 get_dtl_refcount(vdev_t *vd)
 {
-	int refcount = 0;
+	uint64_t refcount = 0;
 
 	if (vd->vdev_ops->vdev_op_leaf) {
 		space_map_t *sm = vd->vdev_dtl_sm;
@@ -1466,10 +1468,10 @@ get_dtl_refcount(vdev_t *vd)
 	return (refcount);
 }
 
-static int
+static uint64_t
 get_metaslab_refcount(vdev_t *vd)
 {
-	int refcount = 0;
+	uint64_t refcount = 0;
 
 	if (vd->vdev_top == vd) {
 		for (uint64_t m = 0; m < vd->vdev_ms_count; m++) {
@@ -1486,11 +1488,11 @@ get_metaslab_refcount(vdev_t *vd)
 	return (refcount);
 }
 
-static int
+static uint64_t
 get_obsolete_refcount(vdev_t *vd)
 {
 	uint64_t obsolete_sm_object;
-	int refcount = 0;
+	uint64_t refcount = 0;
 
 	VERIFY0(vdev_obsolete_sm_object(vd, &obsolete_sm_object));
 	if (vd->vdev_top == vd && obsolete_sm_object != 0) {
@@ -1511,7 +1513,7 @@ get_obsolete_refcount(vdev_t *vd)
 	return (refcount);
 }
 
-static int
+static uint64_t
 get_prev_obsolete_spacemap_refcount(spa_t *spa)
 {
 	uint64_t prev_obj =
@@ -1526,10 +1528,10 @@ get_prev_obsolete_spacemap_refcount(spa_t *spa)
 	return (0);
 }
 
-static int
+static uint64_t
 get_checkpoint_refcount(vdev_t *vd)
 {
-	int refcount = 0;
+	uint64_t refcount = 0;
 
 	if (vd->vdev_top == vd && vd->vdev_top_zap != 0 &&
 	    zap_contains(spa_meta_objset(vd->vdev_spa),
@@ -1542,7 +1544,7 @@ get_checkpoint_refcount(vdev_t *vd)
 	return (refcount);
 }
 
-static int
+static uint64_t
 get_log_spacemap_refcount(spa_t *spa)
 {
 	return (avl_numnodes(&spa->spa_sm_logs_by_txg));
@@ -1552,23 +1554,37 @@ static int
 verify_spacemap_refcounts(spa_t *spa)
 {
 	uint64_t expected_refcount = 0;
-	uint64_t actual_refcount;
+	uint64_t actual_refcount = 0;
+	uint64_t dtl_refcount, metaslab_refcount, obsolete_refcount,
+	    prev_obsolete_refcount, checkpoint_refcount, log_spacemap_refcount;
 
 	(void) feature_get_refcount(spa,
 	    &spa_feature_table[SPA_FEATURE_SPACEMAP_HISTOGRAM],
 	    &expected_refcount);
-	actual_refcount = get_dtl_refcount(spa->spa_root_vdev);
-	actual_refcount += get_metaslab_refcount(spa->spa_root_vdev);
-	actual_refcount += get_obsolete_refcount(spa->spa_root_vdev);
-	actual_refcount += get_prev_obsolete_spacemap_refcount(spa);
-	actual_refcount += get_checkpoint_refcount(spa->spa_root_vdev);
-	actual_refcount += get_log_spacemap_refcount(spa);
+	dtl_refcount = get_dtl_refcount(spa->spa_root_vdev);
+	metaslab_refcount = get_metaslab_refcount(spa->spa_root_vdev);
+	obsolete_refcount = get_obsolete_refcount(spa->spa_root_vdev);
+	prev_obsolete_refcount = get_prev_obsolete_spacemap_refcount(spa);
+	checkpoint_refcount = get_checkpoint_refcount(spa->spa_root_vdev);
+	log_spacemap_refcount = get_log_spacemap_refcount(spa);
+	actual_refcount = dtl_refcount + metaslab_refcount +
+	    obsolete_refcount + prev_obsolete_refcount +
+	    checkpoint_refcount + log_spacemap_refcount;
 
 	if (expected_refcount != actual_refcount) {
-		(void) printf("space map refcount mismatch: expected %lld != "
-		    "actual %lld\n",
-		    (longlong_t)expected_refcount,
-		    (longlong_t)actual_refcount);
+		(void) printf("space map refcount mismatch: expected %llu != "
+		    "actual %llu\n",
+		    (u_longlong_t)expected_refcount,
+		    (u_longlong_t)actual_refcount);
+		(void) printf("\tDTL: %llu, metaslab: %llu, obsolete: %llu, "
+		    "prev obsolete: %llu, checkpoint: %llu, "
+		    "log spacemap: %llu\n",
+		    (u_longlong_t)dtl_refcount,
+		    (u_longlong_t)metaslab_refcount,
+		    (u_longlong_t)obsolete_refcount,
+		    (u_longlong_t)prev_obsolete_refcount,
+		    (u_longlong_t)checkpoint_refcount,
+		    (u_longlong_t)log_spacemap_refcount);
 		return (2);
 	}
 	return (0);

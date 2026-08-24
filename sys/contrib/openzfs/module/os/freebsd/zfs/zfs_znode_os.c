@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -46,7 +36,7 @@
 #include <sys/unistd.h>
 #include <sys/atomic.h>
 #include <sys/zfs_dir.h>
-#include <sys/zfs_acl.h>
+#include <sys/zfs_acl_impl.h>
 #include <sys/zfs_ioctl.h>
 #include <sys/zfs_rlock.h>
 #include <sys/zfs_fuid.h>
@@ -294,7 +284,7 @@ zfs_create_share_dir(zfsvfs_t *zfsvfs, dmu_tx_t *tx)
 	sharezp->z_pflags = 0;
 
 	VERIFY0(zfs_acl_ids_create(sharezp, IS_ROOT_NODE, &vattr,
-	    kcred, NULL, &acl_ids, NULL));
+	    kcred, NULL, &acl_ids));
 	zfs_mknode(sharezp, &vattr, tx, kcred, IS_ROOT_NODE, &zp, &acl_ids);
 	ASSERT3P(zp, ==, sharezp);
 	POINTER_INVALIDATE(&sharezp->z_zfsvfs);
@@ -682,22 +672,28 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 	if (flag & IS_XATTR)
 		pflags |= ZFS_XATTR;
 
-	if (vap->va_type == VREG || vap->va_type == VDIR) {
-		/*
-		 * With ZFS_PROJID flag, we can easily know whether there is
-		 * project ID stored on disk or not. See zpl_get_file_info().
-		 */
-		if (obj_type != DMU_OT_ZNODE &&
-		    dmu_objset_projectquota_enabled(zfsvfs->z_os))
-			pflags |= ZFS_PROJID;
+	/*
+	 * With ZFS_PROJID flag, we can easily know whether there is
+	 * project ID stored on disk or not. See zpl_get_file_info().
+	 */
+	if (obj_type != DMU_OT_ZNODE &&
+	    dmu_objset_projectquota_enabled(zfsvfs->z_os))
+		pflags |= ZFS_PROJID;
 
-		/*
-		 * Inherit project ID from parent if required.
-		 */
-		projid = zfs_inherit_projid(dzp);
-		if (dzp_pflags & ZFS_PROJINHERIT)
-			pflags |= ZFS_PROJINHERIT;
-	}
+	/*
+	 * Inherit project ID from parent if required.  Every object type
+	 * takes part, as ext4 and XFS do: an object that carried no project
+	 * ID of its own would be treated as belonging to a different project
+	 * than the directory holding it, so zfs_rename() and zfs_link()
+	 * would refuse it with EXDEV even within its own project.
+	 *
+	 * The ZFS_PROJINHERIT flag itself keeps passing to regular files and
+	 * directories only, as before, so that lsattr(1) output is unchanged.
+	 */
+	projid = zfs_inherit_projid(dzp);
+	if ((vap->va_type == VREG || vap->va_type == VDIR) &&
+	    (dzp_pflags & ZFS_PROJINHERIT))
+		pflags |= ZFS_PROJINHERIT;
 
 	/*
 	 * No execs denied will be determined when zfs_mode_compute() is called.
@@ -1005,18 +1001,14 @@ again:
 		 */
 		ASSERT3P(zp, !=, NULL);
 		ASSERT3U(zp->z_id, ==, obj_num);
-		if (zp->z_unlinked) {
-			err = SET_ERROR(ENOENT);
-		} else {
-			vp = ZTOV(zp);
-			/*
-			 * Don't let the vnode disappear after
-			 * ZFS_OBJ_HOLD_EXIT.
-			 */
-			VN_HOLD(vp);
-			*zpp = zp;
-			err = 0;
-		}
+		vp = ZTOV(zp);
+		/*
+		 * Don't let the vnode disappear after
+		 * ZFS_OBJ_HOLD_EXIT.
+		 */
+		VN_HOLD(vp);
+		*zpp = zp;
+		err = 0;
 
 		sa_buf_rele(db, NULL);
 		ZFS_OBJ_HOLD_EXIT(zfsvfs, obj_num);
@@ -1871,7 +1863,7 @@ zfs_create_fs(objset_t *os, cred_t *cr, nvlist_t *zplprops, dmu_tx_t *tx)
 
 	rootzp->z_zfsvfs = zfsvfs;
 	VERIFY0(zfs_acl_ids_create(rootzp, IS_ROOT_NODE, &vattr,
-	    cr, NULL, &acl_ids, NULL));
+	    cr, NULL, &acl_ids));
 	zfs_mknode(rootzp, &vattr, tx, cr, IS_ROOT_NODE, &zp, &acl_ids);
 	ASSERT3P(zp, ==, rootzp);
 	error = zap_add(os, moid, ZFS_ROOT_OBJ, 8, 1, &rootzp->z_id, tx);

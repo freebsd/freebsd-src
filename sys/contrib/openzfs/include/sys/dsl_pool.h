@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -42,6 +32,7 @@
 #include <sys/dsl_synctask.h>
 #include <sys/mmp.h>
 #include <sys/aggsum.h>
+#include <sys/wmsum.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -117,13 +108,16 @@ typedef struct dsl_pool {
 	kcondvar_t dp_spaceavail_cv;
 	uint64_t dp_dirty_pertxg[TXG_SIZE];
 	uint64_t dp_dirty_total;
+	uint64_t dp_sync_reserve_pertxg[TXG_SIZE];
+	uint64_t dp_sync_reserve_total;
 	uint64_t dp_long_free_dirty_pertxg[TXG_SIZE];
-	uint64_t dp_mos_used_delta;
-	uint64_t dp_mos_compressed_delta;
-	uint64_t dp_mos_uncompressed_delta;
 
 	aggsum_t dp_wrlog_pertxg[TXG_SIZE];
 	aggsum_t dp_wrlog_total;
+
+	wmsum_t dp_mos_used_delta;
+	wmsum_t dp_mos_compressed_delta;
+	wmsum_t dp_mos_uncompressed_delta;
 
 	/*
 	 * Time of most recently scheduled (furthest in the future)
@@ -168,7 +162,10 @@ uint64_t dsl_pool_deferred_space(dsl_pool_t *dp);
 void dsl_pool_wrlog_count(dsl_pool_t *dp, int64_t size, uint64_t txg);
 boolean_t dsl_pool_need_wrlog_delay(dsl_pool_t *dp);
 void dsl_pool_dirty_space(dsl_pool_t *dp, int64_t space, dmu_tx_t *tx);
+void dsl_pool_dirty_mos_space(dsl_pool_t *dp, int64_t space, dmu_tx_t *tx);
 void dsl_pool_undirty_space(dsl_pool_t *dp, int64_t space, uint64_t txg);
+void dsl_pool_sync_reserve(dsl_pool_t *dp, uint64_t space, dmu_tx_t *tx);
+void dsl_pool_sync_unreserve(dsl_pool_t *dp, uint64_t space, uint64_t txg);
 void dsl_free(dsl_pool_t *dp, uint64_t txg, const blkptr_t *bpp);
 void dsl_free_sync(zio_t *pio, dsl_pool_t *dp, uint64_t txg,
     const blkptr_t *bpp);

@@ -1,23 +1,13 @@
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
 #
-# The contents of this file are subject to the terms of the
-# Common Development and Distribution License (the "License").
-# You may not use this file except in compliance with the License.
-#
-# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or https://opensource.org/licenses/CDDL-1.0.
-# See the License for the specific language governing permissions
-# and limitations under the License.
-#
-# When distributing Covered Code, include this CDDL HEADER in each
-# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-# If applicable, add the following below this CDDL HEADER, with the
-# fields enclosed by brackets "[]" replaced with your own identifying
-# information: Portions Copyright [yyyy] [name of copyright owner]
-#
-# CDDL HEADER END
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -583,14 +573,34 @@ function file_check
 {
 	sendfs=$1
 	recvfs=$2
+	typeset -i compared=0
 
-	if [[ -d /$recvfs/.zfs/snapshot/a && -d \
-	    /$sendfs/.zfs/snapshot/a ]]; then
-		log_must directory_diff /$recvfs/.zfs/snapshot/a /$sendfs/.zfs/snapshot/a
-	fi
-	if [[ -d /$recvfs/.zfs/snapshot/b && -d \
-	    /$sendfs/.zfs/snapshot/b ]]; then
-		log_must directory_diff /$recvfs/.zfs/snapshot/b /$sendfs/.zfs/snapshot/b
+	#
+	# The datasets are often not mounted at this point (the receive
+	# side is usually created with -u), and the .zfs directories the
+	# diffs need only exist once they are mounted.
+	#
+	ismounted $sendfs || log_must zfs mount $sendfs
+	ismounted $recvfs || log_must zfs mount $recvfs
+
+	#
+	# Only compare the snapshots both sides have; some tests send
+	# just one of them.  Comparing nothing means the caller's
+	# expectations are wrong, and historically this function did
+	# exactly that whenever the receive side was unmounted.
+	#
+	typeset snap
+	for snap in a b; do
+		[[ -d /$sendfs/.zfs/snapshot/$snap && \
+		    -d /$recvfs/.zfs/snapshot/$snap ]] || continue
+		log_must directory_diff /$recvfs/.zfs/snapshot/$snap \
+		    /$sendfs/.zfs/snapshot/$snap
+		compared=$((compared + 1))
+	done
+
+	if [[ $compared -eq 0 ]]; then
+		log_fail "file_check: no snapshots compared for" \
+		    "$sendfs and $recvfs"
 	fi
 }
 

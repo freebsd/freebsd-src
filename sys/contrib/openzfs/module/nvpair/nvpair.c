@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -1110,6 +1100,21 @@ i_get_value_size(data_type_t type, const void *data, uint_t nelem,
 			char *const *strs = data;
 			uint_t i;
 			size_t newsize;
+
+			/*
+			 * Packed STRING_ARRAY values start with a pointer table
+			 * (nelem * sizeof (uint64_t)), with the strings
+			 * following.  We need to skip the pointer table for
+			 * the strnlen() bounds check to function as intended.
+			 * We distinguish packed STRING_ARRAY values from
+			 * arbitrary ones using the value of max_size.
+			 */
+			if (max_size != (size_t)INT32_MAX) {
+				/* packed value region */
+				if (max_size < value_sz)
+					return (-1);
+				max_size -= (size_t)value_sz;
+			}
 
 			/* no alignment requirement for strings */
 			for (i = 0; i < nelem; i++) {
@@ -2980,7 +2985,7 @@ nvpair_native_embedded_array(nvstream_t *nvs, nvpair_t *nvp)
 	return (nvs_embedded_nvl_array(nvs, nvp, NULL));
 }
 
-static void
+static int
 nvpair_native_string_array(nvstream_t *nvs, nvpair_t *nvp)
 {
 	switch (nvs->nvs_op) {
@@ -2999,15 +3004,32 @@ nvpair_native_string_array(nvstream_t *nvs, nvpair_t *nvp)
 	case NVS_OP_DECODE: {
 		char **strp = (void *)NVP_VALUE(nvp);
 		char *buf = ((char *)strp + NVP_NELEM(nvp) * sizeof (uint64_t));
+		char *end = (char *)nvp + nvp->nvp_size;
 		int i;
 
 		for (i = 0; i < NVP_NELEM(nvp); i++) {
+			size_t max, len;
+
+			if (buf >= end)
+				return (EFAULT);
+
+			max = (size_t)(end - buf);
+			len = strnlen(buf, max);
+
+			/*
+			 * The nvpair is corrupt if any of the strings are
+			 * unterminated.
+			 */
+			if (len == max)
+				return (EFAULT);
+
 			strp[i] = buf;
-			buf += strlen(buf) + 1;
+			buf += len + 1;
 		}
 		break;
 	}
 	}
+	return (0);
 }
 
 static int
@@ -3058,7 +3080,7 @@ nvs_native_nvp_op(nvstream_t *nvs, nvpair_t *nvp)
 		ret = nvpair_native_embedded_array(nvs, nvp);
 		break;
 	case DATA_TYPE_STRING_ARRAY:
-		nvpair_native_string_array(nvs, nvp);
+		ret = nvpair_native_string_array(nvs, nvp);
 		break;
 	default:
 		break;
@@ -3358,7 +3380,7 @@ nvs_xdr_nvp_op(nvstream_t *nvs, nvpair_t *nvp)
 	 * In case of data types DATA_TYPE_STRING and DATA_TYPE_STRING_ARRAY
 	 * is the size of the string(s) excluded.
 	 */
-	if ((value_sz = i_get_value_size(type, NULL, nelem, NVP_SIZE(nvp)) < 0))
+	if ((value_sz = i_get_value_size(type, NULL, nelem, NVP_SIZE(nvp))) < 0)
 		return (EFAULT);
 
 	/* if there is no data to extract then return */

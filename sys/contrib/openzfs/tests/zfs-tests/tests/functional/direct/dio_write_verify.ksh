@@ -1,24 +1,14 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
 #
-# The contents of this file are subject to the terms of the
-# Common Development and Distribution License (the "License").
-# You may not use this file except in compliance with the License.
-#
-# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or https://opensource.org/licenses/CDDL-1.0.
-# See the License for the specific language governing permissions
-# and limitations under the License.
-#
-# When distributing Covered Code, include this CDDL HEADER in each
-# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-# If applicable, add the following below this CDDL HEADER, with the
-# fields enclosed by brackets "[]" replaced with your own identifying
-# information: Portions Copyright [yyyy] [name of copyright owner]
-#
-# CDDL HEADER END
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -60,6 +50,8 @@ function cleanup
 	# Clearing out dio_verify from event logs
 	log_must zpool events -c
 	log_must set_tunable32 VDEV_DIRECT_WR_VERIFY $DIO_WR_VERIFY_TUNABLE
+	log_must set_tunable32 DIO_WRITE_VERIFY_EVENTS_PER_SECOND \
+	    $DIO_WR_EVENTS_TUNABLE
 }
 
 log_assert "Verify checksum verify works for Direct I/O writes."
@@ -75,6 +67,16 @@ NUMBLOCKS=300
 BS=$((128 * 1024)) # 128k
 mntpnt=$(get_prop mountpoint $TESTPOOL/$TESTFS)
 typeset DIO_WR_VERIFY_TUNABLE=$(get_tunable VDEV_DIRECT_WR_VERIFY)
+typeset DIO_WR_EVENTS_TUNABLE=$(get_tunable DIO_WRITE_VERIFY_EVENTS_PER_SECOND)
+
+#
+# Each iteration below generates Direct I/O write verify failures and checks
+# that dio_verify_wr zevents were posted.  Those zevents are rate limited by
+# zfs_dio_write_verify_events_per_second and the limiter state persists across
+# iterations, so raise the limit while the test runs to avoid dropping the
+# events being counted.  The original value is restored in cleanup.
+#
+log_must set_tunable32 DIO_WRITE_VERIFY_EVENTS_PER_SECOND 1000000
 
 # Get a list of vdevs in our pool
 set -A array $(get_disklist_fullpath $TESTPOOL)

@@ -1,27 +1,17 @@
 .\" SPDX-License-Identifier: CDDL-1.0
 .\"
-.\" CDDL HEADER START
+.\" This file and its contents are supplied under the terms of the
+.\" Common Development and Distribution License ("CDDL"), version 1.0.
+.\" You may only use this file in accordance with the terms of version
+.\" 1.0 of the CDDL.
 .\"
-.\" The contents of this file are subject to the terms of the
-.\" Common Development and Distribution License (the "License").
-.\" You may not use this file except in compliance with the License.
-.\"
-.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-.\" or https://opensource.org/licenses/CDDL-1.0.
-.\" See the License for the specific language governing permissions
-.\" and limitations under the License.
-.\"
-.\" When distributing Covered Code, include this CDDL HEADER in each
-.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-.\" If applicable, add the following below this CDDL HEADER, with the
-.\" fields enclosed by brackets "[]" replaced with your own identifying
-.\" information: Portions Copyright [yyyy] [name of copyright owner]
-.\"
-.\" CDDL HEADER END
+.\" A full copy of the text of the CDDL should have accompanied this
+.\" source.  A copy of the CDDL is also available via the Internet at
+.\" https://opensource.org/license/CDDL-1.0.
 .\"
 .\" Copyright (c) 2020 by Delphix. All rights reserved.
 .\"
-.Dd February 20, 2026
+.Dd May 11, 2026
 .Dt ZSTREAM 8
 .Os
 .
@@ -49,7 +39,14 @@
 .Cm token
 .Ar resume_token
 .Nm
+.Cm raw
+.Op Fl v
+.Op Fl b Ar maxbufs
+.Op Fl g Ar fromguid
+.Ar image|device
+.Nm
 .Cm recompress
+.Op Fl t Ar num_threads
 .Op Fl l Ar level
 .Ar algorithm
 .
@@ -175,18 +172,66 @@ Print summary of converted records.
 .El
 .It Xo
 .Nm
+.Cm raw
+.Op Fl v
+.Op Fl b Ar maxbufs
+.Op Fl g Ar fromguid
+.Ar image|device
+.Xc
+Apply a zvol send stream to a raw image or block device.
+By default, at most 32
+.Dv SPA_MAXBLOCKSIZE
+buffers can be written at a time.
+With
+.Ar maxbufs
+set to some value between 1 and
+.Dv IOV_MAX ,
+contiguous write records will be combined into one write operation using up to
+this many buffers, at the cost of additional memory use.
+When
+.Ar fromguid
+is provided, the initial fromguid of the stream will be checked to ensure it
+matches the given value.
+The final toguid of the stream is printed to stdout on completion.
+With
+.Fl v ,
+details of the records in the stream are printed in similar fashion to
+.Nm
+.Cm dump .
+.It Xo
+.Nm
 .Cm recompress
+.Op Fl t Ar num_threads
 .Op Fl l Ar level
 .Ar algorithm
 .Xc
-Recompresses a send stream, provided on standard input, using the provided
-algorithm and optional level, and writes the modified stream to standard output.
-All WRITE records in the send stream will be recompressed, unless they fail
-to result in size reduction compared to being left uncompressed.
-The provided algorithm can be any valid value to the
+Recompresses a send stream from standard input using the specified compression
+.Ar algorithm
+and optional
+.Ar level ,
+and writes the modified stream to standard output.
+All WRITE records in the send stream will be compressed unless compression
+fails to reduce their size compared to being left uncompressed.
+The
+.Ar algorithm
+can be any valid value to the
 .Nm compress
 property.
 Note that encrypted send streams cannot be recompressed.
+.Bl -tag -width "-t"
+.It Fl t Ar num_threads
+Specifies the number of compression worker threads.
+By default,
+.Nm zstream Cm recompress
+creates a thread for every CPU core.
+It's generally unproductive to raise
+.Ar num_threads
+above this default.
+On some architectures, contention for resources such as memory caches can
+reduce efficiency when many threads are active.
+On those systems, it may be helpful to run with fewer threads,
+particularly when automating operations on shared servers.
+.El
 .Bl -tag -width "-l"
 .It Fl l Ar level
 Specifies compression level.
@@ -225,6 +270,16 @@ to drop the bogus record, then receive into a new dataset.
 .Bd -literal
 .No # Nm zfs Ar send Ar ... | Nm zstream drop_record Ar 3545761,18446744073709486080 | \
 Nm zfs recv Ar ...
+.Ed
+.
+.Ss Migrating from a zvol to a physical disk
+Given a zvol tank/vol with snapshots @1 @2 and @3, and an adequately sized
+physical disk /dev/sdd:
+.Bd -literal
+.No # Nm zfs Cm send Fl Lec Ar tank | Nm zstream Cm raw Ar /dev/sdd
+16731506615198184313
+.No # Nm zfs Cm send Fl Lec Fl I Ar @1 Ar tank/vol@3 | Nm zstream Cm raw Fl g Ar 16731506615198184313 Ar /dev/sdd
+10690368765373298656
 .Ed
 .Sh SEE ALSO
 .Xr zdb 8 ,

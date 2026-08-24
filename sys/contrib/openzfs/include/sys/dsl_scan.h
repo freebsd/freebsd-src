@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
@@ -76,9 +66,8 @@ typedef struct dsl_scan_phys {
 typedef enum dsl_scan_flags {
 	DSF_VISIT_DS_AGAIN = 1<<0,
 	DSF_SCRUB_PAUSED = 1<<1,
+	DSF_SCRUB_THOROUGH = 1<<2,
 } dsl_scan_flags_t;
-
-#define	DSL_SCAN_FLAGS_MASK (DSF_VISIT_DS_AGAIN)
 
 typedef struct dsl_errorscrub_phys {
 	uint64_t dep_func; /* pool_scan_func_t */
@@ -184,6 +173,7 @@ typedef struct {
 	pool_scan_func_t func;
 	uint64_t	 txgstart;
 	uint64_t	 txgend;
+	dsl_scan_flags_t flags;
 } setup_sync_arg_t;
 
 typedef struct dsl_scan_io_queue dsl_scan_io_queue_t;
@@ -197,7 +187,7 @@ void dsl_scan_fini(struct dsl_pool *dp);
 void dsl_scan_sync(struct dsl_pool *, dmu_tx_t *);
 int dsl_scan_cancel(struct dsl_pool *);
 int dsl_scan(struct dsl_pool *, pool_scan_func_t, uint64_t starttxg,
-    uint64_t txgend);
+    uint64_t txgend, dsl_scan_flags_t flags);
 void dsl_scan_assess_vdev(struct dsl_pool *dp, vdev_t *vd);
 boolean_t dsl_scan_scrubbing(const struct dsl_pool *dp);
 boolean_t dsl_errorscrubbing(const struct dsl_pool *dp);

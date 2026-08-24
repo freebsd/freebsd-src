@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -1426,7 +1416,7 @@ zfs_domount(struct super_block *sb, const char *osname,
 		acltype_changed_cb(zfsvfs, pval);
 		zfsvfs->z_issnap = B_TRUE;
 		zfsvfs->z_os->os_sync = ZFS_SYNC_DISABLED;
-		zfsvfs->z_snap_defer_time = jiffies;
+		zfsvfs->z_snap_atime = jiffies;
 
 		mutex_enter(&zfsvfs->z_os->os_user_ptr_lock);
 		dmu_objset_set_user(zfsvfs->z_os, zfsvfs);
@@ -1683,7 +1673,7 @@ zfs_vget(struct super_block *sb, struct inode **ipp, fid_t *fidp)
 		zp_gen = 1;
 	if ((fid_gen == 0) && (zfsvfs->z_root == object))
 		fid_gen = zp_gen;
-	if (zp->z_unlinked || zp_gen != fid_gen) {
+	if (zp_gen != fid_gen) {
 		dprintf("znode gen (%llu) != fid gen (%llu)\n", zp_gen,
 		    fid_gen);
 		zrele(zp);
@@ -1879,23 +1869,16 @@ zfs_end_fs(zfsvfs_t *zfsvfs, dsl_dataset_t *ds)
 }
 
 /*
- * Automounted snapshots rely on periodic revalidation
- * to defer snapshots from being automatically unmounted.
+ * Bump data access time on automounted snapshots to stop them being expired
+ * out too early.
  */
-
 inline void
 zfs_exit_fs(zfsvfs_t *zfsvfs)
 {
 	if (!zfsvfs->z_issnap)
 		return;
 
-	if (time_after(jiffies, zfsvfs->z_snap_defer_time +
-	    MAX(zfs_expire_snapshot * HZ / 2, HZ))) {
-		zfsvfs->z_snap_defer_time = jiffies;
-		zfsctl_snapshot_unmount_delay(zfsvfs->z_os->os_spa,
-		    dmu_objset_id(zfsvfs->z_os),
-		    zfs_expire_snapshot);
-	}
+	atomic_store_64(&zfsvfs->z_snap_atime, jiffies);
 }
 
 int
@@ -2056,7 +2039,6 @@ zfsvfs_update_fromname(const char *oldname, const char *newname)
 void
 zfs_init(void)
 {
-	zfsctl_init();
 	zfs_znode_init();
 	dmu_objset_register_type(DMU_OST_ZFS, zpl_get_file_info);
 	register_filesystem(&zpl_fs_type);
@@ -2072,7 +2054,6 @@ zfs_fini(void)
 	taskq_wait(system_taskq);
 	unregister_filesystem(&zpl_fs_type);
 	zfs_znode_fini();
-	zfsctl_fini();
 }
 
 #if defined(_KERNEL)

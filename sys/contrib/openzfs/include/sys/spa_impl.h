@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -28,6 +18,8 @@
  * Copyright (c) 2016 Actifio, Inc. All rights reserved.
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2019 Datto Inc.
+ * Copyright (c) 2024-2026, Klara, Inc.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 #ifndef _SYS_SPA_IMPL_H
@@ -217,6 +209,22 @@ typedef enum spa_config_source {
 	SPA_CONFIG_SRC_MOS		/* MOS, but not always from right txg */
 } spa_config_source_t;
 
+typedef enum spa_condense_type {
+	SPA_CONDENSE_LOG_SPACEMAP = 0,
+#ifdef ZFS_DEBUG
+	SPA_CONDENSE_DEBUG,
+#endif
+	SPA_CONDENSE_TYPES
+} spa_condense_type_t;
+
+typedef struct spa_condense_stat {
+	uint64_t scns_start_time;	/* time_t */
+	uint64_t scns_end_time;		/* time_t */
+	uint64_t scns_processed;	/* items processed */
+	uint64_t scns_total;		/* total items to process */
+} spa_condense_stat_t;
+
+
 struct spa {
 	/*
 	 * Fields protected by spa_namespace_lock.
@@ -364,6 +372,7 @@ struct spa {
 	avl_tree_t	spa_metaslabs_by_flushed;
 	spa_unflushed_stats_t	spa_unflushed_stats;
 	list_t		spa_log_summary;
+	spa_log_flushall_mode_t	spa_log_flushall_mode;
 	uint64_t	spa_log_flushall_txg;
 
 	zthr_t		*spa_livelist_delete_zthr; /* deleting livelists */
@@ -422,6 +431,7 @@ struct spa {
 	boolean_t	spa_active_ddt_prune;	/* ddt prune process active */
 	brt_vdev_t	**spa_brt_vdevs;	/* array of per-vdev BRTs */
 	uint64_t	spa_brt_nvdevs;		/* number of vdevs in BRT */
+	brt_dedup_shard_t *spa_brt_dedup;	/* pending dedup'd clones */
 	uint64_t	spa_brt_rangesize;	/* pool's BRT range size */
 	krwlock_t	spa_brt_lock;		/* Protects brt_vdevs/nvdevs */
 	kmutex_t	spa_vdev_top_lock;	/* dueling offline/remove */
@@ -480,6 +490,15 @@ struct spa {
 	uint64_t	spa_dedup_table_quota;	/* property DDT maximum size */
 	uint64_t	spa_dedup_dsize;	/* cached on-disk size of DDT */
 	uint64_t	spa_dedup_class_full_txg; /* txg dedup class was full */
+
+	/* stats for user-initiated condense operations */
+	spa_condense_stat_t	spa_condense_stats[SPA_CONDENSE_TYPES];
+	kmutex_t		spa_condense_stats_lock;
+
+#ifdef ZFS_DEBUG
+	/* see spa_condense_debug_task() */
+	taskqid_t	spa_condense_debug_tqid;
+#endif
 
 	/*
 	 * spa_refcount & spa_config_lock must be the last elements

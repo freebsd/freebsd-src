@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -2210,7 +2200,7 @@ vdev_raidz_reconstruct_row(raidz_map_t *rm, raidz_row_t *rr,
 
 static int
 vdev_raidz_open(vdev_t *vd, uint64_t *asize, uint64_t *max_asize,
-    uint64_t *logical_ashift, uint64_t *physical_ashift)
+    uint64_t *logical_ashift, uint64_t *physical_ashift, cred_t *cr)
 {
 	vdev_raidz_t *vdrz = vd->vdev_tsd;
 	uint64_t nparity = vdrz->vd_nparity;
@@ -2226,7 +2216,7 @@ vdev_raidz_open(vdev_t *vd, uint64_t *asize, uint64_t *max_asize,
 		return (SET_ERROR(EINVAL));
 	}
 
-	vdev_open_children(vd);
+	vdev_open_children(vd, cr);
 
 	for (c = 0; c < vd->vdev_children; c++) {
 		vdev_t *cvd = vd->vdev_child[c];
@@ -3153,6 +3143,7 @@ vdev_raidz_io_done_verified(zio_t *zio, raidz_row_t *rr)
 	zio_flag_t add_flags = 0;
 
 	ASSERT3U(zio->io_type, ==, ZIO_TYPE_READ);
+	ASSERT0(zio->io_error);
 
 	for (int c = 0; c < rr->rr_cols; c++) {
 		raidz_col_t *rc = &rr->rr_col[c];
@@ -3178,12 +3169,19 @@ vdev_raidz_io_done_verified(zio_t *zio, raidz_row_t *rr)
 	 * reconstruction, confirm that the other parity disks produced
 	 * correct data.
 	 *
-	 * Note that we also regenerate parity when resilvering so we
-	 * can write it out to failed devices later.
+	 * We also regenerate parity to write it back to any failed parity
+	 * columns.  However, if all available parity was consumed by
+	 * reconstruction (parity_verify is false), regenerating parity is
+	 * a mathematical identity -- the result is guaranteed to equal the
+	 * input that was used for reconstruction, whether correct or
+	 * corrupted.  In that case the only reason to regenerate is to
+	 * write back a failed parity column, so skip regeneration when no
+	 * parity column failed or the pool is read-only.
 	 */
 	boolean_t parity_verify = (parity_errors + parity_untried) <
 	    (rr->rr_firstdatacol - data_errors);
-	if (parity_verify || (zio->io_flags & ZIO_FLAG_RESILVER)) {
+	if (parity_verify || (parity_errors > 0 &&
+	    spa_writeable(zio->io_spa))) {
 		int n = raidz_parity_verify(zio, rr);
 		/*
 		 * In, Reed-Solomon encoding, if we have ndata+1 columns and
@@ -3208,7 +3206,7 @@ vdev_raidz_io_done_verified(zio_t *zio, raidz_row_t *rr)
 		unexpected_errors += n;
 	}
 
-	if (zio->io_error == 0 && spa_writeable(zio->io_spa) &&
+	if (spa_writeable(zio->io_spa) &&
 	    (unexpected_errors > 0 || (zio->io_flags & ZIO_FLAG_RESILVER))) {
 		/*
 		 * Use the good data we have in hand to repair damaged children.
@@ -3261,7 +3259,7 @@ vdev_raidz_io_done_verified(zio_t *zio, raidz_row_t *rr)
 	 * necessary, but since expansion is paused during scrub/resilver, at
 	 * most a single row will have a shadow location.
 	 */
-	if (zio->io_error == 0 && spa_writeable(zio->io_spa) &&
+	if (spa_writeable(zio->io_spa) &&
 	    (zio->io_flags & (ZIO_FLAG_RESILVER | ZIO_FLAG_SCRUB))) {
 		for (int c = 0; c < rr->rr_cols; c++) {
 			raidz_col_t *rc = &rr->rr_col[c];
@@ -5240,7 +5238,6 @@ vdev_raidz_attach_sync(void *arg, dmu_tx_t *tx)
 	vdrz->vn_vre.vre_offset = 0;
 	vdrz->vn_vre.vre_failed_offset = UINT64_MAX;
 	spa->spa_raidz_expand = &vdrz->vn_vre;
-	zthr_wakeup(spa->spa_raidz_expand_zthr);
 
 	/*
 	 * Dirty the config so that ZPOOL_CONFIG_RAIDZ_EXPANDING will get

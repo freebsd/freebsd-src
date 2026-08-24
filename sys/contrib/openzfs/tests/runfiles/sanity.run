@@ -7,7 +7,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 # This run file contains a subset of functional tests which exercise
 # as much functionality as possible while still executing relatively
@@ -263,6 +263,10 @@ tags = ['functional', 'cli_root', 'zpool_attach']
 [tests/functional/cli_root/zpool_clear]
 tests = ['zpool_clear_002_neg']
 tags = ['functional', 'cli_root', 'zpool_clear']
+
+[tests/functional/cli_root/zpool_condense]
+tests = ['zpool_condense_neg', 'zpool_condense_basic']
+tags = ['functional', 'cli_root', 'zpool_condense']
 
 [tests/functional/cli_root/zpool_create]
 tests = ['zpool_create_001_pos', 'zpool_create_002_pos',
@@ -562,6 +566,10 @@ tags = ['functional', 'scrub_mirror']
 tests = ['slog_008_neg', 'slog_009_neg', 'slog_010_neg']
 tags = ['functional', 'slog']
 
+[tests/functional/snapdir]
+tests = ['snapdir_mount_parallel']
+tags = ['functional', 'snapdir']
+
 [tests/functional/snapshot]
 tests = ['clone_001_pos', 'rollback_001_pos', 'rollback_002_pos',
     'snapshot_001_pos', 'snapshot_002_pos', 'snapshot_003_pos',
@@ -569,7 +577,7 @@ tests = ['clone_001_pos', 'rollback_001_pos', 'rollback_002_pos',
     'snapshot_007_pos', 'snapshot_008_pos', 'snapshot_009_pos',
     'snapshot_010_pos', 'snapshot_011_pos', 'snapshot_012_pos',
     'snapshot_013_pos', 'snapshot_014_pos', 'snapshot_017_pos',
-    'snapshot_018_pos', 'snapshot_019_pos']
+    'snapshot_018_pos']
 tags = ['functional', 'snapshot']
 
 [tests/functional/snapused]

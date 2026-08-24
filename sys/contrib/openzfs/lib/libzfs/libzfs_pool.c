@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -30,8 +20,9 @@
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2018, loli10K <ezomori.nozomu@gmail.com>
  * Copyright (c) 2021, Colm Buckley <colm@tuatha.org>
- * Copyright (c) 2021, 2023, Klara Inc.
+ * Copyright (c) 2021, 2023-2026, Klara, Inc.
  * Copyright (c) 2025 Hewlett Packard Enterprise Development LP.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 #include <errno.h>
@@ -2407,9 +2398,20 @@ zpool_import_props(libzfs_handle_t *hdl, nvlist_t *config, const char *newname,
 				const char *hostname = "<unknown>";
 				uint64_t hostid = 0;
 				mmp_state_t mmp_state;
+				uint32_t mmp_result = 0;
 
 				mmp_state = fnvlist_lookup_uint64(nvinfo,
 				    ZPOOL_CONFIG_MMP_STATE);
+
+				/*
+				 * A kernel which does not report a cause
+				 * leaves this zero, which falls through to
+				 * the messages below.
+				 */
+				if (nvlist_exists(nvinfo,
+				    ZPOOL_CONFIG_MMP_RESULT))
+					mmp_result = fnvlist_lookup_uint32(
+					    nvinfo, ZPOOL_CONFIG_MMP_RESULT);
 
 				if (nvlist_exists(nvinfo,
 				    ZPOOL_CONFIG_MMP_HOSTNAME))
@@ -2421,7 +2423,23 @@ zpool_import_props(libzfs_handle_t *hdl, nvlist_t *config, const char *newname,
 					hostid = fnvlist_lookup_uint64(nvinfo,
 					    ZPOOL_CONFIG_MMP_HOSTID);
 
-				if (mmp_state == MMP_STATE_ACTIVE) {
+				if (mmp_result == ENODEV) {
+					(void) snprintf(aux, sizeof (aux),
+					    dgettext(TEXT_DOMAIN, "the multi"
+					    "host claim could not be written "
+					    "to a device\nthe pool "
+					    "configuration expects to be "
+					    "present.\nIf the device is "
+					    "permanently gone, recover with "
+					    "'zhack mmp reclaim'."));
+				} else if (mmp_result == EIO) {
+					(void) snprintf(aux, sizeof (aux),
+					    dgettext(TEXT_DOMAIN, "I/O errors "
+					    "occurred while writing the multi"
+					    "host claim.\nClear the device "
+					    "errors, then run 'zpool "
+					    "import'."));
+				} else if (mmp_state == MMP_STATE_ACTIVE) {
 					(void) snprintf(aux, sizeof (aux),
 					    dgettext(TEXT_DOMAIN, "pool is imp"
 					    "orted on host '%s' (hostid=%lx).\n"
@@ -2603,9 +2621,11 @@ zpool_initialize_one(zpool_handle_t *zhp, void *data)
 	    ZPOOL_CONFIG_VDEV_TREE);
 	zpool_collect_leaves(zhp, nvroot, vdevs);
 	if (cb->wait)
-		error = zpool_initialize_wait(zhp, cb->cmd_type, vdevs);
+		error = zpool_initialize_wait(zhp, cb->cmd_type, vdevs,
+		    cb->value, cb->value_provided);
 	else
-		error = zpool_initialize(zhp, cb->cmd_type, vdevs);
+		error = zpool_initialize(zhp, cb->cmd_type, vdevs,
+		    cb->value, cb->value_provided);
 	fnvlist_free(vdevs);
 
 	return (error);
@@ -2617,7 +2637,7 @@ zpool_initialize_one(zpool_handle_t *zhp, void *data)
  */
 static int
 zpool_initialize_impl(zpool_handle_t *zhp, pool_initialize_func_t cmd_type,
-    nvlist_t *vds, boolean_t wait)
+    nvlist_t *vds, uint64_t value, boolean_t value_provided, boolean_t wait)
 {
 	int err;
 
@@ -2636,7 +2656,7 @@ zpool_initialize_impl(zpool_handle_t *zhp, pool_initialize_func_t cmd_type,
 	}
 
 	err = lzc_initialize(zhp->zpool_name, cmd_type,
-	    vdev_guids, &errlist);
+	    value, value_provided, vdev_guids, &errlist);
 
 	if (err != 0) {
 		if (errlist != NULL && nvlist_lookup_nvlist(errlist,
@@ -2704,9 +2724,10 @@ out:
  */
 int
 zpool_initialize(zpool_handle_t *zhp, pool_initialize_func_t cmd_type,
-    nvlist_t *vds)
+    nvlist_t *vds, uint64_t value, boolean_t value_provided)
 {
-	return (zpool_initialize_impl(zhp, cmd_type, vds, B_FALSE));
+	return (zpool_initialize_impl(zhp, cmd_type, vds, value, value_provided,
+	    B_FALSE));
 }
 
 /*
@@ -2714,9 +2735,10 @@ zpool_initialize(zpool_handle_t *zhp, pool_initialize_func_t cmd_type,
  */
 int
 zpool_initialize_wait(zpool_handle_t *zhp, pool_initialize_func_t cmd_type,
-    nvlist_t *vds)
+    nvlist_t *vds, uint64_t value, boolean_t value_provided)
 {
-	return (zpool_initialize_impl(zhp, cmd_type, vds, B_TRUE));
+	return (zpool_initialize_impl(zhp, cmd_type, vds, value, value_provided,
+	    B_TRUE));
 }
 
 static int
@@ -2935,12 +2957,13 @@ out:
  */
 int
 zpool_scan(zpool_handle_t *zhp, pool_scan_func_t func, pool_scrub_cmd_t cmd) {
-	return (zpool_scan_range(zhp, func, cmd, 0, 0));
+	return (zpool_scan_range(zhp, func, cmd, 0, 0, 0));
 }
 
 int
 zpool_scan_range(zpool_handle_t *zhp, pool_scan_func_t func,
-    pool_scrub_cmd_t cmd, time_t date_start, time_t date_end)
+    pool_scrub_cmd_t cmd, pool_scrub_flags_t flags,
+    time_t date_start, time_t date_end)
 {
 	char errbuf[ERRBUFLEN];
 	int err;
@@ -2949,6 +2972,8 @@ zpool_scan_range(zpool_handle_t *zhp, pool_scan_func_t func,
 	nvlist_t *args = fnvlist_alloc();
 	fnvlist_add_uint64(args, "scan_type", (uint64_t)func);
 	fnvlist_add_uint64(args, "scan_command", (uint64_t)cmd);
+	if (flags != 0)
+		fnvlist_add_uint64(args, "scan_flags", (uint64_t)flags);
 	if (date_start != 0 || date_end != 0) {
 		fnvlist_add_uint64(args, "scan_date_start",
 		    (uint64_t)date_start);
@@ -2960,7 +2985,7 @@ zpool_scan_range(zpool_handle_t *zhp, pool_scan_func_t func,
 
 	if (err == 0) {
 		return (0);
-	} else if (err == ZFS_ERR_IOC_CMD_UNAVAIL) {
+	} else if (err == ZFS_ERR_IOC_CMD_UNAVAIL && flags == 0) {
 		zfs_cmd_t zc = {"\0"};
 		(void) strlcpy(zc.zc_name, zhp->zpool_name,
 		    sizeof (zc.zc_name));
@@ -4690,6 +4715,22 @@ zpool_sync_one(zpool_handle_t *zhp, void *data)
 	return (0);
 }
 
+int
+zpool_condense(zpool_handle_t *zhp, const char *cmd, const char *type)
+{
+	int ret;
+
+	libzfs_handle_t *hdl = zpool_get_handle(zhp);
+	const char *pool_name = zpool_get_name(zhp);
+
+	if ((ret = lzc_condense(pool_name, cmd, type)) != 0) {
+		return (zpool_standard_error_fmt(hdl, ret,
+		    dgettext(TEXT_DOMAIN, "condense '%s' failed"), pool_name));
+	}
+
+	return (0);
+}
+
 #define	PATH_BUF_LEN	64
 
 /*
@@ -4716,6 +4757,7 @@ zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
 	uint64_t value;
 	char buf[PATH_BUF_LEN];
 	char tmpbuf[PATH_BUF_LEN * 2];
+	char rpath[MAXPATHLEN];
 
 	/*
 	 * vdev_name will be "root"/"root-0" for the root vdev, but it is the
@@ -4741,12 +4783,8 @@ zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
 		path = tpath;
 
 		if (name_flags & VDEV_NAME_FOLLOW_LINKS) {
-			char *rp = realpath(path, NULL);
-			if (rp) {
-				strlcpy(buf, rp, sizeof (buf));
-				path = buf;
-				free(rp);
-			}
+			if (realpath(path, rpath) != NULL)
+				path = rpath;
 		}
 
 		/*
@@ -5510,9 +5548,10 @@ zpool_load_compat(const char *compat, boolean_t *features, char *report,
 		    ZC_MMAP_FLAGS, featfd, 0);
 		(void) close(featfd);
 
-		/* map ok, and last character == newline? */
+		/* need map ok, and last character == newline */
 		if (fc == MAP_FAILED || fc[fs.st_size - 1] != '\n') {
-			(void) munmap((void *) fc, fs.st_size);
+			if (fc != MAP_FAILED)
+				(void) munmap((void *) fc, fs.st_size);
 			strlcat(err_badfile, file, ZFS_MAXPROPLEN);
 			strlcat(err_badfile, " ", ZFS_MAXPROPLEN);
 			ret_badfile = B_TRUE;

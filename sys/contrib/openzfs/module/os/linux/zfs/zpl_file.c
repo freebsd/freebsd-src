@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2011, Lawrence Livermore National Security, LLC.
@@ -820,7 +810,7 @@ zpl_fadvise(struct file *filp, loff_t offset, loff_t len, int advice)
 
 	if (advice == POSIX_FADV_WILLNEED) {
 		loff_t rlen = len ? len : i_size_read(ip) - offset;
-		dmu_prefetch(os, zp->z_id, 0, offset, rlen,
+		dmu_prefetch_user(os, zp->z_id, 0, offset, rlen,
 		    ZIO_PRIORITY_ASYNC_READ);
 		if (!zn_has_cached_data(zp, offset, offset + rlen - 1)) {
 			zfs_exit(zfsvfs, FTAG);
@@ -1019,7 +1009,7 @@ zpl_ioctl_setflags(struct file *filp, void __user *arg)
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
-	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr, zfs_init_idmap);
+	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr);
 	spl_fstrans_unmark(cookie);
 	crfree(cr);
 
@@ -1067,7 +1057,7 @@ zpl_ioctl_setxattr(struct file *filp, void __user *arg)
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
-	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr, zfs_init_idmap);
+	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr);
 	spl_fstrans_unmark(cookie);
 	crfree(cr);
 
@@ -1155,7 +1145,7 @@ zpl_ioctl_setdosflags(struct file *filp, void __user *arg)
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
-	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr, zfs_init_idmap);
+	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr);
 	spl_fstrans_unmark(cookie);
 	crfree(cr);
 

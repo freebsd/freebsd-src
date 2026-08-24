@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2018 Intel Corporation.
@@ -1694,7 +1684,7 @@ vdev_draid_open_children(vdev_t *vd)
  */
 static int
 vdev_draid_open(vdev_t *vd, uint64_t *asize, uint64_t *max_asize,
-    uint64_t *logical_ashift, uint64_t *physical_ashift)
+    uint64_t *logical_ashift, uint64_t *physical_ashift, cred_t *cr)
 {
 	vdev_draid_config_t *vdc =  vd->vdev_tsd;
 	uint64_t nparity = vdc->vdc_nparity;
@@ -1711,8 +1701,8 @@ vdev_draid_open(vdev_t *vd, uint64_t *asize, uint64_t *max_asize,
 	 * ordering is important to ensure the distributed spares calculate
 	 * the correct psize in the event that the dRAID vdevs were expanded.
 	 */
-	vdev_open_children_subset(vd, vdev_draid_open_children);
-	vdev_open_children_subset(vd, vdev_draid_open_spares);
+	vdev_open_children_subset(vd, cr, vdev_draid_open_children);
+	vdev_open_children_subset(vd, cr, vdev_draid_open_spares);
 
 	/*
 	 * Verify enough of the children are available to continue.
@@ -2730,8 +2720,9 @@ vdev_draid_spare_close(vdev_t *vd)
  */
 static int
 vdev_draid_spare_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
-    uint64_t *logical_ashift, uint64_t *physical_ashift)
+    uint64_t *logical_ashift, uint64_t *physical_ashift, cred_t *cr)
 {
+	(void) cr;
 	vdev_draid_spare_t *vds = vd->vdev_tsd;
 	vdev_t *rvd = vd->vdev_spa->spa_root_vdev;
 	uint64_t asize, max_asize;

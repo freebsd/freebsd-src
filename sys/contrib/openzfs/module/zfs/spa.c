@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -35,7 +25,8 @@
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2021, Colm Buckley <colm@tuatha.org>
  * Copyright (c) 2023 Hewlett Packard Enterprise Development LP.
- * Copyright (c) 2023, 2024, Klara Inc.
+ * Copyright (c) 2023-2026, Klara, Inc.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 /*
@@ -2137,8 +2128,8 @@ spa_unload_log_sm_flush_all(spa_t *spa)
 	dmu_tx_t *tx = dmu_tx_create_dd(spa_get_dsl(spa)->dp_mos_dir);
 	VERIFY0(dmu_tx_assign(tx, DMU_TX_WAIT | DMU_TX_SUSPEND));
 
-	ASSERT0(spa->spa_log_flushall_txg);
-	spa->spa_log_flushall_txg = dmu_tx_get_txg(tx);
+	spa_log_flushall_start(spa, SPA_LOG_FLUSHALL_EXPORT,
+	    dmu_tx_get_txg(tx));
 
 	dmu_tx_commit(tx);
 	txg_wait_synced(spa_get_dsl(spa), spa->spa_log_flushall_txg);
@@ -2165,6 +2156,9 @@ spa_unload_log_sm_metadata(spa_t *spa)
 	spa->spa_unflushed_stats.sus_nblocks = 0;
 	spa->spa_unflushed_stats.sus_memused = 0;
 	spa->spa_unflushed_stats.sus_blocklimit = 0;
+	spa->spa_unflushed_stats.sus_nmetaslabs = 0;
+
+	spa_log_sm_stats_update(spa);
 }
 
 static void
@@ -2340,6 +2334,8 @@ spa_unload(spa_t *spa)
 		 */
 		if (spa_should_flush_logs_on_unload(spa))
 			spa_unload_log_sm_flush_all(spa);
+		else
+			spa_log_flushall_done(spa);
 
 		/*
 		 * Stop async tasks.
@@ -2576,7 +2572,7 @@ spa_load_spares(spa_t *spa)
 		vd->vdev_top = vd;
 		vd->vdev_aux = &spa->spa_spares;
 
-		if (vdev_open(vd) != 0)
+		if (vdev_open(vd, CRED()) != 0)
 			continue;
 
 		if (vdev_validate_aux(vd) == 0)
@@ -2689,7 +2685,7 @@ spa_load_l2cache(spa_t *spa)
 
 			spa_l2cache_activate(vd);
 
-			if (vdev_open(vd) != 0)
+			if (vdev_open(vd, CRED()) != 0)
 				continue;
 
 			(void) vdev_validate_aux(vd);
@@ -4035,8 +4031,17 @@ spa_activity_check_duration(spa_t *spa, uberblock_t *ub)
  * - ENXIO	- system hostid not set
  * - ESRCH	- activity check skipped
  * - EREMOTEIO	- activity check detected active pool
+ * - ENODEV	- claim could not be written to a device the config expects
+ * - EIO	- claim writes were issued to present devices and failed
  * - EINTR	- activity check interrupted
  * - 0		- activity check detected no activity
+ *
+ * ENODEV and EIO are reported with ZPOOL_CONFIG_MMP_STATE set to
+ * MMP_STATE_ACTIVE even though no remote host was seen.  Nothing is actually
+ * active in either case, but an older zpool(8) knows only the two existing
+ * states and reaches zfs_error_aux() with an uninitialized buffer for any
+ * other value, so the state is kept as one it understands and the real cause
+ * travels in the result.
  */
 static void
 spa_activity_set_load_info(spa_t *spa, nvlist_t *label, mmp_state_t state,
@@ -4105,6 +4110,20 @@ spa_ld_activity_result(spa_t *spa, int error, const char *state)
 		cmn_err(CE_WARN, "pool '%s' system hostid not set, "
 		    "aborted import during %s", spa_load_name(spa), state);
 		/* Userspace expects EREMOTEIO for no system hostid */
+		error = EREMOTEIO;
+		break;
+	case ENODEV:
+		cmn_err(CE_WARN, "pool '%s' could not claim every device the "
+		    "config expects present, aborted import during %s; if a "
+		    "device is permanently gone see 'zhack mmp reclaim'",
+		    spa_load_name(spa), state);
+		/* Userspace expects EREMOTEIO for a failed claim */
+		error = EREMOTEIO;
+		break;
+	case EIO:
+		cmn_err(CE_WARN, "pool '%s' had I/O errors writing the claim, "
+		    "aborted import during %s", spa_load_name(spa), state);
+		/* Userspace expects EREMOTEIO for a failed claim */
 		error = EREMOTEIO;
 		break;
 	case EREMOTEIO:
@@ -4236,6 +4255,9 @@ spa_activity_check_tryimport(spa_t *spa, uberblock_t *spa_ub,
  * error results:
  *          0 - no activity detected
  *  EREMOTEIO - remote activity detected
+ *     ENODEV - the claim could not be written to a device the config
+ *              expects to be present
+ *        EIO - the claim writes were issued to present devices and failed
  *      EINTR - user canceled the operation
  */
 static int
@@ -4317,7 +4339,13 @@ spa_activity_check_claim(spa_t *spa)
 		if (error) {
 			spa_load_failed(spa, "mmp: uberblock claim "
 			    "failed, error=%d", error);
-			error = SET_ERROR(EREMOTEIO);
+			/*
+			 * ENODEV and EIO are both kept distinct from the
+			 * EREMOTEIO returned when another host is seen below.
+			 * Failing to write the claim is not evidence of a
+			 * remote host, and only the ENODEV case has a
+			 * recovery.
+			 */
 			break;
 		}
 
@@ -4361,9 +4389,14 @@ out:
 	spa->spa_mmp.mmp_claim_ns = gethrtime() - start_time;
 	(void) spa_import_progress_set_mmp_check(spa_guid(spa), 0);
 
-	if (error == EREMOTEIO) {
+	/*
+	 * A claim shortfall reaches userspace as EREMOTEIO exactly as remote
+	 * activity does, so an older zpool(8) sees no change.  The cause
+	 * travels in the result for a zpool(8) which knows to read it.
+	 */
+	if (error == EREMOTEIO || error == ENODEV || error == EIO) {
 		spa_activity_set_load_info(spa, mmp_label,
-		    MMP_STATE_ACTIVE, 0, 0, EREMOTEIO);
+		    MMP_STATE_ACTIVE, 0, 0, error);
 	} else {
 		spa_activity_set_load_info(spa, mmp_label,
 		    MMP_STATE_INACTIVE, spa_ub.ub_txg, MMP_SEQ(&spa_ub), 0);
@@ -4688,7 +4721,7 @@ spa_ld_open_vdevs(spa_t *spa)
 	    MAX(zfs_max_missing_tvds, spa->spa_missing_tvds_allowed);
 
 	spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
-	error = vdev_open(spa->spa_root_vdev);
+	error = vdev_open(spa->spa_root_vdev, CRED());
 	spa_config_exit(spa, SCL_ALL, FTAG);
 
 	if (spa->spa_missing_tvds != 0) {
@@ -5515,15 +5548,25 @@ spa_ld_open_aux_vdevs(spa_t *spa, spa_import_type_t type)
 		return (spa_vdev_err(rvd, VDEV_AUX_CORRUPT_DATA, EIO));
 	if (error == 0 && type != SPA_IMPORT_ASSEMBLE) {
 		ASSERT(spa_version(spa) >= SPA_VERSION_SPARES);
-		if (load_nvlist(spa, spa->spa_spares.sav_object,
-		    &spa->spa_spares.sav_config) != 0) {
-			spa_load_failed(spa, "error loading spares nvlist");
-			return (spa_vdev_err(rvd, VDEV_AUX_CORRUPT_DATA, EIO));
+		error = load_nvlist(spa, spa->spa_spares.sav_object,
+		    &spa->spa_spares.sav_config);
+		if (error != 0) {
+			if (!zfs_recover && spa_writeable(spa)) {
+				spa_load_failed(spa, "error loading spares "
+				    "nvlist [error=%d]", error);
+				return (spa_vdev_err(rvd,
+				    VDEV_AUX_CORRUPT_DATA, EIO));
+			}
+			spa_load_note(spa, "ignoring spares nvlist "
+			    "[error=%d], no spares will be available", error);
+			/* Leak the object, its dnode may be unreadable. */
+			spa->spa_spares.sav_object = 0;
+			spa->spa_spares.sav_sync = B_TRUE;
+		} else {
+			spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
+			spa_load_spares(spa);
+			spa_config_exit(spa, SCL_ALL, FTAG);
 		}
-
-		spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
-		spa_load_spares(spa);
-		spa_config_exit(spa, SCL_ALL, FTAG);
 	} else if (error == 0) {
 		spa->spa_spares.sav_sync = B_TRUE;
 	}
@@ -5537,15 +5580,25 @@ spa_ld_open_aux_vdevs(spa_t *spa, spa_import_type_t type)
 		return (spa_vdev_err(rvd, VDEV_AUX_CORRUPT_DATA, EIO));
 	if (error == 0 && type != SPA_IMPORT_ASSEMBLE) {
 		ASSERT(spa_version(spa) >= SPA_VERSION_L2CACHE);
-		if (load_nvlist(spa, spa->spa_l2cache.sav_object,
-		    &spa->spa_l2cache.sav_config) != 0) {
-			spa_load_failed(spa, "error loading l2cache nvlist");
-			return (spa_vdev_err(rvd, VDEV_AUX_CORRUPT_DATA, EIO));
+		error = load_nvlist(spa, spa->spa_l2cache.sav_object,
+		    &spa->spa_l2cache.sav_config);
+		if (error != 0) {
+			if (!zfs_recover && spa_writeable(spa)) {
+				spa_load_failed(spa, "error loading l2cache "
+				    "nvlist [error=%d]", error);
+				return (spa_vdev_err(rvd,
+				    VDEV_AUX_CORRUPT_DATA, EIO));
+			}
+			spa_load_note(spa, "ignoring l2cache nvlist "
+			    "[error=%d], no l2cache will be available", error);
+			/* Leak the object, its dnode may be unreadable. */
+			spa->spa_l2cache.sav_object = 0;
+			spa->spa_l2cache.sav_sync = B_TRUE;
+		} else {
+			spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
+			spa_load_l2cache(spa);
+			spa_config_exit(spa, SCL_ALL, FTAG);
 		}
-
-		spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
-		spa_load_l2cache(spa);
-		spa_config_exit(spa, SCL_ALL, FTAG);
 	} else if (error == 0) {
 		spa->spa_l2cache.sav_sync = B_TRUE;
 	}
@@ -6940,7 +6993,7 @@ spa_validate_aux_devs(spa_t *spa, nvlist_t *nvroot, uint64_t crtxg, int mode,
 
 		vd->vdev_top = vd;
 
-		if ((error = vdev_open(vd)) == 0 &&
+		if ((error = vdev_open(vd, CRED())) == 0 &&
 		    (error = vdev_label_init(vd, crtxg, label)) == 0) {
 			fnvlist_add_uint64(dev[i], ZPOOL_CONFIG_GUID,
 			    vd->vdev_guid);
@@ -7751,11 +7804,11 @@ spa_export_common(const char *pool, int new_state, nvlist_t **oldconfig,
 	 */
 	spa_open_ref(spa, FTAG);
 	spa_namespace_exit(FTAG);
+#ifdef ZFS_DEBUG
+	spa_condense_debug_cancel(spa);
+#endif
 	spa_async_suspend(spa);
-	if (spa->spa_zvol_taskq) {
-		zvol_remove_minors(spa, spa_name(spa), B_TRUE);
-		taskq_wait(spa->spa_zvol_taskq);
-	}
+
 	spa_namespace_enter(FTAG);
 	spa->spa_export_thread = curthread;
 	spa_close(spa, FTAG);
@@ -7792,6 +7845,11 @@ spa_export_common(const char *pool, int new_state, nvlist_t **oldconfig,
 	 * notice the spa->spa_export_thread and wait until we signal
 	 * that we are finshed.
 	 */
+
+	if (spa->spa_zvol_taskq) {
+		zvol_remove_minors(spa, spa_name(spa), B_TRUE);
+		taskq_wait(spa->spa_zvol_taskq);
+	}
 
 	if (spa->spa_sync_on) {
 		vdev_t *rvd = spa->spa_root_vdev;
@@ -8536,6 +8594,12 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 	dtl_max_txg = txg + TXG_CONCURRENT_STATES;
 
 	if (raidz) {
+		dmu_tx_t *tx = dmu_tx_create_assigned(spa->spa_dsl_pool,
+		    txg);
+		dsl_sync_task_nowait(spa->spa_dsl_pool, vdev_raidz_attach_sync,
+		    newvd, tx);
+		dmu_tx_commit(tx);
+
 		/*
 		 * Wait for the youngest allocations and frees to sync,
 		 * and then wait for the deferral of those frees to finish.
@@ -8553,12 +8617,7 @@ spa_vdev_attach(spa_t *spa, uint64_t guid, nvlist_t *nvroot, int replacing,
 
 		vdev_dirty_leaves(tvd, VDD_DTL, dtl_max_txg);
 		vdev_config_dirty(tvd);
-
-		dmu_tx_t *tx = dmu_tx_create_assigned(spa->spa_dsl_pool,
-		    dtl_max_txg);
-		dsl_sync_task_nowait(spa->spa_dsl_pool, vdev_raidz_attach_sync,
-		    newvd, tx);
-		dmu_tx_commit(tx);
+		zthr_wakeup(spa->spa_raidz_expand_zthr);
 	} else {
 		vdev_dtl_dirty(newvd, DTL_MISSING, TXG_INITIAL,
 		    dtl_max_txg - TXG_INITIAL);
@@ -8889,7 +8948,7 @@ spa_vdev_detach(spa_t *spa, uint64_t guid, uint64_t pguid, int replace_done)
 
 static int
 spa_vdev_initialize_impl(spa_t *spa, uint64_t guid, uint64_t cmd_type,
-    list_t *vd_list)
+    uint64_t value, boolean_t value_provided, list_t *vd_list)
 {
 	ASSERT(spa_namespace_held());
 
@@ -8939,7 +8998,7 @@ spa_vdev_initialize_impl(spa_t *spa, uint64_t guid, uint64_t cmd_type,
 
 	switch (cmd_type) {
 	case POOL_INITIALIZE_START:
-		vdev_initialize(vd);
+		vdev_initialize(vd, value, value_provided);
 		break;
 	case POOL_INITIALIZE_CANCEL:
 		vdev_initialize_stop(vd, VDEV_INITIALIZE_CANCELED, vd_list);
@@ -8960,7 +9019,7 @@ spa_vdev_initialize_impl(spa_t *spa, uint64_t guid, uint64_t cmd_type,
 
 int
 spa_vdev_initialize(spa_t *spa, nvlist_t *nv, uint64_t cmd_type,
-    nvlist_t *vdev_errlist)
+    uint64_t value, boolean_t value_provided, nvlist_t *vdev_errlist)
 {
 	int total_errors = 0;
 	list_t vd_list;
@@ -8982,7 +9041,7 @@ spa_vdev_initialize(spa_t *spa, nvlist_t *nv, uint64_t cmd_type,
 		uint64_t vdev_guid = fnvpair_value_uint64(pair);
 
 		int error = spa_vdev_initialize_impl(spa, vdev_guid, cmd_type,
-		    &vd_list);
+		    value, value_provided, &vd_list);
 		if (error != 0) {
 			char guid_as_str[MAXNAMELEN];
 
@@ -9689,16 +9748,21 @@ spa_scan_stop(spa_t *spa)
 }
 
 int
-spa_scan(spa_t *spa, pool_scan_func_t func)
+spa_scan(spa_t *spa, pool_scan_func_t func, pool_scrub_flags_t flags)
 {
-	return (spa_scan_range(spa, func, 0, 0));
+	return (spa_scan_range(spa, func, 0, 0, flags));
 }
 
 int
 spa_scan_range(spa_t *spa, pool_scan_func_t func, uint64_t txgstart,
-    uint64_t txgend)
+    uint64_t txgend, pool_scrub_flags_t flags)
 {
+	dsl_scan_flags_t dsl_flags = 0;
+
 	ASSERT0(spa_config_held(spa, SCL_ALL, RW_WRITER));
+
+	if (flags & POOL_SCRUB_THOROUGH)
+		dsl_flags |= DSF_SCRUB_THOROUGH;
 
 	if (func >= POOL_SCAN_FUNCS || func == POOL_SCAN_NONE)
 		return (SET_ERROR(ENOTSUP));
@@ -9724,7 +9788,7 @@ spa_scan_range(spa_t *spa, pool_scan_func_t func, uint64_t txgstart,
 	    !spa_feature_is_enabled(spa, SPA_FEATURE_HEAD_ERRLOG))
 		return (SET_ERROR(ENOTSUP));
 
-	return (dsl_scan(spa->spa_dsl_pool, func, txgstart, txgend));
+	return (dsl_scan(spa->spa_dsl_pool, func, txgstart, txgend, dsl_flags));
 }
 
 /*
@@ -11060,6 +11124,7 @@ spa_sync(spa_t *spa, uint64_t txg)
 	spa_sync_close_syncing_log_sm(spa);
 
 	spa_update_dspace(spa);
+	spa_log_sm_stats_update(spa);
 
 	if (spa_get_autotrim(spa) == SPA_AUTOTRIM_ON)
 		vdev_autotrim_kick(spa);
@@ -11603,6 +11668,21 @@ spa_activity_in_progress(spa_t *spa, zpool_wait_activity_t activity,
 		*in_progress = (vre != NULL && vre->vre_state == DSS_SCANNING);
 		break;
 	}
+	case ZPOOL_WAIT_CONDENSE: {
+		*in_progress = B_FALSE;
+		spa_condense_stat_t *scns;
+
+		for (spa_condense_type_t type = 0;
+		    type < SPA_CONDENSE_TYPES; type++) {
+			scns = &spa->spa_condense_stats[type];
+			if (scns->scns_start_time > 0 &&
+			    scns->scns_end_time == 0) {
+				*in_progress = B_TRUE;
+				break;
+			}
+		}
+		break;
+	}
 	default:
 		panic("unrecognized value for activity %d", activity);
 	}
@@ -11737,6 +11817,132 @@ spa_event_notify(spa_t *spa, vdev_t *vd, nvlist_t *hist_nvl, const char *name)
 {
 	spa_event_post(spa_event_create(spa, vd, hist_nvl, name));
 }
+
+#ifdef ZFS_DEBUG
+/*
+ * This runs the "debug" condense type, which does nothing, just updates the
+ * condense counters every second for ten seconds. This exists entirely for
+ * testing and debugging the condense system itself, which is why it is
+ * compiled out of production builds.
+ */
+#define	SPA_CONDENSE_DEBUG_STEP	(10)
+
+static void
+spa_condense_debug_task(void *arg)
+{
+	spa_t *spa = arg;
+	spa_condense_stat_t *scns =
+	    &spa->spa_condense_stats[SPA_CONDENSE_DEBUG];
+
+	mutex_enter(&spa->spa_condense_stats_lock);
+
+	if (spa->spa_condense_debug_tqid == TASKQID_INVALID) {
+		/*
+		 * Task no longer required, probably cancelled by
+		 * spa_condense_debug_cancel(). Just exit.
+		 */
+		mutex_exit(&spa->spa_condense_stats_lock);
+		return;
+	}
+
+	spa->spa_condense_debug_tqid = TASKQID_INVALID;
+
+	/* Move the condense progress along a bit. */
+	scns->scns_processed = MIN(scns->scns_total, scns->scns_processed +
+	    (scns->scns_total / SPA_CONDENSE_DEBUG_STEP));
+	if (scns->scns_processed == scns->scns_total) {
+		/*
+		 * Reached the end. Set the end time to "complete" the
+		 * condense, signal waiters, release resources and we're done.
+		 */
+		scns->scns_end_time = gethrestime_sec();
+		mutex_exit(&spa->spa_condense_stats_lock);
+		spa_notify_waiters(spa);
+		spa_close(spa, scns);
+		return;
+	}
+
+	/* More to do, re-arm the timer for another round. */
+	spa->spa_condense_debug_tqid = taskq_dispatch_delay(system_delay_taskq,
+	    spa_condense_debug_task, spa, TQ_SLEEP,
+	    ddi_get_lbolt() + SEC_TO_TICK(1));
+	mutex_exit(&spa->spa_condense_stats_lock);
+}
+
+void
+spa_condense_debug_start(spa_t *spa)
+{
+	uint32_t nitems = 10 + random_in_range(90) * SPA_CONDENSE_DEBUG_STEP;
+
+	spa_condense_stat_t *scns =
+	    &spa->spa_condense_stats[SPA_CONDENSE_DEBUG];
+
+	mutex_enter(&spa->spa_condense_stats_lock);
+
+	if (scns->scns_start_time == 0 || scns->scns_end_time > 0) {
+		/* Previous run finished, or no previous run. Start fresh. */
+		scns->scns_start_time = gethrestime_sec();
+		scns->scns_end_time = 0;
+		scns->scns_processed = 0;
+		scns->scns_total = nitems;
+	} else {
+		/* In progress, just add some more work. */
+		scns->scns_total += nitems;
+	}
+
+	if (spa->spa_condense_debug_tqid == TASKQID_INVALID) {
+		spa_open_ref(spa, scns);
+		spa->spa_condense_debug_tqid = taskq_dispatch_delay(
+		    system_delay_taskq, spa_condense_debug_task, spa, TQ_SLEEP,
+		    ddi_get_lbolt() + SEC_TO_TICK(1));
+	}
+
+	mutex_exit(&spa->spa_condense_stats_lock);
+}
+
+void
+spa_condense_debug_cancel(spa_t *spa)
+{
+	spa_condense_stat_t *scns =
+	    &spa->spa_condense_stats[SPA_CONDENSE_DEBUG];
+
+	mutex_enter(&spa->spa_condense_stats_lock);
+
+	/* "Cancel" by just setting the end time. */
+	if (scns->scns_end_time == 0)
+		scns->scns_end_time = gethrestime_sec();
+
+	if (spa->spa_condense_debug_tqid == TASKQID_INVALID) {
+		/* No task, so nothing else to do. */
+		mutex_exit(&spa->spa_condense_stats_lock);
+		spa_notify_waiters(spa);
+		return;
+	}
+
+	/*
+	 * Task is either waiting to run, or running and waiting to take
+	 * spa_condense_stats_lock. Clear the tqid, so if it does run after we
+	 * drop the lock, it will immediately exit.
+	 */
+	taskqid_t tqid = spa->spa_condense_debug_tqid;
+	spa->spa_condense_debug_tqid = TASKQID_INVALID;
+
+	mutex_exit(&spa->spa_condense_stats_lock);
+
+	/*
+	 * Cancel the task. If its running, wait for it to complete (ie do
+	 * nothing, per above).
+	 */
+	taskq_cancel_id(system_delay_taskq, tqid, B_TRUE);
+
+	/*
+	 * Task didn't run or aborted, so it never cleaned up. We do it on its
+	 * behalf.
+	 */
+	spa_notify_waiters(spa);
+	spa_close(spa, scns);
+}
+#endif
 
 /* state manipulation functions */
 EXPORT_SYMBOL(spa_open);

@@ -1,24 +1,14 @@
 #!/usr/bin/env perl
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
 #
-# The contents of this file are subject to the terms of the
-# Common Development and Distribution License (the "License").
-# You may not use this file except in compliance with the License.
-#
-# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or https://opensource.org/licenses/CDDL-1.0.
-# See the License for the specific language governing permissions
-# and limitations under the License.
-#
-# When distributing Covered Code, include this CDDL HEADER in each
-# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-# If applicable, add the following below this CDDL HEADER, with the
-# fields enclosed by brackets "[]" replaced with your own identifying
-# information: Portions Copyright [yyyy] [name of copyright owner]
-#
-# CDDL HEADER END
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 # Copyright 2016 Nexenta Systems, Inc.
 #
@@ -96,6 +86,9 @@ $hdr_comment_start = qr/^\s*\/\*$/;
 # Note, following must be in single quotes so that \s and \w work right.
 my $typename = '(int|char|short|long|unsigned|float|double' .
     '|\w+_t|struct\s+\w+|union\s+\w+|FILE)';
+
+# cast or compound-literal type, e.g. "(foo_t *)"
+my $cast = qr/\($typename(?: \*+)?\)/;
 
 # mapping of old types to POSIX compatible types
 my %old2posix = (
@@ -683,12 +676,14 @@ line: while (<$filehandle>) {
 	}
 	if ($picky) {
 		# try to detect spaces after casts, but allow (e.g.)
-		# "sizeof (int) + 1", "void (*funcptr)(int) = foo;", and
-		# "int foo(int) __NORETURN;"
-		if ((/^\($typename( \*+)?\)\s/o ||
-		    /\W\($typename( \*+)?\)\s/o) &&
-		    !/sizeof\s*\($typename( \*)?\)\s/o &&
-		    !/\($typename( \*+)?\)\s+=[^=]/o) {
+		# "sizeof (int) + 1", "void (*funcptr)(int) = foo;",
+		# "int foo(int) __NORETURN;", and "(foo_t) { ... }"
+		#
+		# sizeof (type) is not a cast; remove it so it can't mask
+		# a real cast elsewhere on the line.
+		my $tmp = $_;
+		$tmp =~ s/\bsizeof\s*$cast/sizeof/g;
+		if ($tmp =~ /(?:^|\W)$cast(?>\s+)(?!\{|=[^=])/) {
 			err("space after cast");
 		}
 		if (/\b$typename\s*\*\s/o &&
@@ -801,12 +796,18 @@ process_indent($)
 	my $case = 'case\b[^:]*$';
 
 	# skip over enumerations, array definitions, initializers, etc.
-	if ($cont_off <= 0 && !/^\s*$special/ &&
-	    (/(?:(?:\b(?:enum|struct|union)\s*[^\{]*)|(?:\s+=\s*))\{/ ||
-	    (/^\s*\{/ && $prev =~ /=\s*(?:\/\*.*\*\/\s*)*$/))) {
-		$cont_in = 0;
-		$cont_off = tr/{/{/ - tr/}/}/;
-		return;
+	if ($cont_off <= 0 && !/^\s*$special/) {
+		my $aggregate = /\b(?:enum|struct|union)\s*[^{]*\{/;
+		my $initializer = /\s+=\s*(?:$cast\s*)?\{/;
+		# "= {" split across lines, "=" possibly trailed by comments
+		my $split_init = /^\s*\{/ &&
+		    $prev =~ /=\s*(?:$cast\s*)?(?:\/\*.*\*\/\s*)?$/;
+
+		if ($aggregate || $initializer || $split_init) {
+			$cont_in = 0;
+			$cont_off = tr/{/{/ - tr/}/}/;
+			return;
+		}
 	}
 	if ($cont_off) {
 		$cont_off += tr/{/{/ - tr/}/}/;

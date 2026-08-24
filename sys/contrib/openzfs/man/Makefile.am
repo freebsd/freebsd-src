@@ -45,7 +45,6 @@ dist_man_MANS = \
 	%D%/man8/zfs-list.8 \
 	%D%/man8/zfs-load-key.8 \
 	%D%/man8/zfs-mount.8 \
-	%D%/man8/zfs-program.8 \
 	%D%/man8/zfs-project.8 \
 	%D%/man8/zfs-projectspace.8 \
 	%D%/man8/zfs-promote.8 \
@@ -74,6 +73,7 @@ dist_man_MANS = \
 	%D%/man8/zpool-attach.8 \
 	%D%/man8/zpool-checkpoint.8 \
 	%D%/man8/zpool-clear.8 \
+	%D%/man8/zpool-condense.8 \
 	%D%/man8/zpool-create.8 \
 	%D%/man8/zpool-destroy.8 \
 	%D%/man8/zpool-detach.8 \
@@ -107,6 +107,11 @@ dist_man_MANS = \
 	%D%/man8/zstreamdump.8 \
 	%D%/man8/zpool_influxdb.8
 
+if ZCP_ENABLED
+dist_man_MANS += \
+	%D%/man8/zfs-program.8
+endif
+
 if BUILD_FREEBSD
 dist_man_MANS += \
 	%D%/man8/zfs-jail.8 \
@@ -115,9 +120,13 @@ endif
 
 if BUILD_LINUX
 dist_man_MANS += \
-	%D%/man8/pam_zfs_key.8 \
 	%D%/man8/zfs-unzone.8 \
 	%D%/man8/zfs-zone.8
+endif
+
+if PAM_ZFS_ENABLED
+dist_man_MANS += \
+	%D%/man8/pam_zfs_key.8
 endif
 
 nodist_man_MANS = \

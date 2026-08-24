@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -1476,17 +1466,25 @@ dbuf_read_hole(dmu_buf_impl_t *db, dnode_t *dn, blkptr_t *bp)
 
 	int is_hole = bp == NULL || BP_IS_HOLE(bp);
 	/*
-	 * For level 0 blocks only, if the above check fails:
-	 * Recheck BP_IS_HOLE() after dnode_block_freed() in case dnode_sync()
-	 * processes the delete record and clears the bp while we are waiting
-	 * for the dn_mtx (resulting in a "no" from block_freed).
+	 * For level 0 blocks only, if the above check didn't find a hole,
+	 * consult dnode_block_freed() to check for pending frees.
 	 *
-	 * If bp != db->db_blkptr, it means that it was overridden (by a block
-	 * clone or direct I/O write). We cannot rely on dnode_block_freed as
-	 * the range can be freed in an earlier TXG but overridden in later.
+	 * If the block has been overridden by a block clone or direct I/O
+	 * write, we can't use dnode_block_freed() directly because it would
+	 * find frees from TXGs before the override, which should not make
+	 * the block appear freed.  Instead, check only free ranges from
+	 * TXGs after the override.
 	 */
-	if (!is_hole && db->db_level == 0 && bp == db->db_blkptr)
-		is_hole = dnode_block_freed(dn, db->db_blkid) || BP_IS_HOLE(bp);
+	if (!is_hole && db->db_level == 0) {
+		dbuf_dirty_record_t *dr = list_head(&db->db_dirty_records);
+		if (dr != NULL &&
+		    (dr->dt.dl.dr_brtwrite || dr->dt.dl.dr_diowrite)) {
+			is_hole = dnode_block_freed_after(dn,
+			    db->db_blkid, dr->dr_txg);
+		} else {
+			is_hole = dnode_block_freed(dn, db->db_blkid);
+		}
+	}
 
 	if (is_hole) {
 		db_data = dbuf_alloc_arcbuf(db);
@@ -5455,15 +5453,30 @@ dbuf_write(dbuf_dirty_record_t *dr, arc_buf_t *data, dmu_tx_t *tx)
 	if (db->db_level == 0 &&
 	    dr->dt.dl.dr_override_state == DR_OVERRIDDEN) {
 		/*
-		 * The BP for this block has been provided by open context
-		 * (by dmu_sync(), dmu_write_direct(),
-		 *  or dmu_buf_write_embedded()).
+		 * The BP for this block was provided by open context via
+		 * dmu_sync(), dmu_write_direct(), dmu_buf_write_embedded(),
+		 * dmu_brt_clone(), or dmu_buf_redact().
 		 */
-		abd_t *contents = (data != NULL) ?
-		    abd_get_from_buf(data->b_data, arc_buf_size(data)) : NULL;
+		blkptr_t *obp = &dr->dt.dl.dr_overridden_by;
+		abd_t *contents = NULL;
+		/*
+		 * A data-less override carries no payload. WP_NOFILL keeps it
+		 * out of dedup and encryption, so zio_write_bp_init() switches
+		 * it to ZIO_INTERLOCK_PIPELINE before any stage that would
+		 * consume a size.
+		 */
+		uint64_t size = 0;
+
+		if (data != NULL) {
+			/* The live dbuf may have a newer size. */
+			size = arc_buf_size(data);
+			ASSERT3U(size, ==, arc_buf_lsize(data));
+			IMPLY(!BP_IS_HOLE(obp), size == BP_GET_LSIZE(obp));
+			contents = abd_get_from_buf(data->b_data, size);
+		}
 
 		dr->dr_zio = zio_write(pio, os->os_spa, txg, &dr->dr_bp_copy,
-		    contents, db->db.db_size, db->db.db_size, &zp,
+		    contents, size, size, &zp,
 		    dbuf_write_override_ready, NULL,
 		    dbuf_write_override_done,
 		    dr, ZIO_PRIORITY_ASYNC_WRITE, ZIO_FLAG_MUSTSUCCEED, &zb);

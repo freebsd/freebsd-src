@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (C) 2008-2010 Lawrence Livermore National Security, LLC.
@@ -1309,6 +1299,13 @@ zvol_first_open(zvol_state_t *zv, boolean_t readonly)
 	if (error) {
 		dmu_objset_disown(os, 1, zv);
 		zv->zv_objset = NULL;
+	} else {
+		/*
+		 * Take a hold on the spa so that spa_export_common() will
+		 * return EBUSY while the zvol block device is open, just
+		 * as it does for mounted datasets.
+		 */
+		spa_open_ref(dmu_objset_spa(os), zv);
 	}
 
 	return (error);
@@ -1323,10 +1320,14 @@ zvol_last_close(zvol_state_t *zv)
 	if (zv->zv_flags & ZVOL_REMOVING)
 		cv_broadcast(&zv->zv_removing_cv);
 
+	spa_t *spa = dmu_objset_spa(zv->zv_objset);
+
 	zvol_shutdown_zv(zv);
 
 	dmu_objset_disown(zv->zv_objset, 1, zv);
 	zv->zv_objset = NULL;
+
+	spa_close(spa, zv);
 }
 
 typedef struct minors_job {

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
- *
  * This file and its contents are supplied under the terms of the
  * Common Development and Distribution License ("CDDL"), version 1.0.
  * You may only use this file in accordance with the terms of version
@@ -9,9 +7,7 @@
  *
  * A full copy of the text of the CDDL should have accompanied this
  * source.  A copy of the CDDL is also available via the Internet at
- * http://www.illumos.org/license/CDDL.
- *
- * CDDL HEADER END
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -102,8 +98,11 @@ rdt_lookup(redup_table_t *rdt,
 }
 
 static disposition_t
-chain_redup_writes(drr_packet_t *item, redup_context_t *context)
+chain_redup_writes(void *item_in, void *context_in)
 {
+	drr_packet_t *item = (drr_packet_t *)item_in;
+	redup_context_t *context = (redup_context_t *)context_in;
+
 	if (item == NULL) {
 		return (D_OK);
 	}
@@ -188,7 +187,7 @@ serial_redup_writes(redup_context_t *context)
 		.cs_out_size = sizeof (drr_packet_t),
 		.cs_context = context,
 		.cs_serial = {
-			.process = (zc_serial_process_f *)chain_redup_writes
+			.process = chain_redup_writes
 		}
 	};
 	return (step);
@@ -210,7 +209,6 @@ zstream_do_redup(int argc, char *argv[])
 		case '?':
 			warnx("invalid option '%c'", optopt);
 			zstream_usage();
-			break;
 		}
 	}
 

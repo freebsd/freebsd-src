@@ -7,7 +7,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 
 [DEFAULT]
@@ -22,6 +22,12 @@ failsafe_user = root
 failsafe = callbacks/zfs_failsafe
 tags = ['functional']
 
+[tests/functional/block_cloning:FreeBSD]
+tests = ['block_cloning_copyfilerange_clone',
+    'block_cloning_copyfilerange_clone_partial',
+    'block_cloning_disabled_copyfilerange_clone']
+
+tags = ['functional', 'block_cloning']
 [tests/functional/cli_root/zfs_jail:FreeBSD]
 tests = ['zfs_jail_001_pos']
 tags = ['functional', 'cli_root', 'zfs_jail']

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
- *
  * This file and its contents are supplied under the terms of the
  * Common Development and Distribution License ("CDDL"), version 1.0.
  * You may only use this file in accordance with the terms of version
@@ -9,9 +7,7 @@
  *
  * A full copy of the text of the CDDL should have accompanied this
  * source.  A copy of the CDDL is also available via the Internet at
- * http://www.illumos.org/license/CDDL.
- *
- * CDDL HEADER END
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -31,10 +27,10 @@
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
+#include <pthread.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/abd.h>
 #include <sys/fs/zfs.h>
 #include <sys/stdtypes.h>
@@ -43,7 +39,6 @@
 #include <sys/zio.h>
 #include <sys/zio_compress.h>
 #include <unistd.h>
-#include <zfs_fletcher.h>
 
 #include "zstream_util.h"
 
@@ -65,6 +60,54 @@ safe_calloc(size_t size)
 		errx(1, "failed to allocate %zu bytes, aborting...", size);
 	}
 	return (rv);
+}
+
+void
+safe_pthread_sigmask(int how, const sigset_t *set, sigset_t *oldset)
+{
+	int error = pthread_sigmask(how, set, oldset);
+	if (error != 0) {
+		errno = error;
+		err(1, "pthread_sigmask failed");
+	}
+}
+
+pthread_t
+safe_create_thread(thread_f *body, void *body_arg, const char *name,
+    boolean_t detach)
+{
+	pthread_t tid;
+	int ret;
+	int name_attempts = 3;
+
+	ret = pthread_create(&tid, NULL, body, body_arg);
+	if (ret != 0) {
+		errno = ret;
+		err(1, "pthread_create for %s failed", name);
+	}
+	/*
+	 * pthread_setname_np() fails randomly on some Debian systems
+	 * because of difficulty reading /proc/self/task. The characteristic
+	 * error is "No such file or directory." The name is just a
+	 * debugging aid, so we can ignore the error, but we'll make three
+	 * attempts to set it. This code previously printed a warning
+	 * message, but that interferes with zstream dump output comparisons
+	 * in ZTS.
+	 */
+	while (name_attempts-- > 0) {
+		ret = pthread_setname_np(tid, name);
+		if (ret == 0)
+			break;
+		usleep(100);
+	}
+	if (detach) {
+		ret = pthread_detach(tid);
+		if (ret != 0) {
+			errno = ret;
+			err(1, "failed to detach %s thread", name);
+		}
+	}
+	return (tid);
 }
 
 char *

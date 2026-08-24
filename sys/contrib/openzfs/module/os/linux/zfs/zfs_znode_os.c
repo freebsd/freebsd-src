@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -40,7 +30,7 @@
 #include <sys/errno.h>
 #include <sys/atomic.h>
 #include <sys/zfs_dir.h>
-#include <sys/zfs_acl.h>
+#include <sys/zfs_acl_impl.h>
 #include <sys/zfs_ioctl.h>
 #include <sys/zfs_rlock.h>
 #include <sys/zfs_fuid.h>
@@ -60,6 +50,9 @@
 #include <sys/zfs_sa.h>
 #include <sys/zfs_stat.h>
 #include <linux/mm_compat.h>
+#ifdef CONFIG_FS_POSIX_ACL
+#include <linux/posix_acl.h>
+#endif
 
 #include "zfs_prop.h"
 #include "zfs_comutil.h"
@@ -789,22 +782,28 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 	if (flag & IS_XATTR)
 		pflags |= ZFS_XATTR;
 
-	if (S_ISREG(vap->va_mode) || S_ISDIR(vap->va_mode)) {
-		/*
-		 * With ZFS_PROJID flag, we can easily know whether there is
-		 * project ID stored on disk or not. See zpl_get_file_info().
-		 */
-		if (obj_type != DMU_OT_ZNODE &&
-		    dmu_objset_projectquota_enabled(zfsvfs->z_os))
-			pflags |= ZFS_PROJID;
+	/*
+	 * With ZFS_PROJID flag, we can easily know whether there is
+	 * project ID stored on disk or not. See zpl_get_file_info().
+	 */
+	if (obj_type != DMU_OT_ZNODE &&
+	    dmu_objset_projectquota_enabled(zfsvfs->z_os))
+		pflags |= ZFS_PROJID;
 
-		/*
-		 * Inherit project ID from parent if required.
-		 */
-		projid = zfs_inherit_projid(dzp);
-		if (dzp->z_pflags & ZFS_PROJINHERIT)
-			pflags |= ZFS_PROJINHERIT;
-	}
+	/*
+	 * Inherit project ID from parent if required.  Every object type
+	 * takes part, as ext4 and XFS do: an object that carried no project
+	 * ID of its own would be treated as belonging to a different project
+	 * than the directory holding it, so zfs_rename() and zfs_link()
+	 * would refuse it with EXDEV even within its own project.
+	 *
+	 * The ZFS_PROJINHERIT flag itself keeps passing to regular files and
+	 * directories only, as before, so that lsattr(1) output is unchanged.
+	 */
+	projid = zfs_inherit_projid(dzp);
+	if ((S_ISREG(vap->va_mode) || S_ISDIR(vap->va_mode)) &&
+	    (dzp->z_pflags & ZFS_PROJINHERIT))
+		pflags |= ZFS_PROJINHERIT;
 
 	/*
 	 * No execs denied will be determined when zfs_mode_compute() is called.
@@ -1210,6 +1209,12 @@ zfs_rezget(znode_t *zp)
 		zp->z_acl_cached = NULL;
 	}
 	mutex_exit(&zp->z_acl_lock);
+
+#ifdef CONFIG_FS_POSIX_ACL
+	/* The VFS cache can still describe the pre-rollback inode. */
+	forget_cached_acl(ZTOI(zp), ACL_TYPE_ACCESS);
+	forget_cached_acl(ZTOI(zp), ACL_TYPE_DEFAULT);
+#endif
 
 	rw_enter(&zp->z_xattr_lock, RW_WRITER);
 	if (zp->z_xattr_cached) {

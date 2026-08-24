@@ -9,7 +9,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -61,7 +61,8 @@ typeset second=$POOL2/second
 log_onexit cleanup
 
 # Allow micro ZAPs to grow beyond SPA_OLD_MAXBLOCKSIZE.
-set_tunable64 ZAP_MICRO_MAX_SIZE 1048576
+log_must save_tunable ZAP_MICRO_MAX_SIZE
+log_must set_tunable64 ZAP_MICRO_MAX_SIZE 1048576
 
 # Create a dataset with a large recordsize (1MB)
 log_must zfs create -o recordsize=1M $src

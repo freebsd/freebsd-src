@@ -1,31 +1,24 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2011, Lawrence Livermore National Security, LLC.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 #ifndef	_SYS_ZPL_H
 #define	_SYS_ZPL_H
 
+#include <sys/zfs_context.h>
+#include <sys/spa.h>
 #include <sys/mntent.h>
 #include <sys/vfs.h>
 #include <linux/aio.h>
@@ -35,11 +28,12 @@
 #include <linux/parser.h>
 #include <linux/vfs_compat.h>
 #include <linux/writeback.h>
+#include <linux/idmap_compat.h>
 #include <linux/xattr_compat.h>
 
 /* zpl_inode.c */
 extern void zpl_vap_init(vattr_t *vap, struct inode *dir,
-    umode_t mode, cred_t *cr, zidmap_t *mnt_ns);
+    umode_t mode, cred_t *cr, zidmap_t *idmap);
 
 extern const struct inode_operations zpl_inode_operations;
 extern const struct inode_operations zpl_dir_inode_operations;
@@ -65,25 +59,8 @@ extern int zpl_xattr_security_init(struct inode *ip, struct inode *dip,
     const struct qstr *qstr);
 
 #if defined(CONFIG_FS_POSIX_ACL)
-
-#if defined(HAVE_SET_ACL_IDMAP_DENTRY)
-extern int zpl_set_acl(struct mnt_idmap *idmap, struct dentry *dentry,
-    struct posix_acl *acl, int type);
-#elif defined(HAVE_SET_ACL_USERNS)
-extern int zpl_set_acl(struct user_namespace *userns, struct inode *ip,
-    struct posix_acl *acl, int type);
-#elif defined(HAVE_SET_ACL_USERNS_DENTRY_ARG2)
-extern int zpl_set_acl(struct user_namespace *userns, struct dentry *dentry,
-    struct posix_acl *acl, int type);
-#else
-extern int zpl_set_acl(struct inode *ip, struct posix_acl *acl, int type);
-#endif /* HAVE_SET_ACL_USERNS */
-
-#if defined(HAVE_GET_ACL_RCU) || defined(HAVE_GET_INODE_ACL)
-extern struct posix_acl *zpl_get_acl(struct inode *ip, int type, bool rcu);
-#elif defined(HAVE_GET_ACL)
-extern struct posix_acl *zpl_get_acl(struct inode *ip, int type);
-#endif
+extern int zpl_set_posix_acl(struct inode *ip, struct posix_acl *acl, int type);
+extern struct posix_acl *zpl_get_posix_acl(struct inode *ip, int type);
 extern int zpl_init_acl(struct inode *ip, struct inode *dir);
 extern int zpl_chmod_acl(struct inode *ip);
 #else
@@ -112,6 +89,65 @@ extern const struct inode_operations zpl_ops_snapdir;
 extern const struct file_operations zpl_fops_shares;
 extern const struct inode_operations zpl_ops_shares;
 
+/*
+ * Snapentry. Held on the snapdir dentry, coordinates mount, unmount and
+ * access through the snapdir mountpoint.
+ */
+typedef struct zfs_snapentry {
+	/* The snapdir dentry itself, that owns this snapentry (via d_fsdata) */
+	struct dentry	*se_dentry;
+
+	/*
+	 * State flags, see below. Early in struct to be in first cacheline,
+	 * for unlocked RCU-walk check in zpl_snapdir_manage().
+	 */
+	unsigned long	se_flags;
+
+	/* Time of last transit through this snapdir. */
+	uint64_t	se_atime;
+
+	/* se_mtx protects se_flags, se_taskqid, se_mount_task and se_cv */
+	kmutex_t	se_mtx;
+
+	/* ID of expiry timer. */
+	taskqid_t	se_taskqid;
+
+	/* Mount task, see zpl_snapdir_manage(). */
+	struct task_struct *se_mount_task;
+
+	/* Pool & snapshot objset that we mounted */
+	spa_t		*se_spa;
+	uint64_t	se_objsetid;
+
+	/* Signal state transition completed, SE_BUSY clear. */
+	kcondvar_t	se_cv;
+} zfs_snapentry_t;
+
+/*
+ * Snapentry flags.
+ *
+ * Bit 0 indicates that something currently adding a mount or invalidating the
+ * dentry.
+ *
+ * Bit 1 indicates an in-flight VFS op wants to traverse into the mount if
+ * it exists; see zpl_snapdir_manage().
+ */
+enum {
+	SE_BUSY,	/* mounting or unmounting, should wait */
+	SE_WANT_MOUNT,	/* next VFS op should attempt automount */
+};
+
+/*
+ * We use atomic bitops for se_flags because we need to test SE_BUSY without
+ * holding se_mtx in zpl_snapdir_manage(). Beyond that, they are always
+ * protected by se_mtx.
+ */
+#define	SE_TEST(se, fl)		test_bit((fl), &(se)->se_flags)
+#define	SE_SET(se, fl)		set_bit((fl), &(se)->se_flags)
+#define	SE_CLEAR(se, fl)	clear_bit((fl), &(se)->se_flags)
+
+extern void zfsctl_snapshot_timer_clear(zfs_snapentry_t *se);
+
 /* zpl_file_range.c */
 
 /* handlers for file_operations of the same name */
@@ -130,26 +166,6 @@ extern int zpl_dedupe_file_range(struct file *src_file, loff_t src_off,
 #else
 #define	zpl_inode_timestamp_truncate(ts, ip)	\
 	timespec64_trunc(ts, (ip)->i_sb->s_time_gran)
-#endif
-
-#if defined(HAVE_INODE_OWNER_OR_CAPABLE)
-#define	zpl_inode_owner_or_capable(ns, ip)	inode_owner_or_capable(ip)
-#elif defined(HAVE_INODE_OWNER_OR_CAPABLE_USERNS)
-#define	zpl_inode_owner_or_capable(ns, ip)	inode_owner_or_capable(ns, ip)
-#elif defined(HAVE_INODE_OWNER_OR_CAPABLE_IDMAP)
-#define	zpl_inode_owner_or_capable(idmap, ip) inode_owner_or_capable(idmap, ip)
-#else
-#error "Unsupported kernel"
-#endif
-
-#if defined(HAVE_SETATTR_PREPARE_USERNS) || defined(HAVE_SETATTR_PREPARE_IDMAP)
-#define	zpl_setattr_prepare(ns, dentry, ia)	setattr_prepare(ns, dentry, ia)
-#else
-/*
- * Use kernel-provided version, or our own from
- * linux/vfs_compat.h
- */
-#define	zpl_setattr_prepare(ns, dentry, ia)	setattr_prepare(dentry, ia)
 #endif
 
 #ifdef HAVE_INODE_GET_CTIME

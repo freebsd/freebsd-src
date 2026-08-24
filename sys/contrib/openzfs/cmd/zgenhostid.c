@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -34,8 +24,38 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <time.h>
 #include <unistd.h>
+
+/*
+ * Fill buf with len bytes from the system CSPRNG.  Returns 0 on success
+ * and -1 on failure, with errno set.
+ */
+static int
+get_random_bytes(void *buf, size_t len)
+{
+	int fd = open("/dev/urandom", O_RDONLY | O_CLOEXEC);
+	if (fd < 0)
+		return (-1);
+
+	size_t got = 0;
+	while (got < len) {
+		ssize_t n = read(fd, (char *)buf + got, len - got);
+		if (n <= 0) {
+			if (n < 0 && errno == EINTR)
+				continue;
+			if (n == 0)
+				errno = EIO;
+			int saved = errno;
+			(void) close(fd);
+			errno = saved;
+			return (-1);
+		}
+		got += (size_t)n;
+	}
+
+	(void) close(fd);
+	return (0);
+}
 
 static __attribute__((noreturn)) void
 usage(void)
@@ -59,7 +79,7 @@ main(int argc, char **argv)
 {
 	/* default file path, can be optionally set by user */
 	const char *path = "/etc/hostid";
-	/* holds converted user input or lrand48() generated value */
+	/* holds converted user input or generated value */
 	unsigned long input_i = 0;
 
 	int opt;
@@ -112,12 +132,24 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * generate if not provided by user
-	 * also handle unlikely zero return from lrand48()
+	 * Generate if not provided by user. The hostid identifies
+	 * this machine to ZFS multihost protection, so it must be
+	 * unique. Obtain a value from the system CSPRNG to ensure
+	 * that even on systems that share a common image and boot
+	 * deterministically different hostids will be generated.
+	 * The loop handles the unlikely zero return case.
 	 */
 	while (input_i == 0) {
-		srand48(getpid() ^ time(NULL));
-		input_i = lrand48();
+		uint32_t rnd;
+
+		if (get_random_bytes(&rnd, sizeof (rnd)) != 0) {
+			(void) fprintf(stderr,
+			    "zgenhostid: failed to read /dev/urandom: %s\n",
+			    strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+
+		input_i = rnd;
 	}
 
 	FILE *fp = fopen(path, "wb");

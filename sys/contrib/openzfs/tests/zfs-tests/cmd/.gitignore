@@ -20,6 +20,7 @@
 /libzfs_input_check
 /libzfs_mnttab_cache_check
 /manipulate_user_buffer
+/makedir
 /mkbusy
 /mkfile
 /mkfiles
@@ -27,10 +28,12 @@
 /mmap_exec
 /mmap_ftruncate
 /mmap_libaio
+/mmap_read_truncate
 /mmap_seek
 /mmap_sync
 /mmapwrite
 /mmap_write_sync
+/mount_null_source
 /nvlist_to_lua
 /randfree_file
 /randwritecomp
@@ -61,3 +64,5 @@
 /idmap_util
 /statx
 /setlease
+/file_unlink_fh
+/zcp_support

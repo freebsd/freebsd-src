@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2017 by Lawrence Livermore National Security, LLC.
@@ -195,6 +185,22 @@ uint_t zfs_multihost_import_intervals = MMP_DEFAULT_IMPORT_INTERVALS;
  * pool to be suspended.
  */
 uint_t zfs_multihost_fail_intervals = MMP_DEFAULT_FAIL_INTERVALS;
+
+#ifndef _KERNEL
+/*
+ * Manual recovery only, set by zhack.  Drops the mirror legs this host
+ * cannot open from the uberblock claim's required write count, so a pool
+ * whose config still expects legs that died with a peer host can be
+ * imported by hand.  Every leg which can be opened is still required.
+ *
+ * This is deliberately absent from the kernel module.  The write, the wait
+ * and the re-read are untouched, so a competing importer which shares any
+ * visibility with us is still caught; a live peer whose legs are all
+ * invisible from here is not, and cannot be by any write-and-read scheme.
+ * That residual is why this is a manual operation guarded by fencing.
+ */
+boolean_t mmp_claim_relaxed = B_FALSE;
+#endif
 
 static const void *const mmp_tag = "mmp_write_uberblock";
 static __attribute__((noreturn)) void mmp_thread(void *arg);
@@ -560,17 +566,20 @@ mmp_claim_uberblock_sync_done(zio_t *zio)
 
 /*
  * Write the uberblock to the first label of all leaves of the specified vdev.
- * Two writes required for each mirror, one for a singleton, and parity+1 for
- * raidz or draid vdevs.
+ * One write per mirror leg the config still expects present, one for a
+ * singleton, and parity+1 for raidz or draid vdevs.
  */
 static void
 mmp_claim_uberblock_sync(zio_t *zio, uint64_t *good_writes,
-    uint64_t *req_writes, uberblock_t *ub, vdev_t *vd, int flags)
+    uint64_t *issued_writes, uint64_t *req_writes, uberblock_t *ub, vdev_t *vd,
+    int flags)
 {
 	for (uint64_t c = 0; c < vd->vdev_children; c++) {
 		vdev_t *cvd = vd->vdev_child[c];
 
-		if (cvd->vdev_islog || cvd->vdev_isspare || cvd->vdev_isl2cache)
+		if (cvd->vdev_islog || cvd->vdev_isspare ||
+		    cvd->vdev_isl2cache || cvd->vdev_ishole ||
+		    cvd->vdev_ops == &vdev_indirect_ops)
 			continue;
 
 		if (cvd->vdev_top == cvd) {
@@ -578,13 +587,50 @@ mmp_claim_uberblock_sync(zio_t *zio, uint64_t *good_writes,
 			if (nparity) {
 				*req_writes += nparity + 1;
 			} else {
-				*req_writes +=
-				    MIN(MAX(cvd->vdev_children, 1), 2);
+				/*
+				 * Mirror: any single leg is enough for a
+				 * remote host to see the claim, so require a
+				 * write to every leg the pool config still
+				 * expects to be present.  A leg taken out of
+				 * service is recorded persistently in the
+				 * config (offline, faulted, or removed) and
+				 * is seen the same way by every host, so it
+				 * is not required and a degraded mirror can
+				 * still be claimed.  A leg merely unreachable
+				 * from this host has none of those states and
+				 * stays required, so a host which can see
+				 * only some of the legs of an otherwise
+				 * healthy mirror still fails the claim and
+				 * cannot split the pool.
+				 */
+				uint64_t present = 0;
+				for (uint64_t l = 0; l < cvd->vdev_children;
+				    l++) {
+					vdev_t *lvd = cvd->vdev_child[l];
+#ifndef _KERNEL
+					/*
+					 * Manual recovery forgives the legs
+					 * this host could not open, and marks
+					 * that same set offline before it
+					 * exports, so the relaxed claim
+					 * accepts nothing the later ordinary
+					 * imports would not.
+					 */
+					if (mmp_claim_relaxed &&
+					    lvd->vdev_not_present)
+						continue;
+#endif
+					if (!lvd->vdev_offline &&
+					    !lvd->vdev_faulted &&
+					    !lvd->vdev_removed)
+						present++;
+				}
+				*req_writes += MAX(present, 1);
 			}
 		}
 
-		mmp_claim_uberblock_sync(zio, good_writes, req_writes,
-		    ub, cvd, flags);
+		mmp_claim_uberblock_sync(zio, good_writes, issued_writes,
+		    req_writes, ub, cvd, flags);
 	}
 
 	if (!vd->vdev_ops->vdev_op_leaf)
@@ -595,6 +641,17 @@ mmp_claim_uberblock_sync(zio_t *zio, uint64_t *good_writes,
 
 	if (vd->vdev_ops == &vdev_draid_spare_ops)
 		return;
+
+	/*
+	 * Count the writes actually issued alongside those required.  A leaf
+	 * the config expects present but which cannot be written is never
+	 * issued one, so a shortfall here means a device is missing rather
+	 * than failing.  Gated exactly as good_writes is in
+	 * mmp_claim_uberblock_sync_done() so that the two counts describe the
+	 * same set of leaves and can be compared.
+	 */
+	if (vd->vdev_top->vdev_ms_array != 0)
+		(*issued_writes)++;
 
 	abd_t *ub_abd = abd_alloc_for_io(VDEV_UBERBLOCK_SIZE(vd), B_TRUE);
 	abd_copy_from_buf(ub_abd, ub, sizeof (uberblock_t));
@@ -615,6 +672,7 @@ mmp_claim_uberblock(spa_t *spa, vdev_t *vd, uberblock_t *ub)
 {
 	int flags = ZIO_FLAG_CONFIG_WRITER | ZIO_FLAG_CANFAIL;
 	uint64_t good_writes = 0;
+	uint64_t issued_writes = 0;
 	uint64_t req_writes = 0;
 	zio_t *zio;
 
@@ -625,7 +683,8 @@ mmp_claim_uberblock(spa_t *spa, vdev_t *vd, uberblock_t *ub)
 
 	/* Sync the uberblock to all writeable leaves */
 	zio = zio_root(spa, NULL, NULL, flags);
-	mmp_claim_uberblock_sync(zio, &good_writes, &req_writes, ub, vd, flags);
+	mmp_claim_uberblock_sync(zio, &good_writes, &issued_writes, &req_writes,
+	    ub, vd, flags);
 	(void) zio_wait(zio);
 
 	/* Flush the new uberblocks so they're immediately visible */
@@ -636,16 +695,31 @@ mmp_claim_uberblock(spa_t *spa, vdev_t *vd, uberblock_t *ub)
 	spa_config_exit(spa, SCL_ALL, mmp_tag);
 
 	zfs_dbgmsg("mmp: claiming uberblock, spa=%s txg=%llu seq=%llu "
-	    "req_writes=%llu good_writes=%llu", spa_load_name(spa),
+	    "req_writes=%llu issued_writes=%llu good_writes=%llu",
+	    spa_load_name(spa),
 	    (u_longlong_t)ub->ub_txg, (u_longlong_t)MMP_SEQ(ub),
-	    (u_longlong_t)req_writes, (u_longlong_t)good_writes);
+	    (u_longlong_t)req_writes, (u_longlong_t)issued_writes,
+	    (u_longlong_t)good_writes);
 
 	/*
 	 * To guarantee visibility from a remote host we require a minimum
 	 * number of good writes. For raidz/draid vdevs parity+1 writes, for
-	 * mirrors 2 writes, and for singletons 1 write.
+	 * mirrors one write per leg the config expects present, and for
+	 * singletons 1 write.
+	 *
+	 * Distinguish the two ways of falling short.  Too few writes issued
+	 * means a device the config expects present could not be written at
+	 * all, which persists across retries and is what 'zhack mmp reclaim'
+	 * recovers.  Enough issued but too few good means the writes reached
+	 * present devices and failed, which a retry may clear.
 	 */
-	if (req_writes == 0 || good_writes < req_writes)
+	if (req_writes == 0)
+		return (SET_ERROR(EIO));
+
+	if (issued_writes < req_writes)
+		return (SET_ERROR(ENODEV));
+
+	if (good_writes < req_writes)
 		return (SET_ERROR(EIO));
 
 	return (0);

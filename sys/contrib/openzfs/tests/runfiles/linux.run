@@ -7,7 +7,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 
 [DEFAULT]
@@ -23,7 +23,8 @@ failsafe = callbacks/zfs_failsafe
 tags = ['functional']
 
 [tests/functional/acl/posix:Linux]
-tests = ['posix_001_pos', 'posix_002_pos', 'posix_003_pos', 'posix_004_pos']
+tests = ['posix_001_pos', 'posix_002_pos', 'posix_003_pos',
+    'posix_004_pos', 'posix_005_pos']
 tags = ['functional', 'acl', 'posix']
 
 [tests/functional/acl/posix-sa:Linux]
@@ -33,7 +34,18 @@ tags = ['functional', 'acl', 'posix-sa']
 [tests/functional/block_cloning:Linux]
 tests = ['block_cloning_ficlone', 'block_cloning_ficlonerange',
     'block_cloning_ficlonerange_partial', 'block_cloning_disabled_ficlone',
-    'block_cloning_disabled_ficlonerange']
+    'block_cloning_disabled_ficlonerange', 'block_cloning_fideduperange',
+    'block_cloning_fideduperange_blksz',
+    'block_cloning_fideduperange_compress',
+    'block_cloning_fideduperange_differs',
+    'block_cloning_fideduperange_eof',
+    'block_cloning_fideduperange_mtime',
+    'block_cloning_fideduperange_partial',
+    'block_cloning_fideduperange_replay',
+    'block_cloning_fideduperange_sparse',
+    'block_cloning_fideduperange_subblock',
+    'block_cloning_fideduperange_tail',
+    'block_cloning_disabled_fideduperange']
 tags = ['functional', 'block_cloning']
 
 [tests/functional/chattr:Linux]
@@ -70,11 +82,12 @@ tags = ['functional', 'cli_root', 'zpool_add']
 
 [tests/functional/cli_root/zpool_expand:Linux]
 tests = ['zpool_expand_001_pos', 'zpool_expand_002_pos',
-    'zpool_expand_003_neg', 'zpool_expand_004_pos', 'zpool_expand_005_pos']
+    'zpool_expand_003_neg', 'zpool_expand_004_pos', 'zpool_expand_005_pos',
+    'zpool_expand_006_pos']
 tags = ['functional', 'cli_root', 'zpool_expand']
 
 [tests/functional/cli_root/zpool_import:Linux]
-tests = ['zpool_import_hostid_changed',
+tests = ['zpool_import_aux_paths', 'zpool_import_hostid_changed',
     'zpool_import_hostid_changed_unclean_export',
     'zpool_import_hostid_changed_cachefile',
     'zpool_import_hostid_changed_cachefile_unclean_export']
@@ -90,9 +103,14 @@ tags = ['functional', 'cli_root', 'zpool_reopen']
 tests = ['zpool_split_wholedisk']
 tags = ['functional', 'cli_root', 'zpool_split']
 
-[tests/functional/compression:Linux]
-tests = ['compress_004_pos']
-tags = ['functional', 'compression']
+[tests/functional/dedup:Linux]
+tests = ['dedup_legacy_gang']
+tags = ['functional', 'dedup']
+
+[tests/functional/device_access:Linux]
+tests = ['device_access_create', 'device_access_attach', 'device_access_add',
+    'device_access_import']
+tags = ['functional', 'device_access']
 
 [tests/functional/devices:Linux]
 tests = ['devices_001_pos', 'devices_002_neg', 'devices_003_pos']
@@ -160,6 +178,7 @@ tags = ['functional', 'mmap']
 [tests/functional/mmp:Linux]
 tests = ['mmp_on_thread', 'mmp_on_uberblocks', 'mmp_on_off', 'mmp_interval',
     'mmp_active_import', 'mmp_inactive_import', 'mmp_exported_import',
+    'mmp_degraded_import', 'mmp_zhack_reclaim',
     'mmp_write_uberblocks', 'mmp_reset_interval', 'multihost_history',
     'mmp_on_zdb', 'mmp_write_distribution', 'mmp_hostid', 'mmp_write_slow_disk',
     'mmp_concurrent_import']
@@ -167,7 +186,7 @@ tags = ['functional', 'mmp']
 timeout = 1200
 
 [tests/functional/mount:Linux]
-tests = ['umount_unlinked_drain', 'mount_loopback']
+tests = ['umount_unlinked_drain', 'mount_loopback', 'mount_null_source']
 tags = ['functional', 'mount']
 
 [tests/functional/pam:Linux]
@@ -183,6 +202,7 @@ tags = ['functional', 'procfs']
 [tests/functional/projectquota:Linux]
 tests = ['defaultprojectquota_001_pos', 'defaultprojectquota_005_pos',
     'projectid_001_pos', 'projectid_002_pos', 'projectid_003_pos',
+    'projectid_004_pos',
     'projectquota_001_pos', 'projectquota_003_pos', 'projectquota_006_pos',
     'projectspace_001_pos', 'projectspace_002_pos', 'projectspace_003_pos',
     'projectspace_004_pos', 'projectspace_005_pos', 'projecttree_001_pos']
@@ -197,7 +217,8 @@ tests = ['renameat2_noreplace', 'renameat2_exchange', 'renameat2_whiteout']
 tags = ['functional', 'renameat2']
 
 [tests/functional/rsend:Linux]
-tests = ['send_realloc_dnode_size', 'send_encrypted_files', 'send-c_longname']
+tests = ['send_realloc_dnode_size', 'send_encrypted_files',
+    'send-c_longname']
 tags = ['functional', 'rsend']
 
 [tests/functional/simd:Linux]
@@ -206,9 +227,14 @@ post =
 tests = ['simd_supported']
 tags = ['functional', 'simd']
 
-[tests/functional/snapshot:Linux]
-tests = ['snapshot_015_pos', 'snapshot_016_pos']
-tags = ['functional', 'snapshot']
+[tests/functional/snapdir:Linux]
+tests = ['snapdir_admin_create_destroy', 'snapdir_admin_rename_destroy',
+    'snapdir_admin_disabled', 'snapdir_mount_expire_idle',
+    'snapdir_mount_expire_busy', 'snapdir_mount_no_setuid',
+    'snapdir_stat_no_mount', 'snapdir_mount_bind', 'snapdir_mount_move',
+    'snapdir_mount_expire_bind', 'snapdir_mount_expire_move',
+    'snapdir_mount_multiple', 'snapdir_mount_fd_hold', 'snapdir_mount_foreign']
+tags = ['functional', 'snapdir']
 
 [tests/functional/syncfs:Linux]
 tests = ['syncfs_suspend']
@@ -227,7 +253,8 @@ tags = ['functional', 'upgrade']
 
 [tests/functional/user_namespace:Linux]
 tests = ['user_namespace_001', 'user_namespace_002', 'user_namespace_003',
-    'user_namespace_004']
+    'user_namespace_004', 'user_namespace_secpolicy_sys_config',
+    'user_namespace_secpolicy_zinject']
 tags = ['functional', 'user_namespace']
 
 [tests/functional/userquota:Linux]

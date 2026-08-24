@@ -9,7 +9,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -83,6 +83,13 @@ project_id_reason = 'lsattr with set/show project ID required'
 # Some tests require that the kernel support user namespaces.
 #
 user_ns_reason = 'Kernel user namespace support required'
+
+
+#
+# Channel program support disabled at build time
+#
+zcp_reason = 'channel program support required'
+
 
 #
 # Some rewind tests can fail since nothing guarantees that old MOS blocks
@@ -202,6 +209,8 @@ elif sys.platform.startswith('linux'):
 #
 maybe = {
     'chattr/setup': ['SKIP', exec_reason],
+    'channel_program/lua_core/setup': ['SKIP', zcp_reason],
+    'channel_program/synctask_core/setup': ['SKIP', zcp_reason],
     'crtime/crtime_001_pos': ['SKIP', statx_reason],
     'cli_root/zdb/zdb_006_pos': ['FAIL', known_reason],
     'cli_root/zfs_copies/zfs_copies_006_pos': ['FAIL', known_reason],
@@ -218,11 +227,6 @@ maybe = {
     'cli_root/zpool_destroy/zpool_destroy_001_pos': ['SKIP', 6145],
     'cli_root/zpool_import/import_devices_missing': ['FAIL', 16669],
     'cli_root/zpool_import/zpool_import_missing_003_pos': ['SKIP', 6839],
-    'cli_root/zpool_initialize/zpool_initialize_import_export':
-        ['FAIL', 11948],
-    'cli_root/zpool_initialize/zpool_initialize_suspend_resume':
-        ['FAIL', known_reason],
-    'cli_root/zpool_iostat/zpool_iostat_interval_all': ['FAIL', 18273],
     'cli_root/zpool_labelclear/zpool_labelclear_removed':
         ['FAIL', known_reason],
     'cli_root/zpool_trim/setup': ['SKIP', trim_reason],
@@ -295,6 +299,12 @@ if sys.platform.startswith('freebsd'):
             ['SKIP', cfr_cross_reason],
         'block_cloning/block_cloning_copyfilerange_cross_dataset':
             ['SKIP', cfr_cross_reason],
+        'block_cloning/block_cloning_copyfilerange_clone':
+            ['SKIP', cfr_reason],
+        'block_cloning/block_cloning_copyfilerange_clone_partial':
+            ['SKIP', cfr_reason],
+        'block_cloning/block_cloning_disabled_copyfilerange_clone':
+            ['SKIP', cfr_reason],
         'stat/statx_dioalign': ['SKIP', 'na_reason'],
     })
 elif sys.platform.startswith('linux'):

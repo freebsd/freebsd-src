@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
- *
  * This file and its contents are supplied under the terms of the
  * Common Development and Distribution License ("CDDL"), version 1.0.
  * You may only use this file in accordance with the terms of version
@@ -9,9 +7,7 @@
  *
  * A full copy of the text of the CDDL should have accompanied this
  * source.  A copy of the CDDL is also available via the Internet at
- * http://www.illumos.org/license/CDDL.
- *
- * CDDL HEADER END
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -19,11 +15,13 @@
  * Copyright (c) 2020 by Datto Inc. All rights reserved.
  */
 
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "zstream.h"
+#include "zstream_util.h"
 
 void
 zstream_usage(void)
@@ -39,7 +37,10 @@ zstream_usage(void)
 	    "\n"
 	    "\tzstream drop_record [-v] [OBJECT,OFFSET] ...\n"
 	    "\n"
-	    "\tzstream recompress [ -l level] TYPE\n"
+	    "\tzstream raw [-v] [-b blocks] [-g guid] IMAGE|DEVICE FILE\n"
+	    "\t... | zstream raw [-v] [-b blocks] [-g guid] IMAGE|DEVICE\n"
+	    "\n"
+	    "\tzstream recompress [-t num_threads] [-l level] TYPE\n"
 	    "\n"
 	    "\tzstream token resume_token\n"
 	    "\n"
@@ -47,9 +48,27 @@ zstream_usage(void)
 	exit(1);
 }
 
+/*
+ * Set the signal mask to allow THREAD_BACKTRACE_SIGNAL. WATCHDOG_SIGNAL
+ * must be blocked in all threads so that its intended recipient can listen
+ * for it with sigwait(), which detects only pending signals.
+ */
+static void
+set_signal_mask(void)
+{
+	sigset_t mask;
+
+	safe_pthread_sigmask(SIG_SETMASK, NULL, &mask);
+	sigaddset(&mask, WATCHDOG_SIGNAL);
+	sigdelset(&mask, THREAD_BACKTRACE_SIGNAL);
+	safe_pthread_sigmask(SIG_SETMASK, &mask, NULL);
+}
+
 int
 main(int argc, char *argv[])
 {
+	set_signal_mask();
+
 	char *basename = strrchr(argv[0], '/');
 	basename = basename ? (basename + 1) : argv[0];
 	if (argc >= 1 && strcmp(basename, "zstreamdump") == 0)
@@ -66,12 +85,17 @@ main(int argc, char *argv[])
 		return (zstream_do_decompress(argc - 1, argv + 1));
 	} else if (strcmp(subcommand, "drop_record") == 0) {
 		return (zstream_do_drop_record(argc - 1, argv + 1));
+	} else if (strcmp(subcommand, "raw") == 0) {
+		return (zstream_do_raw(argc - 1, argv + 1));
 	} else if (strcmp(subcommand, "recompress") == 0) {
 		return (zstream_do_recompress(argc - 1, argv + 1));
 	} else if (strcmp(subcommand, "token") == 0) {
 		return (zstream_do_token(argc - 1, argv + 1));
 	} else if (strcmp(subcommand, "redup") == 0) {
 		return (zstream_do_redup(argc - 1, argv + 1));
+	} else if (strcmp(subcommand, "selftest") == 0) {
+		/* Undocumented; used by the ZFS test suite */
+		return (zstream_do_selftest(argc - 1, argv + 1));
 	} else {
 		zstream_usage();
 	}

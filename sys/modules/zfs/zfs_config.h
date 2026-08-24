@@ -4,6 +4,9 @@
 /* zfs_config.h.  Generated from zfs_config.h.in by configure.  */
 /* zfs_config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define to 1 to disable ZFS channel program support */
+/* #undef DISABLE_ZCP */
+
 /* Define to 1 if translation of program messages to the user's native
    language is requested. */
 /* #undef ENABLE_NLS */
@@ -249,6 +252,15 @@
 /* flush_dcache_page() is GPL-only */
 /* #undef HAVE_FLUSH_DCACHE_PAGE_GPL_ONLY */
 
+/* use __flush_workqueue() to flush delay workqueue */
+/* #undef HAVE_FLUSH_DELAY_WORKQUEUE_INTERNAL */
+
+/* use system_delay_wq for delay workqueue */
+/* #undef HAVE_FLUSH_DELAY_WORKQUEUE_PERCPU */
+
+/* follow_down() takes a flags parameter */
+/* #undef HAVE_FOLLOW_DOWN_FLAGS */
+
 /* Define if compiler supports -Wformat-overflow */
 /* #undef HAVE_FORMAT_OVERFLOW */
 
@@ -264,14 +276,8 @@
 /* yes */
 /* #undef HAVE_GENERIC_FADVISE */
 
-/* generic_fillattr requires struct mnt_idmap* */
-/* #undef HAVE_GENERIC_FILLATTR_IDMAP */
-
-/* generic_fillattr requires struct mnt_idmap* and u32 request_mask */
+/* generic_fillattr requires request_mask */
 /* #undef HAVE_GENERIC_FILLATTR_IDMAP_REQMASK */
-
-/* generic_fillattr requires struct user_namespace* */
-/* #undef HAVE_GENERIC_FILLATTR_USERNS */
 
 /* generic_*_io_acct() 4 arg available */
 /* #undef HAVE_GENERIC_IO_ACCT_4ARG */
@@ -303,17 +309,14 @@
 /* Define if you have the iconv() function and it works. */
 #define HAVE_ICONV 1
 
-/* iops->getattr() takes struct mnt_idmap* */
-/* #undef HAVE_IDMAP_IOPS_GETATTR */
-
-/* iops->setattr() takes struct mnt_idmap* */
-/* #undef HAVE_IDMAP_IOPS_SETATTR */
-
-/* APIs for idmapped mount are present */
-/* #undef HAVE_IDMAP_MNT_API */
+/* id mapping mechanism is mnt_idmap */
+/* #undef HAVE_IDMAP_MNTIDMAP */
 
 /* mnt_idmap does not have user_namespace */
 /* #undef HAVE_IDMAP_NO_USERNS */
+
+/* id mapping mechanism is user_namespace */
+/* #undef HAVE_IDMAP_USERNS */
 
 /* Define if compiler supports -Wimplicit-fallthrough */
 /* #undef HAVE_IMPLICIT_FALLTHROUGH */
@@ -333,15 +336,6 @@
 /* inode_get_mtime() exists in linux/fs.h */
 /* #undef HAVE_INODE_GET_MTIME */
 
-/* inode_owner_or_capable() exists */
-/* #undef HAVE_INODE_OWNER_OR_CAPABLE */
-
-/* inode_owner_or_capable() takes mnt_idmap */
-/* #undef HAVE_INODE_OWNER_OR_CAPABLE_IDMAP */
-
-/* inode_owner_or_capable() takes user_ns */
-/* #undef HAVE_INODE_OWNER_OR_CAPABLE_USERNS */
-
 /* inode_set_atime_to_ts() exists in linux/fs.h */
 /* #undef HAVE_INODE_SET_ATIME_TO_TS */
 
@@ -359,45 +353,6 @@
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
-
-/* iops->create() takes struct mnt_idmap* */
-/* #undef HAVE_IOPS_CREATE_IDMAP */
-
-/* iops->create() takes struct user_namespace* */
-/* #undef HAVE_IOPS_CREATE_USERNS */
-
-/* iops->mkdir() returns struct dentry* */
-/* #undef HAVE_IOPS_MKDIR_DENTRY */
-
-/* iops->mkdir() takes struct mnt_idmap* */
-/* #undef HAVE_IOPS_MKDIR_IDMAP */
-
-/* iops->mkdir() takes struct user_namespace* */
-/* #undef HAVE_IOPS_MKDIR_USERNS */
-
-/* iops->mknod() takes struct mnt_idmap* */
-/* #undef HAVE_IOPS_MKNOD_IDMAP */
-
-/* iops->mknod() takes struct user_namespace* */
-/* #undef HAVE_IOPS_MKNOD_USERNS */
-
-/* iops->permission() takes struct mnt_idmap* */
-/* #undef HAVE_IOPS_PERMISSION_IDMAP */
-
-/* iops->permission() takes struct user_namespace* */
-/* #undef HAVE_IOPS_PERMISSION_USERNS */
-
-/* iops->rename() takes struct mnt_idmap* */
-/* #undef HAVE_IOPS_RENAME_IDMAP */
-
-/* iops->rename() takes struct user_namespace* */
-/* #undef HAVE_IOPS_RENAME_USERNS */
-
-/* iops->symlink() takes struct mnt_idmap* */
-/* #undef HAVE_IOPS_SYMLINK_IDMAP */
-
-/* iops->symlink() takes struct user_namespace* */
-/* #undef HAVE_IOPS_SYMLINK_USERNS */
 
 /* iov_iter_get_pages2() is available */
 /* #undef HAVE_IOV_ITER_GET_PAGES2 */
@@ -537,6 +492,9 @@
 /* Noting that make_request_fn() returns blk_qc_t */
 /* #undef HAVE_MAKE_REQUEST_FN_RET_QC */
 
+/* iops->mkdir() returns struct dentry* */
+/* #undef HAVE_MKDIR_DENTRY_RETURN */
+
 /* Define to 1 if you have the 'mlockall' function. */
 #define HAVE_MLOCKALL 1
 
@@ -566,9 +524,6 @@
 
 /* part_to_dev() exists */
 /* #undef HAVE_PART_TO_DEV */
-
-/* iops->getattr() takes a path */
-/* #undef HAVE_PATH_IOPS_GETATTR */
 
 /* pin_user_pages_unlocked() is available */
 /* #undef HAVE_PIN_USER_PAGES_UNLOCKED */
@@ -606,9 +561,6 @@
 /* register_sysctl_table exists */
 /* #undef HAVE_REGISTER_SYSCTL_TABLE */
 
-/* iops->rename() wants flags */
-/* #undef HAVE_RENAME_WANTS_FLAGS */
-
 /* revalidate_disk() is available */
 /* #undef HAVE_REVALIDATE_DISK */
 
@@ -618,23 +570,8 @@
 /* Define to 1 if you have the <security/pam_modules.h> header file. */
 #define HAVE_SECURITY_PAM_MODULES_H 1
 
-/* setattr_prepare() accepts mnt_idmap */
-/* #undef HAVE_SETATTR_PREPARE_IDMAP */
-
-/* setattr_prepare() is available, doesn't accept user_namespace */
-/* #undef HAVE_SETATTR_PREPARE_NO_USERNS */
-
-/* setattr_prepare() accepts user_namespace */
-/* #undef HAVE_SETATTR_PREPARE_USERNS */
-
-/* iops->set_acl() takes 4 args, arg1 is struct mnt_idmap * */
-/* #undef HAVE_SET_ACL_IDMAP_DENTRY */
-
-/* iops->set_acl() takes 4 args */
-/* #undef HAVE_SET_ACL_USERNS */
-
-/* iops->set_acl() takes 4 args, arg2 is struct dentry * */
-/* #undef HAVE_SET_ACL_USERNS_DENTRY_ARG2 */
+/* iops->set_acl() takes struct dentry */
+/* #undef HAVE_SET_ACL_DENTRY */
 
 /* Define if set_default_d_op() is available */
 /* #undef HAVE_SET_DEFAULT_D_OP */
@@ -711,14 +648,8 @@
 /* timer_delete_sync is available */
 /* #undef HAVE_TIMER_DELETE_SYNC */
 
-/* i_op->tmpfile() uses old dentry signature */
-/* #undef HAVE_TMPFILE_DENTRY */
-
-/* i_op->tmpfile() has mnt_idmap */
-/* #undef HAVE_TMPFILE_IDMAP */
-
-/* i_op->tmpfile() has userns */
-/* #undef HAVE_TMPFILE_USERNS */
+/* i_op->tmpfile() uses takes struct file */
+/* #undef HAVE_TMPFILE_FILE */
 
 /* Define if host toolchain supports AES */
 #define HAVE_TOOLCHAIN_AES 1
@@ -794,12 +725,6 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
-/* iops->getattr() takes struct user_namespace* */
-/* #undef HAVE_USERNS_IOPS_GETATTR */
-
-/* iops->setattr() takes struct user_namespace* */
-/* #undef HAVE_USERNS_IOPS_SETATTR */
-
 /* fops->clone_file_range() is available */
 /* #undef HAVE_VFS_CLONE_FILE_RANGE */
 
@@ -817,6 +742,12 @@
 
 /* migrate_folio exists */
 /* #undef HAVE_VFS_MIGRATE_FOLIO */
+
+/* vfs_parse_fs_string() takes 3 args */
+/* #undef HAVE_VFS_PARSE_FS_STRING_3ARGS */
+ 
+/* vfs_path_lookup() is exported */
+/* #undef HAVE_VFS_PATH_LOOKUP_EXPORTED */
 
 /* address_space_operations->readpages exists */
 /* #undef HAVE_VFS_READPAGES */
@@ -847,15 +778,6 @@
 
 /* xattr_handler->get() wants dentry and inode and flags */
 /* #undef HAVE_XATTR_GET_DENTRY_INODE_FLAGS */
-
-/* xattr_handler->set() wants both dentry and inode */
-/* #undef HAVE_XATTR_SET_DENTRY_INODE */
-
-/* xattr_handler->set() takes mnt_idmap */
-/* #undef HAVE_XATTR_SET_IDMAP */
-
-/* xattr_handler->set() takes user_namespace */
-/* #undef HAVE_XATTR_SET_USERNS */
 
 /* ZERO_PAGE() is GPL-only */
 /* #undef HAVE_ZERO_PAGE_GPL_ONLY */
@@ -889,6 +811,9 @@
 
 /* make_request_fn() return type */
 /* #undef MAKE_REQUEST_FN_RET */
+
+/* metaslab tracing enabled */
+/* #undef METASLAB_TRACE */
 
 /* Define to necessary symbol if this constant uses a non-standard name on
    your system. */
@@ -927,7 +852,7 @@
 /* #undef ZFS_DEVICE_MINOR */
 
 /* Define the project alias string. */
-#define ZFS_META_ALIAS "zfs-2.4.99-737-FreeBSD_g37af89948"
+#define ZFS_META_ALIAS "zfs-2.4.99-974-FreeBSD.g84aa7e7e09"
 
 /* Define the project author. */
 #define ZFS_META_AUTHOR "OpenZFS"
@@ -936,7 +861,7 @@
 /* #undef ZFS_META_DATA */
 
 /* Define the maximum compatible kernel version. */
-#define ZFS_META_KVER_MAX "7.0"
+#define ZFS_META_KVER_MAX "7.2"
 
 /* Define the minimum compatible kernel version. */
 #define ZFS_META_KVER_MIN "4.18"
@@ -957,7 +882,7 @@
 #define ZFS_META_NAME "zfs"
 
 /* Define the project release. */
-#define ZFS_META_RELEASE "737-FreeBSD_g37af89948"
+#define ZFS_META_RELEASE "974-FreeBSD.g84aa7e7e09"
 
 /* Define the project version. */
 #define ZFS_META_VERSION "2.4.99"

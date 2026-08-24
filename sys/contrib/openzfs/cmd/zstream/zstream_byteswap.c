@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * This file and its contents are supplied under the terms of the Common
- * Development and Distribution License ("CDDL"), version 1.0. You may only use
- * this file in accordance with the terms of version 1.0 of the CDDL.
- *
- * A full copy of the text of the CDDL should have accompanied this source. A
- * copy of the CDDL is also available via the Internet at
- * http://www.illumos.org/license/CDDL.
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -40,8 +37,11 @@ static byteswap_context_t byteswap_contexts[MAX_BYTESWAP];
 static int next_context = 0;
 
 static disposition_t
-chain_byteswap(drr_packet_t *item, byteswap_context_t *context)
+chain_byteswap(void *item_in, void *context_in)
 {
+	drr_packet_t *item = (drr_packet_t *)item_in;
+	byteswap_context_t *context = (byteswap_context_t *)context_in;
+
 	if (item == NULL) {
 		return (D_OK);
 	}
@@ -191,7 +191,7 @@ serial_byteswap(byteswap_stage_t stage)
 		.cs_out_size = sizeof (drr_packet_t),
 		.cs_context = bsc,
 		.cs_serial = {
-			.process = (zc_serial_process_f *)chain_byteswap,
+			.process = chain_byteswap,
 		}
 	};
 	return (step);

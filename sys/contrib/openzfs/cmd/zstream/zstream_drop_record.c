@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -42,9 +32,11 @@
 #define	KEYSIZE 64
 
 static disposition_t
-chain_drop_records(drr_packet_t *item, void *context)
+chain_drop_records(void *item_in, void *context)
 {
 	(void) context;
+	drr_packet_t *item = (drr_packet_t *)item_in;
+
 	if (item == NULL)
 		return (D_OK);
 
@@ -105,7 +97,7 @@ serial_drop_records(void)
 		.cs_out_size = sizeof (drr_packet_t),
 		.cs_context = NULL,
 		.cs_serial = {
-			.process = (zc_serial_process_f *)chain_drop_records
+			.process = chain_drop_records
 		}
 	};
 	return (step);
@@ -125,7 +117,6 @@ zstream_do_drop_record(int argc, char *argv[])
 		case '?':
 			warnx("invalid option '%c'\n", optopt);
 			zstream_usage();
-			break;
 		}
 	}
 
@@ -146,10 +137,8 @@ zstream_do_drop_record(int argc, char *argv[])
 		char *end;
 
 		obj_str = strsep(&argv[i], ",");
-		if (argv[i] == NULL) {
+		if (argv[i] == NULL)
 			zstream_usage();
-			exit(2);
-		}
 		errno = 0;
 		object = strtoull(obj_str, &end, 0);
 		if (errno || *end != '\0')

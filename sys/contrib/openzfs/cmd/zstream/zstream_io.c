@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * This file and its contents are supplied under the terms of the Common
- * Development and Distribution License ("CDDL"), version 1.0. You may only use
- * this file in accordance with the terms of version 1.0 of the CDDL.
- *
- * A full copy of the text of the CDDL should have accompanied this source. A
- * copy of the CDDL is also available via the Internet at
- * http://www.illumos.org/license/CDDL.
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -19,11 +16,10 @@
 
 #include <arpa/inet.h>
 #include <err.h>
-#include <errno.h>
 #include <libzutil.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/byteorder.h>
 #include <sys/stdtypes.h>
 #include <sys/sysmacros.h>
@@ -32,7 +28,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "zstream_chain.h"
 #include "zstream_modules.h"
 #include "zstream_util.h"
 
@@ -58,6 +53,9 @@ static int next_io_context = 0;
 
 static checkpoint_context_t checkpoint_contexts[MAX_IO_STREAMS];
 static int next_checkpoint_context = 0;
+
+static uint32_t drop_contexts[MAX_DROP_FILTERS];
+static int next_drop_context = 0;
 
 /*
  * Run from within chain execution to initialize I/O. A NULL filename
@@ -213,8 +211,11 @@ set_stream_attributes(drr_packet_t *item)
 }
 
 static disposition_t
-chain_read(drr_packet_t *item, io_context_t *context)
+chain_read(void *item_in, void *context_in)
 {
+	drr_packet_t *item = (drr_packet_t *)item_in;
+	io_context_t *context = (io_context_t *)context_in;
+
 	if (item == NULL)
 		return (D_OK);
 
@@ -293,8 +294,11 @@ chain_read(drr_packet_t *item, io_context_t *context)
 }
 
 static disposition_t
-chain_write(drr_packet_t *item, io_context_t *context)
+chain_write(void *item_in, void *context_in)
 {
+	drr_packet_t *item = (drr_packet_t *)item_in;
+	io_context_t *context = (io_context_t *)context_in;
+
 	if (item == NULL) {
 		if (context->ic_fp) {
 			if (fclose(context->ic_fp) != 0)
@@ -343,9 +347,11 @@ chain_write(drr_packet_t *item, io_context_t *context)
  * Even if the chain doesn't write out a stream, payloads still need freed.
  */
 static disposition_t
-chain_null_output(drr_packet_t *item, void *context)
+chain_null_output(void *item_in, void *context)
 {
 	(void) context;
+	drr_packet_t *item = (drr_packet_t *)item_in;
+
 	if (item && item->dp_payload != NULL && item->dp_payload_size > 0) {
 		free(item->dp_payload);
 		item->dp_payload = NULL;
@@ -370,12 +376,11 @@ setup_io(const char *filename, boolean_t for_reading)
 
 	chain_step_t step = {
 		.cs_type = CS_SERIAL,
-		.cs_in_size = 0,
-		.cs_out_size = sizeof (drr_packet_t),
+		.cs_in_size = for_reading ? 0 : sizeof (drr_packet_t),
+		.cs_out_size = for_reading ? sizeof (drr_packet_t) : 0,
 		.cs_context = &io_contexts[context_num],
 		.cs_serial = {
-			.process = (zc_serial_process_f *)
-			    (for_reading ? chain_read : chain_write),
+			.process = for_reading ? chain_read : chain_write
 		}
 	};
 	return (step);
@@ -402,15 +407,34 @@ serial_null_output(void)
 		.cs_out_size = 0,
 		.cs_context = NULL,
 		.cs_serial = {
-			.process = (zc_serial_process_f *)chain_null_output
+			.process = chain_null_output
 		}
 	};
 	return (step);
 }
 
-static disposition_t
-chain_checkpoint(drr_packet_t *item, checkpoint_context_t *ctxt)
+size_t
+constant_cost_of_one(queue_item_t *packet, void *context)
 {
+	(void) context;
+	(void) packet;
+	return (1);
+}
+
+size_t
+payload_size_as_cost(queue_item_t *packet_in, void *context)
+{
+	(void) context;
+	drr_packet_t *packet = (drr_packet_t *)packet_in;
+	return (packet->dp_payload_size);
+}
+
+static disposition_t
+chain_checkpoint(void *item_in, void *ctxt_in)
+{
+	drr_packet_t *item = (drr_packet_t *)item_in;
+	checkpoint_context_t *ctxt = (checkpoint_context_t *)ctxt_in;
+
 	struct timespec now;
 	char buff[32];
 	uint64_t delta_b, dbdt;
@@ -455,7 +479,54 @@ serial_checkpoint(const char *name)
 		.cs_out_size = sizeof (drr_packet_t),
 		.cs_context = &checkpoint_contexts[context_no],
 		.cs_serial = {
-			.process = (zc_serial_process_f *)chain_checkpoint
+			.process = chain_checkpoint
+		},
+	};
+	return (step);
+}
+
+static disposition_t
+chain_drop_record_types(void *item_in, void *context_in)
+{
+	drr_packet_t *item = (drr_packet_t *)item_in;
+	uint32_t *context = (uint32_t *)context_in;
+
+	if (item == NULL)
+		return (D_OK);
+
+	uint32_t type = (uint32_t)item->dp_drr.drr_type;
+	if (type >= DRR_NUMTYPES) {
+		errx(1, "invalid record type %u found at offset %llu "
+		    "(place drop filter downstream of byteswapping?)",
+		    type, (u_longlong_t)item->dp_stream_offset);
+	}
+
+	if (((UINT32_C(1) << type) & *context) != 0) {
+		if (item->dp_payload != NULL) {
+			free(item->dp_payload);
+			item->dp_payload = NULL;
+			item->dp_payload_size = 0;
+		}
+		return (D_DROP);
+	}
+	return (D_OK);
+}
+
+chain_step_t
+serial_drop_record_types(uint32_t drop_mask)
+{
+	int context_no = next_drop_context++ % MAX_DROP_FILTERS;
+	uint32_t *context = &drop_contexts[context_no];
+
+	*context = drop_mask;
+
+	chain_step_t step = {
+		.cs_type = CS_SERIAL,
+		.cs_in_size = sizeof (drr_packet_t),
+		.cs_out_size = sizeof (drr_packet_t),
+		.cs_context = context,
+		.cs_serial = {
+			.process = chain_drop_record_types
 		},
 	};
 	return (step);

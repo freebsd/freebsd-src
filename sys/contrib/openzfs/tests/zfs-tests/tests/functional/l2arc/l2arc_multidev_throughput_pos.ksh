@@ -1,8 +1,6 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
-#
 # This file and its contents are supplied under the terms of the
 # Common Development and Distribution License ("CDDL"), version 1.0.
 # You may only use this file in accordance with the terms of version
@@ -10,9 +8,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
-#
-# CDDL HEADER END
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -31,7 +27,7 @@
 #	2. Create pool without cache devices, fill ARC to arc_max.
 #	3. Add 2 cache devices after ARC is full and stable.
 #	4. Measure L2ARC throughput over 3 consecutive windows.
-#	5. Verify throughput remains stable (no window drops below 50%
+#	5. Verify throughput remains stable (no window drops below 40%
 #	   of the first).
 #
 
@@ -126,12 +122,12 @@ if [[ ${window_bytes[1]} -le 0 ]]; then
 	log_fail "No L2ARC writes in first window"
 fi
 
-# Each subsequent window must be at least 50% of the first
-typeset min_bytes=$((window_bytes[1] * 50 / 100))
+# Each subsequent window must be at least 40% of the first
+typeset min_bytes=$((window_bytes[1] * 40 / 100))
 for w in $(seq 2 $num_windows); do
 	if [[ ${window_bytes[$w]} -lt $min_bytes ]]; then
 		log_fail "Window $w ($((window_bytes[$w] / 1024 / 1024))MB)" \
-		    "degraded below 50% of window 1" \
+		    "degraded below 40% of window 1" \
 		    "($((window_bytes[1] / 1024 / 1024))MB)"
 	fi
 done

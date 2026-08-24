@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -31,6 +21,8 @@
  * Copyright (c) 2019 Datto Inc.
  * Copyright (c) 2021, Colm Buckley <colm@tuatha.org>
  * Copyright (c) 2025 Hewlett Packard Enterprise Development LP.
+ * Copyright (c) 2024-2026, Klara, Inc.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 #ifndef	_LIBZFS_H
@@ -297,20 +289,23 @@ typedef struct trim_cbdata {
 typedef struct initialize_cbdata {
 	boolean_t wait;
 	pool_initialize_func_t cmd_type;
+	uint64_t value;
+	boolean_t value_provided;
 } initialize_cbdata_t;
 /*
  * Functions to manipulate pool and vdev state
  */
 _LIBZFS_H int zpool_scan(zpool_handle_t *, pool_scan_func_t, pool_scrub_cmd_t);
 _LIBZFS_H int zpool_scan_range(zpool_handle_t *, pool_scan_func_t,
-    pool_scrub_cmd_t, time_t, time_t);
+    pool_scrub_cmd_t, pool_scrub_flags_t, time_t, time_t);
 _LIBZFS_H int zpool_initialize_one(zpool_handle_t *, void *);
 _LIBZFS_H int zpool_initialize(zpool_handle_t *, pool_initialize_func_t,
-    nvlist_t *);
+    nvlist_t *, uint64_t, boolean_t);
 _LIBZFS_H int zpool_initialize_wait(zpool_handle_t *, pool_initialize_func_t,
-    nvlist_t *);
+    nvlist_t *, uint64_t, boolean_t);
 _LIBZFS_H int zpool_trim(zpool_handle_t *, pool_trim_func_t, nvlist_t *,
     trimflags_t *);
+_LIBZFS_H int zpool_condense(zpool_handle_t *, const char *, const char *);
 
 _LIBZFS_H int zpool_clear(zpool_handle_t *, const char *, nvlist_t *);
 _LIBZFS_H int zpool_reguid(zpool_handle_t *);

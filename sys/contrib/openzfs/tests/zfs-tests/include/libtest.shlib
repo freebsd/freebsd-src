@@ -1,23 +1,13 @@
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
 #
-# The contents of this file are subject to the terms of the
-# Common Development and Distribution License (the "License").
-# You may not use this file except in compliance with the License.
-#
-# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or https://opensource.org/licenses/CDDL-1.0.
-# See the License for the specific language governing permissions
-# and limitations under the License.
-#
-# When distributing Covered Code, include this CDDL HEADER in each
-# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-# If applicable, add the following below this CDDL HEADER, with the
-# fields enclosed by brackets "[]" replaced with your own identifying
-# information: Portions Copyright [yyyy] [name of copyright owner]
-#
-# CDDL HEADER END
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -2067,6 +2057,7 @@ function check_pool_status # pool token keyword <verbose>
 #	is_pool_scrubbed - to check if the pool scrub is completed
 #	is_pool_scrub_stopped - to check if the pool scrub is stopped
 #	is_pool_scrub_paused - to check if the pool scrub has paused
+#	pause_scrub - start and pause a scrub without racing completion
 #	is_pool_removing - to check if the pool removing is a vdev
 #	is_pool_removed - to check if the pool remove is completed
 #	is_pool_discarding - to check if the pool checkpoint is being discarded
@@ -2119,6 +2110,24 @@ function is_pool_error_scrub_paused #pool <verbose>
 {
 	check_pool_status "$1" "scrub" "error scrub paused since " $2
 	return $?
+}
+
+#
+# Start a scrub and pause it without racing completion. Pins
+# SCAN_SUSPEND_PROGRESS until the scrub is paused, then clears it so a
+# later resume/wait can finish. Extra args are passed to `zpool scrub`
+# (e.g. -t). Callers should still reset SCAN_SUSPEND_PROGRESS in cleanup.
+#
+function pause_scrub # pool [scrub-args...]
+{
+	typeset pool=$1
+	shift
+
+	log_must set_tunable32 SCAN_SUSPEND_PROGRESS 1
+	log_must zpool scrub "$@" $pool
+	log_must zpool scrub -p $pool
+	log_must is_pool_scrub_paused $pool true
+	log_must set_tunable32 SCAN_SUSPEND_PROGRESS 0
 }
 
 function is_pool_removing #pool
@@ -3617,6 +3626,34 @@ function stat_size #<path>
 		;;
 	*)
 		stat -c %s "$path"
+		;;
+	esac
+}
+
+function stat_blksz #<path>
+{
+	typeset path=$1
+
+	case "$UNAME" in
+	FreeBSD)
+		stat -f %k "$path"
+		;;
+	*)
+		stat -c %o "$path"
+		;;
+	esac
+}
+
+function stat_blocks #<path>
+{
+	typeset path=$1
+
+	case "$UNAME" in
+	FreeBSD)
+		stat -f %b "$path"
+		;;
+	*)
+		stat -c %b "$path"
 		;;
 	esac
 }

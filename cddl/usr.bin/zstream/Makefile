@@ -8,6 +8,7 @@ MLINKS=	zstream.8 zstreamdump.8
 INCS=	zstream.h
 SRCS= \
 	zstream.c \
+	zstream_backtrace.c \
 	zstream_byteswap.c \
 	zstream_chain.c \
 	zstream_decompress.c \
@@ -15,8 +16,12 @@ SRCS= \
 	zstream_dump.c \
 	zstream_fletcher4.c \
 	zstream_io.c \
+	zstream_queue.c \
+	zstream_raw.c \
 	zstream_recompress.c  \
 	zstream_redup.c \
+	zstream_selftest.c \
+	zstream_selftest_queue.c \
 	zstream_token.c \
 	zstream_util.c \
 	zstream_validate.c

@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
@@ -244,7 +234,7 @@ dmu_zfetch_fini(zfetch_t *zf)
  * If needed, reuse oldest stream without hits for zfetch_min_sec_reap or ever.
  * The "blkid" argument is the next block that we expect this stream to access.
  */
-static void
+static zstream_t *
 dmu_zfetch_stream_create(zfetch_t *zf, uint64_t blkid)
 {
 	zstream_t *zs, *zs_next, *zs_old = NULL;
@@ -302,7 +292,7 @@ dmu_zfetch_stream_create(zfetch_t *zf, uint64_t blkid)
 			goto reuse;
 		}
 		ZFETCHSTAT_BUMP(zfetchstat_max_streams);
-		return;
+		return (NULL);
 	}
 
 	zs = kmem_zalloc(sizeof (*zs), KM_SLEEP);
@@ -326,6 +316,7 @@ reuse:
 	zs->zs_ipf_end = blkid;
 	zs->zs_missed = B_FALSE;
 	zs->zs_more = B_FALSE;
+	return (zs);
 }
 
 static void
@@ -495,9 +486,12 @@ dmu_zfetch_prime(zfetch_t *zf, uint64_t blkid, uint64_t end_blkid)
 		}
 	}
 
-	dmu_zfetch_stream_create(zf, blkid);
-	zs = list_head(&zf->zf_stream);
-	ASSERT(zs != NULL);
+	/* Skip if at stream limit and none are reclaimable. */
+	zs = dmu_zfetch_stream_create(zf, blkid);
+	if (zs == NULL) {
+		mutex_exit(&zf->zf_lock);
+		return (B_FALSE);
+	}
 	ASSERT3U(zs->zs_blkid, ==, blkid);
 
 	/* dmu_zfetch_prepare() will double the distances, so take a half. */
@@ -631,7 +625,7 @@ dmu_zfetch_prepare(zfetch_t *zf, uint64_t blkid, uint64_t nblks,
 	 */
 	ASSERT0P(zs);
 	if (end_blkid < maxblkid)
-		dmu_zfetch_stream_create(zf, end_blkid);
+		(void) dmu_zfetch_stream_create(zf, end_blkid);
 	mutex_exit(&zf->zf_lock);
 	ZFETCHSTAT_BUMP(zfetchstat_misses);
 	ipf_start = 0;

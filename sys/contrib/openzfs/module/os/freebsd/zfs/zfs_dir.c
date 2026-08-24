@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -48,7 +38,7 @@
 #include <sys/callb.h>
 #include <sys/smp.h>
 #include <sys/zfs_dir.h>
-#include <sys/zfs_acl.h>
+#include <sys/zfs_acl_impl.h>
 #include <sys/fs/zfs.h>
 #include <sys/zap.h>
 #include <sys/dmu.h>
@@ -849,7 +839,7 @@ zfs_make_xattrdir(znode_t *zp, vattr_t *vap, znode_t **xvpp, cred_t *cr)
 	*xvpp = NULL;
 
 	if ((error = zfs_acl_ids_create(zp, IS_XATTR, vap, cr, NULL,
-	    &acl_ids, NULL)) != 0)
+	    &acl_ids)) != 0)
 		return (error);
 	if (zfs_acl_ids_overquota(zfsvfs, &acl_ids, zp->z_projid)) {
 		zfs_acl_ids_free(&acl_ids);
@@ -1018,7 +1008,7 @@ zfs_sticky_remove_access(znode_t *zdp, znode_t *zp, cred_t *cr)
 
 	if ((uid = crgetuid(cr)) == downer || uid == fowner ||
 	    (ZTOV(zp)->v_type == VREG &&
-	    zfs_zaccess(zp, ACE_WRITE_DATA, 0, B_FALSE, cr, NULL) == 0))
+	    zfs_zaccess(zp, ACE_WRITE_DATA, 0, B_FALSE, cr) == 0))
 		return (0);
 	else
 		return (secpolicy_vnode_remove(ZTOV(zp), cr));
