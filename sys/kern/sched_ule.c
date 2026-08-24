@@ -675,11 +675,9 @@ tdq_slice(struct tdq *tdq)
 	 * cannot be higher priority load in the system.
 	 */
 	load = tdq->tdq_sysload - 1;
-	if (load >= SCHED_SLICE_MIN_DIVISOR)
-		return (sched_slice_min);
 	if (load <= 1)
 		return (sched_slice);
-	return (sched_slice / load);
+	return (imax(sched_slice_min, sched_slice / load));
 }
 
 /*
@@ -3478,7 +3476,7 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 	if (new_val <= 0)
 		return (EINVAL);
 	sched_slice = imax(1, (new_val + period / 2) / period);
-	sched_slice_min = sched_slice / SCHED_SLICE_MIN_DIVISOR;
+	sched_slice_min = imax(1, sched_slice / SCHED_SLICE_MIN_DIVISOR);
 	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
 	    realstathz);
 	return (0);
