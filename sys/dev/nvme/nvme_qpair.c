@@ -531,13 +531,12 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	qpair->num_trackers = num_trackers;
 	qpair->ctrlr = ctrlr;
 
-	/* sqes[7:4]: max SQE size exponent; admin always 64 bytes per spec. */
-	if (qpair->id != 0) {
-		uint8_t sqes_max = (ctrlr->cdata.sqes >> 4) & 0xf;
-		qpair->sqe_shift = (sqes_max > 6) ? (sqes_max - 6) : 0;
-	} else {
-		qpair->sqe_shift = 0;
-	}
+	KASSERT(ctrlr->io_sqes == NVME_IOSQES_64 ||
+	    ctrlr->io_sqes == NVME_IOSQES_128,
+	    ("invalid CC.IOSQES value %u", ctrlr->io_sqes));
+	/* Admin SQEs are always 64 bytes. */
+	qpair->sqe_shift = qpair->id == 0 ? 0 :
+	    ctrlr->io_sqes - NVME_IOSQES_64;
 	if ((ctrlr->quirks & QUIRK_APPLE_SHARED_CID_SPACE) && qpair->id != 0)
 		qpair->cid_base = ctrlr->adminq.num_trackers;
 	else

@@ -45,6 +45,8 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 
+#include <dev/pci/pcivar.h>
+
 #include "nvme_private.h"
 #include "nvme_linux.h"
 
@@ -192,6 +194,8 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	if (ctrlr->quirks & QUIRK_APPLE_SHARED_CID_SPACE)
 		num_trackers = min(num_trackers,
 		    NVME_ADMIN_ENTRIES - ctrlr->adminq.num_trackers);
+	if (ctrlr->quirks & QUIRK_APPLE_S3X_SERIALIZE)
+		num_trackers = 1;
 
 	/*
 	 * Our best estimate for the maximum number of I/Os that we should
@@ -199,7 +203,8 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	 * not a hard limit and will need to be revisited when the upper layers
 	 * of the storage system grows multi-queue support.
 	 */
-	ctrlr->max_hw_pend_io = num_trackers * ctrlr->num_io_queues * 3 / 4;
+	ctrlr->max_hw_pend_io = max(1,
+	    num_trackers * ctrlr->num_io_queues * 3 / 4);
 
 	ctrlr->ioq = malloc(ctrlr->num_io_queues * sizeof(struct nvme_qpair),
 	    M_NVME, M_ZERO | M_WAITOK);
@@ -391,7 +396,7 @@ nvme_ctrlr_enable(struct nvme_controller *ctrlr)
 	cc |= NVMEF(NVME_CC_REG_CSS, 0);
 	cc |= NVMEF(NVME_CC_REG_AMS, 0);
 	cc |= NVMEF(NVME_CC_REG_SHN, 0);
-	cc |= NVMEF(NVME_CC_REG_IOSQES, 6); /* SQ entry size == 64 == 2^6 */
+	cc |= NVMEF(NVME_CC_REG_IOSQES, ctrlr->io_sqes);
 	cc |= NVMEF(NVME_CC_REG_IOCQES, 4); /* CQ entry size == 16 == 2^4 */
 
 	/*
@@ -425,14 +430,41 @@ nvme_ctrlr_disable_qpairs(struct nvme_controller *ctrlr)
 }
 
 static int
+nvme_ctrlr_pcie_flr(struct nvme_controller *ctrlr, uint32_t csts)
+{
+	nvme_printf(ctrlr,
+	    "fatal status; attempting PCIe function level reset\n");
+	pci_save_state(ctrlr->dev);
+	if (!pcie_flr(ctrlr->dev, 1000, true)) {
+		pci_restore_state(ctrlr->dev);
+		nvme_printf(ctrlr, "PCIe function level reset failed\n");
+		nvme_ctrlr_devctl(ctrlr, "FLR_FAILED", "csts=0x%08x", csts);
+		return (ENXIO);
+	}
+	pci_restore_state(ctrlr->dev);
+	nvme_printf(ctrlr, "PCIe function level reset completed\n");
+	nvme_ctrlr_devctl(ctrlr, "FLR_COMPLETED", "csts=0x%08x", csts);
+	return (0);
+}
+
+static int
 nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr)
 {
+	uint32_t csts;
 	int err;
 
 	TSENTER();
 
 	ctrlr->is_failed_admin = true;
 	nvme_ctrlr_disable_qpairs(ctrlr);
+
+	csts = nvme_mmio_read_4(ctrlr, csts);
+	if ((ctrlr->quirks & QUIRK_PCIE_FLR_ON_FATAL) != 0 &&
+	    csts != NVME_GONE && NVMEV(NVME_CSTS_REG_CFS, csts) != 0) {
+		err = nvme_ctrlr_pcie_flr(ctrlr, csts);
+		if (err != 0)
+			goto out;
+	}
 
 	err = nvme_ctrlr_disable(ctrlr);
 	if (err != 0)
@@ -490,6 +522,8 @@ nvme_ctrlr_identify(struct nvme_controller *ctrlr)
 		ctrlr->max_xfer_size = min(ctrlr->max_xfer_size,
 		    1 << (ctrlr->cdata.mdts + NVME_MPS_SHIFT +
 			NVME_CAP_HI_MPSMIN(ctrlr->cap_hi)));
+	if (ctrlr->quirks & QUIRK_APPLE_S3X_SERIALIZE)
+		ctrlr->max_xfer_size = min(ctrlr->max_xfer_size, 8192U);
 
 	return (0);
 }
@@ -1653,6 +1687,9 @@ nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev)
 	int		status, timeout_period;
 
 	ctrlr->dev = dev;
+	ctrlr->io_sqes =
+	    (ctrlr->quirks & QUIRK_APPLE_128_BYTE_SQES) != 0 ?
+	    NVME_IOSQES_128 : NVME_IOSQES_64;
 
 	mtx_init(&ctrlr->lock, "nvme ctrlr lock", NULL, MTX_DEF);
 	if (bus_get_domain(dev, &ctrlr->domain) != 0)
