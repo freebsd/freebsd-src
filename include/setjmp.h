@@ -37,6 +37,8 @@
 #ifndef _SETJMP_H_
 #define _SETJMP_H_
 
+#define __STDC_VERSION_SETJMP_H__	202311L
+
 #include <sys/cdefs.h>
 
 /* The size of the jmp_buf is machine dependent: */
