@@ -596,7 +596,7 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 int
 tcp_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 {
-	struct mbuf *m = *mp;
+	struct mbuf *m;
 	struct tcphdr *th = NULL;
 	struct ip *ip = NULL;
 	struct inpcb *inp = NULL;
@@ -617,7 +617,7 @@ tcp_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 	struct m_tag *fwd_tag = NULL;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
-	int isipv6;
+	bool isipv6;
 #else
 	const void *ip6 = NULL;
 #endif /* INET6 */
@@ -627,10 +627,6 @@ tcp_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 
 	NET_EPOCH_ASSERT();
 
-#ifdef INET6
-	isipv6 = (mtod(m, struct ip *)->ip_v == 6) ? 1 : 0;
-#endif
-
 	off0 = *offp;
 	m = *mp;
 	*mp = NULL;
@@ -639,6 +635,7 @@ tcp_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 
 	m->m_pkthdr.tcp_tun_port = port;
 #ifdef INET6
+	isipv6 = mtod(m, struct ip *)->ip_v == 6;
 	if (isipv6) {
 		ip6 = mtod(m, struct ip6_hdr *);
 		th = (struct tcphdr *)((caddr_t)ip6 + off0);
@@ -777,9 +774,9 @@ tcp_input_with_port(struct mbuf **mp, int *offp, int proto, uint16_t port)
 					TCPSTAT_INC(tcps_rcvshort);
 					return (IPPROTO_DONE);
 				}
+				ip6 = mtod(m, struct ip6_hdr *);
+				th = (struct tcphdr *)((caddr_t)ip6 + off0);
 			}
-			ip6 = mtod(m, struct ip6_hdr *);
-			th = (struct tcphdr *)((caddr_t)ip6 + off0);
 		}
 #endif
 #if defined(INET) && defined(INET6)
