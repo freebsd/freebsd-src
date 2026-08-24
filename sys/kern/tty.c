@@ -1892,7 +1892,12 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		/* XXX: This looks awful. */
 		tty_unlock(tp);
 		sx_xlock(&proctree_lock);
-		tty_lock(tp);
+		error = ttydev_enter(tp);
+		if (error != 0) {
+			sx_xunlock(&proctree_lock);
+			tty_lock(tp);
+			return (error);
+		}
 
 		if (!SESS_LEADER(p)) {
 			/* Only the session leader may do this. */
@@ -1959,7 +1964,12 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 			    pg != NULL ? pg->pg_id : -1,
 			    td->td_proc->p_session->s_sid));
 		}
-		tty_lock(tp);
+		error = ttydev_enter(tp);
+		if (error != 0) {
+			sx_sunlock(&proctree_lock);
+			tty_lock(tp);
+			return (error);
+		}
 
 		/*
 		 * Determine if this TTY is the controlling TTY after
