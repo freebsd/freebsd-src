@@ -258,7 +258,7 @@ bool	cr_xids_subset(struct ucred *active_cred, struct ucred *obj_cred);
 static inline bool
 group_is_primary(const gid_t gid, const struct ucred *const cred)
 {
-	return (gid == cred->cr_groups[0] || gid == cred->cr_rgid ||
+	return (gid == cred->cr_gid || gid == cred->cr_rgid ||
 	    gid == cred->cr_svgid);
 }
 bool	group_is_supplementary(const gid_t gid, const struct ucred *const cred);
