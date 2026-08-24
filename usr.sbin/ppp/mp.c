@@ -1020,9 +1020,14 @@ mp_SetEnddisc(struct cmdargs const *arg)
       mp->cfg.enddisc.len = 20;
     } else if (!strcasecmp(arg->argv[arg->argn], "psn")) {
       if (arg->argc > arg->argn+1) {
-        mp->cfg.enddisc.class = ENDDISC_PSN;
-        strcpy(mp->cfg.enddisc.address, arg->argv[arg->argn+1]);
-        mp->cfg.enddisc.len = strlen(mp->cfg.enddisc.address);
+        if (strlcpy(mp->cfg.enddisc.address, arg->argv[arg->argn+1],
+            sizeof(mp->cfg.enddisc.address)) >= sizeof(mp->cfg.enddisc.address)) {
+          log_Printf(LogWARN, "PSN endpoint too long\n");
+          return 7;
+        } else {
+          mp->cfg.enddisc.class = ENDDISC_PSN;
+          mp->cfg.enddisc.len = strlen(mp->cfg.enddisc.address);
+        }
       } else {
         log_Printf(LogWARN, "PSN endpoint requires additional data\n");
         return 5;
