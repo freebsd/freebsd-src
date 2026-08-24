@@ -345,7 +345,7 @@ maybe_preempt(struct thread *td)
 	 *    out anyways, so there's no point in preempting.  If we did,
 	 *    the current thread would not be properly resumed as well, so
 	 *    just avoid that whole landmine.
-	 *  - If the new thread's priority is not a realtime priority and
+	 *  - If the new thread's priority is not an interrupt priority and
 	 *    the current thread's priority is not an idle priority and
 	 *    FULL_PREEMPTION is disabled.
 	 *
