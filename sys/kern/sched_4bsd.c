@@ -517,11 +517,7 @@ schedcpu(void)
 #endif
 				ts->ts_cpticks = 0;
 			}
-			/*
-			 * If there are ANY running threads in this process,
-			 * then don't count it as sleeping.
-			 * XXX: this is broken.
-			 */
+
 			if (awake) {
 				if (ts->ts_slptime > 1) {
 					/*
