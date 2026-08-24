@@ -469,11 +469,6 @@ schedcpu(void)
 			 * Increment sleep time (if sleeping).  We
 			 * ignore overflow, as above.
 			 */
-			/*
-			 * The td_sched slptimes are not touched in wakeup
-			 * because the thread may not HAVE everything in
-			 * memory? XXX I think this is out of date.
-			 */
 			if (TD_ON_RUNQ(td)) {
 				awake = 1;
 				td->td_flags &= ~TDF_DIDRUN;
