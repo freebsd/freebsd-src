@@ -503,11 +503,6 @@ schedcpu(void)
 			 * ts_pctcpu is only for ps and ttyinfo().
 			 */
 			ts->ts_pctcpu = (ts->ts_pctcpu * ccpu) >> FSHIFT;
-			/*
-			 * If the td_sched has been idle the entire second,
-			 * stop recalculating its priority until
-			 * it wakes up.
-			 */
 			if (ts->ts_cpticks != 0) {
 #if	(FSHIFT >= CCPU_SHIFT)
 				ts->ts_pctcpu += (realstathz == 100)
@@ -543,6 +538,12 @@ schedcpu(void)
 				ts->ts_slptime = 0;
 			} else
 				ts->ts_slptime++;
+
+			/*
+			 * If the td_sched has been idle the entire second,
+			 * stop recalculating its priority until
+			 * it wakes up.
+			 */
 			if (ts->ts_slptime > 1) {
 				thread_unlock(td);
 				continue;
