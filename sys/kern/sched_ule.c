@@ -1097,7 +1097,7 @@ tdq_idled(struct tdq *tdq)
 	struct cpu_group *cg, *parent;
 	struct tdq *steal;
 	cpuset_t mask;
-	int cpu, switchcnt, goup;
+	int cpu, switchcnt, group;
 
 	if (smp_started == 0 || steal_idle == 0 || tdq->tdq_cg == NULL)
 		return (1);
@@ -1105,7 +1105,7 @@ tdq_idled(struct tdq *tdq)
 	CPU_CLR(PCPU_GET(cpuid), &mask);
 restart:
 	switchcnt = TDQ_SWITCHCNT(tdq);
-	for (cg = tdq->tdq_cg, goup = 0; ; ) {
+	for (cg = tdq->tdq_cg, group = 0; ; ) {
 		cpu = sched_highest(cg, &mask, steal_thresh, 1);
 		/*
 		 * We were assigned a thread but not preempted.  Returning
@@ -1121,9 +1121,9 @@ restart:
 		 * the other one specifically and then escalating two levels.
 		 */
 		if (cpu == -1) {
-			if (goup) {
+			if (group) {
 				cg = cg->cg_parent;
-				goup = 0;
+				group = 0;
 			}
 			parent = cg->cg_parent;
 			if (parent == NULL)
@@ -1133,7 +1133,7 @@ restart:
 					cg = &parent->cg_child[1];
 				else
 					cg = &parent->cg_child[0];
-				goup = 1;
+				group = 1;
 			} else
 				cg = parent;
 			continue;
@@ -2165,7 +2165,7 @@ tdq_trysteal(struct tdq *tdq)
 	struct cpu_group *cg, *parent;
 	struct tdq *steal;
 	cpuset_t mask;
-	int cpu, i, goup;
+	int cpu, i, group;
 
 	if (smp_started == 0 || steal_idle == 0 || trysteal_limit == 0 ||
 	    tdq->tdq_cg == NULL)
@@ -2175,7 +2175,7 @@ tdq_trysteal(struct tdq *tdq)
 	/* We don't want to be preempted while we're iterating. */
 	spinlock_enter();
 	TDQ_UNLOCK(tdq);
-	for (i = 1, cg = tdq->tdq_cg, goup = 0; ; ) {
+	for (i = 1, cg = tdq->tdq_cg, group = 0; ; ) {
 		cpu = sched_highest(cg, &mask, steal_thresh, 1);
 		/*
 		 * If a thread was added while interrupts were disabled don't
@@ -2193,9 +2193,9 @@ tdq_trysteal(struct tdq *tdq)
 		 * the other one specifically and then escalating two levels.
 		 */
 		if (cpu == -1) {
-			if (goup) {
+			if (group) {
 				cg = cg->cg_parent;
-				goup = 0;
+				group = 0;
 			}
 			if (++i > trysteal_limit) {
 				TDQ_LOCK(tdq);
@@ -2211,7 +2211,7 @@ tdq_trysteal(struct tdq *tdq)
 					cg = &parent->cg_child[1];
 				else
 					cg = &parent->cg_child[0];
-				goup = 1;
+				group = 1;
 			} else
 				cg = parent;
 			continue;
