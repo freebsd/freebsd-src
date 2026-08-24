@@ -248,7 +248,6 @@ struct nvme_controller {
 #define	QUIRK_APPLE_S3X_NS1_ONLY		0x200	/* Ignore Apple-internal namespace 2 */
 #define	QUIRK_APPLE_128_BYTE_SQES		0x400	/* T2 uses 128-byte I/O SQEs */
 #define	QUIRK_PCIE_FLR_ON_FATAL			0x800	/* Use FLR for a fatal controller */
-#define	QUIRK_APPLE_S3X_SERIALIZE		0x1000	/* One S3X I/O at a time */
 #define	QUIRK_IGNORE_RAB			0x2000	/* Don't configure AB from RAB */
 
 /* Values programmed into CC.IOSQES (log2 of the SQE size in bytes). */

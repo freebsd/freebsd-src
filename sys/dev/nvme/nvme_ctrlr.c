@@ -201,8 +201,6 @@ nvme_ctrlr_construct_io_qpairs(struct nvme_controller *ctrlr)
 	if (ctrlr->quirks & QUIRK_APPLE_SHARED_CID_SPACE)
 		num_trackers = min(num_trackers,
 		    NVME_ADMIN_ENTRIES - ctrlr->adminq.num_trackers);
-	if (ctrlr->quirks & QUIRK_APPLE_S3X_SERIALIZE)
-		num_trackers = 1;
 
 	/*
 	 * Our best estimate for the maximum number of I/Os that we should
@@ -538,8 +536,6 @@ nvme_ctrlr_identify(struct nvme_controller *ctrlr)
 		ctrlr->max_xfer_size = min(ctrlr->max_xfer_size,
 		    1 << (ctrlr->cdata.mdts + NVME_MPS_SHIFT +
 			NVME_CAP_HI_MPSMIN(ctrlr->cap_hi)));
-	if (ctrlr->quirks & QUIRK_APPLE_S3X_SERIALIZE)
-		ctrlr->max_xfer_size = min(ctrlr->max_xfer_size, 8192U);
 
 	return (0);
 }
