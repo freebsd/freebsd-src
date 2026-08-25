@@ -63,6 +63,12 @@ UBOOTSRC=	${BOOTSRC}/uboot
 ZFSOSSRC=	${ZFSTOP}/module/os/freebsd/
 ZFSOSINC=	${ZFSTOP}/include/os/freebsd
 LIBCSRC=	${SRCTOP}/lib/libc
+MUSLDIR=	${SRCTOP}/contrib/musl
+.if ${MACHINE_ARCH} == "amd64"
+MUSL_ARCH=	x86_64
+.else
+MUSL_ARCH=	${MACHINE_ARCH}
+.endif
 
 BOOTOBJ=	${OBJTOP}/stand
 
