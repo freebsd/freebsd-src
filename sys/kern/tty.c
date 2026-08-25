@@ -74,6 +74,8 @@
 static MALLOC_DEFINE(M_TTY, "tty", "tty device");
 
 static void tty_rel_free(struct tty *tp, bool inttydevclose);
+static int tty_wait_proctree(struct tty *tp, struct cv *cv,
+    int proctree_lock_mode);
 
 static TAILQ_HEAD(, tty) tty_list = TAILQ_HEAD_INITIALIZER(tty_list);
 static struct sx tty_list_sx;
@@ -1602,6 +1604,43 @@ tty_wait(struct tty *tp, struct cv *cv)
 	/* Bail out when the device slipped away. */
 	if (tty_gone(tp))
 		return (EXTERROR(ENXIO, "tty_wait: device is gone"));
+
+	/* Restart the system call when we may have been revoked. */
+	if (tp->t_revokecnt != revokecnt)
+		return (ERESTART);
+
+	return (error);
+}
+
+static int
+tty_wait_proctree(struct tty *tp, struct cv *cv, int proctree_lock_mode)
+{
+	int error;
+	int revokecnt = tp->t_revokecnt;
+
+	tty_lock_assert(tp, MA_OWNED | MA_NOTRECURSED);
+	MPASS(!tty_gone(tp));
+	MPASS(proctree_lock_mode == LA_UNLOCKED ||
+	    proctree_lock_mode == LA_SLOCKED ||
+	    proctree_lock_mode == LA_XLOCKED);
+
+	if (proctree_lock_mode != LA_UNLOCKED)
+		sx_unlock(&proctree_lock);
+
+	error = cv_wait_sig_unlock(cv, tp->t_mtx);
+	switch (proctree_lock_mode) {
+	case LA_SLOCKED:
+		sx_slock(&proctree_lock);
+		break;
+	case LA_XLOCKED:
+		sx_xlock(&proctree_lock);
+		break;
+	}
+	tty_lock(tp);
+
+	/* Bail out when the device slipped away. */
+	if (tty_gone(tp))
+		return (EXTERROR(ENXIO, "tty_wait_proctree: device is gone"));
 
 	/* Restart the system call when we may have been revoked. */
 	if (tp->t_revokecnt != revokecnt)
