@@ -101,7 +101,7 @@
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7) || \
     defined(COMPAT_FREEBSD9)
-#error FreeBSD/arm doesn't provide compatibility with releases prior to 10
+#error "FreeBSD/arm doesn't provide compatibility with releases prior to 10"
 #endif
 
 
