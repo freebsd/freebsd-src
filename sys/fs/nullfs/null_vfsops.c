@@ -173,9 +173,10 @@ nullfs_mount(struct mount *mp)
 
 	/*
 	 * Lower vnode must be the same type as the covered vnode - we
-	 * don't allow mounting directories to files or vice versa.
+	 * don't allow mounting directories to files or sockets or vice versa.
 	 */
-	if ((lowerrootvp->v_type != VDIR && lowerrootvp->v_type != VREG) ||
+	if ((lowerrootvp->v_type != VDIR && lowerrootvp->v_type != VREG &&
+	    lowerrootvp->v_type != VSOCK) ||
 	    lowerrootvp->v_type != mp->mnt_vnodecovered->v_type) {
 		NULLFSDEBUG("nullfs_mount: target must be same type as fspath");
 		vput(lowerrootvp);
