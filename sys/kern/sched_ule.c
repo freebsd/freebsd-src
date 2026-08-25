@@ -876,7 +876,7 @@ cpu_search_highest(const struct cpu_group *cg, const struct cpu_search *s,
 
 /*
  * Find the cpu with the least load via the least loaded path that has a
- * lowpri greater than pri  pri.  A pri of -1 indicates any priority is
+ * lowpri greater than pri.  A pri of -1 indicates any priority is
  * acceptable.
  */
 static inline int
