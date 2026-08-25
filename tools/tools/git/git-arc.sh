@@ -55,15 +55,16 @@ cleanup()
 err_usage()
 {
     cat >&2 <<__EOF__
-Usage: git arc [-vy] <command> <arguments>
+Usage: git arc [-hvy] <command> <arguments>
 
 Commands:
-  create [-dl] [-r <reviewer1>[,<reviewer2>...]] [-s subscriber[,...]] [<commit>|<commit range>]
-  diff <commit>|<commit range>
-  list <commit>|<commit range>
-  patch [-bcrs] <diff1> [<diff2> ...]
-  stage [-b branch] [<commit>|<commit range>]
-  update [-l] [-m message] [<commit>|<commit range>]
+  create [-dhl] [-p parent] [-r <reviewer1>[,<reviewer2>...]] \\
+                [-s subscriber[,...]] [-t tag[,...]] <commit>|<commit range>
+  diff [-h] <commit>|<commit range>
+  list [-h] <commit>|<commit range>
+  patch [-bchrs] <diff1> [<diff2> ...]
+  stage [-h] [-b branch] <commit>|<commit range>
+  update [-hl] [-m message] <commit>|<commit range>
 
 See git-arc(1) for details.
 __EOF__
@@ -84,6 +85,65 @@ xmktemp()
 get_bool_config()
 {
     test "$(git config --bool --get $1 2>/dev/null || echo $2)" != "false"
+}
+
+#
+# Per-subcommand initialization, invoked only after that sub-command's getopts
+# loop and arity check have succeeded. git-sh-setup treats leading -h as help
+# against empty USAGE, so must not be sourced until getopts has distinguished
+# a usage request from an option argument (for example, "create -t -h"). Same
+# delay skips jq(1) / arc checks when user only asked for usage.
+#
+# Invoke with no arguments because git-sh-setup inspects $1 (only for `-h')
+# and sourcing inherits this function's args (empty $1 keeps its help check
+# inert). Helpers it defines (require_clean_work_tree, git_pager) available
+# only after this returns.
+#
+setup()
+{
+    [ -x "${ARC_CMD}" ] || err "arc is required, install devel/arcanist-lib"
+    which jq >/dev/null 2>&1 || err "jq is required, install textproc/jq"
+
+    if [ "$VERBOSE" ]; then
+        exec 3>&1
+    else
+        exec 3> /dev/null
+    fi
+
+    # Pull in some git helper functions.
+    git_sh_setup=$(git --exec-path)/git-sh-setup
+    [ -f "$git_sh_setup" ] || err "cannot find git-sh-setup"
+    SUBDIRECTORY_OK=y
+    USAGE=
+    # shellcheck disable=SC1090
+    . "$git_sh_setup"
+
+    # git commands use GIT_EDITOR instead of EDITOR, so try to provide consistent
+    # behaviour.  Ditto for PAGER.  This makes git-arc play nicer with editor
+    # plugins like vim-fugitive.
+    if [ -n "$GIT_EDITOR" ]; then
+        EDITOR=$GIT_EDITOR
+    fi
+    if [ -n "$GIT_PAGER" ]; then
+        PAGER=$GIT_PAGER
+    fi
+
+    # Bail if the working tree is unclean, except for "diff", "list" and
+    # "patch" operations.
+    case $verb in
+    diff|list|patch)
+        ;;
+    *)
+        require_clean_work_tree "$verb"
+        ;;
+    esac
+
+    if get_bool_config arc.browse false; then
+        BROWSE=--browse
+    fi
+
+    GITARC_TMPDIR=$(mktemp -d) || exit 1
+    trap cleanup EXIT HUP INT QUIT TRAP USR1 TERM
 }
 
 #
@@ -411,6 +471,8 @@ build_commit_list()
 
 gitarc__create()
 {
+    local OPTIND=1 OPTARG
+    # NB: reviewers / subscribers / tags not initialized; inheritance allowed.
     local commit commits doprompt draft list o prev reviewers subscribers
     local tags
 
@@ -419,9 +481,8 @@ gitarc__create()
     if get_bool_config arc.list false; then
         list=1
     fi
-    doprompt=1
     draft=0
-    while getopts dlp:r:s:t: o; do
+    while getopts dhlp:r:s:t: o; do
         case "$o" in
         d)
             draft=1
@@ -448,8 +509,17 @@ gitarc__create()
     done
     shift $((OPTIND-1))
 
+    # NB: Earlier check of $# in main may have been duped by option-flags.
+    if [ $# -eq 0 ]; then
+        warn "Too few arguments"
+        err_usage
+    fi
+
+    setup
+
     commits=$(build_commit_list "$@")
 
+    doprompt=1
     if [ "$list" ]; then
         for commit in ${commits}; do
             git --no-pager show --oneline --no-patch "$commit"
@@ -479,7 +549,22 @@ gitarc__create()
 #
 gitarc__diff()
 {
+    local OPTIND=1 OPTARG o
     local commit commits diff rawdiff rtree
+
+    while getopts h o; do
+        case "$o" in
+        *)
+            err_usage
+            ;;
+        esac
+    done
+    shift $((OPTIND-1))
+
+    # NB: Earlier check of $# in main enough to ensure sufficient args.
+    # NB: If any option-flags besides -h are added, add re-check of $#.
+
+    setup
 
     commits=$(build_commit_list "$@")
 
@@ -507,7 +592,22 @@ gitarc__diff()
 
 gitarc__list()
 {
+    local OPTIND=1 OPTARG o
     local chash commit commits diff openrevs title
+
+    while getopts h o; do
+        case "$o" in
+        *)
+            err_usage
+            ;;
+        esac
+    done
+    shift $((OPTIND-1))
+
+    # NB: Earlier check of $# in main enough to ensure sufficient args.
+    # NB: If any option-flags besides -h are added, add re-check of $#.
+
+    setup
 
     commits=$(build_commit_list "$@")
     openrevs=$(arc_list --ansi)
@@ -731,20 +831,19 @@ apply_rev()
 
 gitarc__patch()
 {
+    local OPTIND=1 OPTARG
     local branch commit o raw rev stack
 
     branch=false
     commit=false
     raw=false
     stack=false
-    while getopts bcrs o; do
+    while getopts bchrs o; do
         case "$o" in
         b)
-            require_clean_work_tree "patch -b"
             branch=true
             ;;
         c)
-            require_clean_work_tree "patch -c"
             commit=true
             ;;
         r)
@@ -760,13 +859,22 @@ gitarc__patch()
     done
     shift $((OPTIND-1))
 
+    # NB: Earlier check of $# in main may have been duped by option-flags.
     if [ $# -eq 0 ]; then
+        warn "Too few arguments"
         err_usage
     fi
 
+    setup
+
     if ${branch}; then
+        require_clean_work_tree "patch -b"
         patch_branch "$@"
     fi
+    if ${commit}; then
+        require_clean_work_tree "patch -c"
+    fi
+
     for rev in "$@"; do
         echo "Applying ${rev}..."
         apply_rev $rev $commit $raw $stack
@@ -775,10 +883,11 @@ gitarc__patch()
 
 gitarc__stage()
 {
+    local OPTIND=1 OPTARG o
     local author branch commit commits diff reviewers title tmp
 
     branch=main
-    while getopts b: o; do
+    while getopts b:h o; do
         case "$o" in
         b)
             branch="$OPTARG"
@@ -789,6 +898,14 @@ gitarc__stage()
         esac
     done
     shift $((OPTIND-1))
+
+    # NB: Earlier check of $# in main may have been duped by option-flags.
+    if [ $# -eq 0 ]; then
+        warn "Too few arguments"
+        err_usage
+    fi
+
+    setup
 
     commits=$(build_commit_list "$@")
 
@@ -823,14 +940,15 @@ gitarc__stage()
 
 gitarc__update()
 {
+    local OPTIND=1 OPTARG
+    # NB: msg / have_msg not initialized; inheritance allowed.
     local commit commits diff doprompt have_msg list o msg
 
     list=
     if get_bool_config arc.list false; then
         list=1
     fi
-    doprompt=1
-    while getopts lm: o; do
+    while getopts hlm: o; do
         case "$o" in
         l)
             list=1
@@ -846,8 +964,17 @@ gitarc__update()
     done
     shift $((OPTIND-1))
 
+    # NB: Earlier check of $# in main may have been duped by option-flags.
+    if [ $# -eq 0 ]; then
+        warn "Too few arguments"
+        err_usage
+    fi
+
+    setup
+
     commits=$(build_commit_list "$@")
 
+    doprompt=1
     if [ "$list" ]; then
         for commit in ${commits}; do
             git --no-pager show --oneline --no-patch "$commit"
@@ -886,7 +1013,7 @@ if get_bool_config arc.assume-yes false; then
 fi
 
 VERBOSE=
-while getopts vy o; do
+while getopts hvy o; do
     case "$o" in
     v)
         VERBOSE=1
@@ -901,21 +1028,17 @@ while getopts vy o; do
 done
 shift $((OPTIND-1))
 
-[ $# -ge 1 ] || err_usage
-
-[ -x "${ARC_CMD}" ] || err "arc is required, install devel/arcanist-lib"
-which jq >/dev/null 2>&1 || err "jq is required, install textproc/jq"
-
-if [ "$VERBOSE" ]; then
-    exec 3>&1
-else
-    exec 3> /dev/null
+# NB: Only catches if neither option-flags nor sub-command.
+if [ $# -eq 0 ]; then
+    warn "Too few arguments"
+    err_usage
 fi
 
 case "$1" in
 create|diff|list|patch|stage|update)
     ;;
 *)
+    warn "Unrecognized sub-command: $1"
     err_usage
     ;;
 esac
@@ -924,42 +1047,8 @@ shift
 
 # All subcommands require at least one parameter.
 if [ $# -eq 0 ]; then
+    warn "Too few arguments"
     err_usage
 fi
-
-# Pull in some git helper functions.
-git_sh_setup=$(git --exec-path)/git-sh-setup
-[ -f "$git_sh_setup" ] || err "cannot find git-sh-setup"
-SUBDIRECTORY_OK=y
-USAGE=
-# shellcheck disable=SC1090
-. "$git_sh_setup"
-
-# git commands use GIT_EDITOR instead of EDITOR, so try to provide consistent
-# behaviour.  Ditto for PAGER.  This makes git-arc play nicer with editor
-# plugins like vim-fugitive.
-if [ -n "$GIT_EDITOR" ]; then
-    EDITOR=$GIT_EDITOR
-fi
-if [ -n "$GIT_PAGER" ]; then
-    PAGER=$GIT_PAGER
-fi
-
-# Bail if the working tree is unclean, except for "diff", "list" and
-# "patch" operations.
-case $verb in
-diff|list|patch)
-    ;;
-*)
-    require_clean_work_tree "$verb"
-    ;;
-esac
-
-if get_bool_config arc.browse false; then
-    BROWSE=--browse
-fi
-
-GITARC_TMPDIR=$(mktemp -d) || exit 1
-trap cleanup EXIT HUP INT QUIT TRAP USR1 TERM
 
 gitarc__"${verb}" "$@"

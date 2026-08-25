@@ -24,7 +24,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 20, 2026
+.Dd August 23, 2026
 .Dt GIT-ARC 1
 .Os
 .Sh NAME
@@ -32,28 +32,31 @@
 .Nd a wrapper to improve integration between git and arcanist
 .Sh SYNOPSIS
 .Nm
+.Fl h
+.Nm
 .Cm create
-.Op Fl dl
+.Op Fl dhl
+.Op Fl p Ar parent
 .Op Fl r Ar reviewer1 Ns Op Cm \&, Ns Ar reviewer2 ...
 .Op Fl s Ar subscriber1 Ns Op Cm \&, Ns Ar subscriber2 ...
 .Op Fl t Ar tag1 Ns Op Cm \&, Ns Ar tag2 ...
-.Op Fl p Ar parent
 .Ar commit-ref Op Ar commit-ref ...
 .Nm
-.Cm diff Ar commit-ref Op Ar commit-ref ...
+.Cm diff Oo Fl h Oc Ar commit-ref Op Ar commit-ref ...
 .Nm
-.Cm list Ar commit-ref Op Ar commit-ref ...
+.Cm list Oo Fl h Oc Ar commit-ref Op Ar commit-ref ...
 .Nm
 .Cm patch
-.Op Fl bcrs
+.Op Fl bchrs
 .Ar diff1 Op Cm Ar diff2 Op Ar ...
 .Nm
 .Cm stage
+.Op Fl h
 .Op Fl b Ar branch
 .Ar commit-ref Op Ar commit-ref ...
 .Nm
 .Cm update
-.Op Fl l
+.Op Fl hl
 .Op Fl m Ar message
 .Ar commit-ref Op Ar commit-ref ...
 .Sh DESCRIPTION
@@ -104,9 +107,15 @@ In this mode, notifications are not sent to reviewers and subscribers
 until the review is published via the web UI.
 The draft is still visible to anyone with the URL (or able to guess it),
 but the review's visibility settings can be modified before publishing.
+.It Fl h
+Print usage statement and exit.
 .It Fl l
 Before processing commit(s) display list of commits to be processed
 and wait for confirmation.
+.It Fl p Ar parent
+Specify the parent of the first commit in the list.
+This is useful when adding more commits on top of an already existing
+stack in Phabricator.
 .It Fl r Ar reviewer
 Add one or more reviewers, separated by commas, to revision(s) being created.
 Each argument must be an existing Phabricator user or group.
@@ -123,10 +132,6 @@ Unlike group reviewers, a leading
 is optional and is added if omitted.
 Spaces in tag names should be replaced with underscores
 .Pq e.g., Src_committers for the Do Src Committers Dc tag .
-.It Fl p Ar parent
-Specify the parent of the first commit in the list.
-This is useful when adding more commits on top of an already existing
-stack in Phabricator.
 .El
 .It Cm diff
 Show the differences between the specified commits and their associated
