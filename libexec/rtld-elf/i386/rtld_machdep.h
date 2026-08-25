@@ -78,7 +78,9 @@ typedef struct {
     unsigned long ti_offset;
 } tls_index;
 
-void *___tls_get_addr(tls_index *ti) __attribute__((__regparm__(1))) __exported;
+#define	__GNU_ABI	__attribute__((__regparm__(1)))
+
+void *___tls_get_addr(tls_index *ti) __GNU_ABI __exported;
 void *__tls_get_addr(tls_index *ti) __exported;
 
 #define md_abi_variant_hook(x)
@@ -86,4 +88,5 @@ void *__tls_get_addr(tls_index *ti) __exported;
 size_t calculate_first_tls_offset(size_t size, size_t align, size_t offset);
 size_t calculate_tls_offset(size_t prev_offset, size_t prev_size, size_t size,
     size_t align, size_t offset);
+
 #endif

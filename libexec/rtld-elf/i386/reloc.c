@@ -519,8 +519,7 @@ allocate_initial_tls(Obj_Entry *objs)
 	_tcb_set(tls);
 }
 
-/* GNU ABI */
-__attribute__((__regparm__(1))) void *
+__GNU_ABI void *
 ___tls_get_addr(tls_index *ti)
 {
 	return (tls_get_addr_common(_tcb_get(), ti->ti_module, ti->ti_offset));
