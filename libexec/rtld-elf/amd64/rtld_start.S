@@ -171,4 +171,29 @@ rtld_dynamic_addr:
 	.cfi_endproc
 	.size	rtld_dynamic_addr, . - rtld_dynamic_addr
 
+rtld_tlsdesc_static:
+	.globl	rtld_tlsdesc_static
+	.type	rtld_tlsdesc_static,@function
+	.cfi_startproc
+	movq	8(%rax), %rax
+	ret
+	.cfi_endproc
+	.size	rtld_tlsdesc_static, . - rtld_tlsdesc_static
+
+rtld_tlsdesc_undef:
+	.globl	rtld_tlsdesc_undef
+	.type	rtld_tlsdesc_undef,@function
+	.cfi_startproc
+	ret
+	.cfi_endproc
+	.size	rtld_tlsdesc_undef, . - rtld_tlsdesc_undef
+
+rtld_tlsdesc_dynamic:
+	.globl	rtld_tlsdesc_static
+	.type	rtld_tlsdesc_dynamic,@function
+	.cfi_startproc
+	ret
+	.cfi_endproc
+	.size	rtld_tlsdesc_dynamic, . - rtld_tlsdesc_dynamic
+
 	.section .note.GNU-stack,"",%progbits
