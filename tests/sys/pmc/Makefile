@@ -1,5 +1,6 @@
 TESTSDIR=	${TESTSBASE}/sys/pmc
 
+ATF_TESTS_C+=	pmc_api_test
 ATF_TESTS_C+=	pmc_detach_test
 ATF_TESTS_C+=	pmc_exec_test
 ATF_TESTS_C+=	pmc_wrap_test
