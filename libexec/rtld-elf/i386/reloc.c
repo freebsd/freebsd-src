@@ -51,6 +51,22 @@
 #include "rtld.h"
 #include "rtld_tls.h"
 
+void
+md_obj_entry_init(Obj_Entry *obj)
+{
+	STAILQ_INIT(&obj->tlsdesc_dynargs);
+}
+
+void
+md_obj_entry_fini(Obj_Entry *obj)
+{
+	struct tlsdesc_dynarg *tda, *t;
+
+	STAILQ_FOREACH_SAFE(tda, &obj->tlsdesc_dynargs, link, t) {
+		free(tda);
+	}
+}
+
 /*
  * Process the special R_386_COPY relocations in the main program.  These
  * copy data from a shared object into a region in the main program's BSS
@@ -122,6 +138,60 @@ init_pltgot(Obj_Entry *obj)
 	if (obj->pltgot != NULL) {
 		obj->pltgot[1] = (Elf_Addr)obj;
 		obj->pltgot[2] = (Elf_Addr)&_rtld_bind_start;
+	}
+}
+
+static struct tlsdesc_dynarg *
+reloc_tlsdesc_alloc(Obj_Entry *obj, Elf_Addr tlsoffs)
+{
+	struct tlsdesc_dynarg *tda;
+
+	tda = xmalloc(sizeof(struct tlsdesc_dynarg));
+	tda->tlsinfo.ti_module = obj->tlsindex;
+	tda->tlsinfo.ti_offset = tlsoffs;
+	STAILQ_INSERT_TAIL(&obj->tlsdesc_dynargs, tda, link);
+	return (tda);
+}
+
+static void
+reloc_tlsdesc(const Obj_Entry *obj, const Elf_Rel *rel,
+    struct tlsdesc *where, int flags, RtldLockState *lockstate)
+{
+	const Elf_Sym *def;
+	const Obj_Entry *defobj;
+	Elf_Addr offs;
+
+	dbg("reloc_tlsdesc obj %s rel %p where %p", obj->path, rel, where);
+	offs = 0;
+	if (ELF_R_SYM(rel->r_info) != 0) {
+		def = find_symdef(ELF_R_SYM(rel->r_info), obj, &defobj, flags,
+		    NULL, lockstate);
+		if (def == NULL)
+			rtld_die();
+		if (ELF_ST_TYPE(def->st_info) == STT_GNU_IFUNC) {
+			_rtld_error("%s: IFUNC for TLSDESC reloc",
+			    obj->path);
+			rtld_die();
+		}
+		offs = def->st_value;
+		obj = defobj;
+		if (def->st_shndx == SHN_UNDEF) {
+			/* Weak undefined thread variable */
+			where->entry = rtld_tlsdesc_undef;
+			return;
+		}
+	}
+	offs += where->offset;
+
+	if (obj->tlsoffset != 0) {
+		/* Variable is in initialy allocated TLS segment */
+		where->entry = rtld_tlsdesc_static;
+		where->offset = offs - obj->tlsoffset;
+	} else {
+		/* TLS offest is unknown at load time, use dynamic resolving */
+		where->entry = rtld_tlsdesc_dynamic;
+		where->arg = reloc_tlsdesc_alloc(__DECONST(Obj_Entry *, obj),
+		    offs);
 	}
 }
 
@@ -271,6 +341,10 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 		case R_386_IRELATIVE:
 			obj->irelative_nonplt = true;
 			break;
+		case R_386_TLS_DESC:
+			reloc_tlsdesc(obj, rel, (struct tlsdesc *)where,
+			    flags, lockstate);
+			break;
 		default:
 			_rtld_error(
 		"%s: Unsupported relocation type %d in non-PLT relocations",
@@ -295,15 +369,20 @@ reloc_plt(Obj_Entry *obj, int flags __unused, RtldLockState *lockstate __unused)
 	for (rel = obj->pltrel; rel < rellim; rel++) {
 		Elf_Addr *where;
 
+		where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
 		switch (ELF_R_TYPE(rel->r_info)) {
 		case R_386_JMP_SLOT:
 			/* Relocate the GOT slot pointing into the PLT. */
-			where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
 			*where += (Elf_Addr)obj->relocbase;
 			break;
 
 		case R_386_IRELATIVE:
 			obj->irelative = true;
+			break;
+
+		case R_386_TLS_DESC:
+			reloc_tlsdesc(obj, rel, (struct tlsdesc *)where,
+			    SYMLOOK_IN_PLT | flags, lockstate);
 			break;
 
 		default:
@@ -551,4 +630,18 @@ size_t
 calculate_first_tls_offset(size_t size, size_t align, size_t offset)
 {
 	return (calculate_tls_offset(0, 0, size, align, offset));
+}
+
+__GNU_ABI ptrdiff_t
+rtld_tlsdesc_dynamic_impl(struct tlsdesc *tdp)
+{
+	struct tlsdesc_dynarg *tda;
+	struct tcb *tcb;
+	tls_index *ti;
+
+	tda = tdp->arg;
+	ti = &tda->tlsinfo;
+	tcb = _tcb_get();
+	return ((ptrdiff_t)tls_get_addr_common(tcb, ti->ti_module,
+	    ti->ti_offset) - (ptrdiff_t)tcb);
 }

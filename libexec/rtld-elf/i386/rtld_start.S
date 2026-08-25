@@ -95,4 +95,40 @@ _rtld_bind_start:
 	leal	4(%esp),%esp		# Discard reloff, do not change eflags
 	ret				# "Return" to target address
 
+rtld_tlsdesc_static:
+	.globl	rtld_tlsdesc_static
+	.type	rtld_tlsdesc_static,@function
+	.cfi_startproc
+	movl	4(%eax), %eax
+	ret
+	.cfi_endproc
+	.size	rtld_tlsdesc_static, . - rtld_tlsdesc_static
+
+rtld_tlsdesc_undef:
+	.globl	rtld_tlsdesc_undef
+	.type	rtld_tlsdesc_undef,@function
+	.cfi_startproc
+	movl	4(%eax), %eax
+	subl	%gs:0, %eax
+	ret
+	.cfi_endproc
+	.size	rtld_tlsdesc_undef, . - rtld_tlsdesc_undef
+
+rtld_tlsdesc_dynamic:
+	.globl	rtld_tlsdesc_dynamic
+	.type	rtld_tlsdesc_dynamic,@function
+	.cfi_startproc
+	pushl	%ebp
+	/* XXXKIB cfi */
+	movl	%esp, %ebp
+	pushl	%edx
+	pushl	%ecx
+	call	rtld_tlsdesc_dynamic_impl
+	popl	%ecx
+	popl	%edx
+	popl	%ebp
+	ret
+	.cfi_endproc
+	.size	rtld_tlsdesc_dynamic, . - rtld_tlsdesc_dynamic
+
 	.section .note.GNU-stack,"",%progbits
