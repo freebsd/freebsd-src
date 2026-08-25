@@ -23,7 +23,8 @@ failsafe = callbacks/zfs_failsafe
 tags = ['functional']
 
 [tests/functional/acl/posix:Linux]
-tests = ['posix_001_pos', 'posix_002_pos', 'posix_003_pos', 'posix_004_pos']
+tests = ['posix_001_pos', 'posix_002_pos', 'posix_003_pos',
+    'posix_004_pos', 'posix_005_pos']
 tags = ['functional', 'acl', 'posix']
 
 [tests/functional/acl/posix-sa:Linux]
@@ -74,7 +75,8 @@ tags = ['functional', 'cli_root', 'zpool_add']
 
 [tests/functional/cli_root/zpool_expand:Linux]
 tests = ['zpool_expand_001_pos', 'zpool_expand_002_pos',
-    'zpool_expand_003_neg', 'zpool_expand_004_pos', 'zpool_expand_005_pos']
+    'zpool_expand_003_neg', 'zpool_expand_004_pos', 'zpool_expand_005_pos',
+    'zpool_expand_006_pos']
 tags = ['functional', 'cli_root', 'zpool_expand']
 
 [tests/functional/cli_root/zpool_import:Linux]
@@ -98,6 +100,11 @@ tags = ['functional', 'cli_root', 'zpool_split']
 tests = ['compress_004_pos']
 tags = ['functional', 'compression']
 
+[tests/functional/device_access:Linux]
+tests = ['device_access_create', 'device_access_attach', 'device_access_add',
+    'device_access_import']
+tags = ['functional', 'device_access']
+
 [tests/functional/devices:Linux]
 tests = ['devices_001_pos', 'devices_002_neg', 'devices_003_pos']
 tags = ['functional', 'devices']
@@ -115,7 +122,7 @@ tests = ['events_001_pos', 'events_002_pos', 'zed_rc_filter', 'zed_fd_spill',
 tags = ['functional', 'events']
 
 [tests/functional/fallocate:Linux]
-tests = ['fallocate_prealloc', 'fallocate_zero-range']
+tests = ['fallocate_extend_timestamps', 'fallocate_prealloc', 'fallocate_zero-range']
 tags = ['functional', 'fallocate']
 
 [tests/functional/fault:Linux]
@@ -162,6 +169,7 @@ tags = ['functional', 'mmap']
 [tests/functional/mmp:Linux]
 tests = ['mmp_on_thread', 'mmp_on_uberblocks', 'mmp_on_off', 'mmp_interval',
     'mmp_active_import', 'mmp_inactive_import', 'mmp_exported_import',
+    'mmp_degraded_import', 'mmp_zhack_reclaim',
     'mmp_write_uberblocks', 'mmp_reset_interval', 'multihost_history',
     'mmp_on_zdb', 'mmp_write_distribution', 'mmp_hostid', 'mmp_write_slow_disk',
     'mmp_concurrent_import']
@@ -229,7 +237,8 @@ tags = ['functional', 'upgrade']
 
 [tests/functional/user_namespace:Linux]
 tests = ['user_namespace_001', 'user_namespace_002', 'user_namespace_003',
-    'user_namespace_004']
+    'user_namespace_004', 'user_namespace_secpolicy_sys_config',
+    'user_namespace_secpolicy_zinject']
 tags = ['functional', 'user_namespace']
 
 [tests/functional/userquota:Linux]

@@ -1737,6 +1737,15 @@ zio_flush(zio_t *pio, vdev_t *vd)
 		return;
 
 	if (vd->vdev_children == 0) {
+		/*
+		 * A non-concrete vdev (a hole or indirect vdev left behind
+		 * by removing a log or data device) has no leaf device to
+		 * flush.  Skip it; issuing a flush to an indirect vdev would
+		 * trip the ZIO_TYPE_WRITE assertion in
+		 * vdev_indirect_io_start().
+		 */
+		if (!vdev_is_concrete(vd))
+			return;
 		zio_nowait(zio_create(pio, vd->vdev_spa, 0, NULL, NULL, 0, 0,
 		    NULL, NULL, ZIO_TYPE_FLUSH, ZIO_PRIORITY_NOW, flags, vd, 0,
 		    NULL, ZIO_STAGE_OPEN, ZIO_FLUSH_PIPELINE));
@@ -3594,16 +3603,26 @@ zio_ddt_collision(zio_t *zio, ddt_t *ddt, ddt_entry_t *dde)
 		if (dde->dde_io == NULL)
 			continue;
 
+		/*
+		 * Lock dde_io to prevent the lead zio from completing
+		 * and freeing its ABD while we compare against it.
+		 */
+		mutex_enter(&dde->dde_io->dde_io_lock);
 		zio_t *lio = dde->dde_io->dde_lead_zio[p];
-		if (lio == NULL)
+		if (lio == NULL) {
+			mutex_exit(&dde->dde_io->dde_io_lock);
 			continue;
-
-		if (do_raw)
-			return (lio->io_size != zio->io_size ||
-			    abd_cmp(zio->io_abd, lio->io_abd) != 0);
-
-		return (lio->io_orig_size != zio->io_orig_size ||
-		    abd_cmp(zio->io_orig_abd, lio->io_orig_abd) != 0);
+		}
+		boolean_t collision;
+		if (do_raw) {
+			collision = lio->io_size != zio->io_size ||
+			    abd_cmp(zio->io_abd, lio->io_abd) != 0;
+		} else {
+			collision = lio->io_orig_size != zio->io_orig_size ||
+			    abd_cmp(zio->io_orig_abd, lio->io_orig_abd) != 0;
+		}
+		mutex_exit(&dde->dde_io->dde_io_lock);
+		return (collision);
 	}
 
 	for (int p = 0; p < DDT_NPHYS(ddt); p++) {
@@ -3837,7 +3856,6 @@ zio_ddt_write(zio_t *zio)
 
 	int p = DDT_PHYS_FOR_COPIES(ddt, zp->zp_copies);
 	ddt_phys_variant_t v = DDT_PHYS_VARIANT(ddt, p);
-	ddt_univ_phys_t *ddp = dde->dde_phys;
 
 	/*
 	 * In the common cases, at this point we have a regular BP with no
@@ -3868,14 +3886,6 @@ zio_ddt_write(zio_t *zio)
 	 * end of the chain and letting the sequence play out.
 	 */
 
-	/*
-	 * Number of DVAs in the DDT entry. If the BP is encrypted we ignore
-	 * the third one as normal.
-	 */
-	int have_dvas = ddt_phys_dva_count(ddp, v, BP_IS_ENCRYPTED(bp));
-	IMPLY(have_dvas == 0, ddt_phys_birth(ddp, v) == 0);
-	boolean_t is_ganged = ddt_phys_is_gang(ddp, v);
-
 	/* Number of DVAs requested by the IO. */
 	uint8_t need_dvas = zp->zp_copies;
 	/* Number of DVAs in outstanding writes for this dde. */
@@ -3889,6 +3899,21 @@ zio_ddt_write(zio_t *zio)
 	ddt_entry_io_t *dde_io = dde->dde_io;
 	if (dde_io != NULL)
 		mutex_enter(&dde_io->dde_io_lock);
+
+	/*
+	 * Number of DVAs in the DDT entry. If the BP is encrypted we ignore
+	 * the third one as normal.
+	 *
+	 * Must be computed after taking dde_io_lock (if held) to avoid
+	 * racing with ddt_phys_unextend() in zio_ddt_child_write_done()
+	 * error path, which can zero DVAs under dde_io_lock. Without the
+	 * lock, a stale have_dvas causes ddt_bp_fill() to copy a zeroed
+	 * DVA into the BP, producing a hole that reads back as zeros.
+	 */
+	ddt_univ_phys_t *ddp = dde->dde_phys;
+	int have_dvas = ddt_phys_dva_count(ddp, v, BP_IS_ENCRYPTED(bp));
+	IMPLY(have_dvas == 0, ddt_phys_birth(ddp, v) == 0);
+	boolean_t is_ganged = ddt_phys_is_gang(ddp, v);
 
 	if (dde_io == NULL || dde_io->dde_lead_zio[p] == NULL) {
 		/*
@@ -5338,16 +5363,18 @@ zio_dio_chksum_verify_error_report(zio_t *zio)
 		 */
 		zio->io_error = SET_ERROR(EIO);
 		/*
-		 * Report dio_verify_wr ZED event.
+		 * Report dio_verify_wr ZED event, rate limited.
 		 */
-		(void) zfs_ereport_post(FM_EREPORT_ZFS_DIO_VERIFY_WR,
-		    zio->io_spa,  zio->io_vd, &zio->io_bookmark, zio, 0);
+		if (zfs_ratelimit(&zio->io_vd->vdev_dio_verify_rl))
+			(void) zfs_ereport_post(FM_EREPORT_ZFS_DIO_VERIFY_WR,
+			    zio->io_spa, zio->io_vd, &zio->io_bookmark, zio, 0);
 	} else {
 		/*
-		 * Report dio_verify_rd ZED event.
+		 * Report dio_verify_rd ZED event, rate limited.
 		 */
-		(void) zfs_ereport_post(FM_EREPORT_ZFS_DIO_VERIFY_RD,
-		    zio->io_spa, zio->io_vd, &zio->io_bookmark, zio, 0);
+		if (zfs_ratelimit(&zio->io_vd->vdev_dio_verify_rl))
+			(void) zfs_ereport_post(FM_EREPORT_ZFS_DIO_VERIFY_RD,
+			    zio->io_spa, zio->io_vd, &zio->io_bookmark, zio, 0);
 	}
 }
 
@@ -5972,6 +5999,67 @@ zbookmark_compare(uint16_t dbss1, uint8_t ibs1, uint16_t dbss2, uint8_t ibs2,
 	    zb1->zb_level == zb2->zb_level &&
 	    zb1->zb_blkid == zb2->zb_blkid)
 		return (0);
+
+	if (zb1->zb_level < 0 || zb2->zb_level < 0) {
+		/*
+		 * "Negative" levels are ZB_ROOT_LEVEL, ZB_ZIL_LEVEL or
+		 * ZB_DNODE_LEVEL, and represent some sort of auxiliary dataset
+		 * block or object. In this case, we're usually being called
+		 * from dsl_scan or dmu_traverse.
+		 *
+		 * These "levels" are more like a "type" signal, not directly
+		 * comparable, but we have to do something. So we order them in
+		 * the order we would see them during a typical scan or
+		 * traverse:
+		 *
+		 * - ZB_ROOT_LEVEL: the "top" block carrying the dataset head
+		 * - ZB_ZIL_LEVEL: the head ZIL block attached to the dataset
+		 * - ZB_DNODE_LEVEL: "virtual" position representing an
+		 *                   entire object. Sorts ahead of the true
+		 *                   data blocks for the object.
+		 * - level >= 0: data blocks
+		 *
+		 * We work through these cases from top to bottom, with
+		 * appropriate tiebreaks for each kind.
+		 */
+
+		/*
+		 * Root level wins. It shouldn't be possible for both to be the
+		 * root level in this per-dataset tree, and there's no obvious
+		 * tiebreaker, but we handle it as a defensive measure.
+		 */
+		if (zb1->zb_level == ZB_ROOT_LEVEL &&
+		    zb2->zb_level == ZB_ROOT_LEVEL)
+			return (TREE_PCMP(zb1, zb2));
+		if (zb1->zb_level == ZB_ROOT_LEVEL)
+			return (-1);
+		if (zb2->zb_level == ZB_ROOT_LEVEL)
+			return (1);
+
+		/* ZIL bookmarks have valid blkid, so the earlier one wins. */
+		if (zb1->zb_level == ZB_ZIL_LEVEL &&
+		    zb2->zb_level == ZB_ZIL_LEVEL)
+			return (TREE_CMP(zb1->zb_blkid, zb2->zb_blkid));
+		if (zb1->zb_level == ZB_ZIL_LEVEL)
+			return (-1);
+		if (zb2->zb_level == ZB_ZIL_LEVEL)
+			return (1);
+
+		/*
+		 * If we get this far, then at least one is ZB_DNODE_LEVEL, and
+		 * the other is either ZB_DNODE_LEVEL or a data block.
+		 * Regardless, the one with the lower-numbered object wins -
+		 * earler ZB_DNODE_LEVEL beats later, but data block on earlier
+		 * objects beats the virtual marker on later objects.
+		 */
+		int cmp = TREE_CMP(zb1->zb_object, zb2->zb_object);
+		if (cmp != 0)
+			return (cmp);
+
+		if (zb1->zb_level == ZB_DNODE_LEVEL)
+			return (-1);
+		return (1);
+	}
 
 	IMPLY(zb1->zb_level > 0, ibs1 >= SPA_MINBLOCKSHIFT);
 	IMPLY(zb2->zb_level > 0, ibs2 >= SPA_MINBLOCKSHIFT);

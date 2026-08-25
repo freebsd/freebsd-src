@@ -2270,9 +2270,20 @@ zpool_import_props(libzfs_handle_t *hdl, nvlist_t *config, const char *newname,
 				const char *hostname = "<unknown>";
 				uint64_t hostid = 0;
 				mmp_state_t mmp_state;
+				uint32_t mmp_result = 0;
 
 				mmp_state = fnvlist_lookup_uint64(nvinfo,
 				    ZPOOL_CONFIG_MMP_STATE);
+
+				/*
+				 * A kernel which does not report a cause
+				 * leaves this zero, which falls through to
+				 * the messages below.
+				 */
+				if (nvlist_exists(nvinfo,
+				    ZPOOL_CONFIG_MMP_RESULT))
+					mmp_result = fnvlist_lookup_uint32(
+					    nvinfo, ZPOOL_CONFIG_MMP_RESULT);
 
 				if (nvlist_exists(nvinfo,
 				    ZPOOL_CONFIG_MMP_HOSTNAME))
@@ -2284,7 +2295,23 @@ zpool_import_props(libzfs_handle_t *hdl, nvlist_t *config, const char *newname,
 					hostid = fnvlist_lookup_uint64(nvinfo,
 					    ZPOOL_CONFIG_MMP_HOSTID);
 
-				if (mmp_state == MMP_STATE_ACTIVE) {
+				if (mmp_result == ENODEV) {
+					(void) snprintf(aux, sizeof (aux),
+					    dgettext(TEXT_DOMAIN, "the multi"
+					    "host claim could not be written "
+					    "to a device\nthe pool "
+					    "configuration expects to be "
+					    "present.\nIf the device is "
+					    "permanently gone, recover with "
+					    "'zhack mmp reclaim'."));
+				} else if (mmp_result == EIO) {
+					(void) snprintf(aux, sizeof (aux),
+					    dgettext(TEXT_DOMAIN, "I/O errors "
+					    "occurred while writing the multi"
+					    "host claim.\nClear the device "
+					    "errors, then run 'zpool "
+					    "import'."));
+				} else if (mmp_state == MMP_STATE_ACTIVE) {
 					(void) snprintf(aux, sizeof (aux),
 					    dgettext(TEXT_DOMAIN, "pool is imp"
 					    "orted on host '%s' (hostid=%lx).\n"
@@ -4509,6 +4536,7 @@ zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
 	uint64_t value;
 	char buf[PATH_BUF_LEN];
 	char tmpbuf[PATH_BUF_LEN * 2];
+	char rpath[MAXPATHLEN];
 
 	/*
 	 * vdev_name will be "root"/"root-0" for the root vdev, but it is the
@@ -4534,12 +4562,8 @@ zpool_vdev_name(libzfs_handle_t *hdl, zpool_handle_t *zhp, nvlist_t *nv,
 		path = tpath;
 
 		if (name_flags & VDEV_NAME_FOLLOW_LINKS) {
-			char *rp = realpath(path, NULL);
-			if (rp) {
-				strlcpy(buf, rp, sizeof (buf));
-				path = buf;
-				free(rp);
-			}
+			if (realpath(path, rpath) != NULL)
+				path = rpath;
 		}
 
 		/*
@@ -5275,9 +5299,10 @@ zpool_load_compat(const char *compat, boolean_t *features, char *report,
 		    ZC_MMAP_FLAGS, featfd, 0);
 		(void) close(featfd);
 
-		/* map ok, and last character == newline? */
+		/* need map ok, and last character == newline */
 		if (fc == MAP_FAILED || fc[fs.st_size - 1] != '\n') {
-			(void) munmap((void *) fc, fs.st_size);
+			if (fc != MAP_FAILED)
+				(void) munmap((void *) fc, fs.st_size);
 			strlcat(err_badfile, file, ZFS_MAXPROPLEN);
 			strlcat(err_badfile, " ", ZFS_MAXPROPLEN);
 			ret_badfile = B_TRUE;

@@ -185,10 +185,10 @@ zpl_snapdir_automount(struct path *path)
 }
 
 /*
- * Negative dentries must always be revalidated so newly created snapshots
- * can be detected and automounted.  Normal dentries should be kept because
- * as of the 3.18 kernel revaliding the mountpoint dentry will result in
- * the snapshot being immediately unmounted.
+ * Negative dentries must always be revalidated so newly created snapshots can
+ * be detected and automounted.  Normal dentries should be kept because
+ * revalidating the mountpoint dentry will result in the snapshot being
+ * immediately unmounted.
  */
 #ifdef HAVE_D_REVALIDATE_4ARGS
 static int
@@ -203,14 +203,6 @@ zpl_snapdir_revalidate(struct dentry *dentry, unsigned int flags)
 }
 
 static const struct dentry_operations zpl_dops_snapdirs = {
-/*
- * Auto mounting of snapshots is only supported for 2.6.37 and
- * newer kernels.  Prior to this kernel the ops->follow_link()
- * callback was used as a hack to trigger the mount.  The
- * resulting vfsmount was then explicitly grafted in to the
- * name space.  While it might be possible to add compatibility
- * code to accomplish this it would require considerable care.
- */
 	.d_automount	= zpl_snapdir_automount,
 	.d_revalidate	= zpl_snapdir_revalidate,
 };
@@ -330,15 +322,15 @@ out:
 
 static int
 #ifdef HAVE_IOPS_RENAME_USERNS
-zpl_snapdir_rename2(struct user_namespace *user_ns, struct inode *sdip,
+zpl_snapdir_rename(struct user_namespace *user_ns, struct inode *sdip,
     struct dentry *sdentry, struct inode *tdip, struct dentry *tdentry,
     unsigned int flags)
 #elif defined(HAVE_IOPS_RENAME_IDMAP)
-zpl_snapdir_rename2(struct mnt_idmap *user_ns, struct inode *sdip,
+zpl_snapdir_rename(struct mnt_idmap *user_ns, struct inode *sdip,
     struct dentry *sdentry, struct inode *tdip, struct dentry *tdentry,
     unsigned int flags)
 #else
-zpl_snapdir_rename2(struct inode *sdip, struct dentry *sdentry,
+zpl_snapdir_rename(struct inode *sdip, struct dentry *sdentry,
     struct inode *tdip, struct dentry *tdentry, unsigned int flags)
 #endif
 {
@@ -357,17 +349,6 @@ zpl_snapdir_rename2(struct inode *sdip, struct dentry *sdentry,
 
 	return (error);
 }
-
-#if (!defined(HAVE_RENAME_WANTS_FLAGS) && \
-	!defined(HAVE_IOPS_RENAME_USERNS) && \
-	!defined(HAVE_IOPS_RENAME_IDMAP))
-static int
-zpl_snapdir_rename(struct inode *sdip, struct dentry *sdentry,
-    struct inode *tdip, struct dentry *tdentry)
-{
-	return (zpl_snapdir_rename2(sdip, sdentry, tdip, tdentry, 0));
-}
-#endif
 
 static int
 zpl_snapdir_rmdir(struct inode *dip, struct dentry *dentry)
@@ -512,13 +493,7 @@ const struct file_operations zpl_fops_snapdir = {
 const struct inode_operations zpl_ops_snapdir = {
 	.lookup		= zpl_snapdir_lookup,
 	.getattr	= zpl_snapdir_getattr,
-#if (defined(HAVE_RENAME_WANTS_FLAGS) || \
-	defined(HAVE_IOPS_RENAME_USERNS) || \
-	defined(HAVE_IOPS_RENAME_IDMAP))
-	.rename		= zpl_snapdir_rename2,
-#else
 	.rename		= zpl_snapdir_rename,
-#endif
 	.rmdir		= zpl_snapdir_rmdir,
 	.mkdir		= zpl_snapdir_mkdir,
 };

@@ -1111,6 +1111,21 @@ i_get_value_size(data_type_t type, const void *data, uint_t nelem,
 			uint_t i;
 			size_t newsize;
 
+			/*
+			 * Packed STRING_ARRAY values start with a pointer table
+			 * (nelem * sizeof (uint64_t)), with the strings
+			 * following.  We need to skip the pointer table for
+			 * the strnlen() bounds check to function as intended.
+			 * We distinguish packed STRING_ARRAY values from
+			 * arbitrary ones using the value of max_size.
+			 */
+			if (max_size != (size_t)INT32_MAX) {
+				/* packed value region */
+				if (max_size < value_sz)
+					return (-1);
+				max_size -= (size_t)value_sz;
+			}
+
 			/* no alignment requirement for strings */
 			for (i = 0; i < nelem; i++) {
 				if (strs[i] == NULL)
@@ -2980,7 +2995,7 @@ nvpair_native_embedded_array(nvstream_t *nvs, nvpair_t *nvp)
 	return (nvs_embedded_nvl_array(nvs, nvp, NULL));
 }
 
-static void
+static int
 nvpair_native_string_array(nvstream_t *nvs, nvpair_t *nvp)
 {
 	switch (nvs->nvs_op) {
@@ -2999,15 +3014,32 @@ nvpair_native_string_array(nvstream_t *nvs, nvpair_t *nvp)
 	case NVS_OP_DECODE: {
 		char **strp = (void *)NVP_VALUE(nvp);
 		char *buf = ((char *)strp + NVP_NELEM(nvp) * sizeof (uint64_t));
+		char *end = (char *)nvp + nvp->nvp_size;
 		int i;
 
 		for (i = 0; i < NVP_NELEM(nvp); i++) {
+			size_t max, len;
+
+			if (buf >= end)
+				return (EFAULT);
+
+			max = (size_t)(end - buf);
+			len = strnlen(buf, max);
+
+			/*
+			 * The nvpair is corrupt if any of the strings are
+			 * unterminated.
+			 */
+			if (len == max)
+				return (EFAULT);
+
 			strp[i] = buf;
-			buf += strlen(buf) + 1;
+			buf += len + 1;
 		}
 		break;
 	}
 	}
+	return (0);
 }
 
 static int
@@ -3058,7 +3090,7 @@ nvs_native_nvp_op(nvstream_t *nvs, nvpair_t *nvp)
 		ret = nvpair_native_embedded_array(nvs, nvp);
 		break;
 	case DATA_TYPE_STRING_ARRAY:
-		nvpair_native_string_array(nvs, nvp);
+		ret = nvpair_native_string_array(nvs, nvp);
 		break;
 	default:
 		break;
@@ -3358,7 +3390,7 @@ nvs_xdr_nvp_op(nvstream_t *nvs, nvpair_t *nvp)
 	 * In case of data types DATA_TYPE_STRING and DATA_TYPE_STRING_ARRAY
 	 * is the size of the string(s) excluded.
 	 */
-	if ((value_sz = i_get_value_size(type, NULL, nelem, NVP_SIZE(nvp)) < 0))
+	if ((value_sz = i_get_value_size(type, NULL, nelem, NVP_SIZE(nvp))) < 0)
 		return (EFAULT);
 
 	/* if there is no data to extract then return */

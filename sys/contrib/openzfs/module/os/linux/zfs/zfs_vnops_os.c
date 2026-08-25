@@ -284,6 +284,13 @@ update_pages(znode_t *zp, int64_t start, int len, objset_t *os)
  * When a file is memory mapped, we must keep the I/O data synchronized
  * between the DMU cache and the memory mapped pages.  Preferentially read
  * from memory mapped pages, otherwise fallback to reading through the dmu.
+ *
+ * A run of non-resident pages is read from the DMU in a single call rather
+ * than one call per page.  A page may become resident between the lookup
+ * and the read, but that is safe: zfs_read() holds the rangelock as reader,
+ * so the DMU contents of the range are stable (writes, writeback and
+ * truncation take the writer lock) and a concurrently faulted page is
+ * filled by zfs_getpage() from those same contents.
  */
 int
 mappedread(znode_t *zp, int nbytes, zfs_uio_t *uio)
@@ -329,6 +336,20 @@ mappedread(znode_t *zp, int nbytes, zfs_uio_t *uio)
 			mark_page_accessed(pp);
 			put_page(pp);
 		} else {
+			/*
+			 * Extend the read over any following non-resident
+			 * pages so they are fetched in one DMU call.
+			 */
+			while (bytes < len) {
+				struct page *tp = find_get_page(mp,
+				    (start + PAGE_SIZE) >> PAGE_SHIFT);
+				if (tp != NULL) {
+					put_page(tp);
+					break;
+				}
+				bytes += MIN(PAGE_SIZE, len - bytes);
+				start += PAGE_SIZE;
+			}
 			error = dmu_read_uio_dbuf(sa_get_db(zp->z_sa_hdl),
 			    uio, bytes, DMU_READ_PREFETCH);
 		}
@@ -4149,7 +4170,18 @@ zfs_fillpage(struct inode *ip, struct page *pp)
 	u_offset_t io_off = page_offset(pp);
 	size_t io_len = PAGE_SIZE;
 
-	ASSERT3U(io_off, <, i_size);
+	/*
+	 * The page may be faulted in after the file has been truncated.
+	 * There is no data to read; just zero-fill the page.
+	 */
+	if (io_off >= i_size) {
+		void *zva = kmap(pp);
+		memset(zva, 0, PAGE_SIZE);
+		kunmap(pp);
+		ClearPageError(pp);
+		SetPageUptodate(pp);
+		return (0);
+	}
 
 	if (io_off + io_len > i_size)
 		io_len = i_size - io_off;
@@ -4200,9 +4232,14 @@ zfs_getpage(struct inode *ip, struct page *pp)
 	if ((error = zfs_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
 		return (error);
 
-	ASSERT3U(io_off, <, i_size);
-
-	if (io_off + io_len > i_size)
+	/*
+	 * If the page lies entirely at or beyond EOF (e.g. it raced a
+	 * truncate) just lock the page and let zfs_fillpage() re-check
+	 * i_size under the range lock and zero-fill it.
+	 */
+	if (io_off >= i_size)
+		io_len = PAGE_SIZE;
+	else if (io_off + io_len > i_size)
 		io_len = i_size - io_off;
 
 	/*

@@ -296,6 +296,7 @@ tests = ['zfs_receive_001_pos', 'zfs_receive_002_pos', 'zfs_receive_003_pos',
     'zfs_receive_from_encrypted', 'zfs_receive_to_encrypted',
     'zfs_receive_raw', 'zfs_receive_raw_incremental', 'zfs_receive_-e',
     'zfs_receive_raw_-d', 'zfs_receive_from_zstd', 'zfs_receive_new_props',
+    'zfs_receive-x_props_alternation',
     'zfs_receive_-wR-encrypted-mix', 'zfs_receive_corrective',
     'zfs_receive_compressed_corrective', 'zfs_receive_large_block_corrective']
 tags = ['functional', 'cli_root', 'zfs_receive']
@@ -328,10 +329,6 @@ tests = ['zfs_send_001_pos', 'zfs_send_002_pos', 'zfs_send_003_pos',
     'zfs_send_007_pos', 'zfs_send_encrypted', 'zfs_send_encrypted_unloaded',
     'zfs_send_raw', 'zfs_send_sparse', 'zfs_send-b', 'zfs_send_skip_missing']
 tags = ['functional', 'cli_root', 'zfs_send']
-
-[tests/functional/cli_root/zfs_send_delegation]
-tests = ['zfs_send_test']
-tags = ['functional', 'cli_root', 'zfs_send_delegation']
 
 [tests/functional/cli_root/zfs_set]
 tests = ['cache_001_pos', 'cache_002_neg', 'canmount_001_pos',
@@ -455,7 +452,7 @@ tags = ['functional', 'cli_root', 'zpool_events']
 [tests/functional/cli_root/zpool_export]
 tests = ['zpool_export_001_pos', 'zpool_export_002_pos',
     'zpool_export_003_neg', 'zpool_export_004_pos',
-    'zpool_export_parallel_pos', 'zpool_export_parallel_admin']
+    'zpool_export_005_neg', 'zpool_export_parallel_pos', 'zpool_export_parallel_admin']
 tags = ['functional', 'cli_root', 'zpool_export']
 
 [tests/functional/cli_root/zpool_get]
@@ -583,6 +580,7 @@ tests = ['zpool_status_001_pos', 'zpool_status_002_pos',
     'zpool_status_003_pos', 'zpool_status_004_pos',
     'zpool_status_005_pos', 'zpool_status_006_pos',
     'zpool_status_007_pos', 'zpool_status_008_pos',
+    'zpool_status_009_pos',
     'zpool_status_features_001_pos']
 tags = ['functional', 'cli_root', 'zpool_status']
 
@@ -652,10 +650,6 @@ tests = ['zfs_list_001_pos', 'zfs_list_002_pos', 'zfs_list_003_pos',
 user =
 tags = ['functional', 'cli_user', 'zfs_list']
 
-[tests/functional/cli_user/zfs_send_delegation_user]
-tests = ['zfs_send_usertest']
-tags = ['functional', 'cli_user', 'zfs_send_delegation_user']
-
 [tests/functional/cli_user/zpool_iostat]
 tests = ['zpool_iostat_001_neg', 'zpool_iostat_002_pos',
     'zpool_iostat_003_neg', 'zpool_iostat_004_pos',
@@ -723,9 +717,9 @@ tests = ['zfs_allow_001_pos', 'zfs_allow_002_pos', 'zfs_allow_003_pos',
     'zfs_allow_004_pos', 'zfs_allow_005_pos', 'zfs_allow_006_pos',
     'zfs_allow_007_pos', 'zfs_allow_008_pos', 'zfs_allow_009_neg',
     'zfs_allow_010_pos', 'zfs_allow_011_neg', 'zfs_allow_012_neg',
-    'zfs_unallow_001_pos', 'zfs_unallow_002_pos', 'zfs_unallow_003_pos',
-    'zfs_unallow_004_pos', 'zfs_unallow_005_pos', 'zfs_unallow_006_pos',
-    'zfs_unallow_007_neg', 'zfs_unallow_008_neg']
+    'zfs_allow_send', 'zfs_unallow_001_pos', 'zfs_unallow_002_pos',
+    'zfs_unallow_003_pos', 'zfs_unallow_004_pos', 'zfs_unallow_005_pos',
+    'zfs_unallow_006_pos', 'zfs_unallow_007_neg', 'zfs_unallow_008_neg']
 tags = ['functional', 'delegate']
 
 [tests/functional/direct]
@@ -880,7 +874,7 @@ tests = ['defaultprojectquota_002_pos', 'defaultprojectquota_003_neg',
     'defaultprojectquota_007_pos', 'projectquota_002_pos',
     'projectquota_004_neg', 'projectquota_005_pos', 'projectquota_007_pos',
     'projectquota_008_pos', 'projectquota_009_pos', 'projecttree_002_pos',
-    'projecttree_003_neg']
+    'projecttree_003_neg', 'projectspace_006_pos']
 tags = ['functional', 'projectquota']
 
 [tests/functional/poolversion]
@@ -1003,8 +997,9 @@ tests = ['recv_dedup', 'recv_dedup_encrypted_zvol', 'rsend_001_pos',
     'send_encrypted_freeobjects', 'send_encrypted_hierarchy',
     'send_encrypted_props', 'send_encrypted_truncated_files',
     'send_freeobjects', 'send_realloc_files', 'send_realloc_encrypted_files',
-    'send_spill_block', 'send_holds', 'send_hole_birth', 'send_mixed_raw',
-    'send-wR_encrypted_zvol', 'send_partial_dataset', 'send_invalid',
+    'send_spill_block', 'send_split_large_block', 'send_holds',
+    'send_hole_birth', 'send_mixed_raw', 'send-wR_encrypted_zvol',
+    'send_partial_dataset', 'send_invalid',
     'send_large_blocks_incremental', 'send_large_blocks_initial',
     'send_large_microzap_incremental', 'send_large_microzap_transitive',
     'send_doall', 'send_raw_spill_block', 'send_raw_ashift',
@@ -1078,8 +1073,9 @@ tests = [
     'userquota_004_pos', 'userquota_005_neg', 'userquota_006_pos',
     'userquota_007_pos', 'userquota_008_pos', 'userquota_009_pos',
     'userquota_010_pos', 'userquota_011_pos', 'userquota_012_neg',
+    'groupspace_005_pos',
     'userspace_001_pos', 'userspace_002_pos', 'userspace_004_pos',
-    'userspace_encrypted', 'userspace_send_encrypted',
+    'userspace_005_pos', 'userspace_encrypted', 'userspace_send_encrypted',
     'userspace_encrypted_13709']
 tags = ['functional', 'userquota']
 

@@ -919,7 +919,15 @@ zfs_write(znode_t *zp, zfs_uio_t *uio, int ioflag, cred_t *cr)
 				 * error, and we may break the loop early.
 				 */
 				n -= tx_bytes - zfs_uio_resid(uio);
-				pfbytes -= tx_bytes - zfs_uio_resid(uio);
+				/*
+				 * The prefaulted pages still faulted, so force
+				 * a re-prefault on the next pass.  If they can
+				 * no longer be faulted in (e.g. the calling
+				 * process is exiting), zfs_uio_prefaultpages()
+				 * fails and the loop breaks with EFAULT instead
+				 * of spinning on them forever.
+				 */
+				pfbytes = 0;
 				continue;
 			}
 #endif
@@ -1879,7 +1887,7 @@ zfs_clone_range(znode_t *inzp, uint64_t *inoffp, znode_t *outzp,
 
 			/*
 			 * Block growth may fail for many reasons we can not
-			 * predict here.  If it happen the cloning is doomed.
+			 * predict here. If it happens, the cloning is doomed.
 			 */
 			if (inblksz != outzp->z_blksz) {
 				error = SET_ERROR(EINVAL);
@@ -2039,7 +2047,19 @@ zfs_clone_range_replay(znode_t *zp, uint64_t off, uint64_t len, uint64_t blksz,
 	if (zp->z_blksz < blksz)
 		zfs_grow_blocksize(zp, blksz, tx);
 
-	dmu_brt_clone(zfsvfs->z_os, zp->z_id, off, len, tx, bps, nbps);
+	if (blksz != zp->z_blksz) {
+		error = SET_ERROR(EINVAL);
+		dmu_tx_commit(tx);
+		zfs_exit(zfsvfs, FTAG);
+		return (error);
+	}
+
+	error = dmu_brt_clone(zfsvfs->z_os, zp->z_id, off, len, tx, bps, nbps);
+	if (error != 0) {
+		dmu_tx_commit(tx);
+		zfs_exit(zfsvfs, FTAG);
+		return (error);
+	}
 
 	zfs_tstamp_update_setup(zp, CONTENT_MODIFIED, mtime, ctime);
 

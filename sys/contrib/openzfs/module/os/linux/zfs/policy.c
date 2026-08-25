@@ -25,7 +25,10 @@
  * Copyright 2013, Joyent, Inc. All rights reserved.
  * Copyright (C) 2016 Lawrence Livermore National Security, LLC.
  * Copyright (c) 2025, Rob Norris <robn@despairlabs.com>
- *
+ * Copyright (c) 2026, TrueNAS.
+ */
+
+/*
  * For Linux the vast majority of this enforcement is already handled via
  * the standard Linux VFS permission checks.  However certain administrative
  * commands which bypass the standard mechanisms may need to make use of
@@ -87,21 +90,14 @@ priv_policy_user(const cred_t *cr, int capability, int err)
 }
 
 /*
- * Checks for operations that are either client-only or are used by
- * both clients and servers.
- */
-int
-secpolicy_nfs(const cred_t *cr)
-{
-	return (priv_policy(cr, CAP_SYS_ADMIN, EPERM));
-}
-
-/*
  * Catch all system configuration.
  */
 int
 secpolicy_sys_config(const cred_t *cr, boolean_t checkonly)
 {
+	/* pools can only be manipulated from the global zone */
+	if (crgetzoneid(cr) != GLOBAL_ZONEID)
+		return (EACCES);
 	return (priv_policy(cr, CAP_SYS_ADMIN, EPERM));
 }
 
@@ -241,6 +237,9 @@ secpolicy_vnode_setids_setgids(const cred_t *cr, gid_t gid, zidmap_t *mnt_ns,
 int
 secpolicy_zinject(const cred_t *cr)
 {
+	/* zinject is only in the global zone */
+	if (crgetzoneid(cr) != GLOBAL_ZONEID)
+		return (EACCES);
 	return (priv_policy(cr, CAP_SYS_ADMIN, EACCES));
 }
 
@@ -251,6 +250,14 @@ secpolicy_zinject(const cred_t *cr)
 int
 secpolicy_zfs(const cred_t *cr)
 {
+	/*
+	 * Note that CAP_SYS_ADMIN is effectively "root"-like privileges in
+	 * the given user namespace. Those happen to include mount control
+	 * (matching PRIV_SYS_MOUNT on illumos). There is not a narrower
+	 * permission available. It's important that callers do narrower
+	 * permission checks (eg zone checks) along with this call.
+	 *   -- robn, 2026-08-14
+	 */
 	return (priv_policy(cr, CAP_SYS_ADMIN, EACCES));
 }
 
