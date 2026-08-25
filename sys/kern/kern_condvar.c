@@ -287,6 +287,61 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
 	return (rval);
 }
 
+int
+_cv_wait_sig_unlock(struct cv *cvp, struct lock_object *lock)
+{
+	WITNESS_SAVE_DECL(lock_witness);
+#ifdef KTRACE
+	char wmesg[WMESGLEN + 1];
+#endif
+	struct lock_class *class;
+	struct thread *td __ktrace_used;
+	int rval;
+
+	td = curthread;
+	CV_ASSERT(cvp, lock, td);
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
+	    "Waiting on \"%s\"", cvp->cv_description);
+	KASSERT(lock != &Giant.lock_object,
+	    ("cv_wait_sig_unlock cannot be used with Giant"));
+
+	if (SCHEDULER_STOPPED())
+		return (0);
+
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW)) {
+		strlcpy(wmesg, cv_wmesg(cvp), sizeof(wmesg));
+		ktrcsw(1, 0, wmesg);
+	} else {
+		wmesg[0] = '\0';
+	}
+#endif
+
+	class = LOCK_CLASS(lock);
+	sleepq_lock(cvp);
+
+	CV_WAITERS_INC(cvp);
+	DROP_GIANT();
+
+	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR |
+	    SLEEPQ_INTERRUPTIBLE, 0);
+	if (class->lc_flags & LC_SLEEPABLE)
+		sleepq_release(cvp);
+	WITNESS_SAVE(lock, lock_witness);
+	class->lc_unlock(lock);
+	if (class->lc_flags & LC_SLEEPABLE)
+		sleepq_lock(cvp);
+	rval = sleepq_wait_sig(cvp, 0);
+
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_CSW))
+		ktrcsw(0, 0, wmesg);
+#endif
+	PICKUP_GIANT();
+
+	return (rval);
+}
+
 /*
  * Wait on a condition variable for (at most) the value specified in sbt
  * argument. Returns 0 if the process was resumed by cv_signal or cv_broadcast,
