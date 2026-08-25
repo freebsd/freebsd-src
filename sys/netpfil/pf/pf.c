@@ -1988,14 +1988,14 @@ pf_state_key_setup(struct pf_pdesc *pd, u_int16_t sport, u_int16_t dport,
 	(*sk)->proto = pd->proto;
 	(*sk)->af = pd->af;
 
-	*nk = pf_state_key_clone(*sk);
-	if (*nk == NULL) {
-		uma_zfree(V_pf_state_key_z, *sk);
-		*sk = NULL;
-		return (ENOMEM);
-	}
-
 	if (pd->af != pd->naf) {
+		*nk = pf_state_key_clone(*sk);
+		if (*nk == NULL) {
+			uma_zfree(V_pf_state_key_z, *sk);
+			*sk = NULL;
+			return (ENOMEM);
+		}
+
 		(*sk)->port[pd->sidx] = pd->osport;
 		(*sk)->port[pd->didx] = pd->odport;
 
@@ -2033,6 +2033,8 @@ pf_state_key_setup(struct pf_pdesc *pd, u_int16_t sport, u_int16_t dport,
 		default:
 			(*nk)->proto = pd->proto;
 		}
+	} else {
+		*nk = *sk;
 	}
 
 	return (0);
@@ -6595,7 +6597,8 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		}
 	} else {
 		uma_zfree(V_pf_state_key_z, ctx.sk);
-		uma_zfree(V_pf_state_key_z, ctx.nk);
+		if (ctx.sk != ctx.nk)
+			uma_zfree(V_pf_state_key_z, ctx.nk);
 		ctx.sk = ctx.nk = NULL;
 		pf_udp_mapping_release(ctx.udp_mapping);
 	}
@@ -6622,7 +6625,8 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 
 cleanup:
 	uma_zfree(V_pf_state_key_z, ctx.sk);
-	uma_zfree(V_pf_state_key_z, ctx.nk);
+	if (ctx.sk != ctx.nk)
+		uma_zfree(V_pf_state_key_z, ctx.nk);
 	pf_udp_mapping_release(ctx.udp_mapping);
 	*reason = ctx.reason;
 
@@ -6958,7 +6962,8 @@ pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
 
 csfailed:
 	uma_zfree(V_pf_state_key_z, ctx->sk);
-	uma_zfree(V_pf_state_key_z, ctx->nk);
+	if (ctx->sk != ctx->nk)
+		uma_zfree(V_pf_state_key_z, ctx->nk);
 
 	for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++) {
 		if (pf_src_node_exists(&sns[sn_type], snhs[sn_type])) {
