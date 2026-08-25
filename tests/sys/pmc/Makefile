@@ -5,6 +5,7 @@ ATF_TESTS_C+=	pmc_credexec_test
 ATF_TESTS_C+=	pmc_detach_test
 ATF_TESTS_C+=	pmc_exec_test
 ATF_TESTS_C+=	pmc_lifecycle_test
+ATF_TESTS_C+=	pmc_log_test
 ATF_TESTS_C+=	pmc_wrap_test
 
 LIBADD+=	pmc
