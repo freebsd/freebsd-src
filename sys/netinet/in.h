@@ -253,6 +253,8 @@ __END_DECLS
 /* last return value of *_input(), meaning "all job for this pkt is done".  */
 #define	IPPROTO_DONE		257
 
+#define __IPPROTO_DIVERT	258		/* Deprecated, use PF_DIVERT */
+
 /* Only used internally, so can be outside the range of valid IP protocols. */
 #define	IPPROTO_SEND		259		/* SeND pseudo-protocol */
 

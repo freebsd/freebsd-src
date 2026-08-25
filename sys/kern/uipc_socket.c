@@ -989,6 +989,13 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	struct socket *so;
 	int error;
 
+#ifdef COMPAT_FREEBSD15
+	/* divert(4) historically abuses PF_INET.  Use PF_DIVERT instead. */
+	if (__predict_false(dom == PF_INET && type == SOCK_RAW &&
+	    proto == __IPPROTO_DIVERT))
+		dom = PF_DIVERT;
+#endif
+
 	prp = pffindproto(dom, type, proto);
 	if (prp == NULL) {
 		/* No support for domain. */
