@@ -280,17 +280,6 @@ in6_control_ioctl(u_long cmd, void *data,
 	}
 
 	switch (cmd) {
-	case SIOCGETSGCNT_IN6:
-	case SIOCGETMIFCNT_IN6:
-		/*
-		 * XXX mrt_ioctl has a 3rd, unused, FIB argument in route.c.
-		 * We cannot see how that would be needed, so do not adjust the
-		 * KPI blindly; more likely should clean up the IPv4 variant.
-		 */
-		return (mrt6_ioctl ? mrt6_ioctl(cmd, data) : EOPNOTSUPP);
-	}
-
-	switch (cmd) {
 	case SIOCAADDRCTL_POLICY:
 	case SIOCDADDRCTL_POLICY:
 		if (cred != NULL) {
@@ -615,6 +604,12 @@ int
 in6_control(struct socket *so, u_long cmd, void *data,
     struct ifnet *ifp, struct thread *td)
 {
+	switch (cmd) {
+	case SIOCGETSGCNT_IN6:
+	case SIOCGETMIFCNT_IN6:
+		return (mrt6_ioctl ?
+		    mrt6_ioctl(cmd, data, so->so_fibnum) : EOPNOTSUPP);
+	}
 	return (in6_control_ioctl(cmd, data, ifp, td ? td->td_ucred : NULL));
 }
 
@@ -1324,7 +1319,7 @@ in6_addifaddr(struct ifnet *ifp, struct in6_aliasreq *ifra, struct in6_ifaddr *i
 		 * nd6_prelist_add will install the corresponding
 		 * interface route.
 		 */
-		if ((error = nd6_prelist_add(&pr0, NULL, &pr)) != 0) {
+		if ((error = nd6_prelist_add(&pr0, &pr)) != 0) {
 			if (carp_attached)
 				(*carp_detach_p)(&ia->ia_ifa, false);
 			goto out;
@@ -1431,6 +1426,9 @@ in6_purgeaddr(struct ifaddr *ifa)
 		if (error == 0)
 			ia->ia_flags &= ~IFA_RTSELF;
 	}
+
+	/* make sure there are no queued ND6 */
+	nd6_queue_stop(ifa);
 
 	/* stop DAD processing */
 	nd6_dad_stop(ifa);
@@ -2602,7 +2600,6 @@ in6_ifarrival(void *arg __unused, struct ifnet *ifp)
 
 	/* There are not IPv6-capable interfaces. */
 	switch (ifp->if_type) {
-	case IFT_PFLOG:
 	case IFT_PFSYNC:
 		ifp->if_inet6 = NULL;
 		return;

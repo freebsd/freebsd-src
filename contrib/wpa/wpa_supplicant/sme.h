@@ -25,6 +25,7 @@ void sme_event_auth_timed_out(struct wpa_supplicant *wpa_s,
 			      union wpa_event_data *data);
 void sme_event_assoc_timed_out(struct wpa_supplicant *wpa_s,
 			       union wpa_event_data *data);
+void sme_event_deauth(struct wpa_supplicant *wpa_s, struct deauth_info *info);
 void sme_event_disassoc(struct wpa_supplicant *wpa_s,
 			struct disassoc_info *info);
 void sme_event_unprot_disconnect(struct wpa_supplicant *wpa_s, const u8 *sa,
@@ -39,9 +40,11 @@ void sme_deinit(struct wpa_supplicant *wpa_s);
 int sme_proc_obss_scan(struct wpa_supplicant *wpa_s);
 void sme_sched_obss_scan(struct wpa_supplicant *wpa_s, int enable);
 void sme_external_auth_trigger(struct wpa_supplicant *wpa_s,
-			       union wpa_event_data *data);
+			       struct external_auth *ext_auth);
 void sme_external_auth_mgmt_rx(struct wpa_supplicant *wpa_s,
 			       const u8 *auth_frame, size_t len);
+void sme_send_external_auth_status(struct wpa_supplicant *wpa_s, u16 status);
+const u8 * sme_get_ext_auth_pmkid(struct wpa_supplicant *wpa_s);
 
 #else /* CONFIG_SME */
 
@@ -76,6 +79,11 @@ static inline void sme_event_auth_timed_out(struct wpa_supplicant *wpa_s,
 
 static inline void sme_event_assoc_timed_out(struct wpa_supplicant *wpa_s,
 					     union wpa_event_data *data)
+{
+}
+
+static inline void sme_event_deauth(struct wpa_supplicant *wpa_s,
+				    struct deauth_info *info)
 {
 }
 
@@ -117,13 +125,23 @@ static inline void sme_sched_obss_scan(struct wpa_supplicant *wpa_s,
 }
 
 static inline void sme_external_auth_trigger(struct wpa_supplicant *wpa_s,
-					     union wpa_event_data *data)
+					     struct external_auth *ext_auth)
 {
 }
 
 static inline void sme_external_auth_mgmt_rx(struct wpa_supplicant *wpa_s,
 					     const u8 *auth_frame, size_t len)
 {
+}
+
+static inline void sme_send_external_auth_status(struct wpa_supplicant *wpa_s,
+						 u16 status)
+{
+}
+
+static inline const u8 * sme_get_ext_auth_pmkid(struct wpa_supplicant *wpa_s)
+{
+	return NULL;
 }
 
 #endif /* CONFIG_SME */

@@ -39,11 +39,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/bitstring.h>
 #include <sys/kernel.h>
+#include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_dl.h>
-#include <net/if_media.h>
 #include <net/if_var.h>
 #include <net/iflib.h>
 
@@ -53,17 +52,21 @@ __FBSDID("$FreeBSD$");
 #include "aq_dbg.h"
 #include "aq_hw.h"
 #include "aq_hw_llh.h"
+#include "aq_fw.h"
 
 int
-aq_update_hw_stats(aq_dev_t *aq_dev)
+aq_update_hw_stats(struct aq_dev *aq_dev)
 {
 	struct aq_hw *hw = &aq_dev->hw;
-	struct aq_hw_fw_mbox mbox;
+	struct aq_hw_stats stats;
 
-	aq_hw_mpi_read_stats(hw, &mbox);
+	memset(&stats, 0, sizeof(stats));
+	if (aq_hw_mpi_read_stats(hw, &stats) != 0)
+		return (0);
 
-#define AQ_SDELTA(_N_) (aq_dev->curr_stats._N_ += \
-    mbox.stats._N_ - aq_dev->last_stats._N_)
+#define AQ_SDELTA(_N_) do { \
+	aq_dev->curr_stats._N_ += stats._N_ - aq_dev->last_stats._N_; \
+} while (0)
 	if (aq_dev->linkup) {
 		AQ_SDELTA(uprc);
 		AQ_SDELTA(mprc);
@@ -88,46 +91,262 @@ aq_update_hw_stats(aq_dev_t *aq_dev)
 
 		AQ_SDELTA(dpc);
 
-		aq_dev->curr_stats.brc = aq_dev->curr_stats.ubrc +
-		    aq_dev->curr_stats.mbrc + aq_dev->curr_stats.bbrc;
-		aq_dev->curr_stats.btc = aq_dev->curr_stats.ubtc +
-		    aq_dev->curr_stats.mbtc + aq_dev->curr_stats.bbtc;
+		/*
+		 * Per-cast octets present: derive the aggregate from them.
+		 * Otherwise (B0) accumulate the firmware-reported aggregate.
+		 */
+		if (stats.ubrc | stats.mbrc | stats.bbrc)
+			aq_dev->curr_stats.brc = aq_dev->curr_stats.ubrc +
+			    aq_dev->curr_stats.mbrc + aq_dev->curr_stats.bbrc;
+		else
+			AQ_SDELTA(brc);
 
+		if (stats.ubtc | stats.mbtc | stats.bbtc)
+			aq_dev->curr_stats.btc = aq_dev->curr_stats.ubtc +
+			    aq_dev->curr_stats.mbtc + aq_dev->curr_stats.bbtc;
+		else
+			AQ_SDELTA(btc);
 	}
 #undef AQ_SDELTA
 
-	memcpy(&aq_dev->last_stats, &mbox.stats, sizeof(mbox.stats));
+	memcpy(&aq_dev->last_stats, &stats, sizeof(stats));
 
 	return (0);
 }
 
 
+#define	AQ_THERMAL_HYSTERESIS_MC	18000	/* recover this far below the limit */
+#define	AQ_THERMAL_RECOVER_MC	90000	/* fallback when the limit is unreadable */
+#define	AQ_THERMAL_SETTLE_POLLS	5	/* ~5 s for the PHY reset to settle */
+#define	AQ_THERMAL_RETRY_SECS	60	/* minimum spacing between recoveries */
+#define	AQ_INIT_MAX_RETRIES	5	/* re-init attempts after a failed init */
+
+/* Temperature here is post-trip; the PHY is already dropping to low power. */
+static void
+aq_thermal_report_shutdown(struct aq_dev *aq_dev)
+{
+	struct aq_hw *hw = &aq_dev->hw;
+	int temp_mc, limit_mc;
+	bool have_temp, have_limit;
+
+	have_temp = hw->fw_ops->get_temp(hw, &temp_mc) == 0;
+	have_limit = hw->fw_ops->get_thermal_limit(hw, &limit_mc) == 0;
+	if (have_temp)
+		aq_dev->thermal_temp_mc = temp_mc;
+	/* The F/W also exposes a cold_temperature hysteresis point. */
+	aq_dev->thermal_recover_mc = have_limit ?
+	    limit_mc - AQ_THERMAL_HYSTERESIS_MC : AQ_THERMAL_RECOVER_MC;
+
+	if (have_temp && have_limit)
+		device_printf(aq_dev->dev, "PHY thermal shutdown; "
+		    "limit %d C, temp %d C; holding link down until it cools\n",
+		    limit_mc / 1000, temp_mc / 1000);
+	else if (have_temp)
+		device_printf(aq_dev->dev, "PHY thermal shutdown; "
+		    "temp %d C; holding link down until it cools\n",
+		    temp_mc / 1000);
+	else
+		device_printf(aq_dev->dev, "PHY thermal shutdown; "
+		    "holding link down until it cools\n");
+}
+
+/* Pre-trip warning: the PHY is hot but the firmware has not shut it down. */
+static void
+aq_thermal_report_hot(struct aq_dev *aq_dev)
+{
+	struct aq_hw *hw = &aq_dev->hw;
+	int temp_mc;
+	bool hot;
+
+	if (hw->fw_ops->get_phy_hot_warning == NULL ||
+	    hw->fw_ops->get_phy_hot_warning(hw, &hot) != 0)
+		return;
+
+	/* Report each edge once; the bit stays set for the whole excursion. */
+	if (hot == aq_dev->phy_hot_last)
+		return;
+	aq_dev->phy_hot_last = hot;
+
+	if (!hot) {
+		device_printf(aq_dev->dev, "PHY temperature normal again\n");
+		return;
+	}
+	if (hw->fw_ops->get_temp(hw, &temp_mc) == 0)
+		device_printf(aq_dev->dev, "PHY over-temperature warning, "
+		    "temp %d C\n", temp_mc / 1000);
+	else
+		device_printf(aq_dev->dev, "PHY over-temperature warning\n");
+}
+
+/* Recover after cooldown: A1 needs a PHY reset then re-init, A2 re-inits alone. */
+static void
+aq_thermal_poll(struct aq_dev *aq_dev)
+{
+	struct aq_hw *hw = &aq_dev->hw;
+	uint16_t fault;
+	int temp_mc;
+
+	switch (aq_dev->thermal_state) {
+	case AQ_THERMAL_NORMAL:
+		aq_thermal_report_hot(aq_dev);
+		if (aq_dev->linkup)
+			return;
+		/* The F/W raises the fault a poll after it drops the link. */
+		if (hw->fw_ops->get_phy_fault(hw, &fault) != 0 || fault == 0)
+			return;
+		/* Report each code once; do not mask a later shutdown. */
+		if (fault == aq_dev->phy_fault_last)
+			return;
+		aq_dev->phy_fault_last = fault;
+		if (fault != AQ_PHY_FAULT_THERMAL_SHUTDOWN) {
+			device_printf(aq_dev->dev,
+			    "PHY fault 0x%04x\n", fault);
+			return;
+		}
+		aq_thermal_report_shutdown(aq_dev);
+		aq_dev->thermal_state = AQ_THERMAL_COOLING;
+		return;
+
+	case AQ_THERMAL_COOLING:
+		if (hw->fw_ops->get_temp(hw, &temp_mc) != 0 ||
+		    temp_mc > aq_dev->thermal_recover_mc)
+			return;
+		aq_dev->thermal_temp_mc = temp_mc;
+		if (hw->fw_ops->phy_reset != NULL) {
+			if (hw->fw_ops->phy_reset(hw) != 0)
+				return;
+			aq_dev->thermal_settle = 0;
+			aq_dev->thermal_state = AQ_THERMAL_SETTLING;
+			return;
+		}
+		/* No PHY reset needed (A2): re-init below restores the link. */
+		break;
+
+	case AQ_THERMAL_SETTLING:
+		if (++aq_dev->thermal_settle < AQ_THERMAL_SETTLE_POLLS)
+			return;
+		break;
+	}
+
+	/* Space attempts out: recovery costs a re-init and a renegotiation. */
+	if ((int)(ticks - aq_dev->thermal_retry_ticks) < 0)
+		return;
+	aq_dev->thermal_retry_ticks = ticks + AQ_THERMAL_RETRY_SECS * hz;
+
+	device_printf(aq_dev->dev, "PHY cooled to %d C; restoring "
+	    "link\n", aq_dev->thermal_temp_mc / 1000);
+	aq_dev->thermal_state = AQ_THERMAL_NORMAL;
+	aq_dev->reset_pending = true;
+	iflib_request_reset(aq_dev->ctx);
+	iflib_admin_intr_deferred(aq_dev->ctx);
+}
+
+static const char *
+aq_fc_string(const struct aq_hw_fc_info *fc)
+{
+
+	if (fc->fc_rx && fc->fc_tx)
+		return ("rx/tx");
+	if (fc->fc_rx)
+		return ("rx");
+	if (fc->fc_tx)
+		return ("tx");
+	return ("none");
+}
+
+static void
+aq_link_report_up(struct aq_dev *aq_dev, uint32_t link_speed,
+    const struct aq_hw_fc_info *fc)
+{
+	struct aq_hw *hw = &aq_dev->hw;
+	struct aq_hw_link_info info;
+
+	if (hw->fw_ops->get_link_info != NULL &&
+	    hw->fw_ops->get_link_info(hw, &info) == 0) {
+		device_printf(aq_dev->dev, "link UP: speed=%u, %s-duplex, "
+		    "flowcontrol %s, EEE %s\n", link_speed,
+		    info.full_duplex ? "full" : "half", aq_fc_string(fc),
+		    info.eee ? "on" : "off");
+		return;
+	}
+	device_printf(aq_dev->dev, "link UP: speed=%u, flowcontrol %s\n",
+	    link_speed, aq_fc_string(fc));
+}
+
+/*
+ * The firmware raises a PHY fault a poll after it drops the link, so a
+ * thermal trip usually reports only its temperature here; aq_thermal_poll()
+ * names it on the following poll.
+ */
+static void
+aq_link_report_down(struct aq_dev *aq_dev)
+{
+	struct aq_hw *hw = &aq_dev->hw;
+	struct aq_hw_link_info info;
+	struct sbuf sb;
+	char detail[96];
+	int temp_mc;
+	uint16_t fault;
+
+	sbuf_new(&sb, detail, sizeof(detail), SBUF_FIXEDLEN);
+
+	if (hw->fw_ops->get_phy_fault != NULL &&
+	    hw->fw_ops->get_phy_fault(hw, &fault) == 0 && fault != 0)
+		sbuf_printf(&sb, ", PHY fault 0x%04x", fault);
+	if (hw->fw_ops->get_link_info != NULL &&
+	    hw->fw_ops->get_link_info(hw, &info) == 0)
+		sbuf_printf(&sb, ", F/W link state %u", info.state);
+	if (hw->fw_ops->get_temp != NULL &&
+	    hw->fw_ops->get_temp(hw, &temp_mc) == 0)
+		sbuf_printf(&sb, ", temp %d C", temp_mc / 1000);
+
+	if (sbuf_finish(&sb) != 0)
+		device_printf(aq_dev->dev, "link DOWN\n");
+	else
+		device_printf(aq_dev->dev, "link DOWN%s\n", sbuf_data(&sb));
+	sbuf_delete(&sb);
+}
+
 void
 aq_if_update_admin_status(if_ctx_t ctx)
 {
-	aq_dev_t *aq_dev = iflib_get_softc(ctx);
+	struct aq_dev *aq_dev = iflib_get_softc(ctx);
 	struct aq_hw *hw = &aq_dev->hw;
 	uint32_t link_speed;
+	bool running;
 
-	//	AQ_DBG_ENTER();
 
 	struct aq_hw_fc_info fc_neg;
-	aq_hw_get_link_state(hw, &link_speed, &fc_neg);
-//	AQ_DBG_PRINT(" link_speed=%d aq_dev->linkup=%d", link_speed, aq_dev->linkup);
-	if (link_speed && !aq_dev->linkup) { /* link was DOWN */
-		device_printf(aq_dev->dev, "atlantic: link UP: speed=%d\n", link_speed);
+	int err;
+
+	err = aq_hw_get_link_state(hw, &link_speed, &fc_neg);
+	if (err != 0 && !aq_dev->link_read_failed) {
+		aq_dev->link_read_failed = true;
+		device_printf(aq_dev->dev, "link state read failed, error %d; "
+		    "holding the last known state\n", err);
+	} else if (err == 0 && aq_dev->link_read_failed) {
+		aq_dev->link_read_failed = false;
+		device_printf(aq_dev->dev, "link state read recovered\n");
+	}
+
+	/* A stopped or half-initialized interface has no link. */
+	running = (if_getdrvflags(iflib_get_ifp(ctx)) & IFF_DRV_RUNNING) != 0;
+	if (!running || aq_dev->init_failed)
+		link_speed = 0;
+
+	/* A retrain can change the speed without ever dropping the link. */
+	if (err == 0 && link_speed != 0U &&
+	    (!aq_dev->linkup || link_speed != aq_dev->link_speed)) {
+		if (!aq_dev->linkup) {
+			aq_link_report_up(aq_dev, link_speed, &fc_neg);
+			aq_dev->phy_fault_last = 0;
+		} else
+			device_printf(aq_dev->dev, "link speed=%d\n",
+			    link_speed);
 
 		aq_dev->linkup = 1;
+		aq_dev->link_speed = link_speed;
 
-#if __FreeBSD__ >= 12
-		/* Disable TSO if link speed < 1G */
-		if (link_speed < 1000 && (iflib_get_softc_ctx(ctx)->isc_capabilities & (IFCAP_TSO4 | IFCAP_TSO6))) {
-		    iflib_get_softc_ctx(ctx)->isc_capabilities &= ~(IFCAP_TSO4 | IFCAP_TSO6);
-		    device_printf(aq_dev->dev, "atlantic: TSO disabled for link speed < 1G");
-		}else{
-		    iflib_get_softc_ctx(ctx)->isc_capabilities |= (IFCAP_TSO4 | IFCAP_TSO6);
-		}
-#endif
 		/* turn on/off RX Pause in RPB */
 		rpb_rx_xoff_en_per_tc_set(hw, fc_neg.fc_rx, 0);
 
@@ -136,11 +355,14 @@ aq_if_update_admin_status(if_ctx_t ctx)
 		aq_mediastatus_update(aq_dev, link_speed, &fc_neg);
 
 		/* update ITR settings according new link speed */
-		aq_hw_interrupt_moderation_set(hw);
-	} else if (link_speed == 0U && aq_dev->linkup) { /* link was UP */
-		device_printf(aq_dev->dev, "atlantic: link DOWN\n");
+		if (aq_hw_interrupt_moderation_set(hw) != 0)
+			device_printf(aq_dev->dev,
+			    "could not update interrupt moderation\n");
+	} else if (err == 0 && link_speed == 0U && aq_dev->linkup) {
+		aq_link_report_down(aq_dev);
 
 		aq_dev->linkup = 0;
+		aq_dev->link_speed = 0;
 
 		/* turn off RX Pause in RPB */
 		rpb_rx_xoff_en_per_tc_set(hw, 0, 0);
@@ -149,8 +371,31 @@ aq_if_update_admin_status(if_ctx_t ctx)
 		aq_mediastatus_update(aq_dev, link_speed, &fc_neg);
 	}
 
+	/* A stopped interface must not be re-initialized behind the operator. */
+	if (!running)
+		return;
+
+	/* Re-arming while a reset is queued would re-init once too often. */
+	if (aq_dev->init_failed) {
+		if (aq_dev->reset_pending)
+			return;
+		if (aq_dev->init_retries < AQ_INIT_MAX_RETRIES) {
+			aq_dev->init_retries++;
+			aq_dev->reset_pending = true;
+			iflib_request_reset(ctx);
+		} else if (aq_dev->init_retries == AQ_INIT_MAX_RETRIES) {
+			aq_dev->init_retries++;
+			device_printf(aq_dev->dev, "initialization failed; "
+			    "giving up after %d retries, link held down\n",
+			    AQ_INIT_MAX_RETRIES);
+		}
+		return;
+	}
+
+	if (hw->fw_ops->get_phy_fault != NULL)
+		aq_thermal_poll(aq_dev);
+
 	aq_update_hw_stats(aq_dev);
-//	AQ_DBG_EXIT(0);
 }
 
 /**************************************************************************/
@@ -163,9 +408,9 @@ aq_isr_rx(void *arg)
 	struct aq_dev   *aq_dev = ring->dev;
 	struct aq_hw    *hw = &aq_dev->hw;
 
-	/* clear interrupt status */
 	itr_irq_status_clearlsw_set(hw, BIT(ring->msix));
-	ring->stats.irq++;
+	AQ_HW_FLUSH(hw);
+	counter_u64_add(ring->stats.irq, 1);
 	return (FILTER_SCHEDULE_THREAD);
 }
 
@@ -175,11 +420,11 @@ aq_isr_rx(void *arg)
 int
 aq_linkstat_isr(void *arg)
 {
-	aq_dev_t              *aq_dev = arg;
+	struct aq_dev              *aq_dev = arg;
 	struct aq_hw          *hw = &aq_dev->hw;
 
-	/* clear interrupt status */
-	itr_irq_status_clearlsw_set(hw, aq_dev->msix);
+	itr_irq_status_clearlsw_set(hw, BIT(aq_dev->msix));
+	AQ_HW_FLUSH(hw);
 
 	iflib_admin_intr_deferred(aq_dev->ctx);
 

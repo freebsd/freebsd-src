@@ -49,8 +49,8 @@ directories to be set up like this in order to find certificates.
 
 If any directories are named on the command line, then those are
 processed in turn. If not, then the B<SSL_CERT_DIR> environment variable
-is consulted; this should be a colon-separated list of directories,
-like the Unix B<PATH> variable.
+is consulted; this should be a colon-separated list of directories
+(or semicolon-separated on Windows), like the B<PATH> variable.
 If that is not set then the default directory (installation-specific
 but often F</usr/local/ssl/certs>) is processed.
 
@@ -149,7 +149,7 @@ L<openssl-x509(1)>
 
 =head1 COPYRIGHT
 
-Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2026 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

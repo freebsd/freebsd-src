@@ -9,7 +9,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -26,7 +26,7 @@ echo "================================================================="
 sudo tail -n $lines /proc/spl/kstat/zfs/dbgmsg
 
 # reset dbgmsg
-sudo bash -c "echo > /proc/spl/kstat/zfs/dbgmsg"
+sudo sh -c "echo > /proc/spl/kstat/zfs/dbgmsg"
 
 echo "================================================================="
 echo " End of zfs_dbgmsg log"

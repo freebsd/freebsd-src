@@ -3,7 +3,7 @@
 .\"
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
-.Dd December 18, 2025
+.Dd May 11, 2026
 .Dt RGE 4
 .Os
 .Sh NAME
@@ -39,13 +39,18 @@ over CAT6 cable.
 .Pp
 All NICs supported by the
 .Nm
-driver have TCP/IP checksum offload and hardware VLAN tagging/insertion
-features, and use a descriptor-based DMA mechanism.
+driver have TCP/IP checksum offload, hardware VLAN tagging/insertion
+features, Wake On Lan (WOL), and use a descriptor-based DMA mechanism.
 They are also
 capable of TCP large send (TCP segmentation offload).
 .Pp
 The RTL8125, RTL8126 and RTL8127 devices are single-chip solutions combining
 both a MAC and PHY.
+The
+.Nm
+driver manages the PHY directly rather than using the
+.Xr miibus 4
+interface.
 Standalone cards are available in 1x PCIe models.
 .Pp
 The RTL8125, RTL8126 and RTL8127 also support jumbo frames, which can be
@@ -121,8 +126,20 @@ For more information on configuring this device, see
 .Sh HARDWARE
 The
 .Nm
-driver supports RealTek RTL8125, RTL8126, RTL8127 and Killer E3000 based
-PCIe 1GB to 1GB Ethernet devices.
+driver supports the following PCIe Ethernet adapters:
+.Pp
+.Bl -bullet -compact
+.It
+RealTek RTL8125 (up to 2.5 Gbps)
+.It
+RealTek RTL8126 (up to 5 Gbps)
+.It
+RealTek RTL8127 (up to 10 Gbps)
+.It
+Killer E3000 (up to 2.5 Gbps)
+.It
+Killer E5000 (up to 5 Gbps)
+.El
 .Sh SYSCTL VARIABLES
 The following variables are available as both
 .Xr sysctl 8
@@ -132,6 +149,20 @@ tunables:
 .Bl -tag -width "xxxxxx"
 .It Va dev.rge.%d.debug
 Configure runtime debug output.  This is a 32 bit bitmask.
+.It Va dev.rge.%d.rx_process_limit
+Maximum number of RX packets to process per interrupt.
+The default value is 16.
+Increasing this value may improve throughput on high-speed links at the
+cost of increased interrupt latency.
+.It Va dev.rge.%d.disable_aspm
+Disable PCIe Active State Power Management (ASPM) and Extended
+Configuration Power Management (ECPM).
+The default value is 0 (leave ASPM enabled).
+Setting this to 1 reduces latency at the cost of increased power
+consumption.
+This tunable can only be set in
+.Xr loader.conf 5
+and requires a reboot to take effect.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -146,6 +177,7 @@ the network connection (cable).
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr polling 4 ,
+.Xr re 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8
 .Rs

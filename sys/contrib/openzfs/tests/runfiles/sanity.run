@@ -7,7 +7,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 # This run file contains a subset of functional tests which exercise
 # as much functionality as possible while still executing relatively
@@ -104,7 +104,8 @@ tags = ['functional', 'cli_root', 'zfs_bookmark']
 [tests/functional/cli_root/zfs_change-key]
 tests = ['zfs_change-key', 'zfs_change-key_child', 'zfs_change-key_format',
     'zfs_change-key_inherit', 'zfs_change-key_load', 'zfs_change-key_location',
-    'zfs_change-key_pbkdf2iters', 'zfs_change-key_clones']
+    'zfs_change-key_pbkdf2iters', 'zfs_change-key_clones',
+    'zfs_change-key_userprop']
 tags = ['functional', 'cli_root', 'zfs_change-key']
 
 [tests/functional/cli_root/zfs_clone]
@@ -155,7 +156,7 @@ tests = ['zfs_mount_001_pos', 'zfs_mount_002_pos', 'zfs_mount_003_pos',
     'zfs_mount_004_pos', 'zfs_mount_005_pos', 'zfs_mount_007_pos',
     'zfs_mount_009_neg', 'zfs_mount_010_neg', 'zfs_mount_011_neg',
     'zfs_mount_012_pos', 'zfs_mount_encrypted', 'zfs_mount_remount',
-    'zfs_mount_all_fail', 'zfs_mount_all_mountpoints',
+    'zfs_mount_ro_rw', 'zfs_mount_all_fail', 'zfs_mount_all_mountpoints',
     'zfs_mount_test_race', 'zfs_mount_recursive']
 tags = ['functional', 'cli_root', 'zfs_mount']
 
@@ -195,7 +196,8 @@ tests = ['zfs_reservation_001_pos', 'zfs_reservation_002_pos']
 tags = ['functional', 'cli_root', 'zfs_reservation']
 
 [tests/functional/cli_root/zfs_rewrite]
-tests = ['zfs_rewrite', 'zfs_rewrite_physical']
+tests = ['zfs_rewrite', 'zfs_rewrite_physical', 'zfs_rewrite_skip_clone',
+    'zfs_rewrite_skip_snapshot']
 tags = ['functional', 'cli_root', 'zfs_rewrite']
 
 [tests/functional/cli_root/zfs_rollback]
@@ -262,6 +264,10 @@ tags = ['functional', 'cli_root', 'zpool_attach']
 tests = ['zpool_clear_002_neg']
 tags = ['functional', 'cli_root', 'zpool_clear']
 
+[tests/functional/cli_root/zpool_condense]
+tests = ['zpool_condense_neg', 'zpool_condense_basic']
+tags = ['functional', 'cli_root', 'zpool_condense']
+
 [tests/functional/cli_root/zpool_create]
 tests = ['zpool_create_001_pos', 'zpool_create_002_pos',
     'zpool_create_003_pos', 'zpool_create_004_pos', 'zpool_create_007_neg',
@@ -269,7 +275,7 @@ tests = ['zpool_create_001_pos', 'zpool_create_002_pos',
     'zpool_create_012_neg', 'zpool_create_014_neg', 'zpool_create_015_neg',
     'zpool_create_017_neg', 'zpool_create_018_pos', 'zpool_create_019_pos',
     'zpool_create_020_pos', 'zpool_create_021_pos', 'zpool_create_022_pos',
-    'zpool_create_encrypted',
+    'zpool_create_encrypted', 'zpool_create_edom_neg',
     'zpool_create_features_001_pos', 'zpool_create_features_002_pos',
     'zpool_create_features_003_pos', 'zpool_create_features_004_neg',
     'zpool_create_features_005_pos']
@@ -322,7 +328,8 @@ pre =
 tags = ['functional', 'cli_root', 'zpool_initialize']
 
 [tests/functional/cli_root/zpool_offline]
-tests = ['zpool_offline_001_pos', 'zpool_offline_002_neg']
+tests = ['zpool_offline_001_pos', 'zpool_offline_002_neg',
+    'zpool_offline_spare']
 tags = ['functional', 'cli_root', 'zpool_offline']
 
 [tests/functional/cli_root/zpool_online]
@@ -350,12 +357,11 @@ tags = ['functional', 'cli_root', 'zpool_scrub']
 
 [tests/functional/cli_root/zpool_set]
 tests = ['zpool_set_001_pos', 'zpool_set_002_neg', 'zpool_set_003_neg',
-    'zpool_set_ashift', 'zpool_set_features']
+    'zpool_set_ashift', 'zpool_set_features', 'zpool_set_inherit']
 tags = ['functional', 'cli_root', 'zpool_set']
 
 [tests/functional/cli_root/zpool_split]
-tests = ['zpool_split_cliargs', 'zpool_split_devices',
-    'zpool_split_props', 'zpool_split_vdevs', 'zpool_split_indirect']
+tests = ['zpool_split_cliargs', 'zpool_split_devices', 'zpool_split_indirect']
 tags = ['functional', 'cli_root', 'zpool_split']
 
 [tests/functional/cli_root/zpool_status]
@@ -436,12 +442,6 @@ tags = ['functional', 'features', 'large_dnode']
 tests = ['gang_blocks_001_pos']
 tags = ['functional', 'gang_blocks']
 
-[tests/functional/grow]
-pre =
-post =
-tests = ['grow_pool_001_pos', 'grow_replicas_001_pos']
-tags = ['functional', 'grow']
-
 [tests/functional/history]
 tests = ['history_004_pos', 'history_005_neg', 'history_007_pos',
     'history_009_pos']
@@ -463,7 +463,7 @@ tests = ['large_files_001_pos', 'large_files_002_pos']
 tags = ['functional', 'large_files']
 
 [tests/functional/libzfs]
-tests = ['many_fds', 'libzfs_input']
+tests = ['many_fds', 'libzfs_input', 'libzfs_mnttab_cache']
 tags = ['functional', 'libzfs']
 
 [tests/functional/limits]
@@ -498,12 +498,6 @@ tags = ['functional', 'nestedfs']
 [tests/functional/nopwrite]
 tests = ['nopwrite_sync', 'nopwrite_volume']
 tags = ['functional', 'nopwrite']
-
-[tests/functional/pool_checkpoint]
-tests = ['checkpoint_conf_change', 'checkpoint_discard_many',
-    'checkpoint_removal', 'checkpoint_sm_scale', 'checkpoint_twice']
-tags = ['functional', 'pool_checkpoint']
-timeout = 1800
 
 [tests/functional/poolversion]
 tests = ['poolversion_001_pos', 'poolversion_002_pos']
@@ -554,12 +548,11 @@ tags = ['functional', 'reservation']
 
 [tests/functional/rsend]
 tests = ['recv_dedup', 'recv_dedup_encrypted_zvol', 'rsend_001_pos',
-    'rsend_002_pos', 'rsend_003_pos', 'rsend_004_pos', 'rsend_005_pos',
-    'rsend_006_pos', 'rsend_009_pos', 'rsend_010_pos', 'rsend_011_pos',
-    'rsend_014_pos', 'rsend_016_neg', 'send-c_verify_contents',
-    'send-c_volume', 'send-c_zstreamdump', 'send-c_recv_dedup',
-    'send-L_toggle', 'send_encrypted_hierarchy', 'send_encrypted_props',
-    'send_encrypted_freeobjects',
+    'rsend_002_pos', 'rsend_003_pos', 'rsend_009_pos', 'rsend_010_pos',
+    'rsend_011_pos', 'rsend_016_neg', 'rsend-exclude_001_pos',
+    'rsend-exclude_002_pos', 'send-c_volume',
+    'send-c_recv_dedup', 'send-L_toggle', 'send_encrypted_hierarchy',
+    'send_encrypted_props', 'send_encrypted_freeobjects',
     'send_encrypted_truncated_files', 'send_freeobjects', 'send_holds',
     'send_mixed_raw', 'send-wR_encrypted_zvol', 'send_partial_dataset',
     'send_invalid']
@@ -573,6 +566,10 @@ tags = ['functional', 'scrub_mirror']
 tests = ['slog_008_neg', 'slog_009_neg', 'slog_010_neg']
 tags = ['functional', 'slog']
 
+[tests/functional/snapdir]
+tests = ['snapdir_mount_parallel']
+tags = ['functional', 'snapdir']
+
 [tests/functional/snapshot]
 tests = ['clone_001_pos', 'rollback_001_pos', 'rollback_002_pos',
     'snapshot_001_pos', 'snapshot_002_pos', 'snapshot_003_pos',
@@ -580,7 +577,7 @@ tests = ['clone_001_pos', 'rollback_001_pos', 'rollback_002_pos',
     'snapshot_007_pos', 'snapshot_008_pos', 'snapshot_009_pos',
     'snapshot_010_pos', 'snapshot_011_pos', 'snapshot_012_pos',
     'snapshot_013_pos', 'snapshot_014_pos', 'snapshot_017_pos',
-    'snapshot_018_pos', 'snapshot_019_pos']
+    'snapshot_018_pos']
 tags = ['functional', 'snapshot']
 
 [tests/functional/snapused]
@@ -625,6 +622,11 @@ tests = ['xattr_001_pos', 'xattr_002_neg', 'xattr_003_neg', 'xattr_004_pos',
     'xattr_011_pos', 'xattr_013_pos', 'xattr_014_pos', 'xattr_compat']
 tags = ['functional', 'xattr']
 
+[tests/functional/zstream]
+tests = ['zstream_dump_001_pos', 'zstream_dump_002_pos',
+    'zstream_redup_001_pos']
+tags = ['functional', 'zstream']
+
 [tests/functional/zvol/zvol_ENOSPC]
 tests = ['zvol_ENOSPC_001_pos']
 tags = ['functional', 'zvol', 'zvol_ENOSPC']
@@ -640,9 +642,3 @@ tags = ['functional', 'zvol', 'zvol_swap']
 [tests/functional/zpool_influxdb]
 tests = ['zpool_influxdb']
 tags = ['functional', 'zpool_influxdb']
-
-[tests/functional/pyzfs]
-tests = ['pyzfs_unittest']
-pre =
-post =
-tags = ['functional', 'pyzfs']

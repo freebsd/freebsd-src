@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
+OPENSSL_VERSION=1.1.1d
 
 echo "Downloading OpenSSL"
-if ! curl -L -k -s -o openssl-1.1.1d.tar.gz https://www.openssl.org/source/openssl-1.1.1d.tar.gz;
+if ! curl -L -k -s -o openssl-$OPENSSL_VERSION.tar.gz https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz;
 then
     echo "Failed to download OpenSSL"
     exit 1
 fi
 
 echo "Unpacking OpenSSL"
-rm -rf ./openssl-1.1.1d
-if ! tar -xf openssl-1.1.1d.tar.gz;
+rm -rf ./openssl-$OPENSSL_VERSION
+if ! tar -xf openssl-$OPENSSL_VERSION.tar.gz;
 then
     echo "Failed to unpack OpenSSL"
     exit 1
 fi
 
-cd openssl-1.1.1d || exit 1
+cd openssl-$OPENSSL_VERSION || exit 1
 
 if ! cp ../contrib/ios/15-ios.conf Configurations/; then
     echo "Failed to copy OpenSSL ios config"
@@ -27,7 +28,8 @@ fi
 # Also see https://github.com/openssl/openssl/issues/7607.
 if ! patch -u -p0 < ../contrib/ios/openssl.patch; then
     echo "Failed to patch OpenSSL"
-    exit 1
+    # the partial patch may be useful.
+    #exit 1
 fi
 
 echo "Configuring OpenSSL"

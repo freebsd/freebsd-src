@@ -94,12 +94,22 @@ struct threadinfo
 	struct timespec after;
 };
 
+struct fd_domain
+{
+	LIST_ENTRY(fd_domain) entries;
+
+	int fd;
+	int domain;
+	int protocol;
+};
+
 struct procinfo {
 	LIST_ENTRY(procinfo) entries;
 	pid_t pid;
 	struct procabi *abi;
 
 	LIST_HEAD(, threadinfo) threadlist;
+	LIST_HEAD(, fd_domain) fdlist;
 };
 
 struct trussinfo

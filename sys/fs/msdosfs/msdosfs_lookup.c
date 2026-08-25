@@ -304,8 +304,7 @@ msdosfs_lookup_ino(struct vnode *vdp, struct vnode **vpp, struct componentname
 						continue;
 
 					chksum = win2unixfn(&nb,
-					    (struct winentry *)dep, chksum,
-					    pmp);
+					    (struct winentry *)dep, chksum, pmp);
 					continue;
 				}
 
@@ -638,6 +637,7 @@ createde(struct denode *dep, struct denode *ddep, struct denode **depp,
 	struct buf *bp;
 	daddr_t bn;
 	int blsize;
+	uint32_t surrogate;
 
 #ifdef MSDOSFS_DEBUG
 	printf("createde(dep %p, ddep %p, depp %p, cnp %p)\n",
@@ -692,6 +692,7 @@ createde(struct denode *dep, struct denode *ddep, struct denode **depp,
 	/*
 	 * Now write the Win95 long name
 	 */
+	surrogate = 0;
 	if (ddep->de_fndcnt > 0) {
 		uint8_t chksum = winChksum(ndep->deName);
 		const u_char *un = (const u_char *)cnp->cn_nameptr;
@@ -725,7 +726,7 @@ createde(struct denode *dep, struct denode *ddep, struct denode **depp,
 			}
 			rootde_alloced(ddep);
 			if (!unix2winfn(un, unlen, (struct winentry *)ndep,
-					cnt++, chksum, pmp))
+					cnt++, chksum, &surrogate, pmp))
 				break;
 		}
 	}

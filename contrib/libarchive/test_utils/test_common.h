@@ -163,6 +163,9 @@
 /* change file/directory permissions and errors if it fails */
 #define assertChmod(pathname, mode)				\
   assertion_chmod(__FILE__, __LINE__, pathname, mode)
+/* change file/directory ownership and errors if it fails */
+#define assertChown(pathname, user, group)			\
+  assertion_chown(__FILE__, __LINE__, pathname, user, group)
 /* Assert two files have the same file flags */
 #define assertEqualFflags(patha, pathb)	\
   assertion_compare_fflags(__FILE__, __LINE__, patha, pathb, 0)
@@ -279,6 +282,7 @@ void failure(const char *fmt, ...) __LA_PRINTFLIKE(1, 2);
 int assertion_assert(const char *, int, int, const char *, void *);
 int assertion_chdir(const char *, int, const char *);
 int assertion_chmod(const char *, int, const char *, int);
+int assertion_chown(const char *, int, const char *, int, int);
 int assertion_compare_fflags(const char *, int, const char *, const char *,
     int);
 int assertion_empty_file(const char *, int, const char *);

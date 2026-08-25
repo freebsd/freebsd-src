@@ -8,7 +8,7 @@
  *
  * 1. Copyright Notice
  *
- * Some or all of this work - Copyright (c) 1999 - 2025, Intel Corp.
+ * Some or all of this work - Copyright (c) 1999 - 2026, Intel Corp.
  * All rights reserved.
  *
  * 2. License
@@ -568,6 +568,10 @@ static const char           *AcpiDmTpm2Subnames[] =
     "Reserved",
     "Reserved",
     "Command Response Buffer with ARM SMC",
+    "FIFO over I2C",
+    "Command Response Buffer with AMD Mailbox",
+    "Reserved",
+    "Command Response Buffer with ARM Framework-A",
     "Unknown Subtable Type"         /* Reserved */
 };
 
@@ -700,6 +704,7 @@ const ACPI_DMTABLE_DATA     AcpiDmTableData[] =
     {ACPI_SIG_DBGP, AcpiDmTableInfoDbgp,    NULL,           NULL,           TemplateDbgp},
     {ACPI_SIG_DMAR, NULL,                   AcpiDmDumpDmar, DtCompileDmar,  TemplateDmar},
     {ACPI_SIG_DRTM, NULL,                   AcpiDmDumpDrtm, DtCompileDrtm,  TemplateDrtm},
+    {ACPI_SIG_DTPR, NULL,                   AcpiDmDumpDtpr, DtCompileDtpr,  TemplateDtpr},
     {ACPI_SIG_ECDT, AcpiDmTableInfoEcdt,    NULL,           NULL,           TemplateEcdt},
     {ACPI_SIG_EINJ, NULL,                   AcpiDmDumpEinj, DtCompileEinj,  TemplateEinj},
     {ACPI_SIG_ERDT, NULL,                   AcpiDmDumpErdt, DtCompileErdt,  TemplateErdt},

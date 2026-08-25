@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
@@ -234,6 +224,8 @@ zfs_uiomove_iter(void *p, size_t n, zfs_uio_rw_t rw, zfs_uio_t *uio,
     boolean_t revert)
 {
 	size_t cnt = MIN(n, uio->uio_resid);
+	size_t oldcnt = cnt;
+	int error = 0;
 
 	if (rw == UIO_READ)
 		cnt = copy_to_iter(p, cnt, uio->uio_iter);
@@ -249,16 +241,21 @@ zfs_uiomove_iter(void *p, size_t n, zfs_uio_rw_t rw, zfs_uio_t *uio,
 		return (EFAULT);
 
 	/*
-	 * Revert advancing the uio_iter.  This is set by zfs_uiocopy()
-	 * to avoid consuming the uio and its iov_iter structure.
+	 * When revert is set this is a zfs_uiocopy() which should not
+	 * consume the uio and its iov_iter structure.  Otherwise, it's
+	 * a zfs_uiomove() which is expected to update the uio.  Partial
+	 * copies are allowed for both copy and move but EFAULT should
+	 * be returned for zfs_uiomove().
 	 */
 	if (revert)
 		iov_iter_revert(uio->uio_iter, cnt);
+	else if (cnt != oldcnt)
+		error = EFAULT;
 
 	uio->uio_resid -= cnt;
 	uio->uio_loffset += cnt;
 
-	return (0);
+	return (error);
 }
 
 int

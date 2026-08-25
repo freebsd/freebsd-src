@@ -49,7 +49,7 @@ SRCS+=		copy.c devicename.c elf_freebsd.c glue.c
 SRCS+=		net.c reboot.c time.c
 SRCS+=		uboot_console.c uboot_disk.c uboot_fdt.c uboot_module.c
 
-CFLAGS.glue.c+=	-DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
+CFLAGS.glue.c+=	${ZLIB_CFLAGS}
 
 CFLAGS+=	-I${BOOTSRC}/common
 CFLAGS+=	-I${.CURDIR}

@@ -1,0 +1,63 @@
+// SPDX-License-Identifier: CDDL-1.0
+/*
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
+ *
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
+ */
+
+/*
+ * Copyright (c) 2026 by Garth Snyder. All rights reserved.
+ */
+
+#ifndef _ZSTREAM_MODULES_H
+#define	_ZSTREAM_MODULES_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*
+ * This file aggregates all zstream_chain utility modules into a single
+ * header and defines macros for standard input and output operations.
+ */
+
+#include "zstream_byteswap.h"
+#include "zstream_chain.h"
+#include "zstream_dump.h"
+#include "zstream_fletcher4.h"
+#include "zstream_io.h"
+#include "zstream_recompress.h"
+#include "zstream_util.h"
+#include "zstream_validate.h"
+
+#define	STANDARD_INPUT_STACK_Q(infile, queue_size) 			\
+	serial_read_stream(infile),					\
+	parallel_calc_fletcher4(queue_size),				\
+	serial_validate_fletcher4(),					\
+	serial_byteswap(BS_INCOMING),					\
+	serial_validate_records()
+
+#define	STANDARD_OUTPUT_STACK_Q(outfile, queue_size) 			\
+	serial_byteswap(BS_OUTGOING),					\
+	parallel_calc_fletcher4(queue_size),				\
+	serial_add_fletcher4(),						\
+	serial_write_stream(outfile),					\
+	chain_terminator()
+
+#define	STANDARD_INPUT_STACK(infile)	STANDARD_INPUT_STACK_Q(infile, 1024)
+#define	STANDARD_OUTPUT_STACK(outfile)	STANDARD_OUTPUT_STACK_Q(outfile, 512)
+
+#define	NULL_OUTPUT_STACK()						\
+	serial_null_output(),						\
+	chain_terminator()
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif  /* _ZSTREAM_MODULES_H */

@@ -135,7 +135,7 @@
  *
  * One of the easiest ways to construct new filesystem layers is to make
  * a copy of the null layer, rename all files and variables, and
- * then begin modifing the copy.  Sed can be used to easily rename
+ * then begin modifying the copy.  Sed can be used to easily rename
  * all variables.
  *
  * The umap layer is an example of a layer descended from the
@@ -200,17 +200,26 @@ SYSCTL_INT(_debug, OID_AUTO, nullfs_bug_bypass, CTLFLAG_RW,
  *   VOP_INOTIFY.
  * - If the lower vnode is watched, then the upper vnode should go through
  *   VOP_INOTIFY, so copy the flag up.
+ *
+ * The lockless check is only a fast path: the decision to change a flag
+ * is re-made under the upper vnode's interlock, since another thread may
+ * set or clear the flag concurrently.
  */
 static void
 null_copy_inotify(struct vnode *vp, struct vnode *lvp, short flag)
 {
+	if (__predict_true((vn_irflag_read(vp) & flag) ==
+	    (vn_irflag_read(lvp) & flag)))
+		return;
+	VI_LOCK(vp);
 	if ((vn_irflag_read(vp) & flag) != 0) {
-		if (__predict_false((vn_irflag_read(lvp) & flag) == 0))
-			vn_irflag_unset(vp, flag);
-	} else if ((vn_irflag_read(lvp) & flag) != 0) {
-		if (__predict_false((vn_irflag_read(vp) & flag) == 0))
-			vn_irflag_set(vp, flag);
+		if ((vn_irflag_read(lvp) & flag) == 0)
+			vn_irflag_unset_locked(vp, flag);
+	} else {
+		if ((vn_irflag_read(lvp) & flag) != 0)
+			vn_irflag_set_locked(vp, flag);
 	}
+	VI_UNLOCK(vp);
 }
 
 /*
@@ -741,7 +750,8 @@ null_rename(struct vop_rename_args *ap)
 		ltvp = NULL;
 	}
 
-	error = VOP_RENAME(lfdvp, lfvp, ap->a_fcnp, ltdvp, ltvp, ap->a_tcnp);
+	error = VOP_RENAME(lfdvp, lfvp, ap->a_fcnp, ltdvp, ltvp, ap->a_tcnp,
+	    ap->a_flags);
 	vrele(fdvp);
 	vrele(fvp);
 	vrele(tdvp);
@@ -967,6 +977,7 @@ null_reclaim(struct vop_reclaim_args *ap)
 	struct vnode *vp;
 	struct null_node *xp;
 	struct vnode *lowervp;
+	short flags;
 
 	vp = ap->a_vp;
 	xp = VTONULL(vp);
@@ -995,6 +1006,17 @@ null_reclaim(struct vop_reclaim_args *ap)
 		VOP_ADD_WRITECOUNT(lowervp, -vp->v_writecount);
 	else if (vp->v_writecount < 0)
 		vp->v_writecount = 0;
+
+	/*
+	 * Undo the effects of null_copy_inotify(): setting VIRF_INOTIFY* causes
+	 * the VFS to invoke VOP_INOTIFY on the marked vnode, and for nullfs
+	 * vnodes this is bypassed to the lower vnode.  The inotify watch holds
+	 * a ref on the lower vnode, but not the upper vnode, so VOP_INOTIFY
+	 * must not be called on the upper vnode after this point.
+	 */
+	flags = vn_irflag_read(vp) & (VIRF_INOTIFY | VIRF_INOTIFY_PARENT);
+	if (flags != 0)
+		vn_irflag_unset_locked(vp, flags);
 
 	VI_UNLOCK(vp);
 

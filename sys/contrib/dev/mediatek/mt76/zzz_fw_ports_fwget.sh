@@ -24,6 +24,11 @@ DRIVER=mt76
 FWSUBDIR=mediatek
 CHECKFILE=mt792x.h
 
+SYS=../../../..
+LINUXKPI_INCLUDES="-I${SYS}/compat/linuxkpi/common/include \
+	-I${SYS}/compat/linuxkpi/dummy/include \
+	-include ${SYS}/compat/linuxkpi/common/include/linux/kconfig.h"
+
 ################################################################################
 #
 # Check pre-reqs
@@ -56,8 +61,8 @@ get_device_ids_by_flav()
 		case ${d} in
 		mt7615)	flav=${d} ;;
 		mt7915)	flav=${d} ;;
-		mt7921)	flav=mt792x ;;
-		mt7925)	flav=mt792x ;;
+		mt7921)	flav=${d} ;;
+		mt7925)	flav=${d} ;;
 		mt7996)	flav=${d} ;;
 		*)	printf "ERROR: unsupported directory/flavor '%s'\n" ${d} >&2
 			exit 1
@@ -80,19 +85,22 @@ get_device_ids_by_flav()
 
 get_firmwares_by_flavor()
 {
-	for h in mt7615/mt7615.h mt7915/mt7915.h mt792x.h mt7996/mt7996.h; do
+	for h in mt7615/mt7615.h mt7915/mt7915.h mt7921/mt7921.h mt7925/mt7925.h mt7996/mt7996.h; do
 
 		case ${h} in
 		mt7615/mt7615.h)	flav=mt7615 ;;
 		mt7915/mt7915.h)	flav=mt7915 ;;
-		mt792x.h)		flav=mt792x ;;
+		mt7921/mt7921.h)	flav=mt7921 ;;
+		mt7925/mt7925.h)	flav=mt7925 ;;
 		mt7996/mt7996.h)	flav=mt7996 ;;
 		*)	printf "ERROR: unsupported header/flavor '%s'\n" ${h} >&2
 			exit 1
 			;;
 		esac
 
-		awk -v rege="${FWSUBDIR}/" -v flav=${flav} -F\" '{ if ($0 ~ rege) { printf "%s\t%s\n", tolower(flav), $2; } }' ${h} | \
+		# Use preprocessor with a minimal include list to get #defines
+		cpp ${LINUXKPI_INCLUDES} -dM -M -MG -MF /dev/null ${h} 2> /dev/null | \
+		awk -v rege="${FWSUBDIR}/" -v flav=${flav} -F\" '{ if ($0 ~ rege) { printf "%s\t%s\n", tolower(flav), $2; } }' | \
 		while read flav fwn; do
 			if test ! -e ${LFWDIR}/${fwn}; then
 				#printf "Firmware %s (for %s) does not exist; skipping\n" ${fwn} ${flav} >&2
@@ -253,12 +261,12 @@ if test ${fn} -gt 0; then
 		# printf "===> did %s flav %s\n" ${did} ${flav} >&2
 
 		if test ${n} -eq 1; then
-			echo "${did} ${flav}" | awk -v drv=${FWSUBDIR} '{
+			echo "${did} ${flav}" | awk -v drv=${DRIVER} '{
 				printf "\t%s)\taddpkg \"wifi-firmware-%s-kmod-%s\"; return 1 ;;\n",
 				    tolower($1), drv, tolower($2);
 			}' >> ${fwgetfile}
 		else
-			echo "${did} ${flav}" | awk -v drv=${FWSUBDIR} '{
+			echo "${did} ${flav}" | awk -v drv=${DRIVER} '{
 				printf "\t%s)\taddpkg \"wifi-firmware-%s-kmod-%s\"\n",
 				    tolower($1), drv, tolower($2);
 			}' >> ${fwgetfile}
@@ -276,7 +284,7 @@ if test ${fn} -gt 0; then
 
 				#printf "===> did %s flav %s\n" ${did} ${flav} >&2
 
-				echo "${did} ${flav}" | awk -v drv=${FWSUBDIR} '{
+				echo "${did} ${flav}" | awk -v drv=${DRIVER} '{
 					printf "\t\taddpkg \"wifi-firmware-%s-kmod-%s\"\n",
 					    drv, tolower($2);
 				}' >> ${fwgetfile}
@@ -290,5 +298,6 @@ if test ${fn} -gt 0; then
 fi
 
 printf "INFO: fwget pci_network_mediatek %s template at %s\n" ${DRIVER} ${fwgetfile} >&2
+printf "WARNING: make sure to check for PCI_VENDOR_ID_* other than Mediatek"
 
 # end

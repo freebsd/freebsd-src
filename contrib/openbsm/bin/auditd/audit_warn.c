@@ -29,6 +29,7 @@
 
 #include <sys/types.h>
 
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -57,6 +58,9 @@ auditwarnlog(char *args[])
 		/*
 		 * Child.
 		 */
+#ifndef USE_MACH_IPC
+		sigprocmask(SIG_SETMASK, &auditd_origmask, NULL);
+#endif /* !USE_MACH_IPC */
 		execv(AUDITWARN_SCRIPT, loc_args);
 		syslog(LOG_ERR, "Could not exec %s (%m)\n",
 		    AUDITWARN_SCRIPT);

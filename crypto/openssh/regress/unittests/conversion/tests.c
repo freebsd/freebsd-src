@@ -1,4 +1,4 @@
-/* 	$OpenBSD: tests.c,v 1.4 2021/12/14 21:25:27 deraadt Exp $ */
+/* 	$OpenBSD: tests.c,v 1.5 2025/04/15 04:00:42 djm Exp $ */
 /*
  * Regress test for conversions
  *
@@ -9,9 +9,7 @@
 
 #include <sys/types.h>
 #include <stdio.h>
-#ifdef HAVE_STDINT_H
 #include <stdint.h>
-#endif
 #include <stdlib.h>
 #include <string.h>
 
@@ -49,4 +47,10 @@ tests(void)
 	ASSERT_INT_EQ(convtime(buf), -1);
 	ASSERT_INT_EQ(convtime("1000000000000000000000w"), -1);
 	TEST_DONE();
+}
+
+void
+benchmarks(void)
+{
+	printf("no benchmarks\n");
 }

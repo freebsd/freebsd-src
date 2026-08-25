@@ -48,6 +48,7 @@
 #include <contrib/dev/acpica/include/actables.h>
 
 #include <dev/acpica/acpivar.h>
+#include <dev/acpica/apeivar.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
@@ -56,12 +57,8 @@ struct apei_ge {
 		ACPI_HEST_GENERIC v1;
 		ACPI_HEST_GENERIC_V2 v2;
 	};
-	int		 res_type;
-	int		 res_rid;
-	struct resource	*res;
-	int		 res2_type;
-	int		 res2_rid;
-	struct resource	*res2;
+	struct resource_map *res;
+	struct resource_map *res2;
 	uint8_t		*buf, *copybuf;
 	TAILQ_ENTRY(apei_ge) link;
 	TAILQ_ENTRY(apei_ge) nlink;
@@ -85,7 +82,7 @@ struct apei_pges {
 	TAILQ_HEAD(, apei_ge) ges;
 };
 
-struct apei_softc {
+struct hest_softc {
 	TAILQ_HEAD(, apei_ge) ges;
 	struct apei_nges nges;
 	struct apei_iges iges;
@@ -127,26 +124,6 @@ struct apei_pcie_error {
 	uint8_t		CapabilityStructure[60];
 	uint8_t		AERInfo[96];
 };
-
-#ifdef __i386__
-static __inline uint64_t
-apei_bus_read_8(struct resource *res, bus_size_t offset)
-{
-	return (bus_read_4(res, offset) |
-	    ((uint64_t)bus_read_4(res, offset + 4)) << 32);
-}
-static __inline void
-apei_bus_write_8(struct resource *res, bus_size_t offset, uint64_t val)
-{
-	bus_write_4(res, offset, val);
-	bus_write_4(res, offset + 4, val >> 32);
-}
-#define	READ8(r, o)	apei_bus_read_8((r), (o))
-#define	WRITE8(r, o, v)	apei_bus_write_8((r), (o), (v))
-#else
-#define	READ8(r, o)	bus_read_8((r), (o))
-#define	WRITE8(r, o, v)	bus_write_8((r), (o), (v))
-#endif
 
 #define GED_SIZE(ged)	((ged)->Revision >= 0x300 ? \
     sizeof(ACPI_HEST_GENERIC_DATA_V300) : sizeof(ACPI_HEST_GENERIC_DATA))
@@ -237,7 +214,7 @@ apei_mem_handler(ACPI_HEST_GENERIC_DATA *ged)
 }
 
 static int
-apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
+apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged, bool fatal)
 {
 	struct apei_pcie_error *p = (struct apei_pcie_error *)GED_DATA(ged);
 	int off;
@@ -246,7 +223,8 @@ apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
 	int h = 0, sev;
 
 	if ((p->ValidationBits & 0x8) == 0x8) {
-		mtx_lock(&Giant);
+		if (!fatal)
+			mtx_lock(&Giant);
 		dev = pci_find_dbsf((uint32_t)p->DeviceID[10] << 8 |
 		    p->DeviceID[9], p->DeviceID[11], p->DeviceID[8],
 		    p->DeviceID[7]);
@@ -264,9 +242,11 @@ apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
 			}
 			pcie_apei_error(dev, sev,
 			    (p->ValidationBits & 0x80) ? p->AERInfo : NULL);
-			h = 1;
+			if (!fatal)
+				h = 1;
 		}
-		mtx_unlock(&Giant);
+		if (!fatal)
+			mtx_unlock(&Giant);
 	}
 	if (h)
 		return (h);
@@ -322,8 +302,8 @@ apei_pcie_handler(ACPI_HEST_GENERIC_DATA *ged)
 	return (0);
 }
 
-static void
-apei_ged_handler(ACPI_HEST_GENERIC_DATA *ged)
+static const char *
+apei_ged_handler(ACPI_HEST_GENERIC_DATA *ged, bool fatal)
 {
 	ACPI_HEST_GENERIC_DATA_V300 *ged3 = (ACPI_HEST_GENERIC_DATA_V300 *)ged;
 	/* A5BC1114-6F64-4EDE-B863-3E83ED7C83B1 */
@@ -342,12 +322,12 @@ apei_ged_handler(ACPI_HEST_GENERIC_DATA *ged)
 	if (memcmp(mem_uuid, ged->SectionType, ACPI_UUID_LENGTH) == 0) {
 		h = apei_mem_handler(ged);
 	} else if (memcmp(pcie_uuid, ged->SectionType, ACPI_UUID_LENGTH) == 0) {
-		h = apei_pcie_handler(ged);
+		h = apei_pcie_handler(ged, fatal);
 	} else {
 		if (!log_corrected &&
 		    (ged->ErrorSeverity == ACPI_HEST_GEN_ERROR_CORRECTED ||
 		    ged->ErrorSeverity == ACPI_HEST_GEN_ERROR_NONE))
-			return;
+			return (NULL);
 
 		t = ged->SectionType;
 		printf("APEI %s Error %02x%02x%02x%02x-%02x%02x-"
@@ -364,7 +344,7 @@ apei_ged_handler(ACPI_HEST_GENERIC_DATA *ged)
 		}
 	}
 	if (h)
-		return;
+		return (NULL);
 
 	printf(" Flags: 0x%x\n", ged->Flags);
 	if (ged->ValidationBits & ACPI_HEST_GEN_VALID_FRU_ID) {
@@ -379,6 +359,19 @@ apei_ged_handler(ACPI_HEST_GENERIC_DATA *ged)
 	if (ged->Revision >= 0x300 &&
 	    ged->ValidationBits & ACPI_HEST_GEN_VALID_TIMESTAMP)
 		printf(" Timestamp: %016jx\n", ged3->TimeStamp);
+	if (fatal) {
+		printf(" Error Data:\n");
+		t = (uint8_t *)GED_DATA(ged);
+		for (off = 0; off < ged->ErrorDataLength; off++) {
+			printf(" %02x", t[off]);
+			if ((off % 16) == 15 ||
+			    off + 1 == ged->ErrorDataLength)
+				printf("\n");
+		}
+	}
+	if (ged->ValidationBits & ACPI_HEST_GEN_VALID_FRU_STRING)
+		return ((const char *)ged->FruText);
+	return (NULL);
 }
 
 static int
@@ -387,23 +380,27 @@ apei_ge_handler(struct apei_ge *ge, bool copy)
 	uint8_t *buf = copy ? ge->copybuf : ge->buf;
 	ACPI_HEST_GENERIC_STATUS *ges = (ACPI_HEST_GENERIC_STATUS *)buf;
 	ACPI_HEST_GENERIC_DATA *ged;
+	const char *fru, *f;
 	size_t off, len;
-	uint32_t sev;
 	int i, c;
+	bool fatal;
 
 	if (ges == NULL || ges->BlockStatus == 0)
 		return (0);
 
 	c = (ges->BlockStatus >> 4) & 0x3ff;
-	sev = ges->ErrorSeverity;
+	fatal = (ges->ErrorSeverity == ACPI_HEST_GEN_ERROR_FATAL);
 
 	/* Process error entries. */
+	fru = NULL;
 	len = MIN(ge->v1.ErrorBlockLength - sizeof(*ges), ges->DataLength);
 	for (off = i = 0; i < c && off + sizeof(*ged) <= len; i++) {
 		ged = (ACPI_HEST_GENERIC_DATA *)&buf[sizeof(*ges) + off];
 		if ((uint64_t)GED_SIZE(ged) + ged->ErrorDataLength > len - off)
 			break;
-		apei_ged_handler(ged);
+		f = apei_ged_handler(ged, fatal);
+		if (f != NULL && fru == NULL)
+			fru = f;
 		off += GED_SIZE(ged) + ged->ErrorDataLength;
 	}
 
@@ -411,15 +408,16 @@ apei_ge_handler(struct apei_ge *ge, bool copy)
 	ges->BlockStatus = 0;
 	if (!copy && ge->v1.Header.Type == ACPI_HEST_TYPE_GENERIC_ERROR_V2 &&
 	    ge->res2) {
-		uint64_t val = READ8(ge->res2, 0);
+		uint64_t val = bus_read_8(ge->res2, 0);
 		val &= ge->v2.ReadAckPreserve;
 		val |= ge->v2.ReadAckWrite;
-		WRITE8(ge->res2, 0, val);
+		bus_write_8(ge->res2, 0, val);
 	}
 
 	/* If ACPI told the error is fatal -- make it so. */
-	if (sev == ACPI_HEST_GEN_ERROR_FATAL)
-		panic("APEI Fatal Hardware Error!");
+	if (fatal)
+		panic("APEI Fatal Hardware Error: %.20s",
+		    fru != NULL ? fru : "unknown");
 
 	return (1);
 }
@@ -450,9 +448,9 @@ apei_nmi_handler(void)
 		if (ges == NULL || ges->BlockStatus == 0)
 			continue;
 
-		/* If ACPI told the error is fatal -- make it so. */
+		/* Log and panic via apei_ge_handler(); does not return. */
 		if (ges->ErrorSeverity == ACPI_HEST_GEN_ERROR_FATAL)
-			panic("APEI Fatal Hardware Error!");
+			apei_ge_handler(ge, false);
 
 		/* Copy the buffer for later processing. */
 		gesc = (ACPI_HEST_GENERIC_STATUS *)ge->copybuf;
@@ -463,10 +461,10 @@ apei_nmi_handler(void)
 		ges->BlockStatus = 0;
 		if (ge->v1.Header.Type == ACPI_HEST_TYPE_GENERIC_ERROR_V2 &&
 		    ge->res2) {
-			uint64_t val = READ8(ge->res2, 0);
+			uint64_t val = bus_read_8(ge->res2, 0);
 			val &= ge->v2.ReadAckPreserve;
 			val |= ge->v2.ReadAckWrite;
-			WRITE8(ge->res2, 0, val);
+			bus_write_8(ge->res2, 0, val);
 		}
 		handled = 1;
 	}
@@ -493,7 +491,7 @@ static void
 apei_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 {
 	device_t dev = context;
-	struct apei_softc *sc = device_get_softc(dev);
+	struct hest_softc *sc = device_get_softc(dev);
 	struct apei_ge *ge;
 
 	TAILQ_FOREACH(ge, &sc->iges.ges, nlink)
@@ -501,7 +499,7 @@ apei_notify_handler(ACPI_HANDLE h, UINT32 notify, void *context)
 }
 
 static int
-hest_parse_structure(struct apei_softc *sc, void *addr, int remaining)
+hest_parse_structure(struct hest_softc *sc, void *addr, int remaining)
 {
 	ACPI_HEST_HEADER *hdr = addr;
 	struct apei_ge *ge;
@@ -561,7 +559,7 @@ hest_parse_structure(struct apei_softc *sc, void *addr, int remaining)
 }
 
 static void
-hest_parse_table(ACPI_TABLE_HEST *hest, struct apei_softc *sc)
+hest_parse_table(ACPI_TABLE_HEST *hest, struct hest_softc *sc)
 {
 	char *cp;
 	int remaining, consumed;
@@ -577,34 +575,12 @@ hest_parse_table(ACPI_TABLE_HEST *hest, struct apei_softc *sc)
 	}
 }
 
-static char *apei_ids[] = { "PNP0C33", NULL };
-
-static ACPI_STATUS
-apei_find(ACPI_HANDLE handle, UINT32 level, void *context,
-    void **status)
-{
-	int *found = (int *)status;
-	char **ids;
-
-	for (ids = apei_ids; *ids != NULL; ids++) {
-		if (acpi_MatchHid(handle, *ids)) {
-			*found = 1;
-			break;
-		}
-	}
-	return (AE_OK);
-}
-
 static void
-apei_identify(driver_t *driver, device_t parent)
+hest_identify(driver_t *driver, device_t parent)
 {
 	device_t	child;
-	int		found;
 	ACPI_TABLE_HEADER *hest;
 	ACPI_STATUS	status;
-
-	if (acpi_disabled("apei"))
-		return;
 
 	/* Without HEST table we have nothing to do. */
 	status = AcpiGetTable(ACPI_SIG_HEST, 0, &hest);
@@ -612,64 +588,34 @@ apei_identify(driver_t *driver, device_t parent)
 		return;
 	AcpiPutTable(hest);
 
-	/* Only one APEI device can exist. */
-	if (devclass_get_device(devclass_find("apei"), 0))
+	if (device_find_child(parent, "hest", DEVICE_UNIT_ANY) != NULL)
 		return;
 
-	/* Search for ACPI error device to be used. */
-	found = 0;
-	AcpiWalkNamespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-	    100, apei_find, NULL, NULL, (void *)&found);
-	if (found)
-		return;
-
-	/* If not found - create a fake one. */
-	child = BUS_ADD_CHILD(parent, 2, "apei", 0);
+	child = BUS_ADD_CHILD(parent, 0, "hest", DEVICE_UNIT_ANY);
 	if (child == NULL)
 		printf("%s: can't add child\n", __func__);
 }
 
 static int
-apei_probe(device_t dev)
+hest_probe(device_t dev)
 {
-	ACPI_TABLE_HEADER *hest;
-	ACPI_STATUS	status;
-	int rv;
-
-	if (acpi_disabled("apei"))
-		return (ENXIO);
-
-	if (acpi_get_handle(dev) != NULL) {
-		rv = ACPI_ID_PROBE(device_get_parent(dev), dev, apei_ids, NULL);
-		if (rv > 0)
-			return (rv);
-	} else
-		rv = 0;
-
-	/* Without HEST table we have nothing to do. */
-	status = AcpiGetTable(ACPI_SIG_HEST, 0, &hest);
-	if (ACPI_FAILURE(status))
-		return (ENXIO);
-	AcpiPutTable(hest);
-
-	device_set_desc(dev, "ACPI Platform Error Interface");
-	return (rv);
+	device_set_desc(dev, "APEI Hardware Errors");
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
-apei_attach(device_t dev)
+hest_attach(device_t dev)
 {
-	struct apei_softc *sc = device_get_softc(dev);
+	struct hest_softc *sc = device_get_softc(dev);
 	ACPI_TABLE_HEADER *hest;
 	struct acpi_softc *acpi_sc;
 	struct apei_pges *pges;
 	struct apei_ge *ge;
 	ACPI_STATUS status;
-	int rid;
 
 	if (!apei_sysctl_tree) {
 		/* Install hw.acpi.apei sysctl tree */
-		acpi_sc = acpi_device_get_parent_softc(dev);
+		acpi_sc = acpi_device_get_parent_softc(device_get_parent(dev));
 		apei_sysctl_tree = SYSCTL_ADD_NODE(&apei_sysctl_ctx,
 		    SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree), OID_AUTO,
 		    "apei", CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
@@ -696,21 +642,17 @@ apei_attach(device_t dev)
 	hest_parse_table((ACPI_TABLE_HEST *)hest, sc);
 	AcpiPutTable(hest);
 
-	rid = 0;
 	TAILQ_FOREACH(ge, &sc->ges, link) {
-		ge->res_rid = rid++;
-		acpi_bus_alloc_gas(dev, &ge->res_type, ge->res_rid,
-		    &ge->v1.ErrorStatusAddress, &ge->res, 0);
+		ge->res = apei_map_register(dev, &ge->v1.ErrorStatusAddress);
 		if (ge->res) {
-			ge->buf = pmap_mapdev_attr(READ8(ge->res, 0),
+			ge->buf = pmap_mapdev_attr(bus_read_8(ge->res, 0),
 			    ge->v1.ErrorBlockLength, VM_MEMATTR_WRITE_COMBINING);
 		} else {
 			device_printf(dev, "Can't allocate status resource.\n");
 		}
 		if (ge->v1.Header.Type == ACPI_HEST_TYPE_GENERIC_ERROR_V2) {
-			ge->res2_rid = rid++;
-			acpi_bus_alloc_gas(dev, &ge->res2_type, ge->res2_rid,
-			    &ge->v2.ReadAckRegister, &ge->res2, RF_SHAREABLE);
+			ge->res2 = apei_map_register(dev,
+			    &ge->v2.ReadAckRegister);
 			if (ge->res2 == NULL)
 				device_printf(dev, "Can't allocate ack resource.\n");
 		}
@@ -745,9 +687,9 @@ apei_attach(device_t dev)
 }
 
 static int
-apei_detach(device_t dev)
+hest_detach(device_t dev)
 {
-	struct apei_softc *sc = device_get_softc(dev);
+	struct hest_softc *sc = device_get_softc(dev);
 	struct apei_ge *ge;
 
 	apei_nmi = NULL;
@@ -766,12 +708,10 @@ apei_detach(device_t dev)
 	while ((ge = TAILQ_FIRST(&sc->ges)) != NULL) {
 		TAILQ_REMOVE(&sc->ges, ge, link);
 		if (ge->res) {
-			bus_release_resource(dev, ge->res_type,
-			    ge->res_rid, ge->res);
+			apei_unmap_register(dev, ge->res);
 		}
 		if (ge->res2) {
-			bus_release_resource(dev, ge->res2_type,
-			    ge->res2_rid, ge->res2);
+			apei_unmap_register(dev, ge->res2);
 		}
 		if (ge->v1.Notify.Type == ACPI_HEST_NOTIFY_POLLED) {
 			TAILQ_REMOVE(&sc->pges[PGE_ID(ge)].ges, ge, nlink);
@@ -791,23 +731,23 @@ apei_detach(device_t dev)
 	return (0);
 }
 
-static device_method_t apei_methods[] = {
+static device_method_t hest_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify, apei_identify),
-	DEVMETHOD(device_probe, apei_probe),
-	DEVMETHOD(device_attach, apei_attach),
-	DEVMETHOD(device_detach, apei_detach),
+	DEVMETHOD(device_identify, hest_identify),
+	DEVMETHOD(device_probe, hest_probe),
+	DEVMETHOD(device_attach, hest_attach),
+	DEVMETHOD(device_detach, hest_detach),
 	DEVMETHOD_END
 };
 
-static driver_t	apei_driver = {
-	"apei",
-	apei_methods,
-	sizeof(struct apei_softc),
+static driver_t	hest_driver = {
+	"hest",
+	hest_methods,
+	sizeof(struct hest_softc),
 };
 
 static int
-apei_modevent(struct module *mod __unused, int evt, void *cookie __unused)
+hest_modevent(struct module *mod __unused, int evt, void *cookie __unused)
 {
 	int err = 0;
 
@@ -824,5 +764,5 @@ apei_modevent(struct module *mod __unused, int evt, void *cookie __unused)
 	return (err);
 }
 
-DRIVER_MODULE(apei, acpi, apei_driver, apei_modevent, 0);
-MODULE_DEPEND(apei, acpi, 1, 1, 1);
+DRIVER_MODULE(hest, apei, hest_driver, hest_modevent, 0);
+MODULE_DEPEND(hest, acpi, 1, 1, 1);

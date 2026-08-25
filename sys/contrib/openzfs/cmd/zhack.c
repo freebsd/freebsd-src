@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -45,6 +35,7 @@
 #include <sys/dsl_synctask.h>
 #include <sys/vdev.h>
 #include <sys/vdev_impl.h>
+#include <sys/mmp.h>
 #include <sys/fs/zfs.h>
 #include <sys/dmu_objset.h>
 #include <sys/dsl_pool.h>
@@ -52,6 +43,7 @@
 #include <sys/zio_compress.h>
 #include <sys/zfeature.h>
 #include <sys/dmu_tx.h>
+#include <sys/backtrace.h>
 #include <zfeature_common.h>
 #include <libzutil.h>
 #include <sys/metaslab_impl.h>
@@ -60,6 +52,7 @@
 static importargs_t g_importargs;
 static char *g_pool;
 static boolean_t g_readonly;
+static boolean_t g_dump_dbgmsg;
 
 typedef enum {
 	ZHACK_REPAIR_OP_UNKNOWN  = 0,
@@ -71,12 +64,23 @@ static __attribute__((noreturn)) void
 usage(void)
 {
 	(void) fprintf(stderr,
-	    "Usage: zhack [-o tunable] [-c cachefile] [-d dir] <subcommand> "
-	    "<args> ...\n"
-	    "where <subcommand> <args> is one of the following:\n"
+	    "Usage: zhack [-o tunable] [-c cachefile] [-d dir] [-G] "
+	    "<subcommand> <args> ...\n"
+	    "       where <subcommand> <args> is one of the following:\n"
 	    "\n");
 
 	(void) fprintf(stderr,
+	    "    global options:\n"
+	    "    -c <cachefile>   reads config from the given cachefile\n"
+	    "    -d <dir>         directory with vdevs for import\n"
+	    "    -o var=value...  set global variable to an unsigned "
+	    "32-bit integer\n"
+	    "    -G               dump zfs_dbgmsg buffer before exiting\n"
+	    "\n"
+	    "    action idle <pool> [-f] [-t seconds]\n"
+	    "        import the pool for a set time then export it\n"
+	    "        -t <seconds> sets the time the pool is imported\n"
+	    "\n"
 	    "    feature stat <pool>\n"
 	    "        print information about enabled features\n"
 	    "    feature enable [-r] [-d desc] <pool> <feature>\n"
@@ -98,11 +102,51 @@ usage(void)
 	    "\n"
 	    "    <device> : path to vdev\n"
 	    "\n"
+	    "    mmp reclaim <pool>\n"
+	    "        import a pool whose MMP claim cannot reach every mirror\n"
+	    "        leg the config still expects, then mark the unreachable\n"
+	    "        leaves offline so ordinary imports succeed.  Manual\n"
+	    "        recovery: fence the peer first, this cannot see a\n"
+	    "        live host whose legs are all invisible from here\n"
+	    "\n"
 	    "    metaslab leak <pool>\n"
 	    "        apply allocation map from zdb to specified pool\n");
 	exit(1);
 }
 
+static void
+dump_debug_buffer(void)
+{
+	ssize_t ret __attribute__((unused));
+
+	if (!g_dump_dbgmsg)
+		return;
+
+	/*
+	 * We use write() instead of printf() so that this function
+	 * is safe to call from a signal handler.
+	 */
+	ret = write(STDERR_FILENO, "\n", 1);
+	zfs_dbgmsg_print(STDERR_FILENO, "zhack");
+}
+
+static void sig_handler(int signo)
+{
+	struct sigaction action;
+
+	libspl_backtrace(STDERR_FILENO);
+	dump_debug_buffer();
+
+	/*
+	 * Restore default action and re-raise signal so SIGSEGV and
+	 * SIGABRT can trigger a core dump.
+	 */
+	action.sa_handler = SIG_DFL;
+	sigemptyset(&action.sa_mask);
+	action.sa_flags = 0;
+	(void) sigaction(signo, &action, NULL);
+	raise(signo);
+}
 
 static __attribute__((format(printf, 3, 4))) __attribute__((noreturn)) void
 fatal(spa_t *spa, const void *tag, const char *fmt, ...)
@@ -119,6 +163,8 @@ fatal(spa_t *spa, const void *tag, const char *fmt, ...)
 	(void) vfprintf(stderr, fmt, ap);
 	va_end(ap);
 	(void) fputc('\n', stderr);
+
+	dump_debug_buffer();
 
 	exit(1);
 }
@@ -175,7 +221,7 @@ zhack_import(char *target, boolean_t readonly)
 
 	zfeature_checks_disable = B_TRUE;
 	error = spa_import(target, config, props,
-	    (readonly ?  ZFS_IMPORT_SKIP_MMP : ZFS_IMPORT_NORMAL));
+	    (readonly ? ZFS_IMPORT_SKIP_MMP : ZFS_IMPORT_NORMAL));
 	fnvlist_free(config);
 	zfeature_checks_disable = B_FALSE;
 	if (error == EEXIST)
@@ -506,6 +552,247 @@ zhack_do_feature(int argc, char **argv)
 	return (0);
 }
 
+static void
+zhack_do_action_idle(int argc, char **argv)
+{
+	spa_t *spa;
+	char *target, *tmp;
+	int idle_time = 0;
+	int c;
+
+	optind = 1;
+	while ((c = getopt(argc, argv, "+t:")) != -1) {
+		switch (c) {
+		case 't':
+			idle_time = strtol(optarg, &tmp, 0);
+			if (*tmp) {
+				(void) fprintf(stderr, "error: time must "
+				    "be an integer in seconds: %s\n", tmp);
+				usage();
+			}
+			if (idle_time < 0) {
+				(void) fprintf(stderr, "error: time must "
+				    "not be negative: %d\n", idle_time);
+				usage();
+			}
+			break;
+		default:
+			usage();
+			break;
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc < 1) {
+		(void) fprintf(stderr, "error: missing pool name\n");
+		usage();
+	}
+	target = argv[0];
+
+	zhack_spa_open(target, B_FALSE, FTAG, &spa);
+
+	fprintf(stdout, "Imported pool %s, idle for %d seconds\n",
+	    target, idle_time);
+	sleep(idle_time);
+
+	spa_close(spa, FTAG);
+}
+
+/*
+ * Collect the mirror legs this host could not open.  vdev_not_present is set
+ * during import for any leaf whose open failed (vdev.c), and a leg in that
+ * state is what the relaxed claim forgives, so it is also what has to be
+ * marked offline for the ordinary imports which follow to succeed.
+ */
+static void
+zhack_collect_absent(vdev_t *vd, uint64_t *guids, uint_t *n, uint_t max)
+{
+	/*
+	 * Skip the same subtrees mmp_claim_uberblock_sync() skips.  The claim
+	 * never counts these, so offlining them buys nothing, and offlining a
+	 * log leg would drag in spa_reset_logs().  Pruned at the interior node
+	 * because the log flag lives on the top-level vdev.
+	 */
+	if (vd->vdev_islog || vd->vdev_isspare || vd->vdev_isl2cache ||
+	    vd->vdev_ishole || vd->vdev_ops == &vdev_indirect_ops)
+		return;
+
+	for (uint64_t c = 0; c < vd->vdev_children; c++)
+		zhack_collect_absent(vd->vdev_child[c], guids, n, max);
+
+	if (!vd->vdev_ops->vdev_op_leaf || !vd->vdev_not_present)
+		return;
+
+	/*
+	 * Take only the legs the relaxed claim can forgive, which are the
+	 * direct children of a top-level mirror: the relaxation lives in the
+	 * nparity == 0 branch and walks that vdev's children.  A raidz or
+	 * draid member is required as parity+1 in aggregate and never demanded
+	 * individually, so an absent one does not raise the requirement and
+	 * offlining it would be a persistent change that buys nothing.
+	 */
+	if (vd->vdev_parent != vd->vdev_top ||
+	    vdev_get_nparity(vd->vdev_top) != 0)
+		return;
+
+	VERIFY3U(*n, <, max);
+	guids[(*n)++] = vd->vdev_guid;
+}
+
+static int
+zhack_do_mmp_reclaim(int argc, char **argv)
+{
+	spa_t *spa;
+	char *target;
+	uint64_t *guids;
+	uint_t nguids = 0, max;
+	int c, failed = 0;
+
+	optind = 1;
+	while ((c = getopt(argc, argv, "+")) != -1) {
+		switch (c) {
+		default:
+			usage();
+			break;
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc < 1) {
+		(void) fprintf(stderr, "error: missing pool name\n");
+		usage();
+	}
+	target = argv[0];
+
+	/*
+	 * Relax the claim for this import only.  The write, the wait and the
+	 * re-read are untouched, so a competing importer which shares any
+	 * visibility with us is still refused.
+	 */
+	mmp_claim_relaxed = B_TRUE;
+	zhack_spa_open(target, B_FALSE, FTAG, &spa);
+	mmp_claim_relaxed = B_FALSE;
+
+	/*
+	 * Nothing to recover on a pool without multihost: no claim runs, so an
+	 * ordinary import already succeeds with the absent leaves simply
+	 * missing.  Offlining them here would be a permanent change to a pool
+	 * that never needed this tool.
+	 */
+	if (!spa_multihost(spa)) {
+		(void) fprintf(stderr, "%s: multihost is off, so no uberblock "
+		    "claim runs and an ordinary import will succeed; refusing "
+		    "to offline anything\n", target);
+		spa_close(spa, FTAG);
+		return (1);
+	}
+
+	/* Takes SCL_VDEV itself, so size the array before we hold it. */
+	max = MAX(vdev_count_leaves(spa), 1);
+	guids = umem_zalloc(max * sizeof (uint64_t), UMEM_NOFAIL);
+
+	spa_config_enter(spa, SCL_VDEV, FTAG, RW_READER);
+	zhack_collect_absent(spa->spa_root_vdev, guids, &nguids, max);
+	spa_config_exit(spa, SCL_VDEV, FTAG);
+
+	if (nguids == 0) {
+		(void) fprintf(stdout, "%s: imported, no absent leaves to "
+		    "mark offline\n", target);
+	}
+
+	for (uint_t i = 0; i < nguids; i++) {
+		int error = vdev_offline(spa, guids[i], 0);
+
+		if (error == 0) {
+			(void) fprintf(stdout, "%s: marked absent leaf %llu "
+			    "offline\n", target, (u_longlong_t)guids[i]);
+			continue;
+		}
+
+		failed++;
+		if (error == EBUSY) {
+			(void) fprintf(stderr, "%s: leaf %llu holds data no "
+			    "other leaf has, left online\n", target,
+			    (u_longlong_t)guids[i]);
+		} else {
+			(void) fprintf(stderr, "%s: could not offline leaf "
+			    "%llu: %s\n", target, (u_longlong_t)guids[i],
+			    strerror(error));
+		}
+	}
+
+	if (failed != 0) {
+		/*
+		 * Not "the pool still needs zhack": this run exports cleanly
+		 * under our own hostid, so the next import here skips the
+		 * activity check entirely.  The cost lands on the next host
+		 * to take the pool, whose claim will count the leaves left
+		 * online and refuse.
+		 */
+		(void) fprintf(stderr, "%s: %d absent leaves are still "
+		    "online; a later import from another host will count "
+		    "them and be refused\n", target, failed);
+	}
+
+	umem_free(guids, max * sizeof (uint64_t));
+	spa_close(spa, FTAG);
+
+	return (failed == 0 ? 0 : 1);
+}
+
+static int
+zhack_do_mmp(int argc, char **argv)
+{
+	char *subcommand;
+
+	argc--;
+	argv++;
+	if (argc == 0) {
+		(void) fprintf(stderr,
+		    "error: no mmp operation specified\n");
+		usage();
+	}
+
+	subcommand = argv[0];
+	if (strcmp(subcommand, "reclaim") == 0) {
+		return (zhack_do_mmp_reclaim(argc, argv));
+	} else {
+		(void) fprintf(stderr, "error: unknown subcommand: %s\n",
+		    subcommand);
+		usage();
+	}
+
+	return (0);
+}
+
+static int
+zhack_do_action(int argc, char **argv)
+{
+	char *subcommand;
+
+	argc--;
+	argv++;
+	if (argc == 0) {
+		(void) fprintf(stderr,
+		    "error: no import operation specified\n");
+		usage();
+	}
+
+	subcommand = argv[0];
+	if (strcmp(subcommand, "idle") == 0) {
+		zhack_do_action_idle(argc, argv);
+	} else {
+		(void) fprintf(stderr, "error: unknown subcommand: %s\n",
+		    subcommand);
+		usage();
+	}
+
+	return (0);
+}
+
+
 static boolean_t
 strstarts(const char *a, const char *b)
 {
@@ -624,8 +911,11 @@ zhack_do_metaslab_leak(int argc, char **argv)
 			    &start, &size), ==, 2);
 
 			ASSERT(vd);
-			metaslab_t *cur =
-			    vd->vdev_ms[start >> vd->vdev_ms_shift];
+			size_t idx;
+			idx = start >> vd->vdev_ms_shift;
+			if (idx >= vd->vdev_ms_count)
+				continue;
+			metaslab_t *cur = vd->vdev_ms[idx];
 			if (prev != cur) {
 				if (prev) {
 					dmu_tx_commit(tx);
@@ -1183,17 +1473,35 @@ zhack_do_label(int argc, char **argv)
 int
 main(int argc, char **argv)
 {
+	struct sigaction action;
 	char *path[MAX_NUM_PATHS];
 	const char *subcommand;
 	int rv = 0;
 	int c;
+
+	/*
+	 * Set up signal handlers, so if we crash due to bad on-disk data we
+	 * can get more info. Unlike ztest, we don't bail out if we can't set
+	 * up signal handlers, because zhack is very useful without them.
+	 */
+	action.sa_handler = sig_handler;
+	sigemptyset(&action.sa_mask);
+	action.sa_flags = 0;
+	if (sigaction(SIGSEGV, &action, NULL) < 0) {
+		(void) fprintf(stderr, "zhack: cannot catch SIGSEGV: %s\n",
+		    strerror(errno));
+	}
+	if (sigaction(SIGABRT, &action, NULL) < 0) {
+		(void) fprintf(stderr, "zhack: cannot catch SIGABRT: %s\n",
+		    strerror(errno));
+	}
 
 	g_importargs.path = path;
 
 	dprintf_setup(&argc, argv);
 	zfs_prop_init();
 
-	while ((c = getopt(argc, argv, "+c:d:o:")) != -1) {
+	while ((c = getopt(argc, argv, "+c:d:Go:")) != -1) {
 		switch (c) {
 		case 'c':
 			g_importargs.cachefile = optarg;
@@ -1201,6 +1509,9 @@ main(int argc, char **argv)
 		case 'd':
 			assert(g_importargs.paths < MAX_NUM_PATHS);
 			g_importargs.path[g_importargs.paths++] = optarg;
+			break;
+		case 'G':
+			g_dump_dbgmsg = B_TRUE;
 			break;
 		case 'o':
 			if (handle_tunable_option(optarg, B_FALSE) != 0)
@@ -1223,8 +1534,12 @@ main(int argc, char **argv)
 
 	subcommand = argv[0];
 
-	if (strcmp(subcommand, "feature") == 0) {
+	if (strcmp(subcommand, "action") == 0) {
+		rv = zhack_do_action(argc, argv);
+	} else if (strcmp(subcommand, "feature") == 0) {
 		rv = zhack_do_feature(argc, argv);
+	} else if (strcmp(subcommand, "mmp") == 0) {
+		rv = zhack_do_mmp(argc, argv);
 	} else if (strcmp(subcommand, "label") == 0) {
 		return (zhack_do_label(argc, argv));
 	} else if (strcmp(subcommand, "metaslab") == 0) {
@@ -1239,6 +1554,9 @@ main(int argc, char **argv)
 		fatal(NULL, FTAG, "pool export failed; "
 		    "changes may not be committed to disk\n");
 	}
+
+	if (g_dump_dbgmsg)
+		dump_debug_buffer();
 
 	kernel_fini();
 

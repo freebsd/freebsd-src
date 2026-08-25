@@ -68,7 +68,7 @@
 static	void adhoc_vattach(struct ieee80211vap *);
 static	int adhoc_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static int adhoc_input(struct ieee80211_node *, struct mbuf *,
-	    const struct ieee80211_rx_stats *, int, int);
+	    const struct ieee80211_rx_stats *, net80211_rssi_t, int);
 static void adhoc_recv_mgmt(struct ieee80211_node *, struct mbuf *,
 	int subtype, const struct ieee80211_rx_stats *, int, int);
 static void ahdemo_recv_mgmt(struct ieee80211_node *, struct mbuf *,
@@ -301,7 +301,7 @@ doprint(struct ieee80211vap *vap, int subtype)
  */
 static int
 adhoc_input(struct ieee80211_node *ni, struct mbuf *m,
-    const struct ieee80211_rx_stats *rxs, int rssi, int nf)
+    const struct ieee80211_rx_stats *rxs, net80211_rssi_t rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;

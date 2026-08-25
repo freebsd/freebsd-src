@@ -181,6 +181,64 @@ static void p2ps_add_pd_req_attrs(struct p2p_data *p2p, struct p2p_device *dev,
 }
 
 
+static struct wpabuf * p2p_build_prov_disc_bootstrap_req(struct p2p_data *p2p,
+							 struct p2p_device *dev)
+{
+	struct wpabuf *buf;
+	u8 *len;
+	size_t cookie_len = 0;
+	const u8 *cookie = NULL;
+	u8 dialog_token = dev->dialog_token;
+	u8 group_capab;
+
+	buf = wpabuf_alloc(1000);
+	if (!buf)
+		return NULL;
+
+	p2p_dbg(p2p, "P2P2: Building bootstrapping PD Request");
+	p2p_buf_add_public_action_hdr(buf, P2P_PROV_DISC_REQ, dialog_token);
+
+	len = p2p_buf_add_ie_hdr(buf);
+
+	group_capab = 0;
+
+	if (p2p->num_groups) {
+		group_capab |= P2P_GROUP_CAPAB_GROUP_OWNER;
+		if ((p2p->dev_capab & P2P_DEV_CAPAB_CONCURRENT_OPER) &&
+		    (p2p->dev_capab & P2P_DEV_CAPAB_INFRA_MANAGED) &&
+		    p2p->cross_connect)
+			group_capab |= P2P_GROUP_CAPAB_CROSS_CONN;
+	}
+	if (p2p->cfg->p2p_intra_bss)
+		group_capab |= P2P_GROUP_CAPAB_INTRA_BSS_DIST;
+
+	p2p_buf_add_capability(buf, p2p->dev_capab &
+			       ~P2P_DEV_CAPAB_CLIENT_DISCOVERABILITY,
+			       group_capab);
+	p2p_buf_add_device_info(buf, p2p, NULL);
+
+	if (dev->bootstrap_params) {
+		cookie = dev->bootstrap_params->cookie;
+		cookie_len = dev->bootstrap_params->cookie_len;
+
+		if (dev->bootstrap_params->status == P2P_SC_COMEBACK)
+			p2p_buf_add_status(buf, dev->bootstrap_params->status);
+	}
+
+	p2p_buf_update_ie_hdr(buf, len);
+
+	len = p2p_buf_add_p2p2_ie_hdr(buf);
+
+	p2p_buf_add_pcea(buf, p2p);
+	p2p_buf_add_pbma(buf, dev->req_bootstrap_method, cookie, cookie_len, 0);
+
+	p2p_buf_update_ie_hdr(buf, len);
+
+	wpa_printf(MSG_DEBUG, "P2P2: Added PCEA and PBMA in PD Request");
+	return buf;
+}
+
+
 static struct wpabuf * p2p_build_prov_disc_req(struct p2p_data *p2p,
 					       struct p2p_device *dev,
 					       int join)
@@ -244,6 +302,42 @@ static struct wpabuf * p2p_build_prov_disc_req(struct p2p_data *p2p,
 
 	if (p2p->vendor_elem && p2p->vendor_elem[VENDOR_ELEM_P2P_PD_REQ])
 		wpabuf_put_buf(buf, p2p->vendor_elem[VENDOR_ELEM_P2P_PD_REQ]);
+
+	return buf;
+}
+
+
+static struct wpabuf *
+p2p_build_prov_disc_bootstrap_resp(struct p2p_data *p2p, struct p2p_device *dev,
+				   u8 dialog_token, enum p2p_status_code status)
+{
+	struct wpabuf *buf;
+	u8 *cookie = NULL;
+	size_t cookie_len = 0;
+	int comeback_after = 0;
+	u8 *len;
+
+	buf = wpabuf_alloc(1000);
+	if (!buf)
+		return NULL;
+
+	p2p_dbg(p2p, "P2P2: Building boostrapping PD Response");
+	if (status == P2P_SC_COMEBACK && dev->bootstrap_params) {
+		cookie = dev->bootstrap_params->cookie;
+		cookie_len = dev->bootstrap_params->cookie_len;
+		comeback_after = dev->bootstrap_params->comeback_after;
+	}
+
+	p2p_buf_add_public_action_hdr(buf, P2P_PROV_DISC_RESP, dialog_token);
+
+	len = p2p_buf_add_p2p2_ie_hdr(buf);
+
+	p2p_buf_add_status(buf, status);
+	p2p_buf_add_pcea(buf, p2p);
+	p2p_buf_add_pbma(buf, dev->req_bootstrap_method, cookie, cookie_len,
+			 comeback_after);
+
+	p2p_buf_update_ie_hdr(buf, len);
 
 	return buf;
 }
@@ -563,10 +657,234 @@ do { \
 }
 
 
-void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
-			       const u8 *data, size_t len, int rx_freq)
+void p2p_process_pcea(struct p2p_data *p2p, struct p2p_message *msg,
+		      struct p2p_device *dev)
 {
-	struct p2p_message msg;
+	const u8 *pos, *end;
+	u8 cap_info_len;
+
+	if (!p2p || !dev || !msg || !msg->pcea_info)
+		return;
+
+	pos = msg->pcea_info;
+	end = pos + msg->pcea_info_len;
+	dev->info.pcea_cap_info = WPA_GET_LE16(pos);
+	cap_info_len = dev->info.pcea_cap_info & P2P_PCEA_LEN_MASK;
+
+	/* Field length is (n-1), n in octets */
+	if (end - pos < cap_info_len + 1)
+		return;
+	pos += cap_info_len + 1;
+
+	if (dev->info.pcea_cap_info & P2P_PCEA_6GHZ)
+		dev->support_6ghz = true;
+
+	if (dev->info.pcea_cap_info & P2P_PCEA_REG_INFO) {
+		if (end - pos < 1) {
+			p2p_dbg(p2p, "Truncated PCEA");
+			return;
+		}
+		dev->info.reg_info = *pos++;
+	}
+
+	if (dev->info.pcea_cap_info & P2P_PCEA_PASN_TYPE) {
+		if (end - pos < 1) {
+			p2p_dbg(p2p, "Truncated PCEA");
+			return;
+		}
+		dev->info.pairing_config.pasn_type = *pos++;
+	}
+
+	if (dev->info.pcea_cap_info & P2P_PCEA_PAIRING_CAPABLE)
+		dev->info.pairing_config.pairing_capable = true;
+
+	if (dev->info.pcea_cap_info & P2P_PCEA_PAIRING_SETUP_ENABLED)
+		dev->info.pairing_config.enable_pairing_setup = true;
+
+	if (dev->info.pcea_cap_info & P2P_PCEA_PMK_CACHING) {
+		dev->info.pairing_config.enable_pairing_cache = true;
+	}
+}
+
+
+static void p2p_process_prov_disc_bootstrap_req(struct p2p_data *p2p,
+						struct p2p_message *msg,
+						const u8 *sa, const u8 *data,
+						size_t len, int rx_freq)
+{
+	struct p2p_device *dev;
+	int freq;
+	struct wpabuf *resp;
+	u16 bootstrap;
+	size_t cookie_len = 0;
+	const u8 *pos, *cookie;
+	enum p2p_status_code status = P2P_SC_FAIL_INVALID_PARAMS;
+
+	p2p_dbg(p2p, "Received Provision Discovery Request from " MACSTR
+		" with bootstrapping Attribute (freq=%d)",
+		MAC2STR(sa), rx_freq);
+
+	dev = p2p_get_device(p2p, sa);
+	if (!dev) {
+		p2p_dbg(p2p, "Provision Discovery Request from unknown peer "
+			MACSTR, MAC2STR(sa));
+
+		if (p2p_add_device(p2p, sa, rx_freq, NULL, 0, data, len, 0)) {
+			p2p_dbg(p2p,
+				"Provision Discovery Request add device failed "
+				MACSTR, MAC2STR(sa));
+			return;
+		}
+
+		dev = p2p_get_device(p2p, sa);
+		if (!dev) {
+			p2p_dbg(p2p,
+				"Provision Discovery device not found "
+				MACSTR, MAC2STR(sa));
+			return;
+		}
+	}
+	dev->p2p2 = true;
+
+	if (p2p->send_action_in_progress) {
+		p2p_dbg(p2p, "Dropping retry frame as response TX pending");
+		return;
+	}
+
+	p2p_update_peer_6ghz_capab(dev, msg);
+
+	if (msg->pcea_info && msg->pcea_info_len >= 2)
+		p2p_process_pcea(p2p, msg, dev);
+
+	pos = msg->pbma_info;
+
+	if (msg->pbma_info_len > 2 && msg->status &&
+	    *msg->status == P2P_SC_COMEBACK) {
+		/* PBMA comeback request */
+		cookie_len = *pos++;
+		if (msg->pbma_info_len < 1 + cookie_len) {
+			p2p_dbg(p2p, "Truncated PBMA");
+			return;
+		}
+		cookie = pos;
+
+		if (!dev->bootstrap_params ||
+		    dev->bootstrap_params->cookie_len != cookie_len ||
+		    os_memcmp(cookie, dev->bootstrap_params->cookie,
+			      cookie_len) != 0) {
+			status = P2P_SC_FAIL_REJECTED_BY_USER;
+			goto out;
+		}
+
+		bootstrap = dev->bootstrap_params->bootstrap_method;
+
+		if (!dev->req_bootstrap_method) {
+			status = P2P_SC_COMEBACK;
+			goto out;
+		}
+	} else {
+		/* PBMA request */
+		bootstrap = WPA_GET_LE16(pos);
+
+		os_free(dev->bootstrap_params);
+		dev->bootstrap_params = NULL;
+
+		if (!dev->req_bootstrap_method) {
+			dev->bootstrap_params =
+				os_zalloc(sizeof(struct p2p_bootstrap_params));
+			if (!dev->bootstrap_params)
+				return;
+			dev->bootstrap_params->bootstrap_method = bootstrap;
+			dev->bootstrap_params->cookie_len = 4;
+			if (os_get_random(dev->bootstrap_params->cookie,
+					  dev->bootstrap_params->cookie_len) <
+			    0) {
+				os_free(dev->bootstrap_params);
+				dev->bootstrap_params = NULL;
+				return;
+			}
+			dev->bootstrap_params->comeback_after =
+				p2p->cfg->comeback_after;
+			status = P2P_SC_COMEBACK;
+			if (p2p->cfg->bootstrap_req_rx)
+				p2p->cfg->bootstrap_req_rx(p2p->cfg->cb_ctx,
+							   sa, bootstrap);
+			goto out;
+		}
+	}
+
+	if (bootstrap == P2P_PBMA_PIN_CODE_DISPLAY &&
+	    dev->req_bootstrap_method == P2P_PBMA_PIN_CODE_KEYPAD)
+		status = P2P_SC_SUCCESS;
+	else if (bootstrap == P2P_PBMA_PIN_CODE_KEYPAD &&
+		 dev->req_bootstrap_method == P2P_PBMA_PIN_CODE_DISPLAY)
+		status = P2P_SC_SUCCESS;
+	else if (bootstrap == P2P_PBMA_PASSPHRASE_DISPLAY &&
+		 dev->req_bootstrap_method == P2P_PBMA_PASSPHRASE_KEYPAD)
+		status = P2P_SC_SUCCESS;
+	else if (bootstrap == P2P_PBMA_PASSPHRASE_KEYPAD &&
+		 dev->req_bootstrap_method == P2P_PBMA_PASSPHRASE_DISPLAY)
+		status = P2P_SC_SUCCESS;
+	else if (bootstrap == P2P_PBMA_NFC_TAG &&
+		 dev->req_bootstrap_method == P2P_PBMA_NFC_READER)
+		status = P2P_SC_SUCCESS;
+	else if (bootstrap == P2P_PBMA_NFC_READER &&
+		 dev->req_bootstrap_method == P2P_PBMA_NFC_TAG)
+		status = P2P_SC_SUCCESS;
+	else if (bootstrap == P2P_PBMA_QR_DISPLAY &&
+		 dev->req_bootstrap_method == P2P_PBMA_QR_SCAN)
+		status = P2P_SC_SUCCESS;
+	else if (bootstrap == P2P_PBMA_QR_SCAN &&
+		 dev->req_bootstrap_method == P2P_PBMA_QR_DISPLAY)
+		status = P2P_SC_SUCCESS;
+	else if (bootstrap == P2P_PBMA_OPPORTUNISTIC &&
+		 dev->req_bootstrap_method == P2P_PBMA_OPPORTUNISTIC)
+		status = P2P_SC_SUCCESS;
+	else
+		status = P2P_SC_FAIL_INVALID_PARAMS;
+
+	wpa_printf(MSG_ERROR, "Bootstrap received %d", bootstrap);
+
+	if (status == P2P_SC_SUCCESS) {
+		dev->role = P2P_ROLE_PAIRING_RESPONDER;
+#ifdef CONFIG_PASN
+		p2p_pasn_initialize(p2p, dev, sa, rx_freq, false, true);
+#endif /* CONFIG_PASN */
+	}
+out:
+	/* Send PD Bootstrapping Response for the PD Request */
+	resp = p2p_build_prov_disc_bootstrap_resp(p2p, dev, msg->dialog_token,
+						  status);
+	if (!resp)
+		return;
+
+	p2p_dbg(p2p, "Sending Provision Discovery Bootstrap Response");
+	if (rx_freq > 0)
+		freq = rx_freq;
+	else
+		freq = p2p_channel_to_freq(p2p->cfg->reg_class,
+					   p2p->cfg->channel);
+	if (freq < 0) {
+		p2p_dbg(p2p, "Unknown operating class/channel");
+		wpabuf_free(resp);
+		return;
+	}
+	p2p->pending_action_state = P2P_PENDING_PD_RESPONSE;
+	if (p2p_send_action(p2p, freq, sa, p2p->cfg->dev_addr,
+			    p2p->cfg->dev_addr, wpabuf_head(resp),
+			    wpabuf_len(resp), 50) < 0)
+		p2p_dbg(p2p, "Failed to send Action frame");
+	else
+		p2p->send_action_in_progress = 1;
+
+	wpabuf_free(resp);
+}
+
+
+static void p2p_process_prov_disc_req(struct p2p_data *p2p,
+				      struct p2p_message *msg, const u8 *sa,
+				      const u8 *data, size_t len, int rx_freq)
+{
 	struct p2p_device *dev;
 	int freq;
 	enum p2p_status_code reject = P2P_SC_FAIL_INCOMPATIBLE_PARAMS;
@@ -587,21 +905,17 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 	u8 remote_conncap;
 	u16 method;
 
-	if (p2p_parse(data, len, &msg))
-		return;
-
 	p2p_dbg(p2p, "Received Provision Discovery Request from " MACSTR
 		" with config methods 0x%x (freq=%d)",
-		MAC2STR(sa), msg.wps_config_methods, rx_freq);
-	group_mac = msg.intended_addr;
+		MAC2STR(sa), msg->wps_config_methods, rx_freq);
+	group_mac = msg->intended_addr;
 
 	dev = p2p_get_device(p2p, sa);
 	if (dev == NULL || (dev->flags & P2P_DEV_PROBE_REQ_ONLY)) {
 		p2p_dbg(p2p, "Provision Discovery Request from unknown peer "
 			MACSTR, MAC2STR(sa));
 
-		if (p2p_add_device(p2p, sa, rx_freq, NULL, 0, data + 1, len - 1,
-				   0)) {
+		if (p2p_add_device(p2p, sa, rx_freq, NULL, 0, data, len, 0)) {
 			p2p_dbg(p2p, "Provision Discovery Request add device failed "
 				MACSTR, MAC2STR(sa));
 			goto out;
@@ -614,29 +928,29 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 				MACSTR, MAC2STR(sa));
 			goto out;
 		}
-	} else if (msg.wfd_subelems) {
+	} else if (msg->wfd_subelems) {
 		wpabuf_free(dev->info.wfd_subelems);
-		dev->info.wfd_subelems = wpabuf_dup(msg.wfd_subelems);
+		dev->info.wfd_subelems = wpabuf_dup(msg->wfd_subelems);
 	}
 
-	p2p_update_peer_6ghz_capab(dev, &msg);
+	p2p_update_peer_6ghz_capab(dev, msg);
 
-	if (!msg.adv_id) {
+	if (!msg->adv_id) {
 		allowed_config_methods |= WPS_CONFIG_PUSHBUTTON;
-		if (!(msg.wps_config_methods & allowed_config_methods)) {
+		if (!(msg->wps_config_methods & allowed_config_methods)) {
 			p2p_dbg(p2p,
 				"Unsupported Config Methods in Provision Discovery Request");
 			goto out;
 		}
 
 		/* Legacy (non-P2PS) - Unknown groups allowed for P2PS */
-		if (msg.group_id) {
+		if (msg->group_id) {
 			size_t i;
 
 			for (i = 0; i < p2p->num_groups; i++) {
 				if (p2p_group_is_group_id_match(
 					    p2p->groups[i],
-					    msg.group_id, msg.group_id_len))
+					    msg->group_id, msg->group_id_len))
 					break;
 			}
 			if (i == p2p->num_groups) {
@@ -652,29 +966,29 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 		 * Set adv_id here, so in case of an error, a P2PS PD Response
 		 * will be sent.
 		 */
-		adv_id = WPA_GET_LE32(msg.adv_id);
-		if (p2ps_validate_pd_req(p2p, &msg, sa) < 0) {
+		adv_id = WPA_GET_LE32(msg->adv_id);
+		if (p2ps_validate_pd_req(p2p, msg, sa) < 0) {
 			reject = P2P_SC_FAIL_INVALID_PARAMS;
 			goto out;
 		}
 
-		req_fcap = (struct p2ps_feature_capab *) msg.feature_cap;
+		req_fcap = (struct p2ps_feature_capab *) msg->feature_cap;
 
-		os_memcpy(session_mac, msg.session_mac, ETH_ALEN);
-		os_memcpy(adv_mac, msg.adv_mac, ETH_ALEN);
+		os_memcpy(session_mac, msg->session_mac, ETH_ALEN);
+		os_memcpy(adv_mac, msg->adv_mac, ETH_ALEN);
 
-		session_id = WPA_GET_LE32(msg.session_id);
+		session_id = WPA_GET_LE32(msg->session_id);
 
-		if (msg.conn_cap)
-			conncap = *msg.conn_cap;
+		if (msg->conn_cap)
+			conncap = *msg->conn_cap;
 
 		/*
 		 * We need to verify a P2PS config methog in an initial PD
 		 * request or in a follow-on PD request with the status
 		 * SUCCESS_DEFERRED.
 		 */
-		if ((!msg.status || *msg.status == P2P_SC_SUCCESS_DEFERRED) &&
-		    !(msg.wps_config_methods & allowed_config_methods)) {
+		if ((!msg->status || *msg->status == P2P_SC_SUCCESS_DEFERRED) &&
+		    !(msg->wps_config_methods & allowed_config_methods)) {
 			p2p_dbg(p2p,
 				"Unsupported Config Methods in Provision Discovery Request");
 			goto out;
@@ -690,18 +1004,18 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 			P2P_DEV_PD_PEER_KEYPAD |
 			P2P_DEV_PD_PEER_P2PS);
 
-	if (msg.wps_config_methods & WPS_CONFIG_DISPLAY) {
+	if (msg->wps_config_methods & WPS_CONFIG_DISPLAY) {
 		p2p_dbg(p2p, "Peer " MACSTR
 			" requested us to show a PIN on display", MAC2STR(sa));
 		dev->flags |= P2P_DEV_PD_PEER_KEYPAD;
 		passwd_id = DEV_PW_USER_SPECIFIED;
-	} else if (msg.wps_config_methods & WPS_CONFIG_KEYPAD) {
+	} else if (msg->wps_config_methods & WPS_CONFIG_KEYPAD) {
 		p2p_dbg(p2p, "Peer " MACSTR
 			" requested us to write its PIN using keypad",
 			MAC2STR(sa));
 		dev->flags |= P2P_DEV_PD_PEER_DISPLAY;
 		passwd_id = DEV_PW_REGISTRAR_SPECIFIED;
-	} else if (msg.wps_config_methods & WPS_CONFIG_P2PS) {
+	} else if (msg->wps_config_methods & WPS_CONFIG_P2PS) {
 		p2p_dbg(p2p, "Peer " MACSTR " requesting P2PS PIN",
 			MAC2STR(sa));
 		dev->flags |= P2P_DEV_PD_PEER_P2PS;
@@ -712,8 +1026,8 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 	if (p2p->cfg->remove_stale_groups) {
 		p2p->cfg->remove_stale_groups(
 			p2p->cfg->cb_ctx, dev->info.p2p_device_addr,
-			msg.persistent_dev,
-			msg.persistent_ssid, msg.persistent_ssid_len);
+			msg->persistent_dev,
+			msg->persistent_ssid, msg->persistent_ssid_len);
 	}
 
 	reject = P2P_SC_SUCCESS;
@@ -722,15 +1036,15 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 	 * End of a legacy P2P PD Request processing, from this point continue
 	 * with P2PS one.
 	 */
-	if (!msg.adv_id)
+	if (!msg->adv_id)
 		goto out;
 
 	remote_conncap = conncap;
 
-	if (!msg.status) {
+	if (!msg->status) {
 		unsigned int forced_freq, pref_freq;
 
-		if (!ether_addr_equal(p2p->cfg->dev_addr, msg.adv_mac)) {
+		if (!ether_addr_equal(p2p->cfg->dev_addr, msg->adv_mac)) {
 			p2p_dbg(p2p,
 				"P2PS PD adv mac does not match the local one");
 			reject = P2P_SC_FAIL_INCOMPATIBLE_PARAMS;
@@ -767,12 +1081,12 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 				"Incompatible P2PS feature capability CPT bitmask");
 			reject = P2P_SC_FAIL_INCOMPATIBLE_PARAMS;
 		} else if (p2ps_adv->config_methods &&
-			   !(msg.wps_config_methods &
+			   !(msg->wps_config_methods &
 			     p2ps_adv->config_methods)) {
 			p2p_dbg(p2p,
 				"Unsupported config methods in Provision Discovery Request (own=0x%x peer=0x%x)",
 				p2ps_adv->config_methods,
-				msg.wps_config_methods);
+				msg->wps_config_methods);
 			reject = P2P_SC_FAIL_INCOMPATIBLE_PARAMS;
 		} else if (!p2ps_adv->state) {
 			p2p_dbg(p2p, "P2PS state unavailable");
@@ -782,24 +1096,24 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 			reject = P2P_SC_FAIL_INCOMPATIBLE_PARAMS;
 		}
 
-		if (msg.wps_config_methods & WPS_CONFIG_KEYPAD) {
+		if (msg->wps_config_methods & WPS_CONFIG_KEYPAD) {
 			p2p_dbg(p2p, "Keypad - always defer");
 			auto_accept = 0;
 		}
 
 		if ((remote_conncap & (P2PS_SETUP_NEW | P2PS_SETUP_CLIENT) ||
-		     msg.persistent_dev) && conncap != P2PS_SETUP_NEW &&
-		    msg.channel_list && msg.channel_list_len &&
+		     msg->persistent_dev) && conncap != P2PS_SETUP_NEW &&
+		    msg->channel_list && msg->channel_list_len &&
 		    p2p_peer_channels_check(p2p, &p2p->channels, dev,
-					    msg.channel_list,
-					    msg.channel_list_len) < 0) {
+					    msg->channel_list,
+					    msg->channel_list_len) < 0) {
 			p2p_dbg(p2p,
 				"No common channels - force deferred flow");
 			auto_accept = 0;
 		}
 
 		if (((remote_conncap & P2PS_SETUP_GROUP_OWNER) ||
-		     msg.persistent_dev) && msg.operating_channel) {
+		     msg->persistent_dev) && msg->operating_channel) {
 			struct p2p_channels intersect;
 
 			/*
@@ -810,15 +1124,15 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 			 */
 			if (dev->channels.reg_classes == 0 ||
 			    !p2p_channels_includes(&dev->channels,
-						   msg.operating_channel[3],
-						   msg.operating_channel[4])) {
+						   msg->operating_channel[3],
+						   msg->operating_channel[4])) {
 				struct p2p_channels *ch = &dev->channels;
 
 				os_memset(ch, 0, sizeof(*ch));
 				ch->reg_class[0].reg_class =
-					msg.operating_channel[3];
+					msg->operating_channel[3];
 				ch->reg_class[0].channel[0] =
-					msg.operating_channel[4];
+					msg->operating_channel[4];
 				ch->reg_class[0].channels = 1;
 				ch->reg_classes = 1;
 			}
@@ -837,7 +1151,7 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 			struct p2ps_provision *tmp;
 
 			if (p2ps_setup_p2ps_prov(p2p, adv_id, session_id,
-						 msg.wps_config_methods,
+						 msg->wps_config_methods,
 						 session_mac, adv_mac) < 0) {
 				reject = P2P_SC_FAIL_UNABLE_TO_ACCOMMODATE;
 				goto out;
@@ -859,7 +1173,7 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 		}
 	}
 
-	if (!msg.status && !auto_accept &&
+	if (!msg->status && !auto_accept &&
 	    (!p2p->p2ps_prov || p2p->p2ps_prov->adv_id != adv_id)) {
 		struct p2ps_provision *tmp;
 
@@ -869,7 +1183,7 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 		}
 
 		if (p2ps_setup_p2ps_prov(p2p, adv_id, session_id,
-					 msg.wps_config_methods,
+					 msg->wps_config_methods,
 					 session_mac, adv_mac) < 0) {
 			reject = P2P_SC_FAIL_UNABLE_TO_ACCOMMODATE;
 			goto out;
@@ -880,26 +1194,26 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 	}
 
 	/* Not a P2PS Follow-on PD */
-	if (!msg.status)
+	if (!msg->status)
 		goto out;
 
-	if (*msg.status && *msg.status != P2P_SC_SUCCESS_DEFERRED) {
-		reject = *msg.status;
+	if (*msg->status && *msg->status != P2P_SC_SUCCESS_DEFERRED) {
+		reject = *msg->status;
 		goto out;
 	}
 
-	if (*msg.status != P2P_SC_SUCCESS_DEFERRED || !p2p->p2ps_prov)
+	if (*msg->status != P2P_SC_SUCCESS_DEFERRED || !p2p->p2ps_prov)
 		goto out;
 
 	if (p2p->p2ps_prov->adv_id != adv_id ||
-	    !ether_addr_equal(p2p->p2ps_prov->adv_mac, msg.adv_mac)) {
+	    !ether_addr_equal(p2p->p2ps_prov->adv_mac, msg->adv_mac)) {
 		p2p_dbg(p2p,
 			"P2PS Follow-on PD with mismatch Advertisement ID/MAC");
 		goto out;
 	}
 
 	if (p2p->p2ps_prov->session_id != session_id ||
-	    !ether_addr_equal(p2p->p2ps_prov->session_mac, msg.session_mac)) {
+	    !ether_addr_equal(p2p->p2ps_prov->session_mac, msg->session_mac)) {
 		p2p_dbg(p2p, "P2PS Follow-on PD with mismatch Session ID/MAC");
 		goto out;
 	}
@@ -930,7 +1244,7 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 	else if (method & WPS_CONFIG_KEYPAD)
 		method = WPS_CONFIG_DISPLAY;
 
-	if (!conncap || !(msg.wps_config_methods & method)) {
+	if (!conncap || !(msg->wps_config_methods & method)) {
 		/*
 		 * Reject this "Deferred Accept*
 		 * if incompatible conncap or method
@@ -941,11 +1255,11 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 			"Incompatible P2PS feature capability CPT bitmask");
 		reject = P2P_SC_FAIL_INCOMPATIBLE_PARAMS;
 	} else if ((remote_conncap & (P2PS_SETUP_NEW | P2PS_SETUP_CLIENT) ||
-		    msg.persistent_dev) && conncap != P2PS_SETUP_NEW &&
-		   msg.channel_list && msg.channel_list_len &&
+		    msg->persistent_dev) && conncap != P2PS_SETUP_NEW &&
+		   msg->channel_list && msg->channel_list_len &&
 		   p2p_peer_channels_check(p2p, &p2p->channels, dev,
-					   msg.channel_list,
-					   msg.channel_list_len) < 0) {
+					   msg->channel_list,
+					   msg->channel_list_len) < 0) {
 		p2p_dbg(p2p,
 			"No common channels in Follow-On Provision Discovery Request");
 		reject = P2P_SC_FAIL_NO_COMMON_CHANNELS;
@@ -957,10 +1271,10 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 	if (reject == P2P_SC_SUCCESS || reject == P2P_SC_SUCCESS_DEFERRED) {
 		u8 tmp;
 
-		if (msg.operating_channel)
+		if (msg->operating_channel)
 			dev->oper_freq =
-				p2p_channel_to_freq(msg.operating_channel[3],
-						    msg.operating_channel[4]);
+				p2p_channel_to_freq(msg->operating_channel[3],
+						    msg->operating_channel[4]);
 
 		if ((conncap & P2PS_SETUP_GROUP_OWNER) &&
 		    p2p_go_select_channel(p2p, dev, &tmp) < 0)
@@ -973,7 +1287,7 @@ void p2p_process_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
 out:
 	if (reject == P2P_SC_SUCCESS ||
 	    reject == P2P_SC_FAIL_INFO_CURRENTLY_UNAVAILABLE)
-		config_methods = msg.wps_config_methods;
+		config_methods = msg->wps_config_methods;
 	else
 		config_methods = 0;
 
@@ -981,18 +1295,18 @@ out:
 	 * Send PD Response for an initial PD Request or for follow-on
 	 * PD Request with P2P_SC_SUCCESS_DEFERRED status.
 	 */
-	if (!msg.status || *msg.status == P2P_SC_SUCCESS_DEFERRED) {
-		resp = p2p_build_prov_disc_resp(p2p, dev, msg.dialog_token,
+	if (!msg->status || *msg->status == P2P_SC_SUCCESS_DEFERRED) {
+		resp = p2p_build_prov_disc_resp(p2p, dev, msg->dialog_token,
 						reject, config_methods, adv_id,
-						msg.group_id, msg.group_id_len,
-						msg.persistent_ssid,
-						msg.persistent_ssid_len,
+						msg->group_id,
+						msg->group_id_len,
+						msg->persistent_ssid,
+						msg->persistent_ssid_len,
 						(const u8 *) &resp_fcap,
 						sizeof(resp_fcap));
-		if (!resp) {
-			p2p_parse_free(&msg);
+		if (!resp)
 			return;
-		}
+
 		p2p_dbg(p2p, "Sending Provision Discovery Response");
 		if (rx_freq > 0)
 			freq = rx_freq;
@@ -1002,7 +1316,6 @@ out:
 		if (freq < 0) {
 			p2p_dbg(p2p, "Unknown regulatory class/channel");
 			wpabuf_free(resp);
-			p2p_parse_free(&msg);
 			return;
 		}
 		p2p->pending_action_state = P2P_PENDING_PD_RESPONSE;
@@ -1017,10 +1330,8 @@ out:
 		wpabuf_free(resp);
 	}
 
-	if (!dev) {
-		p2p_parse_free(&msg);
+	if (!dev)
 		return;
-	}
 
 	freq = 0;
 	if (reject == P2P_SC_SUCCESS && conncap == P2PS_SETUP_GROUP_OWNER) {
@@ -1032,17 +1343,17 @@ out:
 
 	if (!p2p->cfg->p2ps_prov_complete) {
 		/* Don't emit anything */
-	} else if (msg.status && *msg.status != P2P_SC_SUCCESS &&
-		   *msg.status != P2P_SC_SUCCESS_DEFERRED) {
-		reject = *msg.status;
+	} else if (msg->status && *msg->status != P2P_SC_SUCCESS &&
+		   *msg->status != P2P_SC_SUCCESS_DEFERRED) {
+		reject = *msg->status;
 		p2p->cfg->p2ps_prov_complete(p2p->cfg->cb_ctx, reject,
 					     sa, adv_mac, session_mac,
 					     NULL, adv_id, session_id,
-					     0, 0, msg.persistent_ssid,
-					     msg.persistent_ssid_len,
+					     0, 0, msg->persistent_ssid,
+					     msg->persistent_ssid_len,
 					     0, 0, NULL, NULL, 0, freq,
 					     NULL, 0);
-	} else if (msg.status && *msg.status == P2P_SC_SUCCESS_DEFERRED &&
+	} else if (msg->status && *msg->status == P2P_SC_SUCCESS_DEFERRED &&
 		   p2p->p2ps_prov) {
 		p2p->p2ps_prov->status = reject;
 		p2p->p2ps_prov->conncap = conncap;
@@ -1052,77 +1363,77 @@ out:
 						     sa, adv_mac, session_mac,
 						     NULL, adv_id,
 						     session_id, conncap, 0,
-						     msg.persistent_ssid,
-						     msg.persistent_ssid_len, 0,
-						     0, NULL, NULL, 0, freq,
+						     msg->persistent_ssid,
+						     msg->persistent_ssid_len,
+						     0, 0, NULL, NULL, 0, freq,
 						     NULL, 0);
 		else
 			p2p->cfg->p2ps_prov_complete(p2p->cfg->cb_ctx,
-						     *msg.status,
+						     *msg->status,
 						     sa, adv_mac, session_mac,
 						     group_mac, adv_id,
 						     session_id, conncap,
 						     passwd_id,
-						     msg.persistent_ssid,
-						     msg.persistent_ssid_len, 0,
-						     0, NULL,
+						     msg->persistent_ssid,
+						     msg->persistent_ssid_len,
+						     0, 0, NULL,
 						     (const u8 *) &resp_fcap,
 						     sizeof(resp_fcap), freq,
 						     NULL, 0);
-	} else if (msg.status && p2p->p2ps_prov) {
+	} else if (msg->status && p2p->p2ps_prov) {
 		p2p->p2ps_prov->status = P2P_SC_SUCCESS;
-		p2p->cfg->p2ps_prov_complete(p2p->cfg->cb_ctx, *msg.status, sa,
+		p2p->cfg->p2ps_prov_complete(p2p->cfg->cb_ctx, *msg->status, sa,
 					     adv_mac, session_mac, group_mac,
 					     adv_id, session_id, conncap,
 					     passwd_id,
-					     msg.persistent_ssid,
-					     msg.persistent_ssid_len,
+					     msg->persistent_ssid,
+					     msg->persistent_ssid_len,
 					     0, 0, NULL,
 					     (const u8 *) &resp_fcap,
 					     sizeof(resp_fcap), freq, NULL, 0);
-	} else if (msg.status) {
+	} else if (msg->status) {
 	} else if (auto_accept && reject == P2P_SC_SUCCESS) {
 		p2p->cfg->p2ps_prov_complete(p2p->cfg->cb_ctx, P2P_SC_SUCCESS,
 					     sa, adv_mac, session_mac,
 					     group_mac, adv_id, session_id,
 					     conncap, passwd_id,
-					     msg.persistent_ssid,
-					     msg.persistent_ssid_len,
+					     msg->persistent_ssid,
+					     msg->persistent_ssid_len,
 					     0, 0, NULL,
 					     (const u8 *) &resp_fcap,
 					     sizeof(resp_fcap), freq,
-					     msg.group_id ?
-					     msg.group_id + ETH_ALEN : NULL,
-					     msg.group_id ?
-					     msg.group_id_len - ETH_ALEN : 0);
+					     msg->group_id ?
+					     msg->group_id + ETH_ALEN : NULL,
+					     msg->group_id ?
+					     msg->group_id_len - ETH_ALEN : 0);
 	} else if (reject == P2P_SC_FAIL_INFO_CURRENTLY_UNAVAILABLE &&
-		   (!msg.session_info || !msg.session_info_len)) {
-		p2p->p2ps_prov->method = msg.wps_config_methods;
+		   (!msg->session_info || !msg->session_info_len)) {
+		p2p->p2ps_prov->method = msg->wps_config_methods;
 
 		p2p->cfg->p2ps_prov_complete(p2p->cfg->cb_ctx, P2P_SC_SUCCESS,
 					     sa, adv_mac, session_mac,
 					     group_mac, adv_id, session_id,
 					     conncap, passwd_id,
-					     msg.persistent_ssid,
-					     msg.persistent_ssid_len,
+					     msg->persistent_ssid,
+					     msg->persistent_ssid_len,
 					     0, 1, NULL,
 					     (const u8 *) &resp_fcap,
 					     sizeof(resp_fcap), freq, NULL, 0);
 	} else if (reject == P2P_SC_FAIL_INFO_CURRENTLY_UNAVAILABLE) {
-		size_t buf_len = msg.session_info_len;
+		size_t buf_len = msg->session_info_len;
 		char *buf = os_malloc(2 * buf_len + 1);
 
 		if (buf) {
-			p2p->p2ps_prov->method = msg.wps_config_methods;
+			p2p->p2ps_prov->method = msg->wps_config_methods;
 
-			utf8_escape((char *) msg.session_info, buf_len,
+			utf8_escape((char *) msg->session_info, buf_len,
 				    buf, 2 * buf_len + 1);
 
 			p2p->cfg->p2ps_prov_complete(
 				p2p->cfg->cb_ctx, P2P_SC_SUCCESS, sa,
 				adv_mac, session_mac, group_mac, adv_id,
 				session_id, conncap, passwd_id,
-				msg.persistent_ssid, msg.persistent_ssid_len,
+				msg->persistent_ssid, msg->persistent_ssid_len,
 				0, 1, buf,
 				(const u8 *) &resp_fcap, sizeof(resp_fcap),
 				freq, NULL, 0);
@@ -1150,29 +1461,30 @@ out:
 	 *    seeker: KEYPAD, response status: SUCCESS
 	 */
 	if (p2p->cfg->prov_disc_req &&
-	    ((reject == P2P_SC_SUCCESS && !msg.adv_id) ||
-	     (!msg.status &&
+	    ((reject == P2P_SC_SUCCESS && !msg->adv_id) ||
+	     (!msg->status &&
 	     (reject == P2P_SC_SUCCESS ||
 	      reject == P2P_SC_FAIL_INFO_CURRENTLY_UNAVAILABLE) &&
 	      passwd_id == DEV_PW_USER_SPECIFIED) ||
-	     (!msg.status &&
+	     (!msg->status &&
 	      reject == P2P_SC_FAIL_INFO_CURRENTLY_UNAVAILABLE &&
 	      passwd_id == DEV_PW_REGISTRAR_SPECIFIED) ||
 	     (reject == P2P_SC_SUCCESS &&
-	      msg.status && *msg.status == P2P_SC_SUCCESS_DEFERRED &&
+	      msg->status && *msg->status == P2P_SC_SUCCESS_DEFERRED &&
 	       passwd_id == DEV_PW_REGISTRAR_SPECIFIED))) {
 		const u8 *dev_addr = sa;
 
-		if (msg.p2p_device_addr)
-			dev_addr = msg.p2p_device_addr;
+		if (msg->p2p_device_addr)
+			dev_addr = msg->p2p_device_addr;
 		p2p->cfg->prov_disc_req(p2p->cfg->cb_ctx, sa,
-					msg.wps_config_methods,
-					dev_addr, msg.pri_dev_type,
-					msg.device_name, msg.config_methods,
-					msg.capability ? msg.capability[0] : 0,
-					msg.capability ? msg.capability[1] :
+					msg->wps_config_methods,
+					dev_addr, msg->pri_dev_type,
+					msg->device_name, msg->config_methods,
+					msg->capability ? msg->capability[0] :
 					0,
-					msg.group_id, msg.group_id_len);
+					msg->capability ? msg->capability[1] :
+					0,
+					msg->group_id, msg->group_id_len);
 	}
 
 	if (reject != P2P_SC_FAIL_INFO_CURRENTLY_UNAVAILABLE)
@@ -1197,10 +1509,28 @@ out:
 			break;
 		}
 
-		if (msg.intended_addr)
-			os_memcpy(dev->interface_addr, msg.intended_addr,
+		if (msg->intended_addr)
+			os_memcpy(dev->interface_addr, msg->intended_addr,
 				  ETH_ALEN);
 	}
+}
+
+
+void p2p_handle_prov_disc_req(struct p2p_data *p2p, const u8 *sa,
+			      const u8 *data, size_t len, int rx_freq)
+{
+	struct p2p_message msg;
+
+	if (p2p_parse(data, len, &msg))
+		return;
+
+	if (msg.pcea_info && msg.pbma_info)
+		p2p_process_prov_disc_bootstrap_req(p2p, &msg, sa, data + 1,
+						    len - 1, rx_freq);
+	else
+		p2p_process_prov_disc_req(p2p, &msg, sa, data + 1, len - 1,
+					  rx_freq);
+
 	p2p_parse_free(&msg);
 }
 
@@ -1303,13 +1633,140 @@ static int p2p_validate_p2ps_pd_resp(struct p2p_data *p2p,
 }
 
 
-void p2p_process_prov_disc_resp(struct p2p_data *p2p, const u8 *sa,
-				const u8 *data, size_t len)
+static void p2p_process_prov_disc_bootstrap_resp(struct p2p_data *p2p,
+						 struct p2p_message *msg,
+						 const u8 *sa, const u8 *data,
+						 size_t len, int rx_freq)
 {
-	struct p2p_message msg;
+	struct p2p_device *dev;
+	enum p2p_status_code status = P2P_SC_SUCCESS;
+	size_t cookie_len = 0;
+	const u8 *pos, *cookie;
+	u16 comeback_after;
+	u16 bootstrap = 0;
+
+	/* Parse the P2P status present */
+	if (msg->status)
+		status = *msg->status;
+
+	p2p_dbg(p2p, "Received Provision Discovery Bootstrap Response from "
+		MACSTR, MAC2STR(sa));
+
+	dev = p2p_get_device(p2p, sa);
+	if (!dev || !dev->req_bootstrap_method) {
+		p2p_dbg(p2p, "Ignore Provision Discovery Response from " MACSTR
+			" with no pending request", MAC2STR(sa));
+		return;
+	}
+
+	p2p_update_peer_6ghz_capab(dev, msg);
+
+	if (dev->dialog_token != msg->dialog_token) {
+		p2p_dbg(p2p,
+			"Ignore Provision Discovery Response with unexpected Dialog Token %u (expected %u)",
+			msg->dialog_token, dev->dialog_token);
+		return;
+	}
+
+	if (p2p->pending_action_state == P2P_PENDING_PD) {
+		os_memset(p2p->pending_pd_devaddr, 0, ETH_ALEN);
+		p2p->pending_action_state = P2P_NO_PENDING_ACTION;
+	}
+
+	os_free(dev->bootstrap_params);
+	dev->bootstrap_params = NULL;
+
+	/* If the response is from the peer to whom a user initiated request
+	 * was sent earlier, we reset that state information here. */
+	if (p2p->user_initiated_pd &&
+	    ether_addr_equal(p2p->pending_pd_devaddr, sa))
+		p2p_reset_pending_pd(p2p);
+
+	if (status == P2P_SC_COMEBACK) {
+		/* PBMA comeback response */
+		pos = msg->pbma_info;
+		if (msg->pbma_info_len < 2 + 1)
+			return;
+		comeback_after = WPA_GET_LE16(pos);
+		pos += 2;
+		cookie_len = *pos++;
+		if (msg->pbma_info_len < 2 + 1 + cookie_len) {
+			p2p_dbg(p2p, "Truncated PBMA");
+			return;
+		}
+
+		if (cookie_len > sizeof(dev->bootstrap_params->cookie)) {
+			p2p_dbg(p2p, "Too long PBMA cookie");
+			return;
+		}
+
+		cookie = pos;
+
+		dev->bootstrap_params =
+			os_zalloc(sizeof(struct p2p_bootstrap_params));
+		if (!dev->bootstrap_params)
+			return;
+		dev->bootstrap_params->cookie_len = cookie_len;
+		os_memcpy(dev->bootstrap_params->cookie, cookie, cookie_len);
+		dev->bootstrap_params->comeback_after = comeback_after;
+		dev->bootstrap_params->bootstrap_method =
+						dev->req_bootstrap_method;
+		dev->bootstrap_params->status = status;
+
+		p2p->cfg->register_bootstrap_comeback(p2p->cfg->cb_ctx, sa,
+						      comeback_after);
+		p2p->cfg->send_action_done(p2p->cfg->cb_ctx);
+
+		if (p2p->cfg->bootstrap_rsp_rx)
+			p2p->cfg->bootstrap_rsp_rx(p2p->cfg->cb_ctx, sa, status,
+						   rx_freq,
+						   dev->req_bootstrap_method);
+		return;
+	}
+
+	/* PBMA response */
+	if (msg->pbma_info_len >= 2)
+		bootstrap = WPA_GET_LE16(msg->pbma_info);
+
+	/* Overwrite the status if bootstrap method does not match */
+	if (status == P2P_SC_SUCCESS &&
+	    !(bootstrap == P2P_PBMA_PIN_CODE_DISPLAY &&
+	      dev->req_bootstrap_method == P2P_PBMA_PIN_CODE_KEYPAD) &&
+	    !(bootstrap == P2P_PBMA_PIN_CODE_KEYPAD &&
+	      dev->req_bootstrap_method == P2P_PBMA_PIN_CODE_DISPLAY) &&
+	    !(bootstrap == P2P_PBMA_PASSPHRASE_DISPLAY &&
+	      dev->req_bootstrap_method == P2P_PBMA_PASSPHRASE_KEYPAD) &&
+	    !(bootstrap == P2P_PBMA_PASSPHRASE_KEYPAD &&
+	      dev->req_bootstrap_method == P2P_PBMA_PASSPHRASE_DISPLAY) &&
+	    !(bootstrap == P2P_PBMA_NFC_TAG &&
+	      dev->req_bootstrap_method == P2P_PBMA_NFC_READER) &&
+	    !(bootstrap == P2P_PBMA_NFC_READER &&
+	      dev->req_bootstrap_method == P2P_PBMA_NFC_TAG) &&
+	    !(bootstrap == P2P_PBMA_QR_DISPLAY &&
+	      dev->req_bootstrap_method == P2P_PBMA_QR_SCAN) &&
+	    !(bootstrap == P2P_PBMA_QR_SCAN &&
+	      dev->req_bootstrap_method == P2P_PBMA_QR_DISPLAY) &&
+	    !(bootstrap == P2P_PBMA_OPPORTUNISTIC &&
+	      dev->req_bootstrap_method == P2P_PBMA_OPPORTUNISTIC))
+		status = P2P_SC_FAIL_INVALID_PARAMS;
+
+	p2p->cfg->send_action_done(p2p->cfg->cb_ctx);
+	if (dev->flags & P2P_DEV_PD_BEFORE_GO_NEG)
+		dev->flags &= ~P2P_DEV_PD_BEFORE_GO_NEG;
+
+	if (p2p->cfg->bootstrap_rsp_rx)
+		p2p->cfg->bootstrap_rsp_rx(p2p->cfg->cb_ctx, sa, status,
+					   rx_freq, dev->req_bootstrap_method);
+}
+
+
+static void p2p_process_prov_disc_resp(struct p2p_data *p2p,
+				       struct p2p_message *msg, const u8 *sa,
+				       const u8 *data, size_t len)
+{
 	struct p2p_device *dev;
 	u16 report_config_methods = 0, req_config_methods;
-	u8 status = P2P_SC_SUCCESS;
+	enum p2p_status_code status = P2P_SC_SUCCESS;
 	u32 adv_id = 0;
 	u8 conncap = P2PS_SETUP_NEW;
 	u8 adv_mac[ETH_ALEN];
@@ -1317,30 +1774,25 @@ void p2p_process_prov_disc_resp(struct p2p_data *p2p, const u8 *sa,
 	int passwd_id = DEV_PW_DEFAULT;
 	int p2ps_seeker;
 
-	if (p2p_parse(data, len, &msg))
+	if (p2p->p2ps_prov && p2p_validate_p2ps_pd_resp(p2p, msg))
 		return;
-
-	if (p2p->p2ps_prov && p2p_validate_p2ps_pd_resp(p2p, &msg)) {
-		p2p_parse_free(&msg);
-		return;
-	}
 
 	/* Parse the P2PS members present */
-	if (msg.status)
-		status = *msg.status;
+	if (msg->status)
+		status = *msg->status;
 
-	group_mac = msg.intended_addr;
+	group_mac = msg->intended_addr;
 
-	if (msg.adv_mac)
-		os_memcpy(adv_mac, msg.adv_mac, ETH_ALEN);
+	if (msg->adv_mac)
+		os_memcpy(adv_mac, msg->adv_mac, ETH_ALEN);
 	else
 		os_memset(adv_mac, 0, ETH_ALEN);
 
-	if (msg.adv_id)
-		adv_id = WPA_GET_LE32(msg.adv_id);
+	if (msg->adv_id)
+		adv_id = WPA_GET_LE32(msg->adv_id);
 
-	if (msg.conn_cap) {
-		conncap = *msg.conn_cap;
+	if (msg->conn_cap) {
+		conncap = *msg->conn_cap;
 
 		/* Switch bits to local relative */
 		switch (conncap) {
@@ -1355,25 +1807,23 @@ void p2p_process_prov_disc_resp(struct p2p_data *p2p, const u8 *sa,
 
 	p2p_dbg(p2p, "Received Provision Discovery Response from " MACSTR
 		" with config methods 0x%x",
-		MAC2STR(sa), msg.wps_config_methods);
+		MAC2STR(sa), msg->wps_config_methods);
 
 	dev = p2p_get_device(p2p, sa);
 	if (dev == NULL || !dev->req_config_methods) {
 		p2p_dbg(p2p, "Ignore Provision Discovery Response from " MACSTR
 			" with no pending request", MAC2STR(sa));
-		p2p_parse_free(&msg);
 		return;
-	} else if (msg.wfd_subelems) {
+	} else if (msg->wfd_subelems) {
 		wpabuf_free(dev->info.wfd_subelems);
-		dev->info.wfd_subelems = wpabuf_dup(msg.wfd_subelems);
+		dev->info.wfd_subelems = wpabuf_dup(msg->wfd_subelems);
 	}
 
-	p2p_update_peer_6ghz_capab(dev, &msg);
+	p2p_update_peer_6ghz_capab(dev, msg);
 
-	if (dev->dialog_token != msg.dialog_token) {
+	if (dev->dialog_token != msg->dialog_token) {
 		p2p_dbg(p2p, "Ignore Provision Discovery Response with unexpected Dialog Token %u (expected %u)",
-			msg.dialog_token, dev->dialog_token);
-		p2p_parse_free(&msg);
+			msg->dialog_token, dev->dialog_token);
 		return;
 	}
 
@@ -1398,14 +1848,13 @@ void p2p_process_prov_disc_resp(struct p2p_data *p2p, const u8 *sa,
 	    ether_addr_equal(p2p->pending_pd_devaddr, sa))
 		p2p_reset_pending_pd(p2p);
 
-	if (msg.wps_config_methods != req_config_methods) {
+	if (msg->wps_config_methods != req_config_methods) {
 		p2p_dbg(p2p, "Peer rejected our Provision Discovery Request (received config_methods 0x%x expected 0x%x",
-			msg.wps_config_methods, req_config_methods);
+			msg->wps_config_methods, req_config_methods);
 		if (p2p->cfg->prov_disc_fail)
 			p2p->cfg->prov_disc_fail(p2p->cfg->cb_ctx, sa,
 						 P2P_PROV_DISC_REJECTED,
 						 adv_id, adv_mac, NULL);
-		p2p_parse_free(&msg);
 		p2ps_prov_free(p2p);
 		goto out;
 	}
@@ -1419,13 +1868,13 @@ void p2p_process_prov_disc_resp(struct p2p_data *p2p, const u8 *sa,
 			" accepted to show a PIN on display", MAC2STR(sa));
 		dev->flags |= P2P_DEV_PD_PEER_DISPLAY;
 		passwd_id = DEV_PW_REGISTRAR_SPECIFIED;
-	} else if (msg.wps_config_methods & WPS_CONFIG_KEYPAD) {
+	} else if (msg->wps_config_methods & WPS_CONFIG_KEYPAD) {
 		p2p_dbg(p2p, "Peer " MACSTR
 			" accepted to write our PIN using keypad",
 			MAC2STR(sa));
 		dev->flags |= P2P_DEV_PD_PEER_KEYPAD;
 		passwd_id = DEV_PW_USER_SPECIFIED;
-	} else if (msg.wps_config_methods & WPS_CONFIG_P2PS) {
+	} else if (msg->wps_config_methods & WPS_CONFIG_P2PS) {
 		p2p_dbg(p2p, "Peer " MACSTR " accepted P2PS PIN",
 			MAC2STR(sa));
 		dev->flags |= P2P_DEV_PD_PEER_P2PS;
@@ -1444,23 +1893,23 @@ void p2p_process_prov_disc_resp(struct p2p_data *p2p, const u8 *sa,
 		 * fails the flow would continue, although it would probably
 		 * fail. Same is true for the operating channel.
 		 */
-		if (msg.channel_list && msg.channel_list_len &&
+		if (msg->channel_list && msg->channel_list_len &&
 		    p2p_peer_channels_check(p2p, &p2p->channels, dev,
-					    msg.channel_list,
-					    msg.channel_list_len) < 0)
+					    msg->channel_list,
+					    msg->channel_list_len) < 0)
 			p2p_dbg(p2p, "P2PS PD Response - no common channels");
 
-		if (msg.operating_channel) {
+		if (msg->operating_channel) {
 			if (p2p_channels_includes(&p2p->channels,
-						  msg.operating_channel[3],
-						  msg.operating_channel[4]) &&
+						  msg->operating_channel[3],
+						  msg->operating_channel[4]) &&
 			    p2p_channels_includes(&dev->channels,
-						  msg.operating_channel[3],
-						  msg.operating_channel[4])) {
+						  msg->operating_channel[3],
+						  msg->operating_channel[4])) {
 				dev->oper_freq =
 					p2p_channel_to_freq(
-						msg.operating_channel[3],
-						msg.operating_channel[4]);
+						msg->operating_channel[3],
+						msg->operating_channel[4]);
 			} else {
 				p2p_dbg(p2p,
 					"P2PS PD Response - invalid operating channel");
@@ -1492,11 +1941,12 @@ void p2p_process_prov_disc_resp(struct p2p_data *p2p, const u8 *sa,
 				p2p->cfg->cb_ctx, status, sa, adv_mac,
 				p2p->p2ps_prov->session_mac,
 				group_mac, adv_id, p2p->p2ps_prov->session_id,
-				conncap, passwd_id, msg.persistent_ssid,
-				msg.persistent_ssid_len, 1, 0, NULL,
-				msg.feature_cap, msg.feature_cap_len, freq,
-				msg.group_id ? msg.group_id + ETH_ALEN : NULL,
-				msg.group_id ? msg.group_id_len - ETH_ALEN : 0);
+				conncap, passwd_id, msg->persistent_ssid,
+				msg->persistent_ssid_len, 1, 0, NULL,
+				msg->feature_cap, msg->feature_cap_len, freq,
+				msg->group_id ? msg->group_id + ETH_ALEN : NULL,
+				msg->group_id ? msg->group_id_len - ETH_ALEN :
+				0);
 		}
 		p2ps_prov_free(p2p);
 	} else if (status != P2P_SC_SUCCESS &&
@@ -1518,16 +1968,15 @@ void p2p_process_prov_disc_resp(struct p2p_data *p2p, const u8 *sa,
 						      NULL, NULL, 0);
 		}
 
-		if (msg.session_info && msg.session_info_len) {
-			size_t info_len = msg.session_info_len;
+		if (msg->session_info && msg->session_info_len) {
+			size_t info_len = msg->session_info_len;
 			char *deferred_sess_resp = os_malloc(2 * info_len + 1);
 
 			if (!deferred_sess_resp) {
-				p2p_parse_free(&msg);
 				p2ps_prov_free(p2p);
 				goto out;
 			}
-			utf8_escape((char *) msg.session_info, info_len,
+			utf8_escape((char *) msg->session_info, info_len,
 				    deferred_sess_resp, 2 * info_len + 1);
 
 			if (p2p->cfg->prov_disc_fail)
@@ -1549,17 +1998,14 @@ void p2p_process_prov_disc_resp(struct p2p_data *p2p, const u8 *sa,
 			p2p->cfg->prov_disc_fail(p2p->cfg->cb_ctx, sa,
 						 P2P_PROV_DISC_REJECTED,
 						 adv_id, adv_mac, NULL);
-		p2p_parse_free(&msg);
 		p2ps_prov_free(p2p);
 		goto out;
 	}
 
 	/* Store the provisioning info */
-	dev->wps_prov_info = msg.wps_config_methods;
-	if (msg.intended_addr)
-		os_memcpy(dev->interface_addr, msg.intended_addr, ETH_ALEN);
-
-	p2p_parse_free(&msg);
+	dev->wps_prov_info = msg->wps_config_methods;
+	if (msg->intended_addr)
+		os_memcpy(dev->interface_addr, msg->intended_addr, ETH_ALEN);
 
 out:
 	dev->req_config_methods = 0;
@@ -1603,6 +2049,24 @@ out:
 }
 
 
+void p2p_handle_prov_disc_resp(struct p2p_data *p2p, const u8 *sa,
+			       const u8 *data, size_t len, int rx_freq)
+{
+	struct p2p_message msg;
+
+	if (p2p_parse(data, len, &msg))
+		return;
+
+	if (msg.pcea_info && msg.pbma_info)
+		p2p_process_prov_disc_bootstrap_resp(p2p, &msg, sa, data + 1,
+						     len - 1, rx_freq);
+	else
+		p2p_process_prov_disc_resp(p2p, &msg, sa, data + 1, len - 1);
+
+	p2p_parse_free(&msg);
+}
+
+
 int p2p_send_prov_disc_req(struct p2p_data *p2p, struct p2p_device *dev,
 			   int join, int force_freq)
 {
@@ -1632,7 +2096,7 @@ int p2p_send_prov_disc_req(struct p2p_data *p2p, struct p2p_device *dev,
 		/* TODO: use device discoverability request through GO */
 	}
 
-	if (p2p->p2ps_prov) {
+	if (!dev->p2p2 && p2p->p2ps_prov) {
 		if (p2p->p2ps_prov->status == P2P_SC_SUCCESS_DEFERRED) {
 			if (p2p->p2ps_prov->method == WPS_CONFIG_DISPLAY)
 				dev->req_config_methods = WPS_CONFIG_KEYPAD;
@@ -1662,7 +2126,11 @@ int p2p_send_prov_disc_req(struct p2p_data *p2p, struct p2p_device *dev,
 			return -1;
 	}
 
-	req = p2p_build_prov_disc_req(p2p, dev, join);
+	if (dev->p2p2)
+		req = p2p_build_prov_disc_bootstrap_req(p2p, dev);
+	else
+		req = p2p_build_prov_disc_req(p2p, dev, join);
+
 	if (req == NULL)
 		return -1;
 
@@ -1684,6 +2152,24 @@ int p2p_send_prov_disc_req(struct p2p_data *p2p, struct p2p_device *dev,
 }
 
 
+int p2p_set_req_bootstrap_method(struct p2p_data *p2p, const u8 *peer_addr,
+				 u16 bootstrap)
+{
+	struct p2p_device *dev;
+
+	dev = p2p_get_device(p2p, peer_addr);
+	if (!dev) {
+		p2p_dbg(p2p, "Bootstrap request for peer " MACSTR
+			" not yet known", MAC2STR(peer_addr));
+		return -1;
+	}
+
+	dev->p2p2 = 1;
+	dev->req_bootstrap_method = bootstrap;
+	return 0;
+}
+
+
 int p2p_prov_disc_req(struct p2p_data *p2p, const u8 *peer_addr,
 		      struct p2ps_provision *p2ps_prov,
 		      u16 config_methods, int join, int force_freq,
@@ -1701,13 +2187,22 @@ int p2p_prov_disc_req(struct p2p_data *p2p, const u8 *peer_addr,
 		return -1;
 	}
 
+	if (dev->p2p2 && dev->req_bootstrap_method) {
+		p2p_dbg(p2p, "Provision Discovery Request with " MACSTR
+			" (bootstrap methods 0x%x)",
+			MAC2STR(peer_addr), dev->req_bootstrap_method);
+		goto out;
+	}
+
 	p2p_dbg(p2p, "Provision Discovery Request with " MACSTR
 		" (config methods 0x%x)",
 		MAC2STR(peer_addr), config_methods);
+
 	if (config_methods == 0 && !p2ps_prov) {
 		os_free(p2ps_prov);
 		return -1;
 	}
+	dev->req_config_methods = config_methods;
 
 	if (p2ps_prov && p2ps_prov->status == P2P_SC_SUCCESS_DEFERRED &&
 	    p2p->p2ps_prov) {
@@ -1715,12 +2210,12 @@ int p2p_prov_disc_req(struct p2p_data *p2p, const u8 *peer_addr,
 		p2ps_prov->method = p2p->p2ps_prov->method;
 	}
 
+out:
 	/* Reset provisioning info */
 	dev->wps_prov_info = 0;
 	p2ps_prov_free(p2p);
 	p2p->p2ps_prov = p2ps_prov;
 
-	dev->req_config_methods = config_methods;
 	if (join)
 		dev->flags |= P2P_DEV_PD_FOR_JOIN;
 	else
@@ -1729,8 +2224,7 @@ int p2p_prov_disc_req(struct p2p_data *p2p, const u8 *peer_addr,
 	if (p2p->state != P2P_IDLE && p2p->state != P2P_SEARCH &&
 	    p2p->state != P2P_LISTEN_ONLY) {
 		p2p_dbg(p2p, "Busy with other operations; postpone Provision Discovery Request with "
-			MACSTR " (config methods 0x%x)",
-			MAC2STR(peer_addr), config_methods);
+			MACSTR, MAC2STR(peer_addr));
 		return 0;
 	}
 

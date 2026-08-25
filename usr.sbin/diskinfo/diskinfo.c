@@ -58,7 +58,7 @@
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: diskinfo [-ciStvw] disk ...\n"
+	fprintf(stderr, "usage: diskinfo [-citSvw] disk ...\n"
 			"       diskinfo [-l] -p disk ...\n"
 			"       diskinfo [-l] -s disk ...\n"
 				);
@@ -91,7 +91,7 @@ main(int argc, char **argv)
 	u_int	sectorsize, fwsectors, fwheads, zoned = 0, isreg;
 	uint32_t zone_mode;
 
-	while ((ch = getopt(argc, argv, "cilpsStvw")) != -1) {
+	while ((ch = getopt(argc, argv, "cilpSstvw")) != -1) {
 		switch (ch) {
 		case 'c':
 			opt_c = 1;
@@ -107,12 +107,12 @@ main(int argc, char **argv)
 		case 'p':
 			opt_p = 1;
 			break;
-		case 's':
-			opt_s = 1;
-			break;
 		case 'S':
 			opt_S = 1;
 			opt_v = 1;
+			break;
+		case 's':
+			opt_s = 1;
 			break;
 		case 't':
 			opt_t = 1;

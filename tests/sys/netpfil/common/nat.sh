@@ -26,6 +26,8 @@
 #
 #
 
+set -e
+
 . $(atf_get_srcdir)/utils.subr
 . $(atf_get_srcdir)/runner.subr
 
@@ -178,13 +180,13 @@ common_cgn() {
 	atf_check -s exit:2 -o ignore jexec client1 ping -t 1 -c 1 198.51.100.2
 	atf_check -s exit:2 -o ignore jexec client2 ping -t 1 -c 1 198.51.100.2
 
-	if [[ $portalias ]]; then
+	if [ ${portalias} = "true" ]; then
 		firewall_config nat $firewall \
 			"ipfw" \
-				"ipfw -q nat 123 config if ${epair_host_nat}b unreg_cgn port_alias 2000-2999" \
-				"ipfw -q nat 456 config if ${epair_host_nat}b unreg_cgn port_alias 3000-3999" \
-				"ipfw -q add 1000 nat 123 all from any to 198.51.100.2 2000-2999 in via ${epair_host_nat}b" \
-				"ipfw -q add 2000 nat 456 all from any to 198.51.100.2 3000-3999 in via ${epair_host_nat}b" \
+				"ipfw -q nat 123 config if ${epair_host_nat}b unreg_cgn port_range 2000-2999" \
+				"ipfw -q nat 456 config if ${epair_host_nat}b unreg_cgn port_range 3000-3999" \
+				"ipfw -q add 1000 nat 123 all from any to 198.51.100.0/24 2000-2999 in via ${epair_host_nat}b" \
+				"ipfw -q add 2000 nat 456 all from any to 198.51.100.0/24 3000-3999 in via ${epair_host_nat}b" \
 				"ipfw -q add 3000 nat 123 all from 100.64.0.2 to any out via ${epair_host_nat}b" \
 				"ipfw -q add 4000 nat 456 all from 100.64.1.2 to any out via ${epair_host_nat}b"
 	else
@@ -194,16 +196,16 @@ common_cgn() {
 				"ipfw -q add 1000 nat 123 all from any to any"
 	fi
 
-	# ping is successful now
-	atf_check -s exit:0 -o ignore jexec client1 ping -t 1 -c 1 198.51.100.2
-	atf_check -s exit:0 -o ignore jexec client2 ping -t 1 -c 1 198.51.100.2
-
 	# if portalias, test a tcp server/client with nc
-	if [[ $portalias ]]; then
+	if [ ${portalias} = "true" ]; then
 		for inst in 1 2; do
-			daemon nc -p 198.51.100.2 7
-			atf_check -s exit:0 -o ignore jexec client$inst sh -c "echo | nc -N 198.51.100.2 7"
+			daemon nc -l 198.51.100.2 7
+			atf_check -s exit:0 -o ignore -e ignore jexec client$inst nc -z 198.51.100.2 7
 		done
+	else
+		# ping is successful now
+		atf_check -s exit:0 -o ignore jexec client1 ping -t 1 -c 1 198.51.100.2
+		atf_check -s exit:0 -o ignore jexec client2 ping -t 1 -c 1 198.51.100.2
 	fi
 }
 

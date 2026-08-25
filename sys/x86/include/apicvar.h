@@ -84,6 +84,7 @@
  * to use that ID.
  */
 #define	IOAPIC_MAX_ID		0xff
+#define	IOAPIC_MAX_EXT_ID	0x7fff
 
 /* I/O Interrupts are used for external devices such as ISA, PCI, etc. */
 #define	APIC_IO_INTS	(IDT_IO_INTS + 16)
@@ -184,12 +185,12 @@ struct apic_enumerator {
 inthand_t
 	IDTVEC(apic_isr1), IDTVEC(apic_isr2), IDTVEC(apic_isr3),
 	IDTVEC(apic_isr4), IDTVEC(apic_isr5), IDTVEC(apic_isr6),
-	IDTVEC(apic_isr7), IDTVEC(cmcint), IDTVEC(errorint),
-	IDTVEC(spuriousint), IDTVEC(timerint),
+	IDTVEC(apic_isr7), IDTVEC(cmcint), IDTVEC(thermalint),
+	IDTVEC(errorint), IDTVEC(spuriousint), IDTVEC(timerint),
 	IDTVEC(apic_isr1_pti), IDTVEC(apic_isr2_pti), IDTVEC(apic_isr3_pti),
 	IDTVEC(apic_isr4_pti), IDTVEC(apic_isr5_pti), IDTVEC(apic_isr6_pti),
-	IDTVEC(apic_isr7_pti), IDTVEC(cmcint_pti), IDTVEC(errorint_pti),
-	IDTVEC(spuriousint_pti), IDTVEC(timerint_pti);
+	IDTVEC(apic_isr7_pti), IDTVEC(cmcint_pti), IDTVEC(thermalint_pti),
+	IDTVEC(errorint_pti), IDTVEC(spuriousint_pti), IDTVEC(timerint_pti);
 
 extern vm_paddr_t lapic_paddr;
 extern int *apic_cpuids;
@@ -213,6 +214,9 @@ int	ioapic_set_triggermode(ioapic_drv_t cookie, u_int pin,
 	    enum intr_trigger trigger);
 int	ioapic_set_smi(ioapic_drv_t cookie, u_int pin);
 
+/* First argument: 'cpuid' from 'struct pcpu', second: Opaque cookie. */
+typedef void lapic_thermal_handler_t(int, void *);
+
 void	lapic_create(u_int apic_id, int boot_cpu);
 void	lapic_init(vm_paddr_t addr);
 void	lapic_xapic_mode(void);
@@ -232,6 +236,8 @@ void	apic_enable_vector(u_int apic_id, u_int vector);
 void	apic_disable_vector(u_int apic_id, u_int vector);
 void	apic_free_vector(u_int apic_id, u_int vector, u_int irq);
 void	lapic_calibrate_timer(void);
+bool	lapic_enable_thermal(lapic_thermal_handler_t *func, void *func_arg);
+void	lapic_disable_thermal(void);
 int	lapic_enable_pcint(void);
 void	lapic_disable_pcint(void);
 void	lapic_reenable_pcint(void);
@@ -247,7 +253,8 @@ lapic_ipi_vectored(u_int vector, int dest)
 }
 
 int	lapic_ipi_wait(int delay);
-int	lapic_ipi_alloc(inthand_t *ipifunc);
+int	lapic_ipi_alloc(inthand_t *ipifunc,
+	    void (*fred_ipifunc)(struct trapframe *));
 void	lapic_ipi_free(int vector);
 int	lapic_set_lvt_mask(u_int apic_id, u_int lvt, u_char masked);
 int	lapic_set_lvt_mode(u_int apic_id, u_int lvt, u_int32_t mode);
@@ -256,6 +263,7 @@ int	lapic_set_lvt_polarity(u_int apic_id, u_int lvt,
 int	lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
 	    enum intr_trigger trigger);
 void	lapic_handle_cmc(void);
+void	lapic_handle_thermal(void);
 void	lapic_handle_error(void);
 void	lapic_handle_intr(int vector, struct trapframe *frame);
 void	lapic_handle_timer(struct trapframe *frame);
@@ -265,6 +273,9 @@ device_t ioapic_get_dev(u_int apic_id);
 
 extern int x2apic_mode;
 extern int lapic_eoi_suppression;
+extern int apic_ext_dest_id;
+
+void xen_arch_intr_handle_upcall(struct trapframe *);
 
 #ifdef _SYS_SYSCTL_H_
 SYSCTL_DECL(_hw_apic);

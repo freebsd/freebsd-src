@@ -85,6 +85,8 @@
 #define	PT_GETREGSET	42	/* Get a target register set */
 #define	PT_SETREGSET	43	/* Set a target register set */
 #define	PT_SC_REMOTE	44	/* Execute a syscall */
+#define	PT_SET_SC_RET	45	/* Set (fake) syscall results */
+#define	PT_GET_CHILDREN	46	/* Report children */
 
 #define PT_FIRSTMACH    64	/* for machine-specific requests */
 #define	PT_LASTMACH     127
@@ -166,7 +168,7 @@ struct ptrace_lwpinfo32 {
 };
 #endif
 
-/* Argument structure for PT_GET_SC_RET. */
+/* Argument structure for PT_GET_SC_RET and PT_SET_SC_RET. */
 struct ptrace_sc_ret {
 	syscallarg_t	sr_retval[2];	/* Only valid if sr_error == 0. */
 	int		sr_error;
@@ -203,6 +205,17 @@ struct ptrace_sc_remote {
 	u_int	pscr_syscall;
 	u_int	pscr_nargs;
 	syscallarg_t	*pscr_args;
+};
+
+#define	PTCHLD_TRACED		0x00000001
+#define	PTCHLD_TRACED_BY_ME	0x00000002
+#define	PTCHLD_EXITED		0x00000004
+#define	PTCHLD_ORPHAN		0x00000008
+
+struct ptrace_child {
+	pid_t	pid;
+	int	flags;
+	uint64ptr_t rsrv[3];
 };
 
 #ifdef _KERNEL
@@ -247,7 +260,20 @@ int	proc_write_fpregs(struct thread *_td, struct fpreg *_fpreg);
 int	proc_read_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_write_dbregs(struct thread *_td, struct dbreg *_dbreg);
 int	proc_sstep(struct thread *_td);
-int	proc_rwmem(struct proc *_p, struct uio *_uio);
+
+#define	PRVM_BLOCK_EXEC		0x00000001
+#define	PRVM_CHECK_VISIBILITY	0x00000002
+#define	PRVM_CHECK_DEBUG	0x00000004
+
+#include <sys/_uio.h>
+struct vmspace;
+int	proc_vmspace_ref(struct thread *_td, struct proc *_p, int _flags,
+	    struct vmspace **_vmp);
+void	proc_vmspace_unref(struct thread *_td, struct proc *_p, int _flags,
+	    struct vmspace *_vm);
+ssize_t	vmspace_iop(struct thread *td, struct vmspace *vm, vm_offset_t va,
+	    void *buf, size_t len, enum uio_rw rw);
+int	proc_rwmem(struct proc *_p, struct uio *_uio, int _flags);
 ssize_t	proc_readmem(struct thread *_td, struct proc *_p, vm_offset_t _va,
 	    void *_buf, size_t _len);
 ssize_t	proc_writemem(struct thread *_td, struct proc *_p, vm_offset_t _va,

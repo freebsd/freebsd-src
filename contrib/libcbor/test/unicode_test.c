@@ -13,7 +13,7 @@ struct _cbor_unicode_status status;
 unsigned char missing_bytes_data[] = {0xC4, 0x8C};
 
 /* Capital accented C */
-static void test_missing_bytes(void **_CBOR_UNUSED(_state)) {
+static void test_missing_bytes(void** _state _CBOR_UNUSED) {
   assert_true(_cbor_unicode_codepoint_count(missing_bytes_data, 1, &status) ==
               0);
   assert_true(status.status == _CBOR_UNICODE_BADCP);
@@ -28,7 +28,7 @@ static void test_missing_bytes(void **_CBOR_UNUSED(_state)) {
 unsigned char invalid_sequence_data[] = {0x65, 0xC4, 0x00};
 
 /* e, invalid seq */
-static void test_invalid_sequence(void **_CBOR_UNUSED(_state)) {
+static void test_invalid_sequence(void** _state _CBOR_UNUSED) {
   assert_true(
       _cbor_unicode_codepoint_count(invalid_sequence_data, 3, &status) == 0);
   assert_true(status.status == _CBOR_UNICODE_BADCP);

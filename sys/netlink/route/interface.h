@@ -36,8 +36,8 @@
 struct ifinfomsg {
 	unsigned char	ifi_family;	/* not used */
 	unsigned char	__ifi_pad;
-	unsigned short	ifi_type;	/* ARPHRD_* */
-	int		ifi_index;	/* Inteface index */
+	unsigned short	ifi_type;	/* IFT_* (net/if_types.h) */
+	int		ifi_index;	/* Interface index */
 	unsigned	ifi_flags;	/* IFF_* flags */
 	unsigned	ifi_change;	/* IFF_* change mask */
 };
@@ -272,6 +272,16 @@ struct ifla_vlan_flags {
 	uint32_t mask;
 };
 
+/* IFLA_INFO_DATA gif attributes */
+enum {
+	IFLA_IPTUN_UNSPEC,
+	IFLA_IPTUN_LOCAL,
+	IFLA_IPTUN_REMOTE,
+	IFLA_IPTUN_FLAGS,
+	__IFLA_IPTUN_MAX,
+};
+#define IFLA_IPTUN_MAX	(__IFLA_IPTUN_MAX - 1)
+
 /* IFLA_INFO_DATA gre attributes */
 enum {
 	IFLA_GRE_UNSPEC,
@@ -285,5 +295,49 @@ enum {
 };
 
 #define IFLA_GRE_MAX	(__IFLA_GRE_MAX - 1)
+
+/* IFLA_INFO_DATA geneve attributes */
+enum {
+	IFLA_GENEVE_UNSPEC,
+	IFLA_GENEVE_ID,
+	IFLA_GENEVE_PROTOCOL,
+	IFLA_GENEVE_LOCAL,
+	IFLA_GENEVE_REMOTE,
+	IFLA_GENEVE_LOCAL_PORT,
+	IFLA_GENEVE_PORT,
+	IFLA_GENEVE_PORT_RANGE,
+	IFLA_GENEVE_DF,
+	IFLA_GENEVE_TTL,
+	IFLA_GENEVE_TTL_INHERIT,
+	IFLA_GENEVE_DSCP_INHERIT,
+	IFLA_GENEVE_COLLECT_METADATA,
+	IFLA_GENEVE_FTABLE_LEARN,
+	IFLA_GENEVE_FTABLE_FLUSH,
+	IFLA_GENEVE_FTABLE_MAX,
+	IFLA_GENEVE_FTABLE_TIMEOUT,
+	IFLA_GENEVE_FTABLE_COUNT,
+	IFLA_GENEVE_FTABLE_NOSPACE_CNT,
+	IFLA_GENEVE_FTABLE_LOCK_UP_FAIL_CNT,
+	IFLA_GENEVE_MC_IFNAME,
+	IFLA_GENEVE_MC_IFINDEX,
+	IFLA_GENEVE_TXCSUM_CNT,
+	IFLA_GENEVE_TSO_CNT,
+	IFLA_GENEVE_RXCSUM_CNT,
+	__IFLA_GENEVE_MAX,
+};
+#define IFLA_GENEVE_MAX	(__IFLA_GENEVE_MAX - 1)
+
+enum ifla_geneve_df {
+	IFLA_GENEVE_DF_UNSET,
+	IFLA_GENEVE_DF_SET,
+	IFLA_GENEVE_DF_INHERIT,
+	__IFLA_GENEVE_DF_MAX,
+};
+#define IFLA_GENEVE_DF_MAX	(__IFLA_GENEVE_DF_MAX - 1)
+
+struct ifla_geneve_port_range {
+	uint16_t low;
+	uint16_t high;
+};
 
 #endif

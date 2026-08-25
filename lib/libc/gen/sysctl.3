@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd July 31, 2025
+.Dd April 15, 2026
 .Dt SYSCTL 3
 .Os
 .Sh NAME
@@ -325,7 +325,7 @@ information.
 .Bl -column "KERNXMAXFILESPERPROCXXX" "struct clockrateXXX" -offset indent
 .It Sy Second Level Name Ta Sy Type Ta Sy Changeable
 .It Dv KERN_ARGMAX Ta integer Ta no
-.It Dv KERN_ARND Ta integer Ta no
+.It Dv KERN_ARND Ta byte buffer Ta no
 .It Dv KERN_BOOTFILE Ta string Ta yes
 .It Dv KERN_BOOTTIME Ta struct timeval Ta no
 .It Dv KERN_CLOCKRATE Ta struct clockinfo Ta no
@@ -333,7 +333,7 @@ information.
 .It Dv KERN_HOSTID Ta integer Ta yes
 .It Dv KERN_HOSTUUID Ta string Ta yes
 .It Dv KERN_HOSTNAME Ta string Ta yes
-.It Dv KERN_IOV_MAX Ta integer Ta yes
+.It Dv KERN_IOV_MAX Ta integer Ta no
 .It Dv KERN_JOB_CONTROL Ta integer Ta no
 .It Dv KERN_LOCKF Ta struct kinfo_lockf Ta no
 .It Dv KERN_LOGSIGEXIT Ta integer Ta yes
@@ -457,7 +457,7 @@ the currently installed userland.
 .It Li KERN_OSRELEASE
 The system release string.
 .It Li KERN_OSREV
-The system revision string.
+The system revision number.
 .It Li KERN_OSTYPE
 The system type string.
 .It Li KERN_POSIX1
@@ -501,14 +501,14 @@ specifies the current process.
 .It Dv KERN_PROC_GROUPS Ta "gid_t []"
 .It Dv KERN_PROC_ENV Ta "Set of strings"
 .It Dv KERN_PROC_AUXV Ta "Elf_Auxinfo []"
-.It Dv KERN_PROC_RLIMIT Ta "Integer"
-.It Dv KERN_PROC_PS_STRINGS Ta "Integer"
+.It Dv KERN_PROC_RLIMIT Ta "struct rlimit"
+.It Dv KERN_PROC_PS_STRINGS Ta "Pointer to struct ps_strings"
 .It Dv KERN_PROC_UMASK Ta "Integer/short"
 .It Dv KERN_PROC_OSREL Ta "Integer"
-.It Dv KERN_PROC_SIGTRAMP Ta "Integer"
-.It Dv KERN_PROC_CWD Ta "String"
+.It Dv KERN_PROC_SIGTRAMP Ta "struct kinfo_sigtramp"
+.It Dv KERN_PROC_CWD Ta "struct kinfo_file"
 .It Dv KERN_PROC_NFDS Ta "Integer"
-.It Dv KERN_PROC_SIGFASTBLK Ta "Integer"
+.It Dv KERN_PROC_SIGFASTBLK Ta "Address"
 .It Dv KERN_PROC_VM_LAYOUT Ta "struct kinfo_vm_layout"
 .It Dv KERN_PROC_RLIMIT_USAGE Ta "rlim_t []"
 .It Dv KERN_PROC_KQUEUE Ta "struct kinfo_knote []"
@@ -570,7 +570,8 @@ Read from the note of the elf executable at
 time.
 Might be modified by the process.
 .It Dv KERN_PROC_SIGTRAMP
-Address of the signal trampoline in the process address space,
+Structure describing the address range of the signal trampoline in the
+process address space,
 where, simplifying, the kernel passes control for signal delivery.
 .It Dv KERN_PROC_CWD
 Returns the current working directory for the process.
@@ -586,6 +587,12 @@ Fills a structure describing process virtual address space layout.
 Like
 .Dv KERN_PROC_RLIMIT ,
 but instead of the limit, returns the accounted resource usage.
+If the MIB is of the form
+.Li kern.proc.rlimit_usage\&. Ns Va pid ,
+usage values for all resources are returned.
+If the MIB is of the form
+.Li kern.proc.rlimit_usage\&. Ns Va pid Ns \&. Ns Va resource ,
+the usage value for the specified resource is returned.
 For resources which do not have a meaningful current value,
 .Li \-1
 is returned.

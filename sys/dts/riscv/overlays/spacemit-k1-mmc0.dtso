@@ -1,0 +1,32 @@
+#include <dt-bindings/clock/spacemit,k1-syscon.h>
+
+/dts-v1/;
+/plugin/;
+/ {
+	compatible = "bananapi,bpi-f3", "spacemit,k1";
+};
+
+&{/soc/storage-bus} {
+	sd: mmc@d4280000 {
+		compatible = "spacemit,k1-sdhci";
+		reg = <0x0 0xd4280000 0x0 0x200>;
+		clocks = <&syscon_apmu CLK_SDH_AXI>,
+			 <&syscon_apmu CLK_SDH0>;
+		clock-names = "core", "io";
+		resets = <&syscon_apmu RESET_SDH_AXI>,
+			 <&syscon_apmu RESET_SDH0>;
+		reset-names = "axi", "sdh";
+		interrupts = <99>;
+		status = "disabled";
+	};
+};
+
+&sd {
+	bus-width = <4>;
+	wp-inverted;
+	no-mmc;
+	no-sdio;
+	/* SD supports clock rates up to SDR104. */
+	max-frequency = <208000000>;
+	status = "okay";
+};

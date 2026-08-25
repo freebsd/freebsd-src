@@ -1,0 +1,5 @@
+Tool: bomtool
+ToolArgs: --creation-time=test nolicense
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib-sbom
+ExpectedStdoutFile: ../../tests/lib-sbom-files/bomtool-nolicense.txt
+ExpectedExitCode: 0

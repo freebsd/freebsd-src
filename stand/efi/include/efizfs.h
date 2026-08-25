@@ -49,8 +49,6 @@ typedef struct zfsinfo
         uint64_t zi_pool_guid;
 } zfsinfo_t;
 
-extern uint64_t pool_guid;
-
 void efi_zfs_probe(void);
 EFI_HANDLE efizfs_get_handle_by_guid(uint64_t);
 bool efizfs_get_guid_by_handle(EFI_HANDLE, uint64_t *);

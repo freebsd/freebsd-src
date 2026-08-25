@@ -108,6 +108,19 @@ static gid_t	audit_review_gid = -1;
 static char	*lastfile = NULL;
 
 /*
+ * File descriptor to our locked pid file.
+ */
+static int	pidfd;
+
+#ifndef USE_MACH_IPC
+/*
+ * Original signal mask in effect at startup.  Used by the main event loop
+ * and the log child.
+ */
+sigset_t	auditd_origmask;
+#endif /* !USE_MACH_IPC */
+
+/*
  * Error starting auditd. Run warn script and exit.
  */
 static void
@@ -354,12 +367,20 @@ close_misc(void)
 		auditd_log_err("Couldn't remove %s: %m", AUDITD_PIDFILE);
 		return (1);
 	}
+	close(pidfd);
+	pidfd = -1;
 	endac();
 
 	if (auditd_close_trigger() != 0) {
 		auditd_log_err("Error closing trigger messaging mechanism");
 		return (1);
 	}
+
+#ifndef USE_MACH_IPC
+	/* Restore the original signal mask. */
+	sigprocmask(SIG_SETMASK, &auditd_origmask, NULL);
+#endif /* !USE_MACH_IPC */
+
 	return (0);
 }
 
@@ -416,9 +437,17 @@ static int
 register_daemon(void)
 {
 	struct sigaction action;
-	FILE * pidfile;
-	int fd;
-	pid_t pid;
+	sigset_t sigmask;
+
+#ifndef USE_MACH_IPC
+	/* Set up the signal mask. */
+	sigemptyset(&sigmask);
+	sigaddset(&sigmask, SIGTERM);
+	sigaddset(&sigmask, SIGALRM);
+	sigaddset(&sigmask, SIGCHLD);
+	sigaddset(&sigmask, SIGHUP);
+	sigprocmask(SIG_BLOCK, &sigmask, &auditd_origmask);
+#endif /* !USE_MACH_IPC */
 
 	/* Set up the signal hander. */
 	action.sa_handler = auditd_relay_signal;
@@ -449,29 +478,30 @@ register_daemon(void)
 		fail_exit();
 	}
 
-	if ((pidfile = fopen(AUDITD_PIDFILE, "a")) == NULL) {
+	/* Open the pid file. */
+	pidfd = open(AUDITD_PIDFILE, O_CREAT | O_WRONLY | O_APPEND | O_CLOEXEC,
+	    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	if (pidfd < 0) {
 		auditd_log_err("Could not open PID file");
 		audit_warn_tmpfile();
 		return (-1);
 	}
 
 	/* Attempt to lock the pid file; if a lock is present, exit. */
-	fd = fileno(pidfile);
-	if (flock(fd, LOCK_EX | LOCK_NB) < 0) {
+	if (flock(pidfd, LOCK_EX | LOCK_NB) < 0) {
 		auditd_log_err(
 		    "PID file is locked (is another auditd running?).");
 		audit_warn_ebusy();
 		return (-1);
 	}
 
-	pid = getpid();
-	ftruncate(fd, 0);
-	if (fprintf(pidfile, "%u\n", pid) < 0) {
+	/* Write our pid to the pid file and leave it open. */
+	ftruncate(pidfd, 0);
+	if (dprintf(pidfd, "%u\n", getpid()) < 0) {
 		/* Should not start the daemon. */
 		fail_exit();
 	}
 
-	fflush(pidfile);
 	return (0);
 }
 

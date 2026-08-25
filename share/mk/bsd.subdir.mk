@@ -45,14 +45,14 @@ SUBDIR_TARGETS+= \
 		cleanobj depend distribute files includes installconfig \
 		installdirs \
 		installfiles installincludes print-dir realinstall \
-		maninstall manlint ${_obj} objlink tags \
+		maninstall manlint ${_obj} objlink stagepackages tags \
 
 # Described above.
 STANDALONE_SUBDIR_TARGETS+= \
 		all-man buildconfig buildfiles buildincludes check checkdpadd \
 		clean cleandepend cleandir cleanilinks cleanobj files includes \
 		installconfig installdirs installincludes installfiles print-dir \
-		maninstall manlint obj objlink
+		maninstall manlint obj objlink stagepackages
 
 .include <bsd.init.mk>
 

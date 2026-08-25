@@ -76,7 +76,7 @@ struct vt9p_softc {
 /* Global channel list, Each channel will correspond to a mount point */
 static STAILQ_HEAD( ,vt9p_softc) global_chan_list =
     STAILQ_HEAD_INITIALIZER(global_chan_list);
-struct mtx global_chan_list_mtx;
+static struct mtx global_chan_list_mtx;
 MTX_SYSINIT(global_chan_list_mtx, &global_chan_list_mtx, "9pglobal", MTX_DEF);
 
 static struct virtio_feature_desc virtio_9p_feature_desc[] = {
@@ -85,13 +85,6 @@ static struct virtio_feature_desc virtio_9p_feature_desc[] = {
 };
 
 VIRTIO_SIMPLE_PNPINFO(virtio_p9fs, VIRTIO_ID_9P, "VirtIO 9P Transport");
-
-/* We don't currently allow canceling of virtio requests */
-static int
-vt9p_cancel(void *handle, struct p9_req_t *req)
-{
-	return (1);
-}
 
 SYSCTL_NODE(_vfs, OID_AUTO, 9p, CTLFLAG_RW, 0, "9P File System Protocol");
 
@@ -112,7 +105,7 @@ SYSCTL_UINT(_vfs_9p, OID_AUTO, ackmaxidle, CTLFLAG_RW, &vt9p_ackmaxidle, 0,
 static int
 vt9p_req_wait(struct vt9p_softc *chan, struct p9_req_t *req)
 {
-	KASSERT(req->tc->tag != req->rc->tag,
+	KASSERT(req->tc.tag != req->rc.tag,
 	    ("%s: request %p already completed", __func__, req));
 
 	if (msleep(req, VT9P_MTX(chan), 0, "chan lock", vt9p_ackmaxidle * hz)) {
@@ -124,7 +117,7 @@ vt9p_req_wait(struct vt9p_softc *chan, struct p9_req_t *req)
 		    "for an ack from host\n", vt9p_ackmaxidle);
 		return (EIO);
 	}
-	KASSERT(req->tc->tag == req->rc->tag,
+	KASSERT(req->tc.tag == req->rc.tag,
 	    ("%s spurious event on request %p", __func__, req));
 	return (0);
 }
@@ -157,7 +150,7 @@ vt9p_request(void *handle, struct p9_req_t *req)
 req_retry:
 	sglist_reset(sg);
 	/* Handle out VirtIO ring buffers */
-	error = sglist_append(sg, req->tc->sdata, req->tc->size);
+	error = sglist_append(sg, req->tc.sdata, req->tc.size);
 	if (error != 0) {
 		P9_DEBUG(ERROR, "%s: sglist append failed\n", __func__);
 		VT9P_UNLOCK(chan);
@@ -165,7 +158,7 @@ req_retry:
 	}
 	readable = sg->sg_nseg;
 
-	error = sglist_append(sg, req->rc->sdata, req->rc->capacity);
+	error = sglist_append(sg, req->rc.sdata, req->rc.capacity);
 	if (error != 0) {
 		P9_DEBUG(ERROR, "%s: sglist append failed\n", __func__);
 		VT9P_UNLOCK(chan);
@@ -226,7 +219,7 @@ vt9p_intr_complete(void *xsc)
 	VT9P_LOCK(chan);
 again:
 	while ((curreq = virtqueue_dequeue(vq, NULL)) != NULL) {
-		curreq->rc->tag = curreq->tc->tag;
+		curreq->rc.tag = curreq->tc.tag;
 		wakeup_one(curreq);
 	}
 	if (virtqueue_enable_intr(vq) != 0) {
@@ -278,6 +271,10 @@ vt9p_detach(device_t dev)
 	struct vt9p_softc *sc;
 
 	sc = device_get_softc(dev);
+
+	if (sc->busy)
+		return (EBUSY);
+
 	VT9P_LOCK(sc);
 	vt9p_stop(sc);
 	VT9P_UNLOCK(sc);
@@ -443,7 +440,6 @@ static struct p9_trans_module vt9p_trans = {
 	.create = vt9p_create,
 	.close = vt9p_close,
 	.request = vt9p_request,
-	.cancel = vt9p_cancel,
 };
 
 static device_method_t vt9p_mthds[] = {
@@ -464,16 +460,20 @@ static int
 vt9p_modevent(module_t mod, int type, void *unused)
 {
 	int error;
+	static int loaded = 0;
 
 	error = 0;
 
 	switch (type) {
 	case MOD_LOAD:
-		p9_init_zones();
-		p9_register_trans(&vt9p_trans);
+		if (loaded++ == 0) {
+			p9_register_trans(&vt9p_trans);
+		}
 		break;
 	case MOD_UNLOAD:
-		p9_destroy_zones();
+		if (--loaded == 0) {
+			p9_unregister_trans(&vt9p_trans);
+		}
 		break;
 	case MOD_SHUTDOWN:
 		break;
@@ -481,6 +481,7 @@ vt9p_modevent(module_t mod, int type, void *unused)
 		error = EOPNOTSUPP;
 		break;
 	}
+
 	return (error);
 }
 

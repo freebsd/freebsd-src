@@ -39,12 +39,21 @@ static void ptksa_cache_expire(void *eloop_ctx, void *timeout_ctx)
 	struct ptksa_cache *ptksa = eloop_ctx;
 	struct ptksa_cache_entry *e, *next;
 	struct os_reltime now;
+	struct dl_list expired;
 
 	if (!ptksa)
 		return;
 
 	os_get_reltime(&now);
+	dl_list_init(&expired);
 
+	/*
+	 * Move expired entries from the main ptksa list to a temporary
+	 * 'expired' list. This prevents issues if the callback (e->cb)
+	 * triggers operations like ptksa_cache_flush(), which would iterate
+	 * over ptksa->ptksa. By removing entries first, flush operations
+	 * will not double-process or double-free these entries.
+	 */
 	dl_list_for_each_safe(e, next, &ptksa->ptksa,
 			      struct ptksa_cache_entry, list) {
 		if (e->expiration > now.sec)
@@ -53,10 +62,17 @@ static void ptksa_cache_expire(void *eloop_ctx, void *timeout_ctx)
 		wpa_printf(MSG_DEBUG, "Expired PTKSA cache entry for " MACSTR,
 			   MAC2STR(e->addr));
 
+		dl_list_del(&e->list);
+		ptksa->n_ptksa--;
+		dl_list_add_tail(&expired, &e->list);
+	}
+
+	dl_list_for_each_safe(e, next, &expired,
+			      struct ptksa_cache_entry, list) {
+		dl_list_del(&e->list);
 		if (e->cb && e->ctx)
 			e->cb(e);
-		else
-			ptksa_cache_free_entry(ptksa, e);
+		bin_clear_free(e, sizeof(*e));
 	}
 
 	ptksa_cache_set_expiration(ptksa);
@@ -267,6 +283,7 @@ void ptksa_cache_flush(struct ptksa_cache *ptksa, const u8 *addr, u32 cipher)
  * @life_time_expiry_cb: Callback for alternative expiration handling
  * @ctx: Context pointer to save into e->ctx for the callback
  * @akmp: The key management mechanism that was used to derive the PTK
+ * @auth_alg: The authentication algorithm that was used to derive the PTK
  * Returns: Pointer to the added PTKSA cache entry or %NULL on error
  *
  * This function creates a PTKSA entry and adds it to the PTKSA cache.
@@ -280,7 +297,7 @@ struct ptksa_cache_entry * ptksa_cache_add(struct ptksa_cache *ptksa,
 					   const struct wpa_ptk *ptk,
 					   void (*life_time_expiry_cb)
 					   (struct ptksa_cache_entry *e),
-					   void *ctx, u32 akmp)
+					   void *ctx, u32 akmp, u16 auth_alg)
 {
 	struct ptksa_cache_entry *entry, *tmp, *tmp2 = NULL;
 	struct os_reltime now;
@@ -306,6 +323,7 @@ struct ptksa_cache_entry * ptksa_cache_add(struct ptksa_cache *ptksa,
 	entry->cb = life_time_expiry_cb;
 	entry->ctx = ctx;
 	entry->akmp = akmp;
+	entry->auth_alg = auth_alg;
 
 	if (own_addr)
 		os_memcpy(entry->own_addr, own_addr, ETH_ALEN);
@@ -374,7 +392,8 @@ int ptksa_cache_list(struct ptksa_cache *ptksa, char *buf, size_t len)
 struct ptksa_cache_entry *
 ptksa_cache_add(struct ptksa_cache *ptksa, const u8 *own_addr, const u8 *addr,
 		u32 cipher, u32 life_time, const struct wpa_ptk *ptk,
-		void (*cb)(struct ptksa_cache_entry *e), void *ctx, u32 akmp)
+		void (*cb)(struct ptksa_cache_entry *e), void *ctx, u32 akmp,
+		u16 auth_alg)
 {
 	return NULL;
 }

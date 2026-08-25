@@ -214,6 +214,9 @@ gve_process_device_options(struct gve_priv *priv,
 	return (0);
 }
 
+static int gve_adminq_issue_cmd(struct gve_priv *priv,
+    struct gve_adminq_command *cmd);
+static int gve_adminq_kick_and_wait(struct gve_priv *priv);
 static int gve_adminq_execute_cmd(struct gve_priv *priv,
     struct gve_adminq_command *cmd);
 
@@ -225,7 +228,7 @@ gve_adminq_destroy_tx_queue(struct gve_priv *priv, uint32_t id)
 	cmd.opcode = htobe32(GVE_ADMINQ_DESTROY_TX_QUEUE);
 	cmd.destroy_tx_queue.queue_id = htobe32(id);
 
-	return (gve_adminq_execute_cmd(priv, &cmd));
+	return (gve_adminq_issue_cmd(priv, &cmd));
 }
 
 static int
@@ -236,7 +239,7 @@ gve_adminq_destroy_rx_queue(struct gve_priv *priv, uint32_t id)
 	cmd.opcode = htobe32(GVE_ADMINQ_DESTROY_RX_QUEUE);
 	cmd.destroy_rx_queue.queue_id = htobe32(id);
 
-	return (gve_adminq_execute_cmd(priv, &cmd));
+	return (gve_adminq_issue_cmd(priv, &cmd));
 }
 
 int
@@ -248,13 +251,18 @@ gve_adminq_destroy_rx_queues(struct gve_priv *priv, uint32_t num_queues)
 	for (i = 0; i < num_queues; i++) {
 		err = gve_adminq_destroy_rx_queue(priv, i);
 		if (err != 0) {
-			device_printf(priv->dev, "Failed to destroy rxq %d, err: %d\n",
+			device_printf(priv->dev, "Failed to issue destroy rxq %d, err: %d\n",
 			    i, err);
+			return (err);
 		}
 	}
 
-	if (err != 0)
+	err = gve_adminq_kick_and_wait(priv);
+	if (err != 0) {
+		device_printf(priv->dev, "Failed to batch destroy rx queues, err: %d\n",
+		    err);
 		return (err);
+	}
 
 	device_printf(priv->dev, "Destroyed %d rx queues\n", num_queues);
 	return (0);
@@ -269,13 +277,18 @@ gve_adminq_destroy_tx_queues(struct gve_priv *priv, uint32_t num_queues)
 	for (i = 0; i < num_queues; i++) {
 		err = gve_adminq_destroy_tx_queue(priv, i);
 		if (err != 0) {
-			device_printf(priv->dev, "Failed to destroy txq %d, err: %d\n",
+			device_printf(priv->dev, "Failed to issue destroy txq %d, err: %d\n",
 			    i, err);
+			return (err);
 		}
 	}
 
-	if (err != 0)
+	err = gve_adminq_kick_and_wait(priv);
+	if (err != 0) {
+		device_printf(priv->dev, "Failed to batch destroy tx queues, err: %d\n",
+		    err);
 		return (err);
+	}
 
 	device_printf(priv->dev, "Destroyed %d tx queues\n", num_queues);
 	return (0);
@@ -325,7 +338,7 @@ gve_adminq_create_rx_queue(struct gve_priv *priv, uint32_t queue_index)
 		    htobe16(priv->rx_buf_size_dqo);
 	}
 
-	return (gve_adminq_execute_cmd(priv, &cmd));
+	return (gve_adminq_issue_cmd(priv, &cmd));
 }
 
 int
@@ -337,10 +350,17 @@ gve_adminq_create_rx_queues(struct gve_priv *priv, uint32_t num_queues)
 	for (i = 0; i < num_queues; i++) {
 		err = gve_adminq_create_rx_queue(priv, i);
 		if (err != 0) {
-			device_printf(priv->dev, "Failed to create rxq %d, err: %d\n",
+			device_printf(priv->dev, "Failed to issue create rxq %d, err: %d\n",
 			    i, err);
 			goto abort;
 		}
+	}
+
+	err = gve_adminq_kick_and_wait(priv);
+	if (err != 0) {
+		device_printf(priv->dev, "Failed to batch create rx queues, err: %d\n",
+		    err);
+		goto abort;
 	}
 
 	if (bootverbose)
@@ -381,7 +401,7 @@ gve_adminq_create_tx_queue(struct gve_priv *priv, uint32_t queue_index)
 		cmd.create_tx_queue.tx_comp_ring_size =
 		    htobe16(priv->tx_desc_cnt);
 	}
-	return (gve_adminq_execute_cmd(priv, &cmd));
+	return (gve_adminq_issue_cmd(priv, &cmd));
 }
 
 int
@@ -393,10 +413,17 @@ gve_adminq_create_tx_queues(struct gve_priv *priv, uint32_t num_queues)
 	for (i = 0; i < num_queues; i++) {
 		err = gve_adminq_create_tx_queue(priv, i);
 		if (err != 0) {
-			device_printf(priv->dev, "Failed to create txq %d, err: %d\n",
+			device_printf(priv->dev, "Failed to issue create txq %d, err: %d\n",
 			    i, err);
 			goto abort;
 		}
+	}
+
+	err = gve_adminq_kick_and_wait(priv);
+	if (err != 0) {
+		device_printf(priv->dev, "Failed to batch create tx queues, err: %d\n",
+		    err);
+		goto abort;
 	}
 
 	if (bootverbose)

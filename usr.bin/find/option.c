@@ -162,6 +162,8 @@ static OPTION const options[] = {
 	{ "-user",	c_user,		f_user,		0 },
 	{ "-wholename",	c_name,		f_path,		0 },
 	{ "-writable",	c_simple,	f_writable,	0 },
+	{ "-xattr",	c_simple,	f_xattr,	0 },
+	{ "-xattrname",	c_name,		f_xattrname,	0 },
 	{ "-xdev",	c_xdev,		f_always_true,	0 },
 // -xtype
 };

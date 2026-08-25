@@ -263,9 +263,23 @@ File size in bytes.
 .It Va st_blksize
 Optimal I/O block size for the file.
 .It Va st_blocks
-Actual number of blocks allocated for the file in 512-byte units.
+Actual number of blocks allocated for the file.
+.Pp
+For files located on non-synthetic filesystems, the block size is 512 bytes.
 As short symbolic links are stored in the inode, this number may
 be zero.
+.Pp
+For file descriptors referencing specific non-file objects,
+the field is type-specific.
+.Pp
+For POSIX shared memory segments
+.Pq see Xr shm_open 2 ,
+the block size is 512 bytes.
+For older versions of
+.Fx
+.Pq before 15.2 and 16.0
+the block size was equal to the platform page size
+.Pq Xr getpagesize 2 .
 .El
 .Pp
 The access-related fields of
@@ -295,7 +309,7 @@ has these bits:
 #define S_IFWHT  0160000  /* whiteout */
 #define S_ISUID  0004000  /* set user id on execution */
 #define S_ISGID  0002000  /* set group id on execution */
-#define S_ISVTX  0001000  /* save swapped text even after use */
+#define S_ISVTX  0001000  /* sticky(7) bit is set */
 #define S_IRWXU  0000700  /* RWX mask for owner */
 #define S_IRUSR  0000400  /* read permission, owner */
 #define S_IWUSR  0000200  /* write permission, owner */

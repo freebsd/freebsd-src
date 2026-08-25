@@ -43,7 +43,7 @@ enum feeder_type {
 };
 
 struct pcm_feederdesc {
-	u_int32_t in, out;
+	uint32_t in, out;
 };
 
 struct feeder_class {
@@ -61,17 +61,14 @@ struct pcm_feeder {
 };
 
 void feeder_register(void *p);
-struct feeder_class *feeder_getclass(u_int32_t type);
+struct feeder_class *feeder_getclass(uint32_t type);
 
-u_int32_t snd_fmtscore(u_int32_t fmt);
-u_int32_t snd_fmtbestbit(u_int32_t fmt, u_int32_t *fmts);
-u_int32_t snd_fmtbestchannel(u_int32_t fmt, u_int32_t *fmts);
-u_int32_t snd_fmtbest(u_int32_t fmt, u_int32_t *fmts);
+uint32_t snd_fmtbest(uint32_t fmt, uint32_t *fmts);
 
 int feeder_add(struct pcm_channel *c, struct feeder_class *fc,
     struct pcm_feederdesc *desc);
 void feeder_remove(struct pcm_channel *c);
-struct pcm_feeder *feeder_find(struct pcm_channel *c, u_int32_t type);
+struct pcm_feeder *feeder_find(struct pcm_channel *c, uint32_t type);
 int feeder_chain(struct pcm_channel *);
 
 #define FEEDER_DECLARE(feeder, ctype)					\
@@ -122,11 +119,6 @@ enum {
 	FEEDEQ_TREBLE,
 	FEEDEQ_BASS,
 	FEEDEQ_PREAMP,
-	FEEDEQ_STATE,
-	FEEDEQ_DISABLE,
-	FEEDEQ_ENABLE,
-	FEEDEQ_BYPASS,
-	FEEDEQ_UNKNOWN
 };
 
 int feeder_eq_validrate(uint32_t);
@@ -163,21 +155,3 @@ int feeder_matrix_oss_get_channel_order(struct pcmchan_matrix *,
     unsigned long long *);
 int feeder_matrix_oss_set_channel_order(struct pcmchan_matrix *,
     unsigned long long *);
-
-/*
- * By default, various feeders only deal with sign 16/32 bit native-endian
- * since it should provide the fastest processing path. Processing 8bit samples
- * is too noisy due to limited dynamic range, while 24bit is quite slow due to
- * unnatural per-byte read/write. However, for debugging purposes, ensuring
- * implementation correctness and torture test, the following can be defined:
- *
- *      SND_FEEDER_MULTIFORMAT - Compile all type of converters, but force
- *                               8bit samples to be converted to 16bit
- *                               native-endian for better dynamic range.
- *                               Process 24bit samples natively.
- * SND_FEEDER_FULL_MULTIFORMAT - Ditto, but process 8bit samples natively.
- */
-#ifdef SND_FEEDER_FULL_MULTIFORMAT
-#undef SND_FEEDER_MULTIFORMAT
-#define SND_FEEDER_MULTIFORMAT	1
-#endif

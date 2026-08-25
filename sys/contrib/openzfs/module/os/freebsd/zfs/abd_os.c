@@ -7,7 +7,7 @@
  *
  * A full copy of the text of the CDDL should have accompanied this
  * source.  A copy of the CDDL is also available via the Internet at
- * http://www.illumos.org/license/CDDL.
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -597,7 +597,7 @@ abd_borrow_buf(abd_t *abd, size_t n)
 {
 	void *buf;
 	abd_verify(abd);
-	ASSERT3U(abd->abd_size, >=, 0);
+	ASSERT3U(abd->abd_size, >=, n);
 	if (abd_is_linear(abd)) {
 		buf = abd_to_buf(abd);
 	} else {

@@ -30,12 +30,12 @@ The API is designed to allow both very tight control & flexibility and general c
    api/encoding
    api/streaming_decoding
    api/streaming_encoding
-   api/type_0_1
-   api/type_2
-   api/type_3
-   api/type_4
-   api/type_5
-   api/type_6
-   api/type_7
+   api/type_0_1_integers
+   api/type_2_byte_strings
+   api/type_3_strings
+   api/type_4_arrays
+   api/type_5_maps
+   api/type_6_tags
+   api/type_7_floats_ctrls
 
 .. [#] http://softwareengineering.vazexqi.com/files/pattern.html

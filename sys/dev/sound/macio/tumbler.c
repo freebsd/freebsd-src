@@ -100,7 +100,7 @@ static int	tumbler_uninit(struct snd_mixer *m);
 static int	tumbler_reinit(struct snd_mixer *m);
 static int	tumbler_set(struct snd_mixer *m, unsigned dev, unsigned left,
 		    unsigned right);
-static u_int32_t	tumbler_setrecsrc(struct snd_mixer *m, u_int32_t src);
+static uint32_t	tumbler_setrecsrc(struct snd_mixer *m, uint32_t src);
 
 static device_method_t tumbler_methods[] = {
 	/* Device interface. */
@@ -250,7 +250,7 @@ const char tumbler_regsize[] = {
 };
 
 /* dB = 20 * log (x) table. */
-static u_int	tumbler_volume_table[100] = {      	
+static unsigned int	tumbler_volume_table[100] = {      	
 	0x00000148,   0x0000015C,   0x00000171,   0x00000186,   // -46.0,	-45.5,	-45.0,	-44.5,
 	0x0000019E,   0x000001B6,   0x000001D0,   0x000001EB,   // -44.0,	-43.5,	-43.0,	-42.5,
 	0x00000209,   0x00000227,   0x00000248,   0x0000026B,   // -42.0,	-41.5,	-41.0,	-40.5,
@@ -281,7 +281,7 @@ static u_int	tumbler_volume_table[100] = {
 static int
 tumbler_write(struct tumbler_softc *sc, uint8_t reg, const void *data)
 {
-	u_int size;
+	unsigned int size;
 	uint8_t buf[16];
 
 	struct iic_msg msg[] = {
@@ -336,7 +336,7 @@ static int
 tumbler_init(struct snd_mixer *m)
 {
 	struct tumbler_softc *sc;
-	u_int		x = 0;
+	unsigned int		x = 0;
 
 	sc = device_get_softc(mix_getdevinfo(m));
 
@@ -383,14 +383,10 @@ static int
 tumbler_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct tumbler_softc *sc;
-	struct mtx *mixer_lock;
-	int locked;
-	u_int l, r;
+	unsigned int l, r;
 	u_char reg[6];
 
 	sc = device_get_softc(mix_getdevinfo(m));
-	mixer_lock = mixer_get_lock(m);
-	locked = mtx_owned(mixer_lock);
 
 	switch (dev) {
 	case SOUND_MIXER_VOLUME:
@@ -407,20 +403,7 @@ tumbler_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 		reg[4] = (r & 0x00ff00) >> 8;
 		reg[5] = r & 0x0000ff;
 
-		/*
-		 * We need to unlock the mixer lock because iicbus_transfer()
-		 * may sleep. The mixer lock itself is unnecessary here
-		 * because it is meant to serialize hardware access, which
-		 * is taken care of by the I2C layer, so this is safe.
-		 */
-
-		if (locked)
-			mtx_unlock(mixer_lock);
-
 		tumbler_write(sc, TUMBLER_VOLUME, reg);
-
-		if (locked)
-			mtx_lock(mixer_lock);
 
 		return (left | (right << 8));
 	}
@@ -428,8 +411,8 @@ tumbler_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	return (0);
 }
 
-static u_int32_t
-tumbler_setrecsrc(struct snd_mixer *m, u_int32_t src)
+static uint32_t
+tumbler_setrecsrc(struct snd_mixer *m, uint32_t src)
 {
 	return (0);
 }

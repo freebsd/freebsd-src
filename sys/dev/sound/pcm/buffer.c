@@ -36,6 +36,7 @@
 #include "opt_snd.h"
 #endif
 
+#include <sys/refcount.h>
 #include <dev/sound/pcm/sound.h>
 
 #include "feeder_if.h"
@@ -45,13 +46,17 @@
 #include "snd_fxdiv_gen.h"
 
 struct snd_dbuf *
-sndbuf_create(struct pcm_channel *channel, const char *desc)
+sndbuf_create(struct pcm_channel *channel, uint32_t fmt, uint32_t spd,
+    const char *desc)
 {
 	struct snd_dbuf *b;
 
 	b = malloc(sizeof(*b), M_DEVBUF, M_WAITOK | M_ZERO);
+	refcount_init(&b->refcount, 1);
 	snprintf(b->name, SNDBUF_NAMELEN, "%s:%s", channel->name, desc);
 	b->channel = channel;
+	sndbuf_setfmt(b, fmt);
+	sndbuf_setspd(b, spd);
 
 	return b;
 }
@@ -59,8 +64,30 @@ sndbuf_create(struct pcm_channel *channel, const char *desc)
 void
 sndbuf_destroy(struct snd_dbuf *b)
 {
-	sndbuf_free(b);
-	free(b, M_DEVBUF);
+	b->flags |= SNDBUF_F_DETACHED;
+	sndbuf_rele(b);
+}
+
+void
+sndbuf_ref(struct snd_dbuf *b)
+{
+	unsigned int count __diagused;
+
+	CHN_LOCK(b->channel);
+	count = refcount_acquire(&b->refcount);
+	KASSERT(count > 0, ("sndbuf %p refcount 0", b));
+	CHN_UNLOCK(b->channel);
+}
+
+void
+sndbuf_rele(struct snd_dbuf *b)
+{
+	if (refcount_release(&b->refcount)) {
+		sndbuf_free(b);
+		KASSERT(refcount_load(&b->refcount) == 0,
+		    ("sndbuf %p still referenced", b));
+		free(b, M_DEVBUF);
+	}
 }
 
 static void
@@ -70,8 +97,9 @@ sndbuf_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 	if (snd_verbose > 3) {
 		printf("sndbuf_setmap %lx, %lx; ",
-		    (u_long)segs[0].ds_addr, (u_long)segs[0].ds_len);
-		printf("%p -> %lx\n", b->buf, (u_long)segs[0].ds_addr);
+		    (unsigned long)segs[0].ds_addr,
+		    (unsigned long)segs[0].ds_len);
+		printf("%p -> %lx\n", b->buf, (unsigned long)segs[0].ds_addr);
 	}
 	if (error == 0)
 		b->buf_addr = segs[0].ds_addr;
@@ -157,7 +185,7 @@ int
 sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 {
 	unsigned int bufsize, allocsize;
-	u_int8_t *tmpbuf;
+	uint8_t *tmpbuf;
 
 	CHN_LOCK(b->channel);
 	if (b->maxsize == 0)
@@ -177,6 +205,11 @@ sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 
 	if (bufsize > b->allocsize ||
 	    bufsize < (b->allocsize >> SNDBUF_CACHE_SHIFT)) {
+		if (refcount_load(&b->refcount) > 1 ||
+		    (b->flags & SNDBUF_F_DETACHED) != 0) {
+			CHN_UNLOCK(b->channel);
+			return (EBUSY);
+		}
 		allocsize = round_page(bufsize);
 		CHN_UNLOCK(b->channel);
 		tmpbuf = malloc(allocsize, M_DEVBUF, M_WAITOK);
@@ -206,15 +239,20 @@ int
 sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 {
         unsigned int bufsize, allocsize;
-	u_int8_t *buf, *tmpbuf, *shadbuf;
+	uint8_t *buf, *tmpbuf, *shadbuf;
 
 	if (blkcnt < 2 || blksz < 16)
 		return EINVAL;
+
+	CHN_LOCKASSERT(b->channel);
 
 	bufsize = blksz * blkcnt;
 
 	if (bufsize > b->allocsize ||
 	    bufsize < (b->allocsize >> SNDBUF_CACHE_SHIFT)) {
+		if (refcount_load(&b->refcount) > 1 ||
+		    (b->flags & SNDBUF_F_DETACHED) != 0)
+			return (EBUSY);
 		allocsize = round_page(bufsize);
 		CHN_UNLOCK(b->channel);
 		buf = malloc(allocsize, M_DEVBUF, M_WAITOK);
@@ -288,7 +326,7 @@ sndbuf_fillsilence(struct snd_dbuf *b)
 }
 
 void
-sndbuf_fillsilence_rl(struct snd_dbuf *b, u_int rl)
+sndbuf_fillsilence_rl(struct snd_dbuf *b, unsigned int rl)
 {
 	if (b->bufsize > 0)
 		memset(b->buf, sndbuf_zerodata(b->fmt), b->bufsize);
@@ -329,7 +367,7 @@ sndbuf_reset(struct snd_dbuf *b)
 }
 
 int
-sndbuf_setfmt(struct snd_dbuf *b, u_int32_t fmt)
+sndbuf_setfmt(struct snd_dbuf *b, uint32_t fmt)
 {
 	b->fmt = fmt;
 	b->bps = AFMT_BPS(b->fmt);
@@ -402,7 +440,7 @@ sndbuf_getfreeptr(struct snd_dbuf *b)
 	return (b->rp + b->rl) % b->bufsize;
 }
 
-u_int64_t
+uint64_t
 sndbuf_getblocks(struct snd_dbuf *b)
 {
 	return b->total / b->blksz;
@@ -417,8 +455,8 @@ sndbuf_xbytes(unsigned int v, struct snd_dbuf *from, struct snd_dbuf *to)
 	return snd_xbytes(v, from->align * from->spd, to->align * to->spd);
 }
 
-u_int8_t
-sndbuf_zerodata(u_int32_t fmt)
+uint8_t
+sndbuf_zerodata(uint32_t fmt)
 {
 	if (fmt & (AFMT_SIGNED | AFMT_PASSTHROUGH))
 		return (0x00);
@@ -445,7 +483,7 @@ sndbuf_zerodata(u_int32_t fmt)
  * @retval 0	Unconditional
  */
 int
-sndbuf_acquire(struct snd_dbuf *b, u_int8_t *from, unsigned int count)
+sndbuf_acquire(struct snd_dbuf *b, uint8_t *from, unsigned int count)
 {
 	int l;
 
@@ -482,7 +520,7 @@ sndbuf_acquire(struct snd_dbuf *b, u_int8_t *from, unsigned int count)
  * @returns 0 unconditionally
  */
 int
-sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count)
+sndbuf_dispose(struct snd_dbuf *b, uint8_t *to, unsigned int count)
 {
 	int l;
 
@@ -506,29 +544,11 @@ sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count)
 	return 0;
 }
 
-#ifdef SND_DIAGNOSTIC
-static uint32_t snd_feeder_maxfeed = 0;
-SYSCTL_UINT(_hw_snd, OID_AUTO, feeder_maxfeed, CTLFLAG_RD,
-    &snd_feeder_maxfeed, 0, "maximum feeder count request");
-
-static uint32_t snd_feeder_maxcycle = 0;
-SYSCTL_UINT(_hw_snd, OID_AUTO, feeder_maxcycle, CTLFLAG_RD,
-    &snd_feeder_maxcycle, 0, "maximum feeder cycle");
-#endif
-
 /* count is number of bytes we want added to destination buffer */
 int
 sndbuf_feed(struct snd_dbuf *from, struct snd_dbuf *to, struct pcm_channel *channel, struct pcm_feeder *feeder, unsigned int count)
 {
 	unsigned int cnt, maxfeed;
-#ifdef SND_DIAGNOSTIC
-	unsigned int cycle;
-
-	if (count > snd_feeder_maxfeed)
-		snd_feeder_maxfeed = count;
-
-	cycle = 0;
-#endif
 
 	KASSERT(count > 0, ("can't feed 0 bytes"));
 
@@ -544,15 +564,7 @@ sndbuf_feed(struct snd_dbuf *from, struct snd_dbuf *to, struct pcm_channel *chan
 			break;
 		sndbuf_acquire(to, to->tmpbuf, cnt);
 		count -= cnt;
-#ifdef SND_DIAGNOSTIC
-		cycle++;
-#endif
 	} while (count != 0);
-
-#ifdef SND_DIAGNOSTIC
-	if (cycle > snd_feeder_maxcycle)
-		snd_feeder_maxcycle = cycle;
-#endif
 
 	return (0);
 }
@@ -589,7 +601,7 @@ sndbuf_clearshadow(struct snd_dbuf *b)
 void
 sndbuf_getpeaks(struct snd_dbuf *b, int *lp, int *rp)
 {
-	u_int32_t lpeak, rpeak;
+	uint32_t lpeak, rpeak;
 
 	lpeak = 0;
 	rpeak = 0;

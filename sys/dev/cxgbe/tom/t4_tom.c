@@ -1830,7 +1830,7 @@ live_tid_failure_cleanup(struct adapter *sc, struct toepcb *toep, u_int status)
 	INP_WLOCK(inp);
 	tp = intotcpcb(inp);
 	toep->flags |= TPF_ABORT_SHUTDOWN;
-	if ((inp->inp_flags & INP_DROPPED) == 0) {
+	if ((tp->t_flags & TF_DISCONNECTED) == 0) {
 		struct socket *so = inp->inp_socket;
 
 		if (so != NULL)
@@ -2283,8 +2283,8 @@ find_offload_adapter_cb(struct adapter *sc, void *arg)
 	struct find_offload_adapter_data *fa = arg;
 	struct socket *so = fa->so;
 	struct tom_data *td = sc->tom_softc;
-	struct tcpcb *tp;
-	struct inpcb *inp;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp = intotcpcb(inp);
 
 	/* Non-TCP were filtered out earlier. */
 	MPASS(so->so_proto->pr_protocol == IPPROTO_TCP);
@@ -2295,10 +2295,8 @@ find_offload_adapter_cb(struct adapter *sc, void *arg)
 	if (td == NULL)
 		return;	/* TOE not enabled on this adapter. */
 
-	inp = sotoinpcb(so);
 	INP_WLOCK(inp);
-	if ((inp->inp_flags & INP_DROPPED) == 0) {
-		tp = intotcpcb(inp);
+	if ((tp->t_flags & TF_DISCONNECTED) == 0) {
 		if (tp->t_flags & TF_TOE && tp->tod == &td->tod)
 			fa->sc = sc;	/* Found. */
 	}

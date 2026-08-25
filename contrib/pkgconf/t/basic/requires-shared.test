@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: requires-shared
+WantedFlags: cflags
+ExpectedStdout: -I/test/local/include/requires-shared -I/test/local/include/shared-dep

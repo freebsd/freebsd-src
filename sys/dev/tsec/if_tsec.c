@@ -1321,7 +1321,7 @@ tsec_receive_intr_locked(struct tsec_softc *sc, int count)
 			    ~TSEC_RXBD_ZEROONINIT) | TSEC_RXBD_E | TSEC_RXBD_I;
 
 			if (sc->frame != NULL) {
-				m_free(sc->frame);
+				m_freem(sc->frame);
 				sc->frame = NULL;
 			}
 

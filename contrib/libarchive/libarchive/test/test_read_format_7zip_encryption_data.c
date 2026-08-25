@@ -51,7 +51,7 @@ DEFINE_TEST(test_read_format_7zip_encryption_data)
 	assertEqualInt(1, archive_entry_is_data_encrypted(ae));
 	assertEqualInt(0, archive_entry_is_metadata_encrypted(ae));
 	assertEqualIntA(a, 1, archive_read_has_encrypted_entries(a));
-	assertEqualInt(ARCHIVE_FATAL, archive_read_data(a, buff, sizeof(buff)));
+	assertEqualInt(ARCHIVE_FAILED, archive_read_data(a, buff, sizeof(buff)));
 
 	assertEqualInt(1, archive_file_count(a));
 
@@ -63,7 +63,7 @@ DEFINE_TEST(test_read_format_7zip_encryption_data)
 	assertEqualIntA(a, ARCHIVE_FORMAT_7ZIP, archive_format(a));
 
 	/* Close the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 

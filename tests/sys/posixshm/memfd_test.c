@@ -34,6 +34,8 @@
 #include <errno.h>
 #include <unistd.h>
 
+#include "posixshm.h"
+
 ATF_TC_WITHOUT_HEAD(basic);
 ATF_TC_BODY(basic, tc)
 {
@@ -277,6 +279,41 @@ ATF_TC_BODY(immutable_seals, tc)
 	close(fd);
 }
 
+ATF_TC_WITHOUT_HEAD(hugetlb);
+ATF_TC_BODY(hugetlb, tc)
+{
+	size_t ps[MAXPAGESIZES], pgsize;
+	int fd, pscnt;
+
+	pscnt = pagesizes(ps, false);
+#define	MFD_HUGE_SUPPORTED(sz)	(sz <= (1 << 24))
+#define	MFD_HUGE_FLAGS(sz) (((ffsl(sz) - 1U) << MFD_HUGE_SHIFT) & MFD_HUGE_MASK)
+	for (int psidx = 1; psidx < pscnt; psidx++) {
+		pgsize = ps[psidx];
+
+		if (!MFD_HUGE_SUPPORTED(pgsize))
+			continue;
+
+		fd = memfd_create("...", MFD_HUGETLB | MFD_HUGE_FLAGS(pgsize));
+		if (fd == -1 && errno == ENOTTY)
+			atf_tc_skip("large page requests are not supported on the current platform");
+
+		ATF_REQUIRE_MSG(fd != -1,
+		    "Creating a %zu-size hugetlb memfd", pgsize);
+	}
+
+	fd = memfd_create("...", MFD_HUGETLB);
+	if (pscnt == 1) {
+		ATF_REQUIRE_MSG(fd == -1,
+		    "Creating an unspecified hugetlb memfd without large page support");
+		ATF_REQUIRE(errno == ENOSYS);
+	} else {
+		ATF_REQUIRE_MSG(fd != -1,
+		    "Creating an unspecified hugetlb memfd with large page support");
+		close(fd);
+	}
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
@@ -289,5 +326,6 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, get_seals);
 	ATF_TP_ADD_TC(tp, dup_seals);
 	ATF_TP_ADD_TC(tp, immutable_seals);
+	ATF_TP_ADD_TC(tp, hugetlb);
 	return (atf_no_error());
 }

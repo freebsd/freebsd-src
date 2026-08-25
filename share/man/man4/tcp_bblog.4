@@ -1,0 +1,147 @@
+.\"
+.\" Copyright (c) 2026, Gordon Bergling <gbe@FreeBSD.org>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd July 10, 2026
+.Dt TCP_BBLOG 4
+.Os
+.Sh NAME
+.Nm tcp_bblog
+.Nd TCP Black Box Logging facility
+.Sh SYNOPSIS
+.Cd options TCP_BLACKBOX
+.Sh DESCRIPTION
+The
+.Nm
+facility provides structured logging of TCP stack activity for
+debugging and performance analysis.
+It is implemented in the kernel and allows per-connection tracing
+of TCP events with low overhead.
+Each TCP endpoint may maintain an internal log buffer recording
+events such as packet transmission, reception, retransmissions,
+and state transitions.
+Unlike earlier debugging mechanisms,
+.Nm
+records structured metadata without capturing TCP payload data.
+Logs are exported to userland via the device
+.Pa /dev/tcp_log .
+If no process is actively reading from this device, log records
+may be discarded.
+Each log entry includes:
+.Pp
+.Bl -bullet -compact
+.It
+Connection identifiers, including local and remote addresses and ports
+.It
+Timestamp information
+.It
+TCP state and sequence variables
+.It
+Event-specific metadata
+.El
+.Pp
+Logging may be enabled globally using
+.Xr sysctl 8
+or on a per-connection basis using
+.Xr setsockopt 2
+or
+.Xr tcpsso 8 .
+.Sh MODES
+The following logging modes are supported:
+.Pp
+.Bl -tag -width "TCP_LOG_STATE_CONTINUAL" -compact
+.It Dv TCP_LOG_STATE_OFF
+Disable logging.
+.It Dv TCP_LOG_STATE_TAIL
+Maintain a ring buffer of recent events.
+.It Dv TCP_LOG_STATE_HEAD
+Log only the initial events of a connection.
+.It Dv TCP_LOG_STATE_HEAD_AUTO
+Log initial events and automatically export them.
+.It Dv TCP_LOG_STATE_CONTINUAL
+Continuously log and export events as buffers fill.
+.It Dv TCP_LOG_STATE_TAIL_AUTO
+Maintain a tail buffer and export on overflow.
+.El
+.Sh CONFIGURATION
+Global configuration is available via
+.Xr sysctl 8
+under the
+.Va net.inet.tcp.bb
+namespace.
+Notable variables include:
+.Bl -tag -width "net.inet.tcp.bb.log_session_limit" -compact
+.It Va net.inet.tcp.bb.log_auto_all
+Enable logging consideration for all TCP connections.
+.It Va net.inet.tcp.bb.log_auto_ratio
+Select one out of N connections for logging.
+.It Va net.inet.tcp.bb.log_auto_mode
+Default logging mode applied automatically.
+When set to 1 the last net.inet.tcp.bb.log_session_limit entries
+are stored at the TCP endpoint.
+This is a good way to capture information when debugging TCP
+related panics.
+.It Va net.inet.tcp.bb.log_session_limit
+Maximum number of log entries per connection.
+.It Va net.inet.tcp.bb.log_global_limit
+Global limit on allocated log entries.
+.El
+.Sh FILES
+.Bl -tag -width "/var/log/tcplog_dumps" -compact
+.It Pa /dev/tcp_log
+TCP BBLog device interface
+.It Pa /var/log/tcplog_dumps
+Default directory for stored log output
+.El
+.Sh EXAMPLES
+Enable continual logging for all TCP connections:
+.Bd -literal -offset indent
+sysctl net.inet.tcp.bb.log_auto_all=1
+sysctl net.inet.tcp.bb.log_auto_ratio=1
+sysctl net.inet.tcp.bb.log_auto_mode=4
+.Ed
+.Pp
+Enable logging on a specific socket:
+.Bd -literal -offset indent
+int mode = TCP_LOG_STATE_CONTINUAL;
+setsockopt(sd, IPPROTO_TCP, TCP_LOG, &mode, sizeof(mode));
+.Ed
+.Sh SEE ALSO
+.Xr tcpdump 1 ,
+.Xr setsockopt 2 ,
+.Xr tcp 4 ,
+.Xr sysctl 8 ,
+.Xr tcpsso 8
+.Rs
+.%A "Randall Stewart"
+.%A "Michael T\(:uxen"
+.%T "Adventures in TCP/IP: TCP Black Box Logging"
+.%J "FreeBSD Journal"
+.%D "May / June 2024"
+.%U "https://freebsdfoundation.org/adventures-in-tcp-ip-tcp-black-box-logging/"
+.Re
+.Sh HISTORY
+The
+.Nm
+facility first appeared in
+.Fx 13.0
+and replaced earlier TCP debugging mechanisms.
+.Sh AUTHORS
+The
+.Nm
+facility was written by
+.An -nosplit
+.An Randall Stewart Aq Mt rrs@freebsd.org
+and
+.An Jonathan Looney Aq Mt jtl@freebsd.org
+and sponsored by Netflix, Inc.
+This manual page was written by
+.An Gordon Bergling Aq Mt gbe@FreeBSD.org .
+.Sh CAVEATS
+Log records may be dropped if userland does not drain
+.Pa /dev/tcp_log
+fast enough.
+TCP payload data is not recorded.
+.Sh BUGS
+Logging may introduce measurable overhead under high connection rates.

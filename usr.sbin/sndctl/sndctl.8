@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd December 2, 2025
+.Dd April 17, 2026
 .Dt SNDCTL 8
 .Os
 .Sh NAME
@@ -82,6 +82,8 @@ The device controls are as follows:
 .It bitperfect Ta Boolean Ta Read/Write Ta Bit-perfect mode enabled
 .It autoconv Ta Boolean Ta Read/Write Ta Auto-conversions enabled
 .It realtime Ta Boolean Ta Read/Write Ta Real-time mode enabled
+.It eq Ta Boolean Ta Read/Write Ta Equalization enabled
+.It eq_preamp Ta String Ta Read/Write Ta Equalization preamp value (in dB)
 .It play Ta Group Ta Read Ta Playback properties
 .It play.format Ta String Ta Read/Write Ta Playback format
 .It play.rate Ta Number Ta Read/Write Ta Playback sample rate

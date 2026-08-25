@@ -248,6 +248,12 @@ Instructs the kernel to send the original message header in the reply
 without the message body.
 .It Dv NETLINK_EXT_ACK
 Acknowledges ability to receive additional TLVs in the ACK message.
+.It Dv NETLINK_GET_STRICT_CHK
+Enables strict header checking.
+.It Dv NETLINK_MSG_INFO
+.Pq FreeBSD-specific
+Receives message originator data via socket control messages
+.Pq cmsg .
 .El
 .Pp
 Additionally, netlink overrides the following socket options from the

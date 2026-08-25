@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Yubico AB. All rights reserved.
+ * Copyright (c) 2018-2024 Yubico AB. All rights reserved.
  * Use of this source code is governed by a BSD-style
  * license that can be found in the LICENSE file.
  * SPDX-License-Identifier: BSD-2-Clause
@@ -14,6 +14,13 @@
 #include <fcntl.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+
+#if defined(__has_feature)
+# if  __has_feature(memory_sanitizer)
+#  include <sanitizer/msan_interface.h>
+#  define WITH_MSAN	1
+# endif
 #endif
 
 #include "fido.h"
@@ -45,6 +52,9 @@ int
 fido_get_random(void *buf, size_t len)
 {
 	arc4random_buf(buf, len);
+#ifdef WITH_MSAN
+	__msan_unpoison(buf, len); /* XXX */
+#endif
 	return (0);
 }
 #elif defined(HAVE_GETRANDOM)

@@ -54,6 +54,7 @@ options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
 options 	COMPAT_FREEBSD12	# Compatible with FreeBSD12
 options 	COMPAT_FREEBSD13	# Compatible with FreeBSD13
 options 	COMPAT_FREEBSD14	# Compatible with FreeBSD14
+options 	COMPAT_FREEBSD15	# Compatible with FreeBSD15
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
 options 	STACK			# stack(9) support
@@ -76,6 +77,10 @@ options 	KDB_TRACE		# Print a stack trace for a panic.
 # For full debugger support use (turn off in stable branch):
 include "std.debug"
 
+# Compression support
+options 	GZIO			# gzip (dumps)
+options 	ZSTDIO			# zstd (dumps, tarfs, uzip, zfs)
+
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
 
@@ -86,6 +91,18 @@ device		cpufreq
 device		acpi
 options 	IOMMU
 device		pci
+
+# ATA controllers
+device		ahci			# AHCI-compatible SATA controllers
+
+# ATA/SCSI peripherals
+device		scbus			# SCSI bus (required for ATA/SCSI)
+device		da			# Direct Access (disks)
+device		cd			# CD
+device		pass			# Passthrough device (direct ATA/SCSI access)
+
+# NVM Express (NVMe) support
+device		nvme			# base NVMe driver
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc			# AT keyboard controller
@@ -114,6 +131,7 @@ device		uart			# Generic UART driver
 # Pseudo devices.
 device		loop			# Network loopback
 device		ether			# Ethernet support
+device		md			# Memory "disks"
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!
@@ -121,6 +139,7 @@ device		ether			# Ethernet support
 device		bpf			# Berkeley packet filter
 
 # random(4)
+device		padlock_rng		# VIA Padlock RNG
 device		rdrand_rng		# Intel Bull Mountain RNG
 # Disabled for now since tpm(4) breaks suspend/resume.
 #device		tpm			# Trusted Platform Module
@@ -133,8 +152,8 @@ device		virtio			# Generic VirtIO bus (required)
 device		virtio_pci		# VirtIO PCI device
 device		vtnet			# VirtIO Ethernet device
 device		virtio_blk		# VirtIO Block device
-device		virtio_balloon		# VirtIO Memory Balloon device
 device		virtio_scsi		# VirtIO SCSI device
+device		virtio_balloon		# VirtIO Memory Balloon device
 
 # Linux KVM paravirtualization support
 device		kvm_clock		# KVM paravirtual clock driver
@@ -151,15 +170,3 @@ device		xentimer		# Xen x86 PV timer device
 options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		evdev			# input event device support
 device		uinput			# install /dev/uinput cdev
-
-# NVM Express (NVMe) support
-device		nvme			# base NVMe driver
-
-# ATA controllers
-device		ahci			# AHCI-compatible SATA controllers
-
-# CAM
-device		scbus			# SCSI bus (required for ATA/SCSI)
-device		da			# Direct Access (disks)
-device		cd			# CD
-device		pass			# Passthrough device (direct ATA/SCSI access)

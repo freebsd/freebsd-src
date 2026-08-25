@@ -87,40 +87,81 @@ struct in_addr dhcp_serverip;
 struct bootp *bootp_response;
 size_t bootp_response_size;
 
+/*
+ * DHCP Client-System Architecture per RFC 4578 (option 93).  Each netif
+ * driver that has a spec-defined value for what it is sets this from
+ * its own init path (e.g. efinet_dev_init on UEFI, pxe_init on legacy
+ * BIOS PXE).  BOOTP_ARCH_UNSET means the loader has no honest value to
+ * report (e.g. U-Boot or OpenFirmware, for which RFC 4578 has no
+ * assignment), and the option is omitted from the DHCP request rather
+ * than misrepresenting the client.
+ */
+#define	BOOTP_ARCH_UNSET	0xFFFF
+uint16_t bootp_client_arch = BOOTP_ARCH_UNSET;
+
 static void
 bootp_fill_request(unsigned char *bp_vend)
 {
+	int off = 0;
+
 	/*
 	 * We are booting from PXE, we want to send the string
 	 * 'PXEClient' to the DHCP server so you have the option of
 	 * only responding to PXE aware dhcp requests.
 	 */
-	bp_vend[0] = TAG_CLASSID;
-	bp_vend[1] = 9;
-	bcopy("PXEClient", &bp_vend[2], 9);
-	bp_vend[11] = TAG_USER_CLASS;
+	bp_vend[off++] = TAG_CLASSID;
+	bp_vend[off++] = 9;
+	bcopy("PXEClient", &bp_vend[off], 9);
+	off += 9;
+
+	bp_vend[off++] = TAG_USER_CLASS;
 	/* len of each user class + number of user class */
-	bp_vend[12] = 8;
+	bp_vend[off++] = 8;
 	/* len of the first user class */
-	bp_vend[13] = 7;
-	bcopy("FreeBSD", &bp_vend[14], 7);
-	bp_vend[21] = TAG_PARAM_REQ;
-	bp_vend[22] = 7;
-	bp_vend[23] = TAG_ROOTPATH;
-	bp_vend[24] = TAG_HOSTNAME;
-	bp_vend[25] = TAG_SWAPSERVER;
-	bp_vend[26] = TAG_GATEWAY;
-	bp_vend[27] = TAG_SUBNET_MASK;
-	bp_vend[28] = TAG_INTF_MTU;
-	bp_vend[29] = TAG_SERVERID;
-	bp_vend[30] = TAG_END;
+	bp_vend[off++] = 7;
+	bcopy("FreeBSD", &bp_vend[off], 7);
+	off += 7;
+
+	/*
+	 * Client architecture (RFC 4578).  Value is 2 bytes big-endian.
+	 * Omit entirely for loaders that don't have a spec-defined value.
+	 */
+	if (bootp_client_arch != BOOTP_ARCH_UNSET) {
+		bp_vend[off++] = TAG_CLIENT_ARCH;
+		bp_vend[off++] = 2;
+		bp_vend[off++] = (bootp_client_arch >> 8) & 0xff;
+		bp_vend[off++] = bootp_client_arch & 0xff;
+	}
+
+	/*
+	 * Maximum DHCP message size we can accept (RFC 2132).  The loader's
+	 * UDP read path allocates dynamically per packet up to the interface
+	 * MTU, so advertise ~MTU to unlock large option payloads that some
+	 * servers would otherwise trim to the RFC 2131 § 4.4.1 576-byte
+	 * default.
+	 */
+	bp_vend[off++] = TAG_MAXSIZE;
+	bp_vend[off++] = 2;
+	bp_vend[off++] = (1472 >> 8) & 0xff;
+	bp_vend[off++] = 1472 & 0xff;
+
+	bp_vend[off++] = TAG_PARAM_REQ;
+	bp_vend[off++] = 7;
+	bp_vend[off++] = TAG_ROOTPATH;
+	bp_vend[off++] = TAG_HOSTNAME;
+	bp_vend[off++] = TAG_SWAPSERVER;
+	bp_vend[off++] = TAG_GATEWAY;
+	bp_vend[off++] = TAG_SUBNET_MASK;
+	bp_vend[off++] = TAG_INTF_MTU;
+	bp_vend[off++] = TAG_SERVERID;
+	bp_vend[off] = TAG_END;
 }
 
 /* Fetch required bootp infomation */
 void
 bootp(int sock)
 {
-	void *pkt;
+	void *pkt = NULL;
 	struct iodesc *d;
 	struct bootp *bp;
 	struct {
@@ -128,36 +169,28 @@ bootp(int sock)
 		struct bootp wbootp;
 	} wbuf;
 	struct bootp *rbootp;
+	bool init_reboot = false;
 
 	DEBUG_PRINTF(1, ("bootp: socket=%d\n", sock));
 	if (!bot)
 		bot = getsecs();
-	
+
 	if (!(d = socktodesc(sock))) {
 		printf("bootp: bad socket. %d\n", sock);
 		return;
 	}
 	DEBUG_PRINTF(1, ("bootp: socktodesc=%lx\n", (long)d));
 
+restart:
 	bp = &wbuf.wbootp;
 	bzero(bp, sizeof(*bp));
 
 	bp->bp_op = BOOTREQUEST;
 	bp->bp_htype = 1;		/* 10Mb Ethernet (48 bits) */
 	bp->bp_hlen = 6;
-	bp->bp_xid = htonl(d->xid);
 	MACPY(d->myea, bp->bp_chaddr);
 	strncpy(bp->bp_file, bootfile, sizeof(bp->bp_file));
 	bcopy(vm_rfc1048, bp->bp_vend, sizeof(vm_rfc1048));
-#ifdef SUPPORT_DHCP
-	bp->bp_vend[4] = TAG_DHCP_MSGTYPE;
-	bp->bp_vend[5] = 1;
-	bp->bp_vend[6] = DHCPDISCOVER;
-	bootp_fill_request(&bp->bp_vend[7]);
-
-#else
-	bp->bp_vend[4] = TAG_END;
-#endif
 
 	d->myip.s_addr = INADDR_ANY;
 	d->myport = htons(IPPORT_BOOTPC);
@@ -165,42 +198,125 @@ bootp(int sock)
 	d->destport = htons(IPPORT_BOOTPS);
 
 #ifdef SUPPORT_DHCP
-	expected_dhcpmsgtype = DHCPOFFER;
-	dhcp_ok = 0;
+	/*
+	 * If a DHCP reply is already cached (populated by a lower layer
+	 * that captured it from firmware, e.g. UEFI PXE Base Code), enter
+	 * RFC 2131 § 4.3.2 INIT-REBOOT: skip DISCOVER/OFFER and go
+	 * straight to REQUEST with option 50 = cached IP.  The DHCP
+	 * server confirms the lease with an ACK containing whatever
+	 * options this client asks for, which may be a superset of what
+	 * the firmware asked for (e.g. option 26 interface-MTU, option 16
+	 * swap-server).  On NAK or timeout, fall back to a full
+	 * DISCOVER/OFFER/REQUEST/ACK cycle.
+	 */
+	if (bootp_response != NULL &&
+	    bootp_response->bp_yiaddr.s_addr != INADDR_ANY) {
+		init_reboot = true;
+		rbootp = bootp_response;
+		/*
+		 * INIT-REBOOT is a new DHCP transaction, distinct from
+		 * the firmware's cached DISCOVER/OFFER/REQUEST/ACK.
+		 * Use the firmware's xid just as an entropy source.
+		 */
+		d->xid = ntohl(rbootp->bp_xid) + 1;
+		DEBUG_PRINTF(1, ("bootp: using cached DHCP reply "
+		    "(INIT-REBOOT), yiaddr=%s xid=0x%08x\n",
+		    inet_ntoa(rbootp->bp_yiaddr), (unsigned)d->xid));
+	} else
+#endif
+	if (d->xid == 0) {
+		/*
+		 * RFC 951 / RFC 2131 § 4.1 recommend a random xid.
+		 * Without a real RNG in the loader, seed from the
+		 * interface MAC (host-unique) mixed with the current
+		 * time (unique across reboots on the same host).  This
+		 * avoids the pre-existing behavior of every fresh
+		 * BOOTP/DHCP client sending xid=0, which risks
+		 * broadcast-reply mis-correlation when several PXE
+		 * clients boot concurrently — bootprecv() enforces
+		 * xid matching.
+		 */
+		memcpy(&d->xid, &d->myea[2], sizeof(d->xid));
+		d->xid ^= (uint32_t)getsecs();
+	}
+	bp->bp_xid = htonl(d->xid);
+
+	if (!init_reboot) {
+#ifdef SUPPORT_DHCP
+		bp->bp_vend[4] = TAG_DHCP_MSGTYPE;
+		bp->bp_vend[5] = 1;
+		bp->bp_vend[6] = DHCPDISCOVER;
+		bootp_fill_request(&bp->bp_vend[7]);
+		expected_dhcpmsgtype = DHCPOFFER;
+		dhcp_ok = 0;
+#else
+		bp->bp_vend[4] = TAG_END;
 #endif
 
-	if(sendrecv(d,
-		    bootpsend, bp, sizeof(*bp),
-		    bootprecv, &pkt, (void **)&rbootp, NULL) == -1) {
-	    printf("bootp: no reply\n");
-	    return;
+		if (sendrecv(d,
+			    bootpsend, bp, sizeof(*bp),
+			    bootprecv, &pkt, (void **)&rbootp, NULL) == -1) {
+			printf("bootp: no reply\n");
+			return;
+		}
 	}
 
 #ifdef SUPPORT_DHCP
-	if(dhcp_ok) {
+	if (dhcp_ok || init_reboot) {
 		uint32_t leasetime;
+		int off;
+
+		bp->bp_vend[4] = TAG_DHCP_MSGTYPE;
+		bp->bp_vend[5] = 1;
 		bp->bp_vend[6] = DHCPREQUEST;
 		bp->bp_vend[7] = TAG_REQ_ADDR;
 		bp->bp_vend[8] = 4;
 		bcopy(&rbootp->bp_yiaddr, &bp->bp_vend[9], 4);
-		bp->bp_vend[13] = TAG_SERVERID;
-		bp->bp_vend[14] = 4;
-		bcopy(&dhcp_serverip.s_addr, &bp->bp_vend[15], 4);
-		bp->bp_vend[19] = TAG_LEASETIME;
-		bp->bp_vend[20] = 4;
+		off = 13;
+		if (!init_reboot) {
+			/* SELECTING: server-id identifies the server whose
+			 * OFFER we accepted.  INIT-REBOOT omits it (RFC 2131
+			 * § 4.3.2). */
+			bp->bp_vend[off++] = TAG_SERVERID;
+			bp->bp_vend[off++] = 4;
+			bcopy(&dhcp_serverip.s_addr, &bp->bp_vend[off], 4);
+			off += 4;
+		}
+		bp->bp_vend[off++] = TAG_LEASETIME;
+		bp->bp_vend[off++] = 4;
 		leasetime = htonl(300);
-		bcopy(&leasetime, &bp->bp_vend[21], 4);
-		bootp_fill_request(&bp->bp_vend[25]);
+		bcopy(&leasetime, &bp->bp_vend[off], 4);
+		off += 4;
+		bootp_fill_request(&bp->bp_vend[off]);
 
 		expected_dhcpmsgtype = DHCPACK;
 
-		free(pkt);
-		if(sendrecv(d,
+		if (pkt != NULL) {
+			free(pkt);
+			pkt = NULL;
+		}
+		if (sendrecv(d,
 			    bootpsend, bp, sizeof(*bp),
 			    bootprecv, &pkt, (void **)&rbootp, NULL) == -1) {
+			if (init_reboot) {
+				printf("bootp: INIT-REBOOT failed, "
+				    "falling back to DISCOVER\n");
+				free(bootp_response);
+				bootp_response = NULL;
+				bootp_response_size = 0;
+				init_reboot = false;
+				++d->xid;
+				if (pkt != NULL) {
+					free(pkt);
+					pkt = NULL;
+				}
+				goto restart;
+			}
 			printf("DHCPREQUEST failed\n");
 			return;
 		}
+		if (init_reboot)
+			DEBUG_PRINTF(1, ("bootp: INIT-REBOOT ACK received\n"));
 	}
 #endif
 

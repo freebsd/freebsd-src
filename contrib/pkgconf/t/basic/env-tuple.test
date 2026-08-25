@@ -1,0 +1,5 @@
+Environment: PKG_CONFIG_DUPLICATE_TUPLE_PREFIX=/bar
+PackageSearchPath: lib1
+WantVariable: prefix
+Query: duplicate-tuple
+ExpectedStdout: /bar

@@ -97,8 +97,13 @@ MODULE_VERSION(virtio_pci, 1);
 MODULE_DEPEND(virtio_pci, pci, 1, 1, 1);
 MODULE_DEPEND(virtio_pci, virtio, 1, 1, 1);
 
+SYSCTL_DECL(_hw_virtio);
+SYSCTL_NODE(_hw_virtio, OID_AUTO, pci, CTLFLAG_RD | CTLFLAG_MPSAFE, 0,
+    "VirtIO PCI driver parameters");
+
 int vtpci_disable_msix = 0;
-TUNABLE_INT("hw.virtio.pci.disable_msix", &vtpci_disable_msix);
+SYSCTL_INT(_hw_virtio_pci, OID_AUTO, disable_msix, CTLFLAG_RDTUN,
+    &vtpci_disable_msix, 0, "If set to 1, disables MSI-X.");
 
 static uint8_t
 vtpci_read_isr(struct vtpci_common *cn)

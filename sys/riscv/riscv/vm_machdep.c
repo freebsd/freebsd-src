@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2026 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -32,8 +32,8 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/proc.h>
 #include <sys/sf_buf.h>
@@ -48,33 +48,34 @@
 
 #include <machine/riscvreg.h>
 #include <machine/cpu.h>
+#include <machine/fpe.h>
 #include <machine/cpufunc.h>
 #include <machine/pcb.h>
 #include <machine/frame.h>
 #include <machine/sbi.h>
+#include <machine/vector.h>
 
 #if __riscv_xlen == 64
 #define	TP_OFFSET	16	/* sizeof(struct tcb) */
 #endif
 
-static void
-cpu_set_pcb_frame(struct thread *td)
-{
-	td->td_pcb = (struct pcb *)((char *)td->td_kstack +
-	    td->td_kstack_pages * PAGE_SIZE) - 1;
+static uma_zone_t pcb_zone;
 
+void
+cpu_thread_new_kstack(struct thread *td)
+{
 	/*
 	 * td->td_frame + TF_SIZE will be the saved kernel stack pointer whilst
 	 * in userspace, so keep it aligned so it's also aligned when we
 	 * subtract TF_SIZE in the trap handler (and here for the initial stack
 	 * pointer). This also keeps the struct kernframe just afterwards
-	 * aligned no matter what's in it or struct pcb.
+	 * aligned no matter what's in it.
 	 *
 	 * NB: TF_SIZE not sizeof(struct trapframe) as we need the rounded
 	 * value to match the trap handler.
 	 */
 	td->td_frame = (struct trapframe *)(STACKALIGN(
-	    (char *)td->td_pcb - sizeof(struct kernframe)) - TF_SIZE);
+	    td_kstack_top(td) - sizeof(struct kernframe)) - TF_SIZE);
 }
 
 /*
@@ -91,9 +92,21 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	if ((flags & RFPROC) == 0)
 		return;
 
-	/* RISCVTODO: save the FPU state here */
+	/* Ensure the floating-point state is saved before copying the pcb. */
+	if ((td1->td_pcb->pcb_fpflags & PCB_FP_STARTED) != 0) {
+		MPASS(td1 == curthread);
+		critical_enter();
+		fpe_state_save(td1);
+		critical_exit();
+	}
 
-	cpu_set_pcb_frame(td2);
+	/* Ensure the Vector state is saved before copying the pcb. */
+	if ((td1->td_pcb->pcb_vsflags & PCB_VS_STARTED) != 0) {
+		MPASS(td1 == curthread);
+		critical_enter();
+		vector_state_store(td1);
+		critical_exit();
+	}
 
 	pcb2 = td2->td_pcb;
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
@@ -115,6 +128,9 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	td2->td_pcb->pcb_s[1] = (uintptr_t)td2;
 	td2->td_pcb->pcb_ra = (uintptr_t)fork_trampoline;
 	td2->td_pcb->pcb_sp = (uintptr_t)td2->td_frame;
+
+	if ((td1->td_pcb->pcb_vsflags & PCB_VS_STARTED) != 0)
+		vector_copy_thread(td1, td2);
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
@@ -223,12 +239,13 @@ cpu_thread_exit(struct thread *td)
 void
 cpu_thread_alloc(struct thread *td)
 {
-	cpu_set_pcb_frame(td);
+	td->td_pcb = uma_zalloc(pcb_zone, M_WAITOK);
 }
 
 void
 cpu_thread_free(struct thread *td)
 {
+	uma_zfree(pcb_zone, td->td_pcb);
 }
 
 void
@@ -282,3 +299,11 @@ cpu_sync_core(void)
 {
 	fence_i();
 }
+
+static void
+pcbinit(void *dummy __unused)
+{
+	pcb_zone = uma_zcreate("pcb", sizeof(struct pcb), NULL, NULL, NULL,
+	    NULL, UMA_ALIGNOF(struct pcb), 0);
+}
+SYSINIT(pcbinit, SI_SUB_INTRINSIC, SI_ORDER_ANY, pcbinit, NULL);

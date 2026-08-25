@@ -85,6 +85,8 @@
     cddl
         lib
         ..
+        oclo
+        ..
         sbin
         ..
         usr.bin
@@ -290,14 +292,6 @@
     ..
     games
     ..
-    gnu
-        lib
-        ..
-        usr.bin
-            diff
-            ..
-        ..
-    ..
     include
     ..
     lib
@@ -461,6 +455,8 @@
         ..
         libutil
         ..
+        libutil++
+        ..
         libxo
         ..
         msun
@@ -476,6 +472,8 @@
             ..
         ..
         nuageinit
+        ..
+        pkg-serve
         ..
         rc
         ..
@@ -521,6 +519,8 @@
         ..
         sysctl
         ..
+        tunefs
+        ..
     ..
     secure
         lib
@@ -554,6 +554,8 @@
         acl
         ..
         aio
+        ..
+        arch
         ..
         audit
         ..
@@ -824,6 +826,8 @@
         fs
             fusefs
             ..
+            pjdfstest
+            ..
             tarfs
             ..
             tmpfs
@@ -884,6 +888,8 @@
         mac
             bsdextended
             ..
+            do
+            ..
             ipacl
             ..
             portacl
@@ -899,6 +905,8 @@
                 ..
             ..
             routing
+            ..
+            wg
             ..
         ..
         netgraph
@@ -964,6 +972,8 @@
             ..
             utimensat
             ..
+        ..
+        pmc
         ..
         posixshm
         ..
@@ -1264,6 +1274,8 @@
         yacc
             yacc
             ..
+        ..
+        yes
         ..
     ..
     usr.sbin

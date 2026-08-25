@@ -424,3 +424,5 @@ exp2l(long double x)
 		return (r * twopkp10000 * twom10000);
 	}
 }
+
+__weak_reference(exp2l, exp2f128);

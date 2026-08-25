@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 
@@ -91,6 +81,7 @@ dmu_write_direct_done(zio_t *zio)
 	dmu_sync_arg_t *dsa = zio->io_private;
 	dbuf_dirty_record_t *dr = dsa->dsa_dr;
 	dmu_buf_impl_t *db = dr->dr_dbuf;
+	dmu_tx_t *tx = dsa->dsa_tx;
 
 	abd_free(zio->io_abd);
 
@@ -101,6 +92,11 @@ dmu_write_direct_done(zio_t *zio)
 	db->db_state = DB_UNCACHED;
 	mutex_exit(&db->db_mtx);
 
+	/*
+	 * dmu_sync_done() owns dsa and frees it after publishing the final
+	 * override state.  The direct-I/O error path still needs the original
+	 * open-context tx to roll the dirty record back with dbuf_undirty().
+	 */
 	dmu_sync_done(zio, NULL, zio->io_private);
 
 	if (zio->io_error != 0) {
@@ -120,7 +116,7 @@ dmu_write_direct_done(zio_t *zio)
 		 * calling dbuf_undirty().
 		 */
 		mutex_enter(&db->db_mtx);
-		VERIFY3B(dbuf_undirty(db, dsa->dsa_tx), ==, B_FALSE);
+		VERIFY3B(dbuf_undirty(db, tx), ==, B_FALSE);
 		mutex_exit(&db->db_mtx);
 	}
 

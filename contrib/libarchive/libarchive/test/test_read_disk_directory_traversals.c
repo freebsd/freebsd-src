@@ -230,7 +230,7 @@ test_basic(void)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 
 	/*
 	 * Test that call archive_read_disk_open_w, wchar_t version.
@@ -358,7 +358,7 @@ test_basic(void)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 
 	/*
 	 * Test that call archive_read_disk_open with a regular file.
@@ -381,7 +381,7 @@ test_basic(void)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -427,7 +427,7 @@ test_basic(void)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 
 	/*
 	 * Test for a full-path beginning with "//?/"
@@ -458,7 +458,7 @@ test_basic(void)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	free(fullpath);
 
 	/*
@@ -515,7 +515,7 @@ test_basic(void)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	free(fullpath);
 
 #endif
@@ -658,7 +658,7 @@ test_symlink_hybrid(void)
 	/* There is no entry. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 
 	/*
 	 * Specified file is a directory and it has symbolic files.
@@ -722,7 +722,7 @@ test_symlink_hybrid(void)
 	/* There is no entry. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	/* Destroy the disk object. */
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	archive_entry_free(ae);
@@ -827,7 +827,7 @@ test_symlink_logical(void)
 	/* There is no entry. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 
 	/*
 	 * Specified file is a directory and it has symbolic files.
@@ -953,7 +953,7 @@ test_symlink_logical(void)
 	/* There is no entry. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	/* Destroy the disk object. */
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
@@ -1131,7 +1131,7 @@ test_restore_atime(void)
 	assertFileAtime("at/fe", 886611, 0);
 
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 
 	/*
 	 * Test2: Traversals with archive_read_disk_set_atime_restored().
@@ -1197,7 +1197,7 @@ test_restore_atime(void)
 	assertFileAtime("at/fe", 886611, 0);
 
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 
 	/*
 	 * Test3: Traversals with archive_read_disk_set_atime_restored() but
@@ -1254,7 +1254,7 @@ test_restore_atime(void)
 	}
 
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 
 	/*
 	 * Test4: Traversals with ARCHIVE_READDISK_RESTORE_ATIME and
@@ -1406,7 +1406,7 @@ test_callbacks(void)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 
 	/* Reset name filter */
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -1539,7 +1539,7 @@ test_nodump(void)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 
 	/*
 	 * Test2: Traversals with ARCHIVE_READDISK_HONOR_NODUMP
@@ -1671,7 +1671,7 @@ test_parent(void)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 
 	assertChdir("../..");
 
@@ -1720,7 +1720,7 @@ test_parent(void)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 
 	/*
 	 * Test3: Traverse lock/dir1/.
@@ -1767,7 +1767,7 @@ test_parent(void)
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header2(a, ae));
 
 	/* Close the disk object. */
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 
 	/*
 	 * Test4: Traverse lock/lock2/dir1 from inside lock.
@@ -1842,7 +1842,7 @@ test_parent(void)
 		    archive_read_next_header2(a, ae));
 
 		/* Close the disk object. */
-		assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	}
 
 	assertChdir("..");

@@ -188,7 +188,13 @@ spl_kvmalloc(size_t size, gfp_t lflags)
 		return (ptr);
 	}
 
-	return (spl_vmalloc(size, lflags | __GFP_HIGHMEM));
+	/*
+	 * vmalloc fallback. KM_VMEM may not have been requested originally if
+	 * we've come through spl_kmem_alloc_impl(), so we need to remove
+	 * __GFP_COMP, which is not a valid flag for vmalloc.
+	 */
+	lflags &= ~__GFP_COMP;
+	return (spl_vmalloc(size, lflags));
 }
 
 /*
@@ -237,7 +243,7 @@ spl_kmem_alloc_impl(size_t size, int flags, int node)
 		 */
 		if (size > spl_kmem_alloc_max) {
 			if (flags & KM_VMEM) {
-				ptr = spl_vmalloc(size, lflags | __GFP_HIGHMEM);
+				ptr = spl_vmalloc(size, lflags);
 			} else {
 				return (NULL);
 			}

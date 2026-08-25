@@ -8,7 +8,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -23,7 +23,7 @@
 #
 function get_size_mb
 {
-	du --block-size 1048576 -s "$1" | cut -f1
+	du -m -s "$1" | cut -f1
 }
 
 #

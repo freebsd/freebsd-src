@@ -55,14 +55,4 @@ FILESdc_scriptsMODE=	0755
 
 PLAIN_TESTS_SH=		bc_tests dc_tests
 
-bc_tests.sh:
-	echo "#!/bin/sh" > ${.TARGET}
-	echo 'env LANG=C BC_TEST_OUTPUT_DIR=$$(pwd) \
-		${TESTSDIR}/tests/all.sh -n bc 1 1 0 0 bc' >> ${.TARGET}
-
-dc_tests.sh:
-	echo "#!/bin/sh" > ${.TARGET}
-	echo "env LANG=C BC_TEST_OUTPUT_DIR=\$pwd \
-		${TESTSDIR}/tests/all.sh -n dc 1 1 0 0 dc" >> ${.TARGET}
-
 .include <bsd.test.mk>

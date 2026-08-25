@@ -107,6 +107,9 @@ _authenticate(struct svc_req *rqst, struct rpc_msg *msg)
 		dummy = _svcauth_rpcsec_gss(rqst, msg);
 		return (dummy);
 	case AUTH_TLS:
+		/* Not supported for RDMA. */
+		if (rqst->rq_xprt->xp_socket == NULL)
+			return (AUTH_REJECTEDCRED);
 		dummy = _svcauth_rpcsec_tls(rqst, msg);
 		return (dummy);
 	default:

@@ -89,15 +89,19 @@ static int
 rtwn_usb_match(device_t self)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(self);
+	int error;
 
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 	if (uaa->info.bConfigIndex != RTWN_CONFIG_INDEX)
 		return (ENXIO);
-	if (uaa->info.bIfaceIndex != RTWN_IFACE_INDEX)
-		return (ENXIO);
 
-	return (usbd_lookup_id_by_uaa(rtwn_devs, sizeof(rtwn_devs), uaa));
+	error = usbd_lookup_id_by_uaa(rtwn_devs, sizeof(rtwn_devs), uaa);
+	if (error != 0)
+		return (error);
+
+	return (uaa->info.bIfaceIndex !=
+	    RTWN_USB_DEVINFO_GET_IFACE(uaa) ? ENXIO : 0);
 }
 
 static int
@@ -399,9 +403,9 @@ rtwn_usb_attach(device_t self)
 	mtx_init(&sc->sc_mtx, ic->ic_name, MTX_NETWORK_LOCK, MTX_DEF);
 
 	rtwn_usb_attach_methods(sc);
-	rtwn_usb_attach_private(uc, USB_GET_DRIVER_INFO(uaa));
+	rtwn_usb_attach_private(uc, RTWN_USB_DEVINFO_GET_CHIP(uaa));
 
-	error = rtwn_usb_setup_endpoints(uc);
+	error = rtwn_usb_setup_endpoints(uc, RTWN_USB_DEVINFO_GET_IFACE(uaa));
 	if (error != 0)
 		goto detach;
 

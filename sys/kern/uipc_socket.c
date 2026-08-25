@@ -336,6 +336,33 @@ SYSCTL_BOOL(_kern_ipc_splice, OID_AUTO, receive_stream, CTLFLAG_RWTUN,
     &splice_receive_stream, 0,
     "Use soreceive_stream() for stream splices");
 
+static int splice_num_wq = -1;
+static int
+sysctl_splice_num_wq(SYSCTL_HANDLER_ARGS)
+{
+	int error, new;
+
+	new = splice_num_wq;
+	error = sysctl_handle_int(oidp, &new, 0, req);
+	if (error == 0 && req->newptr && new != splice_num_wq) {
+		if (!cold)
+			sx_xlock(&splice_init_lock);
+		if (new < -1 || new > mp_ncpus ||
+		    (new <= 0 && splice_init_state != 0)) {
+			error = EINVAL;
+		} else {
+			splice_num_wq = new;
+		}
+		if (!cold)
+			sx_xunlock(&splice_init_lock);
+	}
+	return (error);
+}
+SYSCTL_PROC(_kern_ipc_splice, OID_AUTO, num_wq,
+    CTLTYPE_INT | CTLFLAG_RWTUN | CTLFLAG_MPSAFE,
+    &splice_num_wq, 0, sysctl_splice_num_wq, "IU",
+    "Number of splice worker queues");
+
 static uma_zone_t splice_zone;
 static struct proc *splice_proc;
 struct splice_wq {
@@ -447,24 +474,36 @@ splice_init(void)
 		return (0);
 	}
 
+	if (splice_num_wq == -1) {
+		/* if no user preference, use all cores */
+		splice_num_wq = mp_ncpus;
+	} else if (splice_num_wq == 0) {
+		/* allow user to disable */
+		splice_init_state = -1;
+		sx_xunlock(&splice_init_lock);
+		return (ENXIO);
+	} else if (splice_num_wq > mp_ncpus) {
+		splice_num_wq = mp_ncpus;
+	}
+
 	splice_zone = uma_zcreate("splice", sizeof(struct so_splice), NULL,
 	    NULL, splice_zinit, splice_zfini, UMA_ALIGN_CACHE, 0);
 
-	splice_wq = mallocarray(mp_maxid + 1, sizeof(*splice_wq), M_TEMP,
+	splice_wq = mallocarray(mp_ncpus, sizeof(*splice_wq), M_TEMP,
 	    M_WAITOK | M_ZERO);
 
 	/*
 	 * Initialize the workqueues to run the splice work.  We create a
 	 * work queue for each CPU.
 	 */
-	CPU_FOREACH(i) {
+	for (i = 0; i < mp_ncpus; i++) {
 		STAILQ_INIT(&splice_wq[i].head);
 		mtx_init(&splice_wq[i].mtx, "splice work queue", NULL, MTX_DEF);
 	}
 
 	/* Start kthreads for each workqueue. */
 	error = 0;
-	CPU_FOREACH(i) {
+	for (i = 0; i < mp_ncpus; i++) {
 		error = kproc_kthread_add(splice_work_thread, &splice_wq[i],
 		    &splice_proc, &td, 0, 0, "so_splice", "thr_%d", i);
 		if (error) {
@@ -949,6 +988,13 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	struct protosw *prp;
 	struct socket *so;
 	int error;
+
+#ifdef COMPAT_FREEBSD15
+	/* divert(4) historically abuses PF_INET.  Use PF_DIVERT instead. */
+	if (__predict_false(dom == PF_INET && type == SOCK_RAW &&
+	    proto == __IPPROTO_DIVERT))
+		dom = PF_DIVERT;
+#endif
 
 	prp = pffindproto(dom, type, proto);
 	if (prp == NULL) {
@@ -1631,10 +1677,7 @@ so_splice_alloc(off_t max)
 	sp->src = NULL;
 	sp->dst = NULL;
 	sp->max = max > 0 ? max : -1;
-	do {
-		sp->wq_index = atomic_fetchadd_32(&splice_index, 1) %
-		    (mp_maxid + 1);
-	} while (CPU_ABSENT(sp->wq_index));
+	sp->wq_index = atomic_fetchadd_32(&splice_index, 1) % splice_num_wq;
 	sp->state = SPLICE_INIT;
 	TIMEOUT_TASK_INIT(taskqueue_thread, &sp->timeout, 0, so_splice_timeout,
 	    sp);
@@ -1732,7 +1775,7 @@ so_splice(struct socket *so, struct socket *so2, struct splice *splice)
 		return (error);
 	}
 	SOCK_SENDBUF_LOCK(so2);
-	if (so->so_snd.sb_tls_info != NULL) {
+	if (so2->so_snd.sb_tls_info != NULL) {
 		SOCK_SENDBUF_UNLOCK(so2);
 		SOCK_UNLOCK(so2);
 		mtx_lock(&sp->mtx);
@@ -1769,7 +1812,7 @@ so_unsplice(struct socket *so, bool timeout)
 {
 	struct socket *so2;
 	struct so_splice *sp;
-	bool drain, so2rele;
+	bool drain;
 
 	/*
 	 * First unset SB_SPLICED and hide the splice structure so that
@@ -1814,7 +1857,6 @@ so_unsplice(struct socket *so, bool timeout)
 		KASSERT(so2->so_splice_back == sp,
 		    ("%s: so_splice_back != sp", __func__));
 		so2->so_snd.sb_flags &= ~SB_SPLICED;
-		so2rele = so2->so_splice_back != NULL;
 		so2->so_splice_back = NULL;
 		SOCK_SENDBUF_UNLOCK(so2);
 		SOCK_UNLOCK(so2);
@@ -1860,8 +1902,7 @@ so_unsplice(struct socket *so, bool timeout)
 	sorele(so);
 	if (so2 != NULL) {
 		sowwakeup(so2);
-		if (so2rele)
-			sorele(so2);
+		sorele(so2);
 	}
 	CURVNET_RESTORE();
 	so_splice_free(sp);
@@ -3774,8 +3815,9 @@ hhook_run_socket(struct socket *so, void *hctx, int32_t h_id)
  * here, these functions are also called by the protocol-level pr_ctloutput()
  * routines.
  */
-int
-sooptcopyin(struct sockopt *sopt, void *buf, size_t len, size_t minlen)
+static int
+_sooptcopyin(struct sockopt *sopt, void *buf, size_t len, size_t minlen,
+    bool copycaps)
 {
 	size_t	valsize;
 
@@ -3790,12 +3832,33 @@ sooptcopyin(struct sockopt *sopt, void *buf, size_t len, size_t minlen)
 	if (valsize > len)
 		sopt->sopt_valsize = valsize = len;
 
-	if (sopt->sopt_td != NULL)
-		return (copyin(sopt->sopt_val, buf, valsize));
+	if (sopt->sopt_td != NULL) {
+		if (copycaps)
+			return (copyinptr(sopt->sopt_val, buf, valsize));
+		else
+			return (copyin(sopt->sopt_val, buf, valsize));
+	}
 
-	bcopy(sopt->sopt_val, buf, valsize);
+	if (copycaps)
+		memcpy(buf, sopt->sopt_val, valsize);
+	else
+		memcpy_data(buf, sopt->sopt_val, valsize);
 	return (0);
 }
+
+int
+sooptcopyin(struct sockopt *sopt, void *buf, size_t len, size_t minlen)
+{
+	return (_sooptcopyin(sopt, buf, len, minlen, false));
+}
+
+#ifdef __CHERI__
+int
+sooptcopyinptr(struct sockopt *sopt, void *buf, size_t len, size_t minlen)
+{
+	return (_sooptcopyin(sopt, buf, len, minlen, true));
+}
+#endif
 
 /*
  * Kernel version of setsockopt(2).
@@ -3875,6 +3938,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 		case SO_NO_DDP:
 		case SO_NO_OFFLOAD:
 		case SO_RERROR:
+stdopt:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 			    sizeof optval);
 			if (error)
@@ -3886,6 +3950,14 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 				so->so_options &= ~sopt->sopt_name;
 			SOCK_UNLOCK(so);
 			break;
+
+		case SO_PASSRIGHTS:
+			if (so->so_proto->pr_domain->dom_family != AF_LOCAL) {
+				error = EOPNOTSUPP;
+				goto bad;
+			}
+
+			goto stdopt;
 
 		case SO_SETFIB:
 			error = so->so_proto->pr_ctloutput(so, sopt);
@@ -4075,7 +4147,7 @@ sooptcopyout(struct sockopt *sopt, const void *buf, size_t len)
 		if (sopt->sopt_td != NULL)
 			error = copyout(buf, sopt->sopt_val, valsize);
 		else
-			bcopy(buf, sopt->sopt_val, valsize);
+			memcpy_data(sopt->sopt_val, buf, valsize);
 	}
 	return (error);
 }
@@ -4126,10 +4198,19 @@ sogetopt(struct socket *so, struct sockopt *sopt)
 		case SO_NO_DDP:
 		case SO_NO_OFFLOAD:
 		case SO_RERROR:
+stdopt:
 			optval = so->so_options & sopt->sopt_name;
 integer:
 			error = sooptcopyout(sopt, &optval, sizeof optval);
 			break;
+
+		case SO_PASSRIGHTS:
+			if (so->so_proto->pr_domain->dom_family != AF_LOCAL) {
+				error = EOPNOTSUPP;
+				goto bad;
+			}
+
+			goto stdopt;
 
 		case SO_FIB:
 			SOCK_LOCK(so);
@@ -4377,7 +4458,7 @@ soopt_mcopyin(struct sockopt *sopt, struct mbuf *m)
 				return(error);
 			}
 		} else
-			bcopy(sopt->sopt_val, mtod(m, char *), m->m_len);
+			memcpy(mtod(m, char *), sopt->sopt_val, m->m_len);
 		sopt->sopt_valsize -= m->m_len;
 		sopt->sopt_val = (char *)sopt->sopt_val + m->m_len;
 		m = m->m_next;
@@ -4406,7 +4487,7 @@ soopt_mcopyout(struct sockopt *sopt, struct mbuf *m)
 				return(error);
 			}
 		} else
-			bcopy(mtod(m, char *), sopt->sopt_val, m->m_len);
+			memcpy(sopt->sopt_val, mtod(m, char *), m->m_len);
 		sopt->sopt_valsize -= m->m_len;
 		sopt->sopt_val = (char *)sopt->sopt_val + m->m_len;
 		valsize += m->m_len;
@@ -4877,7 +4958,7 @@ sodupsockaddr(const struct sockaddr *sa, int mflags)
 
 	sa2 = malloc(sa->sa_len, M_SONAME, mflags);
 	if (sa2)
-		bcopy(sa, sa2, sa->sa_len);
+		memcpy(sa2, sa, sa->sa_len);
 	return sa2;
 }
 

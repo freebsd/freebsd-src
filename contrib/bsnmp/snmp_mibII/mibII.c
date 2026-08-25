@@ -485,6 +485,7 @@ mib_fetch_ifmib(struct mibif *ifp)
 		syslog(LOG_WARNING, "sysctl linkmib estimate (%s): %m",
 		    ifp->name);
 		if (ifp->specmib != NULL) {
+			free(ifp->specmib);
 			ifp->specmib = NULL;
 			ifp->specmiblen = 0;
 		}
@@ -492,6 +493,7 @@ mib_fetch_ifmib(struct mibif *ifp)
 	}
 	if (len == 0) {
 		if (ifp->specmib != NULL) {
+			free(ifp->specmib);
 			ifp->specmib = NULL;
 			ifp->specmiblen = 0;
 		}
@@ -500,6 +502,7 @@ mib_fetch_ifmib(struct mibif *ifp)
 
 	if (ifp->specmiblen != len) {
 		if ((newmib = realloc(ifp->specmib, len)) == NULL) {
+			free(ifp->specmib);
 			ifp->specmib = NULL;
 			ifp->specmiblen = 0;
 			goto out;
@@ -510,6 +513,7 @@ mib_fetch_ifmib(struct mibif *ifp)
 	if (sysctl(name, nitems(name), ifp->specmib, &len, NULL, 0) == -1) {
 		syslog(LOG_WARNING, "sysctl linkmib (%s): %m", ifp->name);
 		if (ifp->specmib != NULL) {
+			free(ifp->specmib);
 			ifp->specmib = NULL;
 			ifp->specmiblen = 0;
 		}
@@ -546,9 +550,11 @@ mib_fetch_ifmib(struct mibif *ifp)
 		alias_maxlen = MIBIF_ALIAS_SIZE_MAX;
 
 	/*
+	 * Free any alias memory allocated by a previous call.
 	 * Allocate maximum memory for a buffer and later reallocate
 	 * to free extra memory.
 	 */
+	free(ifp->alias);
 	if ((ifp->alias = malloc(alias_maxlen)) == NULL) {
 		syslog(LOG_WARNING, "malloc(%d) failed: %m", (int)alias_maxlen);
 		goto fin;

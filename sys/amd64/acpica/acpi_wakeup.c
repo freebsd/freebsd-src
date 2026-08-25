@@ -227,8 +227,12 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(wakeup_gdt, uint16_t, pcb->pcb_gdt.rd_limit);
 		WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t, pcb->pcb_gdt.rd_base);
 
-		/* Call ACPICA to enter the desired sleep state */
-		if (state == ACPI_STATE_S4 && acpi_should_do_s4bios(sc))
+		/*
+		 * Call ACPICA to enter the desired sleep state.  Currently,
+		 * reaching this code with 'state' being ACPI_STATE_S4 implies
+		 * a S4BIOS request.
+		 */
+		if (state == ACPI_STATE_S4)
 			status = AcpiEnterSleepStateS4bios();
 		else
 			status = AcpiEnterSleepState(state);
@@ -344,8 +348,7 @@ acpi_alloc_wakeup_handler(void **wakeaddr,
 
 	for (i = 0; i < ACPI_WAKEPT_PAGES - (la57 ? 0 : 1); i++) {
 		wakept_m[i] = pmap_page_alloc_below_4g(true);
-		wakept_pages[i] = (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(
-		    wakept_m[i]));
+		wakept_pages[i] = VM_PAGE_TO_DMAP(wakept_m[i]);
 	}
 	if (EVENTHANDLER_REGISTER(power_resume, acpi_stop_beep, NULL,
 	    EVENTHANDLER_PRI_LAST) == NULL) {

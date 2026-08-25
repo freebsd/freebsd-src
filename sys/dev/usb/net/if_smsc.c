@@ -1296,7 +1296,7 @@ smsc_phy_init(struct smsc_softc *sc)
 	} while ((bmcr & BMCR_RESET) && ((ticks - start_ticks) < max_ticks));
 
 	if (((usb_ticks_t)(ticks - start_ticks)) >= max_ticks) {
-		smsc_err_printf(sc, "PHY reset timed-out");
+		smsc_err_printf(sc, "PHY reset timed-out\n");
 		return (EIO);
 	}
 
@@ -1585,7 +1585,7 @@ smsc_bootargs_get_mac_addr(device_t dev, struct usb_ether *ue)
 	node = OF_finddevice("/chosen");
 	if (node == -1)
 		return (false);
-	if (OF_hasprop(node, "bootargs") == 0) {
+	if (!OF_hasprop(node, "bootargs")) {
 		smsc_dbg_printf((struct smsc_softc *)ue->ue_sc,
 				"bootargs not found");
 		return (false);

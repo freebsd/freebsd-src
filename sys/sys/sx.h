@@ -259,6 +259,10 @@ __sx_xunlock(struct sx *sx, struct thread *td, const char *file, int line)
 	(void)0; /* ensure void type for expression */			\
 })
 
+/* Return true if there are threads waiting to acquire this sx lock. */
+#define	sx_has_waiters(sx)						\
+	((SX_READ_VALUE(sx) & SX_LOCK_WAITERS) != 0)
+
 #define	sx_unlock(sx)	sx_unlock_((sx), LOCK_FILE, LOCK_LINE)
 
 #define	sx_sleep(chan, sx, pri, wmesg, timo)				\

@@ -49,23 +49,6 @@ static inline void bnxt_re_peer_mem_release(struct ib_umem *umem)
 	ib_umem_release(umem);
 }
 
-void bnxt_re_resolve_dmac_task(struct work_struct *work)
-{
-	int rc = -1;
-	struct bnxt_re_dev *rdev;
-	struct ib_ah_attr	*ah_attr;
-	struct bnxt_re_resolve_dmac_work *dmac_work =
-			container_of(work, struct bnxt_re_resolve_dmac_work, work);
-
-	rdev = dmac_work->rdev;
-	ah_attr = dmac_work->ah_attr;
-	rc = ib_resolve_eth_dmac(&rdev->ibdev, ah_attr);
-	if (rc)
-		dev_err(rdev_to_dev(dmac_work->rdev),
-			"Failed to resolve dest mac rc = %d\n", rc);
-	atomic_set(&dmac_work->status_wait, rc << 8);
-}
-
 static int __from_ib_access_flags(int iflags)
 {
 	int qflags = 0;
@@ -241,7 +224,7 @@ int bnxt_re_modify_device(struct ib_device *ibdev,
 	return 0;
 }
 
-static void __to_ib_speed_width(u32 espeed, u8 lanes, u8 *speed, u8 *width)
+static void __to_ib_speed_width(u32 espeed, u8 lanes, u16 *speed, u8 *width)
 {
 	if (!lanes) {
 		switch (espeed) {
@@ -342,7 +325,8 @@ int bnxt_re_query_port(struct ib_device *ibdev, u8 port_num,
 {
 	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
 	struct bnxt_qplib_dev_attr *dev_attr = rdev->dev_attr;
-	u8 active_speed = 0, active_width = 0;
+	u16 active_speed = 0;
+	u8 active_width = 0;
 
 	dev_dbg(rdev_to_dev(rdev), "QUERY PORT with port_num 0x%x\n", port_num);
 	memset(port_attr, 0, sizeof(*port_attr));
@@ -459,12 +443,11 @@ int bnxt_re_query_gid(struct ib_device *ibdev, u8 port_num,
 	return rc;
 }
 
-int bnxt_re_del_gid(struct ib_device *ibdev, u8 port_num,
-		    unsigned int index, void **context)
+int bnxt_re_del_gid(const struct ib_gid_attr *attr, void **context)
 {
 	int rc = 0;
 	struct bnxt_re_gid_ctx *ctx, **ctx_tbl;
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
+	struct bnxt_re_dev *rdev = to_bnxt_re_dev(attr->device, ibdev);
 	struct bnxt_qplib_sgid_tbl *sgid_tbl = &rdev->qplib_res.sgid_tbl;
 	struct bnxt_qplib_gid *gid_to_del;
 	u16 vlan_id = 0xFFFF;
@@ -498,14 +481,14 @@ int bnxt_re_del_gid(struct ib_device *ibdev, u8 port_num,
 			dev_dbg(rdev_to_dev(rdev),
 				"Trying to delete GID0 while QP1 is alive\n");
 			if (!ctx->refcnt) {
-				rdev->gid_map[index] = -1;
+				rdev->gid_map[attr->index] = -1;
 				ctx_tbl = sgid_tbl->ctx;
 				ctx_tbl[ctx->idx] = NULL;
 				kfree(ctx);
 			}
 			return 0;
 		}
-		rdev->gid_map[index] = -1;
+		rdev->gid_map[attr->index] = -1;
 		if (!ctx->refcnt) {
 			rc = bnxt_qplib_del_sgid(sgid_tbl, gid_to_del,
 						 vlan_id, true);
@@ -526,24 +509,25 @@ int bnxt_re_del_gid(struct ib_device *ibdev, u8 port_num,
 	return rc;
 }
 
-int bnxt_re_add_gid(struct ib_device *ibdev, u8 port_num,
-		    unsigned int index, const union ib_gid *gid,
-		    const struct ib_gid_attr *attr, void **context)
+int bnxt_re_add_gid(const struct ib_gid_attr *attr, void **context)
 {
 	int rc;
 	u32 tbl_idx = 0;
 	u16 vlan_id = 0xFFFF;
 	struct bnxt_re_gid_ctx *ctx, **ctx_tbl;
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(ibdev, ibdev);
+	struct bnxt_re_dev *rdev = to_bnxt_re_dev(attr->device, ibdev);
 	struct bnxt_qplib_sgid_tbl *sgid_tbl = &rdev->qplib_res.sgid_tbl;
-	if ((attr->ndev) && is_vlan_dev(attr->ndev))
-		vlan_id = vlan_dev_vlan_id(attr->ndev);
 
-	rc = bnxt_qplib_add_sgid(sgid_tbl, gid,
+	rc = rdma_read_gid_l2_fields(attr, &vlan_id, NULL);
+	if (rc)
+		return rc;
+
+	rc = bnxt_qplib_add_sgid(sgid_tbl, &attr->gid,
 				 rdev->dev_addr,
 				 vlan_id, true, &tbl_idx);
 	if (rc == -EALREADY) {
-		dev_dbg(rdev_to_dev(rdev), "GID %pI6 is already present\n", gid);
+		dev_dbg(rdev_to_dev(rdev), "GID %pI6 is already present\n",
+		        &attr->gid);
 		ctx_tbl = sgid_tbl->ctx;
 		if (!ctx_tbl[tbl_idx]) {
 			ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
@@ -556,8 +540,8 @@ int bnxt_re_add_gid(struct ib_device *ibdev, u8 port_num,
 			ctx_tbl[tbl_idx]->refcnt++;
 		}
 		*context = ctx_tbl[tbl_idx];
-		/* tbl_idx is the HW table index and index is the stack index */
-		rdev->gid_map[index] = tbl_idx;
+		/* tbl_idx is the HW table index and attr->index is the stack index */
+		rdev->gid_map[attr->index] = tbl_idx;
 		return 0;
 	} else if (rc < 0) {
 		dev_err(rdev_to_dev(rdev), "Add GID failed rc = 0x%x\n", rc);
@@ -572,8 +556,8 @@ int bnxt_re_add_gid(struct ib_device *ibdev, u8 port_num,
 		ctx->idx = tbl_idx;
 		ctx->refcnt = 1;
 		ctx_tbl[tbl_idx] = ctx;
-		/* tbl_idx is the HW table index and index is the stack index */
-		rdev->gid_map[index] = tbl_idx;
+		/* tbl_idx is the HW table index and attr->index is the stack index */
+		rdev->gid_map[attr->index] = tbl_idx;
 		*context = ctx;
 	}
 	return rc;
@@ -939,52 +923,27 @@ static u8 _to_bnxt_re_nw_type(enum rdma_network_type ntype)
 	return nw_type;
 }
 
-static inline int
-bnxt_re_get_cached_gid(struct ib_device *dev, u8 port_num, int index,
-		       union ib_gid *sgid, struct ib_gid_attr **sgid_attr,
-		       struct ib_global_route *grh, struct ib_ah *ah)
-{
-	int ret = 0;
-
-	ret = ib_get_cached_gid(dev, port_num, index, sgid, *sgid_attr);
-	return ret;
-}
-
-static inline enum rdma_network_type
-bnxt_re_gid_to_network_type(struct ib_gid_attr *sgid_attr,
-			    union ib_gid *sgid)
-{
-	return ib_gid_to_network_type(sgid_attr->gid_type, sgid);
-}
-
 static int bnxt_re_get_ah_info(struct bnxt_re_dev *rdev,
-			       struct ib_ah_attr *ah_attr,
+			       struct rdma_ah_attr *ah_attr,
 			       struct bnxt_re_ah_info *ah_info)
 {
-	struct ib_gid_attr *gattr;
+	const struct ib_gid_attr *gattr;
 	enum rdma_network_type ib_ntype;
 	u8 ntype;
-	union ib_gid *gid;
+	const struct ib_global_route *grh = rdma_ah_read_grh(ah_attr);
 	int rc = 0;
 
-	gid = &ah_info->sgid;
-	gattr = &ah_info->sgid_attr;
+	gattr = grh->sgid_attr;
+	ah_info->sgid_attr = *gattr;
+	ah_info->sgid = gattr->gid;
 
-	rc = bnxt_re_get_cached_gid(&rdev->ibdev, 1, ah_attr->grh.sgid_index,
-				    gid, &gattr, &ah_attr->grh, NULL);
+	/* Get vlan tag */
+	rc = rdma_read_gid_l2_fields(gattr, &ah_info->vlan_tag, NULL);
 	if (rc)
 		return rc;
 
-	/* Get vlan tag */
-	if (gattr->ndev) {
-		if (is_vlan_dev(gattr->ndev))
-			ah_info->vlan_tag = vlan_dev_vlan_id(gattr->ndev);
-		if_rele(gattr->ndev);
-	}
-
 	/* Get network header type for this GID */
-
-	ib_ntype = bnxt_re_gid_to_network_type(gattr, gid);
+	ib_ntype = rdma_gid_attr_network_type(gattr);
 	ntype = _to_bnxt_re_nw_type(ib_ntype);
 	ah_info->nw_type = ntype;
 
@@ -997,52 +956,7 @@ static u8 _get_sgid_index(struct bnxt_re_dev *rdev, u8 gindx)
 	return gindx;
 }
 
-static int bnxt_re_init_dmac(struct bnxt_re_dev *rdev, struct ib_ah_attr *ah_attr,
-			     struct bnxt_re_ah_info *ah_info, bool is_user,
-			     struct bnxt_re_ah *ah)
-{
-	int rc = 0;
-	u8 *dmac;
-
-	if (is_user && !rdma_is_multicast_addr((struct in6_addr *)
-						ah_attr->grh.dgid.raw) &&
-	    !rdma_link_local_addr((struct in6_addr *)ah_attr->grh.dgid.raw)) {
-
-		u32 retry_count = BNXT_RE_RESOLVE_RETRY_COUNT_US;
-		struct bnxt_re_resolve_dmac_work *resolve_dmac_work;
-
-
-		resolve_dmac_work = kzalloc(sizeof(*resolve_dmac_work), GFP_ATOMIC);
-
-		resolve_dmac_work->rdev = rdev;
-		resolve_dmac_work->ah_attr = ah_attr;
-		resolve_dmac_work->ah_info = ah_info;
-
-		atomic_set(&resolve_dmac_work->status_wait, 1);
-		INIT_WORK(&resolve_dmac_work->work, bnxt_re_resolve_dmac_task);
-		queue_work(rdev->resolve_wq, &resolve_dmac_work->work);
-
-		do {
-			rc = atomic_read(&resolve_dmac_work->status_wait) & 0xFF;
-			if (!rc)
-				break;
-			udelay(1);
-		} while (--retry_count);
-		if (atomic_read(&resolve_dmac_work->status_wait)) {
-			INIT_LIST_HEAD(&resolve_dmac_work->list);
-			list_add_tail(&resolve_dmac_work->list,
-					&rdev->mac_wq_list);
-			return -EFAULT;
-		}
-		kfree(resolve_dmac_work);
-	}
-	dmac = ROCE_DMAC(ah_attr);
-	if (dmac)
-		memcpy(ah->qplib_ah.dmac, dmac, ETH_ALEN);
-	return rc;
-}
-
-int bnxt_re_create_ah(struct ib_ah *ah_in, struct ib_ah_attr *attr,
+int bnxt_re_create_ah(struct ib_ah *ah_in, struct rdma_ah_attr *attr,
 		      u32 flags, struct ib_udata *udata)
 {
 
@@ -1051,43 +965,39 @@ int bnxt_re_create_ah(struct ib_ah *ah_in, struct ib_ah_attr *attr,
 	struct bnxt_re_ah *ah = container_of(ib_ah, struct bnxt_re_ah, ibah);
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ibpd);
 	struct bnxt_re_dev *rdev = pd->rdev;
+	const struct ib_global_route *grh = rdma_ah_read_grh(attr);
 	struct bnxt_re_ah_info ah_info;
 	u32 max_ah_count;
-	bool is_user;
 	int rc;
 	bool block = true;
-	struct ib_ah_attr *ah_attr = attr;
+	struct rdma_ah_attr *ah_attr = attr;
 	block = !(flags & RDMA_CREATE_AH_SLEEPABLE);
 
-	if (!(ah_attr->ah_flags & IB_AH_GRH))
+	if (!(rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH))
 		dev_err(rdev_to_dev(rdev), "ah_attr->ah_flags GRH is not set\n");
 
 	ah->rdev = rdev;
 	ah->qplib_ah.pd = &pd->qplib_pd;
-	is_user = ib_pd->uobject ? true : false;
 
 	/* Supply the configuration for the HW */
-	memcpy(ah->qplib_ah.dgid.data, ah_attr->grh.dgid.raw,
+	memcpy(ah->qplib_ah.dgid.data, grh->dgid.raw,
 			sizeof(union ib_gid));
-	ah->qplib_ah.sgid_index = _get_sgid_index(rdev, ah_attr->grh.sgid_index);
+	ah->qplib_ah.sgid_index = _get_sgid_index(rdev, grh->sgid_index);
 	if (ah->qplib_ah.sgid_index == 0xFF) {
 		dev_err(rdev_to_dev(rdev), "invalid sgid_index!\n");
 		rc = -EINVAL;
 		goto fail;
 	}
-	ah->qplib_ah.host_sgid_index = ah_attr->grh.sgid_index;
-	ah->qplib_ah.traffic_class = ah_attr->grh.traffic_class;
-	ah->qplib_ah.flow_label = ah_attr->grh.flow_label;
-	ah->qplib_ah.hop_limit = ah_attr->grh.hop_limit;
-	ah->qplib_ah.sl = ah_attr->sl;
+	ah->qplib_ah.host_sgid_index = grh->sgid_index;
+	ah->qplib_ah.traffic_class = grh->traffic_class;
+	ah->qplib_ah.flow_label = grh->flow_label;
+	ah->qplib_ah.hop_limit = grh->hop_limit;
+	ah->qplib_ah.sl = rdma_ah_get_sl(ah_attr);
 	rc = bnxt_re_get_ah_info(rdev, ah_attr, &ah_info);
 	if (rc)
 		goto fail;
 	ah->qplib_ah.nw_type = ah_info.nw_type;
-
-	rc = bnxt_re_init_dmac(rdev, ah_attr, &ah_info, is_user, ah);
-	if (rc)
-		goto fail;
+	memcpy(ah->qplib_ah.dmac, ROCE_DMAC(ah_attr), ETH_ALEN);
 
 	rc = bnxt_qplib_create_ah(&rdev->qplib_res, &ah->qplib_ah, block);
 	if (rc) {
@@ -1120,25 +1030,24 @@ fail:
 	return rc;
 }
 
-int bnxt_re_modify_ah(struct ib_ah *ib_ah, struct ib_ah_attr *ah_attr)
+int bnxt_re_modify_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr)
 {
 	return 0;
 }
 
-int bnxt_re_query_ah(struct ib_ah *ib_ah, struct ib_ah_attr *ah_attr)
+int bnxt_re_query_ah(struct ib_ah *ib_ah, struct rdma_ah_attr *ah_attr)
 {
 	struct bnxt_re_ah *ah = to_bnxt_re(ib_ah, struct bnxt_re_ah, ibah);
 
-	memcpy(ah_attr->grh.dgid.raw, ah->qplib_ah.dgid.data,
-	       sizeof(union ib_gid));
-	ah_attr->grh.sgid_index = ah->qplib_ah.host_sgid_index;
-	ah_attr->grh.traffic_class = ah->qplib_ah.traffic_class;
-	ah_attr->sl = ah->qplib_ah.sl;
+	ah_attr->type = ib_ah->type;
+	rdma_ah_set_sl(ah_attr, ah->qplib_ah.sl);
 	memcpy(ROCE_DMAC(ah_attr), ah->qplib_ah.dmac, ETH_ALEN);
-	ah_attr->ah_flags = IB_AH_GRH;
-	ah_attr->port_num = 1;
-	ah_attr->static_rate = 0;
-
+	rdma_ah_set_grh(ah_attr, NULL, 0,
+			ah->qplib_ah.host_sgid_index,
+			0, ah->qplib_ah.traffic_class);
+	rdma_ah_set_dgid_raw(ah_attr, ah->qplib_ah.dgid.data);
+	rdma_ah_set_port_num(ah_attr, 1);
+	rdma_ah_set_static_rate(ah_attr, 0);
 	return 0;
 }
 
@@ -2651,11 +2560,10 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 	struct bnxt_qplib_ppp *ppp = NULL;
 	struct bnxt_re_dev *rdev;
 	struct bnxt_re_qp *qp;
-	struct ib_gid_attr *sgid_attr;
-	struct ib_gid_attr gid_attr;
-	union ib_gid sgid, *gid_ptr = NULL;
+	const struct ib_gid_attr *sgid_attr;
+	const union ib_gid *gid_ptr = NULL;
 	u8 nw_type;
-	int rc, entries, status;
+	int rc, entries;
 	bool is_copy_to_udata = false;
 	bool is_qpmtu_high = false;
 
@@ -2718,6 +2626,9 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 		qp->qplib_qp.qkey = qp_attr->qkey;
 	}
 	if (qp_attr_mask & IB_QP_AV) {
+               const struct ib_global_route *grh =
+                       rdma_ah_read_grh(&qp_attr->ah_attr);
+
 		qp->qplib_qp.modify_flags |= CMDQ_MODIFY_QP_MODIFY_MASK_DGID |
 				     CMDQ_MODIFY_QP_MODIFY_MASK_FLOW_LABEL |
 				     CMDQ_MODIFY_QP_MODIFY_MASK_SGID_INDEX |
@@ -2725,29 +2636,25 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 				     CMDQ_MODIFY_QP_MODIFY_MASK_TRAFFIC_CLASS |
 				     CMDQ_MODIFY_QP_MODIFY_MASK_DEST_MAC |
 				     CMDQ_MODIFY_QP_MODIFY_MASK_VLAN_ID;
-		memcpy(qp->qplib_qp.ah.dgid.data, qp_attr->ah_attr.grh.dgid.raw,
+		memcpy(qp->qplib_qp.ah.dgid.data, grh->dgid.raw,
 		       sizeof(qp->qplib_qp.ah.dgid.data));
-		qp->qplib_qp.ah.flow_label = qp_attr->ah_attr.grh.flow_label;
+		qp->qplib_qp.ah.flow_label = grh->flow_label;
 		qp->qplib_qp.ah.sgid_index = _get_sgid_index(rdev,
-						qp_attr->ah_attr.grh.sgid_index);
-		qp->qplib_qp.ah.host_sgid_index = qp_attr->ah_attr.grh.sgid_index;
-		qp->qplib_qp.ah.hop_limit = qp_attr->ah_attr.grh.hop_limit;
-		qp->qplib_qp.ah.traffic_class =
-					qp_attr->ah_attr.grh.traffic_class;
-		qp->qplib_qp.ah.sl = qp_attr->ah_attr.sl;
+						grh->sgid_index);
+		qp->qplib_qp.ah.host_sgid_index = grh->sgid_index;
+		qp->qplib_qp.ah.hop_limit = grh->hop_limit;
+		qp->qplib_qp.ah.traffic_class = grh->traffic_class;
+		qp->qplib_qp.ah.sl = rdma_ah_get_sl(&qp_attr->ah_attr);
 		ether_addr_copy(qp->qplib_qp.ah.dmac, ROCE_DMAC(&qp_attr->ah_attr));
-		sgid_attr = &gid_attr;
-		status = bnxt_re_get_cached_gid(&rdev->ibdev, 1,
-						qp_attr->ah_attr.grh.sgid_index,
-						&sgid, &sgid_attr,
-						&qp_attr->ah_attr.grh, NULL);
-		if (!status)
-			if_rele(sgid_attr->ndev);
-		gid_ptr = &sgid;
+		sgid_attr = grh->sgid_attr;
+		gid_ptr = &sgid_attr->gid;
 		if (sgid_attr->ndev) {
-			memcpy(qp->qplib_qp.smac, rdev->dev_addr,
-			       ETH_ALEN);
-			nw_type = bnxt_re_gid_to_network_type(sgid_attr, &sgid);
+			rc = rdma_read_gid_l2_fields(sgid_attr, NULL,
+						     &qp->qplib_qp.smac[0]);
+			if (rc)
+				return rc;
+
+			nw_type = rdma_gid_attr_network_type(sgid_attr);
 			dev_dbg(rdev_to_dev(rdev),
 				 "Connection using the nw_type %d\n", nw_type);
 			switch (nw_type) {
@@ -2948,13 +2855,13 @@ int bnxt_re_query_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 	qp_attr->qp_access_flags = __to_ib_access_flags(qplib_qp->access);
 	qp_attr->pkey_index = qplib_qp->pkey_index;
 	qp_attr->qkey = qplib_qp->qkey;
-	memcpy(qp_attr->ah_attr.grh.dgid.raw, qplib_qp->ah.dgid.data,
-	       sizeof(qplib_qp->ah.dgid.data));
-	qp_attr->ah_attr.grh.flow_label = qplib_qp->ah.flow_label;
-	qp_attr->ah_attr.grh.sgid_index = qplib_qp->ah.host_sgid_index;
-	qp_attr->ah_attr.grh.hop_limit = qplib_qp->ah.hop_limit;
-	qp_attr->ah_attr.grh.traffic_class = qplib_qp->ah.traffic_class;
-	qp_attr->ah_attr.sl = qplib_qp->ah.sl;
+	qp_attr->ah_attr.type = RDMA_AH_ATTR_TYPE_ROCE;
+	rdma_ah_set_grh(&qp_attr->ah_attr, NULL, qplib_qp->ah.flow_label,
+			qplib_qp->ah.host_sgid_index,
+			qplib_qp->ah.hop_limit,
+			qplib_qp->ah.traffic_class);
+	rdma_ah_set_dgid_raw(&qp_attr->ah_attr, qplib_qp->ah.dgid.data);
+	rdma_ah_set_sl(&qp_attr->ah_attr, qplib_qp->ah.sl);
 	ether_addr_copy(ROCE_DMAC(&qp_attr->ah_attr), qplib_qp->ah.dmac);
 	qp_attr->path_mtu = __to_ib_mtu(qplib_qp->path_mtu);
 	qp_attr->timeout = qplib_qp->timeout;
@@ -5107,11 +5014,7 @@ static int bnxt_re_page_size_ok(int page_shift)
 static int bnxt_re_get_page_shift(struct ib_umem *umem,
 				  u64 va, u64 st, u64 cmask)
 {
-	int pgshft;
-
-	pgshft = ilog2(umem->page_size);
-
-	return pgshft;
+	return umem->page_shift;
 }
 
 static int bnxt_re_get_num_pages(struct ib_umem *umem, u64 start, u64 length, int page_shift)

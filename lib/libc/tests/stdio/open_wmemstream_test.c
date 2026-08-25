@@ -187,12 +187,50 @@ ATF_TC_BODY(seek_tests, tc)
 	fclose(fp);
 }
 
+ATF_TC(resize_test);
+ATF_TC_HEAD(resize_test, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Tests that wmemstream growth doesn't move SEEK_END too far");
+}
+ATF_TC_BODY(resize_test, tc)
+{
+	FILE *fp;
+	size_t wsz;
+	wchar_t addition[] = L"Test String";
+
+	fp = open_wmemstream(&buf, &len);
+	ATF_REQUIRE_MSG(fp != NULL, "open_memstream failed: %d", errno);
+
+	/* Doesn't matter what we write, we'll just want to trigger alloc 2x. */
+	wsz = fwprintf(fp, L"%ls", addition);
+	ATF_REQUIRE_EQ(wsz, wcslen(addition));
+	ATF_REQUIRE(fflush(fp) == 0);
+
+	/* Trigger growth. */
+	ATF_REQUIRE_EQ(L'a', fputwc(L'a', fp));
+	ATF_REQUIRE_EQ(wsz + 1, ftello(fp));
+
+	/*
+	 * Seeking to the end shouldn't put us past the last write, because
+	 * we've only done a small series of writes.
+	 */
+	ATF_REQUIRE(fseek(fp, 0, SEEK_END) == 0);
+	ATF_REQUIRE_EQ(wsz + 1, ftello(fp));
+
+	ATF_REQUIRE(!ferror(fp));
+	fclose(fp);
+
+	ATF_REQUIRE_EQ(wsz + 1, len);
+}
+
 ATF_TP_ADD_TCS(tp)
 {
 
 	ATF_TP_ADD_TC(tp, open_group_test);
 	ATF_TP_ADD_TC(tp, simple_tests);
 	ATF_TP_ADD_TC(tp, seek_tests);
+	ATF_TP_ADD_TC(tp, resize_test);
 
 	return (atf_no_error());
 }

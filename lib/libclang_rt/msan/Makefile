@@ -3,6 +3,7 @@
 LIB=		clang_rt.msan-${CRTARCH}
 
 SRCS+=		interception/interception_linux.cpp
+SRCS+=		interception/interception_type_test.cpp
 SRCS+=		msan/msan.cpp
 SRCS+=		msan/msan_allocator.cpp
 SRCS+=		msan/msan_chained_origin_depot.cpp
@@ -52,6 +53,7 @@ SRCS+=		sanitizer_common/sanitizer_symbolizer_posix_libcdep.cpp
 SRCS+=		sanitizer_common/sanitizer_symbolizer_report.cpp
 SRCS+=		sanitizer_common/sanitizer_termination.cpp
 SRCS+=		sanitizer_common/sanitizer_thread_arg_retval.cpp
+SRCS+=		sanitizer_common/sanitizer_thread_history.cpp
 SRCS+=		sanitizer_common/sanitizer_thread_registry.cpp
 SRCS+=		sanitizer_common/sanitizer_tls_get_addr.cpp
 SRCS+=		sanitizer_common/sanitizer_type_traits.cpp

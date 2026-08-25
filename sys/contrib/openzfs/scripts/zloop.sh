@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: CDDL-1.0
 
 #
-# CDDL HEADER START
-#
 # This file and its contents are supplied under the terms of the
 # Common Development and Distribution License ("CDDL"), version 1.0.
 # You may only use this file in accordance with the terms of version
@@ -11,9 +9,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
-#
-# CDDL HEADER END
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -41,7 +37,7 @@ function usage
 {
 	cat >&2 <<EOF
 
-$0 [-hl] [-c <dump directory>] [-f <vdev directory>]
+$0 [-hlM] [-c <dump directory>] [-f <vdev directory>]
   [-m <max core dumps>] [-s <vdev size>] [-t <timeout>]
   [-I <max iterations>] [-- [extra ztest parameters]]
 
@@ -56,6 +52,8 @@ $0 [-hl] [-c <dump directory>] [-f <vdev directory>]
     -f  Specify working directory for ztest vdev files.
     -h  Print this help message.
     -l  Create 'ztest.core.N' symlink to core directory.
+    -M  Enable multihost testing on a fraction of the iterations.
+        A hostid is exported through ZFS_HOSTID for those runs.
     -m  Max number of core dumps to allow before exiting.
     -s  Size of vdev devices.
     -t  Total time to loop for, in seconds. If not provided,
@@ -190,7 +188,8 @@ size="512m"
 coremax=0
 symlink=0
 iterations=0
-while getopts ":ht:m:I:s:c:f:l" opt; do
+multihost=0
+while getopts ":ht:m:I:s:c:f:lM" opt; do
 	case $opt in
 		t ) [[ $OPTARG -gt 0 ]] && timeout=$OPTARG ;;
 		m ) [[ $OPTARG -gt 0 ]] && coremax=$OPTARG ;;
@@ -199,6 +198,7 @@ while getopts ":ht:m:I:s:c:f:l" opt; do
 		c ) [[ -n $OPTARG ]] && coredir=$OPTARG ;;
 		f ) [[ -n $OPTARG ]] && basedir=$(readlink -f "$OPTARG") ;;
 		l ) symlink=1 ;;
+		M ) multihost=1 ;;
 		h ) usage
 		    exit 2
 		    ;;
@@ -261,6 +261,7 @@ while (( timeout == 0 )) || (( curtime <= (starttime + timeout) )); do
 
 	draid_data=0
 	draid_spares=0
+	expand=0
 
 	# randomly use special classes
 	class="special=random"
@@ -296,6 +297,7 @@ while (( timeout == 0 )) || (( curtime <= (starttime + timeout) )); do
 		# 1/3 of the time use a dedicated '-X' raidz expansion test
 		if [[ $((RANDOM % 3)) -eq 0 ]]; then
 			zopt="$zopt -X -t 16"
+			expand=1
 			raid_type="raidz"
 		else
 			raid_type="eraidz"
@@ -328,6 +330,26 @@ while (( timeout == 0 )) || (( curtime <= (starttime + timeout) )); do
 	zopt="$zopt -C $class"
 	zopt="$zopt -s $size"
 	zopt="$zopt -f $workdir"
+
+	#
+	# Exercise multihost on a fraction of the iterations rather than all
+	# of them: -M suppresses roughly a dozen other ztest operations, so
+	# running it everywhere would remove that coverage from the loop.
+	# A raidz expansion run is skipped because ztest forces -M off for
+	# one, which would spend a multihost iteration on a run that does
+	# no multihost testing.
+	#
+	# ztest needs a non-zero hostid to set the multihost property, and
+	# ZFS_HOSTID provides one without creating /etc/hostid, which the ZTS
+	# mmp test group requires to be absent.
+	#
+	if [[ $multihost -eq 1 ]]; then
+		unset ZFS_HOSTID
+		if [[ $expand -eq 0 ]] && [[ $((RANDOM % 5)) -eq 0 ]]; then
+			zopt="$zopt -M"
+			export ZFS_HOSTID=$((RANDOM + 1))
+		fi
+	fi
 
 	cmd="$ZTEST $zopt $*"
 	echo "$(date '+%m/%d %T') $cmd" | tee -a ztest.history ztest.out

@@ -1465,10 +1465,10 @@
 #define A_SGE_INT_ENABLE3 0x1040
 #define A_SGE_FL_BUFFER_SIZE0 0x1044
 
-#define S_SIZE    4
+#define CXGBE_S_SIZE    4
 #define CXGBE_M_SIZE    0xfffffffU
-#define V_SIZE(x) ((x) << S_SIZE)
-#define G_SIZE(x) (((x) >> S_SIZE) & CXGBE_M_SIZE)
+#define CXGBE_V_SIZE(x) ((x) << S_SIZE)
+#define CXGBE_G_SIZE(x) (((x) >> S_SIZE) & CXGBE_M_SIZE)
 
 #define S_T6_SIZE    4
 #define M_T6_SIZE    0xfffffU
@@ -26578,15 +26578,10 @@
 #define V_CIM_ULP_TX_PKT_ERR_CODE(x) ((x) << S_CIM_ULP_TX_PKT_ERR_CODE)
 #define G_CIM_ULP_TX_PKT_ERR_CODE(x) (((x) >> S_CIM_ULP_TX_PKT_ERR_CODE) & M_CIM_ULP_TX_PKT_ERR_CODE)
 
-#define S_CIM_SGE1_PKT_ERR_CODE    8
-#define M_CIM_SGE1_PKT_ERR_CODE    0xffU
-#define V_CIM_SGE1_PKT_ERR_CODE(x) ((x) << S_CIM_SGE1_PKT_ERR_CODE)
-#define G_CIM_SGE1_PKT_ERR_CODE(x) (((x) >> S_CIM_SGE1_PKT_ERR_CODE) & M_CIM_SGE1_PKT_ERR_CODE)
-
-#define S_CIM_SGE0_PKT_ERR_CODE    0
-#define M_CIM_SGE0_PKT_ERR_CODE    0xffU
-#define V_CIM_SGE0_PKT_ERR_CODE(x) ((x) << S_CIM_SGE0_PKT_ERR_CODE)
-#define G_CIM_SGE0_PKT_ERR_CODE(x) (((x) >> S_CIM_SGE0_PKT_ERR_CODE) & M_CIM_SGE0_PKT_ERR_CODE)
+#define S_CIM_SGE_PKT_ERR_CODE    0
+#define M_CIM_SGE_PKT_ERR_CODE    0xffU
+#define V_CIM_SGE_PKT_ERR_CODE(x) ((x) << S_CIM_SGE_PKT_ERR_CODE)
+#define G_CIM_SGE_PKT_ERR_CODE(x) (((x) >> S_CIM_SGE_PKT_ERR_CODE) & M_CIM_SGE_PKT_ERR_CODE)
 
 #define S_CIM_PCIE_PKT_ERR_CODE    8
 #define M_CIM_PCIE_PKT_ERR_CODE    0xffU
@@ -60550,17 +60545,15 @@
 #define A_MAC_PORT_PTP_DRIFT_ADJUST_COUNT 0x9a0
 #define A_MAC_PORT_PTP_OFFSET_ADJUST_FINE 0x9a4
 
-#if 0
-#define S_B    16
-#define M_B    0xffffU
-#define V_B(x) ((x) << S_B)
-#define G_B(x) (((x) >> S_B) & M_B)
-#endif
+#define CXGBE_S_B    16
+#define CXGBE_M_B    0xffffU
+#define CXGBE_V_B(x) ((x) << CXGBE_S_B)
+#define CXGBE_G_B(x) (((x) >> CXGBE_S_B) & CXGBE_M_B)
 
-#define S_A    0
-#define M_A    0xffffU
-#define V_A(x) ((x) << S_A)
-#define G_A(x) (((x) >> S_A) & M_A)
+#define CXGBE_S_A    0
+#define CXGBE_M_A    0xffffU
+#define CXGBE_V_A(x) ((x) << CXGBE_S_A)
+#define CXGBE_G_A(x) (((x) >> CXGBE_S_A) & CXGBE_M_A)
 
 #define A_MAC_PORT_PTP_OFFSET_ADJUST_TOTAL 0x9a8
 #define A_MAC_PORT_PTP_CFG 0x9ac
@@ -62257,10 +62250,10 @@
 
 #define A_MAC_PORT_MTIP_VLAN_TPID_0 0x1a00
 
-#define S_VLANTAG    0
+#define CXGBE_S_VLANTAG    0
 #define CXGBE_M_VLANTAG    0xffffU
-#define V_VLANTAG(x) ((x) << S_VLANTAG)
-#define G_VLANTAG(x) (((x) >> S_VLANTAG) & M_VLANTAG)
+#define CXGBE_V_VLANTAG(x) ((x) << CXGBE_S_VLANTAG)
+#define CXGBE_G_VLANTAG(x) (((x) >> CXGBE_S_VLANTAG) & CXGBE_M_VLANTAG)
 
 #define A_MAC_PORT_MTIP_VLAN_TPID_1 0x1a04
 #define A_MAC_PORT_MTIP_VLAN_TPID_2 0x1a08
@@ -69613,10 +69606,10 @@
 #define V_INIT_ENABLE(x) ((x) << S_INIT_ENABLE)
 #define F_INIT_ENABLE    V_INIT_ENABLE(1U)
 
-#define S_WAIT    16
-#define M_WAIT    0xfffU
-#define CXGBE_V_WAIT(x) ((x) << S_WAIT)
-#define G_WAIT(x) (((x) >> S_WAIT) & M_WAIT)
+#define CXGBE_S_WAIT    16
+#define CXGBE_M_WAIT    0xfffU
+#define CXGBE_V_WAIT(x) ((x) << CXGBE_S_WAIT)
+#define CXGBE_G_WAIT(x) (((x) >> CXGBE_S_WAIT) & CXGBE_M_WAIT)
 
 #define S_EN_MULTI_RANK_SEL    4
 #define V_EN_MULTI_RANK_SEL(x) ((x) << S_EN_MULTI_RANK_SEL)

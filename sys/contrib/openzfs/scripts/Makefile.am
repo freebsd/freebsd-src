@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: CDDL-1.0
 scriptsdir = $(datadir)/$(PACKAGE)
 dist_noinst_SCRIPTS = \
 	%D%/commitcheck.sh \
@@ -27,6 +28,7 @@ dist_noinst_SCRIPTS += $(scripts_scripts)
 endif
 
 dist_noinst_DATA += \
+	%D%/coverage_report.pl \
 	%D%/cstyle.pl \
 	%D%/update_authors.pl
 

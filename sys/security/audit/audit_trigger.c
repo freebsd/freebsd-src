@@ -32,8 +32,10 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/selinfo.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
 
@@ -45,19 +47,18 @@
  * used to communicate with userland.  /dev/audit reliably delivers one-byte
  * messages to a listening application (or discards them if there is no
  * listening application).
- *
- * Currently, select/poll are not supported on the trigger device.
  */
 struct trigger_info {
 	unsigned int			trigger;
-	TAILQ_ENTRY(trigger_info)	list;
+	STAILQ_ENTRY(trigger_info)	list;
 };
 
 static MALLOC_DEFINE(M_AUDITTRIGGER, "audit_trigger", "Audit trigger events");
 static struct cdev *audit_dev;
 static int audit_isopen = 0;
-static TAILQ_HEAD(, trigger_info) trigger_list;
+static STAILQ_HEAD(, trigger_info) trigger_list;
 static struct mtx audit_trigger_mtx;
+static struct selinfo audit_trigger_rsel;
 
 static int
 audit_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
@@ -84,9 +85,9 @@ audit_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 	/* Flush the queue of pending trigger events. */
 	mtx_lock(&audit_trigger_mtx);
 	audit_isopen = 0;
-	while (!TAILQ_EMPTY(&trigger_list)) {
-		ti = TAILQ_FIRST(&trigger_list);
-		TAILQ_REMOVE(&trigger_list, ti, list);
+	while (!STAILQ_EMPTY(&trigger_list)) {
+		ti = STAILQ_FIRST(&trigger_list);
+		STAILQ_REMOVE_HEAD(&trigger_list, list);
 		free(ti, M_AUDITTRIGGER);
 	}
 	mtx_unlock(&audit_trigger_mtx);
@@ -101,15 +102,15 @@ audit_read(struct cdev *dev, struct uio *uio, int ioflag)
 	struct trigger_info *ti = NULL;
 
 	mtx_lock(&audit_trigger_mtx);
-	while (TAILQ_EMPTY(&trigger_list)) {
+	while (STAILQ_EMPTY(&trigger_list)) {
 		error = msleep(&trigger_list, &audit_trigger_mtx,
 		    PSOCK | PCATCH, "auditd", 0);
 		if (error)
 			break;
 	}
 	if (!error) {
-		ti = TAILQ_FIRST(&trigger_list);
-		TAILQ_REMOVE(&trigger_list, ti, list);
+		ti = STAILQ_FIRST(&trigger_list);
+		STAILQ_REMOVE_HEAD(&trigger_list, list);
 	}
 	mtx_unlock(&audit_trigger_mtx);
 	if (!error) {
@@ -127,6 +128,22 @@ audit_write(struct cdev *dev, struct uio *uio, int ioflag)
 	return (EOPNOTSUPP);
 }
 
+static int
+audit_poll(struct cdev *dev, int events, struct thread *td)
+{
+	int revents = 0;
+
+	if (events & (POLLIN | POLLRDNORM)) {
+		mtx_lock(&audit_trigger_mtx);
+		if (!STAILQ_EMPTY(&trigger_list))
+			revents = events & (POLLIN | POLLRDNORM);
+		else
+			selrecord(td, &audit_trigger_rsel);
+		mtx_unlock(&audit_trigger_mtx);
+	}
+	return (revents);
+}
+
 int
 audit_send_trigger(unsigned int trigger)
 {
@@ -141,7 +158,8 @@ audit_send_trigger(unsigned int trigger)
 		return (ENODEV);
 	}
 	ti->trigger = trigger;
-	TAILQ_INSERT_TAIL(&trigger_list, ti, list);
+	STAILQ_INSERT_TAIL(&trigger_list, ti, list);
+	selwakeup(&audit_trigger_rsel);
 	wakeup(&trigger_list);
 	mtx_unlock(&audit_trigger_mtx);
 	return (0);
@@ -153,6 +171,7 @@ static struct cdevsw audit_cdevsw = {
 	.d_close =	audit_close,
 	.d_read =	audit_read,
 	.d_write =	audit_write,
+	.d_poll =	audit_poll,
 	.d_name =	"audit"
 };
 
@@ -160,7 +179,7 @@ void
 audit_trigger_init(void)
 {
 
-	TAILQ_INIT(&trigger_list);
+	STAILQ_INIT(&trigger_list);
 	mtx_init(&audit_trigger_mtx, "audit_trigger_mtx", NULL, MTX_DEF);
 }
 

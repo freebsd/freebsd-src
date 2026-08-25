@@ -77,7 +77,7 @@ fi
 
 #Get the groupid of the calling process using ps
 
-groupid=`ps -x -o pid,egid | grep "$$ " | awk '{print $2}' 2>/dev/null`
+groupid=$(ps -p $$ -o egid= 2>/dev/null)
 if [ $? -ne 0 ]; then
 	print -u2 "unable to get uid of the current process with pid = $$"
 	exit 1

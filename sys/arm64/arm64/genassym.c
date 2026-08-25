@@ -53,8 +53,6 @@ ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_SSBD, offsetof(struct pcpu, pc_ssbd));
 
-/* Size of pcb, rounded to keep stack alignment */
-ASSYM(PCB_SIZE, roundup2(sizeof(struct pcb), STACKALIGNBYTES + 1));
 ASSYM(PCB_SINGLE_STEP_SHIFT, PCB_SINGLE_STEP_SHIFT);
 ASSYM(PCB_REGS, offsetof(struct pcb, pcb_x));
 ASSYM(PCB_X19, PCB_X19);
@@ -76,6 +74,9 @@ ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_MD_CANARY, offsetof(struct thread, td_md.md_canary));
 ASSYM(TD_MD_EFIRT_TMP, offsetof(struct thread, td_md.md_efirt_tmp));
+ASSYM(TD_MD_FLAGS, offsetof(struct thread, td_md.md_flags));
+ASSYM(MD_FLAG_MTE_ASYNC_FAULT, MD_FLAG_MTE_ASYNC_FAULT);
+ASSYM(TD_MD_SCTLR, offsetof(struct thread, td_md.md_sctlr));
 
 ASSYM(TF_SIZE, sizeof(struct trapframe));
 ASSYM(TF_SP, offsetof(struct trapframe, tf_sp));

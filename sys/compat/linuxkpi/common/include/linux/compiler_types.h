@@ -42,4 +42,17 @@
 
 #define	__same_type(a, b)	__builtin_types_compatible_p(typeof(a), typeof(b))
 
+/*
+ * __builtin_counted_by_ref was introduced to
+ * - gcc in e7380688fa59 with a first release tag of gcc-15.1.0,
+ * - llvm in 7475156d49406 with a first release tag of llvmorg-20.1.0-rc1
+ *   but cannot be used before 23 (22.x.y possibly) (see 09a3d830a888).
+ */
+#if (__has_builtin(__builtin_counted_by_ref)) && \
+    (!defined(__clang__) || (__clang_major__ >= 23))
+#define	__flex_counter(_field)		__builtin_counted_by_ref(_field)
+#else
+#define	__flex_counter(_field)		((void *)NULL)
+#endif
+
 #endif

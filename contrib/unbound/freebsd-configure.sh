@@ -14,7 +14,7 @@ unbound=$(dirname $(realpath $0))
 cd $unbound
 
 # Run autotools before we drop LOCALBASE out of PATH
-(cd $unbound && libtoolize --copy && autoheader && autoconf)
+libtoolize --copy && autoheader && autoconf
 
 # Ensure we use the correct toolchain and clean our environment
 export CC=$(echo ".include <bsd.lib.mk>" | make -f /dev/stdin -VCC)

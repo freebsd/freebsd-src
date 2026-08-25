@@ -1,0 +1,45 @@
+SPDXVersion: SPDX-2.2
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentName: SBOM-SPDX-priv-parentC401.0.0
+DocumentNamespace: https://spdx.org/spdxdocs/bomtool
+Creator: Tool: bomtool
+Created: test
+
+
+##### Package: priv-parent@1.0.0
+
+PackageName: priv-parent@1.0.0
+SPDXID: SPDXRef-Package-priv-parentC401.0.0
+PackageVersion: 1.0.0
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Privparent Maintainer
+PackageHomePage: https://example.com/priv-parent
+PackageLicenseDeclared: MIT
+PackageLicenseConcluded: NOASSERTION
+PackageCopyrightText: NOASSERTION
+PackageSummary: <text>Package with a private dependency</text>
+PackageDownloadLocation: NOASSERTION
+
+
+##### Package: priv-child@1.0.0
+
+PackageName: priv-child@1.0.0
+SPDXID: SPDXRef-Package-priv-childC401.0.0
+PackageVersion: 1.0.0
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Person: Privchild Maintainer
+PackageHomePage: https://example.com/priv-child
+PackageLicenseDeclared: MIT
+PackageLicenseConcluded: NOASSERTION
+PackageCopyrightText: NOASSERTION
+PackageSummary: <text>Private dependency child</text>
+PackageDownloadLocation: NOASSERTION
+
+
+Relationship: SPDXRef-Package-priv-parentC401.0.0 DEPENDS_ON SPDXRef-Package-priv-childC401.0.0
+Relationship: SPDXRef-Package-priv-childC401.0.0 DEV_DEPENDENCY_OF SPDXRef-Package-priv-parentC401.0.0
+
+
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-priv-parentC401.0.0
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Package-priv-childC401.0.0

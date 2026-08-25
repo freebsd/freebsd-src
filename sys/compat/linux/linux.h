@@ -28,57 +28,7 @@
 #ifndef _LINUX_MI_H_
 #define _LINUX_MI_H_
 
-/*
- * Machine independent set of types for the Linux types.
- */
 typedef uint32_t	l_dev_t;
-
-/*
- * Linux dev_t conversion routines.
- *
- * As of version 2.6.0 of the Linux kernel, dev_t is a 32-bit quantity
- * with 12 bits set asaid for the major number and 20 for the minor number.
- * The in-kernel dev_t encoded as MMMmmmmm, where M is a hex digit of the
- * major number and m is a hex digit of the minor number.
- * The user-space dev_t encoded as mmmM MMmm, where M and m is the major
- * and minor numbers accordingly. This is downward compatible with legacy
- * systems where dev_t is 16 bits wide, encoded as MMmm.
- * In glibc dev_t is a 64-bit quantity, with 32-bit major and minor numbers,
- * encoded as MMMM Mmmm mmmM MMmm. This is downward compatible with the Linux
- * kernel and with legacy systems where dev_t is 16 bits wide.
- *
- * In the FreeBSD dev_t is a 64-bit quantity. The major and minor numbers
- * are encoded as MMMmmmMm, therefore conversion of the device numbers between
- * Linux user-space and FreeBSD kernel required.
- */
-static __inline l_dev_t
-linux_encode_dev(int _major, int _minor)
-{
-
-	return ((_minor & 0xff) | ((_major & 0xfff) << 8) |
-	    (((_minor & ~0xff) << 12) & 0xfff00000));
-}
-
-static __inline l_dev_t
-linux_new_encode_dev(dev_t _dev)
-{
-
-	return (_dev == NODEV ? 0 : linux_encode_dev(major(_dev), minor(_dev)));
-}
-
-static __inline int
-linux_encode_major(dev_t _dev)
-{
-
-	return (_dev == NODEV ? 0 : major(_dev) & 0xfff);
-}
-
-static __inline int
-linux_encode_minor(dev_t _dev)
-{
-
-	return (_dev == NODEV ? 0 : minor(_dev) & 0xfffff);
-}
 
 static __inline int
 linux_decode_major(l_dev_t _dev)
@@ -133,6 +83,7 @@ struct l_sockaddr {
 
 #define	LINUX_ARPHRD_ETHER	1
 #define	LINUX_ARPHRD_LOOPBACK	772
+#define	LINUX_ARPHRD_SIT	776
 
 /*
  * Supported address families
@@ -174,6 +125,9 @@ struct l_sockaddr {
 #define	LINUX_IFF_PORTSEL	0x2000
 #define	LINUX_IFF_AUTOMEDIA	0x4000
 #define	LINUX_IFF_DYNAMIC	0x8000
+/* Volatile (netlink / ifinfomsg); not representable in ifr_flags short */
+#define	LINUX_IFF_LOWER_UP	0x10000
+#define	LINUX_IFF_DORMANT	0x20000
 
 /* sigaltstack */
 #define	LINUX_SS_ONSTACK	1

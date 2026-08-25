@@ -73,9 +73,9 @@ struct lwapp_control_header {
 #define LWAPP_EXTRACT_CONTROL_BIT(x) (((x)&0x04)>>2)
 
 static const struct tok lwapp_header_bits_values[] = {
-    { 0x01, "Last Fragment Bit"},
-    { 0x02, "Fragment Bit"},
-    { 0x04, "Control Bit"},
+    { 0x01, "Not Last"},	/* L Bit */
+    { 0x02, "Fragment"},	/* F Bit */
+    { 0x04, "Control"},		/* C Bit */
     { 0, NULL}
 };
 
@@ -188,18 +188,18 @@ lwapp_control_print(netdissect_options *ndo,
      * Sanity checking of the header.
      */
     if (LWAPP_EXTRACT_VERSION(version) != LWAPP_VERSION) {
-	ND_PRINT("LWAPP version %u packet not supported",
-               LWAPP_EXTRACT_VERSION(version));
-	return;
+        ND_PRINT("LWAPP version %u packet not supported",
+                 LWAPP_EXTRACT_VERSION(version));
+        return;
     }
 
     /* non-verbose */
     if (ndo->ndo_vflag < 1) {
         ND_PRINT("LWAPPv%u, %s frame, Flags [%s], length %u",
-               LWAPP_EXTRACT_VERSION(version),
-               LWAPP_EXTRACT_CONTROL_BIT(version) ? "Control" : "Data",
-               bittok2str(lwapp_header_bits_values,"none",version&0x07),
-               len);
+                 LWAPP_EXTRACT_VERSION(version),
+                 LWAPP_EXTRACT_CONTROL_BIT(version) ? "Control" : "Data",
+                 bittok2str(lwapp_header_bits_values,"none",version&0x07),
+                 len);
         return;
     }
 
@@ -207,12 +207,12 @@ lwapp_control_print(netdissect_options *ndo,
     tlen=GET_BE_U_2(lwapp_trans_header->length);
 
     ND_PRINT("LWAPPv%u, %s frame, Radio-id %u, Flags [%s], Frag-id %u, length %u",
-           LWAPP_EXTRACT_VERSION(version),
-           LWAPP_EXTRACT_CONTROL_BIT(version) ? "Control" : "Data",
-           LWAPP_EXTRACT_RID(version),
-           bittok2str(lwapp_header_bits_values,"none",version&0x07),
-	   GET_U_1(lwapp_trans_header->frag_id),
-	   tlen);
+             LWAPP_EXTRACT_VERSION(version),
+             LWAPP_EXTRACT_CONTROL_BIT(version) ? "Control" : "Data",
+             LWAPP_EXTRACT_RID(version),
+             bittok2str(lwapp_header_bits_values,"none",version&0x07),
+             GET_U_1(lwapp_trans_header->frag_id),
+             tlen);
 
     if (has_ap_ident) {
         ND_PRINT("\n\tAP identity: %s", GET_ETHERADDR_STRING(tptr));
@@ -231,25 +231,25 @@ lwapp_control_print(netdissect_options *ndo,
         }
 
         lwapp_control_header = (const struct lwapp_control_header *)tptr;
-	msg_tlen = GET_BE_U_2(lwapp_control_header->len);
+        msg_tlen = GET_BE_U_2(lwapp_control_header->len);
         if (tlen < sizeof(struct lwapp_control_header) + msg_tlen) {
             ND_PRINT("\n\t  Msg goes past end of PDU");
             break;
         }
 
-	/* print message header */
-	msg_type = GET_U_1(lwapp_control_header->msg_type);
+        /* print message header */
+        msg_type = GET_U_1(lwapp_control_header->msg_type);
         ND_PRINT("\n\t  Msg type: %s (%u), Seqnum: %u, Msg len: %u, Session: 0x%08x",
-               tok2str(lwapp_msg_type_values,"Unknown",msg_type),
-               msg_type,
-               GET_U_1(lwapp_control_header->seq_num),
-               msg_tlen,
-               GET_BE_U_4(lwapp_control_header->session_id));
+                 tok2str(lwapp_msg_type_values,"Unknown",msg_type),
+                 msg_type,
+                 GET_U_1(lwapp_control_header->seq_num),
+                 msg_tlen,
+                 GET_BE_U_4(lwapp_control_header->session_id));
 
         /* did we capture enough for fully decoding the message */
         ND_TCHECK_LEN(tptr, msg_tlen);
 
-	/* XXX - Decode sub messages for each message */
+        /* XXX - Decode sub messages for each message */
         switch(msg_type) {
         case LWAPP_MSGTYPE_DISCOVERY_REQUEST:
         case LWAPP_MSGTYPE_DISCOVERY_RESPONSE:
@@ -318,39 +318,39 @@ lwapp_data_print(netdissect_options *ndo,
      */
     if (LWAPP_EXTRACT_VERSION(version) != LWAPP_VERSION) {
         ND_PRINT("LWAPP version %u packet not supported",
-               LWAPP_EXTRACT_VERSION(version));
+                 LWAPP_EXTRACT_VERSION(version));
         return;
     }
 
     /* non-verbose */
     if (ndo->ndo_vflag < 1) {
         ND_PRINT("LWAPPv%u, %s frame, Flags [%s], length %u",
-               LWAPP_EXTRACT_VERSION(version),
-               LWAPP_EXTRACT_CONTROL_BIT(version) ? "Control" : "Data",
-               bittok2str(lwapp_header_bits_values,"none",version&0x07),
-               len);
+                 LWAPP_EXTRACT_VERSION(version),
+                 LWAPP_EXTRACT_CONTROL_BIT(version) ? "Control" : "Data",
+                 bittok2str(lwapp_header_bits_values,"none",version&0x07),
+                 len);
         return;
     }
 
     /* ok they seem to want to know everything - lets fully decode it */
     tlen=GET_BE_U_2(lwapp_trans_header->length);
     if (tlen < sizeof(struct lwapp_transport_header)) {
-        ND_PRINT("LWAPPv%u, %s frame, Radio-id  %u, Flags [%s], length %u < transport header length",
-               LWAPP_EXTRACT_VERSION(version),
-               LWAPP_EXTRACT_CONTROL_BIT(version) ? "Control" : "Data",
-               LWAPP_EXTRACT_RID(version),
-               bittok2str(lwapp_header_bits_values,"none",version&0x07),
-               tlen);
+        ND_PRINT("LWAPPv%u, %s frame, Radio-id %u, Flags [%s], length %u < transport header length",
+                 LWAPP_EXTRACT_VERSION(version),
+                 LWAPP_EXTRACT_CONTROL_BIT(version) ? "Control" : "Data",
+                 LWAPP_EXTRACT_RID(version),
+                 bittok2str(lwapp_header_bits_values,"none",version&0x07),
+                 tlen);
         return;
     }
 
-    ND_PRINT("LWAPPv%u, %s frame, Radio-id  %u, Flags [%s], Frag-id  %u, length %u",
-           LWAPP_EXTRACT_VERSION(version),
-           LWAPP_EXTRACT_CONTROL_BIT(version) ? "Control" : "Data",
-           LWAPP_EXTRACT_RID(version),
-           bittok2str(lwapp_header_bits_values,"none",version&0x07),
-           GET_U_1(lwapp_trans_header->frag_id),
-           tlen);
+    ND_PRINT("LWAPPv%u, %s frame, Radio-id %u, Flags [%s], Frag-id %u, length %u",
+             LWAPP_EXTRACT_VERSION(version),
+             LWAPP_EXTRACT_CONTROL_BIT(version) ? "Control" : "Data",
+             LWAPP_EXTRACT_RID(version),
+             bittok2str(lwapp_header_bits_values,"none",version&0x07),
+             GET_U_1(lwapp_trans_header->frag_id),
+             tlen);
 
     tptr+=sizeof(struct lwapp_transport_header);
     tlen-=sizeof(struct lwapp_transport_header);

@@ -4372,18 +4372,17 @@ qsize_to_fthresh(int qsize)
 static int
 ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq, int idx)
 {
-	int rc, cntxt_id, core;
+	int rc, cntxt_id;
 	struct fw_eq_ctrl_cmd c;
 	int qsize = eq->sidx + sc->params.sge.spg_len / EQ_ESIZE;
 
-	core = sc->params.tid_qid_sel_mask != 0 ? idx % sc->params.ncores : 0;
 	bzero(&c, sizeof(c));
 
 	c.op_to_vfn = htobe32(V_FW_CMD_OP(FW_EQ_CTRL_CMD) | F_FW_CMD_REQUEST |
 	    F_FW_CMD_WRITE | F_FW_CMD_EXEC | V_FW_EQ_CTRL_CMD_PFN(sc->pf) |
 	    V_FW_EQ_CTRL_CMD_VFN(0));
 	c.alloc_to_len16 = htobe32(F_FW_EQ_CTRL_CMD_ALLOC |
-	    V_FW_EQ_CTRL_CMD_COREGROUP(core) |
+	    V_FW_EQ_CTRL_CMD_COREGROUP(idx % sc->params.ncores) |
 	    F_FW_EQ_CTRL_CMD_EQSTART | FW_LEN16(c));
 	c.cmpliqid_eqid = htonl(V_FW_EQ_CTRL_CMD_CMPLIQID(eq->iqid));
 	c.physeqid_pkd = htobe32(0);
@@ -4420,18 +4419,17 @@ ctrl_eq_alloc(struct adapter *sc, struct sge_eq *eq, int idx)
 static int
 eth_eq_alloc(struct adapter *sc, struct vi_info *vi, struct sge_eq *eq, int idx)
 {
-	int rc, cntxt_id, core;
+	int rc, cntxt_id;
 	struct fw_eq_eth_cmd c;
 	int qsize = eq->sidx + sc->params.sge.spg_len / EQ_ESIZE;
 
-	core = sc->params.ncores > 1 ? idx % sc->params.ncores : 0;
 	bzero(&c, sizeof(c));
 
 	c.op_to_vfn = htobe32(V_FW_CMD_OP(FW_EQ_ETH_CMD) | F_FW_CMD_REQUEST |
 	    F_FW_CMD_WRITE | F_FW_CMD_EXEC | V_FW_EQ_ETH_CMD_PFN(sc->pf) |
 	    V_FW_EQ_ETH_CMD_VFN(0));
 	c.alloc_to_len16 = htobe32(F_FW_EQ_ETH_CMD_ALLOC |
-	    V_FW_EQ_ETH_CMD_COREGROUP(core) |
+	    V_FW_EQ_ETH_CMD_COREGROUP(idx % sc->params.ncores) |
 	    F_FW_EQ_ETH_CMD_EQSTART | FW_LEN16(c));
 	c.autoequiqe_to_viid = htobe32(F_FW_EQ_ETH_CMD_AUTOEQUIQE |
 	    F_FW_EQ_ETH_CMD_AUTOEQUEQE | V_FW_EQ_ETH_CMD_VIID(vi->viid));
@@ -5469,7 +5467,7 @@ csum_to_ctrl(struct adapter *sc, struct mbuf *m)
 	uint64_t ctrl;
 	int csum_type, l2hlen, l3hlen;
 	int x, y;
-	static const int csum_types[3][2] = {
+	static const uint8_t csum_types[3][2] = {
 		{TX_CSUM_TCPIP, TX_CSUM_TCPIP6},
 		{TX_CSUM_UDPIP, TX_CSUM_UDPIP6},
 		{TX_CSUM_IP, 0}

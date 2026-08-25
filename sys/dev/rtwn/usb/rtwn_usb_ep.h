@@ -17,7 +17,8 @@
 #ifndef IF_RTWN_EP_H
 #define IF_RTWN_EP_H
 
-int		rtwn_usb_setup_endpoints(struct rtwn_usb_softc *);
+int		rtwn_usb_setup_endpoints(struct rtwn_usb_softc *,
+		    const uint8_t iface_index);
 uint16_t	rtwn_usb_get_qmap(struct rtwn_softc *);
 
 #endif	/* IF_RTWN_EP_H */

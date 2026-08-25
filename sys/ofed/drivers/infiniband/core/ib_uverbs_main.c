@@ -566,7 +566,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	ssize_t ret;
 
 	if (!ib_safe_file_access(filp)) {
-		pr_warn_once("uverbs_write: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
+		pr_err_once("uverbs_write: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
 			    current->pid, current->comm);
 		return -EACCES;
 	}
@@ -745,6 +745,8 @@ static void rdma_umap_close(struct vm_area_struct *vma)
 	 * this point.
 	 */
 	mutex_lock(&ufile->umap_lock);
+	if (priv->entry)
+		rdma_user_mmap_entry_put(priv->entry);
 
 	list_del(&priv->list);
 	mutex_unlock(&ufile->umap_lock);

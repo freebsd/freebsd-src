@@ -31,6 +31,7 @@
 #include <sys/wait.h>
 
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <errno.h>
 #include <poll.h>
@@ -40,8 +41,8 @@
 
 #include <atf-c.h>
 
-ATF_TC_WITHOUT_HEAD(socket_afinet);
-ATF_TC_BODY(socket_afinet, tc)
+ATF_TC_WITHOUT_HEAD(basic);
+ATF_TC_BODY(basic, tc)
 {
 	int sd;
 
@@ -51,14 +52,11 @@ ATF_TC_BODY(socket_afinet, tc)
 	close(sd);
 }
 
-ATF_TC_WITHOUT_HEAD(socket_afinet_bind_zero);
-ATF_TC_BODY(socket_afinet_bind_zero, tc)
+ATF_TC_WITHOUT_HEAD(bind_zero);
+ATF_TC_BODY(bind_zero, tc)
 {
 	int sd, rc;
 	struct sockaddr_in sin;
-
-	if (atf_tc_get_config_var_as_bool_wd(tc, "ci", false))
-		atf_tc_skip("doesn't work when mac_portacl(4) loaded (https://bugs.freebsd.org/238781)");
 
 	sd = socket(PF_INET, SOCK_DGRAM, 0);
 	ATF_CHECK(sd >= 0);
@@ -75,8 +73,8 @@ ATF_TC_BODY(socket_afinet_bind_zero, tc)
 	close(sd);
 }
 
-ATF_TC_WITHOUT_HEAD(socket_afinet_bind_ok);
-ATF_TC_BODY(socket_afinet_bind_ok, tc)
+ATF_TC_WITHOUT_HEAD(bind_ok);
+ATF_TC_BODY(bind_ok, tc)
 {
 	int sd, rc;
 	struct sockaddr_in sin;
@@ -95,8 +93,8 @@ ATF_TC_BODY(socket_afinet_bind_ok, tc)
 	close(sd);
 }
 
-ATF_TC_WITHOUT_HEAD(socket_afinet_poll_no_rdhup);
-ATF_TC_BODY(socket_afinet_poll_no_rdhup, tc)
+ATF_TC_WITHOUT_HEAD(poll_no_rdhup);
+ATF_TC_BODY(poll_no_rdhup, tc)
 {
 	int ss, ss2, cs, rc;
 	struct sockaddr_in sin;
@@ -158,8 +156,8 @@ ATF_TC_BODY(socket_afinet_poll_no_rdhup, tc)
 	close(ss);
 }
 
-ATF_TC_WITHOUT_HEAD(socket_afinet_poll_rdhup);
-ATF_TC_BODY(socket_afinet_poll_rdhup, tc)
+ATF_TC_WITHOUT_HEAD(poll_rdhup);
+ATF_TC_BODY(poll_rdhup, tc)
 {
 	int ss, ss2, cs, rc;
 	struct sockaddr_in sin;
@@ -241,8 +239,8 @@ ATF_TC_BODY(socket_afinet_poll_rdhup, tc)
 	close(ss);
 }
 
-ATF_TC_WITHOUT_HEAD(socket_afinet_stream_reconnect);
-ATF_TC_BODY(socket_afinet_stream_reconnect, tc)
+ATF_TC_WITHOUT_HEAD(stream_reconnect);
+ATF_TC_BODY(stream_reconnect, tc)
 {
 	struct sockaddr_in sin;
 	socklen_t slen;
@@ -292,12 +290,12 @@ ATF_TC_BODY(socket_afinet_stream_reconnect, tc)
  * Make sure that unprivileged users can't set the IP_BINDANY or IPV6_BINDANY
  * socket options.
  */
-ATF_TC(socket_afinet_bindany);
-ATF_TC_HEAD(socket_afinet_bindany, tc)
+ATF_TC(bindany);
+ATF_TC_HEAD(bindany, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "unprivileged");
 }
-ATF_TC_BODY(socket_afinet_bindany, tc)
+ATF_TC_BODY(bindany, tc)
 {
 	int s;
 
@@ -334,10 +332,21 @@ ATF_TC_BODY(socket_afinet_bindany, tc)
  * Bind a socket to the specified address, optionally dropping privileges and
  * setting one of the SO_REUSE* options first.
  *
- * Returns true if the bind succeeded, and false if it failed with EADDRINUSE.
+ * Expected returns for different test case scenarios are: 1) successful
+ * immediate bind(2), successful bind(2) after setting specified SO_REUSE*
+ * socket option, and bind(2) failed with EADDRINUSE.
  */
-static bool
-child_bind(const atf_tc_t *tc, int type, struct sockaddr *sa, int opt,
+static enum bind_res {
+	BIND_FAILED = 0,
+	SETEUID_FAIL = 1,
+	SOCKET_FAIL = 2,
+	BIND_INSTANT_SUCCESS = 3,
+	BIND_BADERR1 = 4,
+	SETSOCKOPT_FAIL = 5,
+	BIND_REUSE_SUCCESS = 6,
+	BIND_BADERR2 = 7,
+}
+child_bind(const atf_tc_t *tc, int type, const struct sockaddr *sa, int opt,
     bool unpriv)
 {
 	const char *user;
@@ -361,134 +370,33 @@ child_bind(const atf_tc_t *tc, int type, struct sockaddr *sa, int opt,
 
 			passwd = getpwnam(user);
 			if (seteuid(passwd->pw_uid) != 0)
-				_exit(1);
+				_exit(SETEUID_FAIL);
 		}
 
 		s = socket(sa->sa_family, type, 0);
 		if (s < 0)
-			_exit(2);
+			_exit(SOCKET_FAIL);
 		if (bind(s, sa, sa->sa_len) == 0)
-			_exit(3);
+			_exit(BIND_INSTANT_SUCCESS);
 		if (errno != EADDRINUSE)
-			_exit(4);
+			_exit(BIND_BADERR1);
 		if (opt != 0) {
 			if (setsockopt(s, SOL_SOCKET, opt, &(int){1},
 			    sizeof(int)) != 0)
-				_exit(5);
+				_exit(SETSOCKOPT_FAIL);
 		}
 		if (bind(s, sa, sa->sa_len) == 0)
-			_exit(6);
+			_exit(BIND_REUSE_SUCCESS);
 		if (errno != EADDRINUSE)
-			_exit(7);
-		_exit(0);
+			_exit(BIND_BADERR1);
+		_exit(BIND_FAILED);
 	} else {
 		int status;
 
 		ATF_REQUIRE_EQ(waitpid(child, &status, 0), child);
 		ATF_REQUIRE(WIFEXITED(status));
 		status = WEXITSTATUS(status);
-		ATF_REQUIRE_MSG(status == 0 || status == 6,
-		    "child exited with %d", status);
-		return (status == 6);
-	}
-}
-
-static bool
-child_bind_priv(const atf_tc_t *tc, int type, struct sockaddr *sa, int opt)
-{
-	return (child_bind(tc, type, sa, opt, false));
-}
-
-static bool
-child_bind_unpriv(const atf_tc_t *tc, int type, struct sockaddr *sa, int opt)
-{
-	return (child_bind(tc, type, sa, opt, true));
-}
-
-static int
-bind_socket(int domain, int type, int opt, bool unspec, struct sockaddr *sa)
-{
-	socklen_t slen;
-	int s;
-
-	s = socket(domain, type, 0);
-	ATF_REQUIRE(s >= 0);
-
-	if (domain == AF_INET) {
-		struct sockaddr_in sin;
-
-		bzero(&sin, sizeof(sin));
-		sin.sin_family = AF_INET;
-		sin.sin_len = sizeof(sin);
-		sin.sin_addr.s_addr = htonl(unspec ?
-		    INADDR_ANY : INADDR_LOOPBACK);
-		sin.sin_port = htons(0);
-		ATF_REQUIRE(bind(s, (struct sockaddr *)&sin, sizeof(sin)) == 0);
-
-		slen = sizeof(sin);
-	} else /* if (domain == AF_INET6) */ {
-		struct sockaddr_in6 sin6;
-
-		bzero(&sin6, sizeof(sin6));
-		sin6.sin6_family = AF_INET6;
-		sin6.sin6_len = sizeof(sin6);
-		sin6.sin6_addr = unspec ? in6addr_any : in6addr_loopback;
-		sin6.sin6_port = htons(0);
-		ATF_REQUIRE(bind(s, (struct sockaddr *)&sin6, sizeof(sin6)) == 0);
-
-		slen = sizeof(sin6);
-	}
-
-	if (opt != 0) {
-		ATF_REQUIRE(setsockopt(s, SOL_SOCKET, opt, &(int){1},
-		    sizeof(int)) == 0);
-	}
-
-	ATF_REQUIRE(getsockname(s, sa, &slen) == 0);
-
-	return (s);
-}
-
-static void
-multibind_test(const atf_tc_t *tc, int domain, int type)
-{
-	struct sockaddr_storage ss;
-	int opts[4] = { 0, SO_REUSEADDR, SO_REUSEPORT, SO_REUSEPORT_LB };
-	int s;
-	bool flags[2] = { false, true };
-	bool res;
-
-	for (size_t flagi = 0; flagi < nitems(flags); flagi++) {
-		for (size_t opti = 0; opti < nitems(opts); opti++) {
-			s = bind_socket(domain, type, opts[opti], flags[flagi],
-			    (struct sockaddr *)&ss);
-			for (size_t optj = 0; optj < nitems(opts); optj++) {
-				int opt;
-
-				opt = opts[optj];
-				res = child_bind_priv(tc, type,
-				    (struct sockaddr *)&ss, opt);
-				/*
-				 * Multi-binding is only allowed when both
-				 * sockets have SO_REUSEPORT or SO_REUSEPORT_LB
-				 * set.
-				 */
-				if (opts[opti] != 0 &&
-				    opts[opti] != SO_REUSEADDR && opti == optj)
-					ATF_REQUIRE(res);
-				else
-					ATF_REQUIRE(!res);
-
-				res = child_bind_unpriv(tc, type,
-				    (struct sockaddr *)&ss, opt);
-				/*
-				 * Multi-binding is only allowed when both
-				 * sockets have the same owner.
-				 */
-				ATF_REQUIRE(!res);
-			}
-			ATF_REQUIRE(close(s) == 0);
-		}
+		return (status);
 	}
 }
 
@@ -496,36 +404,213 @@ multibind_test(const atf_tc_t *tc, int domain, int type)
  * Try to bind two sockets to the same address/port tuple.  Under some
  * conditions this is permitted.
  */
-ATF_TC(socket_afinet_multibind);
-ATF_TC_HEAD(socket_afinet_multibind, tc)
+ATF_TC(multibind);
+ATF_TC_HEAD(multibind, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
 	atf_tc_set_md_var(tc, "require.config", "unprivileged_user");
 }
-ATF_TC_BODY(socket_afinet_multibind, tc)
+
+ATF_TC_BODY(multibind, tc)
 {
-	multibind_test(tc, AF_INET, SOCK_STREAM);
-	multibind_test(tc, AF_INET, SOCK_DGRAM);
-	multibind_test(tc, AF_INET6, SOCK_STREAM);
-	multibind_test(tc, AF_INET6, SOCK_DGRAM);
+	const struct {
+		int type;
+		int opt1;
+		bool wild1;
+		int opt2;
+		bool wild2;	/* not exercised yet, uses getsockname() rv */
+		enum bind_res priv_res;
+		enum bind_res unpriv_res;
+	} tests[] = {
+#define	ADDR	SO_REUSEADDR
+#define	PORT	SO_REUSEPORT
+#define	LB	SO_REUSEPORT_LB
+#define	x true
+#define	o false
+#define	F BIND_FAILED
+#define	R BIND_REUSE_SUCCESS
+		/*                               p  u */
+		{ SOCK_STREAM,    0, o,    0, o, F, F },
+		{ SOCK_STREAM,    0, o, ADDR, o, F, F },
+		{ SOCK_STREAM,    0, o, PORT, o, F, F },
+		{ SOCK_STREAM,    0, o,   LB, o, F, F },
+		{ SOCK_STREAM, ADDR, o,    0, o, F, F },
+		{ SOCK_STREAM, ADDR, o, ADDR, o, F, F },
+		{ SOCK_STREAM, ADDR, o, PORT, o, F, F },
+		{ SOCK_STREAM, ADDR, o,   LB, o, F, F },
+		{ SOCK_STREAM, PORT, o,    0, o, F, F },
+		{ SOCK_STREAM, PORT, o, ADDR, o, F, F },
+		{ SOCK_STREAM, PORT, o, PORT, o, R, F },
+		{ SOCK_STREAM, PORT, o,   LB, o, F, F },
+		{ SOCK_STREAM,   LB, o,    0, o, F, F },
+		{ SOCK_STREAM,   LB, o, ADDR, o, F, F },
+		{ SOCK_STREAM,   LB, o, PORT, o, F, F },
+		{ SOCK_STREAM,   LB, o,   LB, o, R, F },
+		{ SOCK_STREAM,    0, x,    0, x, F, F },
+		{ SOCK_STREAM,    0, x, ADDR, x, F, F },
+		{ SOCK_STREAM,    0, x, PORT, x, F, F },
+		{ SOCK_STREAM,    0, x,   LB, x, F, F },
+		{ SOCK_STREAM, ADDR, x,    0, x, F, F },
+		{ SOCK_STREAM, ADDR, x, ADDR, x, F, F },
+		{ SOCK_STREAM, ADDR, x, PORT, x, F, F },
+		{ SOCK_STREAM, ADDR, x,   LB, x, F, F },
+		{ SOCK_STREAM, PORT, x,    0, x, F, F },
+		{ SOCK_STREAM, PORT, x, ADDR, x, F, F },
+		{ SOCK_STREAM, PORT, x, PORT, x, R, F },
+		{ SOCK_STREAM, PORT, x,   LB, x, F, F },
+		{ SOCK_STREAM,   LB, x,    0, x, F, F },
+		{ SOCK_STREAM,   LB, x, ADDR, x, F, F },
+		{ SOCK_STREAM,   LB, x, PORT, x, F, F },
+		{ SOCK_STREAM,   LB, x,   LB, x, R, F },
+		{ SOCK_STREAM,    0, x,    0, o, F, F },
+		{ SOCK_STREAM,    0, x, ADDR, o, R, F },
+		{ SOCK_STREAM,    0, x, PORT, o, R, F }, /* bug? */
+		{ SOCK_STREAM,    0, o,    0, x, F, F },
+		{ SOCK_STREAM,    0, o, ADDR, x, R, F }, /* too strict? */
+		{ SOCK_STREAM,    0, o, PORT, x, R, F }, /* bug? */
+		/*
+		 * ATM, expected result for SOCK_DGRAM is the same as for
+		 * SOCK_STREAM.  Thus the below is copy-and-paste of the above.
+		 */
+		{ SOCK_DGRAM,    0, o,    0, o, F, F },
+		{ SOCK_DGRAM,    0, o, ADDR, o, F, F },
+		{ SOCK_DGRAM,    0, o, PORT, o, F, F },
+		{ SOCK_DGRAM,    0, o,   LB, o, F, F },
+		{ SOCK_DGRAM, ADDR, o,    0, o, F, F },
+		{ SOCK_DGRAM, ADDR, o, ADDR, o, F, F },
+		{ SOCK_DGRAM, ADDR, o, PORT, o, F, F },
+		{ SOCK_DGRAM, ADDR, o,   LB, o, F, F },
+		{ SOCK_DGRAM, PORT, o,    0, o, F, F },
+		{ SOCK_DGRAM, PORT, o, ADDR, o, F, F },
+		{ SOCK_DGRAM, PORT, o, PORT, o, R, F },
+		{ SOCK_DGRAM, PORT, o,   LB, o, F, F },
+		{ SOCK_DGRAM,   LB, o,    0, o, F, F },
+		{ SOCK_DGRAM,   LB, o, ADDR, o, F, F },
+		{ SOCK_DGRAM,   LB, o, PORT, o, F, F },
+		{ SOCK_DGRAM,   LB, o,   LB, o, R, F },
+		{ SOCK_DGRAM,    0, x,    0, x, F, F },
+		{ SOCK_DGRAM,    0, x, ADDR, x, F, F },
+		{ SOCK_DGRAM,    0, x, PORT, x, F, F },
+		{ SOCK_DGRAM,    0, x,   LB, x, F, F },
+		{ SOCK_DGRAM, ADDR, x,    0, x, F, F },
+		{ SOCK_DGRAM, ADDR, x, ADDR, x, F, F },
+		{ SOCK_DGRAM, ADDR, x, PORT, x, F, F },
+		{ SOCK_DGRAM, ADDR, x,   LB, x, F, F },
+		{ SOCK_DGRAM, PORT, x,    0, x, F, F },
+		{ SOCK_DGRAM, PORT, x, ADDR, x, F, F },
+		{ SOCK_DGRAM, PORT, x, PORT, x, R, F },
+		{ SOCK_DGRAM, PORT, x,   LB, x, F, F },
+		{ SOCK_DGRAM,   LB, x,    0, x, F, F },
+		{ SOCK_DGRAM,   LB, x, ADDR, x, F, F },
+		{ SOCK_DGRAM,   LB, x, PORT, x, F, F },
+		{ SOCK_DGRAM,   LB, x,   LB, x, R, F },
+		{ SOCK_DGRAM,    0, x,    0, o, F, F },
+		{ SOCK_DGRAM,    0, x, ADDR, o, R, F },
+		{ SOCK_DGRAM,    0, x, PORT, o, R, F }, /* bug? */
+		{ SOCK_DGRAM,    0, o,    0, x, F, F },
+		{ SOCK_DGRAM,    0, o, ADDR, x, R, F }, /* too strict? */
+		{ SOCK_DGRAM,    0, o, PORT, x, R, F }, /* bug? */
+#undef F
+#undef R
+#undef x
+#undef o
+#undef ADDR
+#undef PORT
+#undef LB
+	};
+	/*
+	 * Expected results for IPv4 and IPv6 shall always be the same, so
+	 * this dimension is implemented as a cycle rather than table entry.
+	 */
+	const union sockaddr_union {
+		struct sockaddr_in sin;
+		struct sockaddr_in6 sin6;
+		struct sockaddr sa;
+	} wild[] = {
+		{
+		    .sin.sin_family = AF_INET,
+		    .sin.sin_len = sizeof(struct sockaddr_in),
+		},
+		{
+		    .sin6.sin6_family = AF_INET6,
+		    .sin6.sin6_len = sizeof(struct sockaddr_in6),
+		},
+	}, loop[] = {
+		{
+		    .sin.sin_family = AF_INET,
+		    .sin.sin_len = sizeof(struct sockaddr_in),
+		    .sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK),
+		},
+		{
+		    .sin6.sin6_family = AF_INET6,
+		    .sin6.sin6_len = sizeof(struct sockaddr_in6),
+		    .sin6.sin6_addr = in6addr_loopback,
+		},
+	};
+
+	_Static_assert(nitems(wild) == nitems(loop), "EDOOFUS");
+	for (u_int af = 0; af < nitems(wild); af++) {
+		for (u_int i = 0; i < nitems(tests); i++) {
+			const struct sockaddr *sa;
+			union sockaddr_union su;
+			socklen_t slen;
+			enum bind_res res;
+			int s;
+			in_port_t port;
+
+			s = socket(wild[af].sa.sa_family, tests[i].type, 0);
+			ATF_REQUIRE(s >= 0);
+			sa = tests[i].wild1 ? &wild[af].sa : &loop[af].sa;
+			slen = sa->sa_len;
+			ATF_REQUIRE(bind(s, sa, slen) == 0);
+			if (tests[i].opt1 != 0)
+				ATF_REQUIRE(setsockopt(s, SOL_SOCKET,
+				    tests[i].opt1, &(int){1}, sizeof(int)) ==
+				    0);
+			ATF_REQUIRE(getsockname(s, &su.sa, &slen) == 0);
+			_Static_assert(offsetof(struct sockaddr_in, sin_port)
+			    == offsetof(struct sockaddr_in6, sin6_port),
+			    "EDOOFUS");
+			port = su.sin.sin_port;
+			memcpy(&su, tests[i].wild2 ? &wild[af] : &loop[af],
+			    sizeof(su));
+			su.sin.sin_port = port;
+			sa = &su.sa;
+			res = child_bind(tc, tests[i].type, sa, tests[i].opt2,
+			    false);
+			ATF_REQUIRE_MSG(tests[i].priv_res == res,
+			    "af %d test #%d (priv) failed", sa->sa_family, i);
+
+			res = child_bind(tc, tests[i].type, sa, tests[i].opt2,
+			    true);
+			ATF_REQUIRE_MSG(tests[i].unpriv_res == res,
+			    "af %d test #%d (unpriv) failed", sa->sa_family, i);
+
+			ATF_REQUIRE(close(s) == 0);
+		}
+	}
 }
 
-static void
-bind_connected_port_test(const atf_tc_t *tc, int domain)
+/*
+ * Test operation of bind(2) in presence of a connected inpcb using the
+ * same local port.
+ */
+static enum bind_res
+bind_connected_port_test(const atf_tc_t *tc, int domain, int type, bool wild,
+    bool unpriv)
 {
 	struct sockaddr_in sin;
 	struct sockaddr_in6 sin6;
 	struct sockaddr *sinp;
-	int error, sd[3], tmp;
-	bool res;
+	socklen_t slen;
+	int error, ss, cs, as;
+	enum bind_res res;
 
 	/*
 	 * Create a connected socket pair.
 	 */
-	sd[0] = socket(domain, SOCK_STREAM, 0);
-	ATF_REQUIRE_MSG(sd[0] >= 0, "socket failed: %s", strerror(errno));
-	sd[1] = socket(domain, SOCK_STREAM, 0);
-	ATF_REQUIRE_MSG(sd[1] >= 0, "socket failed: %s", strerror(errno));
+	ss = socket(domain, type, 0);
+	ATF_REQUIRE_MSG(ss >= 0, "socket failed: %s", strerror(errno));
 	if (domain == PF_INET) {
 		memset(&sin, 0, sizeof(sin));
 		sin.sin_family = AF_INET;
@@ -543,29 +628,61 @@ bind_connected_port_test(const atf_tc_t *tc, int domain)
 		sinp = (struct sockaddr *)&sin6;
 	}
 
-	error = bind(sd[0], sinp, sinp->sa_len);
+	error = bind(ss, sinp, sinp->sa_len);
 	ATF_REQUIRE_MSG(error == 0, "bind failed: %s", strerror(errno));
-	error = listen(sd[0], 1);
-	ATF_REQUIRE_MSG(error == 0, "listen failed: %s", strerror(errno));
 
-	error = getsockname(sd[0], sinp, &(socklen_t){ sinp->sa_len });
-	ATF_REQUIRE_MSG(error == 0, "getsockname failed: %s", strerror(errno));
-	if (domain == PF_INET)
-		sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	else
-		sin6.sin6_addr = in6addr_loopback;
-	error = connect(sd[1], sinp, sinp->sa_len);
-	ATF_REQUIRE_MSG(error == 0, "connect failed: %s", strerror(errno));
-	tmp = accept(sd[0], NULL, NULL);
-	ATF_REQUIRE_MSG(tmp >= 0, "accept failed: %s", strerror(errno));
-	ATF_REQUIRE(close(sd[0]) == 0);
-	sd[0] = tmp;
+	if (type == SOCK_STREAM) {
+		error = getsockname(ss, sinp, &(socklen_t){ sinp->sa_len });
+		ATF_REQUIRE_MSG(error == 0, "getsockname failed: %s",
+		    strerror(errno));
+		error = listen(ss, 1);
+		ATF_REQUIRE_MSG(error == 0,
+		    "listen failed: %s", strerror(errno));
+		cs = socket(domain, type, 0);
+		ATF_REQUIRE_MSG(cs >= 0, "socket failed: %s", strerror(errno));
+		if (domain == PF_INET)
+			sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+		else
+			sin6.sin6_addr = in6addr_loopback;
+		error = connect(cs, sinp, sinp->sa_len);
+		ATF_REQUIRE_MSG(error == 0,
+		    "connect failed: %s", strerror(errno));
+		slen = sinp->sa_len;
+		as = accept(ss, sinp, &slen);
+		ATF_REQUIRE_MSG(as >= 0, "accept failed: %s", strerror(errno));
+	} else {
+		ATF_REQUIRE(type == SOCK_DGRAM);
+		if (domain == PF_INET) {
+			sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+			sin.sin_port = htons(6666);
+		} else {
+			sin6.sin6_addr = in6addr_loopback;
+			sin6.sin6_port = htons(6666);
+		}
+		error = connect(ss, sinp, sinp->sa_len);
+		ATF_REQUIRE_MSG(error == 0,
+		    "connect failed: %s", strerror(errno));
+		error = getsockname(ss, sinp, &(socklen_t){ sinp->sa_len });
+		ATF_REQUIRE_MSG(error == 0, "getsockname failed: %s",
+		    strerror(errno));
+	}
 
-	/* bind() should succeed even from an unprivileged user. */
-	res = child_bind(tc, SOCK_STREAM, sinp, 0, false);
-	ATF_REQUIRE(!res);
-	res = child_bind(tc, SOCK_STREAM, sinp, 0, true);
-	ATF_REQUIRE(!res);
+	if (wild) {
+		if (domain == PF_INET)
+			sin.sin_addr.s_addr = htonl(INADDR_ANY);
+		else
+			sin6.sin6_addr = in6addr_any;
+	}
+
+	res = child_bind(tc, type, sinp, SO_REUSEADDR, unpriv);
+
+	if (type == SOCK_STREAM) {
+		ATF_REQUIRE(close(as) == 0);
+		ATF_REQUIRE(close(cs) == 0);
+	}
+	ATF_REQUIRE(close(ss) == 0);
+
+	return (res);
 }
 
 /*
@@ -573,29 +690,69 @@ bind_connected_port_test(const atf_tc_t *tc, int domain)
  * SO_REUSE* are specified.  However, if the port is bound by a connected
  * socket, then it's fair game.
  */
-ATF_TC(socket_afinet_bind_connected_port);
-ATF_TC_HEAD(socket_afinet_bind_connected_port, tc)
+ATF_TC(bind_connected_port);
+ATF_TC_HEAD(bind_connected_port, tc)
 {
 	atf_tc_set_md_var(tc, "require.user", "root");
 	atf_tc_set_md_var(tc, "require.config", "unprivileged_user");
 }
-ATF_TC_BODY(socket_afinet_bind_connected_port, tc)
+ATF_TC_BODY(bind_connected_port, tc)
 {
-	bind_connected_port_test(tc, AF_INET);
-	bind_connected_port_test(tc, AF_INET6);
+	struct bind_connected_port_res {
+		int domain;
+		int type;
+		bool wild;
+		bool unpriv;
+		enum bind_res result;
+	} tests[] = {
+#define	x true
+#define	o false
+				     /* W  U */
+	    { AF_INET,	SOCK_STREAM,	x, x, BIND_REUSE_SUCCESS },
+	    { AF_INET,	SOCK_STREAM,	o, x, BIND_REUSE_SUCCESS },
+	    { AF_INET,	SOCK_STREAM,	x, o, BIND_REUSE_SUCCESS },
+	    { AF_INET,	SOCK_STREAM,	o, o, BIND_REUSE_SUCCESS },
+	    { AF_INET6,	SOCK_STREAM,	x, x, BIND_REUSE_SUCCESS },
+	    { AF_INET6,	SOCK_STREAM,	o, x, BIND_REUSE_SUCCESS },
+	    { AF_INET6,	SOCK_STREAM,	x, o, BIND_REUSE_SUCCESS },
+	    { AF_INET6,	SOCK_STREAM,	o, o, BIND_REUSE_SUCCESS },
+	    { AF_INET,	SOCK_DGRAM,	x, x, BIND_FAILED },
+	    { AF_INET,	SOCK_DGRAM,	o, x, BIND_FAILED },
+	    { AF_INET,	SOCK_DGRAM,	x, o, BIND_REUSE_SUCCESS },
+	    { AF_INET,	SOCK_DGRAM,	o, o, BIND_REUSE_SUCCESS },
+	    { AF_INET6,	SOCK_DGRAM,	x, x, BIND_FAILED },
+	    { AF_INET6,	SOCK_DGRAM,	o, x, BIND_FAILED },
+	    { AF_INET6,	SOCK_DGRAM,	x, o, BIND_REUSE_SUCCESS },
+	    { AF_INET6,	SOCK_DGRAM,	o, o, BIND_REUSE_SUCCESS },
+#undef x
+#undef o
+	};
+
+	for (u_int i = 0; i < nitems(tests); i++) {
+		enum bind_res res;
+
+		res = bind_connected_port_test(tc, tests[i].domain,
+		    tests[i].type, tests[i].wild, tests[i].unpriv);
+		ATF_REQUIRE_MSG(res == tests[i].result, "test #%u: "
+		    "domain %u type %u%s %sprivileged: result %u (expected %u)",
+		    i, tests[i].domain, tests[i].type,
+		    tests[i].wild ? " wild" : "",
+		    tests[i].unpriv ? "un" : "",
+		    res, tests[i].result);
+	}
 }
 
 ATF_TP_ADD_TCS(tp)
 {
-	ATF_TP_ADD_TC(tp, socket_afinet);
-	ATF_TP_ADD_TC(tp, socket_afinet_bind_zero);
-	ATF_TP_ADD_TC(tp, socket_afinet_bind_ok);
-	ATF_TP_ADD_TC(tp, socket_afinet_poll_no_rdhup);
-	ATF_TP_ADD_TC(tp, socket_afinet_poll_rdhup);
-	ATF_TP_ADD_TC(tp, socket_afinet_stream_reconnect);
-	ATF_TP_ADD_TC(tp, socket_afinet_bindany);
-	ATF_TP_ADD_TC(tp, socket_afinet_multibind);
-	ATF_TP_ADD_TC(tp, socket_afinet_bind_connected_port);
+	ATF_TP_ADD_TC(tp, basic);
+	ATF_TP_ADD_TC(tp, bind_zero);
+	ATF_TP_ADD_TC(tp, bind_ok);
+	ATF_TP_ADD_TC(tp, poll_no_rdhup);
+	ATF_TP_ADD_TC(tp, poll_rdhup);
+	ATF_TP_ADD_TC(tp, stream_reconnect);
+	ATF_TP_ADD_TC(tp, bindany);
+	ATF_TP_ADD_TC(tp, multibind);
+	ATF_TP_ADD_TC(tp, bind_connected_port);
 
 	return atf_no_error();
 }

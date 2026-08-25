@@ -42,7 +42,7 @@ SRCS += \
         tunables.c \
         os/freebsd/getexecname.c \
         os/freebsd/gethostid.c \
-        os/freebsd/getmntany.c \
+        os/freebsd/getextmntent.c \
         os/freebsd/mnttab.c
 .endif
 

@@ -1,26 +1,17 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 #ifndef	_SYS_FS_ZFS_VNOPS_OS_H
@@ -47,30 +38,22 @@ extern int zfs_lookup(znode_t *dzp, char *nm, znode_t **zpp, int flags,
     cred_t *cr, int *direntflags, pathname_t *realpnp);
 extern int zfs_get_name(znode_t *dzp, char *name, znode_t *zp);
 extern int zfs_create(znode_t *dzp, char *name, vattr_t *vap, int excl,
-    int mode, znode_t **zpp, cred_t *cr, int flag, vsecattr_t *vsecp,
-    zidmap_t *mnt_ns);
+    int mode, znode_t **zpp, cred_t *cr, int flag, vsecattr_t *vsecp);
 extern int zfs_tmpfile(struct inode *dip, vattr_t *vapzfs, int excl,
-    int mode, struct inode **ipp, cred_t *cr, int flag, vsecattr_t *vsecp,
-    zidmap_t *mnt_ns);
+    int mode, struct inode **ipp, cred_t *cr, int flag, vsecattr_t *vsecp);
 extern int zfs_remove(znode_t *dzp, char *name, cred_t *cr, int flags);
 extern int zfs_mkdir(znode_t *dzp, char *dirname, vattr_t *vap,
-    znode_t **zpp, cred_t *cr, int flags, vsecattr_t *vsecp, zidmap_t *mnt_ns);
+    znode_t **zpp, cred_t *cr, int flags, vsecattr_t *vsecp);
 extern int zfs_rmdir(znode_t *dzp, char *name, znode_t *cwd,
     cred_t *cr, int flags);
 extern int zfs_readdir(struct inode *ip, struct dir_context *ctx, cred_t *cr);
-#ifdef HAVE_GENERIC_FILLATTR_IDMAP_REQMASK
 extern int zfs_getattr_fast(zidmap_t *, u32 request_mask, struct inode *ip,
     struct kstat *sp);
-#else
-extern int zfs_getattr_fast(zidmap_t *, struct inode *ip, struct kstat *sp);
-#endif
-extern int zfs_setattr(znode_t *zp, vattr_t *vap, int flag, cred_t *cr,
-    zidmap_t *mnt_ns);
+extern int zfs_setattr(znode_t *zp, vattr_t *vap, int flag, cred_t *cr);
 extern int zfs_rename(znode_t *sdzp, char *snm, znode_t *tdzp,
-    char *tnm, cred_t *cr, int flags, uint64_t rflags, vattr_t *wo_vap,
-    zidmap_t *mnt_ns);
+    char *tnm, cred_t *cr, int flags, uint64_t rflags, vattr_t *wo_vap);
 extern int zfs_symlink(znode_t *dzp, char *name, vattr_t *vap,
-    char *link, znode_t **zpp, cred_t *cr, int flags, zidmap_t *mnt_ns);
+    char *link, znode_t **zpp, cred_t *cr, int flags);
 extern int zfs_readlink(struct inode *ip, zfs_uio_t *uio, cred_t *cr);
 extern int zfs_link(znode_t *tdzp, znode_t *szp,
     char *name, cred_t *cr, int flags);
@@ -85,6 +68,22 @@ extern int zfs_dirty_inode(struct inode *ip, int flags);
 extern int zfs_map(struct inode *ip, offset_t off, caddr_t *addrp,
     size_t len, unsigned long vm_flags);
 extern void zfs_zrele_async(znode_t *zp);
+
+extern int zfs_create_idmap(znode_t *dzp, char *name, vattr_t *vap, int excl,
+    int mode, znode_t **zpp, cred_t *cr, int flag, vsecattr_t *vsecp,
+    zidmap_t *idmap);
+extern int zfs_tmpfile_idmap(struct inode *dip, vattr_t *vapzfs, int excl,
+    int mode, struct inode **ipp, cred_t *cr, int flag, vsecattr_t *vsecp,
+    zidmap_t *idmap);
+extern int zfs_mkdir_idmap(znode_t *dzp, char *dirname, vattr_t *vap,
+    znode_t **zpp, cred_t *cr, int flags, vsecattr_t *vsecp, zidmap_t *idmap);
+extern int zfs_setattr_idmap(znode_t *zp, vattr_t *vap, int flag, cred_t *cr,
+    zidmap_t *idmap);
+extern int zfs_rename_idmap(znode_t *sdzp, char *snm, znode_t *tdzp,
+    char *tnm, cred_t *cr, int flags, uint64_t rflags, vattr_t *wo_vap,
+    zidmap_t *idmap);
+extern int zfs_symlink_idmap(znode_t *dzp, char *name, vattr_t *vap,
+    char *link, znode_t **zpp, cred_t *cr, int flags, zidmap_t *idmap);
 
 #ifdef	__cplusplus
 }

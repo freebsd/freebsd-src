@@ -9,6 +9,7 @@ CC= @CC@
 @force_machine@MACHINE?= @machine@
 @force_machine_arch@MACHINE_ARCH?= @machine_arch@
 DEFAULT_SYS_PATH?= @default_sys_path@
+MAKE_SAVE_DOLLARS_DEFAULT?= @save_dollars@
 
 EGREP = @egrep@
 CPPFLAGS+= @CPPFLAGS@

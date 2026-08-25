@@ -35,6 +35,7 @@
 #include <sys/imgact.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/membarrier.h>
 #include <sys/msgbuf.h>
 #include <sys/mqueue.h>
 #include <sys/mutex.h>
@@ -356,6 +357,28 @@ linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
 
 	return (linux_mprotect_common(td, PTROUT(uap->addr), uap->len,
 	    uap->prot));
+}
+
+int
+linux_pkey_mprotect(struct thread *td, struct linux_pkey_mprotect_args *uap)
+{
+
+	return (linux_pkey_mprotect_common(td, uap->start, uap->len,
+	    uap->prot, uap->pkey));
+}
+
+int
+linux_pkey_alloc(struct thread *td, struct linux_pkey_alloc_args *uap)
+{
+
+	return (linux_pkey_alloc_common(td, uap->flags, uap->init_val));
+}
+
+int
+linux_pkey_free(struct thread *td, struct linux_pkey_free_args *uap)
+{
+
+	return (linux_pkey_free_common(td, uap->pkey));
 }
 
 int
@@ -750,6 +773,7 @@ linux_common_wait(struct thread *td, idtype_t idtype, int id, int *statusp,
 		error = linux_copyout_rusage(&wru.wru_self, rup);
 	if (error == 0 && infop != NULL && td->td_retval[0] != 0) {
 		sig = bsd_to_linux_signal(siginfo.si_signo);
+		memset(&lsi, 0, sizeof(lsi));
 		siginfo_to_lsiginfo(&siginfo, &lsi, sig);
 		error = copyout(&lsi, infop, sizeof(lsi));
 	}
@@ -1543,8 +1567,8 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 	 * SIGNAL_EXIT_GROUP is set. We ignore that (temporarily?)
 	 * as it doesnt occur often.
 	 */
-	exit1(td, args->error_code, 0);
-		/* NOTREACHED */
+	kern_exit(td, args->error_code, 0);
+	return (0);
 }
 
 #define _LINUX_CAPABILITY_VERSION_1  0x19980330
@@ -1803,15 +1827,42 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 
 		return (kern_procctl(td, P_PID, 0, PROC_REAP_ACQUIRE,
 		    NULL));
+	case LINUX_PR_GET_CHILD_SUBREAPER: {
+		struct procctl_reaper_status rs;
+		l_int val;
+
+		error = kern_procctl(td, P_PID, 0, PROC_REAP_STATUS, &rs);
+		if (error != 0)
+			return (error);
+		val = rs.rs_reaper == p->p_pid ? 1 : 0;
+		error = copyout(&val, (void *)(register_t)args->arg2,
+		    sizeof(val));
+		break;
+	}
 	case LINUX_PR_SET_NO_NEW_PRIVS:
 		arg = args->arg2 == 1 ?
 		    PROC_NO_NEW_PRIVS_ENABLE : PROC_NO_NEW_PRIVS_DISABLE;
 		error = kern_procctl(td, P_PID, p->p_pid,
 		    PROC_NO_NEW_PRIVS_CTL, &arg);
 		break;
+	case LINUX_PR_GET_NO_NEW_PRIVS:
+		error = kern_procctl(td, P_PID, p->p_pid,
+		    PROC_NO_NEW_PRIVS_STATUS, &arg);
+		if (error != 0)
+			return (error);
+		/* Linux returns the value as the syscall return */
+		td->td_retval[0] = arg == PROC_NO_NEW_PRIVS_ENABLE ? 1 : 0;
+		break;
 	case LINUX_PR_SET_PTRACER:
 		linux_msg(td, "unsupported prctl PR_SET_PTRACER");
 		error = EINVAL;
+		break;
+	case LINUX_PR_SET_VMA:
+		if (args->arg2 != LINUX_PR_SET_VMA_ANON_NAME) {
+			linux_msg(td, "unsupported prctl PR_SET_VMA attr %ju",
+			    (uintmax_t)args->arg2);
+			error = EINVAL;
+		}
 		break;
 	default:
 		linux_msg(td, "unsupported prctl option %d", args->option);
@@ -2009,6 +2060,7 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 	u_int which;
 	int flags;
 	int error;
+	bool exec_blocked;
 
 	if (args->new == NULL && args->old != NULL) {
 		if (linux_get_dummy_limit(td, args->resource, &rlim)) {
@@ -2036,6 +2088,7 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 			return (error);
 	}
 
+	exec_blocked = false;
 	flags = PGET_HOLD | PGET_NOTWEXIT;
 	if (args->new != NULL)
 		flags |= PGET_CANDEBUG;
@@ -2048,6 +2101,14 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 		error = pget(args->pid, flags, &p);
 		if (error != 0)
 			return (error);
+		exec_blocked = true;
+		PROC_LOCK(p);
+		execve_block_wait(td, p);
+		error = args->new != NULL ? p_candebug(td, p) :
+		    p_cansee(td, p);
+		PROC_UNLOCK(p);
+		if (error != 0)
+			goto out;
 	}
 	if (args->old != NULL) {
 		PROC_LOCK(p);
@@ -2070,6 +2131,11 @@ linux_prlimit64(struct thread *td, struct linux_prlimit64_args *args)
 		error = kern_proc_setrlimit(td, p, which, &nrlim);
 
  out:
+	if (exec_blocked) {
+		PROC_LOCK(p);
+		execve_unblock(td, p);
+		PROC_UNLOCK(p);
+	}
 	PRELE(p);
 	return (error);
 }
@@ -3092,6 +3158,95 @@ linux_kcmp(struct thread *td, struct linux_kcmp_args *args)
 
 	return (kern_kcmp(td, args->pid1, args->pid2, type, args->idx1,
 	    args->idx));
+}
+
+int
+linux_membarrier(struct thread *td, struct linux_membarrier_args *args)
+{
+	static const struct {
+		int linux_cmd;
+		int freebsd_cmd;
+	} cmds[] = {
+		{ LINUX_MEMBARRIER_CMD_QUERY,
+		    MEMBARRIER_CMD_QUERY },
+		{ LINUX_MEMBARRIER_CMD_GLOBAL,
+		    MEMBARRIER_CMD_GLOBAL },
+		{ LINUX_MEMBARRIER_CMD_GLOBAL_EXPEDITED,
+		    MEMBARRIER_CMD_GLOBAL_EXPEDITED },
+		{ LINUX_MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED,
+		    MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED },
+		{ LINUX_MEMBARRIER_CMD_PRIVATE_EXPEDITED,
+		    MEMBARRIER_CMD_PRIVATE_EXPEDITED },
+		{ LINUX_MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED,
+		    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED },
+		{ LINUX_MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE,
+		    MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE },
+		{ LINUX_MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE,
+		    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE },
+		{ LINUX_MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ,
+		    MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ },
+		{ LINUX_MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_RSEQ,
+		    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_RSEQ },
+		{ LINUX_MEMBARRIER_CMD_GET_REGISTRATIONS,
+		    MEMBARRIER_CMD_GET_REGISTRATIONS },
+	};
+	int cmd, error, flags, i, mask;
+
+	cmd = -1;
+	for (i = 0; i < nitems(cmds); i++) {
+		if (args->cmd == cmds[i].linux_cmd) {
+			cmd = cmds[i].freebsd_cmd;
+			break;
+		}
+	}
+
+	if (cmd == -1 || (args->flags & ~LINUX_MEMBARRIER_CMD_FLAG_CPU) != 0)
+		return (EINVAL);
+
+	flags = 0;
+	if ((args->flags & LINUX_MEMBARRIER_CMD_FLAG_CPU) != 0)
+		flags |= MEMBARRIER_CMD_FLAG_CPU;
+
+	error = kern_membarrier(td, cmd, flags, args->cpu_id);
+	if (error != 0)
+		return (error);
+
+	if (args->cmd == LINUX_MEMBARRIER_CMD_QUERY ||
+	    args->cmd == LINUX_MEMBARRIER_CMD_GET_REGISTRATIONS) {
+		mask = td->td_retval[0];
+		td->td_retval[0] = 0;
+		for (i = 0; i < nitems(cmds); i++)
+			if ((mask & cmds[i].freebsd_cmd) != 0)
+				td->td_retval[0] |= cmds[i].linux_cmd;
+	}
+
+	return (0);
+}
+
+/*
+ * setfsuid() & setfsgid() exist to decouple the Linux filesystem credentials
+ * from the effective credentials, avoiding signal exposure during privilege
+ * transitions. The signal permission model that motivated this was revised in
+ * Linux 2.0, making these syscalls obsolete for new applications.
+ *
+ * As there's no FreeBSD equivalent, implement both syscalls as no-ops that
+ * return the current effective UID/GID as the previous filesystem UID/GID.
+ * Linux returns the previous filesystem UID/GID for these syscalls, with no
+ * error indication.
+ */
+
+int
+linux_setfsuid(struct thread *td, struct linux_setfsuid_args *args)
+{
+	td->td_retval[0] = td->td_ucred->cr_uid;
+	return (0);
+}
+
+int
+linux_setfsgid(struct thread *td, struct linux_setfsgid_args *args)
+{
+	td->td_retval[0] = td->td_ucred->cr_gid;
+	return (0);
 }
 
 MODULE_DEPEND(linux, mqueuefs, 1, 1, 1);

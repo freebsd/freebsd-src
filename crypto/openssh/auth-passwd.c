@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-passwd.c,v 1.48 2020/10/18 11:32:01 djm Exp $ */
+/* $OpenBSD: auth-passwd.c,v 1.49 2025/05/08 17:32:53 tedu Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -133,7 +133,7 @@ static void
 warn_expiry(Authctxt *authctxt, auth_session_t *as)
 {
 	int r;
-	quad_t pwtimeleft, actimeleft, daysleft, pwwarntime, acwarntime;
+	int64_t pwtimeleft, actimeleft, daysleft, pwwarntime, acwarntime;
 
 	pwwarntime = acwarntime = TWO_WEEKS;
 

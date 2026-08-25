@@ -6,7 +6,7 @@
 .if !defined(CPUTYPE) || empty(CPUTYPE)
 _CPUCFLAGS =
 . if ${MACHINE_CPUARCH} == "aarch64"
-MACHINE_CPU = arm64
+MACHINE_CPU = arm64 cortexa53
 . elif ${MACHINE_CPUARCH} == "amd64"
 MACHINE_CPU = amd64 sse2 sse mmx
 . elif ${MACHINE_CPUARCH} == "arm"
@@ -124,6 +124,14 @@ _CPUCFLAGS = -mcpu=${CPUTYPE}
 . elif ${MACHINE_ARCH:Mpowerpc64*} != ""
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 . elif ${MACHINE_CPUARCH} == "aarch64"
+MACHINE_CPU = arm64
+.  if ${CPUTYPE} == "generic"
+MACHINE_CPU += cortexa53
+.  elif ${CPUTYPE} == "armv8-a"
+MACHINE_CPU += cortexa53
+.  elif ${CPUTYPE:M*cortex-a53*} != ""
+MACHINE_CPU += cortexa53
+.  endif
 .  if ${CPUTYPE:Marmv*} != ""
 # Use -march when the CPU type is an architecture value, e.g. armv8.1-a
 _CPUCFLAGS = -march=${CPUTYPE}
@@ -299,6 +307,14 @@ MACHINE_CPU += vsx3
 ########## riscv
 . elif ${MACHINE_CPUARCH} == "riscv"
 MACHINE_CPU = riscv
+. endif
+.endif
+
+########## arm64/aarch64
+.if ${MACHINE_CPUARCH} == "aarch64"
+# Add the Cortex-A53 erratum 843419 workaround if we are targeting it.
+. if ${MACHINE_CPU:Mcortexa53} != ""
+LDFLAGS += -Wl,--fix-cortex-a53-843419
 . endif
 .endif
 

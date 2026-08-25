@@ -85,3 +85,5 @@ END(linux_rt_sigcode)
 	.balign 4
 	.previous
 #endif
+
+	.section .note.GNU-stack,"",%progbits

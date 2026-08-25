@@ -1,0 +1,11 @@
+prefix=/test
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: argv-parse-3
+Description: A testing pkg-config file
+Version: 1.2.3
+Libs: -llib-1 \
+	-pthread ${libdir}/lib2.so
+Cflags: 

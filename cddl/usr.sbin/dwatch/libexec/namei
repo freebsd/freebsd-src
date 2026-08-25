@@ -1,0 +1,84 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for namei(9) pathname resolution $
+# $Copyright: 2026 Devin Teske. All rights reserved. $
+#
+############################################################ DESCRIPTION
+#
+# Print pathnames given to namei(9) for resolution, exactly as the process
+# requested them, together with the lookup result. Unlike the vop_lookup
+# profile, which reconstructs paths from the name cache one component at a
+# time, this rides the vfs:namei:lookup probes and so sees the whole path
+# in one piece. Use namei-failure to show only failed lookups or
+# namei-enoent to hunt file-not-found storms (the single most common
+# use of truss(1), without stopping the victim).
+#
+############################################################ PROBE
+
+case "$PROFILE" in
+namei|namei-enoent|namei-failure)
+	: ${PROBE:=vfs:namei:lookup:return} ;;
+namei-entry)
+	: ${PROBE:=vfs:namei:lookup:entry} ;;
+*)
+	: ${PROBE:=vfs:namei:lookup:${PROFILE#namei-}}
+esac
+
+############################################################ EVENT ACTION
+
+[ "$CUSTOM_TEST" ] || case "$PROFILE" in
+namei-enoent)	EVENT_TEST="this->namei_error == ENOENT" ;;
+namei-failure)	EVENT_TEST="this->namei_error != 0" ;;
+esac
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+self string	namei_path;
+this int	namei_error;
+this string	namei_pathstr;
+
+vfs:namei:lookup:entry /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");
+}
+	/*
+	 * char * (kernel copy of the path being resolved)
+	 */
+	this->namei_pathstr = self->namei_path = stringof(arg1);
+	this->namei_error = 0;
+}
+
+vfs:namei:lookup:return /* probe ID $(( $ID + 1 )) */
+{${TRACE:+
+	printf("<$(( $ID + 1 ))>");
+}
+	/* NB: path was recorded at entry by the clause above */
+	this->namei_pathstr = self->namei_path;
+	this->namei_error = (int)arg0;
+	self->namei_path = 0;
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 2 ))
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print pathname resolution details
+	 */
+	printf("%s%s", this->namei_pathstr,
+		this->namei_error == 0 ? "" : strjoin(": ",
+		strjoin(strerror[this->namei_error],
+		strjoin(" (", strjoin(lltostr(this->namei_error), ")")))));
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

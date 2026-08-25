@@ -875,29 +875,42 @@ int
 ixl_enable_rings(struct ixl_vsi *vsi)
 {
 	struct ixl_pf	*pf = vsi->back;
-	int		error = 0;
+	int		error;
 
-	for (int i = 0; i < vsi->num_tx_queues; i++)
+	for (int i = 0; i < vsi->num_tx_queues; i++) {
 		error = ixl_enable_tx_ring(pf, &pf->qtag, i);
+		if (error != 0)
+			return (error);
+	}
 
-	for (int i = 0; i < vsi->num_rx_queues; i++)
+	for (int i = 0; i < vsi->num_rx_queues; i++) {
 		error = ixl_enable_rx_ring(pf, &pf->qtag, i);
+		if (error != 0)
+			return (error);
+	}
 
-	return (error);
+	return (0);
 }
 
 int
 ixl_disable_rings(struct ixl_pf *pf, struct ixl_vsi *vsi, struct ixl_pf_qtag *qtag)
 {
-	int error = 0;
+	int error, first_error;
 
-	for (int i = 0; i < vsi->num_tx_queues; i++)
+	first_error = 0;
+	for (int i = 0; i < vsi->num_tx_queues; i++) {
 		error = ixl_disable_tx_ring(pf, qtag, i);
+		if (error != 0 && first_error == 0)
+			first_error = error;
+	}
 
-	for (int i = 0; i < vsi->num_rx_queues; i++)
+	for (int i = 0; i < vsi->num_rx_queues; i++) {
 		error = ixl_disable_rx_ring(pf, qtag, i);
+		if (error != 0 && first_error == 0)
+			first_error = error;
+	}
 
-	return (error);
+	return (first_error);
 }
 
 void
@@ -928,8 +941,20 @@ ixl_prepare_for_reset(struct ixl_pf *pf, bool is_up)
 {
 	struct i40e_hw *hw = &pf->hw;
 	device_t dev = pf->dev;
-	int error = 0;
+	int error, first_error;
 
+	first_error = 0;
+	/* Restore identification before the reset tears down AdminQ access. */
+	ixl_led_restore(pf);
+#ifdef PCI_IOV
+	ixl_notify_vfs_reset(pf);
+	error = ixl_quiesce_vfs_for_reset(pf);
+	if (error != 0) {
+		device_printf(dev, "Failed to quiesce one or more VFs: %d\n",
+		    error);
+		first_error = error;
+	}
+#endif
 	if (is_up)
 		ixl_if_stop(pf->vsi.ctx);
 
@@ -938,12 +963,15 @@ ixl_prepare_for_reset(struct ixl_pf *pf, bool is_up)
 	ixl_disable_intr0(hw);
 
 	error = i40e_shutdown_adminq(hw);
-	if (error)
+	if (error) {
 		device_printf(dev,
 		    "Shutdown Admin queue failed with code %d\n", error);
+		if (first_error == 0)
+			first_error = error;
+	}
 
 	ixl_pf_qmgr_release(&pf->qmgr, &pf->qtag);
-	return (error);
+	return (first_error);
 }
 
 int
@@ -992,6 +1020,7 @@ ixl_rebuild_hw_structs_after_reset(struct ixl_pf *pf, bool is_up)
 	if (error) {
 		device_printf(dev, "Failed to reserve queues for PF LAN VSI, error %d\n",
 		    error);
+		goto ixl_rebuild_hw_structs_after_reset_err;
 	}
 
 	error = ixl_switch_config(pf);
@@ -1025,6 +1054,15 @@ ixl_rebuild_hw_structs_after_reset(struct ixl_pf *pf, bool is_up)
 
 	/* Receive broadcast Ethernet frames */
 	i40e_aq_set_vsi_broadcast(&pf->hw, vsi->seid, TRUE, NULL);
+
+#ifdef PCI_IOV
+	if (pf->num_vfs != 0) {
+		error = ixl_rebuild_vfs_after_reset(pf);
+		if (error != 0)
+			device_printf(dev,
+			    "Failed to rebuild one or more VFs: %d\n", error);
+	}
+#endif
 
 	/* Determine link state */
 	ixl_attach_get_link_status(pf);

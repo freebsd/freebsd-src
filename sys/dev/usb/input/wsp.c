@@ -231,6 +231,7 @@ enum tp_type {
 
 /* list of device capability bits */
 #define	HAS_INTEGRATED_BUTTON	1
+#define	SUPPORTS_FORCETOUCH	2
 
 /* trackpad finger data block size */
 #define FSIZE_TYPE1             (14 * 2)
@@ -285,7 +286,7 @@ struct wsp_tp {
 		.delta = 0,
 	},
 	[TYPE4] = {
-		.caps = HAS_INTEGRATED_BUTTON,
+		.caps = HAS_INTEGRATED_BUTTON | SUPPORTS_FORCETOUCH,
 		.button = BUTTON_TYPE4,
 		.offset = FINGER_TYPE4,
 		.fsize = FSIZE_TYPE4,
@@ -896,7 +897,8 @@ wsp_attach(device_t dev)
 	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_POSITION_X, sc->sc_params->x);
 	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_POSITION_Y, sc->sc_params->y);
 	/* finger pressure */
-	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_PRESSURE, sc->sc_params->p);
+	if ((sc->sc_params->tp->caps & SUPPORTS_FORCETOUCH) != 0)
+		WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_PRESSURE, sc->sc_params->p);
 	/* finger major/minor axis */
 	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_TOUCH_MAJOR, sc->sc_params->w);
 	WSP_SUPPORT_ABS(sc->sc_evdev, ABS_MT_TOUCH_MINOR, sc->sc_params->w);
@@ -1066,6 +1068,10 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (evdev_rcpt_mask & EVDEV_RCPT_HW_MOUSE) {
 			evdev_push_key(sc->sc_evdev, BTN_LEFT, ibt);
 			evdev_sync(sc->sc_evdev);
+			if ((sc->sc_fflags & FREAD) == 0 ||
+			     usb_fifo_put_bytes_max(
+			      sc->sc_fifo.fp[USB_FIFO_RX]) == 0)
+				goto tr_setup;
 		}
 #endif
 		sc->sc_status.flags &= ~MOUSE_POSCHANGED;
@@ -1355,7 +1361,12 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 tr_setup:
 		/* check if we can put more data into the FIFO */
-		if (usb_fifo_put_bytes_max(
+		if (
+#ifdef EVDEV_SUPPORT
+		    ((evdev_rcpt_mask & EVDEV_RCPT_HW_MOUSE) != 0 &&
+		     (sc->sc_state & WSP_EVDEV_OPENED) != 0) ||
+#endif
+		    usb_fifo_put_bytes_max(
 		    sc->sc_fifo.fp[USB_FIFO_RX]) != 0) {
 			usbd_xfer_set_frame_len(xfer, 0,
 			    sc->tp_datalen);

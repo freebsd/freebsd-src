@@ -365,7 +365,7 @@ per_fib_dgram_socket(int domain, int type, const atf_tc_t *tc __unused)
 		sin6p->sin6_addr = in6addr_loopback;
 	}
 
-	/* If we send a byte from cs1, it should be recieved by ss1. */
+	/* If we send a byte from cs1, it should be received by ss1. */
 	b = 42;
 	n = sendto(cs1, &b, sizeof(b), 0, (struct sockaddr *)&ss, sslen);
 	ATF_REQUIRE_MSG(n == 1, "sendto failed: %s", strerror(errno));

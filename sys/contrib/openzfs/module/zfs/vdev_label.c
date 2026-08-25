@@ -1,29 +1,21 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2020 by Delphix. All rights reserved.
  * Copyright (c) 2017, Intel Corporation.
+ * Copyright (c) 2024-2026, Klara, Inc.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 /*
@@ -400,6 +392,14 @@ vdev_config_generate_stats(vdev_t *vd, nvlist_t *nv)
 	kmem_free(vsx, sizeof (*vsx));
 }
 
+static const char *condense_type_keys[] = {
+	POOL_CONDENSE_LOG_SPACEMAP,
+#ifdef ZFS_DEBUG
+	"debug",
+#endif
+	NULL,
+};
+
 static void
 root_vdev_actions_getprogress(vdev_t *vd, nvlist_t *nvl)
 {
@@ -436,6 +436,36 @@ root_vdev_actions_getprogress(vdev_t *vd, nvlist_t *nvl)
 		    ZPOOL_CONFIG_RAIDZ_EXPAND_STATS, (uint64_t *)&pres,
 		    sizeof (pres) / sizeof (uint64_t));
 	}
+
+	nvlist_t *cnv = fnvlist_alloc();
+	for (spa_condense_type_t type = 0; type < SPA_CONDENSE_TYPES; type++) {
+		const spa_condense_stat_t *scns =
+		    &spa->spa_condense_stats[type];
+		if (scns->scns_start_time == 0)
+			continue;
+
+		nvlist_t *tnv = fnvlist_alloc();
+		mutex_enter(&spa->spa_condense_stats_lock);
+
+		if (scns->scns_start_time == 0) {
+			/* It was cleared before we could get the lock, skip. */
+			mutex_exit(&spa->spa_condense_stats_lock);
+			fnvlist_free(tnv);
+			continue;
+		}
+
+		fnvlist_add_uint64(tnv, "start_time", scns->scns_start_time);
+		fnvlist_add_uint64(tnv, "end_time", scns->scns_end_time);
+		fnvlist_add_uint64(tnv, "processed", scns->scns_processed);
+		fnvlist_add_uint64(tnv, "total", scns->scns_total);
+
+		mutex_exit(&spa->spa_condense_stats_lock);
+
+		fnvlist_add_nvlist(cnv, condense_type_keys[type], tnv);
+		fnvlist_free(tnv);
+	}
+	fnvlist_add_nvlist(nvl, ZPOOL_CONFIG_CONDENSE_STATS, cnv);
+	fnvlist_free(cnv);
 }
 
 static void
@@ -467,6 +497,11 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 	if (!(flags & (VDEV_CONFIG_SPARE | VDEV_CONFIG_L2CACHE)))
 		fnvlist_add_uint64(nv, ZPOOL_CONFIG_ID, vd->vdev_id);
 	fnvlist_add_uint64(nv, ZPOOL_CONFIG_GUID, vd->vdev_guid);
+	if (!(flags & (VDEV_CONFIG_SPARE | VDEV_CONFIG_L2CACHE)) &&
+	    vd->vdev_top != NULL) {
+		fnvlist_add_uint64(nv, ZPOOL_CONFIG_TOP_GUID,
+		    vd->vdev_top->vdev_guid);
+	}
 
 	if (vd->vdev_path != NULL)
 		fnvlist_add_string(nv, ZPOOL_CONFIG_PATH, vd->vdev_path);
@@ -493,6 +528,11 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 		    vd->vdev_wholedisk);
 	}
 
+	if (vd->vdev_ops->vdev_op_leaf) {
+		fnvlist_add_uint64(nv, ZPOOL_CONFIG_VDEV_ROTATIONAL,
+		    !vd->vdev_nonrot);
+	}
+
 	if (vd->vdev_not_present && !(flags & VDEV_CONFIG_MISSING))
 		fnvlist_add_uint64(nv, ZPOOL_CONFIG_NOT_PRESENT, 1);
 
@@ -501,6 +541,9 @@ vdev_config_generate(spa_t *spa, vdev_t *vd, boolean_t getstats,
 
 	if (flags & VDEV_CONFIG_L2CACHE)
 		fnvlist_add_uint64(nv, ZPOOL_CONFIG_ASHIFT, vd->vdev_ashift);
+
+	if ((flags & VDEV_CONFIG_SPARE) && vd->vdev_asize != 0)
+		fnvlist_add_uint64(nv, ZPOOL_CONFIG_ASIZE, vd->vdev_asize);
 
 	if (!(flags & (VDEV_CONFIG_SPARE | VDEV_CONFIG_L2CACHE)) &&
 	    vd == vd->vdev_top) {
@@ -1109,8 +1152,29 @@ vdev_label_init(vdev_t *vd, uint64_t crtxg, vdev_labeltype_t reason)
 	 * Determine if the vdev is in use.
 	 */
 	if (reason != VDEV_LABEL_REMOVE && reason != VDEV_LABEL_SPLIT &&
-	    vdev_inuse(vd, crtxg, reason, &spare_guid, &l2cache_guid))
+	    vdev_inuse(vd, crtxg, reason, &spare_guid, &l2cache_guid)) {
+		if (spa->spa_create_info == NULL) {
+			nvlist_t *nv = fnvlist_alloc();
+			nvlist_t *cfg;
+
+			if (vd->vdev_path != NULL)
+				fnvlist_add_string(nv,
+				    ZPOOL_CREATE_INFO_VDEV, vd->vdev_path);
+
+			cfg = vdev_label_read_config(vd, -1ULL);
+			if (cfg != NULL) {
+				const char *pname;
+				if (nvlist_lookup_string(cfg,
+				    ZPOOL_CONFIG_POOL_NAME, &pname) == 0)
+					fnvlist_add_string(nv,
+					    ZPOOL_CREATE_INFO_POOL, pname);
+				nvlist_free(cfg);
+			}
+
+			spa->spa_create_info = nv;
+		}
 		return (SET_ERROR(EBUSY));
+	}
 
 	/*
 	 * If this is a request to add or replace a spare or l2cache device
@@ -1371,6 +1435,7 @@ vdev_label_read_bootenv(vdev_t *rvd, nvlist_t *bootenv)
 				    VB_NVLIST);
 				break;
 			}
+			vbe->vbe_bootenv[sizeof (vbe->vbe_bootenv) - 1] = '\0';
 			fnvlist_add_string(bootenv, FREEBSD_BOOTONCE, buf);
 		}
 
@@ -1491,7 +1556,7 @@ vdev_label_write_bootenv(vdev_t *vd, nvlist_t *env)
  * conflicting uberblocks on disk with the same txg.  The solution is simple:
  * among uberblocks with equal txg, choose the one with the latest timestamp.
  */
-static int
+int
 vdev_uberblock_compare(const uberblock_t *ub1, const uberblock_t *ub2)
 {
 	int cmp = TREE_CMP(ub1->ub_txg, ub2->ub_txg);
@@ -1622,8 +1687,10 @@ vdev_uberblock_load(vdev_t *rvd, uberblock_t *ub, nvlist_t **config)
 	 * matches the txg for our uberblock.
 	 */
 	if (cb.ubl_vd != NULL) {
-		vdev_dbgmsg(cb.ubl_vd, "best uberblock found for spa %s. "
-		    "txg %llu", spa->spa_name, (u_longlong_t)ub->ub_txg);
+		vdev_dbgmsg(cb.ubl_vd, "best uberblock found for spa %s, "
+		    "txg=%llu seq=%llu", spa_load_name(spa),
+		    (u_longlong_t)ub->ub_txg,
+		    (u_longlong_t)(MMP_SEQ_VALID(ub) ? MMP_SEQ(ub) : 0));
 
 		if (ub->ub_raidz_reflow_info !=
 		    cb.ubl_latest.ub_raidz_reflow_info) {
@@ -1631,7 +1698,7 @@ vdev_uberblock_load(vdev_t *rvd, uberblock_t *ub, nvlist_t **config)
 			    "spa=%s best uberblock (txg=%llu info=0x%llx) "
 			    "has different raidz_reflow_info than latest "
 			    "uberblock (txg=%llu info=0x%llx)",
-			    spa->spa_name,
+			    spa_load_name(spa),
 			    (u_longlong_t)ub->ub_txg,
 			    (u_longlong_t)ub->ub_raidz_reflow_info,
 			    (u_longlong_t)cb.ubl_latest.ub_txg,

@@ -3,13 +3,13 @@
 
 #
 # This file and its contents are supplied under the terms of the
-# Common Development and Distribution License ("CDDL"), version a.0.
+# Common Development and Distribution License ("CDDL"), version 1.0.
 # You may only use this file in accordance with the terms of version
-# a.0 of the CDDL.
+# 1.0 of the CDDL.
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -70,7 +70,9 @@ log_mustnot eval "zfs send --saved $POOL/recvfullfs | zfs recv -s " \
 	"$POOL/partialfs"
 token=$(zfs get -Hp -o value receive_resume_token $POOL/partialfs)
 log_must eval "zfs send -t $token | zfs recv -s $POOL/partialfs"
-file_check $POOL/recvfullfs $POOL/partialfs
+# recvfullfs never completes and has no snapshots to compare, so
+# check the result against the dataset the stream originally came from
+file_check $POOL/testfs2 $POOL/partialfs
 log_must zfs destroy -r $POOL/partialfs
 
 # Perform saved send with incremental

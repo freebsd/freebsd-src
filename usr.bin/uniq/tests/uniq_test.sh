@@ -197,14 +197,15 @@ stdout_head() {
 	atf_set descr "error writing to stdout"
 }
 stdout_body() {
-	(
+	mkfifo fifo
+	: <fifo &
+	{
+		wait
 		trap "" PIPE
-		# Give true(1) some time to exit.
-		sleep 1
 		echo a | uniq 2>stderr
-		echo $? >result
-	) | true
-	atf_check -o inline:"1\n" cat result
+		result=$?
+	} >fifo
+	atf_check_equal 1 "$result"
 	atf_check -o match:"stdout" cat stderr
 }
 

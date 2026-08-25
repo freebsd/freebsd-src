@@ -198,6 +198,7 @@ get_cname_target(struct ub_packed_rrset_key* rrset, uint8_t** dname,
 {
 	struct packed_rrset_data* d;
 	size_t len;
+	if(!rrset) return;
 	if(ntohs(rrset->rk.type) != LDNS_RR_TYPE_CNAME && 
 		ntohs(rrset->rk.type) != LDNS_RR_TYPE_DNAME)
 		return;
@@ -296,7 +297,7 @@ int packed_rr_to_string(struct ub_packed_rrset_key* rrset, size_t i,
 	wlen = (size_t)sldns_wire2str_rr_buf(rr, rlen, dest, dest_len);
 	if(wlen >= dest_len) {
 		/* the output string was truncated */
-		log_info("rrbuf failure %d %s", (int)d->rr_len[i], dest);
+		verbose(VERB_ALGO, "rrbuf failure %d %s", (int)d->rr_len[i], dest);
 		dest[0] = 0;
 		return 0;
 	} 
@@ -336,10 +337,9 @@ packed_rrset_copy_region(struct ub_packed_rrset_key* key,
 	struct ub_packed_rrset_key* ck = regional_alloc(region, 
 		sizeof(struct ub_packed_rrset_key));
 	struct packed_rrset_data* d;
-	struct packed_rrset_data* data = (struct packed_rrset_data*)
-		key->entry.data;
+	struct packed_rrset_data* data = key->entry.data;
 	size_t dsize, i;
-	time_t adjust = 0;
+	time_t now_control;
 	if(!ck)
 		return NULL;
 	ck->id = key->id;
@@ -352,22 +352,34 @@ packed_rrset_copy_region(struct ub_packed_rrset_key* key,
 	if(!ck->rk.dname)
 		return NULL;
 	dsize = packed_rrset_sizeof(data);
-	d = (struct packed_rrset_data*)regional_alloc_init(region, data, dsize);
+	d = regional_alloc_init(region, data, dsize);
 	if(!d)
 		return NULL;
 	ck->entry.data = d;
 	packed_rrset_ptr_fixup(d);
-	/* make TTLs relative - once per rrset */
-	adjust = SERVE_ORIGINAL_TTL ? data->ttl_add : now;
-	for(i=0; i<d->count + d->rrsig_count; i++) {
-		if(d->rr_ttl[i] < adjust)
-			d->rr_ttl[i] = SERVE_EXPIRED?SERVE_EXPIRED_REPLY_TTL:0;
-		else	d->rr_ttl[i] -= adjust;
+	/* make TTLs relative - once per rr */
+	if(now > 0) {
+		/* NS RRSets may be here with ttl_add higher than now because
+		 * of the novel ghost attack mitigation i.e., using the
+		 * qstarttime for NS RRSets. In that case make sure that the
+		 * returned TTL is not higher than the original one. */
+		/* For types other than type NS, auth zone and rpz code
+		 * can have ttl_add values. Also time could conceivably move
+		 * in reverse, due to operator action, and it is prudent
+		 * to not assert on that here.
+		 * So there is no assertion d->ttl_add <= now || type==NS */
+		now_control = SERVE_ORIGINAL_TTL ? data->ttl_add
+			: (d->ttl_add > now ? d->ttl_add : now );
+		for(i=0; i<d->count + d->rrsig_count; i++) {
+			if(TTL_IS_EXPIRED(d->rr_ttl[i], now_control)) {
+				d->rr_ttl[i] = EXPIRED_REPLY_TTL_CALC(d->rr_ttl[i], data->ttl_add);
+			} else	d->rr_ttl[i] -= now_control;
+		}
+		if(TTL_IS_EXPIRED(d->ttl, now_control)) {
+			d->ttl = EXPIRED_REPLY_TTL_CALC(d->ttl, data->ttl_add);
+		} else	d->ttl -= now_control;
+		d->ttl_add = 0; /* TTLs have been made relative */
 	}
-	if(d->ttl < adjust)
-		d->ttl = SERVE_EXPIRED?SERVE_EXPIRED_REPLY_TTL:0;
-	else	d->ttl -= adjust;
-	d->ttl_add = 0; /* TTLs have been made relative */
 	return ck;
 }
 

@@ -33,7 +33,8 @@ INCS=	a.out.h ar.h assert.h bitstring.h byteswap.h \
 	stddef.h stdnoreturn.h stdio.h stdlib.h string.h stringlist.h \
 	strings.h sysexits.h tar.h termios.h tgmath.h \
 	time.h timeconv.h timers.h ttyent.h \
-	uchar.h ulimit.h unistd.h utime.h utmpx.h uuid.h varargs.h \
+	uchar.h uexterror.h ulimit.h unistd.h utime.h utmpx.h uuid.h \
+	varargs.h \
 	wchar.h wctype.h wordexp.h xlocale.h
 
 .PATH: ${SRCTOP}/contrib/libc-vis
@@ -51,7 +52,7 @@ LDIRS=	geom net net80211 netgraph netinet netinet6 \
 
 LSUBDIRS=	dev/acpica dev/agp dev/ciss dev/filemon dev/firewire \
 	dev/hwpmc dev/hyperv \
-	dev/ic dev/iicbus dev/io dev/mfi dev/mmc \
+	dev/ic dev/iicbus dev/io dev/mfi dev/mmc dev/ntsync \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/pwm \
 	dev/smbus dev/speaker dev/tcp_log dev/veriexec dev/vkbd dev/wg \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nfs fs/nullfs \
@@ -150,6 +151,10 @@ CAMSCSI=	scsi_all.h \
 		scsi_targetio.h \
 		smp_all.h
 CAMSCSIDIR=	${INCLUDEDIR}/cam/scsi
+
+.PATH: ${SRCTOP}/sys/dev/coreboot
+COREBOOT=	corebootio.h
+COREBOOTDIR=	${INCLUDEDIR}/dev/coreboot
 
 .PATH: ${SRCTOP}/sys/fs/cd9660
 FS9660=		cd9660_mount.h \
@@ -254,6 +259,7 @@ INCSGROUPS=	INCS \
 		CAMMMC \
 		CAMNVME \
 		CAMSCSI \
+		COREBOOT \
 		CRYPTO \
 		EVDEV \
 		FS9660 \
@@ -381,7 +387,7 @@ copies: .PHONY .META
 	cd ${SDESTDIR}${INCLUDEDIR}; find ${LDIRS} ${LSUBDIRS} ${LSUBSUBDIRS} crypto \
 	    machine machine/pc ${_MARCHS} -maxdepth 1 -mindepth 1 -type l \
 	    -name "*.h" -print -delete || true
-.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hid:Ndev/hyperv:Ndev/pci:Ndev/veriexec:Ndev/wg} ${LSUBSUBDIRS}
+.for i in ${LDIRS} ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/coreboot:Ndev/evdev:Ndev/hid:Ndev/hyperv:Ndev/pci:Ndev/veriexec:Ndev/wg} ${LSUBSUBDIRS}
 	cd ${SRCTOP}/sys; \
 	${INSTALL} -C ${TAG_ARGS:D${TAG_ARGS},dev} -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 	    ${SDESTDIR}${INCLUDEDIR}/$i
@@ -417,7 +423,7 @@ symlinks: .PHONY .META
 	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
 	    $$(printf '../../../%s ' sys/$i/*.h) ${SDESTDIR}${INCLUDEDIR}/$i
 .endfor
-.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/evdev:Ndev/hid:Ndev/hyperv:Ndev/pci:Ndev/veriexec:Ndev/wg}
+.for i in ${LSUBDIRS:Ndev/agp:Ndev/acpica:Ndev/coreboot:Ndev/evdev:Ndev/hid:Ndev/hyperv:Ndev/pci:Ndev/veriexec:Ndev/wg}
 	cd ${SRCTOP}; ${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} \
 	    $$(printf '../../../../%s ' sys/$i/*.h) ${SDESTDIR}${INCLUDEDIR}/$i
 .endfor
@@ -438,6 +444,8 @@ symlinks: .PHONY .META
 	    ${SDESTDIR}${INCLUDEDIR}/dev/hyperv; \
 	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/pci/pcireg.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/pci; \
+	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/coreboot/corebootio.h \
+	    ${SDESTDIR}${INCLUDEDIR}/dev/coreboot; \
 	${INSTALL_SYMLINK} ${TAG_ARGS:D${TAG_ARGS},dev} ../../../../sys/dev/veriexec/veriexec_ioctl.h \
 	    ${SDESTDIR}${INCLUDEDIR}/dev/veriexec;
 .for i in ${LSUBSUBDIRS}

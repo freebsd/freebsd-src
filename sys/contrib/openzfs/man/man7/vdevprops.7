@@ -1,23 +1,13 @@
 .\" SPDX-License-Identifier: CDDL-1.0
 .\"
-.\" CDDL HEADER START
+.\" This file and its contents are supplied under the terms of the
+.\" Common Development and Distribution License ("CDDL"), version 1.0.
+.\" You may only use this file in accordance with the terms of version
+.\" 1.0 of the CDDL.
 .\"
-.\" The contents of this file are subject to the terms of the
-.\" Common Development and Distribution License (the "License").
-.\" You may not use this file except in compliance with the License.
-.\"
-.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-.\" or https://opensource.org/licenses/CDDL-1.0.
-.\" See the License for the specific language governing permissions
-.\" and limitations under the License.
-.\"
-.\" When distributing Covered Code, include this CDDL HEADER in each
-.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-.\" If applicable, add the following below this CDDL HEADER, with the
-.\" fields enclosed by brackets "[]" replaced with your own identifying
-.\" information: Portions Copyright [yyyy] [name of copyright owner]
-.\"
-.\" CDDL HEADER END
+.\" A full copy of the text of the CDDL should have accompanied this
+.\" source.  A copy of the CDDL is also available via the Internet at
+.\" https://opensource.org/license/CDDL-1.0.
 .\"
 .\" Copyright (c) 2021, 2025, Klara, Inc.
 .\"
@@ -64,7 +54,7 @@ The values of non-numeric properties are case sensitive and must be lowercase.
 The following native properties consist of read-only statistics about the
 vdev.
 These properties can not be changed.
-.Bl -tag -width "fragmentation"
+.Bl -tag -width "failure_domain"
 .It Sy capacity
 Percentage of vdev space used
 .It Sy state
@@ -89,6 +79,14 @@ How much this vdev can expand by
 Percent of fragmentation in this vdev
 .It Sy parity
 The level of parity for this vdev
+.It Sy failure_domain
+Failure domain id of this child vdev in
+.Sy dRAID
+vdev with failure domains feature
+.It Sy failure_group
+Failure group id of this child vdev in
+.Sy dRAID
+vdev with failure domains feature
 .It Sy devid
 The device id for this vdev
 .It Sy physpath
@@ -114,7 +112,7 @@ threshold in milliseconds
 For
 .Sy RAIDZ
 and
-.Sy DRAID
+.Sy dRAID
 configurations, this value also represents the number of times the vdev was
 identified as an outlier and excluded from participating in read I/O operations.
 .It Sy null_ops , read_ops , write_ops , free_ops , claim_ops , trim_ops
@@ -126,8 +124,16 @@ The number of I/O operations of each type performed by this vdev
 The cumulative size of all operations of each type performed by this vdev
 .It Sy removing
 If this device is currently being removed from the pool
+.It Sy raidz_expanding
+Set while a
+.Nm zpool Cm attach
+expansion is in progress on this RAID-Z vdev; cleared on completion.
+See
+.Xr zpool-attach 8 .
 .It Sy trim_support
 Indicates if a leaf device supports trim operations.
+.It Sy rotational
+Indicates whether the device backing this vdev uses rotating media.
 .El
 .Pp
 The following native properties can be used to change the behavior of a vdev.
@@ -142,7 +148,17 @@ If the property is only set on the top-level vdev, this value will be used.
 The value of these properties do not persist across vdev replacement.
 For this reason, it is advisable to set the property on the top-level vdev -
 not on the leaf vdev itself.
+The
+.Sy slow_io_n
+and
+.Sy slow_io_t
+properties must be manually set to enable slow I/O diagnosis;
+there are no built-in defaults.
 The default values for
+.Sy checksum_n , checksum_t , io_n ,
+and
+.Sy io_t
+on
 .Sy OpenZFS on Linux
 are 10 errors in 600 seconds.
 For
@@ -159,14 +175,17 @@ output.
 A text comment up to 8192 characters long
 .It Sy bootsize
 The amount of space to reserve for the EFI system partition
-.It Sy failfast
+.It Sy failfast Ns = Ns Sy inherit Ns | Ns Sy on Ns | Ns Sy off
 If this device should propagate BIO errors back to ZFS, used to disable
 failfast.
+.Sy inherit
+causes the vdev to adopt the behavior of its parent vdev,
+recursively up the tree.
 .It Sy sit_out
 Only valid for
 .Sy RAIDZ
 and
-.Sy DRAID
+.Sy dRAID
 vdevs.
 True when a slow disk outlier was detected and the vdev is currently in a sit
 out state.
@@ -180,7 +199,7 @@ data will be reconstructed as needed from parity.
 Only valid for
 .Sy RAIDZ
 and
-.Sy DRAID
+.Sy dRAID
 vdevs.
 If set, this enables the kernel-level slow disk detection logic.
 This logic automatically causes any vdevs that are significant negative
@@ -194,6 +213,38 @@ If this device should perform new allocations, used to disable a device
 when it is scheduled for later removal.
 See
 .Xr zpool-remove 8 .
+.It Sy alloc_bias Ns = Ns Sy none Ns | Ns Sy log Ns | Ns Sy special Ns | Ns Sy dedup
+Controls the allocation class for a top-level vdev.
+Changes take effect after an export and import of the pool.
+Changing to/from log is not implemented, since it may lead to data loss in
+case of the log device failure.
+Setting to
+.Sy special
+and
+.Sy dedup
+requires
+.Sy feature@allocation_classes
+to be enabled.
+At least one top-level vdev must remain in the normal
+.Pq Sy none
+class.
+.It Sy scheduler Ns = Ns Sy auto Ns | Ns Sy on Ns | Ns Sy off
+Controls how I/O requests are added to the vdev queue when reading or
+writing to this vdev.
+This property can be set on leaf vdevs.
+The value of these properties do not persist across vdev replacement.
+.Bl -tag -compact -width "auto"
+.It Ar auto
+Let ZFS choose which scheduler it thinks will be best.
+Currently, the scheduler will queue I/O if the vdev is backed by a rotational
+block device or file, and not queue otherwise.
+.It Ar on
+Always adds I/O requests to the vdev queue.
+.It Ar off
+Never adds I/O requests to the vdev queue.
+This is not recommended for vdevs backed by spinning disks as it could
+result in starvation.
+.El
 .El
 .Ss User Properties
 In addition to the standard native properties, ZFS supports arbitrary user

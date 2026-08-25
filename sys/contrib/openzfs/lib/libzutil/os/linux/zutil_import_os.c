@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright 2015 Nexenta Systems, Inc. All rights reserved.
@@ -92,6 +82,57 @@ should_skip_dev(const char *dev)
 	    (strcmp(dev, "hpet") == 0));
 }
 
+/*
+ * Common predicate for zpool_dev_probe_ok() and its fd variant: only a
+ * block device, or a regular file large enough to hold a label, may be
+ * probed.  Anything else is refused.
+ */
+static boolean_t
+dev_stat_probe_ok(const struct stat64 *statbuf)
+{
+	return (S_ISBLK(statbuf->st_mode) ||
+	    (S_ISREG(statbuf->st_mode) && statbuf->st_size >= SPA_MINDEVSIZE));
+}
+
+/*
+ * Determine if a path may be safely opened to probe for a vdev label.
+ * Only regular files large enough to hold a label and block devices are
+ * acceptable.  Anything else is refused: opening other device nodes can
+ * have side effects (e.g. arming a watchdog) and opening a FIFO blocks
+ * indefinitely.  stat64() never blocks, even on a FIFO.
+ */
+boolean_t
+zpool_dev_probe_ok(const char *path)
+{
+	struct stat64 statbuf;
+
+	if (should_skip_dev(zfs_basename(path)))
+		return (B_FALSE);
+
+	/* Ignore failed stats. */
+	if (stat64(path, &statbuf) != 0)
+		return (B_FALSE);
+
+	return (dev_stat_probe_ok(&statbuf));
+}
+
+/*
+ * As zpool_dev_probe_ok(), but re-check the type of an object already
+ * opened.  A path naming a symlink may have been repointed at a different
+ * node between the stat64() above and the open(), so only trust a
+ * descriptor which is still a block device or a large enough regular file.
+ */
+boolean_t
+zpool_dev_probe_ok_fd(int fd)
+{
+	struct stat64 statbuf;
+
+	if (fstat64(fd, &statbuf) != 0)
+		return (B_FALSE);
+
+	return (dev_stat_probe_ok(&statbuf));
+}
+
 int
 zfs_dev_flush(int fd)
 {
@@ -103,23 +144,13 @@ zpool_open_func(void *arg)
 {
 	rdsk_node_t *rn = arg;
 	libpc_handle_t *hdl = rn->rn_hdl;
-	struct stat64 statbuf;
 	nvlist_t *config;
 	uint64_t vdev_guid = 0;
 	int error;
 	int num_labels = 0;
 	int fd;
 
-	if (should_skip_dev(zfs_basename(rn->rn_name)))
-		return;
-
-	/*
-	 * Ignore failed stats.  We only want regular files and block devices.
-	 * Ignore files that are too small to hold a zpool.
-	 */
-	if (stat64(rn->rn_name, &statbuf) != 0 ||
-	    (!S_ISREG(statbuf.st_mode) && !S_ISBLK(statbuf.st_mode)) ||
-	    (S_ISREG(statbuf.st_mode) && statbuf.st_size < SPA_MINDEVSIZE))
+	if (!zpool_dev_probe_ok(rn->rn_name))
 		return;
 
 	/*

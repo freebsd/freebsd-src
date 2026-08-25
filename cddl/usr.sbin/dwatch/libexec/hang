@@ -1,0 +1,174 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for long sleeps and hung threads $
+# $Copyright: 2026 Devin Teske. All rights reserved. $
+#
+############################################################ DESCRIPTION
+#
+# Print threads that were asleep for a long time, as they wake, naming
+# the sleeper, how long it slept, and (in the standard event tag) the
+# process that woke it. Sleeps shorter than a threshold are suppressed
+# (default 1000 ms; tunable via DWATCH_HANG_MS in the environment, 0 to
+# show everything). Answers "what was my process stuck on?" -- the
+# blocking that the slow profile cannot see, because a syscall that
+# never returns never reports its latency. NB: the report fires at
+# wakeup with the full duration; a thread still asleep has not yet
+# been reported.
+# The hang-top profile maintains a running catalog, updated every
+# 3 seconds, of long sleeps by process. Combine with `-O cmd' to
+# capture state as each event occurs.
+#
+############################################################ PRAGMAS
+
+case "$PROFILE" in
+hang-top)
+	DTRACE_PRAGMA="
+		option quiet
+		option aggsortrev
+	" # END-QUOTE
+	;;
+esac
+
+############################################################ PROBE
+
+case "$PROFILE" in
+hang-top)
+	: ${PROBE:=profile:::tick-3s} ;;
+*)
+	: ${PROBE:=sched:::wakeup}
+esac
+
+############################################################ EVENT ACTION
+
+: ${DWATCH_HANG_MS:=1000}
+
+case "$DWATCH_HANG_MS" in
+""|*[!0-9]*) die "DWATCH_HANG_MS must be a number" ;; # NOTREACHED
+esac
+
+[ "$CUSTOM_TEST" ] || case "$PROFILE" in
+hang-top)	;;
+*)		EVENT_TEST="this->hang_ns >= (int64_t)$DWATCH_HANG_MS * 1000000"
+esac
+
+############################################################ ACTIONS
+
+if [ "$PROFILE" = "hang-top" ]; then
+exec 9<<EOF
+this int64_t	hang_ns;
+int64_t		hang_ts[int];
+
+BEGIN { printf("Cataloging long sleeps ...") } /* probe ID $ID */
+
+sched:::sleep /* probe ID $(( $ID + 1 )) */
+{
+	hang_ts[curthread->td_tid] = timestamp;
+}
+
+sched:::wakeup /* probe ID $(( $ID + 2 )) */
+{
+	/* NB: -1 if we did not see the sleep (enabled mid-sleep) */
+	this->hang_ns =
+		hang_ts[((struct thread *)args[0])->td_tid] ? timestamp -
+		hang_ts[((struct thread *)args[0])->td_tid] : -1;
+	hang_ts[((struct thread *)args[0])->td_tid] = 0;
+}
+
+sched:::wakeup /this->hang_ns >=
+	(int64_t)$DWATCH_HANG_MS * 1000000/ /* probe ID $(( $ID + 3 )) */
+{
+	@hang_cnt[stringof(((struct proc *)args[1])->p_comm)] = count();
+	@hang_max[stringof(((struct proc *)args[1])->p_comm)] =
+		max(this->hang_ns / 1000000);
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 4 ))
+else
+exec 9<<EOF
+this int64_t	hang_ns;
+int64_t		hang_ts[int];
+
+sched:::sleep /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");
+}
+	hang_ts[curthread->td_tid] = timestamp;
+}
+
+$PROBE /* probe ID $(( $ID + 1 )) */
+{${TRACE:+
+	printf("<$(( $ID + 1 ))>");
+}
+	/* NB: -1 if we did not see the sleep (enabled mid-sleep) */
+	this->hang_ns =
+		hang_ts[((struct thread *)args[0])->td_tid] ? timestamp -
+		hang_ts[((struct thread *)args[0])->td_tid] : -1;
+	hang_ts[((struct thread *)args[0])->td_tid] = 0;
+
+	$( pproc -P _hang "(struct proc *)args[1]" )
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 2 ))
+fi
+
+############################################################ EVENT TAG
+
+# For the running catalog, override the default `UID.GID CMD[PID]: ' tag
+# with ANSI cursor-homing and screen-clearing codes plus column headers.
+
+if [ "$PROFILE" = "hang-top" ]; then
+size=$( stty size 2> /dev/null )
+rows="${size%% *}"
+cols="${size#* }"
+
+exec 9<<EOF
+	printf("\033[H"); /* Position the cursor at top-left */
+	printf("\033[J"); /* Clear display from cursor to end */
+
+	/* Header line containing probe (left) and date (right) */
+	printf("%-*s%s%Y%s\n",
+		$(( ${cols:-80} - 20 )), "$PROBE",
+		console ? "\033[32m" : "",
+		walltimestamp,
+		console ? "\033[39m" : "");
+
+	/* Column headers */
+	printf("%s%8s %10s %s%s\n",
+		console ? "\033[1m" : "",
+		"COUNT",
+		"MAX(ms)",
+		"EXECNAME",
+		console ? "\033[22m" : "");
+EOF
+EVENT_TAG=$( cat <&9 )
+fi
+
+############################################################ EVENT DETAILS
+
+if [ "$PROFILE" = "hang-top" ]; then
+exec 9<<EOF
+	/* NB: Cumulative; not truncated between updates */
+	printa("%@8u %@10d %s\n", @hang_cnt, @hang_max);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+elif [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print long sleep details (tag shows the waker)
+	 */
+	printf("pid %d slept %d.%03d ms -- %s",
+		this->pid_hang,
+		this->hang_ns / 1000000,
+		(this->hang_ns % 1000000) / 1000,
+		this->args_hang);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

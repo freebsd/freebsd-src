@@ -4,6 +4,10 @@
  * Copyright (c) 2005-2009 Ariff Abdullah <ariff@FreeBSD.org>
  * Copyright (c) 1999 Cameron Grant <cg@FreeBSD.org>
  * All rights reserved.
+ * Copyright (c) 2026 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Christos Margiolis
+ * <christos@FreeBSD.org> under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,13 +34,36 @@
 #ifndef _PCM_MIXER_H_
 #define	_PCM_MIXER_H_
 
+#define MIXER_NAMELEN	16
+struct snd_mixer {
+	KOBJ_FIELDS;
+	void *devinfo;
+	int hwvol_mixer;
+	int hwvol_step;
+	int type;
+	device_t dev;
+	uint32_t devs;
+	uint32_t mutedevs;
+	uint32_t recdevs;
+	uint32_t recsrc;
+	uint16_t level[32];
+	uint16_t level_muted[32];
+	uint8_t parent[32];
+	uint32_t child[32];
+	uint8_t realdev[32];
+	char name[MIXER_NAMELEN];
+	struct mtx lock;
+	int modify_counter;
+};
+
 struct snd_mixer *mixer_create(device_t dev, kobj_class_t cls, void *devinfo,
     const char *desc);
 int mixer_delete(struct snd_mixer *m);
 int mixer_init(device_t dev, kobj_class_t cls, void *devinfo);
 int mixer_uninit(device_t dev);
 int mixer_reinit(device_t dev);
-int mixer_ioctl_cmd(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td, int from);
+int mixer_ioctl_cmd(struct cdev *i_dev, unsigned long cmd, caddr_t arg,
+    int mode, struct thread *td);
 int mixer_oss_mixerinfo(struct cdev *i_dev, oss_mixerinfo *mi);
 
 int mixer_hwvol_init(device_t dev);
@@ -45,37 +72,27 @@ void mixer_hwvol_mute(device_t dev);
 void mixer_hwvol_step_locked(struct snd_mixer *m, int l_step, int r_step);
 void mixer_hwvol_step(device_t dev, int left_step, int right_step);
 
-int mix_set(struct snd_mixer *m, u_int dev, u_int left, u_int right);
-int mix_get(struct snd_mixer *m, u_int dev);
-int mix_setrecsrc(struct snd_mixer *m, u_int32_t src);
-u_int32_t mix_getrecsrc(struct snd_mixer *m);
+int mix_set(struct snd_mixer *m, unsigned int dev, unsigned int left, unsigned int right);
+int mix_get(struct snd_mixer *m, unsigned int dev);
+int mix_setrecsrc(struct snd_mixer *m, uint32_t src);
+uint32_t mix_getrecsrc(struct snd_mixer *m);
 device_t mix_get_dev(struct snd_mixer *m);
 
-void mix_setdevs(struct snd_mixer *m, u_int32_t v);
-void mix_setrecdevs(struct snd_mixer *m, u_int32_t v);
-void mix_setmutedevs(struct snd_mixer *m, u_int32_t v);
-u_int32_t mix_getdevs(struct snd_mixer *m);
-u_int32_t mix_getrecdevs(struct snd_mixer *m);
-u_int32_t mix_getmutedevs(struct snd_mixer *m);
-void mix_setparentchild(struct snd_mixer *m, u_int32_t parent, u_int32_t childs);
-void mix_setrealdev(struct snd_mixer *m, u_int32_t dev, u_int32_t realdev);
-u_int32_t mix_getparent(struct snd_mixer *m, u_int32_t dev);
+void mix_setdevs(struct snd_mixer *m, uint32_t v);
+void mix_setrecdevs(struct snd_mixer *m, uint32_t v);
+void mix_setmutedevs(struct snd_mixer *m, uint32_t v);
+uint32_t mix_getdevs(struct snd_mixer *m);
+uint32_t mix_getrecdevs(struct snd_mixer *m);
+uint32_t mix_getmutedevs(struct snd_mixer *m);
+void mix_setparentchild(struct snd_mixer *m, uint32_t parent, uint32_t childs);
+void mix_setrealdev(struct snd_mixer *m, uint32_t dev, uint32_t realdev);
+uint32_t mix_getparent(struct snd_mixer *m, uint32_t dev);
 void *mix_getdevinfo(struct snd_mixer *m);
-struct mtx *mixer_get_lock(struct snd_mixer *m);
-
-#define MIXER_CMD_DIRECT	0	/* send command within driver   */
-#define MIXER_CMD_CDEV		1	/* send command from cdev/ioctl */
 
 #define MIXER_TYPE_PRIMARY	0	/* mixer_init()   */
 #define MIXER_TYPE_SECONDARY	1	/* mixer_create() */
 
-/*
- * this is a kludge to allow hiding of the struct snd_mixer definition
- * 512 should be enough for all architectures
- */
-#define MIXER_SIZE	(512 + sizeof(struct kobj) +		\
-			    sizeof(oss_mixer_enuminfo))
-
-#define MIXER_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, MIXER_SIZE)
+#define MIXER_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, \
+    sizeof(struct snd_mixer))
 
 #endif				/* _PCM_MIXER_H_ */

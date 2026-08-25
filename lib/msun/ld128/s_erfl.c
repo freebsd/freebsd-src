@@ -323,3 +323,6 @@ erfcl(long double x)
 	    if(x>0) return tiny*tiny; else return two-tiny;
 	}
 }
+
+__weak_reference(erfl, erff128);
+__weak_reference(erfcl, erfcf128);

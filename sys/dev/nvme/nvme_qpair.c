@@ -231,7 +231,7 @@ nvme_qpair_complete_tracker(struct nvme_tracker *tr,
 		nvme_qpair_print_completion(qpair, cpl);
 	}
 
-	qpair->act_tr[cpl->cid] = NULL;
+	qpair->act_tr[cpl->cid - qpair->cid_base] = NULL;
 
 	KASSERT(cpl->cid == req->cmd.cid, ("cpl cid does not match cmd cid\n"));
 
@@ -305,7 +305,7 @@ nvme_qpair_manual_complete_tracker(
 	memset(&cpl, 0, sizeof(cpl));
 
 	cpl.sqid = qpair->id;
-	cpl.cid = tr->cid;
+	cpl.cid = qpair->cid_base + tr->cid;
 	cpl.status = nvme_qpair_make_status(sct, sc, dnr);
 	nvme_qpair_complete_tracker(tr, &cpl, print_on_error);
 }
@@ -433,8 +433,9 @@ _nvme_qpair_process_completions(struct nvme_qpair *qpair)
 		    NVME_STATUS_GET_P(status) == NVME_STATUS_GET_P(cpl.status),
 		    ("Phase unexpectedly inconsistent"));
 
-		if (cpl.cid < qpair->num_trackers)
-			tr = qpair->act_tr[cpl.cid];
+		if (cpl.cid >= qpair->cid_base &&
+		    cpl.cid < qpair->cid_base + qpair->num_trackers)
+			tr = qpair->act_tr[cpl.cid - qpair->cid_base];
 		else
 			tr = NULL;
 
@@ -476,8 +477,8 @@ _nvme_qpair_process_completions(struct nvme_qpair *qpair)
 	}
 
 	if (done) {
-		bus_space_write_4(qpair->ctrlr->bus_tag, qpair->ctrlr->bus_handle,
-		    qpair->cq_hdbl_off, qpair->cq_head);
+		bus_write_4(qpair->ctrlr->resource, qpair->cq_hdbl_off,
+		    qpair->cq_head);
 	}
 
 	return (done);
@@ -530,6 +531,17 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	qpair->num_trackers = num_trackers;
 	qpair->ctrlr = ctrlr;
 
+	KASSERT(ctrlr->io_sqes == NVME_IOSQES_64 ||
+	    ctrlr->io_sqes == NVME_IOSQES_128,
+	    ("invalid CC.IOSQES value %u", ctrlr->io_sqes));
+	/* Admin SQEs are always 64 bytes. */
+	qpair->sqe_shift = qpair->id == 0 ? 0 :
+	    ctrlr->io_sqes - NVME_IOSQES_64;
+	if ((ctrlr->quirks & QUIRK_APPLE_SHARED_CID_SPACE) && qpair->id != 0)
+		qpair->cid_base = ctrlr->adminq.num_trackers;
+	else
+		qpair->cid_base = 0;
+
 	mtx_init(&qpair->lock, "nvme qpair lock", NULL, MTX_DEF);
 	mtx_init(&qpair->recovery, "nvme qpair recovery", NULL, MTX_DEF);
 
@@ -553,7 +565,7 @@ nvme_qpair_construct(struct nvme_qpair *qpair,
 	 * Each component must be page aligned, and individual PRP lists
 	 * cannot cross a page boundary.
 	 */
-	cmdsz = qpair->num_entries * sizeof(struct nvme_command);
+	cmdsz = qpair->num_entries * sizeof(struct nvme_command) << qpair->sqe_shift;
 	cmdsz = roundup2(cmdsz, ctrlr->page_size);
 	cplsz = qpair->num_entries * sizeof(struct nvme_completion);
 	cplsz = roundup2(cplsz, ctrlr->page_size);
@@ -987,7 +999,8 @@ do_reset:
 				 * queue which will reset the card if it
 				 * times out.
 				 */
-				nvme_ctrlr_cmd_abort(ctrlr, tr->cid, qpair->id,
+				nvme_ctrlr_cmd_abort(ctrlr,
+				    qpair->cid_base + tr->cid, qpair->id,
 				    nvme_abort_complete, tr);
 			} else {
 				/*
@@ -1040,7 +1053,7 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 	mtx_assert(&qpair->lock, MA_OWNED);
 
 	req = tr->req;
-	req->cmd.cid = tr->cid;
+	req->cmd.cid = qpair->cid_base + tr->cid;
 	qpair->act_tr[tr->cid] = tr;
 	ctrlr = qpair->ctrlr;
 
@@ -1061,15 +1074,14 @@ nvme_qpair_submit_tracker(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 		tr->deadline = SBT_MAX;
 
 	/* Copy the command from the tracker to the submission queue. */
-	memcpy(&qpair->cmd[qpair->sq_tail], &req->cmd, sizeof(req->cmd));
+	memcpy(NVME_SQE(qpair, qpair->sq_tail), &req->cmd, sizeof(req->cmd));
 
 	if (++qpair->sq_tail == qpair->num_entries)
 		qpair->sq_tail = 0;
 
 	bus_dmamap_sync(qpair->dma_tag, qpair->queuemem_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-	bus_space_write_4(ctrlr->bus_tag, ctrlr->bus_handle,
-	    qpair->sq_tdbl_off, qpair->sq_tail);
+	bus_write_4(ctrlr->resource, qpair->sq_tdbl_off, qpair->sq_tail);
 	qpair->num_cmds++;
 }
 
@@ -1236,7 +1248,7 @@ nvme_qpair_reset(struct nvme_qpair *qpair)
 	qpair->phase = 1;
 
 	memset(qpair->cmd, 0,
-	    qpair->num_entries * sizeof(struct nvme_command));
+	    qpair->num_entries * sizeof(struct nvme_command) << qpair->sqe_shift);
 	memset(qpair->cpl, 0,
 	    qpair->num_entries * sizeof(struct nvme_completion));
 }

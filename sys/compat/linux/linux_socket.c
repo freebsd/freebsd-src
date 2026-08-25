@@ -30,6 +30,7 @@
 
 #include <sys/param.h>
 #include <sys/capsicum.h>
+#include <sys/domain.h>
 #include <sys/filedesc.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
@@ -52,6 +53,7 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #ifdef INET6
+#include <netinet/icmp6.h>
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #endif
@@ -567,6 +569,8 @@ linux_to_bsd_so_sockopt(int opt)
 		return (SO_PROTOCOL);
 	case LINUX_SO_DOMAIN:
 		return (SO_DOMAIN);
+	case LINUX_SO_PASSRIGHTS:
+		return (SO_PASSRIGHTS);
 	}
 	return (-1);
 }
@@ -589,14 +593,49 @@ linux_to_bsd_tcp_sockopt(int opt)
 	case LINUX_TCP_KEEPCNT:
 		return (TCP_KEEPCNT);
 	case LINUX_TCP_INFO:
-		LINUX_RATELIMIT_MSG_OPT1(
-		    "unsupported TCP socket option TCP_INFO (%d)", opt);
-		return (-2);
+		return (TCP_INFO);
 	case LINUX_TCP_MD5SIG:
 		return (TCP_MD5SIG);
+	case LINUX_TCP_USER_TIMEOUT:
+		return (TCP_MAXUNACKTIME);
 	}
 	return (-1);
 }
+
+static u_int
+linux_to_bsd_tcp_user_timeout(l_uint linux_timeout)
+{
+
+	/*
+	 * Linux exposes TCP_USER_TIMEOUT in milliseconds while
+	 * TCP_MAXUNACKTIME uses whole seconds. Round up partial
+	 * seconds so a non-zero Linux timeout never becomes zero.
+	 */
+	return (howmany(linux_timeout, 1000U));
+}
+
+static l_uint
+bsd_to_linux_tcp_user_timeout(u_int bsd_timeout)
+{
+
+	if (bsd_timeout > UINT_MAX / 1000U)
+		return (UINT_MAX);
+
+	return (bsd_timeout * 1000U);
+}
+
+#ifdef INET6
+static int
+linux_to_bsd_icmp6_sockopt(int opt)
+{
+
+	switch (opt) {
+	case LINUX_ICMP6_FILTER:
+		return (ICMP6_FILTER);
+	}
+	return (-1);
+}
+#endif
 
 static int
 linux_to_bsd_msg_flags(int flags)
@@ -668,6 +707,20 @@ bsd_to_linux_ip_cmsg_type(int cmsg_type)
 	return (-1);
 }
 
+#ifdef INET6
+static int
+bsd_to_linux_ip6_cmsg_type(int cmsg_type)
+{
+	switch (cmsg_type) {
+	case IPV6_2292HOPLIMIT:
+		return (LINUX_IPV6_2292HOPLIMIT);
+	case IPV6_HOPLIMIT:
+		return (LINUX_IPV6_HOPLIMIT);
+	}
+	return (-1);
+}
+#endif
+
 static int
 bsd_to_linux_cmsg_type(struct proc *p, int cmsg_type, int cmsg_level)
 {
@@ -675,6 +728,10 @@ bsd_to_linux_cmsg_type(struct proc *p, int cmsg_type, int cmsg_level)
 
 	if (cmsg_level == IPPROTO_IP)
 		return (bsd_to_linux_ip_cmsg_type(cmsg_type));
+#ifdef INET6
+	if (cmsg_level == IPPROTO_IPV6)
+		return (bsd_to_linux_ip6_cmsg_type(cmsg_type));
+#endif
 	if (cmsg_level != SOL_SOCKET)
 		return (-1);
 
@@ -2057,8 +2114,10 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 	struct proc *p = td->td_proc;
 	struct linux_pemuldata *pem;
 	l_timeval linux_tv;
+	l_uint linux_timeout;
 	struct sockaddr *sa;
 	struct timeval tv;
+	u_int bsd_timeout;
 	socklen_t len;
 	int error, level, name, val;
 
@@ -2130,7 +2189,68 @@ linux_setsockopt(struct thread *td, struct linux_setsockopt_args *args)
 		break;
 	case IPPROTO_TCP:
 		name = linux_to_bsd_tcp_sockopt(args->optname);
+		switch (name) {
+		case TCP_MAXUNACKTIME:
+			if (args->optlen < sizeof(linux_timeout))
+				return (EINVAL);
+
+			error = copyin(PTRIN(args->optval), &linux_timeout,
+			    sizeof(linux_timeout));
+			if (error != 0)
+				return (error);
+
+			bsd_timeout = linux_to_bsd_tcp_user_timeout(
+			    linux_timeout);
+			return (kern_setsockopt(td, args->s, level, name,
+			    &bsd_timeout, UIO_SYSSPACE,
+			    sizeof(bsd_timeout)));
+		default:
+			break;
+		}
 		break;
+#ifdef INET6
+	case IPPROTO_RAW: {
+		struct file *fp;
+		struct socket *so;
+		int family;
+
+		error = getsock(td, args->s, &cap_setsockopt_rights, &fp);
+		if (error != 0)
+			return (error);
+		so = fp->f_data;
+		family = so->so_proto->pr_domain->dom_family;
+		fdrop(fp, td);
+
+		name = -1;
+		if (family == AF_INET6) {
+			name = linux_to_bsd_ip6_sockopt(args->optname);
+			if (name >= 0)
+				level = IPPROTO_IPV6;
+		}
+		break;
+	}
+	case IPPROTO_ICMPV6: {
+		struct icmp6_filter f;
+		int i;
+
+		name = linux_to_bsd_icmp6_sockopt(args->optname);
+		if (name != ICMP6_FILTER)
+			break;
+
+		if (args->optlen != sizeof(f))
+			return (EINVAL);
+
+		error = copyin(PTRIN(args->optval), &f, sizeof(f));
+		if (error)
+			return (error);
+
+		/* Linux uses opposite values for pass/block in ICMPv6 */
+		for (i = 0; i < nitems(f.icmp6_filt); i++)
+			f.icmp6_filt[i] = ~f.icmp6_filt[i];
+		return (kern_setsockopt(td, args->s, IPPROTO_ICMPV6,
+		    ICMP6_FILTER, &f, UIO_SYSSPACE, sizeof(f)));
+	}
+#endif
 	case SOL_NETLINK:
 		name = args->optname;
 		break;
@@ -2196,10 +2316,21 @@ linux_sockopt_copyout(struct thread *td, void *val, socklen_t len,
     struct linux_getsockopt_args *args)
 {
 	int error;
+	l_int loptlen;
+	socklen_t optlen;
 
-	error = copyout(val, PTRIN(args->optval), len);
-	if (error == 0)
-		error = copyout(&len, PTRIN(args->optlen), sizeof(len));
+	error = copyin(PTRIN(args->optlen), &loptlen, sizeof(loptlen));
+	if (error != 0)
+		return (error);
+	if (loptlen < 0)
+		return (EINVAL);
+
+	optlen = (socklen_t)loptlen;
+	error = copyout(val, PTRIN(args->optval), min(len, optlen));
+	if (error == 0) {
+		loptlen = (l_int)len;
+		error = copyout(&loptlen, PTRIN(args->optlen), sizeof(loptlen));
+	}
 	return (error);
 }
 
@@ -2276,13 +2407,51 @@ linux_getsockopt_so_linger(struct thread *td,
 	return (linux_sockopt_copyout(td, &ling, len, args));
 }
 
+static int
+linux_getsockopt_tcp_info(struct thread *td,
+    struct linux_getsockopt_args *args)
+{
+	struct tcp_info tinfo;
+	struct l_tcp_info l_tinfo;
+	socklen_t len;
+	int error;
+
+	len = sizeof(tinfo);
+	error = kern_getsockopt(td, args->s, IPPROTO_TCP, TCP_INFO, &tinfo,
+	    UIO_SYSSPACE, &len);
+	if (error != 0)
+		return (error);
+	memset(&l_tinfo, 0, sizeof(l_tinfo));
+	l_tinfo.tcpi_state         = tinfo.tcpi_state;
+	l_tinfo.tcpi_options       = tinfo.tcpi_options;
+	l_tinfo.tcpi_snd_wscale    = tinfo.tcpi_snd_wscale;
+	l_tinfo.tcpi_rcv_wscale    = tinfo.tcpi_rcv_wscale;
+	l_tinfo.tcpi_rto           = tinfo.tcpi_rto;
+	l_tinfo.tcpi_snd_mss       = tinfo.tcpi_snd_mss;
+	l_tinfo.tcpi_rcv_mss       = tinfo.tcpi_rcv_mss;
+	l_tinfo.tcpi_last_data_recv = tinfo.tcpi_last_data_recv;
+	l_tinfo.tcpi_rtt           = tinfo.tcpi_rtt;
+	l_tinfo.tcpi_rttvar        = tinfo.tcpi_rttvar;
+	l_tinfo.tcpi_snd_ssthresh  = tinfo.tcpi_snd_ssthresh;
+	l_tinfo.tcpi_snd_cwnd      = tinfo.tcpi_snd_cwnd;
+	l_tinfo.tcpi_rcv_space     = tinfo.tcpi_rcv_space;
+	l_tinfo.tcpi_snd_wnd       = tinfo.tcpi_snd_wnd;
+	l_tinfo.tcpi_rcv_ooopack   = tinfo.tcpi_rcv_ooopack;
+	/* Eqivalent */
+	l_tinfo.tcpi_total_retrans = tinfo.tcpi_snd_rexmitpack;
+
+	return (linux_sockopt_copyout(td, &l_tinfo, len, args));
+}
+
 int
 linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 {
+	l_uint linux_timeout;
 	l_timeval linux_tv;
 	struct timeval tv;
 	socklen_t tv_len, xulen, len;
 	struct sockaddr *sa;
+	u_int bsd_timeout;
 	struct xucred xu;
 	struct l_ucred lxu;
 	int error, level, name, newval;
@@ -2372,8 +2541,80 @@ linux_getsockopt(struct thread *td, struct linux_getsockopt_args *args)
 		name = linux_to_bsd_ip6_sockopt(args->optname);
 		break;
 	case IPPROTO_TCP:
+		switch (args->optname) {
+		case LINUX_TCP_INFO:
+			return (linux_getsockopt_tcp_info(td, args));
+			/* NOTREACHED */
+		default:
+			break;
+		}
 		name = linux_to_bsd_tcp_sockopt(args->optname);
+		switch (name) {
+		case TCP_MAXUNACKTIME:
+			len = sizeof(bsd_timeout);
+			error = kern_getsockopt(td, args->s, level, name,
+			    &bsd_timeout, UIO_SYSSPACE, &len);
+			if (error != 0)
+				return (error);
+
+			linux_timeout = bsd_to_linux_tcp_user_timeout(
+			    bsd_timeout);
+			return (linux_sockopt_copyout(td, &linux_timeout,
+			    sizeof(linux_timeout), args));
+		default:
+			break;
+		}
 		break;
+#ifdef INET6
+	case IPPROTO_RAW: {
+		struct file *fp;
+		struct socket *so;
+		int family;
+
+		error = getsock(td, args->s, &cap_getsockopt_rights, &fp);
+		if (error != 0)
+			return (error);
+		so = fp->f_data;
+		family = so->so_proto->pr_domain->dom_family;
+		fdrop(fp, td);
+
+		name = -1;
+		if (family == AF_INET6) {
+			name = linux_to_bsd_ip6_sockopt(args->optname);
+			if (name >= 0)
+				level = IPPROTO_IPV6;
+		}
+		break;
+	}
+	case IPPROTO_ICMPV6: {
+		struct icmp6_filter f;
+		int i;
+
+		name = linux_to_bsd_icmp6_sockopt(args->optname);
+		if (name != ICMP6_FILTER)
+			break;
+
+		error = copyin(PTRIN(args->optlen), &len, sizeof(len));
+		if (error)
+			return (error);
+		if (len != sizeof(f))
+			return (EINVAL);
+
+		error = kern_getsockopt(td, args->s, IPPROTO_ICMPV6,
+		    ICMP6_FILTER, &f, UIO_SYSSPACE, &len);
+		if (error)
+			return (error);
+
+		/* Linux uses opposite values for pass/block in ICMPv6 */
+		for (i = 0; i < nitems(f.icmp6_filt); i++)
+			f.icmp6_filt[i] = ~f.icmp6_filt[i];
+		error = copyout(&f, PTRIN(args->optval), len);
+		if (error)
+			return (error);
+
+		return (copyout(&len, PTRIN(args->optlen), sizeof(socklen_t)));
+	}
+#endif
 	default:
 		name = -1;
 		break;

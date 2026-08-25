@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$File: file.h,v 1.258 2024/11/27 15:37:00 christos Exp $
+ * @(#)$File: file.h,v 1.262 2025/07/23 18:52:08 christos Exp $
  */
 
 #ifndef __file_h__
@@ -202,6 +202,10 @@ struct buffer {
 };
 
 union VALUETYPE {
+	int8_t sb;
+	int16_t sh;
+	int32_t sl;
+	int64_t sq;
 	uint8_t b;
 	uint16_t h;
 	uint32_t l;
@@ -513,7 +517,7 @@ struct magic_set {
 #define	FILE_ELF_SHNUM_MAX		32768
 #define	FILE_ELF_SHSIZE_MAX		(128 * 1024 * 1024)
 #define	FILE_INDIR_MAX			50
-#define	FILE_NAME_MAX			100
+#define	FILE_NAME_MAX			150
 #define	FILE_REGEX_MAX			8192
 #define	FILE_ENCODING_MAX		(64 * 1024)
 #define	FILE_MAGWARN_MAX		64
@@ -616,7 +620,7 @@ file_protected char * file_printable(struct magic_set *, char *, size_t,
     const char *, size_t);
 #ifdef __EMX__
 file_protected int file_os2_apptype(struct magic_set *, const char *,
-    const void *, size_t);
+    const struct buffer *);
 #endif /* __EMX__ */
 file_protected int file_pipe_closexec(int *);
 file_protected int file_clear_closexec(int);
@@ -734,5 +738,8 @@ static const char *rcsid(const char *p) { \
 #ifndef __RCSID
 #define __RCSID(a)
 #endif
+
+#define file_no_overflow \
+    __attribute__((__no_sanitize__("signed-integer-overflow")))
 
 #endif /* __file_h__ */

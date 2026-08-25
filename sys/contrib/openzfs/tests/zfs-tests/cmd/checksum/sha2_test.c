@@ -1,27 +1,18 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
  * Copyright 2013 Saso Kiselkov. All rights reserved.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 /*
@@ -142,15 +133,15 @@ main(int argc, char *argv[])
 	if (!sha512)
 		return (1);
 
-#define	SHA2_ALGO_TEST(_m, mode, diglen, testdigest)			\
+#define	SHA2_ALGO_TEST(_m, mode, diglen, testdigest, name)		\
 	do {								\
 		SHA2_CTX		ctx;				\
 		uint8_t			digest[diglen / 8];		\
 		SHA2Init(mode, &ctx);					\
 		SHA2Update(&ctx, _m, strlen(_m));			\
 		SHA2Final(digest, &ctx);				\
-		(void) printf("SHA%-9sMessage: " #_m			\
-		    "\tResult: ", #mode);				\
+		(void) printf("%-11s %-9s Message: " #_m		\
+		    "\tResult: ", #mode, name);				\
 		if (memcmp(digest, testdigest, diglen / 8) == 0) {	\
 			(void) printf("OK\n");				\
 		} else {						\
@@ -181,22 +172,38 @@ main(int argc, char *argv[])
 			cpb = (cpu_mhz * 1e6 * ((double)delta /		\
 			    1000000)) / (8192 * 128 * 1024);		\
 		}							\
-		(void) printf("sha%s-%-9s%7llu us (%.02f CPB)\n", #mode,\
+		(void) printf("%s-%-9s %9llu us (%.02f CPB)\n", #mode,	\
 		    name, (u_longlong_t)delta, cpb);			\
 	} while (0)
 
 	(void) printf("Running algorithm correctness tests:\n");
-	SHA2_ALGO_TEST(test_msg0, SHA256, 256, sha256_test_digests[0]);
-	SHA2_ALGO_TEST(test_msg1, SHA256, 256, sha256_test_digests[1]);
-	SHA2_ALGO_TEST(test_msg0, SHA512, 512, sha512_test_digests[0]);
-	SHA2_ALGO_TEST(test_msg2, SHA512, 512, sha512_test_digests[2]);
-	SHA2_ALGO_TEST(test_msg0, SHA512_256, 256, sha512_256_test_digests[0]);
-	SHA2_ALGO_TEST(test_msg2, SHA512_256, 256, sha512_256_test_digests[2]);
+
+	for (id = 0; id < sha256->getcnt(); id++) {
+		sha256->setid(id);
+		const char *name = sha256->getname();
+		SHA2_ALGO_TEST(test_msg0, SHA256, 256,
+		    sha256_test_digests[0], name);
+		SHA2_ALGO_TEST(test_msg1, SHA256, 256,
+		    sha256_test_digests[1], name);
+	}
+
+	for (id = 0; id < sha512->getcnt(); id++) {
+		sha512->setid(id);
+		const char *name = sha512->getname();
+		SHA2_ALGO_TEST(test_msg0, SHA512, 512,
+		    sha512_test_digests[0], name);
+		SHA2_ALGO_TEST(test_msg2, SHA512, 512,
+		    sha512_test_digests[2], name);
+		SHA2_ALGO_TEST(test_msg0, SHA512_256, 256,
+		    sha512_256_test_digests[0], name);
+		SHA2_ALGO_TEST(test_msg2, SHA512_256, 256,
+		    sha512_256_test_digests[2], name);
+	}
 
 	if (failed)
 		return (1);
 
-	(void) printf("Running performance tests (hashing 1024 MiB of "
+	(void) printf("\nRunning performance tests (hashing 1024 MiB of "
 	    "data):\n");
 
 	for (id = 0; id < sha256->getcnt(); id++) {

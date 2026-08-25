@@ -1,8 +1,6 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
-#
 # This file and its contents are supplied under the terms of the
 # Common Development and Distribution License ("CDDL"), version 1.0.
 # You may only use this file in accordance with the terms of version
@@ -10,9 +8,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
-#
-# CDDL HEADER END
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -39,6 +35,12 @@
 #	8. Repeat for test for striped, mirrored, and RAIDZ pools.
 
 verify_runnable "global"
+
+# On FreeBSD, autotrim does not reclaim space on file vdevs stored
+# on a ZFS filesystem within the test framework.
+if is_freebsd; then
+	log_unsupported "Autotrim on file vdevs not supported on FreeBSD"
+fi
 
 log_assert "Set 'autotrim=on' verify pool disks were trimmed"
 

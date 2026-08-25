@@ -1,24 +1,14 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
 #
-# The contents of this file are subject to the terms of the
-# Common Development and Distribution License (the "License").
-# You may not use this file except in compliance with the License.
-#
-# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or https://opensource.org/licenses/CDDL-1.0.
-# See the License for the specific language governing permissions
-# and limitations under the License.
-#
-# When distributing Covered Code, include this CDDL HEADER in each
-# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-# If applicable, add the following below this CDDL HEADER, with the
-# fields enclosed by brackets "[]" replaced with your own identifying
-# information: Portions Copyright [yyyy] [name of copyright owner]
-#
-# CDDL HEADER END
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -40,6 +30,8 @@
 # 3. Test that 'zfs unmount -u' unloads keys as it unmounts multiple datasets
 # 4. Test that 'zfs unmount -u' returns an error if the key is still in
 #    use by a clone.
+# 5. Test that 'zfs unmount -u' unloads the key when a key-inheriting child's
+#    mountpoint sorts before its encryption root's.
 #
 
 verify_runnable "both"
@@ -76,5 +68,18 @@ log_must zfs clone $TESTPOOL/$TESTFS2/newroot@1 $TESTPOOL/$TESTFS2/clone
 log_mustnot zfs umount -u $TESTPOOL/$TESTFS2/newroot
 log_must key_available $TESTPOOL/$TESTFS2/newroot
 log_must mounted $TESTPOOL/$TESTFS2/newroot
+
+# The changelist unmounts mountpoints in reverse alphabetical order, so
+# z_root (which sorts after a_child) is unmounted first, before its
+# key-inheriting child. The root comes down while the child still holds the
+# shared key, so the key must unload only after the whole subtree is down.
+log_must eval "echo 'password' | zfs create -o encryption=on -o keyformat=passphrase -o mountpoint=/$TESTPOOL/z_root $TESTPOOL/$TESTFS2/encroot"
+log_must zfs create -o mountpoint=/$TESTPOOL/a_child $TESTPOOL/$TESTFS2/encroot/child
+log_must mounted $TESTPOOL/$TESTFS2/encroot
+log_must mounted $TESTPOOL/$TESTFS2/encroot/child
+log_must zfs umount -u $TESTPOOL/$TESTFS2/encroot
+log_must key_unavailable $TESTPOOL/$TESTFS2/encroot
+log_must unmounted $TESTPOOL/$TESTFS2/encroot
+log_must unmounted $TESTPOOL/$TESTFS2/encroot/child
 
 log_pass "'zfs unmount -u' unloads keys for datasets as they are unmounted"

@@ -22,8 +22,7 @@ dumpon_try()
 		warn "The dumppubkey variable is deprecated.  Use dumpon_flags."
 		flags="${flags} -k ${dumppubkey}"
 	fi
-	/sbin/dumpon ${flags} "${1}"
-	if [ $? -eq 0 ]; then
+	if /sbin/dumpon ${flags} "${1}"; then
 		# Make a symlink in devfs for savecore
 		ln -fs "${1}" /dev/dumpdev
 		return 0
@@ -34,11 +33,13 @@ dumpon_try()
 
 dumpon_warn_unencrypted()
 {
+	local flag
+
 	if [ -n "${dumppubkey}" ]; then
 		return
 	fi
 	for flag in ${dumpon_flags}; do
-		if [ $flag = -k ]; then
+		if [ "$flag" = -k ]; then
 			return
 		fi
 	done
@@ -47,6 +48,8 @@ dumpon_warn_unencrypted()
 
 dumpon_start()
 {
+	local dev mp type more
+
 	# Enable dumpdev so that savecore can see it. Enable it
 	# early so a crash early in the boot process can be caught.
 	#
@@ -60,7 +63,7 @@ dumpon_start()
 			dumpon_try "${dev}"
 			return $?
 		fi
-		if [ -z ${dumpdev} ] ; then
+		if [ -z "${dumpdev}" ] ; then
 			return
 		fi
 		while read dev mp type more ; do
@@ -96,7 +99,7 @@ dumpon_stop()
 	esac
 }
 
-load_rc_config $name
+load_rc_config "$name"
 
 # doesn't make sense to run in a svcj: config setting
 dumpon_svcj="NO"

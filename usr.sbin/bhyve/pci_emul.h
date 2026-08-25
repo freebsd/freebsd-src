@@ -136,6 +136,7 @@ struct pci_devinst {
 		struct pci_irq	irq;
 		pthread_mutex_t	lock;
 	} pi_lintr;
+	pthread_mutex_t	pi_cfg_lock;
 
 	struct {
 		int		enabled;

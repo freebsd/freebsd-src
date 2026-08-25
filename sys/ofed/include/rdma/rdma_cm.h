@@ -87,7 +87,7 @@ struct rdma_addr {
 
 struct rdma_route {
 	struct rdma_addr addr;
-	struct ib_sa_path_rec *path_rec;
+	struct sa_path_rec *path_rec;
 	int num_paths;
 };
 
@@ -108,7 +108,7 @@ struct rdma_conn_param {
 struct rdma_ud_param {
 	const void *private_data;
 	u8 private_data_len;
-	struct ib_ah_attr ah_attr;
+	struct rdma_ah_attr ah_attr;
 	u32 qp_num;
 	u32 qkey;
 };
@@ -120,20 +120,6 @@ struct rdma_cm_event {
 		struct rdma_conn_param	conn;
 		struct rdma_ud_param	ud;
 	} param;
-};
-
-enum rdma_cm_state {
-	RDMA_CM_IDLE,
-	RDMA_CM_ADDR_QUERY,
-	RDMA_CM_ADDR_RESOLVED,
-	RDMA_CM_ROUTE_QUERY,
-	RDMA_CM_ROUTE_RESOLVED,
-	RDMA_CM_CONNECT,
-	RDMA_CM_DISCONNECT,
-	RDMA_CM_ADDR_BOUND,
-	RDMA_CM_LISTEN,
-	RDMA_CM_DEVICE_REMOVAL,
-	RDMA_CM_DESTROYING
 };
 
 struct rdma_cm_id;
@@ -169,7 +155,11 @@ struct rdma_cm_id {
  * @ps: RDMA port space.
  * @qp_type: type of queue pair associated with the id.
  *
- * The id holds a reference on the network namespace until it is destroyed.
+ * Returns a new rdma_cm_id. The id holds a reference on the network
+ * namespace until it is destroyed.
+ *
+ * The event handler callback serializes on the id's mutex and is
+ * allowed to sleep.
  */
 struct rdma_cm_id *rdma_create_id(struct vnet *net,
 				  rdma_cm_event_handler event_handler,
@@ -210,7 +200,7 @@ int rdma_bind_addr(struct rdma_cm_id *id, struct sockaddr *addr);
  * @timeout_ms: Time to wait for resolution to complete.
  */
 int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
-		      struct sockaddr *dst_addr, int timeout_ms);
+		      const struct sockaddr *dst_addr, int timeout_ms);
 
 /**
  * rdma_resolve_route - Resolve the RDMA address bound to the RDMA identifier
@@ -398,5 +388,41 @@ __be64 rdma_get_service_id(struct rdma_cm_id *id, struct sockaddr *addr);
  */
 const char *__attribute_const__ rdma_reject_msg(struct rdma_cm_id *id,
 						int reason);
+/**
+ * rdma_is_consumer_reject - return true if the consumer rejected the connect
+ *                           request.
+ * @id: Communication identifier that received the REJECT event.
+ * @reason: Value returned in the REJECT event status field.
+ */
+bool rdma_is_consumer_reject(struct rdma_cm_id *id, int reason);
+
+/**
+ * rdma_consumer_reject_data - return the consumer reject private data and
+ *			       length, if any.
+ * @id: Communication identifier that received the REJECT event.
+ * @ev: RDMA CM reject event.
+ * @data_len: Pointer to the resulting length of the consumer data.
+ */
+const void *rdma_consumer_reject_data(struct rdma_cm_id *id,
+				      struct rdma_cm_event *ev, u8 *data_len);
+
+/**
+ * rdma_read_gids - Return the SGID and DGID used for establishing
+ *                  connection. This can be used after rdma_resolve_addr()
+ *                  on client side. This can be use on new connection
+ *                  on server side. This is applicable to IB, RoCE, iWarp.
+ *                  If cm_id is not bound yet to the RDMA device, it doesn't
+ *                  copy and SGID or DGID to the given pointers.
+ * @id: Communication identifier whose GIDs are queried.
+ * @sgid: Pointer to SGID where SGID will be returned. It is optional.
+ * @dgid: Pointer to DGID where DGID will be returned. It is optional.
+ * Note: This API should not be used by any new ULPs or new code.
+ * Instead, users interested in querying GIDs should refer to path record
+ * of the rdma_cm_id to query the GIDs.
+ * This API is provided for compatibility for existing users.
+ */
+
+void rdma_read_gids(struct rdma_cm_id *cm_id, union ib_gid *sgid,
+		    union ib_gid *dgid);
 
 #endif /* RDMA_CM_H */

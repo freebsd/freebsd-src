@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: virtual,v 1.21 2024/09/04 19:09:00 christos Exp $
+# $File: virtual,v 1.22 2026/02/05 18:51:36 christos Exp $
 # From: James Nobis <quel@quelrod.net>
 # Microsoft hard disk images for:
 # Virtual Server
@@ -337,3 +337,7 @@
 >>>>3	byte			9		(QEMU 5.0)
 >>>>3	byte			10		(QEMU 5.1-7.0)
 >>>>3	byte			12		(QEMU 7.1+)
+
+# Parallels disk image
+0	string	WithoutFreeSpace	Parallels disk image
+0	string	WithouFreSpacExt	Parallels disk image (extended) 

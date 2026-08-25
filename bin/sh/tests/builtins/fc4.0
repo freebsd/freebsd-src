@@ -1,0 +1,27 @@
+v=1234
+v=$v$v$v$v
+v=$v$v$v$v
+v=$v$v$v$v
+#v=$v$v$v$v
+v=beginlong$v$v$v${v}endlong
+result=$(ENV= HISTFILE=/dev/null script -q /dev/null ${SH} +m -i -o emacs <<EOF
+printf '%s\n' "$v"
+printf 'running %s\n' fc; fc -l
+EOF
+)
+case $result in
+	*'running fc'*beginlong*endlong*) ;;
+	*)
+		set -x
+		: result is "$result"
+		exit 2
+esac
+result=${result#*running fc}
+result=${result#*beginlong}
+result=${result%endlong*}
+reflected=beginlong${result}endlong
+if [ "$v" != "$reflected" ]; then
+	set -x
+	: expected "$v" reflected "$reflected"
+	exit 3
+fi

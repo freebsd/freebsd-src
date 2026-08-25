@@ -193,6 +193,17 @@ struct setcred32 {
 	uint32_t sc_label;		/* struct mac32 [*] */
 };
 
+#ifdef COMPAT_FREEBSD32
+/* 32-bit compatible version of xucred */
+struct xucred32 {
+	u_int	cr_version;		/* structure layout version */
+	uid_t	cr_uid;			/* effective user id */
+	short	cr_ngroups;		/* number of groups (incl. cr_gid). */
+	gid_t	cr_groups[XU_NGROUPS];	/* groups */
+	pid_t	cr_pid;
+};
+#endif
+
 struct thread;
 
 /* Common native and 32-bit compatibility entry point. */
@@ -256,7 +267,7 @@ bool	cr_xids_subset(struct ucred *active_cred, struct ucred *obj_cred);
 static inline bool
 group_is_primary(const gid_t gid, const struct ucred *const cred)
 {
-	return (gid == cred->cr_groups[0] || gid == cred->cr_rgid ||
+	return (gid == cred->cr_gid || gid == cred->cr_rgid ||
 	    gid == cred->cr_svgid);
 }
 bool	group_is_supplementary(const gid_t gid, const struct ucred *const cred);

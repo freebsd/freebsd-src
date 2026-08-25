@@ -1,0 +1,7 @@
+PackageSearchPath: lib1
+Query: foo, foobar
+WantedFlags: modversion
+VerbosityLevel: 1
+ExpectedStdout: foo: 1.2.3
+ExpectedStdout: foobar: 3.2.1
+MatchStdout: partial

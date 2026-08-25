@@ -72,6 +72,10 @@ ufshci_utmr_req_queue_construct(struct ufshci_controller *ctrlr)
 void
 ufshci_utmr_req_queue_destroy(struct ufshci_controller *ctrlr)
 {
+	/* Attach may fail before the queue ops are set up. */
+	if (ctrlr->task_mgmt_req_queue.qops.destroy == NULL)
+		return;
+
 	ctrlr->task_mgmt_req_queue.qops.destroy(ctrlr,
 	    &ctrlr->task_mgmt_req_queue);
 }
@@ -114,6 +118,10 @@ ufshci_utr_req_queue_construct(struct ufshci_controller *ctrlr)
 void
 ufshci_utr_req_queue_destroy(struct ufshci_controller *ctrlr)
 {
+	/* Attach may fail before the queue ops are set up. */
+	if (ctrlr->transfer_req_queue.qops.destroy == NULL)
+		return;
+
 	ctrlr->transfer_req_queue.qops.destroy(ctrlr,
 	    &ctrlr->transfer_req_queue);
 }
@@ -371,7 +379,7 @@ ufshci_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 }
 
-static void
+static int
 ufshci_req_queue_prepare_prdt(struct ufshci_tracker *tr)
 {
 	struct ufshci_request *req = tr->req;
@@ -403,6 +411,8 @@ ufshci_req_queue_prepare_prdt(struct ufshci_tracker *tr)
 		    UFSHCI_RESPONSE_CODE_GENERAL_FAILURE);
 		mtx_lock(&tr->hwq->qlock);
 	}
+
+	return (error);
 }
 
 static void
@@ -474,6 +484,7 @@ ufshci_abort_complete(void *arg, const struct ufshci_completion *status,
     bool error)
 {
 	struct ufshci_tracker *tr = arg;
+	uint32_t output_param1;
 
 	/*
 	 * We still need to check the active tracker array, to cover race where
@@ -498,12 +509,12 @@ ufshci_abort_complete(void *arg, const struct ufshci_completion *status,
 		ufshci_req_queue_manual_complete_tracker(tr,
 		    UFSHCI_DESC_ABORTED, UFSHCI_RESPONSE_CODE_GENERAL_FAILURE);
 
-		if ((status->response_upiu.task_mgmt_response_upiu
-			    .output_param1 ==
-			UFSHCI_TASK_MGMT_SERVICE_RESPONSE_FUNCTION_COMPLETE) ||
-		    (status->response_upiu.task_mgmt_response_upiu
-			    .output_param1 ==
-			UFSHCI_TASK_MGMT_SERVICE_RESPONSE_FUNCTION_SUCCEEDED)) {
+		output_param1 = be32toh(
+		    status->response_upiu.task_mgmt_response_upiu.output_param1);
+		if (output_param1 ==
+			UFSHCI_TASK_MGMT_SERVICE_RESPONSE_FUNCTION_COMPLETE ||
+		    output_param1 ==
+			UFSHCI_TASK_MGMT_SERVICE_RESPONSE_FUNCTION_SUCCEEDED) {
 			ufshci_printf(tr->hwq->ctrlr,
 			    "Warning: the abort task request completed \
 			    successfully, but the original task is still incomplete.");
@@ -630,11 +641,17 @@ ufshci_req_queue_timeout(void *arg)
 				ufshci_printf(ctrlr,
 				    "Recovery step 1: Timeout occurred. aborting the task(%d).\n",
 				    tr->req->request_upiu.header.task_tag);
-				ufshci_ctrlr_cmd_send_task_mgmt_request(ctrlr,
-				    ufshci_abort_complete, tr,
-				    UFSHCI_TASK_MGMT_FUNCTION_ABORT_TASK,
-				    tr->req->request_upiu.header.lun,
-				    tr->req->request_upiu.header.task_tag, 0);
+				if (ufshci_ctrlr_cmd_send_task_mgmt_request(ctrlr,
+					ufshci_abort_complete, tr,
+					UFSHCI_TASK_MGMT_FUNCTION_ABORT_TASK,
+					tr->req->request_upiu.header.lun,
+					tr->req->request_upiu.header.task_tag,
+					0) != 0) {
+					ufshci_req_queue_timeout_recovery(ctrlr,
+					    hwq);
+					idle = false;
+					break;
+				}
 			} else {
 				/* Recovery Step 2-5 */
 				ufshci_req_queue_timeout_recovery(ctrlr, hwq);
@@ -716,9 +733,15 @@ ufshci_req_queue_submit_tracker(struct ufshci_req_queue *req_queue,
 		memcpy(tr->ucd, &req->request_upiu, request_len);
 		memset((uint8_t *)tr->ucd + response_off, 0, response_len);
 
-		/* Prepare PRDT */
-		if (req->payload_valid)
-			ufshci_req_queue_prepare_prdt(tr);
+		/*
+		 * Prepare PRDT. If the payload could not be mapped, the
+		 * tracker has already been completed and released by the
+		 * manual completion path, so the descriptor must not be
+		 * built and the doorbell must not be rung.
+		 */
+		if (req->payload_valid &&
+		    ufshci_req_queue_prepare_prdt(tr) != 0)
+			return;
 
 		/* Prepare UTP Transfer Request Descriptor. */
 		ucd_paddr = tr->ucd_bus_addr;

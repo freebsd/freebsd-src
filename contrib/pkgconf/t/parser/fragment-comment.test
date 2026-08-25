@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+Query: fragment-comment
+WantedFlags: cflags
+ExpectedStdout: #ttt
+MatchStdout: partial

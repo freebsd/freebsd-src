@@ -646,7 +646,7 @@ bcm_pcib_attach(device_t dev)
 
 	error = bcm_pcib_check_ranges(dev);
 	if (error != 0)
-		return (error);
+		goto failed;
 
 	mtx_init(&sc->config_mtx, "bcm_pcib: config_mtx", NULL, MTX_DEF);
 
@@ -680,7 +680,8 @@ bcm_pcib_attach(device_t dev)
 		if (tries > 100) {
 			device_printf(dev,
 			    "error: controller failed to start.\n");
-			return (ENXIO);
+			error = ENXIO;
+			goto failed;
 		}
 
 		DELAY(1000);
@@ -690,7 +691,8 @@ bcm_pcib_attach(device_t dev)
 	if (!link_state) {
 		device_printf(dev, "error: controller started but link is not "
 		    "up.\n");
-		return (ENXIO);
+		error = ENXIO;
+		goto failed;
 	}
 	if (bootverbose)
 		device_printf(dev, "note: reported link speed is %s.\n",
@@ -741,12 +743,15 @@ bcm_pcib_attach(device_t dev)
 	/* Configure interrupts. */
 	error = bcm_pcib_msi_attach(dev);
 	if (error != 0)
-		return (error);
+		goto failed;
 
 	/* Done. */
 	device_add_child(dev, "pci", DEVICE_UNIT_ANY);
 	bus_attach_children(dev);
 	return (0);
+failed:
+	pci_host_generic_destroy_fdt(dev);
+	return (error);
 }
 
 /*

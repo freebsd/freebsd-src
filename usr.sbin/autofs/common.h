@@ -58,8 +58,6 @@ struct defined_value {
 };
 
 void	log_init(int level);
-void	log_set_peer_name(const char *name);
-void	log_set_peer_addr(const char *addr);
 void	log_err(int, const char *, ...)
 	    __dead2 __printf0like(2, 3);
 void	log_errx(int, const char *, ...)

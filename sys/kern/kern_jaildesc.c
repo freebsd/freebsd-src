@@ -153,18 +153,16 @@ jaildesc_alloc(struct thread *td, struct file **fpp, int *fdp, int owning)
 		if (error != 0)
 			return (error);
 	}
-	jd = malloc(sizeof(*jd), M_JAILDESC, M_WAITOK | M_ZERO);
 	error = falloc_caps(td, &fp, fdp, 0, NULL);
-	if (error != 0) {
-		free(jd, M_JAILDESC);
+	if (error != 0)
 		return (error);
-	}
-	finit(fp, priv_check_cred(fp->f_cred, PRIV_JAIL_SET) == 0 ?
-	    FREAD | FWRITE : FREAD, DTYPE_JAILDESC, jd, &jaildesc_ops);
+	jd = malloc(sizeof(*jd), M_JAILDESC, M_WAITOK | M_ZERO);
 	JAILDESC_LOCK_INIT(jd);
 	knlist_init_mtx(&jd->jd_selinfo.si_note, &jd->jd_lock);
 	if (owning)
 		jd->jd_flags |= JDF_OWNING;
+	finit(fp, priv_check_cred(fp->f_cred, PRIV_JAIL_SET) == 0 ?
+	    FREAD | FWRITE : FREAD, DTYPE_JAILDESC, jd, &jaildesc_ops);
 	*fpp = fp;
 	return (0);
 }
@@ -232,10 +230,7 @@ jaildesc_knote(struct prison *pr, long hint)
 			JAILDESC_LOCK(jd);
 			if (hint == NOTE_JAIL_REMOVE) {
 				jd->jd_flags |= JDF_REMOVED;
-				if (jd->jd_flags & JDF_SELECTED) {
-					jd->jd_flags &= ~JDF_SELECTED;
-					selwakeup(&jd->jd_selinfo);
-				}
+				selwakeup(&jd->jd_selinfo);
 			}
 			KNOTE_LOCKED(&jd->jd_selinfo.si_note, hint);
 			JAILDESC_UNLOCK(jd);
@@ -292,6 +287,7 @@ jaildesc_close(struct file *fp, struct thread *td)
 			}
 			prison_free(pr);
 		}
+		seldrain(&jd->jd_selinfo);
 		knlist_destroy(&jd->jd_selinfo.si_note);
 		JAILDESC_LOCK_DESTROY(jd);
 		free(jd, M_JAILDESC);
@@ -311,10 +307,8 @@ jaildesc_poll(struct file *fp, int events, struct ucred *active_cred,
 	JAILDESC_LOCK(jd);
 	if (jd->jd_flags & JDF_REMOVED)
 		revents |= POLLHUP;
-	if (revents == 0) {
+	else
 		selrecord(td, &jd->jd_selinfo);
-		jd->jd_flags |= JDF_SELECTED;
-	}
 	JAILDESC_UNLOCK(jd);
 	return (revents);
 }

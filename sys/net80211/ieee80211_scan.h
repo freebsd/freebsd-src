@@ -282,7 +282,7 @@ struct ieee80211_scan_entry {
 	uint8_t		se_fhindex;	/* FH only */
 	uint8_t		se_dtimperiod;	/* DTIM period */
 	uint16_t	se_erp;		/* ERP from beacon/probe resp */
-	int8_t		se_rssi;	/* avg'd recv ssi */
+	net80211_rssi_t	se_rssi;	/* avg'd recv ssi */
 	int8_t		se_noise;	/* noise floor */
 	uint8_t		se_cc[2];	/* captured country code */
 	uint8_t		se_meshid[2+IEEE80211_MESHID_LEN];

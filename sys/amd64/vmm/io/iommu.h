@@ -62,6 +62,7 @@ extern const struct iommu_ops iommu_ops_intel;
 extern const struct iommu_ops iommu_ops_amd;
 
 void	iommu_cleanup(void);
+bool	iommu_is_initialized(void);
 void	*iommu_host_domain(void);
 void	*iommu_create_domain(vm_paddr_t maxaddr);
 void	iommu_destroy_domain(void *dom);

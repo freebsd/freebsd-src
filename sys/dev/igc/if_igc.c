@@ -108,13 +108,15 @@ static void	igc_if_media_status(if_ctx_t, struct ifmediareq *);
 static int	igc_if_media_change(if_ctx_t);
 static int	igc_if_mtu_set(if_ctx_t, uint32_t);
 static void	igc_if_timer(if_ctx_t, uint16_t);
-static void	igc_if_watchdog_reset(if_ctx_t);
+static void	igc_if_vlan_register(if_ctx_t, u16);
+static void	igc_if_vlan_unregister(if_ctx_t, u16);
 static bool	igc_if_needs_restart(if_ctx_t, enum iflib_restart_event);
 
 static void	igc_identify_hardware(if_ctx_t);
 static int	igc_allocate_pci_resources(if_ctx_t);
 static void	igc_free_pci_resources(if_ctx_t);
-static void	igc_reset(if_ctx_t);
+static void	igc_disable_broken_l1_2(if_ctx_t);
+static int	igc_reset(if_ctx_t);
 static int	igc_setup_interface(if_ctx_t);
 static int	igc_setup_msix(if_ctx_t);
 
@@ -125,13 +127,25 @@ static void	igc_if_intr_enable(if_ctx_t);
 static void	igc_if_intr_disable(if_ctx_t);
 static int	igc_if_rx_queue_intr_enable(if_ctx_t, uint16_t);
 static int	igc_if_tx_queue_intr_enable(if_ctx_t, uint16_t);
+static void	igc_handle_fatal_error_intr(struct igc_softc *, u32);
+static bool	igc_handle_fatal_error_admin(struct igc_softc *);
+static void	igc_prepare_fatal_error_reset(struct igc_softc *);
+static void	igc_finish_fatal_error_reset(struct igc_softc *);
 static void	igc_if_multi_set(if_ctx_t);
 static void	igc_if_update_admin_status(if_ctx_t);
+static void	igc_apply_i225_ipg_workaround(struct igc_softc *);
 static void	igc_if_debug(if_ctx_t);
+static void	igc_update_ecc_stats(struct igc_softc *);
 static void	igc_update_stats_counters(struct igc_softc *);
 static void	igc_add_hw_stats(struct igc_softc *);
 static int	igc_if_set_promisc(if_ctx_t, int);
+static bool	igc_if_vlan_filter_capable(if_ctx_t);
+static bool	igc_if_vlan_filter_used(if_ctx_t);
+static void	igc_if_vlan_filter_enable(struct igc_softc *);
+static void	igc_if_vlan_filter_disable(struct igc_softc *);
 static void	igc_setup_vlan_hw_support(if_ctx_t);
+static void	igc_if_led_func(if_ctx_t, int);
+static void	igc_led_restore(struct igc_softc *);
 static void	igc_fw_version(struct igc_softc *);
 static void	igc_sbuf_fw_version(struct igc_fw_version *, struct sbuf *);
 static void	igc_print_fw_version(struct igc_softc *);
@@ -143,7 +157,7 @@ static int	igc_get_rs(SYSCTL_HANDLER_ARGS);
 static void	igc_print_debug_info(struct igc_softc *);
 static int 	igc_is_valid_ether_addr(u8 *);
 static void	igc_neweitr(struct igc_softc *, struct igc_rx_queue *,
-    struct tx_ring *, struct rx_ring *);
+    struct rx_ring *);
 static int	igc_sysctl_tso_tcp_flags_mask(SYSCTL_HANDLER_ARGS);
 /* Management and WOL Support */
 static void	igc_get_hw_control(struct igc_softc *);
@@ -152,6 +166,13 @@ static void	igc_get_wakeup(if_ctx_t);
 static void	igc_enable_wakeup(if_ctx_t);
 
 int		igc_intr(void *);
+
+enum igc_fatal_error_state {
+	IGC_FATAL_ERROR_NONE,
+	IGC_FATAL_ERROR_CAPTURING,
+	IGC_FATAL_ERROR_DETECTED,
+	IGC_FATAL_ERROR_RESET_REQUESTED,
+};
 
 /* MSI-X handlers */
 static int	igc_if_msix_intr_assign(if_ctx_t, int);
@@ -165,6 +186,7 @@ static int	igc_sysctl_eee(SYSCTL_HANDLER_ARGS);
 static int	igc_get_regs(SYSCTL_HANDLER_ARGS);
 
 static void	igc_configure_queues(struct igc_softc *);
+static void	igc_initialize_interrupt_rate(struct igc_softc *);
 
 
 /*********************************************************************
@@ -216,12 +238,14 @@ static device_method_t igc_if_methods[] = {
 	DEVMETHOD(ifdi_mtu_set, igc_if_mtu_set),
 	DEVMETHOD(ifdi_promisc_set, igc_if_set_promisc),
 	DEVMETHOD(ifdi_timer, igc_if_timer),
-	DEVMETHOD(ifdi_watchdog_reset, igc_if_watchdog_reset),
+	DEVMETHOD(ifdi_vlan_register, igc_if_vlan_register),
+	DEVMETHOD(ifdi_vlan_unregister, igc_if_vlan_unregister),
 	DEVMETHOD(ifdi_get_counter, igc_if_get_counter),
 	DEVMETHOD(ifdi_rx_queue_intr_enable, igc_if_rx_queue_intr_enable),
 	DEVMETHOD(ifdi_tx_queue_intr_enable, igc_if_tx_queue_intr_enable),
 	DEVMETHOD(ifdi_debug, igc_if_debug),
 	DEVMETHOD(ifdi_needs_restart, igc_if_needs_restart),
+	DEVMETHOD(ifdi_led_func, igc_if_led_func),
 	DEVMETHOD_END
 };
 
@@ -444,8 +468,9 @@ igc_set_num_queues(if_ctx_t ctx)
 
 #define	IGC_CAPS							\
     IFCAP_HWCSUM | IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING |		\
-    IFCAP_VLAN_HWCSUM | IFCAP_WOL | IFCAP_TSO4 | IFCAP_LRO |		\
-    IFCAP_VLAN_HWTSO | IFCAP_JUMBO_MTU | IFCAP_HWCSUM_IPV6 | IFCAP_TSO6
+    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWFILTER | IFCAP_WOL | IFCAP_TSO4 |	\
+    IFCAP_LRO | IFCAP_VLAN_HWTSO | IFCAP_JUMBO_MTU |			\
+    IFCAP_HWCSUM_IPV6 | IFCAP_TSO6
 
 /*********************************************************************
  *  Device initialization routine
@@ -468,6 +493,13 @@ igc_if_attach_pre(if_ctx_t ctx)
 	INIT_DEBUGOUT("igc_if_attach_pre: begin");
 	dev = iflib_get_dev(ctx);
 	sc = iflib_get_softc(ctx);
+
+	if (igc_max_interrupt_rate <= 0) {
+		device_printf(dev,
+		    "Invalid max_interrupt_rate %d; using default %d\n",
+		    igc_max_interrupt_rate, IGC_INTS_DEFAULT);
+		igc_max_interrupt_rate = IGC_INTS_DEFAULT;
+	}
 
 	sc->ctx = sc->osdep.ctx = ctx;
 	sc->dev = sc->osdep.dev = dev;
@@ -545,6 +577,9 @@ igc_if_attach_pre(if_ctx_t ctx)
 
 	/* Determine hardware and mac info */
 	igc_identify_hardware(ctx);
+
+	/* Apply device-specific PCIe L1.2 errata workarounds. */
+	igc_disable_broken_l1_2(ctx);
 
 	scctx->isc_tx_nsegments = IGC_MAX_SCATTER;
 	scctx->isc_nrxqsets_max =
@@ -640,7 +675,12 @@ igc_if_attach_pre(if_ctx_t ctx)
 	** important in reading the nvm and
 	** mac from that.
 	*/
-	igc_reset_hw(hw);
+	error = igc_reset_hw(hw);
+	if (error != IGC_SUCCESS) {
+		device_printf(dev, "Hardware reset failed: %d\n", error);
+		error = EIO;
+		goto err_late;
+	}
 
 	/* Make sure we have a good EEPROM before we read from it */
 	if (igc_validate_nvm_checksum(hw) < 0) {
@@ -708,11 +748,11 @@ igc_if_attach_post(if_ctx_t ctx)
 
 	/* Setup OS specific network interface */
 	error = igc_setup_interface(ctx);
-	if (error != 0) {
-		goto err_late;
-	}
+	if (error != 0)
+		return (error);
 
-	igc_reset(ctx);
+	if (igc_reset(ctx) != IGC_SUCCESS)
+		return (EIO);
 
 	/* Initialize statistics */
 	igc_update_stats_counters(sc);
@@ -724,14 +764,6 @@ igc_if_attach_post(if_ctx_t ctx)
 	igc_get_hw_control(sc);
 
 	INIT_DEBUGOUT("igc_if_attach_post: end");
-
-	return (error);
-
-err_late:
-	igc_release_hw_control(sc);
-	igc_free_pci_resources(ctx);
-	igc_if_queues_free(ctx);
-	free(sc->mta, M_DEVBUF);
 
 	return (error);
 }
@@ -788,7 +820,11 @@ igc_if_suspend(if_ctx_t ctx)
 static int
 igc_if_resume(if_ctx_t ctx)
 {
-	igc_if_init(ctx);
+	/*
+	 * PCIe config space, and with it L1.2, may have been reset
+	 * across the suspend/resume cycle.
+	 */
+	igc_disable_broken_l1_2(ctx);
 
 	return(0);
 }
@@ -838,11 +874,11 @@ igc_if_init(if_ctx_t ctx)
 	bcopy(if_getlladdr(ifp), sc->hw.mac.addr,
 	    ETHER_ADDR_LEN);
 
-	/* Put the address into the Receive Address Array */
-	igc_rar_set(&sc->hw, sc->hw.mac.addr, 0);
-
 	/* Initialize the hardware */
-	igc_reset(ctx);
+	if (igc_reset(ctx) != IGC_SUCCESS) {
+		iflib_init_failed(ctx);
+		return;
+	}
 	igc_if_update_admin_status(ctx);
 
 	for (i = 0, tx_que = sc->tx_queues; i < sc->tx_num_queues;
@@ -880,6 +916,7 @@ igc_if_init(if_ctx_t ctx)
 
 	if (sc->intr_type == IFLIB_INTR_MSIX) /* Set up queue routing */
 		igc_configure_queues(sc);
+	igc_initialize_interrupt_rate(sc);
 
 	/* this clears any pending interrupts */
 	IGC_READ_REG(&sc->hw, IGC_ICR);
@@ -892,12 +929,101 @@ igc_if_init(if_ctx_t ctx)
 	igc_set_eee_i225(&sc->hw, true, true, true);
 }
 
-enum eitr_latency_target {
-	eitr_latency_disabled = 0,
-	eitr_latency_lowest = 1,
-	eitr_latency_low = 2,
-	eitr_latency_bulk = 3
-};
+/*
+ * RX publishes its byte and packet counters as one snapshot when iflib
+ * returns descriptors to hardware.  This also covers watchdog-driven RX
+ * processing, which can run while the interrupt vector is unmasked.
+ */
+static __inline void
+igc_aim_rx_delta(struct rx_ring *rxr, u32 *bytes, u32 *packets)
+{
+	uint64_t snapshot;
+	u32 now_bytes, now_packets;
+
+	snapshot = atomic_load_acq_64(&rxr->rx_aim_snapshot);
+	now_bytes = snapshot >> 32;
+	now_packets = (u32)snapshot;
+	*bytes = now_bytes - rxr->rx_bytes_last;
+	*packets = now_packets - rxr->rx_packets_last;
+	rxr->rx_bytes_last = now_bytes;
+	rxr->rx_packets_last = now_packets;
+}
+
+/*
+ * TX publishes its byte and packet counters as one snapshot at the doorbell,
+ * because encapsulation can overlap the interrupt filter.  The two halves
+ * remain independent free running u32 counters, so their deltas are correct
+ * across wrap.
+ */
+static __inline void
+igc_aim_tx_delta(struct tx_ring *txr, u32 *bytes, u32 *packets)
+{
+	uint64_t snapshot;
+	u32 now_bytes, now_packets;
+
+	snapshot = atomic_load_acq_64(&txr->tx_aim_snapshot);
+	now_bytes = snapshot >> 32;
+	now_packets = (u32)snapshot;
+	*bytes = now_bytes - txr->tx_bytes_last;
+	*packets = now_packets - txr->tx_packets_last;
+	txr->tx_bytes_last = now_bytes;
+	txr->tx_packets_last = now_packets;
+}
+
+/*********************************************************************
+ *
+ *  Do Adaptive Interrupt Moderation:
+ *    - Calculate based on average size over the last interval
+ *
+ *  Returns interrupts per second rather than a register value, so that the
+ *  caller's IGC_INTS_TO_EITR() conversion applies, or zero if the interval
+ *  carried no packet to measure.
+ *
+ *********************************************************************/
+static u32
+igc_ring_itr(struct igc_softc *sc, u32 rxbytes, u32 rxpackets, u32 txbytes,
+    u32 txpackets)
+{
+	u32 newitr = 0;
+
+	if (txbytes && txpackets)
+		newitr = txbytes / txpackets;
+	if (rxbytes && rxpackets)
+		newitr = max(newitr, rxbytes / rxpackets);
+
+	/*
+	 * No packet was observed, so there is no size to work from.  Report no
+	 * observation and let the caller keep the rate it already has.
+	 */
+	if (newitr == 0)
+		return (0);
+
+	newitr += 24; /* account for hardware frame, crc */
+	/* set an upper boundary */
+	newitr = min(newitr, 3000);
+	/* Be nice to the mid range */
+	if ((newitr > 300) && (newitr < 1200))
+		newitr = (newitr / 3);
+	else
+		newitr = (newitr / 2);
+
+	/* The value above was written straight to EITR; make it a rate */
+	newitr = IGC_AIM_DIVIDEND / newitr;
+
+	/*
+	 * Cap the rate: enable_aim=1 is the normal setting, enable_aim=2 opts
+	 * into the low latency end.  The original was unbounded and would ask
+	 * for ~95k ints/s on minimum sized frames.  There is deliberately no
+	 * floor, so jumbo traffic settles near 2.7k ints/s.
+	 */
+	if (sc->enable_aim == 1)
+		newitr = min(newitr, IGC_INTS_20K);
+	else
+		newitr = min(newitr, IGC_INTS_70K);
+
+	return (newitr);
+}
+
 /*********************************************************************
  *
  *  Helper to calculate next EITR value for AIM
@@ -905,127 +1031,51 @@ enum eitr_latency_target {
  *********************************************************************/
 static void
 igc_neweitr(struct igc_softc *sc, struct igc_rx_queue *que,
-    struct tx_ring *txr, struct rx_ring *rxr)
+    struct rx_ring *rxr)
 {
 	struct igc_hw *hw = &sc->hw;
-	unsigned long bytes, bytes_per_packet, packets;
-	unsigned long rxbytes, rxpackets, txbytes, txpackets;
+	struct igc_tx_queue *tx_que;
+	u32 ringbytes, ringpackets, rxbytes, rxpackets, txbytes, txpackets;
 	u32 neweitr;
-	u8 nextlatency;
+	int i;
 
-	rxbytes = atomic_load_long(&rxr->rx_bytes);
-	txbytes = atomic_load_long(&txr->tx_bytes);
+	igc_aim_rx_delta(rxr, &rxbytes, &rxpackets);
+
+	/*
+	 * A vector can service more than one TX ring when iflib is configured
+	 * with unequal RX and TX queue counts.  Sample every ring routed to
+	 * this vector rather than treating the vector as a TX queue index.
+	 */
+	txbytes = txpackets = 0;
+	for (i = 0; i < sc->tx_num_queues; i++) {
+		tx_que = &sc->tx_queues[i];
+		if (tx_que->msix != que->msix)
+			continue;
+		igc_aim_tx_delta(&tx_que->txr, &ringbytes, &ringpackets);
+		txbytes += ringbytes;
+		txpackets += ringpackets;
+	}
 
 	/* Idle, do nothing */
 	if (txbytes == 0 && rxbytes == 0)
 		return;
 
-	neweitr = 0;
-
-	if (sc->enable_aim) {
-		nextlatency = rxr->rx_nextlatency;
-
-		/* Use half default (4K) ITR if sub-gig */
-		if (sc->link_speed < 1000) {
-			neweitr = IGC_INTS_4K;
-			goto igc_set_next_eitr;
-		}
-		/* Want at least enough packet buffer for two frames to AIM */
-		if (sc->shared->isc_max_frame_size * 2 > (sc->pba << 10)) {
-			neweitr = igc_max_interrupt_rate;
-			sc->enable_aim = 0;
-			goto igc_set_next_eitr;
-		}
-
-		bytes = bytes_per_packet = 0;
-		/* Get largest values from the associated tx and rx ring */
-		txpackets = atomic_load_long(&txr->tx_packets);
-		if (txpackets != 0) {
-			bytes = txbytes;
-			bytes_per_packet = txbytes / txpackets;
-			packets = txpackets;
-		}
-		rxpackets = atomic_load_long(&rxr->rx_packets);
-		if (rxpackets != 0) {
-			bytes = lmax(bytes, rxbytes);
-			bytes_per_packet =
-			    lmax(bytes_per_packet, rxbytes / rxpackets);
-			packets = lmax(packets, rxpackets);
-		}
-
-		/* Latency state machine */
-		switch (nextlatency) {
-		case eitr_latency_disabled: /* Bootstrapping */
-			nextlatency = eitr_latency_low;
-			break;
-		case eitr_latency_lowest: /* 70k ints/s */
-			/* TSO and jumbo frames */
-			if (bytes_per_packet > 8000)
-				nextlatency = eitr_latency_bulk;
-			else if ((packets < 5) && (bytes > 512))
-				nextlatency = eitr_latency_low;
-			break;
-		case eitr_latency_low: /* 20k ints/s */
-			if (bytes > 10000) {
-				/* Handle TSO */
-				if (bytes_per_packet > 8000)
-					nextlatency = eitr_latency_bulk;
-				else if ((packets < 10) ||
-				    (bytes_per_packet > 1200))
-					nextlatency = eitr_latency_bulk;
-				else if (packets > 35)
-					nextlatency = eitr_latency_lowest;
-			} else if (bytes_per_packet > 2000) {
-				nextlatency = eitr_latency_bulk;
-			} else if (packets < 3 && bytes < 512) {
-				nextlatency = eitr_latency_lowest;
-			}
-			break;
-		case eitr_latency_bulk: /* 4k ints/s */
-			if (bytes > 25000) {
-				if (packets > 35)
-					nextlatency = eitr_latency_low;
-			} else if (bytes < 1500)
-				nextlatency = eitr_latency_low;
-			break;
-		default:
-			nextlatency = eitr_latency_low;
-			device_printf(sc->dev,
-			    "Unexpected neweitr transition %d\n",
-			    nextlatency);
-			break;
-		}
-
-		/* Trim itr_latency_lowest for default AIM setting */
-		if (sc->enable_aim == 1 && nextlatency == eitr_latency_lowest)
-			nextlatency = eitr_latency_low;
-
-		/* Request new latency */
-		rxr->rx_nextlatency = nextlatency;
-	} else {
-		/* We may have toggled to AIM disabled */
-		nextlatency = eitr_latency_disabled;
-		rxr->rx_nextlatency = nextlatency;
-	}
-
-	/* ITR state machine */
-	switch(nextlatency) {
-	case eitr_latency_lowest:
-		neweitr = IGC_INTS_70K;
-		break;
-	case eitr_latency_low:
-		neweitr = IGC_INTS_20K;
-		break;
-	case eitr_latency_bulk:
-		neweitr = IGC_INTS_4K;
-		break;
-	case eitr_latency_disabled:
-	default:
+	if (sc->enable_aim == 0) {
 		neweitr = igc_max_interrupt_rate;
-		break;
+	} else if (sc->link_speed < SPEED_1000) {
+		/* Use half default (4K) ITR if sub-gig */
+		neweitr = IGC_INTS_4K;
+	} else if (sc->shared->isc_max_frame_size * 2 > (sc->pba << 10)) {
+		/* Want at least enough packet buffer for two frames to AIM */
+		neweitr = igc_max_interrupt_rate;
+	} else {
+		neweitr = igc_ring_itr(sc, rxbytes, rxpackets, txbytes,
+		    txpackets);
+		/* No usable observation; leave the rate where it is */
+		if (neweitr == 0)
+			return;
 	}
 
-igc_set_next_eitr:
 	neweitr = IGC_INTS_TO_EITR(neweitr);
 
 	neweitr |= IGC_EITR_CNT_IGNR;
@@ -1047,7 +1097,6 @@ igc_intr(void *arg)
 	struct igc_softc *sc = arg;
 	struct igc_hw *hw = &sc->hw;
 	struct igc_rx_queue *que = &sc->rx_queues[0];
-	struct tx_ring *txr = &sc->tx_queues[0].txr;
 	struct rx_ring *rxr = &que->rxr;
 	if_ctx_t ctx = sc->ctx;
 	u32 reg_icr;
@@ -1080,13 +1129,9 @@ igc_intr(void *arg)
 	if (reg_icr & IGC_ICR_RXO)
 		sc->rx_overruns++;
 
-	igc_neweitr(sc, que, txr, rxr);
+	igc_handle_fatal_error_intr(sc, reg_icr);
 
-	/* Reset state */
-	txr->tx_bytes = 0;
-	txr->tx_packets = 0;
-	rxr->rx_bytes = 0;
-	rxr->rx_packets = 0;
+	igc_neweitr(sc, que, rxr);
 
 	return (FILTER_SCHEDULE_THREAD);
 }
@@ -1121,18 +1166,11 @@ igc_msix_que(void *arg)
 {
 	struct igc_rx_queue *que = arg;
 	struct igc_softc *sc = que->sc;
-	struct tx_ring *txr = &sc->tx_queues[que->msix].txr;
 	struct rx_ring *rxr = &que->rxr;
 
 	++que->irqs;
 
-	igc_neweitr(sc, que, txr, rxr);
-
-	/* Reset state */
-	txr->tx_bytes = 0;
-	txr->tx_packets = 0;
-	rxr->rx_bytes = 0;
-	rxr->rx_packets = 0;
+	igc_neweitr(sc, que, rxr);
 
 	return (FILTER_SCHEDULE_THREAD);
 }
@@ -1158,8 +1196,13 @@ igc_msix_link(void *arg)
 	if (reg_icr & (IGC_ICR_RXSEQ | IGC_ICR_LSC)) {
 		igc_handle_link(sc->ctx);
 	}
+	igc_handle_fatal_error_intr(sc, reg_icr);
 
-	IGC_WRITE_REG(&sc->hw, IGC_IMS, IGC_IMS_LSC);
+	reg_icr = IGC_IMS_LSC;
+	if (atomic_load_acq_32(&sc->fatal_error_state) ==
+	    IGC_FATAL_ERROR_NONE)
+		reg_icr |= IGC_IMS_FER;
+	IGC_WRITE_REG(&sc->hw, IGC_IMS, reg_icr);
 	IGC_WRITE_REG(&sc->hw, IGC_EIMS, sc->link_mask);
 
 	return (FILTER_HANDLED);
@@ -1173,6 +1216,93 @@ igc_handle_link(void *context)
 
 	sc->hw.mac.get_link_status = true;
 	iflib_admin_intr_deferred(ctx);
+}
+
+/*
+ * Fatal internal memory errors stop some or all device traffic.  Capture the
+ * read-clear indication before handing recovery to the iflib admin task.
+ */
+static void
+igc_handle_fatal_error_intr(struct igc_softc *sc, u32 icr)
+{
+	struct igc_hw *hw;
+	u32 lanerr, mngerr, pcieerr, peind;
+
+	if ((icr & IGC_ICR_FER) == 0)
+		return;
+
+	hw = &sc->hw;
+	IGC_WRITE_REG(hw, IGC_IMC, IGC_IMS_FER);
+	if (!atomic_cmpset_32(&sc->fatal_error_state,
+	    IGC_FATAL_ERROR_NONE, IGC_FATAL_ERROR_CAPTURING))
+		return;
+
+	peind = IGC_READ_REG(hw, IGC_PEIND) & IGC_PEIND_FATAL_MASK;
+	pcieerr = IGC_READ_REG(hw, IGC_PCIEERRSTS) &
+	    IGC_PCIEERRSTS_FATAL_MASK;
+	lanerr = IGC_READ_REG(hw, IGC_LANPERRSTS) &
+	    IGC_LANPERRSTS_RETX_BUF;
+	mngerr = IGC_READ_REG(hw, IGC_MNGPARSTS) &
+	    IGC_MNGPARSTS_FATAL_MASK;
+	if (pcieerr != 0)
+		peind |= IGC_PEIND_PCIE_PARITY_FATAL;
+	if (lanerr != 0)
+		peind |= IGC_PEIND_LANPORT_PARITY_FATAL;
+
+	sc->fatal_error_peind = peind;
+	sc->fatal_error_pcie = pcieerr;
+	sc->fatal_error_lan = lanerr;
+	sc->fatal_error_mng = mngerr;
+	atomic_store_rel_32(&sc->fatal_error_state,
+	    IGC_FATAL_ERROR_DETECTED);
+	iflib_admin_intr_deferred(sc->ctx);
+}
+
+static bool
+igc_handle_fatal_error_admin(struct igc_softc *sc)
+{
+	u32 peind;
+
+	if (!atomic_cmpset_acq_32(&sc->fatal_error_state,
+	    IGC_FATAL_ERROR_DETECTED, IGC_FATAL_ERROR_RESET_REQUESTED))
+		return (atomic_load_acq_32(&sc->fatal_error_state) !=
+		    IGC_FATAL_ERROR_NONE);
+
+	peind = sc->fatal_error_peind;
+	if (peind & IGC_PEIND_LANPORT_PARITY_FATAL)
+		sc->fatal_error_lan_count++;
+	if (peind & IGC_PEIND_MNG_PARITY_FATAL)
+		sc->fatal_error_mng_count++;
+	if (peind & IGC_PEIND_PCIE_PARITY_FATAL)
+		sc->fatal_error_pcie_count++;
+	if (peind & IGC_PEIND_DMA_PARITY_FATAL)
+		sc->fatal_error_dma_count++;
+	if (peind == 0)
+		sc->fatal_error_unknown_count++;
+
+	device_printf(sc->dev,
+	    "fatal internal memory error: PEIND %#x, PCIEERRSTS %#x, "
+	    "LANPERRSTS %#x, MNGPARSTS %#x\n",
+	    peind, sc->fatal_error_pcie, sc->fatal_error_lan,
+	    sc->fatal_error_mng);
+	/* Management-memory recovery is owned by management firmware. */
+	if (peind != 0 && (peind & IGC_PEIND_HOST_FATAL_MASK) == 0) {
+		sc->fatal_error_peind = 0;
+		sc->fatal_error_pcie = 0;
+		sc->fatal_error_lan = 0;
+		sc->fatal_error_mng = 0;
+		atomic_store_rel_32(&sc->fatal_error_state,
+		    IGC_FATAL_ERROR_NONE);
+		IGC_WRITE_REG(&sc->hw, IGC_IMS, IGC_IMS_FER);
+		IGC_WRITE_FLUSH(&sc->hw);
+		return (true);
+	}
+
+	device_printf(sc->dev, "requesting reset after memory error\n");
+	iflib_request_reset(sc->ctx);
+	/* Re-enter the admin task so it observes the reset request. */
+	iflib_admin_intr_deferred(sc->ctx);
+	return (true);
 }
 
 /*********************************************************************
@@ -1269,8 +1399,6 @@ igc_if_media_change(if_ctx_t ctx)
 		device_printf(sc->dev, "Unsupported media type\n");
 	}
 
-	igc_if_init(ctx);
-
 	return (0);
 }
 
@@ -1291,20 +1419,24 @@ igc_if_set_promisc(if_ctx_t ctx, int flags)
 
 	/* Don't disable if in MAX groups */
 	if (mcnt < MAX_NUM_MULTICAST_ADDRESSES)
-		reg_rctl &=  (~IGC_RCTL_MPE);
-	IGC_WRITE_REG(&sc->hw, IGC_RCTL, reg_rctl);
+		reg_rctl &= ~IGC_RCTL_MPE;
 
 	if (flags & IFF_PROMISC) {
 		reg_rctl |= (IGC_RCTL_UPE | IGC_RCTL_MPE);
 		/* Turn this on if you want to see bad packets */
 		if (igc_debug_sbp)
 			reg_rctl |= IGC_RCTL_SBP;
-		IGC_WRITE_REG(&sc->hw, IGC_RCTL, reg_rctl);
 	} else if (flags & IFF_ALLMULTI) {
 		reg_rctl |= IGC_RCTL_MPE;
 		reg_rctl &= ~IGC_RCTL_UPE;
-		IGC_WRITE_REG(&sc->hw, IGC_RCTL, reg_rctl);
 	}
+
+	if ((flags & IFF_PROMISC) || !igc_if_vlan_filter_used(ctx))
+		reg_rctl &= ~IGC_RCTL_VFE;
+	else
+		reg_rctl |= IGC_RCTL_VFE;
+	IGC_WRITE_REG(&sc->hw, IGC_RCTL, reg_rctl);
+
 	return (0);
 }
 
@@ -1383,12 +1515,42 @@ igc_if_timer(if_ctx_t ctx, uint16_t qid)
 }
 
 static void
+igc_apply_i225_ipg_workaround(struct igc_softc *sc)
+{
+	struct igc_hw *hw = &sc->hw;
+	u32 ipgt, tipg;
+
+	/*
+	 * I225 v1 cannot receive the minimum IPG required at 2.5 Gb/s.
+	 * Intel's documented back-to-back workaround is for the transmitter
+	 * to use a 15-byte IPG instead of 12 bytes.  I225 v2 and later have
+	 * the receive-side fix and should retain the standard IPG.
+	 */
+	if (!igc_is_device_id_i225(hw) ||
+	    hw->revision_id >= IGC_REVISION_2)
+		return;
+
+	ipgt = sc->link_speed == SPEED_2500 ? IGC_I225_TIPG_IPGT_2P5 :
+	    DEFAULT_82543_TIPG_IPGT_COPPER;
+	tipg = IGC_READ_REG(hw, IGC_TIPG);
+	if ((tipg & IGC_TIPG_IPGT_MASK) == ipgt)
+		return;
+
+	tipg &= ~IGC_TIPG_IPGT_MASK;
+	tipg |= ipgt;
+	IGC_WRITE_REG(hw, IGC_TIPG, tipg);
+}
+
+static void
 igc_if_update_admin_status(if_ctx_t ctx)
 {
 	struct igc_softc *sc = iflib_get_softc(ctx);
 	struct igc_hw *hw = &sc->hw;
 	device_t dev = iflib_get_dev(ctx);
 	u32 link_check, thstat, ctrl;
+
+	if (igc_handle_fatal_error_admin(sc))
+		return;
 
 	link_check = thstat = ctrl = 0;
 	/* Get the cached link value or read phy for real */
@@ -1427,19 +1589,8 @@ igc_if_update_admin_status(if_ctx_t ctx)
 		sc->link_active = 0;
 		iflib_link_state_change(ctx, LINK_STATE_DOWN, 0);
 	}
+	igc_apply_i225_ipg_workaround(sc);
 	igc_update_stats_counters(sc);
-}
-
-static void
-igc_if_watchdog_reset(if_ctx_t ctx)
-{
-	struct igc_softc *sc = iflib_get_softc(ctx);
-
-	/*
-	 * Just count the event; iflib(4) will already trigger a
-	 * sufficient reset of the controller.
-	 */
-	sc->watchdog_events++;
 }
 
 /*********************************************************************
@@ -1452,11 +1603,141 @@ static void
 igc_if_stop(if_ctx_t ctx)
 {
 	struct igc_softc *sc = iflib_get_softc(ctx);
+	s32 error;
 
 	INIT_DEBUGOUT("igc_if_stop: begin");
 
-	igc_reset_hw(&sc->hw);
+	igc_led_restore(sc);
+	igc_prepare_fatal_error_reset(sc);
+	error = igc_reset_hw(&sc->hw);
+	if (error != IGC_SUCCESS) {
+		device_printf(sc->dev, "Hardware reset failed while stopping: "
+		    "%d\n", error);
+		return;
+	}
+	igc_finish_fatal_error_reset(sc);
 	IGC_WRITE_REG(&sc->hw, IGC_WUC, 0);
+}
+
+/*
+ * A PCIe-region parity failure stops PCIe and DMA traffic.  Intel requires a
+ * device reset before master disable in this case, unlike the normal reset
+ * path, which disables the bus master first.
+ */
+static void
+igc_prepare_fatal_error_reset(struct igc_softc *sc)
+{
+	struct igc_hw *hw;
+	s32 error;
+	u32 ctrl, pcieerr;
+	int i;
+
+	if (atomic_load_acq_32(&sc->fatal_error_state) ==
+	    IGC_FATAL_ERROR_NONE)
+		return;
+
+	hw = &sc->hw;
+	pcieerr = sc->fatal_error_pcie |
+	    (IGC_READ_REG(hw, IGC_PCIEERRSTS) & IGC_PCIEERRSTS_FATAL_MASK);
+	if ((sc->fatal_error_peind & IGC_PEIND_PCIE_PARITY_FATAL) == 0 &&
+	    pcieerr == 0)
+		return;
+
+	ctrl = IGC_READ_REG(hw, IGC_CTRL);
+	IGC_WRITE_REG(hw, IGC_CTRL, ctrl | IGC_CTRL_DEV_RST);
+	/* Do not access device registers for at least 3 ms after DEV_RST. */
+	msec_delay(3);
+	for (i = 0; i < AUTO_READ_DONE_TIMEOUT; i++) {
+		if ((IGC_READ_REG(hw, IGC_EECD) & IGC_EECD_AUTO_RD) != 0 &&
+		    (IGC_READ_REG(hw, IGC_STATUS) & IGC_STATUS_RST_DONE) != 0)
+			break;
+		msec_delay(1);
+	}
+	if (i == AUTO_READ_DONE_TIMEOUT)
+		device_printf(sc->dev,
+		    "device reset did not complete during parity recovery\n");
+	error = igc_disable_pcie_master_generic(hw);
+	if (error != IGC_SUCCESS)
+		device_printf(sc->dev,
+		    "PCIe master disable failed during parity recovery: %d\n",
+		    error);
+	pcieerr |= IGC_READ_REG(hw, IGC_PCIEERRSTS) &
+	    IGC_PCIEERRSTS_FATAL_MASK;
+	if (pcieerr != 0)
+		IGC_WRITE_REG(hw, IGC_PCIEERRSTS, pcieerr);
+}
+
+static void
+igc_finish_fatal_error_reset(struct igc_softc *sc)
+{
+	struct igc_hw *hw;
+	u32 lanerr, pcieerr;
+
+	if (atomic_load_acq_32(&sc->fatal_error_state) ==
+	    IGC_FATAL_ERROR_NONE)
+		return;
+
+	hw = &sc->hw;
+	pcieerr = sc->fatal_error_pcie |
+	    (IGC_READ_REG(hw, IGC_PCIEERRSTS) & IGC_PCIEERRSTS_FATAL_MASK);
+	if (pcieerr != 0)
+		IGC_WRITE_REG(hw, IGC_PCIEERRSTS, pcieerr);
+	lanerr = sc->fatal_error_lan |
+	    (IGC_READ_REG(hw, IGC_LANPERRSTS) & IGC_LANPERRSTS_RETX_BUF);
+	if (lanerr != 0)
+		IGC_WRITE_REG(hw, IGC_LANPERRSTS, lanerr);
+	/*
+	 * DEV_RST can relatch PEIND from a subordinate status register
+	 * before that register is cleared.  Drain the recovered indication
+	 * before unmasking FER so a later error is not misattributed.
+	 */
+	(void)IGC_READ_REG(hw, IGC_PEIND);
+
+	sc->fatal_error_peind = 0;
+	sc->fatal_error_pcie = 0;
+	sc->fatal_error_lan = 0;
+	sc->fatal_error_mng = 0;
+	atomic_store_rel_32(&sc->fatal_error_state, IGC_FATAL_ERROR_NONE);
+}
+
+/*
+ * I225/I226 have three configurable LED outputs.  DPDK uses LED1 for
+ * adapter identification; retain that convention and preserve the OEM's
+ * configuration for normal link and activity indication.
+ */
+static void
+igc_if_led_func(if_ctx_t ctx, int onoff)
+{
+	struct igc_softc *sc;
+	struct igc_hw *hw;
+	u32 ledctl;
+
+	sc = iflib_get_softc(ctx);
+	hw = &sc->hw;
+	if (onoff) {
+		if (!sc->led_active) {
+			sc->ledctl_default = IGC_READ_REG(hw, IGC_LEDCTL);
+			sc->led_active = true;
+		}
+		ledctl = sc->ledctl_default;
+		ledctl &= ~(IGC_LEDCTL_LED1_MODE_MASK |
+		    IGC_LEDCTL_LED1_BLINK);
+		ledctl |= IGC_LEDCTL_MODE_LED_ON <<
+		    IGC_LEDCTL_LED1_MODE_SHIFT;
+		IGC_WRITE_REG(hw, IGC_LEDCTL, ledctl);
+	} else {
+		igc_led_restore(sc);
+	}
+}
+
+static void
+igc_led_restore(struct igc_softc *sc)
+{
+
+	if (!sc->led_active)
+		return;
+	IGC_WRITE_REG(&sc->hw, IGC_LEDCTL, sc->ledctl_default);
+	sc->led_active = false;
 }
 
 /*********************************************************************
@@ -1487,6 +1768,42 @@ igc_identify_hardware(if_ctx_t ctx)
 		device_printf(dev, "Setup init failure\n");
 		return;
 	}
+}
+
+/*********************************************************************
+ *
+ *  Intel's I225/I226 Specification Update, erratum 2, states that I225
+ *  devices can incorrectly enter L1 substates while CLKREQ# is asserted,
+ *  causing repeated L1-substate entry and exit.  Disable both ASPM and
+ *  PCI-PM L1.2, as the erratum can occur while idle or in D3.
+ *
+ *  I226 devices have a separate erratum where ASPM L1.2 exit latency can
+ *  exceed what the packet buffer can tolerate under load.  Disabling ASPM
+ *  L1.2 on the device itself works around the issue.
+ *
+ **********************************************************************/
+static void
+igc_disable_broken_l1_2(if_ctx_t ctx)
+{
+	device_t dev = iflib_get_dev(ctx);
+	struct igc_softc *sc = iflib_get_softc(ctx);
+	int cap;
+	uint32_t ctl1, mask;
+
+	if (igc_is_device_id_i225(&sc->hw))
+		mask = PCIM_L1PM_CTL1_ASPM_L1_2 |
+		    PCIM_L1PM_CTL1_PCIPM_L1_2;
+	else if (igc_is_device_id_i226(&sc->hw))
+		mask = PCIM_L1PM_CTL1_ASPM_L1_2;
+	else
+		return;
+
+	if (pci_find_extcap(dev, PCIZ_L1PM, &cap) != 0)
+		return;
+
+	ctl1 = pci_read_config(dev, cap + PCIR_L1PM_CTL1, 4);
+	ctl1 &= ~mask;
+	pci_write_config(dev, cap + PCIR_L1PM_CTL1, ctl1, 4);
 }
 
 static int
@@ -1599,7 +1916,7 @@ igc_configure_queues(struct igc_softc *sc)
 	struct igc_hw *hw = &sc->hw;
 	struct igc_rx_queue *rx_que;
 	struct igc_tx_queue *tx_que;
-	u32 ivar = 0, newitr = 0;
+	u32 ivar = 0;
 
 	/* First turn on RSS capability */
 	IGC_WRITE_REG(hw, IGC_GPIE,
@@ -1642,18 +1959,25 @@ igc_configure_queues(struct igc_softc *sc)
 	sc->link_mask = 1 << sc->linkvec;
 	IGC_WRITE_REG(hw, IGC_IVAR_MISC, ivar);
 
-	/* Set the starting interrupt rate */
-	if (igc_max_interrupt_rate > 0)
-		newitr = IGC_INTS_TO_EITR(igc_max_interrupt_rate);
+	return;
+}
 
+static void
+igc_initialize_interrupt_rate(struct igc_softc *sc)
+{
+	struct igc_hw *hw = &sc->hw;
+	struct igc_rx_queue *rx_que;
+	u32 newitr;
+
+	newitr = IGC_INTS_TO_EITR(igc_max_interrupt_rate);
 	newitr |= IGC_EITR_CNT_IGNR;
 
 	for (int i = 0; i < sc->rx_num_queues; i++) {
 		rx_que = &sc->rx_queues[i];
-		IGC_WRITE_REG(hw, IGC_EITR(rx_que->msix), newitr);
+		rx_que->eitr_setting = newitr;
+		IGC_WRITE_REG(hw, IGC_EITR(rx_que->msix),
+		    rx_que->eitr_setting);
 	}
-
-	return;
 }
 
 static void
@@ -1667,8 +1991,9 @@ igc_free_pci_resources(if_ctx_t ctx)
 	if (sc->intr_type == IFLIB_INTR_MSIX)
 		iflib_irq_free(ctx, &sc->irq);
 
-	for (int i = 0; i < sc->rx_num_queues; i++, que++) {
-		iflib_irq_free(ctx, &que->que_irq);
+	if (que != NULL) {
+		for (int i = 0; i < sc->rx_num_queues; i++, que++)
+			iflib_irq_free(ctx, &que->que_irq);
 	}
 
 	if (sc->memory != NULL) {
@@ -1793,7 +2118,7 @@ igc_init_dmac(struct igc_softc *sc, u32 pba)
  *  softc structure.
  *
  **********************************************************************/
-static void
+static int
 igc_reset(if_ctx_t ctx)
 {
 	device_t dev = iflib_get_dev(ctx);
@@ -1801,8 +2126,10 @@ igc_reset(if_ctx_t ctx)
 	struct igc_hw *hw = &sc->hw;
 	u32 rx_buffer_size;
 	u32 pba;
+	s32 error;
 
 	INIT_DEBUGOUT("igc_reset: begin");
+	igc_led_restore(sc);
 	/* Let the firmware know the OS is in control */
 	igc_get_hw_control(sc);
 
@@ -1846,14 +2173,21 @@ igc_reset(if_ctx_t ctx)
 	hw->fc.send_xon = true;
 
 	/* Issue a global reset */
-	igc_reset_hw(hw);
+	error = igc_reset_hw(hw);
+	if (error != IGC_SUCCESS) {
+		device_printf(dev, "Hardware reset failed: %d\n", error);
+		return (error);
+	}
 	IGC_WRITE_REG(hw, IGC_WUC, 0);
 
 	/* and a re-init */
-	if (igc_init_hw(hw) < 0) {
-		device_printf(dev, "Hardware Initialization Failed\n");
-		return;
+	error = igc_init_hw(hw);
+	if (error != IGC_SUCCESS) {
+		device_printf(dev, "Hardware initialization failed: %d\n",
+		    error);
+		return (error);
 	}
+	igc_finish_fatal_error_reset(sc);
 
 	/* Setup DMA Coalescing */
 	igc_init_dmac(sc, pba);
@@ -1864,6 +2198,8 @@ igc_reset(if_ctx_t ctx)
 	IGC_WRITE_REG(hw, IGC_VET, ETHERTYPE_VLAN);
 	igc_get_phy_info(hw);
 	igc_check_for_link(hw);
+
+	return (IGC_SUCCESS);
 }
 
 /*
@@ -2022,6 +2358,9 @@ igc_if_tx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 		/* Set up some basics */
 
 		struct tx_ring *txr = &que->txr;
+		KASSERT(__is_aligned(&txr->tx_aim_snapshot, sizeof(uint64_t)),
+		    ("%s: misaligned TX AIM snapshot %p", __func__,
+		    &txr->tx_aim_snapshot));
 		txr->sc = que->sc = sc;
 		que->me = txr->me =  i;
 
@@ -2074,6 +2413,9 @@ igc_if_rx_queues_alloc(if_ctx_t ctx, caddr_t *vaddrs, uint64_t *paddrs,
 	for (i = 0, que = sc->rx_queues; i < nrxqsets; i++, que++) {
 		/* Set up some basics */
 		struct rx_ring *rxr = &que->rxr;
+		KASSERT(__is_aligned(&rxr->rx_aim_snapshot, sizeof(uint64_t)),
+		    ("%s: misaligned RX AIM snapshot %p", __func__,
+		    &rxr->rx_aim_snapshot));
 		rxr->sc = que->sc = sc;
 		rxr->que = que;
 		que->me = rxr->me =  i;
@@ -2120,6 +2462,7 @@ igc_if_queues_free(if_ctx_t ctx)
 
 	if (sc->mta != NULL) {
 		free(sc->mta, M_DEVBUF);
+		sc->mta = NULL;
 	}
 }
 
@@ -2168,13 +2511,9 @@ igc_initialize_transmit_unit(if_ctx_t ctx)
 		    IGC_READ_REG(&sc->hw, IGC_TDBAL(i)),
 		    IGC_READ_REG(&sc->hw, IGC_TDLEN(i)));
 
-		txdctl = 0; /* clear txdctl */
-		txdctl |= 0x1f; /* PTHRESH */
-		txdctl |= 1 << 8; /* HTHRESH */
-		txdctl |= 1 << 16;/* WTHRESH */
-		txdctl |= 1 << 22; /* Reserved bit 22 must always be 1 */
-		txdctl |= IGC_TXDCTL_GRAN;
-		txdctl |= 1 << 25; /* LWTHRESH */
+		/* WTHRESH must be zero when iflib uses sparse RS. */
+		txdctl = IGC_TX_PTHRESH | (IGC_TX_HTHRESH << 8) |
+		    IGC_TXDCTL_QUEUE_ENABLE;
 
 		IGC_WRITE_REG(hw, IGC_TXDCTL(i), txdctl);
 	}
@@ -2302,11 +2641,10 @@ igc_initialize_receive_unit(if_ctx_t ctx)
 		IGC_WRITE_REG(hw, IGC_RDT(i), 0);
 		/* Enable this Queue */
 		rxdctl = IGC_READ_REG(hw, IGC_RXDCTL(i));
-		rxdctl |= IGC_RXDCTL_QUEUE_ENABLE;
-		rxdctl &= 0xFFF00000;
-		rxdctl |= IGC_RX_PTHRESH;
-		rxdctl |= IGC_RX_HTHRESH << 8;
-		rxdctl |= IGC_RX_WTHRESH << 16;
+		rxdctl &= ~(IGC_RXDCTL_PTHRESH | IGC_RXDCTL_HTHRESH |
+		    IGC_RXDCTL_WTHRESH);
+		rxdctl |= IGC_RX_PTHRESH | (IGC_RX_HTHRESH << 8) |
+		    (IGC_RX_WTHRESH << 16) | IGC_RXDCTL_QUEUE_ENABLE;
 		IGC_WRITE_REG(hw, IGC_RXDCTL(i), rxdctl);
 	}
 
@@ -2320,14 +2658,85 @@ igc_initialize_receive_unit(if_ctx_t ctx)
 }
 
 static void
+igc_if_vlan_register(if_ctx_t ctx, u16 vtag)
+{
+	struct igc_softc *sc = iflib_get_softc(ctx);
+	u32 index, mask;
+
+	index = (vtag >> 5) & 0x7f;
+	mask = 1U << (vtag & 0x1f);
+	if ((sc->shadow_vfta[index] & mask) != 0)
+		return;
+	sc->shadow_vfta[index] |= mask;
+	igc_write_vfta(&sc->hw, index, sc->shadow_vfta[index]);
+}
+
+static void
+igc_if_vlan_unregister(if_ctx_t ctx, u16 vtag)
+{
+	struct igc_softc *sc = iflib_get_softc(ctx);
+	u32 index, mask;
+
+	index = (vtag >> 5) & 0x7f;
+	mask = 1U << (vtag & 0x1f);
+	if ((sc->shadow_vfta[index] & mask) == 0)
+		return;
+	sc->shadow_vfta[index] &= ~mask;
+	igc_write_vfta(&sc->hw, index, sc->shadow_vfta[index]);
+}
+
+static bool
+igc_if_vlan_filter_capable(if_ctx_t ctx)
+{
+	if_t ifp = iflib_get_ifp(ctx);
+
+	return ((if_getcapenable(ifp) & IFCAP_VLAN_HWFILTER) != 0 &&
+	    !igc_disable_crc_stripping);
+}
+
+static bool
+igc_if_vlan_filter_used(if_ctx_t ctx)
+{
+	struct igc_softc *sc = iflib_get_softc(ctx);
+
+	if (!igc_if_vlan_filter_capable(ctx))
+		return (false);
+
+	for (int i = 0; i < IGC_VFTA_SIZE; i++)
+		if (sc->shadow_vfta[i] != 0)
+			return (true);
+
+	return (false);
+}
+
+static void
+igc_if_vlan_filter_enable(struct igc_softc *sc)
+{
+	u32 reg;
+
+	reg = IGC_READ_REG(&sc->hw, IGC_RCTL);
+	reg &= ~IGC_RCTL_CFIEN;
+	reg |= IGC_RCTL_VFE;
+	IGC_WRITE_REG(&sc->hw, IGC_RCTL, reg);
+}
+
+static void
+igc_if_vlan_filter_disable(struct igc_softc *sc)
+{
+	u32 reg;
+
+	reg = IGC_READ_REG(&sc->hw, IGC_RCTL);
+	reg &= ~(IGC_RCTL_VFE | IGC_RCTL_CFIEN);
+	IGC_WRITE_REG(&sc->hw, IGC_RCTL, reg);
+}
+
+static void
 igc_setup_vlan_hw_support(if_ctx_t ctx)
 {
 	struct igc_softc *sc = iflib_get_softc(ctx);
 	struct igc_hw *hw = &sc->hw;
-	struct ifnet *ifp = iflib_get_ifp(ctx);
+	if_t ifp = iflib_get_ifp(ctx);
 	u32 reg;
-
-	/* igc hardware doesn't seem to implement VFTA for HWFILTER */
 
 	if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING &&
 	    !igc_disable_crc_stripping) {
@@ -2339,6 +2748,20 @@ igc_setup_vlan_hw_support(if_ctx_t ctx)
 		reg &= ~IGC_CTRL_VME;
 		IGC_WRITE_REG(hw, IGC_CTRL, reg);
 	}
+
+	if (!igc_if_vlan_filter_capable(ctx)) {
+		igc_if_vlan_filter_disable(sc);
+		return;
+	}
+
+	/* Always admit priority-tagged frames. */
+	sc->shadow_vfta[0] |= 1U;
+
+	/* A reset may clear the VFTA, so restore the complete desired table. */
+	for (int i = 0; i < IGC_VFTA_SIZE; i++)
+		igc_write_vfta(hw, i, sc->shadow_vfta[i]);
+
+	igc_if_vlan_filter_enable(sc);
 }
 
 static void
@@ -2353,9 +2776,13 @@ igc_if_intr_enable(if_ctx_t ctx)
 		IGC_WRITE_REG(hw, IGC_EIAC, mask);
 		IGC_WRITE_REG(hw, IGC_EIAM, mask);
 		IGC_WRITE_REG(hw, IGC_EIMS, mask);
-		IGC_WRITE_REG(hw, IGC_IMS, IGC_IMS_LSC);
+		mask = IGC_IMS_LSC;
 	} else
-		IGC_WRITE_REG(hw, IGC_IMS, IMS_ENABLE_MASK);
+		mask = IMS_ENABLE_MASK;
+	if (atomic_load_acq_32(&sc->fatal_error_state) ==
+	    IGC_FATAL_ERROR_NONE)
+		mask |= IGC_IMS_FER;
+	IGC_WRITE_REG(hw, IGC_IMS, mask);
 	IGC_WRITE_FLUSH(hw);
 }
 
@@ -2498,11 +2925,38 @@ pme:
  *
  **********************************************************************/
 static void
+igc_update_ecc_stats(struct igc_softc *sc)
+{
+	struct igc_hw *hw;
+	u32 pbeccsts, pcieeccsts;
+
+	hw = &sc->hw;
+	pbeccsts = IGC_READ_REG(hw, IGC_PBECCSTS);
+	if (pbeccsts & IGC_PBECCSTS_CORR_ERR) {
+		sc->corrected_error_dma_count++;
+		/* Preserve the enable bit while clearing the RW1C status. */
+		IGC_WRITE_REG(hw, IGC_PBECCSTS,
+		    pbeccsts & (IGC_PBECCSTS_ECC_ENABLE |
+		    IGC_PBECCSTS_CORR_ERR));
+	}
+
+	pcieeccsts = IGC_READ_REG(hw, IGC_PCIEECCSTS) &
+	    IGC_PCIEECCSTS_CORR_MASK;
+	if (pcieeccsts & IGC_PCIEECCSTS_TX_WR_DATA)
+		sc->corrected_error_pcie_tx_data_count++;
+	if (pcieeccsts & IGC_PCIEECCSTS_RETRY_BUF)
+		sc->corrected_error_pcie_retry_count++;
+	if (pcieeccsts != 0)
+		IGC_WRITE_REG(hw, IGC_PCIEECCSTS, pcieeccsts);
+}
+
+static void
 igc_update_stats_counters(struct igc_softc *sc)
 {
 	u64 prev_xoffrxc = sc->stats.xoffrxc;
 
 	sc->stats.crcerrs += IGC_READ_REG(&sc->hw, IGC_CRCERRS);
+	sc->stats.rxerrc += IGC_READ_REG(&sc->hw, IGC_RXERRC);
 	sc->stats.mpc += IGC_READ_REG(&sc->hw, IGC_MPC);
 	sc->stats.scc += IGC_READ_REG(&sc->hw, IGC_SCC);
 	sc->stats.ecol += IGC_READ_REG(&sc->hw, IGC_ECOL);
@@ -2510,7 +2964,7 @@ igc_update_stats_counters(struct igc_softc *sc)
 	sc->stats.mcc += IGC_READ_REG(&sc->hw, IGC_MCC);
 	sc->stats.latecol += IGC_READ_REG(&sc->hw, IGC_LATECOL);
 	sc->stats.colc += IGC_READ_REG(&sc->hw, IGC_COLC);
-	sc->stats.colc += IGC_READ_REG(&sc->hw, IGC_RERC);
+	sc->stats.rerc += IGC_READ_REG(&sc->hw, IGC_RERC);
 	sc->stats.dc += IGC_READ_REG(&sc->hw, IGC_DC);
 	sc->stats.rlec += IGC_READ_REG(&sc->hw, IGC_RLEC);
 	sc->stats.xonrxc += IGC_READ_REG(&sc->hw, IGC_XONRXC);
@@ -2577,6 +3031,8 @@ igc_update_stats_counters(struct igc_softc *sc)
 	sc->stats.tncrs += IGC_READ_REG(&sc->hw, IGC_TNCRS);
 	sc->stats.htdpmc += IGC_READ_REG(&sc->hw, IGC_HTDPMC);
 	sc->stats.tsctc += IGC_READ_REG(&sc->hw, IGC_TSCTC);
+
+	igc_update_ecc_stats(sc);
 }
 
 static uint64_t
@@ -2589,13 +3045,17 @@ igc_if_get_counter(if_ctx_t ctx, ift_counter cnt)
 	case IFCOUNTER_COLLISIONS:
 		return (sc->stats.colc);
 	case IFCOUNTER_IERRORS:
+		/*
+		 * RERC overlaps the counters below and, on I225, omits length
+		 * errors.  RFC covers bad-CRC runts that CRCERRS does not count.
+		 */
 		return (sc->dropped_pkts + sc->stats.rxerrc +
 		    sc->stats.crcerrs + sc->stats.algnerrc +
-		    sc->stats.ruc + sc->stats.roc +
-		    sc->stats.mpc + sc->stats.htdpmc);
+		    sc->stats.ruc + sc->stats.rfc + sc->stats.roc +
+		    sc->stats.mpc);
 	case IFCOUNTER_OERRORS:
 		return (if_get_counter_default(ifp, cnt) +
-		    sc->stats.ecol + sc->stats.latecol + sc->watchdog_events);
+		    sc->stats.ecol + sc->stats.latecol);
 	default:
 		return (if_get_counter_default(ifp, cnt));
 	}
@@ -2646,7 +3106,7 @@ igc_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
 	if (tx) {
 		tque = oidp->oid_arg1;
 		hw = &tque->sc->hw;
-		reg = IGC_READ_REG(hw, IGC_EITR(tque->me));
+		reg = IGC_READ_REG(hw, IGC_EITR(tque->msix));
 	} else {
 		rque = oidp->oid_arg1;
 		hw = &rque->sc->hw;
@@ -2655,7 +3115,7 @@ igc_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
 
 	usec = (reg & IGC_QVECTOR_MASK);
 	if (usec > 0)
-		rate = IGC_INTS_TO_EITR(usec);
+		rate = IGC_EITR_TO_INTS(usec);
 	else
 		rate = 0;
 
@@ -2680,8 +3140,10 @@ igc_add_hw_stats(struct igc_softc *sc)
 	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
 	struct igc_hw_stats *stats = &sc->stats;
 
-	struct sysctl_oid *stat_node, *queue_node, *int_node;
-	struct sysctl_oid_list *stat_list, *queue_list, *int_list;
+	struct sysctl_oid *eee_node, *memerr_node, *stat_node, *queue_node,
+	    *int_node;
+	struct sysctl_oid_list *eee_list, *memerr_list, *stat_list, *queue_list,
+	    *int_list;
 
 #define QUEUE_NAME_LEN 32
 	char namebuf[QUEUE_NAME_LEN];
@@ -2696,9 +3158,6 @@ igc_add_hw_stats(struct igc_softc *sc)
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "rx_overruns",
 	    CTLFLAG_RD, &sc->rx_overruns,
 	    "RX overruns");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "watchdog_timeouts",
-	    CTLFLAG_RD, &sc->watchdog_events,
-	    "Watchdog timeouts");
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "device_control",
 	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_NEEDGIANT,
 	    sc, IGC_CTRL, igc_sysctl_reg_handler, "IU",
@@ -2713,6 +3172,44 @@ igc_add_hw_stats(struct igc_softc *sc)
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "fc_low_water",
 	    CTLFLAG_RD, &sc->hw.fc.low_water, 0,
 	    "Flow Control Low Watermark");
+	memerr_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "memory_errors",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    "Internal memory error indications");
+	memerr_list = SYSCTL_CHILDREN(memerr_node);
+	SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO, "fatal_lan",
+	    CTLFLAG_RD, &sc->fatal_error_lan_count,
+	    "Fatal LAN-port memory error indications");
+	SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO, "fatal_management",
+	    CTLFLAG_RD, &sc->fatal_error_mng_count,
+	    "Fatal management-memory error indications");
+	SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO, "fatal_pcie",
+	    CTLFLAG_RD, &sc->fatal_error_pcie_count,
+	    "Fatal PCIe memory error indications");
+	SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO, "fatal_dma",
+	    CTLFLAG_RD, &sc->fatal_error_dma_count,
+	    "Fatal DMA memory error indications");
+	SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO, "fatal_unknown",
+	    CTLFLAG_RD, &sc->fatal_error_unknown_count,
+	    "Fatal memory errors without a reported region");
+	SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO, "corrected_dma",
+	    CTLFLAG_RD, &sc->corrected_error_dma_count,
+	    "Corrected DMA memory error indications");
+	SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+	    "corrected_pcie_tx_data", CTLFLAG_RD,
+	    &sc->corrected_error_pcie_tx_data_count,
+	    "Corrected PCIe transmit-data memory error indications");
+	SYSCTL_ADD_UQUAD(ctx, memerr_list, OID_AUTO,
+	    "corrected_pcie_retry", CTLFLAG_RD,
+	    &sc->corrected_error_pcie_retry_count,
+	    "Corrected PCIe retry-buffer memory error indications");
+	eee_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "eee",
+	    CTLFLAG_RD | CTLFLAG_MPSAFE, NULL,
+	    "Energy Efficient Ethernet statistics");
+	eee_list = SYSCTL_CHILDREN(eee_node);
+	SYSCTL_ADD_UQUAD(ctx, eee_list, OID_AUTO, "tx_lpi_count",
+	    CTLFLAG_RD, &stats->tlpic, "TX LPI event count");
+	SYSCTL_ADD_UQUAD(ctx, eee_list, OID_AUTO, "rx_lpi_count",
+	    CTLFLAG_RD, &stats->rlpic, "RX LPI event count");
 
 	for (int i = 0; i < sc->tx_num_queues; i++, tx_que++) {
 		struct tx_ring *txr = &tx_que->txr;
@@ -2815,6 +3312,9 @@ igc_add_hw_stats(struct igc_softc *sc)
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_errs",
 	    CTLFLAG_RD, &sc->stats.rxerrc,
 	    "Receive Errors");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "recv_error_count",
+	    CTLFLAG_RD, &sc->stats.rerc,
+	    "Receive Error Count (RERC)");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "crc_errs",
 	    CTLFLAG_RD, &sc->stats.crcerrs,
 	    "CRC errors");
@@ -2891,6 +3391,9 @@ igc_add_hw_stats(struct igc_softc *sc)
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "good_pkts_txd",
 	    CTLFLAG_RD, &sc->stats.gptc,
 	    "Good Packets Transmitted");
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "host_tx_discarded",
+	    CTLFLAG_RD, &sc->stats.htdpmc,
+	    "Host Packets Discarded by Transmit MAC");
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_txd",
 	    CTLFLAG_RD, &sc->stats.bptc,
 	    "Broadcast Packets Transmitted");
@@ -3152,6 +3655,16 @@ igc_set_flowcntl(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+static void
+igc_sysctl_request_reinit(struct igc_softc *sc)
+{
+	if ((if_getflags(iflib_get_ifp(sc->ctx)) & IFF_UP) == 0)
+		return;
+
+	iflib_request_reset(sc->ctx);
+	iflib_admin_intr_deferred(sc->ctx);
+}
+
 /*
  * Manage DMA Coalesce:
  * Control values:
@@ -3197,7 +3710,7 @@ igc_sysctl_dmac(SYSCTL_HANDLER_ARGS)
 			return (EINVAL);
 	}
 	/* Reinit the interface */
-	igc_if_init(sc->ctx);
+	igc_sysctl_request_reinit(sc);
 	return (error);
 }
 
@@ -3218,7 +3731,7 @@ igc_sysctl_eee(SYSCTL_HANDLER_ARGS)
 		return (error);
 
 	sc->hw.dev_spec._i225.eee_disable = (value != 0);
-	igc_if_init(sc->ctx);
+	igc_sysctl_request_reinit(sc);
 
 	return (0);
 }
@@ -3276,8 +3789,6 @@ igc_print_debug_info(struct igc_softc *sc)
 {
 	device_t dev = iflib_get_dev(sc->ctx);
 	if_t ifp = iflib_get_ifp(sc->ctx);
-	struct tx_ring *txr = &sc->tx_queues->txr;
-	struct rx_ring *rxr = &sc->rx_queues->rxr;
 
 	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
 		printf("Interface is RUNNING ");
@@ -3289,14 +3800,14 @@ igc_print_debug_info(struct igc_softc *sc)
 	else
 		printf("and ACTIVE\n");
 
-	for (int i = 0; i < sc->tx_num_queues; i++, txr++) {
+	for (int i = 0; i < sc->tx_num_queues; i++) {
 		device_printf(dev, "TX Queue %d ------\n", i);
 		device_printf(dev, "hw tdh = %d, hw tdt = %d\n",
 		    IGC_READ_REG(&sc->hw, IGC_TDH(i)),
 		    IGC_READ_REG(&sc->hw, IGC_TDT(i)));
 
 	}
-	for (int j=0; j < sc->rx_num_queues; j++, rxr++) {
+	for (int j = 0; j < sc->rx_num_queues; j++) {
 		device_printf(dev, "RX Queue %d ------\n", j);
 		device_printf(dev, "hw rdh = %d, hw rdt = %d\n",
 		    IGC_READ_REG(&sc->hw, IGC_RDH(j)),

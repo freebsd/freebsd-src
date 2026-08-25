@@ -51,6 +51,7 @@
 #include "config.h"
 #include "debug.h"
 #include "fdt.h"
+#include "ipc.h"
 #include "mem.h"
 #include "pci_emul.h"
 #include "pci_irq.h"
@@ -82,6 +83,7 @@ bhyve_init_config(void)
 	set_config_bool("acpi_tables", false);
 	set_config_bool("acpi_tables_in_memory", false);
 	set_config_value("memory.size", "256M");
+	set_config_value("rundir", BHYVE_RUN_DIR);
 }
 
 void
@@ -95,7 +97,8 @@ bhyve_usage(int code)
 	    "Usage: %s [-CDHhSW]\n"
 	    "       %*s [-c [[cpus=]numcpus][,sockets=n][,cores=n][,threads=n]]\n"
 	    "       %*s [-k config_file] [-m mem] [-o var=value]\n"
-	    "       %*s [-p vcpu:hostcpu] [-r file] [-s pci] [-U uuid] vmname\n"
+	    "       %*s [-p vcpuN[-vcpuM]]:hostcpuX[-hostcpuY]\n"
+	    "       %*s [-r file] [-s pci] [-U uuid] vmname\n"
 	    "       -C: include guest memory in core file\n"
 	    "       -c: number of CPUs and/or topology specification\n"
 	    "       -D: destroy on power-off\n"
@@ -110,7 +113,7 @@ bhyve_usage(int code)
 	    "       -U: UUID\n"
 	    "       -W: force virtio to use single-vector MSI\n",
 	    progname, (int)strlen(progname), "", (int)strlen(progname), "",
-	    (int)strlen(progname), "");
+	    (int)strlen(progname), "", (int)strlen(progname), "");
 	exit(code);
 }
 
@@ -173,7 +176,7 @@ bhyve_optparse(int argc, char **argv)
 			set_config_value("uuid", optarg);
 			break;
 		case 'W':
-			set_config_bool("virtio_msix", false);
+			set_config_bool("virtio.msix", false);
 			break;
 		case 'h':
 			bhyve_usage(0);
@@ -181,6 +184,9 @@ bhyve_optparse(int argc, char **argv)
 			bhyve_usage(1);
 		}
 	}
+
+	/* Handle backwards compatibility aliases in config options. */
+	bhyve_cfg_warn("virtio_msix", "virtio.msix");
 }
 
 void

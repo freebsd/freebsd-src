@@ -102,8 +102,8 @@ struct sc_chinfo {
 	struct sc_info		*parent;
 	struct pcm_channel	*channel;
 	struct snd_dbuf		*buffer;
-	u_int32_t		fmt, spd, phys_buf, bps;
-	u_int32_t		dma_active:1, dma_was_active:1;
+	uint32_t		fmt, spd, phys_buf, bps;
+	uint32_t		dma_active:1, dma_was_active:1;
 	int			dir;
 };
 
@@ -132,7 +132,7 @@ struct sc_info {
 
 /* Channel caps */
 
-static u_int32_t cmi_fmt[] = {
+static uint32_t cmi_fmt[] = {
 	SND_FORMAT(AFMT_U8, 1, 0),
 	SND_FORMAT(AFMT_U8, 2, 0),
 	SND_FORMAT(AFMT_S16_LE, 1, 0),
@@ -145,7 +145,7 @@ static struct pcmchan_caps cmi_caps = {5512, 48000, cmi_fmt, 0};
 /* ------------------------------------------------------------------------- */
 /* Register Utilities */
 
-static u_int32_t
+static uint32_t
 cmi_rd(struct sc_info *sc, int regno, int size)
 {
 	switch (size) {
@@ -162,7 +162,7 @@ cmi_rd(struct sc_info *sc, int regno, int size)
 }
 
 static void
-cmi_wr(struct sc_info *sc, int regno, u_int32_t data, int size)
+cmi_wr(struct sc_info *sc, int regno, uint32_t data, int size)
 {
 	switch (size) {
 	case 1:
@@ -179,9 +179,9 @@ cmi_wr(struct sc_info *sc, int regno, u_int32_t data, int size)
 
 static void
 cmi_partial_wr4(struct sc_info *sc,
-		int reg, int shift, u_int32_t mask, u_int32_t val)
+		int reg, int shift, uint32_t mask, uint32_t val)
 {
-	u_int32_t r;
+	uint32_t r;
 
 	r = cmi_rd(sc, reg, 4);
 	r &= ~(mask << shift);
@@ -190,9 +190,9 @@ cmi_partial_wr4(struct sc_info *sc,
 }
 
 static void
-cmi_clr4(struct sc_info *sc, int reg, u_int32_t mask)
+cmi_clr4(struct sc_info *sc, int reg, uint32_t mask)
 {
-	u_int32_t r;
+	uint32_t r;
 
 	r = cmi_rd(sc, reg, 4);
 	r &= ~mask;
@@ -200,9 +200,9 @@ cmi_clr4(struct sc_info *sc, int reg, u_int32_t mask)
 }
 
 static void
-cmi_set4(struct sc_info *sc, int reg, u_int32_t mask)
+cmi_set4(struct sc_info *sc, int reg, uint32_t mask)
 {
-	u_int32_t r;
+	uint32_t r;
 
 	r = cmi_rd(sc, reg, 4);
 	r |= mask;
@@ -219,7 +219,7 @@ static int cmi_rates[] = {5512, 8000, 11025, 16000,
 /* cmpci_rate_to_regvalue returns sampling freq selector for FCR1
  * register - reg order is 5k,11k,22k,44k,8k,16k,32k,48k */
 
-static u_int32_t
+static uint32_t
 cmpci_rate_to_regvalue(int rate)
 {
 	int i, r;
@@ -237,7 +237,7 @@ cmpci_rate_to_regvalue(int rate)
 }
 
 static int
-cmpci_regvalue_to_rate(u_int32_t r)
+cmpci_regvalue_to_rate(uint32_t r)
 {
 	int i;
 
@@ -251,14 +251,14 @@ cmpci_regvalue_to_rate(u_int32_t r)
  * playback or capture.  We use ch0 for playback and ch1 for capture. */
 
 static void
-cmi_dma_prog(struct sc_info *sc, struct sc_chinfo *ch, u_int32_t base)
+cmi_dma_prog(struct sc_info *sc, struct sc_chinfo *ch, uint32_t base)
 {
-	u_int32_t s, i, sz;
+	uint32_t s, i, sz;
 
 	ch->phys_buf = ch->buffer->buf_addr;
 
 	cmi_wr(sc, base, ch->phys_buf, 4);
-	sz = (u_int32_t)ch->buffer->bufsize;
+	sz = (uint32_t)ch->buffer->bufsize;
 
 	s = sz / ch->bps - 1;
 	cmi_wr(sc, base + 4, s, 2);
@@ -279,10 +279,10 @@ cmi_ch0_start(struct sc_info *sc, struct sc_chinfo *ch)
 	ch->dma_active = 1;
 }
 
-static u_int32_t
+static uint32_t
 cmi_ch0_stop(struct sc_info *sc, struct sc_chinfo *ch)
 {
-	u_int32_t r = ch->dma_active;
+	uint32_t r = ch->dma_active;
 
 	cmi_clr4(sc, CMPCI_REG_INTR_CTRL, CMPCI_REG_CH0_INTR_ENABLE);
 	cmi_clr4(sc, CMPCI_REG_FUNC_0, CMPCI_REG_CH0_ENABLE);
@@ -304,10 +304,10 @@ cmi_ch1_start(struct sc_info *sc, struct sc_chinfo *ch)
 	ch->dma_active = 1;
 }
 
-static u_int32_t
+static uint32_t
 cmi_ch1_stop(struct sc_info *sc, struct sc_chinfo *ch)
 {
-	u_int32_t r = ch->dma_active;
+	uint32_t r = ch->dma_active;
 
 	cmi_clr4(sc, CMPCI_REG_INTR_CTRL, CMPCI_REG_CH1_INTR_ENABLE);
 	cmi_clr4(sc, CMPCI_REG_FUNC_0, CMPCI_REG_CH1_ENABLE);
@@ -319,7 +319,7 @@ cmi_ch1_stop(struct sc_info *sc, struct sc_chinfo *ch)
 
 static void
 cmi_spdif_speed(struct sc_info *sc, int speed) {
-	u_int32_t fcr1, lcr, mcr;
+	uint32_t fcr1, lcr, mcr;
 
 	if (speed >= 44100) {
 		fcr1 = CMPCI_REG_SPDIF0_ENABLE;
@@ -373,11 +373,11 @@ cmichan_init(kobj_t obj, void *devinfo,
 }
 
 static int
-cmichan_setformat(kobj_t obj, void *data, u_int32_t format)
+cmichan_setformat(kobj_t obj, void *data, uint32_t format)
 {
 	struct sc_chinfo *ch = data;
 	struct sc_info	*sc = ch->parent;
-	u_int32_t f;
+	uint32_t f;
 
 	if (format & AFMT_S16_LE) {
 		f = CMPCI_REG_FORMAT_16BIT;
@@ -414,12 +414,12 @@ cmichan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static u_int32_t
-cmichan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+static uint32_t
+cmichan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct sc_chinfo *ch = data;
 	struct sc_info	*sc = ch->parent;
-	u_int32_t r, rsp __unused;
+	uint32_t r, rsp __unused;
 
 	r = cmpci_rate_to_regvalue(speed);
 	mtx_lock(&sc->lock);
@@ -460,8 +460,8 @@ cmichan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return ch->spd;
 }
 
-static u_int32_t
-cmichan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+static uint32_t
+cmichan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	struct sc_chinfo *ch = data;
 	struct sc_info	 *sc = ch->parent;
@@ -510,12 +510,12 @@ cmichan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static u_int32_t
+static uint32_t
 cmichan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo	*ch = data;
 	struct sc_info		*sc = ch->parent;
-	u_int32_t physptr, bufptr, sz;
+	uint32_t physptr, bufptr, sz;
 
 	mtx_lock(&sc->lock);
 	if (ch->dir == PCMDIR_PLAY) {
@@ -535,8 +535,8 @@ static void
 cmi_intr(void *data)
 {
 	struct sc_info *sc = data;
-	u_int32_t intrstat;
-	u_int32_t toclear;
+	uint32_t intrstat;
+	uint32_t toclear;
 
 	mtx_lock(&sc->lock);
 	intrstat = cmi_rd(sc, CMPCI_REG_INTR_STATUS, 4);
@@ -598,26 +598,26 @@ CHANNEL_DECLARE(cmichan);
 /* Mixer - sb16 with kinks */
 
 static void
-cmimix_wr(struct sc_info *sc, u_int8_t port, u_int8_t val)
+cmimix_wr(struct sc_info *sc, uint8_t port, uint8_t val)
 {
 	cmi_wr(sc, CMPCI_REG_SBADDR, port, 1);
 	cmi_wr(sc, CMPCI_REG_SBDATA, val, 1);
 }
 
-static u_int8_t
-cmimix_rd(struct sc_info *sc, u_int8_t port)
+static uint8_t
+cmimix_rd(struct sc_info *sc, uint8_t port)
 {
 	cmi_wr(sc, CMPCI_REG_SBADDR, port, 1);
-	return (u_int8_t)cmi_rd(sc, CMPCI_REG_SBDATA, 1);
+	return (uint8_t)cmi_rd(sc, CMPCI_REG_SBDATA, 1);
 }
 
 struct sb16props {
-	u_int8_t  rreg;     /* right reg chan register */
-	u_int8_t  stereo:1; /* (no explanation needed, honest) */
-	u_int8_t  rec:1;    /* recording source */
-	u_int8_t  bits:3;   /* num bits to represent maximum gain rep */
-	u_int8_t  oselect;  /* output select mask */
-	u_int8_t  iselect;  /* right input select mask */
+	uint8_t  rreg;     /* right reg chan register */
+	uint8_t  stereo:1; /* (no explanation needed, honest) */
+	uint8_t  rec:1;    /* recording source */
+	uint8_t  bits:3;   /* num bits to represent maximum gain rep */
+	uint8_t  oselect;  /* output select mask */
+	uint8_t  iselect;  /* right input select mask */
 } static const cmt[SOUND_MIXER_NRDEVICES] = {
 	[SOUND_MIXER_SYNTH]   = {CMPCI_SB16_MIXER_FM_R,      1, 1, 5,
 				 CMPCI_SB16_SW_FM,   CMPCI_SB16_MIXER_FM_SRC_R},
@@ -649,7 +649,7 @@ static int
 cmimix_init(struct snd_mixer *m)
 {
 	struct sc_info	*sc = mix_getdevinfo(m);
-	u_int32_t	i,v;
+	uint32_t	i,v;
 
 	for(i = v = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 		if (cmt[i].bits) v |= 1 << i;
@@ -673,8 +673,8 @@ static int
 cmimix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct sc_info *sc = mix_getdevinfo(m);
-	u_int32_t r, l, max;
-	u_int8_t  v;
+	uint32_t r, l, max;
+	uint8_t  v;
 
 	max = (1 << cmt[dev].bits) - 1;
 
@@ -717,11 +717,11 @@ cmimix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	return 0;
 }
 
-static u_int32_t
-cmimix_setrecsrc(struct snd_mixer *m, u_int32_t src)
+static uint32_t
+cmimix_setrecsrc(struct snd_mixer *m, uint32_t src)
 {
 	struct sc_info *sc = mix_getdevinfo(m);
-	u_int32_t i, ml, sl;
+	uint32_t i, ml, sl;
 
 	ml = sl = 0;
 	for(i = 0; i < SOUND_MIXER_NRDEVICES; i++) {

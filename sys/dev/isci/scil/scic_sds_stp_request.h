@@ -175,7 +175,7 @@ enum SCIC_SDS_STP_REQUEST_STARTED_NON_DATA_SUBSTATES
 /**
  * @enum SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_SUBSTATES
  *
- * @brief THis enumeration depicts the various sub-states associated with a
+ * @brief This enumeration depicts the various sub-states associated with a
  *        SATA/STP soft reset operation.
  */
 enum SCIC_SDS_STP_REQUEST_STARTED_SOFT_RESET_SUBSTATES

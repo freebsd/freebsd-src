@@ -1,8 +1,6 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
-#
 # This file and its contents are supplied under the terms of the
 # Common Development and Distribution License ("CDDL"), version 1.0.
 # You may only use this file in accordance with the terms of version
@@ -10,9 +8,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
-#
-# CDDL HEADER END
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -42,15 +38,23 @@ verify_runnable "global"
 
 cleanup() {
     for pool in {1..4}; do
-        zpool destroy $TESTPOOL${pool}
+        poolexists $TESTPOOL${pool} && destroy_pool $TESTPOOL${pool}
         rm -rf $TESTDIR${pool}
     done
     rm -f $DISK1 $DISK2 $DISK3 $DISK4
+
+    # Restore the chunk size only after the pools (and their initialize
+    # threads) are gone, so a still-running thread never sees a larger value
+    # than the fill buffer it allocated at the smaller size.
+    [[ -n "$default_chunk_size" ]] && \
+        log_must set_tunable64 INITIALIZE_CHUNK_SIZE $default_chunk_size
 }
 
 log_onexit cleanup
 
 log_assert "Verify if 'zpool initialize -a' works correctly with multiple pools."
+
+default_chunk_size=$(get_tunable INITIALIZE_CHUNK_SIZE)
 
 DEVSIZE='5G'
 TESTDIR="$TEST_BASE_DIR/zpool_initialize_multiple_pools"
@@ -107,6 +111,16 @@ complete_count=$(zpool status -i | grep -c "uninitialized")
 if [[ $complete_count -ne 4 ]]; then
     log_fail "Expected 4 pools to have initialize status 'uninitialized', but found ${complete_count}."
 fi
+
+# The suspend check below requires initializing to still be running on every
+# pool.  At the default chunk size a pool can finish initializing before
+# "zpool initialize -a -s" runs, so it would report "completed" instead of
+# "suspended" and the test would fail intermittently.  Throttle the chunk
+# size (as the zpool_wait_initialize_* tests do) so initializing stays active
+# through the suspend and cancel checks.  The earlier completion phases are
+# deliberately left at the default size so "zpool wait" and "-w" return
+# promptly.
+log_must set_tunable64 INITIALIZE_CHUNK_SIZE 512
 
 log_must zpool initialize -a
 

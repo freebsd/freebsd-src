@@ -625,13 +625,13 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 	 * valid with referring to the old link-local address.
 	 */
 	if ((pr = nd6_prefix_lookup(&pr0)) == NULL) {
-		if ((error = nd6_prelist_add(&pr0, NULL, &pr)) != 0)
+		if ((error = nd6_prelist_add(&pr0, &pr)) != 0)
 			return (error);
 		/* Reference prefix */
 		ia->ia6_ndpr = pr;
 		pr->ndpr_addrcnt++;
-	} else
-		nd6_prefix_rele(pr);
+	}
+	nd6_prefix_rele(pr);
 
 	return 0;
 }
@@ -781,7 +781,7 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 {
 	struct in6_ifaddr *ia;
 
-	/* XXXGL: can this happen after IFT_PFLOG and IFT_PFSYNC are gone? */
+	/* XXXGL: can this happen after IFT_PFSYNC is gone? */
 	if (ifp->if_inet6 == NULL)
 		return;
 	/*
@@ -856,7 +856,7 @@ _in6_ifdetach(struct ifnet *ifp, int purgeulp)
 {
 	struct ifaddr *ifa, *next;
 
-	/* XXXGL: can this happen after IFT_PFLOG and IFT_PFSYNC are gone? */
+	/* XXXGL: can this happen after IFT_PFSYNC is gone? */
 	if (ifp->if_inet6 == NULL)
 		return;
 
@@ -913,7 +913,7 @@ in6_ifdeparture(void *arg __unused, struct ifnet *ifp)
 {
 	struct in6_ifextra *ext = ifp->if_inet6;
 
-	/* XXXGL: can this happen after IFT_PFLOG and IFT_PFSYNC are gone? */
+	/* XXXGL: can this happen after IFT_PFSYNC is gone? */
 	if (ifp->if_inet6 == NULL)
 		return;
 

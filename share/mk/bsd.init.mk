@@ -32,11 +32,11 @@ OBJS_SRCS_FILTER+= R
 _uid!=	id -u
 .export _uid
 .endif
-.if ${_uid} != 0
 .if !defined(_gid)
 _gid!=	id -g
 .export _gid
 .endif
+.if ${_uid} != 0
 .for x in BIN CONF DOC DTB INFO KMOD LIB MAN NLS SHARE
 $xOWN=	${_uid}
 $xGRP=	${_gid}

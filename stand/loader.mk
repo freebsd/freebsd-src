@@ -53,11 +53,12 @@ SRCS+=	metadata.c
 # LOADER_NFS_SUPPORT	Add NFS support
 # LOADER_TFTP_SUPPORT	Add TFTP support
 # LOADER_UFS_SUPPORT	Add support for UFS filesystems
+# LOADER_XZ_SUPPORT	Add support for xz compressed files
 # LOADER_ZFS_SUPPORT	Add support for ZFS filesystems
 #
 
 .if ${LOADER_DISK_SUPPORT:Uyes} == "yes"
-CFLAGS.part.c+= -DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib
+CFLAGS.part.c+= ${ZLIB_CFLAGS}
 SRCS+=	disk.c part.c vdisk.c
 .endif
 
@@ -130,6 +131,9 @@ CFLAGS+=	-DLOADER_GZIP_SUPPORT
 .if ${LOADER_BZIP2_SUPPORT:Uno} == "yes"
 CFLAGS+=	-DLOADER_BZIP2_SUPPORT
 .endif
+.if ${LOADER_XZ_SUPPORT:Uno} == "yes"
+CFLAGS+=	-DLOADER_XZ_SUPPORT
+.endif
 
 # Network related things
 .if ${LOADER_NET_SUPPORT:Uno} == "yes"
@@ -162,14 +166,14 @@ LIBFICL=	${BOOTOBJ}/ficl/libficl.a
 .if ${MACHINE} == "i386"
 LIBFICL32=	${LIBFICL}
 .else
-LIBFICL32=	${BOOTOBJ}/ficl32/libficl.a
+LIBFICL32=	${BOOTOBJ}/${"${LOADER}" == "loader_ia32":?efi/ficl32efi:ficl32}/libficl.a
 .endif
 
 LIBLUA=		${BOOTOBJ}/liblua/liblua.a
 .if ${MACHINE} == "i386"
 LIBLUA32=	${LIBLUA}
 .else
-LIBLUA32=	${BOOTOBJ}/liblua32/liblua.a
+LIBLUA32=	${BOOTOBJ}/${"${LOADER}" == "loader_ia32":?efi/liblua32efi:liblua32}/liblua.a
 .endif
 
 CLEANFILES+=	vers.c

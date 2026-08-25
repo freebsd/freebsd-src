@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2020-2024 The FreeBSD Foundation
+ * Copyright (c) 2026 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -442,6 +443,11 @@ enum nl80211_external_auth_action {
 
 enum nl80211_rxmgmt_flags {
 	NL80211_RXMGMT_FLAG_EXTERNAL_AUTH	= BIT(1),
+};
+
+enum nl80211_radar_event {
+	NL80211_RADAR_CAC_FINISHED,
+	NL80211_RADAR_CAC_STARTED,
 };
 
 #define	NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY	16

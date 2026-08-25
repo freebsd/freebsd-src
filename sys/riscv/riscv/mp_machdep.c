@@ -172,6 +172,11 @@ init_secondary(uint64_t hart)
 	while (!atomic_load_int(&aps_ready))
 		__asm __volatile("wfi");
 
+	/*
+	 * Flush the TLB to avoid spurious kernel page faults
+	 * on implementations that cache invalid entries.
+	 */
+	sfence_vma();
 	/* Initialize curthread */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	pcpup->pc_curthread = pcpup->pc_idlethread;

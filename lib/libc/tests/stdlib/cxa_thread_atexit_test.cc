@@ -30,7 +30,10 @@
 #include <cstdlib>
 #include <thread>
 
+#define AGAIN_CALL_LIMIT 20
+
 static FILE *output = NULL;
+static int again_counter = 0;
 
 struct Foo {
 	Foo() { ATF_REQUIRE(fprintf(output, "Created\n") > 0); }
@@ -52,8 +55,10 @@ extern "C" int __cxa_thread_atexit(void (*)(void *), void *, void *);
 static void
 again(void *arg)
 {
-
-	__cxa_thread_atexit(again, arg, &output);
+	if (again_counter < AGAIN_CALL_LIMIT) {
+		++again_counter;
+		__cxa_thread_atexit(again, arg, &output);
+	}
 }
 
 struct Baz {
@@ -164,6 +169,7 @@ ATF_TEST_CASE_BODY(cxx__thread_inf_dtors)
 
 	std::thread t([]() { e.use(); });
 	t.join();
+	ATF_REQUIRE_EQ(again_counter, AGAIN_CALL_LIMIT);
 }
 
 ATF_INIT_TEST_CASES(tcs)

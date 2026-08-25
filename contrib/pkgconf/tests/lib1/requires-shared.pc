@@ -1,0 +1,11 @@
+prefix=/test/local
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: requires-shared
+Description: A testing pkg-config file for Requires.shared
+Version: 1.0.0
+Libs: -L${libdir} -lrequires-shared
+Cflags: -I${includedir}/requires-shared
+Requires.shared: requires-shared-dep

@@ -52,7 +52,7 @@ struct sc_info;
 /* channel registers */
 struct sc_chinfo {
 	int active, spd, dir, fmt;
-	u_int32_t blksize, wmark;
+	uint32_t blksize, wmark;
 	struct snd_dbuf *buffer;
 	struct pcm_channel *channel;
 	struct sc_info *parent;
@@ -61,16 +61,16 @@ struct sc_chinfo {
 /* device private data */
 struct sc_info {
 	device_t	dev;
-	u_int32_t 	type;
+	uint32_t 	type;
 
 	struct resource *reg, *irq, *buf;
 	int		regid, irqid, bufid;
 	void		*ih;
 
-	u_int32_t 	ac97_base, ac97_status, ac97_busy;
-	u_int32_t	buftop, pbuf, rbuf, cbuf, acbuf;
-	u_int32_t	playint, recint, misc1int, misc2int;
-	u_int32_t	irsz, badintr;
+	uint32_t 	ac97_base, ac97_status, ac97_busy;
+	uint32_t	buftop, pbuf, rbuf, cbuf, acbuf;
+	uint32_t	playint, recint, misc1int, misc2int;
+	uint32_t	irsz, badintr;
 
 	struct sc_chinfo pch, rch;
 };
@@ -88,18 +88,18 @@ static int       nm_init(struct sc_info *);
 static void      nm_intr(void *);
 
 /* talk to the card */
-static u_int32_t nm_rd(struct sc_info *, int, int);
-static void 	 nm_wr(struct sc_info *, int, u_int32_t, int);
-static u_int32_t nm_rdbuf(struct sc_info *, int, int);
-static void 	 nm_wrbuf(struct sc_info *, int, u_int32_t, int);
+static uint32_t nm_rd(struct sc_info *, int, int);
+static void 	 nm_wr(struct sc_info *, int, uint32_t, int);
+static uint32_t nm_rdbuf(struct sc_info *, int, int);
+static void 	 nm_wrbuf(struct sc_info *, int, uint32_t, int);
 
-static u_int32_t badcards[] = {
+static uint32_t badcards[] = {
 	0x0007103c,
 	0x008f1028,
 	0x00dd1014,
 	0x8005110a,
 };
-#define NUM_BADCARDS (sizeof(badcards) / sizeof(u_int32_t))
+#define NUM_BADCARDS (sizeof(badcards) / sizeof(uint32_t))
 
 /* The actual rates supported by the card. */
 static int samplerates[9] = {
@@ -116,7 +116,7 @@ static int samplerates[9] = {
 
 /* -------------------------------------------------------------------- */
 
-static u_int32_t nm_fmt[] = {
+static uint32_t nm_fmt[] = {
 	SND_FORMAT(AFMT_U8, 1, 0),
 	SND_FORMAT(AFMT_U8, 2, 0),
 	SND_FORMAT(AFMT_S16_LE, 1, 0),
@@ -128,7 +128,7 @@ static struct pcmchan_caps nm_caps = {4000, 48000, nm_fmt, 0};
 /* -------------------------------------------------------------------- */
 
 /* Hardware */
-static u_int32_t
+static uint32_t
 nm_rd(struct sc_info *sc, int regno, int size)
 {
 	bus_space_tag_t st = rman_get_bustag(sc->reg);
@@ -147,7 +147,7 @@ nm_rd(struct sc_info *sc, int regno, int size)
 }
 
 static void
-nm_wr(struct sc_info *sc, int regno, u_int32_t data, int size)
+nm_wr(struct sc_info *sc, int regno, uint32_t data, int size)
 {
 	bus_space_tag_t st = rman_get_bustag(sc->reg);
 	bus_space_handle_t sh = rman_get_bushandle(sc->reg);
@@ -165,7 +165,7 @@ nm_wr(struct sc_info *sc, int regno, u_int32_t data, int size)
 	}
 }
 
-static u_int32_t
+static uint32_t
 nm_rdbuf(struct sc_info *sc, int regno, int size)
 {
 	bus_space_tag_t st = rman_get_bustag(sc->buf);
@@ -184,7 +184,7 @@ nm_rdbuf(struct sc_info *sc, int regno, int size)
 }
 
 static void
-nm_wrbuf(struct sc_info *sc, int regno, u_int32_t data, int size)
+nm_wrbuf(struct sc_info *sc, int regno, uint32_t data, int size)
 {
 	bus_space_tag_t st = rman_get_bustag(sc->buf);
 	bus_space_handle_t sh = rman_get_bushandle(sc->buf);
@@ -221,7 +221,7 @@ nm_waitcd(struct sc_info *sc)
 	return (fail);
 }
 
-static u_int32_t
+static uint32_t
 nm_initcd(kobj_t obj, void *devinfo)
 {
 	struct sc_info *sc = (struct sc_info *)devinfo;
@@ -246,7 +246,7 @@ static int
 nm_rdcd(kobj_t obj, void *devinfo, int regno)
 {
 	struct sc_info *sc = (struct sc_info *)devinfo;
-	u_int32_t x;
+	uint32_t x;
 
 	if (!nm_waitcd(sc)) {
 		x = nm_rd(sc, sc->ac97_base + regno, 2);
@@ -259,7 +259,7 @@ nm_rdcd(kobj_t obj, void *devinfo, int regno)
 }
 
 static int
-nm_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
+nm_wrcd(kobj_t obj, void *devinfo, int regno, uint32_t data)
 {
 	struct sc_info *sc = (struct sc_info *)devinfo;
 	int cnt = 3;
@@ -288,7 +288,7 @@ AC97_DECLARE(nm_ac97);
 /* -------------------------------------------------------------------- */
 
 static void
-nm_ackint(struct sc_info *sc, u_int32_t num)
+nm_ackint(struct sc_info *sc, uint32_t num)
 {
 	if (sc->type == NM256AV_PCI_ID) {
 		nm_wr(sc, NM_INT_REG, num << 1, 2);
@@ -301,7 +301,7 @@ static int
 nm_loadcoeff(struct sc_info *sc, int dir, int num)
 {
 	int ofs, sz, i;
-	u_int32_t addr;
+	uint32_t addr;
 
 	addr = (dir == PCMDIR_PLAY)? 0x01c : 0x21c;
 	if (dir == PCMDIR_REC)
@@ -323,8 +323,8 @@ static int
 nm_setch(struct sc_chinfo *ch)
 {
 	struct sc_info *sc = ch->parent;
-	u_int32_t base;
-	u_int8_t x;
+	uint32_t base;
+	uint8_t x;
 
 	for (x = 0; x < 8; x++)
 		if (ch->spd < (samplerates[x] + samplerates[x + 1]) / 2)
@@ -351,7 +351,7 @@ nmchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c
 {
 	struct sc_info *sc = devinfo;
 	struct sc_chinfo *ch;
-	u_int32_t chnbuf;
+	uint32_t chnbuf;
 
 	chnbuf = (dir == PCMDIR_PLAY)? sc->pbuf : sc->rbuf;
 	ch = (dir == PCMDIR_PLAY)? &sc->pch : &sc->rch;
@@ -359,7 +359,7 @@ nmchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c
 	ch->blksize = 0;
 	ch->wmark = 0;
 	ch->buffer = b;
-	sndbuf_setup(ch->buffer, (u_int8_t *)rman_get_virtual(sc->buf) + chnbuf, NM_BUFFSIZE);
+	sndbuf_setup(ch->buffer, (uint8_t *)rman_get_virtual(sc->buf) + chnbuf, NM_BUFFSIZE);
 	if (bootverbose)
 		device_printf(sc->dev, "%s buf %p\n", (dir == PCMDIR_PLAY)?
 			      "play" : "rec", ch->buffer->buf);
@@ -376,7 +376,7 @@ nmchan_free(kobj_t obj, void *data)
 }
 
 static int
-nmchan_setformat(kobj_t obj, void *data, u_int32_t format)
+nmchan_setformat(kobj_t obj, void *data, uint32_t format)
 {
 	struct sc_chinfo *ch = data;
 
@@ -384,8 +384,8 @@ nmchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return nm_setch(ch);
 }
 
-static u_int32_t
-nmchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+static uint32_t
+nmchan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct sc_chinfo *ch = data;
 
@@ -393,8 +393,8 @@ nmchan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return nm_setch(ch)? 0 : ch->spd;
 }
 
-static u_int32_t
-nmchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+static uint32_t
+nmchan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	struct sc_chinfo *ch = data;
 
@@ -451,7 +451,7 @@ nmchan_trigger(kobj_t obj, void *data, int go)
 	return 0;
 }
 
-static u_int32_t
+static uint32_t
 nmchan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo *ch = data;
@@ -540,7 +540,7 @@ nm_intr(void *p)
 static int
 nm_init(struct sc_info *sc)
 {
-	u_int32_t ofs, i;
+	uint32_t ofs, i;
 
 	if (sc->type == NM256AV_PCI_ID) {
 		sc->ac97_base = NM_MIXER_OFFSET;
@@ -599,7 +599,7 @@ nm_pci_probe(device_t dev)
 {
 	struct sc_info *sc = NULL;
 	char *s = NULL;
-	u_int32_t subdev, i;
+	uint32_t subdev, i;
 
 	subdev = (pci_get_subdevice(dev) << 16) | pci_get_subvendor(dev);
 	switch (pci_get_devid(dev)) {

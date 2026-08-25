@@ -280,7 +280,7 @@ report(uint64_t sz)
 			report_periods();
 			report_hline("\xe2\x94\xb4");
 		}
-		printf("Missing: %u", nlumps);
+		printf("Pending: %u", nlumps);
 		printf("  Success: %.0f/%.0f =", n_good_reads, n_reads);
 		printf(" %.4f%%", 100 * n_good_reads / n_reads);
 		printf("  Duration: %.3fs", (t_now - t_first) / n_reads);

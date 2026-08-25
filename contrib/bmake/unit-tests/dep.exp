@@ -1,5 +1,17 @@
-make: dep.mk:11: Inconsistent operator for only-colon
-make: dep.mk:13: Inconsistent operator for only-colon
+make: dep.mk:18: Inconsistent operator for only-colon
+	in make[1] in directory "<curdir>"
+make: dep.mk:20: Inconsistent operator for only-colon
+	in make[1] in directory "<curdir>"
 make: Fatal errors encountered -- cannot continue
-make: stopped making "all" in unit-tests
-exit status 1
+make: stopped making "parse-only-colon" in unit-tests
+sub exit status 1
+Making renamed-parse-semicolon-in-source out of nothing.
+Making parse-semicolon-in-source from renamed-parse-semicolon-in-source.
+make: Malformed expression at "$$-rest"
+	in make[1] in directory "<curdir>"
+semicolon-in-modifier.param: after semicolon
+parentheses-in-modifier.1-12-23-3: after semicolon
+var-semicolon.: after semicolon
+double-dollar.$-rest: after semicolon
+sub exit status 2
+exit status 0

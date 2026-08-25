@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd June 23, 2018
+.Dd April 16, 2026
 .Dt OF_GETPROP 9
 .Os
 .Sh NAME
@@ -52,7 +52,7 @@
 .Ft ssize_t
 .Fn OF_getencprop "phandle_t node" "const char *prop" \
 "pcell_t *buf" "size_t len"
-.Ft int
+.Ft bool
 .Fn OF_hasprop "phandle_t node" "const char *propname"
 .Ft ssize_t
 .Fn OF_searchprop "phandle_t node" "const char *propname" \
@@ -138,11 +138,15 @@ if the property does not exist.
 must be a multiple of 4.
 .Pp
 .Fn OF_hasprop
-returns 1 if the device node
+returns
+.Dv true
+if the device node
 .Fa node
 has a property specified by
 .Fa propname ,
-and zero if the property does not exist.
+and
+.Dv false
+if the property does not exist.
 .Pp
 .Fn OF_searchprop
 recursively looks for the property specified by

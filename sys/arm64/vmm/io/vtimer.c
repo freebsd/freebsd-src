@@ -97,7 +97,7 @@ vtimer_virtual_timer_intr(void *arg)
 	}
 
 	cntpct_el0 = READ_SPECIALREG(cntpct_el0) -
-	    hypctx->hyp->vtimer.cntvoff_el2;
+	    hypctx_read_sys_reg(hypctx, HOST_CNTVOFF_EL2);
 	if (hypctx->vtimer_cpu.virt_timer.cntx_cval_el0 < cntpct_el0)
 		vgic_inject_irq(hypctx->hyp, vcpu_vcpuid(hypctx->vcpu),
 		    GT_VIRT_IRQ, true);
@@ -133,14 +133,35 @@ vtimer_init(void)
 }
 
 void
-vtimer_vminit(struct hyp *hyp)
+vtimer_cpuinit(struct hypctx *hypctx)
 {
-	uint64_t now;
+	struct vtimer_cpu *vtimer_cpu;
 	bool ecv_poff;
+
+	vtimer_cpu = &hypctx->vtimer_cpu;
+	/*
+	 * Configure physical timer interrupts for the VCPU.
+	 *
+	 * CNTP_CTL_IMASK: mask interrupts
+	 * ~CNTP_CTL_ENABLE: disable the timer
+	 */
+	vtimer_cpu->phys_timer.cntx_ctl_el0 = CNTP_CTL_IMASK & ~CNTP_CTL_ENABLE;
+
+	mtx_init(&vtimer_cpu->phys_timer.mtx, "vtimer phys callout mutex", NULL,
+	    MTX_DEF);
+	callout_init_mtx(&vtimer_cpu->phys_timer.callout,
+	    &vtimer_cpu->phys_timer.mtx, 0);
+	vtimer_cpu->phys_timer.irqid = GT_PHYS_NS_IRQ;
+
+	mtx_init(&vtimer_cpu->virt_timer.mtx, "vtimer virt callout mutex", NULL,
+	    MTX_DEF);
+	callout_init_mtx(&vtimer_cpu->virt_timer.callout,
+	    &vtimer_cpu->virt_timer.mtx, 0);
+	vtimer_cpu->virt_timer.irqid = GT_VIRT_IRQ;
 
 	ecv_poff = false;
 
-	if (allow_ecv_phys && (hyp->feats & HYP_FEAT_ECV_POFF) != 0)
+	if (allow_ecv_phys && (hypctx->hyp->feats & HYP_FEAT_ECV_POFF) != 0)
 		ecv_poff = true;
 
 	/*
@@ -165,17 +186,17 @@ vtimer_vminit(struct hyp *hyp)
 		 *
 		 * TODO: Don't trap when FEAT_ECV is present
 		 */
-		hyp->vtimer.cnthctl_el2 =
+		hypctx_write_sys_reg(hypctx, HOST_CNTHCTL_EL2,
 		    CNTHCTL_E2H_EL0VCTEN_NOTRAP |
-		    CNTHCTL_E2H_EL0VTEN_NOTRAP;
+		    CNTHCTL_E2H_EL0VTEN_NOTRAP);
 		if (ecv_poff) {
-			hyp->vtimer.cnthctl_el2 |=
+			*hypctx_sys_reg(hypctx, HOST_CNTHCTL_EL2) |=
 			    CNTHCTL_E2H_EL0PCTEN_NOTRAP |
 			    CNTHCTL_E2H_EL0PTEN_NOTRAP |
 			    CNTHCTL_E2H_EL1PCTEN_NOTRAP |
 			    CNTHCTL_E2H_EL1PTEN_NOTRAP;
 		} else {
-			hyp->vtimer.cnthctl_el2 |=
+			*hypctx_sys_reg(hypctx, HOST_CNTHCTL_EL2) |=
 			    CNTHCTL_E2H_EL0PCTEN_TRAP |
 			    CNTHCTL_E2H_EL0PTEN_TRAP |
 			    CNTHCTL_E2H_EL1PCTEN_TRAP |
@@ -188,50 +209,20 @@ vtimer_vminit(struct hyp *hyp)
 		 * CNTHCTL_EL1PCTEN: trap access to CNTPCT_EL0
 		 */
 		if (ecv_poff) {
-			hyp->vtimer.cnthctl_el2 =
+			hypctx_write_sys_reg(hypctx, HOST_CNTHCTL_EL2,
 			    CNTHCTL_EL1PCTEN_NOTRAP |
-			    CNTHCTL_EL1PCEN_NOTRAP;
+			    CNTHCTL_EL1PCEN_NOTRAP);
 		} else {
-			hyp->vtimer.cnthctl_el2 =
+			hypctx_write_sys_reg(hypctx, HOST_CNTHCTL_EL2,
 			    CNTHCTL_EL1PCTEN_TRAP |
-			    CNTHCTL_EL1PCEN_TRAP;
+			    CNTHCTL_EL1PCEN_TRAP);
 		}
 	}
 
 	if (ecv_poff)
-		hyp->vtimer.cnthctl_el2 |= CNTHCTL_ECV_EN;
+		*hypctx_sys_reg(hypctx, HOST_CNTHCTL_EL2) |= CNTHCTL_ECV_EN;
 
-	now = READ_SPECIALREG(cntpct_el0);
-	hyp->vtimer.cntvoff_el2 = now;
-
-	return;
-}
-
-void
-vtimer_cpuinit(struct hypctx *hypctx)
-{
-	struct vtimer_cpu *vtimer_cpu;
-
-	vtimer_cpu = &hypctx->vtimer_cpu;
-	/*
-	 * Configure physical timer interrupts for the VCPU.
-	 *
-	 * CNTP_CTL_IMASK: mask interrupts
-	 * ~CNTP_CTL_ENABLE: disable the timer
-	 */
-	vtimer_cpu->phys_timer.cntx_ctl_el0 = CNTP_CTL_IMASK & ~CNTP_CTL_ENABLE;
-
-	mtx_init(&vtimer_cpu->phys_timer.mtx, "vtimer phys callout mutex", NULL,
-	    MTX_DEF);
-	callout_init_mtx(&vtimer_cpu->phys_timer.callout,
-	    &vtimer_cpu->phys_timer.mtx, 0);
-	vtimer_cpu->phys_timer.irqid = GT_PHYS_NS_IRQ;
-
-	mtx_init(&vtimer_cpu->virt_timer.mtx, "vtimer virt callout mutex", NULL,
-	    MTX_DEF);
-	callout_init_mtx(&vtimer_cpu->virt_timer.callout,
-	    &vtimer_cpu->virt_timer.mtx, 0);
-	vtimer_cpu->virt_timer.irqid = GT_VIRT_IRQ;
+	hypctx_write_sys_reg(hypctx, HOST_CNTVOFF_EL2, hypctx->hyp->cntvoff_el2);
 }
 
 void
@@ -289,10 +280,10 @@ vtimer_sync_hwstate(struct hypctx *hypctx)
 	uint64_t cntpct_el0;
 
 	cntpct_el0 = READ_SPECIALREG(cntpct_el0) -
-	    hypctx->hyp->vtimer.cntvoff_el2;
+	    hypctx_read_sys_reg(hypctx, HOST_CNTVOFF_EL2);
 	vtime_sync_timer(hypctx, &hypctx->vtimer_cpu.virt_timer, cntpct_el0);
 	/* If FEAT_ECV_POFF is in use then we need to sync the physical timer */
-	if ((hypctx->hyp->vtimer.cnthctl_el2 & CNTHCTL_ECV_EN) != 0) {
+	if ((hypctx_read_sys_reg(hypctx, HOST_CNTHCTL_EL2) & CNTHCTL_ECV_EN) != 0) {
 		vtime_sync_timer(hypctx, &hypctx->vtimer_cpu.phys_timer,
 		    cntpct_el0);
 	}
@@ -331,7 +322,7 @@ vtimer_schedule_irq(struct hypctx *hypctx, bool phys)
 	else
 		timer = &hypctx->vtimer_cpu.virt_timer;
 	cntpct_el0 = READ_SPECIALREG(cntpct_el0) -
-	    hypctx->hyp->vtimer.cntvoff_el2;
+	    hypctx_read_sys_reg(hypctx, HOST_CNTVOFF_EL2);
 	if (timer->cntx_cval_el0 < cntpct_el0) {
 		/* Timer set in the past, trigger interrupt */
 		vgic_inject_irq(hypctx->hyp, vcpu_vcpuid(hypctx->vcpu),
@@ -381,16 +372,14 @@ vtimer_remove_irq(struct hypctx *hypctx, struct vcpu *vcpu)
 int
 vtimer_phys_ctl_read(struct vcpu *vcpu, uint64_t *rval, void *arg)
 {
-	struct hyp *hyp;
 	struct hypctx *hypctx;
 	struct vtimer_cpu *vtimer_cpu;
 	uint64_t cntpct_el0;
 
 	hypctx = vcpu_get_cookie(vcpu);
-	hyp = hypctx->hyp;
 	vtimer_cpu = &hypctx->vtimer_cpu;
 
-	cntpct_el0 = READ_SPECIALREG(cntpct_el0) - hyp->vtimer.cntvoff_el2;
+	cntpct_el0 = READ_SPECIALREG(cntpct_el0) - hypctx_read_sys_reg(hypctx, HOST_CNTVOFF_EL2);
 	if (vtimer_cpu->phys_timer.cntx_cval_el0 < cntpct_el0)
 		/* Timer condition met */
 		*rval = vtimer_cpu->phys_timer.cntx_ctl_el0 | CNTP_CTL_ISTATUS;
@@ -430,12 +419,10 @@ vtimer_phys_ctl_write(struct vcpu *vcpu, uint64_t wval, void *arg)
 int
 vtimer_phys_cnt_read(struct vcpu *vcpu, uint64_t *rval, void *arg)
 {
-	struct vm *vm;
-	struct hyp *hyp;
+	struct hypctx *hypctx;
 
-	vm = vcpu_vm(vcpu);
-	hyp = vm_get_cookie(vm);
-	*rval = READ_SPECIALREG(cntpct_el0) - hyp->vtimer.cntvoff_el2;
+	hypctx = vcpu_get_cookie(vcpu);
+	*rval = READ_SPECIALREG(cntpct_el0) - hypctx_read_sys_reg(hypctx, HOST_CNTVOFF_EL2);
 	return (0);
 }
 
@@ -481,13 +468,11 @@ vtimer_phys_cval_write(struct vcpu *vcpu, uint64_t wval, void *arg)
 int
 vtimer_phys_tval_read(struct vcpu *vcpu, uint64_t *rval, void *arg)
 {
-	struct hyp *hyp;
 	struct hypctx *hypctx;
 	struct vtimer_cpu *vtimer_cpu;
 	uint32_t cntpct_el0;
 
 	hypctx = vcpu_get_cookie(vcpu);
-	hyp = hypctx->hyp;
 	vtimer_cpu = &hypctx->vtimer_cpu;
 
 	if (!(vtimer_cpu->phys_timer.cntx_ctl_el0 & CNTP_CTL_ENABLE)) {
@@ -500,7 +485,7 @@ vtimer_phys_tval_read(struct vcpu *vcpu, uint64_t *rval, void *arg)
 		*rval = (uint32_t)RES1;
 	} else {
 		cntpct_el0 = READ_SPECIALREG(cntpct_el0) -
-		    hyp->vtimer.cntvoff_el2;
+		    hypctx_read_sys_reg(hypctx, HOST_CNTVOFF_EL2);
 		*rval = vtimer_cpu->phys_timer.cntx_cval_el0 - cntpct_el0;
 	}
 
@@ -510,16 +495,14 @@ vtimer_phys_tval_read(struct vcpu *vcpu, uint64_t *rval, void *arg)
 int
 vtimer_phys_tval_write(struct vcpu *vcpu, uint64_t wval, void *arg)
 {
-	struct hyp *hyp;
 	struct hypctx *hypctx;
 	struct vtimer_cpu *vtimer_cpu;
 	uint64_t cntpct_el0;
 
 	hypctx = vcpu_get_cookie(vcpu);
-	hyp = hypctx->hyp;
 	vtimer_cpu = &hypctx->vtimer_cpu;
 
-	cntpct_el0 = READ_SPECIALREG(cntpct_el0) - hyp->vtimer.cntvoff_el2;
+	cntpct_el0 = READ_SPECIALREG(cntpct_el0) - hypctx_read_sys_reg(hypctx, HOST_CNTVOFF_EL2);
 	vtimer_cpu->phys_timer.cntx_cval_el0 = (int32_t)wval + cntpct_el0;
 
 	vtimer_remove_irq(hypctx, vcpu);

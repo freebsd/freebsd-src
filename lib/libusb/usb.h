@@ -303,6 +303,7 @@ struct usb_device *usb_device(usb_dev_handle * dev);
 struct usb_bus *usb_get_busses(void);
 int	usb_get_driver_np(usb_dev_handle * dev, int interface, char *name, int namelen);
 int	usb_detach_kernel_driver_np(usb_dev_handle * dev, int interface);
+int	usb_attach_kernel_driver_np(usb_dev_handle *dev, int interface);
 
 #if 0
 {					/* style */

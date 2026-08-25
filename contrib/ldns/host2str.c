@@ -407,6 +407,14 @@ ldns_rdf2buffer_str_int32(ldns_buffer *output, const ldns_rdf *rdf)
 }
 
 ldns_status
+ldns_rdf2buffer_str_int64(ldns_buffer *output, const ldns_rdf *rdf)
+{
+	uint64_t data = ldns_read_uint64(ldns_rdf_data(rdf));
+	ldns_buffer_printf(output, "%llu", (unsigned long long) data);
+	return ldns_buffer_status(output);
+}
+
+ldns_status
 ldns_rdf2buffer_str_time(ldns_buffer *output, const ldns_rdf *rdf)
 {
 	/* create a YYYYMMDDHHMMSS string if possible */
@@ -832,10 +840,6 @@ ldns_rdf2buffer_str_wks(ldns_buffer *output, const ldns_rdf *rdf)
 		ldns_buffer_printf(output, "%u ", protocol_nr);
 	}
 
-#ifdef HAVE_ENDPROTOENT
-	endprotoent();
-#endif
-
 	for (current_service = 0;
 	     current_service < (ldns_rdf_size(rdf)-1)*8; current_service++) {
 		if (ldns_get_bit(&(ldns_rdf_data(rdf)[1]), current_service)) {
@@ -853,6 +857,11 @@ ldns_rdf2buffer_str_wks(ldns_buffer *output, const ldns_rdf *rdf)
 		/* exit from loop before integer overflow */
 		if(current_service == 65535) { break; }
 	}
+
+#ifdef HAVE_ENDPROTOENT
+	endprotoent();
+#endif
+
 	return ldns_buffer_status(output);
 }
 
@@ -1221,6 +1230,34 @@ ldns_rdf2buffer_str_eui64(ldns_buffer *output, const ldns_rdf *rdf)
 }
 
 ldns_status
+ldns_rdf2buffer_str_unquoted(ldns_buffer *output, const ldns_rdf *rdf)
+{
+	size_t amount, i;
+	uint8_t ch;
+	if(ldns_rdf_size(rdf) < 1) {
+		return LDNS_STATUS_WIRE_RDATA_ERR;
+	}
+	if((int)ldns_rdf_size(rdf) < (int)ldns_rdf_data(rdf)[0] + 1) {
+		return LDNS_STATUS_WIRE_RDATA_ERR;
+	}
+	amount = ldns_rdf_data(rdf)[0];
+	for(i=0; i<amount; i++) {
+		ch = ldns_rdf_data(rdf)[1+i];
+		if (isprint((int)ch) || ch == '\t') {
+			if (ch == '\"' || ch == '\\' || ch == '\'' ||
+				ch == '(' || ch == ')' || isspace((int)ch))
+				ldns_buffer_printf(output, "\\%c", ch);
+			else
+				ldns_buffer_printf(output, "%c", ch);
+		} else {
+			ldns_buffer_printf(output, "\\%03u",
+                                (unsigned)(uint8_t) ch);
+		}
+	}
+	return ldns_buffer_status(output);
+}
+
+ldns_status
 ldns_rdf2buffer_str_tag(ldns_buffer *output, const ldns_rdf *rdf)
 {
 	size_t nchars;
@@ -1382,6 +1419,8 @@ ldns_rdf2buffer_str_amtrelay(ldns_buffer *output, const ldns_rdf *rdf)
 			precedence, discovery_optional, relay_type);
 	if (relay)
 	  	(void) ldns_rdf2buffer_str(output, relay);
+	else
+		ldns_buffer_printf(output, ".");
 
 	ldns_rdf_deep_free(relay);
 	return ldns_buffer_status(output);
@@ -1640,6 +1679,10 @@ ldns_rdf2buffer_str_fmt(ldns_buffer *buffer,
 		case LDNS_RDF_TYPE_INT32:
 			res = ldns_rdf2buffer_str_int32(buffer, rdf);
 			break;
+		case LDNS_RDF_TYPE_INT64:
+		case LDNS_RDF_TYPE_IPN:
+			res = ldns_rdf2buffer_str_int64(buffer, rdf);
+			break;
 		case LDNS_RDF_TYPE_PERIOD:
 			res = ldns_rdf2buffer_str_period(buffer, rdf);
 			break;
@@ -1721,6 +1764,9 @@ ldns_rdf2buffer_str_fmt(ldns_buffer *buffer,
 			break;
 		case LDNS_RDF_TYPE_EUI64:
 			res = ldns_rdf2buffer_str_eui64(buffer, rdf);
+			break;
+		case LDNS_RDF_TYPE_UNQUOTED:
+			res = ldns_rdf2buffer_str_unquoted(buffer, rdf);
 			break;
 		case LDNS_RDF_TYPE_TAG:
 			res = ldns_rdf2buffer_str_tag(buffer, rdf);
@@ -2271,11 +2317,16 @@ ldns_edns_subnet2buffer_str(ldns_buffer* output, uint8_t* data, size_t len)
 {
 	uint16_t family;
 	uint8_t source, scope;
+
+	ldns_buffer_printf(output, "; CLIENT SUBNET: ");
+
 	if(len < 4) {
 		ldns_buffer_printf(output, "malformed subnet ");
 		ldns_edns_hex_data2buffer_str(output, data, len);
 		return ldns_buffer_status(output);
 	}
+
+
 	family = ldns_read_uint16(data);
 	source = data[2];
 	scope = data[3];
@@ -2399,11 +2450,11 @@ ldns_edns_padding2buffer_str(ldns_buffer* output, uint8_t* data, size_t len)
 static ldns_status
 ldns_edns_chain2buffer_str(ldns_buffer* output, uint8_t* data, size_t len)
 {
-	ldns_rdf** temp = NULL;
+	ldns_rdf* temp = NULL;
 
 	ldns_buffer_printf(output, "; CHAIN: ");
 
-	if (ldns_str2rdf_dname(temp, (char*) data) != LDNS_STATUS_OK) {
+	if (ldns_str2rdf_dname(&temp, (char*) data) != LDNS_STATUS_OK) {
 		ldns_buffer_printf(output, "malformed chain ");
 		ldns_edns_hex_data2buffer_str(output, data, len);
 
@@ -2535,6 +2586,18 @@ ldns_edns_ede2buffer_str(ldns_buffer* output, uint8_t* data, size_t len)
 		break;
 	case LDNS_EDE_TOO_EARLY:
 		ldns_buffer_printf(output, " 26 (Too Early)");
+		break;
+	case LDNS_EDE_UNSUPPORTED_NSEC3_ITERATIONS_VALUE:
+		ldns_buffer_printf(output, " 27 (Unsupported NSEC3 Iterations Value)");
+		break;
+	case LDNS_EDE_UNABLE_TO_CONFORM_TO_POLICY:
+		ldns_buffer_printf(output, " 28 (Unable to conform to policy)");
+		break;
+	case LDNS_EDE_SYNTHESIZED:
+		ldns_buffer_printf(output, " 29 (Synthesized)");
+		break;
+	case LDNS_EDE_INVALID_QUERY_TYPE:
+		ldns_buffer_printf(output, " 30 (Invalid Query Type)");
 		break;
 	default:
 		ldns_buffer_printf(output, " %02x", data[0]);
@@ -2743,6 +2806,7 @@ ldns_pkt2buffer_str_fmt(ldns_buffer *output,
 		ldns_buffer_printf(output, "\n");
 
 		ldns_buffer_printf(output, ";; ADDITIONAL SECTION:\n");
+
 		for (i = 0; i < ldns_pkt_arcount(pkt); i++) {
 			status = ldns_rr2buffer_str_fmt(output, fmt,
 				       ldns_rr_list_rr(
@@ -2762,6 +2826,9 @@ ldns_pkt2buffer_str_fmt(ldns_buffer *output,
 				   ldns_pkt_edns_version(pkt));
 			if (ldns_pkt_edns_do(pkt)) {
 				ldns_buffer_printf(output, " do");
+			}
+			if (ldns_pkt_edns_co(pkt)) {
+				ldns_buffer_printf(output, " co");
 			}
 			/* the extended rcode is the value set, shifted four bits,
 			 * and or'd with the original rcode */
@@ -2785,6 +2852,7 @@ ldns_pkt2buffer_str_fmt(ldns_buffer *output,
 				} else {
 					ldns_buffer_printf(output, ";; Data: ");
 					(void)ldns_rdf2buffer_str(output, ldns_pkt_edns_data(pkt));
+					ldns_buffer_printf(output, "\n");
 				}
 			}
 		}

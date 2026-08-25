@@ -168,7 +168,7 @@ struct ipw_hdr {
 	uint8_t		encrypt;
 	uint8_t		keyidx;
 	uint8_t		keysz;
-	uint8_t		key[IEEE80211_KEYBUF_SIZE];
+	uint8_t		key[IEEE80211_KEYBUF_128_SIZE]; /* XXX should be HW specific */
 	uint8_t		reserved[10];
 	uint8_t		src_addr[IEEE80211_ADDR_LEN];
 	uint8_t		dst_addr[IEEE80211_ADDR_LEN];

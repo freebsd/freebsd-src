@@ -76,7 +76,11 @@ enum ldns_edns_enum_ede_code
 	LDNS_EDE_NETWORK_ERROR = 23,
 	LDNS_EDE_INVALID_DATA = 24,
 	LDNS_EDE_SIGNATURE_EXPIRED_BEFORE_VALID = 25,
-	LDNS_EDE_TOO_EARLY = 26
+	LDNS_EDE_TOO_EARLY = 26, /* RFC 9250 */
+	LDNS_EDE_UNSUPPORTED_NSEC3_ITERATIONS_VALUE = 27, /* RFC 9276 */
+	LDNS_EDE_UNABLE_TO_CONFORM_TO_POLICY = 28, /* draft-homburg-dnsop-codcp-00 */
+	LDNS_EDE_SYNTHESIZED = 29, /* https://github.com/PowerDNS/pdns/pull/12334 */
+	LDNS_EDE_INVALID_QUERY_TYPE = 30 /* RFC 9824 */
 };
 typedef enum ldns_edns_enum_ede_code ldns_edns_ede_code;
 
@@ -140,6 +144,21 @@ ldns_edns_option_code ldns_edns_get_code(const ldns_edns_option *edns);
  */
 uint8_t *ldns_edns_get_data(const ldns_edns_option *edns);
 
+/**
+ * extract the RFC 8914 extended error code value.
+ * \param[in] *edns the EDNS option to extract the extended error code from
+ * \param[inout] *ede_code pointer to an uint16_t in which to store the extended error code
+ * \return LDNS_STATUS_OK or an ldns_status message with the error (LDNS_STATUS_NOT_EDE or LDNS_STATUS_EDE_OPTION_MALFORMED)
+ */
+ldns_status ldns_edns_ede_get_code(const ldns_edns_option *edns, uint16_t *ede_code);
+
+/**
+ * extract the optional RFC 8914 extended error code text.
+ * \param[in] *edns the EDNS option to extract the extended error code from
+ * \param[inout] **ede_text pointer to a char* in which to store the extended error text; allocated buffer must be freed by the caller, assigns NULL if no text was provided in the EDNS option
+ * \return LDNS_STATUS_OK or an ldns_status message with the error (LDNS_STATUS_NOT_EDE or LDNS_STATUS_EDE_OPTION_MALFORMED)
+ */
+ldns_status ldns_edns_ede_get_text(const ldns_edns_option* edns, char **ede_text);
 
 /**
  * serialise the EDNS option into wireformat.

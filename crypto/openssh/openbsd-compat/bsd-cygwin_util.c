@@ -198,8 +198,10 @@ _match_pattern(const char *s, const char *pattern)
 		return 0;
 	ws = (wchar_t *) xcalloc(len + 1, sizeof (wchar_t));
 	mbstowcs(ws, s, len + 1);
-	if ((len = mbstowcs(NULL, pattern, 0)) == (size_t) -1)
+	if ((len = mbstowcs(NULL, pattern, 0)) == (size_t) -1) {
+		free(ws);
 		return 0;
+	}
 	wpattern = (wchar_t *) xcalloc(len + 1, sizeof (wchar_t));
 	mbstowcs(wpattern, pattern, len + 1);
 	ret = __match_pattern (ws, wpattern);
@@ -220,7 +222,7 @@ cygwin_ug_match_pattern_list(const char *string, const char *pattern)
 	char sub[1024];
 	int negated;
 	int got_positive;
-	u_int i, subi, len = strlen(pattern);
+	size_t i, subi, len = strlen(pattern);
 
 	got_positive = 0;
 	for (i = 0; i < len;) {

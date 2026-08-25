@@ -1682,7 +1682,7 @@ sdp_set_default_moderation(struct sdp_sock *ssk)
 {
 	if (sdp_mod_count <= 0 || sdp_mod_usec <= 0)
 		return;
-	ib_modify_cq(ssk->rx_ring.cq, sdp_mod_count, sdp_mod_usec);
+	rdma_set_cq_moderation(ssk->rx_ring.cq, sdp_mod_count, sdp_mod_usec);
 }
 
 static void

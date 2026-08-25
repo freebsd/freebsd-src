@@ -97,6 +97,7 @@ extern	int	x86_rngds_mitg_enable;
 extern	int	zenbleed_enable;
 extern	int	cpu_amdc1e_bug;
 extern	char	bootmethod[16];
+extern	int	fred;
 
 struct	pcb;
 struct	thread;
@@ -113,6 +114,8 @@ struct	minidumpstate;
  * approximation.
  */
 typedef void alias_for_inthand_t(void);
+
+extern void (*fred_ipi_handlers[])(struct trapframe *);
 
 bool	acpi_get_fadt_bootflags(uint16_t *flagsp);
 void	*alloc_fpusave(int flags);

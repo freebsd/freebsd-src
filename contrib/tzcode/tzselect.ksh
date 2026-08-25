@@ -145,9 +145,11 @@ do
   t*) # Undocumented option, used for developer testing.
     zonetabtype=$OPTARG;;
   -help)
-    exec echo "$usage";;
+    say "$usage"
+    exit;;
   -version)
-    exec echo "tzselect $PKGVERSION$TZVERSION";;
+    say "tzselect $PKGVERSION$TZVERSION"
+    exit;;
   -*)
     say >&2 "$0: -$opt$OPTARG: unknown option; try '$0 --help'"; exit 1;;
   *)
@@ -161,15 +163,15 @@ case $# in
 *) say >&2 "$0: $1: unknown argument"; exit 1
 esac
 
-# translit=true to try transliteration.
+# translit=: to try transliteration.
 # This is false if U+12345 CUNEIFORM SIGN URU TIMES KI has length 1
 # which means the shell and (presumably) awk do not need transliteration.
-# It is true if the byte string has some other length in characters, or
+# It is ':' if the byte string has some other length in characters, or
 # if this is a POSIX.1-2017 or earlier shell that does not support $'...'.
 CUNEIFORM_SIGN_URU_TIMES_KI=$'\360\222\215\205'
 if test ${#CUNEIFORM_SIGN_URU_TIMES_KI} = 1
 then translit=false
-else translit=true
+else translit=:
 fi
 
 # Read into shell variable $1 the contents of file $2.
@@ -516,8 +518,7 @@ while
 	' ="$distance_table"
       )
       echo >&2 'Please select one of the following timezones,'
-      echo >&2 'listed roughly in increasing order' \
-	"of distance from $coord".
+      say >&2 "listed roughly in increasing order of distance from $coord."
       doselect $regions
       region=$select_result
       tz=$(

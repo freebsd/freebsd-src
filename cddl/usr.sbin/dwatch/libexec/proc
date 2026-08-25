@@ -3,7 +3,7 @@
 ############################################################ IDENT(1)
 #
 # $Title: dwatch(8) module for dtrace_proc(4) activity $
-# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $Copyright: 2014-2026 Devin Teske. All rights reserved. $
 #
 ############################################################ DESCRIPTION
 #
@@ -29,6 +29,9 @@ proc-signal)
 		proc:::signal-discard, \
 		proc:::signal-send )}
 	;;
+proc-signal-fatal)
+	: ${PROBE:=proc:::signal-send}
+	;;
 proc-status)
 	: ${PROBE:=$( echo \
 		proc:::create, \
@@ -39,6 +42,24 @@ proc-status)
 	;;
 *)
 	: ${PROBE:=proc:::${PROFILE#proc-}}
+esac
+
+############################################################ EVENT ACTION
+
+# Answer "what killed my process?" by showing only those signals whose
+# default disposition is to terminate the process (with or without core),
+# most-notably including kernel-generated SIGSEGV/SIGBUS/SIGILL/SIGFPE
+# that no kill(2) watcher will ever see.
+
+[ "$CUSTOM_TEST" ] || case "$PROFILE" in
+proc-signal-fatal)
+	EVENT_TEST="this->sig == SIGABRT || this->sig == SIGBUS ||
+	this->sig == SIGEMT || this->sig == SIGFPE ||
+	this->sig == SIGILL || this->sig == SIGKILL ||
+	this->sig == SIGQUIT || this->sig == SIGSEGV ||
+	this->sig == SIGSYS || this->sig == SIGTRAP ||
+	this->sig == SIGXCPU || this->sig == SIGXFSZ"
+	;;
 esac
 
 ############################################################ ACTIONS

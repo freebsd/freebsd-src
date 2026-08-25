@@ -1,0 +1,16 @@
+ZIP archive with two entries: "bad_symlink" is a symlink (Unix mode
+S_IFLNK) whose compression method (200) isn't one of the three the ZIP
+reader's symlink-target decompression understands (stored/deflate/LZMA
+alone), triggering ARCHIVE_FAILED from read_header(); "second" is a
+normal stored file. See
+test_read_format_zip_symlink_unsupported_compression.c.
+
+begin 644 test_read_format_zip_symlink_unsupported_compression.zip
+M4$L#!!0```#(```````^CAE/"0````D````+````8F%D7W-Y;6QI;FMS;VUE
+M=VAE<G502P,$%````````````(412@T+````"P````8```!S96-O;F1H96QL
+M;R!W;W)L9%!+`0(4`Q0```#(```````^CAE/"0````D````+````````````
+M``#_H0````!B861?<WEM;&EN:U!+`0(4`Q0```````````"%$4H-"P````L`
+M```&``````````````"D@3(```!S96-O;F102P4&``````(``@!M````80``
+#````
+`
+end

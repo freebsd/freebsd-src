@@ -42,8 +42,6 @@ typedef	struct thread fw_proc;
 #include <sys/mutex.h>
 #include <sys/taskqueue.h>
 
-#define	splfw splimp
-
 STAILQ_HEAD(fw_xferlist, fw_xfer);
 
 struct fw_device {
@@ -58,22 +56,58 @@ struct fw_device {
 	int rommax;	/* offset from 0xffff f000 0000 */
 	uint32_t csrrom[CSRROMSIZE / 4];
 	int rcnt;
+	int rom_changed;
 	struct firewire_comm *fc;
 	uint32_t status;
 #define FWDEVINIT	1
 #define FWDEVATTACHED	2
 #define FWDEVINVAL	3
+	STAILQ_HEAD(, fw_unit) units;
 	STAILQ_ENTRY(fw_device) link;
+};
+
+struct fw_unit {
+	device_t dev;
+	struct fw_device *fwdev;
+	uint32_t spec_id;
+	uint32_t sw_version;
+	uint32_t dir_offset;
+	STAILQ_ENTRY(fw_unit) link;
+};
+
+enum fw_child_type {
+	FW_CHILD_BUS,
+	FW_CHILD_UNIT,
+};
+
+struct fw_child_ivars {
+	enum fw_child_type type;
+	union {
+		struct firewire_comm *fc;
+		struct fw_unit *unit;
+	} u;
 };
 
 struct firewire_softc {
 	struct cdev *dev;
 	struct firewire_comm *fc;
+	int watchdog_clock;
 };
 
 #define FW_MAX_DMACH 0x20
 #define FW_MAX_DEVCH FW_MAX_DMACH
 #define FW_XFERTIMEOUT 1
+
+/* 6-bit transaction label space (IEEE 1394 6.2.4.2) */
+#define FW_NUM_TLABELS	0x40
+#define FW_TLABEL_MASK	0x3f
+
+/* 6-bit node ID fields */
+#define FW_MAX_NODES	64
+#define FW_NODE_MASK	0x3f
+
+/* BUS_MGR_ID register value when no bus manager is elected */
+#define FW_NO_BUS_MANAGER 0x3f
 
 struct firewire_dev_comm {
 	device_t dev;
@@ -122,8 +156,8 @@ struct firewire_comm {
 	struct fw_eui64 eui;
 	struct fw_xferq
 		*arq, *atq, *ars, *ats, *it[FW_MAX_DMACH],*ir[FW_MAX_DMACH];
-	struct fw_xferlist tlabels[0x40];
-	u_char last_tlabel[0x40];
+	struct fw_xferlist tlabels[FW_NUM_TLABELS];
+	u_char last_tlabel[FW_NUM_TLABELS];
 	struct mtx tlabel_lock;
 	STAILQ_HEAD(, fw_bind) binds;
 	STAILQ_HEAD(, fw_device) devices;
@@ -292,6 +326,35 @@ int fw_open_isodma(struct firewire_comm *, int);
 extern int firewire_debug;
 extern devclass_t firewire_devclass;
 extern int firewire_phydma_enable;
+
+static __inline struct fw_child_ivars *
+fw_get_ivars(device_t dev)
+{
+
+	return ((struct fw_child_ivars *)device_get_ivars(dev));
+}
+
+static __inline struct firewire_comm *
+fw_get_comm(device_t dev)
+{
+	struct fw_child_ivars *iv;
+
+	iv = fw_get_ivars(dev);
+	if (iv->type == FW_CHILD_BUS)
+		return (iv->u.fc);
+	return (iv->u.unit->fwdev->fc);
+}
+
+static __inline struct fw_unit *
+fw_get_unit(device_t dev)
+{
+	struct fw_child_ivars *iv;
+
+	iv = fw_get_ivars(dev);
+	if (iv->type == FW_CHILD_UNIT)
+		return (iv->u.unit);
+	return (NULL);
+}
 
 #define	FWPRI		(PWAIT | PCATCH)
 

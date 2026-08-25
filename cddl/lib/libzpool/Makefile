@@ -133,6 +133,7 @@ KERNEL_C = \
 	space_map.c \
 	space_reftree.c \
 	txg.c \
+	u8_textprep.c \
 	trace.c \
 	uberblock.c \
 	unique.c \
@@ -161,8 +162,9 @@ KERNEL_C = \
 	vdev_removal.c \
 	vdev_root.c \
 	vdev_trim.c \
-	xxhash.c \
 	zap.c \
+	zap_fat.c \
+	zap_impl.c \
 	zap_leaf.c \
 	zap_micro.c \
 	zcp.c \
@@ -176,6 +178,7 @@ KERNEL_C = \
         zfs_chksum.c \
 	zfs_crrd.c \
 	zfs_debug_common.c \
+	zfs_file_os.c \
 	zfs_fm.c \
 	zfs_fuid.c \
 	zfs_impl.c \
@@ -205,6 +208,7 @@ KERNEL_C = \
 	zstd_lazy.c \
 	zstd_ldm.c \
 	zstd_opt.c \
+	zstd_preSplit.c \
 	zthr.c
 
 ARCH_C =
@@ -213,12 +217,12 @@ ARCH_C += 	vdev_raidz_math_sse2.c \
 		vdev_raidz_math_ssse3.c \
 		zfs_fletcher_intel.c \
 		zfs_fletcher_sse.c 
-CFLAGS +=  -DHAVE_SSE2 	-DHAVE_SSE3
+CFLAGS +=  -DHAVE_TOOLCHAIN_SSE2 -DHAVE_TOOLCHAIN_SSSE3
 .endif
 .if ${MACHINE_ARCH} == "amd64"
 ARCH_C +=	zfs_fletcher_avx512.c
-CFLAGS+= -DHAVE_AVX2 -DHAVE_AVX -D__x86_64 -DHAVE_AVX512F \
-	-DHAVE_AVX512BW
+CFLAGS+= -D__x86_64 -DHAVE_TOOLCHAIN_AVX2 -DHAVE_TOOLCHAIN_AVX \
+	-DHAVE_TOOLCHAIN_AVX512F -DHAVE_TOOLCHAIN_AVX512BW
 .endif
 .if ${MACHINE_CPUARCH} == "aarch64"
 ARCH_C +=	zfs_fletcher_aarch64_neon.c
@@ -250,9 +254,7 @@ LUA_C = \
 	lvm.c \
 	lzio.c
 
-UNICODE_C = u8_textprep.c
-
-SRCS+=		${USER_C} ${KERNEL_C} ${LUA_C} ${UNICODE_C} ${ARCH_C}
+SRCS+=		${USER_C} ${KERNEL_C} ${LUA_C} ${ARCH_C}
 
 
 WARNS?=		2
@@ -266,12 +268,13 @@ CFLAGS+= \
 	-I${SRCTOP}/cddl/compat/opensolaris/include \
 	-I${ZFSTOP}/module/icp/include \
 	-I${SRCTOP}/compat/linuxkpi/common/include/linux \
+	-include ${ZFSTOP}/include/sys/simd_config.h \
 	-include ${ZFSTOP}/include/os/freebsd/spl/sys/ccompile.h \
 	-DHAVE_ISSETUGID \
 	-include ${SRCTOP}/sys/modules/zfs/zfs_config.h \
 	-I${SRCTOP}/sys/modules/zfs \
 	-I${ZFSTOP}/include/os/freebsd/zfs \
-	-DLIB_ZPOOL_BUILD -DZFS_DEBUG \
+	-DLIB_ZPOOL_BUILD -DZFS_DEBUG -DXXH_INLINE_ALL \
 
 # XXX: pthread doesn't have mutex_owned() equivalent, so we need to look
 #      into libthr private structures. That's sooo evil, but it's only for
@@ -280,7 +283,6 @@ CFLAGS+=	-DWANTS_MUTEX_OWNED
 CFLAGS+=	-I${SRCTOP}/lib/libpthread/thread
 CFLAGS+=	-I${SRCTOP}/lib/libpthread/sys
 CFLAGS+=	-I${SRCTOP}/lib/libthr/arch/${MACHINE_CPUARCH}/include
-CFLAGS.gcc+=	-fms-extensions
 
 LIBADD=		md pthread z spl icp nvpair avl umem
 
@@ -292,6 +294,11 @@ CSTD=	c99
 CFLAGS+=	-g -DDEBUG=1
 
 CFLAGS.gcc+=	-Wno-pointer-to-int-cast
+
+# Some versions of LLVM contain duplicate typedefs in the <*intrin.h> headers,
+# which are not allowed prior to C11; since libzpool is built with C99, make
+# this not be an error.
+CFLAGS.clang+=	-Wno-error=typedef-redefinition
 
 # Pointer values are used as debugging "tags" to mark reference count
 # ownerships and in some cases the tag reference is dropped after an

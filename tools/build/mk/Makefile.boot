@@ -9,7 +9,6 @@ LDFLAGS+=	-L${WORLDTMP}/legacy/usr/lib
 # $PATH before a nm that supports the host architecture.
 # To ensure that host binary compile as expected we use the tools from /usr/bin.
 AR:=	/usr/bin/ar
-RANLIB:=	/usr/bin/ranlib
 NM:=	/usr/bin/nm
 
 # Avoid stale dependecy warnings:
@@ -57,10 +56,9 @@ LDADD+=	-lfts
 .elif ${.MAKE.OS} == "Darwin"
 CFLAGS+=	-D_DARWIN_C_SOURCE=1
 CFLAGS+=	-I${SRCTOP}/tools/build/cross-build/include/mac
-# The macOS ar and ranlib don't understand all the flags supported by the
-# FreeBSD and Linux ar/ranlib
+# The macOS ar doesn't understand all the flags supported by the
+# FreeBSD and Linux ar
 ARFLAGS:=	-crs
-RANLIBFLAGS:=
 
 # to get libarchive (needed for elftoolchain)
 # MacOS ships /usr/lib/libarchive.dylib but doesn't provide the headers

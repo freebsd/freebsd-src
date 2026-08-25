@@ -69,6 +69,18 @@
 		((char *)NLA_NEXT(_attr) <= _NLA_END(_start, _len));	\
 		_attr =  NLA_NEXT(_attr))
 
+#define NLA_NEXT_CONST(_attr) (const struct nlattr *)(const void *) \
+        ((const char *)_attr + NLA_ALIGN(_attr->nla_len))
+
+#define _NLA_END_CONST(_start, _len) \
+        ((const char *)(_start) + (_len))
+#define NLA_FOREACH_CONST(_attr, _start, _len)      \
+        for (_attr = (const struct nlattr *)(_start);		\
+		((const char *)_attr < _NLA_END_CONST(_start, _len)) && \
+		((const char *)NLA_NEXT_CONST(_attr) <=	\
+		_NLA_END_CONST(_start, _len)); \
+		_attr =  NLA_NEXT_CONST(_attr))
+
 struct linear_buffer {
 	char			*base;	/* Base allocated memory pointer */
 	uint32_t		offset;	/* Currently used offset */
@@ -712,23 +724,60 @@ snl_attr_get_nested(struct snl_state *ss, struct nlattr *nla, const void *arg, v
 struct snl_parray {
 	uint32_t count;
 	void **items;
+	uint32_t _capacity;
 };
 
 static inline bool
+snl_parray_append(struct snl_state *ss, struct snl_parray *array, void *item,
+    uint32_t start_size)
+{
+	void **new_items;
+	size_t alloc_size;
+	uint32_t new_size;
+
+	if (start_size == 0)
+		return (false);
+	if (array->_capacity == 0) {
+		new_size = start_size;
+		if (__builtin_mul_overflow((size_t)new_size,
+		    sizeof(*new_items), &alloc_size))
+			return (false);
+		array->items = (void **)snl_allocz(ss, alloc_size);
+		if (array->items == NULL)
+			return (false);
+		array->_capacity = new_size;
+	} else if (array->count == array->_capacity) {
+		if (array->_capacity > UINT32_MAX / 2)
+			return (false);
+		new_size = array->_capacity * 2;
+		if (__builtin_mul_overflow((size_t)new_size,
+		    sizeof(*new_items), &alloc_size))
+			return (false);
+		new_items = (void **)snl_allocz(ss, alloc_size);
+		if (new_items == NULL)
+			return (false);
+		memcpy(new_items, array->items,
+		    array->count * sizeof(*new_items));
+		array->items = new_items;
+		array->_capacity = new_size;
+	}
+	array->items[array->count++] = item;
+	return (true);
+}
+
+static inline bool
 snl_attr_get_parray_sz(struct snl_state *ss, struct nlattr *container_nla,
-    uint32_t start_size, const void *arg, void *target)
+    uint32_t start_size, const void *arg, struct snl_parray *array)
 {
 	const struct snl_hdr_parser *p = (const struct snl_hdr_parser *)arg;
-	struct snl_parray *array = (struct snl_parray *)target;
 	struct nlattr *nla;
-	uint32_t count = 0, size = start_size;
 
-	if (p->out_size == 0)
+	if (p->out_size == 0 || start_size == 0)
 		return (false);
-
-	array->items = (void **)snl_allocz(ss, size * sizeof(void *));
-	if (array->items == NULL)
-		return (false);
+	/* A container attribute replaces, rather than extends, its output. */
+	array->count = 0;
+	array->items = NULL;
+	array->_capacity = 0;
 
 	/*
 	 * If the provided parser is an attribute parser, assume that each
@@ -754,31 +803,49 @@ snl_attr_get_parray_sz(struct snl_state *ss, struct nlattr *container_nla,
 		if (!(snl_parse_header(ss, data, data_len, p, item)))
 			return (false);
 
-		if (count == size) {
-			uint32_t new_size = size * 2;
-			void **new_array = (void **)snl_allocz(ss, new_size *sizeof(void *));
-
-			memcpy(new_array, array->items, size * sizeof(void *));
-			array->items = new_array;
-			size = new_size;
-		}
-		array->items[count++] = item;
+		if (!snl_parray_append(ss, array, item, start_size))
+			return (false);
 	}
-	array->count = count;
 
 	return (true);
 }
 
 /*
  * Parses and stores the unknown-size array.
- * Assumes each array item is a container and the NLAs in the container are parsable
- *  by the parser provided in @arg.
- * Assumes @target is struct snl_parray
+ * Assumes each array item is a container and the NLAs in the container are
+ * parsable by the parser provided in @arg.
+ * @target must point to an actual struct snl_parray.  Do not substitute a
+ * layout-compatible structure: the parser array includes private growth state.
  */
 static inline bool
 snl_attr_get_parray(struct snl_state *ss, struct nlattr *nla, const void *arg, void *target)
 {
-	return (snl_attr_get_parray_sz(ss, nla, 8, arg, target));
+	return (snl_attr_get_parray_sz(ss, nla, 8, arg,
+	    (struct snl_parray *)target));
+}
+
+/*
+ * Append one repeated nested attribute to an array.  Unlike
+ * snl_attr_get_parray(), the attribute itself is one array member rather
+ * than a container holding an entire array.  Use this for modern Netlink
+ * multi-attributes.  @target must point to an actual struct snl_parray.
+ */
+static inline bool
+snl_attr_get_multi(struct snl_state *ss, struct nlattr *nla, const void *arg,
+    void *target)
+{
+	const struct snl_hdr_parser *p = arg;
+	struct snl_parray *array = target;
+	void *item;
+
+	if (p->out_size == 0)
+		return (false);
+	item = snl_allocz(ss, p->out_size);
+	if (item == NULL)
+		return (false);
+	if (!snl_parse_header(ss, NLA_DATA(nla), NLA_DATA_LEN(nla), p, item))
+		return (false);
+	return (snl_parray_append(ss, array, item, 8));
 }
 
 static inline bool
@@ -837,11 +904,6 @@ struct snl_attr_bit {
 	int		bit_value;
 };
 
-struct snl_attr_bits {
-	uint32_t num_bits;
-	struct snl_attr_bit **bits;
-};
-
 #define	_OUT(_field)	offsetof(struct snl_attr_bit, _field)
 static const struct snl_attr_parser _nla_p_bit[] = {
 	{ .type = NLA_BITSET_BIT_INDEX, .off = _OUT(bit_index), .cb = snl_attr_get_uint32 },
@@ -855,7 +917,7 @@ struct snl_attr_bitset {
 	uint32_t		nla_bitset_size;
 	uint32_t		*nla_bitset_mask;
 	uint32_t		*nla_bitset_value;
-	struct snl_attr_bits	bits;
+	struct snl_parray	bits;
 };
 
 #define	_OUT(_field)	offsetof(struct snl_attr_bitset, _field)

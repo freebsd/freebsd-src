@@ -216,8 +216,8 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_VERREVPATH	= 36,	/* none				*/
 	O_VERSRCREACH	= 37,	/* none				*/
 
-	O_PROBE_STATE	= 38,	/* v0:arg1=kidx, v1:kidx=kidx	*/
-	O_KEEP_STATE	= 39,	/* v0:arg1=kidx, v1:kidx=kidx	*/
+	O_PROBE_STATE	= 38,	/* kidx=kidx			*/
+	O_KEEP_STATE	= 39,	/* kidx=kidx			*/
 	O_LIMIT		= 40,	/* ipfw_insn_limit		*/
 	O_LIMIT_PARENT	= 41,	/* dyn_type, not an opcode.	*/
 
@@ -228,13 +228,12 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_LOG		= 42,	/* ipfw_insn_log		*/
 	O_PROB		= 43,	/* u32 = match probability	*/
 
-	O_CHECK_STATE	= 44,	/* v0:arg1=kidx, v1:kidx=kidx	*/
+	O_CHECK_STATE	= 44,	/* kidx=kidx			*/
 	O_ACCEPT	= 45,	/* none				*/
 	O_DENY		= 46,	/* none				*/
 	O_REJECT	= 47,	/* arg1=icmp arg (same as deny)	*/
 	O_COUNT		= 48,	/* none				*/
-	O_SKIPTO	= 49,	/* v0:arg1=next rule number	*/
-				/* v1:kidx= next rule number	*/
+	O_SKIPTO	= 49,	/* u32= next rule number	*/
 	O_PIPE		= 50,	/* arg1=pipe number		*/
 	O_QUEUE		= 51,	/* arg1=queue number		*/
 	O_DIVERT	= 52,	/* arg1=port number		*/
@@ -248,10 +247,12 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	 * More opcodes.
 	 */
 	O_IPSEC		= 58,	/* has ipsec history 		*/
-	O_IP_SRC_LOOKUP	= 59,	/* v0:arg1=table number, u32=value */
-				/* v1:kidx=name, u32=value, arg1=key */
-	O_IP_DST_LOOKUP	= 60,	/* arg1=table number, u32=value	*/
-				/* v1:kidx=name, u32=value, arg1=key */
+	O_IP_SRC_LOOKUP	= 59,	/* kidx=name			*/
+				/* lookup: kidx=name, arg1=key	*/
+				/*	and flags, bitmask	*/
+	O_IP_DST_LOOKUP	= 60,	/* kidx=name			*/
+				/* lookup: kidx=name, arg1=key	*/
+				/*	and flags, bitmask	*/
 	O_ANTISPOOF	= 61,	/* none				*/
 	O_JAIL		= 62,	/* u32 = id			*/
 	O_ALTQ		= 63,	/* u32 = altq classif. qid	*/
@@ -286,30 +287,35 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 
 	O_SOCKARG	= 84,	/* socket argument */
 
-	O_CALLRETURN	= 85,	/* v0:arg1=called rule number */
-				/* v1:kidx=called rule number */
+	O_CALLRETURN	= 85,	/* u32=called rule number */
 
 	O_FORWARD_IP6	= 86,	/* fwd sockaddr_in6             */
 
 	O_DSCP		= 87,	/* 2 u32 = DSCP mask */
 	O_SETDSCP	= 88,	/* arg1=DSCP value */
-	O_IP_FLOW_LOOKUP = 89,	/* v0:arg1=table number, u32=value	*/
-				/* v1:kidx=name, u32=value */
+	O_IP_FLOW_LOOKUP = 89,	/* kidx=name	*/
+				/* lookup: kidx=name, arg1=key	*/
+				/*	and flags, bitmask	*/
 
-	O_EXTERNAL_ACTION = 90,	/* v0:arg1=id of external action handler */
-				/* v1:kidx=id of external action handler */
-	O_EXTERNAL_INSTANCE = 91, /* v0:arg1=id of eaction handler instance */
-				/* v1:kidx=id of eaction handler instance */
+	O_EXTERNAL_ACTION = 90,	/* kidx=id of external action handler */
+	O_EXTERNAL_INSTANCE = 91, /* kidx=id of eaction handler instance */
 	O_EXTERNAL_DATA	= 92,	/* variable length data */
 
 	O_SKIP_ACTION	= 93,	/* none				*/
 	O_TCPMSS	= 94,	/* arg1=MSS value */
 
-	O_MAC_SRC_LOOKUP = 95,	/* kidx=name, u32=value, arg1=key */
-	O_MAC_DST_LOOKUP = 96,	/* kidx=name, u32=value, arg1=key */
+	O_MAC_SRC_LOOKUP = 95,	/* kidx=name */
+				/* lookup: kidx=name, arg1=key	*/
+				/*	and flags, bitmask	*/
+	O_MAC_DST_LOOKUP = 96,	/* kidx=name */
+				/* lookup: kidx=name, arg1=key	*/
+				/*	and flags, bitmask	*/
 
 	O_SETMARK	= 97,	/* u32 = value */
 	O_MARK		= 98,	/* 2 u32 = value, bitmask */
+
+	O_TABLE_LOOKUP = 99,	/* lookup: kidx=name, arg1=key	*/
+				/*	and flags, bitmask */
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
@@ -408,11 +414,31 @@ typedef struct _ipfw_insn_table {
 	uint32_t value;	/* table value */
 } ipfw_insn_table;
 
-#define	IPFW_LOOKUP_TYPE_MASK		0x00FF
+typedef struct _ipfw_insn_lookup {
+	ipfw_insn o;	/* arg1 is flags and lookup key */
+	uint32_t kidx;	/* table name index */
+	union {		/* lookup mask */
+		uint64_t __mask64[2];
+		struct in6_addr ip6;
+		struct in_addr ip4;
+		char mac[6];
+		uint32_t u32;
+	};
+} ipfw_insn_lookup;
+
+#define	IPFW_LOOKUP_TYPE_MASK		0x007F
 #define	IPFW_LOOKUP_TYPE(insn)		((insn)->arg1 & IPFW_LOOKUP_TYPE_MASK)
 #define	IPFW_SET_LOOKUP_TYPE(insn, type)	do {	\
 	(insn)->arg1 &= ~IPFW_LOOKUP_TYPE_MASK;		\
 	(insn)->arg1 |= (type) & IPFW_LOOKUP_TYPE_MASK;	\
+} while (0)
+#define	IPFW_LOOKUP_F_MASKING		0x0080
+#define	IPFW_LOOKUP_MASKING(insn)	((insn)->arg1 & IPFW_LOOKUP_F_MASKING)
+#define	IPFW_SET_LOOKUP_MASKING(insn, value)	do {	\
+	if (value)					\
+		(insn)->arg1 |= IPFW_LOOKUP_F_MASKING;	\
+	else						\
+		(insn)->arg1 &= ~IPFW_LOOKUP_F_MASKING;	\
 } while (0)
 
 /*
@@ -431,6 +457,10 @@ enum ipfw_table_lookup_type {
 	LOOKUP_SRC_MAC,
 	LOOKUP_MARK,
 	LOOKUP_RULENUM,
+	LOOKUP_DST_IP4,
+	LOOKUP_SRC_IP4,
+	LOOKUP_DST_IP6,
+	LOOKUP_SRC_IP6,
 };
 
 enum ipfw_return_type {
@@ -940,11 +970,19 @@ struct tflow_entry {
 	} a;
 };
 
-#define	IPFW_TVALUE_TYPE_MASK		0xFF00
+#define	IPFW_TVALUE_TYPE_MASK		0x7F00
 #define	IPFW_TVALUE_TYPE(insn)		(((insn)->arg1 & IPFW_TVALUE_TYPE_MASK) >> 8)
 #define	IPFW_SET_TVALUE_TYPE(insn, type)	do {	\
 	(insn)->arg1 &= ~IPFW_TVALUE_TYPE_MASK;		\
 	(insn)->arg1 |= ((type) << 8) & IPFW_TVALUE_TYPE_MASK;	\
+} while (0)
+#define	IPFW_LOOKUP_F_MATCH_TVALUE	0x8000
+#define	IPFW_LOOKUP_MATCH_TVALUE(insn)	((insn)->arg1 & IPFW_LOOKUP_F_MATCH_TVALUE)
+#define	IPFW_SET_LOOKUP_MATCH_TVALUE(insn, value) do {		\
+	if (value)						\
+		(insn)->arg1 |= IPFW_LOOKUP_F_MATCH_TVALUE;	\
+	else							\
+		(insn)->arg1 &= ~IPFW_LOOKUP_F_MATCH_TVALUE;	\
 } while (0)
 
 enum ipfw_table_value_type {
@@ -959,6 +997,7 @@ enum ipfw_table_value_type {
 	TVALUE_DSCP,
 	TVALUE_LIMIT,
 	TVALUE_MARK,
+	TVALUE_NH6,
 };
 
 /* 64-byte structure representing multi-field table value */

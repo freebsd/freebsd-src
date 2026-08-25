@@ -13,5 +13,6 @@ verbs.c
 
 LIBADD=		ibverbs pthread
 CFLAGS+=	-I${_spath}
+CFLAGS+=	-I${SRCTOP}/sys/dev/cxgbe/firmware
 
 .include <bsd.lib.mk>

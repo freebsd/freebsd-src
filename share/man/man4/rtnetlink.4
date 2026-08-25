@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 1, 2022
+.Dd July 28, 2026
 .Dt RTNETLINK 4
 .Os
 .Sh NAME
@@ -126,6 +126,9 @@ RTA_TABLE	fib number or RT_TABLE_UNSPEC to return all fibs
 .It Dv RTA_GATEWAY
 (binary) IPv4/IPv6 gateway address, depending on the
 .Va rtm_family .
+.It Dv RTA_PREFSRC
+(binary) IPv4/IPv6 preferred address, depending on the
+.Va rtm_family .
 .It Dv RTA_METRICS
 (nested) Container attribute, listing route properties.
 The only supported sub-attribute is
@@ -178,6 +181,8 @@ Default route table is
 .Dv RT_TABLE_MAIN .
 To explicitly specify "all tables" one needs to set the value to
 .Dv RT_TABLE_UNSPEC .
+.It Dv RTA_PRIORITY
+(uint32_t) metric of the nexthop.
 .It Dv RTA_EXPIRES
 (uint32_t) seconds till path expiration.
 .It Dv RTA_NH_ID
@@ -273,12 +278,25 @@ All interface configuration messages share the common header:
 struct ifinfomsg {
 	unsigned char	ifi_family;	/* not used, set to 0 */
 	unsigned char	__ifi_pad;
-	unsigned short	ifi_type;	/* ARPHRD_* */
+	unsigned short	ifi_type;	/* IFT_* */
 	int		ifi_index;	/* Interface index */
 	unsigned	ifi_flags;	/* IFF_* flags */
 	unsigned	ifi_change;	/* IFF_* change mask */
 };
 .Ed
+.Pp
+.Sy Note :
+On
+.Fx
+the
+.Va ifi_type
+field uses
+.Dv IFT_*
+constants from
+.In net/if_types.h
+rather than
+.Dv ARPHRD_*
+as on Linux.
 .Ss RTM_NEWLINK
 Creates a new interface.
 The only mandatory TLV is

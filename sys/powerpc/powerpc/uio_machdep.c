@@ -58,14 +58,13 @@
 int
 uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 {
-	struct thread *td = curthread;
 	struct iovec *iov;
 	void *cp;
 	vm_offset_t page_offset;
 	vm_page_t m;
 	size_t cnt;
 	int error = 0;
-	int save = 0;
+	int save;
 	struct sf_buf *sf;
 
 	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
@@ -75,8 +74,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 	KASSERT(uio->uio_resid >= 0,
 	    ("%s: uio %p resid underflow", __func__, uio));
 
-	save = td->td_pflags & TDP_DEADLKTREAT;
-	td->td_pflags |= TDP_DEADLKTREAT;
+	save = curthread_pflags_set(TDP_DEADLKTREAT);
 	while (n > 0 && uio->uio_resid) {
 		KASSERT(uio->uio_iovcnt > 0,
 		    ("%s: uio %p iovcnt underflow", __func__, uio));
@@ -97,36 +95,10 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		sf = sf_buf_alloc(m, 0);
 		cp = (char*)sf_buf_kva(sf) + page_offset;
 
-		switch (uio->uio_segflg) {
-			case UIO_USERSPACE:
-				maybe_yield();
-				switch (uio->uio_rw) {
-				case UIO_READ:
-					error = copyout(cp, iov->iov_base, cnt);
-					break;
-				case UIO_WRITE:
-					error = copyin(iov->iov_base, cp, cnt);
-					break;
-				}
-				if (error) {
-					sf_buf_free(sf);
-					goto out;
-				}
-				break;
-			case UIO_SYSSPACE:
-				switch (uio->uio_rw) {
-				case UIO_READ:
-					bcopy(cp, iov->iov_base, cnt);
-					break;
-				case UIO_WRITE:
-					bcopy(iov->iov_base, cp, cnt);
-					break;
-				}
-				break;
-			case UIO_NOCOPY:
-				break;
-		}
+		error = uiomove_step(cp, iov->iov_base, cnt, uio);
 		sf_buf_free(sf);
+		if (error != 0)
+			break;
 		iov->iov_base = (char *)iov->iov_base + cnt;
 		iov->iov_len -= cnt;
 		uio->uio_resid -= cnt;
@@ -134,8 +106,6 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		offset += cnt;
 		n -= cnt;
 	}
-out:
-	if (save == 0)
-		td->td_pflags &= ~TDP_DEADLKTREAT;
+	curthread_pflags_restore(save);
 	return (error);
 }

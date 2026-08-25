@@ -73,4 +73,39 @@
 #define	IS_REACHABLE(_x)	(IS_BUILTIN(_x) || \
 				    (IS_MODULE(_x) && IS_BUILTIN(MODULE)))
 
+/*
+ * On Linux, the CONFIG_PGTABLE_LEVELS value is defined by the config/build
+ * system. Here, we take the per-architecture default value defined in
+ * `arch/$ARCH/Kconfig` files upstream.
+ */
+#if defined(__amd64__)
+
+#define	CONFIG_PGTABLE_LEVELS	4
+
+#elif defined(__aarch64__)
+
+#define	CONFIG_PGTABLE_LEVELS	4
+
+#elif defined(__i386__)
+
+#define	CONFIG_PGTABLE_LEVELS	2
+
+#elif defined(__powerpc__)
+
+#if defined(__powerpc64__)
+#define	CONFIG_PGTABLE_LEVELS	4
+#else
+#define	CONFIG_PGTABLE_LEVELS	2
+#endif
+
+#elif defined(__riscv)
+
+#if defined(__riscv_xlen) && __riscv_xlen == 64
+#define	CONFIG_PGTABLE_LEVELS	5
+#else
+#define	CONFIG_PGTABLE_LEVELS	2
+#endif
+
+#endif
+
 #endif /* _LINUXKPI_LINUX_KCONFIG_H_ */

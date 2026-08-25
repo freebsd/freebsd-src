@@ -61,7 +61,7 @@ void *limited_realloc(void *ptr, size_t size) {
 struct State {
     FILE* fout;
 
-    State() : fout(fopen("/dev/null", "r")) {
+    State() : fout(fopen("/dev/null", "w")) {
         cbor_set_allocs(limited_malloc, limited_realloc, limited_free);
     }
 };

@@ -1,23 +1,13 @@
 .\" SPDX-License-Identifier: CDDL-1.0
 .\"
-.\" CDDL HEADER START
+.\" This file and its contents are supplied under the terms of the
+.\" Common Development and Distribution License ("CDDL"), version 1.0.
+.\" You may only use this file in accordance with the terms of version
+.\" 1.0 of the CDDL.
 .\"
-.\" The contents of this file are subject to the terms of the
-.\" Common Development and Distribution License (the "License").
-.\" You may not use this file except in compliance with the License.
-.\"
-.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-.\" or https://opensource.org/licenses/CDDL-1.0.
-.\" See the License for the specific language governing permissions
-.\" and limitations under the License.
-.\"
-.\" When distributing Covered Code, include this CDDL HEADER in each
-.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-.\" If applicable, add the following below this CDDL HEADER, with the
-.\" fields enclosed by brackets "[]" replaced with your own identifying
-.\" information: Portions Copyright [yyyy] [name of copyright owner]
-.\"
-.\" CDDL HEADER END
+.\" A full copy of the text of the CDDL should have accompanied this
+.\" source.  A copy of the CDDL is also available via the Internet at
+.\" https://opensource.org/license/CDDL-1.0.
 .\"
 .\" Copyright (c) 2007, Sun Microsystems, Inc. All Rights Reserved.
 .\" Copyright (c) 2012, 2018 by Delphix. All rights reserved.
@@ -27,7 +17,7 @@
 .\" Copyright 2017 Nexenta Systems, Inc.
 .\" Copyright (c) 2017 Open-E, Inc. All Rights Reserved.
 .\"
-.Dd November 8, 2023
+.Dd May 9, 2026
 .Dt ZPOOL-ATTACH 8
 .Os
 .
@@ -131,6 +121,35 @@ Waits until
 .Ar new_device
 has finished resilvering or expanding before returning.
 .El
+.
+.Sh EXAMPLES
+.\" Example 1 is example 5 from zpool.8.
+.\" Make sure to update them bidirectionally
+.Ss Example 1 : No Making a non-mirrored ZFS Storage Pool mirrored
+The following command converts an existing single device
+.Ar sda
+into a mirror by attaching a second device to it,
+.Ar sdb .
+.Dl # Nm zpool Cm attach Ar tank Pa sda sdb
+.
+.Ss Example 2 : No Expanding a RAID-Z vdev with an additional disk
+The following command adds
+.Ar sdg
+to the existing
+.Ar raidz2-0
+vdev in
+.Ar tank ,
+turning a 6-wide RAID-Z2 into a 7-wide RAID-Z2:
+.Dl # Nm zpool Cm attach Ar tank raidz2-0 Pa sdg
+Progress is reported by
+.Nm zpool Cm status .
+The operation requires the
+.Sy raidz_expansion
+pool feature, and
+.Ar sdg
+must be at least as large as the smallest existing disk in the vdev.
+Old blocks keep their original data-to-parity ratio; only blocks written
+after the expansion use the new ratio.
 .
 .Sh SEE ALSO
 .Xr zpool-add 8 ,

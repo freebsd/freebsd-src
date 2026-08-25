@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -681,8 +671,10 @@ zio_decrypt(zio_t *zio, abd_t *data, uint64_t size)
 	return;
 
 error:
-	/* assert that the key was found unless this was speculative */
-	ASSERT(ret != EACCES || (zio->io_flags & ZIO_FLAG_SPECULATIVE));
+	/* the key was found unless this was speculative or a thorough scrub */
+	ASSERT(ret != EACCES || (zio->io_flags & ZIO_FLAG_SPECULATIVE) ||
+	    ((zio->io_flags & ZIO_FLAG_SCRUB) &&
+	    !(zio->io_flags & ZIO_FLAG_RAW)));
 
 	/*
 	 * If there was a decryption / authentication error return EIO as
@@ -910,33 +902,26 @@ zio_bookmark_compare(const void *x1, const void *x2)
 {
 	const zio_t *z1 = x1;
 	const zio_t *z2 = x2;
+	const zbookmark_phys_t *zb1 = &z1->io_bookmark;
+	const zbookmark_phys_t *zb2 = &z2->io_bookmark;
 
-	if (z1->io_bookmark.zb_objset < z2->io_bookmark.zb_objset)
-		return (-1);
-	if (z1->io_bookmark.zb_objset > z2->io_bookmark.zb_objset)
-		return (1);
+	int cmp = TREE_CMP(zb1->zb_objset, zb2->zb_objset);
+	if (cmp != 0)
+		return (cmp);
 
-	if (z1->io_bookmark.zb_object < z2->io_bookmark.zb_object)
-		return (-1);
-	if (z1->io_bookmark.zb_object > z2->io_bookmark.zb_object)
-		return (1);
+	cmp = TREE_CMP(zb1->zb_object, zb2->zb_object);
+	if (cmp != 0)
+		return (cmp);
 
-	if (z1->io_bookmark.zb_level < z2->io_bookmark.zb_level)
-		return (-1);
-	if (z1->io_bookmark.zb_level > z2->io_bookmark.zb_level)
-		return (1);
+	cmp = TREE_CMP(zb1->zb_level, zb2->zb_level);
+	if (cmp != 0)
+		return (cmp);
 
-	if (z1->io_bookmark.zb_blkid < z2->io_bookmark.zb_blkid)
-		return (-1);
-	if (z1->io_bookmark.zb_blkid > z2->io_bookmark.zb_blkid)
-		return (1);
+	cmp = TREE_CMP(zb1->zb_blkid, zb2->zb_blkid);
+	if (cmp != 0)
+		return (cmp);
 
-	if (z1 < z2)
-		return (-1);
-	if (z1 > z2)
-		return (1);
-
-	return (0);
+	return (TREE_PCMP(z1, z2));
 }
 
 /*
@@ -974,7 +959,7 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 	    offsetof(zio_link_t, zl_parent_node));
 	list_create(&zio->io_child_list, sizeof (zio_link_t),
 	    offsetof(zio_link_t, zl_child_node));
-	metaslab_trace_init(&zio->io_alloc_list);
+	metaslab_trace_init(ZIO_ALLOC_LIST(zio));
 
 	if (vd != NULL)
 		zio->io_child_type = ZIO_CHILD_VDEV;
@@ -1045,7 +1030,7 @@ zio_create(zio_t *pio, spa_t *spa, uint64_t txg, const blkptr_t *bp,
 void
 zio_destroy(zio_t *zio)
 {
-	metaslab_trace_fini(&zio->io_alloc_list);
+	metaslab_trace_fini(ZIO_ALLOC_LIST(zio));
 	list_destroy(&zio->io_parent_list);
 	list_destroy(&zio->io_child_list);
 	mutex_destroy(&zio->io_lock);
@@ -1669,9 +1654,11 @@ zio_vdev_child_io(zio_t *pio, blkptr_t *bp, vdev_t *vd, uint64_t offset,
 
 	/*
 	 * If we've decided to do a repair, the write is not speculative --
-	 * even if the original read was.
+	 * even if the original read was. Rebuild is an exception since we
+	 * cannot always ensure its data integrity.
 	 */
-	if (flags & ZIO_FLAG_IO_REPAIR)
+	if ((flags & ZIO_FLAG_IO_REPAIR) &&
+	    pio->io_priority != ZIO_PRIORITY_REBUILD)
 		flags &= ~ZIO_FLAG_SPECULATIVE;
 
 	/*
@@ -1681,10 +1668,10 @@ zio_vdev_child_io(zio_t *pio, blkptr_t *bp, vdev_t *vd, uint64_t offset,
 	 * have already processed the original allocating I/O.
 	 */
 	if (flags & ZIO_FLAG_ALLOC_THROTTLED &&
-	    (vd != vd->vdev_top || (flags & ZIO_FLAG_IO_RETRY))) {
+	    (vd != vd->vdev_top || (flags & ZIO_FLAG_IO_RETRY)) &&
+	    type == ZIO_TYPE_WRITE) {
 		ASSERT(pio->io_metaslab_class != NULL);
 		ASSERT(pio->io_metaslab_class->mc_alloc_throttle_enabled);
-		ASSERT(type == ZIO_TYPE_WRITE);
 		ASSERT(priority == ZIO_PRIORITY_ASYNC_WRITE);
 		ASSERT(!(flags & ZIO_FLAG_IO_REPAIR));
 		ASSERT(!(pio->io_flags & ZIO_FLAG_IO_REWRITE) ||
@@ -1735,6 +1722,15 @@ zio_flush(zio_t *pio, vdev_t *vd)
 		return;
 
 	if (vd->vdev_children == 0) {
+		/*
+		 * A non-concrete vdev (a hole or indirect vdev left behind
+		 * by removing a log or data device) has no leaf device to
+		 * flush.  Skip it; issuing a flush to an indirect vdev would
+		 * trip the ZIO_TYPE_WRITE assertion in
+		 * vdev_indirect_io_start().
+		 */
+		if (!vdev_is_concrete(vd))
+			return;
 		zio_nowait(zio_create(pio, vd->vdev_spa, 0, NULL, NULL, 0, 0,
 		    NULL, NULL, ZIO_TYPE_FLUSH, ZIO_PRIORITY_NOW, flags, vd, 0,
 		    NULL, ZIO_STAGE_OPEN, ZIO_FLUSH_PIPELINE));
@@ -2135,7 +2131,12 @@ zio_free_bp_init(zio_t *zio)
 
 	if (zio->io_child_type == ZIO_CHILD_LOGICAL) {
 		if (BP_GET_DEDUP(bp))
-			zio->io_pipeline = ZIO_DDT_FREE_PIPELINE;
+			/*
+			 * Keep the gang stages zio_create() added: if
+			 * zio_ddt_free() falls back to a plain free, they
+			 * free the gang members along with the header.
+			 */
+			zio->io_pipeline |= ZIO_DDT_FREE_PIPELINE;
 	}
 
 	ASSERT3P(zio->io_bp, ==, &zio->io_bp_copy);
@@ -3196,7 +3197,7 @@ zio_write_gang_block(zio_t *pio, metaslab_class_t *mc)
 	uint64_t candidate = gangblocksize;
 	error = metaslab_alloc_range(spa, mc, gangblocksize, gangblocksize,
 	    bp, gbh_copies, txg, pio == gio ? NULL : gio->io_bp, flags,
-	    &pio->io_alloc_list, pio->io_allocator, pio, &candidate);
+	    ZIO_ALLOC_LIST(pio), pio->io_allocator, pio, &candidate);
 	if (error) {
 		pio->io_error = error;
 		return (pio);
@@ -3287,7 +3288,7 @@ zio_write_gang_block(zio_t *pio, metaslab_class_t *mc)
 		resid -= psize;
 		zio_inherit_allocator(zio, cio);
 		if (allocated) {
-			metaslab_trace_move(&cio_list, &cio->io_alloc_list);
+			metaslab_trace_move(&cio_list, ZIO_ALLOC_LIST(cio));
 			metaslab_group_alloc_increment_all(spa,
 			    &cio->io_bp_orig, zio->io_allocator, flags, psize,
 			    cio);
@@ -3592,16 +3593,26 @@ zio_ddt_collision(zio_t *zio, ddt_t *ddt, ddt_entry_t *dde)
 		if (dde->dde_io == NULL)
 			continue;
 
+		/*
+		 * Lock dde_io to prevent the lead zio from completing
+		 * and freeing its ABD while we compare against it.
+		 */
+		mutex_enter(&dde->dde_io->dde_io_lock);
 		zio_t *lio = dde->dde_io->dde_lead_zio[p];
-		if (lio == NULL)
+		if (lio == NULL) {
+			mutex_exit(&dde->dde_io->dde_io_lock);
 			continue;
-
-		if (do_raw)
-			return (lio->io_size != zio->io_size ||
-			    abd_cmp(zio->io_abd, lio->io_abd) != 0);
-
-		return (lio->io_orig_size != zio->io_orig_size ||
-		    abd_cmp(zio->io_orig_abd, lio->io_orig_abd) != 0);
+		}
+		boolean_t collision;
+		if (do_raw) {
+			collision = lio->io_size != zio->io_size ||
+			    abd_cmp(zio->io_abd, lio->io_abd) != 0;
+		} else {
+			collision = lio->io_orig_size != zio->io_orig_size ||
+			    abd_cmp(zio->io_orig_abd, lio->io_orig_abd) != 0;
+		}
+		mutex_exit(&dde->dde_io->dde_io_lock);
+		return (collision);
 	}
 
 	for (int p = 0; p < DDT_NPHYS(ddt); p++) {
@@ -3835,7 +3846,6 @@ zio_ddt_write(zio_t *zio)
 
 	int p = DDT_PHYS_FOR_COPIES(ddt, zp->zp_copies);
 	ddt_phys_variant_t v = DDT_PHYS_VARIANT(ddt, p);
-	ddt_univ_phys_t *ddp = dde->dde_phys;
 
 	/*
 	 * In the common cases, at this point we have a regular BP with no
@@ -3866,14 +3876,6 @@ zio_ddt_write(zio_t *zio)
 	 * end of the chain and letting the sequence play out.
 	 */
 
-	/*
-	 * Number of DVAs in the DDT entry. If the BP is encrypted we ignore
-	 * the third one as normal.
-	 */
-	int have_dvas = ddt_phys_dva_count(ddp, v, BP_IS_ENCRYPTED(bp));
-	IMPLY(have_dvas == 0, ddt_phys_birth(ddp, v) == 0);
-	boolean_t is_ganged = ddt_phys_is_gang(ddp, v);
-
 	/* Number of DVAs requested by the IO. */
 	uint8_t need_dvas = zp->zp_copies;
 	/* Number of DVAs in outstanding writes for this dde. */
@@ -3887,6 +3889,21 @@ zio_ddt_write(zio_t *zio)
 	ddt_entry_io_t *dde_io = dde->dde_io;
 	if (dde_io != NULL)
 		mutex_enter(&dde_io->dde_io_lock);
+
+	/*
+	 * Number of DVAs in the DDT entry. If the BP is encrypted we ignore
+	 * the third one as normal.
+	 *
+	 * Must be computed after taking dde_io_lock (if held) to avoid
+	 * racing with ddt_phys_unextend() in zio_ddt_child_write_done()
+	 * error path, which can zero DVAs under dde_io_lock. Without the
+	 * lock, a stale have_dvas causes ddt_bp_fill() to copy a zeroed
+	 * DVA into the BP, producing a hole that reads back as zeros.
+	 */
+	ddt_univ_phys_t *ddp = dde->dde_phys;
+	int have_dvas = ddt_phys_dva_count(ddp, v, BP_IS_ENCRYPTED(bp));
+	IMPLY(have_dvas == 0, ddt_phys_birth(ddp, v) == 0);
+	boolean_t is_ganged = ddt_phys_is_gang(ddp, v);
 
 	if (dde_io == NULL || dde_io->dde_lead_zio[p] == NULL) {
 		/*
@@ -4161,26 +4178,48 @@ zio_ddt_free(zio_t *zio)
 			ddt_phys_decref(dde->dde_phys, v);
 		else
 			/*
-			 * If the entry was found but the phys was not, then
-			 * this block must have been pruned from the dedup
-			 * table, and the entry refers to a later version of
-			 * this data. Therefore, the caller is trying to delete
-			 * the only stored instance of this block, and so we
-			 * need to do a normal (not dedup) free. Clear dde so
-			 * we fall into the block below.
+			 * No phys matches this BP; ddt_lookup() returned a
+			 * fresh, empty entry because the key is not in the
+			 * table at all (eg the original entry was pruned).
+			 * There is no reference to release, so we need to do
+			 * a normal (not dedup) free. Clear dde so we fall
+			 * into the block below.
 			 */
 			dde = NULL;
 	}
 	ddt_exit(ddt);
 
-	/*
-	 * When no entry was found, it must have been pruned,
-	 * so we can free it now instead of decrementing the
-	 * refcount in the DDT.
-	 */
-	if (!dde) {
+	if (dde) {
+		/*
+		 * DDT entry found and the refcount has been decremented.
+		 * Stop the pipeline — there is nothing more to do right now.
+		 */
+		zio->io_pipeline = ZIO_INTERLOCK_PIPELINE;
+	} else {
+		/*
+		 * No DDT entry; the block must have been pruned from the
+		 * table.  Clear the DEDUP bit so it is treated as a normal
+		 * block from here on.  BRT_FREE and DVA_FREE follow in the
+		 * pipeline and will handle any cloned references and the
+		 * actual block free respectively, along with the gang stages
+		 * for a gang BP.
+		 *
+		 * Only flat (FDT) tables are ever pruned, so a miss against
+		 * a traditional table means the table and the BP disagree,
+		 * which should not be possible. The plain free below is
+		 * still the best we can do for this BP, but leave a trace.
+		 */
+		if (!(ddt->ddt_flags & DDT_FLAG_FLAT)) {
+			zfs_dbgmsg("%s: no matching traditional DDT phys for "
+			    "dedup BP DVA[0]=<%llu:%llx:%llx> phys_birth=%llu; "
+			    "freeing without a refcount decrement",
+			    spa_name(spa),
+			    (u_longlong_t)DVA_GET_VDEV(&bp->blk_dva[0]),
+			    (u_longlong_t)DVA_GET_OFFSET(&bp->blk_dva[0]),
+			    (u_longlong_t)DVA_GET_ASIZE(&bp->blk_dva[0]),
+			    (u_longlong_t)BP_GET_PHYSICAL_BIRTH(bp));
+		}
 		BP_SET_DEDUP(bp, 0);
-		zio->io_pipeline |= ZIO_STAGE_DVA_FREE;
 	}
 
 	return (zio);
@@ -4345,7 +4384,7 @@ again:
 	ASSERT(ZIO_HAS_ALLOCATOR(zio));
 	error = metaslab_alloc(spa, mc, zio->io_size, bp,
 	    zio->io_prop.zp_copies, zio->io_txg, NULL, flags,
-	    &zio->io_alloc_list, zio->io_allocator, zio);
+	    ZIO_ALLOC_LIST(zio), zio->io_allocator, zio);
 
 	/*
 	 * When the dedup or special class is spilling into the normal class,
@@ -4784,11 +4823,17 @@ zio_vdev_io_start(zio_t *zio)
 		}
 		zio->io_delay = gethrtime();
 
-		if (zio_handle_device_injection(vd, zio, ENOSYS) != 0) {
+		int error = zio_handle_device_injections(vd, zio, ENOSYS,
+		    EFAULT);
+		if (error == ENOSYS || (error == EFAULT &&
+		    !(zio->io_flags & ZIO_FLAG_IO_REPAIR))) {
 			/*
 			 * "no-op" injections return success, but do no actual
-			 * work. Just return it.
+			 * work. Just return it. "io-prefail" injections are
+			 * similar, but don't return success.
 			 */
+			if (error == EFAULT)
+				zio->io_error = EIO;
 			zio_delay_interrupt(zio);
 			return (NULL);
 		}
@@ -5329,16 +5374,18 @@ zio_dio_chksum_verify_error_report(zio_t *zio)
 		 */
 		zio->io_error = SET_ERROR(EIO);
 		/*
-		 * Report dio_verify_wr ZED event.
+		 * Report dio_verify_wr ZED event, rate limited.
 		 */
-		(void) zfs_ereport_post(FM_EREPORT_ZFS_DIO_VERIFY_WR,
-		    zio->io_spa,  zio->io_vd, &zio->io_bookmark, zio, 0);
+		if (zfs_ratelimit(&zio->io_vd->vdev_dio_verify_rl))
+			(void) zfs_ereport_post(FM_EREPORT_ZFS_DIO_VERIFY_WR,
+			    zio->io_spa, zio->io_vd, &zio->io_bookmark, zio, 0);
 	} else {
 		/*
-		 * Report dio_verify_rd ZED event.
+		 * Report dio_verify_rd ZED event, rate limited.
 		 */
-		(void) zfs_ereport_post(FM_EREPORT_ZFS_DIO_VERIFY_RD,
-		    zio->io_spa, zio->io_vd, &zio->io_bookmark, zio, 0);
+		if (zfs_ratelimit(&zio->io_vd->vdev_dio_verify_rl))
+			(void) zfs_ereport_post(FM_EREPORT_ZFS_DIO_VERIFY_RD,
+			    zio->io_spa, zio->io_vd, &zio->io_bookmark, zio, 0);
 	}
 }
 
@@ -5518,6 +5565,12 @@ zio_dva_throttle_done(zio_t *zio)
 	}
 }
 
+static void
+zio_done_postread_done(zio_t *zio)
+{
+	abd_free(zio->io_abd);
+}
+
 static zio_t *
 zio_done(zio_t *zio)
 {
@@ -5603,6 +5656,18 @@ zio_done(zio_t *zio)
 	}
 
 	zio_pop_transforms(zio);	/* note: may set zio->io_error */
+
+	/*
+	 * During thorough scrub, if the dataset key is not loaded, decryption
+	 * or MAC verification fails with EACCES (spa_do_crypt_abd() and the
+	 * MAC helpers). Since the block's checksum was already successfully
+	 * verified by zio_checksum_verify() before we got here, treat it as
+	 * success and move on; this is as much as we can do without the keys
+	 * loaded.
+	 */
+	if (zio->io_error == EACCES && (zio->io_flags & ZIO_FLAG_SCRUB) &&
+	    !(zio->io_flags & ZIO_FLAG_RAW))
+		zio->io_error = 0;
 
 	vdev_stat_update(zio, psize);
 
@@ -5848,6 +5913,24 @@ zio_done(zio_t *zio)
 		zfs_ereport_free_checksum(zcr);
 	}
 
+	if (zio->io_flags & ZIO_FLAG_POSTREAD) {
+		ASSERT3U(zio->io_type, ==, ZIO_TYPE_WRITE);
+		zl = NULL;
+		zio_t *pio = zio_walk_parents(zio, &zl);
+		blkptr_t *bp = zio->io_bp;
+		abd_t *abd = abd_alloc_for_io(BP_GET_PSIZE(bp), B_FALSE);
+		zio_priority_t prio = zio->io_priority ==
+		    ZIO_PRIORITY_SYNC_WRITE ? ZIO_PRIORITY_SYNC_READ :
+		    ZIO_PRIORITY_SCRUB;
+		zio_t *cio = zio_vdev_child_io(pio, zio->io_bp, zio->io_vd,
+		    zio->io_offset, abd, zio->io_size, ZIO_TYPE_READ, prio,
+		    ZIO_FLAG_SCRUB | ZIO_FLAG_RAW | ZIO_FLAG_CANFAIL |
+		    ZIO_FLAG_RESILVER | ZIO_FLAG_DONT_PROPAGATE,
+		    zio_done_postread_done, NULL);
+		cio->io_flags &= ~ZIO_FLAG_ALLOC_THROTTLED;
+		zio_nowait(cio);
+	}
+
 	/*
 	 * It is the responsibility of the done callback to ensure that this
 	 * particular zio is no longer discoverable for adoption, and as
@@ -5900,11 +5983,11 @@ static zio_pipe_stage_t *zio_pipeline[] = {
 	zio_encrypt,
 	zio_checksum_generate,
 	zio_nop_write,
-	zio_brt_free,
 	zio_ddt_read_start,
 	zio_ddt_read_done,
 	zio_ddt_write,
 	zio_ddt_free,
+	zio_brt_free,
 	zio_gang_assemble,
 	zio_gang_issue,
 	zio_dva_throttle,
@@ -5963,6 +6046,67 @@ zbookmark_compare(uint16_t dbss1, uint8_t ibs1, uint16_t dbss2, uint8_t ibs2,
 	    zb1->zb_level == zb2->zb_level &&
 	    zb1->zb_blkid == zb2->zb_blkid)
 		return (0);
+
+	if (zb1->zb_level < 0 || zb2->zb_level < 0) {
+		/*
+		 * "Negative" levels are ZB_ROOT_LEVEL, ZB_ZIL_LEVEL or
+		 * ZB_DNODE_LEVEL, and represent some sort of auxiliary dataset
+		 * block or object. In this case, we're usually being called
+		 * from dsl_scan or dmu_traverse.
+		 *
+		 * These "levels" are more like a "type" signal, not directly
+		 * comparable, but we have to do something. So we order them in
+		 * the order we would see them during a typical scan or
+		 * traverse:
+		 *
+		 * - ZB_ROOT_LEVEL: the "top" block carrying the dataset head
+		 * - ZB_ZIL_LEVEL: the head ZIL block attached to the dataset
+		 * - ZB_DNODE_LEVEL: "virtual" position representing an
+		 *                   entire object. Sorts ahead of the true
+		 *                   data blocks for the object.
+		 * - level >= 0: data blocks
+		 *
+		 * We work through these cases from top to bottom, with
+		 * appropriate tiebreaks for each kind.
+		 */
+
+		/*
+		 * Root level wins. It shouldn't be possible for both to be the
+		 * root level in this per-dataset tree, and there's no obvious
+		 * tiebreaker, but we handle it as a defensive measure.
+		 */
+		if (zb1->zb_level == ZB_ROOT_LEVEL &&
+		    zb2->zb_level == ZB_ROOT_LEVEL)
+			return (TREE_PCMP(zb1, zb2));
+		if (zb1->zb_level == ZB_ROOT_LEVEL)
+			return (-1);
+		if (zb2->zb_level == ZB_ROOT_LEVEL)
+			return (1);
+
+		/* ZIL bookmarks have valid blkid, so the earlier one wins. */
+		if (zb1->zb_level == ZB_ZIL_LEVEL &&
+		    zb2->zb_level == ZB_ZIL_LEVEL)
+			return (TREE_CMP(zb1->zb_blkid, zb2->zb_blkid));
+		if (zb1->zb_level == ZB_ZIL_LEVEL)
+			return (-1);
+		if (zb2->zb_level == ZB_ZIL_LEVEL)
+			return (1);
+
+		/*
+		 * If we get this far, then at least one is ZB_DNODE_LEVEL, and
+		 * the other is either ZB_DNODE_LEVEL or a data block.
+		 * Regardless, the one with the lower-numbered object wins -
+		 * earler ZB_DNODE_LEVEL beats later, but data block on earlier
+		 * objects beats the virtual marker on later objects.
+		 */
+		int cmp = TREE_CMP(zb1->zb_object, zb2->zb_object);
+		if (cmp != 0)
+			return (cmp);
+
+		if (zb1->zb_level == ZB_DNODE_LEVEL)
+			return (-1);
+		return (1);
+	}
 
 	IMPLY(zb1->zb_level > 0, ibs1 >= SPA_MINBLOCKSHIFT);
 	IMPLY(zb2->zb_level > 0, ibs2 >= SPA_MINBLOCKSHIFT);

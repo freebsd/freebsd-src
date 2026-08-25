@@ -317,6 +317,14 @@ check_epoch_and_opts
 #          "$OBJTOP"/tests/sys/kqueue/libkqueue/*
 #fi
 
+# 20260427 # bc / dc test scripts no longer generated
+dir="${OBJTOP%/}"/usr.bin/gh-bc/tests
+run rm -fv "${dir}"/bc_tests.sh "${dir}"/dc_tests.sh
+
+# 20260426 # libpkgconf contains incorrect paths
+clean_obj lib/libpkgconf personality c pkgconfig:/share
+clean_obj lib/libpkgconf pkg c pkgconfig:/share
+
 # 20251219 # libkrb5profile is now internal
 for libcompat in "" $ALL_libcompats; do
 	dirprfx=${libcompat:+obj-lib${libcompat}}
@@ -334,7 +342,7 @@ fi
 
 if [ ${MACHINE} = riscv ]; then
 	# 20251031  df21a004be23  libc: scalar strrchr() in RISC-V assembly
-	clean_dep   lib/libc strrchr c
+	#clean_dep   lib/libc strrchr c
 
 	# 20251031  563efdd3bd5d  libc: scalar memchr() in RISC-V assembly
 	clean_dep   lib/libc memchr c
@@ -349,7 +357,7 @@ if [ ${MACHINE} = riscv ]; then
 	clean_dep   lib/libc memcpy c
 
 	# 20251031  5a52f0704435  libc: scalar strnlen() in RISC-V assembly
-	clean_dep   lib/libc strnlen c
+	#clean_dep   lib/libc strnlen c
 
 	# 20251031  08af0bbc9c7d  libc: scalar strchrnul() in RISC-V assembly
 	clean_dep   lib/libc strchrnul c
@@ -357,6 +365,12 @@ if [ ${MACHINE} = riscv ]; then
 	# 20251031  b5dbf3de5611  libc/riscv64: implement bcopy() and bzero() through memcpy() and memset()
 	clean_dep   lib/libc bcopy c "libc.string.bcopy.c"
 	clean_dep   lib/libc bzero c "libc.string.bzero.c"
+
+	# 20260307  2a4e3112c811  libc/riscv64: temporarily disable strnlen() implementation until a fix is developed
+	clean_dep   lib/libc strnlen S
+
+	# 20260607  4996ebdb7200  libc/riscv64: temporarily disable strrchr() implementation until a fix is developed
+	clean_dep   lib/libc strrchr S
 fi
 
 if [ ${MACHINE_ARCH} = "aarch64" ]; then

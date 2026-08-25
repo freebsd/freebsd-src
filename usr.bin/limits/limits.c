@@ -92,6 +92,7 @@ static struct {
 	  { "  kqueues%-4s          %8s", "\n",       1    },
 	  { "  umtxp%-4s            %8s", "\n",       1    },
 	  { "  pipebuf%-4s          %8s", " kB\n",    1024 },
+	  { "  vms%-4s              %8s", "\n",       1    },
       }
     },
     { "sh", "unlimited", "", " -H", " -S", "",
@@ -112,6 +113,7 @@ static struct {
 	  { "ulimit%s -k %s", ";\n",  1    },
 	  { "ulimit%s -o %s", ";\n",  1    },
 	  { "ulimit%s -y %s", ";\n",  1024 },
+	  { "ulimit%s -V %s", ";\n",  1    },
       }
     },
     { "csh", "unlimited", "", " -h", "", NULL,
@@ -244,8 +246,8 @@ static struct {
     { "swapuse",	login_getcapsize },
     { "kqueues",	login_getcapnum  },
     { "umtxp",		login_getcapnum  },
-    { "pipebuf",	login_getcapnum  },
-    { "vmms",		login_getcapnum  },
+    { "pipebuf",	login_getcapsize },
+    { "vms",		login_getcapnum  },
 };
 
 _Static_assert(nitems(resources) == RLIM_NLIMITS,

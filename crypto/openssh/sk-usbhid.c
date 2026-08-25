@@ -1,4 +1,4 @@
-/* $OpenBSD: sk-usbhid.c,v 1.47 2024/12/03 08:31:49 djm Exp $ */
+/* $OpenBSD: sk-usbhid.c,v 1.49 2026/06/01 05:49:20 djm Exp $ */
 /*
  * Copyright (c) 2019 Markus Friedl
  * Copyright (c) 2020 Pedro Martelletto
@@ -20,9 +20,7 @@
 
 #ifdef ENABLE_SK_INTERNAL
 
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -49,6 +47,7 @@
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
 #include <openssl/evp.h>
+#include "openbsd-compat/openssl-compat.h"
 #endif /* WITH_OPENSSL */
 
 #include <fido.h>
@@ -636,8 +635,8 @@ pack_public_key_ecdsa(const fido_cred_t *cred,
 		skdebug(__func__, "BN_bin2bn failed");
 		goto out;
 	}
-	if (EC_POINT_set_affine_coordinates_GFp(g, q, x, y, NULL) != 1) {
-		skdebug(__func__, "EC_POINT_set_affine_coordinates_GFp failed");
+	if (EC_POINT_set_affine_coordinates(g, q, x, y, NULL) != 1) {
+		skdebug(__func__, "EC_POINT_set_affine_coordinates failed");
 		goto out;
 	}
 	response->public_key_len = EC_POINT_point2oct(g, q,
@@ -1263,6 +1262,7 @@ read_rks(struct sk_usbhid *sk, const char *pin,
     struct sk_resident_key ***rksp, size_t *nrksp)
 {
 	int ret = SSH_SK_ERR_GENERAL, r = -1, internal_uv;
+	uint32_t alg;
 	fido_credman_metadata_t *metadata = NULL;
 	fido_credman_rp_t *rp = NULL;
 	fido_credman_rk_t *rk = NULL;
@@ -1359,6 +1359,20 @@ read_rks(struct sk_usbhid *sk, const char *pin,
 			    user_id_len, j, fido_cred_type(cred),
 			    fido_cred_flags(cred), fido_cred_prot(cred));
 
+			/* Determine key algorithm */
+			switch (fido_cred_type(cred)) {
+			case COSE_ES256:
+				alg = SSH_SK_ECDSA;
+				break;
+			case COSE_EDDSA:
+				alg = SSH_SK_ED25519;
+				break;
+			default:
+				skdebug(__func__, "unsupported key type %d",
+				    fido_cred_type(cred));
+				continue;
+			}
+
 			/* build response entry */
 			if ((srk = calloc(1, sizeof(*srk))) == NULL ||
 			    (srk->key.key_handle = calloc(1,
@@ -1370,25 +1384,13 @@ read_rks(struct sk_usbhid *sk, const char *pin,
 				goto out;
 			}
 
+			srk->alg = alg;
 			srk->key.key_handle_len = fido_cred_id_len(cred);
 			memcpy(srk->key.key_handle, fido_cred_id_ptr(cred),
 			    srk->key.key_handle_len);
 			srk->user_id_len = user_id_len;
 			if (srk->user_id_len != 0)
 				memcpy(srk->user_id, user_id, srk->user_id_len);
-
-			switch (fido_cred_type(cred)) {
-			case COSE_ES256:
-				srk->alg = SSH_SK_ECDSA;
-				break;
-			case COSE_EDDSA:
-				srk->alg = SSH_SK_ED25519;
-				break;
-			default:
-				skdebug(__func__, "unsupported key type %d",
-				    fido_cred_type(cred));
-				goto out; /* XXX free rk and continue */
-			}
 
 			if (fido_cred_prot(cred) == FIDO_CRED_PROT_UV_REQUIRED
 			    && internal_uv == -1)

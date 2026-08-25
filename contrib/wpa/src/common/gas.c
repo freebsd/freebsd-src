@@ -79,6 +79,12 @@ struct wpabuf *
 gas_build_comeback_resp(u8 dialog_token, u16 status_code, u8 frag_id, u8 more,
 			u16 comeback_delay, size_t size)
 {
+	if (frag_id > 127) {
+		wpa_printf(MSG_INFO,
+			   "GAS: Invalid frag_id=%u - cannot build comeback response",
+			   frag_id);
+		return NULL;
+	}
 	return gas_build_resp(WLAN_PA_GAS_COMEBACK_RESP, dialog_token,
 			      status_code, frag_id, more, comeback_delay,
 			      size);

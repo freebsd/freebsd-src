@@ -98,10 +98,6 @@ struct genl_ctrl_op {
 	uint32_t id;
 	uint32_t flags;
 };
-struct genl_ctrl_ops {
-	uint32_t num_ops;
-	struct genl_ctrl_op **ops;
-};
 static struct snl_attr_parser nla_p_getops[] = {
 #define _OUT(_field)	offsetof(struct genl_ctrl_op, _field)
 	{
@@ -122,10 +118,6 @@ SNL_DECLARE_ATTR_PARSER_EXT(genl_ctrl_op_parser, sizeof(struct genl_ctrl_op),
 struct genl_mcast_group {
 	uint32_t id;
 	const char *name;
-};
-struct genl_mcast_groups {
-	uint32_t num_groups;
-	struct genl_mcast_group **groups;
 };
 static struct snl_attr_parser nla_p_getmc[] = {
 #define	_OUT(_field)	offsetof(struct genl_mcast_group, _field)
@@ -150,8 +142,8 @@ struct genl_family {
 	uint32_t version;
 	uint32_t hdrsize;
 	uint32_t max_attr;
-	struct genl_mcast_groups mcast_groups;
-	struct genl_ctrl_ops ops;
+	struct snl_parray mcast_groups;
+	struct snl_parray ops;
 };
 
 static struct snl_attr_parser nla_p_getfamily[] = {
@@ -208,19 +200,21 @@ static struct op_capability {
 };
 
 static void
-dump_operations(struct genl_ctrl_ops *ops)
+dump_operations(struct snl_parray *ops)
 {
-	if (ops->num_ops == 0)
+	struct genl_ctrl_op *op;
+
+	if (ops->count == 0)
 		return;
 	printf("\tsupported operations: \n");
-	for (uint32_t i = 0; i < ops->num_ops; i++) {
+	for (uint32_t i = 0; i < ops->count; i++) {
 		bool p = true;
 
+		op = ops->items[i];
 		printf("\t  - ID: %#02x, Capabilities: %#02x",
-		    ops->ops[i]->id,
-		    ops->ops[i]->flags);
+		    op->id, op->flags);
 		for (size_t j = 0; j < nitems(op_caps); j++)
-			if ((ops->ops[i]->flags & op_caps[j].flag) ==
+			if ((op->flags & op_caps[j].flag) ==
 			    op_caps[j].flag) {
 				printf("%s%s", p ? " (" : "; ",
 				    op_caps[j].str);
@@ -231,15 +225,18 @@ dump_operations(struct genl_ctrl_ops *ops)
 }
 
 static void
-dump_mcast_groups(struct genl_mcast_groups *mcast_groups)
+dump_mcast_groups(struct snl_parray *mcast_groups)
 {
-	if (mcast_groups->num_groups == 0)
+	struct genl_mcast_group *group;
+
+	if (mcast_groups->count == 0)
 		return;
 	printf("\tmulticast groups: \n");
-	for (uint32_t i = 0; i < mcast_groups->num_groups; i++)
+	for (uint32_t i = 0; i < mcast_groups->count; i++) {
+		group = mcast_groups->items[i];
 		printf("\t  - ID: %#02x, Name: %s\n",
-		    mcast_groups->groups[i]->id,
-		    mcast_groups->groups[i]->name);
+		    group->id, group->name);
+	}
 }
 
 static void
@@ -298,9 +295,13 @@ static struct genl_family attrs;
 const char *
 group_name(uint32_t id)
 {
-	for (u_int i = 0; i < attrs.mcast_groups.num_groups; i++)
-		if (attrs.mcast_groups.groups[i]->id == id)
-			return (attrs.mcast_groups.groups[i]->name);
+	struct genl_mcast_group *group;
+
+	for (u_int i = 0; i < attrs.mcast_groups.count; i++) {
+		group = attrs.mcast_groups.items[i];
+		if (group->id == id)
+			return (group->name);
+	}
 	return ("???");
 }
 
@@ -340,14 +341,16 @@ monitor_mcast(int argc, char **argv)
 
 	if (argc == 1)
 		all = true;
-	for (u_int i = 0; i < attrs.mcast_groups.num_groups; i++) {
+	for (u_int i = 0; i < attrs.mcast_groups.count; i++) {
+		struct genl_mcast_group *group;
+
+		group = attrs.mcast_groups.items[i];
 		if (all ||
-		    strcmp(attrs.mcast_groups.groups[i]->name, argv[1]) == 0) {
+		    strcmp(group->name, argv[1]) == 0) {
 			found = true;
 			if (setsockopt(ss.fd, SOL_NETLINK,
 			    NETLINK_ADD_MEMBERSHIP,
-			    &attrs.mcast_groups.groups[i]->id,
-			    sizeof(attrs.mcast_groups.groups[i]->id))
+			    &group->id, sizeof(group->id))
 			    == -1)
 				err(EXIT_FAILURE, "Cannot subscribe to command "
 				    "notify");

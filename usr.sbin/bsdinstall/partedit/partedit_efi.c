@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
  * Copyright (C) 2016 Cavium Inc.
  * All rights reserved.
  *

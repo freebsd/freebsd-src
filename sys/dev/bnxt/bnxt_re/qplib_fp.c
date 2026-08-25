@@ -1496,8 +1496,6 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	} else if (rc) {
 		return rc;
 	}
-	if (qp->state == CMDQ_MODIFY_QP_NEW_STATE_RTR)
-		qp->lag_src_mac = be32_to_cpu(resp.lag_src_mac);
 
 	if (ppp_requested)
 		qp->ppp.st_idx_en = resp.pingpong_push_state_index_enabled;

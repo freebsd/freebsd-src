@@ -236,7 +236,7 @@ static int __read_mostly sched_slice = 10;	/* reset during boot. */
 static int __read_mostly sched_slice_min = 1;	/* reset during boot. */
 #ifdef PREEMPTION
 #ifdef FULL_PREEMPTION
-static int __read_mostly preempt_thresh = PRI_MAX_IDLE;
+static int __read_mostly preempt_thresh = PRI_MAX_IDLE + 1;
 #else
 static int __read_mostly preempt_thresh = PRI_MIN_KERN;
 #endif
@@ -473,7 +473,7 @@ sched_shouldpreempt(int pri, int cpri, int remote)
 	/*
 	 * Preempt if we exceed the threshold.
 	 */
-	if (pri <= preempt_thresh)
+	if (pri < preempt_thresh)
 		return (1);
 	/*
 	 * If we're interactive or better and there is non-interactive
@@ -482,6 +482,17 @@ sched_shouldpreempt(int pri, int cpri, int remote)
 	if (remote && pri <= PRI_MAX_INTERACT && cpri > PRI_MAX_INTERACT)
 		return (1);
 	return (0);
+}
+
+static inline int
+normalize_ts_off(int offset)
+{
+	/*
+	 * Adding RQ_TS_POL_MODULO before taking the modulo is to ensure the
+	 * dividend is positive (we want a positive result).
+	 */
+	MPASS(offset >= -RQ_TS_POL_MODULO);
+	return ((offset + RQ_TS_POL_MODULO) % RQ_TS_POL_MODULO);
 }
 
 /*
@@ -517,18 +528,34 @@ tdq_runq_add(struct tdq *tdq, struct thread *td, int flags)
 			/* Current queue from which processes are being run. */
 			idx = tdq->tdq_ts_deq_off;
 		else {
-			idx = (RQ_PRI_TO_QUEUE_IDX(pri) - RQ_TS_POL_MIN +
-			    tdq->tdq_ts_off) % RQ_TS_POL_MODULO;
+			idx = normalize_ts_off(
+			    /* Offset corresponding to priority. */
+			    RQ_PRI_TO_QUEUE_IDX(pri) - RQ_TS_POL_MIN +
+			    /* Insertion offset. */
+			    tdq->tdq_ts_off);
 			/*
-			 * We avoid enqueuing low priority threads in the queue
-			 * that we are still draining, effectively shortening
-			 * the runqueue by one queue.
+			 * We avoid enqueuing low priority threads in the queues
+			 * we still have to drain.  This effectively shortens
+			 * the runqueue by a few queues (see update of
+			 * 'tdq_ts_deq_off' in sched_clock()).
+			 *
+			 * The expressions that include differences below are
+			 * measuring the "distance" from the dequeue offset to
+			 * either 'idx' or the insertion offset modulo
+			 * RQ_TS_POL_MODULO.  Thanks to the arithmetic operators
+			 * always performing the usual arithmetic conversions,
+			 * all operands are promoted to integers, which is
+			 * necessary to accomodate corner cases (else
+			 * we would have to be conditional on whether the first
+			 * term is greater or lower than the second, in the
+			 * second case correcting the result with UCHAR_MAX %
+			 * RQ_TS_POL_MODULO).
 			 */
 			if (tdq->tdq_ts_deq_off != tdq->tdq_ts_off &&
-			    idx == tdq->tdq_ts_deq_off)
-				/* Ensure the dividend is positive. */
-				idx = (idx - 1 + RQ_TS_POL_MODULO) %
-				    RQ_TS_POL_MODULO;
+			    normalize_ts_off(idx - tdq->tdq_ts_deq_off) <
+			    normalize_ts_off(tdq->tdq_ts_off -
+			    tdq->tdq_ts_deq_off))
+				idx = normalize_ts_off(tdq->tdq_ts_deq_off - 1);
 		}
 		/* Absolute queue index. */
 		idx += RQ_TS_POL_MIN;
@@ -1760,7 +1787,7 @@ sched_priority(struct thread *td)
 	} else {
 		const struct td_sched *const ts = td_get_sched(td);
 		const u_int run = SCHED_TICK_RUN_SHIFTED(ts);
-		const u_int run_unshifted __unused = (run +
+		const u_int run_unshifted __diagused = (run +
 		    (1 << SCHED_TICK_SHIFT) / 2) >> SCHED_TICK_SHIFT;
 		const u_int len = SCHED_TICK_LENGTH(ts);
 		const u_int nice_pri_off = SCHED_PRI_NICE(nice);
@@ -2721,7 +2748,7 @@ sched_ule_clock(struct thread *td, int cnt)
 	if (tdq->tdq_ts_off == tdq->tdq_ts_deq_off) {
 		tdq->tdq_ts_ticks += cnt;
 		tdq->tdq_ts_off = (tdq->tdq_ts_off + 2 * cnt -
-		    tdq-> tdq_ts_ticks / 4) % RQ_TS_POL_MODULO;
+		    tdq->tdq_ts_ticks / 4) % RQ_TS_POL_MODULO;
 		tdq->tdq_ts_ticks %= 4;
 		tdq_advance_ts_deq_off(tdq, false);
 	}
@@ -3321,12 +3348,6 @@ sched_ule_schedcpu(void)
 {
 }
 
-static bool
-sched_ule_do_timer_accounting(void)
-{
-	return (true);
-}
-
 #ifdef SMP
 static int
 sched_ule_find_child_with_core(int cpu, struct cpu_group *grp)
@@ -3436,7 +3457,6 @@ struct sched_instance sched_ule_instance = {
 	SLOT(sizeof_thread),
 	SLOT(tdname),
 	SLOT(clear_tdname),
-	SLOT(do_timer_accounting),
 	SLOT(find_l2_neighbor),
 	SLOT(init),
 	SLOT(init_ap),

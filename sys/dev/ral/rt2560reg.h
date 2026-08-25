@@ -224,7 +224,7 @@ struct rt2560_tx_desc {
 	uint8_t		plcp_length_hi;
 	uint32_t	iv;
 	uint32_t	eiv;
-	uint8_t		key[IEEE80211_KEYBUF_SIZE];
+	uint8_t		key[IEEE80211_KEYBUF_128_SIZE]; /* XXX hardware */
 	uint32_t	reserved2[2];
 } __packed;
 
@@ -251,7 +251,7 @@ struct rt2560_rx_desc {
 	uint8_t		ta[IEEE80211_ADDR_LEN];
 	uint32_t	iv;
 	uint32_t	eiv;
-	uint8_t		key[IEEE80211_KEYBUF_SIZE];
+	uint8_t		key[IEEE80211_KEYBUF_128_SIZE]; /* XXX hardware */
 	uint32_t	reserved[2];
 } __packed;
 

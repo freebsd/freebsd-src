@@ -86,6 +86,7 @@ bus_get_device_path_t	ofw_bus_gen_get_device_path;
 
 /* Routines for processing firmware interrupt maps */
 void	ofw_bus_setup_iinfo(phandle_t, struct ofw_bus_iinfo *, int);
+void	ofw_bus_destroy_iinfo(struct ofw_bus_iinfo *);
 int	ofw_bus_lookup_imap(phandle_t, struct ofw_bus_iinfo *, void *, int,
 	    void *, int, void *, int, phandle_t *);
 int	ofw_bus_search_intrmap(void *, int, void *, int, void *, int, void *,

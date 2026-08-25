@@ -498,7 +498,8 @@ rk817_attach(device_t dev)
 	sc->rtc_regs.months = RK817_RTC_MONTHS;
 	sc->rtc_regs.months_mask = RK817_RTC_MONTHS_MASK;
 	sc->rtc_regs.years = RK817_RTC_YEARS;
-	sc->rtc_regs.weeks = RK817_RTC_WEEKS_MASK;
+	sc->rtc_regs.weeks = RK817_RTC_WEEKS;
+	sc->rtc_regs.weeks_mask = RK817_RTC_WEEKS_MASK;
 	sc->rtc_regs.ctrl = RK817_RTC_CTRL;
 	sc->rtc_regs.ctrl_stop_mask = RK817_RTC_CTRL_STOP;
 	sc->rtc_regs.ctrl_ampm_mask = RK817_RTC_AMPM_MODE;

@@ -2187,9 +2187,10 @@ cam_periph_devctl_notify(union ccb *ccb)
 		struct nvme_command *cmd = &n->cmd;
 
 		// XXX Likely should be nvme_cmd_sbuf
-		sbuf_printf(&sb, "opc=\"%02x\" fuse=\"%02x\" cid=\"%04x\" "
+		sbuf_printf(&sb, "cmdset=\"%s\" opc=\"%02x\" fuse=\"%02x\" cid=\"%04x\" "
 		    "nsid=\"%08x\" cdw10=\"%08x\" cdw11=\"%08x\" cdw12=\"%08x\" "
 		    "cdw13=\"%08x\" cdw14=\"%08x\" cdw15=\"%08x\" ",
+		    ccb->ccb_h.func_code == XPT_NVME_ADMIN ? "admin" : "io",
 		    cmd->opc, cmd->fuse, cmd->cid, cmd->nsid, cmd->cdw10,
 		    cmd->cdw11, cmd->cdw12, cmd->cdw13, cmd->cdw14, cmd->cdw15);
 		break;

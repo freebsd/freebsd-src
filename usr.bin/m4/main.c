@@ -86,7 +86,7 @@ int maxout;
 FILE *active;			/* active output file pointer  */
 int ilevel = 0;			/* input file stack pointer    */
 int oindex = 0;			/* diversion index..	       */
-const char *null = "";                /* as it says.. just a null..  */
+const char *null = "";		/* as it says.. just a null..  */
 char **m4wraps = NULL;		/* m4wraps array.	       */
 int maxwraps = 0;		/* size of m4wraps array       */
 int wrapindex = 0;		/* current offset in m4wraps   */
@@ -105,53 +105,54 @@ struct keyblk {
 };
 
 static struct keyblk keywrds[] = {	/* m4 keywords to be installed */
-	{ "include",      INCLTYPE },
-	{ "sinclude",     SINCTYPE },
-	{ "define",       DEFITYPE },
+	{ "include",      INCLUDETYPE },
+	{ "sinclude",     SINCLUDETYPE },
+	{ "define",       DEFINETYPE },
 	{ "defn",         DEFNTYPE },
-	{ "divert",       DIVRTYPE | NOARGS },
-	{ "expr",         EXPRTYPE },
-	{ "eval",         EXPRTYPE },
-	{ "substr",       SUBSTYPE },
-	{ "ifelse",       IFELTYPE },
-	{ "ifdef",        IFDFTYPE },
-	{ "len",          LENGTYPE },
+	{ "divert",       DIVERTTYPE | NOARGS },
+	{ "eval",         EVALTYPE },
+	{ "expr",         EVALTYPE },
+	{ "substr",       SUBSTRTYPE },
+	{ "ifelse",       IFELSETYPE },
+	{ "ifdef",        IFDEFTYPE },
+	{ "len",          LENTYPE },
 	{ "incr",         INCRTYPE },
 	{ "decr",         DECRTYPE },
-	{ "dnl",          DNLNTYPE | NOARGS },
-	{ "changequote",  CHNQTYPE | NOARGS },
-	{ "changecom",    CHNCTYPE | NOARGS },
-	{ "index",        INDXTYPE },
+	{ "dnl",          DNLTYPE | NOARGS },
+	{ "changequote",  CHANGEQUOTETYPE | NOARGS },
+	{ "changecom",    CHANGECOMTYPE | NOARGS },
+	{ "index",        INDEXTYPE },
 #ifdef EXTENDED
-	{ "paste",        PASTTYPE },
-	{ "spaste",       SPASTYPE },
+	{ "paste",        PASTETYPE },
+	{ "spaste",       SPASTETYPE },
 	/* Newer extensions, needed to handle gnu-m4 scripts */
 	{ "indir",        INDIRTYPE},
 	{ "builtin",      BUILTINTYPE},
-	{ "patsubst",	  PATSTYPE},
+	{ "patsubst",	  PATSUBSTTYPE},
 	{ "regexp",	  REGEXPTYPE},
 	{ "esyscmd",	  ESYSCMDTYPE},
 	{ "__file__",	  FILENAMETYPE | NOARGS},
 	{ "__line__",	  LINETYPE | NOARGS},
 #endif
-	{ "popdef",       POPDTYPE },
-	{ "pushdef",      PUSDTYPE },
-	{ "dumpdef",      DUMPTYPE | NOARGS },
-	{ "shift",        SHIFTYPE | NOARGS },
-	{ "translit",     TRNLTYPE },
-	{ "undefine",     UNDFTYPE },
-	{ "undivert",     UNDVTYPE | NOARGS },
-	{ "divnum",       DIVNTYPE | NOARGS },
-	{ "maketemp",     MKTMTYPE },
-	{ "mkstemp",      MKTMTYPE },
-	{ "errprint",     ERRPTYPE | NOARGS },
-	{ "m4wrap",       M4WRTYPE | NOARGS },
-	{ "m4exit",       EXITTYPE | NOARGS },
-	{ "syscmd",       SYSCTYPE },
-	{ "sysval",       SYSVTYPE | NOARGS },
+	{ "popdef",       POPDEFTYPE },
+	{ "pushdef",      PUSHDEFTYPE },
+	{ "dumpdef",      DUMPDEFTYPE | NOARGS },
+	{ "shift",        SHIFTTYPE | NOARGS },
+	{ "translit",     TRANSLITTYPE },
+	{ "undefine",     UNDEFINETYPE },
+	{ "undivert",     UNDIVERTTYPE | NOARGS },
+	{ "divnum",       DIVNUMTYPE | NOARGS },
+	{ "maketemp",     MKSTEMPTYPE },
+	{ "mkstemp",      MKSTEMPTYPE },
+	{ "errprint",     ERRPRINTTYPE | NOARGS },
+	{ "m4wrap",       M4WRAPTYPE | NOARGS },
+	{ "m4exit",       M4EXITTYPE | NOARGS },
+	{ "syscmd",       SYSCMDTYPE },
+	{ "sysval",       SYSVALTYPE | NOARGS },
 	{ "traceon",	  TRACEONTYPE | NOARGS },
 	{ "traceoff",	  TRACEOFFTYPE | NOARGS },
 
+/* Macro that expands to itself, signature of the current OS */
 	{ "unix",         SELFTYPE | NOARGS },
 };
 
@@ -387,8 +388,7 @@ macro(void)
 							CHRSAVE(l);
 					}
 				}
-			}
-			while (nlpar != 0);
+			} while (nlpar != 0);
 		} else if (sp < 0 && LOOK_AHEAD(t, scommt)) {
 			reallyoutputstr(scommt);
 

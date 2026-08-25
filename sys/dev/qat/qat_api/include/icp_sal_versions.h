@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 /**
  ***************************************************************************
  * @file icp_sal_versions.h
@@ -26,7 +26,7 @@
 
 /* Part name and number of the accelerator device  */
 #define SAL_INFO2_DRIVER_SW_VERSION_MAJ_NUMBER 3
-#define SAL_INFO2_DRIVER_SW_VERSION_MIN_NUMBER 16
+#define SAL_INFO2_DRIVER_SW_VERSION_MIN_NUMBER 17
 #define SAL_INFO2_DRIVER_SW_VERSION_PATCH_NUMBER 0
 
 /**

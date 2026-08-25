@@ -293,7 +293,7 @@ struct nfsv3_spec {
 typedef	struct nfsv3_spec	nfsv3spec;
 
 /*
- * File attributes and setable attributes. These structures cover both
+ * File attributes and settable attributes. These structures cover both
  * NFS version 2 and the version 3 protocol. Note that the union is only
  * used so that one pointer can refer to both variants. These structures
  * go out on the wire and must be densely packed, so no quad data types

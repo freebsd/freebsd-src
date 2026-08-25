@@ -1331,56 +1331,13 @@ done:
 	return (error);
 }
 
-static int
-handle_message(struct vmctx *ctx, nvlist_t *nvl)
-{
-	const char *cmd;
-	struct ipc_command **ipc_cmd;
-
-	if (!nvlist_exists_string(nvl, "cmd"))
-		return (EINVAL);
-
-	cmd = nvlist_get_string(nvl, "cmd");
-	IPC_COMMAND_FOREACH(ipc_cmd, ipc_cmd_set) {
-		if (strcmp(cmd, (*ipc_cmd)->name) == 0)
-			return ((*ipc_cmd)->handler(ctx, nvl));
-	}
-
-	return (EOPNOTSUPP);
-}
-
-/*
- * Listen for commands from bhyvectl
- */
-void *
-checkpoint_thread(void *param)
-{
-	int fd;
-	struct checkpoint_thread_info *thread_info;
-	nvlist_t *nvl;
-
-	pthread_set_name_np(pthread_self(), "checkpoint thread");
-	thread_info = (struct checkpoint_thread_info *)param;
-
-	while ((fd = accept(thread_info->socket_fd, NULL, NULL)) != -1) {
-		nvl = nvlist_recv(fd, 0);
-		if (nvl != NULL)
-			handle_message(thread_info->ctx, nvl);
-		else
-			EPRINTLN("nvlist_recv() failed: %s", strerror(errno));
-
-		close(fd);
-		nvlist_destroy(nvl);
-	}
-
-	return (NULL);
-}
-
-static int
+static nvlist_t *
 vm_do_checkpoint(struct vmctx *ctx, const nvlist_t *nvl)
 {
 	int error;
+	nvlist_t *reply;
 
+	reply = nvlist_create(0);
 	if (!nvlist_exists_string(nvl, "filename") ||
 	    !nvlist_exists_bool(nvl, "suspend") ||
 	    !nvlist_exists_descriptor(nvl, "fddir"))
@@ -1390,80 +1347,12 @@ vm_do_checkpoint(struct vmctx *ctx, const nvlist_t *nvl)
 		    nvlist_get_descriptor(nvl, "fddir"),
 		    nvlist_get_string(nvl, "filename"),
 		    nvlist_get_bool(nvl, "suspend"));
+	if (error != 0)
+		nvlist_add_string(reply, "error", strerror(error));
 
-	return (error);
+	return (reply);
 }
-IPC_COMMAND(ipc_cmd_set, checkpoint, vm_do_checkpoint);
-
-/*
- * Create the listening socket for IPC with bhyvectl
- */
-int
-init_checkpoint_thread(struct vmctx *ctx)
-{
-	struct checkpoint_thread_info *checkpoint_info = NULL;
-	struct sockaddr_un addr;
-	int socket_fd;
-	pthread_t checkpoint_pthread;
-	int err;
-#ifndef WITHOUT_CAPSICUM
-	cap_rights_t rights;
-#endif
-
-	memset(&addr, 0, sizeof(addr));
-
-	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
-	if (socket_fd < 0) {
-		EPRINTLN("Socket creation failed: %s", strerror(errno));
-		err = -1;
-		goto fail;
-	}
-
-	addr.sun_family = AF_UNIX;
-
-	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s%s",
-		 BHYVE_RUN_DIR, vm_get_name(ctx));
-	addr.sun_len = SUN_LEN(&addr);
-	unlink(addr.sun_path);
-
-	if (bind(socket_fd, (struct sockaddr *)&addr, addr.sun_len) != 0) {
-		EPRINTLN("Failed to bind socket \"%s\": %s\n",
-		    addr.sun_path, strerror(errno));
-		err = -1;
-		goto fail;
-	}
-
-	if (listen(socket_fd, 10) < 0) {
-		EPRINTLN("ipc socket listen: %s\n", strerror(errno));
-		err = errno;
-		goto fail;
-	}
-
-#ifndef WITHOUT_CAPSICUM
-	cap_rights_init(&rights, CAP_ACCEPT, CAP_READ, CAP_RECV, CAP_WRITE,
-	    CAP_SEND, CAP_GETSOCKOPT);
-
-	if (caph_rights_limit(socket_fd, &rights) == -1)
-		errx(EX_OSERR, "Unable to apply rights for sandbox");
-#endif
-	checkpoint_info = calloc(1, sizeof(*checkpoint_info));
-	checkpoint_info->ctx = ctx;
-	checkpoint_info->socket_fd = socket_fd;
-
-	err = pthread_create(&checkpoint_pthread, NULL, checkpoint_thread,
-		checkpoint_info);
-	if (err != 0)
-		goto fail;
-
-	return (0);
-fail:
-	free(checkpoint_info);
-	if (socket_fd > 0)
-		close(socket_fd);
-	unlink(addr.sun_path);
-
-	return (err);
-}
+IPC_COMMAND(checkpoint, vm_do_checkpoint);
 
 void
 vm_snapshot_buf_err(const char *bufname, const enum vm_snapshot_op op)

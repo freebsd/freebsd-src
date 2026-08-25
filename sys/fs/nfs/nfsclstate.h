@@ -162,17 +162,19 @@ struct nfscldeleg {
 	struct nfsclownerhead	nfsdl_owner;	/* locally issued state */
 	struct nfscllockownerhead nfsdl_lock;
 	nfsv4stateid_t		nfsdl_stateid;
-	struct acl_entry	nfsdl_ace;	/* Delegation ace */
 	struct nfsclclient	*nfsdl_clp;
 	struct nfsv4lock	nfsdl_rwlock;	/* for active I/O ops */
+#define nfsdl_startcopy		nfsdl_ace
+	struct acl_entry	nfsdl_ace;	/* Delegation ace */
 	struct nfscred		nfsdl_cred;	/* Cred. used for Open */
 	time_t			nfsdl_timestamp; /* used for stale cleanup */
 	u_int64_t		nfsdl_sizelimit; /* Limit for file growth */
 	u_int64_t		nfsdl_size;	/* saved copy of file size */
 	u_int64_t		nfsdl_change;	/* and change attribute */
 	struct timespec		nfsdl_modtime;	/* local modify time */
-	u_int16_t		nfsdl_fhlen;
 	u_int8_t		nfsdl_flags;
+#define nfsdl_endcopy		nfsdl_fhlen
+	u_int16_t		nfsdl_fhlen;
 	u_int8_t		nfsdl_fh[1];	/* must be last */
 };
 
@@ -281,15 +283,21 @@ struct nfscllayout {
 /*
  * Flex file layout mirror specific stuff for nfsclflayout.
  */
-struct nfsffm {
+struct nfsffs {
 	nfsv4stateid_t		st;
 	struct nfscldevinfo	*devp;
+	struct nfsfh		*fh[NFSDEV_MAXVERS];
 	char			dev[NFSX_V4DEVICEID];
 	uint32_t		eff;
 	uid_t			user;
 	gid_t			group;
-	struct nfsfh		*fh[NFSDEV_MAXVERS];
 	uint16_t		fhcnt;
+};
+
+struct nfsffm {
+	struct nfsffs		nonstriped;
+	struct nfsffs		*stripep;
+	uint16_t		stripecnt;
 };
 
 /*

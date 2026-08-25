@@ -457,8 +457,8 @@ static size_t
 tblcalc_literal(struct rofftbl *tbl, struct roffcol *col,
     const struct tbl_dat *dp, size_t mw)
 {
-	const char	*str;	/* Beginning of the first line. */
-	const char	*beg;	/* Beginning of the current line. */
+	char		*str;	/* Beginning of the first line. */
+	char		*beg;	/* Beginning of the current line. */
 	char		*end;	/* End of the current line. */
 
 	/* Widths in basic units. */

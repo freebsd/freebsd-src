@@ -134,7 +134,7 @@ load_config(const char *cfname)
 	struct cfparams opp;
 	struct cfjail *j, *tj, *wj;
 	struct cfparam *p, *vp, *tp;
-	struct cfstring *s, *vs, *ns;
+	struct cfstring *s, *vs, *ns, *cs;
 	struct cfvar *v, *vv;
 	char *ep;
 	int did_self, jseq, pgen;
@@ -246,13 +246,14 @@ load_config(const char *cfname)
 				while ((vv = STAILQ_NEXT(vv, tq)))
 					vv->pos += vs->len;
 				s->len += vs->len;
+				cs = s;
 				while ((vs = TAILQ_NEXT(vs, tq))) {
 					ns = emalloc(sizeof(struct cfstring));
 					ns->s = estrdup(vs->s);
 					ns->len = vs->len;
 					STAILQ_INIT(&ns->vars);
-					TAILQ_INSERT_AFTER(&p->val, s, ns, tq);
-					s = ns;
+					TAILQ_INSERT_AFTER(&p->val, cs, ns, tq);
+					cs = ns;
 				}
 			free_var:
 				free(v->name);
@@ -321,6 +322,7 @@ static void
 parse_config(const char *cfname, int is_stdin)
 {
 	struct cflex cflex = {.cfname = cfname, .error = 0};
+	FILE *yfp = NULL;
 	void *scanner;
 
 	yylex_init_extra(&cflex, &scanner);
@@ -328,7 +330,7 @@ parse_config(const char *cfname, int is_stdin)
 		cflex.cfname = "STDIN";
 		yyset_in(stdin, scanner);
 	} else {
-		FILE *yfp = fopen(cfname, "r");
+		yfp = fopen(cfname, "re");
 		if (!yfp)
 			err(1, "%s", cfname);
 		yyset_in(yfp, scanner);
@@ -336,6 +338,8 @@ parse_config(const char *cfname, int is_stdin)
 	if (yyparse(scanner) || cflex.error)
 		exit(1);
 	yylex_destroy(scanner);
+	if (yfp != NULL)
+		fclose(yfp);
 }
 
 /*
@@ -723,7 +727,7 @@ check_intparams(struct cfjail *j)
 		TAILQ_FOREACH(s, &j->intparams[IP_MOUNT_FSTAB]->val, tq) {
 			if (s->len == 0)
 				continue;
-			f = fopen(s->s, "r");
+			f = fopen(s->s, "re");
 			if (f == NULL) {
 				jail_warnx(j, "mount.fstab: %s: %s",
 				    s->s, strerror(errno));

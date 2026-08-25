@@ -53,3 +53,10 @@ METHOD int handle_aen {
 	void		*page;		/* Contents of the page */
 	uint32_t	page_len;	/* Length of the page */
 };
+
+#
+# is this device a storage device or not.
+#
+METHOD bool is_storage_device {
+        device_t dev;
+} default nvme_is_storage_device_default;

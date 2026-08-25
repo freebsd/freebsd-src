@@ -36,7 +36,6 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_mrouting.h"
-#include "opt_route.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -453,10 +452,9 @@ rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum)
 		info->rti_ifp = info_get_ifp(info);
 	/*
 	 * If we have source address specified, try to find it
-	 * TODO: avoid enumerating all ifas on all interfaces.
 	 */
 	if (info->rti_ifa == NULL && ifaaddr != NULL)
-		info->rti_ifa = ifa_ifwithaddr(ifaaddr);
+		info->rti_ifa = ifa_ifwithaddr_fib(ifaaddr, fibnum);
 	if ((info->rti_ifa == NULL) && ((info->rti_flags & RTF_GATEWAY) != 0) &&
 	    (gateway->sa_family != dst->sa_family))
 		return (rt_getifa_family(info, fibnum));
@@ -518,7 +516,9 @@ rt_updatemtu(struct ifnet *ifp)
 #ifdef INET6
 	uint32_t in6mtu;
 
-	in6mtu = in6_ifmtu(ifp);
+	/* For IFT_PFSYNC */
+	if (ifp->if_inet6 != NULL)
+		in6mtu = in6_ifmtu(ifp);
 #endif
 
 	for (u_int j = 0; j < rt_numfibs; j++) {

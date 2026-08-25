@@ -114,6 +114,19 @@
 #define E1000_PBA	0x01000  /* Packet Buffer Allocation - RW */
 #define E1000_PBS	0x01008  /* Packet Buffer Size */
 #define E1000_PBECCSTS	0x0100C  /* Packet Buffer ECC Status - RW */
+#define E1000_PEIND	0x01084  /* Parity and ECC Indication - RC */
+#define E1000_PEINDM	0x01088  /* Parity and ECC Indication Mask - RW */
+#define E1000_PBECCSTS_I210 0x0245C /* I210 Packet Buffer ECC Status */
+#define E1000_PBECCSTS_82575 0x0245C /* 82575 Packet Buffer ECC Status */
+#define E1000_RDHESTS_82575 0x02468 /* 82575 Rx Descriptor ECC Status */
+#define E1000_TDHESTS_82575 0x0246C /* 82575 Tx Descriptor ECC Status */
+#define E1000_SWPBECCSTS_82576 0x0305C /* Switch Packet Buffer ECC Status */
+#define E1000_IPPBECCSTS_82576 0x0B470 /* IPsec Packet Buffer ECC Status */
+#define E1000_RDHESTS_82576 0x025C0 /* Rx Descriptor Handler ECC Status */
+#define E1000_TDHESTS_82576 0x035C0 /* Tx Descriptor Handler ECC Status */
+#define E1000_PRBESTS_82576 0x05BA0 /* PCIe Retry Buffer ECC Status */
+#define E1000_PMSIXESTS_82576 0x05BA8 /* PCIe MSI-X ECC Status */
+#define E1000_PWBESTS_82576 0x05BB0 /* PCIe Write Buffer ECC Status */
 #define E1000_IOSFPC	0x00F28  /* TX corrupted data  */
 #define E1000_EEMNGCTL	0x01010  /* MNG EEprom Control */
 #define E1000_EEMNGCTL_I210	0x01010  /* i210 MNG EEprom Mode Control */
@@ -286,6 +299,7 @@
 #define E1000_TXDMAC		0x03000  /* Tx DMA Control - RW */
 #define E1000_KABGTXD		0x03004  /* AFE Band Gap Transmit Ref Data */
 #define E1000_PSRTYPE(_i)	(0x05480 + ((_i) * 4))
+#define E1000_VFPSRTYPE		0x00F0C
 #define E1000_RAL(_i)		(((_i) <= 15) ? (0x05400 + ((_i) * 8)) : \
 				 (0x054E0 + ((_i - 16) * 8)))
 #define E1000_RAH(_i)		(((_i) <= 15) ? (0x05404 + ((_i) * 8)) : \
@@ -690,8 +704,24 @@
 #define E1000_FCRTC	0x02170 /* Flow Control Rx high watermark */
 #define E1000_PCIEMISC	0x05BB8 /* PCIE misc config register */
 
-/* PCIe Parity Status Register */
-#define E1000_PCIEERRSTS	0x05BA8
+/* Memory error status registers */
+#define E1000_RPBECCSTS	0x0245C /* Rx Packet Buffer ECC Status - RW */
+#define E1000_TPBECCSTS	0x0345C /* Tx Packet Buffer ECC Status - RW */
+#define E1000_DTPARC_82580 0x03500 /* 82580 DMA Tx Parity Control - RW */
+#define E1000_DRPARC_82580 0x03504 /* 82580 DMA Rx Parity Control - RW */
+#define E1000_DDPARC_82580 0x03508 /* 82580 DMA Host Parity Control - RW */
+#define E1000_DTPARS_82580 0x03510 /* 82580 DMA Tx Parity Status - RW1C */
+#define E1000_DRPARS_82580 0x03514 /* 82580 DMA Rx Parity Status - RW1C */
+#define E1000_DDPARS_82580 0x03518 /* 82580 DMA Host Parity Status - RW1C */
+#define E1000_DTPARS	0x03F10 /* DMA Tx Parity and ECC Status - RW1C */
+#define E1000_DRPARS	0x03F14 /* DMA Rx Parity and ECC Status - RW1C */
+#define E1000_DDECCS	0x03F18 /* DMA Host ECC Status - RW1C */
+#define E1000_PCIEERRCTL_82580 0x05BA0 /* 82580 PCIe Parity Control - RW */
+#define E1000_PCIEECCCTL_82580 0x05BA4 /* 82580 PCIe ECC Control - RW */
+#define E1000_PCIEERRSTS	0x05BA8 /* PCIe Parity Status - RW1C */
+#define E1000_PCIEECCSTS 0x05BAC /* PCIe ECC Status - RW1C */
+#define E1000_LANPERRCTL_82580 0x05F54 /* 82580 LAN Parity Control - RW */
+#define E1000_LANPERRSTS 0x05F58 /* LAN Port Parity Status - RW1C */
 
 #define E1000_PROXYS	0x5F64 /* Proxying Status */
 #define E1000_PROXYFC	0x5F60 /* Proxying Filter Control */

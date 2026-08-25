@@ -2169,14 +2169,18 @@ list_table_algo(struct ip_fw_chain *ch, ip_fw3_opheader *op3,
 static int
 classify_srcdst(ipfw_insn *cmd0, uint32_t *puidx, uint8_t *ptype)
 {
-	ipfw_insn_table *cmd;
+	ipfw_insn_lookup *cmd;
 
 	/* Basic IPv4/IPv6 or u32 lookups */
-	cmd = insntod(cmd0, table);
+	cmd = insntod(cmd0, lookup);
 	*puidx = cmd->kidx;
-	switch(cmd0->arg1) {
+	switch(IPFW_LOOKUP_TYPE(cmd0)) {
 	case LOOKUP_DST_IP:
 	case LOOKUP_SRC_IP:
+	case LOOKUP_DST_IP4:
+	case LOOKUP_SRC_IP4:
+	case LOOKUP_DST_IP6:
+	case LOOKUP_SRC_IP6:
 	default:
 		/* IPv4 src/dst */
 		*ptype = IPFW_TABLE_ADDR;
@@ -2216,7 +2220,7 @@ classify_via(ipfw_insn *cmd0, uint32_t *puidx, uint8_t *ptype)
 static int
 classify_flow(ipfw_insn *cmd0, uint32_t *puidx, uint8_t *ptype)
 {
-	*puidx = insntod(cmd0, table)->kidx;
+	*puidx = insntod(cmd0, kidx)->kidx;
 	*ptype = IPFW_TABLE_FLOW;
 	return (0);
 }
@@ -2224,7 +2228,7 @@ classify_flow(ipfw_insn *cmd0, uint32_t *puidx, uint8_t *ptype)
 static int
 classify_mac_lookup(ipfw_insn *cmd0, uint32_t *puidx, uint8_t *ptype)
 {
-	*puidx = insntod(cmd0, table)->kidx;
+	*puidx = insntod(cmd0, kidx)->kidx;
 	*ptype = IPFW_TABLE_MAC;
 	return (0);
 }
@@ -2232,7 +2236,7 @@ classify_mac_lookup(ipfw_insn *cmd0, uint32_t *puidx, uint8_t *ptype)
 static void
 update_kidx(ipfw_insn *cmd0, uint32_t idx)
 {
-	insntod(cmd0, table)->kidx = idx;
+	insntod(cmd0, kidx)->kidx = idx;
 }
 
 static void
@@ -2357,6 +2361,16 @@ static struct opcode_obj_rewrite opcodes[] = {
 	},
 	{
 		.opcode = O_IP_DST_LOOKUP,
+		.etlv = IPFW_TLV_TBL_NAME,
+		.classifier = classify_srcdst,
+		.update = update_kidx,
+		.find_byname = table_findbyname,
+		.find_bykidx = table_findbykidx,
+		.create_object = create_table_compat,
+		.manage_sets = table_manage_sets,
+	},
+	{
+		.opcode = O_TABLE_LOOKUP,
 		.etlv = IPFW_TLV_TBL_NAME,
 		.classifier = classify_srcdst,
 		.update = update_kidx,

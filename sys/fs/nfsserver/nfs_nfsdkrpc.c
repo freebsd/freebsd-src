@@ -82,20 +82,24 @@ int newnfs_nfsv3_procid[NFS_V3NPROCS] = {
 
 SYSCTL_DECL(_vfs_nfsd);
 
-NFSD_VNET_DEFINE_STATIC(int, nfs_privport) = 1;
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, nfs_privport, CTLFLAG_NFSD_VNET | CTLFLAG_RWTUN,
-    &NFSD_VNET_NAME(nfs_privport), 0,
+VNET_DEFINE_STATIC(int, nfs_privport) = 1;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, nfs_privport, CTLFLAG_VNET | CTLFLAG_RWTUN,
+    &VNET_NAME(nfs_privport), 0,
     "Only allow clients using a privileged port for NFSv2, 3 and 4");
 
-NFSD_VNET_DEFINE_STATIC(int, nfs_minvers) = NFS_VER2;
+VNET_DEFINE_STATIC(int, nfs_minvers) = NFS_VER2;
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_min_nfsvers,
-    CTLFLAG_NFSD_VNET | CTLFLAG_RWTUN, &NFSD_VNET_NAME(nfs_minvers), 0,
+    CTLFLAG_VNET | CTLFLAG_RWTUN, &VNET_NAME(nfs_minvers), 0,
     "The lowest version of NFS handled by the server");
 
-NFSD_VNET_DEFINE_STATIC(int, nfs_maxvers) = NFS_VER4;
+VNET_DEFINE_STATIC(int, nfs_maxvers) = NFS_VER4;
 SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_max_nfsvers,
-    CTLFLAG_NFSD_VNET | CTLFLAG_RWTUN, &NFSD_VNET_NAME(nfs_maxvers), 0,
+    CTLFLAG_VNET | CTLFLAG_RWTUN, &VNET_NAME(nfs_maxvers), 0,
     "The highest version of NFS handled by the server");
+
+static bool nfsrv_mextpg = false;
+SYSCTL_BOOL(_vfs_nfsd, OID_AUTO, enable_mextpg, CTLFLAG_RW,
+    &nfsrv_mextpg, 0, "Enable use of M_EXTPG mbufs");
 
 static int nfs_proc(struct nfsrv_descript *, u_int32_t, SVCXPRT *xprt,
     struct nfsrvcache **);
@@ -108,13 +112,17 @@ extern volatile int nfsrv_devidcnt;
 extern struct nfsv4_opflag nfsv4_opflag[NFSV42_NOPS];
 extern int nfsd_debuglevel;
 
-NFSD_VNET_DECLARE(struct proc *, nfsd_master_proc);
+VNET_DECLARE(struct proc *, nfsd_master_proc);
 
-NFSD_VNET_DEFINE(SVCPOOL *, nfsrvd_pool);
-NFSD_VNET_DEFINE(int, nfsrv_numnfsd) = 0;
-NFSD_VNET_DEFINE(struct nfsv4lock, nfsd_suspend_lock);
+VNET_DEFINE(SVCPOOL *, nfsrvd_pool);
+VNET_DEFINE(int, nfsrv_numnfsd) = 0;
+VNET_DEFINE(struct nfsv4lock, nfsd_suspend_lock);
 
-NFSD_VNET_DEFINE_STATIC(bool, nfsrvd_inited) = false;
+VNET_DEFINE_STATIC(bool, nfsrvd_inited) = false;
+
+/* Server RDMA listen hook, set by nfsrdma at MOD_LOAD. */
+svc_rdma_listen_ftype *svc_rdma_listen = NULL;
+int nfsrvd_rdma_port = 0;
 
 /*
  * NFS server system calls
@@ -132,7 +140,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	u_int maxlen;
 #endif
 
-	NFSD_CURVNET_SET_QUIET(NFSD_TD_TO_VNET(curthread));
+	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
 	memset(&nd, 0, sizeof(nd));
 	if (rqst->rq_vers == NFS_VER2) {
 		if (rqst->rq_proc > NFSV2PROC_STATFS ||
@@ -177,7 +185,8 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	nd.nd_mreq = NULL;
 	nd.nd_cred = NULL;
 
-	if (NFSD_VNET(nfs_privport) != 0) {
+	/* xp_socket is NULL for RDMA. */
+	if (VNET(nfs_privport) != 0 && xprt->xp_socket != NULL) {
 		/* Check if source port is privileged */
 		u_short port;
 		struct sockaddr *nam = nd.nd_nam;
@@ -256,6 +265,18 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			goto out;
 		}
 
+		/*
+		 * For RDMA, ND_GSSINTEGRITY and ND_GSSPRIVACY are not
+		 * supported.
+		 */
+		if ((nd.nd_flag & (ND_GSSINTEGRITY | ND_GSSPRIVACY)) != 0 &&
+		    xprt->xp_socket == NULL) {
+			svcerr_auth(rqst, AUTH_FAILED);
+			svc_freereq(rqst);
+			m_freem(nd.nd_mrep);
+			goto out;
+		}
+
 		/* Acquire the principal name for the RPCSEC_GSS cases. */
 		if ((nd.nd_flag & (ND_NFSV4 | ND_GSS)) == (ND_NFSV4 | ND_GSS)) {
 			rcredp = NULL;
@@ -315,7 +336,23 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			if ((xprt->xp_tls & RPCTLS_FLAGS_CERTUSER) != 0)
 				nd.nd_flag |= ND_TLSCERTUSER;
 		}
-		nd.nd_maxextsiz = 16384;
+		nd.nd_maxextsiz = MBUF_PEXT_MAX_PGS * PAGE_SIZE;
+		/*
+		 * If the NIC can handle M_EXTPG mbufs, they can be used
+		 * only if the reply will not be copied into the DRC.
+		 * This implies NFSv3 over TCP and NFSv4.n, but not NFSv4.0.
+		 * (NFSv4.n will set ND_SAVEREPLY if the reply is going
+		 *  to be copied into the session slot.)
+		 * Check for TCP transport (UDP uses the DRC) and a direct
+		 * map.
+		 */
+		if ((nfsrv_mextpg || xprt->xp_extpg) && nd.nd_nam2 == NULL &&
+		    PMAP_HAS_DMAP != 0)
+			nd.nd_flag |= ND_CANEXTPG;
+
+		/* If the xprt xp_socket == NULL, this is a RDMA call. */
+		if (xprt->xp_socket == NULL)
+			nd.nd_flag |= ND_RDMA;
 #ifdef MAC
 		mac_cred_associate_nfsd(nd.nd_cred);
 #endif
@@ -331,9 +368,9 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		 * nfsv4root exports by nfsvno_v4rootexport().
 		 */
 		NFSLOCKV4ROOTMUTEX();
-		nfsv4_lock(&NFSD_VNET(nfsd_suspend_lock), 0, NULL,
+		nfsv4_lock(&VNET(nfsd_suspend_lock), 0, NULL,
 		    NFSV4ROOTLOCKMUTEXPTR, NULL);
-		nfsv4_getref(&NFSD_VNET(nfsd_suspend_lock), NULL,
+		nfsv4_getref(&VNET(nfsd_suspend_lock), NULL,
 		    NFSV4ROOTLOCKMUTEXPTR, NULL);
 		NFSUNLOCKV4ROOTMUTEX();
 
@@ -341,7 +378,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 			nd.nd_repstat = nfsvno_v4rootexport(&nd);
 			if (nd.nd_repstat != 0) {
 				NFSLOCKV4ROOTMUTEX();
-				nfsv4_relref(&NFSD_VNET(nfsd_suspend_lock));
+				nfsv4_relref(&VNET(nfsd_suspend_lock));
 				NFSUNLOCKV4ROOTMUTEX();
 				svcerr_weakauth(rqst);
 				svc_freereq(rqst);
@@ -357,7 +394,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 #endif
 		cacherep = nfs_proc(&nd, rqst->rq_xid, xprt, &rp);
 		NFSLOCKV4ROOTMUTEX();
-		nfsv4_relref(&NFSD_VNET(nfsd_suspend_lock));
+		nfsv4_relref(&VNET(nfsd_suspend_lock));
 		NFSUNLOCKV4ROOTMUTEX();
 	} else {
 		NFSMGET(nd.nd_mreq);
@@ -398,7 +435,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 
 out:
 	free(nd.nd_principal, M_TEMP);
-	NFSD_CURVNET_RESTORE();
+	CURVNET_RESTORE();
 	ast_kclear(curthread);
 	NFSEXITCODE(0);
 }
@@ -512,9 +549,9 @@ nfssvc_loss(SVCXPRT *xprt)
 
 	ack = 0;
 	SVC_ACK(xprt, &ack);
-	NFSD_CURVNET_SET(NFSD_TD_TO_VNET(curthread));
+	CURVNET_SET(TD_TO_VNET(curthread));
 	nfsrc_trimcache(xprt->xp_sockref, ack, 1);
-	NFSD_CURVNET_RESTORE();
+	CURVNET_RESTORE();
 }
 
 /*
@@ -541,21 +578,21 @@ nfsrvd_addsock(struct file *fp)
 	 * unexpectedly.
 	 */
 	if (so->so_type == SOCK_DGRAM)
-		xprt = svc_dg_create(NFSD_VNET(nfsrvd_pool), so, 0, 0);
+		xprt = svc_dg_create(VNET(nfsrvd_pool), so, 0, 0);
 	else
-		xprt = svc_vc_create(NFSD_VNET(nfsrvd_pool), so, 0, 0);
+		xprt = svc_vc_create(VNET(nfsrvd_pool), so, 0, 0);
 	if (xprt) {
 		fp->f_ops = &badfileops;
 		fp->f_data = NULL;
 		xprt->xp_sockref = ++sockref;
-		if (NFSD_VNET(nfs_minvers) == NFS_VER2)
+		if (VNET(nfs_minvers) == NFS_VER2)
 			svc_reg(xprt, NFS_PROG, NFS_VER2, nfssvc_program,
 			    NULL);
-		if (NFSD_VNET(nfs_minvers) <= NFS_VER3 &&
-		    NFSD_VNET(nfs_maxvers) >= NFS_VER3)
+		if (VNET(nfs_minvers) <= NFS_VER3 &&
+		    VNET(nfs_maxvers) >= NFS_VER3)
 			svc_reg(xprt, NFS_PROG, NFS_VER3, nfssvc_program,
 			    NULL);
-		if (NFSD_VNET(nfs_maxvers) >= NFS_VER4)
+		if (VNET(nfs_maxvers) >= NFS_VER4)
 			svc_reg(xprt, NFS_PROG, NFS_VER4, nfssvc_program,
 			    NULL);
 		if (so->so_type == SOCK_STREAM)
@@ -594,16 +631,31 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 	 * use.
 	 */
 	NFSD_LOCK();
-	if (NFSD_VNET(nfsrv_numnfsd) == 0) {
+	if (VNET(nfsrv_numnfsd) == 0) {
 		nfsdev_time = time_second;
 		p = td->td_proc;
 		PROC_LOCK(p);
 		p->p_flag2 |= P2_AST_SU;
 		PROC_UNLOCK(p);
 		newnfs_numnfsd++;	/* Total num for all vnets. */
-		NFSD_VNET(nfsrv_numnfsd)++;	/* Num for this vnet. */
+		VNET(nfsrv_numnfsd)++;	/* Num for this vnet. */
 
 		NFSD_UNLOCK();
+		/*
+		 * If nfsrvd_rdma_port has been set and the nfsrdma.ko module
+		 * has been loaded, start the server side RDMA.
+		 * RDMA does not work within a vnet jail.
+		 */
+		if (!jailed(curthread->td_ucred) && svc_rdma_listen != NULL &&
+		    nfsrvd_rdma_port != 0) {
+			error = svc_rdma_listen(VNET(nfsrvd_pool),
+			    nfsrvd_rdma_port);
+			if (error != 0) {
+				printf("nfsrvd_nfsd: RDMA listen failed=%d\n",
+				    error);
+				nfsrvd_rdma_port = 0;
+			}
+		}
 		error = nfsrv_createdevids(args, td);
 		if (error == 0) {
 			/* An empty string implies AUTH_SYS only. */
@@ -624,9 +676,9 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 					    td->td_ucred->cr_prison->pr_id);
 			}
 
-			NFSD_VNET(nfsrvd_pool)->sp_minthreads =
+			VNET(nfsrvd_pool)->sp_minthreads =
 			    args->minthreads;
-			NFSD_VNET(nfsrvd_pool)->sp_maxthreads =
+			VNET(nfsrvd_pool)->sp_maxthreads =
 			    args->maxthreads;
 				
 			/*
@@ -638,7 +690,7 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 				nfsv4_opflag[NFSV4OP_GETATTR].modifyfs = 1;
 			}
 
-			svc_run(NFSD_VNET(nfsrvd_pool));
+			svc_run(VNET(nfsrvd_pool));
 
 			/* Reset Getattr to not do a vn_start_write(). */
 			nfsrv_writerpc[NFSPROC_GETATTR] = 0;
@@ -652,7 +704,7 @@ nfsrvd_nfsd(struct thread *td, struct nfsd_nfsd_args *args)
 		}
 		NFSD_LOCK();
 		newnfs_numnfsd--;
-		NFSD_VNET(nfsrv_numnfsd)--;
+		VNET(nfsrv_numnfsd)--;
 		nfsrvd_init(1);
 		PROC_LOCK(p);
 		p->p_flag2 &= ~P2_AST_SU;
@@ -677,25 +729,30 @@ nfsrvd_init(int terminating)
 	NFSD_LOCK_ASSERT();
 
 	if (terminating) {
-		NFSD_VNET(nfsd_master_proc) = NULL;
+		VNET(nfsd_master_proc) = NULL;
 		NFSD_UNLOCK();
+
+		/* Turn off the RDMA listener, if enabled. */
+		if (!jailed(curthread->td_ucred) && svc_rdma_listen != NULL)
+			(void)svc_rdma_listen(VNET(nfsrvd_pool), 0);
+
 		nfsrv_freealllayoutsanddevids();
 		nfsrv_freeallbackchannel_xprts();
-		svcpool_close(NFSD_VNET(nfsrvd_pool));
+		svcpool_close(VNET(nfsrvd_pool));
 		free(nfsrv_zeropnfsdat, M_TEMP);
 		nfsrv_zeropnfsdat = NULL;
 		NFSD_LOCK();
 	} else {
 		/* Initialize per-vnet globals once per vnet. */
-		if (NFSD_VNET(nfsrvd_inited))
+		if (VNET(nfsrvd_inited))
 			return;
-		NFSD_VNET(nfsrvd_inited) = true;
+		VNET(nfsrvd_inited) = true;
 		NFSD_UNLOCK();
-		NFSD_VNET(nfsrvd_pool) = svcpool_create("nfsd",
+		VNET(nfsrvd_pool) = svcpool_create("nfsd",
 		    SYSCTL_STATIC_CHILDREN(_vfs_nfsd));
-		NFSD_VNET(nfsrvd_pool)->sp_rcache = NULL;
-		NFSD_VNET(nfsrvd_pool)->sp_assign = fhanew_assign;
-		NFSD_VNET(nfsrvd_pool)->sp_done = fhanew_nd_complete;
+		VNET(nfsrvd_pool)->sp_rcache = NULL;
+		VNET(nfsrvd_pool)->sp_assign = fhanew_assign;
+		VNET(nfsrvd_pool)->sp_done = fhanew_nd_complete;
 		NFSD_LOCK();
 	}
 }

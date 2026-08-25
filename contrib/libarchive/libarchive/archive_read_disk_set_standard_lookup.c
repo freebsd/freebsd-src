@@ -45,6 +45,7 @@
 #endif
 
 #include "archive.h"
+#include "archive_integer.h"
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 int
@@ -209,7 +210,8 @@ lookup_uname_helper(struct name_cache *cache, id_t id)
 		 * we just double it and try again.  Because the buffer
 		 * is kept around in the cache object, we shouldn't
 		 * have to do this very often. */
-		nbuff_size = cache->buff_size * 2;
+		if (archive_ckd_mul_size(&nbuff_size, cache->buff_size, 2))
+			break;
 		nbuff = realloc(cache->buff, nbuff_size);
 		if (nbuff == NULL)
 			break;
@@ -276,7 +278,8 @@ lookup_gname_helper(struct name_cache *cache, id_t id)
 		/* ERANGE means our buffer was too small, but POSIX
 		 * doesn't tell us how big the buffer should be, so
 		 * we just double it and try again. */
-		nbuff_size = cache->buff_size * 2;
+		if (archive_ckd_mul_size(&nbuff_size, cache->buff_size, 2))
+			break;
 		nbuff = realloc(cache->buff, nbuff_size);
 		if (nbuff == NULL)
 			break;

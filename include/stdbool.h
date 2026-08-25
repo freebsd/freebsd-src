@@ -26,9 +26,6 @@
  * SUCH DAMAGE.
  */
 
-#ifndef __STDC_VERSION_STDBOOL_H__
-#define __STDC_VERSION_STDBOOL_H__ 202311L
-
 #ifndef __bool_true_false_are_defined
 #define	__bool_true_false_are_defined	1
 
@@ -41,4 +38,3 @@
 
 #endif /* (__STDC_VERSION__ < 202311L) && !defined(__cplusplus) */
 #endif /* __bool_true_false_are_defined */
-#endif /* __STDC_VERSION_STDBOOL_H__ */

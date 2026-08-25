@@ -1,0 +1,5 @@
+SkipPlatforms: lite
+WantPersonality: %TEST_FIXTURES_DIR%/personality-data/i386-linux-gnu.personality 
+WantVariable: pc_system_includedirs
+Query: pkg-config
+ExpectedStdout: /usr/lib/i386-linux-gnu/include

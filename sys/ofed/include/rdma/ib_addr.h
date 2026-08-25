@@ -56,28 +56,12 @@
 #define	net_eq(a,b)	((a) == (b))
 
 
-struct rdma_addr_client {
-	atomic_t refcount;
-	struct completion comp;
-};
-
 union rdma_sockaddr {
 	struct sockaddr         _sockaddr;
 	struct sockaddr_in      _sockaddr_in;
 	struct sockaddr_in6     _sockaddr_in6;
 	struct sockaddr_storage _sockaddr_ss;
 };
-
-/**
- * rdma_addr_register_client - Register an address client.
- */
-void rdma_addr_register_client(struct rdma_addr_client *client);
-
-/**
- * rdma_addr_unregister_client - Deregister an address client.
- * @client: Client object to deregister.
- */
-void rdma_addr_unregister_client(struct rdma_addr_client *client);
 
 /**
  * struct rdma_dev_addr - Contains resolved RDMA hardware addresses
@@ -88,6 +72,7 @@ void rdma_addr_unregister_client(struct rdma_addr_client *client);
  * @bound_dev_if:	An optional device interface index.
  * @transport:		The transport type used.
  * @net:		Network namespace containing the bound_dev_if net_dev.
+ * @sgid_attr:		GID attribute to use for identified SGID
  */
 struct vnet;
 struct rdma_dev_addr {
@@ -98,6 +83,7 @@ struct rdma_dev_addr {
 	int bound_dev_if;
 	enum rdma_transport_type transport;
 	struct vnet *net;
+	const struct ib_gid_attr *sgid_attr;
 	enum rdma_network_type network;
 	int hoplimit;
 };
@@ -114,7 +100,6 @@ int rdma_translate_ip(const struct sockaddr *addr,
 /**
  * rdma_resolve_ip - Resolve source and destination IP addresses to
  *   RDMA hardware addresses.
- * @client: Address client associated with request.
  * @src_addr: An optional source address to use in the resolution.  If a
  *   source address is not provided, a usable address will be returned via
  *   the callback.
@@ -125,32 +110,22 @@ int rdma_translate_ip(const struct sockaddr *addr,
  * @timeout_ms: Amount of time to wait for the address resolution to complete.
  * @callback: Call invoked once address resolution has completed, timed out,
  *   or been canceled.  A status of 0 indicates success.
+ * @resolve_by_gid_attr:	Resolve the ip based on the GID attribute from
+ *				rdma_dev_addr.
  * @context: User-specified context associated with the call.
  */
-int rdma_resolve_ip(struct rdma_addr_client *client,
-		    struct sockaddr *src_addr, struct sockaddr *dst_addr,
+int rdma_resolve_ip(struct sockaddr *src_addr, const struct sockaddr *dst_addr,
 		    struct rdma_dev_addr *addr, int timeout_ms,
 		    void (*callback)(int status, struct sockaddr *src_addr,
 				     struct rdma_dev_addr *addr, void *context),
+		    bool resolve_by_gid_attr,
 		    void *context);
-
-int rdma_resolve_ip_route(struct sockaddr *src_addr,
-			  const struct sockaddr *dst_addr,
-			  struct rdma_dev_addr *addr);
 
 void rdma_addr_cancel(struct rdma_dev_addr *addr);
 
-int rdma_copy_addr(struct rdma_dev_addr *dev_addr, if_t dev,
-	      const unsigned char *dst_dev_addr);
-
-int rdma_addr_size(struct sockaddr *addr);
+int rdma_addr_size(const struct sockaddr *addr);
 int rdma_addr_size_in6(struct sockaddr_in6 *addr);
 int rdma_addr_size_kss(struct sockaddr_storage *addr);
-
-int rdma_addr_find_l2_eth_by_grh(const union ib_gid *sgid,
-				 const union ib_gid *dgid,
-				 u8 *smac, if_t dev,
-				 int *hoplimit);
 
 static inline u16 ib_addr_get_pkey(struct rdma_dev_addr *dev_addr)
 {
@@ -226,40 +201,15 @@ static inline void rdma_gid2ip(struct sockaddr *out, const union ib_gid *gid)
 	}
 }
 
-static u_int
-_iboe_addr_get_sgid_ia_cb(void *arg, struct ifaddr *ifa, u_int count __unused)
-{
-	ipv6_addr_set_v4mapped(((struct sockaddr_in *)
-			       ifa->ifa_addr)->sin_addr.s_addr,
-			       (struct in6_addr *)arg);
-	return (0);
-}
-
-static inline void iboe_addr_get_sgid(struct rdma_dev_addr *dev_addr,
-				      union ib_gid *gid)
-{
-	if_t dev;
-
-#ifdef VIMAGE
-	if (dev_addr->net == NULL)
-		return;
-#endif
-	dev = dev_get_by_index(dev_addr->net, dev_addr->bound_dev_if);
-	if (dev) {
-		if_foreach_addr_type(dev, AF_INET,
-				     _iboe_addr_get_sgid_ia_cb, gid);
-		dev_put(dev);
-	}
-}
-
+/*
+ * rdma_get/set_sgid/dgid() APIs are applicable to IB, and iWarp.
+ * They are not applicable to RoCE.
+ * RoCE GIDs are derived from the IP addresses.
+ */
 static inline void rdma_addr_get_sgid(struct rdma_dev_addr *dev_addr, union ib_gid *gid)
 {
-	if (dev_addr->transport == RDMA_TRANSPORT_IB &&
-	    dev_addr->dev_type != ARPHRD_INFINIBAND)
-		iboe_addr_get_sgid(dev_addr, gid);
-	else
-		memcpy(gid, dev_addr->src_dev_addr +
-		       rdma_addr_gid_offset(dev_addr), sizeof *gid);
+	memcpy(gid, dev_addr->src_dev_addr + rdma_addr_gid_offset(dev_addr),
+	       sizeof(*gid));
 }
 
 static inline void rdma_addr_set_sgid(struct rdma_dev_addr *dev_addr, union ib_gid *gid)

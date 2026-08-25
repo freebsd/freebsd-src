@@ -2,6 +2,7 @@
 .\" SPDX-License-Identifier: BSD-2-Clause
 .\"
 .\" Copyright (c) 2013 Peter Grehan
+.\" Copyright (c) 2026 Hans Rosenfeld
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 23, 2026
+.Dd June 5, 2026
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -46,8 +47,8 @@
 .Op Cm ,threads= Ar n
 .Oc
 .Sm on
-.Oo Fl f
 .Sm off
+.Oo Fl f\~
 .Ar name Cm \&,
 .Oo
 .Cm string No | Cm file
@@ -58,7 +59,7 @@
 .Oo
 .Sm off
 .Fl G\~
-.Oo Ar w Oc
+.Oo Cm w Oc
 .Oo Ar bind_address Cm \&: Oc
 .Ar port
 .Sm on
@@ -79,7 +80,7 @@
 .Sm on
 .Oc
 .Op Fl o Ar var Ns Cm = Ns Ar value
-.Op Fl p Ar vcpu Ns Cm \&: Ns Ar hostcpu
+.Oo Fl p Ar vcpuN Ns Oo - Ns Ar vcpuM Oc Ns Cm \&: Ns Ar hostcpuN Ns Oo - Ns Ar hostcpuM Oc Oc
 .Op Fl r Ar file
 .Sm off
 .Oo Fl s\~
@@ -194,7 +195,7 @@ If a
 is specified, bhyve reads the file and adds the file content as fw_cfg data.
 .It Fl G Xo
 .Sm off
-.Oo Ar w Oc
+.Oo Cm w Oc
 .Oo Ar bind_address Cm \&: Oc
 .Ar port
 .Sm on
@@ -208,7 +209,7 @@ and
 to listen for debugger connections.
 Only a single debugger may be attached to the debug server at a time.
 If the option begins with
-.Sq w ,
+.Cm w ,
 .Nm
 will pause execution at the first instruction waiting for a debugger to attach.
 .It Fl H
@@ -355,19 +356,21 @@ for configuration options.
 .It Fl P
 Force the guest virtual CPU to exit when a PAUSE instruction is detected.
 This option applies only to the amd64 platform.
-.It Fl p Ar vcpu Ns Cm \& : Ns Ar hostcpu
-Pin guest's virtual CPU
-.Em vcpu
+.It Fl p Ar vcpuN Ns Oo - Ns Ar vcpuM Oc Ns Cm \&: Ns Ar hostcpuN Ns Op - Ns Ar hostcpuM
+Pin the guest's virtual CPUs starting from
+.Em vcpuN
 to
-.Em hostcpu .
+.Em vcpuM
+to the host CPUs starting from
+.Em hostcpuN
+to
+.Em hostcpuM .
 Host CPUs and guest virtual CPUs are numbered starting from 0.
-A
-.Fl p
-option is required for every guest vCPU to be pinned.
-To map a 4 vCPU guest to host CPUs 12-15:
-.Bd -literal
--p 0:12 -p 1:13 -p 2:14 -p 3:15
-.Ed
+The
+.Em vcpuM
+and
+.Em hostcpuM
+arguments may be omitted.
 .It Fl r Ar file
 Resume a guest from a snapshot.
 The guest memory contents are restored from
@@ -680,23 +683,86 @@ In that case, this feature doesn't work as expected.
 .Bl -bullet
 .Sm off
 .It
-.Pa /dev/cam/ctl Oo Ar pp Cm \&. Ar vp Oc Oo Cm \&, Ar scsi-device-options Oc
+.Oo Cm target Ns = Ns Oo ID : Oc Ar path Ns Oc
+.Oo Cm \&, Ar scsi-device-options Oc
+.Oo Cm \&, Ar backend-specific-options Oc
 .Sm on
+.El
+.Pp
+Multiple
+.Pa target
+parameters may be specified, each configuring a different
+.Ar path
+as a distinct SCSI target.
+If the
+.Pa target
+.Ar ID
+is not explicitly configured for a
+.Pa target ,
+the
+.Pa target
+will be assigned the next sequential
+.Ar ID
+following the highest
+.Pa target
+.Ar ID
+used at that point, or 0 if it is the first target configured.
+All
+.Pa target
+.Ar ID Ns s
+must be unique per instance.
+The meaning of the
+.Ar path
+argument is specific to each backend:
+.Bl -column "Backend" "/dev/cam/ctl[pp.vp]"
+.It Sy Backend Ta Sy Path Ta Sy Description
+.It ctl Ta Pa /dev/cam/ctl Ns Oo Ar pp . Ns Ar vp Oc Ta
+The path of a CAM target layer (CTL) device node.
+If no target is configured, a single target backed by
+.Qq /dev/cam/ctl
+will be configured by default.
 .El
 .Pp
 The
 .Ar scsi-device-options
 are:
 .Bl -tag -width 10n
-.It Cm iid= Ns Ar IID
-Initiator ID to use when sending requests to specified CTL port.
-The default value is 0.
+.It Cm backend= Ns Ar backend
+The virtio-scsi backend to use.
+The backend name is case-insensitive.
+There is currently only one backend
+.Qq ctl ,
+which is also the default backend.
 .It Li bootindex= Ns Ar index
 Add the device to the boot order at
 .Ar index .
 A fw_cfg file is used to specify the boot order.
 The guest firmware may ignore or not support this fw_cfg file.
 In that case, this feature doesn't work as expected.
+.It Li ctl_ringsz= Ns Ar ringsz
+The ring size to use for the control queue.
+.It Li evt_ringsz= Ns Ar ringsz
+The ring size to use for the event queue.
+.It Li req_ringsz= Ns Ar ringsz
+The ring size to use for each I/O request queue.
+.It Li num_queues= Ns Ar num
+The number of I/O request queues to use.
+.It Li seg_max= Ns Ar num
+The maximum number of segments allowed in a single command.
+.It Li thr_per_q= Ns Ar num
+The number of parallel request processing threads per I/O request queue.
+.El
+.Pp
+The
+.Ar backend-specific-options
+for the
+.Sy CTL
+backend are:
+.Bl -tag -width 10n
+.It Cm iid= Ns Ar IID
+Initiator ID to use when sending requests to
+.Sy CTL .
+The default value is 0.
 .El
 .Ss 9P device backends
 .Bl -bullet
@@ -1338,6 +1404,16 @@ bhyve -c 2 -w -H \\
   -l bootrom,/usr/local/share/uefi-firmware/BHYVE_UEFI.fd \\
   -n id=0,size=4G,cpus=0-1,domain_policy=prefer:0 \\
    numavm
+.Ed
+To run a virtual machine with a single vCPU pinned to host CPU 12:
+.Bd -literal -offset indent
+bhyve -c 1 -s 0,hostbridge -s 1,lpc -s 2,virtio-blk,/my/image \\
+  -l com1,stdio -H -P -m 1G -p 0:12 vm1
+.Ed
+To run a virtual machine with 4 vCPUs pinned to host CPUs 12-15:
+.Bd -literal -offset indent
+bhyve -c 4 -s 0,hostbridge -s 1,lpc -s 2,virtio-blk,/my/image \\
+  -l com1,stdio -H -P -m 1G -p 0-3:12-15 vm1
 .Ed
 .Sh SEE ALSO
 .Xr bhyve 4 ,

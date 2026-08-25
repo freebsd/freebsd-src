@@ -1,0 +1,5 @@
+Name: paren-quoting
+Description: Another pkg-config test
+Version: 1.3
+Libs: -L$(libdir) -ltilde
+Cflags: -I$(includedir)

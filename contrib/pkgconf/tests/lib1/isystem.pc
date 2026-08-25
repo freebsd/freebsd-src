@@ -1,0 +1,4 @@
+Name: Bad
+Description: Demonstrates problems with -isystem in both old pkg-config and current pkgconf; see also https://bugs.freedesktop.org/show_bug.cgi?id=72584
+Version: 1
+Cflags: -isystem /opt/bad/include -isystem /opt/bad2/include

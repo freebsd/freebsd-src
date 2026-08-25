@@ -1,0 +1,87 @@
+.\"
+.\" Copyright (c) 2026 Abdelkader Boudih <freebsd@seuros.com>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd April 18, 2026
+.Dt HIDWACOM 4
+.Os
+.Sh NAME
+.Nm hidwacom
+.Nd Wacom ExpressKey Remote driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device hidwacom"
+.Cd "device hidbus"
+.Cd "device hid"
+.Cd "device evdev"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hidwacom_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the Wacom ExpressKey Remote, a wireless
+button pad with 18 programmable buttons and a touch ring.
+The device communicates via a USB wireless receiver using vendor-specific
+HID reports.
+.Pp
+The driver exposes the following inputs through
+.Xr evdev 4 :
+.Bl -tag -width "MSC_PULSELED"
+.It Dv BTN_0 Ns \(en Ns Dv BTN_Z , Dv BTN_BASE , Dv BTN_BASE2
+18 buttons.
+.It Dv ABS_WHEEL
+Touch ring position (0\(en71).
+Reports 0 when the ring is not being touched.
+.It Dv ABS_MISC
+Touch ring mode (0\(en3), as reported by the device.
+Reports 0 when the ring is not being touched.
+.It Dv MSC_PULSELED
+Battery charge level as a percentage (0\(en100).
+.It Dv MSC_SERIAL
+Remote serial number, identifying which physical remote generated the event.
+.El
+.Pp
+Only a single paired remote is supported.
+The multi-remote pairing protocol (up to 5 remotes) is not implemented.
+.Sh HARDWARE
+The
+.Nm
+driver supports the following device:
+.Pp
+.Bl -bullet -compact
+.It
+Wacom ExpressKey Remote (ACK-411050), connected via the Wacom USB
+wireless receiver
+.El
+.Sh FILES
+.Bl -tag -width "/dev/input/eventX" -compact
+.It Pa /dev/input/eventX
+evdev input device
+.El
+.Sh SEE ALSO
+.Xr evdev 4 ,
+.Xr hidbus 4 ,
+.Xr usbhid 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 16.0 .
+.Sh BUGS
+Only a single paired remote is fully supported.
+When multiple remotes are paired, button state may be corrupted as all
+remotes share a single evdev device.
+.Sh AUTHORS
+.An Abdelkader Boudih Aq Mt freebsd@seuros.com
+.Pp
+Protocol decoded from USB traffic analysis.

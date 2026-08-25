@@ -35,6 +35,8 @@
 #ifndef	_STDIO_H_
 #define	_STDIO_H_
 
+#define __STDC_VERSION_STDIO_H__	202311L
+
 #include <sys/cdefs.h>
 #include <sys/_null.h>
 #include <sys/_types.h>
@@ -220,6 +222,10 @@ __END_DECLS
 #endif
 #define	FILENAME_MAX	1024	/* must be <= PATH_MAX <sys/syslimits.h> */
 
+#if __ISO_C_VISIBLE >= 2023
+#define _PRINTF_NAN_LEN_MAX	3
+#endif
+
 /* System V/ANSI C; this is the wrong way to do this, do *not* use these. */
 #if __XSI_VISIBLE
 #define	P_tmpdir	"/tmp/"
@@ -398,6 +404,7 @@ int	 fdclose(FILE *, int *);
 char	*fgetln(FILE *, size_t *);
 const char *fmtcheck(const char *, const char *) __format_arg(2);
 int	 fpurge(FILE *);
+int	 renameat2(int, const char *, int, const char *, unsigned int);
 void	 setbuffer(FILE *, char *, int);
 int	 setlinebuf(FILE *);
 int	 vasprintf(char **, const char *, __va_list)

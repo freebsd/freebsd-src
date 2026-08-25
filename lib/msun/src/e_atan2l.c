@@ -114,3 +114,7 @@ atan2l(long double y, long double x)
 	    	    return  (z-pi_lo)-pi;/* atan(-,-) */
 	}
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(atan2l, atan2f128);
+#endif

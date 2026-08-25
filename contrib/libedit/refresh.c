@@ -1,4 +1,4 @@
-/*	$NetBSD: refresh.c,v 1.60 2024/12/05 22:21:53 christos Exp $	*/
+/*	$NetBSD: refresh.c,v 1.61 2026/01/18 17:18:37 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)refresh.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: refresh.c,v 1.60 2024/12/05 22:21:53 christos Exp $");
+__RCSID("$NetBSD: refresh.c,v 1.61 2026/01/18 17:18:37 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -1214,16 +1214,24 @@ re_clear_display(EditLine *el)
 libedit_private void
 re_clear_lines(EditLine *el)
 {
+	int i;
 
 	if (EL_CAN_CEOL) {
-		int i;
 		for (i = el->el_refresh.r_oldcv; i >= 0; i--) {
+			if (i > 0) {
+				terminal__putc(el, '\r');
+				terminal__putc(el, '\n');
+			}
 			/* for each line on the screen */
 			terminal_move_to_line(el, i);
 			terminal_move_to_char(el, 0);
 			terminal_clear_EOL(el, el->el_terminal.t_size.h);
 		}
 	} else {
+		for (i = el->el_refresh.r_oldcv; i > 0; i--) {
+			terminal__putc(el, '\r');
+			terminal__putc(el, '\n');
+		}
 		terminal_move_to_line(el, el->el_refresh.r_oldcv);
 					/* go to last line */
 		terminal__putc(el, '\r');	/* go to BOL */

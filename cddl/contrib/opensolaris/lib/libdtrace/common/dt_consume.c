@@ -2143,7 +2143,7 @@ dt_print_sym(dtrace_hdl_t *dtp, FILE *fp, const char *format, caddr_t addr)
 		}
 	}
 
-	if (dtp->dt_oformat != 0 && dt_printf(dtp, fp, format, c) < 0)
+	if (!dtp->dt_oformat && dt_printf(dtp, fp, format, c) < 0)
 		return (-1);
 
 	return (0);

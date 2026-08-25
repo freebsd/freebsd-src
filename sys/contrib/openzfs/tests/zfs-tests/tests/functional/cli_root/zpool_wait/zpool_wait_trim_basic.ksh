@@ -8,7 +8,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -45,10 +45,6 @@ function trim_in_progress
 	typeset pool="$1"
 	zpool status -t "$pool" | grep "trimmed, started"
 }
-
-if is_freebsd; then
-	log_unsupported "FreeBSD has no hole punching mechanism for the time being."
-fi
 
 typeset -r FILE_VDEV="$TESTDIR/file_vdev"
 typeset pid

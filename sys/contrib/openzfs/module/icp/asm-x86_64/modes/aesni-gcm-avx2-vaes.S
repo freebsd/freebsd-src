@@ -2,11 +2,15 @@
 // This file is generated from a similarly-named Perl script in the BoringSSL
 // source tree. Do not edit by hand.
 
-#if defined(__x86_64__) && defined(HAVE_AVX) && \
-    defined(HAVE_VAES) && defined(HAVE_VPCLMULQDQ)
+// perlasm source: https://github.com/google/boringssl/blob/d5440dd2c2c500ac2d3bba4afec47a054b4d99ae/crypto/fipsmodule/aes/asm/aes-gcm-avx2-x86_64.pl
+// generated source: https://github.com/google/boringssl/blob/d5440dd2c2c500ac2d3bba4afec47a054b4d99ae/gen/bcm/aes-gcm-avx2-x86_64-linux.S
+
+#if defined(__x86_64__) && HAVE_SIMD(AVX2) && \
+    HAVE_SIMD(VAES) && HAVE_SIMD(VPCLMULQDQ)
 
 #define _ASM
 #include <sys/asm_linkage.h>
+#include <modes/gcm_asm_rename_funcs.h>
 
 /* Windows userland links with OpenSSL */
 #if !defined (_WIN32) || defined (_KERNEL)
@@ -155,42 +159,6 @@ ENDBR
 
 .cfi_endproc
 SET_SIZE(gcm_init_vpclmulqdq_avx2)
-ENTRY_ALIGN(gcm_gmult_vpclmulqdq_avx2, 32)
-.cfi_startproc
-
-ENDBR
-
-
-
-	vmovdqu	(%rdi),%xmm0
-	vmovdqu	.Lbswap_mask(%rip),%xmm1
-	vmovdqu	128-16(%rsi),%xmm2
-	vmovdqu	.Lgfpoly(%rip),%xmm3
-	vpshufb	%xmm1,%xmm0,%xmm0
-
-	vpclmulqdq	$0x00,%xmm2,%xmm0,%xmm4
-	vpclmulqdq	$0x01,%xmm2,%xmm0,%xmm5
-	vpclmulqdq	$0x10,%xmm2,%xmm0,%xmm6
-	vpxor	%xmm6,%xmm5,%xmm5
-	vpclmulqdq	$0x01,%xmm4,%xmm3,%xmm6
-	vpshufd	$0x4e,%xmm4,%xmm4
-	vpxor	%xmm4,%xmm5,%xmm5
-	vpxor	%xmm6,%xmm5,%xmm5
-	vpclmulqdq	$0x11,%xmm2,%xmm0,%xmm0
-	vpclmulqdq	$0x01,%xmm5,%xmm3,%xmm4
-	vpshufd	$0x4e,%xmm5,%xmm5
-	vpxor	%xmm5,%xmm0,%xmm0
-	vpxor	%xmm4,%xmm0,%xmm0
-
-
-	vpshufb	%xmm1,%xmm0,%xmm0
-	vmovdqu	%xmm0,(%rdi)
-
-
-	RET
-
-.cfi_endproc
-SET_SIZE(gcm_gmult_vpclmulqdq_avx2)
 ENTRY_ALIGN(gcm_ghash_vpclmulqdq_avx2, 32)
 .cfi_startproc
 
@@ -1320,4 +1288,4 @@ SET_SIZE(aes_gcm_dec_update_vaes_avx2)
 .section .note.GNU-stack,"",%progbits
 #endif
 
-#endif /* defined(__x86_64__) && defined(HAVE_AVX) && defined(HAVE_AES) ... */
+#endif /* defined(__x86_64__) && HAVE_SIMD(AVX2) && HAVE_SIMD(VAES) ... */

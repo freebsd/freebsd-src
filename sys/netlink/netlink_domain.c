@@ -724,7 +724,7 @@ nl_soreceive(struct socket *so, struct sockaddr **psa, struct uio *uio,
 	 * least one message, we would return it and won't truncate the next.
 	 *
 	 * We use same code for normal and MSG_PEEK case.  At first queue pass
-	 * we scan nl_bufs and count lenght.  In case we can read entire buffer
+	 * we scan nl_bufs and count length.  In case we can read entire buffer
 	 * at one write everything is trivial.  In case we can not, we save
 	 * pointer to the last (or partial) nl_buf and in the !peek case we
 	 * split the queue into two pieces.  We can safely drop the queue lock,

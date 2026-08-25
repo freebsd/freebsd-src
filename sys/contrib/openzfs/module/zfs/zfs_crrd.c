@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2024 Klara Inc.
@@ -99,14 +89,14 @@ rrd_tail(rrd_t *rrd)
  * rrd_get works from 0..rrd_len()-1.
  */
 size_t
-rrd_len(rrd_t *rrd)
+rrd_len(const rrd_t *rrd)
 {
 
 	return (rrd->rrd_length);
 }
 
 const rrd_data_t *
-rrd_entry(rrd_t *rrd, size_t i)
+rrd_entry(const rrd_t *rrd, size_t i)
 {
 	size_t n;
 
@@ -119,7 +109,7 @@ rrd_entry(rrd_t *rrd, size_t i)
 }
 
 uint64_t
-rrd_get(rrd_t *rrd, size_t i)
+rrd_get(const rrd_t *rrd, size_t i)
 {
 	const rrd_data_t *data = rrd_entry(rrd, i);
 
@@ -225,4 +215,20 @@ dbrrd_query(dbrrd_t *r, hrtime_t tv, dbrrd_rounding_t rounding)
 	data = dbrrd_closest(tv, dbrrd_closest(tv, dd, dm), dy);
 
 	return (data == NULL ? 0 : data->rrdd_txg);
+}
+
+hrtime_t
+dbrrd_latest_time(dbrrd_t *r)
+{
+	const rrd_data_t *head;
+	const rrd_t *curdb;
+	size_t dblen;
+
+	curdb = &r->dbr_minutes;
+	dblen = rrd_len(curdb);
+	if (dblen == 0)
+		return (0);
+
+	head = rrd_entry(curdb, dblen - 1);
+	return (head->rrdd_time);
 }

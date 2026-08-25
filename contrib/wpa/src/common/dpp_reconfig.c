@@ -569,7 +569,7 @@ fail:
 }
 
 
-struct wpabuf *
+static struct wpabuf *
 dpp_reconfig_build_conf(struct dpp_authentication *auth)
 {
 	struct wpabuf *msg = NULL, *clear;

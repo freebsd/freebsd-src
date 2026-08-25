@@ -28,7 +28,6 @@
 #include <sys/cdefs.h>
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_route.h"
 #include <sys/types.h>
 #include <sys/ck.h>
 #include <sys/epoch.h>
@@ -174,7 +173,7 @@ nl_find_nhop(uint32_t fibnum, int family, uint32_t uidx,
 	CHT_SLIST_FIND_BYOBJ(&ctl->un_head, unhop, &key, unhop);
 	if (unhop != NULL) {
 		struct nhop_object *nh = unhop->un_nhop;
-		UN_RLOCK(ctl);
+		UN_RUNLOCK(ctl);
 		*perror = 0;
 		nhop_ref_any(nh);
 		return (nh);
@@ -268,12 +267,10 @@ nl_find_base_unhop(struct unhop_ctl *ctl, uint32_t uidx)
 static struct nhop_object *
 clone_unhop(const struct user_nhop *unhop, uint32_t fibnum, int family, int nh_flags)
 {
-#ifdef ROUTE_MPATH
 	const struct weightened_nhop *wn;
 	struct weightened_nhop *wn_new, wn_base[MAX_STACK_NHOPS];
-	uint32_t num_nhops;
-#endif
 	struct nhop_object *nh = NULL;
+	uint32_t num_nhops;
 	int error;
 
 	if (unhop->un_nhop_src != NULL) {
@@ -298,10 +295,9 @@ clone_unhop(const struct user_nhop *unhop, uint32_t fibnum, int family, int nh_f
 		nhop_set_pxtype_flag(nh, nh_flags);
 		return (nhop_get_nhop(nh, &error));
 	}
-#ifdef ROUTE_MPATH
+
 	wn = unhop->un_nhgrp_src;
 	num_nhops = unhop->un_nhgrp_count;
-
 	if (num_nhops > MAX_STACK_NHOPS) {
 		wn_new = malloc(num_nhops * sizeof(struct weightened_nhop), M_TEMP, M_NOWAIT);
 		if (wn_new == NULL)
@@ -328,7 +324,7 @@ clone_unhop(const struct user_nhop *unhop, uint32_t fibnum, int family, int nh_f
 
 	if (wn_new != wn_base)
 		free(wn_new, M_TEMP);
-#endif
+
 	return (nh);
 }
 
@@ -812,6 +808,28 @@ nl_set_nexthop_gw(struct nhop_object *nh, struct sockaddr *gw, if_t ifp,
 	}
 #endif
 	nhop_set_gw(nh, gw, true);
+	return (0);
+}
+
+/*
+ * Sets nexthop @nh prefsrc specified by @src.
+ * Returns 0 on success or errno.
+ */
+int
+nl_set_nexthop_prefsrc(struct nhop_object *nh, struct sockaddr *src)
+{
+	struct ifaddr *ifa = NULL;
+	int fibnum = nhop_get_fibnum(nh);
+
+	MPASS(src != NULL);
+
+	ifa = ifa_ifwithaddr_fib(src, fibnum);
+	if (ifa == NULL)
+		return (EINVAL);
+
+	nhop_set_src(nh, ifa);
+	nh->nh_flags |= NHF_PREFSRC;
+
 	return (0);
 }
 

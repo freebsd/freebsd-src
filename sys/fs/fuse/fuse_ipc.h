@@ -240,6 +240,7 @@ struct fuse_data {
 #define FSESS_WARN_INODE_MISMATCH 0x4000000 /* ino != nodeid */
 #define	FSESS_SETXATTR_EXT	  0x8000000 /* extended fuse_setxattr_in */
 #define FSESS_AUTO_UNMOUNT	  0x10000000 /* perform unmount when server dies */
+#define FSESS_WARN_LSEXTATTR_NUL 0x20000000 /* Non nul-terminated xattr list */
 #define FSESS_MNTOPTS_MASK	( \
 	FSESS_DAEMON_CAN_SPY | FSESS_PUSH_SYMLINKS_IN | \
 	FSESS_DEFAULT_PERMISSIONS | FSESS_INTR | FSESS_AUTO_UNMOUNT)

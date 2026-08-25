@@ -56,7 +56,10 @@ typedef uint16_t __uint16_t;
 typedef uint8_t  __uint8_t;
 #endif
 
+/* <bits/struct_mutex.h> contains a member named __unused. */
+#include "../__unused_workaround_start.h"
 #include_next <sys/types.h>
+#include "../__unused_workaround_end.h"
 
 /*
  * stddef.h for both gcc and clang will define __size_t when size_t has

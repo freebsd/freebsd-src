@@ -1394,7 +1394,7 @@ m_apply_extpg_one(struct mbuf *m, int off, int len,
 		pglen = m_epg_pagelen(m, i, pgoff);
 		if (off < pglen) {
 			count = min(pglen - off, len);
-			p = (void *)PHYS_TO_DMAP(m->m_epg_pa[i] + pgoff + off);
+			p = PHYS_TO_DMAP(m->m_epg_pa[i] + pgoff + off);
 			rval = f(arg, p, count);
 			if (rval)
 				return (rval);
@@ -2148,6 +2148,15 @@ m_unshare(struct mbuf *m0, int how)
 	mprev = NULL;
 	for (m = m0; m != NULL; m = mprev->m_next) {
 		/*
+		 * m_unshare() can not process KTLS mbufs because they must
+		 * neither be linearized nor converted to mapped.
+		 */
+		if (mbuf_has_tls_session(m)) {
+			m_freem(m0);
+			return (NULL);
+		}
+
+		/*
 		 * Regular mbufs are ignored unless there's a cluster
 		 * in front of it that we can use to coalesce.  We do
 		 * the latter mainly so later clusters can be coalesced
@@ -2160,7 +2169,8 @@ m_unshare(struct mbuf *m0, int how)
 		 * crypto operations, especially when using hardware.
 		 */
 		if ((m->m_flags & M_EXT) == 0) {
-			if (mprev && (mprev->m_flags & M_EXT) &&
+			if (mprev &&
+			    (mprev->m_flags & (M_EXT | M_EXTPG)) == M_EXT &&
 			    m->m_len <= M_TRAILINGSPACE(mprev)) {
 				/* XXX: this ignores mbuf types */
 				memcpy(mtod(mprev, caddr_t) + mprev->m_len,
@@ -2189,11 +2199,12 @@ m_unshare(struct mbuf *m0, int how)
 		 */
 		KASSERT(m->m_flags & M_EXT, ("m_flags 0x%x", m->m_flags));
 		/* NB: we only coalesce into a cluster or larger */
-		if (mprev != NULL && (mprev->m_flags & M_EXT) &&
+		if (mprev != NULL &&
+		    (mprev->m_flags & (M_EXT | M_EXTPG)) == M_EXT &&
 		    m->m_len <= M_TRAILINGSPACE(mprev)) {
 			/* XXX: this ignores mbuf types */
-			memcpy(mtod(mprev, caddr_t) + mprev->m_len,
-			    mtod(m, caddr_t), m->m_len);
+			m_copydata(m, 0, m->m_len,
+			    mtod(mprev, caddr_t) + mprev->m_len);
 			mprev->m_len += m->m_len;
 			mprev->m_next = m->m_next;	/* unlink from chain */
 			m_free(m);			/* reclaim mbuf */
@@ -2224,7 +2235,7 @@ m_unshare(struct mbuf *m0, int how)
 		mlast = NULL;
 		for (;;) {
 			int cc = min(len, MCLBYTES);
-			memcpy(mtod(n, caddr_t), mtod(m, caddr_t) + off, cc);
+			m_copydata(m, off, cc, mtod(n, caddr_t));
 			n->m_len = cc;
 			if (mlast != NULL)
 				mlast->m_next = n;

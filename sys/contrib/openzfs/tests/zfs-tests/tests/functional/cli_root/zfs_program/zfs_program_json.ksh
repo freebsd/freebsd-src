@@ -1,18 +1,14 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
-#
 # This file and its contents are supplied under the terms of the
 # Common Development and Distribution License ("CDDL"), version 1.0.
 # You may only use this file in accordance with the terms of version
 # 1.0 of the CDDL.
 #
 # A full copy of the text of the CDDL should have accompanied this
-# source.  A copy is of the CDDL is also available via the Internet
-# at http://www.illumos.org/license/CDDL.
-#
-# CDDL HEADER END
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -96,11 +92,18 @@ typeset -a pos_cmds_out=(
 typeset -i cnt=0
 typeset cmd
 for cmd in ${pos_cmds[@]}; do
-	log_must zfs program $TESTPOOL $TESTZCP $TESTDS $cmd 2>&1
-	log_must zfs program -j $TESTPOOL $TESTZCP $TESTDS $cmd 2>&1
+	if zcp_support $TESTPOOL; then
+		log_must zfs program $TESTPOOL $TESTZCP $TESTDS $cmd 2>&1
+		log_must zfs program -j $TESTPOOL $TESTZCP $TESTDS $cmd 2>&1
+	else
+		log_mustnot zfs program $TESTPOOL $TESTZCP $TESTDS $cmd 2>&1
+		log_mustnot zfs program -j $TESTPOOL $TESTZCP $TESTDS $cmd 2>&1
+	fi
+
 	OUTPUT=$(zfs program -j $TESTPOOL $TESTZCP $TESTDS $cmd 2>&1 |
 	    python3 -m json.tool --sort-keys)
-	if [ "$OUTPUT" != "${pos_cmds_out[$cnt]}" ]; then
+	if zcp_support $TESTPOOL && \
+	    [ "$OUTPUT" != "${pos_cmds_out[$cnt]}" ]; then
 		log_note "Got     :$OUTPUT"
 		log_note "Expected:${pos_cmds_out[$cnt]}"
 		log_fail "Unexpected channel program output";
@@ -126,7 +129,8 @@ for cmd in ${neg_cmds[@]}; do
 	log_mustnot zfs program $cmd $TESTPOOL $TESTZCP $TESTDS 2>&1
 	log_mustnot zfs program -j $cmd $TESTPOOL $TESTZCP $TESTDS 2>&1
 	OUTPUT=$(zfs program -j $cmd $TESTPOOL $TESTZCP $TESTDS 2>&1)
-	if [ "$OUTPUT" != "${neg_cmds_out[$cnt]}" ]; then
+	if zcp_support $TESTPOOL && \
+	    [ "$OUTPUT" != "${neg_cmds_out[$cnt]}" ]; then
 		log_note "Got     :$OUTPUT"
 		log_note "Expected:${neg_cmds_out[$cnt]}"
 		log_fail "Unexpected channel program error output";

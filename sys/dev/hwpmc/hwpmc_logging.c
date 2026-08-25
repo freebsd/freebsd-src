@@ -58,6 +58,7 @@
 #include <sys/uio.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
+#include <sys/syslog.h>
 
 #if defined(__i386__) || defined(__amd64__)
 #include <machine/clock.h>
@@ -1236,24 +1237,39 @@ pmclog_initialize(void)
 	struct pmclog_buffer *plb;
 	int domain, ncpus, total;
 
-	if (pmclog_buffer_size <= 0 || pmclog_buffer_size > 16*1024) {
-		(void) printf("hwpmc: tunable logbuffersize=%d must be "
-					  "greater than zero and less than or equal to 16MB.\n",
-					  pmclog_buffer_size);
+	if (pmclog_buffer_size <= 0 ||
+	    pmclog_buffer_size > PMC_LOG_BUFFER_SIZE_MAX) {
+		log(LOG_WARNING,
+		    "hwpmc: logbuffersize=%d must be greater than zero "
+		    "and less than or equal to %d, resetting to %d\n",
+		    pmclog_buffer_size, PMC_LOG_BUFFER_SIZE_MAX,
+		    PMC_LOG_BUFFER_SIZE);
+
 		pmclog_buffer_size = PMC_LOG_BUFFER_SIZE;
 	}
 
 	if (pmc_nlogbuffers_pcpu <= 0) {
-		(void) printf("hwpmc: tunable nlogbuffers=%d must be greater "
-					  "than zero.\n", pmc_nlogbuffers_pcpu);
+		log(LOG_WARNING,
+		    "hwpmc: nbuffers_pcpu=%d must be greater than zero, "
+		    "resetting to %d\n",
+		    pmc_nlogbuffers_pcpu, PMC_NLOGBUFFERS_PCPU);
+
 		pmc_nlogbuffers_pcpu = PMC_NLOGBUFFERS_PCPU;
 	}
-	if (pmc_nlogbuffers_pcpu*pmclog_buffer_size > 32*1024) {
-		(void) printf("hwpmc: memory allocated pcpu must be less than 32MB (is %dK).\n",
-					  pmc_nlogbuffers_pcpu*pmclog_buffer_size);
+
+	if (pmc_nlogbuffers_pcpu * pmclog_buffer_size >
+	    PMC_NLOGBUFFERS_PCPU_MEM_MAX) {
+		log(LOG_WARNING,
+		    "hwpmc: nbuffers_pcpu=%d * logbuffersize=%d exceeds "
+		    "%dMB per CPU limit, resetting to defaults (%d * %d)\n",
+		    pmc_nlogbuffers_pcpu, pmclog_buffer_size,
+		    PMC_NLOGBUFFERS_PCPU_MEM_MAX / 1024,
+		    PMC_NLOGBUFFERS_PCPU, PMC_LOG_BUFFER_SIZE);
+
 		pmc_nlogbuffers_pcpu = PMC_NLOGBUFFERS_PCPU;
 		pmclog_buffer_size = PMC_LOG_BUFFER_SIZE;
 	}
+
 	for (domain = 0; domain < vm_ndomains; domain++) {
 		ncpus = pmc_dom_hdrs[domain]->pdbh_ncpus;
 		total = ncpus * pmc_nlogbuffers_pcpu;
@@ -1270,6 +1286,7 @@ pmclog_initialize(void)
 			pmc_plb_rele_unlocked(plb);
 		}
 	}
+
 	mtx_init(&pmc_kthread_mtx, "pmc-kthread", "pmc-sleep", MTX_DEF);
 }
 

@@ -1,0 +1,355 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2026 Abdelkader Boudih <freebsd@seuros.com>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd March 2, 2026
+.Dt COREBOOT 4
+.Os
+.Sh NAME
+.Nm coreboot
+.Nd coreboot firmware table driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device coreboot"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+coreboot_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides access to firmware tables created by the coreboot
+open-source firmware project.
+It discovers the coreboot table by scanning low memory for the
+.Dq LBIO
+signature, follows any forward pointer to the real table in high memory,
+and validates the IP-style checksums.
+.Pp
+The driver exposes firmware information through three interfaces:
+.Bl -tag -width "/dev/coreboot_console"
+.It Sy sysctl
+A
+.Xr sysctl 8
+tree under
+.Va hw.coreboot
+provides access to:
+.Bl -bullet -compact
+.It
+firmware version, build date, and compiler information
+.It
+mainboard identification and board configuration
+.It
+MAC addresses, framebuffer, GPIO, and SPI flash details
+.It
+TPM information and SMMSTORE configuration
+.It
+ACPI RSDP address, PCIe controller base, and TSC frequency
+.It
+boot timestamps and CBMEM entry enumeration
+.El
+.It Pa /dev/coreboot_console
+A character device providing read-only access to the CBMEM firmware console
+ring buffer.
+This contains coreboot's own boot log, analogous to
+.Xr dmesg 8
+but for the firmware stage before the OS kernel starts.
+The ring buffer uses bit 31 of its cursor as an overflow indicator;
+when set, the buffer has wrapped and data is read starting from the
+cursor position.
+.It Pa /dev/cbmem
+A character device providing
+.Xr ioctl 2
+access to individual CBMEM entries.
+CBMEM is coreboot's mechanism for passing data between firmware stages
+and to the operating system.
+.El
+.Ss Verbose Output
+By default, the driver prints a single attach summary line showing table
+location and size.
+.Pp
+When
+.Va bootverbose
+is set
+.Pq e.g., Dq Li boot -v ,
+the driver additionally prints firmware identity and parsed hardware details
+such as mainboard, board config, MAC count, ACPI RSDP, SPI flash, framebuffer,
+GPIO, and TPM summary.
+.Pp
+When
+.Va hw.coreboot.debug
+is non-zero, the driver prints extra internal diagnostics such as SMMSTORE,
+timestamp, TPM CB log, and FMAP addresses.
+.Pp
+All sysctl nodes are registered regardless of verbosity settings.
+.Ss sysctl Variables
+The following
+.Xr sysctl 8
+variables are available when the driver is loaded
+(variables only appear if the corresponding table record exists):
+.Bl -tag -width "hw.coreboot.smmstore.com_buffer"
+.It Va hw.coreboot.debug
+Enable verbose coreboot diagnostics (read-write, default 0).
+Tunable via
+.Xr loader.conf 5
+as
+.Va hw.coreboot.debug .
+.It Va hw.coreboot.version
+Firmware version string.
+.It Va hw.coreboot.build
+Build date and time.
+.It Va hw.coreboot.compile_time
+Firmware compile time string.
+.It Va hw.coreboot.compiler
+Compiler identification string.
+.It Va hw.coreboot.extra_version
+Extra version information.
+.It Va hw.coreboot.platform_blob_version
+Platform blob version string.
+.It Va hw.coreboot.serialno
+Board serial number.
+.It Va hw.coreboot.version_timestamp
+Firmware version timestamp.
+.It Va hw.coreboot.table_addr
+Physical address of the coreboot table.
+.It Va hw.coreboot.table_size
+Total size of the coreboot table in bytes.
+.It Va hw.coreboot.mainboard.vendor
+Mainboard vendor name.
+.It Va hw.coreboot.mainboard.part
+Mainboard part number.
+.It Va hw.coreboot.serial.baseaddr
+Serial port base address.
+.It Va hw.coreboot.serial.baud
+Serial port baud rate.
+.It Va hw.coreboot.serial.regwidth
+Serial port register width.
+.It Va hw.coreboot.tsc_freq_khz
+TSC frequency in kilohertz as reported by firmware.
+.It Va hw.coreboot.pcie_ctrl_base
+PCIe controller base address.
+.It Va hw.coreboot.acpi_rsdp
+ACPI RSDP physical address.
+.It Va hw.coreboot.board.fw_config
+Firmware configuration bitmask.
+.It Va hw.coreboot.board.board_id
+Board ID.
+.It Va hw.coreboot.board.ram_code
+RAM code.
+.It Va hw.coreboot.board.sku_id
+SKU ID.
+.It Va hw.coreboot.mac.N
+Factory MAC address N (formatted as xx:xx:xx:xx:xx:xx).
+.It Va hw.coreboot.boot_media.fmap_offset
+FMAP offset from boot media start.
+.It Va hw.coreboot.boot_media.cbfs_offset
+CBFS offset from boot media start.
+.It Va hw.coreboot.boot_media.cbfs_size
+CBFS size in bytes.
+.It Va hw.coreboot.boot_media.size
+Boot media size in bytes.
+.It Va hw.coreboot.mmc_early_cmd1_status
+Early eMMC/MMC CMD1 status value.
+.It Va hw.coreboot.spi_flash.size
+SPI flash size in bytes.
+.It Va hw.coreboot.spi_flash.sector_size
+SPI flash sector size in bytes.
+.It Va hw.coreboot.spi_flash.erase_cmd
+SPI flash erase command byte.
+.It Va hw.coreboot.console_type
+Firmware console type (0=serial8250, 1=VGA, 2=BTEXT, 3=LOGBUF, 4=SROM,
+5=EHCI, 6=serial8250mem).
+.It Va hw.coreboot.framebuffer.addr
+Framebuffer physical address.
+.It Va hw.coreboot.framebuffer.x_res
+Framebuffer horizontal resolution.
+.It Va hw.coreboot.framebuffer.y_res
+Framebuffer vertical resolution.
+.It Va hw.coreboot.framebuffer.bpp
+Framebuffer bits per pixel.
+.It Va hw.coreboot.gpio.N.name
+GPIO pin N name.
+.It Va hw.coreboot.gpio.N.port
+GPIO pin N port number.
+.It Va hw.coreboot.gpio.N.value
+GPIO pin N value.
+.It Va hw.coreboot.gpio.N.polarity
+GPIO pin N polarity.
+.It Va hw.coreboot.tpm.version
+TPM version (1=TPM 1.2, 2=TPM 2.0).
+.It Va hw.coreboot.tpm.ppi_addr
+TPM Physical Presence Interface address.
+.It Va hw.coreboot.tpm.cblog_addr
+TPM event log physical address.
+.It Va hw.coreboot.smmstore.num_blocks
+SMMSTORE v2 number of blocks.
+.It Va hw.coreboot.smmstore.block_size
+SMMSTORE v2 block size in bytes.
+.It Va hw.coreboot.smmstore.mmap_addr
+SMMSTORE v2 memory-mapped address.
+.It Va hw.coreboot.smmstore.com_buffer
+SMMSTORE v2 communication buffer address.
+.It Va hw.coreboot.smmstore.apm_cmd
+SMMSTORE v2 APM command byte.
+.It Va hw.coreboot.cbmem_refs.acpi_gnvs
+ACPI GNVS CBMEM physical address.
+.It Va hw.coreboot.cbmem_refs.acpi_cnvs
+ACPI CNVS CBMEM physical address.
+.It Va hw.coreboot.cbmem_refs.vpd
+VPD CBMEM physical address.
+.It Va hw.coreboot.cbmem_refs.wifi_calibration
+WiFi calibration CBMEM physical address.
+.It Va hw.coreboot.cbmem_refs.fmap
+FMAP CBMEM physical address.
+.It Va hw.coreboot.cbmem_refs.vboot_workbuf
+Vboot work buffer CBMEM physical address.
+.It Va hw.coreboot.cbmem_refs.type_c_info
+Type-C info CBMEM physical address.
+.It Va hw.coreboot.cbmem_refs.root_bridge_info
+Root bridge info CBMEM physical address.
+.It Va hw.coreboot.timestamps_addr
+Timestamps CBMEM physical address.
+.It Va hw.coreboot.timestamps
+Formatted boot stage timing table (read-only).
+Each line shows the timestamp ID, stage name, absolute time in
+microseconds, and delta from the previous stage.
+.It Va hw.coreboot.cbmem.N.id
+CBMEM entry ID.
+.It Va hw.coreboot.cbmem.N.name
+Human-readable CBMEM entry name.
+.It Va hw.coreboot.cbmem.N.address
+Physical address of the CBMEM entry.
+.It Va hw.coreboot.cbmem.N.size
+Size of the CBMEM entry in bytes.
+.El
+.Ss ioctl Interface
+The
+.Pa /dev/cbmem
+device supports the following
+.Xr ioctl 2
+commands, defined in
+.In dev/coreboot/corebootio.h :
+.Bl -tag -width CBMEM_IOC_LIST
+.It Dv CBMEM_IOC_LIST
+Returns a
+.Vt struct cbmem_list
+containing the count and metadata of all discovered CBMEM entries.
+.It Dv CBMEM_IOC_READ
+Reads data from a CBMEM entry identified by its ID.
+Takes a
+.Vt struct cbmem_read_req
+specifying the entry ID, offset, size, and a userspace buffer.
+.El
+.Sh FILES
+.Bl -tag -width "/dev/coreboot_console"
+.It Pa /dev/coreboot_console
+Firmware console ring buffer (read-only).
+.It Pa /dev/cbmem
+CBMEM entry access device.
+.El
+.Sh EXAMPLES
+Display the coreboot firmware version:
+.Pp
+.Dl "sysctl hw.coreboot.version"
+.Pp
+Read the firmware boot log:
+.Pp
+.Dl "cat /dev/coreboot_console"
+.Pp
+List all CBMEM entries:
+.Pp
+.Dl "sysctl hw.coreboot.cbmem"
+.Pp
+Show board identification:
+.Pp
+.Dl "sysctl hw.coreboot.board"
+.Pp
+Show factory MAC addresses:
+.Pp
+.Dl "sysctl hw.coreboot.mac"
+.Pp
+Display boot stage timestamps:
+.Pp
+.Dl "sysctl hw.coreboot.timestamps"
+.Pp
+Enable debug output and reload the module (the sysctl value resets on
+unload, so it must be set again or persisted via
+.Xr loader.conf 5 ) :
+.Bd -literal -offset indent
+kldunload coreboot
+kldload coreboot
+sysctl hw.coreboot.debug=1
+dmesg | grep coreboot
+.Ed
+.Pp
+To persist debug across reboots, add to
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+hw.coreboot.debug=1
+.Ed
+.Sh COMPATIBILITY
+The
+.Nm
+driver works with any x86 system running coreboot firmware.
+The coreboot table format uses a stable ABI with forward-compatible
+tagged records; unknown tags are safely skipped.
+.Pp
+Linux provides similar functionality through a custom bus type with
+separate modules for each table record type, exposed via sysfs.
+The
+.Fx
+driver uses a single module with native
+.Xr sysctl 8
+and
+.Xr ioctl 2
+interfaces instead.
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr smbios 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Abdelkader Boudih Aq Mt freebsd@seuros.com .
+.Sh CAVEATS
+The driver discovers the coreboot table by scanning physical memory
+addresses 0x0 through 0x1000 for the
+.Dq LBIO
+signature.
+On systems without coreboot firmware, the driver will silently
+not attach.
+.Pp
+The
+.Pa /dev/coreboot_console
+content is static after boot; coreboot does not write to the
+console buffer after handing off control to the payload.

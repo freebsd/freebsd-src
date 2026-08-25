@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -25,6 +15,7 @@
  * Copyright (c) 2011, 2020 by Delphix. All rights reserved.
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2019, Datto Inc. All rights reserved.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 #ifndef _SYS_VDEV_H
@@ -56,9 +47,10 @@ typedef boolean_t vdev_open_children_func_t(vdev_t *vd);
 extern void vdev_dbgmsg(vdev_t *vd, const char *fmt, ...)
     __attribute__((format(__printf__, 2, 3)));
 extern void vdev_dbgmsg_print_tree(vdev_t *, int);
-extern int vdev_open(vdev_t *);
-extern void vdev_open_children(vdev_t *);
-extern void vdev_open_children_subset(vdev_t *, vdev_open_children_func_t *);
+extern int vdev_open(vdev_t *, cred_t *);
+extern void vdev_open_children(vdev_t *, cred_t *);
+extern void vdev_open_children_subset(vdev_t *, cred_t *,
+    vdev_open_children_func_t *);
 extern int vdev_validate(vdev_t *);
 extern int vdev_copy_path_strict(vdev_t *, vdev_t *);
 extern void vdev_copy_path_relaxed(vdev_t *, vdev_t *);
@@ -228,6 +220,8 @@ extern void vdev_label_write(zio_t *zio, vdev_t *vd, int l, abd_t *buf, uint64_t
 extern int vdev_label_read_bootenv(vdev_t *, nvlist_t *);
 extern int vdev_label_write_bootenv(vdev_t *, nvlist_t *);
 extern int vdev_uberblock_sync_list(vdev_t **, int, struct uberblock *, int);
+extern int vdev_uberblock_compare(const struct uberblock *,
+    const struct uberblock *);
 extern int vdev_check_boot_reserve(spa_t *, vdev_t *);
 
 typedef enum {
@@ -241,8 +235,8 @@ typedef enum {
 
 extern int vdev_label_init(vdev_t *vd, uint64_t txg, vdev_labeltype_t reason);
 
-extern int vdev_prop_set(vdev_t *vd, nvlist_t *innvl, nvlist_t *outnvl);
-extern int vdev_prop_get(vdev_t *vd, nvlist_t *nvprops, nvlist_t *outnvl);
+extern int vdev_prop_set(spa_t *spa, nvlist_t *innvl, nvlist_t *outnvl);
+extern int vdev_prop_get(spa_t *spa, nvlist_t *nvprops, nvlist_t *outnvl);
 
 #ifdef	__cplusplus
 }

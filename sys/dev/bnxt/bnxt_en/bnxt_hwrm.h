@@ -69,6 +69,8 @@ int bnxt_hwrm_stat_ctx_alloc(struct bnxt_softc *softc, struct bnxt_cp_ring *cpr,
 int bnxt_hwrm_stat_ctx_free(struct bnxt_softc *softc, struct bnxt_cp_ring *cpr);
 int bnxt_hwrm_port_qstats(struct bnxt_softc *softc);
 int bnxt_hwrm_port_qstats_ext(struct bnxt_softc *softc);
+int bnxt_hwrm_port_led_qcaps(struct bnxt_softc *softc);
+int bnxt_hwrm_port_led_cfg(struct bnxt_softc *softc, bool led_on);
 int bnxt_hwrm_ring_grp_alloc(struct bnxt_softc *softc,
     struct bnxt_grp_info *grp);
 int bnxt_hwrm_ring_grp_free(struct bnxt_softc *softc, struct bnxt_grp_info *gr);
@@ -141,4 +143,5 @@ int bnxt_hwrm_passthrough(struct bnxt_softc *softc, void *req, uint32_t req_len,
 int	_hwrm_send_message(struct bnxt_softc *, void *, uint32_t);
 int	hwrm_send_message(struct bnxt_softc *, void *, uint32_t);
 void	bnxt_hwrm_cmd_hdr_init(struct bnxt_softc *, void *, uint16_t);
+int bnxt_hwrm_reserve_vf_rings (struct bnxt_softc *softc);
 #endif

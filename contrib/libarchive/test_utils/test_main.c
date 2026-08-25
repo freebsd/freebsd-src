@@ -96,6 +96,12 @@ extern char **environ;
 #  define USE_POSIX_SPAWN 1
 # endif
 #endif
+#if !defined(_WIN32)
+# if HAVE_PWD_H && HAVE_GETEUID && HAVE_GETEGID
+#  include <pwd.h>
+#  define RUN_TEST_UNPRIV 1
+# endif
+#endif
 
 #ifndef nitems
 #define nitems(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -147,9 +153,6 @@ extern char **environ;
 #if !defined(__BORLANDC__)
 #define getcwd _getcwd
 #endif
-#define lstat stat
-/*#define lstat _stat64*/
-/*#define stat _stat64*/
 #define rmdir _rmdir
 #if !defined(__BORLANDC__)
 #define strdup _strdup
@@ -177,6 +180,14 @@ const char *testprogfile;
 /* Name of exe to use in printf-formatted command strings. */
 /* On Windows, this includes leading/trailing quotes. */
 const char *testprog;
+#endif
+
+#ifdef RUN_TEST_UNPRIV
+/* Unprivileged user to run as */
+static const char *tuser = "nobody";
+/* Original and test credentials */
+static uid_t ouid, tuid;
+static uid_t ogid, tgid;
 #endif
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -344,10 +355,28 @@ my_GetFileInformationByName(const char *path, BY_HANDLE_FILE_INFORMATION *bhfi)
 {
 	HANDLE h;
 	int r;
+	const char *p;
+	char *s, *pn;
+
+	/* Replace slashes with backslashes in path */
+	pn = malloc(strlen(path) + 1);
+	if (pn == NULL) {
+		return (0);
+	}
+
+	for (p = path, s = pn; *p != '\0'; p++, s++) {
+		if (*p == '/')
+			*s = '\\';
+		else
+			*s = *p;
+	}
+	*s = '\0';
 
 	memset(bhfi, 0, sizeof(*bhfi));
-	h = CreateFileA(path, FILE_READ_ATTRIBUTES, 0, NULL,
-		OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	h = CreateFileA(pn, FILE_READ_ATTRIBUTES, 0, NULL,
+		OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS |
+		    FILE_FLAG_OPEN_REPARSE_POINT, NULL);
+	free(pn);
 	if (h == INVALID_HANDLE_VALUE)
 		return (0);
 	r = GetFileInformationByHandle(h, bhfi);
@@ -630,6 +659,22 @@ assertion_chmod(const char *file, int line, const char *pathname, int mode)
 	failure_finish(NULL);
 	return (0);
 
+}
+
+/* change file/directory ownership and errors if it fails */
+int
+assertion_chown(const char *file, int line, const char *pathname, int user,
+    int group)
+{
+	assertion_count(file, line);
+#ifdef HAVE_CHOWN
+	if (chown(pathname, (uid_t)user, (gid_t)group) == 0)
+		return (1);
+#endif
+	failure_start(file, line, "chown(\"%s\", %d, %d)", pathname,
+	    user, group);
+	failure_finish(NULL);
+	return (0);
 }
 
 /* Verify two integers are equal. */
@@ -1478,7 +1523,8 @@ assertion_file_time(const char *file, int line,
 	 * a directory file. If not, CreateFile() will fail when
 	 * the pathname is a directory. */
 	h = CreateFileA(pathname, FILE_READ_ATTRIBUTES, 0, NULL,
-	    OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	    OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS |
+	        FILE_FLAG_OPEN_REPARSE_POINT, NULL);
 	if (h == INVALID_HANDLE_VALUE) {
 		failure_start(file, line, "Can't access %s\n", pathname);
 		failure_finish(NULL);
@@ -1703,13 +1749,28 @@ assertion_file_size(const char *file, int line, const char *pathname, long size)
 int
 assertion_is_dir(const char *file, int line, const char *pathname, int mode)
 {
-	struct stat st;
 	int r;
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	(void)mode; /* UNUSED */
-#endif
 	assertion_count(file, line);
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	BY_HANDLE_FILE_INFORMATION st;
+	(void)mode; /* UNUSED */
+	r = my_GetFileInformationByName(pathname, &st);
+	if (r == 0) {
+		failure_start(file, line, "Dir should exist: %s", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+	if ((st.dwFileAttributes &
+	    (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) !=
+	    FILE_ATTRIBUTE_DIRECTORY) {
+		failure_start(file, line, "%s is not a dir", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+#else
+	struct stat st;
 	r = lstat(pathname, &st);
 	if (r != 0) {
 		failure_start(file, line, "Dir should exist: %s", pathname);
@@ -1721,7 +1782,6 @@ assertion_is_dir(const char *file, int line, const char *pathname, int mode)
 		failure_finish(NULL);
 		return (0);
 	}
-#if !defined(_WIN32) || defined(__CYGWIN__)
 	/* Windows doesn't handle permissions the same way as POSIX,
 	 * so just ignore the mode tests. */
 	/* TODO: Can we do better here? */
@@ -1741,20 +1801,35 @@ assertion_is_dir(const char *file, int line, const char *pathname, int mode)
 int
 assertion_is_reg(const char *file, int line, const char *pathname, int mode)
 {
-	struct stat st;
 	int r;
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
-	(void)mode; /* UNUSED */
-#endif
 	assertion_count(file, line);
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	BY_HANDLE_FILE_INFORMATION st;
+	(void)mode; /* UNUSED */
+	r = my_GetFileInformationByName(pathname, &st);
+	if (r == 0) {
+		failure_start(file, line, "File should exist: %s", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+	if ((st.dwFileAttributes &
+	    (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) !=
+	    0) {
+		failure_start(file, line, "%s is not a regular file", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+#else
+	struct stat st;
 	r = lstat(pathname, &st);
 	if (r != 0 || !S_ISREG(st.st_mode)) {
 		failure_start(file, line, "File should exist: %s", pathname);
 		failure_finish(NULL);
 		return (0);
 	}
-#if !defined(_WIN32) || defined(__CYGWIN__)
+
 	/* Windows doesn't handle permissions the same way as POSIX,
 	 * so just ignore the mode tests. */
 	/* TODO: Can we do better here? */
@@ -2130,7 +2205,7 @@ assertion_utimes(const char *file, int line, const char *pathname,
 	assertion_count(file, line);
 	h = CreateFileA(pathname,GENERIC_READ | GENERIC_WRITE,
 		    FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
-		    FILE_FLAG_BACKUP_SEMANTICS, NULL);
+		    FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, NULL);
 	if (h == INVALID_HANDLE_VALUE) {
 		failure_start(file, line, "Can't access %s\n", pathname);
 		failure_finish(NULL);
@@ -3026,11 +3101,41 @@ systemf(const char *fmt, ...)
 	pid_t pid;
 #endif
 	va_list ap;
+	size_t off = 0, avail = sizeof(buff);
 	int r;
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* system() on Windows runs its arguments through CMD.EXE, which has
+	 * notoriously unfriendly quoting rules. The current best documented way around
+	 * them is to wrap your *entire commandline* in sacrificial quotes.
+	 *
+	 * See CMD.EXE /? for more information. Excerpted here:
+	 * | Otherwise, old behavior is to see if the first character is
+	 * | a quote character and if so, strip the leading character and
+	 * | remove the last quote character on the command line, preserving
+	 * | any text after the last quote character.
+	 *
+	 * Since these tests often make use of systemf() with quoted arguments inside
+	 * the commandline, wrap every formatted commandline in quotes.
+	 */
+	avail -= 2;
+	off++;
+	buff[0] = '"';
+#endif
+
 	va_start(ap, fmt);
-	vsnprintf(buff, sizeof(buff), fmt, ap);
+	r = vsnprintf(buff + off, avail, fmt, ap);
 	va_end(ap);
+
+	if (r < 0 || (size_t)r >= avail) {
+		return (-1);
+	}
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	buff[off + r] = '"';
+	buff[off + r + 1] = '\0';
+#endif
+
 	if (verbosity > VERBOSITY_FULL)
 		logprintf("Cmd: %s\n", buff);
 #if USE_POSIX_SPAWN
@@ -3610,8 +3715,11 @@ test_run(int i, const char *tmpdir)
 		exit(1);
 	}
 	testworkdir = workdir;
-	if (!assertMakeDir(testworkdir, 0755)
-	    || !assertChdir(testworkdir)) {
+	if (!assertMakeDir(testworkdir, 0755) ||
+#ifdef RUN_TEST_UNPRIV
+	    (tuser != NULL && !assertChown(testworkdir, tuid, tgid)) ||
+#endif
+	    !assertChdir(testworkdir)) {
 		fprintf(stderr,
 		    "ERROR: Can't chdir to work dir %s\n", testworkdir);
 		exit(1);
@@ -3620,10 +3728,28 @@ test_run(int i, const char *tmpdir)
 	set_c_locale();
 	/* Record the umask before we run the test. */
 	umask(oldumask = umask(0));
+#ifdef RUN_TEST_UNPRIV
+	/*
+	 * Temporarily drop privileges.
+	 */
+	if (tuser != NULL) {
+		(void)setegid(tuid);
+		(void)seteuid(tuid);
+	}
+#endif
 	/*
 	 * Run the actual test.
 	 */
 	(*tests[i].func)();
+#ifdef RUN_TEST_UNPRIV
+	/*
+	 * Restore original credentials.
+	 */
+	if (tuser != NULL) {
+		(void)seteuid(ouid);
+		(void)setegid(ogid);
+	}
+#endif
 	/*
 	 * Clean up and report afterwards.
 	 */
@@ -3696,7 +3822,7 @@ usage(const char *program)
 
 	printf("Usage: %s [options] <test> <test> ...\n", program);
 	printf("Default is to run all tests.\n");
-	printf("Otherwise, specify the numbers of the tests you wish to run.\n");
+	printf("Otherwise, specify tests by name or number.\n");
 	printf("Options:\n");
 	printf("  -d  Dump core after any failure, for debugging.\n");
 	printf("  -k  Keep all temp files.\n");
@@ -3949,6 +4075,9 @@ main(int argc, char **argv)
 #endif
 	char *pwd, *testprogdir, *tmp2 = NULL, *vlevel = NULL;
 	char tmpdir_timestamp[32];
+#ifdef RUN_TEST_UNPRIV
+	struct passwd *pw;
+#endif
 
 	(void)argc; /* UNUSED */
 
@@ -4110,6 +4239,11 @@ main(int argc, char **argv)
 			case 's':
 				fail_if_tests_skipped = 1;
 				break;
+#ifdef RUN_TEST_UNPRIV
+			case 'U':
+				tuser = optarg;
+				break;
+#endif
 			case 'u':
 				until_failure++;
 				break;
@@ -4191,6 +4325,28 @@ main(int argc, char **argv)
 		sigemptyset(&sa.sa_mask);
 		sa.sa_flags = 0;
 		sigaction(SIGPIPE, &sa, NULL);
+	}
+#endif
+
+#ifdef RUN_TEST_UNPRIV
+	/*
+	 * Check if we are root, and get user to run as.
+	 */
+	ouid = getuid();
+	ogid = getgid();
+	if (ouid == 0) {
+		if ((pw = getpwnam(tuser)) == NULL) {
+			fprintf(stderr, "ERROR: Unknown user %s\n", tuser);
+			exit(1);
+		}
+		tuid = pw->pw_uid;
+		tgid = pw->pw_gid;
+		printf("Will switch to user %s (uid %d gid %d)\n", tuser,
+		    tuid, tgid);
+	} else {
+		tuser = NULL;
+		tuid = ouid;
+		tgid = ogid;
 	}
 #endif
 

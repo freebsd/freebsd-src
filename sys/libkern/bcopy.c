@@ -35,7 +35,9 @@
 #include <sys/param.h>
 #ifdef _KERNEL
 #include <sys/systm.h>
+#include <sys/stddef.h>
 #else
+#include <stddef.h>
 #include <string.h>
 #endif
 
@@ -46,7 +48,7 @@
  * sizeof(word) MUST BE A POWER OF TWO
  * SO THAT wmask BELOW IS ALL ONES
  */
-typedef	long	word;		/* "word" used for optimal copy speed */
+typedef	intptr_t word;		/* "word" used for optimal copy speed */
 
 #define	wsize	sizeof(word)
 #define wmask	(wsize - 1)
@@ -57,7 +59,7 @@ typedef	long	word;		/* "word" used for optimal copy speed */
  * (the portable versions of) bcopy, memcpy, and memmove.
  */
 void *
-memcpy(void *dst0, const void *src0, size_t length)
+memmove(void *dst0, const void *src0, size_t length)
 {
 	char		*dst;
 	const char	*src;
@@ -76,18 +78,18 @@ memcpy(void *dst0, const void *src0, size_t length)
 #define	TLOOP(s) if (t) TLOOP1(s)
 #define	TLOOP1(s) do { s; } while (--t)
 
-	if ((unsigned long)dst < (unsigned long)src) {
+	if ((ptraddr_t)dst < (ptraddr_t)src) {
 		/*
 		 * Copy forward.
 		 */
 		t = (size_t)src;	/* only need low bits */
 
-		if ((t | (uintptr_t)dst) & wmask) {
+		if ((t | (ptraddr_t)dst) & wmask) {
 			/*
 			 * Try to align operands.  This cannot be done
 			 * unless the low bits match.
 			 */
-			if ((t ^ (uintptr_t)dst) & wmask || length < wsize) {
+			if ((t ^ (ptraddr_t)dst) & wmask || length < wsize) {
 				t = length;
 			} else {
 				t = wsize - (t & wmask);
@@ -112,10 +114,10 @@ memcpy(void *dst0, const void *src0, size_t length)
 		 */
 		src += length;
 		dst += length;
-		t = (uintptr_t)src;
+		t = (size_t)src;
 
-		if ((t | (uintptr_t)dst) & wmask) {
-			if ((t ^ (uintptr_t)dst) & wmask || length <= wsize) {
+		if ((t | (ptraddr_t)dst) & wmask) {
+			if ((t ^ (ptraddr_t)dst) & wmask || length <= wsize) {
 				t = length;
 			} else {
 				t &= wmask;
@@ -134,4 +136,4 @@ done:
 	return (dst0);
 }
 
-__strong_reference(memcpy, memmove);
+__strong_reference(memmove, memcpy);

@@ -94,7 +94,6 @@ map_object(int fd, const char *path, const struct stat *sb, bool ismain)
 	Elf_Addr note_end;
 	char *note_map;
 	size_t note_map_len;
-	Elf_Addr text_end;
 
 	hdr = get_elf_header(fd, path, sb, &phdr);
 	if (hdr == NULL)
@@ -113,9 +112,8 @@ map_object(int fd, const char *path, const struct stat *sb, bool ismain)
 	note_end = 0;
 	note_map = NULL;
 	note_map_len = 0;
-	segs = alloca(sizeof(segs[0]) * hdr->e_phnum);
+	segs = xcalloc(hdr->e_phnum, sizeof(segs[0]));
 	stack_flags = PF_X | PF_R | PF_W;
-	text_end = 0;
 	while (phdr < phlimit) {
 		switch (phdr->p_type) {
 		case PT_INTERP:
@@ -123,17 +121,18 @@ map_object(int fd, const char *path, const struct stat *sb, bool ismain)
 			break;
 
 		case PT_LOAD:
+			if (phdr->p_memsz < phdr->p_filesz) {
+				_rtld_error("%s: invalid PT_LOAD segment",
+				    path);
+				goto error;
+			}
+
 			segs[++nsegs] = phdr;
 			if ((segs[nsegs]->p_align & (page_size - 1)) != 0) {
 				_rtld_error(
 				    "%s: PT_LOAD segment %d not page-aligned",
 				    path, nsegs);
 				goto error;
-			}
-			if ((segs[nsegs]->p_flags & PF_X) == PF_X) {
-				text_end = MAX(text_end,
-				    rtld_round_page(segs[nsegs]->p_vaddr +
-				    segs[nsegs]->p_memsz));
 			}
 			break;
 
@@ -147,6 +146,12 @@ map_object(int fd, const char *path, const struct stat *sb, bool ismain)
 			break;
 
 		case PT_TLS:
+			if (phdr->p_memsz < phdr->p_filesz) {
+				_rtld_error("%s: invalid PT_TLS segment",
+				    path);
+				goto error;
+			}
+
 			phtls = phdr;
 			break;
 
@@ -338,20 +343,20 @@ map_object(int fd, const char *path, const struct stat *sb, bool ismain)
 	obj->stack_flags = stack_flags;
 	if (note_start < note_end)
 		digest_notes(obj, note_start, note_end);
-	if (note_map != NULL)
+finish:
+	if (note_map != NULL && note_map != MAP_FAILED)
 		munmap(note_map, note_map_len);
 	munmap(hdr, page_size);
+	free(segs);
 	return (obj);
 
 error1:
 	munmap(mapbase, mapsize);
 error:
-	if (note_map != NULL && note_map != MAP_FAILED)
-		munmap(note_map, note_map_len);
 	if (!phdr_in_zero_page(hdr))
 		munmap(phdr, hdr->e_phnum * sizeof(phdr[0]));
-	munmap(hdr, page_size);
-	return (NULL);
+	obj = NULL;
+	goto finish;
 }
 
 bool

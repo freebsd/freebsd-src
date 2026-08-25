@@ -1,4 +1,4 @@
-/*	$NetBSD: filemon_dev.c,v 1.9 2022/03/04 23:17:16 sjg Exp $	*/
+/*	$NetBSD: filemon_dev.c,v 1.10 2026/07/03 03:34:25 sjg Exp $	*/
 
 /*
  * Copyright (c) 2020 The NetBSD Foundation, Inc.
@@ -122,6 +122,19 @@ int
 filemon_close(struct filemon *F)
 {
 	int error = 0;
+
+#ifdef FILEMON_FLUSH_IOCTL
+	/*
+	 * Ask the kernel to write the footer and flush the trailing records to
+	 * the output file *now*, synchronously, before we close the device.
+	 * Otherwise finalization happens only at device release, which the
+	 * kernel defers until the last reference to the device is dropped; a
+	 * child that transiently inherited this fd across a fork->exec window
+	 * can hold that reference past our read of the output file, yielding a
+	 * truncated .meta (records + "# Bye bye" footer missing).
+	 */
+	(void)ioctl(F->fd, FILEMON_FLUSH_IOCTL);
+#endif
 
 	/* Close the filemon device fd.  */
 	if (close(F->fd) == -1 && error == 0)

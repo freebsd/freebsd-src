@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -1080,8 +1070,63 @@ zfsdle_vdev_online(zpool_handle_t *zhp, void *data)
 	zed_log_msg(LOG_INFO, "zfsdle_vdev_online: searching for '%s' in '%s'",
 	    devname, zpool_get_name(zhp));
 
-	if ((tgt = zpool_find_vdev_by_physpath(zhp, devname,
-	    &avail_spare, &l2cache, NULL)) != NULL) {
+	tgt = zpool_find_vdev_by_physpath(zhp, devname,
+	    &avail_spare, &l2cache, NULL);
+
+	/*
+	 * A whole-disk event carries no vdev guid (the label lives on
+	 * the partition), and udev provides no ID_PATH on some buses,
+	 * so neither lookup above can match.  Identify the vdev by
+	 * reading the label off the whole-disk partition instead: the
+	 * pool and vdev guids stored there don't depend on which name
+	 * the pool was imported with (by-id, by-path or a bare device
+	 * node), and they can't be forged by a stale config path left
+	 * behind in an unrelated pool.
+	 */
+	if (tgt == NULL && nvlist_lookup_uint64(udev_nvl, ZFS_EV_VDEV_GUID,
+	    &guid) != 0 && nvlist_lookup_string(udev_nvl, DEV_NAME,
+	    &tmp_devname) == 0 && !nvlist_exists(udev_nvl, DEV_IS_PART)) {
+		nvlist_t *label = NULL;
+		uint64_t label_pool_guid = 0, label_vdev_guid = 0;
+		int fd;
+
+		strlcpy(devname, tmp_devname, MAXPATHLEN);
+		zfs_append_partition(devname, MAXPATHLEN);
+
+		if ((fd = open(devname, O_RDONLY | O_CLOEXEC)) >= 0) {
+			if (zpool_read_label(fd, &label, NULL) == 0 &&
+			    label != NULL &&
+			    nvlist_lookup_uint64(label,
+			    ZPOOL_CONFIG_POOL_GUID, &label_pool_guid) == 0 &&
+			    nvlist_lookup_uint64(label, ZPOOL_CONFIG_GUID,
+			    &label_vdev_guid) == 0 &&
+			    label_pool_guid == zpool_get_prop_int(zhp,
+			    ZPOOL_PROP_GUID, NULL)) {
+				zed_log_msg(LOG_INFO, "zfsdle_vdev_online: "
+				    "matched vdev %llu by the label on '%s'",
+				    (u_longlong_t)label_vdev_guid, devname);
+
+				(void) snprintf(devname, MAXPATHLEN, "%llu",
+				    (u_longlong_t)label_vdev_guid);
+				tgt = zpool_find_vdev(zhp, devname,
+				    &avail_spare, &l2cache, NULL);
+				if (tgt != NULL && (avail_spare || l2cache))
+					tgt = NULL;
+				if (tgt != NULL) {
+					uint64_t wd = 0;
+
+					(void) nvlist_lookup_uint64(tgt,
+					    ZPOOL_CONFIG_WHOLE_DISK, &wd);
+					if (!wd)
+						tgt = NULL;
+				}
+			}
+			nvlist_free(label);
+			(void) close(fd);
+		}
+	}
+
+	if (tgt != NULL) {
 		const char *path;
 		char fullpath[MAXPATHLEN];
 		uint64_t wholedisk = 0;

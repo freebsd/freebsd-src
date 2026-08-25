@@ -661,6 +661,7 @@ file_loadraw(const char *fname, const char *type, int insert)
 	vm_offset_t			laddr;
 #ifdef LOADER_VERIEXEC_VECTX
 	struct vectx		*vctx;
+	int			severity;
 	int			verror;
 #endif
 
@@ -690,7 +691,16 @@ file_loadraw(const char *fname, const char *type, int insert)
 	}
 
 #ifdef LOADER_VERIEXEC_VECTX
-	vctx = vectx_open(fd, name, 0L, NULL, &verror, __func__);
+	severity = severity_guess(name);
+	if (severity < VE_MUST) {
+		/* double check against type */
+		if (strcmp(type, "md_image") == 0
+		    || strcmp(type, "mfs_root") == 0
+		    || strcmp(type, "acpi_dsdt") == 0
+		    || strcmp(type, "cpu_microcode") == 0)
+			severity = VE_MUST;
+	}
+	vctx = vectx_open(fd, name, severity, 0L, NULL, &verror, __func__);
 	if (verror) {
 		sprintf(command_errbuf, "can't verify '%s': %s",
 		    name, ve_error_get());
@@ -741,7 +751,9 @@ file_loadraw(const char *fname, const char *type, int insert)
 	if (module_verbose > MODULE_VERBOSE_SILENT)
 		printf("size=%#jx\n", (uintmax_t)(laddr - loadaddr));
 #ifdef LOADER_VERIEXEC_VECTX
-	verror = vectx_close(vctx, VE_MUST, __func__);
+	verror = vectx_close(vctx, __func__);
+	DEBUG_PRINTF(1,("%s: vectx_close(%s): %d\n", __func__,
+		name, verror));
 	if (verror) {
 		free(name);
 		close(fd);

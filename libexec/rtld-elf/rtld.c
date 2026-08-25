@@ -178,6 +178,7 @@ static int symlook_obj1_sysv(SymLook *, const Obj_Entry *);
 static int symlook_obj1_gnu(SymLook *, const Obj_Entry *);
 static void *tls_get_addr_slow(struct tcb *, int, size_t, bool) __noinline;
 static void trace_loaded_objects(Obj_Entry *, bool);
+static int try_fds_open(const char *name, const char *path);
 static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *, RtldLockState *lockstate);
 static void unref_dag(Obj_Entry *);
@@ -187,6 +188,10 @@ static char *origin_subst_one(Obj_Entry *, char *, const char *, const char *,
 static char *origin_subst(Obj_Entry *, const char *);
 static bool obj_resolve_origin(Obj_Entry *obj);
 static void preinit_main(void);
+static void rtld_recalc_bind_not(const char *);
+static void rtld_recalc_dangerous_ld_env(void);
+static void rtld_recalc_debug(const char *);
+static void rtld_recalc_path_rpath(const char *);
 static int rtld_verify_versions(const Objlist *);
 static int rtld_verify_object_versions(Obj_Entry *);
 static void object_add_name(Obj_Entry *, const char *);
@@ -197,6 +202,17 @@ static void rtld_fill_dl_phdr_info(const Obj_Entry *obj,
 static uint32_t gnu_hash(const char *);
 static bool matched_symbol(SymLook *, const Obj_Entry *, Sym_Match_Result *,
     const unsigned long);
+
+struct ld_env_var_desc;
+static void rtld_set_var_bind_not(struct ld_env_var_desc *lvd);
+static void rtld_set_var_bind_now(struct ld_env_var_desc *lvd);
+static void rtld_set_var_debug(struct ld_env_var_desc *lvd);
+static void rtld_set_var_dynamic_weak(struct ld_env_var_desc *lvd);
+static void rtld_set_var_libmap_disable(struct ld_env_var_desc *lvd);
+static void rtld_set_var_library_path(struct ld_env_var_desc *lvd);
+static void rtld_set_var_library_path_fds(struct ld_env_var_desc *lvd);
+static void rtld_set_var_library_path_rpath(struct ld_env_var_desc *lvd);
+static void rtld_set_var_loadfltr(struct ld_env_var_desc *lvd);
 
 void r_debug_state(struct r_debug *, struct link_map *) __noinline __exported;
 void _r_debug_postinit(struct link_map *) __noinline __exported;
@@ -215,7 +231,6 @@ static bool dangerous_ld_env;	    /* True if environment variables have been
 				       used to affect the libraries loaded */
 bool ld_bind_not;		    /* Disable PLT update */
 static const char *ld_bind_now; /* Environment variable for immediate binding */
-static const char *ld_debug;	/* Environment variable for debugging */
 static bool ld_dynamic_weak = true; /* True if non-weak definition overrides
 				       weak definition */
 static const char *ld_library_path; /* Environment variable for search path */
@@ -327,16 +342,6 @@ const char *ld_env_prefix = LD_;
 
 static void (*rtld_exit_ptr)(void);
 
-/*
- * Fill in a DoneList with an allocation large enough to hold all of
- * the currently-loaded objects.  Keep this as a macro since it calls
- * alloca and we want that to occur within the scope of the caller.
- */
-#define donelist_init(dlp)                                             \
-	((dlp)->objs = alloca(obj_count * sizeof(dlp)->objs[0]),       \
-	    assert((dlp)->objs != NULL), (dlp)->num_alloc = obj_count, \
-	    (dlp)->num_used = 0)
-
 #define LD_UTRACE(e, h, mb, ms, r, n)                      \
 	do {                                               \
 		if (ld_utrace != NULL)                     \
@@ -368,26 +373,35 @@ struct ld_env_var_desc {
 	const char *val;
 	const bool unsecure : 1;
 	const bool can_update : 1;
-	const bool debug : 1;
 	bool owned : 1;
+	void (*const on_update)(struct ld_env_var_desc *);
 };
 #define LD_ENV_DESC(var, unsec, ...) \
 	[LD_##var] = { .n = #var, .unsecure = unsec, __VA_ARGS__ }
 
 static struct ld_env_var_desc ld_env_vars[] = {
-	LD_ENV_DESC(BIND_NOW, false),
+	LD_ENV_DESC(BIND_NOW, false, .can_update = true,
+	    .on_update = rtld_set_var_bind_now),
 	LD_ENV_DESC(PRELOAD, true),
 	LD_ENV_DESC(LIBMAP, true),
-	LD_ENV_DESC(LIBRARY_PATH, true, .can_update = true),
-	LD_ENV_DESC(LIBRARY_PATH_FDS, true, .can_update = true),
-	LD_ENV_DESC(LIBMAP_DISABLE, true),
-	LD_ENV_DESC(BIND_NOT, true),
-	LD_ENV_DESC(DEBUG, true, .can_update = true, .debug = true),
+	LD_ENV_DESC(LIBRARY_PATH, true, .can_update = true,
+	    .on_update = rtld_set_var_library_path),
+	LD_ENV_DESC(LIBRARY_PATH_FDS, true, .can_update = true,
+	    .on_update = rtld_set_var_library_path_fds),
+	LD_ENV_DESC(LIBMAP_DISABLE, true, .can_update = true,
+	    .on_update = rtld_set_var_libmap_disable),
+	LD_ENV_DESC(BIND_NOT, true, .can_update = true,
+	    .on_update = rtld_set_var_bind_not),
+	LD_ENV_DESC(DEBUG, true, .can_update = true,
+	    .on_update = rtld_set_var_debug),
 	LD_ENV_DESC(ELF_HINTS_PATH, true),
-	LD_ENV_DESC(LOADFLTR, true),
-	LD_ENV_DESC(LIBRARY_PATH_RPATH, true, .can_update = true),
+	LD_ENV_DESC(LOADFLTR, true, .can_update = true,
+	    .on_update = rtld_set_var_loadfltr),
+	LD_ENV_DESC(LIBRARY_PATH_RPATH, true, .can_update = true,
+	    .on_update = rtld_set_var_library_path_rpath),
 	LD_ENV_DESC(PRELOAD_FDS, true),
-	LD_ENV_DESC(DYNAMIC_WEAK, true, .can_update = true),
+	LD_ENV_DESC(DYNAMIC_WEAK, true, .can_update = true,
+	    .on_update = rtld_set_var_dynamic_weak),
 	LD_ENV_DESC(TRACE_LOADED_OBJECTS, false),
 	LD_ENV_DESC(UTRACE, false, .can_update = true),
 	LD_ENV_DESC(DUMP_REL_PRE, false, .can_update = true),
@@ -516,7 +530,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	struct stat st;
 	Elf_Addr *argcp;
 	char **argv, **env, **envp, *kexecpath;
-	const char *argv0, *binpath, *library_path_rpath, *static_tls_extra;
+	const char *argv0, *binpath, *static_tls_extra;
 	struct ld_env_var_desc *lvd;
 	caddr_t imgentry;
 	char buf[MAXPATHLEN];
@@ -721,9 +735,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 		}
 	}
 
-	ld_debug = ld_get_env_var(LD_DEBUG);
-	if (ld_bind_now == NULL)
-		ld_bind_not = ld_get_env_var(LD_BIND_NOT) != NULL;
+	rtld_recalc_debug(ld_get_env_var(LD_DEBUG));
+	rtld_recalc_bind_not(ld_get_env_var(LD_BIND_NOT));
 	ld_dynamic_weak = ld_get_env_var(LD_DYNAMIC_WEAK) == NULL;
 	libmap_disable = ld_get_env_var(LD_LIBMAP_DISABLE) != NULL;
 	libmap_override = ld_get_env_var(LD_LIBMAP);
@@ -733,31 +746,18 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	ld_preload_fds = ld_get_env_var(LD_PRELOAD_FDS);
 	ld_elf_hints_path = ld_get_env_var(LD_ELF_HINTS_PATH);
 	ld_loadfltr = ld_get_env_var(LD_LOADFLTR) != NULL;
-	library_path_rpath = ld_get_env_var(LD_LIBRARY_PATH_RPATH);
-	if (library_path_rpath != NULL) {
-		if (library_path_rpath[0] == 'y' ||
-		    library_path_rpath[0] == 'Y' ||
-		    library_path_rpath[0] == '1')
-			ld_library_path_rpath = true;
-		else
-			ld_library_path_rpath = false;
-	}
+	rtld_recalc_path_rpath(ld_get_env_var(LD_LIBRARY_PATH_RPATH));
 	static_tls_extra = ld_get_env_var(LD_STATIC_TLS_EXTRA);
 	if (static_tls_extra != NULL && static_tls_extra[0] != '\0') {
 		sz = parse_integer(static_tls_extra);
 		if (sz >= RTLD_STATIC_TLS_EXTRA && sz <= SIZE_T_MAX)
 			ld_static_tls_extra = sz;
 	}
-	dangerous_ld_env = libmap_disable || libmap_override != NULL ||
-	    ld_library_path != NULL || ld_preload != NULL ||
-	    ld_elf_hints_path != NULL || ld_loadfltr || !ld_dynamic_weak ||
-	    static_tls_extra != NULL;
+	rtld_recalc_dangerous_ld_env();
 	ld_tracing = ld_get_env_var(LD_TRACE_LOADED_OBJECTS);
 	ld_utrace = ld_get_env_var(LD_UTRACE);
 
 	set_ld_elf_hints_path();
-	if (ld_debug != NULL && *ld_debug != '\0')
-		debug = 1;
 	dbg("%s is initialized, base address = %p", __progname,
 	    (caddr_t)aux_info[AT_BASE]->a_un.a_ptr);
 	dbg("RTLD dynamic = %p", obj_rtld.dynamic);
@@ -935,8 +935,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	dbg("tcb_list_entry_offset %zu", tcb_list_entry_offset);
 
 	if (relocate_objects(obj_main,
-		ld_bind_now != NULL && *ld_bind_now != '\0', &obj_rtld,
-		SYMLOOK_EARLY, NULL) == -1)
+	    ld_bind_now != NULL && *ld_bind_now != '\0', &obj_rtld,
+	    SYMLOOK_EARLY, NULL) == -1)
 		rtld_die();
 
 	dbg("doing copy relocations");
@@ -1030,6 +1030,38 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	*exit_proc = rtld_exit_ptr;
 	*objp = obj_main;
 	return ((func_ptr_type)obj_main->entry);
+}
+
+/*
+ * Fill in a DoneList with an allocation large enough to hold all of
+ * the currently-loaded   Keep this as a macro since it calls
+ * alloca and we want that to occur within the scope of the caller.
+ */
+#define	DLP_ALLOCA_LIMIT	100	/* 800 bytes on LP64 */
+#define donelist_init(_DLP, _REQ)	do {				\
+	DoneList *_dlp = _DLP;						\
+	SymLook *_r = _REQ;						\
+	_dlp->num_alloc = obj_count,					\
+	_dlp->req = NULL;						\
+	if (_dlp->num_alloc > DLP_ALLOCA_LIMIT) {			\
+		_dlp->objs = xcalloc(_dlp->num_alloc, sizeof(_dlp->objs[0])); \
+		if (_r != NULL && _r->donelist_mem == NULL) {		\
+			_r->donelist_mem = _dlp->objs;			\
+			_dlp->req = _r;				\
+		}							\
+	} else {							\
+		_dlp->objs = alloca(_dlp->num_alloc * sizeof(_dlp->objs[0])); \
+	}								\
+	_dlp->num_used = 0;						\
+} while (0)
+
+static void
+donelist_free(DoneList *dlp)
+{
+	if (dlp->num_alloc > DLP_ALLOCA_LIMIT)
+		free(dlp->objs);
+	if (dlp->req != NULL)
+		dlp->req->donelist_mem = NULL;
 }
 
 void *
@@ -1716,6 +1748,12 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 			break;
 
 		case PT_TLS:
+			if (ph->p_memsz < ph->p_filesz) {
+				_rtld_error("%s: invalid PT_TLS segment",
+				    path);
+				return (NULL);
+			}
+
 			obj->tlsindex = 1;
 			obj->tlssize = ph->p_memsz;
 			obj->tlsalign = ph->p_align;
@@ -2309,7 +2347,7 @@ init_dag(Obj_Entry *root)
 
 	if (root->dag_inited)
 		return;
-	donelist_init(&donelist);
+	donelist_init(&donelist, NULL);
 
 	/* Root object belongs to own DAG. */
 	objlist_push_tail(&root->dldags, root);
@@ -2332,6 +2370,7 @@ init_dag(Obj_Entry *root)
 		}
 	}
 	root->dag_inited = true;
+	donelist_free(&donelist);
 }
 
 static void
@@ -2469,9 +2508,7 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
 	objtmp.path = NULL;
 	objtmp.rtld = true;
 	objtmp.mapbase = mapbase;
-#ifdef PIC
 	objtmp.relocbase = mapbase;
-#endif
 
 	objtmp.dynamic = rtld_dynamic(&objtmp);
 	digest_dynamic1(&objtmp, 1, &dyn_rpath, &dyn_soname, &dyn_runpath);
@@ -2644,6 +2681,11 @@ initlist_add_objects(Obj_Entry *obj, Obj_Entry *tail, Objlist *list,
 			initlist_add_neededs(obj->needed_aux_filtees,
 			    NULL, iflist);
 		objlist_push_tail(iflist, obj);
+
+		/* Recursively process the successor objects. */
+		nobj = globallist_next(obj);
+		if (nobj != NULL && obj != tail)
+			initlist_add_objects(nobj, tail, list, iflist);
 	} else {
 		if (obj->init_scanned)
 			return;
@@ -2866,9 +2908,12 @@ load_object(const char *name, int fd_u, const Obj_Entry *refobj, int flags)
 		 * using stat().
 		 */
 		if ((fd = open(path, O_RDONLY | O_CLOEXEC | O_VERIFY)) == -1) {
-			_rtld_error("Cannot open \"%s\"", path);
-			free(path);
-			return (NULL);
+			fd = try_fds_open(path, ld_library_dirs);
+			if (fd == -1) {
+				_rtld_error("Cannot open \"%s\"", path);
+				free(path);
+				return (NULL);
+			}
 		}
 	} else {
 		fd = fcntl(fd_u, F_DUPFD_CLOEXEC, 0);
@@ -3141,7 +3186,8 @@ objlist_call_fini(Objlist *list, Obj_Entry *root, RtldLockState *lockstate)
 				for (index = elm->obj->fini_array_num - 1;
 				    index >= 0; index--) {
 					if (fini_addr[index] != 0 &&
-					    fini_addr[index] != 1) {
+					    fini_addr[index] != 1 &&
+					    fini_addr[index] != (Elf_Addr)-1) {
 				dbg("calling fini function for %s at %p",
 						    elm->obj->path,
 						    (void *)fini_addr[index]);
@@ -3247,7 +3293,8 @@ objlist_call_init(Objlist *list, RtldLockState *lockstate)
 			for (index = 0; index < elm->obj->init_array_num;
 			    index++) {
 				if (init_addr[index] != 0 &&
-				    init_addr[index] != 1) {
+				    init_addr[index] != 1 &&
+				    init_addr[index] != (Elf_Addr)-1) {
 				dbg("calling init function for %s at %p",
 					    elm->obj->path,
 					    (void *)init_addr[index]);
@@ -3575,6 +3622,53 @@ rtld_exit(void)
 static void
 rtld_nop_exit(void)
 {
+}
+
+/*
+ * Parse string of the format '#number/name", where number must be a
+ * decimal number of the opened file descriptor listed in
+ * LD_LIBRARY_PATH_FDS.  If successful, tries to open dso name under
+ * dirfd number and returns resulting fd.
+ * On any error, returns -1.
+ */
+static int
+try_fds_open(const char *name, const char *path)
+{
+	const char *n;
+	char *envcopy, *fdstr, *last_token, *ncopy;
+	size_t len;
+	int fd, dirfd, dirfd_path;
+
+	if (!trust || name[0] != '#' || path == NULL)
+		return (-1);
+
+	name++;
+	n = strchr(name, '/');
+	if (n == NULL)
+		return (-1);
+	len = n - name;
+	ncopy = xmalloc(len + 1);
+	memcpy(ncopy, name, len);
+	ncopy[len] = '\0';
+	dirfd = parse_integer(ncopy);
+	free(ncopy);
+	if (dirfd == -1)
+		return (-1);
+
+	envcopy = xstrdup(path);
+	dirfd_path = -1;
+	for (fdstr = strtok_r(envcopy, ":", &last_token); fdstr != NULL;
+	    fdstr = strtok_r(NULL, ":", &last_token)) {
+		dirfd_path = parse_integer(fdstr);
+		if (dirfd_path == dirfd)
+			break;
+	}
+	free(envcopy);
+	if (dirfd_path != dirfd)
+		return (-1);
+
+	fd = __sys_openat(dirfd, n + 1, O_RDONLY | O_CLOEXEC | O_VERIFY);
+	return (fd);
 }
 
 /*
@@ -4036,8 +4130,11 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 
 	LD_UTRACE(UTRACE_DLSYM_START, handle, NULL, 0, 0, name);
 	rlock_acquire(rtld_bind_lock, &lockstate);
-	if (sigsetjmp(lockstate.env, 0) != 0)
+	if (sigsetjmp(lockstate.env, 0) != 0) {
 		lock_upgrade(rtld_bind_lock, &lockstate);
+		free(req.donelist_mem);
+		req.donelist_mem = NULL;
+	}
 	if (handle == NULL || handle == RTLD_NEXT || handle == RTLD_DEFAULT ||
 	    handle == RTLD_SELF) {
 		if ((obj = obj_from_addr(retaddr)) == NULL) {
@@ -4106,7 +4203,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 			return (NULL);
 		}
 
-		donelist_init(&donelist);
+		donelist_init(&donelist, &req);
 		if (obj->mainprog) {
 			/* Handle obtained by dlopen(NULL, ...) implies global
 			 * scope. */
@@ -4137,6 +4234,7 @@ do_dlsym(void *handle, const char *name, void *retaddr, const Ver_Entry *ve,
 				defobj = req.defobj_out;
 			}
 		}
+		donelist_free(&donelist);
 	}
 
 	if (def != NULL) {
@@ -4664,21 +4762,24 @@ get_program_var_addr(const char *name, RtldLockState *lockstate)
 {
 	SymLook req;
 	DoneList donelist;
+	const void **res;
 
 	symlook_init(&req, name);
 	req.lockstate = lockstate;
-	donelist_init(&donelist);
+	donelist_init(&donelist, NULL);
 	if (symlook_global(&req, &donelist) != 0)
 		return (NULL);
 	if (ELF_ST_TYPE(req.sym_out->st_info) == STT_FUNC)
-		return ((const void **)make_function_pointer(req.sym_out,
-		    req.defobj_out));
+		res = (const void **)make_function_pointer(req.sym_out,
+		    req.defobj_out);
 	else if (ELF_ST_TYPE(req.sym_out->st_info) == STT_GNU_IFUNC)
-		return ((const void **)rtld_resolve_ifunc(req.defobj_out,
-		    req.sym_out));
+		res = (const void **)rtld_resolve_ifunc(req.defobj_out,
+		    req.sym_out);
 	else
-		return ((const void **)(req.defobj_out->relocbase +
-		    req.sym_out->st_value));
+		res = (const void **)(req.defobj_out->relocbase +
+		    req.sym_out->st_value);
+	donelist_free(&donelist);
+	return (res);
 }
 
 /*
@@ -4753,7 +4854,7 @@ symlook_default(SymLook *req, const Obj_Entry *refobj)
 	SymLook req1;
 	int res;
 
-	donelist_init(&donelist);
+	donelist_init(&donelist, req);
 	symlook_init_from_req(&req1, req);
 
 	/*
@@ -4806,6 +4907,7 @@ symlook_default(SymLook *req, const Obj_Entry *refobj)
 		}
 	}
 
+	donelist_free(&donelist);
 	return (req->sym_out != NULL ? 0 : ESRCH);
 }
 
@@ -4887,13 +4989,15 @@ symlook_obj_load_filtees(SymLook *req, SymLook *req1, const Obj_Entry *obj,
     Needed_Entry *needed)
 {
 	DoneList donelist;
-	int flags;
+	int flags, res;
 
 	flags = (req->flags & SYMLOOK_EARLY) != 0 ? RTLD_LO_EARLY : 0;
 	load_filtees(__DECONST(Obj_Entry *, obj), flags, req->lockstate);
-	donelist_init(&donelist);
+	donelist_init(&donelist, NULL);
 	symlook_init_from_req(req1, req);
-	return (symlook_needed(req1, needed, &donelist));
+	res = symlook_needed(req1, needed, &donelist);
+	donelist_free(&donelist);
+	return (res);
 }
 
 /*
@@ -6238,6 +6342,7 @@ symlook_init_from_req(SymLook *dst, const SymLook *src)
 	dst->defobj_out = NULL;
 	dst->sym_out = NULL;
 	dst->lockstate = src->lockstate;
+	dst->donelist_mem = NULL;
 }
 
 static int
@@ -6472,23 +6577,52 @@ parse_args(char *argv[], int argc, bool *use_pathp, int *fdp,
 static int
 parse_integer(const char *str)
 {
-	static const int RADIX = 10; /* XXXJA: possibly support hex? */
+	int radix;
 	const char *orig;
-	int n;
+	int n, val;
 	char c;
 
+	if (str[0] == '0') {
+		if (str[1] == 'x') {
+			str += 2;
+			radix = 16;
+		} else if (str[1] == 'b') {
+			str += 2;
+			radix = 2;
+		} else {
+			str += 1;
+			radix = 8;
+		}
+	} else {
+		radix = 10;
+	}
 	orig = str;
 	n = 0;
 	for (c = *str; c != '\0'; c = *++str) {
-		if (c < '0' || c > '9')
+		if (c >= '0' && c <= '9')
+			val = c - '0';
+		else if (c >= 'a' && c <= 'f')
+			val = c - 'a' + 10;
+		else if (c >= 'A' && c <= 'F')
+			val = c - 'A' + 10;
+		else
+			return (-1);
+		if (val >= radix)
 			return (-1);
 
-		n *= RADIX;
-		n += c - '0';
+		if (n > INT_MAX / radix)
+			return (-1);
+		n *= radix;
+		if (n > INT_MAX - val)
+			return (-1);
+		n += val;
 	}
 
-	/* Make sure we actually parsed something. */
-	if (str == orig)
+	/*
+	 * Make sure we actually parsed something.
+	 * Allow for lone '0'.
+	 */
+	if (str == orig && radix != 8)
 		return (-1);
 	return (n);
 }
@@ -6611,18 +6745,121 @@ rtld_get_var(const char *name)
 	return (NULL);
 }
 
+static void
+rtld_recalc_dangerous_ld_env(void)
+{
+	/*
+	 * Never reset dangerous_ld_env back to false if rtld was ever
+	 * contaminated with it set to true.
+	 */
+	dangerous_ld_env |= libmap_disable || libmap_override != NULL ||
+	    ld_library_path != NULL || ld_preload != NULL ||
+	    ld_elf_hints_path != NULL || ld_loadfltr || !ld_dynamic_weak ||
+	    ld_get_env_var(LD_STATIC_TLS_EXTRA) != NULL;
+}
+
+static void
+rtld_recalc_debug(const char *ld_debug)
+{
+	if (ld_debug != NULL && *ld_debug != '\0')
+		debug = 1;
+}
+
+static void
+rtld_set_var_debug(struct ld_env_var_desc *lvd)
+{
+	rtld_recalc_debug(lvd->val);
+}
+
+static void
+rtld_set_var_library_path(struct ld_env_var_desc *lvd)
+{
+	ld_library_path = lvd->val;
+}
+
+static void
+rtld_set_var_library_path_fds(struct ld_env_var_desc *lvd)
+{
+	ld_library_dirs = lvd->val;
+}
+
+static void
+rtld_recalc_path_rpath(const char *library_path_rpath)
+{
+	if (library_path_rpath != NULL) {
+		if (library_path_rpath[0] == 'y' ||
+		    library_path_rpath[0] == 'Y' ||
+		    library_path_rpath[0] == '1')
+			ld_library_path_rpath = true;
+		else
+			ld_library_path_rpath = false;
+	} else {
+		ld_library_path_rpath = false;
+	}
+}
+
+static void
+rtld_set_var_library_path_rpath(struct ld_env_var_desc *lvd)
+{
+	rtld_recalc_path_rpath(lvd->val);
+}
+
+static void
+rtld_recalc_bind_not(const char *bind_not_val)
+{
+	if (ld_bind_now == NULL)
+		ld_bind_not = bind_not_val != NULL;
+}
+
+static void
+rtld_set_var_bind_now(struct ld_env_var_desc *lvd)
+{
+	ld_bind_now = lvd->val;
+	rtld_recalc_bind_not(ld_get_env_var(LD_BIND_NOT));
+}
+
+static void
+rtld_set_var_bind_not(struct ld_env_var_desc *lvd)
+{
+	rtld_recalc_bind_not(lvd->val);
+}
+
+static void
+rtld_set_var_dynamic_weak(struct ld_env_var_desc *lvd)
+{
+	ld_dynamic_weak = lvd->val == NULL;
+}
+
+static void
+rtld_set_var_loadfltr(struct ld_env_var_desc *lvd)
+{
+	ld_loadfltr = lvd->val != NULL;
+}
+
+static void
+rtld_set_var_libmap_disable(struct ld_env_var_desc *lvd)
+{
+	libmap_disable = lvd->val != NULL;
+}
+
 int
 rtld_set_var(const char *name, const char *val)
 {
+	RtldLockState lockstate;
 	struct ld_env_var_desc *lvd;
 	u_int i;
+	int error;
 
+	error = ENOENT;
+	wlock_acquire(rtld_bind_lock, &lockstate);
 	for (i = 0; i < nitems(ld_env_vars); i++) {
 		lvd = &ld_env_vars[i];
 		if (strcmp(lvd->n, name) != 0)
 			continue;
-		if (!lvd->can_update || (lvd->unsecure && !trust))
-			return (EPERM);
+		if (!lvd->can_update || (lvd->unsecure && !trust)) {
+			error = EPERM;
+			break;
+		}
 		if (lvd->owned)
 			free(__DECONST(char *, lvd->val));
 		if (val != NULL)
@@ -6630,11 +6867,15 @@ rtld_set_var(const char *name, const char *val)
 		else
 			lvd->val = NULL;
 		lvd->owned = true;
-		if (lvd->debug)
-			debug = lvd->val != NULL && *lvd->val != '\0';
-		return (0);
+		if (lvd->on_update != NULL)
+			lvd->on_update(lvd);
+		error = 0;
+		break;
 	}
-	return (ENOENT);
+	if (error == 0)
+		rtld_recalc_dangerous_ld_env();
+	lock_release(rtld_bind_lock, &lockstate);
+	return (error);
 }
 
 /*
@@ -6673,31 +6914,6 @@ getenv(const char *name)
 {
 	return (__DECONST(char *, rtld_get_env_val(environ, name,
 	    strlen(name))));
-}
-
-/* malloc */
-void *
-malloc(size_t nbytes)
-{
-	return (__crt_malloc(nbytes));
-}
-
-void *
-calloc(size_t num, size_t size)
-{
-	return (__crt_calloc(num, size));
-}
-
-void
-free(void *cp)
-{
-	__crt_free(cp);
-}
-
-void *
-realloc(void *cp, size_t nbytes)
-{
-	return (__crt_realloc(cp, nbytes));
 }
 
 extern int _rtld_version__FreeBSD_version __exported;

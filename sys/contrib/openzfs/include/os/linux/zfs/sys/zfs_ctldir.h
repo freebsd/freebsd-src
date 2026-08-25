@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -27,6 +17,7 @@
  * Rewritten for Linux by:
  *   Rohan Puri <rohan.puri15@gmail.com>
  *   Brian Behlendorf <behlendorf1@llnl.gov>
+ * Copyright (c) 2026, TrueNAS.
  */
 
 #ifndef	_ZFS_CTLDIR_H
@@ -54,8 +45,6 @@ extern int zfs_expire_snapshot;
 extern int zfsctl_create(zfsvfs_t *);
 extern void zfsctl_destroy(zfsvfs_t *);
 extern struct inode *zfsctl_root(znode_t *);
-extern void zfsctl_init(void);
-extern void zfsctl_fini(void);
 extern boolean_t zfsctl_is_node(struct inode *ip);
 extern boolean_t zfsctl_is_snapdir(struct inode *ip);
 extern int zfsctl_fid(struct inode *ip, fid_t *fidp);
@@ -66,19 +55,20 @@ extern int zfsctl_root_lookup(struct inode *dip, const char *name,
     pathname_t *realpnp);
 
 /* zfsctl '.zfs/snapshot' functions */
+typedef struct zfs_snapentry zfs_snapentry_t;
 extern int zfsctl_snapdir_lookup(struct inode *dip, const char *name,
     struct inode **ipp, int flags, cred_t *cr, int *direntflags,
     pathname_t *realpnp);
-extern int zfsctl_snapdir_rename(struct inode *sdip, const char *sname,
-    struct inode *tdip, const char *tname, cred_t *cr, int flags);
-extern int zfsctl_snapdir_remove(struct inode *dip, const char *name,
-    cred_t *cr, int flags);
+extern int zfsctl_snapdir_rename(struct inode *sdip, struct dentry *sdentry,
+    struct inode *tdip, struct dentry *tdentry, cred_t *cr);
+extern int zfsctl_snapdir_remove(struct inode *dip, struct dentry *dentry,
+    cred_t *cr);
 extern int zfsctl_snapdir_mkdir(struct inode *dip, const char *dirname,
     vattr_t *vap, struct inode **ipp, cred_t *cr, int flags);
-extern int zfsctl_snapshot_mount(struct path *path, int flags);
-extern int zfsctl_snapshot_unmount(const char *snapname, int flags);
-extern int zfsctl_snapshot_unmount_delay(spa_t *spa, uint64_t objsetid,
-    int delay);
+extern int zfsctl_snapshot_mount(struct path *path, struct vfsmount **mntp);
+extern void zfsctl_snapshot_finish_mount(zfs_snapentry_t *se,
+    struct vfsmount *mnt);
+extern int zfsctl_snapshot_unmount(const char *snapname);
 extern int zfsctl_snapdir_vget(struct super_block *sb, uint64_t objsetid,
     int gen, struct inode **ipp);
 

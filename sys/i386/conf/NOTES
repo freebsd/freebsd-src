@@ -178,12 +178,6 @@ options 	CYRIX_CACHE_REALLY_WORKS
 options 	NPX_DEBUG	# enable npx debugging
 
 #
-# PERFMON causes the driver for Pentium/Pentium Pro performance counters
-# to be compiled.  See perfmon(4) for more information.
-#
-options 	PERFMON
-
-#
 # Hints for the non-optional Numeric Processing eXtension driver.
 envvar		hint.npx.0.flags="0x0"
 envvar		hint.npx.0.irq="13"
@@ -301,13 +295,6 @@ envvar		hint.pcf.0.irq="5"
 # Requires 'device crypto'.
 #
 device		glxsb		# AMD Geode LX Security Block
-
-#
-# padlock is a driver for the cryptographic functions and RNG in
-# VIA C3, C7, and Eden processors.
-# Requires 'device crypto'.
-#
-device		padlock_rng	# VIA Padlock RNG
 
 #####################################################################
 # ABI Emulation

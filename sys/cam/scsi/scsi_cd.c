@@ -918,6 +918,16 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 				return;
 			}
 
+			if (softc->params.blksize == 0) {
+				/*
+				 * Something went utterly wrong.
+				 * Avoid integer divide fault below.
+				 */
+				biofinish(bp, NULL, ENXIO);
+				xpt_release_ccb(start_ccb);
+				return;
+			}
+
 			scsi_read_write(&start_ccb->csio,
 					/*retries*/ cd_retry_count,
 					/* cbfcnp */ cddone,

@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd November 12, 2024
+.Dd May 17, 2026
 .Dt ROUTE 8
 .Os
 .Sh NAME
@@ -297,6 +297,37 @@ Note that the qualifier works only for
 .Dv AF_INET6
 address family.
 .Pp
+For
+.Li ECMP
+routes, the
+.Fl weight
+modifier can be used to influence nexthop selection.
+For example, a destination with two nexthops defined as
+.Dq Fl gateway Ar 3fff::1 Fl weight Ar 100
+and
+.Dq Fl gateway Ar 3fff::2 Fl weight Ar 200
+will make the nexthop 3fff::2 twice as likely to be chosen as 3fff::1.
+.Pp
+The
+.Fl metric
+option sets the numeric cost associated with a route nexthop.
+The lowest metric is always preferred and routes with higher metric
+values are only used if lower-metric routes become unavailable.
+This allows routes to establish primary and backup nexthops without
+removing the primary.
+The default value for
+.Fl metric
+is 1 when not specified.
+When multiple routes to the same destination have identical metrics, the
+.Fl weight
+option determines which nexthop is selected for ECMP.
+.Pp
+For example, a destination with two nexthops defined as
+.Dq Fl gateway Ar 3fff::1 Fl metric Ar 1
+and
+.Dq Fl gateway Ar 3fff::2 Fl metric Ar 2
+will cause the nexthop 3fff::1 to be selected.
+.Pp
 Routes have associated flags which influence operation of the protocols
 when sending to destinations matched by the routes.
 These flags may be set (or sometimes cleared)
@@ -402,7 +433,8 @@ and
 As such, only the super-user may modify
 the routing tables.
 .Pp
-.Fx provides support for scalable multipath routing.
+.Fx
+provides support for scalable multipath routing.
 It is activated by default, but can be turned off by setting the
 .Va net.route.multipath
 .Xr sysctl 8

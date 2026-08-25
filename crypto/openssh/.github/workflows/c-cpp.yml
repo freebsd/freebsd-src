@@ -1,10 +1,21 @@
-name: C/C++ CI
+name: CI
+
+# For testing, you can set variables in your repo (Repo -> Settings ->
+# Security -> Actions -> Variables) to restrict the tests that are run.
+# The supported variables are:
+#
+# RUN_ONLY_TARGET_CONFIG: Run only the single matching target and config,
+#   separated by spaces, eg "ubuntu-latest default".  All other tests will
+#   fail immediately.
+#
+# LTESTS: Override the set of tests run.
+# TEST_SSH_TRACE: Set to yes for additional regress output.
 
 on:
   push:
-    paths: [ '**.c', '**.h', '**.m4', '**.sh', '**/Makefile.in', 'configure.ac', '.github/configs', '.github/workflows/c-cpp.yml' ]
+    paths: [ '**.c', '**.h', '**.m4', '**.sh', '**/Makefile.in', 'configure.ac', '.github/configs', '.github/*.sh', '.github/workflows/c-cpp.yml' ]
   pull_request:
-    paths: [ '**.c', '**.h', '**.m4', '**.sh', '**/Makefile.in', 'configure.ac', '.github/configs', '.github/workflows/c-cpp.yml' ]
+    paths: [ '**.c', '**.h', '**.m4', '**.sh', '**/Makefile.in', 'configure.ac', '.github/configs', '.github/*.sh', '.github/workflows/c-cpp.yml' ]
 
 jobs:
   ci:
@@ -19,17 +30,17 @@ jobs:
           - ubuntu-latest
           - ubuntu-22.04-arm
           - ubuntu-24.04-arm
-          - macos-13
           - macos-14
           - macos-15
-          - windows-2019
+          - macos-15-intel
           - windows-2022
+          - windows-2025
         config: [default]
         # Then we include any extra configs we want to test for specific VMs.
         # Valgrind slows things down quite a bit, so start them first.
         include:
-          - { target: windows-2019, config: cygwin-release }
           - { target: windows-2022, config: cygwin-release }
+          - { target: windows-2025, config: cygwin-release }
           - { target: ubuntu-22.04, config: c89 }
           - { target: ubuntu-22.04, config: clang-11 }
           - { target: ubuntu-22.04, config: clang-12-Werror }
@@ -41,7 +52,6 @@ jobs:
           - { target: ubuntu-22.04, config: gcc-12-Werror }
           - { target: ubuntu-22.04, config: gcc-sanitize-address }
           - { target: ubuntu-22.04, config: gcc-sanitize-undefined }
-          - { target: ubuntu-22.04, config: hardenedmalloc }
           - { target: ubuntu-22.04, config: heimdal }
           - { target: ubuntu-22.04, config: kitchensink }
           - { target: ubuntu-22.04, config: krb5 }
@@ -53,6 +63,7 @@ jobs:
           - { target: ubuntu-22.04, config: valgrind-2 }
           - { target: ubuntu-22.04, config: valgrind-3 }
           - { target: ubuntu-22.04, config: valgrind-4 }
+          # - { target: ubuntu-22.04, config: valgrind-pam-1 }
           - { target: ubuntu-22.04, config: valgrind-unit }
           - { target: ubuntu-22.04, config: without-openssl }
           - { target: ubuntu-latest, config: gcc-14 }
@@ -60,94 +71,115 @@ jobs:
           - { target: ubuntu-latest, config: clang-19 }
           - { target: ubuntu-latest, config: boringssl }
           - { target: ubuntu-latest, config: aws-lc }
+          - { target: ubuntu-latest, config: hardenedmalloc }
           - { target: ubuntu-latest, config: libressl-master }
-          - { target: ubuntu-latest, config: libressl-3.2.6 }
+          - { target: ubuntu-latest, config: libressl-3.2.7 }
           - { target: ubuntu-latest, config: libressl-3.3.6 }
           - { target: ubuntu-latest, config: libressl-3.4.3 }
-          - { target: ubuntu-latest, config: libressl-3.5.3 }
-          - { target: ubuntu-latest, config: libressl-3.6.1 }
-          - { target: ubuntu-latest, config: libressl-3.7.2 }
+          - { target: ubuntu-latest, config: libressl-3.5.4 }
+          - { target: ubuntu-latest, config: libressl-3.6.3 }
+          - { target: ubuntu-latest, config: libressl-3.7.3 }
           - { target: ubuntu-latest, config: libressl-3.8.4 }
           - { target: ubuntu-latest, config: libressl-3.9.2 }
-          - { target: ubuntu-latest, config: libressl-4.0.0 }
+          - { target: ubuntu-latest, config: libressl-4.0.1 }
+          - { target: ubuntu-latest, config: libressl-4.1.1 }
+          - { target: ubuntu-latest, config: libressl-4.2.0 }
+          - { target: ubuntu-latest, config: libressl-4.3.2 }
           - { target: ubuntu-latest, config: openssl-master }
           - { target: ubuntu-latest, config: openssl-noec }
           - { target: ubuntu-latest, config: openssl-1.1.1 }
           - { target: ubuntu-latest, config: openssl-1.1.1t }
           - { target: ubuntu-latest, config: openssl-1.1.1w }
           - { target: ubuntu-latest, config: openssl-3.0.0 }
-          - { target: ubuntu-latest, config: openssl-3.0.15 }
+          - { target: ubuntu-latest, config: openssl-3.0.18 }
           - { target: ubuntu-latest, config: openssl-3.1.0 }
-          - { target: ubuntu-latest, config: openssl-3.1.7 }
-          - { target: ubuntu-latest, config: openssl-3.2.3 }
-          - { target: ubuntu-latest, config: openssl-3.3.2 }
+          - { target: ubuntu-latest, config: openssl-3.1.8 }
+          - { target: ubuntu-latest, config: openssl-3.2.6 }
+          - { target: ubuntu-latest, config: openssl-3.3.7 }
           - { target: ubuntu-latest, config: openssl-3.4.0 }
+          - { target: ubuntu-latest, config: openssl-3.4.5 }
+          - { target: ubuntu-latest, config: openssl-3.5.0 }
+          - { target: ubuntu-latest, config: openssl-3.5.3 }  # keep
+          - { target: ubuntu-latest, config: openssl-3.5.6 }
+          - { target: ubuntu-latest, config: openssl-3.6.2 }
+          - { target: ubuntu-latest, config: openssl-4.0.0 }
           - { target: ubuntu-latest, config: openssl-1.1.1_stable }
           - { target: ubuntu-latest, config: openssl-3.0 }  # stable branch
           - { target: ubuntu-latest, config: openssl-3.1 }  # stable branch
           - { target: ubuntu-latest, config: openssl-3.2 }  # stable branch
           - { target: ubuntu-latest, config: openssl-3.3 }  # stable branch
-          - { target: ubuntu-latest, config: putty-0.71 }
-          - { target: ubuntu-latest, config: putty-0.72 }
-          - { target: ubuntu-latest, config: putty-0.73 }
-          - { target: ubuntu-latest, config: putty-0.74 }
-          - { target: ubuntu-latest, config: putty-0.75 }
-          - { target: ubuntu-latest, config: putty-0.76 }
-          - { target: ubuntu-latest, config: putty-0.77 }
-          - { target: ubuntu-latest, config: putty-0.78 }
-          - { target: ubuntu-latest, config: putty-0.79 }
-          - { target: ubuntu-latest, config: putty-0.80 }
-          - { target: ubuntu-latest, config: putty-0.81 }
-          - { target: ubuntu-latest, config: putty-0.82 }
-          - { target: ubuntu-latest, config: putty-0.83 }
-          - { target: ubuntu-latest, config: putty-snapshot }
+          - { target: ubuntu-latest, config: openssl-3.4 }  # stable branch
+          - { target: ubuntu-latest, config: openssl-3.5 }  # stable branch
+          - { target: ubuntu-latest, config: openssl-3.6 }  # stable branch
+          - { target: ubuntu-latest, config: openssl-4.0 }  # stable branch
+          - { target: ubuntu-latest, config: dropbear-versions }
+          - { target: ubuntu-latest, config: putty-versions }
           - { target: ubuntu-latest, config: zlib-develop }
           - { target: ubuntu-latest, config: tcmalloc }
           - { target: ubuntu-latest, config: musl }
           - { target: ubuntu-22.04-arm, config: kitchensink }
           - { target: ubuntu-24.04-arm, config: kitchensink }
-          - { target: macos-13, config: pam }
           - { target: macos-14, config: pam }
           - { target: macos-15, config: pam }
     runs-on: ${{ matrix.target }}
+    env:
+      EPHEMERAL_VM: yes
+      CYGWIN: "winsymlinks:native"
     steps:
+    - name: check RUN_ONLY_TARGET_CONFIG
+      if: vars.RUN_ONLY_TARGET_CONFIG != ''
+      run: sh -c 'if [ "${{ vars.RUN_ONLY_TARGET_CONFIG }}" != "${{ matrix.target }} ${{matrix.config }}" ]; then exit 1; else exit 0; fi'
     - name: set cygwin git params
       if: ${{ startsWith(matrix.target, 'windows') }}
       run: git config --global core.autocrlf input
     - name: install cygwin
+      id: cygwin_install
       if: ${{ startsWith(matrix.target, 'windows') }}
-      uses: cygwin/cygwin-install-action@master
-    - uses: actions/checkout@main
+      uses: cygwin/cygwin-install-action@a3d72946b163026bbd0fa9a88379ccbda4bd86bb # master
+    - name: checkout openssh git repo
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # main
     - name: setup CI system
-      run: sh ./.github/setup_ci.sh ${{ matrix.config }}
+      run: |
+        sh -c "timeout 1200 .github/setup_ci.sh ${{ matrix.config }} ${{ matrix.target }} || .github/setup_ci.sh ${{ matrix.config }} ${{ matrix.target }}"
+      env:
+        CYGWIN_SETUP: ${{ steps.cygwin_install.outputs.setup }}
     - name: autoreconf
       run: sh -c autoreconf
     - name: configure
       run: sh ./.github/configure.sh ${{ matrix.config }}
     - name: save config
-      uses: actions/upload-artifact@main
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # main
       with:
         name: ${{ matrix.target }}-${{ matrix.config }}-config
         path: config.h
     - name: make clean
       run: make clean
     - name: make
-      run: make
+      run: make -j2
     - name: make tests
       run: sh ./.github/run_test.sh ${{ matrix.config }}
       env:
         TEST_SSH_UNSAFE_PERMISSIONS: 1
         TEST_SSH_HOSTBASED_AUTH: yes
+        TEST_SSH_TRACE: ${{ vars.TEST_SSH_TRACE }}
+        LTESTS: ${{ vars.LTESTS }}
+    - name: test OpenSSL3 ABI compatibility
+      if: ${{ startsWith(matrix.config, 'openssl-3') }}
+      run: |
+       sh .github/install_libcrypto.sh -a ${{ matrix.config }} /opt/openssl
+       sh .github/run_test.sh ${{ matrix.config }}
+    - name: chown logs
+      if: failure()
+      run: sh -c 'SUDO="$(which sudo 2>/dev/null)"; $SUDO chown -R "${LOGNAME}" regress'
+    - name: show logs
+      if: failure()
+      run: sh -c "for i in regress/failed*.log; do echo ====; echo logfile $i; echo =====; cat $i; done"
     - name: save logs
       if: failure()
-      uses: actions/upload-artifact@main
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # main
       with:
         name: ${{ matrix.target }}-${{ matrix.config }}-logs
         path: |
           config.h
           config.log
-          regress/*.log
-          regress/valgrind-out/
-          regress/asan.log.*
-          regress/msan.log.*
-          regress/log/*
+          regress/

@@ -291,7 +291,7 @@ free_nat_instance(struct cfg_nat *ptr)
 static int
 ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 {
-	struct mbuf *mcl;
+	struct mbuf *mcl, *mfree __diagused;
 	struct ip *ip;
 	/* XXX - libalias duct tape */
 	int ldt, retval, found;
@@ -311,17 +311,17 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	/*
 	 * XXX - Libalias checksum offload 'duct tape':
 	 *
-	 * locally generated packets have only pseudo-header checksum
-	 * calculated and libalias will break it[1], so mark them for
-	 * later fix.  Moreover there are cases when libalias modifies
+	 * When checksum offloading is used, packets contain only the
+	 * pseudo-header checksum and libalias will break it[1], so mark them
+	 * for later fix.  Moreover there are cases when libalias modifies
 	 * tcp packet data[2], mark them for later fix too.
 	 *
 	 * [1] libalias was never meant to run in kernel, so it does
 	 * not have any knowledge about checksum offloading, and
 	 * expects a packet with a full internet checksum.
-	 * Unfortunately, packets generated locally will have just the
-	 * pseudo header calculated, and when libalias tries to adjust
-	 * the checksum it will actually compute a wrong value.
+	 * Unfortunately, when checksum offloading is used, packets will
+	 * contain just the pseudo-header checksum, and when libalias tries to
+	 * adjust the checksum it will actually compute a wrong value.
 	 *
 	 * [2] when libalias modifies tcp's data content, full TCP
 	 * checksum has to be recomputed: the problem is that
@@ -340,8 +340,7 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	 * it can handle delayed checksum and tso)
 	 */
 
-	if (mcl->m_pkthdr.rcvif == NULL &&
-	    mcl->m_pkthdr.csum_flags & CSUM_DELAY_DATA)
+	if (mcl->m_pkthdr.csum_flags & CSUM_DELAY_DATA)
 		ldt = 1;
 
 	c = mtod(mcl, char *);
@@ -397,7 +396,8 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	    (retval == PKT_ALIAS_IGNORED &&
 	    (t->mode & PKT_ALIAS_DENY_INCOMING) != 0)))) {
 		/* XXX - should i add some logging? */
-		m_free(mcl);
+		mfree = m_free(mcl);
+		MPASS(mfree == NULL);
 		args->m = NULL;
 		return (IP_FW_DENY);
 	}

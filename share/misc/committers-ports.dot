@@ -169,6 +169,7 @@ brnrd [label="Bernard Spil\nbrnrd@FreeBSD.org\n2015/05/24"]
 brooks [label="Brooks Davies\nbrooks@FreeBSD.org\n2004/05/03"]
 cmt [label="Christoph Moench-Tegeder\ncmt@FreeBSD.org\n2016/03/01"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2006/01/31"]
+cracauer [label="Martin Cracauer\ncracauer@FreeBSD.org\n2026/06/28"]
 crees [label="Chris Rees\ncrees@FreeBSD.org\n2011/06/11"]
 cs [label="Carlo Strub\ncs@FreeBSD.org\n2011/09/13"]
 cy [label="Cy Schubert\ncy@FreeBSD.org\n2001/11/13"]
@@ -224,10 +225,12 @@ jwb [label="Jason Bacon\njwb@FreeBSD.org\n2017/11/12"]
 kai [label="Kai Knoblich\nkai@FreeBSD.org\n2019/02/01"]
 kami [label="Dominic Fandrey\nkami@FreeBSD.org\n2014/09/09"]
 kbowling [label="Kevin Bowling\nkbowling@FreeBSD.org\n2018/09/02"]
+kenrap [label="Kenneth Raplee\nkenrap@FreeBSD.org\n2026/04/04"]
 kevans [label="Kyle Evans\nkevans@FreeBSD.org\n2020/02/14"]
 knu [label="Akinori Musha\nknu@FreeBSD.org\n2000/03/22"]
 krion [label="Kirill Ponomarew\nkrion@FreeBSD.org\n2003/07/20"]
 kwm [label="Koop Mast\nkwm@FreeBSD.org\n2004/09/14"]
+laurent [label="Laurent Chardon\nlaurent@FreeBSD.org\n2026/03/03"]
 lawrance [label="Sam Lawrance\nlawrance@FreeBSD.org\n2005/04/11\n2007/02/21"]
 lbartoletti [label="Loïc Bartoletti\nlbartoletti@FreeBSD.org\n2020/01/02"]
 lcook [label="Lewis Cook\nlcook@FreeBSD.org\n2021/01/21"]
@@ -244,6 +247,7 @@ marcus [label="Joe Marcus Clarke\nmarcus@FreeBSD.org\n2002/04/05"]
 martymac [label="Ganael Laplanche\nmartymac@FreeBSD.org\n2010/09/24"]
 mat [label="Mathieu Arnold\nmat@FreeBSD.org\n2003/08/15"]
 matthew [label="Matthew Seaman\nmatthew@FreeBSD.org\n2012/02/07"]
+mce [label="Kousuke Kannagi\nmce@FreeBSD.org\n2026/02/18"]
 meta [label="Koichiro Iwao\nmeta@FreeBSD.org\n2018/03/19"]
 mfechner [label="Matthias Fechner\nmfechner@FreeBSD.org\n2018/03/01"]
 michaelo [label="Michael Osipov\nmichaelo@FreeBSD.org\n2023/10/16"]
@@ -353,6 +357,7 @@ araujo -> pgollucci
 araujo -> samm
 
 arrowd -> diizzy
+arrowd -> kenrap
 arrowd -> rhurlin
 arrowd -> vishwin
 arrowd -> vvd
@@ -493,6 +498,7 @@ flo -> jbeich
 flo -> grembo
 flo -> tiga
 
+fluffy -> mce
 fluffy -> vishwin
 
 flz -> garga
@@ -549,6 +555,8 @@ jadawin -> pi
 jadawin -> riggs
 jadawin -> sbz
 jadawin -> wen
+
+jbo -> cracauer
 
 joerg -> netchild
 
@@ -627,6 +635,7 @@ marino -> robak
 makc -> alonso
 makc -> bf
 makc -> jhale
+makc -> kenrap
 makc -> rakuco
 
 mat -> "0mp"
@@ -701,6 +710,7 @@ obrien -> gerald
 
 olivier -> pizzamig
 
+osa -> mce
 osa -> nxjoseph
 osa -> otis
 osa -> vg
@@ -836,8 +846,9 @@ tcberner -> yuri
 tcberner -> zirias
 
 thierry -> jadawin
-thierry -> riggs
+thierry -> laurent
 thierry -> pfg
+thierry -> riggs
 
 timur -> kbowling
 

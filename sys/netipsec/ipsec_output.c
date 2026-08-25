@@ -462,7 +462,7 @@ ipsec4_common_output(struct ifnet *ifp, struct mbuf *m, struct inpcb *inp,
 
 	if (((m->m_flags & M_PKTHDR) != 0 && m->m_pkthdr.len < sizeof(*ip)) ||
 	    ((m->m_flags & M_PKTHDR) == 0 && m->m_len < sizeof(*ip))) {
-		m_free(m);
+		m_freem(m);
 		return (EACCES);
 	}
 	if (ip1 != NULL) {

@@ -1,0 +1,116 @@
+#!/bin/sh
+#
+# Copyright 2026 Colin Percival
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+# PROVIDE: growfs_postboot
+# KEYWORD: nostart
+
+# Triggered by /etc/devd/growfs_postboot.conf: When a disk grows, enlarge the
+# final partition to fill the available space (if the disk is partitioned) or
+# enlarge the UFS filesystem or ZFS zpool (if in use for one of those).  Note
+# that in the common case of "a disk is partitioned and one of the partitions
+# contains a filesystem" this script is invoked twice -- the repartitioning
+# done on the first call generates a new devd event which triggers the second
+# invocation.
+#
+# Enable by setting
+# growfs_postboot_enable=YES
+# in /etc/rc.conf.  Note that on systems with growfs_enable=YES, it will often
+# be necessary to set growfs_swap_size=0 in order to disable swap creation;
+# otherwise the "final partition" is the swap space, not the filesystem and
+# growing the disk will not cause the most likely desired results.
+
+. /etc/rc.subr
+
+name="growfs_postboot"
+desc="automatically grow file systems during runtime"
+rcvar="growfs_postboot_enable"
+start_cmd="growfs_postboot_start"
+
+disktype() {
+	sysctl -n kern.geom.conftxt | awk -v dev="$1" '
+	BEGIN {
+		partitioned=0
+		indev=0
+	}
+	{
+		if (dev == $3) {
+			indev=1
+			devlevel=$1
+		} else if (devlevel >= $1) {
+			indev=0
+		} else if (indev == 1) {
+			if ($2 == "PART") {
+				partitioned=1
+			}
+		}
+	}
+	END {
+		if (partitioned == 1) {
+			print "partitioned"
+		} else {
+			print "unpartitioned"
+		}
+	}'
+}
+
+growpart() {
+	# Run 'gpart recover' if GPT
+	if gpart list "$1" | grep -qi 'scheme: GPT'; then
+		gpart recover "$1" || true
+	fi
+
+	# Find the index of the last partition; note that we need to compare
+	# the starting sectors in case partitions are not numbered sensibly.
+	idx=$(gpart backup "$1" | awk '
+		NR == 1 { next }
+		$3 + 0 > start { start = $3 + 0; idx = $1 }
+		END { print idx }')
+	if [ -z "$idx" ]; then
+		echo "Error finding final partition of $1"
+		return 1
+	fi
+
+	# Expand that partition
+	gpart resize -i "$idx" "$1"
+}
+
+growfilesystem() {
+	case $(fstyp -u "/dev/$1" 2>/dev/null) in
+	ufs)	growfs -y "/dev/$1"
+		;;
+	zfs)	zpool list -H -o name |
+		    while read -r pool; do
+			zpool list -vH -o name "$pool" |
+			    grep "^[[:space:]]" |
+			    while read -r dev; do
+				if [ "$dev" = "$1" ]; then
+					zpool online -e "$pool" "$1"
+				fi
+			    done
+		    done
+		;;
+	"")	# Nothing to grow here
+		;;
+	*)	echo "Don't know how to grow filesystem on /dev/$1"
+		;;
+	esac
+}
+
+growfs_postboot_start() {
+	# Run either growpart or growfilesystem depending on whether this is
+	# something which is partitioned or not.
+	case $(disktype "$1") in
+	partitioned)
+		growpart "$1"
+		;;
+	unpartitioned)
+		growfilesystem "$1"
+		;;
+	esac
+}
+
+load_rc_config $name
+run_rc_command "$@"

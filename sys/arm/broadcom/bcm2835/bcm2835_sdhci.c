@@ -365,6 +365,7 @@ bcm_sdhci_attach(device_t dev)
 	return (0);
 
 fail:
+	bcm_dma_free(sc->sc_dma_ch);
 	if (sc->sc_intrhand)
 		bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_intrhand);
 	if (sc->sc_irq_res)

@@ -19,7 +19,7 @@
 .\"
 .\" $Id: cron.8,v 1.2 1998/08/14 00:32:36 vixie Exp $
 .\"
-.Dd January 20, 2026
+.Dd April 29, 2026
 .Dt CRON 8
 .Os
 .Sh NAME
@@ -227,7 +227,14 @@ configuration file for
 .It Pa /usr/local/etc/cron.d
 Directory for third-party package provided crontab files.
 .It Pa /var/cron/tabs
-Directory for personal crontab files
+Directory for personal crontab files.
+Internally the daemon constructs the relative path
+.Pa tabs/ Ns Ar filename ,
+which must fit within
+.Dv MAXNAMLEN
+bytes; in practice this allows filenames up to 250 bytes.
+Longer entries are skipped and a diagnostic is logged via
+.Xr syslog 3 .
 .El
 .Sh SEE ALSO
 .Xr crontab 1 ,

@@ -1,0 +1,4 @@
+Tool: pkgconf
+ToolArgs: --with-path=%TEST_FIXTURES_DIR%/lib1 --print-requires bar
+ExpectedStdout: foo
+ExpectedExitCode: 0

@@ -29,7 +29,7 @@
 .\"
 .\" * Other names and brands may be claimed as the property of others.
 .\"
-.Dd August 1, 2023
+.Dd August 12, 2026
 .Dt IXL 4
 .Os
 .Sh NAME
@@ -88,6 +88,10 @@ and/or TSO6, and finally LRO can be set and unset.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Pp
+The identification LED for each port is controlled through its
+.Pa /dev/led/ixl*
+device node.
 .Ss Additional Utilities
 There are additional tools available from Intel to help configure and update
 the adapters covered by this driver.
@@ -213,6 +217,12 @@ use a value written to memory by the hardware instead of scanning the
 descriptor ring for completed descriptors.
 Enabled by default; disable to mimic the TX behavior found in
 .Xr ix 4 .
+.It Va hw.ixl.mdd_auto_reset_vf
+Automatically reset a VF after malicious-driver detection blocks it.
+This is disabled by default so a non-cooperative VF remains unable to issue
+traffic until it performs an FLR or the SR-IOV configuration is recreated.
+Enabling this tunable favors availability but allows a persistently faulty or
+hostile VF to resume after each reset.
 .El
 .Sh SYSCTL PROCEDURES
 .Bl -tag -width indent
@@ -264,6 +274,16 @@ that does not match its own.
 Allow the VF to set its own Ethernet MAC address
 .It allow-promisc Pq bool
 Allow the VF to inspect all of the traffic sent to the port.
+.It vlan Pq vlan
+Set an access VLAN for the VF.
+Untagged frames sent by the VF are assigned to this VLAN, and the
+administrative VLAN tag is not presented to the VF on receive.
+The VF cannot change VLAN membership in access mode.
+The default value
+.Dq trunk
+allows the VF to register up to 16 VLANs through the virtual channel.
+VLAN 0 is always admitted in trunk mode so that priority-tagged traffic
+retains its priority information.
 .It num-queues Pq uint16_t
 Specify the number of queues the VF will have.
 By default, this is set to the number of MSI-X vectors supported by the VF
@@ -285,6 +305,7 @@ email all the specific information related to the issue to
 .Xr arp 4 ,
 .Xr iavf 4 ,
 .Xr iflib 4 ,
+.Xr led 4 ,
 .Xr netintro 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8 ,

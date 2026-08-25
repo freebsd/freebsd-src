@@ -608,9 +608,9 @@ mlx5_trigger_health_watchdog(struct mlx5_core_dev *dev)
 	spin_unlock_irqrestore(&health->wq_lock, flags);
 }
 
-static void poll_health(unsigned long data)
+static void poll_health(struct timer_list *timer)
 {
-	struct mlx5_core_dev *dev = (struct mlx5_core_dev *)data;
+	struct mlx5_core_dev *dev = timer_container_of(dev, timer, priv.health.timer);
 	struct mlx5_core_health *health = &dev->priv.health;
 	u32 fatal_error;
 	u32 count;
@@ -656,7 +656,7 @@ void mlx5_start_health_poll(struct mlx5_core_dev *dev)
 	health->health = &dev->iseg->health;
 	health->health_counter = &dev->iseg->health_counter;
 
-	setup_timer(&health->timer, poll_health, (unsigned long)dev);
+	timer_setup(&health->timer, poll_health, 0);
 	mod_timer(&health->timer,
 		  round_jiffies(jiffies + MLX5_HEALTH_POLL_INTERVAL));
 

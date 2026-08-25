@@ -618,28 +618,6 @@ OK
 <3>ANQP fetch completed
 
 
-Hotspot 2.0 Rel 2 online signup and OSEN
-----------------------------------------
-
-Following parameters can be used to create a network profile for
-link-layer protected Hotspot 2.0 online signup connection with
-OSEN. Note that ssid and identify (NAI) values need to be set based on
-the information for the selected provider in the OSU Providers list
-ANQP-element.
-
-network={
-    ssid="HS 2.0 OSU"
-    proto=OSEN
-    key_mgmt=OSEN
-    pairwise=CCMP
-    group=GTK_NOT_USED
-    eap=WFA-UNAUTH-TLS
-    identity="anonymous@example.com"
-    ca_cert="osu-ca.pem"
-    ocsp=2
-}
-
-
 Hotspot 2.0 connection with external network selection
 ------------------------------------------------------
 

@@ -248,6 +248,8 @@ void vtbuf_cursor_visibility(struct vt_buf *, int);
 int vtbuf_set_mark(struct vt_buf *vb, int type, int col, int row);
 int vtbuf_get_marked_len(struct vt_buf *vb);
 void vtbuf_extract_marked(struct vt_buf *vb, term_char_t *buf, int sz, int mark);
+void vtbuf_unmark(struct vt_buf *vb);
+void vtbuf_unmark_on_cross(struct vt_buf *vb, int target_begin, int target_end);
 #endif
 
 #define	VTB_MARK_NONE		0

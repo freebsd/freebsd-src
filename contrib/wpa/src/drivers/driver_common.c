@@ -100,6 +100,16 @@ const char * event_to_string(enum wpa_event_type event)
 	E2S(LINK_CH_SWITCH_STARTED);
 	E2S(TID_LINK_MAP);
 	E2S(LINK_RECONFIG);
+	E2S(MLD_INTERFACE_FREED);
+	E2S(SETUP_LINK_RECONFIG);
+	E2S(NAN_CLUSTER_JOIN);
+	E2S(NAN_NEXT_DW);
+	E2S(INCUMBT_SIG_INTF_DETECTED);
+	E2S(NAN_SCHED_UPDATE_DONE);
+	E2S(NAN_ULW_UPDATE);
+	E2S(NAN_CHAN_EVACUATION);
+	E2S(PEER_MEASUREMENT_RESULT);
+	E2S(PEER_MEASUREMENT_COMPLETE);
 	}
 
 	return "UNKNOWN";
@@ -199,6 +209,21 @@ bool he_supported(const struct hostapd_hw_modes *hw_mode,
 	}
 
 	return hw_mode->he_capab[op_mode].he_supported;
+}
+
+
+bool eht_supported(const struct hostapd_hw_modes *hw_mode,
+		   enum ieee80211_op_mode op_mode)
+{
+	if (!(hw_mode->flags & HOSTAPD_MODE_FLAG_EHT_INFO_KNOWN)) {
+		/*
+		 * The driver did not indicate whether it supports EHT. Assume
+		 * it does to avoid connection issues.
+		 */
+		return true;
+	}
+
+	return hw_mode->eht_capab[op_mode].eht_supported;
 }
 
 
@@ -373,6 +398,7 @@ const char * driver_flag2_to_string(u64 flag2)
 	DF2S(MLO);
 	DF2S(SCAN_MIN_PREQ);
 	DF2S(SAE_OFFLOAD_STA);
+	DF2S(SPP_AMSDU);
 	}
 	return "UNKNOWN";
 #undef DF2S

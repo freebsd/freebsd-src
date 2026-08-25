@@ -1,4 +1,4 @@
-/*	$NetBSD: common.c,v 1.50 2024/06/30 16:29:42 christos Exp $	*/
+/*	$NetBSD: common.c,v 1.52 2026/03/03 15:05:17 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)common.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: common.c,v 1.50 2024/06/30 16:29:42 christos Exp $");
+__RCSID("$NetBSD: common.c,v 1.52 2026/03/03 15:05:17 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -123,7 +123,7 @@ ed_delete_prev_word(EditLine *el, wint_t c __attribute__((__unused__)))
 	if (el->el_line.cursor == el->el_line.buffer)
 		return CC_ERROR;
 
-	cp = c__prev_word(el->el_line.cursor, el->el_line.buffer,
+	cp = c__prev_word(el, el->el_line.cursor, el->el_line.buffer,
 	    el->el_state.argument, ce__isword);
 
 	for (p = cp, kp = el->el_chared.c_kill.buf; p < el->el_line.cursor; p++)
@@ -320,7 +320,7 @@ ed_prev_word(EditLine *el, wint_t c __attribute__((__unused__)))
 	if (el->el_line.cursor == el->el_line.buffer)
 		return CC_ERROR;
 
-	el->el_line.cursor = c__prev_word(el->el_line.cursor,
+	el->el_line.cursor = c__prev_word(el, el->el_line.cursor,
 	    el->el_line.buffer,
 	    el->el_state.argument,
 	    ce__isword);
@@ -569,7 +569,7 @@ ed_prev_history(EditLine *el, wint_t c __attribute__((__unused__)))
 	if (el->el_history.eventno == 0) {	/* save the current buffer
 						 * away */
 		(void) wcsncpy(el->el_history.buf, el->el_line.buffer,
-		    EL_BUFSIZ);
+		    el->el_history.sz);
 		el->el_history.last = el->el_history.buf +
 		    (el->el_line.lastchar - el->el_line.buffer);
 	}
@@ -641,7 +641,7 @@ ed_search_prev_history(EditLine *el, wint_t c __attribute__((__unused__)))
 	}
 	if (el->el_history.eventno == 0) {
 		(void) wcsncpy(el->el_history.buf, el->el_line.buffer,
-		    EL_BUFSIZ);
+		    el->el_history.sz);
 		el->el_history.last = el->el_history.buf +
 		    (el->el_line.lastchar - el->el_line.buffer);
 	}

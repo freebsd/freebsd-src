@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2020-2026 The FreeBSD Foundation
- * Copyright (c) 2020-2025 Bjoern A. Zeeb
+ * Copyright (c) 2020-2026 Bjoern A. Zeeb
  *
  * This software was developed by Björn Zeeb under sponsorship from
  * the FreeBSD Foundation.
@@ -431,7 +431,6 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_BUFF_MMPDU_TXQ,
 	IEEE80211_HW_CHANCTX_STA_CSA,
 	IEEE80211_HW_CONNECTION_MONITOR,
-	IEEE80211_HW_DEAUTH_NEED_MGD_TX_PREP,
 	IEEE80211_HW_HAS_RATE_CONTROL,
 	IEEE80211_HW_MFP_CAPABLE,
 	IEEE80211_HW_NEEDS_UNIQUE_STA_ADDR,
@@ -472,6 +471,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_TX_STATUS_NO_AMPDU_LEN,
 	IEEE80211_HW_HANDLES_QUIET_CSA,
 	IEEE80211_HW_NO_VIRTUAL_MONITOR,
+	IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING,
 
 	/* Keep last. */
 	NUM_IEEE80211_HW_FLAGS
@@ -604,7 +604,7 @@ enum ieee80211_rx_status_flags {
 	RX_FLAG_AMPDU_IS_LAST		= BIT(21),
 	RX_FLAG_AMPDU_LAST_KNOWN	= BIT(22),
 	RX_FLAG_AMSDU_MORE		= BIT(23),
-				/*	= BIT(24), */
+	RX_FLAG_RADIOTAP_VHT		= BIT(24),
 	RX_FLAG_ONLY_MONITOR		= BIT(25),
 	RX_FLAG_SKIP_MONITOR		= BIT(26),
 	RX_FLAG_8023			= BIT(27),
@@ -648,6 +648,7 @@ struct ieee80211_rx_status {
 	uint8_t				band;
 	uint8_t				chains;
 	int8_t				chain_signal[IEEE80211_MAX_CHAINS];
+	uint8_t				antenna;
 	int8_t				signal;
 	uint8_t				enc_flags;
 	union {
@@ -748,7 +749,7 @@ struct ieee80211_sta {
 	int		max_amsdu_subframes;
 	int		mfp, smps_mode, tdls, tdls_initiator;
 	struct ieee80211_txq			*txq[IEEE80211_NUM_TIDS + 1];	/* iwlwifi: 8 and adds +1 to tid_data, net80211::IEEE80211_TID_SIZE */
-	struct ieee80211_sta_rates		*rates;	/* some rcu thing? */
+	struct ieee80211_sta_rates		*rates;	/* some rcu thing? */			/* mt7615, and? */
 	uint8_t					addr[ETH_ALEN];
 	uint16_t				aid;
 	bool					wme;
@@ -1057,6 +1058,7 @@ struct ieee80211_ops {
         uint64_t (*get_tsf)(struct ieee80211_hw *, struct ieee80211_vif *);
         void (*set_tsf)(struct ieee80211_hw *, struct ieee80211_vif *, uint64_t);
 	void (*offset_tsf)(struct ieee80211_hw *, struct ieee80211_vif *, s64);
+	void (*reset_tsf)(struct ieee80211_hw *, struct ieee80211_vif *);
 
 	int  (*set_bitrate_mask)(struct ieee80211_hw *, struct ieee80211_vif *, const struct cfg80211_bitrate_mask *);
 	void (*set_coverage_class)(struct ieee80211_hw *, int, s16);
@@ -1104,6 +1106,10 @@ struct ieee80211_ops {
 	void (*rfkill_poll)(struct ieee80211_hw *);
 
 	int (*net_fill_forward_path)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *, struct net_device_path_ctx *, struct net_device_path *);
+
+	int (*start_nan)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_nan_conf *);
+	int (*stop_nan)(struct ieee80211_hw *, struct ieee80211_vif *);
+	int (*nan_change_conf)(struct ieee80211_hw *, struct ieee80211_vif *, struct cfg80211_nan_conf *, uint32_t changes);
 
 /* #ifdef CONFIG_MAC80211_DEBUGFS */	/* Do not change depending on compile-time option. */
 	void (*sta_add_debugfs)(struct ieee80211_hw *, struct ieee80211_vif *, struct ieee80211_sta *, struct dentry *);
@@ -1194,6 +1200,23 @@ void linuxkpi_ieee80211_schedule_txq(struct ieee80211_hw *,
     struct ieee80211_txq *, bool);
 void linuxkpi_ieee80211_handle_wake_tx_queue(struct ieee80211_hw *,
 	struct ieee80211_txq *);
+int linuxkpi_ieee80211_start_tx_ba_session(struct ieee80211_sta *, uint8_t, int);
+
+/* -------------------------------------------------------------------------- */
+
+/*
+ * Emulate chanctx operations.  We cannot rename/prefix the functions
+ * as we rely on the (function)pointers being the same everywhere.
+ */
+int ieee80211_emulate_add_chanctx(struct ieee80211_hw *,
+    struct ieee80211_chanctx_conf *);
+void ieee80211_emulate_remove_chanctx(struct ieee80211_hw *,
+    struct ieee80211_chanctx_conf *);
+void ieee80211_emulate_change_chanctx(struct ieee80211_hw *,
+    struct ieee80211_chanctx_conf *, uint32_t);
+int ieee80211_emulate_switch_vif_chanctx(struct ieee80211_hw *,
+    struct ieee80211_vif_chanctx_switch *, int,
+    enum ieee80211_chanctx_switch_mode);
 
 /* -------------------------------------------------------------------------- */
 
@@ -1559,6 +1582,16 @@ ieee80211_iterate_stations_atomic(struct ieee80211_hw *hw,
    void (*iterfunc)(void *, struct ieee80211_sta *), void *arg)
 {
 
+	linuxkpi_ieee80211_iterate_stations_atomic(hw, iterfunc, arg);
+}
+
+static inline void
+ieee80211_iterate_stations_mtx(struct ieee80211_hw *hw,
+   void (*iterfunc)(void *, struct ieee80211_sta *), void *arg)
+{
+
+	lockdep_assert_wiphy(hw->wiphy);
+	IMPROVE("we could simplify this if we had a sta list on the lhw");
 	linuxkpi_ieee80211_iterate_stations_atomic(hw, iterfunc, arg);
 }
 
@@ -2076,6 +2109,13 @@ ieee80211_sta_set_buffered(struct ieee80211_sta *sta, uint8_t tid, bool t)
 	TODO();
 }
 
+static inline struct sk_buff *
+ieee80211_get_buffered_bc(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	TODO("IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING (espwl)");
+	return (NULL);
+}
+
 static __inline void
 ieee80211_sched_scan_results(struct ieee80211_hw *hw)
 {
@@ -2089,10 +2129,9 @@ ieee80211_sta_eosp(struct ieee80211_sta *sta)
 }
 
 static __inline int
-ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, uint8_t tid, int x)
+ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, uint8_t tid, int timeout)
 {
-	TODO("rtw8x");
-	return (-EINVAL);
+	return (linuxkpi_ieee80211_start_tx_ba_session(sta, tid, timeout));
 }
 
 static __inline int
@@ -2635,60 +2674,11 @@ ieee80211_cqm_beacon_loss_notify(struct ieee80211_vif *vif, gfp_t gfp __unused)
 
 /* -------------------------------------------------------------------------- */
 
-int lkpi_80211_update_chandef(struct ieee80211_hw *,
-    struct ieee80211_chanctx_conf *);
-
-static inline int
-ieee80211_emulate_add_chanctx(struct ieee80211_hw *hw,
-    struct ieee80211_chanctx_conf *chanctx_conf)
+static inline bool
+ieee80211_vif_nan_started(struct ieee80211_vif *vif)
 {
-	int error;
-
-	hw->conf.radar_enabled = chanctx_conf->radar_enabled;
-	error = lkpi_80211_update_chandef(hw, chanctx_conf);
-	return (error);
+	IMPROVE("NAN");
+	return (false);
 }
-
-static inline void
-ieee80211_emulate_remove_chanctx(struct ieee80211_hw *hw,
-    struct ieee80211_chanctx_conf *chanctx_conf __unused)
-{
-	hw->conf.radar_enabled = false;
-	lkpi_80211_update_chandef(hw, NULL);
-}
-
-static inline void
-ieee80211_emulate_change_chanctx(struct ieee80211_hw *hw,
-    struct ieee80211_chanctx_conf *chanctx_conf, uint32_t changed __unused)
-{
-	hw->conf.radar_enabled = chanctx_conf->radar_enabled;
-	lkpi_80211_update_chandef(hw, chanctx_conf);
-}
-
-static inline int
-ieee80211_emulate_switch_vif_chanctx(struct ieee80211_hw *hw,
-    struct ieee80211_vif_chanctx_switch *vifs, int n_vifs,
-    enum ieee80211_chanctx_switch_mode mode __unused)
-{
-	struct ieee80211_chanctx_conf *chanctx_conf;
-	int error;
-
-	/* Sanity check. */
-	if (n_vifs <= 0)
-		return (-EINVAL);
-	if (vifs == NULL || vifs[0].new_ctx == NULL)
-		return (-EINVAL);
-
-	/*
-	 * What to do if n_vifs > 1?
-	 * Does that make sense for drivers not supporting chanctx?
-	 */
-	hw->conf.radar_enabled = vifs[0].new_ctx->radar_enabled;
-	chanctx_conf = vifs[0].new_ctx;
-	error = lkpi_80211_update_chandef(hw, chanctx_conf);
-	return (error);
-}
-
-/* -------------------------------------------------------------------------- */
 
 #endif	/* _LINUXKPI_NET_MAC80211_H */

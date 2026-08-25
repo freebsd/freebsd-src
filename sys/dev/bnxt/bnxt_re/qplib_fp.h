@@ -386,7 +386,6 @@ struct bnxt_qplib_qp {
 	struct list_head		sq_flush;
 	struct list_head		rq_flush;
 	/* 4 bytes of QP's scrabled mac received from FW */
-	u32				lag_src_mac;
 	u32				msn;
 	u32				msn_tbl_sz;
 	/* get devflags in PI code */

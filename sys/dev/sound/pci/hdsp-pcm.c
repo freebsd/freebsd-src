@@ -402,38 +402,21 @@ hdsp_running(struct sc_info *sc)
 {
 	struct sc_pcminfo *scp;
 	struct sc_chinfo *ch;
-	device_t *devlist;
-	int devcount;
-	int i, j;
-	int running;
+	unsigned int i;
+	int j;
 
-	running = 0;
-
-	devlist = NULL;
-	devcount = 0;
-
-	if (device_get_children(sc->dev, &devlist, &devcount) != 0)
-		running = 1;	/* On error, avoid channel config changes. */
-
-	for (i = 0; running == 0 && i < devcount; i++) {
-		scp = device_get_ivars(devlist[i]);
+	for (i = 0; i < HDSP_MAX_PCMDEV; i++) {
+		scp = sc->pcms[i];
+		if (scp == NULL)
+			continue;
 		for (j = 0; j < scp->chnum; j++) {
 			ch = &scp->chan[j];
-			if (ch->run) {
-				running = 1;
-				break;
-			}
+			if (ch->run)
+				return (1);
 		}
 	}
 
-#if 0
-	if (running == 1)
-		device_printf(sc->dev, "hdsp is running\n");
-#endif
-
-	free(devlist, M_TEMP);
-
-	return (running);
+	return (0);
 }
 
 static void
@@ -693,10 +676,13 @@ hdspchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	struct sc_pcminfo *scp;
 	struct sc_chinfo *ch;
 	struct sc_info *sc;
+	struct pcmchan_caps *caps;
+	uint32_t *data;
 	int num;
 
 	scp = devinfo;
 	sc = scp->sc;
+	caps = malloc(sizeof(struct pcmchan_caps), M_HDSP, M_WAITOK);
 
 	mtx_lock(&sc->lock);
 	num = scp->chnum;
@@ -721,7 +707,7 @@ hdspchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 	    SND_FORMAT(AFMT_S32_LE, hdsp_port_slot_count(ch->ports, 192000), 0);
 	ch->cap_fmts[3] = 0;
 
-	ch->caps = malloc(sizeof(struct pcmchan_caps), M_HDSP, M_NOWAIT);
+	ch->caps = caps;
 	*(ch->caps) = (struct pcmchan_caps) {32000, 192000, ch->cap_fmts, 0};
 
 	/* HDSP 9652 does not support quad speed sample rates. */
@@ -732,7 +718,6 @@ hdspchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 
 	/* Allocate maximum buffer size. */
 	ch->size = HDSP_CHANBUF_SIZE * hdsp_port_slot_count_max(ch->ports);
-	ch->data = malloc(ch->size, M_HDSP, M_NOWAIT);
 	ch->position = 0;
 
 	ch->buffer = b;
@@ -741,6 +726,17 @@ hdspchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 
 	ch->dir = dir;
 
+	mtx_unlock(&sc->lock);
+
+	/*
+	 * It is safe to access ch->size here without holding the lock, because
+	 * 1) as of now, ch->size is written only once, here, and 2) ch's
+	 * lifetime is equal to scp's lifetime so it cannot go away yet.
+	 */
+	data = malloc(ch->size, M_HDSP, M_WAITOK);
+
+	mtx_lock(&sc->lock);
+	ch->data = data;
 	mtx_unlock(&sc->lock);
 
 	if (sndbuf_setup(ch->buffer, ch->data, ch->size) != 0) {
@@ -1043,12 +1039,15 @@ hdsp_pcm_attach(device_t dev)
 {
 	char status[SND_STATUSLEN];
 	struct sc_pcminfo *scp;
+	struct sc_info *sc;
 	const char *buf;
 	uint32_t pcm_flags;
 	int err;
 	int play, rec;
+	int i;
 
 	scp = device_get_ivars(dev);
+	sc = scp->sc;
 	scp->ih = &hdsp_pcm_intr;
 
 	if (scp->hc->ports & HDSP_CHAN_9632_ALL)
@@ -1086,8 +1085,8 @@ hdsp_pcm_attach(device_t dev)
 	}
 
 	snprintf(status, SND_STATUSLEN, "port 0x%jx irq %jd on %s",
-	    rman_get_start(scp->sc->cs),
-	    rman_get_start(scp->sc->irq),
+	    rman_get_start(sc->cs),
+	    rman_get_start(sc->irq),
 	    device_get_nameunit(device_get_parent(dev)));
 	err = pcm_register(dev, status);
 	if (err) {
@@ -1097,19 +1096,78 @@ hdsp_pcm_attach(device_t dev)
 
 	mixer_init(dev, &hdspmixer_class, scp);
 
+	/* Register the PCM child for interrupt dispatch. */
+	mtx_lock(&sc->lock);
+	for (i = 0; i < HDSP_MAX_PCMDEV; i++) {
+		if (sc->pcms[i] == NULL) {
+			sc->pcms[i] = scp;
+			break;
+		}
+	}
+	mtx_unlock(&sc->lock);
+	if (i == HDSP_MAX_PCMDEV)
+		device_printf(dev, "Too many PCM children.\n");
+
 	return (0);
+}
+
+static int
+hdsp_pcm_quiesce(struct sc_pcminfo *scp)
+{
+	struct sc_info *sc;
+	unsigned int i;
+	int slot;
+
+	sc = scp->sc;
+	slot = -1;
+	mtx_lock(&sc->lock);
+	for (i = 0; i < HDSP_MAX_PCMDEV; i++) {
+		if (sc->pcms[i] == scp) {
+			sc->pcm_detaching[i] = true;
+			while (sc->pcm_refs[i] != 0)
+				cv_wait(&sc->pcm_cv, &sc->lock);
+			slot = (int)i;
+			break;
+		}
+	}
+	mtx_unlock(&sc->lock);
+	return (slot);
+}
+
+static void
+hdsp_pcm_unquiesce(struct sc_pcminfo *scp, int slot, bool detach)
+{
+	struct sc_info *sc;
+
+	sc = scp->sc;
+	mtx_lock(&sc->lock);
+	KASSERT(slot >= 0 && slot < HDSP_MAX_PCMDEV &&
+	    sc->pcms[slot] == scp && sc->pcm_detaching[slot],
+	    ("invalid PCM slot %d", slot));
+	if (detach)
+		sc->pcms[slot] = NULL;
+	sc->pcm_detaching[slot] = false;
+	mtx_unlock(&sc->lock);
 }
 
 static int
 hdsp_pcm_detach(device_t dev)
 {
-	int err;
+	struct sc_pcminfo *scp;
+	int err, slot;
+
+	scp = device_get_ivars(dev);
+	slot = hdsp_pcm_quiesce(scp);
 
 	err = pcm_unregister(dev);
 	if (err) {
 		device_printf(dev, "Can't unregister device.\n");
+		if (slot >= 0)
+			hdsp_pcm_unquiesce(scp, slot, false);
 		return (err);
 	}
+	if (slot >= 0)
+		hdsp_pcm_unquiesce(scp, slot, true);
 
 	return (0);
 }

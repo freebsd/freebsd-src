@@ -15,7 +15,7 @@ CFLAGS+=	-I${.CURDIR}
 
 LIBADD+=	cxxrt elf procstat rtld_db util z
 
-.if ${MK_CDDL} != "no"
+.if ${MK_CTF} != "no"
 LIBADD+=	ctf
 IGNORE_PRAGMA=	YES
 CFLAGS+= -DIN_BASE

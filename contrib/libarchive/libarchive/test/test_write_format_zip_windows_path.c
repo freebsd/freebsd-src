@@ -60,7 +60,7 @@ test_with_hdrcharset(const char *charset)
 	archive_entry_free(ae);
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_write_free(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 	dumpfile("constructed.zip", buff, used);
 
 	/*
@@ -88,6 +88,7 @@ test_with_hdrcharset(const char *charset)
 	assertEqualInt(2, expected_found);
 	failure("should not find unexpected path in anywhere (charset=%s)", charset);
 	assertEqualInt(0, unexpected_found);
+	free(buff);
 }
 
 DEFINE_TEST(test_write_format_zip_windows_path)

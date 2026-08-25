@@ -14,7 +14,7 @@ sleep 1
 AGENT_PID=$!
 trap "kill $AGENT_PID" EXIT
 
-PRIV="id_dsa id_ecdsa id_ecdsa_sk id_ed25519 id_ed25519_sk id_rsa"
+PRIV="id_ecdsa id_ecdsa_sk id_ed25519 id_ed25519_sk id_rsa"
 
 # add keys
 ssh-add $PRIV

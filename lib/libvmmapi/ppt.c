@@ -63,6 +63,19 @@ vm_unassign_pptdev(struct vmctx *ctx, int bus, int slot, int func)
 }
 
 int
+vm_reset_pptdev(struct vmctx *ctx, int bus, int slot, int func)
+{
+	struct vm_pptdev pptdev;
+
+	bzero(&pptdev, sizeof(pptdev));
+	pptdev.bus = bus;
+	pptdev.slot = slot;
+	pptdev.func = func;
+
+	return (ioctl(ctx->fd, VM_RESET_PPTDEV, &pptdev));
+}
+
+int
 vm_map_pptdev_mmio(struct vmctx *ctx, int bus, int slot, int func,
     vm_paddr_t gpa, size_t len, vm_paddr_t hpa)
 {

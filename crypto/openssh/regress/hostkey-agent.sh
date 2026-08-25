@@ -1,4 +1,4 @@
-#	$OpenBSD: hostkey-agent.sh,v 1.15 2024/12/04 10:51:13 dtucker Exp $
+#	$OpenBSD: hostkey-agent.sh,v 1.16 2026/06/15 01:55:44 djm Exp $
 #	Placed in the Public Domain.
 
 tid="hostkey agent"
@@ -89,13 +89,17 @@ grep -vi 'globalknownhostsfile' $OBJ/ssh_proxy.orig > $OBJ/ssh_proxy
 echo "UpdateHostkeys=yes" >> $OBJ/ssh_proxy
 echo "GlobalKnownHostsFile=none" >> $OBJ/ssh_proxy
 
+HOSTKEYALGS=""
 for k in $SSH_KEYTYPES ; do
 	verbose "Addkey type $k"
 	echo "Hostkey $OBJ/agent-key.${k}" >> $OBJ/sshd_proxy
+	test -z "$HOSTKEYALGS" || HOSTKEYALGS="${HOSTKEYALGS},"
+	HOSTKEYALGS="${HOSTKEYALGS}${k}"
 
 	( printf 'localhost-with-alias ' ;
-    cat $OBJ/agent-key.$k.pub) > $OBJ/known_hosts
+    cat $OBJ/agent-key.$k.pub) >> $OBJ/known_hosts
 done
+echo "HostKeyAlgorithms $HOSTKEYALGS" >> $OBJ/sshd_proxy
 
 opts="-oStrictHostKeyChecking=yes -F $OBJ/ssh_proxy"
 SSH_CONNECTION=`${SSH} $opts host 'echo $SSH_CONNECTION'`

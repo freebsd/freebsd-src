@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
@@ -49,7 +49,7 @@ adf_ae_fw_load(struct adf_accel_dev *accel_dev)
 	u32 max_objs = 1;
 	const char *obj_name = NULL;
 	struct adf_mmp_version_s mmp_ver = { { 0 } };
-	unsigned int cfg_ae_mask = 0;
+	u64 cfg_ae_mask = 0;
 
 	if (!hw_device->fw_name)
 		return 0;
@@ -206,7 +206,7 @@ adf_ae_stop(struct adf_accel_dev *accel_dev)
 		return 0;
 
 	for (ae = 0, ae_ctr = 0; ae < max_aes; ae++) {
-		if (hw_data->ae_mask & (1 << ae)) {
+		if (hw_data->ae_mask & (1ULL << ae)) {
 			qat_hal_stop(loader_data->fw_loader, ae, 0xFF);
 			ae_ctr++;
 		}

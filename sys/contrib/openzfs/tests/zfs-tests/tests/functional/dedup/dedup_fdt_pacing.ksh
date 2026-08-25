@@ -1,23 +1,13 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
-# CDDL HEADER START
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
 #
-# The contents of this file are subject to the terms of the
-# Common Development and Distribution License (the "License").
-# You may not use this file except in compliance with the License.
-#
-# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or https://opensource.org/licenses/CDDL-1.0.
-# See the License for the specific language governing permissions
-# and limitations under the License.
-#
-# When distributing Covered Code, include this CDDL HEADER in each
-# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-# If applicable, add the following below this CDDL HEADER, with the
-# fields enclosed by brackets "[]" replaced with your own identifying
-# information: Portions Copyright [yyyy] [name of copyright owner]
-#
-# CDDL HEADER END
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -46,11 +36,9 @@ function cleanup
 
 log_onexit cleanup
 
-# Create a pool with fast dedup enabled. We disable block cloning to ensure
-# it doesn't get in the way of dedup.
+# Create a pool with fast dedup enabled.
 log_must zpool create -f \
     -o feature@fast_dedup=enabled \
-    -o feature@block_cloning=disabled \
     $TESTPOOL $DISKS
 
 # Create a filesystem with a small recordsize so that we get more DDT entries,
@@ -106,5 +94,7 @@ log_entries3=$(get_ddt_log_entries)
 
 # Verify there are 256 entries in the unique table.
 log_must eval "zdb -D $TESTPOOL | grep -q 'DDT-sha256-zap-unique:.*entries=256'"
+
+log_must zdb -b $TESTPOOL
 
 log_pass "dedup (FDT) paces out log entries appropriately"

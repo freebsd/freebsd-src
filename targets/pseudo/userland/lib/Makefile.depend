@@ -71,7 +71,6 @@ DIRDEPS = \
 	lib/libexecinfo \
 	lib/libexpat \
 	lib/libfetch \
-	lib/libfigpar \
 	lib/libgeom \
 	lib/libgssapi \
 	lib/libiconv_modules/BIG5 \
@@ -227,10 +226,6 @@ DIRDEPS+= \
 	lib/libcasper/services/cap_pwd \
 	lib/libcasper/services/cap_sysctl \
 
-.endif
-
-.if ${MK_DIALOG} != "no"
-DIRDEPS+= lib/libdpv
 .endif
 
 .if ${MK_GPIO} != "no"

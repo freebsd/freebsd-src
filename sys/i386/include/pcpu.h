@@ -71,9 +71,9 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	void	*pc_cmap_pte2;						\
 	caddr_t	pc_cmap_addr1;						\
 	caddr_t	pc_cmap_addr2;						\
-	vm_offset_t pc_qmap_addr;	/* KVA for temporary mappings */\
-	vm_offset_t pc_copyout_maddr;					\
-	vm_offset_t pc_copyout_saddr;					\
+	caddr_t pc_qmap_addr;		/* KVA for temporary mappings */\
+	void	*pc_copyout_maddr;					\
+	void	*pc_copyout_saddr;					\
 	struct	mtx pc_copyout_mlock;					\
 	struct	sx pc_copyout_slock;					\
 	char	*pc_copyout_buf;					\
@@ -86,7 +86,8 @@ _Static_assert(sizeof(struct monitorbuf) == 128, "2x cache line");
 	uint32_t pc_pad[4];						\
 	uint8_t	pc_mds_tmp[64];						\
 	u_int	pc_ipi_bitmap;						\
-	char	__pad[3518]
+	u_int	pc_small_core;						\
+	char	__pad[3514]
 
 #ifdef _KERNEL
 

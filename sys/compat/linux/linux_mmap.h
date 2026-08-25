@@ -66,6 +66,27 @@
 int linux_mmap_common(struct thread *, uintptr_t, size_t, int, int,
 			int, off_t);
 int linux_mprotect_common(struct thread *, uintptr_t, size_t, int);
+int linux_pkey_alloc_common(struct thread *, uint64_t, uint64_t);
+int linux_pkey_free_common(struct thread *, int);
+int linux_pkey_mprotect_common(struct thread *, uintptr_t, size_t, int, int);
+
+/*
+ * Machine-dependent protection key back ends: the real implementation
+ * on amd64 (sys/amd64/linux/linux_pkru.c), stubs behaving as Linux
+ * does on hardware without protection keys elsewhere (each arch's
+ * linux_emul_md.c).
+ */
+int linux_pkey_alloc_machdep(struct thread *, uint64_t);
+int linux_pkey_free_machdep(struct thread *, int);
+int linux_pkey_mprotect_machdep(struct thread *, uintptr_t, size_t, int, int);
+
+/* x86 memory protection keys (pkey_alloc(2) access rights) */
+#define	LINUX_PKEY_DISABLE_ACCESS	0x1
+#define	LINUX_PKEY_DISABLE_WRITE	0x2
+#define	LINUX_PKEY_ACCESS_MASK		(LINUX_PKEY_DISABLE_ACCESS |	\
+					 LINUX_PKEY_DISABLE_WRITE)
+#define	LINUX_PKEY_MAX			16	/* keys 0..15; 0 is default */
+
 int linux_madvise_common(struct thread *, uintptr_t, size_t, int);
 
 #endif	/* _LINUX_MMAP_H_ */

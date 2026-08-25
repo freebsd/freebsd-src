@@ -1,0 +1,1 @@
+pass in on lo0 inet proto tcp from any to 1.2.3.4 port = 2222 flags S/SA keep state nat-to 10.0.0.2 port 22 rdr-to 10.0.0.10

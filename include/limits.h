@@ -30,7 +30,9 @@
  */
 
 #ifndef _LIMITS_H_
-#define	_LIMITS_H_
+#define _LIMITS_H_
+
+#define __STDC_VERSION_LIMITS_H__	202311L
 
 #include <sys/cdefs.h>
 

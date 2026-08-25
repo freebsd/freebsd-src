@@ -1,23 +1,13 @@
 .\" SPDX-License-Identifier: CDDL-1.0
 .\"
-.\" CDDL HEADER START
+.\" This file and its contents are supplied under the terms of the
+.\" Common Development and Distribution License ("CDDL"), version 1.0.
+.\" You may only use this file in accordance with the terms of version
+.\" 1.0 of the CDDL.
 .\"
-.\" The contents of this file are subject to the terms of the
-.\" Common Development and Distribution License (the "License").
-.\" You may not use this file except in compliance with the License.
-.\"
-.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-.\" or https://opensource.org/licenses/CDDL-1.0.
-.\" See the License for the specific language governing permissions
-.\" and limitations under the License.
-.\"
-.\" When distributing Covered Code, include this CDDL HEADER in each
-.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-.\" If applicable, add the following below this CDDL HEADER, with the
-.\" fields enclosed by brackets "[]" replaced with your own identifying
-.\" information: Portions Copyright [yyyy] [name of copyright owner]
-.\"
-.\" CDDL HEADER END
+.\" A full copy of the text of the CDDL should have accompanied this
+.\" source.  A copy of the CDDL is also available via the Internet at
+.\" https://opensource.org/license/CDDL-1.0.
 .\"
 .\" Copyright (c) 2007, Sun Microsystems, Inc. All Rights Reserved.
 .\" Copyright (c) 2012, 2018 by Delphix. All rights reserved.
@@ -26,8 +16,10 @@
 .\" Copyright (c) 2018 George Melikov. All Rights Reserved.
 .\" Copyright 2017 Nexenta Systems, Inc.
 .\" Copyright (c) 2017 Open-E, Inc. All Rights Reserved.
+.\" Copyright (c) 2024-2026, Klara, Inc.
+.\" Copyright (c) 2026, TrueNAS.
 .\"
-.Dd November 19, 2024
+.Dd May 26, 2026
 .Dt ZPOOL 8
 .Os
 .
@@ -108,7 +100,9 @@ specified.
 Destroys the given pool, freeing up any devices for other use.
 .It Xr zpool-labelclear 8
 Removes ZFS label information from the specified
-.Ar device .
+.Ar device ,
+making all data inaccessible without specialized recovery tools.
+Cannot be undone with ZFS tooling.
 .El
 .
 .Ss Virtual Devices
@@ -178,6 +172,8 @@ specified.
 Prefetches specific types of pool data.
 .It Xr zpool-scrub 8
 Begins a scrub or resumes a paused scrub.
+.It Xr zpool-condense 8
+Condense, flush, garbage collect or otherwise clean up pool metadata.
 .It Xr zpool-checkpoint 8
 Checkpoints the current state of
 .Ar pool ,
@@ -243,6 +239,7 @@ Invalid command line options were specified.
 .
 .Sh EXAMPLES
 .\" Examples 1, 2, 3, 4, 12, 13 are shared with zpool-create.8.
+.\" Example 5 is shared with zpool-attach.8.
 .\" Examples 6, 14 are shared with zpool-add.8.
 .\" Examples 7, 16 are shared with zpool-list.8.
 .\" Examples 8 are shared with zpool-destroy.8.

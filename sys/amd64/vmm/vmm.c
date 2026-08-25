@@ -287,7 +287,7 @@ vmm_modinit(void)
 	vmm_host_state_init();
 
 	vmm_ipinum = lapic_ipi_alloc(pti ? &IDTVEC(justreturn1_pti) :
-	    &IDTVEC(justreturn));
+	    &IDTVEC(justreturn), vmm_justreturn);
 	if (vmm_ipinum < 0)
 		vmm_ipinum = IPI_AST;
 
@@ -589,6 +589,13 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 	if (error == 0 && map)
 		error = vm_iommu_map(vm);
 	return (error);
+}
+
+int
+vm_reset_pptdev(struct vm *vm, int bus, int slot, int func)
+{
+
+	return (ppt_reset_device(vm, bus, slot, func));
 }
 
 int

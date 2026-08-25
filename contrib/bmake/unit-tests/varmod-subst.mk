@@ -1,9 +1,10 @@
-# $NetBSD: varmod-subst.mk,v 1.17 2025/03/29 19:08:53 rillig Exp $
+# $NetBSD: varmod-subst.mk,v 1.18 2026/01/03 20:48:35 rillig Exp $
 #
 # Tests for the :S,from,to, variable modifier.
 
 all: mod-subst
 all: mod-subst-delimiter
+all: mod-subst-delimiter-circumflex
 all: mod-subst-chain
 all: mod-subst-dollar
 
@@ -237,11 +238,22 @@ mod-subst-delimiter:
 	@echo ${:U1 2 3:S}2}two}:Q} right curly bracket
 	@echo ${:U1 2 3:S~2~two~:Q} tilde
 
+
+# When the ":S" modifier uses "^" to separate its parts, and when the first
+# part starts with another "^", that "^" is interpreted as an anchor, not as
+# the delimiter between the parts.
+mod-subst-delimiter-circumflex: .PHONY
+	@echo ${:U 123 234 345 :S^^2^two^:Q} circumflex accent
+	# In the ":C" modifier, the "^" is not interpreted as an anchor,
+	# instead it is interpreted as the delimiter of the regular
+	# expression, thus making the regular expression empty and invalid.
+	@echo ${:U 123 234 345 :C^^2^two^:Q} circumflex accent
+
+
 # The :S and :C modifiers can be chained without a separating ':'.
 # This is not documented in the manual page.
 # It works because ApplyModifier_Subst scans for the known modifiers g1W
-# and then just returns to ApplyModifiers.  There, the colon is optionally
-# skipped (see the *st.next == ':' at the end of the loop).
+# and then just returns to ApplySingleModifier.  There, the colon is skipped.
 #
 # Most other modifiers cannot be chained since their parsers skip until
 # the next ':' or '}' or ')'.

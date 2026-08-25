@@ -65,6 +65,7 @@
 #include <libpmcstat.h>
 #include "cmd_pmc.h"
 
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include <vector>

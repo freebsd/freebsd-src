@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include "adf_gen2_hw_data.h"
 #include "icp_qat_hw.h"
 
@@ -76,9 +76,15 @@ write_csr_int_flag(struct resource *csr_base_addr, u32 bank, u32 value)
 }
 
 static void
-write_csr_int_srcsel(struct resource *csr_base_addr, u32 bank)
+write_csr_int_srcsel(struct resource *csr_base_addr,
+		     u32 bank,
+		     u32 idx,
+		     u32 value)
 {
-	WRITE_CSR_INT_SRCSEL(csr_base_addr, bank);
+	if (0 == idx) {
+		value = ADF_BANK_INT_SRC_SEL_MASK_0;
+	}
+	WRITE_CSR_INT_SRCSEL(csr_base_addr, bank, idx, value);
 }
 
 static void
@@ -112,6 +118,11 @@ write_csr_ring_srv_arb_en(struct resource *csr_base_addr, u32 bank, u32 value)
 }
 
 static u32
+get_src_sel_mask(void)
+{
+	return ADF_BANK_INT_SRC_SEL_MASK;
+}
+static u32
 get_int_col_ctl_enable_mask(void)
 {
 	return ADF_RING_CSR_INT_COL_CTL_ENABLE;
@@ -126,6 +137,7 @@ adf_gen2_init_hw_csr_info(struct adf_hw_csr_info *csr_info)
 
 	csr_info->csr_addr_offset = ADF_RING_CSR_ADDR_OFFSET;
 	csr_info->ring_bundle_size = ADF_RING_BUNDLE_SIZE;
+	csr_info->num_rings_per_int_srcsel = ADF_RINGS_PER_INT_SRCSEL;
 
 	csr_ops->build_csr_ring_base_addr = build_csr_ring_base_addr;
 	csr_ops->read_csr_ring_head = read_csr_ring_head;
@@ -144,4 +156,5 @@ adf_gen2_init_hw_csr_info(struct adf_hw_csr_info *csr_info)
 	csr_ops->read_csr_ring_srv_arb_en = read_csr_ring_srv_arb_en;
 	csr_ops->write_csr_ring_srv_arb_en = write_csr_ring_srv_arb_en;
 	csr_ops->get_int_col_ctl_enable_mask = get_int_col_ctl_enable_mask;
+	csr_ops->get_src_sel_mask = get_src_sel_mask;
 }

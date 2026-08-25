@@ -1,5 +1,4 @@
 .PATH:	${SRCTOP}/sys/dev/xz
-.PATH:	${SRCTOP}/sys/contrib/xz-embedded/freebsd
 .PATH:	${SRCTOP}/sys/contrib/xz-embedded/linux/lib/xz
 
 KMOD=	xz
@@ -14,7 +13,6 @@ SRCS= \
 CFLAGS+= \
 	-DXZ_USE_CRC64 \
 	-I${SRCTOP}/sys/contrib/xz-embedded/freebsd \
-	-I${SRCTOP}/sys/contrib/xz-embedded/linux/lib/xz \
 	-I${SRCTOP}/sys/contrib/xz-embedded/linux/include/linux
 
 EXPORT_SYMS=	YES

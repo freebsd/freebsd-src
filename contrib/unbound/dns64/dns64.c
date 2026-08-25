@@ -366,22 +366,23 @@ static int
 dns64_apply_cfg(struct dns64_env* dns64_env, struct config_file* cfg)
 {
     struct config_strlist* s;
-    verbose(VERB_ALGO, "dns64-prefix: %s", cfg->dns64_prefix);
-    if (!netblockstrtoaddr(cfg->dns64_prefix ? cfg->dns64_prefix :
-                DEFAULT_DNS64_PREFIX, 0, &dns64_env->prefix_addr,
+    const char* dns64_prefix = cfg->dns64_prefix ?
+	cfg->dns64_prefix : DEFAULT_DNS64_PREFIX;
+    verbose(VERB_ALGO, "dns64-prefix: %s", dns64_prefix);
+    if (!netblockstrtoaddr(dns64_prefix, 0, &dns64_env->prefix_addr,
                 &dns64_env->prefix_addrlen, &dns64_env->prefix_net)) {
-        log_err("cannot parse dns64-prefix netblock: %s", cfg->dns64_prefix);
+        log_err("cannot parse dns64-prefix netblock: %s", dns64_prefix);
         return 0;
     }
     if (!addr_is_ip6(&dns64_env->prefix_addr, dns64_env->prefix_addrlen)) {
-        log_err("dns64_prefix is not IPv6: %s", cfg->dns64_prefix);
+        log_err("dns64_prefix is not IPv6: %s", dns64_prefix);
         return 0;
     }
     if (dns64_env->prefix_net != 32 && dns64_env->prefix_net != 40 &&
             dns64_env->prefix_net != 48 && dns64_env->prefix_net != 56 &&
             dns64_env->prefix_net != 64 && dns64_env->prefix_net != 96 ) {
-        log_err("dns64-prefix length it not 32, 40, 48, 56, 64 or 96: %s",
-                cfg->dns64_prefix);
+        log_err("dns64-prefix length is not 32, 40, 48, 56, 64 or 96: %s",
+                dns64_prefix);
         return 0;
     }
     for(s = cfg->dns64_ignore_aaaa; s; s = s->next) {
@@ -496,8 +497,8 @@ handle_ipv6_ptr(struct module_qstate* qstate, int id)
 
     /* Create the new sub-query. */
     fptr_ok(fptr_whitelist_modenv_attach_sub(qstate->env->attach_sub));
-    if(!(*qstate->env->attach_sub)(qstate, &qinfo, qstate->query_flags, 0, 0,
-                &subq))
+    if(!(*qstate->env->attach_sub)(qstate, &qinfo, qstate->client_info,
+	    qstate->query_flags, 0, 0, &subq))
         return module_error;
     if (subq) {
         subq->curmod = id;
@@ -522,8 +523,8 @@ generate_type_A_query(struct module_qstate* qstate, int id)
 
 	/* Start the sub-query. */
 	fptr_ok(fptr_whitelist_modenv_attach_sub(qstate->env->attach_sub));
-	if(!(*qstate->env->attach_sub)(qstate, &qinfo, qstate->query_flags, 0,
-				       0, &subq))
+	if(!(*qstate->env->attach_sub)(qstate, &qinfo, qstate->client_info,
+		qstate->query_flags, 0, 0, &subq))
 	{
 		verbose(VERB_ALGO, "dns64: sub-query creation failed");
 		return module_error;
@@ -642,6 +643,12 @@ handle_event_moddone(struct module_qstate* qstate, int id)
 		qstate->return_msg->rep &&
 		reply_find_answer_rrset(&qstate->qinfo, qstate->return_msg->rep);
 	int synth_qname = 0;
+	if(could_synth && !has_data && qstate->env->need_to_validate &&
+		qstate->return_msg && qstate->return_msg->rep &&
+		qstate->return_msg->rep->security == sec_status_bogus) {
+		verbose(VERB_ALGO, "dns64: bogus AAAA reply not synthesized");
+		could_synth = 0;
+	}
 
 	if(could_synth &&
 		(!has_data ||
@@ -653,8 +660,11 @@ handle_event_moddone(struct module_qstate* qstate, int id)
 
 	/* Store the response in cache. */
 	if( (!iq || !iq->started_no_cache_store) &&
+		!qstate->rpz_applied && !qstate->rpz_passthru &&
+		!qstate->is_subnet_answer &&
 		qstate->return_msg &&
 		qstate->return_msg->rep &&
+		!qstate->fwd_stub_no_cache &&
 		!dns_cache_store(
 			qstate->env, &qstate->qinfo, qstate->return_msg->rep,
 			0, qstate->prefetch_leeway, 0, NULL,
@@ -716,8 +726,15 @@ dns64_operate(struct module_qstate* qstate, enum module_ev event, int id,
 	}
 	if(qstate->ext_state[id] == module_finished) {
 		iq = (struct dns64_qstate*)qstate->minfo[id];
-		if(iq && iq->state != DNS64_INTERNAL_QUERY)
-			qstate->no_cache_store = iq->started_no_cache_store;
+		if(iq && iq->state != DNS64_INTERNAL_QUERY) {
+			if(qstate->fwd_stub_no_cache) {
+				/* If the forward/stub has no cache, then
+				 * continue with the query with no cache. */
+				qstate->no_cache_store = qstate->fwd_stub_no_cache;
+			} else {
+				qstate->no_cache_store = iq->started_no_cache_store;
+			}
+		}
 	}
 }
 
@@ -824,6 +841,7 @@ dns64_adjust_a(int id, struct module_qstate* super, struct module_qstate* qstate
 	size_t i, s;
 	struct packed_rrset_data* fd, *dd;
 	struct ub_packed_rrset_key* fk, *dk;
+	int allocated_return_msg = 0;
 
 	verbose(VERB_ALGO, "converting A answers to AAAA answers");
 
@@ -839,6 +857,7 @@ dns64_adjust_a(int id, struct module_qstate* super, struct module_qstate* qstate
 			return;
 		memset(super->return_msg, 0, sizeof(*super->return_msg));
 		super->return_msg->qinfo = super->qinfo;
+		allocated_return_msg = 1;
 	}
 
 	rep = qstate->return_msg->rep;
@@ -851,11 +870,14 @@ dns64_adjust_a(int id, struct module_qstate* super, struct module_qstate* qstate
 		rep->serve_expired_norec_ttl,
 		rep->an_numrrsets, rep->ns_numrrsets, rep->ar_numrrsets,
 		rep->rrset_count, rep->security, LDNS_EDE_NONE);
-	if(!cp)
+	if(!cp) {
+		if(allocated_return_msg) super->return_msg = NULL;
 		return;
+	}
 
 	/* allocate ub_key structures special or not */
 	if(!reply_info_alloc_rrset_keys(cp, NULL, super->region)) {
+		if(allocated_return_msg) super->return_msg = NULL;
 		return;
 	}
 
@@ -870,8 +892,10 @@ dns64_adjust_a(int id, struct module_qstate* super, struct module_qstate* qstate
 		if(i<rep->an_numrrsets && fk->rk.type == htons(LDNS_RR_TYPE_A)) {
 			/* also sets dk->entry.hash */
 			dns64_synth_aaaa_data(fk, fd, dk, &dd, super->region, dns64_env);
-			if(!dd)
+			if(!dd) {
+				if(allocated_return_msg) super->return_msg = NULL;
 				return;
+			}
 			/* Delete negative AAAA record from cache stored by
 			 * the iterator module */
 			rrset_cache_remove(super->env->rrset_cache, dk->rk.dname, 
@@ -888,15 +912,19 @@ dns64_adjust_a(int id, struct module_qstate* super, struct module_qstate* qstate
 			dk->rk.dname = (uint8_t*)regional_alloc_init(super->region,
 				fk->rk.dname, fk->rk.dname_len);
 
-			if(!dk->rk.dname)
+			if(!dk->rk.dname) {
+				if(allocated_return_msg) super->return_msg = NULL;
 				return;
+			}
 
 			s = packed_rrset_sizeof(fd);
 			dd = (struct packed_rrset_data*)regional_alloc_init(
 				super->region, fd, s);
 
-			if(!dd)
+			if(!dd) {
+				if(allocated_return_msg) super->return_msg = NULL;
 				return;
+			}
 		}
 
 		packed_rrset_ptr_fixup(dd);
@@ -927,8 +955,10 @@ dns64_adjust_ptr(struct module_qstate* qstate, struct module_qstate* super)
         return;
     super->return_msg->qinfo = super->qinfo;
     if (!(super->return_msg->rep = reply_info_copy(qstate->return_msg->rep,
-                    NULL, super->region)))
+                    NULL, super->region))) {
+	super->return_msg = NULL;
         return;
+    }
 
     /*
      * Adjust the domain name of the answer RR set so that it matches the
@@ -997,6 +1027,21 @@ dns64_inform_super(struct module_qstate* qstate, int id,
 	/* Use return code from A query in response to client. */
 	if (super->return_rcode != LDNS_RCODE_NOERROR)
 		super->return_rcode = qstate->return_rcode;
+	/* RPZ applied to the subquery need to then change (not cache)
+	 * the super query. With the super query not cached, it is
+	 * going to run the state machine modules on incoming queries,
+	 * that fetch the subquery (cache) response, and modify it
+	 * according to the rpz policy. That makes the synthesized
+	 * super query also adjusted by rpz policies. But loses cache
+	 * hits. Even though the subquery likely is answered from cache,
+	 * internally in its state machine process. */
+	if(qstate->rpz_applied)
+		super->rpz_applied = 1;
+	if(qstate->rpz_passthru)
+		super->rpz_passthru = 1;
+
+	/* Since the super qstate has a new response, its errinf is removed. */
+	super->errinf = NULL;
 
 	/* Generate a response suitable for the original query. */
 	if (qstate->qinfo.qtype == LDNS_RR_TYPE_A) {
@@ -1005,9 +1050,16 @@ dns64_inform_super(struct module_qstate* qstate, int id,
 		log_assert(qstate->qinfo.qtype == LDNS_RR_TYPE_PTR);
 		dns64_adjust_ptr(qstate, super);
 	}
+	/* If the sub-query has no cache store, then also the super query. */
+	if(qstate->fwd_stub_no_cache)
+		super->fwd_stub_no_cache = 1;
 
 	/* Store the generated response in cache. */
-	if ( (!super_dq || !super_dq->started_no_cache_store) &&
+	if ( super->return_msg && super->return_msg->rep &&
+		(!super_dq || !super_dq->started_no_cache_store) &&
+		!qstate->fwd_stub_no_cache &&
+		!super->rpz_applied && !super->rpz_passthru &&
+		!super->is_subnet_answer &&
 		!dns_cache_store(super->env, &super->qinfo, super->return_msg->rep,
 		0, super->prefetch_leeway, 0, NULL, super->query_flags,
 		qstate->qstarttime, qstate->is_valrec))

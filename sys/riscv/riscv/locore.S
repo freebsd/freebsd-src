@@ -241,8 +241,8 @@ va:
 	/* Clear frame pointer */
 	mv	s0, zero
 
-	/* Allocate space for thread0 PCB and riscv_bootparams */
-	addi	sp, sp, -(PCB_SIZE + RISCV_BOOTPARAMS_SIZE) & ~STACKALIGNBYTES
+	/* Allocate space for riscv_bootparams */
+	addi	sp, sp, -RISCV_BOOTPARAMS_SIZE & ~STACKALIGNBYTES
 
 	/* Clear BSS */
 	la	t0, _C_LABEL(__bss_start)

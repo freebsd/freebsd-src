@@ -253,6 +253,54 @@ inject_reply_cleanup()
 	ifconfig `cat tun.txt` destroy
 }
 
+atf_test_case timestamp_origin cleanup
+timestamp_origin_head()
+{
+	atf_set "descr" "ICMP Originate Timestamp"
+	atf_set "require.user" "root"
+	atf_set "require.config" "allow_sysctl_side_effects"
+}
+timestamp_origin_body()
+{
+	require_ipv4
+	# The kernel only replies to ICMP timestamp requests when
+	# net.inet.icmp.tstamprepl is enabled.  Save the current value
+	# so the cleanup hook can restore it, then enable replies.
+	sysctl -n net.inet.icmp.tstamprepl > tstamprepl.txt
+	sysctl net.inet.icmp.tstamprepl=1
+
+	# Run ping timestamp
+	out=$(ping -Mt -c1 127.0.0.1)
+
+	# Extract tso and tsr
+	tso=$(echo "$out" | sed -n 's/.*tso=\([0-9:]*\).*/\1/p')
+	tsr=$(echo "$out" | sed -n 's/.*tsr=\([0-9:]*\).*/\1/p')
+
+	atf_check test -n "$tso"
+	atf_check test -n "$tsr"
+
+	# Convert tso and tsr from HH:MM:SS to seconds
+	tso_s=`date -jf %H:%M:%S $tso +%s`
+	tsr_s=`date -jf %H:%M:%S $tsr +%s`
+
+	diff=$((tso_s - tsr_s))
+	# Tolerate negative time difference between the sender and receiver
+	if [ $diff -lt 0 ]; then
+		diff=$(( -diff ))
+	fi
+
+	# Tolerate 2 seconds difference
+	if [ $diff -gt 2 ]; then
+		atf_fail "tso ($tso) differs from tsr ($tsr) by $diff seconds"
+	fi
+}
+timestamp_origin_cleanup()
+{
+	if [ -f tstamprepl.txt ]; then
+		sysctl net.inet.icmp.tstamprepl=`cat tstamprepl.txt`
+	fi
+}
+
 atf_init_test_cases()
 {
 	atf_add_test_case ping_c1_s56_t1
@@ -271,6 +319,7 @@ atf_init_test_cases()
 	atf_add_test_case inject_opts
 	atf_add_test_case inject_pip
 	atf_add_test_case inject_reply
+	atf_add_test_case timestamp_origin
 }
 
 check_ping_statistics()

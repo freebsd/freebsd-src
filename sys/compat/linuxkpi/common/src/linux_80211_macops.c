@@ -115,6 +115,9 @@ lkpi_80211_mo_set_frag_threshold(struct ieee80211_hw *hw, uint32_t frag_th)
 	struct lkpi_hw *lhw;
 	int error;
 
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->set_frag_threshold == NULL) {
 		error = EOPNOTSUPP;
@@ -134,6 +137,9 @@ lkpi_80211_mo_set_rts_threshold(struct ieee80211_hw *hw, uint32_t rts_th)
 {
 	struct lkpi_hw *lhw;
 	int error;
+
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
 
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->set_rts_threshold == NULL) {
@@ -218,6 +224,8 @@ lkpi_80211_mo_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct lkpi_hw *lhw;
 	int error;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	/*
 	 * MUST NOT return EPERM as that is a "magic number 1" based on rtw88
 	 * driver indicating hw_scan is not supported despite the ops call
@@ -243,6 +251,8 @@ void
 lkpi_80211_mo_cancel_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct lkpi_hw *lhw;
+
+	lockdep_assert_wiphy(hw->wiphy);
 
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->cancel_hw_scan == NULL)
@@ -291,6 +301,8 @@ lkpi_80211_mo_prepare_multicast(struct ieee80211_hw *hw,
 	struct lkpi_hw *lhw;
 	u64 ptr;
 
+	/* This seems fine without the wiphy lock. */
+
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->prepare_multicast == NULL)
 		return (0);
@@ -305,6 +317,8 @@ lkpi_80211_mo_configure_filter(struct ieee80211_hw *hw, unsigned int changed_fla
     unsigned int *total_flags, u64 mc_ptr)
 {
 	struct lkpi_hw *lhw;
+
+	lockdep_assert_wiphy(hw->wiphy);
 
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->configure_filter == NULL)
@@ -429,6 +443,8 @@ lkpi_80211_mo_config(struct ieee80211_hw *hw, uint32_t changed)
 	struct lkpi_hw *lhw;
 	int error;
 
+	lockdep_assert_wiphy(hw->wiphy);
+
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->config == NULL) {
 		error = EOPNOTSUPP;
@@ -497,6 +513,9 @@ lkpi_80211_mo_add_chanctx(struct ieee80211_hw *hw,
 	struct lkpi_chanctx *lchanctx;
 	int error;
 
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->add_chanctx == NULL) {
 		error = EOPNOTSUPP;
@@ -520,6 +539,9 @@ lkpi_80211_mo_change_chanctx(struct ieee80211_hw *hw,
 {
 	struct lkpi_hw *lhw;
 
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->change_chanctx == NULL)
 		return;
@@ -535,6 +557,9 @@ lkpi_80211_mo_remove_chanctx(struct ieee80211_hw *hw,
 	struct lkpi_hw *lhw;
 	struct lkpi_chanctx *lchanctx;
 
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->remove_chanctx == NULL)
 		return;
@@ -546,24 +571,80 @@ lkpi_80211_mo_remove_chanctx(struct ieee80211_hw *hw,
 }
 
 void
-lkpi_80211_mo_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-    struct ieee80211_bss_conf *conf, uint64_t changed)
+lkpi_80211_mo_vif_cfg_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    uint64_t vif_cfg_bits, bool fallback)
 {
 	struct lkpi_hw *lhw;
+
+	might_sleep();
+	/* XXX-FINISH all callers for lockdep_assert_wiphy(hw->wiphy); */
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->vif_cfg_changed == NULL &&
+	    lhw->ops->bss_info_changed == NULL)
+		return;
+
+	if (vif_cfg_bits == 0)
+		return;
+
+	LKPI_80211_TRACE_MO("hw %p vif %p vif_cfg_bits %#jx", hw, vif, (uintmax_t)vif_cfg_bits);
+	if (lhw->ops->link_info_changed != NULL)
+		lhw->ops->vif_cfg_changed(hw, vif, vif_cfg_bits);
+	else if (fallback)
+		lhw->ops->bss_info_changed(hw, vif, &vif->bss_conf, vif_cfg_bits);
+}
+
+void
+lkpi_80211_mo_link_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_bss_conf *conf, uint64_t link_info_bits, uint8_t link_id,
+    bool fallback)
+{
+	struct lkpi_hw *lhw;
+
+	might_sleep();
+	/* XXX-FINISH all callers for lockdep_assert_wiphy(hw->wiphy); */
 
 	lhw = HW_TO_LHW(hw);
 	if (lhw->ops->link_info_changed == NULL &&
 	    lhw->ops->bss_info_changed == NULL)
 		return;
 
-	if (changed == 0)
+	if (link_info_bits == 0)
 		return;
 
-	LKPI_80211_TRACE_MO("hw %p vif %p conf %p changed %#jx", hw, vif, conf, (uintmax_t)changed);
+	if (!ieee80211_vif_link_active(vif, link_id))
+		return;
+
+	LKPI_80211_TRACE_MO("hw %p vif %p conf %p link_info_bits %#jx", hw, vif, conf, (uintmax_t)link_info_bits);
 	if (lhw->ops->link_info_changed != NULL)
-		lhw->ops->link_info_changed(hw, vif, conf, changed);
-	else
-		lhw->ops->bss_info_changed(hw, vif, conf, changed);
+		lhw->ops->link_info_changed(hw, vif, conf, link_info_bits);
+	else if (fallback)
+		lhw->ops->bss_info_changed(hw, vif, conf, link_info_bits);
+}
+
+/*
+ * This is basically obsolete but one caller.
+ * The functionality is now split between lkpi_80211_mo_link_info_changed() and
+ * lkpi_80211_mo_vif_cfg_changed().  Those functions have a flag whether to call
+ * the (*bss_info_changed) fallback or not.  See lkpi_bss_info_change().
+ */
+void
+lkpi_80211_mo_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+    struct ieee80211_bss_conf *conf, uint64_t bss_changed)
+{
+	struct lkpi_hw *lhw;
+
+	/* XXX-FINISH all callers for lockdep_assert_wiphy(hw->wiphy); */
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->bss_info_changed == NULL)
+		return;
+
+	if (bss_changed == 0)
+		return;
+
+	LKPI_80211_TRACE_MO("hw %p vif %p conf %p changed %#jx", hw, vif, conf, (uintmax_t)bss_changed);
+	lhw->ops->bss_info_changed(hw, vif, conf, bss_changed);
 }
 
 int
@@ -689,6 +770,46 @@ lkpi_80211_mo_sta_pre_rcu_remove(struct ieee80211_hw *hw,
 	lhw->ops->sta_pre_rcu_remove(hw, vif, sta);
 }
 
+void
+lkpi_80211_mo_link_sta_rc_update(struct ieee80211_hw *hw,
+    struct ieee80211_vif *vif, struct ieee80211_link_sta *link_sta,
+    enum ieee80211_rate_control_changed_flags rc_changed)
+{
+	struct lkpi_hw *lhw;
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->link_sta_rc_update == NULL)
+		return;
+
+	LKPI_80211_TRACE_MO("hw %p vif %p link_sta %p rc_changed %#010x",
+	    hw, vif, link_sta, rc_changed);
+	lhw->ops->link_sta_rc_update(hw, vif, link_sta, rc_changed);
+}
+
+int
+lkpi_80211_mo_set_bitrate_mask(struct ieee80211_hw *hw,
+    struct ieee80211_vif *vif, const struct cfg80211_bitrate_mask *br_mask)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->set_bitrate_mask == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	LKPI_80211_TRACE_MO("hw %p vif %p br_mask %p",
+	    hw, vif, br_mask);
+	error = lhw->ops->set_bitrate_mask(hw, vif, br_mask);
+
+out:
+	return (error);
+}
+
 int
 lkpi_80211_mo_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
     struct ieee80211_vif *vif, struct ieee80211_sta *sta,
@@ -705,11 +826,44 @@ lkpi_80211_mo_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		goto out;
 	}
 
+	/*
+	 * Drivers will apply different logic depending on sta being set
+	 * here or not and that depends on whether we have an address or
+	 * not.  wpa_spplucoant::driver_bsd::bsd_set_key() will set a
+	 * broadcast address if we do not have one;  further up in
+	 * wpa_supplicant something presumably sets the broadcast address
+	 * for group keys as well.
+	 * We have to "undo" this here and set sta to NULL to avoid
+	 * problems with hw_crypto in various drivers.
+	 * We do this here so all set_key calls for (SET_KEY and DISABLE_KEY)
+	 * are covered.
+	 */
+	MPASS(kc->_k != NULL);
+	if (is_broadcast_ether_addr(kc->_k->wk_macaddr))
+		sta = NULL;
+
 	LKPI_80211_TRACE_MO("hw %p cmd %d vif %p sta %p kc %p", hw, cmd, vif, sta, kc);
 	error = lhw->ops->set_key(hw, cmd, vif, sta, kc);
 
 out:
 	return (error);
+}
+
+void
+lkpi_80211_mo_sta_set_decap_offload(struct ieee80211_hw *hw,
+    struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+    bool enable)
+{
+	struct lkpi_hw *lhw;
+
+	lockdep_assert_wiphy(hw->wiphy);
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->sta_set_decap_offload == NULL)
+		return;
+
+	LKPI_80211_TRACE_MO("hw %p vif %p sta %p enable %d", hw, vif, sta, enable);
+	lhw->ops->sta_set_decap_offload(hw, vif, sta, enable);
 }
 
 int
@@ -763,3 +917,119 @@ lkpi_80211_mo_sta_statistics(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 out:
 	return (error);
 }
+
+int
+lkpi_80211_mo_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->suspend == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	LKPI_80211_TRACE_MO("hw %p wowlan %p", hw, wowlan);
+	error = lhw->ops->suspend(hw, wowlan);
+
+out:
+	return (error);
+}
+
+int
+lkpi_80211_mo_resume(struct ieee80211_hw *hw)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->resume == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	LKPI_80211_TRACE_MO("hw %p", hw);
+	error = lhw->ops->resume(hw);
+
+out:
+	return (error);
+}
+
+int
+lkpi_80211_mo_set_wakeup(struct ieee80211_hw *hw, bool enable)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->set_wakeup == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	LKPI_80211_TRACE_MO("hw %p enable %d", hw, enable);
+	lhw->ops->set_wakeup(hw, enable);
+	error = 0;
+
+out:
+	return (error);
+}
+
+int
+lkpi_80211_mo_set_rekey_data(struct ieee80211_hw *hw,
+    struct ieee80211_vif *vif, struct cfg80211_gtk_rekey_data *grd)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->set_rekey_data == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	LKPI_80211_TRACE_MO("hw %p vif %p grd %p", hw, vif, grd);
+	lhw->ops->set_rekey_data(hw, vif, grd);
+	error = 0;
+
+out:
+	return (error);
+}
+
+int
+lkpi_80211_mo_set_default_unicast_key(struct ieee80211_hw *hw,
+    struct ieee80211_vif *vif, int idx)
+{
+	struct lkpi_hw *lhw;
+	int error;
+
+	might_sleep();
+	lockdep_assert_wiphy(hw->wiphy);
+
+	lhw = HW_TO_LHW(hw);
+	if (lhw->ops->set_default_unicast_key == NULL) {
+		error = EOPNOTSUPP;
+		goto out;
+	}
+
+	LKPI_80211_TRACE_MO("hw %p vif %p idx %d", hw, vif, idx);
+	lhw->ops->set_default_unicast_key(hw, vif, idx);
+	error = 0;
+
+out:
+	return (error);
+}
+

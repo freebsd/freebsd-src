@@ -28,6 +28,7 @@
 #define	_SYS_KTLS_H_
 
 #ifdef _KERNEL
+#include <sys/mbuf.h>
 #include <sys/_null.h>
 #include <sys/refcount.h>
 #include <sys/_task.h>
@@ -237,12 +238,6 @@ struct ktls_session {
 
 extern unsigned int ktls_ifnet_max_rexmit_pct;
 
-typedef enum {
-	KTLS_MBUF_CRYPTO_ST_MIXED = 0,
-	KTLS_MBUF_CRYPTO_ST_ENCRYPTED = 1,
-	KTLS_MBUF_CRYPTO_ST_DECRYPTED = -1,
-} ktls_mbuf_crypto_st_t;
-
 void ktls_check_rx(struct sockbuf *sb);
 void ktls_cleanup_tls_enable(struct tls_enable *tls);
 int ktls_copyin_tls_enable(struct sockopt *sopt, struct tls_enable *tls);
@@ -258,7 +253,6 @@ int ktls_get_rx_mode(struct socket *so, int *modep);
 int ktls_get_tx_mode(struct socket *so, int *modep);
 int ktls_get_rx_sequence(struct inpcb *inp, uint32_t *tcpseq, uint64_t *tlsseq);
 void ktls_input_ifp_mismatch(struct sockbuf *sb, struct ifnet *ifp);
-ktls_mbuf_crypto_st_t ktls_mbuf_crypto_state(struct mbuf *mb, int offset, int len);
 #ifdef RATELIMIT
 int ktls_modify_txrtlmt(struct ktls_session *tls, uint64_t max_pacing_rate);
 #endif
@@ -283,6 +277,17 @@ ktls_free(struct ktls_session *tls)
 
 	if (refcount_release(&tls->refcount))
 		ktls_destroy(tls);
+}
+
+static inline void
+ktls_release_snd_tag(struct ktls_session *tls)
+{
+	struct m_snd_tag *mst;
+
+	mst = tls->snd_tag;
+	tls->snd_tag = NULL;
+	if (mst != NULL)
+		m_snd_tag_rele(mst);
 }
 
 void ktls_session_to_xktls_onedir(const struct ktls_session *ks,

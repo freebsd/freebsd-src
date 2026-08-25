@@ -30,9 +30,7 @@
 #ifndef HAVE_MEMMEM
 
 #include <string.h>
-#ifdef HAVE_STDINT_H
 #include <stdint.h>
-#endif
 
 static char *
 twobyte_memmem(const unsigned char *h, size_t k, const unsigned char *n)

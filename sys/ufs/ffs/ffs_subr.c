@@ -717,7 +717,19 @@ validate_sblock(struct fs *fs, int flags)
 		howmany(fs->fs_cssize, fs->fs_fsize), %jd);
 #endif
 	WCHK(fs->fs_metaspace, <, 0, %jd);
-	WCHK(fs->fs_metaspace, >, fs->fs_fpg / 2, %jd);
+	/*
+	 * FreeBSD and NetBSD FFSv2 layouts diverge in the superblock region
+	 * following fs_maxbsize.  NetBSD's WAPBL journal metadata occupies
+	 * the same bytes as FreeBSD's fs_metaspace and other fields.
+	 * fs_flags cannot serve as a discriminator: ffs_oldfscompat_read()
+	 * may overwrite it from the 8-bit fs_old_flags before this check runs.
+	 * Skip the upper-bound check for UFS2; ffs_mountfs() detects the
+	 * condition and enforces read-only access without modifying the
+	 * on-disk superblock.  The check is preserved for UFS1 where no such
+	 * layout divergence exists.
+	 */
+	if (fs->fs_magic != FS_UFS2_MAGIC)
+		WCHK(fs->fs_metaspace, >, fs->fs_fpg / 2, %jd);
 	WCHK(fs->fs_minfree, >, 99, %jd%%);
 	maxfilesize = fs->fs_bsize * UFS_NDADDR - 1;
 	for (sizepb = fs->fs_bsize, i = 0; i < UFS_NIADDR; i++) {

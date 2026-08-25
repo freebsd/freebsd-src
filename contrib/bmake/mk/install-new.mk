@@ -1,4 +1,4 @@
-# $Id: install-new.mk,v 1.9 2025/11/19 17:44:15 sjg Exp $
+# $Id: install-new.mk,v 1.10 2026/06/19 19:47:03 sjg Exp $
 #
 #	@(#) Copyright (c) 2009, Simon J. Gerraty
 #
@@ -47,7 +47,7 @@ InstallNew= ${CmpCpMv}; InstallNew() { \
 	for new in "$$@"; do \
 		if test $$_t $$new; then \
 			if ${isPOSIX_SHELL:Ufalse}; then \
-				target=$${new%.new}; \
+				target=$${new%.new*}; \
 			else \
 				target=`expr $$new : '\(.*\).new'`; \
 			fi; \

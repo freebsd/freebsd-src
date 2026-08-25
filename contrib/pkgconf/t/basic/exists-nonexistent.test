@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: nonexistent
+WantedFlags: exists
+ExpectedExitCode: 1

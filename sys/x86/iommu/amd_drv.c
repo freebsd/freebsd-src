@@ -91,9 +91,14 @@ amdiommu_ivrs_iterate_tbl_typed(amdiommu_itercc_t iter, void *arg,
     int type, ACPI_TABLE_IVRS *ivrs_tbl)
 {
 	char *ptr, *ptrend;
+	size_t min_length, remaining;
 	bool done;
 
 	done = false;
+	if (ivrs_tbl->Header.Length < sizeof(*ivrs_tbl)) {
+		printf("amdiommu_iterate_tbl: truncated IVRS table\n");
+		return (done);
+	}
 	ptr = (char *)ivrs_tbl + sizeof(*ivrs_tbl);
 	ptrend = (char *)ivrs_tbl + ivrs_tbl->Header.Length;
 	for (;;) {
@@ -101,18 +106,42 @@ amdiommu_ivrs_iterate_tbl_typed(amdiommu_itercc_t iter, void *arg,
 
 		if (ptr >= ptrend)
 			break;
-		ivrsh = (ACPI_IVRS_HEADER *)ptr;
-		if (ivrsh->Length <= 0) {
-			printf("amdiommu_iterate_tbl: corrupted IVRS table, "
-			    "length %d\n", ivrsh->Length);
+		remaining = ptrend - ptr;
+		if (remaining < sizeof(*ivrsh)) {
+			printf("amdiommu_iterate_tbl: truncated IVRS subtable header\n");
 			break;
 		}
-		ptr += ivrsh->Length;
-		if (ivrsh->Type ==  type) {
+		ivrsh = (ACPI_IVRS_HEADER *)ptr;
+		if (ivrsh->Length < sizeof(*ivrsh) ||
+		    ivrsh->Length > remaining) {
+			printf("amdiommu_iterate_tbl: corrupted IVRS table, "
+			    "subtable length %u, remaining %zu\n",
+			    ivrsh->Length, remaining);
+			break;
+		}
+		switch (ivrsh->Type) {
+		case ACPI_IVRS_TYPE_HARDWARE2:
+		case ACPI_IVRS_TYPE_HARDWARE3:
+			min_length = sizeof(ACPI_IVRS_HARDWARE2);
+			break;
+		case ACPI_IVRS_TYPE_HARDWARE1:
+			min_length = sizeof(ACPI_IVRS_HARDWARE1);
+			break;
+		default:
+			min_length = sizeof(ACPI_IVRS_HEADER);
+			break;
+		}
+		if (ivrsh->Length < min_length) {
+			printf("amdiommu_iterate_tbl: truncated IVRS "
+			    "subtable type %#x\n", ivrsh->Type);
+			break;
+		}
+		if (ivrsh->Type == type) {
 			done = iter((void *)ivrsh, arg);
 			if (done)
 				break;
 		}
+		ptr += ivrsh->Length;
 	}
 	return (done);
 }
@@ -203,8 +232,8 @@ amdiommu_free_dev_tbl(struct amdiommu_unit *sc)
 	u_int devtbl_sz;
 
 	devtbl_sz = amdiommu_devtbl_sz(sc);
-	pmap_qremove((vm_offset_t)sc->dev_tbl, atop(devtbl_sz));
-	kva_free((vm_offset_t)sc->dev_tbl, devtbl_sz);
+	pmap_qremove(sc->dev_tbl, atop(devtbl_sz));
+	kva_free(sc->dev_tbl, devtbl_sz);
 	sc->dev_tbl = NULL;
 	vm_object_deallocate(sc->devtbl_obj);
 	sc->devtbl_obj = NULL;
@@ -213,7 +242,7 @@ amdiommu_free_dev_tbl(struct amdiommu_unit *sc)
 static int
 amdiommu_create_dev_tbl(struct amdiommu_unit *sc)
 {
-	vm_offset_t seg_vaddr;
+	char *seg_vaddr;
 	u_int devtbl_sz, dom, i, reclaimno, segnum_log, segnum, seg_sz;
 	int error;
 
@@ -247,10 +276,10 @@ amdiommu_create_dev_tbl(struct amdiommu_unit *sc)
 	sc->hw_ctrl |= AMDIOMMU_CTRL_COHERENT;
 	amdiommu_write8(sc, AMDIOMMU_CTRL, sc->hw_ctrl);
 
-	seg_vaddr = kva_alloc(devtbl_sz);
-	if (seg_vaddr == 0)
+	sc->dev_tbl = kva_alloc(devtbl_sz);
+	if (sc->dev_tbl == NULL)
 		return (ENOMEM);
-	sc->dev_tbl = (void *)seg_vaddr;
+	seg_vaddr = (char *)sc->dev_tbl;
 
 	for (i = 0; i < segnum; i++) {
 		vm_page_t m;
@@ -494,7 +523,7 @@ amdiommu_attach(device_t dev)
 	}
 	sc->mmio_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mmio_rid,
 	    sc->mmio_base, sc->mmio_base + sc->mmio_sz - 1, sc->mmio_sz,
-	    RF_ALLOCATED | RF_ACTIVE | RF_SHAREABLE);
+	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->mmio_res == NULL) {
 		device_printf(dev,
 		    "bus_alloc_resource %#jx-%#jx failed\n",
@@ -657,32 +686,43 @@ amdiommu_find_unit_scan_ivrs(ACPI_IVRS_DE_HEADER *d, size_t tlen,
     struct ivhd_find_unit *ifu)
 {
 	char *db, *de;
+	size_t remaining;
 	size_t len;
 
-	for (de = (char *)d + tlen; (char *)d < de;
-	     d = (ACPI_IVRS_DE_HEADER *)(db + len)) {
-		db = (char *)d;
+	db = (char *)d;
+	de = db + tlen;
+	while (db < de) {
+		remaining = de - db;
+		d = (ACPI_IVRS_DE_HEADER *)db;
+		if (remaining < sizeof(*d)) {
+			printf("amdiommu: truncated IVRS device entry header\n");
+			return (false);
+		}
+
 		if (d->Type == ACPI_IVRS_TYPE_PAD4) {
 			len = sizeof(ACPI_IVRS_DEVICE4);
 		} else if (d->Type == ACPI_IVRS_TYPE_ALL) {
 			ACPI_IVRS_DEVICE4 *d4;
 
-			d4 = (ACPI_IVRS_DEVICE4 *)db;
 			len = sizeof(*d4);
+			d4 = (ACPI_IVRS_DEVICE4 *)db;
 			ifu->dte = d4->Header.DataSetting;
 		} else if (d->Type == ACPI_IVRS_TYPE_SELECT) {
 			ACPI_IVRS_DEVICE4 *d4;
 
+			len = sizeof(*d4);
 			d4 = (ACPI_IVRS_DEVICE4 *)db;
 			if (d4->Header.Id == ifu->rid) {
 				ifu->dte = d4->Header.DataSetting;
 				ifu->rid_real = ifu->rid;
 				return (true);
 			}
-			len = sizeof(*d4);
 		} else if (d->Type == ACPI_IVRS_TYPE_START) {
 			ACPI_IVRS_DEVICE4 *d4, *d4n;
 
+			len = 2 * sizeof(*d4);
+			if (len > remaining)
+				goto truncated;
 			d4 = (ACPI_IVRS_DEVICE4 *)db;
 			d4n = d4 + 1;
 			if (d4n->Header.Type != ACPI_IVRS_TYPE_END) {
@@ -696,23 +736,29 @@ amdiommu_find_unit_scan_ivrs(ACPI_IVRS_DE_HEADER *d, size_t tlen,
 				ifu->rid_real = ifu->rid;
 				return (true);
 			}
-			len = 2 * sizeof(*d4);
 		} else if (d->Type == ACPI_IVRS_TYPE_PAD8) {
 			len = sizeof(ACPI_IVRS_DEVICE8A);
+			if (len > remaining)
+				goto truncated;
 		} else if (d->Type == ACPI_IVRS_TYPE_ALIAS_SELECT) {
 			ACPI_IVRS_DEVICE8A *d8a;
 
+			len = sizeof(*d8a);
+			if (len > remaining)
+				goto truncated;
 			d8a = (ACPI_IVRS_DEVICE8A *)db;
 			if (d8a->Header.Id == ifu->rid) {
 				ifu->dte = d8a->Header.DataSetting;
 				ifu->rid_real = d8a->UsedId;
 				return (true);
 			}
-			len = sizeof(*d8a);
 		} else if (d->Type == ACPI_IVRS_TYPE_ALIAS_START) {
 			ACPI_IVRS_DEVICE8A *d8a;
 			ACPI_IVRS_DEVICE4 *d4;
 
+			len = sizeof(*d8a) + sizeof(*d4);
+			if (len > remaining)
+				goto truncated;
 			d8a = (ACPI_IVRS_DEVICE8A *)db;
 			d4 = (ACPI_IVRS_DEVICE4 *)(d8a + 1);
 			if (d4->Header.Type != ACPI_IVRS_TYPE_END) {
@@ -726,10 +772,12 @@ amdiommu_find_unit_scan_ivrs(ACPI_IVRS_DE_HEADER *d, size_t tlen,
 				ifu->rid_real = d8a->UsedId;
 				return (true);
 			}
-			len = sizeof(*d8a) + sizeof(*d4);
 		} else if (d->Type == ACPI_IVRS_TYPE_EXT_SELECT) {
 			ACPI_IVRS_DEVICE8B *d8b;
 
+			len = sizeof(*d8b);
+			if (len > remaining)
+				goto truncated;
 			d8b = (ACPI_IVRS_DEVICE8B *)db;
 			if (d8b->Header.Id == ifu->rid) {
 				ifu->dte = d8b->Header.DataSetting;
@@ -737,11 +785,13 @@ amdiommu_find_unit_scan_ivrs(ACPI_IVRS_DE_HEADER *d, size_t tlen,
 				ifu->edte = d8b->ExtendedData;
 				return (true);
 			}
-			len = sizeof(*d8b);
 		} else if (d->Type == ACPI_IVRS_TYPE_EXT_START) {
 			ACPI_IVRS_DEVICE8B *d8b;
 			ACPI_IVRS_DEVICE4 *d4;
 
+			len = sizeof(*d8b) + sizeof(*d4);
+			if (len > remaining)
+				goto truncated;
 			d8b = (ACPI_IVRS_DEVICE8B *)db;
 			d4 = (ACPI_IVRS_DEVICE4 *)(db + sizeof(*d8b));
 			if (d4->Header.Type != ACPI_IVRS_TYPE_END) {
@@ -749,17 +799,19 @@ amdiommu_find_unit_scan_ivrs(ACPI_IVRS_DE_HEADER *d, size_t tlen,
 				    "(%#x)\n", d4->Header.Type);
 				return (false);
 			}
-			if (d8b->Header.Id >= ifu->rid &&
+			if (d8b->Header.Id <= ifu->rid &&
 			    ifu->rid <= d4->Header.Id) {
 				ifu->dte = d8b->Header.DataSetting;
 				ifu->rid_real = ifu->rid;
 				ifu->edte = d8b->ExtendedData;
 				return (true);
 			}
-			len = sizeof(*d8b) + sizeof(*d4);
 		} else if (d->Type == ACPI_IVRS_TYPE_SPECIAL) {
 			ACPI_IVRS_DEVICE8C *d8c;
 
+			len = sizeof(*d8c);
+			if (len > remaining)
+				goto truncated;
 			d8c = (ACPI_IVRS_DEVICE8C *)db;
 			if (((ifu->type == IFU_DEV_IOAPIC &&
 			    d8c->Variety == ACPI_IVHD_IOAPIC) ||
@@ -770,30 +822,38 @@ amdiommu_find_unit_scan_ivrs(ACPI_IVRS_DE_HEADER *d, size_t tlen,
 				ifu->rid_real = d8c->UsedId;
 				return (true);
 			}
-			len = sizeof(*d8c);
 		} else if (d->Type == ACPI_IVRS_TYPE_HID) {
 			ACPI_IVRS_DEVICE_HID *dh;
 
-			dh = (ACPI_IVRS_DEVICE_HID *)db;
-			len = sizeof(*dh) + dh->UidLength;
-			/* XXXKIB */
-		} else {
-#if 0
-			printf("amdiommu: unknown IVRS device entry type %#x\n",
-			    d->Type);
-#endif
-			if (d->Type <= 63)
-				len = sizeof(ACPI_IVRS_DEVICE4);
-			else if (d->Type <= 127)
-				len = sizeof(ACPI_IVRS_DEVICE8A);
-			else {
-				printf("amdiommu: abort, cannot "
-				    "advance iterator, item type %#x\n",
-				    d->Type);
+			len = sizeof(*dh);
+			if (len > remaining) {
+				printf("amdiommu: truncated IVRS HID entry\n");
 				return (false);
 			}
+			dh = (ACPI_IVRS_DEVICE_HID *)db;
+			if (dh->UidLength > remaining - len) {
+				printf("amdiommu: truncated IVRS HID UID\n");
+				return (false);
+			}
+			len += dh->UidLength;
+			/* XXXKIB */
+		} else if (d->Type <= 63) {
+			len = sizeof(ACPI_IVRS_DEVICE4);
+		} else if (d->Type <= 127) {
+			len = sizeof(ACPI_IVRS_DEVICE8A);
+			if (len > remaining)
+				goto truncated;
+		} else {
+			printf("amdiommu: abort, cannot advance iterator, "
+			    "item type %#x\n", d->Type);
+			return (false);
 		}
+		db += len;
 	}
+	return (false);
+
+truncated:
+	printf("amdiommu: truncated IVRS device entry %#x\n", d->Type);
 	return (false);
 }
 
@@ -810,8 +870,11 @@ amdiommu_find_unit_scan_0x11(ACPI_IVRS_HARDWARE2 *ivrs, void *arg)
 
 	if (ifu->domain != ivrs->PciSegmentGroup)
 		return (false);
+	if (ivrs->Header.Length < sizeof(*ivrs))
+		return (false);
 	d = (ACPI_IVRS_DE_HEADER *)(ivrs + 1);
-	res = amdiommu_find_unit_scan_ivrs(d, ivrs->Header.Length, ifu);
+	res = amdiommu_find_unit_scan_ivrs(d,
+	    ivrs->Header.Length - sizeof(*ivrs), ifu);
 	if (res)
 		ifu->device_id = ivrs->Header.DeviceId;
 	return (res);
@@ -829,8 +892,11 @@ amdiommu_find_unit_scan_0x10(ACPI_IVRS_HARDWARE1 *ivrs, void *arg)
 
 	if (ifu->domain != ivrs->PciSegmentGroup)
 		return (false);
+	if (ivrs->Header.Length < sizeof(*ivrs))
+		return (false);
 	d = (ACPI_IVRS_DE_HEADER *)(ivrs + 1);
-	res = amdiommu_find_unit_scan_ivrs(d, ivrs->Header.Length, ifu);
+	res = amdiommu_find_unit_scan_ivrs(d,
+	    ivrs->Header.Length - sizeof(*ivrs), ifu);
 	if (res)
 		ifu->device_id = ivrs->Header.DeviceId;
 	return (res);
@@ -894,8 +960,7 @@ amdiommu_find_unit(device_t dev, struct amdiommu_unit **unitp, uint16_t *ridp,
 	if (!amdiommu_enable)
 		return (ENXIO);
 
-	if (device_get_devclass(device_get_parent(dev)) !=
-	    devclass_find("pci"))
+	if (!is_pci_device(dev))
 		return (ENXIO);
 
 	bzero(&ifu, sizeof(ifu));

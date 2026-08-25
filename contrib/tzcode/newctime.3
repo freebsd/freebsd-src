@@ -5,34 +5,34 @@
 asctime, ctime, difftime, gmtime, localtime, mktime \- convert date and time
 .SH SYNOPSIS
 .nf
-.B #include <time.h>
+.B "#include <time.h>"
 .PP
-.B struct tm *localtime(time_t const *clock);
+.B "struct tm *localtime(time_t const *clock);"
 .B "struct tm *localtime_r(time_t const *restrict clock,"
 .B "    struct tm *restrict result);"
 .B "struct tm *localtime_rz(timezone_t restrict zone,"
 .B "    time_t const *restrict clock,"
 .B "    struct tm *restrict result);"
 .PP
-.B struct tm *gmtime(time_t const *clock);
+.B "struct tm *gmtime(time_t const *clock);"
 .B "struct tm *gmtime_r(time_t const *restrict clock,"
 .B "    struct tm *restrict result);"
 .PP
-.B time_t mktime(struct tm *tm);
+.B "time_t mktime(struct tm *tm);"
 .B "time_t mktime_z(timezone_t restrict zone,"
 .B "    struct tm *restrict tm);"
 .PP
-.B double difftime(time_t time1, time_t time0);
+.B "double difftime(time_t time1, time_t time0);"
 .PP
-.B [[deprecated]] char *asctime(struct tm const *tm);
-.B [[deprecated]] char *ctime(time_t const *clock);
+.B "[[deprecated]] char *asctime(struct tm const *tm);"
+.B "[[deprecated]] char *ctime(time_t const *clock);"
 .PP
 /* Only in POSIX.1-2017 and earlier.  */
-.B char *ctime_r(time_t const *clock, char *buf);
+.B "char *ctime_r(time_t const *clock, char *buf);"
 .B "char *asctime_r(struct tm const *restrict tm,"
 .B "    char *restrict result);"
 .PP
-.B cc ... \-ltz
+.BR cc " ... " \-ltz
 .fi
 .SH DESCRIPTION
 .ie '\(en'' .ds en \-
@@ -181,7 +181,7 @@ instead.
 .PP
 The
 .B ctime
-function is equivalent to calliing
+function is equivalent to calling
 .B localtime
 and then calling
 .B asctime
@@ -240,23 +240,23 @@ are in the
 .B <time.h>
 header file.
 The structure (of type)
-.B struct tm
+.B "struct tm"
 includes the following fields:
 .RS
 .PP
 .nf
 .ta 2n +\w'long tm_gmtoff;nn'u
-	int tm_sec;	/\(** seconds (0\*(en60) \(**/
-	int tm_min;	/\(** minutes (0\*(en59) \(**/
-	int tm_hour;	/\(** hours (0\*(en23) \(**/
-	int tm_mday;	/\(** day of month (1\*(en31) \(**/
-	int tm_mon;	/\(** month of year (0\*(en11) \(**/
-	int tm_year;	/\(** year \- 1900 \(**/
-	int tm_wday;	/\(** day of week (Sunday = 0) \(**/
-	int tm_yday;	/\(** day of year (0\*(en365) \(**/
-	int tm_isdst;	/\(** is daylight saving time in effect? \(**/
-	char \(**tm_zone;	/\(** time zone abbreviation (optional) \(**/
-	long tm_gmtoff;	/\(** offset from UT in seconds (optional) \(**/
+	int tm_sec;	/* seconds (0\*(en60) */
+	int tm_min;	/* minutes (0\*(en59) */
+	int tm_hour;	/* hours (0\*(en23) */
+	int tm_mday;	/* day of month (1\*(en31) */
+	int tm_mon;	/* month of year (0\*(en11) */
+	int tm_year;	/* year \- 1900 */
+	int tm_wday;	/* day of week (Sunday = 0) */
+	int tm_yday;	/* day of year (0\*(en365) */
+	int tm_isdst;	/* is daylight saving time in effect? */
+	char *tm_zone;	/* time zone abbreviation (optional) */
+	long tm_gmtoff;	/* offset from UT in seconds (optional) */
 .fi
 .RE
 .PP
@@ -311,12 +311,10 @@ and
 functions might (or might not) also behave this way.
 This is for compatibility with older platforms, as required by POSIX.
 .SH FILES
-.ta \w'/usr/share/zoneinfo/posixrules\0\0'u
+.ta \w'/usr/share/zoneinfo/GMT\0\0'u
 /etc/localtime	local timezone file
 .br
 /usr/share/zoneinfo	timezone directory
-.br
-/usr/share/zoneinfo/posixrules	default DST rules (obsolete)
 .br
 /usr/share/zoneinfo/GMT	for UTC leap seconds
 .PP

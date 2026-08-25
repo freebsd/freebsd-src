@@ -1,3 +1,7 @@
+.include <src.opts.mk>
+
+.include "${SRCTOP}/lib/libarchive/Makefile.inc"
+
 PACKAGE=	tests
 
 _LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
@@ -8,13 +12,10 @@ BINDIR=		${TESTSDIR}
 
 PROGS+=		bsdunzip_test
 
-CFLAGS+=	-DPLATFORM_CONFIG_H=\"${SRCTOP}/lib/libarchive/config_freebsd.h\"
-CFLAGS+=	-I${SRCTOP}/lib/libarchive -I${.OBJDIR}
-
 CFLAGS+=	-I${.OBJDIR}
-CFLAGS+=	-I${_LIBARCHIVEDIR}/unzip -I${_LIBARCHIVEDIR}/unzip/test
-CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive
-CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive_fe -I${_LIBARCHIVEDIR}/test_utils
+CFLAGS+=	-I${_LIBARCHIVEDIR}/unzip
+CFLAGS+=	-I${_LIBARCHIVEDIR}/unzip/test
+CFLAGS+=	-I${_LIBARCHIVEDIR}/test_utils
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
@@ -36,6 +37,7 @@ TESTS_SRCS=	\
 	test_basic.c				\
 	test_d.c				\
 	test_doubledash.c			\
+	test_f.c				\
 	test_glob.c				\
 	test_j.c				\
 	test_n.c				\
@@ -43,9 +45,12 @@ TESTS_SRCS=	\
 	test_o.c				\
 	test_p.c				\
 	test_q.c				\
+	test_symlink.c				\
+	test_symlink_dotdot.c			\
 	test_singlefile.c 			\
 	test_t.c				\
 	test_t_bad.c				\
+	test_u.c				\
 	test_version.c				\
 	test_x.c
 
@@ -65,11 +70,17 @@ list.h: ${TESTS_SRCS} Makefile
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 CLEANFILES+=	list.h list.h.tmp
-
 ${PACKAGE}FILES+= test_I.zip.uu
 ${PACKAGE}FILES+= test_basic.zip.uu
 ${PACKAGE}FILES+= test_encrypted.zip.uu
+${PACKAGE}FILES+= test_f_new.zip.uu
+${PACKAGE}FILES+= test_f_old.zip.uu
 ${PACKAGE}FILES+= test_singlefile.zip.uu
+${PACKAGE}FILES+= test_symlink_1.zip.uu
+${PACKAGE}FILES+= test_symlink_2.zip.uu
+${PACKAGE}FILES+= test_symlink_dotdot.zip.uu
 ${PACKAGE}FILES+= test_t_bad.zip.uu
+${PACKAGE}FILES+= test_u_new.zip.uu
+${PACKAGE}FILES+= test_u_old.zip.uu
 
 .include <bsd.test.mk>

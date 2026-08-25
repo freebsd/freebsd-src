@@ -1,0 +1,4 @@
+Name: link-abi-plainc
+Description: a plain C library with no Link.ABI declaration
+Version: 1.0.0
+Libs: -lplainc

@@ -247,6 +247,12 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_ATOM_TREMONT;
 			nclasses = 3;
 			break;
+		case 0xAA:
+		case 0xAC:
+		case 0xB5:
+			cputype = PMC_CPU_INTEL_METEOR_LAKE;
+			nclasses = 3;
+			break;
 		case 0xAD:
 		case 0xAE:
 			cputype = PMC_CPU_INTEL_GRANITE_RAPIDS;
@@ -260,6 +266,10 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_EMERALD_RAPIDS;
 			nclasses = 3;
 			break;
+		case 0x8F:
+			cputype = PMC_CPU_INTEL_SAPPHIRE_RAPIDS;
+			nclasses = 3;
+			break;
 		}
 		break;
 	}
@@ -269,6 +279,9 @@ pmc_intel_initialize(void)
 		printf("pmc: Unknown Intel CPU.\n");
 		return (NULL);
 	}
+
+	/* Reserve one extra class slot for the optional RAPL counters. */
+	nclasses++;
 
 	/* Allocate base class and initialize machine dependent struct */
 	pmc_mdep = pmc_mdep_alloc(nclasses);
@@ -324,6 +337,10 @@ pmc_intel_initialize(void)
 	default:
 		break;
 	}
+
+	if (error == 0 &&
+	    pmc_rapl_initialize(pmc_mdep, ncpus, pmc_mdep->pmd_nclass - 1) != 0)
+		pmc_mdep->pmd_nclass--;
   error:
 	if (error) {
 		pmc_mdep_free(pmc_mdep);
@@ -336,6 +353,8 @@ pmc_intel_initialize(void)
 void
 pmc_intel_finalize(struct pmc_mdep *md)
 {
+	pmc_rapl_finalize(md);
+
 	pmc_tsc_finalize(md);
 
 	pmc_core_finalize(md);

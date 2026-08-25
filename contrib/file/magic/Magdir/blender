@@ -1,6 +1,5 @@
-
 #------------------------------------------------------------------------------
-# $File: blender,v 1.9 2022/12/21 15:53:27 christos Exp $
+# $File: blender,v 1.10 2026/01/10 14:38:14 christos Exp $
 # blender: file(1) magic for Blender 3D related files
 #
 # Native format rule v1.2. For questions use the developers list
@@ -13,13 +12,13 @@
 #		http://formats.kaitai.io/blender_blend/index.html
 # Note:		called "Blender 3D data" by TrID
 #		and gzip compressed variant handled by ./compress
-0		string	=BLENDER	Blender3D,
+0		string	=BLENDER	Blender3D
 #!:mime		application/octet-stream
 !:mime		application/x-blender
 !:ext		blend
 # no sample found with extension blender
 #!:ext		blend/blender
->7		string	=_		saved as 32-bits
+>7		string	=_		pre-v5, saved as 32-bits
 >>8		string	=v		little endian
 >>>9		byte	x		with version %c.
 >>>10		byte	x		\b%c
@@ -32,7 +31,7 @@
 >>>11		byte	x		\b%c
 >>>0x40		string	=GLOB		\b.
 >>>>0x58	beshort	x		\b%.4d
->7		string	=-		saved as 64-bits
+>7		string	=-		pre-v5, saved as 64-bits
 >>8		string	=v		little endian
 >>9		byte	x		with version %c.
 >>10		byte	x		\b%c
@@ -45,6 +44,16 @@
 >>>11		byte	x		\b%c
 >>>0x44		string	=GLOB		\b.
 >>>>0x60	beshort	x		\b%.4d
+
+# Blender 5.0+
+>7		string =17    v5+,
+>>10		byte	x		format version %c
+>>>11		byte	x		\b%c
+>>>>13		byte	x		app version %c
+>>>>>14		byte	x		\b%c
+>>>>>>15		byte	x		\b%c
+>>>>>>>16		byte	x		\b%c
+#
 
 # Scripts that run in the embedded Python interpreter
 0		string	#!BPY		Blender3D BPython script

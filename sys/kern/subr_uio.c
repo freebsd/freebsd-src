@@ -88,6 +88,30 @@ copyout_nofault(const void *kaddr, void *udaddr, size_t len)
 	return (error);
 }
 
+#ifdef __CHERI__
+int
+copyinptr_nofault(const void *udaddr, void *kaddr, size_t len)
+{
+	int error, save;
+
+	save = vm_fault_disable_pagefaults();
+	error = copyinptr(udaddr, kaddr, len);
+	vm_fault_enable_pagefaults(save);
+	return (error);
+}
+
+int
+copyoutptr_nofault(const void *kaddr, void *udaddr, size_t len)
+{
+	int error, save;
+
+	save = vm_fault_disable_pagefaults();
+	error = copyoutptr(kaddr, udaddr, len);
+	vm_fault_enable_pagefaults(save);
+	return (error);
+}
+#endif
+
 #define	PHYS_PAGE_COUNT(len)	(howmany(len, PAGE_SIZE) + 1)
 
 int
@@ -200,6 +224,40 @@ uiomove_nofault(void *cp, int n, struct uio *uio)
 	return (uiomove_faultflag(cp, n, uio, 1));
 }
 
+int
+uiomove_step(void *cp, void *base, size_t len, struct uio *uio)
+{
+	int error = 0;
+
+	switch (uio->uio_segflg) {
+	case UIO_USERSPACE:
+		maybe_yield();
+		switch (uio->uio_rw) {
+		case UIO_READ:
+			error = copyout(cp, base, len);
+			break;
+		case UIO_WRITE:
+			error = copyin(base, cp, len);
+			break;
+		}
+		break;
+	case UIO_SYSSPACE:
+		switch (uio->uio_rw) {
+		case UIO_READ:
+			memcpy(base, cp, len);
+			break;
+		case UIO_WRITE:
+			memcpy(cp, base, len);
+			break;
+		}
+		break;
+	case UIO_NOCOPY:
+		break;
+	}
+
+	return (error);
+}
+
 static int
 uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 {
@@ -207,7 +265,7 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 	size_t cnt;
 	int error, newflags, save;
 
-	save = error = 0;
+	error = 0;
 
 	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
 	    ("uiomove: mode"));
@@ -230,6 +288,7 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 		save = curthread_pflags_set(newflags);
 	} else {
 		KASSERT(nofault == 0, ("uiomove: nofault"));
+		save = ~0;
 	}
 
 	while (n > 0 && uio->uio_resid) {
@@ -246,34 +305,9 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 		if (cnt > n)
 			cnt = n;
 
-		switch (uio->uio_segflg) {
-		case UIO_USERSPACE:
-			maybe_yield();
-			switch (uio->uio_rw) {
-			case UIO_READ:
-				error = copyout(cp, iov->iov_base, cnt);
-				break;
-			case UIO_WRITE:
-				error = copyin(iov->iov_base, cp, cnt);
-				break;
-			}
-			if (error)
-				goto out;
-			break;
-
-		case UIO_SYSSPACE:
-			switch (uio->uio_rw) {
-			case UIO_READ:
-				bcopy(cp, iov->iov_base, cnt);
-				break;
-			case UIO_WRITE:
-				bcopy(iov->iov_base, cp, cnt);
-				break;
-			}
-			break;
-		case UIO_NOCOPY:
-			break;
-		}
+		error = uiomove_step(cp, iov->iov_base, cnt, uio);
+		if (error != 0)
+			goto out;
 		iov->iov_base = (char *)iov->iov_base + cnt;
 		iov->iov_len -= cnt;
 		uio->uio_resid -= cnt;
@@ -282,8 +316,7 @@ uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
 		n -= cnt;
 	}
 out:
-	if (save)
-		curthread_pflags_restore(save);
+	curthread_pflags_restore(save);
 	return (error);
 }
 
@@ -441,8 +474,6 @@ allocuio(u_int iovcnt)
 	struct uio *uio;
 	int iovlen;
 
-	KASSERT(iovcnt <= UIO_MAXIOV,
-	    ("Requested %u iovecs exceed UIO_MAXIOV", iovcnt));
 	iovlen = iovcnt * sizeof(struct iovec);
 	uio = malloc(iovlen + sizeof(*uio), M_IOV, M_WAITOK);
 	uio->uio_iov = (struct iovec *)(uio + 1);

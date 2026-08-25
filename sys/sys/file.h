@@ -73,6 +73,7 @@ struct nameidata;
 #define	DTYPE_TIMERFD	14	/* timerfd */
 #define	DTYPE_INOTIFY	15	/* inotify descriptor */
 #define	DTYPE_JAILDESC	16	/* jail descriptor */
+#define	DTYPE_NTSYNC	17	/* /dev/ntsync */
 
 #ifdef _KERNEL
 
@@ -212,6 +213,7 @@ struct file {
 	union {
 		int16_t	f_seqcount[2];	/* (a) Count of seq. reads and writes. */
 		int	f_pipegen;
+		int	f_pdflags;	/* Per-file flags for procdesc. */
 	};
 	off_t		f_nextoff[2];	/* next expected read/write offset. */
 	union {
@@ -281,7 +283,8 @@ int fget_write(struct thread *td, int fd, const cap_rights_t *rightsp,
 int fget_fcntl(struct thread *td, int fd, const cap_rights_t *rightsp,
     int needfcntl, struct file **fpp);
 int _fdrop(struct file *fp, struct thread *td);
-int fget_remote(struct thread *td, struct proc *p, int fd, struct file **fpp);
+int fget_remote(struct thread *td, struct proc *p, int fd,
+    struct filecaps *fcaps, uint8_t *fd_flags, struct file **fpp);
 int fget_remote_foreach(struct thread *td, struct proc *p,
     int (*fn)(struct proc *, int, struct file *, void *), void *arg);
 

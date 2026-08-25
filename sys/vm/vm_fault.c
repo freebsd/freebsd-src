@@ -273,8 +273,6 @@ vm_fault_might_be_cow(struct faultstate *fs)
 static void
 vm_fault_deallocate(struct faultstate *fs)
 {
-
-	fs->m_needs_zeroing = true;
 	vm_fault_page_release(&fs->m_cow);
 	vm_fault_page_release(&fs->m);
 	vm_object_pip_wakeup(fs->object);
@@ -509,7 +507,10 @@ vm_fault_populate_cleanup(vm_object_t object, vm_pindex_t first,
 		vm_page_deactivate(m);
 		vm_page_xunbusy(m);
 	}
-	KASSERT(pages.index == last, ("%s: pindex mismatch", __func__));
+	KASSERT(pages.index == last,
+	    ("%s: Object %p first %#jx last %#jx index %#jx",
+	    __func__, object, (uintmax_t)first, (uintmax_t)last,
+	    (uintmax_t)pages.index));
 }
 
 static enum fault_status
@@ -642,6 +643,8 @@ vm_fault_populate(struct faultstate *fs)
 		pager_last = map_last;
 	}
 	for (pidx = pager_first; pidx <= pager_last; pidx += npages) {
+		bool writeable;
+
 		m = vm_page_lookup(fs->first_object, pidx);
 		vaddr = fs->entry->start + IDX_TO_OFF(pidx) - fs->entry->offset;
 		KASSERT(m != NULL && m->pindex == pidx,
@@ -652,14 +655,28 @@ vm_fault_populate(struct faultstate *fs)
 		    !pmap_ps_enabled(fs->map->pmap)))
 			psind--;
 
+		writeable = (fs->prot & VM_PROT_WRITE) != 0;
 		npages = atop(pagesizes[psind]);
 		for (i = 0; i < npages; i++) {
 			vm_fault_populate_check_page(&m[i]);
 			vm_fault_dirty(fs, &m[i]);
+
+			/*
+			 * If this is a writeable superpage mapping, all
+			 * constituent pages and the new mapping should be
+			 * dirty, otherwise the mapping should be read-only.
+			 */
+			if (writeable && psind > 0 &&
+			    (m[i].oflags & VPO_UNMANAGED) == 0 &&
+			    m[i].dirty != VM_PAGE_BITS_ALL)
+				writeable = false;
 		}
+		if (psind > 0 && writeable)
+			fs->fault_type |= VM_PROT_WRITE;
 		VM_OBJECT_WUNLOCK(fs->first_object);
-		rv = pmap_enter(fs->map->pmap, vaddr, m, fs->prot, fs->fault_type |
-		    (fs->wired ? PMAP_ENTER_WIRED : 0), psind);
+		rv = pmap_enter(fs->map->pmap, vaddr, m,
+		    fs->prot & ~(writeable ? 0 : VM_PROT_WRITE),
+		    fs->fault_type | (fs->wired ? PMAP_ENTER_WIRED : 0), psind);
 
 		/*
 		 * pmap_enter() may fail for a superpage mapping if additional
@@ -1354,7 +1371,8 @@ vm_fault_allocate(struct faultstate *fs, struct pctrie_iter *pages)
 			vm_waitpfault(dset, vm_pfault_oom_wait * hz);
 		return (FAULT_RESTART);
 	}
-	fs->m_needs_zeroing = (fs->m->flags & PG_ZERO) == 0;
+	if (fs->object == fs->first_object)
+		fs->m_needs_zeroing = (fs->m->flags & PG_ZERO) == 0;
 	fs->oom_started = false;
 
 	return (FAULT_CONTINUE);
@@ -1689,7 +1707,6 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	fs.fault_flags = fault_flags;
 	fs.map = map;
 	fs.lookup_still_valid = false;
-	fs.m_needs_zeroing = true;
 	fs.oom_started = false;
 	fs.nera = -1;
 	fs.can_read_lock = true;
@@ -1698,6 +1715,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 
 RetryFault:
 	fs.fault_type = fault_type;
+	fs.m_needs_zeroing = true;
 
 	/*
 	 * Find the backing store object and offset into it to begin the

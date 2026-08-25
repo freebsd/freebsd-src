@@ -1,0 +1,98 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\"
+.\" Copyright (c) 2026 Kevin Bowling <kbowling@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of the copyright holder nor the names of its
+.\"    contributors may be used to endorse or promote products derived from
+.\"    this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+.\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+.\" LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+.\" A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT
+.\" OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+.\" SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+.\" TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+.\" PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+.\" LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+.\" NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+.\" SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.Dd August 15, 2026
+.Dt IXV 4
+.Os
+.Sh NAME
+.Nm ixv
+.Nd Intel Ethernet virtual function driver
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in the kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device iflib"
+.Cd "device ixv"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time,
+place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_ixv_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for PCI Express virtual functions exposed by
+supported Intel Ethernet controllers.
+The physical function must create and configure the virtual function before
+it can be attached on the host or assigned to a
+.Fx
+guest.
+.Pp
+The driver supports jumbo frames, MSI-X, receive-side scaling,
+TCP segmentation offload, checksum offload, and VLAN hardware offload.
+The maximum supported MTU is 9710 bytes.
+.Pp
+The physical-function driver controls the resources and policy presented to
+the virtual function.
+The number of available queue pairs is negotiated with the physical function
+where the mailbox protocol supports it, and is also limited by the available
+MSI-X vectors.
+Requests to change the MAC address, VLAN membership, or receive mode may be
+rejected by physical-function policy.
+.Pp
+The virtual function cannot configure the physical media.
+Only automatic media selection is supported, and reported link state and
+speed are supplied by the physical function or virtual-function hardware.
+.Sh HARDWARE
+The
+.Nm
+driver supports virtual functions from the following Intel controller
+families:
+.Pp
+.Bl -bullet -compact
+.It
+Ethernet E610
+.It
+Ethernet X550, X552, and X553
+.It
+Ethernet X540
+.It
+Ethernet 82599
+.El
+.Sh SEE ALSO
+.Xr iflib 4 ,
+.Xr ix 4 ,
+.Xr pci 4 ,
+.Xr iovctl.conf 5 ,
+.Xr loader.conf 5 ,
+.Xr ifconfig 8

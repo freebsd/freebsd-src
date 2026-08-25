@@ -234,11 +234,9 @@ freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 	else
 		rup = NULL;
 	error = kern_wait(td, uap->pid, &status, uap->options, rup);
-	if (error)
-		return (error);
-	if (uap->status != NULL)
+	if (uap->status != NULL && error == 0 && td->td_retval[0] != 0)
 		error = copyout(&status, uap->status, sizeof(status));
-	if (uap->rusage != NULL && error == 0) {
+	if (uap->rusage != NULL && error == 0 && td->td_retval[0] != 0) {
 		freebsd32_rusage_out(&ru, &ru32);
 		error = copyout(&ru32, uap->rusage, sizeof(ru32));
 	}
@@ -265,11 +263,9 @@ freebsd32_wait6(struct thread *td, struct freebsd32_wait6_args *uap)
 		sip = NULL;
 	error = kern_wait6(td, uap->idtype, PAIR32TO64(id_t, uap->id),
 	    &status, uap->options, wrup, sip);
-	if (error != 0)
-		return (error);
-	if (uap->status != NULL)
+	if (uap->status != NULL && error == 0 && td->td_retval[0] != 0)
 		error = copyout(&status, uap->status, sizeof(status));
-	if (uap->wrusage != NULL && error == 0) {
+	if (uap->wrusage != NULL && error == 0 && td->td_retval[0] != 0) {
 		freebsd32_rusage_out(&wru.wru_self, &wru32.wru_self);
 		freebsd32_rusage_out(&wru.wru_children, &wru32.wru_children);
 		error = copyout(&wru32, uap->wrusage, sizeof(wru32));
@@ -757,7 +753,7 @@ static int
 freebsd32_kevent_copyout(void *arg, struct kevent *kevp, int count)
 {
 	struct freebsd32_kevent_args *uap;
-	struct kevent32	ks32[KQ_NEVENTS];
+	struct kevent32	ks32[KQ_NEVENTS] = {};
 	int i, error;
 
 	KASSERT(count <= KQ_NEVENTS, ("count (%d) > KQ_NEVENTS", count));
@@ -1009,6 +1005,16 @@ ptrace_sc_ret_to32(const struct ptrace_sc_ret *psr,
 	psr32->sr_error = psr->sr_error;
 }
 
+static void
+ptrace_sc_ret32_to_ret(const struct ptrace_sc_ret32 *psr32,
+    struct ptrace_sc_ret *psr)
+{
+	bzero(psr, sizeof(*psr));
+	psr->sr_retval[0] = psr32->sr_retval[0];
+	psr->sr_retval[1] = psr32->sr_retval[1];
+	psr->sr_error = psr32->sr_error;
+}
+
 int
 freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 {
@@ -1025,6 +1031,7 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 		register_t args[nitems(td->td_sa.args)];
 		struct ptrace_sc_ret psr;
 		int ptevents;
+		struct ptrace_child *children;
 	} r;
 	union {
 		struct ptrace_io_desc32 piod;
@@ -1054,6 +1061,15 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 	case PT_GET_EVENT_MASK:
 	case PT_GET_SC_ARGS:
 	case PT_GET_SC_RET:
+		break;
+	case PT_SET_SC_RET:
+		if (uap->data != sizeof(r32.psr)) {
+			error = EINVAL;
+		} else {
+			error = copyin(uap->addr, &r32.psr, sizeof(r32.psr));
+			if (error == 0)
+				ptrace_sc_ret32_to_ret(&r32.psr, &r.psr);
+		}
 		break;
 	case PT_LWPINFO:
 		if (uap->data > sizeof(r32.pl))
@@ -1158,6 +1174,14 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 			pscr_args[i] = pscr_args32[i];
 		r.sr.pscr_args = pscr_args;
 		break;
+	case PT_GET_CHILDREN:
+		if (uap->addr == NULL)
+			addr = NULL;
+		else if (uap->data < 0)
+			error = EINVAL;
+		else
+			addr = &r.children;
+		break;
 	case PTINTERNAL_FIRST ... PTINTERNAL_LAST:
 		error = EINVAL;
 		break;
@@ -1226,6 +1250,13 @@ freebsd32_ptrace(struct thread *td, struct freebsd32_ptrace_args *uap)
 		error = copyout(&r32.sr.pscr_ret, uap->addr +
 		    offsetof(struct ptrace_sc_remote32, pscr_ret),
 		    sizeof(r32.psr));
+		break;
+	case PT_GET_CHILDREN:
+		if (uap->addr != 0) {
+			error = copyout(r.children, uap->addr,
+			    td->td_retval[0] * sizeof(struct ptrace_child));
+			free(r.children, M_TEMP);
+		}
 		break;
 	}
 
@@ -2220,6 +2251,8 @@ freebsd32_do_sendfile(struct thread *td,
 			    hdtr32.trl_cnt, &trl_uio);
 			if (error)
 				goto out;
+			trl_uio->uio_rw = UIO_WRITE;
+			trl_uio->uio_td = td;
 		}
 	}
 
@@ -2649,7 +2682,7 @@ freebsd11_freebsd32_nstat(struct thread *td,
 	if (error != 0)
 		return (error);
 	error = freebsd11_cvtnstat32(&sb, &nsb);
-	if (error != 0)
+	if (error == 0)
 		error = copyout(&nsb, uap->ub, sizeof (nsb));
 	return (error);
 }

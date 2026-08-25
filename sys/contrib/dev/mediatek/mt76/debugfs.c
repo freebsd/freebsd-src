@@ -124,3 +124,6 @@ mt76_register_debugfs_fops(struct mt76_phy *phy,
 	return dir;
 }
 EXPORT_SYMBOL_GPL(mt76_register_debugfs_fops);
+#if defined(__FreeBSD__)
+MODULE_DEPEND(mt76_core, lindebugfs, 1, 1, 1);
+#endif

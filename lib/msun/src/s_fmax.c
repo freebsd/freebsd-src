@@ -47,9 +47,9 @@ fmax(double x, double y)
 	u[1].d = y;
 
 	/* Check for NaNs to avoid raising spurious exceptions. */
-	if (u[0].bits.exp == 2047 && (u[0].bits.manh | u[0].bits.manl) != 0)
+	if (isnan(x))
 		return (y);
-	if (u[1].bits.exp == 2047 && (u[1].bits.manh | u[1].bits.manl) != 0)
+	if (isnan(y))
 		return (x);
 
 	/* Handle comparisons of signed zeroes. */

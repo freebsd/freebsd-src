@@ -165,7 +165,7 @@ directly in B<OPENSSLDIR>. For example if B<OPENSSLDIR> is "/usr/local/ssl",
 then save it as "/usr/local/ssl/cert.pem".
 
 You can also use environment variables to override the default location that
-OpenSSL will look for its trusted certificate store. Set the B<SSL_CERT_PATH>
+OpenSSL will look for its trusted certificate store. Set the B<SSL_CERT_DIR>
 environment variable to give the directory where OpenSSL should looks for its
 certificates or the B<SSL_CERT_FILE> environment variable to give the name of
 a single file containing all of the certificates. See L<openssl-env(7)> for
@@ -311,7 +311,7 @@ L<ossl-guide-tls-server-block(7)>, L<ossl-guide-quic-introduction(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2023-2025 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2023-2026 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -88,6 +88,12 @@ isprint(int c)
 }
 
 static __inline int
+isgraph(int c)
+{
+	return (c != ' ' && isprint(c));
+}
+
+static __inline int
 toupper(int c)
 {
 	return (c - 0x20 * ((c >= 'a') && (c <= 'z')));

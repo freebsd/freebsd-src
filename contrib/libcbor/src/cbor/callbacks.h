@@ -18,34 +18,34 @@ extern "C" {
 #endif
 
 /** Callback prototype */
-typedef void (*cbor_int8_callback)(void *, uint8_t);
+typedef void (*cbor_int8_callback)(void*, uint8_t);
 
 /** Callback prototype */
-typedef void (*cbor_int16_callback)(void *, uint16_t);
+typedef void (*cbor_int16_callback)(void*, uint16_t);
 
 /** Callback prototype */
-typedef void (*cbor_int32_callback)(void *, uint32_t);
+typedef void (*cbor_int32_callback)(void*, uint32_t);
 
 /** Callback prototype */
-typedef void (*cbor_int64_callback)(void *, uint64_t);
+typedef void (*cbor_int64_callback)(void*, uint64_t);
 
 /** Callback prototype */
-typedef void (*cbor_simple_callback)(void *);
+typedef void (*cbor_simple_callback)(void*);
 
 /** Callback prototype */
-typedef void (*cbor_string_callback)(void *, cbor_data, uint64_t);
+typedef void (*cbor_string_callback)(void*, cbor_data, uint64_t);
 
 /** Callback prototype */
-typedef void (*cbor_collection_callback)(void *, uint64_t);
+typedef void (*cbor_collection_callback)(void*, uint64_t);
 
 /** Callback prototype */
-typedef void (*cbor_float_callback)(void *, float);
+typedef void (*cbor_float_callback)(void*, float);
 
 /** Callback prototype */
-typedef void (*cbor_double_callback)(void *, double);
+typedef void (*cbor_double_callback)(void*, double);
 
 /** Callback prototype */
-typedef void (*cbor_bool_callback)(void *, bool);
+typedef void (*cbor_bool_callback)(void*, bool);
 
 /** Callback bundle -- passed to the decoder */
 struct cbor_callbacks {
@@ -108,76 +108,76 @@ struct cbor_callbacks {
 };
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_uint8_callback(void *, uint8_t);
+CBOR_EXPORT void cbor_null_uint8_callback(void*, uint8_t);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_uint16_callback(void *, uint16_t);
+CBOR_EXPORT void cbor_null_uint16_callback(void*, uint16_t);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_uint32_callback(void *, uint32_t);
+CBOR_EXPORT void cbor_null_uint32_callback(void*, uint32_t);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_uint64_callback(void *, uint64_t);
+CBOR_EXPORT void cbor_null_uint64_callback(void*, uint64_t);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_negint8_callback(void *, uint8_t);
+CBOR_EXPORT void cbor_null_negint8_callback(void*, uint8_t);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_negint16_callback(void *, uint16_t);
+CBOR_EXPORT void cbor_null_negint16_callback(void*, uint16_t);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_negint32_callback(void *, uint32_t);
+CBOR_EXPORT void cbor_null_negint32_callback(void*, uint32_t);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_negint64_callback(void *, uint64_t);
+CBOR_EXPORT void cbor_null_negint64_callback(void*, uint64_t);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_string_callback(void *, cbor_data, uint64_t);
+CBOR_EXPORT void cbor_null_string_callback(void*, cbor_data, uint64_t);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_string_start_callback(void *);
+CBOR_EXPORT void cbor_null_string_start_callback(void*);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_byte_string_callback(void *, cbor_data, uint64_t);
+CBOR_EXPORT void cbor_null_byte_string_callback(void*, cbor_data, uint64_t);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_byte_string_start_callback(void *);
+CBOR_EXPORT void cbor_null_byte_string_start_callback(void*);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_array_start_callback(void *, uint64_t);
+CBOR_EXPORT void cbor_null_array_start_callback(void*, uint64_t);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_indef_array_start_callback(void *);
+CBOR_EXPORT void cbor_null_indef_array_start_callback(void*);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_map_start_callback(void *, uint64_t);
+CBOR_EXPORT void cbor_null_map_start_callback(void*, uint64_t);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_indef_map_start_callback(void *);
+CBOR_EXPORT void cbor_null_indef_map_start_callback(void*);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_tag_callback(void *, uint64_t);
+CBOR_EXPORT void cbor_null_tag_callback(void*, uint64_t);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_float2_callback(void *, float);
+CBOR_EXPORT void cbor_null_float2_callback(void*, float);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_float4_callback(void *, float);
+CBOR_EXPORT void cbor_null_float4_callback(void*, float);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_float8_callback(void *, double);
+CBOR_EXPORT void cbor_null_float8_callback(void*, double);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_null_callback(void *);
+CBOR_EXPORT void cbor_null_null_callback(void*);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_undefined_callback(void *);
+CBOR_EXPORT void cbor_null_undefined_callback(void*);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_boolean_callback(void *, bool);
+CBOR_EXPORT void cbor_null_boolean_callback(void*, bool);
 
 /** Dummy callback implementation - does nothing */
-CBOR_EXPORT void cbor_null_indef_break_callback(void *);
+CBOR_EXPORT void cbor_null_indef_break_callback(void*);
 
 /** Dummy callback bundle - does nothing */
 CBOR_EXPORT extern const struct cbor_callbacks cbor_empty_callbacks;

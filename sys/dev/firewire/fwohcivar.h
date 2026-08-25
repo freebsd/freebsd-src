@@ -36,6 +36,7 @@
  *
  */
 
+#include <sys/callout.h>
 #include <sys/taskqueue.h>
 
 typedef struct fwohci_softc {
@@ -71,6 +72,8 @@ typedef struct fwohci_softc {
 	struct task fwohci_task_busreset;
 	struct task fwohci_task_sid;
 	struct task fwohci_task_dma;
+	struct callout sid_timeout_callout; /* fires if SID phase doesn't complete */
+	int sid_timeout_count;		    /* consecutive SID timeouts */
 	int cycle_lost;
 } fwohci_softc_t;
 

@@ -115,23 +115,23 @@ static void update_gid(enum gid_op_type gid_op, struct ib_device *ib_dev,
 	}
 }
 
-static int
+static bool
 roce_gid_match_netdev(struct ib_device *ib_dev, u8 port,
     if_t idev, void *cookie)
 {
 	if_t ndev = (if_t )cookie;
 	if (idev == NULL)
-		return (0);
+		return (false);
 	return (ndev == idev);
 }
 
-static int
+static bool
 roce_gid_match_all(struct ib_device *ib_dev, u8 port,
     if_t idev, void *cookie)
 {
 	if (idev == NULL)
-		return (0);
-	return (1);
+		return (false);
+	return (true);
 }
 
 static int
@@ -168,11 +168,8 @@ roce_gid_update_addr_ifa4_cb(void *arg, struct ifaddr *ifa, u_int count)
 	struct ipx_entry *entry;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-	if (entry == NULL) {
-		pr_warn("roce_gid_update_addr_callback: "
-		    "couldn't allocate entry for IPv4 update\n");
+	if (entry == NULL)
 		return (0);
-	}
 	entry->ipx_addr.v4 = *((struct sockaddr_in *)ifa->ifa_addr);
 	entry->ndev = ifa->ifa_ifp;
 	STAILQ_INSERT_TAIL(ipx_head, entry, entry);
@@ -189,11 +186,8 @@ roce_gid_update_addr_ifa6_cb(void *arg, struct ifaddr *ifa, u_int count)
 	struct ipx_entry *entry;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-	if (entry == NULL) {
-		pr_warn("roce_gid_update_addr_callback: "
-		    "couldn't allocate entry for IPv6 update\n");
+	if (entry == NULL)
 		return (0);
-	}
 	entry->ipx_addr.v6 = *((struct sockaddr_in6 *)ifa->ifa_addr);
 	entry->ndev = ifa->ifa_ifp;
 
@@ -215,11 +209,11 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 	struct if_iter iter;
 	struct ipx_entry *entry;
 	VNET_ITERATOR_DECL(vnet_iter);
-	struct ib_gid_attr gid_attr;
+	const struct ib_gid_attr *sgid_attr;
 	union ib_gid gid;
 	if_t ifp;
 	int default_gids;
-	u16 index_num;
+	int gid_tbl_len;
 	int i;
 
 	struct ipx_queue ipx_head;
@@ -265,9 +259,12 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 			if (!((1UL << i) & gid_type_mask))
 				continue;
 			/* check if entry found */
-			if (ib_find_cached_gid_by_port(device, &gid, i,
-			    port, entry->ndev, &index_num) == 0)
+			sgid_attr = rdma_find_gid_by_port(device, &gid, i,
+                                                          port, entry->ndev);
+			if (!IS_ERR(sgid_attr)) {
+				rdma_put_gid_attr(sgid_attr);
 				break;
+			}
 		}
 		if (i != IB_GID_TYPE_SIZE)
 			continue;
@@ -275,18 +272,26 @@ roce_gid_update_addr_callback(struct ib_device *device, u8 port,
 		update_gid(GID_ADD, device, port, &gid, entry->ndev);
 	}
 
+	gid_tbl_len = device->port_immutable[port].gid_tbl_len;
+
 	/* remove stale GIDs, if any */
-	for (i = default_gids; ib_get_cached_gid(device, port, i, &gid, &gid_attr) == 0; i++) {
+	for (i = default_gids; i < gid_tbl_len; i++) {
 		union ipx_addr ipx;
 
+		sgid_attr = rdma_get_gid_attr(device, port, i);
+		if (IS_ERR(sgid_attr))
+			continue;
+
+		ndev = sgid_attr->ndev;
+		gid = sgid_attr->gid;
+		rdma_put_gid_attr(sgid_attr);
+
 		/* check for valid network device pointer */
-		ndev = gid_attr.ndev;
 		if (ndev == NULL)
 			continue;
-		dev_put(ndev);
 
 		/* don't delete empty entries */
-		if (memcmp(&gid, &zgid, sizeof(zgid)) == 0)
+		if (rdma_is_zero_gid(&gid))
 			continue;
 
 		/* zero default */
@@ -345,10 +350,8 @@ retry:
 	}
 
 	work = kmalloc(sizeof(*work), GFP_ATOMIC);
-	if (!work) {
-		pr_warn("roce_gid_mgmt: Couldn't allocate work for addr_event\n");
+	if (!work)
 		return;
-	}
 
 	INIT_WORK(&work->work, roce_gid_queue_scan_event_handler);
 	dev_hold(ndev);
@@ -375,10 +378,8 @@ roce_gid_delete_all_event(if_t ndev)
 	struct roce_netdev_event_work *work;
 
 	work = kmalloc(sizeof(*work), GFP_ATOMIC);
-	if (!work) {
-		pr_warn("roce_gid_mgmt: Couldn't allocate work for addr_event\n");
+	if (!work)
 		return;
-	}
 
 	INIT_WORK(&work->work, roce_gid_delete_all_event_handler);
 	dev_hold(ndev);

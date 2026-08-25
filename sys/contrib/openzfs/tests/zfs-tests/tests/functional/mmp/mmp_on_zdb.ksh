@@ -9,7 +9,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -51,7 +51,8 @@ log_onexit cleanup
 verify_runnable "global"
 verify_disk_count "$DISKS" 2
 
-default_mirror_setup_noexit $DISKS
+log_must zpool create -f $TESTPOOL mirror $DISKS
+log_must zfs create $TESTPOOL/$TESTFS
 log_must mmp_set_hostid $HOSTID1
 log_must zpool set multihost=on $TESTPOOL
 log_must zfs snap $TESTPOOL/$TESTFS@snap

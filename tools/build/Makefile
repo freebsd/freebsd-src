@@ -87,6 +87,10 @@ SRCS+=		reallocarray.c
 
 .if !exists(${HOST_INCLUDE_ROOT}/stdckdint.h)
 INCS+=		stdckdint.h
+SYSINCS+=	${SRCTOP}/sys/sys/ckdint.h
+.if ${.MAKE.OS} != "FreeBSD"
+SYSINCS+=	${SRCTOP}/sys/sys/_visible.h
+.endif
 .endif
 
 .if exists(${HOST_INCLUDE_ROOT}/sys/stat.h)
@@ -110,7 +114,7 @@ _WITH_EXPLICIT_BZERO!= cat ${HOST_INCLUDE_ROOT}/strings.h ${HOST_INCLUDE_ROOT}/s
 # cause it to pick the file from libkern instead (which won't compile).
 # Avoid modifying .PATH by creating a copy in the build directory instead.
 explicit_bzero.c: ${SRCTOP}/sys/libkern/explicit_bzero.c
-	cp ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 CLEANFILES+=	explicit_bzero.c
 INCS+=		strings.h
 SRCS+=		explicit_bzero.c
@@ -253,6 +257,9 @@ SYSINCS+=	${SRCTOP}/sys/sys/linker_set.h
 .if ${.MAKE.OS} == "Darwin"
 # Standalone implementation of secure_getenv(), not available on MacOS.
 SRCS+=	secure_getenv.c
+# macOS currently lacks mempcpy
+.PATH: ${LIBC_SRCTOP}/string
+SRCS+=	mempcpy.c
 .endif # ${MAKE.OS} == "Darwin"
 
 # Provide the same arc4random implementation on Linux/macOS
@@ -274,7 +281,7 @@ SRCS+=	capsicum_stubs.c
 # XXX: we can't add ${SRCTOP}/sys/kern to .PATH since that will causes
 # conflicts with other files. Instead copy subr_capability to the build dir.
 subr_capability.c: ${SRCTOP}/sys/kern/subr_capability.c
-	cp ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 SRCS+=	subr_capability.c
 CLEANFILES+=	subr_capability.c
 
@@ -357,6 +364,7 @@ DISKINCS+=	${SRCTOP}/sys/sys/disk/bsd.h
 .if ${.MAKE.OS} == "FreeBSD"
 # Needed to build most of the things below, which include sys/cdefs.h either
 # directly or transitively
+SYSINCS+=	${SRCTOP}/sys/sys/_decls.h
 SYSINCS+=	${SRCTOP}/sys/sys/_visible.h
 SYSINCS+=	${SRCTOP}/sys/sys/cdefs.h
 .endif
@@ -392,10 +400,8 @@ SYSINCS+=	${SRCTOP}/sys/sys/ctf.h
 SYSINCS+=	${SRCTOP}/sys/sys/kbio.h
 # for kldxref:
 SYSINCS+=	${SRCTOP}/sys/sys/module.h
-.if ${.MAKE.OS} != "FreeBSD"
 # for libmd:
 SYSINCS+=	${SRCTOP}/sys/sys/md4.h
-.endif
 
 # We want to run the build with only ${WORLDTMP} in $PATH to ensure we don't
 # accidentally run tools that are incompatible but happen to be in $PATH.

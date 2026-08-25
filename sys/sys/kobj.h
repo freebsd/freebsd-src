@@ -29,6 +29,8 @@
 #ifndef _SYS_KOBJ_H_
 #define _SYS_KOBJ_H_
 
+#include <sys/types.h>
+
 /*
  * Forward declarations
  */

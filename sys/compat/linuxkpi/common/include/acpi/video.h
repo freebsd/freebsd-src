@@ -32,9 +32,30 @@
 #include <sys/types.h>
 #include <sys/errno.h>
 
+/* Alias struct acpi_device to device_t; repeated from <acpi/acpi_bus.h> */
+#define	acpi_device	_device
+
 #define	ACPI_VIDEO_CLASS	"video"
 
-#define	ACPI_VIDEO_NOTIFY_PROBE	0x81
+#define	ACPI_VIDEO_DISPLAY_CRT	1
+#define	ACPI_VIDEO_DISPLAY_TV	2
+#define	ACPI_VIDEO_DISPLAY_DVI	3
+#define	ACPI_VIDEO_DISPLAY_LCD	4
+
+#define	ACPI_VIDEO_DISPLAY_LEGACY_MONITOR	0x0100
+#define	ACPI_VIDEO_DISPLAY_LEGACY_PANEL		0x0110
+#define	ACPI_VIDEO_DISPLAY_LEGACY_TV		0x0200
+
+#define	ACPI_VIDEO_NOTIFY_SWITCH		0x80
+#define	ACPI_VIDEO_NOTIFY_PROBE			0x81
+#define	ACPI_VIDEO_NOTIFY_CYCLE			0x82
+#define	ACPI_VIDEO_NOTIFY_NEXT_OUTPUT		0x83
+#define	ACPI_VIDEO_NOTIFY_PREV_OUTPUT		0x84
+#define	ACPI_VIDEO_NOTIFY_CYCLE_BRIGHTNESS	0x85
+#define	ACPI_VIDEO_NOTIFY_INC_BRIGHTNESS	0x86
+#define	ACPI_VIDEO_NOTIFY_DEC_BRIGHTNESS	0x87
+#define	ACPI_VIDEO_NOTIFY_ZERO_BRIGHTNESS	0x88
+#define	ACPI_VIDEO_NOTIFY_DISPLAY_OFF		0x89
 
 static inline int
 acpi_video_register(void)
@@ -57,6 +78,13 @@ static inline bool
 acpi_video_backlight_use_native(void)
 {
 	return (true);
+}
+
+static inline int
+acpi_video_get_edid(struct acpi_device *device, int type, int device_id,
+    void **edid)
+{
+	return (-ENODEV);
 }
 
 #endif	/* _LINUXKPI_ACPI_VIDEO_H_ */

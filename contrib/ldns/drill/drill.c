@@ -82,7 +82,7 @@ usage(FILE *stream, const char *progname)
 	fprintf(stream, "\t-z\t\tdon't randomize the nameservers before use\n");
 	fprintf(stream, "\n  [*] = enables/implies DNSSEC\n");
 	fprintf(stream, "  [**] = can be given more than once\n");
-	fprintf(stream, "\n  ldns-team@nlnetlabs.nl | http://www.nlnetlabs.nl/ldns/\n");
+	fprintf(stream, "\n  dns-team@nlnetlabs.nl | http://www.nlnetlabs.nl/ldns/\n");
 }
 
 /**
@@ -855,7 +855,7 @@ main(int argc, char *argv[])
 					status = ldns_send_buffer(&pkt, res, query_buffer, NULL);
 					ldns_buffer_free(query_buffer);
 					if (status != LDNS_STATUS_OK) {
-						printf("Error: %s\n", ldns_get_errorstr_by_id(status));
+						fprintf(stderr, "Error: %s\n", ldns_get_errorstr_by_id(status));
 						exit(1);
 					}
 				} else {

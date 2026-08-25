@@ -143,3 +143,7 @@ fmodl(long double x, long double y)
 	x = ux.e * one;		/* create necessary signal */
 	return x;		/* exact output */
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(fmodl, fmodf128);
+#endif

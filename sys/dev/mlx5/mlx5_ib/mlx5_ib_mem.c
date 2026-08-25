@@ -127,7 +127,7 @@ void __mlx5_ib_populate_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 			    int page_shift, size_t offset, size_t num_pages,
 			    __be64 *pas, int access_flags)
 {
-	unsigned long umem_page_shift = ilog2(umem->page_size);
+	unsigned long umem_page_shift = umem->page_shift;
 	int shift = page_shift - umem_page_shift;
 	int mask = (1 << shift) - 1;
 	int i, k;

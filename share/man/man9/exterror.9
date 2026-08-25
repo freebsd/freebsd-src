@@ -6,7 +6,7 @@
 .\" Konstantin Belousov <kib@FreeBSD.org> under sponsorship
 .\" from the FreeBSD Foundation.
 .\"
-.Dd November 5, 2025
+.Dd August 20, 2026
 .Dt EXTERROR 9
 .Os
 .Sh NAME
@@ -14,6 +14,7 @@
 .Nd provide extended error information to userspace
 .Sh SYNOPSIS
 .Bd -literal -offset left -compact
+#define EXTERR_CATEGORY_DYNAMIC "path/to/this/file.c"
 #define	EXTERR_CATEGORY EXTERR_CAT_MYCATEGORY
 .Ed
 .In sys/exterrvar.h
@@ -56,7 +57,13 @@ is to make it easier for a user to identify the cause of the error.
 Before
 .Nm
 can be used in the given source .c file, the category of extended errors
-should be allocated in the
+must be defined.
+This can be done by setting the
+.Va EXTERR_CATEGORY_DYNAMIC
+macro to a string containing the name of the file relative to
+.Pa src/sys
+directory.
+Alternatively, an entry may be allocated in the
 .In sys/exterr_cat.h
 file.
 The category is the unique integer, that, together with the source
@@ -94,12 +101,15 @@ The format string may include up to two printf-like format
 specifiers to insert the optional argument values in the
 user output, which is done in userspace.
 .Pp
-The format specifier must be for an integer type, and include the
-.Dq j
-format modifier to accept only the types
-.Vt intmax_t
-or
-.Vt uintmax_t .
+The format specifier must be for an character, integer, or pointer type.
+Note that userspace printing assumes all
+.Dt long Ns -derived
+types such as
+.Dt size_t
+are 64-bit and prints them accordingly.
+Signed integer types should thus be cast to
+.Dt int64_t
+or similar to insure proper sign extension.
 .El
 .Pp
 The strings passed as the second argument are only retained
@@ -171,6 +181,17 @@ were modified to print the extended information if it is available
 in addition to the usual
 .Va errno
 decoding.
+.Pp
+Kernels built with the
+.Cd option EXTERR_STRINGS
+advertise the
+.Va kern.features.exterr_strings
+.Xr sysctl 8
+variable, see
+.Xr feature_present 3 ,
+indicating that the reported errors include the descriptive message strings.
+Without it, only the numeric information (error code, category,
+source line number and parameters) is available.
 .Sh ASYNCHRONOUS INPUT/OUTPUT
 Due to the nature of the
 .Fx
@@ -223,6 +244,7 @@ from the failed request back to the thread that create the request.
 .Xr errno 3 ,
 .Xr err 3 ,
 .Xr uexterr_gettext 3
+.Xr uexterr 3
 .Sh HISTORY
 The
 .Nm

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
- *
  * This file and its contents are supplied under the terms of the
  * Common Development and Distribution License ("CDDL"), version 1.0.
  * You may only use this file in accordance with the terms of version
@@ -9,9 +7,7 @@
  *
  * A full copy of the text of the CDDL should have accompanied this
  * source.  A copy of the CDDL is also available via the Internet at
- * http://www.illumos.org/license/CDDL.
- *
- * CDDL HEADER END
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -433,6 +429,14 @@ get_special_prop(lua_State *state, dsl_dataset_t *ds, const char *dsname,
 	case ZFS_PROP_SNAPSHOTS_CHANGED:
 		numval = dsl_dir_snap_cmtime(ds->ds_dir).tv_sec;
 		break;
+
+	case ZFS_PROP_SNAPSHOTS_CHANGED_NSECS: {
+		inode_timespec_t snap_cmtime =
+		    dsl_dir_snap_cmtime(ds->ds_dir);
+		numval = ((uint64_t)snap_cmtime.tv_sec * NANOSEC) +
+		    snap_cmtime.tv_nsec;
+		break;
+	}
 
 	default:
 		/* Did not match these props, check in the dsl_dir */

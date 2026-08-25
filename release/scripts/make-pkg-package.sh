@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 # Simulate the build environment.  Note that we need to unset some variables
 # which are set in the src tree since they have different (unwanted) effects
 # in the ports tree.
@@ -20,7 +22,7 @@ export DISTDIR=/tmp/distfiles
 export WRKDIR=$(make -C ${PORTSDIR}/ports-mgmt/pkg I_DONT_CARE_IF_MY_BUILDS_TARGET_THE_WRONG_RELEASE=YES -V WRKDIR)
 
 make -C ${PORTSDIR}/ports-mgmt/pkg TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-	CONFIGURE_ARGS="--host=$(uname -m)-portbld-freebsd${REVISION} --prefix=${LOCALBASE}" \
+	PREFIX=${LOCALBASE} \
 	I_DONT_CARE_IF_MY_BUILDS_TARGET_THE_WRONG_RELEASE=YES \
 	BATCH=YES stage create-manifest
 

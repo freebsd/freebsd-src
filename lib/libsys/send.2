@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd April 27, 2020
+.Dd June 3, 2026
 .Dt SEND 2
 .Os
 .Sh NAME
@@ -250,6 +250,15 @@ The process using a
 socket was jailed and the source
 address specified in the IP header did not match the IP
 address bound to the prison.
+.It Bq Er EPERM
+The
+.Fa msg
+contained an
+.Dv SCM_RIGHTS
+control message, and the receiving
+.Xr unix 4
+socket is configured to reject new
+.Dv SCM_RIGHTS .
 .It Bq Er EPIPE
 The socket is unable to send anymore data
 .Dv ( SBS_CANTSENDMORE
@@ -265,7 +274,8 @@ is not connected.
 .Xr select 2 ,
 .Xr socket 2 ,
 .Xr write 2 ,
-.Xr CMSG_DATA 3
+.Xr CMSG_DATA 3 ,
+.Xr unix 4
 .Sh HISTORY
 The
 .Fn send

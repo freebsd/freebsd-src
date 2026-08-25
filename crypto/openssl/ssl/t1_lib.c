@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -211,7 +211,7 @@ static const uint16_t suiteb_curves[] = {
 
 /* Group list string of the built-in pseudo group DEFAULT_SUITE_B */
 #define SUITE_B_GROUP_NAME "DEFAULT_SUITE_B"
-#define SUITE_B_GROUP_LIST "secp256r1:secp384r1",
+#define SUITE_B_GROUP_LIST "?secp256r1:?secp384r1",
 
 struct provider_ctx_data_st {
     SSL_CTX *ctx;
@@ -1237,15 +1237,20 @@ typedef struct {
     size_t gidmax; /* The memory allocation chunk size for the group IDs */
     size_t gidcnt; /* Number of groups */
     uint16_t *gid_arr; /* The IDs of the supported groups (flat list) */
-    size_t tplmax; /* The memory allocation chunk size for the tuple counters */
-    size_t tplcnt; /* Number of tuples */
-    size_t *tuplcnt_arr; /* The number of groups inside a tuple */
+    size_t tplmax; /* Allocated length of tuplcnt_arr */
+    /*
+     * Number of *closed* (fully parsed) tuples.  During parsing there is
+     * always one additional active tuple being built, stored at index tplcnt.
+     * tuplcnt_arr therefore always needs at least tplcnt + 1 allocated slots.
+     */
+    size_t tplcnt;
+    size_t *tuplcnt_arr; /* Per-tuple group counts; [0..tplcnt-1] closed, [tplcnt] active */
     size_t ksidmax; /* The memory allocation chunk size */
     size_t ksidcnt; /* Number of key shares */
     uint16_t *ksid_arr; /* The IDs of the key share groups (flat list) */
     /* Variable to keep state between execution of callback or helper functions */
-    size_t tuple_mode; /* Keeps track whether tuple_cb called from 'the top' or from gid_cb */
-    int ignore_unknown_default; /* Flag such that unknown groups for DEFAULT[_XYZ] are ignored */
+    int inner; /* Are we expanding a DEFAULT list */
+    int first; /* First tuple of possibly nested expansion? */
 } gid_cb_st;
 
 /* Forward declaration of tuple callback function */
@@ -1264,7 +1269,7 @@ static int gid_cb(const char *elem, int len, void *arg)
     int found_group = 0;
     char etmp[GROUP_NAME_BUFFER_LENGTH];
     int retval = 1; /* We assume success */
-    char *current_prefix;
+    const char *current_prefix;
     int ignore_unknown = 0;
     int add_keyshare = 0;
     int remove_group = 0;
@@ -1320,16 +1325,16 @@ static int gid_cb(const char *elem, int len, void *arg)
             for (i = 0; i < OSSL_NELEM(default_group_strings); i++) {
                 if ((size_t)len == (strlen(default_group_strings[i].list_name))
                     && OPENSSL_strncasecmp(default_group_strings[i].list_name, elem, len) == 0) {
+                    int saved_first;
+
                     /*
                      * We're asked to insert an entire list of groups from a
                      * DEFAULT[_XYZ] 'pseudo group' which we do by
                      * recursively calling this function (indirectly via
                      * CONF_parse_list and tuple_cb); essentially, we treat a DEFAULT
                      * group string like a tuple which is appended to the current tuple
-                     * rather then starting a new tuple. Variable tuple_mode is the flag which
-                     * controls append tuple vs start new tuple.
+                     * rather then starting a new tuple.
                      */
-
                     if (ignore_unknown || remove_group)
                         return -1; /* removal or ignore not allowed here -> syntax error */
 
@@ -1350,15 +1355,17 @@ static int gid_cb(const char *elem, int len, void *arg)
                         default_group_strings[i].group_string,
                         strlen(default_group_strings[i].group_string));
                     restored_default_group_string[strlen(default_group_strings[i].group_string) + restored_prefix_index] = '\0';
-                    /* We execute the recursive call */
-                    garg->ignore_unknown_default = 1; /* We ignore unknown groups for DEFAULT_XYZ */
-                    /* we enforce group mode (= append tuple) for DEFAULT_XYZ group lists */
-                    garg->tuple_mode = 0;
-                    /* We use the tuple_cb callback to process the pseudo group tuple */
+                    /*
+                     * Append first tuple of result to current tuple, and don't
+                     * terminate the last tuple until we return to a top-level
+                     * tuple_cb.
+                     */
+                    saved_first = garg->first;
+                    garg->inner = garg->first = 1;
                     retval = CONF_parse_list(restored_default_group_string,
                         TUPLE_DELIMITER_CHARACTER, 1, tuple_cb, garg);
-                    garg->tuple_mode = 1; /* next call to tuple_cb will again start new tuple */
-                    garg->ignore_unknown_default = 0; /* reset to original value */
+                    garg->inner = 0;
+                    garg->first = saved_first;
                     /* We don't need the \0-terminated string anymore */
                     OPENSSL_free(restored_default_group_string);
 
@@ -1377,9 +1384,6 @@ static int gid_cb(const char *elem, int len, void *arg)
 
     if (len == 0)
         return -1; /* Seems we have prefxes without a group name -> syntax error */
-
-    if (garg->ignore_unknown_default == 1) /* Always ignore unknown groups for DEFAULT[_XYZ] */
-        ignore_unknown = 1;
 
     /* Memory management in case more groups are present compared to initial allocation */
     if (garg->gidcnt == garg->gidmax) {
@@ -1514,13 +1518,64 @@ static int gid_cb(const char *elem, int len, void *arg)
         /* and update the book keeping for the number of groups in current tuple */
         garg->tuplcnt_arr[garg->tplcnt]++;
 
-        /* We memorize if needed that we want to add a key share for the current group */
+        /* We want to add a key share for the current group */
         if (add_keyshare)
             garg->ksid_arr[garg->ksidcnt++] = gid;
     }
 
 done:
     return retval;
+}
+
+/*
+ * Ensure tuplcnt_arr has room for at least tplcnt + 2 entries so that
+ * close_tuple() can safely increment tplcnt and write the new active-tuple
+ * slot at index tplcnt + 1.  Must be called before that increment.
+ */
+static int grow_tuples(gid_cb_st *garg)
+{
+    static size_t max_tplcnt = (~(size_t)0) / sizeof(size_t);
+
+    /*
+     * Ensure we have room for at least one additional tuple.
+     * (tplcnt + 1 are in active use).
+     */
+    if (garg->tplcnt + 1 == garg->tplmax) {
+        size_t newcnt = garg->tplmax + GROUPLIST_INCREMENT;
+        size_t newsz = newcnt * sizeof(size_t);
+        size_t *tmp;
+
+        if (newsz > max_tplcnt
+            || (tmp = OPENSSL_realloc(garg->tuplcnt_arr, newsz)) == NULL)
+            return 0;
+
+        garg->tplmax = newcnt;
+        garg->tuplcnt_arr = tmp;
+    }
+    return 1;
+}
+
+/*
+ * Finalise the active tuple (at index tplcnt) and open a fresh one.
+ * tplcnt is the count of closed tuples; the active tuple lives at tplcnt
+ * throughout parsing.  After this call tplcnt is incremented and the new
+ * active tuple at the updated index is initialised to 0.
+ * Empty tuples (gidcnt == 0) are discarded without advancing tplcnt.
+ */
+static int close_tuple(gid_cb_st *garg)
+{
+    size_t gidcnt = garg->tuplcnt_arr[garg->tplcnt];
+
+    if (gidcnt == 0)
+        return 1; /* Discard empty tuple; no need to open a new slot */
+
+    /* Grow before the increment: the new active slot will be at tplcnt + 1 */
+    if (!grow_tuples(garg))
+        return 0;
+
+    /* Promote closed tuple and initialise the new active tuple slot */
+    garg->tuplcnt_arr[++garg->tplcnt] = 0;
+    return 1;
 }
 
 /* Extract and process a tuple of groups */
@@ -1536,16 +1591,9 @@ static int tuple_cb(const char *tuple, int len, void *arg)
         return 0;
     }
 
-    /* Memory management for tuples */
-    if (garg->tplcnt == garg->tplmax) {
-        size_t *tmp = OPENSSL_realloc(garg->tuplcnt_arr,
-            (garg->tplmax + GROUPLIST_INCREMENT) * sizeof(*garg->tuplcnt_arr));
-
-        if (tmp == NULL)
-            return 0;
-        garg->tplmax += GROUPLIST_INCREMENT;
-        garg->tuplcnt_arr = tmp;
-    }
+    if (garg->inner && !garg->first && !close_tuple(garg))
+        return 0;
+    garg->first = 0;
 
     /* Convert to \0-terminated string */
     restored_tuple_string = OPENSSL_malloc((len + 1 /* \0 */) * sizeof(char));
@@ -1560,15 +1608,8 @@ static int tuple_cb(const char *tuple, int len, void *arg)
     /* We don't need the \o-terminated string anymore */
     OPENSSL_free(restored_tuple_string);
 
-    if (garg->tuplcnt_arr[garg->tplcnt] > 0) { /* Some valid groups are present in current tuple... */
-        if (garg->tuple_mode) {
-            /* We 'close' the tuple */
-            garg->tplcnt++;
-            garg->tuplcnt_arr[garg->tplcnt] = 0; /* Next tuple is initialized to be empty */
-            garg->tuple_mode = 1; /* next call will start a tuple (unless overridden in gid_cb) */
-        }
-    }
-
+    if (!garg->inner && !close_tuple(garg))
+        return 0;
     return retval;
 }
 
@@ -1599,8 +1640,6 @@ int tls1_set_groups_list(SSL_CTX *ctx,
     }
 
     memset(&gcb, 0, sizeof(gcb));
-    gcb.tuple_mode = 1; /* We prepare to collect the first tuple */
-    gcb.ignore_unknown_default = 0;
     gcb.gidmax = GROUPLIST_INCREMENT;
     gcb.tplmax = GROUPLIST_INCREMENT;
     gcb.ksidmax = GROUPLIST_INCREMENT;
@@ -4482,6 +4521,20 @@ static int check_cert_usable(SSL_CONNECTION *s, const SIGALG_LOOKUP *sig,
         mdname,
         sctx->propq);
     if (supported <= 0)
+        return 0;
+
+    /*
+     * When RPK is negotiated there are no certificate signatures to
+     * constrain, and there may not even be a certificate configured.
+     */
+    if (TLSEXT_cert_type_rpk == (s->server ? s->ext.server_cert_type : s->ext.client_cert_type))
+        return 1;
+
+    /*
+     * RPK was enabled, adding candidate private-key-only slots, but was not
+     * negotiated, so the key-only slot is not usable.
+     */
+    if (x == NULL)
         return 0;
 
     /*

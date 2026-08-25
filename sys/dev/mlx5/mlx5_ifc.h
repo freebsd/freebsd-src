@@ -26,6 +26,12 @@
 #ifndef MLX5_IFC_H
 #define MLX5_IFC_H
 
+/*
+ * Special UID that marks a resource (e.g. an EQ) as shared, so that
+ * objects owned by a user context (DEVX uid) may reference it.
+ */
+#define	MLX5_SHARED_RESOURCE_UID	0xffff
+
 #include <dev/mlx5/mlx5_fpga/mlx5_ifc_fpga.h>
 
 enum {
@@ -7206,7 +7212,7 @@ struct mlx5_ifc_destroy_rmp_out_bits {
 
 struct mlx5_ifc_destroy_rmp_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -7572,7 +7578,7 @@ struct mlx5_ifc_dealloc_uar_out_bits {
 
 struct mlx5_ifc_dealloc_uar_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -8317,7 +8323,7 @@ struct mlx5_ifc_create_eq_out_bits {
 
 struct mlx5_ifc_create_eq_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];
@@ -8583,7 +8589,7 @@ struct mlx5_ifc_alloc_uar_out_bits {
 
 struct mlx5_ifc_alloc_uar_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_0[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_1[0x10];
 	u8         op_mod[0x10];

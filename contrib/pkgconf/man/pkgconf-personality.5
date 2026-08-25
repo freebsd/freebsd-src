@@ -1,0 +1,100 @@
+.\" Copyright (c) 2018 pkgconf authors (see AUTHORS).
+.\"
+.\" Permission to use, copy, modify, and/or distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" This software is provided 'as is' and without any warranty, express or
+.\" implied.  In no event shall the authors be liable for any damages arising
+.\" from the use of this software.
+.Dd July 19, 2018
+.Dt PKGCONF-PERSONALITY 5
+.Os
+.Sh NAME
+.Nm file.personality
+.Nd pkgconf cross-compile personality file format
+.Sh DESCRIPTION
+pkgconf cross-compile personality files provide a useful mechanism for storing
+various information about system toolchains.
+Information stored by
+.Nm .personality
+files include information about paths used by a cross-compile toolchain, such as
+the sysroot directory and default include and library paths.  pkgconf uses this
+information to determine what information is necessary to use libraries.
+.\"
+.Ss FILE SYNTAX
+The
+.Nm .personality
+file follows a format inspired by RFC822.
+Comments are prefixed by a pound sign, hash sign or octothorpe (#), and variable
+assignment is similar to POSIX shell.
+Properties are defined using RFC822-style stanzas.
+.\"
+.Ss PROPERTIES
+.\"
+Properties are set using RFC822-style stanzas which consist of a keyword, followed
+by a colon (:) and then the value the property should be set to.
+Variable substitution is always performed regardless of property type.
+.Pp
+There are three types of property:
+.\"
+.Bl -tag -width indent
+.\"
+.It Literal
+The property will be set to the text of the value.
+.\"
+.It Fragment List
+The property will be set to a list of fragments parsed from the text.
+The input text must be in a format that is suitable for passing to a POSIX
+shell without any shell expansions after variable substitution has been done.
+Elements are delimited with a colon.
+.\"
+.It Boolean
+The property will be set to true if the value is one of: true, yes or 1.
+Otherwise it will be set to false.
+.\"
+.El
+.Ss PROPERTY KEYWORDS
+.Bl -tag -width indent
+.\"
+.It Triplet
+The triplet used by the cross-compile toolchain.
+(mandatory; literal)
+.It SysrootDir
+The directory used by the system root of the cross-compile toolchain.
+(mandatory; literal)
+.It DefaultSearchPaths
+A list of directories to look for
+.Xr pc 5
+files in.
+(mandatory; fragment list)
+.It SystemIncludePaths
+A list of directories that are included by default in the search path for
+include files.
+(mandatory; fragment list)
+.It SystemLibraryPaths
+A list of directories that are included by default in the search path for
+libraries.
+(mandatory; fragment list)
+.It WantDefaultPure
+If true, pkgconf will default to preferring a pure dependency graph.
+(optional; boolean; default is false)
+.It WantDefaultStatic
+If true, pkgconf will default to operating in static linking mode.
+(optional; boolean; default is false)
+.\"
+.El
+.Sh EXAMPLES
+An example .personality file:
+.Bd -literal
+# This is a comment
+Triplet: x86_64-pc-linux-gnu
+SysrootDir: /home/kaniini/sysroot/x86_64-pc-linux-gnu
+DefaultSearchPaths: /home/kaniini/sysroot/x86_64-pc-linux-gnu/lib/pkgconfig:/home/kaniini/sysroot/x86_64-pc-linux-gnu/share/pkgconfig
+SystemIncludePaths: /home/kaniini/sysroot/x86_64-pc-linux-gnu/include
+SystemLibraryPaths: /home/kaniini/sysroot/x86_64-pc-linux-gnu/lib
+.Ed
+.Sh SEE ALSO
+.Xr pkgconf 1 ,
+.Xr pc 5 ,
+.Xr pkg.m4 7

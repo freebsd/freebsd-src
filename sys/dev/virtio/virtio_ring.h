@@ -88,6 +88,10 @@ struct vring {
 	struct vring_desc *desc;
 	struct vring_avail *avail;
 	struct vring_used *used;
+
+	vm_paddr_t desc_paddr;
+	vm_paddr_t avail_paddr;
+	vm_paddr_t used_paddr;
 };
 
 /* Alignment requirements for vring elements.
@@ -145,15 +149,24 @@ vring_size(unsigned int num, unsigned long align)
 }
 
 static inline void
-vring_init(struct vring *vr, unsigned int num, uint8_t *p,
+vring_init(struct vring *vr, unsigned int num, uint8_t *p, vm_paddr_t paddr,
     unsigned long align)
 {
-        vr->num = num;
-        vr->desc = (struct vring_desc *) p;
-        vr->avail = (struct vring_avail *) (p +
-	    num * sizeof(struct vring_desc));
-        vr->used = (void *)
-	    (((unsigned long) &vr->avail->ring[num] + align-1) & ~(align-1));
+	unsigned long avail_offset;
+	unsigned long used_offset;
+
+	avail_offset = num * sizeof(struct vring_desc);
+	used_offset = (avail_offset + sizeof(struct vring_avail) +
+	    sizeof(uint16_t) * num + align - 1) & ~(align - 1);
+
+	vr->num = num;
+	vr->desc = (struct vring_desc *) p;
+	vr->avail = (struct vring_avail *) (p + avail_offset);
+	vr->used = (struct vring_used *) (p + used_offset);
+
+	vr->desc_paddr = paddr;
+	vr->avail_paddr = paddr + avail_offset;
+	vr->used_paddr = paddr + used_offset;
 }
 
 /*

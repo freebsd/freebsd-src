@@ -1,0 +1,625 @@
+/*
+ * path.c
+ * filesystem path management
+ *
+ * SPDX-License-Identifier: pkgconf
+ *
+ * Copyright (c) 2016 pkgconf authors (see AUTHORS).
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * This software is provided 'as is' and without any warranty, express or
+ * implied.  In no event shall the authors be liable for any damages arising
+ * from the use of this software.
+ */
+
+#include <libpkgconf/config.h>
+#include <libpkgconf/stdinc.h>
+#include <libpkgconf/libpkgconf.h>
+#include <libpkgconf/path.h>
+
+#if defined(HAVE_SYS_STAT_H) && ! defined(_WIN32)
+# include <sys/stat.h>
+# define PKGCONF_CACHE_INODES
+#endif
+
+static bool
+#ifdef PKGCONF_CACHE_INODES
+path_list_contains_entry(const pkgconf_buffer_t *text, pkgconf_list_t *dirlist, struct stat *st)
+#else
+path_list_contains_entry(const pkgconf_buffer_t *text, pkgconf_list_t *dirlist)
+#endif
+{
+	pkgconf_node_t *n;
+
+	PKGCONF_FOREACH_LIST_ENTRY(dirlist->head, n)
+	{
+		pkgconf_path_t *pn = n->data;
+
+#ifdef PKGCONF_CACHE_INODES
+		if (pn->handle_device == (void *)(intptr_t)st->st_dev && pn->handle_path == (void *)(intptr_t)st->st_ino)
+			return true;
+#endif
+
+		if (!strcmp(pkgconf_buffer_str(text), pn->path))
+			return true;
+	}
+
+	return false;
+}
+
+/*
+ * !doc
+ *
+ * libpkgconf `path` module
+ * ========================
+ *
+ * The `path` module provides functions for manipulating lists of paths in a cross-platform manner.  Notably,
+ * it is used by the `pkgconf client` to parse the ``PKG_CONFIG_PATH``, ``PKG_CONFIG_LIBDIR`` and related environment
+ * variables.
+ */
+
+static pkgconf_path_t *
+prepare_path_node(const char *text, pkgconf_list_t *dirlist, bool filter)
+{
+	pkgconf_path_t *node;
+	pkgconf_buffer_t pathbuf = PKGCONF_BUFFER_INITIALIZER;
+
+	pkgconf_buffer_append(&pathbuf, text);
+	pkgconf_path_relocate(&pathbuf);
+
+#ifdef PKGCONF_CACHE_INODES
+	struct stat st;
+
+	if (filter)
+	{
+		if (lstat(pkgconf_buffer_str(&pathbuf), &st) == -1)
+		{
+			pkgconf_buffer_finalize(&pathbuf);
+			return NULL;
+		}
+
+		if (S_ISLNK(st.st_mode))
+		{
+			char realpathbuf[PKGCONF_ITEM_SIZE * 4];
+			char *linkdest = realpath(pkgconf_buffer_str(&pathbuf), realpathbuf);
+
+			if (linkdest != NULL && stat(linkdest, &st) == -1)
+			{
+				pkgconf_buffer_finalize(&pathbuf);
+				return NULL;
+			}
+		}
+
+		if (path_list_contains_entry(&pathbuf, dirlist, &st))
+		{
+			pkgconf_buffer_finalize(&pathbuf);
+			return NULL;
+		}
+	}
+#else
+	if (filter && path_list_contains_entry(&pathbuf, dirlist))
+	{
+		pkgconf_buffer_finalize(&pathbuf);
+		return NULL;
+	}
+#endif
+
+	node = calloc(1, sizeof(pkgconf_path_t));
+	if (node == NULL)
+	{
+		pkgconf_buffer_finalize(&pathbuf);
+		return NULL;
+	}
+
+	node->path = pkgconf_buffer_freeze(&pathbuf);
+	if (node->path == NULL)
+	{
+		free(node);
+		return NULL;
+	}
+
+#ifdef PKGCONF_CACHE_INODES
+	if (filter)
+	{
+		node->handle_path = (void *)(intptr_t) st.st_ino;
+		node->handle_device = (void *)(intptr_t) st.st_dev;
+	}
+#endif
+
+	return node;
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: void pkgconf_path_add(const char *text, pkgconf_list_t *dirlist)
+ *
+ *    Adds a path node to a path list.  If the path is already in the list, do nothing.
+ *
+ *    :param char* text: The path text to add as a path node.
+ *    :param pkgconf_list_t* dirlist: The path list to add the path node to.
+ *    :param bool filter: Whether to perform duplicate filtering.
+ *    :return: nothing
+ */
+void
+pkgconf_path_add(const char *text, pkgconf_list_t *dirlist, bool filter)
+{
+	pkgconf_path_t *node = prepare_path_node(text, dirlist, filter);
+	if (node == NULL)
+		return;
+
+	pkgconf_node_insert_tail(&node->lnode, node, dirlist);
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: void pkgconf_path_prepend(const char *text, pkgconf_list_t *dirlist)
+ *
+ *    Prepends a path node to a path list.  If the path is already in the list, do nothing.
+ *
+ *    :param char* text: The path text to add as a path node.
+ *    :param pkgconf_list_t* dirlist: The path list to add the path node to.
+ *    :param bool filter: Whether to perform duplicate filtering.
+ *    :return: nothing
+ */
+void
+pkgconf_path_prepend(const char *text, pkgconf_list_t *dirlist, bool filter)
+{
+	pkgconf_path_t *node = prepare_path_node(text, dirlist, filter);
+	if (node == NULL)
+		return;
+
+	pkgconf_node_insert(&node->lnode, node, dirlist);
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: size_t pkgconf_path_split(const char *text, pkgconf_list_t *dirlist)
+ *
+ *    Splits a given text input and inserts paths into a path list.
+ *
+ *    :param char* text: The path text to split and add as path nodes.
+ *    :param pkgconf_list_t* dirlist: The path list to have the path nodes added to.
+ *    :param bool filter: Whether to perform duplicate filtering.
+ *    :return: number of path nodes added to the path list
+ *    :rtype: size_t
+ */
+size_t
+pkgconf_path_split(const char *text, pkgconf_list_t *dirlist, bool filter)
+{
+	size_t count = 0;
+	char *workbuf, *p, *iter;
+
+	if (text == NULL)
+		return 0;
+
+	iter = workbuf = strdup(text);
+	if (workbuf == NULL)
+		return 0;
+
+	while ((p = strtok(iter, PKG_CONFIG_PATH_SEP_S)) != NULL)
+	{
+		pkgconf_path_add(p, dirlist, filter);
+
+		count++, iter = NULL;
+	}
+	free(workbuf);
+
+	return count;
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: size_t pkgconf_path_build_from_environ(const char *envvarname, const char *fallback, pkgconf_list_t *dirlist)
+ *
+ *    Adds the paths specified in an environment variable to a path list.  If the environment variable is not set,
+ *    an optional default set of paths is added.
+ *
+ *    :param pkgconf_client_t* client: The client to use for environmental variable lookup (can be NULL).
+ *    :param char* envvarname: The environment variable to look up.
+ *    :param char* fallback: The fallback paths to use if the environment variable is not set.
+ *    :param pkgconf_list_t* dirlist: The path list to add the path nodes to.
+ *    :param bool filter: Whether to perform duplicate filtering.
+ *    :return: number of path nodes added to the path list
+ *    :rtype: size_t
+ */
+size_t
+pkgconf_path_build_from_environ(const pkgconf_client_t *client, const char *envvarname, const char *fallback, pkgconf_list_t *dirlist, bool filter)
+{
+	const char *data;
+
+	data = pkgconf_client_getenv(client, envvarname);
+	if (data != NULL)
+		return pkgconf_path_split(data, dirlist, filter);
+
+	if (fallback != NULL)
+		return pkgconf_path_split(fallback, dirlist, filter);
+
+	/* no fallback and no environment variable, thusly no nodes added */
+	return 0;
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: bool pkgconf_path_match_list(const char *path, const pkgconf_list_t *dirlist)
+ *
+ *    Checks whether a path has a matching prefix in a path list.
+ *
+ *    :param char* path: The path to check against a path list.
+ *    :param pkgconf_list_t* dirlist: The path list to check the path against.
+ *    :return: true if the path list has a matching prefix, otherwise false
+ *    :rtype: bool
+ */
+bool
+pkgconf_path_match_list(const char *path, const pkgconf_list_t *dirlist)
+{
+	pkgconf_node_t *n = NULL;
+	pkgconf_buffer_t relocated = PKGCONF_BUFFER_INITIALIZER;
+	const char *cpath = path;
+
+	if (path == NULL)
+		return false;
+
+	pkgconf_buffer_append(&relocated, path);
+	cpath = pkgconf_buffer_str(&relocated);
+
+	if (pkgconf_path_relocate(&relocated))
+		cpath = pkgconf_buffer_str(&relocated);
+
+	if (cpath == NULL)
+	{
+		pkgconf_buffer_finalize(&relocated);
+		return false;
+	}
+
+	PKGCONF_FOREACH_LIST_ENTRY(dirlist->head, n)
+	{
+		pkgconf_path_t *pnode = n->data;
+
+		if (!strcmp(pnode->path, cpath))
+		{
+			pkgconf_buffer_finalize(&relocated);
+			return true;
+		}
+	}
+
+	pkgconf_buffer_finalize(&relocated);
+	return false;
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: void pkgconf_path_copy_list(pkgconf_list_t *dst, const pkgconf_list_t *src)
+ *
+ *    Copies a path list to another path list.
+ *
+ *    :param pkgconf_list_t* dst: The path list to copy to.
+ *    :param pkgconf_list_t* src: The path list to copy from.
+ *    :return: nothing
+ */
+void
+pkgconf_path_copy_list(pkgconf_list_t *dst, const pkgconf_list_t *src)
+{
+	pkgconf_node_t *n;
+
+	PKGCONF_FOREACH_LIST_ENTRY(src->head, n)
+	{
+		pkgconf_path_t *srcpath = n->data, *path;
+
+		path = calloc(1, sizeof(pkgconf_path_t));
+		if (path == NULL)
+			continue;
+
+		path->path = strdup(srcpath->path);
+		if (path->path == NULL)
+		{
+			free(path);
+			continue;
+		}
+
+#ifdef PKGCONF_CACHE_INODES
+		path->handle_path = srcpath->handle_path;
+		path->handle_device = srcpath->handle_device;
+#endif
+
+		pkgconf_node_insert_tail(&path->lnode, path, dst);
+	}
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: void pkgconf_path_prepend_list(pkgconf_list_t *dst, const pkgconf_list_t *src)
+ *
+ *    Copies a path list to another path list.
+ *
+ *    :param pkgconf_list_t* dst: The path list to copy to.
+ *    :param pkgconf_list_t* src: The path list to copy from.
+ *    :return: nothing
+ */
+void
+pkgconf_path_prepend_list(pkgconf_list_t *dst, const pkgconf_list_t *src)
+{
+	pkgconf_node_t *n;
+
+	PKGCONF_FOREACH_LIST_ENTRY(src->head, n)
+	{
+		pkgconf_path_t *srcpath = n->data, *path;
+
+		path = calloc(1, sizeof(pkgconf_path_t));
+		if (path == NULL)
+			continue;
+
+		path->path = strdup(srcpath->path);
+		if (path->path == NULL)
+		{
+			free(path);
+			continue;
+		}
+
+#ifdef PKGCONF_CACHE_INODES
+		path->handle_path = srcpath->handle_path;
+		path->handle_device = srcpath->handle_device;
+#endif
+
+		pkgconf_node_insert(&path->lnode, path, dst);
+	}
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: void pkgconf_path_free(pkgconf_list_t *dirlist)
+ *
+ *    Releases any path nodes attached to the given path list.
+ *
+ *    :param pkgconf_list_t* dirlist: The path list to clean up.
+ *    :return: nothing
+ */
+void
+pkgconf_path_free(pkgconf_list_t *dirlist)
+{
+	pkgconf_node_t *n, *tn;
+
+	PKGCONF_FOREACH_LIST_ENTRY_SAFE(dirlist->head, tn, n)
+	{
+		pkgconf_path_t *pnode = n->data;
+
+		free(pnode->path);
+		free(pnode);
+	}
+
+	pkgconf_list_zero(dirlist);
+}
+
+static char *
+normpath(const pkgconf_buffer_t *pathbuf)
+{
+	if (!pathbuf || pkgconf_buffer_len(pathbuf) == 0)
+		return NULL;
+
+	const char *path = pkgconf_buffer_str(pathbuf);
+	char *copy = strdup(path);
+	if (NULL == copy)
+		return NULL;
+	char *ptr = copy;
+
+	for (int ii = 0; copy[ii]; ii++)
+	{
+		*ptr++ = path[ii];
+		if ('/' == path[ii])
+		{
+			ii++;
+			while ('/' == path[ii])
+				ii++;
+			ii--;
+		}
+	}
+	*ptr = '\0';
+
+	return copy;
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: bool pkgconf_path_relocate(pkgconf_buffer_t *buf)
+ *
+ *    Relocates a path, possibly calling normpath() on it.
+ *
+ *    :param pkgconf_buffer_t* buf: The path to relocate.
+ *    :return: true on success, false on error
+ *    :rtype: bool
+ */
+bool
+pkgconf_path_relocate(pkgconf_buffer_t *buf)
+{
+	char *tmpbuf;
+
+	if ((tmpbuf = normpath(buf)) != NULL)
+	{
+		pkgconf_buffer_reset(buf);
+		pkgconf_buffer_append(buf, tmpbuf);
+		free(tmpbuf);
+	}
+
+	return true;
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: bool pkgconf_path_trim_basename(pkgconf_buffer_t *buf)
+ *
+ *    Trims the basename from a path.
+ *
+ *    :param pkgconf_buffer_t* buf: The path to trim.
+ *    :return: true if a separator was found and the path was trimmed, false otherwise
+ *    :rtype: bool
+ */
+bool
+pkgconf_path_trim_basename(pkgconf_buffer_t *buf)
+{
+	char *sep;
+
+	if (!pkgconf_buffer_len(buf))
+		return false;
+
+	sep = strrchr(buf->base, PKG_DIR_SEP_S);
+#ifdef _WIN32
+	char *sep2 = strrchr(buf->base, '/');
+	if (sep2 != NULL && (sep == NULL || sep2 > sep))
+		sep = sep2;
+#endif
+
+	if (sep != NULL)
+	{
+		*sep = '\0';
+		buf->end = sep;
+		return true;
+	}
+
+	return false;
+}
+
+/*
+ * !doc
+ *
+ * .. c:function:: const char *pkgconf_path_find_basename(const char *path)
+ *
+ *    Finds the basename from a path.
+ *
+ *    :param char* path: The path to find the basename from.
+ *    :return: a pointer to the basename
+ *    :rtype: const char *
+ */
+const char *
+pkgconf_path_find_basename(const char *path)
+{
+	const char *sep;
+
+	sep = strrchr(path, PKG_DIR_SEP_S);
+#ifdef _WIN32
+	const char *sep2 = strrchr(path, '/');
+	if (sep2 != NULL && (sep == NULL || sep2 > sep))
+		sep = sep2;
+#endif
+
+	if (sep != NULL)
+		return sep + 1;
+
+	return path;
+}
+
+#ifdef _WIN32
+#define PKG_CONFIG_REG_KEY "Software\\pkgconfig\\PKG_CONFIG_PATH"
+/*
+ * !doc
+ *
+ * .. c:function:: void pkgconf_path_build_from_registry(HKEY hKey, pkgconf_list_t *dir_list, bool filter)
+ *
+ *    Adds paths to a directory list discovered from a given registry key.
+ *
+ *    .. warning::
+ *       The Windows registry search path mechanism is deprecated and will be
+ *       removed in pkgconf 3.1.  Use ``PKG_CONFIG_PATH`` or configure search
+ *       paths explicitly instead.  Avoid using this function directly in new
+ *       code.
+ *
+ *    :param pkgconf_client_t* client: pkgconf client
+ *    :param HKEY hKey: The registry key to enumerate.
+ *    :param pkgconf_list_t* dir_list: The directory list to append enumerated paths to.
+ *    :param bool filter: Whether duplicate paths should be filtered.
+ *    :return: number of path nodes added to the list
+ *    :rtype: size_t
+ */
+size_t
+pkgconf_path_build_from_registry(pkgconf_client_t *client, void *hKey, pkgconf_list_t *dir_list, bool filter)
+{
+	HKEY key;
+	int i = 0;
+	size_t added = 0;
+
+	char buf[16384]; /* per registry limits */
+	DWORD bufsize = sizeof buf;
+	if (RegOpenKeyEx(hKey, PKG_CONFIG_REG_KEY,
+				0, KEY_READ, &key) != ERROR_SUCCESS)
+		return 0;
+
+	pkgconf_warn(client,
+		"WARNING: support for reading PKG_CONFIG_PATH from the Windows registry "
+		"is deprecated and will be removed in pkgconf 3.1\n");
+
+	while (RegEnumValue(key, i++, buf, &bufsize, NULL, NULL, NULL, NULL)
+			== ERROR_SUCCESS)
+	{
+		char pathbuf[PKGCONF_ITEM_SIZE];
+		DWORD type;
+		DWORD pathbuflen = sizeof pathbuf;
+
+		if (RegQueryValueEx(key, buf, NULL, &type, (LPBYTE) pathbuf, &pathbuflen)
+				== ERROR_SUCCESS && type == REG_SZ)
+		{
+			pkgconf_path_add(pathbuf, dir_list, filter);
+			added++;
+		}
+
+		bufsize = sizeof buf;
+	}
+
+	RegCloseKey(key);
+	return added;
+}
+#endif
+
+bool
+pkgconf_path_is_plausible(const pkgconf_buffer_t *buf)
+{
+	const char *s;
+
+	if (buf == NULL)
+		return false;
+
+	s = pkgconf_buffer_str(buf);
+	if (s == NULL)
+		return false;
+
+	/* skip leading whitespace */
+	while (*s != '\0' && isspace((unsigned char)*s))
+		s++;
+
+	if (*s == '\0')
+		return false;
+
+	/* POSIX absolute path */
+	if (*s == '/')
+		return true;
+
+	/* ./ or ../ relative path */
+	if (s[0] == '.' && (s[1] == '/' || s[1] == '\\'))
+		return true;
+
+	if (s[0] == '.' && s[1] == '.' && (s[2] == '/' || s[2] == '\\'))
+		return true;
+
+	/* Windows drive path: C:/... or C:\... */
+	if (isalpha((unsigned char)s[0]) && s[1] == ':' && (s[2] == '/' || s[2] == '\\'))
+		return true;
+
+	/* anything with a path separator seems plausible, for example "Program Files/MySDK" */
+	for (const char *p = s; *p != '\0'; p++)
+	{
+		if (*p == '/' || *p == '\\')
+			return true;
+	}
+
+	return false;
+}

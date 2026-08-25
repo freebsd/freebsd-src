@@ -8,18 +8,18 @@
 #include "maps.h"
 #include "internal/memory_utils.h"
 
-size_t cbor_map_size(const cbor_item_t *item) {
+size_t cbor_map_size(const cbor_item_t* item) {
   CBOR_ASSERT(cbor_isa_map(item));
   return item->metadata.map_metadata.end_ptr;
 }
 
-size_t cbor_map_allocated(const cbor_item_t *item) {
+size_t cbor_map_allocated(const cbor_item_t* item) {
   CBOR_ASSERT(cbor_isa_map(item));
   return item->metadata.map_metadata.allocated;
 }
 
-cbor_item_t *cbor_new_definite_map(size_t size) {
-  cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t));
+cbor_item_t* cbor_new_definite_map(size_t size) {
+  cbor_item_t* item = _cbor_malloc(sizeof(cbor_item_t));
   _CBOR_NOTNULL(item);
 
   *item = (cbor_item_t){
@@ -34,8 +34,8 @@ cbor_item_t *cbor_new_definite_map(size_t size) {
   return item;
 }
 
-cbor_item_t *cbor_new_indefinite_map(void) {
-  cbor_item_t *item = _cbor_malloc(sizeof(cbor_item_t));
+cbor_item_t* cbor_new_indefinite_map(void) {
+  cbor_item_t* item = _cbor_malloc(sizeof(cbor_item_t));
   _CBOR_NOTNULL(item);
 
   *item = (cbor_item_t){
@@ -49,12 +49,12 @@ cbor_item_t *cbor_new_indefinite_map(void) {
   return item;
 }
 
-bool _cbor_map_add_key(cbor_item_t *item, cbor_item_t *key) {
+bool _cbor_map_add_key(cbor_item_t* item, cbor_item_t* key) {
   CBOR_ASSERT(cbor_isa_map(item));
-  struct _cbor_map_metadata *metadata =
-      (struct _cbor_map_metadata *)&item->metadata;
+  struct _cbor_map_metadata* metadata =
+      (struct _cbor_map_metadata*)&item->metadata;
   if (cbor_map_is_definite(item)) {
-    struct cbor_pair *data = cbor_map_handle(item);
+    struct cbor_pair* data = cbor_map_handle(item);
     if (metadata->end_ptr >= metadata->allocated) {
       /* Don't realloc definite preallocated map */
       return false;
@@ -74,7 +74,7 @@ bool _cbor_map_add_key(cbor_item_t *item, cbor_item_t *key) {
                                   ? 1
                                   : CBOR_BUFFER_GROWTH * metadata->allocated;
 
-      unsigned char *new_data = _cbor_realloc_multiple(
+      unsigned char* new_data = _cbor_realloc_multiple(
           item->data, sizeof(struct cbor_pair), new_allocation);
 
       if (new_data == NULL) {
@@ -84,7 +84,7 @@ bool _cbor_map_add_key(cbor_item_t *item, cbor_item_t *key) {
       item->data = new_data;
       metadata->allocated = new_allocation;
     }
-    struct cbor_pair *data = cbor_map_handle(item);
+    struct cbor_pair* data = cbor_map_handle(item);
     data[metadata->end_ptr].key = key;
     data[metadata->end_ptr++].value = NULL;
   }
@@ -92,7 +92,7 @@ bool _cbor_map_add_key(cbor_item_t *item, cbor_item_t *key) {
   return true;
 }
 
-bool _cbor_map_add_value(cbor_item_t *item, cbor_item_t *value) {
+bool _cbor_map_add_value(cbor_item_t* item, cbor_item_t* value) {
   CBOR_ASSERT(cbor_isa_map(item));
   cbor_incref(value);
   cbor_map_handle(item)[
@@ -104,22 +104,22 @@ bool _cbor_map_add_value(cbor_item_t *item, cbor_item_t *value) {
 }
 
 // TODO: Add a more convenient API like add(item, key, val)
-bool cbor_map_add(cbor_item_t *item, struct cbor_pair pair) {
+bool cbor_map_add(cbor_item_t* item, struct cbor_pair pair) {
   CBOR_ASSERT(cbor_isa_map(item));
   if (!_cbor_map_add_key(item, pair.key)) return false;
   return _cbor_map_add_value(item, pair.value);
 }
 
-bool cbor_map_is_definite(const cbor_item_t *item) {
+bool cbor_map_is_definite(const cbor_item_t* item) {
   CBOR_ASSERT(cbor_isa_map(item));
   return item->metadata.map_metadata.type == _CBOR_METADATA_DEFINITE;
 }
 
-bool cbor_map_is_indefinite(const cbor_item_t *item) {
+bool cbor_map_is_indefinite(const cbor_item_t* item) {
   return !cbor_map_is_definite(item);
 }
 
-struct cbor_pair *cbor_map_handle(const cbor_item_t *item) {
+struct cbor_pair* cbor_map_handle(const cbor_item_t* item) {
   CBOR_ASSERT(cbor_isa_map(item));
-  return (struct cbor_pair *)item->data;
+  return (struct cbor_pair*)item->data;
 }

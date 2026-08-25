@@ -263,7 +263,7 @@ tkip_enmic(struct ieee80211_key *k, struct mbuf *m, int force)
 
 		hdrlen = ieee80211_hdrspace(ic, wh);
 
-		michael_mic(ctx, k->wk_txmic,
+		michael_mic(ctx, ieee80211_crypto_get_key_txmic_data(k),
 			m, hdrlen, m->m_pkthdr.len - hdrlen, mic);
 		return m_append(m, tkip.ic_miclen, mic);
 	}
@@ -417,7 +417,7 @@ tkip_demic(struct ieee80211_key *k, struct mbuf *m, int force)
 
 		vap->iv_stats.is_crypto_tkipdemic++;
 
-		michael_mic(ctx, k->wk_rxmic, 
+		michael_mic(ctx, ieee80211_crypto_get_key_rxmic_data(k),
 			m, hdrlen, m->m_pkthdr.len - (hdrlen + tkip.ic_miclen),
 			mic);
 		m_copydata(m, m->m_pkthdr.len - tkip.ic_miclen,

@@ -206,10 +206,14 @@ long realmem = 0;
 int late_console = 1;
 int lass_enabled = 0;
 
+int __read_frequently fred = 0;
+SYSCTL_INT(_hw, OID_AUTO, fred, CTLFLAG_RDTUN | CTLFLAG_NOFETCH,
+    &fred, 0,
+    "FRED is used");
+
 struct kva_md_info kmi;
 
 struct region_descriptor r_idt;
-
 struct pcpu *__pcpu;
 struct pcpu temp_bsp_pcpu;
 
@@ -347,9 +351,9 @@ cpu_setregs(void)
 static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
 
-static char dblfault_stack[DBLFAULT_STACK_SIZE] __aligned(16);
+static char dblfault_stack[DBLFAULT_STACK_SIZE] __aligned(64);
 static char mce0_stack[MCE_STACK_SIZE] __aligned(16);
-static char nmi0_stack[NMI_STACK_SIZE] __aligned(16);
+static char nmi0_stack[NMI_STACK_SIZE] __aligned(64);
 static char dbg0_stack[DBG_STACK_SIZE] __aligned(16);
 CTASSERT(sizeof(struct nmi_pcpu) == 16);
 
@@ -484,6 +488,9 @@ void
 setidt(int idx, inthand_t *func, int typ, int dpl, int ist)
 {
 	struct gate_descriptor *ip;
+
+	if (fred)
+		return;
 
 	ip = idt + idx;
 	ip->gd_looffset = (uintptr_t)func;
@@ -1132,7 +1139,7 @@ do_next:
 	phys_avail[pa_indx] -= round_page(msgbufsize);
 
 	/* Map the message buffer. */
-	msgbufp = (struct msgbuf *)PHYS_TO_DMAP(phys_avail[pa_indx]);
+	msgbufp = PHYS_TO_DMAP(phys_avail[pa_indx]);
 	TSEXIT();
 }
 
@@ -1186,9 +1193,11 @@ amd64_conf_fast_syscall(void)
 
 	msr = rdmsr(MSR_EFER) | EFER_SCE;
 	wrmsr(MSR_EFER, msr);
-	wrmsr(MSR_LSTAR, pti ? (u_int64_t)IDTVEC(fast_syscall_pti) :
-	    (u_int64_t)IDTVEC(fast_syscall));
-	wrmsr(MSR_CSTAR, (u_int64_t)IDTVEC(fast_syscall32));
+	if (!fred) {
+		wrmsr(MSR_LSTAR, pti ? (u_int64_t)IDTVEC(fast_syscall_pti) :
+		    (u_int64_t)IDTVEC(fast_syscall));
+		wrmsr(MSR_CSTAR, (u_int64_t)IDTVEC(fast_syscall32));
+	}
 	msr = ((u_int64_t)GSEL(GCODE_SEL, SEL_KPL) << 32) |
 	    ((u_int64_t)GSEL(GUCODE32_SEL, SEL_UPL) << 48);
 	wrmsr(MSR_STAR, msr);
@@ -1230,33 +1239,49 @@ amd64_bsp_ist_init(struct pcpu *pc)
 
 	tssp = &pc->pc_common_tss;
 
-	/* doublefault stack space, runs on ist1 */
-	np = ((struct nmi_pcpu *)&dblfault_stack[sizeof(dblfault_stack)]) - 1;
-	np->np_pcpu = (register_t)pc;
-	tssp->tss_ist1 = (long)np;
+	/* Doublefault stack space, runs on ist1 for IDT. */
+	if (fred) {
+		wrmsr(MSR_FRED_RSP2, (uint64_t)&dblfault_stack[
+		    sizeof(dblfault_stack)]);
+	} else {
+		np = ((struct nmi_pcpu *)&dblfault_stack[sizeof(
+		    dblfault_stack)]) - 1;
+		np->np_pcpu = (register_t)pc;
+		tssp->tss_ist1 = (long)np;
+	}
 
 	/*
-	 * NMI stack, runs on ist2.  The pcpu pointer is stored just
-	 * above the start of the ist2 stack.
+	 * NMI stack.
 	 */
-	np = ((struct nmi_pcpu *)&nmi0_stack[sizeof(nmi0_stack)]) - 1;
-	np->np_pcpu = (register_t)pc;
-	tssp->tss_ist2 = (long)np;
+	if (fred) {
+		wrmsr(MSR_FRED_RSP1, (uint64_t)&nmi0_stack[
+		    sizeof(nmi0_stack)]);
+	} else {
+		/*
+		 * Runs on ist2 for IDT.  The pcpu pointer is stored
+		 * just above the start of the ist2 stack.
+		 */
+		np = ((struct nmi_pcpu *)&nmi0_stack[sizeof(nmi0_stack)]) - 1;
+		np->np_pcpu = (register_t)pc;
+		tssp->tss_ist2 = (long)np;
+	}
 
-	/*
-	 * MC# stack, runs on ist3.  The pcpu pointer is stored just
-	 * above the start of the ist3 stack.
-	 */
-	np = ((struct nmi_pcpu *)&mce0_stack[sizeof(mce0_stack)]) - 1;
-	np->np_pcpu = (register_t)pc;
-	tssp->tss_ist3 = (long)np;
+	if (!fred) {
+		/*
+		 * MC# stack for IDT, runs on ist3.  The pcpu pointer
+		 * is stored just above the start of the ist3 stack.
+		 */
+		np = ((struct nmi_pcpu *)&mce0_stack[sizeof(mce0_stack)]) - 1;
+		np->np_pcpu = (register_t)pc;
+		tssp->tss_ist3 = (long)np;
 
-	/*
-	 * DB# stack, runs on ist4.
-	 */
-	np = ((struct nmi_pcpu *)&dbg0_stack[sizeof(dbg0_stack)]) - 1;
-	np->np_pcpu = (register_t)pc;
-	tssp->tss_ist4 = (long)np;
+		/*
+		 * DB# stack for IDT, runs on ist4.
+		 */
+		np = ((struct nmi_pcpu *)&dbg0_stack[sizeof(dbg0_stack)]) - 1;
+		np->np_pcpu = (register_t)pc;
+		tssp->tss_ist4 = (long)np;
+	}
 }
 
 /*
@@ -1273,6 +1298,13 @@ amd64_bsp_ist_init(struct pcpu *pc)
  * - there is a usable memory block right after the end of the
  *   mapped kernel and all modules/metadata, pointed to by
  *   physfree, for early allocations
+ *
+ * The memory block after the end of the kernel is important, loader
+ * must ensure that no critical data structures are put there.  Among
+ * them is the trampoline page table, which must not be overwritten by
+ * the allocations until pmap_bootstrap() switches %cr3 to the initial
+ * version of the kernel page table.  Size of the block is controlled
+ * by the 'staging_slop' command for loader.efi.
  */
 vm_paddr_t __nosanitizeaddress __nosanitizememory
 amd64_loadaddr(void)
@@ -1352,6 +1384,13 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
 	}
 
+	if ((cpu_stdext_feature4 & (CPUID_STDEXT4_FRED | CPUID_STDEXT4_LKGS)) ==
+	    (CPUID_STDEXT4_FRED | CPUID_STDEXT4_LKGS) &&
+	    (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0 && !pti) {
+		fred = 1;
+		TUNABLE_INT_FETCH("hw.fred", &fred);
+	}
+
 	sched_instance_select();
 
 	link_elf_ireloc();
@@ -1365,10 +1404,11 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	/* Init basic tunables, hz etc */
 	init_param1();
 
-	thread0.td_kstack = physfree - kernphys + KERNSTART;
+	thread0.td_kstack = (char *)physfree - kernphys + KERNSTART;
 	thread0.td_kstack_pages = kstack_pages;
-	kstack0_sz = thread0.td_kstack_pages * PAGE_SIZE;
-	bzero((void *)thread0.td_kstack, kstack0_sz);
+	kstack0_sz = ptoa(kstack_pages);
+	bzero(thread0.td_kstack, kstack0_sz);
+	cpu_thread_new_kstack(&thread0);
 	physfree += kstack0_sz;
 
 	/*
@@ -1465,9 +1505,11 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	setidt(IDT_EVTCHN, pti ? &IDTVEC(xen_intr_upcall_pti) :
 	    &IDTVEC(xen_intr_upcall), SDT_SYSIGT, SEL_KPL, 0);
 #endif
-	r_idt.rd_limit = sizeof(idt0) - 1;
-	r_idt.rd_base = (long) idt;
-	lidt(&r_idt);
+	if (!fred) {
+		r_idt.rd_limit = sizeof(idt0) - 1;
+		r_idt.rd_base = (long) idt;
+		lidt(&r_idt);
+	}
 
 	TUNABLE_INT_FETCH("hw.ibrs_disable", &hw_ibrs_disable);
 	TUNABLE_INT_FETCH("machdep.mitigations.ibrs.disable", &hw_ibrs_disable);
@@ -1521,8 +1563,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 * We initialize the PCB pointer early so that exception
 	 * handlers will work.
 	 */
-	cpu_max_ext_state_size = sizeof(struct savefpu);
-	set_top_of_stack_td(&thread0);
 	thread0.td_pcb = get_pcb_td(&thread0);
 
 	/*
@@ -1558,6 +1598,9 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	if (getenv_is_true("debug.dump_modinfo_at_boot"))
 		preload_dump();
 
+	if (fred)
+		amd64_cpu_init_fred();
+
 #ifdef DEV_ISA
 #ifdef DEV_ATPIC
 	elcr_probe();
@@ -1584,7 +1627,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	fpuinit();
 
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
-	rsp0 = thread0.td_md.md_stack_base;
+	rsp0 = (uintptr_t)thread0.td_md.md_stack_base;
 	/* Ensure the stack is aligned to 16 bytes */
 	rsp0 = STACKALIGN(rsp0);
 	PCPU_PTR(common_tss)->tss_rsp0 = rsp0;
@@ -1621,7 +1664,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	TSEXIT();
 
 	/* Location of kernel stack for locore */
-	return (thread0.td_md.md_stack_base);
+	return ((uintptr_t)thread0.td_md.md_stack_base);
 }
 
 void
@@ -1821,36 +1864,57 @@ clear_pcb_flags(struct pcb *pcb, const u_int flags)
 }
 
 extern const char wrmsr_early_safe_gp_handler[];
-static struct region_descriptor wrmsr_early_safe_orig_efi_idt;
 
+/*
+ * What about FRED?  wrmsr_early_safe_start() is used before we
+ * switched CPU to the FRED mode.  We use IDT to catch #GP from MSR
+ * write even if BSP is switched to the FRED mode later.
+ */
 void
 wrmsr_early_safe_start(void)
 {
 	struct region_descriptor efi_idt;
 	struct gate_descriptor *gpf_descr;
+	int i;
 
-	sidt(&wrmsr_early_safe_orig_efi_idt);
 	efi_idt.rd_limit = 32 * sizeof(idt0[0]);
 	efi_idt.rd_base = (uintptr_t)idt0;
 	lidt(&efi_idt);
 
-	gpf_descr = &idt0[IDT_GP];
-	gpf_descr->gd_looffset = (uintptr_t)wrmsr_early_safe_gp_handler;
-	gpf_descr->gd_hioffset = (uintptr_t)wrmsr_early_safe_gp_handler >> 16;
-	gpf_descr->gd_selector = rcs();
-	gpf_descr->gd_type = SDT_SYSTGT;
-	gpf_descr->gd_p = 1;
+	/* Setup handler for all possible exceptions. */
+	for (i = 0; i < 32; i++) {
+		gpf_descr = &idt0[i];
+		gpf_descr->gd_looffset =
+		    (uintptr_t)wrmsr_early_safe_gp_handler;
+		gpf_descr->gd_hioffset =
+		    (uintptr_t)wrmsr_early_safe_gp_handler >> 16;
+		gpf_descr->gd_selector = rcs();
+		gpf_descr->gd_type = SDT_SYSTGT;
+		gpf_descr->gd_p = 1;
+	}
 }
 
 void
 wrmsr_early_safe_end(void)
 {
-	struct gate_descriptor *gpf_descr;
+}
 
-	lidt(&wrmsr_early_safe_orig_efi_idt);
+int
+safe_read(vm_offset_t addr, char *valp)
+{
+	struct uio uio;
+	struct iovec iov;
 
-	gpf_descr = &idt0[IDT_GP];
-	memset(gpf_descr, 0, sizeof(*gpf_descr));
+	iov.iov_base = valp;
+	iov.iov_len = 1;
+	uio.uio_offset = addr;
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_resid = 1;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_READ;
+	uio.uio_td = NULL;
+	return (uiomove_mem(UIO_MEM_KMEM, &uio));
 }
 
 #ifdef KDB

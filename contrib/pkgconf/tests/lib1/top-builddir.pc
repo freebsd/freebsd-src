@@ -1,0 +1,4 @@
+Name: top-builddir
+Description: exercises pc_top_builddir / PKG_CONFIG_TOP_BUILD_DIR
+Version: 1.0
+Cflags: -I${pc_top_builddir}/include

@@ -40,20 +40,20 @@ local_body()
 	epair=$(vnet_mkepair)
 	vnet_mkjail alcatraz ${epair}b
 
-	ifconfig ${epair}a 192.0.2.0/31 up
-	route add 192.0.2.3/32 192.0.2.1
+	atf_check ifconfig ${epair}a 192.0.2.0/31 up
+	atf_check -o ignore route add 192.0.2.3/32 192.0.2.1
 
-	jexec alcatraz ifconfig lo0 127.0.0.1/8 up
-	jexec alcatraz ifconfig ${epair}b 192.0.2.1/31 up
-	jexec alcatraz route add default 192.0.2.0
-	jexec alcatraz /usr/sbin/inetd -p /dev/null $(atf_get_srcdir)/fwd_inetd.conf
+	atf_check jexec alcatraz ifconfig lo0 127.0.0.1/8 up
+	atf_check jexec alcatraz ifconfig ${epair}b 192.0.2.1/31 up
+	atf_check -o ignore jexec alcatraz route add default 192.0.2.0
+	atf_check jexec alcatraz inetd -p $(pwd)/inetd.pid $(atf_get_srcdir)/fwd_inetd.conf
 
 	firewall_config alcatraz ipfw ipfw \
 	    "ipfw add 10 fwd 127.0.0.1,82 tcp from any to any dst-port 80 in via ${epair}b" \
 	    "ipfw add 20 allow all from any to any"
 
 	# Sanity check
-	atf_check -s exit:0 -o ignore ping -i .1 -c 3 -s 1200 192.0.2.1
+	atf_check -o ignore ping -i .1 -c 3 -s 1200 192.0.2.1
 
 	reply=$(nc -nN 192.0.2.3 80 < /dev/null)
 	atf_check [ "${reply}" = "GOOD 82" ]

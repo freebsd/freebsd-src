@@ -36,6 +36,7 @@ nostatic
 nostick
 osi
 prefixlen
+prefsrc
 proto1
 proto2
 proxy
@@ -50,6 +51,7 @@ ssthresh
 static
 sticky
 weight
+metric
 x25
 xns
 xresolve

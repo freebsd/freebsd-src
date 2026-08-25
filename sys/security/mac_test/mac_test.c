@@ -1078,6 +1078,40 @@ test_mount_init_label(struct label *label)
 	COUNTER_INC(mount_init_label);
 }
 
+COUNTER_DECL(mount_check_mount);
+static int
+test_mount_check_mount(struct ucred *cred, struct vnode *vp,
+    struct label *vplabel, struct vfsconf *vfsconf,
+    struct vfsoptlist **optlist, uint64_t fsflags)
+{
+
+	LABEL_CHECK(vplabel, MAGIC_VNODE);
+	COUNTER_INC(mount_check_mount);
+	return (0);
+}
+
+COUNTER_DECL(mount_check_update);
+static int
+test_mount_check_update(struct ucred *cred, struct mount *mp,
+    struct label *mplabel, struct vfsoptlist **optlist, uint64_t fsflags)
+{
+
+	LABEL_CHECK(mplabel, MAGIC_MOUNT);
+	COUNTER_INC(mount_check_update);
+	return (0);
+}
+
+COUNTER_DECL(mount_check_unmount);
+static int
+test_mount_check_unmount(struct ucred *cred, struct mount *mp,
+    struct label *mplabel, uint64_t flags)
+{
+
+	LABEL_CHECK(mplabel, MAGIC_MOUNT);
+	COUNTER_INC(mount_check_unmount);
+	return (0);
+}
+
 COUNTER_DECL(netinet_arp_send);
 static void
 test_netinet_arp_send(struct ifnet *ifp, struct label *ifplabel,
@@ -3323,6 +3357,9 @@ static struct mac_policy_ops test_ops =
 	.mpo_mount_create = test_mount_create,
 	.mpo_mount_destroy_label = test_mount_destroy_label,
 	.mpo_mount_init_label = test_mount_init_label,
+	.mpo_mount_check_mount = test_mount_check_mount,
+	.mpo_mount_check_update = test_mount_check_update,
+	.mpo_mount_check_unmount = test_mount_check_unmount,
 
 	.mpo_netinet_arp_send = test_netinet_arp_send,
 	.mpo_netinet_fragment = test_netinet_fragment,

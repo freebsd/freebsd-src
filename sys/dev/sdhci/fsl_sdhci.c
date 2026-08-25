@@ -26,7 +26,7 @@
  */
 #include <sys/cdefs.h>
 /*
- * SDHCI driver glue for Freescale i.MX SoC and QorIQ families.
+ * SDHCI driver glue for Freescale i.MX SoC family.
  *
  * This supports both eSDHC (earlier SoCs) and uSDHC (more recent SoCs).
  */
@@ -52,15 +52,9 @@
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#ifdef __arm__
 #include <machine/intr.h>
 
 #include <arm/freescale/imx/imx_ccmvar.h>
-#endif
-
-#ifdef __powerpc__
-#include <powerpc/mpc85xx/mpc85xx.h>
-#endif
 
 #include <dev/gpio/gpiobusvar.h>
 
@@ -178,7 +172,6 @@ static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx6sl-usdhc",	HWTYPE_USDHC},
 	{"fsl,imx53-esdhc",	HWTYPE_ESDHC},
 	{"fsl,imx51-esdhc",	HWTYPE_ESDHC},
-	{"fsl,esdhc",		HWTYPE_ESDHC},
 	{NULL,			HWTYPE_NONE},
 };
 
@@ -403,12 +396,6 @@ fsl_sdhci_write_1(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint8_t
 	if (off == SDHCI_POWER_CONTROL) {
 		return;
 	}
-#ifdef __powerpc__
-	/* XXX Reset doesn't seem to work as expected.  Do nothing for now. */
-	if (off == SDHCI_SOFTWARE_RESET)
-		return;
-#endif
-
 	val32 = RD4(sc, off & ~3);
 	val32 &= ~(0xff << (off & 3) * 8);
 	val32 |= (val << (off & 3) * 8);
@@ -545,17 +532,14 @@ fsl_sdhc_get_clock(struct fsl_sdhci_softc *sc)
 	 * On i.MX ESDHC hardware the card bus clock enable is in the usual
 	 * sdhci register but it's a different bit, so transcribe it (note the
 	 * difference between standard SDHCI_ and Freescale SDHC_ prefixes
-	 * here). On USDHC and QorIQ ESDHC hardware there is a force-on bit, but
-	 * no force-off for the card bus clock (the hardware runs the clock when
-	 * transfers are active no matter what), so we always say the clock is
-	 * on.
+	 * here). On USDHC hardware there is a force-on bit, but no force-off
+	 * for the card bus clock (the hardware runs the clock when transfers
+	 * are active no matter what), so we always say the clock is on.
 	 * XXX Maybe we should say it's in whatever state the sdhci driver last
 	 * set it to.
 	 */
 	if (sc->hwtype == HWTYPE_ESDHC) {
-#ifdef __arm__
 		if (RD4(sc, SDHC_SYS_CTRL) & SDHC_CLK_SDCLKEN)
-#endif
 			val |= SDHCI_CLOCK_CARD_EN;
 	} else {
 		val |= SDHCI_CLOCK_CARD_EN;
@@ -574,7 +558,7 @@ fsl_sdhc_set_clock(struct fsl_sdhci_softc *sc, uint16_t val)
 	/*
 	 * Save the frequency-setting bits in SDHCI format so that we can play
 	 * them back in get_clock without complex decoding of hardware regs,
-	 * then deal with the freqency part of the value based on hardware type.
+	 * then deal with the frequency part of the value based on hardware type.
 	 */
 	sc->sdclockreg_freq_bits = val & SDHCI_DIVIDERS_MASK;
 	if (sc->hwtype == HWTYPE_ESDHC) {
@@ -587,10 +571,7 @@ fsl_sdhc_set_clock(struct fsl_sdhci_softc *sc, uint16_t val)
 		 * and the "base / 2^N" divisor scheme.
 		 */
 		if ((val & SDHCI_CLOCK_CARD_EN) == 0) {
-#ifdef __arm__
-			/* On QorIQ, this is a reserved bit. */
 			WR4(sc, SDHCI_CLOCK_CONTROL, val32 & ~SDHC_CLK_SDCLKEN);
-#endif
 			return;
 		}
 		divisor = (val >> SDHCI_DIVIDER_SHIFT) & SDHCI_DIVIDER_MASK;
@@ -765,35 +746,6 @@ fsl_sdhci_get_card_present(device_t dev, struct sdhci_slot *slot)
 	return (sdhci_fdt_gpio_get_present(sc->gpio));
 }
 
-#ifdef __powerpc__
-static uint32_t
-fsl_sdhci_get_platform_clock(device_t dev)
-{
-	phandle_t node;
-	uint32_t clock;
-
-	node = ofw_bus_get_node(dev);
-
-	/* Get sdhci node properties */
-	if((OF_getprop(node, "clock-frequency", (void *)&clock,
-	    sizeof(clock)) <= 0) || (clock == 0)) {
-		clock = mpc85xx_get_system_clock();
-
-		if (clock == 0) {
-			device_printf(dev,"Cannot acquire correct sdhci "
-			    "frequency from DTS.\n");
-
-			return (0);
-		}
-	}
-
-	if (bootverbose)
-		device_printf(dev, "Acquired clock: %d from DTS\n", clock);
-
-	return (clock);
-}
-#endif
-
 static int
 fsl_sdhci_detach(device_t dev)
 {
@@ -826,10 +778,6 @@ fsl_sdhci_attach(device_t dev)
 {
 	struct fsl_sdhci_softc *sc = device_get_softc(dev);
 	int rid, err;
-#ifdef __powerpc__
-	phandle_t node;
-	uint32_t protctl;
-#endif
 
 	sc->dev = dev;
 
@@ -887,21 +835,13 @@ fsl_sdhci_attach(device_t dev)
 	 *
 	 * XXX need named constants for this stuff.
 	 */
-	/* P1022 has the '*_BRST_LEN' fields as reserved, always reading 0x10 */
-	if (ofw_bus_is_compatible(dev, "fsl,p1022-esdhc"))
-		WR4(sc, SDHC_WTMK_LVL, 0x10801080);
-	else
-		WR4(sc, SDHC_WTMK_LVL, 0x08800880);
+	WR4(sc, SDHC_WTMK_LVL, 0x08800880);
 
 	/*
 	 * We read in native byte order in the main driver, but the register
 	 * defaults to little endian.
 	 */
-#ifdef __powerpc__
-	sc->baseclk_hz = fsl_sdhci_get_platform_clock(dev);
-#else
 	sc->baseclk_hz = imx_ccm_sdhci_hz();
-#endif
 	sc->slot.max_clk = sc->baseclk_hz;
 
 	/*
@@ -909,18 +849,6 @@ fsl_sdhci_attach(device_t dev)
 	 * fail; see comments in sdhci_fdt_gpio.h for details.
 	 */
 	sc->gpio = sdhci_fdt_gpio_setup(dev, &sc->slot);
-
-#ifdef __powerpc__
-	node = ofw_bus_get_node(dev);
-	/* Default to big-endian on powerpc */
-	protctl = RD4(sc, SDHC_PROT_CTRL);
-	protctl &= ~SDHC_PROT_EMODE_MASK;
-	if (OF_hasprop(node, "little-endian"))
-		protctl |= SDHC_PROT_EMODE_LITTLE;
-	else
-		protctl |= SDHC_PROT_EMODE_BIG;
-	WR4(sc, SDHC_PROT_CTRL, protctl);
-#endif
 
 	sdhci_init_slot(dev, &sc->slot, 0);
 	sc->slot_init_done = true;

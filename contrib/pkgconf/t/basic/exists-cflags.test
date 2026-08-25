@@ -1,0 +1,6 @@
+PackageSearchPath: lib1
+Query: foo
+WantedFlags: cflags exists-cflags
+ExpectedExitCode: 0
+ExpectedStdout: -DHAVE_FOO
+MatchStdout: partial

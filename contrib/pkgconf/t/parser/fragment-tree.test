@@ -1,0 +1,8 @@
+PackageSearchPath: lib1
+Query: fragment-groups-2
+WantedFlags: fragment-tree
+ExpectedStdout: '-Wl,--start-group' [untyped, 3 children]
+ExpectedStdout: '-Wl,--start-group' [untyped, 4 children]
+ExpectedStdout: '-nodefaultlibs' [untyped, 0 children]
+ExpectedStdout: '-Wl,--gc-sections' [untyped, 0 children]
+MatchStdout: partial

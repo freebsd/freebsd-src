@@ -1,4 +1,4 @@
-/* $OpenBSD: moduli.c,v 1.39 2023/03/02 06:41:56 dtucker Exp $ */
+/* $OpenBSD: moduli.c,v 1.41 2026/03/03 09:57:25 dtucker Exp $ */
 /*
  * Copyright 1994 Phil Karn <karn@qualcomm.com>
  * Copyright 1996-1998, 2003 William Allen Simpson <wsimpson@greendragon.com>
@@ -88,13 +88,6 @@
 #define SHIFT_MEGAWORD	(SHIFT_MEGABYTE-SHIFT_BYTE)
 
 /*
- * Using virtual memory can cause thrashing.  This should be the largest
- * number that is supported without a large amount of disk activity --
- * that would increase the run time from hours to days or weeks!
- */
-#define LARGE_MINIMUM	(8UL)	/* megabytes */
-
-/*
  * Do not increase this number beyond the unsigned integer bit size.
  * Due to a multiple of 4, it must be LESS than 128 (yielding 2**30 bits).
  */
@@ -132,26 +125,26 @@
  */
 
 /* sieve 2**16 */
-static u_int32_t *TinySieve, tinybits;
+static uint32_t *TinySieve, tinybits;
 
 /* sieve 2**30 in 2**16 parts */
-static u_int32_t *SmallSieve, smallbits, smallbase;
+static uint32_t *SmallSieve, smallbits, smallbase;
 
 /* sieve relative to the initial value */
-static u_int32_t *LargeSieve, largewords, largetries, largenumbers;
-static u_int32_t largebits, largememory;	/* megabytes */
+static uint32_t *LargeSieve, largewords, largetries, largenumbers;
+static uint32_t largebits, largememory;	/* megabytes */
 static BIGNUM *largebase;
 
-int gen_candidates(FILE *, u_int32_t, u_int32_t, BIGNUM *);
-int prime_test(FILE *, FILE *, u_int32_t, u_int32_t, char *, unsigned long,
+int gen_candidates(FILE *, uint32_t, BIGNUM *);
+int prime_test(FILE *, FILE *, uint32_t, uint32_t, char *, unsigned long,
     unsigned long);
 
 /*
  * print moduli out in consistent form,
  */
 static int
-qfileout(FILE * ofile, u_int32_t otype, u_int32_t otests, u_int32_t otries,
-    u_int32_t osize, u_int32_t ogenerator, BIGNUM * omodulus)
+qfileout(FILE * ofile, uint32_t otype, uint32_t otests, uint32_t otries,
+    uint32_t osize, uint32_t ogenerator, BIGNUM * omodulus)
 {
 	struct tm *gtm;
 	time_t time_now;
@@ -184,9 +177,9 @@ qfileout(FILE * ofile, u_int32_t otype, u_int32_t otests, u_int32_t otries,
  ** Sieve p's and q's with small factors
  */
 static void
-sieve_large(u_int32_t s32)
+sieve_large(uint32_t s32)
 {
-	u_int64_t r, u, s = s32;
+	uint64_t r, u, s = s32;
 
 	debug3("sieve_large %u", s32);
 	largetries++;
@@ -242,24 +235,15 @@ sieve_large(u_int32_t s32)
  * The list is checked against small known primes (less than 2**30).
  */
 int
-gen_candidates(FILE *out, u_int32_t memory, u_int32_t power, BIGNUM *start)
+gen_candidates(FILE *out, uint32_t power, BIGNUM *start)
 {
 	BIGNUM *q;
-	u_int32_t j, r, s, t;
-	u_int32_t smallwords = TINY_NUMBER >> 6;
-	u_int32_t tinywords = TINY_NUMBER >> 6;
+	uint32_t j, r, s, t;
+	uint32_t smallwords = TINY_NUMBER >> 6;
+	uint32_t tinywords = TINY_NUMBER >> 6;
 	time_t time_start, time_stop;
-	u_int32_t i;
+	uint32_t i;
 	int ret = 0;
-
-	largememory = memory;
-
-	if (memory != 0 &&
-	    (memory < LARGE_MINIMUM || memory > LARGE_MAXIMUM)) {
-		error("Invalid memory amount (min %ld, max %ld)",
-		    LARGE_MINIMUM, LARGE_MAXIMUM);
-		return (-1);
-	}
 
 	/*
 	 * Set power to the length in bits of the prime to be generated.
@@ -274,46 +258,17 @@ gen_candidates(FILE *out, u_int32_t memory, u_int32_t power, BIGNUM *start)
 	}
 	power--; /* decrement before squaring */
 
-	/*
-	 * The density of ordinary primes is on the order of 1/bits, so the
-	 * density of safe primes should be about (1/bits)**2. Set test range
-	 * to something well above bits**2 to be reasonably sure (but not
-	 * guaranteed) of catching at least one safe prime.
-	 */
-	largewords = ((power * power) >> (SHIFT_WORD - TEST_POWER));
+	/* Always use the maximum amount of memory supported by the algorithm. */
+	largememory = LARGE_MAXIMUM;
+	largewords = (largememory << SHIFT_MEGAWORD);
 
-	/*
-	 * Need idea of how much memory is available. We don't have to use all
-	 * of it.
-	 */
-	if (largememory > LARGE_MAXIMUM) {
-		logit("Limited memory: %u MB; limit %lu MB",
-		    largememory, LARGE_MAXIMUM);
-		largememory = LARGE_MAXIMUM;
-	}
-
-	if (largewords <= (largememory << SHIFT_MEGAWORD)) {
-		logit("Increased memory: %u MB; need %u bytes",
-		    largememory, (largewords << SHIFT_BYTE));
-		largewords = (largememory << SHIFT_MEGAWORD);
-	} else if (largememory > 0) {
-		logit("Decreased memory: %u MB; want %u bytes",
-		    largememory, (largewords << SHIFT_BYTE));
-		largewords = (largememory << SHIFT_MEGAWORD);
-	}
-
-	TinySieve = xcalloc(tinywords, sizeof(u_int32_t));
+	TinySieve = xcalloc(tinywords, sizeof(uint32_t));
 	tinybits = tinywords << SHIFT_WORD;
 
-	SmallSieve = xcalloc(smallwords, sizeof(u_int32_t));
+	SmallSieve = xcalloc(smallwords, sizeof(uint32_t));
 	smallbits = smallwords << SHIFT_WORD;
 
-	/*
-	 * dynamically determine available memory
-	 */
-	while ((LargeSieve = calloc(largewords, sizeof(u_int32_t))) == NULL)
-		largewords -= (1L << (SHIFT_MEGAWORD - 2)); /* 1/4 MB chunks */
-
+	LargeSieve = xcalloc(largewords, sizeof(uint32_t));
 	largebits = largewords << SHIFT_WORD;
 	largenumbers = largebits * 2;	/* even numbers excluded */
 
@@ -448,7 +403,7 @@ gen_candidates(FILE *out, u_int32_t memory, u_int32_t power, BIGNUM *start)
 }
 
 static void
-write_checkpoint(char *cpfile, u_int32_t lineno)
+write_checkpoint(char *cpfile, uint32_t lineno)
 {
 	FILE *fp;
 	char tmp[PATH_MAX];
@@ -577,13 +532,13 @@ print_progress(unsigned long start_lineno, unsigned long current_lineno,
  * The result is a list of so-call "safe" primes
  */
 int
-prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
+prime_test(FILE *in, FILE *out, uint32_t trials, uint32_t generator_wanted,
     char *checkpoint_file, unsigned long start_lineno, unsigned long num_lines)
 {
 	BIGNUM *q, *p, *a;
 	char *cp, *lp;
-	u_int32_t count_in = 0, count_out = 0, count_possible = 0;
-	u_int32_t generator_known, in_tests, in_tries, in_type, in_size;
+	uint32_t count_in = 0, count_out = 0, count_possible = 0;
+	uint32_t generator_known, in_tests, in_tries, in_type, in_size;
 	unsigned long last_processed = 0, end_lineno;
 	time_t time_start, time_stop;
 	int res, is_prime;
@@ -698,7 +653,7 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 		 * due to earlier inconsistencies in interpretation, check
 		 * the proposed bit size.
 		 */
-		if ((u_int32_t)BN_num_bits(p) != (in_size + 1)) {
+		if ((uint32_t)BN_num_bits(p) != (in_size + 1)) {
 			debug2("%10u: bit size %u mismatch", count_in, in_size);
 			continue;
 		}
@@ -719,7 +674,7 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted,
 			if (BN_mod_word(p, 24) == 11)
 				generator_known = 2;
 			else {
-				u_int32_t r = BN_mod_word(p, 10);
+				uint32_t r = BN_mod_word(p, 10);
 
 				if (r == 3 || r == 7)
 					generator_known = 5;

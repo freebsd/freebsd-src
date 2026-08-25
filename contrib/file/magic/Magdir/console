@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: console,v 1.80 2024/11/09 23:55:02 christos Exp $
+# $File: console,v 1.81 2026/01/31 15:44:17 christos Exp $
 # Console game magic
 # Toby Deshane <hac@shoelace.digivill.net>
 
@@ -1376,3 +1376,93 @@
 >0x20	ubelong	1		PowerPC
 >>0xA4	ubelong	0x11		\b, Wii U mode
 >>0xA4	ubelong	0x12		\b, Wii mode
+
+# Type: WonderSwan raw ROM format
+# (Also covers the WonderSwan WSR sound format, which is an extension thereof)
+# From: Adrian Siekierka <kontakt@asie.pl>
+# Reference: https://ws.nesdev.org/wiki/ROM_header
+0	name	wonderswan-maintenance
+>0	ubyte&0x80	=128	\b, custom splash screen bypassed
+
+0	name	wonderswan-version
+>0	ubyte&0x7F	x	\b, rev. %d
+>0	ubyte&0x80	=128	\b, internal EEPROM unlocked
+
+0	name	wonderswan-rom-size
+>0	byte	0x00	\b, ROM: 1Mbit
+>0	byte	0x01	\b, ROM: 2Mbit
+>0	byte	0x02	\b, ROM: 4Mbit
+>0	byte	0x03	\b, ROM: 8Mbit
+>0	byte	0x04	\b, ROM: 16Mbit
+>0	byte	0x05	\b, ROM: 24Mbit
+>0	byte	0x06	\b, ROM: 32Mbit
+>0	byte	0x07	\b, ROM: 48Mbit
+>0	byte	0x08	\b, ROM: 64Mbit
+>0	byte	0x09	\b, ROM: 128Mbit
+>0	byte	0x0A	\b, ROM: 256Mbit
+>0	byte	0x0B	\b, ROM: 512Mbit
+
+0	name	wonderswan-save-type
+>0	ubyte&0x0F	=1	\b, RAM: 256Kbit
+>0	ubyte&0x0F	=2	\b, RAM: 256Kbit
+>0	ubyte&0x0F	=3	\b, RAM: 1Mbit
+>0	ubyte&0x0F	=4	\b, RAM: 2Mbit
+>0	ubyte&0x0F	=5	\b, RAM: 4Mbit
+>0	ubyte&0xF0	=16	\b, EEPROM: 1Kbit
+>0	ubyte&0xF0	=32	\b, EEPROM: 16Kbit
+>0	ubyte&0xF0	=80	\b, EEPROM: 8Kbit
+
+0	name	wonderswan-flags
+>0	ubyte&0x01	=0	\b, orientation: horizontal
+>0	ubyte&0x01	=1	\b, orientation: vertical
+
+0	name	wonderswan-rom-flags
+>0	ubyte&0x04	=0	\b, bus: 8-bit
+>0	ubyte&0x04	=4	\b, bus: 16-bit
+>0	ubyte&0x08	=8	\b, slow
+
+0	name	wonderswan-mapper
+>0	ubyte&0x0F	=0	\b, mapper: 2001
+>0	ubyte&0x0F	=1	\b, mapper: 2003
+
+-16	ubyte	0xEA
+>-32	string	WSRF\x00	WonderSwan WSR sound file, based on
+>-11	ubyte&0x0F	=0
+>>-9	ubyte&0x01	=0	WonderSwan ROM image
+!:ext	ws/pc2
+>>-9	ubyte&0x01	=1	WonderSwan Color ROM image
+!:ext	wsc
+>>-11	use	wonderswan-maintenance
+>>-7	use	wonderswan-version
+>>-7	use	wonderswan-rom-size
+>>-4	use	wonderswan-rom-flags
+>>-7	use	wonderswan-save-type
+>>-4	use	wonderswan-flags
+>>-3	use	wonderswan-mapper
+
+# Type: WonderWitch transfer file
+# From: Adrian Siekierka <kontakt@asie.pl>
+# Reference: https://ws.nesdev.org/wiki/WonderWitch_.fx_files
+0	string	#!ws\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff	WonderWitch transfer file
+!:ext	fx/il
+>64	string/16	x	\b, name "%s"
+>80	string/24	x	\b, info "%s"
+>108	ulelong		x	\b, %u bytes
+>112	uleshort	x	\b (%d blocks)
+>114	uleshort	>0	\b, mode "
+>>114	uleshort&0x80	>0	\bd
+>>114	uleshort&0x40	>0	\bl
+>>114	uleshort&0x20	>0	\bi
+>>114	uleshort&0x10	>0	\bs
+>>114	uleshort&0x08	>0	\bm
+>>114	uleshort&0x04	>0	\br
+>>114	uleshort&0x02	>0	\bw
+>>114	uleshort&0x01	>0	\bx
+>>114	uleshort	>0	\b"
+>124	lelong		>0	\b, resource data after %d bytes
+
+# Type: Aquaplus P/ECE executable format
+# From: Adrian Siekierka <kontakt@asie.pl>
+0		uleshort	0x0258	P/ECE executable
+>(0x04.s)	string		x	\b: "%s"
+!:ext	pex

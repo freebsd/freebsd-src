@@ -13,7 +13,7 @@
 .include "${KRB5_SRCTOP}/Makefile.pc"
 
 LIB=		kadm5clnt_mit
-LDFLAGS=	-Wl,--no-undefined
+LDFLAGS+=	-Wl,--no-undefined
 LIBADD=		krb5profile gssrpc gssapi_krb5 krb5 k5crypto krb5support com_err
 VERSION_MAP=	${.CURDIR}/version.map
 PCFILES=	kadm-client.pc

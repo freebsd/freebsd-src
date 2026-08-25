@@ -184,7 +184,45 @@ ATF_TC_BODY(seek_tests, tc)
 	SEEK_OK(-1, SEEK_END, 2);
 	SEEK_OK(OFF_MAX - 1, SEEK_SET, OFF_MAX - 1);
 	SEEK_FAIL(2, SEEK_CUR, EOVERFLOW);
+
 	fclose(fp);
+}
+
+ATF_TC(resize_test);
+ATF_TC_HEAD(resize_test, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Tests that memstream growth doesn't move SEEK_END too far");
+}
+ATF_TC_BODY(resize_test, tc)
+{
+	FILE *fp;
+	size_t wsz;
+	char addition[] = "Test String";
+
+	fp = open_memstream(&buf, &len);
+	ATF_REQUIRE_MSG(fp != NULL, "open_memstream failed: %d", errno);
+
+	/* Doesn't matter what we write, we'll just want to trigger alloc 2x. */
+	wsz = fprintf(fp, "%s", addition);
+	ATF_REQUIRE_EQ(wsz, sizeof(addition) - 1);
+	ATF_REQUIRE(fflush(fp) == 0);
+
+	/* Trigger growth. */
+	ATF_REQUIRE_EQ('a', fputc('a', fp));
+	ATF_REQUIRE_EQ(wsz + 1, ftello(fp));
+
+	/*
+	 * Seeking to the end shouldn't put us past the last write, because
+	 * we've only done a small series of writes.
+	 */
+	ATF_REQUIRE(fseek(fp, 0, SEEK_END) == 0);
+	ATF_REQUIRE_EQ(wsz + 1, ftello(fp));
+
+	ATF_REQUIRE(!ferror(fp));
+	fclose(fp);
+
+	ATF_REQUIRE_EQ(wsz + 1, len);
 }
 
 ATF_TP_ADD_TCS(tp)
@@ -193,6 +231,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, open_group_test);
 	ATF_TP_ADD_TC(tp, simple_tests);
 	ATF_TP_ADD_TC(tp, seek_tests);
+	ATF_TP_ADD_TC(tp, resize_test);
 
 	return (atf_no_error());
 }

@@ -233,6 +233,22 @@ static void create_reg_file_win(struct archive_entry *ae, const char *msg)
 	assertEqualInt(st.st_size, sizeof(data));
 	free(fname);
 }
+#else
+static void create_fail(struct archive_entry *ae, int experr,
+    const char *msg)
+{
+	struct archive *ad;
+	struct stat st;
+
+	/* Write the entry to disk. */
+	assert((ad = archive_write_disk_new()) != NULL);
+	failure("%s", msg);
+	assertEqualIntA(ad, ARCHIVE_FAILED, archive_write_header(ad, ae));
+	assertEqualIntA(ad, experr, archive_errno(ad));
+	assertEqualInt(0, archive_write_free(ad));
+	assertEqualInt(-1, stat(archive_entry_pathname(ae), &st));
+	assertEqualInt(ENOENT, errno);
+}
 #endif /* _WIN32 && !__CYGWIN__ */
 
 DEFINE_TEST(test_write_disk)
@@ -344,5 +360,18 @@ DEFINE_TEST(test_write_disk)
 	    " with unusable characters in its file name");
 	archive_entry_free(ae);
 	free(fullpath);
+#else /* !_WIN32 || __CYGWIN__ */
+	/* A directory with a /../ in the middle */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "a/b/../b/file");
+	archive_entry_set_mode(ae, S_IFREG | 0644);
+	/* First attempt should fail with EACCES */
+	assertEqualInt(0, mkdir("a", 0111));
+	create_fail(ae, EACCES,
+	    "Test failing to create parent directory with /../");
+	/* Now let it succeed */
+	assertEqualInt(0, chmod("a", 0755));
+	create(ae, "Test creating parent directory with /../");
+	archive_entry_free(ae);
 #endif /* _WIN32 && !__CYGWIN__ */
 }

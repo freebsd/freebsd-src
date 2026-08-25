@@ -1,4 +1,4 @@
-/* $OpenBSD: krl.c,v 1.60 2025/02/18 08:02:48 djm Exp $ */
+/* $OpenBSD: krl.c,v 1.64 2026/03/03 09:57:25 dtucker Exp $ */
 /*
  * Copyright (c) 2012 Damien Miller <djm@mindrot.org>
  *
@@ -18,21 +18,18 @@
 #include "includes.h"
 
 #include <sys/types.h>
-#include <openbsd-compat/sys-tree.h>
-#include <openbsd-compat/sys-queue.h>
+#include <sys/tree.h>
+#include <sys/queue.h>
 
 #include <errno.h>
-#include <fcntl.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
 
 #include "sshbuf.h"
 #include "ssherr.h"
 #include "sshkey.h"
-#include "authfile.h"
 #include "misc.h"
 #include "log.h"
 #include "digest.h"
@@ -55,7 +52,7 @@
 
 /* Tree of serial numbers. XXX make smarter: really need a real sparse bitmap */
 struct revoked_serial {
-	u_int64_t lo, hi;
+	uint64_t lo, hi;
 	RB_ENTRY(revoked_serial) tree_entry;
 };
 static int serial_cmp(struct revoked_serial *a, struct revoked_serial *b);
@@ -91,9 +88,9 @@ struct revoked_certs {
 TAILQ_HEAD(revoked_certs_list, revoked_certs);
 
 struct ssh_krl {
-	u_int64_t krl_version;
-	u_int64_t generated_date;
-	u_int64_t flags;
+	uint64_t krl_version;
+	uint64_t generated_date;
+	uint64_t flags;
 	char *comment;
 	struct revoked_blob_tree revoked_keys;
 	struct revoked_blob_tree revoked_sha1s;
@@ -149,6 +146,8 @@ revoked_certs_free(struct revoked_certs *rc)
 	struct revoked_serial *rs, *trs;
 	struct revoked_key_id *rki, *trki;
 
+	if (rc == NULL)
+		return;
 	RB_FOREACH_SAFE(rs, revoked_serial_tree, &rc->revoked_serials, trs) {
 		RB_REMOVE(revoked_serial_tree, &rc->revoked_serials, rs);
 		free(rs);
@@ -159,6 +158,7 @@ revoked_certs_free(struct revoked_certs *rc)
 		free(rki);
 	}
 	sshkey_free(rc->ca_key);
+	freezero(rc, sizeof(*rc));
 }
 
 void
@@ -194,7 +194,7 @@ ssh_krl_free(struct ssh_krl *krl)
 }
 
 void
-ssh_krl_set_version(struct ssh_krl *krl, u_int64_t version)
+ssh_krl_set_version(struct ssh_krl *krl, uint64_t version)
 {
 	krl->krl_version = version;
 }
@@ -247,7 +247,7 @@ revoked_certs_for_ca_key(struct ssh_krl *krl, const struct sshkey *ca_key,
 }
 
 static int
-insert_serial_range(struct revoked_serial_tree *rt, u_int64_t lo, u_int64_t hi)
+insert_serial_range(struct revoked_serial_tree *rt, uint64_t lo, uint64_t hi)
 {
 	struct revoked_serial rs, *ers, *crs, *irs;
 
@@ -302,7 +302,7 @@ insert_serial_range(struct revoked_serial_tree *rt, u_int64_t lo, u_int64_t hi)
 	/* Check successors */
 	while ((crs = RB_NEXT(revoked_serial_tree, rt, ers)) != NULL) {
 		KRL_DBG(("succ %llu:%llu", crs->lo, crs->hi));
-		if (ers->hi != (u_int64_t)-1 && crs->lo > ers->hi + 1)
+		if (ers->hi != (uint64_t)-1 && crs->lo > ers->hi + 1)
 			break;
 		/* This entry overlaps. */
 		if (crs->hi > ers->hi) {
@@ -318,14 +318,14 @@ insert_serial_range(struct revoked_serial_tree *rt, u_int64_t lo, u_int64_t hi)
 
 int
 ssh_krl_revoke_cert_by_serial(struct ssh_krl *krl, const struct sshkey *ca_key,
-    u_int64_t serial)
+    uint64_t serial)
 {
 	return ssh_krl_revoke_cert_by_serial_range(krl, ca_key, serial, serial);
 }
 
 int
 ssh_krl_revoke_cert_by_serial_range(struct ssh_krl *krl,
-    const struct sshkey *ca_key, u_int64_t lo, u_int64_t hi)
+    const struct sshkey *ca_key, uint64_t lo, uint64_t hi)
 {
 	struct revoked_certs *rc;
 	int r;
@@ -474,11 +474,11 @@ ssh_krl_revoke_key(struct ssh_krl *krl, const struct sshkey *key)
  * that will minimise the size of the resultant KRL.
  */
 static int
-choose_next_state(int current_state, u_int64_t contig, int final,
-    u_int64_t last_gap, u_int64_t next_gap, int *force_new_section)
+choose_next_state(int current_state, uint64_t contig, int final,
+    uint64_t last_gap, uint64_t next_gap, int *force_new_section)
 {
 	int new_state;
-	u_int64_t cost, cost_list, cost_range, cost_bitmap, cost_bitmap_restart;
+	uint64_t cost, cost_list, cost_range, cost_bitmap, cost_bitmap_restart;
 
 	/*
 	 * Avoid unsigned overflows.
@@ -573,7 +573,7 @@ static int
 revoked_certs_generate(struct revoked_certs *rc, struct sshbuf *buf)
 {
 	int final, force_new_sect, r = SSH_ERR_INTERNAL_ERROR;
-	u_int64_t i, contig, gap, last = 0, bitmap_start = 0;
+	uint64_t i, contig, gap, last = 0, bitmap_start = 0;
 	struct revoked_serial *rs, *nrs;
 	struct revoked_key_id *rki;
 	int next_state, state = 0;
@@ -808,7 +808,7 @@ ssh_krl_to_blob(struct ssh_krl *krl, struct sshbuf *buf)
 }
 
 static void
-format_timestamp(u_int64_t timestamp, char *ts, size_t nts)
+format_timestamp(uint64_t timestamp, char *ts, size_t nts)
 {
 	time_t t;
 	struct tm *tm;
@@ -870,7 +870,7 @@ parse_revoked_certs(struct sshbuf *buf, struct ssh_krl *krl)
 	const u_char *blob;
 	size_t blen, nbits;
 	struct sshbuf *subsect = NULL;
-	u_int64_t serial, serial_lo, serial_hi;
+	uint64_t serial, serial_lo, serial_hi;
 	struct bitmap *bitmap = NULL;
 	char *key_id = NULL;
 	struct sshkey *ca_key = NULL;
@@ -926,7 +926,7 @@ parse_revoked_certs(struct sshbuf *buf, struct ssh_krl *krl)
 				goto out;
 			}
 			nbits = bitmap_nbits(bitmap);
-			for (serial = 0; serial < (u_int64_t)nbits; serial++) {
+			for (serial = 0; serial < (uint64_t)nbits; serial++) {
 				if (serial > 0 && serial_lo + serial == 0) {
 					error_f("bitmap wraps u64");
 					r = SSH_ERR_INVALID_FORMAT;

@@ -1,0 +1,84 @@
+.\"
+.\" Copyright (c) 2026 Abdelkader Boudih <freebsd@seuros.com>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd July 12, 2026
+.Dt FWDV 4
+.Os
+.Sh NAME
+.Nm fwdv
+.Nd AV/C DV capture driver for FireWire camcorders
+.Sh SYNOPSIS
+.Cd "device firewire"
+.Cd "device fwdv"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides DV frame capture from AV/C tape devices attached via
+IEEE 1394 (FireWire), including DV camcorders, VCRs, and DV converters.
+.Pp
+The driver attaches to unit directories in the device CSR configuration ROM
+with
+.Va unit_spec_id
+0x00a02d (1394 Trade Association) and
+.Va unit_sw_version
+0x010001 (AV/C).
+When a matching device is present on the
+.Xr firewire 4
+bus, the driver creates
+.Pa /dev/fwdvX
+and begins receiving IEC 61883 isochronous packets on first open,
+assembling complete DV frames.
+Applications read raw DV frames from the character device
+and control tape transport through
+.Xr ioctl 2 .
+.Pp
+Both NTSC and PAL SD-DV streams are detected from the incoming CIP header.
+DVCPRO HD frame sizing is also recognized.
+.Sh IOCTLS
+.Bl -tag -width ".Dv FWDV_GINFO"
+.It Dv FWDV_GINFO Pq Vt "struct fwdv_info"
+Return driver state, active ISO channel, detected DV system, frame size,
+frame counters, dropped frame count, device EUI-64, and vendor/model strings
+from the device configuration ROM.
+.It Dv FWDV_PLAY
+Send the AV/C play command to tape subunit 0.
+.It Dv FWDV_STOP
+Send the AV/C stop command to tape subunit 0.
+.It Dv FWDV_FFWD
+Send the AV/C fast-forward command to tape subunit 0.
+.It Dv FWDV_REW
+Send the AV/C rewind command to tape subunit 0.
+.El
+.Sh SYSCTLS
+.Bl -tag -width ".Va hw.firewire.fwdv.iso_channel"
+.It Va hw.firewire.fwdv.iso_channel
+Fallback isochronous receive channel.
+The default is 63.
+If the device output plug control register reports an active channel, that
+device-reported channel is used instead.
+This value can be set as a tunable in
+.Xr loader.conf 5 .
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/fwdvX" -compact
+.It Pa /dev/fwdvX
+DV capture character device.
+Read to obtain raw DV frames.
+.El
+.Sh SEE ALSO
+.Xr firewire 4 ,
+.Xr fwohci 4
+.Pp
+AV/C Digital Interface Command Set General Specification 4.1,
+1394 Trade Association Document 2001012.
+.Pp
+IEC 61883-1 and IEC 61883-2.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Abdelkader Boudih Aq Mt freebsd@seuros.com

@@ -104,17 +104,13 @@ struct snd_mixer;
 #define SD_F_MPSAFE		0x00000010
 #define SD_F_REGISTERED		0x00000020
 #define SD_F_BITPERFECT		0x00000040
-#define SD_F_VPC		0x00000080	/* volume-per-channel */
-#define SD_F_EQ			0x00000100	/* EQ */
-#define SD_F_EQ_ENABLED		0x00000200	/* EQ enabled */
-#define SD_F_EQ_BYPASSED	0x00000400	/* EQ bypassed */
-#define SD_F_EQ_PC		0x00000800	/* EQ per-channel */
+/* unused			0x00000080 */
+/* unused			0x00000100 */
+#define SD_F_EQ			0x00000200	/* EQ enabled */
+/* unused			0x00000400 */
+/* unused			0x00000800 */
 #define SD_F_PVCHANS		0x00001000	/* Playback vchans enabled */
 #define SD_F_RVCHANS		0x00002000	/* Recording vchans enabled */
-
-#define SD_F_EQ_DEFAULT		(SD_F_EQ | SD_F_EQ_ENABLED)
-#define SD_F_EQ_MASK		(SD_F_EQ | SD_F_EQ_ENABLED |		\
-				 SD_F_EQ_BYPASSED | SD_F_EQ_PC)
 
 #define SD_F_BITS		"\020"					\
 				"\001SIMPLEX"				\
@@ -124,11 +120,11 @@ struct snd_mixer;
 				"\005MPSAFE"				\
 				"\006REGISTERED"			\
 				"\007BITPERFECT"			\
-				"\010VPC"				\
-				"\011EQ"				\
-				"\012EQ_ENABLED"			\
-				"\013EQ_BYPASSED"			\
-				"\014EQ_PC"				\
+				/* "\010 */				\
+				/* "\011 */				\
+				"\012EQ"				\
+				/* "\013 */				\
+				/* "\014 */				\
 				"\015PVCHANS"				\
 				"\016RVCHANS"
 
@@ -159,27 +155,12 @@ unsigned int pcm_getbuffersize(device_t dev, unsigned int minbufsz, unsigned int
 void pcm_init(device_t dev, void *devinfo);
 int pcm_register(device_t dev, char *str);
 int pcm_unregister(device_t dev);
-u_int32_t pcm_getflags(device_t dev);
-void pcm_setflags(device_t dev, u_int32_t val);
+uint32_t pcm_getflags(device_t dev);
+void pcm_setflags(device_t dev, uint32_t val);
 void *pcm_getdevinfo(device_t dev);
 
 int snd_setup_intr(device_t dev, struct resource *res, int flags,
 		   driver_intr_t hand, void *param, void **cookiep);
-
-/* These are the function codes assigned to the children of sound cards. */
-enum {
-	SCF_PCM,
-	SCF_MIDI,
-};
-
-/*
- * This is the device information struct, used by a bridge device to pass the
- * device function code to the children.
- */
-struct sndcard_func {
-	int func;	/* The function code. */
-	void *varinfo;	/* Bridge-specific information. */
-};
 
 /*
  * this is rather kludgey- we need to duplicate these struct def'ns from sound.c
@@ -204,7 +185,6 @@ struct snddev_info {
 	} channels;
 	unsigned playcount, reccount, pvchancount, rvchancount;
 	unsigned flags;
-	unsigned int bufsz;
 	void *devinfo;
 	device_t dev;
 	char status[SND_STATUSLEN];

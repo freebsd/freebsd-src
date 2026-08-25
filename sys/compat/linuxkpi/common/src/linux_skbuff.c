@@ -55,6 +55,8 @@
 #include <linux/log2.h>
 #endif
 
+#include <net/page_pool/helpers.h>
+
 SYSCTL_DECL(_compat_linuxkpi);
 SYSCTL_NODE(_compat_linuxkpi, OID_AUTO, skb, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
     "LinuxKPI skbuff");
@@ -140,6 +142,7 @@ linuxkpi_alloc_skb(size_t size, gfp_t gfp)
 	skb->head = skb->data = (uint8_t *)p;
 	skb_reset_tail_pointer(skb);
 	skb->end = skb->head + size;
+	refcount_set(&skb->refcnt, 1);
 
 	SKB_TRACE_FMT(skb, "data %p size %zu", (skb) ? skb->data : NULL, size);
 	return (skb);
@@ -180,6 +183,7 @@ linuxkpi_build_skb(void *data, size_t fragsz)
 	skb->head = skb->data = data;
 	skb_reset_tail_pointer(skb);
 	skb->end = skb->head + fragsz;
+	refcount_set(&skb->refcnt, 1);
 
 	return (skb);
 }
@@ -191,6 +195,7 @@ linuxkpi_skb_copy(const struct sk_buff *skb, gfp_t gfp)
 	struct skb_shared_info *shinfo;
 	size_t len;
 	unsigned int headroom;
+	uint16_t fragno, count;
 
 	/* Full buffer size + any fragments. */
 	len = skb->end - skb->head + skb->data_len;
@@ -209,10 +214,15 @@ linuxkpi_skb_copy(const struct sk_buff *skb, gfp_t gfp)
 
 	/* Deal with fragments. */
 	shinfo = skb->shinfo;
-	if (shinfo->nr_frags > 0) {
-		printf("%s:%d: NOT YET SUPPORTED; missing %d frags\n",
-		    __func__, __LINE__, shinfo->nr_frags);
-		SKB_TODO();
+	for (count = fragno = 0;
+	    count < shinfo->nr_frags && fragno < nitems(shinfo->frags);
+	    fragno++) {
+		if (shinfo->frags[fragno].page != NULL) {
+			skb_put_data(new,
+			    skb_frag_address(&shinfo->frags[fragno]),
+			    shinfo->frags[fragno].size);
+			count++;
+		}
 	}
 
 	/* Deal with header fields. */
@@ -220,6 +230,80 @@ linuxkpi_skb_copy(const struct sk_buff *skb, gfp_t gfp)
 	SKB_IMPROVE("more header fields to copy?");
 
 	return (new);
+}
+
+int
+lkpi___skb_linearize(struct sk_buff *skb)
+{
+	struct sk_buff *new;
+	struct skb_shared_info *shinfo;
+	uint16_t fragno, count;
+
+	SKB_TRACE(skb);
+	SKB_IMPROVE("Hack completely re-allocating and freeing; FIXME");
+	new = skb_copy(skb, GFP_NOWAIT);
+	if (new == NULL)
+		return (-ENOMEM);
+
+	/* Now need to swap head, data, tail, ... and free from old (and then new). */
+	shinfo = skb->shinfo;
+	for (count = fragno = 0;
+	    count < shinfo->nr_frags && fragno < nitems(shinfo->frags);
+	    fragno++) {
+
+		if (shinfo->frags[fragno].page != NULL) {
+			struct page *p;
+
+			p = shinfo->frags[fragno].page;
+			shinfo->frags[fragno].size = 0;
+			shinfo->frags[fragno].offset = 0;
+			shinfo->frags[fragno].page = NULL;
+			__free_page(p);
+			count++;
+		}
+	}
+
+	if ((skb->_flags & _SKB_FLAGS_SKBEXTFRAG) != 0) {
+		void *p;
+
+		p = skb->head;
+		skb_free_frag(p);
+		skb->head = NULL;
+		skb->_flags &= ~_SKB_FLAGS_SKBEXTFRAG;
+	}
+
+#ifdef	SKB_DMA32_MALLOC
+	if (__predict_false(linuxkpi_skb_memlimit != 0))
+		free(skb->head, M_LKPISKB);
+	else
+#endif
+	kfree(skb->head);
+
+	skb->head = new->head;
+	skb->data = new->data;
+	skb->tail = new->tail;
+	skb->end = new->end;
+	skb->len = new->len;
+	skb->data_len = new->data_len;
+	skb->truesize = new->truesize;
+
+	uma_zfree(skbzone, new);
+
+	return (0);
+}
+
+static bool
+lkpi_skb_refcount_release(struct sk_buff *skb)
+{
+	if (skb == NULL)
+		return (false);
+
+	/* Do we need further tests to avoid freeing this one? */
+
+	if (!refcount_dec_and_test(&skb->refcnt))
+		return (false);
+
+	return (true);
 }
 
 void
@@ -231,6 +315,11 @@ linuxkpi_kfree_skb(struct sk_buff *skb)
 	SKB_TRACE(skb);
 	if (skb == NULL)
 		return;
+
+	if (!lkpi_skb_refcount_release(skb)) {
+		SKB_TRACE_FMT(skb, "not freed due to refcnt");
+		return;
+	}
 
 	/*
 	 * XXX TODO this will go away once we have skb backed by mbuf.
@@ -262,7 +351,12 @@ linuxkpi_kfree_skb(struct sk_buff *skb)
 			shinfo->frags[fragno].size = 0;
 			shinfo->frags[fragno].offset = 0;
 			shinfo->frags[fragno].page = NULL;
-			__free_page(p);
+#ifdef PAGE_IS_LKPI_PAGE
+			if ((skb->_flags & _SKB_PP_RECYCLE) != 0)
+				page_pool_put_full_page(p->pp, p, false);
+			else
+#endif
+				__free_page(p);
 			count++;
 		}
 	}

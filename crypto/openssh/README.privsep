@@ -1,15 +1,138 @@
-Privilege separation, or privsep, is method in OpenSSH by which
+Privilege separation, or privsep, is a method in OpenSSH by which
 operations that require root privilege are performed by a separate
-privileged monitor process.  Its purpose is to prevent privilege
-escalation by containing corruption to an unprivileged process.
-More information is available at:
-	http://www.citi.umich.edu/u/provos/ssh/privsep.html
+privileged monitor process. Its purpose is to prevent privilege
+escalation and mitigate attacks by:
 
-Privilege separation is now mandatory.  During the pre-authentication
-phase sshd will chroot(2) to "/var/empty" and change its privileges to the
-"sshd" user and its primary group.  sshd is a pseudo-account that should
-not be used by other daemons, and must be locked and should contain a
-"nologin" or invalid shell.
+ - reducing the privileged attack surface by performing most
+   operations involving untrusted data in unprivileged code,
+ - facilitating OS-level sandboxing of the components that are most
+   exposed to attack,
+ - reducing information-sharing between privileged and
+   unprivileged code, and
+ - containing attacks as much as possible to the unprivileged
+   process, should they occur.
+
+To achieve privilege separation in OpenSSH's sshd, the functions
+it performs are split across three discrete binaries:
+
+sshd is the main entry-point binary for the server. This binary
+retains privilege but performs a very limited set of tasks: loading
+and checking the configuration, listening for incoming connections
+and monitoring the status of connections through the
+pre-authentication phase of their lifecycle to implement the
+MaxStartups and PerSourcePenalties features.
+
+Apart from listening for and accepting connections, the sshd binary
+does not handle untrusted, network-derived data; instead it forks and
+executes the sshd-session binary for each new connection.
+
++---------------------------------------------------------------+
+|                                                               |
+|   listening socket     +-------------------+                  |
+|         \--------------+  sshd (listener)  |                  |
+|                        +--------++---------+                  |
+|                                 ||                            |
+|                                 || fork+exec                  |
+|                                 ||                            |
+|                  +--------------++------------------+         |
+|                  |  sshd-session (preauth monitor)  |         |
+|                  +--------------++------------------+         |
+|                                 ||                            |
+|                                 || fork+exec                  |
+|                                 ||                            |
+|   network socket   +------------++--------------+             |
+|        \-----------+  sshd-auth (unprivileged)  |             |
+|                    +------------++--------------+             |
+|                                                               |
++---------------------------------------------------------------+
+               pre-authentication process structure
+
+sshd-session initially acts as the privileged monitor process for
+a connection before it completes authentication. During this phase,
+it does not deal directly with network-derived data, but forks and
+executes a third binary (sshd-auth, described next) to handle the
+SSH protocol communication over the network socket. sshd-session
+receives RPC messages from the sshd-auth subprocess when it needs
+to perform privileged operations, such as verifying an account's
+existence, signing with a host key, or checking a user's password.
+The monitor process implements a loose state machine that enforces
+the required structure and order of operations that sshd-auth may
+request.
+
+sshd-auth is the network-facing process that implements the initial
+key agreement and authentication phase of the SSH protocol. It is
+started with privilege, but will sandbox and/or chroot(2) itself
+and drop privilege to an unprivileged account before processing
+any network traffic. All operations that require privilege, such as
+looking up user information, private key signatures, checking
+passwords, etc are performed by RPC to the parent sshd-session
+process. After authentication completes, sshd-auth serialises its
+SSH protocol and connection state, exports this to the parent
+sshd-session process and exits.
+
+Communication between parent and child processes occurs over shared
+file descriptors. Parent processes also monitor their children for
+abnormal exit conditions, such as crashes or signalling via exit(3)
+status. These conditions are used in sshd to implement the
+PerSourcePenalties controls.
+
++---------------------------------------------------------------+
+|                                                               |
+|                 +---------------++------------------+         |
+|                 |  sshd-session (postauth monitor)  |         |
+|                 +---------------++------------------+         |
+|                                 ||                            |
+|                                 || fork                       |
+|                                 ||                            |
+| network socket   +--------------++---------------+            |
+|      \-----------+  sshd-session (unprivileged)  |            |
+|                  +--------------++---------------+            |
+|                                                               |
++---------------------------------------------------------------+
+              post-authentication process structure
+
+After authentication, sshd-session disconnects from its parent
+listener sshd (which doesn't track connections after authentication
+has succeeded) and forks again. The forked sshd-session child process
+will drop privilege to that of the authenticated user, import the
+previously-serialised connection state from sshd-auth and continue to
+perform network and SSH protocol operations for the remainder of the
+session.
+
+The parent sshd-session process continues to act as a privileged
+monitor process, performing actions that require privilege when
+requested via RPC. These operations include allocating PTYs and
+signing key re-exchange messages.
+
+In portable OpenSSH several compile-time options affect privilege
+separation:
+
+    --with-sandbox=style
+
+Controls the sandboxing implementation used by sshd-auth. OS level
+sandboxing is supported on a number of platforms. A fallback
+rlimit(2)-based sandbox provides some basic control on a wider set
+of platforms. Most supported sandboxes are detected and enabled
+automatically, so this option is mostly used to disable the sandbox
+(this is handy when debugging or running under tools like
+AddressSanitizer).
+
+    --with-privsep-user=user
+
+Specifies the unprivileged user that sshd-auth will switch to
+before it starts handling untrusted data. This user must not be
+shared with any other system service, should own no files, should
+have a locked password, a shell that denies access (such as
+/bin/nologin or /bin/false) and the home directory set to the
+privilege separation path. For most platforms the default user is
+"sshd".
+
+    --with-privsep-path=/path
+
+Controls the directory that sshd-auth will chroot(2) to before
+dropping privileges. This directory should be empty, not shared
+with other system accounts and not readable or writable by the
+sandbox user. The default privsep path is "/var/empty".
 
 You should do something like the following to prepare the privsep
 preauth environment:
@@ -20,32 +143,31 @@ preauth environment:
 	# groupadd sshd
 	# useradd -g sshd -c 'sshd privsep' -d /var/empty -s /bin/false sshd
 
-/var/empty should not contain any files.
+On some platforms, only the pre-authentication part of privsep is
+supported, and the post-authentication part is disabled due to lack
+of support from the operating system.
 
-configure supports the following options to change the default
-privsep user and chroot directory:
+This is an example process list for a connection in the
+pre-authentication phase:
 
-  --with-privsep-path=xxx Path for privilege separation chroot
-  --with-privsep-user=user Specify non-privileged user for privilege separation
+    PID    PPID   UID CMD
 
-PAM-enabled OpenSSH is known to function with privsep on AIX, FreeBSD, 
-HP-UX (including Trusted Mode), Linux, NetBSD and Solaris.
+   1436       1     0 sshd: /usr/sbin/sshd -D [listener] 1 of 10-100 startups
+  47077    1436     0 sshd-session: djm [priv]
+  47078   47077   107 sshd-auth: djm [net]
 
-On Cygwin, Tru64 Unix and OpenServer only the pre-authentication part
-of privsep is supported.  Post-authentication privsep is disabled
-automatically (so you won't see the additional process mentioned below).
+Where process 1436 is the listener, 47077 is the privileged
+sshd-session monitor process and 47078 is the unprivileged,
+network-facing sshd-auth process.
 
-Note that for a normal interactive login with a shell, enabling privsep
-will require 1 additional process per login session.
+And in the post-authentication phase:
 
-Given the following process listing (from HP-UX):
+    PID    PPID   UID CMD
+  47077    1436     0 sshd-session: djm [priv]
+  47091   47077  1000 sshd-session: djm@pts/1
+  47092   47091  1000 -bash
 
-     UID   PID  PPID  C    STIME TTY       TIME COMMAND
-    root  1005     1  0 10:45:17 ?         0:08 /opt/openssh/sbin/sshd -u0
-    root  6917  1005  0 15:19:16 ?         0:00 sshd: stevesk [priv]
- stevesk  6919  6917  0 15:19:17 ?         0:03 sshd: stevesk@2
- stevesk  6921  6919  0 15:19:17 pts/2     0:00 -bash
+Where process 47077 continues its role as a privileged monitor,
+47091 is the user-privileged network-facing post-authentication
+process and 47092 is the user shell started for the session.
 
-process 1005 is the sshd process listening for new connections.
-process 6917 is the privileged monitor process, 6919 is the user owned
-sshd process and 6921 is the shell process.

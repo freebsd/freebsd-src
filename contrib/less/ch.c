@@ -23,6 +23,7 @@
 typedef POSITION BLOCKNUM;
 
 public lbool ignore_eoi = FALSE;
+public lbool read_error = FALSE;
 
 /*
  * Pool of buffers holding the most recently used blocks of the input file.
@@ -292,13 +293,14 @@ static int ch_get(void)
 		if (n < 0)
 		{
 #if MSDOS_COMPILER==WIN32C
-			if (errno != EPIPE)
+			if (errno == EPIPE)
+				n = 0;
+			else
 #endif
 			{
-				error("read error", NULL_PARG);
-				clear_eol();
+				read_error = TRUE;
+				return (EOI);
 			}
-			n = 0;
 		}
 
 #if LOGFILE

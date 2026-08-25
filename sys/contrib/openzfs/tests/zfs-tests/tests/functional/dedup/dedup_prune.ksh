@@ -1,23 +1,13 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
-# CDDL HEADER START
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
 #
-# The contents of this file are subject to the terms of the
-# Common Development and Distribution License (the "License").
-# You may not use this file except in compliance with the License.
-#
-# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or https://opensource.org/licenses/CDDL-1.0.
-# See the License for the specific language governing permissions
-# and limitations under the License.
-#
-# When distributing Covered Code, include this CDDL HEADER in each
-# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-# If applicable, add the following below this CDDL HEADER, with the
-# fields enclosed by brackets "[]" replaced with your own identifying
-# information: Portions Copyright [yyyy] [name of copyright owner]
-#
-# CDDL HEADER END
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -69,12 +59,12 @@ function ddt_entries
 
 log_onexit cleanup
 
-log_must zpool create -f -o feature@block_cloning=disabled $TESTPOOL $DISKS
+log_must zpool create -f $TESTPOOL $DISKS
 
 log_must zfs create -o recordsize=512 -o dedup=on $TESTPOOL/$TESTFS
 typeset mountpoint=$(get_prop mountpoint $TESTPOOL/$TESTFS)
 log_must dd if=/dev/urandom of=$mountpoint/f1 bs=512k count=1
-log_must cp $mountpoint/f1 $mountpoint/f2
+log_must dd if=$mountpoint/f1 of=$mountpoint/f2 bs=512k
 sync_pool $TESTPOOL
 entries=$(ddt_entries)
 log_note "ddt entries before: $entries"
@@ -95,5 +85,6 @@ new_entries=$(ddt_entries)
 [[ "$((entries / 4))" -eq "$new_entries" ]] || \
 	log_fail "DDT entries did not shrink enough: $entries -> $new_entries"
 
+log_must zdb -b $TESTPOOL
 
 log_pass "DDT pruning correctly removes non-duplicate entries"

@@ -24,14 +24,14 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd July 09, 2024
+.Dd April 03, 2026
 .Dt SPLASH 4
 .Os
 .Sh NAME
 .Nm splash
 .Nd splash screen / screen saver interface
 .Sh SYNOPSIS
-.Cd "device splash"
+.Cd device splash
 .Sh DESCRIPTION
 The
 .Nm
@@ -254,6 +254,12 @@ and include the following lines:
 splash="/boot/images/freebsd-logo-rev.png"
 boot_mute="YES"
 .Ed
+.Pp
+A splash screen to be displayed at shutdown time can be specified with:
+.Bd -literal -offset indent
+shutdown_splash="/boot/images/freebsd-logo-rev.png"
+boot_mute="YES"
+.Ed
 .\".Sh DIAGNOSTICS
 .Sh SEE ALSO
 .Xr vidcontrol 1 ,
@@ -308,7 +314,9 @@ modules were written by
 png support for
 .Xr vt 4
 was written by
-.An Emmanuel Vadot Aq Mt manu@FreeBSD.org .
+.An Emmanuel Vadot Aq Mt manu@FreeBSD.org
+and extended for shutdown by
+.An Quentin Thébault Aq Mt quentin.thebault@defenso.fr .
 .Sh CAVEATS
 The screen saver works with
 .Xr syscons 4

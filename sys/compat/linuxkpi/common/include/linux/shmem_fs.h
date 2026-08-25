@@ -39,6 +39,8 @@ struct page *linux_shmem_read_mapping_page_gfp(vm_object_t obj, int pindex,
     gfp_t gfp);
 struct linux_file *linux_shmem_file_setup(const char *name, loff_t size,
     unsigned long flags);
+struct linux_file *linux_shmem_file_setup_with_mnt(struct vfsmount *mount,
+    const char *name, loff_t size, unsigned long flags);
 void linux_shmem_truncate_range(vm_object_t obj, loff_t lstart,
     loff_t lend);
 
@@ -50,6 +52,9 @@ void linux_shmem_truncate_range(vm_object_t obj, loff_t lstart,
 
 #define	shmem_file_setup(...) \
   linux_shmem_file_setup(__VA_ARGS__)
+
+#define	shmem_file_setup_with_mnt(...) \
+  linux_shmem_file_setup_with_mnt(__VA_ARGS__)
 
 #define	shmem_truncate_range(...) \
   linux_shmem_truncate_range(__VA_ARGS__)

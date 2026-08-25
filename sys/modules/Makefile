@@ -43,6 +43,7 @@ SUBDIR=	\
 	${_allwinner} \
 	${_armv8crypto} \
 	${_armv8_rng} \
+	${_apple_bce} \
 	${_asmc} \
 	ata \
 	${_aq} \
@@ -72,6 +73,7 @@ SUBDIR=	\
 	bridgestp \
 	bwi \
 	bwn \
+	${_adlngpio} \
 	${_bytgpio} \
 	${_chvgpio} \
 	cam \
@@ -86,6 +88,7 @@ SUBDIR=	\
 	${_cfi} \
 	${_chromebook_platform} \
 	${_ciss} \
+	${_coreboot} \
 	${_coretemp} \
 	${_cpsw} \
 	${_cpuctl} \
@@ -169,6 +172,7 @@ SUBDIR=	\
 	if_tuntap \
 	if_vlan \
 	if_vxlan \
+	if_geneve \
 	${_if_wg} \
 	iflib \
 	${_igc} \
@@ -214,7 +218,6 @@ SUBDIR=	\
 	khelp \
 	krpc \
 	ksyms \
-	le \
 	lge \
 	libalias \
 	libiconv \
@@ -296,6 +299,7 @@ SUBDIR=	\
 	nlsysevent \
 	nge \
 	nmdm \
+	ntsync \
 	nullfs \
 	${_ntb} \
 	nvd \
@@ -357,7 +361,7 @@ SUBDIR=	\
 	${_rtw89} \
 	rtwn \
 	rtwn_pci \
-	rtwn_usb \
+	${_rtwn_usb} \
 	${_rtwnfw} \
 	${_s3} \
 	${_safe} \
@@ -399,6 +403,7 @@ SUBDIR=	\
 	sysvipc \
 	tarfs \
 	tcp \
+	${_tglhgpio} \
 	${_thunderbolt} \
 	${_ti} \
 	tmpfs \
@@ -412,12 +417,13 @@ SUBDIR=	\
 	${_ufshci} \
 	uinput \
 	unionfs \
-	usb \
+	${_usb} \
 	${_vesa} \
 	${_vf_i2c} \
 	virtio \
 	vge \
 	${_viawd} \
+	video \
 	videomode \
 	vkbd \
 	${_vmd} \
@@ -542,6 +548,7 @@ SUBDIR+=	fdt
     ${MACHINE_CPUARCH} == "i386"
 SUBDIR+=	linprocfs
 SUBDIR+=	linsysfs
+SUBDIR+=	linux_ntsync
 .endif
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 SUBDIR+=	linux
@@ -711,6 +718,14 @@ SUBDIR+=	ktest
 SUBDIR+=	tests
 .endif
 
+.if ${MK_USB} != "no" || defined(ALL_MODULES)
+_rtwn_usb=	rtwn_usb
+_usb=		usb
+. if ${MACHINE_CPUARCH} == "amd64"
+_thunderbolt=	thunderbolt
+. endif
+.endif
+
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 SUBDIR+=	zfs
 .endif
@@ -785,6 +800,7 @@ _wdatwd=	wdatwd
 
 _aac=		aac
 _aacraid=	aacraid
+_adlngpio=	adlngpio
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _aesni=		aesni
 .endif
@@ -801,6 +817,7 @@ _bytgpio=	bytgpio
 _chvgpio=	chvgpio
 _ciss=		ciss
 _chromebook_platform=	chromebook_platform
+_coreboot=	coreboot
 _coretemp=	coretemp
 .if ${MK_SOURCELESS_HOST} != "no" && empty(KCSAN_ENABLED)
 _hpt27xx=	hpt27xx
@@ -830,6 +847,7 @@ _nfe=		nfe
 _nvram=		nvram
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _padlock=	padlock
+_padlock_rng=	padlock_rng
 _rdrand_rng=	rdrand_rng
 _rdseed_rng=	rdseed_rng
 .endif
@@ -837,6 +855,7 @@ _pchtherm = pchtherm
 _s3=		s3
 _sdhci_acpi=	sdhci_acpi
 _superio=	superio
+_tglhgpio=	tglhgpio
 _vesa=		vesa
 _viawd=		viawd
 _vmd=		vmd
@@ -852,6 +871,7 @@ _x86bios=	x86bios
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _amdgpio=	amdgpio
+_apple_bce=	apple_bce
 _asmc=		asmc
 _ccp=		ccp
 _enic=		enic
@@ -903,9 +923,6 @@ _glxsb=		glxsb
 _pcfclock=	pcfclock
 _pst=		pst
 _sbni=		sbni
-.if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-_padlock_rng=	padlock_rng
-.endif
 .endif
 
 .if ${MACHINE_ARCH} == "armv7"
@@ -937,10 +954,6 @@ _nvram+=	powermac_nvram
 _bcm283x_clkman=  bcm283x_clkman
 _bcm283x_pwm=	bcm283x_pwm
 _neta=		neta
-.endif
-
-.if ${MACHINE_CPUARCH} == "amd64"
-_thunderbolt=	thunderbolt
 .endif
 
 .if !(${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 110000)

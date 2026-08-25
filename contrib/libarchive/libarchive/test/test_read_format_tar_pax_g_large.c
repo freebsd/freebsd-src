@@ -48,6 +48,6 @@ DEFINE_TEST(test_read_format_tar_pax_g_large)
 	assertEqualInt(ARCHIVE_FILTER_NONE, archive_filter_code(a, 0));
 	assertEqualInt(ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE, archive_format(a));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
 	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

@@ -16,16 +16,6 @@ speaker on an
 machine running
 .Fx .
 .Pp
-Only one process may have this device open at any given time;
-.Xr open 2
-and
-.Xr close 2
-are used to lock and relinquish it.
-An attempt to open when
-another process has the device locked will return -1 with an
-.Er EBUSY
-error
-indication.
 Writes to the device are interpreted as `play strings' in a
 simple ASCII melody notation.
 An
@@ -33,6 +23,13 @@ An
 request
 for tone generation at arbitrary
 frequencies is also supported.
+.Pp
+Only one string can be playing at a time.
+Concurrent
+.Xr write 2
+and
+.Xr ioctl 2
+calls from separate threads or processes are serialized per string.
 .Pp
 Sound-generation does not monopolize the processor; in fact, the driver
 spends most of its time sleeping while the PC hardware is emitting
@@ -64,18 +61,25 @@ pointer to the first of an array of tone structures and plays them in
 continuous sequence; this array must be terminated by a final member with
 a zero duration.
 .Pp
-The play-string language is modeled on the PLAY statement conventions of
+The play-string language is a dialect of the Music Markup Language
+(MML) used in various computer and gaming systems since the 1970s.
+It is a subset of the MML variant supported by the PLAY statement of
 .Tn IBM
-Advanced BASIC 2.0.
-The
+Advanced BASIC 2.0,
+.Tn MS
+BASICA and GW-BASIC,
+as well as the Standard Musical Expression (SMX) supported in
+.Tn MS
+QBasic.
 .Li MB ,
 .Li MF ,
 and
 .Li X
-primitives of PLAY are not
-useful in a timesharing environment and are omitted.
+primitives of MML/SMX are not supported.
 The `octave-tracking'
-feature and the slur mark are new.
+feature and the slur mark are specific to the
+.Fx
+implementation.
 .Pp
 There are 84 accessible notes numbered 1-84 in 7 octaves, each running from
 C to B, numbered 0-6; the scale is equal-tempered A440 and octave 3 starts
@@ -115,10 +119,11 @@ Thus ``olbc'' will be played as
 ``olb>c'', and ``olcb'' as ``olc<b''.
 Octave locking is disabled for
 one letter note following >, < and O[0123456].
-(The octave-locking
-feature is not supported in
+The octave-locking feature is not supported in
 .Tn IBM
-BASIC.)
+and
+.Tn MS
+BASIC dialects.
 .It Li >
 Bump the current octave up one.
 .It Li <
@@ -201,9 +206,11 @@ dotted twice, it is held 9/4, and three times would give 27/8.
 A note and its sustain dots may also be followed by a slur mark (underscore).
 This causes the normal micro-rest after the note to be filled in, slurring it
 to the next one.
-(The slur feature is not supported in
+The slur feature is not supported in
 .Tn IBM
-BASIC.)
+and
+.Tn MS
+BASIC dialects.
 .Pp
 Whitespace in play strings is simply skipped and may be used to separate
 melody sections.
@@ -214,16 +221,63 @@ speaker device file
 .El
 .Sh SEE ALSO
 .Xr spkrtest 8
+.Pp
+Additional information about MML:
+.Bl -dash -offset indent
+.It
+.Lk https://electronicmusic.fandom.com/wiki/Music_Macro_Language "The Electronic Music Wiki  - Music Macro Language"
+.It
+.Rs
+.%T "IBM Personal Computer BASIC manual"
+.%I "IBM Corporation"
+.%D "1982"
+.Re
+.It
+.Rs
+.%T "BASICA manual"
+.%I "Microsoft Corporation"
+.%D "1982"
+.Re
+.It
+.Rs
+.%T "GW-BASIC manual"
+.%I "Microsoft Corporation"
+.%D "1987"
+.Re
+.It
+.Rs
+.%T "QBasic manual"
+.%I "Microsoft Corporation"
+.%D "1991"
+.Re
+.It
+.Rs
+.%A "Eleanor Selfridge-Field"
+.%T "Beyond MIDI: the handbook of musical codes"
+.%I "MIT Press"
+.%D "1997"
+.Re
+.El
 .Sh HISTORY
 The
 .Nm
 device appeared in
 .Fx 1.0 .
+.Pp
+Prior to
+.Fx 16 ,
+only one file descriptor could hold the device open.
 .Sh AUTHORS
-.An Eric S. Raymond Aq Mt esr@snark.thyrsus.com ,
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Eric S. Raymond Aq Mt esr@snark.thyrsus.com in
 June 1990
-.Sh PORTED BY
-.An Andrew A. Chernov Aq Mt ache@astral.msk.su
+and ported by
+.An Andrew A. Chernov Aq Mt ache@astral.msk.su .
+Support for concurrent open was added by
+.An Raphael Poss Aq Mt knz@thaumogen.net .
 .Sh BUGS
 Due to roundoff in the pitch tables and slop in the tone-generation and timer
 hardware (neither of which was designed for precision), neither pitch accuracy

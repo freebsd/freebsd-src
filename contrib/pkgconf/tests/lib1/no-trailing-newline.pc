@@ -1,0 +1,10 @@
+prefix=/test
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: no-trailing-newline
+Description: A testing pkg-config file
+Version: 1.2.3
+Libs: -L${libdir}/no-trailing-newline -lno-trailing-newline
+Cflags: -I${includedir}/no-trailing-newline

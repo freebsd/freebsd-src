@@ -69,6 +69,11 @@
     version.h, and update the default value in sshd_config and
     sshd_config.5.
 
+    $ sed -E -i "" "s/FreeBSD-202[0-9]{5}/FreeBSD-$(date +%Y%m%d)/" \
+        crypto/openssh/sshd_config \
+        crypto/openssh/sshd_config.5 \
+        crypto/openssh/version.h
+
 11) Diff against the vendor branch:
 
     $ git diff --diff-filter=M vendor/openssh/X.YpZ HEAD:crypto/openssh
@@ -188,6 +193,11 @@
    internet protocols are supported by the kernel before trying to
    connect to the target host.  This avoids confusing the user with
    spurious error messages.
+
+12) EVP_CIPHER_CTX_get_iv() stub bugfix
+
+   Bug fix submitted upstream at
+   https://bugzilla.mindrot.org/show_bug.cgi?id=3873
 
 
 This port was brought to you by (in no particular order) DARPA, NAI

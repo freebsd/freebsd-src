@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: dos-lineendings
+WantedFlags: libs
+ExpectedStdout: -L/test/lib/dos-lineendings -ldos-lineendings

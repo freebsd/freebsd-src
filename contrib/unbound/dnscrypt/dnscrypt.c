@@ -361,7 +361,7 @@ dnscrypt_server_uncurve(struct dnsc_env* env,
 
     len -= DNSCRYPT_QUERY_HEADER_SIZE;
 
-    while (*sldns_buffer_at(buffer, --len) == 0)
+    while (len>0 && *sldns_buffer_at(buffer, --len) == 0)
         ;
 
     if (*sldns_buffer_at(buffer, len) != 0x80) {
@@ -474,10 +474,18 @@ dnscrypt_server_curve(const dnsccert *cert,
     uint8_t *const buf = sldns_buffer_begin(buffer);
     size_t len = sldns_buffer_limit(buffer);
 
+    if(len + DNSCRYPT_REPLY_HEADER_SIZE > sldns_buffer_capacity(buffer))
+	return -1;
+    sldns_buffer_clear(buffer);
+
     if(udp){
         if (max_len > max_reply_size)
             max_len = max_reply_size;
     }
+    if(max_len > sldns_buffer_capacity(buffer))
+	max_len = sldns_buffer_capacity(buffer);
+    if(max_len > 65535)
+	    max_len = 65535;
 
 
     memcpy(nonce, client_nonce, crypto_box_HALF_NONCEBYTES);
@@ -520,6 +528,7 @@ dnscrypt_server_curve(const dnsccert *cert,
                           DNSCRYPT_MAGIC_HEADER_LEN,
                           nonce,
                           crypto_box_NONCEBYTES);
+    sldns_buffer_flip(buffer);
     sldns_buffer_set_limit(buffer, len + DNSCRYPT_REPLY_HEADER_SIZE);
     return 0;
 }
@@ -663,6 +672,8 @@ dnsc_find_cert(struct dnsc_env* dnscenv, struct sldns_buffer* buffer)
 	}
 	dnscrypt_header = (struct dnscrypt_query_header *)sldns_buffer_begin(buffer);
 	for (i = 0U; i < dnscenv->signed_certs_count; i++) {
+		if(!certs[i].keypair)
+			continue;
 		if (memcmp(certs[i].magic_query, dnscrypt_header->magic_query,
                    DNSCRYPT_MAGIC_HEADER_LEN) == 0) {
 			return &certs[i];
@@ -804,6 +815,7 @@ dnsc_parse_keys(struct dnsc_env *env, struct config_file *cfg)
 		sizeof *env->keypairs);
 	env->certs = sodium_allocarray(env->signed_certs_count,
 		sizeof *env->certs);
+	memset(env->certs, 0, env->signed_certs_count * sizeof(*env->certs));
 
 	cert_id = 0U;
 	keypair_id = 0U;
@@ -830,7 +842,14 @@ dnsc_parse_keys(struct dnsc_env *env, struct config_file *cfg)
 			if(memcmp(current_keypair->crypt_publickey,
 				env->signed_certs[c].server_publickey,
 				crypto_box_PUBLICKEYBYTES) == 0) {
-				dnsccert *current_cert = &env->certs[cert_id++];
+				dnsccert* current_cert;
+				if(cert_id >= env->signed_certs_count) {
+					log_err("dnscrypt: secret key %s matches a cert that "
+						"is already bound to another key (duplicate "
+						"dnscrypt-secret-key?)", head->str);
+					return -1;
+				}
+				current_cert = &env->certs[cert_id++];
 				found_cert = 1;
 				current_cert->keypair = current_keypair;
 				memcpy(current_cert->magic_query,
@@ -912,12 +931,13 @@ dnsc_handle_curved_request(struct dnsc_env* dnscenv,
 }
 
 int
-dnsc_handle_uncurved_request(struct comm_reply *repinfo)
+dnsc_handle_uncurved_request(struct comm_reply *repinfo,
+	struct sldns_buffer* buffer)
 {
     if(!repinfo->c->dnscrypt) {
         return 1;
     }
-    sldns_buffer_copy(repinfo->c->dnscrypt_buffer, repinfo->c->buffer);
+    sldns_buffer_copy(repinfo->c->dnscrypt_buffer, buffer);
     if(!repinfo->is_dnscrypted) {
         return 1;
     }
@@ -963,11 +983,18 @@ dnsc_create(void)
 int
 dnsc_apply_cfg(struct dnsc_env *env, struct config_file *cfg)
 {
+    int nkeys;
     if(dnsc_parse_certs(env, cfg) <= 0) {
         fatal_exit("dnsc_apply_cfg: no cert file loaded");
     }
-    if(dnsc_parse_keys(env, cfg) <= 0) {
+    nkeys = dnsc_parse_keys(env, cfg);
+    if(nkeys <= 0) {
         fatal_exit("dnsc_apply_cfg: no key file loaded");
+    }
+    if((size_t)nkeys < env->signed_certs_count) {
+	fatal_exit("dnsc_apply_cfg: %u dnscrypt-provider-cert file(s) have no "
+		"matching dnscrypt-secret-key",
+		(unsigned)(env->signed_certs_count - (size_t)nkeys));
     }
     randombytes_buf(env->hash_key, sizeof env->hash_key);
     env->provider_name = cfg->dnscrypt_provider;

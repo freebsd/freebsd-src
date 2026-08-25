@@ -1,0 +1,136 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for dtrace_lockstat(4) contention $
+# $Copyright: 2026 Devin Teske. All rights reserved. $
+#
+############################################################ DESCRIPTION
+#
+# Print kernel lock contention events reported by dtrace_lockstat(4),
+# naming the lock, the thread held-off by it, and for how long. Answers
+# "the system is slow -- where is it fighting over locks?" The default
+# profile watches block events (thread went off-CPU waiting); lock-spin
+# watches spin events instead. Contention shorter than a threshold is
+# suppressed (default 1 ms; tunable via DWATCH_LOCK_MS in the environment,
+# 0 to show everything).
+#
+############################################################ PROBE
+
+case "$PROFILE" in
+lock|lock-block)
+	: ${PROBE:=$( echo \
+		lockstat:::adaptive-block, \
+		lockstat:::lockmgr-block, \
+		lockstat:::rw-block, \
+		lockstat:::sx-block )} ;;
+lock-spin)
+	: ${PROBE:=$( echo \
+		lockstat:::adaptive-spin, \
+		lockstat:::rw-spin, \
+		lockstat:::spin-spin, \
+		lockstat:::sx-spin, \
+		lockstat:::thread-spin )} ;;
+lock-adaptive)
+	: ${PROBE:=lockstat:::adaptive-block, lockstat:::adaptive-spin} ;;
+lock-lockmgr)
+	: ${PROBE:=lockstat:::lockmgr-block} ;;
+lock-rw)
+	: ${PROBE:=lockstat:::rw-block, lockstat:::rw-spin} ;;
+lock-sx)
+	: ${PROBE:=lockstat:::sx-block, lockstat:::sx-spin} ;;
+lock-thread)
+	: ${PROBE:=lockstat:::thread-spin} ;;
+*)
+	: ${PROBE:=lockstat:::${PROFILE#lock-}}
+esac
+
+############################################################ EVENT ACTION
+
+: ${DWATCH_LOCK_MS:=1}
+
+case "$DWATCH_LOCK_MS" in
+""|*[!0-9]*) die "DWATCH_LOCK_MS must be a number" ;; # NOTREACHED
+esac
+
+[ "$CUSTOM_TEST" ] ||
+	EVENT_TEST="(int64_t)arg1 >= (int64_t)$DWATCH_LOCK_MS * 1000000"
+
+############################################################ ACTIONS
+
+exec 9<<EOF
+this string	lock_class;
+this string	lock_how;
+this string	lock_name;
+this string	lock_verb;
+
+/*
+ * Lock classes from sys/lock.h as-witnessed by dtrace_lockstat(4)
+ */
+inline string lockstat_class[string name] =
+	name == "adaptive-block" ?	"mtx" :
+	name == "adaptive-spin" ?	"mtx" :
+	name == "lockmgr-block" ?	"lockmgr" :
+	name == "rw-block" ?		"rw" :
+	name == "rw-spin" ?		"rw" :
+	name == "spin-spin" ?		"spin mtx" :
+	name == "sx-block" ?		"sx" :
+	name == "sx-spin" ?		"sx" :
+	name == "thread-spin" ?		"thread" :
+	name;
+
+inline string lockstat_verb[string name] =
+	name == "adaptive-block" ?	"blocked" :
+	name == "lockmgr-block" ?	"blocked" :
+	name == "rw-block" ?		"blocked" :
+	name == "sx-block" ?		"blocked" :
+	"spun";
+
+$PROBE /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");
+}
+	/*
+	 * struct lock_object * (first member of every kernel lock)
+	 */
+	this->lock_name =
+		stringof(((struct lock_object *)arg0)->lo_name);
+	this->lock_class = lockstat_class[probename];
+	this->lock_verb = lockstat_verb[probename];
+	this->lock_how = "";
+}
+
+lockstat:::lockmgr-block,
+lockstat:::rw-block,
+lockstat:::sx-block /* probe ID $(( $ID + 1 )) */
+{${TRACE:+
+	printf("<$(( $ID + 1 ))>");
+}
+	/* arg2 is 0 when acquiring as writer, 1 as reader */
+	this->lock_how = arg2 == 0 ? " as writer" : " as reader";
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 2 ))
+
+############################################################ EVENT DETAILS
+
+if [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print lock contention details
+	 */
+	printf("%s %d.%03d ms on %s \"%s\"%s",
+		this->lock_verb,
+		(int64_t)arg1 / 1000000,
+		((int64_t)arg1 % 1000000) / 1000,
+		this->lock_class,
+		this->lock_name,
+		this->lock_how);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

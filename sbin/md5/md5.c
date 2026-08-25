@@ -42,6 +42,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <vis.h>
 
 #ifdef HAVE_CAPSICUM
 #include <sys/capsicum.h>
@@ -314,6 +315,7 @@ gnu_check(const char *checksumsfile)
 	const char *digestname;
 	size_t digestnamelen;
 	size_t hashstrlen;
+	size_t filenamelen;
 	struct stat st;
 
 	if (strcmp(checksumsfile, "-") == 0)
@@ -343,12 +345,14 @@ gnu_check(const char *checksumsfile)
 		    strncmp(hashstr - 4, ") = ", 4) == 0 &&
 		    strspn(hashstr, "0123456789ABCDEFabcdef") == hashstrlen) {
 			*(hashstr - 4) = '\0';
+			filenamelen = hashstr - 4 - filename;
 		} else if ((size_t)linelen >= hashstrlen + 3 &&
 		    strspn(linebuf, "0123456789ABCDEFabcdef") == hashstrlen &&
 		    linebuf[hashstrlen] == ' ') {
 			linebuf[hashstrlen] = '\0';
 			hashstr = linebuf;
 			filename = linebuf + hashstrlen + 1;
+			filenamelen = linelen - hashstrlen - 1;
 		} else {
 			if (wflag) {
 				warnx("%s: %d: improperly formatted "
@@ -365,17 +369,23 @@ gnu_check(const char *checksumsfile)
 
 		if ((*filename == '*' || *filename == ' ' ||
 		    *filename == 'U' || *filename == '^') &&
-		    lstat(filename, &st) != 0 &&
-		    lstat(filename + 1, &st) == 0) {
-			rec->filename = strdup(filename + 1);
+		    lstat(filename, &st) != 0) {
 			rec->input_mode = (enum input_mode)*filename;
+			filename++;
+			filenamelen--;
 		} else {
-			rec->filename = strdup(filename);
 			rec->input_mode = input_mode;
 		}
 
+		rec->filename = malloc(filenamelen + 1);
+		if (rec->filename == NULL)
+			errx(1, "malloc failed");
+		if (strnunvis(rec->filename, filenamelen + 1, filename) < 0 ||
+		    (lstat(rec->filename, &st) != 0 && lstat(filename, &st) == 0))
+			memcpy(rec->filename, filename, filenamelen + 1); // XXX
+
 		rec->chksum = strdup(hashstr);
-		if (rec->chksum == NULL || rec->filename == NULL)
+		if (rec->chksum == NULL)
 			errx(1, "malloc failed");
 		rec->next = NULL;
 		*next = rec;
@@ -384,6 +394,15 @@ gnu_check(const char *checksumsfile)
 	}
 	if (inp != stdin)
 		fclose(inp);
+}
+
+static int
+safename(char *namebuf, size_t bufsize, const char *name)
+{
+	int vis_mode = VIS_NL | VIS_TAB | VIS_GLOB | VIS_SHELL;
+	int vis_style = VIS_CSTYLE | VIS_OCTAL;
+
+	return (strnvis(namebuf, bufsize, name, vis_mode | vis_style));
 }
 
 /* Main driver.
@@ -633,7 +652,13 @@ main(int argc, char *argv[])
 			}
 			if (f == NULL) {
 				if (errno != ENOENT || !(cflag && ignoreMissing)) {
-					warn("%s", filename);
+					char namebuf[MAXPATHLEN * 4];
+					int serrno = errno;
+
+					if (safename(namebuf, sizeof(namebuf), filename) < 0)
+						warnc(ENAMETOOLONG, NULL);
+					else
+						warnc(serrno, "%s", namebuf);
 					failed = true;
 				}
 				continue;
@@ -763,8 +788,12 @@ MDInput(const Algorithm_t *alg, FILE *f, char *buf, bool tee)
 static void
 MDOutput(const Algorithm_t *alg, char *p, const char *name)
 {
+	char namebuf[MAXPATHLEN * 4];
 	bool checkfailed = false;
 
+	if (safename(namebuf, sizeof(namebuf), name) < 0)
+		errc(1, ENAMETOOLONG, NULL);
+	name = namebuf;
 	if (p == NULL) {
 		warn("%s", name);
 		failed = true;

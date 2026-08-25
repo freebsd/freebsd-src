@@ -33,8 +33,11 @@
 
 #include <sys/sysctl.h>
 #include <sys/slicer.h>
+#include <sys/socket.h>
 #include <contrib/libfdt/libfdt_env.h>
 #include <dev/ofw/ofw_bus.h>
+#include <net/ethernet.h>
+#include <net/if.h>
 
 #define FDT_MEM_REGIONS	64
 
@@ -70,6 +73,7 @@ typedef void (*fdt_mem_region_cb)(const struct mem_region *, void *);
 int fdt_addrsize_cells(phandle_t, int *, int *);
 u_long fdt_data_get(const void *, int);
 int fdt_data_to_res(const pcell_t *, int, int, u_long *, u_long *);
+void fdt_ether_get_addr(phandle_t node, struct ifnet *ifp, uint8_t *eaddr);
 phandle_t fdt_find_compatible(phandle_t, const char *, int);
 phandle_t fdt_depth_search_compatible(phandle_t, const char *, int);
 int fdt_foreach_mem_region(fdt_mem_region_cb, void *);

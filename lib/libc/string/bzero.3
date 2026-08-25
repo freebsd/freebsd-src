@@ -28,13 +28,13 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd August 24, 2015
+.Dd June 21, 2026
 .Dt BZERO 3
 .Os
 .Sh NAME
 .Nm bzero ,
 .Nm explicit_bzero
-.Nd write zeroes to a byte string
+.Nd write zeroes to memory
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -49,7 +49,7 @@ The
 function
 writes
 .Fa len
-zero bytes to the string
+zero bytes to the object
 .Fa b .
 If
 .Fa len

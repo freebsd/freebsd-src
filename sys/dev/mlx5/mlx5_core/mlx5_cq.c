@@ -113,7 +113,8 @@ void mlx5_cq_event(struct mlx5_core_dev *dev, u32 cqn, int event_type)
 		spin_unlock(&table->writerlock);
 
 	if (likely(cq != NULL)) {
-		cq->event(cq, event_type);
+		if (cq->event)
+			cq->event(cq, event_type);
 	} else {
 		mlx5_core_warn(dev,
 		    "Asynchronous event for bogus CQ 0x%x\n", cqn);

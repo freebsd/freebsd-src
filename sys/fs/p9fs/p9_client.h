@@ -54,8 +54,8 @@ enum p9_proto_versions {
 
 /* P9 Request exchanged between Host and Guest */
 struct p9_req_t {
-	struct p9_buffer *tc;	/* request buffer */
-	struct p9_buffer *rc;	/* response buffer */
+	struct p9_buffer tc;	/* request buffer */
+	struct p9_buffer rc;	/* response buffer */
 };
 
 /* 9P transport status */
@@ -65,8 +65,11 @@ enum transport_status {
 	P9FS_DISCONNECT,	/* transport has been dosconnected */
 };
 
-/* This is set by QEMU so we will oblige */
-#define P9FS_MTU 8192
+/*
+ * This matches the Linux 5.15 and newer default.
+ * Note: Linux allows larger msize values than this.
+ */
+#define P9FS_MTU 131072
 
 /*
  * Even though we have a 8k buffer, Qemu is typically doing 8168

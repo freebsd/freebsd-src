@@ -1,4 +1,4 @@
-# $NetBSD: dir.mk,v 1.11 2023/12/19 19:33:40 rillig Exp $
+# $NetBSD: dir.mk,v 1.12 2026/07/03 15:31:35 sjg Exp $
 #
 # Tests for dir.c.
 
@@ -21,7 +21,7 @@ all: {one,two,three}
 .if target({one,two,three})
 .  error
 .endif
-.if ${.ALLTARGETS:M{one,two,three}} != "{one,two,three}"
+.if ${.ALLTARGETS:M\{one,two,three\}} != "{one,two,three}"
 .  error
 .endif
 

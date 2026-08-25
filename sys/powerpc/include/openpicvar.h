@@ -32,10 +32,11 @@
 
 #define OPENPIC_DEVSTR	"OpenPIC Interrupt Controller"
 
-#define OPENPIC_IRQMAX	256	/* h/w allows more */
+#define OPENPIC_IRQMAX	512	/* h/w allows more */
 
 #define	OPENPIC_QUIRK_SINGLE_BIND	1	/* Bind interrupts to only 1 CPU */
 #define	OPENPIC_QUIRK_HIDDEN_IRQS	2	/* May have IRQs beyond FRR[NIRQ] */
+#define	OPENPIC_QUIRK_WHOAMI_WORKS	4	/* WHOAMI register is present */
 
 /* Names match the macros in openpicreg.h. */
 struct openpic_timer {
@@ -59,6 +60,7 @@ struct openpic_softc {
 	u_int		sc_nirq;
 	int		sc_psim;
 	u_int		sc_quirks;
+	uint32_t	sc_vec_mask;
 
 	/* Saved states. */
 	uint32_t		sc_saved_config;

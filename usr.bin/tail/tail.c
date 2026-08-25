@@ -96,8 +96,6 @@ main(int argc, char *argv[])
 	 */
 #define	ARG(units, forward, backward) {					\
 	int64_t num;							\
-	if (style)							\
-		usage();						\
 	if (expand_number(optarg, &num))				\
 		err(1, "illegal offset -- %s", optarg);			\
 	if (num > INT64_MAX / units || num < INT64_MIN / units)		\

@@ -32,7 +32,9 @@ Andrew Walker <awalker@ixsystems.com>
 Benedikt Neuffer <github@itfriend.de>
 Chengfei Zhu <chengfeix.zhu@intel.com>
 ChenHao Lu <18302010006@fudan.edu.cn>
+Chris Jacobs <idefix2020dev@gmail.com>
 Chris Lindee <chris.lindee+github@gmail.com>
+Colin K. Williams <colin@li-nk.org>
 Colm Buckley <colm@tuatha.org>
 Crag Wang <crag0715@gmail.com>
 Damian Szuberski <szuberskidamian@gmail.com>
@@ -53,6 +55,7 @@ Jason Harmening <jason.harmening@gmail.com>
 Jeremy Faulkner <gldisater@gmail.com>
 Jinshan Xiong <jinshan.xiong@gmail.com>
 John Poduska <jpoduska@datto.com>
+Joseph Holsten <joseph@josephholsten.com>
 Jo Zzsi <jozzsicsataban@gmail.com>
 Justin Scholz <git@justinscholz.de>
 Ka Ho Ng <khng300@gmail.com>
@@ -72,10 +75,12 @@ Roberto Ricci <io@r-ricci.it>
 Roberto Ricci <ricci@disroot.org>
 Rob Norris <robn@despairlabs.com>
 Rob Norris <rob.norris@klarasystems.com>
+Rob Norris <rob.norris@truenas.com>
 Sam Lunt <samuel.j.lunt@gmail.com>
 Sanjeev Bagewadi <sanjeev.bagewadi@gmail.com>
 Sebastian Wuerl <s.wuerl@mailbox.org>
 SHENGYI HONG <aokblast@FreeBSD.org>
+Sivesh Kumar <siveshjami@gmail.com>
 Stoiko Ivanov <github@nomore.at>
 Tamas TEVESZ <ice@extreme.hu>
 WHR <msl0000023508@gmail.com>
@@ -83,8 +88,12 @@ Yanping Gao <yanping.gao@xtaotech.com>
 Youzhong Yang <youzhong@gmail.com>
 
 # Signed-off-by: overriding Author:
+Alexander Moch <mail@alexmoch.com> <amoch@ernw.de>
+Alexander Moch <mail@alexmoch.com> <github@alexanderjulian.de>
 Alexander Ziaee <ziaee@FreeBSD.org> <concussious@runbox.com>
+delan azabani <dazabani@igalia.com> <delan@azabani.com>
 Felix Schmidt <felixschmidt20@aol.com> <f.sch.prototype@gmail.com>
+George Shammas <george@shamm.as> <georgyo@gmail.com>
 Jean-Sébastien Pédron <dumbbell@FreeBSD.org> <jean-sebastien.pedron@dumbbell.fr>
 Konstantin Belousov <kib@FreeBSD.org> <kib@kib.kiev.ua>
 Olivier Certner <olce@FreeBSD.org> <olce.freebsd@certner.fr>
@@ -93,6 +102,7 @@ Phil Sutter <phil@nwl.cc> <p.github@nwl.cc>
 poscat <poscat@poscat.moe> <poscat0x04@outlook.com>
 Qiuhao Chen <chenqiuhao1997@gmail.com> <haohao0924@126.com>
 Ryan <errornointernet@envs.net> <error.nointernet@gmail.com>
+Saju Palayur <spalayur@maxlinear.com> <saju.palayur@gmail.com>
 Sietse <sietse@wizdom.nu> <uglymotha@wizdom.nu>
 Yuxin Wang <yuxinwang9999@gmail.com> <Bi11gates9999@gmail.com>
 Zhenlei Huang <zlei@FreeBSD.org> <zlei.huang@gmail.com>
@@ -108,6 +118,7 @@ Ned Bass <bass6@llnl.gov> <bass6@zeno1.(none)>
 Tulsi Jain <tulsi.jain@delphix.com> <tulsi.jain@Tulsi-Jains-MacBook-Pro.local>
 
 # Mappings from Github no-reply addresses
+Adi Gollamudi <adigollamudi@gmail.com> <68113680+Adi-Goll@users.noreply.github.com>
 ajs124 <git@ajs124.de> <ajs124@users.noreply.github.com>
 Alek Pinchuk <apinchuk@axcient.com> <alek-p@users.noreply.github.com>
 Aleksandr Liber <aleksandr.liber@perforce.com> <61714074+AleksandrLiber@users.noreply.github.com>
@@ -125,11 +136,13 @@ bernie1995 <bernie.pikes@gmail.com> <42413912+bernie1995@users.noreply.github.co
 Bojan Novković <bnovkov@FreeBSD.org> <72801811+bnovkov@users.noreply.github.com>
 Boris Protopopov <boris.protopopov@actifio.com> <bprotopopov@users.noreply.github.com>
 Brad Forschinger <github@bnjf.id.au> <bnjf@users.noreply.github.com>
+Brad Spengler <94915855+bspengler-oss@users.noreply.github.com>>
 Brandon Thetford <brandon@dodecatec.com> <dodexahedron@users.noreply.github.com>
 buzzingwires <buzzingwires@outlook.com> <131118055+buzzingwires@users.noreply.github.com>
 Cedric Maunoury <cedric.maunoury@gmail.com> <38213715+cedricmaunoury@users.noreply.github.com>
 Charles Suh <charles.suh@gmail.com> <charlessuh@users.noreply.github.com>
 Chris Peredun <chris.peredun@ixsystems.com> <126915832+chrisperedun@users.noreply.github.com>
+Christos Longros <chris.longros@gmail.com> <98426896+chrislongros@users.noreply.github.com>
 classabbyamp <dev@placeviolette.net> <5366828+classabbyamp@users.noreply.github.com>
 Dacian Reece-Stremtan <dacianstremtan@gmail.com> <35844628+dacianstremtan@users.noreply.github.com>
 Damian Szuberski <szuberskidamian@gmail.com> <30863496+szubersk@users.noreply.github.com>
@@ -138,6 +151,7 @@ Daniel Kobras <d.kobras@science-computing.de> <sckobras@users.noreply.github.com
 Daniel Reichelt <hacking@nachtgeist.net> <nachtgeist@users.noreply.github.com>
 David Quigley <david.quigley@intel.com> <dpquigl@users.noreply.github.com>
 Dennis R. Friedrichsen <dennis.r.friedrichsen@gmail.com> <31087738+dennisfriedrichsen@users.noreply.github.com>
+Dennis Vestergaard Værum <github@varum.dk> <6872940+dvaerum@users.noreply.github.com>
 Dex Wood <slash2314@gmail.com> <slash2314@users.noreply.github.com>
 DHE <git@dehacked.net> <DeHackEd@users.noreply.github.com>
 Dmitri John Ledkov <dimitri.ledkov@canonical.com> <19779+xnox@users.noreply.github.com>
@@ -182,6 +196,7 @@ Kyle Evans <kevans@FreeBSD.org> <kevans91@users.noreply.github.com>
 Laurențiu Nicola <lnicola@dend.ro> <lnicola@users.noreply.github.com>
 loli10K <ezomori.nozomu@gmail.com> <loli10K@users.noreply.github.com>
 Lorenz Hüdepohl <dev@stellardeath.org> <lhuedepohl@users.noreply.github.com>
+Louis Leseur <louis.leseur@gmail.com> <51127370+teapot9@users.noreply.github.com>
 Luís Henriques <henrix@camandro.org> <73643340+lumigch@users.noreply.github.com>
 Marcin Skarbek <git@skarbek.name> <mskarbek@users.noreply.github.com>
 Matt Fiddaman <github@m.fiddaman.uk> <81489167+matt-fidd@users.noreply.github.com>
@@ -202,6 +217,7 @@ Peter Wirdemo <peter.wirdemo@gmail.com> <4224155+pewo@users.noreply.github.com>
 Petros Koutoupis <petros@petroskoutoupis.com> <pkoutoupis@users.noreply.github.com>
 Ping Huang <huangping@smartx.com> <101400146+hpingfs@users.noreply.github.com>
 Piotr P. Stefaniak <pstef@freebsd.org> <pstef@users.noreply.github.com>
+Pranav P <pranavsdreams@gmail.com> <49746983+pranavkaruvally@users.noreply.github.com>
 Richard Allen <belperite@gmail.com> <33836503+belperite@users.noreply.github.com>
 Rich Ercolani <rincebrain@gmail.com> <214141+rincebrain@users.noreply.github.com>
 Rick Macklem <rmacklem@uoguelph.ca> <64620010+rmacklem@users.noreply.github.com>
@@ -213,6 +229,7 @@ Samuel Wycliffe <samuelwycliffe@gmail.com> <50765275+npc203@users.noreply.github
 Savyasachee Jha <hi@savyasacheejha.com> <savyajha@users.noreply.github.com>
 Scott Colby <scott@scolby.com> <scolby33@users.noreply.github.com>
 Sean Eric Fagan <kithrup@mac.com> <kithrup@users.noreply.github.com>
+Shelvacu <git@shelvacu.com> <1731537+shelvacu@users.noreply.github.com>
 Shreshth Srivastava <shreshthsrivastava2@gmail.com> <66148173+Shreshth3@users.noreply.github.com>
 Spencer Kinny <spencerkinny1995@gmail.com> <30333052+Spencer-Kinny@users.noreply.github.com>
 Srikanth N S <srikanth.nagasubbaraoseetharaman@hpe.com> <75025422+nssrikanth@users.noreply.github.com>
@@ -235,3 +252,4 @@ XDTG <click1799@163.com> <35128600+XDTG@users.noreply.github.com>
 xtouqh <xtouqh@hotmail.com> <72357159+xtouqh@users.noreply.github.com>
 Yuri Pankov <yuripv@FreeBSD.org> <113725409+yuripv@users.noreply.github.com>
 Yuri Pankov <yuripv@FreeBSD.org> <82001006+yuripv@users.noreply.github.com>
+ZhengYuan Huang <gality369@gmail.com> <68463495+Gality369@users.noreply.github.com>

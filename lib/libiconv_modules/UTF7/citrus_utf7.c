@@ -296,7 +296,7 @@ done:
 
 static int
 _citrus_UTF7_utf16tomb(_UTF7EncodingInfo * __restrict ei,
-    char * __restrict s, size_t n __unused, uint16_t u16,
+    char * __restrict s, size_t n, uint16_t u16,
     _UTF7State * __restrict psenc, size_t * __restrict nresult)
 {
 	int bits, i;
@@ -336,6 +336,8 @@ _citrus_UTF7_utf16tomb(_UTF7EncodingInfo * __restrict ei,
 			psenc->ch[psenc->chlen++] = base64[i];
 		}
 	}
+	if (n < (size_t)psenc->chlen)
+		return (E2BIG);
 	memcpy(s, psenc->ch, psenc->chlen);
 	*nresult = psenc->chlen;
 	psenc->chlen = 0;
@@ -352,6 +354,8 @@ _citrus_UTF7_wcrtomb_priv(_UTF7EncodingInfo * __restrict ei,
 	uint16_t u16[2];
 	int err, i, len;
 	size_t nr, siz;
+	char buf[8], *bufp = buf;
+	_UTF7State psenc_save = *psenc;
 
 	u32 = (uint32_t)wchar;
 	if (u32 <= UTF16_MAX) {
@@ -367,14 +371,20 @@ _citrus_UTF7_wcrtomb_priv(_UTF7EncodingInfo * __restrict ei,
 		return (EILSEQ);
 	}
 	siz = 0;
+	if (n > sizeof(buf))
+		n = sizeof(buf);
 	for (i = 0; i < len; ++i) {
-		err = _citrus_UTF7_utf16tomb(ei, s, n, u16[i], psenc, &nr);
-		if (err != 0)
-			return (err); /* XXX: state has been modified */
-		s += nr;
+		err = _citrus_UTF7_utf16tomb(ei, bufp, n, u16[i], psenc, &nr);
+		if (err != 0) {
+			*nresult = (size_t)-1;
+			*psenc = psenc_save; /* restore state */
+			return (err);
+		}
+		bufp += nr;
 		n -= nr;
 		siz += nr;
 	}
+	memcpy(s, buf, siz);
 	*nresult = siz;
 
 	return (0);

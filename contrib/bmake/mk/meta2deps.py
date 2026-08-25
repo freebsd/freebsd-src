@@ -39,7 +39,7 @@ We only pay attention to a subset of the information in the
 SPDX-License-Identifier: BSD-2-Clause
 
 RCSid:
-	$Id: meta2deps.py,v 1.54 2025/07/24 16:05:48 sjg Exp $
+	$Id: meta2deps.py,v 1.57 2026/07/03 15:45:29 sjg Exp $
 
 	Copyright (c) 2011-2025, Simon J. Gerraty
 	Copyright (c) 2011-2017, Juniper Networks, Inc.
@@ -72,6 +72,13 @@ import os
 import re
 import sys
 import stat
+
+# Attempt to match bogus filemon data that could potentitally be truncated by
+# the unreliable Linux filemon such as:
+#       R 2712488 /X 2712597 0
+# or
+#       R 1096904 /path/foo-linuR 1096904 /path/bar.py
+filemon_fused_re = re.compile(r'[CDEFLMRSVWX] [0-9]+ ')
 
 def resolve(path, cwd, last_dir=None, debug=0, debug_out=sys.stderr):
     """
@@ -446,7 +453,7 @@ class MetaFile:
 
         version = 0                     # unknown
         if name:
-            self.name = name;
+            self.name = name
         if file:
             f = file
             cwd = self.last_dir = self.cwd
@@ -515,6 +522,17 @@ class MetaFile:
                 if self.debug > 2:
                     print('op={} elen={} wlen={} line="{}"'.format(w[0], elen, wlen, line.strip()), file=self.debug_out)
                 if wlen != elen:
+                    if wlen > elen and w[0] in 'CELMRW':
+                        # Before assuming spaces in a pathname, make sure this
+                        # isn't two records fused onto one line because of
+                        # dropped data (unreliable Linux filemon).
+                        if filemon_fused_re.search(line.split(None, 2)[2]):
+                            raise AssertionError('corrupted filemon data: fused records (dropped newline): {} in: {}'.format(error_name, line.strip()))
+                        # It could just be spaces in pathname.
+                        # More trouble than its worth, just skip it.
+                        if self.debug > 0:
+                            print('Skipping: wrong number of words: expected {} got {} in: {}'.format(elen, wlen, line), file=self.debug_out)
+                        continue
                     raise AssertionError('corrupted filemon data: wrong number of words: expected {} got {} in: {}'.format(elen, wlen, line))
 
             pid = int(w[1])
@@ -669,7 +687,7 @@ class MetaFile:
                 return
             if os.path.isdir(path):
                 if op in 'RW':
-                    self.last_dir = path;
+                    self.last_dir = path
                 if self.debug > 1:
                     print("ldir=", self.last_dir, file=self.debug_out)
                 return
@@ -703,7 +721,7 @@ class MetaFile:
                 self.seenit(dir)
 
 
-def main(argv, klass=MetaFile, xopts='', xoptf=None):
+def main(argv, klass=MetaFile, xopts='', xoptf=None, conf=None):
     """Simple driver for class MetaFile.
 
     Usage:
@@ -743,11 +761,12 @@ def main(argv, klass=MetaFile, xopts='', xoptf=None):
     except:
         pass
 
-    conf = {
-        'SRCTOPS': [],
-        'OBJROOTS': [],
-        'EXCLUDES': [],
-        }
+    if not conf:
+        conf = {}
+
+    for k in ['EXCLUDES', 'OBJROOTS', 'SRCTOPS']:
+        if k not in conf:
+            conf[k] = []
 
     conf['SB'] = os.getenv('SB', '')
 

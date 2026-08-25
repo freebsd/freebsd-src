@@ -1,3 +1,480 @@
+commit 4b73f2ec19a99ef465282fbce633e8deb33691b3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-31 17:26:16 +0300
+
+    Bump version and soname for 5.8.3
+
+ src/liblzma/Makefile.am        | 2 +-
+ src/liblzma/api/lzma/version.h | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit 97b7440006d69a30048ff1ffc29fc7a0615e5d51
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-31 17:26:16 +0300
+
+    Add NEWS for 5.8.3
+
+ NEWS | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 54 insertions(+)
+
+commit 8e1022cfb1d177e482e487c202a0ab43dee761a3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-31 17:10:47 +0300
+
+    Translations: Run "make -C po update-po"
+    
+    Update the PO files to contain the comment fix from 4e76651dbaf6.
+
+ po/ca.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/cs.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/da.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/de.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/eo.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/es.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/fi.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/fr.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/hr.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/hu.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/it.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/ka.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/ko.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/nl.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/pl.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/pt.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/pt_BR.po | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/ro.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/sr.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/sv.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/tr.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/uk.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/vi.po    | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/zh_CN.po | 148 ++++++++++++++++++++++++++++++------------------------------
+ po/zh_TW.po | 148 ++++++++++++++++++++++++++++++------------------------------
+ 25 files changed, 1850 insertions(+), 1850 deletions(-)
+
+commit a3ea8832bec11128597c454f5d14d05ef6010e3f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-29 20:29:40 +0300
+
+    Tests: Add a test for the lzma_index_prealloc() + lzma_index_append() bug
+
+ tests/test_index.c | 35 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 35 insertions(+)
+
+commit c8c22869e780ff57c96b46939c3d79ff99395f87
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-29 19:11:21 +0300
+
+    liblzma: Fix a buffer overflow in lzma_index_append()
+    
+    If lzma_index_decoder() was used to decode an Index that contained no
+    Records, the resulting lzma_index had an invalid internal "prealloc"
+    value. If lzma_index_append() was called on this lzma_index, too
+    little memory would be allocated and a buffer overflow would occur.
+    
+    While this combination of the API functions is meant to work, in the
+    real-world apps this call sequence is rare or might not exist at all.
+    
+    This bug is older than xz 5.0.0, so all stable releases are affected.
+    
+    Reported-by: GitHub user christos-spearbit
+
+ src/liblzma/common/index.c | 21 +++++++++++++++++++++
+ 1 file changed, 21 insertions(+)
+
+commit a37658bec72ed581a683b7498a75a70122b831b0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-27 21:15:12 +0200
+
+    CMake: Adjust warnings with MSVC and clang-cl
+    
+    When using clang-cl, avoid the long list of warning options used with
+    GCC and Clang because, for MSVC compatibility, clang-cl's -Wall behaves
+    like -Weverything.
+    
+    Add warning options for MSVC. Use them with clang-cl too.
+
+ CMakeLists.txt | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+
+commit 9e499f714cade4beade31c86dcb0de9fc72d0562
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-27 21:14:50 +0200
+
+    CI: Don't disable individual warnings with clang-cl
+
+ .github/workflows/msvc.yml | 13 -------------
+ 1 file changed, 13 deletions(-)
+
+commit 1e00837f72e0551ab73927642a8f61aad80c958d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-22 12:02:48 +0200
+
+    CI: Add Haiku
+
+ .github/workflows/haiku.yml | 38 ++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 38 insertions(+)
+
+commit 8082851b7848ac32fea7bc7cfb84d9b3ef5537b0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-22 11:30:20 +0200
+
+    Update THANKS
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 3cdd412bcea6bb5b4c5d41d2b4104230a5a9569c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-22 11:29:30 +0200
+
+    CI: Update MSYS2
+    
+    Closes: https://github.com/tukaani-project/xz/pull/213
+
+ .github/workflows/msys2.yml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit e38a4af340ca9738923a511b7e35b6390c03ec50
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-22 11:29:23 +0200
+
+    CI: Update Solaris
+    
+    Closes: https://github.com/tukaani-project/xz/pull/213
+
+ .github/workflows/solaris.yml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 40b1599217cc4f7cca6f48e0c32e709b9abd3639
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-22 11:29:14 +0200
+
+    CI: Update OpenBSD
+    
+    Closes: https://github.com/tukaani-project/xz/pull/213
+
+ .github/workflows/openbsd.yml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 3aaf2f136c3fcf1140b9dfa584640778be789abc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-22 11:29:08 +0200
+
+    CI: Update NetBSD
+    
+    Closes: https://github.com/tukaani-project/xz/pull/213
+
+ .github/workflows/netbsd.yml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit b5c26a249d21d293b441b21d22a1a81e7eec436a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-22 11:28:58 +0200
+
+    CI: Update FreeBSD
+    
+    Closes: https://github.com/tukaani-project/xz/pull/213
+
+ .github/workflows/freebsd.yml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 1a73f4f917f25d19ae557f49af2fddd9ef9f0a4a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-22 11:28:47 +0200
+
+    CI: Update DragonFly BSD
+    
+    Closes: https://github.com/tukaani-project/xz/pull/213
+
+ .github/workflows/dragonflybsd.yml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 5d61c5a3cf3be88b16179900ac5be82011a3a6bb
+Author: Salman Muin Kayser Chishti <13schishti@gmail.com>
+Date:   2026-02-28 09:10:46 +0000
+
+    CI: Upgrade GitHub Actions for Node 24 compatibility
+    
+    Signed-off-by: Salman Muin Kayser Chishti <13schishti@gmail.com>
+    Closes: https://github.com/tukaani-project/xz/pull/212
+
+ .github/workflows/ci.yml           | 4 ++--
+ .github/workflows/cifuzz.yml       | 2 +-
+ .github/workflows/coverity.yml     | 2 +-
+ .github/workflows/dragonflybsd.yml | 2 +-
+ .github/workflows/freebsd.yml      | 2 +-
+ .github/workflows/msvc.yml         | 2 +-
+ .github/workflows/msys2.yml        | 4 ++--
+ .github/workflows/netbsd.yml       | 2 +-
+ .github/workflows/openbsd.yml      | 2 +-
+ .github/workflows/solaris.yml      | 2 +-
+ 10 files changed, 12 insertions(+), 12 deletions(-)
+
+commit 0ac3b93387c0191919ffa38de5f49f6b28164b35
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-25 19:03:00 +0200
+
+    xz: Prevent an integer overflow in --files and --files0
+    
+    This requires a filename (or something that pretends to be a filename)
+    of at least 2 GiB on a 32-bit platform, and that realloc() to
+    SIZE_MAX / 2 + 1 bytes has succeeded.
+    
+    Fixes: https://github.com/tukaani-project/xz/pull/218
+
+ src/xz/main.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+commit 2faa141bdb47be94da2eae6df6f08858999a5911
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-23 23:43:56 +0200
+
+    tuklib_integer: Fix inefficient aligned_writeXXne
+    
+    The __builtin_assume_aligned was applied to the wrong argument which
+    made aligned writes worse on strict-align archs.
+    
+    Aligned writes aren't used in liblzma, so this bug didn't matter in
+    this package; tuklib_integer.h is meant to be usable elsewhere too.
+
+ src/common/tuklib_integer.h | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)
+
+commit 685538271e3e213a18c5a925654aaa32c0b69f1e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-03-22 10:22:09 +0200
+
+    Build: Remove -Wpre-c2x-compat
+    
+    It makes clang -std=gnu23 noisy about bool. It's also noisy about
+    [[__fallthrough__]] which is only used in C23 mode.
+    
+    Reported-by: Collin Funk <collin.funk1@gmail.com>
+
+ CMakeLists.txt | 1 -
+ configure.ac   | 1 -
+ 2 files changed, 2 deletions(-)
+
+commit 3a78a82bd380c26bc7afda7565216c3383cedefe
+Author: Collin Funk <collin.funk1@gmail.com>
+Date:   2026-03-15 23:24:59 -0700
+
+    xz: Don't fsync directories on QNX
+    
+    On QNX calling fsync on a directory fails with EINVAL. This causes the
+    following test failure:
+    
+        $ cat tests/test_suffix.sh.log
+        /data/home/root/xz-5.8.2/src/xz/.libs/lt-xz: suffix_temp: Synchronizing the directory of the file failed: Invalid argument
+        Failed to decompress a file with a suffix set in raw format
+        FAIL test_suffix.sh (exit status: 1)
+    
+    Closes: https://github.com/tukaani-project/xz/pull/216
+
+ src/xz/file_io.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+commit bfc5f12a84a2a9df774ed16cd6eb58fd5ab24646
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-02-25 17:33:42 +0200
+
+    Update THANKS
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 5553509f1a53ee160ea3bc871c716a75ba0b1ea0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-02-25 00:00:49 +0200
+
+    liblzma: Fix a copy-paste error in commented-out code
+    
+    Fixes: https://github.com/dotnet/runtime/pull/124003#discussion_r2841960994
+    Fixes: 96b663f67c0e ("liblzma: Refactor CRC comments.")
+
+ src/liblzma/check/crc32_fast.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 4e76651dbaf6a0159f2117482d778ff69127fdea
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-02-24 18:34:19 +0200
+
+    Fix typos and grammar in comments and docs
+    
+    Fixes: https://github.com/dotnet/runtime/pull/124003#discussion_r2789354505
+    Fixes: https://github.com/dotnet/runtime/pull/124003#discussion_r2789354515
+    Fixes: https://github.com/dotnet/runtime/pull/124003#discussion_r2820960196
+
+ po/Makevars                                      | 2 +-
+ src/common/tuklib_gettext.h                      | 4 ++--
+ src/common/tuklib_mbstr_wrap.h                   | 4 ++--
+ src/common/w32_application.manifest.comments.txt | 2 +-
+ 4 files changed, 6 insertions(+), 6 deletions(-)
+
+commit cd8a6231d084ee9ce0a7a285f99dc5721d1f4317
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-02-24 18:24:29 +0200
+
+    tuklib_open_stdxxx: Fix a typo in macro name
+    
+    It doesn't matter in this package, but it's good to fix it still.
+    
+    Fixes: https://github.com/dotnet/runtime/pull/124003#discussion_r2782313660
+
+ src/common/tuklib_open_stdxxx.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit bf5d32f489fd7f33b2a629f9b78f5157301b49d8
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-02-24 18:22:25 +0200
+
+    CMake: Fix a wrong #define
+    
+    HAVE_SYS_PARAM_H was misspelled HAVE_PARAM_H. This might have broken
+    the build on systems where sysctl() is used to detect the amount of RAM
+    or the number of processor cores/threads.
+    
+    The cpuset code for FreeBSD doesn't need the macro it so it was removed.
+    
+    Fixes: https://github.com/dotnet/runtime/pull/124003#discussion_r2782313680
+    Fixes: https://github.com/dotnet/runtime/pull/124003#discussion_r2782313704
+    Fixes: 7e3493d40eac ("Build: Add very limited experimental CMake support.")
+
+ cmake/tuklib_cpucores.cmake | 4 ++--
+ cmake/tuklib_physmem.cmake  | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+commit b0f3b64a25bcd3a6a4cebc00866dea86590fac3e
+Author: Radek Zikmund <r.zikmund.rz@gmail.com>
+Date:   2026-02-12 15:24:15 +0100
+
+    liblzma/MSVC: Add a cast to fix a warning (C4057) with __cpuid()
+    
+    __cpuid from MSVC (and also the old Intel ICC) use int[], while
+    __get_cpuid from <cpuid.h> in GCC and Clang use unsigned int[].
+    Adding a cast is the simplest fix.
+    
+    Link: https://github.com/tukaani-project/xz/pull/208
+
+ src/liblzma/check/crc_x86_clmul.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit b51d67f4a95f41ae3a64973acc0e44b9f078512f
+Author: Radek Zikmund <r.zikmund.rz@gmail.com>
+Date:   2026-02-23 17:50:00 +0100
+
+    CMake: Guard script configure_file() calls with ENABLE_SCRIPTS
+    
+    The configure_file() calls for xzdiff, xzgrep, xzmore, and xzless
+    were running unconditionally within the if(UNIX) block, even when
+    ENABLE_SCRIPTS was OFF. This would cause a build failure if the
+    src/scripts/*.in files were not present. Deleting those files can
+    simplify license compliance when the scripts aren't needed.
+    
+    Move the foreach loop and related code inside if(ENABLE_SCRIPTS) guard
+    so that configure_file() is only called when scripts are actually needed.
+    This is mostly whitespace changes to adjust the indentation.
+    
+    Co-authored-by: Lasse Collin <lasse.collin@tukaani.org>
+    Closes: https://github.com/tukaani-project/xz/pull/210
+
+ CMakeLists.txt | 68 ++++++++++++++++++++++++++++------------------------------
+ 1 file changed, 33 insertions(+), 35 deletions(-)
+
+commit 1007bf08b5fddf088b3131e692210af4b4b7fd8c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-02-04 12:28:07 +0200
+
+    Translations: Add Arabic man page translations
+    
+    Rendering of bidirectional text from man pages might not work perfectly
+    in all cases.
+
+ po4a/ar.po     | 3905 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ po4a/po4a.conf |    2 +-
+ 2 files changed, 3906 insertions(+), 1 deletion(-)
+
+commit 54147ad65af12d9e4f60a8ce59094a8a30ad5919
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-01-25 13:51:09 +0200
+
+    Update THANKS
+
+ THANKS | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit d6bdb446f8da47ac2af8c309de8e7c80beae850e
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-01-25 13:30:46 +0200
+
+    liblzma: Add the "License" property to liblzma.pc
+    
+    The "License" property is a pkgconf extension. See pc(5).
+    pkg-config 0.29.2 (2017) ignores unrecognized properties so this
+    commit shouldn't create compatibility issues.
+    
+    pkgconf provides bomtool which uses the "License" property to generate
+    a software bill of materials. In pkgconf.git there is spdxtool for the
+    same task but with different output format.
+    
+    The pkgconf extensions "Copyright" and "Maintainer" would also be
+    used by bomtool and spdxtool, but I don't want to add those properties
+    at least for now.
+    
+    Co-authored-by: Nobuhiro Iwamatsu <iwamatsu@nigauri.org>
+    Closes: https://github.com/tukaani-project/xz/pull/178
+
+ src/liblzma/liblzma.pc.in | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 687bd3e30fbe54ae906d06a93e7f2aa8b121aa7b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-01-25 12:14:46 +0200
+
+    Update THANKS
+
+ THANKS | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit b80b6343a4b7df6bf56dcf07715f9f536af93306
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2026-01-25 12:14:25 +0200
+
+    liblzma: Don't try to use x86-64 inline asm on ARM64EC
+    
+    Reported-by: Chase Knowlden
+    Fixes: https://github.com/tukaani-project/xz/issues/206
+
+ src/liblzma/rangecoder/range_decoder.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 47fb9d84c052912ca10dc9843cb296c860b182ac
+Author: Pino Toscano <toscano.pino@tiscali.it>
+Date:   2025-12-30 19:59:55 +0100
+
+    Autotools: Enable x86 assembler on Hurd by default
+    
+    It has been enabled in Debian GNU/Hurd for 15+ years with no issues.
+    Hence, enable it by default also in the upstream sources.
+    
+    The CMake build already had it enabled.
+    
+    Link: https://salsa.debian.org/debian/xz-utils/-/blob/debian/5.8.2-2/debian/rules?ref_type=tags#L98
+    Closes: https://github.com/tukaani-project/xz/pull/204
+
+ configure.ac | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 9f4c5a0d4817c9c7011cdfd00cfbe0ddda66a455
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   2025-12-17 14:49:12 +0200
+
+    doc/SHA256SUMS: Add 5.8.2
+
+ doc/SHA256SUMS | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
 commit 3d078b52adbff566ccfc51067dfbf742ecf3ef86
 Author: Lasse Collin <lasse.collin@tukaani.org>
 Date:   2025-12-17 13:36:42 +0200

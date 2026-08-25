@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -785,6 +775,9 @@ dnode_allocate(dnode_t *dn, dmu_object_type_t ot, int blocksize, int ibs,
 	if (bonustype == DMU_OT_SA) /* Maximize bonus space for SA */
 		dn->dn_nblkptr = 1;
 	else {
+		/*
+		 * Keep in sync with deduce_nblkptr() in dmu_recv.c.
+		 */
 		dn->dn_nblkptr = MIN(DN_MAX_NBLKPTR,
 		    1 + ((DN_SLOTS_TO_BONUSLEN(dn_slots) - bonuslen) >>
 		    SPA_BLKPTRSHIFT));
@@ -853,10 +846,14 @@ dnode_reallocate(dnode_t *dn, dmu_object_type_t ot, int blocksize,
 
 	if (bonustype == DMU_OT_SA) /* Maximize bonus space for SA */
 		nblkptr = 1;
-	else
+	else {
+		/*
+		 * Keep in sync with deduce_nblkptr() in dmu_recv.c.
+		 */
 		nblkptr = MIN(DN_MAX_NBLKPTR,
 		    1 + ((DN_SLOTS_TO_BONUSLEN(dn_slots) - bonuslen) >>
 		    SPA_BLKPTRSHIFT));
+	}
 	if (dn->dn_bonustype != bonustype)
 		dn->dn_next_bonustype[tx->tx_txg & TXG_MASK] = bonustype;
 	if (dn->dn_nblkptr != nblkptr)
@@ -2409,6 +2406,8 @@ done:
 	mutex_enter(&dn->dn_mtx);
 	{
 		int txgoff = tx->tx_txg & TXG_MASK;
+
+		FREE_RANGE_VERIFY(tx, dn);
 		if (dn->dn_free_ranges[txgoff] == NULL) {
 			dn->dn_free_ranges[txgoff] =
 			    zfs_range_tree_create_flags(
@@ -2464,6 +2463,37 @@ dnode_block_freed(dnode_t *dn, uint64_t blkid)
 	}
 	mutex_exit(&dn->dn_mtx);
 	return (i < TXG_SIZE);
+}
+
+/*
+ * Check if a level-0 block was freed in a TXG after override_txg.
+ *
+ * When a block has been overridden (e.g., by block clone or direct I/O),
+ * we can't use dnode_block_freed() because it checks all active TXGs.
+ * A free from a TXG *before* the override should not make the block appear
+ * freed.
+ */
+uint64_t
+dnode_block_freed_after(dnode_t *dn, uint64_t blkid, uint64_t override_txg)
+{
+	ASSERT(blkid != DMU_BONUS_BLKID);
+	ASSERT(blkid != DMU_SPILL_BLKID);
+
+	if (dn->dn_free_txg)
+		return (TRUE);
+
+	mutex_enter(&dn->dn_mtx);
+	uint64_t open = spa_open_txg(dmu_objset_spa(dn->dn_objset));
+	for (uint64_t txg = override_txg + 1; txg <= open; txg++) {
+		int i = txg & TXG_MASK;
+		if (dn->dn_free_ranges[i] != NULL &&
+		    zfs_range_tree_contains(dn->dn_free_ranges[i], blkid, 1)) {
+			mutex_exit(&dn->dn_mtx);
+			return (TRUE);
+		}
+	}
+	mutex_exit(&dn->dn_mtx);
+	return (FALSE);
 }
 
 /* call from syncing context when we actually write/free space for this dnode */

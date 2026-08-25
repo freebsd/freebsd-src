@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2015 - 2023 Intel Corporation
+ * Copyright (c) 2015 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -279,6 +279,7 @@ struct irdma_cqp_init_info {
 	u8 hmc_profile;
 	u8 ena_vf_count;
 	u8 ceqs_per_vf;
+	u8 timer_slots;
 	bool en_datacenter_tcp:1;
 	bool disable_packed:1;
 	bool rocev2_rto_policy:1;
@@ -414,6 +415,7 @@ struct irdma_sc_cqp {
 	u8 ena_vf_count;
 	u8 timeout_count;
 	u8 ceqs_per_vf;
+	u8 timer_slots;
 	bool en_datacenter_tcp:1;
 	bool disable_packed:1;
 	bool rocev2_rto_policy:1;
@@ -442,8 +444,8 @@ struct irdma_sc_ceq {
 	struct irdma_sc_dev *dev;
 	struct irdma_ceqe *ceqe_base;
 	void *pbl_list;
-	u32 ceq_id;
 	u32 elem_cnt;
+	u16 ceq_id;
 	struct irdma_ring ceq_ring;
 	u8 pbl_chunk_size;
 	u8 tph_val;
@@ -466,8 +468,8 @@ struct irdma_sc_cq {
 	struct irdma_sc_vsi *vsi;
 	void *pbl_list;
 	void *back_cq;
-	u32 ceq_id;
 	u32 shadow_read_threshold;
+	u16 ceq_id;
 	u8 pbl_chunk_size;
 	u8 cq_type;
 	u8 tph_val;
@@ -505,6 +507,7 @@ struct irdma_sc_qp {
 	u8 hw_sq_size;
 	u8 hw_rq_size;
 	u8 src_mac_addr_idx;
+	bool suspended:1;
 	bool on_qoslist:1;
 	bool ieq_pass_thru:1;
 	bool sq_tph_en:1;
@@ -523,12 +526,6 @@ struct irdma_sc_qp {
 	struct list_head list;
 };
 
-struct irdma_stats_inst_info {
-	u16 hmc_fn_id;
-	u16 stats_idx;
-	bool use_hmc_fcn_index:1;
-};
-
 struct irdma_up_info {
 	u8 map[8];
 	u8 cnp_up_override;
@@ -539,6 +536,13 @@ struct irdma_up_info {
 
 #define IRDMA_MAX_WS_NODES      0x3FF
 #define IRDMA_WS_NODE_INVALID	0xFFFF
+
+struct irdma_ws_move_node_info {
+	u16 node_id[16];
+	u8 num_nodes;
+	u8 target_port;
+	bool resume_traffic:1;
+};
 
 struct irdma_ws_node_info {
 	u16 id;
@@ -582,6 +586,7 @@ struct irdma_config_check {
 	bool lfc_set:1;
 	bool pfc_set:1;
 	u8 traffic_class;
+	u8 prio;
 	u16 qs_handle;
 };
 
@@ -599,7 +604,6 @@ struct irdma_sc_vsi {
 	u32 exception_lan_q;
 	u16 mtu;
 	enum irdma_vm_vf_type vm_vf_type;
-	bool stats_inst_alloc:1;
 	bool tc_change_pending:1;
 	bool mtu_change_pending:1;
 	struct irdma_vsi_pestat *pestat;
@@ -653,7 +657,6 @@ struct irdma_sc_dev {
 	u16 num_vfs;
 	u16 hmc_fn_id;
 	bool ceq_valid:1;
-	u8 pci_rev;
 	int (*ws_add)(struct irdma_sc_vsi *vsi, u8 user_pri);
 	void (*ws_remove)(struct irdma_sc_vsi *vsi, u8 user_pri);
 	void (*ws_reset)(struct irdma_sc_vsi *vsi);
@@ -773,7 +776,7 @@ struct irdma_ceq_init_info {
 	u64 *ceqe_base;
 	void *pbl_list;
 	u32 elem_cnt;
-	u32 ceq_id;
+	u16 ceq_id;
 	bool virtual_map:1;
 	bool tph_en:1;
 	bool itr_no_expire:1;
@@ -804,8 +807,8 @@ struct irdma_ccq_init_info {
 	__le64 *shadow_area;
 	void *pbl_list;
 	u32 num_elem;
-	u32 ceq_id;
 	u32 shadow_read_threshold;
+	u16 ceq_id;
 	bool ceqe_mask:1;
 	bool ceq_id_valid:1;
 	bool avoid_mem_cflct:1;
@@ -1004,7 +1007,6 @@ struct irdma_allocate_stag_info {
 	u16 access_rights;
 	bool remote_access:1;
 	bool use_hmc_fcn_index:1;
-	bool use_pf_rid:1;
 	bool all_memory:1;
 	u16 hmc_fcn_index;
 };
@@ -1032,7 +1034,6 @@ struct irdma_reg_ns_stag_info {
 	irdma_stag_key stag_key;
 	bool use_hmc_fcn_index:1;
 	u16 hmc_fcn_index;
-	bool use_pf_rid:1;
 	bool all_memory:1;
 };
 
@@ -1056,7 +1057,6 @@ struct irdma_fast_reg_stag_info {
 	bool push_wqe:1;
 	bool use_hmc_fcn_index:1;
 	u16 hmc_fcn_index;
-	bool use_pf_rid:1;
 	bool defer_flag:1;
 };
 
@@ -1065,6 +1065,7 @@ struct irdma_dealloc_stag_info {
 	u32 pd_id;
 	bool mr:1;
 	bool dealloc_pbl:1;
+	bool skip_flush_markers:1;
 };
 
 struct irdma_register_shared_stag {
@@ -1102,8 +1103,8 @@ struct irdma_cq_init_info {
 	struct irdma_sc_dev *dev;
 	u64 cq_base_pa;
 	u64 shadow_area_pa;
-	u32 ceq_id;
 	u32 shadow_read_threshold;
+	u16 ceq_id;
 	u8 pbl_chunk_size;
 	u32 first_pm_pbl_idx;
 	bool virtual_map:1;
@@ -1204,7 +1205,7 @@ int irdma_sc_ccq_get_cqe_info(struct irdma_sc_cq *ccq,
 int irdma_sc_ccq_init(struct irdma_sc_cq *ccq,
 		      struct irdma_ccq_init_info *info);
 
-int irdma_sc_cceq_create(struct irdma_sc_ceq *ceq, u64 scratch);
+int irdma_sc_cceq_create(struct irdma_sc_ceq *ceq);
 int irdma_sc_cceq_destroy_done(struct irdma_sc_ceq *ceq);
 
 int irdma_sc_ceq_destroy(struct irdma_sc_ceq *ceq, u64 scratch, bool post_sq);
@@ -1473,12 +1474,6 @@ struct cqp_info {
 
 		struct {
 			struct irdma_sc_cqp *cqp;
-			struct irdma_stats_inst_info info;
-			u64 scratch;
-		} stats_manage;
-
-		struct {
-			struct irdma_sc_cqp *cqp;
 			struct irdma_stats_gather_info info;
 			u64 scratch;
 		} stats_gather;
@@ -1488,6 +1483,12 @@ struct cqp_info {
 			struct irdma_ws_node_info info;
 			u64 scratch;
 		} ws_node;
+
+		struct {
+			struct irdma_sc_cqp *cqp;
+			struct irdma_ws_move_node_info info;
+			u64 scratch;
+		} ws_move_node;
 
 		struct {
 			struct irdma_sc_cqp *cqp;
@@ -1508,6 +1509,8 @@ struct cqp_cmds_info {
 	u8 cqp_cmd;
 	u8 post_sq;
 	struct cqp_info in;
+	int cqp_cmd_exec_status;
+	bool create;
 };
 
 __le64 *irdma_sc_cqp_get_next_send_wqe_idx(struct irdma_sc_cqp *cqp, u64 scratch,

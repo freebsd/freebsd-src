@@ -90,7 +90,6 @@ smp_topo_none(void)
 volatile cpuset_t stopped_cpus;
 volatile cpuset_t started_cpus;
 volatile cpuset_t suspended_cpus;
-cpuset_t hlt_cpus_mask;
 cpuset_t logical_cpus_mask;
 
 void (*cpustop_restartfunc)(void);
@@ -180,7 +179,7 @@ mp_setmaxid(void *dummy)
 
 	cpusetsizemin = howmany(mp_maxid + 1, NBBY);
 }
-SYSINIT(cpu_mp_setmaxid, SI_SUB_TUNABLES, SI_ORDER_FIRST, mp_setmaxid, NULL);
+SYSINIT(cpu_mp_setmaxid, SI_SUB_FIRST, SI_ORDER_ANY, mp_setmaxid, NULL);
 
 /*
  * Call the MD SMP initialization code.

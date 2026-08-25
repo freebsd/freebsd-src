@@ -2757,7 +2757,7 @@ urtw_8225_rf_set_sens(struct urtw_softc *sc, int sens)
 	usb_error_t error;
 
 	if (sens < 0 || sens > 6)
-		return -1;
+		return USB_ERR_INVAL;
 
 	if (sens > 4)
 		urtw_8225_write(sc,

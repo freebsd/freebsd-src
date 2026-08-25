@@ -29,7 +29,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd January 23, 2025
+.Dd July 12, 2026
 .Dt FIREWIRE 4
 .Os
 .Sh NAME
@@ -49,11 +49,6 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 firewire_load="YES"
 .Ed
-.Sh DEPRECATION NOTICE
-The
-.Nm
-driver is slated to be removed prior to
-.Fx 16.0 .
 .Sh DESCRIPTION
 .Fx
 provides machine-independent bus support and raw drivers for
@@ -71,6 +66,27 @@ The
 .Nm
 bus attaches to the controller.
 Additional drivers can be attached to the bus.
+.Pp
+The
+.Nm
+bus parses each device's CSR configuration ROM to discover unit
+directories.
+A newbus child is created for each unit directory, carrying the
+.Va unit_spec_id
+and
+.Va unit_sw_version
+fields as ivars.
+Device-specific drivers such as
+.Xr fwcam 4 ,
+.Xr fwisound 4 ,
+and
+.Xr fwdv 4
+match against these fields in their probe routines.
+Protocol drivers such as
+.Xr sbp 4
+and
+.Xr fwe 4
+continue to use the legacy identify-based attachment model.
 .Pp
 Up to 63 devices, including the host itself, can be attached to
 a
@@ -99,8 +115,11 @@ for details on how to setup debugging with firewire.
 .El
 .Sh SEE ALSO
 .Xr dcons 4 ,
+.Xr fwcam 4 ,
+.Xr fwdv 4 ,
 .Xr fwe 4 ,
 .Xr fwip 4 ,
+.Xr fwisound 4 ,
 .Xr fwohci 4 ,
 .Xr pci 4 ,
 .Xr sbp 4 ,

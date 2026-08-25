@@ -1,18 +1,28 @@
 
 #------------------------------------------------------------------------------
-# $File: apache,v 1.1 2017/04/11 14:52:15 christos Exp $
+# $File: apache,v 1.3 2025/05/30 13:25:13 christos Exp $
 # apache: file(1) magic for Apache Big Data formats
 
 # Avro files
-0	string		Obj		Apache Avro
->3	byte		x		version %d
+0	string		Obj\001		Apache Avro, version 1
 
 # ORC files
 # Important information is in file footer, which we can't index to :(
 0	string		ORC		Apache ORC
 
-# Parquet files
-0	string		PAR1		Apache Parquet
+# Apache arrow file format
+# MIME: https://www.iana.org/assignments/media-types/application/vnd.apache.arrow.stream
+# Description: https://arrow.apache.org/docs/format/Columnar.html
+0	string		ARROW1		Apache Arrow columnar file
+!:mime application/vnd.apache.arrow.file
+!:ext arrow/feather
+
+# Apache parquet file format
+# MIME: https://www.iana.org/assignments/media-types/application/vnd.apache.parquet
+# Description: https://parquet.apache.org/docs/file-format/
+0	string		PAR1		Apache Parquet file
+!:mime application/vnd.apache.parquet
+!:ext parquet
 
 # Hive RC files
 0	string		RCF		Apache Hive RC file

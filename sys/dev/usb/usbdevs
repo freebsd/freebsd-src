@@ -714,6 +714,8 @@ vendor DISPLAYLINK	0x17e9	DisplayLink
 vendor LENOVO		0x17ef	Lenovo
 vendor WAVESENSE	0x17f4	WaveSense
 vendor VAISALA		0x1843	Vaisala
+vendor K2L		0x184f	K2L GmbH
+vendor VERBATIM 	0x18a5	Verbatim
 vendor E3C		0x18b4	E3C Technologies
 vendor AMIT		0x18c5	AMIT
 vendor GOOGLE		0x18d1	Google
@@ -786,6 +788,7 @@ vendor PERASO		0x2932	Peraso Technologies, Inc.
 vendor PLANEX		0x2c02	Planex Communications
 vendor MERCUSYS		0x2c4e	Mercusys, Inc.
 vendor QUECTEL		0x2c7c	Quectel Wireless Solutions
+vendor NUAND		0x2cf0	Nuand LLC
 vendor VIDZMEDIA	0x3275	VidzMedia Pte Ltd
 vendor LINKINSTRUMENTS	0x3195	Link Instruments Inc.
 vendor AEI		0x3334	AEI
@@ -1695,6 +1698,7 @@ product CYBERTAN RT2870		0x1828	RT2870
 /* Cypress Semiconductor products */
 product CYPRESS MOUSE		0x0001	mouse
 product CYPRESS THERMO		0x0002	thermometer
+product CYPRESS FX3		0x00f3	EZ-USB FX3
 product CYPRESS WISPY1A		0x0bad	MetaGeek Wi-Spy
 product CYPRESS KBDHUB		0x0101	Keyboard/Hub
 product CYPRESS FMRADIO		0x1002	FM Radio
@@ -1773,6 +1777,7 @@ product DIGIANSWER ZIGBEE802154	0x000a	ZigBee/802.15.4 MAC
 
 /* D-Link products */
 /*product DLINK DSBS25		0x0100	DSB-S25 serial*/
+product DLINK DUBE1312		0xb301	DUB-E1312 USB Ethernet
 product DLINK DUBE100		0x1a00	10/100 Ethernet
 product DLINK DUBE100C1		0x1a02	DUB-E100 rev C1
 product DLINK DSB650TX4		0x200c	10/100 Ethernet
@@ -1789,6 +1794,7 @@ product DLINK DWA182C1		0x3315	DWA-182 rev C1
 product DLINK DWA180A1		0x3316	DWA-180 rev A1
 product DLINK DWA172A1		0x3318	DWA-172 rev A1
 product DLINK DWA131E1		0x3319	DWA-131 rev E1
+product DLINK DWA121B1		0x331b	DWA-121 rev B1
 product DLINK DWA182D1		0x331c	DWA-182 rev D1
 product DLINK DWA181A1		0x331e	DWA-181 rev A1
 product DLINK DWL122		0x3700	DWL-122
@@ -2762,6 +2768,9 @@ product JVC MP_PRX1		0x3008	MP-PRX1 Ethernet
 /* JRC products */
 product JRC AH_J3001V_J3002V	0x0001	AirH PHONE AH-J3001V/J3002V
 
+/* K2L products */
+product K2L EVB_LAN8670_USB	0x0051	Microchip EVB-LAN8670-USB 10BASE-T1S
+
 /* Kamstrrup products */
 product KAMSTRUP OPTICALEYE	0x0001	Optical Eye/3-wire
 product KAMSTRUP MBUS_250D	0x0005	M-Bus Master MultiPort 250D
@@ -3373,6 +3382,8 @@ product MICROSOFT WLNOTEBOOK3	0x00d2	Wireless Optical Mouse 3000 (Model 1049)
 product MICROSOFT NATURAL4000	0x00db	Natural Ergonomic Keyboard 4000
 product MICROSOFT WLNOTEBOOK2	0x00e1	Wireless Optical Mouse 3000 (Model 1056)
 product MICROSOFT XBOX360	0x0292	XBOX 360 WLAN
+product MICROSOFT SURFETH1	0x07ab	Surface USB Ethernet
+product MICROSOFT SURFETH2	0x07c6	Surface USB Ethernet
 product MICROSOFT WINDEVETH	0x0c5e	Windows Dev Kit 2023 Ethernet
 
 /* Microtech products */
@@ -3555,6 +3566,11 @@ product NEWLINK USB2IDEBRIDGE	0x00ff	USB 2.0 Hard Drive Enclosure
 product NIKON E990		0x0102	Digital Camera E990
 product NIKON LS40		0x4000	CoolScan LS40 ED
 product NIKON D300		0x041a  Digital Camera D300
+
+/* Nuand LLC products */
+product NUAND BLADERF		0x5246	bladeRF Software Defined Radio
+product NUAND BLADERF_BL	0x5247	bladeRF Bootloader
+product NUAND BLADERF2		0x5250	bladeRF 2.0 Software Defined Radio
 
 /* NovaTech Products */
 product NOVATECH NV902		0x9020	NovaTech NV-902W
@@ -4122,6 +4138,8 @@ product REALTEK RTL8821AU_2	0x0811	RTL8821AU
 product REALTEK RTW8821CU_CD	0x1a2b	RTW8821CU_CD
 product REALTEK RTL8188RU_2	0x317f	RTL8188RU
 product REALTEK USBKR100	0x8150	USBKR100 USB Ethernet
+product REALTEK RTL8050		0x8050	RTL8050 USB Ethernet
+product REALTEK RTL8053		0x8053	RTL8053 USB Ethernet
 product REALTEK RTL8152		0x8152	RTL8152 USB Ethernet
 product REALTEK RTL8153		0x8153	RTL8153 USB Ethernet
 product REALTEK RTL8156		0x8156	RTL8156 USB Ethernet
@@ -4196,6 +4214,7 @@ product ROLAND UA700		0x002b	UA-700 Audio I/F
 product ROLAND PCR300		0x0033  EDIROL PCR-300 MIDI I/F
 product ROLAND UA25EX_AD	0x00e6  EDIROL UA-25EX (Advanced Driver)
 product ROLAND UA25EX_CC	0x00e7  EDIROL UA-25EX (Class Compliant)
+product ROLAND UA33		0x0132  UA-33 Audio I/F
 
 /* Rockfire products */
 product ROCKFIRE GAMEPAD	0x2033	gamepad 203USB
@@ -4214,6 +4233,7 @@ product SAGEM XG760A		0x004a	XG-760A
 product SAGEM XG76NA		0x0062	XG-76NA
 
 /* Samsung products */
+product SAMSUNG RTL8153		0xa101	USB Ethernet
 product SAMSUNG WIS09ABGN	0x2018	WIS09ABGN Wireless LAN adapter
 product SAMSUNG ML6060		0x3008	ML-6060 laser printer
 product SAMSUNG YP_U2		0x5050	YP-U2 MP3 Player
@@ -4793,6 +4813,8 @@ product TELEX MIC1		0x0001	Enhanced USB Microphone
 /* Telit products */
 product TELIT UC864E		0x1003	UC864E 3G modem
 product TELIT UC864G		0x1004	UC864G 3G modem
+product TELIT LM960		0x1040	LM960A18 LTE modem (RNDIS)
+product TELIT LM960_ECM		0x1042	LM960A18 LTE modem (ECM)
 
 /* Ten X Technology, Inc. */
 product TENX UAUDIO0		0xf211	USB audio headset
@@ -4845,6 +4867,8 @@ product TPLINK T2UNANO		0x011e	Archer T2U Nano
 product TPLINK T2UV3		0x011f	Archer T2U ver 3
 product TPLINK T2UPLUS		0x0120	Archer T2U Plus
 product TPLINK RTL8153		0x0601	RTL8153 USB 10/100/1000 LAN
+product TPLINK RTL8153_2	0x0602	RTL8153 USB 10/100/1000 LAN
+product TPLINK UB500		0x0604	UB500 RTL8761BUV Bluetooth
 
 /* Trek Technology products */
 product TREK THUMBDRIVE		0x1111	ThumbDrive
@@ -4933,6 +4957,9 @@ product VIALABS VL701		0x0701	VL701 USB 3.0 SATA Bridge
 /* Vaisala products */
 product VAISALA CABLE		0x0200	USB Interface cable
 
+/* Verbatim products */
+product VERBATIM STORENGO	0x0243	Verbatim Store N Go
+
 /* Vertex products */
 product VERTEX VW110L		0x0100	Vertex VW110L modem
 
@@ -4964,6 +4991,7 @@ product WACOM GRAPHIRE		0x0010	Graphire
 product WACOM GRAPHIRE3_4X5	0x0013	Graphire 3 4x5
 product WACOM INTUOSA5		0x0021	Intuos A5
 product WACOM GD0912U		0x0022	Intuos 9x12 Graphics Tablet
+product WACOM EXPRESSKEY_REMOTE	0x0331	ExpressKey Remote
 
 /* WAGO Kontakttechnik GmbH products */
 product WAGO SERVICECABLE	0x07a6	USB Service Cable 750-923
@@ -5063,14 +5091,67 @@ product YAMAHA MOTIF7		0x1006	MOTIF7 MIDI Synth. Workstation
 product YAMAHA MOTIF8		0x1007	MOTIF8 MIDI Synth. Workstation
 product YAMAHA UX96		0x1008	UX96 MIDI I/F
 product YAMAHA UX16		0x1009	UX16 MIDI I/F
+product YAMAHA EOS_BX		0x100a	EOS BX MIDI I/F
+product YAMAHA UCMX		0x100c	UC-MX MIDI I/F
+product YAMAHA UCKX		0x100d	UC-KX MIDI I/F
 product YAMAHA S08		0x100e	S08 MIDI Keyboard
 product YAMAHA CLP150		0x100f	CLP-150 digital piano
 product YAMAHA CLP170		0x1010	CLP-170 digital piano
+product YAMAHA P250		0x1011	P-250 digital piano
+product YAMAHA TYROS		0x1012	TYROS MIDI Synth. Workstation
+product YAMAHA PF500		0x1013	PF-500 digital piano
+product YAMAHA S90		0x1014	S90 MIDI Synth.
+product YAMAHA MOTIFR		0x1015	MOTIF-R MIDI Synth. Workstation
+product YAMAHA MDP5		0x1016	MDP-5 MIDI I/F
+product YAMAHA CVP204		0x1017	CVP-204 digital piano
+product YAMAHA CVP206		0x1018	CVP-206 digital piano
+product YAMAHA CVP208		0x1019	CVP-208 digital piano
+product YAMAHA CVP210		0x101a	CVP-210 digital piano
+product YAMAHA PSR1100		0x101b	PSR-1100 digital piano
+product YAMAHA PSR2100		0x101c	PSR-2100 digital piano
+product YAMAHA CLP175		0x101d	CLP-175 digital piano
+product YAMAHA PSRK1		0x101e	PSR-K1 digital piano
+product YAMAHA EZJ24		0x101f	EZ-J24 digital piano
+product YAMAHA EZJ250I		0x1020	EZ-250i digital piano
+product YAMAHA MOTIF_ES6	0x1021	MOTIF ES 6 MIDI Synth. Workstation
+product YAMAHA MOTIF_ES7	0x1022	MOTIF ES 7 MIDI Synth. Workstation
+product YAMAHA MOTIF_ES8	0x1023	MOTIF ES 8 MIDI Synth. Workstation
+product YAMAHA CVP301		0x1024	CVP-301 digital piano
+product YAMAHA CVP303		0x1025	CVP-303 digital piano
+product YAMAHA CVP305		0x1026	CVP-305 digital piano
+product YAMAHA CVP307		0x1027	CVP-307 digital piano
+product YAMAHA CVP309		0x1028	CVP-309 digital piano
+product YAMAHA CVP309GP		0x1029	CVP-309GP digital piano
+product YAMAHA PSR1500		0x102a	PSR-1500 digital piano
+product YAMAHA PSR3000		0x102b	PSR-3000 digital piano
+product YAMAHA ELS01_01C	0x102e	ELS-01/01C digital piano
+product YAMAHA PSR295_293	0x1030	PSR-295/293 digital piano
+product YAMAHA DGX205_203	0x1031	DGX-205/203 digital piano
+product YAMAHA DGX305		0x1032	DGX-305 digital piano
+product YAMAHA DGX505		0x1033	DGX-505 digital piano
+product YAMAHA MOX6_MOX8	0x1503	MOX6/MOX8 MIDI Synth. Workstation
+product YAMAHA DGP7		0x2000	DGP-7 digital piano
+product YAMAHA DGP5		0x2001	DGP-5 digital piano
 product YAMAHA RPU200		0x3104	RP-U200
 product YAMAHA RTA54I		0x4000	NetVolante RTA54i Broadband&ISDN Router
 product YAMAHA RTW65B		0x4001	NetVolante RTW65b Broadband Wireless Router
 product YAMAHA RTW65I		0x4002	NetVolante RTW65i Broadband&ISDN Wireless Router
 product YAMAHA RTA55I		0x4004	NetVolante RTA55i Broadband VoIP Router
+product YAMAHA CS1D		0x5000	CS1D MIDI I/F
+product YAMAHA DSP1D		0x5001	DSP1D MIDI I/F
+product YAMAHA DME32		0x5002	DME32 MIDI I/F
+product YAMAHA DM2000		0x5003	DM2000 MIDI I/F
+product YAMAHA 02R96		0x5004	02R96 MIDI I/F
+product YAMAHA ACU16C		0x5005	ACU16-C MIDI I/F
+product YAMAHA NHB32C		0x5006	NHB32-C MIDI I/F
+product YAMAHA DM1000		0x5007	DM1000 MIDI I/F
+product YAMAHA 01V96		0x5008	01V96 MIDI I/F
+product YAMAHA SPX2000		0x5009	SPX2000 MIDI I/F
+product YAMAHA PM5D		0x500a	PM5D MIDI I/F
+product YAMAHA DME64N		0x500b	DME64N MIDI I/F
+product YAMAHA DME24N		0x500c	DME24N MIDI I/F
+product YAMAHA DTX		0x7000	DTX Electronic Drum Kit
+product YAMAHA UB99		0x7010	UB99 Multi-Effect Pedal
 
 /* Yano products */
 product YANO U640MO		0x0101	U640MO-03

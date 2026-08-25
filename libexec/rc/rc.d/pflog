@@ -27,18 +27,11 @@ pflog_prestart()
 {
 	load_kld pflog || return 1
 
-	# create pflog_dev interface if needed
-	if ! ifconfig $pflog_dev > /dev/null 2>&1; then
-		if ! ifconfig $pflog_dev create; then
-			warn "could not create $pflog_dev."
-			return 1
-		fi
-	fi
-
-	# set pflog_dev interface to up state
-	if ! ifconfig $pflog_dev up; then
-		warn "could not bring up $pflog_dev."
-		return 1
+	# Do we need to create more devices?
+	unit=${pflog_dev#pflog}
+	max=$(sysctl -n net.pflog.if_count)
+	if [ "$unit" -ge "$max" ]; then
+		sysctl net.pflog.if_count=$(expr ${unit} + 1)
 	fi
 
 	# -p flag requires stripping pidfile's leading /var/run and trailing .pid
@@ -53,11 +46,6 @@ pflog_prestart()
 
 pflog_poststop()
 {
-	if ! ifconfig $pflog_dev down; then
-		warn "could not bring down $pflog_dev."
-		return 1
-	fi
-
 	if [ "$pflog_instances" ] && [ -n "$pflog_instances" ]; then
 		rm $pidfile
 	fi

@@ -14,8 +14,8 @@
 
 struct mbuf;
 
-int crypto_init(void);
-void crypto_deinit(void);
+int wg_crypto_init(void);
+void wg_crypto_deinit(void);
 
 enum chacha20poly1305_lengths {
 	XCHACHA20POLY1305_NONCE_SIZE = 24,

@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -395,11 +385,7 @@ perm_set_compare(const void *arg1, const void *arg2)
 {
 	const perm_set_t *node1 = (const perm_set_t *)arg1;
 	const perm_set_t *node2 = (const perm_set_t *)arg2;
-	int val;
-
-	val = strcmp(node1->p_setname, node2->p_setname);
-
-	return (TREE_ISIGN(val));
+	return (TREE_ISIGN(strcmp(node1->p_setname, node2->p_setname)));
 }
 
 /*
@@ -595,13 +581,16 @@ dsl_deleg_access_impl(dsl_dataset_t *ds, const char *perm, cred_t *cr)
 		 * the zoned property is set
 		 */
 		if (!INGLOBALZONE(curproc)) {
-			uint64_t zoned;
+			uint64_t zoned = 0;
+			uint64_t zoned_uid_val = 0;
 
-			if (dsl_prop_get_dd(dd,
+			(void) dsl_prop_get_dd(dd,
 			    zfs_prop_to_name(ZFS_PROP_ZONED),
-			    8, 1, &zoned, NULL, B_FALSE) != 0)
-				break;
-			if (!zoned)
+			    8, 1, &zoned, NULL, B_FALSE);
+			(void) dsl_prop_get_dd(dd,
+			    zfs_prop_to_name(ZFS_PROP_ZONED_UID),
+			    8, 1, &zoned_uid_val, NULL, B_FALSE);
+			if (!zoned && zoned_uid_val == 0)
 				break;
 		}
 		zapobj = dsl_dir_phys(dd)->dd_deleg_zapobj;

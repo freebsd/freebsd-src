@@ -33,9 +33,9 @@
  */
 
 struct pcmchan_caps {
-	u_int32_t minspeed, maxspeed;
-	u_int32_t *fmtlist;
-	u_int32_t caps;
+	uint32_t minspeed, maxspeed;
+	uint32_t *fmtlist;
+	uint32_t caps;
 };
 
 struct pcmchan_matrix {
@@ -57,10 +57,11 @@ struct pcmchan_syncmember;
 extern struct mtx snd_pcm_syncgroups_mtx;
 extern SLIST_HEAD(pcm_synclist, pcmchan_syncgroup) snd_pcm_syncgroups;
 
-#define PCM_SG_LOCK()	    mtx_lock(&snd_pcm_syncgroups_mtx)
-#define PCM_SG_TRYLOCK()    mtx_trylock(&snd_pcm_syncgroups_mtx)
-#define PCM_SG_UNLOCK()	    mtx_unlock(&snd_pcm_syncgroups_mtx)
-#define PCM_SG_LOCKASSERT(arg)	mtx_assert(&snd_pcm_syncgroups_mtx, arg)
+#define PCM_SG_LOCKPTR()	(&snd_pcm_syncgroups_mtx)
+#define PCM_SG_LOCK()		mtx_lock(PCM_SG_LOCKPTR())
+#define PCM_SG_TRYLOCK()	mtx_trylock(PCM_SG_LOCKPTR())
+#define PCM_SG_UNLOCK()		mtx_unlock(PCM_SG_LOCKPTR())
+#define PCM_SG_LOCKASSERT(arg)	mtx_assert(PCM_SG_LOCKPTR(), arg)
 
 /**
  * @brief Specifies an audio device sync group
@@ -89,14 +90,14 @@ struct pcm_channel {
 
 	pid_t pid;
 	struct pcm_feeder *feeder;
-	u_int32_t align;
+	uint32_t align;
 
 	int latency;
-	u_int32_t speed;
-	u_int32_t format;
-	u_int32_t flags;
-	u_int32_t feederflags;
-	u_int64_t blocks;
+	uint32_t speed;
+	uint32_t format;
+	uint32_t flags;
+	uint32_t feederflags;
+	uint64_t blocks;
 
 	int direction;
 	unsigned int interrupts, xruns, feedcount;
@@ -143,7 +144,7 @@ struct pcm_channel {
 	 */
 	struct pcmchan_syncmember *sm;
 #ifdef OSSV4_EXPERIMENT
-	u_int16_t lpeak, rpeak;	/**< Peak value from 0-32767. */
+	uint16_t lpeak, rpeak;	/**< Peak value from 0-32767. */
 #endif
 
 	struct {
@@ -255,13 +256,12 @@ struct pcm_channel {
 
 #include "channel_if.h"
 
-int chn_reinit(struct pcm_channel *c);
 int chn_write(struct pcm_channel *c, struct uio *buf);
 int chn_read(struct pcm_channel *c, struct uio *buf);
-u_int32_t chn_start(struct pcm_channel *c, int force);
+uint32_t chn_start(struct pcm_channel *c, int force);
 int chn_sync(struct pcm_channel *c, int threshold);
 int chn_flush(struct pcm_channel *c);
-int chn_polltrigger(struct pcm_channel *c);
+int chn_polltrigger(struct pcm_channel *c, uint64_t ref_total);
 int chn_poll(struct pcm_channel *c, int ev, struct thread *td);
 
 char *chn_mkname(char *buf, size_t len, struct pcm_channel *c);
@@ -270,7 +270,7 @@ struct pcm_channel *chn_init(struct snddev_info *d, struct pcm_channel *parent,
 void chn_kill(struct pcm_channel *c);
 void chn_shutdown(struct pcm_channel *c);
 int chn_release(struct pcm_channel *c);
-int chn_reset(struct pcm_channel *c, u_int32_t fmt, u_int32_t spd);
+int chn_reset(struct pcm_channel *c, uint32_t fmt, uint32_t spd);
 int chn_setvolume_multi(struct pcm_channel *c, int vc, int left, int right,
     int center);
 int chn_setvolume_matrix(struct pcm_channel *c, int vc, int vt, int val);
@@ -288,7 +288,7 @@ void chn_syncstate(struct pcm_channel *c);
 int chn_trigger(struct pcm_channel *c, int go);
 int chn_getptr(struct pcm_channel *c);
 struct pcmchan_caps *chn_getcaps(struct pcm_channel *c);
-u_int32_t chn_getformats(struct pcm_channel *c);
+uint32_t chn_getformats(struct pcm_channel *c);
 
 struct pcmchan_matrix *chn_getmatrix(struct pcm_channel *);
 int chn_setmatrix(struct pcm_channel *, struct pcmchan_matrix *);
@@ -301,19 +301,10 @@ void chn_resetbuf(struct pcm_channel *c);
 void chn_intr(struct pcm_channel *c);
 int chn_abort(struct pcm_channel *c);
 
-int chn_notify(struct pcm_channel *c, u_int32_t flags);
+int chn_notify(struct pcm_channel *c, uint32_t flags);
 
 int chn_getrates(struct pcm_channel *c, int **rates);
 int chn_syncdestroy(struct pcm_channel *c);
-
-#define CHN_SETVOLUME(...)		chn_setvolume_matrix(__VA_ARGS__)
-#if defined(SND_DIAGNOSTIC) || defined(INVARIANTS)
-#define CHN_GETVOLUME(...)		chn_getvolume_matrix(__VA_ARGS__)
-#else
-#define CHN_GETVOLUME(x, y, z)		((x)->volume[y][z])
-#endif
-
-#define CHN_GETMUTE(x, y, z)		((x)->muted[y][z])
 
 #ifdef OSSV4_EXPERIMENT
 int chn_getpeaks(struct pcm_channel *c, int *lpeak, int *rpeak);
@@ -415,11 +406,8 @@ enum {
 
 					
 
-#define CHN_N_RATE		0x00000001
-#define CHN_N_FORMAT		0x00000002
-#define CHN_N_VOLUME		0x00000004
-#define CHN_N_BLOCKSIZE		0x00000008
-#define CHN_N_TRIGGER		0x00000010
+#define CHN_N_BLOCKSIZE		0x00000001
+#define CHN_N_TRIGGER		0x00000002
 
 #define CHN_LATENCY_MIN		0
 #define CHN_LATENCY_MAX		10
@@ -443,15 +431,31 @@ enum {
 #define CHN_TIMEOUT_MIN		1
 #define CHN_TIMEOUT_MAX		10
 
-/*
- * This should be large enough to hold all pcm data between
- * tsleeps in chn_{read,write} at the highest sample rate.
- * (which is usually 48kHz * 16bit * stereo = 192000 bytes/sec)
- */
+/* Default block size for the secondary buffer. */
 #define CHN_2NDBUFBLKSIZE	(2 * 1024)
 /* The total number of blocks per secondary bufhard. */
 #define CHN_2NDBUFBLKNUM	(32)
-/* The size of a whole secondary bufhard. */
-#define CHN_2NDBUFMAXSIZE	(131072)
+/*
+ * The secondary buffer cap scales with the channel byte rate, targeting
+ * CHN_2NDBUFTIME_MS of stream so that all pcm data between tsleeps in
+ * chn_{read,write} fits, clamped to [CHN_2NDBUFSIZE_MIN,
+ * CHN_2NDBUFSIZE_MAX].
+ *
+ * The floor is the historical secondary buffer size and preserves memory
+ * use for low byte-rate streams; it holds ~680 ms at the once-typical
+ * 48kHz * 16bit * stereo rate (192000 bytes/sec), well above the target
+ * (~38 KiB there).
+ *
+ * The ceiling bounds per-channel buffer memory.  Buffers are allocated at
+ * the derived size, so only streams that actually run at high byte rates
+ * approach it.  It holds the full target through MADI-class streams
+ * (64ch * 32-bit * 48kHz, ~12.3 MB/s); beyond that, coverage shrinks
+ * proportionally (e.g. ~85 ms at 64ch * 32-bit * 192kHz).
+ */
+#define CHN_2NDBUFSIZE_MIN	(131072)
+#define CHN_2NDBUFSIZE_MAX	(4 * 1024 * 1024)
+#define CHN_2NDBUFTIME_MS	200
+
+uint32_t chn_2ndbufmaxsize(struct pcm_channel *);
 
 #define CHANNEL_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, sizeof(struct kobj))

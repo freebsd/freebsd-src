@@ -1,0 +1,10 @@
+prefix=${pc_sysrootdir}/test
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: omg-sysroot
+Description: A testing pkg-config file
+Version: 1.2.3
+Libs: -L${libdir} -lomg
+Cflags: -fPIC -I${includedir}/omg

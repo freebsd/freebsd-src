@@ -173,8 +173,7 @@ sndstat_remove_all_userdevs(struct sndstat_file *pf)
 {
 	struct sndstat_userdev *ud;
 
-	KASSERT(
-	    sx_xlocked(&pf->lock), ("%s: Called without pf->lock", __func__));
+	sx_assert(&pf->lock, SX_XLOCKED);
 	while ((ud = TAILQ_FIRST(&pf->userdev_list)) != NULL) {
 		TAILQ_REMOVE(&pf->userdev_list, ud, link);
 		free(ud->provider, M_DEVBUF);
@@ -487,9 +486,9 @@ sndstat_build_sound4_nvlist(struct snddev_info *d, nvlist_t **dip)
 		    c->feedcount);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_XRUNS, c->xruns);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_LEFTVOL,
-		    CHN_GETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_FL));
+		    chn_getvolume_matrix(c, SND_VOL_C_PCM, SND_CHN_T_FL));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_RIGHTVOL,
-		    CHN_GETVOLUME(c, SND_VOL_C_PCM, SND_CHN_T_FR));
+		    chn_getvolume_matrix(c, SND_VOL_C_PCM, SND_CHN_T_FR));
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_FORMAT,
 		    c->bufhard->fmt);
 		nvlist_add_number(cdi, SNDST_DSPS_SOUND4_CHAN_HWBUF_RATE,
@@ -1046,8 +1045,8 @@ sndstat_flush_user_devs(struct sndstat_file *pf)
 }
 
 static int
-sndstat_ioctl(
-    struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
+sndstat_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
+    struct thread *td)
 {
 	int err;
 	struct sndstat_file *pf;
@@ -1437,7 +1436,7 @@ static void
 sndstat_sysinit(void *p)
 {
 	sx_init(&sndstat_lock, "sndstat lock");
-	sndstat_dev = make_dev(&sndstat_cdevsw, 0, UID_ROOT, GID_WHEEL, 0644,
+	sndstat_dev = make_dev(&sndstat_cdevsw, 0, UID_ROOT, GID_AUDIO, 0640,
 	    "sndstat");
 }
 SYSINIT(sndstat_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST, sndstat_sysinit, NULL);

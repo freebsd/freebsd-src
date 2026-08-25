@@ -18,6 +18,20 @@ group_do_not_delete_wheel_if_group_unknown_body() {
 }
 
 
+atf_test_case group_delete_by_gid cleanup
+group_delete_by_gid_head() {
+	atf_set "descr" "Test deleting a group by gid without providing a name"
+}
+group_delete_by_gid_body() {
+	populate_etc_skel
+	${PW} groupadd testgroup -g 1000 || atf_fail "Creating test group"
+	atf_check -s exit:0 -o inline:"testgroup:*:1000:\n" \
+		-x ${PW} groupshow 1000
+	${PW} groupdel -g 1000 || atf_fail "Deleting group by gid"
+}
+
+
 atf_init_test_cases() {
-        atf_add_test_case group_do_not_delete_wheel_if_group_unknown
+	atf_add_test_case group_do_not_delete_wheel_if_group_unknown
+	atf_add_test_case group_delete_by_gid
 }

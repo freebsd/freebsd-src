@@ -132,7 +132,7 @@
     #define DIAG_ON_STRICT_PROTOTYPES \
       DIAG_DO_PRAGMA(clang diagnostic pop)
   #endif
-#elif ND_IS_AT_LEAST_GNUC_VERSION(4,2)
+#elif ND_IS_AT_LEAST_GNUC_VERSION(4,6)
   /* GCC apparently doesn't complain about ORing enums together. */
 
   /*
@@ -145,21 +145,19 @@
   #define DIAG_ON_CAST_QUAL \
     DIAG_DO_PRAGMA(GCC diagnostic pop)
 
-  #if ND_IS_AT_LEAST_GNUC_VERSION(4,5)
-    /*
-     * GCC warns about unused return values if a function is marked as
-     * "warn about ignoring this function's return value".
-     *
-     * Clang appears to let you ignore a result without a warning by
-     * casting the function result to void, so we don't appear to
-     * need this for Clang.
-     */
-    #define DIAG_OFF_WARN_UNUSED_RESULT \
-      DIAG_DO_PRAGMA(GCC diagnostic push) \
-      DIAG_DO_PRAGMA(GCC diagnostic ignored "-Wunused-result")
-    #define DIAG_ON_WARN_UNUSED_RESULT \
-      DIAG_DO_PRAGMA(GCC diagnostic pop)
-  #endif
+  /*
+   * GCC warns about unused return values if a function is marked as
+   * "warn about ignoring this function's return value".
+   *
+   * Clang appears to let you ignore a result without a warning by
+   * casting the function result to void, so we don't appear to
+   * need this for Clang.
+   */
+  #define DIAG_OFF_WARN_UNUSED_RESULT \
+    DIAG_DO_PRAGMA(GCC diagnostic push) \
+    DIAG_DO_PRAGMA(GCC diagnostic ignored "-Wunused-result")
+  #define DIAG_ON_WARN_UNUSED_RESULT \
+    DIAG_DO_PRAGMA(GCC diagnostic pop)
 
   /*
    * Suppress deprecation warnings.

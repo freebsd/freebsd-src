@@ -2,6 +2,7 @@ MAN=	\
 	ar40xx.4 \
 	bcm283x_pwm.4 \
 	devcfg.4 \
+	dwcotg.4 \
 	imx6_ahci.4 \
 	imx6_snvs.4 \
 	imx_wdog.4 \

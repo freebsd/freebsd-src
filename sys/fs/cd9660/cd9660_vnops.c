@@ -191,6 +191,7 @@ cd9660_getattr(struct vop_getattr_args *ap)
 	vap->va_atime	= ip->inode.iso_atime;
 	vap->va_mtime	= ip->inode.iso_mtime;
 	vap->va_ctime	= ip->inode.iso_ctime;
+	vap->va_birthtime = ip->inode.iso_birthtime;
 	vap->va_rdev	= VN_ISDEV(vp) ? ip->inode.iso_rdev : NODEV;
 
 	vap->va_size	= ip->i_size;

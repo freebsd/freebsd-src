@@ -24,6 +24,7 @@ CONFS=	DAEMON \
 	fsck \
 	growfs \
 	growfs_fstab \
+	growfs_postboot \
 	hostid \
 	hostid_save \
 	hostname \
@@ -88,15 +89,18 @@ ACCT+=		utx
 .endif
 .endif
 
+.if ${MACHINE} == "i386" || ${MACHINE} == "amd64" || \
+    ${MACHINE} == "arm64"
 CONFGROUPS.${MK_ACPI}+=		ACPI
 ACPIPACKAGE=			acpi
 ACPI=		power_profile
+.endif
 
+.if ${MACHINE} == "i386"
 CONFGROUPS.${MK_APM}+=		APM
 APMPACKAGE=			apm
-APM=		apm
-.if ${MACHINE} == "i386"
-APM+=		apmd
+APM=		apm \
+		apmd
 .endif
 
 CONFGROUPS.${MK_AUDIT}+=	AUDIT

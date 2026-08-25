@@ -161,7 +161,7 @@ static struct wpabuf * dpp_build_key_pkg(struct dpp_authentication *auth)
 	/* Attributes ::= SET OF Attribute { { OneAsymmetricKeyAttributes } } */
 	attr = dpp_build_attribute(auth->conf);
 	attr = asn1_encaps(attr, ASN1_CLASS_UNIVERSAL, ASN1_TAG_SET);
-	if (!priv_key || !attr || !alg)
+	if (!attr || !alg)
 		goto fail;
 
 	/*
@@ -515,6 +515,7 @@ out:
 	wpabuf_free(enc_cont_info);
 	return env;
 fail:
+	wpa_printf(MSG_INFO, "DPP: Failed to build DPPEnvelopedData");
 	wpabuf_free(env);
 	env = NULL;
 	goto out;

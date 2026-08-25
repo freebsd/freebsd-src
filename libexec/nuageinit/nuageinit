@@ -18,7 +18,8 @@ local citype = arg[2]
 
 local function default_user(obj, metadata)
 	local ssh_authorized_keys = {}
-	if type(metadata.public_keys) == "table" then
+	if (not obj or obj.allow_public_ssh_keys ~= false) and
+	    type(metadata.public_keys) == "table" then
 		for _, k in pairs(metadata.public_keys) do
 			table.insert(ssh_authorized_keys, k)
 		end
@@ -67,7 +68,14 @@ local function open_resolv_conf()
 end
 
 local function open_resolvconf_conf()
-	return openat("/etc", "resolvconf.conf")
+	local path_dir = root .. "/etc"
+	local path_name = path_dir .. "/resolvconf.conf"
+	nuage.mkdir_p(path_dir)
+	local f, err = io.open(path_name, "a")
+	if not f then
+		nuage.err("unable to open " .. path_name .. ": " .. err)
+	end
+	return f, path_name
 end
 
 local function get_ifaces_by_mac()
@@ -92,16 +100,23 @@ local function get_ifaces_by_mac()
 	return myifaces
 end
 
-local function sethostname(obj, metadata)
-	-- always prefer fqdn if specified over hostname
+local function resolve_hostname(obj, metadata)
 	if obj and obj.fqdn then
-		nuage.sethostname(obj.fqdn)
+		return obj.fqdn
 	elseif obj and obj.hostname then
-		nuage.sethostname(obj.hostname)
+		return obj.hostname
 	elseif metadata["local-hostname"] then
-		nuage.sethostname(metadata["local-hostname"])
+		return metadata["local-hostname"]
 	elseif metadata["hostname"] then
-		nuage.sethostname(metadata["hostname"])
+		return metadata["hostname"]
+	end
+	return nil
+end
+
+local function sethostname(obj, metadata)
+	local hostname = resolve_hostname(obj, metadata)
+	if hostname then
+		nuage.sethostname(hostname)
 	end
 end
 
@@ -226,37 +241,11 @@ local function nameservers(interface, obj)
 	local resolvconf_conf_handler = open_resolvconf_conf()
 
 	if obj.search then
-		local with_space = false
-
-		resolvconf_conf_handler:write('search_domains="')
-
-		for _, d in ipairs(obj.search) do
-			if with_space then
-				resolvconf_conf_handler:write(" " .. d)
-			else
-				resolvconf_conf_handler:write(d)
-				with_space = true
-			end
-		end
-
-		resolvconf_conf_handler:write('"\n')
+		resolvconf_conf_handler:write("search_domains=" .. nuage.shell_escape(table.concat(obj.search, " ")) .. "\n")
 	end
 
 	if obj.addresses then
-		local with_space = false
-
-		resolvconf_conf_handler:write('name_servers="')
-
-		for _, a in ipairs(obj.addresses) do
-			if with_space then
-				resolvconf_conf_handler:write(" " .. a)
-			else
-				resolvconf_conf_handler:write(a)
-				with_space = true
-			end
-		end
-
-		resolvconf_conf_handler:write('"\n')
+		resolvconf_conf_handler:write("name_servers=" .. nuage.shell_escape(table.concat(obj.addresses, " ")) .. "\n")
 	end
 
 	resolvconf_conf_handler:close()
@@ -271,8 +260,9 @@ local function nameservers(interface, obj)
 	end
 
 	-- Only call resolvconf with interface if interface is provided
+	local resolvconf_command
 	if interface then
-		resolvconf_command = "resolvconf -a " .. interface .. " < " .. resolv_conf
+		resolvconf_command = "resolvconf -a " .. nuage.shell_escape(interface) .. " < " .. resolv_conf
 	else
 		resolvconf_command = "resolvconf -u"
 	end
@@ -440,18 +430,22 @@ local function network_config(obj)
 				local ifaces = get_ifaces_by_mac()
 				local matched = ifaces[v.match.macaddress]
 				if matched and matched == interface then
-					network:write("ifconfig_" .. interface .. '_name=' .. v["set-name"] .. '\n')
-					interface = v["set-name"]
+					if not v["set-name"]:match("^[a-zA-Z0-9]+$") then
+						nuage.warn("set-name contains invalid characters, ignoring: " .. v["set-name"])
+					else
+						network:write("ifconfig_" .. interface .. "_name=" .. nuage.shell_escape(v["set-name"]) .. "\n")
+						interface = v["set-name"]
+					end
 				end
 			end
 			if v.dhcp4 then
-				network:write("ifconfig_" .. interface .. '="DHCP"' .. extra_opts .. '\n')
+				network:write("ifconfig_" .. interface .. "=" .. nuage.shell_escape("DHCP" .. extra_opts) .. "\n")
 			elseif v.addresses then
 				for _, a in pairs(v.addresses) do
 					if a:match("^(%d+)%.(%d+)%.(%d+)%.(%d+)") then
-						network:write("ifconfig_" .. interface .. '="inet ' .. a .. extra_opts .. '"\n')
+						network:write("ifconfig_" .. interface .. "=" .. nuage.shell_escape("inet " .. a .. extra_opts) .. "\n")
 					else
-						network:write("ifconfig_" .. interface .. '_ipv6="inet6 ' .. a .. extra_opts .. '"\n')
+						network:write("ifconfig_" .. interface .. "_ipv6=" .. nuage.shell_escape("inet6 " .. a .. extra_opts) .. "\n")
 						ipv6[#ipv6 + 1] = interface
 					end
 				end
@@ -461,24 +455,22 @@ local function network_config(obj)
 				end
 				if set_defaultrouter and v.gateway4 then
 					set_defaultrouter = false
-					routing:write('defaultrouter="' .. v.gateway4 .. '"\n')
+					routing:write("defaultrouter=" .. nuage.shell_escape(v.gateway4) .. "\n")
 				end
 				if v.gateway6 then
 					if set_defaultrouter6 then
 						set_defaultrouter6 = false
-						routing:write('ipv6_defaultrouter="' .. v.gateway6 .. '"\n')
+						routing:write("ipv6_defaultrouter=" .. nuage.shell_escape(v.gateway6) .. "\n")
 					end
-					routing:write("ipv6_route_" .. interface .. '="' .. v.gateway6)
-					routing:write(" -prefixlen 128 -interface " .. interface .. '"\n')
+					routing:write("ipv6_route_" .. interface .. "=" .. nuage.shell_escape(v.gateway6 .. " -prefixlen 128 -interface " .. interface) .. "\n")
 				end
 			end
 		end
 		::next::
 	end
 	if #ipv6 > 0 then
-		network:write('ipv6_network_interfaces="')
-		network:write(table.concat(ipv6, " ") .. '"\n')
-		network:write('ipv6_default_interface="' .. ipv6[1] .. '"\n')
+		network:write("ipv6_network_interfaces=" .. nuage.shell_escape(table.concat(ipv6, " ")) .. "\n")
+		network:write("ipv6_default_interface=" .. nuage.shell_escape(ipv6[1]) .. "\n")
 	end
 	network:close()
 	routing:close()
@@ -487,11 +479,261 @@ end
 local function ssh_pwauth(obj)
 	if obj.ssh_pwauth == nil then return end
 
-	local value = "no"
-	if obj.ssh_pwauth then
-		value = "yes"
+	local value
+	if type(obj.ssh_pwauth) == "boolean" then
+		value = obj.ssh_pwauth and "yes" or "no"
+	elseif type(obj.ssh_pwauth) == "string" then
+		local s = obj.ssh_pwauth:lower()
+		if s == "yes" or s == "true" or s == "1" or s == "on" then
+			value = "yes"
+		elseif s == "no" or s == "false" or s == "0" or s == "off" then
+			value = "no"
+		elseif s == "unchanged" then
+			return
+		else
+			nuage.warn("ssh_pwauth: unrecognized value '" ..
+			    obj.ssh_pwauth .. "', leaving unchanged")
+			return
+		end
+	else
+		nuage.warn("ssh_pwauth: invalid type " .. type(obj.ssh_pwauth))
+		return
 	end
 	nuage.update_sshd_config("PasswordAuthentication", value)
+end
+
+local function ssh_authkey_fingerprints(obj)
+	if obj.ssh_authkey_fingerprints ~= true then return end
+	local ssh_dir = root .. "/etc/ssh"
+	local attrs = lfs.attributes(ssh_dir)
+	if not attrs or attrs.mode ~= "directory" then
+		return
+	end
+	for entry in lfs.dir(ssh_dir) do
+		if entry:match("^ssh_host_.*_key$") then
+			local keypath = ssh_dir .. "/" .. entry
+			local f = io.popen("ssh-keygen -l -f " ..
+			    nuage.shell_escape(keypath), "r")
+			if f then
+				local fingerprint = f:read("*a")
+				f:close()
+				if fingerprint and fingerprint ~= "" then
+					io.stderr:write(fingerprint)
+				end
+			end
+		end
+	end
+end
+
+local function ntp(obj)
+	if obj.ntp == nil then return end
+	if type(obj.ntp) == "table" and obj.ntp.enabled == false then
+		return
+	end
+	local servers = {}
+	if type(obj.ntp) == "table" then
+		if obj.ntp[1] then
+			servers = obj.ntp
+		else
+			for _, s in ipairs(obj.ntp.servers or {}) do
+				table.insert(servers, "server " .. s .. " iburst")
+			end
+			for _, p in ipairs(obj.ntp.pools or {}) do
+				table.insert(servers, "pool " .. p .. " iburst")
+			end
+		end
+	elseif type(obj.ntp) == "string" then
+		table.insert(servers, "server " .. obj.ntp .. " iburst")
+	end
+	if #servers == 0 then return end
+	local path = root .. "/etc/ntp.conf"
+	local f = io.open(path, "w")
+	if not f then
+		warnmsg("unable to open " .. path .. " for writing")
+		return
+	end
+	for _, line in ipairs(servers) do
+		f:write(line .. "\n")
+	end
+	f:write("leapfile /var/db/ntpd.leap-seconds.list\n")
+	f:write("restrict default limited kod nomodify notrap nopeer noquery\n")
+	f:write("restrict source  limited kod nomodify notrap noquery\n")
+	f:close()
+end
+
+local function ca_certs(obj)
+	if obj.ca_certs == nil then return end
+	local trusted = obj.ca_certs.trusted
+	if trusted == nil or #trusted == 0 then return end
+	local certdir = root .. "/usr/share/certs/trusted"
+	nuage.mkdir_p(certdir)
+	for i, cert in ipairs(trusted) do
+		local certpath = certdir .. "/nuageinit-" .. i .. ".pem"
+		local f = io.open(certpath, "w")
+		if f then
+			f:write(cert .. "\n")
+			f:close()
+		else
+			warnmsg("unable to write " .. certpath)
+		end
+	end
+	os.execute("certctl rehash 2>/dev/null")
+end
+
+local function ssh_deletekeys(obj)
+	if obj.ssh_deletekeys == nil then return end
+	if obj.ssh_deletekeys then
+		nuage.delete_ssh_host_keys(root)
+	end
+end
+
+local DISABLE_USER_OPTS = 'no-port-forwarding,no-agent-forwarding,no-X11-forwarding,command="echo \'Please login as the user \\"$USER\\" rather than the user \\"$DISABLE_USER\\".\';echo;sleep 10;exit 142"'
+
+local function disable_root(obj, metadata)
+	-- cloud-init semantics: restrict root's authorized_keys options
+	local disable = true
+	if obj.disable_root ~= nil then
+		disable = obj.disable_root
+	end
+	local opts = ""
+	if disable then
+		opts = obj.disable_root_opts or DISABLE_USER_OPTS
+		if type(opts) == "table" then
+			opts = opts[1]
+		end
+		opts = opts:gsub("%$USER", "freebsd")
+		opts = opts:gsub("%$DISABLE_USER", "root")
+	else
+		nuage.update_sshd_config("PermitRootLogin", "prohibit-password")
+	end
+	local keys = {}
+	if obj.allow_public_ssh_keys ~= false and
+	    type(metadata.public_keys) == "table" then
+		for _, k in pairs(metadata.public_keys) do
+			table.insert(keys, k)
+		end
+	end
+	if obj and type(obj.ssh_authorized_keys) == "table" then
+		for _, k in ipairs(obj.ssh_authorized_keys) do
+			table.insert(keys, k)
+		end
+	end
+	for _, k in ipairs(keys) do
+		nuage.addsshkey("/root", k, opts)
+	end
+end
+
+local function resolv_conf(obj)
+	if obj.resolv_conf == nil then return end
+	nuage.write_resolv_conf(root, obj.resolv_conf)
+end
+
+local function keyboard(obj)
+	if obj.keyboard == nil then return end
+	local layout = obj.keyboard.layout
+	local variant = obj.keyboard.variant
+	if layout == nil then
+		warnmsg("keyboard: missing layout")
+		return
+	end
+	local keymap = layout
+	if variant then
+		keymap = layout .. "." .. variant
+	end
+	local path = root .. "/etc/rc.conf.d/keymap"
+	nuage.mkdir_p(root .. "/etc/rc.conf.d")
+	local f = io.open(path, "w")
+	if not f then
+		warnmsg("unable to open " .. path .. " for writing")
+		return
+	end
+	f:write("keymap=" .. nuage.shell_escape(keymap) .. "\n")
+	f:close()
+end
+
+local function locale(obj)
+	if obj.locale == nil then return end
+	local root = os.getenv("NUAGE_FAKE_ROOTDIR")
+	if not root then root = "" end
+	local profile_path = root .. "/etc/profile"
+	local f = io.open(profile_path, "a")
+	if not f then
+		nuage.warn("unable to open " .. profile_path .. " for writing")
+		return
+	end
+	if type(obj.locale) == "string" then
+		f:write("export LANG=" .. nuage.shell_escape(obj.locale) .. "\n")
+	elseif type(obj.locale) == "table" then
+		for k, v in pairs(obj.locale) do
+			if not k:match("^[a-zA-Z_][a-zA-Z0-9_]*$") then
+				nuage.warn("locale: invalid variable name '" .. k .. "', skipping")
+			else
+				f:write("export " .. k .. "=" .. nuage.shell_escape(v) .. "\n")
+			end
+		end
+	else
+		nuage.warn("locale: invalid type " .. type(obj.locale) .. ", expecting string or object")
+	end
+	f:close()
+end
+
+local function mounts(obj)
+	if obj.mounts == nil then return end
+	for _, m in ipairs(obj.mounts) do
+		local device, mount_point, fstype, options, dump_freq, passno
+		if type(m) == "table" then
+			if m[1] then
+				-- List format: [device, mount_point, fstype, options, dump_freq, passno]
+				device = m[1]
+				mount_point = m[2]
+				fstype = m[3]
+				options = m[4]
+				dump_freq = tonumber(m[5]) or 0
+				passno = tonumber(m[6]) or 0
+			else
+				-- Dict format
+				device = m.name or m.device or m.spec
+				mount_point = m.mount_point or m.mountpoint
+				fstype = m.type or m.filesystem or m.fstype
+				options = m.options or m.opts
+				dump_freq = tonumber(m.dump) or 0
+				passno = tonumber(m.passno) or tonumber(m.pass_no) or 0
+			end
+		end
+		if device and mount_point and fstype then
+			nuage.mkdir_p(root .. mount_point)
+			nuage.add_fstab_entry(root, device, mount_point, fstype, options, dump_freq, passno)
+		else
+			warnmsg("Invalid mount entry, skipping")
+		end
+	end
+end
+
+local function bootcmd(obj)
+	if obj.bootcmd == nil then return end
+	local f = nil
+	for _, c in ipairs(obj.bootcmd) do
+		if f == nil then
+			nuage.mkdir_p(root .. "/var/cache/nuageinit")
+			f = assert(io.open(root .. "/var/cache/nuageinit/bootcmds", "w"))
+			f:write("#!/bin/sh\n")
+		end
+		f:write(c .. "\n")
+	end
+	if f ~= nil then
+		f:close()
+		nuage.chmod(root .. "/var/cache/nuageinit/bootcmds", "0755")
+	end
+end
+
+local function manage_etc_hosts(obj, metadata)
+	if obj.manage_etc_hosts == false then
+		return
+	end
+	local hostname = resolve_hostname(obj, metadata)
+	if hostname then
+		nuage.update_etc_hosts(root, hostname)
+	end
 end
 
 local function runcmd(obj)
@@ -520,6 +762,140 @@ local function packages(obj)
 	end
 	if obj.packages then
 		install_packages(obj.packages)
+	end
+end
+
+local function power_state_change(obj)
+	if obj.power_state == nil then return end
+	local ps = obj.power_state
+	local delay = ps.delay or "now"
+	local mode = ps.mode or "poweroff"
+	local message = ps.message
+	local condition = ps.condition
+	if condition == nil then condition = true end
+
+	-- Evaluate condition
+	if condition == false then return end
+	if type(condition) == "string" then
+		local ret = os.execute(condition)
+		if not ret then return end
+	end
+
+	-- Map mode to shutdown flag
+	local mode_map = {poweroff = "p", reboot = "r", halt = "h"}
+	local flag = mode_map[mode]
+	if not flag then
+		nuage.warn("power_state: invalid mode '" .. mode .. "', using poweroff")
+		flag = "p"
+	end
+
+	-- Build shutdown command
+	local cmd = "shutdown -" .. flag .. " " .. nuage.shell_escape(delay)
+	if message then
+		cmd = cmd .. " " .. nuage.shell_escape(message)
+	end
+
+	if os.getenv("NUAGE_RUN_TESTS") then
+		print(cmd)
+		return
+	end
+	os.execute(cmd)
+end
+
+local function get_uptime()
+	-- Get system uptime in seconds
+	local f = io.popen("sysctl -n kern.boottime 2>/dev/null")
+	local boottime = f:read("*a")
+	f:close()
+	local sec = boottime:match("sec = (%d+)")
+	if sec then
+		return os.time() - tonumber(sec)
+	end
+	return 0
+end
+
+local function final_message(obj)
+	if obj.final_message == nil then return end
+	local msg = obj.final_message
+	if type(msg) ~= "string" then
+		nuage.warn("final_message must be a string")
+		return
+	end
+	local uptime = tostring(math.floor(get_uptime()))
+	msg = msg:gsub("%$UPTIME", uptime)
+	nuage.warn(msg, false)
+end
+
+local function phone_home(obj, metadata)
+	if obj.phone_home == nil then return end
+	local ph = obj.phone_home
+	if type(ph) ~= "table" then
+		nuage.warn("phone_home must be an object")
+		return
+	end
+	if not ph.url then
+		nuage.warn("phone_home.url is required")
+		return
+	end
+	local url = ph.url
+	local tries = ph.tries or 1
+	if type(tries) ~= "number" or tries < 1 then
+		tries = 1
+	end
+
+	-- Collect data to post
+	local data = {}
+	local post = ph.post
+	if post == "all" then
+		post = {"pub_key_rsa", "pub_key_ecdsa", "pub_key_ed25519",
+		    "instance_id", "hostname", "fqdn"}
+	end
+	if type(post) == "table" then
+		for _, key in ipairs(post) do
+			if key == "hostname" then
+				if metadata.hostname then
+					table.insert(data, "hostname=" .. metadata.hostname)
+				end
+			elseif key == "fqdn" then
+				if metadata.hostname then
+					table.insert(data, "fqdn=" .. metadata.hostname)
+				end
+			elseif key == "instance_id" then
+				if metadata.uuid then
+					table.insert(data, "instance_id=" .. metadata.uuid)
+				end
+			elseif key:match("^pub_key_") then
+				local algo = key:match("^pub_key_(.+)$")
+				if metadata.public_keys then
+					for _, k in ipairs(metadata.public_keys) do
+						if algo == "rsa" and k:match("^ssh%-rsa ") then
+							table.insert(data, key .. "=" .. nuage.encode_base64(k))
+						elseif algo == "ecdsa" and k:match("^ecdsa%-") then
+							table.insert(data, key .. "=" .. nuage.encode_base64(k))
+						elseif algo == "ed25519" and k:match("^ssh%-ed25519 ") then
+							table.insert(data, key .. "=" .. nuage.encode_base64(k))
+						end
+					end
+				end
+			end
+		end
+	end
+	local post_data = table.concat(data, "&")
+	local cmd = "fetch -q -o /dev/null --post-data " .. nuage.shell_escape(post_data)
+	cmd = cmd .. " " .. nuage.shell_escape(url)
+
+	if os.getenv("NUAGE_RUN_TESTS") then
+		print(cmd)
+		return
+	end
+	for i = 1, tries do
+		if os.execute(cmd) then
+			break
+		end
+		if i < tries then
+			-- wait 1 second before retrying
+			os.execute("sleep 1")
+		end
 	end
 end
 
@@ -562,14 +938,14 @@ local function config2_network(p)
 	for _, v in pairs(obj["networks"]) do
 		local interface = mylinks[v["link"]]
 		if v["type"] == "ipv4_dhcp" then
-			network:write("ifconfig_" .. interface .. '="DHCP"\n')
+			network:write("ifconfig_" .. interface .. "=" .. nuage.shell_escape("DHCP") .. "\n")
 		end
 		if v["type"] == "ipv4" then
 			network:write(
-				"ifconfig_" .. interface .. '="inet ' .. v["ip_address"] .. " netmask " .. v["netmask"] .. '"\n'
+				"ifconfig_" .. interface .. "=" .. nuage.shell_escape("inet " .. v["ip_address"] .. " netmask " .. v["netmask"]) .. "\n"
 			)
 			if v["gateway"] then
-				routing:write('defaultrouter="' .. v["gateway"] .. '"\n')
+				routing:write("defaultrouter=" .. nuage.shell_escape(v["gateway"]) .. "\n")
 			end
 			if v["routes"] then
 				for i, r in ipairs(v["routes"]) do
@@ -578,11 +954,10 @@ local function config2_network(p)
 						goto next
 					end
 					if r["network"] == "0.0.0.0" then
-						routing:write('defaultrouter="' .. r["gateway"] .. '"\n')
+						routing:write("defaultrouter=" .. nuage.shell_escape(r["gateway"]) .. "\n")
 						goto next
 					end
-					routing:write("route_" .. rname .. '="-net ' .. r["network"] .. " ")
-					routing:write(r["gateway"] .. " " .. r["netmask"] .. '"\n')
+					routing:write("route_" .. rname .. "=" .. nuage.shell_escape("-net " .. r["network"] .. " " .. r["gateway"] .. " " .. r["netmask"]) .. "\n")
 					ipv4[#ipv4 + 1] = rname
 					::next::
 				end
@@ -591,11 +966,10 @@ local function config2_network(p)
 		if v["type"] == "ipv6" then
 			ipv6[#ipv6 + 1] = interface
 			ipv6_routes[#ipv6_routes + 1] = interface
-			network:write("ifconfig_" .. interface .. '_ipv6="inet6 ' .. v["ip_address"] .. '"\n')
+			network:write("ifconfig_" .. interface .. "_ipv6=" .. nuage.shell_escape("inet6 " .. v["ip_address"]) .. "\n")
 			if v["gateway"] then
-				routing:write('ipv6_defaultrouter="' .. v["gateway"] .. '"\n')
-				routing:write("ipv6_route_" .. interface .. '="' .. v["gateway"])
-				routing:write(" -prefixlen 128 -interface " .. interface .. '"\n')
+				routing:write("ipv6_defaultrouter=" .. nuage.shell_escape(v["gateway"]) .. "\n")
+				routing:write("ipv6_route_" .. interface .. "=" .. nuage.shell_escape(v["gateway"] .. " -prefixlen 128 -interface " .. interface) .. "\n")
 			end
 			-- TODO compute the prefixlen for the routes
 			--if v["routes"] then
@@ -630,17 +1004,14 @@ local function config2_network(p)
 	end
 
 	if #ipv4 > 0 then
-		routing:write('static_routes="')
-		routing:write(table.concat(ipv4, " ") .. '"\n')
+		routing:write("static_routes=" .. nuage.shell_escape(table.concat(ipv4, " ")) .. "\n")
 	end
 	if #ipv6 > 0 then
-		network:write('ipv6_network_interfaces="')
-		network:write(table.concat(ipv6, " ") .. '"\n')
-		network:write('ipv6_default_interface="' .. ipv6[1] .. '"\n')
+		network:write("ipv6_network_interfaces=" .. nuage.shell_escape(table.concat(ipv6, " ")) .. "\n")
+		network:write("ipv6_default_interface=" .. nuage.shell_escape(ipv6[1]) .. "\n")
 	end
 	if #ipv6_routes > 0 then
-		routing:write('ipv6_static_routes="')
-		routing:write(table.concat(ipv6, " ") .. '"\n')
+		routing:write("ipv6_static_routes=" .. nuage.shell_escape(table.concat(ipv6, " ")) .. "\n")
 	end
 	network:close()
 	routing:close()
@@ -688,10 +1059,23 @@ local function load_metadata(citype)
 			nuage.err("error parsing nocloud meta-data")
 		end
 		return obj
-	elseif citype ~= "postnet" then
+	elseif citype == "postnet" then
+		-- reload metadata: try config-2 format first, then nocloud
+		local parser = ucl.parser()
+		local res, err = parser:parse_file(ni_path .. "/meta_data.json")
+		if res then
+			return parser:get_object()
+		end
+		local f = io.open(ni_path .. "/meta-data")
+		if f then
+			local obj = yaml.load(f:read("*a"))
+			f:close()
+			if obj then return obj end
+		end
+		return {}
+	else
 		nuage.err("Unknown cloud init type: " .. citype)
 	end
-	return {}
 end
 
 local function load_userdata()
@@ -713,6 +1097,44 @@ local function load_userdata()
 		f:close()
 		return
 	end
+	if line:match("^Content%-Type: multipart/") then
+		local rest = f:read("*a")
+		f:close()
+		local full = line .. "\n" .. rest
+		local parts = nuage.parse_mime_multipart(full)
+		if parts then
+			local cc_body = nil
+			for _, p in ipairs(parts) do
+				if p.content_type == "text/cloud-config" then
+					cc_body = p.body
+				elseif p.content_type:match("x%-shellscript") or p.content_type:match("x%-sh") then
+					if citype ~= "postnet" then
+						nuage.mkdir_p(root .. "/var/cache/nuageinit")
+						local spath = root .. "/var/cache/nuageinit/multipart_script"
+						local sf = io.open(spath, "w")
+						if sf then
+							sf:write(p.body .. "\n")
+							sf:close()
+							nuage.chmod(spath, "0755")
+						end
+					end
+				end
+			end
+			if cc_body then
+				local obj = yaml.load(cc_body)
+				if obj then
+					if citype ~= "postnet" then
+						nuage.mkdir_p(root .. "/var/cache/nuageinit")
+						local tof = assert(io.open(root .. "/var/cache/nuageinit/user_data", "w"))
+						tof:write("#cloud-config\n" .. cc_body)
+						tof:close()
+					end
+					return "#cloud-config", obj
+				end
+			end
+		end
+		return nil, nil
+	end
 	if citype ~= "postnet" then
 		local content = f:read("*a")
 		if not content or #string.gsub(content, "^%s*(.-)%s*$", "%1") == 0 then
@@ -727,7 +1149,7 @@ local function load_userdata()
 	f:close()
 
 	local obj = nil
-	if ud then
+	if ud and line == "#cloud-config" then
 		f = io.open(ni_path .. "/" .. ud)
 		obj = yaml.load(f:read("*a"))
 		f:close()
@@ -736,6 +1158,11 @@ local function load_userdata()
 		end
 	end
 	return line, obj
+end
+
+-- Clean up stale resolvconf.conf from previous boot
+if citype ~= "postnet" then
+	os.remove(root .. "/etc/resolvconf.conf")
 end
 
 if citype == "config-2" then
@@ -759,22 +1186,36 @@ if line == nil then
 --  YAML user-data
 elseif line == "#cloud-config" then
 	local pre_network_calls = {
+		ca_certs,
+		mounts,
+		bootcmd,
 		sethostname,
+		manage_etc_hosts,
 		settimezone,
 		groups,
 		create_default_user,
+		ssh_deletekeys,
 		ssh_keys,
+		ssh_authkey_fingerprints,
 		network_config,
+		resolv_conf,
+		keyboard,
+		locale,
+		disable_root,
 		ssh_pwauth,
 		runcmd,
 		write_files_not_deferred,
 	}
 
 	local post_network_calls = {
+		ntp,
 		packages,
 		users,
 		chpasswd,
 		write_files_deferred,
+		phone_home,
+		final_message,
+		power_state_change,
 	}
 
 	local calls_table = pre_network_calls

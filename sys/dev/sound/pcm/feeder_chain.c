@@ -66,13 +66,7 @@ struct feeder_chain_desc {
 #define FEEDER_CHAIN_FULLMULTI		4
 #define FEEDER_CHAIN_LAST		5
 
-#if defined(SND_FEEDER_FULL_MULTIFORMAT)
 #define FEEDER_CHAIN_DEFAULT		FEEDER_CHAIN_FULLMULTI
-#elif defined(SND_FEEDER_MULTIFORMAT)
-#define FEEDER_CHAIN_DEFAULT		FEEDER_CHAIN_MULTI
-#else
-#define FEEDER_CHAIN_DEFAULT		FEEDER_CHAIN_LEAN
-#endif
 
 /*
  * List of preferred formats that might be required during
@@ -126,7 +120,7 @@ static uint32_t *feeder_chain_formats[FEEDER_CHAIN_LAST] = {
 
 static int feeder_chain_mode = FEEDER_CHAIN_DEFAULT;
 
-#if defined(_KERNEL) && defined(SND_DEBUG) && defined(SND_FEEDER_FULL_MULTIFORMAT)
+#if defined(_KERNEL)
 SYSCTL_INT(_hw_snd, OID_AUTO, feeder_chain_mode, CTLFLAG_RWTUN,
     &feeder_chain_mode, 0,
     "feeder chain mode "
@@ -589,12 +583,8 @@ feeder_chain(struct pcm_channel *c)
 	case FEEDER_CHAIN_LEAN:
 	case FEEDER_CHAIN_16:
 	case FEEDER_CHAIN_32:
-#if defined(SND_FEEDER_MULTIFORMAT) || defined(SND_FEEDER_FULL_MULTIFORMAT)
 	case FEEDER_CHAIN_MULTI:
-#endif
-#if defined(SND_FEEDER_FULL_MULTIFORMAT)
 	case FEEDER_CHAIN_FULLMULTI:
-#endif
 		break;
 	default:
 		feeder_chain_mode = FEEDER_CHAIN_DEFAULT;
@@ -724,8 +714,8 @@ feeder_chain(struct pcm_channel *c)
 			cdesc.dummy = 1;
 
 		if ((softfmt & AFMT_CONVERTIBLE) &&
-		    (((d->flags & SD_F_VPC) && !(c->flags & CHN_F_HAS_VCHAN)) ||
-		    (!(d->flags & SD_F_VPC) && (d->flags & SD_F_SOFTPCMVOL) &&
+		    (!(c->flags & CHN_F_HAS_VCHAN) ||
+		    ((d->flags & SD_F_SOFTPCMVOL) &&
 		    !(c->flags & CHN_F_VIRTUAL))))
 			cdesc.use_volume = 1;
 
@@ -735,10 +725,8 @@ feeder_chain(struct pcm_channel *c)
 
 		/* Soft EQ only applicable for PLAY. */
 		if (cdesc.dummy == 0 &&
-		    c->direction == PCMDIR_PLAY && (d->flags & SD_F_EQ) &&
-		    (((d->flags & SD_F_EQ_PC) &&
-		    !(c->flags & CHN_F_HAS_VCHAN)) ||
-		    (!(d->flags & SD_F_EQ_PC) && !(c->flags & CHN_F_VIRTUAL))))
+		    c->direction == PCMDIR_PLAY &&
+		    (d->flags & SD_F_EQ) && !(c->flags & CHN_F_VIRTUAL))
 			cdesc.use_eq = 1;
 
 		if (FEEDFORMAT_NE_REQUIRED(&cdesc)) {

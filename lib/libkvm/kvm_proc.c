@@ -121,6 +121,7 @@ kvm_proclist(kvm_t *kd, int what, int arg, struct proc *p,
 	struct thread mtd;
 	struct proc proc;
 	struct proc pproc;
+	struct proc rproc;
 	struct sysentvec sysent;
 	char svname[KI_EMULNAMELEN];
 	struct thread *td = NULL;
@@ -365,6 +366,13 @@ nopgrp:
 		kp->ki_xstat = KW_EXITCODE(proc.p_xexit, proc.p_xsig);
 		kp->ki_acflag = proc.p_acflag;
 		kp->ki_lock = proc.p_lock;
+		if (KREAD(kd, (u_long)proc.p_reaper, &rproc)) {
+			_kvm_err(kd, kd->program,
+			    "can't read reaper at %p", proc.p_reaper);
+			return (-1);
+		}
+		kp->ki_reaper = rproc.p_pid;
+		kp->ki_reapsubtree = proc.p_reapsubtree;
 		kp->ki_tdev_freebsd11 = kp->ki_tdev; /* truncate */
 
 		/* Per-thread items; iterate as appropriate. */

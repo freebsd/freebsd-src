@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -43,7 +33,7 @@
 #include <sys/random.h>
 #include <sys/policy.h>
 #include <sys/zfs_dir.h>
-#include <sys/zfs_acl.h>
+#include <sys/zfs_acl_impl.h>
 #include <sys/zfs_vnops.h>
 #include <sys/fs/zfs.h>
 #include <sys/zap.h>
@@ -617,9 +607,9 @@ zfs_purgedir(znode_t *dzp)
 		    S_ISLNK(ZTOI(xzp)->i_mode));
 
 		tx = dmu_tx_create(zfsvfs->z_os);
-		dmu_tx_hold_sa(tx, dzp->z_sa_hdl, B_FALSE);
+		dmu_tx_hold_sa(tx, dzp->z_sa_hdl, ZFS_SEQ_MAY_GROW(dzp));
 		dmu_tx_hold_zap(tx, dzp->z_id, FALSE, zap->za_name);
-		dmu_tx_hold_sa(tx, xzp->z_sa_hdl, B_FALSE);
+		dmu_tx_hold_sa(tx, xzp->z_sa_hdl, ZFS_SEQ_MAY_GROW(xzp));
 		dmu_tx_hold_zap(tx, zfsvfs->z_unlinkedobj, FALSE, NULL);
 		/* Is this really needed ? */
 		zfs_sa_upgrade_txholds(tx, xzp);
@@ -809,7 +799,7 @@ zfs_link_create(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag)
 	zfsvfs_t *zfsvfs = ZTOZSB(zp);
 	uint64_t value;
 	int zp_is_dir = S_ISDIR(ZTOI(zp)->i_mode);
-	sa_bulk_attr_t bulk[5];
+	sa_bulk_attr_t bulk[6];
 	uint64_t mtime[2], ctime[2];
 	uint64_t links;
 	int count = 0;
@@ -871,7 +861,9 @@ zfs_link_create(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag)
 		    ctime, sizeof (ctime));
 		zfs_tstamp_update_setup(zp, STATE_CHANGED, mtime,
 		    ctime);
+		ZFS_PERSIST_SEQ(zp, bulk, count);
 	}
+	ASSERT3S(count, <=, ARRAY_SIZE(bulk));
 	error = sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
 	ASSERT0(error);
 
@@ -894,6 +886,8 @@ zfs_link_create(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag)
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_FLAGS(zfsvfs), NULL,
 	    &dzp->z_pflags, sizeof (dzp->z_pflags));
 	zfs_tstamp_update_setup(dzp, CONTENT_MODIFIED, mtime, ctime);
+	ZFS_PERSIST_SEQ(dzp, bulk, count);
+	ASSERT3S(count, <=, ARRAY_SIZE(bulk));
 	error = sa_bulk_update(dzp->z_sa_hdl, bulk, count, tx);
 	ASSERT0(error);
 	mutex_exit(&dzp->z_lock);
@@ -955,7 +949,7 @@ zfs_drop_nlink_locked(znode_t *zp, dmu_tx_t *tx, boolean_t *unlinkedp)
 	zfsvfs_t	*zfsvfs = ZTOZSB(zp);
 	int		zp_is_dir = S_ISDIR(ZTOI(zp)->i_mode);
 	boolean_t	unlinked = B_FALSE;
-	sa_bulk_attr_t	bulk[3];
+	sa_bulk_attr_t	bulk[4];
 	uint64_t	mtime[2], ctime[2];
 	uint64_t	links;
 	int		count = 0;
@@ -975,6 +969,12 @@ zfs_drop_nlink_locked(znode_t *zp, dmu_tx_t *tx, boolean_t *unlinkedp)
 		zp->z_unlinked = B_TRUE;
 		clear_nlink(ZTOI(zp));
 		unlinked = B_TRUE;
+		/*
+		 * NFS observers must see nlink=0; advance change_cookie.
+		 * POSIX permits skipping the ctime stamp at nlink=0, and the
+		 * znode is destined for reap so persistence would be wasted.
+		 */
+		atomic_inc_64(&zp->z_seq);
 	} else {
 		SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_CTIME(zfsvfs),
 		    NULL, &ctime, sizeof (ctime));
@@ -982,10 +982,12 @@ zfs_drop_nlink_locked(znode_t *zp, dmu_tx_t *tx, boolean_t *unlinkedp)
 		    NULL, &zp->z_pflags, sizeof (zp->z_pflags));
 		zfs_tstamp_update_setup(zp, STATE_CHANGED, mtime,
 		    ctime);
+		ZFS_PERSIST_SEQ(zp, bulk, count);
 	}
 	links = ZTOI(zp)->i_nlink;
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_LINKS(zfsvfs),
 	    NULL, &links, sizeof (links));
+	ASSERT3S(count, <=, ARRAY_SIZE(bulk));
 	error = sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
 	ASSERT0(error);
 
@@ -1032,7 +1034,7 @@ zfs_link_destroy(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag,
 	zfsvfs_t *zfsvfs = ZTOZSB(dzp);
 	int zp_is_dir = S_ISDIR(ZTOI(zp)->i_mode);
 	boolean_t unlinked = B_FALSE;
-	sa_bulk_attr_t bulk[5];
+	sa_bulk_attr_t bulk[6];
 	uint64_t mtime[2], ctime[2];
 	uint64_t links;
 	int count = 0;
@@ -1083,6 +1085,8 @@ zfs_link_destroy(zfs_dirlock_t *dl, znode_t *zp, dmu_tx_t *tx, int flag,
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_FLAGS(zfsvfs),
 	    NULL, &dzp->z_pflags, sizeof (dzp->z_pflags));
 	zfs_tstamp_update_setup(dzp, CONTENT_MODIFIED, mtime, ctime);
+	ZFS_PERSIST_SEQ(dzp, bulk, count);
+	ASSERT3S(count, <=, ARRAY_SIZE(bulk));
 	error = sa_bulk_update(dzp->z_sa_hdl, bulk, count, tx);
 	ASSERT0(error);
 	mutex_exit(&dzp->z_lock);
@@ -1178,6 +1182,9 @@ zfs_make_xattrdir(znode_t *zp, vattr_t *vap, znode_t **xzpp, cred_t *cr)
 	zfs_acl_ids_free(&acl_ids);
 	dmu_tx_commit(tx);
 
+	/* Record that the file now has an xattr directory. */
+	zp->z_xattr_dir_absent = B_FALSE;
+
 	*xzpp = xzp;
 
 	return (0);
@@ -1204,6 +1211,17 @@ zfs_get_xattrdir(znode_t *zp, znode_t **xzpp, cred_t *cr, int flags)
 	zfs_dirlock_t	*dl;
 	vattr_t		va;
 	int		error;
+
+	/*
+	 * Fast path for a file already known to have no xattr directory.  When
+	 * the caller is not creating one, return ENOENT without taking the ""
+	 * ZXATTR dirlock or doing the SA_ZPL_XATTR lookup below, which is pure
+	 * overhead when an absent xattr such as security.capability is looked
+	 * up on every open.  z_xattr_dir_absent tracks this: it is set when the
+	 * lookup finds no directory and cleared when one is found or created.
+	 */
+	if (!(flags & CREATE_XATTR_DIR) && zp->z_xattr_dir_absent)
+		return (SET_ERROR(ENOENT));
 top:
 	error = zfs_dirent_lock(&dl, zp, "", &xzp, ZXATTR, NULL, NULL);
 	if (error)
@@ -1211,11 +1229,13 @@ top:
 
 	if (xzp != NULL) {
 		*xzpp = xzp;
+		zp->z_xattr_dir_absent = B_FALSE;
 		zfs_dirent_unlock(dl);
 		return (0);
 	}
 
 	if (!(flags & CREATE_XATTR_DIR)) {
+		zp->z_xattr_dir_absent = B_TRUE;
 		zfs_dirent_unlock(dl);
 		return (SET_ERROR(ENOENT));
 	}
@@ -1284,8 +1304,7 @@ zfs_sticky_remove_access(znode_t *zdp, znode_t *zp, cred_t *cr)
 	    cr, ZFS_OWNER);
 
 	if ((uid = crgetuid(cr)) == downer || uid == fowner ||
-	    zfs_zaccess(zp, ACE_WRITE_DATA, 0, B_FALSE, cr,
-	    zfs_init_idmap) == 0)
+	    zfs_zaccess(zp, ACE_WRITE_DATA, 0, B_FALSE, cr) == 0)
 		return (0);
 	else
 		return (secpolicy_vnode_remove(cr));

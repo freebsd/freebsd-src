@@ -44,9 +44,11 @@
 #include <sys/uio.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_page.h>
 
 #include <machine/vmparam.h>
+#include <machine/md_var.h>
 
 /*
  * Implement uiomove(9) from physical memory using the direct map to
@@ -55,13 +57,12 @@
 int
 uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 {
-	struct thread *td = curthread;
 	struct iovec *iov;
-	void *cp;
-	vm_offset_t page_offset, vaddr;
+	void *cp, *vaddr;
+	vm_offset_t page_offset;
 	size_t cnt;
 	int error = 0;
-	int save = 0;
+	int save;
 	bool mapped;
 
 	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
@@ -71,8 +72,7 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 	KASSERT(uio->uio_resid >= 0,
 	    ("%s: uio %p resid underflow", __func__, uio));
 
-	save = td->td_pflags & TDP_DEADLKTREAT;
-	td->td_pflags |= TDP_DEADLKTREAT;
+	save = curthread_pflags_set(TDP_DEADLKTREAT);
 	mapped = false;
 	while (n > 0 && uio->uio_resid) {
 		KASSERT(uio->uio_iovcnt > 0,
@@ -94,38 +94,14 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 			    &ma[offset >> PAGE_SHIFT], &vaddr, 1, true);
 			cp = (char *)vaddr + page_offset;
 		}
-		switch (uio->uio_segflg) {
-		case UIO_USERSPACE:
-			maybe_yield();
-			switch (uio->uio_rw) {
-			case UIO_READ:
-				error = copyout(cp, iov->iov_base, cnt);
-				break;
-			case UIO_WRITE:
-				error = copyin(iov->iov_base, cp, cnt);
-				break;
-			}
-			if (error)
-				goto out;
-			break;
-		case UIO_SYSSPACE:
-			switch (uio->uio_rw) {
-			case UIO_READ:
-				bcopy(cp, iov->iov_base, cnt);
-				break;
-			case UIO_WRITE:
-				bcopy(iov->iov_base, cp, cnt);
-				break;
-			}
-			break;
-		case UIO_NOCOPY:
-			break;
-		}
+		error = uiomove_step(cp, iov->iov_base, cnt, uio);
 		if (__predict_false(mapped)) {
 			pmap_unmap_io_transient(&ma[offset >> PAGE_SHIFT],
 			    &vaddr, 1, true);
 			mapped = false;
 		}
+		if (error != 0)
+			break;
 		iov->iov_base = (char *)iov->iov_base + cnt;
 		iov->iov_len -= cnt;
 		uio->uio_resid -= cnt;
@@ -133,11 +109,100 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		offset += cnt;
 		n -= cnt;
 	}
-out:
-	if (__predict_false(mapped))
-		pmap_unmap_io_transient(&ma[offset >> PAGE_SHIFT], &vaddr, 1,
-		    true);
-	if (save == 0)
-		td->td_pflags &= ~TDP_DEADLKTREAT;
+	curthread_pflags_restore(save);
+	return (error);
+}
+
+int
+uiomove_mem(enum uiomove_mem_req req, struct uio *uio)
+{
+	struct iovec *iov;
+	void *p, *vd;
+	ssize_t orig_resid;
+	vm_prot_t prot;
+	u_long v;
+	u_int c;
+	int error;
+
+	error = 0;
+	orig_resid = uio->uio_resid;
+	while (uio->uio_resid > 0 && error == 0) {
+		iov = uio->uio_iov;
+		if (iov->iov_len == 0) {
+			uio->uio_iov++;
+			uio->uio_iovcnt--;
+			if (uio->uio_iovcnt < 0)
+				panic("memrw");
+			continue;
+		}
+		v = uio->uio_offset;
+		c = ulmin(iov->iov_len, PAGE_SIZE - (u_int)(v & PAGE_MASK));
+
+		switch (req) {
+		case UIO_MEM_KMEM:
+			/*
+			 * Since c is clamped to be less or equal than
+			 * PAGE_SIZE, the uiomove() call does not
+			 * access past the end of the direct map.
+			 */
+			if (v >= kva_layout.dmap_low &&
+			    v < kva_layout.dmap_high) {
+				error = uiomove((void *)v, c, uio);
+				break;
+			}
+
+			switch (uio->uio_rw) {
+			case UIO_READ:
+				prot = VM_PROT_READ;
+				break;
+			case UIO_WRITE:
+				prot = VM_PROT_WRITE;
+				break;
+			}
+
+			if (!kernacc((void *)v, c, prot)) {
+				error = EFAULT;
+				break;
+			}
+
+			/*
+			 * If the extracted address is not accessible
+			 * through the direct map, then we make a
+			 * private (uncached) mapping because we can't
+			 * depend on the existing kernel mapping
+			 * remaining valid until the completion of
+			 * uiomove().
+			 *
+			 * XXX We cannot provide access to the
+			 * physical page 0 mapped into KVA.
+			 */
+			v = pmap_extract(kernel_pmap, v);
+			if (v == 0) {
+				error = EFAULT;
+				break;
+			}
+			/* FALLTHROUGH */
+		case UIO_MEM_MEM:
+			if (v < dmaplimit) {
+				vd = PHYS_TO_DMAP(v);
+				error = uiomove(vd, c, uio);
+				break;
+			}
+			if (v > cpu_getmaxphyaddr()) {
+				error = EFAULT;
+				break;
+			}
+			p = pmap_mapdev(v, PAGE_SIZE);
+			error = uiomove(p, c, uio);
+			pmap_unmapdev(p, PAGE_SIZE);
+			break;
+		}
+	}
+	/*
+	 * Don't return error if any byte was written.  Read and write
+	 * can return error only if no i/o was performed.
+	 */
+	if (uio->uio_resid != orig_resid)
+		error = 0;
 	return (error);
 }

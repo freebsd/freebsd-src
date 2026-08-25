@@ -369,7 +369,7 @@ media::do_match(config &c)
 
 	retval = false;
 
-	s = socket(PF_INET, SOCK_DGRAM, 0);
+	s = socket(PF_LOCAL, SOCK_DGRAM, 0);
 	if (s >= 0) {
 		memset(&ifmr, 0, sizeof(ifmr));
 		strlcpy(ifmr.ifm_name, value.c_str(), sizeof(ifmr.ifm_name));

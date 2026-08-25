@@ -48,6 +48,7 @@
 #endif
 #include <sys/buf_ring.h>
 #include <sys/bus.h>
+#include <sys/callout.h>
 #include <sys/endian.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -95,6 +96,9 @@
 #include "e1000_82571.h"
 #include "ifdi_if.h"
 
+struct igb_vf;
+struct igb_vf_mac_filter;
+
 /* Tunables */
 
 /*
@@ -133,6 +137,7 @@
 #define EM_DEFAULT_RXD		1024
 #define EM_DEFAULT_MULTI_RXD	4096
 #define IGB_MAX_RXD		4096
+#define IGB_MAX_FRAME_SIZE	9234
 
 /*
  * EM_TIDV - Transmit Interrupt Delay Value
@@ -253,8 +258,18 @@
 #define IGB_EITR_DIVIDEND	1000000
 #define IGB_EITR_SHIFT		2
 #define IGB_QVECTOR_MASK	0x7FFC
-#define IGB_INTS_TO_EITR(i)	(((IGB_EITR_DIVIDEND/i) & IGB_QVECTOR_MASK) << \
-				    IGB_EITR_SHIFT)
+#define IGB_INTS_TO_EITR(i)	\
+	(((IGB_EITR_DIVIDEND / (i)) << IGB_EITR_SHIFT) & IGB_QVECTOR_MASK)
+#define IGB_EITR_TO_INTS(i)	((IGB_EITR_DIVIDEND << IGB_EITR_SHIFT) / \
+					    ((i) & IGB_QVECTOR_MASK))
+
+/*
+ * The average packet size calculation in em_ring_itr() yields an EITR
+ * interval field value.  That field is quarter microsecond granular (see
+ * IGB_EITR_SHIFT), so an interval of V is 1000000 / (V / 4) interrupts per
+ * second.
+ */
+#define EM_AIM_DIVIDEND		(IGB_EITR_DIVIDEND << IGB_EITR_SHIFT)
 
 #define IGB_LINK_ITR		2000
 #define I210_LINK_DELAY		1000
@@ -281,17 +296,40 @@
 #define PCICFG_DESC_RING_STATUS	0xe4
 #define FLUSH_DESC_REQUIRED	0x100
 
+#define EM_TX_PTHRESH		31
+#define EM_TX_HTHRESH		1
+#define EM_TX_WTHRESH		1
 
-#define IGB_RX_PTHRESH	((hw->mac.type == e1000_i354) ? 12 : \
-			    ((hw->mac.type <= e1000_82576) ? 16 : 8))
-#define IGB_RX_HTHRESH	8
-#define IGB_RX_WTHRESH	((hw->mac.type == e1000_82576 && \
-			    (sc->intr_type == IFLIB_INTR_MSIX)) ? 1 : 4)
+#define EM_RXDCTL_PTHRESH_MASK	0x0000003F
+#define EM_RXDCTL_HTHRESH_MASK	0x00003F00
+#define EM_RXDCTL_WTHRESH_MASK	0x003F0000
+#define EM_RXDCTL_THRESH_MASK	(EM_RXDCTL_PTHRESH_MASK | \
+				 EM_RXDCTL_HTHRESH_MASK | \
+				 EM_RXDCTL_WTHRESH_MASK)
 
-#define IGB_TX_PTHRESH	((hw->mac.type == e1000_i354) ? 20 : 8)
-#define IGB_TX_HTHRESH	1
-#define IGB_TX_WTHRESH	((hw->mac.type != e1000_82575 && \
-			    sc->intr_type == IFLIB_INTR_MSIX) ? 1 : 16)
+#define EM_JUMBO_RX_PTHRESH	3
+#define EM_JUMBO_RX_HTHRESH	1
+#define EM_82574_RX_PTHRESH	32
+#define EM_82574_RX_HTHRESH	4
+#define EM_82574_RX_WTHRESH	4
+
+#define IGB_RXDCTL_PTHRESH_MASK	0x0000001F
+#define IGB_RXDCTL_HTHRESH_MASK	0x00001F00
+#define IGB_RXDCTL_WTHRESH_MASK	0x001F0000
+#define IGB_RXDCTL_THRESH_MASK	(IGB_RXDCTL_PTHRESH_MASK | \
+				 IGB_RXDCTL_HTHRESH_MASK | \
+				 IGB_RXDCTL_WTHRESH_MASK)
+#define IGB_82575_RXDCTL_THRESH_MASK	0x003F3F3F
+
+#define IGB_RX_PTHRESH		8
+#define I354_RX_PTHRESH		12
+#define IGB_RX_HTHRESH		8
+#define IGB_RX_WTHRESH		4
+#define IGB_82576_RX_WTHRESH	1
+
+#define IGB_TX_PTHRESH		8
+#define I354_TX_PTHRESH	20
+#define IGB_TX_HTHRESH		1
 
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
@@ -374,11 +412,8 @@
 #define UPDATE_VF_REG(reg, last, cur)		\
 do {						\
 	u32 new = E1000_READ_REG(&sc->hw, reg);	\
-	if (new < last)				\
-		cur += 0x100000000LL;		\
+	cur += (u32)(new - last);		\
 	last = new;				\
-	cur &= 0xFFFFFFFF00000000LL;		\
-	cur |= new;				\
 } while (0)
 
 struct e1000_softc;
@@ -408,8 +443,18 @@ struct tx_ring {
 
 	/* Soft stats */
 	unsigned long		tx_irq;
-	unsigned long		tx_packets;
-	unsigned long		tx_bytes;
+
+	/*
+	 * Free running AIM counters.  The producer updates these while
+	 * encapsulating packets, then publishes both together at the TX
+	 * doorbell.  The interrupt handler samples only the published value,
+	 * so it cannot observe one counter without the other.
+	 */
+	u32			tx_packets;
+	u32			tx_bytes;
+	uint64_t		tx_aim_snapshot __aligned(8);
+	u32			tx_packets_last;
+	u32			tx_bytes_last;
 
 	/* Saved csum offloading context information */
 	int			csum_flags;
@@ -423,6 +468,15 @@ struct tx_ring {
 	uint32_t		csum_txd_upper;
 	uint32_t		csum_txd_lower;	/* last field */
 };
+
+static __inline void
+em_aim_publish(struct tx_ring *txr)
+{
+	uint64_t snapshot;
+
+	snapshot = ((uint64_t)txr->tx_bytes << 32) | txr->tx_packets;
+	atomic_store_rel_64(&txr->tx_aim_snapshot, snapshot);
+}
 
 /*
  * The Receive ring, one per rx queue
@@ -443,12 +497,28 @@ struct rx_ring {
 	/* Soft stats */
 	unsigned long		rx_irq;
 	unsigned long		rx_discarded;
-	unsigned long		rx_packets;
-	unsigned long		rx_bytes;
 
-	/* Next requested ITR latency */
-	u8			rx_nextlatency;
+	/*
+	 * Free running AIM counters.  RX publishes both together when iflib
+	 * returns descriptors to hardware.  The interrupt handler samples only
+	 * the published value, so watchdog-driven RX processing cannot expose
+	 * one counter without the other.
+	 */
+	u32			rx_packets;
+	u32			rx_bytes;
+	uint64_t		rx_aim_snapshot __aligned(8);
+	u32			rx_packets_last;
+	u32			rx_bytes_last;
 };
+
+static __inline void
+em_aim_publish_rx(struct rx_ring *rxr)
+{
+	uint64_t snapshot;
+
+	snapshot = ((uint64_t)rxr->rx_bytes << 32) | rxr->rx_packets;
+	atomic_store_rel_64(&rxr->rx_aim_snapshot, snapshot);
+}
 
 struct em_tx_queue {
 	struct e1000_softc	*sc;
@@ -468,6 +538,14 @@ struct em_rx_queue {
 	u64			irqs;
 	struct if_irq		que_irq;
 };  
+
+/* Driver-observed link state and its publication barrier. */
+enum em_link_state {
+	EM_LINK_STATE_DOWN = 0,
+	EM_LINK_STATE_DOWN_RESET_PENDING,
+	EM_LINK_STATE_UP,
+	EM_LINK_STATE_UP_RESET_PENDING,
+};
 
 /* Our softc structure */
 struct e1000_softc {
@@ -501,6 +579,7 @@ struct e1000_softc {
 	int			if_flags;
 	int			em_insert_vlan_header;
 	u32			ims;
+	bool			allow_64bit_dma;
 	bool			in_detach;
 
 	u32			flags;
@@ -528,9 +607,13 @@ struct e1000_softc {
 	** to repopulate it.
 	*/
 	u32			shadow_vfta[EM_VFTA_SIZE];
+	u32			vf_vfta_stale[EM_VFTA_SIZE];
+	u32			vf_vfta_retry[EM_VFTA_SIZE];
+	sbintime_t		vf_vlan_retry_deadline;
+	u16			vf_vlan_retry_cursor;
 
 	/* Info about the interface */
-	u16			link_active;
+	enum em_link_state	link_state;
 	u16			fc;
 	u16			link_speed;
 	u16			link_duplex;
@@ -539,6 +622,56 @@ struct e1000_softc {
 	u32			pba;
 	int			link_mask;
 	int			tso_automasked;
+	u32			phy_hang_count;
+	u32			promisc_pending;
+	u32			stats_pending;
+	u32			fatal_error_state;
+	u32			fatal_error_icr;
+	u32			fatal_error_pbeccsts;
+	u32			fatal_error_peind;
+	u32			fatal_error_pcie;
+	u32			fatal_error_pcie_ecc;
+	u32			fatal_error_lan;
+	u32			fatal_error_dma_tx;
+	u32			fatal_error_dma_rx;
+	u32			fatal_error_dma_host;
+	u64			fatal_error_reset_count;
+	u64			fatal_error_lan_count;
+	u64			fatal_error_mng_count;
+	u64			fatal_error_pcie_count;
+	u64			fatal_error_dma_count;
+	u64			fatal_error_unknown_count;
+	u64			corrected_error_dma_count;
+	u64			corrected_error_pcie_tx_data_count;
+	u64			corrected_error_pcie_retry_count;
+	u64			corrected_error_pcie_other_count;
+	u64			corrected_error_packet_buffer_count;
+	u64			uncorrected_error_packet_buffer_count;
+	u64			uncorrected_error_dma_count;
+	u64			uncorrected_error_pcie_count;
+
+#ifdef PCI_IOV
+	struct igb_vf		*vfs;
+	struct igb_vf_mac_filter *vf_mac_filters;
+	struct callout		iov_mbx_retry;
+	u32			iov_vfta[EM_VFTA_SIZE];
+	u32			iov_mdd_cause;
+	u32			iov_pending;
+	u32			iov_spoof_pending;
+	u32			iov_blocked_pending;
+	u32			iov_intr_drain_pending;
+	u32			iov_teardown;
+	struct timeval		iov_last_mdd_log;
+	u16			num_vfs;
+	u16			num_vf_mac_filters;
+	u16			pool;
+	bool			iov_hw_active;
+	bool			iov_mta_valid;
+	bool			iov_mbx_retry_initialized;
+	bool			iov_pf_mdd_blocked;
+	bool			iov_pf_vlan_promisc;
+	bool			iov_vfta_valid;
+#endif
 
 	u64			que_mask;
 
@@ -555,15 +688,70 @@ struct e1000_softc {
 	unsigned long		dropped_pkts;
 	unsigned long		link_irq;
 	unsigned long		rx_overruns;
-	unsigned long		watchdog_events;
+	u64			rx_csum_good;
+	u64			rx_csum_errors;
 
 	union {
 		struct e1000_hw_stats	stats;		/* !sc->vf_ifp */
 		struct e1000_vf_stats	vf_stats;	/* sc->vf_ifp */
 	} ustats;
 
+	struct callout		vf_queue_retry;
+	struct callout		vf_mbx_retry;
+	struct timeval		vf_last_queue_log;
+	struct timeval		vf_last_mbx_log;
+	u32			vf_queue_retry_new_epoch;
+	u32			vf_queue_retry_pending;
+	u32			vf_mbx_ready;
+	u32			vf_mbx_retry_pending;
 	u16			vf_ifp;
+	u8			vf_queue_failures;
+	u8			vf_mbx_retry_stage;
+	bool			vf_queue_gave_up;
+	bool			vf_queue_retry_initialized;
+	bool			vf_mbx_retry_initialized;
+	bool			vf_queues_sanitized;
+	bool			vf_reset_pending;
+	/* A PF can retain auxiliary filters across a VF reset. */
+	bool			vf_uc_filters_set;
 };
+
+/*
+ * Shared PF/VF mechanisms and VF policy entry points.  The latter live in
+ * if_igbv.c so the VF method table cannot accidentally select PF policy.
+ */
+int	em_if_attach_pre(if_ctx_t);
+int	em_if_attach_post(if_ctx_t);
+void	em_add_device_sysctls(struct e1000_softc *);
+int	em_if_set_promisc_impl(if_ctx_t, int);
+bool	em_is_valid_ether_addr(const u8 *);
+void	em_initialize_transmit_rings(if_ctx_t);
+void	em_update_stats_counters(struct e1000_softc *);
+void	igb_initialize_receive_rings(if_ctx_t, bool);
+
+int	igbv_get_regs(SYSCTL_HANDLER_ARGS);
+int	igbv_if_attach_pre(if_ctx_t);
+int	igbv_if_attach_post(if_ctx_t);
+int	igbv_if_media_change(if_ctx_t);
+void	igbv_if_intr_enable(if_ctx_t);
+void	igbv_if_intr_disable(if_ctx_t);
+void	igbv_if_update_admin_status(if_ctx_t);
+void	igbv_initialize_receive_unit(if_ctx_t);
+void	igbv_initialize_transmit_unit(if_ctx_t);
+void	igbv_mbx_retry_detach(struct e1000_softc *);
+void	igbv_mbx_retry_failed(if_ctx_t);
+void	igbv_mbx_retry_prepare(struct e1000_softc *);
+void	igbv_mbx_retry_stop(struct e1000_softc *);
+void	igbv_queue_retry_detach(struct e1000_softc *);
+void	igbv_queue_retry_failed(if_ctx_t);
+void	igbv_queue_retry_prepare(struct e1000_softc *);
+void	igbv_queue_retry_stop(struct e1000_softc *);
+void	igbv_reconcile_mac(struct e1000_softc *, if_t);
+bool	igbv_reset(if_ctx_t);
+void	igbv_log_reset_failure(struct e1000_softc *, s32, bool);
+void	igbv_update_uc_addr_list(struct e1000_softc *, if_t);
+void	igbv_vlan_retry_add(struct e1000_softc *, u16);
+void	igbv_vlan_retry_clear(struct e1000_softc *, u16);
 
 /********************************************************************************
  * vendor_info_array

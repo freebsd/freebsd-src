@@ -65,9 +65,9 @@ struct sc_chinfo {
 	struct sc_info		*parent;
 	struct pcm_channel	*channel;
 	struct snd_dbuf		*buffer;
-	u_int32_t		format, speed, phys_buf, bps;
-	u_int32_t		dma_active:1, dma_was_active:1;
-	u_int8_t		gcr_fifo_status;
+	uint32_t		format, speed, phys_buf, bps;
+	uint32_t		dma_active:1, dma_was_active:1;
+	uint8_t		gcr_fifo_status;
 	int			dir;
 };
 
@@ -87,7 +87,7 @@ struct sc_info {
 
 /* Channel caps */
 
-static u_int32_t als_format[] = {
+static uint32_t als_format[] = {
         SND_FORMAT(AFMT_U8, 1, 0),
         SND_FORMAT(AFMT_U8, 2, 0),
         SND_FORMAT(AFMT_S16_LE, 1, 0),
@@ -104,7 +104,7 @@ static struct pcmchan_caps als_caps = { 4000, 44100, als_format, 0 };
 /* ------------------------------------------------------------------------- */
 /* Register Utilities */
 
-static u_int32_t
+static uint32_t
 als_gcr_rd(struct sc_info *sc, int index)
 {
 	bus_space_write_1(sc->st, sc->sh, ALS_GCR_INDEX, index);
@@ -118,36 +118,36 @@ als_gcr_wr(struct sc_info *sc, int index, int data)
 	bus_space_write_4(sc->st, sc->sh, ALS_GCR_DATA, data);
 }
 
-static u_int8_t
+static uint8_t
 als_intr_rd(struct sc_info *sc)
 {
 	return bus_space_read_1(sc->st, sc->sh, ALS_SB_MPU_IRQ);
 }
 
 static void
-als_intr_wr(struct sc_info *sc, u_int8_t data)
+als_intr_wr(struct sc_info *sc, uint8_t data)
 {
 	bus_space_write_1(sc->st, sc->sh, ALS_SB_MPU_IRQ, data);
 }
 
-static u_int8_t
-als_mix_rd(struct sc_info *sc, u_int8_t index)
+static uint8_t
+als_mix_rd(struct sc_info *sc, uint8_t index)
 {
 	bus_space_write_1(sc->st, sc->sh, ALS_MIXER_INDEX, index);
 	return bus_space_read_1(sc->st, sc->sh, ALS_MIXER_DATA);
 }
 
 static void
-als_mix_wr(struct sc_info *sc, u_int8_t index, u_int8_t data)
+als_mix_wr(struct sc_info *sc, uint8_t index, uint8_t data)
 {
 	bus_space_write_1(sc->st, sc->sh, ALS_MIXER_INDEX, index);
 	bus_space_write_1(sc->st, sc->sh, ALS_MIXER_DATA, data);
 }
 
 static void
-als_esp_wr(struct sc_info *sc, u_int8_t data)
+als_esp_wr(struct sc_info *sc, uint8_t data)
 {
-	u_int32_t	tries, v;
+	uint32_t	tries, v;
 
 	tries = 1000;
 	do {
@@ -166,7 +166,7 @@ als_esp_wr(struct sc_info *sc, u_int8_t data)
 static int
 als_esp_reset(struct sc_info *sc)
 {
-	u_int32_t	tries, u, v;
+	uint32_t	tries, u, v;
 
 	bus_space_write_1(sc->st, sc->sh, ALS_ESP_RST, 1);
 	DELAY(10);
@@ -191,10 +191,10 @@ als_esp_reset(struct sc_info *sc)
 	return 1;
 }
 
-static u_int8_t
-als_ack_read(struct sc_info *sc, u_int8_t addr)
+static uint8_t
+als_ack_read(struct sc_info *sc, uint8_t addr)
 {
-	u_int8_t r = bus_space_read_1(sc->st, sc->sh, addr);
+	uint8_t r = bus_space_read_1(sc->st, sc->sh, addr);
 	return r;
 }
 
@@ -232,7 +232,7 @@ alschan_init(kobj_t obj, void *devinfo,
 }
 
 static int
-alschan_setformat(kobj_t obj, void *data, u_int32_t format)
+alschan_setformat(kobj_t obj, void *data, uint32_t format)
 {
 	struct	sc_chinfo *ch = data;
 
@@ -240,8 +240,8 @@ alschan_setformat(kobj_t obj, void *data, u_int32_t format)
 	return 0;
 }
 
-static u_int32_t
-alschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
+static uint32_t
+alschan_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct	sc_chinfo *ch = data, *other;
 	struct  sc_info *sc = ch->parent;
@@ -258,8 +258,8 @@ alschan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 	return speed;
 }
 
-static u_int32_t
-alschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+static uint32_t
+alschan_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
 {
 	struct	sc_chinfo *ch = data;
 	struct	sc_info *sc = ch->parent;
@@ -271,7 +271,7 @@ alschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	return blocksize;
 }
 
-static u_int32_t
+static uint32_t
 alschan_getptr(kobj_t obj, void *data)
 {
 	struct sc_chinfo *ch = data;
@@ -314,10 +314,10 @@ als_set_speed(struct sc_chinfo *ch)
 #define ALS_16BIT_CMD(x, y) { (x), (y),	DSP_DMA16, DSP_CMD_DMAPAUSE_16 }
 
 struct playback_command {
-	u_int32_t pcm_format;	/* newpcm format */
-	u_int8_t  format_val;	/* sb16 format value */
-	u_int8_t  dma_prog;	/* sb16 dma program */
-	u_int8_t  dma_stop;	/* sb16 stop register */
+	uint32_t pcm_format;	/* newpcm format */
+	uint8_t  format_val;	/* sb16 format value */
+	uint8_t  dma_prog;	/* sb16 dma program */
+	uint8_t  dma_stop;	/* sb16 stop register */
 } static const playback_cmds[] = {
 	ALS_8BIT_CMD(SND_FORMAT(AFMT_U8, 1, 0), DSP_MODE_U8MONO),
 	ALS_8BIT_CMD(SND_FORMAT(AFMT_U8, 2, 0), DSP_MODE_U8STEREO),
@@ -326,9 +326,9 @@ struct playback_command {
 };
 
 static const struct playback_command*
-als_get_playback_command(u_int32_t format)
+als_get_playback_command(uint32_t format)
 {
-	u_int32_t i, n;
+	uint32_t i, n;
 
 	n = sizeof(playback_cmds) / sizeof(playback_cmds[0]);
 	for (i = 0; i < n; i++) {
@@ -346,7 +346,7 @@ als_playback_start(struct sc_chinfo *ch)
 {
 	const struct playback_command *p;
 	struct	sc_info *sc = ch->parent;
-	u_int32_t	buf, bufsz, count, dma_prog;
+	uint32_t	buf, bufsz, count, dma_prog;
 
 	buf = ch->buffer->buf_addr;
 	bufsz = ch->buffer->bufsize;
@@ -377,7 +377,7 @@ als_playback_stop(struct sc_chinfo *ch)
 {
 	const struct playback_command *p;
 	struct sc_info *sc = ch->parent;
-	u_int32_t active;
+	uint32_t active;
 
 	active = ch->dma_active;
 	if (active) {
@@ -428,8 +428,8 @@ CHANNEL_DECLARE(alspchan);
 /* ------------------------------------------------------------------------- */
 /* Capture channel implementation */
 
-static u_int8_t
-als_get_fifo_format(struct sc_info *sc, u_int32_t format)
+static uint8_t
+als_get_fifo_format(struct sc_info *sc, uint32_t format)
 {
 	switch (format) {
 	case SND_FORMAT(AFMT_U8, 1, 0):
@@ -449,7 +449,7 @@ static void
 als_capture_start(struct sc_chinfo *ch)
 {
 	struct	sc_info *sc = ch->parent;
-	u_int32_t	buf, bufsz, count, dma_prog;
+	uint32_t	buf, bufsz, count, dma_prog;
 
 	buf = ch->buffer->buf_addr;
 	bufsz = ch->buffer->bufsize;
@@ -477,7 +477,7 @@ static int
 als_capture_stop(struct sc_chinfo *ch)
 {
 	struct sc_info *sc = ch->parent;
-	u_int32_t active;
+	uint32_t active;
 
 	active = ch->dma_active;
 	if (active) {
@@ -528,11 +528,11 @@ CHANNEL_DECLARE(alsrchan);
  */
 
 struct sb16props {
-	u_int8_t lreg;
-	u_int8_t rreg;
-	u_int8_t bits;
-	u_int8_t oselect;
-	u_int8_t iselect; /* left input mask */
+	uint8_t lreg;
+	uint8_t rreg;
+	uint8_t bits;
+	uint8_t oselect;
+	uint8_t iselect; /* left input mask */
 } static const amt[SOUND_MIXER_NRDEVICES] = {
 	[SOUND_MIXER_VOLUME]  = { 0x30, 0x31, 5, 0x00, 0x00 },
 	[SOUND_MIXER_PCM]     = { 0x32, 0x33, 5, 0x00, 0x00 },
@@ -551,7 +551,7 @@ struct sb16props {
 static int
 alsmix_init(struct snd_mixer *m)
 {
-	u_int32_t i, v;
+	uint32_t i, v;
 
 	for (i = v = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 		if (amt[i].bits) v |= 1 << i;
@@ -569,7 +569,7 @@ static int
 alsmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 {
 	struct sc_info *sc = mix_getdevinfo(m);
-	u_int32_t r, l, v, mask;
+	uint32_t r, l, v, mask;
 
 	/* Fill upper n bits in mask with 1's */
 	mask = ((1 << amt[dev].bits) - 1) << (8 - amt[dev].bits);
@@ -597,11 +597,11 @@ alsmix_set(struct snd_mixer *m, unsigned dev, unsigned left, unsigned right)
 	return 0;
 }
 
-static u_int32_t
-alsmix_setrecsrc(struct snd_mixer *m, u_int32_t src)
+static uint32_t
+alsmix_setrecsrc(struct snd_mixer *m, uint32_t src)
 {
 	struct sc_info *sc = mix_getdevinfo(m);
-	u_int32_t i, l, r;
+	uint32_t i, l, r;
 
 	for (i = l = r = 0; i < SOUND_MIXER_NRDEVICES; i++) {
 		if (src & (1 << i)) {
@@ -635,7 +635,7 @@ static void
 als_intr(void *p)
 {
 	struct sc_info *sc = (struct sc_info *)p;
-	u_int8_t intr, sb_status;
+	uint8_t intr, sb_status;
 
 	mtx_lock(&sc->lock);
 	intr = als_intr_rd(sc);
@@ -677,7 +677,7 @@ als_intr(void *p)
 static int
 als_init(struct sc_info *sc)
 {
-	u_int32_t i, v;
+	uint32_t i, v;
 
 	/* Reset Chip */
 	if (als_esp_reset(sc)) {

@@ -1,9 +1,11 @@
-#	$OpenBSD: keyscan.sh,v 1.13 2020/01/22 07:31:27 dtucker Exp $
+#	$OpenBSD: keyscan.sh,v 1.14 2026/04/27 05:49:41 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="keyscan"
 
-for i in $SSH_KEYTYPES; do
+# Enable all supported host key algos.
+algs=""
+for i in `$SSH -Q HostKeyAlgorithms`; do
 	if [ -z "$algs" ]; then
 		algs="$i"
 	else

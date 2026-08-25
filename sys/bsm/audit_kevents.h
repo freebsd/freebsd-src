@@ -665,6 +665,7 @@
 #define	AUE_SETCRED		43271	/* FreeBSD-specific. */
 #define	AUE_INOTIFY		43272	/* FreeBSD/Linux. */
 #define	AUE_PDRFORK		43273	/* FreeBSD-specific. */
+#define	AUE_PDOPENPID		43274	/* FreeBSD-specific. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the

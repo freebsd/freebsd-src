@@ -9,7 +9,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -24,41 +24,6 @@
 #
 
 verify_runnable "global"
-
-#
-# Verify the file identified by the input <inode> is written on a special vdev
-# According to the pool layout used in this test vdev_id 3 and 4 are special
-# XXX: move this function to libtest.shlib once we get "Vdev Properties"
-#
-function file_in_special_vdev # <dataset> <inode>
-{
-	typeset dataset="$1"
-	typeset inum="$2"
-	typeset num_normal=$(echo $ZPOOL_DISKS | wc -w)
-	num_normal=${num_normal##* }
-
-	zdb -dddddd $dataset $inum | awk -v d=$num_normal '{
-# find DVAs from string "offset level dva" only for L0 (data) blocks
-if (match($0,"L0 [0-9]+")) {
-   dvas[0]=$3
-   dvas[1]=$4
-   dvas[2]=$5
-   for (i = 0; i < 3; ++i) {
-      if (match(dvas[i],"([^:]+):.*")) {
-         dva = substr(dvas[i], RSTART, RLENGTH);
-         # parse DVA from string "vdev:offset:asize"
-         if (split(dva,arr,":") != 3) {
-            print "Error parsing DVA: <" dva ">";
-            exit 1;
-         }
-         # verify vdev is "special"
-         if (arr[1] < d) {
-            exit 1;
-         }
-      }
-   }
-}}'
-}
 
 #
 # Check that device removal works for special class vdevs

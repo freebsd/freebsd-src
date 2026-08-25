@@ -320,10 +320,14 @@ acquire_lock(union lock_subject *subj, int flags, int silent)
 	int fd;
 
 	if (fdlock) {
+		int lflags = LOCK_EX;
+
 		assert(subj->subj_fd >= 0 && subj->subj_fd <= INT_MAX);
 		fd = (int)subj->subj_fd;
 
-		if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
+		if ((flags & O_NONBLOCK) == O_NONBLOCK)
+			lflags |= LOCK_NB;
+		if (flock(fd, lflags) == -1) {
 			if (errno == EAGAIN || errno == EINTR)
 				return (-1);
 			err(EX_CANTCREAT, "cannot lock fd %d", fd);

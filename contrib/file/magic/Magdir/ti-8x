@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: ti-8x,v 1.8 2020/02/12 22:13:01 christos Exp $
+# $File: ti-8x,v 1.9 2025/05/28 16:49:05 christos Exp $
 # ti-8x: file(1) magic for the TI-8x and TI-9x Graphing Calculators.
 #
 # From: Ryan McGuire (rmcguire@freenet.columbus.oh.us).
@@ -237,3 +237,8 @@
 >>7             byte            >0              \b %c
 >>9             byte            x               \b.%c
 >>10		byte		x		\b%c
+
+# Magic Numbers for the TI-99
+# https://www.ninerpedia.org/wiki/File_systems#Floppy_Disk_File_System
+#
+13		string		DSK		TI-99/4 image

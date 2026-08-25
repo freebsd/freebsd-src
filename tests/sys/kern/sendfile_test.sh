@@ -38,7 +38,7 @@
 MD_DEVS="md.devs"
 MNT=mnt
 FILE=$MNT/file
-HELPER="$(atf_get_srcdir)/sendfile_helper"
+HELPER="$(atf_get_srcdir)/../common/sendfile_helper"
 BSIZE=4096
 
 atf_test_case io_success cleanup

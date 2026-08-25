@@ -34,11 +34,6 @@ extern int qlnxr_iw_query_gid(struct ib_device *,
 			int index,
 			union ib_gid *gid);
 
-extern int qlnxr_query_gid(struct ib_device *,
-			u8 port,
-			int index,
-			union ib_gid *gid);
-
 extern int qlnxr_create_srq(struct ib_srq *ibsrq,
 			struct ib_srq_init_attr *,
 			struct ib_udata *);
@@ -115,15 +110,15 @@ extern int qlnxr_query_pkey(struct ib_device *,
 			u16 *pkey);
 
 extern int qlnxr_create_ah(struct ib_ah *ibah,
-			struct ib_ah_attr *attr, u32 flags,
+			struct rdma_ah_attr *attr, u32 flags,
 			struct ib_udata *udata);
 extern void qlnxr_destroy_ah(struct ib_ah *ibah, u32 flags);
 
 extern int qlnxr_query_ah(struct ib_ah *ibah,
-			struct ib_ah_attr *attr);
+			struct rdma_ah_attr *attr);
 
 extern int qlnxr_modify_ah(struct ib_ah *ibah,
-			struct ib_ah_attr *attr);
+			struct rdma_ah_attr *attr);
 
 extern int qlnxr_process_mad(struct ib_device *ibdev,
 			int process_mad_flags,

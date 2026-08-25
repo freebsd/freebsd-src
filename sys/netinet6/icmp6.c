@@ -2169,7 +2169,8 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	union nd_opts ndopts;
 	char ip6buf[INET6_ADDRSTRLEN];
 	char *lladdr;
-	int icmp6len, is_onlink, is_router, lladdrlen;
+	int icmp6len, is_onlink, is_router;
+	u_int lladdr_pad, lladdrlen;
 
 	M_ASSERTPKTHDR(m);
 	KASSERT(m->m_pkthdr.rcvif != NULL, ("%s: no rcvif", __func__));
@@ -2296,16 +2297,17 @@ icmp6_redirect_input(struct mbuf *m, int off)
 
 	lladdr = NULL;
 	lladdrlen = 0;
+	lladdr_pad = nd6_lladdr_opt_pad(ifp);
 	if (ndopts.nd_opts_tgt_lladdr) {
-		lladdr = (char *)(ndopts.nd_opts_tgt_lladdr + 1);
+		lladdr = (char *)(ndopts.nd_opts_tgt_lladdr + 1) + lladdr_pad;
 		lladdrlen = ndopts.nd_opts_tgt_lladdr->nd_opt_len << 3;
 	}
 
 	if (lladdr && ((ifp->if_addrlen + 2 + 7) & ~7) != lladdrlen) {
 		nd6log((LOG_INFO, "%s: lladdrlen mismatch for %s "
-		    "(if %d, icmp6 packet %d): %s\n",
+		    "(if %d, icmp6 packet %u): %s\n",
 		    __func__, ip6_sprintf(ip6buf, &redtgt6),
-		    ifp->if_addrlen, lladdrlen - 2,
+		    ifp->if_addrlen, lladdrlen - 2 - lladdr_pad,
 		    icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
 		goto bad;
 	}
@@ -2492,6 +2494,7 @@ icmp6_redirect_output(struct mbuf *m0, struct nhop_object *nh)
 	{
 		/* target lladdr option */
 		int len;
+		u_int pad;
 		struct nd_opt_hdr *nd_opt;
 		char *lladdr;
 
@@ -2499,6 +2502,7 @@ icmp6_redirect_output(struct mbuf *m0, struct nhop_object *nh)
 		if (ln == NULL)
 			goto nolladdropt;
 
+		pad = nd6_lladdr_opt_pad(ifp);
 		len = sizeof(*nd_opt) + ifp->if_addrlen;
 		len = (len + 7) & ~7;	/* round by 8 */
 		/* safety check */
@@ -2507,9 +2511,10 @@ icmp6_redirect_output(struct mbuf *m0, struct nhop_object *nh)
 
 		if (ln->la_flags & LLE_VALID) {
 			nd_opt = (struct nd_opt_hdr *)p;
+			memset(nd_opt, 0, len);
 			nd_opt->nd_opt_type = ND_OPT_TARGET_LINKADDR;
 			nd_opt->nd_opt_len = len >> 3;
-			lladdr = (char *)(nd_opt + 1);
+			lladdr = (char *)(nd_opt + 1) + pad;
 			bcopy(ln->ll_addr, lladdr, ifp->if_addrlen);
 			p += len;
 		}

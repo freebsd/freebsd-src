@@ -1,5 +1,5 @@
 /*
- * Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2026 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -99,6 +99,21 @@ static int test_x509_tbs_cache(void)
         && TEST_int_gt(X509_sign(x, privkey, signmd), 0)
         && TEST_int_eq(X509_verify(x, pubkey), 1);
     X509_free(x);
+    return ret;
+}
+
+static int test_x509_verify_with_new(void)
+{
+    int ret;
+    EVP_PKEY *pkey = NULL;
+    X509 *x = NULL;
+
+    ret = TEST_ptr(x = X509_new())
+        && TEST_ptr(pkey = EVP_PKEY_new())
+        && TEST_int_eq(X509_verify(x, pkey), -1)
+        && TEST_int_eq(X509_verify(x, pubkey), -1);
+    X509_free(x);
+    EVP_PKEY_free(pkey);
     return ret;
 }
 
@@ -321,6 +336,7 @@ int setup_tests(void)
     ADD_TEST(test_x509_delete_last_extension);
     ADD_TEST(test_x509_crl_delete_last_extension);
     ADD_TEST(test_x509_revoked_delete_last_extension);
+    ADD_TEST(test_x509_verify_with_new);
     return 1;
 }
 

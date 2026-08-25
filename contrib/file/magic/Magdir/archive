@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.207 2024/11/27 15:37:46 christos Exp $
+# $File: archive,v 1.218 2026/01/10 16:16:27 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -689,7 +689,7 @@
 # TODO: idarc says "bytes 0-2 == bytes 3-5"
 # TTComp
 # URL: http://fileformats.archiveteam.org/wiki/TTComp_archive
-# Update: Joerg Jenderek
+# Update: Joerg Jenderek, A Iooss
 # GRR: line below is too general as it matches also Panorama database "TCDB 2003-10 demo.pan", others
 0	string	\0\6
 # look for first keyword of Panorama database *.pan
@@ -735,8 +735,27 @@
 #>-4	ubelong		x	LAST_BYTES=%8.8x
 >-4	ubelong&0x00FFffFF	!0
 >>0	use	ttcomp
-#	display information of TTComp archive
+# match end of TTComp to reduce false positives
+# see https://mark0.net/forum/index.php?topic=848
 0	name	ttcomp
+>-2	string	\x01\xff
+>>+0	use	ttcomp-display
+>-2	string	\x80\x7f
+>>+0	use	ttcomp-display
+>-2	string	\xc0\x3f
+>>+0	use	ttcomp-display
+>-2	string	\xe0\x1f
+>>+0	use	ttcomp-display
+>-2	string	\xf0\x0f
+>>+0	use	ttcomp-display
+>-2	string	\xf8\x07
+>>+0	use	ttcomp-display
+>-2	string	\xfc\x03
+>>+0	use	ttcomp-display
+>-2	string	\xfe\x01
+>>+0	use	ttcomp-display
+# display information of TTComp archive
+0	name	ttcomp-display
 # (version 5.25) labeled the entry as "TTComp archive data"
 >0	ubyte	x	TTComp archive data
 !:mime	application/x-compress-ttcomp
@@ -746,23 +765,10 @@
 >0	ubyte	0	\b, binary
 >0	ubyte	1	\b, ASCII
 # size of the dictionary:  4~1024 bytes 5~2048 bytes 6~4096 bytes 
->1	ubyte	4	\b, 1K
->1	ubyte	5	\b, 2K
->1	ubyte	6	\b, 4K
->1	ubyte	x	dictionary
-#	https://mark0.net/forum/index.php?topic=848
-# last 3 bytes probably have only 8 possible bit sequences
-# xxxxxxxx 0000000x 11111111	____FFh
-# xxxxxxxx 10000000 01111111	__807Fh	
-# 0xxxxxxx 11000000 00111111	__C03Fh
-# 00xxxxxx 11100000 00011111	__E01Fh
-# 000xxxxx 11110000 00001111	__F00Fh
-# 0000xxxx 11111000 00000111	__F807h
-# 00000xxx 11111100 00000011	__FC03h
-# 000000xx 11111110 00000001	__FE01h
-# but for quickgif.__d 0A7DD4h
-#>-3	ubyte		x	\b, last 3 bytes 0x%2.2x
-#>-2	ubeshort	x	\b%4.4x
+>1	ubyte	4	\b, 1K dictionary
+>1	ubyte	5	\b, 2K dictionary
+>1	ubyte	6	\b, 4K dictionary
+
 # From:		Joerg Jenderek
 # URL:		https://en.wikipedia.org/wiki/Disk_Copy
 # reference:	http://nulib.com/library/FTN.e00005.htm
@@ -1231,6 +1237,8 @@
 #>0x200	ubequad	x	\b, at 0x200 %#16.16llx
 # cab_descriptor_size like: 0 (*.cab) BD5 C8B DA5 E2A E36 116C 251D 4DA9 56F0 5CC2 6E4B 777D 779E 1F7C2
 >16	ulelong	!0	\b, descriptor size %#x
+>(12.l+40)      lelong  x               ]b, %u files
+
 # TOP4
 0	string	T4\x1a TOP4 archive data
 # BatComp left out: sig looks like COM executable
@@ -1491,22 +1499,18 @@
 >>9	ubyte		!2		\b, security version %u
 # file type; 2 in main header; 0~binary 1~7-bitText 2~comment 3~directory 4~VolumeLabel 5=ChapterLabel
 >0xA	ubyte		!2		\b, file type %u
-# date+time when original archive was created in MS-DOS format via ./msdos
->0xC	ulelong		x		\b, created
->0xC	use		dos-date
-# or date and time by new internal function
-#>0xE	lemsdosdate	x		%s
-#>0xC	lemsdostime	x		%s
+# date+time when original archive was created in MS-DOS format
+>0xE	lemsdosdate	x		\b, created %s
+>0xC	lemsdostime	x		%s
+# Archive mod time, added in format v6 (ARJ 2.39c)
+>5	ubyte		>5
+>>0x10	ulelong		>0		\b, modified
+>>>0x12	lemsdosdate	x		%s
+>>>0x10	lemsdostime	x		%s
+
 # FOR DEBUGGING
 #>0x12	uleshort	x		RAW DATE %#4.4x
 #>0x10	uleshort	x		RAW TIME %#4.4x
-# date+time when archive was last modified; sometimes nil or
-# maybe wrong like in HP4DRVR.ARJ
-#>0x10	ulelong		>0		\b, modified
-#>>0x10	use		dos-date
-# or date and time by new internal function
-#>>0x12	lemsdosdate	x		%s
-#>>0x10	lemsdostime	x		%s
 # archive size (currently used only for secured archives); MAYBE?
 #>0x14	ulelong		!0		\b, file size %u
 # security envelope file position; MAYBE?
@@ -1795,6 +1799,51 @@
 !:ext zip/cbz
 
 
+# Generic zip archives (Greg Roelofs, c/o zip-bugs@wkuvx1.wku.edu)
+#   Next line excludes specialized formats:
+0	name	zipgeneric
+>4	beshort		x			Zip archive data, at least
+!:mime	application/zip
+>4	use		zipversion
+>4	beshort		x			to extract
+>8	beshort		x			\b, compression method=
+>8	use		zipcompression
+>0x161	string		WINZIP		\b, WinZIP self-extracting
+
+# Zip archives that can be either APK or JAR. Checks for resources.arsc, classes.dex, etc.
+0	name	apk_or_jar
+# Contains resources.arsc (near the end, in the central directory)
+>-512	search	resources.arsc	Android package (APK), with MANIFEST.MF and resources.arsc
+!:mime	application/vnd.android.package-archive
+!:ext	apk
+>>-22	string	PK\005\006
+>>>(-6.l-16)	string	APK\x20Sig\x20Block\x2042	\b, with APK Signing Block
+>-512	default x
+# Contains classes.dex (near the end, in the central directory)
+>>-512	search	classes.dex	Android package (APK), with MANIFEST.MF and classes.dex
+!:mime	application/vnd.android.package-archive
+!:ext	apk
+>>>-22	string	PK\005\006
+>>>>(-6.l-16)	string	APK\x20Sig\x20Block\x2042	\b, with APK Signing Block
+>>-512	default x
+# Contains lib/armeabi (near the end, in the central directory)
+>>>-512	search	lib/armeabi	Android package (APK), with MANIFEST.MF and armeabi lib
+!:mime	application/vnd.android.package-archive
+!:ext	apk
+>>>>-22	string	PK\005\006
+>>>>>(-6.l-16)	string	APK\x20Sig\x20Block\x2042	\b, with APK Signing Block
+>>>-512	default x
+# Contains drawables (near the end, in the central directory)
+>>>>-512	search	res/drawable	Android package (APK), with MANIFEST.MF and drawables
+!:mime	application/vnd.android.package-archive
+!:ext	apk
+>>>>>-22	string	PK\005\006
+>>>>>>(-6.l-16)	string	APK\x20Sig\x20Block\x2042	\b, with APK Signing Block
+# It may or may not be an APK file, but it's definitely a Java JAR file
+>>>>-512	default x	Java archive data (JAR)
+!:mime	application/java-archive
+!:ext	jar
+
 0	string		PK\003\004
 !:strength +1
 # IOS/IPadOS IPA file (Zip archive)
@@ -1830,40 +1879,14 @@
 >>>-22	string	PK\005\006
 >>>>(-6.l-16)	string	APK\x20Sig\x20Block\x2042	\b, with APK Signing Block
 # Starts with META-INF/MANIFEST.MF (file name length = 20)
-# NB: checks for resources.arsc, classes.dex, etc. as well to avoid matching JAR files
 >26	uleshort	20
 >>30	string	META-INF/MANIFEST.MF
-# Contains resources.arsc (near the end, in the central directory)
->>>-512	search	resources.arsc	Android package (APK), with MANIFEST.MF and resources.arsc
-!:mime	application/vnd.android.package-archive
-!:ext	apk
->>>>-22	string	PK\005\006
->>>>>(-6.l-16)	string	APK\x20Sig\x20Block\x2042	\b, with APK Signing Block
->>>-512	default x
-# Contains classes.dex (near the end, in the central directory)
->>>>-512	search	classes.dex	Android package (APK), with MANIFEST.MF and classes.dex
-!:mime	application/vnd.android.package-archive
-!:ext	apk
->>>>>-22	string	PK\005\006
->>>>>>(-6.l-16)	string	APK\x20Sig\x20Block\x2042	\b, with APK Signing Block
->>>>-512	default x
-# Contains lib/armeabi (near the end, in the central directory)
->>>>>-512	search	lib/armeabi	Android package (APK), with MANIFEST.MF and armeabi lib
-!:mime	application/vnd.android.package-archive
-!:ext	apk
->>>>>>-22	string	PK\005\006
->>>>>>>(-6.l-16)	string	APK\x20Sig\x20Block\x2042	\b, with APK Signing Block
->>>>>-512	default x
-# Contains drawables (near the end, in the central directory)
->>>>>>-512	search	res/drawable	Android package (APK), with MANIFEST.MF and drawables
-!:mime	application/vnd.android.package-archive
-!:ext	apk
->>>>>>>-22	string	PK\005\006
->>>>>>>>(-6.l-16)	string	APK\x20Sig\x20Block\x2042	\b, with APK Signing Block
-# It may or may not be an APK file, but it's definitely a Java JAR file
->>>>>>-512	default x	Java archive data (JAR)
-!:mime	application/java-archive
-!:ext	jar
+>>>0	use		apk_or_jar
+# Starts with META-INF/ folder (file name length = 9)
+>26	uleshort	9
+>>30	string	META-INF/
+>>>0	use		apk_or_jar
+
 # Starts with zipflinger virtual entry (28 + 104 = 132 bytes)
 # See https://github.com/obfusk/apksigcopier/blob/666f5b7/apksigcopier/__init__.py#L230
 >4	string	\x00\x00\x00\x00\x00\x00
@@ -2132,17 +2155,11 @@
 >>>>>>(-6.l)	search/9000	kmp.json	Keyman Compiled Package File
 !:mime	application/vnd.keyman.kmp+zip
 !:ext kmp
+>>>>>+4	default		x
+>>>>>>0	use		zipgeneric
 
-# Generic zip archives (Greg Roelofs, c/o zip-bugs@wkuvx1.wku.edu)
-#   Next line excludes specialized formats:
 >>>>+4	default		x
->>>>>4	beshort		x			Zip archive data, at least
-!:mime	application/zip
->>>>>4	use		zipversion
->>>>>4	beshort		x			to extract
->>>>>8	beshort		x			\b, compression method=
->>>>>8	use		zipcompression
->>>>>0x161	string		WINZIP		\b, WinZIP self-extracting
+>>>>>0	use		zipgeneric
 
 # Zip archives (Greg Roelofs, c/o zip-bugs@wkuvx1.wku.edu)
 0	string		PK\005\006	Zip archive data (empty)
@@ -2810,3 +2827,55 @@
 >>37	byte		x	\b:%02d
 >>38	byte		x	\b:%02d
 >>56	ulelong		x	\b, size: %u bytes
+
+# Stone archive file - Serpent OS moss package manager's native format
+# https://github.com/serpent-os/tools,
+# (Ikey Doherty)
+0	string	\0mos	Stone archive
+>28	belong	1	(format v%d)
+>>27	byte	1	binary package
+!:mime	application/x-stone-binary
+!:ext	stone
+>>27	byte	2	delta package
+!:mime	application/x-stone-delta
+!:ext	stone
+>>27	byte	3	repository index
+!:mime	application/x-stone-repository
+!:ext	index
+>>27	byte	4	build manifest
+!:mime	application/x-stone-manifest
+!:ext	bin
+
+# * VOS <file_name> <sequential|relative|fixed|stream> <record_size> ,
+# * [encapsulated|not_encapsulated] =
+# * [encoded|not_encoded|seq_encoded|base64_encoded]
+0	string		VOS\040	Stratus OpenVOS EFV archive
+>4	regex	[^[:space:]]+ 	\b, (%s)
+>>&0	regex	[^[:space:]]+	\b, %s
+>>>&0	regex	[^[:space:]]+	\b, record_size=%s
+>>>>&0	regex	[^[:space:]]+	\b, %s
+>>>>>&0	regex	[^[:space:]]+	\b, %s
+
+
+# https://www.vm.ibm.com/devpages/bkw/vmarc.html magic in EBCDIC
+0	string	\x7a\xc3\xc6\xc6\x40\x40\x40\x40	VM Archive
+
+# https://pbs.proxmox.com/docs/file-formats.html
+0	string	\x42\xab\x38\x07\xbe\x83\x70\xa1 Proxmox Backup Server unencrypted uncompressed blob
+
+0	string	\x31\xb9\x58\x42\x6f\xb6\xa3\x7f Proxmox Backup Server unencrypted compressed blob
+
+0	string	\x7b\x67\x85\xbe\x22\x2d\x4c\xf0 Proxmox Backup Server encrypted uncompressed blob
+
+0	string	\xe6\x59\x1b\xbf\x0b\xbf\xd8\x0b Proxmox Backup Server encrypted compressed blob
+
+0	string	\x2f\x7f\x41\xed\x91\xfd\x0f\xcd Proxmox Backup Server fixed index
+
+0	string	\x1c\x91\x4e\xa5\x19\xba\xb3\xcd Proxmox Backup Server dynamic index
+
+0	string	\xef\xac\x88\xe5\x74\x64\x95\xd5 Proxmox File Archive Format v1 / pxar
+
+0	string	\x0d\xa4\x16\xdf\x75\x6c\x0f\x73\x18\x00\x00\x00\x00\x00\x00\x00\x02 Proxmox File Archive Format v2+ / mpxar
+
+0	string	\xd2\x4e\x4a\x19\xc2\x68\x4c\x83\x10 Proxmox File Archive Format payload stream / ppxar
+

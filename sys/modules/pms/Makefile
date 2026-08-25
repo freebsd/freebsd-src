@@ -17,7 +17,6 @@
 	${SRCTOP}/sys/dev/pms/freebsd/driver/common
 
 CFLAGS+=-fno-builtin
-CFLAGS+=-fms-extensions
 
 CFLAGS+=-Wredundant-decls
 CFLAGS+=-Wunused-variable

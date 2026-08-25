@@ -260,21 +260,23 @@ fi
 
 if [ -n "$git_cmd" ] ; then
 	git=$($git_cmd rev-parse --verify --short=12 HEAD 2>/dev/null)
-	if [ "$($git_cmd rev-parse --is-shallow-repository)" = false ] ; then
-		git_cnt=$($git_cmd rev-list --first-parent --count HEAD 2>/dev/null)
-		if [ -n "$git_cnt" ] ; then
-			git="n${git_cnt}-${git}"
+	if [ $? -eq 0 ]; then
+		if [ "$($git_cmd rev-parse --is-shallow-repository)" = false ] ; then
+			git_cnt=$($git_cmd rev-list --first-parent --count HEAD 2>/dev/null)
+			if [ -n "$git_cnt" ] ; then
+				git="n${git_cnt}-${git}"
+			fi
 		fi
+		git_b=$($git_cmd rev-parse --abbrev-ref HEAD)
+		if [ -n "$git_b" -a "$git_b" != "HEAD" ] ; then
+			git="${git_b}-${git}"
+		fi
+		if git_tree_modified; then
+			git="${git}-dirty"
+			modified=yes
+		fi
+		git=" ${git}"
 	fi
-	git_b=$($git_cmd rev-parse --abbrev-ref HEAD)
-	if [ -n "$git_b" -a "$git_b" != "HEAD" ] ; then
-		git="${git_b}-${git}"
-	fi
-	if git_tree_modified; then
-		git="${git}-dirty"
-		modified=yes
-	fi
-	git=" ${git}"
 fi
 
 if [ -n "$gituprevision" ] ; then

@@ -967,12 +967,18 @@ iscsi_connection::login()
 			login_send_error(request, 0x02, 0x07);
 			log_errx(1, "received Login PDU without TargetName");
 		}
+		/*
+		 * Normalize target_name according to RFC 3722
+		 */
+		std::string t_name(target_name);
+		for (char &c : t_name)
+			c = tolower(c);
 
-		conn_port = pg->find_port(target_name);
+		conn_port = pg->find_port(t_name);
 		if (conn_port == NULL) {
 			login_send_error(request, 0x02, 0x03);
 			log_errx(1, "requested target \"%s\" not found",
-			    target_name);
+			    t_name.c_str());
 		}
 		conn_target = conn_port->target();
 	}

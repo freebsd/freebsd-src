@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
@@ -174,19 +164,19 @@ static const fletcher_4_ops_t *fletcher_4_impls[] = {
 	&fletcher_4_scalar_ops,
 	&fletcher_4_superscalar_ops,
 	&fletcher_4_superscalar4_ops,
-#if defined(HAVE_SSE2)
+#if HAVE_SIMD(SSE2)
 	&fletcher_4_sse2_ops,
 #endif
-#if defined(HAVE_SSE2) && defined(HAVE_SSSE3)
+#if HAVE_SIMD(SSE2) && HAVE_SIMD(SSSE3)
 	&fletcher_4_ssse3_ops,
 #endif
-#if defined(HAVE_AVX) && defined(HAVE_AVX2)
+#if HAVE_SIMD(AVX) && HAVE_SIMD(AVX2)
 	&fletcher_4_avx2_ops,
 #endif
-#if defined(__x86_64) && defined(HAVE_AVX512F)
+#if defined(__x86_64) && HAVE_SIMD(AVX512F)
 	&fletcher_4_avx512f_ops,
 #endif
-#if defined(__x86_64) && defined(HAVE_AVX512BW)
+#if defined(__x86_64) && HAVE_SIMD(AVX512BW)
 	&fletcher_4_avx512bw_ops,
 #endif
 #if defined(__aarch64__) && !defined(__FreeBSD__)
@@ -497,6 +487,13 @@ fletcher_4_native_varsize(const void *buf, uint64_t size, zio_cksum_t *zcp)
 {
 	ZIO_SET_CHECKSUM(zcp, 0, 0, 0, 0);
 	fletcher_4_scalar_native((fletcher_4_ctx_t *)zcp, buf, size);
+}
+
+void
+fletcher_4_byteswap_varsize(const void *buf, uint64_t size, zio_cksum_t *zcp)
+{
+	ZIO_SET_CHECKSUM(zcp, 0, 0, 0, 0);
+	fletcher_4_scalar_byteswap((fletcher_4_ctx_t *)zcp, buf, size);
 }
 
 static inline void

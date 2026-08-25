@@ -53,7 +53,7 @@ and
 .Sh EXAMPLES
 .Bd -literal
     #include <libusb20.h>
-    struct libusb20_backend *be = libusb20_be_alloc_default();
+    struct libusb20_backend *be = libusb20_be_alloc_default(NULL);
     struct libusb20_device *device = NULL;
     while ( (device = libusb20_be_device_foreach(be, device)) != NULL ) {
         if (libusb20_dev_open(device, 0) == LIBUSB20_SUCCESS) {

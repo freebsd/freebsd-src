@@ -36,7 +36,9 @@
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_gif.h>
+#ifdef WITHOUT_NETLINK
 #include <net/route.h>
+#endif
 
 #include <ctype.h>
 #include <stdio.h>
@@ -48,11 +50,195 @@
 
 #include "ifconfig.h"
 
+#ifndef WITHOUT_NETLINK
+#include "ifconfig_netlink.h"
+#endif
+
 static const char *GIFBITS[] = {
 	[0] = "NOCLAMP",
 	[1] = "IGNORE_SOURCE",
 };
 
+#ifndef WITHOUT_NETLINK
+struct nl_parsed_gif {
+	uint32_t	ifla_flags;
+};
+
+struct nla_gif_info {
+	const char		*kind;
+	struct nl_parsed_gif	data;
+};
+
+struct nla_gif_link {
+	uint32_t		ifi_index;
+	struct nla_gif_info	linkinfo;
+};
+
+static inline void
+gif_nl_init(if_ctx *ctx, struct snl_writer *nw, uint32_t flags)
+{
+	struct nlmsghdr *hdr;
+
+	snl_init_writer(ctx->io_ss, nw);
+	hdr = snl_create_msg_request(nw, NL_RTM_NEWLINK);
+	hdr->nlmsg_flags |= flags;
+	snl_reserve_msg_object(nw, struct ifinfomsg);
+	snl_add_msg_attr_string(nw, IFLA_IFNAME, ctx->ifname);
+}
+
+static inline void
+gif_nl_fini(if_ctx *ctx, struct snl_writer *nw)
+{
+	struct nlmsghdr *hdr;
+	struct snl_errmsg_data errmsg = {};
+
+	hdr = snl_finalize_msg(nw);
+	if (hdr == NULL || !snl_send_message(ctx->io_ss, hdr))
+		err(1, "unable to send netlink message");
+
+	if (!snl_read_reply_code(ctx->io_ss, hdr->nlmsg_seq, &errmsg))
+		errx(errmsg.error, "%s", errmsg.error_str);
+}
+
+#define _OUT(_field)   offsetof(struct nl_parsed_gif, _field)
+static const struct snl_attr_parser nla_p_gif[] = {
+	{ .type = IFLA_IPTUN_FLAGS, .off = _OUT(ifla_flags), .cb = snl_attr_get_uint32 },
+};
+#undef _OUT
+SNL_DECLARE_ATTR_PARSER(gif_linkinfo_data_parser, nla_p_gif);
+
+#define _OUT(_field)   offsetof(struct nla_gif_info, _field)
+static const struct snl_attr_parser ap_gif_linkinfo[] = {
+	{ .type = IFLA_INFO_KIND, .off = _OUT(kind), .cb = snl_attr_get_string },
+	{ .type = IFLA_INFO_DATA, .off = _OUT(data),
+		.arg = &gif_linkinfo_data_parser, .cb = snl_attr_get_nested },
+};
+#undef _OUT
+SNL_DECLARE_ATTR_PARSER(gif_linkinfo_parser, ap_gif_linkinfo);
+
+#define _IN(_field)    offsetof(struct ifinfomsg, _field)
+#define _OUT(_field)   offsetof(struct nla_gif_link, _field)
+static const struct snl_attr_parser ap_gif_link[] = {
+	{ .type = IFLA_LINKINFO, .off = _OUT(linkinfo),
+		.arg = &gif_linkinfo_parser, .cb = snl_attr_get_nested },
+};
+
+static const struct snl_field_parser fp_geneve_link[] = {
+	{ .off_in = _IN(ifi_index), .off_out = _OUT(ifi_index),
+		.cb = snl_field_get_uint32 },
+};
+#undef _IN
+#undef _OUT
+SNL_DECLARE_PARSER(gif_parser, struct ifinfomsg, fp_geneve_link, ap_gif_link);
+
+static const struct snl_hdr_parser *all_parsers[] = {
+	&gif_linkinfo_data_parser,
+	&gif_linkinfo_parser,
+	&gif_parser,
+};
+
+static void
+gif_status_nl(if_ctx *ctx)
+{
+	struct snl_writer nw;
+	struct nlmsghdr *hdr;
+	struct snl_errmsg_data errmsg = {};
+	struct nla_gif_link gif_link;
+
+	if (strncmp(ctx->ifname, "gif", sizeof("gif") - 1) != 0)
+		 return;
+
+	snl_init_writer(ctx->io_ss, &nw);
+	hdr = snl_create_msg_request(&nw, NL_RTM_GETLINK);
+	hdr->nlmsg_flags |= NLM_F_DUMP;
+	snl_reserve_msg_object(&nw, struct ifinfomsg);
+	snl_add_msg_attr_string(&nw, IFLA_IFNAME, ctx->ifname);
+
+	hdr = snl_finalize_msg(&nw);
+	if (hdr == NULL || !snl_send_message(ctx->io_ss, hdr))
+		 err(1, "unable to send netlink message");
+
+	hdr = snl_read_reply(ctx->io_ss, hdr->nlmsg_seq);
+	if (hdr->nlmsg_type != NL_RTM_NEWLINK) {
+		if (!snl_parse_errmsg(ctx->io_ss, hdr, &errmsg))
+			errx(EINVAL, "(NETLINK)");
+		if (errmsg.error_str != NULL)
+			errx(errmsg.error, "(NETLINK) %s", errmsg.error_str);
+	}
+
+	if (!snl_parse_nlmsg(ctx->io_ss, hdr, &gif_parser, &gif_link))
+		 return;
+
+	struct nla_gif_info gif_info = gif_link.linkinfo;
+	struct nl_parsed_gif gif_data = gif_info.data;
+
+	if (gif_data.ifla_flags == 0)
+		 return;
+
+	printf("\toptions=%x", gif_data.ifla_flags);
+	print_bits("options", &gif_data.ifla_flags, 1, GIFBITS, nitems(GIFBITS));
+	putchar('\n');
+}
+
+static void
+setgifopts_nl(if_ctx *ctx, const char *val __unused, int d)
+{
+	struct snl_writer nw = {};
+	struct nlmsghdr *hdr;
+	struct snl_errmsg_data errmsg = {};
+	struct nla_gif_link gif_link = {};
+	int off, off2;
+
+	snl_init_writer(ctx->io_ss, &nw);
+	hdr = snl_create_msg_request(&nw, NL_RTM_GETLINK);
+	hdr->nlmsg_flags |= NLM_F_DUMP;
+	snl_reserve_msg_object(&nw, struct ifinfomsg);
+	snl_add_msg_attr_string(&nw, IFLA_IFNAME, ctx->ifname);
+
+	hdr = snl_finalize_msg(&nw);
+	if (hdr == NULL || (!snl_send_message(ctx->io_ss, hdr)))
+		err(1, "unable to send netlink message");
+
+	hdr = snl_read_reply(ctx->io_ss, hdr->nlmsg_seq);
+	if (hdr->nlmsg_type != NL_RTM_GETLINK) {
+		if (!snl_parse_errmsg(ctx->io_ss, hdr, &errmsg))
+			errx(EINVAL, "(NETLINK)");
+		if (errmsg.error_str != NULL)
+			errx(errmsg.error, "(NETLINK) %s", errmsg.error_str);
+	}
+
+	if (!snl_parse_nlmsg(ctx->io_ss, hdr, &gif_parser, &gif_link))
+		return;
+
+	struct nla_gif_info gif_info = gif_link.linkinfo;
+	struct nl_parsed_gif gif_data = gif_info.data;
+
+	if (d < 0)
+		gif_data.ifla_flags &= ~(-d);
+	else
+		gif_data.ifla_flags |= d;
+
+	gif_nl_init(ctx, &nw, 0);
+	off = snl_add_msg_attr_nested(&nw, IFLA_LINKINFO);
+	snl_add_msg_attr_string(&nw, IFLA_INFO_KIND, "gif");
+
+	off2 = snl_add_msg_attr_nested(&nw, IFLA_INFO_DATA);
+	snl_add_msg_attr_u32(&nw, IFLA_IPTUN_FLAGS, gif_data.ifla_flags);
+
+	snl_end_attr_nested(&nw, off2);
+	snl_end_attr_nested(&nw, off);
+
+	gif_nl_fini(ctx, &nw);
+}
+
+static struct cmd gif_cmds[] = {
+	DEF_CMD("noclamp",		GIF_NOCLAMP,		setgifopts_nl),
+	DEF_CMD("-noclamp",		-GIF_NOCLAMP,		setgifopts_nl),
+	DEF_CMD("ignore_source",	GIF_IGNORE_SOURCE,	setgifopts_nl),
+	DEF_CMD("-ignore_source",	-GIF_IGNORE_SOURCE,	setgifopts_nl),
+};
+
+#else
 static void
 gif_status(if_ctx *ctx)
 {
@@ -96,11 +282,16 @@ static struct cmd gif_cmds[] = {
 	DEF_CMD("ignore_source",	GIF_IGNORE_SOURCE,	setgifopts),
 	DEF_CMD("-ignore_source",	-GIF_IGNORE_SOURCE,	setgifopts),
 };
+#endif /* !WITHOUT_NETLINK */
 
 static struct afswtch af_gif = {
 	.af_name	= "af_gif",
 	.af_af		= AF_UNSPEC,
+#ifndef WITHOUT_NETLINK
+	.af_other_status = gif_status_nl,
+#else
 	.af_other_status = gif_status,
+#endif
 };
 
 static __constructor void
@@ -111,4 +302,7 @@ gif_ctor(void)
 	for (i = 0; i < nitems(gif_cmds); i++)
 		cmd_register(&gif_cmds[i]);
 	af_register(&af_gif);
+#ifndef WITHOUT_NETLINK
+	SNL_VERIFY_PARSERS(all_parsers);
+#endif
 }

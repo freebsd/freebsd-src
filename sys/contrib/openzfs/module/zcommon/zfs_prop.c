@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -497,9 +487,14 @@ zfs_prop_init(void)
 	/* inherit index (boolean) properties */
 	zprop_register_index(ZFS_PROP_ATIME, "atime", 1, PROP_INHERIT,
 	    ZFS_TYPE_FILESYSTEM, "on | off", "ATIME", boolean_table, sfeatures);
-	zprop_register_index(ZFS_PROP_RELATIME, "relatime", 1, PROP_INHERIT,
-	    ZFS_TYPE_FILESYSTEM, "on | off", "RELATIME", boolean_table,
-	    sfeatures);
+	zprop_register_index(ZFS_PROP_RELATIME, "relatime",
+#ifdef __FreeBSD__
+	    0,	/* FreeBSD does not natively support relatime. */
+#else
+	    1,
+#endif
+	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM, "on | off", "RELATIME",
+	    boolean_table, sfeatures);
 	zprop_register_index(ZFS_PROP_DEVICES, "devices", 1, PROP_INHERIT,
 	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_SNAPSHOT, "on | off", "DEVICES",
 	    boolean_table, sfeatures);
@@ -520,6 +515,10 @@ zfs_prop_init(void)
 	zprop_register_index(ZFS_PROP_ZONED, "zoned", 0, PROP_INHERIT,
 	    ZFS_TYPE_FILESYSTEM, "on | off", "ZONED", boolean_table, sfeatures);
 #endif
+	/* UID-based zoning for rootless containers */
+	zprop_register_number(ZFS_PROP_ZONED_UID, "zoned_uid", 0,
+	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM, "<uid> | none", "ZONED_UID",
+	    B_FALSE, sfeatures);
 	zprop_register_index(ZFS_PROP_VSCAN, "vscan", 0, PROP_INHERIT,
 	    ZFS_TYPE_FILESYSTEM, "on | off", "VSCAN", boolean_table, sfeatures);
 	zprop_register_index(ZFS_PROP_NBMAND, "nbmand", 0, PROP_INHERIT,
@@ -643,8 +642,8 @@ zfs_prop_init(void)
 	    ZFS_TYPE_VOLUME, "512 to 16M, power of 2", "VOLBLOCK", B_FALSE,
 	    sfeatures);
 	zprop_register_index(ZFS_PROP_VOLTHREADING, "volthreading",
-	    1, PROP_DEFAULT, ZFS_TYPE_VOLUME, "on | off", "zvol threading",
-	    boolean_table, sfeatures);
+	    1, PROP_DEFAULT, ZFS_TYPE_VOLUME, "on | off",
+	    "VOLTHREAD", boolean_table, sfeatures);
 	zprop_register_number(ZFS_PROP_USEDSNAP, "usedbysnapshots", 0,
 	    PROP_READONLY, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME, "<size>",
 	    "USEDSNAP", B_FALSE, sfeatures);
@@ -795,6 +794,12 @@ zfs_prop_init(void)
 	    PROP_TYPE_NUMBER, 0, NULL, PROP_READONLY, ZFS_TYPE_FILESYSTEM |
 	    ZFS_TYPE_VOLUME, "<date>", "SNAPSHOTS_CHANGED", B_FALSE, B_TRUE,
 	    B_TRUE, NULL, sfeatures);
+
+	zprop_register_impl(ZFS_PROP_SNAPSHOTS_CHANGED_NSECS,
+	    "snapshots_changed_nsecs", PROP_TYPE_NUMBER, 0, NULL,
+	    PROP_READONLY, ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME, "<nsec>",
+	    "SNAPSHOTS_CHANGED_NSECS", B_FALSE, B_TRUE, B_TRUE, NULL,
+	    sfeatures);
 
 	zprop_register_index(ZFS_PROP_LONGNAME, "longname", 0, PROP_INHERIT,
 	    ZFS_TYPE_FILESYSTEM, "on | off", "LONGNAME", boolean_table,

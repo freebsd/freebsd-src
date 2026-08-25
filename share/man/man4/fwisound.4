@@ -1,0 +1,97 @@
+.\"
+.\" Copyright (c) 2026 Abdelkader Boudih <freebsd@seuros.com>
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.Dd July 12, 2026
+.Dt FWISOUND 4
+.Os
+.Sh NAME
+.Nm fwisound
+.Nd Apple FireWire audio driver
+.Sh SYNOPSIS
+.Cd "device firewire"
+.Cd "device fwisound"
+.Cd "device sound"
+.Sh DESCRIPTION
+The
+.Nm
+driver provides audio capture from Apple FireWire devices that use a
+proprietary isochronous audio protocol
+.Pq not IEC 61883/AMDTP .
+.Pp
+The driver attaches to unit directories in the device CSR configuration ROM
+with Apple OUI
+.Pq 0x000a27
+and decodes the
+.Qq sght
+packet signature to deliver stereo PCM audio to the
+.Xr sound 4
+framework.
+.Pp
+The device attaches as a standard
+.Xr sound 4
+capture device accessible at
+.Pa /dev/dspX .
+The fixed audio format is 48000\~Hz, 2-channel, signed 16-bit big-endian
+.Pq S16BE .
+.Sh HARDWARE
+The
+.Nm
+driver supports Apple FireWire devices with the following unit directory:
+.Pp
+.Bl -tag -width "unit_sw_version" -compact
+.It Va unit_spec_ID
+0x000a27
+.Pq Apple OUI
+.It Va unit_sw_version
+0x000010
+.El
+.Pp
+Known compatible hardware:
+.Pp
+.Bl -bullet -compact
+.It
+Apple iSight (FireWire cylinder)
+.El
+.Sh SYSCTLS
+.Bl -tag -width ".Va hw.firewire.fwisound.iso_channel"
+.It Va hw.firewire.fwisound.iso_channel
+Isochronous receive channel (default 1).
+Can be set as a tunable in
+.Xr loader.conf 5 .
+Must not conflict with
+.Va hw.firewire.fwcam.iso_channel
+.Pq default 0 .
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /dev/dspX" -compact
+.It Pa /dev/dspX
+PCM capture device created by
+.Xr sound 4 .
+.El
+.Sh EXAMPLES
+Record five seconds of audio:
+.Bd -literal -offset indent
+rec -r 48000 -c 2 -e signed-integer -b 16 -B /tmp/out.wav trim 5
+.Ed
+.Pp
+If multiple sound devices are present, address the device explicitly:
+.Bd -literal -offset indent
+sox -t ossdsp /dev/dsp4 -r 48000 -c 2 -e signed-integer -b 16 \e
+    /tmp/out.wav trim 5
+.Ed
+.Sh SEE ALSO
+.Xr firewire 4 ,
+.Xr fwohci 4 ,
+.Xr sound 4 ,
+.Xr sysctl 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An Abdelkader Boudih Aq Mt freebsd@seuros.com
+.Pp
+Protocol reverse-engineered by Clemens Ladisch.

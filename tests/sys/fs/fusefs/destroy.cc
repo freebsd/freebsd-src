@@ -61,7 +61,21 @@ void assert_unmounted() {
 	struct statfs statbuf;
 
 	for (int retry = 100; retry > 0; retry--) {
-		ASSERT_EQ(0, statfs("mountpoint", &statbuf)) << strerror(errno);
+		if (0 != statfs("mountpoint", &statbuf)) {
+			switch (errno) {
+			case ENOENT:
+			case EBADF:
+				/*
+				 * statfs will sometimes transiently return
+				 * these errors while an unmount is in
+				 * progress.  Retry.
+				 */
+				nap();
+				continue;
+			default:
+				FAIL() << "statfs:" << strerror(errno);
+			}
+		}
 		if (strcmp("fusefs", statbuf.f_fstypename) != 0 &&
 		    strcmp("/dev/fuse", statbuf.f_mntfromname) != 0)
 			return;

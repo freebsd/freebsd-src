@@ -63,6 +63,7 @@ all             : made-target error-target aborted-target
 .MAKE.OS         = <details omitted>
 .MAKE.PID        = <details omitted>
 .MAKE.PPID       = <details omitted>
+.MAKE.SAVE_DOLLARS = <details omitted>
 .MAKE.UID        = <details omitted>
 .MAKEFLAGS       =  -r -k -d g2
 .MAKEOVERRIDES   = # (empty)

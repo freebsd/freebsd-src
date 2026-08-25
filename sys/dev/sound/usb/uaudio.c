@@ -155,7 +155,6 @@ SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RWTUN,
 
 #define	MAKE_WORD(h,l) (((h) << 8) | (l))
 #define	BIT_TEST(bm,bno) (((bm)[(bno) / 8] >> (7 - ((bno) % 8))) & 1)
-#define	UAUDIO_MAX_CHAN(x) (x)
 #define	MIX(sc) ((sc)->sc_mixer_node)
 
 union uaudio_asid {
@@ -357,7 +356,7 @@ struct uaudio_hid {
 
 struct uaudio_softc_child {
 	device_t pcm_device;
-	struct mtx *mixer_lock;
+	struct mtx mixer_lock;
 	struct snd_mixer *mixer_dev;
 
 	uint32_t mix_info;
@@ -368,7 +367,6 @@ struct uaudio_softc_child {
 };
 
 struct uaudio_softc {
-	struct sndcard_func sc_sndcard_func;
 	struct uaudio_chan sc_rec_chan[UAUDIO_MAX_CHILD];
 	struct uaudio_chan sc_play_chan[UAUDIO_MAX_CHILD];
 	struct umidi_chan sc_midi_chan;
@@ -553,12 +551,13 @@ static void	umidi_stop_read(struct usb_fifo *);
 static void	umidi_start_write(struct usb_fifo *);
 static void	umidi_stop_write(struct usb_fifo *);
 static int	umidi_open(struct usb_fifo *, int);
-static int	umidi_ioctl(struct usb_fifo *, u_long cmd, void *, int);
+static int	umidi_ioctl(struct usb_fifo *, unsigned long cmd, void *,
+		    int);
 static void	umidi_close(struct usb_fifo *, int);
 static void	umidi_init(device_t dev);
-static int	umidi_probe(device_t dev);
+static int	umidi_attach(device_t dev);
 static int	umidi_detach(device_t dev);
-static int	uaudio_hid_probe(struct uaudio_softc *sc,
+static int	uaudio_hid_attach(struct uaudio_softc *sc,
 		    struct usb_attach_arg *uaa);
 static void	uaudio_hid_detach(struct uaudio_softc *sc);
 
@@ -715,56 +714,60 @@ static driver_t uaudio_driver = {
 	.size = sizeof(struct uaudio_softc),
 };
 
+static const STRUCT_USB_HOST_ID uaudio_vendor_audio[] = {
+	{ USB_VPI(USB_VENDOR_ROLAND, USB_PRODUCT_ROLAND_UA33, 0) },
+};
+
 /* The following table is derived from Linux's quirks-table.h */ 
 static const STRUCT_USB_HOST_ID uaudio_vendor_midi[] = {
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1000, 0) }, /* UX256 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1001, 0) }, /* MU1000 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1002, 0) }, /* MU2000 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1003, 0) }, /* MU500 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1004, 3) }, /* UW500 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1005, 0) }, /* MOTIF6 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1006, 0) }, /* MOTIF7 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1007, 0) }, /* MOTIF8 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1008, 0) }, /* UX96 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1009, 0) }, /* UX16 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x100a, 3) }, /* EOS BX */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x100c, 0) }, /* UC-MX */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x100d, 0) }, /* UC-KX */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x100e, 0) }, /* S08 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x100f, 0) }, /* CLP-150 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1010, 0) }, /* CLP-170 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1011, 0) }, /* P-250 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1012, 0) }, /* TYROS */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1013, 0) }, /* PF-500 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1014, 0) }, /* S90 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1015, 0) }, /* MOTIF-R */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1016, 0) }, /* MDP-5 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1017, 0) }, /* CVP-204 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1018, 0) }, /* CVP-206 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1019, 0) }, /* CVP-208 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101a, 0) }, /* CVP-210 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101b, 0) }, /* PSR-1100 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101c, 0) }, /* PSR-2100 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101d, 0) }, /* CLP-175 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101e, 0) }, /* PSR-K1 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101f, 0) }, /* EZ-J24 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1020, 0) }, /* EZ-250i */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1021, 0) }, /* MOTIF ES 6 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1022, 0) }, /* MOTIF ES 7 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1023, 0) }, /* MOTIF ES 8 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1024, 0) }, /* CVP-301 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1025, 0) }, /* CVP-303 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1026, 0) }, /* CVP-305 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1027, 0) }, /* CVP-307 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1028, 0) }, /* CVP-309 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1029, 0) }, /* CVP-309GP */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x102a, 0) }, /* PSR-1500 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x102b, 0) }, /* PSR-3000 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x102e, 0) }, /* ELS-01/01C */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1030, 0) }, /* PSR-295/293 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1031, 0) }, /* DGX-205/203 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1032, 0) }, /* DGX-305 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1033, 0) }, /* DGX-505 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_UX256, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_MU1000, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_MU2000, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_MU500, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_UW500, 3) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_MOTIF6, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_MOTIF7, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_MOTIF8, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_UX96, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_UX16, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_EOS_BX, 3) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_UCMX, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_UCKX, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_S08, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_CLP150, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_CLP170, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_P250, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_TYROS, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_PF500, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_S90, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_MOTIFR, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_MDP5, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_CVP204, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_CVP206, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_CVP208, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_CVP210, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_PSR1100, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_PSR2100, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_CLP175, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_PSRK1, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_EZJ24, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_EZJ250I, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_MOTIF_ES6, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_MOTIF_ES7, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_MOTIF_ES8, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_CVP301, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_CVP303, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_CVP305, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_CVP307, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_CVP309, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_CVP309GP, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_PSR1500, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_PSR3000, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_ELS01_01C, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_PSR295_293, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_DGX205_203, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_DGX305, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_DGX505, 0) },
 	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1034, 0) }, /* NULL */
 	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1035, 0) }, /* NULL */
 	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1036, 0) }, /* NULL */
@@ -799,29 +802,29 @@ static const STRUCT_USB_HOST_ID uaudio_vendor_midi[] = {
 	{ USB_VPI(USB_VENDOR_YAMAHA, 0x105b, 0) }, /* NULL */
 	{ USB_VPI(USB_VENDOR_YAMAHA, 0x105c, 0) }, /* NULL */
 	{ USB_VPI(USB_VENDOR_YAMAHA, 0x105d, 0) }, /* NULL */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1503, 3) }, /* MOX6/MOX8 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x2000, 0) }, /* DGP-7 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x2001, 0) }, /* DGP-5 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_MOX6_MOX8, 3) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_DGP7, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_DGP5, 0) },
 	{ USB_VPI(USB_VENDOR_YAMAHA, 0x2002, 0) }, /* NULL */
 	{ USB_VPI(USB_VENDOR_YAMAHA, 0x2003, 0) }, /* NULL */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5000, 0) }, /* CS1D */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5001, 0) }, /* DSP1D */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5002, 0) }, /* DME32 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5003, 0) }, /* DM2000 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5004, 0) }, /* 02R96 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5005, 0) }, /* ACU16-C */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5006, 0) }, /* NHB32-C */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5007, 0) }, /* DM1000 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5008, 0) }, /* 01V96 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5009, 0) }, /* SPX2000 */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500a, 0) }, /* PM5D */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500b, 0) }, /* DME64N */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500c, 0) }, /* DME24N */
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_CS1D, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_DSP1D, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_DME32, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_DM2000, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_02R96, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_ACU16C, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_NHB32C, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_DM1000, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_01V96, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_SPX2000, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_PM5D, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_DME64N, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_DME24N, 0) },
 	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500d, 0) }, /* NULL */
 	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500e, 0) }, /* NULL */
 	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500f, 0) }, /* NULL */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x7000, 0) }, /* DTX */
-	{ USB_VPI(USB_VENDOR_YAMAHA, 0x7010, 0) }, /* UB99 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_DTX, 0) },
+	{ USB_VPI(USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_UB99, 0) },
 };
 
 static const STRUCT_USB_HOST_ID __used uaudio_devs[] = {
@@ -869,6 +872,11 @@ uaudio_probe(device_t dev)
 		return (ENXIO);
 
 	/* lookup non-standard device(s) */
+
+	if (usbd_lookup_id_by_uaa(uaudio_vendor_audio,
+	    sizeof(uaudio_vendor_audio), uaa) == 0) {
+		return (BUS_PROBE_SPECIFIC);
+	}
 
 	if (usbd_lookup_id_by_uaa(uaudio_vendor_midi,
 	    sizeof(uaudio_vendor_midi), uaa) == 0) {
@@ -1101,7 +1109,7 @@ uaudio_attach(device_t dev)
 	}
 
 	if (sc->sc_midi_chan.valid) {
-		if (umidi_probe(dev)) {
+		if (umidi_attach(dev)) {
 			goto detach;
 		}
 		device_printf(dev, "MIDI sequencer.\n");
@@ -1112,8 +1120,6 @@ uaudio_attach(device_t dev)
 	DPRINTF("doing child attach\n");
 
 	/* attach the children */
-
-	sc->sc_sndcard_func.func = SCF_PCM;
 
 	/*
 	 * Only attach a PCM device if we have a playback, recording
@@ -1131,14 +1137,12 @@ uaudio_attach(device_t dev)
 			DPRINTF("out of memory\n");
 			goto detach;
 		}
-		device_set_ivars(sc->sc_child[i].pcm_device,
-		    &sc->sc_sndcard_func);
 	}
 
 	bus_attach_children(dev);
 
 	if (uaudio_handle_hid) {
-		if (uaudio_hid_probe(sc, uaa) == 0) {
+		if (uaudio_hid_attach(sc, uaa) == 0) {
 			device_printf(dev, "HID volume keys found.\n");
 		} else {
 			device_printf(dev, "No HID volume keys found.\n");
@@ -1355,6 +1359,46 @@ uaudio_max_buffer_size(struct uaudio_chan *ch, uint8_t alt)
 	return (buf_size);
 }
 
+static bool
+uaudio20_clock_is_shared(struct uaudio_softc *sc, unsigned int x)
+{
+	/*
+	 * A clock entity that feeds both an OUTPUT (playback) and an
+	 * INPUT (capture) terminal shows up in both bitmaps: it is a
+	 * sample clock shared between the two directions.
+	 */
+	return ((sc->sc_mixer_clocks.bit_output[x / 8] & (1 << (x % 8))) != 0 &&
+	    (sc->sc_mixer_clocks.bit_input[x / 8] & (1 << (x % 8))) != 0);
+}
+
+static uint32_t
+uaudio_dir_running_rate(struct uaudio_chan *chans)
+{
+	unsigned int i;
+
+	for (i = 0; i != UAUDIO_MAX_CHILD; i++) {
+		struct uaudio_chan *ch = &chans[i];
+
+		if (ch->running != 0 && ch->cur_alt < ch->num_alt)
+			return (ch->usb_alt[ch->cur_alt].sample_rate);
+	}
+	return (0);		/* nothing streaming in this direction */
+}
+
+static bool
+uaudio_chan_match_rate(struct uaudio_chan *ch, uint32_t rate, uint8_t *p_alt)
+{
+	uint8_t x;
+
+	for (x = 0; x != ch->num_alt; x++) {
+		if (ch->usb_alt[x].sample_rate == rate) {
+			*p_alt = x;
+			return (true);
+		}
+	}
+	return (false);
+}
+
 static void
 uaudio_configure_msg_sub(struct uaudio_softc *sc,
     struct uaudio_chan *chan, int dir)
@@ -1448,6 +1492,35 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 			} else {
 				if (!(sc->sc_mixer_clocks.bit_input[x / 8] &
 				    (1 << (x % 8)))) {
+					continue;
+				}
+			}
+
+			/*
+			 * Shared-clock guard.  If this clock entity is
+			 * shared between the playback and capture paths,
+			 * and the OTHER direction is already streaming at
+			 * a different rate, do not reprogram the clock --
+			 * the rate that is already locked wins.  This
+			 * stops an idle or secondary stream from yanking
+			 * the shared clock out from under an active
+			 * stream and dropping USB stream lock.  The first
+			 * active stream owns the clock; a later one
+			 * follows it (see uaudio_chan_start(), which
+			 * re-aligns the jitter-info record stream to the
+			 * playback rate before it is started).
+			 */
+			if (uaudio20_clock_is_shared(sc, x)) {
+				uint32_t other = (dir == PCMDIR_PLAY) ?
+				    uaudio_dir_running_rate(sc->sc_rec_chan) :
+				    uaudio_dir_running_rate(sc->sc_play_chan);
+
+				if (other != 0 &&
+				    other != chan_alt->sample_rate) {
+					DPRINTF("shared clock ID=%u busy at "
+					    "%u Hz; not reprogramming to "
+					    "%u Hz\n", x, other,
+					    chan_alt->sample_rate);
 					continue;
 				}
 			}
@@ -1993,7 +2066,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 			uint16_t wFormat;
 
 			wFormat = UGETW(asid.v1->wFormatTag);
-			bChannels = UAUDIO_MAX_CHAN(asf1d.v1->bNrChannels);
+			bChannels = asf1d.v1->bNrChannels;
 			bBitResolution = asf1d.v1->bSubFrameSize * 8;
 
 			if (asf1d.v1->bSamFreqType == 0) {
@@ -2074,8 +2147,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		else
 			chan_alt->usb_cfg = uaudio_cfg_play;
 
-		chan_alt->sample_size = (UAUDIO_MAX_CHAN(channels) *
-		    p_fmt->bPrecision) / 8;
+		chan_alt->sample_size = (channels * p_fmt->bPrecision) / 8;
 		chan_alt->channels = channels;
 
 		if (ep_dir == UE_DIR_IN &&
@@ -2332,13 +2404,10 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	case USB_ST_SETUP:
 		/*
-		 * Check if the recording stream can be used as a
-		 * source of jitter information to save some
-		 * isochronous bandwidth:
+		 * Submit the transfer even when the recording stream
+		 * provides the jitter information, so that the feedback
+		 * rate keeps being sampled for diagnostic purposes.
 		 */
-		if (ch->priv_sc->sc_rec_chan[i].num_alt != 0 &&
-		    uaudio_debug == 0)
-			break;
 		usbd_xfer_set_frames(xfer, 1);
 		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_framelen(xfer));
 		usbd_transfer_submit(xfer);
@@ -2882,12 +2951,33 @@ uaudio_chan_start(struct uaudio_chan *ch)
 		if (uaudio_chan_need_both(
 		    &sc->sc_play_chan[i],
 		    &sc->sc_rec_chan[i])) {
+			struct uaudio_chan *ch_play = &sc->sc_play_chan[i];
+			struct uaudio_chan *ch_rec = &sc->sc_rec_chan[i];
+			uint8_t rec_alt;
+
+			/*
+			 * The recording channel is only being started as a
+			 * source of jitter information for the playback
+			 * stream.  Align its nominal rate with the
+			 * playback rate so that (a) it does not reprogram
+			 * a sample clock shared with the playback path to
+			 * a conflicting rate, and (b) its expected frame
+			 * sizes match what the device actually produces,
+			 * keeping the derived jitter information valid.
+			 * The USB explore lock is held here, which also
+			 * serializes against uaudio_chan_set_param_speed().
+			 */
+			if (uaudio_chan_match_rate(ch_rec,
+			    ch_play->usb_alt[ch_play->set_alt].sample_rate,
+			    &rec_alt))
+				ch_rec->set_alt = rec_alt;
+
 			/*
 			 * Start both endpoints because of need for
 			 * jitter information:
 			 */
-			uaudio_chan_reconfigure(&sc->sc_rec_chan[i], CHAN_OP_START);
-			uaudio_chan_reconfigure(&sc->sc_play_chan[i], CHAN_OP_START);
+			uaudio_chan_reconfigure(ch_rec, CHAN_OP_START);
+			uaudio_chan_reconfigure(ch_play, CHAN_OP_START);
 		} else {
 			uaudio_chan_reconfigure(ch, CHAN_OP_START);
 		}
@@ -2953,12 +3043,9 @@ uaudio_mixer_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	sc = (struct uaudio_softc *)oidp->oid_arg1;
 	hint = oidp->oid_arg2;
 
-	if (sc->sc_child[0].mixer_lock == NULL)
-		return (ENXIO);
-
 	/* lookup mixer node */
 
-	mtx_lock(sc->sc_child[0].mixer_lock);
+	mtx_lock(&sc->sc_child[0].mixer_lock);
 	for (pmc = sc->sc_mixer_root; pmc != NULL; pmc = pmc->next) {
 		for (chan = 0; chan != (int)pmc->nchan; chan++) {
 			if (pmc->wValue[chan] != -1 &&
@@ -2969,7 +3056,7 @@ uaudio_mixer_sysctl_handler(SYSCTL_HANDLER_ARGS)
 		}
 	}
 found:
-	mtx_unlock(sc->sc_child[0].mixer_lock);
+	mtx_unlock(&sc->sc_child[0].mixer_lock);
 
 	error = sysctl_handle_int(oidp, &temp, 0, req);
 	if (error != 0 || req->newptr == NULL)
@@ -2977,7 +3064,7 @@ found:
 
 	/* update mixer value */
 
-	mtx_lock(sc->sc_child[0].mixer_lock);
+	mtx_lock(&sc->sc_child[0].mixer_lock);
 	if (pmc != NULL &&
 	    temp >= pmc->minval &&
 	    temp <= pmc->maxval) {
@@ -2987,7 +3074,7 @@ found:
 		/* start the transfer, if not already started */
 		usbd_transfer_start(sc->sc_mixer_xfer[0]);
 	}
-	mtx_unlock(sc->sc_child[0].mixer_lock);
+	mtx_unlock(&sc->sc_child[0].mixer_lock);
 
 	return (0);
 }
@@ -3218,10 +3305,7 @@ uaudio_mixer_reload_all(struct uaudio_softc *sc)
 	struct uaudio_mixer_node *pmc;
 	int chan;
 
-	if (sc->sc_child[0].mixer_lock == NULL)
-		return;
-
-	mtx_lock(sc->sc_child[0].mixer_lock);
+	mtx_lock(&sc->sc_child[0].mixer_lock);
 	for (pmc = sc->sc_mixer_root; pmc != NULL; pmc = pmc->next) {
 		/* use reset defaults for non-oss controlled settings */
 		if (pmc->ctl == SOUND_MIXER_NRDEVICES)
@@ -3233,7 +3317,7 @@ uaudio_mixer_reload_all(struct uaudio_softc *sc)
 
 	/* start HID volume keys, if any */
 	usbd_transfer_start(sc->sc_hid.xfer[0]);
-	mtx_unlock(sc->sc_child[0].mixer_lock);
+	mtx_unlock(&sc->sc_child[0].mixer_lock);
 }
 
 static void
@@ -5335,7 +5419,7 @@ uaudio20_set_speed(struct usb_device *udev, uint8_t iface_no,
     uint8_t clockid, uint32_t speed)
 {
 	struct usb_device_request req;
-	uint8_t data[4];
+	uDWord data;
 
 	DPRINTFN(6, "ifaceno=%d clockid=%d speed=%u\n",
 	    iface_no, clockid, speed);
@@ -5344,11 +5428,8 @@ uaudio20_set_speed(struct usb_device *udev, uint8_t iface_no,
 	req.bRequest = UA20_CS_CUR;
 	USETW2(req.wValue, UA20_CS_SAM_FREQ_CONTROL, 0);
 	USETW2(req.wIndex, clockid, iface_no);
-	USETW(req.wLength, 4);
-	data[0] = speed;
-	data[1] = speed >> 8;
-	data[2] = speed >> 16;
-	data[3] = speed >> 24;
+	USETW(req.wLength, sizeof(data));
+	USETDW(data, speed);
 
 	return (usbd_do_request(udev, NULL, &req, data));
 }
@@ -5390,8 +5471,8 @@ uaudio_mixer_bsd2value(struct uaudio_mixer_node *mc, int val)
 }
 
 static void
-uaudio_mixer_ctl_set(struct uaudio_softc *sc, struct uaudio_mixer_node *mc,
-    uint8_t chan, int val)
+uaudio_mixer_ctl_set(struct uaudio_softc *sc, unsigned index,
+    struct uaudio_mixer_node *mc, uint8_t chan, int val)
 {
 	val = uaudio_mixer_bsd2value(mc, val);
 
@@ -5400,7 +5481,9 @@ uaudio_mixer_ctl_set(struct uaudio_softc *sc, struct uaudio_mixer_node *mc,
 
 	/* start the transfer, if not already started */
 
+	mtx_lock(&sc->sc_child[index].mixer_lock);
 	usbd_transfer_start(sc->sc_mixer_xfer[0]);
+	mtx_unlock(&sc->sc_child[index].mixer_lock);
 }
 
 static void
@@ -5437,13 +5520,20 @@ uaudio_mixer_init_sub(struct uaudio_softc *sc, struct snd_mixer *m)
 
 	DPRINTF("child=%u\n", i);
 
-	sc->sc_child[i].mixer_lock = mixer_get_lock(m);
+	/*
+	 * Initialize the mutex with MTX_RECURSE so that functions like
+	 * uaudio_mixer_ctl_set() do not panic when they recurse on the lock,
+	 * as a result of a callback function (e.g., uaudio_hid_rx_callback())
+	 * also having acquired it.
+	 */
+	mtx_init(&sc->sc_child[i].mixer_lock, "uaudio mixer lock", NULL,
+	    MTX_RECURSE);
 	sc->sc_child[i].mixer_dev = m;
 
 	if (i == 0 &&
 	    usbd_transfer_setup(sc->sc_udev, &sc->sc_mixer_iface_index,
 	    sc->sc_mixer_xfer, uaudio_mixer_config, 1, sc,
-	    sc->sc_child[i].mixer_lock)) {
+	    &sc->sc_child[i].mixer_lock)) {
 		DPRINTFN(0, "could not allocate USB transfer for mixer!\n");
 		return (ENOMEM);
 	}
@@ -5468,7 +5558,7 @@ uaudio_mixer_uninit_sub(struct uaudio_softc *sc, struct snd_mixer *m)
 	if (index == 0)
 		usbd_transfer_unsetup(sc->sc_mixer_xfer, 1);
 
-	sc->sc_child[index].mixer_lock = NULL;
+	mtx_destroy(&sc->sc_child[index].mixer_lock);
 
 	return (0);
 }
@@ -5486,7 +5576,7 @@ uaudio_mixer_set(struct uaudio_softc *sc, struct snd_mixer *m,
 	for (mc = sc->sc_mixer_root; mc != NULL; mc = mc->next) {
 		if (mc->ctl == type) {
 			for (chan = 0; chan < mc->nchan; chan++) {
-				uaudio_mixer_ctl_set(sc, mc, chan,
+				uaudio_mixer_ctl_set(sc, index, mc, chan,
 				    chan == 0 ? left : right);
 			}
 		}
@@ -5527,7 +5617,7 @@ uaudio_mixer_setrecsrc(struct uaudio_softc *sc, struct snd_mixer *m, uint32_t sr
 			for (i = mc->minval; (i > 0) && (i <= mc->maxval); i++) {
 				if (temp != (1U << mc->slctrtype[i - 1]))
 					continue;
-				uaudio_mixer_ctl_set(sc, mc, 0, i);
+				uaudio_mixer_ctl_set(sc, index, mc, 0, i);
 				break;
 			}
 		}
@@ -5805,9 +5895,7 @@ tr_setup:
 				}
 			}
 
-			chan->curr_cable++;
-			if (chan->curr_cable >= chan->max_emb_jack)
-				chan->curr_cable = 0;
+			chan->curr_cable %= chan->max_emb_jack;
 
 			if (chan->curr_cable == start_cable) {
 				if (tr_any == 0)
@@ -5960,7 +6048,7 @@ umidi_close(struct usb_fifo *fifo, int fflags)
 }
 
 static int
-umidi_ioctl(struct usb_fifo *fifo, u_long cmd, void *data,
+umidi_ioctl(struct usb_fifo *fifo, unsigned long cmd, void *data,
     int fflags)
 {
 	return (ENODEV);
@@ -5987,7 +6075,7 @@ static struct usb_fifo_methods umidi_fifo_methods = {
 };
 
 static int
-umidi_probe(device_t dev)
+umidi_attach(device_t dev)
 {
 	struct uaudio_softc *sc = device_get_softc(dev);
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
@@ -6053,7 +6141,7 @@ umidi_probe(device_t dev)
 		error = usb_fifo_attach(sc->sc_udev, chan, &chan->mtx,
 		    &umidi_fifo_methods, &sub->fifo, unit, n,
 		    chan->iface_index,
-		    UID_ROOT, GID_OPERATOR, 0666);
+		    UID_ROOT, GID_AUDIO, 0660);
 		if (error) {
 			goto detach;
 		}
@@ -6174,7 +6262,7 @@ tr_setup:
 }
 
 static int
-uaudio_hid_probe(struct uaudio_softc *sc,
+uaudio_hid_attach(struct uaudio_softc *sc,
     struct usb_attach_arg *uaa)
 {
 	void *d_ptr;
@@ -6184,9 +6272,6 @@ uaudio_hid_probe(struct uaudio_softc *sc,
 	int error;
 
 	if (!(sc->sc_hid.flags & UAUDIO_HID_VALID))
-		return (-1);
-
-	if (sc->sc_child[0].mixer_lock == NULL)
 		return (-1);
 
 	/* Get HID descriptor */
@@ -6247,7 +6332,7 @@ uaudio_hid_probe(struct uaudio_softc *sc,
 	/* allocate USB transfers */
 	error = usbd_transfer_setup(uaa->device, &sc->sc_hid.iface_index,
 	    sc->sc_hid.xfer, uaudio_hid_config, UAUDIO_HID_N_TRANSFER,
-	    sc, sc->sc_child[0].mixer_lock);
+	    sc, &sc->sc_child[0].mixer_lock);
 	if (error) {
 		DPRINTF("error=%s\n", usbd_errstr(error));
 		return (-1);
@@ -6267,4 +6352,5 @@ MODULE_DEPEND(snd_uaudio, sound, SOUND_MINVER, SOUND_PREFVER, SOUND_MAXVER);
 MODULE_DEPEND(snd_uaudio, hid, 1, 1, 1);
 MODULE_VERSION(snd_uaudio, 1);
 USB_PNP_HOST_INFO(uaudio_devs);
+USB_PNP_HOST_INFO(uaudio_vendor_audio);
 USB_PNP_HOST_INFO(uaudio_vendor_midi);

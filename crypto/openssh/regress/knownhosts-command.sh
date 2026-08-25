@@ -1,4 +1,4 @@
-#	$OpenBSD: knownhosts-command.sh,v 1.3 2021/08/30 01:15:45 djm Exp $
+#	$OpenBSD: knownhosts-command.sh,v 1.5 2026/06/14 04:08:05 djm Exp $
 #	Placed in the Public Domain.
 
 tid="known hosts command "
@@ -38,9 +38,11 @@ _EOF
 chmod a+x $OBJ/knownhosts_command
 ${SSH} -F $OBJ/ssh_proxy x true && fail "ssh connect succeeded with bad exit"
 
+cp $OBJ/sshd_proxy $OBJ/sshd_proxy.bak
 for keytype in ${SSH_HOSTKEY_TYPES} ; do
+	grep -vi HostKeyAlgorithms $OBJ/sshd_proxy.bak > $OBJ/sshd_proxy
+	echo "HostKeyAlgorithms=+$keytype" >> $OBJ/sshd_proxy
 	algs=$keytype
-	test "x$keytype" = "xssh-dss" && continue
 	test "x$keytype" = "xssh-rsa" && algs=ssh-rsa,rsa-sha2-256,rsa-sha2-512
 	verbose "keytype $keytype"
 	cat > $OBJ/knownhosts_command << _EOF

@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2017 - 2023 Intel Corporation
+ * Copyright (c) 2017 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -118,10 +118,11 @@ irdma_free_node(struct irdma_sc_vsi *vsi,
  * @vsi: vsi pointer
  * @node: pointer to node
  * @cmd: add, remove or modify
+ * @qs_handle: Pointer to store the qs_handle for a leaf node
  */
 static int
 irdma_ws_cqp_cmd(struct irdma_sc_vsi *vsi,
-		 struct irdma_ws_node *node, u8 cmd)
+		 struct irdma_ws_node *node, u8 cmd, u16 *qs_handle)
 {
 	struct irdma_ws_node_info node_info = {0};
 
@@ -142,10 +143,8 @@ irdma_ws_cqp_cmd(struct irdma_sc_vsi *vsi,
 		return -ENOMEM;
 	}
 
-	if (node->type_leaf && cmd == IRDMA_OP_WS_ADD_NODE) {
-		node->qs_handle = node_info.qs_handle;
-		vsi->qos[node->user_pri].qs_handle = node_info.qs_handle;
-	}
+	if (node->type_leaf && cmd == IRDMA_OP_WS_ADD_NODE && qs_handle)
+		*qs_handle = node_info.qs_handle;
 
 	return 0;
 }
@@ -193,11 +192,8 @@ irdma_ws_in_use(struct irdma_sc_vsi *vsi, u8 user_pri)
 {
 	int i;
 
-	mutex_lock(&vsi->qos[user_pri].qos_mutex);
-	if (!list_empty(&vsi->qos[user_pri].qplist)) {
-		mutex_unlock(&vsi->qos[user_pri].qos_mutex);
+	if (!list_empty(&vsi->qos[user_pri].qplist))
 		return true;
-	}
 
 	/*
 	 * Check if the qs handle associated with the given user priority is in use by any other user priority. If so,
@@ -205,12 +201,9 @@ irdma_ws_in_use(struct irdma_sc_vsi *vsi, u8 user_pri)
 	 */
 	for (i = 0; i < IRDMA_MAX_USER_PRIORITY; i++) {
 		if (vsi->qos[i].qs_handle == vsi->qos[user_pri].qs_handle &&
-		    !list_empty(&vsi->qos[i].qplist)) {
-			mutex_unlock(&vsi->qos[user_pri].qos_mutex);
+		    !list_empty(&vsi->qos[i].qplist))
 			return true;
-		}
 	}
-	mutex_unlock(&vsi->qos[user_pri].qos_mutex);
 
 	return false;
 }
@@ -228,9 +221,10 @@ irdma_remove_leaf(struct irdma_sc_vsi *vsi, u8 user_pri)
 	int i;
 
 	qs_handle = vsi->qos[user_pri].qs_handle;
-	for (i = 0; i < IRDMA_MAX_USER_PRIORITY; i++)
+	for (i = 0; i < IRDMA_MAX_USER_PRIORITY; i++) {
 		if (vsi->qos[i].qs_handle == qs_handle)
 			vsi->qos[i].valid = false;
+	}
 
 	ws_tree_root = vsi->dev->ws_tree_root;
 	if (!ws_tree_root)
@@ -247,23 +241,91 @@ irdma_remove_leaf(struct irdma_sc_vsi *vsi, u8 user_pri)
 	if (!tc_node)
 		return;
 
-	irdma_ws_cqp_cmd(vsi, tc_node, IRDMA_OP_WS_DELETE_NODE);
-	vsi->unregister_qset(vsi, tc_node);
 	list_del(&tc_node->siblings);
+	irdma_ws_cqp_cmd(vsi, tc_node, IRDMA_OP_WS_DELETE_NODE, NULL);
+
+	vsi->unregister_qset(vsi, tc_node);
 	irdma_free_node(vsi, tc_node);
 	/* Check if VSI node can be freed */
 	if (list_empty(&vsi_node->child_list_head)) {
-		irdma_ws_cqp_cmd(vsi, vsi_node, IRDMA_OP_WS_DELETE_NODE);
+		irdma_ws_cqp_cmd(vsi, vsi_node, IRDMA_OP_WS_DELETE_NODE, NULL);
 		list_del(&vsi_node->siblings);
 		irdma_free_node(vsi, vsi_node);
 		/* Free head node there are no remaining VSI nodes */
 		if (list_empty(&ws_tree_root->child_list_head)) {
 			irdma_ws_cqp_cmd(vsi, ws_tree_root,
-					 IRDMA_OP_WS_DELETE_NODE);
+					 IRDMA_OP_WS_DELETE_NODE, NULL);
 			irdma_free_node(vsi, ws_tree_root);
 			vsi->dev->ws_tree_root = NULL;
 		}
 	}
+}
+
+static int
+irdma_enable_leaf(struct irdma_sc_vsi *vsi,
+		  struct irdma_ws_node *tc_node)
+{
+	int ret;
+
+	ret = vsi->register_qset(vsi, tc_node);
+	if (ret)
+		return ret;
+
+	tc_node->enable = true;
+	ret = irdma_ws_cqp_cmd(vsi, tc_node, IRDMA_OP_WS_MODIFY_NODE, NULL);
+	if (ret)
+		goto enable_err;
+	return 0;
+
+enable_err:
+	vsi->unregister_qset(vsi, tc_node);
+
+	return ret;
+}
+
+static struct irdma_ws_node *
+irdma_add_leaf_node(struct irdma_sc_vsi *vsi,
+		    struct irdma_ws_node *vsi_node,
+		    u8 user_pri, u16 traffic_class)
+{
+	struct irdma_ws_node *tc_node =
+	irdma_alloc_node(vsi, user_pri, WS_NODE_TYPE_LEAF, vsi_node);
+	int i, ret = 0;
+
+	if (!tc_node)
+		return NULL;
+	ret = irdma_ws_cqp_cmd(vsi, tc_node, IRDMA_OP_WS_ADD_NODE, &tc_node->qs_handle);
+	if (ret) {
+		irdma_free_node(vsi, tc_node);
+		return NULL;
+	}
+	vsi->qos[tc_node->user_pri].qs_handle = tc_node->qs_handle;
+
+	list_add(&tc_node->siblings, &vsi_node->child_list_head);
+
+	ret = irdma_enable_leaf(vsi, tc_node);
+	if (ret)
+		goto reg_err;
+
+	/*
+	 * Iterate through other UPs and update the QS handle if they have a matching traffic class.
+	 */
+	for (i = 0; i < IRDMA_MAX_USER_PRIORITY; i++) {
+		if (vsi->qos[i].traffic_class == traffic_class) {
+			vsi->qos[i].qs_handle = tc_node->qs_handle;
+			vsi->qos[i].l2_sched_node_id =
+			    tc_node->l2_sched_node_id;
+			vsi->qos[i].valid = true;
+		}
+	}
+	return tc_node;
+
+reg_err:
+	irdma_ws_cqp_cmd(vsi, tc_node, IRDMA_OP_WS_DELETE_NODE, NULL);
+	list_del(&tc_node->siblings);
+	irdma_free_node(vsi, tc_node);
+
+	return NULL;
 }
 
 /**
@@ -279,7 +341,6 @@ irdma_ws_add(struct irdma_sc_vsi *vsi, u8 user_pri)
 	struct irdma_ws_node *tc_node;
 	u16 traffic_class;
 	int ret = 0;
-	int i;
 
 	mutex_lock(&vsi->dev->ws_mutex);
 	if (vsi->tc_change_pending) {
@@ -298,9 +359,11 @@ irdma_ws_add(struct irdma_sc_vsi *vsi, u8 user_pri)
 			ret = -ENOMEM;
 			goto exit;
 		}
-		irdma_debug(vsi->dev, IRDMA_DEBUG_WS, "Creating root node = %d\n", ws_tree_root->index);
+		irdma_debug(vsi->dev, IRDMA_DEBUG_WS,
+			    "Creating root node = %d\n", ws_tree_root->index);
 
-		ret = irdma_ws_cqp_cmd(vsi, ws_tree_root, IRDMA_OP_WS_ADD_NODE);
+		ret = irdma_ws_cqp_cmd(vsi, ws_tree_root, IRDMA_OP_WS_ADD_NODE,
+				       NULL);
 		if (ret) {
 			irdma_free_node(vsi, ws_tree_root);
 			goto exit;
@@ -324,7 +387,8 @@ irdma_ws_add(struct irdma_sc_vsi *vsi, u8 user_pri)
 			goto vsi_add_err;
 		}
 
-		ret = irdma_ws_cqp_cmd(vsi, vsi_node, IRDMA_OP_WS_ADD_NODE);
+		ret = irdma_ws_cqp_cmd(vsi, vsi_node, IRDMA_OP_WS_ADD_NODE,
+				       NULL);
 		if (ret) {
 			irdma_free_node(vsi, vsi_node);
 			goto vsi_add_err;
@@ -344,56 +408,22 @@ irdma_ws_add(struct irdma_sc_vsi *vsi, u8 user_pri)
 		irdma_debug(vsi->dev, IRDMA_DEBUG_WS,
 			    "Node not found matching VSI %d and TC %d\n",
 			    vsi->vsi_idx, traffic_class);
-		tc_node = irdma_alloc_node(vsi, user_pri, WS_NODE_TYPE_LEAF,
-					   vsi_node);
+		tc_node = irdma_add_leaf_node(vsi, vsi_node, user_pri,
+					      traffic_class);
 		if (!tc_node) {
 			ret = -ENOMEM;
 			goto leaf_add_err;
-		}
-
-		ret = irdma_ws_cqp_cmd(vsi, tc_node, IRDMA_OP_WS_ADD_NODE);
-		if (ret) {
-			irdma_free_node(vsi, tc_node);
-			goto leaf_add_err;
-		}
-
-		list_add(&tc_node->siblings, &vsi_node->child_list_head);
-		/*
-		 * callback to LAN to update the LAN tree with our node
-		 */
-		ret = vsi->register_qset(vsi, tc_node);
-		if (ret)
-			goto reg_err;
-
-		tc_node->enable = true;
-		ret = irdma_ws_cqp_cmd(vsi, tc_node, IRDMA_OP_WS_MODIFY_NODE);
-		if (ret) {
-			vsi->unregister_qset(vsi, tc_node);
-			goto reg_err;
 		}
 	}
 	irdma_debug(vsi->dev, IRDMA_DEBUG_WS,
 		    "Using node %d which represents VSI %d TC %d\n",
 		    tc_node->index, vsi->vsi_idx, traffic_class);
-	/*
-	 * Iterate through other UPs and update the QS handle if they have a matching traffic class.
-	 */
-	for (i = 0; i < IRDMA_MAX_USER_PRIORITY; i++) {
-		if (vsi->qos[i].traffic_class == traffic_class) {
-			vsi->qos[i].qs_handle = tc_node->qs_handle;
-			vsi->qos[i].l2_sched_node_id = tc_node->l2_sched_node_id;
-			vsi->qos[i].valid = true;
-		}
-	}
 	goto exit;
 
-reg_err:
-	irdma_ws_cqp_cmd(vsi, tc_node, IRDMA_OP_WS_DELETE_NODE);
-	list_del(&tc_node->siblings);
-	irdma_free_node(vsi, tc_node);
 leaf_add_err:
 	if (list_empty(&vsi_node->child_list_head)) {
-		if (irdma_ws_cqp_cmd(vsi, vsi_node, IRDMA_OP_WS_DELETE_NODE))
+		if (irdma_ws_cqp_cmd(vsi, vsi_node, IRDMA_OP_WS_DELETE_NODE,
+				     NULL))
 			goto exit;
 		list_del(&vsi_node->siblings);
 		irdma_free_node(vsi, vsi_node);
@@ -402,7 +432,8 @@ leaf_add_err:
 vsi_add_err:
 	/* Free head node there are no remaining VSI nodes */
 	if (list_empty(&ws_tree_root->child_list_head)) {
-		irdma_ws_cqp_cmd(vsi, ws_tree_root, IRDMA_OP_WS_DELETE_NODE);
+		irdma_ws_cqp_cmd(vsi, ws_tree_root, IRDMA_OP_WS_DELETE_NODE,
+				 NULL);
 		vsi->dev->ws_tree_root = NULL;
 		irdma_free_node(vsi, ws_tree_root);
 	}
@@ -420,12 +451,14 @@ exit:
 void
 irdma_ws_remove(struct irdma_sc_vsi *vsi, u8 user_pri)
 {
+	mutex_lock(&vsi->qos[user_pri].qos_mutex);
 	mutex_lock(&vsi->dev->ws_mutex);
 	if (irdma_ws_in_use(vsi, user_pri))
 		goto exit;
 	irdma_remove_leaf(vsi, user_pri);
 exit:
 	mutex_unlock(&vsi->dev->ws_mutex);
+	mutex_unlock(&vsi->qos[user_pri].qos_mutex);
 }
 
 /**

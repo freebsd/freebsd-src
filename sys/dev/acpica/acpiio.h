@@ -28,6 +28,10 @@
 #ifndef _ACPIIO_H_
 #define _ACPIIO_H_
 
+#ifndef _KERNEL
+#include <stdbool.h>
+#endif
+
 /*
  * Core ACPI subsystem ioctls
  */
@@ -200,6 +204,41 @@ union acpi_battery_ioctl_arg {
 
 /* Get AC adapter status. */
 #define ACPIIO_ACAD_GET_STATUS	  _IOR('A', 1, int)
+
+/* Error injection commands. */
+
+/* Flags in ACPI_EINJ_ERROR_TYPE_WITH_ADDR.Flags */
+#define	ACPI_EINJ_APICID_VALID		0x00000001
+#define	ACPI_EINJ_MEMADDRESS_VALID	0x00000002
+#define	ACPI_EINJ_PCIE_VALID		0x00000004
+
+struct acpi_einj_info {
+	uint32_t	error_type;	/* Value from GET_ERROR_TYPE. */
+
+	uint32_t	vendor_length;
+
+	/* SET_ERROR_TYPE_WITH_ADDRESS supported. */
+	bool		error_address;
+};
+
+struct acpi_einj_vendor_info {
+	void		*buf;
+	uint32_t	len;
+};
+
+struct acpi_einj_error {
+	uint32_t	error_type;
+
+	uint32_t	address_flags;	/* ACPI_EINJ_*_VALID */
+	uint32_t	apic_id;
+	uint64_t	memory_address;
+	uint64_t	memory_range;
+	uint32_t	pcie_id;
+};
+
+#define	ACPIIO_EINJ_GET_INFO	_IOR('E', 1, struct acpi_einj_info)
+#define	ACPIIO_EINJ_GET_VENDOR	_IOW('E', 2, struct acpi_einj_vendor_info)
+#define	ACPIIO_EINJ_SET_ERROR	_IOW('E', 3, struct acpi_einj_error)
 
 #ifdef _KERNEL
 typedef int	(*acpi_ioctl_fn)(u_long cmd, caddr_t addr, void *arg);

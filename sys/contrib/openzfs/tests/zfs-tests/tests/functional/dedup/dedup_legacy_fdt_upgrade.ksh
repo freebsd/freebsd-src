@@ -1,23 +1,13 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
-# CDDL HEADER START
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
 #
-# The contents of this file are subject to the terms of the
-# Common Development and Distribution License (the "License").
-# You may not use this file except in compliance with the License.
-#
-# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or https://opensource.org/licenses/CDDL-1.0.
-# See the License for the specific language governing permissions
-# and limitations under the License.
-#
-# When distributing Covered Code, include this CDDL HEADER in each
-# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-# If applicable, add the following below this CDDL HEADER, with the
-# fields enclosed by brackets "[]" replaced with your own identifying
-# information: Portions Copyright [yyyy] [name of copyright owner]
-#
-# CDDL HEADER END
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -45,14 +35,12 @@ function cleanup
 
 log_onexit cleanup
 
-# create a pool with legacy dedup enabled. we disable block cloning to ensure
-# it doesn't get in the way of dedup, and we disable compression so our writes
+# create a pool with legacy dedup enabled. we disable compression so our writes
 # create predictable results on disk
 # Use 'xattr=sa' to prevent selinux xattrs influencing our accounting
 log_must zpool create -f \
     -o feature@fast_dedup=disabled \
     -O dedup=on \
-    -o feature@block_cloning=disabled \
     -O compression=off \
     -O xattr=sa \
     $TESTPOOL $DISKS
@@ -84,7 +72,7 @@ log_must zpool set feature@fast_dedup=enabled $TESTPOOL
 log_must test $(get_pool_prop feature@fast_dedup $TESTPOOL) = "enabled"
 
 # copy the file
-log_must cp /$TESTPOOL/file1 /$TESTPOOL/file2
+log_must dd if=/$TESTPOOL/file1 of=/$TESTPOOL/file2 bs=128k
 log_must zpool sync
 
 # feature should still be enabled
@@ -126,5 +114,7 @@ obj=$(zdb -dddd $TESTPOOL 1 | grep DDT-sha256 | awk '{ print $NF }')
 
 # with one ZAP inside
 log_must test $(zdb -dddd $TESTPOOL $obj | grep DDT-sha256-zap- | wc -l) -eq 1
+
+log_must zdb -b $TESTPOOL
 
 log_pass "legacy dedup tables work after upgrade; new dedup tables created as FDT"

@@ -9,6 +9,7 @@ kern/subr_devmap.c				standard
 kern/subr_efi_map.c				standard
 kern/subr_intr.c				optional intrng
 kern/subr_physmem.c				standard
+kern/subr_busdma_bufalloc.c			standard
 libkern/strlen.c		standard
 libkern/arm64/crc32c_armv8.S			standard
 
@@ -58,6 +59,10 @@ arm64/arm64/gicv3_its.c				optional intrng fdt
 arm64/arm64/gic_v3.c				standard
 arm64/arm64/gic_v3_acpi.c			optional acpi
 arm64/arm64/gic_v3_fdt.c			optional fdt
+arm64/arm64/gicv5.c				standard
+arm64/arm64/gicv5_fdt.c				optional fdt
+arm64/arm64/gicv5_its.c				optional fdt
+arm64/arm64/gicv5_iwb.c				optional fdt
 arm64/arm64/hyp_stub.S				standard
 arm64/arm64/identcpu.c				standard
 arm64/arm64/kexec_support.c			standard
@@ -75,8 +80,10 @@ arm64/arm64/ofw_machdep.c			optional fdt
 arm64/arm64/pl031_rtc.c				optional fdt pl031
 arm64/arm64/ptrauth.c				standard \
 	compile-with	"${NORMAL_C:N-mbranch-protection*} -mbranch-protection=bti"
+arm64/arm64/mte.c				standard
 arm64/arm64/pmap.c				standard
 arm64/arm64/ptrace_machdep.c			standard
+arm64/arm64/rsi.c				standard
 arm64/arm64/sdt_machdep.c			optional kdtrace_hooks
 arm64/arm64/sigtramp.S				standard
 arm64/arm64/spec_workaround.c			standard
@@ -133,13 +140,22 @@ arm64/vmm/vmm_arm64.c				optional vmm
 arm64/vmm/vmm_reset.c				optional vmm
 arm64/vmm/vmm_handlers.c			optional vmm
 arm64/vmm/vmm_call.S				optional vmm
+arm64/vmm/hyp_genassym.c			optional vmm		\
+	dependency  "offset.inc"					\
+	compile-with "${NOSAN_C:N-flto*:N-fno-common} -fcommon"		\
+	no-obj
+hyp_assym.h					optional vmm		\
+	dependency  "hyp_genassym.o"					\
+	compile-with "sh $S/kern/genassym.sh hyp_genassym.o > ${.TARGET}" \
+	no-obj no-implicit-rule before-depend
 arm64/vmm/vmm_nvhe_exception.S			optional vmm		\
+	dependency	"hyp_assym.h"					\
 	dependency	"$S/arm64/vmm/vmm_hyp_exception.S"		\
 	compile-with "${NOSAN_C} -fpie"					\
 	no-obj
 arm64/vmm/vmm_nvhe.c				optional vmm		\
 	dependency	"$S/arm64/vmm/vmm_hyp.c"			\
-	compile-with "${NOSAN_C} -fpie"					\
+	compile-with "${NOSAN_C:N-fstack-protector*} -fpie"		\
 	no-obj
 vmm_hyp_blob.elf.full				optional vmm		\
 	dependency	"vmm_nvhe.o vmm_nvhe_exception.o"			\
@@ -157,7 +173,9 @@ arm64/vmm/vmm_hyp_el2.S				optional vmm		\
 	dependency	vmm_hyp_blob.bin
 arm64/vmm/vmm_mmu.c				optional vmm
 arm64/vmm/vmm_vhe.c				optional vmm
-arm64/vmm/vmm_vhe_exception.S			optional vmm
+arm64/vmm/vmm_vhe_exception.S			optional vmm		\
+	dependency	"hyp_assym.h"					\
+	dependency	"$S/arm64/vmm/vmm_hyp_exception.S"
 arm64/vmm/io/vgic.c				optional vmm
 arm64/vmm/io/vgic_v3.c				optional vmm
 arm64/vmm/io/vgic_if.m				optional vmm
@@ -165,6 +183,7 @@ arm64/vmm/io/vtimer.c				optional vmm
 dev/vmm/vmm_dev.c				optional vmm
 dev/vmm/vmm_mem.c				optional vmm
 dev/vmm/vmm_stat.c				optional vmm
+dev/vmm/vmm_vm.c				optional vmm
 
 crypto/armv8/armv8_crypto.c			optional armv8crypto
 armv8_crypto_wrap.o				optional armv8crypto	\
@@ -206,6 +225,7 @@ dev/acpica/acpi_pci.c				optional acpi pci
 dev/acpica/acpi_pci_link.c			optional acpi pci
 dev/acpica/acpi_pcib.c				optional acpi pci
 dev/acpica/acpi_pxm.c				optional acpi
+dev/acpi_support/acpi_wmi_if.m			optional acpi acpi_wmi
 dev/ahci/ahci_generic.c				optional ahci
 
 cddl/dev/dtrace/aarch64/dtrace_asm.S		optional dtrace compile-with "${DTRACE_S}"
@@ -261,6 +281,7 @@ dev/dpaa2/dpaa2_channel.c			optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_cmd_if.m			optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_con.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_console.c			optional soc_nxp_ls dpaa2 fdt
+dev/dpaa2/dpaa2_frame.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_io.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_mac.c				optional soc_nxp_ls dpaa2
 dev/dpaa2/dpaa2_mc.c				optional soc_nxp_ls dpaa2
@@ -453,7 +474,6 @@ dev/mmc/host/dwmmc_rockchip.c			optional dwmmc rk_dwmmc fdt
 dev/neta/if_mvneta_fdt.c			optional neta fdt
 dev/neta/if_mvneta.c				optional neta mdio mii fdt
 
-dev/ofw/ofw_cpu.c				optional fdt
 dev/ofw/ofw_pci.c				optional fdt pci
 dev/ofw/ofw_pcib.c				optional fdt pci
 
@@ -628,6 +648,7 @@ arm/broadcom/bcm2835/bcm283x_dwc_fdt.c			optional dwcotg fdt soc_brcm_bcm2837 | 
 arm/broadcom/bcm2835/bcm2838_pci.c			optional soc_brcm_bcm2838 fdt pci
 arm/broadcom/bcm2835/bcm2838_xhci.c			optional soc_brcm_bcm2838 fdt pci xhci
 arm/broadcom/bcm2835/raspberrypi_gpio.c			optional soc_brcm_bcm2837 gpio fdt | soc_brcm_bcm2838 gpio fdt
+arm/broadcom/bcm2835/raspberrypi_virtgpio.c		optional soc_brcm_bcm2837 gpio fdt | soc_brcm_bcm2838 gpio fdt
 contrib/vchiq/interface/compat/vchi_bsd.c		optional vchiq soc_brcm_bcm2837 fdt \
 	compile-with "${NORMAL_C} -DUSE_VCHIQ_ARM -D__VCCOREVER__=0x04000000 -I$S/contrib/vchiq"
 contrib/vchiq/interface/vchiq_arm/vchiq_2835_arm.c	optional vchiq soc_brcm_bcm2837 fdt \
@@ -765,8 +786,27 @@ dev/ahci/ahci_fsl_fdt.c				optional soc_nxp_ls ahci fdt
 dev/flash/flexspi/flex_spi.c    		optional clk flex_spi soc_nxp_ls fdt
 
 # Qualcomm
-arm64/qualcomm/qcom_gcc.c			optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_main.c			optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_clock.c			optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_reset.c			optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_ipq4018_reset.c		optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_ipq4018_clock.c		optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_msm8916_reset.c		optional qcom_gcc fdt
+dev/qcom_gcc/qcom_gcc_msm8916_clock.c		optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_fepll.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_fdiv.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_apssdiv.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_freqtbl.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_rcg2.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_branch2.c			optional qcom_gcc fdt
+dev/qcom_clk/qcom_clk_ro_div.c			optional qcom_gcc fdt
 dev/qcom_mdio/qcom_mdio_ipq4018.c		optional qcom_mdio fdt mdio mii
+dev/qcom_tlmm/qcom_tlmm_debug.c			optional qcom_tlmm gpio
+dev/qcom_tlmm/qcom_tlmm_pin.c			optional qcom_tlmm gpio
+dev/qcom_tlmm/qcom_tlmm_pinmux.c		optional qcom_tlmm gpio
+dev/qcom_tlmm/qcom_tlmm.c			optional qcom_tlmm gpio
+dev/qcom_tlmm/qcom_tlmm_ipq4018.c		optional qcom_tlmm gpio
+dev/qcom_tlmm/qcom_tlmm_ipq4018_hw.c		optional qcom_tlmm gpio
 
 # RockChip Drivers
 arm64/rockchip/rk3328_codec.c			optional fdt rk3328codec soc_rockchip_rk3328

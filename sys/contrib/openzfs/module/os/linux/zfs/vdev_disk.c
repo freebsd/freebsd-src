@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (C) 2008-2010 Lawrence Livermore National Security, LLC.
@@ -26,6 +16,7 @@
  * LLNL-CODE-403049.
  * Copyright (c) 2012, 2019 by Delphix. All rights reserved.
  * Copyright (c) 2023, 2024, 2025, Klara, Inc.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 #include <sys/zfs_context.h>
@@ -105,6 +96,15 @@ static uint_t zfs_vdev_open_timeout_ms = 1000;
  */
 
 static unsigned int zfs_vdev_failfast_mask = 1;
+
+/*
+ * Whether we wait for bio to complete. Also requires that
+ * zio has bypassed the vdev queue. May lead to performance
+ * improvements when backing vdev devices are fast and low
+ * latency. May impact performance with certain workloads
+ * when enabled on raidz or draid zpool configurations.
+ */
+static unsigned int zfs_vdev_disk_calling_thread_io = 0;
 
 /*
  * Convert SPA mode flags into bdev open mode flags.
@@ -281,13 +281,28 @@ vdev_blkdev_put(zfs_bdev_handle_t *bdh, spa_mode_t smode, void *holder)
 }
 
 static int
+vdev_path_backing_permission(struct path *path, int mask)
+{
+#if defined(HAVE_IDMAP_MNTIDMAP)
+	return (inode_permission(mnt_idmap(path->mnt),
+	    d_backing_inode(path->dentry), mask));
+#elif defined(HAVE_IDMAP_USERNS)
+	return (inode_permission(mnt_user_ns(path->mnt),
+	    d_backing_inode(path->dentry), mask));
+#else
+	return (inode_permission(d_backing_inode(path->dentry), mask));
+#endif
+}
+
+static int
 vdev_disk_open(vdev_t *v, uint64_t *psize, uint64_t *max_psize,
-    uint64_t *logical_ashift, uint64_t *physical_ashift)
+    uint64_t *logical_ashift, uint64_t *physical_ashift, cred_t *cr)
 {
 	zfs_bdev_handle_t *bdh;
 	spa_mode_t smode = spa_mode(v->vdev_spa);
 	hrtime_t timeout = MSEC2NSEC(zfs_vdev_open_timeout_ms);
 	vdev_disk_t *vd;
+	const cred_t *oldcr = NULL;
 
 	/* Must have a pathname and it must be absolute. */
 	if (v->vdev_path == NULL || v->vdev_path[0] != '/') {
@@ -308,6 +323,13 @@ vdev_disk_open(vdev_t *v, uint64_t *psize, uint64_t *max_psize,
 	if (vd) {
 		char disk_name[BDEVNAME_SIZE + 6] = "/dev/";
 		boolean_t reread_part = B_FALSE;
+
+		/*
+		 * Reopening an already-open device, so the caller credential
+		 * is irrelevant - we had access to it before, we can assume
+		 * we still do.
+		 */
+		oldcr = override_creds(kcred);
 
 		rw_enter(&vd->vd_lock, RW_WRITER);
 		bdh = vd->vd_bdh;
@@ -357,6 +379,9 @@ vdev_disk_open(vdev_t *v, uint64_t *psize, uint64_t *max_psize,
 
 		rw_init(&vd->vd_lock, NULL, RW_DEFAULT, NULL);
 		rw_enter(&vd->vd_lock, RW_WRITER);
+
+		/* Restrict device access below to caller's permissions. */
+		oldcr = override_creds(cr);
 	}
 
 	/*
@@ -387,12 +412,37 @@ vdev_disk_open(vdev_t *v, uint64_t *psize, uint64_t *max_psize,
 	 * logic in zvol_open().  Extend the timeout and retry the open
 	 * subsequent attempts are expected to eventually succeed.
 	 */
+
 	hrtime_t start = gethrtime();
-	bdh = BDH_ERR_PTR(-ENXIO);
-	while (BDH_IS_ERR(bdh) && ((gethrtime() - start) < timeout)) {
-		bdh = vdev_blkdev_get_by_path(v->vdev_path, smode,
-		    zfs_vdev_holder);
-		if (unlikely(BDH_PTR_ERR(bdh) == -ENOENT)) {
+	int err = ENXIO;
+	while (err != 0 && ((gethrtime() - start) < timeout)) {
+
+		/*
+		 * Ensure the caller credential (made live by override_creds()
+		 * above) has access to the device node. This will include
+		 * checking file permissions and considering the
+		 * CAP_DAC_OVERRIDE capability.
+		 */
+		struct path devpath;
+		err = kern_path(v->vdev_path, LOOKUP_FOLLOW, &devpath);
+		if (err == 0) {
+			int mask =
+			    (smode & SPA_MODE_READ ? MAY_READ : 0) |
+			    (smode & SPA_MODE_WRITE ? MAY_WRITE : 0);
+			err = vdev_path_backing_permission(&devpath, mask);
+			path_put(&devpath);
+		}
+
+		if (err == 0) {
+			bdh = vdev_blkdev_get_by_path(v->vdev_path, smode,
+			    zfs_vdev_holder);
+			err = BDH_IS_ERR(bdh) ? BDH_PTR_ERR(bdh) : 0;
+		}
+
+		if (err == 0)
+			break;
+
+		if (unlikely(err == -ENOENT)) {
 			/*
 			 * There is no point of waiting since device is removed
 			 * explicitly
@@ -401,28 +451,29 @@ vdev_disk_open(vdev_t *v, uint64_t *psize, uint64_t *max_psize,
 				break;
 
 			schedule_timeout_interruptible(MSEC_TO_TICK(10));
-		} else if (unlikely(BDH_PTR_ERR(bdh) == -ERESTARTSYS)) {
+		} else if (unlikely(err == -ERESTARTSYS)) {
 			timeout = MSEC2NSEC(zfs_vdev_open_timeout_ms * 10);
 			continue;
-		} else if (BDH_IS_ERR(bdh)) {
-			break;
 		}
+
+		break;
 	}
 
-	if (BDH_IS_ERR(bdh)) {
-		int error = -BDH_PTR_ERR(bdh);
-		vdev_dbgmsg(v, "open error=%d timeout=%llu/%llu", error,
+	revert_creds(oldcr);
+
+	if (err != 0) {
+		vdev_dbgmsg(v, "open error=%d timeout=%llu/%llu", -err,
 		    (u_longlong_t)(gethrtime() - start),
 		    (u_longlong_t)timeout);
 		vd->vd_bdh = NULL;
 		v->vdev_tsd = vd;
 		rw_exit(&vd->vd_lock);
-		return (SET_ERROR(error));
-	} else {
-		vd->vd_bdh = bdh;
-		v->vdev_tsd = vd;
-		rw_exit(&vd->vd_lock);
+		return (SET_ERROR(-err));
 	}
+
+	vd->vd_bdh = bdh;
+	v->vdev_tsd = vd;
+	rw_exit(&vd->vd_lock);
 
 	struct block_device *bdev = BDH_BDEV(vd->vd_bdh);
 
@@ -445,7 +496,14 @@ vdev_disk_open(vdev_t *v, uint64_t *psize, uint64_t *max_psize,
 	v->vdev_has_securetrim = bdev_secure_discard_supported(bdev);
 
 	/* Inform the ZIO pipeline that we are non-rotational */
+#ifdef HAVE_BLK_QUEUE_ROT
+	v->vdev_nonrot = !blk_queue_rot(bdev_get_queue(bdev));
+#else
 	v->vdev_nonrot = blk_queue_nonrot(bdev_get_queue(bdev));
+#endif
+
+	/* Is backed by a block device. */
+	v->vdev_is_blkdev = B_TRUE;
 
 	/* Physical volume size in bytes for the partition */
 	*psize = bdev_capacity(bdev);
@@ -597,6 +655,15 @@ vdev_submit_bio(struct bio *bio)
 	current->bio_list = bio_list;
 }
 
+static inline void
+vdev_submit_bio_wait(struct bio *bio)
+{
+	struct bio_list *bio_list = current->bio_list;
+	current->bio_list = NULL;
+	(void) submit_bio_wait(bio);
+	current->bio_list = bio_list;
+}
+
 static inline struct bio *
 vdev_bio_alloc(struct block_device *bdev, gfp_t gfp_mask,
     unsigned short nr_vecs)
@@ -671,6 +738,7 @@ typedef struct {
 
 	struct bio	*vbio_bio;	/* pointer to the current bio */
 	int		vbio_flags;	/* bio flags */
+	boolean_t	vbio_wait;	/* wait for completion */
 } vbio_t;
 
 static vbio_t *
@@ -687,6 +755,7 @@ vbio_alloc(zio_t *zio, struct block_device *bdev, int flags)
 	vbio->vbio_offset = zio->io_offset;
 	vbio->vbio_bio = NULL;
 	vbio->vbio_flags = flags;
+	vbio->vbio_wait = B_FALSE;
 
 	return (vbio);
 }
@@ -772,16 +841,20 @@ vbio_submit(vbio_t *vbio, abd_t *abd, uint64_t size)
 	(void) abd_iterate_page_func(abd, 0, size, vbio_fill_cb, vbio);
 	ASSERT(vbio->vbio_bio);
 
-	vbio->vbio_bio->bi_end_io = vbio_completion;
-	vbio->vbio_bio->bi_private = vbio;
-
 	/*
 	 * Once submitted, vbio_bio now owns vbio (through bi_private) and we
 	 * can't touch it again. The bio may complete and vbio_completion() be
 	 * called and free the vbio before this task is run again, so we must
 	 * consider it invalid from this point.
 	 */
-	vdev_submit_bio(vbio->vbio_bio);
+
+	if (vbio->vbio_wait) {
+		vdev_submit_bio_wait(vbio->vbio_bio);
+	} else {
+		vbio->vbio_bio->bi_end_io = vbio_completion;
+		vbio->vbio_bio->bi_private = vbio;
+		vdev_submit_bio(vbio->vbio_bio);
+	}
 
 	blk_finish_plug(&plug);
 }
@@ -813,7 +886,12 @@ vbio_completion(struct bio *bio)
 	ASSERT0P(zio->io_bio);
 	zio->io_bio = vbio;
 
-	zio_delay_interrupt(zio);
+	/* Using calling thread io, don't dispatch zio. */
+	if (vbio->vbio_wait)
+		zio_execute(zio);
+	else
+		zio_delay_interrupt(zio);
+
 }
 
 /*
@@ -924,8 +1002,14 @@ vdev_disk_io_rw(zio_t *zio)
 		return (SET_ERROR(EIO));
 	}
 
+	vdev_t *iter = v;
+	while (iter != NULL && iter->vdev_failfast == ZPROP_BOOLEAN_INHERIT)
+		iter = iter->vdev_parent;
+
+	boolean_t failfast = iter ? iter->vdev_failfast == 1 :
+	    vdev_prop_default_numeric(VDEV_PROP_FAILFAST);
 	if (!(zio->io_flags & (ZIO_FLAG_IO_RETRY | ZIO_FLAG_TRYHARD)) &&
-	    v->vdev_failfast == B_TRUE) {
+	    failfast) {
 		bio_set_flags_failfast(bdev, &flags, zfs_vdev_failfast_mask & 1,
 		    zfs_vdev_failfast_mask & 2, zfs_vdev_failfast_mask & 4);
 	}
@@ -965,8 +1049,19 @@ vdev_disk_io_rw(zio_t *zio)
 	if (abd != zio->io_abd)
 		vbio->vbio_abd = abd;
 
+	boolean_t bio_wait = B_FALSE;
+	if (zfs_vdev_disk_calling_thread_io &&
+	    (zio->io_flags & ZIO_FLAG_BYPASSED_QUEUE)) {
+		vbio->vbio_wait = bio_wait = B_TRUE;
+	}
 	/* Fill it with data pages and submit it to the kernel */
 	vbio_submit(vbio, abd, zio->io_size);
+
+	if (bio_wait) {
+		vbio->vbio_bio->bi_private = vbio;
+		vbio_completion(vbio->vbio_bio);
+	}
+
 	return (0);
 }
 
@@ -1357,3 +1452,6 @@ ZFS_MODULE_PARAM(zfs_vdev, zfs_vdev_, failfast_mask, UINT, ZMOD_RW,
 
 ZFS_MODULE_PARAM(zfs_vdev_disk, zfs_vdev_disk_, max_segs, UINT, ZMOD_RW,
 	"Maximum number of data segments to add to an IO request (min 4)");
+
+ZFS_MODULE_PARAM(zfs_vdev_disk, zfs_vdev_disk_, calling_thread_io, UINT,
+	ZMOD_RW, "Enable calling thread io");

@@ -1,0 +1,146 @@
+# -*- tab-width: 4 -*- ;; Emacs
+# vi: set filetype=sh tabstop=8 shiftwidth=8 noexpandtab :: Vi/ViM
+############################################################ IDENT(1)
+#
+# $Title: dwatch(8) module for malloc(9) type activity $
+# $Copyright: 2026 Devin Teske. All rights reserved. $
+#
+############################################################ DESCRIPTION
+#
+# Print kernel malloc(9) and free(9) activity by malloc type, via the
+# dtmalloc provider (one malloc and one free probe per type; see
+# vmstat -m for the types). The default profile prints allocations and
+# frees meeting a size threshold (default 65536 bytes; tunable via
+# DWATCH_MALLOC_MIN in the environment, 0 to show everything),
+# answering "who is allocating huge kernel buffers?" Use
+# dtmalloc-NAME to watch a single type (e.g., dtmalloc-devbuf).
+# The dtmalloc-top profile maintains a running catalog, updated every
+# 3 seconds, of net bytes and outstanding allocation balance by type:
+# a type whose net bytes climb without bound while the system is in
+# steady state is a leak suspect. NB: the catalog reflects activity
+# since the watch began, not preexisting allocations, and caches
+# legitimately hold what they allocate.
+#
+############################################################ PRAGMAS
+
+case "$PROFILE" in
+dtmalloc-top)
+	DTRACE_PRAGMA="
+		option quiet
+		option aggsortrev
+	" # END-QUOTE
+	;;
+esac
+
+############################################################ PROBE
+
+case "$PROFILE" in
+dtmalloc)
+	: ${PROBE:=dtmalloc:::malloc, dtmalloc:::free} ;;
+dtmalloc-top)
+	: ${PROBE:=profile:::tick-3s} ;;
+*)
+	: ${PROBE:=$( echo \
+		dtmalloc::${PROFILE#dtmalloc-}:malloc, \
+		dtmalloc::${PROFILE#dtmalloc-}:free )} ;;
+esac
+
+############################################################ EVENT ACTION
+
+: ${DWATCH_MALLOC_MIN:=65536}
+
+case "$DWATCH_MALLOC_MIN" in
+""|*[!0-9]*) die "DWATCH_MALLOC_MIN must be a number" ;; # NOTREACHED
+esac
+
+[ "$CUSTOM_TEST" ] || case "$PROFILE" in
+dtmalloc-top)	;;
+*)		EVENT_TEST="(uint64_t)arg3 >= $DWATCH_MALLOC_MIN"
+esac
+
+############################################################ ACTIONS
+
+if [ "$PROFILE" = "dtmalloc-top" ]; then
+exec 9<<EOF
+this int64_t	dtmalloc_delta;
+
+BEGIN { printf("Cataloging malloc(9) activity ...") } /* probe ID $ID */
+
+dtmalloc:::malloc /* probe ID $(( $ID + 1 )) */
+{
+	this->dtmalloc_delta = (int64_t)arg3;
+}
+
+dtmalloc:::free /* probe ID $(( $ID + 2 )) */
+{
+	this->dtmalloc_delta = -(int64_t)arg3;
+}
+
+dtmalloc:::malloc, dtmalloc:::free /* probe ID $(( $ID + 3 )) */
+{
+	@dtmalloc_bytes[probefunc] = sum(this->dtmalloc_delta);
+	@dtmalloc_allocs[probefunc] =
+		sum(this->dtmalloc_delta > 0 ? 1 : -1);
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 4 ))
+fi
+
+############################################################ EVENT TAG
+
+# For the running catalog, override the default `UID.GID CMD[PID]: ' tag
+# with ANSI cursor-homing and screen-clearing codes plus column headers.
+
+if [ "$PROFILE" = "dtmalloc-top" ]; then
+size=$( stty size 2> /dev/null )
+rows="${size%% *}"
+cols="${size#* }"
+
+exec 9<<EOF
+	printf("\033[H"); /* Position the cursor at top-left */
+	printf("\033[J"); /* Clear display from cursor to end */
+
+	/* Header line containing probe (left) and date (right) */
+	printf("%-*s%s%Y%s\n",
+		$(( ${cols:-80} - 20 )), "$PROBE",
+		console ? "\033[32m" : "",
+		walltimestamp,
+		console ? "\033[39m" : "");
+
+	/* Column headers */
+	printf("%s%14s %10s %s%s\n",
+		console ? "\033[1m" : "",
+		"NET(B)",
+		"BALANCE",
+		"TYPE",
+		console ? "\033[22m" : "");
+EOF
+EVENT_TAG=$( cat <&9 )
+fi
+
+############################################################ EVENT DETAILS
+
+if [ "$PROFILE" = "dtmalloc-top" ]; then
+exec 9<<EOF
+	/* NB: Cumulative; not truncated between updates */
+	printa("%@14d %@10d %s\n", @dtmalloc_bytes, @dtmalloc_allocs);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+elif [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print malloc(9) activity details
+	 */
+	printf("%s(9) type %s %d byte%s",
+		probename,
+		probefunc,
+		(long)arg3,
+		(long)arg3 == 1 ? "" : "s");
+EOF
+EVENT_DETAILS=$( cat <&9 )
+fi
+
+################################################################################
+# END
+################################################################################

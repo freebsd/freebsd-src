@@ -55,6 +55,9 @@ enum membarrier_cmd {
 	 */
 	MEMBARRIER_CMD_PRIVATE_EXPEDITED_RSEQ =		0x00000080,
 	MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_RSEQ = 0x00000100,
+
+	/* Return the bitmask of current registrations. */
+	MEMBARRIER_CMD_GET_REGISTRATIONS =		0x00000200,
 };
 
 enum membarrier_cmd_flag {

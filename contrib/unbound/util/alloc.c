@@ -328,7 +328,7 @@ size_t alloc_get_mem(struct alloc_cache* alloc)
 struct regional* 
 alloc_reg_obtain(struct alloc_cache* alloc)
 {
-	if(alloc->num_reg_blocks > 0) {
+	if(alloc->num_reg_blocks > 0 && alloc->reg_list) {
 		struct regional* r = alloc->reg_list;
 		alloc->reg_list = (struct regional*)r->next;
 		r->next = NULL;

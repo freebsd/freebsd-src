@@ -132,7 +132,7 @@ typedef struct {
 typedef struct {
 	escape_t	*inuse;
 	int		 chlen;
-	char		 ch[ROWCOL_MAX];
+	char		 ch[4 + ROWCOL_MAX];
 } _HZState;
 
 #define _CEI_TO_EI(_cei_)		(&(_cei_)->ei)
@@ -262,6 +262,8 @@ _citrus_HZ_mbrtowc_priv(_HZEncodingInfo * __restrict ei,
 				tail = psenc->chlen = 0;
 				continue;
 			}
+			if (graphic == NULL)
+				break;
 		} else if (ch & 0x80) {
 			if (graphic != GR(psenc->inuse))
 				break;

@@ -263,9 +263,12 @@ _citrus_ZW_wcrtomb_priv(_ZWEncodingInfo * __restrict ei __unused,
 		ch = (unsigned char)wc;
 		switch (psenc->charset) {
 		case NONE:
-			if (ch == '\0' || ch == '\n')
+			if (ch == '\0' || ch == '\n') {
+				if (n < 1)
+					return (E2BIG);
+				n -= 1;
 				psenc->ch[psenc->chlen++] = ch;
-			else {
+			} else {
 				if (n < 4)
 					return (E2BIG);
 				n -= 4;

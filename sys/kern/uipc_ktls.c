@@ -77,6 +77,13 @@
 #include <vm/vm_page.h>
 #include <vm/vm_pagequeue.h>
 
+typedef enum {
+	KTLS_MBUF_CRYPTO_ST_MIXED = 0,
+	KTLS_MBUF_CRYPTO_ST_ENCRYPTED = 1,
+	KTLS_MBUF_CRYPTO_ST_DECRYPTED = -1,
+	KTLS_MBUF_CRYPTO_ST_SHAREDMBUF = -2,
+} ktls_mbuf_crypto_st_t;
+
 struct ktls_wq {
 	struct mtx	mtx;
 	STAILQ_HEAD(, mbuf) m_head;
@@ -140,6 +147,11 @@ static bool ktls_offload_enable = true;
 SYSCTL_BOOL(_kern_ipc_tls, OID_AUTO, enable, CTLFLAG_RWTUN,
     &ktls_offload_enable, 0,
     "Enable support for kernel TLS offload");
+
+static bool ktls_rx_offload_enable = true;
+SYSCTL_BOOL(_kern_ipc_tls, OID_AUTO, rx_enable, CTLFLAG_RWTUN,
+    &ktls_rx_offload_enable, 0,
+    "Enable support for kernel TLS receive offload");
 
 static bool ktls_cbc_enable = true;
 SYSCTL_BOOL(_kern_ipc_tls, OID_AUTO, cbc_enable, CTLFLAG_RWTUN,
@@ -449,7 +461,7 @@ ktls_buffer_import(void *arg, void **store, int count, int domain, int flags)
 		    VM_MEMATTR_DEFAULT);
 		if (m == NULL)
 			break;
-		store[i] = (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(m));
+		store[i] = VM_PAGE_TO_DMAP(m);
 	}
 	return (i);
 }
@@ -461,7 +473,7 @@ ktls_buffer_release(void *arg __unused, void **store, int count)
 	int i, j;
 
 	for (i = 0; i < count; i++) {
-		m = PHYS_TO_VM_PAGE(DMAP_TO_PHYS((vm_offset_t)store[i]));
+		m = DMAP_TO_VM_PAGE(store[i]);
 		for (j = 0; j < atop(ktls_maxlen); j++) {
 			(void)vm_page_unwire_noq(m + j);
 			vm_page_free(m + j);
@@ -473,7 +485,7 @@ static void
 ktls_free_mext_contig(struct mbuf *m)
 {
 	M_ASSERTEXTPG(m);
-	uma_zfree(ktls_buffer_zone, (void *)PHYS_TO_DMAP(m->m_epg_pa[0]));
+	uma_zfree(ktls_buffer_zone, PHYS_TO_DMAP(m->m_epg_pa[0]));
 }
 
 static int
@@ -649,6 +661,9 @@ ktls_create_session(struct socket *so, struct tls_enable *en,
 		}
 		break;
 	case CRYPTO_AES_CBC:
+		if (!ktls_cbc_enable)
+			return (EOPNOTSUPP);
+
 		switch (en->auth_algorithm) {
 		case CRYPTO_SHA1_HMAC:
 			break;
@@ -870,21 +885,15 @@ ktls_clone_session(struct ktls_session *tls, int direction)
 static int
 ktls_try_toe(struct socket *so, struct ktls_session *tls, int direction)
 {
-	struct inpcb *inp;
-	struct tcpcb *tp;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp = intotcpcb(inp);
 	int error;
 
-	inp = so->so_pcb;
 	INP_WLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 		INP_WUNLOCK(inp);
 		return (ECONNRESET);
 	}
-	if (inp->inp_socket == NULL) {
-		INP_WUNLOCK(inp);
-		return (ECONNRESET);
-	}
-	tp = intotcpcb(inp);
 	if (!(tp->t_flags & TF_TOE)) {
 		INP_WUNLOCK(inp);
 		return (EOPNOTSUPP);
@@ -923,19 +932,14 @@ ktls_alloc_snd_tag(struct inpcb *inp, struct ktls_session *tls, bool force,
 	union if_snd_tag_alloc_params params;
 	struct ifnet *ifp;
 	struct nhop_object *nh;
-	struct tcpcb *tp;
+	struct tcpcb *tp = intotcpcb(inp);
 	int error;
 
 	INP_RLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 		INP_RUNLOCK(inp);
 		return (ECONNRESET);
 	}
-	if (inp->inp_socket == NULL) {
-		INP_RUNLOCK(inp);
-		return (ECONNRESET);
-	}
-	tp = intotcpcb(inp);
 
 	/*
 	 * Check administrative controls on ifnet TLS to determine if
@@ -1027,11 +1031,7 @@ ktls_alloc_rcv_tag(struct inpcb *inp, struct ktls_session *tls,
 		return (ENXIO);
 
 	INP_RLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
-		INP_RUNLOCK(inp);
-		return (ECONNRESET);
-	}
-	if (inp->inp_socket == NULL) {
+	if (intotcpcb(inp)->t_flags & TF_DISCONNECTED) {
 		INP_RUNLOCK(inp);
 		return (ECONNRESET);
 	}
@@ -1290,7 +1290,7 @@ ktls_enable_rx(struct socket *so, struct tls_enable *en)
 	struct ktls_session *tls;
 	int error;
 
-	if (!ktls_offload_enable)
+	if (!ktls_offload_enable || !ktls_rx_offload_enable)
 		return (ENOTSUP);
 
 	counter_u64_add(ktls_offload_enable_calls, 1);
@@ -1308,9 +1308,6 @@ ktls_enable_rx(struct socket *so, struct tls_enable *en)
 	 */
 	if (so->so_rcv.sb_tls_info != NULL)
 		return (EALREADY);
-
-	if (en->cipher_algorithm == CRYPTO_AES_CBC && !ktls_cbc_enable)
-		return (ENOTSUP);
 
 	error = ktls_create_session(so, en, &tls, KTLS_RX);
 	if (error)
@@ -1394,9 +1391,6 @@ ktls_enable_tx(struct socket *so, struct tls_enable *en)
 	 */
 	if (so->so_snd.sb_tls_info != NULL)
 		return (EALREADY);
-
-	if (en->cipher_algorithm == CRYPTO_AES_CBC && !ktls_cbc_enable)
-		return (ENOTSUP);
 
 	/* TLS requires ext pgs */
 	if (mb_use_ext_pgs == 0)
@@ -1506,22 +1500,14 @@ ktls_get_rx_mode(struct socket *so, int *modep)
 int
 ktls_get_rx_sequence(struct inpcb *inp, uint32_t *tcpseq, uint64_t *tlsseq)
 {
-	struct socket *so;
-	struct tcpcb *tp;
+	struct socket *so = inp->inp_socket;
+	struct tcpcb *tp = intotcpcb(inp);
 
 	INP_RLOCK(inp);
-	so = inp->inp_socket;
-	if (__predict_false(so == NULL)) {
-		INP_RUNLOCK(inp);
-		return (EINVAL);
-	}
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 		INP_RUNLOCK(inp);
 		return (ECONNRESET);
 	}
-
-	tp = intotcpcb(inp);
-	MPASS(tp != NULL);
 
 	SOCKBUF_LOCK(&so->so_rcv);
 	*tcpseq = tp->rcv_nxt - so->so_rcv.sb_tlscc;
@@ -1697,7 +1683,7 @@ ktls_reset_receive_tag(void *context, int pending)
 	ifp = NULL;
 
 	INP_RLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
+	if (intotcpcb(inp)->t_flags & TF_DISCONNECTED) {
 		INP_RUNLOCK(inp);
 		goto out;
 	}
@@ -1818,9 +1804,9 @@ ktls_reset_send_tag(void *context, int pending)
 	} else {
 		NET_EPOCH_ENTER(et);
 		INP_WLOCK(inp);
-		if (!(inp->inp_flags & INP_DROPPED)) {
-			tp = intotcpcb(inp);
-			CURVNET_SET(inp->inp_vnet);
+		tp = intotcpcb(inp);
+		if (!(tp->t_flags & TF_DISCONNECTED)) {
+			CURVNET_SET(inp->inp_socket->so_vnet);
 			tp = tcp_drop(tp, ECONNABORTED);
 			CURVNET_RESTORE();
 			if (tp != NULL) {
@@ -2416,39 +2402,41 @@ tls13_find_record_type(struct ktls_session *tls, struct mbuf *m, int tls_len,
 }
 
 /*
- * Check if a mbuf chain is fully decrypted at the given offset and
- * length. Returns KTLS_MBUF_CRYPTO_ST_DECRYPTED if all data is
- * decrypted. KTLS_MBUF_CRYPTO_ST_MIXED if there is a mix of encrypted
- * and decrypted data. Else KTLS_MBUF_CRYPTO_ST_ENCRYPTED if all data
- * is encrypted.
+ * Check if a mbuf chain is fully decrypted.  Returns
+ * KTLS_MBUF_CRYPTO_ST_DECRYPTED if all data is decrypted.
+ * KTLS_MBUF_CRYPTO_ST_MIXED if there is a mix of encrypted and
+ * decrypted data.  KTLS_MBUF_CRYPTO_ST_ENCRYPTED if all data is
+ * encrypted.  KTLS_MBUF_CRYPTO_ST_SHAREDMBUF if any mbuf points at
+ * shared data that must not be modified in place (non-anonymous
+ * M_EXTPG or sendfile M_EXT buffers).
  */
-ktls_mbuf_crypto_st_t
-ktls_mbuf_crypto_state(struct mbuf *mb, int offset, int len)
+static ktls_mbuf_crypto_st_t
+ktls_mbuf_crypto_state(struct mbuf *mb)
 {
-	int m_flags_ored = 0;
-	int m_flags_anded = -1;
+	bool seen_decrypted, seen_encrypted;
+
+	seen_decrypted = false;
+	seen_encrypted = false;
 
 	for (; mb != NULL; mb = mb->m_next) {
-		if (offset < mb->m_len)
-			break;
-		offset -= mb->m_len;
+		if ((mb->m_flags & M_EXTPG) != 0 &&
+		    (mb->m_epg_flags & EPG_FLAG_ANON) == 0)
+			return (KTLS_MBUF_CRYPTO_ST_SHAREDMBUF);
+		if ((mb->m_flags & M_EXT) != 0 &&
+		    mb->m_ext.ext_type == EXT_SFBUF &&
+		    (mb->m_ext.ext_flags & EXT_FLAG_SFBUF_ANON) == 0)
+			return (KTLS_MBUF_CRYPTO_ST_SHAREDMBUF);
+
+		if (mb->m_flags & M_DECRYPTED)
+			seen_decrypted = true;
+		else
+			seen_encrypted = true;
 	}
-	offset += len;
 
-	for (; mb != NULL; mb = mb->m_next) {
-		m_flags_ored |= mb->m_flags;
-		m_flags_anded &= mb->m_flags;
-
-		if (offset <= mb->m_len)
-			break;
-		offset -= mb->m_len;
-	}
-	MPASS(mb != NULL || offset == 0);
-
-	if ((m_flags_ored ^ m_flags_anded) & M_DECRYPTED)
+	if (seen_decrypted && seen_encrypted)
 		return (KTLS_MBUF_CRYPTO_ST_MIXED);
 	else
-		return ((m_flags_ored & M_DECRYPTED) ?
+		return (seen_decrypted ?
 		    KTLS_MBUF_CRYPTO_ST_DECRYPTED :
 		    KTLS_MBUF_CRYPTO_ST_ENCRYPTED);
 }
@@ -2461,25 +2449,18 @@ ktls_resync_ifnet(struct socket *so, uint32_t tls_len, uint64_t tls_rcd_num)
 {
 	union if_snd_tag_modify_params params;
 	struct m_snd_tag *mst;
-	struct inpcb *inp;
-	struct tcpcb *tp;
+	struct inpcb *inp = sotoinpcb(so);
+	struct tcpcb *tp = intotcpcb(inp);
 
 	mst = so->so_rcv.sb_tls_info->snd_tag;
 	if (__predict_false(mst == NULL))
 		return (EINVAL);
 
-	inp = sotoinpcb(so);
-	if (__predict_false(inp == NULL))
-		return (EINVAL);
-
 	INP_RLOCK(inp);
-	if (inp->inp_flags & INP_DROPPED) {
+	if (tp->t_flags & TF_DISCONNECTED) {
 		INP_RUNLOCK(inp);
 		return (ECONNRESET);
 	}
-
-	tp = intotcpcb(inp);
-	MPASS(tp != NULL);
 
 	/* Get the TCP sequence number of the next valid TLS header. */
 	SOCKBUF_LOCK(&so->so_rcv);
@@ -2500,13 +2481,12 @@ ktls_drop(struct socket *so, int error)
 {
 	struct epoch_tracker et;
 	struct inpcb *inp = sotoinpcb(so);
-	struct tcpcb *tp;
+	struct tcpcb *tp = intotcpcb(inp);
 
 	NET_EPOCH_ENTER(et);
 	INP_WLOCK(inp);
-	if (!(inp->inp_flags & INP_DROPPED)) {
-		tp = intotcpcb(inp);
-		CURVNET_SET(inp->inp_vnet);
+	if (!(tp->t_flags & TF_DISCONNECTED)) {
+		CURVNET_SET(inp->inp_socket->so_vnet);
 		tp = tcp_drop(tp, error);
 		CURVNET_RESTORE();
 		if (tp != NULL)
@@ -2600,7 +2580,7 @@ ktls_decrypt(struct socket *so)
 		SOCKBUF_UNLOCK(sb);
 
 		/* get crypto state for this TLS record */
-		state = ktls_mbuf_crypto_state(data, 0, tls_len);
+		state = ktls_mbuf_crypto_state(data);
 
 		switch (state) {
 		case KTLS_MBUF_CRYPTO_ST_MIXED:
@@ -2636,9 +2616,11 @@ ktls_decrypt(struct socket *so)
 				record_type = hdr->tls_type;
 			}
 			break;
-		default:
+		case KTLS_MBUF_CRYPTO_ST_SHAREDMBUF:
 			error = EINVAL;
 			break;
+		default:
+			__assert_unreachable();
 		}
 		if (error) {
 			counter_u64_add(ktls_offload_failed_crypto, 1);
@@ -2847,7 +2829,7 @@ ktls_encrypt_record(struct ktls_wq *wq, struct mbuf *m,
 		state->dst_iov[0].iov_base = (char *)state->cbuf +
 		    m->m_epg_1st_off;
 		state->dst_iov[0].iov_len = len;
-		state->parray[0] = DMAP_TO_PHYS((vm_offset_t)state->cbuf);
+		state->parray[0] = DMAP_TO_PHYS(state->cbuf);
 		i = 1;
 	} else {
 		off = m->m_epg_1st_off;
@@ -3372,7 +3354,8 @@ ktls_disable_ifnet_help(void *context, int pending __unused)
 	INP_WLOCK(inp);
 	so = inp->inp_socket;
 	MPASS(so != NULL);
-	if (inp->inp_flags & INP_DROPPED) {
+	tp = intotcpcb(inp);
+	if (tp->t_flags & TF_DISCONNECTED) {
 		goto out;
 	}
 
@@ -3383,8 +3366,7 @@ ktls_disable_ifnet_help(void *context, int pending __unused)
 	if (err == 0) {
 		counter_u64_add(ktls_ifnet_disable_ok, 1);
 		/* ktls_set_tx_mode() drops inp wlock, so recheck flags */
-		if ((inp->inp_flags & INP_DROPPED) == 0 &&
-		    (tp = intotcpcb(inp)) != NULL &&
+		if ((tp->t_flags & TF_DISCONNECTED) == 0 &&
 		    tp->t_fb->tfb_hwtls_change != NULL)
 			(*tp->t_fb->tfb_hwtls_change)(tp, 0);
 	} else {

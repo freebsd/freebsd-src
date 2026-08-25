@@ -81,3 +81,7 @@ acosl(long double x)
 	    return 2.0*(df+w);
 	}
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(acosl, acosf128);
+#endif

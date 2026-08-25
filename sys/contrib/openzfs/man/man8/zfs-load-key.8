@@ -1,23 +1,13 @@
 .\" SPDX-License-Identifier: CDDL-1.0
 .\"
-.\" CDDL HEADER START
+.\" This file and its contents are supplied under the terms of the
+.\" Common Development and Distribution License ("CDDL"), version 1.0.
+.\" You may only use this file in accordance with the terms of version
+.\" 1.0 of the CDDL.
 .\"
-.\" The contents of this file are subject to the terms of the
-.\" Common Development and Distribution License (the "License").
-.\" You may not use this file except in compliance with the License.
-.\"
-.\" You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-.\" or https://opensource.org/licenses/CDDL-1.0.
-.\" See the License for the specific language governing permissions
-.\" and limitations under the License.
-.\"
-.\" When distributing Covered Code, include this CDDL HEADER in each
-.\" file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-.\" If applicable, add the following below this CDDL HEADER, with the
-.\" fields enclosed by brackets "[]" replaced with your own identifying
-.\" information: Portions Copyright [yyyy] [name of copyright owner]
-.\"
-.\" CDDL HEADER END
+.\" A full copy of the text of the CDDL should have accompanied this
+.\" source.  A copy of the CDDL is also available via the Internet at
+.\" https://opensource.org/license/CDDL-1.0.
 .\"
 .\" Copyright (c) 2009 Sun Microsystems, Inc. All Rights Reserved.
 .\" Copyright 2011 Joshua M. Clulow <josh@sysmgr.org>
@@ -29,8 +19,9 @@
 .\" Copyright 2019 Richard Laager. All rights reserved.
 .\" Copyright 2018 Nexenta Systems, Inc.
 .\" Copyright 2019 Joyent, Inc.
+.\" Copyright 2026 Oxide Computer Company
 .\"
-.Dd July 11, 2022
+.Dd January 30, 2026
 .Dt ZFS-LOAD-KEY 8
 .Os
 .
@@ -53,6 +44,7 @@
 .Op Fl o Ar keylocation Ns = Ns Ar value
 .Op Fl o Ar keyformat Ns = Ns Ar value
 .Op Fl o Ar pbkdf2iters Ns = Ns Ar value
+.Op Fl o Ar user:prop Ns = Ns Ar value
 .Ar filesystem
 .Nm zfs
 .Cm change-key
@@ -92,6 +84,9 @@ will ask for the key and mount the dataset
 see
 .Xr zfs-mount 8
 .Pc .
+For automated key management during user login,
+.Xr pam_zfs_key 8
+can load keys and mount encrypted home directories on systems with PAM support.
 Once the key is loaded the
 .Sy keystatus
 property will become
@@ -154,6 +149,7 @@ Unloads the keys for all encryption roots in all imported pools.
 .Op Fl o Ar keylocation Ns = Ns Ar value
 .Op Fl o Ar keyformat Ns = Ns Ar value
 .Op Fl o Ar pbkdf2iters Ns = Ns Ar value
+.Op Fl o Ar user:prop Ns = Ns Ar value
 .Ar filesystem
 .Xc
 .It Xo
@@ -170,7 +166,7 @@ This command may also be used to change the
 .Sy keyformat ,
 and
 .Sy pbkdf2iters
-properties as needed.
+properties as needed, as well as set user properties.
 If the dataset was not previously an encryption root it will become one.
 Alternatively, the
 .Fl i
@@ -206,7 +202,7 @@ This is effectively equivalent to running
 .It Fl o Ar property Ns = Ns Ar value
 Allows the user to set encryption key properties
 .Pq Sy keyformat , keylocation , No and Sy pbkdf2iters
-while changing the key.
+and user properties while changing the key.
 This is the only way to alter
 .Sy keyformat
 and
@@ -301,5 +297,6 @@ written.
 .
 .Sh SEE ALSO
 .Xr zfsprops 7 ,
+.Xr pam_zfs_key 8 ,
 .Xr zfs-create 8 ,
 .Xr zfs-set 8

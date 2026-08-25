@@ -1,0 +1,5 @@
+Name: link-abi-cxx
+Description: a C++ leaf library
+Version: 1.0.0
+Libs: -lcxx
+Link.ABI: C++

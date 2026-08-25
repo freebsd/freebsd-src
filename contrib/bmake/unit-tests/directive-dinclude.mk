@@ -1,4 +1,4 @@
-# $NetBSD: directive-dinclude.mk,v 1.5 2025/06/28 22:39:28 rillig Exp $
+# $NetBSD: directive-dinclude.mk,v 1.6 2025/11/16 16:43:56 sjg Exp $
 #
 # Tests for the .dinclude directive, which includes another file,
 # silently skipping it if it cannot be opened.  This is primarily used for

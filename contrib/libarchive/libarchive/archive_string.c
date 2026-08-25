@@ -450,6 +450,8 @@ default_iconv_charset(const char *charset) {
 	return locale_charset();
 #elif HAVE_NL_LANGINFO
 	return nl_langinfo(CODESET);
+#elif defined(__BIONIC__)
+	return "UTF-8";
 #else
 	return "";
 #endif
@@ -772,7 +774,7 @@ archive_string_append_from_wcs_in_codepage(struct archive_string *as,
 			int r;
 
 			defchar_used = 0;
-			if (to_cp == CP_UTF8 || sc == NULL)
+			if (to_cp == CP_UTF8)
 				dp = NULL;
 			else
 				dp = &defchar_used;
@@ -1314,7 +1316,17 @@ create_sconv_object(const char *fc, const char *tc,
 			else if (strcmp(fc, "CP932") == 0)
 				sc->cd = iconv_open(tc, "SJIS");
 		}
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(__FreeBSD__) && !defined(HAVE_LIBICONV)
+		/*
+		 * FreeBSD's native iconv() by default returns the number of
+		 * invalid characters in the input string, as specified by
+		 * POSIX, but iconv_strncat_in_locale() assumes GNU iconv
+		 * semantics.
+		 */
+		int v = 1;
+
+		(void)iconvctl(sc->cd, ICONV_SET_ILSEQ_INVALID, &v);
+#elif defined(_WIN32) && !defined(__CYGWIN__)
 		/*
 		 * archive_mstring on Windows directly convert multi-bytes
 		 * into archive_wstring in order not to depend on locale
@@ -1362,7 +1374,7 @@ free_sconv_object(struct archive_string_conv *sc)
 }
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
-# if defined(WINAPI_FAMILY_PARTITION) && !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+# if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
 #  define GetOEMCP() CP_OEMCP
 # endif
 
@@ -1713,7 +1725,7 @@ get_sconv_object(struct archive *a, const char *fc, const char *tc, int flag)
 		if (a != NULL) {
 #if HAVE_ICONV
 			archive_set_error(a, ARCHIVE_ERRNO_MISC,
-			    "iconv_open failed : Cannot handle ``%s''",
+			    "iconv_open failed: Cannot handle ``%s''",
 			    (flag & SCONV_TO_CHARSET)?tc:fc);
 #else
 			archive_set_error(a, ARCHIVE_ERRNO_MISC,
@@ -1873,6 +1885,9 @@ archive_string_conversion_free(struct archive *a)
 const char *
 archive_string_conversion_charset_name(struct archive_string_conv *sc)
 {
+	if (sc == NULL) {
+		return "current locale";
+	}
 	if (sc->flag & SCONV_TO_CHARSET)
 		return (sc->to_charset);
 	else
@@ -2312,7 +2327,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 
 	remaining = length;
 	itp = (const uint8_t *)_p;
-	while (*itp && remaining > 0) {
+	while (remaining > 0 && *itp) {
 		if (*itp > 127) {
 			// Non-ASCII: Substitute with suitable replacement
 			if (sc->flag & SCONV_TO_UTF8) {
@@ -2327,6 +2342,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 			archive_strappend_char(as, *itp);
 		}
 		++itp;
+		--remaining;
 	}
 	return (return_value);
 }
@@ -4123,7 +4139,12 @@ archive_mstring_get_mbs_l(struct archive *a, struct archive_mstring *aes,
 	 * character-set. */
 	if ((aes->aes_set & AES_SET_MBS) == 0) {
 		const char *pm; /* unused */
-		archive_mstring_get_mbs(a, aes, &pm); /* ignore errors, we'll handle it later */
+		if (archive_mstring_get_mbs(a, aes, &pm) != 0) {
+			/* We have another form, but failed to convert it to
+			 * the native locale.  Transitively, we've failed to
+			 * convert it to the specified character set. */
+			ret = -1;
+		}
 	}
 	/* If we already have an MBS form, use it to be translated to
 	 * specified character-set. */
@@ -4141,6 +4162,8 @@ archive_mstring_get_mbs_l(struct archive *a, struct archive_mstring *aes,
 		if (length != NULL)
 			*length = aes->aes_mbs_in_locale.length;
 	} else {
+		/* Either we have no string in any form,
+		 * or conversion failed and set 'ret != 0'.  */
 		*p = NULL;
 		if (length != NULL)
 			*length = 0;

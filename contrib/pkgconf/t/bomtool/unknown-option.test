@@ -1,0 +1,3 @@
+Tool: bomtool
+ToolArgs: --bogus-option
+ExpectedExitCode: 1

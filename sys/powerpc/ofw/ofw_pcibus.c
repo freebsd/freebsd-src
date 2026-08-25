@@ -64,6 +64,7 @@ static pci_alloc_devinfo_t ofw_pcibus_alloc_devinfo;
 static pci_assign_interrupt_t ofw_pcibus_assign_interrupt;
 static ofw_bus_get_devinfo_t ofw_pcibus_get_devinfo;
 static bus_child_deleted_t ofw_pcibus_child_deleted;
+static bus_get_dma_tag_t ofw_pcibus_get_dma_tag;
 static int ofw_pcibus_child_pnpinfo_method(device_t cbdev, device_t child,
     struct sbuf *sb);
 
@@ -80,6 +81,7 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(bus_child_pnpinfo,	ofw_pcibus_child_pnpinfo_method),
 	DEVMETHOD(bus_rescan,		bus_null_rescan),
 	DEVMETHOD(bus_get_cpus,		ofw_pcibus_get_cpus),
+	DEVMETHOD(bus_get_dma_tag,	ofw_pcibus_get_dma_tag),
 	DEVMETHOD(bus_get_domain,	ofw_pcibus_get_domain),
 
 	/* PCI interface */
@@ -145,6 +147,7 @@ ofw_pcibus_attach(device_t dev)
 	if (!ofw_devices_only)
 		ofw_pcibus_enum_bus(dev, domain, busno);
 
+	pcie_reconcile_link_mps(dev);
 	bus_attach_children(dev);
 	return (0);
 }
@@ -155,6 +158,7 @@ ofw_pcibus_alloc_devinfo(device_t dev)
 	struct ofw_pcibus_devinfo *dinfo;
 
 	dinfo = malloc(sizeof(*dinfo), M_DEVBUF, M_WAITOK | M_ZERO);
+	dinfo->opd_obdinfo.obd_node = -1;
 	return (&dinfo->opd_dinfo);
 }
 
@@ -291,8 +295,37 @@ ofw_pcibus_child_deleted(device_t dev, device_t child)
 	struct ofw_pcibus_devinfo *dinfo;
 
 	dinfo = device_get_ivars(child);
+	if (dinfo->opd_dma_tag != NULL)
+		bus_dma_tag_destroy(dinfo->opd_dma_tag);
 	ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
 	pci_child_deleted(dev, child);
+}
+
+static bus_dma_tag_t
+ofw_pcibus_get_dma_tag(device_t bus, device_t child)
+{
+	struct ofw_pcibus_devinfo *dinfo;
+	bus_dma_tag_t parent, tag;
+	int domain, error;
+
+	if (device_get_parent(child) != bus)
+		return (pci_get_dma_tag(bus, child));
+	dinfo = device_get_ivars(child);
+	if (dinfo->opd_dma_tag != NULL)
+		return (dinfo->opd_dma_tag);
+
+	parent = pci_get_dma_tag(bus, child);
+	if (parent == NULL)
+		return (NULL);
+	error = bus_dma_tag_create(parent, 1, 0, BUS_SPACE_MAXADDR,
+	    BUS_SPACE_MAXADDR, NULL, NULL, BUS_SPACE_MAXSIZE,
+	    BUS_SPACE_UNRESTRICTED, BUS_SPACE_MAXSIZE, 0, NULL, NULL, &tag);
+	if (error != 0)
+		return (parent);
+	if (bus_get_domain(child, &domain) == 0)
+		(void)bus_dma_tag_set_domain(tag, domain);
+	dinfo->opd_dma_tag = tag;
+	return (tag);
 }
 
 static int
@@ -380,13 +413,31 @@ ofw_pcibus_get_devinfo(device_t bus, device_t dev)
 	return (&dinfo->opd_obdinfo);
 }
 
+/* Return a VF's owning PF node, or -1 if none is available. */
+static phandle_t
+ofw_pcibus_get_pf_node(device_t child)
+{
+	device_t pf;
+
+	pf = pci_iov_get_pf(child);
+	if (pf == NULL)
+		return (-1);
+	return (ofw_bus_get_node(pf));
+}
+
 int
 ofw_pcibus_get_cpus(device_t dev, device_t child, enum cpu_sets op, size_t setsize,
     cpuset_t *cpuset)
 {
+	phandle_t node;
 	int d, error;
 
-	d = platform_node_numa_domain(ofw_bus_get_node(dev));
+	node = ofw_pcibus_get_pf_node(child);
+	if (node == -1)
+		node = ofw_bus_get_node(dev);
+	if (node == -1)
+		return (bus_generic_get_cpus(dev, child, op, setsize, cpuset));
+	d = platform_node_numa_domain(node);
 
 	switch (op) {
 	case LOCAL_CPUS:
@@ -409,17 +460,23 @@ ofw_pcibus_get_cpus(device_t dev, device_t child, enum cpu_sets op, size_t setsi
 }
 
 /*
- * Fetch the NUMA domain for the given device 'dev'.
+ * Fetch the NUMA domain for the given device 'child'.
  *
- * If a device has a _PXM method, map that to a NUMA domain.
- * Otherwise, pass the request up to the parent.
- * If there's no matching domain or the domain cannot be
- * determined, return ENOENT.
+ * VFs have no firmware node, so use the owning PF's node when available.
+ * Otherwise, pass the request up to the parent when the device is not
+ * represented in the firmware tree.
  */
 int
 ofw_pcibus_get_domain(device_t dev, device_t child, int *domain)
 {
-	*domain = platform_node_numa_domain(ofw_bus_get_node(child));
+	phandle_t node;
+
+	node = ofw_pcibus_get_pf_node(child);
+	if (node == -1)
+		node = ofw_bus_get_node(child);
+	if (node == -1)
+		return (bus_generic_get_domain(dev, child, domain));
+	*domain = platform_node_numa_domain(node);
 
 	return (0);
 }

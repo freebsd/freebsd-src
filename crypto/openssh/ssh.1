@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.444 2024/12/04 14:37:55 djm Exp $
-.Dd $Mdocdate: December 4 2024 $
+.\" $OpenBSD: ssh.1,v 1.449 2026/07/01 00:04:46 djm Exp $
+.Dd $Mdocdate: July 1 2026 $
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -486,6 +486,10 @@ argument is interpreted and passed to the master process.
 Valid commands are:
 .Dq check
 (check that the master process is running),
+.Dq conninfo
+(report information about the master connection),
+.Dq channels
+(report information about open channels),
 .Dq forward
 (request forwardings without command execution),
 .Dq cancel
@@ -543,7 +547,6 @@ For full details of the options listed below, and their possible values, see
 .It GatewayPorts
 .It GlobalKnownHostsFile
 .It HashKnownHosts
-.It Host
 .It HostKeyAlgorithms
 .It HostKeyAlias
 .It HostbasedAcceptedAlgorithms
@@ -554,7 +557,6 @@ For full details of the options listed below, and their possible values, see
 .It IdentityAgent
 .It IdentityFile
 .It IgnoreUnknown
-.It Include
 .It KbdInteractiveAuthentication
 .It KbdInteractiveDevices
 .It KexAlgorithms
@@ -578,6 +580,7 @@ For full details of the options listed below, and their possible values, see
 .It ProxyUseFdpass
 .It PubkeyAcceptedAlgorithms
 .It PubkeyAuthentication
+.It RefuseConnection
 .It RekeyLimit
 .It RemoteCommand
 .It RemoteForward
@@ -603,7 +606,9 @@ For full details of the options listed below, and their possible values, see
 .It User
 .It UserKnownHostsFile
 .It VerifyHostKeyDNS
+.It VersionAddendum
 .It VisualHostKey
+.It WarnWeakCrypto
 .It XAuthLocation
 .El
 .Pp
@@ -903,7 +908,7 @@ Host-based authentication works as follows:
 If the machine the user logs in from is listed in
 .Pa /etc/hosts.equiv
 or
-.Pa /etc/shosts.equiv
+.Pa /etc/ssh/shosts.equiv
 on the remote machine, the user is non-root and the user names are
 the same on both sides, or if the files
 .Pa ~/.rhosts
@@ -1156,6 +1161,8 @@ option is enabled in
 Basic help is available, using the
 .Fl h
 option.
+.It Cm ~I
+Show information about the current SSH connection.
 .It Cm ~R
 Request rekeying of the connection
 (only useful if the peer supports it).
@@ -1624,7 +1631,7 @@ manual page for more information.
 This file is for host-based authentication (see above).
 It should only be writable by root.
 .Pp
-.It Pa /etc/shosts.equiv
+.It Pa /etc/ssh/shosts.equiv
 This file is used in exactly the same way as
 .Pa hosts.equiv ,
 but allows host-based authentication without permitting login with

@@ -3,6 +3,7 @@
 
 options 	HZ=1000
 options 	PREEMPTION		# Enable kernel thread preemption
+options 	EXTERR_STRINGS		# Retain exterror(9) strings in the kernel
 options 	VIMAGE			# Subsystem virtualization, e.g. VNET
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
@@ -52,6 +53,7 @@ options 	COMPAT_FREEBSD11	# Compatible with FreeBSD11
 options 	COMPAT_FREEBSD12	# Compatible with FreeBSD12
 options 	COMPAT_FREEBSD13	# Compatible with FreeBSD13
 options 	COMPAT_FREEBSD14	# Compatible with FreeBSD14
+options 	COMPAT_FREEBSD15	# Compatible with FreeBSD15
 
 # DTrace support
 options 	KDTRACE_HOOKS		# Kernel DTrace hooks

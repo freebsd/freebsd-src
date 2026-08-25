@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: tex,v 1.22 2022/12/21 16:50:04 christos Exp $
+# $File: tex,v 1.24 2026/02/01 16:17:53 christos Exp $
 # tex:  file(1) magic for TeX files
 #
 # XXX - needs byte-endian stuff (big-endian and little-endian DVI?)
@@ -20,6 +20,17 @@
 0	string		\367\312
 >(2.b+11)	string	\363	TeX virtual font data
 0	search/1	This\ is\ TeX,	TeX transcript text
+0	search/1	This\ is\ pdfTeX,	pdfTeX transcript text
+0	search/1	This\ is\ XeTeX,	XeTeX transcript text
+0	search/1	This\ is\ LuaTeX,	LuaTeX transcript text
+0	search/1	This\ is\ LuaHBTeX,	LuaTeX transcript text
+0	search/1	This\ is\ LuajitTeX,	LuaTeX transcript text
+0	search/1	This\ is\ LuajitHBTeX,	LuaTeX transcript text
+0	search/1	This\ is\ pTeX,	pTeX transcript text
+0	search/1	This\ is\ e-pTeX,	e-pTeX transcript text
+0	search/1	This\ is\ upTeX,	upTeX transcript text
+0	search/1	This\ is\ e-upTeX,	e-upTeX transcript text
+0	search/1	This\ is\ HiTeX,	HiTeX transcript text
 0	search/1	This\ is\ METAFONT,	METAFONT transcript text
 
 # There is no way to detect TeX Font Metric (*.tfm) files without
@@ -37,6 +48,10 @@
 !:mime	text/x-texinfo
 0	search/1	This\ is\ Info\ file	GNU Info text
 !:mime	text/x-info
+
+0	string		%!TEX\040root	TeX Document text
+!:mime	text/x-tex
+!:strength + 15
 
 # TeX documents, from Daniel Quinlan (quinlan@yggdrasil.com)
 0	search/4096	\\input		TeX document text

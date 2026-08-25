@@ -96,6 +96,15 @@ nvme_sim_nvmeio(struct cam_sim *sim, union ccb *ccb)
 	struct nvme_controller *ctrlr;
 
 	ctrlr = sim2ctrlr(sim);
+
+	if (ctrlr->max_identify_cns != 0 &&
+	    nvmeio->cmd.opc == NVME_OPC_IDENTIFY &&
+	    (le32toh(nvmeio->cmd.cdw10) & 0xff) > ctrlr->max_identify_cns) {
+		nvmeio->ccb_h.status = CAM_REQ_INVALID;
+		xpt_done(ccb);
+		return;
+	}
+
 	payload = nvmeio->data_ptr;
 	size = nvmeio->dxfer_len;
 	/* SG LIST ??? */
@@ -190,7 +199,7 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_misc =  PIM_UNMAPPED | PIM_NOSCAN;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = 0;
-		cpi->max_lun = ctrlr->cdata.nn;
+		cpi->max_lun = nvme_ctrlr_num_namespaces(ctrlr);
 		cpi->maxio = ctrlr->max_xfer_size;
 		cpi->initiator_id = 0;
 		cpi->bus_id = cam_sim_bus(sim);
@@ -208,7 +217,7 @@ nvme_sim_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->xport_specific.nvme.bus = pci_get_bus(dev);
 		cpi->xport_specific.nvme.slot = pci_get_slot(dev);
 		cpi->xport_specific.nvme.function = pci_get_function(dev);
-		cpi->xport_specific.nvme.progif = pci_get_progif(dev);
+		cpi->xport_specific.nvme.extra = 0;
 		strlcpy(cpi->xport_specific.nvme.dev_name, device_get_nameunit(dev),
 		    sizeof(cpi->xport_specific.nvme.dev_name));
 		cpi->hba_vendor = pci_get_vendor(dev);
@@ -314,12 +323,8 @@ nvme_sim_probe(device_t dev)
 {
 	if (nvme_use_nvd)
 		return (ENXIO);
-	/*
-	 * Only do storage devices with CAM. NVMHCI 1.0 interfaces are the only
-	 * ones that have namespaces with LBA ranges on them.
-	 */
-	if (pci_get_progif(device_get_parent(dev)) !=
-	    PCIP_STORAGE_NVM_ENTERPRISE_NVMHCI_1_0)
+
+	if (!NVME_IS_STORAGE_DEVICE(device_get_parent(dev)))
 		return (ENXIO);
 
 	device_set_desc(dev, "nvme cam");
@@ -360,7 +365,7 @@ nvme_sim_attach(device_t dev)
 		goto err3;
 	}
 
-	for (int i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++) {
+	for (int i = 0; i < nvme_ctrlr_num_namespaces(ctrlr); i++) {
 		struct nvme_namespace	*ns = &ctrlr->ns[i];
 
 		if (ns->data.nsze == 0)
@@ -383,7 +388,7 @@ nvme_sim_fail_all_ns(device_t dev)
 	struct nvme_sim_softc *sc = device_get_softc(dev);
 	struct nvme_controller *ctrlr = sc->s_ctrlr;
 
-	for (int i = 0; i < min(ctrlr->cdata.nn, NVME_MAX_NAMESPACES); i++) {
+	for (int i = 0; i < nvme_ctrlr_num_namespaces(ctrlr); i++) {
 		struct nvme_namespace	*ns = &ctrlr->ns[i];
 
 		if (ns->data.nsze == 0)
@@ -438,7 +443,7 @@ nvme_sim_ns_removed(device_t dev, struct nvme_namespace *ns)
 
 	if (xpt_create_path(&tmppath, /*periph*/NULL,
 	    cam_sim_path(sc->s_sim), 0, ns->id) != CAM_REQ_CMP) {
-		printf("unable to create path for rescan\n");
+		printf("unable to create path for ns removal\n");
 		return (ENOMEM);
 	}
 	xpt_async(AC_LOST_DEVICE, tmppath, NULL);
@@ -496,4 +501,4 @@ static driver_t nvme_sim_driver = {
 };
 
 DRIVER_MODULE(nvme_sim, nvme, nvme_sim_driver, NULL, NULL);
-MODULE_VERSION(nvme_shim, 1);
+MODULE_VERSION(nvme_sim, 1);

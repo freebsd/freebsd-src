@@ -174,6 +174,7 @@ r92cu_attach(struct rtwn_usb_softc *uc)
 	sc->sc_rf_write			= r92c_rf_write;
 	sc->sc_check_condition		= r92c_check_condition;
 	sc->sc_efuse_postread		= r92c_efuse_postread;
+	sc->sc_efuse_preread		= rtwn_nop_int_softc;
 	sc->sc_parse_rom		= r92c_parse_rom;
 	sc->sc_set_led			= r92cu_set_led;
 	sc->sc_power_on			= r92cu_power_on;

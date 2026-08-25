@@ -53,14 +53,14 @@ CODE {
 		return 1;
 	}
 
-	static u_int32_t
+	static uint32_t
 	channel_nogetptr(kobj_t obj, void *data)
 	{
 		return 0;
 	}
 
 	static int
-	channel_nonotify(kobj_t obj, void *data, u_int32_t changed)
+	channel_nonotify(kobj_t obj, void *data, uint32_t changed)
 	{
 		return 0;
 	}
@@ -79,13 +79,13 @@ CODE {
 	}
 
 	static int
-	channel_nosetfragments(kobj_t obj, void *data, u_int32_t blocksize, u_int32_t blockcount)
+	channel_nosetfragments(kobj_t obj, void *data, uint32_t blocksize, uint32_t blockcount)
 	{
 		return ENOTSUP;
 	}
 
 	static struct pcmchan_matrix *
-	channel_nogetmatrix(kobj_t obj, void *data, u_int32_t format)
+	channel_nogetmatrix(kobj_t obj, void *data, uint32_t format)
 	{
 		format = feeder_matrix_default_format(format);
 		return (feeder_matrix_format_map(format));
@@ -124,26 +124,26 @@ METHOD int resetdone {
 METHOD int setformat {
 	kobj_t obj;
 	void *data;
-	u_int32_t format;
+	uint32_t format;
 };
 
-METHOD u_int32_t setspeed {
+METHOD uint32_t setspeed {
 	kobj_t obj;
 	void *data;
-	u_int32_t speed;
+	uint32_t speed;
 };
 
-METHOD u_int32_t setblocksize {
+METHOD uint32_t setblocksize {
 	kobj_t obj;
 	void *data;
-	u_int32_t blocksize;
+	uint32_t blocksize;
 };
 
 METHOD int setfragments {
 	kobj_t obj;
 	void *data;
-	u_int32_t blocksize;
-	u_int32_t blockcount;
+	uint32_t blocksize;
+	uint32_t blockcount;
 } DEFAULT channel_nosetfragments;
 
 METHOD int trigger {
@@ -152,7 +152,7 @@ METHOD int trigger {
 	int go;
 };
 
-METHOD u_int32_t getptr {
+METHOD uint32_t getptr {
 	kobj_t obj;
 	void *data;
 } DEFAULT channel_nogetptr;
@@ -165,7 +165,7 @@ METHOD struct pcmchan_caps* getcaps {
 METHOD int notify {
 	kobj_t obj;
 	void *data;
-	u_int32_t changed;
+	uint32_t changed;
 } DEFAULT channel_nonotify;
 
 /**
@@ -222,7 +222,7 @@ METHOD int getrates {
 METHOD struct pcmchan_matrix * getmatrix {
 	kobj_t obj;
 	void *data;
-	u_int32_t format;
+	uint32_t format;
 } DEFAULT channel_nogetmatrix;
 
 METHOD int setmatrix {

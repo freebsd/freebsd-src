@@ -354,6 +354,9 @@ bsd_set_key(void *priv, struct wpa_driver_set_key_params *params)
 	const u8 *key = params->key;
 	size_t key_len = params->key_len;
 
+	if (params->key_flag & KEY_FLAG_NEXT)
+		return -1;
+
 	wpa_printf(MSG_DEBUG, "%s: alg=%d addr=%p key_idx=%d set_tx=%d "
 		   "seq_len=%zu key_len=%zu", __func__, alg, addr, key_idx,
 		   set_tx, seq_len, key_len);
@@ -1052,7 +1055,7 @@ bsd_sta_deauth(void *priv, const u8 *own_addr, const u8 *addr, u16 reason_code,
 
 static int
 bsd_sta_disassoc(void *priv, const u8 *own_addr, const u8 *addr,
-		 u16 reason_code)
+		 u16 reason_code, int link_id)
 {
 	return bsd_send_mlme_param(priv, IEEE80211_MLME_DISASSOC, reason_code,
 				   addr);
@@ -1675,7 +1678,8 @@ get80211opmode(struct bsd_driver_data *drv)
 }
 
 static void *
-wpa_driver_bsd_init(void *ctx, const char *ifname, void *priv)
+wpa_driver_bsd_init(void *ctx, const char *ifname, void *priv,
+		    enum wpa_p2p_mode p2p_mode)
 {
 #define	GETPARAM(drv, param, v) \
 	(((v) = get80211param(drv, param)) != -1)

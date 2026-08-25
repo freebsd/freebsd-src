@@ -51,3 +51,5 @@ __user_rt_sigreturn:
 	mov	x8, #LINUX_SYS_linux_rt_sigreturn
 	svc	#0
 EEND(__kernel_rt_sigreturn)
+
+	.section .note.GNU-stack,"",%progbits

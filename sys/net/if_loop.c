@@ -81,12 +81,11 @@
 #define LOMTU	16384
 #endif
 
-#define	LO_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_SCTP)
-#define	LO_CSUM_FEATURES6	(CSUM_TCP_IPV6 | CSUM_UDP_IPV6 | CSUM_SCTP_IPV6)
-#define	LO_CSUM_SET		(CSUM_DATA_VALID | CSUM_DATA_VALID_IPV6 | \
-				    CSUM_PSEUDO_HDR | \
-				    CSUM_IP_CHECKED | CSUM_IP_VALID | \
-				    CSUM_SCTP_VALID)
+#define	LO_CSUM_FEATURES	(CSUM_IP | CSUM_IP_TCP | CSUM_IP_UDP | \
+				    CSUM_IP_SCTP)
+#define	LO_CSUM_FEATURES6	(CSUM_IP6_TCP | CSUM_IP6_UDP | CSUM_IP6_SCTP)
+#define	LO_CSUM_SET		(CSUM_L3_CALC | CSUM_L3_VALID | \
+				    CSUM_L4_CALC | CSUM_L4_VALID)
 
 static int	loioctl(struct ifnet *, u_long, caddr_t);
 static int	looutput(struct ifnet *ifp, struct mbuf *m,
@@ -219,7 +218,9 @@ looutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 
+#ifdef RSS
 	M_HASHTYPE_CLEAR(m);
+#endif
 
 	/* BPF writes need to be handled specially. */
 	if (dst->sa_family == AF_UNSPEC || dst->sa_family == pseudo_AF_HDRCMPLT)
@@ -227,38 +228,22 @@ looutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	else
 		af = RO_GET_FAMILY(ro, dst);
 
-#if 1	/* XXX */
 	switch (af) {
 	case AF_INET:
-		if (ifp->if_capenable & IFCAP_RXCSUM) {
-			m->m_pkthdr.csum_data = 0xffff;
-			m->m_pkthdr.csum_flags = LO_CSUM_SET;
+		if ((ifp->if_capenable & IFCAP_RXCSUM) == 0) {
+			m->m_pkthdr.csum_flags &= ~LO_CSUM_SET;
 		}
-		m->m_pkthdr.csum_flags &= ~LO_CSUM_FEATURES;
 		break;
 	case AF_INET6:
-#if 0
-		/*
-		 * XXX-BZ for now always claim the checksum is good despite
-		 * any interface flags.   This is a workaround for 9.1-R and
-		 * a proper solution ought to be sought later.
-		 */
-		if (ifp->if_capenable & IFCAP_RXCSUM_IPV6) {
-			m->m_pkthdr.csum_data = 0xffff;
-			m->m_pkthdr.csum_flags = LO_CSUM_SET;
+		if ((ifp->if_capenable & IFCAP_RXCSUM_IPV6) == 0) {
+			m->m_pkthdr.csum_flags &= ~LO_CSUM_SET;
 		}
-#else
-		m->m_pkthdr.csum_data = 0xffff;
-		m->m_pkthdr.csum_flags = LO_CSUM_SET;
-#endif
-		m->m_pkthdr.csum_flags &= ~LO_CSUM_FEATURES6;
 		break;
 	default:
 		printf("looutput: af=%d unexpected\n", af);
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-#endif
 	return (if_simloop(ifp, m, af, 0));
 }
 
@@ -276,6 +261,7 @@ int
 if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 {
 	int isr;
+	int32_t len;
 
 	M_ASSERTPKTHDR(m);
 	m_tag_delete_nonpersistent(m);
@@ -350,9 +336,14 @@ if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
-	netisr_queue(isr, m);	/* mbuf is free'd on failure. */
+	len = m->m_pkthdr.len;
+	if (netisr_queue(isr, m) == 0) {
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
+		if_inc_counter(ifp, IFCOUNTER_IBYTES, len);
+	} else {
+		/* mbuf is free'd on failure. */
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
+	}
 	return (0);
 }
 
@@ -412,29 +403,15 @@ loioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
 		if ((mask & IFCAP_TXCSUM) != 0)
 			ifp->if_capenable ^= IFCAP_TXCSUM;
-		if ((mask & IFCAP_RXCSUM_IPV6) != 0) {
-#if 0
+		if ((mask & IFCAP_RXCSUM_IPV6) != 0)
 			ifp->if_capenable ^= IFCAP_RXCSUM_IPV6;
-#else
-			error = EOPNOTSUPP;
-			break;
-#endif
-		}
-		if ((mask & IFCAP_TXCSUM_IPV6) != 0) {
-#if 0
+		if ((mask & IFCAP_TXCSUM_IPV6) != 0)
 			ifp->if_capenable ^= IFCAP_TXCSUM_IPV6;
-#else
-			error = EOPNOTSUPP;
-			break;
-#endif
-		}
 		ifp->if_hwassist = 0;
 		if (ifp->if_capenable & IFCAP_TXCSUM)
 			ifp->if_hwassist = LO_CSUM_FEATURES;
-#if 0
 		if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
 			ifp->if_hwassist |= LO_CSUM_FEATURES6;
-#endif
 		break;
 
 	default:

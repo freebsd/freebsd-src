@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -25,7 +15,10 @@
  * Copyright 2013, Joyent, Inc. All rights reserved.
  * Copyright (C) 2016 Lawrence Livermore National Security, LLC.
  * Copyright (c) 2025, Rob Norris <robn@despairlabs.com>
- *
+ * Copyright (c) 2026, TrueNAS.
+ */
+
+/*
  * For Linux the vast majority of this enforcement is already handled via
  * the standard Linux VFS permission checks.  However certain administrative
  * commands which bypass the standard mechanisms may need to make use of
@@ -87,21 +80,14 @@ priv_policy_user(const cred_t *cr, int capability, int err)
 }
 
 /*
- * Checks for operations that are either client-only or are used by
- * both clients and servers.
- */
-int
-secpolicy_nfs(const cred_t *cr)
-{
-	return (priv_policy(cr, CAP_SYS_ADMIN, EPERM));
-}
-
-/*
  * Catch all system configuration.
  */
 int
 secpolicy_sys_config(const cred_t *cr, boolean_t checkonly)
 {
+	/* pools can only be manipulated from the global zone */
+	if (crgetzoneid(cr) != GLOBAL_ZONEID)
+		return (EACCES);
 	return (priv_policy(cr, CAP_SYS_ADMIN, EPERM));
 }
 
@@ -220,10 +206,10 @@ secpolicy_vnode_setid_retain(struct znode *zp __maybe_unused, const cred_t *cr,
  * Determine that subject can set the file setgid flag.
  */
 int
-secpolicy_vnode_setids_setgids(const cred_t *cr, gid_t gid, zidmap_t *mnt_ns,
+secpolicy_vnode_setids_setgids(const cred_t *cr, gid_t gid, zidmap_t *idmap,
     struct user_namespace *fs_ns)
 {
-	gid = zfs_gid_to_vfsgid(mnt_ns, fs_ns, gid);
+	gid = zfs_gid_to_vfsgid(idmap, fs_ns, gid);
 #if defined(CONFIG_USER_NS)
 	if (!kgid_has_mapping(cr->user_ns, SGID_TO_KGID(gid)))
 		return (EPERM);
@@ -241,6 +227,9 @@ secpolicy_vnode_setids_setgids(const cred_t *cr, gid_t gid, zidmap_t *mnt_ns,
 int
 secpolicy_zinject(const cred_t *cr)
 {
+	/* zinject is only in the global zone */
+	if (crgetzoneid(cr) != GLOBAL_ZONEID)
+		return (EACCES);
 	return (priv_policy(cr, CAP_SYS_ADMIN, EACCES));
 }
 
@@ -251,6 +240,14 @@ secpolicy_zinject(const cred_t *cr)
 int
 secpolicy_zfs(const cred_t *cr)
 {
+	/*
+	 * Note that CAP_SYS_ADMIN is effectively "root"-like privileges in
+	 * the given user namespace. Those happen to include mount control
+	 * (matching PRIV_SYS_MOUNT on illumos). There is not a narrower
+	 * permission available. It's important that callers do narrower
+	 * permission checks (eg zone checks) along with this call.
+	 *   -- robn, 2026-08-14
+	 */
 	return (priv_policy(cr, CAP_SYS_ADMIN, EACCES));
 }
 
@@ -270,10 +267,10 @@ secpolicy_setid_clear(vattr_t *vap, cred_t *cr)
  * Determine that subject can set the file setid flags.
  */
 static int
-secpolicy_vnode_setid_modify(const cred_t *cr, uid_t owner, zidmap_t *mnt_ns,
+secpolicy_vnode_setid_modify(const cred_t *cr, uid_t owner, zidmap_t *idmap,
     struct user_namespace *fs_ns)
 {
-	owner = zfs_uid_to_vfsuid(mnt_ns, fs_ns, owner);
+	owner = zfs_uid_to_vfsuid(idmap, fs_ns, owner);
 
 	if (crgetuid(cr) == owner)
 		return (0);
@@ -299,14 +296,14 @@ secpolicy_vnode_stky_modify(const cred_t *cr)
 
 int
 secpolicy_setid_setsticky_clear(struct inode *ip, vattr_t *vap,
-    const vattr_t *ovap, cred_t *cr, zidmap_t *mnt_ns,
+    const vattr_t *ovap, cred_t *cr, zidmap_t *idmap,
     struct user_namespace *fs_ns)
 {
 	int error;
 
 	if ((vap->va_mode & S_ISUID) != 0 &&
 	    (error = secpolicy_vnode_setid_modify(cr,
-	    ovap->va_uid, mnt_ns, fs_ns)) != 0) {
+	    ovap->va_uid, idmap, fs_ns)) != 0) {
 		return (error);
 	}
 
@@ -325,7 +322,7 @@ secpolicy_setid_setsticky_clear(struct inode *ip, vattr_t *vap,
 	 */
 	if ((vap->va_mode & S_ISGID) != 0 &&
 	    secpolicy_vnode_setids_setgids(cr, ovap->va_gid,
-	    mnt_ns, fs_ns) != 0) {
+	    idmap, fs_ns) != 0) {
 		vap->va_mode &= ~S_ISGID;
 	}
 

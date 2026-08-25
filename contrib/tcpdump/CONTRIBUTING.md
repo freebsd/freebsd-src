@@ -39,7 +39,7 @@ and ask!
 1) Check that there isn't a pull request already opened for the changes you
    intend to make.
 
-2) [Fork](https://help.github.com/articles/fork-a-repo/) the Tcpdump
+2) [Fork](https://help.github.com/articles/fork-a-repo/) the tcpdump
    [repository](https://github.com/the-tcpdump-group/tcpdump).
 
 3) The easiest way to test your changes on multiple operating systems and

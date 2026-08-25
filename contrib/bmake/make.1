@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.388 2025/11/12 22:14:07 sjg Exp $
+.\"	$NetBSD: make.1,v 1.394 2026/07/03 15:31:34 sjg Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd November 11, 2025
+.Dd July  3, 2026
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@
 .Op Fl T Ar file
 .Op Fl V Ar variable
 .Op Fl v Ar variable
-.Op Ar variable\| Ns Cm \&= Ns Ar value
+.Op Ar variable\| Ns Cm \&= Ns Ar value No ...
 .Op Ar target No ...
 .Sh DESCRIPTION
 .Nm
@@ -556,7 +556,6 @@ except that the effect can be limited to a single line of a script.
 .It Ic \-
 in compatibility mode
 causes any non-zero exit status of the command line to be ignored.
-.El
 .Pp
 When
 .Nm
@@ -578,6 +577,7 @@ Otherwise
 affects the entire job;
 the script stops at the first command line that fails,
 but the target is not deemed to have failed.
+.El
 .Pp
 Makefiles should be written so that the mode of
 .Nm
@@ -1049,11 +1049,26 @@ the current target is considered out-of-date.
 .It Va .MAKE.META.CMP_FILTER
 In
 .Dq meta
-mode, it can (very rarely!) be useful to filter command
+mode, it can sometimes be useful to filter command
 lines before comparison.
-This variable can be set to a set of modifiers that are applied to
-each line of the old and new command that differ, if the filtered
-commands still differ, the target is considered out-of-date.
+This variable can contain a list of modifiers that will be joined with
+.Ql \&:
+and applied to each line of the old and new command that differ.
+If the filtered commands still differ,
+the target is considered out-of-date.
+.It Va .MAKE.META.FILTER
+In
+.Dq meta
+mode, it can be useful to filter most of the data in a meta file.
+For example, when a pre-built tree is relocated or cloned,
+all the targets would be considered out-of-date without a filter
+to replace the old location with the new.
+This variable is similar to
+.Va .MAKE.META.CMP_FILTER
+but is appliled to commands, cwd and the syscall records from filemon.
+In the case of commands, this is done prior to any
+.Va .MAKE.META.CMP_FILTER
+modifiers are applied during comparison.
 .It Va .MAKE.META.CREATED
 In
 .Dq meta
@@ -1517,7 +1532,16 @@ and
 .Ql \&[] )
 may
 be used.
-The wildcard characters may be escaped with a backslash
+Braces can be used to list alternate patterns.
+For example,
+.Ql ${.ALLSRC:M*{Makefile*,.mk}}
+could be used to match any
+.Ql *Makefile*
+or
+.Ql *.mk
+in
+.Va .ALLSRC .
+The wildcard characters and braces may be escaped with a backslash
 .Pq Ql \e .
 As a consequence of the way values are split into words, matched,
 and then joined, the construct
@@ -1666,33 +1690,22 @@ Causes the value to be treated as a list of words.
 See also
 .Sq Cm \&:[@] .
 .Sm off
-.It Cm \&:S\| No \&/ Ar old_string\| No \&/ Ar new_string\| No \&/ Op Cm 1gW
+.It Cm \&:S\| No \&/ Oo Cm \&^ Oc Ar old_string\| No Oo Cm \&$ Oc \&/ Ar new_string\| No \&/ Op Cm 1gW
 .Sm on
 Modifies the first occurrence of
 .Ar old_string
 in each word of the value, replacing it with
 .Ar new_string .
-If a
-.Ql g
-is appended to the last delimiter of the pattern,
-all occurrences in each word are replaced.
-If a
-.Ql 1
-is appended to the last delimiter of the pattern,
-only the first occurrence is affected.
-If a
-.Ql W
-is appended to the last delimiter of the pattern,
-the value is treated as a single word.
+.Pp
 If
 .Ar old_string
-begins with a caret
+is preceded by a caret
 .Pq Ql ^ ,
 .Ar old_string
 is anchored at the beginning of each word.
 If
 .Ar old_string
-ends with a dollar sign
+is followed by a dollar sign
 .Pq Ql \&$ ,
 it is anchored at the end of each word.
 Inside
@@ -1700,63 +1713,61 @@ Inside
 an ampersand
 .Pq Ql &
 is replaced by
-.Ar old_string
-(without the anchoring
-.Ql ^
-or
-.Ql \&$ ) .
-Any character may be used as the delimiter for the parts of the modifier
-string.
-The anchoring, ampersand and delimiter characters can be escaped with a
-backslash
-.Pq Ql \e .
-.Pp
+.Ar old_string .
 Both
 .Ar old_string
 and
 .Ar new_string
 may contain nested expressions.
-To prevent a dollar sign from starting a nested expression,
-escape it with a backslash.
+.Pp
+Further options:
+.Bl -tag
+.It Cm 1
+Only the word of the first occurrence is affected.
+.It Cm g
+All occurrences in each affected word are replaced.
+.It Cm W
+The expression value is treated as a single word.
+.El
+.Pp
+Any character may be used as the delimiter for the parts of the modifier
+string.
+The anchoring, ampersand, dollar and delimiter characters
+can be escaped with a backslash
+.Pq Ql \e .
 .Sm off
 .It Cm \&:C\| No \&/ Ar pattern\| No \&/ Ar replacement\| No \&/ Op Cm 1gW
 .Sm on
-The
-.Cm \&:C
-modifier works like the
-.Cm \&:S
-modifier except that the old and new strings, instead of being
-simple strings, are an extended regular expression
+Modifies the first occurrence of the extended regular expression
 .Ar pattern
 (see
 .Xr regex 3 )
-and an
+in each word of the value, replacing it with
+an
 .Xr ed 1 Ns \-style
 .Ar replacement .
-Normally, the first occurrence of the pattern
-.Ar pattern
-in each word of the value is substituted with
-.Ar replacement .
-The
-.Ql 1
-modifier causes the substitution to apply to at most one word; the
-.Ql g
-modifier causes the substitution to apply to as many instances of the
-search pattern
-.Ar pattern
-as occur in the word or words it is found in; the
-.Ql W
-modifier causes the value to be treated as a single word
-(possibly containing embedded whitespace).
 .Pp
-As for the
-.Cm \&:S
-modifier, the
+Both
 .Ar pattern
 and
 .Ar replacement
-are subjected to variable expansion before being parsed as
-regular expressions.
+may contain nested expressions.
+.Pp
+Further options:
+.Bl -tag
+.It Cm 1
+Only the word of the first occurrence is affected.
+.It Cm g
+All occurrences in each affected word are replaced.
+.It Cm W
+The expression value is treated as a single word.
+.El
+.Pp
+Any character may be used as the delimiter for the parts of the modifier
+string.
+The anchoring, ampersand, dollar and delimiter characters
+can be escaped with a backslash
+.Pq Ql \e .
 .It Cm \&:T
 Replaces each word with its last path component (basename).
 .It Cm \&:u
@@ -2341,7 +2352,7 @@ as if they all were preceded by a dash
 .\" .It Ic .JOIN
 .\" XXX
 .It Ic .MADE
-Mark all sources of this target as being up to date.
+Mark the target(s) up to date.
 .It Ic .MAKE
 Execute the commands associated with this target even if the
 .Fl n
@@ -2505,7 +2516,7 @@ Any command lines attached to this target are executed after everything
 else is done successfully.
 .It Ic .ERROR
 Any command lines attached to this target are executed when another target fails.
-See 
+See
 .Va MAKE_PRINT_VAR_ON_ERROR
 for the variables that will be set.
 .It Ic .IGNORE

@@ -1,4 +1,4 @@
-/* $OpenBSD: chacha.c,v 1.2 2023/07/17 05:26:38 djm Exp $ */
+/* $OpenBSD: chacha.c,v 1.3 2026/05/18 04:14:57 tb Exp $ */
 /*
 chacha-merged.c version 20080118
 D. J. Bernstein
@@ -48,8 +48,8 @@ typedef struct chacha_ctx chacha_ctx;
   a = PLUS(a,b); d = ROTATE(XOR(d,a), 8); \
   c = PLUS(c,d); b = ROTATE(XOR(b,c), 7);
 
-static const char sigma[16] = "expand 32-byte k";
-static const char tau[16] = "expand 16-byte k";
+static const char sigma[] = "expand 32-byte k";
+static const char tau[] = "expand 16-byte k";
 
 void
 chacha_keysetup(chacha_ctx *x,const u8 *k,u32 kbits)

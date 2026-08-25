@@ -449,3 +449,5 @@ END(identify_cpu)
 ENTRY(hypercall_page)
 	.skip	0x1000, 0x90	/* Fill with "nop"s */
 #endif
+
+	.section .note.GNU-stack,"",%progbits

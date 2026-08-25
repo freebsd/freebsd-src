@@ -329,20 +329,9 @@ Parse_fh(netdissect_options *ndo, const unsigned char *fh, u_int len,
 
 	case FHT_VMSUCX:
 	    /* No numeric file system ID, so hash on the device-name */
-	    if (sizeof(*fsidp) >= 14) {
-		if (sizeof(*fsidp) > 14)
-		    memset((char *)fsidp, 0, sizeof(*fsidp));
-		/* just use the whole thing */
-		memcpy((char *)fsidp, (const char *)fh, 14);
-	    } else {
-		uint32_t tempa[4];	/* at least 16 bytes, maybe more */
-
-		memset((char *)tempa, 0, sizeof(tempa));
-		memcpy((char *)tempa, (const char *)fh, 14); /* ensure alignment */
-		fsidp->Fsid_dev.Minor = tempa[0] + (tempa[1]<<1);
-		fsidp->Fsid_dev.Major = tempa[2] + (tempa[3]<<1);
-		fsidp->fsid_code = 0;
-	    }
+	    memset((char *)fsidp, 0, sizeof(*fsidp));
+	    /* just use the whole thing */
+	    memcpy((char *)fsidp, (const char *)fh, 14);
 
 	    /* VMS file ID is: (RVN, FidHi, FidLo) */
 	    *inop = (((uint32_t) GET_U_1(fhp + 26)) << 24) |

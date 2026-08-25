@@ -50,21 +50,32 @@ int
 ga_init(const char *user, gid_t base)
 {
 	gid_t *groups_bygid;
-	int i, j, retry = 0;
+	int ongroups, i, j, retry = 0;
 	struct group *gr;
 
 	if (ngroups > 0)
 		ga_free();
 
-	ngroups = NGROUPS_MAX;
+	ongroups = ngroups = NGROUPS_MAX;
 #if defined(HAVE_SYSCONF) && defined(_SC_NGROUPS_MAX)
-	ngroups = MAX(NGROUPS_MAX, sysconf(_SC_NGROUPS_MAX));
+	ongroups = ngroups = MAX(NGROUPS_MAX, sysconf(_SC_NGROUPS_MAX));
 #endif
 
 	groups_bygid = xcalloc(ngroups, sizeof(*groups_bygid));
 	while (getgrouplist(user, base, groups_bygid, &ngroups) == -1) {
-		if (retry++ > 0)
-			fatal("getgrouplist: groups list too small");
+		if (ngroups <= ongroups) {
+			error("getgrouplist(\"%s\", %ld): failed",
+			    user, (long)base);
+			free(groups_bygid);
+			groups_bygid = NULL;
+			ngroups = 0;
+			return 0;
+		}
+		if (retry++ > 0) {
+			fatal("getgrouplist(\"%s\", %ld): groups list too big "
+			    "(have %ld, need %ld)", user, (long)base,
+			    (long)ongroups, (long)ngroups);
+		}
 		groups_bygid = xreallocarray(groups_bygid, ngroups,
 		    sizeof(*groups_bygid));
 	}

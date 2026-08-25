@@ -13,14 +13,21 @@ else(WIN32)
     #  on a "long-term support" version # of some OS and that
     #  version supplies an older version of CMake;
     #
-    #  otherwise, require 3.5, so we don't get messages warning
-    #  that support for versions of CMake lower than 3.5 is
+    #  otherwise, if it's a version less than 3.10, require only
+    #  3.5, just in case somebody is configuring with CMake
+    #  on a "long-term support" version # of some OS and that
+    #  version supplies an older version of CMake;
+    #
+    #  otherwise, require 3.10, so we don't get messages warning
+    #  that support for versions of CMake lower than 3.10 is
     #  deprecated.
     #
     if(CMAKE_VERSION VERSION_LESS "3.5")
         cmake_minimum_required(VERSION 2.8.12)
-    else()
+    elseif(CMAKE_VERSION VERSION_LESS "3.10")
         cmake_minimum_required(VERSION 3.5)
+    else()
+        cmake_minimum_required(VERSION 3.10)
     endif()
 endif(WIN32)
 
@@ -392,6 +399,35 @@ if(MSVC)
    endif (USE_STATIC_RT)
 endif(MSVC)
 
+#
+# CMake's definition of "cross-compiling" appears to be "compiling
+# for an *operating system* other than the one on which the build
+# is being done*.
+#
+# This is an inadequate definition, as people build for the same
+# operating system but a different instruction set, e.g. building
+# on an IA-32 or x86-64 Linux box for an Arm embedded Linux box,
+# or building Arm code on an IA-32 or x86-64 Windows box.
+#
+# So just test whether check_c_source_runs() on a trivial program
+# works; if not, it's probably because the generated code won't
+# run on the platform on which we're running.
+#
+include(CheckCSourceRuns)
+if (NOT CMAKE_CROSSCOMPILING)
+    check_c_source_runs("
+    int main()
+    {
+        return 0;
+    }
+    "
+        CHECK_C_SOURCE_RUNS_WORKS
+    )
+    if (NOT CHECK_C_SOURCE_RUNS_WORKS)
+        set(CMAKE_CROSSCOMPILING TRUE)
+    endif()
+endif()
+
 ###################################################################
 #   Detect available platform features
 ###################################################################
@@ -407,11 +443,16 @@ include(CheckVariableExists)
 include(CheckTypeSize)
 
 #
-# Get the size of a time_t, to know whether it's 32-bit or 64-bit.
+# Get the size of a time_t, to know whether it's 32-bit or 64-bit. Print it.
 #
 cmake_push_check_state()
 set(CMAKE_EXTRA_INCLUDE_FILES time.h)
 check_type_size("time_t" SIZEOF_TIME_T)
+if(SIZEOF_TIME_T EQUAL 4)
+  message(STATUS "32-bit time_t")
+elseif(SIZEOF_TIME_T EQUAL 8)
+  message(STATUS "64-bit time_t")
+endif()
 cmake_pop_check_state()
 
 #
@@ -493,67 +534,77 @@ else(STDLIBS_HAVE_GETSERVENT)
 endif(STDLIBS_HAVE_GETSERVENT)
 cmake_pop_check_state()
 
-#
-# Make sure we have snprintf(); we require it.
-# We use check_symbol_exists(), as it isn't necessarily an external
-# function - in Visual Studio, for example, it is an inline function
-# calling an external function.
-#
-check_symbol_exists(snprintf "stdio.h" HAVE_SNPRINTF)
-if(NOT HAVE_SNPRINTF)
-    message(FATAL_ERROR "snprintf() is required but wasn't found")
-endif()
+if (NOT CMAKE_CROSSCOMPILING)
+    #
+    # Require a proof of suitable snprintf(3), same as in Autoconf.
+    #
+    check_c_source_runs("
+    #include <stdio.h>
+    #include <string.h>
+    #include <inttypes.h>
+    #include <sys/types.h>
 
-#
-# Require a proof of suitable snprintf(3), same as in Autoconf.
-#
-include(CheckCSourceRuns)
-check_c_source_runs("
-#include <stdio.h>
-#include <string.h>
-#include <inttypes.h>
-#include <sys/types.h>
+    #if defined(_WIN32) && !defined(_SSIZE_T_DEFINED)
+    /*
+     * On UN*Xes, this is a signed integer type of the same size as size_t.
+     *
+     * It's not defined by Visual Studio; we assume that ptrdiff_t will
+     * be a type that is a signed integer type of the same size as size_t.
+     */
+    typedef ptrdiff_t ssize_t;
+    #endif
 
-int main()
-{
-  char buf[100];
-  uint64_t t = (uint64_t)1 << 32;
+    /*
+     * Avoid trying to cast negative values to unsigned types, or doing
+     * shifts of signed types, in order not to have the test program fail
+     * if we're building with undefined-behavior sanitizers enabled.
+     */
+    int main()
+    {
+      char buf[100];
+      unsigned int ui = sizeof(buf);
+      int i = sizeof(buf);
+      int64_t i64 = INT64_C(0x100000000);
+      uint64_t ui64 = UINT64_C(0x100000000);
 
-  snprintf(buf, sizeof(buf), \"%zu\", sizeof(buf));
-  if (strncmp(buf, \"100\", sizeof(buf)))
-    return 1;
+      snprintf(buf, sizeof(buf), \"%zu\", (size_t)ui);
+      if (strncmp(buf, \"100\", sizeof(buf)))
+        return 1;
 
-  snprintf(buf, sizeof(buf), \"%zd\", -sizeof(buf));
-  if (strncmp(buf, \"-100\", sizeof(buf)))
-    return 2;
+      snprintf(buf, sizeof(buf), \"%zd\", (ssize_t)(-i));
+      if (strncmp(buf, \"-100\", sizeof(buf)))
+        return 2;
 
-  snprintf(buf, sizeof(buf), \"%\" PRId64, -t);
-  if (strncmp(buf, \"-4294967296\", sizeof(buf)))
-    return 3;
+      snprintf(buf, sizeof(buf), \"%\" PRId64, -i64);
+      if (strncmp(buf, \"-4294967296\", sizeof(buf)))
+        return 3;
 
-  snprintf(buf, sizeof(buf), \"0o%\" PRIo64, t);
-  if (strncmp(buf, \"0o40000000000\", sizeof(buf)))
-    return 4;
+      snprintf(buf, sizeof(buf), \"0o%\" PRIo64, ui64);
+      if (strncmp(buf, \"0o40000000000\", sizeof(buf)))
+        return 4;
 
-  snprintf(buf, sizeof(buf), \"0x%\" PRIx64, t);
-  if (strncmp(buf, \"0x100000000\", sizeof(buf)))
-    return 5;
+      snprintf(buf, sizeof(buf), \"0x%\" PRIx64, ui64);
+      if (strncmp(buf, \"0x100000000\", sizeof(buf)))
+        return 5;
 
-  snprintf(buf, sizeof(buf), \"%\" PRIu64, t);
-  if (strncmp(buf, \"4294967296\", sizeof(buf)))
-    return 6;
+      snprintf(buf, sizeof(buf), \"%\" PRIu64, ui64);
+      if (strncmp(buf, \"4294967296\", sizeof(buf)))
+        return 6;
 
-  return 0;
-}
+      return 0;
+    }
 
-"
-    SUITABLE_SNPRINTF
-)
-if(NOT SUITABLE_SNPRINTF)
-    message(FATAL_ERROR
+    "
+        SUITABLE_SNPRINTF
+    )
+    if(NOT SUITABLE_SNPRINTF)
+        message(FATAL_ERROR
 "The snprintf(3) implementation in this libc is not suitable,
 tcpdump would not work correctly even if it managed to compile."
-    )
+        )
+    endif()
+else()
+    message(STATUS "Skipped SUITABLE_SNPRINTF because cross-compiling.")
 endif()
 
 check_function_exists(getopt_long HAVE_GETOPT_LONG)
@@ -908,7 +959,7 @@ check_function_exists(pcap_dump_ftell64 HAVE_PCAP_DUMP_FTELL64)
 # we should check for it, so that we can use it if it's present.
 #
 # So we check for pcap_open() and pcap_findalldevs_ex() if 1) this isn't
-# macOS or 2) the the libpcap we found is not a system library, meaning
+# macOS or 2) the libpcap we found is not a system library, meaning
 # that its path begins neither with /usr/lib (meaning it's a system
 # dylib) nor /Application/Xcode.app (meaning it's a file in
 # the Xcode SDK).
@@ -1160,6 +1211,7 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/.devel OR EXISTS ${CMAKE_BINARY_DIR}/.devel)
         check_and_add_compiler_option(-Wall)
         check_and_add_compiler_option(-Wassign-enum)
         check_and_add_compiler_option(-Wcast-qual)
+        check_and_add_compiler_option(-Wcomma)
         check_and_add_compiler_option(-Wmissing-prototypes)
         check_and_add_compiler_option(-Wmissing-variable-declarations)
         check_and_add_compiler_option(-Wold-style-definition)
@@ -1331,7 +1383,6 @@ set(NETDISSECT_SOURCE_LIST_C
     print-openflow.c
     print-ospf.c
     print-ospf6.c
-    print-otv.c
     print-pflog.c
     print-pgm.c
     print-pim.c
@@ -1496,6 +1547,9 @@ add_executable(tcpdump ${TCPDUMP_SOURCE_LIST_C})
 if(NOT C_ADDITIONAL_FLAGS STREQUAL "")
     set_target_properties(tcpdump PROPERTIES COMPILE_FLAGS ${C_ADDITIONAL_FLAGS})
 endif()
+if(NOT "${PCAP_LINK_FLAGS}" STREQUAL "")
+    set_target_properties(tcpdump PROPERTIES LINK_FLAGS ${PCAP_LINK_FLAGS})
+endif()
 target_link_libraries(tcpdump netdissect ${TCPDUMP_LINK_LIBRARIES})
 
 ######################################
@@ -1551,7 +1605,7 @@ add_custom_target(uninstall
     COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
 
 #
-# Tcpdump tests
+# tcpdump tests
 # We try to find the Perl interpreter and, if we do, we have the check
 # rule run tests/TESTrun with it, because just trying to run the TESTrun
 # script as a command won't work on Windows.

@@ -74,12 +74,6 @@ struct llentry;
 #define ND6_IFF_NO_PREFER_IFACE	0x80 /* XXX: not related to ND. */
 #define ND6_IFF_NO_DAD		0x100
 #define ND6_IFF_STABLEADDR	0x800
-#ifdef EXPERIMENTAL
-/* XXX: not related to ND. */
-#define	ND6_IFF_IPV6_ONLY	0x200 /* draft-ietf-6man-ipv6only-flag */
-#define	ND6_IFF_IPV6_ONLY_MANUAL	0x400
-#define	ND6_IFF_IPV6_ONLY_MASK	(ND6_IFF_IPV6_ONLY|ND6_IFF_IPV6_ONLY_MANUAL)
-#endif
 
 struct in6_nbrinfo {
 	char ifname[IFNAMSIZ];	/* if name, e.g. "en0" */
@@ -152,10 +146,20 @@ struct	in6_ndifreq {
 #define	ND6_NA_OPT_LLA		0x01
 #define	ND6_NA_CARP_MASTER	0x02
 
+/* ND6 queue flags */
+#define	ND6_QUEUE_FLAG_NEWGUA	0x01	/* new global unicast address event */
+#define	ND6_QUEUE_FLAG_LLADDR	0x02	/* link-layer address change event */
+#define	ND6_QUEUE_FLAG_ANYCAST	0x04	/* delay NA for anycast address */
+#define	ND6_QUEUE_FLAG_PROXY	0x08	/* delay NA for proxy address */
+
+/* GRAND specific flags */
+#define ND6_QUEUE_GRAND_MASK    (ND6_QUEUE_FLAG_NEWGUA|ND6_QUEUE_FLAG_LLADDR)
+
 /* protocol constants */
 #define MAX_RTR_SOLICITATION_DELAY	1	/* 1sec */
 #define RTR_SOLICITATION_INTERVAL	4	/* 4sec */
 #define MAX_RTR_SOLICITATIONS		3
+#define MAX_ANYCAST_DELAY_TIME		1	/* 1sec */
 
 #define ND6_INFINITE_LIFETIME		0xffffffff
 
@@ -173,6 +177,7 @@ struct	in6_ndifreq {
 #define ND_COMPUTE_RTIME(x) \
 		(((MIN_RANDOM_FACTOR * (x >> 10)) + (arc4random() & \
 		((MAX_RANDOM_FACTOR - MIN_RANDOM_FACTOR) * (x >> 10)))) /1000)
+#define MAX_NEIGHBOR_ADVERTISEMENT	3	/* RFC4891 Section 10 */
 
 struct nd_defrouter {
 	TAILQ_ENTRY(nd_defrouter) dr_entry;
@@ -225,6 +230,7 @@ struct nd_prefix {
 #define ndpr_raf_onlink		ndpr_flags.onlink
 #define ndpr_raf_auto		ndpr_flags.autonomous
 #define ndpr_raf_router		ndpr_flags.router
+#define ndpr_raf_dhcp6pd	ndpr_flags.dhcp6_pd
 
 struct nd_pfxrouter {
 	LIST_ENTRY(nd_pfxrouter) pfr_entry;
@@ -282,7 +288,7 @@ VNET_DECLARE(int, ip6_temp_regen_advance); /* seconds */
 #define	V_ip6_temp_regen_advance	VNET(ip6_temp_regen_advance)
 
 union nd_opts {
-	struct nd_opt_hdr *nd_opt_array[16];	/* max = ND_OPT_NONCE */
+	struct nd_opt_hdr *nd_opt_array[24];	/* max = ND_OPT_ROUTE_INFO */
 	struct {
 		struct nd_opt_hdr *zero;
 		struct nd_opt_hdr *src_lladdr;
@@ -300,10 +306,20 @@ union nd_opts {
 		struct nd_opt_hdr *__res13;
 		struct nd_opt_nonce *nonce;
 		struct nd_opt_hdr *__res15;
+		struct nd_opt_hdr *__res16;
+		struct nd_opt_hdr *__res17;
+		struct nd_opt_hdr *__res18;
+		struct nd_opt_hdr *__res19;
+		struct nd_opt_hdr *__res20;
+		struct nd_opt_hdr *__res21;
+		struct nd_opt_hdr *__res22;
+		struct nd_opt_hdr *__res23;
+		struct nd_opt_route_info *rti_beg;
 		struct nd_opt_hdr *search;	/* multiple opts */
 		struct nd_opt_hdr *last;	/* multiple opts */
 		int done;
 		struct nd_opt_prefix_info *pi_end;/* multiple opts, end */
+		struct nd_opt_route_info *rti_end;/* multiple opts, end */
 	} nd_opt_each;
 };
 #define nd_opts_src_lladdr	nd_opt_each.src_lladdr
@@ -313,6 +329,8 @@ union nd_opts {
 #define nd_opts_rh		nd_opt_each.rh
 #define nd_opts_mtu		nd_opt_each.mtu
 #define nd_opts_nonce		nd_opt_each.nonce
+#define nd_opts_rti		nd_opt_each.rti_beg
+#define nd_opts_rti_end		nd_opt_each.rti_end
 #define nd_opts_search		nd_opt_each.search
 #define nd_opts_last		nd_opt_each.last
 #define nd_opts_done		nd_opt_each.done
@@ -363,9 +381,12 @@ void nd6_ns_input(struct mbuf *, int, int);
 void nd6_ns_output(struct ifnet *, const struct in6_addr *,
 	const struct in6_addr *, const struct in6_addr *, uint8_t *);
 caddr_t nd6_ifptomac(struct ifnet *);
+u_int nd6_lladdr_opt_pad(struct ifnet *);
 void nd6_dad_init(void);
 void nd6_dad_start(struct ifaddr *, int);
 void nd6_dad_stop(struct ifaddr *);
+void nd6_grand_start(struct ifaddr *, uint32_t);
+void nd6_queue_stop(struct ifaddr *);
 
 /* nd6_rtr.c */
 void nd6_rs_input(struct mbuf *, int, int);
@@ -383,8 +404,7 @@ void nd6_defrouter_flush_all(void);
 void nd6_defrouter_purge(struct ifnet *);
 void nd6_defrouter_timer(void);
 void nd6_defrouter_init(void);
-int nd6_prelist_add(struct nd_prefixctl *, struct nd_defrouter *,
-    struct nd_prefix **);
+int nd6_prelist_add(struct nd_prefixctl *, struct nd_prefix **);
 void nd6_prefix_unlink(struct nd_prefix *, struct nd_prhead *);
 void nd6_prefix_del(struct nd_prefix *);
 void nd6_prefix_ref(struct nd_prefix *);

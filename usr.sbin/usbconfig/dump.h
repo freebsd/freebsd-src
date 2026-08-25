@@ -28,6 +28,7 @@
 #ifndef _DUMP_H_
 #define	_DUMP_H_
 
+void	dump_vendors_init(void);
 const char *dump_mode(uint8_t value);
 const char *dump_speed(uint8_t value);
 const char *dump_power_mode(uint8_t value);

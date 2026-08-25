@@ -348,7 +348,10 @@ typedef enum {
  * Driver needs frames padded to some minimum length
  */
 #define IFLIB_NEED_ETHER_PAD	0x100
-#define	IFLIB_SPARE7		0x200
+/*
+ * Driver understands page/bank i2c reads
+ */
+#define	IFLIB_I2C_PAGE_BANK	0x200
 #define	IFLIB_SPARE6		0x400
 #define	IFLIB_SPARE5		0x800
 #define	IFLIB_SPARE4		0x1000
@@ -425,6 +428,11 @@ if_shared_ctx_t iflib_get_sctx(if_ctx_t ctx);
 
 void iflib_set_mac(if_ctx_t ctx, uint8_t mac[ETHER_ADDR_LEN]);
 void iflib_request_reset(if_ctx_t ctx);
+/* Defer a reset, but discard it if the interface is administratively down. */
+void iflib_request_reset_if_up(if_ctx_t ctx);
+
+/* Report an error from the otherwise void ifdi_init method while it runs. */
+void iflib_init_failed(if_ctx_t ctx);
 uint8_t iflib_in_detach(if_ctx_t ctx);
 
 uint32_t iflib_get_rx_mbuf_sz(if_ctx_t ctx);
@@ -447,7 +455,9 @@ int iflib_device_shutdown(device_t);
 int iflib_device_probe_vendor(device_t);
 
 int iflib_device_iov_init(device_t, uint16_t, const nvlist_t *);
+int iflib_device_iov_init_restart(device_t, uint16_t, const nvlist_t *);
 void iflib_device_iov_uninit(device_t);
+void iflib_device_iov_uninit_restart(device_t);
 int iflib_device_iov_add_vf(device_t, uint16_t, const nvlist_t *);
 
 /*
@@ -471,6 +481,7 @@ void iflib_irq_free(if_ctx_t ctx, if_irq_t irq);
 void iflib_io_tqg_attach(struct grouptask *gt, void *uniq, int cpu,
     const char *name);
 
+/* Configuration task callbacks must return when iflib_in_detach() is true. */
 void iflib_config_task_init(if_ctx_t ctx, struct task *config_task,
     task_fn_t *fn);
 void iflib_config_task_enqueue(if_ctx_t ctx, struct task *config_task);

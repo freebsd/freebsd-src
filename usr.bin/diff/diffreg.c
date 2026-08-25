@@ -542,6 +542,11 @@ opentemp(const char *f)
 			return (NULL);
 		}
 	}
+	if (nread == -1) {
+		close(ifd);
+		close(ofd);
+		return (NULL);
+	}
 	close(ifd);
 	lseek(ofd, (off_t)0, SEEK_SET);
 	return (fdopen(ofd, "r"));

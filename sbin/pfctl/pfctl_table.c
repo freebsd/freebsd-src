@@ -74,6 +74,17 @@ static const char	*istats_text[2][2][2] = {
 	{ { "In6/Pass:", "In6/Block:" }, { "Out6/Pass:", "Out6/Block:" } }
 };
 
+#define RETTEST(fct) do {						\
+		int _ret;						\
+		if ((!(opts & PF_OPT_NOACTION) ||			\
+		    (opts & PF_OPT_DUMMYACTION)) &&			\
+		    (_ret = (fct) != 0)) {				\
+			if ((opts & PF_OPT_RECURSE) == 0)		\
+				warnx("%s", pf_strerror(_ret));		\
+			goto _error;					\
+		}							\
+	} while (0)
+
 #define RVTEST(fct) do {						\
 		if ((!(opts & PF_OPT_NOACTION) ||			\
 		    (opts & PF_OPT_DUMMYACTION)) &&			\
@@ -85,14 +96,15 @@ static const char	*istats_text[2][2][2] = {
 	} while (0)
 
 #define CREATE_TABLE do {						\
+		int _ret;						\
 		warn_duplicate_tables(table.pfrt_name,			\
 		    table.pfrt_anchor);					\
 		table.pfrt_flags |= PFR_TFLAG_PERSIST;			\
 		if ((!(opts & PF_OPT_NOACTION) ||			\
 		    (opts & PF_OPT_DUMMYACTION)) &&			\
-		    (pfr_add_table(&table, &nadd, flags)) &&		\
-		    (errno != EPERM)) {					\
-			warnx("%s", pf_strerror(errno));		\
+		    (_ret = pfr_add_table(&table, &nadd, flags)) &&	\
+		    (_ret != EPERM)) {					\
+			warnx("%s", pf_strerror(_ret));			\
 			goto _error;					\
 		}							\
 		if (nadd) {						\
@@ -156,7 +168,7 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 	if (!strcmp(command, "-F")) {
 		if (argc || file != NULL)
 			usage();
-		RVTEST(pfctl_clear_tables(pfh, &table, &ndel, flags));
+		RETTEST(pfctl_clear_tables(pfh, &table, &ndel, flags));
 		xprintf(opts, "%d tables deleted", ndel);
 	} else if (!strcmp(command, "-s")) {
 		b.pfrb_type = (opts & PF_OPT_VERBOSE2) ?
@@ -191,12 +203,12 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 	} else if (!strcmp(command, "kill")) {
 		if (argc || file != NULL)
 			usage();
-		RVTEST(pfr_del_table(&table, &ndel, flags));
+		RETTEST(pfr_del_table(&table, &ndel, flags));
 		xprintf(opts, "%d table deleted", ndel);
 	} else if (!strcmp(command, "flush")) {
 		if (argc || file != NULL)
 			usage();
-		RVTEST(pfr_clr_addrs(&table, &ndel, flags));
+		RETTEST(pfr_clr_addrs(&table, &ndel, flags));
 		xprintf(opts, "%d addresses deleted", ndel);
 	} else if (!strcmp(command, "add")) {
 		b.pfrb_type = PFRB_ADDRS;
@@ -389,7 +401,7 @@ pfctl_table(int argc, char *argv[], char *tname, const char *command,
 					    opts & PF_OPT_USEDNS);
 	} else if (!strcmp(command, "zero")) {
 		flags |= PFR_FLAG_ADDRSTOO;
-		RVTEST(pfctl_clear_tstats(pfh, &table, &nzero, flags));
+		RETTEST(pfctl_clear_tstats(pfh, &table, &nzero, flags));
 		xprintf(opts, "%d table/stats cleared", nzero);
 	} else
 		warnx("pfctl_table: unknown command '%s'", command);

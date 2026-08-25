@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
@@ -574,13 +574,15 @@ adf_init_bank(struct adf_accel_dev *accel_dev,
 	      struct resource *csr_addr)
 {
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_hw_csr_ops *csr_ops = &hw_data->csr_info.csr_ops;
+	struct adf_hw_csr_info *csr_info = &hw_data->csr_info;
+	struct adf_hw_csr_ops *csr_ops = &csr_info->csr_ops;
 	struct adf_etr_ring_data *ring;
 	struct adf_etr_ring_data *tx_ring;
 	u32 i, coalesc_enabled = 0;
 	u8 num_rings_per_bank = hw_data->num_rings_per_bank;
 	u32 irq_mask = BIT(num_rings_per_bank) - 1;
 	u32 size = 0;
+	u32 num_rings_per_int_srcsel = csr_info->num_rings_per_int_srcsel;
 
 	explicit_bzero(bank, sizeof(*bank));
 	bank->bank_number = bank_num;
@@ -634,7 +636,11 @@ adf_init_bank(struct adf_accel_dev *accel_dev,
 	}
 
 	csr_ops->write_csr_int_flag(csr_addr, bank_num, irq_mask);
-	csr_ops->write_csr_int_srcsel(csr_addr, bank_num);
+	for (i = 0; i < num_rings_per_bank / num_rings_per_int_srcsel; i++)
+		csr_ops->write_csr_int_srcsel(csr_addr,
+					      bank_num,
+					      i,
+					      csr_ops->get_src_sel_mask());
 	return 0;
 err:
 	for (i = 0; i < num_rings_per_bank; i++) {

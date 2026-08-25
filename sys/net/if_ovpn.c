@@ -2188,6 +2188,9 @@ ovpn_transmit_to_peer(struct ifnet *ifp, struct mbuf *m,
 	else
 		ret = crypto_dispatch(crp);
 	if (ret) {
+		crypto_freereq(crp);
+		ovpn_peer_release_ref(peer, false);
+		m_freem(m);
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_out, 1);
 		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 	}
@@ -2517,6 +2520,7 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 
 	m = m_unshare(m, M_NOWAIT);
 	if (m == NULL) {
+		OVPN_RUNLOCK(sc);
 		OVPN_COUNTER_ADD(sc, nomem_data_pkts_in, 1);
 		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 		return (true);
@@ -2635,6 +2639,9 @@ ovpn_udp_input(struct mbuf *m, int off, struct inpcb *inp,
 	else
 		ret = crypto_dispatch(crp);
 	if (ret != 0) {
+		crypto_freereq(crp);
+		atomic_add_int(&sc->refcount, -1);
+		m_freem(m);
 		OVPN_COUNTER_ADD(sc, lost_data_pkts_in, 1);
 		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 	}
@@ -2846,8 +2853,18 @@ vnet_ovpn_init(const void *unused __unused)
 	};
 	V_ovpn_cloner = ifc_attach_cloner(ovpngroupname, &req);
 }
-VNET_SYSINIT(vnet_ovpn_init, SI_SUB_PSEUDO, SI_ORDER_ANY,
+VNET_SYSINIT(vnet_ovpn_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
     vnet_ovpn_init, NULL);
+
+static void
+vnet_ovpn_uninit(void)
+{
+
+	if (V_ovpn_cloner != NULL)
+		ifc_detach_cloner(V_ovpn_cloner);
+}
+VNET_SYSUNINIT(vnet_ovpn_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_ovpn_uninit, NULL);
 
 static int
 ovpn_prison_remove(void *obj, void *data __unused)
@@ -2890,12 +2907,6 @@ ovpnmodevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		if (ovpn_osd_jail_slot != 0)
 			osd_jail_deregister(ovpn_osd_jail_slot);
-		CURVNET_SET(vnet0);
-		if (V_ovpn_cloner != NULL) {
-			ifc_detach_cloner(V_ovpn_cloner);
-			V_ovpn_cloner = NULL;
-		}
-		CURVNET_RESTORE();
 		break;
 	default:
 		return (EOPNOTSUPP);
@@ -2910,6 +2921,6 @@ static moduledata_t ovpn_mod = {
 	0
 };
 
-DECLARE_MODULE(if_ovpn, ovpn_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(if_ovpn, ovpn_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
 MODULE_VERSION(if_ovpn, 1);
 MODULE_DEPEND(if_ovpn, crypto, 1, 1, 1);

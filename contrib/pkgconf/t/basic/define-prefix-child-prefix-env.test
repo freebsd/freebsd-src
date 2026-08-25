@@ -1,0 +1,5 @@
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1/child-prefix/pkgconfig
+Environment: PKG_CONFIG_RELOCATE_PATHS=1
+WantedFlags: cflags libs
+Query: child-prefix-1
+ExpectedStdout: -I%TEST_FIXTURES_DIR%/lib1/include/child-prefix-1 -L%TEST_FIXTURES_DIR%/lib1/lib64 -lchild-prefix-1

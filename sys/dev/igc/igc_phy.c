@@ -143,7 +143,7 @@ s32 igc_get_phy_id(struct igc_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	phy->id = (u32)(phy_id << 16);
+	phy->id = (u32)phy_id << 16;
 	usec_delay(200);
 	ret_val = phy->ops.read_reg(hw, PHY_ID2, &phy_id);
 	if (ret_val)
@@ -802,7 +802,8 @@ s32 igc_phy_has_link_generic(struct igc_hw *hw, u32 iterations,
 			       u32 usec_interval, bool *success)
 {
 	s32 ret_val = IGC_SUCCESS;
-	u16 i, phy_status;
+	u16 phy_status;
+	u32 i;
 
 	DEBUGFUNC("igc_phy_has_link_generic");
 
@@ -905,10 +906,15 @@ s32 igc_phy_hw_reset_generic(struct igc_hw *hw)
  **/
 void igc_power_up_phy_copper(struct igc_hw *hw)
 {
+	s32 ret_val;
 	u16 mii_reg = 0;
 
 	/* The PHY will retain its settings across a power down/up cycle */
-	hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
+	ret_val = hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
+	if (ret_val) {
+		DEBUGOUT("Error reading PHY control register\n");
+		return;
+	}
 	mii_reg &= ~MII_CR_POWER_DOWN;
 	hw->phy.ops.write_reg(hw, PHY_CONTROL, mii_reg);
 	usec_delay(300);
@@ -924,10 +930,15 @@ void igc_power_up_phy_copper(struct igc_hw *hw)
  **/
 void igc_power_down_phy_copper(struct igc_hw *hw)
 {
+	s32 ret_val;
 	u16 mii_reg = 0;
 
 	/* The PHY will retain its settings across a power down/up cycle */
-	hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
+	ret_val = hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
+	if (ret_val) {
+		DEBUGOUT("Error reading PHY control register\n");
+		return;
+	}
 	mii_reg |= MII_CR_POWER_DOWN;
 	hw->phy.ops.write_reg(hw, PHY_CONTROL, mii_reg);
 	msec_delay(1);

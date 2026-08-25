@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 #include <assert.h>
 #include <stdatomic.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,7 +44,110 @@
  * especially useful for the smaller integer types, as it may be the
  * case that these operations are implemented by processing entire words
  * (e.g. on MIPS).
+ *
+ * Before the randomised loop, a small surface check exercises lock-free
+ * macros, fences, atomic_flag, atomic_bool, pointer fetch_add/fetch_sub
+ * stride, kill_dependency, atomic_is_lock_free, and when available
+ * ATOMIC_VAR_INIT / ATOMIC_FLAG_INIT (pre-C23).
  */
+
+#define	CHECK_LOCK_FREE(name)						\
+	_Static_assert((name) == 0 || (name) == 1 || (name) == 2,	\
+	    #name " out of range")
+
+CHECK_LOCK_FREE(ATOMIC_BOOL_LOCK_FREE);
+CHECK_LOCK_FREE(ATOMIC_CHAR_LOCK_FREE);
+CHECK_LOCK_FREE(ATOMIC_SHORT_LOCK_FREE);
+CHECK_LOCK_FREE(ATOMIC_INT_LOCK_FREE);
+CHECK_LOCK_FREE(ATOMIC_LONG_LOCK_FREE);
+CHECK_LOCK_FREE(ATOMIC_LLONG_LOCK_FREE);
+CHECK_LOCK_FREE(ATOMIC_POINTER_LOCK_FREE);
+#ifdef ATOMIC_CHAR8_T_LOCK_FREE
+CHECK_LOCK_FREE(ATOMIC_CHAR8_T_LOCK_FREE);
+#endif
+#ifdef ATOMIC_CHAR16_T_LOCK_FREE
+CHECK_LOCK_FREE(ATOMIC_CHAR16_T_LOCK_FREE);
+#endif
+#ifdef ATOMIC_CHAR32_T_LOCK_FREE
+CHECK_LOCK_FREE(ATOMIC_CHAR32_T_LOCK_FREE);
+#endif
+#ifdef ATOMIC_WCHAR_T_LOCK_FREE
+CHECK_LOCK_FREE(ATOMIC_WCHAR_T_LOCK_FREE);
+#endif
+
+#if defined(__STDC_VERSION_STDATOMIC_H__)
+_Static_assert(__STDC_VERSION_STDATOMIC_H__ == 202311L,
+    "__STDC_VERSION_STDATOMIC_H__");
+#endif
+
+static void
+test_surface(void)
+{
+	atomic_flag f = ATOMIC_FLAG_INIT;
+	atomic_int probe;
+	atomic_bool b;
+	_Atomic(int *) ap;
+	int arr[4];
+	int dep;
+	static const memory_order k_orders[] = {
+		memory_order_relaxed,
+		memory_order_consume,
+		memory_order_acquire,
+		memory_order_release,
+		memory_order_acq_rel,
+		memory_order_seq_cst,
+	};
+	size_t k;
+
+	dep = kill_dependency(123);
+	assert(dep == 123);
+
+	atomic_init(&probe, 0);
+	assert(atomic_is_lock_free(&probe) ==
+	    atomic_is_lock_free((atomic_int *)NULL));
+
+	for (k = 0; k < sizeof(k_orders) / sizeof(k_orders[0]); k++) {
+		atomic_thread_fence(k_orders[k]);
+		atomic_signal_fence(k_orders[k]);
+	}
+
+	assert(atomic_flag_test_and_set_explicit(&f,
+	    memory_order_seq_cst) == 0);
+	assert(atomic_flag_test_and_set_explicit(&f,
+	    memory_order_acquire) != 0);
+	atomic_flag_clear_explicit(&f, memory_order_relaxed);
+
+	atomic_init(&b, false);
+	atomic_store_explicit(&b, true, memory_order_relaxed);
+	assert(atomic_load_explicit(&b, memory_order_relaxed) == true);
+
+	memset(arr, 0, sizeof(arr));
+	atomic_init(&ap, &arr[3]);
+	atomic_fetch_sub_explicit(&ap, 2, memory_order_relaxed);
+	assert(ap == &arr[1]);
+	atomic_fetch_add_explicit(&ap, 1, memory_order_relaxed);
+	assert(ap == &arr[2]);
+}
+
+#ifdef ATOMIC_VAR_INIT
+static void
+test_atomic_var_init(void)
+{
+	atomic_int x = ATOMIC_VAR_INIT(42);
+
+	assert(atomic_load_explicit(&x, memory_order_relaxed) == 42);
+	atomic_store_explicit(&x, 7, memory_order_relaxed);
+	assert(atomic_load_explicit(&x, memory_order_relaxed) == 7);
+
+	{
+		atomic_flag f = ATOMIC_FLAG_INIT;
+
+		assert(atomic_flag_test_and_set_explicit(&f,
+		    memory_order_seq_cst) == 0);
+		atomic_flag_clear_explicit(&f, memory_order_relaxed);
+	}
+}
+#endif
 
 static inline intmax_t
 rndnum(void)
@@ -111,6 +216,10 @@ main(void)
 {
 	int i;
 
+	test_surface();
+#ifdef ATOMIC_VAR_INIT
+	test_atomic_var_init();
+#endif
 	for (i = 0; i < 1000; i++) {
 		TEST_TYPE(int8_t);
 		TEST_TYPE(uint8_t);

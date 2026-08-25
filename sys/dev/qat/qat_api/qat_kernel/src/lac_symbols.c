@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 /******************************************************************************
  * @file lac_symbols.c
  *
@@ -69,5 +69,9 @@ EXPORT_SYMBOL(icp_sal_pollAllBanks);
 EXPORT_SYMBOL(icp_sal_iommu_get_remap_size);
 EXPORT_SYMBOL(icp_sal_iommu_map);
 EXPORT_SYMBOL(icp_sal_iommu_unmap);
+
+/* Device symbols */
+EXPORT_SYMBOL(cpaGetNumDevices);
+EXPORT_SYMBOL(cpaGetDeviceInfo);
 
 EXPORT_SYMBOL(icp_sal_get_dc_error);

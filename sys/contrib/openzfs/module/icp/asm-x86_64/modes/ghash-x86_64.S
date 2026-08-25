@@ -95,70 +95,13 @@
 # and modified for ICP. Modification are kept at a bare minimum to ease later
 # upstream merges.
 
-#if defined(__x86_64__) && defined(HAVE_AVX) && \
-    defined(HAVE_AES) && defined(HAVE_PCLMULQDQ)
+#if defined(__x86_64__) && HAVE_SIMD(AVX) && \
+    HAVE_SIMD(AES) && HAVE_SIMD(PCLMULQDQ)
 
 #define _ASM
 #include <sys/asm_linkage.h>
 
 .text
-
-/* Windows userland links with OpenSSL */
-#if !defined (_WIN32) || defined (_KERNEL)
-ENTRY_ALIGN(gcm_gmult_clmul, 16)
-
-.cfi_startproc
-	ENDBR
-
-.L_gmult_clmul:
-	movdqu	(%rdi),%xmm0
-	movdqa	.Lbswap_mask(%rip),%xmm5
-	movdqu	(%rsi),%xmm2
-	movdqu	32(%rsi),%xmm4
-.byte	102,15,56,0,197
-	movdqa	%xmm0,%xmm1
-	pshufd	$78,%xmm0,%xmm3
-	pxor	%xmm0,%xmm3
-.byte	102,15,58,68,194,0
-.byte	102,15,58,68,202,17
-.byte	102,15,58,68,220,0
-	pxor	%xmm0,%xmm3
-	pxor	%xmm1,%xmm3
-
-	movdqa	%xmm3,%xmm4
-	psrldq	$8,%xmm3
-	pslldq	$8,%xmm4
-	pxor	%xmm3,%xmm1
-	pxor	%xmm4,%xmm0
-
-	movdqa	%xmm0,%xmm4
-	movdqa	%xmm0,%xmm3
-	psllq	$5,%xmm0
-	pxor	%xmm0,%xmm3
-	psllq	$1,%xmm0
-	pxor	%xmm3,%xmm0
-	psllq	$57,%xmm0
-	movdqa	%xmm0,%xmm3
-	pslldq	$8,%xmm0
-	psrldq	$8,%xmm3
-	pxor	%xmm4,%xmm0
-	pxor	%xmm3,%xmm1
-
-
-	movdqa	%xmm0,%xmm4
-	psrlq	$1,%xmm0
-	pxor	%xmm4,%xmm1
-	pxor	%xmm0,%xmm4
-	psrlq	$5,%xmm0
-	pxor	%xmm4,%xmm0
-	psrlq	$1,%xmm0
-	pxor	%xmm1,%xmm0
-.byte	102,15,56,0,197
-	movdqu	%xmm0,(%rdi)
-	RET
-.cfi_endproc
-SET_SIZE(gcm_gmult_clmul)
-#endif /* !_WIN32 || _KERNEL */
 
 ENTRY_ALIGN(gcm_init_htab_avx, 32)
 .cfi_startproc
@@ -272,13 +215,6 @@ ENTRY_ALIGN(gcm_init_htab_avx, 32)
 SET_SIZE(gcm_init_htab_avx)
 
 #if !defined (_WIN32) || defined (_KERNEL)
-ENTRY_ALIGN(gcm_gmult_avx, 32)
-.cfi_startproc
-	ENDBR
-	jmp	.L_gmult_clmul
-.cfi_endproc
-SET_SIZE(gcm_gmult_avx)
-
 ENTRY_ALIGN(gcm_ghash_avx, 32)
 .cfi_startproc
 	ENDBR
@@ -718,4 +654,4 @@ SET_OBJ(.Lrem_8bit)
 .section .note.GNU-stack,"",%progbits
 #endif
 
-#endif /* defined(__x86_64__) && defined(HAVE_AVX) && defined(HAVE_AES) ... */
+#endif /* defined(__x86_64__) && HAVE_SIMD(AVX) && HAVE_SIMD(AES) ... */

@@ -94,3 +94,7 @@ floorl(long double x)
 	}
 	return (u.e);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(floorl, floorf128);
+#endif

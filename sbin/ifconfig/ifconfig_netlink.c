@@ -492,4 +492,3 @@ list_interfaces_nl(struct ifconfig_args *args)
 	close(ctx->io_s);
 	snl_free(&ss);
 }
-

@@ -26,6 +26,8 @@
  * SUCH DAMAGE.
  */
 
+#if __STDC_VERSION__ < 202311L
+
 #ifndef __alignas_is_defined
 #define	__alignas_is_defined	1
 
@@ -45,3 +47,5 @@
 #endif
 
 #endif /* !__alignof_is_defined */
+
+#endif /* __STDC_VERSION__ < 202311L */

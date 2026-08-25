@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+WantedFlags: list
+ExpectedStdout: multiline
+ExpectedStdout: description
+MatchStdout: partial

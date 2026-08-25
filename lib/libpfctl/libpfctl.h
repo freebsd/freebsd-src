@@ -406,6 +406,7 @@ struct pfctl_state {
 	char			 rt_ifname[IFNAMSIZ];
 	sa_family_t		 rt_af;
 	uint8_t			 src_node_flags;
+	struct pfctl_rule	 created_by_rule;
 };
 
 TAILQ_HEAD(pfctl_statelist, pfctl_state);
@@ -504,6 +505,7 @@ struct pfctl_state_filter {
 	sa_family_t		af;
 	struct pf_addr		addr;
 	struct pf_addr		mask;
+	bool			include_rule;
 };
 typedef int (*pfctl_get_state_fn)(struct pfctl_state *, void *);
 int pfctl_get_states_iter(pfctl_get_state_fn f, void *arg);

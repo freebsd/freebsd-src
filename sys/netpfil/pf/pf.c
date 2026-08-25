@@ -798,11 +798,11 @@ SYSCTL_NODE(_net, OID_AUTO, pf, CTLFLAG_RW | CTLFLAG_MPSAFE, 0,
 VNET_DEFINE(u_long, pf_hashmask);
 VNET_DEFINE(u_long, pf_srchashmask);
 VNET_DEFINE(u_long, pf_udpendpointhashmask);
-VNET_DEFINE_STATIC(u_long, pf_hashsize);
+VNET_DEFINE_STATIC(u_long, pf_hashsize) = PF_HASHSIZ;
 #define V_pf_hashsize	VNET(pf_hashsize)
-VNET_DEFINE_STATIC(u_long, pf_srchashsize);
+VNET_DEFINE_STATIC(u_long, pf_srchashsize) = PF_SRCHASHSIZ;
 #define V_pf_srchashsize	VNET(pf_srchashsize)
-VNET_DEFINE_STATIC(u_long, pf_udpendpointhashsize);
+VNET_DEFINE_STATIC(u_long, pf_udpendpointhashsize) = PF_UDPENDHASHSIZ;
 #define V_pf_udpendpointhashsize	VNET(pf_udpendpointhashsize)
 u_long	pf_ioctl_maxcount = 65535;
 
@@ -1429,18 +1429,13 @@ pf_mtag_initialize(void)
 void
 pf_initialize(void)
 {
-	struct pf_keyhash	*kh;
-	struct pf_idhash	*ih;
-	struct pf_srchash	*sh;
-	struct pf_udpendpointhash	*uh;
-	u_int i;
-
-	if (V_pf_hashsize == 0 || !powerof2(V_pf_hashsize))
-		V_pf_hashsize = PF_HASHSIZ;
-	if (V_pf_srchashsize == 0 || !powerof2(V_pf_srchashsize))
-		V_pf_srchashsize = PF_SRCHASHSIZ;
-	if (V_pf_udpendpointhashsize == 0 || !powerof2(V_pf_udpendpointhashsize))
-		V_pf_udpendpointhashsize = PF_UDPENDHASHSIZ;
+	struct hashalloc_args ha = {
+		.mflags = M_NOWAIT,	/* see bf56a3fe47ef4 and bug 209475  */
+		.mtype = M_PFHASH,
+		.type = HASH_TYPE_POWER2,
+		.head = HASH_HEAD_LIST,
+		.lock = HASH_LOCK_MTX,
+	};
 
 	V_pf_hashseed = arc4random();
 
@@ -1450,35 +1445,28 @@ pf_initialize(void)
 	V_pf_limits[PF_LIMIT_STATES].zone = V_pf_state_z;
 	uma_zone_set_max(V_pf_state_z, PFSTATE_HIWAT);
 	uma_zone_set_warning(V_pf_state_z, "PF states limit reached");
-
 	V_pf_state_key_z = uma_zcreate("pf state keys",
 	    sizeof(struct pf_state_key), pf_state_key_ctor, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
-
-	V_pf_keyhash = mallocarray(V_pf_hashsize, sizeof(struct pf_keyhash),
-	    M_PFHASH, M_NOWAIT | M_ZERO);
-	V_pf_idhash = mallocarray(V_pf_hashsize, sizeof(struct pf_idhash),
-	    M_PFHASH, M_NOWAIT | M_ZERO);
+retry_waitok:
+	ha.size = V_pf_hashsize;
+	ha.lname = "pf_keyhash";
+	ha.lopts = MTX_DEF | MTX_DUPOK;
+	V_pf_keyhash = hashalloc(&ha);
+	ha.lname = "pf_idhash";
+	ha.lopts = MTX_DEF;
+	V_pf_idhash = hashalloc(&ha);
 	if (V_pf_keyhash == NULL || V_pf_idhash == NULL) {
 		printf("pf: Unable to allocate memory for "
 		    "state_hashsize %lu.\n", V_pf_hashsize);
-
-		free(V_pf_keyhash, M_PFHASH);
-		free(V_pf_idhash, M_PFHASH);
-
+		hashfree(V_pf_keyhash, &ha);
+		hashfree(V_pf_idhash, &ha);
 		V_pf_hashsize = PF_HASHSIZ;
-		V_pf_keyhash = mallocarray(V_pf_hashsize,
-		    sizeof(struct pf_keyhash), M_PFHASH, M_WAITOK | M_ZERO);
-		V_pf_idhash = mallocarray(V_pf_hashsize,
-		    sizeof(struct pf_idhash), M_PFHASH, M_WAITOK | M_ZERO);
+		ha.mflags = M_WAITOK;
+		goto retry_waitok;
 	}
-
+	V_pf_hashsize = ha.size;
 	V_pf_hashmask = V_pf_hashsize - 1;
-	for (i = 0, kh = V_pf_keyhash, ih = V_pf_idhash; i <= V_pf_hashmask;
-	    i++, kh++, ih++) {
-		mtx_init(&kh->lock, "pf_keyhash", NULL, MTX_DEF | MTX_DUPOK);
-		mtx_init(&ih->lock, "pf_idhash", NULL, MTX_DEF);
-	}
 
 	/* Source nodes. */
 	V_pf_sources_z = uma_zcreate("pf source nodes",
@@ -1487,45 +1475,41 @@ pf_initialize(void)
 	V_pf_limits[PF_LIMIT_SRC_NODES].zone = V_pf_sources_z;
 	uma_zone_set_max(V_pf_sources_z, PFSNODE_HIWAT);
 	uma_zone_set_warning(V_pf_sources_z, "PF source nodes limit reached");
-
-	V_pf_srchash = mallocarray(V_pf_srchashsize,
-	    sizeof(struct pf_srchash), M_PFHASH, M_NOWAIT | M_ZERO);
+	ha.size = V_pf_srchashsize;
+	ha.lname = "pf_srchash";
+	ha.lopts = MTX_DEF;
+	ha.mflags = M_NOWAIT;
+retry_waitok2:
+	V_pf_srchash = hashalloc(&ha);
 	if (V_pf_srchash == NULL) {
 		printf("pf: Unable to allocate memory for "
 		    "source_hashsize %lu.\n", V_pf_srchashsize);
-
-		V_pf_srchashsize = PF_SRCHASHSIZ;
-		V_pf_srchash = mallocarray(V_pf_srchashsize,
-		    sizeof(struct pf_srchash), M_PFHASH, M_WAITOK | M_ZERO);
+		ha.size = PF_SRCHASHSIZ;
+		ha.mflags = M_WAITOK;
+		goto retry_waitok2;
 	}
-
+	V_pf_srchashmask = ha.size;
 	V_pf_srchashmask = V_pf_srchashsize - 1;
-	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask; i++, sh++)
-		mtx_init(&sh->lock, "pf_srchash", NULL, MTX_DEF);
-
 
 	/* UDP endpoint mappings. */
 	V_pf_udp_mapping_z = uma_zcreate("pf UDP mappings",
 	    sizeof(struct pf_udp_mapping), NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
-	V_pf_udpendpointhash = mallocarray(V_pf_udpendpointhashsize,
-	    sizeof(struct pf_udpendpointhash), M_PFHASH, M_NOWAIT | M_ZERO);
+	ha.size = V_pf_udpendpointhashsize;
+	ha.lname = "pf_udpendpointhash";
+	ha.lopts = MTX_DEF | MTX_DUPOK;
+	ha.mflags = M_NOWAIT;
+retry_waitok3:
+	V_pf_udpendpointhash = hashalloc(&ha);
 	if (V_pf_udpendpointhash == NULL) {
 		printf("pf: Unable to allocate memory for "
 		    "udpendpoint_hashsize %lu.\n", V_pf_udpendpointhashsize);
-
-		V_pf_udpendpointhashsize = PF_UDPENDHASHSIZ;
-		V_pf_udpendpointhash = mallocarray(V_pf_udpendpointhashsize,
-		    sizeof(struct pf_udpendpointhash), M_PFHASH, M_WAITOK | M_ZERO);
+		ha.size = PF_UDPENDHASHSIZ;
+		ha.mflags = M_WAITOK;
+		goto retry_waitok3;
 	}
-
+	V_pf_udpendpointhashsize = ha.size;
 	V_pf_udpendpointhashmask = V_pf_udpendpointhashsize - 1;
-	for (i = 0, uh = V_pf_udpendpointhash;
-	    i <= V_pf_udpendpointhashmask;
-	    i++, uh++) {
-		mtx_init(&uh->lock, "pf_udpendpointhash", NULL,
-		    MTX_DEF | MTX_DUPOK);
-	}
 
 	/* Anchors */
 	V_pf_anchor_z = uma_zcreate("pf anchors",
@@ -1590,41 +1574,20 @@ pf_mtag_cleanup(void)
 void
 pf_cleanup(void)
 {
-	struct pf_keyhash	*kh;
-	struct pf_idhash	*ih;
-	struct pf_srchash	*sh;
-	struct pf_udpendpointhash	*uh;
+	struct hashalloc_args ha = {
+		.size = V_pf_hashsize,
+		.mtype = M_PFHASH,
+		.head = HASH_HEAD_LIST,
+		.lock = HASH_LOCK_MTX,
+	};
 	struct pf_send_entry	*pfse, *next;
-	u_int i;
 
-	for (i = 0, kh = V_pf_keyhash, ih = V_pf_idhash;
-	    i <= V_pf_hashmask;
-	    i++, kh++, ih++) {
-		KASSERT(LIST_EMPTY(&kh->keys), ("%s: key hash not empty",
-		    __func__));
-		KASSERT(LIST_EMPTY(&ih->states), ("%s: id hash not empty",
-		    __func__));
-		mtx_destroy(&kh->lock);
-		mtx_destroy(&ih->lock);
-	}
-	free(V_pf_keyhash, M_PFHASH);
-	free(V_pf_idhash, M_PFHASH);
-
-	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask; i++, sh++) {
-		KASSERT(LIST_EMPTY(&sh->nodes),
-		    ("%s: source node hash not empty", __func__));
-		mtx_destroy(&sh->lock);
-	}
-	free(V_pf_srchash, M_PFHASH);
-
-	for (i = 0, uh = V_pf_udpendpointhash;
-	    i <= V_pf_udpendpointhashmask;
-	    i++, uh++) {
-		KASSERT(LIST_EMPTY(&uh->endpoints),
-		    ("%s: udp endpoint hash not empty", __func__));
-		mtx_destroy(&uh->lock);
-	}
-	free(V_pf_udpendpointhash, M_PFHASH);
+	hashfree(V_pf_keyhash, &ha);
+	hashfree(V_pf_idhash, &ha);
+	ha.size = V_pf_srchashsize;
+	hashfree(V_pf_srchash, &ha);
+	ha.size = V_pf_udpendpointhashsize;
+	hashfree(V_pf_udpendpointhash, &ha);
 
 	STAILQ_FOREACH_SAFE(pfse, &V_pf_sendqueue, pfse_next, next) {
 		m_freem(pfse->pfse_m);
@@ -2025,14 +1988,14 @@ pf_state_key_setup(struct pf_pdesc *pd, u_int16_t sport, u_int16_t dport,
 	(*sk)->proto = pd->proto;
 	(*sk)->af = pd->af;
 
-	*nk = pf_state_key_clone(*sk);
-	if (*nk == NULL) {
-		uma_zfree(V_pf_state_key_z, *sk);
-		*sk = NULL;
-		return (ENOMEM);
-	}
-
 	if (pd->af != pd->naf) {
+		*nk = pf_state_key_clone(*sk);
+		if (*nk == NULL) {
+			uma_zfree(V_pf_state_key_z, *sk);
+			*sk = NULL;
+			return (ENOMEM);
+		}
+
 		(*sk)->port[pd->sidx] = pd->osport;
 		(*sk)->port[pd->didx] = pd->odport;
 
@@ -2070,6 +2033,8 @@ pf_state_key_setup(struct pf_pdesc *pd, u_int16_t sport, u_int16_t dport,
 		default:
 			(*nk)->proto = pd->proto;
 		}
+	} else {
+		*nk = *sk;
 	}
 
 	return (0);
@@ -3171,14 +3136,23 @@ pf_remove_state(struct pf_kstate *s)
 		case PF_STATE_LINK_TYPE_SOURCELIM: {
 			struct pf_sourcelim *srlim;
 			struct pf_source key, *sr;
+			int sidx, kidx;
+
+			if (s->direction == PF_IN) {
+				sidx = 0;
+				kidx = PF_SK_WIRE;
+			} else {
+				sidx = 1;
+				kidx = PF_SK_STACK;
+			}
 
 			srlim = pf_sourcelim_find(s->sourcelim);
 			KASSERT(srlim != NULL,
 			    ("pf_state %p pfl %p cannot find sourcelim %u", s,
 			    pfl, s->sourcelim));
 
-			pf_source_key(srlim, &key, s->key[PF_SK_WIRE]->af,
-			    &s->key[PF_SK_WIRE]->addr[0 /* XXX or 1? */]);
+			pf_source_key(srlim, &key, s->key[kidx]->af,
+			    &s->key[kidx]->addr[sidx]);
 
 			sr = pf_source_find(srlim, &key);
 			KASSERT(sr != NULL,
@@ -6623,7 +6597,8 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 		}
 	} else {
 		uma_zfree(V_pf_state_key_z, ctx.sk);
-		uma_zfree(V_pf_state_key_z, ctx.nk);
+		if (ctx.sk != ctx.nk)
+			uma_zfree(V_pf_state_key_z, ctx.nk);
 		ctx.sk = ctx.nk = NULL;
 		pf_udp_mapping_release(ctx.udp_mapping);
 	}
@@ -6650,7 +6625,8 @@ pf_test_rule(struct pf_krule **rm, struct pf_kstate **sm,
 
 cleanup:
 	uma_zfree(V_pf_state_key_z, ctx.sk);
-	uma_zfree(V_pf_state_key_z, ctx.nk);
+	if (ctx.sk != ctx.nk)
+		uma_zfree(V_pf_state_key_z, ctx.nk);
 	pf_udp_mapping_release(ctx.udp_mapping);
 	*reason = ctx.reason;
 
@@ -6986,7 +6962,8 @@ pf_create_state(struct pf_krule *r, struct pf_test_ctx *ctx,
 
 csfailed:
 	uma_zfree(V_pf_state_key_z, ctx->sk);
-	uma_zfree(V_pf_state_key_z, ctx->nk);
+	if (ctx->sk != ctx->nk)
+		uma_zfree(V_pf_state_key_z, ctx->nk);
 
 	for (pf_sn_types_t sn_type=0; sn_type<PF_SN_MAX; sn_type++) {
 		if (pf_src_node_exists(&sns[sn_type], snhs[sn_type])) {
@@ -8390,7 +8367,7 @@ again:
 }
 
 static int
-pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op)
+pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op, bool asconf)
 {
 	int			 off = 0;
 	struct pf_sctp_multihome_job	*job;
@@ -8495,13 +8472,19 @@ pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op)
 			int ret;
 			struct sctp_asconf_paramhdr ah;
 
+			if (asconf)
+				return (PF_DROP);
+
 			if (!pf_pull_hdr(pd->m, start + off, &ah, sizeof(ah),
 			    NULL, pd->af))
 				return (PF_DROP);
 
+			if (ntohs(ah.ph.param_length) < sizeof(ah))
+				return (PF_DROP);
+
 			ret = pf_multihome_scan(start + off + sizeof(ah),
 			    ntohs(ah.ph.param_length) - sizeof(ah), pd,
-			    SCTP_ADD_IP_ADDRESS);
+			    SCTP_ADD_IP_ADDRESS, true);
 			if (ret != PF_PASS)
 				return (ret);
 			break;
@@ -8510,12 +8493,19 @@ pf_multihome_scan(int start, int len, struct pf_pdesc *pd, int op)
 			int ret;
 			struct sctp_asconf_paramhdr ah;
 
+			if (asconf)
+				return (PF_DROP);
+
 			if (!pf_pull_hdr(pd->m, start + off, &ah, sizeof(ah),
 			    NULL, pd->af))
 				return (PF_DROP);
+
+			if (ntohs(ah.ph.param_length) < sizeof(ah))
+				return (PF_DROP);
+
 			ret = pf_multihome_scan(start + off + sizeof(ah),
 			    ntohs(ah.ph.param_length) - sizeof(ah), pd,
-			    SCTP_DEL_IP_ADDRESS);
+			    SCTP_DEL_IP_ADDRESS, true);
 			if (ret != PF_PASS)
 				return (ret);
 			break;
@@ -8536,7 +8526,7 @@ pf_multihome_scan_init(int start, int len, struct pf_pdesc *pd)
 	start += sizeof(struct sctp_init_chunk);
 	len -= sizeof(struct sctp_init_chunk);
 
-	return (pf_multihome_scan(start, len, pd, SCTP_ADD_IP_ADDRESS));
+	return (pf_multihome_scan(start, len, pd, SCTP_ADD_IP_ADDRESS, false));
 }
 
 int
@@ -8545,7 +8535,7 @@ pf_multihome_scan_asconf(int start, int len, struct pf_pdesc *pd)
 	start += sizeof(struct sctp_asconf_chunk);
 	len -= sizeof(struct sctp_asconf_chunk);
 
-	return (pf_multihome_scan(start, len, pd, SCTP_ADD_IP_ADDRESS));
+	return (pf_multihome_scan(start, len, pd, SCTP_ADD_IP_ADDRESS, false));
 }
 
 int
@@ -10005,6 +9995,21 @@ pf_route(struct pf_krule *r, struct ifnet *oifp,
 	}
 
 	/*
+	 * If the output interface does not accept unmapped mbufs, convert
+	 * them to mapped mbufs.
+	 */
+	if ((ifp->if_capenable & IFCAP_MEXTPG) == 0) {
+		error = mb_unmapped_to_ext(m0, &md);
+		if (error)
+			goto done;
+		/*
+		 * The first mbuf should not be reallocated because it is
+		 * always mapped.
+		 */
+		MPASS(m0 == md);
+	}
+
+	/*
 	 * If small enough for interface, or the interface will take
 	 * care of the fragmentation for us, we can just send directly.
 	 */
@@ -10345,6 +10350,11 @@ pf_route6(struct pf_krule *r, struct ifnet *oifp,
 	}
 
 	if ((u_long)m0->m_pkthdr.len <= ifp->if_mtu) {
+		if ((ifp->if_capenable & IFCAP_MEXTPG) == 0) {
+			if (mb_unmapped_to_ext(m0, &md) != 0)
+				goto done;
+			MPASS(m0 == md);
+		}
 		md = m0;
 		pf_dummynet_route(pd, s, r, ifp, sintosa(&dst), &md);
 		if (md != NULL) {
@@ -11568,10 +11578,6 @@ pf_counters_inc(int action, struct pf_pdesc *pd, struct pf_kstate *s,
 		}
 	}
 
-	if (s == NULL) {
-		pf_free_match_rules(mr);
-	}
-
 	if (a != NULL) {
 		pf_rule_counters_inc(pd, a, dir_out, op_r_pass, af,
 		    src_host, dst_host);
@@ -11583,6 +11589,10 @@ pf_counters_inc(int action, struct pf_pdesc *pd, struct pf_kstate *s,
 	}
 
 	pf_counter_u64_critical_exit();
+
+	if (s == NULL) {
+		pf_free_match_rules(mr);
+	}
 }
 
 static void
@@ -11609,6 +11619,7 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 {
 	struct pfi_kkif		*kif;
 	u_short			 action, reason = 0;
+	struct mbuf		*m;
 	struct m_tag		*mtag;
 	struct pf_krule		*a = NULL, *r = &V_pf_default_rule;
 	struct pf_kstate	*s = NULL;
@@ -11644,6 +11655,12 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 	}
 
 	if (__predict_false(! M_WRITABLE(*m0))) {
+		/* Need to convert unmapped mbufs before calling m_unshare(). */
+		if (mb_unmapped_to_ext(*m0, &m) != 0) {
+			*m0 = NULL;
+			return (PF_DROP);
+		}
+		MPASS(*m0 == m);
 		*m0 = m_unshare(*m0, M_NOWAIT);
 		if (*m0 == NULL) {
 			return (PF_DROP);
@@ -11663,6 +11680,14 @@ pf_test(sa_family_t af, int dir, int pflags, struct ifnet *ifp, struct mbuf **m0
 			*m0 = NULL;
 			return (PF_PASS);
 		}
+
+		/*
+		 * No need to call mb_unmapped_to_ext() here because it had
+		 * already been called in pf_route()/pf_route6() and dummynet
+		 * re-injected this packet.
+		 */
+
+		M_ASSERTMAPPED(*m0);
 		(ifp->if_output)(ifp, *m0, sintosa(&pd.pf_mtag->dst), NULL);
 		*m0 = NULL;
 		return (PF_PASS);
@@ -11990,7 +12015,7 @@ done:
 					pd.m->m_flags &= ~M_FASTFWD_OURS;
 				}
 			}
-			ip_divert_ptr(*m0, dir == PF_IN);
+			ip_divert_ptr(*m0, s != NULL ? s->id : 0, dir == PF_IN);
 			*m0 = NULL;
 			return (action);
 		} else if (mtag == NULL) {

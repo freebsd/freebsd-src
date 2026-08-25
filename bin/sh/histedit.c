@@ -233,7 +233,7 @@ sethistsize(const char *hs)
 
 	if (hist != NULL) {
 		if (hs == NULL || !is_number(hs))
-			histsize = 100;
+			histsize = 128;
 		else
 			histsize = atoi(hs);
 		history(hist, &he, H_SETSIZE, histsize);

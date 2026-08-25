@@ -1,0 +1,5 @@
+Tool: pkgconf
+ToolArgs: --with-path=%TEST_FIXTURES_DIR%/lib1 --cflags top-builddir
+Environment: PKG_CONFIG_TOP_BUILD_DIR=/my/build
+ExpectedStdout: -I/my/build/include
+ExpectedExitCode: 0

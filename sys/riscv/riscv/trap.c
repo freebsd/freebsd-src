@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2015-2018 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2015-2026 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Portions of this software were developed by SRI International and the
@@ -62,6 +62,8 @@
 #include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/pcpu.h>
+#include <machine/vector.h>
+#include <machine/md_var.h>
 
 #include <machine/resource.h>
 
@@ -441,6 +443,17 @@ do_trap_user(struct trapframe *frame)
 			frame->tf_sstatus &= ~SSTATUS_FS_MASK;
 			frame->tf_sstatus |= SSTATUS_FS_CLEAN;
 			pcb->pcb_fpflags |= PCB_FP_STARTED;
+			break;
+		}
+		if (has_vector && (pcb->pcb_vsflags & PCB_VS_STARTED) == 0) {
+			/*
+			 * Could be a vector trap. Enable VS usage
+			 * for this thread and try again.
+			 */
+			vector_state_init(td);
+			frame->tf_sstatus &= ~SSTATUS_VS_MASK;
+			frame->tf_sstatus |= SSTATUS_VS_CLEAN;
+			pcb->pcb_vsflags |= PCB_VS_STARTED;
 			break;
 		}
 		call_trapsignal(td, SIGILL, ILL_ILLTRP, (void *)frame->tf_sepc,

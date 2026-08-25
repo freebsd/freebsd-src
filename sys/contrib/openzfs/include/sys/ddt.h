@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -129,9 +119,12 @@ typedef struct {
  * characteristics of the stored block, such as its location on disk (DVAs),
  * birth txg and ref count.
  *
- * The "traditional" entry has an array of four, one for each number of DVAs
- * (copies= property) and another for additional "ditto" copies. Users of the
- * traditional struct will specify the variant (index) of the one they want.
+ * The "traditional" entry has an array of four, one for each value of the
+ * copies= property the block was written with and another for additional
+ * "ditto" copies. (The stored block's BP may carry more DVAs than copies=,
+ * eg a gang header is stored in more copies than the data it gangs, so the
+ * slot is not the BP's DVA count.) Users of the traditional struct will
+ * specify the variant (index) of the one they want.
  *
  * The newer "flat" entry has only a single form that is specified using the
  * DDT_PHYS_FLAT variant.
@@ -284,6 +277,9 @@ typedef struct {
 	avl_tree_t	ddt_tree;	/* "live" (changed) entries this txg */
 	avl_tree_t	ddt_repair_tree;	/* entries being repaired */
 
+	/* Protects ddt_object[] and ddt_object_dnode[]. */
+	krwlock_t	ddt_objects_lock ____cacheline_aligned;
+
 	/*
 	 * Log trees are stable during I/O, and only modified during sync
 	 * with exclusive access.
@@ -393,8 +389,11 @@ extern void ddt_get_dedup_histogram(spa_t *spa, ddt_histogram_t *ddh);
 extern void ddt_get_dedup_stats(spa_t *spa, ddt_stat_t *dds_total);
 
 extern uint64_t ddt_get_dedup_dspace(spa_t *spa);
+extern uint64_t ddt_get_dedup_used(spa_t *spa);
+extern uint64_t ddt_get_dedup_saved(spa_t *spa);
 extern uint64_t ddt_get_pool_dedup_ratio(spa_t *spa);
 extern int ddt_get_pool_dedup_cached(spa_t *spa, uint64_t *psize);
+extern uint64_t ddt_sync_dirty_est(spa_t *spa);
 
 extern ddt_t *ddt_select(spa_t *spa, const blkptr_t *bp);
 extern void ddt_enter(ddt_t *ddt);

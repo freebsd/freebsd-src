@@ -631,6 +631,7 @@ iakerb_initiator_step(iakerb_ctx_id_t ctx,
         cred->name->princ->realm = server_realm;
         server_realm = empty_data();
 
+        ctx->state = IAKERB_AS_REQ;
         /* Done with realm discovery; fall through to AS request. */
     case IAKERB_AS_REQ:
         if (ctx->icc == NULL) {

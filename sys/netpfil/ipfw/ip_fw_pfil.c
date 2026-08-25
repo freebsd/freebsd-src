@@ -563,7 +563,7 @@ ipfw_divert(struct mbuf **m0, struct ip_fw_args *args, bool tee)
 	m_tag_prepend(clone, tag);
 
 	/* Do the dirty job... */
-	ip_divert_ptr(clone, args->flags & IPFW_ARGS_IN);
+	ip_divert_ptr(clone, 0, args->flags & IPFW_ARGS_IN);
 	return 0;
 }
 

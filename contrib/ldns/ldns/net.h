@@ -91,13 +91,12 @@ int ldns_tcp_bgsend(ldns_buffer *qbin, const struct sockaddr_storage *to, sockle
 
 /**
  * Sends a buffer to an ip using tcp and return the response as a ldns_pkt
- * \param[in] qbin the ldns_buffer to be send
+ * \param[out] result packet with the answer
  * \param[in] qbin the ldns_buffer to be send
  * \param[in] to the ip addr to send to
  * \param[in] tolen length of the ip addr
  * \param[in] timeout the timeout value for the network
  * \param[out] answersize size of the packet
- * \param[out] result packet with the answer
  * \return status
  */
 ldns_status ldns_tcp_send(uint8_t **result, ldns_buffer *qbin, const struct sockaddr_storage *to, socklen_t tolen, struct timeval timeout, size_t *answersize);

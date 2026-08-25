@@ -56,7 +56,14 @@ static int igb_tx_ctx_setup(struct tx_ring *, if_pkt_info_t, uint32_t *,
 static int igb_tso_setup(struct tx_ring *, if_pkt_info_t, uint32_t *,
     uint32_t *);
 
-static void igb_rx_checksum(uint32_t, if_rxd_info_t, uint32_t);
+enum igb_rx_csum_status {
+	IGB_RX_CSUM_NONE,
+	IGB_RX_CSUM_GOOD,
+	IGB_RX_CSUM_ERROR,
+};
+
+static enum igb_rx_csum_status igb_rx_checksum(uint32_t, if_rxd_info_t,
+    uint32_t);
 static int igb_determine_rsstype(uint16_t);
 
 extern void igb_if_enable_intr(if_ctx_t);
@@ -72,6 +79,29 @@ struct if_txrx igb_txrx = {
 	.ift_rxd_flush = igb_isc_rxd_flush,
 	.ift_legacy_intr = em_intr
 };
+
+static bool
+igb_vf_vlan_registered(const struct e1000_softc *sc, u16 vtag)
+{
+	u32 vlans;
+	u16 vid;
+
+	/*
+	 * 82576 strips an administrative access VLAN but still reports it in
+	 * the descriptor.  Like Linux igbvf, expose tags only when the VF
+	 * requested that VID from the PF.
+	 */
+	if (sc->hw.mac.type != e1000_vfadapt &&
+	    sc->hw.mac.type != e1000_vfadapt_i350)
+		return (true);
+	vid = EVL_VLANOFTAG(vtag);
+	/*
+	 * A trunk VF is an implicit member of VID 0, so retain priority-tag
+	 * metadata without requiring vlan(4) to register a VID-0 interface.
+	 */
+	vlans = sc->shadow_vfta[vid >> 5] | sc->vf_vfta_stale[vid >> 5];
+	return (vid == 0 || (vlans & (1U << (vid & 0x1f))) != 0);
+}
 
 /**********************************************************************
  *
@@ -289,10 +319,27 @@ igb_isc_txd_encap(void *arg, if_pkt_info_t pi)
 	txd->read.cmd_type_len |= htole32(E1000_TXD_CMD_EOP | txd_flags);
 	pi->ipi_new_pidx = i;
 
-	/* Sent data accounting for AIM */
+	/*
+	 * Sent data accounting for AIM.  For TSO, ipi_len is the whole
+	 * unsegmented payload, which is not a size the moderation calculation
+	 * can use.  Count the segments the hardware will put on the wire and
+	 * the header each of them carries, so that the average it sees is a
+	 * wire packet.
+	 */
+	if ((pi->ipi_csum_flags & CSUM_TSO) && pi->ipi_tso_segsz != 0) {
+		u32 hdrlen, segs;
+
+		hdrlen = pi->ipi_ehdrlen + pi->ipi_ip_hlen + pi->ipi_tcp_hlen;
+		if (pi->ipi_len > hdrlen) {
+			segs = howmany(pi->ipi_len - hdrlen, pi->ipi_tso_segsz);
+			txr->tx_bytes += pi->ipi_len + (segs - 1) * hdrlen;
+			txr->tx_packets += segs;
+			return (0);
+		}
+	}
+
 	txr->tx_bytes += pi->ipi_len;
 	++txr->tx_packets;
-
 	return (0);
 }
 
@@ -304,6 +351,7 @@ igb_isc_txd_flush(void *arg, uint16_t txqid, qidx_t pidx)
 	struct tx_ring *txr = &que->txr;
 
 	E1000_WRITE_REG(&sc->hw, E1000_TDT(txr->me), pidx);
+	em_aim_publish(txr);
 }
 
 static int
@@ -395,6 +443,7 @@ igb_isc_rxd_flush(void *arg, uint16_t rxqid, uint8_t flid __unused,
 	struct rx_ring *rxr = &que->rxr;
 
 	E1000_WRITE_REG(&sc->hw, E1000_RDT(rxr->me), pidx);
+	em_aim_publish_rx(rxr);
 }
 
 static int
@@ -440,6 +489,7 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 
 	uint16_t pkt_info, len;
 	uint32_t ptype, staterr;
+	enum igb_rx_csum_status csum_status;
 	int i, cidx;
 	bool eop;
 
@@ -458,7 +508,6 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		    le32toh(rxd->wb.lower.lo_dword.data) &  IGB_PKTTYPE_MASK;
 
 		ri->iri_len += len;
-		rxr->rx_bytes += ri->iri_len;
 
 		rxd->wb.upper.status_error = 0;
 		eop = ((staterr & E1000_RXD_STAT_EOP) == E1000_RXD_STAT_EOP);
@@ -487,19 +536,29 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
 		i++;
 	} while (!eop);
 
+	rxr->rx_bytes += ri->iri_len;
 	rxr->rx_packets++;
 
-	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0)
-		igb_rx_checksum(staterr, ri, ptype);
+	if ((scctx->isc_capenable & IFCAP_RXCSUM) != 0) {
+		csum_status = igb_rx_checksum(staterr, ri, ptype);
+		if (sc->vf_ifp) {
+			if (csum_status == IGB_RX_CSUM_GOOD)
+				sc->rx_csum_good++;
+			else if (csum_status == IGB_RX_CSUM_ERROR)
+				sc->rx_csum_errors++;
+		}
+	}
 
 	if (staterr & E1000_RXD_STAT_VP) {
 		if (((sc->hw.mac.type == e1000_i350) ||
-		    (sc->hw.mac.type == e1000_i354)) &&
+		    (sc->hw.mac.type == e1000_i354) ||
+		    (sc->hw.mac.type == e1000_vfadapt_i350)) &&
 		    (staterr & E1000_RXDEXT_STATERR_LB))
 			ri->iri_vtag = be16toh(rxd->wb.upper.vlan);
 		else
 			ri->iri_vtag = le16toh(rxd->wb.upper.vlan);
-		ri->iri_flags |= M_VLANTAG;
+		if (igb_vf_vlan_registered(sc, ri->iri_vtag))
+			ri->iri_flags |= M_VLANTAG;
 	}
 
 	ri->iri_flowid =
@@ -517,19 +576,19 @@ igb_isc_rxd_pkt_get(void *arg, if_rxd_info_t ri)
  *  doesn't spend time verifying the checksum.
  *
  *********************************************************************/
-static void
+static enum igb_rx_csum_status
 igb_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype)
 {
 	uint16_t status = (uint16_t)staterr;
 	uint8_t errors = (uint8_t)(staterr >> 24);
 
 	if (__predict_false(status & E1000_RXD_STAT_IXSM))
-		return;
+		return (IGB_RX_CSUM_NONE);
 
 	/* If there is a layer 3 or 4 error we are done */
 	if (__predict_false(errors &
 	    (E1000_RXD_ERR_IPE | E1000_RXD_ERR_TCPE)))
-		return;
+		return (IGB_RX_CSUM_ERROR);
 
 	/* IP Checksum Good */
 	if (status & E1000_RXD_STAT_IPCS)
@@ -549,6 +608,8 @@ igb_rx_checksum(uint32_t staterr, if_rxd_info_t ri, uint32_t ptype)
 			ri->iri_csum_data = htons(0xffff);
 		}
 	}
+
+	return (IGB_RX_CSUM_GOOD);
 }
 
 /********************************************************************
@@ -572,6 +633,12 @@ igb_determine_rsstype(uint16_t pkt_info)
 		return M_HASHTYPE_RSS_IPV6;
 	case E1000_RXDADV_RSSTYPE_IPV6_TCP_EX:
 		return M_HASHTYPE_RSS_TCP_IPV6_EX;
+	case E1000_RXDADV_RSSTYPE_IPV4_UDP:
+		return M_HASHTYPE_RSS_UDP_IPV4;
+	case E1000_RXDADV_RSSTYPE_IPV6_UDP:
+		return M_HASHTYPE_RSS_UDP_IPV6;
+	case E1000_RXDADV_RSSTYPE_IPV6_UDP_EX:
+		return M_HASHTYPE_RSS_UDP_IPV6_EX;
 	default:
 		return M_HASHTYPE_NONE;
 	}

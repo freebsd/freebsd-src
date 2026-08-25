@@ -10,7 +10,6 @@ ident		QORIQ64
 
 machine		powerpc	powerpc64
 
-include 	"dpaa/config.dpaa"
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 makeoptions	WITH_CTF=1
 #makeoptions	WERROR="-Werror -Wno-format"
@@ -129,6 +128,12 @@ device  	ums
 options 	EVDEV_SUPPORT		# evdev support in legacy drivers
 device		evdev			# input event device support
 device		uinput			# install /dev/uinput cdev
+
+# extres frameworks
+device  	clk
+device  	phy
+device  	regulator
+device  	syscon
 
 # HID support
 options 	HID_DEBUG	# enable debug msgs

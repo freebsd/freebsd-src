@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2021 - 2023 Intel Corporation
+ * Copyright (c) 2021 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -35,6 +35,7 @@
 #ifndef FBSD_KCOMPAT_H
 #define FBSD_KCOMPAT_H
 #include "ice_rdma.h"
+#include "irdma-abi.h"
 
 #define TASKLET_DATA_TYPE	unsigned long
 #define TASKLET_FUNC_TYPE	void (*)(TASKLET_DATA_TYPE)
@@ -77,9 +78,13 @@
 void kc_set_roce_uverbs_cmd_mask(struct irdma_device *iwdev);
 void kc_set_rdma_uverbs_cmd_mask(struct irdma_device *iwdev);
 
+extern u8 irdma_sysctl_max_ord;
+extern u8 irdma_sysctl_max_ird;
+
 struct irdma_tunable_info {
 	struct sysctl_ctx_list irdma_sysctl_ctx;
 	struct sysctl_oid *irdma_sysctl_tree;
+	struct sysctl_oid *qos_sysctl_tree;
 	struct sysctl_oid *sws_sysctl_tree;
 	char drv_ver[IRDMA_VER_LEN];
 	u8 roce_ena;
@@ -132,17 +137,16 @@ struct ib_qp *irdma_create_qp(struct ib_pd *ibpd,
 			      struct ib_qp_init_attr *init_attr,
 			      struct ib_udata *udata);
 int irdma_create_ah(struct ib_ah *ib_ah,
-		    struct ib_ah_attr *attr, u32 flags,
+		    struct rdma_ah_attr *attr, u32 flags,
 		    struct ib_udata *udata);
 int irdma_create_ah_stub(struct ib_ah *ib_ah,
-			 struct ib_ah_attr *attr, u32 flags,
+			 struct rdma_ah_attr *attr, u32 flags,
 			 struct ib_udata *udata);
-void irdma_ether_copy(u8 *dmac, struct ib_ah_attr *attr);
+void irdma_ether_copy(u8 *dmac, struct rdma_ah_attr *attr);
 void irdma_destroy_ah(struct ib_ah *ibah, u32 flags);
 void irdma_destroy_ah_stub(struct ib_ah *ibah, u32 flags);
 int irdma_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata);
 int irdma_dereg_mr(struct ib_mr *ib_mr, struct ib_udata *udata);
-int ib_get_eth_speed(struct ib_device *dev, u32 port_num, u8 *speed, u8 *width);
 enum rdma_link_layer irdma_get_link_layer(struct ib_device *ibdev,
 					  u8 port_num);
 int irdma_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
@@ -151,8 +155,6 @@ int irdma_iw_port_immutable(struct ib_device *ibdev, u8 port_num,
 			    struct ib_port_immutable *immutable);
 int irdma_query_gid(struct ib_device *ibdev, u8 port, int index,
 		    union ib_gid *gid);
-int irdma_query_gid_roce(struct ib_device *ibdev, u8 port, int index,
-			 union ib_gid *gid);
 int irdma_query_pkey(struct ib_device *ibdev, u8 port, u16 index,
 		     u16 *pkey);
 int irdma_query_port(struct ib_device *ibdev, u8 port,
@@ -190,6 +192,7 @@ int irdma_addr_resolve_neigh_ipv6(struct irdma_cm_node *cm_node, u32 *dest,
 				  int arpindex);
 void irdma_dcqcn_tunables_init(struct irdma_pci_f *rf);
 void irdma_sysctl_settings(struct irdma_pci_f *rf);
+void irdma_qos_info_tunables_init(struct irdma_pci_f *rf);
 void irdma_sw_stats_tunables_init(struct irdma_pci_f *rf);
 u32 irdma_create_stag(struct irdma_device *iwdev);
 void irdma_free_stag(struct irdma_device *iwdev, u32 stag);
@@ -201,6 +204,15 @@ int irdma_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start, u64 len,
 struct irdma_mr;
 struct irdma_cq;
 struct irdma_cq_buf;
+int irdma_reg_user_mr_type_qp(struct irdma_mem_reg_req req,
+			      struct ib_udata *udata,
+			      struct irdma_mr *iwmr);
+int irdma_reg_user_mr_type_cq(struct irdma_mem_reg_req req,
+			      struct ib_udata *udata,
+			      struct irdma_mr *iwmr);
+struct ib_mr *irdma_reg_user_mr(struct ib_pd *pd, u64 start, u64 len,
+				u64 virt, int access,
+				struct ib_udata *udata);
 struct ib_mr *irdma_alloc_mr(struct ib_pd *pd, enum ib_mr_type mr_type,
 			     u32 max_num_sg, struct ib_udata *udata);
 int irdma_hwreg_mr(struct irdma_device *iwdev, struct irdma_mr *iwmr,
@@ -240,9 +252,8 @@ int irdma_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata);
 void irdma_dealloc_ucontext(struct ib_ucontext *context);
 int irdma_alloc_pd(struct ib_pd *pd, struct ib_udata *udata);
 void irdma_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata);
-int irdma_add_gid(struct ib_device *, u8, unsigned int, const union ib_gid *,
-		  const struct ib_gid_attr *, void **);
-int irdma_del_gid(struct ib_device *, u8, unsigned int, void **);
+int irdma_add_gid(const struct ib_gid_attr *, void **);
+int irdma_del_gid(const struct ib_gid_attr *, void **);
 struct ib_device *ib_device_get_by_netdev(struct ifnet *ndev, int driver_id);
 void ib_device_put(struct ib_device *device);
 void ib_unregister_device_put(struct ib_device *device);

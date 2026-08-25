@@ -126,6 +126,11 @@ ifclonecreate(if_ctx *ctx, void *arg __unused)
 		     "in FreeBSD 16.0");
 		return;
 	}
+	if (sscanf(ctx->ifname, "pflog%u", &u) == 1) {
+		warnx("pflog(4) logging does not need interface creation "
+		     "in FreeBSD 16.0");
+		return;
+	}
 
 	strlcpy(ifr.ifr_name, ctx->ifname, sizeof(ifr.ifr_name));
 

@@ -25,6 +25,8 @@
  * *** NOTE: this code has been altered slightly for use in Tcl. ***
  * Slightly modified by David MacKenzie to undo most of the changes for TCL.
  * Added regexec2 with notbol parameter. -- 4/19/99 Mark Nudelman
+ * Change functions style from K&R to C89 -- 2023-09 Avi Halachmi
+ * Add support for character classes [:NAME:] -- 2026-02 Avi Halachmi
  */
 
 #include "less.h"
@@ -47,16 +49,13 @@
  * regstart	char that must begin a match; '\0' if none obvious
  * reganch	is the match anchored (at beginning-of-line only)?
  * regmust	string (pointer into program) that match must include, or NULL
- * regmlen	length of regmust string
  *
  * Regstart and reganch permit very fast decisions on suitable starting points
  * for a match, cutting down the work a lot.  Regmust permits fast rejection
  * of lines that cannot possibly match.  The regmust tests are costly enough
  * that regcomp() supplies a regmust only if the r.e. contains something
  * potentially expensive (at present, the only such thing detected is * or +
- * at the start of the r.e., which can involve a lot of backup).  Regmlen is
- * supplied because the test in regexec() needs it and regcomp() is
- * computing it anyway.
+ * at the start of the r.e., which can involve a lot of backup).
  */
 
 /*
@@ -251,7 +250,6 @@ regcomp(constant char *exp)
 	r->regstart = '\0';	/* Worst-case defaults. */
 	r->reganch = 0;
 	r->regmust = NULL;
-	r->regmlen = 0;
 	scan = r->program+1;			/* First BRANCH. */
 	if (OP(regnext(scan)) == END) {		/* Only one top-level choice. */
 		scan = OPERAND(scan);
@@ -276,10 +274,10 @@ regcomp(constant char *exp)
 			for (; scan != NULL; scan = regnext(scan))
 				if (OP(scan) == EXACTLY && ((int) strlen(OPERAND(scan))) >= len) {
 					longest = OPERAND(scan);
+					/* redundant strlen, not critical in regcomp */
 					len = (int) strlen(OPERAND(scan));
 				}
 			r->regmust = longest;
-			r->regmlen = len;
 		}
 	}
 
@@ -459,6 +457,126 @@ regpiece(int *flagp)
 }
 
 /*
+ * Handling of character classes [:NAME:]
+ *
+ * - We only cover C/POSIX locale (ASCII).
+ * - We identify the 12 POSIX classes.
+ * - We error on unknown [:THING:].
+ * - [=EQUIV=] or [.COLLATE.] are NOT detected, and considered non-special.
+ * - [:NAME:] errors on either side of '-' range (but not if the '-' is
+ *   literal - at the beginning or end of the [...]).
+ * - The logic is confined to regbracket(), and only used during regcomp.
+ *
+ * POSIX regex, classes, collation, etc:
+ * https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap09.html
+ * https://pubs.opengroup.org/onlinepubs/9799919799/basedefs/V1_chap07.html
+ */
+
+typedef struct cclass {
+	constant size_t len;  /* of id */
+	constant char *id;
+	constant char *chars;
+} cclass;
+
+static constant cclass cclasses[] = {
+	/* first two chars of id are ignored, and expected to be "[:" */
+	{9,  "[:alnum:]",  "0-9A-Za-z"},
+	{9,  "[:alpha:]",  "A-Za-z"},
+	{9,  "[:blank:]",  "\t "},
+	{9,  "[:cntrl:]",  "\x01-\x1f\x7f"},
+	{9,  "[:digit:]",  "0-9"},
+	{9,  "[:graph:]",  "\x21-\x7e"},
+	{9,  "[:lower:]",  "a-z"},
+	{9,  "[:print:]",  "\x20-\x7e"},
+	{9,  "[:punct:]",  "!-/:-@[-`{|}~"},
+	{9,  "[:space:]",  "\t\n\v\f\r "},
+	{9,  "[:upper:]",  "A-Z"},
+	{10, "[:xdigit:]", "0-9A-Fa-f"},
+};
+
+/* returns index>=0 in cclasses if s starts with known [:NAME:],
+ *    else -2 on error (s starts with unknown [:THING:]),
+ *    else -1 (not-special).
+ *
+ * we could create a wrapper macro which tests '[' and ':' before
+ * calling cclass_idx(s) - to avoid a function call on early abort,
+ * and/or replace the string search in cclass_idx with binary search
+ * or something else, but this is not hot code, so keep it simple.
+ */
+static int
+cclass_idx(constant char *s)
+{
+	int i;
+	constant char *p;
+
+	if (*s++ != '[' || *s++ != ':')
+		return -1;
+
+	/* s is past the "[:" prefix */
+	for (i = 0; i < countof(cclasses); ++i)
+		if (strncmp(s, cclasses[i].id + 2, cclasses[i].len - 2) == 0)
+			return i;  /* found */
+
+	p = strchr(s, ']');
+	if (p && p != s && p[-1] == ':')
+		return -2;  /* unrecognized [:THING:] */
+
+	return -1;  /* not special as far as we can tell */
+}
+
+/* Calls regc(c) for each char which a bracket expression matches,
+ * without touching the global regparse.
+ *
+ * The caller should ensure that ANYOF or ANYBUT node was already added
+ * (depending on whether it starts with "[" or "[^"), and "in" should
+ * point to the first data char after this prefix.
+ *
+ * calls FAIL(...) and returns NULL on failure,
+ * or returns a pointer to the first unprocessed char (']' or '\0').
+ * the caller may then update the global regparse, and add final regc(0).
+ */
+static constant char *
+regbracket(constant char *in)
+{
+	register int clss;
+	register int classend;
+	int idx;
+
+	if (*in == ']' || *in == '-')
+		regc(*in++);
+	while (*in != '\0' && *in != ']') {
+		if (*in == '-') {
+			in++;
+			if (cclass_idx(in) != -1)
+				FAIL("invalid [] range end"); /* X-[:NAME:] */
+			if (*in == ']' || *in == '\0')
+				regc('-');
+			else {
+				clss = UCHARAT(in-2)+1;
+				classend = UCHARAT(in);
+				if (clss > classend+1)
+					FAIL("invalid [] range");
+				for (; clss <= classend; clss++)
+					regc(clss);
+				in++;
+			}
+		} else if ((idx = cclass_idx(in)) == -1) {
+			regc(*in++);
+		} else if (idx == -2) {
+			FAIL("unknown [:CLASS:] name");
+		} else {  /* idx is a valid index, add class chars */
+			if (regbracket(cclasses[idx].chars) == NULL)
+				return(NULL); /* should be unreachable */
+			in += cclasses[idx].len;
+
+			if (*in == '-' && in[1] != '\0' && in[1] != ']')
+				FAIL("invalid [] range start"); /* [:NAME:]-X */
+		}
+	}
+	return in;
+}
+
+/*
  - regatom - the lowest level
  *
  * Optimization:  gobbles an entire sequence of ordinary characters so that
@@ -485,40 +603,22 @@ regatom(int *flagp)
 		ret = regnode(ANY);
 		*flagp |= HASWIDTH|SIMPLE;
 		break;
-	case '[': {
-			register int clss;
-			register int classend;
-
-			if (*regparse == '^') {	/* Complement of range. */
-				ret = regnode(ANYBUT);
-				regparse++;
-			} else
-				ret = regnode(ANYOF);
-			if (*regparse == ']' || *regparse == '-')
-				regc(*regparse++);
-			while (*regparse != '\0' && *regparse != ']') {
-				if (*regparse == '-') {
-					regparse++;
-					if (*regparse == ']' || *regparse == '\0')
-						regc('-');
-					else {
-						clss = UCHARAT(regparse-2)+1;
-						classend = UCHARAT(regparse);
-						if (clss > classend+1)
-							FAIL("invalid [] range");
-						for (; clss <= classend; clss++)
-							regc(clss);
-						regparse++;
-					}
-				} else
-					regc(*regparse++);
-			}
-			regc('\0');
-			if (*regparse != ']')
-				FAIL("unmatched []");
+	case '[':
+		if (*regparse == '^') {	/* Complement of range. */
+			ret = regnode(ANYBUT);
 			regparse++;
-			*flagp |= HASWIDTH|SIMPLE;
-		}
+		} else
+			ret = regnode(ANYOF);
+
+		regparse = regbracket(regparse);
+		if (regparse == NULL)
+			return(NULL);
+
+		regc('\0');
+		if (*regparse != ']')
+			FAIL("unmatched []");
+		regparse++;
+		*flagp |= HASWIDTH|SIMPLE;
 		break;
 	case '(':
 		ret = reg(1, &flags);
@@ -701,8 +801,7 @@ STATIC int regrepeat(char *);
 
 #ifdef DEBUG
 int regnarrate = 0;
-void regdump();
-STATIC char *regprop();
+STATIC constant char *regprop(constant char *);
 #endif
 
 /*
@@ -726,16 +825,8 @@ regexec2(register regexp *prog, register constant char *string, int notbol)
 	}
 
 	/* If there is a "must appear" string, look for it. */
-	if (prog->regmust != NULL) {
-		s = string;
-		while ((s = strchr(s, prog->regmust[0])) != NULL) {
-			if (strncmp(s, prog->regmust, prog->regmlen) == 0)
-				break;	/* Found it. */
-			s++;
-		}
-		if (s == NULL)	/* Not present. */
-			return(0);
-	}
+	if (prog->regmust != NULL && strstr(string, prog->regmust) == NULL)
+		return(0);  /* Not present. */
 
 	/* Mark beginning of line for ^ . */
 	if (notbol)
@@ -1068,14 +1159,11 @@ regnext(register char *p)
 
 #ifdef DEBUG
 
-STATIC char *regprop();
-
 /*
  - regdump - dump a regexp onto stdout in vaguely comprehensible form
  */
 void
-regdump(r)
-regexp *r;
+regdump(regexp *r)
 {
 	register char *s;
 	register char op = EXACTLY;	/* Arbitrary non-END op. */
@@ -1085,12 +1173,13 @@ regexp *r;
 	s = r->program + 1;
 	while (op != END) {	/* While that wasn't END last time... */
 		op = OP(s);
-		printf("%2d%s", s-r->program, regprop(s));	/* Where, what. */
+		/* prints ADDRESS:... where the ":..." is from regprop(s) */
+		printf("%2ld%s", (long)(s - r->program), regprop(s));
 		next = regnext(s);
 		if (next == NULL)		/* Next ptr. */
 			printf("(0)");
 		else 
-			printf("(%d)", (s-r->program)+(next-s));
+			printf("(%ld)", (long)((s - r->program)+(next-s)));
 		s += 3;
 		if (op == ANYOF || op == ANYBUT || op == EXACTLY) {
 			/* Literal string, where present. */
@@ -1117,8 +1206,7 @@ regexp *r;
  - regprop - printable representation of opcode
  */
 static constant char *
-regprop(op)
-constant char *op;
+regprop(constant char *op)
 {
 	register char *p;
 	static char buf[50];

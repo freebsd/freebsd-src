@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -211,7 +201,7 @@ ddt_log_begin(ddt_t *ddt, size_t nentries, dmu_tx_t *tx, ddt_log_update_t *dlu)
 	ASSERT3U(reclen, <=, UINT16_MAX);
 	dlu->dlu_reclen = reclen;
 
-	VERIFY0(dnode_hold(ddt->ddt_os, ddt->ddt_log_active->ddl_object, FTAG,
+	VERIFY0(dnode_hold(ddt->ddt_os, ddt->ddt_log_active->ddl_object, dlu,
 	    &dlu->dlu_dn));
 	dnode_set_storage_type(dlu->dlu_dn, DMU_OT_DDT_ZAP);
 
@@ -221,7 +211,7 @@ ddt_log_begin(ddt_t *ddt, size_t nentries, dmu_tx_t *tx, ddt_log_update_t *dlu)
 	uint64_t length = nblocks * dlu->dlu_dn->dn_datablksz;
 
 	VERIFY0(dmu_buf_hold_array_by_dnode(dlu->dlu_dn, offset, length,
-	    B_FALSE, FTAG, &dlu->dlu_ndbp, &dlu->dlu_dbp,
+	    B_FALSE, dlu, &dlu->dlu_ndbp, &dlu->dlu_dbp,
 	    DMU_READ_NO_PREFETCH | DMU_UNCACHEDIO));
 
 	dlu->dlu_tx = tx;
@@ -278,7 +268,7 @@ ddt_log_update_entry(ddt_t *ddt, ddt_log_t *ddl, ddt_lightweight_entry_t *ddlwe,
 void
 ddt_log_entry(ddt_t *ddt, ddt_lightweight_entry_t *ddlwe, ddt_log_update_t *dlu)
 {
-	ASSERT3U(dlu->dlu_dbp, !=, NULL);
+	ASSERT3P(dlu->dlu_dbp, !=, NULL);
 
 	ddt_log_update_entry(ddt, ddt->ddt_log_active, ddlwe, B_TRUE);
 
@@ -328,7 +318,7 @@ ddt_log_entry(ddt_t *ddt, ddt_lightweight_entry_t *ddlwe, ddt_log_update_t *dlu)
 void
 ddt_log_commit(ddt_t *ddt, ddt_log_update_t *dlu)
 {
-	ASSERT3U(dlu->dlu_dbp, !=, NULL);
+	ASSERT3P(dlu->dlu_dbp, !=, NULL);
 	ASSERT3U(dlu->dlu_block+1, ==, dlu->dlu_ndbp);
 	ASSERT3U(dlu->dlu_offset, >, 0);
 
@@ -338,11 +328,11 @@ ddt_log_commit(ddt_t *ddt, ddt_log_update_t *dlu)
 	 */
 	dmu_buf_fill_done(dlu->dlu_dbp[dlu->dlu_block], dlu->dlu_tx, B_FALSE);
 
-	dmu_buf_rele_array(dlu->dlu_dbp, dlu->dlu_ndbp, FTAG);
+	dmu_buf_rele_array(dlu->dlu_dbp, dlu->dlu_ndbp, dlu);
 
 	ddt->ddt_log_active->ddl_length +=
 	    dlu->dlu_ndbp * (uint64_t)dlu->dlu_dn->dn_datablksz;
-	dnode_rele(dlu->dlu_dn, FTAG);
+	dnode_rele(dlu->dlu_dn, dlu);
 
 	ddt_log_update_header(ddt, ddt->ddt_log_active, dlu->dlu_tx);
 
@@ -604,8 +594,7 @@ ddt_log_load_one(ddt_t *ddt, uint_t n)
 	}
 
 	if (hdr.dlh_length > 0) {
-		dmu_prefetch_by_dnode(dn, 0, 0, hdr.dlh_length,
-		    ZIO_PRIORITY_SYNC_READ);
+		dmu_prefetch_stream_by_dnode(dn, 0, hdr.dlh_length, B_FALSE);
 
 		for (uint64_t offset = 0; offset < hdr.dlh_length;
 		    offset += dn->dn_datablksz) {

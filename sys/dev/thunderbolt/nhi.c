@@ -26,6 +26,12 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * Spec references are to the Universal Serial Bus 4 (USB4®) Specification
+ * version 2.0, September 2024:
+ * https://usb.org/document-library/usb4r-specification-v20
+ */
+
 #include "opt_thunderbolt.h"
 
 /* PCIe interface for Thunderbolt Native Host Interface (nhi) */
@@ -84,11 +90,6 @@ MALLOC_DEFINE(M_NHI, "nhi", "nhi driver memory");
 #define NHI_DEBUG_LEVEL 0
 #endif
 
-/* 0 = default, 1 = force-on, 2 = force-off */
-#ifndef NHI_FORCE_HCM
-#define NHI_FORCE_HCM 0
-#endif
-
 void
 nhi_get_tunables(struct nhi_softc *sc)
 {
@@ -100,7 +101,6 @@ nhi_get_tunables(struct nhi_softc *sc)
 	/* Set local defaults */
 	sc->debug = NHI_DEBUG_LEVEL;
 	sc->max_ring_count = NHI_DEFAULT_NUM_RINGS;
-	sc->force_hcm = NHI_FORCE_HCM;
 
 	/* Inherit setting from the upstream thunderbolt switch node */
 	val = TB_GET_DEBUG(sc->dev, &sc->debug);
@@ -128,8 +128,6 @@ nhi_get_tunables(struct nhi_softc *sc)
 		val = min(val, NHI_MAX_NUM_RINGS);
 		sc->max_ring_count = max(val, 1);
 	}
-	if (TUNABLE_INT_FETCH("hw.nhi.force_hcm", &val) != 0)
-		sc->force_hcm = val;
 
 	/* Grab instance variables */
 	bzero(oid, 80);
@@ -143,22 +141,8 @@ nhi_get_tunables(struct nhi_softc *sc)
 		val = min(val, NHI_MAX_NUM_RINGS);
 		sc->max_ring_count = max(val, 1);
 	}
-	snprintf(tmpstr, sizeof(tmpstr), "dev, nhi.%d.force_hcm",
-	    device_get_unit(sc->dev));
-	if (TUNABLE_INT_FETCH(tmpstr, &val) != 0)
-		sc->force_hcm = val;
 
 	return;
-}
-
-static void
-nhi_configure_caps(struct nhi_softc *sc)
-{
-
-	if (NHI_IS_USB4(sc) || (sc->force_hcm == NHI_FORCE_HCM_ON))
-		sc->caps |= NHI_CAP_HCM;
-	if (sc->force_hcm == NHI_FORCE_HCM_OFF)
-		sc->caps &= ~NHI_CAP_HCM;
 }
 
 struct nhi_cmd_frame *
@@ -257,31 +241,106 @@ nhi_outmail_cmd(struct nhi_softc *sc, uint32_t *val)
 	return (0);
 }
 
+static int
+nhi_reset_v1(struct nhi_softc *sc)
+{
+
+	/* See section 2.4 of HCM guide v2. */
+	nhi_write_reg(sc, ROUTER_HIR, 1);
+	pause_sbt("nhi", ustosbt(10 * 1000), 0, C_HARDCLOCK);
+	return (0);
+}
+
+static int
+nhi_reset_v2(struct nhi_softc *sc)
+{
+	uint32_t reg;
+
+	/*
+	 * TODO "The Connection Manager shall disable all Transmit Descriptor
+	 * Rings and wait for at least 1 millisecond prior to setting the Host
+	 * Router Reset bit to 1b. After the Connection Manager sets the Host
+	 * Router Reset bit to 1b, it shall not access the Receive Descriptor
+	 * Rings until the Host Router Reset bit is set to 0b."
+	 */
+	/* See section 3.5 of HCM guide v2. */
+	nhi_write_reg(sc, ROUTER_HRR, 1);
+	/*
+	 * "The Host Router is required to complete its reset within 500ms
+	 * after the Host Router Reset bit is set to 1b."
+	 */
+	reg = 1;
+	for (size_t i = 0; i < 10 && reg; i++) {
+		/*
+		 * Wait at least 50 ms after writing before reading this
+		 * register.  If this is 1, it means that we are still
+		 * resetting.
+		 */
+		pause_sbt("nhi", ustosbt(50 * 1000), 0, 0);
+		reg = nhi_read_reg(sc, ROUTER_HRR);
+	}
+	if (reg == 0) {
+		tb_debug(sc, DBG_INIT|DBG_EXTRA,
+		    "Succeeded in resetting host router\n");
+		return (0);
+	}
+	tb_printf(sc, "Host router reset timed out\n");
+	return (ETIMEDOUT);
+}
+
+static int
+nhi_reset(struct nhi_softc *sc)
+{
+
+	tb_debug(sc, DBG_INIT, "Resetting host router\n");
+
+	switch (sc->ver) {
+	case NHI_VER_1_0:
+		return (nhi_reset_v1(sc));
+	case NHI_VER_2_0:
+		return (nhi_reset_v2(sc));
+	}
+	return (ENXIO);
+}
+
 int
 nhi_attach(struct nhi_softc *sc)
 {
-	uint32_t val;
-	int error = 0;
+	uint32_t		val;
+	struct nhi_host_caps	caps;
+	int			error = 0;
 
 	if ((error = nhi_setup_sysctl(sc)) != 0)
 		return (error);
 
 	mtx_init(&sc->nhi_mtx, "nhimtx", "NHI Control Mutex", MTX_DEF);
 
-	nhi_configure_caps(sc);
-
 	/*
-	 * Get the number of TX/RX paths.  This sizes some of the register
-	 * arrays during allocation and initialization.  USB4 spec says that
-	 * the max is 21.  Alpine Ridge appears to default to 12.
+	 * Get the host interface version and number of TX/RX paths.  This
+	 * sizes some of the register arrays during allocation and
+	 * initialization.  USB4 spec says that the max is 21.
 	 */
-	val = GET_HOST_CAPS_PATHS(nhi_read_reg(sc, NHI_HOST_CAPS));
-	tb_debug(sc, DBG_INIT|DBG_NOISY, "Total Paths= %d\n", val);
-	if ((val == 0) || (val > 21) || ((NHI_IS_AR(sc) && val != 12))) {
+	val = nhi_read_reg(sc, NHI_HOST_CAPS);
+	caps = *(struct nhi_host_caps *)&val;
+	if (caps.version_major == 0 && caps.version_minor == 0) {
+		tb_printf(sc, "Host interface is version 1.0\n");
+		sc->ver = NHI_VER_1_0;
+	} else if (caps.version_major == 2 && caps.version_minor == 0) {
+		tb_printf(sc, "Host interface is version 2.0\n");
+		sc->ver = NHI_VER_2_0;
+	} else {
+		tb_printf(sc, "WARN: unexpected host interface version %d.%d -"
+		    " assuming 1.0\n", caps.version_major, caps.version_minor);
+		sc->ver = NHI_VER_1_0;
+	}
+	tb_debug(sc, DBG_INIT|DBG_NOISY, "Total Paths= %d\n", caps.total_paths);
+	if (caps.total_paths == 0 || caps.total_paths > 21) {
 		tb_printf(sc, "WARN: unexpected number of paths: %d\n", val);
 		/* return (ENXIO); */
 	}
 	sc->path_count = val;
+
+	nhi_reset(sc);
 
 	SLIST_INIT(&sc->ring_list);
 
@@ -297,10 +356,6 @@ nhi_attach(struct nhi_softc *sc)
 	if (error == 0)
 		error = tbdev_add_interface(sc);
 
-	if ((error == 0) && (NHI_USE_ICM(sc)))
-		tb_printf(sc, "WARN: device uses an internal connection manager\n");
-	if ((error == 0) && (NHI_USE_HCM(sc)))
-		;
 	error = hcm_attach(sc);
 
 	if (error == 0)
@@ -312,9 +367,7 @@ nhi_attach(struct nhi_softc *sc)
 int
 nhi_detach(struct nhi_softc *sc)
 {
-
-	if (NHI_USE_HCM(sc))
-		hcm_detach(sc);
+	hcm_detach(sc);
 
 	if (sc->root_rsc != NULL)
 		tb_router_detach(sc->root_rsc);
@@ -601,7 +654,7 @@ nhi_alloc_ring0(struct nhi_softc *sc)
 		TAILQ_INSERT_TAIL(&r->rx_head, cmd, cm_link);
 	}
 
-	/* Inititalize the TX frames */
+	/* Initialize the TX frames */
 	for ( ; i < r->tx_ring_depth + r->rx_ring_depth - 1; i++) {
 		cmd = &sc->ring0_cmds[i];
 		cmd->data = (uint32_t *)(frames + NHI_RING0_FRAME_SIZE * i);
@@ -705,16 +758,6 @@ nhi_init(struct nhi_softc *sc)
 	val |= DMA_MISC_INT_AUTOCLEAR;
 	tb_debug(sc, DBG_INIT, "Setting interrupt auto-ACK, 0x%08x\n", val);
 	nhi_write_reg(sc, NHI_DMA_MISC, val);
-
-	if (NHI_IS_AR(sc) || NHI_IS_TR(sc) || NHI_IS_ICL(sc))
-		tb_printf(sc, "WARN: device uses an internal connection manager\n");
-
-	/*
-	 * Populate the controller (local) UUID, necessary for cross-domain
-	 * communications.
-	if (NHI_IS_ICL(sc))
-		nhi_pci_get_uuid(sc);
-	 */
 
 	/*
 	 * Attach the router to the root thunderbolt bridge now that the DMA
@@ -828,7 +871,10 @@ nhi_tx_schedule(struct nhi_ring_pair *r, struct nhi_cmd_frame *cmd)
 int
 nhi_tx_synchronous(struct nhi_ring_pair *r, struct nhi_cmd_frame *cmd)
 {
+	struct nhi_softc *sc __diagused;
 	int error, count;
+
+	sc = r->sc;
 
 	if ((error = nhi_tx_schedule(r, cmd)) != 0)
 		return (error);
@@ -852,16 +898,16 @@ nhi_tx_synchronous(struct nhi_ring_pair *r, struct nhi_cmd_frame *cmd)
 	if ((cmd->flags & CMD_REQ_COMPLETE) == 0)
 		error = ETIMEDOUT;
 
-	tb_debug(r->sc, DBG_TXQ|DBG_FULL, "tx_synchronous done waiting, "
+	tb_debug(sc, DBG_TXQ|DBG_FULL, "tx_synchronous done waiting, "
 	    "err= %d, TX_COMPLETE= %d\n", error,
 	    !!(cmd->flags & CMD_REQ_COMPLETE));
 
 	if (error == ERESTART) {
-		tb_printf(r->sc, "TX command interrupted\n");
+		tb_printf(sc, "TX command interrupted\n");
 	} else if ((error == EWOULDBLOCK) || (error == ETIMEDOUT)) {
-		tb_printf(r->sc, "TX command timed out\n");
+		tb_printf(sc, "TX command timed out\n");
 	} else if (error != 0) {
-		tb_printf(r->sc, "TX command failed error= %d\n", error);
+		tb_printf(sc, "TX command failed error= %d\n", error);
 	}
 
 	return (error);
@@ -871,7 +917,7 @@ static int
 nhi_tx_complete(struct nhi_ring_pair *r, struct nhi_tx_buffer_desc *desc,
     struct nhi_cmd_frame *cmd)
 {
-	struct nhi_softc *sc;
+	struct nhi_softc *sc __maybe_unused;
 	struct nhi_pdf_dispatch *txpdf;
 	u_int sof;
 
@@ -905,9 +951,10 @@ static int
 nhi_rx_complete(struct nhi_ring_pair *r, struct nhi_rx_post_desc *desc,
     struct nhi_cmd_frame *cmd)
 {
-	struct nhi_softc *sc;
+	struct nhi_softc *sc __maybe_unused;
 	struct nhi_pdf_dispatch *rxpdf;
-	u_int eof, len;
+	u_int eof;
+	u_int len __maybe_unused;
 
 	sc = r->sc;
 	eof = desc->eof_len >> RX_BUFFER_DESC_EOF_SHIFT;
@@ -1051,6 +1098,16 @@ nhi_intr(void *data)
 		return;
 
 	/*
+	 * Need to read this necessarily to clear it; see 12.6.3.4.1.  Disable
+	 * ISR Auto-Clear must be set to 0.
+	 *
+	 * XXX This might not be necessary on all platforms.  It is on Pink
+	 * Sardine, but this was not being done previously so it might have
+	 * been working without this on whatever scottl@ was testing on.
+	 */
+	nhi_read_reg(sc, NHI_ISR0);
+
+	/*
 	 * Process TX completions from the adapter.  Only go through
 	 * the ring once to prevent unbounded looping.
 	 */
@@ -1163,9 +1220,6 @@ nhi_setup_sysctl(struct nhi_softc *sc)
 	SYSCTL_ADD_U16(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 	    "max_rings", CTLFLAG_RD, &sc->max_ring_count, 0,
 	    "Max number of rings available");
-	SYSCTL_ADD_U8(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-	    "force_hcm", CTLFLAG_RD, &sc->force_hcm, 0,
-	    "Force on/off the function of the host connection manager");
 
 	return (0);
 }

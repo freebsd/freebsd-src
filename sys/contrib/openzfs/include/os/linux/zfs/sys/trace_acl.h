@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 #if defined(_KERNEL)
@@ -54,7 +44,7 @@ DECLARE_EVENT_CLASS(zfs_ace_class,
 	    __field(uint8_t,		z_atime_dirty)
 	    __field(uint8_t,		z_zn_prefetch)
 	    __field(uint_t,		z_blksz)
-	    __field(uint_t,		z_seq)
+	    __field(uint64_t,		z_seq)
 	    __field(uint64_t,		z_mapcnt)
 	    __field(uint64_t,		z_size)
 	    __field(uint64_t,		z_pflags)
@@ -111,7 +101,7 @@ DECLARE_EVENT_CLASS(zfs_ace_class,
 	    __entry->mask_matched	= mask_matched;
 	),
 	TP_printk("zn { id %llu unlinked %u atime_dirty %u "
-	    "zn_prefetch %u blksz %u seq %u "
+	    "zn_prefetch %u blksz %u seq %llu "
 	    "mapcnt %llu size %llu pflags %llu "
 	    "sync_cnt %u "
 	    "mode 0x%x is_sa %d is_ctldir %d "

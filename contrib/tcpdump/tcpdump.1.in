@@ -20,18 +20,19 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH TCPDUMP 1  "26 March 2024"
+.TH TCPDUMP 1  "30 June 2025"
 .SH NAME
 tcpdump \- dump traffic on a network
 .SH SYNOPSIS
 .na
 .B tcpdump
 [
-.B \-AbdDefhHIJKlLnNOpqStuUvxX#
+.B \-AbdDefghHIJKlLnNOpqStuUvxX#
 ] [
 .B \-B
 .I buffer_size
 ]
+.br
 .ti +8
 [
 .B \-c
@@ -44,11 +45,13 @@ tcpdump \- dump traffic on a network
 .B \-C
 .I file_size
 ]
+.br
 .ti +8
 [
 .B \-E
 .I spi@ipaddr algo:secret,...
 ]
+.br
 .ti +8
 [
 .B \-F
@@ -62,6 +65,7 @@ tcpdump \- dump traffic on a network
 .B \-i
 .I interface
 ]
+.br
 .ti +8
 [
 .B \-\-immediate\-mode
@@ -74,6 +78,7 @@ tcpdump \- dump traffic on a network
 .B \-m
 .I module
 ]
+.br
 .ti +8
 [
 .B \-M
@@ -105,7 +110,6 @@ tcpdump \- dump traffic on a network
 [
 .B \-\-version
 ]
-.ti +8
 [
 .B \-V
 .I file
@@ -118,11 +122,12 @@ tcpdump \- dump traffic on a network
 .B \-W
 .I filecount
 ]
+.br
+.ti +8
 [
 .B \-y
 .I datalinktype
 ]
-.ti +8
 [
 .B \-z
 .I postrotate-command
@@ -131,17 +136,18 @@ tcpdump \- dump traffic on a network
 .B \-Z
 .I user
 ]
+.br
 .ti +8
 [
 .BI \-\-time\-stamp\-precision= tstamp_precision
 ]
-.ti +8
 [
 .BI \-\-micro
 ]
 [
 .BI \-\-nano
 ]
+.br
 .ti +8
 [
 .I expression
@@ -150,7 +156,7 @@ tcpdump \- dump traffic on a network
 .ad
 .SH DESCRIPTION
 .LP
-\fITcpdump\fP prints out a description of the contents of packets on a
+\fItcpdump\fP prints out a description of the contents of packets on a
 network interface that match the Boolean \fIexpression\fP (see
 .BR \%pcap-filter (@MAN_MISC_INFO@)
 for the \fIexpression\fP syntax); the
@@ -170,7 +176,7 @@ only packets that match
 will be processed by
 .IR tcpdump .
 .LP
-.I Tcpdump
+.I tcpdump
 will, if not run with the
 .B \-c
 flag, continue capturing packets until it is interrupted by a SIGINT
@@ -237,6 +243,11 @@ special privileges.
 .B \-A
 Print each packet (minus its link level header) in ASCII.  Handy for
 capturing web pages.
+No effect when
+.B \-x[x]
+or
+.B \-X[X]
+options are used.
 .TP
 .B \-b
 Print the AS number in BGP packets in ASDOT notation rather than ASPLAIN
@@ -266,8 +277,12 @@ savefile and open a new one.  Savefiles after the first savefile will
 have the name specified with the
 .B \-w
 flag, with a number after it, starting at 1 and continuing upward.
-The units of \fIfile_size\fP are millions of bytes (1,000,000 bytes,
+The default unit of \fIfile_size\fP is millions of bytes (1,000,000 bytes,
 not 1,048,576 bytes).
+.IP
+By adding a suffix of k/K, m/M or g/G to the value, the unit
+can be changed to 1,024 (KiB), 1,048,576 (MiB), or 1,073,741,824 (GiB)
+respectively.
 .TP
 .B \-d
 Dump the compiled packet-matching code in a human readable form to
@@ -388,14 +403,20 @@ The test for `foreign' IPv4 addresses is done using the IPv4 address and
 netmask of the interface on that capture is being done.  If that
 address or netmask are not available, either because the
 interface on that capture is being done has no address or netmask or
-because it is the "any" pseudo-interface, which is
-available in Linux and in recent versions of macOS and Solaris, and which
-can capture on more than one interface, this option will not work
-correctly.
+because it is the "any" pseudo-interface (see the
+.B \-i
+flag below), this option will not work correctly.
 .TP
 .BI \-F " file"
 Use \fIfile\fP as input for the filter expression.
 An additional expression given on the command line is ignored.
+.TP
+.B \-g
+.PD 0
+.TP
+.BI \-\-ip\-oneline
+.PD
+Do not insert a line break after the IP header in verbose mode.
 .TP
 .BI \-G " rotate_seconds"
 If specified, rotates the dump file specified with the
@@ -442,10 +463,19 @@ flag is not given, \fItcpdump\fP searches the system
 interface list for the lowest numbered, configured up interface
 (excluding loopback), which may turn out to be, for example, ``eth0''.
 .IP
-On Linux systems with 2.2 or later kernels and on recent versions of macOS
+On all supported Linux systems, as well as on recent versions of macOS
 and Solaris, an
 .I interface
-argument of ``any'' can be used to capture packets from all interfaces.
+argument of ``any'' means a special pseudo-interface, which captures packets
+from all regular network interfaces of the OS.  What is considered a regular
+network interface is an implementation detail of the OS (for example, on
+Linux this includes SocketCAN devices), so packets captured on the ``any''
+pseudo-interface may represent more different network protocols than expected.
+Also all regular network interfaces are a subset of all available capture
+devices as printed by the
+.B \-D
+flag.  The latter may also include capture devices that libpcap implements by
+means other than the OS network stack: Bluetooth, DAG, D-Bus, SNF and USB.
 Note that captures on the ``any'' pseudo-interface will not be done in promiscuous
 mode.
 .IP
@@ -851,7 +881,7 @@ flag to cause packets to be written as soon as they are received.
 The MIME type \fIapplication/vnd.tcpdump.pcap\fP has been registered
 with IANA for \fIpcap\fP files. The filename extension \fI.pcap\fP
 appears to be the most commonly used along with \fI.cap\fP and
-\fI.dmp\fP. \fITcpdump\fP itself doesn't check the extension when
+\fI.dmp\fP. \fItcpdump\fP itself doesn't check the extension when
 reading capture files and doesn't add an extension when writing them
 (it uses magic numbers in the file header instead). However, many
 operating systems and applications will use the extension if it is
@@ -897,6 +927,9 @@ required padding.
 In the current implementation this flag may have the same effect as
 .B \-xx
 if the packet is truncated.
+No effect when
+.B \-X[X]
+option is used.
 .TP
 .B \-xx
 When parsing and printing,
@@ -904,6 +937,9 @@ in addition to printing the headers of each packet, print the data of
 each packet,
 .I including
 its link level header, in hex.
+No effect when
+.B \-X[X]
+option is used.
 .TP
 .B \-X
 When parsing and printing,
@@ -948,6 +984,8 @@ is the savefile being closed after each rotation. For example, specifying
 or
 .B \-z bzip2
 will compress each savefile using gzip or bzip2.
+.IP
+This option can only be used if fork subprocess is implemented (e.g. not on Windows systems).
 .IP
 Note that tcpdump will run the command in parallel to the capture, using
 the lowest priority so that this doesn't disturb the capture process.

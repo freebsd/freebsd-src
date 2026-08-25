@@ -806,7 +806,7 @@ static int validate_mem_range(struct adapter *, uint32_t, uint32_t);
 static int fwmtype_to_hwmtype(int);
 static int validate_mt_off_len(struct adapter *, int, uint32_t, uint32_t,
     uint32_t *);
-static int fixup_devlog_params(struct adapter *);
+static int fixup_devlog_ncores_params(struct adapter *);
 static int cfg_itype_and_nqueues(struct adapter *, struct intrs_and_queues *);
 static int contact_firmware(struct adapter *);
 static int partition_resources(struct adapter *);
@@ -1425,7 +1425,7 @@ t4_attach(device_t dev)
 	 */
 	setup_memwin(sc);
 	if (t4_init_devlog_ncores_params(sc, 0) == 0)
-		fixup_devlog_params(sc);
+		fixup_devlog_ncores_params(sc);
 	make_dev_args_init(&mda);
 	mda.mda_devsw = &t4_cdevsw;
 	mda.mda_uid = UID_ROOT;
@@ -3760,10 +3760,17 @@ port_mword(struct port_info *pi, uint32_t speed)
 			return (IFM_NONE);
 		}
 		break;
-	case M_FW_PORT_CMD_PTYPE:	/* FW_PORT_TYPE_NONE for old firmware */
-		if (chip_id(pi->adapter) >= CHELSIO_T7)
-			return (IFM_UNKNOWN);
-		/* fall through */
+	case FW_PORT_TYPE_KR4_200G: {
+		/*
+		 * Pre-T7 firmware used M_FW_PORT_CMD_PTYPE for PORT_TYPE_NONE
+		 * and driver needs to deal with both.
+		 */
+		_Static_assert(M_FW_PORT_CMD_PTYPE == FW_PORT_TYPE_KR4_200G,
+		    "driver/firmware mismatch");
+		if (chip_id(pi->adapter) < CHELSIO_T7)
+			return (IFM_NONE);
+		return (IFM_200G_KR4_PAM4);
+	}
 	case FW_PORT_TYPE_NONE:
 		return (IFM_NONE);
 	}
@@ -4047,7 +4054,7 @@ t4_map_bar_2(struct adapter *sc)
 			 * request with an implicit doorbell.
 			 */
 
-			rc = pmap_change_attr((vm_offset_t)sc->udbs_base,
+			rc = pmap_change_attr(__DEVOLATILE(void *, sc->udbs_base),
 			    rman_get_size(sc->udbs_res), PAT_WRITE_COMBINING);
 			if (rc == 0) {
 				clrbit(&sc->doorbells, DOORBELL_UDB);
@@ -4565,11 +4572,15 @@ validate_mt_off_len(struct adapter *sc, int mtype, uint32_t off, uint32_t len,
 }
 
 static int
-fixup_devlog_params(struct adapter *sc)
+fixup_devlog_ncores_params(struct adapter *sc)
 {
 	struct devlog_params *dparams = &sc->params.devlog;
 	int rc;
 
+#ifdef INVARIANTS
+	if (sc->params.ncores > 1)
+		MPASS(chip_id(sc) >= CHELSIO_T7);
+#endif
 	rc = validate_mt_off_len(sc, dparams->memtype, dparams->start,
 	    dparams->size, &dparams->addr);
 
@@ -5559,7 +5570,7 @@ get_params__pre_init(struct adapter *sc)
 	/* Read device log parameters. */
 	rc = -t4_init_devlog_ncores_params(sc, 1);
 	if (rc == 0)
-		fixup_devlog_params(sc);
+		fixup_devlog_ncores_params(sc);
 	else {
 		device_printf(sc->dev,
 		    "failed to get devlog parameters: %d.\n", rc);
@@ -5712,8 +5723,6 @@ get_params__post_init(struct adapter *sc)
 	}
 
 	if (sc->params.ncores > 1) {
-		MPASS(chip_id(sc) >= CHELSIO_T7);
-
 		param[0] = FW_PARAM_DEV(TID_QID_SEL_MASK);
 		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
 		sc->params.tid_qid_sel_mask = rc == 0 ? val[0] : 0;
@@ -5989,7 +5998,29 @@ get_params__post_init(struct adapter *sc)
 		sc->vres.key.start = val[0];
 		sc->vres.key.size = val[1] - val[0] + 1;
 	}
-
+	if (sc->cryptocaps & FW_CAPS_CONFIG_IPSEC_INLINE) {
+		param[0] = FW_PARAM_PFVF(NIPSEC_TUNNEL);
+		param[1] = FW_PARAM_PFVF(NIPSEC_TRANSPORT);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 2, param, val);
+		if (rc == 0) {
+			sc->params.nipsec_tunnel = val[0];
+			sc->params.nipsec_transport = val[1];
+		} else {
+			CH_ERR(sc, "failed to query IPsec params: %d.\n", rc);
+			MPASS(sc->params.nipsec_tunnel == 0);
+			MPASS(sc->params.nipsec_transport == 0);
+		}
+	}
+	if (sc->cryptocaps & FW_CAPS_CONFIG_OFLD_OVER_IPSEC_INLINE) {
+		param[0] = FW_PARAM_PFVF(OFLD_NIPSEC_TUNNEL);
+		rc = -t4_query_params(sc, sc->mbox, sc->pf, 0, 1, param, val);
+		if (rc == 0) {
+			sc->params.nofld_ipsec_tunnel = val[0];
+		} else {
+			CH_ERR(sc, "failed to query TOE IPsec params: %d.\n", rc);
+			MPASS(sc->params.nofld_ipsec_tunnel == 0);
+		}
+	}
 	/*
 	 * We've got the params we wanted to query directly from the firmware.
 	 * Grab some others via other means.
@@ -7977,6 +8008,15 @@ t4_sysctls(struct adapter *sc)
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nfilters", CTLFLAG_RD,
 	    NULL, sc->tids.nftids, "number of filters");
+
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "nipsec_tunnel", CTLFLAG_RD,
+	    NULL, sc->params.nipsec_tunnel, "max hw IPsec tunnels");
+
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "nipsec_transport", CTLFLAG_RD,
+	    NULL, sc->params.nipsec_transport, "max hw IPsec transport pairs");
+
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "nofld_ipsec_tunnel", CTLFLAG_RD,
+	    NULL, sc->params.nofld_ipsec_tunnel, "max hw IPsec tunnels (TOE)");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "temperature",
 	    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE, sc, 0,
@@ -12536,7 +12576,7 @@ get_sge_context(struct adapter *sc, int mem_id, uint32_t cid, int len,
 		goto done;
 	}
 
-	if (sc->flags & FW_OK) {
+	if (sc->flags & FW_OK && !is_t7(sc)) {
 		rc = -t4_sge_ctxt_rd(sc, sc->mbox, cid, mem_id, data);
 		if (rc == 0)
 			goto done;

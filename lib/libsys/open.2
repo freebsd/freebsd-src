@@ -447,6 +447,9 @@ The other functionality of the returned file descriptor is limited to
 the following descriptor-level operations:
 .Pp
 .Bl -tag -width __acl_aclcheck_fd -offset indent -compact
+.It Xr connectat 2
+for unix domain socket
+.Pq see Xr unix 4
 .It Xr fcntl 2
 but advisory locking is not allowed
 .It Xr dup 2
@@ -836,6 +839,7 @@ directory or named attribute.
 .Xr write 2 ,
 .Xr fopen 3 ,
 .Xr capsicum 4 ,
+.Xr unix 4 ,
 .Xr named_attribute 7
 .Sh STANDARDS
 These functions are specified by

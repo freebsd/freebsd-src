@@ -80,3 +80,5 @@ sio_ischar:	movw $SIO_PRT+0x5,%dx		# Line status register
 		inb (%dx),%al			# Received data
 		andb $0x1,%al			#  ready?
 		ret				# To caller
+
+		.section .note.GNU-stack,"",%progbits

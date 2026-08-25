@@ -6,23 +6,6 @@
  */
 #include "test.h"
 
-#if defined(_WIN32) && !defined(__CYGWIN__)
-/* system() on Windows runs its arguments through CMD.EXE, which has
- * notoriously unfriendly quoting rules. The current best documented way around
- * them is to wrap your *entire commandline* in sacrificial quotes.
- *
- * See CMD.EXE /? for more information. Excerpted here:
- * | Otherwise, old behavior is to see if the first character is
- * | a quote character and if so, strip the leading character and
- * | remove the last quote character on the command line, preserving
- * | any text after the last quote character.
- *
- * Since this test makes heavy use of systemf() with quoted arguments inside
- * the commandline, this macro is unfortunately an easier workaround.
- */
-#define systemf(command, ...) systemf("\"" command "\"", __VA_ARGS__)
-#endif
-
 DEFINE_TEST(test_option_mtime)
 {
 	/* Create three files with different mtimes. */

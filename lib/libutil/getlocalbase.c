@@ -1,7 +1,7 @@
-/*-
+/*
  * SPDX-License-Identifier: BSD-2-Clause
  *
- * Copyright 2020 Stefan Eßer <se@freebsd.org>
+ * Copyright (c) 2026 Dag-Erling Smørgrav
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,61 +27,83 @@
 
 #include <sys/param.h>
 #include <sys/sysctl.h>
-#include <sys/limits.h>
+
 #include <errno.h>
-#include <stdlib.h>
-#include <paths.h>
 #include <libutil.h>
+#include <paths.h>
+#include <stdbool.h>
+#include <stdlib.h>
 #include <unistd.h>
 
-#ifndef LOCALBASE_PATH
-#define LOCALBASE_PATH _PATH_LOCALBASE
+#ifndef _PATH_LOCALBASE
+#define _PATH_LOCALBASE "/usr/local"
 #endif
 
-#ifndef LOCALBASE_CTL_LEN
-#define LOCALBASE_CTL_LEN MAXPATHLEN
-#endif
+/*
+ * Used in case of error; guaranteed to not be the start of a valid path
+ * name.  Deliberately includes a trailing path separator so that any
+ * access will fail with ENOTDIR.
+ */
+#define INVALID_PREFIX "/dev/null/"
 
-/* Any prefix guaranteed to not be the start of a valid path name */
-#define ILLEGAL_PREFIX "/dev/null/"
+/*
+ * Copies a path from src to dst, which may point to the same buffer,
+ * while deduplicating path separators.  Returns false if the path is not
+ * absolute or the result (including the terminating NUL) exceeds len
+ * characters.
+ */
+static bool
+normalize(const char *src, char *dst, size_t len)
+{
+	if (*src != '/' || len == 0)
+		return (false);
+	while (*src == '/')
+		src++;
+	do {
+		*dst++ = '/';
+		if (--len == 0)
+			return (false);
+		while (*src != '\0' && *src != '/') {
+			*dst++ = *src++;
+			if (--len == 0)
+				return (false);
+		}
+		while (*src == '/')
+			src++;
+	} while (*src != '\0');
+	*dst = '\0';
+	return (true);
+}
 
 const char *
 getlocalbase(void)
 {
-#if LOCALBASE_CTL_LEN > 0
-	int localbase_oid[2] = {CTL_USER, USER_LOCALBASE};
-	static char localpath[LOCALBASE_CTL_LEN];
-	size_t localpathlen = LOCALBASE_CTL_LEN;
-#endif
-	char *tmppath;
+	static const int oid[2] = { CTL_USER, USER_LOCALBASE };
+	static char buf[MAXPATHLEN];
 	static const char *localbase = NULL;
+	char *path;
+	size_t len = sizeof(buf);
 
 	if (localbase != NULL)
 		return (localbase);
 
-	if (issetugid() == 0) {
-		tmppath = getenv("LOCALBASE");
-		if (tmppath != NULL && tmppath[0] != '\0') {
-			localbase = tmppath;
-			return (localbase);
-		}
+	/* If not privileged, try the environment first */
+	if ((path = secure_getenv("LOCALBASE")) != NULL && *path != '\0') {
+		if (!normalize(path, buf, sizeof(buf)))
+			return (localbase = INVALID_PREFIX);
+		return (localbase = buf);
 	}
 
-#if LOCALBASE_CTL_LEN > 0
-	if (sysctl(localbase_oid, 2, localpath, &localpathlen, NULL, 0) != 0) {
-		if (errno != ENOMEM)
-			localbase = LOCALBASE_PATH;
-		else
-			localbase = ILLEGAL_PREFIX;
-	} else {
-		if (localpath[0] != '\0')
-			localbase = localpath;
-		else
-			localbase = LOCALBASE_PATH;
+	/* Next, try the sysctl variable */
+	if (sysctl(oid, 2, buf, &len, NULL, 0) != 0) {
+		if (errno == ENOMEM)
+			return (localbase = INVALID_PREFIX);
+	} else if (*buf != '\0') {
+		if (!normalize(buf, buf, sizeof(buf)))
+			return (localbase = INVALID_PREFIX);
+		return (localbase = buf);
 	}
-#else
-	localbase = LOCALBASE_PATH;
-#endif
 
-	return (localbase);
+	/* Fall back to the hardcoded default */
+	return (localbase = _PATH_LOCALBASE);
 }

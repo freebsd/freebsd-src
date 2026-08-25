@@ -39,6 +39,9 @@
 #include <fcntl.h>
 #include <locale.h>
 #include <errno.h>
+#include <termios.h>
+#include <paths.h>
+#include <unistd.h>
 
 #include "shell.h"
 #include "main.h"
@@ -124,6 +127,22 @@ main(int argc, char *argv[])
 	trputs("Shell args:  ");  trargs(argv);
 #endif
 	rootpid = getpid();
+	if (rootpid == 1) {
+		/*
+		 * Make sh usable for invocation as interactive init
+		 * substitute with init_path=/bin/sh, by opening
+		 * file descriptors 0, 1, and 2 on /dev/console.
+		 */
+		if (fcntl(STDIN_FILENO, F_GETFL, NULL) == -1 && errno == EBADF) {
+			(void)open(_PATH_CONSOLE, O_RDWR);
+			(void)setsid();
+			(void)tcsetsid(STDIN_FILENO, rootpid);
+		}
+		if (fcntl(STDOUT_FILENO, F_GETFL, NULL) == -1 && errno == EBADF)
+			(void)dup2(STDIN_FILENO, STDOUT_FILENO);
+		if (fcntl(STDERR_FILENO, F_GETFL, NULL) == -1 && errno == EBADF)
+			(void)dup2(STDIN_FILENO, STDERR_FILENO);
+	}
 	rootshell = 1;
 	INTOFF;
 	initvar();

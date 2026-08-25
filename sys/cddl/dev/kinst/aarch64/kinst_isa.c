@@ -18,7 +18,31 @@
 
 DPCPU_DEFINE_STATIC(struct kinst_cpu_state, kinst_state);
 
-static int
+static enum kinst_instr
+kinst_instr_type(kinst_patchval_t instr)
+{
+	if (((instr >> 22) & 0xff) == 0b00100001)
+		return (KINST_INSTR_LDX);
+	else if (((instr >> 22) & 0xff) == 0b00100000)
+		return (KINST_INSTR_STX);
+	if (((instr >> 24) & 0x1f) == 0b10000)
+		return (KINST_INSTR_ADR);
+	else if (((instr >> 26) & 0x3f) == 0b000101)
+		return (KINST_INSTR_B);
+	else if (((instr >> 24) & 0xff) == 0b01010100)
+		return (KINST_INSTR_BCOND);
+	else if (((instr >> 26) & 0x3f) == 0b100101)
+		return (KINST_INSTR_BL);
+	else if (((instr >> 25) & 0x3f) == 0b011010)
+		return (KINST_INSTR_CBZ);
+	else if (((instr >> 25) & 0x3f) == 0b011011)
+		return (KINST_INSTR_TBZ);
+	else if (((instr >> 24) & 0xbf) == 0b11000)
+		return (KINST_INSTR_LDR_LITERAL);
+	return (KINST_INSTR_COMMON);
+}
+
+static void
 kinst_emulate(struct trapframe *frame, const struct kinst_probe *kp)
 {
 	kinst_patchval_t instr = kp->kp_savedval;
@@ -26,8 +50,8 @@ kinst_emulate(struct trapframe *frame, const struct kinst_probe *kp)
 	uint8_t cond, reg, bitpos;
 	bool res;
 
-	if (((instr >> 24) & 0x1f) == 0b10000) {
-		/* adr/adrp */
+	switch (kp->kp_md.kp_type) {
+	case KINST_INSTR_ADR:
 		reg = instr & 0x1f;
 		imm = (instr >> 29) & 0x3;
 		imm |= ((instr >> 5) & 0x0007ffff) << 2;
@@ -44,14 +68,14 @@ kinst_emulate(struct trapframe *frame, const struct kinst_probe *kp)
 			frame->tf_x[reg] = (frame->tf_elr & ~0xfff) + imm;
 		}
 		frame->tf_elr += INSN_SIZE;
-	} else if (((instr >> 26) & 0x3f) == 0b000101) {
-		/* b */
+		break;
+	case KINST_INSTR_B:
 		imm = instr & 0x03ffffff;
 		if (imm & 0x0000000002000000)
 			imm |= 0xfffffffffe000000;
 		frame->tf_elr += imm << 2;
-	} else if (((instr >> 24) & 0xff) == 0b01010100) {
-		/* b.cond */
+		break;
+	case KINST_INSTR_BCOND:
 		imm = (instr >> 5) & 0x0007ffff;
 		if (imm & 0x0000000000040000)
 			imm |= 0xfffffffffffc0000;
@@ -92,15 +116,15 @@ kinst_emulate(struct trapframe *frame, const struct kinst_probe *kp)
 			frame->tf_elr += imm << 2;
 		else
 			frame->tf_elr += INSN_SIZE;
-	} else if (((instr >> 26) & 0x3f) == 0b100101) {
-		/* bl */
+		break;
+	case KINST_INSTR_BL:
 		imm = instr & 0x03ffffff;
 		if (imm & 0x0000000002000000)
 			imm |= 0xfffffffffe000000;
 		frame->tf_lr = frame->tf_elr + INSN_SIZE;
 		frame->tf_elr += imm << 2;
-	} else if (((instr >> 25) & 0x3f) == 0b011010) {
-		/* cbnz/cbz */
+		break;
+	case KINST_INSTR_CBZ:
 		cond = (instr >> 24) & 0x1;
 		reg = instr & 0x1f;
 		imm = (instr >> 5) & 0x0007ffff;
@@ -114,8 +138,8 @@ kinst_emulate(struct trapframe *frame, const struct kinst_probe *kp)
 			frame->tf_elr += imm << 2;
 		else
 			frame->tf_elr += INSN_SIZE;
-	} else if (((instr >> 25) & 0x3f) == 0b011011) {
-		/* tbnz/tbz */
+		break;
+	case KINST_INSTR_TBZ:
 		cond = (instr >> 24) & 0x1;
 		reg = instr & 0x1f;
 		bitpos = (instr >> 19) & 0x1f;
@@ -131,18 +155,17 @@ kinst_emulate(struct trapframe *frame, const struct kinst_probe *kp)
 			frame->tf_elr += imm << 2;
 		else
 			frame->tf_elr += INSN_SIZE;
+		break;
+	default:
+		__assert_unreachable();
 	}
-
-	return (0);
 }
 
 static int
 kinst_jump_next_instr(struct trapframe *frame, const struct kinst_probe *kp)
 {
-	frame->tf_elr = (register_t)((const uint8_t *)kp->kp_patchpoint +
-	    INSN_SIZE);
-
-	return (0);
+	frame->tf_elr = (register_t)(uintptr_t)kp->kp_patchpoint;
+	return (NOP_INSTR);
 }
 
 static void
@@ -215,21 +238,27 @@ kinst_invop(uintptr_t addr, struct trapframe *frame, uintptr_t scratch)
 	dtrace_probe(kp->kp_id, 0, 0, 0, 0, 0);
 	cpu->cpu_dtrace_caller = 0;
 
-	if (kp->kp_md.emulate)
-		return (kinst_emulate(frame, kp));
+	if (kp->kp_md.kp_type != KINST_INSTR_COMMON) {
+		kinst_emulate(frame, kp);
+	} else {
+		ks->state = KINST_PROBE_FIRED;
+		ks->kp = kp;
 
-	ks->state = KINST_PROBE_FIRED;
-	ks->kp = kp;
+		/*
+		 * Cache the current SPSR and clear interrupts for the duration
+		 * of the double breakpoint.
+		 */
+		ks->status = frame->tf_spsr;
+		frame->tf_spsr |= PSR_I;
+		frame->tf_elr = (register_t)kp->kp_tramp;
+	}
 
 	/*
-	 * Cache the current SPSR and clear interrupts for the duration
-	 * of the double breakpoint.
+	 * NOP_INSTR is handled in dtrace_invop_start() by advancing the ELR, so
+	 * compensate by subtracting INSTR_SIZE before returning.
 	 */
-	ks->status = frame->tf_spsr;
-	frame->tf_spsr |= PSR_I;
-	frame->tf_elr = (register_t)kp->kp_tramp;
-
-	return (0);
+	frame->tf_elr -= INSN_SIZE;
+	return (NOP_INSTR);
 }
 
 void
@@ -241,50 +270,6 @@ kinst_patch_tracepoint(struct kinst_probe *kp, kinst_patchval_t val)
 		panic("%s: Unable to write new instruction", __func__);
 	*(kinst_patchval_t *)addr = val;
 	cpu_icache_sync_range(kp->kp_patchpoint, INSN_SIZE);
-}
-
-static void
-kinst_instr_dissect(struct kinst_probe *kp)
-{
-	struct kinst_probe_md *kpmd;
-	kinst_patchval_t instr = kp->kp_savedval;
-
-	kpmd = &kp->kp_md;
-	kpmd->emulate = false;
-
-	if (((instr >> 24) & 0x1f) == 0b10000)
-		kpmd->emulate = true;	/* adr/adrp */
-	else if (((instr >> 26) & 0x3f) == 0b000101)
-		kpmd->emulate = true;	/* b */
-	else if (((instr >> 24) & 0xff) == 0b01010100)
-		kpmd->emulate = true;	/* b.cond */
-	else if (((instr >> 26) & 0x3f) == 0b100101)
-		kpmd->emulate = true;	/* bl */
-	else if (((instr >> 25) & 0x3f) == 0b011010)
-		kpmd->emulate = true;	/* cbnz/cbz */
-	else if (((instr >> 25) & 0x3f) == 0b011011)
-		kpmd->emulate = true;	/* tbnz/tbz */
-
-	if (!kpmd->emulate)
-		kinst_trampoline_populate(kp);
-}
-
-static bool
-kinst_instr_ldx(kinst_patchval_t instr)
-{
-	if (((instr >> 22) & 0xff) == 0b00100001)
-		return (true);
-
-	return (false);
-}
-
-static bool
-kinst_instr_stx(kinst_patchval_t instr)
-{
-	if (((instr >> 22) & 0xff) == 0b00100000)
-		return (true);
-
-	return (false);
 }
 
 int
@@ -357,6 +342,8 @@ kinst_make_probe(linker_file_t lf, int symindx, linker_symval_t *symval,
 
 	ldxstx_block = false;
 	for (n = 0; instr < limit; instr++) {
+		enum kinst_instr type;
+
 		off = (int)((uint8_t *)instr - (uint8_t *)symval->value);
 
 		/*
@@ -364,9 +351,10 @@ kinst_make_probe(linker_file_t lf, int symindx, linker_symval_t *symval,
 		 * breakpoint is placed in a LDX/STX block, we violate the
 		 * operation and the loop might fail.
 		 */
-		if (kinst_instr_ldx(*instr))
+		type = kinst_instr_type(*instr);
+		if (type == KINST_INSTR_LDX)
 			ldxstx_block = true;
-		else if (kinst_instr_stx(*instr)) {
+		else if (type == KINST_INSTR_STX) {
 			ldxstx_block = false;
 			continue;
 		}
@@ -374,13 +362,14 @@ kinst_make_probe(linker_file_t lf, int symindx, linker_symval_t *symval,
 			continue;
 
 		/*
-		 * XXX: Skip ADR and ADRP instructions. The arm64 exception
-		 * handler has a micro-optimization where it doesn't restore
-		 * callee-saved registers when returning from exceptions in
-		 * EL1. This results in a panic when the kinst emulation code
-		 * modifies one of those registers.
+		 * XXX: The arm64 exception handler has a micro-optimization
+		 * where it doesn't restore callee-saved registers when
+		 * returning from exceptions in EL1.  As a result, instruction
+		 * emulation doesn't work if a (callee-saved) register is
+		 * modified.  Hence, exclude the position-dependent ADR/ADRP and
+		 * LDR <literal> instructions.
 		 */
-		if (((*instr >> 24) & 0x1f) == 0b10000)
+		if (type == KINST_INSTR_ADR || type == KINST_INSTR_LDR_LITERAL)
 			continue;
 
 		if (pd->kpd_off != -1 && off != pd->kpd_off)
@@ -406,12 +395,14 @@ kinst_make_probe(linker_file_t lf, int symindx, linker_symval_t *symval,
 		kp->kp_patchpoint = instr;
 		kp->kp_savedval = *instr;
 		kp->kp_patchval = KINST_PATCHVAL;
+		kp->kp_md.kp_type = type;
 		if ((kp->kp_tramp = kinst_trampoline_alloc(M_WAITOK)) == NULL) {
 			KINST_LOG("cannot allocate trampoline for %p", instr);
 			return (ENOMEM);
 		}
+		if (kp->kp_md.kp_type == KINST_INSTR_COMMON)
+			kinst_trampoline_populate(kp);
 
-		kinst_instr_dissect(kp);
 		kinst_probe_create(kp, lf);
 	}
 	if (ldxstx_block)

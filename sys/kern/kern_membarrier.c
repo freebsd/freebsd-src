@@ -51,7 +51,8 @@
     MEMBARRIER_CMD_PRIVATE_EXPEDITED |				\
     MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED |			\
     MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE |		\
-    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE)
+    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE	|	\
+    MEMBARRIER_CMD_GET_REGISTRATIONS)
 
 static void
 membarrier_action_seqcst(void *arg __unused)
@@ -120,7 +121,7 @@ kern_membarrier(struct thread *td, int cmd, unsigned flags, int cpu_id)
 	struct thread *td1;
 	cpuset_t cs;
 	uint64_t *swt;
-	int c, error;
+	int c, error, f, res;
 	bool first;
 
 	if (flags != 0 || (cmd & ~MEMBARRIER_SUPPORTED_CMDS) != 0)
@@ -133,6 +134,7 @@ kern_membarrier(struct thread *td, int cmd, unsigned flags, int cpu_id)
 
 	p = td->td_proc;
 	error = 0;
+	f = atomic_load_int(&td->td_proc->p_flag2);
 
 	switch (cmd) {
 	case MEMBARRIER_CMD_GLOBAL:
@@ -155,7 +157,7 @@ kern_membarrier(struct thread *td, int cmd, unsigned flags, int cpu_id)
 		break;
 
 	case MEMBARRIER_CMD_GLOBAL_EXPEDITED:
-		if ((td->td_proc->p_flag2 & P2_MEMBAR_GLOBE) == 0) {
+		if ((f & P2_MEMBAR_GLOBE) == 0) {
 			error = EPERM;
 		} else {
 			CPU_ZERO(&cs);
@@ -171,7 +173,7 @@ kern_membarrier(struct thread *td, int cmd, unsigned flags, int cpu_id)
 		break;
 
 	case MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED:
-		if ((p->p_flag2 & P2_MEMBAR_GLOBE) == 0) {
+		if ((f & P2_MEMBAR_GLOBE) == 0) {
 			PROC_LOCK(p);
 			p->p_flag2 |= P2_MEMBAR_GLOBE;
 			PROC_UNLOCK(p);
@@ -179,7 +181,7 @@ kern_membarrier(struct thread *td, int cmd, unsigned flags, int cpu_id)
 		break;
 
 	case MEMBARRIER_CMD_PRIVATE_EXPEDITED:
-		if ((td->td_proc->p_flag2 & P2_MEMBAR_PRIVE) == 0) {
+		if ((f & P2_MEMBAR_PRIVE) == 0) {
 			error = EPERM;
 		} else {
 			pmap_active_cpus(vmspace_pmap(p->p_vmspace), &cs);
@@ -188,7 +190,7 @@ kern_membarrier(struct thread *td, int cmd, unsigned flags, int cpu_id)
 		break;
 
 	case MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED:
-		if ((p->p_flag2 & P2_MEMBAR_PRIVE) == 0) {
+		if ((f & P2_MEMBAR_PRIVE) == 0) {
 			PROC_LOCK(p);
 			p->p_flag2 |= P2_MEMBAR_PRIVE;
 			PROC_UNLOCK(p);
@@ -196,7 +198,7 @@ kern_membarrier(struct thread *td, int cmd, unsigned flags, int cpu_id)
 		break;
 
 	case MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE:
-		if ((td->td_proc->p_flag2 & P2_MEMBAR_PRIVE_SYNCORE) == 0) {
+		if ((f & P2_MEMBAR_PRIVE_SYNCORE) == 0) {
 			error = EPERM;
 		} else {
 			/*
@@ -217,11 +219,24 @@ kern_membarrier(struct thread *td, int cmd, unsigned flags, int cpu_id)
 		break;
 
 	case MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE:
-		if ((p->p_flag2 & P2_MEMBAR_PRIVE_SYNCORE) == 0) {
+		if ((f & P2_MEMBAR_PRIVE_SYNCORE) == 0) {
 			PROC_LOCK(p);
 			p->p_flag2 |= P2_MEMBAR_PRIVE_SYNCORE;
 			PROC_UNLOCK(p);
 		}
+		break;
+
+	case MEMBARRIER_CMD_GET_REGISTRATIONS:
+		res = 0;
+		if ((f & P2_MEMBAR_GLOBE) != 0)
+			res |= MEMBARRIER_CMD_REGISTER_GLOBAL_EXPEDITED;
+		if ((f & P2_MEMBAR_PRIVE) != 0)
+			res |= MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED;
+		if ((f & P2_MEMBAR_PRIVE_SYNCORE) != 0) {
+			res |=
+		    MEMBARRIER_CMD_REGISTER_PRIVATE_EXPEDITED_SYNC_CORE;
+		}
+		td->td_retval[0] = res;
 		break;
 
 	default:

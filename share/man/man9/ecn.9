@@ -1,0 +1,184 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2026 Pouria Mousavizadeh Tehrani <pouria@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd March 19, 2026
+.Dt ECN 9
+.Os
+.Sh NAME
+.Nm ecn ,
+.Nm ip_ecn_ingress ,
+.Nm ip_ecn_egress ,
+.Nm ip6_ecn_ingress ,
+.Nm ip6_ecn_egress
+.Nd IP ECN interfaces for tunnel encapsulation/decapsulation
+.Sh SYNOPSIS
+.In sys/netinet/ip_ecn.h
+.In sys/netinet6/ip6_ecn.h
+.\"
+.Ss "Constants"
+.Dv ECN_COMPLETE
+.Dv ECN_ALLOWED
+.Dv ECN_FORBIDDEN
+.Dv ECN_NOCARE
+.\"
+.Ss "ECN Manipulation Functions"
+.Ft "void"
+.Fn ip_ecn_ingress "int mode" "uint8_t *outer" "const uint8_t *inner"
+.Ft "void"
+.Fn "ip6_ecn_ingress" "int mode" "uint32_t *outer" "const uint32_t *inner"
+.Ft "int"
+.Fn "ip_ecn_egress" "int mode" "uint8_t *outer" "const uint8_t *inner"
+.Ft "int"
+.Fn "ip6_ecn_egress" "int mode" "uint32_t *outer" "const uint32_t *inner"
+.\"
+.Sh DESCRIPTION
+The
+.Fn ip_ecn_ingress
+and
+.Fn ip_ecn_egress
+interfaces implement Explicit Congestion Notification (ECN) processing for
+tunnel encapsulation (ingress) and decapsulation (egress). They operate on
+the ECN bits in the IP Type of Service (TOS) or
+IPv6 Traffic Class (TCLASS) header field.
+These functions implements the standard specification of RFC6040 in
+.Vt ECN_ALLOWED
+mode for
+.Fn ip_ecn_egress
+with addition of
+.Vt ECN_FORBIDDEN
+mode as compatibility mode in
+.Fn ip_ecn_ingress .
+.Ss Interface
+The functions for manipulating
+.Vt ip_tos
+and
+.Vt ipv6_flow
+are as follows:
+.Bl -tag -width indent -offset indent
+.It Fn ip_ecn_ingress Fn ip6_ecn_ingress
+Perform ECN processing at encapsulation time (ingress) based on
+the ECN bits of the
+.Vt ip_tos
+field in
+.Vt "struct ip"
+or the
+.Vt ip6_flow
+field in
+.Vt "struct ip6_hdr"
+as
+.Va inner
+to
+.Va outer .
+It also copies the DSCP value from
+.Va inner
+to
+.Va outer .
+.It Fn ip_ecn_egress Fn ip6_ecn_egress
+Perform ECN processing at decapsulation time (egress) based on
+the ECN bits of
+.Va outer
+to
+.Va inner .
+.Vt ECN_ALLOWED
+mode may modify the
+.Va inner
+ECN bits or instruct the caller to drop or log
+by returning
+.Vt ECN_WARN
+or
+.Vt ECN_ALARM
+values.
+.El
+.Pp
+Return codes for
+.Fn ip_ecn_egress
+are as follows:
+.Bl -tag -width ".Dv ECN_SUCCESS" -offset indent
+.It Dv ECN_DROP
+(0) Caller MUST drop the packet.
+.It Dv ECN_SUCCESS
+(1) Processing succeeded;
+inner ECN bits may have been updated.
+.It Dv ECN_WARN
+(2) Processing succeeded;
+caller MAY log a warning for an anomalous ECN combination.
+.It Dv ECN_ALARM
+(3) Processing succeeded;
+caller SHOULD log and MAY raise an alarm for a serious ECN anomaly.
+.El
+.Pp
+The following modes are handled by functions:
+.Bl -tag -width ".Dv ECN_FORBIDDEN" -offset indent
+.It Dv ECN_COMPLETE
+Normal mode as defined in RFC6040.
+ECN bits are preserved through encapsulation;
+decapsulation follows RFC6040 rules and it returns
+.Vt ECN_WARN
+or
+.Vt ECN_ALARM
+values when a potentially dangerous packet detected.
+.It Dv ECN_ALLOWED
+Normal mode as defined in RFC6040 without security checks.
+ECN bits are preserved through encapsulation;
+decapsulation follows RFC6040 rules.
+.It Dv ECN_FORBIDDEN
+Compatibility mode.
+ECN is stripped on encapsulation and decapsulation will
+drop packets that carry CE in the outer header.
+This mode should not be used in
+.Fn ip_ecn_egress
+or
+.Fn ip6_ecn_egress
+since the
+.Vt ECN_ALLOWED
+mode already covers all possible scenarios as specified in RFC6040.
+.It Dv ECN_NOCARE
+leave ECN bits unchanged and ignored.
+.El
+.Ss IPV6 HANDLING
+IPv6 interfaces
+.Fn ip6_ecn_ingress
+and
+.Fn ip6_ecn_egress
+extract the 8-bit DSCP and ECN values from the 32-bit
+.Vt ip6_flow
+and insert it to IPv4 equivalent interfaces.
+.Sh SEE ALSO
+.Xr ip 4 ,
+.Xr ip6 4 ,
+.Xr ipsec 4
+.Sh HISTORY
+Historically
+.Fn ip_ecn_egress
+used a boolean-style return.
+The current API preserves numeric mapping for drop (ECN_DROP == 0)
+and success (ECN_SUCCESS == 1) but defines additional non-zero
+status codes (ECN_WARN, ECN_ALARM).
+Callers that only test for non-zero success will continue to
+treat WARN/ALARM as success.
+.Sh AUTHORS
+.An Pouria Mousavizadeh Tehrani Aq Mt pouria@FreeBSD.org

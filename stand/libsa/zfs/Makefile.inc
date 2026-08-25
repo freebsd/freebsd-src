@@ -12,10 +12,12 @@ ZFS_SRC+=	zfs_zstd.c
 ZFS_SRC+=	blake3.c blake3_generic.c blake3_impl.c
 ZSTD_SRC+=	entropy_common.c error_private.c
 ZSTD_SRC+=	fse_decompress.c hist.c
-ZSTD_SRC+=	huf_decompress.c pool.c xxhash.c
+ZSTD_SRC+=	huf_decompress.c pool.c
+ZSTD_SRC+=	xxhash.c
 ZSTD_SRC+=	zstd_common.c
 ZSTD_SRC+=	zstd_ddict.c zstd_decompress.c zstd_decompress_block.c
 ZSTD_SRC+=	zstd_double_fast.c zstd_fast.c zstd_lazy.c zstd_ldm.c
+ZSTD_SRC+=	zstd_preSplit.c
 
 SRCS+=		${ZFS_SRC} ${ZSTD_SRC} ${ZFS_SRC_AS}
 
@@ -40,10 +42,14 @@ ZFS_EARLY=	-I${SAZFSSRC}/spl				\
 # has a bunch of defines that are present in OpenSolaris / Illumos, but missing
 # from FreeBSD.
 #
-.for i in ${ZFS_SRC} ${ZSTD_SRC}
-CFLAGS.$i+=	-include ${ZFSOSINC}/spl/sys/ccompile.h -Wformat -Wall -I${ZFSTOP}/include \
+.for i in ${ZFS_SRC}
+CFLAGS.$i+=	-include ${ZFSTOP}/include/sys/simd_config.h \
+	-include ${ZFSOSINC}/spl/sys/ccompile.h \
+	-Wformat -Wall -I${ZFSTOP}/include \
 	-DNEED_SOLARIS_BOOLEAN
 .endfor
+
+CFLAGS.xxhash.c+=	-I${ZFSTOP}/module/zstd/lib/common
 
 CFLAGS_EARLY.blake3.c+= ${ZFS_EARLY} -DOMIT_SIMD
 CFLAGS_EARLY.blake3_generic.c+= ${ZFS_EARLY} -DOMIT_SIMD
@@ -69,9 +75,13 @@ CFLAGS.zfs.c+=	-DHAS_ZSTD_ZFS					\
 #
 # ZSTD coding style has some issues, so suppress clang's warnings. Also, zstd's
 # use of BMI instrucitons is broken in this environment, so avoid them.
+# Avoid generating the DYNAMIC_BMI2 code paths because the code duplication
+# inflates the resulting binaries.  Disable ZSTD_TRACE because we don't need it
+# and the bfd linker trips over the weak undefined symbols it generates.
 #
 .for i in ${ZSTD_SRC}
-CFLAGS.$i+=	-U__BMI__ ${NO_WBITWISE_INSTEAD_OF_LOGICAL}
+CFLAGS.$i+=	-U__BMI__ -DDYNAMIC_BMI2=0 -DZSTD_TRACE=0	\
+		${NO_WBITWISE_INSTEAD_OF_LOGICAL}
 .endfor
 
 CFLAGS.zfs_zstd.c+= -DIN_BASE -DIN_LIBSA

@@ -179,6 +179,13 @@ ATF_TC_BODY(readv_before_end, tc)
 	const size_t __len = 2 - 1;
 	const size_t __idx __unused = __len - 1;
 
+	replace_stdin();
+
+	for (size_t __i = 0; __i < 2; __i++) {
+		__stack.__buf[__i].iov_base = &__stack.padding_l;
+		__stack.__buf[__i].iov_len = 1;
+	}
+
 	readv(STDIN_FILENO, __stack.__buf, __len);
 #undef BUF
 
@@ -199,6 +206,13 @@ ATF_TC_BODY(readv_end, tc)
 	const size_t __bufsz __unused = sizeof(__stack.__buf);
 	const size_t __len = 2;
 	const size_t __idx __unused = __len - 1;
+
+	replace_stdin();
+
+	for (size_t __i = 0; __i < 2; __i++) {
+		__stack.__buf[__i].iov_base = &__stack.padding_l;
+		__stack.__buf[__i].iov_len = 1;
+	}
 
 	readv(STDIN_FILENO, __stack.__buf, __len);
 #undef BUF
@@ -230,6 +244,13 @@ ATF_TC_BODY(readv_after_end, tc)
 
 	/* Child */
 	disable_coredumps();
+	replace_stdin();
+
+	for (size_t __i = 0; __i < 2; __i++) {
+		__stack.__buf[__i].iov_base = &__stack.padding_l;
+		__stack.__buf[__i].iov_len = 1;
+	}
+
 	readv(STDIN_FILENO, __stack.__buf, __len);
 	_exit(EX_SOFTWARE);	/* Should have aborted. */
 
@@ -274,6 +295,12 @@ ATF_TC_BODY(readv_heap_before_end, tc)
 	const size_t __idx __unused = __len - 1;
 
 	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
+	for (size_t __i = 0; __i < 2; __i++) {
+		__stack.__buf[__i].iov_base = &__stack.padding_l;
+		__stack.__buf[__i].iov_len = 1;
+	}
 
 	readv(STDIN_FILENO, __stack.__buf, __len);
 #undef BUF
@@ -297,6 +324,12 @@ ATF_TC_BODY(readv_heap_end, tc)
 	const size_t __idx __unused = __len - 1;
 
 	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
+	for (size_t __i = 0; __i < 2; __i++) {
+		__stack.__buf[__i].iov_base = &__stack.padding_l;
+		__stack.__buf[__i].iov_len = 1;
+	}
 
 	readv(STDIN_FILENO, __stack.__buf, __len);
 #undef BUF
@@ -329,6 +362,12 @@ ATF_TC_BODY(readv_heap_after_end, tc)
 	/* Child */
 	disable_coredumps();
 	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
+	for (size_t __i = 0; __i < 2; __i++) {
+		__stack.__buf[__i].iov_base = &__stack.padding_l;
+		__stack.__buf[__i].iov_len = 1;
+	}
 
 	readv(STDIN_FILENO, __stack.__buf, __len);
 	_exit(EX_SOFTWARE);	/* Should have aborted. */
@@ -374,10 +413,10 @@ ATF_TC_BODY(readv_iov_before_end, tc)
 	const size_t __idx __unused = __len - 1;
 	struct iovec iov[1];
 
+	replace_stdin();
+
 	iov[0].iov_base = __stack.__buf;
 	iov[0].iov_len = __len;
-
-	replace_stdin();
 
 	readv(STDIN_FILENO, iov, nitems(iov));
 #undef BUF
@@ -401,10 +440,10 @@ ATF_TC_BODY(readv_iov_end, tc)
 	const size_t __idx __unused = __len - 1;
 	struct iovec iov[1];
 
+	replace_stdin();
+
 	iov[0].iov_base = __stack.__buf;
 	iov[0].iov_len = __len;
-
-	replace_stdin();
 
 	readv(STDIN_FILENO, iov, nitems(iov));
 #undef BUF
@@ -429,10 +468,10 @@ ATF_TC_BODY(readv_iov_heap_before_end, tc)
 	struct iovec iov[1];
 
 	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
 	iov[0].iov_base = __stack.__buf;
 	iov[0].iov_len = __len;
-
-	replace_stdin();
 
 	readv(STDIN_FILENO, iov, nitems(iov));
 #undef BUF
@@ -457,10 +496,10 @@ ATF_TC_BODY(readv_iov_heap_end, tc)
 	struct iovec iov[1];
 
 	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
 	iov[0].iov_base = __stack.__buf;
 	iov[0].iov_len = __len;
-
-	replace_stdin();
 
 	readv(STDIN_FILENO, iov, nitems(iov));
 #undef BUF
@@ -494,10 +533,10 @@ ATF_TC_BODY(readv_iov_heap_after_end, tc)
 	/* Child */
 	disable_coredumps();
 	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
 	iov[0].iov_base = __stack.__buf;
 	iov[0].iov_len = __len;
-
-	replace_stdin();
 
 	readv(STDIN_FILENO, iov, nitems(iov));
 	_exit(EX_SOFTWARE);	/* Should have aborted. */
@@ -542,6 +581,13 @@ ATF_TC_BODY(preadv_before_end, tc)
 	const size_t __len = 2 - 1;
 	const size_t __idx __unused = __len - 1;
 
+	replace_stdin();
+
+	for (size_t __i = 0; __i < 2; __i++) {
+		__stack.__buf[__i].iov_base = &__stack.padding_l;
+		__stack.__buf[__i].iov_len = 1;
+	}
+
 	preadv(STDIN_FILENO, __stack.__buf, __len, 0);
 #undef BUF
 
@@ -562,6 +608,13 @@ ATF_TC_BODY(preadv_end, tc)
 	const size_t __bufsz __unused = sizeof(__stack.__buf);
 	const size_t __len = 2;
 	const size_t __idx __unused = __len - 1;
+
+	replace_stdin();
+
+	for (size_t __i = 0; __i < 2; __i++) {
+		__stack.__buf[__i].iov_base = &__stack.padding_l;
+		__stack.__buf[__i].iov_len = 1;
+	}
 
 	preadv(STDIN_FILENO, __stack.__buf, __len, 0);
 #undef BUF
@@ -593,6 +646,13 @@ ATF_TC_BODY(preadv_after_end, tc)
 
 	/* Child */
 	disable_coredumps();
+	replace_stdin();
+
+	for (size_t __i = 0; __i < 2; __i++) {
+		__stack.__buf[__i].iov_base = &__stack.padding_l;
+		__stack.__buf[__i].iov_len = 1;
+	}
+
 	preadv(STDIN_FILENO, __stack.__buf, __len, 0);
 	_exit(EX_SOFTWARE);	/* Should have aborted. */
 
@@ -637,6 +697,12 @@ ATF_TC_BODY(preadv_heap_before_end, tc)
 	const size_t __idx __unused = __len - 1;
 
 	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
+	for (size_t __i = 0; __i < 2; __i++) {
+		__stack.__buf[__i].iov_base = &__stack.padding_l;
+		__stack.__buf[__i].iov_len = 1;
+	}
 
 	preadv(STDIN_FILENO, __stack.__buf, __len, 0);
 #undef BUF
@@ -660,6 +726,12 @@ ATF_TC_BODY(preadv_heap_end, tc)
 	const size_t __idx __unused = __len - 1;
 
 	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
+	for (size_t __i = 0; __i < 2; __i++) {
+		__stack.__buf[__i].iov_base = &__stack.padding_l;
+		__stack.__buf[__i].iov_len = 1;
+	}
 
 	preadv(STDIN_FILENO, __stack.__buf, __len, 0);
 #undef BUF
@@ -692,6 +764,12 @@ ATF_TC_BODY(preadv_heap_after_end, tc)
 	/* Child */
 	disable_coredumps();
 	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
+	for (size_t __i = 0; __i < 2; __i++) {
+		__stack.__buf[__i].iov_base = &__stack.padding_l;
+		__stack.__buf[__i].iov_len = 1;
+	}
 
 	preadv(STDIN_FILENO, __stack.__buf, __len, 0);
 	_exit(EX_SOFTWARE);	/* Should have aborted. */
@@ -737,10 +815,10 @@ ATF_TC_BODY(preadv_iov_before_end, tc)
 	const size_t __idx __unused = __len - 1;
 	struct iovec iov[1];
 
+	replace_stdin();
+
 	iov[0].iov_base = __stack.__buf;
 	iov[0].iov_len = __len;
-
-	replace_stdin();
 
 	preadv(STDIN_FILENO, iov, nitems(iov), 0);
 #undef BUF
@@ -764,10 +842,10 @@ ATF_TC_BODY(preadv_iov_end, tc)
 	const size_t __idx __unused = __len - 1;
 	struct iovec iov[1];
 
+	replace_stdin();
+
 	iov[0].iov_base = __stack.__buf;
 	iov[0].iov_len = __len;
-
-	replace_stdin();
 
 	preadv(STDIN_FILENO, iov, nitems(iov), 0);
 #undef BUF
@@ -792,10 +870,10 @@ ATF_TC_BODY(preadv_iov_heap_before_end, tc)
 	struct iovec iov[1];
 
 	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
 	iov[0].iov_base = __stack.__buf;
 	iov[0].iov_len = __len;
-
-	replace_stdin();
 
 	preadv(STDIN_FILENO, iov, nitems(iov), 0);
 #undef BUF
@@ -820,10 +898,10 @@ ATF_TC_BODY(preadv_iov_heap_end, tc)
 	struct iovec iov[1];
 
 	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
 	iov[0].iov_base = __stack.__buf;
 	iov[0].iov_len = __len;
-
-	replace_stdin();
 
 	preadv(STDIN_FILENO, iov, nitems(iov), 0);
 #undef BUF
@@ -857,10 +935,10 @@ ATF_TC_BODY(preadv_iov_heap_after_end, tc)
 	/* Child */
 	disable_coredumps();
 	__stack.__buf = malloc(__bufsz);
+	replace_stdin();
+
 	iov[0].iov_base = __stack.__buf;
 	iov[0].iov_len = __len;
-
-	replace_stdin();
 
 	preadv(STDIN_FILENO, iov, nitems(iov), 0);
 	_exit(EX_SOFTWARE);	/* Should have aborted. */

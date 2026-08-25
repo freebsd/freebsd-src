@@ -60,7 +60,7 @@
  * The patch version is incremented for every bug fix.
  */
 #define	PMC_VERSION_MAJOR	0x0A
-#define	PMC_VERSION_MINOR	0x00
+#define	PMC_VERSION_MINOR	0x02
 #define	PMC_VERSION_PATCH	0x0000
 
 #define	PMC_VERSION		(PMC_VERSION_MAJOR << 24 |		\
@@ -110,7 +110,8 @@ extern char pmc_cpuid[PMC_CPUID_LEN];
     __PMC_CPU(INTEL_EMERALD_RAPIDS,	0xA0,	"Intel Emerald Rapids")		\
     __PMC_CPU(INTEL_ALDERLAKEN,		0xA1,	"Intel AlderlakeN")		\
     __PMC_CPU(INTEL_GRANITE_RAPIDS,	0xA2,	"Intel Granite Rapids")		\
-    __PMC_CPU(INTEL_XSCALE,		0x100,	"Intel XScale")			\
+    __PMC_CPU(INTEL_METEOR_LAKE,	0xA3,	"Intel Meteorlake")		\
+    __PMC_CPU(INTEL_SAPPHIRE_RAPIDS,	0xA4,	"Intel Sapphire Rapids")	\
     __PMC_CPU(PPC_7450,			0x300,	"PowerPC MPC7450")		\
     __PMC_CPU(PPC_E500,			0x340,	"PowerPC e500 Core")		\
     __PMC_CPU(PPC_970,			0x380,	"IBM PowerPC 970")		\
@@ -141,11 +142,11 @@ enum pmc_cputype {
 #define	__PMC_CLASSES()								\
     __PMC_CLASS(TSC,		0x00,	"CPU Timestamp counter")		\
     __PMC_CLASS(K8,		0x02,	"AMD K8 performance counters")		\
+    __PMC_CLASS(IBS,		0x03,	"AMD IBS performance counters")		\
     __PMC_CLASS(IAF,		0x06,	"Intel Core2/Atom, fixed function")	\
     __PMC_CLASS(IAP,		0x07,	"Intel Core...Atom, programmable")	\
     __PMC_CLASS(UCF,		0x08,	"Intel Uncore fixed function")		\
     __PMC_CLASS(UCP,		0x09,	"Intel Uncore programmable")		\
-    __PMC_CLASS(XSCALE,		0x0A,	"Intel XScale counters")		\
     __PMC_CLASS(PPC7450,	0x0D,	"Motorola MPC7450 class")		\
     __PMC_CLASS(PPC970,		0x0E,	"IBM PowerPC 970 class")		\
     __PMC_CLASS(SOFT,		0x0F,	"Software events")			\
@@ -155,7 +156,8 @@ enum pmc_cputype {
     __PMC_CLASS(POWER8,		0x15,	"IBM POWER8 class")			\
     __PMC_CLASS(DMC620_PMU_CD2,	0x16,	"ARM DMC620 Memory Controller PMU CLKDIV2") \
     __PMC_CLASS(DMC620_PMU_C,	0x17,	"ARM DMC620 Memory Controller PMU CLK")	\
-    __PMC_CLASS(CMN600_PMU,	0x18,	"Arm CoreLink CMN600 Coherent Mesh Network PMU")
+    __PMC_CLASS(CMN600_PMU,	0x18,	"Arm CoreLink CMN600 Coherent Mesh Network PMU") \
+    __PMC_CLASS(RAPL,		0x19,	"AMD/Intel RAPL energy counters")
 
 enum pmc_class {
 #undef  __PMC_CLASS
@@ -164,7 +166,7 @@ enum pmc_class {
 };
 
 #define	PMC_CLASS_FIRST	PMC_CLASS_TSC
-#define	PMC_CLASS_LAST	PMC_CLASS_CMN600_PMU
+#define	PMC_CLASS_LAST	PMC_CLASS_RAPL
 
 /*
  * A PMC can be in the following states:
@@ -347,7 +349,8 @@ enum pmc_event {
 	__PMC_OP(PMCSTOP, "Stop a PMC")					\
 	__PMC_OP(WRITELOG, "Write a cookie to the log file")		\
 	__PMC_OP(CLOSELOG, "Close log file")				\
-	__PMC_OP(GETDYNEVENTINFO, "Get dynamic events list")
+	__PMC_OP(GETDYNEVENTINFO, "Get dynamic events list")		\
+	__PMC_OP(GETCAPS, "Get capabilities")
 
 enum pmc_ops {
 #undef	__PMC_OP
@@ -386,6 +389,7 @@ enum pmc_ops {
 #define	PMC_CALLCHAIN_DEPTH_MAX	512
 
 #define	PMC_CC_F_USERSPACE	0x01	   /*userspace callchain*/
+#define	PMC_CC_F_MULTIPART	0x02	   /*multipart data*/
 
 /*
  * Cookies used to denote allocated PMCs, and the values of PMCs.
@@ -638,6 +642,17 @@ struct pmc_op_getdyneventinfo {
 	struct pmc_dyn_event_descr	pm_events[PMC_EV_DYN_COUNT];
 };
 
+/*
+ * OP GETCAPS
+ *
+ * Retrieve the PMC capabilties flags for this type of counter.
+ */
+
+struct pmc_op_caps {
+	pmc_id_t	pm_pmcid;	/* allocated pmc id */
+	uint32_t	pm_caps;	/* capabilities */
+};
+
 #ifdef _KERNEL
 
 #include <sys/malloc.h>
@@ -649,7 +664,9 @@ struct pmc_op_getdyneventinfo {
 #define	PMC_HASH_SIZE				1024
 #define	PMC_MTXPOOL_SIZE			2048
 #define	PMC_LOG_BUFFER_SIZE			256
+#define	PMC_LOG_BUFFER_SIZE_MAX			(16 * 1024)
 #define	PMC_NLOGBUFFERS_PCPU			32
+#define	PMC_NLOGBUFFERS_PCPU_MEM_MAX		(32 * 1024)
 #define	PMC_NSAMPLES				256
 #define	PMC_CALLCHAIN_DEPTH			128
 #define	PMC_THREADLIST_MAX			128
@@ -960,6 +977,18 @@ struct pmc_samplebuffer {
 #define PMC_PROD_SAMPLE(psb)					\
 	(&(psb)->ps_samples[(psb)->ps_prodidx & pmc_sample_mask])
 
+
+/*
+ * struct pmc_multipart
+ *
+ * Multipart payload
+ */
+struct pmc_multipart {
+	char			pl_type;
+	char			pl_length;
+	uint64_t		pl_mpdata[10];
+};
+
 /*
  * struct pmc_cpustate
  *
@@ -1028,6 +1057,7 @@ struct pmc_classdep {
 	/* description */
 	int (*pcd_describe)(int _cpu, int _ri, struct pmc_info *_pi,
 		struct pmc **_ppmc);
+	int (*pcd_get_caps)(int _ri, uint32_t *_caps);
 
 	/* class-dependent initialization & finalization */
 	int (*pcd_pcpu_init)(struct pmc_mdep *_md, int _cpu);
@@ -1226,7 +1256,10 @@ MALLOC_DECLARE(M_PMC);
 struct pmc_mdep *pmc_md_initialize(void);	/* MD init function */
 void	pmc_md_finalize(struct pmc_mdep *_md);	/* MD fini function */
 int	pmc_getrowdisp(int _ri);
-int	pmc_process_interrupt(int _ring, struct pmc *_pm, struct trapframe *_tf);
+int	pmc_process_interrupt_mp(int _ring, struct pmc *_pm,
+    struct trapframe *_tf, struct pmc_multipart *mp);
+int	pmc_process_interrupt(int _ring, struct pmc *_pm,
+    struct trapframe *_tf);
 int	pmc_save_kernel_callchain(uintptr_t *_cc, int _maxsamples,
     struct trapframe *_tf);
 int	pmc_save_user_callchain(uintptr_t *_cc, int _maxsamples,

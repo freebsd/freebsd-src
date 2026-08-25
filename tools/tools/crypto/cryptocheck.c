@@ -343,9 +343,9 @@ devcrypto(void)
 }
 
 /*
- * Called on exit to change kern.cryptodevallowsoft back to 0
+ * Called on exit to change kern.crypto.allow_soft back to 0
  */
-#define CRYPT_SOFT_ALLOW	"kern.cryptodevallowsoft"
+#define CRYPT_SOFT_ALLOW	"kern.crypto.allow_soft"
 
 static void
 reset_user_soft(void)

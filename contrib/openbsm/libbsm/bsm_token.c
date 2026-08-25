@@ -1051,7 +1051,7 @@ au_to_socket_ex(u_short so_domain, u_short so_type,
 /*
  * token ID                1 byte
  * socket family           2 bytes
- * path                    (up to) 104 bytes + NULL  (NULL terminated string)
+ * path                    (up to) AU_UNIX_PATH_MAX bytes (NUL terminated)
  */
 token_t *
 au_to_sock_unix(struct sockaddr_un *so)

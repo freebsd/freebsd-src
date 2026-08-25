@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
@@ -152,7 +152,7 @@ adf_add_mem_fd(struct adf_accel_dev *accel_dev, int mem_fd)
 }
 
 static vm_object_t
-adf_uio_map_bar(struct adf_accel_dev *accel_dev, uint8_t bank_offset)
+adf_uio_map_bar(struct adf_accel_dev *accel_dev, uint16_t bank_offset)
 {
 	unsigned int ring_bundle_size, offset;
 	struct sglist *sg = NULL;

@@ -580,7 +580,7 @@ get_groups() {
 	fi
 	read _input
 
-	[ -n "$_input" ] && ugroups="$_input"
+	[ -n "$_input" ] && ugroups="$(echo "$_input" | tr -s ',:;' ' ')"
 }
 
 # get_expire_dates
@@ -1018,7 +1018,7 @@ for _i in $* ; do
 done
 if [ -n "$readconfig" ] && [ -r "${ADDUSERCONF}" ]; then
 	. "${ADDUSERCONF}"
-fi 
+fi
 
 # Process command-line options
 #

@@ -1,0 +1,24 @@
+#
+# Copyright (c) 2026 The FreeBSD Foundation
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+pci_network_ittim_mt76()
+{
+
+	case "$1" in
+	0x7922)	addpkg "wifi-firmware-mt76-kmod-mt7921"; return 1 ;;
+	esac
+}
+
+pci_network_ittim()
+{
+
+	for _drv in mt76; do
+		pci_network_ittim_${_drv} "$1"
+		case $? in
+		1)	break ;;
+		esac
+	done
+}

@@ -1,4 +1,4 @@
-#	$OpenBSD: scp.sh,v 1.19 2023/09/08 05:50:57 djm Exp $
+#	$OpenBSD: scp.sh,v 1.20 2025/10/13 00:55:09 djm Exp $
 #	Placed in the Public Domain.
 
 tid="scp"
@@ -199,6 +199,19 @@ for mode in scp sftp ; do
 	echo b > ${COPY2}
 	$SCP $scpopts ${DATA} ${COPY} ${COPY2}
 	cmp ${COPY} ${COPY2} >/dev/null && fail "corrupt target"
+
+	# scp /blah/.. is only supported via the sftp protocol.
+	# Original protocol scp just refuses it.
+	test $mode != sftp && continue
+	verbose "$tag: recursive local .. to remote dir"
+	forest
+	$SCP $scpopts -r ${DIR}/subdir/.. somehost:${DIR2} || fail "copy failed"
+	diff ${DIFFOPT} ${DIR} ${DIR2} || fail "corrupted copy"
+
+	verbose "$tag: recursive remote .. to local dir"
+	forest
+	$SCP $scpopts -r somehost:${DIR}/subdir/.. ${DIR2} || fail "copy failed"
+	diff ${DIFFOPT} ${DIR} ${DIR2} || fail "corrupted copy"
 done
 
 scpclean

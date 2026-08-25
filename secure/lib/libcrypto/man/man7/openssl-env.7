@@ -58,7 +58,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL-ENV 7ossl"
-.TH OPENSSL-ENV 7ossl 2026-01-27 3.5.5 OpenSSL
+.TH OPENSSL-ENV 7ossl 2026-06-09 3.5.7 OpenSSL
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -114,6 +114,12 @@ This output usually makes sense only if you know OpenSSL internals well.
 .Sp
 The value of this environment variable is a comma\-separated list of names,
 with the following available:
+.IP \fBOPENSSL_RUNNING_UNIT_TESTS\fR 4
+.IX Item "OPENSSL_RUNNING_UNIT_TESTS"
+This environment variable is used to flag the fact that unit tests are being run
+(i.e. \`make test\`).  It is used to detect when the OpenSSL should behave in a special
+manner during unit tests (i.e. when unit tests are being run on fuzzing builds).  It should
+generally not be set by users.
 .RS 4
 .IP \fBTRACE\fR 4
 .IX Item "TRACE"
@@ -191,6 +197,8 @@ See \fBRAND_load_file\fR\|(3).
 .IP "\fBSSL_CERT_DIR\fR, \fBSSL_CERT_FILE\fR" 4
 .IX Item "SSL_CERT_DIR, SSL_CERT_FILE"
 Specify the default directory or file containing CA certificates.
+\&\fBSSL_CERT_DIR\fR can contain multiple directories separated by colons
+(or semicolons on Windows).
 See \fBSSL_CTX_load_verify_locations\fR\|(3).
 .IP \fBTSGET\fR 4
 .IX Item "TSGET"
@@ -226,7 +234,7 @@ read access to the file to decrypt application traffic sent over that session.
 Use of this feature should be restricted to test and debug environments only.
 .SH COPYRIGHT
 .IX Header "COPYRIGHT"
-Copyright 2019\-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019\-2026 The OpenSSL Project Authors. All Rights Reserved.
 .PP
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -83,6 +83,8 @@ CPU are fenced.
 Register the process to receive
 .Dv MEMBARRIER_CMD_PRIVATE_EXPEDITED_SYNC_CORE
 memory barriers.
+.It Dv MEMBARRIER_CMD_GET_REGISTRATIONS
+Return the bitmask of the currently registered receive barriers.
 .El
 .Pp
 The following
@@ -106,6 +108,10 @@ If the
 is
 .Dv MEMBARRIER_CMD_QUERY
 a bitmask of supported commands is returned.
+For the
+.Dv MEMBARRIER_CMD_GET_REGISTRATIONS
+command, a bitmask of the registrations for the current process
+is returned.
 Otherwise, on success,
 .Nm
 returns 0.

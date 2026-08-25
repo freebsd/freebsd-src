@@ -1000,295 +1000,295 @@ rpf_tpo_to_rpf_sys_lbk_set(struct aq_hw *aq_hw, uint32_t tpo_to_rpf_sys_lbk)
 
 
 void
-hw_atl_rpf_vlan_inner_etht_set(struct aq_hw_s *aq_hw, uint32_t vlan_inner_etht)
+hw_atl_rpf_vlan_inner_etht_set(struct aq_hw *aq_hw, uint32_t vlan_inner_etht)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_INNER_TPID_ADR,
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_VL_INNER_TPID_ADR,
 			    HW_ATL_RPF_VL_INNER_TPID_MSK,
 			    HW_ATL_RPF_VL_INNER_TPID_SHIFT,
 			    vlan_inner_etht);
 }
 
 void
-hw_atl_rpf_vlan_outer_etht_set(struct aq_hw_s *aq_hw, uint32_t vlan_outer_etht)
+hw_atl_rpf_vlan_outer_etht_set(struct aq_hw *aq_hw, uint32_t vlan_outer_etht)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_OUTER_TPID_ADR,
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_VL_OUTER_TPID_ADR,
 			    HW_ATL_RPF_VL_OUTER_TPID_MSK,
 			    HW_ATL_RPF_VL_OUTER_TPID_SHIFT,
 			    vlan_outer_etht);
 }
 
 void
-hw_atl_rpf_vlan_prom_mode_en_set(struct aq_hw_s *aq_hw,
+hw_atl_rpf_vlan_prom_mode_en_set(struct aq_hw *aq_hw,
     uint32_t vlan_prom_mode_en)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_PROMIS_MODE_ADR,
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_VL_PROMIS_MODE_ADR,
 			    HW_ATL_RPF_VL_PROMIS_MODE_MSK,
 			    HW_ATL_RPF_VL_PROMIS_MODE_SHIFT,
 			    vlan_prom_mode_en);
 }
 
 void
-hw_atl_rpf_vlan_accept_untagged_packets_set(struct aq_hw_s *aq_hw,
+hw_atl_rpf_vlan_accept_untagged_packets_set(struct aq_hw *aq_hw,
     uint32_t vlan_acc_untagged_packets)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_ACCEPT_UNTAGGED_MODE_ADR,
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_VL_ACCEPT_UNTAGGED_MODE_ADR,
 			    HW_ATL_RPF_VL_ACCEPT_UNTAGGED_MODE_MSK,
 			    HW_ATL_RPF_VL_ACCEPT_UNTAGGED_MODE_SHIFT,
 			    vlan_acc_untagged_packets);
 }
 
 void
-hw_atl_rpf_vlan_untagged_act_set(struct aq_hw_s *aq_hw,
+hw_atl_rpf_vlan_untagged_act_set(struct aq_hw *aq_hw,
     uint32_t vlan_untagged_act)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_UNTAGGED_ACT_ADR,
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_VL_UNTAGGED_ACT_ADR,
 			    HW_ATL_RPF_VL_UNTAGGED_ACT_MSK,
 			    HW_ATL_RPF_VL_UNTAGGED_ACT_SHIFT,
 			    vlan_untagged_act);
 }
 
 void
-hw_atl_rpf_vlan_flr_en_set(struct aq_hw_s *aq_hw, uint32_t vlan_flr_en,
+hw_atl_rpf_vlan_flr_en_set(struct aq_hw *aq_hw, uint32_t vlan_flr_en,
     uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_EN_F_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_VL_EN_F_ADR(filter),
 			    HW_ATL_RPF_VL_EN_F_MSK,
 			    HW_ATL_RPF_VL_EN_F_SHIFT,
 			    vlan_flr_en);
 }
 
 void
-hw_atl_rpf_vlan_flr_act_set(struct aq_hw_s *aq_hw, uint32_t vlan_flr_act,
+hw_atl_rpf_vlan_flr_act_set(struct aq_hw *aq_hw, uint32_t vlan_flr_act,
     uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_ACT_F_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_VL_ACT_F_ADR(filter),
 			    HW_ATL_RPF_VL_ACT_F_MSK,
 			    HW_ATL_RPF_VL_ACT_F_SHIFT,
 			    vlan_flr_act);
 }
 
 void
-hw_atl_rpf_vlan_id_flr_set(struct aq_hw_s *aq_hw, uint32_t vlan_id_flr,
+hw_atl_rpf_vlan_id_flr_set(struct aq_hw *aq_hw, uint32_t vlan_id_flr,
     uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_ID_F_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_VL_ID_F_ADR(filter),
 			    HW_ATL_RPF_VL_ID_F_MSK,
 			    HW_ATL_RPF_VL_ID_F_SHIFT,
 			    vlan_id_flr);
 }
 
 void
-hw_atl_rpf_vlan_rxq_en_flr_set(struct aq_hw_s *aq_hw, uint32_t vlan_rxq_en,
+hw_atl_rpf_vlan_rxq_en_flr_set(struct aq_hw *aq_hw, uint32_t vlan_rxq_en,
     uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_RXQ_EN_F_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_VL_RXQ_EN_F_ADR(filter),
 			    HW_ATL_RPF_VL_RXQ_EN_F_MSK,
 			    HW_ATL_RPF_VL_RXQ_EN_F_SHIFT,
 			    vlan_rxq_en);
 }
 
 void
-hw_atl_rpf_vlan_rxq_flr_set(struct aq_hw_s *aq_hw, uint32_t vlan_rxq,
+hw_atl_rpf_vlan_rxq_flr_set(struct aq_hw *aq_hw, uint32_t vlan_rxq,
     uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_VL_RXQ_F_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_VL_RXQ_F_ADR(filter),
 			    HW_ATL_RPF_VL_RXQ_F_MSK,
 			    HW_ATL_RPF_VL_RXQ_F_SHIFT,
 			    vlan_rxq);
 };
 
 void
-hw_atl_rpf_etht_flr_en_set(struct aq_hw_s *aq_hw, uint32_t etht_flr_en,
+hw_atl_rpf_etht_flr_en_set(struct aq_hw *aq_hw, uint32_t etht_flr_en,
     uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_ENF_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_ET_ENF_ADR(filter),
 			    HW_ATL_RPF_ET_ENF_MSK,
 			    HW_ATL_RPF_ET_ENF_SHIFT, etht_flr_en);
 }
 
 void
-hw_atl_rpf_etht_user_priority_en_set(struct aq_hw_s *aq_hw,
+hw_atl_rpf_etht_user_priority_en_set(struct aq_hw *aq_hw,
     uint32_t etht_user_priority_en, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_UPFEN_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_ET_UPFEN_ADR(filter),
 			    HW_ATL_RPF_ET_UPFEN_MSK, HW_ATL_RPF_ET_UPFEN_SHIFT,
 			    etht_user_priority_en);
 }
 
 void
-hw_atl_rpf_etht_rx_queue_en_set(struct aq_hw_s *aq_hw,
+hw_atl_rpf_etht_rx_queue_en_set(struct aq_hw *aq_hw,
     uint32_t etht_rx_queue_en, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_RXQFEN_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_ET_RXQFEN_ADR(filter),
 			    HW_ATL_RPF_ET_RXQFEN_MSK,
 			    HW_ATL_RPF_ET_RXQFEN_SHIFT,
 			    etht_rx_queue_en);
 }
 
 void
-hw_atl_rpf_etht_user_priority_set(struct aq_hw_s *aq_hw,
+hw_atl_rpf_etht_user_priority_set(struct aq_hw *aq_hw,
     uint32_t etht_user_priority, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_UPF_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_ET_UPF_ADR(filter),
 			    HW_ATL_RPF_ET_UPF_MSK,
 			    HW_ATL_RPF_ET_UPF_SHIFT, etht_user_priority);
 }
 
 void
-hw_atl_rpf_etht_rx_queue_set(struct aq_hw_s *aq_hw, uint32_t etht_rx_queue,
+hw_atl_rpf_etht_rx_queue_set(struct aq_hw *aq_hw, uint32_t etht_rx_queue,
 				  uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_RXQF_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_ET_RXQF_ADR(filter),
 			    HW_ATL_RPF_ET_RXQF_MSK,
 			    HW_ATL_RPF_ET_RXQF_SHIFT, etht_rx_queue);
 }
 
 void
-hw_atl_rpf_etht_mgt_queue_set(struct aq_hw_s *aq_hw, uint32_t etht_mgt_queue,
+hw_atl_rpf_etht_mgt_queue_set(struct aq_hw *aq_hw, uint32_t etht_mgt_queue,
 				   uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_MNG_RXQF_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_ET_MNG_RXQF_ADR(filter),
 			    HW_ATL_RPF_ET_MNG_RXQF_MSK,
 			    HW_ATL_RPF_ET_MNG_RXQF_SHIFT,
 			    etht_mgt_queue);
 }
 
 void
-hw_atl_rpf_etht_flr_act_set(struct aq_hw_s *aq_hw, uint32_t etht_flr_act,
+hw_atl_rpf_etht_flr_act_set(struct aq_hw *aq_hw, uint32_t etht_flr_act,
 				 uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_ACTF_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_ET_ACTF_ADR(filter),
 			    HW_ATL_RPF_ET_ACTF_MSK,
 			    HW_ATL_RPF_ET_ACTF_SHIFT, etht_flr_act);
 }
 
 void
-hw_atl_rpf_etht_flr_set(struct aq_hw_s *aq_hw, uint32_t etht_flr,
+hw_atl_rpf_etht_flr_set(struct aq_hw *aq_hw, uint32_t etht_flr,
     uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_ET_VALF_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_ET_VALF_ADR(filter),
 			    HW_ATL_RPF_ET_VALF_MSK,
 			    HW_ATL_RPF_ET_VALF_SHIFT, etht_flr);
 }
 
 void
-hw_atl_rpf_l3_l4_enf_set(struct aq_hw_s *aq_hw, uint32_t val, uint32_t filter)
+hw_atl_rpf_l3_l4_enf_set(struct aq_hw *aq_hw, uint32_t val, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L3_L4_ENF_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_L3_L4_ENF_ADR(filter),
 			HW_ATL_RPF_L3_L4_ENF_MSK,
 			HW_ATL_RPF_L3_L4_ENF_SHIFT, val);
 }
 
 void
-hw_atl_rpf_l3_v6_enf_set(struct aq_hw_s *aq_hw, uint32_t val, uint32_t filter)
+hw_atl_rpf_l3_v6_enf_set(struct aq_hw *aq_hw, uint32_t val, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L3_V6_ENF_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_L3_V6_ENF_ADR(filter),
 			HW_ATL_RPF_L3_V6_ENF_MSK,
 			HW_ATL_RPF_L3_V6_ENF_SHIFT, val);
 }
 
 void
-hw_atl_rpf_l3_saf_en_set(struct aq_hw_s *aq_hw, uint32_t val, uint32_t filter)
+hw_atl_rpf_l3_saf_en_set(struct aq_hw *aq_hw, uint32_t val, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L3_SAF_EN_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_L3_SAF_EN_ADR(filter),
 			HW_ATL_RPF_L3_SAF_EN_MSK,
 			HW_ATL_RPF_L3_SAF_EN_SHIFT, val);
 }
 
 void
-hw_atl_rpf_l3_daf_en_set(struct aq_hw_s *aq_hw, uint32_t val, uint32_t filter)
+hw_atl_rpf_l3_daf_en_set(struct aq_hw *aq_hw, uint32_t val, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L3_DAF_EN_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_L3_DAF_EN_ADR(filter),
 			HW_ATL_RPF_L3_DAF_EN_MSK,
 			HW_ATL_RPF_L3_DAF_EN_SHIFT, val);
 }
 
 void
-hw_atl_rpf_l4_spf_en_set(struct aq_hw_s *aq_hw, uint32_t val, uint32_t filter)
+hw_atl_rpf_l4_spf_en_set(struct aq_hw *aq_hw, uint32_t val, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L4_SPF_EN_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_L4_SPF_EN_ADR(filter),
 			HW_ATL_RPF_L4_SPF_EN_MSK,
 			HW_ATL_RPF_L4_SPF_EN_SHIFT, val);
 }
 
 void
-hw_atl_rpf_l4_dpf_en_set(struct aq_hw_s *aq_hw, uint32_t val, uint32_t filter)
+hw_atl_rpf_l4_dpf_en_set(struct aq_hw *aq_hw, uint32_t val, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L4_DPF_EN_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_L4_DPF_EN_ADR(filter),
 			HW_ATL_RPF_L4_DPF_EN_MSK,
 			HW_ATL_RPF_L4_DPF_EN_SHIFT, val);
 }
 
 void
-hw_atl_rpf_l4_protf_en_set(struct aq_hw_s *aq_hw, uint32_t val, uint32_t filter)
+hw_atl_rpf_l4_protf_en_set(struct aq_hw *aq_hw, uint32_t val, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L4_PROTF_EN_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_L4_PROTF_EN_ADR(filter),
 			HW_ATL_RPF_L4_PROTF_EN_MSK,
 			HW_ATL_RPF_L4_PROTF_EN_SHIFT, val);
 }
 
 void
-hw_atl_rpf_l3_arpf_en_set(struct aq_hw_s *aq_hw, uint32_t val, uint32_t filter)
+hw_atl_rpf_l3_arpf_en_set(struct aq_hw *aq_hw, uint32_t val, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L3_ARPF_EN_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_L3_ARPF_EN_ADR(filter),
 			HW_ATL_RPF_L3_ARPF_EN_MSK,
 			HW_ATL_RPF_L3_ARPF_EN_SHIFT, val);
 }
 
 void
-hw_atl_rpf_l3_l4_rxqf_en_set(struct aq_hw_s *aq_hw, uint32_t val,
+hw_atl_rpf_l3_l4_rxqf_en_set(struct aq_hw *aq_hw, uint32_t val,
     uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L3_L4_RXQF_EN_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_L3_L4_RXQF_EN_ADR(filter),
 			HW_ATL_RPF_L3_L4_RXQF_EN_MSK,
 			HW_ATL_RPF_L3_L4_RXQF_EN_SHIFT, val);
 }
 
 void
-hw_atl_rpf_l3_l4_mng_rxqf_set(struct aq_hw_s *aq_hw, uint32_t val,
+hw_atl_rpf_l3_l4_mng_rxqf_set(struct aq_hw *aq_hw, uint32_t val,
     uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L3_L4_MNG_RXQF_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_L3_L4_MNG_RXQF_ADR(filter),
 			HW_ATL_RPF_L3_L4_MNG_RXQF_MSK,
 			HW_ATL_RPF_L3_L4_MNG_RXQF_SHIFT, val);
 }
 
 void
-hw_atl_rpf_l3_l4_actf_set(struct aq_hw_s *aq_hw, uint32_t val, uint32_t filter)
+hw_atl_rpf_l3_l4_actf_set(struct aq_hw *aq_hw, uint32_t val, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L3_L4_ACTF_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_L3_L4_ACTF_ADR(filter),
 			HW_ATL_RPF_L3_L4_ACTF_MSK,
 			HW_ATL_RPF_L3_L4_ACTF_SHIFT, val);
 }
 
 void
-hw_atl_rpf_l3_l4_rxqf_set(struct aq_hw_s *aq_hw, uint32_t val, uint32_t filter)
+hw_atl_rpf_l3_l4_rxqf_set(struct aq_hw *aq_hw, uint32_t val, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L3_L4_RXQF_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_L3_L4_RXQF_ADR(filter),
 			HW_ATL_RPF_L3_L4_RXQF_MSK,
 			HW_ATL_RPF_L3_L4_RXQF_SHIFT, val);
 }
 
 void
-hw_atl_rpf_l4_protf_set(struct aq_hw_s *aq_hw, uint32_t val, uint32_t filter)
+hw_atl_rpf_l4_protf_set(struct aq_hw *aq_hw, uint32_t val, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L4_PROTF_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_L4_PROTF_ADR(filter),
 			HW_ATL_RPF_L4_PROTF_MSK,
 			HW_ATL_RPF_L4_PROTF_SHIFT, val);
 }
 
 void
-hw_atl_rpf_l4_spd_set(struct aq_hw_s *aq_hw, uint32_t val, uint32_t filter)
+hw_atl_rpf_l4_spd_set(struct aq_hw *aq_hw, uint32_t val, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L4_SPD_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_L4_SPD_ADR(filter),
 			HW_ATL_RPF_L4_SPD_MSK,
 			HW_ATL_RPF_L4_SPD_SHIFT, val);
 }
 
 void
-hw_atl_rpf_l4_dpd_set(struct aq_hw_s *aq_hw, uint32_t val, uint32_t filter)
+hw_atl_rpf_l4_dpd_set(struct aq_hw *aq_hw, uint32_t val, uint32_t filter)
 {
-	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPF_L4_DPD_ADR(filter),
+	AQ_WRITE_REG_BIT(aq_hw, HW_ATL_RPF_L4_DPD_ADR(filter),
 			HW_ATL_RPF_L4_DPD_MSK,
 			HW_ATL_RPF_L4_DPD_SHIFT, val);
 }
@@ -1439,6 +1439,14 @@ rpo_tcp_udp_crc_offload_en_set(struct aq_hw *aq_hw,
 {
 	AQ_WRITE_REG_BIT(aq_hw, rpol4chk_en_adr, rpol4chk_en_msk,
 	    rpol4chk_en_shift, tcp_udp_crc_offload_en);
+}
+
+void
+rpo_outer_vlan_tag_mode_set(struct aq_hw *aq_hw, uint32_t outer_vlan_tag_mode)
+{
+	AQ_WRITE_REG_BIT(aq_hw, rpo_outer_vl_ins_mode_adr,
+	    rpo_outer_vl_ins_mode_msk, rpo_outer_vl_ins_mode_shift,
+	    outer_vlan_tag_mode);
 }
 
 void
@@ -2008,83 +2016,83 @@ mif_mcp_up_mailbox_data_get(struct aq_hw *hw)
 }
 
 void
-hw_atl_rpfl3l4_ipv4_dest_addr_clear(struct aq_hw_s *aq_hw, uint8_t location)
+hw_atl_rpfl3l4_ipv4_dest_addr_clear(struct aq_hw *aq_hw, uint8_t location)
 {
-	aq_hw_write_reg(aq_hw, HW_ATL_RX_GET_ADDR_DESTA_FL3L4(location), 0U);
+	AQ_WRITE_REG(aq_hw, HW_ATL_RX_GET_ADDR_DESTA_FL3L4(location), 0U);
 }
 
 void
-hw_atl_rpfl3l4_ipv4_src_addr_clear(struct aq_hw_s *aq_hw, uint8_t location)
+hw_atl_rpfl3l4_ipv4_src_addr_clear(struct aq_hw *aq_hw, uint8_t location)
 {
-	aq_hw_write_reg(aq_hw, HW_ATL_RX_GET_ADDR_SRCA_FL3L4(location), 0U);
+	AQ_WRITE_REG(aq_hw, HW_ATL_RX_GET_ADDR_SRCA_FL3L4(location), 0U);
 }
 
 void
-hw_atl_rpfl3l4_cmd_clear(struct aq_hw_s *aq_hw, uint8_t location)
+hw_atl_rpfl3l4_cmd_clear(struct aq_hw *aq_hw, uint8_t location)
 {
-	aq_hw_write_reg(aq_hw, HW_ATL_RX_GET_ADDR_CTRL_FL3L4(location), 0U);
+	AQ_WRITE_REG(aq_hw, HW_ATL_RX_GET_ADDR_CTRL_FL3L4(location), 0U);
 }
 
 void
-hw_atl_rpfl3l4_ipv6_dest_addr_clear(struct aq_hw_s *aq_hw, uint8_t location)
+hw_atl_rpfl3l4_ipv6_dest_addr_clear(struct aq_hw *aq_hw, uint8_t location)
 {
 	int i;
 
 	for (i = 0; i < 4; ++i)
-		aq_hw_write_reg(aq_hw,
+		AQ_WRITE_REG(aq_hw,
 		    HW_ATL_RX_GET_ADDR_DESTA_FL3L4(location + i), 0U);
 }
 
 void
-hw_atl_rpfl3l4_ipv6_src_addr_clear(struct aq_hw_s *aq_hw, uint8_t location)
+hw_atl_rpfl3l4_ipv6_src_addr_clear(struct aq_hw *aq_hw, uint8_t location)
 {
 	int i;
 
 	for (i = 0; i < 4; ++i)
-		aq_hw_write_reg(aq_hw,
+		AQ_WRITE_REG(aq_hw,
 		    HW_ATL_RX_GET_ADDR_SRCA_FL3L4(location + i), 0U);
 }
 
 void
-hw_atl_rpfl3l4_ipv4_dest_addr_set(struct aq_hw_s *aq_hw, uint8_t location,
+hw_atl_rpfl3l4_ipv4_dest_addr_set(struct aq_hw *aq_hw, uint8_t location,
     uint32_t ipv4_dest)
 {
-	aq_hw_write_reg(aq_hw, HW_ATL_RX_GET_ADDR_DESTA_FL3L4(location),
+	AQ_WRITE_REG(aq_hw, HW_ATL_RX_GET_ADDR_DESTA_FL3L4(location),
 	    ipv4_dest);
 }
 
 void
-hw_atl_rpfl3l4_ipv4_src_addr_set(struct aq_hw_s *aq_hw, uint8_t location,
+hw_atl_rpfl3l4_ipv4_src_addr_set(struct aq_hw *aq_hw, uint8_t location,
     uint32_t ipv4_src)
 {
-	aq_hw_write_reg(aq_hw, HW_ATL_RX_GET_ADDR_SRCA_FL3L4(location),
+	AQ_WRITE_REG(aq_hw, HW_ATL_RX_GET_ADDR_SRCA_FL3L4(location),
 	    ipv4_src);
 }
 
 void
-hw_atl_rpfl3l4_cmd_set(struct aq_hw_s *aq_hw, uint8_t location, uint32_t cmd)
+hw_atl_rpfl3l4_cmd_set(struct aq_hw *aq_hw, uint8_t location, uint32_t cmd)
 {
-	aq_hw_write_reg(aq_hw, HW_ATL_RX_GET_ADDR_CTRL_FL3L4(location), cmd);
+	AQ_WRITE_REG(aq_hw, HW_ATL_RX_GET_ADDR_CTRL_FL3L4(location), cmd);
 }
 
 void
-hw_atl_rpfl3l4_ipv6_src_addr_set(struct aq_hw_s *aq_hw, uint8_t location,
+hw_atl_rpfl3l4_ipv6_src_addr_set(struct aq_hw *aq_hw, uint8_t location,
     uint32_t *ipv6_src)
 {
 	int i;
 
 	for (i = 0; i < 4; ++i)
-		aq_hw_write_reg(aq_hw,
+		AQ_WRITE_REG(aq_hw,
 		    HW_ATL_RX_GET_ADDR_SRCA_FL3L4(location + i), ipv6_src[i]);
 }
 
 void
-hw_atl_rpfl3l4_ipv6_dest_addr_set(struct aq_hw_s *aq_hw, uint8_t location,
+hw_atl_rpfl3l4_ipv6_dest_addr_set(struct aq_hw *aq_hw, uint8_t location,
     uint32_t *ipv6_dest)
 {
 	int i;
 
 	for (i = 0; i < 4; ++i)
-		aq_hw_write_reg(aq_hw,
+		AQ_WRITE_REG(aq_hw,
 		    HW_ATL_RX_GET_ADDR_DESTA_FL3L4(location + i), ipv6_dest[i]);
 }

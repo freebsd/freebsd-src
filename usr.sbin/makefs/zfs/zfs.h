@@ -79,6 +79,7 @@ typedef struct {
 	/* Pool parameters. */
 	const char	*poolname;
 	char		*rootpath;	/* implicit mount point prefix */
+	char		*vdevpath;	/* vdev path, pool property */
 	char		*bootfs;	/* bootable dataset, pool property */
 	int		ashift;		/* vdev block size */
 	uint64_t	mssize;		/* metaslab size */

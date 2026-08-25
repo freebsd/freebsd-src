@@ -442,8 +442,11 @@ ATF_TC_BODY(listen_unbound, tc)
 	s = socket(PF_LOCAL, SOCK_SEQPACKET, 0);
 	ATF_REQUIRE(s > 0);
 	r = listen(s, -1);
-	/* expect listen to fail since we haven't called bind(2) */
-	ATF_CHECK(r != 0);
+	/*
+	 * An unbound socket may listen: connectat(2) can name it by descriptor,
+	 * so it does not need a pathname to be reachable.
+	 */
+	ATF_CHECK_EQ(0, r);
 	close(s);
 }
 

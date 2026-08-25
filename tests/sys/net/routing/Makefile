@@ -8,6 +8,7 @@ ATF_TESTS_C +=	test_rtsock_lladdr
 ATF_TESTS_C +=	test_rtsock_ops
 ATF_TESTS_PYTEST +=	test_routing_l3.py
 ATF_TESTS_PYTEST +=	test_rtsock_multipath.py
+ATF_TESTS_SH+=	test_routing
 
 ${PACKAGE}FILES+=	generic_cleanup.sh
 ${PACKAGE}FILESMODE_generic_cleanup.sh=0555
@@ -15,6 +16,8 @@ ${PACKAGE}FILESMODE_generic_cleanup.sh=0555
 # Most of the tests operates on a common IPv4/IPv6 prefix,
 # so running them in parallel will lead to weird results.
 TEST_METADATA+=	is_exclusive=true
+TEST_METADATA.test_routing+= execenv="jail" \
+			execenv_jail_params="vnet"
 
 CFLAGS+=	-I${.CURDIR:H:H:H}
 

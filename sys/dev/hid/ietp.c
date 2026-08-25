@@ -450,13 +450,10 @@ ietp_iic_identify(driver_t *driver, device_t parent)
 {
 	device_t iichid = device_get_parent(parent);
 	static const uint16_t reg = IETP_PATTERN;
-	uint16_t addr = iicbus_get_addr(iichid) << 1;
+	uint16_t addr;
 	uint8_t resp[2];
 	uint8_t cmd[2] = { reg & 0xff, (reg >> 8) & 0xff };
-	struct iic_msg msgs[2] = {
-	    { addr, IIC_M_WR | IIC_M_NOSTOP,  sizeof(cmd), cmd },
-	    { addr, IIC_M_RD, sizeof(resp), resp },
-	};
+	struct iic_msg msgs[2];
 	struct iic_rdwr_data ird = { msgs, nitems(msgs) };
 	uint8_t pattern;
 
@@ -465,6 +462,10 @@ ietp_iic_identify(driver_t *driver, device_t parent)
 
 	if (device_get_devclass(iichid) != devclass_find("iichid"))
 		return;
+
+	addr = iicbus_get_addr(iichid) << 1;
+	msgs[0] = (struct iic_msg){ addr, IIC_M_WR | IIC_M_NOSTOP, sizeof(cmd), cmd };
+	msgs[1] = (struct iic_msg){ addr, IIC_M_RD, sizeof(resp), resp };
 
 	DPRINTF("Read reg 0x%04x with size %zu\n", reg, sizeof(resp));
 

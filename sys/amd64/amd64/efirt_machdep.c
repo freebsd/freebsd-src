@@ -54,6 +54,7 @@
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_phys.h>
 #include <vm/vm_radix.h>
 
 /* The EFI regions we're allowed to map. */
@@ -95,7 +96,7 @@ efi_destroy_1t1_map(void)
  * Map a physical address from EFI runtime space into KVA space.  Returns 0 to
  * indicate a failed mapping so that the caller may handle error.
  */
-vm_offset_t
+void *
 efi_phys_to_kva(vm_paddr_t paddr)
 {
 
@@ -135,7 +136,7 @@ efi_1t1_pte(vm_offset_t va)
 		} else {
 			mphys = *pml5e & PG_FRAME;
 		}
-		pml4e = (pml4_entry_t *)PHYS_TO_DMAP(mphys);
+		pml4e = PHYS_TO_DMAP(mphys);
 		pml4e = &pml4e[pml4_idx];
 	} else {
 		pml4e = &efi_pml4[pml4_idx];
@@ -149,7 +150,7 @@ efi_1t1_pte(vm_offset_t va)
 		mphys = *pml4e & PG_FRAME;
 	}
 
-	pdpe = (pdp_entry_t *)PHYS_TO_DMAP(mphys);
+	pdpe = PHYS_TO_DMAP(mphys);
 	pdp_idx = pmap_pdpe_index(va);
 	pdpe += pdp_idx;
 	if (*pdpe == 0) {
@@ -160,7 +161,7 @@ efi_1t1_pte(vm_offset_t va)
 		mphys = *pdpe & PG_FRAME;
 	}
 
-	pde = (pd_entry_t *)PHYS_TO_DMAP(mphys);
+	pde = PHYS_TO_DMAP(mphys);
 	pd_idx = pmap_pde_index(va);
 	pde += pd_idx;
 	if (*pde == 0) {
@@ -171,7 +172,7 @@ efi_1t1_pte(vm_offset_t va)
 		mphys = *pde & PG_FRAME;
 	}
 
-	pte = (pt_entry_t *)PHYS_TO_DMAP(mphys);
+	pte = PHYS_TO_DMAP(mphys);
 	pte += pmap_pte_index(va);
 	KASSERT(*pte == 0, ("va %#jx *pt %#jx", va, *pte));
 
@@ -197,7 +198,7 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 	VM_OBJECT_WLOCK(obj_1t1_pt);
 	efi_pmltop_page = efi_1t1_page();
 	VM_OBJECT_WUNLOCK(obj_1t1_pt);
-	pml = (void *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(efi_pmltop_page));
+	pml = VM_PAGE_TO_DMAP(efi_pmltop_page);
 	if (la57) {
 		efi_pml5 = pml;
 		pmap_pinit_pml5(efi_pmltop_page);
@@ -253,6 +254,8 @@ efi_create_1t1_map(struct efi_md *map, int ndesc, int descsz)
 				    "attributes unsupported\n", i);
 			mode = VM_MEMATTR_UNCACHEABLE;
 		}
+		(void)vm_phys_fictitious_reg_range(p->md_phys, p->md_phys +
+		    p->md_pages * EFI_PAGE_SIZE, mode);
 		bits = pmap_cache_bits(kernel_pmap, mode, false) | X86_PG_RW |
 		    X86_PG_V;
 		VM_OBJECT_WLOCK(obj_1t1_pt);

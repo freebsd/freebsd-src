@@ -2105,6 +2105,10 @@ static void shutdown_one(struct pci_dev *pdev)
 	mlx5_pci_disable_device(dev);
 }
 
+/*
+ * When adding device IDs, also update hca_table in
+ * contrib/ofed/libmlx5/mlx5.c or libibverbs will reject the device.
+ */
 static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 4113) }, /* Connect-IB */
 	{ PCI_VDEVICE(MELLANOX, 4114) }, /* Connect-IB VF */
@@ -2126,7 +2130,7 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 4130) },
 	{ PCI_VDEVICE(MELLANOX, 4131) }, /* ConnectX-8 */
 	{ PCI_VDEVICE(MELLANOX, 4132) },
-	{ PCI_VDEVICE(MELLANOX, 4133) },
+	{ PCI_VDEVICE(MELLANOX, 4133) }, /* ConnectX-9 */
 	{ PCI_VDEVICE(MELLANOX, 4134) },
 	{ PCI_VDEVICE(MELLANOX, 4135) },
 	{ PCI_VDEVICE(MELLANOX, 4136) },

@@ -54,6 +54,8 @@ void		 service_message(struct service *service,
 void		 service_start(struct service *service, int sock, int procfd);
 const char	*service_name(struct service *service);
 int		 service_get_channel_flags(struct service *service);
+bool		 service_have_connections(void);
+bool		 service_poll_dispatch(void);
 
 /* Private service connection functions. */
 struct service_connection	*service_connection_add(struct service *service,
@@ -63,10 +65,6 @@ void				 service_connection_remove(
 				    struct service_connection *sconn);
 int				 service_connection_clone(
 				    struct service *service,
-				    struct service_connection *sconn);
-struct service_connection	*service_connection_first(
-				    struct service *service);
-struct service_connection	*service_connection_next(
 				    struct service_connection *sconn);
 cap_channel_t			*service_connection_get_chan(
 				    const struct service_connection *sconn);

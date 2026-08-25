@@ -62,7 +62,7 @@
 static void wds_vattach(struct ieee80211vap *);
 static int wds_newstate(struct ieee80211vap *, enum ieee80211_state, int);
 static	int wds_input(struct ieee80211_node *ni, struct mbuf *m,
-	    const struct ieee80211_rx_stats *rxs, int, int);
+	    const struct ieee80211_rx_stats *rxs, net80211_rssi_t, int);
 static void wds_recv_mgmt(struct ieee80211_node *, struct mbuf *, int subtype,
 	const struct ieee80211_rx_stats *, int, int);
 
@@ -101,7 +101,8 @@ wds_flush(struct ieee80211_node *ni)
 {
 	struct ieee80211com *ic = ni->ni_ic;
 	struct mbuf *m, *next;
-	int8_t rssi, nf;
+	net80211_rssi_t rssi;
+	int8_t nf;
 
 	m = ieee80211_ageq_remove(&ic->ic_stageq,
 	    (void *)(uintptr_t) ieee80211_mac_hash(ic, ni->ni_macaddr));
@@ -404,7 +405,7 @@ wds_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
  */
 static int
 wds_input(struct ieee80211_node *ni, struct mbuf *m,
-    const struct ieee80211_rx_stats *rxs, int rssi, int nf)
+    const struct ieee80211_rx_stats *rxs, net80211_rssi_t rssi, int nf)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;

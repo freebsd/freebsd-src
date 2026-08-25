@@ -476,7 +476,7 @@ clog_for_large_values(double complex z)
 	 * (however, actually use 1/2 instead as it is simpler).
 	 *
 	 * Dividing by E causes an insignificant loss of accuracy; however
-	 * this method is still poor since it is uneccessarily slow.
+	 * this method is still poor since it is unnecessarily slow.
 	 */
 	if (ax > DBL_MAX / 2)
 		return (CMPLX(log(hypot(x / m_e, y / m_e)) + 1, atan2(y, x)));

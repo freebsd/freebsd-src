@@ -311,7 +311,7 @@ enum sec_status dnskey_verify_rrset(struct module_env* env, struct val_env* ve,
  * 	pass false at start. pass old value only for same rrset and same
  * 	signature (but perhaps different key) for reuse.
  * @param reason: if bogus, a string returned, fixed or alloced in scratch.
- * @param reason_bogus: EDE (8914) code paired with the reason of failure.
+ * @param reason_bogus: EDE (RFC8914) code paired with the reason of failure.
  * @param section: section of packet where this rrset comes from.
  * @param qstate: qstate with region.
  * @return secure if this key signs this signature. unchecked on error or 

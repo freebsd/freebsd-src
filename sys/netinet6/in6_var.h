@@ -306,7 +306,9 @@ struct in6_prflags {
 	struct prf_ra {
 		u_char onlink : 1;
 		u_char autonomous : 1;
-		u_char reserved : 6;
+		u_char router : 1;
+		u_char dhcp6_pd : 1;
+		u_char reserved : 4;
 	} prf_ra;
 	u_char prf_reserved1;
 	u_short prf_reserved2;
@@ -337,6 +339,8 @@ struct  in6_prefixreq {
 
 #define ipr_raf_onlink		ipr_flags.prf_ra.onlink
 #define ipr_raf_auto		ipr_flags.prf_ra.autonomous
+#define ipr_raf_router		ipr_flags.prf_ra.router
+#define ipr_raf_dhcp6pd		ipr_flags.prf_ra.dhcp6_pd
 
 #define ipr_statef_onlink	ipr_flags.prf_state.onlink
 
@@ -505,6 +509,7 @@ struct in6_ifextra {
 	int		nd_recalc_timer;
 	u_int		nd_dad_failures;
 	uint8_t		nd_curhoplimit;
+	TAILQ_HEAD(, nd_queue)	nd_queue;
 
 	struct mld_ifsoftc {
 		/* Timers and invervals measured in seconds. */

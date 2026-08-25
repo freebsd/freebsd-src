@@ -173,7 +173,7 @@ ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
 					return (-1);
 				}
 			}
-			ip6 = (struct ip6_hdr *)(eh + 1);
+			ip6 = mtod(m, struct ip6_hdr *);
 			th = (struct tcphdr *)(ip6 + 1);
 			drop_hdrlen = sizeof(*ip6);
 			tlen = ntohs(ip6->ip6_plen);
@@ -205,7 +205,7 @@ ctf_get_enet_type(struct ifnet *ifp, struct mbuf *m)
 					return (-1);
 				}
 			}
-			ip = (struct ip *)(eh + 1);
+			ip = mtod(m, struct ip *);
 			th = (struct tcphdr *)(ip + 1);
 			drop_hdrlen = sizeof(*ip);
 			iptos = ip->ip_tos;
@@ -697,18 +697,24 @@ ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	/*
 	 * RFC5961 Section 3.2
 	 *
-	 * - RST drops connection only if SEG.SEQ == RCV.NXT. - If RST is in
-	 * window, we send challenge ACK.
+	 * - RST drops connection only if SEG.SEQ == RCV.NXT.
+	 * - If RST is in window, we send challenge ACK.
 	 *
-	 * Note: to take into account delayed ACKs, we should test against
-	 * last_ack_sent instead of rcv_nxt. Note 2: we handle special case
-	 * of closed window, not covered by the RFC.
+	 * Note 1: to take into account delayed ACKs, we should
+	 *   test against last_ack_sent in addition to rcv_nxt.
+	 * Note 2: we handle special case of closed window, not
+	 *   covered by the RFC.
+	 * Note 3 (XXXMT): check against rcv_adv instead of
+	 *   tp->rcv_nxt + tp->rcv_wnd.
 	 */
 	int dropped = 0;
 
-	if ((SEQ_GEQ(th->th_seq, tp->last_ack_sent) &&
-	    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) ||
-	    (tp->rcv_wnd == 0 && tp->last_ack_sent == th->th_seq)) {
+	if ((tp->rcv_wnd > 0 &&
+	     SEQ_GEQ(th->th_seq, tp->last_ack_sent) &&
+	     SEQ_LT(th->th_seq, tp->rcv_nxt + tp->rcv_wnd)) ||
+	    (tp->rcv_wnd == 0 &&
+	     (tp->last_ack_sent == th->th_seq ||
+	      tp->rcv_nxt == th->th_seq))) {
 		KASSERT(tp->t_state != TCPS_SYN_SENT,
 		    ("%s: TH_RST for TCPS_SYN_SENT th %p tp %p",
 		    __func__, th, tp));
@@ -730,7 +736,6 @@ ctf_process_rst(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			case TCPS_LAST_ACK:
 				so->so_error = ECONNRESET;
 		close:
-				tcp_state_change(tp, TCPS_CLOSED);
 				/* FALLTHROUGH */
 			default:
 				tcp_log_end_status(tp, TCP_EI_STATUS_CLIENT_RST);

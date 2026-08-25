@@ -418,7 +418,7 @@ man_display_page() {
 # Usage: man_display_page_groff
 # Display the manpage using groff
 man_display_page_groff() {
-	local EQN NROFF PIC TBL TROFF REFER VGRIND
+	local EQN NROFF PIC TBL TROFF REFER
 	local IFS l nroff_dev pipeline preproc_arg tool
 
 	# So, we really do need to parse the manpage. First, figure out the
@@ -456,7 +456,7 @@ man_display_page_groff() {
 		# Allow language specific calls to override the default
 		# set of utilities.
 		l=$(echo $man_lang | tr [:lower:] [:upper:])
-		for tool in EQN NROFF PIC TBL TROFF REFER VGRIND; do
+		for tool in EQN NROFF PIC TBL TROFF REFER; do
 			eval "$tool=\${${tool}_$l:-\$$tool}"
 		done
 		;;
@@ -483,7 +483,6 @@ man_display_page_groff() {
 			p)	pipeline="$pipeline | $PIC" ;;
 			r)	pipeline="$pipeline | $REFER" ;;
 			t)	pipeline="$pipeline | $TBL" ;;
-			v)	pipeline="$pipeline | $VGRIND" ;;
 			*)	usage ;;
 			esac
 		done
@@ -1129,7 +1128,6 @@ PIC=pic
 REFER=refer
 TBL=tbl
 TROFF='groff -S -mandoc'
-VGRIND=vgrind
 
 LOCALE=/usr/bin/locale
 STTY=/bin/stty

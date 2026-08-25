@@ -931,10 +931,10 @@ mp_Enddisc(u_char c, const char *address, size_t len)
     case ENDDISC_MAGIC:
       sprintf(result, "Magic: 0x");
       header = strlen(result);
-      if (len + header + 1 > sizeof result)
-        len = sizeof result - header - 1;
+      if (2 * len + header + 1 > sizeof result)
+        len = (sizeof result - header - 1) / 2;
       for (f = 0; f < len; f++)
-        sprintf(result + header + 2 * f, "%02x", address[f]);
+        sprintf(result + header + 2 * f, "%02x", (unsigned char)address[f]);
       break;
 
     case ENDDISC_PSN:
@@ -944,10 +944,10 @@ mp_Enddisc(u_char c, const char *address, size_t len)
     default:
       sprintf(result, "%d: ", (int)c);
       header = strlen(result);
-      if (len + header + 1 > sizeof result)
-        len = sizeof result - header - 1;
+      if (2 * len + header + 1 > sizeof result)
+        len = (sizeof result - header - 1) / 2;
       for (f = 0; f < len; f++)
-        sprintf(result + header + 2 * f, "%02x", address[f]);
+        sprintf(result + header + 2 * f, "%02x", (unsigned char)address[f]);
       break;
   }
   return result;
@@ -1020,9 +1020,14 @@ mp_SetEnddisc(struct cmdargs const *arg)
       mp->cfg.enddisc.len = 20;
     } else if (!strcasecmp(arg->argv[arg->argn], "psn")) {
       if (arg->argc > arg->argn+1) {
-        mp->cfg.enddisc.class = ENDDISC_PSN;
-        strcpy(mp->cfg.enddisc.address, arg->argv[arg->argn+1]);
-        mp->cfg.enddisc.len = strlen(mp->cfg.enddisc.address);
+        if (strlcpy(mp->cfg.enddisc.address, arg->argv[arg->argn+1],
+            sizeof(mp->cfg.enddisc.address)) >= sizeof(mp->cfg.enddisc.address)) {
+          log_Printf(LogWARN, "PSN endpoint too long\n");
+          return 7;
+        } else {
+          mp->cfg.enddisc.class = ENDDISC_PSN;
+          mp->cfg.enddisc.len = strlen(mp->cfg.enddisc.address);
+        }
       } else {
         log_Printf(LogWARN, "PSN endpoint requires additional data\n");
         return 5;

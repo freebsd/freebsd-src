@@ -1,24 +1,14 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
 #
-# The contents of this file are subject to the terms of the
-# Common Development and Distribution License (the "License").
-# You may not use this file except in compliance with the License.
-#
-# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or https://opensource.org/licenses/CDDL-1.0.
-# See the License for the specific language governing permissions
-# and limitations under the License.
-#
-# When distributing Covered Code, include this CDDL HEADER in each
-# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-# If applicable, add the following below this CDDL HEADER, with the
-# fields enclosed by brackets "[]" replaced with your own identifying
-# information: Portions Copyright [yyyy] [name of copyright owner]
-#
-# CDDL HEADER END
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -38,9 +28,8 @@
 #
 # STRATEGY:
 # 1. Set the interval to 1 and count to 4.
-# 2. Sleep for 4 seconds.
-# 3. Verify that the output has 4 records.
-# 4. Set interval to 0.5 and count to 1 to test floating point intervals.
+# 2. Verify that the output has 4 records.
+# 3. Set interval to 0.5 and count to 1 to test floating point intervals.
 
 verify_runnable "both"
 
@@ -61,11 +50,11 @@ if ! is_global_zone ; then
 	TESTPOOL=${TESTPOOL%%/*}
 fi
 
-zpool iostat $TESTPOOL 1 4 > $tmpfile 2>&1 &
-sleep 4
+log_must eval "zpool iostat $TESTPOOL 1 4 > $tmpfile 2>&1"
 stat_count=$(grep -c $TESTPOOL $tmpfile)
 
 if [[ $stat_count -ne 4 ]]; then
+	cat $tmpfile
 	log_fail "zpool iostat [pool_name] [interval] [count] failed"
 fi
 

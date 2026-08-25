@@ -1,4 +1,4 @@
-#	$OpenBSD: dropbear-kex.sh,v 1.4 2025/03/11 07:42:08 dtucker Exp $
+#	$OpenBSD: dropbear-kex.sh,v 1.5 2026/05/12 13:02:40 dtucker Exp $
 #	Placed in the Public Domain.
 
 tid="dropbear kex"
@@ -13,10 +13,12 @@ kex="curve25519-sha256 curve25519-sha256@libssh.org"
 if $SSH -Q kex | grep 'diffie-hellman-group14-sha256' >/dev/null; then
 	kex="$kex diffie-hellman-group14-sha256"
 fi
-# There's no flag to query KEX, so if MACs does not contain SHA1, assume
-# there's also SHA1-based KEX methods either.
+# Until recently, dbclient had no way to query KEX.  If -Qkex is available
+# then use it, otherwise check if MACs contain SHA1 and if present assume
+# there's also SHA1-based KEX methods.
 if $SSH -Q kex | grep 'diffie-hellman-group14-sha1' >/dev/null && \
-    $DBCLIENT -m help hst 2>&1 | grep -- '-sha1' >/dev/null ; then
+    ($DBCLIENT -Q kex 2>/dev/null | grep 'diffie-hellman-group14-sha1' >/dev/null || \
+     $DBCLIENT -m help hst 2>&1 | grep -- '-sha1' >/dev/null) ; then
 	kex="$kex diffie-hellman-group14-sha1"
 fi
 

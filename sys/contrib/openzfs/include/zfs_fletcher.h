@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
@@ -60,6 +50,8 @@ _ZFS_FLETCHER_H int fletcher_2_incremental_native(void *, size_t, void *);
 _ZFS_FLETCHER_H int fletcher_2_incremental_byteswap(void *, size_t, void *);
 _ZFS_FLETCHER_H void fletcher_4_native_varsize(const void *, uint64_t,
     zio_cksum_t *);
+_ZFS_FLETCHER_H void fletcher_4_byteswap_varsize(const void *, uint64_t,
+    zio_cksum_t *);
 _ZFS_FLETCHER_H void fletcher_4_byteswap(const void *, uint64_t, const void *,
     zio_cksum_t *);
 _ZFS_FLETCHER_H int fletcher_4_incremental_native(void *, size_t, void *);
@@ -97,13 +89,13 @@ typedef union fletcher_4_ctx {
 	zio_cksum_t scalar;
 	zfs_fletcher_superscalar_t superscalar[4];
 
-#if defined(HAVE_SSE2) || (defined(HAVE_SSE2) && defined(HAVE_SSSE3))
+#if HAVE_SIMD(SSE2) || (HAVE_SIMD(SSE2) && HAVE_SIMD(SSSE3))
 	zfs_fletcher_sse_t sse[4];
 #endif
-#if defined(HAVE_AVX) && defined(HAVE_AVX2)
+#if HAVE_SIMD(AVX) && HAVE_SIMD(AVX2)
 	zfs_fletcher_avx_t avx[4];
 #endif
-#if defined(__x86_64) && defined(HAVE_AVX512F)
+#if defined(__x86_64) && HAVE_SIMD(AVX512F)
 	zfs_fletcher_avx512_t avx512[4];
 #endif
 #if defined(__aarch64__)
@@ -134,23 +126,23 @@ typedef struct fletcher_4_func {
 _ZFS_FLETCHER_H const fletcher_4_ops_t fletcher_4_superscalar_ops;
 _ZFS_FLETCHER_H const fletcher_4_ops_t fletcher_4_superscalar4_ops;
 
-#if defined(HAVE_SSE2)
+#if HAVE_SIMD(SSE2)
 _ZFS_FLETCHER_H const fletcher_4_ops_t fletcher_4_sse2_ops;
 #endif
 
-#if defined(HAVE_SSE2) && defined(HAVE_SSSE3)
+#if HAVE_SIMD(SSE2) && HAVE_SIMD(SSSE3)
 _ZFS_FLETCHER_H const fletcher_4_ops_t fletcher_4_ssse3_ops;
 #endif
 
-#if defined(HAVE_AVX) && defined(HAVE_AVX2)
+#if HAVE_SIMD(AVX) && HAVE_SIMD(AVX2)
 _ZFS_FLETCHER_H const fletcher_4_ops_t fletcher_4_avx2_ops;
 #endif
 
-#if defined(__x86_64) && defined(HAVE_AVX512F)
+#if defined(__x86_64) && HAVE_SIMD(AVX512F)
 _ZFS_FLETCHER_H const fletcher_4_ops_t fletcher_4_avx512f_ops;
 #endif
 
-#if defined(__x86_64) && defined(HAVE_AVX512BW)
+#if defined(__x86_64) && HAVE_SIMD(AVX512BW)
 _ZFS_FLETCHER_H const fletcher_4_ops_t fletcher_4_avx512bw_ops;
 #endif
 

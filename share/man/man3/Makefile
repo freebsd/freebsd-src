@@ -510,6 +510,7 @@ PTHREAD_MLINKS+=pthread_condattr.3 pthread_condattr_destroy.3 \
 		pthread_condattr.3 pthread_condattr_setclock.3 \
 		pthread_condattr.3 pthread_condattr_getpshared.3 \
 		pthread_condattr.3 pthread_condattr_setpshared.3
+PTHREAD_MLINKS+=pthread_cond_timedwait.3 pthread_cond_clockwait.3
 PTHREAD_MLINKS+=pthread_getconcurrency.3 pthread_setconcurrency.3
 PTHREAD_MLINKS+=pthread_multi_np.3 pthread_single_np.3
 PTHREAD_MLINKS+=pthread_mutexattr.3 pthread_mutexattr_destroy.3 \

@@ -1,0 +1,6 @@
+PackageSearchPath: lib1
+WantedFlags: dump-source
+Query: bar
+ExpectedStdout: foo: https://foo.bar/foo
+ExpectedStdout: bar: 
+MatchStdout: partial

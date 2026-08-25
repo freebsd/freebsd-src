@@ -261,4 +261,4 @@ static driver_t vmgenc_driver = {
 
 DRIVER_MODULE(vmgenc, acpi, vmgenc_driver, NULL, NULL);
 MODULE_DEPEND(vmgenc, acpi, 1, 1, 1);
-MODULE_DEPEND(vemgenc, random_harvestq, 1, 1, 1);
+MODULE_DEPEND(vmgenc, random_harvestq, 1, 1, 1);

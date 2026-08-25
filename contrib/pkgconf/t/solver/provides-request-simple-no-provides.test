@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+Query: provides-request-simple no-provides
+WantedFlags: libs
+ExpectedExitCode: 1

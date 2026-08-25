@@ -41,50 +41,50 @@
 # define UNUSED
 #endif
 
-#define MACRTYPE        1
-#define DEFITYPE        2
-#define EXPRTYPE        3
-#define SUBSTYPE        4
-#define IFELTYPE        5
-#define LENGTYPE        6
-#define CHNQTYPE        7
-#define SYSCTYPE        8
-#define UNDFTYPE        9
-#define INCLTYPE        10
-#define SINCTYPE        11
-#define PASTTYPE        12
-#define SPASTYPE        13
-#define INCRTYPE        14
-#define IFDFTYPE        15
-#define PUSDTYPE        16
-#define POPDTYPE        17
-#define SHIFTYPE        18
-#define DECRTYPE        19
-#define DIVRTYPE        20
-#define UNDVTYPE        21
-#define DIVNTYPE        22
-#define MKTMTYPE        23
-#define ERRPTYPE        24
-#define M4WRTYPE        25
-#define TRNLTYPE        26
-#define DNLNTYPE        27
-#define DUMPTYPE        28
-#define CHNCTYPE        29
-#define INDXTYPE        30
-#define SYSVTYPE        31
-#define EXITTYPE        32
-#define DEFNTYPE        33
-#define SELFTYPE	34
-#define INDIRTYPE	35
-#define BUILTINTYPE	36
-#define PATSTYPE	37
-#define FILENAMETYPE	38
-#define LINETYPE	39
-#define REGEXPTYPE	40
-#define ESYSCMDTYPE	41
-#define TRACEONTYPE	42
-#define TRACEOFFTYPE	43
-#define FORMATTYPE	44
+#define MACROTYPE		1
+#define DEFINETYPE		2
+#define EVALTYPE		3
+#define SUBSTRTYPE		4
+#define IFELSETYPE		5
+#define LENTYPE			6
+#define CHANGEQUOTETYPE		7
+#define SYSCMDTYPE		8
+#define UNDEFINETYPE		9
+#define INCLUDETYPE		10
+#define SINCLUDETYPE		11
+#define PASTETYPE		12
+#define SPASTETYPE		13
+#define INCRTYPE		14
+#define IFDEFTYPE		15
+#define PUSHDEFTYPE		16
+#define POPDEFTYPE		17
+#define SHIFTTYPE		18
+#define DECRTYPE		19
+#define DIVERTTYPE		20
+#define UNDIVERTTYPE		21
+#define DIVNUMTYPE		22
+#define MKSTEMPTYPE		23
+#define ERRPRINTTYPE		24
+#define M4WRAPTYPE		25
+#define TRANSLITTYPE		26
+#define DNLTYPE			27
+#define DUMPDEFTYPE		28
+#define CHANGECOMTYPE		29
+#define INDEXTYPE		30
+#define SYSVALTYPE		31
+#define M4EXITTYPE		32
+#define DEFNTYPE		33
+#define SELFTYPE		34
+#define INDIRTYPE		35
+#define BUILTINTYPE		36
+#define PATSUBSTTYPE		37
+#define FILENAMETYPE		38
+#define LINETYPE		39
+#define REGEXPTYPE		40
+#define ESYSCMDTYPE		41
+#define TRACEONTYPE		42
+#define TRACEOFFTYPE		43
+#define FORMATTYPE		44
 
 #define BUILTIN_MARKER	"__builtin_"
 
@@ -204,7 +204,7 @@ struct input_file {
 		mstack[sp].sstr = macro_getdef(p)->defn;\
 		sstack[sp] = STORAGE_MACRO; \
 	} while (0)
-		
+
 
 /*
  *	    .				   .

@@ -17,6 +17,7 @@ MAN=	aac.4 \
 	${_acpi_asus.4} \
 	${_acpi_asus_wmi.4} \
 	${_acpi_dock.4} \
+	acpi_einj.4 \
 	${_acpi_fujitsu.4} \
 	${_acpi_hp.4} \
 	${_acpi_ibm.4} \
@@ -44,11 +45,13 @@ MAN=	aac.4 \
 	alc.4 \
 	ale.4 \
 	alpm.4 \
+	appleir.4 \
 	altq.4 \
 	amdpm.4 \
 	${_amdsbwd.4} \
 	${_amdsmb.4} \
 	${_amdsmn.4} \
+	${_amdsmu.4} \
 	${_amdtemp.4} \
 	${_bxe.4} \
 	${_aout.4} \
@@ -123,6 +126,7 @@ MAN=	aac.4 \
 	chromebook_platform.4 \
 	${_chvgpio.4} \
 	ciss.4 \
+	coreboot.4 \
 	${_coretemp.4} \
 	cp2112.4 \
 	${_cpuctl.4} \
@@ -175,6 +179,9 @@ MAN=	aac.4 \
 	ffs.4 \
 	filemon.4 \
 	firewire.4 \
+	fwcam.4 \
+	fwdv.4 \
+	fwisound.4 \
 	${_ftgpio.4} \
 	${_ftwd.4} \
 	full.4 \
@@ -187,6 +194,7 @@ MAN=	aac.4 \
 	gem.4 \
 	genet.4 \
 	genetlink.4 \
+	geneve.4 \
 	geom.4 \
 	geom_linux_lvm.4 \
 	geom_uzip.4 \
@@ -206,6 +214,7 @@ MAN=	aac.4 \
 	hidbus.4 \
 	hidquirk.4 \
 	hidraw.4 \
+	hidwacom.4 \
 	hkbd.4 \
 	hms.4 \
 	hmt.4 \
@@ -216,6 +225,7 @@ MAN=	aac.4 \
 	${_hptmv.4} \
 	${_hptnr.4} \
 	${_hptrr.4} \
+	hrfkill.4 \
 	hsctrl.4 \
 	htu21.4 \
 	${_hv_kvp.4} \
@@ -283,6 +293,7 @@ MAN=	aac.4 \
 	${_iwx.4} \
 	ix.4 \
 	ixl.4 \
+	ixv.4 \
 	jedec_dimm.4 \
 	jme.4 \
 	kbdmux.4 \
@@ -296,7 +307,6 @@ MAN=	aac.4 \
 	kue.4 \
 	${_kvmclock.4} \
 	lagg.4 \
-	le.4 \
 	led.4 \
 	lge.4 \
 	lindebugfs.4 \
@@ -429,12 +439,14 @@ MAN=	aac.4 \
 	ng_vjc.4 \
 	ng_vlan.4 \
 	ng_vlan_rotate.4 \
+	nlsysevent.4 \
 	nmdm.4 \
 	${_ntb.4} \
 	${_ntb_hw_amd.4} \
 	${_ntb_hw_intel.4} \
 	${_ntb_hw_plx.4} \
 	${_ntb_transport.4} \
+	ntsync.4 \
 	${_nda.4} \
 	${_if_ntb.4} \
 	null.4 \
@@ -592,6 +604,7 @@ MAN=	aac.4 \
 	tarfs.4 \
 	targ.4 \
 	tcp.4 \
+	tcp_bblog.4 \
 	tcp_bbr.4 \
 	tcp_rack.4 \
 	tdfx.4 \
@@ -607,16 +620,20 @@ MAN=	aac.4 \
 	tun.4 \
 	tws.4 \
 	u2f.4 \
+	uart.4 \
 	udp.4 \
 	udplite.4 \
 	${_ufshci.4} \
 	unionfs.4 \
+	unix.4 \
 	ure.4 \
 	vale.4 \
+	veriexec.4 \
 	vga.4 \
 	vge.4 \
 	viapm.4 \
 	${_viawd.4} \
+	video.4 \
 	virtio.4 \
 	virtio_balloon.4 \
 	virtio_blk.4 \
@@ -625,6 +642,7 @@ MAN=	aac.4 \
 	virtio_random.4 \
 	virtio_scsi.4 \
 	${_vmci.4} \
+	vmgenc.4 \
 	vkbd.4 \
 	vlan.4 \
 	vxlan.4 \
@@ -710,6 +728,8 @@ MLINKS+=edsc.4 if_edsc.4
 MLINKS+=em.4 if_em.4 \
 	em.4 igb.4 \
 	em.4 if_igb.4 \
+	em.4 igbv.4 \
+	em.4 if_igbv.4 \
 	em.4 lem.4 \
 	em.4 if_lem.4
 MLINKS+=enc.4 if_enc.4
@@ -727,7 +747,9 @@ MLINKS+=fwip.4 if_fwip.4
 MLINKS+=fxp.4 if_fxp.4
 MLINKS+=gem.4 if_gem.4
 MLINKS+=genet.4 if_genet.4
+MLINKS+=geneve.4 if_geneve.4
 MLINKS+=geom.4 GEOM.4
+MLINKS+=geom_zero.4 gzero.4
 MLINKS+=gif.4 if_gif.4
 MLINKS+=gpio.4 gpiobus.4
 MLINKS+=gpioths.4 dht11.4
@@ -753,16 +775,17 @@ MLINKS+=ix.4 if_ix.4
 MLINKS+=ix.4 if_ixgbe.4
 MLINKS+=ix.4 ixgbe.4
 MLINKS+=ixl.4 if_ixl.4
+MLINKS+=ixv.4 if_ixv.4
 MLINKS+=iavf.4 if_iavf.4
 MLINKS+=jme.4 if_jme.4
 MLINKS+=kue.4 if_kue.4
 MLINKS+=lagg.4 trunk.4
 MLINKS+=lagg.4 if_lagg.4
-MLINKS+=le.4 if_le.4
 MLINKS+=lge.4 if_lge.4
 MLINKS+=lo.4 loop.4
 MLINKS+=lp.4 plip.4
 MLINKS+=malo.4 if_malo.4
+MLINKS+=me.4 if_me.4
 MLINKS+=mem.4 kmem.4
 MLINKS+=mfi.4 mfi_linux.4 \
 	mfi.4 mfip.4
@@ -780,6 +803,7 @@ MLINKS+=${_nfe.4} ${_if_nfe.4}
 MLINKS+=nge.4 if_nge.4
 MLINKS+=openfirm.4 openfirmware.4
 MLINKS+=ow.4 onewire.4
+MLINKS+=p9fs.4 virtio_p9fs.4
 MLINKS+=pccbb.4 cbb.4
 MLINKS+=pcm.4 snd.4 \
 	pcm.4 sound.4
@@ -850,6 +874,7 @@ _aibs.4=	aibs.4
 _amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
 _amdsmn.4=	amdsmn.4
+_amdsmu.4=	amdsmu.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
 _atopcase.4=	atopcase.4
@@ -898,6 +923,7 @@ _ntb_hw_intel.4=	ntb_hw_intel.4
 _ntb_hw_plx.4=	ntb_hw_plx.4
 _ntb_transport.4=ntb_transport.4
 _nvram.4=	nvram.4
+_padlock.4=	padlock.4
 _pchtherm.4=	pchtherm.4
 _qat.4=		qat.4
 _qat_c2xxx.4=	qat_c2xxx.4
@@ -942,10 +968,6 @@ MLINKS+=sume.4 if_sume.4
 _bhyve.4=	bhyve.4
 _vmm.4=		vmm.4
 .endif
-.endif
-
-.if ${MACHINE_CPUARCH} == "i386"
-_padlock.4=	padlock.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "aarch64"
@@ -1013,18 +1035,21 @@ _ccd.4=		ccd.4
 _dtrace_provs=	dtrace_audit.4 \
 		dtrace_callout_execute.4 \
 		dtrace_cam.4 \
+		dtrace_dtmalloc.4 \
 		dtrace_dtrace.4 \
 		dtrace_fbt.4 \
 		dtrace_io.4 \
 		dtrace_ip.4 \
 		dtrace_kinst.4 \
 		dtrace_lockstat.4 \
+		dtrace_mib.4 \
 		dtrace_pid.4 \
 		dtrace_priv.4 \
 		dtrace_proc.4 \
 		dtrace_profile.4 \
 		dtrace_sched.4 \
 		dtrace_sctp.4 \
+		dtrace_syscall.4 \
 		dtrace_tcp.4 \
 		dtrace_udp.4 \
 		dtrace_udplite.4 \
@@ -1055,11 +1080,11 @@ MAN+=		mlx5io.4
 .endif
 
 .if ${MK_TESTS} != "no"
-MANGROUPS+=	TESTS
-ATF=            ${SRCTOP}/contrib/atf
-.PATH:          ${ATF}/doc
-TESTS=		atf-test-case.4
-TESTSPACKAGE=	tests
+MANGROUPS+=	ATF
+ATFTOP=		${SRCTOP}/contrib/atf
+.PATH:          ${ATFTOP}/doc
+ATF=		atf-test-case.4
+ATFPACKAGE=	atf
 .endif
 
 .if ${MK_PF} != "no"
@@ -1082,7 +1107,6 @@ MAN+=	\
 	runfw.4 \
 	u3g.4 \
 	uark.4 \
-	uart.4 \
 	uath.4 \
 	ubsa.4 \
 	ubser.4 \
@@ -1113,7 +1137,6 @@ MAN+=	\
 	umodem.4 \
 	umoscom.4 \
 	ums.4 \
-	unix.4 \
 	upgt.4 \
 	uplcom.4 \
 	ural.4 \
@@ -1126,12 +1149,11 @@ MAN+=	\
 	usbhid.4 \
 	usfs.4 \
 	uslcom.4 \
+	uvideo.4 \
 	uvisor.4 \
 	uvscom.4 \
-	veriexec.4 \
 	zyd.4
 
-MLINKS+=geom_zero.4 gzero.4
 MLINKS+=mtw.4 if_mtw.4
 MLINKS+=otus.4 if_otus.4
 MLINKS+=rsu.4 if_rsu.4

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2025 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include "adf_c4xxx_hw_data.h"
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -20,14 +20,14 @@
 #define AE_CONFIG_DBG_FILE "ae_config"
 
 static u8
-find_first_me_index(const u32 au_mask)
+find_first_me_index(const u64 au_mask)
 {
 	u8 i;
-	u32 mask = au_mask;
+	u64 mask = au_mask;
 
 	/* Retrieve the index of the first ME of an accel unit */
 	for (i = 0; i < ADF_C4XXX_MAX_ACCELENGINES; i++) {
-		if (mask & BIT(i))
+		if (mask & BIT_ULL(i))
 			return i;
 	}
 

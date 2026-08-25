@@ -1,4 +1,4 @@
-.TH LESSECHO 1 "29 Jan 2026" "less 692"
+.TH LESSECHO 1 "30 May 2026" "less 704"
 .\" Define a string to interpolate the hyphenless break point escape
 .\" sequence (for URLs and similar) if the formatter claims groff
 .\" compatibility, else interpolate nothing.

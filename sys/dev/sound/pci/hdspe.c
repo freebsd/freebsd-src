@@ -111,11 +111,8 @@ hdspe_intr(void *p)
 {
 	struct sc_pcminfo *scp;
 	struct sc_info *sc;
-	device_t *devlist;
-	int devcount;
+	unsigned int i;
 	int status;
-	int err;
-	int i;
 
 	sc = (struct sc_info *)p;
 
@@ -123,17 +120,18 @@ hdspe_intr(void *p)
 
 	status = hdspe_read_1(sc, HDSPE_STATUS_REG);
 	if (status & HDSPE_AUDIO_IRQ_PENDING) {
-		if ((err = device_get_children(sc->dev, &devlist, &devcount)) != 0)
-			return;
-
-		for (i = 0; i < devcount; i++) {
-			scp = device_get_ivars(devlist[i]);
-			if (scp->ih != NULL)
-				scp->ih(scp);
+		for (i = 0; i < HDSPE_MAX_PCMDEV; i++) {
+			scp = sc->pcms[i];
+			if (scp == NULL || sc->pcm_detaching[i] ||
+			    scp->ih == NULL)
+				continue;
+			sc->pcm_refs[i]++;
+			scp->ih(scp);
+			if (--sc->pcm_refs[i] == 0 && sc->pcm_detaching[i])
+				cv_broadcast(&sc->pcm_cv);
 		}
 
 		hdspe_write_1(sc, HDSPE_INTERRUPT_ACK, 0);
-		free(devlist, M_TEMP);
 	}
 
 	mtx_unlock(&sc->lock);
@@ -844,6 +842,7 @@ hdspe_attach(device_t dev)
 		    "Analog input level ('LowGain', '+4dBU', '-10dBV')");
 	}
 
+	cv_init(&sc->pcm_cv, "snd_hdspe pcm");
 	bus_attach_children(dev);
 	return (0);
 }
@@ -891,6 +890,7 @@ hdspe_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq);
 	if (sc->cs)
 		bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(0), sc->cs);
+	cv_destroy(&sc->pcm_cv);
 	mtx_destroy(&sc->lock);
 
 	return (0);
@@ -907,7 +907,7 @@ static device_method_t hdspe_methods[] = {
 static driver_t hdspe_driver = {
 	"hdspe",
 	hdspe_methods,
-	PCM_SOFTC_SIZE,
+	sizeof(struct sc_info),
 };
 
 DRIVER_MODULE(snd_hdspe, pci, hdspe_driver, 0, 0);

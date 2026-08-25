@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 #ifndef ATH12K_PCI_H
 #define ATH12K_PCI_H
 
 #include <linux/mhi.h>
+#include <linux/pci.h>
 
 #include "core.h"
 
@@ -28,7 +29,9 @@
 #define PCIE_PCIE_PARF_LTSSM			0x1e081b0
 #define PARM_LTSSM_VALUE			0x111
 
-#define GCC_GCC_PCIE_HOT_RST			0x1e38338
+#define GCC_GCC_PCIE_HOT_RST(ab) \
+	((ab)->hal.regs->gcc_gcc_pcie_hot_rst)
+
 #define GCC_GCC_PCIE_HOT_RST_VAL		0x10
 
 #define PCIE_PCIE_INT_ALL_CLEAR			0x1e08228
@@ -36,22 +39,30 @@
 #define PCIE_INT_CLEAR_ALL			0xffffffff
 
 #define PCIE_QSERDES_COM_SYSCLK_EN_SEL_REG(ab) \
-	((ab)->hw_params->regs->pcie_qserdes_sysclk_en_sel)
+	((ab)->hal.regs->pcie_qserdes_sysclk_en_sel)
 #define PCIE_QSERDES_COM_SYSCLK_EN_SEL_VAL	0x10
 #define PCIE_QSERDES_COM_SYSCLK_EN_SEL_MSK	0xffffffff
 #define PCIE_PCS_OSC_DTCT_CONFIG1_REG(ab) \
-	((ab)->hw_params->regs->pcie_pcs_osc_dtct_config_base)
+	((ab)->hal.regs->pcie_pcs_osc_dtct_config_base)
 #define PCIE_PCS_OSC_DTCT_CONFIG1_VAL		0x02
 #define PCIE_PCS_OSC_DTCT_CONFIG2_REG(ab) \
-	((ab)->hw_params->regs->pcie_pcs_osc_dtct_config_base + 0x4)
+	((ab)->hal.regs->pcie_pcs_osc_dtct_config_base + 0x4)
 #define PCIE_PCS_OSC_DTCT_CONFIG2_VAL		0x52
 #define PCIE_PCS_OSC_DTCT_CONFIG4_REG(ab) \
-	((ab)->hw_params->regs->pcie_pcs_osc_dtct_config_base + 0xc)
+	((ab)->hal.regs->pcie_pcs_osc_dtct_config_base + 0xc)
 #define PCIE_PCS_OSC_DTCT_CONFIG4_VAL		0xff
 #define PCIE_PCS_OSC_DTCT_CONFIG_MSK		0x000000ff
 
 #define WLAON_QFPROM_PWR_CTRL_REG		0x01f8031c
 #define QFPROM_PWR_CTRL_VDD4BLOW_MASK		0x4
+
+#define QCN9274_QFPROM_RAW_RFA_PDET_ROW13_LSB	0x1E20338
+#define OTP_BOARD_ID_MASK			GENMASK(15, 0)
+
+#define PCIE_LOCAL_REG_QRTR_NODE_ID(ab) \
+	((ab)->hal.regs->qrtr_node_id)
+#define DOMAIN_NUMBER_MASK			GENMASK(7, 4)
+#define BUS_NUMBER_MASK				GENMASK(3, 0)
 
 #define PCI_BAR_WINDOW0_BASE	0x1E00000
 #define PCI_BAR_WINDOW0_END	0x1E7FFFC
@@ -64,9 +75,6 @@
 #define PCI_MHI_REGION_END	0x1E0EFFC
 #define QRTR_PCI_DOMAIN_NR_MASK		GENMASK(7, 4)
 #define QRTR_PCI_BUS_NUMBER_MASK	GENMASK(3, 0)
-
-#define ATH12K_PCI_SOC_HW_VERSION_1	1
-#define ATH12K_PCI_SOC_HW_VERSION_2	2
 
 struct ath12k_msi_user {
 	const char *name;
@@ -84,11 +92,23 @@ enum ath12k_pci_flags {
 	ATH12K_PCI_FLAG_INIT_DONE,
 	ATH12K_PCI_FLAG_IS_MSI_64,
 	ATH12K_PCI_ASPM_RESTORE,
+	ATH12K_PCI_FLAG_MULTI_MSI_VECTORS,
 };
 
 struct ath12k_pci_ops {
 	int (*wakeup)(struct ath12k_base *ab);
 	void (*release)(struct ath12k_base *ab);
+};
+
+struct ath12k_pci_device_family_ops {
+	int (*probe)(struct pci_dev *pdev, const struct pci_device_id *pci_dev);
+	int (*arch_init)(struct ath12k_base *ab);
+	void (*arch_deinit)(struct ath12k_base *ab);
+};
+
+struct ath12k_pci_reg_base {
+	u32 umac_base;
+	u32 ce_reg_base;
 };
 
 struct ath12k_pci {
@@ -100,6 +120,7 @@ struct ath12k_pci {
 	struct mhi_controller *mhi_ctrl;
 	const struct ath12k_msi_config *msi_config;
 	unsigned long mhi_state;
+	enum mhi_callback mhi_pre_cb;
 	u32 register_window;
 
 	/* protects register_window above */
@@ -108,7 +129,22 @@ struct ath12k_pci {
 	/* enum ath12k_pci_flags */
 	unsigned long flags;
 	u16 link_ctl;
+	unsigned long irq_flags;
 	const struct ath12k_pci_ops *pci_ops;
+	u32 qmi_instance;
+	u64 dma_mask;
+	const struct ath12k_pci_device_family_ops *device_family_ops;
+	const struct ath12k_pci_reg_base *reg_base;
+
+	u32 window_reg_addr;
+};
+
+struct ath12k_pci_driver {
+	const char *name;
+	const struct pci_device_id *id_table;
+	struct ath12k_pci_device_family_ops ops;
+	struct pci_driver driver;
+	const struct ath12k_pci_reg_base *reg_base;
 };
 
 static inline struct ath12k_pci *ath12k_pci_priv(struct ath12k_base *ab)
@@ -137,5 +173,8 @@ int ath12k_pci_hif_resume(struct ath12k_base *ab);
 void ath12k_pci_stop(struct ath12k_base *ab);
 int ath12k_pci_start(struct ath12k_base *ab);
 int ath12k_pci_power_up(struct ath12k_base *ab);
-void ath12k_pci_power_down(struct ath12k_base *ab);
+void ath12k_pci_power_down(struct ath12k_base *ab, bool is_suspend);
+int ath12k_pci_register_driver(const enum ath12k_device_family device_id,
+			       struct ath12k_pci_driver *driver);
+void ath12k_pci_unregister_driver(const enum ath12k_device_family device_id);
 #endif /* ATH12K_PCI_H */

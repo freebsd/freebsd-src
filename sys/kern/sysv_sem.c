@@ -848,25 +848,20 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 		 * won't work for SETALL since we can't copyin() more
 		 * data than the user specified as we may return a
 		 * spurious EFAULT.
-		 *
-		 * Note that the number of semaphores in a set is
-		 * fixed for the life of that set.  The only way that
-		 * the 'count' could change while are blocked in
-		 * malloc() is if this semaphore set were destroyed
-		 * and a new one created with the same index.
-		 * However, semvalid() will catch that due to the
-		 * sequence number unless exactly 0x8000 (or a
-		 * multiple thereof) semaphore sets for the same index
-		 * are created and destroyed while we are in malloc!
-		 *
 		 */
+		if ((error = semvalid(semid, rpr, semakptr)) != 0)
+			goto done2;
 		count = semakptr->u.sem_nsems;
 		mtx_unlock(sema_mtxp);
 		array = malloc(sizeof(*array) * count, M_TEMP, M_WAITOK);
 		mtx_lock(sema_mtxp);
 		if ((error = semvalid(semid, rpr, semakptr)) != 0)
 			goto done2;
-		KASSERT(count == semakptr->u.sem_nsems, ("nsems changed"));
+		if (count != semakptr->u.sem_nsems) {
+			/* Unlikely, but possible. */
+			error = EAGAIN;
+			goto done2;
+		}
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_R)))
 			goto done2;
 		for (i = 0; i < semakptr->u.sem_nsems; i++)
@@ -909,10 +904,8 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 		break;
 
 	case SETALL:
-		/*
-		 * See comment on GETALL for why 'count' shouldn't change
-		 * and why we require a userland buffer.
-		 */
+		if ((error = semvalid(semid, rpr, semakptr)) != 0)
+			goto done2;
 		count = semakptr->u.sem_nsems;
 		mtx_unlock(sema_mtxp);
 		array = malloc(sizeof(*array) * count, M_TEMP, M_WAITOK);
@@ -922,7 +915,11 @@ kern_semctl(struct thread *td, int semid, int semnum, int cmd,
 			break;
 		if ((error = semvalid(semid, rpr, semakptr)) != 0)
 			goto done2;
-		KASSERT(count == semakptr->u.sem_nsems, ("nsems changed"));
+		if (count != semakptr->u.sem_nsems) {
+			/* Unlikely, but possible. */
+			error = EAGAIN;
+			goto done2;
+		}
 		if ((error = ipcperm(td, &semakptr->u.sem_perm, IPC_W)))
 			goto done2;
 		for (i = 0; i < semakptr->u.sem_nsems; i++) {
@@ -1482,12 +1479,11 @@ semexit_myhook(void *arg, struct proc *p)
 
 			mtx_lock(sema_mtxp);
 			if ((semakptr->u.sem_perm.mode & SEM_ALLOC) == 0 ||
-			    (semakptr->u.sem_perm.seq != seq)) {
+			    semakptr->u.sem_perm.seq != seq ||
+			    semakptr->u.sem_nsems <= semnum) {
 				mtx_unlock(sema_mtxp);
 				continue;
 			}
-			if (semnum >= semakptr->u.sem_nsems)
-				panic("semexit - semnum out of range");
 
 			DPRINTF((
 			    "semexit:  %p id=%d num=%d(adj=%d) ; sem=%d\n",

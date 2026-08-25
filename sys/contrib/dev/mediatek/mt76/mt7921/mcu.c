@@ -234,7 +234,11 @@ mt7921_mcu_debug_msg_event(struct mt792x_dev *dev, struct sk_buff *skb)
 			if (!msg->content[i])
 				msg->content[i] = ' ';
 		}
+#if defined(__linux__)
 		wiphy_info(mt76_hw(dev)->wiphy, "%.*s", len, msg->content);
+#elif defined(__FreeBSD__)
+		wiphy_info(mt76_hw(dev)->wiphy, "%.*s\n", len, msg->content);
+#endif
 	}
 }
 

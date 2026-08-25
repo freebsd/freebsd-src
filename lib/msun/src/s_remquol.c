@@ -167,3 +167,7 @@ fixup:
 	*quo = (sxy ? -q : q);
 	return x;
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(remquol, remquof128);
+#endif

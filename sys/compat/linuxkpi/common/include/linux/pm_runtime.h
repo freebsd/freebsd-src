@@ -51,4 +51,10 @@ pm_runtime_suspended(struct device *dev)
 	return 0;
 }
 
+static inline int
+pm_runtime_resume_and_get(struct device *dev)
+{
+	return 0;
+}
+
 #endif	/* _LINUXKPI_LINUX_PM_RUNTIME_H_ */

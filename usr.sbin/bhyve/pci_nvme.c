@@ -3167,6 +3167,7 @@ pci_nvme_parse_config(struct pci_nvme_softc *sc, nvlist_t *nvl)
 	char bident[sizeof("XXX:XXX")];
 	const char *value;
 	uint32_t sectsz;
+	int val;
 
 	sc->max_queues = NVME_QUEUES;
 	sc->max_qentries = NVME_MAX_QENTRIES;
@@ -3183,20 +3184,21 @@ pci_nvme_parse_config(struct pci_nvme_softc *sc, nvlist_t *nvl)
 		sc->max_queues = atoi(value);
 	value = get_config_value_node(nvl, "qsz");
 	if (value != NULL) {
-		sc->max_qentries = atoi(value);
-		if (sc->max_qentries <= 0) {
-			EPRINTLN("nvme: Invalid qsz option %d",
-			    sc->max_qentries);
+		val = atoi(value);
+		if (val <= 0 || val > UINT16_MAX) {
+			EPRINTLN("nvme: Invalid qsz option %d", val);
 			return (-1);
 		}
+		sc->max_qentries = val;
 	}
 	value = get_config_value_node(nvl, "ioslots");
 	if (value != NULL) {
-		sc->ioslots = atoi(value);
-		if (sc->ioslots <= 0) {
-			EPRINTLN("Invalid ioslots option %d", sc->ioslots);
+		val = atoi(value);
+		if (val <= 0) {
+			EPRINTLN("Invalid ioslots option %d", val);
 			return (-1);
 		}
+		sc->ioslots = val;
 	}
 	value = get_config_value_node(nvl, "sectsz");
 	if (value != NULL)

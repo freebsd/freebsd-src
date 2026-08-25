@@ -48,4 +48,5 @@ bool	ppt_is_mmio(struct vm *vm, vm_paddr_t gpa);
  */
 int	ppt_assign_device(struct vm *vm, int bus, int slot, int func);
 int	ppt_unassign_device(struct vm *vm, int bus, int slot, int func);
+int	ppt_reset_device(struct vm *vm, int bus, int slot, int func);
 #endif

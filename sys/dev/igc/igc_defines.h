@@ -254,6 +254,7 @@
 #define IGC_STATUS_LAN_INIT_DONE	0x00000200 /* Lan Init Compltn by NVM */
 #define IGC_STATUS_PHYRA		0x00000400 /* PHY Reset Asserted */
 #define IGC_STATUS_GIO_MASTER_ENABLE	0x00080000 /* Master request status */
+#define IGC_STATUS_RST_DONE		0x00200000 /* Device reset complete */
 #define IGC_STATUS_2P5_SKU		0x00001000 /* Val of 2.5GBE SKU strap */
 #define IGC_STATUS_2P5_SKU_OVER	0x00002000 /* Val of 2.5GBE SKU Over */
 #define IGC_STATUS_PCIM_STATE		0x40000000 /* PCIm function state */
@@ -297,9 +298,12 @@
 #define IGC_LEDCTL_LED0_MODE_SHIFT	0
 #define IGC_LEDCTL_LED0_IVRT		0x00000040
 #define IGC_LEDCTL_LED0_BLINK		0x00000080
+#define IGC_LEDCTL_LED1_MODE_MASK	0x00000F00
+#define IGC_LEDCTL_LED1_MODE_SHIFT	8
+#define IGC_LEDCTL_LED1_BLINK		0x00008000
 
-#define IGC_LEDCTL_MODE_LED_ON	0xE
-#define IGC_LEDCTL_MODE_LED_OFF	0xF
+#define IGC_LEDCTL_MODE_LED_ON	0x0
+#define IGC_LEDCTL_MODE_LED_OFF	0x1
 
 /* Transmit Descriptor bit definitions */
 #define IGC_TXD_DTYP_D	0x00100000 /* Data Descriptor */
@@ -364,6 +368,7 @@
 /* Default values for the transmit IPG register */
 #define DEFAULT_82543_TIPG_IPGT_FIBER	9
 #define DEFAULT_82543_TIPG_IPGT_COPPER	8
+#define IGC_I225_TIPG_IPGT_2P5		0xB
 
 #define IGC_TIPG_IPGT_MASK		0x000003FF
 
@@ -423,11 +428,25 @@
 
 #define IGC_PBS_16K		IGC_PBA_16K
 
-/* Uncorrectable/correctable ECC Error counts and enable bits */
-#define IGC_PBECCSTS_CORR_ERR_CNT_MASK		0x000000FF
-#define IGC_PBECCSTS_UNCORR_ERR_CNT_MASK	0x0000FF00
-#define IGC_PBECCSTS_UNCORR_ERR_CNT_SHIFT	8
-#define IGC_PBECCSTS_ECC_ENABLE			0x00010000
+/* I225/I226 memory error status bits. */
+#define IGC_PEIND_LANPORT_PARITY_FATAL	0x00000001
+#define IGC_PEIND_MNG_PARITY_FATAL	0x00000002
+#define IGC_PEIND_PCIE_PARITY_FATAL	0x00000004
+#define IGC_PEIND_DMA_PARITY_FATAL	0x00000008
+#define IGC_PEIND_FATAL_MASK		0x0000000F
+#define IGC_PEIND_HOST_FATAL_MASK	(IGC_PEIND_LANPORT_PARITY_FATAL | \
+	IGC_PEIND_PCIE_PARITY_FATAL | IGC_PEIND_DMA_PARITY_FATAL)
+
+#define IGC_PBECCSTS_ECC_ENABLE		0x00000001
+#define IGC_PBECCSTS_CORR_ERR		0x00000004
+
+#define IGC_PCIEERRSTS_FATAL_MASK	0x00000078
+#define IGC_PCIEECCSTS_TX_WR_DATA	0x00000010
+#define IGC_PCIEECCSTS_RETRY_BUF		0x00000020
+#define IGC_PCIEECCSTS_CORR_MASK		0x00000030
+
+#define IGC_LANPERRSTS_RETX_BUF		0x00000200
+#define IGC_MNGPARSTS_FATAL_MASK		0x00000003
 
 #define IFS_MAX			80
 #define IFS_MIN			40
@@ -550,15 +569,15 @@
 /* IGC_EITR_CNT_IGNR is only for 82576 and newer */
 #define IGC_EITR_CNT_IGNR	0x80000000 /* Don't reset counters on write */
 
+/* Receive Descriptor Control */
+#define IGC_RXDCTL_PTHRESH	0x0000001F /* RXDCTL Prefetch Threshold */
+#define IGC_RXDCTL_HTHRESH	0x00001F00 /* RXDCTL Host Threshold */
+#define IGC_RXDCTL_WTHRESH	0x001F0000 /* RXDCTL Writeback Threshold */
+
 /* Transmit Descriptor Control */
-#define IGC_TXDCTL_PTHRESH	0x0000003F /* TXDCTL Prefetch Threshold */
-#define IGC_TXDCTL_HTHRESH	0x00003F00 /* TXDCTL Host Threshold */
-#define IGC_TXDCTL_WTHRESH	0x003F0000 /* TXDCTL Writeback Threshold */
-#define IGC_TXDCTL_GRAN		0x01000000 /* TXDCTL Granularity */
-#define IGC_TXDCTL_FULL_TX_DESC_WB	0x01010000 /* GRAN=1, WTHRESH=1 */
-#define IGC_TXDCTL_MAX_TX_DESC_PREFETCH 0x0100001F /* GRAN=1, PTHRESH=31 */
-/* Enable the counting of descriptors still to be processed. */
-#define IGC_TXDCTL_COUNT_DESC	0x00400000
+#define IGC_TXDCTL_PTHRESH	0x0000001F /* TXDCTL Prefetch Threshold */
+#define IGC_TXDCTL_HTHRESH	0x00001F00 /* TXDCTL Host Threshold */
+#define IGC_TXDCTL_WTHRESH	0x001F0000 /* TXDCTL Writeback Threshold */
 
 /* Flow Control Constants */
 #define FLOW_CONTROL_ADDRESS_LOW	0x00C28001

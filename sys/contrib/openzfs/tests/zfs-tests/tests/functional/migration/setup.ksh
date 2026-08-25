@@ -1,24 +1,14 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
 #
-# The contents of this file are subject to the terms of the
-# Common Development and Distribution License (the "License").
-# You may not use this file except in compliance with the License.
-#
-# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or https://opensource.org/licenses/CDDL-1.0.
-# See the License for the specific language governing permissions
-# and limitations under the License.
-#
-# When distributing Covered Code, include this CDDL HEADER in each
-# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-# If applicable, add the following below this CDDL HEADER, with the
-# fields enclosed by brackets "[]" replaced with your own identifying
-# information: Portions Copyright [yyyy] [name of copyright owner]
-#
-# CDDL HEADER END
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -58,8 +48,28 @@ log_must zfs set mountpoint=$TESTDIR $TESTPOOL/$TESTFS
 rm -rf $NONZFS_TESTDIR  || log_unresolved Could not remove $NONZFS_TESTDIR
 mkdir -p $NONZFS_TESTDIR || log_unresolved Could not create $NONZFS_TESTDIR
 
+#
+# $NONZFS_DISK may still carry a zfs_member label from a pool used by an
+# earlier test.  'zpool destroy' leaves the vdev labels in place and new_fs
+# only overwrites the front of the device, so the trailing labels can
+# survive.  libblkid then probes the device as ambiguous (both the new
+# filesystem and zfs_member) and the auto-detecting mount below fails
+# intermittently.  Wipe any residual signatures first so the new filesystem
+# is unambiguous.  Skip the single-disk case, where $NONZFS_DISK is the same
+# device the test pool was just created on.
+#
+if is_linux && [[ "$NONZFS_DISK" != "$ZFS_DISK" ]]; then
+	log_must wipefs -a ${DEV_DSKDIR}/$NONZFS_DISK
+fi
+
 new_fs ${DEV_DSKDIR}/$NONZFS_DISK ||
 	log_untested "Unable to setup a $NEWFS_DEFAULT_FS file system"
+
+#
+# Let udev settle so the device node reflects the new filesystem before the
+# auto-detecting mount consults it.
+#
+block_device_wait ${DEV_DSKDIR}/$NONZFS_DISK
 
 log_must mount ${DEV_DSKDIR}/$NONZFS_DISK $NONZFS_TESTDIR
 

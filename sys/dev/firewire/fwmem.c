@@ -61,7 +61,7 @@
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwmem.h>
 
-static int fwmem_speed = 2, fwmem_debug = 0;
+static int fwmem_speed = FWSPD_S400, fwmem_debug = 0;
 static struct fw_eui64 fwmem_eui64;
 SYSCTL_DECL(_hw_firewire);
 static SYSCTL_NODE(_hw_firewire, OID_AUTO, fwmem,
@@ -78,7 +78,8 @@ SYSCTL_INT(_debug, OID_AUTO, fwmem_debug, CTLFLAG_RW, &fwmem_debug, 0,
 
 static MALLOC_DEFINE(M_FWMEM, "fwmem", "fwmem/FireWire");
 
-#define MAXLEN (512 << fwmem_speed)
+#define FW_MAXPKT_S100	512	/* S100 max async payload */
+#define MAXLEN (FW_MAXPKT_S100 << fwmem_speed)
 
 struct fwmem_softc {
 	struct fw_eui64 eui;

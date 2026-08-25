@@ -80,7 +80,7 @@ static const void *ucode_data;
 static struct ucode_ops *ucode_loader;
 
 /* Variables used for reporting success or failure. */
-enum {
+static enum {
 	NO_ERROR,
 	NO_MATCH,
 	VERIFICATION_FAILED,
@@ -204,7 +204,6 @@ ucode_intel_match(const uint8_t *data, size_t *len)
 	uint64_t platformid;
 	size_t resid;
 	uint32_t data_size, flags, regs[4], sig, total_size;
-	int i;
 
 	do_cpuid(1, regs);
 	sig = regs[0];
@@ -226,19 +225,35 @@ ucode_intel_match(const uint8_t *data, size_t *len)
 		if (total_size == 0)
 			total_size = UCODE_INTEL_DEFAULT_DATA_SIZE +
 			    sizeof(struct ucode_intel_header);
-		if (data_size > total_size + sizeof(struct ucode_intel_header))
+
+		if (total_size > data_size + sizeof(struct ucode_intel_header))
 			table = (const struct ucode_intel_extsig_table *)
 			    ((const uint8_t *)(hdr + 1) + data_size);
 		else
 			table = NULL;
 
-		if (hdr->processor_signature == sig) {
-			if ((hdr->processor_flags & flags) != 0) {
-				*len = data_size;
-				return (hdr + 1);
+		if (hdr->processor_signature == sig &&
+		    (hdr->processor_flags & flags) != 0) {
+			*len = data_size;
+			return (hdr + 1);
+		}
+		if (table != NULL) {
+			size_t extsize;
+
+			extsize = total_size -
+			    (data_size + sizeof(struct ucode_intel_header));
+			if (extsize < sizeof(struct ucode_intel_extsig_table)) {
+				ucode_error = VERIFICATION_FAILED;
+				break;
 			}
-		} else if (table != NULL) {
-			for (i = 0; i < table->signature_count; i++) {
+			extsize -= sizeof(struct ucode_intel_extsig_table);
+			for (uint32_t i = 0; i < table->signature_count; i++) {
+				if (extsize < sizeof(struct ucode_intel_extsig)) {
+					ucode_error = VERIFICATION_FAILED;
+					goto out;
+				}
+				extsize -= sizeof(struct ucode_intel_extsig);
+
 				entry = &table->entries[i];
 				if (entry->processor_signature == sig &&
 				    (entry->processor_flags & flags) != 0) {
@@ -248,6 +263,7 @@ ucode_intel_match(const uint8_t *data, size_t *len)
 			}
 		}
 	}
+out:
 	return (NULL);
 }
 
@@ -344,7 +360,7 @@ restart:
 		goto restart;
 	}
 }
-SYSINIT(ucode_release, SI_SUB_SMP + 1, SI_ORDER_ANY, ucode_release, NULL);
+SYSINIT(ucode_release, SI_SUB_SMP, SI_ORDER_LAST, ucode_release, NULL);
 
 void
 ucode_load_ap(int cpu)
@@ -361,18 +377,20 @@ ucode_load_ap(int cpu)
 		(void)ucode_loader->load(ucode_data, UNSAFE, NULL, NULL);
 }
 
-static void *
-map_ucode(uintptr_t free, size_t len)
+static const void *
+map_ucode(const void *match, uintptr_t free, size_t len)
 {
 #ifdef __i386__
 	uintptr_t va;
 
 	for (va = free; va < free + len; va += PAGE_SIZE)
 		pmap_kenter(va, (vm_paddr_t)va);
+	memcpy_early((void *)free, match, len);
+	return ((const void *)free);
 #else
 	(void)len;
+	return (match);
 #endif
-	return ((void *)free);
 }
 
 static void
@@ -405,7 +423,7 @@ ucode_load_bsp(uintptr_t free)
 		char vendor[13];
 	} cpuid;
 	const uint8_t *fileaddr, *match;
-	uint8_t *addr;
+	const uint8_t *addr;
 	char *type;
 	uint64_t nrev, orev;
 	caddr_t file;
@@ -440,14 +458,10 @@ ucode_load_bsp(uintptr_t free)
 		len = preload_fetch_size(file);
 		match = ucode_loader->match(fileaddr, &len);
 		if (match != NULL) {
-			addr = map_ucode(free, len);
-			/* We can't use memcpy() before ifunc resolution. */
-			memcpy_early(addr, match, len);
-			match = addr;
-
-			error = ucode_loader->load(match, EARLY, &nrev, &orev);
+			addr = map_ucode(match, free, len);
+			error = ucode_loader->load(addr, EARLY, &nrev, &orev);
 			if (error == 0) {
-				ucode_data = early_ucode_data = match;
+				ucode_data = early_ucode_data = addr;
 				ucode_nrev = nrev;
 				ucode_orev = orev;
 				return (len);

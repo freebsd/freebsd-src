@@ -10,12 +10,12 @@
 #include "cbor.h"
 #include "test_allocator.h"
 
-cbor_item_t *string;
+cbor_item_t* string;
 struct cbor_load_result res;
 
 unsigned char empty_string_data[] = {0x60};
 
-static void test_empty_string(void **_CBOR_UNUSED(_state)) {
+static void test_empty_string(void** _state _CBOR_UNUSED) {
   string = cbor_load(empty_string_data, 1, &res);
   assert_non_null(string);
   assert_true(cbor_typeof(string) == CBOR_TYPE_STRING);
@@ -31,7 +31,7 @@ unsigned char short_string_data[] = {0x6C, 0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x20,
                                      0x77, 0x6F, 0x72, 0x6C, 0x64, 0x21};
 
 /*                              0x60 + 12 | Hello world! */
-static void test_short_string(void **_CBOR_UNUSED(_state)) {
+static void test_short_string(void** _state _CBOR_UNUSED) {
   string = cbor_load(short_string_data, 13, &res);
   assert_non_null(string);
   assert_true(cbor_typeof(string) == CBOR_TYPE_STRING);
@@ -49,7 +49,7 @@ unsigned char short_multibyte_string_data[] = {
     0xC3, 0x9F, 0x76, 0xC4, 0x9B, 0x74, 0x65, 0x21};
 
 /*                              0x60 + 15 | Čaues ßvěte! */
-static void test_short_multibyte_string(void **_CBOR_UNUSED(_state)) {
+static void test_short_multibyte_string(void** _state _CBOR_UNUSED) {
   string = cbor_load(short_multibyte_string_data, 16, &res);
   assert_non_null(string);
   assert_true(cbor_typeof(string) == CBOR_TYPE_STRING);
@@ -78,7 +78,7 @@ unsigned char int8_string_data[] = {
     0x70, 0x6F, 0x73, 0x75, 0x65, 0x72, 0x65, 0x2E};
 
 /*                                          150 | Lorem ....*/
-static void test_int8_string(void **_CBOR_UNUSED(_state)) {
+static void test_int8_string(void** _state _CBOR_UNUSED) {
   string = cbor_load(int8_string_data, 152, &res);
   assert_non_null(string);
   assert_true(cbor_typeof(string) == CBOR_TYPE_STRING);
@@ -112,7 +112,7 @@ unsigned char int16_string_data[] = {
 /*                                          150 | Lorem ....*/
 /* This valid but not realistic - length 150 could be encoded in a single
  * uint8_t (but we need to keep the test files reasonably compact) */
-static void test_int16_string(void **_CBOR_UNUSED(_state)) {
+static void test_int16_string(void** _state _CBOR_UNUSED) {
   string = cbor_load(int16_string_data, 153, &res);
   assert_non_null(string);
   assert_true(cbor_typeof(string) == CBOR_TYPE_STRING);
@@ -145,7 +145,7 @@ unsigned char int32_string_data[] = {
     0x74, 0x6F, 0x20, 0x70, 0x6F, 0x73, 0x75, 0x65, 0x72, 0x65, 0x2E};
 
 /*                                          150 | Lorem ....*/
-static void test_int32_string(void **_CBOR_UNUSED(_state)) {
+static void test_int32_string(void** _state _CBOR_UNUSED) {
   string = cbor_load(int32_string_data, 155, &res);
   assert_non_null(string);
   assert_true(cbor_typeof(string) == CBOR_TYPE_STRING);
@@ -179,7 +179,7 @@ unsigned char int64_string_data[] = {
     0x72, 0x65, 0x2E};
 
 /*                                          150 | Lorem ....*/
-static void test_int64_string(void **_CBOR_UNUSED(_state)) {
+static void test_int64_string(void** _state _CBOR_UNUSED) {
   string = cbor_load(int64_string_data, 159, &res);
   assert_non_null(string);
   assert_true(cbor_typeof(string) == CBOR_TYPE_STRING);
@@ -201,7 +201,7 @@ unsigned char short_indef_string_data[] = {0x7F, 0x78, 0x01, 0x65, 0xFF, 0xFF};
 /*                                         start |   string      | break| extra
  */
 
-static void test_short_indef_string(void **_CBOR_UNUSED(_state)) {
+static void test_short_indef_string(void** _state _CBOR_UNUSED) {
   string = cbor_load(short_indef_string_data, 6, &res);
   assert_non_null(string);
   assert_true(cbor_typeof(string) == CBOR_TYPE_STRING);
@@ -217,7 +217,7 @@ static void test_short_indef_string(void **_CBOR_UNUSED(_state)) {
   assert_null(string);
 }
 
-static void test_invalid_utf(void **_CBOR_UNUSED(_state)) {
+static void test_invalid_utf(void** _state _CBOR_UNUSED) {
   /* 0x60 + 1 | 0xC5 (invalid unfinished 2B codepoint) */
   unsigned char string_data[] = {0x61, 0xC5};
   string = cbor_load(string_data, 2, &res);
@@ -233,13 +233,13 @@ static void test_invalid_utf(void **_CBOR_UNUSED(_state)) {
   cbor_decref(&string);
 }
 
-static void test_inline_creation(void **_CBOR_UNUSED(_state)) {
+static void test_inline_creation(void** _state _CBOR_UNUSED) {
   string = cbor_build_string("Hello!");
   assert_memory_equal(cbor_string_handle(string), "Hello!", strlen("Hello!"));
   cbor_decref(&string);
 }
 
-static void test_string_creation(void **_CBOR_UNUSED(_state)) {
+static void test_string_creation(void** _state _CBOR_UNUSED) {
   WITH_FAILING_MALLOC({ assert_null(cbor_new_definite_string()); });
 
   WITH_FAILING_MALLOC({ assert_null(cbor_new_indefinite_string()); });
@@ -255,17 +255,17 @@ static void test_string_creation(void **_CBOR_UNUSED(_state)) {
                    MALLOC_FAIL);
 }
 
-static void test_string_add_chunk(void **_CBOR_UNUSED(_state)) {
+static void test_string_add_chunk(void** _state _CBOR_UNUSED) {
   WITH_MOCK_MALLOC(
       {
-        cbor_item_t *string = cbor_new_indefinite_string();
-        cbor_item_t *chunk = cbor_build_string("Hello!");
+        cbor_item_t* string = cbor_new_indefinite_string();
+        cbor_item_t* chunk = cbor_build_string("Hello!");
 
         assert_false(cbor_string_add_chunk(string, chunk));
         assert_size_equal(cbor_string_chunk_count(string), 0);
-        assert_size_equal(((struct cbor_indefinite_string_data *)string->data)
-                              ->chunk_capacity,
-                          0);
+        assert_size_equal(
+            ((struct cbor_indefinite_string_data*)string->data)->chunk_capacity,
+            0);
 
         cbor_decref(&chunk);
         cbor_decref(&string);
@@ -273,11 +273,11 @@ static void test_string_add_chunk(void **_CBOR_UNUSED(_state)) {
       5, MALLOC, MALLOC, MALLOC, MALLOC, REALLOC_FAIL);
 }
 
-static void test_add_chunk_reallocation_overflow(void **_CBOR_UNUSED(_state)) {
+static void test_add_chunk_reallocation_overflow(void** _state _CBOR_UNUSED) {
   string = cbor_new_indefinite_string();
-  cbor_item_t *chunk = cbor_build_string("Hello!");
-  struct cbor_indefinite_string_data *metadata =
-      (struct cbor_indefinite_string_data *)string->data;
+  cbor_item_t* chunk = cbor_build_string("Hello!");
+  struct cbor_indefinite_string_data* metadata =
+      (struct cbor_indefinite_string_data*)string->data;
   // Pretend we already have many chunks allocated
   metadata->chunk_count = SIZE_MAX;
   metadata->chunk_capacity = SIZE_MAX;
@@ -291,10 +291,10 @@ static void test_add_chunk_reallocation_overflow(void **_CBOR_UNUSED(_state)) {
   cbor_decref(&string);
 }
 
-static void test_set_handle(void **_CBOR_UNUSED(_state)) {
+static void test_set_handle(void** _state _CBOR_UNUSED) {
   string = cbor_new_definite_string();
-  char *test_string = "Hello";
-  unsigned char *string_data = malloc(strlen(test_string));
+  char* test_string = "Hello";
+  unsigned char* string_data = malloc(strlen(test_string));
   memcpy(string_data, test_string, strlen(test_string));
   assert_ptr_not_equal(string_data, NULL);
   cbor_string_set_handle(string, string_data, strlen(test_string));
@@ -306,11 +306,11 @@ static void test_set_handle(void **_CBOR_UNUSED(_state)) {
   cbor_decref(&string);
 }
 
-static void test_set_handle_multibyte_codepoint(void **_CBOR_UNUSED(_state)) {
+static void test_set_handle_multibyte_codepoint(void** _state _CBOR_UNUSED) {
   string = cbor_new_definite_string();
   // "Štěstíčko" in UTF-8
-  char *test_string = "\xc5\xa0t\xc4\x9bst\xc3\xad\xc4\x8dko";
-  unsigned char *string_data = malloc(strlen(test_string));
+  char* test_string = "\xc5\xa0t\xc4\x9bst\xc3\xad\xc4\x8dko";
+  unsigned char* string_data = malloc(strlen(test_string));
   memcpy(string_data, test_string, strlen(test_string));
   assert_ptr_not_equal(string_data, NULL);
   cbor_string_set_handle(string, string_data, strlen(test_string));
@@ -322,11 +322,11 @@ static void test_set_handle_multibyte_codepoint(void **_CBOR_UNUSED(_state)) {
   cbor_decref(&string);
 }
 
-static void test_set_handle_invalid_utf(void **_CBOR_UNUSED(_state)) {
+static void test_set_handle_invalid_utf(void** _state _CBOR_UNUSED) {
   string = cbor_new_definite_string();
   // Invalid multi-byte character (missing the second byte).
-  char *test_string = "Test: \xc5";
-  unsigned char *string_data = malloc(strlen(test_string));
+  char* test_string = "Test: \xc5";
+  unsigned char* string_data = malloc(strlen(test_string));
   memcpy(string_data, test_string, strlen(test_string));
   assert_ptr_not_equal(string_data, NULL);
   cbor_string_set_handle(string, string_data, strlen(test_string));

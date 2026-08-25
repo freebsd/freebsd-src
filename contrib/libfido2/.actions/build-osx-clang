@@ -5,7 +5,8 @@
 # license that can be found in the LICENSE file.
 # SPDX-License-Identifier: BSD-2-Clause
 
-export PKG_CONFIG_PATH="$(brew --prefix openssl@3.0)/lib/pkgconfig"
+PKG_CONFIG_PATH="$(brew --prefix openssl@3.0)/lib/pkgconfig"
+export PKG_CONFIG_PATH
 SCAN="$(brew --prefix llvm)/bin/scan-build"
 
 # Build, analyze, and install libfido2.

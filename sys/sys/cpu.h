@@ -51,6 +51,17 @@ cpu_get_pcpu(device_t dev)
 	return ((struct pcpu *)v);
 }
 
+/*
+ * Assumes the parent bus sets the CPU_IVAR_PCPU instance variable, which most
+ * CPU buses do.  A panic will ensue if not the case.  Calling devices should
+ * check for that condition (most probably in their attach function).
+ */
+static __inline u_int
+cpu_get_pcpuid(device_t dev)
+{
+	return (cpu_get_pcpu(dev)->pc_cpuid);
+}
+
 static __inline int32_t
 cpu_get_nominal_mhz(device_t dev)
 {

@@ -101,7 +101,7 @@
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7) || \
     defined(COMPAT_FREEBSD9)
-#error FreeBSD/arm doesn't provide compatibility with releases prior to 10
+#error "FreeBSD/arm doesn't provide compatibility with releases prior to 10"
 #endif
 
 
@@ -205,7 +205,7 @@ cpu_startup(void *dummy)
 
 	bufinit();
 	vm_pager_bufferinit();
-	pcb->pcb_regs.sf_sp = (u_int)thread0.td_kstack +
+	pcb->pcb_regs.sf_sp = (uintptr_t)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
 	pmap_set_pcb_pagedir(kernel_pmap, pcb);
 }
@@ -373,13 +373,12 @@ pcpu0_init(void)
  * Initialize proc0
  */
 static void
-init_proc0(vm_offset_t kstack)
+init_proc0(void *kstack)
 {
 	proc_linkup0(&proc0, &thread0);
 	thread0.td_kstack = kstack;
 	thread0.td_kstack_pages = kstack_pages;
-	thread0.td_pcb = (struct pcb *)(thread0.td_kstack +
-	    thread0.td_kstack_pages * PAGE_SIZE) - 1;
+	thread0.td_pcb = (struct pcb *)td_kstack_top(&thread0) - 1;
 	thread0.td_pcb->pcb_flags = 0;
 	thread0.td_pcb->pcb_fpflags = 0;
 	thread0.td_pcb->pcb_vfpcpu = -1;
@@ -622,7 +621,7 @@ initarm(struct arm_boot_params *abp)
 	 */
 	/* Set stack for exception handlers */
 	undefined_init();
-	init_proc0(kernelstack);
+	init_proc0((void *)kernelstack);
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 	enable_interrupts(PSR_A);
 	pmap_bootstrap(0);

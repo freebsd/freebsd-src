@@ -1,24 +1,14 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
 #
-# The contents of this file are subject to the terms of the
-# Common Development and Distribution License (the "License").
-# You may not use this file except in compliance with the License.
-#
-# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or https://opensource.org/licenses/CDDL-1.0.
-# See the License for the specific language governing permissions
-# and limitations under the License.
-#
-# When distributing Covered Code, include this CDDL HEADER in each
-# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-# If applicable, add the following below this CDDL HEADER, with the
-# fields enclosed by brackets "[]" replaced with your own identifying
-# information: Portions Copyright [yyyy] [name of copyright owner]
-#
-# CDDL HEADER END
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -89,7 +79,8 @@ typeset -i PAGE_SIZE=$(getconf PAGE_SIZE)
 # Set recordsize to 128K, and make a 64K file (so only one block) for the
 # sizing tests below.
 log_must zfs set recordsize=128K $TESTDS
-log_must dd if=/dev/urandom of=$TESTFILE bs=64k count=1
+log_must rm -f $TESTFILE
+log_must stride_dd -i /dev/urandom -o $TESTFILE -b 65536 -c 1
 log_must zpool sync
 
 # when DIO is disabled via tunable, statx will not return the dioalign result
@@ -141,7 +132,7 @@ done
 # Now we extend the file into its second block. This effectively locks in its
 # block size, which will always be returned regardless of recordsize changes.
 log_must zfs set recordsize=128K $TESTDS
-log_must dd if=/dev/urandom of=$TESTFILE bs=192K count=1
+log_must stride_dd -i /dev/urandom -o $TESTFILE -b 196608 -c 1
 log_must zpool sync
 
 # Confirm that no matter how we change the recordsize, the alignment remains at
@@ -167,14 +158,14 @@ log_must rm -f $TESTFILE
 log_must touch $TESTFILE
 log_must zpool sync
 assert_dioalign $TESTFILE $PAGE_SIZE 16384
-log_must dd if=/dev/urandom of=$TESTFILE bs=16384 count=16 oflag=direct
+log_must stride_dd -i /dev/urandom -o $TESTFILE -b 16384 -c 16 -D
 
 # same again, but writing with incorrect alignment, which should fail.
 log_must rm -f $TESTFILE
 log_must touch $TESTFILE
 log_must zpool sync
 assert_dioalign $TESTFILE $PAGE_SIZE 16384
-log_mustnot dd if=/dev/urandom of=$TESTFILE bs=1024 count=256 oflag=direct
+log_mustnot stride_dd -i /dev/urandom -o $TESTFILE -b 1024 -c 256 -D
 
 # same again, but without strict, which should succeed.
 log_must set_tunable32 DIO_STRICT 0
@@ -182,6 +173,6 @@ log_must rm -f $TESTFILE
 log_must touch $TESTFILE
 log_must zpool sync
 assert_dioalign $TESTFILE $PAGE_SIZE 16384
-log_must dd if=/dev/urandom of=$TESTFILE bs=1024 count=256 oflag=direct
+log_must stride_dd -i /dev/urandom -o $TESTFILE -b 1024 -c 256 -D
 
 log_pass $CLAIM

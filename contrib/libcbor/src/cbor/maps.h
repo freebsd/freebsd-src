@@ -26,14 +26,14 @@ extern "C" {
  * @param item A map
  * @return The number of pairs
  */
-_CBOR_NODISCARD CBOR_EXPORT size_t cbor_map_size(const cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_map_size(const cbor_item_t* item);
 
 /** Get the size of the allocated storage
  *
  * @param item A map
  * @return Allocated storage size (as the number of #cbor_pair items)
  */
-_CBOR_NODISCARD CBOR_EXPORT size_t cbor_map_allocated(const cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT size_t cbor_map_allocated(const cbor_item_t* item);
 
 /** Create a new definite map
  *
@@ -42,7 +42,7 @@ _CBOR_NODISCARD CBOR_EXPORT size_t cbor_map_allocated(const cbor_item_t *item);
  * initialized to one.
  * @return `NULL` if memory allocation fails
  */
-_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_definite_map(size_t size);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_new_definite_map(size_t size);
 
 /** Create a new indefinite map
  *
@@ -50,7 +50,7 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_definite_map(size_t size);
  * initialized to one.
  * @return `NULL` if memory allocation fails
  */
-_CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_indefinite_map(void);
+_CBOR_NODISCARD CBOR_EXPORT cbor_item_t* cbor_new_indefinite_map(void);
 
 /** Add a pair to the map
  *
@@ -63,7 +63,7 @@ _CBOR_NODISCARD CBOR_EXPORT cbor_item_t *cbor_new_indefinite_map(void);
  * @return `true` on success, `false` if memory allocation failed (indefinite
  * maps) or the preallocated storage is full (definite maps)
  */
-_CBOR_NODISCARD CBOR_EXPORT bool cbor_map_add(cbor_item_t *item,
+_CBOR_NODISCARD CBOR_EXPORT bool cbor_map_add(cbor_item_t* item,
                                               struct cbor_pair pair);
 
 /** Add a key to the map
@@ -75,8 +75,8 @@ _CBOR_NODISCARD CBOR_EXPORT bool cbor_map_add(cbor_item_t *item,
  * @return `true` on success, `false` if either reallocation failed or the
  * preallocated storage is full
  */
-_CBOR_NODISCARD CBOR_EXPORT bool _cbor_map_add_key(cbor_item_t *item,
-                                                   cbor_item_t *key);
+_CBOR_NODISCARD CBOR_EXPORT bool _cbor_map_add_key(cbor_item_t* item,
+                                                   cbor_item_t* key);
 
 /** Add a value to the map
  *
@@ -87,15 +87,15 @@ _CBOR_NODISCARD CBOR_EXPORT bool _cbor_map_add_key(cbor_item_t *item,
  * @return `true` on success, `false` if either reallocation failed or the
  * preallocated storage is full
  */
-_CBOR_NODISCARD CBOR_EXPORT bool _cbor_map_add_value(cbor_item_t *item,
-                                                     cbor_item_t *value);
+_CBOR_NODISCARD CBOR_EXPORT bool _cbor_map_add_value(cbor_item_t* item,
+                                                     cbor_item_t* value);
 
 /** Is this map definite?
  *
  * @param item A map
  * @return Is this map definite?
  */
-_CBOR_NODISCARD CBOR_EXPORT bool cbor_map_is_definite(const cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT bool cbor_map_is_definite(const cbor_item_t* item);
 
 /** Is this map indefinite?
  *
@@ -103,7 +103,7 @@ _CBOR_NODISCARD CBOR_EXPORT bool cbor_map_is_definite(const cbor_item_t *item);
  * @return Is this map indefinite?
  */
 _CBOR_NODISCARD CBOR_EXPORT bool cbor_map_is_indefinite(
-    const cbor_item_t *item);
+    const cbor_item_t* item);
 
 /** Get the pairs storage
  *
@@ -111,8 +111,8 @@ _CBOR_NODISCARD CBOR_EXPORT bool cbor_map_is_indefinite(
  * @return Array of #cbor_map_size pairs. Manipulation is possible as long as
  * references remain valid.
  */
-_CBOR_NODISCARD CBOR_EXPORT struct cbor_pair *cbor_map_handle(
-    const cbor_item_t *item);
+_CBOR_NODISCARD CBOR_EXPORT struct cbor_pair* cbor_map_handle(
+    const cbor_item_t* item);
 
 #ifdef __cplusplus
 }

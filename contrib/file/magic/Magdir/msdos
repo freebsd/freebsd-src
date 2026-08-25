@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msdos,v 1.208 2024/08/27 18:50:57 christos Exp $
+# $File: msdos,v 1.214 2025/09/06 17:00:32 christos Exp $
 # msdos:  file(1) magic for MS-DOS files
 #
 
@@ -24,9 +24,9 @@
 # OS/2 batch files are REXX. the second regex is a bit generic, oh well
 # the matched commands seem to be common in REXX and uncommon elsewhere
 100	search/0xffff   rxfuncadd
->100	regex/c =^[\ \t]{0,10}call[\ \t]{1,10}rxfunc	OS/2 REXX batch file text
+>100	regex	=^[\ \t]{0,10}call[\ \t]{1,10}rxfunc	OS/2 REXX batch file text
 100	search/0xffff   say
->100	regex/c =^[\ \t]{0,10}say\ ['"]			OS/2 REXX batch file text
+>100	regex/	=^[\ \t]{0,10}say\ ['"]			OS/2 REXX batch file text
 
 
 # Tests for various EXE types.
@@ -510,7 +510,7 @@
 >>>>>>>(0x3c.l+0x2a)	default		x
 # Binaries with KERNEL, USER or GDI import library are for Windows
 # FIXME: names are prefixed by its length, but regex type does not support binary bytes
->>>>>>>>&(&0.s-0x29)	regex/512/C	KERNEL|USER|GDI for MS Windows 1.x/2.x
+>>>>>>>>&(&0.s-0x29)	regex/512	KERNEL|USER|GDI for MS Windows 1.x/2.x
 >>>>>>>>>(0x3c.l+0x37)	byte&0x04	0	(real mode only)
 >>>>>>>>>(0x3c.l+0x37)	byte&0x04	!0	(real+protected mode)
 # Binaries without any of those import library can be for any OS
@@ -772,7 +772,13 @@
 >>>0x40			search/0x80	STUB/32C \b, DOS/32A DOS extender (configurable stub)
 >>>0x40			search/0x80	DOS/32A \b, DOS/32A DOS extender (embedded)
 
-# PX\0\0 signature for 32bit DOS Applications in DOS-PE Format (https://www.japheth.de/HX.html)
+# PL\0\0 signature for 32-bit DOS Applications in Phar Lap TNT PE/PL Format
+# Binaries can be created by TNT MARKPHAR.EXE or by 386LINK.EXE -markphar switch
+# FULLSCR.EXE, GDEMO.EXE, MOUSE.EXE from MSVC32s SDK and from Phar Lap TNT SDK
+>(0x3c.l)	string		PL\0\0	\b, PE32 executable for MS-DOS
+>>(8.s*16)	search/0x50	Phar\ Lap\ Software,\ Inc.	\b, Phar Lap TNT DOS extender
+
+# PX\0\0 signature for 32/64-bit DOS Applications in DOS-PE Format (https://www.japheth.de/HX.html)
 # SHDPMI.EXE, DOSTEST.EXE, GETVMODE.EXE, RMINT.EXE
 >(0x3c.l)	string		PX\0\0	\b, PE32
 >>(0x3c.l+24)	leshort		0x020b	\b+
@@ -793,6 +799,7 @@
 # Skip already parsed binary types
 # If magic in the branch is not parsed then always jumps to mz-unrecognized
 >(0x3c.l)	string	PE\0\0
+>(0x3c.l)	string	PL\0\0
 >(0x3c.l)	string	PX\0\0
 >(0x3c.l)	string	LX
 >(0x3c.l)	string	NE
@@ -2108,9 +2115,9 @@
 #	display shared information of cursor or icon entry
 0		name		cur-ico-entry
 >0		byte		=0		\b, 256x
->0		byte		!0		\b, %dx
+>0		ubyte		!0		\b, %dx
 >1		byte        	=0		\b256
->1		byte        	!0		\b%d
+>1		ubyte        	!0		\b%d
 # number of colors in palette
 >2		ubyte		!0		\b, %d colors
 # reserved 0 FFh
@@ -2516,7 +2523,7 @@
 # URL:		https://en.wikipedia.org/wiki/Microsoft_OneNote#File_format
 #		http://fileformats.archiveteam.org/wiki/OneNote
 # Reference:	https://mark0.net/download/triddefs_xml.7z/defs/o/onepkg.trid.xml
-# 1st member name like: "Class Notes.one" "test-onenote.one" "Open Notebook.onetoc2" "Editor Öffnen.onetoc2"
+# 1st member name like: "Class Notes.one" "test-onenote.one" "Open Notebook.onetoc2" "Editor offnen.onetoc2"
 >>>>>&0	string/c	one		\b, OneNote Package
 !:mime	application/msonenote
 !:ext	onepkg
@@ -2681,12 +2688,6 @@
 # next archive member name if more files
 #>>&17	string		>\0		\b, NEXT NAME %-.50s
 
-# InstallShield Cabinet files
-0	string/b	ISc(		InstallShield Cabinet archive data
->5	byte&0xf0	=0x60		version 6,
->5	byte&0xf0	!0x60		version 4/5,
->(12.l+40)	lelong	x		%u files
-
 # Windows CE package files
 0	string/b	MSCE\0\0\0\0	Microsoft WinCE install header
 >20	lelong		0		\b, architecture-independent
@@ -2820,40 +2821,6 @@
 
 # NB: The BACKUP.nnn files consist of the files backed up,
 # concatenated.
-
-# From:		Joerg Jenderek
-# URL:		http://fileformats.archiveteam.org/wiki/MS-DOS_date/time
-# Reference:	https://docs.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-dosdatetimetofiletime
-# Note:		DOS date+time format is different from formats such as Unix epoch
-#		bit encoded; uses year values relative to 1980 and 2 second precision
-0	name		dos-date
-# HHHHHMMMMMMSSSSS bit encoded Hour (0-23) Minute (0-59) SecondPart (*2)
-#>0	uleshort	x	RAW TIME [%#4.4x]
-# hour part
-#>0	uleshort/2048	x	hour [%u]
-# YYYYYMMMMDDDDD bit encoded YearPart (+1980) Month (1-12) Day (1-31)
-#>2	uleshort	x	RAW DATE [%#4.4x]
-# day part
->2	uleshort&0x001F	x	%u
-#>2	uleshort/16	x	MONTH PART [%#x]
-# GRR: not working
-#>2	uleshort/16	&0x000F	MONTH [%u]
-#>2	uleshort&0x01E0	x	MONTH PART [%#4.4x]
->2	uleshort&0x01E0	=0x0020	jan
->2	uleshort&0x01E0	=0x0040	feb
->2	uleshort&0x01E0	=0x0060	mar
->2	uleshort&0x01E0	=0x0080	apr
->2	uleshort&0x01E0	=0x00A0	may
->2	uleshort&0x01E0	=0x00C0	jun
->2	uleshort&0x01E0	=0x00E0	jul
->2	uleshort&0x01E0	=0x0100	aug
->2	uleshort&0x01E0	=0x0120	sep
->2	uleshort&0x01E0	=0x0140	oct
->2	uleshort&0x01E0	=0x0160	nov
->2	uleshort&0x01E0	=0x0180	dec
-# year part
->2	uleshort/512	x	1980+%u
-#
 
 # ExcelBIFF2-8BOF.magic - Excel Binary Interchange File Format versions 2-8
 # Beginning of File records

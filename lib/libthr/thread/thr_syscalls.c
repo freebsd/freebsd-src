@@ -643,6 +643,18 @@ __thr_uexterr_gettext(char *buf, size_t bufsz)
 	return (__uexterr_format(&curthread->uexterr, buf, bufsz));
 }
 
+static void
+__thr_uexterr_set(int error, int category, const char *mmsg, uint64ptr_t pp1,
+    uint64ptr_t pp2, int line)
+{
+	struct pthread *curthread;
+
+	curthread = _get_curthread();
+
+	__uexterr_set_ue(&curthread->uexterr, error, category, mmsg,
+	    pp1, pp2, line);
+}
+
 void
 __thr_interpose_libc(void)
 {
@@ -700,6 +712,7 @@ __thr_interpose_libc(void)
 	SLOT(pdfork);
 	SLOT(uexterr_gettext);
 	SLOT(pdwait);
+	SLOT(uexterr_set);
 #undef SLOT
 	*(__libc_interposing_slot(
 	    INTERPOS__pthread_mutex_init_calloc_cb)) =

@@ -511,6 +511,15 @@ void		sincosl(long double, long double *, long double *);
 #endif /* __BSD_VISIBLE */
 
 #if __ISO_C_VISIBLE >= 2023
+double		acospi(double);
+float		acospif(float);
+long double 	acospil(long double);
+double		asinpi(double);
+float		asinpif(float);
+long double 	asinpil(long double);
+double		atanpi(double);
+float		atanpif(float);
+long double	atanpil(long double);
 double		cospi(double);
 float		cospif(float);
 long double 	cospil(long double);
@@ -520,6 +529,33 @@ long double 	sinpil(long double);
 double		tanpi(double);
 float		tanpif(float);
 long double	tanpil(long double);
+double		fmaximum(double, double);
+float		fmaximumf(float, float);
+long double	fmaximuml(long double, long double);
+double		fmaximum_mag(double, double);
+float		fmaximum_magf(float, float);
+long double	fmaximum_magl(long double, long double);
+double		fmaximum_mag_num(double, double);
+float		fmaximum_mag_numf(float, float);
+long double	fmaximum_mag_numl(long double, long double);
+double		fmaximum_num(double, double);
+float		fmaximum_numf(float, float);
+long double	fmaximum_numl(long double, long double);
+double		fminimum(double, double);
+float		fminimumf(float, float);
+long double	fminimuml(long double, long double);
+double		fminimum_mag(double, double);
+float		fminimum_magf(float, float);
+long double	fminimum_magl(long double, long double);
+double		fminimum_mag_num(double, double);
+float		fminimum_mag_numf(float, float);
+long double	fminimum_mag_numl(long double, long double);
+double		fminimum_num(double, double);
+float		fminimum_numf(float, float);
+long double	fminimum_numl(long double, long double);
+double		rsqrt(double);
+float		rsqrtf(float);
+long double	rsqrtl(long double);
 #endif /* __ISO_C_VISIBLE >= 2023 */
 
 __END_DECLS

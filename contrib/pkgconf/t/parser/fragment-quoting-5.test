@@ -1,0 +1,4 @@
+PackageSearchPath: lib1
+WantedFlags: cflags
+Query: fragment-quoting-5
+ExpectedStdout: -fPIC -I/test/include/foo -DQUOTED=/test/share/doc

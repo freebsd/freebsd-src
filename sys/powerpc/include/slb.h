@@ -44,7 +44,7 @@
 #define	SLBV_N		0x0000000000000200UL /* No-execute protection */
 #define	SLBV_L		0x0000000000000100UL /* Large page selector */
 #define	SLBV_CLASS	0x0000000000000080UL /* Class selector */
-#define	SLBV_VSID_MASK	0xfffffffffffff000UL /* Virtual segment ID mask */
+#define	SLBV_VSID_MASK	0x3ffffffffffff000UL /* Virtual segment ID mask */
 #define	SLBV_VSID_SHIFT	12
 
 /*

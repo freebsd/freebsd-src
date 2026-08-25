@@ -9,7 +9,7 @@ MLINKS=	mfiutil.8 mrsasutil.8
 
 CFLAGS.gcc+= -fno-builtin-strftime
 
-LIBADD=	sbuf util
+LIBADD=	cam sbuf util
 
 # Here be dragons
 .ifdef DEBUG

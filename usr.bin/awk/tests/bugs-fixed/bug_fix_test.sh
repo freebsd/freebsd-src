@@ -35,14 +35,18 @@ check()
 
 	awk=awk
 
-	local out_file="${SRCDIR}/${tc}.ok"
+	cd ${SRCDIR}
+	local out_file="${tc}.ok"
 	[ -f "${out_file}" ] && out_flag="-o file:${out_file}"
-	local err_file="${SRCDIR}/${tc}.err"
+	local err_file="${tc}.err"
 	[ -f "${err_file}" ] && err_flag="-e file:${err_file} -s exit:2"
-	local in_file="${SRCDIR}/${tc}.in"
+	local in_file="${tc}.in"
 	[ -f "${in_file}" ] && in_flag="${in_file}"
 
-	(cd ${SRCDIR} ; atf_check ${out_flag} ${err_flag} ${awk} -f "${tc}.awk" ${in_flag})
+	test "${tc}" = inf-nan-torture -a "$(uname -p)" = riscv64 && \
+		atf_expect_fail "https://github.com/onetrueawk/awk/issues/269"
+
+	atf_check ${out_flag} ${err_flag} ${awk} -f "${tc}.awk" ${in_flag}
 }
 
 add_testcase()

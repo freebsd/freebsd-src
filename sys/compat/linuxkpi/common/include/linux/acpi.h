@@ -44,6 +44,14 @@
 static inline void acpi_dev_put(struct acpi_device *adev) {}
 #define	acpi_handle_debug(handle, fmt, ...)
 
+static inline struct acpi_device *
+to_acpi_device_node(const struct fwnode_handle *fwnode)
+{
+	return (NULL);
+}
+
+#define	ACPI_COMPANION(dev)	to_acpi_device_node((dev)->fwnode)
+
 #endif
 
 #endif /* _LINUXKPI_LINUX_ACPI_H_ */

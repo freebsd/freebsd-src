@@ -6,6 +6,11 @@
  * (c) UNIX System Laboratories, Inc.
  * Copyright (c) 2000-2001 Robert N. M. Watson.
  * All rights reserved.
+ * Copyright (c) 2024-2025 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Olivier Certner
+ * <olce@FreeBSD.org> at Kumacom SARL under sponsorship from the FreeBSD
+ * Foundation.
  *
  * All or some portions of this file are derived from material licensed
  * to the University of California by American Telephone and Telegraph
@@ -49,6 +54,7 @@
 #include <sys/systm.h>
 #include <sys/abi_compat.h>
 #include <sys/acct.h>
+#include <sys/imgact.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/libkern.h>
@@ -190,7 +196,7 @@ sys_getpgid(struct thread *td, struct getpgid_args *uap)
 		p = td->td_proc;
 		PROC_LOCK(p);
 	} else {
-		p = pfind(uap->pid);
+		p = pfind_any(uap->pid);
 		if (p == NULL)
 			return (ESRCH);
 		error = p_cansee(td, p);
@@ -225,11 +231,12 @@ kern_getsid(struct thread *td, pid_t pid)
 	struct proc *p;
 	int error;
 
+	error = 0;
 	if (pid == 0) {
 		p = td->td_proc;
 		PROC_LOCK(p);
 	} else {
-		p = pfind(pid);
+		p = pfind_any(pid);
 		if (p == NULL)
 			return (ESRCH);
 		error = p_cansee(td, p);
@@ -238,9 +245,12 @@ kern_getsid(struct thread *td, pid_t pid)
 			return (error);
 		}
 	}
-	td->td_retval[0] = p->p_session->s_sid;
+	if (p->p_session != NULL)
+		td->td_retval[0] = p->p_session->s_sid;
+	else
+		error = EINVAL;
 	PROC_UNLOCK(p);
-	return (0);
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -1016,6 +1026,8 @@ sys_seteuid(struct thread *td, struct seteuid_args *uap)
 	newcred = crget();
 	euip = uifind(euid);
 	PROC_LOCK(p);
+	execve_block_pass(td);
+
 	/*
 	 * Copy credentials so other references do not see our changes.
 	 */
@@ -1070,6 +1082,7 @@ sys_setgid(struct thread *td, struct setgid_args *uap)
 	AUDIT_ARG_GID(gid);
 	newcred = crget();
 	PROC_LOCK(p);
+	execve_block_pass(td);
 	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
@@ -1168,6 +1181,7 @@ sys_setegid(struct thread *td, struct setegid_args *uap)
 	AUDIT_ARG_EGID(egid);
 	newcred = crget();
 	PROC_LOCK(p);
+	execve_block_pass(td);
 	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
@@ -1299,6 +1313,7 @@ kern_setgroups(struct thread *td, int *ngrpp, gid_t *groups)
 	newcred = crget();
 	crextend(newcred, ngrp);
 	PROC_LOCK(p);
+	execve_block_pass(td);
 	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
@@ -1355,6 +1370,7 @@ sys_setreuid(struct thread *td, struct setreuid_args *uap)
 	euip = uifind(euid);
 	ruip = uifind(ruid);
 	PROC_LOCK(p);
+	execve_block_pass(td);
 	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
@@ -1434,6 +1450,7 @@ sys_setregid(struct thread *td, struct setregid_args *uap)
 	AUDIT_ARG_RGID(rgid);
 	newcred = crget();
 	PROC_LOCK(p);
+	execve_block_pass(td);
 	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
@@ -1504,6 +1521,7 @@ sys_setresuid(struct thread *td, struct setresuid_args *uap)
 	euip = uifind(euid);
 	ruip = uifind(ruid);
 	PROC_LOCK(p);
+	execve_block_pass(td);
 	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
@@ -1595,6 +1613,7 @@ sys_setresgid(struct thread *td, struct setresgid_args *uap)
 	AUDIT_ARG_SGID(sgid);
 	newcred = crget();
 	PROC_LOCK(p);
+	execve_block_pass(td);
 	oldcred = crcopysafe(p, newcred);
 
 #ifdef MAC
@@ -2355,11 +2374,11 @@ p_candebug(struct thread *td, struct proc *p)
 	}
 
 	/*
-	 * Can't trace a process that's currently exec'ing.
-	 *
-	 * XXX: Note, this is not a security policy decision, it's a
-	 * basic correctness/functionality decision.  Therefore, this check
-	 * should be moved to the caller's of p_candebug().
+	 * Can't trace a process that's currently exec'ing.  Otherwise
+	 * the process vmspace might change, and the target might be
+	 * loading a setugid image.  The execve_block(9) and
+	 * proc_vmspace_ref(9) allow to get the stable credentials and
+	 * vmspace reference.
 	 */
 	if ((p->p_flag & P_INEXEC) != 0)
 		return (EBUSY);

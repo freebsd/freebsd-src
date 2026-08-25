@@ -85,3 +85,7 @@ asinhl(long double x)
 	}
 	RETURNI((hx & 0x8000) == 0 ? w : -w);
 }
+
+#if LDBL_MANT_DIG == 113
+__weak_reference(asinhl, asinhf128);
+#endif

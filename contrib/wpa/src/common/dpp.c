@@ -2,7 +2,7 @@
  * DPP functionality shared between hostapd and wpa_supplicant
  * Copyright (c) 2017, Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2020, The Linux Foundation
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This software may be distributed under the terms of the BSD license.
  * See README for more details.
@@ -299,7 +299,8 @@ int dpp_parse_uri_info(struct dpp_bootstrap_info *bi, const char *info)
 }
 
 
-int dpp_parse_uri_version(struct dpp_bootstrap_info *bi, const char *version)
+static int dpp_parse_uri_version(struct dpp_bootstrap_info *bi,
+				 const char *version)
 {
 #ifdef CONFIG_DPP2
 	if (!version || DPP_VERSION < 2)
@@ -1035,6 +1036,10 @@ struct wpabuf * dpp_build_conf_req_helper(struct dpp_authentication *auth,
 		json_value_sep(json);
 		json_add_string(json, "pkcs10", csr);
 	}
+#ifdef CONFIG_DPP3
+	json_value_sep(json);
+	json_add_int(json, "capabilities", DPP_ENROLLEE_CAPAB_SAE_PW_ID);
+#endif /* CONFIG_DPP3 */
 	if (extra_name && extra_value && extra_name[0] && extra_value[0]) {
 		json_value_sep(json);
 		wpabuf_printf(json, "\"%s\":%s", extra_name, extra_value);
@@ -1139,8 +1144,18 @@ int dpp_configuration_valid(const struct dpp_configuration *conf)
 		return 0;
 	if (dpp_akm_psk(conf->akm) && !conf->passphrase && !conf->psk_set)
 		return 0;
+	if (dpp_akm_psk(conf->akm) && conf->passphrase) {
+		size_t len = os_strlen(conf->passphrase);
+
+		if (len > 63 || len < 8)
+			return 0;
+	}
 	if (dpp_akm_sae(conf->akm) && !conf->passphrase)
 		return 0;
+#ifdef CONFIG_DPP3
+	if (conf->idpass && (!conf->passphrase || !dpp_akm_sae(conf->akm)))
+		return 0;
+#endif /* CONFIG_DPP3 */
 	return 1;
 }
 
@@ -1150,6 +1165,9 @@ void dpp_configuration_free(struct dpp_configuration *conf)
 	if (!conf)
 		return;
 	str_clear_free(conf->passphrase);
+#ifdef CONFIG_DPP3
+	os_free(conf->idpass);
+#endif /* CONFIG_DPP3 */
 	os_free(conf->group_id);
 	os_free(conf->csrattrs);
 	os_free(conf->extra_name);
@@ -1228,13 +1246,27 @@ static int dpp_configuration_parse_helper(struct dpp_authentication *auth,
 		end = os_strchr(pos, ' ');
 		pass_len = end ? (size_t) (end - pos) : os_strlen(pos);
 		pass_len /= 2;
-		if (pass_len > 63 || pass_len < 8)
-			goto fail;
 		conf->passphrase = os_zalloc(pass_len + 1);
 		if (!conf->passphrase ||
 		    hexstr2bin(pos, (u8 *) conf->passphrase, pass_len) < 0)
 			goto fail;
 	}
+
+#ifdef CONFIG_DPP3
+	pos = os_strstr(cmd, " idpass=");
+	if (pos) {
+		size_t idpass_len;
+
+		pos += 8;
+		end = os_strchr(pos, ' ');
+		idpass_len = end ? (size_t) (end - pos) : os_strlen(pos);
+		idpass_len /= 2;
+		conf->idpass = os_zalloc(idpass_len + 1);
+		if (!conf->idpass ||
+		    hexstr2bin(pos, (u8 *) conf->idpass, idpass_len) < 0)
+			goto fail;
+	}
+#endif /* CONFIG_DPP3 */
 
 	pos = os_strstr(cmd, " psk=");
 	if (pos) {
@@ -1595,6 +1627,13 @@ static void dpp_build_legacy_cred_params(struct wpabuf *buf,
 	if (conf->passphrase && os_strlen(conf->passphrase) < 64) {
 		json_add_string_escape(buf, "pass", conf->passphrase,
 				       os_strlen(conf->passphrase));
+#ifdef CONFIG_DPP3
+		if (conf->idpass) {
+			json_value_sep(buf);
+			json_add_string_escape(buf, "idpass", conf->idpass,
+					       os_strlen(conf->idpass));
+		}
+#endif /* CONFIG_DPP3 */
 	} else if (conf->psk_set) {
 		char psk[2 * sizeof(conf->psk) + 1];
 
@@ -1916,6 +1955,16 @@ dpp_build_conf_obj_legacy(struct dpp_authentication *auth,
 	struct wpabuf *buf;
 	const char *akm_str;
 	size_t len = 1000;
+
+
+#ifdef CONFIG_DPP3
+	if (conf->idpass &&
+	    !(auth->enrollee_capabilities & DPP_ENROLLEE_CAPAB_SAE_PW_ID)) {
+		wpa_printf(MSG_DEBUG,
+			   "DPP: Enrollee does not support SAE Password Identifier - cannot generate config object");
+		return NULL;
+	}
+#endif /* CONFIG_DPP3 */
 
 	if (conf->extra_name && conf->extra_value)
 		len += 10 + os_strlen(conf->extra_name) +
@@ -2535,6 +2584,18 @@ dpp_conf_req_rx(struct dpp_authentication *auth, const u8 *attr_start,
 cont:
 #endif /* CONFIG_DPP2 */
 
+#ifdef CONFIG_DPP3
+	token = json_get_member(root, "capabilities");
+	if (token && token->type == JSON_NUMBER) {
+		wpa_printf(MSG_DEBUG, "DPP: capabilities = 0x%x",
+			   token->number);
+		wpa_msg(auth->msg_ctx, MSG_INFO,
+			DPP_EVENT_ENROLLEE_CAPABILITY "%d",
+			token->number);
+		auth->enrollee_capabilities = token->number;
+	}
+#endif /* CONFIG_DPP3 */
+
 	resp = dpp_build_conf_resp(auth, e_nonce, e_nonce_len, netrole,
 				   cert_req);
 
@@ -2558,13 +2619,25 @@ static int dpp_parse_cred_legacy(struct dpp_config_obj *conf,
 
 	if (pass && pass->type == JSON_STRING) {
 		size_t len = os_strlen(pass->string);
+#ifdef CONFIG_DPP3
+		struct json_token *saepi = json_get_member(cred, "idpass");
+#endif /* CONFIG_DPP3 */
 
 		wpa_hexdump_ascii_key(MSG_DEBUG, "DPP: Legacy passphrase",
 				      pass->string, len);
-		if (len < 8 || len > 63)
+		if (dpp_akm_psk(conf->akm) && (len < 8 || len > 63)) {
+			wpa_printf(MSG_DEBUG,
+				   "DPP: Unexpected pass length %zu for a config object that includes PSK",
+				   len);
 			return -1;
+		}
 		os_strlcpy(conf->passphrase, pass->string,
 			   sizeof(conf->passphrase));
+#ifdef CONFIG_DPP3
+		if (saepi && saepi->type == JSON_STRING)
+			os_strlcpy(conf->password_id, saepi->string,
+				   sizeof(conf->password_id));
+#endif /* CONFIG_DPP3 */
 	} else if (psk_hex && psk_hex->type == JSON_STRING) {
 		if (dpp_akm_sae(conf->akm) && !dpp_akm_psk(conf->akm)) {
 			wpa_printf(MSG_DEBUG,

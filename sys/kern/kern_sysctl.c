@@ -3084,7 +3084,7 @@ db_sysctl_cmd_usage(void)
 	    "								    \n"
 	    "For example:						    \n"
 	    "sysctl vm.v_free_min					    \n"
-	    "vn.v_free_min: 12669					    \n"
+	    "vm.v_free_min: 12669					    \n"
 	    );
 }
 

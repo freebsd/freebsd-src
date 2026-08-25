@@ -1,0 +1,11 @@
+PackageSearchPath: lib1
+Query: provides
+WantedFlags: print-provides
+ExpectedStdout: provides-test-foo = 1.0.0
+ExpectedStdout: provides-test-bar > 1.1.0
+ExpectedStdout: provides-test-baz >= 1.1.0
+ExpectedStdout: provides-test-quux < 1.2.0
+ExpectedStdout: provides-test-moo <= 1.2.0
+ExpectedStdout: provides-test-meow != 1.3.0
+ExpectedStdout: provides = 1.2.3
+MatchStdout: partial

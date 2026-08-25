@@ -43,9 +43,6 @@
 #include "snd_fxdiv_gen.h"
 #endif
 
-#undef SND_FEEDER_MULTIFORMAT
-#define SND_FEEDER_MULTIFORMAT	1
-
 struct feed_mixer_info {
 	uint32_t format;
 	uint32_t channels;
@@ -174,14 +171,6 @@ feed_mixer_rec(struct pcm_channel *c)
 			CHN_UNLOCK(ch);
 			continue;
 		}
-#ifdef SND_DEBUG
-		if ((c->flags & CHN_F_DIRTY) && VCHAN_SYNC_REQUIRED(ch)) {
-			if (vchan_sync(ch) != 0) {
-				CHN_UNLOCK(ch);
-				continue;
-			}
-		}
-#endif
 		bs = ch->bufsoft;
 		if (ch->flags & CHN_F_MMAP)
 			sndbuf_dispose(bs, NULL, sndbuf_getready(bs));
@@ -270,14 +259,6 @@ feed_mixer_feed(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 			CHN_UNLOCK(ch);
 			continue;
 		}
-#ifdef SND_DEBUG
-		if ((c->flags & CHN_F_DIRTY) && VCHAN_SYNC_REQUIRED(ch)) {
-			if (vchan_sync(ch) != 0) {
-				CHN_UNLOCK(ch);
-				continue;
-			}
-		}
-#endif
 		if ((ch->flags & CHN_F_MMAP) && !(ch->flags & CHN_F_CLOSING))
 			sndbuf_acquire(ch->bufsoft, NULL,
 			    sndbuf_getfree(ch->bufsoft));

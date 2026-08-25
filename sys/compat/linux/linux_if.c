@@ -44,9 +44,24 @@
 
 _Static_assert(LINUX_IFNAMSIZ == IFNAMSIZ, "Linux IFNAMSIZ");
 
-static bool use_real_ifnames = false;
-SYSCTL_BOOL(_compat_linux, OID_AUTO, use_real_ifnames, CTLFLAG_RWTUN,
-    &use_real_ifnames, 0,
+static bool use_real_ifnames = true;
+static int
+sysctl_linux_use_real_ifnames(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	error = sysctl_handle_bool(oidp, &use_real_ifnames, arg2, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (!use_real_ifnames)
+		gone_in(17, "linux(4): %s: conversion of native interface "
+		    "names to ethN is not needed to emulate modern Linux. "
+		    "See https://systemd.io/PREDICTABLE_INTERFACE_NAMES. ",
+		    oidp->oid_name);
+	return (0);
+}
+SYSCTL_PROC(_compat_linux, OID_AUTO, use_real_ifnames,
+    CTLTYPE_U8 | CTLFLAG_RWTUN, 0, 0, sysctl_linux_use_real_ifnames, "CU",
     "Use FreeBSD interface names instead of generating ethN aliases");
 
 VNET_DEFINE_STATIC(struct unrhdr *, linux_eth_unr);

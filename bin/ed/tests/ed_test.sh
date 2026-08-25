@@ -1688,6 +1688,322 @@ CMDS
 }
 
 # ---------------------------------------------------------------------------
+# Unicode support
+# ---------------------------------------------------------------------------
+atf_test_case unicode_list_multibyte
+unicode_list_multibyte_head()
+{
+	atf_set "descr" "l command displays multibyte UTF-8 as-is";
+}
+unicode_list_multibyte_body()
+{
+
+	export LC_CTYPE=C.UTF-8
+	printf 'café\n' > input.txt
+	atf_check -o inline:'café$\n' ed -s - <<'CMDS'
+H
+r input.txt
+l
+Q
+CMDS
+}
+
+atf_test_case unicode_list_cjk
+unicode_list_cjk_head()
+{
+	atf_set "descr" "l command displays CJK characters as-is";
+}
+unicode_list_cjk_body()
+{
+
+	export LC_CTYPE=C.UTF-8
+	printf '日本語テスト\n' > input.txt
+	atf_check -o inline:'日本語テスト$\n' ed -s - <<'CMDS'
+H
+r input.txt
+l
+Q
+CMDS
+}
+
+atf_test_case unicode_list_mixed
+unicode_list_mixed_head()
+{
+	atf_set "descr" "l command displays mixed ASCII/UTF-8 correctly";
+}
+unicode_list_mixed_body()
+{
+
+	export LC_CTYPE=C.UTF-8
+	printf 'hello café 世界\n' > input.txt
+	atf_check -o inline:'hello café 世界$\n' ed -s - <<'CMDS'
+H
+r input.txt
+l
+Q
+CMDS
+}
+
+atf_test_case unicode_list_invalid
+unicode_list_invalid_head()
+{
+	atf_set "descr" "l command escapes invalid UTF-8 as octal";
+}
+unicode_list_invalid_body()
+{
+
+	export LC_CTYPE=C.UTF-8
+	printf '\200\201\376\377\n' > input.txt
+	atf_check -o inline:'\\200\\201\\376\\377$\n' ed -s - <<'CMDS'
+H
+r input.txt
+l
+Q
+CMDS
+}
+
+atf_test_case unicode_list_wrap_cjk
+unicode_list_wrap_cjk_head()
+{
+	atf_set "descr" "l command wraps correctly around double-width CJK";
+}
+unicode_list_wrap_cjk_body()
+{
+
+	export LC_CTYPE=C.UTF-8
+	# 69 A's + 日本 (2 CJK chars): 69 + 2 = 71 cols for 日 (fits),
+	# 71 + 2 = 73 for 本 (exceeds 72), so 本 wraps to next line.
+	printf 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA日本\n' > input.txt
+	ed -s - <<'CMDS' > output.txt
+H
+r input.txt
+l
+Q
+CMDS
+	printf 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA日\\\n本$\n' > expected.txt
+	atf_check cmp output.txt expected.txt
+}
+
+atf_test_case unicode_print
+unicode_print_head()
+{
+	atf_set "descr" "p command passes through UTF-8 correctly";
+}
+unicode_print_body()
+{
+
+	export LC_CTYPE=C.UTF-8
+	printf 'café 日本語\n' > input.txt
+	atf_check -o inline:'café 日本語\n' ed -s - <<'CMDS'
+H
+r input.txt
+p
+Q
+CMDS
+}
+
+atf_test_case unicode_number
+unicode_number_head()
+{
+	atf_set "descr" "n command displays line number with UTF-8";
+}
+unicode_number_body()
+{
+
+	export LC_CTYPE=C.UTF-8
+	printf 'café 日本語\n' > input.txt
+	atf_check -o inline:'1\tcafé 日本語\n' ed -s - <<'CMDS'
+H
+r input.txt
+n
+Q
+CMDS
+}
+
+atf_test_case unicode_regex
+unicode_regex_head()
+{
+	atf_set "descr" "Regex search matches UTF-8 characters";
+}
+unicode_regex_body()
+{
+
+	export LC_CTYPE=C.UTF-8
+	printf 'café\ntest\nüber\n' > input.txt
+	atf_check -o inline:'café\n' ed -s - <<'CMDS'
+H
+r input.txt
+g/é/p
+Q
+CMDS
+}
+
+atf_test_case unicode_regex_charclass
+unicode_regex_charclass_head()
+{
+	atf_set "descr" "Regex character classes work with UTF-8";
+}
+unicode_regex_charclass_body()
+{
+
+	export LC_CTYPE=C.UTF-8
+	printf 'café123\ntest456\n' > input.txt
+	atf_check -o inline:'café123\n' ed -s - <<'CMDS'
+H
+r input.txt
+g/[[:alpha:]]*é/p
+Q
+CMDS
+}
+
+atf_test_case unicode_substitute
+unicode_substitute_head()
+{
+	atf_set "descr" "Substitute replaces UTF-8 characters";
+}
+unicode_substitute_body()
+{
+
+	export LC_CTYPE=C.UTF-8
+	printf 'café\n' > input.txt
+	ed -s - <<'CMDS'
+H
+r input.txt
+s/é/e/
+w output.txt
+Q
+CMDS
+	printf 'cafe\n' > expected.txt
+	atf_check cmp output.txt expected.txt
+}
+
+atf_test_case unicode_substitute_cjk
+unicode_substitute_cjk_head()
+{
+	atf_set "descr" "Substitute replaces CJK characters";
+}
+unicode_substitute_cjk_body()
+{
+
+	export LC_CTYPE=C.UTF-8
+	printf 'hello 世界\n' > input.txt
+	ed -s - <<'CMDS'
+H
+r input.txt
+s/世界/world/
+w output.txt
+Q
+CMDS
+	printf 'hello world\n' > expected.txt
+	atf_check cmp output.txt expected.txt
+}
+
+atf_test_case unicode_global_substitute
+unicode_global_substitute_head()
+{
+	atf_set "descr" "Global substitute works with UTF-8";
+}
+unicode_global_substitute_body()
+{
+
+	export LC_CTYPE=C.UTF-8
+	printf 'à la carte\nà bientôt\nhello\n' > input.txt
+	ed -s - <<'CMDS'
+H
+r input.txt
+g/à/s/à/a/
+w output.txt
+Q
+CMDS
+	cat > expected.txt <<'EOF'
+a la carte
+a bientôt
+hello
+EOF
+	atf_check cmp output.txt expected.txt
+}
+
+atf_test_case unicode_join
+unicode_join_head()
+{
+	atf_set "descr" "Join preserves UTF-8 content";
+}
+unicode_join_body()
+{
+
+	export LC_CTYPE=C.UTF-8
+	printf 'café\n世界\n' > input.txt
+	ed -s - <<'CMDS'
+H
+r input.txt
+1,2j
+w output.txt
+Q
+CMDS
+	printf 'café世界\n' > expected.txt
+	atf_check cmp output.txt expected.txt
+}
+
+atf_test_case unicode_append
+unicode_append_head()
+{
+	atf_set "descr" "Append preserves UTF-8 text";
+}
+unicode_append_body()
+{
+
+	export LC_CTYPE=C.UTF-8
+	ed -s - <<'CMDS'
+H
+a
+première
+deuxième
+.
+w output.txt
+Q
+CMDS
+	cat > expected.txt <<'EOF'
+première
+deuxième
+EOF
+	atf_check cmp output.txt expected.txt
+}
+
+atf_test_case unicode_cyrillic
+unicode_cyrillic_head()
+{
+	atf_set "descr" "Cyrillic: append, substitute, print, regex search";
+}
+unicode_cyrillic_body()
+{
+
+	export LC_CTYPE=C.UTF-8
+	ed -s - <<'CMDS' > output.txt
+H
+a
+Привет
+.
+s/ривет/ока/
+1p
+a
+Строка
+.
+1
+/а/p
+1,$p
+Q
+CMDS
+	cat > expected.txt <<'EOF'
+Пока
+Пока
+Строка
+Пока
+Строка
+EOF
+	atf_check cmp output.txt expected.txt
+}
+
+# ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
 atf_init_test_cases()
@@ -1734,6 +2050,23 @@ atf_init_test_cases()
 	# Newline handling
 	atf_add_test_case newline_insert
 	atf_add_test_case newline_search
+
+	# Unicode support
+	atf_add_test_case unicode_list_multibyte
+	atf_add_test_case unicode_list_cjk
+	atf_add_test_case unicode_list_mixed
+	atf_add_test_case unicode_list_invalid
+	atf_add_test_case unicode_list_wrap_cjk
+	atf_add_test_case unicode_print
+	atf_add_test_case unicode_number
+	atf_add_test_case unicode_regex
+	atf_add_test_case unicode_regex_charclass
+	atf_add_test_case unicode_substitute
+	atf_add_test_case unicode_substitute_cjk
+	atf_add_test_case unicode_global_substitute
+	atf_add_test_case unicode_join
+	atf_add_test_case unicode_append
+	atf_add_test_case unicode_cyrillic
 
 	# Error tests
 	atf_add_test_case err_append_suffix

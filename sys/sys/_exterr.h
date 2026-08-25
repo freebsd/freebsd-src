@@ -16,8 +16,8 @@
 struct kexterr {
 	int error;
 	const char *msg;
-	__uint64_t p1;
-	__uint64_t p2;
+	__uint64ptr_t p1;
+	__uint64ptr_t p2;
 	unsigned cat;
 	unsigned src_line;
 };

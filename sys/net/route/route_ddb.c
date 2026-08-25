@@ -174,7 +174,7 @@ DB_SHOW_COMMAND(routetable, db_show_routetable)
 		i = lim = addr;
 	else {
 		i = 1;
-		lim = AF_MAX;
+		lim = AF_MAX - 1;
 	}
 
 	for (; i <= lim; i++) {

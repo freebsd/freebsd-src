@@ -253,6 +253,14 @@ int ib_init_ucontext(struct uverbs_attr_bundle *attrs)
 	if (ret)
 		goto err_uncharge;
 
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	mutex_init(&ucontext->per_mm_list_lock);
+	INIT_LIST_HEAD(&ucontext->per_mm_list);
+	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_ON_DEMAND_PAGING))
+		ucontext->invalidate_range = NULL;
+
+#endif
+
 	/*
 	 * Make sure that ib_uverbs_get_ucontext() sees the pointer update
 	 * only after all writes to setup the ucontext have completed
@@ -1154,7 +1162,10 @@ static int copy_wc_to_user(struct ib_device *ib_dev, void __user *dest,
 	tmp.src_qp		= wc->src_qp;
 	tmp.wc_flags		= wc->wc_flags;
 	tmp.pkey_index		= wc->pkey_index;
-	tmp.slid		= wc->slid;
+	if (rdma_cap_opa_ah(ib_dev, wc->port_num))
+		tmp.slid	= OPA_TO_IB_UCAST_LID(wc->slid);
+	else
+		tmp.slid	= ib_lid_cpu16(wc->slid);
 	tmp.sl			= wc->sl;
 	tmp.dlid_path_bits	= wc->dlid_path_bits;
 	tmp.port_num		= wc->port_num;
@@ -1624,23 +1635,25 @@ err_put:
 }
 
 static void copy_ah_attr_to_uverbs(struct ib_uverbs_qp_dest *uverb_attr,
-				   struct ib_ah_attr *rdma_attr)
+				   struct rdma_ah_attr *rdma_attr)
 {
-	uverb_attr->dlid              = rdma_attr->dlid;
-	uverb_attr->sl                = rdma_attr->sl;
-	uverb_attr->src_path_bits     = rdma_attr->src_path_bits;
-	uverb_attr->static_rate       = rdma_attr->static_rate;
-	uverb_attr->is_global         = !!(rdma_attr->ah_flags & IB_AH_GRH);
-	if (uverb_attr->is_global) {
-		const struct ib_global_route *grh = &rdma_attr->grh;
+	const struct ib_global_route   *grh;
 
+	uverb_attr->dlid              = rdma_ah_get_dlid(rdma_attr);
+	uverb_attr->sl                = rdma_ah_get_sl(rdma_attr);
+	uverb_attr->src_path_bits     = rdma_ah_get_path_bits(rdma_attr);
+	uverb_attr->static_rate       = rdma_ah_get_static_rate(rdma_attr);
+	uverb_attr->is_global         = !!(rdma_ah_get_ah_flags(rdma_attr) &
+					 IB_AH_GRH);
+	if (uverb_attr->is_global) {
+		grh = rdma_ah_read_grh(rdma_attr);
 		memcpy(uverb_attr->dgid, grh->dgid.raw, 16);
 		uverb_attr->flow_label        = grh->flow_label;
 		uverb_attr->sgid_index        = grh->sgid_index;
 		uverb_attr->hop_limit         = grh->hop_limit;
 		uverb_attr->traffic_class     = grh->traffic_class;
 	}
-	uverb_attr->port_num          = rdma_attr->port_num;
+	uverb_attr->port_num          = rdma_ah_get_port_num(rdma_attr);
 }
 
 static int ib_uverbs_query_qp(struct uverbs_attr_bundle *attrs)
@@ -1735,26 +1748,26 @@ static int modify_qp_mask(enum ib_qp_type qp_type, int mask)
 }
 
 static void copy_ah_attr_from_uverbs(struct ib_device *dev,
-				     struct ib_ah_attr *rdma_attr,
+				     struct rdma_ah_attr *rdma_attr,
 				     struct ib_uverbs_qp_dest *uverb_attr)
 {
+	rdma_attr->type = rdma_ah_find_type(dev, uverb_attr->port_num);
 	if (uverb_attr->is_global) {
-		struct ib_global_route *grh = &rdma_attr->grh;
-
-		grh->flow_label = uverb_attr->flow_label;
-		grh->sgid_index = uverb_attr->sgid_index;
-		grh->hop_limit = uverb_attr->hop_limit;
-		grh->traffic_class = uverb_attr->traffic_class;
-		memcpy(grh->dgid.raw, uverb_attr->dgid, sizeof(grh->dgid));
-		rdma_attr->ah_flags = IB_AH_GRH;
+		rdma_ah_set_grh(rdma_attr, NULL,
+				uverb_attr->flow_label,
+				uverb_attr->sgid_index,
+				uverb_attr->hop_limit,
+				uverb_attr->traffic_class);
+		rdma_ah_set_dgid_raw(rdma_attr, uverb_attr->dgid);
 	} else {
-		rdma_attr->ah_flags = 0;
+		rdma_ah_set_ah_flags(rdma_attr, 0);
 	}
-	rdma_attr->dlid = uverb_attr->dlid;
-	rdma_attr->sl = uverb_attr->sl;
-	rdma_attr->src_path_bits = uverb_attr->src_path_bits;
-	rdma_attr->static_rate = uverb_attr->static_rate;
-	rdma_attr->port_num = uverb_attr->port_num;
+	rdma_ah_set_dlid(rdma_attr, uverb_attr->dlid);
+	rdma_ah_set_sl(rdma_attr, uverb_attr->sl);
+	rdma_ah_set_path_bits(rdma_attr, uverb_attr->src_path_bits);
+	rdma_ah_set_static_rate(rdma_attr, uverb_attr->static_rate);
+	rdma_ah_set_port_num(rdma_attr, uverb_attr->port_num);
+	rdma_ah_set_make_grd(rdma_attr, false);
 }
 
 static int modify_qp(struct uverbs_attr_bundle *attrs,
@@ -2399,7 +2412,7 @@ static int ib_uverbs_create_ah(struct uverbs_attr_bundle *attrs)
 	struct ib_uobject		*uobj;
 	struct ib_pd			*pd;
 	struct ib_ah			*ah;
-	struct ib_ah_attr		attr = {};
+	struct rdma_ah_attr		attr = {};
 	int ret;
 	struct ib_device *ib_dev;
 
@@ -2422,26 +2435,25 @@ static int ib_uverbs_create_ah(struct uverbs_attr_bundle *attrs)
 		goto err;
 	}
 
-	attr.dlid = cmd.attr.dlid;
-	attr.sl = cmd.attr.sl;
-	attr.src_path_bits = cmd.attr.src_path_bits;
-	attr.static_rate = cmd.attr.static_rate;
-	attr.port_num = cmd.attr.port_num;
+	attr.type = rdma_ah_find_type(ib_dev, cmd.attr.port_num);
+	rdma_ah_set_make_grd(&attr, false);
+	rdma_ah_set_dlid(&attr, cmd.attr.dlid);
+	rdma_ah_set_sl(&attr, cmd.attr.sl);
+	rdma_ah_set_path_bits(&attr, cmd.attr.src_path_bits);
+	rdma_ah_set_static_rate(&attr, cmd.attr.static_rate);
+	rdma_ah_set_port_num(&attr, cmd.attr.port_num);
 
 	if (cmd.attr.is_global) {
-		struct ib_global_route *grh = &attr.grh;
-
-		grh->flow_label = cmd.attr.grh.flow_label;
-		grh->sgid_index = cmd.attr.grh.sgid_index;
-		grh->hop_limit = cmd.attr.grh.hop_limit;
-		grh->traffic_class = cmd.attr.grh.traffic_class;
-		memcpy(grh->dgid.raw, cmd.attr.grh.dgid, sizeof(grh->dgid));
-		attr.ah_flags = IB_AH_GRH;
+		rdma_ah_set_grh(&attr, NULL, cmd.attr.grh.flow_label,
+				cmd.attr.grh.sgid_index,
+				cmd.attr.grh.hop_limit,
+				cmd.attr.grh.traffic_class);
+		rdma_ah_set_dgid_raw(&attr, cmd.attr.grh.dgid);
 	} else {
-		attr.ah_flags = 0;
+		rdma_ah_set_ah_flags(&attr, 0);
 	}
 
-	ah = ib_create_user_ah(pd, &attr, &attrs->driver_udata);
+	ah = rdma_create_user_ah(pd, &attr, &attrs->driver_udata);
 	if (IS_ERR(ah)) {
 		ret = PTR_ERR(ah);
 		goto err_put;
@@ -2462,8 +2474,8 @@ static int ib_uverbs_create_ah(struct uverbs_attr_bundle *attrs)
 	return 0;
 
 err_copy:
-	ib_destroy_ah_user(ah, RDMA_DESTROY_AH_SLEEPABLE,
-			   uverbs_get_cleared_udata(attrs));
+	rdma_destroy_ah_user(ah, RDMA_DESTROY_AH_SLEEPABLE,
+			     uverbs_get_cleared_udata(attrs));
 
 err_put:
 	uobj_put_obj_read(pd);
@@ -3710,7 +3722,7 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
 	if (!cq)
 		return -EINVAL;
 
-	ret = ib_modify_cq(cq, cmd.attr.cq_count, cmd.attr.cq_period);
+	ret = rdma_set_cq_moderation(cq, cmd.attr.cq_count, cmd.attr.cq_period);
 
 	rdma_lookup_put_uobject(&cq->uobject->uevent.uobject,
 				UVERBS_LOOKUP_READ);

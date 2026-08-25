@@ -7,7 +7,7 @@
 .\"
 .\" A full copy of the text of the CDDL should have accompanied this
 .\" source.  A copy of the CDDL is also available via the Internet at
-.\" http://www.illumos.org/license/CDDL.
+.\" https://opensource.org/license/CDDL-1.0.
 .\"
 .\" Copyright 2012, Richard Lowe.
 .\" Copyright (c) 2012, 2019 by Delphix. All rights reserved.
@@ -282,6 +282,18 @@ Also dump the contents of the deduplication tables describing unique blocks.
 Decode and display block from an embedded block pointer specified by the
 .Ar word
 arguments.
+.It Fl f , -file-layout
+Display the file layout of an object for the disks of a raidz vdev.
+Numeric values in the disply are hexadecimal.
+With
+.Fl H ,
+the output is in scripted mode for easy parsing, with all values
+being presented as 512 byte blocks in decimal; with
+.Fl v ,
+the block type (parity or data) is displayed; with
+.Fl vv ,
+the offset into the file for each block is also printed.
+Only a single top-level raidz vdev is supported.
 .It Fl h , -history
 Display pool history similar to
 .Nm zpool Cm history ,

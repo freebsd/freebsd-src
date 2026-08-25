@@ -175,6 +175,7 @@ fi
 # For example, remove 4.3, 6.2, and 6.1 if they are not installed. We go back to
 # the 1.0 SDKs because Apple WatchOS uses low numbers, like 2.0 and 2.1.
 XCODE_SDK=
+if test -z "$SDK_VERSION"; then
 for i in $(seq -f "%.1f" 30.0 -0.1 1.0)
 do
     if [ -d "$XCODE_DEVELOPER_SDK/Developer/SDKs/$IOS_SDK$i.sdk" ]; then
@@ -182,6 +183,10 @@ do
         break
     fi
 done
+else
+    i="$SDK_VERSION"
+    XCODE_SDK="$IOS_SDK$i.sdk"
+fi
 
 # Error checking
 if [ -z "$XCODE_SDK" ]; then

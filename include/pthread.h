@@ -199,6 +199,11 @@ int		pthread_condattr_init(pthread_condattr_t *);
 int		pthread_condattr_setclock(pthread_condattr_t *, clockid_t);
 int		pthread_condattr_setpshared(pthread_condattr_t *, int);
 int		pthread_cond_broadcast(pthread_cond_t *);
+#if __POSIX_VISIBLE >= 202405
+int		pthread_cond_clockwait(pthread_cond_t * __restrict,
+		    pthread_mutex_t * __restrict, clockid_t,
+		    const struct timespec * __restrict);
+#endif
 int		pthread_cond_destroy(pthread_cond_t *);
 int		pthread_cond_init(pthread_cond_t * __restrict,
 		    const pthread_condattr_t * __restrict);

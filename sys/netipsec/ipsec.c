@@ -1353,8 +1353,10 @@ ipsec_chkreplay(uint32_t seq, uint32_t *seqhigh, struct secasvar *sav)
 	 * subspace.
 	 */
 	if (tl < window - 1 && seq >= bl) {
-		if (th == 0)
+		if (th == 0) {
+			SECREPLAY_UNLOCK(replay);
 			return (0);
+		}
 		*seqhigh = th - 1;
 		seqh = th - 1;
 		if (check_window(replay, seq)) {

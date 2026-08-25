@@ -63,7 +63,6 @@ ASSYM(PMAP_MAPDEV_EARLY_SIZE, PMAP_MAPDEV_EARLY_SIZE);
 ASSYM(PM_SATP, offsetof(struct pmap, pm_satp));
 
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
-ASSYM(PCB_SIZE, sizeof(struct pcb));
 ASSYM(PCB_RA, offsetof(struct pcb, pcb_ra));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
 ASSYM(PCB_GP, offsetof(struct pcb, pcb_gp));

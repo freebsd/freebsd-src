@@ -2,11 +2,17 @@
 # them in sync we can get run-time crashes while running tests due to mismatches
 # between structures such as archive_md5_ctx, etc.
 
-LIBADD=	z bz2 lzma bsdxml zstd
-CFLAGS+=	-DHAVE_BZLIB_H=1 -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1 \
-		-DHAVE_ZSTD_H=1 -DHAVE_LIBZSTD=1 -DHAVE_ZSTD_compressStream=1 \
-		-DHAVE_SYSCONF=1
-CFLAGS+=	-DPLATFORM_CONFIG_H=\"${.CURDIR}/config_freebsd.h\"
+_LIBARCHIVEDIR=	${SRCTOP}/contrib/libarchive
+LIBARCHIVE_VERSION_ONLY_STRING!= \
+	sed -n '/define.*ARCHIVE_VERSION_ONLY_STRING/{s,[^0-9.],,gp;q;}' \
+	    ${_LIBARCHIVEDIR}/libarchive/archive.h
+
+LIBADD+=	z bz2 lzma bsdxml zstd
+CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
+CFLAGS+=	-I${SRCTOP}/lib/libarchive
+CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive
+CFLAGS+=	-I${_LIBARCHIVEDIR}/libarchive_fe
+CFLAGS+=	-I${SRCTOP}/sys/contrib/zstd/lib
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+=	-DWITH_OPENSSL

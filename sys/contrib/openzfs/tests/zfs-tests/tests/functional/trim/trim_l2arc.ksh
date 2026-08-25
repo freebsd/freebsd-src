@@ -1,8 +1,6 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
-#
 # This file and its contents are supplied under the terms of the
 # Common Development and Distribution License ("CDDL"), version 1.0.
 # You may only use this file in accordance with the terms of version
@@ -10,9 +8,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
-#
-# CDDL HEADER END
+# https://opensource.org/license/CDDL-1.0.
 #
 
 . $STF_SUITE/include/libtest.shlib
@@ -50,16 +46,19 @@ function cleanup
 	log_must rm -f $VDEVS
 	log_must set_tunable32 L2ARC_TRIM_AHEAD $l2arc_trimahead
 	log_must set_tunable32 L2ARC_WRITE_MAX $l2arc_writemax
+	log_must set_tunable32 L2ARC_DWPD_LIMIT $l2arc_dwpdlimit
 }
 log_onexit cleanup
 
 # The cache device $TRIM_VDEV2 has to be small enough, so that
-# dev->l2ad_hand loops around and dev->l2ad_first=0. Otherwise 
+# dev->l2ad_hand loops around and dev->l2ad_first=0. Otherwise
 # l2arc_evict() exits before evicting/trimming.
 typeset l2arc_trimahead=$(get_tunable L2ARC_TRIM_AHEAD)
 typeset l2arc_writemax=$(get_tunable L2ARC_WRITE_MAX)
+typeset l2arc_dwpdlimit=$(get_tunable L2ARC_DWPD_LIMIT)
 log_must set_tunable32 L2ARC_TRIM_AHEAD 1
 log_must set_tunable32 L2ARC_WRITE_MAX $((64 * 1024 * 1024))
+log_must set_tunable32 L2ARC_DWPD_LIMIT 0
 VDEVS="$TRIM_VDEV1 $TRIM_VDEV2"
 log_must truncate -s $((MINVDEVSIZE)) $TRIM_VDEV2
 log_must truncate -s $((4 * MINVDEVSIZE)) $TRIM_VDEV1

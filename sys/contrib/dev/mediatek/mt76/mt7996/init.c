@@ -1222,6 +1222,9 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
 	}
 
 	INIT_WORK(&dev->init_work, mt7996_init_work);
+#if defined(__FreeBSD__)
+	init_completion(&dev->mt76.drv_start_complete);
+#endif
 	INIT_WORK(&dev->wed_rro.work, mt7996_wed_rro_work);
 	INIT_LIST_HEAD(&dev->wed_rro.poll_list);
 	spin_lock_init(&dev->wed_rro.lock);
@@ -1736,6 +1739,9 @@ int mt7996_register_device(struct mt7996_dev *dev)
 #endif
 
 	ieee80211_queue_work(mt76_hw(dev), &dev->init_work);
+#if defined(__FreeBSD__)
+	wait_for_completion(&dev->mt76.drv_start_complete);
+#endif
 
 	dev->recovery.hw_init_done = true;
 

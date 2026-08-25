@@ -203,7 +203,7 @@ error:
 }
 
 static void ib_ucm_event_req_get(struct ib_ucm_req_event_resp *ureq,
-				 struct ib_cm_req_event_param *kreq)
+				 const struct ib_cm_req_event_param *kreq)
 {
 	ureq->remote_ca_guid             = kreq->remote_ca_guid;
 	ureq->remote_qkey                = kreq->remote_qkey;
@@ -227,7 +227,7 @@ static void ib_ucm_event_req_get(struct ib_ucm_req_event_resp *ureq,
 }
 
 static void ib_ucm_event_rep_get(struct ib_ucm_rep_event_resp *urep,
-				 struct ib_cm_rep_event_param *krep)
+				 const struct ib_cm_rep_event_param *krep)
 {
 	urep->remote_ca_guid      = krep->remote_ca_guid;
 	urep->remote_qkey         = krep->remote_qkey;
@@ -243,14 +243,14 @@ static void ib_ucm_event_rep_get(struct ib_ucm_rep_event_resp *urep,
 }
 
 static void ib_ucm_event_sidr_rep_get(struct ib_ucm_sidr_rep_event_resp *urep,
-				      struct ib_cm_sidr_rep_event_param *krep)
+				      const struct ib_cm_sidr_rep_event_param *krep)
 {
 	urep->status = krep->status;
 	urep->qkey   = krep->qkey;
 	urep->qpn    = krep->qpn;
 };
 
-static int ib_ucm_event_process(struct ib_cm_event *evt,
+static int ib_ucm_event_process(const struct ib_cm_event *evt,
 				struct ib_ucm_event *uvt)
 {
 	void *info = NULL;
@@ -347,7 +347,7 @@ err1:
 }
 
 static int ib_ucm_event_handler(struct ib_cm_id *cm_id,
-				struct ib_cm_event *event)
+				const struct ib_cm_event *event)
 {
 	struct ib_ucm_event *uevent;
 	struct ib_ucm_context *ctx;
@@ -619,7 +619,7 @@ static ssize_t ib_ucm_init_qp_attr(struct ib_ucm_file *file,
 	if (result)
 		goto out;
 
-	ib_copy_qp_attr_to_user(&resp, &qp_attr);
+	ib_copy_qp_attr_to_user(ctx->cm_id->device, &resp, &qp_attr);
 
 	if (copy_to_user((void __user *)(unsigned long)cmd.response,
 			 &resp, sizeof(resp)))
@@ -703,10 +703,10 @@ static int ib_ucm_alloc_data(const void **dest, u64 src, u32 len)
 	return 0;
 }
 
-static int ib_ucm_path_get(struct ib_sa_path_rec **path, u64 src)
+static int ib_ucm_path_get(struct sa_path_rec **path, u64 src)
 {
 	struct ib_user_path_rec upath;
-	struct ib_sa_path_rec  *sa_path;
+	struct sa_path_rec  *sa_path;
 
 	*path = NULL;
 
@@ -963,7 +963,7 @@ static ssize_t ib_ucm_send_lap(struct ib_ucm_file *file,
 			       int in_len, int out_len)
 {
 	struct ib_ucm_context *ctx;
-	struct ib_sa_path_rec *path = NULL;
+	struct sa_path_rec *path = NULL;
 	struct ib_ucm_lap cmd;
 	const void *data = NULL;
 	int result;
@@ -996,13 +996,10 @@ static ssize_t ib_ucm_send_sidr_req(struct ib_ucm_file *file,
 				    const char __user *inbuf,
 				    int in_len, int out_len)
 {
-	struct ib_cm_sidr_req_param param;
+	struct ib_cm_sidr_req_param param = {};
 	struct ib_ucm_context *ctx;
 	struct ib_ucm_sidr_req cmd;
 	int result;
-
-	param.private_data = NULL;
-	param.path = NULL;
 
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
@@ -1105,8 +1102,11 @@ static ssize_t ib_ucm_write(struct file *filp, const char __user *buf,
 	struct ib_ucm_cmd_hdr hdr;
 	ssize_t result;
 
-	if (WARN_ON_ONCE(!ib_safe_file_access(filp)))
+	if (!ib_safe_file_access(filp)) {
+		pr_err_once("ucm_write: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
+			    current->pid, current->comm);
 		return -EACCES;
+	}
 
 	if (len < sizeof(hdr))
 		return -EINVAL;

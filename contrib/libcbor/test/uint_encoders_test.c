@@ -10,31 +10,31 @@
 
 unsigned char buffer[512];
 
-static void test_embedded_uint8(void **_CBOR_UNUSED(_state)) {
+static void test_embedded_uint8(void** _state _CBOR_UNUSED) {
   assert_size_equal(1, cbor_encode_uint8(14, buffer, 512));
   assert_memory_equal(buffer, (unsigned char[]){0x0E}, 1);
 }
 
-static void test_uint8(void **_CBOR_UNUSED(_state)) {
+static void test_uint8(void** _state _CBOR_UNUSED) {
   assert_size_equal(0, cbor_encode_uint8(180, buffer, 1));
   assert_size_equal(2, cbor_encode_uint8(255, buffer, 512));
   assert_memory_equal(buffer, ((unsigned char[]){0x18, 0xFF}), 2);
 }
 
-static void test_uint16(void **_CBOR_UNUSED(_state)) {
+static void test_uint16(void** _state _CBOR_UNUSED) {
   assert_size_equal(0, cbor_encode_uint16(1000, buffer, 2));
   assert_size_equal(3, cbor_encode_uint16(1000, buffer, 512));
   assert_memory_equal(buffer, ((unsigned char[]){0x19, 0x03, 0xE8}), 3);
 }
 
-static void test_uint32(void **_CBOR_UNUSED(_state)) {
+static void test_uint32(void** _state _CBOR_UNUSED) {
   assert_size_equal(0, cbor_encode_uint32(1000000, buffer, 4));
   assert_size_equal(5, cbor_encode_uint32(1000000, buffer, 512));
   assert_memory_equal(buffer, ((unsigned char[]){0x1A, 0x00, 0x0F, 0x42, 0x40}),
                       5);
 }
 
-static void test_uint64(void **_CBOR_UNUSED(_state)) {
+static void test_uint64(void** _state _CBOR_UNUSED) {
   assert_size_equal(0, cbor_encode_uint64(18446744073709551615ULL, buffer, 8));
   assert_size_equal(9,
                     cbor_encode_uint64(18446744073709551615ULL, buffer, 512));
@@ -44,7 +44,7 @@ static void test_uint64(void **_CBOR_UNUSED(_state)) {
       9);
 }
 
-static void test_unspecified(void **_CBOR_UNUSED(_state)) {
+static void test_unspecified(void** _state _CBOR_UNUSED) {
   assert_size_equal(9, cbor_encode_uint(18446744073709551615ULL, buffer, 512));
   assert_memory_equal(
       buffer,

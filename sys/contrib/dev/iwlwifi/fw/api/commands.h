@@ -60,7 +60,7 @@ enum iwl_legacy_cmds {
 	 * @UCODE_ALIVE_NTFY:
 	 * Alive data from the firmware, as described in
 	 * &struct iwl_alive_ntf_v3 or &struct iwl_alive_ntf_v4 or
-	 * &struct iwl_alive_ntf_v5 or &struct iwl_alive_ntf_v6.
+	 * &struct iwl_alive_ntf_v5 or &struct iwl_alive_ntf_v7.
 	 */
 	UCODE_ALIVE_NTFY = 0x1,
 
@@ -295,6 +295,11 @@ enum iwl_legacy_cmds {
 	 * update scan offload (scheduled scan) profiles/blocklist/etc.
 	 */
 	SCAN_OFFLOAD_UPDATE_PROFILES_CMD = 0x6E,
+
+	/**
+	 * @SCAN_START_NOTIFICATION_UMAC: uses &struct iwl_umac_scan_start
+	 */
+	SCAN_START_NOTIFICATION_UMAC = 0xb2,
 
 	/**
 	 * @MATCH_FOUND_NOTIFICATION: scan match found

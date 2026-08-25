@@ -1,0 +1,5 @@
+PackageSearchPath: lib1
+Query: foo
+WantedFlags: libs cflags
+ExpectedExitCode: 0
+ExpectedStdout: -fPIC -I/test/include/foo -L/test/lib -lfoo

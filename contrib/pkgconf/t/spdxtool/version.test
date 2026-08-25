@@ -1,0 +1,5 @@
+Tool: spdxtool
+ToolArgs: --version
+ExpectedStdout: spdxtool
+MatchStdout: Partial
+ExpectedExitCode: 0

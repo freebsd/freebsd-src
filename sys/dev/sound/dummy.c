@@ -112,11 +112,10 @@ dummy_chan_io(void *arg)
 		ch = &sc->chans[i];
 		if (!ch->run)
 			continue;
-		if (ch->dir == PCMDIR_PLAY) {
-			ch->ptr += ch->buf->blksz;
-			ch->ptr %= ch->buf->bufsize;
-		} else
+		if (ch->dir == PCMDIR_REC)
 			sndbuf_fillsilence(ch->buf);
+		ch->ptr += ch->buf->blksz;
+		ch->ptr %= ch->buf->bufsize;
 		mtx_unlock(&sc->lock);
 		chn_intr(ch->chan);
 		mtx_lock(&sc->lock);

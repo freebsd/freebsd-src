@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
- *
  * This file and its contents are supplied under the terms of the
  * Common Development and Distribution License ("CDDL"), version 1.0.
  * You may only use this file in accordance with the terms of version
@@ -9,9 +7,7 @@
  *
  * A full copy of the text of the CDDL should have accompanied this
  * source.  A copy of the CDDL is also available via the Internet at
- * http://www.illumos.org/license/CDDL.
- *
- * CDDL HEADER END
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2019 by Delphix. All rights reserved.
@@ -191,9 +187,11 @@ void zfs_btree_fini(void);
  * size   - the value of sizeof(struct my_type)
  * lsize  - custom leaf size
  */
-void zfs_btree_create(zfs_btree_t *, int (*) (const void *, const void *),
+void zfs_btree_create(zfs_btree_t *,
+    int (*) (const void *, const void *),
     bt_find_in_buf_f, size_t);
-void zfs_btree_create_custom(zfs_btree_t *, int (*)(const void *, const void *),
+void zfs_btree_create_custom(zfs_btree_t *,
+    int (*)(const void *, const void *),
     bt_find_in_buf_f, size_t, size_t);
 
 /*
@@ -213,7 +211,8 @@ void *zfs_btree_find(zfs_btree_t *, const void *, zfs_btree_index_t *);
  * node   - the node to insert
  * where  - position as returned from zfs_btree_find()
  */
-void zfs_btree_add_idx(zfs_btree_t *, const void *, const zfs_btree_index_t *);
+void zfs_btree_add_idx(zfs_btree_t *, const void *,
+    const zfs_btree_index_t *);
 
 /*
  * Return the first or last valued node in the tree. Will return NULL if the

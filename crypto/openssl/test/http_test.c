@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2026 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Siemens AG 2020
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -11,6 +11,7 @@
 #include <openssl/http.h>
 #include <openssl/pem.h>
 #include <openssl/x509v3.h>
+#include <openssl/err.h>
 #include <string.h>
 
 #include "testutil.h"
@@ -331,6 +332,18 @@ static int test_http_url_path_query_ok(const char *url, const char *exp_path_qu)
     return res;
 }
 
+static int test_http_url_host_ok(const char *url, const char *exp_host)
+{
+    char *host;
+    int res;
+
+    res = TEST_true(OSSL_HTTP_parse_url(url, NULL, NULL, &host, NULL, NULL,
+              NULL, NULL, NULL))
+        && TEST_str_eq(host, exp_host);
+    OPENSSL_free(host);
+    return res;
+}
+
 static int test_http_url_dns(void)
 {
     return test_http_url_ok("host:65535/path", 0, "host", "65535", "/path");
@@ -356,6 +369,13 @@ static int test_http_url_path_query(void)
 static int test_http_url_userinfo_query_fragment(void)
 {
     return test_http_url_ok("user:pass@host/p?q#fr", 0, "host", "80", "/p");
+}
+
+static int test_http_url_at_sign_outside_authority(void)
+{
+    return test_http_url_host_ok("http://host/p@attacker.test", "host")
+        && test_http_url_host_ok("http://host/p?q=@attacker.test", "host")
+        && test_http_url_host_ok("http://host/p?q#fr@attacker.test", "host");
 }
 
 static int test_http_url_ipv4(void)
@@ -401,6 +421,57 @@ static int test_http_url_invalid_port(void)
 static int test_http_url_invalid_path(void)
 {
     return test_http_url_invalid("https://[FF01::101]pkix");
+}
+
+static int test_http_crlf_rejected(void)
+{
+    BIO *wbio = BIO_new(BIO_s_mem());
+    BIO *rbio = BIO_new(BIO_s_mem());
+    BIO *req = BIO_new(BIO_s_mem());
+    BIO *proxy_bio = BIO_new(BIO_s_mem());
+    OSSL_HTTP_REQ_CTX *rctx = NULL;
+    int res = 0;
+
+    if (!TEST_ptr(wbio)
+        || !TEST_ptr(rbio)
+        || !TEST_ptr(req)
+        || !TEST_ptr(proxy_bio)
+        || !TEST_int_eq(BIO_puts(req, "x"), 1)
+        || !TEST_ptr(rctx = OSSL_HTTP_REQ_CTX_new(wbio, rbio, 0)))
+        goto err;
+
+    ERR_clear_error();
+    res = TEST_false(OSSL_HTTP_REQ_CTX_set_request_line(rctx, 0 /* GET */,
+              NULL, NULL, "/path\r\nInjected: value"))
+        && TEST_false(OSSL_HTTP_REQ_CTX_set_request_line(rctx, 0 /* GET */,
+            "server\r\nInjected: value", "80", RPATH))
+        && TEST_false(OSSL_HTTP_REQ_CTX_set_request_line(rctx, 0 /* GET */,
+            "server", "80\r\nInjected: value", RPATH))
+        && TEST_true(OSSL_HTTP_REQ_CTX_set_request_line(rctx, 0 /* GET */,
+            NULL, NULL, RPATH))
+        && TEST_false(OSSL_HTTP_REQ_CTX_add1_header(rctx,
+            "X-Test\r\nInjected", "value"))
+        && TEST_false(OSSL_HTTP_REQ_CTX_add1_header(rctx,
+            "X-Test", "value\r\nInjected: value"))
+        && TEST_false(OSSL_HTTP_set1_request(rctx, RPATH, NULL,
+            "text/plain\r\nInjected: value", req,
+            NULL, 0 /* expect_asn1 */, 0 /* max_resp_len */,
+            0 /* timeout */, 0 /* keep_alive */))
+        && TEST_false(OSSL_HTTP_proxy_connect(proxy_bio,
+            "server\r\nInjected: value", "443", NULL, NULL,
+            0 /* timeout */, NULL, NULL))
+        && TEST_false(OSSL_HTTP_proxy_connect(proxy_bio,
+            "server", "443\r\nInjected: value", NULL, NULL,
+            0 /* timeout */, NULL, NULL));
+
+err:
+    ERR_clear_error();
+    OSSL_HTTP_REQ_CTX_free(rctx);
+    BIO_free(wbio);
+    BIO_free(rbio);
+    BIO_free(req);
+    BIO_free(proxy_bio);
+    return res;
 }
 
 static int test_http_get_txt(void)
@@ -556,6 +627,14 @@ static int test_hdr_resp_hdr_limit_256(void)
     return test_http_resp_hdr_limit(256);
 }
 
+static int test_http_adapt_proxy_empty_server(void)
+{
+    const char *proxy = "http://proxy.local:8080";
+
+    return TEST_str_eq(OSSL_HTTP_adapt_proxy(proxy, "abc", "", 0), proxy)
+        && TEST_str_eq(OSSL_HTTP_adapt_proxy(proxy, "abc", "[]", 0), proxy);
+}
+
 void cleanup_tests(void)
 {
     X509_free(x509);
@@ -576,11 +655,13 @@ int setup_tests(void)
     ADD_TEST(test_http_url_timestamp);
     ADD_TEST(test_http_url_path_query);
     ADD_TEST(test_http_url_userinfo_query_fragment);
+    ADD_TEST(test_http_url_at_sign_outside_authority);
     ADD_TEST(test_http_url_ipv4);
     ADD_TEST(test_http_url_ipv6);
     ADD_TEST(test_http_url_invalid_prefix);
     ADD_TEST(test_http_url_invalid_port);
     ADD_TEST(test_http_url_invalid_path);
+    ADD_TEST(test_http_crlf_rejected);
 
     ADD_TEST(test_http_get_txt);
     ADD_TEST(test_http_get_txt_redirected);
@@ -605,5 +686,6 @@ int setup_tests(void)
     ADD_TEST(test_hdr_resp_hdr_limit_none);
     ADD_TEST(test_hdr_resp_hdr_limit_short);
     ADD_TEST(test_hdr_resp_hdr_limit_256);
+    ADD_TEST(test_http_adapt_proxy_empty_server);
     return 1;
 }

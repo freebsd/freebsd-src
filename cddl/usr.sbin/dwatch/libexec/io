@@ -3,22 +3,42 @@
 ############################################################ IDENT(1)
 #
 # $Title: dwatch(8) module for dtrace_io(4) $
-# $Copyright: 2014-2018 Devin Teske. All rights reserved. $
+# $Copyright: 2014-2026 Devin Teske. All rights reserved. $
 #
 ############################################################ DESCRIPTION
 #
-# Display activity related to disk I/O
+# Display activity related to disk I/O. The io-slow profile instead
+# measures per-request latency -- the time between io:::start and
+# io:::done for the same struct bio -- printing any request that meets
+# a threshold (default 100 ms; tunable via DWATCH_IO_MS in the
+# environment, 0 to show everything). Answers "is the application slow
+# because the disk is slow?" and, watched per-device, hunts I/O
+# starvation; on ZFS, watched against zvols and the pool's leaf vdevs,
+# it brackets where in the stack the time is going.
 #
 ############################################################ PROBE
 
 case "$PROFILE" in
 io) : ${PROBE:=io:::start, io:::done} ;;
+io-slow) : ${PROBE:=io:::done} ;;
  *) : ${PROBE:=io:::${PROFILE#io-}}
 esac
 
 ############################################################ EVENT ACTION
 
-[ "$CUSTOM_TEST" ] || EVENT_TEST='this->devinfo.dev_name != ""'
+if [ "$PROFILE" = "io-slow" ]; then
+	: ${DWATCH_IO_MS:=100}
+
+	case "$DWATCH_IO_MS" in
+	""|*[!0-9]*) die "DWATCH_IO_MS must be a number" ;; # NOTREACHED
+	esac
+
+	[ "$CUSTOM_TEST" ] ||
+		EVENT_TEST="this->devinfo.dev_name != \"\" &&
+	this->io_ns >= (int64_t)$DWATCH_IO_MS * 1000000"
+else
+	[ "$CUSTOM_TEST" ] || EVENT_TEST='this->devinfo.dev_name != ""'
+fi
 
 ############################################################ ACTIONS
 
@@ -82,9 +102,53 @@ EOF
 ACTIONS=$( cat <&9 )
 ID=$(( $ID + 1 ))
 
+if [ "$PROFILE" = "io-slow" ]; then
+exec 9<<EOF
+$ACTIONS
+
+this int64_t	io_ns;
+int64_t		io_ts[uintptr_t];
+
+io:::start /(struct bio *)args[0] != NULL/ /* probe ID $ID */
+{${TRACE:+
+	printf("<$ID>");
+}
+	io_ts[(uintptr_t)args[0]] = timestamp;
+}
+
+$PROBE /(struct bio *)args[0] != NULL/ /* probe ID $(( $ID + 1 )) */
+{${TRACE:+
+	printf("<$(( $ID + 1 ))>");
+}
+	/* NB: -1 if we did not see the start (enabled mid-request) */
+	this->io_ns = io_ts[(uintptr_t)args[0]] ?
+		timestamp - io_ts[(uintptr_t)args[0]] : -1;
+	io_ts[(uintptr_t)args[0]] = 0;
+}
+EOF
+ACTIONS=$( cat <&9 )
+ID=$(( $ID + 2 ))
+fi
+
 ############################################################ EVENT DETAILS
 
-if [ ! "$CUSTOM_DETAILS" ]; then
+if [ "$PROFILE" = "io-slow" ] && [ ! "$CUSTOM_DETAILS" ]; then
+exec 9<<EOF
+	/*
+	 * Print disk I/O latency details
+	 */
+	printf("%s %s %s %s %d byte%s %d.%03d ms",
+		this->device_type,
+		this->device_entry,
+		this->bio_cmd,
+		this->bio_flags,
+		this->bio_length,
+		this->bio_length == 1 ? "" : "s",
+		this->io_ns / 1000000,
+		(this->io_ns % 1000000) / 1000);
+EOF
+EVENT_DETAILS=$( cat <&9 )
+elif [ ! "$CUSTOM_DETAILS" ]; then
 exec 9<<EOF
 	/*
 	 * Print disk I/O details

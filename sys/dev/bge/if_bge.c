@@ -3202,20 +3202,13 @@ bge_mbox_reorder(struct bge_softc *sc)
 	} mbox_reorder_lists[] = {
 		{ 0x1022, 0x7450, "AMD-8131 PCI-X Bridge" },
 	};
-	devclass_t pci, pcib;
-	device_t bus, dev;
+	device_t dev;
 	int i;
 
-	pci = devclass_find("pci");
-	pcib = devclass_find("pcib");
 	dev = sc->bge_dev;
-	bus = device_get_parent(dev);
 	for (;;) {
-		dev = device_get_parent(bus);
-		bus = device_get_parent(dev);
-		if (device_get_devclass(dev) != pcib)
-			break;
-		if (device_get_devclass(bus) != pci)
+		dev = device_get_parent(device_get_parent(dev));
+		if (!is_pci_device(dev))
 			break;
 		for (i = 0; i < nitems(mbox_reorder_lists); i++) {
 			if (pci_get_vendor(dev) ==
@@ -3773,11 +3766,19 @@ bge_attach(device_t dev)
 	    (sc->bge_asicrev != BGE_ASICREV_BCM5906)) {
 		if (bge_read_eeprom(sc, (caddr_t)&hwcfg, BGE_EE_HWCFG_OFFSET,
 		    sizeof(hwcfg))) {
-			device_printf(sc->bge_dev, "failed to read EEPROM\n");
-			error = ENXIO;
-			goto fail;
-		}
-		hwcfg = ntohl(hwcfg);
+			/*
+			 * BCM57766 on Apple T2 Macs has no dedicated EEPROM;
+			 * the chip is copper-only so hwcfg=0 is correct.
+			 */
+			if (sc->bge_asicrev != BGE_ASICREV_BCM57766) {
+				device_printf(sc->bge_dev,
+				    "failed to read EEPROM\n");
+				error = ENXIO;
+				goto fail;
+			}
+			hwcfg = 0;
+		} else
+			hwcfg = ntohl(hwcfg);
 	}
 
 	/* The SysKonnect SK-9D41 is a 1000baseSX card. */
@@ -6684,7 +6685,29 @@ bge_sysctl_mem_read(SYSCTL_HANDLER_ARGS)
 static int
 bge_get_eaddr_fw(struct bge_softc *sc, uint8_t ether_addr[])
 {
-	return (1);
+	const char *mac_str;
+	unsigned int o[ETHER_ADDR_LEN];
+	char trail;
+	int i, n, unit;
+
+	unit = device_get_unit(sc->bge_dev);
+	if (resource_string_value("bge", unit, "mac", &mac_str) != 0)
+		return (1);
+
+	/* Parse and validate; trailing-char check rejects garbage. */
+	n = sscanf(mac_str, "%x:%x:%x:%x:%x:%x%c",
+	    &o[0], &o[1], &o[2], &o[3], &o[4], &o[5], &trail);
+	if (n != 6)
+		return (1);
+	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		if (o[i] > 0xff)
+			return (1);
+		ether_addr[i] = (uint8_t)o[i];
+	}
+	if (ETHER_IS_MULTICAST(ether_addr) ||
+	    ETHER_IS_ZERO(ether_addr))
+		return (1);
+	return (0);
 }
 
 static int

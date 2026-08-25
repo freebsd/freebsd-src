@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: varied.script,v 1.16 2024/02/04 19:26:02 christos Exp $
+# $File: varied.script,v 1.17 2025/03/10 20:41:09 christos Exp $
 # varied.script:  file(1) magic for various interpreter scripts
 
 0	string		#![	Rust Source file
@@ -15,10 +15,19 @@
 
 
 # using env
-0	string/wt	#!\ /usr/bin/env		a
->15	string/T	>\0			%s script text executable
-!:strength / 6
+0	regex/t		#![[:space:]]*/usr/bin/env[[:space:]]*	a
+>&0	string/T	>\0			%s script text executable
+!:strength / 2
 
-0	string/wb	#!\ /usr/bin/env		a
->15	string/T	>\0			%s script executable (binary data)
-!:strength / 6
+0	regex/b		#![[:space:]]*/usr/bin/env[[:space:]]*	a
+>&0	string/T	>\0			%s script executable (binary data)
+!:strength / 2
+
+# using env
+0	regex/t		#![[:space:]]*/usr/bin/env[[:space:]]*-[Si0]	a
+>&0	string/T	>\0			%s script text executable
+!:strength / 2
+
+0	regex/b		#![[:space:]]*/usr/bin/env[[:space:]]*-[Si0]	a
+>&0	string/T	>\0			%s script executable (binary data)
+!:strength / 2

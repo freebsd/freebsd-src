@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: ibm370,v 1.13 2024/06/19 16:52:57 christos Exp $
+# $File: ibm370,v 1.14 2026/01/10 15:49:11 christos Exp $
 # ibm370:  file(1) magic for IBM 370 and compatibles.
 #
 # "ibm370" said that 0x15d == 0535 was "ibm 370 pure executable".
@@ -56,3 +56,9 @@
 # to 8 bytes. According to https://www.ibm.com/support/pages/apar/PK91585
 # IEWPLMH is eyecatcher for "Binder Program Load Module Header" control block
 0	string   	\xc9\xc5\xe6\xd7\xd3\xd4\xc8\x40	z/OS Program Object executable
+
+
+# https://www.cbttape.org/awstape.htm
+0	leshort	>0
+>2	leshort	0x0000
+>>4	leshort	0x00a0	IBM AWS file

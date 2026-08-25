@@ -1,24 +1,14 @@
 #!/bin/ksh -p
 # SPDX-License-Identifier: CDDL-1.0
 #
-# CDDL HEADER START
+# This file and its contents are supplied under the terms of the
+# Common Development and Distribution License ("CDDL"), version 1.0.
+# You may only use this file in accordance with the terms of version
+# 1.0 of the CDDL.
 #
-# The contents of this file are subject to the terms of the
-# Common Development and Distribution License (the "License").
-# You may not use this file except in compliance with the License.
-#
-# You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
-# or https://opensource.org/licenses/CDDL-1.0.
-# See the License for the specific language governing permissions
-# and limitations under the License.
-#
-# When distributing Covered Code, include this CDDL HEADER in each
-# file and include the License file at usr/src/OPENSOLARIS.LICENSE.
-# If applicable, add the following below this CDDL HEADER, with the
-# fields enclosed by brackets "[]" replaced with your own identifying
-# information: Portions Copyright [yyyy] [name of copyright owner]
-#
-# CDDL HEADER END
+# A full copy of the text of the CDDL should have accompanied this
+# source.  A copy of the CDDL is also available via the Internet at
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -86,8 +76,7 @@ function test_selfheal # <pool> <parity> <dir>
 	# from the files which were read.  Before overwriting additional
 	# devices we need to repair all of the blocks in the pool.
 	#
-	log_must zpool scrub -w $pool
-	log_must check_pool_status $pool "errors" "No known data errors"
+	log_must verify_draid_pool $pool "damaged"
 
 	log_must zpool clear $pool
 
@@ -104,8 +93,7 @@ function test_selfheal # <pool> <parity> <dir>
 	log_must eval "find $mntpnt -type f -exec cksum {} + >> /dev/null 2>&1"
 	log_must check_pool_status $pool "errors" "No known data errors"
 
-	log_must zpool scrub -w $pool
-	log_must check_pool_status $pool "errors" "No known data errors"
+	log_must verify_draid_pool $pool "damaged"
 
 	log_must zpool clear $pool
 }
@@ -182,8 +170,7 @@ function test_scrub # <pool> <parity> <dir>
 
 	log_must zpool import -o cachefile=none -d $dir $pool
 
-	log_must zpool scrub -w $pool
-	log_must check_pool_status $pool "errors" "No known data errors"
+	log_must verify_draid_pool $pool "damaged"
 
 	log_must zpool clear $pool
 
@@ -196,8 +183,7 @@ function test_scrub # <pool> <parity> <dir>
 
 	log_must zpool import -o cachefile=none -d $dir $pool
 
-	log_must zpool scrub -w $pool
-	log_must check_pool_status $pool "errors" "No known data errors"
+	log_must verify_draid_pool $pool "damaged"
 
 	log_must zpool clear $pool
 }

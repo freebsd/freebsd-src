@@ -4,9 +4,7 @@
 
 #include <linux/compiler.h>
 #include <linux/limits.h>
-#ifdef __linux__
 #include <linux/const.h>
-#endif
 
 /*
  * We need to compute the minimum and maximum values representable in a given
@@ -38,19 +36,13 @@
 #define __type_min(T) ((T)((T)-type_max(T)-(T)1))
 #define type_min(t)	__type_min(typeof(t))
 
-/*
- * Avoids triggering -Wtype-limits compilation warning,
- * while using unsigned data types to check a < 0.
- */
-#define is_non_negative(a) ((a) > 0 || (a) == 0)
-#define is_negative(a) (!(is_non_negative(a)))
 
 /*
  * Allows for effectively applying __must_check to a macro so we can have
  * both the type-agnostic benefits of the macros while also being able to
  * enforce that the return value is, in fact, checked.
  */
-static inline bool __must_check __must_check_overflow(bool overflow)
+static __always_inline bool __must_check __must_check_overflow(bool overflow)
 {
 	return unlikely(overflow);
 }
@@ -203,9 +195,9 @@ static inline bool __must_check __must_check_overflow(bool overflow)
 	typeof(d) _d = d;						\
 	unsigned long long _a_full = _a;				\
 	unsigned int _to_shift =					\
-		is_non_negative(_s) && _s < 8 * sizeof(*d) ? _s : 0;	\
+		_s >= 0 && _s < 8 * sizeof(*d) ? _s : 0;		\
 	*_d = (_a_full << _to_shift);					\
-	(_to_shift != _s || is_negative(*_d) || is_negative(_a) ||	\
+	(_to_shift != _s || *_d < 0 || _a < 0 ||			\
 	(*_d >> _to_shift) != _a);					\
 }))
 
@@ -241,6 +233,76 @@ static inline bool __must_check __must_check_overflow(bool overflow)
 			      __overflows_type(n, T))
 
 /**
+ * range_overflows() - Check if a range is out of bounds
+ * @start: Start of the range.
+ * @size:  Size of the range.
+ * @max:   Exclusive upper boundary.
+ *
+ * A strict check to determine if the range [@start, @start + @size) is
+ * invalid with respect to the allowable range [0, @max). Any range
+ * starting at or beyond @max is considered an overflow, even if @size is 0.
+ *
+ * Returns: true if the range is out of bounds.
+ */
+#define range_overflows(start, size, max) ({ \
+	typeof(start) start__ = (start); \
+	typeof(size) size__ = (size); \
+	typeof(max) max__ = (max); \
+	(void)(&start__ == &size__); \
+	(void)(&start__ == &max__); \
+	start__ >= max__ || size__ > max__ - start__; \
+})
+
+/**
+ * range_overflows_t() - Check if a range is out of bounds
+ * @type:  Data type to use.
+ * @start: Start of the range.
+ * @size:  Size of the range.
+ * @max:   Exclusive upper boundary.
+ *
+ * Same as range_overflows() but forcing the parameters to @type.
+ *
+ * Returns: true if the range is out of bounds.
+ */
+#define range_overflows_t(type, start, size, max) \
+	range_overflows((type)(start), (type)(size), (type)(max))
+
+/**
+ * range_end_overflows() - Check if a range's endpoint is out of bounds
+ * @start: Start of the range.
+ * @size:  Size of the range.
+ * @max:   Exclusive upper boundary.
+ *
+ * Checks only if the endpoint of a range (@start + @size) exceeds @max.
+ * Unlike range_overflows(), a zero-sized range at the boundary (@start == @max)
+ * is not considered an overflow. Useful for iterator-style checks.
+ *
+ * Returns: true if the endpoint exceeds the boundary.
+ */
+#define range_end_overflows(start, size, max) ({ \
+	typeof(start) start__ = (start); \
+	typeof(size) size__ = (size); \
+	typeof(max) max__ = (max); \
+	(void)(&start__ == &size__); \
+	(void)(&start__ == &max__); \
+	start__ > max__ || size__ > max__ - start__; \
+})
+
+/**
+ * range_end_overflows_t() - Check if a range's endpoint is out of bounds
+ * @type:  Data type to use.
+ * @start: Start of the range.
+ * @size:  Size of the range.
+ * @max:   Exclusive upper boundary.
+ *
+ * Same as range_end_overflows() but forcing the parameters to @type.
+ *
+ * Returns: true if the endpoint exceeds the boundary.
+ */
+#define range_end_overflows_t(type, start, size, max) \
+	range_end_overflows((type)(start), (type)(size), (type)(max))
+
+/**
  * castable_to_type - like __same_type(), but also allows for casted literals
  *
  * @n: variable or constant value
@@ -265,7 +327,7 @@ static inline bool __must_check __must_check_overflow(bool overflow)
  * with any overflow causing the return value to be SIZE_MAX. The
  * lvalue must be size_t to avoid implicit type conversion.
  */
-static inline size_t __must_check size_mul(size_t factor1, size_t factor2)
+static __always_inline size_t __must_check size_mul(size_t factor1, size_t factor2)
 {
 	size_t bytes;
 
@@ -284,7 +346,7 @@ static inline size_t __must_check size_mul(size_t factor1, size_t factor2)
  * with any overflow causing the return value to be SIZE_MAX. The
  * lvalue must be size_t to avoid implicit type conversion.
  */
-static inline size_t __must_check size_add(size_t addend1, size_t addend2)
+static __always_inline size_t __must_check size_add(size_t addend1, size_t addend2)
 {
 	size_t bytes;
 
@@ -305,7 +367,7 @@ static inline size_t __must_check size_add(size_t addend1, size_t addend2)
  * argument may be SIZE_MAX (or the result with be forced to SIZE_MAX).
  * The lvalue must be size_t to avoid implicit type conversion.
  */
-static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
+static __always_inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
 {
 	size_t bytes;
 
@@ -391,6 +453,18 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
 	struct_size((type *)NULL, member, count)
 
 /**
+ * struct_offset() - Calculate the offset of a member within a struct
+ * @p: Pointer to the struct
+ * @member: Name of the member to get the offset of
+ *
+ * Calculates the offset of a particular @member of the structure pointed
+ * to by @p.
+ *
+ * Return: number of bytes to the location of @member.
+ */
+#define struct_offset(p, member) (offsetof(typeof(*(p)), member))
+
+/**
  * __DEFINE_FLEX() - helper macro for DEFINE_FLEX() family.
  * Enables caller macro to pass arbitrary trailing expressions
  *
@@ -471,5 +545,47 @@ static inline size_t __must_check size_sub(size_t minuend, size_t subtrahend)
 #define STACK_FLEX_ARRAY_SIZE(name, array)						\
 	(__member_size((name)->array) / sizeof(*(name)->array) +			\
 						__must_be_array((name)->array))
+
+/**
+ * typeof_flex_counter() - Return the type of the counter variable of a given
+ *                         flexible array member annotated by __counted_by().
+ * @FAM: Instance of flexible array member within a given struct.
+ *
+ * Returns: "size_t" if no annotation exists.
+ */
+#define typeof_flex_counter(FAM)				\
+	typeof(_Generic(__flex_counter(FAM),			\
+			void *: (size_t)0,			\
+			default: *__flex_counter(FAM)))
+
+/**
+ * overflows_flex_counter_type() - Check if the counter associated with the
+ *				   given flexible array member can represent
+ *				   a value.
+ * @TYPE: Type of the struct that contains the @FAM.
+ * @FAM: Member name of the FAM within @TYPE.
+ * @COUNT: Value to check against the __counted_by annotated @FAM's counter.
+ *
+ * Returns: true if @COUNT can be represented in the @FAM's counter. When
+ * @FAM is not annotated with __counted_by(), always returns true.
+ */
+#define overflows_flex_counter_type(TYPE, FAM, COUNT)		\
+	(overflows_type(COUNT, typeof_flex_counter(((TYPE *)NULL)->FAM)))
+
+/**
+ * __set_flex_counter() - Set the counter associated with the given flexible
+ *                        array member that has been annoated by __counted_by().
+ * @FAM: Instance of flexible array member within a given struct.
+ * @COUNT: Value to store to the __counted_by annotated @FAM_PTR's counter.
+ *
+ * This is a no-op if no annotation exists. Count needs to be checked with
+ * overflows_flex_counter_type() before using this function.
+ */
+#define __set_flex_counter(FAM, COUNT)				\
+({								\
+	*_Generic(__flex_counter(FAM),				\
+		  void *:  &(size_t){ 0 },			\
+		  default: __flex_counter(FAM)) = (COUNT);	\
+})
 
 #endif /* _LINUXKPI_LINUX_OVERFLOW_H */

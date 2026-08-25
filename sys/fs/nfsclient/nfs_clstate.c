@@ -89,6 +89,8 @@ extern u_int32_t newnfs_false, newnfs_true;
 extern int nfscl_debuglevel;
 extern int nfscl_enablecallb;
 extern int nfs_numnfscbd;
+extern struct timeval nfsboottime;
+extern uint32_t nfs_exchangeboot;
 NFSREQSPINLOCK;
 NFSCLSTATEMUTEX;
 int nfscl_inited = 0;
@@ -433,9 +435,11 @@ nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *nfhp,
 {
 	struct nfscldeleg *tdp;
 	struct nfsmount *nmp;
+	bool trydelegret;
 
 	KASSERT(mp != NULL, ("nfscl_deleg: mp NULL"));
 	nmp = VFSTONFS(mp);
+	trydelegret = false;
 
 	/*
 	 * Since a delegation might be added to the mount,
@@ -463,19 +467,49 @@ nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *nfhp,
 	} else {
 		/*
 		 * A delegation already exists.  If the new one is a Write
-		 * delegation and the old one a Read delegation, return the
-		 * Read delegation.  Otherwise, return the new delegation.
+		 * delegation and the old one a Read delegation, upgrade
+		 * if possible.  The upgrade can be done if either:
+		 * - The stateid is the same (true for the FreeBSD nfs server).
+		 * - The current delegation is not locked.
+		 * Otherwise, return the new delegation.
 		 */
 		if (dp != NULL) {
+			if (NFSBCMP(dp->nfsdl_stateid.other,
+			    tdp->nfsdl_stateid.other, NFSX_STATEIDOTHER))
+				trydelegret = true;
 			if ((dp->nfsdl_flags & NFSCLDL_WRITE) != 0 &&
 			    (tdp->nfsdl_flags & NFSCLDL_READ) != 0) {
-				TAILQ_REMOVE(&clp->nfsc_deleg, tdp, nfsdl_list);
-				LIST_REMOVE(tdp, nfsdl_hash);
-				TAILQ_INSERT_HEAD(&clp->nfsc_deleg, dp,
-				    nfsdl_list);
-				LIST_INSERT_HEAD(NFSCLDELEGHASH(clp, nfhp,
-				    fhlen), dp, nfsdl_hash);
-				dp->nfsdl_timestamp = NFSD_MONOSEC + 120;
+				if (tdp->nfsdl_rwlock.nfslock_usecnt == 0 &&
+				    tdp->nfsdl_rwlock.nfslock_lock == 0) {
+					TAILQ_REMOVE(&clp->nfsc_deleg, tdp,
+					    nfsdl_list);
+					LIST_REMOVE(tdp, nfsdl_hash);
+					TAILQ_INSERT_HEAD(&clp->nfsc_deleg, dp,
+					    nfsdl_list);
+					LIST_INSERT_HEAD(NFSCLDELEGHASH(clp,
+					    nfhp, fhlen), dp, nfsdl_hash);
+					dp->nfsdl_timestamp = NFSD_MONOSEC +
+					    120;
+				} else if (!trydelegret) {
+					/*
+					 * For this case, the fields in
+					 * struct nfscldeleg that change for a
+					 * write delegation must be copied.
+					 * This way, the delegation structure
+					 * does not get free'd prematurely.
+					 */
+					memcpy(&tdp->nfsdl_startcopy,
+					    &dp->nfsdl_startcopy,
+					    __rangeof(struct nfscldeleg,
+					    nfsdl_startcopy, nfsdl_endcopy));
+					TAILQ_REMOVE(&clp->nfsc_deleg, tdp,
+					    nfsdl_list);
+					TAILQ_INSERT_HEAD(&clp->nfsc_deleg, tdp,
+					    nfsdl_list);
+					tdp->nfsdl_timestamp = NFSD_MONOSEC +
+					    120;
+					tdp = dp;   /* Free the new one. */
+				}
 			} else {
 				tdp = dp;	/* Return this one. */
 			}
@@ -485,7 +519,8 @@ nfscl_deleg(mount_t mp, struct nfsclclient *clp, u_int8_t *nfhp,
 	}
 	NFSUNLOCKCLSTATE();
 	if (tdp != NULL) {
-		nfscl_trydelegreturn(tdp, cred, nmp, p);
+		if (trydelegret)
+			nfscl_trydelegreturn(tdp, cred, nmp, p);
 		free(tdp, M_NFSCLDELEG);
 	}
 	return (0);
@@ -877,9 +912,11 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 	if (cred != NULL) {
 		getcredhostuuid(cred, uuid, sizeof uuid);
 		idlen = strlen(uuid);
-		if (idlen > 0)
+		if (idlen > 0) {
+			nfscl_uuidcheck(uuid);
+			idlen = strlen(uuid);
 			idlen += sizeof (u_int64_t);
-		else
+		} else
 			idlen += sizeof (u_int64_t) + 16; /* 16 random bytes */
 		newclp = malloc(
 		    sizeof (struct nfsclclient) + idlen - 1, M_NFSCLCLIENT,
@@ -990,6 +1027,15 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 		 * such that the server throws away the clientid before
 		 * receiving the SetClientIDConfirm.
 		 */
+		/*
+		 * Must be done here while locked and before calling
+		 * nfsrpc_setclient().
+		 */
+		if (nfs_exchangeboot == 0) {
+			nfs_exchangeboot = nfsboottime.tv_sec;
+			if (nfs_exchangeboot == 0)
+				nfs_exchangeboot = arc4random();
+		}
 		if (clp->nfsc_renew > 0)
 			clidinusedelay = NFSCL_LEASE(clp->nfsc_renew) * 2;
 		else
@@ -3566,7 +3612,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 	mount_t mp;
 	nfsattrbit_t attrbits, rattrbits;
 	nfsv4stateid_t stateid;
-	uint32_t seqid, slotid = 0, highslot, cachethis __unused;
+	uint32_t seqid, slotid = 0, highslot, cachethis;
 	uint8_t sessionid[NFSX_V4SESSIONID];
 	struct mbuf *rep;
 	struct nfscllayout *lyp;
@@ -3577,6 +3623,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 	struct nfsclsession *tsep;
 
 	gotseq_ok = 0;
+	cachethis = 0;
 	nfsrvd_rephead(nd);
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	taglen = fxdr_unsigned(int, *tl);
@@ -3903,6 +3950,9 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 				error = nfsv4_seqsession(seqid, slotid,
 				    highslot, tsep->nfsess_cbslots, &rep,
 				    tsep->nfsess_backslots);
+				/* For callbacks, do not reply NFSERR_DELAY. */
+				if (error == NFSERR_DELAY)
+					error = 0;
 			}
 			NFSUNLOCKCLSTATE();
 			if (error == 0 || error == NFSERR_REPLYFROMCACHE) {
@@ -4046,8 +4096,9 @@ nfsmout:
 	}
 	*nd->nd_errp = nfscl_errmap(nd, minorvers);
 out:
-	if (gotseq_ok != 0) {
+	if (gotseq_ok != 0 && cachethis != 0) {
 		rep = m_copym(nd->nd_mreq, 0, M_COPYALL, M_WAITOK);
+		NFSCL_DEBUG(4, "Got reply for cbcache=%p\n", rep);
 		NFSLOCKCLSTATE();
 		clp = nfscl_getclntsess(sessionid);
 		if (clp != NULL) {
@@ -5264,6 +5315,8 @@ nfscl_errmap(struct nfsrv_descript *nd, u_int32_t minorvers)
 	while (*++errp)
 		if (*errp == (short)nd->nd_repstat)
 			return (txdr_unsigned(nd->nd_repstat));
+	if (minorvers > NFSV4_MINORVERSION && *defaulterrp == NFSERR_RESOURCE)
+		return (txdr_unsigned(NFSERR_SERVERFAULT));
 	return (txdr_unsigned(*defaulterrp));
 }
 
@@ -5648,11 +5701,12 @@ nfscl_mergeflayouts(struct nfsclflayouthead *fhlp,
  * This function consumes the structure pointed at by dip, if not NULL.
  */
 int
-nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip, int ind,
-    struct nfsclflayout *flp)
+nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip, int mirror,
+    int stripe, struct nfsclflayout *flp)
 {
 	struct nfsclclient *clp;
 	struct nfscldevinfo *tdip;
+	struct nfsffs *sp;
 	uint8_t *dev;
 
 	NFSLOCKCLSTATE();
@@ -5665,15 +5719,18 @@ nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip, int ind,
 	}
 	if ((flp->nfsfl_flags & NFSFL_FILE) != 0)
 		dev = flp->nfsfl_dev;
-	else
-		dev = flp->nfsfl_ffm[ind].dev;
+	else {
+		sp = flp->nfsfl_ffm[mirror].stripep;
+		sp += stripe;
+		dev = sp->dev;
+	}
 	tdip = nfscl_finddevinfo(clp, dev);
 	if (tdip != NULL) {
 		tdip->nfsdi_layoutrefs++;
 		if ((flp->nfsfl_flags & NFSFL_FILE) != 0)
 			flp->nfsfl_devp = tdip;
 		else
-			flp->nfsfl_ffm[ind].devp = tdip;
+			sp->devp = tdip;
 		nfscl_reldevinfo_locked(tdip);
 		NFSUNLOCKCLSTATE();
 		if (dip != NULL)
@@ -5686,7 +5743,7 @@ nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip, int ind,
 		if ((flp->nfsfl_flags & NFSFL_FILE) != 0)
 			flp->nfsfl_devp = dip;
 		else
-			flp->nfsfl_ffm[ind].devp = dip;
+			sp->devp = dip;
 	}
 	NFSUNLOCKCLSTATE();
 	if (dip == NULL)
@@ -5726,7 +5783,8 @@ nfscl_freelayout(struct nfscllayout *layp)
 void
 nfscl_freeflayout(struct nfsclflayout *flp)
 {
-	int i, j;
+	struct nfsffs *sp;
+	int i, j, k;
 
 	if ((flp->nfsfl_flags & NFSFL_FILE) != 0) {
 		for (i = 0; i < flp->nfsfl_fhcnt; i++)
@@ -5734,13 +5792,20 @@ nfscl_freeflayout(struct nfsclflayout *flp)
 		if (flp->nfsfl_devp != NULL)
 			flp->nfsfl_devp->nfsdi_layoutrefs--;
 	}
-	if ((flp->nfsfl_flags & NFSFL_FLEXFILE) != 0)
+	if ((flp->nfsfl_flags & NFSFL_FLEXFILE) != 0) {
 		for (i = 0; i < flp->nfsfl_mirrorcnt; i++) {
-			for (j = 0; j < flp->nfsfl_ffm[i].fhcnt; j++)
-				free(flp->nfsfl_ffm[i].fh[j], M_NFSFH);
-			if (flp->nfsfl_ffm[i].devp != NULL)	
-				flp->nfsfl_ffm[i].devp->nfsdi_layoutrefs--;	
+			sp = flp->nfsfl_ffm[i].stripep;
+			for (j = 0; j < flp->nfsfl_ffm[i].stripecnt &&
+			    sp != NULL; j++, sp++) {
+				for (k = 0; k < sp->fhcnt; k++)
+					free(sp->fh[k], M_NFSFH);
+				if (sp->devp != NULL)
+					sp->devp->nfsdi_layoutrefs--;
+			}
+			if (flp->nfsfl_ffm[i].stripecnt > 1)
+				free(flp->nfsfl_ffm[i].stripep, M_NFSFLAYOUT);
 		}
+	}
 	free(flp, M_NFSFLAYOUT);
 }
 

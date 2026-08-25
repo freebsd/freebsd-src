@@ -51,7 +51,7 @@ int upnp_er_set_selected_registrar(struct wps_registrar *reg,
 		s->dev_password_id = attr.dev_password_id ?
 			WPA_GET_BE16(attr.dev_password_id) : DEV_PW_DEFAULT;
 		s->config_methods = attr.sel_reg_config_methods ?
-			WPA_GET_BE16(attr.sel_reg_config_methods) : -1;
+			WPA_GET_BE16(attr.sel_reg_config_methods) : 0xffff;
 		if (attr.authorized_macs) {
 			int count = attr.authorized_macs_len / ETH_ALEN;
 			if (count > WPS_MAX_AUTHORIZED_MACS)

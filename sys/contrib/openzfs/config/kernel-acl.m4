@@ -1,3 +1,4 @@
+dnl # SPDX-License-Identifier: CDDL-1.0
 dnl #
 dnl # 3.1 API change,
 dnl # posix_acl_equiv_mode now wants an umode_t instead of a mode_t
@@ -18,6 +19,35 @@ AC_DEFUN([ZFS_AC_KERNEL_POSIX_ACL_EQUIV_MODE_WANTS_UMODE_T], [
 		AC_MSG_RESULT(yes)
 	],[
 		ZFS_LINUX_TEST_ERROR([posix_acl_equiv_mode()])
+	])
+])
+
+dnl #
+dnl # 7.0 API change
+dnl # posix_acl_to_xattr() now allocates and returns the value.
+dnl #
+AC_DEFUN([ZFS_AC_KERNEL_SRC_POSIX_ACL_TO_XATTR_ALLOC], [
+	ZFS_LINUX_TEST_SRC([posix_acl_to_xattr_alloc], [
+		#include <linux/fs.h>
+		#include <linux/posix_acl_xattr.h>
+	], [
+		struct user_namespace *ns = NULL;
+		struct posix_acl *acl = NULL;
+		size_t size = 0;
+		gfp_t gfp = 0;
+		void *xattr = NULL;
+		xattr = posix_acl_to_xattr(ns, acl, &size, gfp);
+	])
+])
+
+AC_DEFUN([ZFS_AC_KERNEL_POSIX_ACL_TO_XATTR_ALLOC], [
+	AC_MSG_CHECKING([whether posix_acl_to_xattr() allocates its result]);
+	ZFS_LINUX_TEST_RESULT([posix_acl_to_xattr_alloc], [
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_POSIX_ACL_TO_XATTR_ALLOC, 1,
+		    [posix_acl_to_xattr() allocates its result])
+	], [
+		AC_MSG_RESULT(no)
 	])
 ])
 
@@ -100,7 +130,7 @@ dnl # 6.3 API change,
 dnl # set_acl() first parameter changed to struct mnt_idmap *
 dnl #
 AC_DEFUN([ZFS_AC_KERNEL_SRC_INODE_OPERATIONS_SET_ACL], [
-	ZFS_LINUX_TEST_SRC([inode_operations_set_acl_mnt_idmap_dentry], [
+	ZFS_LINUX_TEST_SRC([inode_operations_set_acl_mntidmap_dentry], [
 		#include <linux/fs.h>
 
 		static int set_acl_fn(struct mnt_idmap *idmap,
@@ -136,49 +166,35 @@ AC_DEFUN([ZFS_AC_KERNEL_SRC_INODE_OPERATIONS_SET_ACL], [
 			.set_acl = set_acl_fn,
 		};
 	],[])
-	ZFS_LINUX_TEST_SRC([inode_operations_set_acl], [
-		#include <linux/fs.h>
-
-		static int set_acl_fn(struct inode *inode, struct posix_acl *acl,
-		    int type) { return 0; }
-
-		static const struct inode_operations
-		    iops __attribute__ ((unused)) = {
-			.set_acl = set_acl_fn,
-		};
-	],[])
 ])
 
 AC_DEFUN([ZFS_AC_KERNEL_INODE_OPERATIONS_SET_ACL], [
-	AC_MSG_CHECKING([whether iops->set_acl() with 4 args exists])
-	ZFS_LINUX_TEST_RESULT([inode_operations_set_acl_userns], [
+	AC_MSG_CHECKING([whether iops->set_acl() takes struct dentry])
+	ZFS_LINUX_TEST_RESULT([inode_operations_set_acl_mntidmap_dentry], [
 		AC_MSG_RESULT(yes)
-		AC_DEFINE(HAVE_SET_ACL_USERNS, 1, [iops->set_acl() takes 4 args])
+		AC_DEFINE(HAVE_SET_ACL_DENTRY, 1,
+		    [iops->set_acl() takes struct dentry])
 	],[
-		ZFS_LINUX_TEST_RESULT([inode_operations_set_acl_mnt_idmap_dentry], [
+		ZFS_LINUX_TEST_RESULT([inode_operations_set_acl_userns_dentry], [
 			AC_MSG_RESULT(yes)
-			AC_DEFINE(HAVE_SET_ACL_IDMAP_DENTRY, 1,
-			    [iops->set_acl() takes 4 args, arg1 is struct mnt_idmap *])
+			AC_DEFINE(HAVE_SET_ACL_DENTRY, 1,
+			    [iops->set_acl() takes struct dentry])
 		],[
-			ZFS_LINUX_TEST_RESULT([inode_operations_set_acl_userns_dentry], [
-				AC_MSG_RESULT(yes)
-				AC_DEFINE(HAVE_SET_ACL_USERNS_DENTRY_ARG2, 1,
-				    [iops->set_acl() takes 4 args, arg2 is struct dentry *])
-			],[
-				AC_MSG_RESULT(no)
-			])
+			AC_MSG_RESULT(no)
 		])
 	])
 ])
 
 AC_DEFUN([ZFS_AC_KERNEL_SRC_ACL], [
 	ZFS_AC_KERNEL_SRC_POSIX_ACL_EQUIV_MODE_WANTS_UMODE_T
+	ZFS_AC_KERNEL_SRC_POSIX_ACL_TO_XATTR_ALLOC
 	ZFS_AC_KERNEL_SRC_INODE_OPERATIONS_GET_ACL
 	ZFS_AC_KERNEL_SRC_INODE_OPERATIONS_SET_ACL
 ])
 
 AC_DEFUN([ZFS_AC_KERNEL_ACL], [
 	ZFS_AC_KERNEL_POSIX_ACL_EQUIV_MODE_WANTS_UMODE_T
+	ZFS_AC_KERNEL_POSIX_ACL_TO_XATTR_ALLOC
 	ZFS_AC_KERNEL_INODE_OPERATIONS_GET_ACL
 	ZFS_AC_KERNEL_INODE_OPERATIONS_SET_ACL
 ])

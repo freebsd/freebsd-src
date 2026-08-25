@@ -283,7 +283,8 @@ __elfN(load_elf_header)(char *filename, elf_file_t ef)
 	{
 		int verror;
 
-		ef->vctx = vectx_open(ef->fd, filename, 0L, NULL, &verror, __func__);
+		ef->vctx = vectx_open(ef->fd, filename, VE_MUST,
+		    0L, NULL, &verror, __func__);
 		if (verror) {
 			printf("Unverified %s: %s\n", filename, ve_error_get());
 			close(ef->fd);
@@ -504,7 +505,7 @@ out:
 		if (!err && ef.vctx) {
 			int verror;
 
-			verror = vectx_close(ef.vctx, VE_MUST, __func__);
+			verror = vectx_close(ef.vctx, __func__);
 			if (verror) {
 				err = EAUTH;
 				file_discard(fp);
@@ -635,6 +636,12 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 		if (phdr[i].p_type != PT_LOAD)
 			continue;
 
+		if (phdr[i].p_memsz < phdr[i].p_filesz) {
+			printf("elf" __XSTRING(__ELF_WORD_SIZE)
+			    "_loadimage: invalid PT_LOAD segment\n");
+			goto out;
+		}
+
 		if (module_verbose >= MODULE_VERBOSE_FULL) {
 			printf("Segment: 0x%lx@0x%lx -> 0x%lx-0x%lx",
 			    (long)phdr[i].p_filesz, (long)phdr[i].p_offset,
@@ -725,7 +732,8 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, uint64_t off)
 		if (shstr) {
 			for (i = 0; i < ehdr->e_shnum; i++) {
 				if (strcmp(shstr + shdr[i].sh_name,
-				    ".ctors") != 0)
+				    ".ctors") != 0 &&
+				    shdr[i].sh_type != SHT_INIT_ARRAY)
 					continue;
 				ctors = shdr[i].sh_addr;
 				file_addmetadata(fp, MODINFOMD_CTORS_ADDR,
@@ -836,7 +844,6 @@ nosyms:
 	if (module_verbose > MODULE_VERBOSE_SILENT)
 		printf("\n");
 
-	ret = lastaddr - firstaddr;
 	fp->f_addr = firstaddr;
 
 	php = NULL;
@@ -899,28 +906,28 @@ nosyms:
 			break;
 		}
 	}
-	if (ef->hashtab == NULL || ef->symtab == NULL ||
-	    ef->strtab == NULL || ef->strsz == 0)
-		goto out;
-	COPYOUT(ef->hashtab, &ef->nbuckets, sizeof(ef->nbuckets));
-	COPYOUT(ef->hashtab + 1, &ef->nchains, sizeof(ef->nchains));
-	ef->buckets = ef->hashtab + 2;
-	ef->chains = ef->buckets + ef->nbuckets;
+	if (ef->hashtab != NULL && ef->symtab != NULL &&
+	    ef->strtab != NULL && ef->strsz != 0) {
+		COPYOUT(ef->hashtab, &ef->nbuckets, sizeof(ef->nbuckets));
+		COPYOUT(ef->hashtab + 1, &ef->nchains, sizeof(ef->nchains));
+		ef->buckets = ef->hashtab + 2;
+		ef->chains = ef->buckets + ef->nbuckets;
+	}
 
-	if (__elfN(lookup_symbol)(ef, "__start_set_modmetadata_set", &sym,
-	    STT_NOTYPE) != 0)
-		return 0;
-	p_start = sym.st_value + ef->off;
-	if (__elfN(lookup_symbol)(ef, "__stop_set_modmetadata_set", &sym,
-	    STT_NOTYPE) != 0)
-		return 0;
-	p_end = sym.st_value + ef->off;
+	/* Don't emit a warning if there is no symbol table. */
+	if (ef->buckets != 0 && __elfN(lookup_symbol)(ef,
+	    "__start_set_modmetadata_set", &sym, STT_NOTYPE) == 0) {
+		p_start = sym.st_value + ef->off;
+		if (__elfN(lookup_symbol)(ef, "__stop_set_modmetadata_set",
+		    &sym, STT_NOTYPE) != 0)
+			goto out;
+		p_end = sym.st_value + ef->off;
 
-	if (__elfN(parse_modmetadata)(fp, ef, p_start, p_end) == 0)
-		goto out;
+		if (__elfN(parse_modmetadata)(fp, ef, p_start, p_end) != 0)
+			goto out;
+	}
 
-	if (ef->kernel)		/* kernel must not depend on anything */
-		goto out;
+	ret = lastaddr - firstaddr;
 
 out:
 	if (dp)
@@ -1095,7 +1102,7 @@ out:
 		if (!err && ef.vctx) {
 			int verror;
 
-			verror = vectx_close(ef.vctx, VE_MUST, __func__);
+			verror = vectx_close(ef.vctx, __func__);
 			if (verror) {
 				err = EAUTH;
 				file_discard(fp);
@@ -1281,10 +1288,11 @@ __elfN(reloc_ptr)(struct preloaded_file *mp, elf_file_t ef,
 	int error;
 
 	/*
-	 * The kernel is already relocated, but we still want to apply
-	 * offset adjustments.
+	 * On most platforms, the kernel is already relocated, but we still
+	 * want to apply offset adjustments.  For PowerPC, the kernel is
+	 * ET_DYN rather than ET_EXEC and we still need to relocate here.
 	 */
-	if (ef->kernel)
+	if (ef->kernel && ef->ehdr->e_type != ET_DYN)
 		return (EOPNOTSUPP);
 
 	for (n = 0; n < ef->relsz / sizeof(r); n++) {

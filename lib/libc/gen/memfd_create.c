@@ -95,14 +95,23 @@ memfd_create(const char *name, unsigned int flags)
 	npgs = getpagesizes(pgs, nitems(pgs));
 	if (npgs == -1)
 		goto clean;
-	pgsize = (size_t)1 << ((flags & MFD_HUGE_MASK) >> MFD_HUGE_SHIFT);
-	for (pgidx = 0; pgidx < npgs; pgidx++) {
-		if (pgsize == pgs[pgidx])
-			break;
-	}
-	if (pgidx == npgs) {
-		errno = EOPNOTSUPP;
+	else if (npgs == 1) {
+		errno = ENOSYS;
 		goto clean;
+	}
+
+	if ((flags & MFD_HUGE_MASK) == 0) {
+		pgidx = 1;
+	} else {
+		pgsize = 1UL << ((flags & MFD_HUGE_MASK) >> MFD_HUGE_SHIFT);
+		for (pgidx = 1; pgidx < npgs; pgidx++) {
+			if (pgsize == pgs[pgidx])
+				break;
+		}
+		if (pgidx == npgs) {
+			errno = EOPNOTSUPP;
+			goto clean;
+		}
 	}
 
 	memset(&slc, 0, sizeof(slc));

@@ -1,0 +1,6 @@
+Tool: pkgconf
+ToolArgs: --with-path=%TEST_FIXTURES_DIR%/lib1 --print-provides provides
+ExpectedStdout: provides-test-foo = 1.0.0
+ExpectedStdout: provides-test-meow != 1.3.0
+MatchStdout: partial
+ExpectedExitCode: 0

@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -225,24 +215,26 @@ typedef uint64_t zio_flag_t;
 #define	ZIO_FLAG_TRYHARD	(1ULL << 17)
 #define	ZIO_FLAG_OPTIONAL	(1ULL << 18)
 #define	ZIO_FLAG_DIO_READ	(1ULL << 19)
+#define	ZIO_FLAG_BYPASSED_QUEUE	(1ULL << 20)
 #define	ZIO_FLAG_VDEV_INHERIT	(ZIO_FLAG_DONT_QUEUE - 1)
 
 	/*
 	 * Flags not inherited by any children.
 	 */
-#define	ZIO_FLAG_DONT_QUEUE	(1ULL << 20)	/* must be first for INHERIT */
-#define	ZIO_FLAG_DONT_PROPAGATE	(1ULL << 21)
-#define	ZIO_FLAG_IO_BYPASS	(1ULL << 22)
-#define	ZIO_FLAG_IO_REWRITE	(1ULL << 23)
-#define	ZIO_FLAG_RAW_COMPRESS	(1ULL << 24)
-#define	ZIO_FLAG_RAW_ENCRYPT	(1ULL << 25)
-#define	ZIO_FLAG_GANG_CHILD	(1ULL << 26)
-#define	ZIO_FLAG_DDT_CHILD	(1ULL << 27)
-#define	ZIO_FLAG_GODFATHER	(1ULL << 28)
-#define	ZIO_FLAG_NOPWRITE	(1ULL << 29)
-#define	ZIO_FLAG_REEXECUTED	(1ULL << 30)
-#define	ZIO_FLAG_DELEGATED	(1ULL << 31)
-#define	ZIO_FLAG_PREALLOCATED	(1ULL << 32)
+#define	ZIO_FLAG_DONT_QUEUE	(1ULL << 21)	/* must be first for INHERIT */
+#define	ZIO_FLAG_DONT_PROPAGATE	(1ULL << 22)
+#define	ZIO_FLAG_IO_BYPASS	(1ULL << 23)
+#define	ZIO_FLAG_IO_REWRITE	(1ULL << 24)
+#define	ZIO_FLAG_RAW_COMPRESS	(1ULL << 25)
+#define	ZIO_FLAG_RAW_ENCRYPT	(1ULL << 26)
+#define	ZIO_FLAG_GANG_CHILD	(1ULL << 27)
+#define	ZIO_FLAG_DDT_CHILD	(1ULL << 28)
+#define	ZIO_FLAG_GODFATHER	(1ULL << 29)
+#define	ZIO_FLAG_NOPWRITE	(1ULL << 30)
+#define	ZIO_FLAG_REEXECUTED	(1ULL << 31)
+#define	ZIO_FLAG_DELEGATED	(1ULL << 32)
+#define	ZIO_FLAG_PREALLOCATED	(1ULL << 33)
+#define	ZIO_FLAG_POSTREAD	(1ULL << 34)
 
 #define	ZIO_ALLOCATOR_NONE	(-1)
 #define	ZIO_HAS_ALLOCATOR(zio)	((zio)->io_allocator != ZIO_ALLOCATOR_NONE)
@@ -455,10 +447,18 @@ enum trim_flag {
 	ZIO_TRIM_SECURE		= 1U << 0,
 };
 
+#ifdef METASLAB_TRACE
 typedef struct zio_alloc_list {
 	list_t  zal_list;
 	uint64_t zal_size;
 } zio_alloc_list_t;
+#define	ZIO_ALLOC_LIST(zio)	(&(zio)->io_alloc_list)
+#else
+typedef struct zio_alloc_list {
+	uint8_t	zal_pad;
+} zio_alloc_list_t;
+#define	ZIO_ALLOC_LIST(zio)	NULL
+#endif
 
 typedef struct zio_link {
 	zio_t		*zl_parent;
@@ -528,7 +528,9 @@ struct zio {
 	hrtime_t	io_delta;	/* vdev queue service delta */
 	hrtime_t	io_delay;	/* Device access time (disk or */
 					/* file). */
+#ifdef METASLAB_TRACE
 	zio_alloc_list_t 	io_alloc_list;
+#endif
 
 	/* Internal pipeline state */
 	zio_flag_t	io_flags;

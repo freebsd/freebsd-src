@@ -621,6 +621,7 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
  */
 #define	EXT_FLAG_EMBREF		0x000001	/* embedded ext_count */
 #define	EXT_FLAG_EXTREF		0x000002	/* external ext_cnt, notyet */
+#define	EXT_FLAG_SFBUF_ANON	0x000004	/* sendfile buffer is mutable */
 
 #define	EXT_FLAG_NOFREE		0x000010	/* don't free mbuf to pool, notyet */
 
@@ -680,7 +681,7 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
 #define	CSUM_INNER_IP_TSO	0x00020000
 
 #define	CSUM_ENCAP_VXLAN	0x00040000	/* VXLAN outer encapsulation */
-#define	CSUM_ENCAP_RSVD1	0x00080000
+#define	CSUM_ENCAP_GENEVE	0x00080000	/* GENEVE outer encapsulation */
 
 /* Flags used to indicate that the checksum was verified by hardware. */
 #define	CSUM_INNER_L3_CALC	0x00100000
@@ -702,7 +703,7 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
     CSUM_INNER_IP6_TSO | CSUM_IP6_UDP | CSUM_IP6_TCP | CSUM_IP6_SCTP | \
     CSUM_IP6_TSO | CSUM_IP6_ISCSI | CSUM_INNER_IP | CSUM_INNER_IP_UDP | \
     CSUM_INNER_IP_TCP | CSUM_INNER_IP_TSO | CSUM_ENCAP_VXLAN | \
-    CSUM_ENCAP_RSVD1 | CSUM_SND_TAG)
+    CSUM_ENCAP_GENEVE | CSUM_SND_TAG)
 
 #define CSUM_FLAGS_RX (CSUM_INNER_L3_CALC | CSUM_INNER_L3_VALID | \
     CSUM_INNER_L4_CALC | CSUM_INNER_L4_VALID | CSUM_L3_CALC | CSUM_L3_VALID | \
@@ -718,7 +719,7 @@ m_epg_pagelen(const struct mbuf *m, int pidx, int pgoff)
     "\11CSUM_INNER_IP6_TSO\12CSUM_IP6_UDP\13CSUM_IP6_TCP\14CSUM_IP6_SCTP" \
     "\15CSUM_IP6_TSO\16CSUM_IP6_ISCSI\17CSUM_INNER_IP\20CSUM_INNER_IP_UDP" \
     "\21CSUM_INNER_IP_TCP\22CSUM_INNER_IP_TSO\23CSUM_ENCAP_VXLAN" \
-    "\24CSUM_ENCAP_RSVD1\25CSUM_INNER_L3_CALC\26CSUM_INNER_L3_VALID" \
+    "\24CSUM_ENCAP_GENEVE\25CSUM_INNER_L3_CALC\26CSUM_INNER_L3_VALID" \
     "\27CSUM_INNER_L4_CALC\30CSUM_INNER_L4_VALID\31CSUM_L3_CALC" \
     "\32CSUM_L3_VALID\33CSUM_L4_CALC\34CSUM_L4_VALID\35CSUM_L5_CALC" \
     "\36CSUM_L5_VALID\37CSUM_COALESCED\40CSUM_SND_TAG"
@@ -1169,7 +1170,7 @@ m_extrefcnt(struct mbuf *m)
  * XXX: Broken at the moment.  Need some UMA magic to make it work again.
  */
 #define	M_ASSERTVALID(m)						\
-	KASSERT((((struct mbuf *)m)->m_flags & 0) == 0,			\
+	KASSERT((((struct mbuf *)(m))->m_flags & 0) == 0,			\
 	    ("%s: attempted use of a free mbuf %p!", __func__, (m)))
 
 /* Check whether any mbuf in the chain is unmapped. */
@@ -1656,6 +1657,14 @@ mbufq_enqueue(struct mbufq *mq, struct mbuf *m)
 	return (0);
 }
 
+static inline void
+mbufq_remove(struct mbufq *mq, struct mbuf *m)
+{
+
+	STAILQ_REMOVE(&mq->mq_head, m, mbuf, m_stailqpkt);
+	mq->mq_len--;
+}
+
 static inline struct mbuf *
 mbufq_dequeue(struct mbufq *mq)
 {
@@ -1747,6 +1756,13 @@ mc_dec(struct mchain *mc, struct mbuf *m)
 		MPASS(mc->mc_mlen >= m->m_ext.ext_size);
 		mc->mc_mlen -= m->m_ext.ext_size;
 	}
+}
+
+static inline void
+mc_init(struct mchain *mc)
+{
+	STAILQ_INIT(&mc->mc_q);
+	mc->mc_len = mc->mc_mlen = 0;
 }
 
 /*

@@ -56,6 +56,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <gelf.h>
+#include <inttypes.h>
 #include <libgen.h>
 #include <limits.h>
 #include <netdb.h>
@@ -193,6 +194,7 @@ static struct pmc_plugins plugins[] = {
 };
 
 static int pmcstat_mergepmc;
+static uint64_t _pmcstat_current_tsc; /* TSC for PMCSTAT_PRINT_ENTRY */
 
 int pmcstat_pmcinfilter = 0; /* PMC filter for top mode. */
 float pmcstat_threshold = 0.5; /* Cost filter for top mode. */
@@ -367,6 +369,126 @@ pmcstat_pmcindex_to_pmcr(int pmcin)
 	return NULL;
 }
 
+#if defined(__amd64__) || defined(__i386__)
+static void
+pmcstat_print_ibs_fetch(struct pmclog_ev_callchain *cc, int offset, int len64)
+{
+	uint64_t *ibsbuf = (uint64_t *)&cc->pl_pc[offset];
+	uint64_t ctl, ctl2;
+
+	ctl = ibsbuf[PMC_MPIDX_FETCH_CTL];
+	PMCSTAT_PRINT_ENTRY("ibs-fetch", "%s%s%s%s",
+	    (ctl & IBS_FETCH_CTL_ICMISS) ? "icmiss " : "",
+	    (ctl & IBS_FETCH_CTL_L1TLBMISS) ? "l1tlbmiss " : "",
+	    (ctl & IBS_FETCH_CTL_OPCACHEMISS) ? "opcachemiss " : "",
+	    (ctl & IBS_FETCH_CTL_L3MISS) ? "l3miss" : "");
+	PMCSTAT_PRINT_ENTRY("ibs-fetch", "Latency %" PRIu64,
+	    IBS_FETCH_CTL_TO_LAT(ctl));
+	PMCSTAT_PRINT_ENTRY("IBS", "Address %" PRIx64,
+	    ibsbuf[PMC_MPIDX_FETCH_LINADDR]);
+	if ((ctl & IBS_FETCH_CTL_PHYSADDRVALID) != 0) {
+		PMCSTAT_PRINT_ENTRY("IBS", "Physical Address %" PRIx64,
+		    ibsbuf[PMC_MPIDX_FETCH_PHYSADDR]);
+	}
+	if (len64 > PMC_MPIDX_FETCH_CTL2) {
+		ctl2 = ibsbuf[PMC_MPIDX_FETCH_CTL2];
+		if ((ctl2 & IBS_FETCH_CTL2_EXCLADDR63EQ1) != 0)
+			PMCSTAT_PRINT_ENTRY("ibs-fetch", "addr63=0");
+		if ((ctl2 & IBS_FETCH_CTL2_EXCLADDR63EQ0) != 0)
+			PMCSTAT_PRINT_ENTRY("ibs-fetch", "addr63=1");
+		if ((ctl2 & IBS_FETCH_CTL2_LATFILTERMASK) != 0) {
+			PMCSTAT_PRINT_ENTRY("ibs-fetch",
+			    "fetchlat>=%" PRIu64,
+			    (uint64_t)IBS_FETCH_CTL2_CTL_TO_LAT(ctl2));
+		}
+	}
+}
+
+static void
+pmcstat_print_ibs_op(struct pmclog_ev_callchain *cc, int offset, int len64)
+{
+	uint64_t *ibsbuf = (uint64_t *)&cc->pl_pc[offset];
+	uint64_t data, data2, data3, ctl2;
+
+	data = ibsbuf[PMC_MPIDX_OP_DATA];
+	data2 = ibsbuf[PMC_MPIDX_OP_DATA2];
+	data3 = ibsbuf[PMC_MPIDX_OP_DATA3];
+
+	if ((data & IBS_OP_DATA_RIPINVALID) == 0) {
+		PMCSTAT_PRINT_ENTRY("ibs-op", "RIP %" PRIx64,
+		    ibsbuf[PMC_MPIDX_OP_RIP]);
+	}
+	PMCSTAT_PRINT_ENTRY("ibs-op", "%s%s%s%s",
+	    (data & IBS_OP_DATA_BRANCHRETIRED) ? "branchretired " : "",
+	    (data & IBS_OP_DATA_BRANCHMISPREDICTED) ? "branchmispredicted " : "",
+	    (data & IBS_OP_DATA_BRANCHTAKEN) ? "branchtaken " : "",
+	    (data & IBS_OP_DATA_RETURN) ? "return" : "");
+	PMCSTAT_PRINT_ENTRY("ibs-op", "%s%s%s%s%s",
+	    (data3 & IBS_OP_DATA3_LOAD) ? "load " : "",
+	    (data3 & IBS_OP_DATA3_STORE) ? "store " : "",
+	    (data3 & IBS_OP_DATA3_LOCKEDOP) ? "lock " : "",
+	    (data3 & IBS_OP_DATA3_DCL1TLBMISS) ? "l1tlbmiss " : "",
+	    (data3 & IBS_OP_DATA3_DCMISS) ? "dcmiss " : "");
+	if ((data2 & (IBS_OP_DATA2_STRMST | IBS_OP_DATA2_RMTSOCKET)) != 0) {
+		PMCSTAT_PRINT_ENTRY("ibs-op", "%s%s",
+		    (data2 & IBS_OP_DATA2_STRMST) ? "streamstore " : "",
+		    (data2 & IBS_OP_DATA2_RMTSOCKET) ? "remotesocket" : "");
+	}
+	PMCSTAT_PRINT_ENTRY("ibs-op", "Latency %" PRIu64,
+	    IBS_OP_DATA3_TO_DCLAT(data3));
+	if ((data3 & IBS_OP_DATA3_DCLINADDRVALID) != 0) {
+		PMCSTAT_PRINT_ENTRY("ibs-op", "Address %" PRIx64,
+		    ibsbuf[PMC_MPIDX_OP_DC_LINADDR]);
+	}
+	if ((data3 & IBS_OP_DATA3_DCPHYADDRVALID) != 0) {
+		PMCSTAT_PRINT_ENTRY("ibs-op", "Physical Address %" PRIx64,
+		    ibsbuf[PMC_MPIDX_OP_DC_PHYSADDR]);
+	}
+	if (len64 > PMC_MPIDX_OP_CTL2) {
+		ctl2 = ibsbuf[PMC_MPIDX_OP_CTL2];
+		if ((ctl2 & IBS_OP_CTL2_EXCLRIP63EQ1) != 0)
+			PMCSTAT_PRINT_ENTRY("ibs-op", "addr63=0");
+		if ((ctl2 & IBS_OP_CTL2_EXCLRIP63EQ0) != 0)
+			PMCSTAT_PRINT_ENTRY("ibs-op", "addr63=1");
+		if ((ctl2 & IBS_OP_CTL2_STRMSTFILTER) != 0)
+			PMCSTAT_PRINT_ENTRY("ibs-op", "streamstore");
+	}
+}
+#endif
+
+static int
+pmcstat_print_multipart(struct pmclog_ev_callchain *cc)
+{
+	int i;
+	uint8_t *hdr = (uint8_t *)&cc->pl_pc[0];
+	int offset = PMC_MULTIPART_HEADER_LENGTH / sizeof(uintptr_t);
+
+	for (i = 0; i < PMC_MULTIPART_HEADER_ENTRIES; i++) {
+		uint8_t type = hdr[2 * i];
+		uint8_t len = hdr[2 * i + 1];
+
+		if (type == PMC_CC_MULTIPART_NONE) {
+			break;
+		} else if (type == PMC_CC_MULTIPART_CALLCHAIN) {
+			return (offset);
+#if defined(__amd64__) || defined(__i386__)
+		} else if (type == PMC_CC_MULTIPART_IBS_FETCH) {
+			pmcstat_print_ibs_fetch(cc, offset,
+			    len / (sizeof(uint64_t) / sizeof(uintptr_t)));
+		} else if (type == PMC_CC_MULTIPART_IBS_OP) {
+			pmcstat_print_ibs_op(cc, offset,
+			    len / (sizeof(uint64_t) / sizeof(uintptr_t)));
+#endif
+		} else {
+			PMCSTAT_PRINT_ENTRY("unsupported multipart type!");
+		}
+
+		offset += len;
+	}
+
+	return (offset);
+}
+
 /*
  * Print log entries as text.
  */
@@ -379,6 +501,7 @@ pmcstat_print_log(void)
 
 	while (pmclog_read(args.pa_logparser, &ev) == 0) {
 		assert(ev.pl_state == PMCLOG_OK);
+		_pmcstat_current_tsc = ev.pl_tsc;
 		switch (ev.pl_type) {
 		case PMCLOG_TYPE_CALLCHAIN:
 			PMCSTAT_PRINT_ENTRY("callchain",
@@ -388,7 +511,12 @@ pmcstat_print_log(void)
 				pl_cpuflags), ev.pl_u.pl_cc.pl_npc,
 			    PMC_CALLCHAIN_CPUFLAGS_TO_USERMODE(ev.pl_u.pl_cc.\
 			        pl_cpuflags) ? 'u' : 's');
-			for (npc = 0; npc < ev.pl_u.pl_cc.pl_npc; npc++)
+			if ((ev.pl_u.pl_cc.pl_cpuflags & PMC_CC_F_MULTIPART)
+			    != 0)
+				npc = pmcstat_print_multipart(&ev.pl_u.pl_cc);
+			else
+				npc = 0;
+			for (; npc < ev.pl_u.pl_cc.pl_npc; npc++)
 				PMCSTAT_PRINT_ENTRY("...", "%p",
 				    (void *) ev.pl_u.pl_cc.pl_pc[npc]);
 			break;
@@ -399,9 +527,11 @@ pmcstat_print_log(void)
 			PMCSTAT_PRINT_ENTRY("drop",);
 			break;
 		case PMCLOG_TYPE_INITIALIZE:
-			PMCSTAT_PRINT_ENTRY("initlog","0x%x \"%s\"",
+			PMCSTAT_PRINT_ENTRY("initlog",
+			    "0x%x \"%s\" tsc_freq=%" PRIu64,
 			    ev.pl_u.pl_i.pl_version,
-			    pmc_name_of_cputype(ev.pl_u.pl_i.pl_arch));
+			    pmc_name_of_cputype(ev.pl_u.pl_i.pl_arch),
+			    ev.pl_u.pl_i.pl_tsc_freq);
 			if ((ev.pl_u.pl_i.pl_version & 0xFF000000) !=
 			    PMC_VERSION_MAJOR << 24)
 				warnx(

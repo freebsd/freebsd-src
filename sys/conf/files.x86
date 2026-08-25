@@ -83,6 +83,10 @@ dev/bxe/bxe_elink.c             optional	bxe pci
 dev/bxe/57710_init_values.c     optional	bxe pci
 dev/bxe/57711_init_values.c     optional	bxe pci
 dev/bxe/57712_init_values.c     optional	bxe pci
+dev/coreboot/coreboot.c		optional	coreboot
+dev/coreboot/coreboot_console.c	optional	coreboot
+dev/coreboot/coreboot_cbmem.c	optional	coreboot
+dev/coreboot/coreboot_timestamps.c	optional	coreboot
 dev/coretemp/coretemp.c		optional	coretemp
 dev/cpuctl/cpuctl.c		optional	cpuctl
 dev/dpms/dpms.c			optional	dpms
@@ -95,6 +99,9 @@ dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
 dev/gpio/bytgpio.c		optional	bytgpio
 dev/gpio/chvgpio.c		optional	chvgpio
+dev/gpio/intel/adlngpio.c	optional	adlngpio
+dev/gpio/intel/intelgpio.c	optional	adlngpio | tglhgpio
+dev/gpio/intel/tglhgpio.c	optional	tglhgpio
 dev/hpt27xx/hpt27xx_os_bsd.c	optional	hpt27xx
 dev/hpt27xx/hpt27xx_osm_bsd.c	optional	hpt27xx
 dev/hpt27xx/hpt27xx_config.c	optional	hpt27xx
@@ -114,9 +121,11 @@ dev/hptrr/hptrr_osm_bsd.c	optional	hptrr
 dev/hptrr/hptrr_config.c	optional	hptrr
 dev/hptrr/$M-elf.hptrr_lib.o	optional	hptrr
 dev/hwpmc/hwpmc_amd.c		optional	hwpmc
+dev/hwpmc/hwpmc_ibs.c		optional	hwpmc
 dev/hwpmc/hwpmc_intel.c		optional	hwpmc
 dev/hwpmc/hwpmc_core.c		optional	hwpmc
 dev/hwpmc/hwpmc_uncore.c	optional	hwpmc
+dev/hwpmc/hwpmc_rapl.c		optional	hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional	hwpmc
 dev/hwpmc/hwpmc_x86.c		optional	hwpmc
 dev/hyperv/hvsock/hv_sock.c				optional	hyperv
@@ -309,6 +318,7 @@ dev/ntb/ntb_hw/ntb_hw_plx.c	optional	ntb_hw_plx | ntb_hw
 dev/ntb/test/ntb_tool.c		optional	ntb_tool
 dev/nvram/nvram.c		optional	nvram isa
 dev/random/ivy.c		optional	rdrand_rng !random_loadable
+dev/random/nehemiah.c		optional	padlock_rng !random_loadable
 dev/random/rdseed.c		optional	rdrand_rng !random_loadable
 dev/qat_c2xxx/qat.c		optional	qat_c2xxx
 dev/qat_c2xxx/qat_ae.c		optional	qat_c2xxx

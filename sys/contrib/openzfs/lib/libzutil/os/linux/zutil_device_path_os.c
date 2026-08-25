@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -218,7 +208,8 @@ zfs_get_pci_slots_sys_path(const char *dev_name)
 	char *address2 = NULL;
 	char *path = NULL;
 	char buf[MAXPATHLEN];
-	char *tmp;
+	const char *tmp;
+	char *tmp2;
 
 	/* If they preface 'dev' with a path (like "/dev") then strip it off */
 	tmp = strrchr(dev_name, '/');
@@ -240,9 +231,9 @@ zfs_get_pci_slots_sys_path(const char *dev_name)
 	 * be "0000:01:00.0" while /sys/bus/pci/slots/0/address will be
 	 * "0000:01:00".  Just NULL terminate at the '.' so they match.
 	 */
-	tmp = strrchr(address1, '.');
-	if (tmp != NULL)
-		*tmp = '\0';
+	tmp2 = strrchr(address1, '.');
+	if (tmp2 != NULL)
+		*tmp2 = '\0';
 
 	dp = opendir("/sys/bus/pci/slots/");
 	if (dp == NULL) {
@@ -311,6 +302,7 @@ zfs_get_enclosure_sysfs_path(const char *dev_name)
 	DIR *dp = NULL;
 	struct dirent *ep;
 	char buf[MAXPATHLEN];
+	const char *tmp0;
 	char *tmp1 = NULL;
 	char *tmp2 = NULL;
 	char *tmp3 = NULL;
@@ -322,9 +314,9 @@ zfs_get_enclosure_sysfs_path(const char *dev_name)
 		return (NULL);
 
 	/* If they preface 'dev' with a path (like "/dev") then strip it off */
-	tmp1 = strrchr(dev_name, '/');
-	if (tmp1 != NULL)
-		dev_name = tmp1 + 1;    /* +1 since we want the chr after '/' */
+	tmp0 = strrchr(dev_name, '/');
+	if (tmp0 != NULL)
+		dev_name = tmp0 + 1;    /* +1 since we want the chr after '/' */
 
 	tmpsize = asprintf(&tmp1, "/sys/block/%s/device", dev_name);
 	if (tmpsize == -1 || tmp1 == NULL) {

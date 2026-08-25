@@ -98,6 +98,7 @@ struct ucred;
 #include <sys/param.h>		/* MAXCPU */
 #include <sys/pcpu.h>		/* curthread */
 #include <sys/kpilite.h>
+#include <sys/limits.h>
 
 extern bool scheduler_stopped;
 
@@ -127,12 +128,10 @@ extern int unmapped_buf_allowed;
  * General function declarations.
  */
 
-struct inpcb;
 struct lock_object;
 struct malloc_type;
 struct mtx;
 struct proc;
-struct socket;
 struct thread;
 struct tty;
 struct ucred;
@@ -258,6 +257,15 @@ void	*memset(void * _Nonnull buf, int c, size_t len);
 void	*memcpy(void * _Nonnull to, const void * _Nonnull from, size_t len);
 void	*memmove(void * _Nonnull dest, const void * _Nonnull src, size_t n);
 int	memcmp(const void *b1, const void *b2, size_t len);
+#ifdef __CHERI__
+void	*memcpy_data(void * _Nonnull to, const void * _Nonnull from,
+	    size_t len);
+void	*memmove_data(void * _Nonnull dest, const void * _Nonnull src,
+	    size_t n);
+#else
+#define	memcpy_data	memcpy
+#define	memmove_data	memmove
+#endif
 
 #ifdef SAN_NEEDS_INTERCEPTORS
 #define	SAN_INTERCEPTOR(func)	\
@@ -302,18 +310,36 @@ void	*memmove_early(void * _Nonnull dest, const void * _Nonnull src, size_t n);
 	((__r >= __len) ? ENAMETOOLONG : 0);			\
 })
 
-int __result_use_check copyinstr(const void * __restrict udaddr,
+__nodiscard int copyinstr(const void * __restrict udaddr,
     void * _Nonnull __restrict kaddr, size_t len,
     size_t * __restrict lencopied);
-int __result_use_check copyin(const void * __restrict udaddr,
+__nodiscard int copyin(const void * __restrict udaddr,
     void * _Nonnull __restrict kaddr, size_t len);
-int __result_use_check copyin_nofault(const void * __restrict udaddr,
+__nodiscard int copyin_nofault(const void * __restrict udaddr,
     void * _Nonnull __restrict kaddr, size_t len);
 __nodiscard int copyout(const void * _Nonnull __restrict kaddr,
     void * __restrict udaddr, size_t len);
 __nodiscard int copyout_nofault(
     const void * _Nonnull __restrict kaddr, void * __restrict udaddr,
     size_t len);
+
+#ifdef __CHERI__
+__nodiscard int copyinptr(const void * __restrict udaddr,
+    void * _Nonnull __restrict kaddr, size_t len);
+__nodiscard int copyinptr_nofault(const void * __restrict udaddr,
+    void * _Nonnull __restrict kaddr, size_t len);
+__nodiscard int copyoutptr(
+    const void * _Nonnull __restrict kaddr, void * __restrict udaddr,
+    size_t len);
+__nodiscard int copyoutptr_nofault(
+    const void * _Nonnull __restrict kaddr, void * __restrict udaddr,
+    size_t len);
+#else
+#define	copyinptr		copyin
+#define	copyinptr_nofault	copyin_nofault
+#define	copyoutptr		copyout
+#define	copyoutptr_nofault	copyout_nofault
+#endif
 
 #ifdef SAN_NEEDS_INTERCEPTORS
 int	SAN_INTERCEPTOR(copyin)(const void *, void *, size_t);
@@ -331,14 +357,24 @@ long	fuword(volatile const void *base);
 int	fuword16(volatile const void *base);
 int32_t	fuword32(volatile const void *base);
 int64_t	fuword64(volatile const void *base);
-int __result_use_check fueword(volatile const void *base, long *val);
-int __result_use_check fueword32(volatile const void *base, int32_t *val);
-int __result_use_check fueword64(volatile const void *base, int64_t *val);
+__nodiscard int fueword(volatile const void *base, long *val);
+__nodiscard int fueword32(volatile const void *base, int32_t *val);
+__nodiscard int fueword64(volatile const void *base, int64_t *val);
+#ifdef __CHERI__
+__nodiscard int fueptr(volatile const void *base, intptr_t *val);
+#else
+#define	fueptr(base, val)	fueword((base), (long *)(val))
+#endif
 __nodiscard int subyte(volatile void *base, int byte);
 __nodiscard int suword(volatile void *base, long word);
 __nodiscard int suword16(volatile void *base, int word);
 __nodiscard int suword32(volatile void *base, int32_t word);
 __nodiscard int suword64(volatile void *base, int64_t word);
+#ifdef __CHERI__
+__nodiscard int suptr(volatile void *base, intptr_t ptr);
+#else
+#define	suptr(base, val)	suword((base), (val))
+#endif
 uint32_t casuword32(volatile uint32_t *base, uint32_t oldval, uint32_t newval);
 u_long	casuword(volatile u_long *p, u_long oldval, u_long newval);
 int	casueword32(volatile uint32_t *base, uint32_t oldval, uint32_t *oldvalp,
@@ -398,14 +434,6 @@ void	cpu_new_callout(int cpu, sbintime_t bt, sbintime_t bt_opt);
 void	cpu_et_frequency(struct eventtimer *et, uint64_t newfreq);
 extern int	cpu_disable_c2_sleep;
 extern int	cpu_disable_c3_sleep;
-
-extern void	(*tcp_hpts_softclock)(void);
-extern volatile uint32_t __read_frequently hpts_that_need_softclock;
-
-#define	tcp_hpts_softclock()	do {					\
-		if (hpts_that_need_softclock > 0)			\
-			tcp_hpts_softclock();				\
-} while (0)
 
 char	*kern_getenv(const char *name);
 void	freeenv(char *env);
@@ -562,6 +590,14 @@ alloc_unr64(struct unrhdr64 *unr64)
 void	intr_prof_stack_use(struct thread *td, struct trapframe *frame);
 
 void counted_warning(unsigned *counter, const char *msg);
+
+/*
+ * Safely read one byte of kernel memory at address addr, placing the
+ * value into *valp.  Returns 0 on success, EFAULT if read was
+ * impossible, e.g. due to the address not being mapped or not having
+ * necessary permissions.
+ */
+int safe_read(vm_offset_t addr, char *valp);
 
 /*
  * APIs to manage deprecation and obsolescence.

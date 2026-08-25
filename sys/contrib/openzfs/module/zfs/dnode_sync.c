@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -305,9 +295,12 @@ free_children(dmu_buf_impl_t *db, uint64_t blkid, uint64_t nblks,
 	 * ancestor of the first or last block to be freed.  The first and
 	 * last L1 indirect blocks are always dirtied by dnode_free_range().
 	 */
-	db_lock_type_t dblt = dmu_buf_lock_parent(db, RW_READER, FTAG);
-	VERIFY(BP_GET_FILL(db->db_blkptr) == 0 || db->db_dirtycnt > 0);
-	dmu_buf_unlock_parent(db, dblt, FTAG);
+	if (!free_indirects) {
+		db_lock_type_t dblt = dmu_buf_lock_parent(db, RW_READER, FTAG);
+		VERIFY_IMPLY(BP_GET_FILL(db->db_blkptr) > 0,
+		    db->db_dirtycnt > 0);
+		dmu_buf_unlock_parent(db, dblt, FTAG);
+	}
 
 	dbuf_release_bp(db);
 	bp = db->db.db_data;
@@ -438,24 +431,6 @@ dnode_sync_free_range_impl(dnode_t *dn, uint64_t blkid, uint64_t nblks,
 		    dn->dn_phys->dn_maxblkid == 0 ||
 		    dnode_next_offset(dn, 0, &off, 1, 1, 0) != 0);
 	}
-}
-
-typedef struct dnode_sync_free_range_arg {
-	dnode_t *dsfra_dnode;
-	dmu_tx_t *dsfra_tx;
-	boolean_t dsfra_free_indirects;
-} dnode_sync_free_range_arg_t;
-
-static void
-dnode_sync_free_range(void *arg, uint64_t blkid, uint64_t nblks)
-{
-	dnode_sync_free_range_arg_t *dsfra = arg;
-	dnode_t *dn = dsfra->dsfra_dnode;
-
-	mutex_exit(&dn->dn_mtx);
-	dnode_sync_free_range_impl(dn, blkid, nblks,
-	    dsfra->dsfra_free_indirects, dsfra->dsfra_tx);
-	mutex_enter(&dn->dn_mtx);
 }
 
 /*
@@ -635,6 +610,64 @@ dnode_sync_free(dnode_t *dn, dmu_tx_t *tx)
 }
 
 /*
+ * We cannot simply detach the range tree (set dn_free_ranges to NULL)
+ * before processing it because dnode_block_freed() relies on it to
+ * correctly identify blocks that have been freed in the current TXG
+ * (for dbuf_read() calls on holes). If we detached it early, a concurrent
+ * reader might see the block as valid on disk and return stale data
+ * instead of zeros.
+ *
+ * We also can't use zfs_range_tree_walk() nor zfs_range_tree_vacate()
+ * with a callback that drops dn_mtx (dnode_sync_free_range()). This is
+ * unsafe because another thread (spa_sync_deferred_frees() ->
+ * dnode_free_range()) could acquire dn_mtx and modify the tree while the
+ * walk or vacate was in progress. This leads to tree corruption or panic
+ * when we resume.
+ *
+ * To fix the race while maintaining visibility, we process the tree
+ * incrementally. We pick a segment, drop the lock to sync it, and
+ * re-acquire the lock to remove it. By always restarting from the head
+ * of the tree, we ensure we are never using an invalid iterator.
+ * We use zfs_range_tree_clear() instead of ..._remove() because the range
+ * might have already been removed while the lock was dropped (specifically
+ * in the dbuf_dirty path mentioned above). ..._clear() handles this
+ * gracefully, while ..._remove() would panic on a missing segment.
+ */
+static void
+dnode_sync_free_ranges(dnode_t *dn, dmu_tx_t *tx)
+{
+	int txgoff = tx->tx_txg & TXG_MASK;
+
+	mutex_enter(&dn->dn_mtx);
+	zfs_range_tree_t *rt = dn->dn_free_ranges[txgoff];
+	if (rt != NULL) {
+		boolean_t freeing_dnode = dn->dn_free_txg > 0 &&
+		    dn->dn_free_txg <= tx->tx_txg;
+		zfs_range_seg_t *rs;
+
+		if (freeing_dnode) {
+			ASSERT(zfs_range_tree_contains(rt, 0,
+			    dn->dn_maxblkid + 1));
+		}
+
+		while ((rs = zfs_range_tree_first(rt)) != NULL) {
+			uint64_t start = zfs_rs_get_start(rs, rt);
+			uint64_t size = zfs_rs_get_end(rs, rt) - start;
+
+			mutex_exit(&dn->dn_mtx);
+			dnode_sync_free_range_impl(dn, start, size,
+			    freeing_dnode, tx);
+			mutex_enter(&dn->dn_mtx);
+
+			zfs_range_tree_clear(rt, start, size);
+		}
+		zfs_range_tree_destroy(rt);
+		dn->dn_free_ranges[txgoff] = NULL;
+	}
+	mutex_exit(&dn->dn_mtx);
+}
+
+/*
  * Write out the dnode's dirty buffers.
  * Does not wait for zio completions.
  */
@@ -781,32 +814,7 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 	}
 
 	/* process all the "freed" ranges in the file */
-	if (dn->dn_free_ranges[txgoff] != NULL) {
-		dnode_sync_free_range_arg_t dsfra;
-		dsfra.dsfra_dnode = dn;
-		dsfra.dsfra_tx = tx;
-		dsfra.dsfra_free_indirects = freeing_dnode;
-		mutex_enter(&dn->dn_mtx);
-		if (freeing_dnode) {
-			ASSERT(zfs_range_tree_contains(
-			    dn->dn_free_ranges[txgoff], 0,
-			    dn->dn_maxblkid + 1));
-		}
-		/*
-		 * Because dnode_sync_free_range() must drop dn_mtx during its
-		 * processing, using it as a callback to zfs_range_tree_vacate()
-		 * is not safe. No other operations (besides destroy) are
-		 * allowed once zfs_range_tree_vacate() has begun, and dropping
-		 * dn_mtx would leave a window open for another thread to
-		 * observe that invalid (and unsafe) state.
-		 */
-		zfs_range_tree_walk(dn->dn_free_ranges[txgoff],
-		    dnode_sync_free_range, &dsfra);
-		zfs_range_tree_vacate(dn->dn_free_ranges[txgoff], NULL, NULL);
-		zfs_range_tree_destroy(dn->dn_free_ranges[txgoff]);
-		dn->dn_free_ranges[txgoff] = NULL;
-		mutex_exit(&dn->dn_mtx);
-	}
+	dnode_sync_free_ranges(dn, tx);
 
 	if (freeing_dnode) {
 		dn->dn_objset->os_freed_dnodes++;
@@ -828,7 +836,7 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 	}
 
 	/*
-	 * This must be done after dnode_sync_free_range()
+	 * This must be done after dnode_sync_free_ranges()
 	 * and dnode_increase_indirection(). See dnode_new_blkid()
 	 * for an explanation of the high bit being set.
 	 */

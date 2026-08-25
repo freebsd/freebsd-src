@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -31,13 +21,14 @@
  * Copyright (c) 2019 Datto Inc.
  * Copyright (c) 2021, Colm Buckley <colm@tuatha.org>
  * Copyright (c) 2025 Hewlett Packard Enterprise Development LP.
+ * Copyright (c) 2024-2026, Klara, Inc.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 #ifndef	_LIBZFS_H
 #define	_LIBZFS_H extern __attribute__((visibility("default")))
 
 #include <assert.h>
-#include <libshare.h>
 #include <libnvpair.h>
 #include <sys/mnttab.h>
 #include <sys/param.h>
@@ -161,6 +152,7 @@ typedef enum zfs_error {
 	EZFS_SHAREFAILED,	/* filesystem share failed */
 	EZFS_RAIDZ_EXPAND_IN_PROGRESS,	/* a raidz is currently expanding */
 	EZFS_ASHIFT_MISMATCH,   /* can't add vdevs with different ashifts */
+	EZFS_NO_USER_NS_SUPPORT, /* kernel built without CONFIG_USER_NS */
 	EZFS_UNKNOWN
 } zfs_error_t;
 
@@ -297,20 +289,23 @@ typedef struct trim_cbdata {
 typedef struct initialize_cbdata {
 	boolean_t wait;
 	pool_initialize_func_t cmd_type;
+	uint64_t value;
+	boolean_t value_provided;
 } initialize_cbdata_t;
 /*
  * Functions to manipulate pool and vdev state
  */
 _LIBZFS_H int zpool_scan(zpool_handle_t *, pool_scan_func_t, pool_scrub_cmd_t);
 _LIBZFS_H int zpool_scan_range(zpool_handle_t *, pool_scan_func_t,
-    pool_scrub_cmd_t, time_t, time_t);
+    pool_scrub_cmd_t, pool_scrub_flags_t, time_t, time_t);
 _LIBZFS_H int zpool_initialize_one(zpool_handle_t *, void *);
 _LIBZFS_H int zpool_initialize(zpool_handle_t *, pool_initialize_func_t,
-    nvlist_t *);
+    nvlist_t *, uint64_t, boolean_t);
 _LIBZFS_H int zpool_initialize_wait(zpool_handle_t *, pool_initialize_func_t,
-    nvlist_t *);
+    nvlist_t *, uint64_t, boolean_t);
 _LIBZFS_H int zpool_trim(zpool_handle_t *, pool_trim_func_t, nvlist_t *,
     trimflags_t *);
+_LIBZFS_H int zpool_condense(zpool_handle_t *, const char *, const char *);
 
 _LIBZFS_H int zpool_clear(zpool_handle_t *, const char *, nvlist_t *);
 _LIBZFS_H int zpool_reguid(zpool_handle_t *);
@@ -444,6 +439,7 @@ typedef enum {
 	 * checksum errors) has been lost.
 	 */
 	ZPOOL_STATUS_FAULTED_DEV_R,	/* faulted device with replicas */
+	ZPOOL_STATUS_FAULTED_FDOM_R,	/* faulted fdomain with replicas */
 	ZPOOL_STATUS_FAULTED_DEV_NR,	/* faulted device with no replicas */
 
 	/*
@@ -767,6 +763,8 @@ _LIBZFS_H void libzfs_add_handle(get_all_cb_t *, zfs_handle_t *);
 _LIBZFS_H int zfs_create(libzfs_handle_t *, const char *, zfs_type_t,
     nvlist_t *);
 _LIBZFS_H int zfs_create_ancestors(libzfs_handle_t *, const char *);
+_LIBZFS_H int zfs_create_ancestors_props(libzfs_handle_t *, const char *,
+	nvlist_t *);
 _LIBZFS_H int zfs_destroy(zfs_handle_t *, boolean_t);
 _LIBZFS_H int zfs_destroy_snaps(zfs_handle_t *, char *, boolean_t);
 _LIBZFS_H int zfs_destroy_snaps_nvl(libzfs_handle_t *, nvlist_t *, boolean_t);
@@ -845,6 +843,9 @@ typedef struct sendflags {
 
 	/* stream represents a partially received dataset */
 	boolean_t saved;
+
+	/* allow sending datasets with props, without preserving encryption */
+	boolean_t no_preserve_encryption;
 } sendflags_t;
 
 typedef boolean_t (snapfilter_cb_t)(zfs_handle_t *, void *);
@@ -982,6 +983,15 @@ _LIBZFS_H void zfs_adjust_mount_options(zfs_handle_t *zhp, const char *mntpoint,
  * NULL means "all/any known to this libzfs".
  */
 #define	SA_NO_PROTOCOL -1
+
+/* available protocols */
+enum sa_protocol {
+	SA_PROTOCOL_NFS,
+	SA_PROTOCOL_SMB, /* ABI: add before _COUNT */
+	SA_PROTOCOL_COUNT,
+};
+
+_LIBZFS_H const char *zfs_share_protocol_name(enum sa_protocol);
 
 _LIBZFS_H boolean_t zfs_is_shared(zfs_handle_t *zhp, char **where,
     const enum sa_protocol *proto);

@@ -73,6 +73,23 @@ but without the
 (or
 .Ev LD_32_
 or any other ABI-specific) prefix.
+.Pp
+The list of variables that can be modified with the
+.Fn rtld_set_var
+function is:
+.Bl -tag
+.It Dv LD_BIND_NOT
+.It Dv LD_BIND_NOW
+.It Dv LD_DEBUG
+.It Dv LD_DUMP_REL_PRE
+.It Dv LD_DUMP_REL_POST
+.It Dv LD_DYNAMIC_WEAK
+.It Dv LD_LIBMAP_DISABLE
+.It Dv LD_LIBRARY_PATH
+.It Dv LD_LIBRARY_PATH_FDS
+.It Dv LD_LIBRARY_PATH_RPATH
+.It Dv LD_LOADFLTR
+.El
 .Sh RETURN VALUES
 The
 .Fn rtld_get_var

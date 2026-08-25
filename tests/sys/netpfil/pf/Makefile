@@ -56,7 +56,8 @@ ATF_TESTS_SH+=	altq \
 		synproxy \
 		table \
 		tcp \
-		tos
+		tos \
+		unmapped_mbuf
 
 ATF_TESTS_PYTEST+=	frag4.py
 ATF_TESTS_PYTEST+=	frag6.py

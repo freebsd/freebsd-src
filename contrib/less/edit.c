@@ -25,13 +25,13 @@ public int fd0 = 0;
 extern lbool new_file;
 extern char *every_first_cmd;
 extern int force_open;
-extern int is_tty;
+extern lbool is_tty;
 extern int sigs;
 extern int hshift;
 extern int want_filesize;
-extern int consecutive_nulls;
 extern int modelines;
 extern int show_preproc_error;
+extern lbool read_error;
 extern IFILE curr_ifile;
 extern IFILE old_ifile;
 extern struct scrpos initial_scrpos;
@@ -264,6 +264,7 @@ static void close_pipe(FILE *pipefd)
 	int status;
 	char *p;
 	PARG parg;
+	int sig = 0;
 
 	if (pipefd == NULL)
 		return;
@@ -290,18 +291,33 @@ static void close_pipe(FILE *pipefd)
 	if (WIFEXITED(status))
 	{
 		int s = WEXITSTATUS(status);
-		if (s != 0)
+		if (s == 0)
+			return;
+		if (s <= 128)
 		{
 			parg.p_int = s;
 			error("Input preprocessor failed (status %d)", &parg);
+			return;
 		}
-		return;
+		/*
+		 * popen invoked the shell, which likely last ran a
+		 * program that terminated due to a signal.
+		 * Assume the longstanding tradition (allowed but not
+		 * required by POSIX) of adding 128 to the signal.
+		 * Many shells use last command optimization, i.e.,
+		 * they exec the last command instead of forking and
+		 * waiting for it, and in that case the more-reliable
+		 * WIFSIGNALED code below will be used.
+		 */
+		sig = s - 128;
 	}
 #endif
 #if defined WIFSIGNALED && defined WTERMSIG
 	if (WIFSIGNALED(status))
+		sig = WTERMSIG(status);
+#endif
+	if (sig != 0)
 	{
-		int sig = WTERMSIG(status);
 		if (
 #ifdef SIGPIPE
 			sig != SIGPIPE || 
@@ -313,7 +329,6 @@ static void close_pipe(FILE *pipefd)
 		}
 		return;
 	}
-#endif
 	if (status != 0)
 	{
 		parg.p_int = status;
@@ -361,11 +376,14 @@ static void close_file(void)
 	 * Save the current position so that we can return to
 	 * the same position if we edit this file again.
 	 */
-	get_scrpos(&scrpos, TOP);
-	if (scrpos.pos != NULL_POSITION)
+	if (is_tty)
 	{
-		store_pos(curr_ifile, &scrpos);
-		lastmark();
+		get_scrpos(&scrpos, TOP);
+		if (scrpos.pos != NULL_POSITION)
+		{
+			store_pos(curr_ifile, &scrpos);
+			lastmark();
+		}
 	}
 	/*
 	 * Close the file descriptor, unless it is a pipe.
@@ -545,7 +563,7 @@ public int edit_ifile(IFILE ifile)
 			} else 
 			{
 				chflags |= CH_CANSEEK;
-				if (bin_file(f, &nread) && !force_open && !opened(ifile))
+				if (bin_file(f, &nread) && is_tty && !force_open && !opened(ifile))
 				{
 					/*
 					 * Looks like a binary file.  
@@ -611,7 +629,6 @@ public int edit_ifile(IFILE ifile)
 	set_open(curr_ifile); /* File has been opened */
 	get_pos(curr_ifile, &initial_scrpos);
 	ch_init(f, chflags, nread);
-	consecutive_nulls = 0;
 	check_modelines();
 
 	if (!(chflags & CH_HELPFILE))
@@ -660,6 +677,7 @@ public int edit_ifile(IFILE ifile)
 #endif
 		undo_osc8();
 		hshift = 0;
+		read_error = FALSE;
 		if (strcmp(filename, FAKE_HELPFILE) && strcmp(filename, FAKE_EMPTYFILE))
 		{
 			char *qfilename = shell_quote(filename);

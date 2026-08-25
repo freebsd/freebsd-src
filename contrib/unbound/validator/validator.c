@@ -68,6 +68,9 @@
 #define MAX_VALIDATE_AT_ONCE 8
 /** Max number of validation suspends allowed, error out otherwise. */
 #define MAX_VALIDATION_SUSPENDS 16
+/** Max answer RRsets for qtype ANY that are validated. The lists is
+ * shortened to fit this limit. */
+#define MAX_RRSETS_ANY_VALIDATED 24
 
 /* forward decl for cache response and normal super inform calls of a DS */
 static void process_ds_response(struct module_qstate* qstate, 
@@ -496,7 +499,7 @@ generate_request(struct module_qstate* qstate, int id, uint8_t* name,
 		struct mesh_state* sub = NULL;
 		fptr_ok(fptr_whitelist_modenv_add_sub(
 			qstate->env->add_sub));
-		if(!(*qstate->env->add_sub)(qstate, &ask, 
+		if(!(*qstate->env->add_sub)(qstate, &ask, NULL,
 			(uint16_t)(BIT_RD|flags), 0, valrec, newq, &sub)){
 			log_err("Could not generate request: out of memory");
 			return 0;
@@ -505,7 +508,7 @@ generate_request(struct module_qstate* qstate, int id, uint8_t* name,
 	else {
 		fptr_ok(fptr_whitelist_modenv_attach_sub(
 			qstate->env->attach_sub));
-		if(!(*qstate->env->attach_sub)(qstate, &ask, 
+		if(!(*qstate->env->attach_sub)(qstate, &ask, NULL,
 			(uint16_t)(BIT_RD|flags), 0, valrec, newq)){
 			log_err("Could not generate request: out of memory");
 			return 0;
@@ -517,6 +520,14 @@ generate_request(struct module_qstate* qstate, int id, uint8_t* name,
 		/* add our blacklist to the query blacklist */
 		sock_list_merge(&(*newq)->blacklist, (*newq)->region,
 			vq->chain_blacklist);
+		/* start its global quota counter where this one is. */
+		if(qstate->global_quota_reached >
+			(*newq)->global_quota_reached) {
+			(*newq)->global_quota_started =
+				qstate->global_quota_reached;
+			(*newq)->global_quota_reached =
+				qstate->global_quota_reached;
+		}
 	}
 	qstate->ext_state[id] = module_wait_subquery;
 	return 1;
@@ -710,6 +721,37 @@ validate_msg_signatures(struct module_qstate* qstate, struct val_qstate* vq,
 			((struct packed_rrset_data*)chase_reply->rrsets[i-1]->entry.data)->security == sec_status_secure &&
 			dname_strict_subdomain_c(s->rk.dname, chase_reply->rrsets[i-1]->rk.dname)
 			) {
+			/* Check that the CNAME target matches the DNAME
+			 * derivation. Zone changes during the redirection
+			 * lookups or looped DNAMEs can have such a CNAME. */
+			uint8_t expected_target[LDNS_MAX_DOMAINLEN];
+			uint8_t* cname_target = NULL;
+			size_t cname_target_len = 0;
+			get_cname_target(s, &cname_target, &cname_target_len);
+			if(!cname_target ||
+				!derive_cname_from_dname(s, /* CNAME RRset */
+				chase_reply->rrsets[i-1], /* DNAME RRset */
+				expected_target, /* Output buffer */
+				sizeof(expected_target))) {
+				verbose(VERB_ALGO, "DNAME CNAME derivation failed");
+				errinf_ede(qstate, "DNAME CNAME derivation failed", reason_bogus);
+				errinf_origin(qstate, qstate->reply_origin);
+				chase_reply->security = sec_status_bogus;
+				update_reason_bogus(chase_reply, reason_bogus);
+				return 0;
+			}
+			if(query_dname_compare(cname_target, expected_target) != 0) {
+				verbose(VERB_ALGO, "CNAME target mismatch: not synthesized from DNAME");
+				errinf_ede(qstate, "CNAME target mismatch: not synthesized from DNAME", reason_bogus);
+				errinf_dname(qstate, ", for", s->rk.dname);
+				errinf_dname(qstate, "CNAME", cname_target);
+				errinf(qstate, ",");
+				errinf_origin(qstate, qstate->reply_origin);
+				chase_reply->security = sec_status_bogus;
+				update_reason_bogus(chase_reply, reason_bogus);
+				return 0;
+			}
+
 			/* CNAME was synthesized by our own iterator */
 			/* since the DNAME verified, mark the CNAME as secure */
 			((struct packed_rrset_data*)s->entry.data)->security =
@@ -882,10 +924,10 @@ validate_suspend_setup_timer(struct module_qstate* qstate,
 		slack += 2;
 	else if(qstate->env->mesh->all.count >= qstate->env->mesh->max_reply_states/4)
 		slack += 1;
-	if(vq->suspend_count > 3)
-		slack += 3;
-	else if(vq->suspend_count > 0)
-		slack += vq->suspend_count;
+	/* One step of back-off after the first suspend so a single bad
+	 * message still yields, but does not grow exponentially on its own. */
+	if(vq->suspend_count > 0)
+		slack += 1;
 	if(slack != 0 && slack <= 12 /* No numeric overflow. */) {
 		usec = usec << slack;
 	}
@@ -986,6 +1028,29 @@ remove_spurious_authority(struct reply_info* chase_reply,
 }
 
 /**
+ * Cap the number of answer RRsets for validation of type ANY.
+ * This limits the number of RRSIG validations performed.
+ * It is allowed to return a subset of available RRsets when processing
+ * ANY query.
+ * @param chase_reply: the chased reply, shorten if if too long.
+ * @param orig_reply: original reply, remove the records here as well,
+ *	so it can be marked as DNSSEC valid.
+ * @param skip: the number of rrsets skipped in the answer section due to
+ *	CNAME chain that is followed.
+ * @param max_rrsets: the number allowed.
+ */
+static void
+shorten_answer_any(struct reply_info* chase_reply,
+	struct reply_info* orig_reply, size_t skip, size_t max_rrsets)
+{
+	if(chase_reply->an_numrrsets > max_rrsets) {
+		size_t to_rem = chase_reply->an_numrrsets - max_rrsets;
+		val_reply_remove_answers(chase_reply, max_rrsets, to_rem);
+		val_reply_remove_answers(orig_reply, skip+max_rrsets, to_rem);
+	}
+}
+
+/**
  * Given a "positive" response -- a response that contains an answer to the
  * question, and no CNAME chain, validate this response. 
  *
@@ -1012,7 +1077,14 @@ validate_positive_response(struct module_env* env, struct val_env* ve,
 	uint8_t* wc = NULL;
 	size_t wl;
 	int wc_cached = 0;
+	int wc_to_cache = 0;
+	uint8_t* cache_wc = NULL;
+	size_t cache_wl = 0;
+	struct ub_packed_rrset_key* cache_s = NULL;
 	int wc_NSEC_ok = 0;
+	/* This is used to update the RRset cache, with the combination
+	 * of the dname expansion and this wildcard, for security status. */
+	struct ub_packed_rrset_key* wc_rrset = NULL;
 	int nsec3s_seen = 0;
 	size_t i;
 	struct ub_packed_rrset_key* s;
@@ -1031,14 +1103,20 @@ validate_positive_response(struct module_env* env, struct val_env* ve,
 				ntohs(s->rk.type), ntohs(s->rk.rrset_class));
 			chase_reply->security = sec_status_bogus;
 			update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
+			if(wc_rrset)
+				((struct packed_rrset_data*)wc_rrset->
+				entry.data)->security = sec_status_bogus;
 			return;
 		}
 		if(wc && !wc_cached && env->cfg->aggressive_nsec) {
-			rrset_cache_update_wildcard(env->rrset_cache, s, wc, wl,
-				env->alloc, *env->now);
+			/* Postpone cache adjust until proof has succeeded. */
+			wc_to_cache = 1;
+			cache_wc = wc;
+			cache_wl = wl;
+			cache_s = s;
 			wc_cached = 1;
 		}
-
+		if(wc) wc_rrset = s;
 	}
 
 	/* validate the AUTHORITY section as well - this will generally be 
@@ -1095,7 +1173,14 @@ validate_positive_response(struct module_env* env, struct val_env* ve,
 			"did not exist");
 		chase_reply->security = sec_status_bogus;
 		update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
+		if(wc_rrset)
+			((struct packed_rrset_data*)wc_rrset->
+			entry.data)->security = sec_status_bogus;
 		return;
+	}
+	if(wc_to_cache) {
+		rrset_cache_update_wildcard(env->rrset_cache, cache_s,
+			cache_wc, cache_wl, env->alloc, *env->now);
 	}
 
 	verbose(VERB_ALGO, "Successfully validated positive response");
@@ -1496,6 +1581,16 @@ validate_any_response(struct module_env* env, struct val_env* ve,
 			"did not exist");
 		chase_reply->security = sec_status_bogus;
 		update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
+		/* Make the expanded name and wildcard RRSIG rrsets bogus */
+		for(i=0; i<chase_reply->an_numrrsets; i++) {
+			uint8_t* cwc = NULL;
+			size_t cwl = 0;
+			s = chase_reply->rrsets[i];
+			if(val_rrset_wildcard(s, &cwc, &cwl) && cwc) {
+				((struct packed_rrset_data*)s->
+				entry.data)->security = sec_status_bogus;
+			}
+		}
 		return;
 	}
 
@@ -1533,6 +1628,9 @@ validate_cname_response(struct module_env* env, struct val_env* ve,
 	uint8_t* wc = NULL;
 	size_t wl;
 	int wc_NSEC_ok = 0;
+	/* This is used to update the RRset cache, with the combination
+	 * of the dname expansion and this wildcard, for security status. */
+	struct ub_packed_rrset_key* wc_rrset = NULL;
 	int nsec3s_seen = 0;
 	size_t i;
 	struct ub_packed_rrset_key* s;
@@ -1553,6 +1651,7 @@ validate_cname_response(struct module_env* env, struct val_env* ve,
 			update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
 			return;
 		}
+		if(wc) wc_rrset = s;
 		
 		/* Refuse wildcarded DNAMEs rfc 4597. 
 		 * Do not follow a wildcarded DNAME because 
@@ -1564,6 +1663,9 @@ validate_cname_response(struct module_env* env, struct val_env* ve,
 				ntohs(s->rk.type), ntohs(s->rk.rrset_class));
 			chase_reply->security = sec_status_bogus;
 			update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
+			if(wc_rrset)
+				((struct packed_rrset_data*)wc_rrset->
+				entry.data)->security = sec_status_bogus;
 			return;
 		}
 
@@ -1628,6 +1730,9 @@ validate_cname_response(struct module_env* env, struct val_env* ve,
 			"did not exist");
 		chase_reply->security = sec_status_bogus;
 		update_reason_bogus(chase_reply, LDNS_EDE_DNSSEC_BOGUS);
+		if(wc_rrset)
+			((struct packed_rrset_data*)wc_rrset->
+			entry.data)->security = sec_status_bogus;
 		return;
 	}
 
@@ -2227,6 +2332,9 @@ processValidate(struct module_qstate* qstate, struct val_qstate* vq,
 		&vq->qchase, vq->orig_msg->rep, vq->rrset_skip);
 	if(subtype != VAL_CLASS_REFERRAL)
 		remove_spurious_authority(vq->chase_reply, vq->orig_msg->rep);
+	if(subtype == VAL_CLASS_ANY)
+		shorten_answer_any(vq->chase_reply, vq->orig_msg->rep,
+			vq->rrset_skip, MAX_RRSETS_ANY_VALIDATED);
 
 	/* check signatures in the message; 
 	 * answer and authority must be valid, additional is only checked. */
@@ -2699,7 +2807,9 @@ val_operate(struct module_qstate* qstate, enum module_ev event, int id,
 		if(!needs_validation(qstate, qstate->return_rcode, 
 			qstate->return_msg)) {
 			/* no need to validate this */
-			if(qstate->return_msg)
+			/* For valrec responses, leave at sec_status_unchecked,
+			 * no security status has been requested for it. */
+			if(qstate->return_msg && !qstate->is_valrec)
 				qstate->return_msg->rep->security =
 					sec_status_indeterminate;
 			qstate->ext_state[id] = module_finished;
@@ -3090,6 +3200,62 @@ ds_response_to_ke(struct module_qstate* qstate, struct val_qstate* vq,
 			LDNS_SECTION_ANSWER, qstate, &verified, reasonbuf,
 			sizeof(reasonbuf));
 		if(sec == sec_status_secure) {
+			/* Check for wildcard expansion */
+			uint8_t* wc = NULL;
+			size_t wl = 0;
+
+			if(!val_rrset_wildcard(cname, &wc, &wl)) {
+				verbose(VERB_ALGO, "CNAME has inconsistent wildcard signatures");
+				reason = "wildcard CNAME inconsistent signatures";
+				errinf_ede(qstate, reason, reason_bogus);
+				goto return_bogus;
+			}
+
+			if(wc != NULL) {
+				/* Wildcard expansion detected - require NSEC proof */
+				/* So this is a wildcard CNAME response to DS.
+				 * If the wildcard is bogus then we have bogus.
+				 * If the wildcard is true, then there is
+				 * not a referral point here or lower,
+				 * that can be insecure,
+				 * and also no DS records, here or lower. */
+				/* For a valid chain, to DS, but this
+				 * wildcard CNAME happens in a middle label,
+				 * then that can not happen, because there is
+				 * data under that label, and thus the wildcard
+				 * should not expand.
+				 * If we are going to the wildcard, that also
+				 * does not expand the wildcard, when above it.
+				 * So for valids lookup chains to DS, no
+				 * wildcard CNAME is expected on middle labels.
+				 * For lookups to an insecure point, the
+				 * delegation is information under the label,
+				 * and thus the wildcard does not expand.
+				 * So, no insecure point is possible.
+				 * Can not get a valid chain of trust, or
+				 * to a delegation point for insecure.
+				 * Or the wildcard, its nxdomain for the qname
+				 * proof, is invalid, in which case this is
+				 * a bogus reply.
+				 * If this was a lookup where a wildcard
+				 * expansion is genuinely expected, eg,
+				 * a dnssec valid wildcard query, then the
+				 * lookup should go to the right point, and
+				 * not into the wildcard under the zone name.
+				 * For insecure, or wildcard missing
+				 * signatures, it would have to have found
+				 * the DS or insecure point earlier, in the
+				 * downwards search.
+				 * So for missing signatures, it turns the
+				 * missing signatures into a failure to the
+				 * wildcard CNAME, as the reported log.
+				 */
+				verbose(VERB_ALGO, "wildcard CNAME in chain of trust means no DS can be found and it is also not a delegation point that can be insecure");
+				reason = "wildcard CNAME in chain of trust means no DS found and it is also not a delegation point that can be insecure";
+				errinf_ede(qstate, reason, reason_bogus);
+				goto return_bogus;
+			}
+
 			verbose(VERB_ALGO, "CNAME validated, "
 				"proof that DS does not exist");
 			/* and that it is not a referral point */
@@ -3446,6 +3612,11 @@ val_inform_super(struct module_qstate* qstate, int id,
 	if(!vq) {
 		verbose(VERB_ALGO, "super: has no validator state");
 		return;
+	}
+	/* Pick up the global quota limit from the subquery. */
+	if(qstate->global_quota_reached > qstate->global_quota_started) {
+		super->global_quota_reached += qstate->global_quota_reached -
+			qstate->global_quota_started;
 	}
 	if(vq->wait_prime_ta) {
 		vq->wait_prime_ta = 0;

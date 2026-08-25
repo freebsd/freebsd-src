@@ -9,6 +9,7 @@
 /* Test P arg - password protected */
 DEFINE_TEST(test_P_encryption)
 {
+#ifdef HAVE_LIBZ
 	const char *reffile = "test_encrypted.zip";
 	int r;
 
@@ -23,4 +24,7 @@ DEFINE_TEST(test_P_encryption)
 
 		assertTextFileContents("plaintext\n", "encrypted/file.txt");
 	}
+#else
+	skipping("zlib not available");
+#endif
 }

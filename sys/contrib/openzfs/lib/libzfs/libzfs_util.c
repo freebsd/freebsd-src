@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 
 /*
@@ -324,6 +314,9 @@ libzfs_error_description(libzfs_handle_t *hdl)
 	case EZFS_ASHIFT_MISMATCH:
 		return (dgettext(TEXT_DOMAIN, "adding devices with "
 		    "different physical sector sizes is not allowed"));
+	case EZFS_NO_USER_NS_SUPPORT:
+		return (dgettext(TEXT_DOMAIN, "kernel was built without "
+		    "user namespace support (CONFIG_USER_NS)"));
 	case EZFS_UNKNOWN:
 		return (dgettext(TEXT_DOMAIN, "unknown error"));
 	default:
@@ -516,6 +509,9 @@ zfs_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 		break;
 	case ZFS_ERR_NOT_USER_NAMESPACE:
 		zfs_verror(hdl, EZFS_NOT_USER_NAMESPACE, fmt, ap);
+		break;
+	case ZFS_ERR_NO_USER_NS_SUPPORT:
+		zfs_verror(hdl, EZFS_NO_USER_NS_SUPPORT, fmt, ap);
 		break;
 	default:
 		zfs_error_aux(hdl, "%s", zfs_strerror(error));
@@ -1171,7 +1167,7 @@ zfs_handle_t *
 zfs_path_to_zhandle(libzfs_handle_t *hdl, const char *path, zfs_type_t argtype)
 {
 	struct stat64 statbuf;
-	struct extmnttab entry;
+	struct mnttab entry;
 
 	if (path[0] != '/' && strncmp(path, "./", strlen("./")) != 0) {
 		/*
@@ -2399,6 +2395,8 @@ zpool_prepare_disk(zpool_handle_t *zhp, nvlist_t *vdev_nv,
 	    &enc_sysfs_path);
 
 	upath = zfs_get_underlying_path(path);
+	if (upath == NULL && path != NULL)
+		upath = strdup(path);
 	pool_name = zhp ? zpool_get_name(zhp) : NULL;
 
 	env = zpool_vdev_script_alloc_env(pool_name, path, upath,

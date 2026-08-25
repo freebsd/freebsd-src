@@ -30,15 +30,17 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 20, 2026
+.Dd April 19, 2026
 .Dt PDFORK 2
 .Os
 .Sh NAME
 .Nm pdfork ,
 .Nm pdrfork ,
+.Nm pdopenpid ,
 .Nm pdgetpid ,
 .Nm pdkill ,
-.Nm pdwait
+.Nm pdwait ,
+.Nm pddupfd
 .Nd System calls to manage process descriptors
 .Sh LIBRARY
 .Lb libc
@@ -48,6 +50,8 @@
 .Fn pdfork "int *fdp" "int pdflags"
 .Ft pid_t
 .Fn pdrfork "int *fdp" "int pdflags" "int rfflags"
+.Ft int
+.Fn pdopenpid "pid_t pid" "int pdflags"
 .Ft int
 .Fn pdgetpid "int fd" "pid_t *pidp"
 .Ft int
@@ -60,6 +64,8 @@
 .Fa "struct __wrusage *wrusage"
 .Fa "struct __siginfo *info"
 .Fc
+.Ft int
+.Fn pddupfd "int fd" "int remotefd" "int flags"
 .Sh DESCRIPTION
 Process descriptors are special file descriptors that represent processes,
 and are created using
@@ -87,10 +93,19 @@ This option is not permitted in
 .Xr capsicum 4
 capability mode (see
 .Xr cap_enter 2 ) .
-.El
-.Bl -tag -width ".Dv PD_DAEMON"
+.Pp
+Note: the option changes the behavior of
+.Xr close 2
+for the process descriptor returned by the operation.
+If there is another process descriptor for the same process, created without
+specifying the
+.Dv PD_DAEMON
+flag, closing that descriptor kills the process.
 .It Dv PD_CLOEXEC
 Set close-on-exec on process descriptor.
+.It Dv PD_NOWAITPID
+The parent cannot obtain the child's status with
+.Xr waitpid 2 .
 .El
 .Pp
 The
@@ -122,6 +137,27 @@ flags, or
 .Va RFSPAWN
 flag are specified.
 .Pp
+The
+.Fn pdopenpid
+function opens the process descriptor for the process
+specified by the argument
+.Fa pid .
+It takes the same flags in the
+.Fa pdflags
+argument as
+.Fn pdfork .
+The caller must have permission to debug the target process in order for
+.Fn pdopenpid
+to succeed.
+Zombie processes cannot be opened.
+.Pp
+There might be more that one file descriptor referencing the process.
+After the zombie is reaped, calls to
+.Fn pdwait
+specifying any file descriptors for the same process fail with the
+.Er ESRCH
+error.
+.Pp
 .Fn pdgetpid
 queries the process ID (PID) in the process descriptor
 .Fa fd .
@@ -140,8 +176,80 @@ the status information on the process referenced by the
 .Fa fd
 process descriptor.
 See the description of the
-.Xr wait6
+.Xr wait6 2
 system call for the behavior specification.
+.Pp
+The
+.Fn pddupfd
+function allows the caller to duplicate a file descriptor
+across the process boundaries.
+The function returns the new file descriptor that points to the same file
+as the file descriptor
+.Fa remotefd
+in the process specified by the
+.Fa fd
+process descriptor.
+The returned file descriptor has the
+.Va O_CLOEXEC
+flag set.
+The
+.Fa flags
+argument is reserved and must be zero.
+Certain file descriptor types cannot be copied this way, namely
+kqueues.
+.Sh INTERACTION OF PROCESS DESCRIPTORS AND Xr WAITPID 2
+.Pp
+The
+.Fn pdwait
+system call may be called on a process descriptor
+an unlimited number of times.
+In particular, it does not reap the target process,
+even if that process has exited.
+Each time, it returns the same status.
+.Bl -dash
+.It
+If the process was forked with
+.Fn pdfork ,
+and the
+.Dv PD_NOWAITPID
+flag was specified, then the process is automatically reaped after the
+last process descriptor referencing that process is closed.
+No
+.Xr waitpid 2
+call
+.Pq or a call from the same family of the wait functions which operate on PIDs
+are needed to reap the zombie process.
+.It
+If the process was created by
+.Fn pdfork ,
+and the
+.Dv PD_NOWAITPID
+flag was not specified, then after exiting,
+the process will not be reaped until the parent or reaper has called
+.Xr waitpid 2
+and all process descriptors referencing the process are closed.
+.It
+If the process was created by the
+.Xr fork 2
+system call
+.Pq which does not allocate a process descriptor for the child ,
+and later the process was opened by
+.Fn pdopenpid ,
+then a
+.Xr waitpid 2
+call from the parent is needed to reap the exited child.
+.El
+.Pp
+In any case, the PID of the process is not reused until its zombie
+is reaped, and all its process descriptors are closed.
+.Pp
+A debugger attached by
+.Xr ptrace 2
+can execute the
+.Fn waitpid
+calls against the alive target regardless of the way
+the target process was forked.
+.Sh INTERACTION OF PROCESS DESCRIPTORS WITH OTHER SYSTEM CALLS
 .Pp
 The following system calls also have effects specific to process descriptors:
 .Pp
@@ -192,10 +300,12 @@ return a PID, 0 or -1, as
 .Xr fork 2
 does.
 .Pp
+.Fn pdopenpid ,
 .Fn pdgetpid ,
 .Fn pdkill ,
+.Fn pdwait ,
 and
-.Fn pdwait
+.Fn pddupfd
 return 0 on success and -1 on failure.
 .Sh ERRORS
 These functions may return the same error numbers as their PID-based equivalents
@@ -232,6 +342,73 @@ The process descriptor being operated on has insufficient rights (e.g.
 .Dv CAP_PDKILL
 for
 .Fn pdkill ) .
+.It Bq Er EINVAL
+The
+.Fn pdwait
+function is called with reserved bits set in
+.Fa options .
+.El
+.Pp
+The
+.Fn pdopenpid
+might return the same errors as
+.Xr open 2 ,
+related to the file descriptor allocation problems, as well as the
+following specific errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa flags
+argument has reserved bits set.
+.It Bq Er ECAPMODE
+.Fn pdopenpid
+is called by the process in capability mode.
+.It Bq Er EBUSY
+The process specified by the
+.Fa pid
+argument already terminated.
+.It Bq Er ESRCH
+The process specified by the
+.Fa pid
+argument does not exist, or the caller does not have enough privileges
+to open the process.
+.It Bq Er EMFILE
+The calling process already reached its limit for open file descriptors.
+.Pp
+Current implementation installs the opened process descriptor into the
+calling process's file descriptors table.
+If the descriptor cannot be installed, the process descriptor is closed,
+which executes all actions performed by
+.Xr close 2
+on it.
+.El
+.Pp
+The
+.Fn pddupfd
+returns the following errors:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa flags
+argument is not zero.
+.It Bq Er EINVAL
+The file descriptor
+.Fa fd
+is not a process file descriptor.
+.It Bq Er ESRCH
+The process specified by the file descriptor
+.Fa fd
+exited.
+.It Bq Er EBADF
+The file descriptor
+.Fa remotefd
+is not a valid file descriptor in the specified process.
+.It Bq Er ENOENT
+The specified process does not have a file descriptor table.
+.It Bq Er EOPNOTSUPP
+.Fa remotefd
+refers to a file that cannot be duplicated across a process boundary,
+such as a kqueue.
 .El
 .Sh SEE ALSO
 .Xr close 2 ,
@@ -256,6 +433,12 @@ The
 and
 .Fn pdwait
 system calls first appeared in
+.Fx 15.1 .
+The
+.Fn pdopenpid
+and
+.Fn pddupfd
+system calls first appeared in
 .Fx 16.0 .
 .Pp
 Support for process descriptors mode was developed as part of the
@@ -277,3 +460,9 @@ functions were developed by
 .An Konstantin Belousov Aq Mt kib@FreeBSD.org
 with input from
 .An Alan Somers Aq Mt asomers@FreeBSD.org .
+The
+.Fn pdopenpid
+and
+.Fn pddupfd
+functions were developed by
+.An Konstantin Belousov Aq Mt kib@FreeBSD.org .

@@ -81,6 +81,16 @@ for i in \
     dobuild $ta _.boot.${ta}.log ""
 done
 
+# Cross build with gcc15, requires ${ta}-gcc15 to be installed
+for i in \
+	amd64/amd64 \
+	arm64/aarch64 \
+	riscv/riscv64 \
+	; do
+    ta=${i##*/}
+    dobuild $ta _.boot.${ta}.log "CROSS_TOOLCHAIN=${ta}-gcc15"
+done
+
 # Build w/o ZFS
 for i in \
 	arm64/aarch64 \

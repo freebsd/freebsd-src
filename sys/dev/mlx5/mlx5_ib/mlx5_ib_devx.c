@@ -44,6 +44,7 @@
 #include <linux/rculist.h>
 #include <linux/srcu.h>
 #include <linux/file.h>
+#include <linux/eventfd.h>
 #include <linux/poll.h>
 #include <linux/wait.h>
 
@@ -102,7 +103,7 @@ struct devx_event_subscription {
 	struct rcu_head	rcu;
 	u64 cookie;
 	struct devx_async_event_file *ev_file;
-	struct fd eventfd;
+	struct eventfd_ctx *eventfd;
 };
 
 struct devx_async_event_file {
@@ -2006,24 +2007,24 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_SUBSCRIBE_EVENT)(
 		if (!event_sub)
 			goto err;
 
+		event_sub->cookie = cookie;
+		event_sub->ev_file = ev_file;
+		event_sub->xa_key_level1 = key_level1;
+		event_sub->xa_key_level2 = obj_id;
+		INIT_LIST_HEAD(&event_sub->obj_list);
+
 		list_add_tail(&event_sub->event_list, &sub_list);
 		uverbs_uobject_get(&ev_file->uobj);
 		if (use_eventfd) {
 			event_sub->eventfd =
-				fdget(redirect_fd);
+				eventfd_ctx_fdget(redirect_fd);
 
-			if (event_sub->eventfd.file == NULL) {
-				err = -EBADF;
+			if (IS_ERR(event_sub->eventfd)) {
+				err = PTR_ERR(event_sub->eventfd);
+				event_sub->eventfd = NULL;
 				goto err;
 			}
 		}
-
-		event_sub->cookie = cookie;
-		event_sub->ev_file = ev_file;
-		/* May be needed upon cleanup the devx object/subscription */
-		event_sub->xa_key_level1 = key_level1;
-		event_sub->xa_key_level2 = obj_id;
-		INIT_LIST_HEAD(&event_sub->obj_list);
 	}
 
 	/* Once all the allocations and the XA data insertions were done we
@@ -2071,8 +2072,8 @@ err:
 					   obj,
 					   obj_id);
 
-		if (event_sub->eventfd.file)
-			fdput(event_sub->eventfd);
+		if (event_sub->eventfd)
+			eventfd_ctx_put(event_sub->eventfd);
 		uverbs_uobject_put(&event_sub->ev_file->uobj);
 		kfree(event_sub);
 	}
@@ -2339,8 +2340,8 @@ static void dispatch_event_fd(struct list_head *fd_list,
 	struct devx_event_subscription *item;
 
 	list_for_each_entry_rcu(item, fd_list, xa_list) {
-		if (item->eventfd.file != NULL)
-			linux_poll_wakeup(item->eventfd.file);
+		if (item->eventfd != NULL)
+			eventfd_signal(item->eventfd);
 		else
 			deliver_event(item, data);
 	}
@@ -2357,12 +2358,21 @@ static bool mlx5_devx_event_notifier(struct mlx5_core_dev *mdev,
 	bool is_unaffiliated;
 	u32 obj_id;
 
-	/* Explicit filtering to kernel events which may occur frequently */
+	/*
+	 * Command completions and page requests must be processed by the
+	 * mlx5_core default EQ handler.  Returning true here tells
+	 * mlx5_eq_int() the event was consumed and skips core processing,
+	 * which stalls the firmware command interface and page supply and
+	 * wedges the device.  Return false so the core handler runs for
+	 * these frequent kernel events.
+	 */
 	if (event_type == MLX5_EVENT_TYPE_CMD ||
 	    event_type == MLX5_EVENT_TYPE_PAGE_REQUEST)
-		return true;
+		return false;
 
-	dev = mdev->priv.eq_table.dev;
+	dev = READ_ONCE(mdev->priv.eq_table.dev);
+	if (dev == NULL)
+		return false;
 	table = &dev->devx_event_table;
 	is_unaffiliated = is_unaffiliated_event(dev->mdev, event_type);
 
@@ -2401,8 +2411,14 @@ void mlx5_ib_devx_init_event_table(struct mlx5_ib_dev *dev)
 
 	xa_init_flags(&table->event_xa, 0);
 	mutex_init(&table->event_xa_lock);
-	dev->mdev->priv.eq_table.dev = dev;
-	dev->mdev->priv.eq_table.cb = mlx5_devx_event_notifier;
+	/*
+	 * Publish dev before cb.  The EQ interrupt handler loads cb with
+	 * acquire semantics and the notifier then dereferences eq_table.dev,
+	 * so dev must be visible to that handler once cb is observed.
+	 */
+	WRITE_ONCE(dev->mdev->priv.eq_table.dev, dev);
+	smp_store_release(&dev->mdev->priv.eq_table.cb,
+			  mlx5_devx_event_notifier);
 }
 
 void mlx5_ib_devx_cleanup_event_table(struct mlx5_ib_dev *dev)
@@ -2413,8 +2429,14 @@ void mlx5_ib_devx_cleanup_event_table(struct mlx5_ib_dev *dev)
 	void *entry;
 	unsigned long id;
 
-	dev->mdev->priv.eq_table.cb = NULL;
-	dev->mdev->priv.eq_table.dev = NULL;
+	/*
+	 * Stop new dispatch by clearing cb, then wait for any in-flight EQ
+	 * callback to finish its RCU read section before clearing dev and
+	 * tearing down the event table.
+	 */
+	WRITE_ONCE(dev->mdev->priv.eq_table.cb, NULL);
+	synchronize_rcu();
+	WRITE_ONCE(dev->mdev->priv.eq_table.dev, NULL);
 	mutex_lock(&dev->devx_event_table.event_xa_lock);
 	xa_for_each(&table->event_xa, id, entry) {
 		event = entry;
@@ -2609,8 +2631,8 @@ static void devx_free_subscription(struct rcu_head *rcu)
 	struct devx_event_subscription *event_sub =
 		container_of(rcu, struct devx_event_subscription, rcu);
 
-	if (event_sub->eventfd.file)
-		fdput(event_sub->eventfd);
+	if (event_sub->eventfd)
+		eventfd_ctx_put(event_sub->eventfd);
 	uverbs_uobject_put(&event_sub->ev_file->uobj);
 	kfree(event_sub);
 }

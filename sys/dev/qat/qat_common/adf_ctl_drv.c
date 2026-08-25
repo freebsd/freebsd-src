@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
-/* Copyright(c) 2007-2022 Intel Corporation */
+/* Copyright(c) 2007-2026 Intel Corporation */
 #include "qat_freebsd.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
@@ -135,6 +135,7 @@ static int adf_ctl_ioctl_get_status(unsigned int cmd,
 	struct adf_hw_device_data *hw_data;
 	struct adf_dev_status_info *dev_info;
 	struct adf_accel_dev *accel_dev;
+	uint16_t banks_per_accel;
 
 	dev_info = (struct adf_dev_status_info *)arg;
 
@@ -143,12 +144,18 @@ static int adf_ctl_ioctl_get_status(unsigned int cmd,
 		return ENODEV;
 
 	hw_data = accel_dev->hw_device;
+
+	/* If the number of banks per accel exceeds the max value of uint8_t,
+	 * set it to 0 to indicate that it's not valid.
+	 */
+	banks_per_accel = hw_data->num_banks / hw_data->num_logical_accel;
+	banks_per_accel = banks_per_accel > UINT8_MAX ? 0 : banks_per_accel;
+
 	dev_info->state = adf_dev_started(accel_dev) ? DEV_UP : DEV_DOWN;
 	dev_info->num_ae = hw_data->get_num_aes(hw_data);
 	dev_info->num_accel = hw_data->get_num_accels(hw_data);
 	dev_info->num_logical_accel = hw_data->num_logical_accel;
-	dev_info->banks_per_accel = hw_data->num_banks
-	/ hw_data->num_logical_accel;
+	dev_info->banks_per_accel = (uint8_t)banks_per_accel;
 	strlcpy(dev_info->name, hw_data->dev_class->name,
 		sizeof(dev_info->name));
 	dev_info->instance_id = hw_data->instance_id;

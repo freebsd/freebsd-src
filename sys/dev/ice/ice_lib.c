@@ -4545,6 +4545,11 @@ ice_sysctl_set_link_active(SYSCTL_HANDLER_ARGS)
 	if ((ret) || (req->newptr == NULL))
 		return (ret);
 
+	if (ice_test_state(&sc->state, ICE_STATE_TOTAL_PORT_SHUTDOWN)) {
+		device_printf(sc->dev,
+			"Setting link_active_on_if_down not supported on this port\n");
+		return (EPERM);
+	}
 	if (mode)
 		ice_set_state(&sc->state, ICE_STATE_LINK_ACTIVE_ON_DOWN);
 	else
@@ -9654,8 +9659,7 @@ ice_apply_saved_phy_req_to_cfg(struct ice_softc *sc,
 
 finalize_link_speed:
 
-	/* Cache new user settings for speeds */
-	pi->phy.curr_user_speed_req = phy_data.user_speeds_intr;
+	/* Update phy types in config */
 	cfg->phy_type_low = htole64(phy_low);
 	cfg->phy_type_high = htole64(phy_high);
 
@@ -9873,6 +9877,11 @@ ice_set_link_management_mode(struct ice_softc *sc)
 	if (sc->hw.debug_mask & ICE_DBG_LINK)
 		ice_print_ldo_tlv(sc, &tlv);
 
+	/* Cache the LDO TLV structure in the driver, since it
+	 * won't change during the driver's lifetime.
+	 */
+	sc->ldo_tlv = tlv;
+
 	/* Set lenient link mode */
 	if (ice_is_bit_set(sc->feat_cap, ICE_FEATURE_LENIENT_LINK_MODE) &&
 	    (!(tlv.options & ICE_LINK_OVERRIDE_STRICT_MODE)))
@@ -9894,11 +9903,6 @@ ice_set_link_management_mode(struct ice_softc *sc)
 	    ice_is_bit_set(sc->feat_en, ICE_FEATURE_LENIENT_LINK_MODE) &&
 	    (tlv.options & ICE_LINK_OVERRIDE_EN))
 		ice_set_bit(ICE_FEATURE_LINK_MGMT_VER_1, sc->feat_en);
-
-	/* Cache the LDO TLV structure in the driver, since it
-	 * won't change during the driver's lifetime.
-	 */
-	sc->ldo_tlv = tlv;
 }
 
 /**
@@ -9961,16 +9965,21 @@ ice_init_saved_phy_cfg(struct ice_softc *sc)
 	device_t dev = sc->dev;
 	int status;
 	u64 phy_low, phy_high;
-	u8 report_mode = ICE_AQC_REPORT_TOPO_CAP_MEDIA;
 
+	/*
+	 * If the FW supports Link Management V2 we don't need
+	 * to save initial PHY configuration as it can be always
+	 * read from FW.
+	 */
 	if (ice_is_bit_set(sc->feat_en, ICE_FEATURE_LINK_MGMT_VER_2))
-		report_mode = ICE_AQC_REPORT_DFLT_CFG;
-	status = ice_aq_get_phy_caps(pi, false, report_mode, &pcaps, NULL);
+		return;
+
+	status = ice_aq_get_phy_caps(pi, false, ICE_AQC_REPORT_TOPO_CAP_MEDIA,
+	    &pcaps, NULL);
 	if (status) {
 		device_printf(dev,
-		    "%s: ice_aq_get_phy_caps (%s) failed; status %s, aq_err %s\n",
+		    "%s: ice_aq_get_phy_caps failed; status %s, aq_err %s\n",
 		    __func__,
-		    report_mode == ICE_AQC_REPORT_DFLT_CFG ? "DFLT" : "w/MEDIA",
 		    ice_status_str(status),
 		    ice_aq_str(hw->adminq.sq_last_status));
 		return;

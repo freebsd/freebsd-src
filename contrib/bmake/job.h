@@ -1,4 +1,4 @@
-/*	$NetBSD: job.h,v 1.85 2025/07/06 07:11:31 rillig Exp $	*/
+/*	$NetBSD: job.h,v 1.86 2026/02/10 18:53:34 sjg Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -93,6 +93,7 @@ void TokenPool_Init(int, int, int);
 bool TokenPool_Take(void) MAKE_ATTR_USE;
 void TokenPool_Return(void);
 
+bool MaybeSubMake(const char *);
 void Job_Touch(GNode *, bool);
 bool Job_CheckCommands(GNode *, void (*abortProc)(const char *, ...))
     MAKE_ATTR_USE;

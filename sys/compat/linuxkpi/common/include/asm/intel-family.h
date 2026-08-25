@@ -1,5 +1,34 @@
 /* Public domain. */
 
+#define	IFM(_fam, _model)	VFM_MAKE(X86_VENDOR_INTEL, _fam, _model)
+
+#define	INTEL_KABYLAKE_L		IFM(6, 0x8E)
+
+#define	INTEL_KABYLAKE			IFM(6, 0x9E)
+
+#define	INTEL_COMETLAKE			IFM(6, 0xA5)
+#define	INTEL_COMETLAKE_L		IFM(6, 0xA6)
+
+#define	INTEL_CANNONLAKE_L		IFM(6, 0x66)
+
+#define	INTEL_ICELAKE_X			IFM(6, 0x6A)
+#define	INTEL_ICELAKE_D			IFM(6, 0x6C)
+#define	INTEL_ICELAKE			IFM(6, 0x7D)
+#define	INTEL_ICELAKE_L			IFM(6, 0x7E)
+#define	INTEL_ICELAKE_NNPI		IFM(6, 0x9D)
+
+#define	INTEL_ROCKETLAKE		IFM(6, 0xA7)
+
+#define	INTEL_TIGERLAKE_L		IFM(6, 0x8C)
+#define	INTEL_TIGERLAKE			IFM(6, 0x8D)
+
+#define	INTEL_ALDERLAKE			IFM(6, 0x97)
+#define	INTEL_ALDERLAKE_L		IFM(6, 0x9A)
+
+#define	INTEL_RAPTORLAKE		IFM(6, 0xB7)
+#define	INTEL_RAPTORLAKE_P		IFM(6, 0xBA)
+#define	INTEL_RAPTORLAKE_S		IFM(6, 0xBF)
+
 #define	INTEL_FAM6_ALDERLAKE	0x97
 #define	INTEL_FAM6_ALDERLAKE_L	0x9A
 

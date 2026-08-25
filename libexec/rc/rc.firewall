@@ -131,14 +131,11 @@ ipv6_available=$?
 ############
 # Set quiet mode if requested
 #
-case ${firewall_quiet} in
-[Yy][Ee][Ss])
+if checkyesno firewall_quiet; then
 	fwcmd="/sbin/ipfw -q"
-	;;
-*)
+else
 	fwcmd="/sbin/ipfw"
-	;;
-esac
+fi
 
 ############
 # Flush out the list before we begin.
@@ -159,27 +156,19 @@ setup_ipv6_mandatory
 #
 case ${firewall_type} in
 [Oo][Pp][Ee][Nn]|[Cc][Ll][Ii][Ee][Nn][Tt])
-	case ${natd_enable} in
-	[Yy][Ee][Ss])
-		if [ -n "${natd_interface}" ]; then
-			${fwcmd} add 50 divert natd ip4 from any to any via ${natd_interface}
-		fi
-		;;
-	esac
-	case ${firewall_nat_enable} in
-	[Yy][Ee][Ss])
-		if [ -n "${firewall_nat_interface}" ]; then
-			if echo "${firewall_nat_interface}" | \
+	if [ -n "${natd_interface}" ] && checkyesno natd_enable; then
+		${fwcmd} add 50 divert natd ip4 from any to any via ${natd_interface}
+	fi
+	if [ -n "${firewall_nat_interface}" ] && checkyesno firewall_nat_enable ; then
+		if echo "${firewall_nat_interface}" | \
 				grep -q -E '^[0-9]+(\.[0-9]+){0,3}$'; then
-				firewall_nat_flags="ip ${firewall_nat_interface} ${firewall_nat_flags}"
-			else
-				firewall_nat_flags="if ${firewall_nat_interface} ${firewall_nat_flags}"
-			fi
-			${fwcmd} nat 123 config log ${firewall_nat_flags}
-			${fwcmd} add 50 nat 123 ip4 from any to any via ${firewall_nat_interface}
+			firewall_nat_flags="ip ${firewall_nat_interface} ${firewall_nat_flags}"
+		else
+			firewall_nat_flags="if ${firewall_nat_interface} ${firewall_nat_flags}"
 		fi
-		;;
-	esac
+		${fwcmd} nat 123 config log ${firewall_nat_flags}
+		${fwcmd} add 50 nat 123 ip4 from any to any via ${firewall_nat_interface}
+	fi
 esac
 
 ############
@@ -320,13 +309,9 @@ case ${firewall_type} in
 	# translated by natd(8) would match the `deny' rule above.  Similarly
 	# an outgoing packet originated from it before being translated would
 	# match the `deny' rule below.
-	case ${natd_enable} in
-	[Yy][Ee][Ss])
-		if [ -n "${natd_interface}" ]; then
-			${fwcmd} add divert natd ip4 from any to any via ${natd_interface}
-		fi
-		;;
-	esac
+	if [ -n "${natd_interface}" ] && checkyesno natd_enable; then
+		${fwcmd} add divert natd ip4 from any to any via ${natd_interface}
+	fi
 
 	${fwcmd} add deny all from "table($BAD_ADDR_TBL)" to any via ${oif}
 	if [ -n "$inet6" ]; then
@@ -421,10 +406,14 @@ case ${firewall_type} in
 	#  firewall_myservices:		List of ports/protocols on which this
 	#				 host offers services.
 	#  firewall_allowservices:	List of IPv4 and/or IPv6 addresses
-	#				 that have access to
-	#				 $firewall_myservices.
+	#				 or subnets that have access to
+	#				 $firewall_myservices, or files
+	#				 containing such address or subnets,
+	#				 one per line.
 	#  firewall_trusted:		List of IPv4 and/or IPv6 addresses
-	#				 that have full access to this host.
+	#				 or subnets that have full access to
+	#				 this host, or files containing such
+	#				 addresses or subnets, one per line.
 	#				 Be very careful when setting this.
 	#				 This option can seriously degrade
 	#				 the level of protection provided by
@@ -482,25 +471,33 @@ case ${firewall_type} in
 	#       workstation won't be a problem.
 	#
 	for i in ${firewall_allowservices} ; do
+	  case $i in
+	  /*)
+	    grep '^[^#]' "$i"
+	    ;;
+	  *)
+	    echo "$i"
+	    ;;
+	  esac
+	done | while read i _; do
 	  for j in ${firewall_myservices} ; do
 	    case $j in
 	    [0-9A-Za-z]*/[Pp][Rr][Oo][Tt][Oo])
 	      ${fwcmd} add pass ${j%/[Pp][Rr][Oo][Tt][Oo]} from $i to me
-	    ;;
+	      ;;
 	    [0-9A-Za-z]*/[Tt][Cc][Pp])
 	      ${fwcmd} add pass tcp from $i to me ${j%/[Tt][Cc][Pp]}
-	    ;;
+	      ;;
 	    [0-9A-Za-z]*/[Uu][Dd][Pp])
 	      ${fwcmd} add pass udp from $i to me ${j%/[Uu][Dd][Pp]}
-	    ;;
+	      ;;
 	    *[0-9A-Za-z])
-	      echo "Consider using ${j}/tcp in firewall_myservices." \
-	        > /dev/stderr
+	      echo "Consider using ${j}/tcp in firewall_myservices." >&2
 	      ${fwcmd} add pass tcp from $i to me $j
-	    ;;
+	      ;;
 	    *)
-	      echo "Invalid port in firewall_myservices: $j" > /dev/stderr
-	    ;;
+	      echo "Invalid port in firewall_myservices: $j" >&2
+	      ;;
 	    esac
 	  done
 	done
@@ -509,6 +506,15 @@ case ${firewall_type} in
 	# Playing with the content of firewall_trusted could seriously
 	# degrade the level of protection provided by the firewall.
 	for i in ${firewall_trusted} ; do
+	  case $i in
+	  /*)
+	    grep '^[^#]' "$i"
+	    ;;
+	  *)
+	    echo "$i"
+	    ;;
+	  esac
+	done | while read i _ ; do
 	  ${fwcmd} add pass ip from $i to me
 	done
 
@@ -533,8 +539,8 @@ case ${firewall_type} in
 
 	# Deny and (if wanted) log the rest unconditionally.
 	log=""
-	if [ ${firewall_logdeny:-x} = "YES" -o ${firewall_logdeny:-x} = "yes" ] ; then
-	  log="log logamount 500"	# The default of 100 is too low.
+	if checkyesno firewall_logdeny; then
+	  log="log logamount 500"
 	  sysctl net.inet.ip.fw.verbose=1 >/dev/null
 	fi
 	${fwcmd} add deny $log ip from any to any

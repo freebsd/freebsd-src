@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -95,8 +85,7 @@ typedef void arc_prune_func_t(uint64_t bytes, void *priv);
 extern uint_t zfs_arc_average_blocksize;
 extern int l2arc_exclude_special;
 
-/* generic arc_done_func_t's which you can use */
-arc_read_done_func_t arc_bcopy_func;
+/* generic arc_done_func_t which can be used */
 arc_read_done_func_t arc_getbuf_func;
 
 /* generic arc_prune_func_t wrapper for callbacks */
@@ -338,6 +327,7 @@ boolean_t arc_async_flush_guid_inuse(uint64_t load_guid);
 uint64_t arc_all_memory(void);
 uint64_t arc_default_max(uint64_t min, uint64_t allmem);
 uint64_t arc_target_bytes(void);
+uint64_t arc_boot_target_bytes(void);
 void arc_set_limits(uint64_t);
 void arc_init(void);
 void arc_fini(void);
@@ -354,8 +344,6 @@ boolean_t l2arc_range_check_overlap(uint64_t bottom, uint64_t top,
     uint64_t check);
 void l2arc_init(void);
 void l2arc_fini(void);
-void l2arc_start(void);
-void l2arc_stop(void);
 void l2arc_spa_rebuild_start(spa_t *spa);
 void l2arc_spa_rebuild_stop(spa_t *spa);
 

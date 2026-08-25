@@ -8,7 +8,7 @@
 #
 # A full copy of the text of the CDDL should have accompanied this
 # source.  A copy of the CDDL is also available via the Internet at
-# http://www.illumos.org/license/CDDL.
+# https://opensource.org/license/CDDL-1.0.
 #
 
 #
@@ -16,6 +16,8 @@
 #
 
 . $STF_SUITE/include/libtest.shlib
+
+zcp_support $TESTPOOL || log_unsupported "zfs channel programs are unavailable"
 
 DISK=${DISKS%% *}
 

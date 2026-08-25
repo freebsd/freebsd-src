@@ -323,7 +323,7 @@ static gid_t *tmp_groups = NULL;
 #define OP_MASKLEN	0x200
 #define OP_SEC		0x400
 #define OP_CLASSMASK	0x800	/* mask not specified, is Class A/B/C default */
-#define	OP_NOTROOT	0x1000	/* Mark the the mount path is not a fs root */
+#define	OP_NOTROOT	0x1000	/* Mark the mount path is not a fs root */
 
 #ifdef DEBUG
 static int debug = 1;

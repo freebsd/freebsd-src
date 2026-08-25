@@ -585,20 +585,21 @@ public constant char * prutfchar(LWCHAR ch)
 /*
  * Get the length of a UTF-8 character in bytes.
  */
-public int utf_len(char ch)
+public int utf_len(char ach)
 {
-	if ((ch & 0x80) == 0)
+	unsigned char ch = (unsigned char) ach;
+	if (IS_ASCII_OCTET(ch))
 		return 1;
-	if ((ch & 0xE0) == 0xC0)
+	if (IS_UTF8_LEAD2(ch))
 		return 2;
-	if ((ch & 0xF0) == 0xE0)
+	if (IS_UTF8_LEAD3(ch))
 		return 3;
-	if ((ch & 0xF8) == 0xF0)
+	if (IS_UTF8_LEAD4(ch))
 		return 4;
 #if 0
-	if ((ch & 0xFC) == 0xF8)
+	if (IS_UTF8_LEAD5(ch))
 		return 5;
-	if ((ch & 0xFE) == 0xFC)
+	if (IS_UTF8_LEAD6(ch))
 		return 6;
 #endif
 	/* Invalid UTF-8 encoding. */
@@ -608,16 +609,17 @@ public int utf_len(char ch)
 /*
  * Does the parameter point to the lead byte of a well-formed UTF-8 character?
  */
-public lbool is_utf8_well_formed(constant char *ss, int slen)
+public lbool is_utf8_well_formed(constant char *ssa, int slen)
 {
 	int i;
 	int len;
-	unsigned char s0 = (unsigned char) ss[0];
+	constant unsigned char *ss = (constant unsigned char *) ssa;
+	unsigned char s0 = ss[0];
 
-	if (IS_UTF8_INVALID(s0))
+	if (IS_UTF8_LEAD5(s0) || IS_UTF8_LEAD6(s0) || IS_UTF8_INVALID(s0))
 		return (FALSE);
 
-	len = utf_len(ss[0]);
+	len = utf_len(s0);
 	if (len > slen)
 		return (FALSE);
 	if (len == 1)
@@ -904,6 +906,7 @@ public lbool is_composing_char(LWCHAR ch)
 public lbool is_ubin_char(LWCHAR ch)
 {
 	if (is_in_table(ch, &user_prt_table)) return FALSE;
+	if (ch > MAX_UNICODE) return TRUE;
 	return is_in_table(ch, &user_ubin_table) ||
 	       (is_in_table(ch, &ubin_table) ||
 	       (bs_mode == BS_CONTROL && is_in_table(ch, &fmt_table) &&

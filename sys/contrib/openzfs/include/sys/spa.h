@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -29,8 +19,9 @@
  * Copyright 2017 Joyent, Inc.
  * Copyright (c) 2017, Intel Corporation.
  * Copyright (c) 2019, Allan Jude
- * Copyright (c) 2019, 2025, Klara, Inc.
+ * Copyright (c) 2019, 2024-2026, Klara, Inc.
  * Copyright (c) 2019, Datto Inc.
+ * Copyright (c) 2026, TrueNAS.
  */
 
 #ifndef _SYS_SPA_H
@@ -55,6 +46,7 @@ extern "C" {
  * Forward references that lots of things need.
  */
 typedef struct brt_vdev brt_vdev_t;
+typedef struct brt_dedup_shard brt_dedup_shard_t;
 typedef struct spa spa_t;
 typedef struct vdev vdev_t;
 typedef struct metaslab metaslab_t;
@@ -777,7 +769,7 @@ extern int spa_open_rewind(const char *pool, spa_t **, const void *tag,
 extern int spa_get_stats(const char *pool, nvlist_t **config, char *altroot,
     size_t buflen);
 extern int spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
-    nvlist_t *zplprops, struct dsl_crypto_params *dcp);
+    nvlist_t *zplprops, struct dsl_crypto_params *dcp, nvlist_t **errinfo);
 extern int spa_import(char *pool, nvlist_t *config, nvlist_t *props,
     uint64_t flags);
 extern nvlist_t *spa_tryimport(nvlist_t *tryconfig);
@@ -826,7 +818,7 @@ extern int spa_vdev_alloc(spa_t *spa, uint64_t guid);
 extern int spa_vdev_noalloc(spa_t *spa, uint64_t guid);
 extern boolean_t spa_vdev_remove_active(spa_t *spa);
 extern int spa_vdev_initialize(spa_t *spa, nvlist_t *nv, uint64_t cmd_type,
-    nvlist_t *vdev_errlist);
+    uint64_t value, boolean_t value_provided, nvlist_t *vdev_errlist);
 extern int spa_vdev_trim(spa_t *spa, nvlist_t *nv, uint64_t cmd_type,
     uint64_t rate, boolean_t partial, boolean_t secure, nvlist_t *vdev_errlist);
 extern int spa_vdev_setpath(spa_t *spa, uint64_t guid, const char *newpath);
@@ -848,9 +840,10 @@ extern void spa_l2cache_activate(vdev_t *vd);
 extern void spa_l2cache_drop(spa_t *spa);
 
 /* scanning */
-extern int spa_scan(spa_t *spa, pool_scan_func_t func);
+extern int spa_scan(spa_t *spa, pool_scan_func_t func,
+    pool_scrub_flags_t flags);
 extern int spa_scan_range(spa_t *spa, pool_scan_func_t func, uint64_t txgstart,
-    uint64_t txgend);
+    uint64_t txgend, pool_scrub_flags_t flags);
 extern int spa_scan_stop(spa_t *spa);
 extern int spa_scrub_pause_resume(spa_t *spa, pool_scrub_cmd_t flag);
 
@@ -944,6 +937,7 @@ typedef struct spa_stats {
 	spa_history_kstat_t	state;		/* pool state */
 	spa_history_kstat_t	guid;		/* pool guid */
 	spa_history_kstat_t	iostats;
+	spa_history_kstat_t	log_spacemaps;
 } spa_stats_t;
 
 typedef enum txg_state {
@@ -1062,6 +1056,7 @@ typedef enum spa_log_state {
 extern spa_log_state_t spa_get_log_state(spa_t *spa);
 extern void spa_set_log_state(spa_t *spa, spa_log_state_t state);
 extern int spa_reset_logs(spa_t *spa);
+extern void spa_log_sm_stats_update(spa_t *spa);
 
 /* Log claim callback */
 extern void spa_claim_notify(zio_t *zio);
@@ -1077,10 +1072,12 @@ extern void spa_set_rootblkptr(spa_t *spa, const blkptr_t *bp);
 extern void spa_altroot(spa_t *, char *, size_t);
 extern uint32_t spa_sync_pass(spa_t *spa);
 extern char *spa_name(spa_t *spa);
+extern char *spa_load_name(spa_t *spa);
 extern uint64_t spa_guid(spa_t *spa);
 extern uint64_t spa_load_guid(spa_t *spa);
 extern uint64_t spa_last_synced_txg(spa_t *spa);
 extern uint64_t spa_first_txg(spa_t *spa);
+extern uint64_t spa_open_txg(spa_t *spa);
 extern uint64_t spa_syncing_txg(spa_t *spa);
 extern uint64_t spa_final_dirty_txg(spa_t *spa);
 extern uint64_t spa_version(spa_t *spa);
@@ -1270,6 +1267,12 @@ extern int spa_wait_tag(const char *name, zpool_wait_activity_t activity,
     uint64_t tag, boolean_t *waited);
 extern void spa_notify_waiters(spa_t *spa);
 extern void spa_wake_waiters(spa_t *spa);
+
+/* a no-op condense op for test & debug */
+#ifdef ZFS_DEBUG
+extern void spa_condense_debug_start(spa_t *spa);
+extern void spa_condense_debug_cancel(spa_t *spa);
+#endif
 
 extern void spa_import_os(spa_t *spa);
 extern void spa_export_os(spa_t *spa);

@@ -100,7 +100,6 @@ SRCS+=${i}
 # https://github.com/madler/zlib/issues/633 documents why we suppress deprecated
 # prototype warnings.
 .PATH: ${SRCTOP}/sys/contrib/zlib
-ZLIB_CFLAGS=-DHAVE_MEMCPY -I${SRCTOP}/sys/contrib/zlib ${NO_WDEPRECATED_NON_PROTOTYPE}
 .for i in adler32.c crc32.c infback.c inffast.c inflate.c inftrees.c zutil.c
 CFLAGS.${i}+=${ZLIB_CFLAGS}
 SRCS+=	${i}
@@ -110,6 +109,13 @@ SRCS+=	${i}
 .PATH: ${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
 SRCS+=	lz4.c
 CFLAGS.lz4.c+= -I${SRCTOP}/sys/cddl/contrib/opensolaris/common/lz4
+
+# xz decompression
+.PATH: ${XZ_DIR}/linux/lib/xz
+.for i in xz_crc32.c xz_crc64.c xz_dec_bcj.c xz_dec_lzma2.c xz_dec_stream.c xz.c
+CFLAGS.${i}+=${XZ_CFLAGS}
+SRCS+=	${i}
+.endfor
 
 # io routines
 SRCS+=	closeall.c dev.c ioctl.c nullfs.c stat.c mount.c \
@@ -136,7 +142,7 @@ SRCS+=	arp.c ether.c ip.c inet_ntoa.c in_cksum.c net.c udp.c netif.c rpc.c
 SRCS+=	bootp.c rarp.c bootparam.c
 
 # boot filesystems
-SRCS+=	ufs.c nfs.c cd9660.c tftp.c gzipfs.c bzipfs.c
+SRCS+=	ufs.c nfs.c cd9660.c tftp.c gzipfs.c bzipfs.c xzfs.c
 SRCS+=	dosfs.c ext2fs.c
 SRCS+=	splitfs.c
 SRCS+=	pkgfs.c
@@ -161,7 +167,8 @@ CFLAGS.ffs_subr.c+= -DSTANDALONE_SMALL
 
 CFLAGS.gzipfs.c+= ${ZLIB_CFLAGS}
 CFLAGS.pkgfs.c+= ${ZLIB_CFLAGS}
-CFLAGS.bzipfs.c+= -I${SRCTOP}/contrib/bzip2  -DBZ_NO_STDIO -DBZ_NO_COMPRESS
+CFLAGS.bzipfs.c+= ${BZIP2_CFLAGS}
+CFLAGS.xzfs.c+= ${XZ_CFLAGS}
 
 # explicit_bzero and calculate_crc32c
 .PATH: ${SYSDIR}/libkern
@@ -185,6 +192,12 @@ SRCS+=	g_eli_hmac.c pkcs5v2.c
 # Maybe ZFS
 .if ${MK_LOADER_ZFS} == "yes"
 .include "${SASRC}/zfs/Makefile.inc"
+
+# zstdfs.c is a stacked filesystem for .zst files, like gzipfs.c/bzipfs.c
+# above; it's only buildable here because zfs/Makefile.inc already pulled
+# the zstd decompressor in for ZFS's on-disk compression.
+SRCS+=	zstdfs.c
+CFLAGS.zstdfs.c+= ${ZSTD_CFLAGS}
 .endif
 
 # Crypto hashing functions

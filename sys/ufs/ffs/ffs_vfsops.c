@@ -189,8 +189,10 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 {
 	struct ufs1_dinode *dip1;
 	struct ufs2_dinode *dip2;
+	time_t now;
 	int error;
 
+	now = time_second > fs->fs_time ? time_second : fs->fs_time;
 	if (I_IS_UFS1(ip)) {
 		dip1 = ip->i_din1;
 		*dip1 =
@@ -203,7 +205,7 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 		ip->i_gen = dip1->di_gen;
 		ip->i_uid = dip1->di_uid;
 		ip->i_gid = dip1->di_gid;
-		if (ffs_oldfscompat_inode_read(fs, ip->i_dp, time_second) &&
+		if (ffs_oldfscompat_inode_read(fs, ip->i_dp, now) &&
 		    fs->fs_ronly == 0)
 			UFS_INODE_SET_FLAG(ip, IN_MODIFIED);
 		return (0);
@@ -225,8 +227,7 @@ ffs_load_inode(struct buf *bp, struct inode *ip, struct fs *fs, ino_t ino)
 	ip->i_gen = dip2->di_gen;
 	ip->i_uid = dip2->di_uid;
 	ip->i_gid = dip2->di_gid;
-	if (ffs_oldfscompat_inode_read(fs, ip->i_dp, time_second) &&
-	    fs->fs_ronly == 0)
+	if (ffs_oldfscompat_inode_read(fs, ip->i_dp, now) && fs->fs_ronly == 0)
 		UFS_INODE_SET_FLAG(ip, IN_MODIFIED);
 	return (0);
 }
@@ -603,6 +604,16 @@ ffs_mount(struct mount *mp)
 			if (error) {
 				return (error);
 			}
+			/*
+			 * Refuse upgrade of NetBSD WAPBL filesystem to
+			 * read-write; see validate_sblock() for details.
+			 */
+			if (fs->fs_magic == FS_UFS2_MAGIC &&
+			    fs->fs_metaspace > fs->fs_fpg / 2) {
+				vfs_mount_error(mp,
+				    "WAPBL filesystem must be mounted read-only");
+				return (EROFS);
+			}
 			fs->fs_flags &= ~FS_UNCLEAN;
 			if (fs->fs_clean == 0) {
 				fs->fs_flags |= FS_UNCLEAN;
@@ -925,6 +936,23 @@ ffs_mountfs(struct vnode *odevvp, struct mount *mp, struct thread *td)
 		    ffs_use_bread);
 	if (error != 0)
 		goto out;
+	/*
+	 * Per NetBSD's wapbl(4), systems without WAPBL support should mount it
+	 * read-only; see validate_sblock() for details.
+	 */
+	if (fs->fs_magic == FS_UFS2_MAGIC &&
+	    fs->fs_metaspace > fs->fs_fpg / 2) {
+		if ((mp->mnt_flag & MNT_RDONLY) == 0) {
+			vfs_mount_error(mp,
+			    "WAPBL filesystem must be mounted read-only");
+			error = EROFS;
+			goto out;
+		}
+		printf("WARNING: %s: WAPBL filesystem mounted read-only"
+		    "(fs_metaspace %jd, fs_fpg/2 %jd)\n",
+		    mp->mnt_stat.f_mntonname, (intmax_t)fs->fs_metaspace,
+		    (intmax_t)fs->fs_fpg / 2);
+	}
 	fs->fs_flags &= ~FS_UNCLEAN;
 	if (fs->fs_clean == 0) {
 		fs->fs_flags |= FS_UNCLEAN;
@@ -1961,7 +1989,7 @@ ffs_inotovp(struct mount *mp,
 		return (ESTALE);
 
 	ip = VTOI(nvp);
-	if (ip->i_mode == 0 || ip->i_gen != gen || ip->i_effnlink <= 0) {
+	if (ip->i_mode == 0 || ip->i_gen != gen) {
 		if (ip->i_mode == 0)
 			vgone(nvp);
 		vput(nvp);
@@ -2083,7 +2111,7 @@ ffs_use_bwrite(void *devfd, off_t loc, void *buf, int size)
 	 * Writing the superblock itself. We need to do special checks for it.
 	 * A negative error code is returned to indicate that a copy of the
 	 * superblock has been made and that the copy is discarded when the
-	 * I/O is done. So the the caller should not attempt to restore the
+	 * I/O is done. So the caller should not attempt to restore the
 	 * fs_si field after the write is done. The caller will convert the
 	 * error code back to its usual positive value when returning it.
 	 */

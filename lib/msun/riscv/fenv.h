@@ -79,8 +79,42 @@ extern const fenv_t	__fe_dfl_env;
 #define	__rfs(__fcsr)	__asm __volatile("csrr %0, fcsr" : "=r" (__fcsr))
 #define	__wfs(__fcsr)	__asm __volatile("csrw fcsr, %0" :: "r" (__fcsr))
 
+int feclearexcept(int);
+int fegetexceptflag(fexcept_t *, int);
+int fesetexceptflag(const fexcept_t *, int);
+int feraiseexcept(int);
+int fetestexcept(int);
+int fegetround(void);
+int fesetround(int);
+int fegetenv(fenv_t *);
+int feholdexcept(fenv_t *);
+int fesetenv(const fenv_t *);
+int feupdateenv(const fenv_t *);
+
+/*
+ * C permits a standard library function to also be exposed as a function-like
+ * macro (C23 7.1.4), and msun uses that here to inline the fast path.  C++
+ * forbids it: <cfenv> imports these names into namespace std (using
+ * ::feclearexcept; etc.), so std::feclearexcept() and friends must denote the
+ * actual functions.  Expose the inlining macros to C only; C++ uses the real
+ * extern functions (defined in the matching lib/msun/<arch>/fenv.c).
+ */
+#ifndef __cplusplus
+#define	feclearexcept(a)	__feclearexcept_int(a)
+#define	fegetexceptflag(e, a)	__fegetexceptflag_int(e, a)
+#define	fesetexceptflag(e, a)	__fesetexceptflag_int(e, a)
+#define	feraiseexcept(a)	__feraiseexcept_int(a)
+#define	fetestexcept(a)		__fetestexcept_int(a)
+#define	fegetround()		__fegetround_int()
+#define	fesetround(a)		__fesetround_int(a)
+#define	fegetenv(e)		__fegetenv_int(e)
+#define	feholdexcept(e)		__feholdexcept_int(e)
+#define	fesetenv(e)		__fesetenv_int(e)
+#define	feupdateenv(e)		__feupdateenv_int(e)
+#endif /* !__cplusplus */
+
 __fenv_static inline int
-feclearexcept(int __excepts)
+__feclearexcept_int(int __excepts)
 {
 
 	__asm __volatile("csrc fflags, %0" :: "r"(__excepts));
@@ -89,7 +123,7 @@ feclearexcept(int __excepts)
 }
 
 __fenv_static inline int
-fegetexceptflag(fexcept_t *__flagp, int __excepts)
+__fegetexceptflag_int(fexcept_t *__flagp, int __excepts)
 {
 	fexcept_t __fcsr;
 
@@ -100,7 +134,7 @@ fegetexceptflag(fexcept_t *__flagp, int __excepts)
 }
 
 __fenv_static inline int
-fesetexceptflag(const fexcept_t *__flagp, int __excepts)
+__fesetexceptflag_int(const fexcept_t *__flagp, int __excepts)
 {
 	fexcept_t __fcsr;
 
@@ -112,7 +146,7 @@ fesetexceptflag(const fexcept_t *__flagp, int __excepts)
 }
 
 __fenv_static inline int
-feraiseexcept(int __excepts)
+__feraiseexcept_int(int __excepts)
 {
 
 	__asm __volatile("csrs fflags, %0" :: "r"(__excepts));
@@ -121,7 +155,7 @@ feraiseexcept(int __excepts)
 }
 
 __fenv_static inline int
-fetestexcept(int __excepts)
+__fetestexcept_int(int __excepts)
 {
 	fexcept_t __fcsr;
 
@@ -131,7 +165,7 @@ fetestexcept(int __excepts)
 }
 
 __fenv_static inline int
-fegetround(void)
+__fegetround_int(void)
 {
 	fexcept_t __fcsr;
 
@@ -141,7 +175,7 @@ fegetround(void)
 }
 
 __fenv_static inline int
-fesetround(int __round)
+__fesetround_int(int __round)
 {
 	fexcept_t __fcsr;
 
@@ -157,7 +191,7 @@ fesetround(int __round)
 }
 
 __fenv_static inline int
-fegetenv(fenv_t *__envp)
+__fegetenv_int(fenv_t *__envp)
 {
 
 	__rfs(*__envp);
@@ -166,7 +200,7 @@ fegetenv(fenv_t *__envp)
 }
 
 __fenv_static inline int
-feholdexcept(fenv_t *__envp __unused)
+__feholdexcept_int(fenv_t *__envp __unused)
 {
 
 	/* No exception traps. */
@@ -175,7 +209,7 @@ feholdexcept(fenv_t *__envp __unused)
 }
 
 __fenv_static inline int
-fesetenv(const fenv_t *__envp)
+__fesetenv_int(const fenv_t *__envp)
 {
 
 	__wfs(*__envp);
@@ -184,7 +218,7 @@ fesetenv(const fenv_t *__envp)
 }
 
 __fenv_static inline int
-feupdateenv(const fenv_t *__envp)
+__feupdateenv_int(const fenv_t *__envp)
 {
 	fexcept_t __fcsr;
 
@@ -197,8 +231,16 @@ feupdateenv(const fenv_t *__envp)
 
 #if __BSD_VISIBLE
 
+int feenableexcept(int);
+int fedisableexcept(int);
+
+#ifndef __cplusplus	/* see the note above; C++ uses the real functions */
+#define	feenableexcept(a)	__feenableexcept_int(a)
+#define	fedisableexcept(a)	__fedisableexcept_int(a)
+#endif
+
 __fenv_static inline int
-feenableexcept(int __mask __unused)
+__feenableexcept_int(int __mask __unused)
 {
 
 	/* No exception traps. */
@@ -207,7 +249,7 @@ feenableexcept(int __mask __unused)
 }
 
 __fenv_static inline int
-fedisableexcept(int __mask __unused)
+__fedisableexcept_int(int __mask __unused)
 {
 
 	/* No exception traps. */

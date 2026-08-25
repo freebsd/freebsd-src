@@ -93,10 +93,6 @@ static const char *tmpfs_opts[] = {
 	"export", "union", "nonc", "nomtime", "nosymfollow", "pgread", NULL
 };
 
-static const char *tmpfs_updateopts[] = {
-	"from", "easize", "export", "nomtime", "size", "nosymfollow", NULL
-};
-
 static int
 tmpfs_update_mtime_lazy_filter(struct vnode *vp, void *arg)
 {
@@ -325,6 +321,7 @@ tmpfs_mount(struct mount *mp)
 	    sizeof(struct tmpfs_dirent) + sizeof(struct tmpfs_node));
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *root;
+	struct vfsoptlist *opts;
 	int error;
 	bool nomtime, nonc, pgread;
 	/* Size counters. */
@@ -338,44 +335,71 @@ tmpfs_mount(struct mount *mp)
 
 	struct vattr va;
 
-	if (vfs_filteropt(mp->mnt_optnew, tmpfs_opts))
+	opts = mp->mnt_optnew;
+	if (vfs_filteropt(opts, tmpfs_opts))
 		return (EINVAL);
 
 	if (mp->mnt_flag & MNT_UPDATE) {
-		/* Only support update mounts for certain options. */
-		if (vfs_filteropt(mp->mnt_optnew, tmpfs_updateopts) != 0)
-			return (EOPNOTSUPP);
 		tmp = VFS_TO_TMPFS(mp);
-		if (vfs_getopt_size(mp->mnt_optnew, "size", &size_max) == 0) {
-			/*
-			 * On-the-fly resizing is not supported (yet). We still
-			 * need to have "size" listed as "supported", otherwise
-			 * trying to update fs that is listed in fstab with size
-			 * parameter, say trying to change rw to ro or vice
-			 * versa, would cause vfs_filteropt() to bail.
-			 */
-			if (size_max != tmp->tm_size_max)
-				return (EOPNOTSUPP);
-		}
-		if (vfs_getopt_size(mp->mnt_optnew, "easize", &ea_max_size) == 0) {
+
+		/*
+		 * These options cannot (yet) be modified on the fly, but
+		 * mount(8) will still pass them when remounting, so we
+		 * will silently ignore them as long as the value is
+		 * unchanged.
+		 */
+		if (vfs_scanopt(opts, "gid", "%d", &root_gid) == 1 &&
+		    root_gid != tmp->tm_root->tn_gid)
+			return (EOPNOTSUPP);
+		if (vfs_scanopt(opts, "uid", "%d", &root_uid) == 1 &&
+		    root_uid != tmp->tm_root->tn_uid)
+			return (EOPNOTSUPP);
+		if (vfs_scanopt(opts, "mode", "%ho", &root_mode) == 1 &&
+		    (root_mode & S_IFMT) != (tmp->tm_root->tn_mode & S_IFMT))
+			return (EOPNOTSUPP);
+		if (vfs_getopt_size(opts, "inodes", &nodes_max) == 0 &&
+		    nodes_max != 0 && nodes_max != tmp->tm_nodes_max)
+			return (EOPNOTSUPP);
+		if (vfs_getopt_size(opts, "size", &size_max) == 0 &&
+		    size_max != 0 && size_max != tmp->tm_size_max)
+			return (EOPNOTSUPP);
+		if (vfs_getopt_size(opts, "maxfilesize", &maxfilesize) == 0 &&
+		    maxfilesize != 0 && maxfilesize != tmp->tm_maxfilesize)
+			return (EOPNOTSUPP);
+		if (tmp->tm_nonc !=
+		    (vfs_getopt(opts, "nonc", NULL, NULL) == 0))
+			return (EOPNOTSUPP);
+		if (tmp->tm_pgread !=
+		    (vfs_getopt(opts, "pgread", NULL, NULL) == 0))
+			return (EOPNOTSUPP);
+
+		/*
+		 * These options can be modified.
+		 */
+		if (vfs_getopt_size(opts, "easize", &ea_max_size) != 0)
 			tmp->tm_ea_memory_max = ea_max_size;
-		}
-		if (vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) &&
-		    !tmp->tm_ronly) {
+		tmp->tm_nomtime = (vfs_getopt(opts, "nomtime", NULL, 0) == 0);
+
+		/*
+		 * Handle read-write to read-only or vice versa.
+		 */
+		if (vfs_flagopt(opts, "ro", NULL, 0) && !tmp->tm_ronly) {
 			/* RW -> RO */
 			return (tmpfs_rw_to_ro(mp));
-		} else if (!vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0) &&
-		    tmp->tm_ronly) {
+		}
+		if (!vfs_flagopt(opts, "ro", NULL, 0) && tmp->tm_ronly) {
 			/* RO -> RW */
 			tmp->tm_ronly = 0;
 			MNT_ILOCK(mp);
 			mp->mnt_flag &= ~MNT_RDONLY;
 			MNT_IUNLOCK(mp);
 		}
-		tmp->tm_nomtime = vfs_getopt(mp->mnt_optnew, "nomtime", NULL,
-		    0) == 0;
+
+		/*
+		 * Check if fast path lookup is still supported.
+		 */
 		MNT_ILOCK(mp);
-		if ((mp->mnt_flag & MNT_UNION) == 0) {
+		if (!tmp->tm_nonc && (mp->mnt_flag & MNT_UNION) == 0) {
 			mp->mnt_kern_flag |= MNTK_FPLOOKUP;
 		} else {
 			mp->mnt_kern_flag &= ~MNTK_FPLOOKUP;
@@ -391,25 +415,25 @@ tmpfs_mount(struct mount *mp)
 		return (error);
 
 	if (mp->mnt_cred->cr_ruid != 0 ||
-	    vfs_scanopt(mp->mnt_optnew, "gid", "%d", &root_gid) != 1)
+	    vfs_scanopt(opts, "gid", "%d", &root_gid) != 1)
 		root_gid = va.va_gid;
 	if (mp->mnt_cred->cr_ruid != 0 ||
-	    vfs_scanopt(mp->mnt_optnew, "uid", "%d", &root_uid) != 1)
+	    vfs_scanopt(opts, "uid", "%d", &root_uid) != 1)
 		root_uid = va.va_uid;
 	if (mp->mnt_cred->cr_ruid != 0 ||
-	    vfs_scanopt(mp->mnt_optnew, "mode", "%ho", &root_mode) != 1)
+	    vfs_scanopt(opts, "mode", "%ho", &root_mode) != 1)
 		root_mode = va.va_mode;
-	if (vfs_getopt_size(mp->mnt_optnew, "inodes", &nodes_max) != 0)
+	if (vfs_getopt_size(opts, "inodes", &nodes_max) != 0)
 		nodes_max = 0;
-	if (vfs_getopt_size(mp->mnt_optnew, "size", &size_max) != 0)
+	if (vfs_getopt_size(opts, "size", &size_max) != 0)
 		size_max = 0;
-	if (vfs_getopt_size(mp->mnt_optnew, "maxfilesize", &maxfilesize) != 0)
+	if (vfs_getopt_size(opts, "maxfilesize", &maxfilesize) != 0)
 		maxfilesize = 0;
-	if (vfs_getopt_size(mp->mnt_optnew, "easize", &ea_max_size) != 0)
+	if (vfs_getopt_size(opts, "easize", &ea_max_size) != 0)
 		ea_max_size = 0;
-	nonc = vfs_getopt(mp->mnt_optnew, "nonc", NULL, NULL) == 0;
-	nomtime = vfs_getopt(mp->mnt_optnew, "nomtime", NULL, NULL) == 0;
-	pgread = vfs_getopt(mp->mnt_optnew, "pgread", NULL, NULL) == 0;
+	nonc = vfs_getopt(opts, "nonc", NULL, NULL) == 0;
+	nomtime = vfs_getopt(opts, "nomtime", NULL, NULL) == 0;
+	pgread = vfs_getopt(opts, "pgread", NULL, NULL) == 0;
 
 	/* Do not allow mounts if we do not have enough memory to preserve
 	 * the minimum reserved pages. */

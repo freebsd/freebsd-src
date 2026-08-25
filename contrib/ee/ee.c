@@ -194,7 +194,7 @@ unsigned char *srch_2;		/* pointer to next character of string	*/
 unsigned char *srch_3;
 unsigned char *in_file_name = NULL;	/* name of input file		*/
 char *tmp_file;	/* temporary file name			*/
-unsigned char *d_char;		/* deleted character			*/
+unsigned char d_char[5];	/* deleted character			*/
 unsigned char *d_word;		/* deleted word				*/
 unsigned char *d_line;		/* deleted line				*/
 char in_string[513];	/* buffer for reading a file		*/
@@ -598,7 +598,6 @@ main(int argc, char *argv[])
 	signal(SIGCHLD, SIG_DFL);
 	signal(SIGSEGV, SIG_DFL);
 	signal(SIGINT, edit_abort);
-	d_char = malloc(5);	/* UTF-8 chars can be up to 4 bytes + NUL */
 	d_word = malloc(150);
 	*d_word = '\0';
 	d_line = NULL;
@@ -679,7 +678,11 @@ main(int argc, char *argv[])
 			 * issue
 			 */
 			if (wret == ERR)
+			{
+				if (errno == EINTR)
+					continue;
 				exit(0);
+			}
 			in = (int)win;
 
 			resize_check();
@@ -832,7 +835,6 @@ insert_utf8(const unsigned char *mb, int len)
 {
 	int counter;
 	unsigned char *temp;
-	unsigned char *temp2;
 	int i;
 
 	text_changes = TRUE;
@@ -848,17 +850,18 @@ insert_utf8(const unsigned char *mb, int len)
 		counter++;
 		temp++;
 	}
-	temp++;
-	while (point < temp)
+	temp += len;
+	while (point + len - 1 < temp)
 	{
+		unsigned char *temp2;
+
 		temp2 = temp - len;
 		*temp = *temp2;
 		temp--;
 	}
 
 	/* copy all bytes of the UTF-8 character */
-	for (i = 0; i < len; i++)
-		point[i] = mb[i];
+	memmove(point, mb, len);
 
 	/* display the character before advancing past it */
 	wclrtoeol(text_win);
@@ -931,8 +934,10 @@ delete(int disp)
 		scr_pos = scr_horz;
 		if (in == 8)
 		{
-			memcpy(d_char, point, del_width);
-			d_char[del_width] = '\0';
+			size_t width = min(del_width, 4);
+
+			memcpy(d_char, point, width);
+			d_char[width] = '\0';
 		}
 		while (temp_pos <= curr_line->line_length)
 		{
@@ -2993,7 +2998,7 @@ del_word(void)
 	if (d_word != NULL)
 		free(d_word);
 	d_word = malloc(curr_line->line_length);
-	memcpy(tmp_char, d_char, 5);
+	memcpy(tmp_char, d_char, sizeof(tmp_char));
 	d_word3 = point;
 	d_word2 = d_word;
 	tposit = position;
@@ -3026,7 +3031,7 @@ del_word(void)
 	curr_line->line_length -= difference;
 	*d_word2 = '\0';
 	draw_line(scr_vert, scr_horz,point,position,curr_line->line_length);
-	memcpy(d_char, tmp_char, 5);
+	memcpy(d_char, tmp_char, sizeof(d_char));
 	text_changes = TRUE;
 	formatted = FALSE;
 }
@@ -4141,7 +4146,7 @@ Format(void)
 	unsigned char *temp_dword;
 	unsigned char temp_d_char[5];
 
-	memcpy(temp_d_char, d_char, 5);
+	memcpy(temp_d_char, d_char, sizeof(temp_d_char));
 
 /*
  |	if observ_margins is not set, or the current line is blank,
@@ -4336,7 +4341,7 @@ Format(void)
 	case_sen = temp_case;
 	free(srch_str);
 	srch_str = tmp_srchstr;
-	memcpy(d_char, temp_d_char, 5);
+	memcpy(d_char, temp_d_char, sizeof(d_char));
 	auto_format = tmp_af;
 
 	midscreen(scr_vert, point);
@@ -4720,7 +4725,7 @@ Auto_Format(void)
 	unsigned char temp_d_char[5];
 	unsigned char *tmp_d_line;
 
-	memcpy(temp_d_char, d_char, 5);
+	memcpy(temp_d_char, d_char, sizeof(temp_d_char));
 
 /*
  |	if observ_margins is not set, or the current line is blank, 
@@ -4946,7 +4951,7 @@ Auto_Format(void)
 	case_sen = temp_case;
 	free(srch_str);
 	srch_str = tmp_srchstr;
-	memcpy(d_char, temp_d_char, 5);
+	memcpy(d_char, temp_d_char, sizeof(d_char));
 	auto_format = TRUE;
 	dlt_line->line_length = tmp_d_line_length;
 	d_line = tmp_d_line;

@@ -26,6 +26,8 @@
                     ..
                 ..
             ..
+            pkgconf           tags=package=pkgconf-dev
+            ..
             samplerate        tags=package=sound-dev
             ..
             sqlite3           tags=package=libsqlite3-dev
@@ -40,7 +42,7 @@
     ..
     lib
         clang
-            19
+            21
                 include
                     cuda_wrappers
                         bits
@@ -138,6 +140,10 @@
                 include
                 ..
             ..
+            085.datetime
+                include
+                ..
+            ..
             090.timezone
                 include
                 ..
@@ -199,7 +205,7 @@
     sbin
     ..
     share
-        atf             tags=package=tests
+        atf             tags=package=atf
         ..
         bhyve
             gdb
@@ -208,6 +214,8 @@
             ..
         ..
         bsdconfig
+            datetime
+            ..
             media
             ..
             networking
@@ -236,9 +244,9 @@
         doc
             IPv6
             ..
-            atf             tags=package=tests
+            atf             tags=package=atf
             ..
-            kyua            tags=package=tests
+            kyua            tags=package=kyua
             ..
             legal
             ..
@@ -334,7 +342,7 @@
                     ..
                 ..
             ..
-            kyua            tags=package=tests
+            kyua            tags=package=kyua
             ..
             libusb20
             ..
@@ -343,8 +351,6 @@
             mdoc
             ..
             netgraph
-            ..
-            perfmon
             ..
             pf
             ..
@@ -483,10 +489,10 @@
                 ..
             ..
         ..
-        kyua            tags=package=tests
-            misc            tags=package=tests
+        kyua            tags=package=kyua
+            misc            tags=package=kyua
             ..
-            store           tags=package=tests
+            store           tags=package=kyua
             ..
         ..
         locale
@@ -503,8 +509,6 @@
             man4
                 aarch64
                 ..
-                amd64
-                ..
                 arm
                 ..
                 i386
@@ -519,12 +523,6 @@
             man7
             ..
             man8
-                amd64
-                ..
-                i386
-                ..
-                powerpc
-                ..
             ..
             man9
             ..

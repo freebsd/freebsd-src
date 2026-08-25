@@ -8,7 +8,7 @@
 .\" Technology), and Capabilities Limited under Defense Advanced Research
 .\" Projects Agency (DARPA) Contract No. FA8750-24-C-B047 ("DEC").
 .\"
-.Dd January 31, 2025
+.Dd May 27, 2026
 .Dt cpu_machdep 9
 .Os
 .Sh NAME
@@ -31,6 +31,7 @@
 .Nm cpu_thread_clean ,
 .Nm cpu_thread_exit ,
 .Nm cpu_thread_free ,
+.Nm cpu_thread_new_kstack ,
 .Nm cpu_throw ,
 .Nm cpu_update_pcb
 .Nd machine-dependent interfaces to handle CPU and thread state
@@ -83,6 +84,8 @@
 .Fn cpu_thread_exit "struct thread *td"
 .Ft void
 .Fn cpu_thread_free "struct thread *td"
+.Ft void
+.Fn cpu_thread_new_kstack "struct thread *td"
 .Ft void
 .Fn cpu_throw "struct thread *old" "struct thread *new"
 .Ft void
@@ -366,19 +369,25 @@ When the process object is later reused for a new process in
 .Xr fork 2 ,
 the kernel recycles that last thread object and uses it as the initial
 thread in the new process.
-When a thread is recycled, some of the steps in the thread allocation
-and free cycle are skipped as an optimization.
+When a thread is recycled, a new kernel stack may be allocated if
+the existing kernel stack is not suitable for the new process.
 .Pp
 .Fn cpu_thread_alloc
 initializes machine-dependent fields in
 .Fa td
+when allocating a new thread object.
+.Pp
+.Fn cpu_thread_new_kstack
+initializes kernel stack-related machine-dependent fields in
+.Fa td
 after allocating a new kernel stack.
 This function typically sets the
 .Fa td_pcb
+.Pq on architectures which store the pcb in the kernel stack
 and initial
 .Fa td_frame
 pointers.
-.Fn cpu_thread_alloc
+.Fn cpu_thread_new_kstack
 is called both when allocating a new thread object and
 when a recycled thread allocates a new kernel stack.
 Note that this function is
@@ -386,12 +395,19 @@ Note that this function is
 called if a recycled thread reuses its existing kernel stack.
 .Pp
 .Fn cpu_thread_clean
-releases any machine-dependent resources for the last thread in a
+releases machine-dependent resources for the last thread in a
 process during
 .Xr wait 2 .
-The thread is a candidate for recycling so should be reset to run as a
+Since the thread is a candidate for recycling,
+machine-dependent fields should be reset to run as a
 new thread in case it is recycled by a future
 .Xr fork 2 .
+In particular,
+if the thread reuses its existing kernel stack,
+no other
+.Fn cpu_thread_*
+function will be invoked before the thread is reused as the main
+thread of a new process.
 .Pp
 .Fn cpu_thread_exit
 cleans any machine-dependent state in

@@ -134,39 +134,18 @@ ua_mixer_init(struct snd_mixer *m)
 static int
 ua_mixer_set(struct snd_mixer *m, unsigned type, unsigned left, unsigned right)
 {
-	struct mtx *mtx = mixer_get_lock(m);
-	uint8_t do_unlock;
-
-	if (mtx_owned(mtx)) {
-		do_unlock = 0;
-	} else {
-		do_unlock = 1;
-		mtx_lock(mtx);
-	}
 	uaudio_mixer_set(mix_getdevinfo(m), m, type, left, right);
-	if (do_unlock) {
-		mtx_unlock(mtx);
-	}
+
 	return (left | (right << 8));
 }
 
 static uint32_t
 ua_mixer_setrecsrc(struct snd_mixer *m, uint32_t src)
 {
-	struct mtx *mtx = mixer_get_lock(m);
 	int retval;
-	uint8_t do_unlock;
 
-	if (mtx_owned(mtx)) {
-		do_unlock = 0;
-	} else {
-		do_unlock = 1;
-		mtx_lock(mtx);
-	}
 	retval = uaudio_mixer_setrecsrc(mix_getdevinfo(m), m, src);
-	if (do_unlock) {
-		mtx_unlock(mtx);
-	}
+
 	return (retval);
 }
 
@@ -190,18 +169,7 @@ MIXER_DECLARE(ua_mixer);
 static int
 ua_probe(device_t dev)
 {
-	struct sndcard_func *func;
-
-	/* the parent device has already been probed */
-
-	func = device_get_ivars(dev);
-
-	if ((func == NULL) ||
-	    (func->func != SCF_PCM)) {
-		return (ENXIO);
-	}
-
-	return (BUS_PROBE_DEFAULT);
+	return (0);
 }
 
 static int

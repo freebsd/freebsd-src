@@ -1,7 +1,7 @@
 /*-
  * SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
  *
- * Copyright (c) 2017 - 2022 Intel Corporation
+ * Copyright (c) 2017 - 2026 Intel Corporation
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -99,6 +99,7 @@
 #define IRDMA_PFHMC_SDCMD_PMSDPARTSEL BIT(15)
 
 #define IRDMA_INVALID_CQ_IDX 0xffffffff
+#define IRDMA_Q_INVALID_IDX 0xffff
 
 enum irdma_dyn_idx_t {
 	IRDMA_IDX_ITR0 = 0,
@@ -195,6 +196,7 @@ struct irdma_uk_attrs {
 	u32 max_hw_wq_quanta;
 	u32 min_hw_cq_size;
 	u32 max_hw_cq_size;
+	u16 max_hw_push_len;
 	u16 max_hw_sq_chunk;
 	u16 min_hw_wq_size;
 	u8 hw_rev;

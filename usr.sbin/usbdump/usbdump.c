@@ -45,6 +45,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -108,6 +109,7 @@ struct header_32 {
 
 static int doexit;
 static int pkt_captured;
+static bool print_time = true;
 static int verbose;
 static int uf_minor;
 static char *i_arg;
@@ -459,13 +461,9 @@ hexdump(const uint8_t *region, uint32_t len)
 static void
 print_apacket(const struct header_32 *hdr, const uint8_t *ptr, int ptr_len)
 {
-	struct tm *tm;
 	struct usbpf_pkthdr up_temp;
 	struct usbpf_pkthdr *up;
-	struct timeval tv;
-	size_t len;
 	uint32_t x;
-	char buf[64];
 
 	ptr += USBPF_HDR_LEN;
 	ptr_len -= USBPF_HDR_LEN;
@@ -494,15 +492,22 @@ print_apacket(const struct header_32 *hdr, const uint8_t *ptr, int ptr_len)
 	if (!match_filter(up->up_address, up->up_endpoint))
 		return;
 
-	tv.tv_sec = hdr->ts_sec;
-	tv.tv_usec = hdr->ts_usec;
-	tm = localtime(&tv.tv_sec);
-
-	len = strftime(buf, sizeof(buf), "%H:%M:%S", tm);
-
 	if (verbose >= 0) {
-		printf("%.*s.%06ld usbus%d.%d %s-%s-EP=%08x,SPD=%s,NFR=%d,SLEN=%d,IVAL=%d%s%s\n",
-		    (int)len, buf, tv.tv_usec,
+		if (print_time) {
+			struct timeval tv;
+			char buf[64];
+			struct tm *tm;
+			size_t len;
+
+			tv.tv_sec = hdr->ts_sec;
+			tv.tv_usec = hdr->ts_usec;
+			tm = localtime(&tv.tv_sec);
+
+			len = strftime(buf, sizeof(buf), "%H:%M:%S", tm);
+			printf("%.*s.%06ld ", (int)len, buf, tv.tv_usec);
+		}
+
+		printf("usbus%d.%d %s-%s-EP=%08x,SPD=%s,NFR=%d,SLEN=%d,IVAL=%d%s%s\n",
 		    (int)up->up_busunit, (int)up->up_address,
 		    (up->up_type == USBPF_XFERTAP_SUBMIT) ? "SUBM" : "DONE",
 		    usb_xferstr(up->up_xfertype),
@@ -784,6 +789,7 @@ usage(void)
 	fprintf(stderr, FMT, "-f <unit[.endpoint]>", "Specify a device and endpoint filter");
 	fprintf(stderr, FMT, "-r <file>", "Read the raw packets from file");
 	fprintf(stderr, FMT, "-s <snaplen>", "Snapshot bytes from each packet");
+	fprintf(stderr, FMT, "-t", "Do not print packet timestamps");
 	fprintf(stderr, FMT, "-v", "Increase the verbose level");
 	fprintf(stderr, FMT, "-b <file>", "Save raw version of all recorded data to file");
 	fprintf(stderr, FMT, "-w <file>", "Write the raw packets to file");
@@ -811,7 +817,7 @@ main(int argc, char *argv[])
 	const char *optstring;
 	char *pp;
 
-	optstring = "b:d:hi:r:s:uvw:f:";
+	optstring = "b:d:hi:r:s:tuvw:f:";
 	while ((o = getopt(argc, argv, optstring)) != -1) {
 		switch (o) {
 		case 'b':
@@ -880,6 +886,9 @@ main(int argc, char *argv[])
 			/* snapeshot == 0 is special */
 			if (snapshot == 0)
 				snapshot = -1;
+			break;
+		case 't':
+			print_time = false;
 			break;
 		case 'u':
 			setbuf(stdout, NULL);

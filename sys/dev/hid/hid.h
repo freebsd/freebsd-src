@@ -57,8 +57,14 @@
 #define	HUP_SCALE		0x008c
 #define	HUP_CAMERA_CONTROL	0x0090
 #define	HUP_ARCADE		0x0091
+#define	HUP_RESERVED_FF		0x00ff
 #define	HUP_FIDO		0xf1d0
-#define	HUP_MICROSOFT		0xff00
+#define	HUP_VENDOR_00		0xff00
+#define	HUP_VENDOR_01		0xff01
+/* XXX compat */
+#define	HUP_APPLE		HUP_RESERVED_FF
+#define	HUP_MICROSOFT		HUP_VENDOR_00
+#define	HUP_HP			HUP_VENDOR_01
 
 /* Usages, generic desktop */
 #define	HUG_POINTER		0x0001
@@ -68,6 +74,7 @@
 #define	HUG_KEYBOARD		0x0006
 #define	HUG_KEYPAD		0x0007
 #define	HUG_MULTIAXIS_CNTROLLER	0x0008
+#define	HUG_RADIO_CONTROL       0x000c
 #define	HUG_X			0x0030
 #define	HUG_Y			0x0031
 #define	HUG_Z			0x0032
@@ -110,6 +117,7 @@
 #define	HUG_D_PAD_RIGHT		0x0092
 #define	HUG_D_PAD_LEFT		0x0093
 #define	HUG_APPLE_EJECT		0x00b8
+#define	HUG_RADIO_BUTTON        0x00c6
 
 /* Usages Digitizers */
 #define	HUD_UNDEFINED		0x0000

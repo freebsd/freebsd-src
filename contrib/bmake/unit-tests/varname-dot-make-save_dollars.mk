@@ -1,4 +1,4 @@
-# $NetBSD: varname-dot-make-save_dollars.mk,v 1.7 2021/12/03 18:43:52 rillig Exp $
+# $NetBSD: varname-dot-make-save_dollars.mk,v 1.8 2026/03/13 04:22:03 sjg Exp $
 #
 # Tests for the special .MAKE.SAVE_DOLLARS variable, which controls whether
 # the assignment operator ':=' converts '$$' to a single '$' or keeps it
@@ -8,11 +8,11 @@
 #	var-op-expand.mk	for ':=' in general
 #	varmisc.mk		for parsing the boolean values
 
-# Initially, the variable .MAKE.SAVE_DOLLARS is undefined. At this point the
-# behavior of the assignment operator ':=' depends.  NetBSD's usr.bin/make
-# preserves the '$$' as-is, while the bmake distribution replaces '$$' with
-# '$'.
-.if ${.MAKE.SAVE_DOLLARS:Uundefined} != "undefined"
+# The variable .MAKE.SAVE_DOLLARS is a boolean that controls the handling
+# of '$$' during ':='
+# If "yes" (default for NetBSD's usr.bin/make) '$$' is left as-is.
+# If "no" (default for bmake), '$$' is replaced with '$'.
+.if ${.MAKE.SAVE_DOLLARS:Uundefined} == "undefined"
 .  error
 .endif
 

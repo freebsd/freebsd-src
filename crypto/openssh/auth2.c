@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.170 2025/01/17 00:09:41 dtucker Exp $ */
+/* $OpenBSD: auth2.c,v 1.174 2026/07/06 07:44:48 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -88,8 +88,8 @@ Authmethod *authmethods[] = {
 
 /* protocol */
 
-static int input_service_request(int, u_int32_t, struct ssh *);
-static int input_userauth_request(int, u_int32_t, struct ssh *);
+static int input_service_request(int, uint32_t, struct ssh *);
+static int input_userauth_request(int, uint32_t, struct ssh *);
 
 /* helper */
 static Authmethod *authmethod_byname(const char *);
@@ -145,7 +145,7 @@ userauth_send_banner(struct ssh *ssh, const char *msg)
 	    (r = sshpkt_put_cstring(ssh, "")) != 0 ||	/* language, unused */
 	    (r = sshpkt_send(ssh)) != 0)
 		fatal_fr(r, "send packet");
-	debug("%s: sent", __func__);
+	debug_f("sent");
 }
 
 static void
@@ -181,7 +181,7 @@ do_authentication2(struct ssh *ssh)
 }
 
 static int
-input_service_request(int type, u_int32_t seq, struct ssh *ssh)
+input_service_request(int type, uint32_t seq, struct ssh *ssh)
 {
 	Authctxt *authctxt = ssh->authctxt;
 	char *service = NULL;
@@ -265,8 +265,14 @@ ensure_minimum_time_since(double start, double seconds)
 	nanosleep(&ts, NULL);
 }
 
+void
+auth_failure_delay(Authctxt *authctxt, double tstart)
+{
+	ensure_minimum_time_since(tstart, user_specific_delay(authctxt->user));
+}
+
 static int
-input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
+input_userauth_request(int type, uint32_t seq, struct ssh *ssh)
 {
 	Authctxt *authctxt = ssh->authctxt;
 	Authmethod *m = NULL;
@@ -293,6 +299,8 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 		/* setup auth context */
 		authctxt->pw = mm_getpwnamallow(ssh, user);
 		authctxt->user = xstrdup(user);
+		authctxt->service = xstrdup(service);
+		authctxt->style = style ? xstrdup(style) : NULL;
 		if (authctxt->pw && strcmp(service, "ssh-connection")==0) {
 			authctxt->valid = 1;
 			debug2_f("setting up authctxt for %s", user);
@@ -311,8 +319,6 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 		ssh_packet_set_log_preamble(ssh, "%suser %s",
 		    authctxt->valid ? "authenticating " : "invalid ", user);
 		setproctitle("%s [net]", authctxt->valid ? user : "unknown");
-		authctxt->service = xstrdup(service);
-		authctxt->style = style ? xstrdup(style) : NULL;
 		mm_inform_authserv(service, style);
 		userauth_banner(ssh);
 		if ((r = kex_server_update_ext_info(ssh)) != 0)
@@ -346,8 +352,8 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 		authenticated =	m->userauth(ssh, method);
 	}
 	if (!authctxt->authenticated && strcmp(method, "none") != 0)
-		ensure_minimum_time_since(tstart,
-		    user_specific_delay(authctxt->user));
+		auth_failure_delay(authctxt, tstart);
+
 	userauth_finish(ssh, authenticated, method, NULL);
 	r = 0;
  out:

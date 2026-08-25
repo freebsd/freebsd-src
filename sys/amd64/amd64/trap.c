@@ -41,6 +41,7 @@
  * AMD64 Trap and System call handling
  */
 
+#include "opt_atpic.h"
 #include "opt_clock.h"
 #include "opt_cpu.h"
 #include "opt_hwpmc_hooks.h"
@@ -61,6 +62,7 @@
 #include <sys/mutex.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
+#include <sys/smp.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -83,6 +85,8 @@ PMC_SOFT_DEFINE( , , page_fault, write);
 
 #include <machine/cpu.h>
 #include <machine/intr_machdep.h>
+#include <x86/apicreg.h>
+#include <x86/apicvar.h>
 #include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
@@ -90,6 +94,7 @@ PMC_SOFT_DEFINE( , , page_fault, write);
 #include <machine/stack.h>
 #include <machine/trap.h>
 #include <machine/tss.h>
+#include <x86/isa/icu.h>
 
 #ifdef KDTRACE_HOOKS
 #include <sys/dtrace_bsd.h>
@@ -104,7 +109,7 @@ void trap_check(struct trapframe *frame);
 void dblfault_handler(struct trapframe *frame);
 
 static int trap_pfault(struct trapframe *, bool, int *, int *);
-static void trap_diag(struct trapframe *, vm_offset_t);
+static void trap_diag(struct trapframe *, vm_offset_t, const char *);
 static void trap_fatal(struct trapframe *, vm_offset_t);
 #ifdef KDTRACE_HOOKS
 static bool trap_user_dtrace(struct trapframe *,
@@ -177,13 +182,154 @@ SYSCTL_INT(_machdep, OID_AUTO, nmi_flush_l1d_sw, CTLFLAG_RWTUN,
     &nmi_flush_l1d_sw, 0,
     "Flush L1 Data Cache on NMI exit, software bhyve L1TF mitigation assist");
 
+static void
+trap_uprintf_signal(struct thread *td, struct trapframe *frame, register_t addr,
+    int signo, int ucode)
+{
+	struct proc *p;
+	struct pcb *pcb;
+	register_t fsbase, gsbase, r;
+
+	if (!uprintf_signal)
+		return;
+	p = td->td_proc;
+	pcb = td->td_pcb;
+	if ((cpu_stdext_feature & CPUID_STDEXT_FSGSBASE) != 0) {
+		r = intr_disable();
+		if ((pcb->pcb_flags & PCB_FULL_IRET) == 0) {
+			fsbase = rdfsbase();
+			gsbase = rdmsr(MSR_KGSBASE);
+		} else {
+			fsbase = pcb->pcb_fsbase;
+			gsbase = pcb->pcb_gsbase;
+		}
+		intr_restore(r);
+	} else {
+		fsbase = pcb->pcb_fsbase;
+		gsbase = pcb->pcb_gsbase;
+	}
+	uprintf("pid %d comm %s: signal %d err %#lx code %d type %d "
+	    "addr %#lx rsp %#lx rip %#lx rax %#lx fsb %#lx gsb %#lx "
+	    "<%02x %02x %02x %02x %02x %02x %02x %02x>\n",
+	    p->p_pid, p->p_comm, signo, frame->tf_err, ucode, frame->tf_trapno,
+	    addr, frame->tf_rsp, frame->tf_rip, frame->tf_rax, fsbase, gsbase,
+	    fubyte((void *)(frame->tf_rip + 0)),
+	    fubyte((void *)(frame->tf_rip + 1)),
+	    fubyte((void *)(frame->tf_rip + 2)),
+	    fubyte((void *)(frame->tf_rip + 3)),
+	    fubyte((void *)(frame->tf_rip + 4)),
+	    fubyte((void *)(frame->tf_rip + 5)),
+	    fubyte((void *)(frame->tf_rip + 6)),
+	    fubyte((void *)(frame->tf_rip + 7)));
+}
+
+static bool
+trap_check_pcb_onfault(struct thread *td, struct trapframe *frame)
+{
+	bool res = false;
+
+	if (curpcb->pcb_onfault == NULL)
+		return (res);
+
+	if (__predict_false((td->td_pflags & TDP_EFIRT) != 0)) {
+		/*
+		 * Most likely, EFI RT faulted.  This check prevents
+		 * kdb from handling breakpoints set on the BIOS text,
+		 * if such option is ever needed.
+		 */
+		u_long cnt = atomic_fetchadd_long(&cnt_efirt_faults, 1);
+
+		if ((print_efirt_faults == 1 && cnt == 0) ||
+		    print_efirt_faults == 2) {
+			printf("EFI RT fault %s\n",
+			    traptype_to_msg(frame->tf_trapno));
+			trap_diag(frame, 0, "EFI runtime");
+		}
+		res = true;
+	} else if (frame->tf_trapno == T_PAGEFLT) {
+		res = true;
+	}
+	if (res)
+		frame->tf_rip = (register_t)curpcb->pcb_onfault;
+	return (res);
+}
+
+static void
+trap_clear_step(struct thread *td, struct trapframe *frame)
+{
+	PROC_LOCK(td->td_proc);
+	if ((td->td_dbgflags & TDB_STEP) != 0) {
+		td->td_frame->tf_rflags &= ~PSL_T;
+		td->td_dbgflags &= ~TDB_STEP;
+	}
+	PROC_UNLOCK(td->td_proc);
+}
+
+/*
+ * Warn with a message on the user's tty if application code has
+ * disabled interrupts and then trapped.
+ */
+static void
+trap_check_intr_user(struct thread *td, struct trapframe *frame)
+{
+	MPASS(TRAPF_USERMODE(frame));
+
+	if (__predict_true((frame->tf_rflags & PSL_I) != 0))
+		return;
+
+	uprintf("pid %ld (%s): trap %d (%s) with interrupts disabled\n",
+	    (long)td->td_proc->p_pid, td->td_name, frame->tf_trapno,
+	    trap_msg[frame->tf_trapno]);
+}
+
+/*
+ * Some exceptions can occur on kernel attempt to reload a corrupted
+ * user context, which is done with interrupts enabled.  Interrupts
+ * such as NMIs and debugging faults can be also taken in the kernel
+ * while interrupts are disabled.  Other traps shouldn't occur with
+ * interrupts disabled unless the kernel has a bug.  Re-enable
+ * interrupts in case this occurs, unless the interrupted thread holds
+ * a spin lock.
+ */
+static void
+trap_check_intr_kernel(struct thread *td, struct trapframe *frame)
+{
+	MPASS(!TRAPF_USERMODE(frame));
+
+	if (__predict_true((frame->tf_rflags & PSL_I) != 0))
+		return;
+
+	switch (frame->tf_trapno) {
+	case T_NMI:
+	case T_BPTFLT:
+	case T_TRCTRAP:
+	case T_PROTFLT:
+	case T_SEGNPFLT:
+	case T_STKFLT:
+		break;
+	default:
+		printf("kernel trap %d with interrupts disabled\n",
+		    frame->tf_trapno);
+
+		/*
+		 * We shouldn't enable interrupts while holding a
+		 * spin lock.
+		 */
+		if (td->td_md.md_spinlock_count == 0)
+			enable_intr();
+		break;
+	}
+}
+
 /*
  * Table of handlers for various segment load faults.
  */
-static const struct {
+struct sfhandler {
 	uintptr_t	faddr;
 	uintptr_t	fhandler;
-} sfhandlers[] = {
+};
+
+static const struct sfhandler sfhandlers[] = {
 	{
 		.faddr = (uintptr_t)ld_ds,
 		.fhandler = (uintptr_t)ds_load_fault,
@@ -254,46 +400,9 @@ trap(struct trapframe *frame)
 		return;
 	}
 
-	if ((frame->tf_rflags & PSL_I) == 0) {
-		/*
-		 * Buggy application or kernel code has disabled
-		 * interrupts and then trapped.  Enabling interrupts
-		 * now is wrong, but it is better than running with
-		 * interrupts disabled until they are accidentally
-		 * enabled later.
-		 */
-		if (TRAPF_USERMODE(frame)) {
-			uprintf(
-			    "pid %ld (%s): trap %d (%s) "
-			    "with interrupts disabled\n",
-			    (long)curproc->p_pid, curthread->td_name, type,
-			    trap_msg[type]);
-		} else {
-			switch (type) {
-			case T_NMI:
-			case T_BPTFLT:
-			case T_TRCTRAP:
-			case T_PROTFLT:
-			case T_SEGNPFLT:
-			case T_STKFLT:
-				break;
-			default:
-				printf(
-				    "kernel trap %d with interrupts disabled\n",
-				    type);
-
-				/*
-				 * We shouldn't enable interrupts while holding a
-				 * spin lock.
-				 */
-				if (td->td_md.md_spinlock_count == 0)
-					enable_intr();
-			}
-		}
-	}
-
 	if (TRAPF_USERMODE(frame)) {
 		/* user trap */
+		trap_check_intr_user(td, frame);
 
 		td->td_pticks = 0;
 		td->td_frame = frame;
@@ -323,14 +432,8 @@ trap(struct trapframe *frame)
 			signo = SIGTRAP;
 			ucode = TRAP_TRACE;
 			dr6 = rdr6();
-			if ((dr6 & DBREG_DR6_BS) != 0) {
-				PROC_LOCK(td->td_proc);
-				if ((td->td_dbgflags & TDB_STEP) != 0) {
-					td->td_frame->tf_rflags &= ~PSL_T;
-					td->td_dbgflags &= ~TDB_STEP;
-				}
-				PROC_UNLOCK(td->td_proc);
-			}
+			if ((dr6 & DBREG_DR6_BS) != 0)
+				trap_clear_step(td, frame);
 			break;
 
 		case T_ARITHTRAP:	/* arithmetic trap */
@@ -420,28 +523,13 @@ trap(struct trapframe *frame)
 		}
 	} else {
 		/* kernel trap */
+		trap_check_intr_kernel(td, frame);
 
 		KASSERT(cold || td->td_ucred != NULL,
 		    ("kernel trap doesn't have ucred"));
 
-		/*
-		 * Most likely, EFI RT faulted.  This check prevents
-		 * kdb from handling breakpoints set on the BIOS text,
-		 * if such option is ever needed.
-		 */
-		if ((td->td_pflags & TDP_EFIRT) != 0 &&
-		    curpcb->pcb_onfault != NULL && type != T_PAGEFLT) {
-			u_long cnt = atomic_fetchadd_long(&cnt_efirt_faults, 1);
-
-			if ((print_efirt_faults == 1 && cnt == 0) ||
-			    print_efirt_faults == 2) {
-				printf("EFI RT fault %s\n",
-				    traptype_to_msg(type));
-				trap_diag(frame, 0);
-			}
-			frame->tf_rip = (long)curpcb->pcb_onfault;
+		if (type != T_PAGEFLT && trap_check_pcb_onfault(td, frame))
 			return;
-		}
 
 		switch (type) {
 		case T_PAGEFLT:			/* page fault */
@@ -626,21 +714,7 @@ trap(struct trapframe *frame)
 	ksi.ksi_code = ucode;
 	ksi.ksi_trapno = type;
 	ksi.ksi_addr = (void *)addr;
-	if (uprintf_signal) {
-		uprintf("pid %d comm %s: signal %d err %#lx code %d type %d "
-		    "addr %#lx rsp %#lx rip %#lx rax %#lx "
-		    "<%02x %02x %02x %02x %02x %02x %02x %02x>\n",
-		    p->p_pid, p->p_comm, signo, frame->tf_err, ucode, type,
-		    addr, frame->tf_rsp, frame->tf_rip, frame->tf_rax,
-		    fubyte((void *)(frame->tf_rip + 0)),
-		    fubyte((void *)(frame->tf_rip + 1)),
-		    fubyte((void *)(frame->tf_rip + 2)),
-		    fubyte((void *)(frame->tf_rip + 3)),
-		    fubyte((void *)(frame->tf_rip + 4)),
-		    fubyte((void *)(frame->tf_rip + 5)),
-		    fubyte((void *)(frame->tf_rip + 6)),
-		    fubyte((void *)(frame->tf_rip + 7)));
-	}
+	trap_uprintf_signal(td, frame, addr, signo, ucode);
 	KASSERT((read_rflags() & PSL_I) != 0, ("interrupts disabled"));
 	trapsignal(td, &ksi);
 
@@ -864,37 +938,22 @@ trap_pfault(struct trapframe *frame, bool usermode, int *signo, int *ucode)
 		return (1);
 after_vmfault:
 	if (td->td_intr_nesting_level == 0 &&
-	    curpcb->pcb_onfault != NULL) {
-		if ((td->td_pflags & TDP_EFIRT) != 0) {
-			u_long cnt = atomic_fetchadd_long(&cnt_efirt_faults, 1);
-
-			if ((print_efirt_faults == 1 && cnt == 0) ||
-			    print_efirt_faults == 2) {
-				printf("EFI RT page fault\n");
-				trap_diag(frame, eva);
-			}
-		}
-		frame->tf_rip = (long)curpcb->pcb_onfault;
+	    trap_check_pcb_onfault(td, frame))
 		return (0);
-	}
 	trap_fatal(frame, eva);
 	return (-1);
 }
 
 static void
-trap_diag(struct trapframe *frame, vm_offset_t eva)
+trap_diag(struct trapframe *frame, vm_offset_t eva, const char *type_str)
 {
-	int code, ss;
+	int code;
 	u_int type;
-	struct soft_segment_descriptor softseg;
-	struct user_segment_descriptor *gdt;
 
 	code = frame->tf_err;
 	type = frame->tf_trapno;
-	gdt = *PCPU_PTR(gdt);
-	sdtossd(&gdt[IDXSEL(frame->tf_cs & 0xffff)], &softseg);
 
-	printf("\n\nFatal trap %d: %s while in %s mode\n", type,
+	printf("\n%s trap %d: %s while in %s mode\n", type_str, type,
 	    type < nitems(trap_msg) ? trap_msg[type] : UNKNOWN,
 	    TRAPF_USERMODE(frame) ? "user" : "kernel");
 	/* Print these separately in case pcpu accesses trap. */
@@ -911,16 +970,12 @@ trap_diag(struct trapframe *frame, vm_offset_t eva)
 			code & PGEX_RSV ? "reserved bits in PTE" :
 			code & PGEX_P ? "protection violation" : "page not present");
 	}
-	printf("instruction pointer	= 0x%lx:0x%lx\n",
-	       frame->tf_cs & 0xffff, frame->tf_rip);
-	ss = frame->tf_ss & 0xffff;
-	printf("stack pointer	        = 0x%x:0x%lx\n", ss, frame->tf_rsp);
-	printf("frame pointer	        = 0x%x:0x%lx\n", ss, frame->tf_rbp);
-	printf("code segment		= base 0x%lx, limit 0x%lx, type 0x%x\n",
-	       softseg.ssd_base, softseg.ssd_limit, softseg.ssd_type);
-	printf("			= DPL %d, pres %d, long %d, def32 %d, gran %d\n",
-	       softseg.ssd_dpl, softseg.ssd_p, softseg.ssd_long, softseg.ssd_def32,
-	       softseg.ssd_gran);
+	printf("instruction pointer	= %#hx:%#lx\n",
+	       frame->tf_cs, frame->tf_rip);
+	printf("stack pointer	        = %#hx:%#lx\n", frame->tf_ss,
+	    frame->tf_rsp);
+	printf("frame pointer	        = %#hx:%#lx\n", frame->tf_ss,
+	    frame->tf_rbp);
 	printf("processor eflags	= ");
 	if (frame->tf_rflags & PSL_T)
 		printf("trace trap, ");
@@ -931,8 +986,9 @@ trap_diag(struct trapframe *frame, vm_offset_t eva)
 	if (frame->tf_rflags & PSL_RF)
 		printf("resume, ");
 	printf("IOPL = %ld\n", (frame->tf_rflags & PSL_IOPL) >> 12);
-	printf("current process		= %d (%s)\n",
-	    curproc->p_pid, curthread->td_name);
+	printf("current thread		= %d/%d (%s/%s)\n",
+	    curproc->p_pid, curthread->td_tid, curproc->p_comm,
+	    curthread->td_name);
 
 	printf("rdi: %016lx rsi: %016lx rdx: %016lx\n", frame->tf_rdi,
 	    frame->tf_rsi, frame->tf_rdx);
@@ -944,8 +1000,14 @@ trap_diag(struct trapframe *frame, vm_offset_t eva)
 	    frame->tf_r11, frame->tf_r12);
 	printf("r13: %016lx r14: %016lx r15: %016lx\n", frame->tf_r13,
 	    frame->tf_r14, frame->tf_r15);
+	if (fred) {
+		struct trapframe_fred *f;
 
-	printf("trap number		= %d\n", type);
+		f = __containerof(frame, struct trapframe_fred, tf_idt);
+		printf("evdata %016lx evinfo1 %04x evinfo2 %08x\n",
+		    f->tf_fred_evdata, frame->tf_fred_evinfo1,
+		    frame->tf_fred_evinfo2);
+	}
 }
 
 static void
@@ -954,7 +1016,7 @@ trap_fatal(struct trapframe *frame, vm_offset_t eva)
 	u_int type;
 
 	type = frame->tf_trapno;
-	trap_diag(frame, eva);
+	trap_diag(frame, eva, "\nFatal");
 #ifdef KDB
 	if (debugger_on_trap) {
 		bool handled;
@@ -1009,7 +1071,7 @@ dblfault_handler(struct trapframe *frame)
 	    "r8 %#lx r9 %#lx r10 %#lx\n"
 	    "r11 %#lx r12 %#lx r13 %#lx\n"
 	    "r14 %#lx r15 %#lx rflags %#lx\n"
-	    "cs %#lx ss %#lx ds %#hx es %#hx fs %#hx gs %#hx\n"
+	    "cs %#hx ss %#hx ds %#hx es %#hx fs %#hx gs %#hx\n"
 	    "fsbase %#lx gsbase %#lx kgsbase %#lx\n",
 	    frame->tf_rip, frame->tf_rsp, frame->tf_rbp,
 	    frame->tf_rax, frame->tf_rdx, frame->tf_rbx,
@@ -1020,6 +1082,14 @@ dblfault_handler(struct trapframe *frame)
 	    frame->tf_cs, frame->tf_ss, frame->tf_ds, frame->tf_es,
 	    frame->tf_fs, frame->tf_gs,
 	    rdmsr(MSR_FSBASE), rdmsr(MSR_GSBASE), rdmsr(MSR_KGSBASE));
+	if (fred) {
+		struct trapframe_fred *f;
+
+		f = __containerof(frame, struct trapframe_fred, tf_idt);
+		printf("evdata %016lx evinfo1 %04x evinfo2 %08x\n",
+		    f->tf_fred_evdata, frame->tf_fred_evinfo1,
+		    frame->tf_fred_evinfo2);
+	}
 	/* Print these separately in case pcpu accesses trap. */
 	printf("cpuid = %d; apic id = %02x\n", PCPU_GET(cpuid),
 	    PCPU_GET(apic_id));
@@ -1245,4 +1315,541 @@ amd64_syscall(struct thread *td, int traced)
 		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
 
 	amd64_syscall_ret_flush_l1d_check_inline(td->td_errno);
+}
+
+static void
+trap_fred_extint(struct trapframe_fred *frame, u_int vec)
+{
+	switch (vec) {
+	case IPI_RENDEZVOUS:
+#ifdef COUNT_IPIS
+		ipi_rendezvous_counts[PCPU_GET(cpuid)]++;
+#endif
+		smp_rendezvous_action();
+		lapic_eoi();
+		break;
+	case IPI_INVLOP:
+		invlop_handler();
+		lapic_eoi();
+		break;
+	case IPI_BITMAP_VECTOR:
+		lapic_eoi();
+		ipi_bitmap_handler(&frame->tf_idt);
+		break;
+	case IPI_STOP:
+		lapic_eoi();
+		cpustop_handler();
+		break;
+	case IPI_SUSPEND:
+		cpususpend_handler();
+		lapic_eoi();
+		break;
+	case IPI_SWI:
+		lapic_eoi();
+		ipi_swi_handler(&frame->tf_idt);
+		break;
+	case IPI_OFF:
+		cpuoff_handler();
+		lapic_eoi();
+		break;
+	case APIC_SPURIOUS_INT:
+		break;
+	case APIC_TIMER_INT:
+		lapic_handle_timer(&frame->tf_idt);
+		break;
+	case APIC_CMC_INT:
+		lapic_handle_cmc();
+		break;
+	case APIC_ERROR_INT:
+		lapic_handle_error();
+		break;
+	case APIC_THERMAL_INT:
+		lapic_handle_thermal();
+		break;
+#ifdef XENHVM
+	case IDT_EVTCHN:
+		xen_arch_intr_handle_upcall(&frame->tf_idt);
+		break;
+#endif
+	default:
+		if (vec >= IPI_DYN_FIRST && vec <= IPI_DYN_LAST) {
+			void (*fi)(struct trapframe *);
+
+			fi = fred_ipi_handlers[vec - IPI_DYN_FIRST];
+			if (fi != NULL) {
+				fi(&frame->tf_idt);
+				lapic_eoi();
+			} else {
+				panic("DYN IPI %d without FRED handler", vec);
+			}
+			break;
+		}
+#ifdef DEV_ISA
+#ifdef DEV_ATPIC
+		if (vec >= IDT_IO_INTS && vec < IDT_IO_INTS + NUM_ISA_IRQS) {
+			atpic_handle_intr(vec - IDT_IO_INTS, &frame->tf_idt);
+			break;
+		}
+#endif
+#endif
+		/* apic ioint */
+		lapic_handle_intr(vec, &frame->tf_idt);
+		break;
+	}
+}
+
+void fred_out_of_nmi(void);
+
+static const int fred_ev_to_trapno_table[] = {
+	[IDT_DE] =	T_DIVIDE,
+	[IDT_DB] =	T_TRCTRAP,
+	[IDT_NMI] =	T_RESERVED,
+	[IDT_BP] =	T_BPTFLT,
+	[IDT_OF] =	T_OFLOW,
+	[IDT_BR] =	T_BOUND,
+	[IDT_UD] =	T_PRIVINFLT,
+	[IDT_NM] =	T_DNA,
+	[IDT_DF] =	T_DOUBLEFLT,
+	[IDT_FPUGP] =	T_FPOPFLT,
+	[IDT_TS] =	T_TSSFLT,
+	[IDT_NP] =	T_SEGNPFLT,
+	[IDT_SS] =	T_STKFLT,
+	[IDT_GP] =	T_PROTFLT,
+	[IDT_PF] =	T_PAGEFLT,
+	[15] =		T_RESERVED,
+	[IDT_MF] =	T_ARITHTRAP,
+	[IDT_AC] =	T_ALIGNFLT,
+	[IDT_MC] =	T_MCHK,
+	[IDT_XF] =	T_XMMFLT,
+	[20] =		T_RESERVED,
+	[21] =		T_RESERVED,
+	[22] =		T_RESERVED,
+	[23] =		T_RESERVED,
+	[24] =		T_RESERVED,
+	[25] =		T_RESERVED,
+	[26] =		T_RESERVED,
+	[27] =		T_RESERVED,
+	[28] =		T_RESERVED,
+	[29] =		T_RESERVED,
+	[30] =		T_RESERVED,
+	[31] =		T_RESERVED,
+};
+
+static void
+trap_fred_ev_to_trapno(struct trapframe_fred *frame, u_int exc)
+{
+	frame->tf_idt.tf_trapno = fred_ev_to_trapno_table[exc];
+}
+
+static void
+trap_fred_handle_u_exc(struct thread *td, struct trapframe_fred *frame,
+    u_int exc, ksiginfo_t *ksi, bool *do_trapsig)
+{
+	struct proc *p;
+	register_t addr;
+	int pf, signo, ucode;
+
+	addr = frame->tf_idt.tf_rip;
+	signo = 0;
+	ucode = 0;
+	frame->tf_idt.tf_addr = 0;
+	trap_check_intr_user(td, &frame->tf_idt);
+
+	switch (exc) {
+	case IDT_DE:
+		ucode = FPE_INTDIV;
+		signo = SIGFPE;
+		break;
+	case IDT_DB:
+		signo = SIGTRAP;
+		ucode = TRAP_TRACE;
+		if ((frame->tf_fred_evdata & TF_FRED_EVDATA_BS) != 0)
+			trap_clear_step(td, &frame->tf_idt);
+		break;
+	case IDT_BP:
+#ifdef KDTRACE_HOOKS
+		if (trap_user_dtrace(&frame->tf_idt, &dtrace_pid_probe_ptr))
+			return;
+#endif
+		signo = SIGTRAP;
+		ucode = TRAP_BRKPT;
+		break;
+	case IDT_OF:
+		ucode = FPE_INTOVF;
+		signo = SIGFPE;
+		break;
+	case IDT_BR:
+		ucode = FPE_FLTSUB;
+		signo = SIGFPE;
+		break;
+	case IDT_UD:
+		signo = SIGILL;
+		ucode = ILL_PRVOPC;
+		break;
+	case IDT_NM:
+		KASSERT(PCB_USER_FPU(td->td_pcb),
+		    ("kernel FPU ctx has leaked"));
+		fpudna();
+		return;
+	case IDT_DF:
+		signo = SIGBUS;
+		ucode = BUS_OBJERR;
+		break;
+	case IDT_FPUGP:
+		ucode = ILL_COPROC;
+		signo = SIGILL;
+		break;
+	case IDT_TS:
+		signo = SIGBUS;
+		ucode = BUS_OBJERR;
+		break;
+	case IDT_NP:
+		signo = SIGBUS;
+		ucode = BUS_ADRERR;
+		break;
+	case IDT_SS:
+		signo = SIGBUS;
+		ucode = BUS_ADRERR;
+		break;
+	case IDT_GP:
+		signo = SIGBUS;
+		ucode = BUS_OBJERR;
+		break;
+	case IDT_PF:
+		p = td->td_proc;
+		frame->tf_idt.tf_addr = addr = frame->tf_fred_evdata;
+		if (*p->p_sysent->sv_trap != NULL &&
+		    (*p->p_sysent->sv_trap)(td) == 0)
+			return;
+		pf = trap_pfault(&frame->tf_idt, true, &signo, &ucode);
+		if (pf == -1 || pf == 0)
+			return;
+		break;
+	case IDT_MF:
+		ucode = fputrap_x87();
+		if (ucode == -1)
+			return;
+		signo = SIGFPE;
+		break;
+	case IDT_AC:
+		signo = SIGBUS;
+		ucode = BUS_ADRALN;
+		break;
+	case IDT_MC:
+		mca_intr();
+		return;
+	case IDT_XF:
+		ucode = fputrap_sse();
+		if (ucode == -1)
+			return;
+		signo = SIGFPE;
+		break;
+	default:
+		panic("missed FRED handler for exception %d", exc);
+	}
+
+	ksiginfo_init_trap(ksi);
+	ksi->ksi_signo = signo;
+	ksi->ksi_code = ucode;
+	ksi->ksi_trapno = frame->tf_idt.tf_trapno;
+	ksi->ksi_addr = (void *)addr;
+	trap_uprintf_signal(td, &frame->tf_idt, addr, signo, ucode);
+	KASSERT((read_rflags() & PSL_I) != 0, ("interrupts disabled"));
+	*do_trapsig = true;
+}
+
+static u_int
+fred_inst_len(const struct trapframe_fred *frame)
+{
+	return ((frame->tf_idt.tf_fred_evinfo2 & TF_FRED_EVINFO2_INSTLENMASK) >>
+	    TF_FRED_EVINFO2_INSTLENSHIFT);
+}
+
+int fred_verbose_events;
+
+void trap_fred_u(struct trapframe_fred *frame);
+void
+trap_fred_u(struct trapframe_fred *frame)
+{
+	struct thread *td;
+	ksiginfo_t ksi;
+	u_int type, vec;
+	bool do_trapsig;
+
+	td = curthread;
+	type = frame->tf_idt.tf_fred_evinfo2 & TF_FRED_EVINFO2_TYPEMASK;
+	vec = frame->tf_idt.tf_fred_evinfo2 & TF_FRED_EVINFO2_VECMASK;
+	do_trapsig = false;
+	if (fred_verbose_events) {
+		printf("pid %d tid %d type %d vec %d rax %#lx\n",
+		    td->td_proc->p_pid, td->td_tid,
+		    (frame->tf_idt.tf_fred_evinfo2 &
+		    TF_FRED_EVINFO2_TYPEMASK) >> 16,
+		    vec, frame->tf_idt.tf_rax);
+	}
+	if (__predict_true((td->td_proc->p_sysent->sv_flags &
+	    (SV_ABI_MASK | SV_LP64)) == (SV_ABI_FREEBSD | SV_LP64) &&
+	    (type == TF_FRED_EVINFO2_TYPE_SYSCALL ||
+	    type == TF_FRED_EVINFO2_TYPE_EXTINT ||
+	    (type == TF_FRED_EVINFO2_TYPE_EXC && vec == IDT_PF))))
+		clear_pcb_flags(td->td_pcb, PCB_FULL_IRET);
+	else
+		set_pcb_flags(td->td_pcb, PCB_FULL_IRET);
+	switch (type) {
+	case TF_FRED_EVINFO2_TYPE_EXTINT:
+		trap_fred_extint(frame, vec);
+		break;
+	case TF_FRED_EVINFO2_TYPE_NMI:
+		frame->tf_idt.tf_trapno = T_NMI;
+		nmi_handle_intr(&frame->tf_idt);
+#ifdef HWPMC_HOOKS
+		if ((td->td_pflags & TDP_CALLCHAIN) != 0) {
+			int (*ph)(struct thread *, int, void *);
+
+			fred_out_of_nmi();
+			ph = atomic_load_ptr(&pmc_hook);
+			if (ph != NULL) {
+				enable_intr();
+				ph(td, PMC_FN_USER_CALLCHAIN, &frame->tf_idt);
+			}
+		}
+#endif
+		break;
+	case TF_FRED_EVINFO2_TYPE_INT1:
+	case TF_FRED_EVINFO2_TYPE_INT3:
+	case TF_FRED_EVINFO2_TYPE_EXC:
+		enable_intr();
+		trap_fred_ev_to_trapno(frame, vec);
+#ifdef KDTRACE_HOOKS
+		if (dtrace_trap_func != NULL && (*dtrace_trap_func)(
+		    &frame->tf_idt, frame->tf_idt.tf_trapno) != 0)
+			return;
+#endif
+		td->td_pticks = 0;
+		td->td_frame = &frame->tf_idt;
+		if (td->td_cowgen != atomic_load_int(&td->td_proc->p_cowgen))
+			thread_cow_update(td);
+		trap_fred_handle_u_exc(td, frame, vec, &ksi, &do_trapsig);
+		break;
+	case TF_FRED_EVINFO2_TYPE_INTn:
+		enable_intr();
+#ifdef COMPAT_FREEBSD32
+		if (vec == IDT_SYSCALL) {
+			frame->tf_idt.tf_err = fred_inst_len(frame);
+			ia32_syscall(&frame->tf_idt);
+			break;
+		}
+#endif
+		frame->tf_idt.tf_trapno = vec;
+		ksiginfo_init_trap(&ksi);
+		ksi.ksi_signo = SIGBUS;
+		ksi.ksi_code = BUS_OBJERR;
+		ksi.ksi_trapno = frame->tf_idt.tf_trapno;
+		ksi.ksi_addr = (void *)frame->tf_idt.tf_rip;
+		do_trapsig = true;
+		break;
+	case TF_FRED_EVINFO2_TYPE_SYSCALL:
+		/* Excessive */
+		enable_intr();
+		if (vec == TF_FRED_EVINFO2_VEC_SYSCALL) {
+			frame->tf_idt.tf_err = fred_inst_len(frame);
+			td->td_frame = &frame->tf_idt;
+			amd64_syscall(td, (frame->tf_idt.tf_rflags & PSL_T) !=
+			    0);
+		} else {
+			/* SYSENTER returns without action */
+		}
+		break;
+	default:
+		__unreachable();
+	}
+	if (do_trapsig)
+		trapsignal(td, &ksi);
+	userret(td, &frame->tf_idt);
+	KASSERT(PCB_USER_FPU(td->td_pcb),
+	    ("Return from trap with kernel FPU ctx leaked"));
+}
+
+extern const char fred_ld_fs[];
+extern const char fred_ld_fs_fault[];
+extern const char fred_ld_fsbase[];
+extern const char fred_ld_fsbase_fault[];
+extern const char fred_lkgs[];
+extern const char fred_lkgs_fault[];
+extern const char fred_ld_kgsbase[];
+extern const char fred_ld_kgsbase_fault[];
+extern const char fred_ld_es[];
+extern const char fred_ld_es_fault[];
+extern const char fred_ld_ds[];
+extern const char fred_ld_ds_fault[];
+extern const char fred_eretu[];
+extern const char fred_syscall_eretu[];
+extern const char fred_eretu_fault[];
+
+static const struct sfhandler fred_sfhandlers[] = {
+	{
+		.faddr = (uintptr_t)fred_ld_fs,
+		.fhandler = (uintptr_t)fred_ld_fs_fault,
+	},
+	{
+		.faddr = (uintptr_t)fred_ld_fsbase,
+		.fhandler = (uintptr_t)fred_ld_fsbase_fault,
+	},
+	{
+		.faddr = (uintptr_t)fred_lkgs,
+		.fhandler = (uintptr_t)fred_lkgs_fault,
+	},
+	{
+		.faddr = (uintptr_t)fred_ld_kgsbase,
+		.fhandler = (uintptr_t)fred_ld_kgsbase_fault,
+	},
+	{
+		.faddr = (uintptr_t)fred_ld_es,
+		.fhandler = (uintptr_t)fred_ld_es_fault,
+	},
+	{
+		.faddr = (uintptr_t)fred_ld_ds,
+		.fhandler = (uintptr_t)fred_ld_ds_fault,
+	},
+	{
+		.faddr = (uintptr_t)fred_eretu,
+		.fhandler = (uintptr_t)fred_eretu_fault,
+	},
+	{
+		.faddr = (uintptr_t)fred_syscall_eretu,
+		.fhandler = (uintptr_t)fred_eretu_fault,
+	},
+};
+
+static void
+trap_fred_handle_k_exc(struct thread *td, struct trapframe_fred *frame,
+    u_int exc)
+{
+	register_t addr;
+	int i;
+
+	addr = frame->tf_idt.tf_rip;
+	frame->tf_idt.tf_addr = 0;
+	KASSERT(cold || td->td_ucred != NULL,
+	    ("kernel trap doesn't have ucred"));
+
+	/*
+	 * FRED exception handler runs with the interrupts disabled,
+	 * unlike the IDT case.  Only for page faults the interrupts
+	 * are enabled, since this is the only legitimate exception
+	 * from the kernel mode.  Anything else results in panic, so
+	 * there is no sense to enable interrupts.
+	 */
+
+	if (exc != IDT_PF && trap_check_pcb_onfault(td, &frame->tf_idt))
+		return;
+
+	switch (exc) {
+	case IDT_DE:
+		break;
+	case IDT_DB:
+		if (user_dbreg_trap(frame->tf_fred_evdata))
+			return;
+		/* FALLTHROUGH */
+	case IDT_BP:
+#ifdef KDB
+		if (kdb_trap(frame->tf_idt.tf_trapno, frame->tf_fred_evdata,
+		    &frame->tf_idt))
+			return;
+#endif
+		break;
+	case IDT_OF:
+		break;
+	case IDT_BR:
+		break;
+	case IDT_UD:
+		break;
+	case IDT_NM:
+		if (PCB_USER_FPU(td->td_pcb))
+			panic("Unregistered use of FPU in kernel");
+		fpudna();
+		return;
+	case IDT_DF:
+		dblfault_handler(&frame->tf_idt);
+		break;
+	case IDT_FPUGP:
+		break;
+	case IDT_TS:
+		/*
+		 * PSL_NT is cleared automatically by FRED entry.
+		 */
+		break;
+	case IDT_NP:
+	case IDT_SS:
+	case IDT_GP:
+		if (td->td_intr_nesting_level != 0)
+			break;
+		for (i = 0; i < nitems(fred_sfhandlers); i++) {
+			if (frame->tf_idt.tf_rip == fred_sfhandlers[i].faddr) {
+				KASSERT((read_rflags() & PSL_I) == 0,
+				    ("interrupts enabled"));
+				frame->tf_idt.tf_rip = fred_sfhandlers[i].
+				    fhandler;
+				return;
+			}
+		}
+		if (curpcb->pcb_onfault != NULL) {
+			frame->tf_idt.tf_rip = (long)curpcb->pcb_onfault;
+			return;
+		}
+		break;
+	case IDT_PF:
+		frame->tf_idt.tf_addr = addr = frame->tf_fred_evdata;
+		if ((frame->tf_idt.tf_rflags & PSL_I) != 0)
+			enable_intr();
+		trap_pfault(&frame->tf_idt, false, NULL, NULL);
+		return;
+	case IDT_MF:
+		break;
+	case IDT_AC:
+		break;
+	case IDT_MC:
+		mca_intr();
+		return;
+	case IDT_XF:
+		break;
+	default:
+		printf("Missing FRED handler for exception %d", exc);
+		trap_fatal(&frame->tf_idt, 0);
+	}
+	trap_fatal(&frame->tf_idt, 0);
+}
+
+void trap_fred_k(struct trapframe_fred *frame);
+void
+trap_fred_k(struct trapframe_fred *frame)
+{
+	struct thread *td;
+	u_int vec;
+
+	td = curthread;
+	vec = frame->tf_idt.tf_fred_evinfo2 & TF_FRED_EVINFO2_VECMASK;
+	switch (frame->tf_idt.tf_fred_evinfo2 & TF_FRED_EVINFO2_TYPEMASK) {
+	case TF_FRED_EVINFO2_TYPE_EXTINT:
+		trap_fred_extint(frame, vec);
+		break;
+	case TF_FRED_EVINFO2_TYPE_NMI:
+		frame->tf_idt.tf_trapno = T_NMI;
+		nmi_handle_intr(&frame->tf_idt);
+		break;
+	case TF_FRED_EVINFO2_TYPE_INT1:
+	case TF_FRED_EVINFO2_TYPE_INT3:
+	case TF_FRED_EVINFO2_TYPE_EXC:
+		trap_fred_ev_to_trapno(frame, vec);
+		trap_fred_handle_k_exc(td, frame, vec);
+		break;
+	case TF_FRED_EVINFO2_TYPE_INTn:
+		panic("INT%d from kernel", vec);
+		break;
+	case TF_FRED_EVINFO2_TYPE_SYSCALL:
+		panic("syscall from kernel");
+		break;
+	default:
+		__unreachable();
+	}
 }

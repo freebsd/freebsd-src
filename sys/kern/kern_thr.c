@@ -506,7 +506,7 @@ sys_thr_kill2(struct thread *td, struct thr_kill2_args *uap)
 		p = ttd->td_proc;
 		AUDIT_ARG_PROCESS(p);
 		error = p_cansignal(td, p, uap->sig);
-		if (uap->sig == 0)
+		if (error != 0 || uap->sig == 0)
 			;
 		else if (!_SIG_VALID(uap->sig))
 			error = EINVAL;

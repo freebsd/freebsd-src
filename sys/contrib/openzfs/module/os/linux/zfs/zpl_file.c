@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2011, Lawrence Livermore National Security, LLC.
@@ -42,6 +32,9 @@
 #include <linux/fadvise.h>
 #ifdef HAVE_VFS_FILEMAP_DIRTY_FOLIO
 #include <linux/writeback.h>
+#endif
+#ifdef HAVE_FILELOCK_HEADER
+#include <linux/filelock.h>
 #endif
 
 /*
@@ -369,6 +362,31 @@ zpl_llseek(struct file *filp, loff_t offset, int whence)
  * helpful to move the ARC buffers to a scatter-gather lists
  * rather than a vmalloc'ed region.
  */
+/*
+ * Bump z_seq when a clean page first transitions to dirty via an mmap store.
+ * The default generic_file_vm_ops.page_mkwrite (filemap_page_mkwrite) updates
+ * mtime/ctime via file_update_time -> __mark_inode_dirty, but never tells the
+ * filesystem that the change cookie should advance. Without this hook NFSv4
+ * GETATTR between an mmap store and writeback returns a stale change_cookie
+ * alongside the newer mtime, violating monotonicity. zfs_dirty_inode persists
+ * the new value on the same dirty path.
+ */
+static vm_fault_t
+zpl_page_mkwrite(struct vm_fault *vmf)
+{
+	znode_t *zp = ITOZ(file_inode(vmf->vma->vm_file));
+
+	atomic_inc_64(&zp->z_seq);
+
+	return (filemap_page_mkwrite(vmf));
+}
+
+static const struct vm_operations_struct zpl_vm_ops = {
+	.fault		= filemap_fault,
+	.map_pages	= filemap_map_pages,
+	.page_mkwrite	= zpl_page_mkwrite,
+};
+
 static int
 zpl_mmap(struct file *filp, struct vm_area_struct *vma)
 {
@@ -388,6 +406,7 @@ zpl_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (error)
 		return (error);
 
+	vma->vm_ops = &zpl_vm_ops;
 	return (error);
 }
 
@@ -670,6 +689,8 @@ static long
 zpl_fallocate_common(struct inode *ip, int mode, loff_t offset, loff_t len)
 {
 	cred_t *cr = CRED();
+	znode_t *zp = ITOZ(ip);
+	zfsvfs_t *zfsvfs = ITOZSB(ip);
 	loff_t olen;
 	fstrans_cookie_t cookie;
 	int error = 0;
@@ -703,7 +724,7 @@ zpl_fallocate_common(struct inode *ip, int mode, loff_t offset, loff_t len)
 		bf.l_len = len;
 		bf.l_pid = 0;
 
-		error = -zfs_space(ITOZ(ip), F_FREESP, &bf, O_RDWR, offset, cr);
+		error = -zfs_space(zp, F_FREESP, &bf, O_RDWR, offset, cr);
 	} else if ((mode & ~FALLOC_FL_KEEP_SIZE) == 0) {
 		unsigned int percent = zfs_fallocate_reserve_percent;
 		struct kstatfs statfs;
@@ -718,7 +739,7 @@ zpl_fallocate_common(struct inode *ip, int mode, loff_t offset, loff_t len)
 		 * Use zfs_statvfs() instead of dmu_objset_space() since it
 		 * also checks project quota limits, which are relevant here.
 		 */
-		error = zfs_statvfs(ip, &statfs);
+		error = -zfs_statvfs(ip, &statfs);
 		if (error)
 			goto out_unmark;
 
@@ -731,8 +752,19 @@ zpl_fallocate_common(struct inode *ip, int mode, loff_t offset, loff_t len)
 			error = -ENOSPC;
 			goto out_unmark;
 		}
-		if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > olen)
-			error = zfs_freesp(ITOZ(ip), offset + len, 0, 0, FALSE);
+		if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > olen) {
+			error = zpl_enter_verify_zp(zfsvfs, zp, FTAG);
+			if (error)
+				goto out_unmark;
+
+			/*
+			 * extend file: log=TRUE drives z_seq bump,
+			 * mtime/ctime advance, and TX_TRUNCATE ZIL
+			 * record; matches zfs_space().
+			 */
+			error = -zfs_freesp(zp, offset + len, 0, 0, TRUE);
+			zfs_exit(zfsvfs, FTAG);
+		}
 	}
 out_unmark:
 	spl_fstrans_unmark(cookie);
@@ -776,34 +808,23 @@ zpl_fadvise(struct file *filp, loff_t offset, loff_t len, int advice)
 	if ((error = zpl_enter_verify_zp(zfsvfs, zp, FTAG)) != 0)
 		return (error);
 
-	switch (advice) {
-	case POSIX_FADV_SEQUENTIAL:
-	case POSIX_FADV_WILLNEED:
-#ifdef HAVE_GENERIC_FADVISE
-		if (zn_has_cached_data(zp, offset, offset + len - 1))
-			error = generic_fadvise(filp, offset, len, advice);
-#endif
-		/*
-		 * Pass on the caller's size directly, but note that
-		 * dmu_prefetch_max will effectively cap it.  If there
-		 * really is a larger sequential access pattern, perhaps
-		 * dmu_zfetch will detect it.
-		 */
-		if (len == 0)
-			len = i_size_read(ip) - offset;
-
-		dmu_prefetch(os, zp->z_id, 0, offset, len,
+	if (advice == POSIX_FADV_WILLNEED) {
+		loff_t rlen = len ? len : i_size_read(ip) - offset;
+		dmu_prefetch_user(os, zp->z_id, 0, offset, rlen,
 		    ZIO_PRIORITY_ASYNC_READ);
-		break;
-	case POSIX_FADV_NORMAL:
-	case POSIX_FADV_RANDOM:
-	case POSIX_FADV_DONTNEED:
-	case POSIX_FADV_NOREUSE:
-		/* ignored for now */
-		break;
-	default:
-		error = -EINVAL;
-		break;
+		if (!zn_has_cached_data(zp, offset, offset + rlen - 1)) {
+			zfs_exit(zfsvfs, FTAG);
+			return (error);
+		}
+	}
+
+#ifdef HAVE_GENERIC_FADVISE
+	error = generic_fadvise(filp, offset, len, advice);
+#endif
+
+	if (error == 0 && advice == POSIX_FADV_DONTNEED) {
+		loff_t rlen = len ? len : i_size_read(ip) - offset;
+		dmu_evict_range(os, zp->z_id, offset, rlen);
 	}
 
 	zfs_exit(zfsvfs, FTAG);
@@ -988,7 +1009,7 @@ zpl_ioctl_setflags(struct file *filp, void __user *arg)
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
-	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr, zfs_init_idmap);
+	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr);
 	spl_fstrans_unmark(cookie);
 	crfree(cr);
 
@@ -1036,7 +1057,7 @@ zpl_ioctl_setxattr(struct file *filp, void __user *arg)
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
-	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr, zfs_init_idmap);
+	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr);
 	spl_fstrans_unmark(cookie);
 	crfree(cr);
 
@@ -1124,7 +1145,7 @@ zpl_ioctl_setdosflags(struct file *filp, void __user *arg)
 
 	crhold(cr);
 	cookie = spl_fstrans_mark();
-	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr, zfs_init_idmap);
+	err = -zfs_setattr(ITOZ(ip), (vattr_t *)&xva, 0, cr);
 	spl_fstrans_unmark(cookie);
 	crfree(cr);
 
@@ -1242,6 +1263,7 @@ const struct file_operations zpl_file_operations = {
 	.mmap		= zpl_mmap,
 	.fsync		= zpl_fsync,
 	.fallocate	= zpl_fallocate,
+	.setlease	= generic_setlease,
 	.copy_file_range	= zpl_copy_file_range,
 #ifdef HAVE_VFS_CLONE_FILE_RANGE
 	.clone_file_range	= zpl_clone_file_range,
@@ -1264,6 +1286,7 @@ const struct file_operations zpl_dir_file_operations = {
 	.read		= generic_read_dir,
 	.iterate_shared	= zpl_iterate,
 	.fsync		= zpl_fsync,
+	.setlease	= generic_setlease,
 	.unlocked_ioctl = zpl_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = zpl_compat_ioctl,

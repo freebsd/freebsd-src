@@ -37,6 +37,70 @@ ATF_TC_BODY(snl_verify_core_parsers, tc)
 
 }
 
+ATF_TC(snl_parse_bitset_array);
+ATF_TC_HEAD(snl_parse_bitset_array, tc)
+{
+	atf_tc_set_md_var(tc, "descr",
+	    "Tests snl(3) parsing a growing nested bit array");
+	atf_tc_set_md_var(tc, "require.kmods", "netlink");
+}
+
+ATF_TC_BODY(snl_parse_bitset_array, tc)
+{
+	struct snl_attr_bit *bit;
+	struct snl_parsed_link link = {};
+	struct snl_state ss;
+	struct snl_writer nw;
+	struct nlmsghdr *hdr;
+	uint32_t mask, value;
+	char name[16];
+	int bits_off, entry_off, fbsd_off, caps_off;
+
+	ATF_REQUIRE(snl_init(&ss, NETLINK_ROUTE));
+	snl_init_writer(&ss, &nw);
+	hdr = snl_create_msg_request(&nw, RTM_NEWLINK);
+	ATF_REQUIRE(hdr != NULL);
+	ATF_REQUIRE(snl_reserve_msg_object(&nw, struct ifinfomsg) != NULL);
+
+	fbsd_off = snl_add_msg_attr_nested(&nw, IFLA_FREEBSD);
+	ATF_REQUIRE(fbsd_off != 0);
+	caps_off = snl_add_msg_attr_nested(&nw, IFLAF_CAPS);
+	ATF_REQUIRE(caps_off != 0);
+	ATF_REQUIRE(snl_add_msg_attr_u32(&nw, NLA_BITSET_SIZE, 32));
+	mask = 0x1ff;
+	value = 0x155;
+	ATF_REQUIRE(snl_add_msg_attr(&nw, NLA_BITSET_MASK, sizeof(mask),
+	    &mask));
+	ATF_REQUIRE(snl_add_msg_attr(&nw, NLA_BITSET_VALUE, sizeof(value),
+	    &value));
+	bits_off = snl_add_msg_attr_nested(&nw, NLA_BITSET_BITS);
+	ATF_REQUIRE(bits_off != 0);
+	for (uint32_t i = 0; i < 9; i++) {
+		entry_off = snl_add_msg_attr_nested(&nw, i + 1);
+		ATF_REQUIRE(entry_off != 0);
+		ATF_REQUIRE(snl_add_msg_attr_u32(&nw,
+		    NLA_BITSET_BIT_INDEX, i));
+		snprintf(name, sizeof(name), "bit-%u", i);
+		ATF_REQUIRE(snl_add_msg_attr_string(&nw,
+		    NLA_BITSET_BIT_NAME, name));
+		if ((i & 1) == 0)
+			ATF_REQUIRE(snl_add_msg_attr_flag(&nw,
+			    NLA_BITSET_BIT_VALUE));
+		snl_end_attr_nested(&nw, entry_off);
+	}
+	snl_end_attr_nested(&nw, bits_off);
+	snl_end_attr_nested(&nw, caps_off);
+	snl_end_attr_nested(&nw, fbsd_off);
+	hdr = snl_finalize_msg(&nw);
+	ATF_REQUIRE(hdr != NULL);
+
+	ATF_REQUIRE(snl_parse_nlmsg(&ss, hdr, &snl_rtm_link_parser, &link));
+	ATF_REQUIRE_EQ(link.iflaf_caps.bits.count, 9);
+	bit = link.iflaf_caps.bits.items[8];
+	ATF_CHECK_EQ(bit->bit_index, 8);
+	ATF_CHECK_STREQ(bit->bit_name, "bit-8");
+	ATF_CHECK_EQ(bit->bit_value, 1);
+}
 ATF_TC(snl_verify_route_parsers);
 ATF_TC_HEAD(snl_verify_route_parsers, tc)
 {
@@ -64,11 +128,11 @@ ATF_TC_BODY(snl_parse_errmsg_capped, tc)
 	if (!snl_init(&ss, NETLINK_ROUTE))
 		atf_tc_fail("snl_init() failed");
 
-	atf_tc_skip("does not work");
-
 	int optval = 1;
 	ATF_CHECK(setsockopt(ss.fd, SOL_NETLINK, NETLINK_CAP_ACK, &optval, sizeof(optval)) == 0);
 
+	optval = 0;
+	ATF_CHECK(setsockopt(ss.fd, SOL_NETLINK, NETLINK_EXT_ACK, &optval, sizeof(optval)) == 0);
 	snl_init_writer(&ss, &nw);
 
 	struct nlmsghdr *hdr = snl_create_msg_request(&nw, 255);
@@ -230,6 +294,7 @@ ATF_TC_BODY(snl_list_ifaces, tc)
 ATF_TP_ADD_TCS(tp)
 {
 	ATF_TP_ADD_TC(tp, snl_verify_core_parsers);
+	ATF_TP_ADD_TC(tp, snl_parse_bitset_array);
 	ATF_TP_ADD_TC(tp, snl_verify_route_parsers);
 	ATF_TP_ADD_TC(tp, snl_parse_errmsg_capped);
 	ATF_TP_ADD_TC(tp, snl_parse_errmsg_capped_extack);

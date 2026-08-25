@@ -520,9 +520,13 @@ parse_dir_ask(char **conf)
 {
 	char name[80];
 	char *mnt;
-	int error;
+	int error, cn_mute_save;
 
 	vfs_mountroot_wait();
+
+	/* Make sure the prompt is visible. */
+	cn_mute_save = cn_mute;
+	cn_mute = 0;
 
 	printf("\nLoader variables:\n");
 	parse_dir_ask_printenv("vfs.root.mountfrom");
@@ -564,6 +568,7 @@ parse_dir_ask(char **conf)
 			printf("Invalid file system specification.\n");
 	} while (error != 0);
 
+	cn_mute = cn_mute_save;
 	return (error);
 }
 

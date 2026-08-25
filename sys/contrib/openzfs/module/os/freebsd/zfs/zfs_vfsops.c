@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
@@ -51,7 +41,7 @@
 #include <sys/dsl_prop.h>
 #include <sys/dsl_dataset.h>
 #include <sys/dsl_deleg.h>
-#include <sys/spa.h>
+#include <sys/spa_impl.h>
 #include <sys/zap.h>
 #include <sys/sa.h>
 #include <sys/sa_impl.h>
@@ -69,6 +59,7 @@
 #include <sys/zfs_quota.h>
 
 #include "zfs_comutil.h"
+#include "zfs_crrd.h"
 
 #ifndef	MNTK_VMSETSIZE_BUG
 #define	MNTK_VMSETSIZE_BUG	0
@@ -495,6 +486,12 @@ atime_changed_cb(void *arg, uint64_t newval)
 }
 
 static void
+relatime_changed_cb(void *arg, uint64_t newval)
+{
+	((zfsvfs_t *)arg)->z_relatime = (newval != 0);
+}
+
+static void
 xattr_changed_cb(void *arg, uint64_t newval)
 {
 	zfsvfs_t *zfsvfs = arg;
@@ -752,6 +749,8 @@ zfs_register_callbacks(vfs_t *vfsp)
 	 */
 	error = dsl_prop_register(ds,
 	    zfs_prop_to_name(ZFS_PROP_ATIME), atime_changed_cb, zfsvfs);
+	error = error ? error : dsl_prop_register(ds,
+	    zfs_prop_to_name(ZFS_PROP_RELATIME), relatime_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
 	    zfs_prop_to_name(ZFS_PROP_XATTR), xattr_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
@@ -1038,6 +1037,32 @@ zfsvfs_create(const char *osname, boolean_t readonly, zfsvfs_t **zfvp)
 	return (error);
 }
 
+int
+zfsvfs_create_hold(const char *osname, zfsvfs_t **zfvp)
+{
+	objset_t *os;
+	zfsvfs_t *zfsvfs;
+	int error;
+
+	zfsvfs = kmem_zalloc(sizeof (zfsvfs_t), KM_SLEEP);
+
+	error = dmu_objset_hold(osname, zfsvfs, &os);
+	if (error != 0) {
+		kmem_free(zfsvfs, sizeof (zfsvfs_t));
+		return (error);
+	}
+
+	if (dmu_objset_type(os) != DMU_OST_ZFS) {
+		dmu_objset_rele(os, zfsvfs);
+		kmem_free(zfsvfs, sizeof (zfsvfs_t));
+		return (EINVAL);
+	}
+
+	zfsvfs->z_use_hold = B_TRUE;
+	error = zfsvfs_create_impl(zfvp, zfsvfs, os);
+
+	return (error);
+}
 
 int
 zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
@@ -1061,7 +1086,10 @@ zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
 
 	error = zfsvfs_init(zfsvfs, os);
 	if (error != 0) {
-		dmu_objset_disown(os, B_TRUE, zfsvfs);
+		if (zfsvfs->z_use_hold)
+			dmu_objset_rele(os, zfsvfs);
+		else
+			dmu_objset_disown(os, B_TRUE, zfsvfs);
 		*zfvp = NULL;
 		kmem_free(zfsvfs, sizeof (zfsvfs_t));
 		return (error);
@@ -1315,7 +1343,12 @@ out:
 		dmu_objset_disown(zfsvfs->z_os, B_TRUE, zfsvfs);
 		zfsvfs_free(zfsvfs);
 	} else {
+		spa_t *spa = zfsvfs->z_os->os_spa;
+
 		atomic_inc_32(&zfs_active_fs_count);
+
+		vfsp->mnt_time = dbrrd_latest_time(&spa->spa_txg_log_time);
+		vfsp->mnt_time = MAX(vfsp->mnt_time, spa->spa_load_txg_ts);
 	}
 
 	return (error);
@@ -1818,10 +1851,6 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 	if ((err = zfs_enter(zfsvfs, FTAG)) != 0)
 		return (err);
 	err = zfs_zget(zfsvfs, ino, &zp);
-	if (err == 0 && zp->z_unlinked) {
-		vrele(ZTOV(zp));
-		err = EINVAL;
-	}
 	if (err == 0)
 		*vpp = ZTOV(zp);
 	zfs_exit(zfsvfs, FTAG);
@@ -1978,7 +2007,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 	zp_gen = zp_gen & gen_mask;
 	if (zp_gen == 0)
 		zp_gen = 1;
-	if (zp->z_unlinked || zp_gen != fid_gen) {
+	if (zp_gen != fid_gen) {
 		dprintf("znode gen (%llu) != fid gen (%llu)\n",
 		    (u_longlong_t)zp_gen, (u_longlong_t)fid_gen);
 		vrele(ZTOV(zp));

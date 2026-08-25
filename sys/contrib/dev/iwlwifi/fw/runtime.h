@@ -45,6 +45,8 @@ struct iwl_fwrt_shared_mem_cfg {
  * struct iwl_fwrt_dump_data - dump data
  * @trig: trigger the worker was scheduled upon
  * @fw_pkt: packet received from FW
+ * @desc: dump descriptor
+ * @monitor_only: only dump for monitor
  *
  * Note that the decision which part of the union is used
  * is based on iwl_trans_dbg_ini_valid(): the 'trig' part
@@ -68,6 +70,7 @@ struct iwl_fwrt_dump_data {
  * struct iwl_fwrt_wk_data - dump worker data struct
  * @idx: index of the worker
  * @wk: worker
+ * @dump_data: dump data
  */
 struct iwl_fwrt_wk_data  {
 	u8 idx;
@@ -91,8 +94,8 @@ struct iwl_txf_iter_data {
 
 /**
  * struct iwl_fw_runtime - runtime data for firmware
+ * @trans: transport pointer
  * @fw: firmware image
- * @cfg: NIC configuration
  * @dev: device pointer
  * @ops: user ops
  * @ops_ctx: user ops context
@@ -113,10 +116,33 @@ struct iwl_txf_iter_data {
  * @phy_filters: specific phy filters as read from WPFC BIOS table
  * @ppag_bios_rev: PPAG BIOS revision
  * @ppag_bios_source: see &enum bios_source
- * @acpi_dsm_funcs_valid: bitmap indicating which DSM values are valid,
+ * @dsm_funcs_valid: bitmap indicating which DSM values are valid,
  *	zero (default initialization) means it hasn't been read yet,
  *	and BIT(0) is set when it has since function 0 also has this
- *	bitmap and is always supported
+ *	bitmap and is always supported.
+ *	If the bit is set for a specific function, then the corresponding
+ *	entry in &dsm_values is valid.
+ * @dsm_values: cache of the DSM values. The validity of each entry is
+ *	determined by &dsm_funcs_valid.
+ * @geo_enabled: WGDS table is present
+ * @geo_num_profiles: number of geo profiles
+ * @geo_rev: geo profiles table revision
+ * @ppag_chains: PPAG table data
+ * @ppag_flags: PPAG flags
+ * @reduced_power_flags: reduced power flags
+ * @sanitize_ctx: context for dump sanitizer
+ * @sanitize_ops: dump sanitizer ops
+ * @sar_chain_a_profile: SAR chain A profile
+ * @sar_chain_b_profile: SAR chain B profile
+ * @sgom_enabled: SGOM enabled
+ * @sgom_table: SGOM table
+ * @timestamp: timestamp marker data
+ * @timestamp.wk: timestamp marking worker
+ * @timestamp.seq: timestamp marking sequence
+ * @timestamp.delay: timestamp marking worker delay
+ * @tpc_enabled: TPC enabled
+ * @dsm_source: one of &enum bios_source. UEFI, ACPI or NONE
+ * @dsm_revision: the revision of the DSM table
  */
 struct iwl_fw_runtime {
 	struct iwl_trans *trans;
@@ -150,8 +176,6 @@ struct iwl_fw_runtime {
 		unsigned long non_collect_ts_start[IWL_FW_INI_TIME_POINT_NUM];
 		u32 *d3_debug_data;
 		u32 lmac_err_id[MAX_NUM_LMAC];
-		u32 tcm_err_id[MAX_NUM_TCM];
-		u32 rcm_err_id[MAX_NUM_RCM];
 		u32 umac_err_id;
 
 		struct iwl_txf_iter_data txf_iter_data;
@@ -193,9 +217,12 @@ struct iwl_fw_runtime {
 	bool uats_valid;
 	u8 uefi_tables_lock_status;
 	struct iwl_phy_specific_cfg phy_filters;
+	enum bios_source dsm_source;
+	u8 dsm_revision;
 
-#ifdef CONFIG_ACPI
-	u32 acpi_dsm_funcs_valid;
+#if defined(CONFIG_ACPI) || defined(CONFIG_EFI)
+	u32 dsm_funcs_valid;
+	u32 dsm_values[DSM_FUNC_NUM_FUNCS];
 #endif
 };
 

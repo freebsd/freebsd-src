@@ -366,6 +366,9 @@ options 	COMPAT_FREEBSD13
 # Enable FreeBSD14 compatibility syscalls
 options 	COMPAT_FREEBSD14
 
+# Enable FreeBSD14 compatibility syscalls
+options 	COMPAT_FREEBSD15
+
 # Enable Linux Kernel Programming Interface
 options 	COMPAT_LINUXKPI
 
@@ -880,6 +883,10 @@ device		vlan
 # frames in UDP packets according to RFC7348.
 device		vxlan
 
+# The `geneve' device implements the GENEVE encapsulation of virtual
+# overlays according to RFC8926.
+device		geneve
+
 #  The `wlan' device provides generic code to support 802.11
 #  drivers, including host AP mode; it is MANDATORY for the wi,
 #  and ath drivers and will eventually be required by all 802.11 drivers.
@@ -1031,8 +1038,6 @@ device		dummymbuf
 # TCP_HHOOK enables the hhook(9) framework hooks for the TCP stack.
 # SOCKET_HHOOK enables the hhook(9) framework hooks for socket operations.
 #
-# ROUTE_MPATH provides support for multipath routing.
-#
 options 	MROUTING		# Multicast routing
 options 	IPFIREWALL		#firewall
 options 	IPFIREWALL_VERBOSE	#enable logging to syslogd(8)
@@ -1052,7 +1057,6 @@ options 	PF_DEFAULT_TO_DROP	#drop everything by default
 options 	TCP_BLACKBOX
 options 	TCP_HHOOK
 options		SOCKET_HHOOK
-options 	ROUTE_MPATH
 
 # The MBUF_STRESS_TEST option enables options which create
 # various random failures / extreme cases related to mbuf
@@ -1897,7 +1901,6 @@ device		xmphy		# XaQti XMAC II
 #	(hint of prefer_iomap can be done to prefer I/O instead of Mem mapping)
 # gem:  Apple GMAC/Sun ERI/Sun GEM
 # jme:  JMicron JMC260 Fast Ethernet/JMC250 Gigabit Ethernet based adapters.
-# le:   AMD Am7900 LANCE and Am79C9xx PCnet
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
 #	LXT1001 NetCellerator chipset. This includes the D-Link DGE-500SX,
 #	SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
@@ -1997,6 +2000,9 @@ device		vr		# VIA Rhine, Rhine II
 device		vte		# DM&P Vortex86 RDC R6040 Fast Ethernet
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
+# MDIO bus for Ethernet NICs that directly expose the MDIO bus
+device		mdio
+
 # PCI/PCI-X/PCIe Ethernet NICs that use iflib infrastructure
 device		iflib
 device		em		# Intel Pro/1000 Gigabit Ethernet
@@ -2008,7 +2014,6 @@ device		cxgb		# Chelsio T3 10 Gigabit Ethernet
 device		cxgb_t3fw	# Chelsio T3 10 Gigabit Ethernet firmware
 device		cxgbe		# Chelsio T4-T6 1/10/25/40/100 Gigabit Ethernet
 device		cxgbev		# Chelsio T4-T6 Virtual Functions
-device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
 device		rge		# Realtek 8125/8126/8127
 device		oce		# Emulex 10GbE (OneConnect Ethernet)
@@ -2091,6 +2096,7 @@ device		sound
 # snd_cs4281:		Crystal Semiconductor CS4281 PCI.
 # snd_csa:		Crystal Semiconductor CS461x/428x PCI. (except
 #			4281)
+# snd_dummy:		Dummy testing driver.
 # snd_emu10k1:		Creative EMU10K1 PCI and EMU10K2 (Audigy) PCI.
 # snd_emu10kx:		Creative SoundBlaster Live! and Audigy
 # snd_envy24:		VIA Envy24 and compatible, needs snd_spicds.
@@ -2120,6 +2126,7 @@ device		snd_atiixp
 device		snd_cmi
 device		snd_cs4281
 device		snd_csa
+device		snd_dummy
 device		snd_emu10k1
 device		snd_emu10kx
 device		snd_envy24
@@ -2159,18 +2166,8 @@ envvar		hint.gusc.0.flags="0x13"
 #
 # Following options are intended for debugging/testing purposes:
 #
-# SND_DEBUG                    Enable extra debugging code that includes
-#                              sanity checking and possible increase of
-#                              verbosity.
-#
 # SND_DIAGNOSTIC               Similar in a spirit of INVARIANTS/DIAGNOSTIC,
 #                              zero tolerance against inconsistencies.
-#
-# SND_FEEDER_MULTIFORMAT       By default, only 16/32 bit feeders are compiled
-#                              in. This options enable most feeder converters
-#                              except for 8bit. WARNING: May bloat the kernel.
-#
-# SND_FEEDER_FULL_MULTIFORMAT  Ditto, but includes 8bit feeders as well.
 #
 # SND_FEEDER_RATE_HP           (feeder_rate) High precision 64bit arithmetic
 #                              as much as possible (the default trying to
@@ -2181,16 +2178,9 @@ envvar		hint.gusc.0.flags="0x13"
 #                              integer/arithmetic. Slight increase of dynamic
 #                              range at a cost of possible slowdown.
 #
-# SND_OLDSTEREO                Only 2 channels are allowed, effectively
-#                              disabling multichannel processing.
-#
-options 	SND_DEBUG
 options 	SND_DIAGNOSTIC
-options 	SND_FEEDER_MULTIFORMAT
-options 	SND_FEEDER_FULL_MULTIFORMAT
 options 	SND_FEEDER_RATE_HP
 options 	SND_PCM_64
-options 	SND_OLDSTEREO
 
 #
 # Cardbus
@@ -2448,6 +2438,7 @@ device		hkbd		# HID keyboard
 device		hms		# HID mouse
 device		hmt		# HID multitouch (MS-compatible)
 device		hpen		# Generic pen driver
+device		hrfkill		# RFKILL driver
 device		hsctrl		# System controls
 device		ps4dshock	# Sony PS4 DualShock 4 gamepad driver
 device		u2f		# FIDO/U2F authenticator
@@ -2626,6 +2617,9 @@ device		sbp		# SCSI over Firewire (Requires scbus and da)
 device		sbp_targ	# SBP-2 Target mode  (Requires scbus and targ)
 device		fwe		# Ethernet over FireWire (non-standard!)
 device		fwip		# IP over FireWire (RFC2734 and RFC3146)
+device		fwcam		# IIDC digital cameras over FireWire
+device		fwdv		# AV/C DV capture over FireWire
+device		fwisound	# Apple FireWire audio
 
 #####################################################################
 # dcons support (Dumb Console Device)
@@ -2839,8 +2833,8 @@ options         IMGACT_BINMISC
 options 	GZIO
 
 # zstd support
-# This enables support for Zstd compressed core dumps, GEOM_UZIP images,
-# and is required by zfs if statically linked.
+# This enables support for Zstandard compression for core dumps,
+# kernel dumps, GEOM_UZIP images, and tarfs, and is required by zfs.
 options 	ZSTDIO
 
 # BHND(4) drivers

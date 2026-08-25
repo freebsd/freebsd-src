@@ -40,6 +40,7 @@
 #include <sys/tree.h>
 #include <sys/wait.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <signal.h>
@@ -68,7 +69,7 @@ RB_GENERATE_STATIC(pidtree, pid, entry, pidcmp);
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: pwait [-t timeout] [-opv] pid ...\n");
+	fprintf(stderr, "usage: pwait [-oprv] [-t timeout] pid ...\n");
 	exit(EX_USAGE);
 }
 
@@ -86,22 +87,26 @@ main(int argc, char *argv[])
 	size_t sz;
 	long pid;
 	pid_t mypid;
-	int i, kq, n, ndone, nleft, opt, pid_max, ret, status;
-	bool oflag, pflag, tflag, verbose;
+	int i, kq, n, ndone, nev, nleft, notes, opt, pid_max, ret, status;
+	bool oflag, pflag, rflag, tflag, verbose;
 
 	oflag = false;
 	pflag = false;
+	rflag = false;
 	tflag = false;
 	verbose = false;
 	memset(&itv, 0, sizeof(itv));
 
-	while ((opt = getopt(argc, argv, "opt:v")) != -1) {
+	while ((opt = getopt(argc, argv, "oprt:v")) != -1) {
 		switch (opt) {
 		case 'o':
 			oflag = true;
 			break;
 		case 'p':
 			pflag = true;
+			break;
+		case 'r':
+			rflag = true;
 			break;
 		case 't':
 			tflag = true;
@@ -160,11 +165,14 @@ main(int argc, char *argv[])
 	if (sysctlbyname("kern.pid_max", &pid_max, &sz, NULL, 0) != 0) {
 		pid_max = 99999;
 	}
-	if ((e = malloc((argc + tflag) * sizeof(*e))) == NULL) {
+	if ((e = malloc((argc + 1 + tflag) * sizeof(*e))) == NULL) {
 		err(EX_OSERR, "malloc");
 	}
-	ndone = nleft = 0;
+	ndone = nev = nleft = 0;
 	mypid = getpid();
+	notes = rflag ? NOTE_REAP : NOTE_EXIT;
+	if (verbose)
+		notes |= NOTE_EXIT;
 	for (n = 0; n < argc; n++) {
 		s = argv[n];
 		/* Undocumented Solaris compat */
@@ -190,7 +198,7 @@ main(int argc, char *argv[])
 			free(p);
 			continue;
 		}
-		EV_SET(e + nleft, pid, EVFILT_PROC, EV_ADD, NOTE_EXIT, 0, NULL);
+		EV_SET(e + nleft, pid, EVFILT_PROC, EV_ADD, notes, 0, NULL);
 		if (kevent(kq, e + nleft, 1, NULL, 0, NULL) == -1) {
 			if (errno != ESRCH)
 				err(EX_OSERR, "kevent()");
@@ -200,18 +208,28 @@ main(int argc, char *argv[])
 			ndone++;
 		} else {
 			nleft++;
+			nev++;
 		}
 	}
 
+	/*
+	 * Detect SIGINFO so we can print a status.
+	 */
+	EV_SET(e + nev, SIGINFO, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
+	if (kevent(kq, e + nev, 1, NULL, 0, NULL) == -1) {
+		err(EX_OSERR, "kevent");
+	}
+	nev++;
 	if ((ndone == 0 || !oflag) && nleft > 0 && tflag) {
 		/*
 		 * Explicitly detect SIGALRM so that an exit status of 124
 		 * can be returned rather than 142.
 		 */
-		EV_SET(e + nleft, SIGALRM, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
-		if (kevent(kq, e + nleft, 1, NULL, 0, NULL) == -1) {
+		EV_SET(e + nev, SIGALRM, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
+		if (kevent(kq, e + nev, 1, NULL, 0, NULL) == -1) {
 			err(EX_OSERR, "kevent");
 		}
+		nev++;
 		/* Ignore SIGALRM to not interrupt kevent(2). */
 		signal(SIGALRM, SIG_IGN);
 		if (setitimer(ITIMER_REAL, &itv, NULL) == -1) {
@@ -219,20 +237,34 @@ main(int argc, char *argv[])
 		}
 	}
 	ret = EX_OK;
+	setvbuf(stderr, NULL, _IOLBF, 0);
 	while ((ndone == 0 || !oflag) && ret == EX_OK && nleft > 0) {
-		n = kevent(kq, NULL, 0, e, nleft + tflag, NULL);
+		n = kevent(kq, NULL, 0, e, nev, NULL);
 		if (n == -1) {
 			err(EX_OSERR, "kevent");
 		}
 		for (i = 0; i < n; i++) {
-			if (e[i].filter == EVFILT_SIGNAL) {
+			if (e[i].filter == EVFILT_SIGNAL &&
+			    e[i].ident == SIGINFO) {
+				p = RB_MIN(pidtree, &pids);
+				fprintf(stderr, "%d", p->pid);
+				while ((p = RB_NEXT(pidtree, &pids, p)) != NULL) {
+					fprintf(stderr, " %d", p->pid);
+				}
+				fprintf(stderr, "\n");
+				continue;
+			}
+			if (e[i].filter == EVFILT_SIGNAL &&
+			    e[i].ident == SIGALRM) {
 				if (verbose) {
 					printf("timeout\n");
 				}
 				ret = 124;
+				continue;
 			}
+			assert(e[i].filter == EVFILT_PROC);
 			pid = e[i].ident;
-			if (verbose) {
+			if ((e[i].fflags & NOTE_EXIT) && verbose) {
 				status = e[i].data;
 				if (WIFEXITED(status)) {
 					printf("%ld: exited with status %d.\n",
@@ -244,13 +276,20 @@ main(int argc, char *argv[])
 					printf("%ld: terminated.\n", pid);
 				}
 			}
-			k.pid = pid;
-			if ((p = RB_FIND(pidtree, &pids, &k)) != NULL) {
-				RB_REMOVE(pidtree, &pids, p);
-				free(p);
-				ndone++;
+			if ((e[i].fflags & NOTE_REAP) && verbose) {
+				printf("%ld: reaped.\n", pid);
 			}
-			--nleft;
+			if ((e[i].fflags & NOTE_REAP) ||
+			    (!rflag && (e[i].fflags & NOTE_EXIT))) {
+				/* this process is done */
+				k.pid = pid;
+				if ((p = RB_FIND(pidtree, &pids, &k)) != NULL) {
+					RB_REMOVE(pidtree, &pids, p);
+					free(p);
+					ndone++;
+				}
+				--nleft;
+			}
 		}
 	}
 	if (pflag) {

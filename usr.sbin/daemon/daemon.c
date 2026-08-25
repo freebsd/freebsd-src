@@ -119,13 +119,14 @@ static int daemon_setup_kqueue(void);
 
 static int pidfile_truncate(struct pidfh *);
 
-static const char shortopts[] = "+cfHSp:P:ru:o:M:s:l:t:m:R:T:C:h";
+static const char shortopts[] = "+cfHSxp:P:ru:o:M:s:l:t:m:R:T:C:h";
 
 static const struct option longopts[] = {
 	{ "change-dir",         no_argument,            NULL,           'c' },
 	{ "close-fds",          no_argument,            NULL,           'f' },
 	{ "sighup",             no_argument,            NULL,           'H' },
 	{ "syslog",             no_argument,            NULL,           'S' },
+	{ "execute-only",       no_argument,            NULL,           'x' },
 	{ "output-file",        required_argument,      NULL,           'o' },
 	{ "output-file-mode",   required_argument,      NULL,           'M' },
 	{ "output-mask",        required_argument,      NULL,           'm' },
@@ -147,7 +148,7 @@ static _Noreturn void
 usage(int exitcode)
 {
 	(void)fprintf(stderr,
-	    "usage: daemon [-cfHrS] [-p child_pidfile] [-P supervisor_pidfile]\n"
+	    "usage: daemon [-cfHrSx] [-p child_pidfile] [-P supervisor_pidfile]\n"
 	    "              [-u user] [-o output_file] [-M output_file_mode] [-t title]\n"
 	    "              [-l syslog_facility] [-s syslog_priority]\n"
 	    "              [-T syslog_tag] [-m output_mask] [-R restart_delay_secs]\n"
@@ -159,6 +160,7 @@ usage(int exitcode)
 	    "  --close-fds          -f         Set stdin, stdout, stderr to /dev/null\n"
 	    "  --sighup             -H         Close and re-open output file on SIGHUP\n"
 	    "  --syslog             -S         Send output to syslog\n"
+	    "  --execute-only       -x         Do not supervise child process when using -p\n"
 	    "  --output-file        -o <file>  Append output of the child process to file\n"
 	    "  --output-file-mode   -M <mode>  Output file mode of the child process\n"
 	    "  --output-mask        -m <mask>  What to send to syslog/file\n"
@@ -185,6 +187,7 @@ main(int argc, char *argv[])
 	int ch = 0;
 	mode_t *set = NULL;
 	struct daemon_state state;
+	bool opt_x = false;
 
 	daemon_state_init(&state);
 
@@ -194,7 +197,8 @@ main(int argc, char *argv[])
 
 	/*
 	 * Supervision mode is enabled if one of the following options are used:
-	 * --child-pidfile -p
+	 * --output-file -o
+	 * --child-pidfile -p (if --execute-only -x is not given)
 	 * --supervisor-pidfile -P
 	 * --restart -r / --restart-delay -R
 	 * --syslog -S
@@ -261,9 +265,14 @@ main(int argc, char *argv[])
 			free(set);
 			set = NULL;
 			break;
+		case 'x':
+			opt_x = true;
+			break;
 		case 'p':
 			state.child_pidfile = optarg;
-			state.mode = MODE_SUPERVISE;
+			/*
+			 * Enable supervision later if no -x was given
+			 */
 			break;
 		case 'P':
 			state.parent_pidfile = optarg;
@@ -319,6 +328,17 @@ main(int argc, char *argv[])
 
 	if (argc == 0) {
 		usage(1);
+	}
+
+	/*
+	 * Enable supervision for -p if -x was not given
+	 */
+	if (state.child_pidfile != NULL) {
+		if (!opt_x) {
+			state.mode = MODE_SUPERVISE;
+		}
+	} else if (opt_x) {
+		errx(6, "-x is not allowed without -p");
 	}
 
 	if (!state.title) {

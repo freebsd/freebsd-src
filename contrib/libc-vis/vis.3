@@ -29,7 +29,7 @@
 .\"
 .\"     @(#)vis.3	8.1 (Berkeley) 6/9/93
 .\"
-.Dd April 22, 2017
+.Dd May 3, 2026
 .Dt VIS 3
 .Os
 .Sh NAME
@@ -246,19 +246,22 @@ alter this:
 Also encode double quotes
 .It Dv VIS_GLOB
 Also encode the magic characters
-.Ql ( * ,
+.Po
+.Ql * ,
 .Ql \&? ,
 .Ql \&[ ,
 and
-.Ql # )
+.Ql #
+.Pc
 recognized by
 .Xr glob 3 .
 .It Dv VIS_SHELL
 Also encode the meta characters used by shells (in addition to the glob
 characters):
-.Ql ( ' ,
+.Po
+.Ql ' ,
 .Ql ` ,
-.Ql \&" ,
+.Ql \&\(dq ,
 .Ql \&; ,
 .Ql & ,
 .Ql < ,
@@ -272,7 +275,8 @@ characters):
 .Ql \&! ,
 .Ql \&^ ,
 and
-.Ql ~ ) .
+.Ql ~
+.Pc .
 .It Dv VIS_SP
 Also encode space.
 .It Dv VIS_TAB
@@ -286,13 +290,15 @@ Synonym for
 Synonym for
 .Dv VIS_WHITE | VIS_GLOB | VIS_SHELL .
 .It Dv VIS_SAFE
-Only encode
-.Dq unsafe
-characters.
-Unsafe means control characters which may cause common terminals to perform
-unexpected functions.
-Currently this form allows space, tab, newline, backspace, bell, and
-return \(em in addition to all graphic characters \(em unencoded.
+Leave
+.Dq safe
+characters unencoded.
+Characters are only considered unsafe if they cause common terminals
+to perform unexpected functions.
+Setting the
+.Dv VIS_SAFE
+flag exempts the backspace, bell, and return characters from being
+encoded.
 .El
 .Pp
 (The above flags have no effect for

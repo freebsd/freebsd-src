@@ -259,7 +259,8 @@ scanfiles(char *argv[], int cooked __unused)
 			if (fd == STDIN_FILENO)
 				cook_cat(stdin);
 			else {
-				fp = fdopen(fd, "r");
+				if ((fp = fdopen(fd, "r")) == NULL)
+					err(1, "fdopen");
 				cook_cat(fp);
 				fclose(fp);
 			}

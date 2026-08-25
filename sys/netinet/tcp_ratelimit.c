@@ -490,7 +490,7 @@ populate_canned_table(struct tcp_rate_set *rs, const uint64_t *rate_table_act)
 {
 	/*
 	 * The internal table is "special", it
-	 * is two seperate ordered tables that
+	 * is two separate ordered tables that
 	 * must be merged. We get here when the
 	 * adapter specifies a number of rates that
 	 * covers both ranges in the table in some
@@ -1790,5 +1790,5 @@ tcp_rs_init(void *st __unused)
 	printf("TCP_ratelimit: Is now initialized\n");
 }
 
-SYSINIT(tcp_rl_init, SI_SUB_SMP + 1, SI_ORDER_ANY, tcp_rs_init, NULL);
+SYSINIT(tcp_rl_init, SI_SUB_SMP, SI_ORDER_LAST, tcp_rs_init, NULL);
 #endif

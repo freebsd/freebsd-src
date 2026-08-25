@@ -112,7 +112,12 @@ crypto/openssl/amd64/sha512-x86_64.S	optional ossl
 crypto/openssl/amd64/ossl_aes_gcm_avx512.c	optional ossl
 crypto/openssl/ossl_aes_gcm.c	optional ossl
 dev/amdgpio/amdgpio.c		optional	amdgpio
+dev/apple_bce/apple_bce.c	optional	apple_bce pci
+dev/apple_bce/apple_bce_mailbox.c	optional	apple_bce pci
+dev/apple_bce/apple_bce_queue.c	optional	apple_bce pci
+dev/apple_bce/apple_bce_vhci.c	optional	apple_bce pci
 dev/asmc/asmc.c			optional	asmc isa
+dev/asmc/asmcmmio.c		optional	asmc isa
 dev/axgbe/if_axgbe_pci.c	optional	axp
 dev/axgbe/xgbe-desc.c		optional	axp
 dev/axgbe/xgbe-dev.c		optional	axp
@@ -380,6 +385,16 @@ dev/smartpqi/smartpqi_sis.c     optional 	smartpqi
 dev/smartpqi/smartpqi_tag.c     optional 	smartpqi
 dev/sume/if_sume.c		optional	sume
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
+dev/thunderbolt/hcm.c		optional	thunderbolt
+dev/thunderbolt/nhi.c		optional	thunderbolt
+dev/thunderbolt/nhi_pci.c	optional	thunderbolt
+dev/thunderbolt/nhi_wmi.c	optional	acpi acpi_wmi thunderbolt
+dev/thunderbolt/router.c	optional	thunderbolt
+dev/thunderbolt/tb_acpi_pcib.c	optional	acpi thunderbolt
+dev/thunderbolt/tb_debug.c	optional	thunderbolt
+dev/thunderbolt/tb_dev.c	optional	thunderbolt
+dev/thunderbolt/tb_if.m		optional	thunderbolt
+dev/thunderbolt/tb_pcib.c	optional	acpi thunderbolt
 dev/tpm/tpm_crb.c		optional	tpm acpi
 dev/p2sb/p2sb.c			optional	p2sb pci
 dev/p2sb/lewisburg_gpiocm.c	optional	lbggpiocm p2sb

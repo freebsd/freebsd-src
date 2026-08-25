@@ -752,15 +752,21 @@ After wakeup, the
 umutex is not relocked.
 .Pp
 The following flags are defined:
-.Bl -tag -width "CVWAIT_CLOCKID"
+.Bl -tag -width "CVWAIT_UMTX_TIME"
 .It Dv CVWAIT_ABSTIME
 Timeout is absolute.
 .It Dv CVWAIT_CLOCKID
 Clockid is provided.
+.It Dv CVWAIT_UMTX_TIME
+Timeout is specified by
+.Vt struct umtx_time
 .El
 .Pp
 Optionally, a timeout for the request may be specified.
-Unlike other requests, the timeout value is specified directly by a
+If the
+.Dv CVWAIT_UMTX_TIME
+flag is not passed, then, unlike other requests,
+the timeout value is specified directly by a
 .Vt struct timespec ,
 pointed to by the
 .Fa uaddr2
@@ -782,6 +788,19 @@ If the
 .Dv CVWAIT_ABSTIME
 flag is supplied, the timeout specifies absolute time value, otherwise
 it denotes a relative time interval.
+.Pp
+Alternatively, if the
+.Dv CVWAIT_UMTX_TIME
+flag is passed, then the
+.Dv CVWAIT_CLOCKID
+and
+.Dv CVWAIT_ABSTIME
+flags must be not passed.
+In this case, the
+.Fa uaddr2
+points to the
+.Va struct umtx_time
+structure which specifes the timeout and clock identifier.
 .Pp
 The request is not restartable.
 An unblocked signal delivered during

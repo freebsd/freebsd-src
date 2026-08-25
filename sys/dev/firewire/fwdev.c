@@ -266,7 +266,7 @@ fw_close(struct cdev *dev, int flags, int fmt, fw_proc *td)
 static int
 fw_read_async(struct fw_drv1 *d, struct uio *uio, int ioflag)
 {
-	int err = 0, s;
+	int err = 0;
 	struct fw_xfer *xfer;
 	struct fw_bind *fwb;
 	struct fw_pkt *fp;
@@ -281,15 +281,9 @@ fw_read_async(struct fw_drv1 *d, struct uio *uio, int ioflag)
 		return (err);
 	}
 
-	s = splfw();
 	STAILQ_REMOVE_HEAD(&d->rq, link);
 	FW_GUNLOCK(xfer->fc);
-	splx(s);
 	fp = &xfer->recv.hdr;
-#if 0 /* for GASP ?? */
-	if (fc->irx_post != NULL)
-		fc->irx_post(fc, fp->mode.ld);
-#endif
 	tinfo = &xfer->fc->tcode[fp->mode.hdr.tcode];
 	err = uiomove(fp, tinfo->hdr_len, uio);
 	if (err)
@@ -316,7 +310,7 @@ fw_read(struct cdev *dev, struct uio *uio, int ioflag)
 	struct fw_drv1 *d;
 	struct fw_xferq *ir;
 	struct firewire_comm *fc;
-	int err = 0, s, slept = 0;
+	int err = 0, slept = 0;
 	struct fw_pkt *fp;
 
 	if (DEV_FWMEM(dev))
@@ -338,9 +332,7 @@ readloop:
 		/* iso bulkxfer */
 		ir->stproc = STAILQ_FIRST(&ir->stvalid);
 		if (ir->stproc != NULL) {
-			s = splfw();
 			STAILQ_REMOVE_HEAD(&ir->stvalid, link);
-			splx(s);
 			ir->queued = 0;
 		}
 	}
@@ -372,9 +364,7 @@ readloop:
 			fp->mode.stream.len + sizeof(uint32_t), uio);
 		ir->queued++;
 		if (ir->queued >= ir->bnpacket) {
-			s = splfw();
 			STAILQ_INSERT_TAIL(&ir->stfree, ir->stproc, link);
-			splx(s);
 			fc->irx_enable(fc, ir->dmach);
 			ir->stproc = NULL;
 		}
@@ -418,7 +408,7 @@ fw_write_async(struct fw_drv1 *d, struct uio *uio, int ioflag)
 	xfer->fc = d->fc;
 	xfer->sc = NULL;
 	xfer->hand = fw_xferwake;
-	xfer->send.spd = 2 /* XXX */;
+	xfer->send.spd = FWSPD_S400;
 
 	if ((err = fw_asyreq(xfer->fc, -1, xfer)))
 		goto out;
@@ -447,7 +437,7 @@ static int
 fw_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int err = 0;
-	int s, slept = 0;
+	int slept = 0;
 	struct fw_drv1 *d;
 	struct fw_pkt *fp;
 	struct firewire_comm *fc;
@@ -471,17 +461,10 @@ isoloop:
 	if (it->stproc == NULL) {
 		it->stproc = STAILQ_FIRST(&it->stfree);
 		if (it->stproc != NULL) {
-			s = splfw();
 			STAILQ_REMOVE_HEAD(&it->stfree, link);
-			splx(s);
 			it->queued = 0;
 		} else if (slept == 0) {
 			slept = 1;
-#if 0	/* XXX to avoid lock recursion */
-			err = fc->itx_enable(fc, it->dmach);
-			if (err)
-				goto out;
-#endif
 			err = msleep(it, FW_GMTX(fc), FWPRI, "fw_write", hz);
 			if (err)
 				goto out;
@@ -499,9 +482,7 @@ isoloop:
 				fp->mode.stream.len, uio);
 	it->queued++;
 	if (it->queued >= it->bnpacket) {
-		s = splfw();
 		STAILQ_INSERT_TAIL(&it->stvalid, it->stproc, link);
-		splx(s);
 		it->stproc = NULL;
 		err = fc->itx_enable(fc, it->dmach);
 	}

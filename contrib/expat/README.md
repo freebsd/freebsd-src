@@ -6,12 +6,18 @@
 
 > [!CAUTION]
 >
-> Expat is **understaffed** and without funding.
-> There is a [call for help with details](https://github.com/libexpat/libexpat/blob/master/expat/Changes)
-> at the top of the `Changes` file.
+> Expat has **unfixed security issues**!
+> Please see https://github.com/libexpat/libexpat/issues/1160 for details.
+
+> [!NOTE]
+>
+> Starting 2026-08-01, for up to six months my work maintaining libexpat
+> will be funded by the [City of Munich](https://en.wikipedia.org/wiki/Munich)
+> as part of their [Open Source Sabbatical](https://opensource.muenchen.de/software/libexpat.html#open-source-sabbatical).
+> Thank you! :heart: :pray:
 
 
-# Expat, Release 2.7.3
+# Expat, Release 2.8.3
 
 This is Expat, a C99 library for parsing
 [XML 1.0 Fourth Edition](https://www.w3.org/TR/2006/REC-xml-20060816/), started by
@@ -234,11 +240,6 @@ overrides the in-makefile set `DESTDIR`, because variable-setting priority is
 Note: This only applies to the Expat library itself, building UTF-16 versions
 of xmlwf and the tests is currently not supported.
 
-When using Expat with a project using autoconf for configuration, you
-can use the probing macro in `conftools/expat.m4` to determine how to
-include Expat.  See the comments at the top of that file for more
-information.
-
 A reference manual is available in the file `doc/reference.html` in this
 distribution.
 
@@ -291,21 +292,12 @@ EXPAT_ENABLE_INSTALL:BOOL=ON
 // Use /MT flag (static CRT) when compiling in MSVC
 EXPAT_MSVC_STATIC_CRT:BOOL=OFF
 
-// Build fuzzers via OSS-Fuzz for the expat library
-EXPAT_OSSFUZZ_BUILD:BOOL=OFF
-
 // Build a shared expat library
 EXPAT_SHARED_LIBS:BOOL=ON
 
+// Define to provide symbol versioning for dependency generation
+EXPAT_SYMBOL_VERSIONING:BOOL=OFF
+
 // Treat all compiler warnings as errors
 EXPAT_WARNINGS_AS_ERRORS:BOOL=OFF
-
-// Make use of getrandom function (ON|OFF|AUTO) [default=AUTO]
-EXPAT_WITH_GETRANDOM:STRING=AUTO
-
-// Utilize libbsd (for arc4random_buf)
-EXPAT_WITH_LIBBSD:BOOL=OFF
-
-// Make use of syscall SYS_getrandom (ON|OFF|AUTO) [default=AUTO]
-EXPAT_WITH_SYS_GETRANDOM:STRING=AUTO
 ```

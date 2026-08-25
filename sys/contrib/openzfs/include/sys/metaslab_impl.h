@@ -1,23 +1,13 @@
 // SPDX-License-Identifier: CDDL-1.0
 /*
- * CDDL HEADER START
+ * This file and its contents are supplied under the terms of the
+ * Common Development and Distribution License ("CDDL"), version 1.0.
+ * You may only use this file in accordance with the terms of version
+ * 1.0 of the CDDL.
  *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or https://opensource.org/licenses/CDDL-1.0.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
+ * A full copy of the text of the CDDL should have accompanied this
+ * source.  A copy of the CDDL is also available via the Internet at
+ * https://opensource.org/license/CDDL-1.0.
  */
 /*
  * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
@@ -43,6 +33,7 @@
 extern "C" {
 #endif
 
+#ifdef METASLAB_TRACE
 /*
  * Metaslab allocation tracing record.
  */
@@ -56,6 +47,7 @@ typedef struct metaslab_alloc_trace {
 	uint64_t			mat_offset;
 	int					mat_allocator;
 } metaslab_alloc_trace_t;
+#endif
 
 /*
  * Used by the metaslab allocation tracing facility to indicate
@@ -199,10 +191,12 @@ struct metaslab_class {
 
 	uint64_t		mc_alloc_groups; /* # of allocatable groups */
 
-	uint64_t		mc_alloc;	/* total allocated space */
-	uint64_t		mc_deferred;	/* total deferred frees */
+	uint64_t		mc_alloc;	/* allocated space */
+	uint64_t		mc_dalloc;	/* deflated allocated space */
+	uint64_t		mc_deferred;	/* deferred frees */
+	uint64_t		mc_ddeferred;	/* deflated deferred frees */
 	uint64_t		mc_space;	/* total space (alloc + free) */
-	uint64_t		mc_dspace;	/* total deflated space */
+	uint64_t		mc_dspace;	/* deflated total space */
 	uint64_t		mc_histogram[ZFS_RANGE_TREE_HISTOGRAM_SIZE];
 
 	/*
@@ -328,7 +322,7 @@ struct metaslab_group {
  *
  * As the space map grows (as a result of the appends) it will
  * eventually become space-inefficient.  When the metaslab's in-core
- * free tree is zfs_condense_pct/100 times the size of the minimal
+ * free tree is zfs_metaslab_condense_pct/100 times the size of the minimal
  * on-disk representation, we rewrite it in its minimized form.  If a
  * metaslab needs to condense then we must set the ms_condensing flag to
  * ensure that allocations are not performed on the metaslab that is

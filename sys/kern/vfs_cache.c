@@ -5737,7 +5737,7 @@ cache_fplookup_climb_mount(struct cache_fpl *fpl)
 
 	prev_mp = NULL;
 	for (;;) {
-		if (!vfs_op_thread_enter_crit(mp, mpcpu)) {
+		if (!vfs_op_thread_enter_crit(mp, &mpcpu)) {
 			if (prev_mp != NULL)
 				vfs_op_thread_exit_crit(prev_mp, prev_mpcpu);
 			return (cache_fpl_partial(fpl));
@@ -5792,7 +5792,7 @@ cache_fplookup_cross_mount(struct cache_fpl *fpl)
 		return (0);
 	}
 
-	if (!vfs_op_thread_enter_crit(mp, mpcpu)) {
+	if (!vfs_op_thread_enter_crit(mp, &mpcpu)) {
 		return (cache_fpl_partial(fpl));
 	}
 	if (!vn_seqc_consistent(vp, vp_seqc)) {
@@ -6349,7 +6349,7 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
  * Note: all VOP_FPLOOKUP_VEXEC routines have a comment referencing this one.
  *
  * Filesystems can opt in by setting the MNTK_FPLOOKUP flag and meeting criteria
- * outlined at the end.
+ * outlined at the end of this comment.
  *
  * Traversing from one vnode to another requires atomicity with regard to
  * permissions, mount points and of course their relative placement (if you are
@@ -6370,6 +6370,13 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
  * See places which issue vn_seqc_write_begin()/vn_seqc_write_end() for
  * operations affected.
  *
+ * Note: regardless of locked or unlocked operation atomicity of traversal only
+ * covers the immediate move from one vnode to the next. For example, suppose you
+ * are looking up "foo/level2/level3" and are racing against rename("foo", bar").
+ * If the vnode for "level2" was found and locked prior to the rename call locking
+ * "foo", then by the time "level3" is locked the true path might happen to be
+ * "bar/level2/level3".
+ *
  * Suppose the variable "cnp" contains lookup metadata (the path etc.), then
  * locked lookup conceptually looks like this:
  *
@@ -6378,16 +6385,16 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
  * for (;;) {
  *      // permission check
  * 	if (!canlookup(dvp, cnp))
- * 	    abort();
+ * 	    fail();
  * 	// look for the target name inside dvp
  *	tvp = findnext(dvp, cnp);
  *	vn_lock(tvp);
  *	// tvp is still guaranteed to be inside of dvp because of the lock on dvp
  *	vn_unlock(dvp);
- *      // dvp is unlocked. its state is now arbitrary, but that's fine as we
+ *      // dvp is unlocked and its state is now arbitrary, but that's fine as we
  *      // made the jump while everything relevant was correct, continue with tvp
  *      // as the directory to look up names in
- *	tvp = dvp;
+ *	dvp = tvp;
  *	if (last)
  *	    break;
  *	// if not last loop back and continue until done
@@ -6395,7 +6402,8 @@ cache_fplookup_impl(struct vnode *dvp, struct cache_fpl *fpl)
  * vget(tvp);
  * return (tvp);
  *
- * Lockless lookup replaces locking with sequence counter checks:
+ * Lockless lookup replaces locking with sequence counter checks. If any of
+ * them fail, it falls back to locked traversal.
  *
  * vfs_smr_enter();
  * dvp_seqc = seqc_read_any(dvp);

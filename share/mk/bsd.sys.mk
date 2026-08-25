@@ -92,8 +92,6 @@ CWARNFLAGS.clang+=	-Wno-error=unused-but-set-parameter
 .if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 190000
 # Similar to gcc >= 8.1 -Wno-error=cast-function-type below
 CWARNFLAGS.clang+=	-Wno-error=cast-function-type-mismatch
-.endif
-.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 210000
 CXXWARNFLAGS.clang+=	-Wno-c++20-extensions
 CXXWARNFLAGS.clang+=	-Wno-c++23-lambda-attributes
 CXXWARNFLAGS.clang+=	-Wno-nullability-completeness
@@ -309,9 +307,6 @@ CLANG_OPT_SMALL+= -mllvm -simplifycfg-dup-ret
 CLANG_OPT_SMALL+= -mllvm -enable-load-pre=false
 CFLAGS.clang+=	 -Qunused-arguments
 
-# XXX This should be defaulted to 2 when WITH_SSP is in use after further
-# testing and soak time.
-FORTIFY_SOURCE?=	0
 .if ${MK_SSP} != "no"
 # Don't use -Wstack-protector as it breaks world with -Werror.
 .if ${COMPILER_FEATURES:Mstackclash}
@@ -321,9 +316,19 @@ SSP_CFLAGS?=	-fstack-protector-strong
 .endif
 CFLAGS+=	${SSP_CFLAGS}
 .endif # SSP
-.if ${FORTIFY_SOURCE} > 0
-CFLAGS+=	-D_FORTIFY_SOURCE=${FORTIFY_SOURCE}
-CXXFLAGS+=	-D_FORTIFY_SOURCE=${FORTIFY_SOURCE}
+
+# XXX This should be defaulted to 2 when WITH_SSP is in use after further
+# testing and soak time.
+FORTIFY_SOURCE?=	0
+
+# We want to avoid defining _FORTIFY_SOURCE if it's set to 0, but we rely on
+# deferred-evaluation for ${.IMPSRC} to expand.  The below construction
+# is, unfortunately, necessary.
+.if empty(CFLAGS:M-D_FORTIFY_SOURCE*)
+CFLAGS+=	${FORTIFY_SOURCE.${.IMPSRC:T}:U${FORTIFY_SOURCE}:S/^/-D_FORTIFY_SOURCE=/:N*=0}
+.endif
+.if empty(CXXFLAGS:M-D_FORTIFY_SOURCE*)
+CXXFLAGS+=	${FORTIFY_SOURCE.${.IMPSRC:T}:U${FORTIFY_SOURCE}:S/^/-D_FORTIFY_SOURCE=/:N*=0}
 .endif
 
 # Additional flags passed in CFLAGS and CXXFLAGS when MK_DEBUG_FILES is

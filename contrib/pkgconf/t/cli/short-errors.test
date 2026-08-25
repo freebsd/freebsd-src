@@ -1,0 +1,4 @@
+Tool: pkgconf
+ToolArgs: --with-path=%TEST_FIXTURES_DIR%/lib1 --short-errors --cflags nonexistent 2>&1
+ExpectedStdout: Package 'nonexistent' not found
+ExpectedExitCode: 1

@@ -1,0 +1,5 @@
+Tool: pkgconf
+ToolArgs: --maximum-traverse-depth=1 --libs bar
+Environment: PKG_CONFIG_PATH=%TEST_FIXTURES_DIR%/lib1
+ExpectedStdout: -L/test/lib -lbar
+ExpectedExitCode: 0

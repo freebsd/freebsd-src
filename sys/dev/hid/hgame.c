@@ -134,28 +134,20 @@ hgame_dpad_cb(HIDMAP_CB_ARGS)
 		data = ctx.data;
 		switch (HIDMAP_CB_UDATA64) {
 		case HUG_D_PAD_UP:
-			if (sc->dpad_down)
-				return (ENOMSG);
-			evdev_push_abs(evdev, ABS_HAT0Y, (data == 0) ? 0 : -1);
 			sc->dpad_up = (data != 0);
+			evdev_push_abs(evdev, ABS_HAT0Y, sc->dpad_down - sc->dpad_up);
 			break;
 		case HUG_D_PAD_DOWN:
-			if (sc->dpad_up)
-				return (ENOMSG);
-			evdev_push_abs(evdev, ABS_HAT0Y, (data == 0) ? 0 : 1);
 			sc->dpad_down = (data != 0);
+			evdev_push_abs(evdev, ABS_HAT0Y, sc->dpad_down - sc->dpad_up);
 			break;
 		case HUG_D_PAD_RIGHT:
-			if (sc->dpad_left)
-				return (ENOMSG);
-			evdev_push_abs(evdev, ABS_HAT0X, (data == 0) ? 0 : 1);
 			sc->dpad_right = (data != 0);
+			evdev_push_abs(evdev, ABS_HAT0X, sc->dpad_right - sc->dpad_left);
 			break;
 		case HUG_D_PAD_LEFT:
-			if (sc->dpad_right)
-				return (ENOMSG);
-			evdev_push_abs(evdev, ABS_HAT0X, (data == 0) ? 0 : -1);
 			sc->dpad_left = (data != 0);
+			evdev_push_abs(evdev, ABS_HAT0X, sc->dpad_right - sc->dpad_left);
 			break;
 		}
 		break;

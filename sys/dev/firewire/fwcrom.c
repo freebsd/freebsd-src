@@ -237,6 +237,13 @@ crom_crc(uint32_t *ptr, int len)
 	return ((uint16_t) crc);
 }
 
+int
+crom_crc_valid(uint32_t *data, int len, uint16_t expected)
+{
+
+	return (crom_crc(data, len) == expected);
+}
+
 #if !defined(_KERNEL) && !defined(_BOOT)
 static void
 crom_desc_specver(uint32_t spec, uint32_t ver, char *buf, int len)
@@ -302,12 +309,7 @@ crom_desc(struct crom_context *cc, char *buf, int len)
 	reg = crom_get(cc);
 	switch (reg->key & CSRTYPE_MASK) {
 	case CSRTYPE_I:
-#if 0
-		len -= snprintf(buf, len, "%d", reg->val);
-		buf += strlen(buf);
-#else
 		*buf = '\0';
-#endif
 		break;
 	case CSRTYPE_C:
 		len -= snprintf(buf, len, "offset=0x%04x(%d)",

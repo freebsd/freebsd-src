@@ -2208,7 +2208,7 @@ HAL_STATUS ar9300_paprd_create_curve(struct ath_hal * ah,
         if (status != 0) {
             ath_hal_printf(ah, "ERROR:: paprd failed with error code = %d\n",
                 status);
-            return -1;
+            return HAL_EINVAL;
         }
         AH9300(ah)->small_signal_gain[chain_num] = small_signal_gain;
 
