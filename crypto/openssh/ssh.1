@@ -903,7 +903,7 @@ Host-based authentication works as follows:
 If the machine the user logs in from is listed in
 .Pa /etc/hosts.equiv
 or
-.Pa /etc/shosts.equiv
+.Pa /etc/ssh/shosts.equiv
 on the remote machine, the user is non-root and the user names are
 the same on both sides, or if the files
 .Pa ~/.rhosts
@@ -1624,7 +1624,7 @@ manual page for more information.
 This file is for host-based authentication (see above).
 It should only be writable by root.
 .Pp
-.It Pa /etc/shosts.equiv
+.It Pa /etc/ssh/shosts.equiv
 This file is used in exactly the same way as
 .Pa hosts.equiv ,
 but allows host-based authentication without permitting login with
