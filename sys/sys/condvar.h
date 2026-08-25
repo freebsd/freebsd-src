@@ -51,6 +51,7 @@ void	cv_destroy(struct cv *cvp);
 void	_cv_wait(struct cv *cvp, struct lock_object *lock);
 void	_cv_wait_unlock(struct cv *cvp, struct lock_object *lock);
 int	_cv_wait_sig(struct cv *cvp, struct lock_object *lock);
+int	_cv_wait_sig_unlock(struct cv *cvp, struct lock_object *lock);
 int	_cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock,
 	    sbintime_t sbt, sbintime_t pr, int flags);
 int	_cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,
@@ -65,6 +66,8 @@ void	cv_broadcastpri(struct cv *cvp, int pri);
 	_cv_wait_unlock((cvp), &(lock)->lock_object)
 #define	cv_wait_sig(cvp, lock)						\
 	_cv_wait_sig((cvp), &(lock)->lock_object)
+#define	cv_wait_sig_unlock(cvp, lock)					\
+	_cv_wait_sig_unlock((cvp), &(lock)->lock_object)
 #define	cv_timedwait(cvp, lock, timo)					\
 	_cv_timedwait_sbt((cvp), &(lock)->lock_object,			\
 	    tick_sbt * (timo), 0, C_HARDCLOCK)
