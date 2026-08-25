@@ -34,6 +34,7 @@
 .Nm cv_wait ,
 .Nm cv_wait_sig ,
 .Nm cv_wait_unlock ,
+.Nm cv_wait_sig_unlock ,
 .Nm cv_timedwait ,
 .Nm cv_timedwait_sbt ,
 .Nm cv_timedwait_sig ,
@@ -57,6 +58,8 @@
 .Fn cv_wait_sig "struct cv *cvp" "lock"
 .Ft void
 .Fn cv_wait_unlock "struct cv *cvp" "lock"
+.Ft int
+.Fn cv_wait_sig_unlock "struct cv *cvp" "lock"
 .Ft int
 .Fn cv_timedwait "struct cv *cvp" "lock" "int timo"
 .Ft int
@@ -94,6 +97,7 @@ Threads wait on condition variables by calling
 .Fn cv_wait ,
 .Fn cv_wait_sig ,
 .Fn cv_wait_unlock ,
+.Fn cv_wait_sig_unlock ,
 .Fn cv_timedwait ,
 or
 .Fn cv_timedwait_sig .
@@ -135,6 +139,7 @@ before calling
 .Fn cv_wait ,
 .Fn cv_wait_sig ,
 .Fn cv_wait_unlock ,
+.Fn cv_wait_sig_unlock ,
 .Fn cv_timedwait ,
 or
 .Fn cv_timedwait_sig .
@@ -151,7 +156,9 @@ while the it is suspended and will reacquire the
 mutex before the function returns.
 The
 .Fn cv_wait_unlock
-function does not reacquire the lock before returning.
+and
+.Fn cv_wait_sig_unlock
+functions do not reacquire the lock before returning.
 Note that the
 .Va Giant
 mutex may be specified as
@@ -172,6 +179,7 @@ When
 .Fn cv_wait ,
 .Fn cv_wait_sig ,
 .Fn cv_wait_unlock ,
+.Fn cv_wait_sig_unlock ,
 .Fn cv_timedwait ,
 and
 .Fn cv_timedwait_sig
@@ -219,6 +227,7 @@ flags.
 .Sh RETURN VALUES
 If successful,
 .Fn cv_wait_sig ,
+.Fn cv_wait_sig_unlock ,
 .Fn cv_timedwait ,
 and
 .Fn cv_timedwait_sig
