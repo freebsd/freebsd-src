@@ -498,8 +498,8 @@ gitarc__diff()
                 git write-tree
         ) || err "cannot apply $diff to $commit~ (rebased since last update?)"
 
-	echo "Comparing $diff against" \
-		"$( git rev-parse --short "$commit" )..." >&2
+        echo "Comparing $diff against" \
+            "$( git rev-parse --short "$commit" )..." >&2
 
         git diff "$rtree" "$commit"
     done
@@ -719,7 +719,7 @@ apply_rev()
     # with a non-zero status and terminate the script.
     if $raw; then
         fetch -o /dev/stdout "https://reviews.freebsd.org/${rev}.diff" | \
-	    git -C "$(git rev-parse --show-toplevel)" apply --index --reject
+            git -C "$(git rev-parse --show-toplevel)" apply --index --reject
     else
         arc patch --skip-dependencies --nobranch --nocommit --force $rev
     fi
