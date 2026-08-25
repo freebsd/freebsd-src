@@ -48,6 +48,8 @@
 #include <machine/md_var.h>
 #include <machine/undefined.h>
 
+#include "gicv5reg.h"
+
 static MALLOC_DEFINE(M_IDENTCPU, "CPU ID", "arm64 CPU identification memory");
 
 struct cpu_desc;
@@ -159,6 +161,7 @@ struct cpu_desc {
 	uint64_t	mvfr1;
 #endif
 	uint64_t	clidr;
+	uint64_t	icc_idr0;
 	uint32_t	ccsidr[MAX_CACHES][2]; /* 2 possible types. */
 	bool		have_sve;
 };
@@ -1886,9 +1889,14 @@ static const struct mrs_field id_aa64pfr1_fields[] = {
 	MRS_FIELD_END,
 };
 
+static const struct mrs_field_value id_aa64pfr2_gcie[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ID_AA64PFR2, GCIE, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
 
 /* ID_AA64PFR2_EL1 */
 static const struct mrs_field id_aa64pfr2_fields[] = {
+	MRS_FIELD(ID_AA64PFR2, GCIE, false, MRS_LOWER, 0, id_aa64pfr2_gcie),
 	MRS_FIELD_END,
 };
 
@@ -2013,6 +2021,16 @@ static const struct mrs_field id_aa64zfr0_fields[] = {
 	MRS_FIELD_END,
 };
 
+static const struct mrs_field_value icc_idr0_gcie_legacy[] = {
+	MRS_FIELD_VALUE_NONE_IMPL(ICC_IDR0, GCIE_LEGACY, NONE, IMPL),
+	MRS_FIELD_VALUE_END,
+};
+
+static const struct mrs_field icc_idr0_fields[] = {
+	MRS_FIELD(ICC_IDR0, GCIE_LEGACY, false, MRS_LOWER, 0,
+	    icc_idr0_gcie_legacy),
+	MRS_FIELD_END,
+};
 
 #ifdef COMPAT_FREEBSD32
 /* ID_ISAR5_EL1 */
@@ -2284,6 +2302,8 @@ static const struct mrs_sanitized_reg sanitized_regs[] = {
 	USER_REG(ID_AA64ZFR0_EL1, id_aa64zfr0, true),
 
 	USER_REG(CTR_EL0, ctr, true),
+
+	KERNEL_REG(ICC_IDR0_EL1, icc_idr0),
 
 #ifdef COMPAT_FREEBSD32
 	USER_REG(ID_ISAR5_EL1, id_isar5, false),
@@ -3419,6 +3439,9 @@ identify_cpu(u_int cpu)
 		WRITE_SPECIALREG(csselr_el1, CSSELR_Level(i));
 		desc->ccsidr[i][j] = READ_SPECIALREG(ccsidr_el1);
 	}
+
+	if (ID_AA64PFR2_GCIE_VAL(desc->id_aa64pfr2) != ID_AA64PFR2_GCIE_NONE)
+		desc->icc_idr0 = READ_SPECIALREG(ICC_IDR0_EL1);
 
 #ifdef COMPAT_FREEBSD32
 	/* Only read aarch32 SRs if EL0-32 is available */
