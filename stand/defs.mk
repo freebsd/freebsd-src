@@ -88,6 +88,7 @@ CFLAGS+=	-nostdinc
 # the only thing that should be there are -I directives, and as few of
 # those as possible.
 CFLAGS+=	${CFLAGS_EARLY} ${CFLAGS_EARLY.${.IMPSRC:T}} ${CFLAGS_EARLY.${.TARGET:T}}
+.if !defined(NO_LIBSA_CFLAGS)
 .if ${MACHINE_ARCH} == "amd64" && ${DO32:U0} == 1
 CFLAGS+=	-I${BOOTOBJ}/libsa32
 .else
@@ -95,6 +96,7 @@ CFLAGS+=	-I${BOOTOBJ}/libsa
 .endif
 CFLAGS+=	-I${SASRC} -D_STANDALONE
 CFLAGS+=	-I${SYSDIR}
+.endif # !NO_LIBSA_CFLAGS
 # Spike the floating point interfaces
 CFLAGS+=	-Ddouble=jagged-little-pill -Dfloat=floaty-mcfloatface
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
