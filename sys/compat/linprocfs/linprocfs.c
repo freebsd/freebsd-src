@@ -621,7 +621,8 @@ linprocfs_doprocmountinfo(PFS_FILL_ARGS)
 		 * (5) mountto path
 		 */
 		sbuf_printf(sb, "%u 0 0:0 / %s ",
-		    sp->f_fsid.val[0] ^ sp->f_fsid.val[1], mntto);
+		    (sp->f_fsid.val[0] ^ sp->f_fsid.val[1]) & 0x7fffffff,
+		    mntto);
 		/* (6) mount options */
 		_sbuf_mntoptions_helper(sb, sp->f_flags);
 		/*
