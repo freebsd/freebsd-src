@@ -142,6 +142,36 @@ int task_fork(task_t **new_task) {
     child->ppid = parent->pid;
     child->context = parent->context;
     child->stack_pointer = parent->stack_pointer;
+    child->parent = parent;
+
+    /* Copy parent memory pages into child's address space */
+    extern void vm_copy_pages(vm_context_t *src, vm_context_t *dst,
+                              uint64_t vaddr, size_t len);
+    if (parent->vm_ctx && child->vm_ctx) {
+        /* Copy code region */
+        if (parent->code_start < parent->code_end) {
+            vm_copy_pages(parent->vm_ctx, child->vm_ctx,
+                          parent->code_start,
+                          parent->code_end - parent->code_start);
+        }
+        /* Copy data region */
+        if (parent->data_start < parent->data_end) {
+            vm_copy_pages(parent->vm_ctx, child->vm_ctx,
+                          parent->data_start,
+                          parent->data_end - parent->data_start);
+        }
+        /* Copy heap */
+        if (parent->heap_start < parent->heap_current) {
+            vm_copy_pages(parent->vm_ctx, child->vm_ctx,
+                          parent->heap_start,
+                          parent->heap_current - parent->heap_start);
+        }
+        /* Copy stack */
+        vm_copy_pages(parent->vm_ctx, child->vm_ctx,
+                      parent->stack_start - PAGE_SIZE,
+                      PAGE_SIZE);
+    }
+
     child->state = TASK_READY;
     scheduler_enqueue(child);
     *new_task = child;
@@ -370,25 +400,21 @@ void scheduler_run(void) {
         }
 
         task_t *prev = scheduler.current_task;
-        if (prev) {
+        if (prev && prev != next) {
             int preempt = scheduler.need_reschedule;
             scheduler.need_reschedule = 0;
 
             if (prev->state == TASK_RUNNING) {
-                if (preempt && prev != next) {
+                prev->remaining_slice -= TIMER_TICK_MS;
+                if (preempt || prev->remaining_slice <= 0) {
+                    /* Time slice exhausted or higher-priority task ready */
                     prev->remaining_slice = prev->time_slice;
                     scheduler_requeue(prev);
-                } else {
-                    prev->remaining_slice -= TIMER_TICK_MS;
-                    if (prev->remaining_slice <= 0) {
-                        prev->remaining_slice = prev->time_slice;
-                        scheduler_requeue(prev);
-                    } else {
-                        prev->state = TASK_READY;
-                        scheduler_enqueue(prev);
-                    }
                 }
             }
+        } else {
+            /* Same task or no previous — clear reschedule flag */
+            scheduler.need_reschedule = 0;
         }
 
         next->state = TASK_RUNNING;

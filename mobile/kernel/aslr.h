@@ -9,7 +9,7 @@
 #include <stdint.h>
 
 /* Initialize ASLR entropy */
-void aslr_init(void);
+int aslr_init(void);
 
 /* Generate random base address for process */
 uint64_t aslr_get_random_base(void);

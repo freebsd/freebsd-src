@@ -53,6 +53,7 @@ extern int vfs_init(void);
 extern int chardev_init(void);
 extern int uart_chardev_init(void);
 extern int interrupt_init(void);
+extern void timer_init(uint32_t freq_hz);
 extern int pmp_init(void);
 extern int syscall_security_init(void);
 extern int aslr_init(void);
@@ -116,26 +117,30 @@ void kernel_init(unsigned long hartid, void *dtb) {
     CHECK(14, "interrupt_init");
     if (interrupt_init()) HALT("interrupt_init");
 
-    CHECK(15, "virtio_blk");
+    CHECK(15, "timer_init");
+    timer_init(TIMER_FREQ);
+
+
+    CHECK(16, "virtio_blk");
     if (virtio_blk_init()) HALT("virtio_blk");
 
-    CHECK(16, "virtio_net");
+    CHECK(17, "virtio_net");
     if (virtio_net_init()) HALT("virtio_net");
 
-    uart_puts("[17] subsystems ready\n");
-    fb_puts("[17] subsystems ready\n");
+    uart_puts("[18] subsystems ready\n");
+    fb_puts("[18] subsystems ready\n");
 
-    CHECK(18, "task_init");
+    CHECK(19, "task_init");
     task_init();
 
-    CHECK(19, "ipc_init");
+    CHECK(20, "ipc_init");
     ipc_init();
 
-    CHECK(20, "scheduler_init");
+    CHECK(21, "scheduler_init");
     scheduler_init();
 
-    uart_puts("[21] entering scheduler (should not return)\n");
-    fb_puts("[21] entering scheduler\n");
+    uart_puts("[22] entering scheduler (should not return)\n");
+    fb_puts("[22] entering scheduler\n");
 
     for (;;) {
         asm volatile("wfi");

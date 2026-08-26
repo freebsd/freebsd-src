@@ -42,7 +42,7 @@
 #define PMP_L       (1 << 7)    /* Lock bit */
 
 /* Initialize PMP for kernel protection */
-void pmp_init(void);
+int pmp_init(void);
 
 /* Configure PMP region */
 void pmp_config_region(int region, uint64_t start, uint64_t end, uint8_t perms);

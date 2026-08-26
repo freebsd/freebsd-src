@@ -67,4 +67,8 @@ uint64_t vm_get_physical_addr(vm_context_t *ctx, uint64_t vaddr);
 pte_t *vm_get_pte(pte_t *root, uint64_t vaddr);
 int vm_set_pte(pte_t *root, uint64_t vaddr, uint64_t paddr, int flags);
 
+/* Page copying (for fork) */
+void vm_copy_pages(vm_context_t *src, vm_context_t *dst,
+                   uint64_t vaddr, size_t len);
+
 #endif /* _VM_H_ */

@@ -15,7 +15,7 @@ static uint8_t syscall_permissions[MAX_SYSCALLS];
 static security_context_t current_context;
 
 /* Initialize syscall security */
-void syscall_security_init(void) {
+int syscall_security_init(void) {
     /* Set default permissions - most syscalls unrestricted for now */
     for (int i = 0; i < MAX_SYSCALLS; i++) {
         syscall_permissions[i] = SYSCALL_LEVEL_UNRESTRICTED;
@@ -35,6 +35,7 @@ void syscall_security_init(void) {
     current_context.egid = 0;
     current_context.security_level = 0;
     current_context.capabilities = 0xFFFFFFFFFFFFFFFFULL; /* All capabilities for root */
+    return 0;
 }
 
 /* Check if syscall is allowed for current context */

@@ -25,7 +25,7 @@ typedef struct {
 } security_context_t;
 
 /* Initialize syscall security */
-void syscall_security_init(void);
+int syscall_security_init(void);
 
 /* Check if syscall is allowed for current context */
 int syscall_check_permission(uint64_t syscall_num, security_context_t *ctx);

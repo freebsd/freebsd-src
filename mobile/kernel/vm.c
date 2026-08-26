@@ -264,3 +264,35 @@ pte_t *vm_translate(vm_context_t *ctx, uint64_t vaddr) {
     
     return vm_get_pte(ctx->root_page_table, vaddr);
 }
+
+/* Copy pages from src context to dst context (for fork) */
+void vm_copy_pages(vm_context_t *src, vm_context_t *dst,
+                   uint64_t vaddr, size_t len) {
+    if (!src || !dst || len == 0) return;
+
+    uint64_t start = vaddr & ~(PAGE_SIZE - 1);
+    uint64_t end = (vaddr + len + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+
+    for (uint64_t va = start; va < end; va += PAGE_SIZE) {
+        pte_t *src_pte = vm_get_pte(src->root_page_table, va);
+        if (!src_pte || !(*src_pte & PTE_V)) continue;
+
+        /* Get source physical page */
+        uint64_t src_pa = ((*src_pte) >> 10) << PAGE_SHIFT;
+
+        /* Allocate a new page in the destination */
+        uint64_t dst_pa = vm_alloc_page();
+        if (!dst_pa) continue;
+
+        /* Copy the page contents */
+        uint8_t *src_v = (uint8_t *)src_pa;
+        uint8_t *dst_v = (uint8_t *)dst_pa;
+        for (size_t i = 0; i < PAGE_SIZE; i++) {
+            dst_v[i] = src_v[i];
+        }
+
+        /* Map the new page in the destination address space */
+        int flags = (int)(*src_pte & (PTE_R | PTE_W | PTE_X | PTE_U));
+        vm_map_page(dst, va, dst_pa, flags | PTE_A | PTE_D);
+    }
+}

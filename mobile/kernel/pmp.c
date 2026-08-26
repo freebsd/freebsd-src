@@ -100,7 +100,7 @@ static uint64_t pmp_read_cfg(uint64_t reg) {
 }
 
 /* Initialize PMP for kernel protection */
-void pmp_init(void) {
+int pmp_init(void) {
     uart_puts("Initializing PMP (Physical Memory Protection)...\n");
 
     /* Configure PMP region 0: Kernel code and data (0x80000000 - 0x90000000) */
@@ -131,6 +131,7 @@ void pmp_init(void) {
                   ((uint64_t)(PMP_A_NAPOT | PMP_R | PMP_W) << 48));
 
     uart_puts("PMP protection enabled\n");
+    return 0;
 }
 
 /* Configure PMP region */

@@ -5,8 +5,14 @@ context_switch:
 	# a0 = old context pointer, a1 = new context pointer
 
 	# Save old context registers
-	sd ra, 0(a0)
+	# cpu_context_t layout: pc=0 sp=8 ra=16 gp=24 tp=32
+	#   t0=40 t1=48 t2=56 s0=64 s1=72
+	#   a0=80 a1=88 a2=96 a3=104 a4=112 a5=120 a6=128 a7=136
+	#   s2=144 s3=152 s4=160 s5=168 s6=176 s7=184
+	#   s8=192 s9=200 s10=208 s11=216
+	#   t3=224 t4=232 t5=240 t6=248
 	sd sp, 8(a0)
+	sd ra, 16(a0)
 	sd gp, 24(a0)
 	sd tp, 32(a0)
 	sd t0, 40(a0)
@@ -36,11 +42,10 @@ context_switch:
 	sd t4, 232(a0)
 	sd t5, 240(a0)
 	sd t6, 248(a0)
-	sd ra, 16(a0)
 
 	# Restore new context registers
-	ld ra, 16(a1)
 	ld sp, 8(a1)
+	ld ra, 16(a1)
 	ld gp, 24(a1)
 	ld tp, 32(a1)
 	ld t0, 40(a1)
@@ -70,6 +75,7 @@ context_switch:
 	ld t4, 232(a1)
 	ld t5, 240(a1)
 	ld t6, 248(a1)
+	# Jump to new context's PC (offset 0)
 	ld t0, 0(a1)
 	jr t0
 	.size context_switch, .-context_switch
