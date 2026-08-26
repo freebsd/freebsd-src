@@ -5154,9 +5154,12 @@ ipf_nat_out(fr_info_t *fin, nat_t *nat, int natadd, u_32_t nflags)
 		s2 += ntohs(ip->ip_len);
 		CALC_SUMD(s1, s2, sumd);
 
-		uh = (udphdr_t *)(ip + 1);
-		uh->uh_ulen += fin->fin_plen;
-		uh->uh_ulen = htons(uh->uh_ulen);
+		if (ip->ip_p == IPPROTO_UDP) {
+			uh = (udphdr_t *)(ip + 1);
+			uh->uh_ulen = ntohs(uh->uh_ulen);
+			uh->uh_ulen += fin->fin_plen;
+			uh->uh_ulen = htons(uh->uh_ulen);
+		}
 #if !defined(_KERNEL) || SOLARIS || \
     defined(BRIDGE_IPF) || defined(__FreeBSD__)
 		ipf_fix_outcksum(0, &ip->ip_sum, sumd, 0);
