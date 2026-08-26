@@ -137,6 +137,12 @@ SYSCTL_PROC(_hw_usb_uaudio, OID_AUTO, buffer_ms,
     uaudio_buffer_ms_sysctl, "I",
     "uaudio buffering delay in milliseconds, from 1 to 8");
 
+static int uaudio_prefer_feedback = 1;
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, prefer_feedback, CTLFLAG_RWTUN,
+    &uaudio_prefer_feedback, 0,
+    "use an asynchronous playback stream's explicit feedback endpoint instead "
+    "of borrowing the capture stream for jitter information");
+
 static int uaudio_clock_readback = 1;
 SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, clock_readback, CTLFLAG_RWTUN,
     &uaudio_clock_readback, 0,
@@ -230,6 +236,7 @@ struct uaudio_chan_alt {
 	uint16_t sample_size;
 	uint8_t	iface_index;
 	uint8_t	iface_alt_index;
+	uint8_t	sync_ep;		/* explicit feedback endpoint, or 0 */
 	uint8_t channels;
 };
 
@@ -1839,6 +1846,38 @@ uaudio_get_chan(struct uaudio_softc *sc, struct uaudio_chan *chan,
 	return (NULL);
 }
 
+/*
+ * Find the explicit feedback (synch) endpoint that belongs to the same
+ * alternate setting as the data endpoint "ed1", if the device has one.
+ * It is an isochronous endpoint in the opposite direction, marked with
+ * the "feedback" isochronous usage type, and it always follows the data
+ * endpoint inside the alternate setting.  Returns its address, or zero.
+ */
+static uint8_t
+uaudio_chan_find_sync_ep(struct usb_config_descriptor *cd,
+    struct usb_descriptor *desc, const usb_endpoint_descriptor_audio_t *ed1)
+{
+	const usb_endpoint_descriptor_audio_t *ed;
+	uint8_t data_dir = UE_GET_DIR(ed1->bEndpointAddress);
+
+	while ((desc = usb_desc_foreach(cd, desc)) != NULL) {
+		if (desc->bDescriptorType == UDESC_INTERFACE)
+			break;
+		if (desc->bDescriptorType != UDESC_ENDPOINT ||
+		    desc->bLength < UEP_MINSIZE)
+			continue;
+		ed = (const void *)desc;
+		if (UE_GET_XFERTYPE(ed->bmAttributes) != UE_ISOCHRONOUS)
+			continue;
+		if (UE_GET_DIR(ed->bEndpointAddress) == data_dir)
+			continue;
+		if (UE_GET_ISO_USAGE(ed->bmAttributes) != UE_ISO_USAGE_FEEDBACK)
+			continue;
+		return (ed->bEndpointAddress);
+	}
+	return (0);
+}
+
 static void
 uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
     uint32_t rate, uint8_t channels, uint8_t bit_resolution)
@@ -2175,6 +2214,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		chan_alt->p_sed = sed;
 		chan_alt->iface_index = curidx;
 		chan_alt->iface_alt_index = alt_index;
+		chan_alt->sync_ep = uaudio_chan_find_sync_ep(cd, desc, ed1);
 
 		if (ep_dir == UE_DIR_IN)
 			chan_alt->usb_cfg = uaudio_cfg_record;
@@ -2413,10 +2453,19 @@ uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
 		    (int)temp, (int)sample_rate);
 
 		/*
-		 * Use feedback value as fallback when there is no
-		 * recording channel:
+		 * Use the feedback value unless a recording stream is
+		 * really configured and streaming, in which case its
+		 * packet lengths are the jitter source -- this is the
+		 * exact complement of the condition guarding the jitter
+		 * translation in uaudio_chan_play_callback().  Testing
+		 * cur_alt rather than num_alt also covers the cases where
+		 * the recording stream exists but was never started (see
+		 * uaudio_chan_need_both()) or failed to configure;
+		 * playback previously free-ran with no rate feedback at
+		 * all in those cases.
 		 */
-		if (ch->priv_sc->sc_rec_chan[i].num_alt == 0) {
+		if (ch->priv_sc->sc_rec_chan[i].cur_alt >=
+		    ch->priv_sc->sc_rec_chan[i].num_alt) {
 			int32_t jitter_max = howmany(sample_rate, 16000);
 
 			/*
@@ -2457,6 +2506,12 @@ uaudio_chan_is_async(struct uaudio_chan *ch, uint8_t alt)
 {
 	uint8_t attr = ch->usb_alt[alt].p_ed1->bmAttributes;
 	return (UE_GET_ISO_TYPE(attr) == UE_ISO_ASYNC);
+}
+
+static int
+uaudio_chan_has_sync_ep(struct uaudio_chan *ch, uint8_t alt)
+{
+	return (alt < ch->num_alt && ch->usb_alt[alt].sync_ep != 0);
 }
 
 static void
@@ -2942,9 +2997,23 @@ uaudio_chan_reconfigure(struct uaudio_chan *ch, uint8_t operation)
 static int
 uaudio_chan_need_both(struct uaudio_chan *pchan, struct uaudio_chan *rchan)
 {
+	/*
+	 * Borrow the capture stream as a source of jitter information
+	 * only when the playback stream has no explicit feedback
+	 * endpoint of its own.  Starting it otherwise costs a second
+	 * isochronous stream, arms a second streaming interface right
+	 * after playback was armed, and -- on a device with a shared
+	 * sample clock -- brings a second clock programming pass with
+	 * it, all to recompute what the feedback endpoint already
+	 * reports.  Devices whose capture interface is vestigial (D/A
+	 * converters that advertise a UAC2 input terminal they cannot
+	 * source) pay all of that for nothing.
+	 */
 	return (pchan->num_alt > 0 &&
 	    pchan->running != 0 &&
 	    uaudio_chan_is_async(pchan, pchan->set_alt) != 0 &&
+	    !(uaudio_prefer_feedback != 0 &&
+	    uaudio_chan_has_sync_ep(pchan, pchan->set_alt) != 0) &&
 	    rchan->num_alt > 0 &&
 	    rchan->running == 0);
 }
