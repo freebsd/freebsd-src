@@ -128,6 +128,7 @@ struct tpm_sc {
 	void 		*intr_cookie;
 	int 		intr_type;	/* Current event type */
 	bool 		interrupts;
+	bool		common_initialized;
 
 	struct tpm_priv *internal_priv;
 

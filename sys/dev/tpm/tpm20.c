@@ -157,7 +157,7 @@ tpm20_priv_dtor(void *data)
 {
 	struct tpm_priv *priv = data;
 
-	free(priv->buf, M_TPM20);
+	free(priv, M_TPM20);
 }
 
 int
@@ -209,7 +209,7 @@ tpm20_init(struct tpm_sc *sc)
 	args.mda_si_drv1 = sc;
 	result = make_dev_s(&args, &sc->sc_cdev, TPM_CDEV_NAME);
 	if (result != 0)
-		tpm20_release(sc);
+		return (result);
 
 #if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 	random_source_register(&random_tpm);
@@ -217,6 +217,7 @@ tpm20_init(struct tpm_sc *sc)
 	    tpm20_harvest, sc);
 	taskqueue_enqueue_timeout(taskqueue_thread, &sc->harvest_task, 0);
 #endif
+	sc->common_initialized = true;
 
 	return (result);
 
@@ -226,16 +227,24 @@ void
 tpm20_release(struct tpm_sc *sc)
 {
 
+	if (!sc->common_initialized)
+		goto out;
 #if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 	if (device_is_attached(sc->dev))
 		taskqueue_drain_timeout(taskqueue_thread, &sc->harvest_task);
 	random_source_deregister(&random_tpm);
 #endif
-
-	tpm20_priv_dtor(sc->internal_priv);
+	sc->common_initialized = false;
+out:
+	if (sc->internal_priv != NULL) {
+		tpm20_priv_dtor(sc->internal_priv);
+		sc->internal_priv = NULL;
+	}
 	sx_destroy(&sc->dev_lock);
-	if (sc->sc_cdev != NULL)
+	if (sc->sc_cdev != NULL) {
 		destroy_dev(sc->sc_cdev);
+		sc->sc_cdev = NULL;
+	}
 }
 
 int
