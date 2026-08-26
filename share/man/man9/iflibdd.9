@@ -248,12 +248,20 @@ For example, it will reset the chip and enable the receiver unit.
 Iflib marks the interface running after the callback returns successfully;
 the driver must not modify the driver flags itself.
 If initialization cannot complete, the driver must leave the hardware stopped
-and call
+or in a state in which
+.Fn ifdi_stop
+can safely quiesce it, and call
 .Fn iflib_init_failed
 before returning.
+Iflib treats this report conservatively and invokes the driver stop method
+before retrying initialization or releasing queue mappings.
 .It Fn ifdi_stop
-Mandatory function that should disable all traffic on the interface by issuing
-a global reset on the MAC and deallocating the TX and RX buffers.
+Mandatory function that performs a terminal stop and disables all traffic on
+the interface.
+The driver must stop DMA before returning; iflib releases the TX and RX
+buffers after the callback.
+The method commonly issues a global reset and may also put the PHY or device
+into its administratively-down state.
 .It Fn ifdi_multi_set
 Programs the interfaces multicast addresses
 .It Fn ifdi_media_status
