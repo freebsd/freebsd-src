@@ -146,6 +146,9 @@ struct sock {
 	int state;
 	int fibnum;
 	int bblog_state;
+	int bblog_num;
+	int bblog_limit;
+	unsigned int bblog_sn;
 	const char *protoname;
 	char stack[TCP_FUNCTION_NAME_LEN_MAX];
 	char cc[TCP_CA_NAME_MAX];
@@ -750,6 +753,9 @@ gather_inet(int proto)
 		if (proto == IPPROTO_TCP) {
 			sock->state = xtp->t_state;
 			sock->bblog_state = xtp->t_logstate;
+			sock->bblog_num = xtp->t_lognum;
+			sock->bblog_limit = xtp->t_loglimit;
+			sock->bblog_sn = xtp->t_logsn;
 			memcpy(sock->stack, xtp->xt_stack,
 			    TCP_FUNCTION_NAME_LEN_MAX);
 			memcpy(sock->cc, xtp->xt_cc, TCP_CA_NAME_MAX);
@@ -1195,6 +1201,9 @@ struct col_widths {
 	int path_state;
 	int conn_state;
 	int bblog_state;
+	int bblog_num;
+	int bblog_limit;
+	int bblog_sn;
 	int stack;
 	int cc;
 };
@@ -1321,6 +1330,12 @@ calculate_sock_column_widths(struct col_widths *cw, struct sock *s)
 			if (opt_b && s->proto == IPPROTO_TCP) {
 				len = strlen(bblog_state(s->bblog_state));
 				cw->bblog_state = MAX(cw->bblog_state, len);
+				len = snprintf(NULL, 0, "%d", s->bblog_num);
+				cw->bblog_num = MAX(cw->bblog_num, len);
+				len = snprintf(NULL, 0, "%d", s->bblog_limit);
+				cw->bblog_limit = MAX(cw->bblog_limit, len);
+				len = snprintf(NULL, 0, "%u", s->bblog_sn);
+				cw->bblog_sn = MAX(cw->bblog_sn, len);
 			}
 			first = false;
 		}
@@ -1545,13 +1560,32 @@ display_sock(struct sock *s, struct col_widths *cw, char *buf, size_t bufsize)
 					    cw->conn_state, "??");
 			}
 			if (opt_b) {
-				if (s->proto == IPPROTO_TCP)
+				if (s->proto == IPPROTO_TCP) {
 					xo_emit(" {:bblog-state/%-*s}",
 					    cw->bblog_state,
 					    bblog_state(s->bblog_state));
-				else if (!is_xo_style_encoding)
+					snprintf(buf, bufsize, "%d",
+					    s->bblog_num);
+					xo_emit(" {:bblog-number/%*s}",
+					    cw->bblog_num, buf);
+					snprintf(buf, bufsize, "%d",
+					    s->bblog_limit);
+					xo_emit(" {:bblog-limit/%*s}",
+					    cw->bblog_limit, buf);
+					snprintf(buf, bufsize, "%u",
+					    s->bblog_sn);
+					xo_emit(" {:bblog-serial-number/%*s}",
+					    cw->bblog_sn, buf);
+				} else if (!is_xo_style_encoding) {
 					xo_emit(" {:bblog-state/%-*s}",
 					    cw->bblog_state, "??");
+					xo_emit(" {:bblog-number/%*s}",
+					    cw->bblog_num, "??");
+					xo_emit(" {:bblog-limit/%*s}",
+					    cw->bblog_limit, "??");
+					xo_emit(" {:bblog-serial-number/%*s}",
+					    cw->bblog_sn, "??");
+				}
 			}
 			if (opt_S) {
 				if (s->proto == IPPROTO_TCP)
@@ -1625,6 +1659,9 @@ display(void)
 			.path_state = strlen("PATH STATE"),
 			.conn_state = strlen("CONN STATE"),
 			.bblog_state = strlen("BBLOG STATE"),
+			.bblog_num = strlen("BBLOG NUM"),
+			.bblog_limit = strlen("BBLOG LIM"),
+			.bblog_sn = strlen("BBLOG SN"),
 			.stack = strlen("STACK"),
 			.cc = strlen("CC"),
 		};
@@ -1659,8 +1696,12 @@ display(void)
 				    "PATH STATE");
 			xo_emit(" {T:/%-*s}", cw.conn_state, "CONN STATE");
 		}
-		if (opt_b)
+		if (opt_b) {
 			xo_emit(" {T:/%-*s}", cw.bblog_state, "BBLOG STATE");
+			xo_emit(" {T:/%*s}", cw.bblog_num, "BBLOG NUM");
+			xo_emit(" {T:/%*s}", cw.bblog_limit, "BBLOG LIM");
+			xo_emit(" {T:/%*s}", cw.bblog_sn, "BBLOG SN");
+		}
 		if (opt_S)
 			xo_emit(" {T:/%-*s}", cw.stack, "STACK");
 		if (opt_C)
