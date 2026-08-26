@@ -79,7 +79,9 @@ static int tpmtis_detach(device_t dev);
 
 static void tpmtis_intr_handler(void *arg);
 
+static bool tpmtis_program_intr(struct tpm_sc *sc, bool enable);
 static void tpmtis_setup_intr(struct tpm_sc *sc);
+static int tpmtis_resume(device_t dev);
 
 static bool tpmtis_read_bytes(struct tpm_sc *sc, size_t count, uint8_t *buf);
 static bool tpmtis_write_bytes(struct tpm_sc *sc, size_t count, uint8_t *buf);
@@ -131,8 +133,7 @@ skip_irq:
 		tpmtis_detach(dev);
 		return (result);
 	}
-	if (sc->intr_cookie != NULL)
-		tpmtis_setup_intr(sc);
+	tpmtis_setup_intr(sc);
 
 	return (0);
 }
@@ -182,41 +183,96 @@ tpmtis_test_intr(struct tpm_sc *sc)
 	sx_xunlock(&sc->dev_lock);
 }
 
-static void
-tpmtis_setup_intr(struct tpm_sc *sc)
+static bool
+tpmtis_program_intr(struct tpm_sc *sc, bool enable)
 {
+	rman_res_t irq;
 	uint32_t reg;
-	uint8_t irq;
 
-	irq = bus_get_resource_start(sc->dev, SYS_RES_IRQ, sc->irq_rid);
+	sx_assert(&sc->dev_lock, SA_XLOCKED);
 
-	/*
-	 * SIRQ has to be between 1 - 15.
-	 * I found a system with ACPI table that reported a value of 0x2d.
-	 * An attempt to use such value resulted in an interrupt storm.
-	 */
-	if (irq == 0 || irq > 0xF)
-		return;
+	if (enable) {
+		irq = bus_get_resource_start(sc->dev, SYS_RES_IRQ,
+		    sc->irq_rid);
 
-	if(!tpmtis_request_locality(sc, 0))
-		sc->interrupts = false;
+		/*
+		 * SIRQ has to be between 1 - 15.  A system reporting 0x2d
+		 * produced an interrupt storm when that value was used.
+		 */
+		if (irq == 0 || irq > 0xF)
+			return (false);
+	}
 
-	TPM_WRITE_1(sc->dev, TPM_INT_VECTOR, irq);
+	if (!tpmtis_request_locality(sc, 0))
+		return (false);
+
+	/* Disable delivery before acknowledging or reconfiguring interrupts. */
+	reg = TPM_READ_4(sc->dev, TPM_INT_ENABLE);
+	reg &= ~TPM_INT_ENABLE_GLOBAL_ENABLE;
+	TPM_WRITE_4(sc->dev, TPM_INT_ENABLE, reg);
 
 	/* Clear all pending interrupts. */
 	reg = TPM_READ_4(sc->dev, TPM_INT_STS);
 	TPM_WRITE_4(sc->dev, TPM_INT_STS, reg);
 
-	reg = TPM_READ_4(sc->dev, TPM_INT_ENABLE);
-	reg |= TPM_INT_ENABLE_GLOBAL_ENABLE |
-	    TPM_INT_ENABLE_DATA_AVAIL |
-	    TPM_INT_ENABLE_LOC_CHANGE |
-	    TPM_INT_ENABLE_CMD_RDY |
-	    TPM_INT_ENABLE_STS_VALID;
-	TPM_WRITE_4(sc->dev, TPM_INT_ENABLE, reg);
+	if (enable) {
+		TPM_WRITE_1(sc->dev, TPM_INT_VECTOR, (uint8_t)irq);
+
+		if (sc->intr_mask == 0) {
+			reg = TPM_READ_4(sc->dev, TPM_INT_ENABLE);
+			reg |= TPM_INT_ENABLE_DATA_AVAIL |
+			    TPM_INT_ENABLE_LOC_CHANGE |
+			    TPM_INT_ENABLE_CMD_RDY |
+			    TPM_INT_ENABLE_STS_VALID;
+			reg &= ~TPM_INT_ENABLE_GLOBAL_ENABLE;
+			sc->intr_mask = reg;
+		}
+		TPM_WRITE_4(sc->dev, TPM_INT_ENABLE,
+		    sc->intr_mask | TPM_INT_ENABLE_GLOBAL_ENABLE);
+	}
 
 	tpmtis_relinquish_locality(sc);
+	return (true);
+}
+
+static void
+tpmtis_setup_intr(struct tpm_sc *sc)
+{
+	bool configured, enable;
+
+	sc->interrupts = false;
+	enable = sc->intr_cookie != NULL;
+	sx_xlock(&sc->dev_lock);
+	configured = tpmtis_program_intr(sc, enable);
+	sx_xunlock(&sc->dev_lock);
+	if (!configured || !enable)
+		return;
 	tpmtis_test_intr(sc);
+}
+
+static int
+tpmtis_resume(device_t dev)
+{
+	struct tpm_sc *sc;
+	bool restore_intr;
+
+	sc = device_get_softc(dev);
+	sx_xlock(&sc->dev_lock);
+	restore_intr = sc->interrupts;
+
+	/*
+	 * Interrupt routing and enable state may be lost across suspend.  Keep
+	 * the transport in polling mode until a restored interrupt is actually
+	 * observed by the handler.
+	 */
+	sc->interrupts = false;
+	if (!tpmtis_program_intr(sc, restore_intr))
+		device_printf(dev,
+		    "failed to %s interrupts; using polling\n",
+		    restore_intr ? "restore" : "disable");
+	sx_xunlock(&sc->dev_lock);
+
+	return (tpm20_resume(dev));
 }
 
 static void
@@ -501,7 +557,7 @@ static device_method_t tpmtis_methods[] = {
 	DEVMETHOD(device_detach,	tpmtis_detach),
 	DEVMETHOD(device_shutdown,	tpm20_shutdown),
 	DEVMETHOD(device_suspend,	tpm20_suspend),
-	DEVMETHOD(device_resume,	tpm20_resume),
+	DEVMETHOD(device_resume,	tpmtis_resume),
 	DEVMETHOD(tpm_transmit,		tpmtis_transmit),
 	DEVMETHOD_END
 };
