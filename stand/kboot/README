@@ -43,6 +43,8 @@ KBOOT_HTTP_TEST=yes builds loader.kboot as a standalone HTTP client:
 	loader.kboot --http-test-get URL
 	loader.kboot --http-test-get --progress URL
 
+For the HTTP/HTTPS pytest harness, see tests/README.md.
+
 General
 
 Add -g -G to have gdb stop and wait for the debugger. This is useful for
