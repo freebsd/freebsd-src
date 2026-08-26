@@ -341,6 +341,12 @@ static const struct nlattr_decoder nla_d_clear_states[] = {
 };
 NL_DECLARE_ATTR_DECODER(killclear_states_decoder, nla_d_clear_states);
 
+static const struct nlattr_decoder nla_d_ruleset[] = {
+	{ .type = PF_RS_PATH, .attr_name = "path", .cb = nlattr_decode_string },
+	{ .type = PF_RS_NR, .attr_name = "nr", .cb = nlattr_decode_uint32 },
+};
+NL_DECLARE_ATTR_DECODER(ruleset_decoder, nla_d_ruleset);
+
 static inline void
 nl_verify_decoders(const struct nlattr_decoder_set **decoder, size_t count)
 {
@@ -361,6 +367,7 @@ static const struct nlattr_decoder_set *all_decoders[] = {
 	&addr_decoder,
 	&rule_addr_decoder,
 	&killclear_states_decoder,
+	&ruleset_decoder,
 };
 
 static const struct pfnl_cmd_decoder cmd_decoder[] = {
@@ -369,6 +376,8 @@ static const struct pfnl_cmd_decoder cmd_decoder[] = {
 	{ .cmd_num = PFNL_CMD_GET_LIMIT, .ds = &set_limit_decoder },
 	{ .cmd_num = PFNL_CMD_GET_ADDRS, .ds = &addr_decoder },
 	{ .cmd_num = PFNL_CMD_GET_ADDR, .ds = &addr_decoder },
+	{ .cmd_num = PFNL_CMD_GET_RULESETS, .ds = &ruleset_decoder },
+	{ .cmd_num = PFNL_CMD_GET_RULESET, .ds = &ruleset_decoder },
 };
 
 static inline void
