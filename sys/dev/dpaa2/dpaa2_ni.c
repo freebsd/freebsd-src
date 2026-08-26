@@ -132,10 +132,10 @@ MALLOC_DEFINE(M_DPAA2_TXB, "dpaa2_txb", "DPAA2 DMA-mapped buffer (Tx)");
  * How many times channel cleanup routine will be repeated if the RX or TX
  * budget was depleted.
  */
-#define DPAA2_CLEAN_BUDGET	64 /* sysctl(9)? */
+#define DPAA2_CLEAN_BUDGET	128 /* sysctl(9)? */
 /* TX/RX budget for the channel cleanup task */
-#define DPAA2_TX_BUDGET		128 /* sysctl(9)? */
-#define DPAA2_RX_BUDGET		256 /* sysctl(9)? */
+#define DPAA2_TX_BUDGET		256 /* sysctl(9)? */
+#define DPAA2_RX_BUDGET		512 /* sysctl(9)? */
 
 #define DPNI_IRQ_INDEX		0 /* Index of the only DPNI IRQ. */
 #define DPNI_IRQ_LINK_CHANGED	1 /* Link state changed */
@@ -3165,6 +3165,7 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 	bus_addr_t paddr;
 	struct dpaa2_swa *swa;
 	struct dpaa2_buf *buf;
+	struct dpaa2_bufext_rx *bext;
 	struct dpaa2_channel *bch;
 	struct dpaa2_ni_softc *sc;
 	struct dpaa2_bp_softc *bpsc;
@@ -3182,7 +3183,8 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 
 	paddr = (bus_addr_t)fd->addr;
 	buf = swa->buf;
-	bch = (struct dpaa2_channel *)buf->opt;
+	bext = (struct dpaa2_bufext_rx *)buf->opt;
+	bch =  bext->ch;
 	sc = device_get_softc(bch->ni_dev);
 	update_csum_flags = true;
 
@@ -3230,8 +3232,8 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 		break;
 	}
 
-	mtx_assert(&bch->dma_mtx, MA_NOTOWNED);
-	mtx_lock(&bch->dma_mtx);
+	mtx_assert(&bext->dma_mtx, MA_NOTOWNED);
+	mtx_lock(&bext->dma_mtx);
 
 	bus_dmamap_sync(buf->dmat, buf->dmap, BUS_DMASYNC_POSTREAD);
 	bus_dmamap_unload(buf->dmat, buf->dmap);
@@ -3248,7 +3250,7 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 	buf->seg.ds_len = 0;
 	buf->nseg = 0;
 
-	mtx_unlock(&bch->dma_mtx);
+	mtx_unlock(&bext->dma_mtx);
 
 	m->m_flags |= M_PKTHDR;
 	m->m_data = buf_data;
@@ -3293,13 +3295,14 @@ dpaa2_ni_rx(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 
 		for (int i = 0; i < ch->recycled_n; i++) {
 			buf = ch->recycled[i];
-			bch = (struct dpaa2_channel *)buf->opt;
+			bext = (struct dpaa2_bufext_rx *)buf->opt;
+			bch = bext->ch;
 
-			mtx_assert(&bch->dma_mtx, MA_NOTOWNED);
-			mtx_lock(&bch->dma_mtx);
+			mtx_assert(&bext->dma_mtx, MA_NOTOWNED);
+			mtx_lock(&bext->dma_mtx);
 			error = dpaa2_buf_seed_rxb(sc->dev, buf,
-			    DPAA2_RX_BUF_SIZE, &bch->dma_mtx);
-			mtx_unlock(&bch->dma_mtx);
+			    DPAA2_RX_BUF_SIZE);
+			mtx_unlock(&bext->dma_mtx);
 
 			if (__predict_false(error != 0)) {
 				/* TODO: What else to do with the buffer? */
@@ -3338,6 +3341,7 @@ dpaa2_ni_rx_err(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 	bus_addr_t paddr;
 	struct dpaa2_swa *swa;
 	struct dpaa2_buf *buf;
+	struct dpaa2_bufext_rx *bext;
 	struct dpaa2_channel *bch;
 	struct dpaa2_ni_softc *sc;
 	device_t bpdev;
@@ -3351,7 +3355,8 @@ dpaa2_ni_rx_err(struct dpaa2_channel *ch, struct dpaa2_ni_fq *fq,
 
 	paddr = (bus_addr_t)fd->addr;
 	buf = swa->buf;
-	bch = (struct dpaa2_channel *)buf->opt;
+	bext = (struct dpaa2_bufext_rx *)buf->opt;
+	bch = bext->ch;
 	sc = device_get_softc(bch->ni_dev);
 
 	KASSERT(swa->magic == DPAA2_MAGIC, ("%s: wrong magic", __func__));

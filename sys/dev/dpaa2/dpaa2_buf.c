@@ -44,7 +44,10 @@
 #include "dpaa2_ni.h"
 #include "dpaa2_frame.h"
 
-MALLOC_DEFINE(M_DPAA2_RXB, "dpaa2_rxb", "DPAA2 DMA-mapped buffer (Rx)");
+MALLOC_DEFINE(M_DPAA2_RXB, "dpaa2_rxb",
+    "DPAA2 DMA-mapped buffer (Rx)");
+MALLOC_DEFINE(M_DPAA2_RXB_EXT, "dpaa2_rxb_ext",
+    "DPAA2 DMA-mapped buffer (Rx extension)");
 
 /**
  * @brief Allocate Rx buffers visible to QBMan and release them to the
@@ -52,23 +55,18 @@ MALLOC_DEFINE(M_DPAA2_RXB, "dpaa2_rxb", "DPAA2 DMA-mapped buffer (Rx)");
  */
 int
 dpaa2_buf_seed_pool(device_t dev, device_t bpdev, void *arg, uint32_t count,
-    int size, struct mtx *dma_mtx)
+    int size)
 {
 	struct dpaa2_ni_softc *sc = device_get_softc(dev);
 	struct dpaa2_bp_softc *bpsc = device_get_softc(bpdev);
 	struct dpaa2_channel *ch = (struct dpaa2_channel *)arg;
 	struct dpaa2_buf *buf;
+	struct dpaa2_bufext_rx *bext;
 	const int alloc = DPAA2_ATOMIC_READ(&sc->buf_num);
 	const uint16_t bpid = bpsc->attr.bpid;
+	bus_dma_tag_t dmat;
 	bus_addr_t paddr[DPAA2_SWP_BUFS_PER_CMD];
 	int error, bufn = 0;
-
-#if defined(INVARIANTS)
-	KASSERT(ch->rx_dmat != NULL, ("%s: no DMA tag?", __func__));
-	if (dma_mtx != NULL) {
-		mtx_assert(dma_mtx, MA_OWNED);
-	}
-#endif /* INVARIANTS */
 
 #ifdef _notyet_
 	/* Limit amount of buffers released to the pool */
@@ -93,12 +91,44 @@ dpaa2_buf_seed_pool(device_t dev, device_t bpdev, void *arg, uint32_t count,
 
 		buf = malloc(sizeof(struct dpaa2_buf), M_DPAA2_RXB, M_NOWAIT);
 		if (buf == NULL) {
-			device_printf(dev, "%s: malloc() failed\n", __func__);
+			device_printf(dev, "%s: Rx buf malloc() failed\n",
+			    __func__);
 			return (ENOMEM);
 		}
-		DPAA2_BUF_INIT_TAGOPT(buf, ch->rx_dmat, ch);
+		bext = malloc(sizeof(struct dpaa2_bufext_rx), M_DPAA2_RXB_EXT,
+		    M_NOWAIT);
+		if (bext == NULL) {
+			device_printf(dev, "%s: Rx bext malloc() failed\n",
+			    __func__);
+			return (ENOMEM);
+		}
+		bext->ch = ch;
+		mtx_init(&bext->dma_mtx, "dpaa2_buf_dma_mtx", NULL,
+		    MTX_DEF | MTX_NEW);
+		error = bus_dma_tag_create(
+		    bus_get_dma_tag(dev),	/* parent */
+		    sc->buf_align, 0,		/* alignment, boundary */
+		    BUS_SPACE_MAXADDR,		/* low restricted addr */
+		    BUS_SPACE_MAXADDR,		/* high restricted addr */
+		    NULL, NULL,			/* filter, filterarg */
+		    RX_SEG_MAXSZ,		/* maxsize */
+		    RX_SEG_N,			/* nsegments */
+		    RX_SEG_SZ,			/* maxsegsize */
+		    0,				/* flags */
+		    NULL,			/* lockfunc */
+		    NULL,			/* lockarg */
+		    &dmat);
+		if (error) {
+			device_printf(dev, "%s: failed to create Rx buf dmat\n",
+			    __func__);
+			return (error);
+		}
+		DPAA2_BUF_INIT_TAGOPT(buf, dmat, bext);
 
-		error = dpaa2_buf_seed_rxb(dev, buf, size, dma_mtx);
+		mtx_assert(&bext->dma_mtx, MA_NOTOWNED);
+		mtx_lock(&bext->dma_mtx);
+		error = dpaa2_buf_seed_rxb(dev, buf, size);
+		mtx_unlock(&bext->dma_mtx);
 		if (error != 0) {
 			device_printf(dev, "%s: dpaa2_buf_seed_rxb() failed: "
 			    "error=%d/n", __func__, error);
@@ -126,8 +156,7 @@ dpaa2_buf_seed_pool(device_t dev, device_t bpdev, void *arg, uint32_t count,
  * @brief Prepare Rx buffer to be released to the buffer pool.
  */
 int
-dpaa2_buf_seed_rxb(device_t dev, struct dpaa2_buf *buf, int size,
-    struct mtx *dma_mtx)
+dpaa2_buf_seed_rxb(device_t dev, struct dpaa2_buf *buf, int size)
 {
 	struct dpaa2_ni_softc *sc = device_get_softc(dev);
 	struct dpaa2_swa *swa;
@@ -137,9 +166,8 @@ dpaa2_buf_seed_rxb(device_t dev, struct dpaa2_buf *buf, int size,
 
 #if defined(INVARIANTS)
 	DPAA2_BUF_ASSERT_RXPREP(buf);
-	if (dma_mtx != NULL) {
-		mtx_assert(dma_mtx, MA_OWNED);
-	}
+	struct dpaa2_bufext_rx *bext = (struct dpaa2_bufext_rx *)buf->opt;
+	mtx_assert(&bext->dma_mtx, MA_OWNED);
 #endif /* INVARIANTS */	
 
 	if (__predict_false(buf->dmap == NULL)) {
