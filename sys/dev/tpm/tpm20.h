@@ -74,6 +74,8 @@
  */
 #define	TPM_TIMEOUT_LONG		40000000
 
+#define	TPM_CC_Shutdown			0x00000145
+
 /* List of commands that require TPM_TIMEOUT_LONG time to complete */
 #define	TPM_CC_CreatePrimary		0x00000131
 #define	TPM_CC_Create			0x00000153

@@ -31,6 +31,18 @@
 #include "tpm20.h"
 
 #define TPM_HARVEST_SIZE     16
+
+#define	TPM2_ST_NO_SESSIONS	0x8001
+#define	TPM2_RC_SUCCESS		0x0000
+#define	TPM2_RC_INITIALIZE	0x0100
+#define	TPM2_RC_TESTING		0x090a
+#define	TPM2_RC_RETRY		0x0922
+
+#define	TPM2_SU_CLEAR		0x0000
+#define	TPM2_SU_STATE		0x0001
+
+#define	TPM2_RETRY_INITIAL_MS	20
+#define	TPM2_RETRY_MAX_MS	(TPM_TIMEOUT_B / 1000)
 /*
  * Perform a harvest every 10 seconds.
  * Since discrete TPMs are painfully slow
@@ -44,6 +56,8 @@ MALLOC_DEFINE(M_TPM20, "tpm_buffer", "buffer for tpm 2.0 driver");
 #if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 static void tpm20_harvest(void *arg, int unused);
 #endif
+static int  tpm20_command(device_t, uint32_t, uint16_t, uint32_t,
+    const char *);
 static int  tpm20_restart(device_t dev, bool clear);
 static int  tpm20_save_state(device_t dev, bool suspend);
 
@@ -227,8 +241,11 @@ tpm20_release(struct tpm_sc *sc)
 int
 tpm20_resume(device_t dev)
 {
+	int error;
 
-	tpm20_restart(dev, false);
+	error = tpm20_restart(dev, false);
+	if (error != 0)
+		return (error);
 
 #if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 	struct tpm_sc *sc;
@@ -243,13 +260,21 @@ tpm20_resume(device_t dev)
 int
 tpm20_suspend(device_t dev)
 {
+	int error;
+
 #if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
 	struct tpm_sc *sc;
 
 	sc = device_get_softc(dev);
 	taskqueue_drain_timeout(taskqueue_thread, &sc->harvest_task);
 #endif
-	return (tpm20_save_state(dev, true));
+	error = tpm20_save_state(dev, true);
+#if defined TPM_HARVEST || defined RANDOM_ENABLE_TPM
+	if (error != 0)
+		taskqueue_enqueue_timeout(taskqueue_thread, &sc->harvest_task,
+		    hz * TPM_HARVEST_INTERVAL);
+#endif
+	return (error);
 }
 
 int
@@ -308,76 +333,91 @@ tpm20_harvest(void *arg, int unused)
 }
 #endif	/* TPM_HARVEST */
 
+/*
+ * Send a TPM 2.0 command whose successful response contains only a header.
+ */
+static int
+tpm20_command(device_t dev, uint32_t command, uint16_t parameter,
+    uint32_t alternate_rc, const char *name)
+{
+	struct tpm_priv *priv;
+	struct tpm_sc *sc;
+	uint32_t response_rc, response_size;
+	uint8_t cmd[12];
+	int delay_ms, error;
+
+	sc = device_get_softc(dev);
+	if (sc == NULL)
+		return (ENXIO);
+
+	be16enc(cmd, TPM2_ST_NO_SESSIONS);
+	be32enc(cmd + 2, sizeof(cmd));
+	be32enc(cmd + 6, command);
+	be16enc(cmd + 10, parameter);
+
+	sx_xlock(&sc->dev_lock);
+	priv = sc->internal_priv;
+	delay_ms = TPM2_RETRY_INITIAL_MS;
+	for (;;) {
+		memcpy(priv->buf, cmd, sizeof(cmd));
+		error = TPM_TRANSMIT(sc->dev, priv, sizeof(cmd));
+		if (error != 0)
+			break;
+		if (priv->len < TPM_HEADER_SIZE) {
+			error = EPROTO;
+			break;
+		}
+
+		response_size = be32dec(priv->buf + 2);
+		response_rc = be32dec(priv->buf + 6);
+		if (be16dec(priv->buf) != TPM2_ST_NO_SESSIONS ||
+		    response_size != TPM_HEADER_SIZE ||
+		    priv->len != response_size) {
+			error = EPROTO;
+			break;
+		}
+		if (response_rc != TPM2_RC_RETRY &&
+		    response_rc != TPM2_RC_TESTING)
+			break;
+		if (delay_ms > TPM2_RETRY_MAX_MS)
+			break;
+		sx_xunlock(&sc->dev_lock);
+		pause("tpm2retry", MAX(hz * delay_ms / 1000, 1));
+		sx_xlock(&sc->dev_lock);
+		delay_ms *= 2;
+	}
+	sx_xunlock(&sc->dev_lock);
+
+	if (error != 0) {
+		device_printf(dev, "%s command failed: %d\n", name, error);
+		return (error);
+	}
+	if (response_rc != TPM2_RC_SUCCESS && response_rc != alternate_rc) {
+		device_printf(dev, "%s failed: TPM error 0x%x\n", name,
+		    response_rc);
+		return (EIO);
+	}
+	return (0);
+}
+
 static int
 tpm20_restart(device_t dev, bool clear)
 {
-	struct tpm_sc *sc;
-	struct tpm_priv *priv;
-	uint8_t startup_cmd[] = {
-		0x80, 0x01,             /* TPM_ST_NO_SESSIONS tag*/
-		0x00, 0x00, 0x00, 0x0C, /* cmd length */
-		0x00, 0x00, 0x01, 0x44, /* cmd TPM_CC_Startup */
-		0x00, 0x01              /* TPM_SU_STATE */
-	};
+	uint16_t startup_type;
 
-	sc = device_get_softc(dev);
-
-	/*
-	 * Inform the TPM whether we are resetting or resuming.
-	 */
-	if (clear)
-		startup_cmd[11] = 0; /* TPM_SU_CLEAR */
-
-	if (sc == NULL)
-		return (0);
-
-	sx_xlock(&sc->dev_lock);
-
-	priv = sc->internal_priv;
-	memcpy(priv->buf, startup_cmd, sizeof(startup_cmd));
-
-	/* XXX Ignoring both TPM_TRANSMIT return and tpm's response */
-	TPM_TRANSMIT(sc->dev, priv, sizeof(startup_cmd));
-
-	sx_xunlock(&sc->dev_lock);
-
-	return (0);
+	startup_type = clear ? TPM2_SU_CLEAR : TPM2_SU_STATE;
+	return (tpm20_command(dev, TPM_CC_Startup, startup_type,
+	    TPM2_RC_INITIALIZE, "Startup"));
 }
 
 static int
 tpm20_save_state(device_t dev, bool suspend)
 {
-	struct tpm_sc *sc;
-	struct tpm_priv *priv;
-	uint8_t save_cmd[] = {
-		0x80, 0x01,             /* TPM_ST_NO_SESSIONS tag*/
-		0x00, 0x00, 0x00, 0x0C, /* cmd length */
-		0x00, 0x00, 0x01, 0x45, /* cmd TPM_CC_Shutdown */
-		0x00, 0x00              /* TPM_SU_STATE */
-	};
+	uint16_t shutdown_type;
 
-	sc = device_get_softc(dev);
-
-	/*
-	 * Inform the TPM whether we are going to suspend or reboot/shutdown.
-	 */
-	if (suspend)
-		save_cmd[11] = 1; /* TPM_SU_STATE */
-
-	if (sc == NULL)
-		return (0);
-
-	sx_xlock(&sc->dev_lock);
-
-	priv = sc->internal_priv;
-	memcpy(priv->buf, save_cmd, sizeof(save_cmd));
-
-	/* XXX Ignoring both TPM_TRANSMIT return and tpm's response */
-	TPM_TRANSMIT(sc->dev, priv, sizeof(save_cmd));
-
-	sx_xunlock(&sc->dev_lock);
-
-	return (0);
+	shutdown_type = suspend ? TPM2_SU_STATE : TPM2_SU_CLEAR;
+	return (tpm20_command(dev, TPM_CC_Shutdown, shutdown_type,
+	    TPM2_RC_SUCCESS, "Shutdown"));
 }
 
 int32_t
