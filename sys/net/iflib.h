@@ -411,6 +411,13 @@ typedef enum {
  */
 #define IFLIB_FEATURE_SUB_INTERFACES	1500014
 
+/* Power transitions for ifdi_power_prepare(). */
+enum iflib_power_event {
+	IFLIB_POWER_DETACH,
+	IFLIB_POWER_SUSPEND,
+	IFLIB_POWER_SHUTDOWN,
+};
+
 /*
  * These enum values are used in iflib_needs_restart to indicate to iflib
  * functions whether or not the interface needs restarting when certain events

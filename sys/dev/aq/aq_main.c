@@ -565,12 +565,9 @@ aq_if_suspend(if_ctx_t ctx)
 
 	AQ_DBG_ENTER();
 
-	aq_if_stop(ctx);
 	if (aq_hw_deinit(&softc->hw) != 0)
 		device_printf(softc->dev,
 		    "could not shut the hardware down for suspend\n");
-	/* iflib_device_suspend() does not stop the interface for us. */
-	if_setdrvflagbits(iflib_get_ifp(ctx), IFF_DRV_OACTIVE, IFF_DRV_RUNNING);
 
 	AQ_DBG_EXIT(0);
 	return (0);

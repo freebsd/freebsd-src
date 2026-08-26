@@ -62,6 +62,13 @@ CODE {
 	}
 
 	static int
+	null_power_prepare(if_ctx_t _ctx __unused,
+	    enum iflib_power_event _event __unused)
+	{
+		return (0);
+	}
+
+	static int
 	null_queue_intr_enable(if_ctx_t _ctx __unused, uint16_t _qid __unused)
 	{
 		return (ENOTSUP);
@@ -162,6 +169,16 @@ METHOD int reinit_post {
 METHOD int detach {
 	if_ctx_t _ctx;
 };
+
+#
+# Prepare driver policy which must be established before a terminal stop used
+# for detach, suspend, or shutdown.  This method must not start, stop, or alter
+# queue DMA.  The ordinary lifecycle callback runs after the stop.
+#
+METHOD int power_prepare {
+	if_ctx_t _ctx;
+	enum iflib_power_event _event;
+} DEFAULT null_power_prepare;
 
 METHOD int suspend {
 	if_ctx_t _ctx;

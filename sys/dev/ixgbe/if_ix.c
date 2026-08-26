@@ -181,6 +181,7 @@ static void *ixgbe_register(device_t);
 static int  ixgbe_if_attach_pre(if_ctx_t);
 static int  ixgbe_if_attach_post(if_ctx_t);
 static int  ixgbe_if_detach(if_ctx_t);
+static int  ixgbe_if_power_prepare(if_ctx_t, enum iflib_power_event);
 static int  ixgbe_if_shutdown(if_ctx_t);
 static int  ixgbe_if_suspend(if_ctx_t);
 static int  ixgbe_if_resume(if_ctx_t);
@@ -227,7 +228,7 @@ static void ixgbe_enable_queue(struct ixgbe_softc *, u32);
 static void ixgbe_disable_queue(struct ixgbe_softc *, u32);
 static void ixgbe_add_device_sysctls(if_ctx_t);
 static int  ixgbe_allocate_pci_resources(if_ctx_t);
-static int  ixgbe_setup_low_power_mode(if_ctx_t, bool);
+static int  ixgbe_setup_low_power_mode(if_ctx_t);
 
 static void ixgbe_config_dmac(struct ixgbe_softc *);
 static void ixgbe_configure_ivars(struct ixgbe_softc *);
@@ -362,6 +363,7 @@ static device_method_t ixgbe_if_methods[] = {
 	DEVMETHOD(ifdi_attach_pre, ixgbe_if_attach_pre),
 	DEVMETHOD(ifdi_attach_post, ixgbe_if_attach_post),
 	DEVMETHOD(ifdi_detach, ixgbe_if_detach),
+	DEVMETHOD(ifdi_power_prepare, ixgbe_if_power_prepare),
 	DEVMETHOD(ifdi_shutdown, ixgbe_if_shutdown),
 	DEVMETHOD(ifdi_suspend, ixgbe_if_suspend),
 	DEVMETHOD(ifdi_resume, ixgbe_if_resume),
@@ -3915,7 +3917,7 @@ ixgbe_if_detach(if_ctx_t ctx)
 
 	sc->iov_recovery_stop = true;
 
-	ixgbe_setup_low_power_mode(ctx, false);
+	ixgbe_setup_low_power_mode(ctx);
 
 	/* let hardware know driver is unloading */
 	ctrl_ext = IXGBE_READ_REG(&sc->hw, IXGBE_CTRL_EXT);
@@ -3994,12 +3996,26 @@ ixgbe_configure_wakeup_mta(if_ctx_t ctx)
 }
 
 /************************************************************************
- * ixgbe_setup_low_power_mode - LPLU/WoL preparation
+ * ixgbe_if_power_prepare - Establish policy required before a terminal stop
  *
- *   Prepare the adapter/port for LPLU and/or WoL
+ *   Snapshot the requested wake filters before iflib stops the interface.
+ *   X550EM 10GBASE-T must also suppress its PHY reset during that stop.
  ************************************************************************/
 static int
-ixgbe_setup_low_power_mode(if_ctx_t ctx, bool arm_wake)
+ixgbe_if_power_prepare(if_ctx_t ctx, enum iflib_power_event event)
+{
+
+	ixgbe_prepare_wakeup(ctx, event != IFLIB_POWER_DETACH);
+	return (0);
+}
+
+/************************************************************************
+ * ixgbe_setup_low_power_mode - LPLU/WoL preparation
+ *
+ *   Prepare the adapter/port for LPLU and/or WoL after a terminal stop
+ ************************************************************************/
+static int
+ixgbe_setup_low_power_mode(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
@@ -4007,10 +4023,7 @@ ixgbe_setup_low_power_mode(if_ctx_t ctx, bool arm_wake)
 	u32 fctrl, grc, wufc;
 	s32 error = 0;
 
-	/* Snapshot wake policy before the terminal stop clears hardware state. */
-	ixgbe_prepare_wakeup(ctx, arm_wake);
 	wufc = sc->wol_filters;
-	ixgbe_if_stop(ctx);
 
 	/* Limit power management flow to X550EM baseT */
 	if (hw->device_id == IXGBE_DEV_ID_X550EM_X_10G_T &&
@@ -4086,7 +4099,7 @@ ixgbe_if_shutdown(if_ctx_t ctx)
 
 	INIT_DEBUGOUT("ixgbe_shutdown: begin");
 
-	error = ixgbe_setup_low_power_mode(ctx, true);
+	error = ixgbe_setup_low_power_mode(ctx);
 	if (error != 0)
 		device_printf(iflib_get_dev(ctx),
 		    "Wake configuration failed during shutdown: %d\n", error);
@@ -4105,7 +4118,7 @@ ixgbe_if_suspend(if_ctx_t ctx)
 
 	INIT_DEBUGOUT("ixgbe_suspend: begin");
 
-	error = ixgbe_setup_low_power_mode(ctx, true);
+	error = ixgbe_setup_low_power_mode(ctx);
 
 	return (error);
 } /* ixgbe_if_suspend */
@@ -4120,7 +4133,6 @@ ixgbe_if_resume(if_ctx_t ctx)
 {
 	struct ixgbe_softc *sc = iflib_get_softc(ctx);
 	device_t dev = iflib_get_dev(ctx);
-	if_t ifp = iflib_get_ifp(ctx);
 	struct ixgbe_hw *hw = &sc->hw;
 	u32 wus;
 
@@ -4142,13 +4154,6 @@ ixgbe_if_resume(if_ctx_t ctx)
 	pci_clear_pme(dev);
 	hw->wol_enabled = false;
 	sc->wol_filters = 0;
-
-	/*
-	 * Required after D3->D0 transition;
-	 * will re-advertise all previous advertised speeds
-	 */
-	if (if_getflags(ifp) & IFF_UP)
-		ixgbe_if_init(ctx);
 
 	return (0);
 } /* ixgbe_if_resume */
