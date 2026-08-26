@@ -733,7 +733,7 @@ struct cpu_search {
 
 struct cpu_search_res {
 	int	csr_cpu;	/* The best CPU found. */
-	int	csr_load;	/* The load of cs_cpu. */
+	int	csr_load;	/* The load of csr_cpu. */
 };
 
 /*
