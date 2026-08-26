@@ -35,10 +35,14 @@
 
 struct Struct_Obj_Entry;
 
-#define	MD_OBJ_ENTRY
+#define	MD_OBJ_ENTRY			\
+	STAILQ_HEAD(, tlsdesc_dynarg) tlsdesc_dynargs;
 
-#define	MD_OBJ_ENTRY_INIT(obj)
-#define	MD_OBJ_ENTRY_FINI(obj)
+#define	MD_OBJ_ENTRY_INIT(obj)	md_obj_entry_init(obj)
+#define	MD_OBJ_ENTRY_FINI(obj)	md_obj_entry_fini(obj)
+
+void md_obj_entry_init(struct Struct_Obj_Entry *obj);
+void md_obj_entry_fini(struct Struct_Obj_Entry *obj);
 
 /* Return the address of the .dynamic section in the dynamic linker. */
 Elf_Dyn *rtld_dynamic_addr(void);
@@ -80,9 +84,35 @@ typedef struct {
 
 void *__tls_get_addr(tls_index *ti) __exported;
 
+#define	__NONE_ABI	/* Cannot be expressed in C */
+
+struct tlsdesc_dynarg
+{
+	tls_index tlsinfo;
+	STAILQ_ENTRY(tlsdesc_dynarg) link;
+};
+
+struct tlsdesc
+{
+	ptrdiff_t (*entry)(struct tlsdesc *) __NONE_ABI;
+	union {
+		Elf_Ssize addend;
+		Elf_Size offset;
+		struct tlsdesc_dynarg *arg;
+	};
+};
+
 #define md_abi_variant_hook(x)
 
 size_t calculate_first_tls_offset(size_t size, size_t align, size_t offset);
 size_t calculate_tls_offset(size_t prev_offset, size_t prev_size, size_t size,
     size_t align, size_t offset);
+
+ptrdiff_t rtld_tlsdesc_dynamic_impl(struct tlsdesc_dynarg *tda,
+    struct tcb *tcb);
+
+ptrdiff_t rtld_tlsdesc_static(struct tlsdesc *) __NONE_ABI;
+ptrdiff_t rtld_tlsdesc_undef(struct tlsdesc *) __NONE_ABI;
+ptrdiff_t rtld_tlsdesc_dynamic(struct tlsdesc *) __NONE_ABI;
+
 #endif
