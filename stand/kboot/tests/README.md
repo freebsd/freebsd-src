@@ -1,10 +1,16 @@
 # kboot HTTP tests
 
-Local harness infrastructure for kboot HTTP/HTTPS support.  It builds a
-`KBOOT_HTTP_TEST=yes` loader.kboot in an isolated object directory.
+Local pytest harness for kboot HTTP/HTTPS support.  It builds a
+`KBOOT_HTTP_TEST=yes` loader.kboot and runs it on FreeBSD with linuxulator.
 
-To build the test loader:
+Before running the suite, enable linuxulator:
 
 ```sh
-make build
+service linux onestart
+```
+
+To build the test loader and run the tests:
+
+```sh
+make test
 ```
