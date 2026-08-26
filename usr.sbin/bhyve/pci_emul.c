@@ -799,8 +799,22 @@ void
 pci_emul_alloc_bar(struct pci_devinst *pdi, int idx, enum pcibar_type type,
     uint64_t size)
 {
-	assert((type == PCIBAR_ROM) || (idx >= 0 && idx <= PCI_BARMAX));
-	assert((type != PCIBAR_ROM) || (idx == PCI_ROM_IDX));
+	uint64_t lobits;
+
+	switch (type) {
+	case PCIBAR_ROM:
+		assert(idx == PCI_ROM_IDX);
+		break;
+	case PCIBAR_IO:
+	case PCIBAR_MEM32:
+		assert(idx >= 0 && idx <= PCI_BARMAX);
+		break;
+	case PCIBAR_MEM64:
+		assert(idx >= 0 && idx + 1 <= PCI_BARMAX);
+		break;
+	default:
+		assert(false);
+	}
 
 	if ((size & (size - 1)) != 0)
 		size = 1UL << flsl(size);	/* round up to a power of 2 */
@@ -816,6 +830,41 @@ pci_emul_alloc_bar(struct pci_devinst *pdi, int idx, enum pcibar_type type,
 		if (size < 16)
 			size = 16;
 	}
+
+	switch (type) {
+	case PCIBAR_IO:
+		lobits = PCIM_BAR_IO_SPACE;
+		break;
+	case PCIBAR_MEM64:
+		lobits = PCIM_BAR_MEM_SPACE | PCIM_BAR_MEM_64;
+		break;
+	case PCIBAR_MEM32:
+		lobits = PCIM_BAR_MEM_SPACE | PCIM_BAR_MEM_32;
+		break;
+	case PCIBAR_ROM:
+		lobits = 0;
+		break;
+	default:
+		__assert_unreachable();
+	}
+
+	/* Initialize the BAR with an address of 0. */
+	pdi->pi_bar[idx].type = type;
+	pdi->pi_bar[idx].size = size;
+	pdi->pi_bar[idx].addr = 0;
+	pdi->pi_bar[idx].lobits = lobits;
+	pci_set_cfgdata32(pdi, PCIR_BAR(idx), lobits);
+	if (type == PCIBAR_MEM64) {
+		pdi->pi_bar[idx + 1].type = PCIBAR_MEMHI64;
+		pci_set_cfgdata32(pdi, PCIR_BAR(idx + 1), 0);
+	}
+
+	/*
+	 * Don't enable or assign an address range for ROM BARs.  They
+	 * are not used in the non-boot ROM case.
+	 */
+	if (type == PCIBAR_ROM)
+		return;
 
 	/*
 	 * To reduce fragmentation of the MMIO space, we allocate the BARs by
@@ -893,87 +942,49 @@ pci_emul_assign_bar(struct pci_devinst *const pdi, const int idx,
     const enum pcibar_type type, const uint64_t size)
 {
 	int error;
-	uint64_t *baseptr, limit, addr, mask, lobits, bar;
+	uint64_t *baseptr, limit, addr, mask, bar;
 
 	switch (type) {
-	case PCIBAR_NONE:
-		baseptr = NULL;
-		addr = mask = lobits = 0;
-		break;
 	case PCIBAR_IO:
 		baseptr = &pci_emul_iobase;
 		limit = PCI_EMUL_IOLIMIT;
 		mask = PCIM_BAR_IO_BASE;
-		lobits = PCIM_BAR_IO_SPACE;
 		break;
 	case PCIBAR_MEM64:
 		/*
 		 * XXX
 		 * Some drivers do not work well if the 64-bit BAR is allocated
 		 * above 4GB. Allow for this by allocating small requests under
-		 * 4GB unless then allocation size is larger than some arbitrary
+		 * 4GB unless the allocation size is larger than some arbitrary
 		 * number (128MB currently).
 		 */
 		if (size > 128 * 1024 * 1024) {
 			baseptr = &pci_emul_membase64;
 			limit = pci_emul_memlim64;
 			mask = PCIM_BAR_MEM_BASE;
-			lobits = PCIM_BAR_MEM_SPACE | PCIM_BAR_MEM_64;
-		} else {
-			baseptr = &pci_emul_membase32;
-			limit = PCI_EMUL_MEMLIMIT32;
-			mask = PCIM_BAR_MEM_BASE;
-			lobits = PCIM_BAR_MEM_SPACE | PCIM_BAR_MEM_64;
+			break;
 		}
-		break;
+		/* FALLTHROUGH */
 	case PCIBAR_MEM32:
 		baseptr = &pci_emul_membase32;
 		limit = PCI_EMUL_MEMLIMIT32;
 		mask = PCIM_BAR_MEM_BASE;
-		lobits = PCIM_BAR_MEM_SPACE | PCIM_BAR_MEM_32;
-		break;
-	case PCIBAR_ROM:
-		/* do not claim memory for ROM. OVMF will do it for us. */
-		baseptr = NULL;
-		limit = 0;
-		mask = PCIM_BIOS_ADDR_MASK;
-		lobits = 0;
 		break;
 	default:
-		printf("pci_emul_alloc_base: invalid bar type %d\n", type);
-		assert(0);
+		__assert_unreachable();
 	}
 
-	if (baseptr != NULL) {
-		error = pci_emul_alloc_resource(baseptr, limit, size, &addr);
-		if (error != 0)
-			return (error);
-	} else {
-		addr = 0;
-	}
+	error = pci_emul_alloc_resource(baseptr, limit, size, &addr);
+	if (error != 0)
+		return (error);
 
-	pdi->pi_bar[idx].type = type;
+	/* Update the BAR address */
 	pdi->pi_bar[idx].addr = addr;
-	pdi->pi_bar[idx].size = size;
-	/*
-	 * passthru devices are using same lobits as physical device they set
-	 * this property
-	 */
-	if (pdi->pi_bar[idx].lobits != 0) {
-		lobits = pdi->pi_bar[idx].lobits;
-	} else {
-		pdi->pi_bar[idx].lobits = lobits;
-	}
 
-	/* Initialize the BAR register in config space */
-	bar = (addr & mask) | lobits;
+	bar = (addr & mask) | pdi->pi_bar[idx].lobits;
 	pci_set_cfgdata32(pdi, PCIR_BAR(idx), bar);
-
-	if (type == PCIBAR_MEM64) {
-		assert(idx + 1 <= PCI_BARMAX);
-		pdi->pi_bar[idx + 1].type = PCIBAR_MEMHI64;
+	if (type == PCIBAR_MEM64)
 		pci_set_cfgdata32(pdi, PCIR_BAR(idx + 1), bar >> 32);
-	}
 
 	switch (type) {
 	case PCIBAR_IO:
@@ -982,12 +993,11 @@ pci_emul_assign_bar(struct pci_devinst *const pdi, const int idx,
 		break;
 	case PCIBAR_MEM32:
 	case PCIBAR_MEM64:
-	case PCIBAR_MEMHI64:
 		if (memen(pdi))
 			register_bar(pdi, idx);
 		break;
 	default:
-		break;
+		__assert_unreachable();
 	}
 
 	return (0);
