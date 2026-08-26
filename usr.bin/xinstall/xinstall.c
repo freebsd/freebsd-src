@@ -409,7 +409,7 @@ main(int argc, char *argv[])
 		usage();
 	}
 
-	if (!no_target && linkmode == 0) {
+	if (!no_target && linkmode == 0 && strcmp(*argv, "-") != 0) {
 		if (stat(*argv, &from_sb))
 			err(EX_OSERR, "%s", *argv);
 		if (!S_ISREG(to_sb.st_mode))
@@ -882,7 +882,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 		if ((to_fd = open(to_name, O_RDONLY)) < 0)
 			err(EX_OSERR, "%s", to_name);
 		if (devnull)
-			files_match = to_sb.st_size == 0;
+			files_match = (to_sb.st_size == 0);
 		else if (ispipe)
 			files_match = false;
 		else {
@@ -972,7 +972,7 @@ install(const char *from_name, const char *to_name, u_long fset, u_int flags)
 	if (!files_match) {
 #if HAVE_STRUCT_STAT_ST_FLAGS
 		/* Try to turn off the immutable bits. */
-		if (to_sb.st_flags & NOCHANGEBITS)
+		if (exists && (to_sb.st_flags & NOCHANGEBITS))
 			(void)chflags(to_name, to_sb.st_flags & ~NOCHANGEBITS);
 #endif
 		if (exists && dobackup) {
