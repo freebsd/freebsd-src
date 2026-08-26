@@ -449,6 +449,8 @@ enic_attach_pre(if_ctx_t ctx)
 		dev_err(enic, "Device initialization failed, aborting\n");
 		goto err_out_dev_close;
 	}
+	/* Queue DMA has not been enabled; the first iflib stop may be skipped. */
+	softc->stopped = 1;
 	ENIC_UNLOCK(softc);
 
 	enic->port_mtu = vnic_dev_mtu(enic->vdev);
@@ -912,8 +914,8 @@ enic_err_intr(void *vsc)
 
 	softc = vsc;
 
-	enic_stop(softc->ctx);
-	enic_init(softc->ctx);
+	iflib_request_reset_if_up(softc->ctx);
+	iflib_admin_intr_deferred(softc->ctx);
 
 	return (FILTER_HANDLED);
 }
@@ -1091,14 +1093,12 @@ enic_mtu_set(if_ctx_t ctx, uint32_t mtu)
 	softc = iflib_get_softc(ctx);
 	enic = &softc->enic;
 
-	enic_stop(softc->ctx);
 	if (mtu > enic->port_mtu){
 		return (EINVAL);
 	}
 
 	enic->config.mtu = mtu;
 	scctx->isc_max_frame_size = mtu + ETHER_HDR_LEN + ETHER_CRC_LEN;
-	enic_init(softc->ctx);
 
 	return (0);
 }
