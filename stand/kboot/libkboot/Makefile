@@ -3,6 +3,16 @@
 LIB=	kboot
 WARNS?= 4
 
+CERT_DIR?=	${SRCTOP}/secure/caroot/trusted
+TRUST_ANCHORS=	trust_anchors.inc
+BRSSL_TA?=	brssl_ta
+
+${TRUST_ANCHORS}: ${CERT_DIR}/*.pem
+	${BRSSL_TA} -q ${CERT_DIR}/*.pem > ${.TARGET}
+
+DPSRCS+=		${TRUST_ANCHORS}
+CLEANFILES+=		${TRUST_ANCHORS}
+
 .PATH:	${.CURDIR}/arch/${MACHINE_ARCH}
 CFLAGS+=-I${.CURDIR} -I${.CURDIR}/arch/${MACHINE_ARCH}
 CFLAGS+=-I${LDRSRC}
