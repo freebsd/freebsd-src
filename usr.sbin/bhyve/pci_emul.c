@@ -795,7 +795,7 @@ update_bar_address(struct pci_devinst *pi, uint64_t addr, int idx, int type)
 		register_bar(pi, idx);
 }
 
-int
+void
 pci_emul_alloc_bar(struct pci_devinst *pdi, int idx, enum pcibar_type type,
     uint64_t size)
 {
@@ -863,7 +863,7 @@ pci_emul_alloc_bar(struct pci_devinst *pdi, int idx, enum pcibar_type type,
 	 * ROM to handle this.
 	 */
 	if (!get_config_bool_default("pci.enable_bars", !bootrom_boot()))
-		return (0);
+		return;
 
 	/*
 	 * pci_passthru devices synchronize their physical and virtual command
@@ -886,8 +886,6 @@ pci_emul_alloc_bar(struct pci_devinst *pdi, int idx, enum pcibar_type type,
 
 	const uint16_t cmd = pci_get_cfgdata16(pdi, PCIR_COMMAND);
 	pci_set_cfgdata16(pdi, PCIR_COMMAND, cmd | enbit);
-
-	return (0);
 }
 
 static int
@@ -1027,10 +1025,7 @@ pci_emul_alloc_rom(struct pci_devinst *const pdi, const uint64_t size,
 	}
 
 	/* allocate ROM BAR */
-	const int error = pci_emul_alloc_bar(pdi, PCI_ROM_IDX, PCIBAR_ROM,
-	    rom_size);
-	if (error)
-		return error;
+	pci_emul_alloc_bar(pdi, PCI_ROM_IDX, PCIBAR_ROM, rom_size);
 
 	/* return address */
 	*addr = pci_emul_rombase + pci_emul_romoffset;
@@ -2620,14 +2615,9 @@ pci_emul_dinit(struct pci_devinst *pi, nvlist_t *nvl __unused)
 	error = pci_emul_add_msicap(pi, PCI_EMUL_MSI_MSGS);
 	assert(error == 0);
 
-	error = pci_emul_alloc_bar(pi, 0, PCIBAR_IO, DIOSZ);
-	assert(error == 0);
-
-	error = pci_emul_alloc_bar(pi, 1, PCIBAR_MEM32, DMEMSZ);
-	assert(error == 0);
-
-	error = pci_emul_alloc_bar(pi, 2, PCIBAR_MEM32, DMEMSZ);
-	assert(error == 0);
+	pci_emul_alloc_bar(pi, 0, PCIBAR_IO, DIOSZ);
+	pci_emul_alloc_bar(pi, 1, PCIBAR_MEM32, DMEMSZ);
+	pci_emul_alloc_bar(pi, 2, PCIBAR_MEM32, DMEMSZ);
 
 	return (0);
 }

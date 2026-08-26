@@ -627,7 +627,7 @@ init_msix_table(struct passthru_softc *sc)
 static int
 cfginitbar(struct passthru_softc *sc)
 {
-	int i, error;
+	int i;
 	struct pci_devinst *pi;
 	struct pci_bar_io bar;
 	enum pcibar_type bartype;
@@ -681,9 +681,7 @@ cfginitbar(struct passthru_softc *sc)
 		sc->psc_bar[i].lobits = 0;
 
 		/* Allocate the BAR in the guest I/O or MMIO space */
-		error = pci_emul_alloc_bar(pi, i, bartype, size);
-		if (error)
-			return (-1);
+		pci_emul_alloc_bar(pi, i, bartype, size);
 
 		/* Use same lobits as physical bar */
 		lobits = (uint8_t)passthru_read_config(&sc->psc_sel,
