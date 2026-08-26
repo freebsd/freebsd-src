@@ -200,6 +200,9 @@ linsysfs_fill_uevent_pci(PFS_FILL_ARGS)
 	return (0);
 }
 
+/* Linux DRM render nodes start at minor 128. */
+#define DRM_RENDER_MINOR_BASE 128
+
 /*
  * Filler function for drm uevent file
  */
@@ -214,6 +217,19 @@ linsysfs_fill_uevent_drm(PFS_FILL_ARGS)
 	sbuf_printf(sb,
 	    "MAJOR=226\nMINOR=%d\nDEVNAME=dri/card%d\nDEVTYPE=dri_minor\n",
 	    unit, unit);
+	return (0);
+}
+
+static int
+linsysfs_fill_uevent_drm_render(PFS_FILL_ARGS)
+{
+	device_t dev;
+	int unit;
+
+	dev = (device_t)pn->pn_data;
+	unit = device_get_unit(dev);
+	sbuf_printf(sb, "MAJOR=226\nMINOR=%d\nDEVNAME=dri/renderD%d\n",
+	    unit + DRM_RENDER_MINOR_BASE, unit + DRM_RENDER_MINOR_BASE);
 	return (0);
 }
 
@@ -259,7 +275,7 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi,
     struct pfs_node *chardev, struct pfs_node *drm, char *path, char *prefix)
 {
 	struct scsi_host_queue *scsi_host;
-	struct pfs_node *sub_dir, *cur_file;
+	struct pfs_node *sub_dir, *cur_file, *drm_dir, *drm_minor;
 	int i, nchildren, error;
 	device_t *children, parent;
 	devclass_t devclass;
@@ -378,7 +394,7 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi,
 		    device_get_unit(dev) >= 0) {
 			dinfo = device_get_ivars(parent);
 			if (dinfo != NULL && dinfo->cfg.baseclass == PCIC_DISPLAY) {
-				pfs_create_dir(dir, NULL, "drm", NULL, NULL,
+				pfs_create_dir(dir, &drm_dir, "drm", NULL, NULL,
 				    NULL, 0);
 				sprintf(devname, "226:%d",
 				    device_get_unit(dev));
@@ -400,6 +416,44 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi,
 				    &linsysfs_fill_vgapci, NULL, NULL, NULL,
 				    PFS_RD);
 				cur_file->pn_data = (void*)dir;
+
+				pfs_create_dir(drm_dir, &drm_minor, devname,
+				    NULL, NULL, NULL, 0);
+				pfs_create_file(drm_minor, &cur_file, "uevent",
+				    &linsysfs_fill_uevent_drm, NULL, NULL, NULL,
+				    PFS_RD);
+				cur_file->pn_data = (void *)dev;
+
+				sprintf(devname, "226:%d",
+				    device_get_unit(dev) +
+					DRM_RENDER_MINOR_BASE);
+				pfs_create_dir(chardev, &sub_dir, devname, NULL,
+				    NULL, NULL, 0);
+				pfs_create_link(sub_dir, &cur_file, "device",
+				    &linsysfs_fill_vgapci, NULL, NULL, NULL,
+				    PFS_RD);
+				cur_file->pn_data = (void *)dir;
+				pfs_create_file(sub_dir, &cur_file, "uevent",
+				    &linsysfs_fill_uevent_drm_render, NULL,
+				    NULL, NULL, PFS_RD);
+				cur_file->pn_data = (void *)dev;
+
+				sprintf(devname, "renderD%d",
+				    device_get_unit(dev) +
+					DRM_RENDER_MINOR_BASE);
+				pfs_create_dir(drm, &sub_dir, devname, NULL,
+				    NULL, NULL, 0);
+				pfs_create_link(sub_dir, &cur_file, "device",
+				    &linsysfs_fill_vgapci, NULL, NULL, NULL,
+				    PFS_RD);
+				cur_file->pn_data = (void *)dir;
+
+				pfs_create_dir(drm_dir, &drm_minor, devname,
+				    NULL, NULL, NULL, 0);
+				pfs_create_file(drm_minor, &cur_file, "uevent",
+				    &linsysfs_fill_uevent_drm_render, NULL,
+				    NULL, NULL, PFS_RD);
+				cur_file->pn_data = (void *)dev;
 			}
 		}
 	}
