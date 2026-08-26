@@ -80,7 +80,13 @@ static struct {
 	{ "nosparse",		0, UF_SPARSE	},
 	{ "nousparse",		0, UF_SPARSE	},
 	{ "nosystem",		0, UF_SYSTEM	},
+	/* Needed for some Linux cross-build that uses a stale stat.h. */
+#ifdef UF_NOCACHE
+	{ "nousystem",		0, UF_SYSTEM	},
+	{ "noucache",		1, UF_NOCACHE	}
+#else
 	{ "nousystem",		0, UF_SYSTEM	}
+#endif
 };
 #define nmappings	(sizeof(mapping) / sizeof(mapping[0]))
 

@@ -2042,7 +2042,7 @@ tmpfs_chflags(struct vnode *vp, u_long flags, struct ucred *cred,
 	if ((flags & ~(SF_APPEND | SF_ARCHIVED | SF_IMMUTABLE | SF_NOUNLINK |
 	    UF_APPEND | UF_ARCHIVE | UF_HIDDEN | UF_IMMUTABLE | UF_NODUMP |
 	    UF_NOUNLINK | UF_OFFLINE | UF_OPAQUE | UF_READONLY | UF_REPARSE |
-	    UF_SPARSE | UF_SYSTEM)) != 0)
+	    UF_SPARSE | UF_SYSTEM | UF_NOCACHE)) != 0)
 		return (EOPNOTSUPP);
 
 	/* Disallow this operation if the file system is mounted read-only. */

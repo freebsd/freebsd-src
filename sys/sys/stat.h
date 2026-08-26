@@ -327,6 +327,7 @@ struct nstat {
 #define	UF_REPARSE	0x00000400	/* Windows reparse point file bit */
 #define	UF_ARCHIVE	0x00000800	/* file needs to be archived */
 #define	UF_READONLY	0x00001000	/* Windows readonly file bit */
+#define	UF_NOCACHE	0x00002000	/* don't cache file data (NFSv4) */
 /* This is the same as the MacOS X definition of UF_HIDDEN. */
 #define	UF_HIDDEN	0x00008000	/* file is hidden */
 
