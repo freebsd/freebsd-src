@@ -137,6 +137,12 @@ SYSCTL_PROC(_hw_usb_uaudio, OID_AUTO, buffer_ms,
     uaudio_buffer_ms_sysctl, "I",
     "uaudio buffering delay in milliseconds, from 1 to 8");
 
+static int uaudio_clock_readback = 1;
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, clock_readback, CTLFLAG_RWTUN,
+    &uaudio_clock_readback, 0,
+    "read the UAC2 sample clock back with GET_CUR and skip a write that would "
+    "not change it; set to 0 for devices that misreport their rate");
+
 #ifdef USB_DEBUG
 static int uaudio_debug;
 
@@ -529,6 +535,8 @@ static void	uaudio20_mixer_find_inputs_sub(struct uaudio_terminal_node *,
 static const void *uaudio20_mixer_verify_desc(const void *, uint32_t);
 static usb_error_t uaudio20_set_speed(struct usb_device *, uint8_t,
 		    uint8_t, uint32_t);
+static usb_error_t uaudio20_get_speed(struct usb_device *, uint8_t,
+		    uint8_t, uint32_t *);
 
 /* USB audio v1.0 and v2.0 */
 
@@ -1482,6 +1490,7 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 		/* FALLTHROUGH */
 	} else if (sc->sc_audio_rev >= UAUDIO_VERSION_20) {
 		unsigned int x;
+		uint32_t cur_rate;
 	  
 		for (x = 0; x != 256; x++) {
 			if (dir == PCMDIR_PLAY) {
@@ -1498,29 +1507,54 @@ uaudio_configure_msg_sub(struct uaudio_softc *sc,
 
 			/*
 			 * Shared-clock guard.  If this clock entity is
-			 * shared between the playback and capture paths,
-			 * and the OTHER direction is already streaming at
-			 * a different rate, do not reprogram the clock --
-			 * the rate that is already locked wins.  This
-			 * stops an idle or secondary stream from yanking
-			 * the shared clock out from under an active
-			 * stream and dropping USB stream lock.  The first
-			 * active stream owns the clock; a later one
-			 * follows it (see uaudio_chan_start(), which
-			 * re-aligns the jitter-info record stream to the
-			 * playback rate before it is started).
+			 * shared between the playback and capture paths
+			 * and the OTHER direction is already streaming,
+			 * that direction owns the clock: leave it alone.
+			 *
+			 * Skipping the write is required even when the two
+			 * directions agree on the rate.  uaudio_chan_start()
+			 * auto-starts the capture stream of an asynchronous
+			 * playback device to harvest jitter information, and
+			 * uaudio_configure_msg() configures playback first,
+			 * so the capture pass issues its SET_CUR after the
+			 * playback alternate setting has already armed the
+			 * device and its isochronous transfers are running.
+			 * Several UAC2 implementations (Thesycon/XMOS
+			 * firmware among them) reload their sample-clock PLL
+			 * on every SET_CUR regardless of the value written,
+			 * and drop or silence the stream that is locking.
+			 * Linux's snd-usb-audio never issues the redundant
+			 * write: set_sample_rate_v2v3() reads the rate back
+			 * with GET_CUR first and returns early when it
+			 * already matches, and offers QUIRK_FLAG_ALWAYS_SET_RATE
+			 * for the few devices that misreport it.
 			 */
 			if (uaudio20_clock_is_shared(sc, x)) {
 				uint32_t other = (dir == PCMDIR_PLAY) ?
 				    uaudio_dir_running_rate(sc->sc_rec_chan) :
 				    uaudio_dir_running_rate(sc->sc_play_chan);
 
-				if (other != 0 &&
-				    other != chan_alt->sample_rate) {
-					DPRINTF("shared clock ID=%u busy at "
-					    "%u Hz; not reprogramming to "
-					    "%u Hz\n", x, other,
+				if (other != 0) {
+					DPRINTF("shared clock ID=%u owned by "
+					    "the other direction at %u Hz; "
+					    "not writing %u Hz\n", x, other,
 					    chan_alt->sample_rate);
+					continue;
+				}
+			}
+
+			/*
+			 * Read the clock back before writing it, for the
+			 * same reason, and because a completed SET_CUR only
+			 * proves the request was accepted -- not that the
+			 * device changed rate.
+			 */
+			if (uaudio_clock_readback != 0 &&
+			    uaudio20_get_speed(sc->sc_udev,
+			    sc->sc_mixer_iface_no, x, &cur_rate) == 0) {
+				if (cur_rate == chan_alt->sample_rate) {
+					DPRINTF("clock ID=%u already at "
+					    "%u Hz\n", x, cur_rate);
 					continue;
 				}
 			}
@@ -2969,15 +3003,32 @@ uaudio_chan_start(struct uaudio_chan *ch)
 			 */
 			if (uaudio_chan_match_rate(ch_rec,
 			    ch_play->usb_alt[ch_play->set_alt].sample_rate,
-			    &rec_alt))
+			    &rec_alt)) {
 				ch_rec->set_alt = rec_alt;
 
-			/*
-			 * Start both endpoints because of need for
-			 * jitter information:
-			 */
-			uaudio_chan_reconfigure(ch_rec, CHAN_OP_START);
-			uaudio_chan_reconfigure(ch_play, CHAN_OP_START);
+				/*
+				 * Start both endpoints because of need for
+				 * jitter information:
+				 */
+				uaudio_chan_reconfigure(ch_rec, CHAN_OP_START);
+				uaudio_chan_reconfigure(ch_play, CHAN_OP_START);
+			} else {
+				/*
+				 * No capture alternate setting matches the
+				 * playback rate.  Starting the capture
+				 * stream anyway would arm it at some other
+				 * rate, so that it either fights the
+				 * playback stream for a shared clock or
+				 * feeds the playback path jitter derived
+				 * from frame sizes that do not belong to
+				 * it.  Run playback on its own instead.
+				 */
+				DPRINTF("no capture alt matches %u Hz; "
+				    "starting playback alone\n",
+				    ch_play->usb_alt[ch_play->set_alt].
+				    sample_rate);
+				uaudio_chan_reconfigure(ch_play, CHAN_OP_START);
+			}
 		} else {
 			uaudio_chan_reconfigure(ch, CHAN_OP_START);
 		}
@@ -5432,6 +5483,30 @@ uaudio20_set_speed(struct usb_device *udev, uint8_t iface_no,
 	USETDW(data, speed);
 
 	return (usbd_do_request(udev, NULL, &req, data));
+}
+
+static usb_error_t
+uaudio20_get_speed(struct usb_device *udev, uint8_t iface_no,
+    uint8_t clockid, uint32_t *p_speed)
+{
+	struct usb_device_request req;
+	uint8_t data[4];
+	usb_error_t err;
+
+	req.bmRequestType = UT_READ_CLASS_INTERFACE;
+	req.bRequest = UA20_CS_CUR;
+	USETW2(req.wValue, UA20_CS_SAM_FREQ_CONTROL, 0);
+	USETW2(req.wIndex, clockid, iface_no);
+	USETW(req.wLength, 4);
+
+	err = usbd_do_request(udev, NULL, &req, data);
+	if (err == 0)
+		*p_speed = UGETDW(data);
+
+	DPRINTFN(6, "ifaceno=%d clockid=%d speed=%u err=%d\n",
+	    iface_no, clockid, err ? 0 : *p_speed, err);
+
+	return (err);
 }
 
 static int
