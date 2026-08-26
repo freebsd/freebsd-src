@@ -38,6 +38,9 @@ struct Struct_Obj_Entry;
 
 #define	MD_OBJ_ENTRY
 
+#define	MD_OBJ_ENTRY_INIT(obj)
+#define	MD_OBJ_ENTRY_FINI(obj)
+
 /* Return the address of the .dynamic section in the dynamic linker. */
 #define rtld_dynamic(obj) (&_DYNAMIC)
 
