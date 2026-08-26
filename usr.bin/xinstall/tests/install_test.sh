@@ -567,6 +567,11 @@ null_body() {
 	atf_check install /dev/null dst/file
 	atf_check test -f dst/file
 	atf_check test ! -s dst/file
+	# what if target already exists?
+	echo "The Magic Words are Squeamish Ossifrage" >dst/file
+	atf_check test -s dst/file
+	atf_check install /dev/null dst/file
+	atf_check test ! -s dst/file
 }
 
 atf_test_case stdin
@@ -575,16 +580,21 @@ stdin_head() {
 }
 stdin_body() {
 	atf_check mkdir dst
-	echo "The Magic Words are Squeamish Ossifrage" >file
-	atf_check -s exit:71 -e not-empty install - dst <file
+	echo "The Magic Words are Squeamish Ossifrage" >src
+	atf_check -s exit:71 -e not-empty install - dst <src
 	atf_check test ! -e dst/file
-	atf_check install - dst/file <file
-	atf_check cmp -s file dst/file
+	atf_check install - dst/file <src
+	atf_check cmp -s dst/file src
 	atf_check rm dst/file
-	atf_check -s exit:71 -e not-empty install /dev/stdin dst <file
+	atf_check -s exit:71 -e not-empty install /dev/stdin dst <src
 	atf_check test ! -e dst/file
-	atf_check install /dev/stdin dst/file <file
-	atf_check cmp -s file dst/file
+	atf_check install /dev/stdin dst/file <src
+	atf_check cmp -s dst/file src
+	# what if target already exists?
+	atf_check install - dst/file </dev/null
+	atf_check test ! -s dst/file
+	atf_check install /dev/stdin dst/file <src
+	atf_check cmp -s dst/file src
 }
 
 atf_init_test_cases() {
