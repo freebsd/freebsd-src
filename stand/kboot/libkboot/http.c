@@ -521,6 +521,7 @@ parse_url(const char *url, struct url *result)
 	}
 
 	host_end = path_start ? path_start : host_start + strlen(host_start);
+	/* IPv6 URL literals are not supported. */
 	port_start = memchr(host_start, ':', host_end - host_start);
 	hostname_end = port_start ? port_start : host_end;
 	host_len = hostname_end - host_start;

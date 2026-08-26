@@ -44,6 +44,7 @@ KBOOT_HTTP_TEST=yes builds loader.kboot as a standalone HTTP client:
 	loader.kboot --http-test-get --progress URL
 
 For the HTTP/HTTPS pytest harness, see tests/README.md.
+For the HTTP client interface and its current limitations, see HTTP.md.
 
 General
 
