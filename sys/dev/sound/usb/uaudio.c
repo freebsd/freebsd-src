@@ -4688,7 +4688,16 @@ uaudio_mixer_determine_class(const struct uaudio_terminal_node *iot)
 
 	switch (match) {
 	case 0:	/* not connected to USB */
-		if (terminal_type_output != 0) {
+		/*
+		 * Some devices have a hardware sidetone that will show up here
+		 * as connecting the microphone to the speaker.  If we look at
+		 * the output first, then we are more likely to get a PCM type
+		 * and accidentally tie it to playback when we really should
+		 * treat it as a monitor control.
+		 */
+		if (terminal_type_input != 0 && terminal_type_output != 0) {
+			return (SOUND_MIXER_MONITOR);
+		} else if (terminal_type_output != 0) {
 			return (uaudio_mixer_get_feature_by_tt(
 			    terminal_type_output, SOUND_MIXER_MONITOR));
 		} else {
@@ -4747,7 +4756,16 @@ uaudio20_mixer_determine_class(const struct uaudio_terminal_node *iot)
 
 	switch (match) {
 	case 0:	/* not connected to USB */
-		if (terminal_type_output != 0) {
+		/*
+		 * Some devices have a hardware sidetone that will show up here
+		 * as connecting the microphone to the speaker.  If we look at
+		 * the output first, then we are more likely to get a PCM type
+		 * and accidentally tie it to playback when we really should
+		 * treat it as a monitor control.
+		 */
+		if (terminal_type_input != 0 && terminal_type_output != 0) {
+			return (SOUND_MIXER_MONITOR);
+		} else if (terminal_type_output != 0) {
 			return (uaudio_mixer_get_feature_by_tt(
 			    terminal_type_output, SOUND_MIXER_MONITOR));
 		} else {
