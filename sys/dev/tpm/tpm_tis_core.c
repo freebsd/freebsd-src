@@ -120,17 +120,21 @@ tpmtis_attach(device_t dev)
 	result = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
 		    NULL, tpmtis_intr_handler, sc, &sc->intr_cookie);
 	if (result != 0) {
-		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, sc->irq_res);
+		if (bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid,
+		    sc->irq_res) == 0)
+			sc->irq_res = NULL;
 		goto skip_irq;
 	}
-	tpmtis_setup_intr(sc);
-
 skip_irq:
 	result = tpm20_init(sc);
-	if (result != 0)
+	if (result != 0) {
 		tpmtis_detach(dev);
+		return (result);
+	}
+	if (sc->intr_cookie != NULL)
+		tpmtis_setup_intr(sc);
 
-	return (result);
+	return (0);
 }
 
 static int
