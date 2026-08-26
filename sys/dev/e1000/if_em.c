@@ -1953,6 +1953,7 @@ em_if_init(if_ctx_t ctx)
 		(void)igbv_reset(ctx);
 		em_rebase_vf_stats(sc);
 	} else if (em_reset(ctx) != E1000_SUCCESS) {
+		em_fence_pci_busmaster(sc);
 		iflib_init_failed(ctx);
 		return;
 	}
@@ -1976,7 +1977,7 @@ em_if_init(if_ctx_t ctx)
 	 * Keep a fail-closed device fenced until reset and VF queue
 	 * sanitization have removed every stale DMA address.
 	 */
-	if (sc->vf_ifp && em_enable_pci_busmaster(sc) != 0) {
+	if (em_enable_pci_busmaster(sc) != 0) {
 		device_printf(sc->dev,
 		    "Unable to enable PCI bus mastering\n");
 		iflib_init_failed(ctx);
@@ -4141,6 +4142,7 @@ em_if_stop(if_ctx_t ctx)
 		if (!sc->vf_ifp && error != E1000_SUCCESS) {
 			device_printf(sc->dev, "Hardware reset failed while "
 			    "stopping: %d\n", error);
+			em_fence_pci_busmaster(sc);
 			return;
 		}
 	}
